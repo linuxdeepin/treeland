@@ -37,7 +37,10 @@ public:
     ~PrelaunchSplash() override;
 
 Q_SIGNALS:
-    void splashRequested(const QString &appId, QW_NAMESPACE::qw_buffer *iconBuffer);
+    void splashRequested(const QString &appId,
+                        const QString &instanceId,
+                        QW_NAMESPACE::qw_buffer *iconBuffer);
+    void splashCloseRequested(const QString &appId, const QString &instanceId);
 
 protected: // WServerInterface
     void create(WAYLIB_SERVER_NAMESPACE::WServer *server) override;
