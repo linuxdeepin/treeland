@@ -89,22 +89,28 @@ WOutputRenderWindow *WBufferItem::outputRenderWindow() const
     return qobject_cast<WOutputRenderWindow*>(window());
 }
 
-QW_NAMESPACE::qw_buffer *WBufferItem::buffer() const
+QObject *WBufferItem::buffer() const
 {
     W_DC(WBufferItem);
     return d->buffer.get();
 }
 
-void WBufferItem::setBuffer(QW_NAMESPACE::qw_buffer *buffer)
+void WBufferItem::setBuffer(QObject *buffer)
 {
     W_D(WBufferItem);
 
-    if (d->buffer.get() == buffer)
+    QW_NAMESPACE::qw_buffer *ibuffer = qobject_cast<QW_NAMESPACE::qw_buffer*>(buffer);
+    if (buffer != nullptr && ibuffer == nullptr) {
+        qCWarning(waylibBufferItem) << "Reject expects a qw_buffer; ignoring incompatible object" << buffer;
+        return;
+    }
+
+    if (d->buffer.get() == ibuffer)
         return;
 
     // Validate buffer basic attributes before locking to avoid holding unusable buffers.
-    if (buffer) {
-        auto *h = buffer->handle();
+    if (ibuffer) {
+        auto *h = ibuffer->handle();
         if (!h || h->width <= 0 || h->height <= 0) {
             qCWarning(waylibBufferItem) << "Reject buffer with invalid size or handle"
                                         << buffer << "w" << (h ? h->width : -1)
@@ -113,10 +119,10 @@ void WBufferItem::setBuffer(QW_NAMESPACE::qw_buffer *buffer)
         }
     }
 
-    if (buffer)
-        buffer->lock();
+    if (ibuffer)
+        ibuffer->lock();
 
-    d->buffer.reset(buffer);
+    d->buffer.reset(ibuffer);
 
     if (d->textureProvider)
         d->textureProvider->setBuffer(d->buffer.get());

@@ -30,15 +30,15 @@ class WAYLIB_SERVER_EXPORT WBufferItem : public QQuickItem, public virtual WText
 {
     Q_OBJECT
     Q_DECLARE_PRIVATE(WBufferItem)
-    Q_PROPERTY(QW_NAMESPACE::qw_buffer* buffer READ buffer WRITE setBuffer NOTIFY bufferChanged FINAL)
+    Q_PROPERTY(QObject* buffer READ buffer WRITE setBuffer NOTIFY bufferChanged FINAL)
     QML_NAMED_ELEMENT(BufferItem)
 
 public:
     explicit WBufferItem(QQuickItem *parent = nullptr);
     ~WBufferItem() override;
 
-    QW_NAMESPACE::qw_buffer *buffer() const;
-    void setBuffer(QW_NAMESPACE::qw_buffer *buffer);
+    QObject *buffer() const;
+    void setBuffer(QObject *buffer);
 
     bool isTextureProvider() const override;
     QSGTextureProvider *textureProvider() const override;
