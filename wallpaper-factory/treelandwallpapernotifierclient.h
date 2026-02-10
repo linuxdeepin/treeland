@@ -25,12 +25,16 @@ protected:
     void treeland_wallpaper_notifier_v1_add(uint32_t source_type, const QString &file_source) override;
     void treeland_wallpaper_notifier_v1_remove(const QString &file_source) override;
 
+private:
+    void updateAllRefreshInterval();
+
 private Q_SLOTS:
     void updateAllWallpaperViewSizes();
     void onScreenAdded(QScreen *screen);
     void onScreenRemoved(QScreen *screen);
+    void onPlayChanged(bool play);
+    void onSlowDownChanged(uint32_t duration);
 
 private:
     QList<QQuickView *> m_windows;
-    QSet<QScreen *> m_connectedScreens;
 };

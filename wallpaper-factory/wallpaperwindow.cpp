@@ -77,6 +77,11 @@ WallpaperWindow *WallpaperWindow::qmlAttachedProperties(QObject *object)
     return get(qobject_cast<QWindow *>(object));
 }
 
+QWindow *WallpaperWindow::parentWindow() const
+{
+    return d->parentWindow;
+}
+
 void WallpaperWindow::initializeShellIntegration()
 {
     auto waylandWindow = dynamic_cast<QtWaylandClient::QWaylandWindow *>(d->parentWindow->handle());
