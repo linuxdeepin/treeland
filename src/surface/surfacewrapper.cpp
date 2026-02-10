@@ -432,11 +432,17 @@ void SurfaceWrapper::convertToNormalSurface(WToplevelSurface *shellSurface, Type
     // setNoDecoration not called updateTitleBar when type is SplashScreen
     updateTitleBar();
     updateDecoration();
-    updateActiveState();
     if (surface()->mapped()) {
+        updateActiveState();
         Q_ASSERT(m_prelaunchSplash);
         QMetaObject::invokeMethod(m_prelaunchSplash, "hideAndDestroy", Qt::QueuedConnection);
-    } // else hideAndDestroy will be called in onMappedChanged
+    } else {
+        // Defer updateActiveState until surface becomes mapped (which implies initialized)
+        connect(m_shellSurface->surface(), &WSurface::mappedChanged, this, [this]() {
+            updateActiveState();
+        }, Qt::SingleShotConnection);
+        // hideAndDestroy will be called in onMappedChanged
+    }
 }
 
 void SurfaceWrapper::setParent(QQuickItem *item)
@@ -465,6 +471,10 @@ void SurfaceWrapper::updateActiveState()
 {
     if (!m_shellSurface) {
         qCCritical(treelandSurface) << "updateActiveState called without a valid shellSurface";
+        return;
+    }
+    if (!m_shellSurface->isInitialized()) {
+        qCWarning(treelandSurface) << "updateActiveState called with shellSurface not yet initialized";
         return;
     }
     m_shellSurface->setActivate(m_isActivated);
