@@ -1,49 +1,63 @@
-// Copyright (C) 2024 Dingyuan Zhang <zhangdingyuan@uniontech.com>.
+// Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
 
-#include <wglobal.h>
+#include "output/output.h"
+#include "wallpaper/wallpaperconfig.h"
 
-#include <QQmlEngine>
-#include <QQuickItem>
+#include <QObject>
 
-namespace WAYLIB_SERVER_NAMESPACE {
-class WOutput;
-class WOutputItem;
-} // namespace WAYLIB_SERVER_NAMESPACE
-
-class WallpaperImage;
-class WallpaperController;
+class TreelandWallpaperSurfaceInterfaceV1;
 
 class WallpaperManager : public QObject
 {
     Q_OBJECT
-    explicit WallpaperManager(QQuickItem *parent = nullptr);
-    ~WallpaperManager();
-
 public:
-    static WallpaperManager *instance();
+    enum UpdateReason
+    {
+        Normal,
+        Scale,
+    };
+
+    explicit WallpaperManager(QObject *parent = nullptr);
+    ~WallpaperManager() override;
+    static QString getOutputId(wlr_output *output);
+    static QString getOutputId(Output *output);
+    WallpaperOutputConfig getOutputConfig(Output *output);
+    WallpaperOutputConfig getOutputConfig(wlr_output *output);
+    WallpaperOutputConfig getOutputConfig(const QString &id);
+    void defaultWallpaperConfig();
+    void ensureWallpaperConfigForOutput(Output *output);
+    bool configContainsOutput(Output *output);
+    QString wallpaperConfigToJsonString();
+    void setOutputWallpaper(wlr_output *output,
+                            int workspaceIndex,
+                            const QString &fileSource,
+                            TreelandWallpaperInterfaceV1::WallpaperRoles roles,
+                            TreelandWallpaperInterfaceV1::WallpaperType type);
+    QMap<QString, TreelandWallpaperInterfaceV1::WallpaperType> globalValidWallpaper(wlr_output *exclusiveOutput, int exclusiveworkspaceId);
+    void syncAddWorkspace();
+    void removeOutputWallpaper(wlr_output *output);
+    QString currentWorkspaceWallpaper(WOutput *output);
+    TreelandWallpaperInterfaceV1::WallpaperType getWallpaperType(const QString &wallpaper);
+
+Q_SIGNALS:
+    void updateWallpaper();
+
+public Q_SLOTS:
+    void updateWallpaperConfig();
+    void onWallpaperAdded(TreelandWallpaperInterfaceV1 *interface);
+    void onImageChanged(int workspaceIndex,
+                        const QString &fileSource,
+                        TreelandWallpaperInterfaceV1::WallpaperRoles roles);
+    void onVideoChanged(int workspaceIndex,
+                        const QString &fileSource,
+                        TreelandWallpaperInterfaceV1::WallpaperRoles roles);
+    void onWallpaperNotifierbinded();
+    void handleWallpaperSurfaceAdded(TreelandWallpaperSurfaceInterfaceV1 *interface);
 
 private:
-    friend class WallpaperImage;
-    void add(WallpaperImage *proxy, WAYLIB_SERVER_NAMESPACE::WOutputItem *outputItem);
-    void remove(WallpaperImage *proxy);
-    void remove(WAYLIB_SERVER_NAMESPACE::WOutputItem *outputItem);
-
-private:
-    friend class WallpaperImage;
-    friend class WallpaperController;
-    bool isLocked(const WallpaperController *controller) const;
-    bool isSelfLocked(const WallpaperController *controller) const;
-
-private:
-    friend class WallpaperController;
-    WallpaperImage *get(WAYLIB_SERVER_NAMESPACE::WOutputItem *outputItem) const;
-    WallpaperImage *get(WAYLIB_SERVER_NAMESPACE::WOutput *output) const;
-    void setLock(WallpaperController *controller, bool lock);
-
-private:
-    QMap<WAYLIB_SERVER_NAMESPACE::WOutputItem *, WallpaperImage *> m_proxys;
-    QList<WallpaperController *> m_proxyLockList;
+    bool m_wallpaperConfigUpdated { false };
+    QList<WallpaperOutputConfig> m_wallpaperConfig;
 };

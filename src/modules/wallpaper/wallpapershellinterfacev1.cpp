@@ -1,6 +1,7 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
+#include "wallpapersurface.h"
 #include "wallpapershellinterfacev1.h"
 #include "qwayland-server-treeland-wallpaper-shell-unstable-v1.h"
 
@@ -18,6 +19,7 @@ public:
     wl_global *global() const;
 
     TreelandWallpaperShellInterfaceV1 *q = nullptr;
+    QList<QString> producedWallpapers;
 
 protected:
     void treeland_wallpaper_shell_v1_destroy_global() override;
@@ -58,6 +60,7 @@ void TreelandWallpaperShellInterfaceV1Private::treeland_wallpaper_shell_v1_get_t
         return;
     }
 
+    producedWallpapers.append(file_source);
     wl_resource *surfaceResource = wl_resource_create(resource->client(),
                                                       &treeland_wallpaper_surface_v1_interface,
                                                       resource->version(),
@@ -70,8 +73,9 @@ void TreelandWallpaperShellInterfaceV1Private::treeland_wallpaper_shell_v1_get_t
     auto wallpaperSurface = new TreelandWallpaperSurfaceInterfaceV1(surface, file_source, surfaceResource);
     s_wallpaperSurfaces.append(wallpaperSurface);
 
-    QObject::connect(wallpaperSurface, &QObject::destroyed, [wallpaperSurface]() {
+    QObject::connect(wallpaperSurface, &QObject::destroyed, [wallpaperSurface, this]() {
         s_wallpaperSurfaces.removeOne(wallpaperSurface);
+        producedWallpapers.removeOne(wallpaperSurface->source());
     });
 
     Q_EMIT q->wallpaperSurfaceAdded(wallpaperSurface);
@@ -81,6 +85,11 @@ TreelandWallpaperShellInterfaceV1::TreelandWallpaperShellInterfaceV1(QObject *pa
     : QObject(parent)
     , d(new TreelandWallpaperShellInterfaceV1Private(this))
 {
+}
+
+QList<QString> TreelandWallpaperShellInterfaceV1::producedWallpapers() const
+{
+    return d->producedWallpapers;
 }
 
 TreelandWallpaperShellInterfaceV1::~TreelandWallpaperShellInterfaceV1() = default;
@@ -116,6 +125,7 @@ public:
     TreelandWallpaperSurfaceInterfaceV1 *q;
     wl_resource *surfaceResource = nullptr;
     wl_resource *resource = nullptr;
+    WallpaperSurface *surface = nullptr;
     QString wallpaperSource;
 
 protected:
@@ -198,9 +208,24 @@ TreelandWallpaperSurfaceInterfaceV1 *TreelandWallpaperSurfaceInterfaceV1::get(co
     return nullptr;
 }
 
+void TreelandWallpaperSurfaceInterfaceV1::setPlay(bool value)
+{
+    if (value) {
+        d->send_play();
+    } else {
+        d->send_pause();
+    }
+}
+
+void TreelandWallpaperSurfaceInterfaceV1::slowDown()
+{
+    d->send_slow_down(3000);
+}
+
 TreelandWallpaperSurfaceInterfaceV1::TreelandWallpaperSurfaceInterfaceV1(wl_resource *surface,
                                                                          const QString &source,
                                                                          wl_resource *resource)
     : d(new TreelandWallpaperSurfaceInterfaceV1Private(this, source, surface, resource))
 {
+    d->surface = new WallpaperSurface(this, this);
 }

@@ -9,6 +9,7 @@
 #include "seat/helper.h"
 #include "workspace/workspace.h"
 #include "xsettings/settingmanager.h"
+#include "wallpaper/wallpaperlauncher.h"
 
 #include <woutputrenderwindow.h>
 #include <wsocket.h>
@@ -99,6 +100,10 @@ SessionManager::SessionManager(QObject *parent)
 SessionManager::~SessionManager()
 {
     m_sessions.clear();
+    if (m_wallpaperLauncher) {
+        delete m_wallpaperLauncher;
+        m_wallpaperLauncher = nullptr;
+    }
 }
 
 const QList<std::shared_ptr<Session>> &SessionManager::sessions() const
@@ -298,6 +303,11 @@ std::shared_ptr<Session> SessionManager::ensureSession(int id, QString username)
     if (!session->m_socket)
         return nullptr;
 
+    if (!m_wallpaperLauncher) {
+        m_wallpaperLauncher = new WallpaperLauncher(session->socket()->rootSocket());
+        m_wallpaperLauncher->start();
+    }
+
     session->m_xwayland = createXWayland(session->m_socket);
     if (!session->m_xwayland)
         return nullptr;
@@ -383,6 +393,25 @@ std::shared_ptr<Session> SessionManager::sessionForSocket(WSocket *socket) const
     return nullptr;
 }
 
+bool SessionManager::isDDEUserClient(WClient *client)
+{
+    for (auto session : m_sessions) {
+        if (session->m_socket == client->socket()->rootSocket()) {
+            struct passwd *pw = getpwuid(session->m_uid);
+            if (!pw) {
+                return false;
+            }
+
+            QString user{ pw->pw_name };
+            if (user == "dde") {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
 /**
  * Update the active session to the given uid, creating it if necessary.
  * This will update XWayland visibility and emit socketFileChanged if the
@@ -407,7 +436,7 @@ void SessionManager::updateActiveUserSession(const QString &username, int id)
         // TODO: Each Wayland socket's active surface needs to be cleaned up individually.
         Helper::instance()->activateSurface(nullptr);
         // Emit signal and update socket enabled state
-        if (previous && previous->m_socket)
+        if (previous && previous->m_socket && previous->username() != "dde")
             previous->m_socket->setEnabled(false);
         session->m_socket->setEnabled(true);
         Q_EMIT socketFileChanged();

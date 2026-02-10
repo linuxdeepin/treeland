@@ -55,6 +55,8 @@ QT_END_NAMESPACE
 
 class AppIdResolverManager; // forward declare new protocol manager
 class WindowConfigStore;    // forward declare config store
+class TreelandWallpaperShellInterfaceV1;
+class TreelandWallpaperSurfaceInterfaceV1;
 
 class ShellHandler : public QObject
 {
@@ -68,6 +70,7 @@ public:
     void createComponent(QmlEngine *engine);
     void initXdgShell(WAYLIB_SERVER_NAMESPACE::WServer *server);
     void initLayerShell(WAYLIB_SERVER_NAMESPACE::WServer *server);
+    void initWallpaperShell(WAYLIB_SERVER_NAMESPACE::WServer *server);
     [[nodiscard]] WAYLIB_SERVER_NAMESPACE::WXWayland *createXWayland(
         WAYLIB_SERVER_NAMESPACE::WServer *server,
         WAYLIB_SERVER_NAMESPACE::WSeat *seat,
@@ -79,6 +82,9 @@ public:
                                WAYLIB_SERVER_NAMESPACE::WSeat *seat);
 
     WAYLIB_SERVER_NAMESPACE::WXWayland *defaultXWaylandSocket() const;
+    TreelandWallpaperShellInterfaceV1 *wallpaperShell() const {
+        return m_wallpaperShell;
+    }
 Q_SIGNALS:
     void surfaceWrapperAdded(SurfaceWrapper *wrapper);
     void surfaceWrapperAboutToRemove(SurfaceWrapper *wrapper);
@@ -129,6 +135,7 @@ private:
 
     WAYLIB_SERVER_NAMESPACE::WXdgShell *m_xdgShell = nullptr;
     WAYLIB_SERVER_NAMESPACE::WLayerShell *m_layerShell = nullptr;
+    TreelandWallpaperShellInterfaceV1 *m_wallpaperShell = nullptr;
     WAYLIB_SERVER_NAMESPACE::WInputMethodHelper *m_inputMethodHelper = nullptr;
     QList<WAYLIB_SERVER_NAMESPACE::WXWayland *> m_xwaylands;
 

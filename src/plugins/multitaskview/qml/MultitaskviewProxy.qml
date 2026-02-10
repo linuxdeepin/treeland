@@ -130,16 +130,15 @@ Multitaskview {
             width: output.outputItem.width
             height: output.outputItem.height
 
-            WallpaperController {
-                id: wallpaperController
+            Wallpaper {
+                id: wallpaper
                 output: outputPlacementItem.output.outputItem.output
-                lock: false
-                type: WallpaperController.Normal
+                workspace: Helper.workspace.current
             }
 
             ShaderEffectSource {
                 z: Multitaskview.Background
-                sourceItem: wallpaperController.proxy
+                sourceItem: wallpaper
                 recursive: true
                 live: true
                 smooth: true
@@ -223,16 +222,15 @@ Multitaskview {
                                 required property int index
                                 width: outputPlacementItem.output.outputItem.width
                                 height: outputPlacementItem.output.outputItem.height
-                                WallpaperController {
-                                    id: wpCtrl
+                                Wallpaper {
+                                    id: wallpaper2
                                     output: outputPlacementItem.output.outputItem.output
-                                    lock: true
-                                    type: WallpaperController.Normal
+                                    workspace: Helper.workspace.current
                                 }
 
                                 ShaderEffectSource {
                                     z: Multitaskview.Background
-                                    sourceItem: wpCtrl.proxy
+                                    sourceItem: wallpaper2
                                     recursive: true
                                     live: true
                                     smooth: true

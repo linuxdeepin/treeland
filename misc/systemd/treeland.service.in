@@ -17,6 +17,7 @@ Environment=DSG_APP_ID=org.deepin.dde.treeland
 Environment=ASAN_SYMBOLIZER_PATH=/usr/bin/llvm-symbolizer
 # For Debug: if enable asan, you can't get it's log from journalctl, so ensure the log to a file
 Environment=ASAN_OPTIONS=log_path=/tmp/treeland-asan:detect_leaks=0:abort_on_error=1:symbolize=1
+Environment=DDM_DISPLAY_MANAGER=1
 ExecStart=@CMAKE_INSTALL_FULL_BINDIR@/treeland.sh --lockscreen
 Restart=on-failure
 RestartSec=1s

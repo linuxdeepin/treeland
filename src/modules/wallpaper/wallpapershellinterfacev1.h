@@ -23,6 +23,7 @@ public:
     ~TreelandWallpaperShellInterfaceV1() override;
 
     static constexpr int InterfaceVersion = 1;
+    QList<QString> producedWallpapers() const;
 
 Q_SIGNALS:
     void wallpaperSurfaceAdded(TreelandWallpaperSurfaceInterfaceV1 *interface);
@@ -50,6 +51,8 @@ public:
 
     static TreelandWallpaperSurfaceInterfaceV1 *get(WSurface *surface);
     static TreelandWallpaperSurfaceInterfaceV1 *get(const QString &source);
+    void setPlay(bool value);
+    void slowDown();
 
 Q_SIGNALS:
     void failed(uint32_t error);
