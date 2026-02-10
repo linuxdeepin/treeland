@@ -23,17 +23,22 @@ QWaylandWallpaperSurface::~QWaylandWallpaperSurface()
     destroy();
 }
 
-void QWaylandWallpaperSurface::treeland_wallpaper_surface_v1_position([[maybe_unused]] wl_fixed_t position)
+void QWaylandWallpaperSurface::treeland_wallpaper_surface_v1_position(wl_fixed_t position)
 {
-
+    Q_EMIT m_interface->positionChanged(wl_fixed_to_double(position));
 }
 
 void QWaylandWallpaperSurface::treeland_wallpaper_surface_v1_pause()
 {
-
+    Q_EMIT m_interface->playChanged(false);
 }
 
 void QWaylandWallpaperSurface::treeland_wallpaper_surface_v1_play()
 {
+    Q_EMIT m_interface->playChanged(true);
+}
 
+void QWaylandWallpaperSurface::treeland_wallpaper_surface_v1_slow_down(uint32_t duration)
+{
+    Q_EMIT m_interface->slowDownChanged(duration);
 }
