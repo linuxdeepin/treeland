@@ -25,6 +25,7 @@ private:
     void treeland_wallpaper_surface_v1_position(wl_fixed_t position) override;
     void treeland_wallpaper_surface_v1_pause() override;
     void treeland_wallpaper_surface_v1_play() override;
+    void treeland_wallpaper_surface_v1_slow_down(uint32_t duration) override;
 
 private:
     QWaylandWallpaperShellIntegration *m_shell;
