@@ -7,6 +7,7 @@
 #include <QQuickWindow>
 #include <QOpenGLFramebufferObject>
 #include <QOpenGLContext>
+#include <QEasingCurve>
 
 static void *getGLProcAddress(void *ctx, const char *name)
 {
@@ -191,6 +192,7 @@ void MpvVideoItem::setPosition(double value)
     if (qFuzzyCompare(value, position())) {
         return;
     }
+
     Q_EMIT setPropertyAsync(MpvVideoItem::toByteArray(Position), value);
 }
 
@@ -211,15 +213,23 @@ QString MpvVideoItem::formattedDuration()
 
 bool MpvVideoItem::pause()
 {
-    return getProperty(MpvVideoItem::toByteArray(Pause)).toBool();
+    return m_pause;
 }
 
 void MpvVideoItem::setPause(bool value)
 {
-    if (value == pause()) {
+    if (m_pause == value) {
         return;
     }
+    m_pause = value;
 
+    if (m_speedTimer) {
+        m_speedTimer->stop();
+        delete m_speedTimer;
+        m_speedTimer = nullptr;
+    }
+
+    setSpeed(1.0);
     Q_EMIT setPropertyAsync(MpvVideoItem::toByteArray(Pause), value);
 }
 
@@ -361,6 +371,36 @@ void MpvVideoItem::setPanScan(double value)
     }
 
     Q_EMIT setPropertyAsync(MpvVideoItem::toByteArray(PanScan), value);
+}
+
+void MpvVideoItem::slowDown(uint32_t duration)
+{
+    if (m_speedTimer) {
+        return;
+    }
+
+    m_speedTimer = new QTimer(this);
+    m_speedTimer->setInterval(refreshInterval());
+    m_slowDownDuration = duration;
+    connect(m_speedTimer, &QTimer::timeout, this, &MpvVideoItem::updatePlaybackSpeed);
+
+    m_elapsed.restart();
+    m_speedTimer->start();
+}
+
+int MpvVideoItem::refreshInterval() const
+{
+    return m_refreshInterval;
+}
+
+void MpvVideoItem::setRefreshInterval(int value)
+{
+    if (m_refreshInterval == value) {
+        return;
+    }
+
+    m_refreshInterval = value;
+    Q_EMIT refreshIntervalChanged();
 }
 
 void MpvVideoItem::loadFile(const QString &file)
@@ -505,6 +545,31 @@ void MpvVideoItem::onAsyncReply(const QVariant &data, mpv_event event)
         break;
     }
     }
+}
+
+static inline double easeOutExpo(double t)
+{
+    static const QEasingCurve curve(QEasingCurve::OutExpo);
+    return curve.valueForProgress(t);
+}
+
+void MpvVideoItem::updatePlaybackSpeed()
+{
+    constexpr double minSpeed = 0.0;
+    constexpr double maxSpeed = 1.0;
+
+    if (m_elapsed.hasExpired(m_slowDownDuration)) {
+        m_speedTimer->stop();
+        setPause(true);
+        return;
+    }
+
+    double t = double(m_elapsed.elapsed()) / m_slowDownDuration;
+    t = std::clamp(t, 0.0, 1.0);
+
+    double ease = easeOutExpo(t);
+    double speed = maxSpeed - ease * (maxSpeed - minSpeed);
+    setSpeed(speed);
 }
 
 void MpvVideoItem::initConnections()

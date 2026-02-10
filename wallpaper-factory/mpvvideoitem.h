@@ -11,6 +11,8 @@
 #include <QThread>
 #include <QQuickItem>
 #include <QQuickFramebufferObject>
+#include <QTimer>
+#include <QElapsedTimer>
 
 class MpvVideoItem;
 
@@ -43,6 +45,7 @@ class MpvVideoItem : public QQuickFramebufferObject
     Q_PROPERTY(bool mute READ mute WRITE setMute NOTIFY muteChanged FINAL)
     Q_PROPERTY(VideoScaleMode scaleMode READ scaleMode WRITE setScaleMode NOTIFY scaleModeChanged FINAL)
     Q_PROPERTY(double panScan READ panScan WRITE setPanScan NOTIFY panScanChanged FINAL)
+    Q_PROPERTY(int refreshInterval READ refreshInterval WRITE setRefreshInterval NOTIFY refreshIntervalChanged FINAL)
 public:
     explicit MpvVideoItem(QQuickItem *parent = nullptr);
     ~MpvVideoItem() override;
@@ -115,6 +118,11 @@ public:
     double panScan();
     void setPanScan(double value);
 
+    void slowDown(uint32_t duration);
+
+    int refreshInterval() const;
+    void setRefreshInterval(int value);
+
     Q_INVOKABLE void loadFile(const QString &file);
 
     Q_INVOKABLE int setPropertyBlocking(const QByteArrayView &property, const QVariant &value);
@@ -139,6 +147,7 @@ Q_SIGNALS:
     void muteChanged();
     void scaleModeChanged();
     void panScanChanged();
+    void refreshIntervalChanged();
 
     void fileStarted();
     void fileLoaded();
@@ -153,6 +162,7 @@ Q_SIGNALS:
 private Q_SLOTS:
     void onPropertyChanged(const QByteArrayView &property, const QVariant &value);
     void onAsyncReply(const QVariant &data, mpv_event event);
+    void updatePlaybackSpeed();
 
 private:
    void initConnections();
@@ -166,7 +176,13 @@ private:
     mpv_handle *m_mpv = nullptr;
     mpv_render_context *m_mpvGL = nullptr;
 
+    QTimer *m_speedTimer = nullptr;
+    QElapsedTimer m_elapsed;
+
     QUrl m_file;
     QString m_source;
     bool m_readyed = false;
+    int m_refreshInterval = 16;
+    uint32_t m_slowDownDuration;
+    bool m_pause = false;
 };

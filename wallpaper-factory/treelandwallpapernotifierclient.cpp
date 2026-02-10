@@ -27,6 +27,21 @@ static QSize maxScreenSize()
     return maxSize;
 }
 
+static qreal minScreenRefreshIntervalMs()
+{
+    qreal maxRefreshRate = 0.0;
+
+    const auto screens = QGuiApplication::screens();
+    for (QScreen *screen : screens) {
+        maxRefreshRate = qMax(maxRefreshRate, screen->refreshRate());
+    }
+
+    if (maxRefreshRate <= 0.0)
+        return 16; // 60 hz
+
+    return 1000.0 / maxRefreshRate;
+}
+
 TreelandWallpaperNotifierClientV1::TreelandWallpaperNotifierClientV1()
     : QWaylandClientExtensionTemplate<TreelandWallpaperNotifierClientV1>(TREELANDWALLPAPERPRODUCEV1VERSION)
 {
@@ -35,7 +50,6 @@ TreelandWallpaperNotifierClientV1::TreelandWallpaperNotifierClientV1()
     connect(qApp, &QGuiApplication::screenRemoved,
             this, &TreelandWallpaperNotifierClientV1::onScreenRemoved);
     for (QScreen *screen : QGuiApplication::screens()) {
-         m_connectedScreens.insert(screen);
         connect(screen, &QScreen::geometryChanged,
                 this, &TreelandWallpaperNotifierClientV1::updateAllWallpaperViewSizes);
     }
@@ -47,7 +61,6 @@ TreelandWallpaperNotifierClientV1::~TreelandWallpaperNotifierClientV1()
             delete window;
     }
     m_windows.clear();
-    m_connectedScreens.clear();
 
     destroy();
 }
@@ -107,6 +120,14 @@ void TreelandWallpaperNotifierClientV1::treeland_wallpaper_notifier_v1_add(uint3
     wallpaperWindow->resize(maxScreenSize());
     wallpaperWindow->show();
     m_windows.append(wallpaperWindow);
+    connect(window,
+            &WallpaperWindow::playChanged,
+            this,
+            &TreelandWallpaperNotifierClientV1::onPlayChanged);
+    connect(window,
+            &WallpaperWindow::slowDownChanged,
+            this,
+            &TreelandWallpaperNotifierClientV1::onSlowDownChanged);
 }
 
 void TreelandWallpaperNotifierClientV1::treeland_wallpaper_notifier_v1_remove(const QString &file_source)
@@ -118,6 +139,20 @@ void TreelandWallpaperNotifierClientV1::treeland_wallpaper_notifier_v1_remove(co
 
             return;
         }
+    }
+}
+
+void TreelandWallpaperNotifierClientV1::updateAllRefreshInterval()
+{
+    int minRefreshInterval = minScreenRefreshIntervalMs();
+    foreach(auto window, std::as_const(m_windows)) {
+        QObject *root = window->rootObject();
+        auto *video = qobject_cast<MpvVideoItem *>(root);
+        if (!video) {
+            continue;
+        }
+
+        video->setRefreshInterval(minRefreshInterval);
     }
 }
 
@@ -137,22 +172,44 @@ void TreelandWallpaperNotifierClientV1::updateAllWallpaperViewSizes()
 
 void TreelandWallpaperNotifierClientV1::onScreenAdded(QScreen *screen)
 {
-    if (!m_connectedScreens.contains(screen)) {
-        m_connectedScreens.insert(screen);
-        connect(screen, &QScreen::geometryChanged,
-                this, &TreelandWallpaperNotifierClientV1::updateAllWallpaperViewSizes);
-    }
+    connect(screen, &QScreen::geometryChanged,
+            this, &TreelandWallpaperNotifierClientV1::updateAllWallpaperViewSizes);
 
     updateAllWallpaperViewSizes();
+    updateAllRefreshInterval();
 }
 
 void TreelandWallpaperNotifierClientV1::onScreenRemoved(QScreen *screen)
 {
-    if (m_connectedScreens.contains(screen)) {
-        m_connectedScreens.remove(screen);
-        disconnect(screen, &QScreen::geometryChanged,
-                   this, &TreelandWallpaperNotifierClientV1::updateAllWallpaperViewSizes);
-    }
+    disconnect(screen, &QScreen::geometryChanged,
+               this, &TreelandWallpaperNotifierClientV1::updateAllWallpaperViewSizes);
 
     updateAllWallpaperViewSizes();
+    updateAllRefreshInterval();
+}
+
+void TreelandWallpaperNotifierClientV1::onPlayChanged(bool play)
+{
+    WallpaperWindow *send = static_cast<WallpaperWindow *>(sender());
+    QQuickView *wallpaperWindow = static_cast<QQuickView *>(send->parentWindow());
+    QObject *root = wallpaperWindow->rootObject();
+    auto *video = qobject_cast<MpvVideoItem *>(root);
+    if (!video) {
+        return;
+    }
+
+    video->setPause(!play);
+}
+
+void TreelandWallpaperNotifierClientV1::onSlowDownChanged(uint32_t duration)
+{
+    WallpaperWindow *send = static_cast<WallpaperWindow *>(sender());
+    QQuickView *wallpaperWindow = static_cast<QQuickView *>(send->parentWindow());
+    QObject *root = wallpaperWindow->rootObject();
+    auto *video = qobject_cast<MpvVideoItem *>(root);
+    if (!video) {
+        return;
+    }
+
+    video->slowDown(duration);
 }

@@ -22,9 +22,13 @@ public:
 
     static WallpaperWindow *get(QWindow *window);
     static WallpaperWindow *qmlAttachedProperties(QObject *object);
+    QWindow *parentWindow() const;
 
 Q_SIGNALS:
     void sourceChanged();
+    void positionChanged(double position);
+    void playChanged(bool play);
+    void slowDownChanged(uint32_t duration);
 
 private:
     void initializeShellIntegration();
