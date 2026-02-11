@@ -27,13 +27,6 @@ Item {
             width: output.outputItem.width
             height: output.outputItem.height
 
-            WallpaperController {
-                id: wpCtrl
-                output: animationDelegate.output.outputItem.output
-                type: WallpaperController.Normal
-                lock: true
-            }
-
             Row {
                 x: - Helper.workspace.animationController.viewportPos * animationDelegate.localAnimationScaleFactor
                 spacing: Helper.workspace.animationController.refGap * animationDelegate.localAnimationScaleFactor
@@ -44,12 +37,11 @@ Item {
                         height: animationDelegate.output.outputItem.height
                         id: workspaceDelegate
                         required property WorkspaceModel workspace
-                        ShaderEffectSource {
-                            id: wallpaperShot
-                            sourceItem: wpCtrl.proxy
-                            hideSource: false
-                            anchors.fill: parent
+                        Wallpaper {
+                            workspace: workspaceDelegate.workspace
+                            output: animationDelegate.output.outputItem.output
                         }
+
                         WorkspaceProxy {
                             workspace: workspaceDelegate.workspace
                             output: animationDelegate.output

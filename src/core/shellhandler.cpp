@@ -15,6 +15,8 @@
 #include "treelandconfig.hpp"
 #include "treelanduserconfig.hpp"
 #include "workspace/workspace.h"
+#include "session/session.h"
+#include "wallpapershellinterfacev1.h"
 
 #include <xcb/xcb.h>
 
@@ -246,6 +248,15 @@ void ShellHandler::initLayerShell(WServer *server)
     m_layerShell = server->attach<WLayerShell>(m_xdgShell);
     connect(m_layerShell, &WLayerShell::surfaceAdded, this, &ShellHandler::onLayerSurfaceAdded);
     connect(m_layerShell, &WLayerShell::surfaceRemoved, this, &ShellHandler::onLayerSurfaceRemoved);
+}
+
+void ShellHandler::initWallpaperShell(Waylib::Server::WServer *server)
+{
+    Q_ASSERT_X(!m_wallpaperShell, Q_FUNC_INFO, "Only init once!");
+    m_wallpaperShell = server->attach<TreelandWallpaperShellInterfaceV1>(m_wallpaperShell);
+    if (qEnvironmentVariableIsSet("DDM_DISPLAY_MANAGER")) {
+        m_wallpaperShell->setFilter([this](WClient *client) { return Helper::instance()->sessionManager()->isDDEUserClient(client); });
+    }
 }
 
 WXWayland *ShellHandler::createXWayland(WServer *server,

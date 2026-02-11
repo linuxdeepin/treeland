@@ -32,10 +32,11 @@ FocusScope {
         lockView.showAnimation = showAnimation
         lockView.forceActiveFocus()
         if (showAnimation) {
-            wallpaperController.type = WallpaperController.Scale
-        } else {
-            wallpaperController.type = WallpaperController.ScaleWithoutAnimation
+            Helper.startLockscreen(root.output, showAnimation);
+            background.state = "Show"
+            wallpaper.play = true;
         }
+        background.opacity = 1.0
         switch (root.currentMode) {
         case Greeter.CurrentMode.Lock:
             lockView.start()
@@ -53,11 +54,89 @@ FocusScope {
 
     palette.windowText: Qt.rgba(1.0, 1.0, 1.0, 1.0)
 
-    WallpaperController {
-        id: wallpaperController
-        output: root.output
-        lock: true
-        type: WallpaperController.Normal
+    Rectangle {
+        id: background
+
+        readonly property int duration: 1000
+        anchors.fill: parent
+        color: 'black'
+        opacity: 0.0
+        transformOrigin: Item.Center
+        Behavior on opacity {
+            PropertyAnimation {
+                duration: lockView.showAnimation ? 2000 : 0
+                easing.type: Easing.OutExpo
+            }
+        }
+        Behavior on scale {
+            PropertyAnimation {
+                duration: lockView.showAnimation ? 2000 : 0
+                easing.type: Easing.OutExpo
+            }
+        }
+        states: [
+            State {
+                name: "Show"
+                PropertyChanges {
+                    target: background
+                    scale: 1.2
+                }
+                PropertyChanges {
+                    target: background
+                    opacity: 1
+                }
+            },
+            State {
+                name: "Hide"
+                PropertyChanges {
+                    target: background
+                    scale: 1
+                }
+                PropertyChanges {
+                    target: background
+                    opacity: 0
+                }
+            }
+        ]
+
+        transitions: [
+            Transition {
+                from: "Hide"
+                to: "Show"
+                PropertyAnimation {
+                    property: "scale"
+                    duration: background.duration
+                    easing.type: Easing.OutExpo
+                }
+                PropertyAnimation {
+                    property: "opacity"
+                    duration: background.duration
+                    easing.type: Easing.OutExpo
+                }
+            },
+            Transition {
+                from: "Show"
+                to: "Hide"
+                PropertyAnimation {
+                    property: "scale"
+                    duration: background.duration
+                    easing.type: Easing.OutExpo
+                }
+                PropertyAnimation {
+                    property: "opacity"
+                    duration: background.duration
+                    easing.type: Easing.OutExpo
+                }
+            }
+        ]
+        Wallpaper {
+            id: wallpaper
+
+            anchors.fill: parent
+            wallpaperRole: Wallpaper.Lockscreen
+            output: root.output
+            wallpaperState: Wallpaper.Normal
+        }
     }
 
     // prevent event passing through greeter
@@ -66,27 +145,16 @@ FocusScope {
         enabled: true
     }
 
-    Rectangle {
-        id: cover
-        anchors.fill: parent
-        color: 'black'
-        opacity: wallpaperController.type === WallpaperController.Normal ? 0 : 0.6
-        Behavior on opacity {
-            PropertyAnimation {
-                duration: wallpaperController.type === WallpaperController.ScaleWithoutAnimation ? 0 : 1000
-                easing.type: Easing.OutExpo
-            }
-        }
-    }
-
     LockView {
         id: lockView
         visible: root.currentMode === Greeter.CurrentMode.Lock ||
                  root.currentMode === Greeter.CurrentMode.SwitchUser
         anchors.fill: parent
         onQuit: function () {
-            wallpaperController.type = WallpaperController.Normal
+            wallpaper.play = false;
+            background.state = "Hide"
             root.animationPlayed()
+            Helper.showDesktop(root.output)
         }
         onAnimationPlayFinished: function () {
             if (lockView.state === LoginAnimation.Hide) {
@@ -101,7 +169,6 @@ FocusScope {
         anchors.fill: parent
 
         onClicked: function () {
-            wallpaperController.type = WallpaperController.Normal
             root.animationPlayed()
             root.animationPlayFinished()
         }
@@ -113,9 +180,5 @@ FocusScope {
             root.currentMode = Greeter.CurrentMode.Lock
             lockView.start()
         }
-    }
-
-    Component.onDestruction: {
-        wallpaperController.lock = false
     }
 }

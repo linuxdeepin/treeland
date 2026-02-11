@@ -9,6 +9,9 @@
 #include "modules/virtual-output/virtualoutputmanager.h"
 #include "modules/window-management/windowmanagement.h"
 #include "utils/fpsdisplaymanager.h"
+#include "modules/wallpaper/wallpapermanagerinterfacev1.h"
+#include "modules/wallpaper/wallpapernotifierinterfacev1.h"
+#include "wallpaper/wallpaperconfig.h"
 
 #include <wglobal.h>
 #include <wqmlcreator.h>
@@ -113,6 +116,8 @@ class VirtualOutputV1;
 class WallpaperColorV1;
 class WindowManagementV1;
 class WindowPickerInterface;
+class WallpaperManager;
+class WallpaperItem;
 
 struct wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request;
 struct wlr_idle_inhibitor_v1;
@@ -193,6 +198,10 @@ public:
     WindowManagementV1::DesktopState showDesktopState() const;
 
     Q_INVOKABLE bool isLaunchpad(WLayerSurface *surface) const;
+    Q_INVOKABLE void setLaunchpadMapped(WOutput *output, bool mapped);
+    Q_INVOKABLE void showDesktop(WOutput *output);
+    Q_INVOKABLE void startLockscreen(WOutput *output, bool showAnimation);
+    Q_INVOKABLE QString currentWorkspaceWallpaper(WOutput *output);
 
     void handleWindowPicker(WindowPickerInterface *picker);
 
@@ -246,6 +255,11 @@ Q_SIGNALS:
 
     void blockActivateSurfaceChanged();
     void requestQuit();
+    void updateWallpaper();
+
+    void launchpadMappedChanged(WOutput *output, bool mapped);
+    void showDesktopRequested(WOutput *output);
+    void startLockscreened(WOutput *output, bool showAnimation);
 
 private Q_SLOTS:
     void onShowDesktop();
@@ -279,8 +293,11 @@ private:
     void handleLockScreen(LockScreenInterface *lockScreen);
     void handleNewForeignToplevelCaptureRequest(wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request *request);
     void onExtSessionLock(WSessionLock *lock);
-
 private:
+    friend class SessionManager;
+    friend class WallpaperManager;
+    friend class WallpaperItem;
+
     void allowNonDrmOutputAutoChangeMode(WOutput *output);
     int indexOfOutput(WOutput *output) const;
 
@@ -324,6 +341,7 @@ private:
     Treeland::Treeland *m_treeland = nullptr;
     FpsDisplayManager *m_fpsManager = nullptr;
     SessionManager *m_sessionManager = nullptr;
+    WallpaperManager *m_wallpaperManager = nullptr;
 
     CurrentMode m_currentMode{ CurrentMode::Normal };
 
@@ -365,6 +383,8 @@ private:
     OutputManagerV1 *m_outputManagerV1 = nullptr;
     DDMInterfaceV1 *m_ddmInterfaceV1 = nullptr;
     ScreensaverInterfaceV1 *m_screensaverInterfaceV1 = nullptr;
+    TreelandWallpaperManagerInterfaceV1 *m_wallpaperManagerInterfaceV1 = nullptr;
+    TreelandWallpaperNotifierInterfaceV1 *m_wallpaperNotifierInterfaceV1 = nullptr;
 #ifdef EXT_SESSION_LOCK_V1
     WSessionLockManager *m_sessionLockManager = nullptr;
     QTimer *m_lockScreenGraceTimer = nullptr;
