@@ -28,6 +28,7 @@ class Workspace;
 class SurfaceContainer;
 class PopupSurfaceContainer;
 class QmlEngine;
+class ForeignToplevelV1;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WServer;
@@ -62,7 +63,8 @@ class ShellHandler : public QObject
     Q_OBJECT
 
 public:
-    explicit ShellHandler(RootSurfaceContainer *rootContainer);
+    explicit ShellHandler(RootSurfaceContainer *rootContainer,
+                          WAYLIB_SERVER_NAMESPACE::WServer *server);
     [[nodiscard]] Workspace *workspace() const;
 
     void createComponent(QmlEngine *engine);
@@ -102,6 +104,7 @@ private:
     void setupSurfaceActiveWatcher(SurfaceWrapper *wrapper);
     void setupSurfaceWindowMenu(SurfaceWrapper *wrapper);
     void updateLayerSurfaceContainer(SurfaceWrapper *surface);
+    void registerSurfaceToForeignToplevel(SurfaceWrapper *wrapper);
     void handleDdeShellSurfaceAdded(WAYLIB_SERVER_NAMESPACE::WSurface *surface,
                                     SurfaceWrapper *wrapper);
     void setResourceManagerAtom(WAYLIB_SERVER_NAMESPACE::WXWayland *xwayland,
@@ -131,6 +134,7 @@ private:
     WAYLIB_SERVER_NAMESPACE::WLayerShell *m_layerShell = nullptr;
     WAYLIB_SERVER_NAMESPACE::WInputMethodHelper *m_inputMethodHelper = nullptr;
     QList<WAYLIB_SERVER_NAMESPACE::WXWayland *> m_xwaylands;
+    ForeignToplevelV1 *m_treelandForeignToplevel = nullptr;
 
     QPointer<RootSurfaceContainer> m_rootSurfaceContainer;
     LayerSurfaceContainer *m_backgroundContainer = nullptr;
@@ -146,6 +150,8 @@ private:
     QList<SurfaceWrapper *> m_prelaunchWrappers;
     // Prelaunch requests waiting for dconfig initialization
     QSet<QString> m_pendingPrelaunchAppIds;
+    // AppIds of closed splash screens, used to close matching real windows
+    QSet<QString> m_closedSplashAppIds;
     // Pending toplevel surfaces (XDG or XWayland) awaiting async AppId resolve; callbacks continue
     // only if the pointer remains in this list
     QList<WAYLIB_SERVER_NAMESPACE::WToplevelSurface *> m_pendingAppIdResolveToplevels;
