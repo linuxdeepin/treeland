@@ -149,6 +149,7 @@ public:
     QQuickItem *prelaunchSplash() const;
     QString appId() const;
     bool resize(const QSizeF &size);
+    void close();
 
     QRectF titlebarGeometry() const;
     QRectF boundingRect() const override;
@@ -326,6 +327,7 @@ Q_SIGNALS:
     void showOnAllWorkspaceChanged();
     void requestActive();
     void requestInactive();
+    void requestCloseSplash();
     void skipSwitcherChanged();
     void skipDockPreViewChanged();
     void skipMutiTaskViewChanged();

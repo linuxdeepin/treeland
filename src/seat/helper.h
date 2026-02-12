@@ -352,7 +352,6 @@ private:
     WXdgDecorationManager *m_xdgDecorationManager = nullptr;
     WForeignToplevel *m_foreignToplevel = nullptr;
     WExtForeignToplevelListV1 *m_extForeignToplevelListV1 = nullptr;
-    ForeignToplevelV1 *m_treelandForeignToplevel = nullptr;
     ShortcutManagerV2 *m_shortcutManager = nullptr;
     PersonalizationV1 *m_personalization = nullptr;
     WallpaperColorV1 *m_wallpaperColorV1 = nullptr;
