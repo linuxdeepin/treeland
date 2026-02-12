@@ -42,7 +42,6 @@
 #include <algorithm>
 #include <functional>
 #include <optional>
-#include <utility>
 
 QW_USE_NAMESPACE
 WAYLIB_SERVER_USE_NAMESPACE
@@ -102,26 +101,6 @@ void ShellHandler::updateWrapperContainer(SurfaceWrapper *wrapper, WSurface *par
 void ShellHandler::handlePrelaunchSplashRequested(const QString &appId,
                                                   QW_NAMESPACE::qw_buffer *iconBuffer)
 {
-    if (!Helper::instance()->globalConfig()->enablePrelaunchSplash())
-        return;
-    if (!m_appIdResolverManager)
-        return;
-    if (appId.isEmpty())
-        return;
-    // If a prelaunch wrapper with the same appId already exists, skip creating a duplicate.
-    if (std::any_of(m_prelaunchWrappers.cbegin(),
-                    m_prelaunchWrappers.cend(),
-                    [&appId](SurfaceWrapper *w) {
-                        return w && w->appId() == appId;
-                    })) {
-        return;
-    }
-    // Flow: add appId to pending list -> wait for dconfig init ->
-    // if pending still exists, create splash; otherwise a real window appeared and cleared it.
-    if (m_pendingPrelaunchAppIds.contains(appId))
-        return;
-    m_pendingPrelaunchAppIds.insert(appId);
-
     auto skipSplash = [this, appId, iconBuffer] {
         if (iconBuffer) {
             iconBuffer->unlock();
@@ -129,11 +108,22 @@ void ShellHandler::handlePrelaunchSplashRequested(const QString &appId,
         m_pendingPrelaunchAppIds.remove(appId);
     };
 
-    auto waitSplash = [iconBuffer] {
-        if (iconBuffer) {
-            iconBuffer->lock();
-        }
-    };
+    if (!Helper::instance()->globalConfig()->enablePrelaunchSplash() || !m_appIdResolverManager
+        || appId.isEmpty()
+        // If a prelaunch wrapper with the same appId already exists, skip creating a duplicate.
+        || std::any_of(m_prelaunchWrappers.cbegin(),
+                       m_prelaunchWrappers.cend(),
+                       [&appId](SurfaceWrapper *w) {
+                           return w && w->appId() == appId;
+                       })
+        // Flow: add appId to pending list -> wait for dconfig init ->
+        // if pending still exists, create splash; otherwise a real window appeared and cleared it.
+        || m_pendingPrelaunchAppIds.contains(appId)) {
+        skipSplash();
+        return;
+    }
+
+    m_pendingPrelaunchAppIds.insert(appId);
 
     m_windowConfigStore->withSplashConfigFor(appId,
                                              this,
@@ -145,8 +135,7 @@ void ShellHandler::handlePrelaunchSplashRequested(const QString &appId,
                                                        std::placeholders::_2,
                                                        std::placeholders::_3,
                                                        std::placeholders::_4),
-                                             skipSplash,
-                                             waitSplash);
+                                             skipSplash);
 }
 
 void ShellHandler::createPrelaunchSplash(const QString &appId,
