@@ -190,6 +190,8 @@ SurfaceWrapper::~SurfaceWrapper()
     Q_ASSERT(!m_parentSurface);
     Q_ASSERT(m_subSurfaces.isEmpty());
 
+    if (!m_skipDockPreView)
+        setSkipDockPreView(true);
     if (m_titleBar) {
         delete m_titleBar;
         m_titleBar = nullptr;
@@ -574,6 +576,17 @@ bool SurfaceWrapper::resize(const QSizeF &size)
     return m_surfaceItem->resizeSurface(size);
 }
 
+void SurfaceWrapper::close()
+{
+    if (m_type == Type::SplashScreen) {
+        // For splash screens, emit a signal to request closure
+        Q_EMIT requestCloseSplash();
+    } else if (m_shellSurface) {
+        // For normal surfaces, call the shell surface's close method
+        m_shellSurface->close();
+    }
+}
+
 QRectF SurfaceWrapper::titlebarGeometry() const
 {
     return m_titleBar ? QRectF({ 0, 0 }, m_titleBar->size()) : QRectF();
@@ -884,6 +897,9 @@ void SurfaceWrapper::markWrapperToRemoved()
     Q_ASSERT_X(!m_wrapperAboutToRemove, Q_FUNC_INFO, "Can't call `markWrapperToRemoved` twice!");
     m_wrapperAboutToRemove = true;
     Q_EMIT aboutToBeInvalidated();
+
+    if (!m_skipDockPreView)
+        setSkipDockPreView(true);
 
     if (m_container) {
         m_container->removeSurface(this);
@@ -1997,8 +2013,9 @@ bool SurfaceWrapper::skipDockPreView() const
 
 void SurfaceWrapper::setSkipDockPreView(bool skip)
 {
-    if (m_type != Type::XdgToplevel && m_type != Type::XWayland) {
-        qCWarning(treelandSurface) << "Only xdgtoplevel and x11 surface can `setSkipDockPreView`";
+    if (!skip && (m_type != Type::XdgToplevel && m_type != Type::XWayland)) {
+        qCWarning(treelandSurface)
+            << "Only xdgtoplevel, x11 surface or can `setSkipDockPreView` to false";
         return;
     }
 
