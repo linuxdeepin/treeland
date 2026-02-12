@@ -27,8 +27,7 @@ public:
                            const QString &darkPalette,
                            const QString &lightPalette,
                            qlonglong splashThemeType)> callback,
-        std::function<void()> skipCallback,
-        std::function<void()> waitCallback) const;
+        std::function<void()> skipCallback) const;
 
 private:
     AppConfig *configForApp(const QString &appId) const;
