@@ -187,7 +187,7 @@ Helper::Helper(QObject *parent)
     m_rootSurfaceContainer->setFocusPolicy(Qt::StrongFocus);
 #endif
 
-    m_shellHandler = new ShellHandler(m_rootSurfaceContainer);
+    m_shellHandler = new ShellHandler(m_rootSurfaceContainer, m_server);
 
     m_outputConfigState = new OutputConfigState(this);
     m_outputLifecycleManager =
@@ -1129,17 +1129,14 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
     if (!wrapper->skipDockPreView()) {
         m_foreignToplevel->addSurface(wrapper->shellSurface());
         m_extForeignToplevelListV1->addSurface(wrapper->shellSurface());
-        m_treelandForeignToplevel->addSurface(wrapper);
     }
     connect(wrapper, &SurfaceWrapper::skipDockPreViewChanged, this, [this, wrapper] {
         if (wrapper->skipDockPreView()) {
             m_foreignToplevel->removeSurface(wrapper->shellSurface());
             m_extForeignToplevelListV1->removeSurface(wrapper->shellSurface());
-            m_treelandForeignToplevel->removeSurface(wrapper);
         } else {
             m_foreignToplevel->addSurface(wrapper->shellSurface());
             m_extForeignToplevelListV1->addSurface(wrapper->shellSurface());
-            m_treelandForeignToplevel->addSurface(wrapper);
         }
     });
 
@@ -1162,7 +1159,6 @@ void Helper::onSurfaceWrapperAboutToRemove(SurfaceWrapper *wrapper)
     if (!wrapper->skipDockPreView()) {
         m_foreignToplevel->removeSurface(wrapper->shellSurface());
         m_extForeignToplevelListV1->removeSurface(wrapper->shellSurface());
-        m_treelandForeignToplevel->removeSurface(wrapper);
     }
 }
 
@@ -1253,14 +1249,6 @@ void Helper::init(Treeland::Treeland *treeland)
 
     m_foreignToplevel = m_server->attach<WForeignToplevel>();
     m_extForeignToplevelListV1 = m_server->attach<WExtForeignToplevelListV1>();
-    m_treelandForeignToplevel = m_server->attach<ForeignToplevelV1>();
-    Q_ASSERT(m_treelandForeignToplevel);
-    qmlRegisterSingletonInstance<ForeignToplevelV1>("Treeland.Protocols",
-                                                    1,
-                                                    0,
-                                                    "ForeignToplevelV1",
-                                                    m_treelandForeignToplevel);
-    qRegisterMetaType<ForeignToplevelV1::PreviewDirection>();
 
     connect(m_shellHandler,
             &ShellHandler::surfaceWrapperAdded,
@@ -1437,22 +1425,21 @@ void Helper::init(Treeland::Treeland *treeland)
 
     m_dockPreview = engine->createDockPreview(m_renderWindow->contentItem());
 
-    connect(m_treelandForeignToplevel,
+    connect(m_shellHandler->m_treelandForeignToplevel,
             &ForeignToplevelV1::requestDockPreview,
             this,
             &Helper::onDockPreview);
-    connect(m_treelandForeignToplevel,
+    connect(m_shellHandler->m_treelandForeignToplevel,
             &ForeignToplevelV1::requestDockPreviewTooltip,
             this,
             &Helper::onDockPreviewTooltip);
 
-    connect(m_treelandForeignToplevel,
+    connect(m_shellHandler->m_treelandForeignToplevel,
             &ForeignToplevelV1::requestDockClose,
             m_dockPreview,
             [this]() {
                 QMetaObject::invokeMethod(m_dockPreview, "close");
             });
-
 
     m_idleNotifier = qw_idle_notifier_v1::create(*m_server->handle());
 

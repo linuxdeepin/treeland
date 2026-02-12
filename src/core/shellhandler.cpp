@@ -9,6 +9,7 @@
 #include "layersurfacecontainer.h"
 #include "modules/app-id-resolver/appidresolver.h"
 #include "modules/dde-shell/ddeshellmanagerinterfacev1.h"
+#include "modules/foreign-toplevel/foreigntoplevelmanagerv1.h"
 #include "rootsurfacecontainer.h"
 #include "seat/helper.h"
 #include "surface/surfacewrapper.h"
@@ -38,6 +39,7 @@
 #include <QColor>
 #include <QPointer>
 #include <QTimer>
+#include <qlogging.h>
 
 #include <algorithm>
 #include <functional>
@@ -49,7 +51,7 @@ WAYLIB_SERVER_USE_NAMESPACE
 
 #define TREELAND_XDG_SHELL_VERSION 5
 
-ShellHandler::ShellHandler(RootSurfaceContainer *rootContainer)
+ShellHandler::ShellHandler(RootSurfaceContainer *rootContainer, WServer *server)
     : m_rootSurfaceContainer(rootContainer)
     , m_backgroundContainer(new LayerSurfaceContainer(rootContainer))
     , m_bottomContainer(new LayerSurfaceContainer(rootContainer))
@@ -59,6 +61,15 @@ ShellHandler::ShellHandler(RootSurfaceContainer *rootContainer)
     , m_popupContainer(new SurfaceContainer(rootContainer))
     , m_windowConfigStore(new WindowConfigStore(this))
 {
+    m_treelandForeignToplevel = server->attach<ForeignToplevelV1>();
+    Q_ASSERT(m_treelandForeignToplevel);
+    qmlRegisterSingletonInstance<ForeignToplevelV1>("Treeland.Protocols",
+                                                    1,
+                                                    0,
+                                                    "ForeignToplevelV1",
+                                                    m_treelandForeignToplevel);
+    qRegisterMetaType<ForeignToplevelV1::PreviewDirection>();
+
     m_backgroundContainer->setZ(RootSurfaceContainer::BackgroundZOrder);
     m_bottomContainer->setZ(RootSurfaceContainer::BottomZOrder);
     m_workspace->setZ(RootSurfaceContainer::NormalZOrder);
@@ -180,6 +191,24 @@ void ShellHandler::createPrelaunchSplash(const QString &appId,
     m_prelaunchWrappers.append(wrapper);
     m_workspace->addSurface(wrapper);
     setupSurfaceActiveWatcher(wrapper);
+    registerSurfaceToForeignToplevel(wrapper);
+
+    // Listen for splash close request
+    connect(wrapper, &SurfaceWrapper::requestCloseSplash, this, [this, wrapper]() {
+        const QString appId = wrapper->appId();
+        qCInfo(treelandShell) << "Splash close requested for appId=" << appId;
+
+        // Add to closed splash list
+        if (!appId.isEmpty()) {
+            m_closedSplashAppIds.insert(appId);
+        }
+
+        // Remove from prelaunch wrappers list
+        m_prelaunchWrappers.removeOne(wrapper);
+
+        // Destroy the splash wrapper
+        m_rootSurfaceContainer->destroyForSurface(wrapper);
+    });
 
     // After configurable timeout, if still unmatched (not converted and still in the list),
     // destroy the splash wrapper
@@ -292,9 +321,10 @@ void ShellHandler::initInputMethodHelper(WServer *server, WSeat *seat)
 
 void ShellHandler::onXdgToplevelSurfaceAdded(WXdgToplevelSurface *surface)
 {
-    // If there are prelaunch wrappers and the resolver is available -> attempt async resolve;
-    // remaining logic continues in the callback on success
-    if (!m_prelaunchWrappers.isEmpty() && m_appIdResolverManager) {
+    // If there are prelaunch wrappers or closed splash appIds and the resolver is available
+    // -> attempt async resolve; remaining logic continues in the callback on success
+    if ((!m_prelaunchWrappers.isEmpty() || !m_closedSplashAppIds.isEmpty())
+        && m_appIdResolverManager) {
         int pidfd = surface->pidFD();
         if (pidfd >= 0) {
             // Register pending before starting async resolve (unified list)
@@ -330,6 +360,15 @@ void ShellHandler::onXdgToplevelSurfaceAdded(WXdgToplevelSurface *surface)
 
 void ShellHandler::ensureXdgWrapper(WXdgToplevelSurface *surface, const QString &targetAppId)
 {
+    // Check if this matches a closed splash screen
+    if (!targetAppId.isEmpty() && m_closedSplashAppIds.contains(targetAppId)) {
+        qCInfo(treelandShell) << "XDG surface matches closed splash, closing immediately: appId="
+                              << targetAppId;
+        m_closedSplashAppIds.remove(targetAppId);
+        surface->close();
+        return;
+    }
+
     SurfaceWrapper *wrapper = nullptr;
     bool isNewWrapper = true;
 
@@ -375,6 +414,7 @@ void ShellHandler::ensureXdgWrapper(WXdgToplevelSurface *surface, const QString 
     // prelaunch splash wrappers already have it set up in createPrelaunchSplash
     if (isNewWrapper) {
         setupSurfaceActiveWatcher(wrapper);
+        registerSurfaceToForeignToplevel(wrapper);
     }
     Q_EMIT surfaceWrapperAdded(wrapper);
 }
@@ -461,10 +501,11 @@ void ShellHandler::onXWaylandSurfaceAdded(WXWaylandSurface *surface)
                              auto raw = surface.data();
                              if (!raw)
                                  return; // surface destroyed before callback
-                             // If prelaunch wrappers exist and resolver is available, attempt async
-                             // resolve; if started, remaining logic handled in callback, then
-                             // return
-                             if (!m_prelaunchWrappers.isEmpty() && m_appIdResolverManager) {
+                             // If prelaunch wrappers or closed splash appIds exist and resolver is
+                             // available, attempt async resolve; if started, remaining logic
+                             // handled in callback, then return
+                             if ((!m_prelaunchWrappers.isEmpty() || !m_closedSplashAppIds.isEmpty())
+                                 && m_appIdResolverManager) {
                                  int pidfd = raw->pidFD();
                                  if (pidfd >= 0) {
                                      m_pendingAppIdResolveToplevels.append(raw);
@@ -526,6 +567,15 @@ void ShellHandler::onXWaylandSurfaceAdded(WXWaylandSurface *surface)
 
 void ShellHandler::ensureXwaylandWrapper(WXWaylandSurface *surface, const QString &targetAppId)
 {
+    // Check if this matches a closed splash screen
+    if (!targetAppId.isEmpty() && m_closedSplashAppIds.contains(targetAppId)) {
+        qCDebug(treelandShell)
+            << "XWayland surface matches closed splash, closing immediately: appId=" << targetAppId;
+        m_closedSplashAppIds.remove(targetAppId);
+        surface->close();
+        return;
+    }
+
     SurfaceWrapper *wrapper = nullptr;
     bool isNewWrapper = true;
 
@@ -567,8 +617,23 @@ void ShellHandler::ensureXwaylandWrapper(WXWaylandSurface *surface, const QStrin
     // prelaunch splash wrappers already have it set up in createPrelaunchSplash
     if (isNewWrapper) {
         setupSurfaceActiveWatcher(wrapper);
+        registerSurfaceToForeignToplevel(wrapper);
     }
     Q_EMIT surfaceWrapperAdded(wrapper);
+}
+
+void ShellHandler::registerSurfaceToForeignToplevel(SurfaceWrapper *wrapper)
+{
+    if (!wrapper->skipDockPreView()) {
+        m_treelandForeignToplevel->addSurface(wrapper);
+    }
+    connect(wrapper, &SurfaceWrapper::skipDockPreViewChanged, this, [this, wrapper] {
+        if (wrapper->skipDockPreView()) {
+            m_treelandForeignToplevel->removeSurface(wrapper);
+        } else {
+            m_treelandForeignToplevel->addSurface(wrapper);
+        }
+    });
 }
 
 void ShellHandler::setupSurfaceActiveWatcher(SurfaceWrapper *wrapper)
