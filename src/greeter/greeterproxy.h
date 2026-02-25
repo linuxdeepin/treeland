@@ -10,6 +10,7 @@
 
 class QLocalSocket;
 
+class DDMInterfaceV2;
 class LockScreen;
 
 class GreeterProxy
@@ -42,6 +43,8 @@ class GreeterProxy
 public:
     explicit GreeterProxy(QObject *parent = nullptr);
     ~GreeterProxy();
+
+    void connectDDM(DDMInterfaceV2 *interface);
 
     //////////////////////
     // Property getters //
@@ -93,7 +96,9 @@ public:
 
     /**
      * @brief Get the number of failed login attempts (password incorrect)
+     *
      * The value is reset to 0 when unlocked successfully
+     *
      * QML elements should listen to this property to detect failed login/unlock attempts
      *
      * @return Number of failed attempts
@@ -102,6 +107,7 @@ public:
 
     /**
      * @brief Get whether the shutdown view is shown
+     *
      * QML elements should listen to this property to show/hide the shutdown view
      *
      * @return true if shutdown view is shown
@@ -110,6 +116,7 @@ public:
 
     /**
      * @brief Get whether to show animation on lock/unlock
+     *
      * QML elements should listen to this property to enable/disable animation
      *
      * @return true if show animation
@@ -118,6 +125,7 @@ public:
 
     /**
      * @brief Get whether there is an active user session
+     *
      * QML elements should listen to this property to show/hide session related UI
      *
      * @return true if has active session
@@ -130,6 +138,7 @@ public:
 
     /**
      * @brief Set whether to show the shutdown view
+     *
      * QML elements should set this property to show/hide the shutdown view
      *
      * @param show true to show shutdown view, false to hide
@@ -141,13 +150,8 @@ public:
     ////////////////////
 
     /**
-     * @brief Check if the DDM socket is connected
-     * @return true if connected
-     */
-    bool isConnected() const;
-
-    /**
      * @brief Set the LockScreen instance
+     *
      * This is necessary for the GreeterProxy to control the lock screen visibility
      *
      * @param lockScreen LockScreen instance
@@ -176,6 +180,7 @@ public Q_SLOTS:
     void hybridSleep();
 
     /** @brief Login given user with given password for given desktop session.
+     *
      * This function will call DDM to perform the login.
      *
      * Listen to org.freedesktop.login1.Manager.SessionNew signal to
@@ -189,6 +194,7 @@ public Q_SLOTS:
     void login(const QString &user, const QString &password, int sessionIndex);
 
     /** @brief Lock the current active session.
+     *
      * This function will call DDM to perform the lock.
      *
      * Listen to org.freedesktop.login1.Session.Lock signal to detect
@@ -197,6 +203,7 @@ public Q_SLOTS:
     void lock();
 
     /** @brief Unlock given user with given password.
+     *
      * This function will call DDM to perform the unlock.
      *
      * Listen to org.freedesktop.login1.Session.Unlock signal to
@@ -209,6 +216,7 @@ public Q_SLOTS:
     void unlock(const QString &user, const QString &password);
 
     /** @brief Logout the current active session.
+     *
      * This function will call DDM to perform the logout.
      *
      * Listen to org.freedesktop.login1.Manager.SessionRemoved signal to
@@ -218,14 +226,13 @@ public Q_SLOTS:
 
 private Q_SLOTS:
 
-    ///////////////////////
-    // DDM Communication //
-    ///////////////////////
+    //////////////////////
+    // Signals from DDM //
+    //////////////////////
 
-    void connected();
-    void disconnected();
-    void readyRead();
-    void error();
+    void capabilities(uint32_t capabilities);
+    void userLoggedIn(const QString &username, const QString &session);
+    void authenticationFailed(uint32_t error);
 
     //////////////////////////////
     // Logind session listeners //
@@ -244,8 +251,6 @@ private Q_SLOTS:
     void onSessionUnlock();
 
 Q_SIGNALS:
-    void informationMessage(const QString &message);
-
     void switchUser();
 
     void socketDisconnected();
@@ -295,6 +300,7 @@ private:
 
     /**
      * @brief Set the lock state
+     *
      * This is the internal method to set the lock state (lockscreen
      * visibility, etc.) directly without calling DDM and
      * communicating with systemd-logind.
@@ -303,16 +309,11 @@ private:
      */
     void setLock(bool isLocked);
 
-    /**
-     * @brief Update the DDM communication socket
-     */
-    void updateAuthSocket();
-
     /////////////////////
     // Property values //
     /////////////////////
 
-    QLocalSocket *m_socket{ nullptr };
+    DDMInterfaceV2 *m_ddmInterface{ nullptr };
     LockScreen *m_lockScreen{ nullptr };
 
     QString m_hostName{};
