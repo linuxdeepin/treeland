@@ -750,12 +750,12 @@ void WBufferRenderer::destroySource(int index)
         delete s.renderer;
         s.renderer = nullptr;
     }
+    s.source->disconnect(this);
 
     auto d = QQuickItemPrivate::get(s.source);
     if (d->inDestructor)
         return;
 
-    s.source->disconnect(this);
     d->derefFromEffectItem(m_hideSource);
 }
 
