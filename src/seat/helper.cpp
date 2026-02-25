@@ -1381,7 +1381,7 @@ void Helper::init(Treeland::Treeland *treeland)
     xdgOutputManager->setFilter([](WClient *client) { return !isXWaylandClient(client); });
     xwaylandOutputManager->setFilter([](WClient *client) { return isXWaylandClient(client); });
     // User dde does not has a real Logind session, so just pass 0 as id
-    m_sessionManager->updateActiveUserSession(QStringLiteral("dde"), 0);
+    m_sessionManager->updateActiveUserSession(QStringLiteral("dde"), {});
     connect(m_userModel, &UserModel::userLoggedIn, m_sessionManager, &SessionManager::updateActiveUserSession);
     m_xdgDecorationManager = m_server->attach<WXdgDecorationManager>();
     connect(m_xdgDecorationManager,
