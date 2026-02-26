@@ -1,4 +1,4 @@
-// Copyright (C) 2025 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2025-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
@@ -57,25 +57,25 @@ public:
      * @brief Get the power off capability
      * @return true if can power off
      */
-    inline bool canPowerOff()      const { return m_canPowerOff;      }; 
+    inline bool canPowerOff()      const { return m_canPowerOff;      };
 
     /**
      * @brief Get the reboot capability
      * @return true if can reboot
      */
-    inline bool canReboot()        const { return m_canReboot;        }; 
+    inline bool canReboot()        const { return m_canReboot;        };
 
     /**
      * @brief Get the suspend capability
      * @return true if can suspend
      */
-    inline bool canSuspend()       const { return m_canSuspend;       }; 
+    inline bool canSuspend()       const { return m_canSuspend;       };
 
     /**
      * @brief Get the hibernate capability
      * @return true if can hibernate
      */
-    inline bool canHibernate()     const { return m_canHibernate;     }; 
+    inline bool canHibernate()     const { return m_canHibernate;     };
 
     /**
      * @brief Get the hybrid sleep capability
