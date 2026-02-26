@@ -2014,8 +2014,8 @@ bool SurfaceWrapper::skipDockPreView() const
 void SurfaceWrapper::setSkipDockPreView(bool skip)
 {
     if (!skip && (m_type != Type::XdgToplevel && m_type != Type::XWayland)) {
-        qCWarning(treelandSurface)
-            << "Only xdgtoplevel, x11 surface or can `setSkipDockPreView` to false";
+        qCWarning(treelandSurface) << "Only XdgToplevel or XWayland surfaces are allowed to set "
+                                      "`skipDockPreView` to false.";
         return;
     }
 

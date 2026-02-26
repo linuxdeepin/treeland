@@ -3,7 +3,6 @@
 
 #pragma once
 
-#include "modules/foreign-toplevel/foreigntoplevelmanagerv1.h"
 #include "core/qmlengine.h"
 #include "modules/shortcut/shortcutmanager.h"
 #include "modules/virtual-output/virtualoutputmanager.h"
@@ -263,14 +262,6 @@ private:
     void onOutputTestOrApply(qw_output_configuration_v1 *config, bool onlyTest);
     void onSetOutputPowerMode(wlr_output_power_v1_set_mode_event *event);
     void onNewIdleInhibitor(wlr_idle_inhibitor_v1 *inhibitor);
-    void onDockPreview(std::vector<SurfaceWrapper *> surfaces,
-                       WSurface *target,
-                       QPoint pos,
-                       ForeignToplevelV1::PreviewDirection direction);
-    void onDockPreviewTooltip(QString tooltip,
-                              WSurface *target,
-                              QPoint pos,
-                              ForeignToplevelV1::PreviewDirection direction);
     void onSetCopyOutput(treeland_virtual_output_v1 *virtual_output);
     void onRestoreCopyOutput(treeland_virtual_output_v1 *virtual_output);
     void onSurfaceWrapperAdded(SurfaceWrapper *wrapper);

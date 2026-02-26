@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
+
+#include "modules/foreign-toplevel/foreigntoplevelmanagerv1.h"
+
 #include <wglobal.h>
 
 #include <qwglobal.h>
@@ -51,6 +54,7 @@ class qw_compositor;
 QW_END_NAMESPACE
 
 QT_BEGIN_NAMESPACE
+class QQuickItem;
 class QQuickWindow;
 QT_END_NAMESPACE
 
@@ -67,7 +71,7 @@ public:
                           WAYLIB_SERVER_NAMESPACE::WServer *server);
     [[nodiscard]] Workspace *workspace() const;
 
-    void createComponent(QmlEngine *engine);
+    void createComponent(QmlEngine *engine, QQuickItem *parentItem);
     void initXdgShell(WAYLIB_SERVER_NAMESPACE::WServer *server);
     void initLayerShell(WAYLIB_SERVER_NAMESPACE::WServer *server);
     [[nodiscard]] WAYLIB_SERVER_NAMESPACE::WXWayland *createXWayland(
@@ -81,6 +85,8 @@ public:
                                WAYLIB_SERVER_NAMESPACE::WSeat *seat);
 
     WAYLIB_SERVER_NAMESPACE::WXWayland *defaultXWaylandSocket() const;
+    void setupDockPreview(QObject *dockPreview);
+
 Q_SIGNALS:
     void surfaceWrapperAdded(SurfaceWrapper *wrapper);
     void surfaceWrapperAboutToRemove(SurfaceWrapper *wrapper);
@@ -98,6 +104,17 @@ private Q_SLOTS:
     void onLayerSurfaceRemoved(WAYLIB_SERVER_NAMESPACE::WLayerSurface *surface);
 
     void onInputPopupSurfaceV2Added(WAYLIB_SERVER_NAMESPACE::WInputPopupSurface *surface);
+
+    void onDockPreview(std::vector<SurfaceWrapper *> surfaces,
+                       WAYLIB_SERVER_NAMESPACE::WSurface *target,
+                       QPoint pos,
+                       ForeignToplevelV1::PreviewDirection direction);
+    void onDockPreviewTooltip(QString tooltip,
+                              WAYLIB_SERVER_NAMESPACE::WSurface *target,
+                              QPoint pos,
+                              ForeignToplevelV1::PreviewDirection direction);
+
+    void setupDockPreview();
     void onInputPopupSurfaceV2Removed(WAYLIB_SERVER_NAMESPACE::WInputPopupSurface *surface);
 
 private:
@@ -152,6 +169,8 @@ private:
     QSet<QString> m_pendingPrelaunchAppIds;
     // AppIds of closed splash screens, used to close matching real windows
     QSet<QString> m_closedSplashAppIds;
+    // Dock preview QML object
+    QObject *m_dockPreview = nullptr;
     // Pending toplevel surfaces (XDG or XWayland) awaiting async AppId resolve; callbacks continue
     // only if the pointer remains in this list
     QList<WAYLIB_SERVER_NAMESPACE::WToplevelSurface *> m_pendingAppIdResolveToplevels;
