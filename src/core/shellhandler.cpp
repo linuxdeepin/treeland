@@ -39,7 +39,6 @@
 #include <QColor>
 #include <QPointer>
 #include <QTimer>
-#include <qlogging.h>
 
 #include <algorithm>
 #include <functional>
@@ -193,6 +192,16 @@ void ShellHandler::createPrelaunchSplash(const QString &appId,
     setupSurfaceActiveWatcher(wrapper);
     registerSurfaceToForeignToplevel(wrapper);
 
+    // After configurable timeout, if still unmatched (not converted and still in the list),
+    // destroy the splash wrapper
+    qlonglong timeoutMs = Helper::instance()->globalConfig()->prelaunchSplashTimeoutMs();
+    // Bounds: <=0 disables auto-destroy, >60000 clamps to 60000
+    if (timeoutMs > 60000) {
+        qCWarning(treelandShell)
+            << "Prelaunch splash timeout too long, clamping to 60000ms, requested:" << timeoutMs;
+        timeoutMs = 60000;
+    }
+
     // Listen for splash close request
     connect(wrapper, &SurfaceWrapper::requestCloseSplash, this, [this, wrapper]() {
         const QString appId = wrapper->appId();
@@ -210,15 +219,6 @@ void ShellHandler::createPrelaunchSplash(const QString &appId,
         m_rootSurfaceContainer->destroyForSurface(wrapper);
     });
 
-    // After configurable timeout, if still unmatched (not converted and still in the list),
-    // destroy the splash wrapper
-    qlonglong timeoutMs = Helper::instance()->globalConfig()->prelaunchSplashTimeoutMs();
-    // Bounds: <=0 disables auto-destroy, >60000 clamps to 60000
-    if (timeoutMs > 60000) {
-        qCWarning(treelandShell)
-            << "Prelaunch splash timeout too long, clamping to 60000ms, requested:" << timeoutMs;
-        timeoutMs = 60000;
-    }
     if (timeoutMs > 0) {
         QTimer::singleShot(static_cast<int>(timeoutMs),
                            wrapper,
@@ -244,9 +244,11 @@ Workspace *ShellHandler::workspace() const
     return m_workspace;
 }
 
-void ShellHandler::createComponent(QmlEngine *engine)
+void ShellHandler::createComponent(QmlEngine *engine, QQuickItem *parentItem)
 {
     m_windowMenu = engine->createWindowMenu(Helper::instance());
+    m_dockPreview = engine->createDockPreview(parentItem);
+    setupDockPreview();
 }
 
 void ShellHandler::initXdgShell(WServer *server)
@@ -634,6 +636,63 @@ void ShellHandler::registerSurfaceToForeignToplevel(SurfaceWrapper *wrapper)
             m_treelandForeignToplevel->addSurface(wrapper);
         }
     });
+}
+
+void ShellHandler::setupDockPreview()
+{
+    Q_ASSERT(m_dockPreview);
+
+    connect(m_treelandForeignToplevel,
+            &ForeignToplevelV1::requestDockPreview,
+            this,
+            &ShellHandler::onDockPreview);
+    connect(m_treelandForeignToplevel,
+            &ForeignToplevelV1::requestDockPreviewTooltip,
+            this,
+            &ShellHandler::onDockPreviewTooltip);
+    connect(m_treelandForeignToplevel,
+            &ForeignToplevelV1::requestDockClose,
+            m_dockPreview,
+            [this]() {
+                QMetaObject::invokeMethod(m_dockPreview, "close");
+            });
+}
+
+void ShellHandler::onDockPreview(std::vector<SurfaceWrapper *> surfaces,
+                                 WSurface *target,
+                                 QPoint pos,
+                                 ForeignToplevelV1::PreviewDirection direction)
+{
+    if (!m_dockPreview)
+        return;
+
+    SurfaceWrapper *dockWrapper = m_rootSurfaceContainer->getSurface(target);
+    Q_ASSERT(dockWrapper);
+
+    QMetaObject::invokeMethod(m_dockPreview,
+                              "show",
+                              QVariant::fromValue(surfaces),
+                              QVariant::fromValue(dockWrapper),
+                              QVariant::fromValue(pos),
+                              QVariant::fromValue(direction));
+}
+
+void ShellHandler::onDockPreviewTooltip(QString tooltip,
+                                        WSurface *target,
+                                        QPoint pos,
+                                        ForeignToplevelV1::PreviewDirection direction)
+{
+    if (!m_dockPreview)
+        return;
+
+    SurfaceWrapper *dockWrapper = m_rootSurfaceContainer->getSurface(target);
+    Q_ASSERT(dockWrapper);
+    QMetaObject::invokeMethod(m_dockPreview,
+                              "showTooltip",
+                              QVariant::fromValue(tooltip),
+                              QVariant::fromValue(dockWrapper),
+                              QVariant::fromValue(pos),
+                              QVariant::fromValue(direction));
 }
 
 void ShellHandler::setupSurfaceActiveWatcher(SurfaceWrapper *wrapper)
