@@ -884,37 +884,6 @@ void Helper::updateIdleInhibitor()
     m_idleNotifier->set_inhibited(false);
 }
 
-void Helper::onDockPreview(std::vector<SurfaceWrapper *> surfaces,
-                           WSurface *target,
-                           QPoint pos,
-                           ForeignToplevelV1::PreviewDirection direction)
-{
-    SurfaceWrapper *dockWrapper = m_rootSurfaceContainer->getSurface(target);
-    Q_ASSERT(dockWrapper);
-
-    QMetaObject::invokeMethod(m_dockPreview,
-                              "show",
-                              QVariant::fromValue(surfaces),
-                              QVariant::fromValue(dockWrapper),
-                              QVariant::fromValue(pos),
-                              QVariant::fromValue(direction));
-}
-
-void Helper::onDockPreviewTooltip(QString tooltip,
-                                  WSurface *target,
-                                  QPoint pos,
-                                  ForeignToplevelV1::PreviewDirection direction)
-{
-    SurfaceWrapper *dockWrapper = m_rootSurfaceContainer->getSurface(target);
-    Q_ASSERT(dockWrapper);
-    QMetaObject::invokeMethod(m_dockPreview,
-                              "showTooltip",
-                              QVariant::fromValue(tooltip),
-                              QVariant::fromValue(dockWrapper),
-                              QVariant::fromValue(pos),
-                              QVariant::fromValue(direction));
-}
-
 void Helper::onShowDesktop()
 {
     WindowManagementV1::DesktopState s = m_windowManagement->desktopState();
@@ -1242,7 +1211,7 @@ void Helper::init(Treeland::Treeland *treeland)
             &DDEShellManagerInterfaceV1::lockScreenCreated,
             this,
             &Helper::handleLockScreen);
-    m_shellHandler->createComponent(engine);
+    m_shellHandler->createComponent(engine, m_renderWindow->contentItem());
     m_shellHandler->initXdgShell(m_server);
     m_shellHandler->initLayerShell(m_server);
     m_shellHandler->initInputMethodHelper(m_server, m_seat);
@@ -1422,24 +1391,6 @@ void Helper::init(Treeland::Treeland *treeland)
     qw_data_control_manager_v1::create(*m_server->handle());
     qw_ext_data_control_manager_v1::create(*m_server->handle(), EXT_DATA_CONTROL_MANAGER_V1_VERSION);
     qw_alpha_modifier_v1::create(*m_server->handle());
-
-    m_dockPreview = engine->createDockPreview(m_renderWindow->contentItem());
-
-    connect(m_shellHandler->m_treelandForeignToplevel,
-            &ForeignToplevelV1::requestDockPreview,
-            this,
-            &Helper::onDockPreview);
-    connect(m_shellHandler->m_treelandForeignToplevel,
-            &ForeignToplevelV1::requestDockPreviewTooltip,
-            this,
-            &Helper::onDockPreviewTooltip);
-
-    connect(m_shellHandler->m_treelandForeignToplevel,
-            &ForeignToplevelV1::requestDockClose,
-            m_dockPreview,
-            [this]() {
-                QMetaObject::invokeMethod(m_dockPreview, "close");
-            });
 
     m_idleNotifier = qw_idle_notifier_v1::create(*m_server->handle());
 
