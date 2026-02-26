@@ -1,4 +1,5 @@
 /***************************************************************************
+ * Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
  * Copyright (c) 2013 Abdurrahman AVCI <abdurrahmanavci@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
