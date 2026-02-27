@@ -1,12 +1,13 @@
-// Copyright (C) 2025 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2025-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "prelaunchsplash.h"
+
 #include "qwayland-server-treeland-prelaunch-splash-v2.h"
 
 #include <wserver.h>
 
-#include <qwdisplay.h>
 #include <qwbuffer.h>
+#include <qwdisplay.h>
 
 #include <QByteArray>
 #include <QLoggingCategory>
@@ -35,14 +36,21 @@ public:
     {
     }
 
-    QString appId() const { return m_appId; }
-    QString instanceId() const { return m_instanceId; }
+    QString appId() const
+    {
+        return m_appId;
+    }
+
+    QString instanceId() const
+    {
+        return m_instanceId;
+    }
 
 protected:
     void treeland_prelaunch_splash_v2_destroy(Resource *resource) override
     {
-        qCInfo(prelaunchSplash)
-            << "Client destroy splash appId=" << m_appId << " instanceId=" << m_instanceId;
+        qCInfo(prelaunchSplash) << "Client destroy splash appId=" << m_appId
+                                << " instanceId=" << m_instanceId;
         wl_resource_destroy(resource->handle);
     }
 
@@ -86,15 +94,13 @@ protected:
         const QString &sandboxEngineName,
         struct ::wl_resource *icon_buffer) override
     {
-        qCInfo(prelaunchSplash)
-            << "create_splash request sandbox=" << sandboxEngineName
-            << " app_id=" << app_id << " instance_id=" << instance_id;
+        qCInfo(prelaunchSplash) << "create_splash request sandbox=" << sandboxEngineName
+                                << " app_id=" << app_id << " instance_id=" << instance_id;
 
-        auto *splashResource =
-            wl_resource_create(resource->client(),
-                               &treeland_prelaunch_splash_v2_interface,
-                               wl_resource_get_version(resource->handle),
-                               id);
+        auto *splashResource = wl_resource_create(resource->client(),
+                                                  &treeland_prelaunch_splash_v2_interface,
+                                                  wl_resource_get_version(resource->handle),
+                                                  id);
         if (!splashResource) {
             wl_resource_post_no_memory(resource->handle);
             return;
