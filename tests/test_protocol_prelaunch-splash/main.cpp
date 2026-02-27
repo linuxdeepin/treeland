@@ -1,4 +1,4 @@
-// Copyright (C) 2025 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2025-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "modules/prelaunch-splash/prelaunchsplash.h"
@@ -44,12 +44,10 @@ private Q_SLOTS:
     {
         QVERIFY(m_protocol != nullptr);
 
-        QSignalSpy splashRequestedSpy(m_protocol,
-                                      &PrelaunchSplash::splashRequested);
+        QSignalSpy splashRequestedSpy(m_protocol, &PrelaunchSplash::splashRequested);
         QVERIFY(splashRequestedSpy.isValid());
 
-        QSignalSpy splashCloseSpy(m_protocol,
-                                  &PrelaunchSplash::splashCloseRequested);
+        QSignalSpy splashCloseSpy(m_protocol, &PrelaunchSplash::splashCloseRequested);
         QVERIFY(splashCloseSpy.isValid());
     }
 
