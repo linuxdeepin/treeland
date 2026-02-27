@@ -502,6 +502,32 @@ void GreeterProxy::readyRead()
             if (userPtr) {
                 userModel()->updateUserLoginState(user, true);
                 Q_EMIT userModel()->userLoggedIn(user, sessionId);
+                QThreadPool::globalInstance()->start([this, sessionId] {
+                    // Connect to Lock/Unlock signals
+                    auto conn = QDBusConnection::systemBus();
+                    OrgFreedesktopLogin1ManagerInterface manager("org.freedesktop.login1",
+                                                                 Logind::managerPath(),
+                                                                 conn);
+                    auto reply = manager.GetSession(QString::number(sessionId));
+                    reply.waitForFinished();
+                    if (!reply.isValid()) {
+                        qCWarning(treelandGreeter) << "Failed to get session path for session id:" << sessionId << ", error:" << reply.error().message();
+                        return;
+                    }
+                    auto path = reply.value();
+                    conn.connect(Logind::serviceName(),
+                                 path.path(),
+                                 Logind::sessionIfaceName(),
+                                 "Lock",
+                                 this,
+                                 SLOT(onSessionLock()));
+                    conn.connect(Logind::serviceName(),
+                                 path.path(),
+                                 Logind::sessionIfaceName(),
+                                 "Unlock",
+                                 this,
+                                 SLOT(onSessionUnlock()));
+                });
             } else {
                 qCWarning(treelandGreeter) << "User " << user << " logged in but not found";
             }
