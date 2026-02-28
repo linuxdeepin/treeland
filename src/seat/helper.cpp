@@ -27,7 +27,7 @@
 #include "modules/capture/capture.h"
 #include "modules/dde-shell/ddeshellattached.h"
 #include "modules/dde-shell/ddeshellmanagerinterfacev1.h"
-#include "modules/ddm/ddminterfacev1.h"
+#include "modules/ddm/ddminterfacev2.h"
 #include "modules/keystate/keystate.h"
 #include "modules/output-manager/outputmanagement.h"
 #include "modules/personalization/personalizationmanager.h"
@@ -1164,6 +1164,9 @@ void Helper::init(Treeland::Treeland *treeland)
     m_userModel = engine->singletonInstance<UserModel *>("Treeland", "UserModel");
     m_sessionModel = engine->singletonInstance<SessionModel *>("Treeland", "SessionModel");
 
+    m_ddmInterfaceV2 = m_server->attach<DDMInterfaceV2>();
+    m_greeterProxy->connectDDM(m_ddmInterfaceV2);
+
     engine->setContextForObject(m_renderWindow, engine->rootContext());
     engine->setContextForObject(m_renderWindow->contentItem(), engine->rootContext());
     m_rootSurfaceContainer->setQmlEngine(engine);
@@ -1185,8 +1188,6 @@ void Helper::init(Treeland::Treeland *treeland)
     connect(m_backend, &WBackend::inputRemoved, this, [this](WInputDevice *device) {
         m_seat->detachInputDevice(device);
     });
-
-    m_ddmInterfaceV1 = m_server->attach<DDMInterfaceV1>();
 
     m_outputManager = m_server->attach<WOutputManagerV1>();
     connect(m_backend, &WBackend::outputAdded, this, &Helper::onOutputAdded);
@@ -1380,7 +1381,7 @@ void Helper::init(Treeland::Treeland *treeland)
     xdgOutputManager->setFilter([](WClient *client) { return !isXWaylandClient(client); });
     xwaylandOutputManager->setFilter([](WClient *client) { return isXWaylandClient(client); });
     // User dde does not has a real Logind session, so just pass 0 as id
-    m_sessionManager->updateActiveUserSession(QStringLiteral("dde"), 0);
+    m_sessionManager->updateActiveUserSession(QStringLiteral("dde"), {});
     connect(m_userModel, &UserModel::userLoggedIn, m_sessionManager, &SessionManager::updateActiveUserSession);
     m_xdgDecorationManager = m_server->attach<WXdgDecorationManager>();
     connect(m_xdgDecorationManager,
@@ -1582,8 +1583,8 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *, QInputEvent *event)
             // Check if the backend is active to avoid this.
             if (key >= Qt::Key_F1 && key <= Qt::Key_F12 && m_backend->isSessionActive()) {
                 const int vtnr = key - Qt::Key_F1 + 1;
-                if (m_ddmInterfaceV1 && m_ddmInterfaceV1->isConnected()) {
-                    m_ddmInterfaceV1->switchToVt(vtnr);
+                if (m_ddmInterfaceV2 && m_ddmInterfaceV2->isValid()) {
+                    m_ddmInterfaceV2->switchToVt(vtnr);
                 } else {
                     qCDebug(treelandCore) << "DDM is not connected";
                     showLockScreen(false);
@@ -2377,8 +2378,8 @@ void Helper::onPrepareForSleep(bool sleep)
     }
 }
 
-DDMInterfaceV1 *Helper::ddmInterfaceV1() const {
-    return m_ddmInterfaceV1;
+DDMInterfaceV2 *Helper::ddmInterfaceV2() const {
+    return m_ddmInterfaceV2;
 }
 
 void Helper::activateSession() {
