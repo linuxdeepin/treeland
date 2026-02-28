@@ -52,18 +52,29 @@ QQuickItem *QmlEngine::createComponent(QQmlComponent &component,
                                        const QVariantMap &properties)
 {
     auto context = qmlContext(parent);
-    auto obj = component.beginCreate(context);
-    if (!properties.isEmpty()) {
-        component.setInitialProperties(obj, properties);
+    if (!context) {
+        qCCritical(qLcQmlEngine) << "Can't get QML context from parent";
+        return nullptr;
     }
+
+    QObject *obj = component.createWithInitialProperties(properties, context);
+
+    if (!obj) {
+        qCCritical(qLcQmlEngine) << "Component creation failed:" << component.errorString();
+        return nullptr;
+    }
+
     auto item = qobject_cast<QQuickItem *>(obj);
     if (!item) {
-        qCFatal(qLcQmlEngine) << "Can't create component:" << component.errorString();
+        qCCritical(qLcQmlEngine) << "Created object is not a QQuickItem. Actual type:"
+                                  << obj->metaObject()->className();
+        delete obj;
+        return nullptr;
     }
+
     QQmlEngine::setObjectOwnership(item, QQmlEngine::objectOwnership(parent));
     item->setParent(parent);
     item->setParentItem(parent);
-    component.completeCreate();
 
     return item;
 }
@@ -85,12 +96,17 @@ QQuickItem *QmlEngine::createDecoration(SurfaceWrapper *surface, QQuickItem *par
 QObject *QmlEngine::createWindowMenu(QObject *parent)
 {
     auto context = qmlContext(parent);
-    auto obj = windowMenuComponent.beginCreate(context);
+    if (!context) {
+        qCCritical(qLcQmlEngine) << "Can't get QML context from parent for WindowMenu";
+        return nullptr;
+    }
+
+    auto obj = windowMenuComponent.create(context);
     if (!obj) {
-        qCFatal(qLcQmlEngine) << "Can't create WindowMenu:" << windowMenuComponent.errorString();
+        qCCritical(qLcQmlEngine) << "Can't create WindowMenu:" << windowMenuComponent.errorString();
+        return nullptr;
     }
     obj->setParent(parent);
-    windowMenuComponent.completeCreate();
 
     return obj;
 }
