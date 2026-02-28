@@ -12,7 +12,6 @@ Item {
     required property real initialRadius
     property var iconBuffer
     required property color backgroundColor
-    property bool destroyAfterFade: false
     signal destroyRequested
 
     // Fill the entire parent (SurfaceWrapper)
@@ -55,36 +54,13 @@ Item {
             }
         }
     }
-    // Fade-out animation
-    OpacityAnimator {
-        id: fadeOut
-        target: splash
-        from: 1.0
-        to: 0.0
-        duration: 400
-
-        onFinished: {
-            splash.visible = false
-            if (splash.destroyAfterFade) {
-                // Request C++ side to destroy this item to avoid calling destroy()
-                // on an object owned by C++.
-                splash.destroyRequested();
-            }
-        }
-    }
-
-    function hide() {
-        if (fadeOut.running)
-            return;
-        fadeOut.start()
-    }
 
     function hideAndDestroy() {
-        if (destroyAfterFade)
+        if (!splash.visible) {
+            console.warn("PrelaunchSplash: Already hidden, ignoring hideAndDestroy call.");
             return;
-        destroyAfterFade = true;
-        if (fadeOut.running)
-            return;
-        hide();
+        }
+        splash.visible = false
+        splash.destroyRequested();
     }
 }

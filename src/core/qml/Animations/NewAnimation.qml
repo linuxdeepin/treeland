@@ -95,7 +95,7 @@ Item {
             duration: root.duration
             from: root.direction === NewAnimation.Direction.Show ? 0 : 1
             to: root.direction !== NewAnimation.Direction.Show ? 0 : 1
-            easing.type: Easing.OutExpo
+            easing.type: root.direction === NewAnimation.Direction.Show ? Easing.Linear : Easing.OutExpo
         }
     }
 }
