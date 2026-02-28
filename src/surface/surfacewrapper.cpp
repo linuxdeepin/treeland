@@ -1332,11 +1332,6 @@ void SurfaceWrapper::onMappedChanged()
     Q_ASSERT(surface());
     bool mapped = surface()->mapped() && !m_hideByLockScreen;
 
-    if (m_prelaunchSplash) {
-        // The QML part will check for duplicate calls.
-        QMetaObject::invokeMethod(m_prelaunchSplash, "hideAndDestroy", Qt::QueuedConnection);
-    }
-
     if (!m_isProxy) {
         if (mapped) {
             if (!m_prelaunchSplash)
@@ -1351,6 +1346,11 @@ void SurfaceWrapper::onMappedChanged()
 
     if (m_coverContent) {
         m_coverContent->setProperty("mapped", mapped);
+    }
+
+    if (m_prelaunchSplash) {
+        // The QML part will check for duplicate calls.
+        QMetaObject::invokeMethod(m_prelaunchSplash, "hideAndDestroy", Qt::QueuedConnection);
     }
 
     // Splash can't call onMappedChanged, just use mapped state to update
