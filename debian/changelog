@@ -1,3 +1,31 @@
+treeland (0.8.4) unstable; urgency=medium
+
+  * refactor: optimize PrelaunchSplash animation and destruction logic
+  * feat: add prelaunch splash v2 protocol support
+  * fix: fix cannot unlock session after crash recovery
+  * fix: memory leak in prelaunch splash
+  * feat: listen to the Lock/Unlock signal of
+    org.freedesktop.login1.Session
+  * chore: clean up the logic of greeter and lockscreen
+  * fix: WBufferRenderer missing disconnect during QQuickItem destructor
+  * refactor: move dock preview management to ShellHandler
+  * feat: make splash screens visible and closable via foreign-toplevel
+    protocol
+  * feat: implement video slow down and playback control
+  * feat: enhance wallpaper setting with file type detection
+  * fix: prevent crash when updateActiveState called on uninitialized
+    shell surface
+  * fix: keybinding to quit treeland
+  * fix: Treeland destruction timing
+  * fix: SessionManager: correct destruction routine of WXWayland
+    instances
+  * fix: qwlroots: expose qw_xwayland::destroy()
+  * fix: waylib: release renderers before scene graph invalidation
+  * fix: fix splash screen activation and keyboard focus handling
+  * feat: improve splash screen active state handling
+
+ -- rewine <luhongxu@uniontech.com>  Sat, 28 Feb 2026 14:03:33 +0800
+
 treeland (0.8.3) unstable; urgency=medium
 
   * chore: refactor treeland screensaver to persistent daemon
