@@ -29,7 +29,6 @@ int main(int argc, char *argv[])
     QGuiApplication::setQuitOnLastWindowClosed(false);
 
     QGuiApplication app(argc, argv);
-    qRegisterMetaType<QW_NAMESPACE::qw_buffer*>("qw_buffer*");
 
     app.setOrganizationName("deepin");
     app.setApplicationName("treeland");
