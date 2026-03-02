@@ -11,9 +11,6 @@
 #include "workspace/workspace.h"
 #include "wtoplevelsurface.h"
 
-#include <QVariant>
-#include <QColor>
-
 #include <winputpopupsurfaceitem.h>
 #include <wlayersurface.h>
 #include <wlayersurfaceitem.h>
@@ -26,8 +23,11 @@
 #include <wxwaylandsurface.h>
 #include <wxwaylandsurfaceitem.h>
 
-#include <qwlayershellv1.h>
 #include <qwbuffer.h>
+#include <qwlayershellv1.h>
+
+#include <QColor>
+#include <QVariant>
 
 #define OPEN_ANIMATION 1
 #define CLOSE_ANIMATION 2
@@ -69,8 +69,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     setup();
 }
 
-SurfaceWrapper::SurfaceWrapper(SurfaceWrapper *original,
-                               QQuickItem *parent)
+SurfaceWrapper::SurfaceWrapper(SurfaceWrapper *original, QQuickItem *parent)
     : QQuickItem(parent)
     , m_engine(original->m_engine)
     , m_shellSurface(original->m_shellSurface)
@@ -104,22 +103,20 @@ SurfaceWrapper::SurfaceWrapper(SurfaceWrapper *original,
     } else {
         setImplicitSize(original->implicitWidth(), original->implicitHeight());
         auto iconVar = original->prelaunchSplash()
-                           ? original->prelaunchSplash()->property("iconBuffer")
-                           : QVariant();
+            ? original->prelaunchSplash()->property("iconBuffer")
+            : QVariant();
         QColor bgColor = original->prelaunchSplash()
             ? original->prelaunchSplash()->property("backgroundColor").value<QColor>()
             : QColor("#ffffff");
 
-        m_prelaunchSplash = m_engine->createPrelaunchSplash(this,
-             original->radius(),
-             iconVar.value<QW_NAMESPACE::qw_buffer *>(),
-             bgColor);
+        m_prelaunchSplash =
+            m_engine->createPrelaunchSplash(this,
+                                            original->radius(),
+                                            iconVar.value<QW_NAMESPACE::qw_buffer *>(),
+                                            bgColor);
         setNoDecoration(false);
 
-        connect(original,
-            &SurfaceWrapper::surfaceItemCreated,
-                this,
-                [this, original]() {
+        connect(original, &SurfaceWrapper::surfaceItemCreated, this, [this, original]() {
             m_shellSurface = original->m_shellSurface;
             m_type = original->m_type;
             if (m_prelaunchSplash) {
@@ -127,7 +124,7 @@ SurfaceWrapper::SurfaceWrapper(SurfaceWrapper *original,
                 m_prelaunchSplash = nullptr;
             }
             setup();
-         });
+        });
     }
 }
 
@@ -172,7 +169,8 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     } else {
         setImplicitSize(800, 600);
     }
-    m_prelaunchSplash = m_engine->createPrelaunchSplash(this, radius(), iconBuffer, backgroundColor);
+    m_prelaunchSplash =
+        m_engine->createPrelaunchSplash(this, radius(), iconBuffer, backgroundColor);
     // Connect to QML signal so C++ can destroy the QML item when requested
     connect(m_prelaunchSplash,
             SIGNAL(destroyRequested()),
@@ -180,7 +178,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
             SLOT(onPrelaunchSplashDestroyRequested()));
 
     setNoDecoration(false);
-    updateHasActiveCapability(ActiveControlState::MappedOrSplash, true);// Splash is true
+    updateHasActiveCapability(ActiveControlState::MappedOrSplash, true); // Splash is true
 }
 
 SurfaceWrapper::~SurfaceWrapper()
@@ -413,7 +411,8 @@ void SurfaceWrapper::convertToNormalSurface(WToplevelSurface *shellSurface, Type
 {
     // Conversion only allowed from prelaunch (SplashScreen) state
     if (m_type != Type::SplashScreen || m_shellSurface != nullptr) {
-        qCCritical(treelandSurface) << "convertToNormalSurface can only be called on prelaunch surfaces";
+        qCCritical(treelandSurface)
+            << "convertToNormalSurface can only be called on prelaunch surfaces";
         return;
     }
 
@@ -425,24 +424,37 @@ void SurfaceWrapper::convertToNormalSurface(WToplevelSurface *shellSurface, Type
     // Call setup() to initialize surfaceItem related features
     setup();
 
-    // If outputs were set during prelaunch, apply them now
-    if (m_prelaunchOutputs.size() > 0) {
-        setOutputs(m_prelaunchOutputs);
-        m_prelaunchOutputs.clear();
-    }
-
     // setNoDecoration not called updateTitleBar when type is SplashScreen
     updateTitleBar();
     updateDecoration();
     if (surface()->mapped()) {
+        // Apply pending outputs only after mapped to ensure wl_surface resource is ready.
+        if (!m_prelaunchOutputs.isEmpty()) {
+            setOutputs(m_prelaunchOutputs);
+            m_prelaunchOutputs.clear();
+        }
         updateActiveState();
         Q_ASSERT(m_prelaunchSplash);
         QMetaObject::invokeMethod(m_prelaunchSplash, "hideAndDestroy", Qt::QueuedConnection);
     } else {
-        // Defer updateActiveState until surface becomes mapped (which implies initialized)
-        connect(m_shellSurface->surface(), &WSurface::mappedChanged, this, [this]() {
-            updateActiveState();
-        }, Qt::SingleShotConnection);
+        // Defer output assignment/updateActiveState until surface becomes mapped
+        connect(
+            m_shellSurface->surface(),
+            &WSurface::mappedChanged,
+            this,
+            [this]() {
+                if (!surface() || !surface()->mapped()) {
+                    qCWarning(treelandSurface)
+                        << "The surface was invalidated before the first mapping.";
+                    return;
+                }
+                if (!m_prelaunchOutputs.isEmpty()) {
+                    setOutputs(m_prelaunchOutputs);
+                    m_prelaunchOutputs.clear();
+                }
+                updateActiveState();
+            },
+            Qt::SingleShotConnection);
         // hideAndDestroy will be called in onMappedChanged
     }
 }
@@ -476,7 +488,8 @@ void SurfaceWrapper::updateActiveState()
         return;
     }
     if (!m_shellSurface->isInitialized()) {
-        qCWarning(treelandSurface) << "updateActiveState called with shellSurface not yet initialized";
+        qCWarning(treelandSurface)
+            << "updateActiveState called with shellSurface not yet initialized";
         return;
     }
     m_shellSurface->setActivate(m_isActivated);
@@ -526,9 +539,8 @@ void SurfaceWrapper::onPrelaunchSplashDestroyRequested()
     Q_ASSERT(m_prelaunchSplash);
     m_prelaunchSplash->deleteLater();
     m_prelaunchSplash = nullptr;
-    updateHasActiveCapability(ActiveControlState::MappedOrSplash,
-                                surface() && surface()->mapped());
-    if (m_shellSurface) 
+    updateHasActiveCapability(ActiveControlState::MappedOrSplash, surface() && surface()->mapped());
+    if (m_shellSurface)
         updateActiveState();
     Q_EMIT prelaunchSplashChanged();
 }
