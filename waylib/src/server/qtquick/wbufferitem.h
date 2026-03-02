@@ -6,14 +6,12 @@
 #include <wglobal.h>
 #include <wtextureproviderprovider.h>
 #include <qwglobal.h>
+#include <qwbuffer.h>
+
+Q_MOC_INCLUDE(<qwbuffer.h>)
 
 #include <QQuickItem>
 #include <QVariant>
-
-QW_BEGIN_NAMESPACE
-class qw_buffer;
-QW_END_NAMESPACE
-Q_DECLARE_OPAQUE_POINTER(QW_NAMESPACE::qw_buffer*)
 
 QT_BEGIN_NAMESPACE
 class QSGTextureProvider;
@@ -60,3 +58,4 @@ private:
 WAYLIB_SERVER_END_NAMESPACE
 
 Q_DECLARE_METATYPE(WAYLIB_SERVER_NAMESPACE::WBufferItem*)
+Q_DECLARE_OPAQUE_POINTER(QW_NAMESPACE::qw_buffer*)

@@ -5,12 +5,12 @@
 
 #include <wayland-server-core.h>
 #include <wserver.h>
-
 #include <qwbuffer.h>
+#include <memory>
 
 #include <QObject>
 
-#include <memory>
+Q_MOC_INCLUDE(<qwbuffer.h>)
 
 WAYLIB_SERVER_USE_NAMESPACE
 QW_USE_NAMESPACE
@@ -23,7 +23,6 @@ QW_BEGIN_NAMESPACE
 class qw_display;
 class qw_buffer;
 QW_END_NAMESPACE
-Q_DECLARE_OPAQUE_POINTER(QW_NAMESPACE::qw_buffer *)
 
 class PrelaunchSplashPrivate;
 struct wl_global;
@@ -52,3 +51,5 @@ protected: // WServerInterface
 private:
     std::unique_ptr<PrelaunchSplashPrivate> d;
 };
+
+Q_DECLARE_OPAQUE_POINTER(QW_NAMESPACE::qw_buffer*)
