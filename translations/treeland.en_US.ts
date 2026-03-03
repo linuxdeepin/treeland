@@ -2,6 +2,14 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="en_US">
 <context>
+    <name>PrelaunchSplash</name>
+    <message>
+        <location filename="../src/core/qml/PrelaunchSplash.qml" line="65"/>
+        <source>Loading application...</source>
+        <translation>Loading application...</translation>
+    </message>
+</context>
+<context>
     <name>WindowMenu</name>
     <message>
         <location filename="../src/core/qml/WindowMenu.qml" line="29"/>
