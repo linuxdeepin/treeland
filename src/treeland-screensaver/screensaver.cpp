@@ -3,7 +3,7 @@
 
 /**
  * org.freedesktop.ScreenSaver implementation using treeland_screensaver protocol
- * 
+ *
  * This service runs as a persistent daemon under Treeland session.
  * For each Inhibit request a wayland connection is created, which will be terminated
  * upon UnInhibit.
@@ -37,7 +37,7 @@ static void handleGlobalRegister([[maybe_unused]] void        *data,
                                  uint32_t                      id,
                                  const char                   *interface,
                                  uint32_t                      version) {
-    if (strcmp(interface, "treeland_screensaver") == 0) {
+    if (strcmp(interface, "treeland_screensaver_v1") == 0) {
         interfaceId = id;
         interfaceVersion = version;
     }
@@ -50,7 +50,7 @@ static void handleGlobalRemove([[maybe_unused]] void        *data,
         QCoreApplication::instance()->quit();
 }
 
-static const wl_registry_listener registryListener = { 
+static const wl_registry_listener registryListener = {
     .global = handleGlobalRegister,
     .global_remove = handleGlobalRemove
 };
