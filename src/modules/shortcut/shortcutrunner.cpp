@@ -3,6 +3,7 @@
 
 #include "shortcutrunner.h"
 #include "seat/helper.h"
+#include "shortcutcontroller.h"
 #include "workspace/workspace.h"
 #include "modules/window-management/windowmanagement.h"
 #include "core/rootsurfacecontainer.h"
@@ -22,7 +23,7 @@ ShortcutRunner::ShortcutRunner(QObject *parent)
 {
 }
 
-void ShortcutRunner::onActionTrigger(ShortcutAction action, const QString &name, bool isGesture, uint keyFlags)
+void ShortcutRunner::onActionTrigger(ShortcutAction action, const QString &name, bool isGesture, ShortcutController::KeyFlags keyFlags)
 {
     Q_UNUSED(isGesture)
     auto *helper = Helper::instance();
@@ -166,7 +167,7 @@ void ShortcutRunner::onActionTrigger(ShortcutAction action, const QString &name,
     case ShortcutAction::TaskSwitchSameAppPrev: {
         const bool isSameApp = (action == ShortcutAction::TaskSwitchSameAppNext || action == ShortcutAction::TaskSwitchSameAppPrev);
         const bool isPrev = (action == ShortcutAction::TaskSwitchPrev || action == ShortcutAction::TaskSwitchSameAppPrev);
-        taskswitchAction(keyFlags & QtWaylandServer::treeland_shortcut_manager_v2::keybind_flag_repeat, isSameApp, isPrev);
+        taskswitchAction(keyFlags.testFlag(ShortcutController::Repeat), isSameApp, isPrev);
         break;
     }
     default:
@@ -231,7 +232,7 @@ void ShortcutRunner::onActionFinish(ShortcutAction action, const QString &name, 
     }
     default:
         if (isTriggered) {
-            onActionTrigger(action, name, true, false);
+            onActionTrigger(action, name, true, ShortcutController::KeyFlag::None);
         }
         break;
     }
@@ -379,4 +380,3 @@ void ShortcutRunner::taskswitchAction(bool isRepeat, bool isSameApp, bool isPrev
         QMetaObject::invokeMethod(helper->m_taskSwitch, "next");
     }
 }
-
