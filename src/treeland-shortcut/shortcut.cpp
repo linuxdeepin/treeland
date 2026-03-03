@@ -190,30 +190,6 @@ ShortcutV2::ShortcutV2()
 
 void ShortcutV2::registerAllShortcuts()
 {
-    // NOTE: support of dynamic update shortcuts from ini file is temporarily dropped
-    // auto updateShortcuts = [this, customIni] {
-    //     QSettings custom(customIni, QSettings::IniFormat);
-    //     for (auto group : custom.childGroups()) {
-    //         const QString &action =
-    //             custom.value(QString("%1/Action").arg(group)).toString();
-    //         const QString &accels = transFromDaemonAccelStr(
-    //             custom.value(QString("%1/Accels").arg(group)).toString());
-    //         ShortcutContext *context =
-    //             new ShortcutContext(register_shortcut_context(accels));
-    //         connect(context, &ShortcutContext::shortcutHappened, this, [action] {
-    //             QProcess::startDetached(action);
-    //         });
-    //         m_customShortcuts.emplace_back(context);
-    //     }
-    // };
-
-    // QFileSystemWatcher *watcher = new QFileSystemWatcher({ customIni }, this);
-    // connect(watcher, &QFileSystemWatcher::fileChanged, this, [updateShortcuts] {
-    //     updateShortcuts();
-    // });
-
-    // updateShortcuts();
-
     QDir dir(TREELAND_DATA_DIR "/shortcuts");
     for (auto d : dir.entryInfoList(QDir::Filter::Files)) {
         qCInfo(treelandShortcut) << "Load shortcut:" << d.filePath();
