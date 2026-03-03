@@ -1295,7 +1295,11 @@ void Helper::init(Treeland::Treeland *treeland)
         }
 
         // TODO(YaoBing Xiao): pre-initialize dconfig, remove isInitializeSucceeded
+#if TREELANDCONFIG_DCONFIG_FILE_VERSION_MINOR > 0
         if (m_config->isInitializeSucceeded()) {
+#else
+        if (m_config->isInitializeSucceed()) {
+#endif
             m_wallpaperManager->updateWallpaperConfig();
         } else {
             connect(m_config.get(),
