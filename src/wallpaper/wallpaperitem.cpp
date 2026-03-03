@@ -11,6 +11,7 @@
 #include "wallpaper/wallpapermanager.h"
 #include "workspace.h"
 #include "shellhandler.h"
+#include "greeterproxy.h"
 
 #include <woutputitem.h>
 #include <woutput.h>
@@ -155,6 +156,10 @@ WallpaperItem::WallpaperRole WallpaperItem::wallpaperRole()
 
 void WallpaperItem::updateSurface()
 {
+    if (m_disableUpdate) {
+        return;
+    }
+
     if (!output()) {
         return;
     }
@@ -175,7 +180,7 @@ void WallpaperItem::updateSurface()
                 m_source = config.lockscreenWallpaper;
                 setSurface(interface->wSurface());
                 interface->wSurface()->enterOutput(output());
-                Q_EMIT sourceChanged();
+                QTimer::singleShot(2000, this, [this]{ Q_EMIT sourceChanged(); });
         }
         return;
     }
@@ -195,7 +200,7 @@ void WallpaperItem::updateSurface()
                 m_source = workspaceConfig.desktopWallpaper;
                 setSurface(interface->wSurface());
                 interface->wSurface()->enterOutput(output());
-                Q_EMIT sourceChanged();
+                QTimer::singleShot(2000, this, [this]{ Q_EMIT sourceChanged(); });
                 break;
             }
         }
@@ -205,13 +210,17 @@ void WallpaperItem::updateSurface()
 
 void WallpaperItem::handleWallpaperSurfaceAdded(TreelandWallpaperSurfaceInterfaceV1 *interface)
 {
+    if (m_disableUpdate) {
+        return;
+    }
+
     if (wallpaperRole() != Lockscreen &&
         Helper::instance()->m_wallpaperManager->getWallpaperType(interface->source()) == TreelandWallpaperInterfaceV1::Video) {
-        QTimer::singleShot(1000,
+        QTimer::singleShot(3000,
                            this,
                            [this]{
                                updateSurface();
-                               if (m_source != Helper::instance()->currentLockScreenWallpaper(output())) {
+                               if (!Helper::instance()->m_greeterProxy->isLocked()) {
                                    setPlay(false);
                                }
                            });
@@ -222,6 +231,10 @@ void WallpaperItem::handleWallpaperSurfaceAdded(TreelandWallpaperSurfaceInterfac
 
 void WallpaperItem::handleWorkspaceAdded()
 {
+    if (m_disableUpdate) {
+        return;
+    }
+
     if (wallpaperRole() == Lockscreen) {
         return;
     }
@@ -232,4 +245,19 @@ void WallpaperItem::handleWorkspaceAdded()
 
     Helper::instance()->m_wallpaperManager->syncAddWorkspace();
     updateSurface();
+}
+
+bool WallpaperItem::disableUpdate() const
+{
+    return m_disableUpdate;
+}
+
+void WallpaperItem::setDisableUpdate(bool disable)
+{
+    if (m_disableUpdate == disable) {
+        return;
+    }
+
+    m_disableUpdate = disable;
+    Q_EMIT disableUpdateChanged();
 }

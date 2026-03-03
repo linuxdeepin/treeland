@@ -28,6 +28,7 @@ class WallpaperItem : public WSurfaceItemContent
     Q_PROPERTY(QString source READ source NOTIFY sourceChanged FINAL)
     Q_PROPERTY(WallpaperState wallpaperState READ wallpaperState WRITE setWallpaperState NOTIFY wallpaperStateChanged FINAL)
     Q_PROPERTY(bool play READ play WRITE setPlay NOTIFY playChanged FINAL)
+    Q_PROPERTY(bool disableUpdate READ disableUpdate WRITE setDisableUpdate NOTIFY disableUpdateChanged FINAL)
 
     QML_NAMED_ELEMENT(Wallpaper)
     QML_ADDED_IN_VERSION(1, 0)
@@ -69,6 +70,9 @@ public:
 
     Q_INVOKABLE void slowDown();
 
+    bool disableUpdate() const;
+    void setDisableUpdate(bool disable);
+
 Q_SIGNALS:
     void outputChanged();
     void workspaceChanged();
@@ -76,6 +80,7 @@ Q_SIGNALS:
     void sourceChanged();
     void wallpaperStateChanged();
     void playChanged();
+    void disableUpdateChanged();
 
 private Q_SLOTS:
     void handleCurrentuserChanged();
@@ -92,4 +97,5 @@ private:
     QString m_source;
     UserModel *m_model;
     bool m_play = true;
+    bool m_disableUpdate = false;
 };
