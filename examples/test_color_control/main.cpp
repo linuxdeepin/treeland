@@ -8,7 +8,7 @@
 #include <QCommandLineParser>
 
 #include "qwayland-treeland-output-manager-v1.h"
-
+#define TREELAND_OUTPUT_MANAGER_V1_VERSION 2
 
 static wl_output *wlOutputForName(const QString &name)
 {
@@ -35,7 +35,7 @@ class OutputManagerV1
     Q_OBJECT
 public:
     explicit OutputManagerV1()
-        : QWaylandClientExtensionTemplate<OutputManagerV1>(2)
+        : QWaylandClientExtensionTemplate<OutputManagerV1>(TREELAND_OUTPUT_MANAGER_V1_VERSION)
     {
 
     }

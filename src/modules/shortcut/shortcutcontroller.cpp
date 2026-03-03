@@ -11,12 +11,21 @@
 
 #include <QKeyEvent>
 #include <QKeySequence>
+#include <cstdint>
+
+static_assert(
+    static_cast<uint32_t>(ShortcutController::KeyPress) ==
+        QtWaylandServer::treeland_shortcut_manager_v2::
+            keybind_flag_key_press &&
+    static_cast<uint32_t>(ShortcutController::KeyRelease) ==
+        QtWaylandServer::treeland_shortcut_manager_v2::
+            keybind_flag_key_release &&
+    static_cast<uint32_t>(ShortcutController::Repeat) ==
+        QtWaylandServer::treeland_shortcut_manager_v2::keybind_flag_repeat,
+    "treeland-shortcut-manager-v2: protocol's keybind_flag disagree with "
+    "Treeland in value");
 
 using BindError = QtWaylandServer::treeland_shortcut_manager_v2::bind_error;
-using KeybindFlag = QtWaylandServer::treeland_shortcut_manager_v2::keybind_flag;
-const uint KeybindFlagMask = static_cast<uint>(KeybindFlag::keybind_flag_repeat)
-                             | static_cast<uint>(KeybindFlag::keybind_flag_key_press)
-                             | static_cast<uint>(KeybindFlag::keybind_flag_key_release);
 
 ShortcutController::ShortcutController(QObject *parent)
     : QObject(parent)
@@ -28,7 +37,7 @@ ShortcutController::~ShortcutController()
     clear();
 }
 
-uint ShortcutController::registerKey(const QString &name, const QString& key, uint keybindFlags, ShortcutAction action)
+uint ShortcutController::registerKey(const QString &name, const QString& key, ShortcutController::KeyFlags keybindFlags, ShortcutAction action)
 {
     if (m_deleters.contains(name)) {
         return BindError::bind_error_name_conflict;
@@ -47,7 +56,7 @@ uint ShortcutController::registerKey(const QString &name, const QString& key, ui
     }
     int combined = keyComb.toCombined();
 
-    if (keybindFlags & ~KeybindFlagMask) {
+    if (keybindFlags & ~ShortcutController::KeyFlag::All) {
         return BindError::bind_error_invalid_argument;
     }
 
@@ -181,9 +190,9 @@ void ShortcutController::unregisterShortcut(const QString &name)
 bool ShortcutController::dispatchKeyEvent(const QKeyEvent *kevent)
 {
     auto combined = normalizeKeyCombination(kevent->keyCombination()).toCombined();
-    uint keyFlags = (kevent->isAutoRepeat() ? static_cast<uint>(KeybindFlag::keybind_flag_repeat) : 0u)
-                    | (kevent->type() == QEvent::KeyPress ? static_cast<uint>(KeybindFlag::keybind_flag_key_press) : 0u)
-                    | (kevent->type() == QEvent::KeyRelease ? static_cast<uint>(KeybindFlag::keybind_flag_key_release) : 0u);
+    ShortcutController::KeyFlags keyFlags = (kevent->isAutoRepeat() ? ShortcutController::Repeat : ShortcutController::None)
+        | (kevent->type() == QEvent::KeyPress ? ShortcutController::KeyPress : ShortcutController::None)
+        | (kevent->type() == QEvent::KeyRelease ? ShortcutController::KeyRelease : ShortcutController::None);
     if (m_keyMap.contains(combined)) {
         for (const auto &[action, keybind] : std::as_const(m_keyMap[combined]).asKeyValueRange()) {
             const auto& [name, bindFlags] = keybind;

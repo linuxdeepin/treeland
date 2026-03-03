@@ -3,7 +3,6 @@
 
 #pragma once
 
-#include "shortcutmanager.h"
 #include "input/gestures.h"
 
 #include <QMap>
@@ -12,14 +11,24 @@
 class Gesture;
 class QKeyEvent;
 
+enum class ShortcutAction : uint32_t;
+
 class ShortcutController : public QObject
 {
     Q_OBJECT
 public:
+    enum KeyFlag : uint32_t {
+        None = 0,
+        KeyPress = 0x1,
+        KeyRelease = 0x2,
+        Repeat = 0x4,
+        All = KeyPress | KeyRelease | Repeat
+    };
+    Q_DECLARE_FLAGS(KeyFlags, KeyFlag)
     explicit ShortcutController(QObject *parent = nullptr);
     ~ShortcutController() override;
 
-    uint registerKey(const QString &name, const QString& key, uint keybindFlags, ShortcutAction action);
+    uint registerKey(const QString &name, const QString& key, KeyFlags keybindFlags, ShortcutAction action);
     uint registerSwipeGesture(const QString &name, uint finger, SwipeGesture::Direction direction, ShortcutAction action);
     uint registerHoldGesture(const QString &name, uint finger, ShortcutAction action);
     void unregisterShortcut(const QString &name);
@@ -28,15 +37,17 @@ public:
     bool dispatchKeyEvent(const QKeyEvent *event);
 
 Q_SIGNALS:
-    void actionTriggered(ShortcutAction action, const QString &name, bool isGesture, uint keyFlags = 0u);
+    void actionTriggered(ShortcutAction action, const QString &name, bool isGesture, KeyFlags keyFlags = {});
     void actionProgress(ShortcutAction action, qreal progress, const QString &name);
     void actionFinished(ShortcutAction action, const QString &name, bool isTriggered);
 
 private:
     static constexpr QKeyCombination normalizeKeyCombination(QKeyCombination combination);
 
-    QMap<int, QMap<ShortcutAction, std::pair<QString, uint>>> m_keyMap;
+    QMap<int, QMap<ShortcutAction, std::pair<QString, KeyFlags>>> m_keyMap;
     QMap<std::pair<uint, SwipeGesture::Direction>, QMap<ShortcutAction, QString>> m_gesturemap;
     QMap<std::pair<uint, SwipeGesture::Direction>, QObject*> m_gestures;
     QMap<QString, std::function<void()>> m_deleters;
 };
+
+Q_DECLARE_OPERATORS_FOR_FLAGS(ShortcutController::KeyFlags)

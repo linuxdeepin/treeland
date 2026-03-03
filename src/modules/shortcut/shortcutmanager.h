@@ -5,6 +5,8 @@
 
 #include <wserver.h>
 
+#include "shortcutcontroller.h"
+
 #include <QObject>
 #include <QQmlEngine>
 
@@ -61,7 +63,7 @@ public:
     QByteArrayView interfaceName() const override;
 
     ShortcutController* controller();
-    void sendActivated(const QString& name, uint keyFlags = 0);
+    void sendActivated(const QString& name, ShortcutController::KeyFlags keyFlags);
 
 public Q_SLOTS:
     void onSessionChanged();
