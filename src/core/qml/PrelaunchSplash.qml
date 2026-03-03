@@ -10,8 +10,9 @@ Item {
     id: splash
 
     required property real initialRadius
-    property var iconBuffer
+    required property var iconBuffer
     required property color backgroundColor
+    readonly property bool isLightBackground: backgroundColor.hslLightness >= 0.5
     signal destroyRequested
 
     // Fill the entire parent (SurfaceWrapper)
@@ -24,33 +25,46 @@ Item {
         radius: initialRadius
 
         // Centered logo: prefer provided icon buffer; fallback to image / placeholder
-        Item {
-            id: logoContainer
-            width: 128
-            height: 128
+        Column {
+            id: contentColumn
             anchors.centerIn: parent
+            spacing: 12
 
-            BufferItem {
-                anchors.fill: parent
-                visible: !!splash.iconBuffer
-                buffer: splash.iconBuffer
-                smooth: true
+            Item {
+                id: logoContainer
+                width: 88
+                height: 88
+                anchors.horizontalCenter: parent.horizontalCenter
+
+                BufferItem {
+                    anchors.fill: parent
+                    visible: !!splash.iconBuffer
+                    buffer: splash.iconBuffer
+                    smooth: true
+                }
+
+                // Fallback placeholder when no icon buffer is provided
+                Rectangle {
+                    anchors.fill: parent
+                    visible: !splash.iconBuffer
+                    color: "#4CAF50"
+                    radius: width / 2
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "App"
+                        font.pixelSize: 24
+                        color: "white"
+                        font.bold: true
+                    }
+                }
             }
 
-            // Fallback placeholder when no icon buffer is provided
-            Rectangle {
-                anchors.fill: parent
-                visible: !splash.iconBuffer
-                color: "#4CAF50"
-                radius: width / 2
-
-                Text {
-                    anchors.centerIn: parent
-                    text: "App"
-                    font.pixelSize: 24
-                    color: "white"
-                    font.bold: true
-                }
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: qsTr("Loading application...")
+                color: splash.isLightBackground ? Qt.rgba(0, 0, 0, 0.5) : Qt.rgba(1, 1, 1, 0.5)
+                font.pixelSize: 16 // TODO：use D.DTK.fontManager.t5
             }
         }
     }
