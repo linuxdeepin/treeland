@@ -102,7 +102,7 @@ void WallpaperLauncher::onStopRequested()
     m_wallpaperProcess = nullptr;
 }
 
-void WallpaperLauncher::handleWallpaperFinished(int exitCode, QProcess::ExitStatus exitStatus)
+void WallpaperLauncher::handleWallpaperFinished([[maybe_unused]] int exitCode, [[maybe_unused]] QProcess::ExitStatus exitStatus)
 {
     stop();
 }
