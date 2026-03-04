@@ -63,12 +63,14 @@ static treeland_screensaver_v1 *inhibit(const QString &appName, const QString &r
     treeland_screensaver_v1_inhibit(screensaver,
                                  appName.toUtf8().constData(),
                                  reason.toUtf8().constData());
+    wl_display_flush(display);
     return screensaver;
 }
 
 static void uninhibit(treeland_screensaver_v1 *screensaver) {
     treeland_screensaver_v1_uninhibit(screensaver);
     treeland_screensaver_v1_destroy(screensaver);
+    wl_display_flush(display);
 }
 
 // D-Bus adaptor
