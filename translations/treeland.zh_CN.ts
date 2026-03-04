@@ -4,7 +4,7 @@
     <message>
         <location filename="../src/core/qml/PrelaunchSplash.qml" line="65"/>
         <source>Loading application...</source>
-        <translation type="unfinished"/>
+        <translation>应用加载中...</translation>
     </message>
 </context>
 <context>
