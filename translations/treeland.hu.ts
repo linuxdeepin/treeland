@@ -1,5 +1,13 @@
 <?xml version="1.0" ?><!DOCTYPE TS><TS version="2.1" language="hu">
 <context>
+    <name>PrelaunchSplash</name>
+    <message>
+        <location filename="../src/core/qml/PrelaunchSplash.qml" line="65"/>
+        <source>Loading application...</source>
+        <translation type="unfinished"/>
+    </message>
+</context>
+<context>
     <name>WindowMenu</name>
     <message>
         <location filename="../src/core/qml/WindowMenu.qml" line="29"/>
