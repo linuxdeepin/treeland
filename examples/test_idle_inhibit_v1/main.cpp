@@ -33,14 +33,22 @@ int main(int argc, char *argv[])
         "command");
     parser.addOption(execOption);
 
+    QCommandLineOption dbusInhibitDurationOption(
+        QStringList() << "d" << "dbus-inhibit-duration",
+        "Set inhibit duration in milliseconds using org.freedesktop.ScreenSaver D-Bus interface (0 to disable). Conflict with -i option.",
+        "duration",
+        "0");
+    parser.addOption(dbusInhibitDurationOption);
+
     parser.process(app);
 
     uint32_t idleTimeout = parser.value(idleTimeoutOption).toUInt();
     uint32_t inhibitDuration = parser.value(inhibitDurationOption).toUInt();
+    uint32_t dbusInhibitDuration = parser.value(dbusInhibitDurationOption).toUInt();
     QString execCommand = parser.value(execOption);
 
     IdleClient client;
-    if (!client.initialize(idleTimeout, inhibitDuration, execCommand)) {
+    if (!client.initialize(idleTimeout, inhibitDuration, dbusInhibitDuration, execCommand)) {
         qCritical("Failed to initialize idle client");
         return 1;
     }

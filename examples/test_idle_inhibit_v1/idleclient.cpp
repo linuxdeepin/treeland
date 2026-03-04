@@ -5,6 +5,8 @@
 
 #include <private/qwaylandwindow_p.h>
 
+#include <QDBusInterface>
+#include <QDBusReply>
 #include <QLabel>
 #include <QProcess>
 #include <QTimer>
@@ -24,10 +26,12 @@ IdleClient::~IdleClient()
 
 bool IdleClient::initialize(uint32_t idleTimeout,
                             uint32_t inhibitDuration,
+                            uint32_t dbusInhibitDuration,
                             const QString &execCommand)
 {
     m_idleTimeout = idleTimeout;
     m_inhibitDuration = inhibitDuration;
+    m_dbusInhibitDuration = dbusInhibitDuration;
     m_execCommand = execCommand;
 
     auto waylandApp = qGuiApp->nativeInterface<QNativeInterface::QWaylandApplication>();
@@ -75,10 +79,20 @@ bool IdleClient::initialize(uint32_t idleTimeout,
         qInfo() << "Idle inhibitor created at startup, will be released after" << m_inhibitDuration
                 << "ms";
         m_inhibitTimer->start(m_inhibitDuration);
+    } else if (m_dbusInhibitDuration > 0) {
+        m_inhibitTimer = new QTimer(this);
+        m_inhibitTimer->setSingleShot(true);
+        connect(m_inhibitTimer, &QTimer::timeout, this, &IdleClient::releaseDBusInhibit);
+
+        setupDBusInhibit();
+        qInfo() << "Idle inhibitor created at startup using org.freedesktop.ScreenSaver D-Bus "
+                   "interface, will be released after"
+                << m_dbusInhibitDuration << "ms";
+        m_inhibitTimer->start(m_dbusInhibitDuration);
     }
 
-    qInfo() << "IdleClient initialized with timeout:" << m_idleTimeout
-            << "ms, inhibit duration:" << m_inhibitDuration << "ms";
+    qInfo() << "IdleClient initialized with timeout:" << m_idleTimeout << "ms, inhibit duration:"
+            << (m_inhibitDuration > 0 ? m_inhibitDuration : m_dbusInhibitDuration) << "ms";
     if (!m_execCommand.isEmpty()) {
         qInfo() << "Exec command on idle:" << m_execCommand;
     }
@@ -163,6 +177,49 @@ void IdleClient::releaseInhibit()
         m_inhibitor.reset();
         m_inhibitActive = false;
         qInfo() << "Idle inhibitor released";
+    }
+}
+
+void IdleClient::setupDBusInhibit()
+{
+    QDBusInterface interface("org.freedesktop.ScreenSaver",
+                             "/org/freedesktop/ScreenSaver",
+                             "org.freedesktop.ScreenSaver",
+                             QDBusConnection::sessionBus());
+    if (!interface.isValid()) {
+        qWarning() << "Failed to connect to org.freedesktop.ScreenSaver:"
+                   << QDBusConnection::sessionBus().lastError().message();
+        return;
+    }
+    QDBusReply<uint32_t> reply =
+        interface.call("Inhibit", "test-idle-inhibit-v1", "Testing idle inhibit");
+    if (reply.isValid()) {
+        m_dbusInhibitCookie = reply.value();
+        qInfo() << "Inhibited successfully using org.freedesktop.ScreenSaver D-Bus interface. Cookie:" << m_dbusInhibitCookie;
+    } else {
+        qWarning() << "Failed to call Inhibit:" << reply.error().message();
+    }
+}
+
+void IdleClient::releaseDBusInhibit()
+{
+    if (m_dbusInhibitCookie > 0) {
+        QDBusInterface interface("org.freedesktop.ScreenSaver",
+                                 "/org/freedesktop/ScreenSaver",
+                                 "org.freedesktop.ScreenSaver",
+                                 QDBusConnection::sessionBus());
+        if (!interface.isValid()) {
+            qWarning() << "Failed to connect to org.freedesktop.ScreenSaver:"
+                       << QDBusConnection::sessionBus().lastError().message();
+            return;
+        }
+        QDBusReply<void> reply = interface.call("UnInhibit", m_dbusInhibitCookie);
+        if (reply.isValid()) {
+            qInfo() << "Idle inhibitor released using org.freedesktop.ScreenSaver D-Bus interface.";
+            m_dbusInhibitCookie = 0;
+        } else {
+            qWarning() << "Failed to call UnInhibit:" << reply.error().message();
+        }
     }
 }
 

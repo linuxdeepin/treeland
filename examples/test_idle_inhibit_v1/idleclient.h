@@ -17,7 +17,10 @@ public:
     explicit IdleClient(QObject *parent = nullptr);
     ~IdleClient();
 
-    bool initialize(uint32_t idleTimeout, uint32_t inhibitDuration, const QString &execCommand);
+    bool initialize(uint32_t idleTimeout,
+                    uint32_t inhibitDuration,
+                    uint32_t dbusInhibitDuration,
+                    const QString &execCommand);
 
     bool isValid() const;
 
@@ -31,6 +34,8 @@ private Q_SLOTS:
 private:
     void setupInhibit();
     void releaseInhibit();
+    void setupDBusInhibit();
+    void releaseDBusInhibit();
     void executeCommand();
 
 private:
@@ -41,10 +46,12 @@ private:
 
     uint32_t m_idleTimeout = 0;
     uint32_t m_inhibitDuration = 0;
+    uint32_t m_dbusInhibitDuration = 0;
     bool m_isIdle = false;
     bool m_inhibitActive = false;
 
     QString m_execCommand;
     QTimer *m_inhibitTimer = nullptr;
     QWidget *m_inhibitWindow = nullptr;
+    uint32_t m_dbusInhibitCookie = 0;
 };
