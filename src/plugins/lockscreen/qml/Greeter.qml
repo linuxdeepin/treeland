@@ -34,6 +34,7 @@ FocusScope {
 
         readonly property int duration: 1000
         anchors.fill: parent
+        clip: true
         color: 'black'
         opacity: 0.0
         transformOrigin: Item.Center
@@ -107,6 +108,7 @@ FocusScope {
             id: wallpaper
 
             anchors.fill: parent
+            clip: true
             wallpaperRole: Wallpaper.Lockscreen
             output: root.output
         }
