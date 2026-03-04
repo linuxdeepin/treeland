@@ -55,6 +55,7 @@ Depends: qml6-module-qtquick-layouts,
 Conflicts: libwaylib, qwlroots
 Replaces: libwaylib, qwlroots
 Recommends: ddm (> 0.2.2),
+            treeland-wallpaper-factory,
 Description: a Wayland compositor based on wlroots and QML, designed with an attractive and elegant appearance.
 
 Package: treeland-dev
