@@ -1,5 +1,5 @@
 set(TARGET qwlroots)
-set(CMAKE_NAME ${CMAKE_PROJECT_NAME})
+set(CMAKE_NAME "QWlroots")
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 add_compile_options(-Wall -Wextra -Werror=unused-variable -Werror=unused-parameter)
