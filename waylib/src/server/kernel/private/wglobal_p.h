@@ -8,7 +8,7 @@
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class Q_DECL_EXPORT WObjectPrivate
+class WAYLIB_SERVER_EXPORT WObjectPrivate
 {
 public:
     static WObjectPrivate *get(WObject *qq);
@@ -34,7 +34,7 @@ protected:
     W_DECLARE_PUBLIC(WObject)
 };
 
-class Q_DECL_EXPORT WWrapObjectPrivate : public WObjectPrivate
+class WAYLIB_SERVER_EXPORT WWrapObjectPrivate : public WObjectPrivate
 {
 public:
     WWrapObjectPrivate(WWrapObject *q);

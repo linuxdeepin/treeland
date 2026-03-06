@@ -11,7 +11,6 @@
 class Q_DECL_HIDDEN WallpaperSurfacePrivate : public WToplevelSurfacePrivate {
 public:
     WallpaperSurfacePrivate(WallpaperSurface *qq, TreelandWallpaperSurfaceInterfaceV1 *surface);
-    ~WallpaperSurfacePrivate();
 
     wl_client *waylandClient() const override {
         return interface->client();
@@ -26,10 +25,6 @@ public:
 WallpaperSurfacePrivate::WallpaperSurfacePrivate(WallpaperSurface *qq, TreelandWallpaperSurfaceInterfaceV1 *surface)
     : WToplevelSurfacePrivate(qq)
     , interface(surface)
-{
-}
-
-WallpaperSurfacePrivate::~WallpaperSurfacePrivate()
 {
 }
 
