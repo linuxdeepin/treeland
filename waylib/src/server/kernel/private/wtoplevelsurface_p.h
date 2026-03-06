@@ -7,7 +7,7 @@
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class Q_DECL_EXPORT WToplevelSurfacePrivate : public WWrapObjectPrivate
+class WAYLIB_SERVER_EXPORT WToplevelSurfacePrivate : public WWrapObjectPrivate
 {
 public:
     inline WToplevelSurfacePrivate(WToplevelSurface *q)
