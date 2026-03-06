@@ -1,3 +1,24 @@
+treeland (0.8.5) unstable; urgency=medium
+
+  * fix: correct CMake config name for submodule build
+  * fix: qw_buffer metatype handling for Clang builds
+  * chore: add org.freedesktop.ScreenSaver test for test_idle_inhibit_v1
+  * fix: add wl_display_flush for treeland_screensaver request
+  * chore: update translations for project TreeLand
+  * fix: fix renaming of treeland_screensaver_v1 protocol
+  * feat: add treeland-wallpaper-factory as recommended dependency
+  * fix: fix wallpaper scaling and clipping issues
+  * feat: improve prelaunch splash screen layout and styling
+  * feat(examples): add idle inhibit v1 test client
+  * fix: suppress unused parameter warnings in WallpaperLauncher
+  * fix: fix dconfig initialization check compatibility
+  * feat: implement wallpaper switching with smooth transitions
+  * fix: prevent crash by delaying output assignment until surface
+    mapped
+  * feat: implement wallpaper management system
+
+ -- rewine <luhongxu@uniontech.com>  Fri, 06 Mar 2026 09:44:57 +0800
+
 treeland (0.8.4) unstable; urgency=medium
 
   * refactor: optimize PrelaunchSplash animation and destruction logic
