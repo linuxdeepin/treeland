@@ -359,7 +359,7 @@ void WOutputItem::releaseResources()
 
 void WOutputItem::itemChange(ItemChange change, const ItemChangeData &data)
 {
-    QQuickItem::itemChange(change, data);
+    WQuickObserver::itemChange(change, data);
 }
 
 void WOutputItem::geometryChange(const QRectF &newGeometry, const QRectF &oldGeometry)
