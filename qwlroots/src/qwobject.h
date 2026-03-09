@@ -44,26 +44,6 @@ public:
     typedef Handle HandleType;
     typedef Derive DeriveType;
 
-    qw_object(Handle *h, bool isOwner, QObject *parent=nullptr)
-        : qw_object_basic(parent)
-        , m_handle(h)
-        , isHandleOwner(isOwner)
-    {
-        static_assert(QtPrivate::HasQ_OBJECT_Macro<Derive>::Value,
-                      "Please add Q_OBJECT macro to the derive class.");
-
-        Q_ASSERT(!map.contains(h));
-        map.insert((void*)(h), this);
-
-        constexpr bool has_destroy_signal = requires(const Handle& h) {
-            h.events.destroy;
-        };
-
-        if constexpr (has_destroy_signal) {
-            sc.connect(&h->events.destroy, this, &qw_object::on_destroy);
-        }
-    }
-
     ~qw_object() {
         if (!m_handle)
             return;
@@ -166,6 +146,29 @@ public:
                       "The signal is not defined in the derive class of qw_object");
         auto obj = static_cast<SignalObjectType*>(this);
         sc.connect(&(obj->handle()->events.*s), obj, qt_signal);
+    }
+
+private:
+    friend Derive;
+
+    qw_object(Handle *h, bool isOwner, QObject *parent=nullptr)
+        : qw_object_basic(parent)
+        , m_handle(h)
+        , isHandleOwner(isOwner)
+    {
+        static_assert(QtPrivate::HasQ_OBJECT_Macro<Derive>::Value,
+                      "Please add Q_OBJECT macro to the derive class.");
+
+        Q_ASSERT(!map.contains(h));
+        map.insert((void*)(h), this);
+
+        constexpr bool has_destroy_signal = requires(const Handle& h) {
+            h.events.destroy;
+        };
+
+        if constexpr (has_destroy_signal) {
+            sc.connect(&h->events.destroy, this, &qw_object::on_destroy);
+        }
     }
 
 protected:

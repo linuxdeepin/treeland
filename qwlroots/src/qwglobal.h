@@ -87,8 +87,6 @@ class qw_reinterpret_cast : public qw_basic
 public:
     typedef Handle HandleType;
     typedef Derive DeriveType;
-
-    qw_reinterpret_cast() = delete;
     QW_DISALLOW_DESTRUCTOR(qw_reinterpret_cast)
 
     QW_ALWAYS_INLINE Handle *handle() const {
@@ -110,6 +108,10 @@ public:
             QW_NO_STRICT_STATIC_ASSERT_FALSE("Can't destroy.")
         }
     }
+
+private:
+    friend Derive;
+    qw_reinterpret_cast() = delete;
 };
 
 template<typename Handle, typename Derive>
@@ -118,14 +120,6 @@ class qw_class_box
 public:
     typedef Handle HandleType;
     typedef Derive DeriveType;
-
-    qw_class_box() {
-        if constexpr (requires { static_cast<DeriveType*>(this)->init(); }) {
-            static_cast<DeriveType*>(this)->init();
-        } else {
-            Q_ASSERT_X(false, "qw_class_box", "No default constructor.");
-        }
-    }
 
     ~qw_class_box() {
         static_cast<DeriveType*>(this)->finish();
@@ -140,6 +134,16 @@ public:
     }
 
 private:
+    friend Derive;
+
+    qw_class_box() {
+        if constexpr (requires { static_cast<DeriveType*>(this)->init(); }) {
+            static_cast<DeriveType*>(this)->init();
+        } else {
+            Q_ASSERT_X(false, "qw_class_box", "No default constructor.");
+        }
+    }
+
     mutable Handle m_handle;
 };
 
