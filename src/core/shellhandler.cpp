@@ -23,6 +23,7 @@
 
 #include <winputmethodhelper.h>
 #include <winputpopupsurface.h>
+#include <wvirtualinputhelper.h>
 #include <wlayershell.h>
 #include <wlayersurface.h>
 #include <woutputrenderwindow.h>
@@ -336,6 +337,8 @@ void ShellHandler::removeXWayland(WXWayland *xwayland)
 void ShellHandler::initInputMethodHelper(WServer *server, WSeat *seat)
 {
     Q_ASSERT_X(!m_inputMethodHelper, Q_FUNC_INFO, "Only init once!");
+    Q_ASSERT_X(!m_virtualInputHelper, Q_FUNC_INFO, "Only init once!");
+    m_virtualInputHelper = new WVirtualInputHelper(server, seat);
     m_inputMethodHelper = new WInputMethodHelper(server, seat);
 
     connect(m_inputMethodHelper,

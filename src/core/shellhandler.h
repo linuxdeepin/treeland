@@ -46,6 +46,7 @@ class WInputMethodHelper;
 class WInputPopupSurface;
 class WSeat;
 class WSurface;
+class WVirtualInputHelper;
 class WXWaylandSurface;
 WAYLIB_SERVER_END_NAMESPACE
 
@@ -161,6 +162,7 @@ private:
     WAYLIB_SERVER_NAMESPACE::WLayerShell *m_layerShell = nullptr;
     TreelandWallpaperShellInterfaceV1 *m_wallpaperShell = nullptr;
     WAYLIB_SERVER_NAMESPACE::WInputMethodHelper *m_inputMethodHelper = nullptr;
+    WAYLIB_SERVER_NAMESPACE::WVirtualInputHelper *m_virtualInputHelper = nullptr;
     QList<WAYLIB_SERVER_NAMESPACE::WXWayland *> m_xwaylands;
     ForeignToplevelV1 *m_treelandForeignToplevel = nullptr;
 

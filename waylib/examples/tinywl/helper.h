@@ -1,4 +1,4 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
@@ -34,6 +34,7 @@ class WOutputLayer;
 class WOutput;
 class WXWayland;
 class WInputMethodHelper;
+class WVirtualInputHelper;
 class WXdgDecorationManager;
 class WSocket;
 class WSurface;
@@ -161,6 +162,7 @@ private:
     qw_compositor *m_compositor = nullptr;
     WXWayland *m_xwayland = nullptr;
     WInputMethodHelper *m_inputMethodHelper = nullptr;
+    WVirtualInputHelper *m_virtualInputHelper = nullptr;
     WXdgDecorationManager *m_xdgDecorationManager = nullptr;
     WForeignToplevel *m_foreignToplevel = nullptr;
     WExtForeignToplevelListV1 *m_extForeignToplevelListV1 = nullptr;

@@ -167,12 +167,14 @@ set(SOURCES
     protocols/wxdgdecorationmanager.cpp
     protocols/wlayershell.cpp
     protocols/winputmethodhelper.cpp
+    protocols/wvirtualinputhelper.cpp
     protocols/winputpopupsurface.cpp
     protocols/private/winputmethodv2.cpp
     protocols/private/wtextinputv1.cpp
     protocols/private/wtextinputv2.cpp
     protocols/private/wtextinputv3.cpp
     protocols/private/wvirtualkeyboardv1.cpp
+    protocols/private/wvirtualpointerv1.cpp
     protocols/ext_foreign_toplevel_image_capture_source.c #TODO: Remove after wlroots 0.20
     protocols/wcursorshapemanagerv1.cpp
     protocols/woutputmanagerv1.cpp
@@ -263,6 +265,8 @@ set(HEADERS
     protocols/WXdgOutput
     protocols/WInputMethodHelper
     protocols/winputmethodhelper.h
+    protocols/WVirtualInputHelper
+    protocols/wvirtualinputhelper.h
     protocols/winputpopupsurface.h
     protocols/WInputPopupSurface
     protocols/wcursorshapemanagerv1.h

@@ -1,4 +1,4 @@
-// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2024-2026 JiDe Zhang <zhangjide@deepin.org>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "helper.h"
@@ -28,6 +28,7 @@
 #include <woutputrenderwindow.h>
 #include <wqmlcreator.h>
 #include <winputmethodhelper.h>
+#include <wvirtualinputhelper.h>
 #include <WForeignToplevel>
 #include <WXdgOutput>
 #include <wxwaylandsurface.h>
@@ -414,6 +415,7 @@ void Helper::init()
         });
     });
 
+    m_virtualInputHelper = new WVirtualInputHelper(m_server, m_seat);
     m_inputMethodHelper = new WInputMethodHelper(m_server, m_seat);
 
     connect(m_inputMethodHelper, &WInputMethodHelper::inputPopupSurfaceV2Added, this, [this](WInputPopupSurface *inputPopup) {
