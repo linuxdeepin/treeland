@@ -178,7 +178,7 @@ public:
         {
             auto d = data.lock();
             if (d && dataList.contains(d)) {
-                if (get()->check(d->data, std::forward<DataKeys>(keys)...)) {
+                if (get()->check(d->data, keys...)) {
                     d->released = 0;
                     return data;
                 }
@@ -187,14 +187,15 @@ public:
         }
 
         for (auto data : std::as_const(dataList)) {
-            if (get()->check(data->data, std::forward<DataKeys>(keys)...)) {
+            if (get()->check(data->data, keys...)) {
                 data->released = 0;
                 return data;
             }
         }
 
-        auto newData = std::shared_ptr<Data>(new Data());
-        if ((newData->data = get()->create(std::forward<DataKeys>(keys)...))) {
+        auto newData = std::make_shared<Data>();
+        newData->data = get()->create(std::forward<DataKeys>(keys)...);
+        if (newData->data) {
             dataList.append(newData);
             return newData;
         }
@@ -264,17 +265,22 @@ protected:
         return static_cast<Derive*>(this);
     }
 
-    DataManager(QQuickWindow *owner)
-        : DataManagerBase(owner) {
-        Q_ASSERT(owner->findChildren<Derive*>(Qt::FindDirectChildrenOnly).size() == 0);
-    }
-
     using QObject::deleteLater;
     ~DataManager() override {
         for (auto data : std::as_const(dataList)) {
             Derive::destroy(data->data);
         }
     }
+
+private:
+    friend Derive;
+
+    DataManager(QQuickWindow *owner)
+        : DataManagerBase(owner) {
+        Q_ASSERT(owner->findChildren<Derive*>(Qt::FindDirectChildrenOnly).size() == 0);
+    }
+
+protected:
 
     QList<std::shared_ptr<Data>> dataList;
     QRunnable *cleanJob = nullptr;

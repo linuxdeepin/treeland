@@ -259,10 +259,8 @@ public:
             doTouchNotifyUp(time_msec, touch_id);
             break;
         case Stationary:
-            // stationary points are not sent through wayland, the client must cache them
-            break;
         case Unknown:
-            // Ignored
+            // stationary points are not sent through wayland, and unknown states are ignored.
             break;
         }
     }
@@ -287,10 +285,8 @@ public:
             QWindowSystemInterface::TouchPoint &tp(state->m_points[i]);
             if (tp.state == QEventPoint::Released)
                 state->m_points.removeAt(i--);
-            else if (tp.state == QEventPoint::Pressed)
-                tp.state = QEventPoint::Stationary;
-            else if (tp.state == QEventPoint::Updated)
-                tp.state = QEventPoint::Stationary;  // notiyfy: qtbase don't change Updated
+            else if (tp.state == QEventPoint::Pressed || tp.state == QEventPoint::Updated)
+                tp.state = QEventPoint::Stationary;  // notify: qtbase does not change Updated
             else if (tp.state != QEventPoint::Stationary)
                 Q_UNREACHABLE_RETURN();
         }
