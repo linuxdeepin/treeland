@@ -25,6 +25,7 @@ pkg_search_module(WAYLAND REQUIRED IMPORTED_TARGET wayland-server)
 pkg_search_module(LIBINPUT REQUIRED IMPORTED_TARGET libinput)
 pkg_search_module(XCB REQUIRED IMPORTED_TARGET xcb)
 pkg_check_modules(PAM REQUIRED IMPORTED_TARGET pam)
+pkg_check_modules(Systemd REQUIRED IMPORTED_TARGET libsystemd)
 # qt_finalize_target will collect all executable's private dependencies that are CMake targets
 
 configure_file("common/constants.h.in" "common/constants.h" IMMEDIATE @ONLY)
@@ -337,6 +338,7 @@ target_link_libraries(libtreeland
         PkgConfig::XCB
         $<$<NOT:$<BOOL:${DISABLE_DDM}>>:DDM::Common>
         $<$<NOT:$<BOOL:${DISABLE_DDM}>>:PkgConfig::PAM>
+        $<$<NOT:$<BOOL:${DISABLE_DDM}>>:PkgConfig::Systemd>
 )
 
 add_subdirectory(plugins)
@@ -364,8 +366,6 @@ install(PROGRAMS treeland.sh DESTINATION "${CMAKE_INSTALL_BINDIR}")
 install(TARGETS libtreeland LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}")
 
 ## systemd socket
-
-pkg_check_modules(Systemd REQUIRED IMPORTED_TARGET libsystemd)
 
 qt_add_executable(treeland-sd
     systemd-socket.cpp
