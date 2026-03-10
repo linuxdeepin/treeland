@@ -12,6 +12,7 @@
 
 #include <qwayland-treeland-dde-shell-v1.h>
 
+#include <cstdlib>
 #include <unistd.h>
 
 class DDEShellManagerV1
@@ -31,6 +32,16 @@ int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
 
+    auto runCommand = [](const char *cmd, const char *desc) {
+        const int rc = std::system(cmd);
+        if (rc == -1) {
+            qCritical() << "Failed to execute command:" << desc;
+            return;
+        }
+        if (rc != 0)
+            qWarning() << "Command exited with non-zero status:" << desc << rc;
+    };
+
     qWarning()
         << "In this example, an xeyes will be launched. Its window will be moved to (0, 0) "
            "first using X API. Then, A test window of size 640x480 will be created. The xeyes "
@@ -38,11 +49,11 @@ int main(int argc, char *argv[])
            "set_xwindow_position_relative().\n\n"
            "xeyes should be installed to run this example (sudo apt install x11-apps).";
 
-    system("bash -c \"pkill xeyes; xeyes & disown\"");
+    runCommand("bash -c \"pkill xeyes; xeyes & disown\"", "start xeyes");
     sleep(1);
-    system("xdotool search --name \"xeyes\" windowmove 0 0");
+    runCommand("xdotool search --name \"xeyes\" windowmove 0 0", "move xeyes to (0,0)");
     sleep(1);
-    system("xdotool search --name \"xeyes\" > /tmp/xeyes_wid.txt");
+    runCommand("xdotool search --name \"xeyes\" > /tmp/xeyes_wid.txt", "write xeyes wid");
 
     QWidget *window = new QWidget();
     window->resize(640, 480);
