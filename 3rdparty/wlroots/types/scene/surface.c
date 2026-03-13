@@ -112,8 +112,8 @@ static void handle_scene_buffer_outputs_update(
 	// 2. When a surface transitions from being visible on 0 outputs to being visible on >0 outputs
 	//    send leave events for all entered outputs on which the surface is no longer visible as
 	//    well as enter events for any outputs not already entered.
-	struct wlr_surface_output *entered_output;
-	wl_list_for_each(entered_output, &surface->surface->current_outputs, link) {
+	struct wlr_surface_output *entered_output, *tmp;
+	wl_list_for_each_safe(entered_output, tmp, &surface->surface->current_outputs, link) {
 		bool active = false;
 		for (size_t i = 0; i < event->size; i++) {
 			if (entered_output->output == event->active[i]->output) {
