@@ -23,7 +23,7 @@
     </message>
     <message>
         <source>Power</source>
-        <translation type="unfinished"/>
+        <translation type="vanished">Encender</translation>
     </message>
 </context>
 <context>
@@ -35,7 +35,7 @@
     <message>
         <location filename="../qml/ControlAction.qml" line="55"/>
         <source>Power</source>
-        <translation type="unfinished"/>
+        <translation>Encender</translation>
     </message>
 </context>
 <context>
