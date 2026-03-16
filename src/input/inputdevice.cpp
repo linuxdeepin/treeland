@@ -1,8 +1,10 @@
 // Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
+#include "helper.h"
 #include "inputdevice.h"
 #include "common/treelandlogging.h"
+#include "treelanduserconfig.hpp"
 
 #include <winputdevice.h>
 
@@ -12,6 +14,7 @@
 #include <QInputDevice>
 #include <QLoggingCategory>
 #include <QPointer>
+
 
 QW_USE_NAMESPACE
 
@@ -351,24 +354,38 @@ InputDevice *InputDevice::instance()
     return m_instance;
 }
 
-bool InputDevice::initTouchPad(WInputDevice *device)
+void InputDevice::initDevice(WInputDevice *device)
 {
     if (!device) {
         qCCritical(treelandInput) << "Cannot initialize touchpad for null device";
-        return false;
+        return;
     }
 
-    if (!device->qtDevice()) {
+    if (!device->qtDevice() || !device->handle()->is_libinput()) {
         qCCritical(treelandInput) << "Cannot initialize touchpad: device has no qtDevice";
-        return false;
+        return;
     }
 
-    if (device->handle()->is_libinput()
-        && device->qtDevice()->type() == QInputDevice::DeviceType::TouchPad) {
+    auto deviceType = device->qtDevice()->type();
+    if (deviceType == QInputDevice::DeviceType::TouchPad) {
         configTapEnabled(libinput_device_handle(device->handle()), LIBINPUT_CONFIG_TAP_ENABLED);
-        return true;
     }
-    return false;
+
+    if (deviceType == QInputDevice::DeviceType::TouchPad
+        || deviceType == QInputDevice::DeviceType::Mouse) {
+        return;
+    }
+
+    auto config = Helper::instance()->config();
+    auto applyAccelProfile = [device, config]() {
+        configAccelProfile(libinput_device_handle(device->handle()),
+                           static_cast<libinput_config_accel_profile>(config->inputAccelProfile()));
+    };
+
+    connect(config, &TreelandUserConfig::inputAccelProfileChanged, device, applyAccelProfile);
+    connect(config, &TreelandUserConfig::configInitializeSucceed, device, applyAccelProfile);
+
+    applyAccelProfile();
 }
 
 [[maybe_unused]] SwipeGesture* InputDevice::registerTouchpadSwipe(const SwipeFeedBack &feed_back)

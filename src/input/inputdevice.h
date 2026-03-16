@@ -1,4 +1,4 @@
-// Copyright (C) 2024-2025 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
@@ -9,7 +9,9 @@
 
 #include <wglobal.h>
 
+#include <QHash>
 #include <QInputDevice>
+#include <QVector>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WInputDevice;
@@ -40,7 +42,7 @@ public:
     InputDevice(const InputDevice &) = delete;
     InputDevice &operator=(const InputDevice &) = delete;
 
-    bool initTouchPad(WInputDevice *device);
+    void initDevice(WInputDevice *device);
 
     SwipeGesture* registerTouchpadSwipe(const SwipeFeedBack &feed_back);
     HoldGesture* registerTouchpadHold(const HoldFeedBack &feed);
@@ -62,5 +64,6 @@ private:
 
     static InputDevice *m_instance;
     std::unique_ptr<GestureRecognizer> m_touchpadRecognizer;
+    QHash<WInputDevice *, QVector<QMetaObject::Connection>> m_deviceConnections;
     uint m_touchpadFingerCount = 0;
 };
