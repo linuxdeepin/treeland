@@ -1187,11 +1187,12 @@ void Helper::init(Treeland::Treeland *treeland)
     m_backend = m_server->attach<WBackend>();
     connect(m_backend, &WBackend::inputAdded, this, [this](WInputDevice *device) {
         m_seat->attachInputDevice(device);
-        InputDevice::instance()->initTouchPad(device);
+        InputDevice::instance()->initDevice(device);
     });
 
     connect(m_backend, &WBackend::inputRemoved, this, [this](WInputDevice *device) {
         m_seat->detachInputDevice(device);
+        InputDevice::instance()->deinitDevice(device);
     });
 
     m_ddmInterfaceV1 = m_server->attach<DDMInterfaceV1>();
