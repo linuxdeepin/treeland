@@ -10,7 +10,7 @@
 int main(int argc, char *argv[])
 {
     // The entire rendering framework, including mpv, is based on OpenGL.
-    QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
+    // QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
     QGuiApplication app(argc, argv);
 
     app.setOrganizationName("deepin");
