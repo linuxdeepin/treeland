@@ -1,4 +1,4 @@
-// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 JiDe Zhang <zhangjide@deepin.org>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
@@ -6,6 +6,8 @@
 #include <wglobal.h>
 #include <QObject>
 #include <qwglobal.h>
+#include <QMap>
+#include <QMutex>
 
 QW_BEGIN_NAMESPACE
 class qw_input_device;
@@ -20,6 +22,31 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WSeat;
 class WInputDevicePrivate;
+
+// Internal helper for parsing /proc/bus/input/devices
+struct ProcDeviceInfo {
+    QString name;
+    QString physPath;
+
+    bool isValid() const {
+        return !name.isEmpty() && !physPath.isEmpty();
+    }
+};
+
+class DeviceInfoParser {
+public:
+    static DeviceInfoParser& instance();
+
+    QString getPhysicalPath(const QString& deviceName);
+
+private:
+    DeviceInfoParser() = default;
+    void refreshDeviceInfo();
+    void parseDeviceBlock(const QString& block);
+
+    QMap<QString, ProcDeviceInfo> m_deviceMap;
+    QMutex m_mutex;
+};
 class WAYLIB_SERVER_EXPORT WInputDevice : public WWrapObject
 {
     W_DECLARE_PRIVATE(WInputDevice)
@@ -49,8 +76,10 @@ public:
     static WInputDevice *from(const QInputDevice *device);
 
     Type type() const;
+    QString name() const;
     void setSeat(WSeat *seat);
     WSeat *seat() const;
+    QString devicePath() const;
 
 private:
     friend class QWlrootsIntegration;
