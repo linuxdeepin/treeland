@@ -107,6 +107,7 @@
 #include <qwrenderer.h>
 #include <qwscreencopyv1.h>
 #include <qwsession.h>
+#include <qwsinglepixelbufferv1.h>
 #include <qwsubcompositor.h>
 #include <qwviewporter.h>
 #include <qwxwayland.h>
@@ -1186,11 +1187,12 @@ void Helper::init(Treeland::Treeland *treeland)
     m_backend = m_server->attach<WBackend>();
     connect(m_backend, &WBackend::inputAdded, this, [this](WInputDevice *device) {
         m_seat->attachInputDevice(device);
-        InputDevice::instance()->initTouchPad(device);
+        InputDevice::instance()->initDevice(device);
     });
 
     connect(m_backend, &WBackend::inputRemoved, this, [this](WInputDevice *device) {
         m_seat->detachInputDevice(device);
+        InputDevice::instance()->deinitDevice(device);
     });
 
     m_ddmInterfaceV1 = m_server->attach<DDMInterfaceV1>();
@@ -1382,6 +1384,7 @@ void Helper::init(Treeland::Treeland *treeland)
     // free follow display
     m_compositor = qw_compositor::create(*m_server->handle(), 6, *m_renderer);
     qw_subcompositor::create(*m_server->handle());
+    qw_single_pixel_buffer_manager_v1::create(m_server->handle()->handle());
     qw_screencopy_manager_v1::create(*m_server->handle());
     qw_ext_image_copy_capture_manager_v1::create(*m_server->handle(), 1);
     qw_ext_output_image_capture_source_manager_v1::create(*m_server->handle(), 1);
