@@ -375,7 +375,9 @@ private:
     void doSetSurfaceState(State newSurfaceState);
     Q_SLOT void onAnimationReady();
     Q_SLOT void onAnimationFinished();
-    Q_SLOT void onPrelaunchSplashDestroyRequested();
+    void startPrelaunchSplashHideSequence();
+    Q_SLOT void onPrelaunchGeometryAnimationReady();
+    Q_SLOT void onPrelaunchGeometryAnimationFinished();
     bool startStateChangeAnimation(SurfaceWrapper::State targetState, const QRectF &targetGeometry);
     void onWindowAnimationFinished();
     Q_SLOT void onShowAnimationFinished();
@@ -386,6 +388,7 @@ private:
     void startShowDesktopAnimation(bool show);
     Q_SLOT void onShowDesktopAnimationFinished();
     void updateHasActiveCapability(ActiveControlState state, bool value);
+    void finalizePrelaunchSplash();
 
     // wayland set by treeland-dde-shell, x11 set by bypassManager/windowTypes
     void setSkipDockPreView(bool skip);
@@ -405,6 +408,8 @@ private:
     QPointer<QQuickItem> m_coverContent;
     QPointer<QQuickItem> m_prelaunchSplash; // Pre-launch splash item
     QList<WOutput *> m_prelaunchOutputs;    // Outputs for pre-launch splash
+    QSizeF m_pendingPrelaunchImplicitSize;
+    QPointF m_pendingPrelaunchPosition;
     QRectF m_boundedRect;
     QRectF m_normalGeometry;
     QRectF m_maximizedGeometry;
