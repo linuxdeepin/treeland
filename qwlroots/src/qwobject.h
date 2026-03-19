@@ -1,4 +1,4 @@
-// Copyright (C) 2024 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2024-2026 JiDe Zhang <zhangjide@deepin.org>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
@@ -35,6 +35,7 @@ Q_SIGNALS:
 
 protected:
     static QHash<void*, QObject*> map;
+    static void cleanupDeclarativeData(QObject *obj);
 };
 
 template<typename Handle, typename Derive>
@@ -177,8 +178,13 @@ protected:
         map.remove((void*)m_handle);
     }
     inline void on_destroy() {
-        Q_EMIT before_destroy();
+        // Clean up QML engine's declarativeData before emitting signals.
+        // If QML engine freed QQmlData without zeroing declarativeData pointer,
+        // Qt's doActivate() reads a stale pointer and crashes in
+        // QQmlData::signalHasEndpoint().
+        cleanupDeclarativeData(this);
 
+        Q_EMIT before_destroy();
         do_destroy();
         m_handle = nullptr;
         delete this;
