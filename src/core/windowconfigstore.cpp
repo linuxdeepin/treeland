@@ -32,6 +32,7 @@ AppConfig *WindowConfigStore::configForApp(const QString &appId) const
 
 void WindowConfigStore::saveLastSize(const QString &appId, const QSize &size)
 {
+    return; // TO Debug
     if (appId.isEmpty() || !size.isValid()) {
         qCWarning(treelandCore) << "WindowConfigStore: saveLastSize invalid parameters for" << appId
                                 << size;
@@ -49,14 +50,13 @@ void WindowConfigStore::saveLastSize(const QString &appId, const QSize &size)
     config->setLastWindowHeight(size.height());
 }
 
-void WindowConfigStore::withSplashConfigFor(
-    const QString &appId,
-    QObject *context,
-    std::function<void(const QSize &size,
-                       const QString &darkPalette,
-                       const QString &lightPalette,
-                       qlonglong splashThemeType)> callback,
-    std::function<void()> skipCallback) const
+void WindowConfigStore::withSplashConfigFor(const QString &appId,
+                                            QObject *context,
+                                            std::function<void(const QSize &size,
+                                                               const QString &darkPalette,
+                                                               const QString &lightPalette,
+                                                               qlonglong splashThemeType)> callback,
+                                            std::function<void()> skipCallback) const
 {
     Q_ASSERT_X(callback, Q_FUNC_INFO, "callback must be provided");
     Q_ASSERT_X(skipCallback, Q_FUNC_INFO, "skipCallback must be provided");
@@ -81,9 +81,9 @@ void WindowConfigStore::withSplashConfigFor(
                          static_cast<int>(config->lastWindowHeight()));
         const QSize validatedSize = size.isValid() ? size : QSize();
         callback(validatedSize,
-             config->splashDarkPalette(),
-             config->splashLightPalette(),
-             config->splashThemeType());
+                 config->splashDarkPalette(),
+                 config->splashLightPalette(),
+                 config->splashThemeType());
         return;
     }
 
