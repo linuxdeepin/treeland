@@ -186,6 +186,7 @@ Helper::Helper(QObject *parent)
                                               "/dde")); // will update user path in Helper::init
     m_globalConfig.reset(TreelandConfig::create("org.deepin.dde.treeland",
                                                       QString()));
+    setupTreelandLogging(m_globalConfig.get());
 
     m_renderWindow->setColor(Qt::black);
     m_rootSurfaceContainer->setFlag(QQuickItem::ItemIsFocusScope, true);

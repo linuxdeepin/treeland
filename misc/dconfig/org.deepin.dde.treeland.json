@@ -35,6 +35,17 @@
             "permissions": "readwrite",
             "visibility": "public"
         },
+        "logRules": {
+            "value": "treeland*.debug=false;treeland*.info=true;treeland*.warning=true;waylib*.debug=false;waylib*.info=true;waylib*.warning=true",
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Log Rules",
+            "name[zh_CN]": "日志规则",
+            "description": "Qt logging rules for treeland and waylib categories",
+            "description[zh_CN]": "treeland 与 waylib 分类的 Qt 日志规则",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
         "numlock": {
             "value": false,
             "serial": 0,
