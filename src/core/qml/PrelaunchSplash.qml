@@ -13,7 +13,6 @@ Item {
     required property var iconBuffer
     required property color backgroundColor
     readonly property bool isLightBackground: backgroundColor.hslLightness >= 0.5
-    signal destroyRequested
 
     // Fill the entire parent (SurfaceWrapper)
     anchors.fill: parent
@@ -67,14 +66,5 @@ Item {
                 font.pixelSize: 16 // TODO：use D.DTK.fontManager.t5
             }
         }
-    }
-
-    function hideAndDestroy() {
-        if (!splash.visible) {
-            console.warn("PrelaunchSplash: Already hidden, ignoring hideAndDestroy call.");
-            return;
-        }
-        splash.visible = false
-        splash.destroyRequested();
     }
 }

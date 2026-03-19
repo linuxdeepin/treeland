@@ -43,7 +43,7 @@ Item {
         readonly property real yScale: root.height / surface.height
 
         live: true
-        sourceItem: surface
+        sourceItem: surface.surfaceItem
         hideSource: true
         sourceRect: surface.boundingRect
         width: sourceRect.width * xScale
@@ -114,7 +114,7 @@ Item {
         OpacityAnimator {
             target: frontEffect
             duration: root.duration / 2
-            easing.type: Easing.OutCubic
+            easing.type: Easing.Linear
             from: 1.0
             to: 0.0
         }
