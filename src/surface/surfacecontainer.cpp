@@ -1,4 +1,4 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "surface/surfacecontainer.h"
@@ -163,9 +163,7 @@ QList<SurfaceContainer *> SurfaceContainer::subContainers() const
 void SurfaceContainer::setQmlEngine(QQmlEngine *engine)
 {
     const auto *context = engine->contextForObject(this);
-    if (context) {
-        Q_ASSERT(context == engine->rootContext());
-    } else {
+    if (!context) {
         engine->setContextForObject(this, engine->rootContext());
     }
 
