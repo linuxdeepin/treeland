@@ -127,11 +127,30 @@ void WSurfacePrivate::updateOutputs()
 
 void WSurfacePrivate::setBuffer(qw_buffer *newBuffer)
 {
+    // Early return if setting the same buffer to avoid use-after-free.
+    // Without this check, buffer.release() might delete the object when
+    // old and new buffer are the same, then newBuffer->lock() would
+    // access freed memory.
+    if (buffer.get() == newBuffer)
+        return;
+
     if (buffer) {
         if (auto clientBuffer = qw_client_buffer::get(*buffer)) {
             Q_ASSERT(clientBuffer->handle()->n_ignore_locks > 0);
             clientBuffer->handle()->n_ignore_locks--;
         }
+
+        // Explicitly unlock the old buffer if it still has a valid lock count.
+        // We must NOT use buffer.reset() here because its unlocker calls
+        // wlr_buffer_unlock() unconditionally — if wlroots has already unlocked
+        // this buffer (e.g. on surface unmap), n_locks would be 0 and the
+        // assert(buffer->n_locks > 0) in wlr_buffer_unlock() would fire.
+        // By checking n_locks > 0 before unlocking, we handle both cases:
+        //   - Normal commit: n_locks > 0, we unlock (symmetric with our lock())
+        //   - After unmap:   n_locks == 0, wlroots already handled it, skip
+        if (buffer->handle() && buffer->handle()->n_locks > 0)
+            buffer->unlock();
+        buffer.release();
     }
 
     if (newBuffer) {
@@ -140,9 +159,7 @@ void WSurfacePrivate::setBuffer(qw_buffer *newBuffer)
         }
 
         newBuffer->lock();
-        buffer.reset(newBuffer);
-    } else {
-        buffer.reset(nullptr);
+        buffer.reset(newBuffer);  // old ptr already released above; no unlocker fired
     }
 }
 
