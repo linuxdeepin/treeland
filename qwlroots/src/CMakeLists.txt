@@ -272,6 +272,8 @@ target_include_directories(${TARGET}
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/types>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/util>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/interfaces>
+    PRIVATE
+        ${Qt${QT_VERSION_MAJOR}Core_PRIVATE_INCLUDE_DIRS}
 )
 
 target_include_directories(${TARGET}
