@@ -14,10 +14,5 @@ filters:
     file_format: QT
     source_language: en_US
     translation_files_expression: src/plugins/multitaskview/translations/multitaskview.<lang>.ts
-  - filter_type: file
-    source_file: examples/test_set_treeland_wallpaper/translations/wallpaper.en_US.ts
-    file_format: QT
-    source_language: en_US
-    translation_files_expression: examples/test_set_treeland_wallpaper/translations/wallpaper.<lang>.ts
 settings:
     pr_branch_name: transifex_update_<br_unique_id>
