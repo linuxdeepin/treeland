@@ -194,11 +194,17 @@ void TreelandWallpaperNotifierClientV1::onPlayChanged(bool play)
     QQuickView *wallpaperWindow = static_cast<QQuickView *>(send->parentWindow());
     QObject *root = wallpaperWindow->rootObject();
     auto *video = qobject_cast<MpvVideoItem *>(root);
-    if (!video) {
-        return;
+    if (video) {
+        video->setPause(!play);
+    } else {
+        if (QQuickAnimatedImage *image = qobject_cast<QQuickAnimatedImage *>(root)) {
+            if (image->frameCount() > 1) {
+                image->setPaused(!play);
+            }
+        } else {
+            qCCritical(WALLPAPER) << "Unsupported wallpaper Object";
+        }
     }
-
-    video->setPause(!play);
 }
 
 void TreelandWallpaperNotifierClientV1::onSlowDownChanged(uint32_t duration)
@@ -207,9 +213,15 @@ void TreelandWallpaperNotifierClientV1::onSlowDownChanged(uint32_t duration)
     QQuickView *wallpaperWindow = static_cast<QQuickView *>(send->parentWindow());
     QObject *root = wallpaperWindow->rootObject();
     auto *video = qobject_cast<MpvVideoItem *>(root);
-    if (!video) {
-        return;
+    if (video) {
+        video->slowDown(duration);
+    } else {
+        if (QQuickAnimatedImage *image = qobject_cast<QQuickAnimatedImage *>(root)) {
+            if (image->frameCount() > 1) {
+                image->setPaused(true);
+            }
+        } else {
+            qCCritical(WALLPAPER) << "Unsupported wallpaper Object";
+        }
     }
-
-    video->slowDown(duration);
 }
