@@ -18,9 +18,3 @@ file_filter = src/plugins/multitaskview/translations/multitaskview.<lang>.ts
 source_file = src/plugins/multitaskview/translations/multitaskview.en_US.ts
 source_lang = en_US
 type = QT
-
-[o:linuxdeepin:p:treeland:r:1eff66bc82bf8f288b9c56e8c724ea20]
-file_filter = examples/test_set_treeland_wallpaper/translations/wallpaper.<lang>.ts
-source_file = examples/test_set_treeland_wallpaper/translations/wallpaper.en_US.ts
-source_lang = en_US
-type = QT
