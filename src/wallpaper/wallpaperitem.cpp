@@ -214,8 +214,7 @@ void WallpaperItem::handleWallpaperSurfaceAdded(TreelandWallpaperSurfaceInterfac
         return;
     }
 
-    if (wallpaperRole() != Lockscreen &&
-        Helper::instance()->m_wallpaperManager->getWallpaperType(interface->source()) == TreelandWallpaperInterfaceV1::Video) {
+    if (wallpaperRole() != Lockscreen) {
         QTimer::singleShot(3000,
                            this,
                            [this]{
