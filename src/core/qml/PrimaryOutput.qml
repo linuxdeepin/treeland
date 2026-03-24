@@ -190,6 +190,7 @@ OutputItem {
                     backWallpaper.live = true
                     backWallpaper.z = 1
                     backWallpaper.opacity = 1
+                    backWallpaper.forceUpdateSource = true
 
                     fontWallpaper.disableUpdate = false
                     fontWallpaper.z = 0
@@ -218,6 +219,7 @@ OutputItem {
                     fontWallpaper.live = true
                     fontWallpaper.z = 1
                     fontWallpaper.opacity = 1
+                    fontWallpaper.forceUpdateSource = true
 
                     backWallpaper.disableUpdate = false
                     backWallpaper.live = false

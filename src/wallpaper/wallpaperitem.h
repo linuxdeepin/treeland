@@ -29,6 +29,7 @@ class WallpaperItem : public WSurfaceItemContent
     Q_PROPERTY(WallpaperState wallpaperState READ wallpaperState WRITE setWallpaperState NOTIFY wallpaperStateChanged FINAL)
     Q_PROPERTY(bool play READ play WRITE setPlay NOTIFY playChanged FINAL)
     Q_PROPERTY(bool disableUpdate READ disableUpdate WRITE setDisableUpdate NOTIFY disableUpdateChanged FINAL)
+    Q_PROPERTY(bool forceUpdateSource READ forceUpdateSource WRITE setForceUpdateSource NOTIFY forceUpdateSourceChanged FINAL)
 
     QML_NAMED_ELEMENT(Wallpaper)
     QML_ADDED_IN_VERSION(1, 0)
@@ -73,6 +74,8 @@ public:
     bool disableUpdate() const;
     void setDisableUpdate(bool disable);
 
+    bool forceUpdateSource() const;
+    void setForceUpdateSource(bool value);
 Q_SIGNALS:
     void outputChanged();
     void workspaceChanged();
@@ -81,6 +84,7 @@ Q_SIGNALS:
     void wallpaperStateChanged();
     void playChanged();
     void disableUpdateChanged();
+    void forceUpdateSourceChanged();
 
 private Q_SLOTS:
     void handleCurrentuserChanged();
@@ -98,4 +102,5 @@ private:
     UserModel *m_model;
     bool m_play = true;
     bool m_disableUpdate = false;
+    bool m_forceUpdateSource = false;
 };
