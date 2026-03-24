@@ -85,7 +85,7 @@ Q_SIGNALS:
 private Q_SLOTS:
     void handleCurrentuserChanged();
     void updateSurface();
-    void handleWallpaperSurfaceAdded(TreelandWallpaperSurfaceInterfaceV1 *interface);
+    void scheduleUpdate();
     void handleWorkspaceAdded();
 
 private:
