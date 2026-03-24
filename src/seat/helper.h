@@ -277,7 +277,6 @@ Q_SIGNALS:
 
     void blockActivateSurfaceChanged();
     void requestQuit();
-    void updateWallpaper();
 
     void launchpadMappedChanged(WOutput *output, bool mapped);
     void showDesktopRequested(WOutput *output);

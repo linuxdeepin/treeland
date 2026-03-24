@@ -34,8 +34,8 @@ WallpaperItem::WallpaperItem(QQuickItem *parent)
             &TreelandWallpaperShellInterfaceV1::wallpaperSurfaceAdded,
             this,
             &WallpaperItem::scheduleUpdate);
-    connect(Helper::instance(),
-            &Helper::updateWallpaper,
+    connect(Helper::instance()->m_wallpaperManager,
+            &WallpaperManager::updateWallpaper,
             this,
             &WallpaperItem::scheduleUpdate);
     connect(Helper::instance()->workspace(),
