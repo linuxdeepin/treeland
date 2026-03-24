@@ -16,7 +16,6 @@ static void window_management_bind(wl_client *client, void *data, uint32_t versi
 
 static void window_management_handle_destroy(struct wl_client *, struct wl_resource *resource)
 {
-    wl_list_remove(&resource->link);
     wl_resource_destroy(resource);
 }
 
