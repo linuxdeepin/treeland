@@ -52,9 +52,6 @@ WSeat *SeatsManager::createSeat(const QString &name, bool isFallback)
         m_defaultSeat = seat;
     }
 
-    if (m_server && m_server->isRunning()) {
-        m_server->attach(seat);
-    }
 
     Q_EMIT seatAdded(seat);
     qCDebug(treelandSeat) << "Created seat:" << name << "fallback:" << isFallback;
@@ -404,7 +401,7 @@ bool SeatsManager::validateConfig(const QJsonObject &config) const
     return true;
 }
 
-void SeatsManager::initializeDefaultSeat(WServer *server)
+void SeatsManager::initializeDefaultSeat()
 {
     if (!m_seats.isEmpty()) {
         qCDebug(treelandSeat) << "Seats already initialized";
@@ -418,10 +415,6 @@ void SeatsManager::initializeDefaultSeat(WServer *server)
     }
 
     ensureDefaultDeviceRules("seat0");
-
-    if (server && server->isRunning()) {
-        server->attach(defaultSeat);
-    }
 
     qCDebug(treelandSeat) << "Initialized default seat: seat0";
 }
@@ -445,7 +438,7 @@ WSeat *SeatsManager::initializeFromConfig(const QString &configPath, WServer *se
 
     // Ensure at least one seat exists
     if (m_seats.isEmpty()) {
-        initializeDefaultSeat(server);
+        initializeDefaultSeat();
     }
 
     // Determine primary seat
