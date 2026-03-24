@@ -33,11 +33,11 @@ WallpaperItem::WallpaperItem(QQuickItem *parent)
     connect(Helper::instance()->shellHandler()->wallpaperShell(),
             &TreelandWallpaperShellInterfaceV1::wallpaperSurfaceAdded,
             this,
-            &WallpaperItem::handleWallpaperSurfaceAdded);
+            &WallpaperItem::scheduleUpdate);
     connect(Helper::instance(),
             &Helper::updateWallpaper,
             this,
-            &WallpaperItem::updateSurface);
+            &WallpaperItem::scheduleUpdate);
     connect(Helper::instance()->workspace(),
             &Workspace::workspaceAdded,
             this,
@@ -180,6 +180,7 @@ void WallpaperItem::updateSurface()
                 m_source = config.lockscreenWallpaper;
                 setSurface(interface->wSurface());
                 interface->wSurface()->enterOutput(output());
+                update();
                 QTimer::singleShot(2000, this, [this]{ Q_EMIT sourceChanged(); });
         }
         return;
@@ -200,6 +201,7 @@ void WallpaperItem::updateSurface()
                 m_source = workspaceConfig.desktopWallpaper;
                 setSurface(interface->wSurface());
                 interface->wSurface()->enterOutput(output());
+                update();
                 QTimer::singleShot(2000, this, [this]{ Q_EMIT sourceChanged(); });
                 break;
             }
@@ -208,7 +210,7 @@ void WallpaperItem::updateSurface()
     }
 }
 
-void WallpaperItem::handleWallpaperSurfaceAdded(TreelandWallpaperSurfaceInterfaceV1 *interface)
+void WallpaperItem::scheduleUpdate()
 {
     if (m_disableUpdate) {
         return;
