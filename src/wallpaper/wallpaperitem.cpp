@@ -119,10 +119,6 @@ bool WallpaperItem::play() const
 
 void WallpaperItem::setPlay(bool value)
 {
-    if (m_play == value) {
-        return;
-    }
-
     TreelandWallpaperSurfaceInterfaceV1 *interface =
         TreelandWallpaperSurfaceInterfaceV1::get(source());
     if (!interface) {
