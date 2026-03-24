@@ -77,7 +77,7 @@ public:
     bool validateConfig(const QJsonObject &config) const;
 
     // Initialization
-    void initializeDefaultSeat(WServer *server);
+    void initializeDefaultSeat();
     void ensureDefaultDeviceRules(const QString &seatName);
 
     // Initialize seats from config file with fallback to default
