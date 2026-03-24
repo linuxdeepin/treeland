@@ -181,7 +181,6 @@ void WallpaperItem::updateSurface()
                 setSurface(interface->wSurface());
                 interface->wSurface()->enterOutput(output());
                 update();
-                QTimer::singleShot(2000, this, [this]{ Q_EMIT sourceChanged(); });
         }
         return;
     }
