@@ -178,7 +178,6 @@ OutputItem {
 
                 anchors.fill: parent
                 disableUpdate: true
-                wallpaperRole: Wallpaper.Desktop
                 output: rootOutputItem.output
                 workspace: Helper.workspace.current
                 opacity: 0
@@ -209,7 +208,6 @@ OutputItem {
                 id: fontWallpaper
 
                 anchors.fill: parent
-                wallpaperRole: Wallpaper.Desktop
                 output: rootOutputItem.output
                 workspace: Helper.workspace.current
                 z: 1
