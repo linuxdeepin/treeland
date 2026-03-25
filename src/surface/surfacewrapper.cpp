@@ -863,6 +863,7 @@ void SurfaceWrapper::setSurfaceState(State newSurfaceState)
         if (m_geometryAnimation) {
             m_geometryAnimation->disconnect(this);
             m_geometryAnimation->deleteLater();
+            m_geometryAnimation = nullptr;
         }
 
         doSetSurfaceState(newSurfaceState);
@@ -1266,6 +1267,7 @@ void SurfaceWrapper::onAnimationReady()
         // abort change state if resize failed
         m_geometryAnimation->disconnect(this);
         m_geometryAnimation->deleteLater();
+        m_geometryAnimation = nullptr;
         return;
     }
 
@@ -1280,6 +1282,7 @@ void SurfaceWrapper::onAnimationFinished()
     Q_ASSERT(m_geometryAnimation);
     m_geometryAnimation->disconnect(this);
     m_geometryAnimation->deleteLater();
+    m_geometryAnimation = nullptr;
 }
 
 bool SurfaceWrapper::startStateChangeAnimation(State targetState, const QRectF &targetGeometry)
@@ -1384,6 +1387,7 @@ void SurfaceWrapper::onMinimizeAnimationFinished()
     Q_ASSERT(m_minimizeAnimation);
     m_minimizeAnimation->disconnect(this);
     m_minimizeAnimation->deleteLater();
+    m_minimizeAnimation = nullptr;
 }
 
 void SurfaceWrapper::startMinimizeAnimation(const QRectF &iconGeometry, uint direction)
@@ -1428,6 +1432,7 @@ void SurfaceWrapper::onShowDesktopAnimationFinished()
     Q_ASSERT(m_showDesktopAnimation);
     m_showDesktopAnimation->disconnect(this);
     m_showDesktopAnimation->deleteLater();
+    m_showDesktopAnimation = nullptr;
     updateVisible();
 }
 
@@ -1437,6 +1442,7 @@ void SurfaceWrapper::startShowDesktopAnimation(bool show)
     if (m_showDesktopAnimation) {
         m_showDesktopAnimation->disconnect(this);
         m_showDesktopAnimation->deleteLater();
+        m_showDesktopAnimation = nullptr;
     }
 
     setHideByShowDesk(show);
