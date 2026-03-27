@@ -1,4 +1,7 @@
-find_package(Qt6 REQUIRED COMPONENTS WaylandClient Widgets)
+find_package(Qt6 COMPONENTS REQUIRED Gui WaylandClient Widgets)
+if(Qt6_VERSION VERSION_GREATER_EQUAL 6.10)
+  find_package(Qt6 COMPONENTS GuiPrivate WaylandClientPrivate REQUIRED)
+endif()
 find_package(TreelandProtocols REQUIRED)
 
 qt_add_executable(test-set-xwindow-position
