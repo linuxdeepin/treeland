@@ -290,7 +290,9 @@ bool QWlrootsIntegration::hasCapability(Capability cap) const
     case WindowManagement:
     case WindowActivation:
     case SyncState:
+#if QT_VERSION < QT_VERSION_CHECK(6, 11, 0)
     case RasterGLSurface:
+#endif
     case AllGLFunctionsQueryable:
     case ApplicationIcon:
     case SwitchableWidgetComposition:
