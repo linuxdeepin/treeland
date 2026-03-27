@@ -100,7 +100,6 @@ personalization_appearance_context_v1::personalization_appearance_context_v1(
             auto *p = personalization_appearance_context_v1::fromResource(resource);
             Q_EMIT p->beforeDestroy();
             delete p;
-            wl_list_remove(wl_resource_get_link(resource));
         });
 
     wl_list_insert(&manager->resources, wl_resource_get_link(resource));
