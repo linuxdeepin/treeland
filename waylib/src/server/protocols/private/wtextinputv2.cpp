@@ -204,8 +204,11 @@ void handle_text_input_enable([[maybe_unused]] wl_client *client, wl_resource *r
     Q_ASSERT(text_input);
     auto wSurface = WSurface::fromHandle(wlr_surface_from_resource(surface));
     // Surface must be existent already, this means wSurface should always be non-null.
+    // However, there can be a race between surface destruction and text input requests,
+    // so treat a missing WSurface as a warning rather than a fatal protocol error.
     if (!wSurface) {
-        wl_client_post_implementation_error(wl_resource_get_client(resource), "Enabled surface not found.");
+        qCWarning(qLcTextInputV2) << "Client" << client << "sent enable on surface" << surface
+                                  << "but no WSurface found (may be already destroyed). Ignoring.";
         return;
     }
     auto d = text_input->d_func();
@@ -226,7 +229,8 @@ void handle_text_input_disable([[maybe_unused]] wl_client *client, wl_resource *
     Q_ASSERT(text_input);
     auto wSurface = WSurface::fromHandle(wlr_surface_from_resource(surface));
     if (!wSurface) {
-        wl_client_post_implementation_error(wl_resource_get_client(resource), "Disabled surface not found, may be already destroyed.");
+        qCWarning(qLcTextInputV2) << "Client" << client << "sent disable on surface" << surface
+                                  << "but no WSurface found (may be already destroyed). Ignoring.";
         return;
     }
     auto d = text_input->d_func();
