@@ -21,7 +21,7 @@ Sockets=treeland-sd.socket
 UnsetEnvironment=DISPLAY
 UnsetEnvironment=WAYLAND_DISPLAY
 ExecStart=@CMAKE_INSTALL_FULL_LIBEXECDIR@/treeland-sd --type wayland
-ExecStartPost=-/usr/bin/systemctl --user set-environment WAYLAND_DISPLAY=%t/treeland.socket
+ExecStartPost=-/usr/bin/systemctl --user set-environment WAYLAND_DISPLAY=treeland.socket
 ExecStop=-/usr/bin/systemctl --user unset-environment WAYLAND_DISPLAY
 Slice=session.slice
 RestartSec=1s
