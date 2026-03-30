@@ -73,9 +73,15 @@ personalization_font_context_v1::personalization_font_context_v1(
                                    [](struct wl_resource *resource) {
                                        auto *p =
                                            personalization_font_context_v1::fromResource(resource);
+                                       if (!p)
+                                           return;
                                        Q_EMIT p->beforeDestroy();
+                                       wl_resource_set_user_data(resource, nullptr);
                                        delete p;
-                                       wl_list_remove(wl_resource_get_link(resource));
+                                       // wl_list_remove is already called by the wayland core
+                                       // (remove_and_destroy_resource) before this callback runs;
+                                       // calling it again would double-remove the link and corrupt
+                                       // the list, causing the heap use-after-free seen in valgrind.
                                    });
 
     wl_list_insert(&manager->resources, wl_resource_get_link(resource));
