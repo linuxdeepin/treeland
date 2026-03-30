@@ -146,11 +146,19 @@ void WorkspaceAnimationController::slide(uint fromWorkspaceIndex, uint toWorkspa
     m_needBounce = false;
     slideRunning(toWorkspaceIndex);
     slideNormal(fromWorkspaceIndex, toWorkspaceIndex);
-    startSlideAnimation();
+
+    if (Helper::instance()->config()->enableWorkspaceAnimation()) {
+        startSlideAnimation();
+    } else {
+        setViewportPos(m_animationDestination);
+    }
 }
 
 void WorkspaceAnimationController::bounce(uint currentWorkspaceIndex, Direction direction)
 {
+    if (!Helper::instance()->config()->enableWorkspaceAnimation())
+        return;
+
     if (m_bounceAnimation->state() == QAbstractAnimation::Running)
         return;
     if (m_slideAnimation->state() != QAbstractAnimation::Running) {

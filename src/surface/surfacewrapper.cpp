@@ -60,6 +60,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     , m_hideByshowDesk(true)
     , m_hideByLockScreen(false)
     , m_confirmHideByLockScreen(false)
+    , m_ignoreNormalGeometryUpdate(false)
     , m_blur(false)
     , m_isActivated(false)
     , m_appId(appId)
@@ -92,6 +93,7 @@ SurfaceWrapper::SurfaceWrapper(SurfaceWrapper *original, QQuickItem *parent)
     , m_hideByshowDesk(true)
     , m_hideByLockScreen(false)
     , m_confirmHideByLockScreen(false)
+    , m_ignoreNormalGeometryUpdate(false)
     , m_blur(false)
     , m_isActivated(false)
     , m_appId(original->m_appId)
@@ -157,6 +159,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     , m_hideByshowDesk(true)
     , m_hideByLockScreen(false)
     , m_confirmHideByLockScreen(false)
+    , m_ignoreNormalGeometryUpdate(false)
     , m_blur(false)
     , m_isActivated(false)
     , m_appId(appId)
@@ -265,12 +268,12 @@ void SurfaceWrapper::setup()
         m_shellSurface->safeConnect(&WToplevelSurface::requestCancelMinimize, this, [this]() {
             requestCancelMinimize();
         });
-        m_shellSurface->safeConnect(&WToplevelSurface::requestMaximize,
-                                    this,
-                                    &SurfaceWrapper::requestMaximize);
-        m_shellSurface->safeConnect(&WToplevelSurface::requestCancelMaximize,
-                                    this,
-                                    &SurfaceWrapper::requestCancelMaximize);
+        m_shellSurface->safeConnect(&WToplevelSurface::requestMaximize, this, [this]() {
+            requestMaximize();
+        });
+        m_shellSurface->safeConnect(&WToplevelSurface::requestCancelMaximize, this, [this]() {
+            requestCancelMaximize();
+        });
         m_shellSurface->safeConnect(&WToplevelSurface::requestMove,
                                     this,
                                     &SurfaceWrapper::requestMove);
@@ -831,7 +834,7 @@ SurfaceWrapper::State SurfaceWrapper::surfaceState() const
     return m_surfaceState;
 }
 
-void SurfaceWrapper::setSurfaceState(State newSurfaceState)
+void SurfaceWrapper::setSurfaceState(State newSurfaceState, bool performAnimation)
 {
     if (m_wrapperAboutToRemove)
         return;
@@ -858,7 +861,18 @@ void SurfaceWrapper::setSurfaceState(State newSurfaceState)
     }
 
     if (targetGeometry.isValid()) {
-        startStateChangeAnimation(newSurfaceState, targetGeometry);
+        bool shouldAnimate = performAnimation;
+        if (shouldAnimate
+            && (newSurfaceState == State::Maximized || m_surfaceState == State::Maximized)
+            && !Helper::instance()->config()->enableMaximizeAnimation()) {
+            shouldAnimate = false;
+        }
+        if (shouldAnimate) {
+            startStateChangeAnimation(newSurfaceState, targetGeometry);
+        } else {
+            applyStateGeometry(targetGeometry);
+            doSetSurfaceState(newSurfaceState);
+        }
     } else {
         if (m_geometryAnimation) {
             m_geometryAnimation->disconnect(this);
@@ -1091,7 +1105,7 @@ void SurfaceWrapper::geometryChange(const QRectF &newGeo, const QRectF &oldGeome
     if (m_container && m_container->filterSurfaceGeometryChanged(this, newGeometry, oldGeometry))
         return;
 
-    if (isNormal() && !m_geometryAnimation) {
+    if (isNormal() && !m_geometryAnimation && !m_ignoreNormalGeometryUpdate) {
         setNormalGeometry(newGeometry);
     }
 
@@ -1104,6 +1118,19 @@ void SurfaceWrapper::geometryChange(const QRectF &newGeo, const QRectF &oldGeome
     if (newGeometry.size() != oldGeometry.size())
         updateBoundingRect();
     updateClipRect();
+}
+
+void SurfaceWrapper::applyStateGeometry(const QRectF &targetGeometry)
+{
+    if (!targetGeometry.isValid())
+        return;
+
+    m_ignoreNormalGeometryUpdate = true;
+    if (!resize(targetGeometry.size()))
+        goto done;
+    setPosition(alignToPixelGrid(targetGeometry.topLeft()));
+done:
+    m_ignoreNormalGeometryUpdate = false;
 }
 
 void SurfaceWrapper::createNewOrClose(uint direction)
@@ -1123,6 +1150,8 @@ void SurfaceWrapper::createNewOrClose(uint direction)
     case Type::XdgToplevel:
         [[fallthrough]];
     case Type::XWayland: {
+        if (!Helper::instance()->config()->enableWindowOpenCloseAnimation())
+            return;
         m_windowAnimation = m_engine->createNewAnimation(this, container(), direction);
         m_windowAnimation->setProperty("enableBlur", m_blur);
     } break;
@@ -1135,11 +1164,15 @@ void SurfaceWrapper::createNewOrClose(uint direction)
         auto *surface = qobject_cast<WLayerSurface *>(m_shellSurface);
         auto anchor = surface->getExclusiveZoneEdge();
         if (scope == "dde-shell/launchpad") {
-            m_windowAnimation = m_engine->createLaunchpadAnimation(this, direction, m_container);
+            if (Helper::instance()->config()->enableLaunchpadAnimation()) {
+                m_windowAnimation = m_engine->createLaunchpadAnimation(this, direction, m_container);
+            }
         } else if (anchor != WLayerSurface::AnchorType::None) {
-            m_windowAnimation = m_engine->createLayerShellAnimation(this, container(), direction);
-            m_windowAnimation->setProperty("position", QVariant::fromValue(anchor));
-            m_windowAnimation->setProperty("enableBlur", m_blur);
+            if (Helper::instance()->config()->enableLayerShellAnimation()) {
+                m_windowAnimation = m_engine->createLayerShellAnimation(this, container(), direction);
+                m_windowAnimation->setProperty("position", QVariant::fromValue(anchor));
+                m_windowAnimation->setProperty("enableBlur", m_blur);
+            }
         } else {
             // NOTE: missing fullscreen window animation, so hide window now.
             if (m_hideByLockScreen) {
@@ -1446,6 +1479,12 @@ void SurfaceWrapper::startShowDesktopAnimation(bool show)
     }
 
     setHideByShowDesk(show);
+
+    if (!Helper::instance()->config()->enableShowDesktopAnimation()) {
+        updateVisible();
+        return;
+    }
+
     m_showDesktopAnimation = m_engine->createShowDesktopAnimation(this, container(), show);
     bool ok = connect(m_showDesktopAnimation,
                       SIGNAL(finished()),
@@ -1486,7 +1525,7 @@ void SurfaceWrapper::setRadius(qreal newRadius)
 void SurfaceWrapper::requestMinimize(bool onAnimation)
 {
     setSurfaceState(State::Minimized);
-    if (onAnimation)
+    if (onAnimation && Helper::instance()->config()->enableMinimizeAnimation())
         startMinimizeAnimation(iconGeometry(), CLOSE_ANIMATION);
 }
 
@@ -1498,32 +1537,32 @@ void SurfaceWrapper::requestCancelMinimize(bool onAnimation)
         setHideByShowDesk(true);
 
     doSetSurfaceState(m_previousSurfaceState);
-    if (onAnimation)
+    if (onAnimation && Helper::instance()->config()->enableMinimizeAnimation())
         startMinimizeAnimation(iconGeometry(), OPEN_ANIMATION);
 }
 
-void SurfaceWrapper::requestMaximize()
+void SurfaceWrapper::requestMaximize(bool onAnimation)
 {
     if (m_surfaceState == State::Minimized || m_surfaceState == State::Fullscreen)
         return;
 
-    setSurfaceState(State::Maximized);
+    setSurfaceState(State::Maximized, onAnimation);
 }
 
-void SurfaceWrapper::requestCancelMaximize()
+void SurfaceWrapper::requestCancelMaximize(bool onAnimation)
 {
     if (m_surfaceState != State::Maximized)
         return;
 
-    setSurfaceState(State::Normal);
+    setSurfaceState(State::Normal, onAnimation);
 }
 
-void SurfaceWrapper::requestToggleMaximize()
+void SurfaceWrapper::requestToggleMaximize(bool onAnimation)
 {
     if (m_surfaceState == State::Maximized)
-        requestCancelMaximize();
+        requestCancelMaximize(onAnimation);
     else
-        requestMaximize();
+        requestMaximize(onAnimation);
 }
 
 void SurfaceWrapper::requestFullscreen()

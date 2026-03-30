@@ -300,6 +300,9 @@ void Workspace::updateSurfacesOwnsOutput()
 
 void Workspace::createSwitcher()
 {
+    if (!Helper::instance()->config()->enableWorkspaceAnimation())
+        return;
+
     if (m_switcherEnabled && !m_switcher) {
         auto engine = Helper::instance()->qmlEngine();
         m_switcher = engine->createWorkspaceSwitcher(this);
