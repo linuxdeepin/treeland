@@ -90,7 +90,7 @@ personalization_window_context_v1::~personalization_window_context_v1()
 
 static void personalization_window_context_resource_destroy(struct wl_resource *resource)
 {
-    if (resource)
+    if (!resource)
         return;
 
     auto window_context = personalization_window_context_v1::from_resource(resource);
@@ -98,8 +98,8 @@ static void personalization_window_context_resource_destroy(struct wl_resource *
         return;
     }
 
+    wl_resource_set_user_data(resource, nullptr);
     delete window_context;
-    wl_list_remove(wl_resource_get_link(resource));
 }
 
 namespace Personalization {
@@ -222,7 +222,7 @@ personalization_wallpaper_context_v1::~personalization_wallpaper_context_v1()
 
 static void personalization_wallpaper_context_resource_destroy(struct wl_resource *resource)
 {
-    if (resource)
+    if (!resource)
         return;
 
     auto wallpaper_context = personalization_wallpaper_context_v1::from_resource(resource);
@@ -230,8 +230,8 @@ static void personalization_wallpaper_context_resource_destroy(struct wl_resourc
         return;
     }
 
+    wl_resource_set_user_data(resource, nullptr);
     delete wallpaper_context;
-    wl_list_remove(wl_resource_get_link(resource));
 }
 
 void set_cursor_theme([[maybe_unused]] struct wl_client *client, struct wl_resource *resource, const char *name)
@@ -312,7 +312,7 @@ personalization_cursor_context_v1::~personalization_cursor_context_v1()
 
 static void personalization_cursor_context_resource_destroy(struct wl_resource *resource)
 {
-    if (resource)
+    if (!resource)
         return;
 
     auto cursor_context = personalization_cursor_context_v1::from_resource(resource);
@@ -320,8 +320,8 @@ static void personalization_cursor_context_resource_destroy(struct wl_resource *
         return;
     }
 
+    wl_resource_set_user_data(resource, nullptr);
     delete cursor_context;
-    wl_list_remove(wl_resource_get_link(resource));
 }
 
 void create_personalization_window_context_listener(struct wl_client *client,
@@ -360,16 +360,13 @@ treeland_personalization_manager_v1 *treeland_personalization_manager_v1::from_r
 
 static void treeland_personalization_manager_resource_destroy(struct wl_resource *resource)
 {
-    if (resource)
+    if (!resource)
         return;
 
-    auto manager = treeland_personalization_manager_v1::from_resource(resource);
-    if (!manager) {
-        return;
-    }
-
-    delete manager;
-    wl_list_remove(wl_resource_get_link(resource));
+    // The manager object is shared by all bound manager resources and is owned
+    // by treeland_personalization_manager_v1::create()/display lifetime.
+    // Destroying a single wl_resource must not delete the shared manager.
+    wl_resource_set_user_data(resource, nullptr);
 }
 
 void create_personalization_window_context_listener(struct wl_client *client,
