@@ -187,7 +187,20 @@ protected:
         Q_EMIT before_destroy();
         do_destroy();
         m_handle = nullptr;
-        delete this;
+        // Use deleteLater() instead of delete this to defer ~QObject() to the
+        // next event loop iteration.  on_destroy() is called synchronously from
+        // inside a wlroots signal handler (wl_signal_emit_mutable), which may
+        // itself be called from inside a Qt signal's doActivate() loop.  Calling
+        // delete this here runs ~QObject(), which emits destroyed() and then
+        // unlinks every Connection this object owns from the sender's
+        // ConnectionData.  If any parent doActivate() is still iterating one of
+        // those ConnectionData lists (because this qw_object was connected to the
+        // same sender whose signal triggered the teardown), the now-freed
+        // Connection node produces heap corruption (e.g. receiver pointer of
+        // 0x907) that manifests as a SIGSEGV in a completely unrelated code path
+        // later.  Deferring destruction to the event loop means ~QObject() only
+        // runs after all nested doActivate() calls have returned.
+        deleteLater();
     }
 
     Handle *m_handle;
