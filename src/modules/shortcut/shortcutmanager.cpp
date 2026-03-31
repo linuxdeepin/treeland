@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2025 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "qwayland-server-treeland-shortcut-manager-v2.h"
@@ -100,25 +100,25 @@ public:
     WSocket* m_activeSessionSocket = nullptr;
 
 protected:
-    void treeland_shortcut_manager_v2_destroy_resource(Resource *resource) override;
-    void treeland_shortcut_manager_v2_destroy(Resource *resource) override;
-    void treeland_shortcut_manager_v2_acquire(Resource *resource) override;
-    void treeland_shortcut_manager_v2_bind_key(Resource *resource,
-                                               const QString &name,
-                                               const QString &key_sequence,
-                                               uint32_t flags,
-                                               uint32_t action) override;
-    void treeland_shortcut_manager_v2_bind_swipe_gesture(Resource *resource,
-                                                         const QString &name,
-                                                         uint32_t finger,
-                                                         uint32_t direction,
-                                                         uint32_t action) override;
-    void treeland_shortcut_manager_v2_bind_hold_gesture(Resource *resource,
-                                                        const QString &name,
-                                                        uint32_t finger,
-                                                        uint32_t action) override;
-    void treeland_shortcut_manager_v2_commit(Resource *resource) override;
-    void treeland_shortcut_manager_v2_unbind(Resource *resource, const QString &name) override;
+    void destroy_resource(Resource *resource) override;
+    void destroy(Resource *resource) override;
+    void acquire(Resource *resource) override;
+    void bind_key(Resource *resource,
+                  const QString &name,
+                  const QString &key_sequence,
+                  uint32_t flags,
+                  uint32_t action) override;
+    void bind_swipe_gesture(Resource *resource,
+                            const QString &name,
+                            uint32_t finger,
+                            uint32_t direction,
+                            uint32_t action) override;
+    void bind_hold_gesture(Resource *resource,
+                           const QString &name,
+                           uint32_t finger,
+                           uint32_t action) override;
+    void commit(Resource *resource) override;
+    void unbind(Resource *resource, const QString &name) override;
 
 private:
     WSocket *socketFromResource(Resource *resource);
@@ -218,7 +218,7 @@ void ShortcutManagerV2Private::sendInvalidCommit(WSocket *socket)
                            "Commit sent before last commit is processed.");
 }
 
-void ShortcutManagerV2Private::treeland_shortcut_manager_v2_destroy_resource(Resource *resource)
+void ShortcutManagerV2Private::destroy_resource(Resource *resource)
 {
     for (auto it = ownerClients.begin(); it != ownerClients.end(); ) {
         if (it.value() == resource) {
@@ -229,12 +229,12 @@ void ShortcutManagerV2Private::treeland_shortcut_manager_v2_destroy_resource(Res
     }
 }
 
-void ShortcutManagerV2Private::treeland_shortcut_manager_v2_destroy(Resource *resource)
+void ShortcutManagerV2Private::destroy(Resource *resource)
 {
     wl_resource_destroy(resource->handle);
 }
 
-void ShortcutManagerV2Private::treeland_shortcut_manager_v2_acquire(Resource *resource)
+void ShortcutManagerV2Private::acquire(Resource *resource)
 {
     WSocket *socket = socketFromResource(resource);
     if (ownerClients.contains(socket)) {
@@ -254,11 +254,11 @@ void ShortcutManagerV2Private::treeland_shortcut_manager_v2_acquire(Resource *re
     ownerClients.insert(socket, resource);
 }
 
-void ShortcutManagerV2Private::treeland_shortcut_manager_v2_bind_key(Resource *resource,
-                                                                     const QString &name,
-                                                                     const QString &key_sequence,
-                                                                     uint32_t flags,
-                                                                     uint32_t action)
+void ShortcutManagerV2Private::bind_key(Resource *resource,
+                                        const QString &name,
+                                        const QString &key_sequence,
+                                        uint32_t flags,
+                                        uint32_t action)
 {
     WSocket *socket = socketFromResource(resource);
     if (ownerClients.value(socket, nullptr) != resource) {
@@ -276,11 +276,11 @@ void ShortcutManagerV2Private::treeland_shortcut_manager_v2_bind_key(Resource *r
     });
 }
 
-void ShortcutManagerV2Private::treeland_shortcut_manager_v2_bind_swipe_gesture(Resource *resource,
-                                                                               const QString &name,
-                                                                               uint32_t finger,
-                                                                               uint32_t direction,
-                                                                               uint32_t action)
+void ShortcutManagerV2Private::bind_swipe_gesture(Resource *resource,
+                                                  const QString &name,
+                                                  uint32_t finger,
+                                                  uint32_t direction,
+                                                  uint32_t action)
 {
     WSocket *socket = socketFromResource(resource);
     if (ownerClients.value(socket, nullptr) != resource) {
@@ -298,10 +298,10 @@ void ShortcutManagerV2Private::treeland_shortcut_manager_v2_bind_swipe_gesture(R
     });
 }
 
-void ShortcutManagerV2Private::treeland_shortcut_manager_v2_bind_hold_gesture(Resource *resource,
-                                                                              const QString &name,
-                                                                              uint32_t finger,
-                                                                              uint32_t action)
+void ShortcutManagerV2Private::bind_hold_gesture(Resource *resource,
+                                                 const QString &name,
+                                                 uint32_t finger,
+                                                 uint32_t action)
 {
     WSocket *socket = socketFromResource(resource);
     if (ownerClients.value(socket, nullptr) != resource) {
@@ -318,7 +318,7 @@ void ShortcutManagerV2Private::treeland_shortcut_manager_v2_bind_hold_gesture(Re
     });
 }
 
-void ShortcutManagerV2Private::treeland_shortcut_manager_v2_commit(Resource *resource)
+void ShortcutManagerV2Private::commit(Resource *resource)
 {
     WSocket *socket = socketFromResource(resource);
     if (ownerClients.value(socket, nullptr) != resource) {
@@ -353,7 +353,7 @@ void ShortcutManagerV2Private::treeland_shortcut_manager_v2_commit(Resource *res
     }
 }
 
-void ShortcutManagerV2Private::treeland_shortcut_manager_v2_unbind(Resource *resource, const QString &name)
+void ShortcutManagerV2Private::unbind(Resource *resource, const QString &name)
 {
     WSocket *socket = socketFromResource(resource);
     if (ownerClients.value(socket, nullptr) != resource) {

@@ -16,10 +16,10 @@ public:
     TreelandWallpaperNotifierInterfaceV1 *q = nullptr;
 
 protected:
-    void treeland_wallpaper_notifier_v1_bind_resource(Resource *resource) override;
-    void treeland_wallpaper_notifier_v1_destroy_resource(Resource *resource) override;
-    void treeland_wallpaper_notifier_v1_destroy_global() override;
-    void treeland_wallpaper_notifier_v1_destroy(Resource *resource) override;
+    void bind_resource(Resource *resource) override;
+    void destroy_resource(Resource *resource) override;
+    void destroy_global() override;
+    void destroy(Resource *resource) override;
 };
 
 TreelandWallpaperNotifierInterfaceV1Private::TreelandWallpaperNotifierInterfaceV1Private(TreelandWallpaperNotifierInterfaceV1 *_q)
@@ -32,24 +32,24 @@ wl_global *TreelandWallpaperNotifierInterfaceV1Private::global() const
     return m_global;
 }
 
-void TreelandWallpaperNotifierInterfaceV1Private::treeland_wallpaper_notifier_v1_bind_resource(Resource *resource)
+void TreelandWallpaperNotifierInterfaceV1Private::bind_resource(Resource *resource)
 {
     m_resource.append(resource);
     Q_EMIT q->binded();
 }
 
-void TreelandWallpaperNotifierInterfaceV1Private::treeland_wallpaper_notifier_v1_destroy_resource(Resource *resource)
+void TreelandWallpaperNotifierInterfaceV1Private::destroy_resource(Resource *resource)
 {
     m_resource.removeOne(resource);
 }
 
-void TreelandWallpaperNotifierInterfaceV1Private::treeland_wallpaper_notifier_v1_destroy_global()
+void TreelandWallpaperNotifierInterfaceV1Private::destroy_global()
 {
     m_resource.clear();
     delete q;
 }
 
-void TreelandWallpaperNotifierInterfaceV1Private::treeland_wallpaper_notifier_v1_destroy(Resource *resource)
+void TreelandWallpaperNotifierInterfaceV1Private::destroy(Resource *resource)
 {
     wl_resource_destroy(resource->handle);
 }
