@@ -1,4 +1,4 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "ddeshellmanagerinterfacev1.h"
@@ -35,31 +35,18 @@ public:
     DDEShellManagerInterfaceV1 *q;
 
 protected:
-    void treeland_dde_shell_manager_v1_get_window_overlap_checker(Resource *resource,
-                                                                  uint32_t id) override;
-    void treeland_dde_shell_manager_v1_get_shell_surface(Resource *resource,
-                                                         uint32_t id,
-                                                         struct ::wl_resource *surface) override;
-    void treeland_dde_shell_manager_v1_get_treeland_dde_active(Resource *resource,
-                                                               uint32_t id,
-                                                               struct ::wl_resource *seat) override;
-    void treeland_dde_shell_manager_v1_get_treeland_multitaskview(Resource *resource,
-                                                                  uint32_t id) override;
-    void treeland_dde_shell_manager_v1_get_treeland_window_picker(Resource *resource,
-                                                                  uint32_t id) override;
-    void treeland_dde_shell_manager_v1_get_treeland_lockscreen(Resource *resource,
-                                                               uint32_t id) override;
-    void treeland_dde_shell_manager_v1_set_xwindow_position_relative(Resource *resource,
-                                                                     uint32_t callback,
-                                                                     uint32_t wid,
-                                                                     struct ::wl_resource *anchor,
-                                                                     wl_fixed_t dx,
-                                                                     wl_fixed_t dy) override;
+    void get_window_overlap_checker(Resource *resource, uint32_t id) override;
+    void get_shell_surface(Resource *resource, uint32_t id, struct ::wl_resource *surface) override;
+    void get_treeland_dde_active(Resource *resource, uint32_t id, struct ::wl_resource *seat) override;
+    void get_treeland_multitaskview(Resource *resource, uint32_t id) override;
+    void get_treeland_window_picker(Resource *resource, uint32_t id) override;
+    void get_treeland_lockscreen(Resource *resource, uint32_t id) override;
+    void set_xwindow_position_relative(Resource *resource, uint32_t callback, uint32_t wid,
+                                       struct ::wl_resource *anchor, wl_fixed_t dx, wl_fixed_t dy) override;
 };
 
-void DDEShellManagerInterfaceV1Private::treeland_dde_shell_manager_v1_get_treeland_lockscreen(
-    Resource *resource,
-    uint32_t id)
+void DDEShellManagerInterfaceV1Private::get_treeland_lockscreen(Resource *resource,
+                                                                uint32_t id)
 {
     wl_resource *lockscreen_resource = wl_resource_create(resource->client(),
                                                           &treeland_lockscreen_v1_interface,
@@ -79,12 +66,12 @@ void DDEShellManagerInterfaceV1Private::treeland_dde_shell_manager_v1_get_treela
     Q_EMIT q->lockScreenCreated(lockScreen);
 }
 
-void DDEShellManagerInterfaceV1Private::treeland_dde_shell_manager_v1_set_xwindow_position_relative(Resource *resource,
-                                                                                                    uint32_t callback,
-                                                                                                    uint32_t wid,
-                                                                                                    struct ::wl_resource *anchor,
-                                                                                                    wl_fixed_t dx,
-                                                                                                    wl_fixed_t dy)
+void DDEShellManagerInterfaceV1Private::set_xwindow_position_relative(Resource *resource,
+                                                                      uint32_t callback,
+                                                                      uint32_t wid,
+                                                                      struct ::wl_resource *anchor,
+                                                                      wl_fixed_t dx,
+                                                                      wl_fixed_t dy)
 {
     WSurface *wsurface = WSurface::fromHandle(qw_surface::from_resource(anchor));
     uint32_t ok = (wsurface && Helper::instance()->setXWindowPositionRelative(wid, wsurface, dx, dy)) ? 0 : 1;
@@ -103,9 +90,8 @@ wl_global *DDEShellManagerInterfaceV1Private::global() const
     return m_global;
 }
 
-void DDEShellManagerInterfaceV1Private::treeland_dde_shell_manager_v1_get_window_overlap_checker(
-    Resource *resource,
-    uint32_t id)
+void DDEShellManagerInterfaceV1Private::get_window_overlap_checker(Resource *resource,
+                                                                   uint32_t id)
 {
     wl_resource *checker_resource = wl_resource_create(resource->client(),
                                                        &treeland_window_overlap_checker_interface,
@@ -126,10 +112,9 @@ void DDEShellManagerInterfaceV1Private::treeland_dde_shell_manager_v1_get_window
     Q_EMIT q->windowOverlapCheckerCreated(overlapChecker);
 }
 
-void DDEShellManagerInterfaceV1Private::treeland_dde_shell_manager_v1_get_shell_surface(
-    Resource *resource,
-    uint32_t id,
-    wl_resource *surface)
+void DDEShellManagerInterfaceV1Private::get_shell_surface(Resource *resource,
+                                                          uint32_t id,
+                                                          wl_resource *surface)
 {
     if (!surface) {
         wl_resource_post_error(resource->handle, 0, "surface resource is NULL!");
@@ -160,10 +145,9 @@ void DDEShellManagerInterfaceV1Private::treeland_dde_shell_manager_v1_get_shell_
     Q_EMIT q->surfaceCreated(shellSurface);
 }
 
-void DDEShellManagerInterfaceV1Private::treeland_dde_shell_manager_v1_get_treeland_dde_active(
-    Resource *resource,
-    uint32_t id,
-    struct ::wl_resource *seat)
+void DDEShellManagerInterfaceV1Private::get_treeland_dde_active(Resource *resource,
+                                                                uint32_t id,
+                                                                struct ::wl_resource *seat)
 {
     if (!seat) {
         wl_resource_post_error(resource->handle, 0, "seat resource is NULL!");
@@ -190,9 +174,8 @@ void DDEShellManagerInterfaceV1Private::treeland_dde_shell_manager_v1_get_treela
     Q_EMIT q->activeCreated(active);
 }
 
-void DDEShellManagerInterfaceV1Private::treeland_dde_shell_manager_v1_get_treeland_multitaskview(
-    Resource *resource,
-    uint32_t id)
+void DDEShellManagerInterfaceV1Private::get_treeland_multitaskview(Resource *resource,
+                                                                   uint32_t id)
 {
     wl_resource *multiTaskViewResource = wl_resource_create(resource->client(),
                                                             &treeland_multitaskview_v1_interface,
@@ -218,9 +201,8 @@ void DDEShellManagerInterfaceV1Private::treeland_dde_shell_manager_v1_get_treela
     Q_EMIT q->multiTaskViewsCreated(multiTaskView);
 }
 
-void DDEShellManagerInterfaceV1Private::treeland_dde_shell_manager_v1_get_treeland_window_picker(
-    Resource *resource,
-    uint32_t id)
+void DDEShellManagerInterfaceV1Private::get_treeland_window_picker(Resource *resource,
+                                                                   uint32_t id)
 {
     wl_resource *windowPickerResource = wl_resource_create(resource->client(),
                                                            &treeland_window_picker_v1_interface,
@@ -295,21 +277,21 @@ public:
     bool acceptKeyboardFocus = true;
 
 protected:
-    void treeland_dde_shell_surface_v1_destroy_resource([[maybe_unused]] Resource *resource) override;
-    void treeland_dde_shell_surface_v1_destroy([[maybe_unused]] Resource *resource) override;
-    void treeland_dde_shell_surface_v1_set_surface_position([[maybe_unused]] Resource *resource,
+    void destroy_resource([[maybe_unused]] Resource *resource) override;
+    void destroy([[maybe_unused]] Resource *resource) override;
+    void set_surface_position([[maybe_unused]] Resource *resource,
                                                             int32_t x,
                                                             int32_t y) override;
-    void treeland_dde_shell_surface_v1_set_role(Resource *resource, uint32_t value) override;
-    void treeland_dde_shell_surface_v1_set_auto_placement([[maybe_unused]] Resource *resource,
+    void set_role(Resource *resource, uint32_t value) override;
+    void set_auto_placement([[maybe_unused]] Resource *resource,
                                                           uint32_t y_offset) override;
-    void treeland_dde_shell_surface_v1_set_skip_switcher([[maybe_unused]] Resource *resource,
+    void set_skip_switcher([[maybe_unused]] Resource *resource,
                                                          uint32_t skip) override;
-    void treeland_dde_shell_surface_v1_set_skip_dock_preview([[maybe_unused]] Resource *resource,
+    void set_skip_dock_preview([[maybe_unused]] Resource *resource,
                                                              uint32_t skip) override;
-    void treeland_dde_shell_surface_v1_set_skip_muti_task_view([[maybe_unused]] Resource *resource,
+    void set_skip_muti_task_view([[maybe_unused]] Resource *resource,
                                                                uint32_t skip) override;
-    void treeland_dde_shell_surface_v1_set_accept_keyboard_focus([[maybe_unused]] Resource *resource,
+    void set_accept_keyboard_focus([[maybe_unused]] Resource *resource,
                                                                  uint32_t accept) override;
 };
 
@@ -322,17 +304,17 @@ DDEShellSurfaceInterfacePrivate::DDEShellSurfaceInterfacePrivate(DDEShellSurface
 {
 }
 
-void DDEShellSurfaceInterfacePrivate::treeland_dde_shell_surface_v1_destroy_resource([[maybe_unused]] Resource *resource)
+void DDEShellSurfaceInterfacePrivate::destroy_resource([[maybe_unused]] Resource *resource)
 {
     delete q;
 }
 
-void DDEShellSurfaceInterfacePrivate::treeland_dde_shell_surface_v1_destroy([[maybe_unused]] Resource *resource)
+void DDEShellSurfaceInterfacePrivate::destroy([[maybe_unused]] Resource *resource)
 {
     wl_resource_destroy(resource->handle);
 }
 
-void DDEShellSurfaceInterfacePrivate::treeland_dde_shell_surface_v1_set_surface_position([[maybe_unused]] Resource *resource,
+void DDEShellSurfaceInterfacePrivate::set_surface_position([[maybe_unused]] Resource *resource,
     int32_t x,
     int32_t y)
 {
@@ -346,8 +328,8 @@ void DDEShellSurfaceInterfacePrivate::treeland_dde_shell_surface_v1_set_surface_
     Q_EMIT q->positionChanged(pos);
 }
 
-void DDEShellSurfaceInterfacePrivate::treeland_dde_shell_surface_v1_set_role(Resource *resource,
-                                                                             uint32_t value)
+void DDEShellSurfaceInterfacePrivate::set_role(Resource *resource,
+                                               uint32_t value)
 {
     DDEShellSurfaceInterface::Role newRole;
     switch (value) {
@@ -370,8 +352,8 @@ void DDEShellSurfaceInterfacePrivate::treeland_dde_shell_surface_v1_set_role(Res
     Q_EMIT q->roleChanged(newRole);
 }
 
-void DDEShellSurfaceInterfacePrivate::treeland_dde_shell_surface_v1_set_auto_placement([[maybe_unused]] Resource *resource,
-    uint32_t y_offset)
+void DDEShellSurfaceInterfacePrivate::set_auto_placement([[maybe_unused]] Resource *resource,
+                                                         uint32_t y_offset)
 {
     if (y_offset == yOffset) {
         return;
@@ -381,8 +363,8 @@ void DDEShellSurfaceInterfacePrivate::treeland_dde_shell_surface_v1_set_auto_pla
     Q_EMIT q->yOffsetChanged(y_offset);
 }
 
-void DDEShellSurfaceInterfacePrivate::treeland_dde_shell_surface_v1_set_skip_switcher([[maybe_unused]] Resource *resource,
-    uint32_t skip)
+void DDEShellSurfaceInterfacePrivate::set_skip_switcher([[maybe_unused]] Resource *resource,
+                                                        uint32_t skip)
 {
     if (skip == skipSwitcher) {
         return;
@@ -392,8 +374,8 @@ void DDEShellSurfaceInterfacePrivate::treeland_dde_shell_surface_v1_set_skip_swi
     Q_EMIT q->skipSwitcherChanged(skip);
 }
 
-void DDEShellSurfaceInterfacePrivate::treeland_dde_shell_surface_v1_set_skip_dock_preview([[maybe_unused]] Resource *resource,
-    uint32_t skip)
+void DDEShellSurfaceInterfacePrivate::set_skip_dock_preview([[maybe_unused]] Resource *resource,
+                                                            uint32_t skip)
 {
     if (skip == skipDockPreView) {
         return;
@@ -403,8 +385,8 @@ void DDEShellSurfaceInterfacePrivate::treeland_dde_shell_surface_v1_set_skip_doc
     Q_EMIT q->skipDockPreViewChanged(skip);
 }
 
-void DDEShellSurfaceInterfacePrivate::treeland_dde_shell_surface_v1_set_skip_muti_task_view([[maybe_unused]] Resource *resource,
-    uint32_t skip)
+void DDEShellSurfaceInterfacePrivate::set_skip_muti_task_view([[maybe_unused]] Resource *resource,
+                                                              uint32_t skip)
 {
     if (skip == skipMutiTaskView) {
         return;
@@ -414,8 +396,8 @@ void DDEShellSurfaceInterfacePrivate::treeland_dde_shell_surface_v1_set_skip_mut
     Q_EMIT q->skipMutiTaskViewChanged(skip);
 }
 
-void DDEShellSurfaceInterfacePrivate::treeland_dde_shell_surface_v1_set_accept_keyboard_focus([[maybe_unused]] Resource *resource,
-    uint32_t accept)
+void DDEShellSurfaceInterfacePrivate::set_accept_keyboard_focus([[maybe_unused]] Resource *resource,
+                                                                uint32_t accept)
 {
     if (accept == acceptKeyboardFocus) {
         return;
@@ -507,8 +489,8 @@ public:
     wl_resource *seatResouce{ nullptr };
 
 protected:
-    void treeland_dde_active_v1_destroy_resource([[maybe_unused]] Resource *resource) override;
-    void treeland_dde_active_v1_destroy([[maybe_unused]] Resource *resource) override;
+    void destroy_resource([[maybe_unused]] Resource *resource) override;
+    void destroy([[maybe_unused]] Resource *resource) override;
 };
 
 DDEActiveInterfacePrivate::DDEActiveInterfacePrivate(DDEActiveInterface *_q,
@@ -520,12 +502,12 @@ DDEActiveInterfacePrivate::DDEActiveInterfacePrivate(DDEActiveInterface *_q,
 {
 }
 
-void DDEActiveInterfacePrivate::treeland_dde_active_v1_destroy_resource([[maybe_unused]] Resource *resource)
+void DDEActiveInterfacePrivate::destroy_resource([[maybe_unused]] Resource *resource)
 {
     delete q;
 }
 
-void DDEActiveInterfacePrivate::treeland_dde_active_v1_destroy([[maybe_unused]] Resource *resource)
+void DDEActiveInterfacePrivate::destroy([[maybe_unused]] Resource *resource)
 {
     wl_resource_destroy(resource->handle);
 }
@@ -613,14 +595,13 @@ public:
     bool overlapped{ false };
 
 protected:
-    void treeland_window_overlap_checker_destroy_resource([[maybe_unused]] Resource *resource) override;
-
-    void treeland_window_overlap_checker_update(Resource *resource,
-                                                int32_t width,
-                                                int32_t height,
-                                                uint32_t anchor,
-                                                struct ::wl_resource *output) override;
-    void treeland_window_overlap_checker_destroy(Resource *resource) override;
+    void destroy_resource([[maybe_unused]] Resource *resource) override;
+    void update(Resource *resource,
+                int32_t width,
+                int32_t height,
+                uint32_t anchor,
+                struct ::wl_resource *output) override;
+    void destroy(Resource *resource) override;
 };
 
 WindowOverlapCheckerInterface::WindowOverlapCheckerInterface(wl_resource *resource)
@@ -667,18 +648,17 @@ WindowOverlapCheckerInterfacePrivate::WindowOverlapCheckerInterfacePrivate(
 {
 }
 
-void WindowOverlapCheckerInterfacePrivate::treeland_window_overlap_checker_destroy_resource([[maybe_unused]] Resource *resource)
+void WindowOverlapCheckerInterfacePrivate::destroy_resource([[maybe_unused]] Resource *resource)
 {
     s_conflictList.remove(q);
     delete q;
 }
 
-void WindowOverlapCheckerInterfacePrivate::treeland_window_overlap_checker_update(
-    Resource *resource,
-    int32_t width,
-    int32_t height,
-    uint32_t anchor,
-    wl_resource *o)
+void WindowOverlapCheckerInterfacePrivate::update(Resource *resource,
+                                                  int32_t width,
+                                                  int32_t height,
+                                                  uint32_t anchor,
+                                                  wl_resource *o)
 {
     output = wlr_output_from_resource(o);
     size = QSize(width, height);
@@ -712,8 +692,7 @@ void WindowOverlapCheckerInterfacePrivate::treeland_window_overlap_checker_updat
     Q_EMIT q->refresh();
 }
 
-void WindowOverlapCheckerInterfacePrivate::treeland_window_overlap_checker_destroy(
-    Resource *resource)
+void WindowOverlapCheckerInterfacePrivate::destroy(Resource *resource)
 {
     wl_resource_destroy(resource->handle);
 }
@@ -726,9 +705,9 @@ public:
     MultiTaskViewInterface *q;
 
 protected:
-    void treeland_multitaskview_v1_destroy_resource([[maybe_unused]] Resource *resource) override;
-    void treeland_multitaskview_v1_destroy([[maybe_unused]] Resource *resource) override;
-    void treeland_multitaskview_v1_toggle([[maybe_unused]] Resource *resource) override;
+    void destroy_resource([[maybe_unused]] Resource *resource) override;
+    void destroy([[maybe_unused]] Resource *resource) override;
+    void toggle([[maybe_unused]] Resource *resource) override;
 };
 
 MultiTaskViewInterfacePrivate::MultiTaskViewInterfacePrivate(MultiTaskViewInterface *_q,
@@ -738,17 +717,17 @@ MultiTaskViewInterfacePrivate::MultiTaskViewInterfacePrivate(MultiTaskViewInterf
 {
 }
 
-void MultiTaskViewInterfacePrivate::treeland_multitaskview_v1_destroy_resource([[maybe_unused]] Resource *resource)
+void MultiTaskViewInterfacePrivate::destroy_resource([[maybe_unused]] Resource *resource)
 {
     delete q;
 }
 
-void MultiTaskViewInterfacePrivate::treeland_multitaskview_v1_destroy([[maybe_unused]] Resource *resource)
+void MultiTaskViewInterfacePrivate::destroy([[maybe_unused]] Resource *resource)
 {
     wl_resource_destroy(resource->handle);
 }
 
-void MultiTaskViewInterfacePrivate::treeland_multitaskview_v1_toggle([[maybe_unused]] Resource *resource)
+void MultiTaskViewInterfacePrivate::toggle([[maybe_unused]] Resource *resource)
 {
     Q_EMIT q->toggle();
 }
@@ -768,9 +747,9 @@ public:
     WindowPickerInterface *q;
 
 protected:
-    void treeland_window_picker_v1_destroy_resource([[maybe_unused]] Resource *resource) override;
-    void treeland_window_picker_v1_destroy([[maybe_unused]] Resource *resource) override;
-    void treeland_window_picker_v1_pick([[maybe_unused]] Resource *resource, const QString &hint) override;
+    void destroy_resource([[maybe_unused]] Resource *resource) override;
+    void destroy([[maybe_unused]] Resource *resource) override;
+    void pick([[maybe_unused]] Resource *resource, const QString &hint) override;
 };
 
 WindowPickerInterfacePrivate::WindowPickerInterfacePrivate(WindowPickerInterface *_q,
@@ -780,18 +759,18 @@ WindowPickerInterfacePrivate::WindowPickerInterfacePrivate(WindowPickerInterface
 {
 }
 
-void WindowPickerInterfacePrivate::treeland_window_picker_v1_destroy_resource([[maybe_unused]] Resource *resource)
+void WindowPickerInterfacePrivate::destroy_resource([[maybe_unused]] Resource *resource)
 {
     Q_EMIT q->beforeDestroy();
     delete q;
 }
 
-void WindowPickerInterfacePrivate::treeland_window_picker_v1_destroy([[maybe_unused]] Resource *resource)
+void WindowPickerInterfacePrivate::destroy([[maybe_unused]] Resource *resource)
 {
     wl_resource_destroy(resource->handle);
 }
 
-void WindowPickerInterfacePrivate::treeland_window_picker_v1_pick([[maybe_unused]] Resource *resource,
+void WindowPickerInterfacePrivate::pick([[maybe_unused]] Resource *resource,
     const QString &hint)
 {
     Q_EMIT q->pick(hint);
@@ -817,24 +796,24 @@ public:
     LockScreenInterface *q;
 
 protected:
-    void treeland_lockscreen_v1_destroy_resource([[maybe_unused]] Resource *resource) override;
-    void treeland_lockscreen_v1_destroy([[maybe_unused]] Resource *resource) override;
-    void treeland_lockscreen_v1_lock([[maybe_unused]] Resource *resource) override;
-    void treeland_lockscreen_v1_shutdown([[maybe_unused]] Resource *resource) override;
-    void treeland_lockscreen_v1_switch_user([[maybe_unused]] Resource *resource) override;
+    void destroy_resource([[maybe_unused]] Resource *resource) override;
+    void destroy([[maybe_unused]] Resource *resource) override;
+    void lock([[maybe_unused]] Resource *resource) override;
+    void shutdown([[maybe_unused]] Resource *resource) override;
+    void switch_user([[maybe_unused]] Resource *resource) override;
 };
 
-void LockScreenInterfacePrivate::treeland_lockscreen_v1_lock([[maybe_unused]] Resource *resource)
+void LockScreenInterfacePrivate::lock([[maybe_unused]] Resource *resource)
 {
     Q_EMIT q->lock();
 }
 
-void LockScreenInterfacePrivate::treeland_lockscreen_v1_shutdown([[maybe_unused]] Resource *resource)
+void LockScreenInterfacePrivate::shutdown([[maybe_unused]] Resource *resource)
 {
     Q_EMIT q->shutdown();
 }
 
-void LockScreenInterfacePrivate::treeland_lockscreen_v1_switch_user([[maybe_unused]] Resource *resource)
+void LockScreenInterfacePrivate::switch_user([[maybe_unused]] Resource *resource)
 {
     Q_EMIT q->switchUser();
 }
@@ -846,12 +825,12 @@ LockScreenInterfacePrivate::LockScreenInterfacePrivate(LockScreenInterface *_q,
 {
 }
 
-void LockScreenInterfacePrivate::treeland_lockscreen_v1_destroy_resource([[maybe_unused]] Resource *resource)
+void LockScreenInterfacePrivate::destroy_resource([[maybe_unused]] Resource *resource)
 {
     delete q;
 }
 
-void LockScreenInterfacePrivate::treeland_lockscreen_v1_destroy([[maybe_unused]] Resource *resource)
+void LockScreenInterfacePrivate::destroy([[maybe_unused]] Resource *resource)
 {
     wl_resource_destroy(resource->handle);
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2025 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2025-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "appidresolver.h"
@@ -29,22 +29,22 @@ AppIdResolver::AppIdResolver(AppIdResolverManager *manager,
 
 AppIdResolver::~AppIdResolver() = default;
 
-void AppIdResolver::treeland_app_id_resolver_v1_destroy(Resource *resource)
+void AppIdResolver::destroy(Resource *resource)
 {
     wl_resource_destroy(resource->handle);
 }
 
-void AppIdResolver::treeland_app_id_resolver_v1_destroy_resource(Resource *resource)
+void AppIdResolver::destroy_resource(Resource *resource)
 {
     Q_UNUSED(resource);
     m_alive = false;
     Q_EMIT disconnected();
 }
 
-void AppIdResolver::treeland_app_id_resolver_v1_respond(Resource *resource,
-                                                        uint32_t request_id,
-                                                        const QString &app_id,
-                                                        const QString &sandboxEngineName)
+void AppIdResolver::respond(Resource *resource,
+                            uint32_t request_id,
+                            const QString &app_id,
+                            const QString &sandboxEngineName)
 {
     Q_UNUSED(resource);
     Q_UNUSED(sandboxEngineName);
@@ -89,12 +89,12 @@ void AppIdResolverManager::removeGlobal()
     qCDebug(treelandAppIdResolver) << "AppIdResolverManager global removed";
 }
 
-void AppIdResolverManager::treeland_app_id_resolver_manager_v1_destroy(Resource *resource)
+void AppIdResolverManager::destroy(Resource *resource)
 {
     wl_resource_destroy(resource->handle);
 }
 
-void AppIdResolverManager::treeland_app_id_resolver_manager_v1_get_resolver(Resource *resource,
+void AppIdResolverManager::get_resolver(Resource *resource,
                                                                             uint32_t id)
 {
     qCDebug(treelandAppIdResolver) << "get_resolver called (client id):" << id;

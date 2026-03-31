@@ -22,12 +22,12 @@ public:
     QList<QString> producedWallpapers;
 
 protected:
-    void treeland_wallpaper_shell_v1_destroy_global() override;
-    void treeland_wallpaper_shell_v1_destroy(Resource *resource) override;
-    void treeland_wallpaper_shell_v1_get_treeland_wallpaper_surface(Resource *resource,
-                                                                    uint32_t id,
-                                                                    struct ::wl_resource *surface,
-                                                                    const QString &file_source) override;
+    void destroy_global() override;
+    void destroy(Resource *resource) override;
+    void get_treeland_wallpaper_surface(Resource *resource,
+                                        uint32_t id,
+                                        struct ::wl_resource *surface,
+                                        const QString &file_source) override;
 };
 
 TreelandWallpaperShellInterfaceV1Private::TreelandWallpaperShellInterfaceV1Private(TreelandWallpaperShellInterfaceV1 *_q)
@@ -40,20 +40,20 @@ wl_global *TreelandWallpaperShellInterfaceV1Private::global() const
     return m_global;
 }
 
-void TreelandWallpaperShellInterfaceV1Private::treeland_wallpaper_shell_v1_destroy_global()
+void TreelandWallpaperShellInterfaceV1Private::destroy_global()
 {
     delete q;
 }
 
-void TreelandWallpaperShellInterfaceV1Private::treeland_wallpaper_shell_v1_destroy(Resource *resource)
+void TreelandWallpaperShellInterfaceV1Private::destroy(Resource *resource)
 {
     wl_resource_destroy(resource->handle);
 }
 
-void TreelandWallpaperShellInterfaceV1Private::treeland_wallpaper_shell_v1_get_treeland_wallpaper_surface(Resource *resource,
-                                                                                                              uint32_t id,
-                                                                                                              wl_resource *surface,
-                                                                                                              const QString &file_source)
+void TreelandWallpaperShellInterfaceV1Private::get_treeland_wallpaper_surface(Resource *resource,
+                                                                              uint32_t id,
+                                                                              wl_resource *surface,
+                                                                              const QString &file_source)
 {
     if (!surface) {
         wl_resource_post_error(resource->handle, 0, "surface resource is NULL!");
@@ -129,9 +129,9 @@ public:
     QString wallpaperSource;
 
 protected:
-    void treeland_wallpaper_surface_v1_destroy_resource(Resource *resource) override;
-    void treeland_wallpaper_surface_v1_destroy(Resource *resource) override;
-    void treeland_wallpaper_surface_v1_source_failed(Resource *resource,
+    void destroy_resource(Resource *resource) override;
+    void destroy(Resource *resource) override;
+    void source_failed(Resource *resource,
                                                      uint32_t error) override;
 };
 
@@ -147,19 +147,19 @@ TreelandWallpaperSurfaceInterfaceV1Private::TreelandWallpaperSurfaceInterfaceV1P
 {
 }
 
-void TreelandWallpaperSurfaceInterfaceV1Private::treeland_wallpaper_surface_v1_destroy_resource([[maybe_unused]] Resource *resource)
+void TreelandWallpaperSurfaceInterfaceV1Private::destroy_resource([[maybe_unused]] Resource *resource)
 {
     Q_EMIT q->beforeDestroy(q);
     delete q;
 }
 
-void TreelandWallpaperSurfaceInterfaceV1Private::treeland_wallpaper_surface_v1_destroy(Resource *resource)
+void TreelandWallpaperSurfaceInterfaceV1Private::destroy(Resource *resource)
 {
     wl_resource_destroy(resource->handle);
 }
 
-void TreelandWallpaperSurfaceInterfaceV1Private::treeland_wallpaper_surface_v1_source_failed([[maybe_unused]] Resource *resource,
-                                                                                             uint32_t error)
+void TreelandWallpaperSurfaceInterfaceV1Private::source_failed([[maybe_unused]] Resource *resource,
+                                                               uint32_t error)
 {
     Q_EMIT q->failed(error);
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2025 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2025-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
@@ -35,12 +35,12 @@ Q_SIGNALS:
     void disconnected();
 
 protected:
-    void treeland_app_id_resolver_v1_destroy(Resource *resource) override;
-    void treeland_app_id_resolver_v1_destroy_resource(Resource *resource) override;
-    void treeland_app_id_resolver_v1_respond(Resource *resource,
-                                             uint32_t request_id,
-                                             const QString &app_id,
-                                             const QString &sandboxEngineName) override;
+    void destroy(Resource *resource) override;
+    void destroy_resource(Resource *resource) override;
+    void respond(Resource *resource,
+                 uint32_t request_id,
+                 const QString &app_id,
+                 const QString &sandboxEngineName) override;
 
 private:
     AppIdResolverManager *m_manager;
@@ -70,8 +70,8 @@ Q_SIGNALS:
     void availableChanged();
 
 protected: // protocol generated virtuals
-    void treeland_app_id_resolver_manager_v1_destroy(Resource *resource) override;
-    void treeland_app_id_resolver_manager_v1_get_resolver(Resource *resource, uint32_t id) override;
+    void destroy(Resource *resource) override;
+    void get_resolver(Resource *resource, uint32_t id) override;
 
 protected: // WServerInterface overrides
     void create(WAYLIB_SERVER_NAMESPACE::WServer *server) override;
