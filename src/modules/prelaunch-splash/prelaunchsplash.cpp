@@ -47,14 +47,14 @@ public:
     }
 
 protected:
-    void treeland_prelaunch_splash_v2_destroy(Resource *resource) override
+    void destroy(Resource *resource) override
     {
         qCInfo(prelaunchSplash) << "Client destroy splash appId=" << m_appId
                                 << " instanceId=" << m_instanceId;
         wl_resource_destroy(resource->handle);
     }
 
-    void treeland_prelaunch_splash_v2_destroy_resource(Resource *) override
+    void destroy_resource(Resource *) override
     {
         // Covers both explicit destroy() and client crash/disconnect
         Q_EMIT m_owner->splashCloseRequested(m_appId, m_instanceId);
@@ -81,18 +81,17 @@ public:
     }
 
 protected:
-    void treeland_prelaunch_splash_manager_v2_destroy(Resource *resource) override
+    void destroy(Resource *resource) override
     {
         wl_resource_destroy(resource->handle);
     }
 
-    void treeland_prelaunch_splash_manager_v2_create_splash(
-        Resource *resource,
-        uint32_t id,
-        const QString &app_id,
-        const QString &instance_id,
-        const QString &sandboxEngineName,
-        struct ::wl_resource *icon_buffer) override
+    void create_splash(Resource *resource,
+                       uint32_t id,
+                       const QString &app_id,
+                       const QString &instance_id,
+                       const QString &sandboxEngineName,
+                       struct ::wl_resource *icon_buffer) override
     {
         qCInfo(prelaunchSplash) << "create_splash request sandbox=" << sandboxEngineName
                                 << " app_id=" << app_id << " instance_id=" << instance_id;
