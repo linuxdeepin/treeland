@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2025 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "qwayland-server-treeland-output-manager-v1.h"
@@ -29,12 +29,12 @@ public:
     void send_brightness(qreal brightness);
 
 protected:
-    void treeland_output_color_control_v1_destroy_resource(Resource *resource) override;
-    void treeland_output_color_control_v1_destroy(Resource *resource) override;
+    void destroy_resource(Resource *resource) override;
+    void destroy(Resource *resource) override;
 
-    void treeland_output_color_control_v1_set_color_temperature(Resource *resource, uint32_t temperature) override;
-    void treeland_output_color_control_v1_set_brightness(Resource *resource, wl_fixed_t brightness) override;
-    void treeland_output_color_control_v1_commit(Resource *resource) override;
+    void set_color_temperature(Resource *resource, uint32_t temperature) override;
+    void set_brightness(Resource *resource, wl_fixed_t brightness) override;
+    void commit(Resource *resource) override;
 };
 
 ColorControlV1Private::ColorControlV1Private(ColorControlV1 *_q, wl_resource *resource, Output *output)
@@ -60,19 +60,19 @@ ColorControlV1Private::ColorControlV1Private(ColorControlV1 *_q, wl_resource *re
             });
 }
 
-void ColorControlV1Private::treeland_output_color_control_v1_destroy_resource(Resource *resource)
+void ColorControlV1Private::destroy_resource(Resource *resource)
 {
     Q_UNUSED(resource);
     q->deleteLater();
 }
 
-void ColorControlV1Private::treeland_output_color_control_v1_destroy(Resource *resource)
+void ColorControlV1Private::destroy(Resource *resource)
 {
     wl_resource_destroy(resource->handle);
 }
 
-void ColorControlV1Private::treeland_output_color_control_v1_set_color_temperature(Resource *resource,
-                                                                            uint32_t temperature)
+void ColorControlV1Private::set_color_temperature(Resource *resource,
+                                                  uint32_t temperature)
 {
     if (temperature < 1000 || temperature > 20000) {
         wl_resource_post_error(resource->handle,
@@ -87,8 +87,8 @@ void ColorControlV1Private::treeland_output_color_control_v1_set_color_temperatu
 // but on the treeland side, output brightness is in range [0.0, 1.0], this is intentionally
 // designed to allow finer control of brightness through wayland protocol,
 // since the wl_fixed type have only 8 bits of precision.
-void ColorControlV1Private::treeland_output_color_control_v1_set_brightness(Resource *resource,
-                                                                     wl_fixed_t wl_brightness)
+void ColorControlV1Private::set_brightness(Resource *resource,
+                                           wl_fixed_t wl_brightness)
 {
     qreal brightness = wl_fixed_to_double(wl_brightness);
     if (brightness < 0.0 || brightness > 100.0) {
@@ -107,7 +107,7 @@ void ColorControlV1Private::send_brightness(qreal brightness)
     treeland_output_color_control_v1::send_brightness(wl_fixed_from_double(brightness * 100.0 + 1.0 / 512));
 }
 
-void ColorControlV1Private::treeland_output_color_control_v1_commit(Resource *resource)
+void ColorControlV1Private::commit(Resource *resource)
 {
     Q_UNUSED(resource);
     if  (!controlOutput) {
@@ -146,11 +146,11 @@ public:
     OutputManagerV1 *q;
 
 protected:
-    void treeland_output_manager_v1_bind_resource(Resource *resource) override;
-    void treeland_output_manager_v1_destroy(Resource *resource) override;
+    void bind_resource(Resource *resource) override;
+    void destroy(Resource *resource) override;
 
-    void treeland_output_manager_v1_set_primary_output(Resource *resource, const QString &output) override;
-    void treeland_output_manager_v1_get_color_control(Resource *resource, uint32_t id, struct wl_resource *output) override;
+    void set_primary_output(Resource *resource, const QString &output) override;
+    void get_color_control(Resource *resource, uint32_t id, struct wl_resource *output) override;
 };
 
 OutputManagerV1Private::OutputManagerV1Private(OutputManagerV1 *_q)
@@ -163,18 +163,18 @@ wl_global *OutputManagerV1Private::global() const
     return m_global;
 }
 
-void OutputManagerV1Private::treeland_output_manager_v1_bind_resource(Resource *resource)
+void OutputManagerV1Private::bind_resource(Resource *resource)
 {
     auto *primaryOutput = Helper::instance()->rootSurfaceContainer()->primaryOutput();
     send_primary_output(resource->handle, primaryOutput ? primaryOutput->output()->name() : "");
 }
 
-void OutputManagerV1Private::treeland_output_manager_v1_destroy(Resource *resource)
+void OutputManagerV1Private::destroy(Resource *resource)
 {
     wl_resource_destroy(resource->handle);
 }
 
-void OutputManagerV1Private::treeland_output_manager_v1_set_primary_output(Resource *resource, const QString &output)
+void OutputManagerV1Private::set_primary_output(Resource *resource, const QString &output)
 {
     Q_UNUSED(resource);
     auto *rootSurfaceContainer = Helper::instance()->rootSurfaceContainer();
@@ -186,9 +186,9 @@ void OutputManagerV1Private::treeland_output_manager_v1_set_primary_output(Resou
     }
 }
 
-void OutputManagerV1Private::treeland_output_manager_v1_get_color_control(Resource *resource,
-                                                                          uint32_t id,
-                                                                          struct wl_resource *output)
+void OutputManagerV1Private::get_color_control(Resource *resource,
+                                               uint32_t id,
+                                               struct wl_resource *output)
 {
     auto *wlr_output = wlr_output_from_resource(output);
     if (!wlr_output) {
