@@ -1,4 +1,4 @@
-// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 JiDe Zhang <zhangjide@deepin.org>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wsurfaceitem.h"
@@ -155,13 +155,57 @@ private:
     }
 };
 
+// Clean RAII wrapper for qw_buffer that automatically manages lock and n_ignore_locks.
+struct Q_DECL_HIDDEN BufferRef
+{
+    BufferRef() = default;
+    ~BufferRef() { release(); }
+
+    BufferRef(const BufferRef &) = delete;
+    BufferRef &operator=(const BufferRef &) = delete;
+
+    BufferRef(BufferRef &&other) noexcept {
+        std::swap(m_buffer, other.m_buffer);
+    }
+
+    BufferRef &operator=(BufferRef &&other) noexcept {
+        std::swap(m_buffer, other.m_buffer);
+        return *this;
+    }
+
+    // Reset to a new buffer (AddRef-before-Release to avoid transient 0 locks)
+    void reset(qw_buffer *newBuf = nullptr) {
+        if (m_buffer == newBuf)
+            return;
+        if (newBuf) {
+            newBuf->lock();
+            if (auto cb = qw_client_buffer::get(*newBuf))
+                cb->handle()->n_ignore_locks++;
+        }
+        release();
+        m_buffer = newBuf;
+    }
+
+    qw_buffer *get() const { return m_buffer; }
+    explicit operator bool() const { return m_buffer != nullptr; }
+
+private:
+    void release() {
+        if (m_buffer) {
+            if (auto cb = qw_client_buffer::get(*m_buffer))
+                cb->handle()->n_ignore_locks--;
+            m_buffer->unlock();
+            m_buffer = nullptr;
+        }
+    }
+
+    qw_buffer *m_buffer = nullptr;
+};
+
 class Q_DECL_HIDDEN WSurfaceItemContentPrivate: public QQuickItemPrivate
 {
 public:
     WSurfaceItemContentPrivate([[maybe_unused]] WSurfaceItemContent *qq){}
-
-    ~WSurfaceItemContentPrivate() {
-    }
 
     void cleanTextureProvider();
 
@@ -207,30 +251,11 @@ public:
                 auto newBuffer = surface->buffer();
 
                 if (!live) {
-                    // Non-live mode: update pendingBuffer
-                    // CRITICAL FIX: Only reset if the buffer pointer actually changed.
-                    // If pendingBuffer.get() == newBuffer (same pointer), calling reset() would:
-                    // 1. Call deleter (unlocker) on the old pointer → unlock()
-                    // 2. Set the new pointer (which is the same object)
-                    // 3. Then we call lock() again
-                    // This unlock-then-lock of the same buffer can cause n_locks to temporarily
-                    // hit 0, triggering wlroots' assert(buffer->n_locks > 0) in wlr_buffer_unlock().
-                    if (pendingBuffer.get() != newBuffer) {
-                        pendingBuffer.reset(newBuffer);
-                        if (Q_LIKELY(pendingBuffer))
-                            pendingBuffer->lock();
-                    }
+                    // Non-live mode: defer to pendingBuffer
+                    pendingBuffer.reset(newBuffer);
                 } else {
                     // Live mode: update buffer immediately
-                    // Same fix as above: only reset if the buffer pointer actually changed
-                    // to avoid double-unlock of the same buffer when surface commits without buffer change.
-                    if (buffer.get() != newBuffer) {
-                        buffer.reset(newBuffer);
-                        // lock buffer to ensure the WSurfaceItem can keep the last frame after WSurface destroyed.
-                        if (Q_LIKELY(buffer))
-                            buffer->lock();
-                    }
-
+                    buffer.reset(newBuffer);
                     q->update();
                 }
             }
@@ -303,9 +328,8 @@ public:
     }
 
     inline void swapBufferIfNeeded() {
-        if (pendingBuffer) {
-            buffer.reset(pendingBuffer.release());
-        }
+        if (pendingBuffer)
+            buffer = std::move(pendingBuffer);
     }
 
     inline void setDevicePixelRatio(qreal dpr) {
@@ -336,8 +360,8 @@ public:
 
     QMetaObject::Connection frameDoneConnection;
     mutable WSGTextureProvider *textureProvider = nullptr;
-    std::unique_ptr<qw_buffer, qw_buffer::unlocker> buffer;
-    std::unique_ptr<qw_buffer, qw_buffer::unlocker> pendingBuffer;
+    BufferRef buffer;
+    BufferRef pendingBuffer;
     mutable QMetaObject::Connection updateTextureConnection;
     bool dontCacheLastBuffer = false;
     bool live = true;
