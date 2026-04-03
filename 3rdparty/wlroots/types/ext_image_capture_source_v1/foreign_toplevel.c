@@ -34,18 +34,13 @@ static void foreign_toplevel_manager_handle_create_source(struct wl_client *clie
 		return;
 	}
 
-	struct wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request *request =
-		calloc(1, sizeof(*request));
-	if (request == NULL) {
-		wl_resource_post_no_memory(manager_resource);
-		return;
-	}
+	struct wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request request = {
+		.toplevel_handle = toplevel_handle,
+		.client = client,
+		.new_id = new_id,
+	};
 
-	request->toplevel_handle = toplevel_handle;
-	request->client = client;
-	request->new_id = new_id;
-
-	wl_signal_emit_mutable(&manager->events.new_request, request);
+	wl_signal_emit_mutable(&manager->events.new_request, &request);
 }
 
 static void foreign_toplevel_manager_handle_destroy(struct wl_client *client,
