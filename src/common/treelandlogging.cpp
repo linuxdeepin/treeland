@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "common/treelandlogging.h"
-#include <qlogging.h>
 
 // TreeLand logging category definitions
 // Naming convention: treeland.module_name.submodule_name
@@ -24,7 +23,7 @@ Q_LOGGING_CATEGORY(treelandSeat, "treeland.seat")
 Q_LOGGING_CATEGORY(treelandOutput, "treeland.output")
 
 // Window management
-Q_LOGGING_CATEGORY(treelandSurface, "treeland.surface", QtDebugMsg)
+Q_LOGGING_CATEGORY(treelandSurface, "treeland.surface")
 
 // Protocol module
 Q_LOGGING_CATEGORY(treelandProtocol, "treeland.protocol")

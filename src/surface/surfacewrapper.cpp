@@ -165,7 +165,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     if (initialSize.isValid() && initialSize.width() > 0 && initialSize.height() > 0) {
         // Also set implicit size to keep QML layout consistent
         setImplicitSize(initialSize.width(), initialSize.height());
-        qCWarning(treelandSurface) << "Prelaunch Splash: set initial size to" << initialSize;
+        qCDebug(treelandSurface) << "Prelaunch Splash: set initial size to" << initialSize;
     } else {
         setImplicitSize(800, 600);
     }
@@ -416,41 +416,9 @@ void SurfaceWrapper::convertToNormalSurface(WToplevelSurface *shellSurface, Type
 
     // Call setup() to initialize surfaceItem related features
     setup();
-    // m_surfaceItem->setVisible(false);
 
     if (surface()->mapped()) {
-        qCWarning(treelandSurface) << "[prelaunch-debug] convertToNormalSurface: already mapped"
-                                   << "hasSplash=" << static_cast<bool>(m_prelaunchSplash)
-                                   << "implicit=" << QSizeF(implicitWidth(), implicitHeight());
-        // Apply pending outputs only after mapped to ensure wl_surface resource is ready.
-        if (!m_prelaunchOutputs.isEmpty()) {
-            setOutputs(m_prelaunchOutputs);
-            m_prelaunchOutputs.clear();
-        }
-        updateActiveState();
-        Q_ASSERT(m_prelaunchSplash);
-        // Start prelaunch hidden sequence: check if size transition is needed
         startPrelaunchSplashHideSequence();
-    } else {
-        // Defer output assignment/updateActiveState until surface becomes mapped
-        connect(
-            m_shellSurface->surface(),
-            &WSurface::mappedChanged,
-            this,
-            [this]() {
-                if (!surface() || !surface()->mapped()) {
-                    qCWarning(treelandSurface)
-                        << "The surface was invalidated before the first mapping.";
-                    return;
-                }
-                if (!m_prelaunchOutputs.isEmpty()) {
-                    setOutputs(m_prelaunchOutputs);
-                    m_prelaunchOutputs.clear();
-                }
-                updateActiveState();
-            },
-            Qt::SingleShotConnection);
-        // hideAndDestroy will be called in onMappedChanged
     }
 }
 
@@ -515,79 +483,47 @@ void SurfaceWrapper::startPrelaunchSplashHideSequence()
 {
     Q_ASSERT(m_surfaceItem);
 
+    if (!m_prelaunchOutputs.isEmpty()) {
+        setOutputs(m_prelaunchOutputs);
+        m_prelaunchOutputs.clear();
+    }
+    updateActiveState();
+
     QSizeF targetImplicitSize;
     if (auto surf = surface()) {
         const QSize surfaceSize = surf->size();
         targetImplicitSize = QSizeF(surfaceSize.width(), surfaceSize.height());
     }
-    if (targetImplicitSize.width() <= 0 || targetImplicitSize.height() <= 0) {
-        targetImplicitSize =
-            QSizeF(m_surfaceItem->implicitWidth(), m_surfaceItem->implicitHeight());
-    }
-    if (targetImplicitSize.width() <= 0 || targetImplicitSize.height() <= 0) {
-        const QSizeF fallbackSize(qMax(implicitWidth(), 1.0), qMax(implicitHeight(), 1.0));
+    const bool hasValidTargetImplicitSize =
+        targetImplicitSize.width() > 0 && targetImplicitSize.height() > 0;
+    if (!hasValidTargetImplicitSize) {
         qCWarning(treelandSurface)
-            << "[prelaunch-debug] invalid target implicit size, fallback to current"
-            << "targetImplicit=" << targetImplicitSize << "fallback=" << fallbackSize;
-        targetImplicitSize = fallbackSize;
+            << "Invalid target implicit size, skip transition animation"
+            << "targetImplicit=" << targetImplicitSize;
     }
 
     const bool needImplicitSizeTransition =
-        !qFuzzyCompare(implicitWidth() + 1.0, targetImplicitSize.width() + 1.0)
-        || !qFuzzyCompare(implicitHeight() + 1.0, targetImplicitSize.height() + 1.0);
-
-    qCWarning(treelandSurface) << "[prelaunch-debug] startHideSequence"
-                               << "needTransition=" << needImplicitSizeTransition
-                               << "hasGeometryAnim=" << static_cast<bool>(m_geometryAnimation)
-                               << "hasContainer=" << static_cast<bool>(container())
-                               << "currentImplicit=" << QSizeF(implicitWidth(), implicitHeight())
-                               << "targetImplicit=" << targetImplicitSize;
+        hasValidTargetImplicitSize
+        && (container() != nullptr)
+        && (!qFuzzyCompare(implicitWidth() + 1.0, targetImplicitSize.width() + 1.0)
+            || !qFuzzyCompare(implicitHeight() + 1.0, targetImplicitSize.height() + 1.0));
 
     // This sequence can be triggered from multiple paths (e.g. convert + mappedChanged).
     // If geometry animation is already running, keep it running and avoid fallback finalize.
     if (needImplicitSizeTransition && m_geometryAnimation) {
+        // TODO(rewine): Supports interruptible animations
         qCWarning(treelandSurface)
-            << "[prelaunch-debug] startHideSequence: geometry animation already running, skip";
+            << "startHideSequence: geometry animation already running, skip";
         return;
     }
 
-    auto applySurfaceImplicitBinding = [this, targetImplicitSize]() {
-        setImplicitSize(targetImplicitSize.width(), targetImplicitSize.height());
-        connect(m_surfaceItem, &WSurfaceItem::implicitWidthChanged, this, [this] {
-            setImplicitWidth(m_surfaceItem->implicitWidth());
-        });
-        connect(m_surfaceItem, &WSurfaceItem::implicitHeightChanged, this, [this] {
-            setImplicitHeight(m_surfaceItem->implicitHeight());
-        });
-        connect(m_surfaceItem,
-                &WSurfaceItem::boundingRectChanged,
-                this,
-                &SurfaceWrapper::updateBoundingRect);
-        if (m_decoration)
-            m_decoration->stackBefore(m_surfaceItem);
-    };
-
-    auto prepareSurfaceForReveal = [this]() {
-        // setNoDecoration not called updateTitleBar when type is SplashScreen
-        updateTitleBar();
-        Q_ASSERT(m_decoration);
-        if (m_surfaceItem)
-            m_decoration->stackBefore(m_surfaceItem);
-        if (m_surfaceItem)
-            m_surfaceItem->setVisible(true);
-    };
-
-    if (needImplicitSizeTransition && !m_geometryAnimation && container()) {
-        qCWarning(treelandSurface)
-            << "[prelaunch-debug] startHideSequence: create/start geometry animation";
-        m_pendingPrelaunchImplicitSize = targetImplicitSize;
+    if (needImplicitSizeTransition) {
         const QRectF fromGeometry(position(), size());
         // XWayland clients manage their own position; respect it and don't shift.
         // For all other types, keep the center fixed so the window expands from center.
         const QPointF toTopLeft = (m_type == Type::XWayland) ? fromGeometry.topLeft()
                                                              : fromGeometry.center()
                 - QPointF(targetImplicitSize.width() / 2.0, targetImplicitSize.height() / 2.0);
-        m_pendingPrelaunchPosition = toTopLeft;
         const QRectF toGeometry(toTopLeft, targetImplicitSize);
         m_geometryAnimation =
             m_engine->createGeometryAnimation(this, fromGeometry, toGeometry, container());
@@ -603,35 +539,41 @@ void SurfaceWrapper::startPrelaunchSplashHideSequence()
                      SLOT(onPrelaunchGeometryAnimationFinished()));
         Q_ASSERT(ok);
         ok = QMetaObject::invokeMethod(m_geometryAnimation, "start");
-
-        qCWarning(treelandSurface)
-            << "[prelaunch-debug] startHideSequence: geometry animation started"
-            << "from=" << fromGeometry << "to=" << toGeometry;
+        Q_ASSERT(ok);
     } else {
-        qCWarning(treelandSurface)
-            << "[prelaunch-debug] startHideSequence: no geometry animation path, finalize now";
-        applySurfaceImplicitBinding();
-        prepareSurfaceForReveal();
-        finalizePrelaunchSplash();
+        completeSplashTransition(QSizeF(m_surfaceItem->implicitWidth(),
+                                        m_surfaceItem->implicitHeight()));
     }
 }
 
 void SurfaceWrapper::onPrelaunchGeometryAnimationReady()
 {
-
-    qCWarning(treelandSurface) << "[prelaunch-debug] geometryAnimation ready"
-                               << "targetPos=" << m_pendingPrelaunchPosition
-                               << "targetImplicit=" << m_pendingPrelaunchImplicitSize;
-
+    Q_ASSERT(m_geometryAnimation);
+    const QRectF toGeo = m_geometryAnimation->property("toGeometry").toRectF();
     // Move the wrapper to the animation's final position before revealing the real surface,
     // so the window appears exactly where the animation ended (no position jump).
-    const QPointF targetPos = m_pendingPrelaunchPosition;
-    setPosition(targetPos);
+    setPosition(toGeo.topLeft());
     // Keep normalGeometry in sync so subsequent state transitions use the correct position.
-    setNormalGeometry(QRectF(targetPos, m_pendingPrelaunchImplicitSize));
+    setNormalGeometry(toGeo);
 
-    setImplicitSize(m_pendingPrelaunchImplicitSize.width(),
-                    m_pendingPrelaunchImplicitSize.height());
+    completeSplashTransition(toGeo.size(), true);
+}
+
+void SurfaceWrapper::onPrelaunchGeometryAnimationFinished()
+{
+    Q_ASSERT(m_geometryAnimation);
+    m_geometryAnimation->disconnect(this);
+    m_geometryAnimation->deleteLater();
+    m_geometryAnimation = nullptr;
+
+    if (m_decoration)
+        m_decoration->setVisible(true);
+}
+
+void SurfaceWrapper::completeSplashTransition(const QSizeF &targetImplicitSize,
+                                               bool hideDecoration)
+{
+    setImplicitSize(targetImplicitSize.width(), targetImplicitSize.height());
     connect(m_surfaceItem, &WSurfaceItem::implicitWidthChanged, this, [this] {
         setImplicitWidth(m_surfaceItem->implicitWidth());
     });
@@ -645,45 +587,19 @@ void SurfaceWrapper::onPrelaunchGeometryAnimationReady()
     // setNoDecoration not called updateTitleBar when type is SplashScreen
     updateTitleBar();
     if (m_decoration) {
-        m_decoration->setVisible(false);
+        if (hideDecoration)
+            m_decoration->setVisible(false);
         m_decoration->stackBefore(m_surfaceItem);
     }
 
-    finalizePrelaunchSplash();
-
-    m_surfaceItem->setVisible(true);
-}
-
-void SurfaceWrapper::onPrelaunchGeometryAnimationFinished()
-{
-    Q_ASSERT(m_geometryAnimation);
-    m_geometryAnimation->disconnect(this);
-    m_geometryAnimation->deleteLater();
-    m_geometryAnimation = nullptr;
-
-    if (m_noDecoration)
-        updateDecoration();
-    else if (m_decoration)
-        m_decoration->setVisible(true);
-
-    // Emit signal to notify QML that noTitleBar property value may have changed
-    // This ensures SurfaceContent.qml's effectLoader updates immediately
-    //Q_EMIT noTitleBarChanged();
-}
-
-void SurfaceWrapper::finalizePrelaunchSplash()
-{
     Q_ASSERT(m_prelaunchSplash);
     m_prelaunchSplash->setVisible(false);
-
-    // m_prelaunchSplash->setProperty("visible", false);
     m_prelaunchSplash->deleteLater();
     m_prelaunchSplash = nullptr;
     Q_EMIT prelaunchSplashChanged();
 
+    // Now that the splash is hidden and deleted, the surface can be considered active if it's mapped
     updateHasActiveCapability(ActiveControlState::MappedOrSplash, surface() && surface()->mapped());
-    if (m_shellSurface)
-        updateActiveState();
 }
 
 WSurface *SurfaceWrapper::surface() const
@@ -1481,14 +1397,13 @@ void SurfaceWrapper::onMappedChanged()
 
     Q_ASSERT(surface());
     bool mapped = surface()->mapped() && !m_hideByLockScreen;
-    qCWarning(treelandSurface) << "[prelaunch-debug] onMappedChanged"
-                               << "mapped=" << mapped
-                               << "hasSplash=" << static_cast<bool>(m_prelaunchSplash);
 
     if (!m_isProxy) {
         if (mapped) {
             if (!m_prelaunchSplash)
                 createNewOrClose(OPEN_ANIMATION);
+            else
+                startPrelaunchSplashHideSequence();
             if (m_coverContent) {
                 m_coverContent->setVisible(true);
             }
@@ -1501,14 +1416,8 @@ void SurfaceWrapper::onMappedChanged()
         m_coverContent->setProperty("mapped", mapped);
     }
 
-    if (m_prelaunchSplash) {
-        qCWarning(treelandSurface) << "[prelaunch-debug] onMappedChanged: trigger hide sequence";
-        startPrelaunchSplashHideSequence();
-    }
-
     // Splash can't call onMappedChanged, just use mapped state to update
     updateHasActiveCapability(ActiveControlState::MappedOrSplash, mapped);
-
     updateVisible();
 }
 
