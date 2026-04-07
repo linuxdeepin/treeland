@@ -32,7 +32,6 @@ AppConfig *WindowConfigStore::configForApp(const QString &appId) const
 
 void WindowConfigStore::saveLastSize(const QString &appId, const QSize &size)
 {
-    return; // TO Debug
     if (appId.isEmpty() || !size.isValid()) {
         qCWarning(treelandCore) << "WindowConfigStore: saveLastSize invalid parameters for" << appId
                                 << size;

@@ -387,7 +387,7 @@ private:
     void startShowDesktopAnimation(bool show);
     Q_SLOT void onShowDesktopAnimationFinished();
     void updateHasActiveCapability(ActiveControlState state, bool value);
-    void finalizePrelaunchSplash();
+    void completeSplashTransition(const QSizeF &targetImplicitSize, bool hideDecoration = false);
 
     // wayland set by treeland-dde-shell, x11 set by bypassManager/windowTypes
     void setSkipDockPreView(bool skip);
@@ -407,8 +407,6 @@ private:
     QPointer<QQuickItem> m_coverContent;
     QPointer<QQuickItem> m_prelaunchSplash; // Pre-launch splash item
     QList<WOutput *> m_prelaunchOutputs;    // Outputs for pre-launch splash
-    QSizeF m_pendingPrelaunchImplicitSize;
-    QPointF m_pendingPrelaunchPosition;
     QRectF m_boundedRect;
     QRectF m_normalGeometry;
     QRectF m_maximizedGeometry;
