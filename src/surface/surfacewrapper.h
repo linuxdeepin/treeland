@@ -59,7 +59,7 @@ class SurfaceWrapper : public QQuickItem
     Q_PROPERTY(QQuickItem* decoration READ decoration NOTIFY noDecorationChanged FINAL)
     Q_PROPERTY(bool visibleDecoration READ visibleDecoration NOTIFY visibleDecorationChanged FINAL)
     Q_PROPERTY(bool clipInOutput READ clipInOutput NOTIFY clipInOutputChanged FINAL)
-    Q_PROPERTY(bool noTitleBar READ noTitleBar RESET resetNoTitleBar NOTIFY noTitleBarChanged FINAL)
+    Q_PROPERTY(bool noTitleBar READ noTitleBar NOTIFY noTitleBarChanged FINAL)
     Q_PROPERTY(bool noCornerRadius READ noCornerRadius NOTIFY noCornerRadiusChanged FINAL)
     Q_PROPERTY(int workspaceId READ workspaceId NOTIFY workspaceIdChanged FINAL)
     Q_PROPERTY(bool alwaysOnTop READ alwaysOnTop WRITE setAlwaysOnTop NOTIFY alwaysOnTopChanged FINAL)
@@ -220,7 +220,6 @@ public:
 
     bool noTitleBar() const;
     void setNoTitleBar(bool newNoTitleBar);
-    void resetNoTitleBar();
 
     bool noCornerRadius() const;
     void setNoCornerRadius(bool newNoCornerRadius);
@@ -439,18 +438,11 @@ private:
     QRect m_iconGeometry;
     ActiveControlStates m_hasActiveCapability = ActiveControlState::UnMinimized;
 
-    struct TitleBarState
-    {
-        constexpr static uint Default = 0;
-        constexpr static uint Visible = 1;
-        constexpr static uint Hidden = 2;
-    };
-
     uint m_positionAutomatic : 1;
     uint m_visibleDecoration : 1;
     uint m_clipInOutput : 1;
     uint m_noDecoration : 1;
-    uint m_titleBarState : 2;
+    uint m_noTitleBar : 1;
     uint m_noCornerRadius : 1;
     uint m_alwaysOnTop : 1;
     uint m_skipSwitcher : 1;
