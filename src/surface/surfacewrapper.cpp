@@ -46,7 +46,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     , m_visibleDecoration(true)
     , m_clipInOutput(false)
     , m_noDecoration(true)
-    , m_titleBarState(TitleBarState::Default)
+    , m_noTitleBar(true)
     , m_noCornerRadius(false)
     , m_alwaysOnTop(false)
     , m_skipSwitcher(false)
@@ -78,7 +78,7 @@ SurfaceWrapper::SurfaceWrapper(SurfaceWrapper *original, QQuickItem *parent)
     , m_visibleDecoration(true)
     , m_clipInOutput(false)
     , m_noDecoration(true)
-    , m_titleBarState(TitleBarState::Default)
+    , m_noTitleBar(true)
     , m_noCornerRadius(false)
     , m_alwaysOnTop(false)
     , m_skipSwitcher(false)
@@ -143,7 +143,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     , m_visibleDecoration(true)
     , m_clipInOutput(false)
     , m_noDecoration(true)
-    , m_titleBarState(TitleBarState::Default)
+    , m_noTitleBar(true)
     , m_noCornerRadius(false)
     , m_alwaysOnTop(false)
     , m_skipSwitcher(false)
@@ -570,7 +570,9 @@ void SurfaceWrapper::startPrelaunchSplashHideSequence()
     auto prepareSurfaceForReveal = [this]() {
         // setNoDecoration not called updateTitleBar when type is SplashScreen
         updateTitleBar();
-        updateDecoration();
+        Q_ASSERT(m_decoration);
+        if (m_surfaceItem)
+            m_decoration->stackBefore(m_surfaceItem);
         if (m_surfaceItem)
             m_surfaceItem->setVisible(true);
     };
@@ -642,19 +644,14 @@ void SurfaceWrapper::onPrelaunchGeometryAnimationReady()
             &SurfaceWrapper::updateBoundingRect);
     // setNoDecoration not called updateTitleBar when type is SplashScreen
     updateTitleBar();
-    updateDecoration();
     if (m_decoration) {
         m_decoration->setVisible(false);
         m_decoration->stackBefore(m_surfaceItem);
     }
-    // finalizePrelaunchSplash();
-    //  m_prelaunchSplash->setProperty("visible", false);
 
-        finalizePrelaunchSplash();
+    finalizePrelaunchSplash();
 
     m_surfaceItem->setVisible(true);
-    // auto ok = QMetaObject::invokeMethod(m_geometryAnimation, "start");
-    // Q_ASSERT(ok);
 }
 
 void SurfaceWrapper::onPrelaunchGeometryAnimationFinished()
@@ -664,9 +661,14 @@ void SurfaceWrapper::onPrelaunchGeometryAnimationFinished()
     m_geometryAnimation->deleteLater();
     m_geometryAnimation = nullptr;
 
-    if (m_decoration)
+    if (m_noDecoration)
+        updateDecoration();
+    else if (m_decoration)
         m_decoration->setVisible(true);
 
+    // Emit signal to notify QML that noTitleBar property value may have changed
+    // This ensures SurfaceContent.qml's effectLoader updates immediately
+    //Q_EMIT noTitleBarChanged();
 }
 
 void SurfaceWrapper::finalizePrelaunchSplash()
@@ -1108,17 +1110,12 @@ void SurfaceWrapper::setNoDecoration(bool newNoDecoration)
     m_noDecoration = newNoDecoration;
     setNoCornerRadius(newNoDecoration);
 
-    if (m_type == Type::SplashScreen && !m_isProxy) {
-        Q_EMIT noDecorationChanged();
-        return;
-    }
-
     updateDecoration();
 }
 
 void SurfaceWrapper::updateDecoration()
 {
-    if (m_titleBarState == TitleBarState::Default && m_type != Type::SplashScreen)
+    if (m_type != Type::SplashScreen)
         updateTitleBar();
 
     if (m_noDecoration) {
@@ -1912,10 +1909,8 @@ bool SurfaceWrapper::noTitleBar() const
 {
     if (m_surfaceState == State::Fullscreen)
         return true;
-    if (m_titleBarState == TitleBarState::Visible)
-        return false;
 
-    return m_titleBarState == TitleBarState::Hidden || m_noDecoration;
+    return m_noTitleBar || m_noDecoration;
 }
 
 void SurfaceWrapper::setNoTitleBar(bool newNoTitleBar)
@@ -1923,21 +1918,11 @@ void SurfaceWrapper::setNoTitleBar(bool newNoTitleBar)
     if (m_wrapperAboutToRemove)
         return;
 
-    if (newNoTitleBar) {
-        m_titleBarState = TitleBarState::Hidden;
-    } else {
-        m_titleBarState = TitleBarState::Visible;
-    }
-
-    if (!m_shellSurface) // has prelaunchSplash
+    if (m_noTitleBar == newNoTitleBar)
         return;
 
-    updateTitleBar();
-}
+    m_noTitleBar = newNoTitleBar;
 
-void SurfaceWrapper::resetNoTitleBar()
-{
-    m_titleBarState = TitleBarState::Default;
     updateTitleBar();
 }
 

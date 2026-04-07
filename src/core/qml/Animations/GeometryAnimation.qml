@@ -27,6 +27,12 @@ Item {
         animation.start();
     }
 
+    XdgShadow {
+        anchors.fill: parent
+        visible: surface.visibleDecoration && !surface.noDecoration
+        cornerRadius: surface.radius
+    }
+
     Loader {
         active: root.enableBlur
         anchors.fill: parent
