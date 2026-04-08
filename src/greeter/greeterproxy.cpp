@@ -134,6 +134,14 @@ void GreeterProxy::setShowShutdownView(bool show) {
     }
 }
 
+void GreeterProxy::setShowAnimation(bool show)
+{
+    if (m_showAnimation != show) {
+        m_showAnimation = show;
+        Q_EMIT showAnimationChanged(show);
+    }
+}
+
 void GreeterProxy::setLock(bool isLocked)
 {
     if (isLocked && !m_isLocked) {
