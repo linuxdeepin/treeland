@@ -114,6 +114,8 @@
 #include <qwsession.h>
 #include <qwsubcompositor.h>
 #include <qwviewporter.h>
+#include <qwxdgforeignregistry.h>
+#include <qwxdgforeignv2.h>
 #include <qwxwayland.h>
 #include <qwxwaylandsurface.h>
 
@@ -1528,6 +1530,8 @@ void Helper::init(Treeland::Treeland *treeland)
     qw_data_control_manager_v1::create(*m_server->handle());
     qw_ext_data_control_manager_v1::create(*m_server->handle(), EXT_DATA_CONTROL_MANAGER_V1_VERSION);
     qw_alpha_modifier_v1::create(*m_server->handle());
+    auto *foreignRegistry = qw_xdg_foreign_registry::create(*m_server->handle());
+    qw_xdg_foreign_v2::create(*m_server->handle(), *foreignRegistry);
 
     m_idleNotifier = qw_idle_notifier_v1::create(*m_server->handle());
 
