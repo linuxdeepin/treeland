@@ -105,9 +105,28 @@ void WServerPrivate::init()
     int fd = wl_event_loop_get_fd(loop);
 
     auto processWaylandEvents = [this] {
+        // Prevent re-entry during event processing
+        if (isProcessingEvents)
+            return;
+
+        isProcessingEvents = true;
+
+        // RAII guard to ensure the flag is reset when the scope exits,
+        // regardless of how the function returns (normal return, early return, etc.)
+        struct ScopeGuard {
+            bool &flag;
+            ~ScopeGuard() { flag = false; }
+        } guard{isProcessingEvents};
+
+        if (!display || !display->handle())
+            return;
+
         int ret = wl_event_loop_dispatch(loop, 0);
         if (ret)
             fprintf(stderr, "wl_event_loop_dispatch error: %d\n", ret);
+
+        if (!display || !display->handle())
+            return;
         wl_display_flush_clients(display->handle());
     };
 
@@ -139,7 +158,9 @@ void WServerPrivate::stop()
     }
 
     sockNot.reset();
-    QThread::currentThread()->eventDispatcher()->disconnect(q);
+    if (auto dispatcher = QThread::currentThread()->eventDispatcher()) {
+        QObject::disconnect(dispatcher, nullptr, q, nullptr);
+    }
 }
 
 void WServerPrivate::initSocket(WSocket *socketServer)
