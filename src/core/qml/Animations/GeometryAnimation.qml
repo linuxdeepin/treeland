@@ -49,7 +49,7 @@ Item {
         readonly property real yScale: root.height / surface.height
 
         live: true
-        sourceItem: surface.surfaceItem
+        sourceItem: surface
         hideSource: true
         sourceRect: surface.boundingRect
         width: sourceRect.width * xScale

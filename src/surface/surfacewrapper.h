@@ -374,6 +374,7 @@ private:
     void doSetSurfaceState(State newSurfaceState);
     Q_SLOT void onAnimationReady();
     Q_SLOT void onAnimationFinished();
+    void syncPrelaunchMappedState();
     void startPrelaunchSplashHideSequence();
     Q_SLOT void onPrelaunchGeometryAnimationReady();
     Q_SLOT void onPrelaunchGeometryAnimationFinished();

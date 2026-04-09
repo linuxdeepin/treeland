@@ -416,8 +416,10 @@ void SurfaceWrapper::convertToNormalSurface(WToplevelSurface *shellSurface, Type
 
     // Call setup() to initialize surfaceItem related features
     setup();
+    m_surfaceItem->setVisible(false);
 
     if (surface()->mapped()) {
+        syncPrelaunchMappedState();
         startPrelaunchSplashHideSequence();
     }
 }
@@ -479,16 +481,19 @@ void SurfaceWrapper::setFocus(bool focus, Qt::FocusReason reason)
         m_surfaceItem->setFocus(false, reason);
 }
 
-void SurfaceWrapper::startPrelaunchSplashHideSequence()
+void SurfaceWrapper::syncPrelaunchMappedState()
 {
-    Q_ASSERT(m_surfaceItem);
-
     if (!m_prelaunchOutputs.isEmpty()) {
         setOutputs(m_prelaunchOutputs);
         m_prelaunchOutputs.clear();
     }
-    updateActiveState();
 
+    updateActiveState();
+}
+
+void SurfaceWrapper::startPrelaunchSplashHideSequence()
+{
+    Q_ASSERT(m_surfaceItem);
     QSizeF targetImplicitSize;
     if (auto surf = surface()) {
         const QSize surfaceSize = surf->size();
@@ -497,27 +502,28 @@ void SurfaceWrapper::startPrelaunchSplashHideSequence()
     const bool hasValidTargetImplicitSize =
         targetImplicitSize.width() > 0 && targetImplicitSize.height() > 0;
     if (!hasValidTargetImplicitSize) {
-        qCWarning(treelandSurface)
-            << "Invalid target implicit size, skip transition animation"
-            << "targetImplicit=" << targetImplicitSize;
+        qCWarning(treelandSurface) << "Invalid target implicit size, skip transition animation"
+                                   << "targetImplicit=" << targetImplicitSize;
     }
 
-    const bool needImplicitSizeTransition =
-        hasValidTargetImplicitSize
-        && (container() != nullptr)
+    const bool needImplicitSizeTransition = hasValidTargetImplicitSize && (container() != nullptr)
         && (!qFuzzyCompare(implicitWidth() + 1.0, targetImplicitSize.width() + 1.0)
             || !qFuzzyCompare(implicitHeight() + 1.0, targetImplicitSize.height() + 1.0));
 
-    // This sequence can be triggered from multiple paths (e.g. convert + mappedChanged).
-    // If geometry animation is already running, keep it running and avoid fallback finalize.
-    if (needImplicitSizeTransition && m_geometryAnimation) {
-        // TODO(rewine): Supports interruptible animations
-        qCWarning(treelandSurface)
-            << "startHideSequence: geometry animation already running, skip";
-        return;
-    }
-
     if (needImplicitSizeTransition) {
+        if (m_windowAnimation) {
+            qCDebug(treelandSurface) << "prelaunch splash transition is starting while window "
+                                        "animation is still running,"
+                                        "this may cause visual glitches, will delay the transition "
+                                        "until window animation finishes";
+            return;
+        }
+        if (m_geometryAnimation) {
+            qCWarning(treelandSurface)
+                << "prelaunch splash transition already prepared or running, skip";
+            return;
+        }
+
         const QRectF fromGeometry(position(), size());
         // XWayland clients manage their own position; respect it and don't shift.
         // For all other types, keep the center fixed so the window expands from center.
@@ -538,11 +544,12 @@ void SurfaceWrapper::startPrelaunchSplashHideSequence()
                      this,
                      SLOT(onPrelaunchGeometryAnimationFinished()));
         Q_ASSERT(ok);
+
         ok = QMetaObject::invokeMethod(m_geometryAnimation, "start");
         Q_ASSERT(ok);
     } else {
-        completeSplashTransition(QSizeF(m_surfaceItem->implicitWidth(),
-                                        m_surfaceItem->implicitHeight()));
+        completeSplashTransition(
+            QSizeF(m_surfaceItem->implicitWidth(), m_surfaceItem->implicitHeight()));
     }
 }
 
@@ -570,8 +577,7 @@ void SurfaceWrapper::onPrelaunchGeometryAnimationFinished()
         m_decoration->setVisible(true);
 }
 
-void SurfaceWrapper::completeSplashTransition(const QSizeF &targetImplicitSize,
-                                               bool hideDecoration)
+void SurfaceWrapper::completeSplashTransition(const QSizeF &targetImplicitSize, bool hideDecoration)
 {
     setImplicitSize(targetImplicitSize.width(), targetImplicitSize.height());
     connect(m_surfaceItem, &WSurfaceItem::implicitWidthChanged, this, [this] {
@@ -592,13 +598,15 @@ void SurfaceWrapper::completeSplashTransition(const QSizeF &targetImplicitSize,
         m_decoration->stackBefore(m_surfaceItem);
     }
 
+    m_surfaceItem->setVisible(true);
     Q_ASSERT(m_prelaunchSplash);
     m_prelaunchSplash->setVisible(false);
     m_prelaunchSplash->deleteLater();
     m_prelaunchSplash = nullptr;
     Q_EMIT prelaunchSplashChanged();
 
-    // Now that the splash is hidden and deleted, the surface can be considered active if it's mapped
+    // Now that the splash is hidden and deleted, the surface can be considered active if it's
+    // mapped
     updateHasActiveCapability(ActiveControlState::MappedOrSplash, surface() && surface()->mapped());
 }
 
@@ -1111,8 +1119,9 @@ void SurfaceWrapper::updateBoundingRect()
 
 void SurfaceWrapper::updateVisible()
 {
-    bool isVisible = !m_hideByWorkspace && !isMinimized() 
-        && ((surface() && surface()->mapped()) || (m_prelaunchSplash && m_prelaunchSplash->isVisible()))
+    bool isVisible = !m_hideByWorkspace && !isMinimized()
+        && ((surface() && surface()->mapped())
+            || (m_prelaunchSplash && m_prelaunchSplash->isVisible()))
         && m_socketEnabled && m_hideByshowDesk && !m_confirmHideByLockScreen
         && Helper::instance()->surfaceBelongsToCurrentSession(this);
     setVisible(isVisible);
@@ -1374,6 +1383,10 @@ void SurfaceWrapper::onWindowAnimationFinished()
 void SurfaceWrapper::onShowAnimationFinished()
 {
     onWindowAnimationFinished();
+
+    if (m_prelaunchSplash && surface() && surface()->mapped()) {
+        startPrelaunchSplashHideSequence();
+    }
 }
 
 void SurfaceWrapper::onHideAnimationFinished()
@@ -1400,10 +1413,12 @@ void SurfaceWrapper::onMappedChanged()
 
     if (!m_isProxy) {
         if (mapped) {
-            if (!m_prelaunchSplash)
+            if (!m_prelaunchSplash) {
                 createNewOrClose(OPEN_ANIMATION);
-            else
+            } else {
+                syncPrelaunchMappedState();
                 startPrelaunchSplashHideSequence();
+            }
             if (m_coverContent) {
                 m_coverContent->setVisible(true);
             }
