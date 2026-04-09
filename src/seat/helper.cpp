@@ -2113,7 +2113,7 @@ void Helper::setActivatedSurface(SurfaceWrapper *newActivateSurface)
                 qobject_cast<WXWaylandSurface *>(newActivateSurface->shellSurface());
             // override_redirect (bypass-manager) windows must not be restacked
             // via wlr_xwayland_surface_restack, which asserts !override_redirect.
-            if (xwaylandSurface && !xwaylandSurface->isBypassManager()) {
+            if (!xwaylandSurface->isBypassManager()) {
                 xwaylandSurface->restack(nullptr, WXWaylandSurface::XCB_STACK_MODE_ABOVE);
             }
         }
