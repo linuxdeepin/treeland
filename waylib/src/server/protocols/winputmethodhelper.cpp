@@ -7,17 +7,16 @@
 #include "wtextinputv2_p.h"
 #include "wtextinput_p.h"
 #include "winputmethodv2_p.h"
-#include "wvirtualkeyboardv1_p.h"
 #include "winputpopupsurface.h"
 #include "wseat.h"
 #include "wsurface.h"
 #include "private/wglobal_p.h"
 
 #include <qwcompositor.h>
+#include <qwinputdevice.h>
 #include <qwinputmethodv2.h>
 #include <qwtextinputv3.h>
 #include <qwvirtualkeyboardv1.h>
-#include <qwinputdevice.h>
 #include <qwseat.h>
 #include <qwbox.h>
 
@@ -29,18 +28,16 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 Q_LOGGING_CATEGORY(qLcInputMethod, "waylib.server.im", QtInfoMsg)
 
 struct Q_DECL_HIDDEN GrabHandlerArg {
-    const WInputMethodHelper *const helper;
     qw_input_method_keyboard_grab_v2 *grab;
 };
 
 void handleKey(struct wlr_seat_keyboard_grab *grab, uint32_t time_msec, uint32_t key, uint32_t state)
 {
     auto arg = reinterpret_cast<GrabHandlerArg*>(grab->data);
-    for (auto vk: arg->helper->virtualKeyboards()) {
-        if (wlr_keyboard_from_input_device(vk->handle()->handle()) == grab->seat->keyboard_state.keyboard) {
-            grab->seat->keyboard_state.default_grab->interface->key(grab, time_msec, key, state);
-            return;
-        }
+    if (grab->seat->keyboard_state.keyboard
+        && wlr_input_device_get_virtual_keyboard(&grab->seat->keyboard_state.keyboard->base)) {
+        grab->seat->keyboard_state.default_grab->interface->key(grab, time_msec, key, state);
+        return;
     }
     arg->grab->send_key(time_msec, Qt::Key(key), state);
 }
@@ -48,11 +45,10 @@ void handleKey(struct wlr_seat_keyboard_grab *grab, uint32_t time_msec, uint32_t
 void handleModifiers(struct wlr_seat_keyboard_grab *grab, const struct wlr_keyboard_modifiers *modifiers)
 {
     auto arg = reinterpret_cast<GrabHandlerArg*>(grab->data);
-    for (auto vk: arg->helper->virtualKeyboards()) {
-        if (wlr_keyboard_from_input_device(vk->handle()->handle()) == grab->seat->keyboard_state.keyboard) {
-            grab->seat->keyboard_state.default_grab->interface->modifiers(grab, modifiers);
-            return;
-        }
+    if (grab->seat->keyboard_state.keyboard
+        && wlr_input_device_get_virtual_keyboard(&grab->seat->keyboard_state.keyboard->base)) {
+        grab->seat->keyboard_state.default_grab->interface->modifiers(grab, modifiers);
+        return;
     }
     arg->grab->send_modifiers(const_cast<struct wlr_keyboard_modifiers *>(modifiers));
 }
@@ -69,13 +65,12 @@ public:
         , textInputManagerV1(server->attach<WTextInputManagerV1>())
         , textInputManagerV2(server->attach<WTextInputManagerV2>())
         , textInputManagerV3(server->attach<WTextInputManagerV3>())
-        , virtualKeyboardManagerV1(server->attach<WVirtualKeyboardManagerV1>())
         , enabledTextInput(nullptr)
         , activeInputMethod(nullptr)
         , activeKeyboardGrab(nullptr)
         , keyboardGrab{}
         , grabInterface{}
-        , handlerArg({.helper = qq, .grab = nullptr})
+        , handlerArg({.grab = nullptr})
     {
         Q_ASSERT(server);
         Q_ASSERT(seat);
@@ -91,7 +86,6 @@ public:
     const QPointer<WTextInputManagerV1> textInputManagerV1;
     const QPointer<WTextInputManagerV2> textInputManagerV2;
     const QPointer<WTextInputManagerV3> textInputManagerV3;
-    const QPointer<WVirtualKeyboardManagerV1> virtualKeyboardManagerV1;
     WTextInput *enabledTextInput { nullptr };
     WInputMethodV2 *activeInputMethod { nullptr };
     qw_input_method_keyboard_grab_v2 *activeKeyboardGrab {nullptr};
@@ -101,7 +95,6 @@ public:
     GrabHandlerArg handlerArg;
 
     QList<WTextInput *> textInputs;
-    QList<WInputDevice *> virtualKeyboards;
     QList<WInputPopupSurface *> popupSurfaces;
 };
 
@@ -113,7 +106,6 @@ WInputMethodHelper::WInputMethodHelper(WServer *server, WSeat *seat)
     d->seat->safeConnect(&WSeat::keyboardFocusSurfaceChanged, this, &WInputMethodHelper::resendKeyboardFocus);
     connect(d->inputMethodManagerV2, &WInputMethodManagerV2::newInputMethod, this, &WInputMethodHelper::handleNewIMV2);
     connect(d->textInputManagerV3, &WTextInputManagerV3::newTextInput, this, &WInputMethodHelper::handleNewTI);
-    connect(d->virtualKeyboardManagerV1, &WVirtualKeyboardManagerV1::newVirtualKeyboard, this, &WInputMethodHelper::handleNewVKV1);
     connect(d->textInputManagerV1, &WTextInputManagerV1::newTextInput, this, &WInputMethodHelper::handleNewTI);
     connect(d->textInputManagerV2, &WTextInputManagerV2::newTextInput, this, &WInputMethodHelper::handleNewTI);
 }
@@ -126,7 +118,6 @@ WInputMethodHelper::~WInputMethodHelper()
     if (d->textInputManagerV1) d->textInputManagerV1->disconnect(this);
     if (d->textInputManagerV2) d->textInputManagerV2->disconnect(this);
     if (d->textInputManagerV3) d->textInputManagerV3->disconnect(this);
-    if (d->virtualKeyboardManagerV1) d->virtualKeyboardManagerV1->disconnect(this);
 }
 
 WTextInput *WInputMethodHelper::focusedTextInput() const
@@ -183,12 +174,6 @@ qw_input_method_keyboard_grab_v2 *WInputMethodHelper::activeKeyboardGrab() const
     return d->activeKeyboardGrab;
 }
 
-const QList<WInputDevice *> &WInputMethodHelper::virtualKeyboards() const
-{
-    W_DC(WInputMethodHelper);
-    return d->virtualKeyboards;
-}
-
 void WInputMethodHelper::handleNewIMV2(qw_input_method_v2 *imv2)
 {
     W_D(WInputMethodHelper);
@@ -223,7 +208,7 @@ void WInputMethodHelper::handleNewKGV2(qw_input_method_keyboard_grab_v2 *kgv2)
     };
     auto setKeyboard = [](qw_input_method_keyboard_grab_v2 *kgv2, WInputDevice *keyboard) {
         if (keyboard) {
-            auto *virtualKeyboard = wlr_input_device_get_virtual_keyboard(*keyboard->handle());
+            auto *virtualKeyboard = wlr_input_device_get_virtual_keyboard(keyboard->handle()->handle());
             // refer to:
             // https://github.com/swaywm/sway/blob/master/sway/input/keyboard.c#L391
             if (virtualKeyboard
@@ -231,7 +216,7 @@ void WInputMethodHelper::handleNewKGV2(qw_input_method_keyboard_grab_v2 *kgv2)
                     == wl_resource_get_client(kgv2->handle()->resource)) {
                 return;
             }
-            kgv2->set_keyboard(wlr_keyboard_from_input_device(*keyboard->handle()));
+            kgv2->set_keyboard(wlr_keyboard_from_input_device(keyboard->handle()->handle()));
         } else {
             kgv2->set_keyboard(nullptr);
         }
@@ -279,19 +264,6 @@ void WInputMethodHelper::handleNewIPSV2(qw_input_popup_surface_v2 *ipsv2)
     if (ti && ti->focusedSurface()) {
         createPopupSurface(ti->focusedSurface(), ti->cursorRect(), ipsv2);
     }
-}
-
-void WInputMethodHelper::handleNewVKV1(wlr_virtual_keyboard_v1 *vkv1)
-{
-    W_D(WInputMethodHelper);
-    WInputDevice *keyboard = new WInputDevice(qw_input_device::from(&vkv1->keyboard.base));
-    d->virtualKeyboards.append(keyboard);
-    d->seat->attachInputDevice(keyboard);
-    keyboard->safeConnect(&qw_input_device::before_destroy, this, [d, keyboard] () {
-        if (d->seat) d->seat->detachInputDevice(keyboard);
-        d->virtualKeyboards.removeOne(keyboard);
-        keyboard->safeDeleteLater();
-    });
 }
 
 void WInputMethodHelper::resendKeyboardFocus()
