@@ -1,4 +1,4 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 import QtQuick
@@ -18,6 +18,11 @@ Control {
     property D.Palette backgroundColor: DS.Style.highlightPanel.background
     property D.Palette outerShadowColor: DS.Style.highlightPanel.dropShadow
     property D.Palette innerShadowColor: DS.Style.highlightPanel.innerShadow
+    readonly property bool darkTheme: Helper.config.windowThemeType === 2
+    readonly property color activeTitlebarColor: darkTheme ? "#282828" : '#ffffff'
+    readonly property color inactiveTitlebarColor: darkTheme ? "#262626" : "#FCFCFC"
+    readonly property color activeTextColor: darkTheme ? "#8c8c8c" : "#303030"
+    readonly property color inactiveTextColor: darkTheme ? "#656565" : "#969696"
 
     height: Helper.config.windowTitlebarHeight
     width: surfaceItem.width
@@ -65,7 +70,7 @@ Control {
     Rectangle {
         id: titlebar
         anchors.fill: parent
-        color: surface.isActivated ? "white" : "gray"
+        color: surface.isActivated ? root.activeTitlebarColor : root.inactiveTitlebarColor
         layer.enabled: !root.noRadius
         layer.smooth: !root.noRadius
         opacity: !root.noRadius ? 0 : parent.opacity
@@ -80,6 +85,10 @@ Control {
             verticalAlignment: Text.AlignVCenter
             text: surface.shellSurface.title
             elide: Text.ElideRight
+            color: surface.isActivated ? root.activeTextColor : root.inactiveTextColor
+            font.family: Helper.config.font
+            font.pointSize: Helper.config.fontSize / 10
+            font.weight: Font.Medium
         }
 
         Row {
