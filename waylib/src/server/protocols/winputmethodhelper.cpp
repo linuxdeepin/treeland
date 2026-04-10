@@ -348,7 +348,14 @@ void WInputMethodHelper::handleNewTI(WTextInput *ti)
     connect(ti, &WTextInput::entityAboutToDestroy, this, [this, d, ti]{
         d->textInputs.removeAll(ti);
         disableTI(ti);
-        ti->disconnect();
+        // Do NOT call ti->disconnect() here: it would attempt to access
+        // the ConnectionData of sender objects (e.g. WSurface focusedSurface /
+        // enabledSurface) that wl_client_destroy may already have freed before
+        // reaching the text-input resource, causing a UAF SIGSEGV in
+        // QObjectPrivate::ConnectionData::removeConnection (fetch_sub on freed
+        // memory).  The QObject destructor invoked by delete text_input in
+        // handle_text_input_resource_destroy will clean up all connections
+        // safely once the sender objects have finished tearing down.
     }); // textInputs only save and traverse text inputs, do not handle connections
     // Whether this text input belongs to current seat or not, we should connect
     // its requestFocus signal for it might request focus from another seat to activate
