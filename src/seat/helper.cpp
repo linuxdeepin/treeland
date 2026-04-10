@@ -1065,12 +1065,11 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
                 if (!isLaunchpad(layer)) {
                     wrapper->setNoDecoration(false);
                 }
-                return;
-            }
-
-            wrapper->setNoTitleBar(false);
-            wrapper->setNoDecoration(m_xdgDecorationManager->modeBySurface(wrapper->surface())
+            } else {
+                wrapper->setNoTitleBar(false);
+                wrapper->setNoDecoration(m_xdgDecorationManager->modeBySurface(wrapper->surface())
                                      != WXdgDecorationManager::Server);
+            }
         };
 
         if (isXdgToplevel) {
