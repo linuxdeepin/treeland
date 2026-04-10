@@ -62,7 +62,7 @@ Session::~Session()
     }
 }
 
-int Session::id() const
+QString Session::id() const
 {
     return m_id;
 }
@@ -192,7 +192,7 @@ void SessionManager::removeSession(std::shared_ptr<Session> session)
  * @param username Username to ensure session for
  * @returns Session for the given username, or nullptr on failure
  */
-std::shared_ptr<Session> SessionManager::ensureSession(int id, QString username)
+std::shared_ptr<Session> SessionManager::ensureSession(QString id, QString username)
 {
     // Helper lambda to create WSocket and WXWayland
     auto createWSocket = [this]() {
@@ -324,7 +324,7 @@ std::shared_ptr<Session> SessionManager::ensureSession(int id, QString username)
  * @param id Session ID to find session for
  * @returns Session for the given id, or nullptr if not found
  */
-std::shared_ptr<Session> SessionManager::sessionForId(int id) const
+std::shared_ptr<Session> SessionManager::sessionForId(const QString &id) const
 {
     for (auto session : m_sessions) {
         if (session && session->m_id == id)
@@ -404,8 +404,9 @@ bool SessionManager::isDDEUserClient(WClient *client)
  * active session changed.
  *
  * @param username Username to set as active session
+ * @param session Logind session ID to set as active session
  */
-void SessionManager::updateActiveUserSession(const QString &username, int id)
+void SessionManager::updateActiveUserSession(const QString &username, const QString &id)
 {
     // Get previous active session
     auto previous = m_activeSession.lock();
