@@ -501,6 +501,8 @@ Personalization::Personalization(WToplevelSurface *target,
     , m_target(target)
     , m_manager(manager)
 {
+    // Some clients never bind the PersonalizationV1 protocol, so no window context is created
+    // and these properties stay at their default-initialized fallback values.
     connect(target, &WToplevelSurface::aboutToBeInvalidated, this, [this] {
         disconnect(m_connection);
     });
