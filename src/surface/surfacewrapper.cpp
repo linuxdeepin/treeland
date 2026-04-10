@@ -493,16 +493,15 @@ void SurfaceWrapper::syncPrelaunchMappedState()
 
 void SurfaceWrapper::startPrelaunchSplashHideSequence()
 {
-    Q_ASSERT(m_surfaceItem);
-    QSizeF targetImplicitSize;
-    if (auto surf = surface()) {
-        const QSize surfaceSize = surf->size();
-        targetImplicitSize = QSizeF(surfaceSize.width(), surfaceSize.height());
-    }
+    auto surf = surface();
+    Q_ASSERT(surf != nullptr && m_surfaceItem != nullptr);
+    // A newly created QQuickItem may report implicitWidth/implicitHeight as 0
+    // before polish/layout. WSurface::size() is already stable after mapped.
+    QSizeF targetImplicitSize = surf->size();
     const bool hasValidTargetImplicitSize =
         targetImplicitSize.width() > 0 && targetImplicitSize.height() > 0;
     if (!hasValidTargetImplicitSize) {
-        qCWarning(treelandSurface) << "Invalid target implicit size, skip transition animation"
+        qCCritical(treelandSurface) << "Invalid target implicit size, skip transition animation"
                                    << "targetImplicit=" << targetImplicitSize;
     }
 
@@ -548,8 +547,9 @@ void SurfaceWrapper::startPrelaunchSplashHideSequence()
         ok = QMetaObject::invokeMethod(m_geometryAnimation, "start");
         Q_ASSERT(ok);
     } else {
-        completeSplashTransition(
-            QSizeF(m_surfaceItem->implicitWidth(), m_surfaceItem->implicitHeight()));
+        // WSurface size is available when mapped; implicit size of a newly created
+        // QQuickItem can still be 0 before polish/layout in following event loops.
+        completeSplashTransition(targetImplicitSize);
     }
 }
 
