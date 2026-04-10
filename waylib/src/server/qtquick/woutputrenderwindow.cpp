@@ -39,6 +39,8 @@
 #include <QOpenGLFunctions>
 #include <QLoggingCategory>
 #include <QRunnable>
+#include <QQuickOpenGLUtils>
+
 #include <memory>
 
 #define protected public
@@ -90,9 +92,7 @@ inline static void resetGlState()
     if (WRenderHelper::getGraphicsApi() == QSGRendererInterface::OpenGL) {
         // If not reset, you will get a warning from Mesa(enable MESA_DEBUG):
         // Mesa: warning: Received negative int32 vertex buffer offset. (driver limitation)
-        glBindBuffer(GL_ARRAY_BUFFER, GL_NONE);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GL_NONE);
-        glDisable(GL_DEPTH_TEST);
+        QQuickOpenGLUtils::resetOpenGLState();
     }
 #endif
 }
