@@ -42,6 +42,8 @@ public:
 
     GlobalFilterFunc globalFilterFunc = nullptr;
     void *globalFilterFuncData = nullptr;
+    // Flag to prevent re-entry during Wayland event processing
+    bool isProcessingEvents = false;
 };
 
 WAYLIB_SERVER_END_NAMESPACE
