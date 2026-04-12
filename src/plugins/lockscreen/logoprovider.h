@@ -2,8 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
-#ifndef LOGOPROVIDER_H
-#define LOGOPROVIDER_H
+#pragma once
 
 #include <QQmlEngine>
 
@@ -27,5 +26,3 @@ Q_SIGNALS:
 private:
     QLocale locale{ QLocale::system() };
 };
-
-#endif // LOGOPROVIDER_H

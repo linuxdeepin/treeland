@@ -128,7 +128,6 @@
 #include <QMouseEvent>
 #include <QQmlContext>
 #include <QQuickWindow>
-#include <QtConcurrent>
 #include <rhi/qrhi.h>
 
 #include <functional>
@@ -2025,11 +2024,12 @@ bool Helper::doGesture(QInputEvent *event)
 Output *Helper::createNormalOutput(WOutput *output)
 {
     Output *o = Output::create(output, qmlEngine(), this);
-    auto future = QtConcurrent::run([o, this]() {
-        if (isNvidiaCardPresent()) {
-            o->outputItem()->setProperty("forceSoftwareCursor", true);
-        }
-    });
+    if (!m_isNvidia && isNvidiaCardPresent()) {
+        m_isNvidia = true;
+    }
+    if (m_isNvidia) {
+        o->outputItem()->setProperty("forceSoftwareCursor", true);
+    }
     o->outputItem()->stackBefore(m_rootSurfaceContainer);
     m_rootSurfaceContainer->addOutput(o);
     return o;
