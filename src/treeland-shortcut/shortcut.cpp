@@ -15,7 +15,7 @@
 #include <QRegularExpression>
 #include <QStandardPaths>
 
-Q_LOGGING_CATEGORY(treelandShortcut, "daemon.shortcut", QtDebugMsg);
+Q_LOGGING_CATEGORY(treelandShortcutDaemon, "treeland.shortcut.daemon", QtDebugMsg)
 
 static const QMap<QString, ShortcutV2::action> ActionMap = {
     {"Notify", ShortcutV2::action_notify},
@@ -157,7 +157,7 @@ void ShortcutV2::treeland_shortcut_manager_v2_commit_success()
 
 void ShortcutV2::treeland_shortcut_manager_v2_commit_failure(const QString &name, uint32_t error)
 {
-    qCWarning(treelandShortcut) << "Commit failure for shortcut:" << name << ", error code:" << error;
+    qCWarning(treelandShortcutDaemon) << "Commit failure for shortcut:" << name << ", error code:" << error;
     Q_EMIT commitStatus(false);
 }
 
@@ -170,7 +170,7 @@ ShortcutV2::ShortcutV2()
     : QWaylandClientExtensionTemplate<ShortcutV2>(1)
 {
     connect(this, &ShortcutV2::activeChanged, this, [this] {
-        qCDebug(treelandShortcut) << "isActive:" << isActive();
+        qCDebug(treelandShortcutDaemon) << "isActive:" << isActive();
 
         if (isActive()) {
             acquire();
@@ -192,7 +192,7 @@ void ShortcutV2::registerAllShortcuts()
 {
     QDir dir(TREELAND_DATA_DIR "/shortcuts");
     for (auto d : dir.entryInfoList(QDir::Filter::Files)) {
-        qCInfo(treelandShortcut) << "Load shortcut:" << d.filePath();
+        qCInfo(treelandShortcutDaemon) << "Load shortcut:" << d.filePath();
         auto shortcut = new Shortcut(d.filePath(), d.fileName());
         shortcut->registerForManager(this);
         m_shortcuts.append(shortcut);
@@ -254,7 +254,7 @@ void Shortcut::registerForManager(ShortcutV2 *manager)
         if (ActionMap.contains(actionStr)) {
             action = ActionMap.value(actionStr);
         } else {
-            qCWarning(treelandShortcut) << "Unknown action:" << actionStr
+            qCWarning(treelandShortcutDaemon) << "Unknown action:" << actionStr
                                         << "for shortcut:" << m_shortcutName
                                         << ", shortcut registration skipped.";
             return;
@@ -285,7 +285,7 @@ void Shortcut::registerForManager(ShortcutV2 *manager)
         static const QRegularExpression regex(QStringLiteral("^(\\d+)Finger(.+)$"));
         const auto match = regex.match(gestureStr);
         if (!match.hasMatch()) {
-            qCWarning(treelandShortcut) << "Invalid gesture format:" << gestureStr;
+            qCWarning(treelandShortcutDaemon) << "Invalid gesture format:" << gestureStr;
             break;
         }
 
@@ -293,7 +293,7 @@ void Shortcut::registerForManager(ShortcutV2 *manager)
         const QString movement = match.captured(2);
         if (fingerCount < 2 || fingerCount > 4) {
             // unsupported by libinput
-            qCWarning(treelandShortcut) << "Unsupported finger count:" << fingerCount
+            qCWarning(treelandShortcutDaemon) << "Unsupported finger count:" << fingerCount
                                         << "for gesture:" << gestureStr;
             break;
         }
@@ -301,7 +301,7 @@ void Shortcut::registerForManager(ShortcutV2 *manager)
             manager->bind_hold_gesture(gestureName, fingerCount, action);
         } else {
             if (!GestureDirectionMap.contains(movement)) {
-                qCWarning(treelandShortcut) << "Unknown gesture movement:" << movement
+                qCWarning(treelandShortcutDaemon) << "Unknown gesture movement:" << movement
                                             << "for gesture:" << gestureStr;
                 break;
             }
@@ -314,7 +314,7 @@ void Shortcut::registerForManager(ShortcutV2 *manager)
     QObject::connect(manager, &ShortcutV2::commitStatus, this, [this, manager, type, &loop](bool success) {
         loop.quit();
         if (!success) {
-            qCWarning(treelandShortcut) << "Shortcut commit failed for shortcut:" << m_shortcutName;
+            qCWarning(treelandShortcutDaemon) << "Shortcut commit failed for shortcut:" << m_shortcutName;
             m_registeredBindings.clear();
         } else {
             // unbind on destroy
