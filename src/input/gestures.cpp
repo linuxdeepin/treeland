@@ -4,13 +4,10 @@
 #include "gestures.h"
 #include "common/treelandlogging.h"
 
-#include <QLoggingCategory>
 #include <QRect>
 
 // The minimum delta required to recognize a swipe gesture
-#define SWIPE_MINIMUM_DELTA 5
-
-Q_LOGGING_CATEGORY(qLcGestures, "treeland.gestures");
+static constexpr int SWIPE_MINIMUM_DELTA = 5;
 
 Gesture::Gesture(QObject *parent)
     : QObject(parent)
@@ -245,7 +242,7 @@ void GestureRecognizer::updateSwipeGesture(const QPointF &delta)
         direction = m_currentDelta.x() < 0 ? SwipeGesture::Left : SwipeGesture::Right;
         break;
     default:
-        qCWarning(qLcGestures) << "Invalid swipe axis";
+        qCWarning(treelandGestures) << "Invalid swipe axis";
         return;
     }
 
@@ -350,7 +347,7 @@ int GestureRecognizer::startSwipeGesture(uint fingerCount,
             }
             break;
         case SwipeGesture::Invalid:
-            qCWarning(qLcGestures) << "Invalid swipe direction";
+            qCWarning(treelandGestures) << "Invalid swipe direction";
             continue;
         }
 

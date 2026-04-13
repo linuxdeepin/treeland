@@ -434,6 +434,7 @@ private:
 
     bool m_noAnimation{ false };
     bool m_isDDMDisplay{ false };
+    bool m_isNvidia{ false };
 
     struct PendingOutputConfig {
         qw_output_configuration_v1 *config = nullptr;

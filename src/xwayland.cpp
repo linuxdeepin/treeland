@@ -16,17 +16,19 @@
  */
 
 #include <QByteArray>
-#include <QDebug>
+#include <QLoggingCategory>
 #include <QString>
 #include <QTemporaryFile>
 #include <random>
 #include <sys/stat.h>
 #include <X11/Xauth.h>
 
+Q_LOGGING_CATEGORY(treelandXwayland, "treeland.xwayland")
+
 int main(int argc, char *argv[])
 {
     if (argc < 2) {
-        qCritical() << "Usage: treeland-xwayland <display> [args]";
+        qCCritical(treelandXwayland) << "Usage: treeland-xwayland <display> [args]";
         return 1;
     }
     // Generate cookie
@@ -96,6 +98,6 @@ int main(int argc, char *argv[])
     args[argc + 1] = const_cast<char *>(fileName);
     args[argc + 2] = nullptr;
     execvp("Xwayland", args);
-    qWarning() << "execvp() returned";
+    qCWarning(treelandXwayland) << "execvp() returned";
     return 1;
 }

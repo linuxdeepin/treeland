@@ -1,8 +1,7 @@
 // Copyright (C) 2025-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
-#ifndef TREELAND_LOGGING_H
-#define TREELAND_LOGGING_H
+#pragma once
 
 #include <QLoggingCategory>
 
@@ -70,5 +69,3 @@ Q_DECLARE_LOGGING_CATEGORY(treelandFpsDisplay)
 
 // xsettings
 Q_DECLARE_LOGGING_CATEGORY(treelandXsettings)
-
-#endif // TREELAND_LOGGING_H

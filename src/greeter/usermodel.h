@@ -18,8 +18,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  ***************************************************************************/
 
-#ifndef SDDM_USERMODEL_H
-#define SDDM_USERMODEL_H
+#pragma once
 
 #include "greeter/user.h"
 
@@ -94,5 +93,3 @@ private Q_SLOTS:
 private:
     UserModelPrivate *d{ nullptr };
 };
-
-#endif // USERMODEL_H

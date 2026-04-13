@@ -12,9 +12,9 @@
 #include <QDBusReply>
 #include <QDBusServiceWatcher>
 #include <QDBusUnixFileDescriptor>
-#include <QDebug>
 #include <QDir>
 #include <QFile>
+#include <QLoggingCategory>
 #include <QTemporaryFile>
 #include <QtEnvironmentVariables>
 
@@ -24,6 +24,8 @@
 
 typedef QMap<QString, QString> StringMap;
 Q_DECLARE_METATYPE(StringMap)
+
+Q_LOGGING_CATEGORY(treelandSd, "treeland.sd")
 
 class SignalReceiver : public QObject
 {
@@ -106,7 +108,7 @@ int main(int argc, char *argv[])
                     if (reply.type() == QDBusMessage::ReplyMessage) {
                         QVariantList values = reply.arguments();
                         if (values.size() < 2) {
-                            qWarning() << "Invalid XWaylandName reply";
+                            qCWarning(treelandSd) << "Invalid XWaylandName reply";
                             return;
                         }
                         QString xwaylandName = values.at(0).toString();
@@ -118,7 +120,7 @@ int main(int argc, char *argv[])
                         QTemporaryFile *authFile = new QTemporaryFile();
                         authFile->setFileTemplate(QStringLiteral("%1/.xauth_XXXXXX").arg(runtimeDir));
                         if (!authFile->open()) {
-                            qWarning() << "Failed to create temporary xauth file";
+                            qCWarning(treelandSd) << "Failed to create temporary xauth file";
                             return;
                         }
                         QString authFileName = authFile->fileName();
