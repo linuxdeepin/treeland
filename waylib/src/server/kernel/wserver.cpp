@@ -1,4 +1,4 @@
-// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 JiDe Zhang <zhangjide@deepin.org>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include <QObject>
@@ -26,6 +26,7 @@
 #include <QSocketNotifier>
 #include <QMutex>
 #include <QDebug>
+#include <QScopedValueRollback>
 #include <QProcess>
 #include <QLocalServer>
 #include <QLocalSocket>
@@ -104,18 +105,26 @@ void WServerPrivate::init()
     loop = wl_display_get_event_loop(display->handle());
     int fd = wl_event_loop_get_fd(loop);
 
-    auto processWaylandEvents = [this] {
+    sockNot.reset(new QSocketNotifier(fd, QSocketNotifier::Read));
+    QObject::connect(sockNot.get(), &QSocketNotifier::activated, q, [this] {
+        if (isProcessingEvents)
+            return;
+
+        QScopedValueRollback<bool> guard(isProcessingEvents, true);
+
         int ret = wl_event_loop_dispatch(loop, 0);
         if (ret)
             fprintf(stderr, "wl_event_loop_dispatch error: %d\n", ret);
-        wl_display_flush_clients(display->handle());
-    };
+    });
 
-    sockNot.reset(new QSocketNotifier(fd, QSocketNotifier::Read));
-    QObject::connect(sockNot.get(), &QSocketNotifier::activated, q, processWaylandEvents);
-
+    // Match upstream wl_display_run order: flush before dispatch.
     QAbstractEventDispatcher *dispatcher = QThread::currentThread()->eventDispatcher();
-    QObject::connect(dispatcher, &QAbstractEventDispatcher::aboutToBlock, q, processWaylandEvents);
+    QObject::connect(dispatcher, &QAbstractEventDispatcher::aboutToBlock, q, [this] {
+        if (isProcessingEvents)
+            return;
+
+        safeFlushClients();
+    });
 
     for (auto socket : std::as_const(sockets))
         initSocket(socket);
@@ -127,6 +136,12 @@ void WServerPrivate::stop()
 {
     W_Q(WServer);
 
+    // Disconnect event handlers BEFORE destroying clients to prevent
+    // callbacks from firing during client destruction.
+    sockNot.reset();
+    if (auto *dispatcher = QThread::currentThread()->eventDispatcher())
+        QObject::disconnect(dispatcher, nullptr, q, nullptr);
+
     if (display)
         wl_display_destroy_clients(*display);
 
@@ -137,9 +152,22 @@ void WServerPrivate::stop()
         (*i)->destroy(q);
         delete *i;
     }
+}
 
-    sockNot.reset();
-    QThread::currentThread()->eventDispatcher()->disconnect(q);
+// Replace wl_display_flush_clients: its wl_list_for_each_safe loop deadlocks
+// when destroy-signal cascades make the pre-saved next node self-linked.
+void WServerPrivate::safeFlushClients()
+{
+    struct wl_list *head = wl_display_get_client_list(display->handle());
+    struct wl_list *node = head->next;
+    while (node != head) {
+        // Self-linked node: already destroyed, stop to avoid infinite loop.
+        if (node->next == node)
+            break;
+        struct wl_list *next = node->next;
+        wl_client_flush(wl_client_from_link(node));
+        node = next;
+    }
 }
 
 void WServerPrivate::initSocket(WSocket *socketServer)
