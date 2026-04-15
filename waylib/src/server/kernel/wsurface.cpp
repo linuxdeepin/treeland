@@ -460,8 +460,16 @@ void WSurfacePrivate::instantRelease()
         handle()->disconnect(q);
         if (subsurface)
             subsurface->disconnect(q);
-        for (auto o : std::as_const(outputs))
+        // Leave all outputs before disconnecting to prevent use-after-free
+        // when outputs try to call leaveOutput on this destroyed surface
+        for (auto o : std::as_const(outputs)) {
+            // Check if surface handle is still valid before sending leave
+            if (handle()->handle()) {
+                wlr_surface_send_leave(handle()->handle(), o->handle()->handle());
+            }
             o->safeDisconnect(q);
+        }
+        outputs.clear();
     }
 }
 
