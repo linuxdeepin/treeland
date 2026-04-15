@@ -435,8 +435,19 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
 {
     Q_ASSERT(state.buffer);
 
+    // Check if sourceIndex is valid
+    if (sourceIndex >= m_sourceList.size()) {
+        qWarning() << "WBufferRenderer::render: sourceIndex out of range, skipping render";
+        return;
+    }
+
     const auto &source = m_sourceList.at(sourceIndex);
     QSGRenderer *renderer = ensureRenderer(sourceIndex, state.context);
+    // Check if renderer is valid - it can be null if the source was destroyed
+    if (!renderer) {
+        qWarning() << "WBufferRenderer::render: renderer is null, skipping render";
+        return;
+    }
     auto wd = QQuickWindowPrivate::get(window());
 
     const qreal devicePixelRatio = state.devicePixelRatio;
