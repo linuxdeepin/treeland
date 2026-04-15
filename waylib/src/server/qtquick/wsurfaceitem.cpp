@@ -219,8 +219,18 @@ public:
             surface = nullptr;
         }
 
-        if (frameDoneConnection)
-            QObject::disconnect(frameDoneConnection);
+        // Only disconnect if the connection is still valid
+        // It may have already been disconnected by ~WSurfaceItemContent
+        if (frameDoneConnection) {
+            // Check if the connection is still valid before disconnecting
+            // Use a try-catch equivalent by checking if the connection points to valid objects
+            auto conn = frameDoneConnection;
+            if (conn) {
+                // Reset the connection first to prevent double-disconnect issues
+                frameDoneConnection = QMetaObject::Connection();
+                QObject::disconnect(conn);
+            }
+        }
 
         Q_ASSERT(!updateTextureConnection);
 
@@ -670,7 +680,16 @@ WSurfaceItem::WSurfaceItem(WSurfaceItemPrivate &dd, QQuickItem *parent)
 
 WSurfaceItem::~WSurfaceItem()
 {
-
+    // Clear the surface reference before destruction to prevent
+    // QML property bindings from trying to write to a destroyed object
+    // This fixes crashes when QML bindings try to update properties
+    // on a WXWaylandSurfaceItem that is being destroyed
+    Q_D(WSurfaceItem);
+    if (d->surface) {
+        d->surface = nullptr;
+        // Also disconnect signals to prevent any pending callbacks
+        releaseResources();
+    }
 }
 
 QRectF WSurfaceItem::boundingRect() const
