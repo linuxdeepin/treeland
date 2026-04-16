@@ -6,7 +6,7 @@
 #include "core/qmlengine.h"
 #include "modules/shortcut/shortcutmanager.h"
 #include "modules/virtual-output/virtualoutputmanager.h"
-#include "modules/window-management/windowmanagement.h"
+#include "modules/window-management/windowmanagementinterfacev1.h"
 #include "utils/fpsdisplaymanager.h"
 #include "modules/wallpaper/wallpapermanagerinterfacev1.h"
 #include "modules/wallpaper/wallpapernotifierinterfacev1.h"
@@ -127,7 +127,7 @@ class treeland_window_picker_v1;
 class UserModel;
 class VirtualOutputV1;
 class WallpaperColorV1;
-class WindowManagementV1;
+class WindowManagementInterfaceV1;
 class WindowPickerInterface;
 class WallpaperManager;
 class WallpaperItem;
@@ -209,7 +209,7 @@ public:
 
     bool toggleDebugMenuBar();
 
-    WindowManagementV1::DesktopState showDesktopState() const;
+    WindowManagementInterfaceV1::DesktopState showDesktopState() const;
 
     Q_INVOKABLE bool isLaunchpad(WLayerSurface *surface) const;
     Q_INVOKABLE void setLaunchpadMapped(WOutput *output, bool mapped);
@@ -393,8 +393,8 @@ private:
     PersonalizationV1 *m_personalization = nullptr;
     WallpaperColorV1 *m_wallpaperColorV1 = nullptr;
     WOutputManagerV1 *m_outputManager = nullptr;
-    WindowManagementV1 *m_windowManagement = nullptr;
-    WindowManagementV1::DesktopState m_showDesktop = WindowManagementV1::DesktopState::Normal;
+    WindowManagementInterfaceV1 *m_windowManagementInterfaceV1 = nullptr;
+    WindowManagementInterfaceV1::DesktopState m_showDesktop = WindowManagementInterfaceV1::DesktopState::Normal;
     DDEShellManagerInterfaceV1 *m_ddeShellV1 = nullptr;
     PrelaunchSplash *m_prelaunchSplash = nullptr; // treeland prelaunch splash protocol
     VirtualOutputV1 *m_virtualOutput = nullptr;

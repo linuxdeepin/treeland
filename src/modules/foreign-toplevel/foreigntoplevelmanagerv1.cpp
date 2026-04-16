@@ -155,7 +155,7 @@ void ForeignToplevelV1::initializeToplevelHandle(SurfaceWrapper *wrapper,
             wrapper,
             [wrapper](treeland_foreign_toplevel_handle_v1_minimized_event *event) {
                 if ((Helper::instance()->showDesktopState()
-                     == WindowManagementV1::DesktopState::Show)) {
+                     == WindowManagementInterfaceV1::DesktopState::Show)) {
                     Helper::instance()->forceActivateSurface(wrapper);
                     return;
                 }

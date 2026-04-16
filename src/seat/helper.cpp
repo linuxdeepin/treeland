@@ -952,10 +952,10 @@ void Helper::updateIdleInhibitor()
 
 void Helper::onShowDesktop()
 {
-    WindowManagementV1::DesktopState s = m_windowManagement->desktopState();
+    WindowManagementInterfaceV1::DesktopState s = m_windowManagementInterfaceV1->desktopState();
     if (m_showDesktop == s
-        || (s != WindowManagementV1::DesktopState::Normal
-            && s != WindowManagementV1::DesktopState::Show))
+        || (s != WindowManagementInterfaceV1::DesktopState::Normal
+            && s != WindowManagementInterfaceV1::DesktopState::Show))
         return;
 
     m_showDesktop = s;
@@ -964,9 +964,9 @@ void Helper::onShowDesktop()
         if (surface->isMinimized()) {
             continue;
         }
-        if (s == WindowManagementV1::DesktopState::Normal) {
+        if (s == WindowManagementInterfaceV1::DesktopState::Normal) {
             surface->startShowDesktopAnimation(true);
-        } else if (s == WindowManagementV1::DesktopState::Show) {
+        } else if (s == WindowManagementInterfaceV1::DesktopState::Show) {
             surface->startShowDesktopAnimation(false);
         }
     }
@@ -1315,7 +1315,7 @@ void Helper::init(Treeland::Treeland *treeland)
             m_outputManagerV1,
             &OutputManagerV1::onPrimaryOutputChanged);
     m_wallpaperColorV1 = m_server->attach<WallpaperColorV1>();
-    m_windowManagement = m_server->attach<WindowManagementV1>();
+    m_windowManagementInterfaceV1 = m_server->attach<WindowManagementInterfaceV1>();
     m_virtualOutput = m_server->attach<VirtualOutputV1>();
 
     auto captureManagerV1 = m_server->attach<CaptureManagerV1>();
@@ -1377,8 +1377,8 @@ void Helper::init(Treeland::Treeland *treeland)
                                                  m_personalization->backgroundIsDark(outputName));
     }
 
-    connect(m_windowManagement,
-            &WindowManagementV1::desktopStateChanged,
+    connect(m_windowManagementInterfaceV1,
+            &WindowManagementInterfaceV1::desktopStateChanged,
             this,
             &Helper::onShowDesktop);
 
@@ -2123,9 +2123,9 @@ void Helper::setActivatedSurface(SurfaceWrapper *newActivateSurface)
         m_activatedSurface->setActivate(false);
 
     if (newActivateSurface) {
-        if (m_showDesktop == WindowManagementV1::DesktopState::Show) {
-            m_showDesktop = WindowManagementV1::DesktopState::Normal;
-            m_windowManagement->setDesktopState(WindowManagementV1::DesktopState::Normal);
+        if (m_showDesktop == WindowManagementInterfaceV1::DesktopState::Show) {
+            m_showDesktop = WindowManagementInterfaceV1::DesktopState::Normal;
+            m_windowManagementInterfaceV1->setDesktopState(WindowManagementInterfaceV1::DesktopState::Normal);
             newActivateSurface->setHideByShowDesk(true);
         }
 
@@ -2379,7 +2379,7 @@ bool Helper::toggleDebugMenuBar()
     return ok;
 }
 
-WindowManagementV1::DesktopState Helper::showDesktopState() const
+WindowManagementInterfaceV1::DesktopState Helper::showDesktopState() const
 {
     return m_showDesktop;
 }
@@ -2569,9 +2569,9 @@ void Helper::handleWhellValueChanged(const QInputEvent *event)
 
 void Helper::restoreFromShowDesktop(SurfaceWrapper *activeSurface)
 {
-    if (m_showDesktop == WindowManagementV1::DesktopState::Show) {
-        m_showDesktop = WindowManagementV1::DesktopState::Normal;
-        m_windowManagement->setDesktopState(WindowManagementV1::DesktopState::Normal);
+    if (m_showDesktop == WindowManagementInterfaceV1::DesktopState::Show) {
+        m_showDesktop = WindowManagementInterfaceV1::DesktopState::Normal;
+        m_windowManagementInterfaceV1->setDesktopState(WindowManagementInterfaceV1::DesktopState::Normal);
         if (activeSurface) {
             activeSurface->requestCancelMinimize();
         }

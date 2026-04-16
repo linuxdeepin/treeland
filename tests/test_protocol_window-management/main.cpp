@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 
-#include "modules/window-management/windowmanagement.h"
+#include "modules/window-management/windowmanagementinterfacev1.h"
 
 #include <wserver.h>
 
@@ -30,12 +30,12 @@ private Q_SLOTS:
 
     void testCreate()
     {
-        QVERIFY(m_server->attach<WindowManagementV1>(m_server) != nullptr);
+        QVERIFY(m_server->attach<WindowManagementInterfaceV1>(m_server) != nullptr);
     }
 
     void verifyWindowManagement()
     {
-        auto protocol = m_server->findChild<WindowManagementV1 *>();
+        auto protocol = m_server->findChild<WindowManagementInterfaceV1 *>();
         QVERIFY(protocol != nullptr);
     }
 
