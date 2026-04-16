@@ -41,7 +41,7 @@
 #include "modules/shortcut/shortcutcontroller.h"
 #include "modules/shortcut/shortcutmanager.h"
 #include "modules/shortcut/shortcutrunner.h"
-#include "modules/wallpaper-color/wallpapercolor.h"
+#include "modules/wallpaper-color/wallpapercolorinterfacev1.h"
 #include "output/outputconfigstate.h"
 #include "output/output.h"
 #include "output/outputlifecyclemanager.h"
@@ -1314,7 +1314,7 @@ void Helper::init(Treeland::Treeland *treeland)
             &RootSurfaceContainer::primaryOutputChanged,
             m_outputManagerV1,
             &OutputManagerV1::onPrimaryOutputChanged);
-    m_wallpaperColorV1 = m_server->attach<WallpaperColorV1>();
+    m_wallpaperColorV1 = m_server->attach<WallpaperColorInterfaceV1>();
     m_windowManagementInterfaceV1 = m_server->attach<WindowManagementInterfaceV1>();
     m_virtualOutput = m_server->attach<VirtualOutputV1>();
 

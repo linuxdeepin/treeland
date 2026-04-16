@@ -126,7 +126,7 @@ class TreelandUserConfig;
 class treeland_window_picker_v1;
 class UserModel;
 class VirtualOutputV1;
-class WallpaperColorV1;
+class WallpaperColorInterfaceV1;
 class WindowManagementInterfaceV1;
 class WindowPickerInterface;
 class WallpaperManager;
@@ -391,7 +391,7 @@ private:
     WExtForeignToplevelListV1 *m_extForeignToplevelListV1 = nullptr;
     ShortcutManagerV2 *m_shortcutManager = nullptr;
     PersonalizationV1 *m_personalization = nullptr;
-    WallpaperColorV1 *m_wallpaperColorV1 = nullptr;
+    WallpaperColorInterfaceV1 *m_wallpaperColorV1 = nullptr;
     WOutputManagerV1 *m_outputManager = nullptr;
     WindowManagementInterfaceV1 *m_windowManagementInterfaceV1 = nullptr;
     WindowManagementInterfaceV1::DesktopState m_showDesktop = WindowManagementInterfaceV1::DesktopState::Normal;
