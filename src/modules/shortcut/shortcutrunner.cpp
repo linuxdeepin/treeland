@@ -1,11 +1,11 @@
-// Copyright (C) 2025 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2025-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "shortcutrunner.h"
 #include "seat/helper.h"
 #include "shortcutcontroller.h"
 #include "workspace/workspace.h"
-#include "modules/window-management/windowmanagement.h"
+#include "modules/window-management/windowmanagementinterfacev1.h"
 #include "core/rootsurfacecontainer.h"
 #include "surface/surfacewrapper.h"
 #include "utils/fpsdisplaymanager.h"
@@ -72,10 +72,10 @@ void ShortcutRunner::onActionTrigger(ShortcutAction action, const QString &name,
         if (helper->currentMode() == Helper::CurrentMode::Multitaskview) {
             break;
         }
-        if (helper->m_showDesktop == WindowManagementV1::DesktopState::Normal)
-            helper->m_windowManagement->setDesktopState(WindowManagementV1::DesktopState::Show);
-        else if (helper->m_showDesktop == WindowManagementV1::DesktopState::Show)
-            helper->m_windowManagement->setDesktopState(WindowManagementV1::DesktopState::Normal);
+        if (helper->m_showDesktop == WindowManagementInterfaceV1::DesktopState::Normal)
+            helper->m_windowManagementInterfaceV1->setDesktopState(WindowManagementInterfaceV1::DesktopState::Show);
+        else if (helper->m_showDesktop == WindowManagementInterfaceV1::DesktopState::Show)
+            helper->m_windowManagementInterfaceV1->setDesktopState(WindowManagementInterfaceV1::DesktopState::Normal);
         break;
     case ShortcutAction::Maximize: {
         auto surface = helper->activatedSurface();

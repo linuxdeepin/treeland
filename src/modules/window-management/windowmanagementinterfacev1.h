@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Lu YaNing <luyaning@uniontech.com>.
+// Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
@@ -7,10 +7,10 @@
 
 #include <QQmlEngine>
 
-struct treeland_window_management_v1;
 WAYLIB_SERVER_USE_NAMESPACE
 
-class WindowManagementV1
+class WindowManagementInterfaceV1Private;
+class WindowManagementInterfaceV1
     : public QObject
     , public WAYLIB_SERVER_NAMESPACE::WServerInterface
 {
@@ -26,23 +26,23 @@ public:
     };
     Q_ENUM(DesktopState)
 
-    explicit WindowManagementV1(QObject *parent = nullptr);
+    explicit WindowManagementInterfaceV1(QObject *parent = nullptr);
+    ~WindowManagementInterfaceV1() override;
 
+    static constexpr int InterfaceVersion = 1;
     DesktopState desktopState();
     void setDesktopState(DesktopState state);
+
+Q_SIGNALS:
+    void desktopStateChanged();
+    void requestShowDesktop(uint32_t state);
 
 protected:
     void create(WServer *server) override;
     void destroy(WServer *server) override;
     wl_global *global() const override;
-
-Q_SIGNALS:
-    void desktopStateChanged();
+    QByteArrayView interfaceName() const override;
 
 private:
-    treeland_window_management_v1 *m_handle{ nullptr };
-
-    // WServerInterface interface
-public:
-    QByteArrayView interfaceName() const override;
+    std::unique_ptr<WindowManagementInterfaceV1Private> d;
 };
