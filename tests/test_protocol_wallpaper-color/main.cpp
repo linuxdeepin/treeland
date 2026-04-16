@@ -1,7 +1,7 @@
-// Copyright (C) 2024 Dingyuan Zhang <lxz@mkacg.com>.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
-#include "modules/wallpaper-color/wallpapercolor.h"
+#include "modules/wallpaper-color/wallpapercolorinterfacev1.h"
 
 #include <wserver.h>
 
@@ -29,12 +29,12 @@ private Q_SLOTS:
 
     void testCreate()
     {
-        QVERIFY(m_server->attach<WallpaperColorV1>(m_server) != nullptr);
+        QVERIFY(m_server->attach<WallpaperColorInterfaceV1>(m_server) != nullptr);
     }
 
     void verifyWallpaperColor()
     {
-        auto protocol = m_server->findChild<WallpaperColorV1 *>();
+        auto protocol = m_server->findChild<WallpaperColorInterfaceV1 *>();
         QVERIFY(protocol != nullptr);
     }
 
