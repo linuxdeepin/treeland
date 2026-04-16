@@ -1,4 +1,4 @@
-// Copyright (C) 2024 rewine <luhongxu@deepin.org>.
+// Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
@@ -7,25 +7,28 @@
 
 #include <QQmlEngine>
 
-struct wallpaper_color_manager_v1;
 WAYLIB_SERVER_USE_NAMESPACE
 
-class WallpaperColorV1
+class WallpaperColorInterfaceV1Private;
+class WallpaperColorInterfaceV1
     : public QObject
     , public WAYLIB_SERVER_NAMESPACE::WServerInterface
 {
     Q_OBJECT
 
 public:
-    explicit WallpaperColorV1(QObject *parent = nullptr);
+    explicit WallpaperColorInterfaceV1(QObject *parent = nullptr);
+    ~WallpaperColorInterfaceV1() override;
+
+    static constexpr int InterfaceVersion = 1;
     Q_INVOKABLE void updateWallpaperColor(const QString &output, bool isDarkType);
-    QByteArrayView interfaceName() const override;
 
 protected:
     void create(WServer *server) override;
     void destroy(WServer *server) override;
     wl_global *global() const override;
+    QByteArrayView interfaceName() const override;
 
 private:
-    wallpaper_color_manager_v1 *m_handle{ nullptr };
+    std::unique_ptr<WallpaperColorInterfaceV1Private> d;
 };
