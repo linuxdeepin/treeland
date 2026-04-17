@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Yixue Wang <wangyixue@deepin.org>.
+// Copyright (C) 2024-2026 Yixue Wang <wangyixue@deepin.org>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wtextinputv2_p.h"
@@ -127,10 +127,7 @@ void text_input_manager_bind(wl_client *client,
         wl_client_post_no_memory(client);
         return;
     }
-    WClient *wClient = WClient::get(client);
-    QObject::connect(wClient, &WClient::destroyed, manager, [resource]{
-        wl_resource_destroy(resource);
-    });
+    // wl_client_destroy handles resource destruction via wl_map_for_each.
     wl_resource_set_implementation(resource, &manager_impl, manager, nullptr);
 }
 
@@ -182,9 +179,7 @@ void handle_manager_get_text_input(wl_client *client,
     Q_ASSERT(wSeat);
     text_input->d_func()->client = wClient;
     text_input->d_func()->seat = wSeat;
-    QObject::connect(wClient, &WClient::destroyed, text_input, [text_input_resource] {
-        wl_resource_destroy(text_input_resource);
-    });
+    // wl_client_destroy handles resource destruction via wl_map_for_each.
     wl_resource_set_implementation(text_input_resource, &text_input_impl, text_input, handle_text_input_resource_destroy);
     manager->d_func()->textInputs.append(text_input);
     QObject::connect(text_input, &WTextInput::entityAboutToDestroy, manager, [manager, text_input]{
