@@ -1,4 +1,4 @@
-// Copyright (C) 2025 April Lu <apr3vau@outlook.com>.
+// Copyright (C) 2025-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "ddminterfacev1.h"
@@ -10,6 +10,9 @@
 #include <wayland-server-core.h>
 #include <wayland-server.h>
 #include <wayland-util.h>
+
+#include <qwdisplay.h>
+
 #include <QDebug>
 
 struct treeland_ddm {

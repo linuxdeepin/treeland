@@ -8,6 +8,9 @@
 #include "rootsurfacecontainer.h"
 #include "helper.h"
 #include "output.h"
+
+#include <qwdisplay.h>
+
 #include <WOutput>
 
 #define TREELAND_OUTPUT_MANAGER_V1_VERSION 2

@@ -972,26 +972,25 @@ void Helper::onShowDesktop()
     }
 }
 
-void Helper::onSetCopyOutput(treeland_virtual_output_v1 *virtual_output)
+void Helper::onSetCopyOutput(VirtualOutputInterfaceV1 *interface)
 {
     Output *mirrorOutput = nullptr;
     for (Output *output : m_outputList) {
-        if (!virtual_output->outputList.contains(output->output()->name())) {
+        if (!interface->outputList().contains(output->output()->name())) {
             QString screen = output->output()->name() + " does not exist!";
-            virtual_output->send_error(TREELAND_VIRTUAL_OUTPUT_V1_ERROR_INVALID_OUTPUT,
-                                       screen.toLocal8Bit().data());
+            interface->sendError(VirtualOutputInterfaceV1::INVALID_OUTPUT, screen);
+
             return;
         }
 
         if (!output->isPrimary()) {
             QString screen =
                 output->output()->name() + " is already a copy screen, invalid setting!";
-            virtual_output->send_error(TREELAND_VIRTUAL_OUTPUT_V1_ERROR_INVALID_OUTPUT,
-                                       screen.toLocal8Bit().data());
+            interface->sendError(VirtualOutputInterfaceV1::INVALID_OUTPUT, screen);
             return;
         }
 
-        if (output->output()->name() == virtual_output->outputList.at(0))
+        if (output->output()->name() == interface->outputList().at(0))
             mirrorOutput = output;
     }
 
@@ -1016,15 +1015,14 @@ void Helper::onSetCopyOutput(treeland_virtual_output_v1 *virtual_output)
     moveSurfacesToOutput(surfaces, mirrorOutput, nullptr);
 }
 
-void Helper::onRestoreCopyOutput(treeland_virtual_output_v1 *virtual_output)
+void Helper::onRestoreCopyOutput(VirtualOutputInterfaceV1 *interface)
 {
-    const QString targetName = virtual_output->outputList.at(0);
+    const QString targetName = interface->outputList().at(0);
     if (!std::any_of(m_outputList.constBegin(), m_outputList.constEnd(),
                      [&targetName](const Output *output) { return output->output()->name() == targetName; })) {
-        virtual_output->send_error(
-            TREELAND_VIRTUAL_OUTPUT_V1_ERROR_INVALID_OUTPUT,
-            qPrintable(QString("Target output %1 does not exist!").arg(targetName))
-        );
+        interface->sendError(VirtualOutputInterfaceV1::INVALID_OUTPUT,
+            QString("Target output %1 does not exist!").arg(targetName));
+
         return;
     }
 
@@ -1316,7 +1314,7 @@ void Helper::init(Treeland::Treeland *treeland)
             &OutputManagerV1::onPrimaryOutputChanged);
     m_wallpaperColorV1 = m_server->attach<WallpaperColorInterfaceV1>();
     m_windowManagementInterfaceV1 = m_server->attach<WindowManagementInterfaceV1>();
-    m_virtualOutput = m_server->attach<VirtualOutputV1>();
+    m_virtualOutputInterfaceV1 = m_server->attach<VirtualOutputManagerInterfaceV1>();
 
     auto captureManagerV1 = m_server->attach<CaptureManagerV1>();
     captureManagerV1->setOutputRenderWindow(m_renderWindow);
@@ -1382,13 +1380,13 @@ void Helper::init(Treeland::Treeland *treeland)
             this,
             &Helper::onShowDesktop);
 
-    connect(m_virtualOutput,
-            &VirtualOutputV1::requestCreateVirtualOutput,
+    connect(m_virtualOutputInterfaceV1,
+            &VirtualOutputManagerInterfaceV1::requestCreateVirtualOutput,
             this,
             &Helper::onSetCopyOutput);
 
-    connect(m_virtualOutput,
-            &VirtualOutputV1::destroyVirtualOutput,
+    connect(m_virtualOutputInterfaceV1,
+            &VirtualOutputManagerInterfaceV1::destroyVirtualOutput,
             this,
             &Helper::onRestoreCopyOutput);
 
