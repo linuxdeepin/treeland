@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Yixue Wang <wangyixue@deepin.org>.
+// Copyright (C) 2023-2026 Yixue Wang <wangyixue@deepin.org>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wtextinputv1_p.h"
@@ -400,9 +400,7 @@ void text_input_manager_get_text_input(wl_client *client, wl_resource *resource,
         return;
     }
     d->resource = text_input_resource;
-    QObject::connect(text_input->waylandClient(), &WClient::destroyed, text_input, [text_input] {
-        wl_resource_destroy(text_input->d_func()->resource);
-    });
+    // wl_client_destroy handles resource destruction via wl_map_for_each.
     wl_resource_set_implementation(text_input_resource, &text_input_v1_impl, text_input, text_input_resource_destroy);
     manager->d_func()->textInputs.append(text_input);
     QObject::connect(text_input, &WTextInputV1::entityAboutToDestroy, manager, [manager, text_input]{
@@ -425,14 +423,11 @@ static void text_input_manager_bind(wl_client *wl_client, void *data, uint32_t v
 {
     WTextInputManagerV1 *manager = reinterpret_cast<WTextInputManagerV1 *>(data);
     wl_resource *resource = wl_resource_create(wl_client, &zwp_text_input_manager_v1_interface, version, id);
-    WClient *wClient = WClient::get(wl_client);
-    QObject::connect(wClient, &WClient::destroyed, manager, [resource]{
-        wl_resource_destroy(resource);
-    });
     if (!resource) {
         wl_client_post_no_memory(wl_client);
         return;
     }
+    // wl_client_destroy handles resource destruction via wl_map_for_each.
     wl_resource_set_implementation(resource, &text_input_manager_v1_impl, manager, nullptr);
 }
 
