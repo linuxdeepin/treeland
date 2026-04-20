@@ -11,9 +11,6 @@
 
 #include <QByteArray>
 #include <QLoggingCategory>
-#include <QMetaType>
-
-#include <memory>
 
 WAYLIB_SERVER_USE_NAMESPACE
 QW_USE_NAMESPACE
@@ -83,6 +80,7 @@ public:
 protected:
     void destroy_global() override
     {
+        qCDebug(prelaunchSplash) << "PrelaunchSplash v2 global destroyed";
         delete q;
     }
 
@@ -131,17 +129,14 @@ PrelaunchSplash::~PrelaunchSplash() = default;
 
 void PrelaunchSplash::create(WAYLIB_SERVER_NAMESPACE::WServer *server)
 {
-    if (d->isGlobal())
-        return;
     d->init(*server->handle(), TREELAND_PRELAUNCH_SPLASH_MANAGER_V2_VERSION);
     qCDebug(prelaunchSplash) << "PrelaunchSplash v2 global created";
 }
 
-void PrelaunchSplash::destroy(WAYLIB_SERVER_NAMESPACE::WServer *server)
+void PrelaunchSplash::destroy([[maybe_unused]] WAYLIB_SERVER_NAMESPACE::WServer *server)
 {
-    Q_UNUSED(server);
     d->globalRemove();
-    qCDebug(prelaunchSplash) << "PrelaunchSplash v2 global removed";
+    qCDebug(prelaunchSplash) << "PrelaunchSplash v2 global removal scheduled";
 }
 
 wl_global *PrelaunchSplash::global() const
@@ -153,5 +148,3 @@ QByteArrayView PrelaunchSplash::interfaceName() const
 {
     return QtWaylandServer::treeland_prelaunch_splash_manager_v2::interfaceName();
 }
-
-// End of file
