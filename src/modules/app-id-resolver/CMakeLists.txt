@@ -11,7 +11,7 @@ impl_treeland(
     SOURCE
         appidresolver.h
         appidresolver.cpp
-    ${CMAKE_BINARY_DIR}/src/modules/app-id-resolver/wayland-treeland-app-id-resolver-v1-server-protocol.c
+        ${CMAKE_BINARY_DIR}/src/modules/app-id-resolver/wayland-treeland-app-id-resolver-v1-server-protocol.c
     INCLUDE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
     LINK

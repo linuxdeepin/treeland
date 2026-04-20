@@ -11,7 +11,7 @@ impl_treeland(
     SOURCE
         prelaunchsplash.h
         prelaunchsplash.cpp
-    ${CMAKE_BINARY_DIR}/src/modules/prelaunch-splash/wayland-treeland-prelaunch-splash-v2-server-protocol.c
+        ${CMAKE_BINARY_DIR}/src/modules/prelaunch-splash/wayland-treeland-prelaunch-splash-v2-server-protocol.c
     INCLUDE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
     LINK
