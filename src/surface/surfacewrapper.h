@@ -186,7 +186,7 @@ public:
 
     State previousSurfaceState() const;
     State surfaceState() const;
-    void setSurfaceState(State newSurfaceState);
+    void setSurfaceState(State newSurfaceState, bool performAnimation = true);
     QBindable<State> bindableSurfaceState();
     bool isNormal() const;
     bool isMaximized() const;
@@ -282,9 +282,9 @@ public Q_SLOTS:
     // for titlebar
     void requestMinimize(bool onAnimation = true);
     void requestCancelMinimize(bool onAnimation = true);
-    void requestMaximize();
-    void requestCancelMaximize();
-    void requestToggleMaximize();
+    void requestMaximize(bool onAnimation = true);
+    void requestCancelMaximize(bool onAnimation = true);
+    void requestToggleMaximize(bool onAnimation = true);
     void requestFullscreen();
     void requestCancelFullscreen();
     void requestClose();
@@ -384,9 +384,11 @@ private:
     Q_SLOT void onHideAnimationFinished();
     void updateExplicitAlwaysOnTop();
     void startMinimizeAnimation(const QRectF &iconGeometry, uint direction);
+    void startMaximizeAnimation(const QRectF &geometry, uint direction);
     Q_SLOT void onMinimizeAnimationFinished();
     void startShowDesktopAnimation(bool show);
     Q_SLOT void onShowDesktopAnimationFinished();
+    void applyStateGeometry(const QRectF &targetGeometry);
     void updateHasActiveCapability(ActiveControlState state, bool value);
     void completeSplashTransition(const QSizeF &targetImplicitSize, bool hideDecoration = false);
 
@@ -455,6 +457,7 @@ private:
     uint m_hideByshowDesk : 1;
     uint m_hideByLockScreen : 1;
     uint m_confirmHideByLockScreen : 1;
+    uint m_ignoreNormalGeometryUpdate : 1;
     uint m_blur : 1;
     uint m_isActivated : 1;
     SurfaceRole m_surfaceRole = SurfaceRole::Normal;

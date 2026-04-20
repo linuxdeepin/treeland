@@ -178,6 +178,83 @@
             "permissions": "readwrite",
             "visibility": "public"
         },
+        "enableMinimizeAnimation": {
+            "value": true,
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Enable minimize animation",
+            "name[zh_CN]": "启用最小化动效",
+            "description": "Enable/disable minimize animation",
+            "description[zh_CN]": "启用或禁用最小化动效",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "enableMaximizeAnimation": {
+            "value": true,
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Enable maximize animation",
+            "name[zh_CN]": "启用最大化动效",
+            "description": "Enable/disable maximize animation",
+            "description[zh_CN]": "启用或禁用最大化动效",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "enableWindowOpenCloseAnimation": {
+            "value": true,
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Enable window open/close animation",
+            "name[zh_CN]": "启用窗口打开/关闭动效",
+            "description": "Enable/disable window appearance and closing animation",
+            "description[zh_CN]": "启用或禁用窗口打开和关闭时的动效",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "enableLayerShellAnimation": {
+            "value": true,
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Enable layer shell animation",
+            "name[zh_CN]": "启用面板动效",
+            "description": "Enable/disable layer shell surface animation (taskbar, panel, dock)",
+            "description[zh_CN]": "启用或禁用面板类表面的动效（任务栏、停靠栏等）",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "enableLaunchpadAnimation": {
+            "value": true,
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Enable launchpad animation",
+            "name[zh_CN]": "启用启动器动效",
+            "description": "Enable/disable launchpad show/hide animation",
+            "description[zh_CN]": "启用或禁用启动器显示和隐藏动效",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "enableShowDesktopAnimation": {
+            "value": true,
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Enable show desktop animation",
+            "name[zh_CN]": "启用显示桌面动效",
+            "description": "Enable/disable window fade animation when showing desktop",
+            "description[zh_CN]": "启用或禁用进入显示桌面时的窗口淡出动效",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "enableWorkspaceAnimation": {
+            "value": true,
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Enable workspace switching animation",
+            "name[zh_CN]": "启用工作区切换动效",
+            "description": "Enable/disable workspace slide animation when switching",
+            "description[zh_CN]": "启用或禁用切换工作区时的滑动动效",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
         "maxWorkspace": {
             "value": 6,
             "serial": 0,
