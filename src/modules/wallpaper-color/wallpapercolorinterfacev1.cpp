@@ -103,7 +103,7 @@ void WallpaperColorInterfaceV1::create(WServer *server)
 }
 
 void WallpaperColorInterfaceV1::destroy([[maybe_unused]] WServer *server) {
-    d = nullptr;
+    d->globalRemove();
 }
 
 wl_global *WallpaperColorInterfaceV1::global() const

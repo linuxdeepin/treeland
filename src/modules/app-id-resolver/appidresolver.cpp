@@ -155,6 +155,11 @@ bool AppIdResolverManager::resolvePidfd(int pidfd, std::function<void(const QStr
     return true;
 }
 
+void AppIdResolverManager::destroy_global()
+{
+    delete this;
+}
+
 // ---------------- WServerInterface -----------------
 
 void AppIdResolverManager::create(WServer *server)

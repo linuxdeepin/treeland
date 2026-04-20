@@ -117,7 +117,7 @@ void TreelandWallpaperManagerInterfaceV1::create(WServer *server)
 
 void TreelandWallpaperManagerInterfaceV1::destroy([[maybe_unused]] WServer *server)
 {
-    d = nullptr;
+    d->globalRemove();
 }
 
 wl_global *TreelandWallpaperManagerInterfaceV1::global() const

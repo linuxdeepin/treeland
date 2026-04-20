@@ -83,7 +83,7 @@ void TreelandWallpaperNotifierInterfaceV1::create(WServer *server)
 
 void TreelandWallpaperNotifierInterfaceV1::destroy([[maybe_unused]] WServer *server)
 {
-    d = nullptr;
+    d->globalRemove();
 }
 
 wl_global *TreelandWallpaperNotifierInterfaceV1::global() const
