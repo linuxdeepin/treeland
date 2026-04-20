@@ -1,7 +1,7 @@
-// Copyright (C) 2024 Dingyuan Zhang <lxz@mkacg.com>.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
-#include "modules/personalization/personalizationmanager.h"
+#include "modules/personalization/personalizationmanagerinterfacev1.h"
 
 #include <wserver.h>
 
@@ -29,12 +29,12 @@ private Q_SLOTS:
 
     void testCreate()
     {
-        QVERIFY(m_server->attach<PersonalizationV1>(m_server) != nullptr);
+        QVERIFY(m_server->attach<PersonalizationManagerInterfaceV1>(m_server) != nullptr);
     }
 
     void verifyPersonalization()
     {
-        auto protocol = m_server->findChild<PersonalizationV1 *>();
+        auto protocol = m_server->findChild<PersonalizationManagerInterfaceV1 *>();
         QVERIFY(protocol != nullptr);
     }
 
