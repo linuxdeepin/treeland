@@ -35,7 +35,7 @@
 #include "modules/ddm/ddminterfacev1.h"
 #include "modules/keystate/keystate.h"
 #include "modules/output-manager/outputmanagement.h"
-#include "modules/personalization/personalizationmanager.h"
+#include "modules/personalization/personalizationmanagerinterfacev1.h"
 #include "modules/prelaunch-splash/prelaunchsplash.h"
 #include "modules/screensaver/screensaverinterfacev1.h"
 #include "modules/shortcut/shortcutcontroller.h"
@@ -444,7 +444,7 @@ void Helper::onOutputAdded(WOutput *output)
     m_outputManager->newOutput(output);
 
     m_wallpaperColorV1->updateWallpaperColor(output->name(),
-                                             m_personalization->backgroundIsDark(output->name()));
+                                             m_personalizationInterfaceV1->backgroundIsDark(output->name()));
 
     QString cache_location = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
     QSettings settings(cache_location + "/output.ini", QSettings::IniFormat);
@@ -1051,7 +1051,7 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
 
     if (isXdgToplevel || isXdgPopup || isLayer) {
         auto *attached =
-            new Personalization(wrapper->shellSurface(), m_personalization, wrapper);
+            new Personalization(wrapper->shellSurface(), m_personalizationInterfaceV1, wrapper);
         connect(wrapper, &SurfaceWrapper::aboutToBeInvalidated,
                 attached, &Personalization::deleteLater);
 
@@ -1331,14 +1331,14 @@ void Helper::init(Treeland::Treeland *treeland)
                 m_captureSelector->deleteLater();
             }
         });
-    m_personalization = m_server->attach<PersonalizationV1>();
+    m_personalizationInterfaceV1 = m_server->attach<PersonalizationManagerInterfaceV1>();
 
     auto updateCurrentUser = [this] {
         m_config.reset(TreelandUserConfig::createByName("org.deepin.dde.treeland.user",
                                                   "org.deepin.dde.treeland",
                                                   "/" + m_userModel->currentUserName()));
         auto user = m_userModel->currentUser();
-        m_personalization->setUserId(user ? user->UID() : getuid());
+        m_personalizationInterfaceV1->setUserId(user ? user->UID() : getuid());
         // TODO(YaoBing Xiao): remove "dde"
         if (m_userModel->currentUserName() == "dde") {
             return;
@@ -1362,8 +1362,8 @@ void Helper::init(Treeland::Treeland *treeland)
 
     updateCurrentUser();
 
-    connect(m_personalization,
-            &PersonalizationV1::backgroundChanged,
+    connect(m_personalizationInterfaceV1,
+            &PersonalizationManagerInterfaceV1::backgroundChanged,
             this,
             [this](const QString &output, bool isdark) {
                 m_wallpaperColorV1->updateWallpaperColor(output, isdark);
@@ -1372,7 +1372,7 @@ void Helper::init(Treeland::Treeland *treeland)
     for (auto output : m_rootSurfaceContainer->outputs()) {
         const QString &outputName = output->output()->name();
         m_wallpaperColorV1->updateWallpaperColor(outputName,
-                                                 m_personalization->backgroundIsDark(outputName));
+                                                 m_personalizationInterfaceV1->backgroundIsDark(outputName));
     }
 
     connect(m_windowManagementInterfaceV1,
@@ -2347,11 +2347,6 @@ Helper::OutputMode Helper::outputMode() const
 void Helper::addSocket(WSocket *socket)
 {
     m_server->addSocket(socket);
-}
-
-PersonalizationV1 *Helper::personalization() const
-{
-    return m_personalization;
 }
 
 bool Helper::toggleDebugMenuBar()

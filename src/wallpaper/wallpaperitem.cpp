@@ -5,7 +5,6 @@
 
 #include "core/qmlengine.h"
 #include "seat/helper.h"
-#include "modules/personalization/personalizationmanager.h"
 #include "workspace/workspacemodel.h"
 #include "wallpapershellinterfacev1.h"
 #include "wallpaper/wallpapermanager.h"

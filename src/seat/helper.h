@@ -109,7 +109,7 @@ class Output;
 class OutputConfigState;
 class OutputLifecycleManager;
 class OutputManagerV1;
-class PersonalizationV1;
+class PersonalizationManagerInterfaceV1;
 class PrelaunchSplash;
 class RootSurfaceContainer;
 class ScreensaverInterfaceV1;
@@ -202,8 +202,6 @@ public:
 
     void addSocket(WSocket *socket);
     [[nodiscard]] WXWayland *createXWayland();
-
-    PersonalizationV1 *personalization() const;
 
     WSeat *seat() const;
 
@@ -390,7 +388,7 @@ private:
     WForeignToplevel *m_foreignToplevel = nullptr;
     WExtForeignToplevelListV1 *m_extForeignToplevelListV1 = nullptr;
     ShortcutManagerV2 *m_shortcutManager = nullptr;
-    PersonalizationV1 *m_personalization = nullptr;
+    PersonalizationManagerInterfaceV1 *m_personalizationInterfaceV1 = nullptr;
     WallpaperColorInterfaceV1 *m_wallpaperColorV1 = nullptr;
     WOutputManagerV1 *m_outputManager = nullptr;
     WindowManagementInterfaceV1 *m_windowManagementInterfaceV1 = nullptr;
