@@ -1,23 +1,19 @@
 find_package(TreelandProtocols REQUIRED)
 
-ws_generate_local(server ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-personalization-manager-v1.xml treeland-personalization-manager-protocol)
+local_qtwayland_server_protocol_treeland(libtreeland
+    PROTOCOL ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-personalization-manager-v1.xml
+    BASENAME treeland-personalization-manager-v1
+)
 
 find_package(Dtk6Core REQUIRED)
 
 set(PUBLIC_HEADERS
-    ${CMAKE_SOURCE_DIR}/src/modules/personalization/personalizationmanager.h
-    ${CMAKE_SOURCE_DIR}/src/modules/personalization/impl/personalization_manager_impl.h
-    ${CMAKE_SOURCE_DIR}/src/modules/personalization/impl/appearance_impl.h
-    ${CMAKE_SOURCE_DIR}/src/modules/personalization/impl/types.h
-    ${CMAKE_SOURCE_DIR}/src/modules/personalization/impl/font_impl.h
+    ${CMAKE_SOURCE_DIR}/src/modules/personalization/personalizationmanagerinterfacev1.h
 )
 
 set(SRCS
-    ${CMAKE_SOURCE_DIR}/src/modules/personalization/personalizationmanager.cpp
-    ${CMAKE_SOURCE_DIR}/src/modules/personalization/impl/personalization_manager_impl.cpp
-    ${CMAKE_SOURCE_DIR}/src/modules/personalization/impl/appearance_impl.cpp
-    ${CMAKE_SOURCE_DIR}/src/modules/personalization/impl/font_impl.cpp
-    ${WAYLAND_PROTOCOLS_OUTPUTDIR}/treeland-personalization-manager-protocol.c
+    ${CMAKE_SOURCE_DIR}/src/modules/personalization/personalizationmanagerinterfacev1.cpp
+    ${CMAKE_BINARY_DIR}/src/modules/personalization/wayland-treeland-personalization-manager-v1-server-protocol.c
 )
 
 impl_treeland(
@@ -26,6 +22,8 @@ impl_treeland(
     SOURCE
         ${PUBLIC_HEADERS}
         ${SRCS}
+    INCLUDE
+        $<BUILD_INTERFACE:${WAYLAND_PROTOCOLS_OUTPUTDIR}>
 )
 
 qt_add_resources(libtreeland "default_background"
