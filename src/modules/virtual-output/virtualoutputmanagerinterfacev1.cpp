@@ -194,7 +194,7 @@ void VirtualOutputManagerInterfaceV1::create(WServer *server)
 }
 
 void VirtualOutputManagerInterfaceV1::destroy([[maybe_unused]] WServer *server) {
-    d = nullptr;
+    d->globalRemove();
 }
 
 wl_global *VirtualOutputManagerInterfaceV1::global() const

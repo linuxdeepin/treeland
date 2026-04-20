@@ -116,7 +116,7 @@ void WindowManagementInterfaceV1::create(WServer *server)
 }
 
 void WindowManagementInterfaceV1::destroy([[maybe_unused]] WServer *server) {
-    d = nullptr;
+    d->globalRemove();
 }
 
 wl_global *WindowManagementInterfaceV1::global() const
