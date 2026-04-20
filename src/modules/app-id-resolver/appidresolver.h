@@ -70,6 +70,7 @@ Q_SIGNALS:
     void availableChanged();
 
 protected: // protocol generated virtuals
+    void destroy_global() override;
     void destroy(Resource *resource) override;
     void get_resolver(Resource *resource, uint32_t id) override;
 

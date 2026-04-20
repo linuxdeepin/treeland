@@ -81,6 +81,11 @@ public:
     }
 
 protected:
+    void destroy_global() override
+    {
+        delete q;
+    }
+
     void destroy(Resource *resource) override
     {
         wl_resource_destroy(resource->handle);
@@ -135,8 +140,6 @@ void PrelaunchSplash::create(WAYLIB_SERVER_NAMESPACE::WServer *server)
 void PrelaunchSplash::destroy(WAYLIB_SERVER_NAMESPACE::WServer *server)
 {
     Q_UNUSED(server);
-    if (!d->isGlobal())
-        return;
     d->globalRemove();
     qCDebug(prelaunchSplash) << "PrelaunchSplash v2 global removed";
 }
