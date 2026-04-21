@@ -43,7 +43,6 @@ public:
 
     TreelandWallpaperManagerInterfaceV1 *q = nullptr;
 protected:
-    void destroy_global() override;
     void destroy(Resource *resource) override;
     void get_treeland_wallpaper(Resource *resource,
                                 uint32_t id,
@@ -60,11 +59,6 @@ TreelandWallpaperManagerInterfaceV1Private::TreelandWallpaperManagerInterfaceV1P
 wl_global *TreelandWallpaperManagerInterfaceV1Private::global() const
 {
     return m_global;
-}
-
-void TreelandWallpaperManagerInterfaceV1Private::destroy_global()
-{
-    delete q;
 }
 
 void TreelandWallpaperManagerInterfaceV1Private::destroy(Resource *resource)

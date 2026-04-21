@@ -22,7 +22,6 @@ public:
     QList<QString> producedWallpapers;
 
 protected:
-    void destroy_global() override;
     void destroy(Resource *resource) override;
     void get_treeland_wallpaper_surface(Resource *resource,
                                         uint32_t id,
@@ -38,11 +37,6 @@ TreelandWallpaperShellInterfaceV1Private::TreelandWallpaperShellInterfaceV1Priva
 wl_global *TreelandWallpaperShellInterfaceV1Private::global() const
 {
     return m_global;
-}
-
-void TreelandWallpaperShellInterfaceV1Private::destroy_global()
-{
-    delete q;
 }
 
 void TreelandWallpaperShellInterfaceV1Private::destroy(Resource *resource)
