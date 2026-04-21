@@ -1030,8 +1030,8 @@ bool Scanner::process()
                     printf("\n");
                     printf("    {\n");
                     printf("        Q_UNUSED(client);\n");
-                    printf("        Resource *r = Resource::fromResource(resource);\n");
-                    printf("        if (Q_UNLIKELY(!r->%s_object)) {\n", interfaceNameStripped);
+                    printf("        Resource *qResource = Resource::fromResource(resource);\n");
+                    printf("        if (Q_UNLIKELY(!qResource->%s_object)) {\n", interfaceNameStripped);
                     for (const WaylandArgument &a : e.arguments) {
                         if (a.type == QByteArrayLiteral("fd"))
                             printf("        close(%s);\n", a.name.constData());
@@ -1040,11 +1040,11 @@ bool Scanner::process()
                         printf("            wl_resource_destroy(resource);\n");
                     printf("            return;\n");
                     printf("        }\n");
-                    printf("        static_cast<%s *>(r->%s_object)->%s(\n",
+                    printf("        static_cast<%s *>(qResource->%s_object)->%s(\n",
                            interfaceName,
                            interfaceNameStripped,
                            e.name.constData());
-                    printf("            r");
+                    printf("            qResource");
                     for (const WaylandArgument &a : e.arguments) {
                         printf(",\n");
                         QByteArray cType = waylandToCType(a.type, a.interface);
