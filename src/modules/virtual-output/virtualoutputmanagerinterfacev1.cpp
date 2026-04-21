@@ -95,7 +95,6 @@ wl_global *VirtualOutputManagerInterfaceV1Private::global() const
 void VirtualOutputManagerInterfaceV1Private::destroy_global()
 {
     m_resource.clear();
-    delete q;
 }
 
 void VirtualOutputManagerInterfaceV1Private::bind_resource(Resource *resource)

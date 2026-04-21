@@ -149,7 +149,6 @@ public:
     OutputManagerV1 *q;
 
 protected:
-    void destroy_global() override;
     void bind_resource(Resource *resource) override;
     void destroy(Resource *resource) override;
 
@@ -165,11 +164,6 @@ OutputManagerV1Private::OutputManagerV1Private(OutputManagerV1 *_q)
 wl_global *OutputManagerV1Private::global() const
 {
     return m_global;
-}
-
-void OutputManagerV1Private::destroy_global()
-{
-    delete q;
 }
 
 void OutputManagerV1Private::bind_resource(Resource *resource)

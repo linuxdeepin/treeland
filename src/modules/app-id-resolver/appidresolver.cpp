@@ -137,7 +137,6 @@ protected:
     void destroy_global() override
     {
         qCDebug(treelandAppIdResolver) << "AppIdResolverManager global destroyed";
-        delete q;
     }
 
     void destroy(Resource *resource) override

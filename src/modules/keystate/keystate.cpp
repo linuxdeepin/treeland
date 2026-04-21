@@ -31,7 +31,6 @@ public:
     QMetaObject::Connection m_keyboardConnection{};
 
 protected:
-    void destroy_global() override;
     void destroy(Resource *resource) override;
     void fetchStates(Resource *resource) override;
 };
@@ -61,11 +60,6 @@ void KeyStateV5Private::setKeyboard(WInputDevice *keyboard)
     for (const auto &resource : resources) {
         fetchStates(resource);
     }
-}
-
-void KeyStateV5Private::destroy_global()
-{
-    delete q;
 }
 
 void KeyStateV5Private::destroy(Resource *resource)
