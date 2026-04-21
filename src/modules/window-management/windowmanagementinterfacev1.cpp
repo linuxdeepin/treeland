@@ -54,7 +54,6 @@ void WindowManagementInterfaceV1Private::destroy_resource(Resource *resource)
 
 void WindowManagementInterfaceV1Private::destroy_global() {
     m_resource.clear();
-    delete q;
 }
 
 void WindowManagementInterfaceV1Private::destroy(Resource *resource) {

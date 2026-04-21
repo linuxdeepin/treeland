@@ -46,7 +46,6 @@ void TreelandWallpaperNotifierInterfaceV1Private::destroy_resource(Resource *res
 void TreelandWallpaperNotifierInterfaceV1Private::destroy_global()
 {
     m_resource.clear();
-    delete q;
 }
 
 void TreelandWallpaperNotifierInterfaceV1Private::destroy(Resource *resource)

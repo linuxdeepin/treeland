@@ -81,7 +81,6 @@ protected:
     void destroy_global() override
     {
         qCDebug(prelaunchSplash) << "PrelaunchSplash v2 global destroyed";
-        delete q;
     }
 
     void destroy(Resource *resource) override

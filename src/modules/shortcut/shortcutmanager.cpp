@@ -100,7 +100,6 @@ public:
     WSocket* m_activeSessionSocket = nullptr;
 
 protected:
-    void destroy_global() override;
     void destroy_resource(Resource *resource) override;
     void destroy(Resource *resource) override;
     void acquire(Resource *resource) override;
@@ -217,11 +216,6 @@ void ShortcutManagerV2Private::sendInvalidCommit(WSocket *socket)
     wl_resource_post_error(resource->handle,
                            error_invalid_commit,
                            "Commit sent before last commit is processed.");
-}
-
-void ShortcutManagerV2Private::destroy_global()
-{
-    delete q;
 }
 
 void ShortcutManagerV2Private::destroy_resource(Resource *resource)

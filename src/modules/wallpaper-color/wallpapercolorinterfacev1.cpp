@@ -60,7 +60,6 @@ void WallpaperColorInterfaceV1Private::destroy_resource(Resource *resource)
 
 void WallpaperColorInterfaceV1Private::destroy_global() {
     m_resource.clear();
-    delete q;
 }
 
 void WallpaperColorInterfaceV1Private::destroy(Resource *resource) {

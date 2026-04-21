@@ -35,7 +35,6 @@ public:
     DDEShellManagerInterfaceV1 *q;
 
 protected:
-    void destroy_global() override;
     void get_window_overlap_checker(Resource *resource, uint32_t id) override;
     void get_shell_surface(Resource *resource, uint32_t id, struct ::wl_resource *surface) override;
     void get_treeland_dde_active(Resource *resource, uint32_t id, struct ::wl_resource *seat) override;
@@ -89,11 +88,6 @@ DDEShellManagerInterfaceV1Private::DDEShellManagerInterfaceV1Private(DDEShellMan
 wl_global *DDEShellManagerInterfaceV1Private::global() const
 {
     return m_global;
-}
-
-void DDEShellManagerInterfaceV1Private::destroy_global()
-{
-    delete q;
 }
 
 void DDEShellManagerInterfaceV1Private::get_window_overlap_checker(Resource *resource,
