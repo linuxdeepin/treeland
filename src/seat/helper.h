@@ -10,7 +10,6 @@
 #include "utils/fpsdisplaymanager.h"
 #include "modules/wallpaper/wallpapermanagerinterfacev1.h"
 #include "modules/wallpaper/wallpapernotifierinterfacev1.h"
-#include "wallpaper/wallpaperconfig.h"
 
 #include <wglobal.h>
 #include <wqmlcreator.h>
@@ -110,7 +109,6 @@ class OutputConfigState;
 class OutputLifecycleManager;
 class OutputManagerV1;
 class PersonalizationManagerInterfaceV1;
-class PrelaunchSplash;
 class RootSurfaceContainer;
 class ScreensaverInterfaceV1;
 class SessionManager;
@@ -131,7 +129,6 @@ class WindowManagementInterfaceV1;
 class WindowPickerInterface;
 class WallpaperManager;
 class WallpaperItem;
-class WineWindowStateManager;
 
 struct wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request;
 struct wlr_idle_inhibitor_v1;
@@ -395,8 +392,6 @@ private:
     WindowManagementInterfaceV1 *m_windowManagementInterfaceV1 = nullptr;
     WindowManagementInterfaceV1::DesktopState m_showDesktop = WindowManagementInterfaceV1::DesktopState::Normal;
     DDEShellManagerInterfaceV1 *m_ddeShellV1 = nullptr;
-    PrelaunchSplash *m_prelaunchSplash = nullptr; // treeland prelaunch splash protocol
-    WineWindowStateManager *m_wineWindowStateManager = nullptr;
     VirtualOutputManagerInterfaceV1 *m_virtualOutputInterfaceV1 = nullptr;
     OutputManagerV1 *m_outputManagerV1 = nullptr;
     DDMInterfaceV1 *m_ddmInterfaceV1 = nullptr;

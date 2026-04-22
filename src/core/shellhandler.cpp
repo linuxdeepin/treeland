@@ -10,6 +10,8 @@
 #include "modules/app-id-resolver/appidresolver.h"
 #include "modules/dde-shell/ddeshellmanagerinterfacev1.h"
 #include "modules/foreign-toplevel/foreigntoplevelmanagerv1.h"
+#include "modules/prelaunch-splash/prelaunchsplash.h"
+#include "modules/wine-window-state/winewindowstate.h"
 #include "rootsurfacecontainer.h"
 #include "seat/helper.h"
 #include "surface/surfacewrapper.h"
@@ -269,9 +271,31 @@ void ShellHandler::createComponent(QmlEngine *engine, QQuickItem *parentItem)
     setupDockPreview();
 }
 
-void ShellHandler::initXdgShell(WServer *server)
+void ShellHandler::init(WServer *server, WSeat *seat)
 {
+    Q_ASSERT_X(server, Q_FUNC_INFO, "server must not be null");
+    Q_ASSERT_X(seat, Q_FUNC_INFO, "seat must not be null");
+    Q_ASSERT_X(!m_prelaunchSplash, Q_FUNC_INFO, "Only init once!");
+    Q_ASSERT_X(!m_appIdResolverManager, Q_FUNC_INFO, "Only init once!");
+    Q_ASSERT_X(!m_wineWindowStateManager, Q_FUNC_INFO, "Only init once!");
     Q_ASSERT_X(!m_xdgShell, Q_FUNC_INFO, "Only init once!");
+    Q_ASSERT_X(!m_layerShell, Q_FUNC_INFO, "Only init once!");
+    Q_ASSERT_X(!m_wallpaperShell, Q_FUNC_INFO, "Only init once!");
+    Q_ASSERT_X(!m_inputMethodHelper, Q_FUNC_INFO, "Only init once!");
+
+    m_prelaunchSplash = server->attach<PrelaunchSplash>();
+    connect(m_prelaunchSplash,
+            &PrelaunchSplash::splashRequested,
+            this,
+            &ShellHandler::handlePrelaunchSplashRequested);
+    connect(m_prelaunchSplash,
+            &PrelaunchSplash::splashCloseRequested,
+            this,
+            &ShellHandler::handlePrelaunchSplashClosed);
+
+    m_appIdResolverManager = server->attach<AppIdResolverManager>();
+    m_wineWindowStateManager = server->attach<WineWindowStateManager>();
+
     m_xdgShell = server->attach<WXdgShell>(TREELAND_XDG_SHELL_VERSION);
     connect(m_xdgShell,
             &WXdgShell::toplevelSurfaceAdded,
@@ -286,24 +310,26 @@ void ShellHandler::initXdgShell(WServer *server)
             &WXdgShell::popupSurfaceRemoved,
             this,
             &ShellHandler::onXdgPopupSurfaceRemoved);
-}
 
-void ShellHandler::initLayerShell(WServer *server)
-{
-    Q_ASSERT_X(!m_layerShell, Q_FUNC_INFO, "Only init once!");
-    Q_ASSERT_X(m_xdgShell, Q_FUNC_INFO, "Init xdg shell before layer shell!");
     m_layerShell = server->attach<WLayerShell>(m_xdgShell);
     connect(m_layerShell, &WLayerShell::surfaceAdded, this, &ShellHandler::onLayerSurfaceAdded);
     connect(m_layerShell, &WLayerShell::surfaceRemoved, this, &ShellHandler::onLayerSurfaceRemoved);
-}
 
-void ShellHandler::initWallpaperShell(Waylib::Server::WServer *server)
-{
-    Q_ASSERT_X(!m_wallpaperShell, Q_FUNC_INFO, "Only init once!");
     m_wallpaperShell = server->attach<TreelandWallpaperShellInterfaceV1>(m_wallpaperShell);
     if (Helper::instance()->isDDMDisplay()) {
         m_wallpaperShell->setFilter([this](WClient *client) { return Helper::instance()->sessionManager()->isDDEUserClient(client); });
     }
+
+    m_inputMethodHelper = new WInputMethodHelper(server, seat);
+
+    connect(m_inputMethodHelper,
+            &WInputMethodHelper::inputPopupSurfaceV2Added,
+            this,
+            &ShellHandler::onInputPopupSurfaceV2Added);
+    connect(m_inputMethodHelper,
+            &WInputMethodHelper::inputPopupSurfaceV2Removed,
+            this,
+            &ShellHandler::onInputPopupSurfaceV2Removed);
 }
 
 WXWayland *ShellHandler::createXWayland(WServer *server,
@@ -331,21 +357,6 @@ void ShellHandler::removeXWayland(WXWayland *xwayland)
     if (auto server = WServer::from(xwayland))
         server->detach(xwayland);
     delete xwayland;
-}
-
-void ShellHandler::initInputMethodHelper(WServer *server, WSeat *seat)
-{
-    Q_ASSERT_X(!m_inputMethodHelper, Q_FUNC_INFO, "Only init once!");
-    m_inputMethodHelper = new WInputMethodHelper(server, seat);
-
-    connect(m_inputMethodHelper,
-            &WInputMethodHelper::inputPopupSurfaceV2Added,
-            this,
-            &ShellHandler::onInputPopupSurfaceV2Added);
-    connect(m_inputMethodHelper,
-            &WInputMethodHelper::inputPopupSurfaceV2Removed,
-            this,
-            &ShellHandler::onInputPopupSurfaceV2Removed);
 }
 
 void ShellHandler::onXdgToplevelSurfaceAdded(WXdgToplevelSurface *surface)
