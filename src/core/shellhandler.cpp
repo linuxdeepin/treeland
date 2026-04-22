@@ -12,6 +12,7 @@
 #include "modules/foreign-toplevel/foreigntoplevelmanagerv1.h"
 #include "modules/prelaunch-splash/prelaunchsplash.h"
 #include "modules/wine-window-state/winewindowstate.h"
+#include "modules/wine-window-management/winewindowmanagement.h"
 #include "rootsurfacecontainer.h"
 #include "seat/helper.h"
 #include "surface/surfacewrapper.h"
@@ -278,6 +279,7 @@ void ShellHandler::init(WServer *server, WSeat *seat)
     Q_ASSERT_X(!m_prelaunchSplash, Q_FUNC_INFO, "Only init once!");
     Q_ASSERT_X(!m_appIdResolverManager, Q_FUNC_INFO, "Only init once!");
     Q_ASSERT_X(!m_wineWindowStateManager, Q_FUNC_INFO, "Only init once!");
+    Q_ASSERT_X(!m_wineWindowManagementManager, Q_FUNC_INFO, "Only init once!");
     Q_ASSERT_X(!m_xdgShell, Q_FUNC_INFO, "Only init once!");
     Q_ASSERT_X(!m_layerShell, Q_FUNC_INFO, "Only init once!");
     Q_ASSERT_X(!m_wallpaperShell, Q_FUNC_INFO, "Only init once!");
@@ -295,6 +297,7 @@ void ShellHandler::init(WServer *server, WSeat *seat)
 
     m_appIdResolverManager = server->attach<AppIdResolverManager>();
     m_wineWindowStateManager = server->attach<WineWindowStateManager>();
+    m_wineWindowManagementManager = server->attach<WineWindowManagementManager>();
 
     m_xdgShell = server->attach<WXdgShell>(TREELAND_XDG_SHELL_VERSION);
     connect(m_xdgShell,
