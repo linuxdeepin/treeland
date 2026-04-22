@@ -28,7 +28,6 @@
 #include "greeter/sessionmodel.h"
 #include "input/inputdevice.h"
 #include "interfaces/multitaskviewinterface.h"
-#include "modules/app-id-resolver/appidresolver.h"
 #include "modules/capture/capture.h"
 #include "modules/dde-shell/ddeshellattached.h"
 #include "modules/dde-shell/ddeshellmanagerinterfacev1.h"
@@ -36,12 +35,10 @@
 #include "modules/keystate/keystate.h"
 #include "modules/output-manager/outputmanagement.h"
 #include "modules/personalization/personalizationmanagerinterfacev1.h"
-#include "modules/prelaunch-splash/prelaunchsplash.h"
 #include "modules/screensaver/screensaverinterfacev1.h"
 #include "modules/shortcut/shortcutcontroller.h"
 #include "modules/shortcut/shortcutmanager.h"
 #include "modules/shortcut/shortcutrunner.h"
-#include "modules/wine-window-state/winewindowstate.h"
 #include "modules/wallpaper-color/wallpapercolorinterfacev1.h"
 #include "output/outputconfigstate.h"
 #include "output/output.h"
@@ -1252,25 +1249,6 @@ void Helper::init(Treeland::Treeland *treeland)
     connect(m_backend, &WBackend::outputRemoved, this, &Helper::onOutputRemoved);
 
     m_ddeShellV1 = m_server->attach<DDEShellManagerInterfaceV1>();
-    m_prelaunchSplash = m_server->attach<PrelaunchSplash>();
-    m_shellHandler->m_appIdResolverManager = m_server->attach<AppIdResolverManager>();
-    m_wineWindowStateManager = m_server->attach<WineWindowStateManager>();
-    connect(m_prelaunchSplash,
-            &PrelaunchSplash::splashRequested,
-            m_shellHandler,
-            [this](const QString &appId,
-                   const QString &instanceId,
-                   QW_NAMESPACE::qw_buffer *iconBuffer) {
-                if (m_shellHandler)
-                    m_shellHandler->handlePrelaunchSplashRequested(appId, instanceId, iconBuffer);
-            });
-    connect(m_prelaunchSplash,
-            &PrelaunchSplash::splashCloseRequested,
-            m_shellHandler,
-            [this](const QString &appId, const QString &instanceId) {
-                if (m_shellHandler)
-                    m_shellHandler->handlePrelaunchSplashClosed(appId, instanceId);
-            });
     connect(m_ddeShellV1, &DDEShellManagerInterfaceV1::toggleMultitaskview, this, [this] {
         if (m_multitaskView) {
             m_multitaskView->toggleMultitaskView(IMultitaskView::ActiveReason::ShortcutKey);
@@ -1285,13 +1263,6 @@ void Helper::init(Treeland::Treeland *treeland)
             this,
             &Helper::handleLockScreen);
     m_shellHandler->createComponent(engine, m_renderWindow->contentItem());
-    m_shellHandler->initXdgShell(m_server);
-    m_shellHandler->initLayerShell(m_server);
-    m_shellHandler->initWallpaperShell(m_server);
-    connect(m_shellHandler->wallpaperShell(),
-            &TreelandWallpaperShellInterfaceV1::wallpaperSurfaceAdded,
-            m_wallpaperManager,
-            &WallpaperManager::handleWallpaperSurfaceAdded);
 
     m_foreignToplevel = m_server->attach<WForeignToplevel>();
     m_extForeignToplevelListV1 = m_server->attach<WExtForeignToplevelListV1>();
@@ -1463,7 +1434,11 @@ void Helper::init(Treeland::Treeland *treeland)
         qCCritical(treelandCore) << "No seat available after initialization, cannot continue";
         return;
     }
-    m_shellHandler->initInputMethodHelper(m_server, m_seat);
+    m_shellHandler->init(m_server, m_seat);
+    connect(m_shellHandler->wallpaperShell(),
+            &TreelandWallpaperShellInterfaceV1::wallpaperSurfaceAdded,
+            m_wallpaperManager,
+            &WallpaperManager::handleWallpaperSurfaceAdded);
 
     m_renderer = WRenderHelper::createRenderer(m_backend->handle());
     if (!m_renderer) {

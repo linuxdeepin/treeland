@@ -15,8 +15,6 @@
 #include <QPointer>
 #include <QSet>
 
-#include <utility>
-
 Q_MOC_INCLUDE("workspace/workspace.h")
 
 QW_BEGIN_NAMESPACE
@@ -32,6 +30,8 @@ class SurfaceContainer;
 class PopupSurfaceContainer;
 class QmlEngine;
 class ForeignToplevelV1;
+class PrelaunchSplash;
+class WineWindowStateManager;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WServer;
@@ -74,9 +74,8 @@ public:
     [[nodiscard]] Workspace *workspace() const;
 
     void createComponent(QmlEngine *engine, QQuickItem *parentItem);
-    void initXdgShell(WAYLIB_SERVER_NAMESPACE::WServer *server);
-    void initLayerShell(WAYLIB_SERVER_NAMESPACE::WServer *server);
-    void initWallpaperShell(WAYLIB_SERVER_NAMESPACE::WServer *server);
+    void init(WAYLIB_SERVER_NAMESPACE::WServer *server,
+              WAYLIB_SERVER_NAMESPACE::WSeat *seat);
     [[nodiscard]] WAYLIB_SERVER_NAMESPACE::WXWayland *createXWayland(
         WAYLIB_SERVER_NAMESPACE::WServer *server,
         WAYLIB_SERVER_NAMESPACE::WSeat *seat,
@@ -84,8 +83,6 @@ public:
         bool lazy);
     // FIXME: never call removeXWayland in treeland.cpp
     void removeXWayland(WAYLIB_SERVER_NAMESPACE::WXWayland *xwayland);
-    void initInputMethodHelper(WAYLIB_SERVER_NAMESPACE::WServer *server,
-                               WAYLIB_SERVER_NAMESPACE::WSeat *seat);
 
     WAYLIB_SERVER_NAMESPACE::WXWayland *defaultXWaylandSocket() const;
     void setupDockPreview(QObject *dockPreview);
@@ -161,6 +158,8 @@ private:
     WAYLIB_SERVER_NAMESPACE::WLayerShell *m_layerShell = nullptr;
     TreelandWallpaperShellInterfaceV1 *m_wallpaperShell = nullptr;
     WAYLIB_SERVER_NAMESPACE::WInputMethodHelper *m_inputMethodHelper = nullptr;
+    PrelaunchSplash *m_prelaunchSplash = nullptr;
+    WineWindowStateManager *m_wineWindowStateManager = nullptr;
     QList<WAYLIB_SERVER_NAMESPACE::WXWayland *> m_xwaylands;
     ForeignToplevelV1 *m_treelandForeignToplevel = nullptr;
 
