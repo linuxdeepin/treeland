@@ -41,6 +41,7 @@
 #include "modules/shortcut/shortcutcontroller.h"
 #include "modules/shortcut/shortcutmanager.h"
 #include "modules/shortcut/shortcutrunner.h"
+#include "modules/wine-window-state/winewindowstate.h"
 #include "modules/wallpaper-color/wallpapercolorinterfacev1.h"
 #include "output/outputconfigstate.h"
 #include "output/output.h"
@@ -1253,6 +1254,7 @@ void Helper::init(Treeland::Treeland *treeland)
     m_ddeShellV1 = m_server->attach<DDEShellManagerInterfaceV1>();
     m_prelaunchSplash = m_server->attach<PrelaunchSplash>();
     m_shellHandler->m_appIdResolverManager = m_server->attach<AppIdResolverManager>();
+    m_wineWindowStateManager = m_server->attach<WineWindowStateManager>();
     connect(m_prelaunchSplash,
             &PrelaunchSplash::splashRequested,
             m_shellHandler,
