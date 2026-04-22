@@ -32,6 +32,7 @@ class QmlEngine;
 class ForeignToplevelV1;
 class PrelaunchSplash;
 class WineWindowStateManager;
+class WineWindowManagementManager;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WServer;
@@ -160,6 +161,7 @@ private:
     WAYLIB_SERVER_NAMESPACE::WInputMethodHelper *m_inputMethodHelper = nullptr;
     PrelaunchSplash *m_prelaunchSplash = nullptr;
     WineWindowStateManager *m_wineWindowStateManager = nullptr;
+    WineWindowManagementManager *m_wineWindowManagementManager = nullptr;
     QList<WAYLIB_SERVER_NAMESPACE::WXWayland *> m_xwaylands;
     ForeignToplevelV1 *m_treelandForeignToplevel = nullptr;
 
