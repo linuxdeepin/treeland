@@ -29,6 +29,8 @@ public:
     explicit WindowManagementInterfaceV1(QObject *parent = nullptr);
     ~WindowManagementInterfaceV1() override;
 
+    QByteArrayView interfaceName() const override;
+
     static constexpr int InterfaceVersion = 1;
     DesktopState desktopState();
     void setDesktopState(DesktopState state);
@@ -41,7 +43,6 @@ protected:
     void create(WServer *server) override;
     void destroy(WServer *server) override;
     wl_global *global() const override;
-    QByteArrayView interfaceName() const override;
 
 private:
     std::unique_ptr<WindowManagementInterfaceV1Private> d;
