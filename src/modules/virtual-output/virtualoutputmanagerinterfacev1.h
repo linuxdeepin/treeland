@@ -20,7 +20,10 @@ public:
     explicit VirtualOutputManagerInterfaceV1(QObject *parent = nullptr);
     ~VirtualOutputManagerInterfaceV1() override;
 
+    QByteArrayView interfaceName() const override;
+
     static constexpr int InterfaceVersion = 1;
+
 Q_SIGNALS:
     void requestCreateVirtualOutput(VirtualOutputInterfaceV1 *interface);
     void destroyVirtualOutput(VirtualOutputInterfaceV1 *interface);
@@ -29,7 +32,6 @@ protected:
     void create(WServer *server) override;
     void destroy(WServer *server) override;
     wl_global *global() const override;
-    QByteArrayView interfaceName() const override;
 
 private:
     friend class VirtualOutputManagerInterfaceV1Private;
