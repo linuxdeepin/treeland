@@ -157,7 +157,8 @@ protected:
 };
 
 OutputManagerV1Private::OutputManagerV1Private(OutputManagerV1 *_q)
-    : q(_q)
+    : QtWaylandServer::treeland_output_manager_v1()
+    , q(_q)
 {
 }
 

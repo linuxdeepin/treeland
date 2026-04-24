@@ -78,8 +78,9 @@ private:
 class AppIdResolverManagerPrivate : public QtWaylandServer::treeland_app_id_resolver_manager_v1
 {
 public:
-    explicit AppIdResolverManagerPrivate(AppIdResolverManager *q)
-        : q(q)
+    explicit AppIdResolverManagerPrivate(AppIdResolverManager *_q)
+        : QtWaylandServer::treeland_app_id_resolver_manager_v1()
+        , q(_q)
     {
     }
 

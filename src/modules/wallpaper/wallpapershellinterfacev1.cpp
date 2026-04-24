@@ -30,7 +30,8 @@ protected:
 };
 
 TreelandWallpaperShellInterfaceV1Private::TreelandWallpaperShellInterfaceV1Private(TreelandWallpaperShellInterfaceV1 *_q)
-    : q(_q)
+    : QtWaylandServer::treeland_wallpaper_shell_v1()
+    , q(_q)
 {
 }
 

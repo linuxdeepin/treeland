@@ -423,13 +423,13 @@ void WallpaperManager::onVideoChanged(int workspaceIndex, const QString &fileSou
     }
 }
 
-void WallpaperManager::onWallpaperNotifierbinded()
+void WallpaperManager::onWallpaperNotifierBound(wl_resource *resource)
 {
     QMap<QString, TreelandWallpaperInterfaceV1::WallpaperType> globalWallpapers = globalValidWallpaper(nullptr, -1);
     QMapIterator<QString, TreelandWallpaperInterfaceV1::WallpaperType> i(globalWallpapers);
     while (i.hasNext()) {
         i.next();
-        Helper::instance()->m_wallpaperNotifierInterfaceV1->sendAdd(static_cast<TreelandWallpaperInterfaceV1::WallpaperType>(i.value()), i.key());
+        Helper::instance()->m_wallpaperNotifierInterfaceV1->sendAddForResource(resource, static_cast<TreelandWallpaperInterfaceV1::WallpaperType>(i.value()), i.key());
     }
 }
 

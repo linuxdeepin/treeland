@@ -122,7 +122,8 @@ void KeyStateV5Private::fetchStates(Resource *resource)
 }
 
 KeyStateV5Private::KeyStateV5Private(WSeat *seat, KeyStateV5 *_q)
-    : q(_q)
+    : QtWaylandServer::org_kde_kwin_keystate()
+    , q(_q)
     , m_seat(seat)
 {
     assert(seat);

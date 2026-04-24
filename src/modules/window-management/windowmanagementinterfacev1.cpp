@@ -20,19 +20,17 @@ public:
     wl_global *global() const;
 
     WindowManagementInterfaceV1 *q;
-    QList<Resource *> m_resource;
 
     uint32_t state = 0; // desktop_state 0: normal, 1: show, 2: preview;
 protected:
     void bind_resource(Resource *resource) override;
-    void destroy_resource(Resource *resource) override;
-    void destroy_global() override;
     void destroy(Resource *resource) override;
     void set_desktop(Resource *resource, uint32_t state) override;
 };
 
 WindowManagementInterfaceV1Private::WindowManagementInterfaceV1Private(WindowManagementInterfaceV1 *_q)
-    : q(_q)
+    : QtWaylandServer::treeland_window_management_v1()
+    , q(_q)
 {
 }
 
@@ -43,17 +41,7 @@ wl_global *WindowManagementInterfaceV1Private::global() const
 
 void WindowManagementInterfaceV1Private::bind_resource(Resource *resource)
 {
-    m_resource.append(resource);
     send_show_desktop(resource->handle, state);
-}
-
-void WindowManagementInterfaceV1Private::destroy_resource(Resource *resource)
-{
-    m_resource.removeOne(resource);
-}
-
-void WindowManagementInterfaceV1Private::destroy_global() {
-    m_resource.clear();
 }
 
 void WindowManagementInterfaceV1Private::destroy(Resource *resource) {
@@ -100,7 +88,7 @@ void WindowManagementInterfaceV1::setDesktopState(DesktopState state)
     }
 
     d->state = s;
-    for (auto resource : d->m_resource) {
+    for (const auto &resource : d->resourceMap()) {
         d->send_show_desktop(resource->handle, s);
     }
 

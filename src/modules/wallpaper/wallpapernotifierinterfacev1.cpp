@@ -11,19 +11,17 @@ class TreelandWallpaperNotifierInterfaceV1Private : public QtWaylandServer::tree
 public:
     TreelandWallpaperNotifierInterfaceV1Private(TreelandWallpaperNotifierInterfaceV1 *_q);
     wl_global *global() const;
-    QList<Resource *> m_resource;
 
     TreelandWallpaperNotifierInterfaceV1 *q = nullptr;
 
 protected:
     void bind_resource(Resource *resource) override;
-    void destroy_resource(Resource *resource) override;
-    void destroy_global() override;
     void destroy(Resource *resource) override;
 };
 
 TreelandWallpaperNotifierInterfaceV1Private::TreelandWallpaperNotifierInterfaceV1Private(TreelandWallpaperNotifierInterfaceV1 *_q)
-    : q(_q)
+    : QtWaylandServer::treeland_wallpaper_notifier_v1()
+    , q(_q)
 {
 }
 
@@ -34,18 +32,7 @@ wl_global *TreelandWallpaperNotifierInterfaceV1Private::global() const
 
 void TreelandWallpaperNotifierInterfaceV1Private::bind_resource(Resource *resource)
 {
-    m_resource.append(resource);
-    Q_EMIT q->binded();
-}
-
-void TreelandWallpaperNotifierInterfaceV1Private::destroy_resource(Resource *resource)
-{
-    m_resource.removeOne(resource);
-}
-
-void TreelandWallpaperNotifierInterfaceV1Private::destroy_global()
-{
-    m_resource.clear();
+    Q_EMIT q->bound(resource->handle);
 }
 
 void TreelandWallpaperNotifierInterfaceV1Private::destroy(Resource *resource)
@@ -61,14 +48,14 @@ TreelandWallpaperNotifierInterfaceV1::TreelandWallpaperNotifierInterfaceV1(QObje
 
 void TreelandWallpaperNotifierInterfaceV1::sendAdd(TreelandWallpaperInterfaceV1::WallpaperType type, const QString &fileSource)
 {
-    for (auto resource : d->m_resource) {
+    for (const auto &resource : d->resourceMap()) {
         d->send_add(resource->handle, type, fileSource);
     }
 }
 
 void TreelandWallpaperNotifierInterfaceV1::sendRemove(const QString &fileSource)
 {
-    for (auto resource : d->m_resource) {
+    for (const auto &resource : d->resourceMap()) {
         d->send_remove(resource->handle, fileSource);
     }
 }
@@ -93,4 +80,9 @@ wl_global *TreelandWallpaperNotifierInterfaceV1::global() const
 QByteArrayView TreelandWallpaperNotifierInterfaceV1::interfaceName() const
 {
     return d->interfaceName();
+}
+
+void TreelandWallpaperNotifierInterfaceV1::sendAddForResource(wl_resource *resource, TreelandWallpaperInterfaceV1::WallpaperType type, const QString &fileSource)
+{
+    d->send_add(resource, type, fileSource);
 }
