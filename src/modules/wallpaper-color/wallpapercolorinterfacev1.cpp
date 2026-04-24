@@ -26,19 +26,17 @@ public:
     WallpaperColorInterfaceV1 *q;
     QMap<wl_resource *, QList<QString>> watch_lists;
     QMap<QString, bool> color_map;
-    QList<Resource *> m_resource;
 
 protected:
-    void bind_resource(Resource *resource) override;
     void destroy_resource(Resource *resource) override;
-    void destroy_global() override;
     void destroy(Resource *resource) override;
     void watch(Resource *resource, const QString &output) override;
     void unwatch(Resource *resource, const QString &output) override;
 };
 
 WallpaperColorInterfaceV1Private::WallpaperColorInterfaceV1Private(WallpaperColorInterfaceV1 *_q)
-    : q(_q)
+    : QtWaylandServer::treeland_wallpaper_color_manager_v1()
+    , q(_q)
 {
 }
 
@@ -47,19 +45,9 @@ wl_global *WallpaperColorInterfaceV1Private::global() const
     return m_global;
 }
 
-void WallpaperColorInterfaceV1Private::bind_resource(Resource *resource)
-{
-    m_resource.append(resource);
-}
-
 void WallpaperColorInterfaceV1Private::destroy_resource(Resource *resource)
 {
-    m_resource.removeOne(resource);
     watch_lists.remove(resource->handle);
-}
-
-void WallpaperColorInterfaceV1Private::destroy_global() {
-    m_resource.clear();
 }
 
 void WallpaperColorInterfaceV1Private::destroy(Resource *resource) {

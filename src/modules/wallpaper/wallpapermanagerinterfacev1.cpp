@@ -52,7 +52,8 @@ protected:
 };
 
 TreelandWallpaperManagerInterfaceV1Private::TreelandWallpaperManagerInterfaceV1Private(TreelandWallpaperManagerInterfaceV1 *_q)
-    : q(_q)
+    : QtWaylandServer::treeland_wallpaper_manager_v1()
+    , q(_q)
 {
 }
 

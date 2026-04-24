@@ -1556,9 +1556,9 @@ void Helper::init(Treeland::Treeland *treeland)
         m_wallpaperNotifierInterfaceV1->setFilter([this](WClient *client) { return m_sessionManager->isDDEUserClient(client); });
     }
     connect(m_wallpaperNotifierInterfaceV1,
-            &TreelandWallpaperNotifierInterfaceV1::binded,
+            &TreelandWallpaperNotifierInterfaceV1::bound,
             m_wallpaperManager,
-            &WallpaperManager::onWallpaperNotifierbinded);
+            &WallpaperManager::onWallpaperNotifierBound);
 
     m_wallpaperManagerInterfaceV1 = m_server->attach<TreelandWallpaperManagerInterfaceV1>();
     connect(m_wallpaperManagerInterfaceV1,

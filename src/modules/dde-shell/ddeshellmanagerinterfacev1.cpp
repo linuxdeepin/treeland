@@ -81,7 +81,8 @@ void DDEShellManagerInterfaceV1Private::set_xwindow_position_relative(Resource *
 }
 
 DDEShellManagerInterfaceV1Private::DDEShellManagerInterfaceV1Private(DDEShellManagerInterfaceV1 *_q)
-    : q(_q)
+    : QtWaylandServer::treeland_dde_shell_manager_v1()
+    , q(_q)
 {
 }
 

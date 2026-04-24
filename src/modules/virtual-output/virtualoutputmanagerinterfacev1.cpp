@@ -45,11 +45,11 @@ VirtualOutputInterfaceV1Private::VirtualOutputInterfaceV1Private(VirtualOutputIn
                                                                  const QString &_name,
                                                                  wl_array *_outputs,
                                                                  wl_resource *resource)
-    : q(_q)
+    : QtWaylandServer::treeland_virtual_output_v1(resource)
+    , q(_q)
     , name(_name)
 {
     wlarrayToStringList(_outputs, outputList);
-    init(resource);
 }
 
 void VirtualOutputInterfaceV1Private::destroy_resource([[maybe_unused]] Resource *resource)
@@ -70,11 +70,7 @@ public:
     wl_global *global() const;
 
     VirtualOutputManagerInterfaceV1 *q;
-    QList<Resource *> m_resource;
 protected:
-    void destroy_global() override;
-    void bind_resource(Resource *resource) override;
-    void destroy_resource(Resource *resource) override;
     // TODO(YaoBing Xiao): treeland-virtual-output-manager-v1 is missing the 'destroy' request.
     // void destroy(Resource *resource) override;
     void create_virtual_output(Resource *resource, uint32_t id, const QString &name, wl_array *outputs) override;
@@ -83,28 +79,14 @@ protected:
 };
 
 VirtualOutputManagerInterfaceV1Private::VirtualOutputManagerInterfaceV1Private(VirtualOutputManagerInterfaceV1 *_q)
-    : q(_q)
+    : QtWaylandServer::treeland_virtual_output_manager_v1()
+    , q(_q)
 {
 }
 
 wl_global *VirtualOutputManagerInterfaceV1Private::global() const
 {
     return m_global;
-}
-
-void VirtualOutputManagerInterfaceV1Private::destroy_global()
-{
-    m_resource.clear();
-}
-
-void VirtualOutputManagerInterfaceV1Private::bind_resource(Resource *resource)
-{
-    m_resource.append(resource);
-}
-
-void VirtualOutputManagerInterfaceV1Private::destroy_resource(Resource *resource)
-{
-    m_resource.removeOne(resource);
 }
 
 // void VirtualOutputManagerInterfaceV1Private::destroy(Resource *resource)

@@ -27,11 +27,12 @@ public:
 
     static constexpr int InterfaceVersion = 1;
 
+    void sendAddForResource(wl_resource *resource, TreelandWallpaperInterfaceV1::WallpaperType type, const QString &fileSource);
     void sendAdd(TreelandWallpaperInterfaceV1::WallpaperType type, const QString &fileSource);
     void sendRemove(const QString &fileSource);
 
 Q_SIGNALS:
-    void binded();
+    void bound(wl_resource *resource);
 
 protected:
     void create(WServer *server) override;

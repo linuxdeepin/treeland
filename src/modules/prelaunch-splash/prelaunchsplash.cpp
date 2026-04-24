@@ -67,8 +67,9 @@ private:
 class PrelaunchSplashPrivate : public QtWaylandServer::treeland_prelaunch_splash_manager_v2
 {
 public:
-    explicit PrelaunchSplashPrivate(PrelaunchSplash *q)
-        : q(q)
+    explicit PrelaunchSplashPrivate(PrelaunchSplash *_q)
+        : QtWaylandServer::treeland_prelaunch_splash_manager_v2()
+        , q(_q)
     {
     }
 
