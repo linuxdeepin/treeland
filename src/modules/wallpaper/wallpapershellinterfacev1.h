@@ -22,6 +22,8 @@ public:
     explicit TreelandWallpaperShellInterfaceV1(QObject *parent = nullptr);
     ~TreelandWallpaperShellInterfaceV1() override;
 
+    QByteArrayView interfaceName() const override;
+
     static constexpr int InterfaceVersion = 1;
     QList<QString> producedWallpapers() const;
 
@@ -32,7 +34,6 @@ protected:
     void create(WServer *server) override;
     void destroy(WServer *server) override;
     wl_global *global() const override;
-    QByteArrayView interfaceName() const override;
 
 private:
     std::unique_ptr<TreelandWallpaperShellInterfaceV1Private> d;

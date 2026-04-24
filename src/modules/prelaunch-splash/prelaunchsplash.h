@@ -25,6 +25,7 @@ public:
     explicit PrelaunchSplash(QObject *parent = nullptr);
     ~PrelaunchSplash() override;
 
+    QByteArrayView interfaceName() const override;
 Q_SIGNALS:
     void splashRequested(const QString &appId,
                          const QString &instanceId,
@@ -35,7 +36,6 @@ protected: // WServerInterface
     void create(WAYLIB_SERVER_NAMESPACE::WServer *server) override;
     void destroy(WAYLIB_SERVER_NAMESPACE::WServer *server) override;
     wl_global *global() const override;
-    QByteArrayView interfaceName() const override;
 
 private:
     std::unique_ptr<PrelaunchSplashPrivate> d;

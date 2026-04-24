@@ -23,6 +23,8 @@ public:
     explicit TreelandWallpaperNotifierInterfaceV1(QObject *parent = nullptr);
     ~TreelandWallpaperNotifierInterfaceV1() override;
 
+    QByteArrayView interfaceName() const override;
+
     static constexpr int InterfaceVersion = 1;
 
     void sendAdd(TreelandWallpaperInterfaceV1::WallpaperType type, const QString &fileSource);
@@ -35,7 +37,6 @@ protected:
     void create(WServer *server) override;
     void destroy(WServer *server) override;
     wl_global *global() const override;
-    QByteArrayView interfaceName() const override;
 
 private:
     std::unique_ptr<TreelandWallpaperNotifierInterfaceV1Private> d;

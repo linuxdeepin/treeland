@@ -27,6 +27,7 @@ public:
     // Callback is invoked asynchronously on the Wayland (main) thread; empty string if resolver
     // disconnects
     bool resolvePidfd(int pidfd, std::function<void(const QString &)> callback);
+    QByteArrayView interfaceName() const override;
 
 Q_SIGNALS:
     void availableChanged();
@@ -35,7 +36,6 @@ protected: // WServerInterface overrides
     void create(WAYLIB_SERVER_NAMESPACE::WServer *server) override;
     void destroy(WAYLIB_SERVER_NAMESPACE::WServer *server) override;
     wl_global *global() const override;
-    QByteArrayView interfaceName() const override;
 
 private:
     std::unique_ptr<AppIdResolverManagerPrivate> d;

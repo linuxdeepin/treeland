@@ -108,6 +108,8 @@ public:
 
     QList<WInputDevice*> deviceList() const;
 
+    QByteArrayView interfaceName() const override;
+
 Q_SIGNALS:
     void keyboardChanged();
     void keyboardFocusSurfaceChanged();
@@ -129,7 +131,6 @@ protected:
     void create(WServer *server) override;
     void destroy(WServer *server) override;
     wl_global *global() const override;
-    QByteArrayView interfaceName() const override;
 
     // for event filter
     bool filterEventBeforeDisposeStage(QWindow *targetWindow, QInputEvent *event);

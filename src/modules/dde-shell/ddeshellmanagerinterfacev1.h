@@ -1,4 +1,4 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
@@ -29,6 +29,7 @@ public:
 
     void checkRegionalConflict(const QRegion &region);
 
+    QByteArrayView interfaceName() const override;
 Q_SIGNALS:
     void surfaceCreated(DDEShellSurfaceInterface *interface);
     void activeCreated(DDEActiveInterface *interface);
@@ -44,7 +45,6 @@ protected:
     void create(WServer *server) override;
     void destroy(WServer *server) override;
     wl_global *global() const override;
-    QByteArrayView interfaceName() const override;
 
 private:
     std::unique_ptr<DDEShellManagerInterfaceV1Private> d;
