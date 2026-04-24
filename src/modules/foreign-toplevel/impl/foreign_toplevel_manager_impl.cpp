@@ -70,6 +70,9 @@ static void treeland_dock_preview_context_handle_destroy(struct wl_client *clien
                                                          struct wl_resource *resource);
 
 static const struct treeland_foreign_toplevel_handle_v1_interface treeland_toplevel_handle_impl = {
+    .destroy = treeland_foreign_toplevel_handle_destroy,
+    .set_fullscreen = treeland_foreign_toplevel_handle_set_fullscreen,
+    .unset_fullscreen = treeland_foreign_toplevel_handle_unset_fullscreen,
     .set_maximized = treeland_foreign_toplevel_handle_set_maximized,
     .unset_maximized = treeland_foreign_toplevel_handle_unset_maximized,
     .set_minimized = treeland_foreign_toplevel_handle_set_minimized,
@@ -77,17 +80,14 @@ static const struct treeland_foreign_toplevel_handle_v1_interface treeland_tople
     .activate = treeland_foreign_toplevel_handle_activate,
     .close = treeland_foreign_toplevel_handle_close,
     .set_rectangle = treeland_foreign_toplevel_handle_set_rectangle,
-    .destroy = treeland_foreign_toplevel_handle_destroy,
-    .set_fullscreen = treeland_foreign_toplevel_handle_set_fullscreen,
-    .unset_fullscreen = treeland_foreign_toplevel_handle_unset_fullscreen,
 };
 
 static const struct treeland_dock_preview_context_v1_interface
     treeland_dock_preview_context_impl = {
+        .destroy = treeland_dock_preview_context_handle_destroy,
         .show = treeland_dock_preview_context_handle_show,
         .show_tooltip = treeland_dock_preview_context_handle_show_tooltip,
         .close = treeland_dock_preview_context_handle_close,
-        .destroy = treeland_dock_preview_context_handle_destroy,
     };
 
 static struct treeland_foreign_toplevel_handle_v1 *toplevel_handle_from_resource(
@@ -739,11 +739,18 @@ treeland_foreign_toplevel_handle_v1 *treeland_foreign_toplevel_handle_v1::create
     return toplevel;
 }
 
+static void treeland_foreign_toplevel_manager_handle_destroy([[maybe_unused]] struct wl_client *client,
+                                                             struct wl_resource *resource)
+{
+    wl_resource_destroy(resource);
+}
+
 static const struct treeland_foreign_toplevel_manager_v1_interface
     treeland_foreign_toplevel_manager_impl = {
-        .stop = treeland_foreign_toplevel_manager_handle_stop,
+        .destroy = treeland_foreign_toplevel_manager_handle_destroy,
         .get_dock_preview_context =
-            treeland_foreign_toplevel_manager_handle_get_dock_preview_context,
+        treeland_foreign_toplevel_manager_handle_get_dock_preview_context,
+        .stop = treeland_foreign_toplevel_manager_handle_stop,
     };
 
 struct treeland_foreign_toplevel_manager_v1 *foreign_toplevel_manager_from_resource(

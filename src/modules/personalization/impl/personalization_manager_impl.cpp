@@ -65,12 +65,12 @@ static void on_destroy([[maybe_unused]] struct wl_client *client, struct wl_reso
 
 static const struct treeland_personalization_window_context_v1_interface
     personalization_window_context_impl = {
+        .destroy = Personalization::WindowContext::on_destroy,
+        .set_titlebar = Personalization::WindowContext::set_titlebar,
         .set_blend_mode = Personalization::WindowContext::set_background_type,
         .set_round_corner_radius = Personalization::WindowContext::set_round_corner_radius,
         .set_shadow = Personalization::WindowContext::set_shadow,
         .set_border = Personalization::WindowContext::set_border,
-        .set_titlebar = Personalization::WindowContext::set_titlebar,
-        .destroy = Personalization::WindowContext::on_destroy,
     };
 
 personalization_window_context_v1 *personalization_window_context_v1::from_resource(
@@ -195,6 +195,7 @@ static void personalization_wallpaper_context_destroy([[maybe_unused]] struct wl
 
 static const struct treeland_personalization_wallpaper_context_v1_interface
     personalization_wallpaper_context_impl = {
+        .destroy = personalization_wallpaper_context_destroy,
         .set_fd = set_fd,
         .set_identifier = set_identifier,
         .set_output = set_output,
@@ -202,7 +203,6 @@ static const struct treeland_personalization_wallpaper_context_v1_interface
         .set_isdark = set_isdark,
         .commit = wallpaper_commit,
         .get_metadata = get_metadata,
-        .destroy = personalization_wallpaper_context_destroy,
     };
 
 personalization_wallpaper_context_v1 *personalization_wallpaper_context_v1::from_resource(
@@ -287,12 +287,12 @@ static void personalization_cursor_context_destroy([[maybe_unused]] struct wl_cl
 
 static const struct treeland_personalization_cursor_context_v1_interface
     personalization_cursor_context_impl = {
+        .destroy = personalization_cursor_context_destroy,
         .set_theme = set_cursor_theme,
         .get_theme = get_cursor_theme,
         .set_size = set_cursor_size,
         .get_size = get_cursor_size,
         .commit = cursor_commit,
-        .destroy = personalization_cursor_context_destroy,
     };
 
 personalization_cursor_context_v1 *personalization_cursor_context_v1::from_resource(

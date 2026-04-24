@@ -75,8 +75,7 @@ protected:
     void destroy_global() override;
     void bind_resource(Resource *resource) override;
     void destroy_resource(Resource *resource) override;
-    // TODO(YaoBing Xiao): treeland-virtual-output-manager-v1 is missing the 'destroy' request.
-    // void destroy(Resource *resource) override;
+    void destroy(Resource *resource) override;
     void create_virtual_output(Resource *resource, uint32_t id, const QString &name, wl_array *outputs) override;
     void get_virtual_output_list(Resource *resource) override;
     void get_virtual_output(Resource *resource, const QString &name, uint32_t id) override;
@@ -107,10 +106,10 @@ void VirtualOutputManagerInterfaceV1Private::destroy_resource(Resource *resource
     m_resource.removeOne(resource);
 }
 
-// void VirtualOutputManagerInterfaceV1Private::destroy(Resource *resource)
-// {
-//     wl_resource_destroy(resource->handle);
-// }
+void VirtualOutputManagerInterfaceV1Private::destroy(Resource *resource)
+{
+    wl_resource_destroy(resource->handle);
+}
 
 void VirtualOutputManagerInterfaceV1Private::create_virtual_output(Resource *resource,
                                                                    uint32_t id,

@@ -24,9 +24,16 @@ static void uninhibit([[maybe_unused]] struct wl_client *client, struct wl_resou
     screensaver->uninhibit(resource);
 }
 
+static void destroy([[maybe_unused]] struct wl_client *client,
+                    struct wl_resource *resource)
+{
+    wl_resource_destroy(resource);
+}
+
 static const struct treeland_screensaver_v1_interface treeland_screensaver_impl {
-    .inhibit = inhibit,
+    .destroy = destroy,
     .uninhibit = uninhibit,
+    .inhibit = inhibit,
 };
 
 // wayland object binding

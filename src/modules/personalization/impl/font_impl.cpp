@@ -7,6 +7,10 @@
 
 static const struct treeland_personalization_font_context_v1_interface
     personalization_font_context_impl = {
+        .destroy =
+        []([[maybe_unused]] struct wl_client *client, struct wl_resource *resource) {
+            wl_resource_destroy(resource);
+        },
         .set_font_size =
             []([[maybe_unused]] struct wl_client *client,
                struct wl_resource *resource,
@@ -38,10 +42,6 @@ static const struct treeland_personalization_font_context_v1_interface
         .get_monospace_font =
             []([[maybe_unused]] struct wl_client *client, struct wl_resource *resource) {
                 Q_EMIT personalization_font_context_v1::fromResource(resource)->requestMonoFont();
-            },
-        .destroy =
-            []([[maybe_unused]] struct wl_client *client, struct wl_resource *resource) {
-                wl_resource_destroy(resource);
             }
     };
 

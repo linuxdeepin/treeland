@@ -12,6 +12,10 @@
 
 static const struct treeland_personalization_appearance_context_v1_interface
     personalization_appearance_context_impl = {
+        .destroy =
+        []([[maybe_unused]] struct wl_client *client, struct wl_resource *resource) {
+            wl_resource_destroy(resource);
+        },
         .set_round_corner_radius = dispatch_member_function<
             &personalization_appearance_context_v1::setRoundCornerRadius>(),
         .get_round_corner_radius =
@@ -51,10 +55,6 @@ static const struct treeland_personalization_appearance_context_v1_interface
             []([[maybe_unused]] struct wl_client *client, struct wl_resource *resource) {
                 Q_EMIT personalization_appearance_context_v1::fromResource(resource)
                     ->requestWindowTitlebarHeight();
-            },
-        .destroy =
-            []([[maybe_unused]] struct wl_client *client, struct wl_resource *resource) {
-                wl_resource_destroy(resource);
             }
     };
 
