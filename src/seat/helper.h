@@ -99,7 +99,7 @@ QW_USE_NAMESPACE
 class CaptureSourceSelector;
 class DDEShellManagerInterfaceV1;
 class DDMInterfaceV1;
-class ForeignToplevelV1;
+class ForeignToplevelManagerInterfaceV1;
 class FpsDisplayManager;
 class GreeterProxy;
 class ILockScreen;
