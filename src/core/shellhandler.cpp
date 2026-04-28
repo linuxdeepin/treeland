@@ -324,6 +324,7 @@ void ShellHandler::init(WServer *server, WSeat *seat)
     }
 
     m_inputMethodHelper = new WInputMethodHelper(server, seat);
+    m_inputMethodHelper->setParent(this);
 
     connect(m_inputMethodHelper,
             &WInputMethodHelper::inputPopupSurfaceV2Added,
