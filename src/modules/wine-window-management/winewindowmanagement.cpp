@@ -3,9 +3,9 @@
 
 #include "winewindowmanagement.h"
 
-#include "qwayland-server-treeland-wine-window-management-v1.h"
-
+#include "common/treelandlogging.h"
 #include "core/rootsurfacecontainer.h"
+#include "qwayland-server-treeland-wine-window-management-v1.h"
 #include "seat/helper.h"
 #include "surface/surfacewrapper.h"
 
@@ -14,13 +14,7 @@
 #include <qwdisplay.h>
 #include <qwxdgshell.h>
 
-#include <QHash>
-#include <QLoggingCategory>
-
-Q_LOGGING_CATEGORY(treelandWineWindowManagement,
-                   "treeland.wine.window.management",
-                   QtInfoMsg)
-
+#include <QList>
 #define TREELAND_WINE_WINDOW_MANAGEMENT_V1_VERSION 1
 
 WAYLIB_SERVER_USE_NAMESPACE
@@ -41,29 +35,25 @@ public:
 
     uint32_t nextWindowId() { return ++m_nextId; }
 
-    WineWindowControl *controlForId(uint32_t id) const { return m_idToControl.value(id, nullptr); }
+    WineWindowControl *controlForId(uint32_t id) const
+    {
+        for (const auto &entry : m_controls)
+            if (entry.id == id)
+                return entry.control;
+        return nullptr;
+    }
 
     void registerControl(uint32_t id, WXdgToplevelSurface *toplevel, WineWindowControl *control)
     {
-        m_idToControl.insert(id, control);
-        m_toplevelToControl.insert(toplevel, control);
-        m_controlToToplevel.insert(control, toplevel);
+        m_controls.append({ id, toplevel, control });
     }
 
     void removeControl(WineWindowControl *control)
     {
-        auto it = m_controlToToplevel.find(control);
-        if (it == m_controlToToplevel.end())
-            return;
-        WXdgToplevelSurface *toplevel = it.value();
-        m_controlToToplevel.erase(it);
-        m_toplevelToControl.remove(toplevel);
-
-        // remove from id map
-        for (auto idIt = m_idToControl.begin(); idIt != m_idToControl.end(); ++idIt) {
-            if (idIt.value() == control) {
-                m_idToControl.erase(idIt);
-                break;
+        for (auto it = m_controls.begin(); it != m_controls.end(); ++it) {
+            if (it->control == control) {
+                m_controls.erase(it);
+                return;
             }
         }
     }
@@ -71,7 +61,7 @@ public:
 protected:
     void destroy_global() override
     {
-        qCDebug(treelandWineWindowManagement) << "WineWindowManagementManager global destroyed";
+        qCDebug(treelandProtocol) << "WineWindowManagementManager global destroyed";
     }
 
     void destroy(Resource *resource) override { wl_resource_destroy(resource->handle); }
@@ -81,11 +71,16 @@ protected:
                             struct ::wl_resource *toplevelResource) override;
 
 private:
-    WineWindowManagementManager *q = nullptr;
+    struct ControlEntry
+    {
+        uint32_t id;
+        WXdgToplevelSurface *toplevel{ nullptr };
+        WineWindowControl *control{ nullptr };
+    };
+
+    WineWindowManagementManager *q{ nullptr };
     uint32_t m_nextId = 0;
-    QHash<uint32_t, WineWindowControl *> m_idToControl;
-    QHash<WXdgToplevelSurface *, WineWindowControl *> m_toplevelToControl;
-    QHash<WineWindowControl *, WXdgToplevelSurface *> m_controlToToplevel;
+    QList<ControlEntry> m_controls;
 };
 
 class WineWindowControl
@@ -96,7 +91,6 @@ public:
     WineWindowControl(QObject *parent,
                       WineWindowManagementManagerPrivate *manager,
                       uint32_t windowId,
-                      WXdgToplevelSurface *toplevel,
                       SurfaceWrapper *wrapper,
                       wl_client *client,
                       int version,
@@ -105,20 +99,28 @@ public:
         , QtWaylandServer::treeland_wine_window_control_v1(client, id, version)
         , m_manager(manager)
         , m_windowId(windowId)
-        , m_toplevel(toplevel)
         , m_wrapper(wrapper)
     {
-        if (m_toplevel) {
-            connect(m_toplevel, &QObject::destroyed, this, [this] {
+        if (m_wrapper) {
+            connect(m_wrapper, &SurfaceWrapper::aboutToBeInvalidated, this, [this] {
                 m_alive = false;
-                m_toplevel = nullptr;
+                if (m_manager) {
+                    m_manager->removeControl(this);
+                    m_manager = nullptr;
+                }
                 m_wrapper = nullptr;
             });
-        }
-
-        if (m_wrapper) {
             connect(m_wrapper, &QObject::destroyed, this, [this] {
                 m_wrapper = nullptr;
+            });
+            connect(m_wrapper, &QQuickItem::xChanged, this, [this] {
+                sendConfigurePosition();
+            });
+            connect(m_wrapper, &QQuickItem::yChanged, this, [this] {
+                sendConfigurePosition();
+            });
+            connect(m_wrapper, &SurfaceWrapper::alwaysOnTopChanged, this, [this] {
+                sendConfigureStacking();
             });
         }
 
@@ -150,13 +152,11 @@ protected:
             return;
         }
 
-        qCDebug(treelandWineWindowManagement)
+        qCDebug(treelandProtocol)
             << "set_position" << x << y << "for window_id" << m_windowId;
 
         m_wrapper->setPositionAutomatic(false);
         m_wrapper->setPosition(QPointF(x, y));
-
-        sendConfigurePosition();
     }
 
     void set_z_order([[maybe_unused]] Resource *resource,
@@ -185,17 +185,14 @@ protected:
             break;
         case z_order_op_hwnd_bottom:
             applyHwndBottom();
-            sendConfigureStacking();
             break;
         case z_order_op_hwnd_topmost:
             m_wrapper->setAlwaysOnTop(true);
             applyHwndTop();
-            sendConfigureStacking();
             break;
         case z_order_op_hwnd_notopmost:
             m_wrapper->setAlwaysOnTop(false);
             applyHwndTop();
-            sendConfigureStacking();
             break;
         case z_order_op_hwnd_insert_after:
             applyHwndInsertAfter(sibling_id);
@@ -276,7 +273,6 @@ private:
 private:
     WineWindowManagementManagerPrivate *m_manager = nullptr;
     uint32_t m_windowId = 0;
-    WXdgToplevelSurface *m_toplevel = nullptr;
     SurfaceWrapper *m_wrapper = nullptr;
     bool m_alive = true;
 };
@@ -286,19 +282,32 @@ void WineWindowManagementManagerPrivate::get_window_control(Resource *resource,
                                                             struct ::wl_resource *toplevelResource)
 {
     auto *qXdgToplevel = qw_xdg_toplevel::from_resource(toplevelResource);
-    auto *xdgToplevel = WXdgToplevelSurface::fromHandle(qXdgToplevel);
-    auto *helper = Helper::instance();
-    auto *root = helper ? helper->rootSurfaceContainer() : nullptr;
-    auto *wrapper = (root && xdgToplevel) ? root->getSurface(xdgToplevel) : nullptr;
-
-    if (!qXdgToplevel || !xdgToplevel || !wrapper) {
+    if (!qXdgToplevel) {
         wl_resource_post_error(resource->handle,
                                TREELAND_WINE_WINDOW_MANAGER_V1_ERROR_DEFUNCT_TOPLEVEL,
                                "invalid or defunct toplevel");
         return;
     }
 
-    if (m_toplevelToControl.contains(xdgToplevel)) {
+    auto *xdgToplevel = WXdgToplevelSurface::fromHandle(qXdgToplevel);
+    auto *helper = Helper::instance();
+    auto *root = helper ? helper->rootSurfaceContainer() : nullptr;
+    auto *wrapper = (root && xdgToplevel) ? root->getSurface(xdgToplevel) : nullptr;
+
+    if (!xdgToplevel || !wrapper) {
+        wl_resource_post_error(resource->handle,
+                               TREELAND_WINE_WINDOW_MANAGER_V1_ERROR_DEFUNCT_TOPLEVEL,
+                               "invalid or defunct toplevel");
+        return;
+    }
+
+    const bool alreadyControlled = [&] {
+        for (const auto &e : m_controls)
+            if (e.toplevel == xdgToplevel)
+                return true;
+        return false;
+    }();
+    if (alreadyControlled) {
         wl_resource_post_error(resource->handle,
                                TREELAND_WINE_WINDOW_MANAGER_V1_ERROR_TOPLEVEL_ALREADY_CONTROLLED,
                                "toplevel already controlled");
@@ -309,14 +318,13 @@ void WineWindowManagementManagerPrivate::get_window_control(Resource *resource,
     auto *control = new WineWindowControl(q,
                                           this,
                                           windowId,
-                                          xdgToplevel,
                                           wrapper,
                                           resource->client(),
                                           resource->version(),
                                           id);
     registerControl(windowId, xdgToplevel, control);
 
-    qCDebug(treelandWineWindowManagement)
+    qCDebug(treelandProtocol)
         << "Created WineWindowControl for toplevel, window_id =" << windowId;
 }
 
@@ -335,13 +343,11 @@ WineWindowManagementManager::~WineWindowManagementManager() = default;
 void WineWindowManagementManager::create(WServer *server)
 {
     d->init(*server->handle(), TREELAND_WINE_WINDOW_MANAGEMENT_V1_VERSION);
-    qCDebug(treelandWineWindowManagement) << "WineWindowManagementManager created";
 }
 
 void WineWindowManagementManager::destroy(WServer * /*server*/)
 {
     d->globalRemove();
-    qCDebug(treelandWineWindowManagement) << "WineWindowManagementManager destroyed";
 }
 
 wl_global *WineWindowManagementManager::global() const

@@ -3,9 +3,9 @@
 
 #include "winewindowstate.h"
 
-#include "qwayland-server-treeland-wine-window-state-v1.h"
-
+#include "common/treelandlogging.h"
 #include "core/rootsurfacecontainer.h"
+#include "qwayland-server-treeland-wine-window-state-v1.h"
 #include "seat/helper.h"
 #include "surface/surfacewrapper.h"
 
@@ -14,11 +14,7 @@
 #include <qwdisplay.h>
 #include <qwxdgshell.h>
 
-#include <QHash>
-#include <QLoggingCategory>
-
-Q_LOGGING_CATEGORY(treelandWineWindowState, "treeland.wine.window.state", QtInfoMsg)
-
+#include <QList>
 #define TREELAND_WINE_WINDOW_STATE_MANAGER_V1_VERSION 1
 
 WAYLIB_SERVER_USE_NAMESPACE
@@ -42,20 +38,24 @@ public:
     void removeState(WineWindowState *state);
 
 private:
+    struct StateEntry
+    {
+        WXdgToplevelSurface *toplevel{ nullptr };
+        WineWindowState *state{ nullptr };
+    };
+
     WineWindowStateManager *q = nullptr;
-    QHash<WXdgToplevelSurface *, WineWindowState *> m_toplevelStates;
-    QHash<WineWindowState *, WXdgToplevelSurface *> m_stateToplevels;
+    QList<StateEntry> m_states;
 
     void bindState(WXdgToplevelSurface *toplevel, WineWindowState *state)
     {
-        m_toplevelStates.insert(toplevel, state);
-        m_stateToplevels.insert(state, toplevel);
+        m_states.append({ toplevel, state });
     }
 
 protected:
     void destroy_global() override
     {
-        qCDebug(treelandWineWindowState) << "WineWindowStateManager global destroyed";
+        qCDebug(treelandProtocol) << "WineWindowStateManager global destroyed";
     }
 
     void destroy(Resource *resource) override
@@ -75,7 +75,6 @@ class WineWindowState
 public:
     WineWindowState(QObject *parent,
                     WineWindowStateManagerPrivate *manager,
-                    WXdgToplevelSurface *toplevel,
                     SurfaceWrapper *wrapper,
                     wl_client *client,
                     int version,
@@ -83,16 +82,18 @@ public:
         : QObject(parent)
         , QtWaylandServer::treeland_wine_window_state_v1(client, id, version)
         , m_manager(manager)
-        , m_toplevel(toplevel)
         , m_wrapper(wrapper)
     {
-        if (m_toplevel) {
-            m_toplevel->safeConnect(&WToplevelSurface::minimizeChanged, this, [this] {
+        if (m_wrapper && m_wrapper->shellSurface()) {
+            m_wrapper->shellSurface()->safeConnect(&WToplevelSurface::minimizeChanged, this, [this] {
                 sendStateChanged();
             });
-            connect(m_toplevel, &QObject::destroyed, this, [this] {
+            connect(m_wrapper, &SurfaceWrapper::aboutToBeInvalidated, this, [this] {
                 m_alive = false;
-                m_toplevel = nullptr;
+                if (m_manager) {
+                    m_manager->removeState(this);
+                    m_manager = nullptr;
+                }
                 m_wrapper = nullptr;
             });
         }
@@ -157,6 +158,9 @@ protected:
         if (!m_alive)
             return;
         m_attention = true;
+        // TODO：foreign-toplevel open no extension attention capability
+        qCWarning(treelandProtocol) << "set_attention is not fully supported yet, attention "
+                                       "state will never be cleared automatically";
         sendStateChanged();
     }
 
@@ -185,7 +189,6 @@ private:
 
 private:
     WineWindowStateManagerPrivate *m_manager = nullptr;
-    WXdgToplevelSurface *m_toplevel = nullptr;
     SurfaceWrapper *m_wrapper = nullptr;
     bool m_alive = true;
     bool m_attention = false;
@@ -193,13 +196,12 @@ private:
 
 void WineWindowStateManagerPrivate::removeState(WineWindowState *state)
 {
-    auto it = m_stateToplevels.find(state);
-    if (it == m_stateToplevels.end())
-        return;
-
-    auto *toplevel = it.value();
-    m_stateToplevels.erase(it);
-    m_toplevelStates.remove(toplevel);
+    for (auto it = m_states.begin(); it != m_states.end(); ++it) {
+        if (it->state == state) {
+            m_states.erase(it);
+            return;
+        }
+    }
 }
 
 void WineWindowStateManagerPrivate::get_window_state(Resource *resource,
@@ -207,19 +209,32 @@ void WineWindowStateManagerPrivate::get_window_state(Resource *resource,
                                                       struct ::wl_resource *toplevelResource)
 {
     auto *qXdgToplevel = qw_xdg_toplevel::from_resource(toplevelResource);
-    auto *xdgToplevel = WXdgToplevelSurface::fromHandle(qXdgToplevel);
-    auto *helper = Helper::instance();
-    auto *root = helper ? helper->rootSurfaceContainer() : nullptr;
-    auto *wrapper = (root && xdgToplevel) ? root->getSurface(xdgToplevel) : nullptr;
-
-    if (!qXdgToplevel || !xdgToplevel || !wrapper) {
+    if (!qXdgToplevel) {
         wl_resource_post_error(resource->handle,
                                TREELAND_WINE_WINDOW_STATE_MANAGER_V1_ERROR_DEFUNCT_TOPLEVEL,
                                "invalid or defunct toplevel");
         return;
     }
 
-    if (m_toplevelStates.contains(xdgToplevel)) {
+    auto *xdgToplevel = WXdgToplevelSurface::fromHandle(qXdgToplevel);
+    auto *helper = Helper::instance();
+    auto *root = helper ? helper->rootSurfaceContainer() : nullptr;
+    auto *wrapper = (root && xdgToplevel) ? root->getSurface(xdgToplevel) : nullptr;
+
+    if (!xdgToplevel || !wrapper) {
+        wl_resource_post_error(resource->handle,
+                               TREELAND_WINE_WINDOW_STATE_MANAGER_V1_ERROR_DEFUNCT_TOPLEVEL,
+                               "invalid or defunct toplevel");
+        return;
+    }
+
+    const bool alreadyBound = [&] {
+        for (const auto &e : m_states)
+            if (e.toplevel == xdgToplevel)
+                return true;
+        return false;
+    }();
+    if (alreadyBound) {
         wl_resource_post_error(resource->handle,
                                TREELAND_WINE_WINDOW_STATE_MANAGER_V1_ERROR_TOPLEVEL_ALREADY_BOUND,
                                "toplevel already bound");
@@ -228,7 +243,6 @@ void WineWindowStateManagerPrivate::get_window_state(Resource *resource,
 
     auto *state = new WineWindowState(q,
                                       this,
-                                      xdgToplevel,
                                       wrapper,
                                       resource->client(),
                                       resource->version(),
