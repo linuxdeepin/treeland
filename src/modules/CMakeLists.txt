@@ -20,6 +20,11 @@ link_libraries(
     PkgConfig::WAYLAND_SERVER
 )
 
+target_sources(libtreeland
+    PRIVATE
+        ${CMAKE_BINARY_DIR}/protocols/xdg-shell-protocol.c
+)
+
 add_subdirectory(tools)
 add_subdirectory(foreign-toplevel)
 add_subdirectory(output-manager)
