@@ -11,7 +11,6 @@ impl_treeland(
     SOURCE
         winewindowmanagement.h
         winewindowmanagement.cpp
-        ${CMAKE_BINARY_DIR}/protocols/xdg-shell-protocol.c
         ${CMAKE_BINARY_DIR}/src/modules/wine-window-management/wayland-treeland-wine-window-management-v1-server-protocol.c
     INCLUDE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
