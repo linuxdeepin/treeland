@@ -59,6 +59,19 @@ User::User(AccountsUserPtr ptr)
     d->updateUserData();
 }
 
+User::User(const QString &userName, uid_t uid, gid_t gid,
+           const QString &homeDir, const QString &fullName)
+    : d(new UserPrivate{})
+{
+    d->userName = userName;
+    d->uid = uid;
+    d->gid = gid;
+    d->homeDir = homeDir;
+    d->fullName = fullName;
+    d->identity = AccountTypes::Default;
+    d->noPasswdLogin = false;
+}
+
 User::~User()
 {
     delete d;

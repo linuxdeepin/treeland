@@ -149,6 +149,13 @@ FocusScope {
     /*****************************/
 
     Connections {
+        target: controlAction
+        function onOtherUserRequested() {
+            userInput.startOtherUserMode()
+        }
+    }
+
+    Connections {
         target: GreeterProxy
         function onLockChanged(isLocked) {
             if (isLocked) {

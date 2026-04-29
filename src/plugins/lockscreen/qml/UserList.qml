@@ -16,6 +16,8 @@ D.Popup {
     property var useScrollBar: listv.contentHeight > maxListHeight
     property var lastCheckedIndex: -1
 
+    signal otherUserRequested()
+
     focus: true
     padding: 6
     modal: true
@@ -201,6 +203,53 @@ D.Popup {
             onClicked: selectCurrentUser(model.name, index)
 
             checked: UserModel.currentUserName === model.name
+        }
+
+        footer: D.CheckDelegate {
+            id: otherUserItem
+            height: Helper.globalConfig.showOtherUserOption ? 44 : 0
+            width: 220
+            padding: 4
+            focus: true
+            indicator: null
+            visible: Helper.globalConfig.showOtherUserOption
+
+            contentItem: RowLayout {
+                Control {
+                    Layout.preferredHeight: 36
+                    Layout.preferredWidth: 36
+                    Layout.alignment: Qt.AlignVCenter
+                    background: Item {
+                        D.DciIcon {
+                            anchors.fill: parent
+                            name: "login_user"
+                            sourceSize { width: 36; height: 36 }
+                        }
+                    }
+                }
+
+                Column {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 36
+                    Layout.alignment: Qt.AlignVCenter
+                    Text {
+                        text: qsTr("Other…")
+                        color: otherUserItem.ListView.isCurrentItem ? "white" : "black"
+                        font: D.DTK.fontManager.t8
+                    }
+                }
+            }
+
+            background: Rectangle {
+                anchors.fill: parent
+                radius: 6
+                color: otherUserItem.hovered ? Qt.rgba(0.2, 0.2, 0.2, 0.12) : "transparent"
+            }
+
+            onClicked: {
+                users.close()
+                users.otherUserRequested()
+            }
         }
     }
 }

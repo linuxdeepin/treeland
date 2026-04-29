@@ -45,6 +45,17 @@
             "description[zh_CN]": "在 Treeland 启动以及新键盘连接时启用数字键盘",
             "permissions": "readwrite",
             "visibility": "public"
+        },
+        "showOtherUserOption": {
+            "value": false,
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Show Other User Option",
+            "name[zh_CN]": "显示其他用户选项",
+            "description": "Show the 'Other...' entry in the login user list to allow logging in as an unlisted (e.g. LDAP/NSS) user",
+            "description[zh_CN]": "在登录用户列表中显示 Other... 选项，允许以未列出的用户（如 LDAP/NSS 用户）登录",
+            "permissions": "readwrite",
+            "visibility": "public"
         }
     }
 }
