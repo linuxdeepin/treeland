@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "screensaverinterfacev1.h"
-#include "treeland-screensaver-v1-protocol.h"
+#include "qwayland-server-treeland-screensaver-v1.h"
 #include "helper.h"
 
 #include <wayland-server.h>
@@ -12,64 +12,93 @@
 
 #include <QDebug>
 
-// request implementation
+class ScreensaverInterfaceV1Private : public QtWaylandServer::treeland_screensaver_v1
+{
+public:
+    explicit ScreensaverInterfaceV1Private(ScreensaverInterfaceV1 *_q);
+    wl_global *global() const;
 
-static void inhibit([[maybe_unused]] struct wl_client *client, struct wl_resource *resource, const char *appName, const char *reason) {
-    auto screensaver = static_cast<ScreensaverInterfaceV1 *>(wl_resource_get_user_data(resource));
-    screensaver->inhibit(resource, appName, reason);
-}
-
-static void uninhibit([[maybe_unused]] struct wl_client *client, struct wl_resource *resource) {
-    auto screensaver = static_cast<ScreensaverInterfaceV1 *>(wl_resource_get_user_data(resource));
-    screensaver->uninhibit(resource);
-}
-
-static const struct treeland_screensaver_v1_interface treeland_screensaver_impl {
-    .inhibit = inhibit,
-    .uninhibit = uninhibit,
+    ScreensaverInterfaceV1 *q = nullptr;
+    QHash<wl_resource*, std::tuple<QString, QString>> inhibits;
+protected:
+    void inhibit(Resource *resource, const QString &application_name, const QString &reason_for_inhibit) override;
+    void uninhibit(Resource *resource) override;
+    void destroy(Resource *resource) override;
 };
 
-// wayland object binding
-
-static void handleResourceDestroy(struct wl_resource *resource) {
-    auto screensaver = static_cast<ScreensaverInterfaceV1 *>(wl_resource_get_user_data(resource));
-    screensaver->uninhibit(resource);
+ScreensaverInterfaceV1Private::ScreensaverInterfaceV1Private(ScreensaverInterfaceV1 *_q)
+    : QtWaylandServer::treeland_screensaver_v1()
+    , q(_q)
+{
 }
 
-static void handleBindingGlobal(struct wl_client *client, void *data, uint32_t version, uint32_t id) {
-    auto screensaver = static_cast<ScreensaverInterfaceV1 *>(data);
-    auto *resource = wl_resource_create(client, &treeland_screensaver_v1_interface, version, id);
-    wl_resource_set_implementation(resource, &treeland_screensaver_impl, screensaver, handleResourceDestroy);
+wl_global *ScreensaverInterfaceV1Private::global() const
+{
+    return m_global;
 }
 
-// ScreensaverInterfaceV1
-
-QByteArrayView ScreensaverInterfaceV1::interfaceName() const {
-    static const QByteArray arr(treeland_screensaver_v1_interface.name);
-    return QByteArrayView(arr);
+void ScreensaverInterfaceV1Private::destroy(Resource *resource)
+{
+    uninhibit(resource);
+    wl_resource_destroy(resource->handle);
 }
 
-void ScreensaverInterfaceV1::inhibit(wl_resource *res, const char *appName, const char *reason) {
-    if (m_inhibits.contains(res))
-        return wl_resource_post_error(res, TREELAND_SCREENSAVER_V1_ERROR_ALREADY_INHIBITED,
-                                      "Trying to inhibit with an existing inhibit active");
-    m_inhibits.insert(res, std::make_tuple(QByteArray(appName), QByteArray(reason)));
+void ScreensaverInterfaceV1Private::inhibit(Resource *resource, const QString &application_name, const QString &reason_for_inhibit)
+{
+    wl_resource *res = resource->handle;
+    if (inhibits.contains(res)) {
+        wl_resource_post_error(res, TREELAND_SCREENSAVER_V1_ERROR_ALREADY_INHIBITED,
+                               "Trying to inhibit with an existing inhibit active");
+        return;
+    }
+
+    inhibits.insert(res, std::make_tuple(application_name, reason_for_inhibit));
     Helper::instance()->updateIdleInhibitor();
 }
 
-void ScreensaverInterfaceV1::uninhibit(wl_resource *res) {
-    if (!m_inhibits.contains(res))
-        return wl_resource_post_error(res, TREELAND_SCREENSAVER_V1_ERROR_NOT_YET_INHIBITED,
-                                      "Trying to uninhibit but no active inhibit existed");
-    m_inhibits.remove(res);
+void ScreensaverInterfaceV1Private::uninhibit(Resource *resource)
+{
+    wl_resource *res = resource->handle;
+    if (!inhibits.contains(res)) {
+        wl_resource_post_error(res, TREELAND_SCREENSAVER_V1_ERROR_NOT_YET_INHIBITED,
+                               "Trying to uninhibit but no active inhibit existed");
+        return;
+    }
+
+    inhibits.remove(res);
     Helper::instance()->updateIdleInhibitor();
 }
 
-void ScreensaverInterfaceV1::create(WServer *server) {
-    m_global = wl_global_create(server->handle()->handle(), &treeland_screensaver_v1_interface,
-                                treeland_screensaver_v1_interface.version, this, handleBindingGlobal);
+ScreensaverInterfaceV1::ScreensaverInterfaceV1(QObject *parent)
+    : QObject(parent)
+    , WServerInterface()
+    , d(new ScreensaverInterfaceV1Private(this))
+{
 }
 
-void ScreensaverInterfaceV1::destroy([[maybe_unused]] WServer *server) {
-    wl_global_destroy(m_global);
+ScreensaverInterfaceV1::~ScreensaverInterfaceV1() = default;
+
+QByteArrayView ScreensaverInterfaceV1::interfaceName() const
+{
+    return d->interfaceName();
+}
+
+bool ScreensaverInterfaceV1::isInhibited() const
+{
+    return !d->inhibits.isEmpty();
+}
+
+void ScreensaverInterfaceV1::create(WServer *server)
+{
+    d->init(server->handle()->handle(), InterfaceVersion);
+}
+
+void ScreensaverInterfaceV1::destroy([[maybe_unused]] WServer *server)
+{
+    d->globalRemove();
+}
+
+wl_global *ScreensaverInterfaceV1::global() const
+{
+    return d->global();
 }

@@ -1,6 +1,9 @@
 find_package(TreelandProtocols 0.5.3 REQUIRED)
 
-ws_generate_local(server ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-screensaver-v1.xml treeland-screensaver-v1-protocol)
+local_qtwayland_server_protocol_treeland(libtreeland
+    PROTOCOL ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-screensaver-v1.xml
+    BASENAME treeland-screensaver-v1
+)
 
 impl_treeland(
     NAME
@@ -8,7 +11,7 @@ impl_treeland(
     SOURCE
         ${CMAKE_SOURCE_DIR}/src/modules/screensaver/screensaverinterfacev1.h
         ${CMAKE_SOURCE_DIR}/src/modules/screensaver/screensaverinterfacev1.cpp
-        ${WAYLAND_PROTOCOLS_OUTPUTDIR}/treeland-screensaver-v1-protocol.c
+        ${CMAKE_BINARY_DIR}/src/modules/screensaver/wayland-treeland-screensaver-v1-server-protocol.c
     INCLUDE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
 )
