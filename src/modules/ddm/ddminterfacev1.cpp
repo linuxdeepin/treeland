@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "ddminterfacev1.h"
-#include "treeland-ddm-v1-protocol.h"
 #include "common/treelandlogging.h"
 #include "helper.h"
 #include "usermodel.h"
+#include "qwayland-server-treeland-ddm-v1.h"
 
 #include <wayland-server-core.h>
 #include <wayland-server.h>
@@ -15,132 +15,137 @@
 
 #include <QDebug>
 
-struct treeland_ddm {
-    wl_resource *resource;
+class DDMInterfaceV1Private : public QtWaylandServer::treeland_ddm_v1
+{
+public:
+    explicit DDMInterfaceV1Private(DDMInterfaceV1 *_q);
+    wl_global *global() const;
+
+    DDMInterfaceV1 *q = nullptr;
+protected:
+    void destroy(Resource *resource) override;
+    void bind_resource(Resource *resource) override;
+    void switch_to_greeter(Resource *resource) override;
+    void switch_to_user(Resource *resource, const QString &username) override;
+    void activate_session(Resource *resource) override;
+    void deactivate_session(Resource *resource) override;
+    void enable_render(Resource *resource) override;
+    void disable_render(Resource *resource, uint32_t callback) override;
 };
 
-// request implementation
+DDMInterfaceV1Private::DDMInterfaceV1Private(DDMInterfaceV1 *_q)
+    : QtWaylandServer::treeland_ddm_v1()
+    , q(_q)
+{
+}
 
-static void switchToGreeter([[maybe_unused]] struct wl_client *client, [[maybe_unused]] struct wl_resource *resource) {
+wl_global *DDMInterfaceV1Private::global() const
+{
+    return m_global;
+}
+
+void DDMInterfaceV1Private::destroy(Resource *resource)
+{
+    wl_resource_destroy(resource->handle);
+}
+
+void DDMInterfaceV1Private::bind_resource(Resource *resource)
+{
+    send_acquire_vt(resource->handle, 0);
+}
+
+void DDMInterfaceV1Private::switch_to_greeter([[maybe_unused]] Resource *resource)
+{
     Helper::instance()->showLockScreen(false);
 }
 
-static void switchToUser([[maybe_unused]] struct wl_client *client, [[maybe_unused]] struct wl_resource *resource, const char *username) {
-    auto user = QString::fromLocal8Bit(username);
+void DDMInterfaceV1Private::switch_to_user([[maybe_unused]] Resource *resource, const QString &username)
+{
     auto helper = Helper::instance();
-    if (user == "ddm") {
+    if (username == "ddm") {
         helper->showLockScreen(false);
-    } else if (user != helper->userModel()->currentUserName()) {
-        helper->userModel()->setCurrentUserName(QString(username));
+    } else if (username != helper->userModel()->currentUserName()) {
+        helper->userModel()->setCurrentUserName(username);
         helper->showLockScreen(false);
     }
 }
 
-static void activateSession([[maybe_unused]] struct wl_client *client, [[maybe_unused]] struct wl_resource *resource) {
+void DDMInterfaceV1Private::activate_session([[maybe_unused]] Resource *resource)
+{
     Helper::instance()->activateSession();
 }
 
-static void deactivateSession([[maybe_unused]] struct wl_client *client, [[maybe_unused]] struct wl_resource *resource) {
+void DDMInterfaceV1Private::deactivate_session([[maybe_unused]] Resource *resource)
+{
     Helper::instance()->deactivateSession();
 }
 
-static void enableRender([[maybe_unused]] struct wl_client *client, [[maybe_unused]] struct wl_resource *resource) {
+void DDMInterfaceV1Private::enable_render([[maybe_unused]] Resource *resource)
+{
     Helper::instance()->enableRender();
 }
 
-static void disableRender(struct wl_client *client, [[maybe_unused]] struct wl_resource *resource, uint32_t id) {
+void DDMInterfaceV1Private::disable_render(Resource *resource, uint32_t id)
+{
     Helper::instance()->disableRender();
-    auto callback = wl_resource_create(client, &wl_callback_interface, 1, id);
-    auto serial = wl_display_get_serial(wl_client_get_display(client));
+    auto callback = wl_resource_create(resource->client(), &wl_callback_interface, 1, id);
+    auto serial = wl_display_get_serial(wl_client_get_display(resource->client()));
     wl_callback_send_done(callback, serial);
     wl_resource_destroy(callback);
 }
 
-static void destroy([[maybe_unused]] struct wl_client *client,
-                       struct wl_resource *resource)
+DDMInterfaceV1::DDMInterfaceV1(QObject *parent)
+    : QObject(parent)
+    , WServerInterface()
+    , d(new DDMInterfaceV1Private(this))
 {
-    wl_resource_destroy(resource);
 }
 
-static const struct treeland_ddm_v1_interface treeland_ddm_impl {
-    .switch_to_greeter = switchToGreeter,
-    .switch_to_user = switchToUser,
-    .activate_session = activateSession,
-    .deactivate_session = deactivateSession,
-    .enable_render = enableRender,
-    .disable_render = disableRender,
-    .destroy = destroy,
-};
+DDMInterfaceV1::~DDMInterfaceV1() = default;
 
-// wayland object binding
-
-static void handleResourceDestroy(struct wl_resource *resource) {
-    qCWarning(treelandCore) << "DDM connection lost";
-    auto ddm = static_cast<struct treeland_ddm *>(wl_resource_get_user_data(resource));
-    ddm->resource = nullptr;
+QByteArrayView DDMInterfaceV1::interfaceName() const
+{
+    return d->interfaceName();
 }
 
-void handleBindingGlobal(struct wl_client *client, void *data, uint32_t version, uint32_t id) {
-    auto ddm = static_cast<struct treeland_ddm *>(data);
-    auto *resource = wl_resource_create(client, &treeland_ddm_v1_interface, version, id);
-    wl_resource_set_implementation(resource, &treeland_ddm_impl, ddm, handleResourceDestroy);
-    ddm->resource = resource;
-    qCDebug(treelandCore) << "DDM connection established";
-
-    treeland_ddm_v1_send_acquire_vt(resource, 0);
+bool DDMInterfaceV1::isConnected() const
+{
+    return !d->resourceMap().isEmpty();
 }
 
-// DDMInterfaceV1
-
-DDMInterfaceV1::DDMInterfaceV1() {
-
-}
-
-DDMInterfaceV1::~DDMInterfaceV1() {
-}
-
-QByteArrayView DDMInterfaceV1::interfaceName() const {
-    static const QByteArray arr(treeland_ddm_v1_interface.name);
-    return QByteArrayView(arr);
-}
-
-bool DDMInterfaceV1::isConnected() const {
-    auto ddm = static_cast<struct treeland_ddm *>(m_handle);
-    return ddm && ddm->resource;
-}
-
-void DDMInterfaceV1::create(WServer *server) {
-    auto ddm = new treeland_ddm { .resource = nullptr };
-    m_handle = ddm;
-    m_global = wl_global_create(server->handle()->handle(), &treeland_ddm_v1_interface,
-                                treeland_ddm_v1_interface.version, ddm, handleBindingGlobal);
-}
-
-void DDMInterfaceV1::destroy([[maybe_unused]] WServer *server) {
-    wl_global_destroy(m_global);
-    auto ddm = static_cast<struct treeland_ddm *>(m_handle);
-    delete ddm;
-    m_handle = nullptr;
-}
-
-wl_global *DDMInterfaceV1::global() const {
-    return m_global;
-}
-
-// Event wrapper
-
-void DDMInterfaceV1::switchToVt(const int vtnr) {
-    auto ddm = static_cast<struct treeland_ddm *>(m_handle);
-    if (isConnected())
-        treeland_ddm_v1_send_switch_to_vt(ddm->resource, vtnr);
-    else
+void DDMInterfaceV1::switchToVt(const int vtnr)
+{
+    if (isConnected()) {
+        for (const auto &resource : d->resourceMap()) {
+            d->send_switch_to_vt(resource->handle, vtnr);
+        }
+    } else {
         qCWarning(treelandCore) << "DDM is not connected when trying to call switchToVt";
+    }
 }
 
-void DDMInterfaceV1::acquireVt(const int vtnr) {
-    auto ddm = static_cast<struct treeland_ddm *>(m_handle);
-    if (isConnected())
-        treeland_ddm_v1_send_acquire_vt(ddm->resource, vtnr);
-    else
+void DDMInterfaceV1::acquireVt(const int vtnr)
+{
+    if (isConnected()) {
+        for (const auto &resource : d->resourceMap()) {
+            d->send_acquire_vt(resource->handle, vtnr);
+        }
+    } else {
         qCWarning(treelandCore) << "DDM is not connected when trying to call acquireVt";
+    }
+}
+
+void DDMInterfaceV1::create(WServer *server)
+{
+    d->init(server->handle()->handle(), InterfaceVersion);
+}
+
+void DDMInterfaceV1::destroy([[maybe_unused]] WServer *server)
+{
+    d->globalRemove();
+}
+
+wl_global *DDMInterfaceV1::global() const
+{
+    return d->global();
 }
