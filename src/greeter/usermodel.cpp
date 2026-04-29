@@ -38,6 +38,7 @@
 #include <QTranslator>
 
 #include <memory>
+#include <algorithm>
 #include <pwd.h>
 
 using namespace DDM;
@@ -354,4 +355,46 @@ void UserModel::onUserDeleted(quint64 uid)
     endResetModel();
 
     Q_EMIT countChanged();
+}
+
+bool UserModel::tryAddNssUser(const QString &userName)
+{
+    if (userName.isEmpty()) {
+        return false;
+    }
+
+    // Already in model?
+    bool found = std::any_of(d->users.cbegin(), d->users.cend(),
+                             [&userName](const UserPtr &u) { return u->userName() == userName; });
+    if (found) {
+        qCInfo(treelandGreeter) << "NSS user already in model:" << userName;
+        return true;
+    }
+
+    // TODO: getpwnam is synchronous and may block on slow NSS/LDAP backends;
+    // consider moving to an async worker thread in a future iteration.
+    struct passwd *pw = ::getpwnam(userName.toLocal8Bit().constData());
+    if (!pw) {
+        qCInfo(treelandGreeter) << "NSS user not found:" << userName;
+        return false;
+    }
+
+    // pw_gecos is comma-separated ("Full Name,Room,Work,Home,Other"); use only the first field.
+    QString fullName = QString::fromLocal8Bit(pw->pw_gecos).section(QLatin1Char(','), 0, 0);
+
+    qCInfo(treelandGreeter) << "Adding NSS/LDAP user to model:" << userName;
+    beginResetModel();
+    d->users.emplace_back(std::make_unique<User>(
+        userName,
+        static_cast<uid_t>(pw->pw_uid),
+        static_cast<gid_t>(pw->pw_gid),
+        QString::fromLocal8Bit(pw->pw_dir),
+        fullName));
+    std::sort(d->users.begin(), d->users.end(), [](const UserPtr &u1, const UserPtr &u2) {
+        return u1->userName() < u2->userName();
+    });
+    endResetModel();
+
+    Q_EMIT countChanged();
+    return true;
 }

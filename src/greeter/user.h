@@ -19,6 +19,8 @@ class User : public QObject
     Q_OBJECT
 public:
     explicit User(AccountsUserPtr ptr);
+    explicit User(const QString &userName, uid_t uid, gid_t gid,
+                  const QString &homeDir, const QString &fullName = {});
     ~User() override;
 
     [[nodiscard]] bool noPasswdLogin() const noexcept;
