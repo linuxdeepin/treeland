@@ -16,7 +16,9 @@ RowLayout {
     property int buttonSize: 30
     property bool powerVisible: powerList.visible
 
-    /**************/
+    signal otherUserRequested()
+
+    /***************/
     /* Components */
     /**************/
 
@@ -50,7 +52,7 @@ RowLayout {
     ControlActionItem {
         id: userItem
         Layout.alignment: Qt.AlignHCenter
-        visible: userList.count > 1
+        visible: userList.count > 1 || Helper.globalConfig.showOtherUserOption
         iconName: "login_user"
 
         UserList {
@@ -58,6 +60,7 @@ RowLayout {
             x: (userItem.width - userList.width) / 2 - 10
             y: -userList.height - 10
             onClosed: userItem.expand = false
+            onOtherUserRequested: bottomGroup.otherUserRequested()
         }
 
         onClicked: {
