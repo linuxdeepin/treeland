@@ -1,23 +1,31 @@
-// Copyright (C) 2025 April Lu <apr3vau@outlook.com>.
+// Copyright (C) 2025-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wserver.h"
 
-/**
- * The server-side wrapper for treeland private protocol.
- */
-class DDMInterfaceV1 : public Waylib::Server::WServerInterface {
+WAYLIB_SERVER_USE_NAMESPACE
+QW_USE_NAMESPACE
+
+class DDMInterfaceV1Private;
+class DDMInterfaceV1 : public QObject , public WServerInterface
+{
+    Q_OBJECT
 public:
-    DDMInterfaceV1();
+    explicit DDMInterfaceV1(QObject *parent = nullptr);
     ~DDMInterfaceV1() override;
-    QByteArrayView interfaceName() const override;
+
     bool isConnected() const;
     void switchToVt(const int vtnr);
     void acquireVt(const int vtnr);
+
+    QByteArrayView interfaceName() const override;
+    static constexpr int InterfaceVersion = 1;
+
 protected:
-    void create(Waylib::Server::WServer *server) override;
-    void destroy(Waylib::Server::WServer *server) override;
+    void create(WServer *server) override;
+    void destroy(WServer *server) override;
     wl_global *global() const override;
+
 private:
-    struct wl_global *m_global { nullptr };
+    std::unique_ptr<DDMInterfaceV1Private> d;
 };
