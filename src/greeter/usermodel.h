@@ -80,6 +80,7 @@ public:
     void updateUserLoginState(const QString &username, bool loggedIn);
     void clearUserLoginState();
     [[nodiscard]] bool containsAllUsers() const;
+    [[nodiscard]] Q_INVOKABLE bool tryAddNssUser(const QString &userName);
 
 Q_SIGNALS:
     void currentUserNameChanged();

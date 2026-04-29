@@ -13,6 +13,8 @@ Item {
     height: 300
 
     property string normalHint: qsTr("Please enter password")
+    property bool enteringOtherUser: false
+    property bool showUserNotFoundError: false
 
     /**************/
     /* Components */
@@ -70,6 +72,13 @@ Item {
                 source: avatar
                 maskSource: maskSource
                 invert: false
+                visible: !loginGroup.enteringOtherUser
+            }
+            D.DciIcon {
+                anchors.centerIn: parent
+                name: "login_user"
+                sourceSize { width: 96; height: 96 }
+                visible: loginGroup.enteringOtherUser
             }
             Rectangle {
                 radius: 20
@@ -131,10 +140,11 @@ Item {
             width: loginGroup.width
             height: 30
             anchors.horizontalCenter: parent.horizontalCenter
-            echoMode: showPasswordBtn.hiddenPWD ? TextInput.Password : TextInput.Normal
+            echoMode: loginGroup.enteringOtherUser ? TextInput.Normal
+                      : (showPasswordBtn.hiddenPWD ? TextInput.Password : TextInput.Normal)
             rightPadding: capsIndicator.visible ? 24 + capsIndicator.width : 24
             maximumLength: 510
-            placeholderText: qsTr("Password")
+            placeholderText: loginGroup.enteringOtherUser ? qsTr("Username") : qsTr("Password")
             placeholderTextColor: Qt.rgba(1.0, 1.0, 1.0, 0.6)
             color: palette.windowText
             font: D.DTK.fontManager.t8
@@ -143,7 +153,10 @@ Item {
                     capsIndicatorVisible = !capsIndicatorVisible
                     event.accepted = true
                 } else if (event.key === Qt.Key_Return) {
-                    userLogin()
+                    if (loginGroup.enteringOtherUser)
+                        confirmOtherUser()
+                    else
+                        userLogin()
                     event.accepted = true
                 }
             }
@@ -157,7 +170,7 @@ Item {
 
                 D.ActionButton {
                     id: capsIndicator
-                    visible: passwordField.capsIndicatorVisible
+                    visible: passwordField.capsIndicatorVisible && !loginGroup.enteringOtherUser
                     palette.windowText: undefined
                     icon {
                         name: "login_capslock"
@@ -172,6 +185,7 @@ Item {
                 D.ActionButton {
                     id: showPasswordBtn
                     property bool hiddenPWD: true
+                    visible: !loginGroup.enteringOtherUser
                     icon {
                         name: hiddenPWD ? "login_display_password" : "login_hidden_password"
                         height: 10
@@ -223,7 +237,7 @@ Item {
             radius: parent.height / 2
         }
 
-        onClicked: userLogin()
+        onClicked: loginGroup.enteringOtherUser ? confirmOtherUser() : userLogin()
     }
 
     RowLayout {
@@ -287,6 +301,7 @@ Item {
 
     Text {
         id: hintText
+        visible: !loginGroup.enteringOtherUser || loginGroup.showUserNotFoundError
         font: D.DTK.fontManager.t8
         color: Qt.rgba(1.0, 1.0, 1.0, 0.7)
         anchors {
@@ -301,11 +316,35 @@ Item {
     /*****************************/
 
     function updateUser() {
+        loginGroup.enteringOtherUser = false
+        loginGroup.showUserNotFoundError = false
         let currentUser = UserModel.get(UserModel.currentUserName)
         username.text = currentUser.realName.length === 0 ? currentUser.name : currentUser.realName
         passwordField.text = ''
         avatar.fallbackSource = currentUser.icon
         hintText.text = normalHint
+    }
+
+    function startOtherUserMode() {
+        loginGroup.enteringOtherUser = true
+        loginGroup.showUserNotFoundError = false
+        username.text = qsTr("Enter username")
+        passwordField.text = ""
+        passwordField.forceActiveFocus()
+    }
+
+    function confirmOtherUser() {
+        let name = passwordField.text.trim()
+        if (name.length === 0) return
+        if (UserModel.tryAddNssUser(name)) {
+            UserModel.currentUserName = name
+            // updateUser() fires via currentUserNameChanged, resets enteringOtherUser
+        } else {
+            loginGroup.showUserNotFoundError = true
+            hintText.text = qsTr("User not found.")
+            passwordField.selectAll()
+            passwordField.forceActiveFocus()
+        }
     }
 
     function userLogin() {
