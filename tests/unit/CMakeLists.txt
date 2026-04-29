@@ -1,0 +1,2 @@
+add_subdirectory(test_gestures)
+add_subdirectory(test_propertymonitor)
