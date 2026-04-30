@@ -74,11 +74,17 @@ ShellHandler::ShellHandler(RootSurfaceContainer *rootContainer, WServer *server)
     qRegisterMetaType<ForeignToplevelManagerInterfaceV1::PreviewDirection>();
 
     m_backgroundContainer->setZ(RootSurfaceContainer::BackgroundZOrder);
+    m_backgroundContainer->setObjectName(QStringLiteral("BackgroundContainer"));
     m_bottomContainer->setZ(RootSurfaceContainer::BottomZOrder);
+    m_bottomContainer->setObjectName(QStringLiteral("BottomContainer"));
     m_workspace->setZ(RootSurfaceContainer::NormalZOrder);
+    m_workspace->setObjectName(QStringLiteral("WorkspaceContainer"));
     m_topContainer->setZ(RootSurfaceContainer::TopZOrder);
+    m_topContainer->setObjectName(QStringLiteral("TopContainer"));
     m_overlayContainer->setZ(RootSurfaceContainer::OverlayZOrder);
+    m_overlayContainer->setObjectName(QStringLiteral("OverlayContainer"));
     m_popupContainer->setZ(RootSurfaceContainer::PopupZOrder);
+    m_popupContainer->setObjectName(QStringLiteral("PopupContainer"));
 }
 
 void ShellHandler::updateWrapperContainer(SurfaceWrapper *wrapper, WSurface *parentSurface)
