@@ -84,19 +84,19 @@ public:
         , m_manager(manager)
         , m_wrapper(wrapper)
     {
-        if (m_wrapper && m_wrapper->shellSurface()) {
-            m_wrapper->shellSurface()->safeConnect(&WToplevelSurface::minimizeChanged, this, [this] {
-                sendStateChanged();
-            });
-            connect(m_wrapper, &SurfaceWrapper::aboutToBeInvalidated, this, [this] {
-                m_alive = false;
-                if (m_manager) {
-                    m_manager->removeState(this);
-                    m_manager = nullptr;
-                }
-                m_wrapper = nullptr;
-            });
-        }
+        Q_ASSERT_X(m_wrapper, Q_FUNC_INFO, "wrapper must not be null");
+        Q_ASSERT_X(m_wrapper->shellSurface(), Q_FUNC_INFO, "wrapper->shellSurface() must not be null");
+
+        m_wrapper->shellSurface()->safeConnect(&WToplevelSurface::minimizeChanged, this, [this] {
+            sendStateChanged();
+        });
+        connect(m_wrapper, &SurfaceWrapper::aboutToBeInvalidated, this, [this] {
+            if (m_manager) {
+                m_manager->removeState(this);
+                m_manager = nullptr;
+            }
+            m_wrapper = nullptr;
+        });
 
         sendStateChanged();
     }
@@ -118,7 +118,7 @@ protected:
 
     void unminimize([[maybe_unused]] Resource *resource) override
     {
-        if (!m_alive || !m_wrapper)
+        if (!m_wrapper)
             return;
         if (m_wrapper->isMinimized())
             m_wrapper->requestCancelMinimize();
@@ -129,7 +129,7 @@ protected:
                   [[maybe_unused]] uint32_t reason,
                   [[maybe_unused]] struct ::wl_resource *seat) override
     {
-        if (!m_alive || !m_wrapper || !m_wrapper->shellSurface() || !m_wrapper->surface()) {
+        if (!m_wrapper || !m_wrapper->shellSurface() || !m_wrapper->surface()) {
             send_activate_denied(serial);
             return;
         }
@@ -149,7 +149,7 @@ protected:
                        [[maybe_unused]] uint32_t count,
                        [[maybe_unused]] uint32_t timeoutMs) override
     {
-        if (!m_alive)
+        if (!m_wrapper)
             return;
         m_attention = true;
         // TODO：foreign-toplevel open no extension attention capability
@@ -160,7 +160,7 @@ protected:
 
     void clear_attention([[maybe_unused]] Resource *resource) override
     {
-        if (!m_alive)
+        if (!m_wrapper)
             return;
         m_attention = false;
         sendStateChanged();
@@ -169,7 +169,7 @@ protected:
 private:
     void sendStateChanged()
     {
-        if (!m_alive)
+        if (!m_wrapper)
             return;
 
         uint32_t state = 0;
@@ -184,7 +184,6 @@ private:
 private:
     WineWindowStateManagerPrivate *m_manager = nullptr;
     SurfaceWrapper *m_wrapper = nullptr;
-    bool m_alive = true;
     bool m_attention = false;
 };
 
@@ -215,7 +214,7 @@ void WineWindowStateManagerPrivate::get_window_state(Resource *resource,
     auto *root = helper ? helper->rootSurfaceContainer() : nullptr;
     auto *wrapper = (root && xdgToplevel) ? root->getSurface(xdgToplevel) : nullptr;
 
-    if (!xdgToplevel || !wrapper) {
+    if (!xdgToplevel || !wrapper || !wrapper->shellSurface()) {
         wl_resource_post_error(resource->handle,
                                TREELAND_WINE_WINDOW_STATE_MANAGER_V1_ERROR_DEFUNCT_TOPLEVEL,
                                "invalid or defunct toplevel");
