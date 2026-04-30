@@ -346,6 +346,7 @@ Q_SIGNALS:
 
 private:
     ~SurfaceWrapper() override;
+    using QObject::deleteLater;
     using QQuickItem::setParentItem;
     using QQuickItem::setVisible;
     using QQuickItem::stackAfter;

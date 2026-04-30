@@ -98,12 +98,6 @@ public:
             });
         }
 
-        if (m_wrapper) {
-            connect(m_wrapper, &QObject::destroyed, this, [this] {
-                m_wrapper = nullptr;
-            });
-        }
-
         sendStateChanged();
     }
 

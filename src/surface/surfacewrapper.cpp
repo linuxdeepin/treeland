@@ -178,6 +178,10 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
 
 SurfaceWrapper::~SurfaceWrapper()
 {
+    Q_ASSERT_X(m_wrapperAboutToRemove,
+               Q_FUNC_INFO,
+               "SurfaceWrapper must be removed via markWrapperToRemoved before destruction");
+
     Q_ASSERT(!m_ownsOutput);
     Q_ASSERT(!m_container);
     Q_ASSERT(!m_parentSurface);
