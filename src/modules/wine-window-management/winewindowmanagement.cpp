@@ -101,25 +101,25 @@ public:
         , m_windowId(windowId)
         , m_wrapper(wrapper)
     {
-        if (m_wrapper) {
-            connect(m_wrapper, &SurfaceWrapper::aboutToBeInvalidated, this, [this] {
-                m_alive = false;
-                if (m_manager) {
-                    m_manager->removeControl(this);
-                    m_manager = nullptr;
-                }
-                m_wrapper = nullptr;
-            });
-            connect(m_wrapper, &QQuickItem::xChanged, this, [this] {
-                sendConfigurePosition();
-            });
-            connect(m_wrapper, &QQuickItem::yChanged, this, [this] {
-                sendConfigurePosition();
-            });
-            connect(m_wrapper, &SurfaceWrapper::alwaysOnTopChanged, this, [this] {
-                sendConfigureStacking();
-            });
-        }
+        Q_ASSERT_X(m_wrapper, Q_FUNC_INFO, "wrapper must not be null");
+        Q_ASSERT_X(m_wrapper->shellSurface(), Q_FUNC_INFO, "wrapper->shellSurface() must not be null");
+
+        connect(m_wrapper, &SurfaceWrapper::aboutToBeInvalidated, this, [this] {
+            if (m_manager) {
+                m_manager->removeControl(this);
+                m_manager = nullptr;
+            }
+            m_wrapper = nullptr;
+        });
+        connect(m_wrapper, &QQuickItem::xChanged, this, [this] {
+            sendConfigurePosition();
+        });
+        connect(m_wrapper, &QQuickItem::yChanged, this, [this] {
+            sendConfigurePosition();
+        });
+        connect(m_wrapper, &SurfaceWrapper::alwaysOnTopChanged, this, [this] {
+            sendConfigureStacking();
+        });
 
         // Initial event sequence: window_id → configure_position → configure_stacking
         send_window_id(m_windowId);
@@ -145,7 +145,7 @@ protected:
 
     void set_position([[maybe_unused]] Resource *resource, int32_t x, int32_t y) override
     {
-        if (!m_alive || !m_wrapper) {
+        if (!m_wrapper) {
             return;
         }
 
@@ -160,7 +160,7 @@ protected:
                      uint32_t op,
                      uint32_t sibling_id) override
     {
-        if (!m_alive || !m_wrapper) {
+        if (!m_wrapper) {
             return;
         }
 
@@ -252,14 +252,12 @@ private:
         WineWindowControl *sibling = m_manager->controlForId(siblingId);
         // If sibling not found or in different tier, fall back to hwnd_top
         if (!sibling || !sibling->wrapper()) {
-            applyHwndTop();
             return;
         }
 
         SurfaceWrapper *siblingWrapper = sibling->wrapper();
         // Both must share the same parent container
         if (!m_wrapper->parentItem() || siblingWrapper->parentItem() != m_wrapper->parentItem()) {
-            applyHwndTop();
             return;
         }
 
@@ -271,7 +269,6 @@ private:
     WineWindowManagementManagerPrivate *m_manager = nullptr;
     uint32_t m_windowId = 0;
     SurfaceWrapper *m_wrapper = nullptr;
-    bool m_alive = true;
 };
 
 void WineWindowManagementManagerPrivate::get_window_control(Resource *resource,
@@ -291,7 +288,7 @@ void WineWindowManagementManagerPrivate::get_window_control(Resource *resource,
     auto *root = helper ? helper->rootSurfaceContainer() : nullptr;
     auto *wrapper = (root && xdgToplevel) ? root->getSurface(xdgToplevel) : nullptr;
 
-    if (!xdgToplevel || !wrapper) {
+    if (!xdgToplevel || !wrapper || !wrapper->shellSurface()) {
         wl_resource_post_error(resource->handle,
                                TREELAND_WINE_WINDOW_MANAGER_V1_ERROR_DEFUNCT_TOPLEVEL,
                                "invalid or defunct toplevel");
@@ -354,5 +351,5 @@ wl_global *WineWindowManagementManager::global() const
 
 QByteArrayView WineWindowManagementManager::interfaceName() const
 {
-    return QtWaylandServer::treeland_wine_window_manager_v1::interface()->name;
+    return QtWaylandServer::treeland_wine_window_manager_v1::interfaceName();
 }
