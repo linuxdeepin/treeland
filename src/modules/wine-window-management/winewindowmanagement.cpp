@@ -110,9 +110,6 @@ public:
                 }
                 m_wrapper = nullptr;
             });
-            connect(m_wrapper, &QObject::destroyed, this, [this] {
-                m_wrapper = nullptr;
-            });
             connect(m_wrapper, &QQuickItem::xChanged, this, [this] {
                 sendConfigurePosition();
             });
