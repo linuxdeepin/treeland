@@ -15,7 +15,7 @@ if (NOT DISABLE_DDM)
     find_package(DDM 0.2.0 REQUIRED COMPONENTS Common)
 endif()
 find_package(QT NAMES Qt6 COMPONENTS Core REQUIRED)
-find_package(Qt6 CONFIG REQUIRED ShaderTools Concurrent)
+find_package(Qt6 CONFIG REQUIRED ShaderTools Concurrent RemoteObjects Network)
 find_package(Qt6 COMPONENTS Quick QuickControls2 REQUIRED)
 if(Qt6_VERSION VERSION_GREATER_EQUAL 6.10)
     find_package(Qt6 REQUIRED COMPONENTS QuickPrivate)
@@ -169,6 +169,8 @@ qt_add_qml_module(libtreeland
         interfaces/multitaskviewinterface.h
         interfaces/plugininterface.h
         interfaces/proxyinterface.h
+        modules/resource/treelandremotesource.cpp
+        modules/resource/treelandremotesource.h
         output/output.cpp
         output/output.h
         output/backlight.h
@@ -264,6 +266,10 @@ qt_add_qml_module(libtreeland
         ${PROJECT_BINARY_DIR}/qt/qml/Treeland
 )
 
+qt_add_repc_sources(libtreeland
+    modules/resource/treelandwindowtree.rep
+)
+
 target_compile_definitions(libtreeland
     PRIVATE
     WLR_USE_UNSTABLE
@@ -346,6 +352,8 @@ target_link_libraries(libtreeland
         Qt6::QuickPrivate
         Qt6::DBus
         Qt6::Concurrent
+        Qt6::RemoteObjects
+        Qt6::Network
         PkgConfig::PIXMAN
         PkgConfig::WAYLAND
         PkgConfig::LIBINPUT

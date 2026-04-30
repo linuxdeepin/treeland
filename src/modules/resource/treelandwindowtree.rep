@@ -1,0 +1,48 @@
+// Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
+// SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+
+#include <QtCore/QVariant>
+#include <QtCore/QRectF>
+#include <QtCore/QPointF>
+
+POD WindowInfo(
+    QString appId,
+    QString title,
+    QString output,
+    QString container,
+    int workspace,
+    int layer,
+    int z,
+    int type,
+    int state,
+    bool visible,
+    bool active,
+    QRectF geometry,
+    QRectF titlebarGeometry,
+    QRectF boundingRect,
+    QRectF iconGeometry,
+    QPointF position
+)
+
+POD WorkspaceInfo(
+    int id,
+    bool isActive,
+    QList<WindowInfo> windows
+)
+
+POD LayerInfo(
+    QString name,
+    int layer,
+    QList<WindowInfo> windows,  // normal layer
+    QList<WorkspaceInfo> workspaces // if is workspace
+)
+
+POD TreelandInfo(
+    QString currentMode,
+    QList<LayerInfo> layers
+)
+
+class WindowTreeRemote {
+    SLOT(TreelandInfo getTreelandInfo());
+    PROP(QPointF cursorPosition READONLY)
+};
