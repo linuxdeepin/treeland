@@ -359,24 +359,21 @@ TreelandWallpaperInterfaceV1::WallpaperType WallpaperManager::getWallpaperType(c
 
 void WallpaperManager::onWallpaperAdded(TreelandWallpaperInterfaceV1 *interface)
 {
-    connect(interface,
-        &TreelandWallpaperInterfaceV1::binded,
-        this, [this, interface]{
-            Workspace *workspace = Helper::instance()->workspace();
-            Q_ASSERT(workspace);
-            for (int i = 0; i < m_wallpaperConfig.size(); ++i) {
-                if (m_wallpaperConfig[i].outputName == getOutputId(interface->wOutput()->nativeHandle())) {
-                    WallpaperOutputConfig outputConfig = m_wallpaperConfig[i];
-                    interface->sendChanged(TreelandWallpaperInterfaceV1::Lockscreen, outputConfig.lockScreenWallpapertype, outputConfig.lockscreenWallpaper);
-                    for (WallpaperWorkspaceConfig workspaceConfig : std::as_const(outputConfig.workspaces)) {
-                        if (workspaceConfig.workspaceId == workspace->currentIndex()) {
-                            interface->sendChanged(TreelandWallpaperInterfaceV1::Desktop, workspaceConfig.desktopWallpapertype, workspaceConfig.desktopWallpaper);
-                        }
-                    }
+    Workspace *workspace = Helper::instance()->workspace();
+    Q_ASSERT(workspace);
+    for (int i = 0; i < m_wallpaperConfig.size(); ++i) {
+        if (m_wallpaperConfig[i].outputName == getOutputId(interface->wOutput()->nativeHandle())) {
+            WallpaperOutputConfig outputConfig = m_wallpaperConfig[i];
+            interface->sendChanged(TreelandWallpaperInterfaceV1::Lockscreen, outputConfig.lockScreenWallpapertype, outputConfig.lockscreenWallpaper);
+            for (WallpaperWorkspaceConfig workspaceConfig : std::as_const(outputConfig.workspaces)) {
+                if (workspaceConfig.workspaceId == workspace->currentIndex()) {
+                    interface->sendChanged(TreelandWallpaperInterfaceV1::Desktop, workspaceConfig.desktopWallpapertype, workspaceConfig.desktopWallpaper);
                     break;
                 }
             }
-        }, Qt::SingleShotConnection);
+            break;
+        }
+    }
     connect(interface,
             &TreelandWallpaperInterfaceV1::imageSourceChanged,
             this,

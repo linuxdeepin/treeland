@@ -79,7 +79,6 @@ Q_SIGNALS:
     void videoSourceChanged(int workspaceIndex,
                             const QString &fileSource,
                             WallpaperRoles roles);
-    void binded();
 
 private:
     explicit TreelandWallpaperInterfaceV1(struct wl_resource *output,
