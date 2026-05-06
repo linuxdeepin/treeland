@@ -141,7 +141,6 @@ public:
     wl_resource *refSurfaceResource = nullptr;
 
 protected:
-    void bind_resource(Resource *resource) override;
     void destroy_resource(Resource *resource) override;
     void destroy(Resource *resource) override;
     void set_image_source(Resource *resource, const QString &fileSource, uint32_t nativeRole) override;
@@ -160,11 +159,6 @@ TreelandWallpaperInterfaceV1Private::TreelandWallpaperInterfaceV1Private(Treelan
     , resource(_resource)
     , refSurfaceResource(refsurface)
 {
-}
-
-void TreelandWallpaperInterfaceV1Private::bind_resource([[maybe_unused]] Resource *resource)
-{
-    Q_EMIT q->binded();
 }
 
 void TreelandWallpaperInterfaceV1Private::destroy_resource([[maybe_unused]] Resource *resource)

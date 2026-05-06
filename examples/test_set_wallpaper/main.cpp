@@ -155,9 +155,6 @@ int main(int argc, char *argv[])
                 qApp->exit(EXIT_FAILURE);
                 return;
             }
-            delete wallpaper;
-            delete wallpaperManager;
-            qApp->exit(EXIT_SUCCESS);
         }
     });
     wallpaperManager->instantiate();
