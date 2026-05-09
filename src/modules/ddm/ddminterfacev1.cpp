@@ -56,6 +56,12 @@ static void disableRender(struct wl_client *client, [[maybe_unused]] struct wl_r
     wl_resource_destroy(callback);
 }
 
+static void destroy([[maybe_unused]] struct wl_client *client,
+                       struct wl_resource *resource)
+{
+    wl_resource_destroy(resource);
+}
+
 static const struct treeland_ddm_v1_interface treeland_ddm_impl {
     .switch_to_greeter = switchToGreeter,
     .switch_to_user = switchToUser,
@@ -63,6 +69,7 @@ static const struct treeland_ddm_v1_interface treeland_ddm_impl {
     .deactivate_session = deactivateSession,
     .enable_render = enableRender,
     .disable_render = disableRender,
+    .destroy = destroy,
 };
 
 // wayland object binding
