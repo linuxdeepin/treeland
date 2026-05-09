@@ -1,3 +1,49 @@
+treeland (0.8.6) unstable; urgency=medium
+
+  * fix: fix multiple crashes caused by thread affinity and use-after-
+    free issues
+  * fix(surface): avoid SurfaceWrapper assert on QObject child
+    destruction
+  * refactor: remove redundant m_alive flag
+  * refactor: enforce SurfaceWrapper cleanup via markWrapperToRemoved
+  * refactor: simplify wine window data structures
+  * feat: add Wine window management protocol module
+  * refactor(shellhandler): consolidate compositor protocol startup into
+    single-shot init
+  * feat(modules): introduce WineWindowState protocol module and wire
+    initial integration
+  * fix: deepin ci failed
+  * Revert "fix: disconnect socket signals when shell surface is
+    removed"
+  * feat: refactor treeland-screensaver-v1 protocol implementation
+  * fix: 'wallpaper changed' events could not be sent or received
+  * fix: disconnect socket signals when shell surface is removed
+  * feat: refactor treeland-personalization-manager protocol
+    implementation
+  * fix: capturev1 resource destroy callbacks: use deleteLater() to
+    avoid UAF
+  * refactor: Remove manual resource tracking in interface
+    implementations
+  * refactor: Make `interfaceName()` public in WServerInterface
+    implementations
+  * fix: prevent crash during Wayland client destruction
+  * feat: rename qtwaylandscanner Resource object name
+  * fix: Remove redundant 'delete' operations in `destroy_global`
+  * refactor: privatize generated protocol implementations
+  * fix: use globalRemove to implement WServerInterface::destroy
+  * feat: refactor treeland-virtual-output-manager-v1 protocol
+    implementation
+  * [skip CI] Translate treeland.en_US.ts in pt_BR
+  * fix: prevent deadlock during Wayland client destruction
+  * fix: Gradia-like capture causes treeland crashed, and update
+    copyright to 2026
+  * feat: refactor wallpaper-color protocol implementation
+  * feat: refactor window-management protocol implementation
+  * fix: avoid set zero implicit size during splash transition
+  * chore: refine decoration handling logic
+
+ -- rewine <luhongxu@deepin.org>  Sat, 09 May 2026 18:04:20 +0800
+
 treeland (0.8.5) unstable; urgency=medium
 
   * fix: correct CMake config name for submodule build
