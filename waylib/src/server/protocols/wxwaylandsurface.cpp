@@ -10,6 +10,9 @@
 #include <qwxwaylandsurface.h>
 #include <qwcompositor.h>
 
+#include <sys/syscall.h>
+#include <unistd.h>
+
 #define XCOORD_MAX 32767
 
 QW_USE_NAMESPACE
