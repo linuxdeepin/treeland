@@ -76,6 +76,8 @@
 #include <QQmlComponent>
 #include <QVariant>
 
+#include <unistd.h>
+
 #define WLR_FRACTIONAL_SCALE_V1_VERSION 1
 #define EXT_DATA_CONTROL_MANAGER_V1_VERSION 1
 

@@ -30,6 +30,7 @@
 #include <QProcess>
 #include <QLocalServer>
 #include <QLocalSocket>
+#include <unistd.h>
 #include <private/qthread_p.h>
 #include <private/qguiapplication_p.h>
 #include <qpa/qplatformthemefactory_p.h>

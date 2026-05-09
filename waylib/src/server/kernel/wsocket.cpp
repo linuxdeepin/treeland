@@ -18,6 +18,7 @@
 #include <sys/types.h>
 #include <sys/un.h>
 #include <signal.h>
+#include <sys/syscall.h>
 #include <errno.h>
 
 struct wl_event_source;
