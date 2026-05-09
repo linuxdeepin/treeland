@@ -146,6 +146,7 @@ public:
     void restore();
 
     void addClient(WClient *client);
+    void doRemoveClient(WClient *client);
 
     W_DECLARE_PUBLIC(WSocket)
 
@@ -499,10 +500,11 @@ void WSocket::close()
     }
 
     if (!d->clients.isEmpty()) {
-        for (auto client : std::as_const(d->clients))
-            removeClient(client);
+        QList<WClient*> clientsToClose;
+        std::swap(clientsToClose, d->clients);
+        for (auto client : std::as_const(clientsToClose))
+            d->doRemoveClient(client);
 
-        d->clients.clear();
         Q_EMIT clientsChanged();
     }
 }
@@ -771,6 +773,23 @@ WClient *WSocket::addClient(wl_client *client, bool isWlClientOwned)
     return wclient;
 }
 
+void WSocketPrivate::doRemoveClient(WClient *client)
+{
+    W_Q(WSocket);
+
+    Q_EMIT q->aboutToBeDestroyedClient(client);
+
+    auto handle = client->handle();
+    if (handle && client->d_func()->isWlClientOwned) {
+        // Set handle to nullptr to prevent handle_destroy from calling removeClient again
+        client->d_func()->handle = nullptr;
+        delete client;
+        wl_client_destroy(handle);
+    } else {
+        delete client;
+    }
+}
+
 bool WSocket::removeClient(wl_client *client)
 {
     if (auto c = WClient::get(client))
@@ -782,20 +801,11 @@ bool WSocket::removeClient(WClient *client)
 {
     W_D(WSocket);
 
-    bool ok = d->clients.removeOne(client);
-    if (!ok)
+    if (!d->clients.removeOne(client))
         return false;
 
-    Q_EMIT aboutToBeDestroyedClient(client);
+    d->doRemoveClient(client);
 
-    auto handle = client->handle();
-    if (handle && client->d_func()->isWlClientOwned) {
-        // Set handle to nullptr to prevent handle_destroy from calling removeClient again
-        client->d_func()->handle = nullptr;
-        wl_client_destroy(handle);
-    }
-
-    delete client;
     Q_EMIT clientsChanged();
 
     return true;

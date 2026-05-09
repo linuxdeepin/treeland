@@ -236,9 +236,6 @@ void CaptureContextV1::handleSourceDestroyed()
 void CaptureContextV1::handleSessionStart()
 {
     m_currentFrameData.acked = true;
-    moveToThread(QQuickWindowPrivate::get(outputRenderWindow())->context->thread());
-    captureSource()->moveToThread(
-        QQuickWindowPrivate::get(outputRenderWindow())->context->thread());
     auto conn = connect(outputRenderWindow(),
                         &WOutputRenderWindow::renderEnd,
                         this,
