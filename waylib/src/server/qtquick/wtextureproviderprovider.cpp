@@ -1,4 +1,4 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wtextureproviderprovider.h"
@@ -6,7 +6,6 @@
 #include "private/wglobal_p.h"
 
 #include <rhi/qrhi.h>
-#include <private/qquickwindow_p.h>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 Q_LOGGING_CATEGORY(qLcTextureProvider, "waylib.server.texture.provider")
@@ -42,9 +41,9 @@ QFuture<QImage> WTextureCapturer::grabToImage()
 {
     W_D(WTextureCapturer);
     auto future = d->imgPromise.future();
-    moveToThread(QQuickWindowPrivate::get(d->renderWindow)->context->thread());
+
     if (d->renderWindow->inRendering()) {
-        connect(d->renderWindow, &WOutputRenderWindow::renderEnd, this, &WTextureCapturer::doGrabToImage, Qt::AutoConnection);
+        connect(d->renderWindow, &WOutputRenderWindow::renderEnd, this, &WTextureCapturer::doGrabToImage, Qt::SingleShotConnection);
     } else {
         // FIXME What if a new render process start before this job is executed?
         QMetaObject::invokeMethod(this, &WTextureCapturer::doGrabToImage, Qt::AutoConnection);
@@ -55,8 +54,10 @@ QFuture<QImage> WTextureCapturer::grabToImage()
 void WTextureCapturer::doGrabToImage()
 {
     W_D(WTextureCapturer);
-    if (d->imgPromise.isCanceled())
-        return;
+    disconnect(d->renderWindow,
+               &WOutputRenderWindow::renderEnd,
+               this,
+               &WTextureCapturer::doGrabToImage);
     d->imgPromise.start();
     WSGTextureProvider *textureProvider = d->provider->wTextureProvider();
     if (textureProvider && textureProvider->texture() && textureProvider->texture()->rhiTexture()) {

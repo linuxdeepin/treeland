@@ -422,7 +422,9 @@ void SurfaceWrapper::convertToNormalSurface(WToplevelSurface *shellSurface, Type
     setup();
     m_surfaceItem->setVisible(false);
 
-    if (surface()->mapped()) {
+    // Check if surface is still valid before accessing
+    WSurface *surf = surface();
+    if (surf && surf->mapped()) {
         syncPrelaunchMappedState();
         startPrelaunchSplashHideSequence();
     }
