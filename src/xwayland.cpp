@@ -21,6 +21,7 @@
 #include <QTemporaryFile>
 #include <random>
 #include <sys/stat.h>
+#include <unistd.h>
 #include <X11/Xauth.h>
 
 int main(int argc, char *argv[])
