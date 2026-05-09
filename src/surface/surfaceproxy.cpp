@@ -13,6 +13,14 @@ SurfaceProxy::SurfaceProxy(QQuickItem *parent)
 {
 }
 
+SurfaceProxy::~SurfaceProxy()
+{
+    if (m_proxySurface) {
+        m_proxySurface->markWrapperToRemoved();
+        m_proxySurface = nullptr;
+    }
+}
+
 SurfaceWrapper *SurfaceProxy::surface() const
 {
     return m_sourceSurface;
