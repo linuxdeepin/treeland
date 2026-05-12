@@ -11,7 +11,7 @@ Keep logging changes consistent with this repository's existing split:
 - `treeland`: centralized categories in `src/common/treelandlogging.h/.cpp`
 - `waylib`: local per-file categories
 
-Use this skill for implementation work and for review work.
+Use this skill for both implementation work and review work.
 
 ## Routing
 Choose the logging path by module ownership, not by personal preference.
@@ -38,7 +38,7 @@ Q_LOGGING_CATEGORY(waylibCursor, "waylib.server.cursor", QtInfoMsg)
 Q_LOGGING_CATEGORY(waylibCursorInput, "waylib.server.cursor.input", QtDebugMsg)
 ```
 
-## Log levels
+## Log Levels
 Choose the lowest level that still matches the operational importance.
 
 - `qCDebug`: detailed debugging and troubleshooting
@@ -48,7 +48,7 @@ Choose the lowest level that still matches the operational importance.
 
 Do not upgrade routine noise to warning or critical just to make it visible.
 
-## Message quality
+## Message Quality
 Write messages that are specific and filterable.
 
 Prefer:
@@ -70,12 +70,12 @@ When useful, include:
 - identifiers or names
 - the impact of an error
 
-## Category organization
+## Category Organization
 Use the most specific category that matches the event.
 
 Prefer a narrower category for a sub-area when the file already separates them. Do not log unrelated events through a broad category if a better one exists.
 
-## Error logging
+## Error Logging
 When logging failures, include enough context to debug the issue without reading surrounding code.
 
 Prefer:
@@ -87,18 +87,18 @@ qCWarning(waylibCursor) << "Failed to attach device" << device->name()
 
 Avoid vague failure messages with no object, cause, or impact.
 
-## Sensitive data
+## Sensitive Data
 Do not log secrets, passwords, tokens, or other sensitive user data.
 
-## Review checklist
+## Review Checklist
 When reviewing a logging change, verify:
 
-1. The category follows the correct treeland or waylib pattern.
-2. The chosen log level matches severity.
-3. The message contains enough context.
-4. The change does not leak sensitive information.
-5. The change does not introduce unrelated category churn.
+1. the category follows the correct treeland or waylib pattern
+2. the chosen log level matches severity
+3. the message contains enough context
+4. the change does not leak sensitive information
+5. the change does not introduce unrelated category churn
 
-## Repository references
+## Repository References
 - `src/common/treelandlogging.h`
 - `src/common/treelandlogging.cpp`
