@@ -1087,11 +1087,14 @@ void WSurfaceItem::onSurfaceCommit()
     d->updateSubsurfaceItem();
 }
 
-bool WSurfaceItem::resizeSurface(const QSizeF &newSize)
+bool WSurfaceItem::resizeSurface(const QSizeF &newSize, bool tryExec)
 {
     Q_D(const WSurfaceItem);
     if (!d->shellSurface || !d->contentContainer)
         return false;
+    if (tryExec)
+        return true;
+
     QRectF tmp(0, 0, newSize.width(), newSize.height());
     tmp -= d->paddings;
     // See surfaceSizeRatio, the content item maybe has been scaled.
