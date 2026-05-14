@@ -190,7 +190,7 @@ public:
     void setDelegate(QQmlComponent *newDelegate);
     
     // resize internal surface, should be in SizeFromSurface mode
-    bool resizeSurface(const QSizeF &newSize);
+    bool resizeSurface(const QSizeF &newSize, bool tryExec = false);
     bool subsurfacesVisible() const;
     void setSubsurfacesVisible(bool newSubsurfacesVisible);
 
