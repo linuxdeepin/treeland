@@ -259,9 +259,8 @@ target_compile_definitions(libtreeland
     WLR_USE_UNSTABLE
 )
 
-qt_add_shaders(libtreeland "treeland_shaders_ng"
+treeland_add_shaders(libtreeland "treeland_shaders_ng"
     BATCHABLE
-    PRECOMPILE
     PREFIX
         "/shaders"
     BASE

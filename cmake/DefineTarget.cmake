@@ -58,3 +58,34 @@ function(impl_treeland)
     )
 endfunction()
 
+# Workaround for qt_add_shaders bug: paths containing '@' are incorrectly
+# split by Qt6ShaderToolsMacros.cmake (it uses '@' as a replacement separator).
+function(treeland_add_shaders target resourcename)
+    cmake_parse_arguments(arg "BATCHABLE;PRECOMPILE" "PREFIX;BASE" "FILES" ${ARGN})
+
+    set(qsb_outputs "")
+    foreach(shader_file IN LISTS arg_FILES)
+        get_filename_component(shader_name "${shader_file}" NAME)
+        set(qsb_file "${CMAKE_CURRENT_BINARY_DIR}/.qsb/${shader_name}.qsb")
+        list(APPEND qsb_outputs "${qsb_file}")
+
+        add_custom_command(
+            OUTPUT "${qsb_file}"
+            COMMAND Qt6::qsb --qt6 $<$<BOOL:${arg_BATCHABLE}>:--batchable> "${shader_file}" -o "${qsb_file}"
+            DEPENDS "${shader_file}" Qt6::qsb
+            COMMENT "Compiling shader ${shader_name}"
+            VERBATIM
+        )
+        set_source_files_properties("${qsb_file}" PROPERTIES GENERATED TRUE)
+    endforeach()
+
+    add_custom_target(${resourcename}_gen DEPENDS ${qsb_outputs})
+    add_dependencies(${target} ${resourcename}_gen)
+
+    qt_add_resources(${target} "${resourcename}"
+        PREFIX "${arg_PREFIX}"
+        BASE "${arg_BASE}"
+        FILES ${qsb_outputs}
+    )
+endfunction()
+
