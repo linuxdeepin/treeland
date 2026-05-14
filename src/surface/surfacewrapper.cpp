@@ -692,12 +692,18 @@ QString SurfaceWrapper::appId() const
     return QString();
 }
 
-bool SurfaceWrapper::resize(const QSizeF &size)
+
+bool SurfaceWrapper::checkResize()
 {
-    // No surfaceItem in prelaunch mode -> return false
     if (!m_surfaceItem)
         return false;
+    return m_surfaceItem->checkResizeSurface();
+}
 
+bool SurfaceWrapper::resize(const QSizeF &size)
+{
+    if (!m_surfaceItem)
+        return false;
     return m_surfaceItem->resizeSurface(size);
 }
 
@@ -1363,8 +1369,8 @@ void SurfaceWrapper::onAnimationReady()
     Q_ASSERT(m_pendingState != m_surfaceState);
     Q_ASSERT(m_pendingGeometry.isValid());
 
-    if (!resize(m_pendingGeometry.size())) {
-        // abort change state if resize failed
+    if (!checkResize()) {
+        // abort change state if cannot resize
         m_geometryAnimation->disconnect(this);
         m_geometryAnimation->deleteLater();
         m_geometryAnimation = nullptr;
@@ -1374,6 +1380,7 @@ void SurfaceWrapper::onAnimationReady()
     QPointF alignedPos = alignToPixelGrid(m_pendingGeometry.topLeft());
     setPosition(alignedPos);
     doSetSurfaceState(m_pendingState);
+    resize(m_pendingGeometry.size());
 }
 
 void SurfaceWrapper::onAnimationFinished()

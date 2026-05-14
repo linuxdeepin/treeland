@@ -1075,6 +1075,11 @@ void WSurfaceItem::onSurfaceCommit()
 
     d->updateSubsurfaceItem();
 }
+bool WSurfaceItem::checkResizeSurface()
+{
+    Q_D(const WSurfaceItem);
+    return d->shellSurface && d->contentContainer;
+}
 
 bool WSurfaceItem::resizeSurface(const QSizeF &newSize)
 {

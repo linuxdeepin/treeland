@@ -191,6 +191,7 @@ public:
     
     // resize internal surface, should be in SizeFromSurface mode
     bool resizeSurface(const QSizeF &newSize);
+    bool checkResizeSurface();
     bool subsurfacesVisible() const;
     void setSubsurfacesVisible(bool newSubsurfacesVisible);
 

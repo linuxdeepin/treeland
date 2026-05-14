@@ -149,6 +149,7 @@ public:
     QQuickItem *prelaunchSplash() const;
     QString appId() const;
     bool resize(const QSizeF &size);
+    bool checkResize();
     void close();
 
     QRectF titlebarGeometry() const;
