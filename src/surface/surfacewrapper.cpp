@@ -1328,9 +1328,30 @@ void SurfaceWrapper::onAnimationReady()
 {
     Q_ASSERT(m_pendingState != m_surfaceState);
     Q_ASSERT(m_pendingGeometry.isValid());
+    auto setPadding = [&](const QMarginsF& padding){
+        m_surfaceItem->setTopPadding(padding.top());
+        m_surfaceItem->setLeftPadding(padding.left());
+        m_surfaceItem->setRightPadding(padding.right());
+        m_surfaceItem->setBottomPadding(padding.bottom());
+    };
+
+    if (m_surfaceItem) {
+        if (m_pendingState == State::Fullscreen) {
+            m_recoverPadding = QMarginsF(m_surfaceItem->leftPadding(),
+                                         m_surfaceItem->topPadding(),
+                                         m_surfaceItem->rightPadding(),
+                                         m_surfaceItem->bottomPadding());
+            setPadding({0, 0, 0, 0});
+        } else if (m_surfaceState == State::Fullscreen) {
+            setPadding(m_recoverPadding);
+        }
+    }
 
     if (!resize(m_pendingGeometry.size())) {
         // abort change state if resize failed
+        if(m_surfaceItem && m_pendingState == State::Fullscreen) {
+            setPadding(m_recoverPadding);
+        }
         m_geometryAnimation->disconnect(this);
         m_geometryAnimation->deleteLater();
         m_geometryAnimation = nullptr;

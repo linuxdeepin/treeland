@@ -461,6 +461,7 @@ private:
     SurfaceRole m_surfaceRole = SurfaceRole::Normal;
     quint32 m_autoPlaceYOffset = 0;
     QPoint m_clientRequstPos;
+    QMarginsF m_recoverPadding;
 
     bool m_socketEnabled{ false };
     bool m_windowAnimationEnabled{ true };
