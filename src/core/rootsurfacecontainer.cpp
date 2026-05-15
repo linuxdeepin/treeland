@@ -586,7 +586,7 @@ void RootSurfaceContainer::setupSurfaceRequestHandlers(SurfaceWrapper *surface)
     bool isXwayland = surface->type() == SurfaceWrapper::Type::XWayland;
 
     if (isXdgToplevel || isXwayland) {
-        connect(surface, &SurfaceWrapper::requestMinimize, this, [this, surface]() {
+        connect(surface, &SurfaceWrapper::requestMinimize, this, [surface]() {
             auto *helper = Helper::instance();
             if (!helper)
                 return;
