@@ -1553,6 +1553,8 @@ void SurfaceWrapper::setRadius(qreal newRadius)
 
 void SurfaceWrapper::requestMinimize(bool onAnimation)
 {
+    if (m_surfaceState == State::Minimized)
+        return;
     setSurfaceState(State::Minimized);
     if (onAnimation)
         startMinimizeAnimation(iconGeometry(), CLOSE_ANIMATION);
