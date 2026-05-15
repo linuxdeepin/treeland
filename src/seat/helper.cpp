@@ -1515,6 +1515,14 @@ void Helper::init(Treeland::Treeland *treeland)
     m_idleInhibitManager = qw_idle_inhibit_manager_v1::create(*m_server->handle());
     connect(m_idleInhibitManager, &qw_idle_inhibit_manager_v1::notify_new_inhibitor, this, &Helper::onNewIdleInhibitor);
 
+    m_activationManagerV1 = m_server->attach<ActivationManagerInterfaceV1>();
+    connect(m_activationManagerV1, &ActivationManagerInterfaceV1::activateRequested,
+            this, [this](const QString & /*token*/, WSurface *wsurface) {
+                auto wrapper = m_rootSurfaceContainer->getSurface(wsurface);
+                if (wrapper)
+                    activateSurface(wrapper, Qt::OtherFocusReason);
+            });
+
     m_screensaverInterfaceV1 = m_server->attach<ScreensaverInterfaceV1>();
 
     m_outputPowerManager = qw_output_power_manager_v1::create(*m_server->handle());

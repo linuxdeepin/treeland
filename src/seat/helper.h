@@ -4,24 +4,26 @@
 #pragma once
 
 #include "core/qmlengine.h"
+#include "modules/activation/activationmanagerinterfacev1.h"
 #include "modules/shortcut/shortcutmanager.h"
 #include "modules/virtual-output/virtualoutputmanagerinterfacev1.h"
-#include "modules/window-management/windowmanagementinterfacev1.h"
-#include "utils/fpsdisplaymanager.h"
 #include "modules/wallpaper/wallpapermanagerinterfacev1.h"
 #include "modules/wallpaper/wallpapernotifierinterfacev1.h"
-
-#include <wglobal.h>
-#include <wqmlcreator.h>
-#include <wseat.h>
-#include <wxdgdecorationmanager.h>
-#include <wextforeigntoplevellistv1.h>
-#include <woutputmanagerv1.h>
+#include "modules/window-management/windowmanagementinterfacev1.h"
+#include "utils/fpsdisplaymanager.h"
 
 #include <xcb/xproto.h>
 
+#include <wextforeigntoplevellistv1.h>
+#include <wglobal.h>
+#include <woutputmanagerv1.h>
+#include <wqmlcreator.h>
+#include <wseat.h>
+#include <wxdgdecorationmanager.h>
+
 #include <QList>
 #include <QMap>
+
 #include <optional>
 
 class QJsonObject;
@@ -132,7 +134,6 @@ class WallpaperItem;
 struct wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request;
 struct wlr_idle_inhibitor_v1;
 struct wlr_output_power_v1_set_mode_event;
-
 namespace Treeland {
 class Treeland;
 }
@@ -380,6 +381,7 @@ private:
     qw_idle_inhibit_manager_v1 *m_idleInhibitManager = nullptr;
     qw_output_power_manager_v1 *m_outputPowerManager = nullptr;
     qw_ext_foreign_toplevel_image_capture_source_manager_v1 *m_foreignToplevelImageCaptureManager = nullptr;
+    ActivationManagerInterfaceV1 *m_activationManagerV1 = nullptr;
     ShellHandler *m_shellHandler = nullptr;
     WXdgDecorationManager *m_xdgDecorationManager = nullptr;
     WForeignToplevel *m_foreignToplevel = nullptr;
