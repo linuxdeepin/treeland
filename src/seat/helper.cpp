@@ -2839,7 +2839,7 @@ void Helper::handleRequestDragForSeat(WSeat *seat, WSurface *)
             DDEActiveInterface::sendDrop(seat);
     });
 
-    QObject::connect(qw_drag::from(drag), &qw_drag::before_destroy, this, [this, seat, drag] {
+    QObject::connect(qw_drag::from(drag), &qw_drag::before_destroy, this, [seat, drag] {
         drag->data = NULL;
         seat->setAlwaysUpdateHoverTarget(false);
     });

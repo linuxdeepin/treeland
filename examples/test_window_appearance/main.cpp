@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Dingyuan Zhang <lxz@mkacg.com>.
+// Copyright (C) 2023-2026 Dingyuan Zhang <lxz@mkacg.com>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "personalization_manager.h"
@@ -29,11 +29,11 @@ public:
         group1Layout->addWidget(button1);
         group1Layout->addWidget(button2);
         mainLayout->addLayout(group1Layout);
-        connect(button1, &QPushButton::clicked, this, [this, button1] {
+        connect(button1, &QPushButton::clicked, this, [this] {
             context->set_window_theme_type(
                 TREELAND_PERSONALIZATION_APPEARANCE_CONTEXT_V1_THEME_TYPE_LIGHT);
         });
-        connect(button2, &QPushButton::clicked, this, [this, button1] {
+        connect(button2, &QPushButton::clicked, this, [this] {
             context->set_window_theme_type(
                 TREELAND_PERSONALIZATION_APPEARANCE_CONTEXT_V1_THEME_TYPE_DARK);
         });

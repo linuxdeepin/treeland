@@ -320,7 +320,7 @@ void ShellHandler::init(WServer *server, WSeat *seat)
 
     m_wallpaperShell = server->attach<TreelandWallpaperShellInterfaceV1>(m_wallpaperShell);
     if (Helper::instance()->isDDMDisplay()) {
-        m_wallpaperShell->setFilter([this](WClient *client) { return Helper::instance()->sessionManager()->isDDEUserClient(client); });
+        m_wallpaperShell->setFilter([](WClient *client) { return Helper::instance()->sessionManager()->isDDEUserClient(client); });
     }
 
     m_inputMethodHelper = new WInputMethodHelper(server, seat);

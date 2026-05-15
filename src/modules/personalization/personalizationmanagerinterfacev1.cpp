@@ -1056,31 +1056,31 @@ void PersonalizationManagerInterfaceV1::onCursorContextCreated(PersonalizationCu
 
 void PersonalizationManagerInterfaceV1::onAppearanceContextCreated(PersonalizationAppearanceContextV1 *context)
 {
-    connect(context, &PersonalizationAppearanceContextV1::roundCornerRadiusChanged, this, [this](int32_t radius) {
+    connect(context, &PersonalizationAppearanceContextV1::roundCornerRadiusChanged, this, [](int32_t radius) {
         Helper::instance()->config()->setWindowRadius(radius);
         for (auto *c : s_appearanceContexts) {
             c->sendRoundCornerRadius(radius);
         }
     });
-    connect(context, &PersonalizationAppearanceContextV1::iconThemeChanged, this, [this](const QString &theme) {
+    connect(context, &PersonalizationAppearanceContextV1::iconThemeChanged, this, [](const QString &theme) {
         Helper::instance()->config()->setIconThemeName(theme);
         for (auto *c : s_appearanceContexts) {
             c->sendIconTheme(theme);
         }
     });
-    connect(context, &PersonalizationAppearanceContextV1::activeColorChanged, this, [this](const QString &color) {
+    connect(context, &PersonalizationAppearanceContextV1::activeColorChanged, this, [](const QString &color) {
         Helper::instance()->config()->setActiveColor(color);
         for (auto *c : s_appearanceContexts) {
             c->sendActiveColor(color);
         }
     });
-    connect(context, &PersonalizationAppearanceContextV1::windowOpacityChanged, this, [this](uint32_t opacity) {
+    connect(context, &PersonalizationAppearanceContextV1::windowOpacityChanged, this, [](uint32_t opacity) {
         Helper::instance()->config()->setWindowOpacity(opacity);
         for (auto *c : s_appearanceContexts) {
             c->sendWindowOpacity(opacity);
         }
     });
-    connect(context, &PersonalizationAppearanceContextV1::windowThemeTypeChanged, this, [this](uint32_t type) {
+    connect(context, &PersonalizationAppearanceContextV1::windowThemeTypeChanged, this, [](uint32_t type) {
         const auto dconfigType = protocolWindowThemeTypeToDConfig(type);
         if (dconfigType.has_value()) {
             Helper::instance()->config()->setWindowThemeType(*dconfigType);
@@ -1089,7 +1089,7 @@ void PersonalizationManagerInterfaceV1::onAppearanceContextCreated(Personalizati
             c->sendWindowThemeType(type);
         }
     });
-    connect(context, &PersonalizationAppearanceContextV1::titlebarHeightChanged, this, [this](uint32_t height) {
+    connect(context, &PersonalizationAppearanceContextV1::titlebarHeightChanged, this, [](uint32_t height) {
         Helper::instance()->config()->setWindowTitlebarHeight(height);
         for (auto *c : s_appearanceContexts) {
             c->sendWindowTitlebarHeight(height);

@@ -98,7 +98,7 @@ void WindowConfigStore::withSplashConfigFor(const QString &appId,
         config,
         &AppConfig::configInitializeSucceed,
         ctx,
-        [this, appId, callback, skipCallback, configGuard](DTK_CORE_NAMESPACE::DConfig *) {
+        [appId, callback, skipCallback, configGuard](DTK_CORE_NAMESPACE::DConfig *) {
             if (!configGuard) {
                 qCWarning(treelandCore)
                     << "WindowConfigStore: configInitializeSucceed but config deleted for" << appId;

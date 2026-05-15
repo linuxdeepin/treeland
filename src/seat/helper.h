@@ -121,7 +121,6 @@ class SurfaceContainer;
 class SurfaceWrapper;
 class TreelandConfig;
 class TreelandUserConfig;
-class treeland_window_picker_v1;
 class UserModel;
 class VirtualOutputManagerInterfaceV1;
 class WallpaperColorInterfaceV1;
