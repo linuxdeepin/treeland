@@ -1,4 +1,4 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "capture.h"
 
@@ -89,7 +89,7 @@ int main(int argc, char *argv[])
     QObject::connect(&engine,
                      &QQmlApplicationEngine::objectCreated,
                      manager,
-                     [&app, manager, captureWithMask](QObject *object, const QUrl &) {
+                     [manager, captureWithMask](QObject *object, const QUrl &) {
                          if (auto canvasWindow = qobject_cast<QQuickWindow *>(object)) {
                              auto waylandWindow = static_cast<QtWaylandClient::QWaylandWindow *>(
                                  canvasWindow->handle());

@@ -116,7 +116,7 @@ void VirtualOutputManagerInterfaceV1Private::create_virtual_output(Resource *res
     s_virtualOutputs.append(virtualOutput);
     QObject::connect(virtualOutput, &VirtualOutputInterfaceV1::beforeDestroy,
                      q, &VirtualOutputManagerInterfaceV1::destroyVirtualOutput);
-    QObject::connect(virtualOutput, &QObject::destroyed, [virtualOutput, this]() {
+    QObject::connect(virtualOutput, &QObject::destroyed, [virtualOutput]() {
         s_virtualOutputs.removeOne(virtualOutput);
     });
 
