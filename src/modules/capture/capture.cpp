@@ -816,8 +816,6 @@ void CaptureSourceSelector::componentComplete()
         m_canvasContainer->addSurface(m_captureManager->maskSurfaceWrapper());
         m_canvas->setX(0);
         m_canvas->setY(0);
-        m_captureManager->maskSurfaceWrapper()->setWorkspaceId(
-            Workspace::ShowOnAllWorkspaceId); // TODO: use a more reasonable id
     }
     QQuickItem::componentComplete();
 }
@@ -1208,7 +1206,6 @@ void CaptureSourceSelector::releaseMaskSurface()
             auto node = q.dequeue();
             if (node) {
                 m_canvasContainer->removeSurface(node);
-                node->setWorkspaceId(-1);
                 m_savedContainer->addSurface(node);
                 for (const auto &child : std::as_const(node->subSurfaces())) {
                     q.enqueue(child);
