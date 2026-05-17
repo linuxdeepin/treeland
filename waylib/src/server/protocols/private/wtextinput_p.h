@@ -59,9 +59,9 @@ enum ContentPurpose {
 Q_ENUM_NS(ContentPurpose)
 
 enum Feature {
-    F_SurroundingText,
-    F_ContentType,
-    F_CursorRect
+    F_SurroundingText = 1 << 0,
+    F_ContentType = 1 << 1,
+    F_CursorRect = 1 << 2
 };
 Q_FLAG_NS(Feature)
 Q_DECLARE_FLAGS(Features, Feature)
