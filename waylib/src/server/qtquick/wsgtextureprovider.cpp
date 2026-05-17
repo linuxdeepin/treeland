@@ -31,8 +31,7 @@ public:
         qtTexture.setOwnsTexture(false);
         qtTexture.setFiltering(smooth ? QSGTexture::Linear
                                       : QSGTexture::Nearest);
-        qtTexture.setMipmapFiltering(smooth ? QSGTexture::Linear
-                                            : QSGTexture::Nearest);
+        qtTexture.setMipmapFiltering(QSGTexture::None);
     }
 
     ~WSGTextureProviderPrivate() {
@@ -198,8 +197,7 @@ void WSGTextureProvider::setSmooth(bool newSmooth)
     d->smooth = newSmooth;
     d->qtTexture.setFiltering(newSmooth ? QSGTexture::Linear
                                         : QSGTexture::Nearest);
-    d->qtTexture.setMipmapFiltering(newSmooth ? QSGTexture::Linear
-                                              : QSGTexture::Nearest);
+    d->qtTexture.setMipmapFiltering(QSGTexture::None);
 
     Q_EMIT smoothChanged();
 }

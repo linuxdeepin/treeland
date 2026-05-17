@@ -10,6 +10,7 @@
 #include "woutputviewport.h"
 #include "wsgtextureprovider.h"
 #include "woutputrenderwindow.h"
+#include "wxwaylandsurface.h"
 
 #include <qwcompositor.h>
 #include <qwsubcompositor.h>
@@ -314,17 +315,23 @@ public:
             setAlphaModifier(alphaModifierState->multiplier);
 
         const auto bOffset = surface->bufferOffset();
+        bool shouldUpdatePaintNode = false;
         if (bOffset != bufferOffset) {
             bufferOffset = surface->bufferOffset();
             Q_EMIT q->bufferOffsetChanged();
-        }
-
-        if (bufferSourceBox != newBufferSourceBox) {
-            Q_EMIT q->bufferSourceRectChanged();
+            shouldUpdatePaintNode = true;
         }
 
         const auto s = surface->size();
+        const bool surfaceSizeChanged = QSizeF(s) != QSizeF(q->implicitWidth(), q->implicitHeight());
+        if (bufferSourceBox != newBufferSourceBox || surfaceSizeChanged) {
+            Q_EMIT q->bufferSourceRectChanged();
+            shouldUpdatePaintNode = true;
+        }
+
         q->setImplicitSize(s.width(), s.height());
+        if (shouldUpdatePaintNode)
+            q->update();
     }
 
     inline void swapBufferIfNeeded() {
@@ -338,6 +345,7 @@ public:
         devicePixelRatio = dpr;
         Q_EMIT q_func()->devicePixelRatioChanged();
         Q_EMIT q_func()->bufferSourceRectChanged();
+        q_func()->update();
     }
 
     inline void setAlphaModifier(qreal alpha) {
@@ -534,8 +542,29 @@ void WSurfaceItemContent::setIgnoreBufferOffset(bool newIgnoreBufferOffset)
 QRectF WSurfaceItemContent::bufferSourceRect() const
 {
     W_DC(WSurfaceItemContent);
-    return QRectF(d->bufferSourceBox.topLeft() / d->devicePixelRatio,
-                  d->bufferSourceBox.size() / d->devicePixelRatio);
+    const auto sourceSize = d->bufferSourceBox.size();
+    const qreal dpr = d->devicePixelRatio > 0 ? d->devicePixelRatio : 1.0;
+    if (d->surface && d->surface->getAttachedData<WXWaylandSurface>()) {
+        return QRectF(d->bufferSourceBox.topLeft() / dpr,
+                      sourceSize / dpr);
+    }
+
+    if (d->surface && !sourceSize.isEmpty()) {
+        const QSizeF surfaceSize(d->surface->size());
+        if (!surfaceSize.isEmpty()) {
+            const qreal scaleX = sourceSize.width() / surfaceSize.width();
+            const qreal scaleY = sourceSize.height() / surfaceSize.height();
+            if (!qFuzzyIsNull(scaleX) && !qFuzzyIsNull(scaleY)) {
+                return QRectF(QPointF(d->bufferSourceBox.x() / scaleX,
+                                      d->bufferSourceBox.y() / scaleY),
+                              QSizeF(sourceSize.width() / scaleX,
+                                     sourceSize.height() / scaleY));
+            }
+        }
+    }
+
+    return QRectF(d->bufferSourceBox.topLeft() / dpr,
+                  sourceSize / dpr);
 }
 
 qreal WSurfaceItemContent::devicePixelRatio() const
@@ -616,9 +645,34 @@ QSGNode *WSurfaceItemContent::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeD
     node->setTexture(texture);
     const QRectF textureGeometry = d->bufferSourceBox;
     node->setSourceRect(textureGeometry);
-    const QRectF targetGeometry(d->ignoreBufferOffset ? QPointF() : d->bufferOffset, size());
+    QRectF targetGeometry(d->ignoreBufferOffset ? QPointF() : d->bufferOffset, size());
+    const QSizeF sourceSize = textureGeometry.size();
+    const bool isXWaylandSurface = d->surface && d->surface->getAttachedData<WXWaylandSurface>();
+    bool preferCrispFiltering = false;
+    if (!isXWaylandSurface && d->devicePixelRatio > 0 && !sourceSize.isEmpty() && !targetGeometry.size().isEmpty()) {
+        const qreal sourceScaleX = sourceSize.width() / targetGeometry.width();
+        const qreal sourceScaleY = sourceSize.height() / targetGeometry.height();
+        const auto closeToDevicePixelRatio = [dpr = d->devicePixelRatio] (qreal scale) {
+            return qAbs(scale / dpr - 1.0) <= 0.12;
+        };
+        const auto downscalesFromIntegerScale = [dpr = d->devicePixelRatio] (qreal scale) {
+            const qreal integerScale = qCeil(dpr);
+            return scale > dpr && qAbs(scale / integerScale - 1.0) <= 0.05;
+        };
+
+        const bool outputScaleX = closeToDevicePixelRatio(sourceScaleX);
+        const bool outputScaleY = closeToDevicePixelRatio(sourceScaleY);
+        if (outputScaleX)
+            targetGeometry.setWidth(sourceSize.width() / d->devicePixelRatio);
+        if (outputScaleY)
+            targetGeometry.setHeight(sourceSize.height() / d->devicePixelRatio);
+
+        preferCrispFiltering = (outputScaleX && outputScaleY)
+            || (downscalesFromIntegerScale(sourceScaleX) && downscalesFromIntegerScale(sourceScaleY));
+    }
     node->setRect(targetGeometry);
-    node->setFiltering(smooth() ? QSGTexture::Linear : QSGTexture::Nearest);
+    node->setFiltering(smooth() && !preferCrispFiltering ? QSGTexture::Linear : QSGTexture::Nearest);
+    node->setMipmapFiltering(QSGTexture::None);
 
     return node;
 }
