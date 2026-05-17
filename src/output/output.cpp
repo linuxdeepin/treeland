@@ -15,6 +15,7 @@
 
 #include <wcursor.h>
 #include <winputpopupsurface.h>
+#include <winputpopupsurfaceitem.h>
 #include <wlayersurface.h>
 #include <woutputhelper.h>
 #include <woutputitem.h>
@@ -450,6 +451,12 @@ void Output::addSurface(SurfaceWrapper *surface)
                 // Reposition should ignore positionAutomatic
                 arrangePopupSurface(surface);
             });
+        } else if (surface->type() == SurfaceWrapper::Type::InputPopup) {
+            auto inputPopupSurfaceItem = qobject_cast<WInputPopupSurfaceItem *>(surface->surfaceItem());
+            connect(inputPopupSurfaceItem, &WInputPopupSurfaceItem::referenceRectChanged, this, [surface, this] {
+                // Reposition should ignore positionAutomatic
+                arrangePopupSurface(surface);
+            });
         }
     }
 }
@@ -850,12 +857,25 @@ void Output::arrangePopupSurface(SurfaceWrapper *surface)
         return;
     }
 
-    WOutputItem* targetOutput = Helper::instance()->getOutputAtCursor()->outputItem();
-    bool isSubMenu = (parentSurfaceWrapper->type() == SurfaceWrapper::Type::XdgPopup);
+    WOutputItem *targetOutput = nullptr;
+    // TODO： Consider determining the targetOutput based on the upper left corner or overlapping area
+    if (surface->type() == SurfaceWrapper::Type::XdgPopup) {
+        targetOutput = Helper::instance()->getOutputAtCursor()->outputItem();
+    } else if (surface->type() == SurfaceWrapper::Type::InputPopup) {
+        targetOutput = parentSurfaceWrapper->ownsOutput()->outputItem();
+    }
+
+    if (!targetOutput) {
+        qCWarning(treelandSurface) << "[popup] skip arrangePopupSurface: missing target output"
+                   << "surface=" << surface
+                   << "parentSurface=" << parentSurfaceWrapper;
+        return;
+    }
 
     if (parentSurfaceWrapper->type() == SurfaceWrapper::Type::Layer) {
         handleLayerShellPopup(surface, normalGeo);
     } else {
+        bool isSubMenu = (parentSurfaceWrapper->type() == SurfaceWrapper::Type::XdgPopup);
         handleRegularPopup(surface, normalGeo, isSubMenu, targetOutput);
     }
 }
