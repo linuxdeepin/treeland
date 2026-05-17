@@ -877,6 +877,9 @@ void ShellHandler::onInputPopupSurfaceV2Added(WInputPopupSurface *surface)
     auto parentWrapper = m_rootSurfaceContainer->getSurface(parent);
     parentWrapper->addSubSurface(wrapper);
     m_popupContainer->addSurface(wrapper);
+    // m_popupContainer is a simple SurfaceContainer, so input popups need the
+    // same explicit initialization marker as xdg popups for their first layout.
+    wrapper->setHasInitializeContainer(true);
     wrapper->setOwnsOutput(parentWrapper->ownsOutput());
     Q_ASSERT(wrapper->parentItem());
     Q_EMIT surfaceWrapperAdded(wrapper);
@@ -886,6 +889,7 @@ void ShellHandler::onInputPopupSurfaceV2Removed(WInputPopupSurface *surface)
 {
     auto wrapper = m_rootSurfaceContainer->getSurface(surface->surface());
     Q_EMIT surfaceWrapperAboutToRemove(wrapper);
+    wrapper->setHasInitializeContainer(false);
     m_rootSurfaceContainer->destroyForSurface(wrapper);
 }
 
