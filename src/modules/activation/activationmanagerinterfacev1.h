@@ -23,7 +23,7 @@ class ActivationManagerInterfaceV1Private;
  *      calls commit() → receives a unique token string via the done event.
  *   2. Token string is forwarded to the target application.
  *   3. Target application calls activate(token, surface) → compositor emits
- *      activateRequested(token, surface).
+ *      activateRequested(disposition, surface).
  *
  * Version 1 uses permissive token validation: any committed token is accepted
  * regardless of serial or focus state.
@@ -32,6 +32,14 @@ class ActivationManagerInterfaceV1 : public QObject, public WAYLIB_SERVER_NAMESP
 {
     Q_OBJECT
 public:
+    enum class TokenDisposition
+    {
+        Invalid,
+        Attention,
+        Active,
+    };
+    Q_ENUM(TokenDisposition)
+
     explicit ActivationManagerInterfaceV1(QObject *parent = nullptr);
     ~ActivationManagerInterfaceV1() override;
 
@@ -40,12 +48,8 @@ public:
     static constexpr int InterfaceVersion = 1;
 
 Q_SIGNALS:
-    /**
-     * Emitted when a client requests activation of @p surface using @p token.
-     * The compositor should activate the surface when it considers the request
-     * valid (v1: all committed tokens are considered valid).
-     */
-    void activateRequested(const QString &token,
+    // The server emits one signal with precomputed disposition for policy handling.
+    void activateRequested(TokenDisposition disposition,
                            WAYLIB_SERVER_NAMESPACE::WSurface *surface);
 
 protected:

@@ -13,6 +13,8 @@
 #include <QLoggingCategory>
 #include <QUuid>
 
+#include <optional>
+
 extern "C" {
 #include <wlr/types/wlr_compositor.h>
 }
@@ -88,7 +90,7 @@ protected:
 private:
     ActivationManagerInterfaceV1Private *m_manager;
     QString m_appId;
-    uint32_t m_serial = 0;
+    std::optional<uint32_t> m_serial;
     bool m_committed = false;
 };
 
@@ -100,6 +102,7 @@ struct TokenInfo
 {
     QString appId;
     wl_client *requestingClient = nullptr;
+    std::optional<uint32_t> serial;
 };
 
 class ActivationManagerInterfaceV1Private
@@ -121,10 +124,12 @@ public:
      * Called by TokenContext::commit() to register a new valid token.
      * Returns the generated token string.
      */
-    QString registerToken(const QString &appId, wl_client *client)
+    QString registerToken(const QString &appId,
+                          wl_client *client,
+                          std::optional<uint32_t> serial)
     {
         const QString token = QUuid::createUuid().toString(QUuid::WithoutBraces);
-        m_tokens.insert(token, TokenInfo{ appId, client });
+        m_tokens.insert(token, TokenInfo{ appId, client, serial });
         qCDebug(lcActivation) << "Registered activation token" << token
                                << "for app" << appId;
         return token;
@@ -159,14 +164,7 @@ protected:
                   const QString &token,
                   struct ::wl_resource *surface) override
     {
-        // v1 permissive check: accept any committed token that is in our map.
-        auto it = m_tokens.find(token);
-        if (it == m_tokens.end()) {
-            qCDebug(lcActivation) << "activate: unknown token" << token << "— ignored";
-            return;
-        }
-
-        m_tokens.erase(it); // consume the token
+        auto disposition = dispositionForToken(token);
 
         auto *wlrSurface = wlr_surface_from_resource(surface);
         if (!wlrSurface) {
@@ -181,10 +179,27 @@ protected:
         }
 
         qCInfo(lcActivation) << "activate: emitting activateRequested for token" << token;
-        Q_EMIT q->activateRequested(token, wsurface);
+        Q_EMIT q->activateRequested(disposition, wsurface);
+
+        // Keep token one-shot semantics; Helper performs the policy check.
+        auto it = m_tokens.find(token);
+        if (it != m_tokens.end()) {
+            m_tokens.erase(it);
+        }
     }
 
 private:
+    ActivationManagerInterfaceV1::TokenDisposition dispositionForToken(const QString &token) const
+    {
+        auto it = m_tokens.constFind(token);
+        if (it == m_tokens.cend()) {
+            return ActivationManagerInterfaceV1::TokenDisposition::Invalid;
+        }
+
+        return it->serial.has_value() ? ActivationManagerInterfaceV1::TokenDisposition::Active
+                                      : ActivationManagerInterfaceV1::TokenDisposition::Attention;
+    }
+
     ActivationManagerInterfaceV1 *q;
     QHash<QString, TokenInfo> m_tokens;
 };
@@ -203,7 +218,7 @@ void TokenContext::commit(Resource *resource)
     }
     m_committed = true;
 
-    const QString token = m_manager->registerToken(m_appId, resource->client());
+    const QString token = m_manager->registerToken(m_appId, resource->client(), m_serial);
     send_done(token);
 }
 
