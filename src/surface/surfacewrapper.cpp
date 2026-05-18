@@ -448,6 +448,10 @@ void SurfaceWrapper::setActivate(bool activate)
 
     Q_ASSERT(!activate || hasActiveCapability());
     m_isActivated = activate;
+
+    if (m_attention && m_isActivated)
+        setAttention(false);
+
     // No shellSurface in prelaunch mode -> early return
     if (m_shellSurface)
         updateActiveState();
@@ -1040,6 +1044,8 @@ bool SurfaceWrapper::attention() const
 void SurfaceWrapper::setAttention(bool attention)
 {
     if (m_attention == attention)
+        return;
+    if (attention && m_isActivated)
         return;
     m_attention = attention;
     Q_EMIT attentionChanged();
