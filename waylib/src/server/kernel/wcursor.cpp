@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include <QDebug>
-#define private public
 #include <QCursor>
-#undef private
 
 #include "wcursor.h"
+#include "memberaccessor_p.h"
 #include "private/wcursor_p.h"
 #include "winputdevice.h"
 #include "wimagebuffer.h"
@@ -33,6 +32,27 @@
 
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
+
+namespace
+{
+
+WAYLIB_DECLARE_PRIVATE_ACCESSOR(QCursorDataPointerAccessor,
+                                QCursorData *QCursor::*,
+                                &QCursor::d);
+WAYLIB_DECLARE_PRIVATE_ACCESSOR(QCursorDataRefAccessor,
+                                QAtomicInt QCursorData::*,
+                                &QCursorData::ref);
+WAYLIB_DECLARE_PRIVATE_ACCESSOR(QCursorDataBitmapAccessor,
+                                QBitmap *QCursorData::*,
+                                &QCursorData::bm);
+WAYLIB_DECLARE_PRIVATE_ACCESSOR(QCursorDataMaskAccessor,
+                                QBitmap *QCursorData::*,
+                                &QCursorData::bmm);
+WAYLIB_DECLARE_PRIVATE_ACCESSOR(QCursorDataShapeAccessor,
+                                Qt::CursorShape QCursorData::*,
+                                &QCursorData::cshape);
+
+}
 
 // Cursor management and movement
 Q_LOGGING_CATEGORY(waylibCursor, "waylib.server.cursor", QtInfoMsg)
@@ -473,15 +493,16 @@ QCursor WCursor::toQCursor(CursorShape shape)
     static QBitmap tmp(1, 1);
     // Ensure alloc a new QCursorData
     QCursor cursor(tmp, tmp);
+    auto *cursorData = Waylib::PrivateAccessor::member<QCursorDataPointerAccessor>(cursor);
 
-    Q_ASSERT(cursor.d->ref == 1);
-    Q_ASSERT(cursor.d->bm);
-    Q_ASSERT(cursor.d->bmm);
-    delete cursor.d->bm;
-    delete cursor.d->bmm;
-    cursor.d->bm = nullptr;
-    cursor.d->bmm = nullptr;
-    cursor.d->cshape = static_cast<Qt::CursorShape>(shape);
+    Q_ASSERT(Waylib::PrivateAccessor::member<QCursorDataRefAccessor>(*cursorData) == 1);
+    Q_ASSERT(Waylib::PrivateAccessor::member<QCursorDataBitmapAccessor>(*cursorData));
+    Q_ASSERT(Waylib::PrivateAccessor::member<QCursorDataMaskAccessor>(*cursorData));
+    delete Waylib::PrivateAccessor::member<QCursorDataBitmapAccessor>(*cursorData);
+    delete Waylib::PrivateAccessor::member<QCursorDataMaskAccessor>(*cursorData);
+    Waylib::PrivateAccessor::member<QCursorDataBitmapAccessor>(*cursorData) = nullptr;
+    Waylib::PrivateAccessor::member<QCursorDataMaskAccessor>(*cursorData) = nullptr;
+    Waylib::PrivateAccessor::member<QCursorDataShapeAccessor>(*cursorData) = static_cast<Qt::CursorShape>(shape);
 
     return cursor;
 }

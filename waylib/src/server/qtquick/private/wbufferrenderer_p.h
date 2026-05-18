@@ -12,9 +12,7 @@
 
 #include <QQuickItem>
 #include <QQuickRenderTarget>
-#define protected public
 #include <private/qsgrenderer_p.h>
-#undef protected
 
 Q_MOC_INCLUDE(<private/qsgplaintexture_p.h>)
 

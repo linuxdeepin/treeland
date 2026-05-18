@@ -8,9 +8,7 @@
 #include <qwglobal.h>
 
 #include <QPointer>
-#define protected public
 #include <qpa/qplatformintegration.h>
-#undef protected
 #include <qpa/qplatformvulkaninstance.h>
 #include <qpa/qplatformnativeinterface.h>
 

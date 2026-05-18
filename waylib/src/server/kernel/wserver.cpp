@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include <QObject>
-#define private public
 #include <QCoreApplication>
 #include <private/qhighdpiscaling_p.h>
-#undef private
 
+#include "memberaccessor_p.h"
 #include "wserver.h"
 #include "private/wserver_p.h"
 #include "wsurface.h"
@@ -39,6 +38,24 @@
 
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
+
+namespace
+{
+
+WAYLIB_DECLARE_PRIVATE_ACCESSOR(QGuiApplicationPlatformIntegrationAccessor,
+                                QPlatformIntegration **,
+                                &QGuiApplicationPrivate::platform_integration);
+WAYLIB_DECLARE_PRIVATE_ACCESSOR(QGuiApplicationPlatformThemeAccessor,
+                                QPlatformTheme **,
+                                &QGuiApplicationPrivate::platform_theme);
+WAYLIB_DECLARE_PRIVATE_ACCESSOR(QHighDpiScalingInitAccessor,
+                                void (*)(),
+                                &QHighDpiScaling::initHighDpiScaling);
+WAYLIB_DECLARE_PRIVATE_ACCESSOR(QHighDpiScalingGlobalActiveAccessor,
+                                bool *,
+                                &QHighDpiScaling::m_globalScalingActive);
+
+}
 
 static bool globalFilter(const wl_client *client,
                          const wl_global *global,
@@ -309,41 +326,44 @@ WServer *WServer::from(WServerInterface *interface)
 static bool initializeQtPlatform(bool isMaster, const QStringList &parameters, std::function<void()> onInitialized)
 {
     Q_ASSERT(QGuiApplication::instance() == nullptr);
-    if (QGuiApplicationPrivate::platform_integration)
+    if (Waylib::PrivateAccessor::staticData<QGuiApplicationPlatformIntegrationAccessor>())
         return false;
 
-    QHighDpiScaling::initHighDpiScaling();
-    QHighDpiScaling::m_globalScalingActive = true; // force enable hidpi
-    QGuiApplicationPrivate::platform_integration = new QWlrootsIntegration(isMaster, parameters, onInitialized);
+    Waylib::PrivateAccessor::invokeStatic<QHighDpiScalingInitAccessor>();
+    Waylib::PrivateAccessor::staticData<QHighDpiScalingGlobalActiveAccessor>() = true; // force enable hidpi
+    Waylib::PrivateAccessor::staticData<QGuiApplicationPlatformIntegrationAccessor>() =
+        new QWlrootsIntegration(isMaster, parameters, onInitialized);
 
     // for platform theme
     QStringList themeNames = QWlrootsIntegration::instance()->themeNames();
 
-    if (!QGuiApplicationPrivate::platform_theme) {
+    if (!Waylib::PrivateAccessor::staticData<QGuiApplicationPlatformThemeAccessor>()) {
         for (const QString &themeName : std::as_const(themeNames)) {
-            QGuiApplicationPrivate::platform_theme = QPlatformThemeFactory::create(themeName);
-            if (QGuiApplicationPrivate::platform_theme) {
+            Waylib::PrivateAccessor::staticData<QGuiApplicationPlatformThemeAccessor>() = QPlatformThemeFactory::create(themeName);
+            if (Waylib::PrivateAccessor::staticData<QGuiApplicationPlatformThemeAccessor>()) {
                 break;
             }
         }
     }
 
-    if (!QGuiApplicationPrivate::platform_theme) {
+    if (!Waylib::PrivateAccessor::staticData<QGuiApplicationPlatformThemeAccessor>()) {
         for (const QString &themeName : std::as_const(themeNames)) {
-            QGuiApplicationPrivate::platform_theme = QWlrootsIntegration::instance()->createPlatformTheme(themeName);
-            if (QGuiApplicationPrivate::platform_theme) {
+            Waylib::PrivateAccessor::staticData<QGuiApplicationPlatformThemeAccessor>() =
+                QWlrootsIntegration::instance()->createPlatformTheme(themeName);
+            if (Waylib::PrivateAccessor::staticData<QGuiApplicationPlatformThemeAccessor>()) {
                 break;
             }
         }
     }
 
-    if (!QGuiApplicationPrivate::platform_theme) {
-        QGuiApplicationPrivate::platform_theme = QWlrootsIntegration::instance()->createPlatformTheme({});
+    if (!Waylib::PrivateAccessor::staticData<QGuiApplicationPlatformThemeAccessor>()) {
+        Waylib::PrivateAccessor::staticData<QGuiApplicationPlatformThemeAccessor>() =
+            QWlrootsIntegration::instance()->createPlatformTheme({});
     }
 
     // fallback
-    if (!QGuiApplicationPrivate::platform_theme) {
-        QGuiApplicationPrivate::platform_theme = new QPlatformTheme;
+    if (!Waylib::PrivateAccessor::staticData<QGuiApplicationPlatformThemeAccessor>()) {
+        Waylib::PrivateAccessor::staticData<QGuiApplicationPlatformThemeAccessor>() = new QPlatformTheme;
     }
 
     return true;

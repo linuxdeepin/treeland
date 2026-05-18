@@ -2,16 +2,36 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wqmlcreator_p.h"
+#include "memberaccessor_p.h"
 #include "wxdgsurface.h"
 
 #include <QJSValue>
 #include <QQuickItem>
 #include <QQmlInfo>
-#define private public
 #include <private/qqmlcomponent_p.h>
-#undef private
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
+
+namespace
+{
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 10, 0)
+WAYLIB_DECLARE_PRIVATE_ACCESSOR(QQmlComponentStateAccessor,
+                                QQmlComponentPrivate::ConstructionState QQmlComponentPrivate::*,
+                                &QQmlComponentPrivate::m_state);
+
+static QQmlComponentPrivate::ConstructionState &componentState(QQmlComponentPrivate *componentPrivate)
+{
+    return Waylib::PrivateAccessor::member<QQmlComponentStateAccessor>(*componentPrivate);
+}
+#else
+static QQmlComponentPrivate::ConstructionState &componentState(QQmlComponentPrivate *componentPrivate)
+{
+    return componentPrivate->state;
+}
+#endif
+
+}
 
 WAbstractCreatorComponent::WAbstractCreatorComponent(QObject *parent)
     : QObject(parent)
@@ -207,7 +227,7 @@ void WQmlCreatorComponent::create(QSharedPointer<WQmlCreatorDelegateData> data)
     auto d = QQmlComponentPrivate::get(m_delegate);
 #if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
 #if QT_VERSION >= QT_VERSION_CHECK(6, 10, 0)
-    if (d->m_state.isCompletePending()) {
+    if (componentState(d).isCompletePending()) {
 #else
     if (d->state.isCompletePending()) {
 #endif
@@ -229,7 +249,7 @@ void WQmlCreatorComponent::create(QSharedPointer<WQmlCreatorDelegateData> data, 
     auto d = QQmlComponentPrivate::get(m_delegate);
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 10, 0)
-    Q_ASSERT(!d->m_state.isCompletePending());
+    Q_ASSERT(!componentState(d).isCompletePending());
 #elif QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
     Q_ASSERT(!d->state.isCompletePending());
 #else
@@ -282,7 +302,7 @@ void WQmlCreatorComponent::create(QSharedPointer<WQmlCreatorDelegateData> data, 
     } else {
         qWarning() << "WQmlCreatorComponent::create failed" << "parent=" << parent << "initialProperties=" << tmp;
 #if QT_VERSION >= QT_VERSION_CHECK(6, 10, 0)
-        for (auto e: d->m_state.errors)
+        for (auto e: componentState(d).errors)
 #else
         for (auto e: d->state.errors)
 #endif

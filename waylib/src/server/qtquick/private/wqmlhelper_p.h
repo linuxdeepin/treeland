@@ -5,9 +5,7 @@
 
 #include <WCursor>
 #include <QQmlEngine>
-#define protected public
 #include <QImage>
-#undef protected
 
 QT_BEGIN_NAMESPACE
 class QQuickItem;

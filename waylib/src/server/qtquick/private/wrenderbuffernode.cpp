@@ -2,13 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include <QDebug>
-#define protected public
-#define private public
 #include <private/qsgrenderer_p.h>
 #include <private/qsgbatchrenderer_p.h>
-#undef protected
-#undef private
 
+#include "memberaccessor_p.h"
 #include "wrenderbuffernode_p.h"
 #include "wbufferrenderer_p.h"
 #include "wqmlhelper_p.h"
@@ -30,6 +27,15 @@
 #include <algorithm>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
+
+namespace
+{
+
+WAYLIB_DECLARE_PRIVATE_ACCESSOR(QSGBatchRendererShaderManagerAccessor,
+                                QSGBatchRenderer::ShaderManager *QSGBatchRenderer::Renderer::*,
+                                &QSGBatchRenderer::Renderer::m_shaderManager);
+
+}
 
 class Q_DECL_HIDDEN DataManagerBase : public QObject
 {
@@ -384,17 +390,11 @@ public:
         oldCB = dc->currentFrameCommandBuffer();
         context->prepareSync(renderer->devicePixelRatio(), cb, graphicsConfiguration());
 
-        renderer->m_is_rendering = true;
-        renderer->preprocess();
-
         return true;
     }
 
     bool render(qreal oldDPR, QRhiCommandBuffer* &oldCB, bool forceDepthTest = false) {
-        Q_ASSERT(renderer->m_is_rendering);
-        renderer->render();
-        renderer->m_is_rendering = false;
-        renderer->m_changed_emitted = false;
+        renderer->renderScene();
 
         context->prepareSync(oldDPR, oldCB, graphicsConfiguration());
         bool ok = false;
@@ -402,7 +402,7 @@ public:
         do {
             if (forceDepthTest && Q_LIKELY(isBatchRenderer)) {
                 auto batchRenderer = static_cast<QSGBatchRenderer::Renderer*>(renderer);
-                if (auto sm = batchRenderer->m_shaderManager) {
+                if (auto sm = Waylib::PrivateAccessor::member<QSGBatchRendererShaderManagerAccessor>(*batchRenderer)) {
                     if (Q_LIKELY(!sm->pipelineCache.isEmpty())) {
                         QVector<std::pair<QRhiGraphicsPipeline*, bool>> tmp;
                         tmp.reserve(sm->pipelineCache.size());

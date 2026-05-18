@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include <QObject>
-#define private public
 #include <QScreen>
-#undef private
 
 #include "qwlrootsintegration.h"
 #include "qwlrootscreen.h"
 #include "qwlrootswindow.h"
+#include "memberaccessor_p.h"
 #include "woutput.h"
 #include "winputdevice.h"
 #include "types.h"
@@ -19,6 +18,7 @@
 
 #include <QOffscreenSurface>
 #include <QGuiApplication>
+#include <QSignalBlocker>
 
 #include <private/qgenericunixfontdatabase_p.h>
 
@@ -29,11 +29,11 @@
 #endif
 
 #include <private/qgenericunixeventdispatcher_p.h>
+#include <private/qguiapplication_p.h>
 #include <private/qhighdpiscaling_p.h>
 #if QT_CONFIG(vulkan)
 #include <private/qvulkaninstance_p.h>
 #include <private/qbasicvulkanplatforminstance_p.h>
-#include <private/qguiapplication_p.h>
 #endif
 #include <private/qinputdevice_p.h>
 #include <qpa/qplatformsurface.h>
@@ -60,6 +60,15 @@ extern "C" {
 #endif // QT_NO_OPENGL
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
+
+namespace
+{
+
+WAYLIB_DECLARE_PRIVATE_ACCESSOR(QGuiApplicationScreenListAccessor,
+                                QList<QScreen *> *,
+                                &QGuiApplicationPrivate::screen_list);
+
+}
 
 #define CALL_PROXY2(FunName, fallbackValue, ...) m_proxyIntegration ? m_proxyIntegration->FunName(__VA_ARGS__) : fallbackValue
 #define CALL_PROXY(FunName, ...) CALL_PROXY2(FunName, QPlatformIntegration::FunName(__VA_ARGS__), __VA_ARGS__)
@@ -121,7 +130,10 @@ QWlrootsScreen *QWlrootsIntegration::addScreen(WOutput *output)
             QWindowSystemInterface::handleScreenRemoved(m_placeholderScreen.release());
         }
     } else {
-        [[maybe_unused]] auto screen = new QScreen(m_screens.last());
+        QSignalBlocker blocker(qGuiApp);
+        QWindowSystemInterface::handleScreenAdded(m_screens.last());
+        Waylib::PrivateAccessor::staticData<QGuiApplicationScreenListAccessor>().removeOne(m_screens.last()->screen());
+        QGuiApplicationPrivate::resetCachedDevicePixelRatio();
     }
 
     m_screens.last()->initialize();

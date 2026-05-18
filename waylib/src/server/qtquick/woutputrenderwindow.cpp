@@ -11,6 +11,7 @@
 #include "wqmlhelper_p.h"
 #include "woutputlayer.h"
 #include "wbufferrenderer_p.h"
+#include "memberaccessor_p.h"
 #include "wquicktextureproxy.h"
 #include "weventjunkman.h"
 #include "winputdevice.h"
@@ -41,13 +42,7 @@
 #include <QRunnable>
 #include <memory>
 
-#define protected public
-#define private public
-#include <private/qsgrenderer_p.h>
-#include <private/qsgsoftwarerenderer_p.h>
 #include <private/qquickanimatorcontroller_p.h>
-#undef protected
-#undef private
 #include <private/qquickwindow_p.h>
 #include <private/qquickrendercontrol_p.h>
 #include <private/qquickwindow_p.h>
@@ -73,6 +68,21 @@ extern "C" {
 #include <limits>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
+
+namespace
+{
+
+WAYLIB_DECLARE_PRIVATE_ACCESSOR(QQuickAnimatorControllerAnimationRootsAccessor,
+                                QHash<QAbstractAnimationJob *, QSharedPointer<QAbstractAnimationJob>> QQuickAnimatorController::*,
+                                &QQuickAnimatorController::m_animationRoots);
+WAYLIB_DECLARE_PRIVATE_ACCESSOR(QQuickAnimatorControllerRunningAnimatorsAccessor,
+                                QSet<QQuickAnimatorJob *> QQuickAnimatorController::*,
+                                &QQuickAnimatorController::m_runningAnimators);
+WAYLIB_DECLARE_PRIVATE_ACCESSOR(QQuickAnimatorControllerWindowAccessor,
+                                QQuickWindow *QQuickAnimatorController::*,
+                                &QQuickAnimatorController::m_window);
+
+}
 
 #ifdef QT_DEBUG
 Q_LOGGING_CATEGORY(wlcRenderer, "waylib.server.renderer", QtDebugMsg)
@@ -1477,18 +1487,22 @@ WOutputRenderWindowPrivate::doRenderOutputs(qw_output *needsFrameOutput, const Q
 static void QQuickAnimatorController_advance(QQuickAnimatorController *ac)
 {
     bool running = false;
-    for (const QSharedPointer<QAbstractAnimationJob> &job : std::as_const(ac->m_animationRoots)) {
+    const auto &animationRoots =
+        Waylib::PrivateAccessor::member<QQuickAnimatorControllerAnimationRootsAccessor>(*ac);
+    for (const QSharedPointer<QAbstractAnimationJob> &job : std::as_const(animationRoots)) {
         if (job->isRunning()) {
             running = true;
             break;
         }
     }
 
-    for (QQuickAnimatorJob *job : std::as_const(ac->m_runningAnimators))
+    const auto &runningAnimators =
+        Waylib::PrivateAccessor::member<QQuickAnimatorControllerRunningAnimatorsAccessor>(*ac);
+    for (QQuickAnimatorJob *job : std::as_const(runningAnimators))
         job->commit();
 
     if (running)
-        ac->m_window->update();
+        Waylib::PrivateAccessor::member<QQuickAnimatorControllerWindowAccessor>(*ac)->update();
 }
 
 void WOutputRenderWindowPrivate::doRender(qw_output *needsFrameOutput,

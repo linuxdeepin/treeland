@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wbufferrenderer_p.h"
+#include "memberaccessor_p.h"
 #include "wrenderhelper.h"
 #include "wqmlhelper_p.h"
 #include "wtools.h"
@@ -18,13 +19,9 @@
 #include <QSGImageNode>
 #include <QSGSimpleRectNode>
 
-#define protected public
-#define private public
 #include <private/qsgsoftwarerenderer_p.h>
 #include <private/qsgsoftwarerenderablenodeupdater_p.h>
 #include <private/qsgsoftwarerenderablenode_p.h>
-#undef protected
-#undef private
 #include <private/qsgplaintexture_p.h>
 #include <private/qquickitem_p.h>
 #include <private/qsgdefaultrendercontext_p.h>
@@ -42,6 +39,24 @@
 
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
+
+namespace
+{
+
+WAYLIB_DECLARE_PRIVATE_ACCESSOR(QSGAbstractSoftwareRendererRenderableNodesAccessor,
+                                const QVector<QSGSoftwareRenderableNode *> &(QSGAbstractSoftwareRenderer::*)() const,
+                                &QSGAbstractSoftwareRenderer::renderableNodes);
+WAYLIB_DECLARE_PRIVATE_ACCESSOR(QSGAbstractSoftwareRendererBackgroundAccessor,
+                                QSGSimpleRectNode *QSGAbstractSoftwareRenderer::*,
+                                &QSGAbstractSoftwareRenderer::m_background);
+WAYLIB_DECLARE_PRIVATE_ACCESSOR(QSGAbstractSoftwareRendererDirtyRegionAccessor,
+                                QRegion QSGAbstractSoftwareRenderer::*,
+                                &QSGAbstractSoftwareRenderer::m_dirtyRegion);
+WAYLIB_DECLARE_PRIVATE_ACCESSOR(QSGSoftwareRenderableNodeHasClipRegionAccessor,
+                                bool QSGSoftwareRenderableNode::*,
+                                &QSGSoftwareRenderableNode::m_hasClipRegion);
+
+}
 
 inline static WImageRenderTarget *getImageFrom(const QQuickRenderTarget &rt)
 {
@@ -68,15 +83,13 @@ static void applyTransform(QSGSoftwareRenderer *renderer, const QTransform &t)
     if (t.isIdentity())
         return;
 
-    auto nodeIter = renderer->m_nodes.begin();
-    while (nodeIter != renderer->m_nodes.end()) {
-        auto node = *nodeIter;
+    const auto &renderableNodes =
+        Waylib::PrivateAccessor::invoke<QSGAbstractSoftwareRendererRenderableNodesAccessor>(*renderer);
+    for (auto node : std::as_const(renderableNodes)) {
         node->setTransform(node->transform() * t);
 
-        if (node->m_hasClipRegion)
+        if (Waylib::PrivateAccessor::member<QSGSoftwareRenderableNodeHasClipRegionAccessor>(*node))
             node->setClipRegion(t.map(node->clipRegion()), true);
-
-        ++nodeIter;
     }
 }
 
@@ -478,13 +491,14 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
 #if QT_VERSION >= QT_VERSION_CHECK(6, 9, 0)
             softwareRenderer->setClearColorEnabled(!preserveColorContents);
 #else
-            auto bn = softwareRenderer->renderableNode(softwareRenderer->m_background);
+            auto bn = softwareRenderer->renderableNode(
+                Waylib::PrivateAccessor::member<QSGAbstractSoftwareRendererBackgroundAccessor>(*softwareRenderer));
             if (bn) {
-                bn->m_opacity = preserveColorContents ? 0 : 1;
+                bn->setOpacity(preserveColorContents ? 0 : 1);
             }
 #endif
             if (!state.dirty.isEmpty()) {
-                softwareRenderer->m_dirtyRegion += state.dirty;
+                Waylib::PrivateAccessor::member<QSGAbstractSoftwareRendererDirtyRegionAccessor>(*softwareRenderer) += state.dirty;
                 state.dirty = QRegion();
             }
 
@@ -586,7 +600,7 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
             state.dirty = softwareRenderer->flushRegion();
 
             auto currentImage = getImageFrom(state.renderTarget);
-            Q_ASSERT(currentImage && currentImage == softwareRenderer->m_rt.paintDevice);
+            Q_ASSERT(currentImage && currentImage == softwareRenderer->renderTarget().paintDevice);
             currentImage->setDevicePixelRatio(1.0);
             const auto scaleTF = QTransform::fromScale(devicePixelRatio, devicePixelRatio);
             const auto scaledFlushRegion = scaleTF.map(softwareRenderer->flushRegion());
