@@ -25,13 +25,14 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pacman -Syu --noconfirm qt6-base cmake pkgconfig wlroots0.19 pixman wayland-protocols wlr-protocols
-          pacman -Syu --noconfirm clang ninja base-devel git
+          pacman -S --noconfirm qt6-base cmake pkgconfig wlroots0.19 pixman wayland-protocols wlr-protocols
+          pacman -S --noconfirm clang ninja base-devel git
 
       - name: Configure and build qwlroots
         working-directory: qwlroots
         run: |
           echo "Working directory:" $PWD
+          rm -rf build
           cmake --preset ci
           cmake --build --preset ci
 
@@ -52,7 +53,7 @@ jobs:
           cd /tmp/qwlroots-install
 
           # Install zip if not available
-          pacman -Syu --noconfirm zip
+          pacman -S --noconfirm zip
 
           # Create package info
           echo "Creating package info..."
