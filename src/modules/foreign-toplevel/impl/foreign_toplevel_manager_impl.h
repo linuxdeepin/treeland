@@ -87,6 +87,7 @@ public:
         Minimized = 2,
         Activated = 4,
         Fullscreen = 8,
+        Attention = 16,
     };
     Q_ENUM(State);
     Q_DECLARE_FLAGS(States, State)
@@ -117,6 +118,7 @@ public:
     void set_minimized(bool minimized);
     void set_activated(bool activated);
     void set_fullscreen(bool fullscreen);
+    void set_attention(bool attention);
     void set_parent(treeland_foreign_toplevel_handle_v1 *parent);
 
     static treeland_foreign_toplevel_handle_v1 *create(

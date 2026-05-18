@@ -14,7 +14,7 @@
 
 using QW_NAMESPACE::qw_display, QW_NAMESPACE::qw_output;
 
-#define FOREIGN_TOPLEVEL_MANAGEMENT_V1_VERSION 1
+#define FOREIGN_TOPLEVEL_MANAGEMENT_V1_VERSION 2
 
 static void treeland_foreign_toplevel_handle_set_maximized(struct wl_client *client,
                                                            struct wl_resource *resource);
@@ -470,6 +470,13 @@ static bool fill_array_from_toplevel_state(struct wl_array *array,
         }
         *index = TREELAND_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_FULLSCREEN;
     }
+    if (state.testFlag(treeland_foreign_toplevel_handle_v1::State::Attention)) {
+        uint32_t *index = static_cast<uint32_t *>(wl_array_add(array, sizeof(uint32_t)));
+        if (index == NULL) {
+            return false;
+        }
+        *index = TREELAND_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_ATTENTION;
+    }
 
     return true;
 }
@@ -533,6 +540,15 @@ void treeland_foreign_toplevel_handle_v1::set_fullscreen(bool fullscreen)
         return;
     }
     state.setFlag(State::Fullscreen, fullscreen);
+    send_state();
+}
+
+void treeland_foreign_toplevel_handle_v1::set_attention(bool attention)
+{
+    if (state.testFlag(State::Attention) == attention) {
+        return;
+    }
+    state.setFlag(State::Attention, attention);
     send_state();
 }
 
