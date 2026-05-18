@@ -121,6 +121,10 @@ void ForeignToplevelV1::initializeToplevelHandle(SurfaceWrapper *wrapper,
         handle->set_activated(surface->isActivated());
     });
 
+    connect(wrapper, &SurfaceWrapper::attentionChanged, handle, [handle, wrapper] {
+        handle->set_attention(wrapper->attention());
+    });
+
     surface->safeConnect(&WToplevelSurface::appIdChanged, handle, [handle, wrapper] {
         handle->set_app_id(wrapper->appId());
     });
