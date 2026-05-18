@@ -90,6 +90,9 @@ public:
         m_wrapper->shellSurface()->safeConnect(&WToplevelSurface::minimizeChanged, this, [this] {
             sendStateChanged();
         });
+        connect(m_wrapper, &SurfaceWrapper::attentionChanged, this, [this] {
+            sendStateChanged();
+        });
         connect(m_wrapper, &SurfaceWrapper::aboutToBeInvalidated, this, [this] {
             if (m_manager) {
                 m_manager->removeState(this);
@@ -151,19 +154,14 @@ protected:
     {
         if (!m_wrapper)
             return;
-        m_attention = true;
-        // TODO：foreign-toplevel open no extension attention capability
-        qCWarning(treelandProtocol) << "set_attention is not fully supported yet, attention "
-                                       "state will never be cleared automatically";
-        sendStateChanged();
+        m_wrapper->setAttention(true);
     }
 
     void clear_attention([[maybe_unused]] Resource *resource) override
     {
         if (!m_wrapper)
             return;
-        m_attention = false;
-        sendStateChanged();
+        m_wrapper->setAttention(false);
     }
 
 private:
@@ -173,9 +171,9 @@ private:
             return;
 
         uint32_t state = 0;
-        if (m_wrapper && m_wrapper->isMinimized())
+        if (m_wrapper->isMinimized())
             state |= TREELAND_WINE_WINDOW_STATE_V1_STATE_MINIMIZED;
-        if (m_attention)
+        if (m_wrapper->attention())
             state |= TREELAND_WINE_WINDOW_STATE_V1_STATE_ATTENTION;
 
         send_state_changed(state);
@@ -184,7 +182,6 @@ private:
 private:
     WineWindowStateManagerPrivate *m_manager = nullptr;
     SurfaceWrapper *m_wrapper = nullptr;
-    bool m_attention = false;
 };
 
 void WineWindowStateManagerPrivate::removeState(WineWindowState *state)

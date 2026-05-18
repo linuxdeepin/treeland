@@ -278,6 +278,9 @@ public:
 
     bool isActivated() const;
 
+    bool attention() const;
+    void setAttention(bool attention);
+
 public Q_SLOTS:
     // for titlebar
     void requestMinimize(bool onAnimation = true);
@@ -340,6 +343,7 @@ Q_SIGNALS:
     void aboutToBeInvalidated();
     void acceptKeyboardFocusChanged();
     void isActivatedChanged();
+    void attentionChanged();
     void surfaceItemCreated(); // Emitted once after surfaceItem is constructed
     void prelaunchSplashChanged();
     void typeChanged();
@@ -458,6 +462,7 @@ private:
     uint m_confirmHideByLockScreen : 1;
     uint m_blur : 1;
     uint m_isActivated : 1;
+    uint m_attention : 1;
     SurfaceRole m_surfaceRole = SurfaceRole::Normal;
     quint32 m_autoPlaceYOffset = 0;
     QPoint m_clientRequstPos;

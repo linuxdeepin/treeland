@@ -62,6 +62,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     , m_confirmHideByLockScreen(false)
     , m_blur(false)
     , m_isActivated(false)
+    , m_attention(false)
     , m_appId(appId)
 {
     QQmlEngine::setContextForObject(this, qmlEngine->rootContext());
@@ -94,6 +95,7 @@ SurfaceWrapper::SurfaceWrapper(SurfaceWrapper *original, QQuickItem *parent)
     , m_confirmHideByLockScreen(false)
     , m_blur(false)
     , m_isActivated(false)
+    , m_attention(false)
     , m_appId(original->m_appId)
 {
     QQmlEngine::setContextForObject(this, m_engine->rootContext());
@@ -159,6 +161,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     , m_confirmHideByLockScreen(false)
     , m_blur(false)
     , m_isActivated(false)
+    , m_attention(false)
     , m_appId(appId)
 {
     QQmlEngine::setContextForObject(this, qmlEngine->rootContext());
@@ -1027,6 +1030,19 @@ void SurfaceWrapper::setAcceptKeyboardFocus(bool accept)
 bool SurfaceWrapper::isActivated() const
 {
     return m_isActivated;
+}
+
+bool SurfaceWrapper::attention() const
+{
+    return m_attention;
+}
+
+void SurfaceWrapper::setAttention(bool attention)
+{
+    if (m_attention == attention)
+        return;
+    m_attention = attention;
+    Q_EMIT attentionChanged();
 }
 
 void SurfaceWrapper::setNoDecoration(bool newNoDecoration)
