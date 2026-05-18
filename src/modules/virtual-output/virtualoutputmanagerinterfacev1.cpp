@@ -54,12 +54,12 @@ VirtualOutputInterfaceV1Private::VirtualOutputInterfaceV1Private(VirtualOutputIn
 
 void VirtualOutputInterfaceV1Private::destroy_resource([[maybe_unused]] Resource *resource)
 {
-    Q_EMIT q->beforeDestroy(q);
     delete q;
 }
 
 void VirtualOutputInterfaceV1Private::destroy(Resource *resource)
 {
+    Q_EMIT q->beforeDestroy(q);
     wl_resource_destroy(resource->handle);
 }
 
