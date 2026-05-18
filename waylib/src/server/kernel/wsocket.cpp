@@ -15,10 +15,11 @@
 #include <sys/stat.h>
 #include <sys/file.h>
 #include <sys/socket.h>
+#include <sys/syscall.h>
 #include <sys/types.h>
 #include <sys/un.h>
 #include <signal.h>
-#include <sys/syscall.h>
+#include <unistd.h>
 #include <errno.h>
 
 struct wl_event_source;
