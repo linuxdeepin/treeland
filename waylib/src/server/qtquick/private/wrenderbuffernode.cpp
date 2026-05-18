@@ -394,6 +394,8 @@ public:
     }
 
     bool render(qreal oldDPR, QRhiCommandBuffer* &oldCB, bool forceDepthTest = false) {
+        // renderScene() already wraps preprocess/render and restores the internal
+        // renderer state flags that used to be updated manually here.
         renderer->renderScene();
 
         context->prepareSync(oldDPR, oldCB, graphicsConfiguration());

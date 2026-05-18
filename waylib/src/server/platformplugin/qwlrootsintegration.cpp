@@ -130,6 +130,8 @@ QWlrootsScreen *QWlrootsIntegration::addScreen(WOutput *output)
             QWindowSystemInterface::handleScreenRemoved(m_placeholderScreen.release());
         }
     } else {
+        // Non-master mode still needs QScreen to be created for the platform
+        // screen, but the screen must stay out of QGuiApplication::screens().
         QSignalBlocker blocker(qGuiApp);
         QWindowSystemInterface::handleScreenAdded(m_screens.last());
         Waylib::PrivateAccessor::staticData<QGuiApplicationScreenListAccessor>().removeOne(m_screens.last()->screen());
