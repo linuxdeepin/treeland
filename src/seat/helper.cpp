@@ -1517,10 +1517,20 @@ void Helper::init(Treeland::Treeland *treeland)
 
     m_activationManagerV1 = m_server->attach<ActivationManagerInterfaceV1>();
     connect(m_activationManagerV1, &ActivationManagerInterfaceV1::activateRequested,
-            this, [this](const QString & /*token*/, WSurface *wsurface) {
+            this, [this](ActivationManagerInterfaceV1::TokenDisposition disposition, WSurface *wsurface) {
                 auto wrapper = m_rootSurfaceContainer->getSurface(wsurface);
-                if (wrapper)
-                    activateSurface(wrapper, Qt::OtherFocusReason);
+                if (wrapper) {
+                    switch (disposition) {
+                    case ActivationManagerInterfaceV1::TokenDisposition::Active:
+                        forceActivateSurface(wrapper, Qt::OtherFocusReason);
+                        break;
+                    case ActivationManagerInterfaceV1::TokenDisposition::Attention:
+                        wrapper->setAttention(true);
+                        break;
+                    case ActivationManagerInterfaceV1::TokenDisposition::Invalid:
+                        break;
+                    }
+                }
             });
 
     m_screensaverInterfaceV1 = m_server->attach<ScreensaverInterfaceV1>();
