@@ -1,4 +1,4 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "helper.h"
@@ -71,7 +71,7 @@ void Helper::initProtocols(WOutputRenderWindow *window, QQmlEngine *qmlEngine)
         qCritical("Failed to create socket");
     }
 
-    connect(m_backend, &WBackend::outputAdded, this, [this, window, qmlEngine] (WOutput *output) {
+    connect(m_backend, &WBackend::outputAdded, this, [this, qmlEngine] (WOutput *output) {
         auto initProperties = qmlEngine->newObject();
         initProperties.setProperty("waylandOutput", qmlEngine->toScriptValue(output));
         initProperties.setProperty("layout", qmlEngine->toScriptValue(m_outputLayout));
