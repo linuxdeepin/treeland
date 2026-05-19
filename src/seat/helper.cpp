@@ -1515,7 +1515,22 @@ void Helper::init(Treeland::Treeland *treeland)
     m_idleInhibitManager = qw_idle_inhibit_manager_v1::create(*m_server->handle());
     connect(m_idleInhibitManager, &qw_idle_inhibit_manager_v1::notify_new_inhibitor, this, &Helper::onNewIdleInhibitor);
 
-    m_activationManagerV1 = m_server->attach<ActivationManagerInterfaceV1>();
+    m_activationManagerV1 = m_server->attach<ActivationManagerInterfaceV1>(
+        [this](WSurface *surface) -> bool {
+            // Determine whether the Surface can be trusted to transfer its active state.
+            auto wrapper = m_rootSurfaceContainer->getSurface(surface);
+            if (!wrapper) {
+                return false;
+            }
+            if (wrapper->isActivated()) {
+                return true;
+            }
+            if (keyboardFocusSurface() == wrapper) {
+                // Special windows, such as Layer Shell, do not have the concept of "activation."
+                return true;
+            }
+            return false;
+        });
     connect(m_activationManagerV1, &ActivationManagerInterfaceV1::activateRequested,
             this, [this](ActivationManagerInterfaceV1::TokenDisposition disposition, WSurface *wsurface) {
                 auto wrapper = m_rootSurfaceContainer->getSurface(wsurface);

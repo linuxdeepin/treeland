@@ -9,10 +9,12 @@
 
 #include <qwdisplay.h>
 
-#include <QHash>
+#include <QDeadlineTimer>
 #include <QLoggingCategory>
+#include <QPointer>
 #include <QUuid>
 
+#include <algorithm>
 #include <optional>
 
 extern "C" {
@@ -71,12 +73,7 @@ protected:
     }
 
     void set_surface(Resource * /*resource*/,
-                     struct ::wl_resource * /*surface*/) override
-    {
-        // Stored for future policy use; currently unused in v1.
-        if (m_committed)
-            return;
-    }
+                     struct ::wl_resource *surface) override;
 
     void set_app_id(Resource * /*resource*/, const QString &app_id) override
     {
@@ -92,6 +89,7 @@ private:
     QString m_appId;
     std::optional<uint32_t> m_serial;
     bool m_committed = false;
+    QPointer<WSurface> m_surface; // set by set_surface; null if not called or surface destroyed
 };
 
 // ---------------------------------------------------------------------------
@@ -100,18 +98,23 @@ private:
 
 struct TokenInfo
 {
+    QString token;
     QString appId;
     wl_client *requestingClient = nullptr;
     std::optional<uint32_t> serial;
+    bool fromTrustedSurface = false; // set_surface called and surface was active at commit time
+    QDeadlineTimer expiry;           // invalidated 60 s after registration
 };
 
 class ActivationManagerInterfaceV1Private
     : public QtWaylandServer::xdg_activation_v1
 {
 public:
-    explicit ActivationManagerInterfaceV1Private(ActivationManagerInterfaceV1 *q)
+    explicit ActivationManagerInterfaceV1Private(ActivationManagerInterfaceV1 *q,
+                                                 std::function<bool(WSurface *)> trustedSurfaceChecker)
         : QtWaylandServer::xdg_activation_v1()
         , q(q)
+        , m_trustedSurfaceChecker(std::move(trustedSurfaceChecker))
     {
     }
 
@@ -126,13 +129,23 @@ public:
      */
     QString registerToken(const QString &appId,
                           wl_client *client,
-                          std::optional<uint32_t> serial)
+                          std::optional<uint32_t> serial,
+                          bool fromTrustedSurface)
     {
         const QString token = QUuid::createUuid().toString(QUuid::WithoutBraces);
-        m_tokens.insert(token, TokenInfo{ appId, client, serial });
+        m_tokens.append(TokenInfo{ token, appId, client, serial, fromTrustedSurface,
+                                   QDeadlineTimer(TokenLifetimeMs) });
         qCDebug(lcActivation) << "Registered activation token" << token
-                               << "for app" << appId;
+                               << "for app" << appId
+                               << (fromTrustedSurface ? "" : "(inactive-surface-token-request)");
         return token;
+    }
+
+    bool isTrustedSurface(WSurface *surface) const
+    {
+        if (m_trustedSurfaceChecker)
+            return m_trustedSurfaceChecker(surface);
+        return false; // conservative: no checker → treat as inactive
     }
 
 protected:
@@ -164,7 +177,7 @@ protected:
                   const QString &token,
                   struct ::wl_resource *surface) override
     {
-        auto disposition = dispositionForToken(token);
+        sweepExpiredTokens();
 
         auto *wlrSurface = wlr_surface_from_resource(surface);
         if (!wlrSurface) {
@@ -178,35 +191,70 @@ protected:
             return;
         }
 
+        auto disposition = dispositionForToken(token);
         qCInfo(lcActivation) << "activate: emitting activateRequested for token" << token;
-        Q_EMIT q->activateRequested(disposition, wsurface);
-
+        
         // Keep token one-shot semantics; Helper performs the policy check.
-        auto it = m_tokens.find(token);
+        auto it = std::find_if(m_tokens.begin(), m_tokens.end(),
+                               [&token](const TokenInfo &t) { return t.token == token; });
         if (it != m_tokens.end()) {
             m_tokens.erase(it);
         }
+        
+        Q_EMIT q->activateRequested(disposition, wsurface);
     }
 
 private:
     ActivationManagerInterfaceV1::TokenDisposition dispositionForToken(const QString &token) const
     {
-        auto it = m_tokens.constFind(token);
+        auto it = std::find_if(m_tokens.cbegin(), m_tokens.cend(),
+                               [&token](const TokenInfo &t) { return t.token == token; });
         if (it == m_tokens.cend()) {
             return ActivationManagerInterfaceV1::TokenDisposition::Invalid;
         }
-
+        if (it->expiry.hasExpired()) {
+            return ActivationManagerInterfaceV1::TokenDisposition::Invalid;
+        }
+        // inactive-surface-token-request: set_surface not called or surface was not active
+        // → treat as Attention
+        if (!it->fromTrustedSurface) {
+            return ActivationManagerInterfaceV1::TokenDisposition::Attention;
+        }
         return it->serial.has_value() ? ActivationManagerInterfaceV1::TokenDisposition::Active
                                       : ActivationManagerInterfaceV1::TokenDisposition::Attention;
     }
 
+    void sweepExpiredTokens()
+    {
+        auto it = m_tokens.begin();
+        while (it != m_tokens.end()) {
+            if (it->expiry.hasExpired()) {
+                qCDebug(lcActivation) << "Sweeping expired token for app" << it->appId;
+                it = m_tokens.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    }
+
     ActivationManagerInterfaceV1 *q;
-    QHash<QString, TokenInfo> m_tokens;
+    QList<TokenInfo> m_tokens;
+    std::function<bool(WSurface *)> m_trustedSurfaceChecker;
+
+    static constexpr int TokenLifetimeMs = 60'000;
 };
 
 // ---------------------------------------------------------------------------
-// TokenContext::commit — defined after ActivationManagerInterfaceV1Private
+// TokenContext methods — defined after ActivationManagerInterfaceV1Private
 // ---------------------------------------------------------------------------
+
+void TokenContext::set_surface(Resource * /*resource*/, struct ::wl_resource *surface)
+{
+    if (m_committed)
+        return;
+    auto *wlrSurface = wlr_surface_from_resource(surface);
+    m_surface = wlrSurface ? WSurface::fromHandle(wlrSurface) : nullptr;
+}
 
 void TokenContext::commit(Resource *resource)
 {
@@ -218,7 +266,9 @@ void TokenContext::commit(Resource *resource)
     }
     m_committed = true;
 
-    const QString token = m_manager->registerToken(m_appId, resource->client(), m_serial);
+    // fromTrustedSurface: set_surface was called, surface still alive, and currently active
+    const bool fromTrustedSurface = m_surface && m_manager->isTrustedSurface(m_surface);
+    const QString token = m_manager->registerToken(m_appId, resource->client(), m_serial, fromTrustedSurface);
     send_done(token);
 }
 
@@ -226,10 +276,12 @@ void TokenContext::commit(Resource *resource)
 // Public class
 // ---------------------------------------------------------------------------
 
-ActivationManagerInterfaceV1::ActivationManagerInterfaceV1(QObject *parent)
+ActivationManagerInterfaceV1::ActivationManagerInterfaceV1(
+    std::function<bool(WSurface *)> trustedSurfaceChecker,
+    QObject *parent)
     : QObject(parent)
     , WServerInterface()
-    , d(new ActivationManagerInterfaceV1Private(this))
+    , d(new ActivationManagerInterfaceV1Private(this, std::move(trustedSurfaceChecker)))
 {
 }
 
@@ -254,4 +306,6 @@ wl_global *ActivationManagerInterfaceV1::global() const
 {
     return d->globalHandle();
 }
+
+
 
