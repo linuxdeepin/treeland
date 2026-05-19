@@ -301,14 +301,18 @@ void WExtImageCaptureSourceV1Impl::copy_frame(wlr_ext_image_copy_capture_frame_v
     }
 
     auto buffer = textureProvider->qwBuffer();
-    if (!buffer) {
+    if (!buffer || !buffer->handle()) {
         qCWarning(qLcImageCapture) << "No internal buffer available";
         qw_ext_image_copy_capture_frame_v1::from(dst_frame)->fail(EXT_IMAGE_COPY_CAPTURE_FRAME_V1_FAILURE_REASON_UNKNOWN);
         return;
     }
 
     // Lock the buffer for the duration of the copy to prevent races during resize
-    buffer->lock();
+    if (!buffer->lock()) {
+        qCWarning(qLcImageCapture) << "Failed to lock internal buffer";
+        qw_ext_image_copy_capture_frame_v1::from(dst_frame)->fail(EXT_IMAGE_COPY_CAPTURE_FRAME_V1_FAILURE_REASON_UNKNOWN);
+        return;
+    }
     std::unique_ptr<qw_buffer, qw_buffer::unlocker> bufferGuard(buffer);
     
     // Get renderer
