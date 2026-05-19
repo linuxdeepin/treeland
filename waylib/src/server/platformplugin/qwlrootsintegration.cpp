@@ -1,12 +1,23 @@
 // Copyright (C) 2023 - 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
-#include <QObject>
+// HACK: QScreen's constructor QScreen(QPlatformScreen*) is private.
+// The template accessor technique cannot be used for constructors (C++ has no
+// pointer-to-constructor).  We keep the #define private public for this one
+// include until Qt exposes a public factory.
+//
+// GCC 16 -Wtemplate-body: pre-include <sstream> so that its include guard
+// fires when QScreen → QObject → <chrono> → <sstream> is pulled in below
+// with #define private public in effect.  Without this, basic_stringbuf's
+// internal struct __xfer_bufptrs is first parsed as "public:" (due to the
+// define) and then GCC flags the accessibility mismatch in the template body.
+#include <sstream>
 #define private public
 #include <QScreen>
 #undef private
 
 #include "qwlrootsintegration.h"
+#include "private/wprivateaccessor_p.h"
 #include "qwlrootscreen.h"
 #include "qwlrootswindow.h"
 #include "woutput.h"
@@ -58,6 +69,13 @@ extern "C" {
 }
 
 #endif // QT_NO_OPENGL
+
+W_DECLARE_PRIVATE_CONST_METHOD(QPlatformIntegration_queryKeyboardModifiers_tag,
+                               QPlatformIntegration, queryKeyboardModifiers,
+                               Qt::KeyboardModifiers);
+W_DECLARE_PRIVATE_CONST_METHOD(QPlatformIntegration_possibleKeys_tag,
+                               QPlatformIntegration, possibleKeys,
+                               QList<int>, const QKeyEvent*);
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -484,12 +502,16 @@ Qt::WindowState QWlrootsIntegration::defaultWindowState(Qt::WindowFlags flags) c
 
 Qt::KeyboardModifiers QWlrootsIntegration::queryKeyboardModifiers() const
 {
-    return CALL_PROXY(queryKeyboardModifiers);
+    if (m_proxyIntegration)
+        return W_PRIVATE_CALL(*m_proxyIntegration, QPlatformIntegration_queryKeyboardModifiers_tag{});
+    return QPlatformIntegration::queryKeyboardModifiers();
 }
 
 QList<int> QWlrootsIntegration::possibleKeys(const QKeyEvent *event) const
 {
-    return CALL_PROXY(possibleKeys, event);
+    if (m_proxyIntegration)
+        return W_PRIVATE_CALL(*m_proxyIntegration, QPlatformIntegration_possibleKeys_tag{}, event);
+    return QPlatformIntegration::possibleKeys(event);
 }
 
 QStringList QWlrootsIntegration::themeNames() const

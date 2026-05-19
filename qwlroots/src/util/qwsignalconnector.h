@@ -1,4 +1,4 @@
-// Copyright (C) 2022 JiDe Zhang <zccrs@live.com>.
+// Copyright (C) 2022-2026 JiDe Zhang <zccrs@live.com>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
@@ -27,9 +27,13 @@ class qw_signal_connector
             SlotFun2 slot2;
         };
         void *data = nullptr;
-        // Non-empty only for member-function-pointer connects.
+        // Non-null only for member-function-pointer connects.
+        // Heap-allocated to keep qw_signal_listener standard-layout so that
+        // wl_container_of (which uses offsetof) remains well-defined.
         // Receives (wl signal data, user extra data); both may be null.
-        std::function<void(void *, void *)> mfp_fn;
+        std::function<void(void *, void *)> *mfp_fn = nullptr;
+
+        ~qw_signal_listener() { delete mfp_fn; }
     };
 
 public:
@@ -117,9 +121,9 @@ public:
         listenerList.push_back(l);
         l->signal = signal;
         l->l.notify = callMfp;
-        l->mfp_fn = [typed_obj, slot](void *, void *) {
+        l->mfp_fn = new std::function<void(void *, void *)>([typed_obj, slot](void *, void *) {
             (typed_obj->*slot)();
-        };
+        });
         wl_signal_add(signal, &l->l);
         return l;
     }
@@ -131,9 +135,9 @@ public:
         listenerList.push_back(l);
         l->signal = signal;
         l->l.notify = callMfp;
-        l->mfp_fn = [typed_obj, slot](void *sigdata, void *) {
+        l->mfp_fn = new std::function<void(void *, void *)>([typed_obj, slot](void *sigdata, void *) {
             (typed_obj->*slot)(static_cast<T1 *>(sigdata));
-        };
+        });
         wl_signal_add(signal, &l->l);
         return l;
     }
@@ -146,9 +150,9 @@ public:
         l->signal = signal;
         l->l.notify = callMfp;
         l->data = static_cast<void *>(data);
-        l->mfp_fn = [typed_obj, slot](void *sigdata, void *extra) {
+        l->mfp_fn = new std::function<void(void *, void *)>([typed_obj, slot](void *sigdata, void *extra) {
             (typed_obj->*slot)(static_cast<T1 *>(sigdata), static_cast<T2 *>(extra));
-        };
+        });
         wl_signal_add(signal, &l->l);
         return l;
     }
@@ -199,7 +203,7 @@ private:
 
     static void callMfp(wl_listener *wl_listener, void *data) {
         qw_signal_listener *listener = wl_container_of(wl_listener, listener, l);
-        listener->mfp_fn(data, listener->data);
+        (*listener->mfp_fn)(data, listener->data);
     }
 
     QVector<qw_signal_listener*> listenerList;

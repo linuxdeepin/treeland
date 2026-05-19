@@ -1,4 +1,4 @@
-// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 JiDe Zhang <zhangjide@deepin.org>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wbufferrenderer_p.h"
@@ -6,6 +6,7 @@
 #include "wqmlhelper_p.h"
 #include "wtools.h"
 #include "wsgtextureprovider.h"
+#include "private/wprivateaccessor_p.h"
 
 #include <qwbuffer.h>
 #include <qwtexture.h>
@@ -18,13 +19,9 @@
 #include <QSGImageNode>
 #include <QSGSimpleRectNode>
 
-#define protected public
-#define private public
 #include <private/qsgsoftwarerenderer_p.h>
 #include <private/qsgsoftwarerenderablenodeupdater_p.h>
 #include <private/qsgsoftwarerenderablenode_p.h>
-#undef protected
-#undef private
 #include <private/qsgplaintexture_p.h>
 #include <private/qquickitem_p.h>
 #include <private/qsgdefaultrendercontext_p.h>
@@ -39,6 +36,13 @@
 #include <pixman.h>
 #include <drm_fourcc.h>
 #include <xf86drm.h>
+
+using QSGAbsSoftRenderer_NodesMap = QHash<QSGNode*, QSGSoftwareRenderableNode*>;
+W_DECLARE_PRIVATE_MEMBER(QSGAbsSoftRenderer_m_nodes_tag, QSGAbstractSoftwareRenderer, m_nodes, QSGAbsSoftRenderer_NodesMap);
+W_DECLARE_PRIVATE_MEMBER(QSGAbsSoftRenderer_m_background_tag, QSGAbstractSoftwareRenderer, m_background, QSGSimpleRectNode*);
+W_DECLARE_PRIVATE_MEMBER(QSGAbsSoftRenderer_m_dirtyRegion_tag, QSGAbstractSoftwareRenderer, m_dirtyRegion, QRegion);
+W_DECLARE_PRIVATE_MEMBER(QSGSoftRenderableNode_m_hasClipRegion_tag, QSGSoftwareRenderableNode, m_hasClipRegion, bool);
+W_DECLARE_PRIVATE_MEMBER(QSGSoftRenderableNode_m_opacity_tag, QSGSoftwareRenderableNode, m_opacity, float);
 
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -68,12 +72,12 @@ static void applyTransform(QSGSoftwareRenderer *renderer, const QTransform &t)
     if (t.isIdentity())
         return;
 
-    auto nodeIter = renderer->m_nodes.begin();
-    while (nodeIter != renderer->m_nodes.end()) {
+    auto nodeIter = W_PRIVATE_MEMBER(*renderer, QSGAbsSoftRenderer_m_nodes_tag{}).begin();
+    while (nodeIter != W_PRIVATE_MEMBER(*renderer, QSGAbsSoftRenderer_m_nodes_tag{}).end()) {
         auto node = *nodeIter;
         node->setTransform(node->transform() * t);
 
-        if (node->m_hasClipRegion)
+        if (W_PRIVATE_MEMBER(*node, QSGSoftRenderableNode_m_hasClipRegion_tag{}))
             node->setClipRegion(t.map(node->clipRegion()), true);
 
         ++nodeIter;
@@ -478,13 +482,13 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
 #if QT_VERSION >= QT_VERSION_CHECK(6, 9, 0)
             softwareRenderer->setClearColorEnabled(!preserveColorContents);
 #else
-            auto bn = softwareRenderer->renderableNode(softwareRenderer->m_background);
+            auto bn = softwareRenderer->renderableNode(W_PRIVATE_MEMBER(*softwareRenderer, QSGAbsSoftRenderer_m_background_tag{}));
             if (bn) {
-                bn->m_opacity = preserveColorContents ? 0 : 1;
+                W_PRIVATE_MEMBER(*bn, QSGSoftRenderableNode_m_opacity_tag{}) = preserveColorContents ? 0 : 1;
             }
 #endif
             if (!state.dirty.isEmpty()) {
-                softwareRenderer->m_dirtyRegion += state.dirty;
+                W_PRIVATE_MEMBER(*softwareRenderer, QSGAbsSoftRenderer_m_dirtyRegion_tag{}) += state.dirty;
                 state.dirty = QRegion();
             }
 
@@ -586,7 +590,7 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
             state.dirty = softwareRenderer->flushRegion();
 
             auto currentImage = getImageFrom(state.renderTarget);
-            Q_ASSERT(currentImage && currentImage == softwareRenderer->m_rt.paintDevice);
+            Q_ASSERT(currentImage && currentImage == softwareRenderer->renderTarget().paintDevice);
             currentImage->setDevicePixelRatio(1.0);
             const auto scaleTF = QTransform::fromScale(devicePixelRatio, devicePixelRatio);
             const auto scaledFlushRegion = scaleTF.map(softwareRenderer->flushRegion());

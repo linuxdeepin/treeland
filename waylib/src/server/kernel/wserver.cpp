@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include <QObject>
-#define private public
 #include <QCoreApplication>
 #include <private/qhighdpiscaling_p.h>
-#undef private
+#include "private/wprivateaccessor_p.h"
 
 #include "wserver.h"
 #include "private/wserver_p.h"
@@ -38,6 +37,7 @@
 #include <qpa/qplatformtheme.h>
 
 QW_USE_NAMESPACE
+W_DECLARE_PRIVATE_STATIC_MEMBER(QHighDpiScaling_m_globalScalingActive_tag, QHighDpiScaling, m_globalScalingActive, bool);
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 static bool globalFilter(const wl_client *client,
@@ -313,7 +313,7 @@ static bool initializeQtPlatform(bool isMaster, const QStringList &parameters, s
         return false;
 
     QHighDpiScaling::initHighDpiScaling();
-    QHighDpiScaling::m_globalScalingActive = true; // force enable hidpi
+    W_PRIVATE_STATIC_MEMBER(QHighDpiScaling_m_globalScalingActive_tag{}) = true; // force enable hidpi
     QGuiApplicationPrivate::platform_integration = new QWlrootsIntegration(isMaster, parameters, onInitialized);
 
     // for platform theme
