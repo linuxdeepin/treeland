@@ -33,7 +33,6 @@
 #include <private/qthread_p.h>
 #include <private/qguiapplication_p.h>
 #include <qpa/qplatformthemefactory_p.h>
-#include <qpa/qplatformintegrationfactory_p.h>
 #include <qpa/qplatformtheme.h>
 
 QW_USE_NAMESPACE
@@ -306,7 +305,7 @@ WServer *WServer::from(WServerInterface *interface)
     return interface->m_server;
 }
 
-static bool initializeQtPlatform(bool isMaster, const QStringList &parameters, std::function<void()> onInitialized)
+static bool initializeQtPlatform(const QStringList &parameters, std::function<void()> onInitialized)
 {
     Q_ASSERT(QGuiApplication::instance() == nullptr);
     if (QGuiApplicationPrivate::platform_integration)
@@ -314,7 +313,7 @@ static bool initializeQtPlatform(bool isMaster, const QStringList &parameters, s
 
     QHighDpiScaling::initHighDpiScaling();
     W_PRIVATE_STATIC_MEMBER(QHighDpiScaling_m_globalScalingActive_tag{}) = true; // force enable hidpi
-    QGuiApplicationPrivate::platform_integration = new QWlrootsIntegration(isMaster, parameters, onInitialized);
+    QGuiApplicationPrivate::platform_integration = new QWlrootsIntegration(parameters, onInitialized);
 
     // for platform theme
     QStringList themeNames = QWlrootsIntegration::instance()->themeNames();
@@ -356,31 +355,12 @@ void WServer::start()
     d->init();
 }
 
-void WServer::initializeQPA(bool master, const QStringList &parameters)
+void WServer::initializeQPA(const QStringList &parameters)
 {
-    if (!initializeQtPlatform(master, parameters, nullptr)) {
+    if (!initializeQtPlatform(parameters, nullptr)) {
         qFatal("Can't initialize Qt platform plugin.");
         return;
     }
-}
-
-void WServer::initializeProxyQPA(int &argc, char **argv, const QStringList &proxyPlatformPlugins, const QStringList &parameters)
-{
-    Q_ASSERT(!proxyPlatformPlugins.isEmpty());
-
-    QPlatformIntegration *proxy = nullptr;
-    for (const QString &name : std::as_const(proxyPlatformPlugins)) {
-        if (name.isEmpty())
-            continue;
-        proxy = QPlatformIntegrationFactory::create(name, parameters, argc, argv);
-        if (proxy)
-            break;
-    }
-    if (!proxy) {
-        qFatal() << "Can't create the proxy platform plugin:" << proxyPlatformPlugins;
-    }
-    proxy->initialize();
-    QWlrootsIntegration::instance()->setProxy(proxy);
 }
 
 bool WServer::isRunning() const
