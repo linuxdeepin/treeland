@@ -279,7 +279,7 @@ public:
     bool isActivated() const;
 
     bool attention() const;
-    void setAttention(bool attention);
+    bool setAttention(bool attention);
 
 public Q_SLOTS:
     // for titlebar

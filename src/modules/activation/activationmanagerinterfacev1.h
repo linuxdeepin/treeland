@@ -8,6 +8,7 @@
 #include <QObject>
 
 #include <functional>
+#include <memory>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WSurface;

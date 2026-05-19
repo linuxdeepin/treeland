@@ -1041,14 +1041,17 @@ bool SurfaceWrapper::attention() const
     return m_attention;
 }
 
-void SurfaceWrapper::setAttention(bool attention)
+bool SurfaceWrapper::setAttention(bool attention)
 {
     if (m_attention == attention)
-        return;
-    if (attention && m_isActivated)
-        return;
+        return true;
+    if (attention && m_isActivated) {
+        qCWarning(treelandSurface) << "setAttention(true) ignored: surface is already activated";
+        return false;
+    }
     m_attention = attention;
     Q_EMIT attentionChanged();
+    return true;
 }
 
 void SurfaceWrapper::setNoDecoration(bool newNoDecoration)
