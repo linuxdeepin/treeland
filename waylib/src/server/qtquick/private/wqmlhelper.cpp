@@ -1,15 +1,20 @@
-// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 JiDe Zhang <zhangjide@deepin.org>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wqmlhelper_p.h"
 
-#define private public
 #include <QSGNode>
-#undef private
-
 #include <QQuickItem>
 #include <QCursor>
 #include <private/qquickitem_p.h>
+
+#include "private/wprivateaccessor_p.h"
+
+W_DECLARE_PRIVATE_MEMBER(QSGNode_m_subtreeRenderableCount, QSGNode, m_subtreeRenderableCount, int);
+W_DECLARE_PRIVATE_MEMBER(QSGNode_m_firstChild, QSGNode, m_firstChild, QSGNode*);
+W_DECLARE_PRIVATE_MEMBER(QSGNode_m_lastChild, QSGNode, m_lastChild, QSGNode*);
+W_DECLARE_PRIVATE_MEMBER(QSGNode_m_parent, QSGNode, m_parent, QSGNode*);
+W_DECLARE_PRIVATE_CONST_METHOD(QImage_metric_tag, QImage, metric, int, QPaintDevice::PaintDeviceMetric);
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -36,7 +41,7 @@ void WImageRenderTarget::setDevicePixelRatio(qreal dpr)
 
 int WImageRenderTarget::metric(PaintDeviceMetric metric) const
 {
-    return image->metric(metric);
+    return W_PRIVATE_CALL(*image, QImage_metric_tag{}, metric);
 }
 
 QPaintDevice *WImageRenderTarget::redirected(QPoint *offset) const
@@ -129,22 +134,22 @@ QSGRootNode *WQmlHelper::getRootNode(QQuickItem *item)
 
 int &WQmlHelper::QSGNode_subtreeRenderableCount(QSGNode *node)
 {
-    return node->m_subtreeRenderableCount;
+    return W_PRIVATE_MEMBER(*node, QSGNode_m_subtreeRenderableCount{});
 }
 
 QSGNode *&WQmlHelper::QSGNode_firstChild(QSGNode *node)
 {
-    return node->m_firstChild;
+    return W_PRIVATE_MEMBER(*node, QSGNode_m_firstChild{});
 }
 
 QSGNode *&WQmlHelper::QSGNode_lastChild(QSGNode *node)
 {
-    return node->m_lastChild;
+    return W_PRIVATE_MEMBER(*node, QSGNode_m_lastChild{});
 }
 
 QSGNode *&WQmlHelper::QSGNode_parent(QSGNode *node)
 {
-    return node->m_parent;
+    return W_PRIVATE_MEMBER(*node, QSGNode_m_parent{});
 }
 
 WAYLIB_SERVER_END_NAMESPACE

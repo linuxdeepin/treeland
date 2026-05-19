@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include <QDebug>
-#define private public
 #include <QCursor>
-#undef private
+#include "private/wprivateaccessor_p.h"
 
 #include "wcursor.h"
 #include "private/wcursor_p.h"
@@ -30,6 +29,8 @@
 #include <QQuickWindow>
 #include <QLoggingCategory>
 #include <private/qcursor_p.h>
+
+W_DECLARE_PRIVATE_MEMBER(QCursor_d_tag, QCursor, d, QCursorData*);
 
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -474,14 +475,14 @@ QCursor WCursor::toQCursor(CursorShape shape)
     // Ensure alloc a new QCursorData
     QCursor cursor(tmp, tmp);
 
-    Q_ASSERT(cursor.d->ref == 1);
-    Q_ASSERT(cursor.d->bm);
-    Q_ASSERT(cursor.d->bmm);
-    delete cursor.d->bm;
-    delete cursor.d->bmm;
-    cursor.d->bm = nullptr;
-    cursor.d->bmm = nullptr;
-    cursor.d->cshape = static_cast<Qt::CursorShape>(shape);
+    Q_ASSERT(W_PRIVATE_MEMBER(cursor, QCursor_d_tag{})->ref == 1);
+    Q_ASSERT(W_PRIVATE_MEMBER(cursor, QCursor_d_tag{})->bm);
+    Q_ASSERT(W_PRIVATE_MEMBER(cursor, QCursor_d_tag{})->bmm);
+    delete W_PRIVATE_MEMBER(cursor, QCursor_d_tag{})->bm;
+    delete W_PRIVATE_MEMBER(cursor, QCursor_d_tag{})->bmm;
+    W_PRIVATE_MEMBER(cursor, QCursor_d_tag{})->bm = nullptr;
+    W_PRIVATE_MEMBER(cursor, QCursor_d_tag{})->bmm = nullptr;
+    W_PRIVATE_MEMBER(cursor, QCursor_d_tag{})->cshape = static_cast<Qt::CursorShape>(shape);
 
     return cursor;
 }
