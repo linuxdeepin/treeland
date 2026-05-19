@@ -100,6 +100,7 @@ void ForeignToplevelV1::initializeToplevelHandle(SurfaceWrapper *wrapper,
     handle->set_maximized(surface->isMaximized());
     handle->set_fullscreen(surface->isFullScreen());
     handle->set_activated(surface->isActivated());
+    handle->set_attention(wrapper->attention());
 
     surface->safeConnect(&WToplevelSurface::titleChanged, handle, [handle, surface] {
         handle->set_title(surface->title());
