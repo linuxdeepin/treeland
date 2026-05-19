@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "activationmanagerinterfacev1.h"
+#include "common/treelandlogging.h"
 #include "qwayland-server-xdg-activation-v1.h"
 
 #include <wserver.h>
@@ -10,7 +11,6 @@
 #include <qwdisplay.h>
 
 #include <QDeadlineTimer>
-#include <QLoggingCategory>
 #include <QPointer>
 #include <QUuid>
 
@@ -22,8 +22,7 @@ extern "C" {
 }
 
 WAYLIB_SERVER_USE_NAMESPACE
-
-Q_LOGGING_CATEGORY(lcActivation, "treeland.activation", QtInfoMsg)
+using namespace Qt::StringLiterals;
 
 // ---------------------------------------------------------------------------
 // Forward declaration
@@ -36,7 +35,7 @@ class ActivationManagerInterfaceV1Private;
 // ---------------------------------------------------------------------------
 
 /**
- * Represents a single treeland_activation_token_v1 resource.
+ * Represents a single xdg_activation_token_v1 resource.
  *
  * The client calls set_serial / set_surface / set_app_id (all optional) and
  * then commit() to obtain the token string.  After commit() the object is
@@ -67,6 +66,7 @@ protected:
                     uint32_t serial,
                     struct ::wl_resource * /*seat*/) override
     {
+        // TODO: validate serial/seat pair and support multi-seat
         if (m_committed)
             return;
         m_serial = serial;
@@ -135,7 +135,7 @@ public:
         const QString token = QUuid::createUuid().toString(QUuid::WithoutBraces);
         m_tokens.append(TokenInfo{ token, appId, client, serial, fromTrustedSurface,
                                    QDeadlineTimer(TokenLifetimeMs) });
-        qCDebug(lcActivation) << "Registered activation token" << token
+        qCDebug(treelandActivation) << "Registered activation token" << token.left(8) + u"..."_s
                                << "for app" << appId
                                << (fromTrustedSurface ? "" : "(inactive-surface-token-request)");
         return token;
@@ -151,7 +151,7 @@ public:
 protected:
     void destroy_global() override
     {
-        qCDebug(lcActivation) << "treeland_activation_manager_v1 global destroyed";
+        qCDebug(treelandActivation) << "treeland_activation_manager_v1 global destroyed";
     }
 
     void destroy(Resource *resource) override
@@ -181,19 +181,19 @@ protected:
 
         auto *wlrSurface = wlr_surface_from_resource(surface);
         if (!wlrSurface) {
-            qCWarning(lcActivation) << "activate: invalid surface resource";
+            qCWarning(treelandActivation) << "activate: invalid surface resource";
             return;
         }
 
         auto *wsurface = WSurface::fromHandle(wlrSurface);
         if (!wsurface) {
-            qCWarning(lcActivation) << "activate: no WSurface for wlr_surface";
+            qCWarning(treelandActivation) << "activate: no WSurface for wlr_surface";
             return;
         }
 
         auto disposition = dispositionForToken(token);
-        qCInfo(lcActivation) << "activate: emitting activateRequested for token" << token;
-        
+        qCInfo(treelandActivation) << "activate: emitting activateRequested for token" << token.left(8) + u"..."_s
+                             << "with disposition" << disposition;
         // Keep token one-shot semantics; Helper performs the policy check.
         auto it = std::find_if(m_tokens.begin(), m_tokens.end(),
                                [&token](const TokenInfo &t) { return t.token == token; });
@@ -229,7 +229,7 @@ private:
         auto it = m_tokens.begin();
         while (it != m_tokens.end()) {
             if (it->expiry.hasExpired()) {
-                qCDebug(lcActivation) << "Sweeping expired token for app" << it->appId;
+                qCDebug(treelandActivation) << "Sweeping expired token for app" << it->appId;
                 it = m_tokens.erase(it);
             } else {
                 ++it;

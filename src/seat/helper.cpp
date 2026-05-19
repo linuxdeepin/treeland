@@ -1531,20 +1531,30 @@ void Helper::init(Treeland::Treeland *treeland)
             }
             return false;
         });
-    connect(m_activationManagerV1, &ActivationManagerInterfaceV1::activateRequested,
-            this, [this](ActivationManagerInterfaceV1::TokenDisposition disposition, WSurface *wsurface) {
+    connect(m_activationManagerV1,
+            &ActivationManagerInterfaceV1::activateRequested,
+            this,
+            [this](ActivationManagerInterfaceV1::TokenDisposition disposition, WSurface *wsurface) {
                 auto wrapper = m_rootSurfaceContainer->getSurface(wsurface);
-                if (wrapper) {
-                    switch (disposition) {
-                    case ActivationManagerInterfaceV1::TokenDisposition::Active:
-                        forceActivateSurface(wrapper, Qt::OtherFocusReason);
-                        break;
-                    case ActivationManagerInterfaceV1::TokenDisposition::Attention:
-                        wrapper->setAttention(true);
-                        break;
-                    case ActivationManagerInterfaceV1::TokenDisposition::Invalid:
-                        break;
-                    }
+                if (!wrapper) {
+                    qCWarning(treelandCore) << "Activation request for unknown surface!";
+                    return;
+                }
+                if (!wsurface->mapped()) {
+                    qCWarning(treelandCore) << "Activation request for unmapped surface!";
+                    return;
+                }
+                switch (disposition) {
+                case ActivationManagerInterfaceV1::TokenDisposition::Active:
+                    forceActivateSurface(wrapper, Qt::OtherFocusReason);
+                    break;
+                case ActivationManagerInterfaceV1::TokenDisposition::Attention:
+                    wrapper->setAttention(true);
+                    break;
+                case ActivationManagerInterfaceV1::TokenDisposition::Invalid:
+                    // Use a relaxed policy: fallback to attention if the token is invalid
+                    wrapper->setAttention(true);
+                    break;
                 }
             });
 
