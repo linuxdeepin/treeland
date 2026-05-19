@@ -295,6 +295,7 @@ set(PRIVATE_HEADERS
     platformplugin/types.h
     kernel/private/wglobal_p.h
     kernel/private/wsurface_p.h
+    kernel/private/wprivateaccessor_p.h
     qtquick/private/woutputviewport_p.h
     qtquick/private/wquickcoordmapper_p.h
     qtquick/private/woutputitem_p.h
