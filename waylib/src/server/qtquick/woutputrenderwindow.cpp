@@ -1,4 +1,4 @@
-// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "woutputrenderwindow.h"
@@ -39,6 +39,7 @@
 #include <QOpenGLFunctions>
 #include <QLoggingCategory>
 #include <QRunnable>
+#include <qlogging.h>
 #include <memory>
 
 #define protected public
@@ -141,8 +142,10 @@ public:
         ~LayerData() {
             if (renderer)
                 renderer->deleteLater();
-            if (wlrLayer)
-                wlrLayer->deleteLater();
+            if (wlrLayer) {
+                delete wlrLayer;
+                wlrLayer = nullptr;
+            }
         }
 
         OutputLayer *layer;
@@ -174,9 +177,9 @@ public:
 
     ~OutputHelper()
     {
-        cleanLayerCompositor();
-        cleanCursorRender();
-        qDeleteAll(m_layers);
+        if (!m_layerProxys.isEmpty() || m_output || m_output2 || m_layerPorxyContainer
+                || m_cursorRenderer || m_cursorLayerProxy)
+            qFatal("Before destroying OutputHelper, ensure call invalidate method.");
     }
 
     inline void init() {
@@ -212,6 +215,9 @@ public:
 
     inline void invalidate() {
         m_output = nullptr;
+        cleanLayerCompositor();
+        cleanCursorRender();
+        qDeleteAll(m_layers);
     }
 
     inline qreal devicePixelRatio() const {
