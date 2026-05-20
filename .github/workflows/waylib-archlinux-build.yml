@@ -46,6 +46,10 @@ jobs:
           cmake --preset ci -DWITH_SUBMODULE_QWLROOTS=ON
           cmake --build --preset ci
 
+      - name: Run unit tests
+        working-directory: waylib
+        run: ctest --preset ci
+
       - name: Install waylib to staging directory
         working-directory: waylib
         run: |
