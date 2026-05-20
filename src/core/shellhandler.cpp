@@ -7,6 +7,7 @@
 #include "core/qmlengine.h"
 #include "core/windowconfigstore.h"
 #include "layersurfacecontainer.h"
+#include "popupsurfacecontainer.h"
 #include "modules/app-id-resolver/appidresolver.h"
 #include "modules/dde-shell/ddeshellmanagerinterfacev1.h"
 #include "modules/foreign-toplevel/foreigntoplevelmanagerv1.h"
@@ -61,7 +62,7 @@ ShellHandler::ShellHandler(RootSurfaceContainer *rootContainer, WServer *server)
     , m_workspace(new Workspace(rootContainer))
     , m_topContainer(new LayerSurfaceContainer(rootContainer))
     , m_overlayContainer(new LayerSurfaceContainer(rootContainer))
-    , m_popupContainer(new SurfaceContainer(rootContainer))
+    , m_popupContainer(new PopupSurfaceContainer(rootContainer))
     , m_windowConfigStore(new WindowConfigStore(this))
 {
     m_treelandForeignToplevel = server->attach<ForeignToplevelV1>();

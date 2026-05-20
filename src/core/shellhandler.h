@@ -171,9 +171,9 @@ private:
     Workspace *m_workspace = nullptr;
     LayerSurfaceContainer *m_topContainer = nullptr;
     LayerSurfaceContainer *m_overlayContainer = nullptr;
-    // FIXME: https://github.com/linuxdeepin/treeland/pull/428 Caused damage to the tooltip
-    // Need to find a better way to handle popup click events
-    SurfaceContainer *m_popupContainer = nullptr;
+    // PopupSurfaceContainer only dismisses popups that have grabbed input (via xdg_popup.grab)
+    // This allows tooltips (which don't grab) to remain visible when clicking outside
+    PopupSurfaceContainer *m_popupContainer = nullptr;
     QObject *m_windowMenu = nullptr;
     // Prelaunch wrappers created before binding to a real shell surface
     QList<SurfaceWrapper *> m_prelaunchWrappers;
