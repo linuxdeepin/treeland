@@ -83,6 +83,9 @@ jobs:
           cmake --build --preset ci
           echo "✅ treeland built successfully with merged waylib and qwlroots code!"
 
+      - name: Run unit tests
+        run: ctest --preset ci
+
       - name: Install treeland to staging directory
         run: |
           echo "Installing treeland to staging directory..."
