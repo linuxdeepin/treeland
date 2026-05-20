@@ -212,8 +212,8 @@ WlClientDestroyListener *WlClientDestroyListener::get(const wl_client *client)
 
 WlClientDestroyListener *WlClientDestroyListener::get_late(const wl_client *client)
 {
-    wl_listener *listener = wl_client_get_destroy_listener(const_cast<wl_client*>(client),
-                                                           WlClientDestroyListener::handle_destroy_late);
+    wl_listener *listener = wl_client_get_destroy_late_listener(const_cast<wl_client*>(client),
+                                                                WlClientDestroyListener::handle_destroy_late);
     if (!listener) {
         return nullptr;
     }
@@ -384,7 +384,12 @@ QSharedPointer<WClient::Credentials> WClient::getCredentials(const wl_client *cl
 
 WClient *WClient::get(const wl_client *client)
 {
+    // Fast path: client is alive, its early destroy listener is in destroy_signal.
     if (auto tmp = WlClientDestroyListener::get(client))
+        return tmp->client;
+    // Dying path: handle_destroy has fired (wl_priv_signal_final_emit removed the
+    // early listener before calling it), but handle_destroy_late has not yet fired.
+    if (auto tmp = WlClientDestroyListener::get_late(client))
         return tmp->client;
     return nullptr;
 }
