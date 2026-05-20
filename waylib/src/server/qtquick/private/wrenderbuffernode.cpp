@@ -749,13 +749,19 @@ public:
                        texture->data->pixelSize().height() / float(m_rect.height() * devicePixelRatio)});
             rhi->render(renderData->rt.get());
         } else {
-            auto rhi = this->rhi->rhi();
-            QPointF sourcePos = renderMatrix.map(m_rect.topLeft()) * devicePixelRatio;
+            const QPoint sourcePos = (renderMatrix.map(m_rect.topLeft()) * devicePixelRatio).toPoint();
+            const QRect sourceTextureRect(sourcePos, texture->data->pixelSize());
+            const QRect renderTargetRect(QPoint(0, 0), ct->pixelSize());
+            const QRect copySourceRect = sourceTextureRect.intersected(renderTargetRect);
+            if (copySourceRect.isEmpty())
+                return;
 
+            auto rhi = this->rhi->rhi();
             auto rub = rhi->nextResourceUpdateBatch();
             QRhiTextureCopyDescription desc;
-            desc.setPixelSize(texture->data->pixelSize());
-            desc.setSourceTopLeft(sourcePos.toPoint());
+            desc.setPixelSize(copySourceRect.size());
+            desc.setSourceTopLeft(copySourceRect.topLeft());
+            desc.setDestinationTopLeft(copySourceRect.topLeft() - sourcePos);
             rub->copyTexture(texture->data, ct, desc);
 
             QRhiCommandBuffer *cb = nullptr;
