@@ -137,10 +137,11 @@ void VirtualOutputManagerInterfaceV1Private::create_virtual_output(Resource *res
 
 void VirtualOutputManagerInterfaceV1Private::get_virtual_output_list(Resource *resource)
 {
-    QByteArray arr;
+    QStringList names;
     for (auto interface : std::as_const(s_virtualOutputs)) {
-        arr.append(interface->d->name.toLatin1());
+        names << interface->d->name;
     }
+    const QByteArray arr = names.join('\0').toLatin1();
 
     send_virtual_output_list(resource->handle, arr);
 }
@@ -151,10 +152,7 @@ void VirtualOutputManagerInterfaceV1Private::get_virtual_output([[maybe_unused]]
 {
     for (auto interface : std::as_const(s_virtualOutputs)) {
         if (interface->d->name == name) {
-            QByteArray arr;
-            for (auto str : interface->outputList()) {
-                arr.append(str.toLatin1());
-            }
+            const QByteArray arr = interface->outputList().join('\0').toLatin1();
             interface->sendOutputs(name, arr);
         }
     }
