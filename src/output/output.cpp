@@ -46,6 +46,9 @@ Output *Output::create(WOutput *output, QQmlEngine *engine, QObject *parent)
     WOutputItem *outputItem = qobject_cast<WOutputItem *>(obj);
     Q_ASSERT(outputItem);
     QQmlEngine::setObjectOwnership(outputItem, QQmlEngine::CppOwnership);
+
+    auto contentItem = Helper::instance()->window()->contentItem();
+    outputItem->setParentItem(contentItem);
     outputItem->setOutput(output);
 
     connect(Helper::instance()->globalConfig(),
@@ -80,10 +83,6 @@ Output *Output::create(WOutput *output, QQmlEngine *engine, QObject *parent)
                &Output::arrangeAllSurfaces,
                Qt::QueuedConnection);
 
-    auto contentItem = Helper::instance()->window()->contentItem();
-    outputItem->setParentItem(contentItem);
-    // o->m_taskBar = Helper::instance()->qmlEngine()->createTaskBar(o,
-    // contentItem); o->m_taskBar->setZ(RootSurfaceContainer::TaskBarZOrder);
 
     // reset output color to config value
     o->setOutputColor(-1, 0);
@@ -120,6 +119,9 @@ Output *Output::createCopy(WOutput *output, Output *proxy, QQmlEngine *engine, Q
     WOutputItem *outputItem = qobject_cast<WOutputItem *>(obj);
     Q_ASSERT(outputItem);
     QQmlEngine::setObjectOwnership(outputItem, QQmlEngine::CppOwnership);
+
+    auto contentItem = Helper::instance()->window()->contentItem();
+    outputItem->setParentItem(contentItem);
     outputItem->setOutput(output);
 
     auto o = new Output(outputItem, parent);
@@ -127,8 +129,6 @@ Output *Output::createCopy(WOutput *output, Output *proxy, QQmlEngine *engine, Q
     o->m_proxy = proxy;
     obj->setParent(o);
 
-    auto contentItem = Helper::instance()->window()->contentItem();
-    outputItem->setParentItem(contentItem);
     o->updateOutputHardwareLayers();
     connect(proxy->screenViewport(),
             &WOutputViewport::hardwareLayersChanged,

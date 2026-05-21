@@ -1,4 +1,4 @@
-// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "woutputitem.h"
@@ -33,8 +33,11 @@ public:
 
         if (layout)
             layout->remove(q_func());
-        if (output)
-            output->setProperty(DATA_OF_WOUPTUT, QVariant());
+        if (output) {
+            W_Q(WOutputItem);
+            if (WOutputItem::getOutputItem(output) == q)
+                output->setProperty(DATA_OF_WOUPTUT, QVariant());
+        }
     }
 
     void initForOutput();
@@ -99,8 +102,10 @@ void WOutputItemPrivate::initForOutput()
 
 void WOutputItemPrivate::clearCursors()
 {
-    for (auto i : std::as_const(cursors))
+    for (auto i : std::as_const(cursors)) {
+        i.second->invalidate();
         i.second->deleteLater();
+    }
     cursors.clear();
 }
 
@@ -159,7 +164,7 @@ void WOutputItemPrivate::updateCursors()
     for (auto i : std::as_const(tmpCursors)) {
         if (cursors.contains(i))
             continue;
-        i.second->setParent(nullptr);
+        i.second->invalidate();
         i.second->deleteLater();
         cursorsChanged = true;
     }
@@ -196,6 +201,7 @@ WOutputCursor *WOutputItemPrivate::getCursorItemBy(WCursor *cursor) const
 
 WOutputCursor::WOutputCursor(WOutputItem *parent)
     : QObject(parent)
+    , m_output(parent)
 {
 
 }
