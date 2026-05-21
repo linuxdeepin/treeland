@@ -1,4 +1,4 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "layersurfacecontainer.h"
@@ -64,15 +64,17 @@ void LayerSurfaceContainer::removeOutput(Output *output)
     Q_ASSERT(container);
     m_surfaceContainers.removeOne(container);
 
-    for (SurfaceWrapper *surface : container->surfaces()) {
-        container->removeSurface(surface);
+    const auto surfaces = container->surfaces();
+    for (SurfaceWrapper *surface : surfaces) {
         auto layerSurface = qobject_cast<WLayerSurface *>(surface->shellSurface());
         Q_ASSERT(layerSurface);
         // Needs to be moved to the new primary output
-        if (!layerSurface->output() && rootContainer()->primaryOutput())
+        if (!layerSurface->output() && rootContainer()->primaryOutput()) {
+            container->removeSurface(surface);
             addSurfaceToContainer(surface);
-        else
+        } else {
             layerSurface->closed();
+        }
     }
 
     container->deleteLater();
