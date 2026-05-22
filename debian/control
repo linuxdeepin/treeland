@@ -33,7 +33,7 @@ Build-Depends: cmake (>= 3.25.0),
                qt6-wayland-private-dev,
                wayland-protocols,
                wlr-protocols,
-               treeland-protocols,
+               treeland-protocols (>= 0.5.7),
                libpam0g-dev,
                libmpv-dev,
 Standards-Version: 4.6.0
