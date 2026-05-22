@@ -81,6 +81,7 @@
 #include <WXdgOutput>
 #include <wxdgshell.h>
 #include <wxdgtoplevelsurface.h>
+#include <wxdgtopleveltagmanager.h>
 #include <wxwayland.h>
 #include <wxwaylandsurface.h>
 
@@ -1498,6 +1499,8 @@ void Helper::init(Treeland::Treeland *treeland)
             &WXdgDecorationManager::surfaceModeChanged,
             this,
             &Helper::onSurfaceModeChanged);
+
+    m_xdgToplevelTagManagerV1 = m_server->attach<WXdgToplevelTagManagerV1>();
 
     auto gammaControlManager = qw_gamma_control_manager_v1::create(*m_server->handle());
     connect(gammaControlManager,
