@@ -20,6 +20,7 @@
 #include <wqmlcreator.h>
 #include <wseat.h>
 #include <wxdgdecorationmanager.h>
+#include <wxdgtopleveltagmanager.h>
 
 #include <QList>
 #include <QMap>
@@ -384,6 +385,7 @@ private:
     ActivationManagerInterfaceV1 *m_activationManagerV1 = nullptr;
     ShellHandler *m_shellHandler = nullptr;
     WXdgDecorationManager *m_xdgDecorationManager = nullptr;
+    WXdgToplevelTagManagerV1 *m_xdgToplevelTagManagerV1 = nullptr;
     WForeignToplevel *m_foreignToplevel = nullptr;
     WExtForeignToplevelListV1 *m_extForeignToplevelListV1 = nullptr;
     ShortcutManagerV2 *m_shortcutManager = nullptr;

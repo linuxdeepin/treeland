@@ -73,6 +73,22 @@ ws_generate(
 ws_generate(
     server
     wayland-protocols
+    staging/xdg-toplevel-tag/xdg-toplevel-tag-v1.xml
+    xdg-toplevel-tag-v1-protocol
+)
+
+#TODO: Remove after wlroots 0.20
+ws_generate(
+    server
+    wayland-protocols
+    stable/xdg-shell/xdg-shell.xml
+    xdg-shell-protocol
+)
+
+#TODO: Remove after wlroots 0.20
+ws_generate(
+    server
+    wayland-protocols
     staging/ext-image-capture-source/ext-image-capture-source-v1.xml
     ext-image-capture-source-v1-protocol
 )
@@ -138,6 +154,8 @@ set(SOURCES
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v2-protocol.c
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/xdg-output-unstable-v1-protocol.c
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/security-context-v1-protocol.c
+    ${WAYLAND_PROTOCOLS_OUTPUTDIR}/xdg-toplevel-tag-v1-protocol.c #TODO: Remove after wlroots 0.20
+    ${WAYLAND_PROTOCOLS_OUTPUTDIR}/xdg-shell-protocol.c #TODO: Remove after wlroots 0.20
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/ext-image-capture-source-v1-protocol.c #TODO: Remove after wlroots 0.20
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/ext-foreign-toplevel-list-v1-protocol.c #TODO Remove after wlroots 0.20
 
@@ -157,6 +175,7 @@ set(SOURCES
     protocols/wxdgshell.cpp
     protocols/wxdgsurface.cpp
     protocols/wxdgtoplevelsurface.cpp
+    protocols/wxdgtopleveltagmanager.cpp #TODO: Remove after wlroots 0.20
     protocols/wxdgpopupsurface.cpp
 
     protocols/wxwayland.cpp
@@ -252,6 +271,7 @@ set(HEADERS
     protocols/wxdgsurface.h
     protocols/WXdgSurface
     protocols/wxdgtoplevelsurface.h
+    protocols/wxdgtopleveltagmanager.h
     protocols/wxdgpopupsurface.h
     protocols/wlayersurface.h
     protocols/wxdgdecorationmanager.h
@@ -310,6 +330,8 @@ set(PRIVATE_HEADERS
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v1-protocol.h
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v2-protocol.h
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/xdg-output-unstable-v1-protocol.h
+    ${WAYLAND_PROTOCOLS_OUTPUTDIR}/xdg-toplevel-tag-v1-protocol.h #TODO: Remove after wlroots 0.20
+    ${WAYLAND_PROTOCOLS_OUTPUTDIR}/xdg-shell-protocol.h #TODO: Remove after wlroots 0.20
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/ext-image-capture-source-v1-protocol.h #TODO: Remove after wlroots 0.20
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/ext-foreign-toplevel-list-v1-protocol.h #TODO: Remove after wlroots 0.20
 
