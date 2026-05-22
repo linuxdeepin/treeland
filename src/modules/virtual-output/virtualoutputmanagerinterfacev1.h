@@ -54,7 +54,6 @@ public:
     QStringList outputList() const;
     void sendOutputs(const QString &name, const QByteArray &outputs);
     void sendError(uint32_t code, const QString &message);
-    static VirtualOutputInterfaceV1 *get(wl_resource *resource);
 
 Q_SIGNALS:
     void beforeDestroy(VirtualOutputInterfaceV1 *ouput);

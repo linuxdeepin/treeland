@@ -8,6 +8,12 @@ set(BIN_NAME test-virtual-output)
 
 qt_add_executable(${BIN_NAME}
     main.cpp
+    virtualclient.h
+    virtualclient.cpp
+    virtualoutput.h
+    virtualoutput.cpp
+    virtualoutputmanager.h
+    virtualoutputmanager.cpp
 )
 
 qt_generate_wayland_protocol_client_sources(${BIN_NAME}
@@ -25,4 +31,3 @@ target_link_libraries(${BIN_NAME}
 )
 
 install(TARGETS ${BIN_NAME} RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
-
