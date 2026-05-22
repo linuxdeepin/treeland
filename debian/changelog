@@ -1,3 +1,42 @@
+treeland (0.8.7) unstable; urgency=medium
+
+  * refactor(virtual-output): use QStringList join for output name
+    serialization
+  * fix(output): fix crash on screen copy mode when hot-plugging
+  * fix(shortcut): task switch shortcuts not responding to key hold auto-
+    repeat
+  * fix(wsocket): fix WClient::get() returning null during client
+    teardown
+  * ci: add unit test step to archlinux build workflows
+  * fix(debian): promote treeland-wallpaper-factory to a hard dependency
+  * fix: remove unused lambda capture in live test
+  * refactor(platformplugin): remove unused isMaster/proxy QPA mode
+  * refactor: replace #define-private-public hacks with template
+    accessor pattern
+  * fix(activation): address PR review findings
+  * feat: add token validation and expiration to xdg-activation
+  * fix: clear attention on activation
+  * feat: differentiate activation token disposition
+  * feat: add attention state to foreign-toplevel
+  * feat: implement xdg-activation-v1 with treeland private protocol
+  * fix(render): fix texture copy crash when window partially off-screen
+  * fix(woutputrenderwindow): destroy wlr layers before invalidating
+    output on removal
+  * fix: avoid crash on invalid image capture buffer
+  * fix: fix build errors with GCC 16.1.1 and Qt 6.11.1 on Arch Linux
+  * fix(virtual-output): move beforeDestroy signal to destroy method
+  * fix: skip redundant minimize requests
+  * fix: crash caused by treeland capture
+  * chore: fix compile warnings reported by clang
+  * fix(capture): avoid double wl_resource_destroy on client teardown
+  * chore(agents): introduce AI agent instructions and skills
+  * docs: migrate logging guidelines to agent skill
+  * feat: add other user login support
+  * feat: refactor treeland-ddm-v1 protocol implementation
+  * fix(build): add missing headers for gcc 16 compatibility
+
+ -- rewine <luhongxu@deepin.org>  Fri, 22 May 2026 10:02:44 +0800
+
 treeland (0.8.6) unstable; urgency=medium
 
   * fix: fix multiple crashes caused by thread affinity and use-after-

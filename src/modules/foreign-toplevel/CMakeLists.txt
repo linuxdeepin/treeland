@@ -1,4 +1,4 @@
-find_package(TreelandProtocols REQUIRED)
+find_package(TreelandProtocols REQUIRED 0.5.7)
 
 ws_generate_local(server ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-foreign-toplevel-manager-v1.xml treeland-foreign-toplevel-manager-protocol)
 
