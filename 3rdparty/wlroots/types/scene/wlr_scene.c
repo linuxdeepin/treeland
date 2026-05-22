@@ -476,11 +476,6 @@ static void update_node_update_outputs(struct wlr_scene_node *node,
 		}
 	}
 
-	if (old_primary_output != scene_buffer->primary_output) {
-		scene_buffer->prev_feedback_options =
-			(struct wlr_linux_dmabuf_feedback_v1_init_options){0};
-	}
-
 	uint64_t old_active = scene_buffer->active_outputs;
 	scene_buffer->active_outputs = active_outputs;
 
