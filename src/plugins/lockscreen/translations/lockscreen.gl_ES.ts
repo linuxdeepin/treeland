@@ -113,11 +113,11 @@
     <name>User</name>
     <message>
         <source>Administrator</source>
-        <translation type="unfinished"/>
+        <translation type="vanished">Administrador</translation>
     </message>
     <message>
         <source>Standard User</source>
-        <translation type="unfinished"/>
+        <translation type="vanished">Usuario estándar</translation>
     </message>
 </context>
 <context>
@@ -125,12 +125,12 @@
     <message>
         <location filename="../qml/UserInput.qml" line="15"/>
         <source>Please enter password</source>
-        <translation type="unfinished"/>
+        <translation>Introduza o contrasinal</translation>
     </message>
     <message>
         <location filename="../qml/UserInput.qml" line="141"/>
         <source>Password</source>
-        <translation type="unfinished"/>
+        <translation>Contrasinal</translation>
     </message>
 </context>
 </TS>
