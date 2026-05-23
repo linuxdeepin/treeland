@@ -2864,7 +2864,14 @@ bool Helper::setXWindowPositionRelative(uint wid, WSurface *anchor, wl_fixed_t d
 
     QRectF rect(ach->position(), target->size());
     rect.translate(wl_fixed_to_double(dx), wl_fixed_to_double(dy));
+
+    // For XWayland surfaces, setting wrapper position while following
+    // implicit surface position may get overwritten by feedback updates.
+    // Temporarily switch to compositor-driven position so moveTo() sends
+    // configure with the new coordinates.
+    target->setXwaylandPositionFromSurface(false);
     target->setPosition(rect.topLeft());
+    target->setXwaylandPositionFromSurface(true);
     return true;
 }
 
