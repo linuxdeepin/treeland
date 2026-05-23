@@ -850,7 +850,13 @@ void Output::clearPopupCache(SurfaceWrapper *surface)
 void Output::arrangePopupSurface(SurfaceWrapper *surface)
 {
     SurfaceWrapper *parentSurfaceWrapper = surface->parentSurface();
-    Q_ASSERT(parentSurfaceWrapper);
+    if (!parentSurfaceWrapper) {
+        //  When an input popup is still alive while its parent text-input client is being torn down, 
+        //  arrangePopupSurface() can run in a transient state where parentSurface is temporarily unavailable.
+        qCWarning(treelandSurface) << "[popup] skip arrangePopupSurface: missing parent surface"
+                                << "surface=" << surface;
+        return;
+    }
 
     QRectF normalGeo = surface->normalGeometry();
     if (normalGeo.isEmpty()) {
@@ -860,15 +866,17 @@ void Output::arrangePopupSurface(SurfaceWrapper *surface)
     WOutputItem *targetOutput = nullptr;
     // TODO： Consider determining the targetOutput based on the upper left corner or overlapping area
     if (surface->type() == SurfaceWrapper::Type::XdgPopup) {
-        targetOutput = Helper::instance()->getOutputAtCursor()->outputItem();
+        auto *outputAtCursor = Helper::instance()->getOutputAtCursor();
+        targetOutput = outputAtCursor ? outputAtCursor->outputItem() : nullptr;
     } else if (surface->type() == SurfaceWrapper::Type::InputPopup) {
-        targetOutput = parentSurfaceWrapper->ownsOutput()->outputItem();
+        auto *parentOutput = parentSurfaceWrapper->ownsOutput();
+        targetOutput = parentOutput ? parentOutput->outputItem() : nullptr;
     }
 
     if (!targetOutput) {
-        qCWarning(treelandSurface) << "[popup] skip arrangePopupSurface: missing target output"
-                   << "surface=" << surface
-                   << "parentSurface=" << parentSurfaceWrapper;
+        qCInfo(treelandSurface) << "[popup] skip arrangePopupSurface: missing target output"
+                                << "surface=" << surface
+                                << "parentSurface=" << parentSurfaceWrapper;
         return;
     }
 
