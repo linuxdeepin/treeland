@@ -737,8 +737,12 @@ QPointF Output::calculateBasePosition(SurfaceWrapper *surface, const QPointF &dP
         return QPointF();
     }
 
+    const qreal titlebarOffset = parent->titlebarGeometry().isNull()
+        ? 0.0
+        : parent->titlebarGeometry().height();
+
     return QPointF(parent->x() + parent->surfaceItem()->x() + dPos.x(),
-                   parent->y() + parent->surfaceItem()->y() + dPos.y());
+                   parent->y() + parent->surfaceItem()->y() + dPos.y() + titlebarOffset);
 }
 
 void Output::adjustToOutputBounds(QPointF &pos, const QRectF &normalGeo, const QRectF &outputRect) const
