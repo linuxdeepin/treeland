@@ -739,17 +739,9 @@ void Helper::onOutputTestOrApply(qw_output_configuration_v1 *config, bool onlyTe
         }
 
         if (state.enabled) {
-            auto outputItem = qobject_cast<WOutputItem*>(viewport->parentItem());
-            if (outputItem) {
-                qreal currentX = outputItem->x();
-                qreal currentY = outputItem->y();
-                bool shouldPreservePosition = (state.x == 0 && state.y == 0) &&
-                                             (currentX != 0 || currentY != 0);
-
-                if (!shouldPreservePosition) {
-                    outputItem->setX(state.x);
-                    outputItem->setY(state.y);
-                }
+            auto *layout = m_rootSurfaceContainer->outputLayout();
+            if (layout) {
+                layout->move(state.output, QPoint(state.x, state.y));
             }
         }
 
