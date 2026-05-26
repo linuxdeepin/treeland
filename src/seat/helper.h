@@ -258,6 +258,7 @@ public:
     bool isDDMDisplay() const { return m_isDDMDisplay; }
 
     RootSurfaceContainer *rootContainer() const { return m_rootSurfaceContainer; }
+    inline WBackend *backend() const { return m_backend; }
 public Q_SLOTS:
     void activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason = Qt::OtherFocusReason);
     void forceActivateSurface(SurfaceWrapper *wrapper,
