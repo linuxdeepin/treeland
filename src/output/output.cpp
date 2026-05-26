@@ -26,6 +26,8 @@
 #include <wxdgpopupsurface.h>
 #include <wxdgpopupsurfaceitem.h>
 
+#include <optional>
+
 #include <qwlayershellv1.h>
 #include <qwoutputlayout.h>
 
@@ -729,6 +731,41 @@ void Output::arrangeNonLayerSurface(SurfaceWrapper *surface, const QSizeF &sizeD
     } while (false);
 }
 
+namespace {
+// Get the popup position (dPos) from the surface-local coordinate space,
+// adjusted to the SurfaceWrapper coordinate space.
+// - XDG popups: implicitPosition from wlr_xdg_popup_get_position already
+//   subtracts parent_geom, so it's relative to content geometry (no adjustment).
+// - Input popups: cursorRect is in raw surface coordinates; adjust by
+//   content geometry offset (e.g., CSD title bar) to match the rendering
+//   position of WSurfaceItem's contentContainer.
+std::optional<QPointF> popupDPos(SurfaceWrapper *surface)
+{
+    using Type = SurfaceWrapper::Type;
+    if (surface->type() == Type::XdgPopup) {
+        auto *item = qobject_cast<WXdgPopupSurfaceItem *>(surface->surfaceItem());
+        if (item)
+            return item->implicitPosition();
+    }
+
+    if (surface->type() == Type::InputPopup) {
+        auto *shell = qobject_cast<WInputPopupSurface *>(surface->shellSurface());
+        if (shell) {
+            QPointF dPos = shell->cursorRect().bottomLeft();
+            auto parent = surface->parentSurface();
+            if (parent && parent->shellSurface()) {
+                const QPoint offset = parent->shellSurface()->getContentGeometry().topLeft();
+                dPos -= QPointF(offset.x(), offset.y());
+            }
+            return dPos;
+        }
+    }
+
+    qCWarning(treelandOutput) << " Invalid popup surface type:" << surface->type();
+    return std::nullopt;
+}
+} // namespace
+
 QPointF Output::calculateBasePosition(SurfaceWrapper *surface, const QPointF &dPos) const
 {
     auto parent = surface->parentSurface();
@@ -770,18 +807,11 @@ void Output::handleLayerShellPopup(SurfaceWrapper *surface, const QRectF &normal
     }
 
     auto parentOutput = surface->parentSurface()->ownsOutput()->outputItem();
-    auto xdgPopupSurfaceItem = qobject_cast<WXdgPopupSurfaceItem *>(surface->surfaceItem());
-    auto inputPopupSurface = qobject_cast<WInputPopupSurface *>(surface->shellSurface());
-
-    if (!xdgPopupSurfaceItem && !inputPopupSurface) {
-        qCWarning(treelandOutput) << " Invalid popup surface type!";
+    auto dPos = popupDPos(surface);
+    if (!dPos.has_value())
         return;
-    }
 
-    QPointF dPos = xdgPopupSurfaceItem ? xdgPopupSurfaceItem->implicitPosition()
-                                       : inputPopupSurface->cursorRect().bottomLeft();
-
-    QPointF pos = calculateBasePosition(surface, dPos);
+    QPointF pos = calculateBasePosition(surface, dPos.value());
     if (pos.isNull()) {
         return;
     }
@@ -799,18 +829,11 @@ void Output::handleRegularPopup(SurfaceWrapper *surface, const QRectF &normalGeo
 
     auto parentSurfaceWrapper = surface->parentSurface();
 
-    auto xdgPopupSurfaceItem = qobject_cast<WXdgPopupSurfaceItem *>(surface->surfaceItem());
-    auto inputPopupSurface = qobject_cast<WInputPopupSurface *>(surface->shellSurface());
-
-    if (!xdgPopupSurfaceItem && !inputPopupSurface) {
-        qCWarning(treelandOutput) << " Invalid popup surface type!";
+    auto dPos = popupDPos(surface);
+    if (!dPos.has_value())
         return;
-    }
 
-    QPointF dPos = xdgPopupSurfaceItem ? xdgPopupSurfaceItem->implicitPosition()
-                                       : inputPopupSurface->cursorRect().bottomLeft();
-
-    QPointF pos = calculateBasePosition(surface, dPos);
+    QPointF pos = calculateBasePosition(surface, dPos.value());
     if (pos.isNull()) {
         return;
     }
