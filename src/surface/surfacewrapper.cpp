@@ -289,13 +289,13 @@ void SurfaceWrapper::setup()
                                     &SurfaceWrapper::requestCancelFullscreen);
 
         if (m_type == Type::XdgToplevel) {
-            m_shellSurface->safeConnect(&WToplevelSurface::requestShowWindowMenu,
-                                        this,
-                                        [this](WSeat *, QPoint pos, quint32) {
-                                            Q_EMIT requestShowWindowMenu(
-                                                { pos.x() + m_surfaceItem->leftPadding(),
-                                                  pos.y() + m_surfaceItem->topPadding() });
-                                        });
+            m_shellSurface->safeConnect(
+                &WToplevelSurface::requestShowWindowMenu,
+                this,
+                [this](WSeat *, QPoint pos, quint32) {
+                    Q_EMIT requestShowWindowMenu(
+                        m_surfaceItem->mapFromSurface(pos).toPoint());
+                });
         }
     }
     m_shellSurface->surface()->safeConnect(&WSurface::mappedChanged,
