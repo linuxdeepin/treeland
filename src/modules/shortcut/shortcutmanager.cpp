@@ -1,19 +1,32 @@
 // Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
-#include "qwayland-server-treeland-shortcut-manager-v2.h"
-
 #include "shortcutmanager.h"
+
 #include "common/treelandlogging.h"
-#include "shortcutcontroller.h"
-#include "seat/helper.h"
-#include "session/session.h"
 #include "input/gestures.h"
+#include "qwayland-server-treeland-shortcut-manager-v2.h"
+#include "seat/helper.h"
+#include "seat/seatsmanager.h"
+#include "session/session.h"
+#include "shortcutcontroller.h"
+
+#include <wseat.h>
+#include <wsocket.h>
+#include <wsurface.h>
 
 #include <qwdisplay.h>
-#include <wsocket.h>
+#include <qwseat.h>
 
-#define TREELAND_SHORTCUT_MANAGER_V2_VERSION 1
+extern "C" {
+#include <wlr/types/wlr_compositor.h>
+#include <wlr/types/wlr_seat.h>
+}
+
+#include <QKeyEvent>
+#include <QKeySequence>
+
+#define TREELAND_SHORTCUT_MANAGER_V2_VERSION 2
 #define SHORTCUT_REGISTRATION_SUCCESS 0
 
 using ProtocolAction = QtWaylandServer::treeland_shortcut_manager_v2::action;
@@ -57,6 +70,154 @@ public:
     }
 };
 
+// Forward declaration
+class ShortcutManagerV2Private;
+
+// Returns true if the key itself is a pure modifier key that can never be a valid
+// shortcut on its own (Ctrl/Alt/Shift/Hyper/AltGr/lock keys).
+//
+// NOTE: Qt::Key_Meta, Qt::Key_Super_L, Qt::Key_Super_R are intentionally NOT listed —
+// on Linux/Wayland the Win key maps to one of these, and pressing it alone IS a valid
+// standalone shortcut (dde-daemon isGoodNoMods() explicitly includes XK_Super_L/R).
+static bool isPureModifierKey(Qt::Key key)
+{
+    switch (key) {
+    case Qt::Key_Shift:
+    case Qt::Key_Control:
+    case Qt::Key_Alt:
+    case Qt::Key_Hyper_L:
+    case Qt::Key_Hyper_R:
+    case Qt::Key_AltGr:
+    case Qt::Key_CapsLock:
+    case Qt::Key_NumLock:
+    case Qt::Key_ScrollLock:
+        return true;
+    default:
+        return false;
+    }
+}
+
+// For a non-modifier key press, decide whether the (modifiers + key) combination
+// constitutes a valid shortcut that should be captured.
+// Mirrors dde-daemon's Keystroke.IsGood(), isGoodNoMods() and isGoodModShift().
+// Called only for regular non-modifier, non-Win key presses.
+//
+// Rules (in priority order):
+//  1. Ctrl / Alt / Meta held + any non-modifier key  → always valid.
+//  2. Function keys F1–F35, with or without Shift      → valid.
+//  3. Misc function keys (Delete, Backspace, Insert, …) → valid.
+//  4. Shift + cursor/navigation keys, Escape, Space, Tab   → valid.
+//  5. Media / hardware / XF86 keys without modifiers       → valid.
+//  6. Everything else (bare letters, digits, Escape, …)    → invalid.
+static bool isValidShortcutCombo(const QKeyEvent *kevent)
+{
+    Qt::Key key = static_cast<Qt::Key>(kevent->key());
+    // The caller guarantees this is not a pure modifier or Win key.
+    Q_ASSERT(!isPureModifierKey(key));
+    Q_ASSERT(key != Qt::Key_Super_L && key != Qt::Key_Super_R && key != Qt::Key_Meta);
+
+    // modifiers() already reflects all currently held modifier keys,
+    // including ones pressed before this event.
+    Qt::KeyboardModifiers mods = kevent->modifiers()
+        & (Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier | Qt::ShiftModifier);
+
+    // Rule 1: Ctrl / Alt / Meta + anything → always good.
+    if (mods & (Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier))
+        return true;
+
+    // Rule 2: Function keys (with or without Shift).
+    if (key >= Qt::Key_F1 && key <= Qt::Key_F35)
+        return true;
+
+    // Rule 3: Misc function keys valid with no modifier or with Shift.
+    // Mirrors dde-daemon isGoodNoMods() XK_BackSpace/Delete/Pause and IsMiscFunctionKey().
+    switch (key) {
+    case Qt::Key_Delete:
+    case Qt::Key_Backspace:
+    case Qt::Key_Pause:
+    case Qt::Key_Print:
+    case Qt::Key_Insert: // XK_Insert  — IsMiscFunctionKey in dde-daemon
+    case Qt::Key_Help:   // XK_Help    — IsMiscFunctionKey in dde-daemon
+    case Qt::Key_Menu:   // XK_Menu    — IsMiscFunctionKey in dde-daemon
+    case Qt::Key_Cancel: // XK_Cancel  — IsMiscFunctionKey in dde-daemon
+        return true;
+    default:
+        break;
+    }
+
+    // Rule 4: Shift + extra special keys (mirrors dde-daemon isGoodModShift).
+    if (mods == Qt::ShiftModifier) {
+        switch (key) {
+        case Qt::Key_Space:
+        case Qt::Key_Escape:
+        case Qt::Key_Tab:
+            return true;
+        default:
+            break;
+        }
+        // Shift + cursor / navigation keys.
+        if ((key >= Qt::Key_Home && key <= Qt::Key_PageDown)
+            || (key >= Qt::Key_Left && key <= Qt::Key_Down))
+            return true;
+    }
+
+    // Rule 5: Media / browser / hardware (XF86) keys — no modifier needed.
+    // Qt groups these between Key_Back and Key_LaunchMedia / Key_Launch9.
+    if (mods == Qt::NoModifier) {
+        if (key >= Qt::Key_Back && key <= Qt::Key_KeyboardBrightnessDown)
+            return true;
+        if (key >= Qt::Key_LaunchMail && key <= Qt::Key_Launch9)
+            return true;
+        if (key >= Qt::Key_MediaPlay && key <= Qt::Key_MediaLast)
+            return true;
+    }
+
+    return false;
+}
+
+class ShortcutCaptureV1 : public QtWaylandServer::treeland_shortcut_capture_v1
+{
+public:
+    ShortcutCaptureV1(ShortcutManagerV2Private *manager,
+                      wl_client *client,
+                      uint32_t id,
+                      int version)
+        : QtWaylandServer::treeland_shortcut_capture_v1(client, id, version)
+        , m_manager(manager)
+        , m_pending(true)
+    {
+    }
+
+    bool isPending() const
+    {
+        return m_pending;
+    }
+
+    void sendCaptured(const QString &key)
+    {
+        m_pending = false;
+        send_captured(key);
+    }
+
+    void sendFailed(uint32_t reason)
+    {
+        m_pending = false;
+        send_failed(reason);
+    }
+
+protected:
+    // Defined after ShortcutManagerV2Private
+    void destroy(Resource *resource) override;
+
+    // Called both when the client sends destroy and when the client disconnects.
+    // Must clean up m_pendingCapture to avoid a dangling pointer.
+    void destroy_resource(Resource *resource) override;
+
+private:
+    ShortcutManagerV2Private *m_manager;
+    bool m_pending;
+};
+
 static SwipeGesture::Direction toSwipeDirection(uint32_t direction)
 {
     using Direction = QtWaylandServer::treeland_shortcut_manager_v2::direction;
@@ -97,6 +258,12 @@ public:
     QMap<WSocket*, UserShortcuts> m_pendingCommittedShortcuts;
     QMap<WSocket*, QList<QString>> m_pendingDeletes;
 
+    ShortcutCaptureV1 *m_pendingCapture = nullptr;
+    // Seat whose keyboard focus was validated at capture start.
+    // Events from other seats are ignored during capture.
+    WSeat *m_pendingSeat = nullptr;
+    // Target surface that requested the capture. Capture must fail once it loses focus.
+    QPointer<WSurface> m_pendingSurface;
     WSocket* m_activeSessionSocket = nullptr;
 
 protected:
@@ -119,9 +286,20 @@ protected:
                            uint32_t action) override;
     void commit(Resource *resource) override;
     void unbind(Resource *resource, const QString &name) override;
+    void capture_next_shortcut(Resource *resource,
+                               struct ::wl_resource *surface,
+                               struct ::wl_resource *seat,
+                               uint32_t capture) override;
 
 private:
     WSocket *socketFromResource(Resource *resource);
+    // Clears all capture-related state and returns the previously pending capture object.
+    // The caller is responsible for sending a terminal event on the returned object.
+    ShortcutCaptureV1 *resetCaptureState();
+
+public:
+    void onCaptureDestroyed(ShortcutCaptureV1 *c);
+    bool tryHandleCaptureEvent(WSeat *seat, QInputEvent *event);
 };
 
 ShortcutManagerV2Private::ShortcutManagerV2Private(ShortcutManagerV2 *_q)
@@ -371,7 +549,181 @@ void ShortcutManagerV2Private::unbind(Resource *resource, const QString &name)
     m_controller->unregisterShortcut(name);
 }
 
-// ShortcutManagerV2 implementation
+void ShortcutCaptureV1::destroy(Resource *resource)
+{
+    // destroy_resource() handles cleanup; just trigger it.
+    wl_resource_destroy(resource->handle);
+}
+
+void ShortcutCaptureV1::destroy_resource(Resource *)
+{
+    if (m_pending)
+        m_manager->onCaptureDestroyed(this);
+    delete this;
+}
+
+void ShortcutManagerV2Private::capture_next_shortcut(Resource *resource,
+                                                     struct ::wl_resource *surface,
+                                                     struct ::wl_resource *seat_resource,
+                                                     uint32_t capture)
+{
+    // Validate surface ownership: the surface must belong to the requesting client.
+    if (wl_resource_get_client(surface) != wl_resource_get_client(resource->handle)) {
+        wl_resource_post_error(resource->handle,
+                               error_invalid_surface,
+                               "Surface does not belong to the requesting client.");
+        return;
+    }
+
+    // Create the capture resource.
+    auto *captureObj =
+        new ShortcutCaptureV1(this, resource->client(), capture, resource->version());
+
+    // Check if another capture is already in progress.
+    if (m_pendingCapture) {
+        captureObj->sendFailed(ShortcutCaptureV1::failed_reason_busy);
+        return;
+    }
+
+    // Resolve the target surface first so it can be used for focus-based seat lookup.
+    auto *wlrSurface = wlr_surface_from_resource(surface);
+    auto *wSurface = wlrSurface ? WSurface::fromHandle(wlrSurface) : nullptr;
+
+    WSeat *requestedSeat = nullptr;
+    if (seat_resource) {
+        // Client specified a seat: resolve it directly.
+        auto *wlrSeatClient = wlr_seat_client_from_resource(seat_resource);
+        if (wlrSeatClient)
+            requestedSeat = WSeat::fromHandle(qw_seat::from(wlrSeatClient->seat));
+    } else if (auto *helper = Helper::instance()) {
+        // No seat specified: find whichever seat currently has keyboard focus on this surface.
+        const auto &seats = helper->seatManager()->seats();
+        for (auto *seat : seats) {
+            if (seat->keyboardFocusSurface() == wSurface) {
+                requestedSeat = seat;
+                break;
+            }
+        }
+    }
+
+    // Validate surface focus / active state.
+    auto *focusedSurface = requestedSeat ? requestedSeat->keyboardFocusSurface() : nullptr;
+    if (!focusedSurface || focusedSurface != wSurface) {
+        captureObj->sendFailed(ShortcutCaptureV1::failed_reason_not_active);
+        return;
+    }
+
+    m_pendingCapture = captureObj;
+    m_pendingSeat = requestedSeat;
+    m_pendingSurface = wSurface;
+}
+
+void ShortcutManagerV2Private::onCaptureDestroyed(ShortcutCaptureV1 *c)
+{
+    if (m_pendingCapture == c)
+        resetCaptureState();
+}
+
+ShortcutCaptureV1 *ShortcutManagerV2Private::resetCaptureState()
+{
+    auto *c = m_pendingCapture;
+    m_pendingCapture = nullptr;
+    m_pendingSeat = nullptr;
+    m_pendingSurface.clear();
+    return c;
+}
+
+// Capture event filter — called from Helper::beforeDisposeEvent while a
+// one-shot shortcut capture is in progress.
+//
+// Trigger semantics:
+//   KeyPress (regular non-modifier) → TERMINATE capture immediately
+//                                     (captured or failed).
+//   KeyRelease (Meta/Super only)    → used for standalone Win key capture.
+//
+// Key categories:
+//   pure modifier (Ctrl/Alt/Shift/…) — consumed on press; KeyRelease → always fail.
+//   Win key (Super_L/R or Meta)      — consumed on press; KeyRelease → emit "Meta" if
+//                                      no other modifier is held (any regular key pressed
+//                                      while Win is held terminates capture on KeyPress).
+//   all other keys                   — terminate on KeyPress via isValidShortcutCombo().
+bool ShortcutManagerV2Private::tryHandleCaptureEvent(WSeat *seat, QInputEvent *event)
+{
+    if (!m_pendingCapture)
+        return false;
+
+    // Seat filter: ignore events from seats other than the one used to validate focus.
+    if (seat != m_pendingSeat)
+        return false;
+
+    // If the requesting surface lost focus, abort capture but do not consume the
+    // current event, so input can continue to the newly focused target.
+    if (!m_pendingSurface || m_pendingSeat->keyboardFocusSurface() != m_pendingSurface) {
+        resetCaptureState()->sendFailed(ShortcutCaptureV1::failed_reason_aborted);
+        return false;
+    }
+
+    // Pointer button or wheel: cancel immediately.
+    const auto type = event->type();
+    if (type == QEvent::MouseButtonPress || type == QEvent::MouseButtonRelease
+        || type == QEvent::Wheel) {
+        resetCaptureState()->sendFailed(ShortcutCaptureV1::failed_reason_interrupted);
+        return true;
+    }
+
+    if (type != QEvent::KeyPress && type != QEvent::KeyRelease)
+        return false;
+
+    auto *kevent = static_cast<QKeyEvent *>(event);
+
+    // Auto-repeat: consume silently without updating state.
+    if (kevent->isAutoRepeat())
+        return true;
+
+    Qt::Key key = static_cast<Qt::Key>(kevent->key());
+
+    if (type == QEvent::KeyPress) {
+        if (isPureModifierKey(key)) {
+            // Pure modifier (Ctrl/Alt/Shift/…): consume and keep waiting.
+            // A previously stored candidate stays valid.
+            return true;
+        }
+
+        if (key == Qt::Key_Super_L || key == Qt::Key_Super_R || key == Qt::Key_Meta) {
+            // Win/Super key: at KeyPress time we cannot yet tell whether the user
+            // intends it alone ("Meta") or combined with another key ("Meta+X").
+            // Treat it like a modifier — consume and wait.  The KeyRelease path
+            // below will emit "Meta" if no other key was pressed in between.
+            return true;
+        }
+
+        // Regular non-modifier key: terminate capture immediately on KeyPress.
+        if (isValidShortcutCombo(kevent)) {
+            auto keyComb = ShortcutController::normalizeKeyCombination(kevent->keyCombination());
+            auto captured = QKeySequence(keyComb).toString(QKeySequence::PortableText);
+            resetCaptureState()->sendCaptured(captured);
+        } else {
+            // Invalid combo: fail immediately.
+            resetCaptureState()->sendFailed(ShortcutCaptureV1::failed_reason_interrupted);
+        }
+    } else { // KeyRelease, only needed for modifier-only paths.
+        if (isPureModifierKey(key)) {
+            // Pure modifier released without any regular key press.
+            resetCaptureState()->sendFailed(ShortcutCaptureV1::failed_reason_interrupted);
+        } else if (key == Qt::Key_Super_L || key == Qt::Key_Super_R || key == Qt::Key_Meta) {
+            // Win/Super is only valid when pressed alone (no other modifiers held).
+            if ((kevent->modifiers() & ~Qt::MetaModifier) == Qt::NoModifier)
+                resetCaptureState()->sendCaptured(QStringLiteral("Meta"));
+            else
+                resetCaptureState()->sendFailed(ShortcutCaptureV1::failed_reason_interrupted);
+        } else {
+            // With press-trigger semantics, regular non-modifier release should not
+            // normally reach here. Be defensive and fail-safe if it does.
+            resetCaptureState()->sendFailed(ShortcutCaptureV1::failed_reason_interrupted);
+        }
+    }
+    return true;
+}
 
 ShortcutManagerV2::ShortcutManagerV2(QObject *parent)
     : QObject(parent)
@@ -397,6 +749,16 @@ void ShortcutManagerV2::destroy(WServer *server)
 wl_global *ShortcutManagerV2::global() const
 {
     return d->global();
+}
+
+bool ShortcutManagerV2::hasPendingCapture() const
+{
+    return d->m_pendingCapture != nullptr;
+}
+
+bool ShortcutManagerV2::tryHandleCaptureEvent(WSeat *seat, QInputEvent *event)
+{
+    return d->tryHandleCaptureEvent(seat, event);
 }
 
 QByteArrayView ShortcutManagerV2::interfaceName() const
