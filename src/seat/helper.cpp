@@ -1883,6 +1883,11 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *targetWindow, QInputEvent 
     }
 
     // handle shortcut
+    if (m_shortcutManager->hasPendingCapture()) {
+        if (m_shortcutManager->tryHandleCaptureEvent(seat, event))
+            return true;
+    }
+
     if (seat == m_seat && !m_captureSelector && m_currentMode != CurrentMode::LockScreen &&
         (event->type() == QEvent::KeyPress || event->type() == QEvent::KeyRelease)) {
         do {

@@ -3,10 +3,11 @@
 
 #pragma once
 
-#include <wserver.h>
-
 #include "shortcutcontroller.h"
 
+#include <wserver.h>
+
+#include <QInputEvent>
 #include <QObject>
 #include <QQmlEngine>
 
@@ -15,6 +16,7 @@ class ShortcutManagerV2Private;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WServer;
+class WSeat;
 class WSocket;
 WAYLIB_SERVER_END_NAMESPACE
 
@@ -64,6 +66,9 @@ public:
 
     ShortcutController* controller();
     void sendActivated(const QString& name, ShortcutController::KeyFlags keyFlags);
+
+    bool hasPendingCapture() const;
+    bool tryHandleCaptureEvent(WAYLIB_SERVER_NAMESPACE::WSeat *seat, QInputEvent *event);
 
 public Q_SLOTS:
     void onSessionChanged();

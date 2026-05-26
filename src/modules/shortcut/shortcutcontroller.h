@@ -1,4 +1,4 @@
-// Copyright (C) 2025 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2025-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
@@ -35,6 +35,7 @@ public:
 
     void clear();
     bool dispatchKeyEvent(const QKeyEvent *event);
+    static QKeyCombination normalizeKeyCombination(QKeyCombination combination);
 
 Q_SIGNALS:
     void actionTriggered(ShortcutAction action, const QString &name, bool isGesture, KeyFlags keyFlags = {});
@@ -42,7 +43,6 @@ Q_SIGNALS:
     void actionFinished(ShortcutAction action, const QString &name, bool isTriggered);
 
 private:
-    static constexpr QKeyCombination normalizeKeyCombination(QKeyCombination combination);
 
     QMap<int, QMap<ShortcutAction, std::pair<QString, KeyFlags>>> m_keyMap;
     QMap<std::pair<uint, SwipeGesture::Direction>, QMap<ShortcutAction, QString>> m_gesturemap;
