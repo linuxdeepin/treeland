@@ -1094,6 +1094,13 @@ QRectF WSurfaceItem::getContentGeometry() const
     return QRectF(QPointF(0, 0), d->surface->size());
 }
 
+QPointF WSurfaceItem::mapFromSurface(const QPointF &point) const
+{
+    const QPointF offset = getContentGeometry().topLeft();
+    return QPointF(point.x() + leftPadding() - offset.x(),
+                   point.y() + topPadding() - offset.y());
+}
+
 QSizeF WSurfaceItem::getContentSize() const
 {
     Q_D(const WSurfaceItem);

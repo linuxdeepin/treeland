@@ -196,6 +196,8 @@ public:
     // Find WSurfaceItemContent in child items
     WSurfaceItemContent *findItemContent() const;
 
+    QPointF mapFromSurface(const QPointF &point) const;
+
 Q_SIGNALS:
     void surfaceChanged();
     void subsurfaceAdded(WAYLIB_SERVER_NAMESPACE::WSurfaceItem *item);
