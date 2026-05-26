@@ -86,14 +86,14 @@ public:
 static QString cancelReasonText(uint32_t reason)
 {
     using R = QtWayland::treeland_shortcut_capture_v1;
-    switch (static_cast<R::cancel_reason>(reason)) {
-    case R::cancel_reason_busy:
+    switch (static_cast<R::failed_reason>(reason)) {
+    case R::failed_reason_busy:
         return QStringLiteral("Another capture is already in progress (busy)");
-    case R::cancel_reason_aborted:
+    case R::failed_reason_aborted:
         return QStringLiteral("The compositor aborted the capture (aborted)");
-    case R::cancel_reason_not_active:
+    case R::failed_reason_not_active:
         return QStringLiteral("The window is not active (not_active)");
-    case R::cancel_reason_interrupted:
+    case R::failed_reason_interrupted:
         return QStringLiteral("Capture was interrupted by non-shortcut input (interrupted)");
     default:
         return QStringLiteral("Unknown reason (%1)").arg(reason);
