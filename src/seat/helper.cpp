@@ -40,6 +40,7 @@
 #include "modules/shortcut/shortcutmanager.h"
 #include "modules/shortcut/shortcutrunner.h"
 #include "modules/wallpaper-color/wallpapercolorinterfacev1.h"
+#include "modules/input-manager/inputmanagerinterfacev1.h"
 #include "output/outputconfigstate.h"
 #include "output/output.h"
 #include "output/outputlifecyclemanager.h"
@@ -53,6 +54,7 @@
 #include "workspace/workspace.h"
 #include "wallpaper/wallpapermanager.h"
 #include "wallpapershellinterfacev1.h"
+#include "inputmanager.h"
 
 #include <xcb/xcb.h>
 #include <xcb/xproto.h>
@@ -182,6 +184,7 @@ Helper::Helper(QObject *parent)
     , m_renderWindow(new WOutputRenderWindow(this))
     , m_server(new WServer(this))
     , m_rootSurfaceContainer(new RootSurfaceContainer(m_renderWindow->contentItem()))
+    , m_inputManager(new InputManager(this))
 {
     m_isDDMDisplay = qEnvironmentVariableIsSet("DDM_DISPLAY_MANAGER");
     Q_ASSERT(!m_instance);
@@ -1334,6 +1337,7 @@ void Helper::init(Treeland::Treeland *treeland)
             return;
         }
 
+        m_inputManager->setupSeatUserConfig(m_userModel->currentUserName());
         // TODO(YaoBing Xiao): pre-initialize dconfig, remove isInitializeSucceeded
 #if TREELANDCONFIG_DCONFIG_FILE_VERSION_MINOR > 0
         if (m_config->isInitializeSucceeded()) {
@@ -1627,18 +1631,26 @@ void Helper::init(Treeland::Treeland *treeland)
 
     m_server->attach<KeyStateV5>(m_seat);
 
+    m_inputManagerInterfaceV1 = m_server->attach<TreelandInputManagerInterfaceV1>();
+    connect(m_inputManagerInterfaceV1,
+            &TreelandInputManagerInterfaceV1::mouseSettingsCreated,
+            m_inputManager,
+            &InputManager::onMouseSettingsCreated);
+    connect(m_inputManagerInterfaceV1,
+            &TreelandInputManagerInterfaceV1::touchpadSettingsCreated,
+            m_inputManager,
+            &InputManager::onTouchpadSettingsCreated);
+    connect(m_inputManagerInterfaceV1,
+            &TreelandInputManagerInterfaceV1::keyboardSettingsCreated,
+            m_inputManager,
+            &InputManager::onKeyboardSettingsCreated);
+
 #if TREELANDCONFIG_DCONFIG_FILE_VERSION_MINOR > 0
     if (m_globalConfig->isInitializeSucceeded()) {
 #else
     if (m_globalConfig->isInitializeSucceed()) {
 #endif
-        configureNumlock();
     } else {
-        connect(m_globalConfig.get(),
-                &TreelandConfig::configInitializeSucceed,
-                this,
-                &Helper::configureNumlock,
-                Qt::SingleShotConnection);
     }
 
     m_backend->handle()->start();
@@ -2811,33 +2823,6 @@ void Helper::restoreCopyMode()
 
     const auto &allSurfaces = getWorkspaceSurfaces();
     applyCopyModeToOutputs(primaryOutput, allSurfaces);
-}
-
-static void setNumlockForDevice(WInputDevice *device) {
-    if (!device || device->type() != WInputDevice::Type::Keyboard)
-        return;
-
-    auto keyboard = qobject_cast<qw_keyboard *>(device->handle());
-    if (!keyboard)
-        return;
-    auto wlrKeyboard = keyboard->handle();
-    if (!wlrKeyboard || !wlrKeyboard->keymap || !wlrKeyboard->xkb_state)
-        return;
-    xkb_mod_index_t numlock = xkb_keymap_mod_get_index(wlrKeyboard->keymap, XKB_MOD_NAME_NUM);
-    if (numlock == XKB_MOD_INVALID)
-        return;
-    xkb_state_update_mask(wlrKeyboard->xkb_state, 0, 0, (1u << numlock), 0, 0, 0);
-    wlr_keyboard_led_update(wlrKeyboard, wlrKeyboard->leds | WLR_LED_NUM_LOCK);
-}
-
-void Helper::configureNumlock() {
-    if (!m_globalConfig->numlock())
-        return;
-    connect(m_backend, &WBackend::inputAdded, this, setNumlockForDevice);
-    const auto inputDevices = m_backend->inputDeviceList();
-    for (WInputDevice *device : inputDevices) {
-        setNumlockForDevice(device);
-    }
 }
 
 /**

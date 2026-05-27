@@ -36,6 +36,7 @@ class WAYLIB_SERVER_EXPORT WCursor : public WWrapObject
     Q_PROPERTY(QCursor cursor READ cursor WRITE setCursor NOTIFY cursorChanged FINAL)
     Q_PROPERTY(QPointF position READ position NOTIFY positionChanged FINAL)
     Q_PROPERTY(WAYLIB_SERVER_NAMESPACE::WSurface* requestedDragSurface READ requestedDragSurface NOTIFY requestedDragSurfaceChanged FINAL)
+    Q_PROPERTY(double scrollFactor READ scrollFactor WRITE setScrollFactor NOTIFY scrollFactorChanged FINAL)
     QML_ANONYMOUS
 
 public:
@@ -80,6 +81,9 @@ public:
     QPointF position() const;
     QPointF lastPressedOrTouchDownPosition() const;
 
+    double scrollFactor() const;
+    void setScrollFactor(double factor);
+
 Q_SIGNALS:
     void positionChanged();
     void seatChanged();
@@ -89,6 +93,7 @@ Q_SIGNALS:
     void layoutChanged();
     void cursorChanged();
     void visibleChanged();
+    void scrollFactorChanged();
 
 protected:
     WCursor(WCursorPrivate &dd, QObject *parent = nullptr);

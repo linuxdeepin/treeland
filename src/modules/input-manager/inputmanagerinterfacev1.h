@@ -113,8 +113,6 @@ public:
         Adaptive = 1 << 1,
         Custom = 1 << 2,
     };
-    Q_DECLARE_FLAGS(AccelerationProfiles, AccelerationProfile)
-    Q_FLAG(AccelerationProfiles)
 
     enum SendEventsMode {
         Enabled = 0,
@@ -128,7 +126,7 @@ public:
     void sendScrollFactor(double factor, bool force = false);
     void sendHandedMode(HandedMode mode, bool force = false);
     void sendAccelSpeed(double speed, bool force = false);
-    void sendAccelerationProfile(AccelerationProfiles profile, bool force = false);
+    void sendAccelerationProfile(AccelerationProfile profile, bool force = false);
     void sendSendEventsMode(SendEventsModes mode, bool force = false);
     void sendNaturalScroll(bool enable, bool force = false);
     void sendDisableWhileTyping(bool enable, bool force = false);
@@ -139,7 +137,7 @@ public:
     double scrollFactor() const;
     HandedMode handedMode() const;
     double accelSpeed() const;
-    AccelerationProfiles accelerationProfile() const;
+    AccelerationProfile accelerationProfile() const;
     SendEventsModes sendEventsMode() const;
     bool naturalScroll() const;
     bool disableWhileTyping() const;
