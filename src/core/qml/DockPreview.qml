@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 UnionTech Software Technology Co., Ltd.
+// SPDX-FileCopyrightText: 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 import QtQuick
@@ -74,6 +74,18 @@ Item {
             if (newSize < oldSize) {
                 filterSurfaceModel.remove(newSize, oldSize - newSize)
             }
+        }
+
+        function removeSurface(surfaceWrapper) {
+            if (!surfaceWrapper)
+                return;
+
+            var index = desiredSurfaces.indexOf(surfaceWrapper);
+            if (index < 0)
+                return;
+
+            desiredSurfaces.splice(index, 1);
+            updateModel();
         }
 
         function activateWindow(surfaceWrapper) {
@@ -470,6 +482,13 @@ Item {
 
             implicitHeight: root.isHorizontal ? 120 : Math.max(80, Math.min(120, 240 * wrapper.height / wrapper.width))
             implicitWidth: root.isHorizontal ? Math.max(80, Math.min(240, 120 * wrapper.width / wrapper.height)) : 240
+
+            Connections {
+                target: wrapper
+                function onAboutToBeInvalidated() {
+                    listview.model.removeSurface(wrapper)
+                }
+            }
 
             ListView.onRemove: {
                 if (filterSurfaceModel.count) {
