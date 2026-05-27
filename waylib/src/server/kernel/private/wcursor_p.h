@@ -88,6 +88,7 @@ public:
     Qt::MouseButton button = Qt::NoButton;
     QPointF lastPressedOrTouchDownPosition;
     bool visible = true;
+    double scrollFactor = 1.0;
 };
 
 WAYLIB_SERVER_END_NAMESPACE

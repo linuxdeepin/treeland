@@ -137,7 +137,7 @@ void WCursorPrivate::on_axis(wlr_pointer_axis_event *event)
             deviceSeat->notifyAxis(q_func(), inputDevice, event->source,
                                  event->orientation == WL_POINTER_AXIS_HORIZONTAL_SCROLL
                                  ? Qt::Horizontal : Qt::Vertical, event->relative_direction,
-                                 event->delta, event->delta_discrete, event->time_msec);
+                                 event->delta * scrollFactor, event->delta_discrete, event->time_msec);
         }
     }
 }
@@ -713,6 +713,21 @@ QPointF WCursor::lastPressedOrTouchDownPosition() const
 {
     W_DC(WCursor);
     return d->lastPressedOrTouchDownPosition;
+}
+
+double WCursor::scrollFactor() const
+{
+    W_DC(WCursor);
+    return d->scrollFactor;
+}
+
+void WCursor::setScrollFactor(double factor)
+{
+    W_D(WCursor);
+    if (qFuzzyCompare(d->scrollFactor, factor))
+        return;
+    d->scrollFactor = factor;
+    Q_EMIT scrollFactorChanged();
 }
 
 WAYLIB_SERVER_END_NAMESPACE

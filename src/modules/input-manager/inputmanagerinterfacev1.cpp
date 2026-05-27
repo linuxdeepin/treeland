@@ -317,7 +317,7 @@ public:
     double scrollFactor = 0;
     PointerDeviceConfigurationV1::HandedMode handedMode = PointerDeviceConfigurationV1::Right;
     double accelSpeed = 0;
-    PointerDeviceConfigurationV1::AccelerationProfiles accelerationProfile = PointerDeviceConfigurationV1::None;
+    PointerDeviceConfigurationV1::AccelerationProfile accelerationProfile = PointerDeviceConfigurationV1::None;
     PointerDeviceConfigurationV1::SendEventsModes sendEventsMode = PointerDeviceConfigurationV1::Enabled;
     bool naturalScroll = false;
     bool disableWhileTyping = false;
@@ -395,7 +395,7 @@ void PointerDeviceConfigurationV1Private::set_acceleration_profile([[maybe_unuse
         return;
     }
 
-    accelerationProfile = PointerDeviceConfigurationV1::AccelerationProfiles(profile);
+    accelerationProfile = PointerDeviceConfigurationV1::AccelerationProfile(profile);
     pendingChanges |= PointerDeviceConfigurationV1::AccelerationProfileChanged;
 }
 
@@ -518,7 +518,7 @@ void PointerDeviceConfigurationV1::sendAccelSpeed(double speed, bool force)
     d->accelSpeed = speed;
 }
 
-void PointerDeviceConfigurationV1::sendAccelerationProfile(AccelerationProfiles profile, bool force)
+void PointerDeviceConfigurationV1::sendAccelerationProfile(AccelerationProfile profile, bool force)
 {
     if (!force && d->accelerationProfile == profile) {
         return;
@@ -599,7 +599,7 @@ double PointerDeviceConfigurationV1::accelSpeed() const
     return d->accelSpeed;
 }
 
-PointerDeviceConfigurationV1::AccelerationProfiles PointerDeviceConfigurationV1::accelerationProfile() const
+PointerDeviceConfigurationV1::AccelerationProfile PointerDeviceConfigurationV1::accelerationProfile() const
 {
     return d->accelerationProfile;
 }
