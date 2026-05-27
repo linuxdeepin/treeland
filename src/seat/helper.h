@@ -131,6 +131,8 @@ class WindowManagementInterfaceV1;
 class WindowPickerInterface;
 class WallpaperManager;
 class WallpaperItem;
+class TreelandInputManagerInterfaceV1;
+class InputManager;
 
 struct wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request;
 struct wlr_idle_inhibitor_v1;
@@ -311,6 +313,7 @@ private:
     friend class SessionManager;
     friend class WallpaperManager;
     friend class WallpaperItem;
+    friend class InputManager;
 
     void allowNonDrmOutputAutoChangeMode(WOutput *output);
     int indexOfOutput(WOutput *output) const;
@@ -343,7 +346,6 @@ private:
     void setWorkspaceVisible(bool visible);
     void restoreFromShowDesktop(SurfaceWrapper *activeSurface = nullptr);
     void setNoAnimation(bool noAnimation);
-    void configureNumlock();
 
     void updateSurfaceSeatInteraction(SurfaceWrapper *surface, WSeat *seat);
 
@@ -445,4 +447,6 @@ private:
     void onOutputCommitFinished(qw_output_configuration_v1 *config, bool success);
 
     SeatsManager *m_seatManager = nullptr;
+    InputManager *m_inputManager = nullptr;
+    TreelandInputManagerInterfaceV1 *m_inputManagerInterfaceV1 = nullptr;
 };
