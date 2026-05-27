@@ -24,6 +24,7 @@ class PrelaunchSplash
 public:
     explicit PrelaunchSplash(QObject *parent = nullptr);
     ~PrelaunchSplash() override;
+    static constexpr int InterfaceVersion = 1;
 
     QByteArrayView interfaceName() const override;
 Q_SIGNALS:

@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2025 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
@@ -63,6 +63,7 @@ public:
     explicit ShortcutManagerV2(QObject *parent = nullptr);
     ~ShortcutManagerV2() override;
     QByteArrayView interfaceName() const override;
+    static constexpr int InterfaceVersion = 2;
 
     ShortcutController* controller();
     void sendActivated(const QString& name, ShortcutController::KeyFlags keyFlags);
