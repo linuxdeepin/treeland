@@ -579,9 +579,7 @@ bool Scanner::process()
             printf("        Resource *resource() { return m_resource; }\n");
             printf("        const Resource *resource() const { return m_resource; }\n");
             printf("\n");
-            printf("        QMultiMap<struct ::wl_client*, Resource*> resourceMap() { return "
-                   "m_resource_map; }\n");
-            printf("        const QMultiMap<struct ::wl_client*, Resource*> resourceMap() const { "
+            printf("        const QMultiMap<struct ::wl_client*, Resource*> &resourceMap() const { "
                    "return m_resource_map; }\n");
             printf("\n");
             printf("        bool isGlobalRemoved() const { return m_globalRemovedEvent; }\n");
