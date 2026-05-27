@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2025 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
@@ -34,6 +34,8 @@ class OutputManagerV1
 public:
     explicit OutputManagerV1(QObject *parent = nullptr);
     ~OutputManagerV1() override;
+    static constexpr int InterfaceVersion = 2;
+    static constexpr int ColorControlInterfaceVersion = 1;
 
     QByteArrayView interfaceName() const override;
 

@@ -17,8 +17,6 @@ QW_USE_NAMESPACE
 
 Q_LOGGING_CATEGORY(prelaunchSplash, "treeland.prelaunchsplash", QtInfoMsg)
 
-#define TREELAND_PRELAUNCH_SPLASH_MANAGER_V2_VERSION 1
-
 class SplashResource : public QtWaylandServer::treeland_prelaunch_splash_v2
 {
 public:
@@ -129,7 +127,7 @@ PrelaunchSplash::~PrelaunchSplash() = default;
 
 void PrelaunchSplash::create(WAYLIB_SERVER_NAMESPACE::WServer *server)
 {
-    d->init(*server->handle(), TREELAND_PRELAUNCH_SPLASH_MANAGER_V2_VERSION);
+    d->init(*server->handle(), InterfaceVersion);
     qCDebug(prelaunchSplash) << "PrelaunchSplash v2 global created";
 }
 

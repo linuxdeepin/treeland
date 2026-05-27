@@ -15,8 +15,6 @@
 // KDE keystate protocol
 // reference: https://github.com/KDE/kwin/blob/master/src/wayland/keystate.cpp
 
-#define ORG_KDE_KWIN_KEYSTATE_VERSION 5
-
 class KeyStateV5Private : public QtWaylandServer::org_kde_kwin_keystate
 {
 public:
@@ -151,7 +149,7 @@ QByteArrayView KeyStateV5::interfaceName() const
 
 void KeyStateV5::create(WServer *server)
 {
-    d->init(server->handle()->handle(), ORG_KDE_KWIN_KEYSTATE_VERSION);
+    d->init(server->handle()->handle(), InterfaceVersion);
 }
 
 void KeyStateV5::destroy([[maybe_unused]] WServer *server)

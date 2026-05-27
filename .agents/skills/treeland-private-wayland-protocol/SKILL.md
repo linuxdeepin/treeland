@@ -139,7 +139,7 @@ Recommended pattern:
 ```cpp
 void Manager::create(WServer *server)
 {
-    d->init(*server->handle(), TREELAND_FOO_MANAGER_V1_VERSION);
+    d->init(*server->handle(), InterfaceVersion);
 }
 
 void Manager::destroy(WServer *server)
@@ -161,10 +161,10 @@ QByteArrayView Manager::interfaceName() const
 
 Rules:
 
-- use a named version constant, not a bare literal
+- define `static constexpr int InterfaceVersion = N;` in the public manager class and use it in `create()`
 - call `globalRemove()` directly in `destroy()`
 - do not wrap it with redundant `if (m_global)` checks
-- `create()` often uses `d->init(server->handle()->handle(), InterfaceVersion)`; if the module already uses a named version macro, that is also fine
+- use class-scoped constants for child interface/resource versions as well when they are not tied to `resource->version()`
 
 ### Common Manager Variants
 Do not think of the manager as only "the thing that creates the global".

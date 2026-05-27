@@ -16,8 +16,6 @@
 
 #include <wayland-server.h>
 
-#define TREELAND_DDE_SHELL_MANAGER_V1_VERSION 1
-
 static QList<DDEShellSurfaceInterface *> s_shellSurfaces;
 static QList<DDEActiveInterface *> s_ddeActives;
 static QList<WindowOverlapCheckerInterface *> s_OverlapCheckers;
@@ -240,7 +238,7 @@ void DDEShellManagerInterfaceV1::checkRegionalConflict([[maybe_unused]] const QR
 
 void DDEShellManagerInterfaceV1::create(WServer *server)
 {
-    d->init(server->handle()->handle(), TREELAND_DDE_SHELL_MANAGER_V1_VERSION);
+    d->init(server->handle()->handle(), InterfaceVersion);
 }
 
 void DDEShellManagerInterfaceV1::destroy([[maybe_unused]] WServer *server)

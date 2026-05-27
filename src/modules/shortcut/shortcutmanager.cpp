@@ -26,7 +26,6 @@ extern "C" {
 #include <QKeyEvent>
 #include <QKeySequence>
 
-#define TREELAND_SHORTCUT_MANAGER_V2_VERSION 2
 #define SHORTCUT_REGISTRATION_SUCCESS 0
 
 using ProtocolAction = QtWaylandServer::treeland_shortcut_manager_v2::action;
@@ -736,7 +735,7 @@ ShortcutManagerV2::~ShortcutManagerV2() = default;
 
 void ShortcutManagerV2::create(WServer *server)
 {
-    d->init(server->handle()->handle(), TREELAND_SHORTCUT_MANAGER_V2_VERSION);
+    d->init(server->handle()->handle(), InterfaceVersion);
 }
 
 void ShortcutManagerV2::destroy(WServer *server)

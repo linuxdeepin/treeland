@@ -21,6 +21,7 @@ class KeyStateV5
 public:
     explicit KeyStateV5(WSeat *seat, QObject *parent = nullptr);
     ~KeyStateV5() override;
+    static constexpr int InterfaceVersion = 5;
 
     QByteArrayView interfaceName() const override;
 

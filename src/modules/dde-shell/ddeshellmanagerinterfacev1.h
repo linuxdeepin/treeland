@@ -30,6 +30,7 @@ public:
     void checkRegionalConflict(const QRegion &region);
 
     QByteArrayView interfaceName() const override;
+    static constexpr int InterfaceVersion = 1;
 Q_SIGNALS:
     void surfaceCreated(DDEShellSurfaceInterface *interface);
     void activeCreated(DDEActiveInterface *interface);

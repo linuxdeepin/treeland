@@ -15,7 +15,6 @@
 #include <qwxdgshell.h>
 
 #include <QList>
-#define TREELAND_WINE_WINDOW_MANAGEMENT_V1_VERSION 1
 
 WAYLIB_SERVER_USE_NAMESPACE
 QW_USE_NAMESPACE
@@ -336,7 +335,7 @@ WineWindowManagementManager::~WineWindowManagementManager() = default;
 
 void WineWindowManagementManager::create(WServer *server)
 {
-    d->init(*server->handle(), TREELAND_WINE_WINDOW_MANAGEMENT_V1_VERSION);
+    d->init(*server->handle(), InterfaceVersion);
 }
 
 void WineWindowManagementManager::destroy(WServer * /*server*/)

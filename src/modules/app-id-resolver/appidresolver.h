@@ -22,6 +22,7 @@ class AppIdResolverManager
 public:
     explicit AppIdResolverManager(QObject *parent = nullptr);
     ~AppIdResolverManager() override;
+    static constexpr int InterfaceVersion = 1;
 
     // Callback-based API: returns true if request started, false if no resolver or dup fd failed
     // Callback is invoked asynchronously on the Wayland (main) thread; empty string if resolver
