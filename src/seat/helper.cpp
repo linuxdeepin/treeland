@@ -906,6 +906,18 @@ void Helper::onSetOutputPowerMode(wlr_output_power_v1_set_mode_event *event)
 
 void Helper::onNewIdleInhibitor(wlr_idle_inhibitor_v1 *wlr_inhibitor)
 {
+    if (!wlr_inhibitor->surface) {
+        qCInfo(treelandCore) << "Ignoring idle inhibitor with null surface";
+        return;
+    }
+
+    auto wsurface = WSurface::fromHandle(wlr_inhibitor->surface);
+    if (!wsurface) {
+        qCWarning(treelandCore) << "No WSurface found for idle inhibitor surface"
+                                << wlr_inhibitor->surface;
+        return;
+    }
+
     auto inhibitor = qw_idle_inhibitor_v1::from(wlr_inhibitor);
     m_idleInhibitors.append(inhibitor);
 
@@ -914,7 +926,6 @@ void Helper::onNewIdleInhibitor(wlr_idle_inhibitor_v1 *wlr_inhibitor)
         updateIdleInhibitor();
     });
 
-    auto wsurface = WSurface::fromHandle(wlr_inhibitor->surface);
     connect(wsurface, &WSurface::mappedChanged, inhibitor, [this]() {
         updateIdleInhibitor();
     });
@@ -937,6 +948,8 @@ void Helper::updateIdleInhibitor()
     }
     for (const auto &inhibitor : std::as_const(m_idleInhibitors)) {
         auto wsurface = WSurface::fromHandle((*inhibitor)->surface);
+        if (!wsurface)
+            continue;
         bool visible = wsurface->mapped();
         auto toplevel = WXdgToplevelSurface::fromSurface(wsurface);
         if (toplevel)
