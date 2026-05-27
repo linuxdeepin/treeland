@@ -18,8 +18,6 @@
 
 Q_LOGGING_CATEGORY(treelandAppIdResolver, "treeland.appid.resolver", QtInfoMsg)
 
-#define TREELAND_APP_ID_RESOLVER_MANAGER_V1_VERSION 1
-
 WAYLIB_SERVER_USE_NAMESPACE
 
 class AppIdResolver
@@ -182,7 +180,7 @@ bool AppIdResolverManager::resolvePidfd(int pidfd, std::function<void(const QStr
 
 void AppIdResolverManager::create(WServer *server)
 {
-    d->init(*server->handle(), TREELAND_APP_ID_RESOLVER_MANAGER_V1_VERSION);
+    d->init(*server->handle(), InterfaceVersion);
     qCDebug(treelandAppIdResolver) << "AppIdResolverManager global created";
 }
 

@@ -21,6 +21,7 @@ class WineWindowManagementManager
 public:
     explicit WineWindowManagementManager(QObject *parent = nullptr);
     ~WineWindowManagementManager() override;
+    static constexpr int InterfaceVersion = 1;
 
 protected:
     void create(WAYLIB_SERVER_NAMESPACE::WServer *server) override;

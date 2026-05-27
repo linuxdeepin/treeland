@@ -13,9 +13,6 @@
 
 #include <WOutput>
 
-#define TREELAND_OUTPUT_MANAGER_V1_VERSION 2
-#define TREELAND_OUTPUT_COLOR_CONTROL_V1_VERSION 1
-
 WAYLIB_SERVER_USE_NAMESPACE
 
 class ColorControlV1Private : public QtWaylandServer::treeland_output_color_control_v1
@@ -211,7 +208,7 @@ void OutputManagerV1Private::get_color_control(Resource *resource,
 
     auto *color_control_res = wl_resource_create(resource->client(),
                                                  QtWaylandServer::treeland_output_color_control_v1::interface(),
-                                                 TREELAND_OUTPUT_COLOR_CONTROL_V1_VERSION,
+                                                 OutputManagerV1::ColorControlInterfaceVersion,
                                                  id);
     if (!color_control_res) {
         wl_resource_post_no_memory(resource->handle);
@@ -234,7 +231,7 @@ OutputManagerV1::~OutputManagerV1()
 
 void OutputManagerV1::create(WServer *server)
 {
-    d->init(server->handle()->handle(), TREELAND_OUTPUT_MANAGER_V1_VERSION);
+    d->init(server->handle()->handle(), InterfaceVersion);
 }
 
 void OutputManagerV1::destroy([[maybe_unused]] WServer *server)

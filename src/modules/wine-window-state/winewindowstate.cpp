@@ -16,7 +16,6 @@
 
 #include <QList>
 #include <QTimer>
-#define TREELAND_WINE_WINDOW_STATE_MANAGER_V1_VERSION 1
 
 WAYLIB_SERVER_USE_NAMESPACE
 QW_USE_NAMESPACE
@@ -267,7 +266,7 @@ WineWindowStateManager::~WineWindowStateManager() = default;
 
 void WineWindowStateManager::create(WServer *server)
 {
-    d->init(*server->handle(), TREELAND_WINE_WINDOW_STATE_MANAGER_V1_VERSION);
+    d->init(*server->handle(), InterfaceVersion);
 }
 
 void WineWindowStateManager::destroy([[maybe_unused]] WServer *server)
