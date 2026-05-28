@@ -111,10 +111,12 @@ public:
             m_wrapper = nullptr;
         });
         connect(m_wrapper, &QQuickItem::xChanged, this, [this] {
-            sendConfigurePosition();
+            if (!m_suppressPositionEvents)
+                sendConfigurePosition();
         });
         connect(m_wrapper, &QQuickItem::yChanged, this, [this] {
-            sendConfigurePosition();
+            if (!m_suppressPositionEvents)
+                sendConfigurePosition();
         });
         connect(m_wrapper, &SurfaceWrapper::alwaysOnTopChanged, this, [this] {
             sendConfigureStacking();
@@ -142,17 +144,26 @@ protected:
         delete this;
     }
 
-    void set_position([[maybe_unused]] Resource *resource, int32_t x, int32_t y) override
+    void set_position([[maybe_unused]] Resource *resource,
+                      int32_t x,
+                      int32_t y,
+                      uint32_t serial) override
     {
         if (!m_wrapper) {
             return;
         }
 
         qCDebug(treelandProtocol)
-            << "set_position" << x << y << "for window_id" << m_windowId;
+            << "set_position serial" << x << y << serial << "for window_id" << m_windowId;
 
         m_wrapper->setPositionAutomatic(false);
+        // Suppress only this class's xChanged/yChanged handlers to avoid
+        // emitting a serial=0 event alongside the client-requested one.
+        m_suppressPositionEvents = true;
         m_wrapper->setPosition(QPointF(x, y));
+        m_suppressPositionEvents = false;
+        // Echo the client serial back in configure_position
+        sendConfigurePosition(serial);
     }
 
     void set_z_order([[maybe_unused]] Resource *resource,
@@ -198,13 +209,15 @@ protected:
     }
 
 private:
-    void sendConfigurePosition()
+    // serial=0 means compositor-initiated (not in response to a client set_position)
+    void sendConfigurePosition(uint32_t serial = 0)
     {
         if (m_wrapper) {
             send_configure_position(static_cast<int32_t>(m_wrapper->x()),
-                                    static_cast<int32_t>(m_wrapper->y()));
+                                    static_cast<int32_t>(m_wrapper->y()),
+                                    serial);
         } else {
-            send_configure_position(0, 0);
+            send_configure_position(0, 0, serial);
         }
     }
 
@@ -268,6 +281,7 @@ private:
     WineWindowManagementManagerPrivate *m_manager = nullptr;
     uint32_t m_windowId = 0;
     SurfaceWrapper *m_wrapper = nullptr;
+    bool m_suppressPositionEvents = false;
 };
 
 void WineWindowManagementManagerPrivate::get_window_control(Resource *resource,
