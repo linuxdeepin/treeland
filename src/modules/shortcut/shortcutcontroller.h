@@ -36,6 +36,7 @@ public:
     void clear();
     bool dispatchKeyEvent(const QKeyEvent *event);
     static QKeyCombination normalizeKeyCombination(QKeyCombination combination);
+    static bool isValidShortcutCombination(QKeyCombination combination);
 
 Q_SIGNALS:
     void actionTriggered(ShortcutAction action, const QString &name, bool isGesture, KeyFlags keyFlags = {});
