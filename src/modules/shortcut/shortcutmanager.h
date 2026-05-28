@@ -68,7 +68,6 @@ public:
     ShortcutController* controller();
     void sendActivated(const QString& name, ShortcutController::KeyFlags keyFlags);
 
-    bool hasPendingCapture() const;
     bool tryHandleCaptureEvent(WAYLIB_SERVER_NAMESPACE::WSeat *seat, QInputEvent *event);
 
 public Q_SLOTS:
