@@ -261,6 +261,8 @@ public:
     // Seat whose keyboard focus was validated at capture start.
     // Events from other seats are ignored during capture.
     WSeat *m_pendingSeat = nullptr;
+    Qt::Key m_drainKey = Qt::Key_unknown;
+    WSeat *m_drainSeat = nullptr;
     // Target surface that requested the capture. Capture must fail once it loses focus.
     QPointer<WSurface> m_pendingSurface;
     WSocket* m_activeSessionSocket = nullptr;
@@ -579,7 +581,7 @@ void ShortcutManagerV2Private::capture_next_shortcut(Resource *resource,
         new ShortcutCaptureV1(this, resource->client(), capture, resource->version());
 
     // Check if another capture is already in progress.
-    if (m_pendingCapture) {
+    if (m_pendingCapture || m_drainKey != Qt::Key_unknown) {
         captureObj->sendFailed(ShortcutCaptureV1::failed_reason_busy);
         return;
     }
@@ -648,6 +650,19 @@ ShortcutCaptureV1 *ShortcutManagerV2Private::resetCaptureState()
 //   all other keys                   — terminate on KeyPress via isValidShortcutCombo().
 bool ShortcutManagerV2Private::tryHandleCaptureEvent(WSeat *seat, QInputEvent *event)
 {
+    // Post-capture drain: consume residual KeyRelease events from the captured session.
+    // This prevents the release of the captured key from immediately firing a newly
+    // bound shortcut that uses KeyRelease trigger semantics.
+    if (m_drainKey != Qt::Key_unknown && seat == m_drainSeat
+        && event->type() == QEvent::KeyRelease) {
+        auto *ke = static_cast<QKeyEvent *>(event);
+        if (static_cast<Qt::Key>(ke->key()) == m_drainKey) {
+            m_drainKey = Qt::Key_unknown;
+            m_drainSeat = nullptr;
+        }
+        return true; // consume all key releases until the captured key is released
+    }
+
     if (!m_pendingCapture)
         return false;
 
@@ -698,6 +713,9 @@ bool ShortcutManagerV2Private::tryHandleCaptureEvent(WSeat *seat, QInputEvent *e
 
         // Regular non-modifier key: terminate capture immediately on KeyPress.
         if (isValidShortcutCombo(kevent)) {
+            // Arm drain before resetting (resetCaptureState clears m_pendingSeat).
+            m_drainKey = key;
+            m_drainSeat = m_pendingSeat;
             auto keyComb = ShortcutController::normalizeKeyCombination(kevent->keyCombination());
             auto captured = QKeySequence(keyComb).toString(QKeySequence::PortableText);
             resetCaptureState()->sendCaptured(captured);
@@ -748,11 +766,6 @@ void ShortcutManagerV2::destroy(WServer *server)
 wl_global *ShortcutManagerV2::global() const
 {
     return d->global();
-}
-
-bool ShortcutManagerV2::hasPendingCapture() const
-{
-    return d->m_pendingCapture != nullptr;
 }
 
 bool ShortcutManagerV2::tryHandleCaptureEvent(WSeat *seat, QInputEvent *event)
