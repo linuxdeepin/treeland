@@ -96,84 +96,6 @@ static bool isPureModifierKey(Qt::Key key)
     }
 }
 
-// For a non-modifier key press, decide whether the (modifiers + key) combination
-// constitutes a valid shortcut that should be captured.
-// Mirrors dde-daemon's Keystroke.IsGood(), isGoodNoMods() and isGoodModShift().
-// Called only for regular non-modifier, non-Win key presses.
-//
-// Rules (in priority order):
-//  1. Ctrl / Alt / Meta held + any non-modifier key  → always valid.
-//  2. Function keys F1–F35, with or without Shift      → valid.
-//  3. Misc function keys (Delete, Backspace, Insert, …) → valid.
-//  4. Shift + cursor/navigation keys, Escape, Space, Tab   → valid.
-//  5. Media / hardware / XF86 keys without modifiers       → valid.
-//  6. Everything else (bare letters, digits, Escape, …)    → invalid.
-static bool isValidShortcutCombo(const QKeyEvent *kevent)
-{
-    Qt::Key key = static_cast<Qt::Key>(kevent->key());
-    // The caller guarantees this is not a pure modifier or Win key.
-    Q_ASSERT(!isPureModifierKey(key));
-    Q_ASSERT(key != Qt::Key_Super_L && key != Qt::Key_Super_R && key != Qt::Key_Meta);
-
-    // modifiers() already reflects all currently held modifier keys,
-    // including ones pressed before this event.
-    Qt::KeyboardModifiers mods = kevent->modifiers()
-        & (Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier | Qt::ShiftModifier);
-
-    // Rule 1: Ctrl / Alt / Meta + anything → always good.
-    if (mods & (Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier))
-        return true;
-
-    // Rule 2: Function keys (with or without Shift).
-    if (key >= Qt::Key_F1 && key <= Qt::Key_F35)
-        return true;
-
-    // Rule 3: Misc function keys valid with no modifier or with Shift.
-    // Mirrors dde-daemon isGoodNoMods() XK_BackSpace/Delete/Pause and IsMiscFunctionKey().
-    switch (key) {
-    case Qt::Key_Delete:
-    case Qt::Key_Backspace:
-    case Qt::Key_Pause:
-    case Qt::Key_Print:
-    case Qt::Key_Insert: // XK_Insert  — IsMiscFunctionKey in dde-daemon
-    case Qt::Key_Help:   // XK_Help    — IsMiscFunctionKey in dde-daemon
-    case Qt::Key_Menu:   // XK_Menu    — IsMiscFunctionKey in dde-daemon
-    case Qt::Key_Cancel: // XK_Cancel  — IsMiscFunctionKey in dde-daemon
-        return true;
-    default:
-        break;
-    }
-
-    // Rule 4: Shift + extra special keys (mirrors dde-daemon isGoodModShift).
-    if (mods == Qt::ShiftModifier) {
-        switch (key) {
-        case Qt::Key_Space:
-        case Qt::Key_Escape:
-        case Qt::Key_Tab:
-            return true;
-        default:
-            break;
-        }
-        // Shift + cursor / navigation keys.
-        if ((key >= Qt::Key_Home && key <= Qt::Key_PageDown)
-            || (key >= Qt::Key_Left && key <= Qt::Key_Down))
-            return true;
-    }
-
-    // Rule 5: Media / browser / hardware (XF86) keys — no modifier needed.
-    // Qt groups these between Key_Back and Key_LaunchMedia / Key_Launch9.
-    if (mods == Qt::NoModifier) {
-        if (key >= Qt::Key_Back && key <= Qt::Key_KeyboardBrightnessDown)
-            return true;
-        if (key >= Qt::Key_LaunchMail && key <= Qt::Key_Launch9)
-            return true;
-        if (key >= Qt::Key_MediaPlay && key <= Qt::Key_MediaLast)
-            return true;
-    }
-
-    return false;
-}
-
 class ShortcutCaptureV1 : public QtWaylandServer::treeland_shortcut_capture_v1
 {
 public:
@@ -647,7 +569,8 @@ ShortcutCaptureV1 *ShortcutManagerV2Private::resetCaptureState()
 //   Win key (Super_L/R or Meta)      — consumed on press; KeyRelease → emit "Meta" if
 //                                      no other modifier is held (any regular key pressed
 //                                      while Win is held terminates capture on KeyPress).
-//   all other keys                   — terminate on KeyPress via isValidShortcutCombo().
+//   all other keys                   — terminate on KeyPress via
+//                                      ShortcutController::isValidShortcutCombination().
 bool ShortcutManagerV2Private::tryHandleCaptureEvent(WSeat *seat, QInputEvent *event)
 {
     // Post-capture drain: consume residual KeyRelease events from the captured session.
@@ -712,7 +635,7 @@ bool ShortcutManagerV2Private::tryHandleCaptureEvent(WSeat *seat, QInputEvent *e
         }
 
         // Regular non-modifier key: terminate capture immediately on KeyPress.
-        if (isValidShortcutCombo(kevent)) {
+        if (ShortcutController::isValidShortcutCombination(kevent->keyCombination())) {
             // Arm drain before resetting (resetCaptureState clears m_pendingSeat).
             m_drainKey = key;
             m_drainSeat = m_pendingSeat;
