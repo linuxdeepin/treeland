@@ -51,7 +51,7 @@ uint ShortcutController::registerKey(const QString &name, const QString& key, Sh
         return BindError::bind_error_invalid_argument;
     }
     auto keyComb = normalizeKeyCombination(keySeq[0]);
-    if (keyComb == QKeyCombination(Qt::NoModifier, Qt::Key_unknown)) {
+    if (!isValidShortcutCombination(keyComb)) {
         return BindError::bind_error_invalid_argument;
     }
     int combined = keyComb.toCombined();
@@ -239,4 +239,70 @@ QKeyCombination ShortcutController::normalizeKeyCombination(QKeyCombination comb
     }
 
     return QKeyCombination(mods, nornalizedKey);
+}
+
+
+// Decide whether a normalized (modifiers + key) combination is accepted as a
+// valid shortcut. Mirrors dde-daemon's IsGood()/isGoodNoMods()/isGoodModShift().
+bool ShortcutController::isValidShortcutCombination(QKeyCombination combination)
+{
+    const auto normalized = normalizeKeyCombination(combination);
+    const Qt::KeyboardModifiers mods = normalized.keyboardModifiers()
+        & (Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier | Qt::ShiftModifier);
+    const Qt::Key key = normalized.key();
+
+    // Modifier-only combinations: only Meta is accepted as a standalone shortcut.
+    if (key == Qt::Key_unknown)
+        return mods == Qt::MetaModifier;
+
+    // Rule 1: Ctrl / Alt / Meta + any non-modifier key.
+    if (mods & (Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier))
+        return true;
+
+    // Rule 2: Function keys.
+    if (key >= Qt::Key_F1 && key <= Qt::Key_F35)
+        return true;
+
+    // Rule 3: Misc function keys.
+    switch (key) {
+    case Qt::Key_Delete:
+    case Qt::Key_Backspace:
+    case Qt::Key_Pause:
+    case Qt::Key_Print:
+    case Qt::Key_Insert:
+    case Qt::Key_Help:
+    case Qt::Key_Menu:
+    case Qt::Key_Cancel:
+        return true;
+    default:
+        break;
+    }
+
+    // Rule 4: Shift + selected special/navigation keys.
+    if (mods == Qt::ShiftModifier) {
+        switch (key) {
+        case Qt::Key_Space:
+        case Qt::Key_Escape:
+        case Qt::Key_Tab:
+            return true;
+        default:
+            break;
+        }
+
+        if ((key >= Qt::Key_Home && key <= Qt::Key_PageDown)
+            || (key >= Qt::Key_Left && key <= Qt::Key_Down))
+            return true;
+    }
+
+    // Rule 5: Media / browser / hardware keys without modifiers.
+    if (mods == Qt::NoModifier) {
+        if (key >= Qt::Key_Back && key <= Qt::Key_KeyboardBrightnessDown)
+            return true;
+        if (key >= Qt::Key_LaunchMail && key <= Qt::Key_Launch9)
+            return true;
+        if (key >= Qt::Key_MediaPlay && key <= Qt::Key_MediaLast)
+            return true;
+    }
+
+    return false;
 }
