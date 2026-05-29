@@ -271,7 +271,7 @@ public:
     void setHideByShowDesk(bool show);
     void setHideByLockScreen(bool hide);
 
-    void markWrapperToRemoved();
+    void destroy();
 
     bool acceptKeyboardFocus() const; // set by treeland-dde-shell
     void setAcceptKeyboardFocus(bool accept);
@@ -365,6 +365,7 @@ private:
     void setContainer(SurfaceContainer *newContainer);
     void setVisibleDecoration(bool newVisibleDecoration);
 
+    void invalidate();
     void setup(); // Initialize m_surfaceItem related features
     void convertToNormalSurface(WToplevelSurface *shellSurface,
                                 Type type); // Transition from pre-launch mode to normal mode
