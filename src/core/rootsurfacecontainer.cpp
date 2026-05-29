@@ -121,7 +121,7 @@ void RootSurfaceContainer::destroyForSurface(SurfaceWrapper *wrapper)
         helper->setActivatedSurface(nullptr);
     }
 
-    wrapper->markWrapperToRemoved();
+    wrapper->destroy();
 }
 
 void RootSurfaceContainer::addOutput(Output *output)

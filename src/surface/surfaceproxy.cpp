@@ -16,7 +16,7 @@ SurfaceProxy::SurfaceProxy(QQuickItem *parent)
 SurfaceProxy::~SurfaceProxy()
 {
     if (m_proxySurface) {
-        m_proxySurface->markWrapperToRemoved();
+        m_proxySurface->destroy();
         m_proxySurface = nullptr;
     }
 }
@@ -38,7 +38,7 @@ void SurfaceProxy::setSurface(SurfaceWrapper *newSurface)
 
     m_sourceSurface = newSurface;
     if (m_proxySurface) {
-        m_proxySurface->markWrapperToRemoved();
+        m_proxySurface->destroy();
         m_proxySurface = nullptr;
     }
 
