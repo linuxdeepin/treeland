@@ -1,6 +1,6 @@
 set(BIN_NAME test-pinch-handler)
 
-find_package(Qt6 REQUIRED COMPONENTS Quick)
+find_package(Qt6 REQUIRED COMPONENTS Gui Quick)
 
 qt_add_executable(${BIN_NAME}
     main.cpp
@@ -14,7 +14,8 @@ qt_add_qml_module(${BIN_NAME}
 )
 
 target_link_libraries(${BIN_NAME}
-    PRIVATE Qt6::Quick
+    PRIVATE Qt6::Gui
+    Qt6::Quick
 )
 
 install(TARGETS ${BIN_NAME}

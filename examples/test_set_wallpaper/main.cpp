@@ -3,7 +3,7 @@
 
 #include "treelandwallpapermanagerclient.h"
 
-#include <QApplication>
+#include <QGuiApplication>
 #include <QCommandLineOption>
 #include <QCommandLineParser>
 #include <QGuiApplication>
@@ -62,7 +62,7 @@ int main(int argc, char *argv[])
     if (qEnvironmentVariableIsEmpty("QT_QPA_PLATFORM"))
         qputenv("QT_QPA_PLATFORM", "wayland");
 
-    QApplication app(argc, argv);
+    QGuiApplication app(argc, argv);
 
     QCommandLineParser parser;
     parser.setApplicationDescription(QStringLiteral("Treeland Wallpaper Client"));
