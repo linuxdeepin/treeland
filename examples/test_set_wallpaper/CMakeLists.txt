@@ -1,4 +1,4 @@
-find_package(Qt6 COMPONENTS REQUIRED Gui DBus WaylandClient Widgets)
+find_package(Qt6 COMPONENTS REQUIRED Gui DBus WaylandClient)
 if(Qt6_VERSION VERSION_GREATER_EQUAL 6.10)
   find_package(Qt6 COMPONENTS GuiPrivate WaylandClientPrivate REQUIRED)
 endif()
@@ -22,7 +22,6 @@ target_link_libraries(${BIN_NAME}
     PRIVATE
         Qt6::Gui
         Qt6::GuiPrivate
-        Qt6::Widgets
         Qt6::WaylandClient
         Qt6::WaylandClientPrivate
 )

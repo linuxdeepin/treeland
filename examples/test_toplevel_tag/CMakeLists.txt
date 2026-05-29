@@ -1,4 +1,4 @@
-find_package(Qt6 REQUIRED COMPONENTS WaylandClient Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Gui WaylandClient Widgets)
 if(Qt6_VERSION VERSION_GREATER_EQUAL 6.10)
     find_package(Qt6 REQUIRED COMPONENTS GuiPrivate WaylandClientPrivate)
 endif()
