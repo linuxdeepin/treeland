@@ -93,9 +93,11 @@ void WXWaylandSurfacePrivate::init()
         surface = new WSurface(qw_surface::from(nativeHandle()->surface), q);
         surface->setAttachedData<WXWaylandSurface>(q);
         Q_EMIT q->surfaceChanged();
+        Q_EMIT q->associated();
     });
     QObject::connect(handle(), &qw_xwayland_surface::notify_dissociate, q, [this, q] {
         Q_ASSERT(surface);
+        Q_EMIT q->aboutToDissociate();
         surface->safeDeleteLater();
         surface = nullptr;
         Q_EMIT q->surfaceChanged();

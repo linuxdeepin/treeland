@@ -539,7 +539,7 @@ void ShellHandler::onXdgPopupSurfaceRemoved(WXdgPopupSurface *surface)
 
 void ShellHandler::onXWaylandSurfaceAdded(WXWaylandSurface *surface)
 {
-    surface->safeConnect(&qw_xwayland_surface::notify_associate,
+    surface->safeConnect(&WXWaylandSurface::associated,
                          this,
                          [this, surface = QPointer<WXWaylandSurface>(surface)] {
                              auto raw = surface.data();
@@ -582,14 +582,14 @@ void ShellHandler::onXWaylandSurfaceAdded(WXWaylandSurface *surface)
                              // fallback retrieval)
                              ensureXwaylandWrapper(raw, QString());
                          });
-    surface->safeConnect(&qw_xwayland_surface::notify_dissociate, this, [this, surface] {
-        auto wrapper = m_rootSurfaceContainer->getSurface(surface->surface());
-        qCDebug(treelandShell) << "WXWayland::notify_dissociate" << surface << wrapper;
+    surface->safeConnect(&WXWaylandSurface::aboutToDissociate, this, [this, surface] {
+        auto wrapper = m_rootSurfaceContainer->getSurface(surface);
+        qCDebug(treelandShell) << "WXWayland::aboutToDissociate" << surface << wrapper;
         // Cancel pending async resolve if still present. If wrapper never created, return.
         if (!wrapper) {
             if (!m_pendingAppIdResolveToplevels.removeOne(surface)) {
                 qCWarning(treelandShell)
-                    << "WXWayland::notify_dissociate for unknown surface" << surface;
+                    << "WXWayland::aboutToDissociate for unknown surface" << surface;
             }
             return; // never created
         }
