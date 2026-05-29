@@ -179,19 +179,46 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     updateHasActiveCapability(ActiveControlState::MappedOrSplash, true); // Splash is true
 }
 
-SurfaceWrapper::~SurfaceWrapper()
+void SurfaceWrapper::invalidate()
 {
-    Q_ASSERT_X(m_wrapperAboutToRemove,
-               Q_FUNC_INFO,
-               "SurfaceWrapper must be removed via markWrapperToRemoved before destruction");
-
-    Q_ASSERT(!m_ownsOutput);
-    Q_ASSERT(!m_container);
-    Q_ASSERT(!m_parentSurface);
-    Q_ASSERT(m_subSurfaces.isEmpty());
+    Q_ASSERT_X(!m_wrapperAboutToRemove, Q_FUNC_INFO, "Can't call `invalidate` twice!");
+    m_wrapperAboutToRemove = true;
+    Q_EMIT aboutToBeInvalidated();
 
     if (!m_skipDockPreView)
         setSkipDockPreView(true);
+
+    if (m_container) {
+        m_container->removeSurface(this);
+        m_container = nullptr;
+    }
+    if (m_ownsOutput) {
+        m_ownsOutput->removeSurface(this);
+        m_ownsOutput = nullptr;
+    }
+    if (m_parentSurface) {
+        m_parentSurface->removeSubSurface(this);
+        m_parentSurface = nullptr;
+    }
+    for (auto subS : std::as_const(m_subSurfaces)) {
+        subS->m_parentSurface = nullptr;
+    }
+    m_subSurfaces.clear();
+    m_shellSurface = nullptr;
+    if (m_surfaceItem)
+        m_surfaceItem->disconnect(this);
+}
+
+SurfaceWrapper::~SurfaceWrapper()
+{
+    if (!m_wrapperAboutToRemove) {
+        if (isWindowAnimationRunning()) {
+            qCWarning(treelandSurface)
+                << "SurfaceWrapper is being destroyed without destroy(); expected external"
+                   " destroy() rather than QObject parent-child destruction";
+        }
+        invalidate();
+    }
     if (m_titleBar) {
         delete m_titleBar;
         m_titleBar = nullptr;
@@ -983,38 +1010,12 @@ bool SurfaceWrapper::isWindowAnimationRunning() const
     return !m_windowAnimation.isNull();
 }
 
-void SurfaceWrapper::markWrapperToRemoved()
+void SurfaceWrapper::destroy()
 {
-    Q_ASSERT_X(!m_wrapperAboutToRemove, Q_FUNC_INFO, "Can't call `markWrapperToRemoved` twice!");
-    m_wrapperAboutToRemove = true;
-    Q_EMIT aboutToBeInvalidated();
-
-    if (!m_skipDockPreView)
-        setSkipDockPreView(true);
-
-    if (m_container) {
-        m_container->removeSurface(this);
-        m_container = nullptr;
-    }
-    if (m_ownsOutput) {
-        m_ownsOutput->removeSurface(this);
-        m_ownsOutput = nullptr;
-    }
-    if (m_parentSurface) {
-        m_parentSurface->removeSubSurface(this);
-        m_parentSurface = nullptr;
-    }
-    for (auto subS : std::as_const(m_subSurfaces)) {
-        subS->m_parentSurface = nullptr;
-    }
-    m_subSurfaces.clear();
-    m_shellSurface = nullptr;
-    if (m_surfaceItem)
-        m_surfaceItem->disconnect(this);
-
-    if (!isWindowAnimationRunning()) {
+    invalidate();
+    if (!isWindowAnimationRunning())
         deleteLater();
-    } // else delete this in Animation(for window close animation) finish
+    // else delete this in Animation(for window close animation) finish
 }
 
 bool SurfaceWrapper::acceptKeyboardFocus() const
