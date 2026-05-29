@@ -1,4 +1,4 @@
-find_package(Qt6 REQUIRED COMPONENTS WaylandClient Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Gui WaylandClient)
 find_package(TreelandProtocols REQUIRED)
 
 set(BIN_NAME test-color-control)
@@ -15,7 +15,6 @@ qt_generate_wayland_protocol_client_sources(${BIN_NAME}
 target_link_libraries(${BIN_NAME}
     PRIVATE
         Qt6::Gui
-        Qt6::Widgets
         Qt6::WaylandClient
 )
 

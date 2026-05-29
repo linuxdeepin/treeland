@@ -2,7 +2,7 @@ set(CMAKE_AUTOUIC ON)
 
 set(BIN_NAME test-xdg-wallpaper)
 
-find_package(Qt6 REQUIRED COMPONENTS Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Gui Widgets)
 find_package(TreelandProtocols REQUIRED)
 
 qt_add_executable(${BIN_NAME}
@@ -13,6 +13,7 @@ qt_add_executable(${BIN_NAME}
 )
 
 target_link_libraries(${BIN_NAME} PRIVATE
+    Qt6::Gui
     Qt6::Widgets
     Qt6::DBus
 )

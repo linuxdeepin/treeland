@@ -1,4 +1,4 @@
-find_package(Qt6 REQUIRED COMPONENTS WaylandClient Quick)
+find_package(Qt6 REQUIRED COMPONENTS Gui Quick WaylandClient)
 if(Qt6_VERSION VERSION_GREATER_EQUAL 6.10)
     find_package(Qt6 REQUIRED COMPONENTS WaylandClientPrivate)
 endif()
@@ -30,6 +30,7 @@ qt_generate_wayland_protocol_client_sources(${BIN_NAME}
 
 target_link_libraries(${BIN_NAME}
     PRIVATE
+        Qt6::Gui
         Qt6::Quick
         Qt6::WaylandClient
         Qt6::WaylandClientPrivate
