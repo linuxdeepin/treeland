@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include <qwaylandclientextension.h>
-#include <qapplication.h>
+#include <qguiapplication.h>
 
 #include "qwayland-kde-keystate.h"
 
@@ -59,7 +59,7 @@ public Q_SLOTS:
 int main(int argc, char *argv[])
 {
     qputenv("QT_QPA_PLATFORM", "wayland");
-    QApplication app(argc, argv);
+    QGuiApplication app(argc, argv);
     KeyStateV5 keyState;
     keyState.setParent(&app);
     QObject::connect(&keyState, &KeyStateV5::activeChanged,
