@@ -276,12 +276,12 @@ Q_SIGNALS:
 
 private:
     WWrapPointer<WToplevelSurface> m_target;
-    PersonalizationManagerInterfaceV1 *m_manager;
-    int32_t m_backgroundType;
-    int32_t m_cornerRadius;
-    Shadow m_shadow;
-    Border m_border;
-    PersonalizationWindowContextV1::WindowStates m_states;
+    PersonalizationManagerInterfaceV1 *m_manager = nullptr;
+    int32_t m_backgroundType = Personalization::BackgroundType::Normal;
+    int32_t m_cornerRadius = 0;
+    Shadow m_shadow {};
+    Border m_border {};
+    PersonalizationWindowContextV1::WindowStates m_states {};
 
     QMetaObject::Connection m_connection;
 };
