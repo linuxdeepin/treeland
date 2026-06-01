@@ -703,6 +703,10 @@ void WSurfaceItem::setSurface(WSurface *surface)
     auto oldSurface = d->surface;
     d->beforeRequestResizeSurfaceStateSeq = 0;
     d->surface = surface;
+    if (d->ready) {
+        d->ready = false;
+        Q_EMIT readyChanged();
+    }
     if (d->componentComplete) {
         if (oldSurface) {
             oldSurface->safeDisconnect(this);
@@ -1155,6 +1159,11 @@ void WSurfaceItem::updateSurfaceState()
     setImplicitSize(d->calculateImplicitWidth(),
                     d->calculateImplicitHeight());
 
+    if (!d->ready && implicitWidth() > 0 && implicitHeight() > 0) {
+        d->ready = true;
+        Q_EMIT readyChanged();
+    }
+
     if (bufferScaleChanged)
         Q_EMIT this->bufferScaleChanged();
 }
@@ -1581,6 +1590,12 @@ void WSurfaceItem::setSubsurfacesVisible(bool newSubsurfacesVisible)
     if (d->aboveSubsurfaceContainer)
         d->aboveSubsurfaceContainer->setVisible(d->subsurfacesVisible);
     Q_EMIT subsurfacesVisibleChanged();
+}
+
+bool WSurfaceItem::isReady() const
+{
+    Q_D(const WSurfaceItem);
+    return d->ready;
 }
 
 WSurfaceItemContent *WSurfaceItem::findItemContent() const

@@ -316,13 +316,12 @@ void SurfaceWrapper::setup()
                                     &SurfaceWrapper::requestCancelFullscreen);
 
         if (m_type == Type::XdgToplevel) {
-            m_shellSurface->safeConnect(
-                &WToplevelSurface::requestShowWindowMenu,
-                this,
-                [this](WSeat *, QPoint pos, quint32) {
-                    Q_EMIT requestShowWindowMenu(
-                        m_surfaceItem->mapFromSurface(pos).toPoint());
-                });
+            m_shellSurface->safeConnect(&WToplevelSurface::requestShowWindowMenu,
+                                        this,
+                                        [this](WSeat *, QPoint pos, quint32) {
+                                            Q_EMIT requestShowWindowMenu(
+                                                m_surfaceItem->mapFromSurface(pos).toPoint());
+                                        });
         }
     }
     m_shellSurface->surface()->safeConnect(&WSurface::mappedChanged,
@@ -533,16 +532,40 @@ void SurfaceWrapper::syncPrelaunchMappedState()
 
 void SurfaceWrapper::startPrelaunchSplashHideSequence()
 {
-    auto surf = surface();
-    Q_ASSERT(surf != nullptr && m_surfaceItem != nullptr);
-    // A newly created QQuickItem may report implicitWidth/implicitHeight as 0
-    // before polish/layout. WSurface::size() is already stable after mapped.
-    QSizeF targetImplicitSize = surf->size();
+    Q_ASSERT(m_surfaceItem != nullptr);
+    if (m_windowAnimation) {
+        qCDebug(treelandSurface) << "prelaunch splash transition is starting while window "
+                                    "animation is still running,"
+                                    "this may cause visual glitches, will delay the transition "
+                                    "until window animation finishes";
+        return;
+    }
+    if (m_geometryAnimation) {
+        qCDebug(treelandSurface) << "prelaunch splash transition already prepared or running, skip";
+        return;
+    }
+
+    // Wait until surfaceItem has computed a valid scene-space implicit size.
+    // For XWayland, this happens in updateSurfaceState() after the first surface commit;
+    // for other types it may be deferred until componentComplete + first polish.
+    if (!m_surfaceItem->isReady()) {
+        connect(m_surfaceItem,
+                &WSurfaceItem::readyChanged,
+                this,
+                &SurfaceWrapper::startPrelaunchSplashHideSequence,
+                Qt::SingleShotConnection);
+        return;
+    }
+
+    // Use surfaceItem's scene-space implicit size: for XWayland, surf->size() is
+    // buffer-space and differs from scene-space after DPR scaling via surfaceSizeRatio.
+    const QSizeF targetImplicitSize(m_surfaceItem->implicitWidth(),
+                                    m_surfaceItem->implicitHeight());
     const bool hasValidTargetImplicitSize =
         targetImplicitSize.width() > 0 && targetImplicitSize.height() > 0;
     if (!hasValidTargetImplicitSize) {
         qCCritical(treelandSurface) << "Invalid target implicit size, skip transition animation"
-                                   << "targetImplicit=" << targetImplicitSize;
+                                    << "targetImplicit=" << targetImplicitSize;
     }
 
     const bool needImplicitSizeTransition = hasValidTargetImplicitSize && (container() != nullptr)
@@ -550,19 +573,6 @@ void SurfaceWrapper::startPrelaunchSplashHideSequence()
             || !qFuzzyCompare(implicitHeight() + 1.0, targetImplicitSize.height() + 1.0));
 
     if (needImplicitSizeTransition) {
-        if (m_windowAnimation) {
-            qCDebug(treelandSurface) << "prelaunch splash transition is starting while window "
-                                        "animation is still running,"
-                                        "this may cause visual glitches, will delay the transition "
-                                        "until window animation finishes";
-            return;
-        }
-        if (m_geometryAnimation) {
-            qCWarning(treelandSurface)
-                << "prelaunch splash transition already prepared or running, skip";
-            return;
-        }
-
         const QRectF fromGeometry(position(), size());
         // XWayland clients manage their own position; respect it and don't shift.
         // For all other types, keep the center fixed so the window expands from center.
@@ -587,8 +597,6 @@ void SurfaceWrapper::startPrelaunchSplashHideSequence()
         ok = QMetaObject::invokeMethod(m_geometryAnimation, "start");
         Q_ASSERT(ok);
     } else {
-        // WSurface size is available when mapped; implicit size of a newly created
-        // QQuickItem can still be 0 before polish/layout in following event loops.
         completeSplashTransition(targetImplicitSize);
     }
 }
