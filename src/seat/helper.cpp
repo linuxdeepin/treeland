@@ -41,6 +41,7 @@
 #include "modules/shortcut/shortcutrunner.h"
 #include "modules/wallpaper-color/wallpapercolorinterfacev1.h"
 #include "modules/input-manager/inputmanagerinterfacev1.h"
+#include "modules/keyboard-state-notify/keyboardstatenotifymanagerinterfacev1.h"
 #include "output/outputconfigstate.h"
 #include "output/output.h"
 #include "output/outputlifecyclemanager.h"
@@ -1644,6 +1645,8 @@ void Helper::init(Treeland::Treeland *treeland)
             &TreelandInputManagerInterfaceV1::keyboardSettingsCreated,
             m_inputManager,
             &InputManager::onKeyboardSettingsCreated);
+
+    m_keyboardStateNotifyManagerInterfaceV1 = m_server->attach<TreelandKeyboardStateNotifyManagerInterfaceV1>();
 
 #if TREELANDCONFIG_DCONFIG_FILE_VERSION_MINOR > 0
     if (m_globalConfig->isInitializeSucceeded()) {
