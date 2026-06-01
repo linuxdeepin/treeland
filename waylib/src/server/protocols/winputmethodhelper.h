@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Yixue Wang <wangyixue@deepin.org>.
+// Copyright (C) 2023-2026 Yixue Wang <wangyixue@deepin.org>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
@@ -28,6 +28,7 @@ class WInputMethodV2;
 class WInputMethodHelperPrivate;
 class WInputPopupSurface;
 class WTextInput;
+class WSurface;
 class WAYLIB_SERVER_EXPORT WInputMethodHelper : public QObject, public WObject
 {
     Q_OBJECT
@@ -37,9 +38,13 @@ public:
     explicit WInputMethodHelper(WServer *server, WSeat *seat);
     ~WInputMethodHelper() override;
 
+    WSurface *textInputFocusSurface() const;
+    QRect textInputCursorRect() const;
+
 Q_SIGNALS:
     void inputPopupSurfaceV2Added(WInputPopupSurface *popupSurface);
     void inputPopupSurfaceV2Removed(WInputPopupSurface *popupSurface);
+    void textInputCursorRectChanged(QRect cursorRect);
 
 private:
     const QList<WInputDevice *> &virtualKeyboards() const;

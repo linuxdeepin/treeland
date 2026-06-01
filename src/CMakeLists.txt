@@ -133,6 +133,8 @@ qt_add_qml_module(libtreeland
         core/qmlengine.h
         core/rootsurfacecontainer.cpp
         core/rootsurfacecontainer.h
+        core/imcandidatepanelmanager.cpp
+        core/imcandidatepanelmanager.h
         core/shellhandler.cpp
         core/shellhandler.h
         core/treeland.cpp
