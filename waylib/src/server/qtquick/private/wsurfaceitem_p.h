@@ -82,6 +82,7 @@ public:
 
     uint32_t beforeRequestResizeSurfaceStateSeq = 0;
     QRectF boundingRect;
+    bool ready = false;
 };
 
 WAYLIB_SERVER_END_NAMESPACE
