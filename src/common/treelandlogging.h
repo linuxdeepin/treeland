@@ -75,5 +75,7 @@ Q_DECLARE_LOGGING_CATEGORY(treelandXsettings)
 Q_DECLARE_LOGGING_CATEGORY(treelandActivation)
 // inputManager
 Q_DECLARE_LOGGING_CATEGORY(treelandInputManager)
+// key notify
+Q_DECLARE_LOGGING_CATEGORY(treelandKeyboardNotify)
 
 #endif // TREELAND_LOGGING_H
