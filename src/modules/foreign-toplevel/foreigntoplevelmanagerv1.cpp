@@ -20,8 +20,12 @@
 #include <qwdisplay.h>
 #include <qwoutput.h>
 #include <qwxdgshell.h>
+#include <QPointer>
+#include <QVariant>
 
-static QList<DockPreviewContextV1 *> s_dockPreviewContexts;
+namespace {
+constexpr char DockPreviewContextPropertyName[] = "treelandDockPreviewContextV1";
+}
 
 struct SurfaceEntry
 {
@@ -41,6 +45,8 @@ public:
 
     wl_global *global() const;
     std::map<SurfaceWrapper *, std::unique_ptr<SurfaceEntry>> m_surfaces;
+    QList<DockPreviewContextV1 *> dockPreviewContexts;
+    QList<ForeignToplevelHandleV1 *> handles;
     uint32_t m_nextIdentifier = 1;
 
     ForeignToplevelHandleV1 *createHandle(Resource *managerResource, SurfaceEntry *entry);
@@ -96,11 +102,9 @@ void ForeignToplevelManagerInterfaceV1Private::get_dock_preview_context(Resource
     }
 
     auto *context = new DockPreviewContextV1(dockPreviewContextResource,
-                                             relativeSurface);
-    s_dockPreviewContexts.append(context);
-    QObject::connect(context, &QObject::destroyed, [context]() {
-        s_dockPreviewContexts.removeOne(context);
-    });
+                                             relativeSurface,
+                                             q);
+    dockPreviewContexts.append(context);
 
     QObject::connect(context,
                      &DockPreviewContextV1::requestShow,
@@ -118,6 +122,11 @@ void ForeignToplevelManagerInterfaceV1Private::get_dock_preview_context(Resource
                 &DockPreviewContextV1::beforeDestroy,
                 q,
                 &ForeignToplevelManagerInterfaceV1::requestDockClose);
+
+    if (auto *relativeSurfaceObject = WSurface::fromHandle(relativeSurface)) {
+        relativeSurfaceObject->setProperty(DockPreviewContextPropertyName,
+                                           QVariant::fromValue(static_cast<QObject *>(context)));
+    }
 }
 
 ForeignToplevelManagerInterfaceV1::ForeignToplevelManagerInterfaceV1(QObject *parent)
@@ -145,6 +154,7 @@ ForeignToplevelManagerInterfaceV1Private::createHandle(Resource *managerResource
 
     auto *handle = new ForeignToplevelHandleV1(q, resource, entry);
     entry->handles.append(handle);
+    handles.append(handle);
 
     send_toplevel(managerResource->handle, resource);
     handle->set_identifier(m_nextIdentifier++);
@@ -236,7 +246,13 @@ void ForeignToplevelManagerInterfaceV1::removeSurface(SurfaceWrapper *wrapper)
 
 void ForeignToplevelManagerInterfaceV1::releaseHandle(ForeignToplevelHandleV1 *handle)
 {
+    d->handles.removeOne(handle);
     d->releaseHandle(handle);
+}
+
+void ForeignToplevelManagerInterfaceV1::releaseDockPreviewContext(DockPreviewContextV1 *context)
+{
+    d->dockPreviewContexts.removeOne(context);
 }
 
 void ForeignToplevelManagerInterfaceV1Private::releaseHandle(ForeignToplevelHandleV1 *handle)
@@ -260,21 +276,15 @@ void ForeignToplevelManagerInterfaceV1Private::bind_resource(Resource *resource)
 
 void ForeignToplevelManagerInterfaceV1::enterDockPreview(WSurface *relativeSurface)
 {
-    for (auto *context : s_dockPreviewContexts) {
-        if (context->relativeSurface() == relativeSurface) {
-            context->enter();
-            break;
-        }
+    if (auto *context = DockPreviewContextV1::getDockPreviewContext(relativeSurface)) {
+        context->enter();
     }
 }
 
 void ForeignToplevelManagerInterfaceV1::leaveDockPreview(WSurface *relativeSurface)
 {
-    for (auto *context : s_dockPreviewContexts) {
-        if (context->relativeSurface() == relativeSurface) {
-            context->leave();
-            break;
-        }
+    if (auto *context = DockPreviewContextV1::getDockPreviewContext(relativeSurface)) {
+        context->leave();
     }
 }
 
@@ -488,21 +498,15 @@ void ForeignToplevelManagerInterfaceV1::handleDockPreviewShow(treeland_dock_prev
          toplevelIt != event->toplevels.cend();
          ++toplevelIt) {
         const uint32_t identifier = *toplevelIt;
-        for (auto surfaceIt = d->m_surfaces.cbegin(); surfaceIt != d->m_surfaces.cend();
-             ++surfaceIt) {
-            bool found = false;
-            for (auto *handle : surfaceIt->second->handles) {
-                if (handle->identifier() == identifier) {
-                    surfaces.push_back(surfaceIt->first);
-                    found = true;
-                    break;
+        for (auto *handle : d->handles) {
+            if (handle->identifier() == identifier) {
+                if (auto *entry = handle->entry()) {
+                    surfaces.push_back(entry->wrapper);
                 }
-            }
-            if (found) {
                 break;
             }
         }
-    };
+    }
 
     Q_EMIT requestDockPreview(surfaces,
                               dockPreview->relativeSurface(),
@@ -531,11 +535,16 @@ class DockPreviewContextV1Private
     : public QtWaylandServer::treeland_dock_preview_context_v1
 {
 public:
-    DockPreviewContextV1Private(DockPreviewContextV1 *_q, wl_resource *resource, wlr_surface *_relativeSurface);
+    DockPreviewContextV1Private(DockPreviewContextV1 *_q,
+                                wl_resource *resource,
+                                wlr_surface *_relativeSurface,
+                                ForeignToplevelManagerInterfaceV1 *_manager);
     ~DockPreviewContextV1Private() override;
 
     DockPreviewContextV1 *q = nullptr;
+    QPointer<ForeignToplevelManagerInterfaceV1> manager;
     wlr_surface *relativeSurface = nullptr;
+    QPointer<WSurface> relativeSurfaceObject;
     dock_preview_surface_destroy_wrapper surfaceDestroyWrapper = {};
 
 protected:
@@ -546,10 +555,15 @@ protected:
     void close(Resource *resource) override;
 };
 
-DockPreviewContextV1Private::DockPreviewContextV1Private(DockPreviewContextV1 *_q, wl_resource *resource, wlr_surface *_relativeSurface)
+DockPreviewContextV1Private::DockPreviewContextV1Private(DockPreviewContextV1 *_q,
+                                                         wl_resource *resource,
+                                                         wlr_surface *_relativeSurface,
+                                                         ForeignToplevelManagerInterfaceV1 *_manager)
     : QtWaylandServer::treeland_dock_preview_context_v1(resource)
     , q(_q)
+    , manager(_manager)
     , relativeSurface(_relativeSurface)
+    , relativeSurfaceObject(WSurface::fromHandle(_relativeSurface))
 {
     if (relativeSurface) {
         surfaceDestroyWrapper.d = this;
@@ -558,6 +572,10 @@ DockPreviewContextV1Private::DockPreviewContextV1Private(DockPreviewContextV1 *_
             wrapper = wl_container_of(listener, wrapper, listener);
             wl_list_remove(&wrapper->listener.link);
             wl_list_init(&wrapper->listener.link);
+            if (wrapper->d->relativeSurfaceObject) {
+                wrapper->d->relativeSurfaceObject->setProperty(DockPreviewContextPropertyName, QVariant());
+                wrapper->d->relativeSurfaceObject = nullptr;
+            }
             wrapper->d->relativeSurface = nullptr;
             wl_resource_destroy(wrapper->d->resource()->handle);
         };
@@ -572,6 +590,13 @@ DockPreviewContextV1Private::~DockPreviewContextV1Private()
 
 void DockPreviewContextV1Private::destroy_resource([[maybe_unused]] Resource *resource)
 {
+    if (relativeSurfaceObject) {
+        relativeSurfaceObject->setProperty(DockPreviewContextPropertyName, QVariant());
+        relativeSurfaceObject = nullptr;
+    }
+    if (manager) {
+        manager->releaseDockPreviewContext(q);
+    }
     Q_EMIT q->beforeDestroy();
     delete q;
 }
@@ -637,7 +662,7 @@ wl_resource *DockPreviewContextV1::resource() const
 
 WSurface *DockPreviewContextV1::relativeSurface() const
 {
-    return WSurface::fromHandle(d->relativeSurface);
+    return d->relativeSurfaceObject;
 }
 
 void DockPreviewContextV1::enter()
@@ -652,29 +677,29 @@ void DockPreviewContextV1::leave()
 
 DockPreviewContextV1 *DockPreviewContextV1::get(wl_resource *resource)
 {
-    for (auto *context : s_dockPreviewContexts) {
-        if (context->resource() == resource) {
-            return context;
-        }
+    auto *res = QtWaylandServer::treeland_dock_preview_context_v1::Resource::fromResource(resource);
+    if (!res || !res->object()) {
+        return nullptr;
     }
-
-    return nullptr;
+    auto *priv = static_cast<DockPreviewContextV1Private *>(res->object());
+    return priv->q;
 }
 
 DockPreviewContextV1 *DockPreviewContextV1::getDockPreviewContext(WSurface *relativeSurface)
 {
-    for (auto *context : s_dockPreviewContexts) {
-        if (context->relativeSurface() == relativeSurface) {
-            return context;
-        }
+    if (!relativeSurface) {
+        return nullptr;
     }
 
-    return nullptr;
+    auto *contextObject = relativeSurface->property(DockPreviewContextPropertyName).value<QObject *>();
+    return qobject_cast<DockPreviewContextV1 *>(contextObject);
 }
 
-DockPreviewContextV1::DockPreviewContextV1(wl_resource *resource, wlr_surface *_relativeSurface)
+DockPreviewContextV1::DockPreviewContextV1(wl_resource *resource,
+                                           wlr_surface *_relativeSurface,
+                                           ForeignToplevelManagerInterfaceV1 *manager)
     : QObject(nullptr)
-    , d(new DockPreviewContextV1Private(this, resource, _relativeSurface))
+    , d(new DockPreviewContextV1Private(this, resource, _relativeSurface, manager))
 {
 }
 
@@ -689,7 +714,7 @@ public:
     ~ForeignToplevelHandleV1Private() override;
 
     ForeignToplevelHandleV1 *q = nullptr;
-    ForeignToplevelManagerInterfaceV1 *manager = nullptr;
+    QPointer<ForeignToplevelManagerInterfaceV1> manager;
     SurfaceEntry *entry = nullptr;
 
     wl_event_source *idle_source{ nullptr };
@@ -702,6 +727,8 @@ public:
     ForeignToplevelHandleV1 *parent{ nullptr };
     QList<treeland_foreign_toplevel_handle_v1_output> outputs;
     ForeignToplevelHandleV1::States state;
+    void scheduleDone();
+    static void idleSendDone(void *data);
 protected:
     void destroy_resource(Resource *resource) override;
     void destroy(Resource *resource) override;
@@ -871,7 +898,7 @@ void ForeignToplevelHandleV1::set_title(const QString &title)
 
     d->title = title;
     d->send_title(title);
-    update_idle_source();
+    d->scheduleDone();
 }
 
 void ForeignToplevelHandleV1::set_app_id(const QString &app_id)
@@ -882,21 +909,21 @@ void ForeignToplevelHandleV1::set_app_id(const QString &app_id)
 
     d->app_id = app_id;
     d->send_app_id(app_id);
-    update_idle_source();
+    d->scheduleDone();
 }
 
 void ForeignToplevelHandleV1::set_pid(const pid_t pid)
 {
     d->pid = pid;
     d->send_pid(pid);
-    update_idle_source();
+    d->scheduleDone();
 }
 
 void ForeignToplevelHandleV1::set_identifier(uint32_t identifier)
 {
     d->identifier = identifier;
     d->send_identifier(identifier);
-    update_idle_source();
+    d->scheduleDone();
 }
 
 uint32_t ForeignToplevelHandleV1::identifier() const
@@ -922,8 +949,6 @@ void ForeignToplevelHandleV1::output_enter(QW_NAMESPACE::qw_output *output)
         if (wl_resource_get_client(toplevel_output.toplevel->resource()) == client) {
             toplevel_output.toplevel->send_output(toplevel_output.output, true);
         }
-
-        toplevel_output.toplevel->update_idle_source();
     });
 
     connect(output, &qw_output::before_destroy, this, [toplevel_output]() {
@@ -994,12 +1019,7 @@ void ForeignToplevelHandleV1::set_parent(ForeignToplevelHandleV1 *parent)
 
     d->send_parent(parent ? parent->resource() : nullptr);
     d->parent = parent;
-    update_idle_source();
-}
-
-void ForeignToplevelHandleV1::reset_idle_source()
-{
-    d->idle_source = nullptr;
+    d->scheduleDone();
 }
 
 void ForeignToplevelHandleV1::send_done()
@@ -1036,7 +1056,7 @@ void ForeignToplevelHandleV1::send_state()
 
     d->send_state(ba);
 
-    update_idle_source();
+    d->scheduleDone();
 }
 
 void ForeignToplevelHandleV1::send_output(qw_output *output, bool enter) {
@@ -1054,7 +1074,7 @@ void ForeignToplevelHandleV1::send_output(qw_output *output, bool enter) {
         }
     }
 
-    update_idle_source();
+    d->scheduleDone();
 }
 
 ForeignToplevelHandleV1 *ForeignToplevelHandleV1::get(wl_resource *resource)
@@ -1085,18 +1105,18 @@ ForeignToplevelHandleV1::ForeignToplevelHandleV1(ForeignToplevelManagerInterface
 {
 }
 
-static void toplevel_idle_send_done(void *data)
+void ForeignToplevelHandleV1Private::idleSendDone(void *data)
 {
-    auto *toplevel = static_cast<ForeignToplevelHandleV1 *>(data);
-    toplevel->send_done();
-    toplevel->reset_idle_source();
+    auto *self = static_cast<ForeignToplevelHandleV1Private *>(data);
+    self->send_done();
+    self->idle_source = nullptr;
 }
 
-void ForeignToplevelHandleV1::update_idle_source()
+void ForeignToplevelHandleV1Private::scheduleDone()
 {
-    if (d->idle_source || !d->manager) {
+    if (idle_source || !manager) {
         return;
     }
 
-    d->idle_source = wl_event_loop_add_idle(d->manager->eventLoop(), toplevel_idle_send_done, this);
+    idle_source = wl_event_loop_add_idle(manager->eventLoop(), idleSendDone, this);
 }
