@@ -63,6 +63,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     , m_blur(false)
     , m_isActivated(false)
     , m_attention(false)
+    , m_isIMCandidatePanel(false)
     , m_resizable(false)
     , m_maximizable(false)
     , m_appId(appId)
@@ -98,6 +99,7 @@ SurfaceWrapper::SurfaceWrapper(SurfaceWrapper *original, QQuickItem *parent)
     , m_blur(false)
     , m_isActivated(false)
     , m_attention(false)
+    , m_isIMCandidatePanel(false)
     , m_resizable(false)
     , m_maximizable(false)
     , m_appId(original->m_appId)
@@ -166,6 +168,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     , m_blur(false)
     , m_isActivated(false)
     , m_attention(false)
+    , m_isIMCandidatePanel(false)
     , m_resizable(false)
     , m_maximizable(false)
     , m_appId(appId)
@@ -1096,6 +1099,24 @@ bool SurfaceWrapper::setAttention(bool attention)
     return true;
 }
 
+bool SurfaceWrapper::isInputPopupLike() const
+{
+    return m_type == Type::InputPopup || m_isIMCandidatePanel;
+}
+
+bool SurfaceWrapper::isIMCandidatePanel() const
+{
+    return m_isIMCandidatePanel;
+}
+
+void SurfaceWrapper::setIMCandidatePanel(bool isIMCandidatePanel)
+{
+    if (m_isIMCandidatePanel == isIMCandidatePanel)
+        return;
+    m_isIMCandidatePanel = isIMCandidatePanel;
+    Q_EMIT isIMCandidatePanelChanged();
+}
+
 void SurfaceWrapper::setNoDecoration(bool newNoDecoration)
 {
     if (m_wrapperAboutToRemove)
@@ -1594,7 +1615,7 @@ void SurfaceWrapper::startShowDesktopAnimation(bool show)
 
 qreal SurfaceWrapper::radius() const
 {
-    if (m_type == Type::InputPopup)
+    if (isInputPopupLike())
         return 0;
     if (m_type == Type::XdgPopup)
         return 8;
@@ -1999,8 +2020,7 @@ void SurfaceWrapper::setAlwaysOnTop(bool alwaysOnTop)
 
 bool SurfaceWrapper::showOnAllWorkspace() const
 {
-    if (m_type == Type::Layer || m_type == Type::XdgPopup || m_type == Type::InputPopup)
-        [[unlikely]]
+    if (m_type == Type::Layer || m_type == Type::XdgPopup || isInputPopupLike()) [[unlikely]]
         return true;
     return m_workspaceId == Workspace::ShowOnAllWorkspaceId;
 }
