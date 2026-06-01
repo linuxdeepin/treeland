@@ -28,6 +28,7 @@ class LayerSurfaceContainer;
 class Workspace;
 class SurfaceContainer;
 class PopupSurfaceContainer;
+class IMCandidatePanelManager;
 class QmlEngine;
 class ForeignToplevelManagerInterfaceV1;
 class PrelaunchSplash;
@@ -73,6 +74,9 @@ public:
     explicit ShellHandler(RootSurfaceContainer *rootContainer,
                           WAYLIB_SERVER_NAMESPACE::WServer *server);
     [[nodiscard]] Workspace *workspace() const;
+    [[nodiscard]] SurfaceContainer *popupContainer() const;
+    [[nodiscard]] RootSurfaceContainer *rootSurfaceContainer() const;
+    [[nodiscard]] ForeignToplevelManagerInterfaceV1 *foreignToplevel() const;
 
     void createComponent(QmlEngine *engine, QQuickItem *parentItem);
     void init(WAYLIB_SERVER_NAMESPACE::WServer *server, WAYLIB_SERVER_NAMESPACE::WSeat *seat);
@@ -175,6 +179,7 @@ private:
     // FIXME: https://github.com/linuxdeepin/treeland/pull/428 Caused damage to the tooltip
     // Need to find a better way to handle popup click events
     SurfaceContainer *m_popupContainer = nullptr;
+    IMCandidatePanelManager *m_imCandidatePanelManager = nullptr;
     QObject *m_windowMenu = nullptr;
     // Prelaunch wrappers created before binding to a real shell surface
     QList<SurfaceWrapper *> m_prelaunchWrappers;

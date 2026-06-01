@@ -1,4 +1,4 @@
-// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 JiDe Zhang <zhangjide@deepin.org>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wxwayland.h"
@@ -19,6 +19,117 @@
 
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
+
+static QHash<wlr_xwayland*, WXWayland*> s_xwaylandMap;
+
+static bool xwayland_user_event_handler(wlr_xwayland *xwayland, xcb_generic_event_t *event)
+{
+    if (!event)
+        return false;
+
+    const uint8_t response_type = event->response_type & ~0x80;
+    if (response_type != XCB_PROPERTY_NOTIFY)
+        return false;
+
+    auto *pe = reinterpret_cast<const xcb_property_notify_event_t *>(event);
+    auto *self = s_xwaylandMap.value(xwayland);
+    if (!self)
+        return false;
+
+    for (auto *surface : self->surfaceList()) {
+        if (surface->handle()->handle()->window_id == pe->window) {
+            Q_EMIT self->surfacePropertyChanged(surface, pe->atom);
+            break;
+        }
+    }
+
+    // Do not consume the event; let xcb and wlroots continue normal processing.
+    return false;
+}
+
+// --- Xcb::Property ---
+
+Xcb::Property::Property() = default;
+
+Xcb::Property::Property(xcb_connection_t *conn, xcb_window_t win, xcb_atom_t prop,
+                        xcb_atom_t type, uint32_t offset, uint32_t length)
+    : m_conn(conn)
+    , m_win(win)
+    , m_type(type)
+    , m_offset(offset)
+    , m_length(length)
+    , m_cookie(xcb_get_property_unchecked(conn, false, win, prop, type, offset, length))
+{
+}
+
+Xcb::Property::~Property()
+{
+    if (!m_retrieved && m_cookie.sequence)
+        xcb_discard_reply(m_conn, m_cookie.sequence);
+    else if (m_reply)
+        free(m_reply);
+}
+
+Xcb::Property::Property(Property &&other) noexcept
+    : m_conn(other.m_conn)
+    , m_win(other.m_win)
+    , m_type(other.m_type)
+    , m_cookie(other.m_cookie)
+    , m_reply(other.m_reply)
+{
+    other.m_retrieved = true;
+    other.m_reply = nullptr;
+    other.m_cookie = {};
+}
+
+Xcb::Property &Xcb::Property::operator=(Property &&other) noexcept
+{
+    if (this != &other) {
+        if (!m_retrieved && m_cookie.sequence)
+            xcb_discard_reply(m_conn, m_cookie.sequence);
+        else if (m_reply)
+            free(m_reply);
+
+        m_conn = other.m_conn;
+        m_win = other.m_win;
+        m_type = other.m_type;
+        m_cookie = other.m_cookie;
+        m_reply = other.m_reply;
+
+        other.m_retrieved = true;
+        other.m_reply = nullptr;
+        other.m_cookie = {};
+    }
+    return *this;
+}
+
+void Xcb::Property::getReply() const
+{
+    if (m_retrieved || !m_cookie.sequence)
+        return;
+    m_reply = xcb_get_property_reply(m_conn, m_cookie, nullptr);
+    m_retrieved = true;
+}
+
+std::optional<QByteArray> Xcb::Property::toByteArray() const
+{
+    getReply();
+    if (!m_reply || m_reply->type != m_type)
+        return std::nullopt;
+    if (m_reply->value_len == 0)
+        return QByteArray("", 0);
+    return QByteArray(static_cast<const char *>(xcb_get_property_value(m_reply)),
+                      xcb_get_property_value_length(m_reply));
+}
+
+void Xcb::setProperty(xcb_connection_t *conn, xcb_window_t win, xcb_atom_t prop,
+                      xcb_atom_t type, uint8_t format, const void *data, size_t size)
+{
+    xcb_change_property(conn, XCB_PROP_MODE_REPLACE, win, prop, type,
+                        format, size, data);
+}
+
+// --- WXWayland ---
 
 class Q_DECL_HIDDEN WXWaylandPrivate : public WWrapObjectPrivate
 {
@@ -330,6 +441,9 @@ void WXWayland::create(WServer *server)
     m_handle = handle;
     d->socket->bind(handle->handle()->server->x_fd[1]);
 
+    s_xwaylandMap.insert(handle->handle(), this);
+    handle->handle()->user_event_handler = xwayland_user_event_handler;
+
     QObject::connect(handle, &qw_xwayland::notify_new_surface, this, [d] (wlr_xwayland_surface *surface) {
         d->on_new_surface(surface);
     });
@@ -348,6 +462,11 @@ void WXWayland::create(WServer *server)
 void WXWayland::destroy([[maybe_unused]] WServer *server)
 {
     W_D(WXWayland);
+
+    if (auto handle = this->handle()) {
+        s_xwaylandMap.remove(handle->handle());
+        handle->handle()->user_event_handler = nullptr;
+    }
 
     auto list = d->surfaceList;
     d->surfaceList.clear();

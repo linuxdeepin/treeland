@@ -648,6 +648,9 @@ void Output::arrangeLayerSurfaces()
 void Output::arrangeNonLayerSurface(SurfaceWrapper *surface, const QSizeF &sizeDiff)
 {
     Q_ASSERT(surface->type() != SurfaceWrapper::Type::Layer);
+    if (surface->isIMCandidatePanel())
+        return;
+
     surface->setFullscreenGeometry(geometry());
     const auto validGeo = this->validGeometry();
     surface->setMaximizedGeometry(validGeo);
@@ -869,7 +872,7 @@ void Output::clearPopupCache(SurfaceWrapper *surface)
     }
 
     if (surface->type() == SurfaceWrapper::Type::XdgPopup ||
-        surface->type() == SurfaceWrapper::Type::InputPopup) {
+        surface->isInputPopupLike()) {
         m_positionCache.remove(surface);
     }
 }
@@ -895,7 +898,7 @@ void Output::arrangePopupSurface(SurfaceWrapper *surface)
     if (surface->type() == SurfaceWrapper::Type::XdgPopup) {
         auto *outputAtCursor = Helper::instance()->getOutputAtCursor();
         targetOutput = outputAtCursor ? outputAtCursor->outputItem() : nullptr;
-    } else if (surface->type() == SurfaceWrapper::Type::InputPopup) {
+    } else if (surface->isInputPopupLike()) {
         auto *parentOutput = parentSurfaceWrapper->ownsOutput();
         targetOutput = parentOutput ? parentOutput->outputItem() : nullptr;
     }
@@ -926,6 +929,7 @@ void Output::arrangeNonLayerSurfaces()
     for (SurfaceWrapper *surface : surfaces()) {
         if (surface->type() == SurfaceWrapper::Type::Layer
             || surface->type() == SurfaceWrapper::Type::LockScreen
+            || surface->isInputPopupLike()
             || !surface->hasInitializeContainer())
             continue;
         arrangeNonLayerSurface(surface, sizeDiff);

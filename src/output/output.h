@@ -1,4 +1,4 @@
-// Copyright (C) 2024-2025 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #pragma once
 
@@ -87,6 +87,8 @@ public:
 
     OutputConfig* config() const;
 
+    void adjustToOutputBounds(QPointF &pos, const QRectF &normalGeo, const QRectF &outputRect) const;
+
 Q_SIGNALS:
     void exclusiveZoneChanged();
     void moveResizeFinised();
@@ -130,7 +132,6 @@ private:
     qreal preferredScaleFactor() const;
 
     QPointF calculateBasePosition(SurfaceWrapper *surface, const QPointF &dPos) const;
-    void adjustToOutputBounds(QPointF &pos, const QRectF &normalGeo, const QRectF &outputRect) const;
     void handleLayerShellPopup(SurfaceWrapper *surface, const QRectF &normalGeo);
     void handleRegularPopup(SurfaceWrapper *surface, const QRectF &normalGeo, bool isSubMenu, WOutputItem *targetOutput);
     void clearPopupCache(SurfaceWrapper *surface);
