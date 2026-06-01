@@ -14,6 +14,7 @@ class SurfaceWrapper;
 QW_USE_NAMESPACE
 WAYLIB_SERVER_USE_NAMESPACE
 
+class ForeignToplevelManagerInterfaceV1;
 class ForeignToplevelManagerInterfaceV1Private;
 struct SurfaceEntry;
 
@@ -53,7 +54,9 @@ Q_SIGNALS:
     void beforeDestroy();
 
 private:
-    explicit DockPreviewContextV1(wl_resource *resource, wlr_surface *_relativeSurface);
+    explicit DockPreviewContextV1(wl_resource *resource,
+                                  wlr_surface *_relativeSurface,
+                                  ForeignToplevelManagerInterfaceV1 *manager);
 
 private:
     std::unique_ptr<DockPreviewContextV1Private> d;
@@ -133,7 +136,6 @@ public:
     void set_attention(bool attention);
     void set_parent(ForeignToplevelHandleV1 *parent);
 
-    void reset_idle_source();
     void send_done();
     void send_closed();
     void send_state();
@@ -150,7 +152,6 @@ Q_SIGNALS:
 
 private:
     explicit ForeignToplevelHandleV1(ForeignToplevelManagerInterfaceV1 *manager, wl_resource *resource, SurfaceEntry *entry);
-    void update_idle_source();
 
 private:
     std::unique_ptr<ForeignToplevelHandleV1Private> d;
@@ -182,6 +183,7 @@ public:
     void addSurface(SurfaceWrapper *wrapper);
     void removeSurface(SurfaceWrapper *wrapper);
     void releaseHandle(ForeignToplevelHandleV1 *handle);
+    void releaseDockPreviewContext(DockPreviewContextV1 *context);
 
     Q_INVOKABLE void enterDockPreview(WSurface *relativeSurface);
     Q_INVOKABLE void leaveDockPreview(WSurface *relativeSurface);
