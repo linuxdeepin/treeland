@@ -81,6 +81,7 @@ class SurfaceWrapper : public QQuickItem
     Q_PROPERTY(bool coverEnabled READ coverEnabled NOTIFY coverEnabledChanged FINAL)
     Q_PROPERTY(bool acceptKeyboardFocus READ acceptKeyboardFocus NOTIFY acceptKeyboardFocusChanged FINAL)
     Q_PROPERTY(bool isActivated READ isActivated NOTIFY isActivatedChanged FINAL)
+    Q_PROPERTY(bool isIMCandidatePanel READ isIMCandidatePanel NOTIFY isIMCandidatePanelChanged FINAL)
     Q_PROPERTY(bool isResizable READ isResizable NOTIFY resizableChanged FINAL)
     Q_PROPERTY(bool isMaximizable READ isMaximizable NOTIFY maximizableChanged FINAL)
 
@@ -284,6 +285,9 @@ public:
     void setAcceptKeyboardFocus(bool accept);
 
     bool isActivated() const;
+    bool isIMCandidatePanel() const;
+    void setIMCandidatePanel(bool isIMCandidatePanel);
+    bool isInputPopupLike() const;
 
     bool attention() const;
     bool setAttention(bool attention);
@@ -349,6 +353,7 @@ Q_SIGNALS:
     void aboutToBeInvalidated();
     void acceptKeyboardFocusChanged();
     void isActivatedChanged();
+    void isIMCandidatePanelChanged();
     void resizableChanged();
     void maximizableChanged();
     void attentionChanged();
@@ -473,6 +478,7 @@ private:
     uint m_blur : 1;
     uint m_isActivated : 1;
     uint m_attention : 1;
+    uint m_isIMCandidatePanel : 1;
     uint m_resizable : 1;
     uint m_maximizable : 1;
     SurfaceRole m_surfaceRole = SurfaceRole::Normal;

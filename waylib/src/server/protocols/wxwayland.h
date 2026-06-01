@@ -1,24 +1,63 @@
-// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 JiDe Zhang <zhangjide@deepin.org>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
 
+#include <xcb/xcb.h>
+
 #include <WServer>
+
+#include <QByteArray>
 
 QW_BEGIN_NAMESPACE
 class qw_xwayland;
 class qw_compositor;
 QW_END_NAMESPACE
 
-struct xcb_connection_t;
+struct wlr_xwayland;
 struct xcb_screen_t;
-typedef uint32_t xcb_atom_t;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WSeat;
 class WXWaylandSurface;
 class WXWaylandPrivate;
+
+namespace Xcb {
+
+class Property
+{
+public:
+    Property(xcb_connection_t *conn,
+             xcb_window_t win,
+             xcb_atom_t prop,
+             xcb_atom_t type,
+             uint32_t offset = 0,
+             uint32_t length = 1024);
+    Property();
+    ~Property();
+    Property(const Property &) = delete;
+    Property &operator=(const Property &) = delete;
+    Property(Property &&other) noexcept;
+    Property &operator=(Property &&other) noexcept;
+
+    QByteArray toByteArray() const;
+
+private:
+    void getReply() const;
+
+    xcb_connection_t *m_conn = nullptr;
+    xcb_window_t m_win = XCB_WINDOW_NONE;
+    xcb_atom_t m_type = XCB_ATOM_NONE;
+    uint32_t m_offset = 0;
+    uint32_t m_length = 0;
+    mutable bool m_retrieved = false;
+    mutable xcb_get_property_cookie_t m_cookie = {};
+    mutable xcb_get_property_reply_t *m_reply = nullptr;
+};
+
+} // namespace Xcb
+
 class WAYLIB_SERVER_EXPORT WXWayland : public WWrapObject, public WServerInterface
 {
     Q_OBJECT
@@ -40,6 +79,8 @@ public:
         AtomCount
     };
     Q_ENUM(XcbAtom)
+
+    static WXWayland *fromHandle(wlr_xwayland *handle);
 
     WXWayland(QW_NAMESPACE::qw_compositor *compositor, bool lazy = true);
 
@@ -75,6 +116,7 @@ Q_SIGNALS:
     void surfaceRemoved(WXWaylandSurface *surface);
     void toplevelAdded(WXWaylandSurface *surface);
     void toplevelRemoved(WXWaylandSurface *surface);
+    void windowPropertyChanged(WXWaylandSurface *surface, xcb_atom_t atom);
 
 protected:
     void addSurface(WXWaylandSurface *surface);
