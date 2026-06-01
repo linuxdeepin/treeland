@@ -15,6 +15,7 @@ QW_USE_NAMESPACE
 WAYLIB_SERVER_USE_NAMESPACE
 
 class ForeignToplevelManagerInterfaceV1Private;
+struct SurfaceEntry;
 
 struct treeland_dock_preview_context_v1_preview_event
 {
@@ -114,6 +115,8 @@ public:
     ~ForeignToplevelHandleV1() override;
 
     wl_resource *resource() const;
+    SurfaceEntry *entry() const;
+    void clearEntry();
 
     void set_title(const QString &title);
     void set_app_id(const QString &app_id);
@@ -146,7 +149,7 @@ Q_SIGNALS:
     void rectangleChanged(treeland_foreign_toplevel_handle_v1_set_rectangle_event *event);
 
 private:
-    explicit ForeignToplevelHandleV1(ForeignToplevelManagerInterfaceV1 *manager, wl_resource *resource);
+    explicit ForeignToplevelHandleV1(ForeignToplevelManagerInterfaceV1 *manager, wl_resource *resource, SurfaceEntry *entry);
     void update_idle_source();
 
 private:
