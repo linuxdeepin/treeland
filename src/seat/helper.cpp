@@ -32,7 +32,6 @@
 #include "modules/dde-shell/ddeshellattached.h"
 #include "modules/dde-shell/ddeshellmanagerinterfacev1.h"
 #include "modules/ddm/ddminterfacev1.h"
-#include "modules/keystate/keystate.h"
 #include "modules/output-manager/outputmanagement.h"
 #include "modules/personalization/personalizationmanagerinterfacev1.h"
 #include "modules/screensaver/screensaverinterfacev1.h"
@@ -1629,8 +1628,6 @@ void Helper::init(Treeland::Treeland *treeland)
             &ShortcutController::actionFinished,
             shortcutRunner,
             &ShortcutRunner::onActionFinish);
-
-    m_server->attach<KeyStateV5>(m_seat);
 
     m_inputManagerInterfaceV1 = m_server->attach<TreelandInputManagerInterfaceV1>();
     connect(m_inputManagerInterfaceV1,
