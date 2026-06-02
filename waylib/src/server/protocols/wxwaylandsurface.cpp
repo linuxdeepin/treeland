@@ -178,7 +178,7 @@ void WXWaylandSurfacePrivate::updateChildren()
     if (children == list)
         return;
 
-    const bool hasChildChanged = children.isEmpty() || list.isEmpty();
+    const bool hasChildChanged = children.isEmpty() != list.isEmpty();
     children = list;
 
     W_Q(WXWaylandSurface);
