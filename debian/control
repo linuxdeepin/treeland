@@ -5,7 +5,7 @@ Build-Depends: cmake (>= 3.25.0),
                debhelper-compat (= 13),
                ninja-build,
                extra-cmake-modules (>= 1.4.0~),
-               libddm-dev (>= 0.3.3),
+               libddm-dev (>> 0.3.4),
                libdtk6core-bin,
                libdtk6core-dev,
                libdtk6declarative-dev,
@@ -55,7 +55,7 @@ Depends: qml6-module-qtquick-layouts,
          ${shlibs:Depends},
 Conflicts: libwaylib, qwlroots
 Replaces: libwaylib, qwlroots
-Recommends: ddm (>= 0.3.3),
+         Recommends: ddm (>> 0.3.4),
 Description: a Wayland compositor based on wlroots and QML, designed with an attractive and elegant appearance.
 
 Package: treeland-dev
