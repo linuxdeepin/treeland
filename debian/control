@@ -55,7 +55,7 @@ Depends: qml6-module-qtquick-layouts,
          ${shlibs:Depends},
 Conflicts: libwaylib, qwlroots
 Replaces: libwaylib, qwlroots
-         Recommends: ddm (>> 0.3.4),
+Recommends: ddm (>> 0.3.4),
 Description: a Wayland compositor based on wlroots and QML, designed with an attractive and elegant appearance.
 
 Package: treeland-dev
