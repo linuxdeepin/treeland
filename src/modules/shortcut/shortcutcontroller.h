@@ -37,6 +37,7 @@ public:
     bool dispatchKeyEvent(const QKeyEvent *event);
     static QKeyCombination normalizeKeyCombination(QKeyCombination combination);
     static bool isValidShortcutCombination(QKeyCombination combination);
+    Qt::KeyboardModifiers modifierForAction(ShortcutAction action) const;
 
 Q_SIGNALS:
     void actionTriggered(ShortcutAction action, const QString &name, bool isGesture, KeyFlags keyFlags = {});
@@ -49,6 +50,7 @@ private:
     QMap<std::pair<uint, SwipeGesture::Direction>, QMap<ShortcutAction, QString>> m_gesturemap;
     QMap<std::pair<uint, SwipeGesture::Direction>, QObject*> m_gestures;
     QMap<QString, std::function<void()>> m_deleters;
+    QMap<ShortcutAction, int> m_actionCombinedMap;
 };
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(ShortcutController::KeyFlags)

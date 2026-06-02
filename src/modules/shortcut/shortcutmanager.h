@@ -46,7 +46,6 @@ enum class ShortcutAction : uint32_t {
     Lockscreen            = 20,
     ShutdownMenu          = 21,
     Quit                  = 22,
-    TaskSwitchEnter       = 23,
     TaskSwitchNext        = 24,
     TaskSwitchPrev        = 25,
     TaskSwitchSameAppNext = 26,

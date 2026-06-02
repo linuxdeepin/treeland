@@ -2,6 +2,17 @@
     "magic": "dsg.config.meta",
     "version": "1.0",
     "contents": {
+        "quickSwitchTimeout": {
+            "value": 120,
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Quick Switch Timeout (ms)",
+            "name[zh_CN]": "快速切换超时（毫秒）",
+            "description": "Timeout to distinguish a quick Alt+Tab toggle from the full task switcher",
+            "description[zh_CN]": "区分快速 Alt+Tab 切换与完整任务切换器的超时时长",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
         "forceSoftwareCursor": {
             "value": false,
             "serial": 0,

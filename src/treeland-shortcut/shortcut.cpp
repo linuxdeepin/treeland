@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.
+// Copyright (C) 2023-2026 Dingyuan Zhang <zhangdingyuan@uniontech.com>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "shortcut.h"
@@ -40,7 +40,6 @@ static const QMap<QString, ShortcutV2::action> ActionMap = {
     {"Lockscreen", ShortcutV2::action_lockscreen},
     {"ShutdownMenu", ShortcutV2::action_shutdown_menu},
     {"Quit", ShortcutV2::action_quit},
-    {"TaskswitchEnter", ShortcutV2::action_taskswitch_enter},
     {"TaskswitchNext", ShortcutV2::action_taskswitch_next},
     {"TaskswitchPrev", ShortcutV2::action_taskswitch_prev},
     {"TaskswitchSameAppNext", ShortcutV2::action_taskswitch_sameapp_next},
