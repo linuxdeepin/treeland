@@ -12,8 +12,7 @@ Before=treeland-sd.service
 Wants=treeland-xwayland.service
 Before=treeland-xwayland.service
 
-Wants=treeland-shortcut.service
-Before=treeland-shortcut.service
+@TREELAND_SHORTCUT_SERVICE_DEPS@
 
 Requisite=dde-session-pre.target
 PartOf=dde-session-pre.target

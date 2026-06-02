@@ -1,4 +1,3 @@
 usr/share/dsg/configs/*
-usr/share/treeland/shortcuts/*
 usr/share/wayland-sessions/treeland.desktop
 usr/share/dbus-1/interfaces/org.freedesktop.ScreenSaver.xml
