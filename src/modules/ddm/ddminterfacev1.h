@@ -15,8 +15,6 @@ public:
     ~DDMInterfaceV1() override;
 
     bool isConnected() const;
-    void switchToVt(const int vtnr);
-    void acquireVt(const int vtnr);
 
     QByteArrayView interfaceName() const override;
     static constexpr int InterfaceVersion = 1;

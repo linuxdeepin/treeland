@@ -133,9 +133,7 @@
 #include <rhi/qrhi.h>
 
 #include <functional>
-#include <linux/input.h>
 #include <pwd.h>
-#include <sys/ioctl.h>
 #include <unistd.h>
 #include <utility>
 #include <wayland-util.h>
@@ -1773,6 +1771,29 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *targetWindow, QInputEvent 
     if (event->isInputEvent()) {
         m_idleNotifier->notify_activity(seat->nativeHandle());
     }
+
+    if (event->type() == QEvent::KeyPress) {
+        auto kevent = static_cast<QKeyEvent *>(event);
+        const auto modifiers = kevent->modifiers();
+        const auto ctrlAlt = Qt::ControlModifier | Qt::AltModifier;
+        if ((modifiers & ctrlAlt) == ctrlAlt) {
+            const auto key = kevent->key();
+            if (key >= Qt::Key_F1 && key <= Qt::Key_F12) {
+                const int vtnr = key - Qt::Key_F1 + 1;
+                const bool sessionActive = m_backend->isSessionActive();
+                qCWarning(treelandCore) << "Ctrl+Alt+Fn VT shortcut received"
+                                        << vtnr << "sessionActive" << sessionActive;
+                if (!sessionActive) {
+                    return true;
+                }
+
+                qCWarning(treelandCore) << "Ctrl+Alt+Fn VT shortcut requested" << vtnr;
+                m_backend->session()->change_vt(vtnr);
+                return true;
+            }
+        }
+    }
+
     WSeat *targetSeat = seat;
     if (event->device()) {
         WInputDevice *device = WInputDevice::from(event->device());
@@ -1826,26 +1847,6 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *targetWindow, QInputEvent 
                     return true;
             }
 #endif
-
-            // Switch TTY with Ctrl + Alt + F1-F12
-            if (kevent->modifiers() == (Qt::ControlModifier | Qt::AltModifier)) {
-                auto key = kevent->key();
-                // We don't call libseat_disable_seat after switching TTY by
-                // calling DDM, which will cause the keyboard stuck in current
-                // state (Ctrl + Alt + Fx), and send switchToVt repeatly.
-                // Check if the backend is active to avoid this.
-                if (key >= Qt::Key_F1 && key <= Qt::Key_F12 && m_backend->isSessionActive()) {
-                    const int vtnr = key - Qt::Key_F1 + 1;
-                    if (m_ddmInterfaceV1 && m_ddmInterfaceV1->isConnected()) {
-                        m_ddmInterfaceV1->switchToVt(vtnr);
-                    } else {
-                        qCDebug(treelandCore) << "DDM is not connected";
-                        showLockScreen(false);
-                        m_backend->session()->change_vt(vtnr);
-                    }
-                    return true;
-                }
-            }
 
             if (m_captureSelector) {
                 if (event->modifiers() == Qt::NoModifier && kevent->key() == Qt::Key_Escape)
@@ -2731,19 +2732,6 @@ void Helper::enableRender() {
 
 void Helper::disableRender() {
     m_renderWindow->setRenderEnabled(false);
-
-    // Revoke all evdev devices to prevent accidental events during switch
-    static const char prefix[] = "/dev/input/";
-    static const int prefixLen = strlen(prefix);
-    struct wlr_session *session = m_backend->session()->handle();
-    struct wlr_device *device = nullptr;
-    wl_list_for_each(device, &session->devices, link) {
-        char path[32];
-        if (readlink(qPrintable(QStringLiteral("/proc/self/fd/%1").arg(device->fd)), path, 32) < 0)
-            qCWarning(treelandCore) << "Failed to read path of file descriptor " << device->fd;
-        else if (strncmp(prefix, path, prefixLen))
-            ioctl(device->fd, EVIOCREVOKE, nullptr);
-    }
 }
 
 void Helper::setBlockActivateSurface(bool block)
