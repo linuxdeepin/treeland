@@ -547,7 +547,8 @@ void WSeatPrivate::on_keyboard_key(wlr_keyboard_key_event *event, WInputDevice *
         "XKB_KEY_XF86Switch_VT_1..12 and XKB_KEY_F1..F12 must be contiguous and ordered for keysym calculation"
     );
     if (sym >= XKB_KEY_XF86Switch_VT_1 && sym <= XKB_KEY_XF86Switch_VT_12) {
-        if (keyModifiers == (Qt::ControlModifier | Qt::AltModifier)) {
+        constexpr auto ctrlAlt = Qt::ControlModifier | Qt::AltModifier;
+        if ((keyModifiers & ctrlAlt) == ctrlAlt) {
             sym = XKB_KEY_F1 + (sym - XKB_KEY_XF86Switch_VT_1);
         }
     }
