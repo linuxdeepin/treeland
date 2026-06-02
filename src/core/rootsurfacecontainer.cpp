@@ -8,6 +8,7 @@
 #include "seat/helper.h"
 #include "seat/seatsmanager.h"
 #include "surface/surfacewrapper.h"
+#include "workspace/workspace.h"
 
 #include <wcursor.h>
 #include <woutput.h>
@@ -395,7 +396,9 @@ void RootSurfaceContainer::updateSurfaceOutputs(SurfaceWrapper *surface)
     const QRectF geometry = surface->geometry();
     auto outputs = m_outputLayout->getIntersectedOutputs(geometry.toRect());
     surface->setOutputs(outputs);
-    // TODO: Update ownsOutput during move/resize on multi-output systems
+
+    if (auto *ws = Helper::instance()->workspace())
+        ws->updateSurfaceOwnsOutput(surface);
 }
 
 static qreal pointToRectMinDistance(const QPointF &pos, const QRectF &rect)
