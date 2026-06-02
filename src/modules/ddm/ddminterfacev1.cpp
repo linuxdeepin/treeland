@@ -51,18 +51,20 @@ void DDMInterfaceV1Private::destroy(Resource *resource)
 
 void DDMInterfaceV1Private::bind_resource(Resource *resource)
 {
-    send_acquire_vt(resource->handle, 0);
+    Q_UNUSED(resource)
 }
 
 void DDMInterfaceV1Private::switch_to_greeter([[maybe_unused]] Resource *resource)
 {
+    qCWarning(treelandCore) << "DDM protocol: switch_to_greeter";
     Helper::instance()->showLockScreen(false);
 }
 
 void DDMInterfaceV1Private::switch_to_user([[maybe_unused]] Resource *resource, const QString &username)
 {
+    qCWarning(treelandCore) << "DDM protocol: switch_to_user" << username;
     auto helper = Helper::instance();
-    if (username == "ddm") {
+    if (username == "dde") {
         helper->showLockScreen(false);
     } else if (username != helper->userModel()->currentUserName()) {
         helper->userModel()->setCurrentUserName(username);
@@ -72,16 +74,19 @@ void DDMInterfaceV1Private::switch_to_user([[maybe_unused]] Resource *resource, 
 
 void DDMInterfaceV1Private::activate_session([[maybe_unused]] Resource *resource)
 {
+    qCWarning(treelandCore) << "DDM protocol: activate_session";
     Helper::instance()->activateSession();
 }
 
 void DDMInterfaceV1Private::deactivate_session([[maybe_unused]] Resource *resource)
 {
+    qCWarning(treelandCore) << "DDM protocol: deactivate_session";
     Helper::instance()->deactivateSession();
 }
 
 void DDMInterfaceV1Private::enable_render([[maybe_unused]] Resource *resource)
 {
+    qCWarning(treelandCore) << "DDM protocol: enable_render";
     Helper::instance()->enableRender();
 }
 
@@ -111,28 +116,6 @@ QByteArrayView DDMInterfaceV1::interfaceName() const
 bool DDMInterfaceV1::isConnected() const
 {
     return !d->resourceMap().isEmpty();
-}
-
-void DDMInterfaceV1::switchToVt(const int vtnr)
-{
-    if (isConnected()) {
-        for (const auto &resource : d->resourceMap()) {
-            d->send_switch_to_vt(resource->handle, vtnr);
-        }
-    } else {
-        qCWarning(treelandCore) << "DDM is not connected when trying to call switchToVt";
-    }
-}
-
-void DDMInterfaceV1::acquireVt(const int vtnr)
-{
-    if (isConnected()) {
-        for (const auto &resource : d->resourceMap()) {
-            d->send_acquire_vt(resource->handle, vtnr);
-        }
-    } else {
-        qCWarning(treelandCore) << "DDM is not connected when trying to call acquireVt";
-    }
 }
 
 void DDMInterfaceV1::create(WServer *server)
