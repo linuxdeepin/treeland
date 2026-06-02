@@ -38,7 +38,7 @@ Popup {
         delegate: Item {
             required property string name
             required property int index
-            width: parent.width
+            width: parent ? parent.width : 0
             height: 60
             MouseArea {
                 anchors.fill: parent

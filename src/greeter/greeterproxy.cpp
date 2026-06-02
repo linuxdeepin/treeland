@@ -472,7 +472,10 @@ void GreeterProxy::readyRead()
             Q_EMIT informationMessage(message);
         } break;
         case DaemonMessages::SwitchToGreeter: {
-            qCInfo(treelandGreeter) << "switch to greeter";
+            qCWarning(treelandGreeter) << "daemon message: SwitchToGreeter"
+                                       << "locked" << m_isLocked
+                                       << "lockScreen" << m_lockScreen
+                                       << "lockScreenVisible" << (m_lockScreen ? m_lockScreen->isVisible() : false);
             lock();
         } break;
         case DaemonMessages::UserActivateMessage: {
@@ -482,14 +485,20 @@ void GreeterProxy::readyRead()
 
             // NOTE: maybe DDM will active dde user.
             if (!userModel()->getUser(user)) {
-                qCInfo(treelandGreeter) << "activate user, but switch to greeter";
+                qCWarning(treelandGreeter) << "daemon message: UserActivateMessage fallback to greeter"
+                                           << "user" << user
+                                           << "sessionId" << sessionId
+                                           << "locked" << m_isLocked;
                 lock();
                 break;
             }
 
             userModel()->setCurrentUserName(user);
 
-            qCInfo(treelandGreeter) << "activate successfully: " << user << ", XDG_SESSION_ID: " << sessionId;
+            qCWarning(treelandGreeter) << "daemon message: UserActivateMessage success"
+                                       << "user" << user
+                                       << "sessionId" << sessionId
+                                       << "locked" << m_isLocked;
         } break;
         case DaemonMessages::UserLoggedIn: {
             QString user;

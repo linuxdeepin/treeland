@@ -41,6 +41,7 @@ public:
     bool available() const;
     bool isLocked() const;
     void lock();
+    void refresh();
     void shutdown();
     void switchUser();
     void setPrimaryOutputName(const QString &primaryOutputName);

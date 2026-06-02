@@ -45,11 +45,16 @@ Item {
         stopped()
     }
 
+    function reset() {
+        visible = false
+        effect.sourceItem = null
+    }
+
     ShaderEffectSource {
         id: effect
         live: true
         hideSource: true
-        sourceItem: root.target
+        sourceItem: null
         width: root.target.width
         height: root.target.height
         x: root.target.x

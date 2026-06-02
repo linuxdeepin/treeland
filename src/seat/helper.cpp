@@ -2547,6 +2547,8 @@ void Helper::setCurrentMode(CurrentMode mode)
 void Helper::showLockScreen(bool switchToGreeter)
 {
     if (m_lockScreen->isLocked()) {
+        qCWarning(treelandCore) << "Lock screen is already locked, refreshing greeter UI";
+        m_lockScreen->refresh();
         return;
     }
 

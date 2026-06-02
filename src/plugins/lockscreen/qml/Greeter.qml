@@ -16,14 +16,18 @@ FocusScope {
     required property QtObject output
     required property QtObject outputItem
     property string primaryOutputName
-    visible: primaryOutputName === "" || primaryOutputName === output.name
+    visible: output && (primaryOutputName === "" || primaryOutputName === output.name)
 
-    x: outputItem.x
-    y: outputItem.y
-    width: outputItem.width
-    height: outputItem.height
+    x: outputItem ? outputItem.x : 0
+    y: outputItem ? outputItem.y : 0
+    width: outputItem ? outputItem.width : 0
+    height: outputItem ? outputItem.height : 0
 
     palette.windowText: Qt.rgba(1.0, 1.0, 1.0, 1.0)
+
+    function ensureShown() {
+        background.updateShownState(background.state === "Show")
+    }
 
     /**************/
     /* Components */
@@ -94,15 +98,24 @@ FocusScope {
                 }
             }
         ]
-        onStateChanged: {
-            if (state === "Show") {
-                Helper.startLockscreen(root.output, true);
-                wallpaper.play = true;
+        function updateShownState(shown) {
+            if (shown) {
+                if (root.output) {
+                    Helper.startLockscreen(root.output, true);
+                }
+                lockView.ensureShown()
+                wallpaper.play = true
             } else {
-                wallpaper.play = false;
-                Helper.showDesktop(root.output)
+                wallpaper.play = false
+                if (root.output) {
+                    Helper.showDesktop(root.output)
+                }
             }
         }
+
+        onStateChanged: updateShownState(state === "Show")
+        Component.onCompleted: updateShownState(state === "Show")
+        onVisibleChanged: if (visible) updateShownState(state === "Show")
 
         Wallpaper {
             id: wallpaper

@@ -186,6 +186,21 @@ FocusScope {
         root.animationPlayFinished.connect(root.__showUserList)
     }
 
+    function ensureShown() {
+        root.forceActiveFocus()
+        root.visible = true
+        root.state = LoginAnimation.Show
+
+        if (leftAnimation.item)
+            leftAnimation.item.reset()
+        if (logoAnimation.item)
+            logoAnimation.item.reset()
+        if (rightAnimation.item)
+            rightAnimation.item.reset()
+        if (bottomAnimation.item)
+            bottomAnimation.item.reset()
+    }
+
     function __showUserList() {
         controlAction.showUserList()
         root.animationPlayFinished.disconnect(root.__showUserList)

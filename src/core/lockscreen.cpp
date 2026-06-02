@@ -46,6 +46,13 @@ void LockScreen::lock()
         m_greeterProxy->lock();
 }
 
+void LockScreen::refresh()
+{
+    for (const auto &[_, component] : m_components) {
+        QMetaObject::invokeMethod(component.get(), "ensureShown");
+    }
+}
+
 void LockScreen::shutdown()
 {
     // ext_session_lock_v1 does not support shutdown
