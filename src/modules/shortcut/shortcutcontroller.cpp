@@ -69,8 +69,10 @@ uint ShortcutController::registerKey(const QString &name, const QString& key, Sh
                                  << "by name" << prevName << "with new name" << name << "and flags" << keybindFlags;
     }
     m_keyMap[combined][action] = std::make_pair(name, keybindFlags);
+    m_actionCombinedMap[action] = combined;
     m_deleters[name] = [this, combined, action]() {
         m_keyMap[combined].remove(action);
+        m_actionCombinedMap.remove(action);
     };
     return 0;
 }
@@ -206,12 +208,23 @@ bool ShortcutController::dispatchKeyEvent(const QKeyEvent *kevent)
     return false;
 }
 
+Qt::KeyboardModifiers ShortcutController::modifierForAction(ShortcutAction action) const
+{
+    auto it = m_actionCombinedMap.find(action);
+    if (it != m_actionCombinedMap.end()) {
+        return QKeyCombination::fromCombined(it.value()).keyboardModifiers()
+            & (Qt::AltModifier | Qt::MetaModifier | Qt::ControlModifier);
+    }
+    return Qt::NoModifier;
+}
+
 void ShortcutController::clear()
 {
     for (const auto& deleter : std::as_const(m_deleters)) {
         deleter();
     }
     m_deleters.clear();
+    m_actionCombinedMap.clear();
 }
 
 QKeyCombination ShortcutController::normalizeKeyCombination(QKeyCombination combination) {

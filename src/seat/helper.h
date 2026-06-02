@@ -24,6 +24,7 @@
 
 #include <QList>
 #include <QMap>
+#include <qevent.h>
 
 #include <optional>
 
@@ -286,6 +287,7 @@ Q_SIGNALS:
     void launchpadMappedChanged(WOutput *output, bool mapped);
     void showDesktopRequested(WOutput *output);
     void startLockscreened(WOutput *output, bool showAnimation);
+    void modifierKeyReleased(QKeyEvent *event);
 
 private Q_SLOTS:
     void onShowDesktop();

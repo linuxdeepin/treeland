@@ -8,6 +8,7 @@
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QJsonObject>
+#include <qnamespace.h>
 #ifdef EXT_SESSION_LOCK_V1
 #include "wsessionlock.h"
 #include "wsessionlockmanager.h"
@@ -1872,13 +1873,10 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *targetWindow, QInputEvent 
 
         if (event->type() == QEvent::KeyRelease && !m_captureSelector) {
             auto kevent = static_cast<QKeyEvent *>(event);
-            if (m_taskSwitch && m_taskSwitch->property("switchOn").toBool()) {
-                if (kevent->key() == Qt::Key_Alt || kevent->key() == Qt::Key_Meta) {
-                    auto filter = Helper::instance()->workspace()->currentFilter();
-                    filter->setFilterAppId("");
-                    setCurrentMode(CurrentMode::Normal);
-                    QMetaObject::invokeMethod(m_taskSwitch, "exit");
-                }
+            const int key = kevent->key();
+            if (key == Qt::Key_Alt || key == Qt::Key_Control ||
+                key == Qt::Key_Shift || key == Qt::Key_Meta) {
+                Q_EMIT modifierKeyReleased(kevent);
             }
         }
     }
