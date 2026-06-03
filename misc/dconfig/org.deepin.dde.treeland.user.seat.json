@@ -25,7 +25,7 @@
             "visibility": "public"
         },
         "mouseAccelSpeed": {
-            "value": 0.0,
+            "value": 0.333333,
             "serial": 0,
             "flags": [],
             "name": "Mouse Acceleration Speed",
@@ -36,7 +36,7 @@
             "visibility": "public"
         },
         "mouseAccelerationProfile": {
-            "value": 0,
+            "value": 2,
             "serial": 0,
             "flags": [],
             "name": "Mouse Acceleration Profile",
@@ -58,7 +58,7 @@
             "visibility": "public"
         },
         "touchpadAccelSpeed": {
-            "value": 0.0,
+            "value": 0.333333,
             "serial": 0,
             "flags": [],
             "name": "Touchpad Acceleration Speed",
@@ -69,7 +69,7 @@
             "visibility": "public"
         },
         "touchpadAccelerationProfile": {
-            "value": 0,
+            "value": 1,
             "serial": 0,
             "flags": [],
             "name": "Touchpad Acceleration Profile",
@@ -80,7 +80,7 @@
             "visibility": "public"
         },
         "touchpadDisableWhileTyping": {
-            "value": false,
+            "value": true,
             "serial": 0,
             "flags": [],
             "name": "Touchpad Disable While Typing",
@@ -91,7 +91,7 @@
             "visibility": "public"
         },
         "touchpadTapToClick": {
-            "value": false,
+            "value": true,
             "serial": 0,
             "flags": [],
             "name": "Touchpad Tap To Click",
@@ -102,7 +102,7 @@
             "visibility": "public"
         },
         "touchpadNaturalScroll": {
-            "value": false,
+            "value": true,
             "serial": 0,
             "flags": [],
             "name": "Touchpad Natural Scroll",
@@ -124,7 +124,7 @@
             "visibility": "public"
         },
         "keyboardRate": {
-            "value": 25,
+            "value": 20,
             "serial": 0,
             "flags": [],
             "name": "Keyboard Repeat Rate",
@@ -135,7 +135,7 @@
             "visibility": "public"
         },
         "keyboardDelay": {
-            "value": 600,
+            "value": 250,
             "serial": 0,
             "flags": [],
             "name": "Keyboard Repeat Delay",
