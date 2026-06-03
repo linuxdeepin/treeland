@@ -53,6 +53,7 @@ Depends: qml6-module-qtquick-layouts,
          treeland-data (= ${source:Version}),
          xwayland,
          treeland-wallpaper-factory,
+         ${misc:Depends},
          ${shlibs:Depends},
 Conflicts: libwaylib, qwlroots
 Replaces: libwaylib, qwlroots
@@ -63,7 +64,8 @@ Package: treeland-dev
 Section: libdevel
 Architecture: any
 Multi-Arch: same
-Depends: ${misc:Depends}, treeland( =${source:Version}),
+Depends: ${misc:Depends},
+         treeland (= ${source:Version}),
 Conflicts: libwaylib-dev, qwlroots
 Replaces: libwaylib-dev, qwlroots
 Description: a Wayland compositor based on wlroots and QML, designed with an attractive and elegant appearance.
@@ -72,7 +74,8 @@ Package: treeland-examples
 Section: dde
 Architecture: any
 Multi-Arch: same
-Depends: ${shlibs:Depends},
+Depends: ${misc:Depends},
+         ${shlibs:Depends},
 Description: examples for treeland.
 
 Package: treeland-data
