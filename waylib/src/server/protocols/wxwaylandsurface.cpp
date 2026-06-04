@@ -9,6 +9,7 @@
 
 #include <qwxwaylandsurface.h>
 #include <qwcompositor.h>
+#include <QPointer>
 
 #include <sys/syscall.h>
 #include <unistd.h>
@@ -61,7 +62,7 @@ public:
     mutable int pidFD = -1;
 
     QList<WXWaylandSurface*> children;
-    WXWaylandSurface *parent = nullptr;
+    QPointer<WXWaylandSurface> parent;
     QRect lastRequestConfigureGeometry;
     WXWaylandSurface::ConfigureFlags lastRequestConfigureFlags = {0};
     WXWaylandSurface::WindowTypes windowTypes = {0};
@@ -196,7 +197,8 @@ void WXWaylandSurfacePrivate::updateParent()
         return;
 
     const bool hasParentChanged = (parent == nullptr) != (newParent == nullptr);
-    if (parent)
+    // QPointer handles destroyed wrappers; isInvalidated() prevents accessing destroyed wlroots objects.
+    if (parent && !parent->isInvalidated())
         parent->d_func()->updateChildren();
     parent = newParent;
     if (parent)
