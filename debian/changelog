@@ -1,3 +1,40 @@
+treeland (0.8.8) unstable; urgency=medium
+
+  * fix: skip update on destroyed xwayland parent
+  * feat(input-manager): update default configuration values ​​for input
+    devices.
+  * fix: correct xwayland child change detection logic
+  * fix(debian): avoid restarting treeland on upgrade
+  * fix(surface): improve output geometry handling for maximized state
+  * chore(shortcut): add option to disable built-in shortcut daemon
+  * feat: implement on-demand hierarchical window tree via Qt Remote
+    Object
+  * fix(vt): switch VT through wlroots session (#913)
+  * fix: resolve splash transition size issue
+  * refactor(foreign-toplevel): remove globals and encapsulate handles
+  * feat(foreign-toplevel): localize manager-owned registries and idle
+    scheduling
+  * refactor(foreign-toplevel): multi-client handles via SurfaceEntry
+  * refactor: migrate foreign-toplevel protocol to qtwayland scanner
+  * feat(keystate): remove the implementation and examples of the kde-
+    keystate protocol
+  * feat(keyboard-state-notify): added implementation logic for treeland-
+    keyboard-state-notify-unstable
+  * fix: SSD fallback without PersonalizationV1
+  * refactor: rename and split surface destruction logic
+  * fix: use safe xwayland surface signals
+  * feat(dconfig): add seat-level input device DConfig
+  * fix: null check in input method grab
+  * refactor: unify shortcut validation logic
+  * fix: drain residual key release after capture shortcut
+  * fix: add serial to configure position response
+  * fix(dockpreview): drop invalidated wrappers from preview
+  * fix: guard against null surface/WSurface in idle inhibitor handling
+  * feat(wayland): add treeland-input-manager-unstable-v1 protocol
+    implementation
+
+ -- rewine <luhongxu@deepin.org>  Thu, 04 Jun 2026 20:57:21 +0800
+
 treeland (0.8.7) unstable; urgency=medium
 
   * refactor(virtual-output): use QStringList join for output name
