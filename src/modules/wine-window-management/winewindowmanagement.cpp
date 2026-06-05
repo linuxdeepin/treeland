@@ -21,18 +21,23 @@ QW_USE_NAMESPACE
 
 class WineWindowControl;
 
-class WineWindowManagementManagerPrivate
-    : public QtWaylandServer::treeland_wine_window_manager_v1
+class WineWindowManagerPrivate : public QtWaylandServer::treeland_wine_window_manager_v1
 {
 public:
-    explicit WineWindowManagementManagerPrivate(WineWindowManagementManager *q)
+    explicit WineWindowManagerPrivate(WineWindowManager *q)
         : q(q)
     {
     }
 
-    wl_global *globalHandle() const { return m_global; }
+    wl_global *globalHandle() const
+    {
+        return m_global;
+    }
 
-    uint32_t nextWindowId() { return ++m_nextId; }
+    uint32_t nextWindowId()
+    {
+        return ++m_nextId;
+    }
 
     WineWindowControl *controlForId(uint32_t id) const
     {
@@ -60,10 +65,13 @@ public:
 protected:
     void destroy_global() override
     {
-        qCDebug(treelandProtocol) << "WineWindowManagementManager global destroyed";
+        qCDebug(treelandProtocol) << "WineWindowManager global destroyed";
     }
 
-    void destroy(Resource *resource) override { wl_resource_destroy(resource->handle); }
+    void destroy(Resource *resource) override
+    {
+        wl_resource_destroy(resource->handle);
+    }
 
     void get_window_control(Resource *resource,
                             uint32_t id,
@@ -77,7 +85,7 @@ private:
         WineWindowControl *control{ nullptr };
     };
 
-    WineWindowManagementManager *q{ nullptr };
+    WineWindowManager *q{ nullptr };
     uint32_t m_nextId = 0;
     QList<ControlEntry> m_controls;
 };
@@ -88,7 +96,7 @@ class WineWindowControl
 {
 public:
     WineWindowControl(QObject *parent,
-                      WineWindowManagementManagerPrivate *manager,
+                      WineWindowManagerPrivate *manager,
                       uint32_t windowId,
                       SurfaceWrapper *wrapper,
                       wl_client *client,
@@ -101,7 +109,9 @@ public:
         , m_wrapper(wrapper)
     {
         Q_ASSERT_X(m_wrapper, Q_FUNC_INFO, "wrapper must not be null");
-        Q_ASSERT_X(m_wrapper->shellSurface(), Q_FUNC_INFO, "wrapper->shellSurface() must not be null");
+        Q_ASSERT_X(m_wrapper->shellSurface(),
+                   Q_FUNC_INFO,
+                   "wrapper->shellSurface() must not be null");
 
         connect(m_wrapper, &SurfaceWrapper::aboutToBeInvalidated, this, [this] {
             if (m_manager) {
@@ -128,12 +138,21 @@ public:
         sendConfigureStacking();
     }
 
-    uint32_t windowId() const { return m_windowId; }
+    uint32_t windowId() const
+    {
+        return m_windowId;
+    }
 
-    SurfaceWrapper *wrapper() const { return m_wrapper; }
+    SurfaceWrapper *wrapper() const
+    {
+        return m_wrapper;
+    }
 
 protected:
-    void destroy(Resource *resource) override { wl_resource_destroy(resource->handle); }
+    void destroy(Resource *resource) override
+    {
+        wl_resource_destroy(resource->handle);
+    }
 
     void destroy_resource([[maybe_unused]] Resource *resource) override
     {
@@ -153,8 +172,8 @@ protected:
             return;
         }
 
-        qCDebug(treelandProtocol)
-            << "set_position serial" << x << y << serial << "for window_id" << m_windowId;
+        qCDebug(treelandProtocol) << "set_position serial" << x << y << serial << "for window_id"
+                                  << m_windowId;
 
         m_wrapper->setPositionAutomatic(false);
         // Suppress only this class's xChanged/yChanged handlers to avoid
@@ -166,9 +185,7 @@ protected:
         sendConfigurePosition(serial);
     }
 
-    void set_z_order([[maybe_unused]] Resource *resource,
-                     uint32_t op,
-                     uint32_t sibling_id) override
+    void set_z_order([[maybe_unused]] Resource *resource, uint32_t op, uint32_t sibling_id) override
     {
         if (!m_wrapper) {
             return;
@@ -181,7 +198,8 @@ protected:
         if (op != z_order_op_hwnd_insert_after && sibling_id != 0) {
             wl_resource_post_error(resource->handle,
                                    error_invalid_sibling,
-                                   "sibling_id must be 0 for op %u", op);
+                                   "sibling_id must be 0 for op %u",
+                                   op);
             return;
         }
 
@@ -278,15 +296,15 @@ private:
     }
 
 private:
-    WineWindowManagementManagerPrivate *m_manager = nullptr;
+    WineWindowManagerPrivate *m_manager = nullptr;
     uint32_t m_windowId = 0;
     SurfaceWrapper *m_wrapper = nullptr;
     bool m_suppressPositionEvents = false;
 };
 
-void WineWindowManagementManagerPrivate::get_window_control(Resource *resource,
-                                                            uint32_t id,
-                                                            struct ::wl_resource *toplevelResource)
+void WineWindowManagerPrivate::get_window_control(Resource *resource,
+                                                  uint32_t id,
+                                                  struct ::wl_resource *toplevelResource)
 {
     auto *qXdgToplevel = qw_xdg_toplevel::from_resource(toplevelResource);
     if (!qXdgToplevel) {
@@ -331,38 +349,37 @@ void WineWindowManagementManagerPrivate::get_window_control(Resource *resource,
                                           id);
     registerControl(windowId, xdgToplevel, control);
 
-    qCDebug(treelandProtocol)
-        << "Created WineWindowControl for toplevel, window_id =" << windowId;
+    qCDebug(treelandProtocol) << "Created WineWindowControl for toplevel, window_id =" << windowId;
 }
 
 // ---------------------------------------------------------------------------
-// WineWindowManagementManager public interface
+// WineWindowManager public interface
 // ---------------------------------------------------------------------------
 
-WineWindowManagementManager::WineWindowManagementManager(QObject *parent)
+WineWindowManager::WineWindowManager(QObject *parent)
     : QObject(parent)
-    , d(std::make_unique<WineWindowManagementManagerPrivate>(this))
+    , d(std::make_unique<WineWindowManagerPrivate>(this))
 {
 }
 
-WineWindowManagementManager::~WineWindowManagementManager() = default;
+WineWindowManager::~WineWindowManager() = default;
 
-void WineWindowManagementManager::create(WServer *server)
+void WineWindowManager::create(WServer *server)
 {
     d->init(*server->handle(), InterfaceVersion);
 }
 
-void WineWindowManagementManager::destroy(WServer * /*server*/)
+void WineWindowManager::destroy(WServer * /*server*/)
 {
     d->globalRemove();
 }
 
-wl_global *WineWindowManagementManager::global() const
+wl_global *WineWindowManager::global() const
 {
     return d->globalHandle();
 }
 
-QByteArrayView WineWindowManagementManager::interfaceName() const
+QByteArrayView WineWindowManager::interfaceName() const
 {
     return QtWaylandServer::treeland_wine_window_manager_v1::interfaceName();
 }

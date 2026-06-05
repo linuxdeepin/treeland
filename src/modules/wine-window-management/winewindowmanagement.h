@@ -11,16 +11,16 @@
 
 #include <memory>
 
-class WineWindowManagementManagerPrivate;
+class WineWindowManagerPrivate;
 
-class WineWindowManagementManager
+class WineWindowManager
     : public QObject
     , public WAYLIB_SERVER_NAMESPACE::WServerInterface
 {
     Q_OBJECT
 public:
-    explicit WineWindowManagementManager(QObject *parent = nullptr);
-    ~WineWindowManagementManager() override;
+    explicit WineWindowManager(QObject *parent = nullptr);
+    ~WineWindowManager() override;
     static constexpr int InterfaceVersion = 1;
 
 protected:
@@ -30,5 +30,5 @@ protected:
     QByteArrayView interfaceName() const override;
 
 private:
-    std::unique_ptr<WineWindowManagementManagerPrivate> d;
+    std::unique_ptr<WineWindowManagerPrivate> d;
 };
