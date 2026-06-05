@@ -39,7 +39,6 @@
 #include <QOpenGLFunctions>
 #include <QLoggingCategory>
 #include <QRunnable>
-#include <qlogging.h>
 #include <memory>
 
 #include <private/qsgrenderer_p.h>
