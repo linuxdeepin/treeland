@@ -12,7 +12,6 @@
 #include <QWidget>
 #include <QtWaylandClient/QWaylandClientExtension>
 #include <QtWaylandClient/private/qwaylandscreen_p.h>
-#include <qlogging.h>
 
 VirtualClient::VirtualClient(int argc, char *argv[], QObject *parent)
     : QObject(parent)

@@ -11,16 +11,16 @@
 #include "modules/dde-shell/ddeshellmanagerinterfacev1.h"
 #include "modules/foreign-toplevel/foreigntoplevelmanagerv1.h"
 #include "modules/prelaunch-splash/prelaunchsplash.h"
-#include "modules/wine-window-state/winewindowstate.h"
 #include "modules/wine-window-management/winewindowmanagement.h"
+#include "modules/wine-window-state/winewindowstate.h"
 #include "rootsurfacecontainer.h"
 #include "seat/helper.h"
+#include "session/session.h"
 #include "surface/surfacewrapper.h"
 #include "treelandconfig.hpp"
 #include "treelanduserconfig.hpp"
-#include "workspace/workspace.h"
-#include "session/session.h"
 #include "wallpapershellinterfacev1.h"
+#include "workspace/workspace.h"
 
 #include <xcb/xcb.h>
 
@@ -66,11 +66,12 @@ ShellHandler::ShellHandler(RootSurfaceContainer *rootContainer, WServer *server)
 {
     m_treelandForeignToplevel = server->attach<ForeignToplevelManagerInterfaceV1>();
     Q_ASSERT(m_treelandForeignToplevel);
-    qmlRegisterSingletonInstance<ForeignToplevelManagerInterfaceV1>("Treeland.Protocols",
-                                                    1,
-                                                    0,
-                                                    "ForeignToplevelManagerInterfaceV1",
-                                                    m_treelandForeignToplevel);
+    qmlRegisterSingletonInstance<ForeignToplevelManagerInterfaceV1>(
+        "Treeland.Protocols",
+        1,
+        0,
+        "ForeignToplevelManagerInterfaceV1",
+        m_treelandForeignToplevel);
     qRegisterMetaType<ForeignToplevelManagerInterfaceV1::PreviewDirection>();
 
     m_backgroundContainer->setZ(RootSurfaceContainer::BackgroundZOrder);
@@ -285,7 +286,7 @@ void ShellHandler::init(WServer *server, WSeat *seat)
     Q_ASSERT_X(!m_prelaunchSplash, Q_FUNC_INFO, "Only init once!");
     Q_ASSERT_X(!m_appIdResolverManager, Q_FUNC_INFO, "Only init once!");
     Q_ASSERT_X(!m_wineWindowStateManager, Q_FUNC_INFO, "Only init once!");
-    Q_ASSERT_X(!m_wineWindowManagementManager, Q_FUNC_INFO, "Only init once!");
+    Q_ASSERT_X(!m_wineWindowManager, Q_FUNC_INFO, "Only init once!");
     Q_ASSERT_X(!m_xdgShell, Q_FUNC_INFO, "Only init once!");
     Q_ASSERT_X(!m_layerShell, Q_FUNC_INFO, "Only init once!");
     Q_ASSERT_X(!m_wallpaperShell, Q_FUNC_INFO, "Only init once!");
@@ -303,7 +304,7 @@ void ShellHandler::init(WServer *server, WSeat *seat)
 
     m_appIdResolverManager = server->attach<AppIdResolverManager>();
     m_wineWindowStateManager = server->attach<WineWindowStateManager>();
-    m_wineWindowManagementManager = server->attach<WineWindowManagementManager>();
+    m_wineWindowManager = server->attach<WineWindowManager>();
 
     m_xdgShell = server->attach<WXdgShell>(TREELAND_XDG_SHELL_VERSION);
     connect(m_xdgShell,
@@ -326,7 +327,9 @@ void ShellHandler::init(WServer *server, WSeat *seat)
 
     m_wallpaperShell = server->attach<TreelandWallpaperShellInterfaceV1>(m_wallpaperShell);
     if (Helper::instance()->isDDMDisplay()) {
-        m_wallpaperShell->setFilter([](WClient *client) { return Helper::instance()->sessionManager()->isDDEUserClient(client); });
+        m_wallpaperShell->setFilter([](WClient *client) {
+            return Helper::instance()->sessionManager()->isDDEUserClient(client);
+        });
     }
 
     m_inputMethodHelper = new WInputMethodHelper(server, seat);
@@ -725,10 +728,11 @@ void ShellHandler::onDockPreview(std::vector<SurfaceWrapper *> surfaces,
                               QVariant::fromValue(direction));
 }
 
-void ShellHandler::onDockPreviewTooltip(QString tooltip,
-                                        WSurface *target,
-                                        QPoint pos,
-                                        ForeignToplevelManagerInterfaceV1::PreviewDirection direction)
+void ShellHandler::onDockPreviewTooltip(
+    QString tooltip,
+    WSurface *target,
+    QPoint pos,
+    ForeignToplevelManagerInterfaceV1::PreviewDirection direction)
 {
     if (!m_dockPreview)
         return;
