@@ -32,7 +32,7 @@ class QmlEngine;
 class ForeignToplevelManagerInterfaceV1;
 class PrelaunchSplash;
 class WineWindowStateManager;
-class WineWindowManagementManager;
+class WineWindowManager;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WServer;
@@ -75,8 +75,7 @@ public:
     [[nodiscard]] Workspace *workspace() const;
 
     void createComponent(QmlEngine *engine, QQuickItem *parentItem);
-    void init(WAYLIB_SERVER_NAMESPACE::WServer *server,
-              WAYLIB_SERVER_NAMESPACE::WSeat *seat);
+    void init(WAYLIB_SERVER_NAMESPACE::WServer *server, WAYLIB_SERVER_NAMESPACE::WSeat *seat);
     [[nodiscard]] WAYLIB_SERVER_NAMESPACE::WXWayland *createXWayland(
         WAYLIB_SERVER_NAMESPACE::WServer *server,
         WAYLIB_SERVER_NAMESPACE::WSeat *seat,
@@ -88,9 +87,11 @@ public:
     WAYLIB_SERVER_NAMESPACE::WXWayland *defaultXWaylandSocket() const;
     void setupDockPreview(QObject *dockPreview);
 
-    TreelandWallpaperShellInterfaceV1 *wallpaperShell() const {
+    TreelandWallpaperShellInterfaceV1 *wallpaperShell() const
+    {
         return m_wallpaperShell;
     }
+
 Q_SIGNALS:
     void surfaceWrapperAdded(SurfaceWrapper *wrapper);
     void surfaceWrapperAboutToRemove(SurfaceWrapper *wrapper);
@@ -133,8 +134,8 @@ private:
     // Prelaunch splash related: creates a prelaunch SurfaceWrapper when
     // PrelaunchSplash::splashRequested
     void handlePrelaunchSplashRequested(const QString &appId,
-                                       const QString &instanceId,
-                                       QW_NAMESPACE::qw_buffer *iconBuffer);
+                                        const QString &instanceId,
+                                        QW_NAMESPACE::qw_buffer *iconBuffer);
     void handlePrelaunchSplashClosed(const QString &appId, const QString &instanceId);
     void createPrelaunchSplash(const QString &appId,
                                const QString &instanceId,
@@ -161,7 +162,7 @@ private:
     WAYLIB_SERVER_NAMESPACE::WInputMethodHelper *m_inputMethodHelper = nullptr;
     PrelaunchSplash *m_prelaunchSplash = nullptr;
     WineWindowStateManager *m_wineWindowStateManager = nullptr;
-    WineWindowManagementManager *m_wineWindowManagementManager = nullptr;
+    WineWindowManager *m_wineWindowManager = nullptr;
     QList<WAYLIB_SERVER_NAMESPACE::WXWayland *> m_xwaylands;
     ForeignToplevelManagerInterfaceV1 *m_treelandForeignToplevel = nullptr;
 

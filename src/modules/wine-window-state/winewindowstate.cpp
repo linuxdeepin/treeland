@@ -17,6 +17,8 @@
 #include <QList>
 #include <QTimer>
 
+#include <algorithm>
+
 WAYLIB_SERVER_USE_NAMESPACE
 QW_USE_NAMESPACE
 
@@ -85,7 +87,9 @@ public:
         , m_wrapper(wrapper)
     {
         Q_ASSERT_X(m_wrapper, Q_FUNC_INFO, "wrapper must not be null");
-        Q_ASSERT_X(m_wrapper->shellSurface(), Q_FUNC_INFO, "wrapper->shellSurface() must not be null");
+        Q_ASSERT_X(m_wrapper->shellSurface(),
+                   Q_FUNC_INFO,
+                   "wrapper->shellSurface() must not be null");
 
         m_wrapper->shellSurface()->safeConnect(&WToplevelSurface::minimizeChanged, this, [this] {
             sendStateChanged();
@@ -211,8 +215,8 @@ void WineWindowStateManagerPrivate::removeState(WineWindowState *state)
 }
 
 void WineWindowStateManagerPrivate::get_window_state(Resource *resource,
-                                                      uint32_t id,
-                                                      struct ::wl_resource *toplevelResource)
+                                                     uint32_t id,
+                                                     struct ::wl_resource *toplevelResource)
 {
     auto *qXdgToplevel = qw_xdg_toplevel::from_resource(toplevelResource);
     if (!qXdgToplevel) {
@@ -234,12 +238,12 @@ void WineWindowStateManagerPrivate::get_window_state(Resource *resource,
         return;
     }
 
-    const bool alreadyBound = [&] {
-        for (const auto &e : m_states)
-            if (e.toplevel == xdgToplevel)
-                return true;
-        return false;
-    }();
+    const bool alreadyBound = std::ranges::any_of(
+        m_states,
+        [&](const WXdgToplevelSurface *t) {
+            return t == xdgToplevel;
+        },
+        &StateEntry::toplevel);
     if (alreadyBound) {
         wl_resource_post_error(resource->handle,
                                TREELAND_WINE_WINDOW_STATE_MANAGER_V1_ERROR_TOPLEVEL_ALREADY_BOUND,
@@ -247,12 +251,8 @@ void WineWindowStateManagerPrivate::get_window_state(Resource *resource,
         return;
     }
 
-    auto *state = new WineWindowState(q,
-                                      this,
-                                      wrapper,
-                                      resource->client(),
-                                      resource->version(),
-                                      id);
+    auto *state =
+        new WineWindowState(q, this, wrapper, resource->client(), resource->version(), id);
     bindState(xdgToplevel, state);
 }
 
