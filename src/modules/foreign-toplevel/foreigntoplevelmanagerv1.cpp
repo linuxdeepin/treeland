@@ -437,8 +437,13 @@ void ForeignToplevelManagerInterfaceV1::initializeToplevelHandle(SurfaceWrapper 
         handle->set_attention(wrapper->attention());
     });
 
-    surface->safeConnect(&WToplevelSurface::appIdChanged, handle, [handle, wrapper] {
-        handle->set_app_id(wrapper->appId());
+    const QPointer<SurfaceWrapper> wrapperGuard(wrapper);
+    surface->safeConnect(&WToplevelSurface::appIdChanged, handle, [handle, wrapperGuard] {
+        if (!wrapperGuard) {
+            return;
+        }
+
+        handle->set_app_id(wrapperGuard->appId());
     });
 
     surface->surface()->safeConnect(&WSurface::outputEntered, handle, [handle](WOutput *output) {
@@ -1053,6 +1058,10 @@ SurfaceEntry *ForeignToplevelHandleV1::entry() const
 
 void ForeignToplevelHandleV1::clearEntry()
 {
+    QObject::disconnect(this, nullptr, nullptr, nullptr);
+    QObject::disconnect(nullptr, nullptr, this, nullptr);
+    d->outputs.clear();
+    d->parent = nullptr;
     d->entry = nullptr;
 }
 
