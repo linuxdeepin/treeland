@@ -1,4 +1,4 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "multitaskview.h"
@@ -664,13 +664,7 @@ QRectF MultitaskviewSurfaceModel::surfaceGeometry(SurfaceWrapper *surface)
 
 bool MultitaskviewSurfaceModel::laterActiveThan(SurfaceWrapper *a, SurfaceWrapper *b)
 {
-    auto activeIndex = [this](SurfaceWrapper *surface) {
-        auto it = std::find(workspace()->m_activedSurfaceHistory.begin(),
-                            workspace()->m_activedSurfaceHistory.end(),
-                            surface);
-        return std::distance(workspace()->m_activedSurfaceHistory.begin(), it);
-    };
-    return activeIndex(a) < activeIndex(b);
+    return workspace()->laterActiveThan(a, b);
 }
 
 void MultitaskviewSurfaceModel::connectWorkspace(WorkspaceModel *workspace)

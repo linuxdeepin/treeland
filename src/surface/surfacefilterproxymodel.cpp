@@ -1,4 +1,4 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "surfacefilterproxymodel.h"
@@ -56,14 +56,11 @@ bool SurfaceFilterProxyModel::lessThan(const QModelIndex &source_left,
                                        const QModelIndex &source_right) const
 {
     WorkspaceModel *model = dynamic_cast<WorkspaceModel *>(sourceModel());
-    SurfaceWrapper *left_surface = sourceModel()->data(source_left).value<SurfaceWrapper *>();
-    SurfaceWrapper *right_surface = sourceModel()->data(source_right).value<SurfaceWrapper *>();
+    SurfaceWrapper *left = sourceModel()->data(source_left).value<SurfaceWrapper *>();
+    SurfaceWrapper *right = sourceModel()->data(source_right).value<SurfaceWrapper *>();
 
-    if (model && left_surface && right_surface) {
-        int left_index = model->findActivedSurfaceHistoryIndex(left_surface);
-        int right_index = model->findActivedSurfaceHistoryIndex(right_surface);
-
-        if (left_index > right_index)
+    if (model && left && right) {
+        if (model->laterActiveThan(left, right))
             return true;
         else
             return false;
