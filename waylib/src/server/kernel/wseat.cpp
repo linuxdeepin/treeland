@@ -19,6 +19,7 @@
 #include <qwcompositor.h>
 #include <qwdisplay.h>
 #include <qwprimaryselection.h>
+#include <qwkeyboardgroup.h>
 
 #include <QQuickWindow>
 #include <QGuiApplication>
@@ -108,6 +109,15 @@ public:
 
         for (auto device : std::as_const(deviceList))
             detachInputDevice(device);
+
+        if (groupkeyboardDevice) {
+            detachInputDevice(groupkeyboardDevice);
+            groupkeyboardDevice->safeDeleteLater();
+        }
+
+        if (group) {
+            wlr_keyboard_group_destroy(group);
+        }
     }
 
     inline qw_seat *handle() const {
@@ -366,6 +376,8 @@ public:
     bool gestureActive = false;
     int gestureFingers = 0;
     qreal lastScale = 1.0;
+    wlr_keyboard_group *group = nullptr;
+    WInputDevice *groupkeyboardDevice = nullptr;
 
     struct EventState {
         // Don't use it, its may be a invalid pointer
@@ -652,15 +664,17 @@ void WSeatPrivate::attachInputDevice(WInputDevice *device)
         keyboard->set_keymap(keymap);
         xkb_keymap_unref(keymap);
         xkb_context_unref(context);
-        keyboard->set_repeat_info(25, 600);
-
-        device->safeConnect(&qw_keyboard::notify_key, q, [this, device] (wlr_keyboard_key_event *event) {
-            on_keyboard_key(event, device);
-        });
-        device->safeConnect(&qw_keyboard::notify_modifiers, q, [this, device] () {
-            on_keyboard_modifiers(device);
-        });
-        handle()->set_keyboard(*keyboard);
+        if (device == groupkeyboardDevice) {
+            device->safeConnect(&qw_keyboard::notify_key, q, [this, device] (wlr_keyboard_key_event *event) {
+                on_keyboard_key(event, device);
+            });
+            device->safeConnect(&qw_keyboard::notify_modifiers, q, [this, device] () {
+                on_keyboard_modifiers(device);
+            });
+            q->setKeyboard(device);
+        } else {
+            wlr_keyboard_group_add_keyboard(group, keyboard->handle());
+        }
     }
 }
 
@@ -677,6 +691,10 @@ void WSeatPrivate::detachInputDevice(WInputDevice *device)
         touchDeviceList.removeOne(device);
     }
 
+    if (device->type() == WInputDevice::Type::Keyboard) {
+        auto keyboard = qobject_cast<qw_keyboard*>(device->handle());
+        wlr_keyboard_group_remove_keyboard(group, keyboard->handle());
+    }
     [[maybe_unused]] bool ok = QWlrootsIntegration::instance()->removeInputDevice(device);
     Q_ASSERT(ok);
 }
@@ -1486,6 +1504,13 @@ void WSeat::create(WServer *server)
     initHandle(d->handle());
     d->handle()->set_data(this, this);
     d->connect();
+
+    if (!d->group) {
+        d->group = wlr_keyboard_group_create();
+        qw_input_device *inputDevice = qw_input_device::from(&d->group->keyboard.base);
+        d->groupkeyboardDevice = new WInputDevice(inputDevice);
+        d->attachInputDevice(d->groupkeyboardDevice);
+    }
 
     for (auto i : std::as_const(d->deviceList)) {
         d->attachInputDevice(i);
