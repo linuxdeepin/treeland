@@ -38,6 +38,7 @@ public:
     void updateContentPosition();
     WSurfaceItem *ensureSubsurfaceItem(WSurface *subsurfaceSurface, QQuickItem *parent);
     void updateSubsurfaceContainers();
+    void connectSubsurfaceContainerSignals(SubsurfaceContainer *container);
 
     void resizeSurfaceToItemSize(const QSize &itemSize, const QSize &sizeDiff);
     void updateEventItem(bool forceDestroy);
