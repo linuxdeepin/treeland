@@ -231,6 +231,7 @@ qt_add_qml_module(libtreeland
     QML_FILES
         core/qml/PrimaryOutput.qml
         core/qml/CopyOutput.qml
+        core/qml/TitleBarPalette.qml
         core/qml/TitleBar.qml
         core/qml/Decoration.qml
         core/qml/WindowMenu.qml
