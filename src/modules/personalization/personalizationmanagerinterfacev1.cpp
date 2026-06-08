@@ -1084,6 +1084,7 @@ void PersonalizationManagerInterfaceV1::onAppearanceContextCreated(Personalizati
         const auto dconfigType = protocolWindowThemeTypeToDConfig(type);
         if (dconfigType.has_value()) {
             Helper::instance()->config()->setWindowThemeType(*dconfigType);
+            Helper::syncPaletteTypeWithWindowThemeType(*dconfigType);
         }
         for (auto *c : s_appearanceContexts) {
             c->sendWindowThemeType(type);
