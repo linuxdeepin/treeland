@@ -442,9 +442,18 @@ QStringList QWlrootsIntegration::themeNames() const
     return QPlatformIntegration::themeNames();
 }
 
+QWlrootsIntegration::CreatePlatformThemeCallback QWlrootsIntegration::s_createPlatformThemeCallback;
+
+void QWlrootsIntegration::setCreatePlatformThemeCallback(CreatePlatformThemeCallback callback)
+{
+    s_createPlatformThemeCallback = std::move(callback);
+}
+
 QPlatformTheme *QWlrootsIntegration::createPlatformTheme([[maybe_unused]] const QString &name) const
 {
-    // TODO: use custom platform theme to allow compositor set some hints, like as font
+    if (s_createPlatformThemeCallback) {
+        return s_createPlatformThemeCallback(name);
+    }
     return new QGenericUnixTheme();
 }
 

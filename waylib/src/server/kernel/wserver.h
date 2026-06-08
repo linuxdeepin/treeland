@@ -4,13 +4,17 @@
 #pragma once
 
 #include <wglobal.h>
+
 #include <qwglobal.h>
 
 #include <QDeadlineTimer>
 #include <QFuture>
 #include <QObject>
 
+#include <functional>
+
 QT_BEGIN_NAMESPACE
+class QPlatformTheme;
 class QProcess;
 QT_END_NAMESPACE
 
@@ -135,7 +139,9 @@ public:
 
     void start();
     void stop();
-    static void initializeQPA(const QStringList &parameters = {});
+    static void initializeQPA(
+        const QStringList &parameters = {},
+        std::function<QPlatformTheme *(const QString &)> createPlatformTheme = {});
 
     bool isRunning() const;
     void addSocket(WSocket *socket);
