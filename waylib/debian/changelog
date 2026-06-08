@@ -1,0 +1,108 @@
+waylib (0.6.13) unstable; urgency=medium
+
+  * Fix not clear WSurfuce when instantRelease XWaylandSurface
+
+ -- rewine <luhongxu@deepin.org>  Mon, 10 Mar 2025 16:15:50 +0800
+
+waylib (0.6.12) unstable; urgency=medium
+
+  * Fix text-input-v2 popup not update cursorRect before arrange position
+  * Fix crash by use WWrapPointer
+
+ -- rewine <luhongxu@deepin.org>  Thu, 20 Feb 2025 19:48:50 +0800
+
+waylib (0.6.11) unstable; urgency=medium
+
+  * bump version to 0.6.11
+
+ -- rewine <luhongxu@deepin.org>  Fri, 14 Feb 2025 10:31:38 +0800
+
+waylib (0.6.10) unstable; urgency=medium
+
+  * bump version to 0.6.10
+
+ -- Groveer <guoyao@uniontech.com>  Wed, 25 Dec 2024 18:45:12 +0800
+
+waylib (0.6.9) unstable; urgency=medium
+
+  * bump version to 0.6.9
+
+ -- Groveer <guoyao@uniontech.com>  Fri, 20 Dec 2024 15:48:51 +0800
+
+waylib (0.6.8) unstable; urgency=medium
+
+  * bump version to 0.6.8
+
+ -- Groveer <guoyao@uniontech.com>  Tue, 17 Dec 2024 21:01:39 +0800
+
+waylib (0.6.7) unstable; urgency=medium
+
+  * bump version to 0.6.7
+
+ -- Groveer <guoyao@uniontech.com>  Fri, 13 Dec 2024 14:08:45 +0800
+
+waylib (0.6.6) unstable; urgency=medium
+
+  * bump version to 0.6.6
+
+ -- Groveer <guoyao@uniontech.com>  Tue, 10 Dec 2024 18:26:33 +0800
+
+waylib (0.6.5) unstable; urgency=medium
+
+  * bump version to 0.6.5
+
+ -- Groveer <guoyao@uniontech.com>  Thu, 05 Dec 2024 21:25:01 +0800
+
+waylib (0.6.4) unstable; urgency=medium
+
+  * bump version to 0.6.4
+
+ -- Groveer <guoyao@uniontech.com>  Sat, 30 Nov 2024 15:21:56 +0800
+
+waylib (0.6.3) unstable; urgency=medium
+
+  * bump version to 0.6.3
+
+ -- Groveer <guoyao@uniontech.com>  Fri, 29 Nov 2024 15:44:40 +0800
+
+waylib (0.6.2) unstable; urgency=medium
+
+  * bump version to 0.6.2
+
+ -- Groveer <guoyao@uniontech.com>  Tue, 26 Nov 2024 18:48:43 +0800
+
+waylib (0.6.1) unstable; urgency=medium
+
+  * bump version to 0.6.1
+
+ -- Groveer <guoyao@uniontech.com>  Fri, 22 Nov 2024 18:06:22 +0800
+
+waylib (0.6.0) unstable; urgency=medium
+
+  * bump version to 0.6.0
+
+ -- Groveer <guoyao@uniontech.com>  Thu, 21 Nov 2024 17:00:46 +0800
+
+waylib (0.5.0) unstable; urgency=medium
+
+  * bump version to 0.5.0
+
+ -- Groveer <guoyao@uniontech.com>  Thu, 14 Nov 2024 03:27:45 +0000
+
+waylib (0.4.3) unstable; urgency=medium
+
+  * bump version to 0.4.3
+
+ -- Groveer <guoyao@uniontech.com>  Thu, 14 Nov 2024 03:26:56 +0000
+
+waylib (0.1.1) UNRELEASED; urgency=medium
+
+  * Exclude client self when request grab keyboard on virtual keyboard.
+
+ -- JiDe Zhang <zhangjide@deepin.org>  Fri, 19 Jan 2023 10:10:03 +0800
+
+waylib (0.0.1) UNRELEASED; urgency=medium
+
+  * Initial
+
+ -- zkyd <zkyd@zjide.org>  Sat, 17 Jul 2021 16:09:03 +0800

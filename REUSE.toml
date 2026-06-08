@@ -61,3 +61,9 @@ path = ["src/greeter/**.h", "src/greeter/**.cpp"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "None"
 SPDX-License-Identifier = "GPL-2.0-only"
+
+[[annotations]]
+path = ["qwlroots/**"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "None"
+SPDX-License-Identifier = "Apache-2.0"

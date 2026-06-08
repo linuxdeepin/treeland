@@ -49,3 +49,7 @@ debian/files
 debian/*.substvars
 debian/*.debhelper.log
 obj-*-linux-gnu/
+
+# ai
+.cursor
+.specstory

@@ -1,0 +1,32 @@
+name: Build on archlinux
+
+on:
+  push:
+    branches:
+      - master
+
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  container:
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run in container
+        run: |
+          pacman-key --init
+          pacman -Syu --noconfirm
+      - name: Install dep
+        run: |
+          pacman -Syu --noconfirm qt6-base cmake pkgconfig wlroots0.19 pixman wayland-protocols wlr-protocols clazy
+          pacman -Syu --noconfirm clang ninja
+      - name: Configure CMake
+        run: |
+          mkdir -p ${{github.workspace}}/build
+          cmake -B ${{github.workspace}}/build -G Ninja -DCMAKE_CXX_COMPILER=clazy
+      - name: Build
+        # Build your program with the given configuration
+        run: cmake --build ${{github.workspace}}/build

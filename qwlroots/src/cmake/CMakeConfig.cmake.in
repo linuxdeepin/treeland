@@ -1,0 +1,26 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+find_dependency(Qt@QT_VERSION_MAJOR@Core REQUIRED)
+find_dependency(PkgConfig REQUIRED)
+
+pkg_check_modules(WLROOTS REQUIRED IMPORTED_TARGET @wlr@=@WLROOTS_VERSION@)
+pkg_check_modules(WAYLAND_SERVER REQUIRED IMPORTED_TARGET wayland-server)
+pkg_check_modules(PIXMAN REQUIRED IMPORTED_TARGET pixman-1)
+pkg_check_modules(XKBCOMMON REQUIRED IMPORTED_TARGET xkbcommon)
+pkg_check_modules(WAYLAND_PROTOCOLS REQUIRED wayland-protocols)
+
+include(${CMAKE_CURRENT_LIST_DIR}/WaylandScannerHelpers.cmake)
+ws_generate(server wayland-protocols stable/xdg-shell/xdg-shell.xml xdg-shell-protocol)
+ws_generate(server wayland-protocols unstable/fullscreen-shell/fullscreen-shell-unstable-v1.xml fullscreen-shell-unstable-v1-protocol)
+ws_generate(server wayland-protocols stable/tablet/tablet-v2.xml tablet-v2-protocol)
+ws_generate(server wayland-protocols unstable/pointer-constraints/pointer-constraints-unstable-v1.xml pointer-constraints-unstable-v1-protocol)
+ws_generate(server wayland-protocols staging/content-type/content-type-v1.xml content-type-v1-protocol)
+ws_generate(server wayland-protocols staging/cursor-shape/cursor-shape-v1.xml cursor-shape-v1-protocol)
+ws_generate(server wayland-protocols staging/tearing-control/tearing-control-v1.xml tearing-control-v1-protocol)
+
+@WLR_PROTOCOLS_CMAKE_CONFIG_INIT@
+
+include(${CMAKE_CURRENT_LIST_DIR}/@name@Targets.cmake)
+
+check_required_components(@name@)

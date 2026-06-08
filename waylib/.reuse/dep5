@@ -1,0 +1,90 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: waylib
+Upstream-Contact: JiDe Zhang <zccrs@live.com>
+Source: https://github.com/vioken/waylib
+
+# ci
+Files: .github/* .obs/*.yml renovate.json
+Copyright: None
+License: CC0-1.0
+
+# gitignore
+Files: .gitignore .gitmodules
+Copyright: None
+License: CC0-1.0
+
+# Project file
+Files: *.cmake *CMakeLists.txt *.pc.in *cmake.in
+Copyright: None
+License: CC0-1.0
+
+# README
+Files: README.md README.zh_CN.md
+Copyright: JiDe Zhang
+License: CC-BY-4.0
+
+# Nix Develop files
+Files: *.nix .envrc flake.lock
+Copyright: None
+License: CC0-1.0
+
+# Debian package
+Files: debian/*
+Copyright: None
+License: CC0-1.0
+
+# C++ pch files
+Files: src/server/pch/pch.hxx
+Copyright: None
+License: CC0-1.0
+
+#
+Files: examples/tinywl/qml.qrc
+       tests/manual/cursor/cursor.qrc
+       src/server/kernel/WBackend
+       src/server/kernel/WCursor
+       src/server/kernel/WInputDevice
+       src/server/kernel/WInputEvent
+       src/server/kernel/WOutput
+       src/server/kernel/WSeat
+       src/server/kernel/WEvent
+       src/server/kernel/WServer
+       src/server/kernel/WServerInterface
+       src/server/kernel/WSurface
+       src/server/kernel/WSurfaceLayout
+       src/server/kernel/WTexture
+       src/server/kernel/WXdgShell
+       src/server/kernel/WXdgSurface
+       src/server/kernel/WLayerSurface
+       src/server/qtquick/WQuickRenderControl
+       src/server/qtquick/WSurfaceItem
+       src/server/utils/WSignalConnector
+       src/server/utils/WThreadUtils
+       src/server/utils/WCursorImage
+       src/server/utils/WWrapPointer
+       tests/main.cpp
+       tests/test.h
+Copyright: JiDe Zhang
+License: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+
+files: src/server/protocols/WCursorShapeManagerV1
+       src/server/protocols/WForeignToplevel
+       src/server/protocols/WInputMethodHelper
+       src/server/protocols/WLayerSurface
+       src/server/protocols/WOutputManagerV1
+       src/server/protocols/WXdgOutput
+       src/server/protocols/WXdgShell
+       src/server/protocols/WXdgSurface
+       src/server/protocols/WLayerShell
+       src/server/protocols/WInputPopupSurface
+       src/server/protocols/WXWayland
+       src/server/protocols/WXWaylandSurface
+       src/server/protocols/WXdgDecorationManager
+Copyright: UnionTech Software Technology Co., Ltd.
+License: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+
+# Misc
+Files: tests/manual/cursor/res/HandCursor.png
+       examples/tinywl/res/xx.jpg
+Copyright: None
+License: CC0-1.0
