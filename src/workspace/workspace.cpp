@@ -257,6 +257,10 @@ SurfaceFilterProxyModel *Workspace::currentFilter()
     m_currentFilter->setSourceModel(wmodel);
     m_currentFilter->invalidate();
     m_currentFilter->sort(0);
+
+    auto *activeSurface = wmodel->latestActiveSurface();
+    m_currentFilter->setActiveIndex(wmodel->activeHistoryIndex(activeSurface));
+
     return m_currentFilter;
 }
 
