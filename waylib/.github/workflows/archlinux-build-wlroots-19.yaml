@@ -1,0 +1,36 @@
+name: Build on archlinux with wlroots-19
+
+on:
+  push:
+    branches:
+      - master
+
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  container:
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    steps:
+      - name: Run in container
+        run: |
+          cat /etc/pacman.d/mirrorlist
+          pacman-key --init
+          pacman --noconfirm --noprogressbar -Syu
+      - name: Install dep
+        run: |
+          pacman -Syu --noconfirm --noprogressbar base-devel qt6-base qt6-declarative cmake pkgconfig pixman vulkan-headers wlroots0.19 wayland-protocols wlr-protocols git
+          pacman -Syu --noconfirm --noprogressbar clang ninja make
+          pacman -Syu --noconfirm --noprogressbar fakeroot meson sudo
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Configure CMake
+        run: |
+          mkdir -p ${{github.workspace}}/build
+          cmake -B ${{github.workspace}}/build -G Ninja -DWITH_SUBMODULE_QWLROOTS=ON
+      - name: Build
+        # Build your program with the given configuration
+        run: cmake --build ${{github.workspace}}/build

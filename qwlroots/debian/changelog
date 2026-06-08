@@ -1,0 +1,49 @@
+qwlroots (0.5.4) unstable; urgency=medium
+
+  * feat: update wlroots and nixpkgs versions for qwlroots
+  * Improve the intelligence of cursor addition encapsulation
+  * Add wlroots 0.19 render types and protocol support
+  * fix: correct typo in build command description
+  * docs: add documentation for AI development
+  * chore: update gitignore for IDE environments
+  * ci: pin wlroots to 0.18 for Arch Linux GitHub Actions build
+  * Make the existing interface compatible with wlroots-0.19
+
+ -- rewine <luhongxu@deepin.org>  Mon, 23 Jun 2025 17:34:11 +0800
+
+qwlroots (0.5.3) unstable; urgency=medium
+
+  * Implement qw_idle_inhibitor_v1
+  * Do not explicitly build static lib
+
+ -- rewine <luhongxu@deepin.org>  Thu, 20 Feb 2025 17:40:48 +0800
+
+qwlroots (0.5.2) unstable; urgency=medium
+
+  * bump version to 0.5.2
+
+ -- Groveer <guoyao@uniontech.com>  Tue, 26 Nov 2024 18:55:56 +0800
+
+qwlroots (0.5.1) unstable; urgency=medium
+
+  * bump version to 0.5.1
+
+ -- Groveer <guoyao@uniontech.com>  Fri, 22 Nov 2024 18:04:26 +0800
+
+qwlroots (0.5.0) unstable; urgency=medium
+
+  * bump version to 0.5.0
+
+ -- Groveer <guoyao@uniontech.com>  Thu, 21 Nov 2024 16:58:34 +0800
+
+qwlroots (0.4.1) UNRELEASED; urgency=medium
+
+  * bump version to 0.4.1
+
+ -- Groveer <guoyao@uniontech.com>  Mon, 11 Nov 2024 18:14:56 +0800
+
+qwlroots (0.0.1) UNRELEASED; urgency=medium
+
+  * Initial continuous release
+
+ -- rewine <lhongxu@outlook.com>  Wed, 19 Jul 2023 03:36:12 +0000

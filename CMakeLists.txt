@@ -16,7 +16,7 @@ include(FeatureSummary)
 
 include(cmake/DefineTarget.cmake)
 
-option(WITH_SUBMODULE_WAYLIB "Use the waylib from git submodule" OFF)
+option(WITH_SUBMODULE_WAYLIB "Use the waylib from git submodule" ON)
 add_feature_info(submodule_waylib WITH_SUBMODULE_WAYLIB "Use waylib from submodule")
 
 option(ADDRESS_SANITIZER "Enable address sanitize" OFF)
@@ -40,7 +40,7 @@ set(LOCAL_QML_IMPORT_PATH "${PROJECT_BINARY_DIR}/qt/qml")
 
 if(WITH_SUBMODULE_WAYLIB)
     set(WITH_SUBMODULE_QWLROOTS ON)
-    include(${CMAKE_CURRENT_SOURCE_DIR}/waylib/qwlroots/cmake/WaylandScannerHelpers.cmake)
+    include(${CMAKE_CURRENT_SOURCE_DIR}/qwlroots/cmake/WaylandScannerHelpers.cmake)
     add_subdirectory(waylib)
     list(APPEND LOCAL_QML_IMPORT_PATH "${PROJECT_BINARY_DIR}/waylib/src/server")
 else()
