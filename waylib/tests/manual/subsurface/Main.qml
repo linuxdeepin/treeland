@@ -1,4 +1,4 @@
-// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 import QtQuick
@@ -52,6 +52,7 @@ Window {
     }
 
     CustomWindow {
+        id: window3
         parent: root
         title: "Subsurface 3"
 
@@ -61,21 +62,30 @@ Window {
         height: 200
         color: "yellow"
 
+        property var windows: []
+
         Column {
             anchors.centerIn: parent
-            property CustomWindow winObj
+            spacing: 10
             Button {
                 text: "Add"
                 onClicked: {
-                    parent.winObj = window4.createObject()
+                    var obj = window4.createObject()
+                    obj.x = 300 + window3.windows.length * 20
+                    obj.y = -50 + window3.windows.length * 20
+                    window3.windows.push(obj)
                 }
             }
             Button {
                 text: "Destroy"
                 onClicked: {
-                    console.log('destroying',parent.winObj,parent.winObj.close())
+                    if (window3.windows.length > 0) {
+                        var obj = window3.windows.pop()
+                        obj.destroyWindow()
+                    }
                 }
             }
+
         }
 
     }
@@ -94,4 +104,5 @@ Window {
             color: "green"
         }
     }
+
 }
