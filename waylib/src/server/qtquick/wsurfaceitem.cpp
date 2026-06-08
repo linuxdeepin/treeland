@@ -2,28 +2,31 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wsurfaceitem.h"
-#include "wsurfaceitem_p.h"
-#include "wsurface.h"
-#include "wseat.h"
+
 #include "wcursor.h"
 #include "woutput.h"
-#include "woutputviewport.h"
-#include "wsgtextureprovider.h"
 #include "woutputrenderwindow.h"
+#include "woutputviewport.h"
+#include "wseat.h"
+#include "wsgtextureprovider.h"
+#include "wsurface.h"
+#include "wsurfaceitem_p.h"
 
+#include <private/qquickitem_p.h>
+
+#include <qwalphamodifierv1.h>
+#include <qwbox.h>
+#include <qwbuffer.h>
 #include <qwcompositor.h>
+#include <qwrenderer.h>
 #include <qwsubcompositor.h>
 #include <qwtexture.h>
-#include <qwbuffer.h>
-#include <qwrenderer.h>
-#include <qwbox.h>
-#include <qwalphamodifierv1.h>
 
+#include <QPointer>
+#include <QQueue>
 #include <QQuickWindow>
 #include <QSGImageNode>
 #include <QSGRenderNode>
-#include <QQueue>
-#include <private/qquickitem_p.h>
 
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -47,6 +50,7 @@ public:
         m_deleteAfterEmpty = true;
     }
 Q_SIGNALS:
+    void subsurfaceAdded(WAYLIB_SERVER_NAMESPACE::WSurfaceItem *item);
     void subsurfaceRemoved(WAYLIB_SERVER_NAMESPACE::WSurfaceItem *item);
 
 protected:
@@ -58,6 +62,7 @@ protected:
             Q_ASSERT(surfaceItem); // TODO: check isSubsurface, may segmentation fault now.
             m_subsurfaces.append(surfaceItem);
             m_deleteAfterEmpty = false;
+            Q_EMIT subsurfaceAdded(surfaceItem);
             break;
         }
         case QQuickItem::ItemChildRemovedChange: {
@@ -1004,13 +1009,19 @@ void WSurfaceItem::releaseResources()
     }
 
     if (!d->surfaceFlags.testFlag(DontCacheLastBuffer)) {
-        for (auto item : std::as_const(d->subsurfaces)) {
+        // Keep subsurface items alive as part of this item's cached last buffer.
+        // They must leave d->subsurfaces, otherwise later bounding-rect updates may
+        // treat cached/detached items as live subsurfaces. Once removed, the
+        // queued auto-destroy handler below will skip deleteLater().
+        const auto subsurfaces = d->subsurfaces;
+        for (auto item : subsurfaces) {
             item->releaseResources();
-            // subsurface's contents at the last frame buffer.
-            // AutoDestroy: disconnects (subsurfaceItem.surface, destroyed, this, lambda{deleteLater})
-            bool disconnAutoDestroy = QObject::disconnect(item->surface(), &WSurface::destroyed, this, nullptr);
-            Q_ASSERT( disconnAutoDestroy || item->property("_autoDestroyReleased").toBool() );
-            item->setProperty("_autoDestroyReleased", true);
+            auto surface = item->surface();
+            if (surface) {
+                bool ok = QObject::disconnect(surface, &WSurface::destroyed, this, nullptr);
+                Q_ASSERT(ok);
+            }
+            d->subsurfaces.removeOne(item);
         }
     } else {
         for (auto item : std::as_const(d->subsurfaces))
@@ -1329,21 +1340,29 @@ void WSurfaceItemPrivate::updateContentPosition()
 
 WSurfaceItem *WSurfaceItemPrivate::ensureSubsurfaceItem(WSurface *subsurfaceSurface, QQuickItem *parent)
 {
+    Q_Q(WSurfaceItem);
+
     for (int i = 0; i < subsurfaces.count(); ++i) {
         auto surfaceItem = subsurfaces.at(i);
         WSurface *surface = surfaceItem->d_func()->surface.get();
 
         if (surface && surface == subsurfaceSurface) {
-            if (surfaceItem->parent() == parent) {
+            if (surfaceItem->parentItem() == parent) {
                 return surfaceItem;
-            } else {
-                subsurfaces.removeOne(surfaceItem);
-                break;
             }
+
+            // Moving between above/below containers emits removed on the old
+            // container and added on the new one. Those signals keep
+            // d->subsurfaces in sync, so preserve the item and only update its
+            // QObject/visual parents.
+            surfaceItem->setParent(parent);
+            surfaceItem->setParentItem(parent);
+            // Keep external observers' add/remove sequence balanced on container moves.
+            Q_EMIT q->subsurfaceAdded(surfaceItem);
+            return surfaceItem;
         }
     }
 
-    Q_Q(WSurfaceItem);
     Q_ASSERT(subsurfaceSurface);
     auto surfaceItem = new WSurfaceItem(parent);
     // Delay destroy WSurfaceItem, because if the cause of destroy is because the parent
@@ -1351,12 +1370,23 @@ WSurfaceItem *WSurfaceItemPrivate::ensureSubsurfaceItem(WSurface *subsurfaceSurf
     // will disable this connection at parent WSurfaceItem::releaseResources to save the
     // parent WSurface last frame, the last frame contents should include its subsurfaces's
     // contents.
-    // AutoDestroy: Connect to this(parent)'s lambda since the autodestroy is managed by parent,
-    // avoids disconnected with all slots on subsurfaceItem in subsurface's releaseResources
-    QObject::connect(subsurfaceSurface, &WSurface::destroyed, q, [this,surfaceItem] {
-        subsurfaces.removeOne(surfaceItem);
-        surfaceItem->deleteLater();
-    }, Qt::QueuedConnection);
+    QPointer<WSurfaceItem> surfaceItemGuard(surfaceItem);
+    QObject::connect(
+        subsurfaceSurface,
+        &WSurface::destroyed,
+        q,
+        [this, surfaceItemGuard] {
+            auto surfaceItem = surfaceItemGuard.data();
+            if (!surfaceItem)
+                return;
+            // d->subsurfaces is the single live-subsurface registry for the parent. The
+            // queued handler only owns deletion while the item is still in that registry:
+            // if another path removed it first, it is either cached with the parent or
+            // already scheduled for deletion.
+            if (subsurfaces.removeOne(surfaceItem))
+                surfaceItem->deleteLater();
+        },
+        Qt::QueuedConnection);
     surfaceItem->setDelegate(delegate);
     surfaceItem->setFlags(surfaceFlags);
     surfaceItem->setSurface(subsurfaceSurface);
@@ -1365,11 +1395,43 @@ WSurfaceItem *WSurfaceItemPrivate::ensureSubsurfaceItem(WSurface *subsurfaceSurf
     QObject::connect(surfaceItem, &WSurfaceItem::boundingRectChanged, q, [this] {
         updateBoundingRect();
     });
-    // remove list element in WSurfaceItem::itemChange
-    subsurfaces.append(surfaceItem);
     Q_EMIT q->subsurfaceAdded(surfaceItem);
 
     return surfaceItem;
+}
+
+void WSurfaceItemPrivate::connectSubsurfaceContainerSignals(SubsurfaceContainer *container)
+{
+    QObject::connect(container,
+                     &SubsurfaceContainer::subsurfaceAdded,
+                     q_func(),
+                     [this](WSurfaceItem *item) {
+                         // Container child add/remove is the synchronization point for
+                         // the parent live-subsurface registry. New and reparented
+                         // items enter d->subsurfaces through this path.
+                         // Do not call updateBoundingRect() here: geometry/position for
+                         // newly added subsurfaces is finalized in updateSubsurfaceItem().
+                         // Do not emit q_func()->subsurfaceAdded() here: external add
+                         // notifications are emitted from ensureSubsurfaceItem() only
+                         // after the item is fully initialized.
+                         if (subsurfaces.contains(item)) {
+                             qCWarning(waylibSurface)
+                                 << "Duplicate subsurface add ignored:" << item;
+                             return;
+                         }
+                         subsurfaces.append(item);
+                     });
+    QObject::connect(container,
+                     &SubsurfaceContainer::subsurfaceRemoved,
+                     q_func(),
+                     [this](WSurfaceItem *item) {
+                         // Container child removal is another lifetime path besides
+                         // WSurface::destroyed; keep the parent registry in sync before
+                         // recalculating geometry from d->subsurfaces.
+                         subsurfaces.removeOne(item);
+                         updateBoundingRect();
+                         Q_EMIT q_func()->subsurfaceRemoved(item);
+                     });
 }
 
 void WSurfaceItemPrivate::updateSubsurfaceContainers()
@@ -1386,10 +1448,7 @@ void WSurfaceItemPrivate::updateSubsurfaceContainers()
         belowSubsurfaceContainer->setZ(static_cast<qreal>(WSurfaceItem::ZOrder::BelowSubsurface));
         belowSubsurfaceContainer->setVisible(subsurfacesVisible);
         QQuickItemPrivate::get(belowSubsurfaceContainer)->anchors()->setFill(q);
-        QObject::connect(belowSubsurfaceContainer, &SubsurfaceContainer::subsurfaceRemoved, q, [this, q](WSurfaceItem *item) {
-            updateBoundingRect();
-            Q_EMIT q->subsurfaceRemoved(item);
-        });
+        connectSubsurfaceContainerSignals(belowSubsurfaceContainer);
     }
     if (wl_list_empty(&surface->handle()->handle()->current.subsurfaces_above) && aboveSubsurfaceContainer) {
         if (aboveSubsurfaceContainer->isEmpty()) {
@@ -1402,10 +1461,7 @@ void WSurfaceItemPrivate::updateSubsurfaceContainers()
         aboveSubsurfaceContainer->setZ(static_cast<qreal>(WSurfaceItem::ZOrder::AboveSubsurface));
         aboveSubsurfaceContainer->setVisible(subsurfacesVisible);
         QQuickItemPrivate::get(aboveSubsurfaceContainer)->anchors()->setFill(q);
-        QObject::connect(aboveSubsurfaceContainer, &SubsurfaceContainer::subsurfaceRemoved, q, [this, q](WSurfaceItem *item) {
-            updateBoundingRect();
-            Q_EMIT q->subsurfaceRemoved(item);
-        });
+        connectSubsurfaceContainerSignals(aboveSubsurfaceContainer);
     }
 }
 
