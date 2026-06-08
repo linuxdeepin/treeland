@@ -165,6 +165,8 @@ public:
     explicit Helper(QObject *parent = nullptr);
     ~Helper() override;
 
+    static void syncPaletteTypeWithWindowThemeType(int32_t themeType);
+
     enum class OutputMode
     {
         Copy,

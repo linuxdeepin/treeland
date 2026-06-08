@@ -86,6 +86,10 @@ public:
     QStringList themeNames() const override;
     QPlatformTheme *createPlatformTheme(const QString &name) const override;
 
+    using CreatePlatformThemeCallback = std::function<QPlatformTheme *(const QString &name)>;
+    static WAYLIB_SERVER_EXPORT void setCreatePlatformThemeCallback(
+        CreatePlatformThemeCallback callback);
+
     QPlatformOffscreenSurface *createPlatformOffscreenSurface(QOffscreenSurface *surface) const override;
 
 #ifndef QT_NO_SESSIONMANAGER
@@ -110,6 +114,7 @@ public:
 private:
     friend class QWlrootsScreen;
 
+    static CreatePlatformThemeCallback s_createPlatformThemeCallback;
     mutable std::unique_ptr<QPlatformFontDatabase> m_fontDb;
     std::unique_ptr<QPlatformServices> m_services;
     std::unique_ptr<QPlatformPlaceholderScreen> m_placeholderScreen;

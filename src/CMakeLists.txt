@@ -383,6 +383,7 @@ target_include_directories(${BIN_NAME} PRIVATE
 
 target_link_libraries(${BIN_NAME} PRIVATE
     libtreeland
+    Qt6::GuiPrivate
 )
 
 install(TARGETS ${BIN_NAME} RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")

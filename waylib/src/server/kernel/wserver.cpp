@@ -355,8 +355,13 @@ void WServer::start()
     d->init();
 }
 
-void WServer::initializeQPA(const QStringList &parameters)
+void WServer::initializeQPA(const QStringList &parameters,
+                            std::function<QPlatformTheme *(const QString &)> createPlatformTheme)
 {
+    if (createPlatformTheme) {
+        QWlrootsIntegration::setCreatePlatformThemeCallback(std::move(createPlatformTheme));
+    }
+
     if (!initializeQtPlatform(parameters, nullptr)) {
         qFatal("Can't initialize Qt platform plugin.");
         return;
