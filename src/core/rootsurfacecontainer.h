@@ -70,6 +70,7 @@ public:
     void beginMoveResizeForSeat(WSeat *seat, SurfaceWrapper *surface, Qt::Edges edges);
     void doMoveResizeForSeat(WSeat *seat, const QPointF &delta);
     void endMoveResizeForSeat(WSeat *seat);
+    void cancelMoveResizeForSeat(WSeat *seat);
     SurfaceWrapper *getMoveResizeSurfaceForSeat(WSeat *seat) const;
     void setActivatedSurfaceForSeat(WSeat *seat, SurfaceWrapper *surface,
                                     Qt::FocusReason reason);

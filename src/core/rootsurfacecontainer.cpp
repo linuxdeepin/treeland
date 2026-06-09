@@ -740,6 +740,14 @@ void RootSurfaceContainer::endMoveResizeForSeat(WSeat *seat)
     }
 }
 
+void RootSurfaceContainer::cancelMoveResizeForSeat(WSeat *seat)
+{
+    auto *container = getSeatContainerOrDefault(seat);
+    if (container) {
+        container->cancelMoveResize();
+    }
+}
+
 SurfaceWrapper *RootSurfaceContainer::getMoveResizeSurfaceForSeat(WSeat *seat) const
 {
     auto *container = getSeatContainerOrDefault(seat);

@@ -1918,6 +1918,10 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *targetWindow, QInputEvent 
             m_rootSurfaceContainer->doMoveResizeForSeat(seat, increment_pos);
 
             return true;
+        } else if (event->type() == QEvent::KeyPress
+                   && static_cast<QKeyEvent *>(event)->key() == Qt::Key_Escape) {
+            m_rootSurfaceContainer->cancelMoveResizeForSeat(seat);
+            return true;
         } else if (event->type() == QEvent::MouseButtonRelease
                    || event->type() == QEvent::TouchEnd) {
             m_rootSurfaceContainer->endMoveResizeForSeat(seat);

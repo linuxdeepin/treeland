@@ -170,6 +170,24 @@ SurfaceWrapper *SeatSurfaceManager::moveResizeSurface() const
     return m_moveResizeState.surface;
 }
 
+void SeatSurfaceManager::cancelMoveResize()
+{
+    if (!m_moveResizeState.surface)
+        return;
+
+    auto surface = m_moveResizeState.surface;
+    auto startGeo = m_moveResizeState.startGeometry;
+
+    // Restore original geometry before ending
+    if (m_moveResizeState.edges != Qt::Edges()) {
+        surface->resize(surface->alignGeometryToPixelGrid(startGeo).size());
+    } else {
+        surface->setPosition(surface->alignToPixelGrid(startGeo.topLeft()));
+    }
+
+    endMoveResize();
+}
+
 void SeatSurfaceManager::cancelMoveResize(SurfaceWrapper *surface)
 {
     // Only cancel if this surface is the one being moved/resized
