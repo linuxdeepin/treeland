@@ -1,4 +1,4 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 import Waylib.Server
@@ -10,6 +10,9 @@ D.Menu {
     modal: true
 
     property SurfaceWrapper surface: null
+    readonly property bool canToggleMaximize: surface
+        ? surface.surfaceState === SurfaceWrapper.State.Maximized || surface.isMaximizable
+        : false
 
     onActiveFocusChanged: {
         if (!activeFocus)
@@ -33,6 +36,7 @@ D.Menu {
 
     D.MenuItem {
         text: surface?.surfaceState === SurfaceWrapper.State.Maximized ? qsTr("Unmaximize") : qsTr("Maximize")
+        enabled: menu.canToggleMaximize
         onTriggered: surface.requestToggleMaximize()
     }
 

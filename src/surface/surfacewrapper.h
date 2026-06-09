@@ -81,6 +81,8 @@ class SurfaceWrapper : public QQuickItem
     Q_PROPERTY(bool coverEnabled READ coverEnabled NOTIFY coverEnabledChanged FINAL)
     Q_PROPERTY(bool acceptKeyboardFocus READ acceptKeyboardFocus NOTIFY acceptKeyboardFocusChanged FINAL)
     Q_PROPERTY(bool isActivated READ isActivated NOTIFY isActivatedChanged FINAL)
+    Q_PROPERTY(bool isResizable READ isResizable NOTIFY resizableChanged FINAL)
+    Q_PROPERTY(bool isMaximizable READ isMaximizable NOTIFY maximizableChanged FINAL)
 
 public:
     enum class Type
@@ -237,6 +239,11 @@ public:
     bool showOnAllWorkspace() const;
     bool showOnWorkspace(int workspaceIndex) const;
 
+    // Keep this policy on SurfaceWrapper so future window rules can override it
+    // without pushing policy into waylib or QML.
+    bool isResizable() const;
+    bool isMaximizable() const;
+
     bool hasActiveCapability() const;
     bool hasCapability(WToplevelSurface::Capability cap) const;
 
@@ -343,6 +350,8 @@ Q_SIGNALS:
     void aboutToBeInvalidated();
     void acceptKeyboardFocusChanged();
     void isActivatedChanged();
+    void resizableChanged();
+    void maximizableChanged();
     void attentionChanged();
     void surfaceItemCreated(); // Emitted once after surfaceItem is constructed
     void prelaunchSplashChanged();
@@ -389,6 +398,7 @@ private:
     Q_SLOT void onShowAnimationFinished();
     Q_SLOT void onHideAnimationFinished();
     void updateExplicitAlwaysOnTop();
+    void updateSizeCapabilities();
     void startMinimizeAnimation(const QRectF &iconGeometry, uint direction);
     Q_SLOT void onMinimizeAnimationFinished();
     void startShowDesktopAnimation(bool show);
@@ -464,6 +474,8 @@ private:
     uint m_blur : 1;
     uint m_isActivated : 1;
     uint m_attention : 1;
+    uint m_resizable : 1;
+    uint m_maximizable : 1;
     SurfaceRole m_surfaceRole = SurfaceRole::Normal;
     quint32 m_autoPlaceYOffset = 0;
     QPoint m_clientRequstPos;

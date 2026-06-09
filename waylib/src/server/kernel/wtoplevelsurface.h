@@ -112,6 +112,8 @@ Q_SIGNALS:
     void fullscreenChanged();
     void titleChanged();
     void appIdChanged();
+    void minimumSizeChanged(const QSize &size);
+    void maximumSizeChanged(const QSize &size);
 
     void requestMove(WSeat *seat, quint32 serial);
     void requestResize(WSeat *seat, Qt::Edges edge, quint32 serial);

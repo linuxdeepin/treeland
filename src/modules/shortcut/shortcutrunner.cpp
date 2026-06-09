@@ -100,7 +100,7 @@ void ShortcutRunner::onActionTrigger(ShortcutAction action, const QString &name,
         break;
     case ShortcutAction::Maximize: {
         auto surface = helper->activatedSurface();
-        if (surface) {
+        if (surface && surface->isMaximizable()) {
             surface->requestMaximize();
         }
         break;
