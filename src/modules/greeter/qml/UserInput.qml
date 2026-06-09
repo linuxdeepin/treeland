@@ -5,7 +5,6 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import org.deepin.dtk 1.0 as D
 import Treeland
-import LockScreen
 
 Item {
     id: loginGroup
@@ -349,10 +348,7 @@ Item {
 
     function userLogin() {
         let user = UserModel.get(UserModel.currentUserName)
-        if (user.loggedIn)
-            GreeterProxy.unlock(user.name, passwordField.text)
-        else
-            GreeterProxy.login(user.name, passwordField.text, SessionModel.currentIndex)
+        GreeterProxy.login(user.name, passwordField.text, SessionModel.currentIndex)
     }
 
     Connections {

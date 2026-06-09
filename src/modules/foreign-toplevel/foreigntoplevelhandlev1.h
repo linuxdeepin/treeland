@@ -8,11 +8,11 @@
 #include <QObject>
 #include <QRect>
 #include <QString>
-#include <memory>
 
+#include <memory>
 #include <sys/types.h>
 
-class SurfaceEntry;
+struct SurfaceEntry;
 class ForeignToplevelManagerInterfaceV1;
 class ForeignToplevelHandleV1Private;
 struct wl_resource;

@@ -21,7 +21,7 @@ DCORE_USE_NAMESPACE
 [[nodiscard]] QString LogoProvider::version() const noexcept
 {
     if (DSysInfo::uosEditionType() == DSysInfo::UosEdition::UosEducation) {
-        return {};
+        return { };
     }
 
     QString version;

@@ -4,13 +4,14 @@
 
 #include <wsurfaceitem.h>
 #include <wtoplevelsurface.h>
+
 #include <qwglobal.h>
 
+#include <QColor>
 #include <QList>
 #include <QPointer>
 #include <QQuickItem>
 #include <QString>
-#include <QColor>
 
 Q_MOC_INCLUDE(<woutput.h>)
 Q_MOC_INCLUDE(<output / output.h>)
@@ -90,7 +91,6 @@ public:
         XWayland,
         Layer,
         InputPopup,
-        LockScreen,
         SplashScreen, // Used for pre-launch splash screen
     };
     Q_ENUM(Type)
@@ -129,8 +129,7 @@ public:
                             QQuickItem *parent = nullptr);
 
     // For proxy surface
-    explicit SurfaceWrapper(SurfaceWrapper *original,
-                            QQuickItem *parent = nullptr);
+    explicit SurfaceWrapper(SurfaceWrapper *original, QQuickItem *parent = nullptr);
 
     // Constructor for pre-launch splash; allows passing an initial window size to stabilize UI
     // early

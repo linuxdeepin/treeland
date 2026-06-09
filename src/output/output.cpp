@@ -26,12 +26,12 @@
 #include <wxdgpopupsurface.h>
 #include <wxdgpopupsurfaceitem.h>
 
-#include <optional>
-
 #include <qwlayershellv1.h>
 #include <qwoutputlayout.h>
 
 #include <QQmlEngine>
+
+#include <optional>
 
 #define SAME_APP_OFFSET_FACTOR 1.0
 #define DIFF_APP_OFFSET_FACTOR 2.0
@@ -40,7 +40,8 @@
 Output *Output::create(WOutput *output, QQmlEngine *engine, QObject *parent)
 {
     auto isSoftwareCursor = [](WOutput *output) -> bool {
-        return output->handle()->is_x11() || Helper::instance()->globalConfig()->forceSoftwareCursor();
+        return output->handle()->is_x11()
+            || Helper::instance()->globalConfig()->forceSoftwareCursor();
     };
     QQmlComponent delegate(engine, "Treeland", "PrimaryOutput");
     QObject *obj = delegate.beginCreate(engine->rootContext());
@@ -85,7 +86,6 @@ Output *Output::create(WOutput *output, QQmlEngine *engine, QObject *parent)
                o,
                &Output::arrangeAllSurfaces,
                Qt::QueuedConnection);
-
 
     // reset output color to config value
     o->setOutputColor(-1, 0);
@@ -153,8 +153,9 @@ Output::Output(WOutputItem *output, QObject *parent)
     // The connector name of the panel may change.
     QString outputName = output->output()->name();
     m_config = OutputConfig::createByName("org.deepin.dde.treeland.output",
-                                    "org.deepin.dde.treeland",
-                                    "/" + outputName, this);
+                                          "org.deepin.dde.treeland",
+                                          "/" + outputName,
+                                          this);
 }
 
 Output::~Output()
@@ -197,7 +198,7 @@ QQuickItem *Output::debugMenuBar() const
 std::pair<WOutputViewport *, QQuickItem *> Output::getOutputItemProperty()
 {
     WOutputViewport *viewportCopy =
-        outputItem()->findChild<WOutputViewport *>({}, Qt::FindDirectChildrenOnly);
+        outputItem()->findChild<WOutputViewport *>({ }, Qt::FindDirectChildrenOnly);
     Q_ASSERT(viewportCopy);
     auto textureProxy = outputItem()->findChild<WQuickTextureProxy *>();
     Q_ASSERT(textureProxy);
@@ -257,10 +258,8 @@ void Output::placeSmartCascaded(SurfaceWrapper *surface)
     QRectF normalGeo = surface->normalGeometry();
     QRectF latestActiveSurfaceGeo = latestActiveSurface->normalGeometry();
 
-    qreal factor =
-        (latestActiveSurface->appId() != surface->appId())
-        ? DIFF_APP_OFFSET_FACTOR
-        : SAME_APP_OFFSET_FACTOR;
+    qreal factor = (latestActiveSurface->appId() != surface->appId()) ? DIFF_APP_OFFSET_FACTOR
+                                                                      : SAME_APP_OFFSET_FACTOR;
     const QRectF titleBarGeometry = latestActiveSurface->titlebarGeometry();
     qreal offset = (titleBarGeometry.isNull() ? Helper::instance()->config()->windowTitlebarHeight()
                                               : titleBarGeometry.height())
@@ -432,7 +431,7 @@ void Output::addSurface(SurfaceWrapper *surface)
         auto layoutSurface = [surface, this] {
             if (!surface->hasInitializeContainer())
                 return;
-            arrangeNonLayerSurface(surface, {});
+            arrangeNonLayerSurface(surface, { });
         };
 
         connect(surface, &SurfaceWrapper::widthChanged, this, layoutSurface);
@@ -449,16 +448,23 @@ void Output::addSurface(SurfaceWrapper *surface)
 
         if (surface->type() == SurfaceWrapper::Type::XdgPopup) {
             auto xdgPopupSurfaceItem = qobject_cast<WXdgPopupSurfaceItem *>(surface->surfaceItem());
-            connect(xdgPopupSurfaceItem, &WXdgPopupSurfaceItem::implicitPositionChanged, this, [surface, this] {
-                // Reposition should ignore positionAutomatic
-                arrangePopupSurface(surface);
-            });
+            connect(xdgPopupSurfaceItem,
+                    &WXdgPopupSurfaceItem::implicitPositionChanged,
+                    this,
+                    [surface, this] {
+                        // Reposition should ignore positionAutomatic
+                        arrangePopupSurface(surface);
+                    });
         } else if (surface->type() == SurfaceWrapper::Type::InputPopup) {
-            auto inputPopupSurfaceItem = qobject_cast<WInputPopupSurfaceItem *>(surface->surfaceItem());
-            connect(inputPopupSurfaceItem, &WInputPopupSurfaceItem::referenceRectChanged, this, [surface, this] {
-                // Reposition should ignore positionAutomatic
-                arrangePopupSurface(surface);
-            });
+            auto inputPopupSurfaceItem =
+                qobject_cast<WInputPopupSurfaceItem *>(surface->surfaceItem());
+            connect(inputPopupSurfaceItem,
+                    &WInputPopupSurfaceItem::referenceRectChanged,
+                    this,
+                    [surface, this] {
+                        // Reposition should ignore positionAutomatic
+                        arrangePopupSurface(surface);
+                    });
         }
     }
 }
@@ -613,8 +619,8 @@ void Output::arrangeLayerSurface(SurfaceWrapper *surface)
             setExclusiveZone(Qt::RightEdge, layer, layer->exclusiveZone());
             break;
         default:
-            qCWarning(treelandOutput) << layer->appId()
-                                 << " has set exclusive zone, but exclusive edge is invalid!";
+            qCWarning(treelandOutput)
+                << layer->appId() << " has set exclusive zone, but exclusive edge is invalid!";
             break;
         }
     }
@@ -690,15 +696,18 @@ void Output::arrangeNonLayerSurface(SurfaceWrapper *surface, const QSizeF &sizeD
             }
         } else if (!sizeDiff.isNull() && sizeDiff.isValid()) {
             QRectF validGeo = this->validGeometry();
-            // Save the window's proportional position relative to the available area during the initial scale.
+            // Save the window's proportional position relative to the available area during the
+            // initial scale.
             if (!m_initialWindowPositionRatio.contains(surface)) {
                 qreal xRatio = 0.5, yRatio = 0.5; // Default center position
                 if (validGeo.width() > normalGeo.width()) {
-                    xRatio = (normalGeo.x() - validGeo.x()) / (validGeo.width() - normalGeo.width());
+                    xRatio =
+                        (normalGeo.x() - validGeo.x()) / (validGeo.width() - normalGeo.width());
                     xRatio = qBound(0.0, xRatio, 1.0);
                 }
                 if (validGeo.height() > normalGeo.height()) {
-                    yRatio = (normalGeo.y() - validGeo.y()) / (validGeo.height() - normalGeo.height());
+                    yRatio =
+                        (normalGeo.y() - validGeo.y()) / (validGeo.height() - normalGeo.height());
                     yRatio = qBound(0.0, yRatio, 1.0);
                 }
                 m_initialWindowPositionRatio[surface] = QPointF(xRatio, yRatio);
@@ -709,16 +718,17 @@ void Output::arrangeNonLayerSurface(SurfaceWrapper *surface, const QSizeF &sizeD
             newPos.setX(validGeo.x() + ratio.x() * (validGeo.width() - normalGeo.width()));
             newPos.setY(validGeo.y() + ratio.y() * (validGeo.height() - normalGeo.height()));
 
-            // Boundary protection ensures that at least 30% of the window remains within the screen.
+            // Boundary protection ensures that at least 30% of the window remains within the
+            // screen.
             const qreal minVisibleRatio = 0.3;
             const int minVisibleX = qMin(100, int(normalGeo.width() * minVisibleRatio));
             const int minVisibleY = qMin(100, int(normalGeo.height() * minVisibleRatio));
             newPos.setX(qBound(validGeo.left() - normalGeo.width() + minVisibleX,
-                            newPos.x(),
-                            validGeo.right() - minVisibleX));
+                               newPos.x(),
+                               validGeo.right() - minVisibleX));
             newPos.setY(qBound(validGeo.top() - normalGeo.height() + minVisibleY,
-                            newPos.y(),
-                            validGeo.bottom() - minVisibleY));
+                               newPos.y(),
+                               validGeo.bottom() - minVisibleY));
             surface->moveNormalGeometryInOutput(newPos);
         } else {
             QPoint clientRequstPos = surface->clientRequstPos();
@@ -774,15 +784,16 @@ QPointF Output::calculateBasePosition(SurfaceWrapper *surface, const QPointF &dP
         return QPointF();
     }
 
-    const qreal titlebarOffset = parent->titlebarGeometry().isNull()
-        ? 0.0
-        : parent->titlebarGeometry().height();
+    const qreal titlebarOffset =
+        parent->titlebarGeometry().isNull() ? 0.0 : parent->titlebarGeometry().height();
 
     return QPointF(parent->x() + parent->surfaceItem()->x() + dPos.x(),
                    parent->y() + parent->surfaceItem()->y() + dPos.y() + titlebarOffset);
 }
 
-void Output::adjustToOutputBounds(QPointF &pos, const QRectF &normalGeo, const QRectF &outputRect) const
+void Output::adjustToOutputBounds(QPointF &pos,
+                                  const QRectF &normalGeo,
+                                  const QRectF &outputRect) const
 {
     if (pos.x() + normalGeo.width() > outputRect.right() - POPUP_EDGE_MARGIN) {
         pos.setX(outputRect.right() - normalGeo.width() - POPUP_EDGE_MARGIN);
@@ -821,7 +832,10 @@ void Output::handleLayerShellPopup(SurfaceWrapper *surface, const QRectF &normal
     surface->moveNormalGeometryInOutput(pos);
 }
 
-void Output::handleRegularPopup(SurfaceWrapper *surface, const QRectF &normalGeo, bool isSubMenu, WOutputItem *targetOutput)
+void Output::handleRegularPopup(SurfaceWrapper *surface,
+                                const QRectF &normalGeo,
+                                bool isSubMenu,
+                                WOutputItem *targetOutput)
 {
     if (normalGeo.isEmpty()) {
         return;
@@ -868,8 +882,8 @@ void Output::clearPopupCache(SurfaceWrapper *surface)
         return;
     }
 
-    if (surface->type() == SurfaceWrapper::Type::XdgPopup ||
-        surface->type() == SurfaceWrapper::Type::InputPopup) {
+    if (surface->type() == SurfaceWrapper::Type::XdgPopup
+        || surface->type() == SurfaceWrapper::Type::InputPopup) {
         m_positionCache.remove(surface);
     }
 }
@@ -878,10 +892,11 @@ void Output::arrangePopupSurface(SurfaceWrapper *surface)
 {
     SurfaceWrapper *parentSurfaceWrapper = surface->parentSurface();
     if (!parentSurfaceWrapper) {
-        //  When an input popup is still alive while its parent text-input client is being torn down, 
-        //  arrangePopupSurface() can run in a transient state where parentSurface is temporarily unavailable.
+        //  When an input popup is still alive while its parent text-input client is being torn
+        //  down, arrangePopupSurface() can run in a transient state where parentSurface is
+        //  temporarily unavailable.
         qCWarning(treelandSurface) << "[popup] skip arrangePopupSurface: missing parent surface"
-                                << "surface=" << surface;
+                                   << "surface=" << surface;
         return;
     }
 
@@ -891,7 +906,8 @@ void Output::arrangePopupSurface(SurfaceWrapper *surface)
     }
 
     WOutputItem *targetOutput = nullptr;
-    // TODO： Consider determining the targetOutput based on the upper left corner or overlapping area
+    // TODO： Consider determining the targetOutput based on the upper left corner or overlapping
+    // area
     if (surface->type() == SurfaceWrapper::Type::XdgPopup) {
         auto *outputAtCursor = Helper::instance()->getOutputAtCursor();
         targetOutput = outputAtCursor ? outputAtCursor->outputItem() : nullptr;
@@ -924,9 +940,7 @@ void Output::arrangeNonLayerSurfaces()
     m_lastSizeOnLayoutNonLayerSurfaces = currentSize;
 
     for (SurfaceWrapper *surface : surfaces()) {
-        if (surface->type() == SurfaceWrapper::Type::Layer
-            || surface->type() == SurfaceWrapper::Type::LockScreen
-            || !surface->hasInitializeContainer())
+        if (surface->type() == SurfaceWrapper::Type::Layer || !surface->hasInitializeContainer())
             continue;
         arrangeNonLayerSurface(surface, sizeDiff);
     }
@@ -968,9 +982,8 @@ QRectF Output::validGeometry() const
     return geometry().marginsRemoved(m_exclusiveZone);
 }
 
-// do not use config()->setBrightness or config()->setColorTemperature to set color temperature or brightness
-// as doing so will have no effect.
-// use Output::setOutputColor instead
+// do not use config()->setBrightness or config()->setColorTemperature to set color temperature or
+// brightness as doing so will have no effect. use Output::setOutputColor instead
 OutputConfig *Output::config() const
 {
     return m_config;
@@ -981,17 +994,24 @@ static inline void kelvinToRGB(double kelvin, double &r, double &g, double &b)
 {
     kelvin = std::clamp(kelvin, 1000.0, 20000.0) / 100.0;
 
-    if (kelvin <= 66.0) r = 1.0;
-    else r = std::clamp(329.698727446 * std::pow(kelvin - 60.0, -0.1332047592) / 255.0, 0.0, 1.0);
+    if (kelvin <= 66.0)
+        r = 1.0;
+    else
+        r = std::clamp(329.698727446 * std::pow(kelvin - 60.0, -0.1332047592) / 255.0, 0.0, 1.0);
 
     if (kelvin <= 66.0)
         g = std::clamp((99.4708025861 * std::log(kelvin) - 161.1195681661) / 255.0, 0.0, 1.0);
     else
         g = std::clamp(288.1221695283 * std::pow(kelvin - 60.0, -0.0755148492) / 255.0, 0.0, 1.0);
 
-    if (kelvin >= 66.0) b = 1.0;
-    else if (kelvin <= 19.0) b = 0.0;
-    else b = std::clamp((138.5177312231 * std::log(kelvin - 10.0) - 305.0447927307) / 255.0, 0.0, 1.0);
+    if (kelvin >= 66.0)
+        b = 1.0;
+    else if (kelvin <= 19.0)
+        b = 0.0;
+    else
+        b = std::clamp((138.5177312231 * std::log(kelvin - 10.0) - 305.0447927307) / 255.0,
+                       0.0,
+                       1.0);
 }
 
 static inline void generateGammaLUT(uint32_t colorTemperature,
@@ -1019,7 +1039,7 @@ static inline void generateGammaLUT(uint32_t colorTemperature,
     }
 }
 
-}
+} // namespace
 
 // TODO: better Chromatic Adaptation algorithms can be implemented when the wlr_color_transform
 // api is available. For now RGB scaling is used due to limitation of gamma LUT table.
@@ -1048,7 +1068,8 @@ void Output::setOutputColor(qreal brightness,
         if (resultCallback)
             resultCallback(false);
         qCWarning(treelandOutput) << " Output " << output()->name()
-                             << " does not support gamma LUT! Brightness and color temperature adjustments through gamma will have no effect.";
+                                  << " does not support gamma LUT! Brightness and color "
+                                     "temperature adjustments through gamma will have no effect.";
         return;
     }
 
@@ -1056,17 +1077,13 @@ void Output::setOutputColor(qreal brightness,
     QVector<uint16_t> g(gammaSize);
     QVector<uint16_t> b(gammaSize);
 
-    generateGammaLUT(colorTemperature,
-                     brightnessCorrection,
-                     gammaSize,
-                     r,
-                     g,
-                     b);
+    generateGammaLUT(colorTemperature, brightnessCorrection, gammaSize, r, g, b);
 
     WOutputHelper::ExtraState newState;
     auto *viewport = screenViewport();
     auto *renderWindow = screenViewport()->outputRenderWindow();
-    wlr_output_state_set_gamma_lut(newState.get(), gammaSize,
+    wlr_output_state_set_gamma_lut(newState.get(),
+                                   gammaSize,
                                    r.constData(),
                                    g.constData(),
                                    b.constData());
@@ -1074,22 +1091,26 @@ void Output::setOutputColor(qreal brightness,
     auto *outputHelper = renderWindow->getOutputHelper(viewport);
     outputHelper->setExtraState(newState);
 
-    outputHelper->scheduleCommitJob([this, brightness, colorTemperature, newState, resultCallback](bool success, WOutputHelper::ExtraState state) {
-        if (state == newState) {
-            if (resultCallback)
-                resultCallback(success);
-            if (!success) {
-                qCWarning(treelandOutput) << "Failed to apply brightness and color temperature settings to output"
-                                          << output()->name();
+    outputHelper->scheduleCommitJob(
+        [this, brightness, colorTemperature, newState, resultCallback](
+            bool success,
+            WOutputHelper::ExtraState state) {
+            if (state == newState) {
+                if (resultCallback)
+                    resultCallback(success);
+                if (!success) {
+                    qCWarning(treelandOutput)
+                        << "Failed to apply brightness and color temperature settings to output"
+                        << output()->name();
+                } else {
+                    config()->setBrightness(brightness);
+                    config()->setColorTemperature(colorTemperature);
+                }
             } else {
-                config()->setBrightness(brightness);
-                config()->setColorTemperature(colorTemperature);
+                qCWarning(treelandOutput) << "Commit callback received unexpected state pointer!"
+                                          << "Expected:" << newState.get() << "Got:" << state.get();
             }
-        } else {
-            qCWarning(treelandOutput) << "Commit callback received unexpected state pointer!"
-                                      << "Expected:" << newState.get()
-                                      << "Got:" << state.get();
-        }
-    }, WOutputHelper::AfterCommitStage);
+        },
+        WOutputHelper::AfterCommitStage);
     renderWindow->update(viewport);
 }

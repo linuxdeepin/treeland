@@ -69,8 +69,6 @@ public:
     QQuickItem *createShowDesktopAnimation(SurfaceWrapper *surface, QQuickItem *parent, bool show);
     QQuickItem *createCaptureSelector(QQuickItem *parent, CaptureManagerV1 *captureManager);
     QQuickItem *createWindowPicker(QQuickItem *parent);
-    QQuickItem *createLockScreenFallback(QQuickItem *parent,
-                                         const QVariantMap &properties = QVariantMap());
     QQuickItem *createFpsDisplay(QQuickItem *parent);
     QQuickItem *createPrelaunchSplash(QQuickItem *parent,
                                       qreal initialRadius,
@@ -95,9 +93,7 @@ private:
     QQmlComponent menuBarComponent;
     QQmlComponent workspaceSwitcher;
     QQmlComponent newAnimationComponent;
-#ifndef DISABLE_DDM
     QQmlComponent lockScreenComponent;
-#endif
     QQmlComponent dockPreviewComponent;
     QQmlComponent minimizeAnimationComponent;
     QQmlComponent showDesktopAnimatioComponentn;
@@ -106,7 +102,6 @@ private:
     QQmlComponent launchpadAnimationComponent;
     QQmlComponent launchpadCoverComponent;
     QQmlComponent layershellAnimationComponent;
-    QQmlComponent lockScreenFallbackComponent;
     QQmlComponent fpsDisplayComponent;
     QQmlComponent prelaunchSplashComponent;
 };
