@@ -931,8 +931,10 @@ void ForeignToplevelHandleV1::output_enter(WOutput *output)
         }
     });
 
-    connect(qwOutput, &qw_output::before_destroy, this, [toplevel_output]() {
-        toplevel_output.toplevel->output_leave(toplevel_output.output);
+    connect(qwOutput, &qw_output::before_destroy, this, [this, output]() {
+        d->outputs.removeIf([output](const foreign_toplevel_output &handle_output) {
+            return handle_output.output == output;
+        });
     });
     send_output(output, true);
 }
@@ -1026,6 +1028,10 @@ void ForeignToplevelHandleV1::send_state()
 void ForeignToplevelHandleV1::send_output(WOutput *output, bool enter)
 {
     if (!output) {
+        return;
+    }
+
+    if (!output->handle()) {
         return;
     }
 
