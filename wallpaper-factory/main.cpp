@@ -3,9 +3,13 @@
 
 #include "treelandwallpapernotifierclient.h"
 
+#include <DLog>
+
 #include <QGuiApplication>
 #include <QQuickWindow>
 #include <QSGRendererInterface>
+
+DCORE_USE_NAMESPACE;
 
 int main(int argc, char *argv[])
 {
@@ -15,6 +19,8 @@ int main(int argc, char *argv[])
 
     app.setOrganizationName("deepin");
     app.setApplicationName("treeland-wallpaper-factory");
+
+    DLogManager::registerJournalAppender();
 
     std::unique_ptr<TreelandWallpaperNotifierClientV1> produce;
     produce.reset(new TreelandWallpaperNotifierClientV1);

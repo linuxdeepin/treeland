@@ -18,9 +18,7 @@ QWaylandWallpaperShellIntegration::QWaylandWallpaperShellIntegration()
 
 QWaylandWallpaperShellIntegration::~QWaylandWallpaperShellIntegration()
 {
-    if (object()) {
-        treeland_wallpaper_shell_v1_destroy(object());
-    }
+    destroy();
 }
 
 QtWaylandClient::QWaylandShellSurface *QWaylandWallpaperShellIntegration::createShellSurface(QtWaylandClient::QWaylandWindow *window)

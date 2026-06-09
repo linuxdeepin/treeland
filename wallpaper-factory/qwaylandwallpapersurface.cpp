@@ -16,6 +16,15 @@ QWaylandWallpaperSurface::QWaylandWallpaperSurface(QWaylandWallpaperShellIntegra
     , m_window(window)
 {
     init(shell->get_treeland_wallpaper_surface(window->waylandSurface()->object(), m_interface->source()));
+    if (m_interface->loaded()) {
+        onFileLoaded();
+    } else {
+        connect(m_interface,
+                &WallpaperWindow::loadedChanged,
+                this,
+                &QWaylandWallpaperSurface::onFileLoaded,
+                Qt::SingleShotConnection);
+    }
 }
 
 QWaylandWallpaperSurface::~QWaylandWallpaperSurface()
@@ -41,4 +50,12 @@ void QWaylandWallpaperSurface::treeland_wallpaper_surface_v1_play()
 void QWaylandWallpaperSurface::treeland_wallpaper_surface_v1_slow_down(uint32_t duration)
 {
     Q_EMIT m_interface->slowDownChanged(duration);
+}
+
+void QWaylandWallpaperSurface::onFileLoaded()
+{
+    if (version() < TREELAND_WALLPAPER_SURFACE_V1_READY)
+        return;
+
+    ready();
 }

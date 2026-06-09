@@ -27,6 +27,9 @@ private:
     void treeland_wallpaper_surface_v1_play() override;
     void treeland_wallpaper_surface_v1_slow_down(uint32_t duration) override;
 
+private Q_SLOTS:
+    void onFileLoaded();
+
 private:
     QWaylandWallpaperShellIntegration *m_shell;
     WallpaperWindow *m_interface;

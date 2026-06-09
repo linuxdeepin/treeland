@@ -25,11 +25,9 @@ class WallpaperItem : public WSurfaceItemContent
     Q_PROPERTY(WorkspaceModel* workspace READ workspace WRITE setWorkspace NOTIFY workspaceChanged FINAL)
     Q_PROPERTY(WAYLIB_SERVER_NAMESPACE::WOutput* output READ output WRITE setOutput NOTIFY outputChanged FINAL)
     Q_PROPERTY(WallpaperRole wallpaperRole READ wallpaperRole WRITE setWallpaperRole NOTIFY wallpaperRoleChanged FINAL)
-    Q_PROPERTY(QString source READ source NOTIFY sourceChanged FINAL)
+    Q_PROPERTY(QString source READ source FINAL)
     Q_PROPERTY(WallpaperState wallpaperState READ wallpaperState WRITE setWallpaperState NOTIFY wallpaperStateChanged FINAL)
     Q_PROPERTY(bool play READ play WRITE setPlay NOTIFY playChanged FINAL)
-    Q_PROPERTY(bool disableUpdate READ disableUpdate WRITE setDisableUpdate NOTIFY disableUpdateChanged FINAL)
-    Q_PROPERTY(bool forceUpdateSource READ forceUpdateSource WRITE setForceUpdateSource NOTIFY forceUpdateSourceChanged FINAL)
 
     QML_NAMED_ELEMENT(Wallpaper)
     QML_ADDED_IN_VERSION(1, 0)
@@ -70,27 +68,22 @@ public:
     void setPlay(bool value);
 
     Q_INVOKABLE void slowDown();
+    void updateSurface();
 
-    bool disableUpdate() const;
-    void setDisableUpdate(bool disable);
-
-    bool forceUpdateSource() const;
-    void setForceUpdateSource(bool value);
 Q_SIGNALS:
     void outputChanged();
     void workspaceChanged();
     void wallpaperRoleChanged();
-    void sourceChanged();
     void wallpaperStateChanged();
     void playChanged();
-    void disableUpdateChanged();
-    void forceUpdateSourceChanged();
 
 private Q_SLOTS:
     void handleCurrentuserChanged();
-    void updateSurface();
-    void scheduleUpdate();
     void handleWorkspaceAdded();
+    void handleWallpaperSurfaceAdded(TreelandWallpaperSurfaceInterfaceV1 *interface);
+
+protected:
+    WallpaperItem(QQuickItem *parent, bool autoUpdate);
 
 private:
     int m_userId = -1;
@@ -101,6 +94,4 @@ private:
     QString m_source;
     UserModel *m_model;
     bool m_play = true;
-    bool m_disableUpdate = false;
-    bool m_forceUpdateSource = false;
 };
