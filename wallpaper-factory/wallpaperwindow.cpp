@@ -22,11 +22,16 @@ public:
 
     QWindow *parentWindow;
     QString source;
+    bool loaded = false;
+    QWaylandWallpaperShellIntegration *shellIntegration = nullptr;
 };
 
 WallpaperWindow::~WallpaperWindow()
 {
     s_map.remove(d->parentWindow);
+    if (d->shellIntegration) {
+        delete d->shellIntegration;
+    }
 }
 
 QString WallpaperWindow::source()
@@ -82,6 +87,21 @@ QWindow *WallpaperWindow::parentWindow() const
     return d->parentWindow;
 }
 
+bool WallpaperWindow::loaded()
+{
+    return d->loaded;
+}
+
+void WallpaperWindow::setLoaded(bool loaded)
+{
+    if (d->loaded == loaded) {
+        return;
+    }
+
+    d->loaded = loaded;
+    Q_EMIT loadedChanged();
+}
+
 void WallpaperWindow::initializeShellIntegration()
 {
     auto waylandWindow = dynamic_cast<QtWaylandClient::QWaylandWindow *>(d->parentWindow->handle());
@@ -90,18 +110,17 @@ void WallpaperWindow::initializeShellIntegration()
         return;
     }
 
-    static QWaylandWallpaperShellIntegration *shellIntegration = nullptr;
-    if (!shellIntegration) {
-        shellIntegration = new QWaylandWallpaperShellIntegration();
-        if (!shellIntegration->initialize(waylandWindow->display())) {
-            delete shellIntegration;
-            shellIntegration = nullptr;
+    if (!d->shellIntegration) {
+        d->shellIntegration = new QWaylandWallpaperShellIntegration();
+        if (!d->shellIntegration->initialize(waylandWindow->display())) {
+            delete d->shellIntegration;
+            d->shellIntegration = nullptr;
             qCWarning(WALLPAPER) << "Failed to initialize treeland_wallpaper_produce integration, possibly because compositor does not support the treeland_wallpaper_produce_v1 protocol";
             return;
         }
     }
 
-    waylandWindow->setShellIntegration(shellIntegration);
+    waylandWindow->setShellIntegration(d->shellIntegration);
 }
 
 WallpaperWindow::WallpaperWindow(QWindow *window)

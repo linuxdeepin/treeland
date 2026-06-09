@@ -215,6 +215,8 @@ qt_add_qml_module(libtreeland
         wallpaper/wallpaperconfig.cpp
         wallpaper/wallpaperlauncher.h
         wallpaper/wallpaperlauncher.cpp
+        wallpaper/wallpaperswitcheritem.cpp
+        wallpaper/wallpaperswitcheritem.h
         workspace/workspace.cpp
         workspace/workspace.h
         workspace/workspaceanimationcontroller.cpp
