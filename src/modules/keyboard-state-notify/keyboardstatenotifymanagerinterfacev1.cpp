@@ -132,7 +132,7 @@ void TreelandKeyboardStateNotifyManagerInterfaceV1Private::onModifiersEvent(WSea
     if (s_watchers.isEmpty())
         return;
 
-    qw_keyboard *keyboard = qobject_cast<qw_keyboard*>(seat->keyboard()->handle());
+    qw_keyboard *keyboard = qobject_cast<qw_keyboard*>(seat->keyboardGroupKeyboard()->handle());
     const auto *wlrKeyboard = keyboard->handle();
     if (!wlrKeyboard || !wlrKeyboard->xkb_state)
         return;
@@ -214,7 +214,7 @@ void TreelandKeyboardStateNotifyManagerInterfaceV1Private::get_keyboard_state_wa
 
 void TreelandKeyboardStateNotifyManagerInterfaceV1Private::handleSeatAdded(WSeat *seat)
 {
-    auto *keyboardevice = seat->keyboard();
+    auto *keyboardevice = seat->keyboardGroupKeyboard();
     if (keyboardevice) {
         connectKeyboardGroup(seat, keyboardevice);
     }

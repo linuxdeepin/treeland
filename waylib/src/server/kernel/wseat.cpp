@@ -664,7 +664,7 @@ void WSeatPrivate::attachInputDevice(WInputDevice *device)
         keyboard->set_keymap(keymap);
         xkb_keymap_unref(keymap);
         xkb_context_unref(context);
-        if (device == groupkeyboardDevice) {
+        if (device == groupkeyboardDevice || device->isVirtual()) {
             device->safeConnect(&qw_keyboard::notify_key, q, [this, device] (wlr_keyboard_key_event *event) {
                 on_keyboard_key(event, device);
             });
@@ -1103,6 +1103,13 @@ void WSeat::clearKeyboardFocusWindow()
 {
     W_D(WSeat);
     d->focusWindow = nullptr;
+}
+
+WInputDevice *WSeat::keyboardGroupKeyboard() const
+{
+    W_DC(WSeat);
+
+    return d->groupkeyboardDevice;
 }
 
 WInputDevice *WSeat::keyboard() const
