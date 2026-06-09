@@ -100,6 +100,7 @@ public:
     QWindow *keyboardFocusWindow() const;
     void clearKeyboardFocusWindow();
 
+    WInputDevice *keyboardGroupKeyboard() const;
     WInputDevice *keyboard() const;
     void setKeyboard(WInputDevice *newKeyboard);
 

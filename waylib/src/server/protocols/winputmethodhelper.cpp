@@ -323,7 +323,7 @@ void WInputMethodHelper::handleNewIPSV2(qw_input_popup_surface_v2 *ipsv2)
 void WInputMethodHelper::handleNewVKV1(wlr_virtual_keyboard_v1 *vkv1)
 {
     W_D(WInputMethodHelper);
-    WInputDevice *keyboard = new WInputDevice(qw_input_device::from(&vkv1->keyboard.base));
+    WInputDevice *keyboard = new WInputDevice(qw_input_device::from(&vkv1->keyboard.base), true);
     d->virtualKeyboards.append(keyboard);
     d->seat->attachInputDevice(keyboard);
     keyboard->safeConnect(&qw_input_device::before_destroy, this, [d, keyboard] () {

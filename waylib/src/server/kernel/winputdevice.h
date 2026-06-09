@@ -62,7 +62,7 @@ public:
     };
     Q_ENUM(Type)
 
-    WInputDevice(QW_NAMESPACE::qw_input_device *handle);
+    WInputDevice(QW_NAMESPACE::qw_input_device *handle, bool isVirtual = false);
 
     QW_NAMESPACE::qw_input_device *handle() const;
 
@@ -80,6 +80,8 @@ public:
     void setSeat(WSeat *seat);
     WSeat *seat() const;
     QString devicePath() const;
+
+    bool isVirtual() const;
 
 private:
     friend class QWlrootsIntegration;
