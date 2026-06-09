@@ -48,11 +48,12 @@ bool WInputPopupSurface::hasCapability(Capability cap) const
 {
     switch (cap) {
         using enum Capability;
+    case Resize:
+        return true;
     case Focus:
     case Activate:
     case Maximized:
     case FullScreen:
-    case Resize:
         return false;
     default:
         break;

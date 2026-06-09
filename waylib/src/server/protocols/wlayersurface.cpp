@@ -268,7 +268,6 @@ bool WLayerSurface::hasCapability(Capability cap) const
     Q_UNREACHABLE();
 }
 
-
 WSurface *WLayerSurface::surface() const
 {
     W_D(const WLayerSurface);

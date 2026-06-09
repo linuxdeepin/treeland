@@ -2,14 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wxdgtoplevelsurface.h"
+
 #include "private/wtoplevelsurface_p.h"
 #include "wseat.h"
 #include "wtools.h"
 
-#include <qwxdgshell.h>
+#include <qwbox.h>
 #include <qwcompositor.h>
 #include <qwseat.h>
-#include <qwbox.h>
+#include <qwxdgshell.h>
+
+#include <climits>
 
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -34,6 +37,7 @@ public:
     void connect();
 
     void instantRelease() override;
+    void updateSizeFromCommit();
 
     W_DECLARE_PUBLIC(WXdgToplevelSurface)
 
@@ -44,6 +48,8 @@ public:
     uint maximized:1;
     uint minimized:1;
     uint fullscreen:1;
+    QSize minimumSize;
+    QSize maximumSize = QSize(INT_MAX, INT_MAX);
 
     QString tag;
     QString description;
@@ -104,6 +110,27 @@ void WXdgToplevelSurfacePrivate::on_configure(wlr_xdg_surface_configure *event)
     }
 }
 
+void WXdgToplevelSurfacePrivate::updateSizeFromCommit()
+{
+    W_Q(WXdgToplevelSurface);
+
+    const QSize minimumSize(qMax(0, nativeHandle()->current.min_width),
+                            qMax(0, nativeHandle()->current.min_height));
+    const QSize maximumSize(
+        nativeHandle()->current.max_width > 0 ? nativeHandle()->current.max_width : INT_MAX,
+        nativeHandle()->current.max_height > 0 ? nativeHandle()->current.max_height : INT_MAX);
+
+    if (this->minimumSize != minimumSize) {
+        this->minimumSize = minimumSize;
+        Q_EMIT q->minimumSizeChanged(this->minimumSize);
+    }
+
+    if (this->maximumSize != maximumSize) {
+        this->maximumSize = maximumSize;
+        Q_EMIT q->maximumSizeChanged(this->maximumSize);
+    }
+}
+
 void WXdgToplevelSurfacePrivate::init()
 {
     W_Q(WXdgToplevelSurface);
@@ -121,6 +148,9 @@ void WXdgToplevelSurfacePrivate::connect()
     W_Q(WXdgToplevelSurface);
 
     auto surface = qw_xdg_surface::from(nativeHandle()->base);
+    q->surface()->safeConnect(&WSurface::commit, q, [this] {
+        updateSizeFromCommit();
+    });
     QObject::connect(surface, &qw_xdg_surface::notify_configure, q, [this] (wlr_xdg_surface_configure *event) {
         on_configure(event);
     });
@@ -180,10 +210,18 @@ bool WXdgToplevelSurface::hasCapability(Capability cap) const
 {
     switch (cap) {
         using enum Capability;
-    case Resize:
+    case Resize: {
+        const QSize min = minSize();
+        const QSize max = maxSize();
+        return min.width() < max.width() || min.height() < max.height();
+    }
+    case Maximized: {
+        const QSize min = minSize();
+        const QSize max = maxSize();
+        return min.width() < max.width() && min.height() < max.height();
+    }
     case Focus:
     case Activate:
-    case Maximized:
     case FullScreen:
         return true;
     default:
@@ -273,19 +311,13 @@ QRect WXdgToplevelSurface::getContentGeometry() const
 QSize WXdgToplevelSurface::minSize() const
 {
     W_DC(WXdgToplevelSurface);
-    auto wtoplevel = d->nativeHandle();
-    return QSize(wtoplevel->current.min_width,
-                 wtoplevel->current.min_height);
-
+    return d->minimumSize;
 }
 
 QSize WXdgToplevelSurface::maxSize() const
 {
     W_DC(WXdgToplevelSurface);
-    auto wtoplevel = d->nativeHandle();
-    return QSize(wtoplevel->current.max_width,
-                 wtoplevel->current.max_height);
-
+    return d->maximumSize;
 }
 
 QString WXdgToplevelSurface::title() const

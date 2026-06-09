@@ -2,17 +2,24 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wxwaylandsurface.h"
+
+#include "private/wtoplevelsurface_p.h"
 #include "wsurface.h"
 #include "wtools.h"
 #include "wxwayland.h"
-#include "private/wtoplevelsurface_p.h"
-
-#include <qwxwaylandsurface.h>
-#include <qwcompositor.h>
-#include <QPointer>
 
 #include <sys/syscall.h>
+
+#include <climits>
+
+#include <qwcompositor.h>
+#include <qwxwaylandsurface.h>
+
+#include <QPointer>
+
 #include <unistd.h>
+
+#include <xcb/xcb_icccm.h>
 
 #define XCOORD_MAX 32767
 
@@ -53,6 +60,7 @@ public:
     void init();
     void updateChildren();
     void updateParent();
+    void updateSizeHints();
     void updateWindowTypes();
 
     W_DECLARE_PUBLIC(WXWaylandSurface)
@@ -66,6 +74,8 @@ public:
     QRect lastRequestConfigureGeometry;
     WXWaylandSurface::ConfigureFlags lastRequestConfigureFlags = {0};
     WXWaylandSurface::WindowTypes windowTypes = {0};
+    QSize minimumSize;
+    QSize maximumSize = QSize(INT_MAX, INT_MAX);
     uint maximized:1;
     uint minimized:1;
     uint fullscreen:1;
@@ -152,6 +162,9 @@ void WXWaylandSurfacePrivate::init()
                      q, &WXWaylandSurface::bypassManagerChanged);
     QObject::connect(handle(), &qw_xwayland_surface::notify_set_geometry,
                      q, &WXWaylandSurface::geometryChanged);
+    QObject::connect(handle(), &qw_xwayland_surface::notify_set_hints, q, [this] {
+        updateSizeHints();
+    });
     QObject::connect(handle(), &qw_xwayland_surface::notify_set_window_type,
                      q, [this] {
                          updateWindowTypes();
@@ -164,7 +177,37 @@ void WXWaylandSurfacePrivate::init()
                      q, &WXWaylandSurface::appIdChanged);
     updateChildren();
     updateParent();
+    updateSizeHints();
     updateWindowTypes();
+}
+
+void WXWaylandSurfacePrivate::updateSizeHints()
+{
+    W_Q(WXWaylandSurface);
+
+    QSize minimumSize;
+    QSize maximumSize(INT_MAX, INT_MAX);
+
+    if (nativeHandle()->size_hints) {
+        if (nativeHandle()->size_hints->flags & XCB_ICCCM_SIZE_HINT_P_MIN_SIZE) {
+            minimumSize = QSize(nativeHandle()->size_hints->min_width,
+                                nativeHandle()->size_hints->min_height);
+        }
+        if (nativeHandle()->size_hints->flags & XCB_ICCCM_SIZE_HINT_P_MAX_SIZE) {
+            maximumSize = QSize(nativeHandle()->size_hints->max_width,
+                                nativeHandle()->size_hints->max_height);
+        }
+    }
+
+    if (this->minimumSize != minimumSize) {
+        this->minimumSize = minimumSize;
+        Q_EMIT q->minimumSizeChanged(this->minimumSize);
+    }
+
+    if (this->maximumSize != maximumSize) {
+        this->maximumSize = maximumSize;
+        Q_EMIT q->maximumSizeChanged(this->maximumSize);
+    }
 }
 
 void WXWaylandSurfacePrivate::updateChildren()
@@ -366,14 +409,24 @@ bool WXWaylandSurface::hasCapability(Capability cap) const
     W_DC(WXWaylandSurface);
     switch (cap) {
         using enum Capability;
+    case Resize:
+        return !isBypassManager() && (minSize().width() < maxSize().width()
+                                      || minSize().height() < maxSize().height());
+    case Maximized:
+        if (isBypassManager()) {
+            return false;
+        }
+        return (minSize().width() < maxSize().width() && minSize().height() < maxSize().height())
+            && !(d->windowTypes
+                 & (NET_WM_WINDOW_TYPE_UTILITY | NET_WM_WINDOW_TYPE_TOOLTIP | NET_WM_WINDOW_TYPE_DND
+                    | NET_WM_WINDOW_TYPE_DROPDOWN_MENU | NET_WM_WINDOW_TYPE_POPUP_MENU
+                    | NET_WM_WINDOW_TYPE_COMBO | NET_WM_WINDOW_TYPE_MENU
+                    | NET_WM_WINDOW_TYPE_NOTIFICATION | NET_WM_WINDOW_TYPE_SPLASH));
     case Focus:
         return wlr_xwayland_surface_override_redirect_wants_focus(d->nativeHandle())
             && wlr_xwayland_surface_icccm_input_model(d->nativeHandle()) != WLR_ICCCM_INPUT_MODEL_NONE;
     case Activate:
-    case Maximized:
     case FullScreen:
-    case Resize:
-        // TODO: should check WindowType
         return !isBypassManager();
     default:
         break;
@@ -384,29 +437,13 @@ bool WXWaylandSurface::hasCapability(Capability cap) const
 QSize WXWaylandSurface::minSize() const
 {
     W_DC(WXWaylandSurface);
-
-    if (!d->nativeHandle()->size_hints)
-        return QSize();
-
-    if (!(d->nativeHandle()->size_hints->flags & XCB_ICCCM_SIZE_HINT_P_MIN_SIZE))
-        return QSize();
-
-    return QSize(d->nativeHandle()->size_hints->min_width,
-                 d->nativeHandle()->size_hints->min_height);
+    return d->minimumSize;
 }
 
 QSize WXWaylandSurface::maxSize() const
 {
     W_DC(WXWaylandSurface);
-
-    if (!d->nativeHandle()->size_hints)
-        return QSize();
-
-    if (!(d->nativeHandle()->size_hints->flags & XCB_ICCCM_SIZE_HINT_P_MAX_SIZE))
-        return QSize();
-
-    return QSize(d->nativeHandle()->size_hints->max_width,
-                 d->nativeHandle()->size_hints->max_height);
+    return d->maximumSize;
 }
 
 QRect WXWaylandSurface::geometry() const
