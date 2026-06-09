@@ -136,6 +136,15 @@ public:
      */
     void setShowShutdownView(bool show);
 
+    /**
+     * @brief Set whether to show animation
+     *
+     * Use in C++ only
+     *
+     * @param show true to show animation, false to disable animation
+     */
+    void setShowAnimation(bool show);
+
     ////////////////////
     // Public methods //
     ////////////////////
