@@ -58,23 +58,15 @@ void InputManager::setupSeatUserConfig(const QString &userName)
 
 void InputManager::onConfigInitializeSucceed()
 {
-    auto seatMgr = Helper::instance()->seatManager();
-    if (seatMgr) {
-        for (auto *seat : seatMgr->seats()) {
-            if (auto *cursor = seat->cursor())
-                cursor->setScrollFactor(m_seatDConfig->pointerScrollFactor());
-        }
-    }
-
     auto backend = Helper::instance()->backend();
-    connect(backend,
-            &WBackend::inputAdded,
-            this,
-            &InputManager::onInputAdded);
     const auto inputDevices = backend->inputDeviceList();
     for (WInputDevice *device : inputDevices) {
         onInputAdded(device);
     }
+    connect(backend,
+            &WBackend::inputAdded,
+            this,
+            &InputManager::onInputAdded);
 }
 
 void InputManager::onMouseSettingsCreated(MouseSettingsInterfaceV1 *interface)
@@ -558,6 +550,11 @@ void InputManager::onInputAdded(WInputDevice *input)
 
     if (!input->handle()->is_libinput()) {
         return;
+    }
+
+    auto *cursor = input->seat()->cursor();
+    if (cursor) {
+        cursor->setScrollFactor(m_seatDConfig->pointerScrollFactor());
     }
 
     struct libinput_device *inputDevice = wlr_libinput_get_device_handle(input->handle()->handle());
