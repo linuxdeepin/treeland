@@ -931,9 +931,6 @@ void ForeignToplevelHandleV1::output_enter(WOutput *output)
         }
     });
 
-    connect(qwOutput, &qw_output::before_destroy, this, [toplevel_output]() {
-        toplevel_output.toplevel->output_leave(toplevel_output.output);
-    });
     send_output(output, true);
 }
 
