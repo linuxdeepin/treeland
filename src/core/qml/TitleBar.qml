@@ -13,6 +13,7 @@ Control {
 
     required property SurfaceWrapper surface
     readonly property SurfaceItem surfaceItem: surface.surfaceItem
+    readonly property bool canToggleMaximize: surface.surfaceState === SurfaceWrapper.State.Maximized || surface.isMaximizable
     readonly property bool noRadius: surface.radius === 0 || surface.noCornerRadius || GraphicsInfo.api === GraphicsInfo.Software
     property D.Palette backgroundColor: D.Palette {
         normal: ("#ffffff")
@@ -50,7 +51,8 @@ Control {
                 surface.requestMove()
         }
         onDoubleTapped: {
-            surface.requestToggleMaximize()
+            if (root.canToggleMaximize)
+                surface.requestToggleMaximize()
         }
     }
 
@@ -66,7 +68,10 @@ Control {
     TapHandler {
         acceptedButtons: Qt.NoButton
         acceptedDevices: PointerDevice.TouchScreen
-        onDoubleTapped: surface.requestToggleMaximize()
+        onDoubleTapped: {
+            if (root.canToggleMaximize)
+                surface.requestToggleMaximize()
+        }
         onLongPressed: surface.requestShowWindowMenu(point.position)
     }
 
@@ -118,6 +123,7 @@ Control {
             Loader {
                 id: maxOrWindedBtn
                 objectName: "maxOrWindedBtn"
+                active: root.canToggleMaximize
                 sourceComponent: D.WindowButton {
                     icon.name: surface.shellSurface.isMaximized ? "window_restore" : "window_maximize"
                     textColor: root.textColor
