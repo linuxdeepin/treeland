@@ -5,4 +5,5 @@ import QtQuick
 import QtQuick.Controls
 
 AnimatedImage {
+    asynchronous: true
 }

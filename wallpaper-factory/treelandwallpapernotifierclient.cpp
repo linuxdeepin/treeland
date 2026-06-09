@@ -9,6 +9,7 @@
 #include <private/qquickanimatedimage_p.h>
 
 #define TREELANDWALLPAPERPRODUCEV1VERSION 1
+#define WALLPAPERSOURCE "wallpaperSource"
 
 static QSize maxScreenSize()
 {
@@ -90,7 +91,12 @@ void TreelandWallpaperNotifierClientV1::treeland_wallpaper_notifier_v1_add(uint3
             delete wallpaperWindow;
             return;
         }
-
+        connect(image,
+                &QQuickAnimatedImage::statusChanged,
+                window, [window](QQuickImageBase::Status status) {
+                    if (status == QQuickImageBase::Ready)
+                        window->setLoaded(true);
+                });
         image->setSource(QUrl::fromLocalFile(file_source));
         break;
     }
@@ -107,6 +113,12 @@ void TreelandWallpaperNotifierClientV1::treeland_wallpaper_notifier_v1_add(uint3
             return;
         }
 
+        connect(video,
+            &MpvVideoItem::fileLoaded,
+            window,[window]() {
+                window->setLoaded(true);
+            },
+            Qt::SingleShotConnection);
         video->setSource(file_source);
         break;
     }
@@ -118,6 +130,7 @@ void TreelandWallpaperNotifierClientV1::treeland_wallpaper_notifier_v1_add(uint3
         return;
     }
 
+    wallpaperWindow->setProperty(WALLPAPERSOURCE, file_source);
     wallpaperWindow->resize(maxScreenSize());
     wallpaperWindow->show();
     m_windows.append(wallpaperWindow);
@@ -134,7 +147,7 @@ void TreelandWallpaperNotifierClientV1::treeland_wallpaper_notifier_v1_add(uint3
 void TreelandWallpaperNotifierClientV1::treeland_wallpaper_notifier_v1_remove(const QString &file_source)
 {
     foreach (auto window, m_windows) {
-        if (window->source() == file_source) {
+        if (window->property(WALLPAPERSOURCE).toString() == file_source) {
             m_windows.removeOne(window);
             delete window;
 

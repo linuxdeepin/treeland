@@ -21,26 +21,33 @@
 WAYLIB_SERVER_USE_NAMESPACE
 
 WallpaperItem::WallpaperItem(QQuickItem *parent)
+    : WallpaperItem(parent, true)
+{
+}
+
+WallpaperItem::WallpaperItem(QQuickItem *parent, bool autoUpdate)
     : WSurfaceItemContent(parent)
 {
     m_model = Helper::instance()->qmlEngine()->singletonInstance<UserModel *>("Treeland",
                                                                               "UserModel");
-    connect(m_model,
-            &UserModel::currentUserNameChanged,
-            this,
-            &WallpaperItem::handleCurrentuserChanged);
-    connect(Helper::instance()->shellHandler()->wallpaperShell(),
-            &TreelandWallpaperShellInterfaceV1::wallpaperSurfaceAdded,
-            this,
-            &WallpaperItem::scheduleUpdate);
-    connect(Helper::instance()->m_wallpaperManager,
-            &WallpaperManager::updateWallpaper,
-            this,
-            &WallpaperItem::scheduleUpdate);
-    connect(Helper::instance()->workspace(),
-            &Workspace::workspaceAdded,
-            this,
-            &WallpaperItem::handleWorkspaceAdded);
+    if (autoUpdate) {
+        connect(m_model,
+                &UserModel::currentUserNameChanged,
+                this,
+                &WallpaperItem::handleCurrentuserChanged);
+        connect(Helper::instance()->shellHandler()->wallpaperShell(),
+                &TreelandWallpaperShellInterfaceV1::wallpaperSurfaceAdded,
+                this,
+                &WallpaperItem::handleWallpaperSurfaceAdded);
+        connect(Helper::instance()->m_wallpaperManager,
+                &WallpaperManager::updateWallpaper,
+                this,
+                &WallpaperItem::updateSurface);
+        connect(Helper::instance()->workspace(),
+                &Workspace::workspaceAdded,
+                this,
+                &WallpaperItem::handleWorkspaceAdded);
+    }
 }
 
 WallpaperItem::~WallpaperItem() = default;
@@ -151,10 +158,6 @@ WallpaperItem::WallpaperRole WallpaperItem::wallpaperRole()
 
 void WallpaperItem::updateSurface()
 {
-    if (m_disableUpdate) {
-        return;
-    }
-
     if (!output()) {
         return;
     }
@@ -166,7 +169,7 @@ void WallpaperItem::updateSurface()
     WallpaperOutputConfig config =
         Helper::instance()->m_wallpaperManager->getOutputConfig(output()->nativeHandle());
     if (wallpaperRole() == Lockscreen) {
-        if (config.lockscreenWallpaper != m_source || forceUpdateSource()) {
+        if (config.lockscreenWallpaper != m_source) {
                 TreelandWallpaperSurfaceInterfaceV1 *interface =
                     TreelandWallpaperSurfaceInterfaceV1::get(config.lockscreenWallpaper);
                 if (!interface) {
@@ -186,7 +189,7 @@ void WallpaperItem::updateSurface()
         }
         for (WallpaperWorkspaceConfig workspaceConfig : std::as_const(config.workspaces)) {
             if (workspaceConfig.workspaceId == workspace()->id() &&
-                (workspaceConfig.desktopWallpaper != m_source || forceUpdateSource())) {
+                (workspaceConfig.desktopWallpaper != m_source)) {
                 TreelandWallpaperSurfaceInterfaceV1 *interface =
                     TreelandWallpaperSurfaceInterfaceV1::get(workspaceConfig.desktopWallpaper);
                 if (!interface) {
@@ -196,7 +199,9 @@ void WallpaperItem::updateSurface()
                 setSurface(interface->wSurface());
                 interface->wSurface()->enterOutput(output());
                 update();
-                QTimer::singleShot(2000, this, [this]{ Q_EMIT sourceChanged(); });
+                if (!Helper::instance()->m_greeterProxy->isLocked())
+                    setPlay(false);
+
                 break;
             }
         }
@@ -204,32 +209,8 @@ void WallpaperItem::updateSurface()
     }
 }
 
-void WallpaperItem::scheduleUpdate()
-{
-    if (m_disableUpdate) {
-        return;
-    }
-
-    if (wallpaperRole() != Lockscreen) {
-        QTimer::singleShot(3000,
-                           this,
-                           [this]{
-                               updateSurface();
-                               if (!Helper::instance()->m_greeterProxy->isLocked()) {
-                                   setPlay(false);
-                               }
-                           });
-    } else {
-        updateSurface();
-    }
-}
-
 void WallpaperItem::handleWorkspaceAdded()
 {
-    if (m_disableUpdate) {
-        return;
-    }
-
     if (wallpaperRole() == Lockscreen) {
         return;
     }
@@ -242,32 +223,15 @@ void WallpaperItem::handleWorkspaceAdded()
     updateSurface();
 }
 
-bool WallpaperItem::disableUpdate() const
+void WallpaperItem::handleWallpaperSurfaceAdded(TreelandWallpaperSurfaceInterfaceV1 *interface)
 {
-    return m_disableUpdate;
-}
-
-void WallpaperItem::setDisableUpdate(bool disable)
-{
-    if (m_disableUpdate == disable) {
-        return;
+    if (interface->wallpaperReady()) {
+        updateSurface();
+    } else {
+        connect(interface,
+                &TreelandWallpaperSurfaceInterfaceV1::ready,
+                this,
+                &WallpaperItem::updateSurface,
+                Qt::SingleShotConnection);
     }
-
-    m_disableUpdate = disable;
-    Q_EMIT disableUpdateChanged();
-}
-
-bool WallpaperItem::forceUpdateSource() const
-{
-    return m_forceUpdateSource;
-}
-
-void WallpaperItem::setForceUpdateSource(bool value)
-{
-    if (m_forceUpdateSource == value) {
-        return;
-    }
-
-    m_forceUpdateSource = value;
-    Q_EMIT forceUpdateSourceChanged();
 }

@@ -24,11 +24,14 @@ public:
     static WallpaperWindow *qmlAttachedProperties(QObject *object);
     QWindow *parentWindow() const;
 
+    bool loaded();
+    void setLoaded(bool loaded);
 Q_SIGNALS:
     void sourceChanged();
     void positionChanged(double position);
     void playChanged(bool play);
     void slowDownChanged(uint32_t duration);
+    void loadedChanged();
 
 private:
     void initializeShellIntegration();

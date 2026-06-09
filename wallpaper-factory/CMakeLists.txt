@@ -2,6 +2,7 @@ set(BIN_NAME treeland-wallpaper-factory)
 
 find_package(PkgConfig REQUIRED)
 find_package(Qt6 REQUIRED COMPONENTS WaylandClient Quick)
+find_package(Dtk6 REQUIRED COMPONENTS Core)
 if(Qt6_VERSION VERSION_GREATER_EQUAL 6.10)
     find_package(Qt6 REQUIRED COMPONENTS WaylandClientPrivate QuickPrivate)
 endif()
@@ -48,6 +49,7 @@ target_link_libraries(${BIN_NAME}
         Qt6::QuickPrivate
         Qt6::WaylandClient
         Qt6::WaylandClientPrivate
+        Dtk6::Core
         PkgConfig::MPV
 )
 
