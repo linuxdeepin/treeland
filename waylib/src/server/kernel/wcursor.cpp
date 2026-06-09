@@ -94,6 +94,17 @@ void WCursorPrivate::sendLeaveEvent(WInputDevice *device)
 void WCursorPrivate::on_motion(wlr_pointer_motion_event *event)
 {
     auto device = qw_pointer::from(event->pointer);
+    if (auto inputDevice = WInputDevice::fromHandle(device)) {
+        if (auto deviceSeat = inputDevice->seat()) {
+            deviceSeat->refreshPointerConstraint();
+            deviceSeat->notifyRelativeMotion(event->time_msec,
+                                             QPointF(event->delta_x, event->delta_y),
+                                             QPointF(event->unaccel_dx, event->unaccel_dy));
+            if (deviceSeat->pointerMotionLocked())
+                return;
+        }
+    }
+
     q_func()->move(device, QPointF(event->delta_x, event->delta_y));
     processCursorMotion(device, event->time_msec);
 }
