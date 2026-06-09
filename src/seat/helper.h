@@ -63,8 +63,6 @@ class WOutputManagerV1;
 class WOutputRenderWindow;
 class WOutputViewport;
 class WServer;
-class WSessionLock;
-class WSessionLockManager;
 class WSocket;
 class WSurface;
 class WSurfaceItem;
@@ -76,8 +74,6 @@ class WForeignToplevel;
 class WExtForeignToplevelListV1;
 class WOutputManagerV1;
 class WLayerSurface;
-class WSessionLockManager;
-class WSessionLock;
 WAYLIB_SERVER_END_NAMESPACE
 
 class SeatsManager;
@@ -100,13 +96,12 @@ QW_USE_NAMESPACE
 class CaptureSourceSelector;
 class DDEShellManagerInterfaceV1;
 class DDMInterfaceV1;
+class DDMRemoteObjectV1;
 class ForeignToplevelManagerInterfaceV1;
 class FpsDisplayManager;
 class GreeterProxy;
-class ILockScreen;
 class IMultitaskView;
 class LockScreen;
-class LockScreenInterface;
 class Multitaskview;
 class Output;
 class OutputConfigState;
@@ -225,7 +220,7 @@ public:
     void handleWindowPicker(WindowPickerInterface *picker);
 
     void setMultitaskViewImpl(IMultitaskView *impl);
-    void setLockScreenImpl(ILockScreen *impl);
+    void initLockScreen();
 
     CurrentMode currentMode() const
     {
@@ -234,12 +229,13 @@ public:
 
     void setCurrentMode(CurrentMode mode);
 
-    void showLockScreen(bool switchToGreeter = true);
+    void showLockScreen();
 
     Output* getOutputAtCursor() const;
 
     inline UserModel *userModel() const { return m_userModel; };
     inline SessionModel *sessionModel() const { return m_sessionModel; };
+    inline GreeterProxy *greeterProxy() const { return m_greeterProxy; };
     DDMInterfaceV1 *ddmInterfaceV1() const;
 
     void activateSession();
@@ -313,10 +309,8 @@ private:
     void onSurfaceWrapperAdded(SurfaceWrapper *wrapper);
     void onSurfaceWrapperAboutToRemove(SurfaceWrapper *wrapper);
     void handleRequestDrag([[maybe_unused]] WSurface *surface);
-    void handleLockScreen(LockScreenInterface *lockScreen);
-    void handleNewForeignToplevelCaptureRequest(wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request *request);
-    void onExtSessionLock(WSessionLock *lock);
-private:
+        void handleNewForeignToplevelCaptureRequest(wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request *request);
+    private:
     friend class SessionManager;
     friend class WallpaperManager;
     friend class WallpaperItem;
@@ -408,14 +402,11 @@ private:
     VirtualOutputManagerInterfaceV1 *m_virtualOutputInterfaceV1 = nullptr;
     OutputManagerV1 *m_outputManagerV1 = nullptr;
     DDMInterfaceV1 *m_ddmInterfaceV1 = nullptr;
+    DDMRemoteObjectV1 *m_ddmRemoteObjectV1 = nullptr;
     ScreensaverInterfaceV1 *m_screensaverInterfaceV1 = nullptr;
     TreelandWallpaperManagerInterfaceV1 *m_wallpaperManagerInterfaceV1 = nullptr;
     TreelandWallpaperNotifierInterfaceV1 *m_wallpaperNotifierInterfaceV1 = nullptr;
     TreelandKeyboardStateNotifyManagerInterfaceV1 *m_keyboardStateNotifyManagerInterfaceV1 = nullptr;
-#ifdef EXT_SESSION_LOCK_V1
-    WSessionLockManager *m_sessionLockManager = nullptr;
-    QTimer *m_lockScreenGraceTimer = nullptr;
-#endif
     // private data
     QList<Output *> m_outputList;
     OutputConfigState *m_outputConfigState = nullptr;

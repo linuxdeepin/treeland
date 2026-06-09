@@ -1,0 +1,102 @@
+// SPDX-License-Identifier: GPL-3.0-only
+/***************************************************************************
+ * Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
+ * Copyright (c) 2013 Abdurrahman AVCI <abdurrahmanavci@gmail.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the
+ * Free Software Foundation, Inc.,
+ * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+ ***************************************************************************/
+
+#ifndef SDDM_USERMODEL_H
+#define SDDM_USERMODEL_H
+
+#include "modules/greeter/user.h"
+
+#include <QAbstractListModel>
+#include <QHash>
+#include <QQmlEngine>
+
+struct UserModelPrivate;
+
+using UserPtr = std::shared_ptr<User>;
+
+class UserModel : public QAbstractListModel
+{
+    Q_OBJECT
+    Q_PROPERTY(QString currentUserName READ currentUserName WRITE setCurrentUserName NOTIFY
+                    currentUserNameChanged)
+    Q_PROPERTY(int lastIndex READ lastIndex NOTIFY lastUserChanged)
+    Q_PROPERTY(QString lastUser READ lastUser NOTIFY lastUserChanged)
+    Q_PROPERTY(int count READ rowCount NOTIFY countChanged)
+    Q_PROPERTY(bool containsAllUsers READ containsAllUsers CONSTANT)
+    QML_NAMED_ELEMENT(UserModel)
+    QML_SINGLETON
+
+public:
+    enum UserRoles
+    {
+        NameRole = Qt::UserRole + 1,
+        RealNameRole,
+        HomeDirRole,
+        IconRole,
+        NoPasswordRole,
+        LoggedInRole,
+        IdentityRole,
+        PasswordHintRole,
+        LocaleRole
+    };
+    Q_ENUM(UserRoles)
+
+    UserModel(const UserModel &) = delete;
+    UserModel &operator=(const UserModel &) = delete;
+    explicit UserModel(QObject *parent = nullptr);
+    ~UserModel() override;
+
+    [[nodiscard]] QHash<int, QByteArray> roleNames() const override;
+    [[nodiscard]] int lastIndex() const;
+    [[nodiscard]] QString lastUser() const;
+    [[nodiscard]] int rowCount(const QModelIndex &parent = QModelIndex()) const override;
+    [[nodiscard]] Q_INVOKABLE QVariant data(const QModelIndex &index,
+                                            int role = Qt::DisplayRole) const override;
+    [[nodiscard]] Q_INVOKABLE QVariant get(const QString &username) const;
+    [[nodiscard]] Q_INVOKABLE QVariant get(int index) const;
+    [[nodiscard]] UserPtr getUser(const QString &username) const noexcept;
+    [[nodiscard]] UserPtr getUser(uid_t uid) const noexcept;
+    [[nodiscard]] QString currentUserName() const noexcept;
+    UserPtr currentUser() const;
+    void updateUserLimits(const QString &userName, const QString &time) const noexcept;
+    void setCurrentUserName(const QString &userName) noexcept;
+    void setLastUser(const QString &userName);
+    void updateUserLoginState(const QString &username, bool loggedIn);
+    void clearUserLoginState();
+    [[nodiscard]] bool containsAllUsers() const;
+    [[nodiscard]] Q_INVOKABLE bool tryAddNssUser(const QString &userName);
+
+Q_SIGNALS:
+    void currentUserNameChanged();
+    void updateTranslations(const QLocale &locale);
+    void countChanged();
+    void userLoggedIn(const QString &username, int sessionId);
+    void lastUserChanged();
+
+private Q_SLOTS:
+    void onUserAdded(quint64 uid);
+    void onUserDeleted(quint64 uid);
+
+private:
+    UserModelPrivate *d{ nullptr };
+};
+
+#endif // USERMODEL_H

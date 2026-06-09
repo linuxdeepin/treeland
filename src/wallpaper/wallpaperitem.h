@@ -3,9 +3,9 @@
 
 #pragma once
 
+#include "modules/greeter/usermodel.h"
 #include "wglobal.h"
 #include "wsurfaceitem.h"
-#include "greeter/usermodel.h"
 
 Q_MOC_INCLUDE("workspace/workspace.h")
 

@@ -11,9 +11,6 @@ endif()
 include(${CMAKE_SOURCE_DIR}/cmake/TranslationUtils.cmake)
 
 find_package(Dtk6 REQUIRED COMPONENTS Core Declarative SystemSettings Tools)
-if (NOT DISABLE_DDM)
-    find_package(DDM 0.2.0 REQUIRED COMPONENTS Common)
-endif()
 find_package(QT NAMES Qt6 COMPONENTS Core REQUIRED)
 find_package(Qt6 CONFIG REQUIRED ShaderTools Concurrent RemoteObjects Network)
 find_package(Qt6 COMPONENTS Quick QuickControls2 REQUIRED)
@@ -30,19 +27,6 @@ pkg_check_modules(Systemd REQUIRED IMPORTED_TARGET libsystemd)
 
 configure_file("common/constants.h.in" "common/constants.h" IMMEDIATE @ONLY)
 
-set_source_files_properties("${CMAKE_SOURCE_DIR}/misc/interfaces/org.freedesktop.DisplayManager.xml" PROPERTIES
-    NO_NAMESPACE ON
-    CLASSNAME DisplayManager
-)
-set_source_files_properties("${CMAKE_SOURCE_DIR}/misc/interfaces/org.freedesktop.DisplayManager.Seat.xml" PROPERTIES
-    NO_NAMESPACE ON
-    CLASSNAME DisplaySeat
-)
-
-set_source_files_properties("${CMAKE_SOURCE_DIR}/misc/interfaces/org.freedesktop.DisplayManager.Session.xml" PROPERTIES
-    NO_NAMESPACE ON
-    CLASSNAME DisplaySession
-)
 
 set_source_files_properties("${CMAKE_SOURCE_DIR}/misc/interfaces/org.freedesktop.login1.Manager.xml" PROPERTIES
    INCLUDE "loginddbustypes.h"
@@ -59,10 +43,6 @@ set_source_files_properties("${CMAKE_SOURCE_DIR}/misc/interfaces/org.freedesktop
    INCLUDE "loginddbustypes.h"
 )
 
-qt_add_dbus_interface(DDM_DBUS_SOURCES "${CMAKE_SOURCE_DIR}/misc/interfaces/org.freedesktop.DisplayManager.xml"          DisplayManager)
-qt_add_dbus_interface(DDM_DBUS_SOURCES "${CMAKE_SOURCE_DIR}/misc/interfaces/org.freedesktop.DisplayManager.Seat.xml"     DisplayManagerSeat)
-qt_add_dbus_interface(DDM_DBUS_SOURCES "${CMAKE_SOURCE_DIR}/misc/interfaces/org.freedesktop.DisplayManager.Session.xml"  DisplayManagerSession)
-qt_add_dbus_interface(DDM_DBUS_SOURCES "${CMAKE_SOURCE_DIR}/misc/interfaces/org.deepin.DisplayManager.xml"               DDMDisplayManager)
 qt_add_dbus_interface(DBUS_INTERFACE   "${CMAKE_SOURCE_DIR}/misc/interfaces/org.freedesktop.login1.Manager.xml"          Login1Manager)
 qt_add_dbus_interface(DBUS_INTERFACE   "${CMAKE_SOURCE_DIR}/misc/interfaces/org.freedesktop.login1.Seat.xml"             Login1Seat)
 qt_add_dbus_interface(DBUS_INTERFACE   "${CMAKE_SOURCE_DIR}/misc/interfaces/org.freedesktop.login1.Session.xml"          Login1Session)
@@ -116,7 +96,6 @@ qt_add_qml_module(libtreeland
     VERSION "2.0"
 
     SOURCES
-        ${DDM_DBUS_SOURCES}
         ${DBUS_INTERFACE}
         ${TREELAND_CONFIG}
         ${TREELAND_USER_CONFIG}
@@ -146,16 +125,21 @@ qt_add_qml_module(libtreeland
         effects/tquickradiuseffect_p.h
         effects/tsgradiusimagenode.cpp
         effects/tsgradiusimagenode.h
-        $<$<OR:$<NOT:$<BOOL:${DISABLE_DDM}>>,$<BOOL:${EXT_SESSION_LOCK_V1}>>:core/lockscreen.h>
-        $<$<OR:$<NOT:$<BOOL:${DISABLE_DDM}>>,$<BOOL:${EXT_SESSION_LOCK_V1}>>:core/lockscreen.cpp>
-        $<$<NOT:$<BOOL:${DISABLE_DDM}>>:greeter/greeterproxy.cpp>
-        $<$<NOT:$<BOOL:${DISABLE_DDM}>>:greeter/greeterproxy.h>
-        $<$<NOT:$<BOOL:${DISABLE_DDM}>>:greeter/sessionmodel.cpp>
-        $<$<NOT:$<BOOL:${DISABLE_DDM}>>:greeter/sessionmodel.h>
-        $<$<NOT:$<BOOL:${DISABLE_DDM}>>:greeter/user.cpp>
-        $<$<NOT:$<BOOL:${DISABLE_DDM}>>:greeter/user.h>
-        $<$<NOT:$<BOOL:${DISABLE_DDM}>>:greeter/usermodel.cpp>
-        $<$<NOT:$<BOOL:${DISABLE_DDM}>>:greeter/usermodel.h>
+        modules/greeter/ddmremote.rep
+        modules/greeter/ddmremoteobjectv1.cpp
+        modules/greeter/ddmremoteobjectv1.h
+        modules/greeter/greeterproxy.cpp
+        modules/greeter/greeterproxy.h
+        modules/greeter/lockscreen.cpp
+        modules/greeter/lockscreen.h
+        modules/greeter/sessionmodel.cpp
+        modules/greeter/logoprovider.cpp
+        modules/greeter/logoprovider.h
+        modules/greeter/sessionmodel.h
+        modules/greeter/user.cpp
+        modules/greeter/user.h
+        modules/greeter/usermodel.cpp
+        modules/greeter/usermodel.h
         input/gestures.cpp
         input/gestures.h
         input/inputdevice.cpp
@@ -165,7 +149,6 @@ qt_add_qml_module(libtreeland
         input/inputmanager.cpp
         input/inputmanager.h
         interfaces/baseplugininterface.h
-        interfaces/lockscreeninterface.h
         interfaces/multitaskviewinterface.h
         interfaces/plugininterface.h
         interfaces/proxyinterface.h
@@ -258,12 +241,29 @@ qt_add_qml_module(libtreeland
         core/qml/FadeBehavior.qml
         core/qml/CaptureSelectorLayer.qml
         core/qml/WindowPickerLayer.qml
-        core/qml/LockScreenFallback.qml
+        modules/greeter/qml/ControlAction.qml
+        modules/greeter/qml/Greeter.qml
+        modules/greeter/qml/HintLabel.qml
+        modules/greeter/qml/LockView.qml
+        modules/greeter/qml/LoginAnimation.qml
+        modules/greeter/qml/PowerList.qml
+        modules/greeter/qml/QuickAction.qml
+        modules/greeter/qml/RoundBlur.qml
+        modules/greeter/qml/SessionList.qml
+        modules/greeter/qml/ShutdownButton.qml
+        modules/greeter/qml/ShutdownView.qml
+        modules/greeter/qml/TimeDateWidget.qml
+        modules/greeter/qml/UserInput.qml
+        modules/greeter/qml/UserList.qml
         core/qml/PrelaunchSplash.qml
     RESOURCE_PREFIX
         /qt/qml
     OUTPUT_DIRECTORY
         ${PROJECT_BINARY_DIR}/qt/qml/Treeland
+)
+
+qt_add_repc_replicas(libtreeland
+    ${CMAKE_CURRENT_SOURCE_DIR}/modules/greeter/ddmremote.rep
 )
 
 qt_add_repc_sources(libtreeland
@@ -358,9 +358,8 @@ target_link_libraries(libtreeland
         PkgConfig::WAYLAND
         PkgConfig::LIBINPUT
         PkgConfig::XCB
-        $<$<NOT:$<BOOL:${DISABLE_DDM}>>:DDM::Common>
-        $<$<NOT:$<BOOL:${DISABLE_DDM}>>:PkgConfig::PAM>
-        $<$<NOT:$<BOOL:${DISABLE_DDM}>>:PkgConfig::Systemd>
+        PkgConfig::PAM
+        PkgConfig::Systemd
 )
 
 add_subdirectory(plugins)

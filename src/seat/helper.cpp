@@ -9,14 +9,8 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include <qnamespace.h>
-#ifdef EXT_SESSION_LOCK_V1
-#include "wsessionlock.h"
-#include "wsessionlockmanager.h"
-#include "core/lockscreen.h"
-#endif
-#ifndef DISABLE_DDM
-#include "core/lockscreen.h"
-#endif
+#include "modules/greeter/ddmremoteobjectv1.h"
+#include "modules/greeter/lockscreen.h"
 #include "common/treelandlogging.h"
 #include "core/layersurfacecontainer.h"
 #include "core/qmlengine.h"
@@ -24,9 +18,9 @@
 #include "core/shellhandler.h"
 #include "core/treeland.h"
 #include "core/windowpicker.h"
-#include "greeter/greeterproxy.h"
-#include "greeter/sessionmodel.h"
-#include "greeter/usermodel.h"
+#include "modules/greeter/greeterproxy.h"
+#include "modules/greeter/sessionmodel.h"
+#include "modules/greeter/usermodel.h"
 #include "input/inputdevice.h"
 #include "inputmanager.h"
 #include "interfaces/multitaskviewinterface.h"
@@ -191,6 +185,9 @@ Helper::Helper(QObject *parent)
     m_isDDMDisplay = qEnvironmentVariableIsSet("DDM_DISPLAY_MANAGER");
     Q_ASSERT(!m_instance);
     m_instance = this;
+    m_ddmRemoteObjectV1 = new DDMRemoteObjectV1(this);
+    if (!m_ddmRemoteObjectV1->start())
+        qCCritical(treelandCore) << "Failed to start Treeland remote object";
 
     Q_ASSERT(!m_config);
     m_config.reset(TreelandUserConfig::createByName("org.deepin.dde.treeland.user",
@@ -212,11 +209,6 @@ Helper::Helper(QObject *parent)
     m_outputLifecycleManager =
         new OutputLifecycleManager(m_rootSurfaceContainer, m_outputConfigState, this);
 
-#ifdef EXT_SESSION_LOCK_V1
-    m_lockScreenGraceTimer = new QTimer(this);
-    m_lockScreenGraceTimer->setInterval(300);
-    m_lockScreenGraceTimer->setSingleShot(true);
-#endif
 
     m_workspaceScaleAnimation = new QPropertyAnimation(m_shellHandler->workspace(), "scale", this);
     m_workspaceOpacityAnimation =
@@ -1292,6 +1284,15 @@ void Helper::init(Treeland::Treeland *treeland)
     m_greeterProxy = engine->singletonInstance<GreeterProxy *>("Treeland", "GreeterProxy");
     m_userModel = engine->singletonInstance<UserModel *>("Treeland", "UserModel");
     m_sessionModel = engine->singletonInstance<SessionModel *>("Treeland", "SessionModel");
+    m_ddmRemoteObjectV1->setGreeterProxy(m_greeterProxy);
+    const bool treelandRemoteReady = m_ddmRemoteObjectV1->isListening();
+    m_greeterProxy->setDDMConnectionEnabled(treelandRemoteReady);
+    if (treelandRemoteReady) {
+        m_greeterProxy->connectToDDM();
+    } else {
+        qCCritical(treelandCore) << "Treeland remote object is not ready; skip DDM connection";
+    }
+    initLockScreen();
 
     engine->setContextForObject(m_renderWindow, engine->rootContext());
     engine->setContextForObject(m_renderWindow->contentItem(), engine->rootContext());
@@ -1317,10 +1318,6 @@ void Helper::init(Treeland::Treeland *treeland)
             &DDEShellManagerInterfaceV1::requestPickWindow,
             this,
             &Helper::handleWindowPicker);
-    connect(m_ddeShellV1,
-            &DDEShellManagerInterfaceV1::lockScreenCreated,
-            this,
-            &Helper::handleLockScreen);
     m_shellHandler->createComponent(engine, m_renderWindow->contentItem());
 
     m_foreignToplevel = m_server->attach<WForeignToplevel>();
@@ -1626,16 +1623,6 @@ void Helper::init(Treeland::Treeland *treeland)
     m_outputPowerManager = qw_output_power_manager_v1::create(*m_server->handle());
 
     connect(m_outputPowerManager, &qw_output_power_manager_v1::notify_set_mode, this, &Helper::onSetOutputPowerMode);
-#ifdef EXT_SESSION_LOCK_V1
-    m_sessionLockManager = m_server->attach<WSessionLockManager>();
-    if (!m_lockScreen) {
-        setLockScreenImpl(nullptr);
-    }
-    connect(m_sessionLockManager,
-            &WSessionLockManager::lockCreated,
-            this,
-            &Helper::onExtSessionLock);
-#endif
 
     m_wallpaperNotifierInterfaceV1 = m_server->attach<TreelandWallpaperNotifierInterfaceV1>();
     if (isDDMDisplay()) {
@@ -1712,7 +1699,7 @@ WSeat *Helper::getSeatForEvent(QInputEvent *event) const
 void Helper::activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
 {
     WSeat *interactingSeat = m_currentEventSeat ? m_currentEventSeat : getLastInteractingSeat(wrapper);
-    if (m_blockActivateSurface && wrapper && wrapper->type() != SurfaceWrapper::Type::LockScreen) {
+    if (m_blockActivateSurface && wrapper && true) {
         auto sh = wrapper->shellSurface();
         if (sh && wrapper->surface() && wrapper->surface()->mapped()
             && sh->hasCapability(WToplevelSurface::Capability::Activate)) {
@@ -2266,31 +2253,6 @@ void Helper::handleRequestDrag([[maybe_unused]] WSurface *surface)
         DDEActiveInterface::sendStartDrag(m_seat);
 }
 
-void Helper::handleLockScreen(LockScreenInterface *lockScreen)
-{
-    connect(lockScreen, &LockScreenInterface::shutdown, this, [this]() {
-        if (m_lockScreen && m_lockScreen->available() && currentMode() == Helper::CurrentMode::Normal) {
-            setCurrentMode(CurrentMode::LockScreen);
-            m_lockScreen->shutdown();
-            setWorkspaceVisible(false);
-        }
-    });
-    connect(lockScreen, &LockScreenInterface::lock, this, [this]() {
-        if (m_lockScreen && m_lockScreen->available() && currentMode() == Helper::CurrentMode::Normal) {
-            setCurrentMode(CurrentMode::LockScreen);
-            m_lockScreen->lock();
-            setWorkspaceVisible(false);
-        }
-    });
-    connect(lockScreen, &LockScreenInterface::switchUser, this, [this]() {
-        if (m_lockScreen && m_lockScreen->available() && currentMode() == Helper::CurrentMode::Normal) {
-            setCurrentMode(CurrentMode::LockScreen);
-            m_lockScreen->switchUser();
-            setWorkspaceVisible(false);
-        }
-    });
-}
-
 
 void Helper::onSessionNew(const QString &sessionId, const QDBusObjectPath &sessionPath)
 {
@@ -2310,45 +2272,6 @@ void Helper::onSessionUnlock()
     if (m_lockScreen) {
         m_lockScreen->unlock();
     }
-}
-
-void Helper::onExtSessionLock(WSessionLock *lock)
-{
-#ifdef EXT_SESSION_LOCK_V1
-    if (m_lockScreen->isLocked()) {
-        lock->finish();
-        return;
-    }
-
-    m_lockScreen->onExternalLock(lock);
-
-    setCurrentMode(CurrentMode::LockScreen);
-
-    if (m_multitaskView) {
-        m_multitaskView->immediatelyExit();
-    }
-
-    deleteTaskSwitch();
-
-    setWorkspaceVisible(false);
-
-    lock->safeConnect(&WSessionLock::abandoned, this, [this]() {
-        m_lockScreenGraceTimer->stop();
-        setNoAnimation(false);
-    });
-
-    lock->safeConnect(&WSessionLock::canceled, this, [this]() {
-        m_lockScreenGraceTimer->stop();
-    });
-
-    m_lockScreenGraceTimer->disconnect();
-    // grace 300ms for possible client to
-    connect(m_lockScreenGraceTimer, &QTimer::timeout, this, [this, lock]() {
-        setNoAnimation(true);
-        lock->lock();
-    });
-    m_lockScreenGraceTimer->start();
-#endif
 }
 
 void Helper::allowNonDrmOutputAutoChangeMode(WOutput *output)
@@ -2543,18 +2466,9 @@ void Helper::setMultitaskViewImpl(IMultitaskView *impl)
     m_multitaskView = impl;
 }
 
-void Helper::setLockScreenImpl(ILockScreen *impl)
+void Helper::initLockScreen()
 {
-#if !defined(DISABLE_DDM) || defined(EXT_SESSION_LOCK_V1)
-    if (!impl) {
-        if (m_lockScreen) {
-            m_lockScreen = nullptr;
-            delete m_lockScreen;
-        }
-        return;
-    }
-
-    m_lockScreen = new LockScreen(impl, m_rootSurfaceContainer, m_greeterProxy);
+    m_lockScreen = new LockScreen(m_rootSurfaceContainer, m_greeterProxy);
     m_lockScreen->setZ(RootSurfaceContainer::LockScreenZOrder);
     m_lockScreen->setObjectName(QStringLiteral("LockScreenContainer"));
     m_lockScreen->setVisible(false);
@@ -2572,22 +2486,13 @@ void Helper::setLockScreenImpl(ILockScreen *impl)
     connect(m_lockScreen, &LockScreen::unlock, this, [this] {
         setCurrentMode(CurrentMode::Normal);
         setWorkspaceVisible(true);
-#ifdef EXT_SESSION_LOCK_V1
-        setNoAnimation(false);
-#endif
         if (m_activatedSurface) {
             m_activatedSurface->setFocus(true, Qt::NoFocusReason);
         }
     });
-    if (!impl) {
-        return;
-    }
     if (CmdLine::ref().useLockScreen()) {
-        showLockScreen(false);
+        showLockScreen();
     }
-#else
-    Q_UNUSED(impl)
-#endif
 }
 
 void Helper::setCurrentMode(CurrentMode mode)
@@ -2602,12 +2507,11 @@ void Helper::setCurrentMode(CurrentMode mode)
     Q_EMIT currentModeChanged();
 }
 
-void Helper::showLockScreen(bool switchToGreeter)
+void Helper::showLockScreen()
 {
     if (m_lockScreen->isLocked()) {
         return;
     }
-
 
     if (m_multitaskView) {
         m_multitaskView->immediatelyExit();
@@ -2618,17 +2522,6 @@ void Helper::showLockScreen(bool switchToGreeter)
 
     setCurrentMode(CurrentMode::LockScreen);
     m_lockScreen->lock();
-
-    // send DDM switch to greeter mode
-    if (switchToGreeter) {
-        QThreadPool::globalInstance()->start([]() {
-            QDBusInterface interface("org.freedesktop.DisplayManager",
-                                     "/org/freedesktop/DisplayManager/Seat0",
-                                     "org.freedesktop.DisplayManager.Seat",
-                                     QDBusConnection::systemBus());
-            interface.call("SwitchToGreeter");
-        });
-    }
 }
 
 WSeat *Helper::seat() const

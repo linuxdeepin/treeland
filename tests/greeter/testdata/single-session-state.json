@@ -1,0 +1,25 @@
+{
+  "hostName": "dummy-ddm",
+  "currentUser": "alice",
+  "lastUser": "alice",
+  "lastSession": "treeland.desktop",
+  "rememberLastSession": true,
+  "power": {
+    "powerOff": true,
+    "reboot": true,
+    "suspend": true,
+    "hibernate": false,
+    "hybridSleep": false
+  },
+  "sessions": [
+    {
+      "fileName": "treeland.desktop",
+      "type": 2,
+      "displayName": "Treeland",
+      "comment": "Treeland Wayland",
+      "exec": "/usr/bin/treeland"
+    }
+  ],
+  "users": ["alice", "bob"],
+  "activeSessions": []
+}

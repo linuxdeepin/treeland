@@ -1,0 +1,19 @@
+// Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
+// SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+
+class DummyDdmControl {
+    SLOT(bool lock())
+    SLOT(bool unlock())
+    SLOT(bool switchUser(QString user))
+    SLOT(bool setCurrentUser(QString user))
+    SLOT(bool setLastUser(QString user))
+    SLOT(bool setLastSession(QString sessionFile))
+    SLOT(bool setRememberLastSession(bool enabled))
+    SLOT(bool setSessionsJson(QString stateFile))
+    SLOT(bool addUserSession(QString user, int id))
+    SLOT(bool removeUserSession(QString user, int id))
+    SLOT(bool setCapabilities(bool powerOff, bool reboot, bool suspend, bool hibernate, bool hybridSleep))
+    SLOT(bool emitLoginFailed(QString user))
+    SLOT(bool emitInfo(QString message))
+    SLOT(QString statusJson())
+};

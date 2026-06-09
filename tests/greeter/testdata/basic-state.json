@@ -1,0 +1,31 @@
+{
+  "hostName": "dummy-ddm",
+  "lastUser": "alice",
+  "lastSession": "treeland.desktop",
+  "rememberLastSession": true,
+  "power": {
+    "powerOff": true,
+    "reboot": true,
+    "suspend": true,
+    "hibernate": false,
+    "hybridSleep": false
+  },
+  "sessions": [
+    {
+      "fileName": "treeland.desktop",
+      "type": 2,
+      "displayName": "Treeland",
+      "comment": "Treeland Wayland",
+      "exec": "/usr/bin/treeland"
+    },
+    {
+      "fileName": "plasma.desktop",
+      "type": 2,
+      "displayName": "Plasma",
+      "comment": "KDE Plasma",
+      "exec": "/usr/bin/startplasma-wayland"
+    }
+  ],
+  "users": ["alice", "bob"],
+  "activeSessions": []
+}
