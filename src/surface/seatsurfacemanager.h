@@ -41,6 +41,7 @@ public:
     void endMoveResize();
     SurfaceWrapper *moveResizeSurface() const;
     void cancelMoveResize(SurfaceWrapper *surface);
+    void cancelMoveResize();
     bool shouldHandleShortcuts() const;
     bool metaKeyPressed() const { return m_metaKeyPressed; }
     void setMetaKeyPressed(bool pressed);
