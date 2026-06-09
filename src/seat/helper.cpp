@@ -84,7 +84,9 @@
 #include <woutputrenderwindow.h>
 #include <woutputviewport.h>
 #include <wqmlcreator.h>
+#include <wpointerconstraintsv1.h>
 #include <wquickcursor.h>
+#include <wrelativepointermanagerv1.h>
 #include <wrenderhelper.h>
 #include <wseat.h>
 #include <wsecuritycontextmanager.h>
@@ -1661,6 +1663,8 @@ void Helper::init(Treeland::Treeland *treeland)
 
     m_foreignToplevel = m_server->attach<WForeignToplevel>();
     m_extForeignToplevelListV1 = m_server->attach<WExtForeignToplevelListV1>();
+    m_server->attach<WRelativePointerManagerV1>();
+    m_server->attach<WPointerConstraintsV1>();
 
     connect(m_shellHandler,
             &ShellHandler::surfaceWrapperAdded,

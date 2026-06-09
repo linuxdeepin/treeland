@@ -141,6 +141,10 @@ protected:
     bool filterUnacceptedEvent(QWindow *targetWindow, QInputEvent *event);
 
     // pointer
+    void notifyRelativeMotion(uint32_t timestamp, const QPointF &delta,
+                              const QPointF &unacceleratedDelta);
+    void refreshPointerConstraint();
+    bool pointerMotionLocked() const;
     void notifyMotion(WCursor *cursor, WInputDevice *device, uint32_t timestamp);
     void notifyButton(WCursor *cursor, WInputDevice *device,
                       Qt::MouseButton button, wl_pointer_button_state_t state,
