@@ -480,7 +480,7 @@ void InputManager::handleKeyboardSettingsApplied(KeyboardSettingsInterfaceV1::Ch
         m_seatDConfig->setKeyboardRate(interface->repeatRate());
     }
 
-    auto *keyboardDevice = interface->wSeat()->keyboard();
+    auto *keyboardDevice = interface->wSeat()->keyboardGroupKeyboard();
     if (keyboardDevice) {
         auto *keyboard = qobject_cast<qw_keyboard *>(keyboardDevice->handle());
         if (keyboard) {
