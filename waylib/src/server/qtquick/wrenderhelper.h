@@ -54,6 +54,22 @@ public:
 
     static bool makeTexture(QRhi *rhi, QW_NAMESPACE::qw_texture *handle, QSGPlainTexture *texture);
 
+    // DRM format-driven texture creation
+    // NOTE: All these methods must be called on Qt Quick scene graph render thread only
+    static QRhiTexture *createTextureFromDRMFormat(QRhi *rhi, QW_NAMESPACE::qw_allocator *allocator,
+                                                    QW_NAMESPACE::qw_renderer *renderer,
+                                                    uint32_t drmFormat, const QSize &size);
+    static QRhiTexture *createMatchingTexture(QRhi *rhi, QW_NAMESPACE::qw_allocator *allocator,
+                                               QW_NAMESPACE::qw_renderer *renderer,
+                                               QSGTexture *sourceTexture);
+    
+    // Get buffer from texture (requires prior registration)
+    static QW_NAMESPACE::qw_buffer *getBufferFromTexture(QRhiTexture *texture);
+    
+    // Resource management (called internally, render thread only)
+    static void registerTextureBuffer(QRhiTexture *texture, QW_NAMESPACE::qw_buffer *buffer);
+    static void unregisterTexture(QRhiTexture *texture);
+
 Q_SIGNALS:
     void sizeChanged();
 
