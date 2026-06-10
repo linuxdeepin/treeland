@@ -8,6 +8,8 @@
 #include "wqmlhelper_p.h"
 #include "platformplugin/types.h"
 #include "private/wprivateaccessor_p.h"
+#include "woutputrenderwindow.h"
+#include "wrenderhelper.h"
 
 #include <QQuickItem>
 #include <QRunnable>
@@ -752,12 +754,23 @@ public:
             pixelSize = size.toSize();
         }
 
+
+        // Try DRM format-driven texture creation via window convenience method
+        auto outputWindow = qobject_cast<WOutputRenderWindow*>(window);
+        if (outputWindow && outputWindow->allocator() && outputWindow->renderer()) {
+            auto drmTexture = outputWindow->createMatchingTexture(sgTexture());
+            if (drmTexture) {
+                sgTexture()->setTexture(drmTexture);
+                return;
+            }
+        }
+        
+        // Fallback to original Qt RHI format approach
         texture = manager->resolve(texture, ct->format(), pixelSize);
         if (Q_UNLIKELY(texture.expired())) {
             reset();
             return;
         }
-        auto texture = this->texture.lock();
         Q_ASSERT(texture->data);
 
         if (renderData) {
