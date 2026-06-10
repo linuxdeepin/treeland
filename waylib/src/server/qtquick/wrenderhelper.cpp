@@ -797,6 +797,229 @@ static UpdateTextureFunction getUpdateTextFunction(qw_texture *handle)
     return nullptr;
 }
 
+
+// DRM format to QRhiTexture::Format mapping
+static QRhiTexture::Format drmFormatToRhiFormat(uint32_t drmFormat)
+{
+    switch (drmFormat) {
+    case DRM_FORMAT_ARGB8888:
+    case DRM_FORMAT_XRGB8888:
+    case DRM_FORMAT_ABGR8888:
+    case DRM_FORMAT_XBGR8888:
+    case DRM_FORMAT_RGBA8888:
+    case DRM_FORMAT_RGBX8888:
+        return QRhiTexture::RGBA8;
+    case DRM_FORMAT_BGRA8888:
+    case DRM_FORMAT_BGRX8888:
+        return QRhiTexture::BGRA8;
+    case DRM_FORMAT_RGB565:
+        return QRhiTexture::R16;
+    case DRM_FORMAT_RGBA4444:
+    case DRM_FORMAT_RGBX4444:
+    case DRM_FORMAT_RGBA5551:
+    case DRM_FORMAT_RGBX5551:
+        return QRhiTexture::RGBA16;
+    case DRM_FORMAT_ARGB2101010:
+    case DRM_FORMAT_XRGB2101010:
+    case DRM_FORMAT_ABGR2101010:
+    case DRM_FORMAT_XBGR2101010:
+    case DRM_FORMAT_RGBA1010102:
+    case DRM_FORMAT_RGBX1010102:
+    case DRM_FORMAT_BGRA1010102:
+    case DRM_FORMAT_BGRX1010102:
+        return QRhiTexture::RGB10A2;
+    default:
+        return QRhiTexture::RGBA8;
+    }
+}
+
+// Resource structure for DRM format textures
+// NOTE: This static mapping table is only safe to use on Qt Quick scene graph render thread.
+// All operations (create/register/unregister) must happen on the same thread to avoid race conditions.
+struct TextureResources {
+    qw_swapchain *swapchain = nullptr;
+    qw_buffer *buffer = nullptr;
+    qw_texture *texture = nullptr;
+};
+
+// Static texture-to-resources mapping (render thread only)
+static QHash<QRhiTexture*, TextureResources> s_textureResources;
+
+// Get DRM format from texture via EGL
+static uint32_t getDRMFormatFromTexture(QRhiTexture *rhiTexture, wlr_egl *egl)
+{
+    if (!rhiTexture || !egl)
+        return DRM_FORMAT_INVALID;
+
+    auto display = wlr_egl_get_display(egl);
+    auto context = wlr_egl_get_context(egl);
+
+    EGLImage image = eglCreateImage(display, context,
+                                    EGL_GL_TEXTURE_2D,
+                                    reinterpret_cast<EGLClientBuffer>(rhiTexture->nativeTexture().object),
+                                    nullptr);
+
+    if (image == EGL_NO_IMAGE)
+        return DRM_FORMAT_INVALID;
+
+    static auto eglExportDMABUFImageQueryMESA =
+        reinterpret_cast<PFNEGLEXPORTDMABUFIMAGEQUERYMESAPROC>(eglGetProcAddress("eglExportDMABUFImageQueryMESA"));
+    static auto eglDestroyImageKHR =
+        reinterpret_cast<PFNEGLDESTROYIMAGEKHRPROC>(eglGetProcAddress("eglDestroyImageKHR"));
+
+    if (!eglExportDMABUFImageQueryMESA) {
+        if (eglDestroyImageKHR)
+            eglDestroyImageKHR(display, image);
+        return DRM_FORMAT_INVALID;
+    }
+
+    uint32_t format = DRM_FORMAT_INVALID;
+    int n_planes = 0;
+    uint64_t modifier = 0;
+    bool ok = eglExportDMABUFImageQueryMESA(display, image,
+                                           reinterpret_cast<int*>(&format),
+                                           &n_planes, &modifier);
+
+    // Destroy EGLImage to prevent resource leak
+    if (eglDestroyImageKHR)
+        eglDestroyImageKHR(display, image);
+
+    if (!ok)
+        return DRM_FORMAT_INVALID;
+
+    return format;
+}
+
+// Pick format from renderer's supported formats
+static const wlr_drm_format *pickRenderFormat(qw_renderer *renderer, uint32_t format)
+{
+    auto r = renderer->handle();
+    if (!r->impl->get_render_formats)
+        return nullptr;
+        
+    const wlr_drm_format_set *format_set = r->impl->get_render_formats(r);
+    if (!format_set)
+        return nullptr;
+
+    return wlr_drm_format_set_get(format_set, format);
+}
+
+QRhiTexture *WRenderHelper::createTextureFromDRMFormat(QRhi *rhi, qw_allocator *allocator,
+                                                        qw_renderer *renderer,
+                                                        uint32_t drmFormat, const QSize &size)
+{
+    if (!allocator || !renderer || !rhi)
+        return nullptr;
+
+    auto format = pickRenderFormat(renderer, drmFormat);
+    if (!format)
+        return nullptr;
+
+    auto swapchain = qw_swapchain::create(allocator->handle(), size.width(), size.height(), format);
+    if (!swapchain)
+        return nullptr;
+
+    auto wbuffer = swapchain->acquire();
+    if (!wbuffer) {
+        delete swapchain;
+        return nullptr;
+    }
+
+    auto buffer = qw_buffer::from(wbuffer);
+    auto texture = qw_texture::from_buffer(*renderer, *buffer);
+    if (!texture) {
+        buffer->unref();
+        delete swapchain;
+        return nullptr;
+    }
+
+    wlr_gles2_texture_attribs attribs;
+    wlr_gles2_texture_get_attribs(texture->handle(), &attribs);
+
+    QRhiTexture *rhiTexture = rhi->newTexture(drmFormatToRhiFormat(drmFormat), size, 1, QRhiTexture::RenderTarget);
+    if (!rhiTexture || !rhiTexture->createFrom({attribs.tex, 0})) {
+        delete rhiTexture;
+        buffer->unref();
+        delete swapchain;
+        return nullptr;
+    }
+
+    // Store complete resources for cleanup
+    TextureResources resources;
+    resources.swapchain = swapchain;
+    resources.buffer = buffer;
+    resources.texture = texture;
+    s_textureResources[rhiTexture] = resources;
+    
+    return rhiTexture;
+}
+
+QRhiTexture *WRenderHelper::createMatchingTexture(QRhi *rhi, qw_allocator *allocator,
+                                                   qw_renderer *renderer,
+                                                   QSGTexture *sourceTexture)
+{
+    if (!sourceTexture || !rhi)
+        return nullptr;
+
+    auto rhiTexture = sourceTexture->rhiTexture();
+    if (!rhiTexture)
+        return nullptr;
+
+    // Get DRM format from source texture
+    if (!wlr_renderer_is_gles2(renderer->handle()))
+        return nullptr;
+
+    auto egl = wlr_gles2_renderer_get_egl(renderer->handle());
+    uint32_t drmFormat = getDRMFormatFromTexture(rhiTexture, egl);
+    
+    if (drmFormat == DRM_FORMAT_INVALID)
+        return nullptr;
+
+    return createTextureFromDRMFormat(rhi, allocator, renderer, drmFormat, rhiTexture->pixelSize());
+}
+
+qw_buffer *WRenderHelper::getBufferFromTexture(QRhiTexture *texture)
+{
+    if (!s_textureResources.contains(texture))
+        return nullptr;
+    return s_textureResources[texture].buffer;
+}
+
+void WRenderHelper::registerTextureBuffer(QRhiTexture *texture, qw_buffer *buffer)
+{
+    if (!texture || !buffer)
+        return;
+    
+    // Only register if not already created via DRM format path
+    if (!s_textureResources.contains(texture)) {
+        TextureResources resources;
+        resources.buffer = buffer;
+        s_textureResources[texture] = resources;
+    }
+}
+
+void WRenderHelper::unregisterTexture(QRhiTexture *texture)
+{
+    if (!s_textureResources.contains(texture))
+        return;
+        
+    auto &resources = s_textureResources[texture];
+    
+    // Clean up all resources in reverse creation order
+    if (resources.buffer) {
+        resources.buffer->unref();
+    }
+    
+    if (resources.texture) {
+        delete resources.texture;
+    }
+    
+    if (resources.swapchain) {
+        delete resources.swapchain;
+    }
+    
+    s_textureResources.remove(texture);
+}
 bool WRenderHelper::makeTexture(QRhi *rhi, qw_texture *handle, QSGPlainTexture *texture)
 {
     auto updateTexture = getUpdateTextFunction(handle);
