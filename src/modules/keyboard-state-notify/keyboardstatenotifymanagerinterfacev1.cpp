@@ -303,7 +303,8 @@ void KeyboardStateWatcherV1Private::apply([[maybe_unused]] Resource *resource)
     }
 
     for (auto *seat : std::as_const(seats)) {
-        qw_keyboard *keyboard = qobject_cast<qw_keyboard*>(seat->keyboard()->handle());
+        qw_keyboard *keyboard =
+            qobject_cast<qw_keyboard *>(seat->keyboardGroupKeyboard()->handle());
         if (!keyboard || !keyboard->handle()->xkb_state)
             continue;
 
