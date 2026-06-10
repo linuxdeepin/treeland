@@ -1865,6 +1865,27 @@ qw_allocator *WOutputRenderWindow::allocator() const
     return d->m_allocator;
 }
 
+
+wlr_egl *WOutputRenderWindow::egl() const
+{
+    if (!m_renderer)
+        return nullptr;
+    
+    if (!wlr_renderer_is_gles2(m_renderer->handle()))
+        return nullptr;
+    
+    return wlr_gles2_renderer_get_egl(m_renderer->handle());
+}
+
+QRhiTexture *WOutputRenderWindow::createTextureFromDRMFormat(uint32_t drmFormat, const QSize &size)
+{
+    return WRenderHelper::createTextureFromDRMFormat(rhi(), m_allocator, m_renderer, drmFormat, size);
+}
+
+QRhiTexture *WOutputRenderWindow::createMatchingTexture(QSGTexture *sourceTexture)
+{
+    return WRenderHelper::createMatchingTexture(rhi(), m_allocator, m_renderer, sourceTexture);
+}
 WBufferRenderer *WOutputRenderWindow::currentRenderer() const
 {
     Q_D(const WOutputRenderWindow);
