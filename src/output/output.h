@@ -57,6 +57,7 @@ public:
     {
         InitialPlacement,
         ExclusiveZoneChanged,
+        LayerSurfaceRemoved,
         OutputGeometryChanged,
     };
 
