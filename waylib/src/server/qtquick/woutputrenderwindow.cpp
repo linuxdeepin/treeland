@@ -1868,26 +1868,25 @@ qw_allocator *WOutputRenderWindow::allocator() const
 
 wlr_egl *WOutputRenderWindow::egl() const
 {
-    if (!m_renderer)
+    Q_D(const WOutputRenderWindow);
+    if (!d->m_renderer)
         return nullptr;
     
-    if (!wlr_renderer_is_gles2(m_renderer->handle()))
+    if (!wlr_renderer_is_gles2(d->m_renderer->handle()))
         return nullptr;
     
-    return wlr_gles2_renderer_get_egl(m_renderer->handle());
+    return wlr_gles2_renderer_get_egl(d->m_renderer->handle());
 }
 
 QRhiTexture *WOutputRenderWindow::createTextureFromDRMFormat(uint32_t drmFormat, const QSize &size)
 {
-    return WRenderHelper::createTextureFromDRMFormat(rhi(), m_allocator, m_renderer, drmFormat, size);
+    return WRenderHelper::createTextureFromDRMFormat(rhi(), allocator(), renderer(), drmFormat, size);
 }
 
 QRhiTexture *WOutputRenderWindow::createMatchingTexture(QSGTexture *sourceTexture)
 {
-    return WRenderHelper::createMatchingTexture(rhi(), m_allocator, m_renderer, sourceTexture);
+    return WRenderHelper::createMatchingTexture(rhi(), allocator(), renderer(), sourceTexture);
 }
-WBufferRenderer *WOutputRenderWindow::currentRenderer() const
-{
     Q_D(const WOutputRenderWindow);
     return d->rendererList.isEmpty() ? nullptr : d->rendererList.top();
 }
