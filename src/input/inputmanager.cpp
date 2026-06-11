@@ -552,7 +552,8 @@ void InputManager::onInputAdded(WInputDevice *input)
         return;
     }
 
-    auto *cursor = input->seat()->cursor();
+    auto *seat = input->seat();
+    auto *cursor = seat ? seat->cursor() : nullptr;
     if (cursor) {
         cursor->setScrollFactor(m_seatDConfig->pointerScrollFactor());
     }
