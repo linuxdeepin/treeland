@@ -62,6 +62,13 @@ public:
     };
     Q_ENUM(Type)
 
+    enum class LibinputPointerType {
+        Unknown,
+        Mouse,
+        TouchPad,
+    };
+    Q_ENUM(LibinputPointerType)
+
     WInputDevice(QW_NAMESPACE::qw_input_device *handle, bool isVirtual = false);
 
     QW_NAMESPACE::qw_input_device *handle() const;
@@ -82,6 +89,8 @@ public:
     QString devicePath() const;
 
     bool isVirtual() const;
+
+    LibinputPointerType libinputPointerType() const;
 
 private:
     friend class QWlrootsIntegration;
