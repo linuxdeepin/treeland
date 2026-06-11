@@ -2004,11 +2004,6 @@ bool Helper::afterHandleEvent([[maybe_unused]] WSeat *seat,
 
         WSeat *eventSeat = getSeatForEvent(event);
         if (eventSeat && surface) {
-            // LayerSurface cannot be activated, nor should it be activated.
-            if (surface->type() == SurfaceWrapper::Type::Layer) {
-                return false;
-            }
-
             for (auto *seat : m_seatManager->seats()) {
                 if (seat != eventSeat && surface) {
                     auto *container = m_rootSurfaceContainer->getSeatContainer(seat);
@@ -2019,7 +2014,10 @@ bool Helper::afterHandleEvent([[maybe_unused]] WSeat *seat,
                 }
             }
 
-            m_rootSurfaceContainer->setActivatedSurfaceForSeat(eventSeat, surface, Qt::MouseFocusReason);
+            if (surface->shellSurface()->hasCapability(WToplevelSurface::Capability::Activate))
+                m_rootSurfaceContainer->setActivatedSurfaceForSeat(eventSeat,
+                                                                   surface,
+                                                                   Qt::MouseFocusReason);
 
             if (surface->shellSurface()->hasCapability(WToplevelSurface::Capability::Focus)
                 && surface->acceptKeyboardFocus()) {

@@ -782,12 +782,13 @@ void ShellHandler::setupSurfaceActiveWatcher(SurfaceWrapper *wrapper)
             auto layerSurface = qobject_cast<WLayerSurface *>(wrapper->shellSurface());
             if (layerSurface->keyboardInteractivity() == WLayerSurface::KeyboardInteractivity::None)
                 return;
+
             /*
-             * if LayerSurface's keyboardInteractivity is `OnDemand`, only allow `Overlay` layer
-             * surface get keyboard focus, to avoid dock/dde-desktop grab keyboard focus When they
-             * restart
+             * For OnDemand keyboardInteractivity, only allow surfaces with z-order above
+             * normal windows (Top/Overlay) to receive keyboard focus, to avoid dock/dde-desktop
+             * grabbing focus when they restart.
              */
-            if (layerSurface->layer() == WLayerSurface::LayerType::Overlay
+            if (layerSurface->layer() >= WLayerSurface::LayerType::Top
                 || layerSurface->keyboardInteractivity()
                     == WLayerSurface::KeyboardInteractivity::Exclusive)
                 Helper::instance()->activateSurface(wrapper);
