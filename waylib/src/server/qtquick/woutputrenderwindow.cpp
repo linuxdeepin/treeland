@@ -1887,6 +1887,8 @@ QRhiTexture *WOutputRenderWindow::createMatchingTexture(QSGTexture *sourceTextur
 {
     return WRenderHelper::createMatchingTexture(rhi(), allocator(), renderer(), sourceTexture);
 }
+WBufferRenderer *WOutputRenderWindow::currentRenderer() const
+{
     Q_D(const WOutputRenderWindow);
     return d->rendererList.isEmpty() ? nullptr : d->rendererList.top();
 }
