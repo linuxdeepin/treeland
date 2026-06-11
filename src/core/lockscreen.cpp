@@ -85,6 +85,8 @@ void LockScreen::switchUser()
 
 void LockScreen::addOutput(Output *output)
 {
+    qCDebug(treelandShell) << "Adding output to lock screen:" << output;
+
     SurfaceContainer::addOutput(output);
 #if EXT_SESSION_LOCK_V1
     auto outputItem = output->outputItem();
@@ -99,6 +101,7 @@ void LockScreen::addOutput(Output *output)
     }
 
     auto *item = m_impl->createLockScreen(output, this);
+    item->setProperty("primaryOutputName", m_primaryOutputName);
 
     connect(item, SIGNAL(animationPlayed()), this, SLOT(onAnimationPlayed()));
     connect(item, SIGNAL(animationPlayFinished()), this, SLOT(onAnimationPlayFinished()));
@@ -116,6 +119,8 @@ bool LockScreen::isLocked() const
 
 void LockScreen::removeOutput(Output *output)
 {
+    qCDebug(treelandShell) << "Removing output from lock screen:" << output;
+
     SurfaceContainer::removeOutput(output);
 #if EXT_SESSION_LOCK_V1
     auto outputItem = output->outputItem();
@@ -151,7 +156,10 @@ bool LockScreen::available() const
 
 void LockScreen::setPrimaryOutputName(const QString &primaryOutputName)
 {
-    for (const auto &[k, v] : m_components) {
+    qCDebug(treelandShell) << "Setting primary output name for lock screen:" << primaryOutputName;
+
+    m_primaryOutputName = primaryOutputName;
+    for (const auto &[k, v] : std::as_const(m_components)) {
         v->setProperty("primaryOutputName", primaryOutputName);
     }
 }
