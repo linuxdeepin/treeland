@@ -29,19 +29,6 @@ public:
     explicit PersonalizationWindow(struct ::treeland_personalization_window_context_v1 *object);
 };
 
-class PersonalizationWallpaper
-    : public QWaylandClientExtensionTemplate<PersonalizationWallpaper>
-    , public QtWayland::treeland_personalization_wallpaper_context_v1
-{
-    Q_OBJECT
-public:
-    explicit PersonalizationWallpaper(
-        struct ::treeland_personalization_wallpaper_context_v1 *object);
-
-protected:
-    void treeland_personalization_wallpaper_context_v1_metadata(const QString &metadata) override;
-};
-
 class PersonalizationCursor
     : public QWaylandClientExtensionTemplate<PersonalizationCursor>
     , public QtWayland::treeland_personalization_cursor_context_v1
