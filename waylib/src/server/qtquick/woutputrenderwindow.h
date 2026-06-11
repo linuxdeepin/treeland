@@ -14,6 +14,8 @@ Q_MOC_INCLUDE(<wquickoutputlayout.h>)
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
+
+struct wlr_egl;
 class WOutputViewport;
 class WOutputLayer;
 class WBufferRenderer;
