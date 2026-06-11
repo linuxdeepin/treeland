@@ -67,9 +67,15 @@ int main(int argc, char *argv[])
 #ifdef QT_DEBUG
     DLogManager::registerConsoleAppender();
 #endif
-    DLogManager::registerJournalAppender();
 
+    // Enable console logging in non-debug builds via --console-log flag
     CmdLine::ref();
+#ifndef QT_DEBUG
+    if (CmdLine::ref().consoleLog()) {
+        DLogManager::registerConsoleAppender();
+    }
+#endif
+    DLogManager::registerJournalAppender();
 
     WRenderHelper::setupRendererBackend();
     if (CmdLine::ref().tryExec())
