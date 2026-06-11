@@ -484,9 +484,6 @@ void Helper::onOutputAdded(WOutput *output)
     o->enable();
     m_outputManager->newOutput(output);
 
-    m_wallpaperColorV1->updateWallpaperColor(output->name(),
-                                             m_personalizationInterfaceV1->backgroundIsDark(output->name()));
-
     QString cache_location = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
     QSettings settings(cache_location + "/output.ini", QSettings::IniFormat);
     settings.beginGroup(QString("output.%1").arg(output->name()));
@@ -1402,19 +1399,6 @@ void Helper::init(Treeland::Treeland *treeland)
     connect(m_userModel, &UserModel::currentUserNameChanged, this, updateCurrentUser);
 
     updateCurrentUser();
-
-    connect(m_personalizationInterfaceV1,
-            &PersonalizationManagerInterfaceV1::backgroundChanged,
-            this,
-            [this](const QString &output, bool isdark) {
-                m_wallpaperColorV1->updateWallpaperColor(output, isdark);
-            });
-
-    for (auto output : m_rootSurfaceContainer->outputs()) {
-        const QString &outputName = output->output()->name();
-        m_wallpaperColorV1->updateWallpaperColor(outputName,
-                                                 m_personalizationInterfaceV1->backgroundIsDark(outputName));
-    }
 
     connect(m_windowManagementInterfaceV1,
             &WindowManagementInterfaceV1::desktopStateChanged,
