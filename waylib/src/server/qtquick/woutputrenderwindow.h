@@ -14,7 +14,6 @@ Q_MOC_INCLUDE(<wquickoutputlayout.h>)
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-
 struct wlr_egl;
 class WOutputViewport;
 class WOutputLayer;
@@ -57,7 +56,7 @@ public:
     QW_NAMESPACE::qw_allocator *allocator() const;
 
     // Convenience methods for DRM format texture creation
-    wlr_egl *egl() const;
+    ::wlr_egl *egl() const;
     QRhiTexture *createTextureFromDRMFormat(uint32_t drmFormat, const QSize &size);
     QRhiTexture *createMatchingTexture(QSGTexture *sourceTexture);
 
