@@ -80,4 +80,5 @@ private:
     std::map<WOutputItem *, std::unique_ptr<QQuickItem, std::function<void(QQuickItem*)>>> m_fallbackItems;
     WSessionLock* m_sessionLock{ nullptr };
 #endif
+    QString m_primaryOutputName;
 };
