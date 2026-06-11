@@ -245,6 +245,26 @@ bool WInputDevice::isVirtual() const
     return d->isVirtual;
 }
 
+WInputDevice::LibinputPointerType WInputDevice::libinputPointerType() const
+{
+    if (!handle()->is_libinput()) {
+        return LibinputPointerType::Unknown;
+    }
+
+    struct libinput_device *inputDevice = wlr_libinput_get_device_handle(handle()->handle());
+    struct udev_device *udevDevice = libinput_device_get_udev_device(inputDevice);
+
+    if (udev_device_get_property_value(udevDevice, "ID_INPUT_MOUSE")) {
+        return LibinputPointerType::Mouse;
+    }
+
+    if (udev_device_get_property_value(udevDevice, "ID_INPUT_TOUCHPAD")) {
+        return LibinputPointerType::TouchPad;
+    }
+
+    return LibinputPointerType::Unknown;
+}
+
 void WInputDevice::setExclusiveGrabber(QObject *grabber)
 {
     W_D(WInputDevice);
