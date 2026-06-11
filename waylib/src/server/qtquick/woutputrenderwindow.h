@@ -56,7 +56,6 @@ public:
     QW_NAMESPACE::qw_allocator *allocator() const;
 
     // Convenience methods for DRM format texture creation
-    ::wlr_egl *egl() const;
     QRhiTexture *createTextureFromDRMFormat(uint32_t drmFormat, const QSize &size);
     QRhiTexture *createMatchingTexture(QSGTexture *sourceTexture);
 
