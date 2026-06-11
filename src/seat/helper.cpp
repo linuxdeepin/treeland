@@ -1479,7 +1479,6 @@ void Helper::init(Treeland::Treeland *treeland)
     connect(m_seatManager, &SeatsManager::deviceAdded, this, [this](WInputDevice *device) {
         m_seatManager->assignDevice(device, m_renderWindow,
                                    m_rootSurfaceContainer->outputLayout(), m_seat);
-        InputDevice::instance()->initTouchPad(device);
     });
 
     // Setup drag request handling for all seats
