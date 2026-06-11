@@ -40,8 +40,6 @@ public:
     InputDevice(const InputDevice &) = delete;
     InputDevice &operator=(const InputDevice &) = delete;
 
-    bool initTouchPad(WInputDevice *device);
-
     SwipeGesture* registerTouchpadSwipe(const SwipeFeedBack &feed_back);
     HoldGesture* registerTouchpadHold(const HoldFeedBack &feed);
 

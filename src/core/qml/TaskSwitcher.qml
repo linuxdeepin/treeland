@@ -1,4 +1,4 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 import QtQuick
@@ -287,10 +287,13 @@ Item {
         property int finishedAnimations: 0
         property int totalAnimations: previewWindows.count
         signal animationsFinished
+        signal restoreSurfaces()
 
         delegate: Item {
             id: windowItem
             required property SurfaceWrapper surface
+            property real surfaceX: 0
+            property real surfaceY: 0
 
             ParallelAnimation {
                 id: previewAnimation
@@ -354,11 +357,14 @@ Item {
                     return
 
                 var wh = previewPostion(surface, previewItem)
+                windowItem.surfaceX = surface.x
+                windowItem.surfaceY = surface.y
+
                 previewAnimation.target = surface
                 previewAnimation.xFrom = (40 + previewItem.width - wh.width) / 2.0
                 previewAnimation.yFrom = (104 + previewItem.height - wh.height) / 2.0
-                previewAnimation.xTo = surface.x
-                previewAnimation.yTo = surface.y
+                previewAnimation.xTo = windowItem.surfaceX
+                previewAnimation.yTo = windowItem.surfaceY
                 previewAnimation.scaleFrom = wh.width / surface.width
 
                 if (surface === Helper.activatedSurface) {
@@ -374,6 +380,16 @@ Item {
                 }
 
                 previewAnimation.start()
+            }
+
+            Connections {
+                target: previewWindows
+                function onRestoreSurfaces() {
+                    if (surface && surface.shellSurface) {
+                        surface.x = windowItem.surfaceX
+                        surface.y = windowItem.surfaceY
+                    }
+                }
             }
         }
 
@@ -418,7 +434,16 @@ Item {
         }
     }
 
-    function previous() {
+    function prejudgment() {
+        if (previewWindows.finishedAnimations < previewWindows.totalAnimations) {
+            previewWindows.restoreSurfaces()
+            previewWindows.model = []
+            previewWindows.finishedAnimations = 0
+
+            showTask(false)
+            root.switchOn = false
+        }
+
         if (switchView.count <= 1) {
             if (switchView.count === 1) {
                 previewContext.sourceSurface = switchView.currentItem.surface
@@ -426,8 +451,14 @@ Item {
                     previewContext.sourceComponent = previewContext.previewComponent
                 showTask(true);
             }
-            return;
+            return false;
         }
+        return true;
+    }
+
+    function previous() {
+        if (!prejudgment())
+            return;
 
         var nextIndex = (switchView.currentIndex - 1 + switchView.count) % switchView.count
 
@@ -440,15 +471,8 @@ Item {
     }
 
     function next() {
-        if (switchView.count <= 1) {
-            if (switchView.count === 1) {
-                previewContext.sourceSurface = switchView.currentItem.surface
-                if (!previewContext.sourceComponent && root.enableAnimation)
-                    previewContext.sourceComponent = previewContext.previewComponent
-                showTask(true);
-            }
+        if (!prejudgment())
             return;
-        }
 
         var nextIndex = (switchView.currentIndex + 1) % switchView.count
 
@@ -457,6 +481,17 @@ Item {
             switchView.contentX += switchView.delegateMinWidth / 2
 
         focusReason = Qt.TabFocusReason
+        switchIndex(nextIndex)
+    }
+
+    function show() {
+        if (!prejudgment())
+            return;
+
+        var nextIndex = switchView.currentIndex;
+        switchView.positionViewAtIndex(nextIndex, ListView.End)
+
+        focusReason = Qt.ActiveWindowFocusReason
         switchIndex(nextIndex)
     }
 
@@ -487,6 +522,9 @@ Item {
             root.switchOn = false
             return
         }
+
+        if (previewWindows.finishedAnimations !== previewWindows.totalAnimations)
+            return
 
         if (root.enableAnimation) {
             previewContext.loaderStatus = -1

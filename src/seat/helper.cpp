@@ -8,6 +8,7 @@
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QJsonObject>
+#include <qnamespace.h>
 #ifdef EXT_SESSION_LOCK_V1
 #include "wsessionlock.h"
 #include "wsessionlockmanager.h"
@@ -24,26 +25,27 @@
 #include "core/treeland.h"
 #include "core/windowpicker.h"
 #include "greeter/greeterproxy.h"
-#include "greeter/usermodel.h"
 #include "greeter/sessionmodel.h"
+#include "greeter/usermodel.h"
 #include "input/inputdevice.h"
+#include "inputmanager.h"
 #include "interfaces/multitaskviewinterface.h"
 #include "modules/capture/capture.h"
 #include "modules/dde-shell/ddeshellattached.h"
 #include "modules/dde-shell/ddeshellmanagerinterfacev1.h"
 #include "modules/ddm/ddminterfacev1.h"
+#include "modules/input-manager/inputmanagerinterfacev1.h"
+#include "modules/keyboard-state-notify/keyboardstatenotifymanagerinterfacev1.h"
 #include "modules/output-manager/outputmanagement.h"
 #include "modules/personalization/personalizationmanagerinterfacev1.h"
+#include "modules/resource/treelandremotesource.h"
 #include "modules/screensaver/screensaverinterfacev1.h"
 #include "modules/shortcut/shortcutcontroller.h"
 #include "modules/shortcut/shortcutmanager.h"
 #include "modules/shortcut/shortcutrunner.h"
 #include "modules/wallpaper-color/wallpapercolorinterfacev1.h"
-#include "modules/input-manager/inputmanagerinterfacev1.h"
-#include "modules/keyboard-state-notify/keyboardstatenotifymanagerinterfacev1.h"
-#include "modules/resource/treelandremotesource.h"
-#include "output/outputconfigstate.h"
 #include "output/output.h"
+#include "output/outputconfigstate.h"
 #include "output/outputlifecyclemanager.h"
 #include "session/session.h"
 #include "surface/surfacecontainer.h"
@@ -52,20 +54,24 @@
 #include "treelanduserconfig.hpp"
 #include "utils/cmdline.h"
 #include "utils/fpsdisplaymanager.h"
-#include "workspace/workspace.h"
 #include "wallpaper/wallpapermanager.h"
 #include "wallpapershellinterfacev1.h"
-#include "inputmanager.h"
+#include "workspace/workspace.h"
 
+#include <rhi/qrhi.h>
 #include <xcb/xcb.h>
 #include <xcb/xproto.h>
 
 #include <WBackend>
+#include <WForeignToplevel>
+#include <WOutput>
+#include <WServer>
+#include <WSurfaceItem>
+#include <WXdgOutput>
+#include <wayland-util.h>
 #include <wcursorshapemanagerv1.h>
 #include <wextimagecapturesourcev1impl.h>
-#include <WForeignToplevel>
 #include <wlayersurface.h>
-#include <WOutput>
 #include <woutputhelper.h>
 #include <woutputitem.h>
 #include <woutputlayout.h>
@@ -79,11 +85,8 @@
 #include <wrenderhelper.h>
 #include <wseat.h>
 #include <wsecuritycontextmanager.h>
-#include <WServer>
 #include <wsocket.h>
-#include <WSurfaceItem>
 #include <wtoplevelsurface.h>
-#include <WXdgOutput>
 #include <wxdgshell.h>
 #include <wxdgtoplevelsurface.h>
 #include <wxdgtopleveltagmanager.h>
@@ -123,6 +126,8 @@
 #include <qwxwayland.h>
 #include <qwxwaylandsurface.h>
 
+#include <DGuiApplicationHelper>
+
 #include <QAction>
 #include <QDBusConnection>
 #include <QDBusInterface>
@@ -133,13 +138,11 @@
 #include <QQmlContext>
 #include <QQuickWindow>
 #include <QtConcurrent>
-#include <rhi/qrhi.h>
 
 #include <functional>
 #include <pwd.h>
 #include <unistd.h>
 #include <utility>
-#include <wayland-util.h>
 
 #define EXT_DATA_CONTROL_MANAGER_V1_VERSION 1
 #define WLR_FRACTIONAL_SCALE_V1_VERSION 1
@@ -334,6 +337,32 @@ TreelandUserConfig *Helper::config()
 TreelandConfig *Helper::globalConfig()
 {
     return m_globalConfig.get();
+}
+
+void Helper::syncPaletteTypeWithWindowThemeType(int32_t themeType)
+{
+    auto *guiHelper = DTK_GUI_NAMESPACE::DGuiApplicationHelper::instance();
+    if (!guiHelper) {
+        qCCritical(treelandConfig) << "DGuiApplicationHelper instance not available, cannot sync "
+                                      "palette type with window theme type.";
+        return;
+    }
+
+    qCDebug(treelandConfig) << "Syncing palette type with window theme type:" << themeType;
+
+    switch (themeType) {
+    case 2:
+        guiHelper->setPaletteType(Dtk::Gui::DGuiApplicationHelper::DarkType);
+        break;
+    case 1:
+        guiHelper->setPaletteType(Dtk::Gui::DGuiApplicationHelper::LightType);
+        break;
+    default:
+        qCWarning(treelandConfig) << "Unknown windowThemeType:" << themeType
+                                  << ", fallback to light.";
+        guiHelper->setPaletteType(Dtk::Gui::DGuiApplicationHelper::LightType);
+        break;
+    }
 }
 
 void Helper::tryInitRemoteSource()
@@ -1357,6 +1386,7 @@ void Helper::init(Treeland::Treeland *treeland)
 #else
         if (m_config->isInitializeSucceed()) {
 #endif
+            syncPaletteTypeWithWindowThemeType(m_config->windowThemeType());
             m_wallpaperManager->updateWallpaperConfig();
             tryInitRemoteSource();
         } else {
@@ -1364,6 +1394,9 @@ void Helper::init(Treeland::Treeland *treeland)
                     &TreelandUserConfig::configInitializeSucceed,
                     m_wallpaperManager,
                     &WallpaperManager::updateWallpaperConfig);
+            connect(m_config.get(), &TreelandUserConfig::configInitializeSucceed, this, [this] {
+                syncPaletteTypeWithWindowThemeType(m_config->windowThemeType());
+            });
             connect(m_config.get(),
                     &TreelandUserConfig::configInitializeSucceed,
                     this,
@@ -1451,7 +1484,6 @@ void Helper::init(Treeland::Treeland *treeland)
     connect(m_seatManager, &SeatsManager::deviceAdded, this, [this](WInputDevice *device) {
         m_seatManager->assignDevice(device, m_renderWindow,
                                    m_rootSurfaceContainer->outputLayout(), m_seat);
-        InputDevice::instance()->initTouchPad(device);
     });
 
     // Setup drag request handling for all seats
@@ -1876,13 +1908,10 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *targetWindow, QInputEvent 
 
         if (event->type() == QEvent::KeyRelease && !m_captureSelector) {
             auto kevent = static_cast<QKeyEvent *>(event);
-            if (m_taskSwitch && m_taskSwitch->property("switchOn").toBool()) {
-                if (kevent->key() == Qt::Key_Alt || kevent->key() == Qt::Key_Meta) {
-                    auto filter = Helper::instance()->workspace()->currentFilter();
-                    filter->setFilterAppId("");
-                    setCurrentMode(CurrentMode::Normal);
-                    QMetaObject::invokeMethod(m_taskSwitch, "exit");
-                }
+            const int key = kevent->key();
+            if (key == Qt::Key_Alt || key == Qt::Key_Control || key == Qt::Key_Shift
+                || key == Qt::Key_Meta) {
+                Q_EMIT modifierKeyReleased(kevent);
             }
         }
     }
@@ -1921,6 +1950,10 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *targetWindow, QInputEvent 
             auto increment_pos = ev->globalPosition() - moveResizeState.initialPosition;
             m_rootSurfaceContainer->doMoveResizeForSeat(seat, increment_pos);
 
+            return true;
+        } else if (event->type() == QEvent::KeyPress
+                   && static_cast<QKeyEvent *>(event)->key() == Qt::Key_Escape) {
+            m_rootSurfaceContainer->cancelMoveResizeForSeat(seat);
             return true;
         } else if (event->type() == QEvent::MouseButtonRelease
                    || event->type() == QEvent::TouchEnd) {
@@ -1972,11 +2005,6 @@ bool Helper::afterHandleEvent([[maybe_unused]] WSeat *seat,
 
         WSeat *eventSeat = getSeatForEvent(event);
         if (eventSeat && surface) {
-            // LayerSurface cannot be activated, nor should it be activated.
-            if (surface->type() == SurfaceWrapper::Type::Layer) {
-                return false;
-            }
-
             for (auto *seat : m_seatManager->seats()) {
                 if (seat != eventSeat && surface) {
                     auto *container = m_rootSurfaceContainer->getSeatContainer(seat);
@@ -1987,7 +2015,10 @@ bool Helper::afterHandleEvent([[maybe_unused]] WSeat *seat,
                 }
             }
 
-            m_rootSurfaceContainer->setActivatedSurfaceForSeat(eventSeat, surface, Qt::MouseFocusReason);
+            if (surface->shellSurface()->hasCapability(WToplevelSurface::Capability::Activate))
+                m_rootSurfaceContainer->setActivatedSurfaceForSeat(eventSeat,
+                                                                   surface,
+                                                                   Qt::MouseFocusReason);
 
             if (surface->shellSurface()->hasCapability(WToplevelSurface::Capability::Focus)
                 && surface->acceptKeyboardFocus()) {

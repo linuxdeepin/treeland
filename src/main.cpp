@@ -9,18 +9,49 @@
 #include <qwbuffer.h>
 #include <qwlogging.h>
 
+#include <DGuiApplicationHelper>
 #include <DLog>
 
 #include <QGuiApplication>
 #include <QMetaType>
+#include <QPalette>
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 10, 0)
+#  include <private/qgenericunixtheme_p.h>
+#else
+#  include <private/qgenericunixthemes_p.h>
+#endif
+
+#include <wserver.h>
+
+#include <qpa/qplatformtheme.h>
 
 WAYLIB_SERVER_USE_NAMESPACE
 DCORE_USE_NAMESPACE;
 
+class QDeepinTheme : public QGenericUnixTheme
+{
+public:
+    const QPalette *palette(QPlatformTheme::Palette type) const override
+    {
+        if (type != QPlatformTheme::SystemPalette) {
+            return QGenericUnixTheme::palette(type);
+        }
+        static QPalette palette;
+        palette = Dtk::Gui::DGuiApplicationHelper::instance()->applicationPalette();
+        return &palette;
+    }
+};
+
 int main(int argc, char *argv[])
 {
     qw_log::init();
-    WServer::initializeQPA();
+    DTK_GUI_NAMESPACE::DGuiApplicationHelper::setAttribute(
+        DTK_GUI_NAMESPACE::DGuiApplicationHelper::DontSaveApplicationTheme,
+        true);
+    WServer::initializeQPA({}, [](const QString &) {
+        return static_cast<QPlatformTheme *>(new QDeepinTheme());
+    });
     //    QQuickStyle::setStyle("Material");
 
     QGuiApplication::setAttribute(Qt::AA_UseOpenGLES);
@@ -36,9 +67,15 @@ int main(int argc, char *argv[])
 #ifdef QT_DEBUG
     DLogManager::registerConsoleAppender();
 #endif
-    DLogManager::registerJournalAppender();
 
+    // Enable console logging in non-debug builds via --console-log flag
     CmdLine::ref();
+#ifndef QT_DEBUG
+    if (CmdLine::ref().consoleLog()) {
+        DLogManager::registerConsoleAppender();
+    }
+#endif
+    DLogManager::registerJournalAppender();
 
     WRenderHelper::setupRendererBackend();
     if (CmdLine::ref().tryExec())

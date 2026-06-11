@@ -3,6 +3,7 @@
 
 #include "shortcutrunner.h"
 #include "seat/helper.h"
+#include "treelandconfig.hpp"
 #include "shortcutcontroller.h"
 #include "workspace/workspace.h"
 #include "modules/window-management/windowmanagementinterfacev1.h"
@@ -18,9 +19,28 @@
 
 #include "qwayland-server-treeland-shortcut-manager-v2.h"
 
+static bool isModifierKeyInMask(int key, Qt::KeyboardModifiers mods)
+{
+    if ((mods & Qt::AltModifier) && key == Qt::Key_Alt)
+        return true;
+    if ((mods & Qt::ControlModifier) && key == Qt::Key_Control)
+        return true;
+    if ((mods & Qt::MetaModifier) && key == Qt::Key_Meta)
+        return true;
+    if ((mods & Qt::ShiftModifier) && key == Qt::Key_Shift)
+        return true;
+    return false;
+}
+
 ShortcutRunner::ShortcutRunner(QObject *parent)
     : QObject(parent)
 {
+    auto *helper = Helper::instance();
+    connect(helper, &Helper::modifierKeyReleased, this, &ShortcutRunner::onModifierReleased);
+
+    m_quickSwitchTimer = new QTimer(this);
+    m_quickSwitchTimer->setSingleShot(true);
+    connect(m_quickSwitchTimer, &QTimer::timeout, this, &ShortcutRunner::onQuickSwitchTimeout);
 }
 
 void ShortcutRunner::onActionTrigger(ShortcutAction action, const QString &name, bool isGesture, ShortcutController::KeyFlags keyFlags)
@@ -32,6 +52,7 @@ void ShortcutRunner::onActionTrigger(ShortcutAction action, const QString &name,
         return;
     }
 
+    m_currentAction = action;
     switch (action) {
     case ShortcutAction::Notify:
         helper->m_shortcutManager->sendActivated(name, keyFlags);
@@ -156,10 +177,6 @@ void ShortcutRunner::onActionTrigger(ShortcutAction action, const QString &name,
         break;
     case ShortcutAction::Quit:
         Q_EMIT helper->requestQuit();
-        break;
-    case ShortcutAction::TaskSwitchEnter:
-        m_taskAltTimestamp = QDateTime::currentMSecsSinceEpoch();
-        m_taskAltCount = 0;
         break;
     case ShortcutAction::TaskSwitchNext:
     case ShortcutAction::TaskSwitchPrev:
@@ -332,14 +349,16 @@ void ShortcutRunner::taskswitchAction(bool isRepeat, bool isSameApp, bool isPrev
     auto *helper = Helper::instance();
     if (helper->currentMode() != Helper::CurrentMode::Normal && helper->currentMode() != Helper::CurrentMode::WindowSwitch)
         return;
-    // Quick Advance
-    quint64 now = QDateTime::currentMSecsSinceEpoch();
-    if (!isRepeat && now - m_taskAltTimestamp < 150) {
+
+    if (!isRepeat && helper->currentMode() == Helper::CurrentMode::Normal) {
         auto current = helper->workspace()->current();
-        Q_ASSERT(current);
-        auto nextSurface = current->findNextActivedSurface();
-        if (nextSurface)
-            helper->forceActivateSurface(nextSurface, Qt::TabFocusReason);
+        if (current) {
+            auto nextSurface = current->findNextActivedSurface();
+            if (nextSurface)
+                helper->forceActivateSurface(nextSurface, Qt::TabFocusReason);
+        }
+        m_quickSwitchTimer->start(helper->globalConfig()->quickSwitchTimeout());
+        m_quickSwitchPending = true;
         return;
     }
 
@@ -358,9 +377,8 @@ void ShortcutRunner::taskswitchAction(bool isRepeat, bool isSameApp, bool isPrev
         m_taskAltCount = 3;
     }
 
-    if (m_taskAltCount < 3) {
+    if (m_taskAltCount < 3)
         return;
-    }
 
     m_taskAltCount = 0;
     helper->setCurrentMode(Helper::CurrentMode::WindowSwitch);
@@ -378,5 +396,58 @@ void ShortcutRunner::taskswitchAction(bool isRepeat, bool isSameApp, bool isPrev
         QMetaObject::invokeMethod(helper->m_taskSwitch, "previous");
     } else {
         QMetaObject::invokeMethod(helper->m_taskSwitch, "next");
+    }
+    qWarning() << "TaskSwitch: navigating in full task switcher";
+}
+
+void ShortcutRunner::onQuickSwitchTimeout()
+{
+    m_quickSwitchPending = false;
+
+    auto *helper = Helper::instance();
+    if (helper->currentMode() != Helper::CurrentMode::Normal)
+        return;
+
+    if (helper->m_taskSwitch.isNull()) {
+        auto contentItem = helper->window()->contentItem();
+        auto output = helper->rootSurfaceContainer()->primaryOutput();
+        helper->m_taskSwitch = helper->qmlEngine()->createTaskSwitcher(output, contentItem);
+        helper->restoreFromShowDesktop();
+        QObject::connect(helper->m_taskSwitch,
+                         SIGNAL(switchOnChanged()),
+                         helper,
+                         SLOT(deleteTaskSwitch()));
+        helper->m_taskSwitch->setZ(RootSurfaceContainer::OverlayZOrder);
+    }
+    helper->setCurrentMode(Helper::CurrentMode::WindowSwitch);
+
+    QMetaObject::invokeMethod(helper->m_taskSwitch, "show");
+}
+
+void ShortcutRunner::onModifierReleased(QKeyEvent *event)
+{
+    auto *helper = Helper::instance();
+
+    if (m_currentAction == ShortcutAction::TaskSwitchNext
+        || m_currentAction == ShortcutAction::TaskSwitchPrev
+        || m_currentAction == ShortcutAction::TaskSwitchSameAppNext
+        || m_currentAction == ShortcutAction::TaskSwitchSameAppPrev) {
+        auto modifiers =
+            helper->m_shortcutManager->controller()->modifierForAction(m_currentAction);
+        if (!isModifierKeyInMask(event->key(), modifiers))
+            return;
+
+        if (m_quickSwitchPending && helper->currentMode() == Helper::CurrentMode::Normal) {
+            m_quickSwitchTimer->stop();
+            m_quickSwitchPending = false;
+            return;
+        }
+
+        if (helper->currentMode() == Helper::CurrentMode::WindowSwitch && helper->m_taskSwitch) {
+            auto filter = helper->workspace()->currentFilter();
+            filter->setFilterAppId("");
+            helper->setCurrentMode(Helper::CurrentMode::Normal);
+            QMetaObject::invokeMethod(helper->m_taskSwitch, "exit");
+        }
     }
 }

@@ -31,8 +31,6 @@ static bool ensureStatus(libinput_config_status status)
 bool configSendEventsMode(libinput_device *device, uint32_t mode)
 {
     if (libinput_device_config_send_events_get_mode(device) == mode) {
-        qCCritical(treelandInput) << "libinput_device_config_send_events_set_mode repeat set mode"
-                                << mode;
         return false;
     }
 
@@ -44,10 +42,13 @@ bool configSendEventsMode(libinput_device *device, uint32_t mode)
 
 bool configTapEnabled(libinput_device *device, libinput_config_tap_state tap)
 {
-    if (libinput_device_config_tap_get_finger_count(device) <= 0
-        || libinput_device_config_tap_get_enabled(device) == tap) {
-        qCCritical(treelandInput) << "libinput_device_config_tap_set_enabled: " << tap
-                                << " is invalid";
+    if (libinput_device_config_tap_get_finger_count(device) <= 0) {
+        qCCritical(treelandInput) << "libinput_device_config_tap_set_enabled is invalid";
+
+        return false;
+    }
+
+    if (libinput_device_config_tap_get_enabled(device) == tap) {
         return false;
     }
 
@@ -59,10 +60,13 @@ bool configTapEnabled(libinput_device *device, libinput_config_tap_state tap)
 
 [[maybe_unused]] static bool configTapButtonMap(libinput_device *device, libinput_config_tap_button_map map)
 {
-    if (libinput_device_config_tap_get_finger_count(device) <= 0
-        || libinput_device_config_tap_get_button_map(device) == map) {
-        qCCritical(treelandInput) << "libinput_device_config_tap_set_button_map: " << map
-                                << " is invalid";
+    if (libinput_device_config_tap_get_finger_count(device) <= 0) {
+        qCCritical(treelandInput) << "libinput_device_config_tap_set_button_map is invalid";
+
+        return false;
+    }
+
+    if (libinput_device_config_tap_get_button_map(device) == map) {
         return false;
     }
 
@@ -74,10 +78,13 @@ bool configTapEnabled(libinput_device *device, libinput_config_tap_state tap)
 
 [[maybe_unused]] static bool configTapDragEnabled(libinput_device *device, libinput_config_drag_state drag)
 {
-    if (libinput_device_config_tap_get_finger_count(device) <= 0
-        || libinput_device_config_tap_get_drag_enabled(device) == drag) {
-        qCCritical(treelandInput) << "libinput_device_config_tap_set_drag_enabled: " << drag
-                                << " is invalid";
+    if (libinput_device_config_tap_get_finger_count(device) <= 0) {
+        qCCritical(treelandInput) << "libinput_device_config_tap_set_drag_enabled is invalid";
+
+        return false;
+    }
+
+    if (libinput_device_config_tap_get_drag_enabled(device) == drag) {
         return false;
     }
 
@@ -89,10 +96,13 @@ bool configTapEnabled(libinput_device *device, libinput_config_tap_state tap)
 
 [[maybe_unused]] static bool configTapDragLockEnabled(libinput_device *device, libinput_config_drag_lock_state lock)
 {
-    if (libinput_device_config_tap_get_finger_count(device) <= 0
-        || libinput_device_config_tap_get_drag_lock_enabled(device) == lock) {
-        qCCritical(treelandInput) << "libinput_device_config_tap_set_drag_enabled: " << lock
-                                << " is invalid";
+    if (libinput_device_config_tap_get_finger_count(device) <= 0) {
+        qCCritical(treelandInput) << "libinput_device_config_tap_set_drag_enabled is invalid";
+
+        return false;
+    }
+
+    if (libinput_device_config_tap_get_drag_lock_enabled(device) == lock) {
         return false;
     }
 
@@ -105,10 +115,13 @@ bool configTapEnabled(libinput_device *device, libinput_config_tap_state tap)
 
 bool configAccelSpeed(libinput_device *device, double speed)
 {
-    if (!libinput_device_config_accel_is_available(device)
-        || libinput_device_config_accel_get_speed(device) == speed) {
-        qCCritical(treelandInput) << "libinput_device_config_accel_set_speed: " << speed
-                                << " is invalid";
+    if (!libinput_device_config_accel_is_available(device)) {
+        qCCritical(treelandInput) << "libinput_device_config_accel_set_speed is invalid";
+
+        return false;
+    }
+
+    if (libinput_device_config_accel_get_speed(device) == speed) {
         return false;
     }
 
@@ -120,10 +133,13 @@ bool configAccelSpeed(libinput_device *device, double speed)
 
 [[maybe_unused]] static bool configRotationAngle(libinput_device *device, double angle)
 {
-    if (!libinput_device_config_rotation_is_available(device)
-        || libinput_device_config_rotation_get_angle(device) == angle) {
-        qCCritical(treelandInput) << "libinput_device_config_rotation_set_angle: " << angle
-                                << " is invalid";
+    if (!libinput_device_config_rotation_is_available(device)) {
+        qCCritical(treelandInput) << "libinput_device_config_rotation_set_angle is invalid";
+
+        return false;
+    }
+
+    if (libinput_device_config_rotation_get_angle(device) == angle) {
         return false;
     }
 
@@ -135,10 +151,13 @@ bool configAccelSpeed(libinput_device *device, double speed)
 
 bool configAccelProfile(libinput_device *device, libinput_config_accel_profile profile)
 {
-    if (!libinput_device_config_accel_is_available(device)
-        || libinput_device_config_accel_get_profile(device) == profile) {
-        qCCritical(treelandInput) << "libinput_device_config_accel_set_profile: " << profile
-                                << " is invalid";
+    if (!libinput_device_config_accel_is_available(device)) {
+        qCCritical(treelandInput) << "libinput_device_config_accel_set_profile is invalid";
+
+        return false;
+    }
+
+    if (libinput_device_config_accel_get_profile(device) == profile) {
         return false;
     }
 
@@ -150,10 +169,13 @@ bool configAccelProfile(libinput_device *device, libinput_config_accel_profile p
 
 bool configNaturalScroll(libinput_device *device, bool natural)
 {
-    if (!libinput_device_config_scroll_has_natural_scroll(device)
-        || libinput_device_config_scroll_get_natural_scroll_enabled(device) == natural) {
-        qCCritical(treelandInput) << "libinput_device_config_scroll_set_natural_scroll_enabled: "
-                                << natural << " is invalid";
+    if (!libinput_device_config_scroll_has_natural_scroll(device)) {
+        qCCritical(treelandInput) << "libinput_device_config_scroll_set_natural_scroll_enabled is invalid";
+
+        return false;
+    }
+
+    if (libinput_device_config_scroll_get_natural_scroll_enabled(device) == natural) {
         return false;
     }
 
@@ -166,10 +188,13 @@ bool configNaturalScroll(libinput_device *device, bool natural)
 
 bool configLeftHanded(libinput_device *device, bool left)
 {
-    if (!libinput_device_config_left_handed_is_available(device)
-        || libinput_device_config_left_handed_get(device) == left) {
-        qCCritical(treelandInput) << "libinput_device_config_left_handed_set: " << left
-                                << " is invalid";
+    if (!libinput_device_config_left_handed_is_available(device)) {
+        qCCritical(treelandInput) << "libinput_device_config_left_handed_set is invalid";
+
+        return false;
+    }
+
+    if (libinput_device_config_left_handed_get(device) == left) {
         return false;
     }
 
@@ -184,8 +209,6 @@ bool configLeftHanded(libinput_device *device, bool left)
     uint32_t click = libinput_device_config_click_get_methods(device);
     if ((click & ~LIBINPUT_CONFIG_CLICK_METHOD_NONE) == 0
         || libinput_device_config_click_get_method(device) == method) {
-        qCCritical(treelandInput) << "libinput_device_config_click_set_method: " << method
-                                << " is invalid";
         return false;
     }
 
@@ -198,10 +221,13 @@ bool configLeftHanded(libinput_device *device, bool left)
 [[maybe_unused]] static bool configMiddleEmulation(libinput_device *device,
                                   libinput_config_middle_emulation_state mid)
 {
-    if (!libinput_device_config_middle_emulation_is_available(device)
-        || libinput_device_config_middle_emulation_get_enabled(device) == mid) {
-        qCCritical(treelandInput) << "libinput_device_config_middle_emulation_set_enabled: " << mid
-                                << " is invalid";
+    if (!libinput_device_config_middle_emulation_is_available(device)) {
+        qCCritical(treelandInput) << "libinput_device_config_middle_emulation_set_enabled is invalid";
+
+        return false;
+    }
+
+    if (libinput_device_config_middle_emulation_get_enabled(device) == mid) {
         return false;
     }
 
@@ -217,8 +243,6 @@ bool configLeftHanded(libinput_device *device, bool left)
     uint32_t scroll = libinput_device_config_scroll_get_methods(device);
     if ((scroll & ~LIBINPUT_CONFIG_SCROLL_NO_SCROLL) == 0
         || libinput_device_config_scroll_get_method(device) == method) {
-        qCCritical(treelandInput) << "libinput_device_config_scroll_set_method: " << method
-                                << " is invalid";
         return false;
     }
 
@@ -233,8 +257,6 @@ bool configLeftHanded(libinput_device *device, bool left)
     uint32_t scroll = libinput_device_config_scroll_get_methods(device);
     if ((scroll & ~LIBINPUT_CONFIG_SCROLL_NO_SCROLL) == 0
         || libinput_device_config_scroll_get_button(device) == button) {
-        qCCritical(treelandInput) << "libinput_device_config_scroll_set_button: " << button
-                                << " is invalid";
         return false;
     }
 
@@ -250,8 +272,6 @@ bool configLeftHanded(libinput_device *device, bool left)
     uint32_t scroll = libinput_device_config_scroll_get_methods(device);
     if ((scroll & ~LIBINPUT_CONFIG_SCROLL_NO_SCROLL) == 0
         || libinput_device_config_scroll_get_button_lock(device) == lock) {
-        qCCritical(treelandInput) << "libinput_device_config_scroll_set_button_lock: " << lock
-                                << " is invalid";
         return false;
     }
 
@@ -264,10 +284,12 @@ bool configLeftHanded(libinput_device *device, bool left)
 
 bool configDwtEnabled(libinput_device *device, enum libinput_config_dwt_state enable)
 {
-    if (!libinput_device_config_dwt_is_available(device)
-        || libinput_device_config_dwt_get_enabled(device) == enable) {
-        qCCritical(treelandInput) << "libinput_device_config_dwt_set_enabled: " << enable
-                                << " is invalid";
+    if (!libinput_device_config_dwt_is_available(device)) {
+        qCCritical(treelandInput) << "libinput_device_config_dwt_set_enabled is invalid";
+
+        return false;
+    }
+    if (libinput_device_config_dwt_get_enabled(device) == enable) {
         return false;
     }
 
@@ -279,10 +301,13 @@ bool configDwtEnabled(libinput_device *device, enum libinput_config_dwt_state en
 
 [[maybe_unused]] static bool configDwtpEnabled(libinput_device *device, enum libinput_config_dwtp_state enable)
 {
-    if (!libinput_device_config_dwtp_is_available(device)
-        || libinput_device_config_dwtp_get_enabled(device) == enable) {
-        qCCritical(treelandInput) << "libinput_device_config_dwtp_set_enabled: " << enable
-                                << " is invalid";
+    if (!libinput_device_config_dwtp_is_available(device)) {
+        qCCritical(treelandInput) << "libinput_device_config_dwtp_set_enabled is invalid";
+
+        return false;
+    }
+
+    if (libinput_device_config_dwtp_get_enabled(device) == enable) {
         return false;
     }
 
@@ -349,26 +374,6 @@ InputDevice *InputDevice::instance()
     }
 
     return m_instance;
-}
-
-bool InputDevice::initTouchPad(WInputDevice *device)
-{
-    if (!device) {
-        qCCritical(treelandInput) << "Cannot initialize touchpad for null device";
-        return false;
-    }
-
-    if (!device->qtDevice()) {
-        qCCritical(treelandInput) << "Cannot initialize touchpad: device has no qtDevice";
-        return false;
-    }
-
-    if (device->handle()->is_libinput()
-        && device->qtDevice()->type() == QInputDevice::DeviceType::TouchPad) {
-        configTapEnabled(libinput_device_handle(device->handle()), LIBINPUT_CONFIG_TAP_ENABLED);
-        return true;
-    }
-    return false;
 }
 
 [[maybe_unused]] SwipeGesture* InputDevice::registerTouchpadSwipe(const SwipeFeedBack &feed_back)
