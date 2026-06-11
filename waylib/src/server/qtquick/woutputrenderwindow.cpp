@@ -1866,7 +1866,7 @@ qw_allocator *WOutputRenderWindow::allocator() const
 }
 
 
-wlr_egl *WOutputRenderWindow::egl() const
+::wlr_egl *WOutputRenderWindow::egl() const
 {
     Q_D(const WOutputRenderWindow);
     if (!d->m_renderer)
