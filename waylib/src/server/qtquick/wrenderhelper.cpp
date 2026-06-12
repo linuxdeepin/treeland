@@ -25,6 +25,7 @@
 #include <private/qsgplaintexture_p.h>
 #include <private/qsgadaptationlayer_p.h>
 #include <private/qsgsoftwarepixmaptexture_p.h>
+#include <private/qsgrhisupport_p.h>
 
 extern "C" {
 #define static
@@ -40,6 +41,14 @@ extern "C" {
 
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
+
+struct Q_DECL_HIDDEN RhiRenderEntry {
+    const QRhiRenderTarget *renderTarget;
+    const QRhiTexture *texture;
+    QPointer<qw_buffer> buffer;
+};
+
+Q_GLOBAL_STATIC(QVector<RhiRenderEntry>, s_rhiRenderBuffers)
 
 struct Q_DECL_HIDDEN BufferData {
     BufferData() {
@@ -58,6 +67,17 @@ struct Q_DECL_HIDDEN BufferData {
 
     inline void resetWindowRenderTarget() {
 #if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+        {
+            auto it = s_rhiRenderBuffers->begin();
+            while (it != s_rhiRenderBuffers->end()) {
+                if (windowRenderTarget.rt.renderTarget == it->renderTarget) {
+                    it = s_rhiRenderBuffers->erase(it);
+                    break;
+                }
+                ++it;
+            }
+        }
+
         if (windowRenderTarget.rt.owns)
             delete windowRenderTarget.rt.renderTarget;
 
@@ -79,6 +99,17 @@ struct Q_DECL_HIDDEN BufferData {
 
         windowRenderTarget.sw = {};
 #else
+        {
+            auto it = s_rhiRenderBuffers->begin();
+            while (it != s_rhiRenderBuffers->end()) {
+                if (windowRenderTarget.renderTarget == it->renderTarget) {
+                    it = s_rhiRenderBuffers->erase(it);
+                    break;
+                }
+                ++it;
+            }
+        }
+
         if (windowRenderTarget.owns) {
             delete windowRenderTarget.renderTarget;
             delete windowRenderTarget.rpDesc;
@@ -123,6 +154,7 @@ static bool createRhiRenderTarget(const QRhiColorAttachment &colorAttachment,
         return false;
     }
 
+    rt->setName(QByteArrayLiteral("WaylibTextureRenderTarget"));
 #if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
     dst.rt.renderTarget = rt.release();
     dst.res.rpDesc = rp.release();
@@ -153,6 +185,7 @@ bool createRhiRenderTarget(QRhi *rhi, const QQuickRenderTarget &source, QQuickWi
 #endif
                                                                           );
         std::unique_ptr<QRhiTexture> texture(rhi->newTexture(format, rtd->pixelSize, rtd->sampleCount, flags));
+        texture->setName(QByteArrayLiteral("WaylibTexture"));
 #if QT_VERSION < QT_VERSION_CHECK(6, 6, 0)
         if (!texture->createFrom({ rtd->u.nativeTexture.object, rtd->u.nativeTexture.layout }))
 #else
@@ -178,6 +211,7 @@ bool createRhiRenderTarget(QRhi *rhi, const QQuickRenderTarget &source, QQuickWi
         QRhiColorAttachment att(renderbuffer.get());
         if (!createRhiRenderTarget(att, rtd->pixelSize, rtd->sampleCount, rhi, dst))
             return false;
+        renderbuffer->setName(QByteArrayLiteral("WaylibRenderBuffer"));
 #if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
         dst.res.renderBuffer = renderbuffer.release();
 #else
@@ -557,6 +591,11 @@ QQuickRenderTarget WRenderHelper::acquireRenderTarget(QQuickRenderControl *rc, q
 
         if (bufferData->renderTarget.isNull())
             return {};
+
+        if (auto texture = bufferData->windowRenderTarget.res.texture) {
+            s_rhiRenderBuffers->append({ bufferData->windowRenderTarget.rt.renderTarget,
+                                         texture, bufferData->buffer });
+        }
     }
 
     connect(buffer, SIGNAL(before_destroy()),
@@ -804,6 +843,116 @@ bool WRenderHelper::makeTexture(QRhi *rhi, qw_texture *handle, QSGPlainTexture *
         return false;
     updateTexture(rhi, handle, texture);
     return true;
+}
+
+WRenderHelper::TextureEntry
+WRenderHelper::newTexture(qw_allocator *allocator, qw_renderer *renderer,
+                          uint32_t drmFormat, uint64_t drmModifier,
+                          QRhi *rhi, const QSize &size,
+                          int rhiFormat, int rhiFlags)
+{
+    uint64_t modifiers[] = {drmModifier};
+    wlr_drm_format format {
+        .format = drmFormat,
+        .len = 1,
+        .capacity = 1,
+        .modifiers = modifiers
+    };
+
+    wlr_buffer *buffer = allocator->create_buffer(size.width(), size.height(), &format);
+    if (!buffer) {
+        qCritical() << "Failed to create qw_buffer from allocator";
+        return {};
+    }
+
+    std::unique_ptr<qw_texture> texture(qw_texture::from_buffer(*renderer, buffer));
+    if (!texture) {
+        qCritical() << "Failed to create qw_texture from buffer";
+        wlr_buffer_drop(buffer);
+        return {};
+    }
+
+    const auto qformat = static_cast<QRhiTexture::Format>(rhiFormat);
+    const auto qflags = QRhiTexture::Flags(rhiFlags);
+    std::unique_ptr<QRhiTexture> rhiTexture(rhi->newTexture(qformat, size, 1, qflags));
+
+    if (wlr_texture_is_gles2(*texture.get())) {
+        if (rhi->backend() != QRhi::OpenGLES2) {
+            qFatal("The current QRhi backend doesn't support creating texture from GLES2 texture");
+        }
+
+        wlr_gles2_texture_attribs attribs;
+        wlr_gles2_texture_get_attribs(*texture.get(), &attribs);
+
+        if (!rhiTexture->createFrom({attribs.tex, 0})) {
+            qCritical("Failed to create QRhiTexture from GLES2 texture");
+            wlr_buffer_drop(buffer);
+            return {};
+        }
+    }
+#ifdef ENABLE_VULKAN_RENDER
+    else if (wlr_texture_is_vk(*texture.get())) {
+        if (rhi->backend() != QRhi::Vulkan) {
+            qFatal("The current QRhi backend doesn't support creating texture from Vulkan image");
+        }
+
+        wlr_vk_image_attribs attribs;
+        wlr_vk_texture_get_image_attribs(*texture.get(), &attribs);
+
+        if (!rhiTexture->createFrom({vkimage_cast(attribs.image), attribs.layout})) {
+            qCritical("Failed to create QRhiTexture from Vulkan image");
+            wlr_buffer_drop(buffer);
+            return {};
+        }
+    }
+#endif
+    else if (wlr_texture_is_pixman(*texture.get())) {
+        qFatal("Creating QRhiTexture from Pixman image is not supported");
+    } else {
+        qFatal("Unknown texture type");
+    }
+
+    rhiTexture->setName("WaylibTexture");
+
+    return {buffer, texture.release(), rhiTexture.release()};
+}
+
+WRenderHelper::TextureEntry
+WRenderHelper::newTextureLike(QW_NAMESPACE::qw_allocator *allocator,
+                              QW_NAMESPACE::qw_renderer *renderer,
+                              QRhiTexture *texture, QRhi *rhi,
+                              int rhiFlags)
+{
+    auto buffer = lookupBuffer(texture);
+    if (!buffer)
+        return {};
+
+    wlr_dmabuf_attributes attribs;
+    if (!buffer->get_dmabuf(&attribs))
+        return {};
+
+    return newTexture(allocator, renderer, attribs.format, attribs.modifier,
+                      rhi, texture->pixelSize(), texture->format(), rhiFlags);
+}
+
+QW_NAMESPACE::qw_buffer *WRenderHelper::lookupBuffer(const QRhiRenderTarget *rt)
+{
+    for (const auto &entry : std::as_const(*s_rhiRenderBuffers)) {
+        if (entry.renderTarget == rt)
+            return entry.buffer;
+    }
+
+    return nullptr;
+}
+
+QW_NAMESPACE::qw_buffer *WRenderHelper::lookupBuffer(const QRhiTexture *texture)
+{
+    for (const auto &entry : std::as_const(*s_rhiRenderBuffers)) {
+        if (entry.texture == texture)
+            return entry.buffer;
+    }
+
+    return nullptr;
 }
 
 WAYLIB_SERVER_END_NAMESPACE
