@@ -63,12 +63,6 @@ public:
                                                QW_NAMESPACE::qw_renderer *renderer,
                                                QSGTexture *sourceTexture);
     
-    // Get buffer from texture (requires prior registration)
-    static QW_NAMESPACE::qw_buffer *getBufferFromTexture(QRhiTexture *texture);
-    
-    // Resource management (called internally, render thread only)
-    static void registerTextureBuffer(QRhiTexture *texture, QW_NAMESPACE::qw_buffer *buffer);
-    static void unregisterTexture(QRhiTexture *texture);
 
 Q_SIGNALS:
     void sizeChanged();
