@@ -37,22 +37,9 @@
 DCORE_USE_NAMESPACE
 
 static QList<PersonalizationWindowContextV1 *> s_windowContexts;
-static QList<PersonalizationWallpaperContextV1 *> s_wallpaperContexts;
 static QList<PersonalizationCursorContextV1 *> s_cursorContexts;
 static QList<PersonalizationFontContextV1 *> s_fontContexts;
 static QList<PersonalizationAppearanceContextV1 *> s_appearanceContexts;
-
-#define DEFAULT_WALLPAPER "qrc:/desktop.webp"
-#define DEFAULT_WALLPAPER_ISDARK false
-
-static QString defaultBackground()
-{
-    static QString defaultBg = [] {
-        const QString configDefaultBg = Helper::instance()->config()->defaultBackground();
-        return QFile::exists(configDefaultBg) ? configDefaultBg : DEFAULT_WALLPAPER;
-    }();
-    return defaultBg;
-}
 
 static std::optional<int32_t> protocolWindowThemeTypeToDConfig(uint32_t type)
 {
@@ -102,7 +89,6 @@ public:
 
 protected:
     void get_window_context(Resource *resource, uint32_t id, struct ::wl_resource *surface) override;
-    void get_wallpaper_context(Resource *resource, uint32_t id) override;
     void get_cursor_context(Resource *resource, uint32_t id) override;
     void get_font_context(Resource *resource, uint32_t id) override;
     void get_appearance_context(Resource *resource, uint32_t id) override;
@@ -146,26 +132,6 @@ void PersonalizationManagerInterfaceV1Private::get_window_context(Resource *reso
     });
 
     Q_EMIT q->windowContextCreated(context);
-}
-
-void PersonalizationManagerInterfaceV1Private::get_wallpaper_context(Resource *resource, uint32_t id)
-{
-    wl_resource *wallpaperContextResource = wl_resource_create(resource->client(),
-                                                            &treeland_personalization_wallpaper_context_v1_interface,
-                                                            resource->version(),
-                                                            id);
-    if (!wallpaperContextResource) {
-        wl_client_post_no_memory(resource->client());
-        return;
-    }
-
-    auto *context = new PersonalizationWallpaperContextV1(wallpaperContextResource);
-    s_wallpaperContexts.append(context);
-    QObject::connect(context, &QObject::destroyed, [context]() {
-        s_wallpaperContexts.removeOne(context);
-    });
-
-    Q_EMIT q->onWallpaperContextCreated(context);
 }
 
 void PersonalizationManagerInterfaceV1Private::get_cursor_context(Resource *resource, uint32_t id)
@@ -387,157 +353,6 @@ PersonalizationWindowContextV1 *PersonalizationWindowContextV1::getWindowContext
 PersonalizationWindowContextV1::WindowStates PersonalizationWindowContextV1::states() const
 {
     return d->states;
-}
-
-
-
-class PersonalizationWallpaperContextV1Private
-    : public QtWaylandServer::treeland_personalization_wallpaper_context_v1
-{
-public:
-    PersonalizationWallpaperContextV1Private(PersonalizationWallpaperContextV1 *_q,
-                                             wl_resource *resource);
-    ~PersonalizationWallpaperContextV1Private() override = default;
-
-    PersonalizationWallpaperContextV1 *q = nullptr;
-
-    int32_t fd = -1;
-    uint32_t uid = 0;
-    uint32_t options = 0;
-    bool isDark = false;
-    QString metaData;
-    QString identifier;
-    QString outputName;
-
-protected:
-    void destroy_resource(Resource *resource) override;
-    void destroy(Resource *resource) override;
-    void set_fd(Resource *resource, int32_t fd, const QString &metadata) override;
-    void set_identifier(Resource *resource, const QString &identifier) override;
-    void set_output(Resource *resource, const QString &output) override;
-    void set_on(Resource *resource, uint32_t options) override;
-    void set_isdark(Resource *resource, uint32_t isdark) override;
-    void commit(Resource *resource) override;
-    void get_metadata(Resource *resource) override;
-};
-
-PersonalizationWallpaperContextV1Private::PersonalizationWallpaperContextV1Private(
-    PersonalizationWallpaperContextV1 *_q,
-    wl_resource *resource)
-    : QtWaylandServer::treeland_personalization_wallpaper_context_v1(resource)
-    , q(_q)
-{
-}
-
-void PersonalizationWallpaperContextV1Private::destroy_resource([[maybe_unused]] Resource *resource)
-{
-    delete q;
-}
-
-void PersonalizationWallpaperContextV1Private::destroy(Resource *resource)
-{
-    wl_resource_destroy(resource->handle);
-}
-
-void PersonalizationWallpaperContextV1Private::set_fd([[maybe_unused]] Resource *resource, int32_t _fd, const QString &_metadata)
-{
-    fd = _fd;
-    metaData = _metadata;
-}
-
-void PersonalizationWallpaperContextV1Private::set_identifier([[maybe_unused]] Resource *resource, const QString &_identifier)
-{
-    identifier = _identifier;
-}
-
-void PersonalizationWallpaperContextV1Private::set_output([[maybe_unused]] Resource *resource, const QString &_output)
-{
-    outputName = _output;
-}
-
-void PersonalizationWallpaperContextV1Private::set_on([[maybe_unused]] Resource *resource, uint32_t _options)
-{
-    options = _options;
-}
-
-void PersonalizationWallpaperContextV1Private::set_isdark([[maybe_unused]] Resource *resource, uint32_t _isdark)
-{
-    isDark = _isdark;
-}
-
-void PersonalizationWallpaperContextV1Private::commit([[maybe_unused]] Resource *resource)
-{
-    Q_EMIT q->commit(q);
-}
-
-void PersonalizationWallpaperContextV1Private::get_metadata([[maybe_unused]] Resource *resource)
-{
-    Q_EMIT q->getWallpapers(q);
-}
-
-PersonalizationWallpaperContextV1::PersonalizationWallpaperContextV1(wl_resource *resource)
-    : QObject(nullptr)
-    , d(new PersonalizationWallpaperContextV1Private(this, resource))
-{
-}
-
-PersonalizationWallpaperContextV1::~PersonalizationWallpaperContextV1() = default;
-
-wl_resource *PersonalizationWallpaperContextV1::resource() const
-{
-    return d->resource()->handle;
-}
-
-int32_t PersonalizationWallpaperContextV1::fd() const
-{
-    return d->fd;
-}
-
-uint32_t PersonalizationWallpaperContextV1::uid() const
-{
-    return d->uid;
-}
-
-uint32_t PersonalizationWallpaperContextV1::options() const
-{
-    return d->options;
-}
-
-bool PersonalizationWallpaperContextV1::isDark() const
-{
-    return d->isDark;
-}
-
-QString PersonalizationWallpaperContextV1::metaData() const
-{
-    return d->metaData;
-}
-
-QString PersonalizationWallpaperContextV1::identifier() const
-{
-    return d->identifier;
-}
-
-QString PersonalizationWallpaperContextV1::outputName() const
-{
-    return d->outputName;
-}
-
-void PersonalizationWallpaperContextV1::setMetaData(const QString &data)
-{
-    d->metaData = data;
-    d->send_metadata(data);
-}
-
-PersonalizationWallpaperContextV1 *PersonalizationWallpaperContextV1::get(wl_resource *resource)
-{
-    for (auto *context : s_wallpaperContexts) {
-        if (context->resource() == resource) {
-            return context;
-        }
-    }
-
-    return nullptr;
 }
 
 class PersonalizationCursorContextV1Private
@@ -968,28 +783,6 @@ PersonalizationFontContextV1 *PersonalizationFontContextV1::get(wl_resource *res
     return nullptr;
 }
 
-void PersonalizationManagerInterfaceV1::updateCacheWallpaperPath(uid_t uid)
-{
-    QString cache_location = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
-    d->cacheDirectory = cache_location + QString("/wallpaper/%1/").arg(uid);
-    d->settingFile = d->cacheDirectory + "wallpaper.ini";
-
-    QSettings settings(d->settingFile, QSettings::IniFormat);
-    d->iniMetaData = settings.value("metadata").toString();
-}
-
-QString PersonalizationManagerInterfaceV1::readWallpaperSettings(const QString &group,
-                                                  const QString &output,
-                                                  int workspaceId)
-{
-    if (d->settingFile.isEmpty() || output.isEmpty() || workspaceId < 1)
-        return defaultBackground();
-
-    QSettings settings(d->settingFile, QSettings::IniFormat);
-    settings.beginGroup(QString("%1.%2.%3").arg(group).arg(output).arg(workspaceId));
-    return settings.value("path", defaultBackground()).toString();
-}
-
 PersonalizationManagerInterfaceV1::PersonalizationManagerInterfaceV1(QObject *parent)
     : QObject(parent)
     , WServerInterface()
@@ -1005,18 +798,6 @@ PersonalizationManagerInterfaceV1::PersonalizationManagerInterfaceV1(QObject *pa
 PersonalizationManagerInterfaceV1::~PersonalizationManagerInterfaceV1()
 {
     Q_CLEANUP_RESOURCE(default_background);
-}
-
-void PersonalizationManagerInterfaceV1::onWallpaperContextCreated(PersonalizationWallpaperContextV1 *context)
-{
-    connect(context,
-            &PersonalizationWallpaperContextV1::commit,
-            this,
-            &PersonalizationManagerInterfaceV1::onWallpaperCommit);
-    connect(context,
-            &PersonalizationWallpaperContextV1::getWallpapers,
-            this,
-            &PersonalizationManagerInterfaceV1::onGetWallpapers);
 }
 
 void PersonalizationManagerInterfaceV1::onCursorContextCreated(PersonalizationCursorContextV1 *context)
@@ -1171,71 +952,6 @@ void PersonalizationManagerInterfaceV1::onFontContextCreated(PersonalizationFont
     context->blockSignals(false);
 }
 
-void PersonalizationManagerInterfaceV1::saveImage(PersonalizationWallpaperContextV1 *context,
-                                   const QString &prefix)
-{
-    if (!context || context->fd() == -1 || d->settingFile.isEmpty()) {
-        return;
-    }
-
-    QDir dir(d->cacheDirectory);
-    if (!dir.exists()) {
-        dir.mkpath(d->cacheDirectory);
-    }
-
-    QString output = context->outputName();
-    if (output.isEmpty()) {
-        for (QScreen *screen : QGuiApplication::screens()) {
-            output = screen->name();
-            break;
-        }
-    }
-
-    QString dest = d->cacheDirectory + prefix + "_" + output + "_"
-        + QDateTime::currentDateTime().toString("yyyyMMddhhmmss");
-
-    QFile src_file;
-    if (!src_file.open(context->fd(), QIODevice::ReadOnly))
-        return;
-
-    QByteArray data = src_file.readAll();
-    src_file.close();
-
-    QFile dest_file(dest);
-    if (dest_file.open(QIODevice::WriteOnly)) {
-        dest_file.write(data);
-        dest_file.close();
-    }
-
-    QSettings settings(d->settingFile, QSettings::IniFormat);
-
-    int workspaceId = 1;
-    settings.beginGroup(QString("%1.%2.%3").arg(prefix).arg(output).arg(workspaceId));
-
-    const QString &old_path = settings.value("path").toString();
-    QFile::remove(old_path);
-
-    settings.setValue("path", dest);
-    settings.setValue("isdark", context->isDark());
-    settings.endGroup();
-
-    settings.setValue("metadata", context->metaData());
-    d->iniMetaData = context->metaData();
-}
-
-void PersonalizationManagerInterfaceV1::onWallpaperCommit(PersonalizationWallpaperContextV1 *context)
-{
-    if (context->options() & TREELAND_PERSONALIZATION_WALLPAPER_CONTEXT_V1_OPTIONS_BACKGROUND) {
-        saveImage(context, "background");
-        Q_EMIT backgroundChanged(context->outputName(), context->isDark());
-    }
-
-    if (context->options() & TREELAND_PERSONALIZATION_WALLPAPER_CONTEXT_V1_OPTIONS_LOCKSCREEN) {
-        saveImage(context, "lockscreen");
-        Q_EMIT lockscreenChanged();
-    }
-}
-
 void PersonalizationManagerInterfaceV1::onCursorCommit(PersonalizationCursorContextV1 *context)
 {
     if (!context->size().isValid() || context->theme().isEmpty()) {
@@ -1246,15 +962,6 @@ void PersonalizationManagerInterfaceV1::onCursorCommit(PersonalizationCursorCont
     setCursorSize(context->size());
 
     context->verify(true);
-}
-
-void PersonalizationManagerInterfaceV1::onGetWallpapers(PersonalizationWallpaperContextV1 *context)
-{
-    QDir dir(d->cacheDirectory);
-    if (!dir.exists())
-        return;
-
-    context->setMetaData(d->iniMetaData);
 }
 
 uid_t PersonalizationManagerInterfaceV1::userId()
@@ -1269,7 +976,6 @@ void PersonalizationManagerInterfaceV1::setUserId(uid_t uid)
     }
 
     d->userId = uid;
-    updateCacheWallpaperPath(uid);
     Q_EMIT userIdChanged(uid);
 }
 
@@ -1307,32 +1013,6 @@ int32_t PersonalizationManagerInterfaceV1::windowRadius() const
 QString PersonalizationManagerInterfaceV1::iconTheme() const
 {
     return Helper::instance()->config()->iconThemeName();
-}
-
-QString PersonalizationManagerInterfaceV1::background(const QString &output, int workspaceId)
-{
-    return readWallpaperSettings("background", output, workspaceId);
-}
-
-QString PersonalizationManagerInterfaceV1::lockscreen(const QString &output, int workspaceId)
-{
-    return readWallpaperSettings("lockscreen", output, workspaceId);
-}
-
-bool PersonalizationManagerInterfaceV1::backgroundIsDark(const QString &output, int workspaceId)
-{
-    if (d->settingFile.isEmpty())
-        return DEFAULT_WALLPAPER_ISDARK;
-
-    QSettings settings(d->settingFile, QSettings::IniFormat);
-    settings.beginGroup(QString("background.%1.%2").arg(output).arg(workspaceId));
-    return settings.value("isdark", DEFAULT_WALLPAPER_ISDARK).toBool();
-}
-
-bool PersonalizationManagerInterfaceV1::isAnimagedImage(const QString &source)
-{
-    QImageReader reader(source);
-    return reader.imageCount() > 1;
 }
 
 Personalization::Personalization(WToplevelSurface *target,
@@ -1439,9 +1119,4 @@ wl_global *PersonalizationManagerInterfaceV1::global() const
 QByteArrayView PersonalizationManagerInterfaceV1::interfaceName() const
 {
     return d->interfaceName();
-}
-
-QString PersonalizationManagerInterfaceV1::defaultWallpaper() const
-{
-    return DEFAULT_WALLPAPER;
 }
