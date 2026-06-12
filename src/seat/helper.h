@@ -30,7 +30,6 @@
 
 class QJsonObject;
 
-Q_MOC_INCLUDE(<QDBusObjectPath>)
 Q_MOC_INCLUDE(<qwgammacontorlv1.h>)
 Q_MOC_INCLUDE(<qwoutputmanagementv1.h>)
 Q_MOC_INCLUDE(<wlayersurface.h>)
@@ -44,7 +43,6 @@ Q_MOC_INCLUDE("treelandconfig.hpp")
 Q_MOC_INCLUDE("treelanduserconfig.hpp")
 
 QT_BEGIN_NAMESPACE
-class QDBusObjectPath;
 class QQuickItem;
 QT_END_NAMESPACE
 
@@ -63,8 +61,6 @@ class WOutputManagerV1;
 class WOutputRenderWindow;
 class WOutputViewport;
 class WServer;
-class WSessionLock;
-class WSessionLockManager;
 class WSocket;
 class WSurface;
 class WSurfaceItem;
@@ -76,8 +72,6 @@ class WForeignToplevel;
 class WExtForeignToplevelListV1;
 class WOutputManagerV1;
 class WLayerSurface;
-class WSessionLockManager;
-class WSessionLock;
 WAYLIB_SERVER_END_NAMESPACE
 
 class SeatsManager;
@@ -99,11 +93,10 @@ QW_USE_NAMESPACE
 
 class CaptureSourceSelector;
 class DDEShellManagerInterfaceV1;
-class DDMInterfaceV1;
+class DDMRemoteObjectV1;
 class ForeignToplevelManagerInterfaceV1;
 class FpsDisplayManager;
 class GreeterProxy;
-class ILockScreen;
 class IMultitaskView;
 class LockScreen;
 class LockScreenInterface;
@@ -140,6 +133,7 @@ class InputManager;
 struct wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request;
 struct wlr_idle_inhibitor_v1;
 struct wlr_output_power_v1_set_mode_event;
+
 namespace Treeland {
 class Treeland;
 }
@@ -225,7 +219,7 @@ public:
     void handleWindowPicker(WindowPickerInterface *picker);
 
     void setMultitaskViewImpl(IMultitaskView *impl);
-    void setLockScreenImpl(ILockScreen *impl);
+    void initLockScreen();
 
     CurrentMode currentMode() const
     {
@@ -234,13 +228,24 @@ public:
 
     void setCurrentMode(CurrentMode mode);
 
-    void showLockScreen(bool switchToGreeter = true);
+    void showLockScreen();
 
-    Output* getOutputAtCursor() const;
+    Output *getOutputAtCursor() const;
 
-    inline UserModel *userModel() const { return m_userModel; };
-    inline SessionModel *sessionModel() const { return m_sessionModel; };
-    DDMInterfaceV1 *ddmInterfaceV1() const;
+    inline UserModel *userModel() const
+    {
+        return m_userModel;
+    };
+
+    inline SessionModel *sessionModel() const
+    {
+        return m_sessionModel;
+    };
+
+    inline GreeterProxy *greeterProxy() const
+    {
+        return m_greeterProxy;
+    };
 
     void activateSession();
     void deactivateSession();
@@ -260,12 +265,27 @@ public:
     WSeat *getSeatForEvent(QInputEvent *event) const;
     WSeat *findSeatForSurface(SurfaceWrapper *wrapper) const;
     WSeat *getLastInteractingSeat(SurfaceWrapper *surface) const;
-    WSeat *currentEventSeat() const { return m_currentEventSeat; }
 
-    bool isDDMDisplay() const { return m_isDDMDisplay; }
+    WSeat *currentEventSeat() const
+    {
+        return m_currentEventSeat;
+    }
 
-    RootSurfaceContainer *rootContainer() const { return m_rootSurfaceContainer; }
-    inline WBackend *backend() const { return m_backend; }
+    bool isDDMDisplay() const
+    {
+        return m_isDDMDisplay;
+    }
+
+    RootSurfaceContainer *rootContainer() const
+    {
+        return m_rootSurfaceContainer;
+    }
+
+    inline WBackend *backend() const
+    {
+        return m_backend;
+    }
+
 public Q_SLOTS:
     void activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason = Qt::OtherFocusReason);
     void forceActivateSurface(SurfaceWrapper *wrapper,
@@ -295,9 +315,6 @@ private Q_SLOTS:
     void onShowDesktop();
     void deleteTaskSwitch();
     void onPrepareForSleep(bool sleep);
-    void onSessionNew(const QString &sessionId, const QDBusObjectPath &objectPath);
-    void onSessionLock();
-    void onSessionUnlock();
 
 private:
     void onOutputAdded(WOutput *output);
@@ -313,8 +330,9 @@ private:
     void onSurfaceWrapperAboutToRemove(SurfaceWrapper *wrapper);
     void handleRequestDrag([[maybe_unused]] WSurface *surface);
     void handleLockScreen(LockScreenInterface *lockScreen);
-    void handleNewForeignToplevelCaptureRequest(wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request *request);
-    void onExtSessionLock(WSessionLock *lock);
+    void handleNewForeignToplevelCaptureRequest(
+        wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request *request);
+
 private:
     friend class SessionManager;
     friend class WallpaperManager;
@@ -331,8 +349,11 @@ private:
     void setCursorPosition(const QPointF &position);
 
     bool beforeDisposeEvent(WSeat *seat, QWindow *window, QInputEvent *event) override;
-    bool afterHandleEvent(WSeat *seat, WSurface *watched, QObject *shellObject,
-                         QObject *eventObject, QInputEvent *event) override;
+    bool afterHandleEvent(WSeat *seat,
+                          WSurface *watched,
+                          QObject *shellObject,
+                          QObject *eventObject,
+                          QInputEvent *event) override;
     bool unacceptedEvent(WSeat *seat, QWindow *window, QInputEvent *event) override;
 
     void handleLeftButtonStateChanged(const QInputEvent *event);
@@ -390,7 +411,8 @@ private:
     qw_idle_notifier_v1 *m_idleNotifier = nullptr;
     qw_idle_inhibit_manager_v1 *m_idleInhibitManager = nullptr;
     qw_output_power_manager_v1 *m_outputPowerManager = nullptr;
-    qw_ext_foreign_toplevel_image_capture_source_manager_v1 *m_foreignToplevelImageCaptureManager = nullptr;
+    qw_ext_foreign_toplevel_image_capture_source_manager_v1 *m_foreignToplevelImageCaptureManager =
+        nullptr;
     ActivationManagerInterfaceV1 *m_activationManagerV1 = nullptr;
     ShellHandler *m_shellHandler = nullptr;
     WXdgDecorationManager *m_xdgDecorationManager = nullptr;
@@ -402,19 +424,17 @@ private:
     WallpaperColorInterfaceV1 *m_wallpaperColorV1 = nullptr;
     WOutputManagerV1 *m_outputManager = nullptr;
     WindowManagementInterfaceV1 *m_windowManagementInterfaceV1 = nullptr;
-    WindowManagementInterfaceV1::DesktopState m_showDesktop = WindowManagementInterfaceV1::DesktopState::Normal;
+    WindowManagementInterfaceV1::DesktopState m_showDesktop =
+        WindowManagementInterfaceV1::DesktopState::Normal;
     DDEShellManagerInterfaceV1 *m_ddeShellV1 = nullptr;
     VirtualOutputManagerInterfaceV1 *m_virtualOutputInterfaceV1 = nullptr;
     OutputManagerV1 *m_outputManagerV1 = nullptr;
-    DDMInterfaceV1 *m_ddmInterfaceV1 = nullptr;
+    DDMRemoteObjectV1 *m_ddmRemoteObjectV1 = nullptr;
     ScreensaverInterfaceV1 *m_screensaverInterfaceV1 = nullptr;
     TreelandWallpaperManagerInterfaceV1 *m_wallpaperManagerInterfaceV1 = nullptr;
     TreelandWallpaperNotifierInterfaceV1 *m_wallpaperNotifierInterfaceV1 = nullptr;
-    TreelandKeyboardStateNotifyManagerInterfaceV1 *m_keyboardStateNotifyManagerInterfaceV1 = nullptr;
-#ifdef EXT_SESSION_LOCK_V1
-    WSessionLockManager *m_sessionLockManager = nullptr;
-    QTimer *m_lockScreenGraceTimer = nullptr;
-#endif
+    TreelandKeyboardStateNotifyManagerInterfaceV1 *m_keyboardStateNotifyManagerInterfaceV1 =
+        nullptr;
     // private data
     QList<Output *> m_outputList;
     OutputConfigState *m_outputConfigState = nullptr;
@@ -446,12 +466,14 @@ private:
 
     TreelandRemoteSource *m_treelandRemoteSource = nullptr;
 
-    struct PendingOutputConfig {
+    struct PendingOutputConfig
+    {
         qw_output_configuration_v1 *config = nullptr;
         QList<WOutputState> states;
         int pendingCommits = 0;
         bool allSuccess = true;
     };
+
     PendingOutputConfig m_pendingOutputConfig;
 
     void onOutputCommitFinished(qw_output_configuration_v1 *config, bool success);

@@ -21,7 +21,7 @@
 #ifndef SDDM_USERMODEL_H
 #define SDDM_USERMODEL_H
 
-#include "greeter/user.h"
+#include "modules/greeter/user.h"
 
 #include <QAbstractListModel>
 #include <QHash>
@@ -36,8 +36,8 @@ class UserModel : public QAbstractListModel
     Q_OBJECT
     Q_PROPERTY(QString currentUserName READ currentUserName WRITE setCurrentUserName NOTIFY
                     currentUserNameChanged)
-    Q_PROPERTY(int lastIndex READ lastIndex CONSTANT)
-    Q_PROPERTY(QString lastUser READ lastUser CONSTANT)
+    Q_PROPERTY(int lastIndex READ lastIndex NOTIFY lastUserChanged)
+    Q_PROPERTY(QString lastUser READ lastUser NOTIFY lastUserChanged)
     Q_PROPERTY(int count READ rowCount NOTIFY countChanged)
     Q_PROPERTY(bool containsAllUsers READ containsAllUsers CONSTANT)
     QML_NAMED_ELEMENT(UserModel)
@@ -65,7 +65,7 @@ public:
 
     [[nodiscard]] QHash<int, QByteArray> roleNames() const override;
     [[nodiscard]] int lastIndex() const;
-    [[nodiscard]] static QString lastUser();
+    [[nodiscard]] QString lastUser() const;
     [[nodiscard]] int rowCount(const QModelIndex &parent = QModelIndex()) const override;
     [[nodiscard]] Q_INVOKABLE QVariant data(const QModelIndex &index,
                                             int role = Qt::DisplayRole) const override;
@@ -77,6 +77,7 @@ public:
     UserPtr currentUser() const;
     void updateUserLimits(const QString &userName, const QString &time) const noexcept;
     void setCurrentUserName(const QString &userName) noexcept;
+    void setLastUser(const QString &userName);
     void updateUserLoginState(const QString &username, bool loggedIn);
     void clearUserLoginState();
     [[nodiscard]] bool containsAllUsers() const;
@@ -87,6 +88,7 @@ Q_SIGNALS:
     void updateTranslations(const QLocale &locale);
     void countChanged();
     void userLoggedIn(const QString &username, int sessionId);
+    void lastUserChanged();
 
 private Q_SLOTS:
     void onUserAdded(quint64 uid);

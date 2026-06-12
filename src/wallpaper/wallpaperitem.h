@@ -3,9 +3,9 @@
 
 #pragma once
 
+#include "modules/greeter/usermodel.h"
 #include "wglobal.h"
 #include "wsurfaceitem.h"
-#include "greeter/usermodel.h"
 
 Q_MOC_INCLUDE("workspace/workspace.h")
 
@@ -35,8 +35,9 @@ class WallpaperItem : public WSurfaceItemContent
     QML_ADDED_IN_VERSION(1, 0)
 
 public:
-    enum WallpaperRole {
-        Desktop    = 0x1,
+    enum WallpaperRole
+    {
+        Desktop = 0x1,
         Lockscreen = 0x2
     };
     Q_ENUM(WallpaperRole)

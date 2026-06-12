@@ -2,21 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "helper.h"
-#include "seatsmanager.h"
-#include <QScopeGuard>
-#include <QFile>
-#include <QJsonDocument>
-#include <QJsonArray>
-#include <QJsonObject>
-#include <qnamespace.h>
-#ifdef EXT_SESSION_LOCK_V1
-#include "wsessionlock.h"
-#include "wsessionlockmanager.h"
-#include "core/lockscreen.h"
-#endif
-#ifndef DISABLE_DDM
-#include "core/lockscreen.h"
-#endif
+
 #include "common/treelandlogging.h"
 #include "core/layersurfacecontainer.h"
 #include "core/qmlengine.h"
@@ -24,16 +10,17 @@
 #include "core/shellhandler.h"
 #include "core/treeland.h"
 #include "core/windowpicker.h"
-#include "greeter/greeterproxy.h"
-#include "greeter/sessionmodel.h"
-#include "greeter/usermodel.h"
 #include "input/inputdevice.h"
 #include "inputmanager.h"
 #include "interfaces/multitaskviewinterface.h"
 #include "modules/capture/capture.h"
 #include "modules/dde-shell/ddeshellattached.h"
 #include "modules/dde-shell/ddeshellmanagerinterfacev1.h"
-#include "modules/ddm/ddminterfacev1.h"
+#include "modules/greeter/ddmremoteobjectv1.h"
+#include "modules/greeter/greeterproxy.h"
+#include "modules/greeter/lockscreen.h"
+#include "modules/greeter/sessionmodel.h"
+#include "modules/greeter/usermodel.h"
 #include "modules/input-manager/inputmanagerinterfacev1.h"
 #include "modules/keyboard-state-notify/keyboardstatenotifymanagerinterfacev1.h"
 #include "modules/output-manager/outputmanagement.h"
@@ -47,6 +34,7 @@
 #include "output/output.h"
 #include "output/outputconfigstate.h"
 #include "output/outputlifecyclemanager.h"
+#include "seatsmanager.h"
 #include "session/session.h"
 #include "surface/surfacecontainer.h"
 #include "surface/surfacewrapper.h"
@@ -128,14 +116,18 @@
 
 #include <QAction>
 #include <QDBusConnection>
-#include <QDBusInterface>
-#include <QDBusObjectPath>
+#include <QFile>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QKeySequence>
 #include <QLoggingCategory>
 #include <QMouseEvent>
 #include <QQmlContext>
 #include <QQuickWindow>
+#include <QScopeGuard>
 #include <QtConcurrent>
+#include <qnamespace.h>
 
 #include <functional>
 #include <pwd.h>
@@ -183,21 +175,26 @@ Helper::Helper(QObject *parent)
     : WSeatEventFilter(parent)
     , m_sessionManager(new SessionManager(this))
     , m_wallpaperManager(new WallpaperManager(this))
-    , m_renderWindow(new WOutputRenderWindow(this))
-    , m_server(new WServer(this))
-    , m_rootSurfaceContainer(new RootSurfaceContainer(m_renderWindow->contentItem()))
     , m_inputManager(new InputManager(this))
 {
     m_isDDMDisplay = qEnvironmentVariableIsSet("DDM_DISPLAY_MANAGER");
     Q_ASSERT(!m_instance);
     m_instance = this;
 
+    m_ddmRemoteObjectV1 = new DDMRemoteObjectV1(this);
+    if (!m_ddmRemoteObjectV1->start())
+        qCCritical(treelandCore) << "Failed to start Treeland remote object";
+
+    m_renderWindow = new WOutputRenderWindow(this);
+    m_server = new WServer(this);
+    m_rootSurfaceContainer = new RootSurfaceContainer(m_renderWindow->contentItem());
+
     Q_ASSERT(!m_config);
-    m_config.reset(TreelandUserConfig::createByName("org.deepin.dde.treeland.user",
-                                              "org.deepin.dde.treeland",
-                                              "/dde")); // will update user path in Helper::init
-    m_globalConfig.reset(TreelandConfig::create("org.deepin.dde.treeland",
-                                                      QString()));
+    m_config.reset(
+        TreelandUserConfig::createByName("org.deepin.dde.treeland.user",
+                                         "org.deepin.dde.treeland",
+                                         "/dde")); // will update user path in Helper::init
+    m_globalConfig.reset(TreelandConfig::create("org.deepin.dde.treeland", QString()));
 
     m_renderWindow->setColor(Qt::black);
     m_rootSurfaceContainer->setFlag(QQuickItem::ItemIsFocusScope, true);
@@ -211,12 +208,6 @@ Helper::Helper(QObject *parent)
     m_outputConfigState = new OutputConfigState(this);
     m_outputLifecycleManager =
         new OutputLifecycleManager(m_rootSurfaceContainer, m_outputConfigState, this);
-
-#ifdef EXT_SESSION_LOCK_V1
-    m_lockScreenGraceTimer = new QTimer(this);
-    m_lockScreenGraceTimer->setInterval(300);
-    m_lockScreenGraceTimer->setSingleShot(true);
-#endif
 
     m_workspaceScaleAnimation = new QPropertyAnimation(m_shellHandler->workspace(), "scale", this);
     m_workspaceOpacityAnimation =
@@ -272,30 +263,20 @@ Helper::Helper(QObject *parent)
     });
 
     // Connect to systemd-logind's PrepareForSleep signal for hibernate blackout
-    bool connected = QDBusConnection::systemBus().connect(
-        "org.freedesktop.login1",           // service
-        "/org/freedesktop/login1",          // path
-        "org.freedesktop.login1.Manager",   // interface
-        "PrepareForSleep",                  // signal name
-        this,                               // receiver
-        SLOT(onPrepareForSleep(bool))       // slot
-    );
+    bool connected =
+        QDBusConnection::systemBus().connect("org.freedesktop.login1",         // service
+                                             "/org/freedesktop/login1",        // path
+                                             "org.freedesktop.login1.Manager", // interface
+                                             "PrepareForSleep",                // signal name
+                                             this,                             // receiver
+                                             SLOT(onPrepareForSleep(bool))     // slot
+        );
 
     if (!connected) {
         qCWarning(treelandCore) << "Failed to connect to systemd-logind PrepareForSleep signal";
     } else {
         qCInfo(treelandCore) << "Successfully connected to systemd-logind PrepareForSleep signal";
     }
-
-    // Also connect to SessionNew signal for logging purposes
-    QDBusConnection::systemBus().connect(
-        "org.freedesktop.login1",
-        "/org/freedesktop/login1",
-        "org.freedesktop.login1.Manager",
-        "SessionNew",
-        this,
-        SLOT(onSessionNew(QString,QDBusObjectPath))
-    );
 }
 
 Helper::~Helper()
@@ -484,8 +465,9 @@ void Helper::onOutputAdded(WOutput *output)
     o->enable();
     m_outputManager->newOutput(output);
 
-    m_wallpaperColorV1->updateWallpaperColor(output->name(),
-                                             m_personalizationInterfaceV1->backgroundIsDark(output->name()));
+    m_wallpaperColorV1->updateWallpaperColor(
+        output->name(),
+        m_personalizationInterfaceV1->backgroundIsDark(output->name()));
 
     QString cache_location = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
     QSettings settings(cache_location + "/output.ini", QSettings::IniFormat);
@@ -499,7 +481,8 @@ void Helper::onOutputAdded(WOutput *output)
         int refresh = settings.value("refresh").toInt();
 
         wlr_output_mode *mode, *configMode = nullptr;
-        wl_list_for_each(mode, &output->nativeHandle()->modes, link) {
+        wl_list_for_each(mode, &output->nativeHandle()->modes, link)
+        {
             if (mode->width == width && mode->height == height && mode->refresh == refresh) {
                 configMode = mode;
                 break;
@@ -508,12 +491,11 @@ void Helper::onOutputAdded(WOutput *output)
         if (configMode)
             newState.set_mode(configMode);
         else
-            newState.set_custom_mode(width,
-                                     height,
-                                     refresh);
+            newState.set_custom_mode(width, height, refresh);
 
         newState.set_adaptive_sync_enabled(settings.value("adaptiveSyncEnabled").toBool());
-        newState.set_transform(static_cast<wl_output_transform>(settings.value("transform").toInt()));
+        newState.set_transform(
+            static_cast<wl_output_transform>(settings.value("transform").toInt()));
         newState.set_scale(settings.value("scale").toFloat());
         if (!output->handle()->commit_state(newState)) {
             qCCritical(treelandCore) << "commit failed on output" << output->name();
@@ -648,7 +630,8 @@ void Helper::handleCopyModeOutputDisable(Output *affectedOutput)
     Q_EMIT outputModeChanged();
 
     // Convert CopyOutputs to Normal outputs (independent displays)
-    // Keep the disabled output in the list - it will receive disable state through normal wlroots flow
+    // Keep the disabled output in the list - it will receive disable state through normal wlroots
+    // flow
     Output *primaryCandidate = nullptr;
     const auto &surfaces = getWorkspaceSurfaces(affectedOutput);
     for (int i = 0; i < m_outputList.size(); i++) {
@@ -768,7 +751,7 @@ void Helper::onOutputTestOrApply(qw_output_configuration_v1 *config, bool onlyTe
         WOutputViewport *viewport = getOwnOutputViewport(state.output);
         if (!viewport) {
             m_outputManager->sendResult(config, false);
-            m_pendingOutputConfig = {};
+            m_pendingOutputConfig = { };
             return;
         }
 
@@ -776,7 +759,7 @@ void Helper::onOutputTestOrApply(qw_output_configuration_v1 *config, bool onlyTe
         if (!renderWindow) {
             qCWarning(treelandCore) << "No renderWindow for output" << state.output->name();
             m_outputManager->sendResult(config, false);
-            m_pendingOutputConfig = {};
+            m_pendingOutputConfig = { };
             return;
         }
 
@@ -791,7 +774,7 @@ void Helper::onOutputTestOrApply(qw_output_configuration_v1 *config, bool onlyTe
         if (!outputHelper) {
             qCWarning(treelandCore) << "No output helper for viewport" << viewport;
             m_outputManager->sendResult(config, false);
-            m_pendingOutputConfig = {};
+            m_pendingOutputConfig = { };
             return;
         }
 
@@ -815,25 +798,31 @@ void Helper::onOutputTestOrApply(qw_output_configuration_v1 *config, bool onlyTe
 
             wlr_output_state_set_scale(extraState.get(), state.scale);
             wlr_output_state_set_transform(extraState.get(),
-                                          static_cast<wl_output_transform>(state.transform));
+                                           static_cast<wl_output_transform>(state.transform));
             wlr_output_state_set_adaptive_sync_enabled(extraState.get(), state.adaptiveSyncEnabled);
 
-            if (auto outputItem = qobject_cast<WOutputItem*>(viewport->parentItem())) {
-                QMetaObject::invokeMethod(outputItem, "setTransform",
-                    Q_ARG(QVariant, QVariant::fromValue(static_cast<WOutput::Transform>(state.transform))));
+            if (auto outputItem = qobject_cast<WOutputItem *>(viewport->parentItem())) {
+                QMetaObject::invokeMethod(
+                    outputItem,
+                    "setTransform",
+                    Q_ARG(QVariant,
+                          QVariant::fromValue(static_cast<WOutput::Transform>(state.transform))));
             }
         }
 
         if (!outputHelper->setExtraState(extraState)) {
-            qCWarning(treelandCore) << "Failed to set extra state for output" << state.output->name();
+            qCWarning(treelandCore)
+                << "Failed to set extra state for output" << state.output->name();
             m_outputManager->sendResult(config, false);
-            m_pendingOutputConfig = {};
+            m_pendingOutputConfig = { };
             return;
         }
         auto config = m_pendingOutputConfig.config;
         QPointer<Helper> self(this);
         outputHelper->scheduleCommitJob(
-            [self, config, extraState, renderWindow, viewport](bool success, WOutputHelper::ExtraState committedState) {
+            [self, config, extraState, renderWindow, viewport](
+                bool success,
+                WOutputHelper::ExtraState committedState) {
                 if (!self) {
                     return;
                 }
@@ -841,25 +830,25 @@ void Helper::onOutputTestOrApply(qw_output_configuration_v1 *config, bool onlyTe
                 if (committedState == extraState) {
                     self->onOutputCommitFinished(config, success);
                     if (success && committedState) {
-                        bool wasStateOnlyCommit = (committedState->committed & (WLR_OUTPUT_STATE_MODE |
-                                                                                WLR_OUTPUT_STATE_SCALE |
-                                                                                WLR_OUTPUT_STATE_TRANSFORM |
-                                                                                WLR_OUTPUT_STATE_ENABLED)) &&
-                                                  !(committedState->committed & WLR_OUTPUT_STATE_BUFFER);
-                        bool isDisable = (committedState->committed & WLR_OUTPUT_STATE_ENABLED) && !committedState->enabled;
+                        bool wasStateOnlyCommit =
+                            (committedState->committed
+                             & (WLR_OUTPUT_STATE_MODE | WLR_OUTPUT_STATE_SCALE
+                                | WLR_OUTPUT_STATE_TRANSFORM | WLR_OUTPUT_STATE_ENABLED))
+                            && !(committedState->committed & WLR_OUTPUT_STATE_BUFFER);
+                        bool isDisable = (committedState->committed & WLR_OUTPUT_STATE_ENABLED)
+                            && !committedState->enabled;
                         if (wasStateOnlyCommit && !isDisable) {
                             renderWindow->update(viewport);
                         }
                     }
                 } else {
-                    qCWarning(treelandCore) << "Commit callback received unexpected state pointer!"
-                                            << "Expected:" << extraState.get()
-                                            << "Got:" << committedState.get();
+                    qCWarning(treelandCore)
+                        << "Commit callback received unexpected state pointer!"
+                        << "Expected:" << extraState.get() << "Got:" << committedState.get();
                     self->onOutputCommitFinished(config, false);
                 }
             },
-            WOutputHelper::AfterCommitStage
-        );
+            WOutputHelper::AfterCommitStage);
         m_pendingOutputConfig.pendingCommits++;
         renderWindow->update(viewport);
 
@@ -892,21 +881,26 @@ void Helper::onOutputCommitFinished(qw_output_configuration_v1 *config, bool suc
         if (ok) {
             // TODO: Replace QSettings with DConfig to support customization
             // and avoid IO operations in main thread
-            QString cache_location = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
+            QString cache_location =
+                QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
             QSettings settings(cache_location + "/output.ini", QSettings::IniFormat);
             for (const WOutputState &state : std::as_const(m_pendingOutputConfig.states)) {
                 // Only save configuration for enabled outputs
                 // Reason: When disabled, mode/scale/transform are not committed to wlroots,
                 // so we should not save uncommitted values
                 if (!state.enabled) {
-                    qCDebug(treelandCore) << "Skipping config save for disabled output:" << state.output->name();
+                    qCDebug(treelandCore)
+                        << "Skipping config save for disabled output:" << state.output->name();
                     continue;
                 }
 
                 settings.beginGroup(QString("output.%1").arg(state.output->name()));
-                settings.setValue("width", state.mode ? state.mode->width : state.customModeSize.width());
-                settings.setValue("height", state.mode ? state.mode->height : state.customModeSize.height());
-                settings.setValue("refresh", state.mode ? state.mode->refresh : state.customModeRefresh);
+                settings.setValue("width",
+                                  state.mode ? state.mode->width : state.customModeSize.width());
+                settings.setValue("height",
+                                  state.mode ? state.mode->height : state.customModeSize.height());
+                settings.setValue("refresh",
+                                  state.mode ? state.mode->refresh : state.customModeRefresh);
                 settings.setValue("transform", state.transform);
                 settings.setValue("scale", state.scale);
                 settings.setValue("adaptiveSyncEnabled", state.adaptiveSyncEnabled);
@@ -914,7 +908,7 @@ void Helper::onOutputCommitFinished(qw_output_configuration_v1 *config, bool suc
             }
         }
         m_outputManager->sendResult(config, ok);
-        m_pendingOutputConfig = {};
+        m_pendingOutputConfig = { };
     }
 }
 
@@ -1072,10 +1066,13 @@ void Helper::onSetCopyOutput(VirtualOutputInterfaceV1 *interface)
 void Helper::onRestoreCopyOutput(VirtualOutputInterfaceV1 *interface)
 {
     const QString targetName = interface->outputList().at(0);
-    if (!std::any_of(m_outputList.constBegin(), m_outputList.constEnd(),
-                     [&targetName](const Output *output) { return output->output()->name() == targetName; })) {
+    if (!std::any_of(m_outputList.constBegin(),
+                     m_outputList.constEnd(),
+                     [&targetName](const Output *output) {
+                         return output->output()->name() == targetName;
+                     })) {
         interface->sendError(VirtualOutputInterfaceV1::INVALID_OUTPUT,
-            QString("Target output %1 does not exist!").arg(targetName));
+                             QString("Target output %1 does not exist!").arg(targetName));
 
         return;
     }
@@ -1100,14 +1097,18 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
     bool isXwayland = wrapper->type() == SurfaceWrapper::Type::XWayland;
     bool isLayer = wrapper->type() == SurfaceWrapper::Type::Layer;
 
-    connect(m_sessionManager->activeSession().lock().get(), &Session::aboutToBeDestroyed,
-            wrapper, &SurfaceWrapper::requestClose);
+    connect(m_sessionManager->activeSession().lock().get(),
+            &Session::aboutToBeDestroyed,
+            wrapper,
+            &SurfaceWrapper::requestClose);
 
     if (isXdgToplevel || isXdgPopup || isLayer) {
         auto *attached =
             new Personalization(wrapper->shellSurface(), m_personalizationInterfaceV1, wrapper);
-        connect(wrapper, &SurfaceWrapper::aboutToBeInvalidated,
-                attached, &Personalization::deleteLater);
+        connect(wrapper,
+                &SurfaceWrapper::aboutToBeInvalidated,
+                attached,
+                &Personalization::deleteLater);
 
         auto updateNoTitlebar = [this, attached] {
             auto wrapper = attached->surfaceWrapper();
@@ -1120,7 +1121,7 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
             } else {
                 wrapper->setNoTitleBar(false);
                 wrapper->setNoDecoration(m_xdgDecorationManager->modeBySurface(wrapper->surface())
-                                     != WXdgDecorationManager::Server);
+                                         != WXdgDecorationManager::Server);
             }
         };
 
@@ -1142,7 +1143,8 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
         updateNoTitlebar();
 
         auto updateBlur = [attached] {
-            attached->surfaceWrapper()->setBlur(attached->backgroundType() == Personalization::BackgroundType::Blur);
+            attached->surfaceWrapper()->setBlur(attached->backgroundType()
+                                                == Personalization::BackgroundType::Blur);
         };
         connect(attached, &Personalization::backgroundTypeChanged, this, updateBlur);
         updateBlur();
@@ -1153,7 +1155,10 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
         connect(attached, &Personalization::cornerRadiusChanged, this, updateRadius);
         updateRadius();
 
-        connect(Helper::instance()->config(), &TreelandUserConfig::windowRadiusChanged, wrapper, &SurfaceWrapper::radiusChanged);
+        connect(Helper::instance()->config(),
+                &TreelandUserConfig::windowRadiusChanged,
+                wrapper,
+                &SurfaceWrapper::radiusChanged);
 
         if (isLayer) {
             auto layer = qobject_cast<WLayerSurface *>(wrapper->shellSurface());
@@ -1164,37 +1169,38 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
 
     if (isXwayland) {
         auto xwaylandSurface = qobject_cast<WXWaylandSurface *>(wrapper->shellSurface());
-        auto updateDecorationTitleBar = [wrapper, xwaylandSurface, sessionManager = m_sessionManager]() {
-            auto *xwayland = xwaylandSurface->xwayland();
-            xcb_connection_t *connection = xwayland ? xwayland->xcbConnection() : nullptr;
-            xcb_atom_t atom;
-            if (xwayland) {
-                if (auto session = sessionManager->sessionForXWayland(xwayland))
-                    atom = session->noTitlebarAtom();
-                else
-                    atom = XCB_ATOM_NONE;
-            } else {
-                atom = XCB_ATOM_NONE;
-            }
-            if (!xwaylandSurface->isBypassManager()) {
-                if (atom && connection
-                    && !readWindowProperty(connection,
-                                           xwaylandSurface->handle()->handle()->window_id,
-                                           atom,
-                                           XCB_ATOM_CARDINAL)
-                            .isEmpty()) {
-                    wrapper->setNoTitleBar(true);
+        auto updateDecorationTitleBar =
+            [wrapper, xwaylandSurface, sessionManager = m_sessionManager]() {
+                auto *xwayland = xwaylandSurface->xwayland();
+                xcb_connection_t *connection = xwayland ? xwayland->xcbConnection() : nullptr;
+                xcb_atom_t atom;
+                if (xwayland) {
+                    if (auto session = sessionManager->sessionForXWayland(xwayland))
+                        atom = session->noTitlebarAtom();
+                    else
+                        atom = XCB_ATOM_NONE;
                 } else {
-                    wrapper->setNoTitleBar(xwaylandSurface->decorationsFlags()
-                                           & WXWaylandSurface::DecorationsNoTitle);
+                    atom = XCB_ATOM_NONE;
                 }
-                wrapper->setNoDecoration(xwaylandSurface->decorationsFlags()
-                                         & WXWaylandSurface::DecorationsNoBorder);
-            } else {
-                wrapper->setNoTitleBar(true);
-                wrapper->setNoDecoration(true);
-            }
-        };
+                if (!xwaylandSurface->isBypassManager()) {
+                    if (atom && connection
+                        && !readWindowProperty(connection,
+                                               xwaylandSurface->handle()->handle()->window_id,
+                                               atom,
+                                               XCB_ATOM_CARDINAL)
+                                .isEmpty()) {
+                        wrapper->setNoTitleBar(true);
+                    } else {
+                        wrapper->setNoTitleBar(xwaylandSurface->decorationsFlags()
+                                               & WXWaylandSurface::DecorationsNoTitle);
+                    }
+                    wrapper->setNoDecoration(xwaylandSurface->decorationsFlags()
+                                             & WXWaylandSurface::DecorationsNoBorder);
+                } else {
+                    wrapper->setNoTitleBar(true);
+                    wrapper->setNoDecoration(true);
+                }
+            };
         // When x11 surface dissociate, SurfaceWrapper will be destroyed immediately
         // but WXWaylandSurface will not, so must connect to `wrapper`
         xwaylandSurface->safeConnect(&WXWaylandSurface::bypassManagerChanged,
@@ -1212,14 +1218,12 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
         [[maybe_unused]] auto windowOverlapChecker = new WindowOverlapChecker(wrapper, wrapper);
     }
 
-#ifndef DISABLE_DDM
     if (isLayer) {
         connect(this, &Helper::currentModeChanged, wrapper, [this, wrapper] {
             wrapper->setHideByLockScreen(m_currentMode == CurrentMode::LockScreen);
         });
         wrapper->setHideByLockScreen(m_currentMode == CurrentMode::LockScreen);
     }
-#endif
 
     if (!wrapper->skipDockPreView()) {
         m_foreignToplevel->addSurface(wrapper->shellSurface());
@@ -1240,17 +1244,16 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
         If it is converted into a normal window and remains active,
         it should actively acquire focus.
     */
-    if ((wrapper->isActivated() || wrapper->prelaunchSplash())
-        && wrapper != keyboardFocusSurface()
+    if ((wrapper->isActivated() || wrapper->prelaunchSplash()) && wrapper != keyboardFocusSurface()
         && wrapper->hasCapability(WToplevelSurface::Capability::Focus)
         && wrapper->acceptKeyboardFocus()) {
-            WSeat *seat = m_currentEventSeat ? m_currentEventSeat : m_seat;
-            if (seat) {
-                seat->setKeyboardFocusSurface(wrapper->surface());
-                if (auto *seatContainer = m_rootSurfaceContainer->getSeatContainer(seat)) {
-                    seatContainer->setKeyboardFocusSurface(wrapper);
-                }
+        WSeat *seat = m_currentEventSeat ? m_currentEventSeat : m_seat;
+        if (seat) {
+            seat->setKeyboardFocusSurface(wrapper->surface());
+            if (auto *seatContainer = m_rootSurfaceContainer->getSeatContainer(seat)) {
+                seatContainer->setKeyboardFocusSurface(wrapper);
             }
+        }
     }
 }
 
@@ -1260,7 +1263,8 @@ void Helper::onSurfaceWrapperAboutToRemove(SurfaceWrapper *wrapper)
         m_foreignToplevel->removeSurface(wrapper->shellSurface());
         m_extForeignToplevelListV1->removeSurface(wrapper->shellSurface());
     }
-    // Ensure the wrapper is removed from active history early to avoid cascading on half-invalid entries
+    // Ensure the wrapper is removed from active history early to avoid cascading on half-invalid
+    // entries
     if (wrapper && wrapper->workspaceId() != -1) {
         auto ws = workspace();
         if (ws) {
@@ -1273,9 +1277,10 @@ void Helper::onSurfaceWrapperAboutToRemove(SurfaceWrapper *wrapper)
 bool Helper::surfaceBelongsToCurrentSession(SurfaceWrapper *wrapper)
 {
     if (wrapper->type() == SurfaceWrapper::Type::SplashScreen) {
-        // TODO(rewine): Determine which user the splash screen belongs to by invoking the client of the prelaunch-splash protocol.
-        // Currently, treeland does not support logging in with multiple users at the same time
-        // so it is temporarily assumed that the splash screen must belong to the current user.
+        // TODO(rewine): Determine which user the splash screen belongs to by invoking the client of
+        // the prelaunch-splash protocol. Currently, treeland does not support logging in with
+        // multiple users at the same time so it is temporarily assumed that the splash screen must
+        // belong to the current user.
         return true;
     }
     WClient *client = wrapper->surface()->waylandClient();
@@ -1294,12 +1299,26 @@ void Helper::deleteTaskSwitch()
 void Helper::init(Treeland::Treeland *treeland)
 {
     m_treeland = treeland;
-    connect(m_sessionManager, &SessionManager::sessionChanged, treeland, &Treeland::Treeland::SessionChanged);
+    connect(m_sessionManager,
+            &SessionManager::sessionChanged,
+            treeland,
+            &Treeland::Treeland::SessionChanged);
 
     auto engine = qmlEngine();
     m_greeterProxy = engine->singletonInstance<GreeterProxy *>("Treeland", "GreeterProxy");
     m_userModel = engine->singletonInstance<UserModel *>("Treeland", "UserModel");
     m_sessionModel = engine->singletonInstance<SessionModel *>("Treeland", "SessionModel");
+
+    m_ddmRemoteObjectV1->setGreeterProxy(m_greeterProxy);
+    const bool treelandRemoteReady = m_ddmRemoteObjectV1->isListening();
+    m_greeterProxy->setDDMConnectionEnabled(treelandRemoteReady);
+    if (treelandRemoteReady) {
+        m_greeterProxy->connectToDDM();
+    } else {
+        qCCritical(treelandCore) << "Treeland remote object is not ready; skip DDM connection";
+    }
+
+    initLockScreen();
 
     engine->setContextForObject(m_renderWindow, engine->rootContext());
     engine->setContextForObject(m_renderWindow->contentItem(), engine->rootContext());
@@ -1308,8 +1327,6 @@ void Helper::init(Treeland::Treeland *treeland)
 
     m_backend = m_server->attach<WBackend>();
     m_seatManager = new SeatsManager(m_server, this);
-
-    m_ddmInterfaceV1 = m_server->attach<DDMInterfaceV1>();
 
     m_outputManager = m_server->attach<WOutputManagerV1>();
     connect(m_backend, &WBackend::outputAdded, this, &Helper::onOutputAdded);
@@ -1375,8 +1392,8 @@ void Helper::init(Treeland::Treeland *treeland)
 
     auto updateCurrentUser = [this] {
         m_config.reset(TreelandUserConfig::createByName("org.deepin.dde.treeland.user",
-                                                  "org.deepin.dde.treeland",
-                                                  "/" + m_userModel->currentUserName()));
+                                                        "org.deepin.dde.treeland",
+                                                        "/" + m_userModel->currentUserName()));
         auto user = m_userModel->currentUser();
         m_personalizationInterfaceV1->setUserId(user ? user->UID() : getuid());
         // TODO(YaoBing Xiao): remove "dde"
@@ -1421,8 +1438,9 @@ void Helper::init(Treeland::Treeland *treeland)
 
     for (auto output : m_rootSurfaceContainer->outputs()) {
         const QString &outputName = output->output()->name();
-        m_wallpaperColorV1->updateWallpaperColor(outputName,
-                                                 m_personalizationInterfaceV1->backgroundIsDark(outputName));
+        m_wallpaperColorV1->updateWallpaperColor(
+            outputName,
+            m_personalizationInterfaceV1->backgroundIsDark(outputName));
     }
 
     connect(m_windowManagementInterfaceV1,
@@ -1443,7 +1461,8 @@ void Helper::init(Treeland::Treeland *treeland)
     connect(m_rootSurfaceContainer, &RootSurfaceContainer::primaryOutputChanged, this, [this]() {
         if (m_rootSurfaceContainer->primaryOutput()) {
             if (m_lockScreen) {
-                m_lockScreen->setPrimaryOutputName(m_rootSurfaceContainer->primaryOutput()->output()->name());
+                m_lockScreen->setPrimaryOutputName(
+                    m_rootSurfaceContainer->primaryOutput()->output()->name());
             }
         }
     });
@@ -1487,8 +1506,10 @@ void Helper::init(Treeland::Treeland *treeland)
     // Connect device signals and handle device lifecycle
     m_seatManager->connectBackendSignals(m_backend);
     connect(m_seatManager, &SeatsManager::deviceAdded, this, [this](WInputDevice *device) {
-        m_seatManager->assignDevice(device, m_renderWindow,
-                                   m_rootSurfaceContainer->outputLayout(), m_seat);
+        m_seatManager->assignDevice(device,
+                                    m_renderWindow,
+                                    m_rootSurfaceContainer->outputLayout(),
+                                    m_seat);
     });
 
     // Setup drag request handling for all seats
@@ -1531,10 +1552,12 @@ void Helper::init(Treeland::Treeland *treeland)
     qw_screencopy_manager_v1::create(*m_server->handle());
     qw_ext_image_copy_capture_manager_v1::create(*m_server->handle(), 1);
     qw_ext_output_image_capture_source_manager_v1::create(*m_server->handle(), 1);
-    m_foreignToplevelImageCaptureManager = qw_ext_foreign_toplevel_image_capture_source_manager_v1::create(*m_server->handle(), 1);
+    m_foreignToplevelImageCaptureManager =
+        qw_ext_foreign_toplevel_image_capture_source_manager_v1::create(*m_server->handle(), 1);
     connect(m_foreignToplevelImageCaptureManager,
             &qw_ext_foreign_toplevel_image_capture_source_manager_v1::notify_new_request,
-            this, &Helper::handleNewForeignToplevelCaptureRequest);
+            this,
+            &Helper::handleNewForeignToplevelCaptureRequest);
 
     qw_viewporter::create(*m_server->handle());
     m_renderWindow->init(m_renderer, m_allocator);
@@ -1543,21 +1566,29 @@ void Helper::init(Treeland::Treeland *treeland)
         m_server->attach<WXdgOutputManager>(m_rootSurfaceContainer->outputLayout());
     xwaylandOutputManager->setScaleOverride(1.0);
 
-    static const auto isXWaylandClient =
-        [sessionManager = QPointer(m_sessionManager)](WClient *client) {
-            if (sessionManager) {
-                for (auto session : sessionManager->sessions()) {
-                    if (session && session->xwayland() && session->xwayland()->waylandClient() == client)
-                        return true;
-                }
+    static const auto isXWaylandClient = [sessionManager =
+                                              QPointer(m_sessionManager)](WClient *client) {
+        if (sessionManager) {
+            for (auto session : sessionManager->sessions()) {
+                if (session && session->xwayland()
+                    && session->xwayland()->waylandClient() == client)
+                    return true;
             }
+        }
         return false;
-       };
-    xdgOutputManager->setFilter([](WClient *client) { return !isXWaylandClient(client); });
-    xwaylandOutputManager->setFilter([](WClient *client) { return isXWaylandClient(client); });
+    };
+    xdgOutputManager->setFilter([](WClient *client) {
+        return !isXWaylandClient(client);
+    });
+    xwaylandOutputManager->setFilter([](WClient *client) {
+        return isXWaylandClient(client);
+    });
     // User dde does not has a real Logind session, so just pass 0 as id
     m_sessionManager->updateActiveUserSession(QStringLiteral("dde"), 0);
-    connect(m_userModel, &UserModel::userLoggedIn, m_sessionManager, &SessionManager::updateActiveUserSession);
+    connect(m_userModel,
+            &UserModel::userLoggedIn,
+            m_sessionManager,
+            &SessionManager::updateActiveUserSession);
     m_xdgDecorationManager = m_server->attach<WXdgDecorationManager>();
     connect(m_xdgDecorationManager,
             &WXdgDecorationManager::surfaceModeChanged,
@@ -1580,7 +1611,8 @@ void Helper::init(Treeland::Treeland *treeland)
     m_server->attach<WCursorShapeManagerV1>();
     qw_fractional_scale_manager_v1::create(*m_server->handle(), WLR_FRACTIONAL_SCALE_V1_VERSION);
     qw_data_control_manager_v1::create(*m_server->handle());
-    qw_ext_data_control_manager_v1::create(*m_server->handle(), EXT_DATA_CONTROL_MANAGER_V1_VERSION);
+    qw_ext_data_control_manager_v1::create(*m_server->handle(),
+                                           EXT_DATA_CONTROL_MANAGER_V1_VERSION);
     qw_alpha_modifier_v1::create(*m_server->handle());
     auto *foreignRegistry = qw_xdg_foreign_registry::create(*m_server->handle());
     qw_xdg_foreign_v2::create(*m_server->handle(), *foreignRegistry);
@@ -1588,10 +1620,13 @@ void Helper::init(Treeland::Treeland *treeland)
     m_idleNotifier = qw_idle_notifier_v1::create(*m_server->handle());
 
     m_idleInhibitManager = qw_idle_inhibit_manager_v1::create(*m_server->handle());
-    connect(m_idleInhibitManager, &qw_idle_inhibit_manager_v1::notify_new_inhibitor, this, &Helper::onNewIdleInhibitor);
+    connect(m_idleInhibitManager,
+            &qw_idle_inhibit_manager_v1::notify_new_inhibitor,
+            this,
+            &Helper::onNewIdleInhibitor);
 
-    m_activationManagerV1 = m_server->attach<ActivationManagerInterfaceV1>(
-        [this](WSurface *surface) -> bool {
+    m_activationManagerV1 =
+        m_server->attach<ActivationManagerInterfaceV1>([this](WSurface *surface) -> bool {
             // Determine whether the Surface can be trusted to transfer its active state.
             auto wrapper = m_rootSurfaceContainer->getSurface(surface);
             if (!wrapper) {
@@ -1637,21 +1672,16 @@ void Helper::init(Treeland::Treeland *treeland)
 
     m_outputPowerManager = qw_output_power_manager_v1::create(*m_server->handle());
 
-    connect(m_outputPowerManager, &qw_output_power_manager_v1::notify_set_mode, this, &Helper::onSetOutputPowerMode);
-#ifdef EXT_SESSION_LOCK_V1
-    m_sessionLockManager = m_server->attach<WSessionLockManager>();
-    if (!m_lockScreen) {
-        setLockScreenImpl(nullptr);
-    }
-    connect(m_sessionLockManager,
-            &WSessionLockManager::lockCreated,
+    connect(m_outputPowerManager,
+            &qw_output_power_manager_v1::notify_set_mode,
             this,
-            &Helper::onExtSessionLock);
-#endif
+            &Helper::onSetOutputPowerMode);
 
     m_wallpaperNotifierInterfaceV1 = m_server->attach<TreelandWallpaperNotifierInterfaceV1>();
     if (isDDMDisplay()) {
-        m_wallpaperNotifierInterfaceV1->setFilter([this](WClient *client) { return m_sessionManager->isDDEUserClient(client); });
+        m_wallpaperNotifierInterfaceV1->setFilter([this](WClient *client) {
+            return m_sessionManager->isDDEUserClient(client);
+        });
     }
     connect(m_wallpaperNotifierInterfaceV1,
             &TreelandWallpaperNotifierInterfaceV1::bound,
@@ -1698,7 +1728,8 @@ void Helper::init(Treeland::Treeland *treeland)
             m_inputManager,
             &InputManager::onKeyboardSettingsCreated);
 
-    m_keyboardStateNotifyManagerInterfaceV1 = m_server->attach<TreelandKeyboardStateNotifyManagerInterfaceV1>();
+    m_keyboardStateNotifyManagerInterfaceV1 =
+        m_server->attach<TreelandKeyboardStateNotifyManagerInterfaceV1>();
 
 #if TREELANDCONFIG_DCONFIG_FILE_VERSION_MINOR > 0
     if (m_globalConfig->isInitializeSucceeded()) {
@@ -1723,8 +1754,9 @@ WSeat *Helper::getSeatForEvent(QInputEvent *event) const
 
 void Helper::activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
 {
-    WSeat *interactingSeat = m_currentEventSeat ? m_currentEventSeat : getLastInteractingSeat(wrapper);
-    if (m_blockActivateSurface && wrapper && wrapper->type() != SurfaceWrapper::Type::LockScreen) {
+    WSeat *interactingSeat =
+        m_currentEventSeat ? m_currentEventSeat : getLastInteractingSeat(wrapper);
+    if (m_blockActivateSurface && wrapper) {
         auto sh = wrapper->shellSurface();
         if (sh && wrapper->surface() && wrapper->surface()->mapped()
             && sh->hasCapability(WToplevelSurface::Capability::Activate)) {
@@ -1741,7 +1773,8 @@ void Helper::activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
             if (wrapper->hasActiveCapability()) {
                 setActivatedSurface(wrapper);
             } else {
-                qCCritical(treelandShell) << "Trying to activate a surface which doesn't have ActiveCapability!";
+                qCCritical(treelandShell)
+                    << "Trying to activate a surface which doesn't have ActiveCapability!";
             }
         }
     }
@@ -1777,7 +1810,8 @@ void Helper::activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
 void Helper::forceActivateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
 {
     if (!wrapper) {
-        qCCritical(treelandShell) << "Don't force activate to empty surface! do you want `Helper::activeSurface(nullptr)`?";
+        qCCritical(treelandShell) << "Don't force activate to empty surface! do you want "
+                                     "`Helper::activeSurface(nullptr)`?";
         return;
     }
     if (!wrapper->shellSurface()) {
@@ -1838,8 +1872,8 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *targetWindow, QInputEvent 
             if (key >= Qt::Key_F1 && key <= Qt::Key_F12) {
                 const int vtnr = key - Qt::Key_F1 + 1;
                 const bool sessionActive = m_backend->isSessionActive();
-                qCWarning(treelandCore) << "Ctrl+Alt+Fn VT shortcut received"
-                                        << vtnr << "sessionActive" << sessionActive;
+                qCWarning(treelandCore) << "Ctrl+Alt+Fn VT shortcut received" << vtnr
+                                        << "sessionActive" << sessionActive;
                 if (!sessionActive) {
                     return true;
                 }
@@ -1867,7 +1901,9 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *targetWindow, QInputEvent 
         return false;
     }
     m_currentEventSeat = targetSeat;
-    [[maybe_unused]] auto clearEventSeat = qScopeGuard([this] { m_currentEventSeat = nullptr; });
+    [[maybe_unused]] auto clearEventSeat = qScopeGuard([this] {
+        m_currentEventSeat = nullptr;
+    });
 
     if (seat == m_seat) {
         // NOTE: Unable to distinguish meta from other key combinations
@@ -1893,13 +1929,14 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *targetWindow, QInputEvent 
             auto kevent = static_cast<QKeyEvent *>(event);
 
 #ifndef QT_NO_DEBUG
-            if (QKeySequence(kevent->keyCombination()) ==
-                QKeySequence(Qt::MetaModifier | Qt::Key_F12)) {
+            if (QKeySequence(kevent->keyCombination())
+                == QKeySequence(Qt::MetaModifier | Qt::Key_F12)) {
                 std::terminate();
             }
             // The debug view shortcut should always handled first
             if (QKeySequence(kevent->keyCombination())
-                == QKeySequence(Qt::ControlModifier | Qt::ShiftModifier | Qt::MetaModifier | Qt::Key_F11)) {
+                == QKeySequence(Qt::ControlModifier | Qt::ShiftModifier | Qt::MetaModifier
+                                | Qt::Key_F11)) {
                 if (toggleDebugMenuBar())
                     return true;
             }
@@ -1970,8 +2007,8 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *targetWindow, QInputEvent 
     if (m_shortcutManager->tryHandleCaptureEvent(seat, event))
         return true;
 
-    if (seat == m_seat && !m_captureSelector && m_currentMode != CurrentMode::LockScreen &&
-        (event->type() == QEvent::KeyPress || event->type() == QEvent::KeyRelease)) {
+    if (seat == m_seat && !m_captureSelector && m_currentMode != CurrentMode::LockScreen
+        && (event->type() == QEvent::KeyPress || event->type() == QEvent::KeyRelease)) {
         do {
             auto kevent = static_cast<QKeyEvent *>(event);
             // SKIP Meta+Meta
@@ -2045,7 +2082,8 @@ bool Helper::afterHandleEvent([[maybe_unused]] WSeat *seat,
                         return false;
                     }
 
-                    surface->setProperty("lastInteractionTime", QDateTime::currentMSecsSinceEpoch());
+                    surface->setProperty("lastInteractionTime",
+                                         QDateTime::currentMSecsSinceEpoch());
                     eventSeat->setKeyboardFocusSurface(surface->surface());
                     if (auto *seatContainer = m_rootSurfaceContainer->getSeatContainer(eventSeat)) {
                         seatContainer->setKeyboardFocusSurface(surface);
@@ -2053,8 +2091,8 @@ bool Helper::afterHandleEvent([[maybe_unused]] WSeat *seat,
                 }
             }
 
-            if (auto sh = surface->shellSurface();
-                sh && surface->surface() && surface->surface()->mapped()
+            if (auto sh = surface->shellSurface(); sh && surface->surface()
+                && surface->surface()->mapped()
                 && sh->hasCapability(WToplevelSurface::Capability::Activate)
                 && surface->hasActiveCapability()) {
                 surface->setActivate(true);
@@ -2160,7 +2198,8 @@ WOutputViewport *Helper::getOwnOutputViewport(WOutput *output)
         return nullptr;
     }
 
-    WOutputViewport *viewport = outputObj->outputItem()->findChild<WOutputViewport *>({}, Qt::FindDirectChildrenOnly);
+    WOutputViewport *viewport =
+        outputObj->outputItem()->findChild<WOutputViewport *>({ }, Qt::FindDirectChildrenOnly);
     if (!viewport) {
         qCWarning(treelandCore) << "No viewport found for output" << output->name()
                                 << "- OutputItem may not have been fully initialized";
@@ -2234,7 +2273,8 @@ void Helper::setActivatedSurface(SurfaceWrapper *newActivateSurface)
     if (newActivateSurface) {
         if (m_showDesktop == WindowManagementInterfaceV1::DesktopState::Show) {
             m_showDesktop = WindowManagementInterfaceV1::DesktopState::Normal;
-            m_windowManagementInterfaceV1->setDesktopState(WindowManagementInterfaceV1::DesktopState::Normal);
+            m_windowManagementInterfaceV1->setDesktopState(
+                WindowManagementInterfaceV1::DesktopState::Normal);
             newActivateSurface->setHideByShowDesk(true);
         }
 
@@ -2279,21 +2319,24 @@ void Helper::handleRequestDrag([[maybe_unused]] WSurface *surface)
 void Helper::handleLockScreen(LockScreenInterface *lockScreen)
 {
     connect(lockScreen, &LockScreenInterface::shutdown, this, [this]() {
-        if (m_lockScreen && m_lockScreen->available() && currentMode() == Helper::CurrentMode::Normal) {
+        if (m_lockScreen && m_lockScreen->available()
+            && currentMode() == Helper::CurrentMode::Normal) {
             setCurrentMode(CurrentMode::LockScreen);
             m_lockScreen->shutdown();
             setWorkspaceVisible(false);
         }
     });
     connect(lockScreen, &LockScreenInterface::lock, this, [this]() {
-        if (m_lockScreen && m_lockScreen->available() && currentMode() == Helper::CurrentMode::Normal) {
+        if (m_lockScreen && m_lockScreen->available()
+            && currentMode() == Helper::CurrentMode::Normal) {
             setCurrentMode(CurrentMode::LockScreen);
             m_lockScreen->lock();
             setWorkspaceVisible(false);
         }
     });
     connect(lockScreen, &LockScreenInterface::switchUser, this, [this]() {
-        if (m_lockScreen && m_lockScreen->available() && currentMode() == Helper::CurrentMode::Normal) {
+        if (m_lockScreen && m_lockScreen->available()
+            && currentMode() == Helper::CurrentMode::Normal) {
             setCurrentMode(CurrentMode::LockScreen);
             m_lockScreen->switchUser();
             setWorkspaceVisible(false);
@@ -2301,79 +2344,19 @@ void Helper::handleLockScreen(LockScreenInterface *lockScreen)
     });
 }
 
-
-void Helper::onSessionNew(const QString &sessionId, const QDBusObjectPath &sessionPath)
-{
-    const auto path = sessionPath.path();
-    qCDebug(treelandCore) << "Session new, sessionId:" << sessionId << ", sessionPath:" << path;
-    QDBusConnection::systemBus().connect("org.freedesktop.login1", path, "org.freedesktop.login1.Session", "Lock", this, SLOT(onSessionLock()));
-    QDBusConnection::systemBus().connect("org.freedesktop.login1", path, "org.freedesktop.login1.Session", "Unlock", this, SLOT(onSessionUnlock()));
-}
-
-void Helper::onSessionLock()
-{
-    showLockScreen();
-}
-
-void Helper::onSessionUnlock()
-{
-    if (m_lockScreen) {
-        m_lockScreen->unlock();
-    }
-}
-
-void Helper::onExtSessionLock(WSessionLock *lock)
-{
-#ifdef EXT_SESSION_LOCK_V1
-    if (m_lockScreen->isLocked()) {
-        lock->finish();
-        return;
-    }
-
-    m_lockScreen->onExternalLock(lock);
-
-    setCurrentMode(CurrentMode::LockScreen);
-
-    if (m_multitaskView) {
-        m_multitaskView->immediatelyExit();
-    }
-
-    deleteTaskSwitch();
-
-    setWorkspaceVisible(false);
-
-    lock->safeConnect(&WSessionLock::abandoned, this, [this]() {
-        m_lockScreenGraceTimer->stop();
-        setNoAnimation(false);
-    });
-
-    lock->safeConnect(&WSessionLock::canceled, this, [this]() {
-        m_lockScreenGraceTimer->stop();
-    });
-
-    m_lockScreenGraceTimer->disconnect();
-    // grace 300ms for possible client to
-    connect(m_lockScreenGraceTimer, &QTimer::timeout, this, [this, lock]() {
-        setNoAnimation(true);
-        lock->lock();
-    });
-    m_lockScreenGraceTimer->start();
-#endif
-}
-
 void Helper::allowNonDrmOutputAutoChangeMode(WOutput *output)
 {
-    output->safeConnect(&qw_output::notify_request_state,
-                        this,
-                        [this](wlr_output_event_request_state *newState) {
-                            if (newState->state->committed & WLR_OUTPUT_STATE_MODE) {
-                                auto output = qobject_cast<qw_output *>(sender());
-                                if (!output->commit_state(newState->state)) {
-                                    qCCritical(treelandCore, "commit failed on output %s",
-                                               output->handle()->name);
-                                }
-                            }
-                        });
+    output->safeConnect(
+        &qw_output::notify_request_state,
+        this,
+        [this](wlr_output_event_request_state *newState) {
+            if (newState->state->committed & WLR_OUTPUT_STATE_MODE) {
+                auto output = qobject_cast<qw_output *>(sender());
+                if (!output->commit_state(newState->state)) {
+                    qCCritical(treelandCore, "commit failed on output %s", output->handle()->name);
+                }
+            }
+        });
 }
 
 int Helper::indexOfOutput(WOutput *output) const
@@ -2553,18 +2536,16 @@ void Helper::setMultitaskViewImpl(IMultitaskView *impl)
     m_multitaskView = impl;
 }
 
-void Helper::setLockScreenImpl(ILockScreen *impl)
+void Helper::initLockScreen()
 {
-#if !defined(DISABLE_DDM) || defined(EXT_SESSION_LOCK_V1)
-    if (!impl) {
-        if (m_lockScreen) {
-            m_lockScreen = nullptr;
-            delete m_lockScreen;
-        }
-        return;
+    if (m_lockScreen) {
+        auto *lockScreen = m_lockScreen;
+        m_lockScreen = nullptr;
+        m_greeterProxy->setLockScreen(nullptr);
+        delete lockScreen;
     }
 
-    m_lockScreen = new LockScreen(impl, m_rootSurfaceContainer, m_greeterProxy);
+    m_lockScreen = new LockScreen(m_rootSurfaceContainer, m_greeterProxy);
     m_lockScreen->setZ(RootSurfaceContainer::LockScreenZOrder);
     m_lockScreen->setObjectName(QStringLiteral("LockScreenContainer"));
     m_lockScreen->setVisible(false);
@@ -2582,22 +2563,12 @@ void Helper::setLockScreenImpl(ILockScreen *impl)
     connect(m_lockScreen, &LockScreen::unlock, this, [this] {
         setCurrentMode(CurrentMode::Normal);
         setWorkspaceVisible(true);
-#ifdef EXT_SESSION_LOCK_V1
-        setNoAnimation(false);
-#endif
         if (m_activatedSurface) {
             m_activatedSurface->setFocus(true, Qt::NoFocusReason);
         }
     });
-    if (!impl) {
-        return;
-    }
-    if (CmdLine::ref().useLockScreen()) {
-        showLockScreen(false);
-    }
-#else
-    Q_UNUSED(impl)
-#endif
+    if (CmdLine::ref().useLockScreen())
+        showLockScreen();
 }
 
 void Helper::setCurrentMode(CurrentMode mode)
@@ -2612,12 +2583,11 @@ void Helper::setCurrentMode(CurrentMode mode)
     Q_EMIT currentModeChanged();
 }
 
-void Helper::showLockScreen(bool switchToGreeter)
+void Helper::showLockScreen()
 {
     if (m_lockScreen->isLocked()) {
         return;
     }
-
 
     if (m_multitaskView) {
         m_multitaskView->immediatelyExit();
@@ -2628,17 +2598,6 @@ void Helper::showLockScreen(bool switchToGreeter)
 
     setCurrentMode(CurrentMode::LockScreen);
     m_lockScreen->lock();
-
-    // send DDM switch to greeter mode
-    if (switchToGreeter) {
-        QThreadPool::globalInstance()->start([]() {
-            QDBusInterface interface("org.freedesktop.DisplayManager",
-                                     "/org/freedesktop/DisplayManager/Seat0",
-                                     "org.freedesktop.DisplayManager.Seat",
-                                     QDBusConnection::systemBus());
-            interface.call("SwitchToGreeter");
-        });
-    }
 }
 
 WSeat *Helper::seat() const
@@ -2676,7 +2635,8 @@ void Helper::restoreFromShowDesktop(SurfaceWrapper *activeSurface)
 {
     if (m_showDesktop == WindowManagementInterfaceV1::DesktopState::Show) {
         m_showDesktop = WindowManagementInterfaceV1::DesktopState::Normal;
-        m_windowManagementInterfaceV1->setDesktopState(WindowManagementInterfaceV1::DesktopState::Normal);
+        m_windowManagementInterfaceV1->setDesktopState(
+            WindowManagementInterfaceV1::DesktopState::Normal);
         if (activeSurface) {
             activeSurface->requestCancelMinimize();
         }
@@ -2703,7 +2663,8 @@ Output *Helper::getOutputAtCursor() const
     return m_rootSurfaceContainer->primaryOutput();
 }
 
-void Helper::handleNewForeignToplevelCaptureRequest(wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request *request)
+void Helper::handleNewForeignToplevelCaptureRequest(
+    wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request *request)
 {
     if (!request || !request->toplevel_handle) {
         qCWarning(treelandCapture) << "Invalid capture request or toplevel handle";
@@ -2736,9 +2697,10 @@ void Helper::handleNewForeignToplevelCaptureRequest(wlr_ext_foreign_toplevel_ima
     }
 
     qCDebug(treelandCapture) << "Found WSurfaceItemContent for capture:"
-             << "size=" << surfaceContent->size()
-             << "implicitSize=" << QSizeF(surfaceContent->implicitWidth(), surfaceContent->implicitHeight())
-             << "isTextureProvider=" << surfaceContent->isTextureProvider();
+                             << "size=" << surfaceContent->size() << "implicitSize="
+                             << QSizeF(surfaceContent->implicitWidth(),
+                                       surfaceContent->implicitHeight())
+                             << "isTextureProvider=" << surfaceContent->isTextureProvider();
 
     auto *output = surfaceWrapper->ownsOutput()->output();
     if (!output) {
@@ -2749,7 +2711,8 @@ void Helper::handleNewForeignToplevelCaptureRequest(wlr_ext_foreign_toplevel_ima
     auto *imageCaptureSource = new WExtImageCaptureSourceV1Impl(surfaceContent, output);
 
     bool success = qw_ext_foreign_toplevel_image_capture_source_manager_v1::request_accept(
-        request, *imageCaptureSource);
+        request,
+        *imageCaptureSource);
 
     if (!success) {
         qCWarning(treelandCapture) << "Failed to accept foreign toplevel image capture request";
@@ -2769,25 +2732,25 @@ void Helper::onPrepareForSleep(bool sleep)
     }
 }
 
-DDMInterfaceV1 *Helper::ddmInterfaceV1() const {
-    return m_ddmInterfaceV1;
-}
-
-void Helper::activateSession() {
+void Helper::activateSession()
+{
     if (!m_backend->isSessionActive())
         m_backend->activateSession();
 }
 
-void Helper::deactivateSession() {
+void Helper::deactivateSession()
+{
     if (m_backend->isSessionActive())
         m_backend->deactivateSession();
 }
 
-void Helper::enableRender() {
+void Helper::enableRender()
+{
     m_renderWindow->setRenderEnabled(true);
 }
 
-void Helper::disableRender() {
+void Helper::disableRender()
+{
     m_renderWindow->setRenderEnabled(false);
 }
 
@@ -2804,11 +2767,13 @@ bool Helper::blockActivateSurface() const
     return m_blockActivateSurface;
 }
 
-bool Helper::noAnimation() const {
+bool Helper::noAnimation() const
+{
     return m_noAnimation;
 }
 
-void Helper::setNoAnimation(bool noAnimation) {
+void Helper::setNoAnimation(bool noAnimation)
+{
     if (m_noAnimation == noAnimation)
         return;
     m_noAnimation = noAnimation;
@@ -2879,11 +2844,15 @@ void Helper::restoreCopyMode()
  * @param dx Horizontal distance between the top-left point of anchor and the destination
  * @param dy Vertical distance between the top-left point of anchor and the destination
  */
-bool Helper::setXWindowPositionRelative(uint wid, WSurface *anchor, wl_fixed_t dx, wl_fixed_t dy) const
+bool Helper::setXWindowPositionRelative(uint wid,
+                                        WSurface *anchor,
+                                        wl_fixed_t dx,
+                                        wl_fixed_t dy) const
 {
     SurfaceWrapper *ach = m_rootSurfaceContainer->getSurface(anchor);
     if (!ach) {
-        qCWarning(treelandCore) << "setXWindowPositionRelative: Failed to get SurfaceWrapper from WSurface";
+        qCWarning(treelandCore)
+            << "setXWindowPositionRelative: Failed to get SurfaceWrapper from WSurface";
         return false;
     }
 
@@ -2899,7 +2868,9 @@ bool Helper::setXWindowPositionRelative(uint wid, WSurface *anchor, wl_fixed_t d
         }
     }
     if (!target) {
-        qCWarning(treelandCore) << "setXWindowPositionRelative: XWayland surface corresponding to WID" << wid << "not found!";
+        qCWarning(treelandCore)
+            << "setXWindowPositionRelative: XWayland surface corresponding to WID" << wid
+            << "not found!";
         return false;
     }
 
@@ -2957,7 +2928,7 @@ WSeat *Helper::getLastInteractingSeat(SurfaceWrapper *surface) const
 
     auto lastSeatVariant = surface->property("lastInteractingSeat");
     if (lastSeatVariant.isValid()) {
-        auto seat = lastSeatVariant.value<WSeat*>();
+        auto seat = lastSeatVariant.value<WSeat *>();
         if (m_seatManager->seats().contains(seat)) {
             return seat;
         }

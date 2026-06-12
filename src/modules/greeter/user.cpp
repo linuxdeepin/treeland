@@ -43,7 +43,7 @@ void UserPrivate::updateUserData()
 }
 
 User::User(AccountsUserPtr ptr)
-    : d(new UserPrivate{})
+    : d(new UserPrivate{ })
 {
     d->inter = std::move(ptr);
 
@@ -59,9 +59,12 @@ User::User(AccountsUserPtr ptr)
     d->updateUserData();
 }
 
-User::User(const QString &userName, uid_t uid, gid_t gid,
-           const QString &homeDir, const QString &fullName)
-    : d(new UserPrivate{})
+User::User(const QString &userName,
+           uid_t uid,
+           gid_t gid,
+           const QString &homeDir,
+           const QString &fullName)
+    : d(new UserPrivate{ })
 {
     d->userName = userName;
     d->uid = uid;
@@ -165,5 +168,5 @@ QString User::toString(AccountTypes type) noexcept
         qCWarning(treelandGreeter) << "ignore other types.";
     }
 
-    return {};
+    return { };
 }

@@ -2,22 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "shortcutrunner.h"
-#include "seat/helper.h"
-#include "treelandconfig.hpp"
-#include "shortcutcontroller.h"
-#include "workspace/workspace.h"
-#include "modules/window-management/windowmanagementinterfacev1.h"
-#include "core/rootsurfacecontainer.h"
-#include "surface/surfacewrapper.h"
-#include "utils/fpsdisplaymanager.h"
-#include "interfaces/multitaskviewinterface.h"
-#include "core/lockscreen.h"
+
 #include "core/qmlengine.h"
+#include "core/rootsurfacecontainer.h"
+#include "interfaces/multitaskviewinterface.h"
+#include "modules/greeter/lockscreen.h"
+#include "modules/window-management/windowmanagementinterfacev1.h"
+#include "output/output.h"
+#include "qwayland-server-treeland-shortcut-manager-v2.h"
+#include "seat/helper.h"
+#include "shortcutcontroller.h"
+#include "surface/surfacewrapper.h"
+#include "treelandconfig.hpp"
+#include "utils/fpsdisplaymanager.h"
+#include "workspace/workspace.h"
 #include "workspaceanimationcontroller.h"
 #include "woutputrenderwindow.h"
-#include "output/output.h"
-
-#include "qwayland-server-treeland-shortcut-manager-v2.h"
 
 static bool isModifierKeyInMask(int key, Qt::KeyboardModifiers mods)
 {
@@ -43,7 +43,10 @@ ShortcutRunner::ShortcutRunner(QObject *parent)
     connect(m_quickSwitchTimer, &QTimer::timeout, this, &ShortcutRunner::onQuickSwitchTimeout);
 }
 
-void ShortcutRunner::onActionTrigger(ShortcutAction action, const QString &name, bool isGesture, ShortcutController::KeyFlags keyFlags)
+void ShortcutRunner::onActionTrigger(ShortcutAction action,
+                                     const QString &name,
+                                     bool isGesture,
+                                     ShortcutController::KeyFlags keyFlags)
 {
     Q_UNUSED(isGesture)
     auto *helper = Helper::instance();
@@ -94,9 +97,11 @@ void ShortcutRunner::onActionTrigger(ShortcutAction action, const QString &name,
             break;
         }
         if (helper->m_showDesktop == WindowManagementInterfaceV1::DesktopState::Normal)
-            helper->m_windowManagementInterfaceV1->setDesktopState(WindowManagementInterfaceV1::DesktopState::Show);
+            helper->m_windowManagementInterfaceV1->setDesktopState(
+                WindowManagementInterfaceV1::DesktopState::Show);
         else if (helper->m_showDesktop == WindowManagementInterfaceV1::DesktopState::Show)
-            helper->m_windowManagementInterfaceV1->setDesktopState(WindowManagementInterfaceV1::DesktopState::Normal);
+            helper->m_windowManagementInterfaceV1->setDesktopState(
+                WindowManagementInterfaceV1::DesktopState::Normal);
         break;
     case ShortcutAction::Maximize: {
         auto surface = helper->activatedSurface();
@@ -128,22 +133,22 @@ void ShortcutRunner::onActionTrigger(ShortcutAction action, const QString &name,
     }
     case ShortcutAction::ShowWindowMenu:
         if (helper->m_activatedSurface) {
-            Q_EMIT helper->m_activatedSurface->requestShowWindowMenu({0, 0});
+            Q_EMIT helper->m_activatedSurface->requestShowWindowMenu({ 0, 0 });
         }
         break;
     case ShortcutAction::OpenMultiTaskView:
-        if (!helper->m_multitaskView ||
-            (helper->currentMode() != Helper::CurrentMode::Normal
-             && helper->currentMode() != Helper::CurrentMode::Multitaskview)) {
+        if (!helper->m_multitaskView
+            || (helper->currentMode() != Helper::CurrentMode::Normal
+                && helper->currentMode() != Helper::CurrentMode::Multitaskview)) {
             break;
         }
         helper->m_multitaskView->setStatus(IMultitaskView::Exited);
         helper->m_multitaskView->toggleMultitaskView(IMultitaskView::ActiveReason::ShortcutKey);
         break;
     case ShortcutAction::CloseMultiTaskView:
-        if (!helper->m_multitaskView ||
-            (helper->currentMode() != Helper::CurrentMode::Normal
-             && helper->currentMode() != Helper::CurrentMode::Multitaskview)) {
+        if (!helper->m_multitaskView
+            || (helper->currentMode() != Helper::CurrentMode::Normal
+                && helper->currentMode() != Helper::CurrentMode::Multitaskview)) {
             break;
         }
         helper->m_multitaskView->setStatus(IMultitaskView::Active);
@@ -154,7 +159,8 @@ void ShortcutRunner::onActionTrigger(ShortcutAction action, const QString &name,
             || helper->currentMode() == Helper::CurrentMode::Multitaskview) {
             helper->restoreFromShowDesktop();
             if (helper->m_multitaskView) {
-                helper->m_multitaskView->toggleMultitaskView(IMultitaskView::ActiveReason::ShortcutKey);
+                helper->m_multitaskView->toggleMultitaskView(
+                    IMultitaskView::ActiveReason::ShortcutKey);
             }
         }
         break;
@@ -162,14 +168,14 @@ void ShortcutRunner::onActionTrigger(ShortcutAction action, const QString &name,
         helper->toggleFpsDisplay();
         break;
     case ShortcutAction::Lockscreen:
-#ifndef DISABLE_DDM
-        if (helper->m_lockScreen && helper->m_lockScreen->available() && helper->currentMode() == Helper::CurrentMode::Normal) {
+        if (helper->m_lockScreen && helper->m_lockScreen->available()
+            && helper->currentMode() == Helper::CurrentMode::Normal) {
             helper->showLockScreen();
         }
-#endif
         break;
     case ShortcutAction::ShutdownMenu:
-        if (helper->m_lockScreen && helper->m_lockScreen->available() && helper->currentMode() == Helper::CurrentMode::Normal) {
+        if (helper->m_lockScreen && helper->m_lockScreen->available()
+            && helper->currentMode() == Helper::CurrentMode::Normal) {
             helper->setCurrentMode(Helper::CurrentMode::LockScreen);
             helper->m_lockScreen->shutdown();
             helper->setWorkspaceVisible(false);
@@ -182,8 +188,10 @@ void ShortcutRunner::onActionTrigger(ShortcutAction action, const QString &name,
     case ShortcutAction::TaskSwitchPrev:
     case ShortcutAction::TaskSwitchSameAppNext:
     case ShortcutAction::TaskSwitchSameAppPrev: {
-        const bool isSameApp = (action == ShortcutAction::TaskSwitchSameAppNext || action == ShortcutAction::TaskSwitchSameAppPrev);
-        const bool isPrev = (action == ShortcutAction::TaskSwitchPrev || action == ShortcutAction::TaskSwitchSameAppPrev);
+        const bool isSameApp = (action == ShortcutAction::TaskSwitchSameAppNext
+                                || action == ShortcutAction::TaskSwitchSameAppPrev);
+        const bool isPrev = (action == ShortcutAction::TaskSwitchPrev
+                             || action == ShortcutAction::TaskSwitchSameAppPrev);
         taskswitchAction(keyFlags.testFlag(ShortcutController::Repeat), isSameApp, isPrev);
         break;
     }
@@ -202,15 +210,13 @@ void ShortcutRunner::onActionProgress(ShortcutAction action, qreal progress, con
     case ShortcutAction::NextWorkspace:
         updateWorkspaceSwipe(progress);
         break;
-    case ShortcutAction::OpenMultiTaskView:
-    {
+    case ShortcutAction::OpenMultiTaskView: {
         auto helper = Helper::instance();
         if (helper->m_multitaskView)
             helper->m_multitaskView->updatePartialFactor(progress);
         break;
     }
-    case ShortcutAction::CloseMultiTaskView:
-    {
+    case ShortcutAction::CloseMultiTaskView: {
         auto helper = Helper::instance();
         if (helper->m_multitaskView)
             helper->m_multitaskView->updatePartialFactor(-progress);
@@ -229,8 +235,7 @@ void ShortcutRunner::onActionFinish(ShortcutAction action, const QString &name, 
     case ShortcutAction::NextWorkspace:
         finishWorkspaceSwipe();
         break;
-    case ShortcutAction::OpenMultiTaskView:
-    {
+    case ShortcutAction::OpenMultiTaskView: {
         auto helper = Helper::instance();
         if (!helper->m_multitaskView)
             break;
@@ -238,8 +243,7 @@ void ShortcutRunner::onActionFinish(ShortcutAction action, const QString &name, 
         helper->m_multitaskView->toggleMultitaskView(IMultitaskView::ActiveReason::Gesture);
         break;
     }
-    case ShortcutAction::CloseMultiTaskView:
-    {
+    case ShortcutAction::CloseMultiTaskView: {
         auto helper = Helper::instance();
         if (!helper->m_multitaskView)
             break;
@@ -347,7 +351,8 @@ void ShortcutRunner::finishWorkspaceSwipe()
 void ShortcutRunner::taskswitchAction(bool isRepeat, bool isSameApp, bool isPrev)
 {
     auto *helper = Helper::instance();
-    if (helper->currentMode() != Helper::CurrentMode::Normal && helper->currentMode() != Helper::CurrentMode::WindowSwitch)
+    if (helper->currentMode() != Helper::CurrentMode::Normal
+        && helper->currentMode() != Helper::CurrentMode::WindowSwitch)
         return;
 
     if (!isRepeat && helper->currentMode() == Helper::CurrentMode::Normal) {
@@ -367,7 +372,10 @@ void ShortcutRunner::taskswitchAction(bool isRepeat, bool isSameApp, bool isPrev
         auto output = helper->rootSurfaceContainer()->primaryOutput();
         helper->m_taskSwitch = helper->qmlEngine()->createTaskSwitcher(output, contentItem);
         helper->restoreFromShowDesktop();
-        QObject::connect(helper->m_taskSwitch, SIGNAL(switchOnChanged()), helper, SLOT(deleteTaskSwitch()));
+        QObject::connect(helper->m_taskSwitch,
+                         SIGNAL(switchOnChanged()),
+                         helper,
+                         SLOT(deleteTaskSwitch()));
         helper->m_taskSwitch->setZ(RootSurfaceContainer::OverlayZOrder);
     }
 

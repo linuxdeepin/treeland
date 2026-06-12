@@ -6,7 +6,6 @@ import QtQuick.Layouts
 import QtQuick.Controls
 
 import Treeland
-import LockScreen
 
 Popup {
     id: popup

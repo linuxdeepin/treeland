@@ -1,6 +1,6 @@
 /**************************************************************************
  * Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
- * Copyright (c) 2015-2016 Pier Luigi Fiorini <pierluigi.fiorini@gmail.com>
+ * Copyright (c) 2015-2016 Pier Luigi Fiorini <pierluigi@gmail.com>
  * Copyright (c) 2013 Abdurrahman AVCI <abdurrahmanavci@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -17,11 +17,11 @@
  * along with this program; if not, write to the
  * Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- ***************************************************************************/
+ **************************************************************************/
 
 #pragma once
 
-#include <Session.h>
+#include <rep_ddmremote_replica.h>
 
 #include <QAbstractListModel>
 #include <QHash>
@@ -47,26 +47,43 @@ public:
     };
     Q_ENUM(SessionRole)
 
-    SessionModel(QObject *parent = nullptr);
-    ~SessionModel();
+    enum SessionType
+    {
+        UnknownSession = 0,
+        X11Session = 1,
+        WaylandSession = 2,
+    };
+    Q_ENUM(SessionType)
+
+    explicit SessionModel(QObject *parent = nullptr);
 
     QHash<int, QByteArray> roleNames() const override;
 
-    inline int currentIndex() const { return m_currentIndex; };
+    int currentIndex() const
+    {
+        return m_currentIndex;
+    }
+
     void setCurrentIndex(int index);
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
 
+    void setSessions(const QList<SessionEntry> &sessions);
+    void setLastSession(const QString &lastSession);
+    void setRememberLastSession(bool rememberLastSession);
+
 Q_SIGNALS:
     void currentIndexChanged(int index);
 
 private:
-    void populate(DDM::Session::Type type, const QStringList &dirPaths);
+    void updateCurrentIndex();
 
     int m_currentIndex{ 0 };
-    QStringList m_displayNames{};
-    QList<DDM::Session *> m_sessions{};
+    bool m_rememberLastSession{ false };
+    QString m_lastSession;
+    QStringList m_displayNames;
+    QList<SessionEntry> m_sessions;
 };
 
 QML_DECLARE_TYPE(SessionModel)

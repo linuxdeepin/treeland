@@ -30,9 +30,7 @@ QmlEngine::QmlEngine(QObject *parent)
     , menuBarComponent(this, "Treeland", "OutputMenuBar")
     , workspaceSwitcher(this, "Treeland", "WorkspaceSwitcher")
     , newAnimationComponent(this, "Treeland", "NewAnimation")
-#ifndef DISABLE_DDM
     , lockScreenComponent(this, "Treeland", "Greeter")
-#endif
     , dockPreviewComponent(this, "Treeland", "DockPreview")
     , minimizeAnimationComponent(this, "Treeland", "MinimizeAnimation")
     , showDesktopAnimatioComponentn(this, "Treeland", "ShowDesktopAnimation")
@@ -41,7 +39,6 @@ QmlEngine::QmlEngine(QObject *parent)
     , launchpadAnimationComponent(this, "Treeland", "LaunchpadAnimation")
     , launchpadCoverComponent(this, "Treeland", "LaunchpadCover")
     , layershellAnimationComponent(this, "Treeland", "LayerShellAnimation")
-    , lockScreenFallbackComponent(this, "Treeland", "LockScreenFallback")
     , fpsDisplayComponent(this, "Treeland", "FpsDisplay")
     , prelaunchSplashComponent(this, "Treeland", "PrelaunchSplash")
 {
@@ -194,17 +191,12 @@ QQuickItem *QmlEngine::createDockPreview(QQuickItem *parent)
     return createComponent(dockPreviewComponent, parent);
 }
 
-QQuickItem *QmlEngine::createLockScreen([[maybe_unused]] Output *output,
-                                        [[maybe_unused]] QQuickItem *parent)
+QQuickItem *QmlEngine::createLockScreen(Output *output, QQuickItem *parent)
 {
-#ifndef DISABLE_DDM
     return createComponent(lockScreenComponent,
                            parent,
                            { { "output", QVariant::fromValue(output->output()) },
                              { "outputItem", QVariant::fromValue(output->outputItem()) } });
-#else
-    Q_UNREACHABLE_RETURN(nullptr);
-#endif
 }
 
 QQuickItem *QmlEngine::createMinimizeAnimation(SurfaceWrapper *surface,
@@ -245,11 +237,6 @@ QQuickItem *QmlEngine::createCaptureSelector(QQuickItem *parent, CaptureManagerV
 QQuickItem *QmlEngine::createWindowPicker(QQuickItem *parent)
 {
     return createComponent(windowPickerComponent, parent);
-}
-
-QQuickItem *QmlEngine::createLockScreenFallback(QQuickItem *parent, const QVariantMap &properties)
-{
-    return createComponent(lockScreenFallbackComponent, parent, properties);
 }
 
 QQuickItem *QmlEngine::createFpsDisplay(QQuickItem *parent)

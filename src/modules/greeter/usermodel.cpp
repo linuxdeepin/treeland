@@ -21,10 +21,8 @@
 #include "usermodel.h"
 
 #include "common/treelandlogging.h"
-#include "helper.h"
+#include "seat/helper.h"
 #include "session/session.h"
-
-#include <Configuration.h>
 
 #include <DDBusInterface>
 
@@ -37,17 +35,17 @@
 #include <QTextStream>
 #include <QTranslator>
 
-#include <memory>
 #include <algorithm>
+#include <memory>
 #include <pwd.h>
 
-using namespace DDM;
 DACCOUNTS_USE_NAMESPACE
 
 struct UserModelPrivate
 {
     bool containsAllUsers{ true };
     int lastIndex{ 0 };
+    QString lastUser;
     QString currentUserName;
     DAccountsManager manager;
     QTranslator *lastTrans{ nullptr };
@@ -112,19 +110,9 @@ UserModel::UserModel(QObject *parent)
         return u1->userName() < u2->userName();
     });
 
-    // find out index of the last user
-    auto lastUserName = stateConfig.Last.User.get();
-
-    for (const auto &user : d->users) {
-        if (user->userName() == lastUserName) {
-            d->lastIndex = d->users.indexOf(user);
-            d->currentUserName = user->userName();
-            break;
-        }
-    }
-
     if (d->currentUserName.isEmpty()) {
-        qCWarning(treelandGreeter) << "Couldn't find last user, using current running user as current user";
+        qCWarning(treelandGreeter)
+            << "Couldn't find last user, using current running user as current user";
         d->currentUserName = d->users.first()->userName();
     }
 }
@@ -155,9 +143,27 @@ int UserModel::lastIndex() const
     return d->lastIndex;
 }
 
-QString UserModel::lastUser()
+QString UserModel::lastUser() const
 {
-    return stateConfig.Last.User.get();
+    return d->lastUser;
+}
+
+void UserModel::setLastUser(const QString &userName)
+{
+    if (d->lastUser == userName)
+        return;
+
+    d->lastUser = userName;
+    d->lastIndex = 0;
+    for (const auto &user : d->users) {
+        if (user->userName() == userName) {
+            d->lastIndex = d->users.indexOf(user);
+            d->currentUserName = user->userName();
+            break;
+        }
+    }
+    Q_EMIT lastUserChanged();
+    Q_EMIT currentUserNameChanged();
 }
 
 int UserModel::rowCount(const QModelIndex &parent) const
@@ -192,7 +198,7 @@ void UserModel::clearUserLoginState()
 QVariant UserModel::data(const QModelIndex &index, int role) const
 {
     if (index.row() < 0 || index.row() > d->users.count()) {
-        return {};
+        return { };
     }
 
     // get user
@@ -219,7 +225,7 @@ QVariant UserModel::data(const QModelIndex &index, int role) const
     case LocaleRole:
         return user->locale();
     default:
-        return {};
+        return { };
     }
 }
 
@@ -253,7 +259,7 @@ QVariant UserModel::get(int index) const
 {
     QVariantMap map;
     if (index < 0 or index > d->users.count()) {
-        return {};
+        return { };
     }
 
     auto user = d->users.at(index);
@@ -316,8 +322,9 @@ void UserModel::setCurrentUserName(const QString &userName) noexcept
 
     for (const auto &user : d->users) {
         if (user->waylandSocket()) {
-            user->waylandSocket()->setEnabled(user->userName() == userName,
-                                              Helper::instance()->sessionManager()->globalSession()->socket());
+            user->waylandSocket()->setEnabled(
+                user->userName() == userName,
+                Helper::instance()->sessionManager()->globalSession()->socket());
         }
     }
 
@@ -364,8 +371,9 @@ bool UserModel::tryAddNssUser(const QString &userName)
     }
 
     // Already in model?
-    bool found = std::any_of(d->users.cbegin(), d->users.cend(),
-                             [&userName](const UserPtr &u) { return u->userName() == userName; });
+    bool found = std::any_of(d->users.cbegin(), d->users.cend(), [&userName](const UserPtr &u) {
+        return u->userName() == userName;
+    });
     if (found) {
         qCInfo(treelandGreeter) << "NSS user already in model:" << userName;
         return true;
@@ -384,12 +392,11 @@ bool UserModel::tryAddNssUser(const QString &userName)
 
     qCInfo(treelandGreeter) << "Adding NSS/LDAP user to model:" << userName;
     beginResetModel();
-    d->users.emplace_back(std::make_unique<User>(
-        userName,
-        static_cast<uid_t>(pw->pw_uid),
-        static_cast<gid_t>(pw->pw_gid),
-        QString::fromLocal8Bit(pw->pw_dir),
-        fullName));
+    d->users.emplace_back(std::make_unique<User>(userName,
+                                                 static_cast<uid_t>(pw->pw_uid),
+                                                 static_cast<gid_t>(pw->pw_gid),
+                                                 QString::fromLocal8Bit(pw->pw_dir),
+                                                 fullName));
     std::sort(d->users.begin(), d->users.end(), [](const UserPtr &u1, const UserPtr &u2) {
         return u1->userName() < u2->userName();
     });
