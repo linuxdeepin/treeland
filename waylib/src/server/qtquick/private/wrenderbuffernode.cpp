@@ -3,11 +3,14 @@
 
 #include <QDebug>
 
+#include "wrenderhelper.h"
 #include "wrenderbuffernode_p.h"
 #include "wbufferrenderer_p.h"
 #include "wqmlhelper_p.h"
 #include "platformplugin/types.h"
 #include "private/wprivateaccessor_p.h"
+
+#include <qwtexture.h>
 
 #include <QQuickItem>
 #include <QRunnable>
@@ -202,7 +205,7 @@ public:
         return owner->findChild<Derive*>({}, Qt::FindDirectChildrenOnly);
     }
 
-    static DataManagerPointer<Derive> resolve(const DataManagerPointer<Derive> &other, QQuickWindow *owner) {
+    static DataManagerPointer<Derive> resolveByOwner(const DataManagerPointer<Derive> &other, QQuickWindow *owner) {
         static_assert(QtPrivate::HasQ_OBJECT_Macro<Derive>::Value, "Derive must have Q_OBJECT macro");
         Q_ASSERT(owner);
         if (other && other->owner() == owner)
@@ -234,7 +237,7 @@ public:
         {
             auto d = data.lock();
             if (d && dataList.contains(d)) {
-                if (get()->check(d->data, keys...)) {
+                if (get()->check(d->data, std::forward<DataKeys>(keys)...)) {
                     d->released = 0;
                     return data;
                 }
@@ -243,7 +246,7 @@ public:
         }
 
         for (auto data : std::as_const(dataList)) {
-            if (get()->check(data->data, keys...)) {
+            if (get()->check(data->data, std::forward<DataKeys>(keys)...)) {
                 data->released = 0;
                 return data;
             }
@@ -342,33 +345,51 @@ protected:
     QRunnable *cleanJob = nullptr;
 };
 
-class Q_DECL_HIDDEN RhiTextureManager : public DataManager<RhiTextureManager, QRhiTexture, QRhiTexture::Format, const QSize&>
+struct WlrAndRhiTexture {
+    struct wlr_buffer *buffer = nullptr;
+    qw_texture *wlrTexture = nullptr;
+    QRhiTexture *rhiTexture = nullptr;
+};
+
+class Q_DECL_HIDDEN RhiTextureManager : public DataManager<RhiTextureManager, WlrAndRhiTexture, QRhiTexture::Format, uint32_t, uint64_t, const QSize&>
 {
     Q_OBJECT
 
     friend class DataManager;
 
     RhiTextureManager(QQuickWindow *owner)
-        : DataManager<RhiTextureManager, QRhiTexture, QRhiTexture::Format, const QSize&>(owner) {
+        : DataManager<RhiTextureManager, WlrAndRhiTexture, QRhiTexture::Format, uint32_t, uint64_t, const QSize&>(owner) {
         Q_ASSERT(owner->findChildren<RhiTextureManager*>(Qt::FindDirectChildrenOnly).size() == 1);
     }
 
-    static bool check(QRhiTexture *texture, QRhiTexture::Format format, const QSize &size) {
-        return texture->format() == format && texture->pixelSize() == size;
-    }
-
-    QRhiTexture *create(QRhiTexture::Format format, const QSize &size) {
-        auto texture = owner()->rhi()->newTexture(format, size, 1, QRhiTexture::RenderTarget);
-        if  (!texture->create()) {
-            delete texture;
-            return nullptr;
+    static bool check(WlrAndRhiTexture *texture, QRhiTexture::Format, uint32_t drmFormat, uint64_t drmModifier, const QSize &size) {
+        auto buffer = texture->buffer;
+        wlr_dmabuf_attributes attribs;
+        if (!wlr_buffer_get_dmabuf(buffer, &attribs)) {
+            qWarning() << "Failed to get dmabuf attributes for texture" << texture << "with buffer" << buffer
+                       << ", Can't check texture without dmabuf attributes";
+            return false;
         }
-
-        return texture;
+        return attribs.format == drmFormat && attribs.modifier == drmModifier && texture->rhiTexture->pixelSize() == size;
     }
 
-    static void destroy(QRhiTexture *texture) {
-        texture->deleteLater();
+    WlrAndRhiTexture *create(QRhiTexture::Format format, uint32_t drmFormat, uint64_t drmModifier, const QSize &size) {
+        auto ow = qobject_cast<WOutputRenderWindow*>(owner());
+        auto texture = WRenderHelper::newTexture(ow->allocator(), ow->renderer(),
+                                                 drmFormat, drmModifier, owner()->rhi(),
+                                                 size, format, QRhiTexture::RenderTarget);
+        if (!texture.rhiTexture)
+            return nullptr;
+
+        return new WlrAndRhiTexture{texture.buffer, texture.texture, texture.rhiTexture};
+    }
+
+    static void destroy(WlrAndRhiTexture *texture) {
+        delete texture->rhiTexture;
+        delete texture->wlrTexture;
+        if (texture->buffer)
+            wlr_buffer_drop(texture->buffer);
+        delete texture;
     }
 };
 
@@ -698,6 +719,18 @@ public:
             return;
         }
 
+        auto buffer = WRenderHelper::lookupBuffer(ct);
+        if (!buffer) {
+            reset();
+            return;
+        }
+
+        wlr_dmabuf_attributes attribs;
+        if (!buffer->get_dmabuf(&attribs)) {
+            reset();
+            return;
+        }
+
         const auto currentRenderer = maybeBufferRenderer();
         // TODO: Apple viewport to matrix, needs get QSGRenderer
         renderMatrix = currentRenderer
@@ -705,7 +738,7 @@ public:
                            : *this->matrix();
         devicePixelRatio = effectiveDevicePixelRatio();
         const auto oldManager = manager;
-        manager = RhiTextureManager::resolve(manager, window);
+        manager = RhiTextureManager::resolveByOwner(manager, window);
 
         if (oldManager != manager) {
             sgTexture()->setTexture(nullptr);
@@ -715,7 +748,7 @@ public:
         }
 
         Q_ASSERT(ct->rhi() == window->rhi());
-        rhi = rhi->resolve(rhi, window);
+        rhi = rhi->resolveByOwner(rhi, window);
         Q_ASSERT(rhi);
 
         const bool hasRotation = renderMatrix.flags().testAnyFlags(QMatrix4x4::Rotation2D | QMatrix4x4::Rotation);
@@ -752,7 +785,11 @@ public:
             pixelSize = size.toSize();
         }
 
-        texture = manager->resolve(texture, ct->format(), pixelSize);
+        {
+            auto format = attribs.format;
+            auto modifier = attribs.modifier;
+            texture = manager->resolve(texture, ct->format(), std::move(format), std::move(modifier), pixelSize);
+        }
         if (Q_UNLIKELY(texture.expired())) {
             reset();
             return;
@@ -761,8 +798,8 @@ public:
         Q_ASSERT(texture->data);
 
         if (renderData) {
-            if (!renderData->rt || sgTexture()->rhiTexture() != texture->data) {
-                QRhiTextureRenderTargetDescription rtDesc(texture->data);
+            if (!renderData->rt || sgTexture()->rhiTexture() != texture->data->rhiTexture) {
+                QRhiTextureRenderTargetDescription rtDesc(texture->data->rhiTexture);
                 const auto flags = QRhiTextureRenderTarget::PreserveColorContents
                     | QRhiTextureRenderTarget::PreserveDepthStencilContents;
                 auto newRT = rhi->rhi()->newTextureRenderTarget(rtDesc, flags);
@@ -785,10 +822,10 @@ public:
     }
 
     void render([[maybe_unused]] const RenderState *state) override {
-
         auto texture = this->texture.lock();
         if (Q_UNLIKELY(!texture))
             return;
+        auto rhiTexture = texture->data->rhiTexture;
 
         auto ct = currentRenderTexture();
         Q_ASSERT(ct);
@@ -800,13 +837,13 @@ public:
             const QPointF sourcePos = renderMatrix.map(m_rect.topLeft());
             renderData->imageNode->setRect(QRectF(-(devicePixelRatio - 1) * sourcePos, ct->pixelSize()));
 
-            rhi->sync(texture->data->pixelSize(), &renderData->rootNode, renderMatrix.inverted(), {}, nullptr,
-                      {texture->data->pixelSize().width() / float(m_rect.width() * devicePixelRatio),
-                       texture->data->pixelSize().height() / float(m_rect.height() * devicePixelRatio)});
+            rhi->sync(rhiTexture->pixelSize(), &renderData->rootNode, renderMatrix.inverted(), {}, nullptr,
+                      {rhiTexture->pixelSize().width() / float(m_rect.width() * devicePixelRatio),
+                       rhiTexture->pixelSize().height() / float(m_rect.height() * devicePixelRatio)});
             rhi->render(renderData->rt.get());
         } else {
             const QPoint sourcePos = (renderMatrix.map(m_rect.topLeft()) * devicePixelRatio).toPoint();
-            const QRect sourceTextureRect(sourcePos, texture->data->pixelSize());
+            const QRect sourceTextureRect(sourcePos, rhiTexture->pixelSize());
             const QRect renderTargetRect(QPoint(0, 0), ct->pixelSize());
             const QRect copySourceRect = sourceTextureRect.intersected(renderTargetRect);
             if (copySourceRect.isEmpty())
@@ -818,7 +855,7 @@ public:
             desc.setPixelSize(copySourceRect.size());
             desc.setSourceTopLeft(copySourceRect.topLeft());
             desc.setDestinationTopLeft(copySourceRect.topLeft() - sourcePos);
-            rub->copyTexture(texture->data, ct, desc);
+            rub->copyTexture(rhiTexture, ct, desc);
 
             QRhiCommandBuffer *cb = nullptr;
             if (rhi->beginOffscreenFrame(&cb) != QRhi::FrameOpSuccess)
@@ -830,8 +867,8 @@ public:
             rhi->endOffscreenFrame();
         }
 
-        if (sgTexture()->rhiTexture() != texture->data)
-            sgTexture()->setTexture(texture->data);
+        if (sgTexture()->rhiTexture() != rhiTexture)
+            sgTexture()->setTexture(rhiTexture);
         doNotifyTextureChanged();
 
         if (contentNode) {
@@ -1085,7 +1122,7 @@ public:
         const auto matrix = /*(sgRenderer && sgRenderer->renderTarget().paintDevice == p->device())
             ? currentRenderer->currentWorldTransform() * (*this->matrix()) :*/ *this->matrix();
         const auto oldManager = manager;
-        manager = QImageManager::resolve(manager, window);
+        manager = QImageManager::resolveByOwner(manager, window);
 
         if (oldManager != manager) {
             texture()->setTexture(nullptr);

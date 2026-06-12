@@ -19,10 +19,13 @@ QT_END_NAMESPACE
 
 QW_BEGIN_NAMESPACE
 class qw_renderer;
+class qw_allocator;
 class qw_backend;
 class qw_buffer;
 class qw_texture;
 QW_END_NAMESPACE
+
+struct wlr_buffer;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -53,6 +56,22 @@ public:
     static QSGRendererInterface::GraphicsApi probe(QW_NAMESPACE::qw_backend *testBackend, const QList<QSGRendererInterface::GraphicsApi> &apiList);
 
     static bool makeTexture(QRhi *rhi, QW_NAMESPACE::qw_texture *handle, QSGPlainTexture *texture);
+
+    struct TextureEntry {
+        wlr_buffer *buffer;
+        QW_NAMESPACE::qw_texture *texture;
+        QRhiTexture *rhiTexture;
+    };
+    static TextureEntry newTexture(QW_NAMESPACE::qw_allocator *allocator,
+                                   QW_NAMESPACE::qw_renderer *renderer,
+                                   uint32_t drmFormat, uint64_t drmModifier,
+                                   QRhi *rhi, const QSize &size,
+                                   int rhiFormat, int rhiFlags);
+    static TextureEntry newTextureLike(QW_NAMESPACE::qw_allocator *allocator,
+                                       QW_NAMESPACE::qw_renderer *renderer,
+                                       QRhiTexture *texture, QRhi *rhi, int rhiFlags);
+    static QW_NAMESPACE::qw_buffer *lookupBuffer(const QRhiRenderTarget *rt);
+    static QW_NAMESPACE::qw_buffer *lookupBuffer(const QRhiTexture *texture);
 
 Q_SIGNALS:
     void sizeChanged();
