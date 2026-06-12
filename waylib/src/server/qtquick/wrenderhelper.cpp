@@ -814,11 +814,6 @@ static QRhiTexture::Format drmFormatToRhiFormat(uint32_t drmFormat)
         return QRhiTexture::BGRA8;
     case DRM_FORMAT_RGB565:
         return QRhiTexture::R16;
-    case DRM_FORMAT_RGBA4444:
-    case DRM_FORMAT_RGBX4444:
-    case DRM_FORMAT_RGBA5551:
-    case DRM_FORMAT_RGBX5551:
-        return QRhiTexture::RGBA16;
     case DRM_FORMAT_ARGB2101010:
     case DRM_FORMAT_XRGB2101010:
     case DRM_FORMAT_ABGR2101010:
@@ -832,13 +827,11 @@ static QRhiTexture::Format drmFormatToRhiFormat(uint32_t drmFormat)
         return QRhiTexture::RGBA8;
     }
 }
-
 // Resource structure for DRM format textures
 // NOTE: This static mapping table is only safe to use on Qt Quick scene graph render thread.
 // All operations (create/register/unregister) must happen on the same thread to avoid race conditions.
 struct TextureResources {
     qw_swapchain *swapchain = nullptr;
-    qw_buffer *buffer = nullptr;
     qw_texture *texture = nullptr;
 };
 
@@ -910,10 +903,6 @@ QRhiTexture *WRenderHelper::createTextureFromDRMFormat(QRhi *rhi, qw_allocator *
 {
     if (!allocator || !renderer || !rhi)
         return nullptr;
-    // Only support OpenGL backend for now
-    if (!wlr_renderer_is_gles2(renderer->handle()))
-        return nullptr;
-
 
     auto format = pickRenderFormat(renderer, drmFormat);
     if (!format)
@@ -932,7 +921,12 @@ QRhiTexture *WRenderHelper::createTextureFromDRMFormat(QRhi *rhi, qw_allocator *
     auto buffer = qw_buffer::from(wbuffer);
     auto texture = qw_texture::from_buffer(*renderer, *buffer);
     if (!texture) {
-        buffer->unref();
+        delete swapchain;
+        return nullptr;
+    }
+
+    // Only support OpenGL backend for now
+    if (!wlr_renderer_is_gles2(renderer->handle())) {
         delete swapchain;
         return nullptr;
     }
@@ -943,21 +937,19 @@ QRhiTexture *WRenderHelper::createTextureFromDRMFormat(QRhi *rhi, qw_allocator *
     QRhiTexture *rhiTexture = rhi->newTexture(drmFormatToRhiFormat(drmFormat), size, 1, QRhiTexture::RenderTarget);
     if (!rhiTexture || !rhiTexture->createFrom({attribs.tex, 0})) {
         delete rhiTexture;
-        buffer->unref();
         delete swapchain;
         return nullptr;
     }
 
     // Store complete resources for cleanup
+    // Note: buffer lifecycle is managed by swapchain, no need to store separately
     TextureResources resources;
     resources.swapchain = swapchain;
-    resources.buffer = buffer;
     resources.texture = texture;
     s_textureResources[rhiTexture] = resources;
     
     return rhiTexture;
 }
-
 QRhiTexture *WRenderHelper::createMatchingTexture(QRhi *rhi, qw_allocator *allocator,
                                                    qw_renderer *renderer,
                                                    QSGTexture *sourceTexture)
@@ -982,24 +974,6 @@ QRhiTexture *WRenderHelper::createMatchingTexture(QRhi *rhi, qw_allocator *alloc
     return createTextureFromDRMFormat(rhi, allocator, renderer, drmFormat, rhiTexture->pixelSize());
 }
 
-qw_buffer *WRenderHelper::getBufferFromTexture(QRhiTexture *texture)
-{
-    if (!s_textureResources.contains(texture))
-        return nullptr;
-    return s_textureResources[texture].buffer;
-}
-
-void WRenderHelper::registerTextureBuffer(QRhiTexture *texture, qw_buffer *buffer)
-{
-    if (!texture || !buffer)
-        return;
-    
-    // Only register if not already created via DRM format path
-    if (!s_textureResources.contains(texture)) {
-        TextureResources resources;
-        resources.buffer = buffer;
-        s_textureResources[texture] = resources;
-    }
 }
 
 void WRenderHelper::unregisterTexture(QRhiTexture *texture)
@@ -1011,10 +985,6 @@ void WRenderHelper::unregisterTexture(QRhiTexture *texture)
     
     // Clean up all resources in reverse creation order
     if (resources.buffer) {
-        resources.buffer->unref();
-    }
-    
-    if (resources.texture) {
         delete resources.texture;
     }
     
