@@ -1,3 +1,30 @@
+treeland (0.8.9) unstable; urgency=medium
+
+  * feat: disable maximize for non-maximizable windows
+  * fix(lockscreen): fix lockscreen display after TTY switch
+  * feat(input): distinguishing between libinput mouse and touchpad
+    functions
+  * fix(taskswitch): snapshot surface position before exit animation to
+    avoid state pollution
+  * fix(shortcut): rewrite Alt+Tab task switch with multi-modifier
+    release detection
+  * feat(input): add libinput NaturalScroll detection
+  * fix(input): allow layer shell windows to receive keyboard focus on
+    click
+  * fix(surface): fullscreen window size reduced by titlebar height
+  * fix(keyboard-state-notify): use keyboardGroupKeyboard() to prevent
+    crash
+  * fix: decouple title bar palette from DTK style constants
+  * fix(input): allow Esc key to cancel move/resize operation
+  * fix(foreign-toplevel): remove redundant output_leave connection on
+    output destroy
+  * feat(input): support virtual keyboard in keyboard group
+  * feat(keyboard-state-notify): use the keyboard in the keyboard-group
+  * fix(surface): keep subsurface registry in sync
+  * feat(input): add keyboard group support to WSeat
+
+ -- rewine <luhongxu@deepin.org>  Fri, 12 Jun 2026 15:46:37 +0800
+
 treeland (0.8.8) unstable; urgency=medium
 
   * fix: skip update on destroyed xwayland parent
