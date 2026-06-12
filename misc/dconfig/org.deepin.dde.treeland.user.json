@@ -68,17 +68,6 @@
             "permissions": "readwrite",
             "visibility": "public"
         },
-        "popupRadius": {
-            "value": 8,
-            "serial": 0,
-            "flags": ["global"],
-            "name": "Popup Round Corner Radius",
-            "name[zh_CN]": "弹出窗口圆角大小",
-            "description": "Xdg Popup Corner Round Radius",
-            "description[zh_CN]": "设置弹出窗口圆角大小",
-            "permissions": "readwrite",
-            "visibility": "public"
-        },
         "preferDark": {
             "value": false,
             "serial": 0,
