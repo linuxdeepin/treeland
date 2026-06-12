@@ -13,6 +13,7 @@ RuntimeDirectory=treeland
 RuntimeDirectoryMode=0700
 Environment="XDG_RUNTIME_DIR=%t/treeland"
 Environment=LIBSEAT_BACKEND=seatd
+Environment=SEATD_SOCK=/run/dde-seatd.sock
 Environment=DSG_APP_ID=org.deepin.dde.treeland
 Environment=ASAN_SYMBOLIZER_PATH=/usr/bin/llvm-symbolizer
 # For Debug: if enable asan, you can't get it's log from journalctl, so ensure the log to a file
@@ -27,8 +28,14 @@ StandardOutput=null
 StandardError=null
 
 NoNewPrivileges=true
-OOMScoreAdjust=-300
-Nice=-15
+OOMScoreAdjust=-1000
+Nice=-20
+CPUWeight=10000
+CPUSchedulingPolicy=rr
+CPUSchedulingPriority=20
+IOWeight=10000
+IOSchedulingClass=realtime
+IOSchedulingPriority=0
 
 # Enable MemoryDenyWriteExecute will cause Treeland crash in certain
 # condition (observed on arm64 virtual machine). The coredump indicate
