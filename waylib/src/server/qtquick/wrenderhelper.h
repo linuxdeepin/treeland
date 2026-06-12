@@ -22,6 +22,7 @@ class qw_renderer;
 class qw_backend;
 class qw_buffer;
 class qw_texture;
+class qw_allocator;
 QW_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
