@@ -1146,15 +1146,6 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
         };
         connect(attached, &Personalization::backgroundTypeChanged, this, updateBlur);
         updateBlur();
-
-        auto updateRadius = [attached] {
-            attached->surfaceWrapper()->setRadius(attached->cornerRadius());
-        };
-        connect(attached, &Personalization::cornerRadiusChanged, this, updateRadius);
-        updateRadius();
-
-        connect(Helper::instance()->config(), &TreelandUserConfig::windowRadiusChanged, wrapper, &SurfaceWrapper::radiusChanged);
-
         if (isLayer) {
             auto layer = qobject_cast<WLayerSurface *>(wrapper->shellSurface());
             if (isLaunchpad(layer))

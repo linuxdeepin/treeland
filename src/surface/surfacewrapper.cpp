@@ -1583,15 +1583,21 @@ void SurfaceWrapper::startShowDesktopAnimation(bool show)
 
 qreal SurfaceWrapper::radius() const
 {
-    if (m_radius > 1)
-        return m_radius;
-
-    if (m_type == Type::XdgToplevel)
-        return Helper::instance()->config()->windowRadius();
+    // TODO: move to dconfig
+    if (m_type == Type::InputPopup)
+        return 0;
     if (m_type == Type::XdgPopup)
-        return Helper::instance()->config()->popupRadius();
+        return 8;
 
-    return 0;
+    qreal radius = m_radius;
+
+    // TODO: Handle: XdgToplevel, popup, InputPopup, XWayland (bypass, window type:
+    // menu/normal/popup)
+    if (radius < 1 && m_type != Type::Layer) {
+        radius = Helper::instance()->config()->windowRadius();
+    }
+
+    return radius;
 }
 
 void SurfaceWrapper::setRadius(qreal newRadius)
