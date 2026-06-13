@@ -68,12 +68,13 @@ struct Q_DECL_HIDDEN BufferData {
     inline void resetWindowRenderTarget() {
 #if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
         {
-            const auto begin = s_rhiRenderBuffers->begin();
-            while (begin != s_rhiRenderBuffers->end()) {
-                if (windowRenderTarget.rt.renderTarget == begin->renderTarget) {
-                    s_rhiRenderBuffers->erase(begin);
+            auto it = s_rhiRenderBuffers->begin();
+            while (it != s_rhiRenderBuffers->end()) {
+                if (windowRenderTarget.rt.renderTarget == it->renderTarget) {
+                    it = s_rhiRenderBuffers->erase(it);
                     break;
                 }
+                ++it;
             }
         }
 
@@ -99,12 +100,13 @@ struct Q_DECL_HIDDEN BufferData {
         windowRenderTarget.sw = {};
 #else
         {
-            const auto begin = s_rhiRenderBuffers->begin();
-            while (begin != s_rhiRenderBuffers->end()) {
-                if (windowRenderTarget.renderTarget == begin->renderTarget) {
-                    s_rhiRenderBuffers->erase(begin);
+            auto it = s_rhiRenderBuffers->begin();
+            while (it != s_rhiRenderBuffers->end()) {
+                if (windowRenderTarget.renderTarget == it->renderTarget) {
+                    it = s_rhiRenderBuffers->erase(it);
                     break;
                 }
+                ++it;
             }
         }
 
