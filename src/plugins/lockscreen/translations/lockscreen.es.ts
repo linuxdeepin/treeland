@@ -7,7 +7,7 @@
     </message>
     <message>
         <source>Do you want to back to default?</source>
-        <translation type="vanished">¿Quieres volver a la configuración predeterminada?</translation>
+        <translation type="vanished">¿Quiere volver a la configuración predeterminada?</translation>
     </message>
     <message>
         <source>This action will reboot machine, please confirm.</source>
