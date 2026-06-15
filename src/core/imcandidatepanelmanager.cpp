@@ -37,6 +37,19 @@ IMCandidatePanelManager::IMCandidatePanelManager(
             });
 }
 
+bool IMCandidatePanelManager::parseIMCandidatePanelProperty(
+    const QMap<xcb_atom_t, QByteArray> &result,
+    xcb_atom_t atom)
+{
+    auto it = result.constFind(atom);
+    if (it != result.constEnd() && it->size() >= static_cast<int>(sizeof(uint32_t))) {
+        uint32_t v = 0;
+        memcpy(&v, it->constData(), sizeof(uint32_t));
+        return v == 1;
+    }
+    return false;
+}
+
 void IMCandidatePanelManager::setupXWayland(WAYLIB_SERVER_NAMESPACE::WXWayland *xwayland)
 {
     m_xwayland = xwayland;
@@ -60,26 +73,12 @@ bool IMCandidatePanelManager::isIMCandidatePanel(
     if (m_imCandidatePanelAtom == XCB_ATOM_NONE || !m_xwayland)
         return false;
 
-    auto conn = m_xwayland->xcbConnection();
-    if (!conn)
-        return false;
+    return surface->property("imCandidatePanel").toBool();
+}
 
-    auto prop = Xcb::Property(conn,
-                              surface->handle()->handle()->window_id,
-                              m_imCandidatePanelAtom,
-                              XCB_ATOM_CARDINAL);
-    auto data = prop.toByteArray();
-
-    // Guard against truncated or empty property value (CARDINAL requires 4 bytes)
-    if (data.size() < static_cast<int>(sizeof(uint32_t)))
-        return false;
-
-    // The property value 1 means "this is an IM candidate panel".
-    // Use memcpy to avoid strict-aliasing UB; QByteArray::constData() only guarantees
-    // char alignment, which is insufficient for uint32_t on some architectures.
-    uint32_t value;
-    memcpy(&value, data.constData(), sizeof(uint32_t));
-    return value == 1;
+xcb_atom_t IMCandidatePanelManager::imCandidatePanelAtom() const
+{
+    return m_imCandidatePanelAtom;
 }
 
 bool IMCandidatePanelManager::checkAndApplyIMCandidatePanel(
@@ -219,8 +218,30 @@ void IMCandidatePanelManager::onXwaylandPropertyChanged(
 
     auto *rootContainer = m_shellHandler->rootSurfaceContainer();
     auto *wrapper = rootContainer->getSurface(surface);
-    if (!wrapper)
+
+    // Async read the property value via readAsyncProperties (non-blocking).
+    if (!m_xwayland)
         return;
 
-    checkAndApplyIMCandidatePanel(wrapper, surface);
+    auto windowId = surface->handle()->handle()->window_id;
+    QVector<WAYLIB_SERVER_NAMESPACE::WXWayland::AsyncPropRequest> requests = {
+        { m_imCandidatePanelAtom, XCB_ATOM_CARDINAL }
+    };
+    m_xwayland->readAsyncProperties(
+        windowId,
+        requests,
+        50,
+        [self = QPointer<IMCandidatePanelManager>(this),
+         surface = QPointer<WXWaylandSurface>(surface),
+         wrapper = QPointer<SurfaceWrapper>(wrapper),
+         atom = m_imCandidatePanelAtom](xcb_window_t, const QMap<xcb_atom_t, QByteArray> &result) {
+            auto *s = surface.data();
+            if (!s || !self)
+                return;
+            bool value = IMCandidatePanelManager::parseIMCandidatePanelProperty(result, atom);
+            s->setProperty("imCandidatePanel", value);
+            if (wrapper) {
+                self->checkAndApplyIMCandidatePanel(wrapper, s);
+            }
+        });
 }
