@@ -2,51 +2,32 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wxwayland.h"
-#include "wxwaylandsurface.h"
+
+#include "private/wglobal_p.h"
 #include "wseat.h"
 #include "wsocket.h"
-#include "private/wglobal_p.h"
+#include "wxwaylandsurface.h"
 
+#include <xcb/xcb.h>
+#include <xcb/xcbext.h>
+
+#include <qwcompositor.h>
+#include <qwdisplay.h>
 #include <qwseat.h>
 #include <qwxwayland.h>
 #include <qwxwaylandserver.h>
-#include <qwxwaylandsurface.h>
 #include <qwxwaylandshellv1.h>
-#include <qwdisplay.h>
-#include <qwcompositor.h>
+#include <qwxwaylandsurface.h>
 
-#include <xcb/xcb.h>
+#include <QCoreApplication>
+#include <QTimer>
+
+#include <utility>
 
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-static bool xwayland_user_event_handler(wlr_xwayland *xwayland, xcb_generic_event_t *event)
-{
-    if (!event)
-        return false;
-
-    const uint8_t response_type = event->response_type & ~0x80;
-    if (response_type != XCB_PROPERTY_NOTIFY)
-        return false;
-
-    auto *pe = reinterpret_cast<const xcb_property_notify_event_t *>(event);
-    auto *self = WXWayland::fromHandle(xwayland);
-    if (!self)
-        return false;
-
-    for (auto *surface : self->surfaceList()) {
-        QPointer<WXWaylandSurface> sp(surface);
-        if (!sp)
-            continue;
-        if (sp->handle()->handle()->window_id == pe->window) {
-            Q_EMIT self->windowPropertyChanged(sp, pe->atom);
-            break;
-        }
-    }
-
-    // Do not consume the event; let xcb and wlroots continue normal processing.
-    return false;
-}
+bool xwayland_user_event_handler(wlr_xwayland *xwayland, xcb_generic_event_t *event);
 
 // --- Xcb::Property ---
 
@@ -152,6 +133,22 @@ public:
     void on_surface_destroy(qw_xwayland_surface *xwl_surface);
     // end slot function
 
+    // Async property reading
+    struct PerWindowProps
+    {
+        QVector<WXWayland::AsyncPropRequest> requests;
+        QMap<xcb_atom_t, QByteArray> results;
+        QVector<xcb_get_property_cookie_t> cookies;
+        std::function<void(xcb_window_t, const QMap<xcb_atom_t, QByteArray> &)> callback;
+        QTimer *timer = nullptr;
+        bool propNotifySeen = false;
+    };
+
+    QMap<xcb_window_t, PerWindowProps> asyncProps;
+
+    void xcbPollReplies();
+    void xcbAsyncTimeoutForWindow(xcb_window_t windowId);
+
     W_DECLARE_PUBLIC(WXWayland)
 
     xcb_screen_t *screen = nullptr;
@@ -167,6 +164,61 @@ public:
 protected:
     void instantRelease() override;
 };
+
+bool xwayland_user_event_handler(wlr_xwayland *xwayland, xcb_generic_event_t *event)
+{
+    if (!event)
+        return false;
+
+    const uint8_t response_type = event->response_type & ~0x80;
+    if (response_type != XCB_PROPERTY_NOTIFY)
+        return false;
+
+    auto *pe = reinterpret_cast<const xcb_property_notify_event_t *>(event);
+    auto *self = WXWayland::fromHandle(xwayland);
+
+    if (!self)
+        return false;
+
+    auto *d = self->d_func();
+
+    // Trigger async property reading infrastructure if this window is being tracked.
+    if (!d->asyncProps.isEmpty()) {
+        d->xcbPollReplies();
+        auto it = d->asyncProps.find(pe->window);
+        if (it != d->asyncProps.end()) {
+            auto &props = it.value();
+            props.propNotifySeen = true;
+            // Resend requests on PROPNOTIFY to get the latest value after the change.
+            xcb_connection_t *conn = self->xcbConnection();
+            props.cookies.clear();
+            for (const auto &req : std::as_const(props.requests)) {
+                auto cookie = xcb_get_property_unchecked(conn,
+                                                         false,
+                                                         pe->window,
+                                                         req.atom,
+                                                         req.type,
+                                                         0,
+                                                         1024);
+                props.cookies.append(cookie);
+            }
+            xcb_flush(conn);
+        }
+    }
+
+    for (auto *surface : self->surfaceList()) {
+        QPointer<WXWaylandSurface> sp(surface);
+        if (!sp)
+            continue;
+        if (sp->handle()->handle()->window_id == pe->window) {
+            Q_EMIT self->windowPropertyChanged(sp, pe->atom);
+            break;
+        }
+    }
+
+    // Do not consume the event; let xcb and wlroots continue normal processing.
+    return false;
+}
 
 void WXWaylandPrivate::init()
 {
@@ -488,6 +540,171 @@ void WXWayland::destroy([[maybe_unused]] WServer *server)
 wl_global *WXWayland::global() const
 {
     return handle()->handle()->shell_v1->global;
+}
+
+void WXWayland::readAsyncProperties(
+    xcb_window_t windowId,
+    const QVector<AsyncPropRequest> &requests,
+    int timeoutMs,
+    std::function<void(xcb_window_t, const QMap<xcb_atom_t, QByteArray> &)> callback)
+{
+    W_D(WXWayland);
+
+    xcb_connection_t *conn = xcbConnection();
+    if (!conn || requests.isEmpty()) {
+        callback(windowId, QMap<xcb_atom_t, QByteArray>{});
+        return;
+    }
+
+    WXWaylandPrivate::PerWindowProps props;
+    props.requests = requests;
+    props.callback = std::move(callback);
+
+    props.cookies.reserve(requests.size());
+    for (const auto &req : std::as_const(requests)) {
+        auto cookie =
+            xcb_get_property_unchecked(conn, false, windowId, req.atom, req.type, 0, 1024);
+        props.cookies.append(cookie);
+    }
+    xcb_flush(conn);
+
+    // Create per-window timer.
+    props.timer = new QTimer(this);
+    props.timer->setSingleShot(true);
+    connect(props.timer, &QTimer::timeout, this, [d, windowId]() {
+        d->xcbAsyncTimeoutForWindow(windowId);
+    });
+    props.timer->start(timeoutMs);
+
+    d->asyncProps.insert(windowId, std::move(props));
+}
+
+void WXWaylandPrivate::xcbPollReplies()
+{
+    W_Q(WXWayland);
+
+    if (asyncProps.isEmpty())
+        return;
+
+    xcb_connection_t *conn = q->xcbConnection();
+
+    QList<xcb_window_t> toRemove;
+
+    for (auto it = asyncProps.begin(); it != asyncProps.end(); ++it) {
+        xcb_window_t windowId = it.key();
+        auto &props = it.value();
+
+        bool windowDone = true;
+        for (int i = 0; i < props.cookies.size(); ++i) {
+            if (props.results.contains(props.requests[i].atom))
+                continue; // already got this one
+
+            void *replyPtr = nullptr;
+            xcb_generic_error_t *err = nullptr;
+            int ret = xcb_poll_for_reply64(conn, props.cookies[i].sequence, &replyPtr, &err);
+
+            if (ret == 0) {
+                windowDone = false;
+                continue;
+            }
+
+            if (ret == 1 && replyPtr) {
+                auto *reply = static_cast<xcb_get_property_reply_t *>(replyPtr);
+                if (reply->type != 0 && reply->value_len > 0) {
+                    QByteArray data(static_cast<const char *>(xcb_get_property_value(reply)),
+                                    xcb_get_property_value_length(reply));
+                    props.results.insert(props.requests[i].atom, data);
+                }
+                free(reply);
+            } else if (err) {
+                free(err);
+            }
+        }
+
+        // Fire callback when all replies received AND propNotifySeen.
+        if (windowDone && props.propNotifySeen) {
+            auto resultCopy = props.results;
+            props.callback(windowId, resultCopy);
+
+            toRemove.append(windowId);
+        }
+    }
+
+    // Cleanup completed windows.
+    for (auto windowId : std::as_const(toRemove)) {
+        auto it = asyncProps.find(windowId);
+        if (it != asyncProps.end()) {
+            if (it->timer) {
+                it->timer->stop();
+                delete it->timer;
+            }
+            asyncProps.erase(it);
+        }
+    }
+}
+
+void WXWaylandPrivate::xcbAsyncTimeoutForWindow(xcb_window_t windowId)
+{
+    W_Q(WXWayland);
+
+    auto it = asyncProps.find(windowId);
+    if (it == asyncProps.end())
+        return;
+
+    auto &props = it.value();
+
+    xcb_connection_t *conn = q->xcbConnection();
+    if (conn) {
+        // Drain remaining replies.
+        for (int i = 0; i < props.cookies.size(); ++i) {
+            if (props.results.contains(props.requests[i].atom))
+                continue;
+            void *replyPtr = nullptr;
+            xcb_generic_error_t *err = nullptr;
+            int ret = xcb_poll_for_reply64(conn, props.cookies[i].sequence, &replyPtr, &err);
+            if (ret == 1 && replyPtr) {
+                auto *reply = static_cast<xcb_get_property_reply_t *>(replyPtr);
+                if (reply->type != 0 && reply->value_len > 0) {
+                    QByteArray data(static_cast<const char *>(xcb_get_property_value(reply)),
+                                    xcb_get_property_value_length(reply));
+                    props.results.insert(props.requests[i].atom, data);
+                }
+                free(reply);
+            } else {
+                if (replyPtr)
+                    free(replyPtr);
+                if (err)
+                    free(err);
+            }
+        }
+    }
+
+    auto resultCopy = props.results;
+    props.callback(windowId, resultCopy);
+
+    // Cleanup.
+    if (props.timer) {
+        delete props.timer;
+    }
+    asyncProps.erase(it);
+}
+
+void WXWayland::cancelAsyncProperties(xcb_window_t windowId)
+{
+    W_D(WXWayland);
+    auto it = d->asyncProps.find(windowId);
+    if (it == d->asyncProps.end())
+        return;
+
+    if (it->timer) {
+        delete it->timer;
+    }
+    d->asyncProps.erase(it);
+}
+
+bool WXWayland::event(QEvent *ev)
+{
+    return QObject::event(ev);
 }
 
 WAYLIB_SERVER_END_NAMESPACE
