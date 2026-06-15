@@ -106,25 +106,16 @@ void WServerPrivate::init()
     int fd = wl_event_loop_get_fd(loop);
 
     sockNot.reset(new QSocketNotifier(fd, QSocketNotifier::Read));
-    QObject::connect(sockNot.get(), &QSocketNotifier::activated, q, [this] {
-        if (isProcessingEvents)
-            return;
-
-        QScopedValueRollback<bool> guard(isProcessingEvents, true);
-
-        int ret = wl_event_loop_dispatch(loop, 0);
-        if (ret)
-            fprintf(stderr, "wl_event_loop_dispatch error: %d\n", ret);
-    });
+    bool ok = QObject::connect(sockNot.get(), SIGNAL(activated(QSocketDescriptor,QSocketNotifier::Type)),
+                               q, SLOT(processWaylandEvents()));
+    Q_ASSERT(ok);
 
     // Match upstream wl_display_run order: flush before dispatch.
     QAbstractEventDispatcher *dispatcher = QThread::currentThread()->eventDispatcher();
-    QObject::connect(dispatcher, &QAbstractEventDispatcher::aboutToBlock, q, [this] {
-        if (isProcessingEvents)
-            return;
-
-        safeFlushClients();
-    });
+    ok = QObject::connect(dispatcher, SIGNAL(aboutToBlock()), q, SLOT(onAboutToBlock()));
+    Q_ASSERT(ok);
+    ok = QObject::connect(dispatcher, SIGNAL(awake()), q, SLOT(onAwake()));
+    Q_ASSERT(ok);
 
     for (auto socket : std::as_const(sockets))
         initSocket(socket);
@@ -174,6 +165,157 @@ void WServerPrivate::initSocket(WSocket *socketServer)
 {
     bool ok = socketServer->listen(display->handle());
     Q_ASSERT(ok);
+}
+
+void WServerPrivate::processWaylandEvents()
+{
+    if (isProcessingEvents)
+        return;
+
+    QScopedValueRollback<bool> guard(isProcessingEvents, true);
+
+    int ret = wl_event_loop_dispatch(loop, 0);
+    if (ret)
+        fprintf(stderr, "wl_event_loop_dispatch error: %d\n", ret);
+}
+
+/*
+ * NOTE: Wayland idle dispatch integration (Qt + wlroots hybrid loop)
+ *
+ * In a native wlroots/libwayland architecture, wl_event_loop_dispatch()
+ * is continuously driven by wl_display_run(), which guarantees a strict
+ * event-loop ordering:
+ *
+ *   1. poll()/epoll_wait() for fd activity
+ *   2. dispatch fd/timer/signal sources
+ *   3. dispatch idle sources (wl_event_loop_dispatch_idle)
+ *   4. return immediately into the next loop iteration
+ *
+ * In that model, idle callbacks are always executed within the same
+ * dispatch cycle in which they become pending, and newly scheduled idle
+ * tasks (e.g. from wlroots such as wlr_output_schedule_frame()) are
+ * guaranteed to be picked up in a timely next iteration.
+ *
+ * ---------------------------------------------------------------------
+ * Qt integration problem
+ * ---------------------------------------------------------------------
+ *
+ * In this architecture, Qt owns the main event loop, and Wayland is
+ * driven manually via QSocketNotifier on wl_display_get_fd().
+ *
+ * This changes the execution model fundamentally:
+ *
+ *   Qt Event Loop:
+ *     -> processes Qt events
+ *     -> enters aboutToBlock()
+ *     -> waits (epoll/poll)
+ *
+ *   Wayland:
+ *     -> only progresses when Qt triggers wl_event_loop_dispatch()
+ *        due to fd readability
+ *
+ * Therefore, wl_event_loop_dispatch(loop, 0) is NOT continuously running
+ * like wl_display_run(), but only executed opportunistically.
+ *
+ * ---------------------------------------------------------------------
+ * The critical correctness issue (idle starvation)
+ * ---------------------------------------------------------------------
+ *
+ * When wl_event_loop_dispatch(loop, 0) is executed:
+ *
+ *   - all currently pending Wayland fd/timer/signal events are processed
+ *   - wl_event_loop_dispatch_idle(loop) runs
+ *   - at this point, ALL idle callbacks existing at that moment are executed
+ *
+ * However, after this point, control returns to Qt immediately.
+ *
+ * During subsequent Qt event processing, it is possible that:
+ *
+ *   - Qt handlers trigger wlroots logic
+ *   - wlroots schedules deferred work via wl_event_loop_add_idle()
+ *     (e.g. wlr_output_schedule_frame, commit batching, repaint deferral)
+ *
+ * These newly added idle callbacks are NOT associated with any fd activity.
+ *
+ * As a result:
+ *
+ *   - wl_display fd remains inactive
+ *   - QSocketNotifier is not triggered
+ *   - wl_event_loop_dispatch(loop, 0) is not called again
+ *   - idle callbacks remain pending indefinitely
+ *
+ * They will only be executed later when some unrelated Wayland fd event
+ * occurs, causing wl_event_loop_dispatch() to run again — by which time
+ * the intended scheduling point (frame timing / batching window) is already
+ * delayed and incorrect relative to wlroots expectations.
+ *
+ * ---------------------------------------------------------------------
+ * Why aboutToBlock fixes this
+ * ---------------------------------------------------------------------
+ *
+ * QAbstractEventDispatcher::aboutToBlock() is emitted at a key semantic
+ * boundary in Qt:
+ *
+ *   - all Qt events have been processed
+ *   - no more Qt event handlers are running
+ *   - the event loop is about to enter a blocking wait
+ *
+ * This makes it equivalent to the "end of event-loop iteration" point.
+ *
+ * By invoking wl_event_loop_dispatch_idle(loop) here, we effectively:
+ *
+ *   - emulate wl_display_run() idle phase
+ *   - ensure all pending Wayland idle callbacks are executed
+ *   - drain idle tasks that were scheduled during Qt event processing
+ *
+ * This also covers the second critical case:
+ *
+ *   Qt wake-up cycle:
+ *     Qt processes events
+ *     -> wlroots schedules new idle work
+ *     -> Qt may not hit a new Wayland fd event immediately
+ *     -> idle would otherwise be delayed
+ *
+ * Therefore, we must also process idle:
+ *
+ *   - right before Qt sleeps (aboutToBlock)
+ *   - and effectively on each Qt iteration boundary
+ *
+ * to preserve wl_display_run() semantics.
+ *
+ * ---------------------------------------------------------------------
+ * Summary
+ * ---------------------------------------------------------------------
+ *
+ * This manual call to wl_event_loop_dispatch_idle(loop) is required to
+ * restore the implicit guarantees provided by wl_display_run():
+ *
+ *   - idle callbacks are executed within the same logical iteration
+ *     in which they are scheduled
+ *   - wlroots frame scheduling (e.g. wlr_output_schedule_frame) is not
+ *     delayed until the next unrelated Wayland fd event
+ *
+ * Without this, idle work can be starved indefinitely in a Qt-driven
+ * event loop where no Wayland fd activity occurs.
+ *
+ * This is a deliberate synchronization point between Qt's event loop
+ * lifecycle and Wayland's idle scheduling model.
+ */
+void WServerPrivate::onAboutToBlock()
+{
+    if (isProcessingEvents)
+        return;
+
+    wl_event_loop_dispatch_idle(loop);
+    safeFlushClients();
+}
+
+void WServerPrivate::onAwake()
+{
+    if (isProcessingEvents)
+        return;
+
+    wl_event_loop_dispatch_idle(loop);
 }
 
 WServer::WServer(QObject *parent)

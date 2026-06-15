@@ -24,6 +24,7 @@ QW_END_NAMESPACE
 
 struct wl_global;
 
+Q_MOC_INCLUDE("private/wserver_p.h")
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 typedef bool (*GlobalFilterFunc)(const wl_client *client,
@@ -153,6 +154,11 @@ Q_SIGNALS:
 
 protected:
     WServer(WServerPrivate &dd, QObject *parent = nullptr);
+
+private:
+    W_PRIVATE_SLOT(void processWaylandEvents())
+    W_PRIVATE_SLOT(void onAboutToBlock())
+    W_PRIVATE_SLOT(void onAwake())
 };
 
 WAYLIB_SERVER_END_NAMESPACE

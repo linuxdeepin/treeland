@@ -28,6 +28,9 @@ public:
     void stop();
 
     void initSocket(WSocket *socketServer);
+    void processWaylandEvents();
+    void onAboutToBlock();
+    void onAwake();
 
     W_DECLARE_PUBLIC(WServer)
     std::unique_ptr<QSocketNotifier> sockNot;
