@@ -39,6 +39,11 @@ public:
                                        WAYLIB_SERVER_NAMESPACE::WXdgToplevelSurface *surface);
     bool checkAndApplyIMCandidatePanel(SurfaceWrapper *wrapper,
                                        WAYLIB_SERVER_NAMESPACE::WXWaylandSurface *surface);
+    xcb_atom_t imCandidatePanelAtom() const;
+
+    // Parse IM candidate panel property from async result map
+    static bool parseIMCandidatePanelProperty(const QMap<xcb_atom_t, QByteArray> &result,
+                                              xcb_atom_t atom);
 
 private:
     void applyIMCandidatePanel(SurfaceWrapper *wrapper);

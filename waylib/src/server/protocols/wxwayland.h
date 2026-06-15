@@ -8,6 +8,10 @@
 #include <WServer>
 
 #include <QByteArray>
+#include <QMap>
+#include <QVector>
+
+#include <functional>
 
 QW_BEGIN_NAMESPACE
 class qw_xwayland;
@@ -128,6 +132,32 @@ protected:
     void create(WServer *server) override;
     void destroy(WServer *server) override;
     wl_global *global() const override;
+
+protected:
+    bool event(QEvent *ev) override;
+
+public:
+    struct AsyncPropRequest
+    {
+        xcb_atom_t atom = XCB_ATOM_NONE;
+        xcb_atom_t type = XCB_ATOM_ANY;
+    };
+
+    // Read properties for windowId asynchronously.
+    // - Fires callback(result) when all replies arrive or timeoutMs elapses.
+    // - If a specific property was never requested, it won't be in the result map.
+    void readAsyncProperties(
+        xcb_window_t windowId,
+        const QVector<AsyncPropRequest> &requests,
+        int timeoutMs,
+        std::function<void(xcb_window_t, const QMap<xcb_atom_t, QByteArray> &)> callback);
+
+    // Cancel pending async property read for windowId.
+    // Call this when the window/surface is being destroyed.
+    void cancelAsyncProperties(xcb_window_t windowId);
+
+private:
+    friend bool xwayland_user_event_handler(wlr_xwayland *, xcb_generic_event_t *);
 };
 
 WAYLIB_SERVER_END_NAMESPACE
