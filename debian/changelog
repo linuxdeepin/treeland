@@ -1,3 +1,13 @@
+treeland (0.8.10) unstable; urgency=medium
+
+  * chore: add TREELAND_INPUT_ENHANCE environment variable
+  * fix(qtquick): create RHI textures from DRM formats
+  * fix: build failed on archlinux
+  * feat(systemd): raise Treeland service to highest normal priority
+  * [skip CI] Translate lockscreen.en_US.ts in es
+
+ -- Guo Lin <guolin@uniontech.com>  Mon, 15 Jun 2026 11:03:17 +0800
+
 treeland (0.8.9) unstable; urgency=medium
 
   * feat: disable maximize for non-maximizable windows
