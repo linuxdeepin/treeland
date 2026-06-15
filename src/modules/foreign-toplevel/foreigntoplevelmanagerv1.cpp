@@ -62,8 +62,9 @@ QByteArray encodeStates(ForeignToplevelHandleV1::States states)
 }
 }
 
-struct SurfaceEntry
+class SurfaceEntry
 {
+public:
     SurfaceWrapper *wrapper = nullptr;
     QList<ForeignToplevelHandleV1 *> handles;
 };
