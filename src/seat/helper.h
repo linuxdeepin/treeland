@@ -154,7 +154,7 @@ class Helper : public WSeatEventFilter
     Q_PROPERTY(OutputMode outputMode READ outputMode WRITE setOutputMode NOTIFY outputModeChanged FINAL)
     Q_PROPERTY(SurfaceWrapper* activatedSurface READ activatedSurface NOTIFY activatedSurfaceChanged FINAL)
     Q_PROPERTY(Workspace* workspace READ workspace CONSTANT FINAL)
-    Q_PROPERTY(TreelandUserConfig* config READ config CONSTANT FINAL)
+    Q_PROPERTY(TreelandUserConfig* config READ config NOTIFY configChanged FINAL)
     Q_PROPERTY(TreelandConfig* globalConfig READ globalConfig CONSTANT FINAL)
     Q_PROPERTY(bool blockActivateSurface READ blockActivateSurface WRITE setBlockActivateSurface NOTIFY blockActivateSurfaceChanged FINAL)
     Q_PROPERTY(bool noAnimation READ noAnimation WRITE setNoAnimation NOTIFY noAnimationChanged FINAL)
@@ -274,6 +274,7 @@ public Q_SLOTS:
     bool surfaceBelongsToCurrentSession(SurfaceWrapper *wrapper);
 
 Q_SIGNALS:
+    void configChanged();
     void primaryOutputChanged();
     void activatedSurfaceChanged();
 
