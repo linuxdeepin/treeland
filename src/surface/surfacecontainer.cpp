@@ -133,7 +133,7 @@ SurfaceContainer::SurfaceContainer(SurfaceContainer *parent)
 SurfaceContainer::~SurfaceContainer()
 {
     if (!m_model->surfaces().isEmpty()) {
-        qCWarning(treelandSurface)
+        qCCritical(treelandSurface)
             << "SurfaceContainer destroyed with surfaces still attached:" << m_model->surfaces();
     }
 }
@@ -225,6 +225,11 @@ bool SurfaceContainer::doAddSurface(SurfaceWrapper *surface, bool setContainer)
         return false;
 
     if (setContainer) {
+        if (surface->parent()) {
+            qCWarning(treelandSurface)
+                << "Surface already has QObject parent, changing parent:" << surface
+                << "from:" << surface->parent() << "to:" << this;
+        }
         Q_ASSERT(!surface->container());
         surface->setContainer(this);
         surface->setParent(this);
