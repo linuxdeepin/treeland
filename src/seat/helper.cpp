@@ -1365,6 +1365,9 @@ void Helper::init(Treeland::Treeland *treeland)
         m_config.reset(TreelandUserConfig::createByName("org.deepin.dde.treeland.user",
                                                   "org.deepin.dde.treeland",
                                                   "/" + m_userModel->currentUserName()));
+        // Notify QML that the config pointer has changed so bindings (e.g. sourceSize
+        // on WQuickCursor) reconnect their notifiers to the new TreelandUserConfig object.
+        Q_EMIT configChanged();
         connect(m_config.get(),
                 &TreelandUserConfig::cursorThemeNameChanged,
                 m_sessionManager,
