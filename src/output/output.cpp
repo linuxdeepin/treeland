@@ -917,7 +917,7 @@ void Output::arrangePopupSurface(SurfaceWrapper *surface)
 
 void Output::arrangeNonLayerSurfaces()
 {
-    const auto currentSize = validRect().size();
+    const auto currentSize = geometry().size();
     const auto sizeDiff = m_lastSizeOnLayoutNonLayerSurfaces.isValid()
         ? currentSize - m_lastSizeOnLayoutNonLayerSurfaces
         : QSizeF(0, 0);

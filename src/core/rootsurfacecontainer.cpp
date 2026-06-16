@@ -459,31 +459,33 @@ void RootSurfaceContainer::ensureSurfaceNormalPositionValid(SurfaceWrapper *surf
         return;
 
     QList<QRectF> outputRects;
+    qreal minScreenX = std::numeric_limits<qreal>::max();
     outputRects.reserve(outputs().size());
-    for (auto o : std::as_const(outputs()))
+    for (auto o : std::as_const(outputs())) {
         outputRects << o->validGeometry();
+        minScreenX = qMin(minScreenX, o->validGeometry().left());
+    }
 
     // Ensure window is not outside the screen
-    const QPointF mustVisiblePosOfSurface(qMin(normalGeo.right(), normalGeo.x() + 20),
-                                          qMin(normalGeo.bottom(), normalGeo.y() + 20));
+    QPointF mustVisiblePosOfSurface(qMin(normalGeo.right(), normalGeo.x() + 20),
+                                    qMin(normalGeo.bottom(), normalGeo.y() + 20));
+
+    if (normalGeo.x() < minScreenX) {
+        mustVisiblePosOfSurface.setX(qMax(normalGeo.left(), normalGeo.right() - 20));
+    }
+
     normalGeo = adjustRectToMakePointVisible(normalGeo, mustVisiblePosOfSurface, outputRects);
 
-    // Ensure titlebar is not outside the screen
+    // Ensure titlebar is not above the screen
     const auto titlebarGeometry = surface->titlebarGeometry().translated(normalGeo.topLeft());
     if (titlebarGeometry.isValid()) {
-        bool titlebarGeometryAdjusted = false;
         for (auto r : std::as_const(outputRects)) {
             if ((r & titlebarGeometry).isEmpty())
                 continue;
             if (titlebarGeometry.top() < r.top()) {
                 normalGeo.moveTop(normalGeo.top() + r.top() - titlebarGeometry.top());
-                titlebarGeometryAdjusted = true;
+                break; // Only need to adjust once based on the intersected output
             }
-        }
-
-        if (!titlebarGeometryAdjusted) {
-            normalGeo =
-                adjustRectToMakePointVisible(normalGeo, titlebarGeometry.topLeft(), outputRects);
         }
     }
 
