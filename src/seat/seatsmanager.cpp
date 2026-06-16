@@ -644,7 +644,8 @@ void SeatsManager::assignExistingDevices(WBackend *backend)
         return;
     }
 
-    for (auto device : backend->inputDeviceList()) {
+    const auto devices = backend->inputDeviceList();
+    for (auto device : devices) {
         if (device) {
             Q_EMIT deviceAdded(device);
         }

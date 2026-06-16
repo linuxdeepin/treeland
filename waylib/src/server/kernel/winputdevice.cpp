@@ -44,7 +44,7 @@ void DeviceInfoParser::refreshDeviceInfo()
     QString content = procFile.readAll();
     QStringList blocks = content.split("\n\n", Qt::SkipEmptyParts);
 
-    for (const QString& block : blocks) {
+    for (const QString& block : std::as_const(blocks)) {
         parseDeviceBlock(block.trimmed());
     }
 }
@@ -55,7 +55,7 @@ void DeviceInfoParser::parseDeviceBlock(const QString& block)
     ProcDeviceInfo info;
     QStringList lines = block.split('\n');
 
-    for (const QString& line : lines) {
+    for (const QString& line : std::as_const(lines)) {
         if (line.startsWith("N: Name=")) {
             auto match = nameRegex.match(line);
             if (match.hasMatch()) {

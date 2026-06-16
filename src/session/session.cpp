@@ -369,7 +369,7 @@ std::shared_ptr<Session> SessionManager::ensureSession(int id, QString username)
  */
 std::shared_ptr<Session> SessionManager::sessionForId(int id) const
 {
-    for (auto session : m_sessions) {
+    for (const auto &session : std::as_const(m_sessions)) {
         if (session && session->m_id == id)
             return session;
     }
@@ -384,7 +384,7 @@ std::shared_ptr<Session> SessionManager::sessionForId(int id) const
  */
 std::shared_ptr<Session> SessionManager::sessionForUid(uid_t uid) const
 {
-    for (auto session : m_sessions) {
+    for (const auto &session : std::as_const(m_sessions)) {
         if (session && session->m_uid == uid)
             return session;
     }
@@ -399,7 +399,7 @@ std::shared_ptr<Session> SessionManager::sessionForUid(uid_t uid) const
  */
 std::shared_ptr<Session> SessionManager::sessionForUser(const QString &username) const
 {
-    for (auto session : m_sessions) {
+    for (const auto &session : std::as_const(m_sessions)) {
         if (session && session->m_username == username)
             return session;
     }
@@ -414,7 +414,7 @@ std::shared_ptr<Session> SessionManager::sessionForUser(const QString &username)
  */
 std::shared_ptr<Session> SessionManager::sessionForXWayland(WXWayland *xwayland) const
 {
-    for (auto session : m_sessions) {
+    for (const auto &session : std::as_const(m_sessions)) {
         if (session && session->m_xwayland == xwayland)
             return session;
     }
@@ -429,7 +429,7 @@ std::shared_ptr<Session> SessionManager::sessionForXWayland(WXWayland *xwayland)
  */
 std::shared_ptr<Session> SessionManager::sessionForSocket(WSocket *socket) const
 {
-    for (auto session : m_sessions) {
+    for (const auto &session : std::as_const(m_sessions)) {
         if (session && session->m_socket == socket)
             return session;
     }

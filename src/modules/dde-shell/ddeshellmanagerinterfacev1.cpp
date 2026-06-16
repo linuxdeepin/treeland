@@ -547,7 +547,7 @@ void DDEActiveInterface::sendDrop()
 
 void DDEActiveInterface::sendActiveIn(uint32_t reason, const WSeat *seat)
 {
-    for (auto interface : s_ddeActives) {
+    for (auto interface : std::as_const(s_ddeActives)) {
         if (interface->seat() == seat) {
             interface->sendActiveIn(reason);
         }
@@ -556,7 +556,7 @@ void DDEActiveInterface::sendActiveIn(uint32_t reason, const WSeat *seat)
 
 void DDEActiveInterface::sendActiveOut(uint32_t reason, const WSeat *seat)
 {
-    for (auto interface : s_ddeActives) {
+    for (auto interface : std::as_const(s_ddeActives)) {
         if (interface->seat() == seat) {
             interface->sendActiveOut(reason);
         }
@@ -565,7 +565,7 @@ void DDEActiveInterface::sendActiveOut(uint32_t reason, const WSeat *seat)
 
 void DDEActiveInterface::sendStartDrag(const WSeat *seat)
 {
-    for (auto interface : s_ddeActives) {
+    for (auto interface : std::as_const(s_ddeActives)) {
         if (interface->seat() == seat) {
             interface->sendStartDrag();
         }
@@ -574,7 +574,7 @@ void DDEActiveInterface::sendStartDrag(const WSeat *seat)
 
 void DDEActiveInterface::sendDrop(const WSeat *seat)
 {
-    for (auto interface : s_ddeActives) {
+    for (auto interface : std::as_const(s_ddeActives)) {
         if (interface->seat() == seat) {
             interface->sendDrop();
         }

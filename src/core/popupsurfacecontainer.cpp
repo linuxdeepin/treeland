@@ -31,7 +31,7 @@ void PopupSurfaceContainer::mousePressEvent(QMouseEvent *event)
         // lower z-index components
         event->accept();
         // Get all surfaces in this container and close them
-        for (auto surface : xdgPopupSurfaces) {
+        for (auto surface : std::as_const(xdgPopupSurfaces)) {
             // Maybe the surface is removed by it's parent surface
             if (!surfaces().contains(surface)) {
                 continue;

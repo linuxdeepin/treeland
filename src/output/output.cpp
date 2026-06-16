@@ -627,13 +627,13 @@ void Output::arrangeLayerSurfaces()
 {
     auto oldExclusiveZone = m_exclusiveZone;
 
-    for (auto *s : surfaces()) {
+    for (auto *s : std::as_const(surfaces())) {
         if (s->type() != SurfaceWrapper::Type::Layer)
             continue;
         removeExclusiveZone(s->shellSurface());
     }
 
-    for (auto *s : surfaces()) {
+    for (auto *s : std::as_const(surfaces())) {
         if (s->type() != SurfaceWrapper::Type::Layer)
             continue;
         arrangeLayerSurface(s);
@@ -923,7 +923,7 @@ void Output::arrangeNonLayerSurfaces()
         : QSizeF(0, 0);
     m_lastSizeOnLayoutNonLayerSurfaces = currentSize;
 
-    for (SurfaceWrapper *surface : surfaces()) {
+    for (SurfaceWrapper *surface : std::as_const(surfaces())) {
         if (surface->type() == SurfaceWrapper::Type::Layer
             || surface->type() == SurfaceWrapper::Type::LockScreen
             || !surface->hasInitializeContainer())

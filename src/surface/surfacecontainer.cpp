@@ -69,7 +69,7 @@ void SurfaceFilterModel::setFilter(std::function<bool(SurfaceWrapper *)> filter)
     m_filter = filter;
     m_properties.clear();
 
-    for (auto surface : parent()->surfaces()) {
+    for (auto surface : std::as_const(parent()->surfaces())) {
         initForSourceSurface(surface);
     }
 }

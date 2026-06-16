@@ -364,7 +364,7 @@ void Workspace::pushActivedSurface(SurfaceWrapper *surface)
         return;
     }
     if (surface->showOnAllWorkspace()) [[unlikely]] {
-        for (auto wpModel : m_models->objects())
+        for (auto wpModel : std::as_const(m_models->objects()))
             wpModel->pushActivedSurface(surface);
         m_showOnAllWorkspaceModel->pushActivedSurface(surface);
     } else {
@@ -377,7 +377,7 @@ void Workspace::pushActivedSurface(SurfaceWrapper *surface)
 void Workspace::removeActivedSurface(SurfaceWrapper *surface)
 {
     if (surface->showOnAllWorkspace()) [[unlikely]] {
-        for (auto wpModel : m_models->objects())
+        for (auto wpModel : std::as_const(m_models->objects()))
             wpModel->removeActivedSurface(surface);
         m_showOnAllWorkspaceModel->removeActivedSurface(surface);
     } else {
@@ -389,7 +389,7 @@ void Workspace::removeActivedSurface(SurfaceWrapper *surface)
 
 void Workspace::clearActivedSurface()
 {
-    for (auto wpModel : m_models->objects())
+    for (auto wpModel : std::as_const(m_models->objects()))
         wpModel->clearActivedSurface();
     m_showOnAllWorkspaceModel->clearActivedSurface();
 }

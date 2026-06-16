@@ -35,7 +35,8 @@ int main(int argc, char *argv[])
 
     QObject::connect(&manager, &WallpaperColorManager::activeChanged, &manager, [&manager] {
         qDebug() << "personalzation manager init: " << manager.isActive();
-        for (auto *screen : QGuiApplication::screens()) {
+        const auto screens = QGuiApplication::screens();
+        for (auto *screen : screens) {
             qDebug() << "watch: " << screen->name();
             manager.watch(screen->name());
         }

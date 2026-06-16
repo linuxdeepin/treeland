@@ -414,7 +414,7 @@ public:
         return layers.last();
     }
     inline bool containsOutput(WOutput *o) const {
-        for (auto output : outputs) {
+        for (auto output : std::as_const(outputs)) {
             if (output->output()->output() == o)
                 return true;
         }
@@ -457,7 +457,7 @@ public:
         if (inRendering)
             return;
 
-        for (auto o : outputs) {
+        for (auto o : std::as_const(outputs)) {
             o->qwoutput()->schedule_frame();
         }
     }

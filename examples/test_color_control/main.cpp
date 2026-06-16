@@ -18,7 +18,8 @@ static wl_output *wlOutputForName(const QString &name)
         return nullptr;
     }
 
-    for (QScreen *screen : QGuiApplication::screens()) {
+    const auto screens = QGuiApplication::screens();
+    for (QScreen *screen : screens) {
         const QString sname = screen->name(); // from xdg-output name on Wayland
         if (QString::compare(sname, name, Qt::CaseInsensitive) == 0) {
             auto *res = screen->nativeInterface<QNativeInterface::QWaylandScreen>();

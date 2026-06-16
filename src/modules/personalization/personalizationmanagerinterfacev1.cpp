@@ -330,7 +330,7 @@ Border PersonalizationWindowContextV1::border() const
 
 PersonalizationWindowContextV1 *PersonalizationWindowContextV1::get(wl_resource *resource)
 {
-    for (auto *context : s_windowContexts) {
+    for (auto *context : std::as_const(s_windowContexts)) {
         if (context->resource() == resource) {
             return context;
         }
@@ -341,7 +341,7 @@ PersonalizationWindowContextV1 *PersonalizationWindowContextV1::get(wl_resource 
 
 PersonalizationWindowContextV1 *PersonalizationWindowContextV1::getWindowContext(WSurface *surface)
 {
-    for (auto *context : s_windowContexts) {
+    for (auto *context : std::as_const(s_windowContexts)) {
         if (context->surface() == surface->handle()->handle()) {
             return context;
         }
@@ -478,7 +478,7 @@ void PersonalizationCursorContextV1::sendSize()
 
 PersonalizationCursorContextV1 *PersonalizationCursorContextV1::get(wl_resource *resource)
 {
-    for (auto *context : s_cursorContexts) {
+    for (auto *context : std::as_const(s_cursorContexts)) {
         if (context->resource() == resource) {
             return context;
         }
@@ -667,7 +667,7 @@ void PersonalizationAppearanceContextV1::sendWindowTitlebarHeight(uint32_t heigh
 
 PersonalizationAppearanceContextV1 *PersonalizationAppearanceContextV1::get(wl_resource *resource)
 {
-    for (auto *context : s_appearanceContexts) {
+    for (auto *context : std::as_const(s_appearanceContexts)) {
         if (context->resource() == resource) {
             return context;
         }
@@ -774,7 +774,7 @@ void PersonalizationFontContextV1::sendFontSize(uint32_t size)
 
 PersonalizationFontContextV1 *PersonalizationFontContextV1::get(wl_resource *resource)
 {
-    for (auto *context : s_fontContexts) {
+    for (auto *context : std::as_const(s_fontContexts)) {
         if (context->resource() == resource) {
             return context;
         }
@@ -839,25 +839,25 @@ void PersonalizationManagerInterfaceV1::onAppearanceContextCreated(Personalizati
 {
     connect(context, &PersonalizationAppearanceContextV1::roundCornerRadiusChanged, this, [](int32_t radius) {
         Helper::instance()->config()->setWindowRadius(radius);
-        for (auto *c : s_appearanceContexts) {
+        for (auto *c : std::as_const(s_appearanceContexts)) {
             c->sendRoundCornerRadius(radius);
         }
     });
     connect(context, &PersonalizationAppearanceContextV1::iconThemeChanged, this, [](const QString &theme) {
         Helper::instance()->config()->setIconThemeName(theme);
-        for (auto *c : s_appearanceContexts) {
+        for (auto *c : std::as_const(s_appearanceContexts)) {
             c->sendIconTheme(theme);
         }
     });
     connect(context, &PersonalizationAppearanceContextV1::activeColorChanged, this, [](const QString &color) {
         Helper::instance()->config()->setActiveColor(color);
-        for (auto *c : s_appearanceContexts) {
+        for (auto *c : std::as_const(s_appearanceContexts)) {
             c->sendActiveColor(color);
         }
     });
     connect(context, &PersonalizationAppearanceContextV1::windowOpacityChanged, this, [](uint32_t opacity) {
         Helper::instance()->config()->setWindowOpacity(opacity);
-        for (auto *c : s_appearanceContexts) {
+        for (auto *c : std::as_const(s_appearanceContexts)) {
             c->sendWindowOpacity(opacity);
         }
     });
@@ -867,13 +867,13 @@ void PersonalizationManagerInterfaceV1::onAppearanceContextCreated(Personalizati
             Helper::instance()->config()->setWindowThemeType(*dconfigType);
             Helper::syncPaletteTypeWithWindowThemeType(*dconfigType);
         }
-        for (auto *c : s_appearanceContexts) {
+        for (auto *c : std::as_const(s_appearanceContexts)) {
             c->sendWindowThemeType(type);
         }
     });
     connect(context, &PersonalizationAppearanceContextV1::titlebarHeightChanged, this, [](uint32_t height) {
         Helper::instance()->config()->setWindowTitlebarHeight(height);
-        for (auto *c : s_appearanceContexts) {
+        for (auto *c : std::as_const(s_appearanceContexts)) {
             c->sendWindowTitlebarHeight(height);
         }
     });
