@@ -269,7 +269,7 @@ ForeignToplevelManagerInterfaceV1Private::findHandleForClient(SurfaceWrapper *wr
         return nullptr;
     }
 
-    for (auto *handle : it->second->handles) {
+    for (auto *handle : std::as_const(it->second->handles)) {
         if (wl_resource_get_client(handle->resource()) == client) {
             return handle;
         }
@@ -309,7 +309,7 @@ void ForeignToplevelManagerInterfaceV1::removeSurface(SurfaceWrapper *wrapper)
     }
 
     auto *entry = it->second.get();
-    for (auto *handle : entry->handles) {
+    for (auto *handle : std::as_const(entry->handles)) {
         handle->send_closed();
         handle->clearEntry();
     }
@@ -330,7 +330,7 @@ void ForeignToplevelManagerInterfaceV1::releaseDockPreviewContext(DockPreviewCon
 
 ForeignToplevelHandleV1 *ForeignToplevelManagerInterfaceV1::handleForIdentifier(uint32_t identifier) const
 {
-    for (auto *handle : d->handles) {
+    for (auto *handle : std::as_const(d->handles)) {
         if (handle->identifier() == identifier) {
             return handle;
         }

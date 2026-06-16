@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Dingyuan Zhang <lxz@mkacg.com>.
+// Copyright (C) 2023-2026 Dingyuan Zhang <lxz@mkacg.com>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include <systemd/sd-daemon.h>
@@ -157,7 +157,7 @@ int main(int argc, char *argv[])
     active(QDBusConnection::systemBus());
 
     int ret = app.exec();
-    for (auto i : tmpFiles)
+    for (auto i : std::as_const(tmpFiles))
         delete i;
     return ret;
 }

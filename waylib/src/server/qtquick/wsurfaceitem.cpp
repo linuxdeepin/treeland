@@ -1665,7 +1665,8 @@ WSurfaceItemContent *WSurfaceItem::findItemContent() const
         auto node = q.dequeue();
         if (auto content = qobject_cast<WSurfaceItemContent *>(node))
             return content;
-        for (auto child : node->childItems()) {
+        const auto children = node->childItems();
+        for (auto child : children) {
             q.enqueue(child);
         }
     }

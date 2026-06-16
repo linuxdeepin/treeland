@@ -924,8 +924,8 @@ void SurfaceWrapper::setOutputs(const QList<WOutput *> &outputs)
         qCDebug(treelandSurface) << "SurfaceWrapper::setOutputs called but surface() is null!";
         return;
     }
-    auto oldOutputs = surface()->outputs();
-    for (auto output : oldOutputs) {
+    const auto oldOutputs = surface()->outputs();
+    for (auto output : std::as_const(oldOutputs)) {
         if (outputs.contains(output)) {
             continue;
         }

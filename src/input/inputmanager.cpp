@@ -60,7 +60,8 @@ void InputManager::onConfigInitializeSucceed()
 {
     auto seatMgr = Helper::instance()->seatManager();
     if (seatMgr) {
-        for (auto *seat : seatMgr->seats()) {
+        const auto seats = seatMgr->seats();
+        for (auto *seat : seats) {
             if (auto *cursor = seat->cursor())
                 cursor->setScrollFactor(m_seatDConfig->pointerScrollFactor());
         }

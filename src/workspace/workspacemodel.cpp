@@ -43,7 +43,7 @@ void WorkspaceModel::setVisible(bool visible)
     if (m_visible == visible)
         return;
     m_visible = visible;
-    for (auto surface : surfaces())
+    for (auto surface : std::as_const(surfaces()))
         surface->setHideByWorkspace(!visible);
     Q_EMIT visibleChanged();
 }
@@ -58,7 +58,7 @@ void WorkspaceModel::setOpaque(bool opaque)
     if (m_opaque == opaque)
         return;
     m_opaque = opaque;
-    for (auto surface : surfaces())
+    for (auto surface : std::as_const(surfaces()))
         surface->setOpacity(opaque ? 1.0 : 0.0);
     Q_EMIT opaqueChanged();
 }

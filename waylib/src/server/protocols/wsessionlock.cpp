@@ -1,4 +1,4 @@
-// Copyright (C) 2025 misaka18931 <miruku2937@gmail.com>.
+// Copyright (C) 2025-2026 misaka18931 <miruku2937@gmail.com>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wsessionlock.h"
@@ -42,9 +42,9 @@ public:
 void WSessionLockPrivate::instantRelease()
 {
     W_Q(WSessionLock);
-    auto list = surfaceList;
+    const auto list = surfaceList;
     surfaceList.clear();
-    for (auto surface : list) {
+    for (auto surface : std::as_const(list)) {
         q->surfaceRemoved(surface);
         surface->safeDeleteLater();
     }

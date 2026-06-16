@@ -49,7 +49,8 @@ TreelandWallpaperNotifierClientV1::TreelandWallpaperNotifierClientV1()
             this, &TreelandWallpaperNotifierClientV1::onScreenAdded);
     connect(qApp, &QGuiApplication::screenRemoved,
             this, &TreelandWallpaperNotifierClientV1::onScreenRemoved);
-    for (QScreen *screen : QGuiApplication::screens()) {
+    const auto screens = QGuiApplication::screens();
+    for (QScreen *screen : screens) {
         connect(screen, &QScreen::geometryChanged,
                 this, &TreelandWallpaperNotifierClientV1::updateAllWallpaperViewSizes);
     }
