@@ -1368,6 +1368,14 @@ void Helper::init(Treeland::Treeland *treeland)
         m_config.reset(TreelandUserConfig::createByName("org.deepin.dde.treeland.user",
                                                   "org.deepin.dde.treeland",
                                                   "/" + m_userModel->currentUserName()));
+        connect(m_config.get(),
+                &TreelandUserConfig::cursorThemeNameChanged,
+                m_sessionManager,
+                &SessionManager::syncActiveSessionCursorSettings);
+        connect(m_config.get(),
+                &TreelandUserConfig::cursorSizeChanged,
+                m_sessionManager,
+                &SessionManager::syncActiveSessionCursorSettings);
         auto user = m_userModel->currentUser();
         m_personalizationInterfaceV1->setUserId(user ? user->UID() : getuid());
         // TODO(YaoBing Xiao): remove "dde"
@@ -1376,27 +1384,24 @@ void Helper::init(Treeland::Treeland *treeland)
         }
 
         m_inputManager->setupSeatUserConfig(m_userModel->currentUserName());
+        auto onConfigInitialized = [this] {
+            m_sessionManager->syncActiveSessionCursorSettings();
+            syncPaletteTypeWithWindowThemeType(m_config->windowThemeType());
+            m_wallpaperManager->updateWallpaperConfig();
+            tryInitRemoteSource();
+        };
         // TODO(YaoBing Xiao): pre-initialize dconfig, remove isInitializeSucceeded
 #if TREELANDCONFIG_DCONFIG_FILE_VERSION_MINOR > 0
         if (m_config->isInitializeSucceeded()) {
 #else
         if (m_config->isInitializeSucceed()) {
 #endif
-            syncPaletteTypeWithWindowThemeType(m_config->windowThemeType());
-            m_wallpaperManager->updateWallpaperConfig();
-            tryInitRemoteSource();
+            onConfigInitialized();
         } else {
             connect(m_config.get(),
                     &TreelandUserConfig::configInitializeSucceed,
-                    m_wallpaperManager,
-                    &WallpaperManager::updateWallpaperConfig);
-            connect(m_config.get(), &TreelandUserConfig::configInitializeSucceed, this, [this] {
-                syncPaletteTypeWithWindowThemeType(m_config->windowThemeType());
-            });
-            connect(m_config.get(),
-                    &TreelandUserConfig::configInitializeSucceed,
                     this,
-                    &Helper::tryInitRemoteSource);
+                    onConfigInitialized);
         }
     };
     connect(m_userModel, &UserModel::currentUserNameChanged, this, updateCurrentUser);

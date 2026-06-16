@@ -7,9 +7,10 @@
 #include "core/rootsurfacecontainer.h"
 #include "core/shellhandler.h"
 #include "seat/helper.h"
+#include "treelanduserconfig.hpp"
+#include "wallpaper/wallpaperlauncher.h"
 #include "workspace/workspace.h"
 #include "xsettings/settingmanager.h"
-#include "wallpaper/wallpaperlauncher.h"
 
 #include <woutputrenderwindow.h>
 #include <wsocket.h>
@@ -18,6 +19,27 @@
 #include <pwd.h>
 
 #define _DEEPIN_NO_TITLEBAR "_DEEPIN_NO_TITLEBAR"
+
+static void applyCursorSettings(SettingManager *settingManager, const QString &theme, qreal size)
+{
+    if (!settingManager) {
+        qCDebug(treelandXsettings) << "Skip cursor settings sync: no SettingManager";
+        return;
+    }
+
+    const bool queued = QMetaObject::invokeMethod(
+        settingManager,
+        [settingManager, theme, size]() {
+            settingManager->setCursorTheme(theme);
+            settingManager->setCursorSize(size);
+            settingManager->apply();
+        },
+        Qt::QueuedConnection);
+    if (!queued) {
+        qCWarning(treelandXsettings) << "Failed to queue cursor settings sync"
+                                     << "theme:" << theme << "size:" << size;
+    }
+}
 
 static xcb_atom_t internAtom(xcb_connection_t *connection, const char *name, bool onlyIfExists)
 {
@@ -236,17 +258,38 @@ std::shared_ptr<Session> SessionManager::ensureSession(int id, QString username)
 
                 const qreal scale = Helper::instance()->rootSurfaceContainer()->window()->effectiveDevicePixelRatio();
                 const auto renderWindow = Helper::instance()->window();
-                connect(session->m_settingManagerThread, &QThread::started,
+                connect(session->m_settingManagerThread,
+                        &QThread::started,
                         this,
                         [settingManager = QPointer(session->m_settingManager),
-                         scale, renderWindow] {
-                            QMetaObject::invokeMethod(
+                         scale,
+                         renderWindow] {
+                            if (!settingManager) {
+                                qCDebug(treelandXsettings)
+                                    << "Skip initial XSettings sync: no SettingManager";
+                                return;
+                            }
+
+                            const auto *config = Helper::instance()->config();
+                            const QString cursorTheme =
+                                config ? config->cursorThemeName() : QString();
+                            const qreal cursorSize = config ? config->cursorSize() : 24;
+
+                            const bool queued = QMetaObject::invokeMethod(
                                 settingManager,
-                                [settingManager, scale]() {
+                                [settingManager, scale, cursorTheme, cursorSize]() {
                                     settingManager->setGlobalScale(scale);
+                                    settingManager->setCursorTheme(cursorTheme);
+                                    settingManager->setCursorSize(cursorSize);
                                     settingManager->apply();
                                 },
                                 Qt::QueuedConnection);
+                            if (!queued) {
+                                qCWarning(treelandXsettings)
+                                    << "Failed to queue initial XSettings sync"
+                                    << "cursorTheme:" << cursorTheme << "cursorSize:" << cursorSize
+                                    << "scale:" << scale;
+                            }
                             QObject::connect(
                                 renderWindow,
                                 &WOutputRenderWindow::effectiveDevicePixelRatioChanged,
@@ -256,7 +299,7 @@ std::shared_ptr<Session> SessionManager::ensureSession(int id, QString username)
                                     settingManager->apply();
                                 },
                                 Qt::QueuedConnection);
-                });
+                        });
                 connect(session->m_settingManagerThread, &QThread::finished, session->m_settingManagerThread, &QThread::deleteLater);
                 session->m_settingManagerThread->start();
             }
@@ -398,6 +441,32 @@ bool SessionManager::isDDEUserClient(WClient *client)
     return client->socket() == globalSession()->socket();
 }
 
+void SessionManager::syncActiveSessionCursorSettings()
+{
+    const auto session = m_activeSession.lock();
+    if (!session) {
+        qCDebug(treelandXsettings) << "Skip cursor settings sync: no active session";
+        return;
+    }
+
+    if (!session->m_settingManager) {
+        qCDebug(treelandXsettings)
+            << "Skip cursor settings sync: no SettingManager for session" << session->username();
+        return;
+    }
+
+    auto *helper = Helper::instance();
+    Q_ASSERT(helper);
+
+    const auto *config = helper->config();
+    if (!config) {
+        qCWarning(treelandXsettings) << "Cannot sync cursor settings: user config is unavailable";
+        return;
+    }
+
+    applyCursorSettings(session->m_settingManager, config->cursorThemeName(), config->cursorSize());
+}
+
 /**
  * Update the active session to the given uid, creating it if necessary.
  * This will update XWayland visibility and emit socketFileChanged if the
@@ -430,4 +499,5 @@ void SessionManager::updateActiveUserSession(const QString &username, int id)
         Q_EMIT sessionChanged();
     }
     qCInfo(treelandCore) << "Listening on:" << session->m_socket->fullServerName();
+    syncActiveSessionCursorSettings();
 }

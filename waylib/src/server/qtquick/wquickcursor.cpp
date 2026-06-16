@@ -1,4 +1,4 @@
-// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wquickcursor.h"
@@ -453,6 +453,7 @@ void WQuickCursor::setThemeName(const QString &name)
     if (d->xcursorThemeName == name)
         return;
     d->xcursorThemeName = name;
+    Q_EMIT themeNameChanged();
     if (isComponentComplete())
         QMetaObject::invokeMethod(this, "updateXCursorManager", Qt::QueuedConnection);
 }
@@ -470,6 +471,7 @@ void WQuickCursor::setSourceSize(const QSize &size)
     if (d->cursorSize == size)
         return;
     d->cursorSize = size;
+    Q_EMIT sourceSizeChanged();
     if (isComponentComplete())
         QMetaObject::invokeMethod(this, "updateXCursorManager", Qt::QueuedConnection);
 }
