@@ -7,6 +7,7 @@
 #include "modules/item-selector/itemselector.h"
 #include "seat/helper.h"
 #include "surface/surfacewrapper.h"
+#include "surface/surfaceproxy.h"
 #include "workspace/workspace.h"
 #include "common/treelandlogging.h"
 
@@ -461,8 +462,27 @@ void CaptureManagerV1::freezeAllCapturedSurface(bool freeze, WSurface *mask)
                 content->setLive(!freeze);
             } else if (content->surface() == mask) {
                 auto surfaceItem = closestSurfaceItem(content);
-                m_maskSurfaceWrapper = qobject_cast<SurfaceWrapper *>(surfaceItem->parentItem());
+                auto parentItem = surfaceItem->parentItem();
+                // If parentItem is m_proxySurface (created by SurfaceProxy), skip it.
+                // The actual surface will be found when we traverse to it later.
+                //
+                // Note: Surface capture/record windows should not appear in multitask view,
+                // but currently we can't filter them at protocol level (e.g., through
+                // appId or surface type). We need to adjust the protocol so window
+                // manager can identify them before xdg-toplevel is shown.
+                if (auto wrapper = qobject_cast<SurfaceWrapper *>(parentItem)) {
+                    if (qobject_cast<SurfaceProxy *>(wrapper->parent())) {
+                        // This is m_proxySurface, skip it
+                        qCWarning(treelandCapture)
+                            << "Surface capture/record window found in multitask view,"
+                            << "protocol needs adjustment to filter it earlier";
+                        continue;
+                    }
+                }
+                m_maskSurfaceWrapper = qobject_cast<SurfaceWrapper *>(parentItem);
                 if (m_maskSurfaceWrapper) {
+                    // TODO: Set skipSwitcher, skipDockPreView, skipMutiTaskView here
+                    // after adjusting protocol to identify capture windows early
                     m_maskSurfaceWrapper->setNoTitleBar(true);
                     m_maskSurfaceWrapper->setNoCornerRadius(true);
                     m_maskSurfaceWrapper->setNoDecoration(true);
