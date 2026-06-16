@@ -97,7 +97,8 @@ int main(int argc, char *argv[])
         qCritical().noquote()
         << "Cannot find QScreen for output:" << outputName
         << "\nAvailable outputs are:";
-        for (QScreen *screen : QGuiApplication::screens())
+        const auto screens = QGuiApplication::screens();
+        for (QScreen *screen : screens)
             qCritical() << " -" << screen->name();
         return EXIT_FAILURE;
     }

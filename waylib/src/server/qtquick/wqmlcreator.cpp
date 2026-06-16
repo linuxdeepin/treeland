@@ -266,8 +266,9 @@ void WQmlCreatorComponent::create(QSharedPointer<WQmlCreatorDelegateData> data, 
         if (auto item = qobject_cast<QQuickItem*>(rv))
             item->setParentItem(qobject_cast<QQuickItem*>(parent));
         m_delegate->completeCreate();
-        if (!d->requiredProperties().empty()) {
-            for (const auto &unsetRequiredProperty : std::as_const(d->requiredProperties())) {
+        const auto required = d->requiredProperties();
+        if (!required.empty()) {
+            for (const auto &unsetRequiredProperty : required) {
                 const QQmlError error = QQmlComponentPrivate::unsetRequiredPropertyToQQmlError(unsetRequiredProperty);
                 qmlWarning(rv, error);
             }
@@ -285,9 +286,9 @@ void WQmlCreatorComponent::create(QSharedPointer<WQmlCreatorDelegateData> data, 
     } else {
         qWarning() << "WQmlCreatorComponent::create failed" << "parent=" << parent << "initialProperties=" << tmp;
 #if QT_VERSION >= QT_VERSION_CHECK(6, 10, 0)
-        for (auto e: W_PRIVATE_MEMBER(*d, QQmlComponentPrivate_m_state_tag{}).errors)
+        for (auto e: std::as_const(W_PRIVATE_MEMBER(*d, QQmlComponentPrivate_m_state_tag{}).errors))
 #else
-        for (auto e: d->state.errors)
+        for (auto e: std::as_const(d->state.errors))
 #endif
             qWarning() << e.error;
     }

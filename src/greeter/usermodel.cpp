@@ -96,7 +96,8 @@ UserModel::UserModel(QObject *parent)
         qFatal() << userList.error();
     }
 
-    for (auto uid : userList.value()) {
+    const auto uids = userList.value();
+    for (auto uid : uids) {
         auto user = d->manager.findUserById(uid);
         if (!user) {
             qCWarning(treelandGreeter) << "Failed to find user by ID:" << user.error();
@@ -182,7 +183,7 @@ void UserModel::updateUserLoginState(const QString &username, bool loggedIn)
 
 void UserModel::clearUserLoginState()
 {
-    for (auto &user : d->users) {
+    for (auto &user : std::as_const(d->users)) {
         user->setLoggedIn(false);
     }
 

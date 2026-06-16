@@ -62,7 +62,8 @@ void SeatSurfaceManager::setKeyboardFocusSurface(SurfaceWrapper *surface)
             if (!seatManager)
                 break;
 
-            for (auto *otherSeat : seatManager->seats()) {
+            const auto seats = seatManager->seats();
+            for (auto *otherSeat : seats) {
                 if (otherSeat == m_seat)
                     continue;
                 auto *otherContainer = helper->rootSurfaceContainer()->getSeatContainer(otherSeat);

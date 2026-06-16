@@ -1,4 +1,4 @@
-// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 JiDe Zhang <zhangjide@deepin.org>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "woutputlayoutitem.h"
@@ -26,7 +26,8 @@ public:
         auto oldOutputs = outputs;
         outputs.clear();
 
-        for (auto output: layout->getIntersectedOutputs(QRectF(q->globalPosition(), q->size()).toRect())) {
+        const auto intersectedOutputs = layout->getIntersectedOutputs(QRectF(q->globalPosition(), q->size()).toRect());
+        for (auto output: intersectedOutputs) {
             outputs.append(output);
         };
 

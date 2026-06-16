@@ -140,7 +140,7 @@ void LayerSurfaceContainer::addSurfaceToContainer(SurfaceWrapper *surface)
 
 void LayerSurfaceContainer::updateSurfacesContainer()
 {
-    for (SurfaceWrapper *surface : surfaces()) {
+    for (SurfaceWrapper *surface : std::as_const(surfaces())) {
         if (!surface->container())
             addSurfaceToContainer(surface);
     }
