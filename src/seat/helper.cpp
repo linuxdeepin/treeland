@@ -1097,8 +1097,10 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
     bool isXwayland = wrapper->type() == SurfaceWrapper::Type::XWayland;
     bool isLayer = wrapper->type() == SurfaceWrapper::Type::Layer;
 
-    connect(m_sessionManager->activeSession().lock().get(), &Session::aboutToBeDestroyed,
-            wrapper, &SurfaceWrapper::requestClose);
+    connect(m_sessionManager->activeSession().lock().get(),
+            &Session::aboutToBeDestroyed,
+            wrapper,
+            &SurfaceWrapper::closeSurface);
 
     if (isXdgToplevel || isXdgPopup || isLayer) {
         auto *attached =
@@ -1771,7 +1773,7 @@ void Helper::forceActivateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reaso
     restoreFromShowDesktop(wrapper);
 
     if (wrapper->isMinimized()) {
-        wrapper->requestCancelMinimize(
+        wrapper->restoreFromMinimized(
             !(reason == Qt::TabFocusReason || reason == Qt::BacktabFocusReason));
     }
 
@@ -1795,7 +1797,7 @@ void Helper::fakePressSurfaceBottomRightToReszie(SurfaceWrapper *surface)
     auto position = surface->geometry().bottomRight();
     m_fakelastPressedPosition = position;
     m_seat->setCursorPosition(position);
-    Q_EMIT surface->requestResize(Qt::BottomEdge | Qt::RightEdge);
+    Q_EMIT surface->resizeRequested(Qt::BottomEdge | Qt::RightEdge);
 }
 
 bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *targetWindow, QInputEvent *event)
@@ -2661,7 +2663,7 @@ void Helper::restoreFromShowDesktop(SurfaceWrapper *activeSurface)
         m_showDesktop = WindowManagementInterfaceV1::DesktopState::Normal;
         m_windowManagementInterfaceV1->setDesktopState(WindowManagementInterfaceV1::DesktopState::Normal);
         if (activeSurface) {
-            activeSurface->requestCancelMinimize();
+            activeSurface->restoreFromMinimized();
         }
         const auto &surfaces = getWorkspaceSurfaces();
         for (auto &surface : surfaces) {

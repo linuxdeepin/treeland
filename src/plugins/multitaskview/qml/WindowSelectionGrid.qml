@@ -1,4 +1,4 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 import QtQuick
@@ -326,7 +326,7 @@ Item {
                         }
                         onClicked: {
                             surfaceItemDelegate.visible = false
-                            surfaceItemDelegate.wrapper.requestClose()
+                            surfaceItemDelegate.wrapper.closeSurface()
                         }
                     }
                     Keys.onPressed: function (event) {
@@ -334,7 +334,7 @@ Item {
                             if (event.key === Qt.Key_Enter || event.key === Qt.Key_Return) {
                                 multitaskview.exit(wrapper)
                             } else if (event.key === Qt.Key_Delete) {
-                                wrapper.requestClose()
+                                wrapper.closeSurface()
                             }
                         } else if (event.modifiers === (Qt.MetaModifier | Qt.ShiftModifier)) {
                             const workspaceNumKeys = [Qt.Key_1, Qt.Key_2, Qt.Key_3, Qt.Key_4, Qt.Key_5, Qt.Key_6]

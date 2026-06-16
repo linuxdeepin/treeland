@@ -554,37 +554,46 @@ void RootSurfaceContainer::setupSeatManagement()
 
 void RootSurfaceContainer::setupSurfaceRequestHandlers(SurfaceWrapper *surface)
 {
-    connect(surface, &SurfaceWrapper::requestMove, this, [this, surface]() {
-        WSeat *requestingSeat = determineSeatForRequest(surface);
-        if (!requestingSeat) {
-            qCWarning(treelandCore) << "No seat available for move request";
-            return;
-        }
+    connect(
+        surface,
+        &SurfaceWrapper::moveRequested,
+        this,
+        [this, surface]() {
+            WSeat *requestingSeat = determineSeatForRequest(surface);
+            if (!requestingSeat) {
+                qCWarning(treelandCore) << "No seat available for move request";
+                return;
+            }
 
-        beginMoveResizeForSeat(requestingSeat, surface, Qt::Edges{});
-        auto *helper = Helper::instance();
-        if (helper) {
-            helper->activateSurface(surface);
-        }
-    }, Qt::DirectConnection);
+            beginMoveResizeForSeat(requestingSeat, surface, Qt::Edges{});
+            auto *helper = Helper::instance();
+            if (helper) {
+                helper->activateSurface(surface);
+            }
+        },
+        Qt::DirectConnection);
 
-    connect(surface, &SurfaceWrapper::requestResize, this, [this, surface](Qt::Edges edges) {
-        WSeat *requestingSeat = determineSeatForRequest(surface);
-        if (!requestingSeat) {
-            qCWarning(treelandCore) << "No seat available for resize request";
-            return;
-        }
+    connect(
+        surface,
+        &SurfaceWrapper::resizeRequested,
+        this,
+        [this, surface](Qt::Edges edges) {
+            WSeat *requestingSeat = determineSeatForRequest(surface);
+            if (!requestingSeat) {
+                qCWarning(treelandCore) << "No seat available for resize request";
+                return;
+            }
 
-        beginMoveResizeForSeat(requestingSeat, surface, edges);
-        if (auto *sh = surface->shellSurface()) {
-            sh->setResizeing(true);
-        }
-        auto *helper = Helper::instance();
-        if (helper) {
-            helper->activateSurface(surface);
-        }
-    }, Qt::DirectConnection);
-
+            beginMoveResizeForSeat(requestingSeat, surface, edges);
+            if (auto *sh = surface->shellSurface()) {
+                sh->setResizeing(true);
+            }
+            auto *helper = Helper::instance();
+            if (helper) {
+                helper->activateSurface(surface);
+            }
+        },
+        Qt::DirectConnection);
 }
 
 WSeat *RootSurfaceContainer::determineSeatForRequest(SurfaceWrapper *surface)
