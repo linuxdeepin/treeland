@@ -794,7 +794,14 @@ void ShellHandler::setupSurfaceActiveWatcher(SurfaceWrapper *wrapper)
                 Helper::instance()->activateSurface(wrapper);
         });
 
-        connect(wrapper, &SurfaceWrapper::inactivationRequested, this, [this]() {
+        connect(wrapper, &SurfaceWrapper::inactivationRequested, this, [this, wrapper]() {
+            // Only the current keyboard focus owner should drive focus fallback.
+            // Closing an unfocused layer surface, such as a notification, must not
+            // move focus away from the current owner, which may be a layer-shell
+            // surface that does not participate in fallback history.
+            if (Helper::instance()->keyboardFocusSurface() != wrapper)
+                return;
+
             Helper::instance()->activateSurface(m_workspace->current()->latestActiveSurface());
         });
     } else { // Xdgtoplevel or X11 or Splash
@@ -807,6 +814,11 @@ void ShellHandler::setupSurfaceActiveWatcher(SurfaceWrapper *wrapper)
 
         connect(wrapper, &SurfaceWrapper::inactivationRequested, this, [this, wrapper]() {
             m_workspace->removeActivedSurface(wrapper);
+            // The window may already be inactive. Keep history cleanup above, but
+            // avoid changing focus unless this window still owns keyboard focus.
+            if (Helper::instance()->keyboardFocusSurface() != wrapper)
+                return;
+
             Helper::instance()->activateSurface(m_workspace->current()->latestActiveSurface());
         });
 
