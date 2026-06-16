@@ -53,6 +53,7 @@ public:
     }
 
     void clearCursors();
+    void destroyCursor(const std::pair<WCursor *, WOutputCursor *> &i);
     void updateCursors();
     void updateCursorsVisible();
     void updateCursorVisible(WOutputCursor *cursor);
@@ -100,12 +101,18 @@ void WOutputItemPrivate::initForOutput()
     }
 }
 
+void WOutputItemPrivate::destroyCursor(const std::pair<WCursor *, WOutputCursor *> &i)
+{
+    W_Q(WOutputItem);
+    QObject::disconnect(i.first, nullptr, q, nullptr);
+    i.second->invalidate();
+    i.second->deleteLater();
+}
+
 void WOutputItemPrivate::clearCursors()
 {
-    for (auto i : std::as_const(cursors)) {
-        i.second->invalidate();
-        i.second->deleteLater();
-    }
+    for (auto i : std::as_const(cursors))
+        destroyCursor(i);
     cursors.clear();
 }
 
@@ -164,8 +171,7 @@ void WOutputItemPrivate::updateCursors()
     for (auto i : std::as_const(tmpCursors)) {
         if (cursors.contains(i))
             continue;
-        i.second->invalidate();
-        i.second->deleteLater();
+        destroyCursor(i);
         cursorsChanged = true;
     }
 
