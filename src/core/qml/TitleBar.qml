@@ -48,11 +48,11 @@ Control {
         }
         onPressedChanged: {
             if (pressed)
-                surface.requestMove()
+                surface.moveRequested()
         }
         onDoubleTapped: {
             if (root.canToggleMaximize)
-                surface.requestToggleMaximize()
+                surface.toggleMaximized()
         }
     }
 
@@ -60,7 +60,7 @@ Control {
     TapHandler {
         acceptedButtons: Qt.RightButton
         onTapped: {
-            surface.requestShowWindowMenu(eventPoint.position)
+            surface.windowMenuRequested(eventPoint.position)
         }
     }
 
@@ -70,9 +70,9 @@ Control {
         acceptedDevices: PointerDevice.TouchScreen
         onDoubleTapped: {
             if (root.canToggleMaximize)
-                surface.requestToggleMaximize()
+                surface.toggleMaximized()
         }
-        onLongPressed: surface.requestShowWindowMenu(point.position)
+        onLongPressed: surface.windowMenuRequested(point.position)
     }
 
     Rectangle {
@@ -115,7 +115,7 @@ Control {
                     D.ColorSelector.inactived: !surface.isActivated
 
                     onClicked: {
-                        surface.requestMinimize()
+                        surface.minimize()
                     }
                 }
             }
@@ -133,7 +133,7 @@ Control {
 
                     onClicked: {
                         Helper.activateSurface(surface)
-                        surface.requestToggleMaximize()
+                        surface.toggleMaximized()
                     }
                 }
             }
@@ -156,7 +156,7 @@ Control {
                         D.ColorSelector.inactived: !surface.isActivated
 
                         onClicked: {
-                            surface.requestClose()
+                            surface.closeSurface()
                         }
                     }
                 }

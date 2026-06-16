@@ -460,9 +460,9 @@ void ForeignToplevelManagerInterfaceV1::initializeToplevelHandle(SurfaceWrapper 
             wrapper,
             [wrapper](bool maximized) {
                 if (maximized)
-                    wrapper->requestMaximize();
+                    wrapper->maximize();
                 else
-                    wrapper->requestCancelMaximize();
+                    wrapper->unmaximize();
             });
 
     connect(handle,
@@ -476,9 +476,9 @@ void ForeignToplevelManagerInterfaceV1::initializeToplevelHandle(SurfaceWrapper 
                 }
 
                 if (minimized)
-                    wrapper->requestMinimize();
+                    wrapper->minimize();
                 else
-                    wrapper->requestCancelMinimize();
+                    wrapper->restoreFromMinimized();
             });
 
     connect(handle,
@@ -487,9 +487,9 @@ void ForeignToplevelManagerInterfaceV1::initializeToplevelHandle(SurfaceWrapper 
             [wrapper](bool fullscreen, WOutput *output) {
                 Q_UNUSED(output);
                 if (fullscreen)
-                    wrapper->requestFullscreen();
+                    wrapper->enterFullscreen();
                 else
-                    wrapper->requestCancelFullscreen();
+                    wrapper->leaveFullscreen();
             });
 
     connect(handle,
