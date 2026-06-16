@@ -228,6 +228,11 @@ void QWlrootsIntegration::initialize()
         m_placeholderScreen.reset(new QPlatformPlaceholderScreen);
         QWindowSystemInterface::handleScreenAdded(m_placeholderScreen.get(), true);
     }
+
+    // Ensure the style hints are initialized in current thread, otherwise, some
+    // code paths(QQuickStylePlugin::registerTypes) may cause QStyleHints on
+    // non gui thread when accessing style hints from other threads.
+    QGuiApplication::styleHints();
 }
 
 void QWlrootsIntegration::destroy()
