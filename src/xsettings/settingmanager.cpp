@@ -1,4 +1,4 @@
-// Copyright (C) 2025 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2025-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "settingmanager.h"
@@ -65,23 +65,40 @@ QString SettingManager::soundTheme() const
 void SettingManager::setCursorTheme(const QString &theme)
 {
     m_resource->setPropertyValue(XResource::toByteArray(XResource::Gtk_CursorThemeName), theme);
+    m_resource->setPropertyValue(XResource::toByteArray(XResource::Xcursor_Theme), theme);
     m_settings->setPropertyValue(XSettings::toByteArray(XSettings::Gtk_CursorThemeName), theme);
+    m_settings->setPropertyValue(XSettings::toByteArray(XSettings::Xcursor_Theme), theme);
 }
 
 QString SettingManager::cursorTheme() const
 {
-    return m_settings->getPropertyValue(XSettings::toByteArray(XSettings::Gtk_CursorThemeName)).toString();
+    const auto theme =
+        m_settings->getPropertyValue(XSettings::toByteArray(XSettings::Gtk_CursorThemeName));
+    if (theme.isValid()) {
+        return theme.toString();
+    }
+
+    return m_settings->getPropertyValue(XSettings::toByteArray(XSettings::Xcursor_Theme))
+        .toString();
 }
 
 void SettingManager::setCursorSize(qreal value)
 {
     m_resource->setPropertyValue(XResource::toByteArray(XResource::Xcursor_Size), value);
+    m_resource->setPropertyValue(XResource::toByteArray(XResource::Gtk_CursorThemeSize), value);
     m_settings->setPropertyValue(XSettings::toByteArray(XSettings::Xcursor_Size), value);
+    m_settings->setPropertyValue(XSettings::toByteArray(XSettings::Gtk_CursorThemeSize), value);
 }
 
 qreal SettingManager::cursorSize() const
 {
-    return m_settings->getPropertyValue(XSettings::toByteArray(XSettings::Xcursor_Size)).toReal();
+    const auto size = m_settings->getPropertyValue(XSettings::toByteArray(XSettings::Xcursor_Size));
+    if (size.isValid()) {
+        return size.toReal();
+    }
+
+    return m_settings->getPropertyValue(XSettings::toByteArray(XSettings::Gtk_CursorThemeSize))
+        .toReal();
 }
 
 void SettingManager::setDoubleClickInterval(int interval)

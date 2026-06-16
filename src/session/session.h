@@ -70,6 +70,7 @@ public:
     std::shared_ptr<Session> sessionForXWayland(WXWayland *xwayland) const;
     std::shared_ptr<Session> sessionForSocket(WSocket *socket) const;
     bool isDDEUserClient(WClient *client);
+    void syncActiveSessionCursorSettings();
 
 Q_SIGNALS:
     void socketFileChanged();
