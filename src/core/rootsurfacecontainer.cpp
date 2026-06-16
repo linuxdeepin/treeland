@@ -585,29 +585,6 @@ void RootSurfaceContainer::setupSurfaceRequestHandlers(SurfaceWrapper *surface)
         }
     }, Qt::DirectConnection);
 
-    bool isXdgToplevel = surface->type() == SurfaceWrapper::Type::XdgToplevel;
-    bool isXwayland = surface->type() == SurfaceWrapper::Type::XWayland;
-
-    if (isXdgToplevel || isXwayland) {
-        connect(surface, &SurfaceWrapper::requestMinimize, this, [surface]() {
-            auto *helper = Helper::instance();
-            if (!helper)
-                return;
-
-            if (helper->blockActivateSurface())
-                return;
-
-            if (helper->currentMode() == Helper::CurrentMode::Normal) {
-                if (surface->surfaceState() == SurfaceWrapper::State::Minimized)
-                    return;
-
-                auto container = surface->container();
-                if (container) {
-                    container->removeSurface(surface);
-                }
-            }
-        });
-    }
 }
 
 WSeat *RootSurfaceContainer::determineSeatForRequest(SurfaceWrapper *surface)
