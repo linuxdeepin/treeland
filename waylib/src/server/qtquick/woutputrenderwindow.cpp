@@ -1117,23 +1117,51 @@ bool OutputHelper::tryToHardwareCursor(const LayerData *layer)
         auto get_cursor_formsts = qwoutput()->handle()->impl->get_cursor_formats;
         bool needsRepaintCursor = get_cursor_sizes && get_cursor_formsts;
 
+        if (Q_UNLIKELY(wlcRenderer().isDebugEnabled()))
+            qCDebug(wlcRenderer) << "Request cursor buffer size:" << pixelSize;
+
         if (get_cursor_sizes) {
+            if (Q_UNLIKELY(wlcRenderer().isDebugEnabled()))
+                qCDebug(wlcRenderer) << "Supported cursor sizes for output" << output() << ":";
+
             bool foundTargetSize = false;
             size_t sizes_len = 0;
             const auto sizes = get_cursor_sizes(qwoutput()->handle(), &sizes_len);
             for (size_t i = 0; i < sizes_len; ++i) {
+                if (Q_UNLIKELY(wlcRenderer().isDebugEnabled()))
+                     qCDebug(wlcRenderer) << "    " << sizes[i].width << "x" << sizes[i].height;
+
                 if (sizes[i].width == pixelSize.width()
                     && sizes[i].height == pixelSize.height()) {
                     foundTargetSize = true;
-                    break;
+                    if (Q_UNLIKELY(wlcRenderer().isDebugEnabled()))
+                        qCDebug(wlcRenderer) << "    " << sizes[i].width << "x" << sizes[i].height << "(matched)";
+                    else
+                        break; //need continue to print other sizes when find matched size
                 }
             }
 
             if (!foundTargetSize && sizes_len > 0) {
-                // Use the request size wlroots's backend to render the cursor
-                pixelSize.rwidth() = sizes[0].width;
-                pixelSize.rheight() = sizes[0].height;
-                needsRepaintCursor = true;
+                // Use the wlroots's backend supported size to re-render the cursor
+                for (size_t i = 0; i < sizes_len; ++i) {
+                    if (sizes[i].width > pixelSize.width()
+                        && sizes[i].height > pixelSize.height()) {
+                        pixelSize.rwidth() = sizes[i].width;
+                        pixelSize.rheight() = sizes[i].height;
+                        if (Q_UNLIKELY(wlcRenderer().isDebugEnabled()))
+                            qCDebug(wlcRenderer) << "Re-render cursor with size" << pixelSize
+                                                 << "because the original cursor size"
+                                                 << QSize(buffer->width, buffer->height)
+                                                 << "is not supported by wlroots backend";
+                        needsRepaintCursor = true;
+                        break;
+                    }
+                }
+
+                if (Q_UNLIKELY(!needsRepaintCursor)) {
+                    qCWarning(wlcRenderer) << "Can't find suitable cursor size for" << pixelSize;
+                    return false;
+                }
             } else {
                 needsRepaintCursor = false;
             }
