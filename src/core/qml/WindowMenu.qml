@@ -31,18 +31,18 @@ D.Menu {
 
     D.MenuItem {
         text: qsTr("Minimize")
-        onTriggered: surface.requestMinimize()
+        onTriggered: surface.minimize()
     }
 
     D.MenuItem {
         text: surface?.surfaceState === SurfaceWrapper.State.Maximized ? qsTr("Unmaximize") : qsTr("Maximize")
         enabled: menu.canToggleMaximize
-        onTriggered: surface.requestToggleMaximize()
+        onTriggered: surface.toggleMaximized()
     }
 
     D.MenuItem {
         text: qsTr("Move")
-        onTriggered: surface.requestMove()
+        onTriggered: surface.moveRequested()
     }
 
     D.MenuItem {

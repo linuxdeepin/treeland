@@ -211,7 +211,7 @@ void ShellHandler::createPrelaunchSplash(const QString &appId,
     }
 
     // Listen for splash close request
-    connect(wrapper, &SurfaceWrapper::requestCloseSplash, this, [this, wrapper]() {
+    connect(wrapper, &SurfaceWrapper::splashCloseRequested, this, [this, wrapper]() {
         const QString appId = wrapper->appId();
         qCInfo(treelandShell) << "Splash close requested for appId=" << appId;
 
@@ -752,7 +752,7 @@ void ShellHandler::setupSurfaceActiveWatcher(SurfaceWrapper *wrapper)
     Q_ASSERT_X(wrapper->container(), Q_FUNC_INFO, "Must setContainer at first!");
 
     if (wrapper->type() == SurfaceWrapper::Type::XdgPopup) {
-        connect(wrapper, &SurfaceWrapper::requestActive, this, [this, wrapper]() {
+        connect(wrapper, &SurfaceWrapper::activationRequested, this, [this, wrapper]() {
             auto parent = wrapper->parentSurface();
             while (parent->type() == SurfaceWrapper::Type::XdgPopup) {
                 parent = parent->parentSurface();
@@ -770,7 +770,7 @@ void ShellHandler::setupSurfaceActiveWatcher(SurfaceWrapper *wrapper)
         });
 
         /*
-        connect(wrapper, &SurfaceWrapper::requestInactive, this, [this, wrapper]() {
+        connect(wrapper, &SurfaceWrapper::inactivationRequested, this, [this, wrapper]() {
             auto parent = wrapper->parentSurface();
             if (!parent || parent->type() == SurfaceWrapper::Type::XdgPopup)
                 return;
@@ -778,7 +778,7 @@ void ShellHandler::setupSurfaceActiveWatcher(SurfaceWrapper *wrapper)
         });
         */
     } else if (wrapper->type() == SurfaceWrapper::Type::Layer) {
-        connect(wrapper, &SurfaceWrapper::requestActive, this, [wrapper]() {
+        connect(wrapper, &SurfaceWrapper::activationRequested, this, [wrapper]() {
             auto layerSurface = qobject_cast<WLayerSurface *>(wrapper->shellSurface());
             if (layerSurface->keyboardInteractivity() == WLayerSurface::KeyboardInteractivity::None)
                 return;
@@ -794,18 +794,18 @@ void ShellHandler::setupSurfaceActiveWatcher(SurfaceWrapper *wrapper)
                 Helper::instance()->activateSurface(wrapper);
         });
 
-        connect(wrapper, &SurfaceWrapper::requestInactive, this, [this]() {
+        connect(wrapper, &SurfaceWrapper::inactivationRequested, this, [this]() {
             Helper::instance()->activateSurface(m_workspace->current()->latestActiveSurface());
         });
     } else { // Xdgtoplevel or X11 or Splash
-        connect(wrapper, &SurfaceWrapper::requestActive, this, [this, wrapper]() {
+        connect(wrapper, &SurfaceWrapper::activationRequested, this, [this, wrapper]() {
             if (wrapper->showOnWorkspace(m_workspace->current()->id()))
                 Helper::instance()->activateSurface(wrapper);
             else
                 m_workspace->pushActivedSurface(wrapper);
         });
 
-        connect(wrapper, &SurfaceWrapper::requestInactive, this, [this, wrapper]() {
+        connect(wrapper, &SurfaceWrapper::inactivationRequested, this, [this, wrapper]() {
             m_workspace->removeActivedSurface(wrapper);
             Helper::instance()->activateSurface(m_workspace->current()->latestActiveSurface());
         });
@@ -908,7 +908,7 @@ void ShellHandler::setupSurfaceWindowMenu(SurfaceWrapper *wrapper)
 {
     Q_ASSERT(m_windowMenu);
     connect(wrapper,
-            &SurfaceWrapper::requestShowWindowMenu,
+            &SurfaceWrapper::windowMenuRequested,
             m_windowMenu,
             [this, wrapper](QPointF pos) {
                 QMetaObject::invokeMethod(m_windowMenu,

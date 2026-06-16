@@ -289,15 +289,14 @@ public:
     bool setAttention(bool attention);
 
 public Q_SLOTS:
-    // for titlebar
-    void requestMinimize(bool onAnimation = true);
-    void requestCancelMinimize(bool onAnimation = true);
-    void requestMaximize();
-    void requestCancelMaximize();
-    void requestToggleMaximize();
-    void requestFullscreen();
-    void requestCancelFullscreen();
-    void requestClose();
+    void minimize(bool onAnimation = true);
+    void restoreFromMinimized(bool onAnimation = true);
+    void maximize();
+    void unmaximize();
+    void toggleMaximized();
+    void enterFullscreen();
+    void leaveFullscreen();
+    void closeSurface();
     void onMappedChanged();
     void onSocketEnabledChanged();
 
@@ -320,9 +319,9 @@ Q_SIGNALS:
     void previousSurfaceStateChanged();
     void surfaceStateChanged();
     void radiusChanged();
-    void requestMove(); // for titlebar
-    void requestResize(Qt::Edges edges);
-    void requestShowWindowMenu(QPointF pos);
+    void moveRequested();
+    void resizeRequested(Qt::Edges edges);
+    void windowMenuRequested(QPointF pos);
     void geometryChanged();
     void containerChanged();
     void visibleDecorationChanged();
@@ -334,9 +333,9 @@ Q_SIGNALS:
     void workspaceIdChanged();
     void alwaysOnTopChanged();
     void showOnAllWorkspaceChanged();
-    void requestActive();
-    void requestInactive();
-    void requestCloseSplash();
+    void activationRequested();
+    void inactivationRequested();
+    void splashCloseRequested();
     void skipSwitcherChanged();
     void skipDockPreViewChanged();
     void skipMutiTaskViewChanged();

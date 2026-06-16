@@ -101,34 +101,34 @@ void ShortcutRunner::onActionTrigger(ShortcutAction action, const QString &name,
     case ShortcutAction::Maximize: {
         auto surface = helper->activatedSurface();
         if (surface && surface->isMaximizable()) {
-            surface->requestMaximize();
+            surface->maximize();
         }
         break;
     }
     case ShortcutAction::CancelMaximize: {
         auto surface = helper->activatedSurface();
         if (surface) {
-            surface->requestCancelMaximize();
+            surface->unmaximize();
         }
         break;
     }
     case ShortcutAction::MoveWindow: {
         auto surface = helper->activatedSurface();
         if (surface) {
-            surface->requestMove();
+            Q_EMIT surface->moveRequested();
         }
         break;
     }
     case ShortcutAction::CloseWindow: {
         auto surface = helper->activatedSurface();
         if (surface) {
-            surface->requestClose();
+            surface->closeSurface();
         }
         break;
     }
     case ShortcutAction::ShowWindowMenu:
         if (helper->m_activatedSurface) {
-            Q_EMIT helper->m_activatedSurface->requestShowWindowMenu({0, 0});
+            Q_EMIT helper->m_activatedSurface->windowMenuRequested({ 0, 0 });
         }
         break;
     case ShortcutAction::OpenMultiTaskView:

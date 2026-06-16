@@ -128,7 +128,7 @@ protected:
         if (!m_wrapper)
             return;
         if (m_wrapper->isMinimized())
-            m_wrapper->requestCancelMinimize();
+            m_wrapper->restoreFromMinimized();
     }
 
     void activate([[maybe_unused]] Resource *resource,
