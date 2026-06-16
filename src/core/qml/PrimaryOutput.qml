@@ -42,8 +42,7 @@ OutputItem {
         OutputLayer.cursorHotSpot: hotSpot
 
         themeName: Helper.config.cursorThemeName
-        // Scale-aware cursor size: automatically updates when output scale changes
-        sourceSize: Qt.size(Helper.config.cursorSize * effectiveScale, Helper.config.cursorSize * effectiveScale)
+        sourceSize: Qt.size(Helper.config.cursorSize, Helper.config.cursorSize)
     }
 
     OutputViewport {
