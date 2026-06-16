@@ -34,7 +34,7 @@ Build-Depends: cmake (>= 3.25.0),
                qt6-remoteobjects-dev,
                wayland-protocols,
                wlr-protocols,
-               treeland-protocols (>= 0.5.7),
+               treeland-protocols (>= 0.5.9),
                libpam0g-dev,
                libmpv-dev,
 Standards-Version: 4.6.0
