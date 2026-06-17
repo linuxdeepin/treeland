@@ -533,7 +533,7 @@ void RootSurfaceContainer::setupSeatManagement()
 {
     auto *helper = Helper::instance();
     if (!helper || !helper->seatManager()) {
-        qCWarning(treelandCore) << "Helper or seatManager not available for seat management setup";
+        qCWarning(lcTlCore) << "Helper or seatManager not available for seat management setup";
         return;
     }
 
@@ -541,7 +541,7 @@ void RootSurfaceContainer::setupSeatManagement()
     const auto &seats = seatManager->seats();
 
     if (seats.isEmpty()) {
-        qCWarning(treelandCore) << "No seats available for seat management setup";
+        qCWarning(lcTlCore) << "No seats available for seat management setup";
         return;
     }
 
@@ -563,7 +563,7 @@ void RootSurfaceContainer::setupSurfaceRequestHandlers(SurfaceWrapper *surface)
         [this, surface]() {
             WSeat *requestingSeat = determineSeatForRequest(surface);
             if (!requestingSeat) {
-                qCWarning(treelandCore) << "No seat available for move request";
+                qCWarning(lcTlCore) << "No seat available for move request";
                 return;
             }
 
@@ -582,7 +582,7 @@ void RootSurfaceContainer::setupSurfaceRequestHandlers(SurfaceWrapper *surface)
         [this, surface](Qt::Edges edges) {
             WSeat *requestingSeat = determineSeatForRequest(surface);
             if (!requestingSeat) {
-                qCWarning(treelandCore) << "No seat available for resize request";
+                qCWarning(lcTlCore) << "No seat available for resize request";
                 return;
             }
 
@@ -637,7 +637,7 @@ void RootSurfaceContainer::onSeatRemoved(WSeat *seat)
 {
     auto *container = m_seatContainers.take(seat);
     if (container) {
-        qCDebug(treelandCore) << "Removing SeatContainer for seat:" << seat;
+        qCDebug(lcTlCore) << "Removing SeatContainer for seat:" << seat;
         container->deleteLater();
     }
 }
@@ -651,7 +651,7 @@ WSeat *RootSurfaceContainer::getDefaultSeat() const
 {
     auto *helper = Helper::instance();
     if (!helper || !helper->seatManager()) {
-        qCWarning(treelandCore) << "Helper or seatManager not available";
+        qCWarning(lcTlCore) << "Helper or seatManager not available";
         return nullptr;
     }
 
@@ -665,10 +665,10 @@ WSeat *RootSurfaceContainer::getDefaultSeat() const
     // Fallback: use first from list (QMap order, not predictable — warn)
     const auto &seats = seatManager->seats();
     if (seats.isEmpty()) {
-        qCCritical(treelandCore) << "No seats available - this should not happen in Wayland!";
+        qCCritical(lcTlCore) << "No seats available - this should not happen in Wayland!";
         return nullptr;
     }
-    qCWarning(treelandCore) << "fallbackSeat() is null, using first seat from seats() as default";
+    qCWarning(lcTlCore) << "fallbackSeat() is null, using first seat from seats() as default";
     return seats.first();
 }
 
@@ -677,14 +677,14 @@ SeatSurfaceManager *RootSurfaceContainer::getSeatContainerOrDefault(WSeat *seat)
     if (!seat) {
         seat = getDefaultSeat();
         if (!seat) {
-            qCCritical(treelandCore) << "Cannot get default seat";
+            qCCritical(lcTlCore) << "Cannot get default seat";
             return nullptr;
         }
     }
 
     auto *container = m_seatContainers.value(seat, nullptr);
     if (!container) {
-        qCWarning(treelandCore) << "No container for seat:" << seat;
+        qCWarning(lcTlCore) << "No container for seat:" << seat;
     }
 
     return container;

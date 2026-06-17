@@ -292,7 +292,7 @@ void TQuickRadiusEffect::setSourceItem(QQuickItem *item)
                     this,
                     SLOT(sourceItemDestroyed(QObject *)));
         } else {
-            qCWarning(treelandEffect) << "TRadiusEffect: sourceItem and TRadiusEffect must both be "
+            qCWarning(lcTlEffect) << "TRadiusEffect: sourceItem and TRadiusEffect must both be "
                                     "children of the "
                                     "same window.";
             d->sourceItem = nullptr;

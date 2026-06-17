@@ -65,7 +65,7 @@ public:
 protected:
     void destroy_global() override
     {
-        qCDebug(treelandProtocol) << "WineWindowManager global destroyed";
+        qCDebug(lcTlProtocol) << "WineWindowManager global destroyed";
     }
 
     void destroy(Resource *resource) override
@@ -172,7 +172,7 @@ protected:
             return;
         }
 
-        qCDebug(treelandProtocol) << "set_position serial" << x << y << serial << "for window_id"
+        qCDebug(lcTlProtocol) << "set_position serial" << x << y << serial << "for window_id"
                                   << m_windowId;
 
         m_wrapper->setPositionAutomatic(false);
@@ -349,7 +349,7 @@ void WineWindowManagerPrivate::get_window_control(Resource *resource,
                                           id);
     registerControl(windowId, xdgToplevel, control);
 
-    qCDebug(treelandProtocol) << "Created WineWindowControl for toplevel, window_id =" << windowId;
+    qCDebug(lcTlProtocol) << "Created WineWindowControl for toplevel, window_id =" << windowId;
 }
 
 // ---------------------------------------------------------------------------

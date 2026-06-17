@@ -7,75 +7,85 @@
 #include <QLoggingCategory>
 
 // TreeLand Logging Categories
-// Naming convention: treeland.module_name.submodule_name
-// Use lowercase letters, separated by dots
+// Naming convention: lcTl + PascalCase module name
+// String ID convention: treeland.<module>[.<submodule>]
 
 // Core modules
-Q_DECLARE_LOGGING_CATEGORY(treelandCore)
-Q_DECLARE_LOGGING_CATEGORY(treelandServer)
-Q_DECLARE_LOGGING_CATEGORY(treelandCompositor)
-Q_DECLARE_LOGGING_CATEGORY(treelandShell)
+Q_DECLARE_LOGGING_CATEGORY(lcTlCore)
+Q_DECLARE_LOGGING_CATEGORY(lcTlServer)
+Q_DECLARE_LOGGING_CATEGORY(lcTlCompositor)
+Q_DECLARE_LOGGING_CATEGORY(lcTlShell)
+Q_DECLARE_LOGGING_CATEGORY(lcTlQml)
 
 // Input modules
-Q_DECLARE_LOGGING_CATEGORY(treelandInput)
-Q_DECLARE_LOGGING_CATEGORY(treelandGestures)
+Q_DECLARE_LOGGING_CATEGORY(lcTlInput)
+Q_DECLARE_LOGGING_CATEGORY(lcTlInputManager)
+Q_DECLARE_LOGGING_CATEGORY(lcTlGestures)
+Q_DECLARE_LOGGING_CATEGORY(lcTlKeyboardNotify)
 
 // Seat management
-Q_DECLARE_LOGGING_CATEGORY(treelandSeat)
+Q_DECLARE_LOGGING_CATEGORY(lcTlSeat)
 
 // Output module
-Q_DECLARE_LOGGING_CATEGORY(treelandOutput)
+Q_DECLARE_LOGGING_CATEGORY(lcTlOutput)
 
 // Window management
-Q_DECLARE_LOGGING_CATEGORY(treelandSurface)
-
-// Protocol module
-Q_DECLARE_LOGGING_CATEGORY(treelandProtocol)
-
-// Plugin system
-Q_DECLARE_LOGGING_CATEGORY(treelandPlugin)
-
-// Configuration management
-Q_DECLARE_LOGGING_CATEGORY(treelandConfig)
+Q_DECLARE_LOGGING_CATEGORY(lcTlSurface)
 
 // Workspace management
-Q_DECLARE_LOGGING_CATEGORY(treelandWorkspace)
+Q_DECLARE_LOGGING_CATEGORY(lcTlWorkspace)
+
+// Protocol module
+Q_DECLARE_LOGGING_CATEGORY(lcTlProtocol)
+
+// Plugin system
+Q_DECLARE_LOGGING_CATEGORY(lcTlPlugin)
+
+// Configuration management
+Q_DECLARE_LOGGING_CATEGORY(lcTlConfig)
 
 // Wallpaper system
-Q_DECLARE_LOGGING_CATEGORY(treelandWallpaper)
+Q_DECLARE_LOGGING_CATEGORY(lcTlWallpaper)
+Q_DECLARE_LOGGING_CATEGORY(lcTlWallpaperColor)
 
 // Effects system
-Q_DECLARE_LOGGING_CATEGORY(treelandEffect)
+Q_DECLARE_LOGGING_CATEGORY(lcTlEffect)
 
 // Capture system
-Q_DECLARE_LOGGING_CATEGORY(treelandCapture)
+Q_DECLARE_LOGGING_CATEGORY(lcTlCapture)
 
 // DBus interface
-Q_DECLARE_LOGGING_CATEGORY(treelandDBus)
+Q_DECLARE_LOGGING_CATEGORY(lcTlDBus)
 
 // Utility classes
-Q_DECLARE_LOGGING_CATEGORY(treelandUtils)
+Q_DECLARE_LOGGING_CATEGORY(lcTlUtils)
+Q_DECLARE_LOGGING_CATEGORY(lcTlPropertyMonitor)
 
 // Shortcut system
-Q_DECLARE_LOGGING_CATEGORY(treelandShortcut)
-
-// QML engine
-Q_DECLARE_LOGGING_CATEGORY(treelandQml)
+Q_DECLARE_LOGGING_CATEGORY(lcTlShortcut)
 
 // Greeter module
-Q_DECLARE_LOGGING_CATEGORY(treelandGreeter)
+Q_DECLARE_LOGGING_CATEGORY(lcTlGreeter)
 
 // FPS display
-Q_DECLARE_LOGGING_CATEGORY(treelandFpsDisplay)
+Q_DECLARE_LOGGING_CATEGORY(lcTlFpsDisplay)
 
 // xsettings
-Q_DECLARE_LOGGING_CATEGORY(treelandXsettings)
+Q_DECLARE_LOGGING_CATEGORY(lcTlXsettings)
 
 // Activation module
-Q_DECLARE_LOGGING_CATEGORY(treelandActivation)
-// inputManager
-Q_DECLARE_LOGGING_CATEGORY(treelandInputManager)
-// key notify
-Q_DECLARE_LOGGING_CATEGORY(treelandKeyboardNotify)
+Q_DECLARE_LOGGING_CATEGORY(lcTlActivation)
+
+// App ID resolver
+Q_DECLARE_LOGGING_CATEGORY(lcTlAppIdResolver)
+
+// Prelaunch splash
+Q_DECLARE_LOGGING_CATEGORY(lcTlPrelaunchSplash)
+
+// XWayland
+Q_DECLARE_LOGGING_CATEGORY(lcTlXwayland)
+
+// DDM integration
+Q_DECLARE_LOGGING_CATEGORY(lcTlDdm)
 
 #endif // TREELAND_LOGGING_H

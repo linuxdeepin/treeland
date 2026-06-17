@@ -363,7 +363,7 @@ bool XSettings::initX11(int screen, bool replace) {
     xcb_intern_atom_reply_t *atomReply = xcb_intern_atom_reply(m_connection, atomCookie, nullptr);
 
     if (!atomReply) {
-        qCCritical(treelandXsettings) << "xcb_intern_atom_reply return nullptr for" << XSETTINGS_ATOM_NAME;
+        qCCritical(lcTlXsettings) << "xcb_intern_atom_reply return nullptr for" << XSETTINGS_ATOM_NAME;
         return false;
     }
 
@@ -376,7 +376,7 @@ bool XSettings::initX11(int screen, bool replace) {
     xcb_intern_atom_reply_t *notifyAtomReply = xcb_intern_atom_reply(m_connection, notifyAtomCookie, nullptr);
 
     if (!notifyAtomReply) {
-        qCCritical(treelandXsettings) << "xcb_intern_atom_reply return nullptr for" << XSETTINGS_NOTIFY_ATOM_NAME;
+        qCCritical(lcTlXsettings) << "xcb_intern_atom_reply return nullptr for" << XSETTINGS_NOTIFY_ATOM_NAME;
         return false;
     }
 
@@ -389,7 +389,7 @@ bool XSettings::initX11(int screen, bool replace) {
     xcb_intern_atom_reply_t *signalAtomReply = xcb_intern_atom_reply(m_connection, signalAtomCookie, nullptr);
 
     if (!signalAtomReply) {
-        qCCritical(treelandXsettings) << "xcb_intern_atom_reply return nullptr for" << XSETTINGS_SIGNAL_ATOM_NAME;
+        qCCritical(lcTlXsettings) << "xcb_intern_atom_reply return nullptr for" << XSETTINGS_SIGNAL_ATOM_NAME;
         return false;
     }
 
@@ -412,7 +412,7 @@ bool XSettings::initX11(int screen, bool replace) {
         xcb_window_t win;
         xcb_timestamp_t timestamp;
         if (!createWindow(s, &win, &timestamp)) {
-            qCCritical(treelandXsettings) << "xsettingsd Unable to create window on screen" << s;
+            qCCritical(lcTlXsettings) << "xsettingsd Unable to create window on screen" << s;
             return false;
         }
 
@@ -428,7 +428,7 @@ bool XSettings::initX11(int screen, bool replace) {
             return false;
 
         m_windows.push_back(win);
-        qCDebug(treelandXsettings) << "XSettings: registered window" << win << "for screen" << s;
+        qCDebug(lcTlXsettings) << "XSettings: registered window" << win << "for screen" << s;
     }
 
     xcb_flush(m_connection);
@@ -443,7 +443,7 @@ bool XSettings::createWindow(int screen, xcb_window_t *out_win, xcb_timestamp_t 
 
     xcb_screen_t *scr = it.data;
     if (!scr) {
-        qCCritical(treelandXsettings) << "xcb_setup_roots_iterator failed";
+        qCCritical(lcTlXsettings) << "xcb_setup_roots_iterator failed";
         return false;
     }
 
@@ -473,7 +473,7 @@ bool XSettings::createWindow(int screen, xcb_window_t *out_win, xcb_timestamp_t 
     *out_win = win;
     *out_time = XCB_CURRENT_TIME;
 
-    qCDebug(treelandXsettings) << "Created XSETTINGS window" << win << "named" << name;
+    qCDebug(lcTlXsettings) << "Created XSETTINGS window" << win << "named" << name;
 
     return true;
 }
@@ -486,7 +486,7 @@ bool XSettings::manageScreen(int screen, xcb_window_t win, xcb_timestamp_t times
         xcb_intern_atom(m_connection, 0, strlen(sel_name), sel_name);
     xcb_intern_atom_reply_t *sel_reply = xcb_intern_atom_reply(m_connection, sel_cookie, nullptr);
     if (!sel_reply) {
-        qCCritical(treelandXsettings)
+        qCCritical(lcTlXsettings)
         << "xcb_intern_atom_reply return nullptr for"
         << QString("_XSETTINGS_S%1").arg(screen);
 
@@ -507,7 +507,7 @@ bool XSettings::manageScreen(int screen, xcb_window_t win, xcb_timestamp_t times
 
     if (owner != XCB_NONE && !replace) {
         xcb_ungrab_server(m_connection);
-        qCCritical(treelandXsettings)
+        qCCritical(lcTlXsettings)
             << "xsettings: Another XSETTINGS manager exists for screen"
             << screen
             << "owner window" << owner;
@@ -525,7 +525,7 @@ bool XSettings::manageScreen(int screen, xcb_window_t win, xcb_timestamp_t times
     xcb_ungrab_server(m_connection);
 
     if (!ok) {
-        qCCritical(treelandXsettings) << "xsettingsd: Failed to acquire ownership of" << sel_name;
+        qCCritical(lcTlXsettings) << "xsettingsd: Failed to acquire ownership of" << sel_name;
         return false;
     }
 
@@ -539,7 +539,7 @@ bool XSettings::manageScreen(int screen, xcb_window_t win, xcb_timestamp_t times
     xcb_intern_atom_reply_t *man_reply =
         xcb_intern_atom_reply(m_connection, man_cookie, nullptr);
     if (!man_reply) {
-        qCCritical(treelandXsettings) << "Failed to intern MANAGER atom";
+        qCCritical(lcTlXsettings) << "Failed to intern MANAGER atom";
         return false;
     }
 

@@ -26,7 +26,7 @@ void PopupSurfaceContainer::mousePressEvent(QMouseEvent *event)
     }
 
     if (!xdgPopupSurfaces.isEmpty()) {
-        qCDebug(treelandShell) << "Intercepting mouse press event due to active popup surfaces";
+        qCDebug(lcTlShell) << "Intercepting mouse press event due to active popup surfaces";
         // If surfaces are not empty, intercept the mouse press event to prevent it from reaching
         // lower z-index components
         event->accept();
@@ -37,7 +37,7 @@ void PopupSurfaceContainer::mousePressEvent(QMouseEvent *event)
                 continue;
             }
             if (!surface->shellSurface()) {
-                qCCritical(treelandShell) << "Ignore invalid popup surface:" << surface;
+                qCCritical(lcTlShell) << "Ignore invalid popup surface:" << surface;
                 continue;
             }
             surface->closeSurface();
