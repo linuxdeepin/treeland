@@ -15,12 +15,16 @@
 #include <QDebug>
 #include <QDir>
 #include <QFile>
+#include <QLoggingCategory>
 #include <QTemporaryFile>
 #include <QtEnvironmentVariables>
 
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
+
+Q_DECLARE_LOGGING_CATEGORY(lcSdSocket)
+Q_LOGGING_CATEGORY(lcSdSocket, "treeland.systemd.socket")
 
 typedef QMap<QString, QString> StringMap;
 Q_DECLARE_METATYPE(StringMap)
@@ -106,7 +110,7 @@ int main(int argc, char *argv[])
                     if (reply.type() == QDBusMessage::ReplyMessage) {
                         QVariantList values = reply.arguments();
                         if (values.size() < 2) {
-                            qWarning() << "Invalid XWaylandName reply";
+                            qCWarning(lcSdSocket) << "Invalid XWaylandName reply";
                             return;
                         }
                         QString xwaylandName = values.at(0).toString();
@@ -118,7 +122,7 @@ int main(int argc, char *argv[])
                         QTemporaryFile *authFile = new QTemporaryFile();
                         authFile->setFileTemplate(QStringLiteral("%1/.xauth_XXXXXX").arg(runtimeDir));
                         if (!authFile->open()) {
-                            qWarning() << "Failed to create temporary xauth file";
+                            qCWarning(lcSdSocket) << "Failed to create temporary xauth file";
                             return;
                         }
                         QString authFileName = authFile->fileName();

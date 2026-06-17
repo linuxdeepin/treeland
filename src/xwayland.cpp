@@ -1,4 +1,4 @@
-// Copyright (C) 2025 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2025-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 /**
@@ -7,7 +7,7 @@
  * (dde)   treeland -> wlroots -> treeland-xwayland (this) -> Xwayland
  *            ^ |                         |
  *            | |                         +-> /tmp/.xauth_:X (dde, 0600)
- *       XwaylandName()                              |
+ *       XWaylandName()                              |
  *            | |------------------<-----------------+
  *            | |               content
  *            | v
@@ -17,6 +17,7 @@
 
 #include <QByteArray>
 #include <QDebug>
+#include <QLoggingCategory>
 #include <QString>
 #include <QTemporaryFile>
 #include <random>
@@ -24,10 +25,13 @@
 #include <unistd.h>
 #include <X11/Xauth.h>
 
+Q_DECLARE_LOGGING_CATEGORY(lcXwaylandHelper)
+Q_LOGGING_CATEGORY(lcXwaylandHelper, "treeland.xwayland.helper")
+
 int main(int argc, char *argv[])
 {
     if (argc < 2) {
-        qCritical() << "Usage: treeland-xwayland <display> [args]";
+        qCCritical(lcXwaylandHelper) << "Usage: treeland-xwayland <display> [args]";
         return 1;
     }
     // Generate cookie
@@ -97,6 +101,6 @@ int main(int argc, char *argv[])
     args[argc + 1] = const_cast<char *>(fileName);
     args[argc + 2] = nullptr;
     execvp("Xwayland", args);
-    qWarning() << "execvp() returned";
+    qCWarning(lcXwaylandHelper) << "execvp() returned";
     return 1;
 }
