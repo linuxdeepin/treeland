@@ -26,12 +26,13 @@
 #include <wxdgpopupsurface.h>
 #include <wxdgpopupsurfaceitem.h>
 
-#include <optional>
-
 #include <qwlayershellv1.h>
 #include <qwoutputlayout.h>
 
 #include <QQmlEngine>
+
+#include <algorithm>
+#include <optional>
 
 #define SAME_APP_OFFSET_FACTOR 1.0
 #define DIFF_APP_OFFSET_FACTOR 2.0
@@ -520,37 +521,34 @@ void Output::setExclusiveZone(Qt::Edge edge, QObject *object, int value)
 
 bool Output::removeExclusiveZone(QObject *object)
 {
-    auto finder = [object](const auto &pair) {
-        return pair.first == object;
-    };
-    auto tmp = std::find_if(m_topExclusiveZones.begin(), m_topExclusiveZones.end(), finder);
+    auto tmp = std::ranges::find(m_topExclusiveZones, object, &std::pair<QObject *, int>::first);
     if (tmp != m_topExclusiveZones.end()) {
-        m_topExclusiveZones.erase(tmp);
         m_exclusiveZone.setTop(m_exclusiveZone.top() - tmp->second);
+        m_topExclusiveZones.erase(tmp);
         Q_ASSERT(m_exclusiveZone.top() >= 0);
         return true;
     }
 
-    tmp = std::find_if(m_bottomExclusiveZones.begin(), m_bottomExclusiveZones.end(), finder);
+    tmp = std::ranges::find(m_bottomExclusiveZones, object, &std::pair<QObject *, int>::first);
     if (tmp != m_bottomExclusiveZones.end()) {
-        m_bottomExclusiveZones.erase(tmp);
         m_exclusiveZone.setBottom(m_exclusiveZone.bottom() - tmp->second);
+        m_bottomExclusiveZones.erase(tmp);
         Q_ASSERT(m_exclusiveZone.bottom() >= 0);
         return true;
     }
 
-    tmp = std::find_if(m_leftExclusiveZones.begin(), m_leftExclusiveZones.end(), finder);
+    tmp = std::ranges::find(m_leftExclusiveZones, object, &std::pair<QObject *, int>::first);
     if (tmp != m_leftExclusiveZones.end()) {
-        m_leftExclusiveZones.erase(tmp);
         m_exclusiveZone.setLeft(m_exclusiveZone.left() - tmp->second);
+        m_leftExclusiveZones.erase(tmp);
         Q_ASSERT(m_exclusiveZone.left() >= 0);
         return true;
     }
 
-    tmp = std::find_if(m_rightExclusiveZones.begin(), m_rightExclusiveZones.end(), finder);
+    tmp = std::ranges::find(m_rightExclusiveZones, object, &std::pair<QObject *, int>::first);
     if (tmp != m_rightExclusiveZones.end()) {
-        m_rightExclusiveZones.erase(tmp);
         m_exclusiveZone.setRight(m_exclusiveZone.right() - tmp->second);
+        m_rightExclusiveZones.erase(tmp);
         Q_ASSERT(m_exclusiveZone.right() >= 0);
         return true;
     }
