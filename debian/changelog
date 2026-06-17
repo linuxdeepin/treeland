@@ -1,3 +1,21 @@
+treeland (0.8.11) unstable; urgency=medium
+
+  * fix(workspace): refine window edge constraints
+  * fix: avoid focus fallback for inactive surfaces
+  * fix(qtquick): disconnect positionChanged before cursor cleanup
+  * fix(capture): prevent proxy surface from being added to
+    SurfaceContainer
+  * refactor: clarify SurfaceWrapper request naming
+  * fix: remove invalid minimize request connection
+  * fix(wallpaper): bump WallpaperProduceV1 version to 2
+  * fix: emit configChanged when user config is rebuilt
+  * fix: apply cursor settings without restart
+  * fix: improve hardware cursor size selection for large cursors
+  * fix: add idle event dispatch to resolve lock screen time refresh
+    issue
+
+ -- rewine <luhongxu@deepin.org>  Wed, 17 Jun 2026 11:31:08 +0800
+
 treeland (0.8.10) unstable; urgency=medium
 
   * chore: add TREELAND_INPUT_ENHANCE environment variable
