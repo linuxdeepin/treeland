@@ -634,7 +634,21 @@ void Output::arrangeLayerSurfaces()
     for (auto *s : std::as_const(surfaces())) {
         if (s->type() != SurfaceWrapper::Type::Layer)
             continue;
-        arrangeLayerSurface(s);
+
+        auto layer = qobject_cast<WLayerSurface *>(s->shellSurface());
+        Q_ASSERT(layer);
+        if (layer->exclusiveZone() > 0)
+            arrangeLayerSurface(s);
+    }
+
+    for (auto *s : std::as_const(surfaces())) {
+        if (s->type() != SurfaceWrapper::Type::Layer)
+            continue;
+
+        auto layer = qobject_cast<WLayerSurface *>(s->shellSurface());
+        Q_ASSERT(layer);
+        if (layer->exclusiveZone() <= 0)
+            arrangeLayerSurface(s);
     }
 
     if (oldExclusiveZone != m_exclusiveZone) {
