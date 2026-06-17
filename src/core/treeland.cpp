@@ -3,21 +3,15 @@
 
 #include "treeland.h"
 
+#include "common/constants.h"
+#include "common/treelandlogging.h"
 #include "core/qmlengine.h"
-#include "greeter/usermodel.h"
 #include "interfaces/multitaskviewinterface.h"
 #include "interfaces/plugininterface.h"
+#include "modules/greeter/usermodel.h"
 #include "seat/helper.h"
 #include "session/session.h"
 #include "utils/cmdline.h"
-#include "common/treelandlogging.h"
-#include "common/constants.h"
-
-#include <qqml.h>
-
-#if !defined(DISABLE_DDM) || defined(EXT_SESSION_LOCK_V1)
-#include "interfaces/lockscreeninterface.h"
-#endif
 
 #include <wsocket.h>
 #include <wxwayland.h>
@@ -28,10 +22,10 @@
 #include <QDBusConnectionInterface>
 #include <QDBusMessage>
 #include <QDebug>
-#include <QLocalSocket>
 #include <QLoggingCategory>
 #include <QMetaMethod>
 #include <QTranslator>
+#include <qqml.h>
 
 #include <memory>
 #include <pwd.h>
@@ -50,9 +44,6 @@ public:
     explicit TreelandPrivate(Treeland *parent)
         : QObject(parent)
         , q_ptr(parent)
-#ifndef DISABLE_DDM
-        , socket(new QLocalSocket(this))
-#endif
     {
     }
 
@@ -76,7 +67,6 @@ public:
         qputenv("WLR_XWAYLAND", QByteArray(LIBEXEC_DIR) + "/treeland-xwayland");
         helper->init(q);
 
-#ifndef DISABLE_DDM
         auto userModel = qmlEngine->singletonInstance<UserModel *>("Treeland", "UserModel");
 
         auto updateUser = [this, userModel] {
@@ -86,7 +76,6 @@ public:
 
         connect(userModel, &UserModel::currentUserNameChanged, this, updateUser);
         updateUser();
-#endif
     }
 
     ~TreelandPrivate()
@@ -109,7 +98,6 @@ public:
         qmlEngine->clearSingletons();
     }
 
-#ifndef DISABLE_DDM
     void onCurrentChanged(uid_t uid)
     {
         auto userModel =
@@ -170,7 +158,6 @@ public:
             qCWarning(treelandDBus) << "failed to load plugin translator: " << scope;
         }
     }
-#endif
 
     void loadPlugin(const QString &path)
     {
@@ -200,9 +187,9 @@ public:
                 qCWarning(treelandPlugin) << "Plugin does not implement PluginInterface.";
             }
 
-            qCDebug(treelandPlugin) << "Loaded plugin: " << plugin->name()
-                             << ", enabled: " << plugin->enabled()
-                             << ", metadata: " << loader.metaData();
+            qCDebug(treelandPlugin)
+                << "Loaded plugin: " << plugin->name() << ", enabled: " << plugin->enabled()
+                << ", metadata: " << loader.metaData();
             // TODO: use scheduler to run
             plugin->initialize(q);
             plugins.push_back(plugin);
@@ -212,7 +199,6 @@ public:
             };
             qCDebug(treelandPlugin) << "Plugin translate scope:" << scope;
 
-#ifndef DISABLE_DDM
             connect(helper->qmlEngine()->singletonInstance<UserModel *>("Treeland", "UserModel"),
                     &UserModel::currentUserNameChanged,
                     pluginInstance,
@@ -221,7 +207,6 @@ public:
                     });
 
             updatePluginTs(plugin, scope);
-#endif
 
             if (auto *multitaskview = qobject_cast<IMultitaskView *>(pluginInstance)) {
                 qCDebug(treelandPlugin) << "Get MultitaskView Instance.";
@@ -230,37 +215,21 @@ public:
                 });
                 helper->setMultitaskViewImpl(multitaskview);
             }
-
-#if !defined(DISABLE_DDM) || defined(EXT_SESSION_LOCK_V1)
-            if (auto *lockscreen = qobject_cast<ILockScreen *>(pluginInstance)) {
-                qCDebug(treelandPlugin) << "Get LockScreen Instance.";
-                connect(pluginInstance, &QObject::destroyed, this, [this] {
-                    helper->setLockScreenImpl(nullptr);
-                });
-                helper->setLockScreenImpl(lockscreen);
-            }
-#endif
         }
     }
 
 private:
     Treeland *q_ptr;
-#ifndef DISABLE_DDM
-    Dtk::Accounts::DAccountsManager manager;
-    QLocalSocket *socket{ nullptr };
-#endif
     QTranslator *lastTrans{ nullptr };
     QmlEngine *qmlEngine{ nullptr };
     std::vector<PluginInterface *> plugins;
-    QLocalSocket *helperSocket{ nullptr };
     Helper *helper{ nullptr };
     QMap<QString, std::shared_ptr<QDBusUnixFileDescriptor>> userDisplayFds;
     std::vector<QAction *> shortcuts;
     std::map<PluginInterface *, QTranslator *> pluginTs;
 };
 
-
-class Compositor1Adaptor: public QDBusAbstractAdaptor
+class Compositor1Adaptor : public QDBusAbstractAdaptor
 {
     Q_OBJECT
     Q_CLASSINFO("D-Bus Interface", "org.deepin.Compositor1")
@@ -279,13 +248,15 @@ class Compositor1Adaptor: public QDBusAbstractAdaptor
                 "")
 public:
     Compositor1Adaptor(Treeland *parent)
-    : QDBusAbstractAdaptor(parent)
+        : QDBusAbstractAdaptor(parent)
     {
         setAutoRelaySignals(true);
     }
 
     inline Treeland *parent() const
-    { return static_cast<Treeland *>(QObject::parent()); }
+    {
+        return static_cast<Treeland *>(QObject::parent());
+    }
 
 public Q_SLOTS: // METHODS
 
@@ -323,9 +294,9 @@ Treeland::Treeland()
                 auto cmdArgs = cmdline.value();
 
                 auto envs = QProcessEnvironment::systemEnvironment();
-                envs.insert("WAYLAND_DISPLAY",
-                            globalSession->socket()->fullServerName());
-                if (auto currentUserSession = d->helper->sessionManager()->sessionForUid(getuid())) {
+                envs.insert("WAYLAND_DISPLAY", globalSession->socket()->fullServerName());
+                if (auto currentUserSession =
+                        d->helper->sessionManager()->sessionForUid(getuid())) {
                     if (auto *xwayland = currentUserSession->xwayland())
                         envs.insert("DISPLAY", xwayland->displayName());
                 } else if (auto *current = globalSession->xwayland()) {
@@ -343,8 +314,11 @@ Treeland::Treeland()
                 process.startDetached();
             }
         };
-        auto con =
-            connect(d->helper->sessionManager(), &SessionManager::socketFileChanged, this, exec, Qt::SingleShotConnection);
+        auto con = connect(d->helper->sessionManager(),
+                           &SessionManager::socketFileChanged,
+                           this,
+                           exec,
+                           Qt::SingleShotConnection);
 
         WSocket *defaultSocket = globalSession->socket();
         if (defaultSocket && defaultSocket->isValid()) {
@@ -368,7 +342,7 @@ Treeland::Treeland()
         d->loadPlugin(QStringLiteral(TREELAND_PLUGINS_OUTPUT_PATH));
     } else {
         qCInfo(treelandPlugin) << "The Treeland plugin build directory is inaccessible, "
-                                   "falling back to the installation directory";
+                                  "falling back to the installation directory";
         d->loadPlugin(QStringLiteral(TREELAND_PLUGINS_INSTALL_PATH));
     }
 #else
@@ -376,10 +350,7 @@ Treeland::Treeland()
 #endif
 }
 
-Treeland::~Treeland()
-{
-
-}
+Treeland::~Treeland() { }
 
 bool Treeland::debugMode() const
 {
@@ -471,8 +442,8 @@ void Treeland::XWaylandName()
     auto session = d->helper->sessionManager()->sessionForUid(uid);
     auto *xwayland = session ? session->xwayland() : nullptr;
     if (!xwayland) {
-        auto reply = m.createErrorReply(QDBusError::InternalError,
-                                        "Failed to prepare XWayland session");
+        auto reply =
+            m.createErrorReply(QDBusError::InternalError, "Failed to prepare XWayland session");
         conn.send(reply);
         return;
     }

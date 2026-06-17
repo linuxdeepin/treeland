@@ -1,0 +1,37 @@
+{
+  "hostName": "dummy-ddm",
+  "currentUser": "alice",
+  "lastUser": "alice",
+  "lastSession": "treeland.desktop",
+  "rememberLastSession": true,
+  "power": {
+    "powerOff": true,
+    "reboot": true,
+    "suspend": true,
+    "hibernate": true,
+    "hybridSleep": false
+  },
+  "sessions": [
+    {
+      "fileName": "treeland.desktop",
+      "type": 2,
+      "displayName": "Treeland",
+      "comment": "Treeland Wayland",
+      "exec": "/usr/bin/treeland"
+    },
+    {
+      "fileName": "gnome.desktop",
+      "type": 2,
+      "displayName": "GNOME",
+      "comment": "GNOME Wayland",
+      "exec": "/usr/bin/gnome-shell"
+    }
+  ],
+  "users": ["alice", "bob", "carol"],
+  "activeSessions": [
+    {
+      "user": "alice",
+      "sessionId": 10
+    }
+  ]
+}

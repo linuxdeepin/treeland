@@ -279,11 +279,6 @@ void SurfaceWrapper::setup()
     case Type::InputPopup:
         m_surfaceItem = new WInputPopupSurfaceItem(this);
         break;
-#ifdef EXT_SESSION_LOCK_V1
-    case Type::LockScreen:
-        m_surfaceItem = new WSurfaceItem(this);
-        break;
-#endif
     default:
         Q_UNREACHABLE();
     }

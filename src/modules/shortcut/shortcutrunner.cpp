@@ -11,7 +11,7 @@
 #include "surface/surfacewrapper.h"
 #include "utils/fpsdisplaymanager.h"
 #include "interfaces/multitaskviewinterface.h"
-#include "core/lockscreen.h"
+#include "modules/greeter/lockscreen.h"
 #include "core/qmlengine.h"
 #include "workspaceanimationcontroller.h"
 #include "woutputrenderwindow.h"

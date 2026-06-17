@@ -43,52 +43,11 @@ jobs:
           cd "$TREELAND_DIR"
 
           # Install build-deps defined in treeland/debian/control
-          # Check if libddm-dev is missing before running mk-build-deps
-          set +e
-          dpkg-checkbuilddeps debian/control 2> /tmp/treeland-checkdeps.err
-          CHECKDEPS_RC=$?
-          set -e
-
-          #if [ "$CHECKDEPS_RC" -ne 0 ] && grep -qi 'libddm-dev' /tmp/treeland-checkdeps.err; then
-            echo "⚠️ libddm-dev unavailable from repo, building ddm from source (master) as fallback"
-            cat /tmp/treeland-checkdeps.err
-            cd /tmp
-            if [ ! -d ddm ]; then
-              git clone --depth=1 https://github.com/linuxdeepin/ddm.git
-            fi
-            cd ddm
-            # Install ddm build-deps
-            mk-build-deps --install --remove --tool='apt-get -o Debug::pkgProblemResolver=yes --no-install-recommends --yes' debian/control
-            # Remove maintainer scripts to avoid post-install/remove actions in built packages
-            echo "🧹 Removing ddm maintainer scripts (*.postinst/*.postrm/*.prerm) before build"
-            rm -f debian/*.postinst debian/*.postrm debian/*.prerm || true
-            # Build ddm .deb packages
-            dpkg-buildpackage -uc -us -b
-            # Install built ddm packages (ignore postinst script errors since we only need dev files)
-            dpkg -i --force-all ../*.deb || apt-get install -y -f ../*.deb || true
-            echo "✅ ddm packages installed (postinst errors ignored)"
-            cd "$TREELAND_DIR"
-
-            # Remove libddm-dev from treeland's debian/control to avoid re-checking it
-            echo "Removing libddm-dev dependency from treeland's debian/control"
-            # Use a robust multi-line edit to drop any libddm-dev entry and fix commas/whitespace
-            perl -0777 -pe "s/\n\s*libddm-dev[^,]*,\n/\n/" -i debian/control
-            echo "Current Build-Depends after removal:"
-            awk 'found{print} /Build-Depends:/{found=1}' debian/control | sed -n '1,30p'
-            echo "Full debian/control after removal:"
-            cat debian/control
-          #fi
-
-          # Now install all treeland build dependencies
           mk-build-deps --install --remove --tool='apt-get -o Debug::pkgProblemResolver=yes --no-install-recommends --yes' debian/control
 
       - name: Build treeland deb package
         run: |
           set -euxo pipefail
-          # Ensure libddm-dev version constraint is relaxed before final build (avoid dpkg-checkbuilddeps failures)
-          sed -i -E 's/(libddm-dev)[[:space:]]*\([^)]*\)/\1/g' debian/control
-          echo "[Build step] debian/control after relaxing libddm-dev version:"
-          awk 'found{print} /Build-Depends:/{found=1}' debian/control | sed -n '1,30p'
 
           # Check build dependencies and diagnose missing packages
           set +e
@@ -112,7 +71,7 @@ jobs:
 
             echo ""
             echo "🔍 Checking installed vs required versions for key packages:"
-            for pkg in libddm-dev ninja-build extra-cmake-modules; do
+            for pkg in ninja-build extra-cmake-modules; do
               echo "--- $pkg ---"
               dpkg -l | grep "^ii.*$pkg" || echo "  Not installed"
               apt-cache policy "$pkg" 2>/dev/null | grep -E 'Installed|Candidate' || true

@@ -57,7 +57,7 @@ void DDMInterfaceV1Private::bind_resource(Resource *resource)
 void DDMInterfaceV1Private::switch_to_greeter([[maybe_unused]] Resource *resource)
 {
     qCWarning(treelandCore) << "DDM protocol: switch_to_greeter";
-    Helper::instance()->showLockScreen(false);
+    Helper::instance()->showLockScreen();
 }
 
 void DDMInterfaceV1Private::switch_to_user([[maybe_unused]] Resource *resource, const QString &username)
@@ -65,10 +65,10 @@ void DDMInterfaceV1Private::switch_to_user([[maybe_unused]] Resource *resource, 
     qCWarning(treelandCore) << "DDM protocol: switch_to_user" << username;
     auto helper = Helper::instance();
     if (username == "dde") {
-        helper->showLockScreen(false);
+        helper->showLockScreen();
     } else if (username != helper->userModel()->currentUserName()) {
         helper->userModel()->setCurrentUserName(username);
-        helper->showLockScreen(false);
+        helper->showLockScreen();
     }
 }
 

@@ -1,0 +1,254 @@
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
+// SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+import QtQuick
+import QtQuick.Layouts
+import Treeland
+import org.deepin.dtk 1.0 as D
+import QtQuick.Controls
+
+D.Popup {
+    id: users
+
+    property var count: UserModel.count
+    property var userItemHeight: 44
+    property var maxListHeight: userItemHeight * 5 + padding * 2
+    property var useScrollBar: listv.contentHeight > maxListHeight
+    property var lastCheckedIndex: -1
+
+    signal otherUserRequested()
+
+    focus: true
+    padding: 6
+    modal: true
+    width: 232
+    height: useScrollBar ? maxListHeight : listv.contentHeight + padding * 2
+
+    background: D.FloatingPanel {
+        radius: 12
+    }
+
+    function selectCurrentUser(userName, index) {
+        UserModel.currentUserName = userName
+        users.lastCheckedIndex = index
+        userList.close()
+    }
+
+    onAboutToShow: {
+        //FIXME: we shouldn't use index directly
+        if (users.lastCheckedIndex == -1) {
+            users.lastCheckedIndex = UserModel.lastIndex
+        }
+        listv.currentIndex = users.lastCheckedIndex
+        listv.positionViewAtIndex(listv.currentIndex, ListView.Beginning)
+    }
+
+    ListView {
+        id: listv
+        anchors.fill: parent
+        model: UserModel
+        width: parent.width
+        focus: true
+        clip: true
+        keyNavigationWraps: true
+        highlightMoveDuration: 0
+        Keys.onTabPressed: listv.incrementCurrentIndex()
+        Keys.onReturnPressed: selectCurrentUser(model.name, model.index)
+
+        property D.Palette highlightColor: D.Palette {
+            normal: D.DTK.makeColor(D.Color.Highlight)
+        }
+
+        delegate: D.CheckDelegate {
+            id: singleUser
+            height: 44
+            width: 220
+            padding: 4
+            focus: true
+
+            onHoveredChanged: {
+                if (hovered) {
+                    listv.currentIndex = index
+                }
+            }
+
+            contentItem: RowLayout {
+                Control {
+                    Layout.preferredHeight: 36
+                    Layout.preferredWidth: 36
+                    Layout.alignment: Qt.AlignVCenter
+                    background: Item {
+                        D.QtIcon {
+                            id: source
+                            anchors.fill: parent
+                            fallbackSource: model.icon
+                            visible: false
+                        }
+                        Rectangle {
+                            id: maskSource
+                            radius: 2
+                            anchors.fill: source
+                            visible: false
+                        }
+                        D.OpacityMask {
+                            anchors.fill: source
+                            source: source
+                            maskSource: maskSource
+                            invert: false
+                        }
+                        Rectangle {
+                            radius: 2
+                            anchors.fill: source
+                            color: "transparent"
+                            border {
+                                width: 1
+                                color: Qt.rgba(0, 0, 0, 0.2)
+                            }
+                        }
+                    }
+
+                    Item {
+                        width: 8
+                        height: 8
+                        anchors {
+                            right: parent.right
+                            bottom: parent.bottom
+                        }
+                        visible: model.loggedIn
+
+                        Rectangle {
+                            anchors.centerIn: parent
+                            color: Qt.rgba(0, 1, 2 / 250, 1)
+                            height: 7
+                            width: 7
+                            radius: 4
+                            border {
+                                width: 1
+                                color: Qt.rgba(1, 1, 1, 0.8)
+                            }
+                            z: 1
+
+                            D.BoxShadow {
+                                anchors.fill: parent
+                                shadowBlur: 4
+                                shadowColor: Qt.rgba(0, 180 / 255,
+                                                     38 / 255, 0.21)
+                                shadowOffsetX: 0
+                                shadowOffsetY: 2
+                                cornerRadius: parent.radius
+                                hollow: true
+                            }
+                        }
+
+                        Rectangle {
+                            anchors.centerIn: parent
+                            color: "transparent"
+                            height: 6
+                            width: 6
+                            radius: 4
+                            border {
+                                width: 1
+                                color: Qt.rgba(0, 0, 0, 0.05)
+                            }
+                            z: 2
+
+                            D.BoxShadow {
+                                anchors.fill: parent
+                                shadowBlur: 3
+                                shadowColor: Qt.rgba(0, 0, 0, 0.2)
+                                shadowOffsetX: 0
+                                shadowOffsetY: 0
+                                cornerRadius: parent.radius
+                            }
+                        }
+                    }
+                }
+
+                Column {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 36
+                    Layout.alignment: Qt.AlignVCenter
+                    Text {
+                        id: displayUserName
+                        text: model.realName.length === 0 ? model.name : model.realName
+                        color: singleUser.ListView.isCurrentItem ? "white" : "black"
+                        font: D.DTK.fontManager.t8
+                    }
+                    Text {
+                        text: model.identity
+                        color: singleUser.ListView.isCurrentItem ? Qt.rgba(1, 1, 1,0.7)
+                                                                 : Qt.rgba(0, 0, 0, 0.6)
+                        font: D.DTK.fontManager.t10
+                    }
+                }
+            }
+
+            background: Rectangle {
+                id: userBackground
+                anchors.fill: parent
+                radius: 6
+                color: singleUser.ListView.isCurrentItem ? listv.D.ColorSelector.highlightColor : "transparent"
+
+                D.BoxShadow {
+                    anchors.fill: parent
+                    shadowBlur: 0
+                    shadowColor: Qt.rgba(17 / 255, 47 / 255, 251 / 255, 0.5)
+                    shadowOffsetX: 0
+                    shadowOffsetY: -1
+                    cornerRadius: parent.radius
+                    hollow: true
+                }
+            }
+
+            onClicked: selectCurrentUser(model.name, index)
+
+            checked: UserModel.currentUserName === model.name
+        }
+
+        footer: D.CheckDelegate {
+            id: otherUserItem
+            height: Helper.globalConfig.showOtherUserOption ? 44 : 0
+            width: 220
+            padding: 4
+            focus: true
+            indicator: null
+            visible: Helper.globalConfig.showOtherUserOption
+
+            contentItem: RowLayout {
+                Control {
+                    Layout.preferredHeight: 36
+                    Layout.preferredWidth: 36
+                    Layout.alignment: Qt.AlignVCenter
+                    background: Item {
+                        D.DciIcon {
+                            anchors.fill: parent
+                            name: "login_user"
+                            sourceSize { width: 36; height: 36 }
+                        }
+                    }
+                }
+
+                Column {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 36
+                    Layout.alignment: Qt.AlignVCenter
+                    Text {
+                        text: qsTr("Other…")
+                        color: otherUserItem.ListView.isCurrentItem ? "white" : "black"
+                        font: D.DTK.fontManager.t8
+                    }
+                }
+            }
+
+            background: Rectangle {
+                anchors.fill: parent
+                radius: 6
+                color: otherUserItem.hovered ? Qt.rgba(0.2, 0.2, 0.2, 0.12) : "transparent"
+            }
+
+            onClicked: {
+                users.close()
+                users.otherUserRequested()
+            }
+        }
+    }
+}

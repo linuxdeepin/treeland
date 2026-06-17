@@ -925,7 +925,6 @@ void Output::arrangeNonLayerSurfaces()
 
     for (SurfaceWrapper *surface : std::as_const(surfaces())) {
         if (surface->type() == SurfaceWrapper::Type::Layer
-            || surface->type() == SurfaceWrapper::Type::LockScreen
             || !surface->hasInitializeContainer())
             continue;
         arrangeNonLayerSurface(surface, sizeDiff);
