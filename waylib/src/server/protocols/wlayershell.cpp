@@ -4,6 +4,7 @@
 #include "wlayershell.h"
 #include "wlayersurface.h"
 #include "woutput.h"
+#include "wayliblogging.h"
 #include "private/wglobal_p.h"
 #include "wxdgshell.h"
 
@@ -54,7 +55,7 @@ void WLayerShellPrivate::onNewSurface(qw_layer_surface_v1 *layerSurface)
         if (xdgShell)
             xdgShell->initializeNewXdgPopupSurface(popup);
         else
-            qWarning() << "Xdg shell not set, will ignore the layer surface's popup request!";
+            qCWarning(lcWlLayerShell) << "Xdg shell not set, will ignore the layer surface's popup request!";
     });
 
     surfaceList.append(surface);

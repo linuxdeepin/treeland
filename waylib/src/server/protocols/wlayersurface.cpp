@@ -5,6 +5,7 @@
 #include "wseat.h"
 #include "wsurface.h"
 #include "woutput.h"
+#include "wayliblogging.h"
 #include "private/wtoplevelsurface_p.h"
 
 #include <qwlayershellv1.h>
@@ -110,7 +111,7 @@ void WLayerSurfacePrivate::connect()
 
 [[maybe_unused]] static inline void debugOutput(wlr_layer_surface_v1_state s)
 {
-    qDebug() << "committed: " << s.committed << " "
+    qCDebug(lcWlLayerSurface) << "committed: " << s.committed << " "
              << "configure_serial: " << s.configure_serial << "\n"
              << "anchor: " << s.anchor << " "
              << "layer: " << s.layer << " "

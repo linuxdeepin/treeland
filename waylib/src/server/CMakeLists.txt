@@ -102,6 +102,8 @@ ws_generate(
 )
 
 set(SOURCES
+    wayliblogging.cpp
+
     kernel/wbackend.cpp
     kernel/wcursor.cpp
     kernel/winputdevice.cpp
@@ -203,6 +205,8 @@ set(SOURCES
 )
 
 set(HEADERS
+    wayliblogging.h
+
     kernel/wglobal.h
     kernel/wbackend.h
     kernel/wcursor.h
@@ -419,6 +423,7 @@ target_include_directories(${TARGET}
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/protocols/private>
         $<INSTALL_INTERFACE:${WAYLIB_INCLUDE_INSTALL_DIR}>
     PRIVATE
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
         ${Qt6Gui_PRIVATE_INCLUDE_DIRS}
         ${Qt6Quick_PRIVATE_INCLUDE_DIRS}
         ${Qt6EglSupport_PRIVATE_INCLUDE_DIRS}

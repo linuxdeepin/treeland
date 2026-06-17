@@ -11,6 +11,7 @@
 #include "wsgtextureprovider.h"
 #include "wsurface.h"
 #include "wsurfaceitem_p.h"
+#include "wayliblogging.h"
 
 #include <private/qquickitem_p.h>
 
@@ -30,8 +31,6 @@
 
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
-
-Q_LOGGING_CATEGORY(waylibSurface, "waylib.server.surface", QtInfoMsg)
 
 class Q_DECL_HIDDEN SubsurfaceContainer : public QQuickItem
 {
@@ -297,7 +296,7 @@ public:
                                                        }
                                                    }); // if signal is emitted from seperated rendering thread, default QueuedConnection is used
         } else {
-            qCFatal(waylibSurface) << "Needs a WOutputRenderWindow to render the WSurfaceItemContent, "
+            qCFatal(lcWlSurface) << "Needs a WOutputRenderWindow to render the WSurfaceItemContent, "
                                       "but the current window is:" << q->window();
         }
     }
@@ -454,7 +453,7 @@ WSGTextureProvider *WSurfaceItemContent::wTextureProvider() const
 
     auto w = qobject_cast<WOutputRenderWindow*>(d->window);
     if (!w || !d->sceneGraphRenderContext() || QThread::currentThread() != d->sceneGraphRenderContext()->thread()) {
-        qWarning("WQuickCursor::textureProvider: can only be queried on the rendering thread of an WOutputRenderWindow");
+        qCWarning(lcWlSurface, "WQuickCursor::textureProvider: can only be queried on the rendering thread of an WOutputRenderWindow");
         return nullptr;
     }
 
@@ -1239,7 +1238,7 @@ void WSurfaceItemPrivate::initForDelegate()
     } else if (delegateIsDirty) {
         auto obj = delegate->createWithInitialProperties({{"surface", QVariant::fromValue(q)}}, qmlContext(q));
         if (!obj) {
-            qWarning() << "Failed on create surface item from delegate, error mssage:"
+            qCWarning(lcWlSurface) << "Failed on create surface item from delegate, error mssage:"
                        << delegate->errorString();
             return;
         }
@@ -1418,7 +1417,7 @@ void WSurfaceItemPrivate::connectSubsurfaceContainerSignals(SubsurfaceContainer 
                          // notifications are emitted from ensureSubsurfaceItem() only
                          // after the item is fully initialized.
                          if (subsurfaces.contains(item)) {
-                             qCWarning(waylibSurface)
+                             qCWarning(lcWlSurface)
                                  << "Duplicate subsurface add ignored:" << item;
                              return;
                          }
@@ -1537,7 +1536,7 @@ void WSurfaceItemPrivate::doResize(WSurfaceItem::ResizeMode mode)
 
         resizeSurfaceToItemSize(newSize.toSize(), (newSize - oldSize).toSize());
     } else {
-        qWarning() << "Invalid resize mode" << mode;
+        qCWarning(lcWlSurface) << "Invalid resize mode" << mode;
     }
 }
 

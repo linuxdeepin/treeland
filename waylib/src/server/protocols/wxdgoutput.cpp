@@ -4,6 +4,7 @@
 #include "wxdgoutput.h"
 #include "woutputlayout.h"
 #include "wsocket.h"
+#include "wayliblogging.h"
 #include "private/wglobal_p.h"
 
 #include "xdg-output-unstable-v1-protocol.h"
@@ -440,7 +441,7 @@ void WXdgOutputManager::create([[maybe_unused]] WServer *wserver)
                                                     d->scaleOverride);
         m_handle = d->manager;
     } else {
-        qWarning() << "Output layout not set, xdg output manager will never be created!";
+        qCWarning(lcWlXdgOutput) << "Output layout not set, xdg output manager will never be created!";
     }
 }
 

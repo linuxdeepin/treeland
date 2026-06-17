@@ -7,18 +7,17 @@
 #include "wtoplevelsurface.h"
 #include "wtools.h"
 #include "private/wglobal_p.h"
+#include "wayliblogging.h"
 
 #include <qwcompositor.h>
 #include <qwseat.h>
 #include <qwtextinputv3.h>
 #include <qwdisplay.h>
 
-#include <QLoggingCategory>
 #include <QQmlInfo>
 
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
-Q_DECLARE_LOGGING_CATEGORY(qLcInputMethod)
 class Q_DECL_HIDDEN WTextInputManagerV3Private : public WObjectPrivate
 {
 public:

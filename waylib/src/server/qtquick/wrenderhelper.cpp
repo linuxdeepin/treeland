@@ -3,6 +3,7 @@
 
 #include "wrenderhelper.h"
 #include "wtools.h"
+#include "wayliblogging.h"
 #include "private/wqmlhelper_p.h"
 #include "private/wglobal_p.h"
 
@@ -139,7 +140,7 @@ static bool createRhiRenderTarget(const QRhiColorAttachment &colorAttachment,
 {
     std::unique_ptr<QRhiRenderBuffer> depthStencil(rhi->newRenderBuffer(QRhiRenderBuffer::DepthStencil, pixelSize, sampleCount));
     if (!depthStencil->create()) {
-        qWarning("Failed to build depth-stencil buffer for QQuickRenderTarget");
+        qCWarning(lcWlRenderHelper, "Failed to build depth-stencil buffer for QQuickRenderTarget");
         return false;
     }
 
@@ -150,7 +151,7 @@ static bool createRhiRenderTarget(const QRhiColorAttachment &colorAttachment,
     rt->setRenderPassDescriptor(rp.get());
 
     if (!rt->create()) {
-        qWarning("Failed to build texture render target for QQuickRenderTarget");
+        qCWarning(lcWlRenderHelper, "Failed to build texture render target for QQuickRenderTarget");
         return false;
     }
 
@@ -205,7 +206,7 @@ bool createRhiRenderTarget(QRhi *rhi, const QQuickRenderTarget &source, QQuickWi
     case QQuickRenderTargetPrivate::Type::NativeRenderbuffer: {
         std::unique_ptr<QRhiRenderBuffer> renderbuffer(rhi->newRenderBuffer(QRhiRenderBuffer::Color, rtd->pixelSize, rtd->sampleCount));
         if (!renderbuffer->createFrom({ rtd->u.nativeRenderbufferObject })) {
-            qWarning("Failed to build wrapper renderbuffer for QQuickRenderTarget");
+            qCWarning(lcWlRenderHelper, "Failed to build wrapper renderbuffer for QQuickRenderTarget");
             return false;
         }
         QRhiColorAttachment att(renderbuffer.get());
@@ -724,14 +725,14 @@ QSGRendererInterface::GraphicsApi WRenderHelper::probe(qw_backend *testBackend, 
     for (auto api : std::as_const(apiList)) {
         std::unique_ptr<qw_renderer> renderer(createRenderer(testBackend, api));
         if (!renderer) {
-            qInfo() << GraphicsApiName(api) << " api failed to create wlr_renderer";
+            qCInfo(lcWlRenderHelper) << GraphicsApiName(api) << " api failed to create wlr_renderer";
             continue;
         }
 
         const wlr_drm_format_set *formats = wlr_renderer_get_texture_formats(*renderer, WLR_BUFFER_CAP_DMABUF);
 
         if (formats && formats->len == 0) {
-            qInfo() << GraphicsApiName(api) << " api don't support any format";
+            qCInfo(lcWlRenderHelper) << GraphicsApiName(api) << " api don't support any format";
             continue;
         }
 
@@ -758,7 +759,7 @@ QSGRendererInterface::GraphicsApi WRenderHelper::probe(qw_backend *testBackend, 
             }
 
             if (!hasSupportedFormat) {
-                qInfo() << GraphicsApiName(api) << " api failed to convert any buffer to texture";
+                qCInfo(lcWlRenderHelper) << GraphicsApiName(api) << " api failed to convert any buffer to texture";
                 continue;
             }
         }
@@ -861,13 +862,13 @@ WRenderHelper::newTexture(qw_allocator *allocator, qw_renderer *renderer,
 
     wlr_buffer *buffer = allocator->create_buffer(size.width(), size.height(), &format);
     if (!buffer) {
-        qCritical() << "Failed to create qw_buffer from allocator";
+        qCCritical(lcWlRenderHelper) << "Failed to create qw_buffer from allocator";
         return {};
     }
 
     std::unique_ptr<qw_texture> texture(qw_texture::from_buffer(*renderer, buffer));
     if (!texture) {
-        qCritical() << "Failed to create qw_texture from buffer";
+        qCCritical(lcWlRenderHelper) << "Failed to create qw_texture from buffer";
         wlr_buffer_drop(buffer);
         return {};
     }
@@ -885,7 +886,7 @@ WRenderHelper::newTexture(qw_allocator *allocator, qw_renderer *renderer,
         wlr_gles2_texture_get_attribs(*texture.get(), &attribs);
 
         if (!rhiTexture->createFrom({attribs.tex, 0})) {
-            qCritical("Failed to create QRhiTexture from GLES2 texture");
+            qCCritical(lcWlRenderHelper, "Failed to create QRhiTexture from GLES2 texture");
             wlr_buffer_drop(buffer);
             return {};
         }
@@ -900,7 +901,7 @@ WRenderHelper::newTexture(qw_allocator *allocator, qw_renderer *renderer,
         wlr_vk_texture_get_image_attribs(*texture.get(), &attribs);
 
         if (!rhiTexture->createFrom({vkimage_cast(attribs.image), attribs.layout})) {
-            qCritical("Failed to create QRhiTexture from Vulkan image");
+            qCCritical(lcWlRenderHelper, "Failed to create QRhiTexture from Vulkan image");
             wlr_buffer_drop(buffer);
             return {};
         }

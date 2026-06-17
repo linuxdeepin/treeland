@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wbufferrenderer_p.h"
+#include "wayliblogging.h"
 #include "wrenderhelper.h"
 #include "wqmlhelper_p.h"
 #include "wtools.h"
@@ -290,7 +291,7 @@ WSGTextureProvider *WBufferRenderer::wTextureProvider() const
     auto w = qobject_cast<WOutputRenderWindow*>(window());
     auto d = QQuickItemPrivate::get(this);
     if (!w || !d->sceneGraphRenderContext() || QThread::currentThread() != d->sceneGraphRenderContext()->thread()) {
-        qWarning("WBufferRenderer::textureProvider: can only be queried on the rendering thread of an WOutputRenderWindow");
+        qCWarning(lcWlBufferRenderer, "WBufferRenderer::textureProvider: can only be queried on the rendering thread of an WOutputRenderWindow");
         return nullptr;
     }
 
@@ -343,7 +344,7 @@ qw_buffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePixe
     if (flags.testFlag(RenderFlag::DontConfigureSwapchain)) {
         auto renderFormat = pickFormat(m_output->renderer(), format);
         if (!renderFormat) {
-            qWarning("wlr_renderer doesn't support format 0x%s", drmGetFormatName(format));
+            qCWarning(lcWlBufferRenderer, "wlr_renderer doesn't support format 0x%s", drmGetFormatName(format));
             return nullptr;
         }
 
