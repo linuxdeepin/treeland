@@ -3,6 +3,7 @@
 
 #include "wsocket.h"
 #include "private/wglobal_p.h"
+#include "wayliblogging.h"
 
 #include <QDir>
 #include <QStandardPaths>
@@ -26,9 +27,6 @@ struct wl_event_source;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-// Socket management and client connections
-Q_LOGGING_CATEGORY(waylibSocket, "waylib.server.socket", QtInfoMsg)
-
 #define LOCK_SUFFIX ".lock"
 
 // Copy from libwayland
@@ -45,23 +43,23 @@ static int wl_socket_lock(const QString &socketFile)
                    (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP));
 
     if (fd_lock < 0) {
-        qCWarning(waylibSocket) << "Failed to open lockfile" << lockFile << "- please check file permissions";
+        qCWarning(lcWlSocket) << "Failed to open lockfile" << lockFile << "- please check file permissions";
         goto err;
     }
 
     if (flock(fd_lock, LOCK_EX | LOCK_NB) < 0) {
-        qCWarning(waylibSocket) << "Failed to lock" << lockFile << "- another compositor may be running";
+        qCWarning(lcWlSocket) << "Failed to lock" << lockFile << "- another compositor may be running";
         goto err_fd;
     }
 
     if (lstat(addr_sun_path, &socket_stat) < 0 ) {
         if (errno != ENOENT) {
-            qCWarning(waylibSocket) << "Failed to stat file:" << socketFile;
+            qCWarning(lcWlSocket) << "Failed to stat file:" << socketFile;
             goto err_fd;
         }
     } else if (socket_stat.st_mode & S_IWUSR ||
                socket_stat.st_mode & S_IWGRP) {
-        qCDebug(waylibSocket) << "Removing existing socket file:" << socketFile;
+        qCDebug(lcWlSocket) << "Removing existing socket file:" << socketFile;
         unlink(addr_sun_path);
     }
 
@@ -578,13 +576,13 @@ bool WSocket::create(const QString &filePath)
     socklen_t size = offsetof(sockaddr_un, sun_path) + pathLength;
     if (::bind(d->fd, (sockaddr*) &addr, size) < 0) {
         close();
-        qCWarning(waylibSocket) << "Socket bind failed:" << QString::fromLocal8Bit(strerror(errno));
+        qCWarning(lcWlSocket) << "Socket bind failed:" << QString::fromLocal8Bit(strerror(errno));
         return false;
     }
 
     if (::listen(d->fd, 128) < 0) {
         close();
-        qCWarning(waylibSocket) << "Socket listen failed:" << QString::fromLocal8Bit(strerror(errno));
+        qCWarning(lcWlSocket) << "Socket listen failed:" << QString::fromLocal8Bit(strerror(errno));
         return false;
     }
 
@@ -602,10 +600,10 @@ static QString getSocketFile(int fd, bool doCheck) {
     if (doCheck) {   // check socket file
         struct ::stat stat_buf{};
         if (fstat(fd, &stat_buf) != 0) {
-            qCWarning(waylibSocket) << "Failed to fstat file descriptor";
+            qCWarning(lcWlSocket) << "Failed to fstat file descriptor";
             return {};
         } else if (!S_ISSOCK(stat_buf.st_mode)) {
-            qCWarning(waylibSocket) << "File descriptor is not a socket";
+            qCWarning(lcWlSocket) << "File descriptor is not a socket";
             return {};
         }
 
@@ -613,10 +611,10 @@ static QString getSocketFile(int fd, bool doCheck) {
         socklen_t accept_conn_size = sizeof(accept_conn);
         if (getsockopt(fd, SOL_SOCKET, SO_ACCEPTCONN, &accept_conn,
                        &accept_conn_size) != 0) {
-            qCWarning(waylibSocket) << "Failed to get socket options:" << QString::fromLocal8Bit(strerror(errno));
+            qCWarning(lcWlSocket) << "Failed to get socket options:" << QString::fromLocal8Bit(strerror(errno));
             return {};
         } else if (accept_conn == 0) {
-            qCWarning(waylibSocket) << "File descriptor is not in listening mode";
+            qCWarning(lcWlSocket) << "File descriptor is not in listening mode";
             return {};
         }
     }
@@ -669,7 +667,7 @@ bool WSocket::create(int fd, bool doListen)
         return false;
 
     if (doListen && ::listen(d->fd, 128) < 0) {
-        qCWarning(waylibSocket) << "Failed to listen on socket:" << QString::fromLocal8Bit(strerror(errno));
+        qCWarning(lcWlSocket) << "Failed to listen on socket:" << QString::fromLocal8Bit(strerror(errno));
         return false;
     }
 
@@ -714,9 +712,9 @@ static int socket_data(int fd, uint32_t, void *data)
     length = sizeof name;
     client_fd = wl_os_accept_cloexec(fd, (sockaddr*)&name, &length);
     if (client_fd < 0) {
-        qCWarning(waylibSocket) << "Failed to accept client connection:" << QString::fromLocal8Bit(strerror(errno));
+        qCWarning(lcWlSocket) << "Failed to accept client connection:" << QString::fromLocal8Bit(strerror(errno));
     } else {
-        qCDebug(waylibSocket) << "Accepted new client connection with fd:" << client_fd;
+        qCDebug(lcWlSocket) << "Accepted new client connection with fd:" << client_fd;
         d->q_func()->addClient(client_fd);
     }
 
@@ -751,11 +749,11 @@ WClient *WSocket::addClient(int fd)
     W_D(WSocket);
     auto client = wl_client_create(d->display, fd);
     if (!client) {
-        qCWarning(waylibSocket) << "Failed to create Wayland client for fd:" << fd;
+        qCWarning(lcWlSocket) << "Failed to create Wayland client for fd:" << fd;
         return nullptr;
     }
 
-    qCDebug(waylibSocket) << "Created new Wayland client for fd:" << fd;
+    qCDebug(lcWlSocket) << "Created new Wayland client for fd:" << fd;
     auto wclient = new WClient(client, this);
     d->addClient(wclient);
 

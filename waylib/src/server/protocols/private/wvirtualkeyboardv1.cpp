@@ -3,15 +3,13 @@
 
 #include "wvirtualkeyboardv1_p.h"
 #include "private/wglobal_p.h"
+#include "wayliblogging.h"
 
 #include <qwvirtualkeyboardv1.h>
 #include <qwdisplay.h>
 
-#include <QLoggingCategory>
-
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
-Q_DECLARE_LOGGING_CATEGORY(qLcInputMethod)
 
 class Q_DECL_HIDDEN WVirtualKeyboardManagerV1Private : public WObjectPrivate
 {

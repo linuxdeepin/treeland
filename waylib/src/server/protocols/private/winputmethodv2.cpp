@@ -7,6 +7,7 @@
 #include "wsurface.h"
 #include "wxdgsurface.h"
 #include "private/wglobal_p.h"
+#include "wayliblogging.h"
 
 #include <qwcompositor.h>
 #include <qwinputmethodv2.h>
@@ -16,12 +17,10 @@
 #include <qwdisplay.h>
 
 #include <QKeySequence>
-#include <QLoggingCategory>
 #include <QRect>
 
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
-Q_DECLARE_LOGGING_CATEGORY(qLcInputMethod)
 class Q_DECL_HIDDEN WInputMethodManagerV2Private : public WObjectPrivate
 {
 public:

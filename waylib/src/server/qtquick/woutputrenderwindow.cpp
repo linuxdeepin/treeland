@@ -15,6 +15,7 @@
 #include "weventjunkman.h"
 #include "winputdevice.h"
 #include "wseat.h"
+#include "wayliblogging.h"
 
 #include "platformplugin/qwlrootsintegration.h"
 #include "platformplugin/qwlrootscreen.h"
@@ -37,7 +38,6 @@
 #include <QOffscreenSurface>
 #include <QQuickRenderControl>
 #include <QOpenGLFunctions>
-#include <QLoggingCategory>
 #include <QRunnable>
 #include <memory>
 
@@ -78,12 +78,6 @@ W_DECLARE_PRIVATE_MEMBER(QQuickAnimCtrl_m_runningAnimators_tag, QQuickAnimatorCo
 W_DECLARE_PRIVATE_MEMBER(QQuickAnimCtrl_m_window_tag, QQuickAnimatorController, m_window, QQuickWindow*);
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
-
-#ifdef QT_DEBUG
-Q_LOGGING_CATEGORY(wlcRenderer, "waylib.server.renderer", QtDebugMsg)
-#else
-Q_LOGGING_CATEGORY(wlcRenderer, "waylib.server.renderer", QtWarningMsg)
-#endif
 
 // Call it before any wlroots render to clean up the GL state in Qt.
 // If you don't do this, there will be tearing, flickering and other graphics problems
@@ -303,7 +297,7 @@ public:
         state = Accepted;
         if (!layer->isAccepted()) {
             layer->setAccepted(true);
-            qCInfo(wlcRenderer) << "Layer" << layer->parent() << "is accepted("
+            qCInfo(lcWlRenderer) << "Layer" << layer->parent() << "is accepted("
                                 << (isHardware ? "hardware" : "software") << ") on"
                                 << output;
         }
@@ -323,7 +317,7 @@ public:
         state = Rejected;
         if (layer->isAccepted()) {
             layer->setAccepted(false);
-            qCInfo(wlcRenderer) << "Layer" << layer->parent() << "is rejected on" << output;
+            qCInfo(lcWlRenderer) << "Layer" << layer->parent() << "is rejected on" << output;
         }
 
         if (layer->setInHardware(output, false)) {
@@ -1117,25 +1111,25 @@ bool OutputHelper::tryToHardwareCursor(const LayerData *layer)
         auto get_cursor_formsts = qwoutput()->handle()->impl->get_cursor_formats;
         bool needsRepaintCursor = get_cursor_sizes && get_cursor_formsts;
 
-        if (Q_UNLIKELY(wlcRenderer().isDebugEnabled()))
-            qCDebug(wlcRenderer) << "Request cursor buffer size:" << pixelSize;
+        if (Q_UNLIKELY(lcWlRenderer().isDebugEnabled()))
+            qCDebug(lcWlRenderer) << "Request cursor buffer size:" << pixelSize;
 
         if (get_cursor_sizes) {
-            if (Q_UNLIKELY(wlcRenderer().isDebugEnabled()))
-                qCDebug(wlcRenderer) << "Supported cursor sizes for output" << output() << ":";
+            if (Q_UNLIKELY(lcWlRenderer().isDebugEnabled()))
+                qCDebug(lcWlRenderer) << "Supported cursor sizes for output" << output() << ":";
 
             bool foundTargetSize = false;
             size_t sizes_len = 0;
             const auto sizes = get_cursor_sizes(qwoutput()->handle(), &sizes_len);
             for (size_t i = 0; i < sizes_len; ++i) {
-                if (Q_UNLIKELY(wlcRenderer().isDebugEnabled()))
-                     qCDebug(wlcRenderer) << "    " << sizes[i].width << "x" << sizes[i].height;
+                if (Q_UNLIKELY(lcWlRenderer().isDebugEnabled()))
+                     qCDebug(lcWlRenderer) << "    " << sizes[i].width << "x" << sizes[i].height;
 
                 if (sizes[i].width == pixelSize.width()
                     && sizes[i].height == pixelSize.height()) {
                     foundTargetSize = true;
-                    if (Q_UNLIKELY(wlcRenderer().isDebugEnabled()))
-                        qCDebug(wlcRenderer) << "    " << sizes[i].width << "x" << sizes[i].height << "(matched)";
+                    if (Q_UNLIKELY(lcWlRenderer().isDebugEnabled()))
+                        qCDebug(lcWlRenderer) << "    " << sizes[i].width << "x" << sizes[i].height << "(matched)";
                     else
                         break; //need continue to print other sizes when find matched size
                 }
@@ -1148,8 +1142,8 @@ bool OutputHelper::tryToHardwareCursor(const LayerData *layer)
                         && sizes[i].height > pixelSize.height()) {
                         pixelSize.rwidth() = sizes[i].width;
                         pixelSize.rheight() = sizes[i].height;
-                        if (Q_UNLIKELY(wlcRenderer().isDebugEnabled()))
-                            qCDebug(wlcRenderer) << "Re-render cursor with size" << pixelSize
+                        if (Q_UNLIKELY(lcWlRenderer().isDebugEnabled()))
+                            qCDebug(lcWlRenderer) << "Re-render cursor with size" << pixelSize
                                                  << "because the original cursor size"
                                                  << QSize(buffer->width, buffer->height)
                                                  << "is not supported by wlroots backend";
@@ -1159,7 +1153,7 @@ bool OutputHelper::tryToHardwareCursor(const LayerData *layer)
                 }
 
                 if (Q_UNLIKELY(!needsRepaintCursor)) {
-                    qCWarning(wlcRenderer) << "Can't find suitable cursor size for" << pixelSize;
+                    qCWarning(lcWlRenderer) << "Can't find suitable cursor size for" << pixelSize;
                     return false;
                 }
             } else {
@@ -1398,7 +1392,7 @@ bool WOutputRenderWindowPrivate::initRCWithRhi()
 
     QSGRhiSupport::RhiCreateResult result = rhiSupport->createRhi(q, offscreenSurface);
     if (!result.rhi) {
-        qWarning("WOutput::initRhi: Failed to initialize QRhi");
+        qCWarning(lcWlRenderer, "WOutput::initRhi: Failed to initialize QRhi");
         return false;
     }
 

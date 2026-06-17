@@ -1,22 +1,20 @@
-// Copyright (C) 2025 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2025-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wbufferitem.h"
 
 #include "woutputrenderwindow.h"
 #include "wsgtextureprovider.h"
+#include "wayliblogging.h"
 
 #include <qwbuffer.h>
 
 #include <QQuickWindow>
 #include <QSGImageNode>
 #include <QThread>
-#include <QLoggingCategory>
 #include <private/qquickitem_p.h>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
-
-Q_LOGGING_CATEGORY(waylibBufferItem, "waylib.server.qtquick.bufferitem", QtInfoMsg)
 
 class Q_DECL_HIDDEN WBufferItemPrivate : public QQuickItemPrivate
 {
@@ -69,7 +67,7 @@ WSGTextureProvider *WBufferItem::wTextureProvider() const
 
     auto w = qobject_cast<WOutputRenderWindow*>(d->window);
     if (!w || !d->sceneGraphRenderContext() || QThread::currentThread() != d->sceneGraphRenderContext()->thread()) {
-        qCWarning(waylibBufferItem)
+        qCWarning(lcWlBufferItem)
             << "WBufferItem::wTextureProvider can only be queried on the rendering thread of a WOutputRenderWindow";
         return nullptr;
     }
@@ -106,7 +104,7 @@ void WBufferItem::setBuffer(QW_NAMESPACE::qw_buffer *buffer)
     if (buffer) {
         auto *h = buffer->handle();
         if (!h || h->width <= 0 || h->height <= 0) {
-            qCWarning(waylibBufferItem) << "Reject buffer with invalid size or handle"
+            qCWarning(lcWlBufferItem) << "Reject buffer with invalid size or handle"
                                         << buffer << "w" << (h ? h->width : -1)
                                         << "h" << (h ? h->height : -1);
             return;
@@ -136,7 +134,7 @@ QSGNode *WBufferItem::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *)
 
     auto tp = wTextureProvider();
     if (!tp) {
-        qCWarning(waylibBufferItem) << "wTextureProvider() is nullptr";
+        qCWarning(lcWlBufferItem) << "wTextureProvider() is nullptr";
         return nullptr;
     }
 
@@ -152,7 +150,7 @@ QSGNode *WBufferItem::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *)
                 bufH = h->height;
             }
         }
-        qCWarning(waylibBufferItem) << "texture missing or item size invalid"
+        qCWarning(lcWlBufferItem) << "texture missing or item size invalid"
                                     << "buffer" << d->buffer.get()
                                     << "bufW" << bufW
                                     << "bufH" << bufH
@@ -168,7 +166,7 @@ QSGNode *WBufferItem::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *)
     }
 
     auto texture = tp->texture();
-    qCDebug(waylibBufferItem) << "updatePaintNode" << "texSize" << texture->textureSize()
+    qCDebug(lcWlBufferItem) << "updatePaintNode" << "texSize" << texture->textureSize()
                               << "itemSize" << size();
     node->setTexture(texture);
     node->setSourceRect(QRectF(QPointF(), texture->textureSize()));

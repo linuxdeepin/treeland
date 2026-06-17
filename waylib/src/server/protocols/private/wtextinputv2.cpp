@@ -6,19 +6,17 @@
 #include "wsurface.h"
 #include "winputmethodv2_p.h"
 #include "wseat.h"
+#include "wayliblogging.h"
 
 #include <qwcompositor.h>
 #include <qwdisplay.h>
 #include <qwseat.h>
-
-#include <QLoggingCategory>
 
 extern "C" {
 #include "text-input-unstable-v2-protocol.h"
 }
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
-Q_LOGGING_CATEGORY(qLcTextInputV2, "waylib.server.im.ti2", QtInfoMsg)
 using namespace tiv2;
 static struct zwp_text_input_manager_v2_interface manager_impl = {
     .destroy = handle_manager_destroy, .get_text_input = handle_manager_get_text_input
@@ -202,14 +200,14 @@ void handle_text_input_enable([[maybe_unused]] wl_client *client, wl_resource *r
     // However, there can be a race between surface destruction and text input requests,
     // so treat a missing WSurface as a warning rather than a fatal protocol error.
     if (!wSurface) {
-        qCWarning(qLcTextInputV2) << "Client" << client << "sent enable on surface" << surface
+        qCWarning(lcWlTextInput) << "Client" << client << "sent enable on surface" << surface
                                   << "but no WSurface found (may be already destroyed). Ignoring.";
         return;
     }
     auto d = text_input->d_func();
     if (d->enabledSurface) {
         // FIXME: Is this necessary? As protocol does not guarantee disable is ought to happen after enable, we may still need this.
-        qCWarning(qLcTextInputV2) << "Client" << client << "does Q_EMIT disable on surface"
+        qCWarning(lcWlTextInput) << "Client" << client << "does Q_EMIT disable on surface"
                                  << d->enabledSurface << "before enable on surface" << wSurface;
         text_input->clearEnabledSurface();
     }
@@ -224,20 +222,20 @@ void handle_text_input_disable([[maybe_unused]] wl_client *client, wl_resource *
     Q_ASSERT(text_input);
     auto wSurface = WSurface::fromHandle(wlr_surface_from_resource(surface));
     if (!wSurface) {
-        qCWarning(qLcTextInputV2) << "Client" << client << "sent disable on surface" << surface
+        qCWarning(lcWlTextInput) << "Client" << client << "sent disable on surface" << surface
                                   << "but no WSurface found (may be already destroyed). Ignoring.";
         return;
     }
     auto d = text_input->d_func();
     if (!d->enabledSurface) {
-        qCWarning(qLcTextInputV2) << "Client" << wl_resource_get_client(resource)
+        qCWarning(lcWlTextInput) << "Client" << wl_resource_get_client(resource)
                                     << "try to disable surface" << wSurface
                                     << "on a text input" << text_input
                                     << "that is not enabled on this surface. Do nothing!";
         return;
     }
     if (d->enabledSurface != wSurface) {
-        qCWarning(qLcTextInputV2) << "Client" << client
+        qCWarning(lcWlTextInput) << "Client" << client
                                     << "try to disable surface" << wSurface
                                     << "on a text input" << text_input
                                     << "which is enabled on another surface" << d->enabledSurface;
@@ -396,7 +394,7 @@ void WTextInputV2::sendLeave()
 {
     W_D(WTextInputV2);
     if (!d->focusedSurface) {
-        qCWarning(qLcTextInputV2()) << "Send leave to a null focused surface.";
+        qCWarning(lcWlTextInput()) << "Send leave to a null focused surface.";
         return;
     }
     zwp_text_input_v2_send_leave(d->resource, 0, d->focusedSurface->handle()->handle()->resource);
@@ -440,19 +438,19 @@ WTextInputV2::WTextInputV2(QObject *parent)
         }
     });
     connect(this, &WTextInput::enabled, this, [this]{
-        qCDebug(qLcTextInputV2()) << "text input v2" << this << "enabled";
+        qCDebug(lcWlTextInput()) << "text input v2" << this << "enabled";
     });
     connect(this, &WTextInput::disabled, this, [this] {
-        qCDebug(qLcTextInputV2()) << "text input v2" << this << "disabled";
+        qCDebug(lcWlTextInput()) << "text input v2" << this << "disabled";
     });
     connect(this, &WTextInputV2::stateUpdated, this, [this] (UpdateReason reason){
-        qCInfo(qLcTextInputV2()) << "state updated:" << reason;
+        qCInfo(lcWlTextInput()) << "state updated:" << reason;
         switch (reason) {
         case Change:
             break;
         case Enter:
         case Full:
-            qCDebug(qLcTextInputV2()) << "commit text input v2" << this;
+            qCDebug(lcWlTextInput()) << "commit text input v2" << this;
             Q_EMIT this->committed();
             break;
         case Reset:

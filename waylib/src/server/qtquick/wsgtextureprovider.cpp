@@ -1,10 +1,11 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wsgtextureprovider.h"
 #include "woutputrenderwindow.h"
 #include "wrenderhelper.h"
 #include "private/wglobal_p.h"
+#include "wayliblogging.h"
 
 #include <qwtexture.h>
 #include <qwbuffer.h>
@@ -14,12 +15,6 @@
 #include <private/qsgplaintexture_p.h>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
-
-#ifdef QT_DEBUG
-Q_LOGGING_CATEGORY(lcQtQuickTexture, "waylib.qtquick.texture", QtDebugMsg);
-#else
-Q_LOGGING_CATEGORY(lcQtQuickTexture, "waylib.qtquick.texture", QtInfoMsg);
-#endif
 
 class Q_DECL_HIDDEN WSGTextureProviderPrivate : public WObjectPrivate
 {
@@ -68,7 +63,7 @@ public:
         Q_ASSERT(texture);
         bool ok = WRenderHelper::makeTexture(window->rhi(), texture, &qtTexture);
         if (Q_UNLIKELY(!ok)) {
-            qCWarning(lcQtQuickTexture) << "Failed to make texture:" << texture
+            qCWarning(lcWlQtQuickTexture) << "Failed to make texture:" << texture
                                         << ", width height:" << texture->handle()->width
                                         << texture->handle()->height;
             return;
@@ -132,7 +127,7 @@ void WSGTextureProvider::setBuffer(qw_buffer *buffer)
             d->ownsTexture = true;
         }
         if (Q_UNLIKELY(!d->texture)) {
-            qCWarning(lcQtQuickTexture) << "Failed to update texture from buffer:" << buffer
+            qCWarning(lcWlQtQuickTexture) << "Failed to update texture from buffer:" << buffer
                                         << ", width height:" << buffer->handle()->width
                                         << buffer->handle()->height
                                         << ", n_locks:" << buffer->handle()->n_locks;

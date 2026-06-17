@@ -12,6 +12,7 @@
 #include "wseat.h"
 #include "wsurface.h"
 #include "private/wglobal_p.h"
+#include "wayliblogging.h"
 
 #include <qwcompositor.h>
 #include <qwinputmethodv2.h>
@@ -21,13 +22,10 @@
 #include <qwseat.h>
 #include <qwbox.h>
 
-#include <QLoggingCategory>
 #include <QQmlInfo>
 
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
-Q_LOGGING_CATEGORY(qLcInputMethod, "waylib.server.im", QtInfoMsg)
-
 struct Q_DECL_HIDDEN GrabHandlerArg {
     const WInputMethodHelper *const helper;
     qw_input_method_keyboard_grab_v2 *grab;
@@ -43,7 +41,7 @@ void handleKey(struct wlr_seat_keyboard_grab *grab, uint32_t time_msec, uint32_t
         }
     }
     if (!arg->grab) {
-        qCCritical(qLcInputMethod) << "Ignore key event for destroyed input method keyboard grab"
+        qCCritical(lcWlInputMethod) << "Ignore key event for destroyed input method keyboard grab"
                                   << "key" << key << "state" << state;
         return;
     }
@@ -60,7 +58,7 @@ void handleModifiers(struct wlr_seat_keyboard_grab *grab, const struct wlr_keybo
         }
     }
     if (!arg->grab) {
-        qCCritical(qLcInputMethod) << "Ignore modifiers for destroyed input method keyboard grab";
+        qCCritical(lcWlInputMethod) << "Ignore modifiers for destroyed input method keyboard grab";
         return;
     }
     arg->grab->send_modifiers(const_cast<struct wlr_keyboard_modifiers *>(modifiers));
@@ -97,14 +95,14 @@ public:
     void endGrab(qw_input_method_keyboard_grab_v2 *kgv2)
     {
         if (!seat) {
-            qCCritical(qLcInputMethod) << "Failed to end input method keyboard grab - seat is already destroyed"
+            qCCritical(lcWlInputMethod) << "Failed to end input method keyboard grab - seat is already destroyed"
                                       << kgv2;
             return;
         }
 
         auto *kgHandle = kgv2 ? kgv2->handle() : nullptr;
         if (!kgHandle) {
-            qCCritical(qLcInputMethod) << "Failed to end input method keyboard grab - grab handle is invalid"
+            qCCritical(lcWlInputMethod) << "Failed to end input method keyboard grab - grab handle is invalid"
                                       << kgv2;
             return;
         }
@@ -119,7 +117,7 @@ public:
     {
         auto *kgHandle = kgv2 ? kgv2->handle() : nullptr;
         if (!kgHandle) {
-            qCCritical(qLcInputMethod) << "Failed to set keyboard for input method grab - grab handle is invalid"
+            qCCritical(lcWlInputMethod) << "Failed to set keyboard for input method grab - grab handle is invalid"
                                       << kgv2 << "keyboard" << keyboard;
             return;
         }
@@ -257,7 +255,7 @@ void WInputMethodHelper::handleNewIMV2(qw_input_method_v2 *imv2)
     if (d->seat->name() != wimv2->seat()->name())
         return;
     if (inputMethod()) {
-        qCWarning(qLcInputMethod) << "Ignore second creation of input on the same seat.";
+        qCWarning(lcWlInputMethod) << "Ignore second creation of input on the same seat.";
         wimv2->sendUnavailable();
         return;
     }
@@ -336,16 +334,16 @@ void WInputMethodHelper::handleNewVKV1(wlr_virtual_keyboard_v1 *vkv1)
 void WInputMethodHelper::resendKeyboardFocus()
 {
     W_D(WInputMethodHelper);
-    qCInfo(qLcInputMethod()) << "resend keyboard focus";
+    qCInfo(lcWlInputMethod()) << "resend keyboard focus";
     notifyLeave();
     auto focus = d->seat->keyboardFocusSurface();
     if (!focus)
         return;
-    qCDebug(qLcInputMethod) << "focus" << focus << "from client" << focus->waylandClient();
+    qCDebug(lcWlInputMethod) << "focus" << focus << "from client" << focus->waylandClient();
     for (auto textInput : std::as_const(d->textInputs)) {
-        qCDebug(qLcInputMethod()) << "trying to send focus to" << textInput << "from client" << textInput->waylandClient();
+        qCDebug(lcWlInputMethod()) << "trying to send focus to" << textInput << "from client" << textInput->waylandClient();
         if (focus->waylandClient() == textInput->waylandClient()) {
-            qCDebug(qLcInputMethod) << "focus sent to" << textInput;
+            qCDebug(lcWlInputMethod) << "focus sent to" << textInput;
             if (!textInput->seat() || textInput->seat() == d->seat) {
                 textInput->sendEnter(focus);
             }
@@ -356,7 +354,7 @@ void WInputMethodHelper::resendKeyboardFocus()
 
 void WInputMethodHelper::connectToTI(WTextInput *ti)
 {
-    qCDebug(qLcInputMethod()) << "connect to text input" << ti;
+    qCDebug(lcWlInputMethod()) << "connect to text input" << ti;
     connect(ti, &WTextInput::enabled, this, &WInputMethodHelper::handleTIEnabled, Qt::UniqueConnection);
     connect(ti, &WTextInput::disabled, this, &WInputMethodHelper::handleTIDisabled, Qt::UniqueConnection);
     connect(ti, &WTextInput::requestLeave, ti, &WTextInput::sendLeave, Qt::UniqueConnection);
@@ -379,7 +377,7 @@ void WInputMethodHelper::disableTI(WTextInput *ti)
 void WInputMethodHelper::handleNewTI(WTextInput *ti)
 {
     W_D(WInputMethodHelper);
-    qCDebug(qLcInputMethod()) << "handle new text input" << ti
+    qCDebug(lcWlInputMethod()) << "handle new text input" << ti
                               << "from seat:" << ti->seat();
     if (d->textInputs.contains(ti))
         return;
@@ -448,10 +446,10 @@ void WInputMethodHelper::handleFocusedTICommitted()
     auto ti = enabledTextInput();
     Q_ASSERT(ti);
     if (!ti->focusedSurface()) {
-        qCWarning(qLcInputMethod) << "Discard commit to unfocused but not disabled text input.";
+        qCWarning(lcWlInputMethod) << "Discard commit to unfocused but not disabled text input.";
         return;
     }
-    qCDebug(qLcInputMethod) << "Focused text input" << ti << "committed."
+    qCDebug(lcWlInputMethod) << "Focused text input" << ti << "committed."
                             << "Cursor rectangle:" << ti->cursorRect();
     auto im = inputMethod();
     if (im) {

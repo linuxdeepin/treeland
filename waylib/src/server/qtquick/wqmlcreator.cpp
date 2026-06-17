@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wqmlcreator_p.h"
+#include "wayliblogging.h"
 #include "wxdgsurface.h"
 
 #include <QJSValue>
@@ -284,13 +285,13 @@ void WQmlCreatorComponent::create(QSharedPointer<WQmlCreatorDelegateData> data, 
         Q_EMIT objectAdded(data->object, initialProperties);
         notifyCreatorObjectAdded(creator(), data->object, initialProperties);
     } else {
-        qWarning() << "WQmlCreatorComponent::create failed" << "parent=" << parent << "initialProperties=" << tmp;
+        qCWarning(lcWlQmlCreator) << "WQmlCreatorComponent::create failed" << "parent=" << parent << "initialProperties=" << tmp;
 #if QT_VERSION >= QT_VERSION_CHECK(6, 10, 0)
         for (auto e: std::as_const(W_PRIVATE_MEMBER(*d, QQmlComponentPrivate_m_state_tag{}).errors))
 #else
         for (auto e: std::as_const(d->state.errors))
 #endif
-            qWarning() << e.error;
+            qCWarning(lcWlQmlCreator) << e.error;
     }
 }
 

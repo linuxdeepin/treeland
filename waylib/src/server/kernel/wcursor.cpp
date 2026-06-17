@@ -12,6 +12,7 @@
 #include "wseat.h"
 #include "woutput.h"
 #include "woutputlayout.h"
+#include "wayliblogging.h"
 
 #include <qwbuffer.h>
 #include <qwcompositor.h>
@@ -27,22 +28,12 @@
 #include <QPixmap>
 #include <QCoreApplication>
 #include <QQuickWindow>
-#include <QLoggingCategory>
 #include <private/qcursor_p.h>
 
 W_DECLARE_PRIVATE_MEMBER(QCursor_d_tag, QCursor, d, QCursorData*);
 
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
-
-// Cursor management and movement
-Q_LOGGING_CATEGORY(waylibCursor, "waylib.server.cursor", QtInfoMsg)
-// Cursor input events (motion, buttons, etc.)
-Q_LOGGING_CATEGORY(waylibCursorInput, "waylib.server.cursor.input", QtInfoMsg)
-// Cursor gesture events (pinch, swipe, etc.)
-Q_LOGGING_CATEGORY(waylibCursorGesture, "waylib.server.cursor.gesture", QtDebugMsg)
-// Cursor touch events
-Q_LOGGING_CATEGORY(waylibCursorTouch, "waylib.server.cursor.touch", QtInfoMsg)
 
 WCursorPrivate::WCursorPrivate(WCursor *qq)
     : WWrapObjectPrivate(qq)
@@ -58,15 +49,15 @@ WCursorPrivate::~WCursorPrivate()
 
 void WCursorPrivate::instantRelease()
 {
-    qCDebug(waylibCursor) << "Releasing cursor" << q_func();
+    qCDebug(lcWlCursor) << "Releasing cursor" << q_func();
 
     if (seat) {
-        qCDebug(waylibCursor) << "Detaching cursor from seat:" << seat->name();
+        qCDebug(lcWlCursor) << "Detaching cursor from seat:" << seat->name();
         seat->setCursor(nullptr);
     }
 
     if (outputLayout) {
-        qCDebug(waylibCursor) << "Removing cursor from" << outputLayout->outputs().size() << "outputs";
+        qCDebug(lcWlCursor) << "Removing cursor from" << outputLayout->outputs().size() << "outputs";
         for (auto o : outputLayout->outputs())
             o->removeCursor(q_func());
     }
@@ -111,7 +102,7 @@ void WCursorPrivate::on_button(wlr_pointer_button_event *event)
     button = WCursor::fromNativeButton(event->button);
 
     QString stateStr = (event->state == WL_POINTER_BUTTON_STATE_RELEASED) ? "released" : "pressed";
-    qCDebug(waylibCursorInput) << "Button" << static_cast<int>(button) << stateStr
+    qCDebug(lcWlPointer) << "Button" << static_cast<int>(button) << stateStr
                               << "at position:" << q_func()->position();
 
     if (event->state == WL_POINTER_BUTTON_STATE_RELEASED) {
@@ -338,7 +329,7 @@ void WCursorPrivate::processCursorMotion(qw_pointer *device, uint32_t time)
 {
     W_Q(WCursor);
 
-    qCDebug(waylibCursorInput) << "Processing cursor motion at" << q->position()
+    qCDebug(lcWlPointer) << "Processing cursor motion at" << q->position()
                               << "time:" << time;
 
     if (auto inputDevice = WInputDevice::fromHandle(device)) {
@@ -360,7 +351,7 @@ void WCursor::move(qw_input_device *device, const QPointF &delta)
     d_func()->handle()->move(*device, delta.x(), delta.y());
 
     if (oldPos != position()) {
-        qCDebug(waylibCursor) << "Cursor moved from" << oldPos << "to" << position()
+        qCDebug(lcWlCursor) << "Cursor moved from" << oldPos << "to" << position()
                              << "delta:" << delta;
         Q_EMIT positionChanged();
     }
@@ -435,7 +426,7 @@ Qt::MouseButton WCursor::fromNativeButton(uint32_t code)
     case 0x11e: qt_button = Qt::ExtraButton12; break;
     case 0x11f: qt_button = Qt::ExtraButton13; break;
     default: 
-        qCWarning(waylibCursorInput) << "Invalid button code:" << QString("0x%1").arg(code, 0, 16)
+        qCWarning(lcWlPointer) << "Invalid button code:" << QString("0x%1").arg(code, 0, 16)
                                     << "- not mappable to Qt button";
     }
 
@@ -462,7 +453,7 @@ uint32_t WCursor::toNativeButton(Qt::MouseButton button)
     case Qt::ExtraButton12: return 0x11e;
     case Qt::ExtraButton13: return 0x11f;
     default:
-        qCWarning(waylibCursorInput) << "Invalid Qt button:" << button 
+        qCWarning(lcWlPointer) << "Invalid Qt button:" << button 
                                     << "- cannot be mapped to native button code";
     }
 
@@ -605,14 +596,14 @@ bool WCursor::attachInputDevice(WInputDevice *device)
     if (device->type() != WInputDevice::Type::Pointer
             && device->type() != WInputDevice::Type::Touch
             && device->type() != WInputDevice::Type::Tablet) {
-        qCDebug(waylibCursor) << "Cannot attach device type" << static_cast<int>(device->type())
+        qCDebug(lcWlCursor) << "Cannot attach device type" << static_cast<int>(device->type())
                              << "to cursor - not a pointing device";
         return false;
     }
 
     W_D(WCursor);
     Q_ASSERT(!d->deviceList.contains(device));
-    qCDebug(waylibCursor) << "Attaching input device" << device->qtDevice()->name() 
+    qCDebug(lcWlCursor) << "Attaching input device" << device->qtDevice()->name() 
                          << "of type" << static_cast<int>(device->type()) << "to cursor";
     d->handle()->attach_input_device(device->handle()->handle());
     d->deviceList << device;
@@ -630,12 +621,12 @@ void WCursor::detachInputDevice(WInputDevice *device)
     W_D(WCursor);
 
     if (!d->deviceList.removeOne(device)) {
-        qCDebug(waylibCursor) << "Cannot detach device" << device->qtDevice()->name()
+        qCDebug(lcWlCursor) << "Cannot detach device" << device->qtDevice()->name()
                              << "- not attached to this cursor";
         return;
     }
 
-    qCDebug(waylibCursor) << "Detaching input device" << device->qtDevice()->name() 
+    qCDebug(lcWlCursor) << "Detaching input device" << device->qtDevice()->name() 
                          << "from cursor";
     d->handle()->detach_input_device(device->handle()->handle());
     d->handle()->map_input_to_output(device->handle()->handle(), nullptr);

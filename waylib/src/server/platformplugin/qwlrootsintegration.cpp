@@ -4,6 +4,7 @@
 #include "qwlrootsintegration.h"
 #include "qwlrootscreen.h"
 #include "qwlrootswindow.h"
+#include "wayliblogging.h"
 #include "woutput.h"
 #include "winputdevice.h"
 #include "types.h"
@@ -320,7 +321,7 @@ public:
                 m_format = q_glFormatFromConfig(c->eglDisplay(), eglConfig, m_format);
             Q_ASSERT(m_format.renderableType() == QSurfaceFormat::OpenGLES);
         } else {
-            qWarning() << "The QSurfaceFormat is not initialize";
+            qCWarning(lcWlPlatform) << "The QSurfaceFormat is not initialize";
         }
     }
 
