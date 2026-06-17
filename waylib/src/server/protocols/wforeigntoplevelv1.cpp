@@ -9,6 +9,7 @@
 #include "wtoplevelsurface.h"
 #include "wxdgtoplevelsurface.h"
 #include "wxwaylandsurface.h"
+#include "wayliblogging.h"
 
 #include <qwdisplay.h>
 #include <qwforeigntoplevelhandlev1.h>
@@ -18,8 +19,6 @@
 
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
-Q_LOGGING_CATEGORY(qLcWlrForeignToplevel, "waylib.protocols.foreigntoplevel", QtWarningMsg)
-
 class Q_DECL_HIDDEN WForeignToplevelPrivate : public WObjectPrivate
 {
 public:
@@ -66,7 +65,7 @@ public:
                     return;
                 }
                 if (!surfaces.contains(p)) {
-                    qCCritical(qLcWlrForeignToplevel)
+                    qCCritical(lcWlForeignToplevel)
                         << "Xdg toplevel surface " << xdgSurface
                         << "has set parent surface, but foreign_toplevel_handle for parent surface "
                            "not found!";
@@ -86,7 +85,7 @@ public:
                     return;
                 }
                 if (!surfaces.contains(p)) {
-                    qCCritical(qLcWlrForeignToplevel)
+                    qCCritical(lcWlForeignToplevel)
                         << "X11 surface " << xwaylandSurface
                         << "has set parent surface, but foreign_toplevel_handle for parent surface "
                            "not found!";
@@ -171,7 +170,7 @@ public:
         W_Q(WForeignToplevel);
 
         if (surfaces.contains(surface)) {
-            qCCritical(qLcWlrForeignToplevel)
+            qCCritical(lcWlForeignToplevel)
                 << surface << " has been add to foreign toplevel twice";
             return;
         }

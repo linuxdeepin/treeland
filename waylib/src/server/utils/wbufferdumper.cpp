@@ -1,11 +1,11 @@
-// Copyright (C) 2025 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2025-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wbufferdumper.h"
 #include "wtools.h"
+#include "wayliblogging.h"
 
 #include <QImage>
-#include <QLoggingCategory>
 
 extern "C" {
 #include <wlr/types/wlr_buffer.h>
@@ -14,20 +14,18 @@ extern "C" {
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-Q_LOGGING_CATEGORY(wlcBufferDumper, "waylib.server.bufferdumper", QtWarningMsg)
-
 WBufferDumper::DumpResult WBufferDumper::dumpBufferToImage(wlr_buffer *buffer, 
                                                            wlr_renderer *renderer, 
                                                            QImage &outputImage)
 {
     if (!buffer || !renderer) {
-        qCWarning(wlcBufferDumper) << "Invalid buffer or renderer";
+        qCWarning(lcWlBufferDumper) << "Invalid buffer or renderer";
         return DumpResult::InvalidBuffer;
     }
 
     wlr_texture *texture = wlr_texture_from_buffer(renderer, buffer);
     if (!texture) {
-        qCWarning(wlcBufferDumper) << "Failed to create texture from buffer";
+        qCWarning(lcWlBufferDumper) << "Failed to create texture from buffer";
         return DumpResult::TextureCreationFailed;
     }
 
@@ -48,7 +46,7 @@ WBufferDumper::DumpResult WBufferDumper::dumpBufferToImage(wlr_buffer *buffer,
     options.stride = stride;
 
     if (!wlr_texture_read_pixels(texture, &options)) {
-        qCWarning(wlcBufferDumper) << "Failed to read pixels from texture";
+        qCWarning(lcWlBufferDumper) << "Failed to read pixels from texture";
         wlr_texture_destroy(texture);
         return DumpResult::TextureReadFailed;
     }
@@ -70,7 +68,7 @@ WBufferDumper::DumpResult WBufferDumper::dumpBufferToFile(wlr_buffer *buffer,
     }
 
     if (!image.save(filePath)) {
-        qCWarning(wlcBufferDumper) << "Failed to save image to" << filePath;
+        qCWarning(lcWlBufferDumper) << "Failed to save image to" << filePath;
         return DumpResult::SaveFailed;
     }
 

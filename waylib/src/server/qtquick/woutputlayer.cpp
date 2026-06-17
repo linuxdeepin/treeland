@@ -4,6 +4,7 @@
 #include "woutputlayer.h"
 #include "woutputrenderwindow.h"
 #include "wrenderhelper.h"
+#include "wayliblogging.h"
 #include "woutputviewport.h"
 
 #include <QQuickItem>
@@ -71,7 +72,7 @@ void WOutputLayerPrivate::doEnable(bool enable)
     for (auto o : std::as_const(outputs)) {
         if (enable) {
             if (o->window() && o->window() != window) {
-                qWarning() << "OutputLayer: OutputViewport and OutputLayer's target item "
+                qCWarning(lcWlOutputLayer) << "OutputLayer: OutputViewport and OutputLayer's target item "
                               "must both be children of the same window.";
                 continue;
             }

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "woutputhelper.h"
+#include "wayliblogging.h"
 #include "wrenderhelper.h"
 #include "woutput.h"
 #include "platformplugin/types.h"
@@ -241,7 +242,7 @@ bool WOutputHelper::commit()
 
     bool ok = d->qwoutput()->commit_state(&state);
     if (!ok) {
-        qCritical("commit failed on output %s", d->qwoutput()->handle()->name);
+        qCCritical(lcWlOutputHelper, "commit failed on output %s", d->qwoutput()->handle()->name);
     }
     wlr_output_state_finish(&state);
     ExtraState committedExtraState = d->extraState;
@@ -289,13 +290,13 @@ bool WOutputHelper::setExtraState(ExtraState state)
                                   WLR_OUTPUT_STATE_GAMMA_LUT;
 
     if (state->committed & ~allowedFlags) {
-        qWarning() << "WOutputHelper::setExtraState: contains unsupported flags:"
+        qCWarning(lcWlOutputHelper) << "WOutputHelper::setExtraState: contains unsupported flags:"
                    << Qt::hex << (state->committed & ~allowedFlags);
         return false;
     }
 
     if ((state->committed & allowedFlags) == 0) {
-        qWarning() << "WOutputHelper::setExtraState: no valid state changes";
+        qCWarning(lcWlOutputHelper) << "WOutputHelper::setExtraState: no valid state changes";
         return false;
     }
 

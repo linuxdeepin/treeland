@@ -4,6 +4,7 @@
 #pragma once
 
 #include <wglobal.h>
+#include "wayliblogging.h"
 
 #include <QCoreApplication>
 #include <QPointer>
@@ -53,7 +54,7 @@ public:
     {
         auto future = run(std::forward<T>(args)...);
         if (!thread()->isRunning()) {
-            qWarning() << "The target thread is not running, maybe lead to deadlock.";
+            qCWarning(lcWlThreadUtils) << "The target thread is not running, maybe lead to deadlock.";
         }
         future.waitForFinished();
 

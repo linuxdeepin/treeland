@@ -4,6 +4,7 @@
 #include <QDebug>
 
 #include "wrenderhelper.h"
+#include "wayliblogging.h"
 #include "wrenderbuffernode_p.h"
 #include "wbufferrenderer_p.h"
 #include "wqmlhelper_p.h"
@@ -366,7 +367,7 @@ class Q_DECL_HIDDEN RhiTextureManager : public DataManager<RhiTextureManager, Wl
         auto buffer = texture->buffer;
         wlr_dmabuf_attributes attribs;
         if (!wlr_buffer_get_dmabuf(buffer, &attribs)) {
-            qWarning() << "Failed to get dmabuf attributes for texture" << texture << "with buffer" << buffer
+                qCWarning(lcWlRenderBuffer) << "Failed to get dmabuf attributes for texture" << texture << "with buffer" << buffer
                        << ", Can't check texture without dmabuf attributes";
             return false;
         }

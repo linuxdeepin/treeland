@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wquickcursor.h"
+#include "wayliblogging.h"
 #include "woutputrenderwindow.h"
 #include "woutputitem.h"
 #include "wcursorimage.h"
@@ -366,7 +367,7 @@ WSGTextureProvider *WQuickCursor::wTextureProvider() const
 
     auto w = qobject_cast<WOutputRenderWindow*>(d->window);
     if (!w || !d->sceneGraphRenderContext() || QThread::currentThread() != d->sceneGraphRenderContext()->thread()) {
-        qWarning("WQuickCursor::textureProvider: can only be queried on the rendering thread of an WOutputRenderWindow");
+        qCWarning(lcWlQuickCursor, "WQuickCursor::textureProvider: can only be queried on the rendering thread of an WOutputRenderWindow");
         return nullptr;
     }
 

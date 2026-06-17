@@ -4,12 +4,11 @@
 #include "wtextureproviderprovider.h"
 #include "woutputrenderwindow.h"
 #include "private/wglobal_p.h"
+#include "wayliblogging.h"
 
 #include <rhi/qrhi.h>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
-Q_LOGGING_CATEGORY(qLcTextureProvider, "waylib.server.texture.provider")
-
 class Q_DECL_HIDDEN WTextureCapturerPrivate : public WObjectPrivate
 {
 public:
@@ -63,7 +62,7 @@ void WTextureCapturer::doGrabToImage()
     if (textureProvider && textureProvider->texture() && textureProvider->texture()->rhiTexture()) {
         // Perform rhi texture read back
         auto texture = textureProvider->texture()->rhiTexture();
-        qCInfo(qLcTextureProvider) << "Perform rhi texture read back for texture" << texture;
+        qCInfo(lcWlTextureProvider) << "Perform rhi texture read back for texture" << texture;
         QRhiReadbackResult *rbResult = new QRhiReadbackResult;
         QRhiCommandBuffer *cb;
         d->renderWindow->rhi()->beginOffscreenFrame(&cb);

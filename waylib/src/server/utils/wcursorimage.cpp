@@ -1,19 +1,17 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wcursorimage.h"
 #include "wcursor.h"
+#include "wayliblogging.h"
 
 #include <qwxcursormanager.h>
 
 #include <QDebug>
-#include <QLoggingCategory>
 #include <QTimer>
 #include <private/qobject_p.h>
 
 #include <memory>
-
-Q_LOGGING_CATEGORY(qLcCursorImage, "waylib.server.cursor.image", QtWarningMsg)
 
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -545,9 +543,9 @@ void WCursorImagePrivate::updateCursorImage()
     if (cursorName) {
         xcursor = getXCursorWithFallback(manager.get(), cursorName, scale);
         if (!xcursor)
-            qCWarning(qLcCursorImage) << "Get empty cursor image for " << cursorName;
+            qCWarning(lcWlCursorImage) << "Get empty cursor image for " << cursorName;
     } else {
-        qCWarning(qLcCursorImage) << "Unknown cursor shape type!";
+        qCWarning(lcWlCursorImage) << "Unknown cursor shape type!";
     }
 
     if (!xcursor || xcursor->image_count == 0) {
@@ -675,7 +673,7 @@ void WCursorImage::setCursorTheme(const QByteArray &name, uint32_t size)
 
     bool theme_loaded = d->manager->load(d->scale);
     if (!theme_loaded)
-        qCCritical(qLcCursorImage) << "Can't load cursor theme:" << name << ", size:" << size;
+        qCCritical(lcWlCursorImage) << "Can't load cursor theme:" << name << ", size:" << size;
 
     d->updateCursorImage();
 }

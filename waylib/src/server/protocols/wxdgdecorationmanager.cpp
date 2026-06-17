@@ -3,6 +3,7 @@
 
 #include "wxdgdecorationmanager.h"
 #include "wsurface.h"
+#include "wayliblogging.h"
 #include "private/wglobal_p.h"
 
 #include <qwxdgdecorationmanagerv1.h>
@@ -146,7 +147,7 @@ void WXdgDecorationManager::setPreferredMode(DecorationMode mode)
         return;
     }
     if (d->preferredMode == DecorationMode::Undefined || d->preferredMode == DecorationMode::None) {
-        qWarning("Prefer mode must be 'Client' or 'Server'");
+        qCWarning(lcWlXdgDecoration, "Prefer mode must be 'Client' or 'Server'");
         return;
     }
     // update all existing decoration that mode changed
