@@ -64,12 +64,12 @@ UserModel::UserModel(QObject *parent)
     connect(this, &UserModel::currentUserNameChanged, [this] {
         auto user = getUser(d->currentUserName);
         if (!user) {
-            qCWarning(treelandGreeter) << "Couldn't find user:" << d->currentUserName;
+            qCWarning(lcTlGreeter) << "Couldn't find user:" << d->currentUserName;
             return;
         }
 
         auto locale = user->locale();
-        qCInfo(treelandGreeter) << "Current locale:" << locale.language();
+        qCInfo(lcTlGreeter) << "Current locale:" << locale.language();
         auto *newTrans = new QTranslator{ this };
         auto dirs = QStandardPaths::standardLocations(QStandardPaths::GenericDataLocation);
         for (const auto &dir : dirs) {
@@ -88,7 +88,7 @@ UserModel::UserModel(QObject *parent)
         }
 
         newTrans->deleteLater();
-        qCWarning(treelandGreeter) << "Failed to load new translator under" << dirs.last();
+        qCWarning(lcTlGreeter) << "Failed to load new translator under" << dirs.last();
     });
 
     auto userList = d->manager.userList();
@@ -100,7 +100,7 @@ UserModel::UserModel(QObject *parent)
     for (auto uid : uids) {
         auto user = d->manager.findUserById(uid);
         if (!user) {
-            qCWarning(treelandGreeter) << "Failed to find user by ID:" << user.error();
+            qCWarning(lcTlGreeter) << "Failed to find user by ID:" << user.error();
             continue;
         }
 
@@ -125,7 +125,7 @@ UserModel::UserModel(QObject *parent)
     }
 
     if (d->currentUserName.isEmpty()) {
-        qCWarning(treelandGreeter) << "Couldn't find last user, using current running user as current user";
+        qCWarning(lcTlGreeter) << "Couldn't find last user, using current running user as current user";
         d->currentUserName = d->users.first()->userName();
     }
 }
@@ -329,7 +329,7 @@ void UserModel::onUserAdded(quint64 uid)
 {
     auto newUser = d->manager.findUserById(uid);
     if (!newUser) {
-        qCWarning(treelandGreeter) << "User" << uid << "has been added but couldn't find it.";
+        qCWarning(lcTlGreeter) << "User" << uid << "has been added but couldn't find it.";
         return;
     }
 
@@ -368,7 +368,7 @@ bool UserModel::tryAddNssUser(const QString &userName)
     bool found = std::any_of(d->users.cbegin(), d->users.cend(),
                              [&userName](const UserPtr &u) { return u->userName() == userName; });
     if (found) {
-        qCInfo(treelandGreeter) << "NSS user already in model:" << userName;
+        qCInfo(lcTlGreeter) << "NSS user already in model:" << userName;
         return true;
     }
 
@@ -376,14 +376,14 @@ bool UserModel::tryAddNssUser(const QString &userName)
     // consider moving to an async worker thread in a future iteration.
     struct passwd *pw = ::getpwnam(userName.toLocal8Bit().constData());
     if (!pw) {
-        qCInfo(treelandGreeter) << "NSS user not found:" << userName;
+        qCInfo(lcTlGreeter) << "NSS user not found:" << userName;
         return false;
     }
 
     // pw_gecos is comma-separated ("Full Name,Room,Work,Home,Other"); use only the first field.
     QString fullName = QString::fromLocal8Bit(pw->pw_gecos).section(QLatin1Char(','), 0, 0);
 
-    qCInfo(treelandGreeter) << "Adding NSS/LDAP user to model:" << userName;
+    qCInfo(lcTlGreeter) << "Adding NSS/LDAP user to model:" << userName;
     beginResetModel();
     d->users.emplace_back(std::make_unique<User>(
         userName,

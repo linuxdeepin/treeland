@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "prelaunchsplash.h"
 
+#include "common/treelandlogging.h"
 #include "qwayland-server-treeland-prelaunch-splash-v2.h"
 
 #include <wserver.h>
@@ -10,12 +11,9 @@
 #include <qwdisplay.h>
 
 #include <QByteArray>
-#include <QLoggingCategory>
 
 WAYLIB_SERVER_USE_NAMESPACE
 QW_USE_NAMESPACE
-
-Q_LOGGING_CATEGORY(prelaunchSplash, "treeland.prelaunchsplash", QtInfoMsg)
 
 class SplashResource : public QtWaylandServer::treeland_prelaunch_splash_v2
 {
@@ -44,7 +42,7 @@ public:
 protected:
     void destroy(Resource *resource) override
     {
-        qCInfo(prelaunchSplash) << "Client destroy splash appId=" << m_appId
+        qCInfo(lcTlPrelaunchSplash) << "Client destroy splash appId=" << m_appId
                                 << " instanceId=" << m_instanceId;
         wl_resource_destroy(resource->handle);
     }
@@ -79,7 +77,7 @@ public:
 protected:
     void destroy_global() override
     {
-        qCDebug(prelaunchSplash) << "PrelaunchSplash v2 global destroyed";
+        qCDebug(lcTlPrelaunchSplash) << "PrelaunchSplash v2 global destroyed";
     }
 
     void destroy(Resource *resource) override
@@ -94,7 +92,7 @@ protected:
                        const QString &sandboxEngineName,
                        struct ::wl_resource *icon_buffer) override
     {
-        qCInfo(prelaunchSplash) << "create_splash request sandbox=" << sandboxEngineName
+        qCInfo(lcTlPrelaunchSplash) << "create_splash request sandbox=" << sandboxEngineName
                                 << " app_id=" << app_id << " instance_id=" << instance_id;
 
         auto *splashResource = wl_resource_create(resource->client(),
@@ -128,13 +126,13 @@ PrelaunchSplash::~PrelaunchSplash() = default;
 void PrelaunchSplash::create(WAYLIB_SERVER_NAMESPACE::WServer *server)
 {
     d->init(*server->handle(), InterfaceVersion);
-    qCDebug(prelaunchSplash) << "PrelaunchSplash v2 global created";
+    qCDebug(lcTlPrelaunchSplash) << "PrelaunchSplash v2 global created";
 }
 
 void PrelaunchSplash::destroy([[maybe_unused]] WAYLIB_SERVER_NAMESPACE::WServer *server)
 {
     d->globalRemove();
-    qCDebug(prelaunchSplash) << "PrelaunchSplash v2 global removal scheduled";
+    qCDebug(lcTlPrelaunchSplash) << "PrelaunchSplash v2 global removal scheduled";
 }
 
 wl_global *PrelaunchSplash::global() const

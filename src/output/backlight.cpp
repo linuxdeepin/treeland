@@ -1,4 +1,4 @@
-// Copyright (C) 2025 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2025-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "backlight.h"
@@ -50,7 +50,7 @@ qreal Backlight::setBrightness(qreal brightness)
 
     QFile brightnessFile(QString("/sys/class/backlight/%1/brightness").arg(m_name));
     if (!brightnessFile.open(QIODevice::WriteOnly)) {
-        qCWarning(treelandOutput) << "Output" << m_name << ": Failed to open backlight brightness file for writing.";
+        qCWarning(lcTlOutput) << "Output" << m_name << ": Failed to open backlight brightness file for writing.";
         return this->brightness();
     }
 

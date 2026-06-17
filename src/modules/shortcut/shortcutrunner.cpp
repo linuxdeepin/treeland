@@ -3,6 +3,7 @@
 
 #include "shortcutrunner.h"
 #include "seat/helper.h"
+#include "common/treelandlogging.h"
 #include "treelandconfig.hpp"
 #include "shortcutcontroller.h"
 #include "workspace/workspace.h"
@@ -397,7 +398,7 @@ void ShortcutRunner::taskswitchAction(bool isRepeat, bool isSameApp, bool isPrev
     } else {
         QMetaObject::invokeMethod(helper->m_taskSwitch, "next");
     }
-    qWarning() << "TaskSwitch: navigating in full task switcher";
+    qCWarning(lcTlShortcut) << "TaskSwitch: navigating in full task switcher";
 }
 
 void ShortcutRunner::onQuickSwitchTimeout()

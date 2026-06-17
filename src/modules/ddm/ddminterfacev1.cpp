@@ -56,13 +56,13 @@ void DDMInterfaceV1Private::bind_resource(Resource *resource)
 
 void DDMInterfaceV1Private::switch_to_greeter([[maybe_unused]] Resource *resource)
 {
-    qCWarning(treelandCore) << "DDM protocol: switch_to_greeter";
+    qCWarning(lcTlCore) << "DDM protocol: switch_to_greeter";
     Helper::instance()->showLockScreen(false);
 }
 
 void DDMInterfaceV1Private::switch_to_user([[maybe_unused]] Resource *resource, const QString &username)
 {
-    qCWarning(treelandCore) << "DDM protocol: switch_to_user" << username;
+    qCWarning(lcTlCore) << "DDM protocol: switch_to_user" << username;
     auto helper = Helper::instance();
     if (username == "dde") {
         helper->showLockScreen(false);
@@ -74,19 +74,19 @@ void DDMInterfaceV1Private::switch_to_user([[maybe_unused]] Resource *resource, 
 
 void DDMInterfaceV1Private::activate_session([[maybe_unused]] Resource *resource)
 {
-    qCWarning(treelandCore) << "DDM protocol: activate_session";
+    qCWarning(lcTlCore) << "DDM protocol: activate_session";
     Helper::instance()->activateSession();
 }
 
 void DDMInterfaceV1Private::deactivate_session([[maybe_unused]] Resource *resource)
 {
-    qCWarning(treelandCore) << "DDM protocol: deactivate_session";
+    qCWarning(lcTlCore) << "DDM protocol: deactivate_session";
     Helper::instance()->deactivateSession();
 }
 
 void DDMInterfaceV1Private::enable_render([[maybe_unused]] Resource *resource)
 {
-    qCWarning(treelandCore) << "DDM protocol: enable_render";
+    qCWarning(lcTlCore) << "DDM protocol: enable_render";
     Helper::instance()->enableRender();
 }
 

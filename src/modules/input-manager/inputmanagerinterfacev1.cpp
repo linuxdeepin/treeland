@@ -374,7 +374,7 @@ void PointerDeviceConfigurationV1Private::set_handed_mode([[maybe_unused]] Resou
         handedMode = PointerDeviceConfigurationV1::Left;
         break;
     default:
-        qCCritical(treelandInputManager, "unknown mode in set_handed_mode request");
+        qCCritical(lcTlInputManager, "unknown mode in set_handed_mode request");
         return;
     }
     pendingChanges |= PointerDeviceConfigurationV1::HandedModeChanged;
@@ -391,7 +391,7 @@ void PointerDeviceConfigurationV1Private::set_acceleration_profile([[maybe_unuse
                                                                     uint32_t profile)
 {
     if (!treeland_pointer_device_configuration_v1_acceleration_profile_is_valid(profile, resource->version())) {
-        qCCritical(treelandInputManager, "unknown acceleration profile");
+        qCCritical(lcTlInputManager, "unknown acceleration profile");
         return;
     }
 
@@ -403,7 +403,7 @@ void PointerDeviceConfigurationV1Private::set_send_events_mode([[maybe_unused]] 
                                                                 uint32_t mode)
 {
     if (!treeland_pointer_device_configuration_v1_send_events_mode_is_valid(mode, resource->version())) {
-        qCCritical(treelandInputManager, "unknown send_events_mode");
+        qCCritical(lcTlInputManager, "unknown send_events_mode");
         return;
     }
 
@@ -422,7 +422,7 @@ void PointerDeviceConfigurationV1Private::set_natural_scroll([[maybe_unused]] Re
         naturalScroll = false;
         break;
     default:
-        qCCritical(treelandInputManager, "unknown state in set_natural_scroll request");
+        qCCritical(lcTlInputManager, "unknown state in set_natural_scroll request");
         return;
     }
     pendingChanges |= PointerDeviceConfigurationV1::NaturalScrollChanged;
@@ -439,7 +439,7 @@ void PointerDeviceConfigurationV1Private::set_disable_while_typing([[maybe_unuse
         disableWhileTyping = false;
         break;
     default:
-        qCCritical(treelandInputManager, "unknown state in set_disable_while_typing request");
+        qCCritical(lcTlInputManager, "unknown state in set_disable_while_typing request");
         return;
     }
     pendingChanges |= PointerDeviceConfigurationV1::DisableWhileTypingChanged;
@@ -456,7 +456,7 @@ void PointerDeviceConfigurationV1Private::set_tap_to_click([[maybe_unused]] Reso
         tapToClick = false;
         break;
     default:
-        qCCritical(treelandInputManager, "unknown state in set_tap_to_click request");
+        qCCritical(lcTlInputManager, "unknown state in set_tap_to_click request");
         return;
     }
     pendingChanges |= PointerDeviceConfigurationV1::TapToClickChanged;
@@ -888,7 +888,7 @@ void KeyboardSettingsInterfaceV1Private::set_num_lock([[maybe_unused]] Resource 
         numLock = false;
         break;
     default:
-        qCCritical(treelandInputManager, "unknown state in set_num_lock request");
+        qCCritical(lcTlInputManager, "unknown state in set_num_lock request");
         return;
     }
     pendingChanges |= KeyboardSettingsInterfaceV1::NumLockChanged;

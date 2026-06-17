@@ -730,7 +730,7 @@ void ShortcutManagerV2::onSessionChanged()
     if (d->m_shortcuts.contains(socket)) {
         uint status = d->updateShortcuts(d->m_shortcuts[socket], commitFailName);
         if (status) {
-            qCWarning(treelandShortcut) << "Failed to restore shortcuts" << commitFailName
+            qCWarning(lcTlShortcut) << "Failed to restore shortcuts" << commitFailName
                                         << "by reason" << status
                                         << "for session" << session->id()
                                         << "for user" << session->username();

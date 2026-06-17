@@ -62,7 +62,7 @@ void WallpaperLauncher::onSetDisplayNameRequested(const QString &displayName)
 void WallpaperLauncher::onStartRequested()
 {
     if (m_wallpaperProcess) {
-        qCDebug(treelandWallpaper) << "Wallpaper already running or start requested.";
+        qCDebug(lcTlWallpaper) << "Wallpaper already running or start requested.";
         return;
     }
 
@@ -87,7 +87,7 @@ void WallpaperLauncher::onStartRequested()
 void WallpaperLauncher::onStopRequested()
 {
     if (!m_wallpaperProcess) {
-        qCDebug(treelandWallpaper) << "Wallpaper not running or stop already requested.";
+        qCDebug(lcTlWallpaper) << "Wallpaper not running or stop already requested.";
         return;
     }
 
@@ -111,20 +111,20 @@ void WallpaperLauncher::handleWallpaperError(QProcess::ProcessError error)
 {
     switch (error) {
     case QProcess::FailedToStart:
-        qCCritical(treelandWallpaper) << "Wallpaper process failed to start";
+        qCCritical(lcTlWallpaper) << "Wallpaper process failed to start";
         break;
     case QProcess::Crashed:
-        qCCritical(treelandWallpaper) << "Wallpaper process crashed";
+        qCCritical(lcTlWallpaper) << "Wallpaper process crashed";
         break;
     case QProcess::Timedout:
-        qCCritical(treelandWallpaper) << "Wallpaper operation timed out";
+        qCCritical(lcTlWallpaper) << "Wallpaper operation timed out";
         break;
     case QProcess::WriteError:
     case QProcess::ReadError:
-        qCCritical(treelandWallpaper) << "An error occurred while communicating with Wallpaper";
+        qCCritical(lcTlWallpaper) << "An error occurred while communicating with Wallpaper";
         break;
     case QProcess::UnknownError:
-        qCCritical(treelandWallpaper) << "An unknown error has occurred in Wallpaper";
+        qCCritical(lcTlWallpaper) << "An unknown error has occurred in Wallpaper";
         break;
     }
 

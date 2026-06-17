@@ -41,7 +41,7 @@ SeatsManager::~SeatsManager()
 WSeat *SeatsManager::createSeat(const QString &name, bool isFallback)
 {
     if (m_seats.contains(name)) {
-        qCDebug(treelandSeat) << "Seat" << name << "already exists";
+        qCDebug(lcTlSeat) << "Seat" << name << "already exists";
         return m_seats[name];
     }
 
@@ -54,7 +54,7 @@ WSeat *SeatsManager::createSeat(const QString &name, bool isFallback)
 
 
     Q_EMIT seatAdded(seat);
-    qCDebug(treelandSeat) << "Created seat:" << name << "fallback:" << isFallback;
+    qCDebug(lcTlSeat) << "Created seat:" << name << "fallback:" << isFallback;
     
     return seat;
 }
@@ -62,7 +62,7 @@ WSeat *SeatsManager::createSeat(const QString &name, bool isFallback)
 void SeatsManager::removeSeat(const QString &name)
 {
     if (!m_seats.contains(name)) {
-        qCWarning(treelandSeat) << "Cannot remove non-existent seat:" << name;
+        qCWarning(lcTlSeat) << "Cannot remove non-existent seat:" << name;
         return;
     }
 
@@ -70,10 +70,10 @@ void SeatsManager::removeSeat(const QString &name)
 
     if (m_defaultSeat == seat && !m_seats.isEmpty()) {
         m_defaultSeat = m_seats.begin().value();
-        qCDebug(treelandSeat) << "Fallback seat changed to:" << m_defaultSeat->name();
+        qCDebug(lcTlSeat) << "Fallback seat changed to:" << m_defaultSeat->name();
     } else if (m_defaultSeat == seat) {
         m_defaultSeat = nullptr;
-        qCDebug(treelandSeat) << "No fallback seat available";
+        qCDebug(lcTlSeat) << "No fallback seat available";
     }
 
     QList<WInputDevice*> devices = seat->deviceList();
@@ -87,7 +87,7 @@ void SeatsManager::removeSeat(const QString &name)
             if (newSeat) {
                 Q_EMIT deviceReassigned(device, seat, newSeat);
             } else {
-                qCWarning(treelandSeat) << "Failed to reassign device after seat removal:" << device->name();
+                qCWarning(lcTlSeat) << "Failed to reassign device after seat removal:" << device->name();
             }
         }
     }
@@ -97,7 +97,7 @@ void SeatsManager::removeSeat(const QString &name)
     }
 
     Q_EMIT seatRemoved(seat);
-    qCDebug(treelandSeat) << "Removed seat:" << name;
+    qCDebug(lcTlSeat) << "Removed seat:" << name;
 
     delete seat;
 
@@ -120,7 +120,7 @@ void SeatsManager::removeSeat(WSeat *seat)
     if (!seatName.isEmpty()) {
         removeSeat(seatName);
     } else {
-        qCWarning(treelandSeat) << "Attempted to remove a seat that is not managed by SeatsManager";
+        qCWarning(lcTlSeat) << "Attempted to remove a seat that is not managed by SeatsManager";
     }
 }
 
@@ -142,44 +142,44 @@ WSeat *SeatsManager::fallbackSeat() const
 void SeatsManager::assignDeviceToSeat(WInputDevice *device, const QString &seatName)
 {
     if (!device) {
-        qCWarning(treelandSeat) << "Cannot assign null device to seat";
+        qCWarning(lcTlSeat) << "Cannot assign null device to seat";
         return;
     }
 
     for (auto seat : std::as_const(m_seats)) {
         if (seat->deviceList().contains(device)) {
             if (seat->name() == seatName) {
-                qCDebug(treelandSeat) << "Device" << device->name() << "already assigned to seat" << seatName;
+                qCDebug(lcTlSeat) << "Device" << device->name() << "already assigned to seat" << seatName;
                 return;
             }
 
             seat->detachInputDevice(device);
-            qCDebug(treelandSeat) << "Device" << device->name() << "detached from seat" << seat->name();
+            qCDebug(lcTlSeat) << "Device" << device->name() << "detached from seat" << seat->name();
             break;
         }
     }
 
     if (m_seats.contains(seatName)) {
         m_seats[seatName]->attachInputDevice(device);
-        qCDebug(treelandSeat) << "Device" << device->name() << "assigned to seat" << seatName;
+        qCDebug(lcTlSeat) << "Device" << device->name() << "assigned to seat" << seatName;
     } else if (fallbackSeat()) {
         fallbackSeat()->attachInputDevice(device);
-        qCDebug(treelandSeat) << "Device" << device->name() << "assigned to fallback seat";
+        qCDebug(lcTlSeat) << "Device" << device->name() << "assigned to fallback seat";
     } else {
-        qCWarning(treelandSeat) << "Cannot assign device" << device->name() << "- no seats available";
+        qCWarning(lcTlSeat) << "Cannot assign device" << device->name() << "- no seats available";
     }
 }
 
 WSeat *SeatsManager::autoAssignDevice(WInputDevice *device)
 {
     if (!device) {
-        qCWarning(treelandSeat) << "Cannot auto-assign null device";
+        qCWarning(lcTlSeat) << "Cannot auto-assign null device";
         return nullptr;
     }
 
     for (auto seat : std::as_const(m_seats)) {
         if (seat->deviceList().contains(device)) {
-            qCDebug(treelandSeat) << "Device" << device->name() << "already assigned to seat" << seat->name();
+            qCDebug(lcTlSeat) << "Device" << device->name() << "already assigned to seat" << seat->name();
             return seat;
         }
     }
@@ -188,38 +188,38 @@ WSeat *SeatsManager::autoAssignDevice(WInputDevice *device)
 
     if (targetSeat) {
         targetSeat->attachInputDevice(device);
-        qCDebug(treelandSeat) << "Device" << device->name() << "auto-assigned to seat" << targetSeat->name();
+        qCDebug(lcTlSeat) << "Device" << device->name() << "auto-assigned to seat" << targetSeat->name();
         return targetSeat;
     } else if (fallbackSeat()) {
         fallbackSeat()->attachInputDevice(device);
-        qCDebug(treelandSeat) << "Device" << device->name() << "auto-assigned to fallback seat";
+        qCDebug(lcTlSeat) << "Device" << device->name() << "auto-assigned to fallback seat";
         return fallbackSeat();
     }
 
-    qCWarning(treelandSeat) << "Failed to auto-assign device" << device->name();
+    qCWarning(lcTlSeat) << "Failed to auto-assign device" << device->name();
     return nullptr;
 }
 
 void SeatsManager::addDeviceRule(const QString &seatName, const QString &rule)
 {
     if (seatName.isEmpty()) {
-        qCWarning(treelandSeat) << "Cannot add device rule for seat with empty name";
+        qCWarning(lcTlSeat) << "Cannot add device rule for seat with empty name";
         return;
     }
 
     if (rule.isEmpty()) {
-        qCWarning(treelandSeat) << "Cannot add empty device rule";
+        qCWarning(lcTlSeat) << "Cannot add empty device rule";
         return;
     }
 
     if (!m_seats.contains(seatName)) {
-        qCWarning(treelandSeat) << "Cannot add device rule for non-existent seat:" << seatName;
+        qCWarning(lcTlSeat) << "Cannot add device rule for non-existent seat:" << seatName;
         return;
     }
 
     QRegularExpression regex(rule);
     if (!regex.isValid()) {
-        qCWarning(treelandSeat) << "Invalid regex pattern for device rule:" << rule << "Error:" << regex.errorString();
+        qCWarning(lcTlSeat) << "Invalid regex pattern for device rule:" << rule << "Error:" << regex.errorString();
         return;
     }
 
@@ -230,25 +230,25 @@ void SeatsManager::addDeviceRule(const QString &seatName, const QString &rule)
     // Check for duplicate rules
     for (const auto &existingRule : std::as_const(m_deviceRules[seatName])) {
         if (existingRule.pattern() == rule) {
-            qCDebug(treelandSeat) << "Device rule already exists for seat" << seatName << ":" << rule;
+            qCDebug(lcTlSeat) << "Device rule already exists for seat" << seatName << ":" << rule;
             return;
         }
     }
 
     m_deviceRules[seatName].append(regex);
-    qCDebug(treelandSeat) << "Added device rule for seat" << seatName << ":" << rule;
+    qCDebug(lcTlSeat) << "Added device rule for seat" << seatName << ":" << rule;
 }
 
 void SeatsManager::removeDeviceRule(const QString &seatName, const QString &rule)
 {
     if (!m_deviceRules.contains(seatName)) {
-        qCDebug(treelandSeat) << "No device rules for seat:" << seatName;
+        qCDebug(lcTlSeat) << "No device rules for seat:" << seatName;
         return;
     }
 
     QRegularExpression regex(rule);
     if (!regex.isValid()) {
-        qCWarning(treelandSeat) << "Invalid regex pattern:" << rule;
+        qCWarning(lcTlSeat) << "Invalid regex pattern:" << rule;
         return;
     }
 
@@ -256,14 +256,14 @@ void SeatsManager::removeDeviceRule(const QString &seatName, const QString &rule
     for (int i = 0; i < rules.size(); i++) {
         if (rules[i].pattern() == regex.pattern()) {
             rules.removeAt(i);
-            qCDebug(treelandSeat) << "Removed device rule from seat" << seatName << ":" << rule;
+            qCDebug(lcTlSeat) << "Removed device rule from seat" << seatName << ":" << rule;
             break;
         }
     }
 
     if (rules.isEmpty()) {
         m_deviceRules.remove(seatName);
-        qCDebug(treelandSeat) << "All device rules removed for seat:" << seatName;
+        qCDebug(lcTlSeat) << "All device rules removed for seat:" << seatName;
     }
 }
 
@@ -283,7 +283,7 @@ QStringList SeatsManager::deviceRules(const QString &seatName) const
 
 void SeatsManager::loadConfig(const QJsonObject &config)
 {
-    qCDebug(treelandSeat) << "Loading seat configuration";
+    qCDebug(lcTlSeat) << "Loading seat configuration";
 
     QMap<QString, WSeat*> seatsToDelete;
     seatsToDelete.swap(m_seats);
@@ -314,35 +314,35 @@ void SeatsManager::loadConfig(const QJsonObject &config)
     }
 
     if (m_seats.isEmpty()) {
-        qCDebug(treelandSeat) << "No seats in config, creating default seat0";
+        qCDebug(lcTlSeat) << "No seats in config, creating default seat0";
         createSeat("seat0", true);
     }
 
     if (!m_defaultSeat && !m_seats.isEmpty()) {
         m_defaultSeat = m_seats.begin().value();
-        qCDebug(treelandSeat) << "Set fallback seat to:" << m_defaultSeat->name();
+        qCDebug(lcTlSeat) << "Set fallback seat to:" << m_defaultSeat->name();
     }
 
-    qCDebug(treelandSeat) << "Loaded" << m_seats.size() << "seats";
+    qCDebug(lcTlSeat) << "Loaded" << m_seats.size() << "seats";
 }
 
 bool SeatsManager::loadConfigFromFile(const QString &filePath)
 {
     QFile file(filePath);
     if (!file.open(QIODevice::ReadOnly)) {
-        qCDebug(treelandSeat) << "Config file not found:" << filePath;
+        qCDebug(lcTlSeat) << "Config file not found:" << filePath;
         return false;
     }
 
     QJsonDocument doc = QJsonDocument::fromJson(file.readAll());
     if (doc.isNull() || !doc.isObject()) {
-        qCWarning(treelandSeat) << "Invalid JSON in config file:" << filePath;
+        qCWarning(lcTlSeat) << "Invalid JSON in config file:" << filePath;
         return false;
     }
 
     QJsonObject config = doc.object();
     if (!validateConfig(config)) {
-        qCWarning(treelandSeat) << "Invalid seat configuration in:" << filePath;
+        qCWarning(lcTlSeat) << "Invalid seat configuration in:" << filePath;
         return false;
     }
 
@@ -357,12 +357,12 @@ bool SeatsManager::saveConfigToFile(const QString &filePath) const
 
     QFile file(filePath);
     if (!file.open(QIODevice::WriteOnly)) {
-        qCWarning(treelandSeat) << "Cannot write config file:" << filePath;
+        qCWarning(lcTlSeat) << "Cannot write config file:" << filePath;
         return false;
     }
 
     file.write(doc.toJson(QJsonDocument::Indented));
-    qCDebug(treelandSeat) << "Saved configuration to:" << filePath;
+    qCDebug(lcTlSeat) << "Saved configuration to:" << filePath;
     return true;
 }
 
@@ -387,7 +387,7 @@ bool SeatsManager::validateConfig(const QJsonObject &config) const
 
         if (seatObj.contains("fallback") && seatObj["fallback"].toBool()) {
             if (hasFallback) {
-                qCWarning(treelandSeat) << "Multiple fallback seats found in configuration";
+                qCWarning(lcTlSeat) << "Multiple fallback seats found in configuration";
                 return false;
             }
             hasFallback = true;
@@ -404,19 +404,19 @@ bool SeatsManager::validateConfig(const QJsonObject &config) const
 void SeatsManager::initializeDefaultSeat()
 {
     if (!m_seats.isEmpty()) {
-        qCDebug(treelandSeat) << "Seats already initialized";
+        qCDebug(lcTlSeat) << "Seats already initialized";
         return;
     }
 
     WSeat *defaultSeat = createSeat("seat0", true);
     if (!defaultSeat) {
-        qCCritical(treelandSeat) << "Failed to create default seat!";
+        qCCritical(lcTlSeat) << "Failed to create default seat!";
         return;
     }
 
     ensureDefaultDeviceRules("seat0");
 
-    qCDebug(treelandSeat) << "Initialized default seat: seat0";
+    qCDebug(lcTlSeat) << "Initialized default seat: seat0";
 }
 
 void SeatsManager::ensureDefaultDeviceRules(const QString &seatName)
@@ -425,7 +425,7 @@ void SeatsManager::ensureDefaultDeviceRules(const QString &seatName)
         addDeviceRule(seatName, QString("%1:.*").arg(static_cast<int>(WInputDevice::Type::Keyboard)));
         addDeviceRule(seatName, QString("%1:.*").arg(static_cast<int>(WInputDevice::Type::Pointer)));
         addDeviceRule(seatName, QString("%1:.*").arg(static_cast<int>(WInputDevice::Type::Touch)));
-        qCDebug(treelandSeat) << "Added default device rules for seat:" << seatName;
+        qCDebug(lcTlSeat) << "Added default device rules for seat:" << seatName;
     }
 }
 
@@ -433,7 +433,7 @@ WSeat *SeatsManager::initializeFromConfig(const QString &configPath, WServer *se
 {
     // Try to load config from file
     if (!loadConfigFromFile(configPath)) {
-        qCDebug(treelandSeat) << "No valid seat config found at:" << configPath;
+        qCDebug(lcTlSeat) << "No valid seat config found at:" << configPath;
     }
 
     // Ensure at least one seat exists
@@ -448,7 +448,7 @@ WSeat *SeatsManager::initializeFromConfig(const QString &configPath, WServer *se
     }
 
     if (!primarySeat) {
-        qCCritical(treelandSeat) << "No seat available after initialization!";
+        qCCritical(lcTlSeat) << "No seat available after initialization!";
         return nullptr;
     }
 
@@ -464,7 +464,7 @@ WSeat *SeatsManager::initializeFromConfig(const QString &configPath, WServer *se
         }
     }
 
-    qCDebug(treelandSeat) << "Seat initialization complete. Primary seat:" << primarySeat->name();
+    qCDebug(lcTlSeat) << "Seat initialization complete. Primary seat:" << primarySeat->name();
     return primarySeat;
 }
 
@@ -492,7 +492,7 @@ QJsonObject SeatsManager::saveConfig() const
     }
     
     config["seats"] = seatsArray;
-    qCDebug(treelandSeat) << "Saved configuration for" << m_seats.size() << "seats";
+    qCDebug(lcTlSeat) << "Saved configuration for" << m_seats.size() << "seats";
     return config;
 }
 
@@ -580,7 +580,7 @@ void SeatsManager::setupAllSeats(QQuickWindow *renderWindow,
 {
     for (auto *seat : std::as_const(m_seats)) {
         if (!seat->nativeHandle()) {
-            qCWarning(treelandSeat) << "Seat" << seat->name() << "has no native handle, skipping configuration";
+            qCWarning(lcTlSeat) << "Seat" << seat->name() << "has no native handle, skipping configuration";
             continue;
         }
 
@@ -609,7 +609,7 @@ void SeatsManager::setupAllSeats(QQuickWindow *renderWindow,
 void SeatsManager::connectBackendSignals(WBackend *backend)
 {
     if (!backend) {
-        qCWarning(treelandSeat) << "Cannot connect signals for null backend";
+        qCWarning(lcTlSeat) << "Cannot connect signals for null backend";
         return;
     }
 
@@ -626,7 +626,7 @@ void SeatsManager::connectBackendSignals(WBackend *backend)
             for (auto *seat : std::as_const(m_seats)) {
                 if (seat->deviceList().contains(device)) {
                     seat->detachInputDevice(device);
-                    qCDebug(treelandSeat) << "Device" << device->name() << "removed from seat" << seat->name();
+                    qCDebug(lcTlSeat) << "Device" << device->name() << "removed from seat" << seat->name();
                     break;
                 }
             }
@@ -640,7 +640,7 @@ void SeatsManager::connectBackendSignals(WBackend *backend)
 void SeatsManager::assignExistingDevices(WBackend *backend)
 {
     if (!backend) {
-        qCWarning(treelandSeat) << "Cannot assign devices from null backend";
+        qCWarning(lcTlSeat) << "Cannot assign devices from null backend";
         return;
     }
 
@@ -658,7 +658,7 @@ void SeatsManager::assignDevice(WInputDevice *device,
                                 WSeat *fallbackSeat)
 {
     if (!device) {
-        qCWarning(treelandSeat) << "Cannot assign null device";
+        qCWarning(lcTlSeat) << "Cannot assign null device";
         return;
     }
 
@@ -667,13 +667,13 @@ void SeatsManager::assignDevice(WInputDevice *device,
 
     // Filter out mismatched device types
     if (deviceType == WInputDevice::Type::Pointer && deviceName.contains("Keyboard", Qt::CaseInsensitive)) {
-        qCWarning(treelandSeat) << "Device type mismatch - ignoring:" << deviceName;
+        qCWarning(lcTlSeat) << "Device type mismatch - ignoring:" << deviceName;
         return;
     }
 
     if (deviceType == WInputDevice::Type::Keyboard &&
         (deviceName.contains("Mouse", Qt::CaseInsensitive) || deviceName.contains("Touchpad", Qt::CaseInsensitive))) {
-        qCWarning(treelandSeat) << "Device type mismatch - ignoring:" << deviceName;
+        qCWarning(lcTlSeat) << "Device type mismatch - ignoring:" << deviceName;
         return;
     }
 
@@ -689,11 +689,11 @@ void SeatsManager::assignDevice(WInputDevice *device,
     if (!assignedSeat && fallbackSeat && fallbackSeat->nativeHandle()) {
         fallbackSeat->attachInputDevice(device);
         assignedSeat = fallbackSeat;
-        qCDebug(treelandSeat) << "Device" << deviceName << "assigned to fallback seat";
+        qCDebug(lcTlSeat) << "Device" << deviceName << "assigned to fallback seat";
     }
 
     if (!assignedSeat) {
-        qCWarning(treelandSeat) << "Failed to assign device:" << deviceName;
+        qCWarning(lcTlSeat) << "Failed to assign device:" << deviceName;
         return;
     }
 
@@ -736,7 +736,7 @@ WSeat *SeatsManager::getSeatForDevice(WInputDevice *device) const
 WSeat *SeatsManager::getSeatForEvent(QInputEvent *event) const
 {
     if (!event) {
-        qCWarning(treelandSeat) << "getSeatForEvent called with null event";
+        qCWarning(lcTlSeat) << "getSeatForEvent called with null event";
         return nullptr;
     }
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "loginddbustypes.h"
@@ -51,7 +51,7 @@ LogindPathInternal::LogindPathInternal()
 
     if (QDBusConnection::systemBus().interface()->isServiceRegistered(
             QStringLiteral("org.freedesktop.login1"))) {
-        qCDebug(treelandDBus) << "Logind interface found";
+        qCDebug(lcTlDBus) << "Logind interface found";
         available = true;
         serviceName = QStringLiteral("org.freedesktop.login1");
         managerPath = QStringLiteral("/org/freedesktop/login1");
@@ -64,7 +64,7 @@ LogindPathInternal::LogindPathInternal()
 
     if (QDBusConnection::systemBus().interface()->isServiceRegistered(
             QStringLiteral("org.freedesktop.ConsoleKit"))) {
-        qCDebug(treelandDBus) << "Console kit interface found";
+        qCDebug(lcTlDBus) << "Console kit interface found";
         available = true;
         serviceName = QStringLiteral("org.freedesktop.ConsoleKit");
         managerPath = QStringLiteral("/org/freedesktop/ConsoleKit/Manager");
@@ -75,7 +75,7 @@ LogindPathInternal::LogindPathInternal()
         userIfaceName = QStringLiteral("org.freedesktop.ConsoleKit.User");
         return;
     }
-    qCDebug(treelandDBus) << "No session manager found";
+    qCDebug(lcTlDBus) << "No session manager found";
 }
 
 Q_GLOBAL_STATIC(LogindPathInternal, s_instance);

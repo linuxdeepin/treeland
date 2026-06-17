@@ -64,7 +64,7 @@ uint ShortcutController::registerKey(const QString &name, const QString& key, Sh
     if (entry.contains(action)) {
         const auto &[prevName, flags] = entry[action];
         m_deleters.remove(prevName);
-        qCInfo(treelandShortcut) << "Overriding existing key binding of"
+        qCInfo(lcTlShortcut) << "Overriding existing key binding of"
                                  << keySeq[0] << "for action" << static_cast<int>(action)
                                  << "by name" << prevName << "with new name" << name << "and flags" << keybindFlags;
     }

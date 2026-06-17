@@ -49,11 +49,11 @@ static std::optional<int32_t> protocolWindowThemeTypeToDConfig(uint32_t type)
     case TREELAND_PERSONALIZATION_APPEARANCE_CONTEXT_V1_THEME_TYPE_DARK:
         return 2;
     case TREELAND_PERSONALIZATION_APPEARANCE_CONTEXT_V1_THEME_TYPE_AUTO:
-        qCCritical(treelandConfig)
+        qCCritical(lcTlConfig)
             << "Protocol window theme type AUTO is not supported by dconfig.";
         return std::nullopt;
     default:
-        qCWarning(treelandConfig) << "Unknown protocol window theme type:" << type;
+        qCWarning(lcTlConfig) << "Unknown protocol window theme type:" << type;
         return std::nullopt;
     }
 }
@@ -66,7 +66,7 @@ static uint32_t dconfigWindowThemeTypeToProtocol(int32_t type)
     case 2:
         return TREELAND_PERSONALIZATION_APPEARANCE_CONTEXT_V1_THEME_TYPE_DARK;
     default:
-        qCWarning(treelandConfig)
+        qCWarning(lcTlConfig)
             << "Unknown dconfig windowThemeType:" << type << ", fallback to light.";
         return TREELAND_PERSONALIZATION_APPEARANCE_CONTEXT_V1_THEME_TYPE_LIGHT;
     }
