@@ -116,12 +116,12 @@ public:
             helper->qmlEngine()->singletonInstance<UserModel *>("Treeland", "UserModel");
         auto user = userModel->getUser(uid);
         if (!user) {
-            qCWarning(treelandDBus) << "user " << uid << " has been added but couldn't find it.";
+            qCWarning(lcTlDBus) << "user " << uid << " has been added but couldn't find it.";
             return;
         }
 
         auto locale = user->locale();
-        qCInfo(treelandDBus) << "current locale:" << locale.language();
+        qCInfo(lcTlDBus) << "current locale:" << locale.language();
 
         do {
             auto *newTrans = new QTranslator{ this };
@@ -137,7 +137,7 @@ public:
                 break;
             }
             newTrans->deleteLater();
-            qCWarning(treelandDBus) << "failed to load new translator";
+            qCWarning(lcTlDBus) << "failed to load new translator";
         } while (false);
     }
 
@@ -151,7 +151,7 @@ public:
         }
 
         auto locale = userModel->currentUser()->locale();
-        qCInfo(treelandDBus) << "current locale:" << locale.language();
+        qCInfo(lcTlDBus) << "current locale:" << locale.language();
         QTranslator *newTrans = new QTranslator;
 
         if (newTrans->load(locale, scope, ".", TREELAND_COMPONENTS_TRANSLATION_DIR, ".qm")) {
@@ -167,7 +167,7 @@ public:
             QCoreApplication::installTranslator(pluginTs[plugin]);
             qmlEngine->retranslate();
         } else {
-            qCWarning(treelandDBus) << "failed to load plugin translator: " << scope;
+            qCWarning(lcTlDBus) << "failed to load plugin translator: " << scope;
         }
     }
 #endif
@@ -185,22 +185,22 @@ public:
         const QStringList pluginFiles = pluginsDir.entryList(QDir::Files | QDir::NoDotAndDotDot);
         for (const QString &pluginFile : pluginFiles) {
             QString filePath = pluginsDir.absoluteFilePath(pluginFile);
-            qCDebug(treelandPlugin) << "Attempting to load plugin:" << filePath;
+            qCDebug(lcTlPlugin) << "Attempting to load plugin:" << filePath;
 
             QPluginLoader loader(filePath);
             QObject *pluginInstance = loader.instance();
 
             if (!pluginInstance) {
-                qCWarning(treelandPlugin) << "Failed to load plugin:" << loader.errorString();
+                qCWarning(lcTlPlugin) << "Failed to load plugin:" << loader.errorString();
                 continue;
             }
 
             PluginInterface *plugin = qobject_cast<PluginInterface *>(pluginInstance);
             if (!plugin) {
-                qCWarning(treelandPlugin) << "Plugin does not implement PluginInterface.";
+                qCWarning(lcTlPlugin) << "Plugin does not implement PluginInterface.";
             }
 
-            qCDebug(treelandPlugin) << "Loaded plugin: " << plugin->name()
+            qCDebug(lcTlPlugin) << "Loaded plugin: " << plugin->name()
                              << ", enabled: " << plugin->enabled()
                              << ", metadata: " << loader.metaData();
             // TODO: use scheduler to run
@@ -210,7 +210,7 @@ public:
             const QString scope{
                 loader.metaData().value("MetaData").toObject().value("translate").toString()
             };
-            qCDebug(treelandPlugin) << "Plugin translate scope:" << scope;
+            qCDebug(lcTlPlugin) << "Plugin translate scope:" << scope;
 
 #ifndef DISABLE_DDM
             connect(helper->qmlEngine()->singletonInstance<UserModel *>("Treeland", "UserModel"),
@@ -224,7 +224,7 @@ public:
 #endif
 
             if (auto *multitaskview = qobject_cast<IMultitaskView *>(pluginInstance)) {
-                qCDebug(treelandPlugin) << "Get MultitaskView Instance.";
+                qCDebug(lcTlPlugin) << "Get MultitaskView Instance.";
                 connect(pluginInstance, &QObject::destroyed, this, [this] {
                     helper->setMultitaskViewImpl(nullptr);
                 });
@@ -233,7 +233,7 @@ public:
 
 #if !defined(DISABLE_DDM) || defined(EXT_SESSION_LOCK_V1)
             if (auto *lockscreen = qobject_cast<ILockScreen *>(pluginInstance)) {
-                qCDebug(treelandPlugin) << "Get LockScreen Instance.";
+                qCDebug(lcTlPlugin) << "Get LockScreen Instance.";
                 connect(pluginInstance, &QObject::destroyed, this, [this] {
                     helper->setLockScreenImpl(nullptr);
                 });
@@ -318,7 +318,7 @@ Treeland::Treeland()
 
     if (CmdLine::ref().run().has_value()) {
         auto exec = [runCmd = CmdLine::ref().run().value(), d, globalSession] {
-            qCInfo(treelandDBus) << "run cmd:" << runCmd;
+            qCInfo(lcTlDBus) << "run cmd:" << runCmd;
             if (auto cmdline = CmdLine::ref().unescapeExecArgs(runCmd); cmdline) {
                 auto cmdArgs = cmdline.value();
 
@@ -367,7 +367,7 @@ Treeland::Treeland()
     if (dir.exists() && dir.isReadable()) {
         d->loadPlugin(QStringLiteral(TREELAND_PLUGINS_OUTPUT_PATH));
     } else {
-        qCInfo(treelandPlugin) << "The Treeland plugin build directory is inaccessible, "
+        qCInfo(lcTlPlugin) << "The Treeland plugin build directory is inaccessible, "
                                    "falling back to the installation directory";
         d->loadPlugin(QStringLiteral(TREELAND_PLUGINS_INSTALL_PATH));
     }

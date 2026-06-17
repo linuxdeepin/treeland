@@ -94,7 +94,7 @@ void WallpaperManager::updateWallpaperConfig()
                 m_wallpaperConfig.append(WallpaperOutputConfig::fromJson(obj));
             }
         } else {
-            qCCritical(treelandWallpaper) << "wallpapers config value error: Expected a JSON array, but got something else.";
+            qCCritical(lcTlWallpaper) << "wallpapers config value error: Expected a JSON array, but got something else.";
         }
     } else {
         defaultWallpaperConfig();
@@ -353,7 +353,7 @@ TreelandWallpaperInterfaceV1::WallpaperType WallpaperManager::getWallpaperType(c
         }
     }
 
-    qCCritical(treelandWallpaper) << "Failed find wallpaper type for" << wallpaper;
+    qCCritical(lcTlWallpaper) << "Failed find wallpaper type for" << wallpaper;
     return TreelandWallpaperInterfaceV1::Image;
 }
 

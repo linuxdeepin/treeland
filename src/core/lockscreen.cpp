@@ -50,7 +50,7 @@ void LockScreen::shutdown()
 {
     // ext_session_lock_v1 does not support shutdown
     if (!m_impl) {
-        qCWarning(treelandShell) << "Attempt to shutdown with no compatible lockscreen implementation!";
+        qCWarning(lcTlShell) << "Attempt to shutdown with no compatible lockscreen implementation!";
         emit unlock();
         return;
     }
@@ -69,7 +69,7 @@ void LockScreen::switchUser()
 {
     // ext_session_lock_v1 does not support user switching
     if (!m_impl) {
-        qCWarning(treelandShell) << "Attempt to switch user with no compatible lockscreen implementation!";
+        qCWarning(lcTlShell) << "Attempt to switch user with no compatible lockscreen implementation!";
         emit unlock();
         return;
     }
@@ -85,7 +85,7 @@ void LockScreen::switchUser()
 
 void LockScreen::addOutput(Output *output)
 {
-    qCDebug(treelandShell) << "Adding output to lock screen:" << output;
+    qCDebug(lcTlShell) << "Adding output to lock screen:" << output;
 
     SurfaceContainer::addOutput(output);
 #if EXT_SESSION_LOCK_V1
@@ -119,7 +119,7 @@ bool LockScreen::isLocked() const
 
 void LockScreen::removeOutput(Output *output)
 {
-    qCDebug(treelandShell) << "Removing output from lock screen:" << output;
+    qCDebug(lcTlShell) << "Removing output from lock screen:" << output;
 
     SurfaceContainer::removeOutput(output);
 #if EXT_SESSION_LOCK_V1
@@ -156,7 +156,7 @@ bool LockScreen::available() const
 
 void LockScreen::setPrimaryOutputName(const QString &primaryOutputName)
 {
-    qCDebug(treelandShell) << "Setting primary output name for lock screen:" << primaryOutputName;
+    qCDebug(lcTlShell) << "Setting primary output name for lock screen:" << primaryOutputName;
 
     m_primaryOutputName = primaryOutputName;
     for (const auto &[k, v] : std::as_const(m_components)) {
@@ -175,7 +175,7 @@ void LockScreen::doRemoveLockSurface(WSessionLockSurface *surface)
 
     auto wrapper = rootContainer()->getSurface(surface);
     if (!wrapper) {
-        qCWarning(treelandShell) << "Removing lock surface with no container attached";
+        qCWarning(lcTlShell) << "Removing lock surface with no container attached";
         return;
     }
     rootContainer()->destroyForSurface(wrapper);
@@ -190,7 +190,7 @@ void LockScreen::onLockSurfaceAdded(WSessionLockSurface *surface)
     auto output = Helper::instance()->getOutput(surface->output());
 
     if (!output) {
-        qCWarning(treelandShell) << "Lock surface added with no output!";
+        qCWarning(lcTlShell) << "Lock surface added with no output!";
         return;
     }
 
@@ -231,7 +231,7 @@ void LockScreen::onLockSurfaceRemoved(WSessionLockSurface *surface)
     }
     auto output = Helper::instance()->getOutput(surface->output());
     if (!output) {
-        qCWarning(treelandShell) << "removing lock surface with no output!";
+        qCWarning(lcTlShell) << "removing lock surface with no output!";
         return;
     }
 
@@ -283,7 +283,7 @@ void LockScreen::onExternalLock(WSessionLock *lock)
 
 void LockScreen::onExternalUnlock() {
     if (!m_sessionLock || !isLocked()) {
-        qCCritical(treelandShell) << "Session lock identified as unlocked but screen is not externally locked?";
+        qCCritical(lcTlShell) << "Session lock identified as unlocked but screen is not externally locked?";
         return;
     }
     setVisible(false);
@@ -300,11 +300,11 @@ void LockScreen::onExternalLockAbandoned() {
         return;
     }
     if (!isLocked()) {
-        qCCritical(treelandShell) << "Session lock identified as abandoned but screen is not locked?";
+        qCCritical(lcTlShell) << "Session lock identified as abandoned but screen is not locked?";
         return;
     }
 
-    qCWarning(treelandShell) << "locking client likely died";
+    qCWarning(lcTlShell) << "locking client likely died";
 
     m_sessionLock = nullptr;
 

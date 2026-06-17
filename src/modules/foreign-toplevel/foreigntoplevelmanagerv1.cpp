@@ -220,7 +220,7 @@ ForeignToplevelManagerInterfaceV1Private::createHandle(Resource *managerResource
                                                       wl_resource_get_version(managerResource->handle),
                                                       0);
     if (!resource) {
-        qCCritical(treelandProtocol) << "wl_resource_create failed!";
+        qCCritical(lcTlProtocol) << "wl_resource_create failed!";
         wl_client_post_no_memory(client);
         return nullptr;
     }
@@ -281,7 +281,7 @@ ForeignToplevelManagerInterfaceV1Private::findHandleForClient(SurfaceWrapper *wr
 void ForeignToplevelManagerInterfaceV1::addSurface(SurfaceWrapper *wrapper)
 {
     if (d->m_surfaces.contains(wrapper)) {
-        qCCritical(treelandProtocol)
+        qCCritical(lcTlProtocol)
         << wrapper << " has been add to foreign toplevel twice";
         return;
     }
@@ -304,7 +304,7 @@ void ForeignToplevelManagerInterfaceV1::removeSurface(SurfaceWrapper *wrapper)
 {
     auto it = d->m_surfaces.find(wrapper);
     if (it == d->m_surfaces.end()) {
-        qCCritical(treelandProtocol) << wrapper << " is not registered in foreign toplevel";
+        qCCritical(lcTlProtocol) << wrapper << " is not registered in foreign toplevel";
         return;
     }
 
@@ -402,7 +402,7 @@ void ForeignToplevelManagerInterfaceV1::initializeToplevelHandle(SurfaceWrapper 
     Q_ASSERT(wrapper->type() == SurfaceWrapper::Type::XdgToplevel
              || wrapper->type() == SurfaceWrapper::Type::XWayland);
     auto surface = wrapper->shellSurface();
-    qCInfo(treelandProtocol) << "Register surface to ForeignToplevelManagerInterfaceV1, appId=" << wrapper->appId()
+    qCInfo(lcTlProtocol) << "Register surface to ForeignToplevelManagerInterfaceV1, appId=" << wrapper->appId()
                              << wrapper->type() << wrapper->skipDockPreView();
 
     // initSurface
@@ -525,7 +525,7 @@ void ForeignToplevelManagerInterfaceV1::initializeToplevelHandle(SurfaceWrapper 
                     return;
                 }
             }
-            qCCritical(treelandProtocol)
+            qCCritical(lcTlProtocol)
                 << "Xdg toplevel surface " << xdgSurface
                 << "has set parent surface, but foreign_toplevel_handle for "
                    "parent surface not "
@@ -554,7 +554,7 @@ void ForeignToplevelManagerInterfaceV1::initializeToplevelHandle(SurfaceWrapper 
                     return;
                 }
             }
-            qCCritical(treelandProtocol)
+            qCCritical(lcTlProtocol)
                 << "X11 surface " << xwaylandSurface
                 << "has set parent surface, but foreign_toplevel_handle for "
                    "parent surface not "
@@ -565,7 +565,7 @@ void ForeignToplevelManagerInterfaceV1::initializeToplevelHandle(SurfaceWrapper 
                                      updateSurfaceParent);
         updateSurfaceParent();
     } else {
-        qCFatal(treelandProtocol)
+        qCFatal(lcTlProtocol)
         << "TreelandForeignToplevelManager only support WXdgSurface or "
            "WXWaylandSurface";
     }
@@ -662,7 +662,7 @@ void DockPreviewContextV1Private::show([[maybe_unused]] Resource *resource, wl_a
     }
 
     if (!surfaces->size)
-        qCCritical(treelandProtocol) << "Got empty surface list for dock preview!";
+        qCCritical(lcTlProtocol) << "Got empty surface list for dock preview!";
 
     Q_EMIT q->requestShow(QPoint(x, y),
                           static_cast<ForeignToplevelManagerInterfaceV1::PreviewDirection>(direction),

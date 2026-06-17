@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wallpapercolorinterfacev1.h"
+#include "common/treelandlogging.h"
 #include "qwayland-server-treeland-wallpaper-color-v1.h"
 
 #include <woutput.h>
@@ -13,9 +14,6 @@
 #include <QDebug>
 #include <QQmlInfo>
 #include <QString>
-#include <QLoggingCategory>
-
-Q_LOGGING_CATEGORY(qlcWallpapercolor, "treeland.modules.wallpapercolor", QtWarningMsg)
 
 class WallpaperColorInterfaceV1Private : public QtWaylandServer::treeland_wallpaper_color_manager_v1
 {
@@ -57,7 +55,7 @@ void WallpaperColorInterfaceV1Private::destroy(Resource *resource) {
 void WallpaperColorInterfaceV1Private::watch(Resource *resource, const QString &output)
 {
     if (!color_map.contains(output)) {
-        qCWarning(qlcWallpapercolor)
+        qCWarning(lcTlWallpaperColor)
         << QString("Wallpaper info for output:(%1) never set, will ignore "
                    "this requset!")
                 .arg(output);
@@ -65,7 +63,7 @@ void WallpaperColorInterfaceV1Private::watch(Resource *resource, const QString &
     }
 
     auto isDark = color_map[output];
-    qCDebug(qlcWallpapercolor) << QString("New watch requset for output:(%1), it's wallpaper is %2")
+    qCDebug(lcTlWallpaperColor) << QString("New watch requset for output:(%1), it's wallpaper is %2")
                                       .arg(output, isDark ? "dark" : "light");
     send_output_color(resource->handle, output, isDark);
     watch_lists[resource->handle].append(output);
@@ -104,7 +102,7 @@ void WallpaperColorInterfaceV1::updateWallpaperColor(const QString &output, bool
         if (d->color_map[output] == isDarkType)
             return;
     }
-    qCDebug(qlcWallpapercolor)
+    qCDebug(lcTlWallpaperColor)
         << QString("Wallpaper info for output:(%1) changed, it's wallpaper is %2")
                .arg(output, isDarkType ? "dark" : "light");
 

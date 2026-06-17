@@ -128,7 +128,7 @@ void LayerSurfaceContainer::addSurfaceToContainer(SurfaceWrapper *surface)
         : rootContainer()->primaryOutput() ? rootContainer()->primaryOutput()->output()
                                            : nullptr;
     if (!output) {
-        qCWarning(treelandShell) << "No output, will close layer surface!";
+        qCWarning(lcTlShell) << "No output, will close layer surface!";
         shell->closed();
         return;
     }

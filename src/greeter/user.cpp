@@ -48,7 +48,7 @@ User::User(AccountsUserPtr ptr)
     d->inter = std::move(ptr);
 
     if (!d->inter) {
-        qCFatal(treelandGreeter) << "connect to AccountService Failed";
+        qCFatal(lcTlGreeter) << "connect to AccountService Failed";
     }
 
     connect(d->inter.data(), &DAccountsUser::userDataChanged, [this] {
@@ -162,7 +162,7 @@ QString User::toString(AccountTypes type) noexcept
     case AccountTypes::Default:
         return tr("Standard User");
     default:
-        qCWarning(treelandGreeter) << "ignore other types.";
+        qCWarning(lcTlGreeter) << "ignore other types.";
     }
 
     return {};

@@ -1,12 +1,9 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "propertymonitor.h"
 #include "common/treelandlogging.h"
 
 #include <QEvent>
-#include <QLoggingCategory>
-
-Q_LOGGING_CATEGORY(qLcMonitor, "treeland.property.monitor")
 
 PropertyMonitor::PropertyMonitor(QObject *parent)
     : QObject(parent)
@@ -49,7 +46,7 @@ void PropertyMonitor::handlePropertyChanged()
     auto index = senderSignalIndex();
     for (const auto &mProp : std::as_const(m_metaProps)) {
         if (mProp.hasNotifySignal() && mProp.notifySignalIndex() == index) {
-            qCDebug(qLcMonitor) << m_target << mProp.name() << mProp.read(m_target);
+            qCDebug(lcTlPropertyMonitor) << m_target << mProp.name() << mProp.read(m_target);
             break;
         }
     }

@@ -264,7 +264,7 @@ void KeyboardStateWatcherV1Private::destroy(Resource *resource)
 void KeyboardStateWatcherV1Private::set_modifiers(Resource *resource, uint32_t modifiers)
 {
     if (!treeland_keyboard_state_watcher_v1_modifier_is_valid(modifiers, resource->version())) {
-        qCCritical(treelandKeyboardNotify, "unknown modifiers");
+        qCCritical(lcTlKeyboardNotify, "unknown modifiers");
         return;
     }
 
@@ -274,7 +274,7 @@ void KeyboardStateWatcherV1Private::set_modifiers(Resource *resource, uint32_t m
 void KeyboardStateWatcherV1Private::set_flags(Resource *resource, uint32_t flags)
 {
     if (!treeland_keyboard_state_watcher_v1_watch_flag_is_valid(flags, resource->version())) {
-        qCCritical(treelandKeyboardNotify, "unknown watch flags");
+        qCCritical(lcTlKeyboardNotify, "unknown watch flags");
         return;
     }
 

@@ -174,7 +174,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     if (initialSize.isValid() && initialSize.width() > 0 && initialSize.height() > 0) {
         // Also set implicit size to keep QML layout consistent
         setImplicitSize(initialSize.width(), initialSize.height());
-        qCDebug(treelandSurface) << "Prelaunch Splash: set initial size to" << initialSize;
+        qCDebug(lcTlSurface) << "Prelaunch Splash: set initial size to" << initialSize;
     } else {
         setImplicitSize(800, 600);
     }
@@ -219,7 +219,7 @@ SurfaceWrapper::~SurfaceWrapper()
 {
     if (!m_wrapperAboutToRemove) {
         if (isWindowAnimationRunning()) {
-            qCWarning(treelandSurface)
+            qCWarning(lcTlSurface)
                 << "SurfaceWrapper is being destroyed without destroy(); expected external"
                    " destroy() rather than QObject parent-child destruction";
         }
@@ -459,7 +459,7 @@ void SurfaceWrapper::convertToNormalSurface(WToplevelSurface *shellSurface, Type
 {
     // Conversion only allowed from prelaunch (SplashScreen) state
     if (m_type != Type::SplashScreen || m_shellSurface != nullptr) {
-        qCCritical(treelandSurface)
+        qCCritical(lcTlSurface)
             << "convertToNormalSurface can only be called on prelaunch surfaces";
         return;
     }
@@ -510,11 +510,11 @@ void SurfaceWrapper::setActivate(bool activate)
 void SurfaceWrapper::updateActiveState()
 {
     if (!m_shellSurface) {
-        qCCritical(treelandSurface) << "updateActiveState called without a valid shellSurface";
+        qCCritical(lcTlSurface) << "updateActiveState called without a valid shellSurface";
         return;
     }
     if (!m_shellSurface->isInitialized()) {
-        qCWarning(treelandSurface)
+        qCWarning(lcTlSurface)
             << "updateActiveState called with shellSurface not yet initialized";
         return;
     }
@@ -556,14 +556,14 @@ void SurfaceWrapper::startPrelaunchSplashHideSequence()
 {
     Q_ASSERT(m_surfaceItem != nullptr);
     if (m_windowAnimation) {
-        qCDebug(treelandSurface) << "prelaunch splash transition is starting while window "
+        qCDebug(lcTlSurface) << "prelaunch splash transition is starting while window "
                                     "animation is still running,"
                                     "this may cause visual glitches, will delay the transition "
                                     "until window animation finishes";
         return;
     }
     if (m_geometryAnimation) {
-        qCDebug(treelandSurface) << "prelaunch splash transition already prepared or running, skip";
+        qCDebug(lcTlSurface) << "prelaunch splash transition already prepared or running, skip";
         return;
     }
 
@@ -586,7 +586,7 @@ void SurfaceWrapper::startPrelaunchSplashHideSequence()
     const bool hasValidTargetImplicitSize =
         targetImplicitSize.width() > 0 && targetImplicitSize.height() > 0;
     if (!hasValidTargetImplicitSize) {
-        qCCritical(treelandSurface) << "Invalid target implicit size, skip transition animation"
+        qCCritical(lcTlSurface) << "Invalid target implicit size, skip transition animation"
                                     << "targetImplicit=" << targetImplicitSize;
     }
 
@@ -921,7 +921,7 @@ void SurfaceWrapper::setOutputs(const QList<WOutput *> &outputs)
         return;
     }
     if (!surface()) {
-        qCDebug(treelandSurface) << "SurfaceWrapper::setOutputs called but surface() is null!";
+        qCDebug(lcTlSurface) << "SurfaceWrapper::setOutputs called but surface() is null!";
         return;
     }
     const auto oldOutputs = surface()->outputs();
@@ -1077,7 +1077,7 @@ bool SurfaceWrapper::setAttention(bool attention)
     if (m_attention == attention)
         return true;
     if (attention && m_isActivated) {
-        qCWarning(treelandSurface) << "setAttention(true) ignored: surface is already activated";
+        qCWarning(lcTlSurface) << "setAttention(true) ignored: surface is already activated";
         return false;
     }
     m_attention = attention;
@@ -2178,7 +2178,7 @@ bool SurfaceWrapper::skipDockPreView() const
 void SurfaceWrapper::setSkipDockPreView(bool skip)
 {
     if (!skip && (m_type != Type::XdgToplevel && m_type != Type::XWayland)) {
-        qCWarning(treelandSurface) << "Only XdgToplevel or XWayland surfaces are allowed to set "
+        qCWarning(lcTlSurface) << "Only XdgToplevel or XWayland surfaces are allowed to set "
                                       "`skipDockPreView` to false.";
         return;
     }

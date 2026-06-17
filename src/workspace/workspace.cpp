@@ -360,7 +360,7 @@ void Workspace::stopPreviewing()
 void Workspace::pushActivedSurface(SurfaceWrapper *surface)
 {
     if (surface->type() == SurfaceWrapper::Type::XdgPopup) {
-        qWarning(treelandWorkspace) << "XdgPopup can't participate in focus fallback!";
+        qCWarning(lcTlWorkspace) << "XdgPopup can't participate in focus fallback!";
         return;
     }
     if (surface->showOnAllWorkspace()) [[unlikely]] {

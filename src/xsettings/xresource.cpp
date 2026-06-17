@@ -151,7 +151,7 @@ void XResource::reload()
     xcb_get_property_reply_t *reply =
         xcb_get_property_reply(m_connection, cookie, nullptr);
     if (!reply) {
-        qCCritical(treelandXsettings) << "xcb_intern_atom_reply returned nullptr, atom:" << XRESOURCE_ATOM_NAME;
+        qCCritical(lcTlXsettings) << "xcb_intern_atom_reply returned nullptr, atom:" << XRESOURCE_ATOM_NAME;
         return;
     }
 

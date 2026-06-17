@@ -57,7 +57,7 @@ private:
 protected:
     void destroy_global() override
     {
-        qCDebug(treelandProtocol) << "WineWindowStateManager global destroyed";
+        qCDebug(lcTlProtocol) << "WineWindowStateManager global destroyed";
     }
 
     void destroy(Resource *resource) override

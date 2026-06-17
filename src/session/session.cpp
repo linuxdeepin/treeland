@@ -23,7 +23,7 @@
 static void applyCursorSettings(SettingManager *settingManager, const QString &theme, qreal size)
 {
     if (!settingManager) {
-        qCDebug(treelandXsettings) << "Skip cursor settings sync: no SettingManager";
+        qCDebug(lcTlXsettings) << "Skip cursor settings sync: no SettingManager";
         return;
     }
 
@@ -36,7 +36,7 @@ static void applyCursorSettings(SettingManager *settingManager, const QString &t
         },
         Qt::QueuedConnection);
     if (!queued) {
-        qCWarning(treelandXsettings) << "Failed to queue cursor settings sync"
+        qCWarning(lcTlXsettings) << "Failed to queue cursor settings sync"
                                      << "theme:" << theme << "size:" << size;
     }
 }
@@ -60,7 +60,7 @@ static xcb_atom_t internAtom(xcb_connection_t *connection, const char *name, boo
 
 Session::~Session()
 {
-    qCDebug(treelandCore) << "Deleting session for uid:" << m_uid << m_socket;
+    qCDebug(lcTlCore) << "Deleting session for uid:" << m_uid << m_socket;
     Q_EMIT aboutToBeDestroyed();
 
     if (m_settingManagerThread) {
@@ -180,7 +180,7 @@ void SessionManager::setActiveSocketEnabled(bool newEnabled)
     if (ptr && ptr->m_socket)
         ptr->m_socket->setEnabled(newEnabled, globalSession()->socket());
     else
-        qCWarning(treelandCore) << "Can't set enabled for empty socket!";
+        qCWarning(lcTlCore) << "Can't set enabled for empty socket!";
 }
 
 /**
@@ -221,7 +221,7 @@ std::shared_ptr<Session> SessionManager::ensureSession(int id, QString username)
         // Create WSocket
         auto socket = new WSocket(true, nullptr);
         if (!socket->autoCreate()) {
-            qCCritical(treelandCore) << "Failed to create Wayland socket";
+            qCCritical(lcTlCore) << "Failed to create Wayland socket";
             delete socket;
             return static_cast<WSocket *>(nullptr);
         }
@@ -238,7 +238,7 @@ std::shared_ptr<Session> SessionManager::ensureSession(int id, QString username)
         // Create xwayland
         auto *xwayland = Helper::instance()->createXWayland();
         if (!xwayland) {
-            qCCritical(treelandCore) << "Failed to create XWayland instance";
+            qCCritical(lcTlCore) << "Failed to create XWayland instance";
             return static_cast<WXWayland *>(nullptr);
         }
         // Bind xwayland to socket
@@ -249,7 +249,7 @@ std::shared_ptr<Session> SessionManager::ensureSession(int id, QString username)
                 session->m_noTitlebarAtom =
                     internAtom(session->m_xwayland->xcbConnection(), _DEEPIN_NO_TITLEBAR, false);
                 if (!session->m_noTitlebarAtom) {
-                    qCWarning(treelandInput) << "Failed to intern atom:" << _DEEPIN_NO_TITLEBAR;
+                    qCWarning(lcTlInput) << "Failed to intern atom:" << _DEEPIN_NO_TITLEBAR;
                 }
                 session->m_settingManager = new SettingManager(session->m_xwayland->xcbConnection());
                 session->m_settingManagerThread = new QThread();
@@ -265,7 +265,7 @@ std::shared_ptr<Session> SessionManager::ensureSession(int id, QString username)
                          scale,
                          renderWindow] {
                             if (!settingManager) {
-                                qCDebug(treelandXsettings)
+                                qCDebug(lcTlXsettings)
                                     << "Skip initial XSettings sync: no SettingManager";
                                 return;
                             }
@@ -285,7 +285,7 @@ std::shared_ptr<Session> SessionManager::ensureSession(int id, QString username)
                                 },
                                 Qt::QueuedConnection);
                             if (!queued) {
-                                qCWarning(treelandXsettings)
+                                qCWarning(lcTlXsettings)
                                     << "Failed to queue initial XSettings sync"
                                     << "cursorTheme:" << cursorTheme << "cursorSize:" << cursorSize
                                     << "scale:" << scale;
@@ -334,7 +334,7 @@ std::shared_ptr<Session> SessionManager::ensureSession(int id, QString username)
     // Session does not exist, create new session with deleter
     auto passwd = getpwnam(username.toLocal8Bit().data());
     if (!passwd) {
-        qCWarning(treelandCore) << "Failed to get passwd entry for user:" << username;
+        qCWarning(lcTlCore) << "Failed to get passwd entry for user:" << username;
         return nullptr;
     }
     auto session = std::make_shared<Session>();
@@ -445,12 +445,12 @@ void SessionManager::syncActiveSessionCursorSettings()
 {
     const auto session = m_activeSession.lock();
     if (!session) {
-        qCDebug(treelandXsettings) << "Skip cursor settings sync: no active session";
+        qCDebug(lcTlXsettings) << "Skip cursor settings sync: no active session";
         return;
     }
 
     if (!session->m_settingManager) {
-        qCDebug(treelandXsettings)
+        qCDebug(lcTlXsettings)
             << "Skip cursor settings sync: no SettingManager for session" << session->username();
         return;
     }
@@ -460,7 +460,7 @@ void SessionManager::syncActiveSessionCursorSettings()
 
     const auto *config = helper->config();
     if (!config) {
-        qCWarning(treelandXsettings) << "Cannot sync cursor settings: user config is unavailable";
+        qCWarning(lcTlXsettings) << "Cannot sync cursor settings: user config is unavailable";
         return;
     }
 
@@ -481,7 +481,7 @@ void SessionManager::updateActiveUserSession(const QString &username, int id)
     // Get new session for uid, creating if necessary
     auto session = ensureSession(id, username);
     if (!session) {
-        qCWarning(treelandInput) << "Failed to ensure session for user" << username;
+        qCWarning(lcTlInput) << "Failed to ensure session for user" << username;
         return;
     }
     if (previous != session) {
@@ -498,6 +498,6 @@ void SessionManager::updateActiveUserSession(const QString &username, int id)
         // Notify session changed through DBus, treeland-sd will listen it to update envs
         Q_EMIT sessionChanged();
     }
-    qCInfo(treelandCore) << "Listening on:" << session->m_socket->fullServerName();
+    qCInfo(lcTlCore) << "Listening on:" << session->m_socket->fullServerName();
     syncActiveSessionCursorSettings();
 }

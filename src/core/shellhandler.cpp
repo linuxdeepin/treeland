@@ -205,7 +205,7 @@ void ShellHandler::createPrelaunchSplash(const QString &appId,
     qlonglong timeoutMs = Helper::instance()->globalConfig()->prelaunchSplashTimeoutMs();
     // Bounds: <=0 disables auto-destroy, >60000 clamps to 60000
     if (timeoutMs > 60000) {
-        qCWarning(treelandShell)
+        qCWarning(lcTlShell)
             << "Prelaunch splash timeout too long, clamping to 60000ms, requested:" << timeoutMs;
         timeoutMs = 60000;
     }
@@ -213,7 +213,7 @@ void ShellHandler::createPrelaunchSplash(const QString &appId,
     // Listen for splash close request
     connect(wrapper, &SurfaceWrapper::splashCloseRequested, this, [this, wrapper]() {
         const QString appId = wrapper->appId();
-        qCInfo(treelandShell) << "Splash close requested for appId=" << appId;
+        qCInfo(lcTlShell) << "Splash close requested for appId=" << appId;
 
         // Add to closed splash list
         if (!appId.isEmpty()) {
@@ -238,7 +238,7 @@ void ShellHandler::createPrelaunchSplash(const QString &appId,
                                if (idx < 0) {
                                    return; // Already matched or removed earlier
                                }
-                               qCDebug(treelandShell)
+                               qCDebug(lcTlShell)
                                    << "Prelaunch splash timeout, destroy wrapper appId="
                                    << wrapper->appId();
                                m_prelaunchWrappers.removeAt(idx);
@@ -258,7 +258,7 @@ void ShellHandler::handlePrelaunchSplashClosed(const QString &appId, const QStri
     for (int i = 0; i < m_prelaunchWrappers.size(); ++i) {
         auto *wrapper = m_prelaunchWrappers[i];
         if (wrapper->appId() == appId) {
-            qCDebug(treelandShell)
+            qCDebug(lcTlShell)
                 << "Client requested close_splash, destroy wrapper appId=" << appId;
             m_prelaunchWrappers.removeAt(i);
             m_rootSurfaceContainer->destroyForSurface(wrapper);
@@ -396,13 +396,13 @@ void ShellHandler::onXdgToplevelSurfaceAdded(WXdgToplevelSurface *surface)
                     m_pendingAppIdResolveToplevels.removeAt(idx);
                 });
             if (started) {
-                qCDebug(treelandShell) << "AppIdResolver request sent (callback) pidfd=" << pidfd;
+                qCDebug(lcTlShell) << "AppIdResolver request sent (callback) pidfd=" << pidfd;
                 return; // async path handles creation
             } else {
                 int idx = m_pendingAppIdResolveToplevels.indexOf(surface);
                 if (idx >= 0)
                     m_pendingAppIdResolveToplevels.removeAt(idx);
-                qCDebug(treelandShell)
+                qCDebug(lcTlShell)
                     << "AppIdResolverManager present but requestResolve failed pidfd=" << pidfd;
             }
         }
@@ -415,7 +415,7 @@ void ShellHandler::ensureXdgWrapper(WXdgToplevelSurface *surface, const QString 
 {
     // Check if this matches a closed splash screen
     if (!targetAppId.isEmpty() && m_closedSplashAppIds.contains(targetAppId)) {
-        qCInfo(treelandShell) << "XDG surface matches closed splash, closing immediately: appId="
+        qCInfo(lcTlShell) << "XDG surface matches closed splash, closing immediately: appId="
                               << targetAppId;
         m_closedSplashAppIds.remove(targetAppId);
         surface->close();
@@ -430,7 +430,7 @@ void ShellHandler::ensureXdgWrapper(WXdgToplevelSurface *surface, const QString 
         for (int i = 0; i < m_prelaunchWrappers.size(); ++i) {
             auto *candidate = m_prelaunchWrappers[i];
             if (candidate->appId() == targetAppId) {
-                qCDebug(treelandShell) << "match prelaunch xdg" << targetAppId;
+                qCDebug(lcTlShell) << "match prelaunch xdg" << targetAppId;
                 m_prelaunchWrappers.removeAt(i);
                 candidate->convertToNormalSurface(surface, SurfaceWrapper::Type::XdgToplevel);
                 wrapper = candidate;
@@ -479,7 +479,7 @@ void ShellHandler::onXdgToplevelSurfaceRemoved(WXdgToplevelSurface *surface)
     // never exposed this surface (from treeland's perspective).
     if (!wrapper) {
         if (!m_pendingAppIdResolveToplevels.removeOne(surface)) {
-            qCWarning(treelandShell)
+            qCWarning(lcTlShell)
                 << "onXdgToplevelSurfaceRemoved for unknown surface" << surface;
         }
         return;
@@ -575,14 +575,14 @@ void ShellHandler::onXWaylandSurfaceAdded(WXWaylandSurface *surface)
                                              m_pendingAppIdResolveToplevels.removeAt(idx);
                                          });
                                      if (started) {
-                                         qCDebug(treelandShell)
+                                         qCDebug(lcTlShell)
                                              << "(XWayland) AppIdResolver request sent (callback)";
                                          return; // async path
                                      } else {
                                          int idx = m_pendingAppIdResolveToplevels.indexOf(raw);
                                          if (idx >= 0)
                                              m_pendingAppIdResolveToplevels.removeAt(idx);
-                                         qCDebug(treelandShell)
+                                         qCDebug(lcTlShell)
                                              << "(XWayland) requestResolve failed pidfd=" << pidfd;
                                      }
                                  }
@@ -593,11 +593,11 @@ void ShellHandler::onXWaylandSurfaceAdded(WXWaylandSurface *surface)
                          });
     surface->safeConnect(&WXWaylandSurface::aboutToDissociate, this, [this, surface] {
         auto wrapper = m_rootSurfaceContainer->getSurface(surface);
-        qCDebug(treelandShell) << "WXWayland::aboutToDissociate" << surface << wrapper;
+        qCDebug(lcTlShell) << "WXWayland::aboutToDissociate" << surface << wrapper;
         // Cancel pending async resolve if still present. If wrapper never created, return.
         if (!wrapper) {
             if (!m_pendingAppIdResolveToplevels.removeOne(surface)) {
-                qCWarning(treelandShell)
+                qCWarning(lcTlShell)
                     << "WXWayland::aboutToDissociate for unknown surface" << surface;
             }
             return; // never created
@@ -622,7 +622,7 @@ void ShellHandler::ensureXwaylandWrapper(WXWaylandSurface *surface, const QStrin
 {
     // Check if this matches a closed splash screen
     if (!targetAppId.isEmpty() && m_closedSplashAppIds.contains(targetAppId)) {
-        qCDebug(treelandShell)
+        qCDebug(lcTlShell)
             << "XWayland surface matches closed splash, closing immediately: appId=" << targetAppId;
         m_closedSplashAppIds.remove(targetAppId);
         surface->close();
@@ -637,7 +637,7 @@ void ShellHandler::ensureXwaylandWrapper(WXWaylandSurface *surface, const QStrin
         for (int i = 0; i < m_prelaunchWrappers.size(); ++i) {
             auto *candidate = m_prelaunchWrappers[i];
             if (candidate->appId() == targetAppId) {
-                qCDebug(treelandShell) << "match prelaunch xwayland" << targetAppId;
+                qCDebug(lcTlShell) << "match prelaunch xwayland" << targetAppId;
                 m_prelaunchWrappers.removeAt(i);
                 candidate->convertToNormalSurface(surface, SurfaceWrapper::Type::XWayland);
                 wrapper = candidate;
@@ -758,11 +758,11 @@ void ShellHandler::setupSurfaceActiveWatcher(SurfaceWrapper *wrapper)
                 parent = parent->parentSurface();
             }
             if (!parent) {
-                qCCritical(treelandShell) << "A new popup without toplevel parent!";
+                qCCritical(lcTlShell) << "A new popup without toplevel parent!";
                 return;
             }
             if (!parent->showOnWorkspace(m_workspace->current()->id())) {
-                qCWarning(treelandShell)
+                qCWarning(lcTlShell)
                     << "A popup active, but it's parent not in current workspace!";
                 return;
             }
@@ -834,7 +834,7 @@ void ShellHandler::setupSurfaceActiveWatcher(SurfaceWrapper *wrapper)
 void ShellHandler::onLayerSurfaceAdded(WLayerSurface *surface)
 {
     if (!surface->output() && !m_rootSurfaceContainer->primaryOutput()) {
-        qCWarning(treelandShell) << "No output, will close layer surface!";
+        qCWarning(lcTlShell) << "No output, will close layer surface!";
         surface->closed();
         return;
     }
@@ -858,7 +858,7 @@ void ShellHandler::onLayerSurfaceRemoved(WLayerSurface *surface)
 {
     auto wrapper = m_rootSurfaceContainer->getSurface(surface->surface());
     if (!wrapper) {
-        qCWarning(treelandShell) << "A layerSurface that not in any Container is removing!";
+        qCWarning(lcTlShell) << "A layerSurface that not in any Container is removing!";
         return;
     }
     Q_EMIT surfaceWrapperAboutToRemove(wrapper);

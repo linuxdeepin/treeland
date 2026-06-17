@@ -77,7 +77,7 @@ std::optional<QStringList> CmdLine::unescapeExecArgs(const QString &str) noexcep
 {
     auto unescapedStr = unescape(str);
     if (unescapedStr.isEmpty()) {
-        qCWarning(treelandUtils) << "unescape Exec failed.";
+        qCWarning(lcTlUtils) << "unescape Exec failed.";
         return std::nullopt;
     }
 
@@ -110,7 +110,7 @@ std::optional<QStringList> CmdLine::unescapeExecArgs(const QString &str) noexcep
         default:
             errMessage = "unknown";
         }
-        qCWarning(treelandUtils) << "wordexp error: " << errMessage;
+        qCWarning(lcTlUtils) << "wordexp error: " << errMessage;
         return std::nullopt;
     }
 

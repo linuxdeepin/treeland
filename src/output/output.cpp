@@ -59,7 +59,7 @@ Output *Output::create(WOutput *output, QQmlEngine *engine, QObject *parent)
             obj,
             [obj, output, isSoftwareCursor]() {
                 auto forceSoftwareCursor = isSoftwareCursor(output);
-                qCInfo(treelandOutput) << "forceSoftwareCursor changed to" << forceSoftwareCursor;
+                qCInfo(lcTlOutput) << "forceSoftwareCursor changed to" << forceSoftwareCursor;
                 obj->setProperty("forceSoftwareCursor", forceSoftwareCursor);
             });
 
@@ -392,7 +392,7 @@ void Output::enable()
         }
         newState.set_enabled(true);
         if (!qwoutput->commit_state(newState)) {
-            qCCritical(treelandCore, "commit failed on output %s", qwoutput->handle()->name);
+            qCCritical(lcTlCore, "commit failed on output %s", qwoutput->handle()->name);
         }
     }
 }
@@ -613,7 +613,7 @@ void Output::arrangeLayerSurface(SurfaceWrapper *surface)
             setExclusiveZone(Qt::RightEdge, layer, layer->exclusiveZone());
             break;
         default:
-            qCWarning(treelandOutput) << layer->appId()
+            qCWarning(lcTlOutput) << layer->appId()
                                  << " has set exclusive zone, but exclusive edge is invalid!";
             break;
         }
@@ -761,7 +761,7 @@ std::optional<QPointF> popupDPos(SurfaceWrapper *surface)
         }
     }
 
-    qCWarning(treelandOutput) << " Invalid popup surface type:" << surface->type();
+    qCWarning(lcTlOutput) << " Invalid popup surface type:" << surface->type();
     return std::nullopt;
 }
 } // namespace
@@ -770,7 +770,7 @@ QPointF Output::calculateBasePosition(SurfaceWrapper *surface, const QPointF &dP
 {
     auto parent = surface->parentSurface();
     if (!parent || !parent->surfaceItem()) {
-        qCWarning(treelandOutput) << " Invalid parent surface or surface item!";
+        qCWarning(lcTlOutput) << " Invalid parent surface or surface item!";
         return QPointF();
     }
 
@@ -802,7 +802,7 @@ void Output::adjustToOutputBounds(QPointF &pos, const QRectF &normalGeo, const Q
 void Output::handleLayerShellPopup(SurfaceWrapper *surface, const QRectF &normalGeo)
 {
     if (!surface->parentSurface() || !surface->parentSurface()->ownsOutput()) {
-        qCWarning(treelandOutput) << " Invalid LayerShell parent surface!";
+        qCWarning(lcTlOutput) << " Invalid LayerShell parent surface!";
         return;
     }
 
@@ -880,7 +880,7 @@ void Output::arrangePopupSurface(SurfaceWrapper *surface)
     if (!parentSurfaceWrapper) {
         //  When an input popup is still alive while its parent text-input client is being torn down, 
         //  arrangePopupSurface() can run in a transient state where parentSurface is temporarily unavailable.
-        qCWarning(treelandSurface) << "[popup] skip arrangePopupSurface: missing parent surface"
+        qCWarning(lcTlSurface) << "[popup] skip arrangePopupSurface: missing parent surface"
                                 << "surface=" << surface;
         return;
     }
@@ -901,7 +901,7 @@ void Output::arrangePopupSurface(SurfaceWrapper *surface)
     }
 
     if (!targetOutput) {
-        qCInfo(treelandSurface) << "[popup] skip arrangePopupSurface: missing target output"
+        qCInfo(lcTlSurface) << "[popup] skip arrangePopupSurface: missing target output"
                                 << "surface=" << surface
                                 << "parentSurface=" << parentSurfaceWrapper;
         return;
@@ -1047,7 +1047,7 @@ void Output::setOutputColor(qreal brightness,
     if (gammaSize == 0) {
         if (resultCallback)
             resultCallback(false);
-        qCWarning(treelandOutput) << " Output " << output()->name()
+        qCWarning(lcTlOutput) << " Output " << output()->name()
                              << " does not support gamma LUT! Brightness and color temperature adjustments through gamma will have no effect.";
         return;
     }
@@ -1079,14 +1079,14 @@ void Output::setOutputColor(qreal brightness,
             if (resultCallback)
                 resultCallback(success);
             if (!success) {
-                qCWarning(treelandOutput) << "Failed to apply brightness and color temperature settings to output"
+                qCWarning(lcTlOutput) << "Failed to apply brightness and color temperature settings to output"
                                           << output()->name();
             } else {
                 config()->setBrightness(brightness);
                 config()->setColorTemperature(colorTemperature);
             }
         } else {
-            qCWarning(treelandOutput) << "Commit callback received unexpected state pointer!"
+            qCWarning(lcTlOutput) << "Commit callback received unexpected state pointer!"
                                       << "Expected:" << newState.get()
                                       << "Got:" << state.get();
         }

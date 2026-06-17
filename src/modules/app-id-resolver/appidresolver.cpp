@@ -3,6 +3,7 @@
 
 #include "appidresolver.h"
 
+#include "common/treelandlogging.h"
 #include "qwayland-server-treeland-app-id-resolver-v1.h"
 
 #include <wserver.h>
@@ -10,13 +11,10 @@
 #include <qwdisplay.h>
 
 #include <QHash>
-#include <QLoggingCategory>
 
 #include <fcntl.h>
 #include <unistd.h>
 #include <utility>
-
-Q_LOGGING_CATEGORY(treelandAppIdResolver, "treeland.appid.resolver", QtInfoMsg)
 
 WAYLIB_SERVER_USE_NAMESPACE
 
@@ -135,7 +133,7 @@ private:
 protected:
     void destroy_global() override
     {
-        qCDebug(treelandAppIdResolver) << "AppIdResolverManager global destroyed";
+        qCDebug(lcTlAppIdResolver) << "AppIdResolverManager global destroyed";
     }
 
     void destroy(Resource *resource) override
@@ -145,7 +143,7 @@ protected:
 
     void get_resolver(Resource *resource, uint32_t id) override
     {
-        qCDebug(treelandAppIdResolver) << "get_resolver called (client id):" << id;
+        qCDebug(lcTlAppIdResolver) << "get_resolver called (client id):" << id;
         if (m_resolver) {
             wl_resource_post_error(resource->handle,
                                    WL_DISPLAY_ERROR_INVALID_OBJECT,
@@ -161,7 +159,7 @@ protected:
             resolverGone();
         };
         Q_EMIT q->availableChanged();
-        qCDebug(treelandAppIdResolver) << "Resolver bound";
+        qCDebug(lcTlAppIdResolver) << "Resolver bound";
     }
 };
 
@@ -181,13 +179,13 @@ bool AppIdResolverManager::resolvePidfd(int pidfd, std::function<void(const QStr
 void AppIdResolverManager::create(WServer *server)
 {
     d->init(*server->handle(), InterfaceVersion);
-    qCDebug(treelandAppIdResolver) << "AppIdResolverManager global created";
+    qCDebug(lcTlAppIdResolver) << "AppIdResolverManager global created";
 }
 
 void AppIdResolverManager::destroy([[maybe_unused]] WServer *server)
 {
     d->globalRemove();
-    qCDebug(treelandAppIdResolver) << "AppIdResolverManager global removal scheduled";
+    qCDebug(lcTlAppIdResolver) << "AppIdResolverManager global removal scheduled";
 }
 
 wl_global *AppIdResolverManager::global() const

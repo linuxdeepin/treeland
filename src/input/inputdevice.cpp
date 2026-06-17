@@ -20,7 +20,7 @@ QW_USE_NAMESPACE
 static bool ensureStatus(libinput_config_status status)
 {
     if (status != LIBINPUT_CONFIG_STATUS_SUCCESS) {
-        qCCritical(treelandInput) << "Failed to apply libinput config: "
+        qCCritical(lcTlInput) << "Failed to apply libinput config: "
                                 << libinput_config_status_to_str(status);
         return false;
     }
@@ -34,7 +34,7 @@ bool configSendEventsMode(libinput_device *device, uint32_t mode)
         return false;
     }
 
-    qCDebug(treelandInput) << "libinput_device_config_send_events_set_mode " << mode;
+    qCDebug(lcTlInput) << "libinput_device_config_send_events_set_mode " << mode;
     enum libinput_config_status status = libinput_device_config_send_events_set_mode(device, mode);
 
     return ensureStatus(status);
@@ -43,7 +43,7 @@ bool configSendEventsMode(libinput_device *device, uint32_t mode)
 bool configTapEnabled(libinput_device *device, libinput_config_tap_state tap)
 {
     if (libinput_device_config_tap_get_finger_count(device) <= 0) {
-        qCCritical(treelandInput) << "libinput_device_config_tap_set_enabled is invalid";
+        qCCritical(lcTlInput) << "libinput_device_config_tap_set_enabled is invalid";
 
         return false;
     }
@@ -52,7 +52,7 @@ bool configTapEnabled(libinput_device *device, libinput_config_tap_state tap)
         return false;
     }
 
-    qCDebug(treelandInput) << "libinput_device_config_tap_set_enabled: " << tap;
+    qCDebug(lcTlInput) << "libinput_device_config_tap_set_enabled: " << tap;
     enum libinput_config_status status = libinput_device_config_tap_set_enabled(device, tap);
 
     return ensureStatus(status);
@@ -61,7 +61,7 @@ bool configTapEnabled(libinput_device *device, libinput_config_tap_state tap)
 [[maybe_unused]] static bool configTapButtonMap(libinput_device *device, libinput_config_tap_button_map map)
 {
     if (libinput_device_config_tap_get_finger_count(device) <= 0) {
-        qCCritical(treelandInput) << "libinput_device_config_tap_set_button_map is invalid";
+        qCCritical(lcTlInput) << "libinput_device_config_tap_set_button_map is invalid";
 
         return false;
     }
@@ -70,7 +70,7 @@ bool configTapEnabled(libinput_device *device, libinput_config_tap_state tap)
         return false;
     }
 
-    qCDebug(treelandInput) << "libinput_device_config_tap_set_button_map: " << map;
+    qCDebug(lcTlInput) << "libinput_device_config_tap_set_button_map: " << map;
     enum libinput_config_status status = libinput_device_config_tap_set_button_map(device, map);
 
     return ensureStatus(status);
@@ -79,7 +79,7 @@ bool configTapEnabled(libinput_device *device, libinput_config_tap_state tap)
 [[maybe_unused]] static bool configTapDragEnabled(libinput_device *device, libinput_config_drag_state drag)
 {
     if (libinput_device_config_tap_get_finger_count(device) <= 0) {
-        qCCritical(treelandInput) << "libinput_device_config_tap_set_drag_enabled is invalid";
+        qCCritical(lcTlInput) << "libinput_device_config_tap_set_drag_enabled is invalid";
 
         return false;
     }
@@ -88,7 +88,7 @@ bool configTapEnabled(libinput_device *device, libinput_config_tap_state tap)
         return false;
     }
 
-    qCDebug(treelandInput) << "libinput_device_config_tap_set_drag_enabled: " << drag;
+    qCDebug(lcTlInput) << "libinput_device_config_tap_set_drag_enabled: " << drag;
     enum libinput_config_status status = libinput_device_config_tap_set_drag_enabled(device, drag);
 
     return ensureStatus(status);
@@ -97,7 +97,7 @@ bool configTapEnabled(libinput_device *device, libinput_config_tap_state tap)
 [[maybe_unused]] static bool configTapDragLockEnabled(libinput_device *device, libinput_config_drag_lock_state lock)
 {
     if (libinput_device_config_tap_get_finger_count(device) <= 0) {
-        qCCritical(treelandInput) << "libinput_device_config_tap_set_drag_enabled is invalid";
+        qCCritical(lcTlInput) << "libinput_device_config_tap_set_drag_enabled is invalid";
 
         return false;
     }
@@ -106,7 +106,7 @@ bool configTapEnabled(libinput_device *device, libinput_config_tap_state tap)
         return false;
     }
 
-    qCDebug(treelandInput) << "libinput_device_config_tap_set_drag_lock_enabled: " << lock;
+    qCDebug(lcTlInput) << "libinput_device_config_tap_set_drag_lock_enabled: " << lock;
     enum libinput_config_status status =
         libinput_device_config_tap_set_drag_lock_enabled(device, lock);
 
@@ -116,7 +116,7 @@ bool configTapEnabled(libinput_device *device, libinput_config_tap_state tap)
 bool configAccelSpeed(libinput_device *device, double speed)
 {
     if (!libinput_device_config_accel_is_available(device)) {
-        qCCritical(treelandInput) << "libinput_device_config_accel_set_speed is invalid";
+        qCCritical(lcTlInput) << "libinput_device_config_accel_set_speed is invalid";
 
         return false;
     }
@@ -125,7 +125,7 @@ bool configAccelSpeed(libinput_device *device, double speed)
         return false;
     }
 
-    qCDebug(treelandInput) << "libinput_device_config_accel_set_speed: " << speed;
+    qCDebug(lcTlInput) << "libinput_device_config_accel_set_speed: " << speed;
     enum libinput_config_status status = libinput_device_config_accel_set_speed(device, speed);
 
     return ensureStatus(status);
@@ -134,7 +134,7 @@ bool configAccelSpeed(libinput_device *device, double speed)
 [[maybe_unused]] static bool configRotationAngle(libinput_device *device, double angle)
 {
     if (!libinput_device_config_rotation_is_available(device)) {
-        qCCritical(treelandInput) << "libinput_device_config_rotation_set_angle is invalid";
+        qCCritical(lcTlInput) << "libinput_device_config_rotation_set_angle is invalid";
 
         return false;
     }
@@ -143,7 +143,7 @@ bool configAccelSpeed(libinput_device *device, double speed)
         return false;
     }
 
-    qCDebug(treelandInput) << "libinput_device_config_rotation_set_angle: " << angle;
+    qCDebug(lcTlInput) << "libinput_device_config_rotation_set_angle: " << angle;
     enum libinput_config_status status = libinput_device_config_rotation_set_angle(device, angle);
 
     return ensureStatus(status);
@@ -152,7 +152,7 @@ bool configAccelSpeed(libinput_device *device, double speed)
 bool configAccelProfile(libinput_device *device, libinput_config_accel_profile profile)
 {
     if (!libinput_device_config_accel_is_available(device)) {
-        qCCritical(treelandInput) << "libinput_device_config_accel_set_profile is invalid";
+        qCCritical(lcTlInput) << "libinput_device_config_accel_set_profile is invalid";
 
         return false;
     }
@@ -161,7 +161,7 @@ bool configAccelProfile(libinput_device *device, libinput_config_accel_profile p
         return false;
     }
 
-    qCDebug(treelandInput) << "libinput_device_config_accel_set_profile: " << profile;
+    qCDebug(lcTlInput) << "libinput_device_config_accel_set_profile: " << profile;
     enum libinput_config_status status = libinput_device_config_accel_set_profile(device, profile);
 
     return ensureStatus(status);
@@ -170,7 +170,7 @@ bool configAccelProfile(libinput_device *device, libinput_config_accel_profile p
 bool configNaturalScroll(libinput_device *device, bool natural)
 {
     if (!libinput_device_config_scroll_has_natural_scroll(device)) {
-        qCCritical(treelandInput) << "libinput_device_config_scroll_set_natural_scroll_enabled is invalid";
+        qCCritical(lcTlInput) << "libinput_device_config_scroll_set_natural_scroll_enabled is invalid";
 
         return false;
     }
@@ -179,7 +179,7 @@ bool configNaturalScroll(libinput_device *device, bool natural)
         return false;
     }
 
-    qCDebug(treelandInput) << "libinput_device_config_scroll_set_natural_scroll_enabled: " << natural;
+    qCDebug(lcTlInput) << "libinput_device_config_scroll_set_natural_scroll_enabled: " << natural;
     enum libinput_config_status status =
         libinput_device_config_scroll_set_natural_scroll_enabled(device, natural);
 
@@ -189,7 +189,7 @@ bool configNaturalScroll(libinput_device *device, bool natural)
 bool configLeftHanded(libinput_device *device, bool left)
 {
     if (!libinput_device_config_left_handed_is_available(device)) {
-        qCCritical(treelandInput) << "libinput_device_config_left_handed_set is invalid";
+        qCCritical(lcTlInput) << "libinput_device_config_left_handed_set is invalid";
 
         return false;
     }
@@ -198,7 +198,7 @@ bool configLeftHanded(libinput_device *device, bool left)
         return false;
     }
 
-    qCDebug(treelandInput) << "libinput_device_config_left_handed_set: " << left;
+    qCDebug(lcTlInput) << "libinput_device_config_left_handed_set: " << left;
     enum libinput_config_status status = libinput_device_config_left_handed_set(device, left);
 
     return ensureStatus(status);
@@ -212,7 +212,7 @@ bool configLeftHanded(libinput_device *device, bool left)
         return false;
     }
 
-    qCDebug(treelandInput) << "libinput_device_config_click_set_method: " << method;
+    qCDebug(lcTlInput) << "libinput_device_config_click_set_method: " << method;
     enum libinput_config_status status = libinput_device_config_click_set_method(device, method);
 
     return ensureStatus(status);
@@ -222,7 +222,7 @@ bool configLeftHanded(libinput_device *device, bool left)
                                   libinput_config_middle_emulation_state mid)
 {
     if (!libinput_device_config_middle_emulation_is_available(device)) {
-        qCCritical(treelandInput) << "libinput_device_config_middle_emulation_set_enabled is invalid";
+        qCCritical(lcTlInput) << "libinput_device_config_middle_emulation_set_enabled is invalid";
 
         return false;
     }
@@ -231,7 +231,7 @@ bool configLeftHanded(libinput_device *device, bool left)
         return false;
     }
 
-    qCDebug(treelandInput) << "libinput_device_config_middle_emulation_set_enabled: " << mid;
+    qCDebug(lcTlInput) << "libinput_device_config_middle_emulation_set_enabled: " << mid;
     enum libinput_config_status status =
         libinput_device_config_middle_emulation_set_enabled(device, mid);
 
@@ -246,7 +246,7 @@ bool configLeftHanded(libinput_device *device, bool left)
         return false;
     }
 
-    qCDebug(treelandInput) << "libinput_device_config_scroll_set_method: " << method;
+    qCDebug(lcTlInput) << "libinput_device_config_scroll_set_method: " << method;
     enum libinput_config_status status = libinput_device_config_scroll_set_method(device, method);
 
     return ensureStatus(status);
@@ -260,7 +260,7 @@ bool configLeftHanded(libinput_device *device, bool left)
         return false;
     }
 
-    qCDebug(treelandInput) << "libinput_device_config_scroll_set_button: " << button;
+    qCDebug(lcTlInput) << "libinput_device_config_scroll_set_button: " << button;
     enum libinput_config_status status = libinput_device_config_scroll_set_button(device, button);
 
     return ensureStatus(status);
@@ -275,7 +275,7 @@ bool configLeftHanded(libinput_device *device, bool left)
         return false;
     }
 
-    qCDebug(treelandInput) << "libinput_device_config_scroll_set_button: " << lock;
+    qCDebug(lcTlInput) << "libinput_device_config_scroll_set_button: " << lock;
     enum libinput_config_status status =
         libinput_device_config_scroll_set_button_lock(device, lock);
 
@@ -285,7 +285,7 @@ bool configLeftHanded(libinput_device *device, bool left)
 bool configDwtEnabled(libinput_device *device, enum libinput_config_dwt_state enable)
 {
     if (!libinput_device_config_dwt_is_available(device)) {
-        qCCritical(treelandInput) << "libinput_device_config_dwt_set_enabled is invalid";
+        qCCritical(lcTlInput) << "libinput_device_config_dwt_set_enabled is invalid";
 
         return false;
     }
@@ -293,7 +293,7 @@ bool configDwtEnabled(libinput_device *device, enum libinput_config_dwt_state en
         return false;
     }
 
-    qCDebug(treelandInput) << "libinput_device_config_dwt_set_enabled: " << enable;
+    qCDebug(lcTlInput) << "libinput_device_config_dwt_set_enabled: " << enable;
     enum libinput_config_status status = libinput_device_config_dwt_set_enabled(device, enable);
 
     return ensureStatus(status);
@@ -302,7 +302,7 @@ bool configDwtEnabled(libinput_device *device, enum libinput_config_dwt_state en
 [[maybe_unused]] static bool configDwtpEnabled(libinput_device *device, enum libinput_config_dwtp_state enable)
 {
     if (!libinput_device_config_dwtp_is_available(device)) {
-        qCCritical(treelandInput) << "libinput_device_config_dwtp_set_enabled is invalid";
+        qCCritical(lcTlInput) << "libinput_device_config_dwtp_set_enabled is invalid";
 
         return false;
     }
@@ -311,7 +311,7 @@ bool configDwtEnabled(libinput_device *device, enum libinput_config_dwt_state en
         return false;
     }
 
-    qCDebug(treelandInput) << "libinput_device_config_dwt_set_enabled: " << enable;
+    qCDebug(lcTlInput) << "libinput_device_config_dwt_set_enabled: " << enable;
     enum libinput_config_status status = libinput_device_config_dwtp_set_enabled(device, enable);
 
     return ensureStatus(status);
@@ -320,7 +320,7 @@ bool configDwtEnabled(libinput_device *device, enum libinput_config_dwt_state en
 [[maybe_unused]] static bool configCalibrationMatrix(libinput_device *device, float mat[])
 {
     if (!libinput_device_config_calibration_has_matrix(device)) {
-        qCCritical(treelandInput) << "setCalibrationMatrix mat is invalid";
+        qCCritical(lcTlInput) << "setCalibrationMatrix mat is invalid";
         return false;
     }
     bool changed = false;
@@ -334,7 +334,7 @@ bool configDwtEnabled(libinput_device *device, enum libinput_config_dwt_state en
         }
     }
     if (changed) {
-        qCDebug(treelandInput,
+        qCDebug(lcTlInput,
                 "libinput_device_config_calibration_set_matrix(%f, %f, %f, %f, "
                 "%f, %f)",
                 mat[0],

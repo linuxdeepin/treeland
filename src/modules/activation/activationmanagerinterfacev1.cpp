@@ -135,7 +135,7 @@ public:
         const QString token = QUuid::createUuid().toString(QUuid::WithoutBraces);
         m_tokens.append(TokenInfo{ token, appId, client, serial, fromTrustedSurface,
                                    QDeadlineTimer(TokenLifetimeMs) });
-        qCDebug(treelandActivation) << "Registered activation token" << token.left(8) + u"..."_s
+        qCDebug(lcTlActivation) << "Registered activation token" << token.left(8) + u"..."_s
                                << "for app" << appId
                                << (fromTrustedSurface ? "" : "(inactive-surface-token-request)");
         return token;
@@ -151,7 +151,7 @@ public:
 protected:
     void destroy_global() override
     {
-        qCDebug(treelandActivation) << "treeland_activation_manager_v1 global destroyed";
+        qCDebug(lcTlActivation) << "treeland_activation_manager_v1 global destroyed";
     }
 
     void destroy(Resource *resource) override
@@ -181,18 +181,18 @@ protected:
 
         auto *wlrSurface = wlr_surface_from_resource(surface);
         if (!wlrSurface) {
-            qCWarning(treelandActivation) << "activate: invalid surface resource";
+            qCWarning(lcTlActivation) << "activate: invalid surface resource";
             return;
         }
 
         auto *wsurface = WSurface::fromHandle(wlrSurface);
         if (!wsurface) {
-            qCWarning(treelandActivation) << "activate: no WSurface for wlr_surface";
+            qCWarning(lcTlActivation) << "activate: no WSurface for wlr_surface";
             return;
         }
 
         auto disposition = dispositionForToken(token);
-        qCInfo(treelandActivation) << "activate: emitting activateRequested for token" << token.left(8) + u"..."_s
+        qCInfo(lcTlActivation) << "activate: emitting activateRequested for token" << token.left(8) + u"..."_s
                              << "with disposition" << disposition;
         // Keep token one-shot semantics; Helper performs the policy check.
         auto it = std::find_if(m_tokens.begin(), m_tokens.end(),
@@ -229,7 +229,7 @@ private:
         auto it = m_tokens.begin();
         while (it != m_tokens.end()) {
             if (it->expiry.hasExpired()) {
-                qCDebug(treelandActivation) << "Sweeping expired token for app" << it->appId;
+                qCDebug(lcTlActivation) << "Sweeping expired token for app" << it->appId;
                 it = m_tokens.erase(it);
             } else {
                 ++it;

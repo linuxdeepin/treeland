@@ -236,7 +236,7 @@ void MultitaskviewSurfaceModel::updateZOrder()
 uint MultitaskviewSurfaceModel::prevSameAppIndex(uint index)
 {
     if (index >= count()) {
-        qCWarning(treelandPlugin) << "prevSameAppIndex: invalid index" << index << "count:" << count();
+        qCWarning(lcTlPlugin) << "prevSameAppIndex: invalid index" << index << "count:" << count();
         return index;
     }
     auto circularPrev = [this](uint i) {
@@ -255,7 +255,7 @@ uint MultitaskviewSurfaceModel::prevSameAppIndex(uint index)
 uint MultitaskviewSurfaceModel::nextSameAppIndex(uint index)
 {
     if (index >= count()) {
-        qCWarning(treelandPlugin) << "nextSameAppIndex: invalid index" << index << "count:" << count();
+        qCWarning(lcTlPlugin) << "nextSameAppIndex: invalid index" << index << "count:" << count();
         return index;
     }
     auto circularNext = [this](uint i) {
