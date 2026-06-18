@@ -1146,6 +1146,11 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
             attached->surfaceWrapper()->setBlur(attached->backgroundType() == Personalization::BackgroundType::Blur);
         };
         connect(attached, &Personalization::backgroundTypeChanged, this, updateBlur);
+        auto updateCornerRadius = [attached] {
+            attached->surfaceWrapper()->setRadius(attached->cornerRadius());
+        };
+        connect(attached, &Personalization::cornerRadiusChanged, this, updateCornerRadius);
+        updateCornerRadius();
         updateBlur();
         if (isLayer) {
             auto layer = qobject_cast<WLayerSurface *>(wrapper->shellSurface());

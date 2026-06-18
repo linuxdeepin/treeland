@@ -453,6 +453,17 @@ void SurfaceWrapper::setup()
                 });
         updateX11shouldSkipDock();
     }
+    // Connect DConfig windowRadius change so QML bindings re-evaluate radius()
+    if (m_type == Type::XdgToplevel || m_type == Type::XWayland) {
+        if (auto *helper = Helper::instance()) {
+            if (auto *config = helper->config()) {
+                connect(config,
+                        &TreelandUserConfig::windowRadiusChanged,
+                        this,
+                        &SurfaceWrapper::radiusChanged);
+            }
+        }
+    }
 }
 
 void SurfaceWrapper::convertToNormalSurface(WToplevelSurface *shellSurface, Type type)
@@ -1583,16 +1594,14 @@ void SurfaceWrapper::startShowDesktopAnimation(bool show)
 
 qreal SurfaceWrapper::radius() const
 {
-    // TODO: move to dconfig
     if (m_type == Type::InputPopup)
         return 0;
     if (m_type == Type::XdgPopup)
         return 8;
 
     qreal radius = m_radius;
-
-    // TODO: Handle: XdgToplevel, popup, InputPopup, XWayland (bypass, window type:
-    // menu/normal/popup)
+    // m_radius > 1 means radius was explicitly set via Personalization protocol;
+    // m_radius <= 1 means no per-window override, fall back to DConfig.
     if (radius < 1 && m_type != Type::Layer) {
         radius = Helper::instance()->config()->windowRadius();
     }
