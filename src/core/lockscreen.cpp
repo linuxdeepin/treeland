@@ -9,6 +9,7 @@
 #include "utils/cmdline.h"
 #include "common/treelandlogging.h"
 #include "greeter/greeterproxy.h"
+#include <woutputrenderwindow.h>
 
 #ifdef EXT_SESSION_LOCK_V1
 #include <wsessionlock.h>
@@ -95,6 +96,26 @@ void LockScreen::addOutput(Output *output)
     const auto &[_, ok] = m_lockSurfaces.emplace(outputItem, nullptr);
     Q_ASSERT(ok);
 #endif
+
+    connect(output->output(), &WOutput::enabledChanged, this, [this, output]() {
+        if (!output->output()->isEnabled() || !isLocked()) {
+            return;
+        }
+#if EXT_SESSION_LOCK_V1
+        auto outputItem = output->outputItem();
+        if (outputItem) {
+            auto *lockSurface = m_lockSurfaces[outputItem].get();
+            if (lockSurface) {
+                lockSurface->configureSize(outputItem->size().toSize());
+            }
+        }
+#endif
+        auto it = m_components.find(output);
+        if (it != m_components.end() && it->second) {
+            it->second->setSize(output->outputItem()->size());
+        }
+        Helper::instance()->window()->update();
+    });
 
     if (!m_impl) {
         return;

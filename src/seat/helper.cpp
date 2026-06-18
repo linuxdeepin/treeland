@@ -936,9 +936,23 @@ void Helper::onSetOutputPowerMode(wlr_output_power_v1_set_mode_event *event)
         if (output->handle()->enabled) {
             return;
         }
+        if (!output->handle()->current_mode) {
+            auto mode = output->preferred_mode();
+            if (mode) {
+                newState.set_mode(mode);
+            }
+        }
+        auto outputObj = getOutput(WOutput::fromHandle(output));
+        if (outputObj) {
+            newState.set_scale(outputObj->preferredScaleFactor(output->handle()->width > 0
+                                                                ? QSize(output->handle()->width, output->handle()->height)
+                                                                : QSize()));
+        }
         newState.set_enabled(true);
         if (!output->commit_state(newState)) {
             qCCritical(lcTlCore, "commit failed on output %s", output->handle()->name);
+        } else {
+            output->schedule_frame();
         }
         break;
     }
@@ -2773,6 +2787,12 @@ void Helper::onPrepareForSleep(bool sleep)
     } else {
         qCInfo(lcTlCore) << "Re-enabled rendering after hibernate";
         enableRender();
+        for (auto o : std::as_const(m_outputList)) {
+            if (o && o->output() && o->output()->isEnabled()) {
+                o->output()->scheduleFrame();
+            }
+        }
+        m_renderWindow->update();
     }
 }
 
