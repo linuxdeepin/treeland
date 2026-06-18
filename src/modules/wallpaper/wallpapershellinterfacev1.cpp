@@ -122,12 +122,14 @@ public:
     wl_resource *resource = nullptr;
     WallpaperSurface *surface = nullptr;
     QString wallpaperSource;
+    bool m_readySent = false;
 
 protected:
     void destroy_resource(Resource *resource) override;
     void destroy(Resource *resource) override;
     void source_failed(Resource *resource,
                                                      uint32_t error) override;
+    void ready(Resource *resource) override;
 };
 
 TreelandWallpaperSurfaceInterfaceV1Private::TreelandWallpaperSurfaceInterfaceV1Private(TreelandWallpaperSurfaceInterfaceV1 *_q,
@@ -157,6 +159,14 @@ void TreelandWallpaperSurfaceInterfaceV1Private::source_failed([[maybe_unused]] 
                                                                uint32_t error)
 {
     Q_EMIT q->failed(error);
+}
+
+void TreelandWallpaperSurfaceInterfaceV1Private::ready([[maybe_unused]] Resource *resource)
+{
+    if (!m_readySent) {
+        m_readySent = true;
+        Q_EMIT q->ready();
+    }
 }
 
 TreelandWallpaperSurfaceInterfaceV1::~TreelandWallpaperSurfaceInterfaceV1() = default;

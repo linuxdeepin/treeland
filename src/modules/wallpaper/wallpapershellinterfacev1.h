@@ -58,6 +58,7 @@ public:
 Q_SIGNALS:
     void failed(uint32_t error);
     void beforeDestroy(TreelandWallpaperSurfaceInterfaceV1 *surface);
+    void ready();
 
 private:
     explicit TreelandWallpaperSurfaceInterfaceV1(wl_resource *surface,

@@ -196,7 +196,7 @@ void WallpaperItem::updateSurface()
                 setSurface(interface->wSurface());
                 interface->wSurface()->enterOutput(output());
                 update();
-                QTimer::singleShot(2000, this, [this]{ Q_EMIT sourceChanged(); });
+                Q_EMIT sourceChanged();
                 break;
             }
         }
@@ -211,16 +211,50 @@ void WallpaperItem::scheduleUpdate()
     }
 
     if (wallpaperRole() != Lockscreen) {
-        QTimer::singleShot(3000,
-                           this,
-                           [this]{
-                               updateSurface();
-                               if (!Helper::instance()->m_greeterProxy->isLocked()) {
-                                   setPlay(false);
-                               }
-                           });
+        clearPendingUpdate();
+
+        TreelandWallpaperShellInterfaceV1 *shell = Helper::instance()->shellHandler()->wallpaperShell();
+        if (shell) {
+            const QList<QString> &produced = shell->producedWallpapers();
+            if (!produced.isEmpty()) {
+                TreelandWallpaperSurfaceInterfaceV1 *interface = TreelandWallpaperSurfaceInterfaceV1::get(produced.last());
+                if (interface) {
+                    m_readyConnection = QObject::connect(interface,
+                                                         &TreelandWallpaperSurfaceInterfaceV1::ready,
+                                                         this,
+                                                         &WallpaperItem::applyPendingUpdate);
+                }
+            }
+        }
+
+        m_fallbackTimer = new QTimer(this);
+        m_fallbackTimer->setSingleShot(true);
+        QObject::connect(m_fallbackTimer, &QTimer::timeout, this, &WallpaperItem::applyPendingUpdate);
+        m_fallbackTimer->start(500);
     } else {
         updateSurface();
+    }
+}
+
+void WallpaperItem::clearPendingUpdate()
+{
+    if (m_readyConnection) {
+        QObject::disconnect(m_readyConnection);
+        m_readyConnection = {};
+    }
+    if (m_fallbackTimer) {
+        m_fallbackTimer->stop();
+        m_fallbackTimer->deleteLater();
+        m_fallbackTimer = nullptr;
+    }
+}
+
+void WallpaperItem::applyPendingUpdate()
+{
+    clearPendingUpdate();
+    updateSurface();
+    if (!Helper::instance()->m_greeterProxy->isLocked()) {
+        setPlay(false);
     }
 }
 
