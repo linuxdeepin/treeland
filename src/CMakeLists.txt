@@ -373,6 +373,8 @@ add_subdirectory(treeland-screensaver)
 set(BIN_NAME treeland)
 
 qt_add_executable(${BIN_NAME}
+    deepintheme.cpp
+    deepintheme.h
     main.cpp
 )
 
