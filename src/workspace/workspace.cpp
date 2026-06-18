@@ -425,7 +425,10 @@ void Workspace::doRemoveModel(int index)
     auto oldCurrent = this->current();
     auto oldCurrentIndex = this->currentIndex();
     auto model = this->modelAt(index);
+    int removedWorkspaceId = model->id();
     m_models->removeObject(model);
+
+    Helper::instance()->syncRemoveWorkspace(removedWorkspaceId);
 
     if (oldCurrent == model) {
         // current change, current index might change

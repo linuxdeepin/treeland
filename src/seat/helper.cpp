@@ -2531,6 +2531,11 @@ QString Helper::currentLockScreenWallpaper(WOutput *output)
     return m_wallpaperManager->currentLockScreenWallpaper(output);
 }
 
+void Helper::syncRemoveWorkspace(int workspaceId)
+{
+    m_wallpaperManager->syncRemoveWorkspace(workspaceId);
+}
+
 void Helper::handleWindowPicker(WindowPickerInterface *picker)
 {
     connect(picker, &WindowPickerInterface::pick, this, [this, picker](const QString &hint) {

@@ -103,4 +103,5 @@ private:
     bool m_play = true;
     bool m_disableUpdate = false;
     bool m_forceUpdateSource = false;
+    int m_retryCount = 0;
 };

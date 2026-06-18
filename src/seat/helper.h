@@ -222,6 +222,7 @@ public:
     Q_INVOKABLE void startLockscreen(WOutput *output, bool showAnimation);
     Q_INVOKABLE QString currentWorkspaceWallpaper(WOutput *output);
     Q_INVOKABLE QString currentLockScreenWallpaper(WOutput *output);
+    void syncRemoveWorkspace(int workspaceId);
 
     void handleWindowPicker(WindowPickerInterface *picker);
 

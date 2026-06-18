@@ -38,6 +38,7 @@ public:
                             TreelandWallpaperInterfaceV1::WallpaperType type);
     QMap<QString, TreelandWallpaperInterfaceV1::WallpaperType> globalValidWallpaper(wlr_output *exclusiveOutput, int exclusiveworkspaceId);
     void syncAddWorkspace();
+    void syncRemoveWorkspace(int workspaceId);
     void removeOutputWallpaper(wlr_output *output);
     QString currentWorkspaceWallpaper(WOutput *output);
     QString currentLockScreenWallpaper(WOutput *output);

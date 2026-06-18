@@ -1,4 +1,4 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 import QtQuick
@@ -220,12 +220,13 @@ Multitaskview {
                             model: Helper.workspace.models
                             Item {
                                 required property int index
+                                required property WorkspaceModel workspace
                                 width: outputPlacementItem.output.outputItem.width
                                 height: outputPlacementItem.output.outputItem.height
                                 Wallpaper {
                                     id: wallpaper2
                                     output: outputPlacementItem.output.outputItem.output
-                                    workspace: Helper.workspace.current
+                                    workspace: workspace
                                 }
 
                                 ShaderEffectSource {

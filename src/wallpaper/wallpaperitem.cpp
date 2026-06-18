@@ -190,8 +190,13 @@ void WallpaperItem::updateSurface()
                 TreelandWallpaperSurfaceInterfaceV1 *interface =
                     TreelandWallpaperSurfaceInterfaceV1::get(workspaceConfig.desktopWallpaper);
                 if (!interface) {
+                    if (m_retryCount < 5) {
+                        m_retryCount++;
+                        QTimer::singleShot(m_retryCount * 1000, this, &WallpaperItem::updateSurface);
+                    }
                     return;
                 }
+                m_retryCount = 0;
                 m_source = workspaceConfig.desktopWallpaper;
                 setSurface(interface->wSurface());
                 interface->wSurface()->enterOutput(output());
