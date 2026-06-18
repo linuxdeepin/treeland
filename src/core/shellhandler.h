@@ -159,6 +159,10 @@ private:
     // Creates or matches a wrapper from prelaunch splash, then initializes it
     void ensureXwaylandWrapper(WAYLIB_SERVER_NAMESPACE::WXWaylandSurface *surface,
                                const QString &appId);
+    // Try to match a prelaunch splash wrapper for the given appId with
+    // progressive fallback: exact -> case-insensitive -> surface own appId.
+    SurfaceWrapper *matchPrelaunchWrapper(const QString &surfaceAppId,
+                                          const QString &effectiveAppId);
     // Unified parent/container update for Xdg & XWayland toplevel wrappers.
     void updateWrapperContainer(SurfaceWrapper *wrapper,
                                 WAYLIB_SERVER_NAMESPACE::WSurface *parentSurface);
