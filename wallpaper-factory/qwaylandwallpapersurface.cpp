@@ -14,8 +14,19 @@ QWaylandWallpaperSurface::QWaylandWallpaperSurface(QWaylandWallpaperShellIntegra
     , m_shell(shell)
     , m_interface(WallpaperWindow::get(window->window()))
     , m_window(window)
+    , m_readySent(false)
 {
     init(shell->get_treeland_wallpaper_surface(window->waylandSurface()->object(), m_interface->source()));
+
+    QQuickWindow *quickWindow = qobject_cast<QQuickWindow *>(window->window());
+    if (quickWindow) {
+        connect(quickWindow, &QQuickWindow::afterRendering, this, [this]() {
+            if (!m_readySent) {
+                m_readySent = true;
+                ready();
+            }
+        }, Qt::QueuedConnection);
+    }
 }
 
 QWaylandWallpaperSurface::~QWaylandWallpaperSurface()

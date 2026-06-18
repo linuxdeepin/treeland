@@ -10,6 +10,7 @@
 Q_MOC_INCLUDE("workspace/workspace.h")
 
 class TreelandWallpaperSurfaceInterfaceV1;
+class QTimer;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WOutput;
@@ -91,8 +92,10 @@ private Q_SLOTS:
     void updateSurface();
     void scheduleUpdate();
     void handleWorkspaceAdded();
+    void applyPendingUpdate();
 
 private:
+    void clearPendingUpdate();
     int m_userId = -1;
     QPointer<WorkspaceModel> m_workspace = nullptr;
     QPointer<WOutput> m_output = nullptr;
@@ -103,4 +106,6 @@ private:
     bool m_play = true;
     bool m_disableUpdate = false;
     bool m_forceUpdateSource = false;
+    QMetaObject::Connection m_readyConnection;
+    QTimer *m_fallbackTimer = nullptr;
 };

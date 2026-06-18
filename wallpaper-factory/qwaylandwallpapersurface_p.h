@@ -6,6 +6,7 @@
 #include "wallpaperwindow.h"
 #include "qwayland-treeland-wallpaper-shell-unstable-v1.h"
 
+#include <QQuickWindow>
 #include <QtWaylandClient/private/qwaylandshellsurface_p.h>
 
 class QWaylandWallpaperShellIntegration;
@@ -35,4 +36,5 @@ private:
     QString m_activationToken;
 
     bool m_configured = true;
+    bool m_readySent = false;
 };
