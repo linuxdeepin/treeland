@@ -7,6 +7,7 @@
 #include "core/rootsurfacecontainer.h"
 #include "output.h"
 #include "outputconfigstate.h"
+#include "surface/surfacewrapper.h"
 #include "wallpaper/wallpapermanager.h"
 
 OutputLifecycleManager::OutputLifecycleManager(RootSurfaceContainer *rootContainer,
@@ -60,6 +61,101 @@ void OutputLifecycleManager::switchPrimaryOutput(Output *from,
     m_rootContainer->moveSurfacesToOutput(surfaces, to, from);
 }
 
+void OutputLifecycleManager::recordSurfaceBindings(const QList<SurfaceWrapper *> &surfaces,
+                                                     Output *sourceOutput)
+{
+    if (!m_configState || !sourceOutput)
+        return;
+
+    QString outputName = sourceOutput->output()->name();
+    QRectF outputGeometry = sourceOutput->geometry();
+    QPointF outputCenter = outputGeometry.center();
+    QSizeF outputSize = outputGeometry.size();
+
+    for (auto *surface : surfaces) {
+        if (!surface)
+            continue;
+
+        auto surfaceType = surface->type();
+        if (surfaceType != SurfaceWrapper::Type::XdgToplevel
+            && surfaceType != SurfaceWrapper::Type::XWayland)
+            continue;
+
+        QPointF relativePos = surface->position() - outputCenter;
+        int state = static_cast<int>(surface->surfaceState());
+        m_configState->recordSurfaceBinding(surface, outputName, relativePos, outputSize, state);
+    }
+}
+
+void OutputLifecycleManager::restoreSurfaceBindings(Output *targetOutput)
+{
+    if (!m_configState || !targetOutput || !m_rootContainer)
+        return;
+
+    QString outputName = targetOutput->output()->name();
+    if (!m_configState->hasSurfaceBindings(outputName))
+        return;
+
+    QList<SurfaceBinding> bindings = m_configState->takeSurfaceBindings(outputName);
+
+    QList<SurfaceBinding> validBindings;
+    for (const auto &binding : bindings) {
+        if (!binding.surface)
+            continue;
+
+        SurfaceWrapper *surface = binding.surface;
+        auto surfaceType = surface->type();
+        if (surfaceType != SurfaceWrapper::Type::XdgToplevel
+            && surfaceType != SurfaceWrapper::Type::XWayland)
+            continue;
+
+        if (surface->ownsOutput() == targetOutput)
+            continue;
+
+        if (!surface->positionAutomatic())
+            continue;
+
+        validBindings.append(binding);
+    }
+
+    if (validBindings.isEmpty())
+        return;
+
+    QRectF targetGeometry = targetOutput->geometry();
+    for (const auto &binding : validBindings) {
+        SurfaceWrapper *surface = binding.surface;
+        if (!surface)
+            continue;
+
+        SurfaceWrapper::State savedState = static_cast<SurfaceWrapper::State>(binding.surfaceState);
+
+        if (savedState == SurfaceWrapper::State::Maximized
+            || savedState == SurfaceWrapper::State::Fullscreen) {
+            surface->setOwnsOutput(targetOutput);
+            surface->setSurfaceState(savedState);
+        } else if (savedState == SurfaceWrapper::State::Minimized) {
+            surface->setOwnsOutput(targetOutput);
+        } else {
+            qreal scaleX = binding.originalOutputSize.width() > 0
+                ? targetGeometry.width() / binding.originalOutputSize.width() : 1.0;
+            qreal scaleY = binding.originalOutputSize.height() > 0
+                ? targetGeometry.height() / binding.originalOutputSize.height() : 1.0;
+
+            QPointF newPos(targetGeometry.center().x() + binding.relativePosition.x() * scaleX,
+                           targetGeometry.center().y() + binding.relativePosition.y() * scaleY);
+
+            const QSizeF size = surface->size();
+            newPos.setX(
+                qBound(targetGeometry.left(), newPos.x(), targetGeometry.right() - size.width()));
+            newPos.setY(
+                qBound(targetGeometry.top(), newPos.y(), targetGeometry.bottom() - size.height()));
+
+            surface->setOwnsOutput(targetOutput);
+            surface->setPosition(newPos);
+        }
+    }
+}
+
 void OutputLifecycleManager::onScreenAdded(Output *output)
 {
     if (!output || !m_configState)
@@ -75,11 +171,14 @@ void OutputLifecycleManager::onScreenAdded(Output *output)
         restoreScreenAsPrimary(output);
     }
 
+    restoreSurfaceBindings(output);
+
     m_configState->clearOutputState(outputName);
 }
 
 void OutputLifecycleManager::onScreenRemoved(Output *output,
-                                             const QList<SurfaceWrapper *> &surfaces)
+                                              const QList<SurfaceWrapper *> &surfaces,
+                                              const QList<SurfaceWrapper *> &allWorkspacesSurfaces)
 {
     if (!output || !m_rootContainer || !m_configState)
         return;
@@ -92,7 +191,20 @@ void OutputLifecycleManager::onScreenRemoved(Output *output,
         markScreenAsPrimaryIntent(output);
     }
 
-    if (!isCurrentPrimary) {
+    recordSurfaceBindings(allWorkspacesSurfaces, output);
+
+    if (isCurrentPrimary || wasPrimaryBeforeRemoval) {
+        auto newPrimary = m_rootContainer->primaryOutput();
+        if (newPrimary && newPrimary != output) {
+            m_rootContainer->moveSurfacesToOutput(surfaces, newPrimary, output);
+        } else if (!m_rootContainer->outputs().isEmpty()) {
+            Output *nextPrimary = findFirstAvailableOutput(output);
+            if (nextPrimary) {
+                m_rootContainer->setPrimaryOutput(nextPrimary);
+                m_rootContainer->moveSurfacesToOutput(surfaces, nextPrimary, output);
+            }
+        }
+    } else {
         auto primaryOutput = m_rootContainer->primaryOutput();
         if (primaryOutput) {
             m_rootContainer->moveSurfacesToOutput(surfaces, primaryOutput, output);
@@ -101,7 +213,8 @@ void OutputLifecycleManager::onScreenRemoved(Output *output,
 }
 
 void OutputLifecycleManager::onScreenDisabled(Output *output,
-                                              const QList<SurfaceWrapper *> &surfaces)
+                                               const QList<SurfaceWrapper *> &surfaces,
+                                               const QList<SurfaceWrapper *> &allWorkspacesSurfaces)
 {
     if (!output || !m_rootContainer)
         return;
@@ -113,6 +226,10 @@ void OutputLifecycleManager::onScreenDisabled(Output *output,
         m_configState->recordCopyModeExit();
     } else if (isCurrentPrimary && m_configState) {
         markScreenAsPrimaryIntent(output);
+    }
+
+    if (m_configState) {
+        recordSurfaceBindings(allWorkspacesSurfaces, output);
     }
 
     if (isCurrentPrimary && !m_rootContainer->outputs().isEmpty()) {
@@ -145,6 +262,8 @@ void OutputLifecycleManager::onScreenEnabled(Output *output)
              && m_rootContainer->primaryOutput()) {
         restoreScreenAsPrimary(output);
     }
+
+    restoreSurfaceBindings(output);
 
     m_configState->clearOutputState(outputName);
 }

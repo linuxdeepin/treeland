@@ -746,7 +746,8 @@ void Helper::onOutputRemoved(WOutput *output)
         m_rootSurfaceContainer->removeOutput(o);
         if (m_outputLifecycleManager) {
             m_outputLifecycleManager->setMode(OutputLifecycleManager::Mode::Extension);
-            m_outputLifecycleManager->onScreenRemoved(o, surfaces);
+            const auto &allSurfaces = getAllOutputSurfaces(o);
+            m_outputLifecycleManager->onScreenRemoved(o, surfaces, allSurfaces);
         }
     }
 
@@ -902,7 +903,8 @@ void Helper::onOutputTestOrApply(qw_output_configuration_v1 *config, bool onlyTe
 
             if (!state.enabled && state.output->isEnabled()) {
                 const auto &surfaces = getWorkspaceSurfaces(outputObj);
-                m_outputLifecycleManager->onScreenDisabled(outputObj, surfaces);
+                const auto &allSurfaces = getAllOutputSurfaces(outputObj);
+                m_outputLifecycleManager->onScreenDisabled(outputObj, surfaces, allSurfaces);
             } else if (state.enabled && !state.output->isEnabled()) {
                 m_outputLifecycleManager->onScreenEnabled(outputObj);
                 if (m_outputLifecycleManager->takeCopyModeRestoreIntent()) {
@@ -2450,6 +2452,25 @@ QList<SurfaceWrapper *> Helper::getWorkspaceSurfaces(Output *filterOutput)
                 && (surfaceWrapper->showOnWorkspace(
                         Helper::instance()->workspace()->current()->id())
                     && (!filterOutput || surfaceWrapper->ownsOutput() == filterOutput))) {
+                surfaces.append(surfaceWrapper);
+                return true;
+            } else {
+                return false;
+            }
+        });
+
+    return surfaces;
+}
+
+QList<SurfaceWrapper *> Helper::getAllOutputSurfaces(Output *filterOutput)
+{
+    QList<SurfaceWrapper *> surfaces;
+    WOutputRenderWindow::paintOrderItemList(
+        Helper::instance()->workspace(),
+        [&surfaces, filterOutput](QQuickItem *item) -> bool {
+            SurfaceWrapper *surfaceWrapper = qobject_cast<SurfaceWrapper *>(item);
+            if (surfaceWrapper
+                && (!filterOutput || surfaceWrapper->ownsOutput() == filterOutput)) {
                 surfaces.append(surfaceWrapper);
                 return true;
             } else {

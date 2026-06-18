@@ -356,6 +356,7 @@ private:
     Output *createCopyOutput(WOutput *output, Output *proxy);
     WOutputViewport *getOwnOutputViewport(WOutput *output);
     QList<SurfaceWrapper *> getWorkspaceSurfaces(Output *filterOutput = nullptr);
+    QList<SurfaceWrapper *> getAllOutputSurfaces(Output *filterOutput);
     void moveSurfacesToOutput(const QList<SurfaceWrapper *> &surfaces,
                               Output *targetOutput,
                               Output *sourceOutput);

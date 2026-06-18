@@ -1,4 +1,4 @@
-// Copyright (C) 2025 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2025-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
@@ -29,8 +29,10 @@ public:
     ~OutputLifecycleManager() = default;
 
     void onScreenAdded(Output *output);
-    void onScreenRemoved(Output *output, const QList<SurfaceWrapper *> &surfaces);
-    void onScreenDisabled(Output *output, const QList<SurfaceWrapper *> &surfaces);
+    void onScreenRemoved(Output *output, const QList<SurfaceWrapper *> &surfaces,
+                          const QList<SurfaceWrapper *> &allWorkspacesSurfaces);
+    void onScreenDisabled(Output *output, const QList<SurfaceWrapper *> &surfaces,
+                           const QList<SurfaceWrapper *> &allWorkspacesSurfaces);
     void onScreenEnabled(Output *output);
     void setMode(Mode mode) {
         m_mode = mode;
@@ -56,4 +58,6 @@ private:
     void markScreenAsPrimaryIntent(Output *output);
     void restoreScreenAsPrimary(Output *output);
     void switchPrimaryOutput(Output *from, Output *to, const QList<SurfaceWrapper *> &surfaces);
+    void recordSurfaceBindings(const QList<SurfaceWrapper *> &surfaces, Output *sourceOutput);
+    void restoreSurfaceBindings(Output *targetOutput);
 };
