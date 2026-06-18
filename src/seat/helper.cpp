@@ -1621,6 +1621,19 @@ void Helper::init(Treeland::Treeland *treeland)
                 }
             });
 
+    m_xdgDialogManagerInterfaceV1 = m_server->attach<XdgDialogManagerInterfaceV1>();
+    connect(m_xdgDialogManagerInterfaceV1,
+            &XdgDialogManagerInterfaceV1::surfaceModalChanged,
+            this,
+            [this](WSurface *wsurface, bool modal) {
+                auto *xdgToplevel = WXdgToplevelSurface::fromSurface(wsurface);
+                if (!xdgToplevel) {
+                    qCDebug(lcTlXdgDialog) << "surfaceModalChanged for non-toplevel surface, ignoring";
+                    return;
+                }
+                xdgToplevel->setModal(modal);
+            });
+
     m_screensaverInterfaceV1 = m_server->attach<ScreensaverInterfaceV1>();
 
     m_outputPowerManager = qw_output_power_manager_v1::create(*m_server->handle());

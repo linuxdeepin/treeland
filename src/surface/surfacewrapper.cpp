@@ -20,6 +20,7 @@
 #include <wsocket.h>
 #include <wxdgpopupsurfaceitem.h>
 #include <wxdgtoplevelsurfaceitem.h>
+#include <wxdgtoplevelsurface.h>
 #include <wxwaylandsurface.h>
 #include <wxwaylandsurfaceitem.h>
 
@@ -65,6 +66,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     , m_attention(false)
     , m_resizable(false)
     , m_maximizable(false)
+    , m_modal(false)
     , m_appId(appId)
 {
     QQmlEngine::setContextForObject(this, qmlEngine->rootContext());
@@ -100,6 +102,7 @@ SurfaceWrapper::SurfaceWrapper(SurfaceWrapper *original, QQuickItem *parent)
     , m_attention(false)
     , m_resizable(false)
     , m_maximizable(false)
+    , m_modal(false)
     , m_appId(original->m_appId)
 {
     QQmlEngine::setContextForObject(this, m_engine->rootContext());
@@ -168,6 +171,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     , m_attention(false)
     , m_resizable(false)
     , m_maximizable(false)
+    , m_modal(false)
     , m_appId(appId)
 {
     QQmlEngine::setContextForObject(this, qmlEngine->rootContext());
@@ -352,6 +356,16 @@ void SurfaceWrapper::setup()
                                     &SurfaceWrapper::updateSizeCapabilities);
     }
     updateSizeCapabilities();
+
+    if (m_type == Type::XdgToplevel) {
+        auto *xdgToplevel = qobject_cast<WXdgToplevelSurface *>(m_shellSurface);
+        if (xdgToplevel) {
+            setModal(xdgToplevel->modal());
+            connect(xdgToplevel, &WXdgToplevelSurface::modalChanged,
+                    this, [this, xdgToplevel] { setModal(xdgToplevel->modal()); });
+        }
+    }
+    // XWayland surfaces do not support xdg-dialog-v1 modal state yet
 
     if (!m_prelaunchSplash) {
         setImplicitSize(m_surfaceItem->implicitWidth(), m_surfaceItem->implicitHeight());
@@ -2011,6 +2025,19 @@ bool SurfaceWrapper::isResizable() const
 bool SurfaceWrapper::isMaximizable() const
 {
     return m_maximizable;
+}
+
+bool SurfaceWrapper::modal() const
+{
+    return m_modal;
+}
+
+void SurfaceWrapper::setModal(bool modal)
+{
+    if (m_modal == modal)
+        return;
+    m_modal = modal;
+    Q_EMIT modalChanged();
 }
 
 bool SurfaceWrapper::blur() const

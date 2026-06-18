@@ -48,6 +48,7 @@ public:
     uint maximized:1;
     uint minimized:1;
     uint fullscreen:1;
+    uint modal:1;
     QSize minimumSize;
     QSize maximumSize = QSize(INT_MAX, INT_MAX);
 
@@ -62,6 +63,7 @@ WXdgToplevelSurfacePrivate::WXdgToplevelSurfacePrivate(WXdgToplevelSurface *qq, 
     , maximized(false)
     , minimized(false)
     , fullscreen(false)
+    , modal(false)
 {
     initHandle(hh);
 }
@@ -344,6 +346,12 @@ QString WXdgToplevelSurface::description() const
     return d->description;
 }
 
+bool WXdgToplevelSurface::modal() const
+{
+    W_DC(WXdgToplevelSurface);
+    return d->modal;
+}
+
 bool WXdgToplevelSurface::isInitialized() const
 {
     W_DC(WXdgToplevelSurface);
@@ -382,6 +390,15 @@ void WXdgToplevelSurface::setDescription(const QString &description)
         return;
     d->description = description;
     Q_EMIT descriptionChanged();
+}
+
+void WXdgToplevelSurface::setModal(bool modal)
+{
+    W_D(WXdgToplevelSurface);
+    if (d->modal == modal)
+        return;
+    d->modal = modal;
+    Q_EMIT modalChanged();
 }
 
 void WXdgToplevelSurface::setResizeing(bool resizeing)

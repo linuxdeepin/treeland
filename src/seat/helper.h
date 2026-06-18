@@ -10,6 +10,7 @@
 #include "modules/wallpaper/wallpapermanagerinterfacev1.h"
 #include "modules/wallpaper/wallpapernotifierinterfacev1.h"
 #include "modules/window-management/windowmanagementinterfacev1.h"
+#include "modules/xdg-dialog/xdgdialogmanagerinterfacev1.h"
 #include "utils/fpsdisplaymanager.h"
 
 #include <xcb/xproto.h>
@@ -394,6 +395,7 @@ private:
     qw_output_power_manager_v1 *m_outputPowerManager = nullptr;
     qw_ext_foreign_toplevel_image_capture_source_manager_v1 *m_foreignToplevelImageCaptureManager = nullptr;
     ActivationManagerInterfaceV1 *m_activationManagerV1 = nullptr;
+    XdgDialogManagerInterfaceV1 *m_xdgDialogManagerInterfaceV1 = nullptr;
     ShellHandler *m_shellHandler = nullptr;
     WXdgDecorationManager *m_xdgDecorationManager = nullptr;
     WXdgToplevelTagManagerV1 *m_xdgToplevelTagManagerV1 = nullptr;

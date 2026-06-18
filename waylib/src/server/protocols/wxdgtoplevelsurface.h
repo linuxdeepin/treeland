@@ -22,6 +22,7 @@ class WAYLIB_SERVER_EXPORT WXdgToplevelSurface : public WXdgSurface
     Q_PROPERTY(WXdgSurface* parentXdgSurface READ parentXdgSurface NOTIFY parentXdgSurfaceChanged FINAL)
     Q_PROPERTY(QString tag READ tag NOTIFY tagChanged FINAL)
     Q_PROPERTY(QString description READ description NOTIFY descriptionChanged FINAL)
+    Q_PROPERTY(bool modal READ modal NOTIFY modalChanged FINAL)
     QML_NAMED_ELEMENT(WaylandXdgToplevelSurface)
     QML_UNCREATABLE("Only create in C++")
 
@@ -57,8 +58,10 @@ public:
 
     QString tag() const;
     QString description() const;
+    bool modal() const;
     void setTag(const QString &tag);
     void setDescription(const QString &description);
+    void setModal(bool modal);
 
     bool isInitialized() const override;
 
@@ -79,6 +82,7 @@ Q_SIGNALS:
 
     void tagChanged();
     void descriptionChanged();
+    void modalChanged();
 };
 
 WAYLIB_SERVER_END_NAMESPACE

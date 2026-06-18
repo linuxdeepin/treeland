@@ -88,4 +88,7 @@ Q_DECLARE_LOGGING_CATEGORY(lcTlXwayland)
 // DDM integration
 Q_DECLARE_LOGGING_CATEGORY(lcTlDdm)
 
+// XdgDialog module
+Q_DECLARE_LOGGING_CATEGORY(lcTlXdgDialog)
+
 #endif // TREELAND_LOGGING_H

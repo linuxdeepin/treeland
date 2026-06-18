@@ -84,3 +84,6 @@ Q_LOGGING_CATEGORY(lcTlXwayland, "treeland.xwayland")
 
 // DDM integration
 Q_LOGGING_CATEGORY(lcTlDdm, "treeland.ddm")
+
+// XdgDialog module
+Q_LOGGING_CATEGORY(lcTlXdgDialog, "treeland.protocol.xdg-dialog")

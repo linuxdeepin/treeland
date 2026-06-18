@@ -83,6 +83,7 @@ class SurfaceWrapper : public QQuickItem
     Q_PROPERTY(bool isActivated READ isActivated NOTIFY isActivatedChanged FINAL)
     Q_PROPERTY(bool isResizable READ isResizable NOTIFY resizableChanged FINAL)
     Q_PROPERTY(bool isMaximizable READ isMaximizable NOTIFY maximizableChanged FINAL)
+    Q_PROPERTY(bool modal READ modal NOTIFY modalChanged FINAL)
 
 public:
     enum class Type
@@ -243,6 +244,7 @@ public:
     // without pushing policy into waylib or QML.
     bool isResizable() const;
     bool isMaximizable() const;
+    bool modal() const;
 
     bool hasActiveCapability() const;
     bool hasCapability(WToplevelSurface::Capability cap) const;
@@ -351,6 +353,7 @@ Q_SIGNALS:
     void isActivatedChanged();
     void resizableChanged();
     void maximizableChanged();
+    void modalChanged();
     void attentionChanged();
     void surfaceItemCreated(); // Emitted once after surfaceItem is constructed
     void prelaunchSplashChanged();
@@ -398,6 +401,7 @@ private:
     Q_SLOT void onHideAnimationFinished();
     void updateExplicitAlwaysOnTop();
     void updateSizeCapabilities();
+    void setModal(bool modal);
     void startMinimizeAnimation(const QRectF &iconGeometry, uint direction);
     Q_SLOT void onMinimizeAnimationFinished();
     void startShowDesktopAnimation(bool show);
@@ -475,6 +479,7 @@ private:
     uint m_attention : 1;
     uint m_resizable : 1;
     uint m_maximizable : 1;
+    uint m_modal : 1;
     SurfaceRole m_surfaceRole = SurfaceRole::Normal;
     quint32 m_autoPlaceYOffset = 0;
     QPoint m_clientRequstPos;
