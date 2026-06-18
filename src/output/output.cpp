@@ -729,6 +729,31 @@ void Output::arrangeNonLayerSurface(SurfaceWrapper *surface, const QSizeF &sizeD
             break;
         }
     } while (false);
+
+    QRectF titlebarGeometry = surface->titlebarGeometry();
+    if (!titlebarGeometry.isValid()) {
+        qreal titleHeight = Helper::instance()->config()->windowTitlebarHeight();
+        titlebarGeometry = QRectF(0, 0, normalGeo.width(), titleHeight);
+    }
+    titlebarGeometry.translate(normalGeo.topLeft());
+
+    if ((titlebarGeometry & validGeo).isEmpty()) {
+        if (titlebarGeometry.top() < validGeo.top()) {
+            normalGeo.moveTop(normalGeo.top() + validGeo.top() - titlebarGeometry.top());
+        } else if (titlebarGeometry.bottom() > validGeo.bottom()) {
+            normalGeo.moveBottom(normalGeo.bottom() - (titlebarGeometry.bottom() - validGeo.bottom()));
+        }
+
+        if (titlebarGeometry.left() < validGeo.left()) {
+            normalGeo.moveLeft(normalGeo.left() + validGeo.left() - titlebarGeometry.left());
+        } else if (titlebarGeometry.right() > validGeo.right()) {
+            normalGeo.moveRight(normalGeo.right() - (titlebarGeometry.right() - validGeo.right()));
+        }
+
+        if (normalGeo != surface->normalGeometry()) {
+            surface->moveNormalGeometryInOutput(normalGeo.topLeft());
+        }
+    }
 }
 
 namespace {
