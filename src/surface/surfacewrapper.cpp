@@ -1362,8 +1362,8 @@ void SurfaceWrapper::doSetSurfaceState(State newSurfaceState)
         m_shellSurface->setMaximize(true);
         break;
     case State::Minimized:
-        m_shellSurface->setMinimize(true);
         updateHasActiveCapability(ActiveControlState::UnMinimized, false);
+        m_shellSurface->setMinimize(true);
         break;
     case State::Fullscreen:
         m_shellSurface->setFullScreen(true);
