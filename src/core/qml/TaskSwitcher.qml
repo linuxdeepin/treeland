@@ -374,8 +374,8 @@ Item {
                 } else {
                     previewAnimation.duration = 500
                     surface.x = previewAnimation.xFrom
-                    surface.opacity = 0.0
                     surface.y = previewAnimation.yFrom
+                    surface.opacity = 0.0
                     surface.scale = previewAnimation.scaleFrom
                 }
 
@@ -388,6 +388,7 @@ Item {
                     if (surface && surface.shellSurface) {
                         surface.x = windowItem.surfaceX
                         surface.y = windowItem.surfaceY
+                        surface.opacity = 1.0
                     }
                 }
             }
@@ -441,7 +442,6 @@ Item {
             previewWindows.finishedAnimations = 0
 
             showTask(false)
-            root.switchOn = false
         }
 
         if (switchView.count <= 1) {
@@ -506,7 +506,7 @@ Item {
     }
 
     function showTask(visible) {
-        if (switchView.count === 0) {
+        if (visible && switchView.count === 0) {
             root.visible = false
             return false
         }
@@ -523,8 +523,10 @@ Item {
             return
         }
 
-        if (previewWindows.finishedAnimations !== previewWindows.totalAnimations)
+        if (previewWindows.finishedAnimations !== previewWindows.totalAnimations) {
+            prejudgment()
             return
+        }
 
         if (root.enableAnimation) {
             previewContext.loaderStatus = -1
@@ -542,7 +544,7 @@ Item {
         if (switchView.currentItem)
             Helper.forceActivateSurface(switchView.currentItem.surface, focusReason)
 
-        if (root.enableAnimation && switchView.count <= 18) {
+        if (root.enableAnimation && switchView.count > 0 && switchView.count <= 18) {
             previewWindows.reverse = false
             previewWindows.model = root.model
         } else {
