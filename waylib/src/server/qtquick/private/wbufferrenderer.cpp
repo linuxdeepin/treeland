@@ -168,6 +168,7 @@ void WBufferRenderer::setSourceList(QList<QQuickItem*> sources, bool hideSource)
         connect(s, &QQuickItem::destroyed, this, [this] {
             const int index = indexOfSource(static_cast<QQuickItem*>(sender()));
             Q_ASSERT(index >= 0);
+            // destroySource accesses m_sourceList[index], so must be called before removeAt
             destroySource(index);
             m_sourceList.removeAt(index);
         });
