@@ -816,8 +816,16 @@ void ShellHandler::setupSurfaceActiveWatcher(SurfaceWrapper *wrapper)
             m_workspace->removeActivedSurface(wrapper);
             // The window may already be inactive. Keep history cleanup above, but
             // avoid changing focus unless this window still owns keyboard focus.
-            if (Helper::instance()->keyboardFocusSurface() != wrapper)
+            if (Helper::instance()->keyboardFocusSurface() != wrapper) {
+                // Requests from task bars or other external controllers can minimize the
+                // active window after keyboard focus has already moved away from it. Clear
+                // the compositor active state so foreign-toplevel clients do not observe a
+                // minimized-but-activated window, but do not fall back focus from the
+                // current keyboard focus owner.
+                if (Helper::instance()->activatedSurface() == wrapper)
+                    Helper::instance()->setActivatedSurface(nullptr);
                 return;
+            }
 
             Helper::instance()->activateSurface(m_workspace->current()->latestActiveSurface());
         });
