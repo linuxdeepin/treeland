@@ -456,14 +456,17 @@ void SurfaceWrapper::setup()
                 });
         updateX11shouldSkipDock();
     }
-    // Connect DConfig windowRadius change so QML bindings re-evaluate radius()
+    // When DConfig windowRadius changes, reset per-window override so
+    // radius() falls back to the new DConfig value.
     if (m_type == Type::XdgToplevel || m_type == Type::XWayland) {
         if (auto *helper = Helper::instance()) {
             if (auto *config = helper->config()) {
-                connect(config,
-                        &TreelandUserConfig::windowRadiusChanged,
-                        this,
-                        &SurfaceWrapper::radiusChanged);
+                connect(config, &TreelandUserConfig::windowRadiusChanged, this, [this] {
+                    if (m_radius >= 0) {
+                        m_radius = -1.0;
+                        Q_EMIT radiusChanged();
+                    }
+                });
             }
         }
     }
@@ -1621,9 +1624,11 @@ qreal SurfaceWrapper::radius() const
         return 8;
 
     qreal radius = m_radius;
-    // m_radius > 1 means radius was explicitly set via Personalization protocol;
-    // m_radius <= 1 means no per-window override, fall back to DConfig.
-    if (radius < 1 && m_type != Type::Layer) {
+    // m_radius >= 0 means radius was explicitly set via Personalization protocol;
+    // m_radius < 0 means no per-window override, fall back to DConfig.
+    if (radius < 0) {
+        if (m_type == Type::Layer)
+            return 0;
         radius = Helper::instance()->config()->windowRadius();
     }
 

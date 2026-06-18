@@ -222,6 +222,14 @@ public:
         return m_cornerRadius;
     }
 
+    void resetCornerRadius()
+    {
+        if (m_cornerRadius == -1)
+            return;
+        m_cornerRadius = -1;
+        Q_EMIT cornerRadiusChanged();
+    }
+
     Shadow shadow() const
     {
         return m_shadow;
@@ -245,7 +253,7 @@ private:
     WWrapPointer<WToplevelSurface> m_target;
     PersonalizationManagerInterfaceV1 *m_manager = nullptr;
     int32_t m_backgroundType = Personalization::BackgroundType::Normal;
-    int32_t m_cornerRadius = 0;
+    int32_t m_cornerRadius = -1;
     Shadow m_shadow {};
     Border m_border {};
     PersonalizationWindowContextV1::WindowStates m_states {};
