@@ -1614,8 +1614,15 @@ void Helper::init(Treeland::Treeland *treeland)
                     qCWarning(lcTlCore) << "Activation request for unknown surface!";
                     return;
                 }
+                // Don't use hasActiveCapability() here — it also checks UnMinimized,
+                // but minimized windows should be allowed to activate (which unminimizes them).
                 if (!wsurface->mapped()) {
                     qCWarning(lcTlCore) << "Activation request for unmapped surface!";
+                    return;
+                }
+                if (!wrapper->hasInitializeContainer()) {
+                    qCWarning(lcTlCore) << "Activation request for surface without initialized container:"
+                                       << "container =" << wrapper->container();
                     return;
                 }
                 switch (disposition) {
