@@ -199,6 +199,22 @@ void SessionManager::removeSession(std::shared_ptr<Session> session)
         Helper::instance()->activateSurface(nullptr);
     }
 
+    // Force-destroy all surfaces belonging to this session so that sandbox
+    // apps (which bypass the closeSurface request) are cleaned up on logout.
+    // Collect first to avoid mutating the surface list during iteration.
+    auto *container = Helper::instance()->rootSurfaceContainer();
+    QList<SurfaceWrapper *> toDestroy;
+    for (auto *wrapper : std::as_const(container->surfaces())) {
+        WClient *client = wrapper->surface()->waylandClient();
+        if (!client)
+            continue;
+        auto wrapperSession = sessionForClient(client);
+        if (wrapperSession == session)
+            toDestroy.append(wrapper);
+    }
+    for (auto *wrapper : std::as_const(toDestroy))
+        container->destroyForSurface(wrapper);
+
     for (auto s : std::as_const(m_sessions)) {
         if (s.get() == session.get()) {
             m_sessions.removeOne(s);
@@ -432,6 +448,51 @@ std::shared_ptr<Session> SessionManager::sessionForSocket(WSocket *socket) const
     for (const auto &session : std::as_const(m_sessions)) {
         if (session && session->m_socket == socket)
             return session;
+    }
+    return nullptr;
+}
+
+/**
+ * Find the session for the given WClient
+ *
+ * For sandbox clients (socket has parentSocket), uid matching is used first
+ * because their socket chain traverses the global socket rather than a user
+ * session socket. Falls back to walking the socket parent chain for normal
+ * and system UI clients.
+ *
+ * @param client WClient to find session for
+ * @returns Session for the given client, or nullptr if not found
+ */
+std::shared_ptr<Session> SessionManager::sessionForClient(WClient *client) const
+{
+    if (!client)
+        return nullptr;
+
+    auto global = globalSession();
+    WSocket *socket = client->socket();
+
+    // Sandbox clients connect via a child socket whose parent chain goes
+    // through the global socket, so socket-based lookup would always find
+    // the global session. Use uid matching instead to find the real user session.
+    // The uid comes from Wayland client credentials (wl_client_get_credentials),
+    // which reflects the OS-level uid of the process that opened the Wayland
+    // connection — for sandbox apps this is the user who launched them, even
+    // though their socket chain only reaches the global socket.
+    if (socket && socket->parentSocket()) {
+        auto creds = client->credentials();
+        if (creds) {
+            for (const auto &session : std::as_const(m_sessions)) {
+                if (session && session != global && session->uid() == creds->uid)
+                    return session;
+            }
+        }
+    }
+
+    // Walk socket parent chain for normal and system UI clients
+    while (socket) {
+        if (auto session = sessionForSocket(socket))
+            return session;
+        socket = socket->parentSocket();
     }
     return nullptr;
 }

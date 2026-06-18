@@ -1282,8 +1282,20 @@ bool Helper::surfaceBelongsToCurrentSession(SurfaceWrapper *wrapper)
         return true;
     }
     WClient *client = wrapper->surface()->waylandClient();
-    WSocket *socket = client ? client->socket()->rootSocket() : nullptr;
-    return socket && socket->isEnabled();
+    if (!client)
+        return false;
+
+    auto session = m_sessionManager->sessionForClient(client);
+    // If session lookup fails, conservatively treat as not belonging to current
+    // session rather than falling back to rootSocket check (which would
+    // incorrectly classify sandbox apps as belonging to the current session).
+    if (!session)
+        return false;
+    // Global session surfaces (Dock, launcher) are always visible
+    if (session == m_sessionManager->globalSession())
+        return true;
+    // User session surfaces are visible only when their session is active
+    return m_sessionManager->activeSession().lock() == session;
 }
 
 void Helper::deleteTaskSwitch()
