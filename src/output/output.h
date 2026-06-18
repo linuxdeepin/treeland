@@ -158,6 +158,7 @@ private:
 
     QMap<SurfaceWrapper*, QPair<QPointF, QRectF>> m_positionCache;
     QHash<SurfaceWrapper*, QPointF> m_initialWindowPositionRatio;
+    QHash<SurfaceWrapper*, QVector<QMetaObject::Connection>> m_parentLayerConnections;
 
     std::unique_ptr<Backlight> m_backlight = nullptr;
     OutputConfig *m_config;

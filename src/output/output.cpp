@@ -30,6 +30,7 @@
 #include <qwoutputlayout.h>
 
 #include <QQmlEngine>
+#include <QPointer>
 
 #include <algorithm>
 #include <optional>
@@ -454,6 +455,28 @@ void Output::addSurface(SurfaceWrapper *surface)
                 // Reposition should ignore positionAutomatic
                 arrangePopupSurface(surface);
             });
+
+            auto parentLayerSurface = surface->parentSurface();
+            if (parentLayerSurface
+                && parentLayerSurface->type() == SurfaceWrapper::Type::Layer) {
+                QPointer<SurfaceWrapper> surfacePtr(surface);
+                auto conn1 = connect(parentLayerSurface, &SurfaceWrapper::normalGeometryChanged,
+                        this, [surfacePtr, this] {
+                    if (!surfacePtr) return;
+                    QMetaObject::invokeMethod(this, [surfacePtr, this] {
+                        if (!surfacePtr) return;
+                        arrangePopupSurface(surfacePtr);
+                    }, Qt::QueuedConnection);
+                });
+                auto conn2 = connect(parentLayerSurface, &SurfaceWrapper::hasInitializeContainerChanged,
+                        this, [surfacePtr, this] {
+                    if (!surfacePtr) return;
+                    if (!surfacePtr->parentSurface()
+                        || !surfacePtr->parentSurface()->hasInitializeContainer()) return;
+                    arrangePopupSurface(surfacePtr);
+                });
+                m_parentLayerConnections[surface] = {conn1, conn2};
+            }
         } else if (surface->type() == SurfaceWrapper::Type::InputPopup) {
             auto inputPopupSurfaceItem = qobject_cast<WInputPopupSurfaceItem *>(surface->surfaceItem());
             connect(inputPopupSurfaceItem, &WInputPopupSurfaceItem::referenceRectChanged, this, [surface, this] {
@@ -469,6 +492,16 @@ void Output::removeSurface(SurfaceWrapper *surface)
     clearPopupCache(surface);
     m_initialWindowPositionRatio.remove(surface);
     Q_ASSERT(hasSurface(surface));
+
+    if (surface->type() == SurfaceWrapper::Type::XdgPopup) {
+        auto it = m_parentLayerConnections.find(surface);
+        if (it != m_parentLayerConnections.end()) {
+            for (auto &conn : it.value())
+                QObject::disconnect(conn);
+            m_parentLayerConnections.erase(it);
+        }
+    }
+
     SurfaceListModel::removeSurface(surface);
     surface->disconnect(this);
 
@@ -846,7 +879,21 @@ void Output::handleLayerShellPopup(SurfaceWrapper *surface, const QRectF &normal
         return;
     }
 
-    auto parentOutput = surface->parentSurface()->ownsOutput()->outputItem();
+    auto parentSurface = surface->parentSurface();
+    if (!parentSurface->hasInitializeContainer()) {
+        qCInfo(lcTlOutput) << " LayerShell parent not initialized, deferring popup positioning"
+                           << "surface=" << surface << "parent=" << parentSurface;
+        return;
+    }
+
+    QRectF parentGeo = parentSurface->normalGeometry();
+    if (parentGeo.isEmpty()) {
+        qCInfo(lcTlOutput) << " LayerShell parent geometry is empty, deferring popup positioning"
+                           << "surface=" << surface << "parentGeo=" << parentGeo;
+        return;
+    }
+
+    auto parentOutput = parentSurface->ownsOutput()->outputItem();
     auto dPos = popupDPos(surface);
     if (!dPos.has_value())
         return;
@@ -917,10 +964,18 @@ void Output::arrangePopupSurface(SurfaceWrapper *surface)
 {
     SurfaceWrapper *parentSurfaceWrapper = surface->parentSurface();
     if (!parentSurfaceWrapper) {
-        //  When an input popup is still alive while its parent text-input client is being torn down, 
-        //  arrangePopupSurface() can run in a transient state where parentSurface is temporarily unavailable.
+        // When an input popup is still alive while its parent text-input client is being torn down,
+        // arrangePopupSurface() can run in a transient state where parentSurface is temporarily unavailable.
         qCWarning(lcTlSurface) << "[popup] skip arrangePopupSurface: missing parent surface"
                                 << "surface=" << surface;
+        return;
+    }
+
+    if (parentSurfaceWrapper->type() == SurfaceWrapper::Type::Layer
+        && !parentSurfaceWrapper->hasInitializeContainer()) {
+        qCInfo(lcTlSurface) << "[popup] skip arrangePopupSurface: LayerShell parent not initialized"
+                            << "surface=" << surface
+                            << "parentSurface=" << parentSurfaceWrapper;
         return;
     }
 
