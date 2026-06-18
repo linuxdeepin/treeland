@@ -772,12 +772,24 @@ void ShellHandler::registerSurfaceToForeignToplevel(SurfaceWrapper *wrapper)
     if (!wrapper->skipDockPreView()) {
         m_treelandForeignToplevel->addSurface(wrapper);
     }
-    connect(wrapper, &SurfaceWrapper::skipDockPreViewChanged, this, [this, wrapper] {
+
+    QMetaObject::Connection skipConn;
+    skipConn = connect(wrapper, &SurfaceWrapper::skipDockPreViewChanged, this, [this, wrapper] {
         if (wrapper->skipDockPreView()) {
             m_treelandForeignToplevel->removeSurface(wrapper);
         } else {
             m_treelandForeignToplevel->addSurface(wrapper);
         }
+    });
+
+    connect(wrapper, &SurfaceWrapper::aboutToBeInvalidated, this, [this, wrapper, skipConn] {
+        // Only remove if the surface was actually added (skipDockPreView is false).
+        if (!wrapper->skipDockPreView()) {
+            m_treelandForeignToplevel->removeSurface(wrapper);
+        }
+        // Disconnect skipDockPreViewChanged to prevent double-remove when
+        // invalidate() calls setSkipDockPreView(true) after this signal.
+        QObject::disconnect(skipConn);
     });
 }
 
