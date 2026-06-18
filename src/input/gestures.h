@@ -1,5 +1,5 @@
 
-// Copyright (C) 2024-2025 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
@@ -158,7 +158,6 @@ private:
     QList<SwipeGesture *> m_activeSwipeGestures;
     QList<HoldGesture *> m_holdGestures;
     QList<HoldGesture *> m_activeHoldGestures;
-    QMap<Gesture *, QMetaObject::Connection> m_destroyConnections;
 
     QPointF m_currentDelta = QPointF(0, 0);
     uint m_currentFingerCount = 0;

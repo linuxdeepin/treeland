@@ -179,22 +179,16 @@ GestureRecognizer::GestureRecognizer(QObject *parent)
 void GestureRecognizer::registerSwipeGesture(SwipeGesture *gesture)
 {
     Q_ASSERT(!m_swipeGestures.contains(gesture));
-    auto connection = connect(gesture,
-                              &QObject::destroyed,
-                              this,
-                              std::bind(&GestureRecognizer::unregisterSwipeGesture, this, gesture));
-    m_destroyConnections.insert(gesture, connection);
+    connect(gesture, &QObject::destroyed, this, [this, gesture] {
+        m_swipeGestures.removeOne(gesture);
+        m_activeSwipeGestures.removeOne(gesture);
+    });
     m_swipeGestures << gesture;
 }
 
 void GestureRecognizer::unregisterSwipeGesture(SwipeGesture *gesture)
 {
-    auto it = m_destroyConnections.find(gesture);
-    if (it != m_destroyConnections.end()) {
-        disconnect(it.value());
-        m_destroyConnections.erase(it);
-    }
-    m_swipeGestures.removeAll(gesture);
+    m_swipeGestures.removeOne(gesture);
     if (m_activeSwipeGestures.removeOne(gesture)) {
         Q_EMIT gesture->cancelled();
     }
@@ -371,7 +365,6 @@ HoldGesture::~HoldGesture()
 {
     if (m_holdTimer != nullptr) {
         m_holdTimer->stop();
-        m_holdTimer->deleteLater();
     }
 }
 
@@ -398,22 +391,17 @@ bool HoldGesture::isActive() const
 void GestureRecognizer::registerHoldGesture(HoldGesture *gesture)
 {
     Q_ASSERT(!m_holdGestures.contains(gesture));
-    auto connection = connect(gesture,
-                              &QObject::destroyed,
-                              this,
-                              std::bind(&GestureRecognizer::unregisterHoldGesture, this, gesture));
-    m_destroyConnections.insert(gesture, connection);
+    connect(gesture, &QObject::destroyed, this, [this, gesture] {
+        m_holdGestures.removeOne(gesture);
+        m_activeHoldGestures.removeOne(gesture);
+    });
     m_holdGestures << gesture;
 }
 
 void GestureRecognizer::unregisterHoldGesture(HoldGesture *gesture)
 {
-    auto it = m_destroyConnections.find(gesture);
-    if (it != m_destroyConnections.end()) {
-        disconnect(it.value());
-        m_destroyConnections.erase(it);
-    }
-    if (m_holdGestures.removeOne(gesture)) {
+    m_holdGestures.removeOne(gesture);
+    if (m_activeHoldGestures.removeOne(gesture)) {
         Q_EMIT gesture->cancelled();
     }
     gesture->deleteLater();
