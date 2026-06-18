@@ -166,7 +166,7 @@ bool WWrapObject::safeDisconnect(const QObject *receiver)
     W_D(WWrapObject);
 
     bool ok = false;
-    for (int i = 0; i < d->connectionsWithHandle.size(); ++i) {
+    for (int i = d->connectionsWithHandle.size() - 1; i >= 0; --i) {
         const QMetaObject::Connection &connection = d->connectionsWithHandle.at(i);
         auto c_d = getConnectionDPtr(&connection);
         if (c_d->receiver == receiver) {
@@ -174,8 +174,6 @@ bool WWrapObject::safeDisconnect(const QObject *receiver)
                 ok = true;
 
             d->connectionsWithHandle.removeAt(i);
-            // reset index
-            --i;
         }
     }
 
