@@ -20,7 +20,7 @@ Loader {
                                        sourceSurface.height : (parent.height - 2 * vSpacing)
     property real preferredWidth: sourceSurface.width < (parent.width - 2 * hSpacing) ?
                                       sourceSurface.width : (parent.width - 2 * hSpacing)
-    property bool refHeight: preferredHeight *  sourceSurface.width / sourceSurface.height < (parent.width - 2 * hSpacing)
+    property bool refHeight: preferredHeight * sourceSurface.width / sourceSurface.height < (parent.width - 2 * hSpacing)
     readonly property real hSpacing: 20
     readonly property real vSpacing: 20
 
