@@ -149,12 +149,41 @@ void RootSurfaceContainer::removeOutput(Output *output)
         }
     }
 
+    // Save positions of remaining outputs before layout removal
+    QMap<Output *, QPointF> oldPositions;
+    for (auto o : outputs()) {
+        if (o != output)
+            oldPositions[o] = o->outputItem()->position();
+    }
+
     m_outputLayout->remove(output->output());
     if (m_primaryOutput == output) {
         const auto outputs = m_outputLayout->outputs();
         if (!outputs.isEmpty()) {
             auto newPrimaryOutput = Helper::instance()->getOutput(outputs.first());
             setPrimaryOutput(newPrimaryOutput);
+        }
+    }
+
+    // Correct positions of surfaces on remaining outputs after layout change
+    for (auto o : outputs()) {
+        if (o == output)
+            continue;
+        auto it = oldPositions.find(o);
+        if (it == oldPositions.end())
+            continue;
+        QPointF delta = o->outputItem()->position() - it.value();
+        if (!delta.isNull()) {
+            for (auto *surface : surfaces()) {
+                if (surface->type() != SurfaceWrapper::Type::Layer && surface->ownsOutput() == o) {
+                    surface->setPosition(surface->position() + delta);
+                    if (surface->type() == SurfaceWrapper::Type::XdgToplevel) {
+                        auto normalGeo = surface->normalGeometry();
+                        normalGeo.moveTopLeft(normalGeo.topLeft() + delta);
+                        surface->moveNormalGeometryInOutput(normalGeo.topLeft());
+                    }
+                }
+            }
         }
     }
 

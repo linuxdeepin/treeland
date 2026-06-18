@@ -90,6 +90,7 @@ public:
     void adjustToOutputBounds(QPointF &pos,
                               const QRectF &normalGeo,
                               const QRectF &outputRect) const;
+    void arrangeLayerSurfaces();
 
 Q_SIGNALS:
     void exclusiveZoneChanged();
@@ -110,7 +111,6 @@ private:
     void setExclusiveZone(Qt::Edge edge, QObject *object, int value);
     bool removeExclusiveZone(QObject *object);
     void arrangeLayerSurface(SurfaceWrapper *surface);
-    void arrangeLayerSurfaces();
     void arrangeNonLayerSurface(SurfaceWrapper *surface, const QSizeF &sizeDiff);
     void arrangePopupSurface(SurfaceWrapper *surface);
     void arrangeNonLayerSurfaces();
