@@ -241,12 +241,12 @@ public:
     }
     inline void doTouchNotifyCancel(WInputDevice *device) {
         auto *state = device->getAttachedData<WSeatPrivate::DeviceState>();
-        for (int i = 0; i < state->m_points.size(); ++i) {
+        for (int i = state->m_points.size() - 1; i >= 0; --i) {
             const auto &qtPoint = state->m_points.at(i);
             if (qtPoint.state == static_cast<QEventPoint::State>(WEvent::PointCancelled)) {
                 auto point = handle()->touch_get_point(qtPoint.id);
                 Q_ASSERT(point);
-                state->m_points.removeAt(i--);
+                state->m_points.removeAt(i);
                 handle()->touch_notify_cancel(point->client);
             }
         }
@@ -286,10 +286,10 @@ public:
                                                      keyModifiers);
         }
 
-        for (int i = 0; i < state->m_points.size(); ++i) {
+        for (int i = state->m_points.size() - 1; i >= 0; --i) {
             QWindowSystemInterface::TouchPoint &tp(state->m_points[i]);
             if (tp.state == QEventPoint::Released)
-                state->m_points.removeAt(i--);
+                state->m_points.removeAt(i);
             else if (tp.state == QEventPoint::Pressed || tp.state == QEventPoint::Updated)
                 tp.state = QEventPoint::Stationary;  // notify: qtbase does not change Updated
             else if (tp.state != QEventPoint::Stationary)
