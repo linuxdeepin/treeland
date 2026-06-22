@@ -1,3 +1,20 @@
+treeland (0.8.12) unstable; urgency=medium
+
+  * fix(taskswitch): fix window visibility issues and race condition in
+    TaskSwitcher
+  * fix(wallpaper): switching wallpapers is too slow.
+  * fix(seat): check mapped and hasInitializeContainer for activation
+    guard
+  * feat(xwayland): add async X11 property reading for IM candidate
+    panel
+  * feat(im-candidate-panel): support tag-based and xprop-based IM
+    candidate panel
+  * fix: arrange exclusive layer surfaces first
+  * fix(workspace): prevent window titlebar from being obscured by dock
+  * fix: correct active state handling on window minimize
+
+ -- rewine <luhongxu@deepin.org>  Mon, 22 Jun 2026 15:37:45 +0800
+
 treeland (0.8.11) unstable; urgency=medium
 
   * fix(workspace): refine window edge constraints
