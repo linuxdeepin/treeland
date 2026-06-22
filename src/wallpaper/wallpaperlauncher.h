@@ -36,8 +36,11 @@ private Q_SLOTS:
     void handleWallpaperError(QProcess::ProcessError error);
 
 private:
+    static constexpr int MaxCrashCount = 10;
+
     QPointer<WSocket> m_socket = nullptr;
     QThread *m_launcherThread = nullptr;
     QProcess *m_wallpaperProcess = nullptr;
     QString m_displayName;
+    int m_crashCount = 0;
 };
