@@ -81,7 +81,7 @@ Q_SIGNALS:
                             WallpaperRoles roles);
 
 private:
-    explicit TreelandWallpaperInterfaceV1(struct wl_resource *output,
+    explicit TreelandWallpaperInterfaceV1(WOutput *output,
                                           const QString &userName,
                                           wl_resource *resource,
                                           wl_resource *refsurface,

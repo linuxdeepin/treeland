@@ -19,7 +19,22 @@
 #include <qwoutput.h>
 #include <qwseat.h>
 
+#include <QPointer>
+
 static QList<TreelandWallpaperInterfaceV1 *> s_wallpapers;
+
+static WOutput *outputFromResource(wl_resource *resource)
+{
+    if (!resource)
+        return nullptr;
+
+    auto *nativeOutput = wlr_output_from_resource(resource);
+    if (!nativeOutput)
+        return nullptr;
+
+    auto *output = qw_output::from(nativeOutput);
+    return output ? WOutput::fromHandle(output) : nullptr;
+}
 
 static const char *usernameFromUid(uid_t uid)
 {
@@ -72,8 +87,11 @@ void TreelandWallpaperManagerInterfaceV1Private::get_treeland_wallpaper(Resource
                                                                         struct ::wl_resource *output,
                                                                         struct ::wl_resource *surface)
 {
-    if (!output) {
-        wl_resource_post_error(resource->handle, 0, "output resource is NULL!");
+    auto *wOutput = outputFromResource(output);
+    if (!wOutput) {
+        wl_resource_post_error(resource->handle,
+                               WL_DISPLAY_ERROR_INVALID_OBJECT,
+                               "Invalid output resource");
         return;
     }
 
@@ -87,7 +105,7 @@ void TreelandWallpaperManagerInterfaceV1Private::get_treeland_wallpaper(Resource
     }
 
     QSharedPointer<WClient::Credentials>  credentials = WClient::getCredentials(wallpaperResource->client);
-    auto wallpaper = new TreelandWallpaperInterfaceV1(output, QString(usernameFromUid(credentials->uid)), wallpaperResource, surface);
+    auto wallpaper = new TreelandWallpaperInterfaceV1(wOutput, QString(usernameFromUid(credentials->uid)), wallpaperResource, surface);
     s_wallpapers.append(wallpaper);
 
     QObject::connect(wallpaper, &QObject::destroyed, [wallpaper]() {
@@ -129,13 +147,13 @@ class TreelandWallpaperInterfaceV1Private : public QtWaylandServer::treeland_wal
 {
 public:
     TreelandWallpaperInterfaceV1Private(TreelandWallpaperInterfaceV1 *_q,
-                                    wl_resource *output,
-                                    const QString &name,
-                                    wl_resource *_resource,
-                                    wl_resource *refsurface);
+                                         WOutput *output,
+                                         const QString &name,
+                                         wl_resource *_resource,
+                                         wl_resource *refsurface);
 
     TreelandWallpaperInterfaceV1 *q = nullptr;
-    wl_resource *outputResource = nullptr;
+    QPointer<WOutput> wOutput;
     QString userName;
     wl_resource *resource = nullptr;
     wl_resource *refSurfaceResource = nullptr;
@@ -148,13 +166,13 @@ protected:
 };
 
 TreelandWallpaperInterfaceV1Private::TreelandWallpaperInterfaceV1Private(TreelandWallpaperInterfaceV1 *_q,
-                                                                         wl_resource *output,
+                                                                         WOutput *output,
                                                                          const QString &name,
                                                                          wl_resource *_resource,
                                                                          wl_resource *refsurface)
     : QtWaylandServer::treeland_wallpaper_v1(_resource)
     , q(_q)
-    , outputResource(output)
+    , wOutput(output)
     , userName(name)
     , resource(_resource)
     , refSurfaceResource(refsurface)
@@ -193,7 +211,7 @@ void TreelandWallpaperInterfaceV1Private::set_video_source([[maybe_unused]] Reso
     Q_EMIT q->videoSourceChanged(workspace->currentIndex(), fileSource, roles);
 }
 
-TreelandWallpaperInterfaceV1::TreelandWallpaperInterfaceV1(wl_resource *output,
+TreelandWallpaperInterfaceV1::TreelandWallpaperInterfaceV1(WOutput *output,
                                                            const QString &userName,
                                                            wl_resource *resource,
                                                            wl_resource *refsurface,
@@ -221,7 +239,7 @@ QString TreelandWallpaperInterfaceV1::userName() const
 
 WOutput *TreelandWallpaperInterfaceV1::wOutput() const
 {
-    return WOutput::fromHandle(qw_output::from(wlr_output_from_resource(d->outputResource)));
+    return d->wOutput && !d->wOutput->isInvalidated() ? d->wOutput.get() : nullptr;
 }
 
 void TreelandWallpaperInterfaceV1::sendError(const QString &source, Error error)
