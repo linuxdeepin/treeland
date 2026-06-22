@@ -271,17 +271,23 @@ void WallpaperManager::syncAddWorkspace()
         return;
     }
 
+    Workspace *workspace = Helper::instance()->workspace();
+    Q_ASSERT(workspace);
+
     bool update = false;
     for (WallpaperOutputConfig &outputConfig : m_wallpaperConfig) {
-        WallpaperWorkspaceConfig refConfig = outputConfig.workspaces[0];
-        Workspace *workspace = Helper::instance()->workspace();
-        Q_ASSERT(workspace);
+        if (outputConfig.workspaces.isEmpty()) {
+            continue;
+        }
+
+        const WallpaperWorkspaceConfig refConfig = outputConfig.workspaces.constFirst();
         for (int i = 0; i < workspace->count(); i++) {
-            if (i >= outputConfig.workspaces.count()) {
+            const int workspaceId = workspace->modelAt(i)->id();
+            if (!outputConfig.containsWorkspace(workspaceId)) {
                 WallpaperWorkspaceConfig workspaceConfig;
                 workspaceConfig.desktopWallpaper = refConfig.desktopWallpaper;
                 workspaceConfig.desktopWallpapertype = refConfig.desktopWallpapertype;
-                workspaceConfig.workspaceId = i;
+                workspaceConfig.workspaceId = workspaceId;
                 workspaceConfig.enable = true;
                 outputConfig.workspaces.append(workspaceConfig);
                 update = true;
@@ -291,6 +297,7 @@ void WallpaperManager::syncAddWorkspace()
 
     if (update) {
         Helper::instance()->m_config->setWallpaperConfig(wallpaperConfigToJsonString());
+        Q_EMIT updateWallpaper();
     }
 }
 
