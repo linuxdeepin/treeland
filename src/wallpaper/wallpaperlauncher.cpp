@@ -66,6 +66,7 @@ void WallpaperLauncher::onStartRequested()
         return;
     }
 
+    m_crashCount = 0;
     m_wallpaperProcess = new QProcess(this);
     m_wallpaperProcess->setProgram(QStringLiteral("treeland-wallpaper-factory"));
     m_wallpaperProcess->setProcessChannelMode(QProcess::MergedChannels);
@@ -102,9 +103,28 @@ void WallpaperLauncher::onStopRequested()
     m_wallpaperProcess = nullptr;
 }
 
-void WallpaperLauncher::handleWallpaperFinished([[maybe_unused]] int exitCode, [[maybe_unused]] QProcess::ExitStatus exitStatus)
+void WallpaperLauncher::handleWallpaperFinished(int exitCode, QProcess::ExitStatus exitStatus)
 {
-    stop();
+    if (exitStatus == QProcess::NormalExit && exitCode == 0) {
+        stop();
+        return;
+    }
+
+    ++m_crashCount;
+    if (m_crashCount > MaxCrashCount) {
+        qCCritical(lcTlWallpaper) << "Wallpaper process restart limit reached after"
+                                 << m_crashCount << "abnormal exits";
+        stop();
+        return;
+    }
+
+    QProcessEnvironment env = m_wallpaperProcess->processEnvironment();
+    env.insert("TREELAND_WALLPAPER_RESTART_COUNT", QString::number(m_crashCount));
+    m_wallpaperProcess->setProcessEnvironment(env);
+
+    qCWarning(lcTlWallpaper) << "Restarting wallpaper process after abnormal exit; exit code:"
+                            << exitCode << "restart count:" << m_crashCount;
+    m_wallpaperProcess->start();
 }
 
 void WallpaperLauncher::handleWallpaperError(QProcess::ProcessError error)
