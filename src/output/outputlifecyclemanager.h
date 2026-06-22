@@ -1,4 +1,4 @@
-// Copyright (C) 2025 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2025-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
@@ -32,6 +32,7 @@ public:
     void onScreenRemoved(Output *output, const QList<SurfaceWrapper *> &surfaces);
     void onScreenDisabled(Output *output, const QList<SurfaceWrapper *> &surfaces);
     void onScreenEnabled(Output *output);
+    void migrateSurfacesToNewPrimary(Output *removedOutput, const QList<SurfaceWrapper *> &surfaces);
     void setMode(Mode mode) {
         m_mode = mode;
     }

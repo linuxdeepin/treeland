@@ -59,6 +59,23 @@ void OutputLifecycleManager::switchPrimaryOutput(Output *from,
     m_rootContainer->moveSurfacesToOutput(surfaces, to, from);
 }
 
+void OutputLifecycleManager::migrateSurfacesToNewPrimary(Output *removedOutput,
+                                                         const QList<SurfaceWrapper *> &surfaces)
+{
+    // NOTE: This must be called while removedOutput's Output item still has valid position
+    // data. The call chain is: Helper::onOutputRemoved -> removeOutput (switches primary)
+    // -> onScreenRemoved -> migrateSurfacesToNewPrimary. At this point the removed output
+    // has been removed from the layout, but the Output object (and its item position) still
+    // exists because `delete o` happens after onScreenRemoved returns.
+    if (!m_rootContainer || surfaces.isEmpty())
+        return;
+
+    auto newPrimary = m_rootContainer->primaryOutput();
+    if (newPrimary) {
+        m_rootContainer->moveSurfacesToOutput(surfaces, newPrimary, removedOutput);
+    }
+}
+
 void OutputLifecycleManager::onScreenAdded(Output *output)
 {
     if (!output || !m_configState)
@@ -91,11 +108,8 @@ void OutputLifecycleManager::onScreenRemoved(Output *output,
         markScreenAsPrimaryIntent(output);
     }
 
-    if (!isCurrentPrimary && !wasPrimaryBeforeRemoval) {
-        auto primaryOutput = m_rootContainer->primaryOutput();
-        if (primaryOutput) {
-            m_rootContainer->moveSurfacesToOutput(surfaces, primaryOutput, output);
-        }
+    if (!isCurrentPrimary) {
+        migrateSurfacesToNewPrimary(output, surfaces);
     }
 }
 
@@ -120,10 +134,7 @@ void OutputLifecycleManager::onScreenDisabled(Output *output,
             switchPrimaryOutput(output, nextPrimary, surfaces);
         }
     } else if (!isCurrentPrimary) {
-        auto primaryOutput = m_rootContainer->primaryOutput();
-        if (primaryOutput) {
-            m_rootContainer->moveSurfacesToOutput(surfaces, primaryOutput, output);
-        }
+        migrateSurfacesToNewPrimary(output, surfaces);
     }
 }
 

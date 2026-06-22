@@ -64,17 +64,24 @@ void LayerSurfaceContainer::removeOutput(Output *output)
     Q_ASSERT(container);
     m_surfaceContainers.removeOne(container);
 
+    OutputLayerSurfaceContainer *targetContainer = m_surfaceContainers.isEmpty()
+        ? nullptr
+        : m_surfaceContainers.first();
+
     const auto surfaces = container->surfaces();
     for (SurfaceWrapper *surface : surfaces) {
-        auto layerSurface = qobject_cast<WLayerSurface *>(surface->shellSurface());
-        Q_ASSERT(layerSurface);
-        // Needs to be moved to the new primary output
-        if (!layerSurface->output() && rootContainer()->primaryOutput()) {
-            container->removeSurface(surface);
-            addSurfaceToContainer(surface);
+        container->removeSurface(surface);
+        if (targetContainer) {
+            targetContainer->addSurface(surface);
         } else {
-            layerSurface->closed();
+            auto layerSurface = qobject_cast<WLayerSurface *>(surface->shellSurface());
+            if (layerSurface)
+                layerSurface->closed();
         }
+    }
+
+    if (targetContainer) {
+        targetContainer->output()->arrangeLayerSurfaces();
     }
 
     container->deleteLater();
