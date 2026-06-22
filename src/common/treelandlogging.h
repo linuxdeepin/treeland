@@ -48,6 +48,11 @@ Q_DECLARE_LOGGING_CATEGORY(lcTlConfig)
 Q_DECLARE_LOGGING_CATEGORY(lcTlWallpaper)
 Q_DECLARE_LOGGING_CATEGORY(lcTlWallpaperColor)
 
+// Compatibility alias for legacy wallpaper logging category usage.
+#ifndef treelandWallpaper
+#define treelandWallpaper lcTlWallpaper
+#endif
+
 // Effects system
 Q_DECLARE_LOGGING_CATEGORY(lcTlEffect)
 
