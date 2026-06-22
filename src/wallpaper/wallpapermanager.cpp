@@ -359,10 +359,14 @@ TreelandWallpaperInterfaceV1::WallpaperType WallpaperManager::getWallpaperType(c
 
 void WallpaperManager::onWallpaperAdded(TreelandWallpaperInterfaceV1 *interface)
 {
+    auto *output = interface->wOutput();
+    if (!output)
+        return;
+
     Workspace *workspace = Helper::instance()->workspace();
     Q_ASSERT(workspace);
     for (int i = 0; i < m_wallpaperConfig.size(); ++i) {
-        if (m_wallpaperConfig[i].outputName == getOutputId(interface->wOutput()->nativeHandle())) {
+        if (m_wallpaperConfig[i].outputName == getOutputId(output->nativeHandle())) {
             WallpaperOutputConfig outputConfig = m_wallpaperConfig[i];
             interface->sendChanged(TreelandWallpaperInterfaceV1::Lockscreen, outputConfig.lockScreenWallpapertype, outputConfig.lockscreenWallpaper);
             for (WallpaperWorkspaceConfig workspaceConfig : std::as_const(outputConfig.workspaces)) {
@@ -388,8 +392,12 @@ void WallpaperManager::onImageChanged(int workspaceIndex, const QString &fileSou
 {
     TreelandWallpaperInterfaceV1 *interface =
         static_cast<TreelandWallpaperInterfaceV1 *>(sender());
+    auto *output = interface->wOutput();
+    if (!output)
+        return;
+
     QMap<QString, TreelandWallpaperInterfaceV1::WallpaperType> globalWallpapers = globalValidWallpaper(nullptr, -1);
-    setOutputWallpaper(interface->wOutput()->nativeHandle(),
+    setOutputWallpaper(output->nativeHandle(),
                        workspaceIndex,
                        fileSource,
                        roles,
@@ -406,8 +414,12 @@ void WallpaperManager::onVideoChanged(int workspaceIndex, const QString &fileSou
 {
     TreelandWallpaperInterfaceV1 *interface =
         static_cast<TreelandWallpaperInterfaceV1 *>(sender());
+    auto *output = interface->wOutput();
+    if (!output)
+        return;
+
     QMap<QString, TreelandWallpaperInterfaceV1::WallpaperType> globalWallpapers = globalValidWallpaper(nullptr, -1);
-    setOutputWallpaper(interface->wOutput()->nativeHandle(),
+    setOutputWallpaper(output->nativeHandle(),
                        workspaceIndex,
                        fileSource,
                        roles,
@@ -440,4 +452,3 @@ void WallpaperManager::handleWallpaperSurfaceAdded([[maybe_unused]] TreelandWall
         }
     }
 }
-
