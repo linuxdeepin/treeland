@@ -206,6 +206,10 @@ Helper::Helper(QObject *parent)
 #endif
 
     m_shellHandler = new ShellHandler(m_rootSurfaceContainer, m_server);
+    connect(m_shellHandler->workspace(),
+            &Workspace::workspaceAdded,
+            m_wallpaperManager,
+            &WallpaperManager::syncAddWorkspace);
     tryInitRemoteSource();
 
     m_outputConfigState = new OutputConfigState(this);
