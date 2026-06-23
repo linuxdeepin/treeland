@@ -433,7 +433,7 @@ void Output::addSurface(SurfaceWrapper *surface)
         auto layoutSurface = [surface, this] {
             if (!surface->hasInitializeContainer())
                 return;
-            arrangeNonLayerSurface(surface, {});
+            arrangeNonLayerSurface(surface, ArrangeReason::InitialPlacement);
         };
 
         connect(surface, &SurfaceWrapper::widthChanged, this, layoutSurface);
@@ -652,12 +652,12 @@ void Output::arrangeLayerSurfaces()
     }
 
     if (oldExclusiveZone != m_exclusiveZone) {
-        arrangeNonLayerSurfaces();
+        arrangeNonLayerSurfaces(ArrangeReason::ExclusiveZoneChanged);
         Q_EMIT exclusiveZoneChanged();
     }
 }
 
-void Output::arrangeNonLayerSurface(SurfaceWrapper *surface, const QSizeF &sizeDiff)
+void Output::arrangeNonLayerSurface(SurfaceWrapper *surface, ArrangeReason reason)
 {
     Q_ASSERT(surface->type() != SurfaceWrapper::Type::Layer);
     if (surface->isIMCandidatePanel())
@@ -690,22 +690,24 @@ void Output::arrangeNonLayerSurface(SurfaceWrapper *surface, const QSizeF &sizeD
                 normalGeo.moveTopLeft(topLeft);
                 surface->moveNormalGeometryInOutput(normalGeo.topLeft());
             } else {
-                // If the window exceeds the effective screen area when it is first opened, the
-                // window will be maximized.
-                auto outputValidGeometry = surface->ownsOutput()->validGeometry();
-                if (normalGeo.width() > outputValidGeometry.width()
-                    || normalGeo.height() > outputValidGeometry.height())
-                    surface->resize(outputValidGeometry.size());
-                if (surface->type() == SurfaceWrapper::Type::XdgToplevel
-                    || surface->type() == SurfaceWrapper::Type::SplashScreen) {
-                    placeSmartCascaded(surface);
+                if (reason != ArrangeReason::InitialPlacement) {
+                    auto newPos = constrainToValidArea(normalGeo.topLeft(), normalGeo.size(), validGeo);
+                    if (newPos != normalGeo.topLeft())
+                        surface->moveNormalGeometryInOutput(newPos);
                 } else {
-                    placeCentered(surface);
+                    auto outputValidGeometry = surface->ownsOutput()->validGeometry();
+                    if (normalGeo.width() > outputValidGeometry.width()
+                        || normalGeo.height() > outputValidGeometry.height())
+                        surface->resize(outputValidGeometry.size());
+                    if (surface->type() == SurfaceWrapper::Type::XdgToplevel
+                        || surface->type() == SurfaceWrapper::Type::SplashScreen) {
+                        placeSmartCascaded(surface);
+                    } else {
+                        placeCentered(surface);
+                    }
                 }
             }
-        } else if (!sizeDiff.isNull() && sizeDiff.isValid()) {
-            QRectF validGeo = this->validGeometry();
-            // Save the window's proportional position relative to the available area during the initial scale.
+        } else if (reason == ArrangeReason::OutputGeometryChanged) {
             if (!m_initialWindowPositionRatio.contains(surface)) {
                 qreal xRatio = 0.5, yRatio = 0.5; // Default center position
                 if (validGeo.width() > normalGeo.width()) {
@@ -917,7 +919,7 @@ void Output::arrangePopupSurface(SurfaceWrapper *surface)
 {
     SurfaceWrapper *parentSurfaceWrapper = surface->parentSurface();
     if (!parentSurfaceWrapper) {
-        //  When an input popup is still alive while its parent text-input client is being torn down, 
+        //  When an input popup is still alive while its parent text-input client is being torn down,
         //  arrangePopupSurface() can run in a transient state where parentSurface is temporarily unavailable.
         qCWarning(lcTlSurface) << "[popup] skip arrangePopupSurface: missing parent surface"
                                 << "surface=" << surface;
@@ -954,27 +956,21 @@ void Output::arrangePopupSurface(SurfaceWrapper *surface)
     }
 }
 
-void Output::arrangeNonLayerSurfaces()
+void Output::arrangeNonLayerSurfaces(ArrangeReason reason)
 {
-    const auto currentSize = geometry().size();
-    const auto sizeDiff = m_lastSizeOnLayoutNonLayerSurfaces.isValid()
-        ? currentSize - m_lastSizeOnLayoutNonLayerSurfaces
-        : QSizeF(0, 0);
-    m_lastSizeOnLayoutNonLayerSurfaces = currentSize;
-
     for (SurfaceWrapper *surface : std::as_const(surfaces())) {
         if (surface->type() == SurfaceWrapper::Type::Layer
             || surface->type() == SurfaceWrapper::Type::LockScreen || surface->isInputPopupLike()
             || !surface->hasInitializeContainer())
             continue;
-        arrangeNonLayerSurface(surface, sizeDiff);
+        arrangeNonLayerSurface(surface, reason);
     }
 }
 
 void Output::arrangeAllSurfaces()
 {
     arrangeLayerSurfaces();
-    arrangeNonLayerSurfaces();
+    arrangeNonLayerSurfaces(ArrangeReason::OutputGeometryChanged);
 }
 
 QMargins Output::exclusiveZone() const
