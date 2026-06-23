@@ -6,6 +6,7 @@
 #include "common/treelandlogging.h"
 #include "core/rootsurfacecontainer.h"
 #include "core/shellhandler.h"
+#include "output/output.h"
 #include "seat/helper.h"
 #include "treelanduserconfig.hpp"
 #include "wallpaper/wallpaperlauncher.h"
@@ -17,6 +18,7 @@
 #include <wxwayland.h>
 
 #include <pwd.h>
+#include <xcb/randr.h>
 
 #define _DEEPIN_NO_TITLEBAR "_DEEPIN_NO_TITLEBAR"
 
@@ -126,6 +128,50 @@ SessionManager::~SessionManager()
         delete m_wallpaperLauncher;
         m_wallpaperLauncher = nullptr;
     }
+}
+
+void SessionManager::syncActiveSessionXWaylandPrimaryOutput()
+{
+    const auto *primaryOutput = Helper::instance()->rootSurfaceContainer()->primaryOutput();
+    if (!primaryOutput)
+        return;
+
+    const QString primaryOutputName = primaryOutput->output()->name();
+    auto *xwayland = activeSession().lock()->xwayland();
+    auto *connection = xwayland ? xwayland->xcbConnection() : nullptr;
+    auto *screen = xwayland ? xwayland->xcbScreen() : nullptr;
+    if (!connection || !screen)
+        return;
+
+    const auto resourcesCookie =
+        xcb_randr_get_screen_resources_current(connection, screen->root);
+    auto *resources =
+        xcb_randr_get_screen_resources_current_reply(connection, resourcesCookie, nullptr);
+    if (!resources)
+        return;
+
+    const int outputCount = xcb_randr_get_screen_resources_current_outputs_length(resources);
+    const auto *outputs = xcb_randr_get_screen_resources_current_outputs(resources);
+    for (int i = 0; i < outputCount; ++i) {
+        const auto outputInfoCookie =
+            xcb_randr_get_output_info(connection, outputs[i], resources->config_timestamp);
+        auto *outputInfo =
+            xcb_randr_get_output_info_reply(connection, outputInfoCookie, nullptr);
+        if (!outputInfo)
+            continue;
+
+        const QString outputName = QString::fromUtf8(
+            reinterpret_cast<const char *>(xcb_randr_get_output_info_name(outputInfo)),
+            xcb_randr_get_output_info_name_length(outputInfo));
+        if (outputName == primaryOutputName) {
+            xcb_randr_set_output_primary(connection, screen->root, outputs[i]);
+            xcb_flush(connection);
+            free(outputInfo);
+            break;
+        }
+        free(outputInfo);
+    }
+    free(resources);
 }
 
 const QList<std::shared_ptr<Session>> &SessionManager::sessions() const
@@ -245,6 +291,7 @@ std::shared_ptr<Session> SessionManager::ensureSession(int id, QString username)
         xwayland->setOwnsSocket(socket);
         // Connect signals
         connect(xwayland, &WXWayland::ready, this, [this, xwayland] {
+            syncActiveSessionXWaylandPrimaryOutput();
             if (auto session = sessionForXWayland(xwayland)) {
                 session->m_noTitlebarAtom =
                     internAtom(session->m_xwayland->xcbConnection(), _DEEPIN_NO_TITLEBAR, false);
@@ -497,6 +544,7 @@ void SessionManager::updateActiveUserSession(const QString &username, int id)
         Q_EMIT socketFileChanged();
         // Notify session changed through DBus, treeland-sd will listen it to update envs
         Q_EMIT sessionChanged();
+        syncActiveSessionXWaylandPrimaryOutput();
     }
     qCInfo(lcTlCore) << "Listening on:" << session->m_socket->fullServerName();
     syncActiveSessionCursorSettings();

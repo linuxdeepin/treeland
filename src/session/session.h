@@ -71,6 +71,7 @@ public:
     std::shared_ptr<Session> sessionForSocket(WSocket *socket) const;
     bool isDDEUserClient(WClient *client);
     void syncActiveSessionCursorSettings();
+    void syncActiveSessionXWaylandPrimaryOutput();
 
 Q_SIGNALS:
     void socketFileChanged();
