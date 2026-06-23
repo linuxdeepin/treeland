@@ -595,20 +595,40 @@ void Output::arrangeLayerSurface(SurfaceWrapper *surface)
     }
 
     if (layer->exclusiveZone() > 0) {
-        // TODO: support set_exclusive_edge in layer-shell v5/wlroots 0.19
+        int effectiveZone = layer->exclusiveZone();
         switch (layer->getExclusiveZoneEdge()) {
             using enum WLayerSurface::AnchorType;
         case Top:
-            setExclusiveZone(Qt::TopEdge, layer, layer->exclusiveZone());
+            effectiveZone = qMax(effectiveZone, static_cast<int>(surfaceGeo.height()) + layer->topMargin());
             break;
         case Bottom:
-            setExclusiveZone(Qt::BottomEdge, layer, layer->exclusiveZone());
+            effectiveZone = qMax(effectiveZone, static_cast<int>(surfaceGeo.height()) + layer->bottomMargin());
             break;
         case Left:
-            setExclusiveZone(Qt::LeftEdge, layer, layer->exclusiveZone());
+            effectiveZone = qMax(effectiveZone, static_cast<int>(surfaceGeo.width()) + layer->leftMargin());
             break;
         case Right:
-            setExclusiveZone(Qt::RightEdge, layer, layer->exclusiveZone());
+            effectiveZone = qMax(effectiveZone, static_cast<int>(surfaceGeo.width()) + layer->rightMargin());
+            break;
+        default:
+            break;
+        }
+        // When desiredSize is 0 in the relevant dimension, surfaceGeo will be 0
+        // there, so qMax falls back to the original exclusiveZone value.
+        // exclusiveZone == -1 (overlay mode) is excluded by the > 0 check above.
+        switch (layer->getExclusiveZoneEdge()) {
+            using enum WLayerSurface::AnchorType;
+        case Top:
+            setExclusiveZone(Qt::TopEdge, layer, effectiveZone);
+            break;
+        case Bottom:
+            setExclusiveZone(Qt::BottomEdge, layer, effectiveZone);
+            break;
+        case Left:
+            setExclusiveZone(Qt::LeftEdge, layer, effectiveZone);
+            break;
+        case Right:
+            setExclusiveZone(Qt::RightEdge, layer, effectiveZone);
             break;
         default:
             qCWarning(lcTlOutput) << layer->appId()
@@ -624,10 +644,12 @@ void Output::arrangeLayerSurface(SurfaceWrapper *surface)
 void Output::arrangeLayerSurfaces()
 {
     auto oldExclusiveZone = m_exclusiveZone;
+    QHash<SurfaceWrapper *, QSizeF> oldSizes;
 
     for (auto *s : std::as_const(surfaces())) {
         if (s->type() != SurfaceWrapper::Type::Layer)
             continue;
+        oldSizes.insert(s, s->size());
         removeExclusiveZone(s->shellSurface());
     }
 
@@ -651,9 +673,21 @@ void Output::arrangeLayerSurfaces()
             arrangeLayerSurface(s);
     }
 
-    if (oldExclusiveZone != m_exclusiveZone) {
+    bool layerSizeChanged = false;
+    for (auto it = oldSizes.constBegin(); it != oldSizes.constEnd(); ++it) {
+        auto newSize = it.key()->size();
+        auto oldSize = it.value();
+        if (qAbs(newSize.width() - oldSize.width()) > 0.5
+            || qAbs(newSize.height() - oldSize.height()) > 0.5) {
+            layerSizeChanged = true;
+            break;
+        }
+    }
+
+    if (oldExclusiveZone != m_exclusiveZone || layerSizeChanged) {
         arrangeNonLayerSurfaces();
-        Q_EMIT exclusiveZoneChanged();
+        if (oldExclusiveZone != m_exclusiveZone)
+            Q_EMIT exclusiveZoneChanged();
     }
 }
 
