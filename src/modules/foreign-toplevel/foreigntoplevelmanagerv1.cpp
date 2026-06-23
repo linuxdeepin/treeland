@@ -309,7 +309,17 @@ void ForeignToplevelManagerInterfaceV1::removeSurface(SurfaceWrapper *wrapper)
     }
 
     auto *entry = it->second.get();
+    auto *surface = wrapper->shellSurface();
     for (auto *handle : std::as_const(entry->handles)) {
+        if (surface) {
+            QObject::disconnect(surface, nullptr, handle, nullptr);
+            if (auto *wsurface = surface->surface()) {
+                QObject::disconnect(wsurface, nullptr, handle, nullptr);
+            }
+        }
+        QObject::disconnect(wrapper, nullptr, handle, nullptr);
+        QObject::disconnect(handle, nullptr, wrapper, nullptr);
+
         handle->send_closed();
         handle->clearEntry();
     }
