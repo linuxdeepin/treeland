@@ -53,6 +53,13 @@ public:
         BottomRight,
     };
 
+    enum class ArrangeReason
+    {
+        InitialPlacement,
+        ExclusiveZoneChanged,
+        OutputGeometryChanged,
+    };
+
     static Output *create(WOutput *output, QQmlEngine *engine, QObject *parent = nullptr);
     static Output *createCopy(WOutput *output,
                               Output *proxy,
@@ -111,9 +118,9 @@ private:
     bool removeExclusiveZone(QObject *object);
     void arrangeLayerSurface(SurfaceWrapper *surface);
     void arrangeLayerSurfaces();
-    void arrangeNonLayerSurface(SurfaceWrapper *surface, const QSizeF &sizeDiff);
+    void arrangeNonLayerSurface(SurfaceWrapper *surface, ArrangeReason reason);
     void arrangePopupSurface(SurfaceWrapper *surface);
-    void arrangeNonLayerSurfaces();
+    void arrangeNonLayerSurfaces(ArrangeReason reason);
     void arrangeAllSurfaces();
     std::pair<WOutputViewport *, QQuickItem *> getOutputItemProperty();
     void placeUnderCursor(SurfaceWrapper *surface, quint32 yOffset);
@@ -152,7 +159,6 @@ private:
     QList<std::pair<QObject *, int>> m_leftExclusiveZones;
     QList<std::pair<QObject *, int>> m_rightExclusiveZones;
 
-    QSizeF m_lastSizeOnLayoutNonLayerSurfaces;
     QList<WOutputLayer *> m_hardwareLayersOfPrimaryOutput;
     PlaceDirection m_nextPlaceDirection = PlaceDirection::BottomRight;
 
