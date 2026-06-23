@@ -1023,7 +1023,7 @@ Personalization::Personalization(WToplevelSurface *target,
     , m_manager(manager)
 {
     connect(target, &WToplevelSurface::aboutToBeInvalidated, this, [this] {
-        disconnect(m_connection);
+        disconnect(m_manager, &PersonalizationManagerInterfaceV1::windowContextCreated, this, nullptr);
     });
 
     auto update = [this](PersonalizationWindowContextV1 *context) {
@@ -1032,8 +1032,6 @@ Personalization::Personalization(WToplevelSurface *target,
         if (WSurface::fromHandle(context->surface()) != m_target->surface()) {
             return;
         }
-
-        disconnect(m_connection);
 
         connect(context,
                 &PersonalizationWindowContextV1::backgroundTypeChanged,
@@ -1067,6 +1065,7 @@ Personalization::Personalization(WToplevelSurface *target,
                     m_states = context->states();
                     Q_EMIT windowStateChanged();
                 });
+        connect(context, &QObject::destroyed, this, &Personalization::resetProperties);
 
         m_backgroundType = context->backgroundType();
         m_cornerRadius = context->cornerRadius();
@@ -1075,11 +1074,26 @@ Personalization::Personalization(WToplevelSurface *target,
         m_states = context->states();
     };
 
-    m_connection = connect(m_manager, &PersonalizationManagerInterfaceV1::windowContextCreated, this, update);
+    connect(m_manager, &PersonalizationManagerInterfaceV1::windowContextCreated, this, update);
 
     if (auto *context = PersonalizationWindowContextV1::getWindowContext(m_target->surface())) {
         update(context);
     }
+}
+
+void Personalization::resetProperties()
+{
+    m_backgroundType = Personalization::BackgroundType::Normal;
+    m_cornerRadius = 0;
+    m_shadow = {};
+    m_border = {};
+    m_states = {};
+
+    Q_EMIT backgroundTypeChanged();
+    Q_EMIT cornerRadiusChanged();
+    Q_EMIT shadowChanged();
+    Q_EMIT borderChanged();
+    Q_EMIT windowStateChanged();
 }
 
 SurfaceWrapper *Personalization::surfaceWrapper() const
