@@ -1,4 +1,4 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #pragma once
 
@@ -186,6 +186,7 @@ private:
     void handleSurfaceAdded(SurfaceWrapper *surface);
     void handleSurfaceRemoved(SurfaceWrapper *surface);
     void addReadySurface(SurfaceWrapper *surface);
+    bool removeReadySurface(SurfaceWrapper *surface);
     void monitorUnreadySurface(SurfaceWrapper *surface);
     void disconnectSurface(SurfaceWrapper *surface);
     bool surfaceReady(SurfaceWrapper *surface);
