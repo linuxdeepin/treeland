@@ -275,6 +275,7 @@ class Compositor1Adaptor: public QDBusAbstractAdaptor
                 "      <arg direction=\"out\" type=\"ay\" name=\"auth\"/>\n"
                 "    </method>\n"
                 "    <signal name=\"SessionChanged\"/>\n"
+                "    <signal name=\"XWaylandReady\"/>\n"
                 "  </interface>\n"
                 "")
 public:
