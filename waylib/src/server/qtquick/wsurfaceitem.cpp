@@ -1014,18 +1014,19 @@ void WSurfaceItem::releaseResources()
         // queued auto-destroy handler below will skip deleteLater().
         const auto subsurfaces = d->subsurfaces;
         for (auto item : subsurfaces) {
+            d->subsurfaces.removeOne(item);
             item->releaseResources();
             auto surface = item->surface();
             if (surface) {
                 bool ok = QObject::disconnect(surface, &WSurface::destroyed, this, nullptr);
                 Q_ASSERT(ok);
             }
-            d->subsurfaces.removeOne(item);
         }
     } else {
-        for (auto item : std::as_const(d->subsurfaces))
+        QList<WSurfaceItem*> tmp;
+        tmp.swap(d->subsurfaces);
+        for (auto item : std::as_const(tmp))
             item->deleteLater();
-        d->subsurfaces.clear();
     }
 
     if (auto content = d->getItemContent())
@@ -1197,9 +1198,10 @@ void WSurfaceItemPrivate::initForSurface()
 
     // clean subsurfaces, if cacheLastBuffer is enabled will cache
     // the previous WSurface's subsurfaces.
-    for (auto item : std::as_const(subsurfaces))
+    QList<WSurfaceItem*> tmp;
+    tmp.swap(subsurfaces);
+    for (auto item : std::as_const(tmp))
         item->deleteLater();
-    subsurfaces.clear();
 
     if (!surfaceState)
         surfaceState.reset(new SurfaceState());
