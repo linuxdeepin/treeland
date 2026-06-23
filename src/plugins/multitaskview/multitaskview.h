@@ -187,6 +187,7 @@ private:
     void handleSurfaceRemoved(SurfaceWrapper *surface);
     void addReadySurface(SurfaceWrapper *surface);
     void monitorUnreadySurface(SurfaceWrapper *surface);
+    void disconnectSurface(SurfaceWrapper *surface);
     bool surfaceReady(SurfaceWrapper *surface);
     QRectF surfaceGeometry(SurfaceWrapper *surface);
     bool laterActiveThan(SurfaceWrapper *a, SurfaceWrapper *b);
