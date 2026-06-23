@@ -36,6 +36,7 @@ public:
 Q_SIGNALS:
     void minimumSizeChanged();
     void maximumSizeChanged();
+    void initialCommitReceived();
 
 private:
     Q_SLOT void onSurfaceCommit() override;

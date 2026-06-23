@@ -22,9 +22,11 @@
 #include <wxdgtoplevelsurfaceitem.h>
 #include <wxwaylandsurface.h>
 #include <wxwaylandsurfaceitem.h>
+#include <wxdgtoplevelsurface.h>
 
 #include <qwbuffer.h>
 #include <qwlayershellv1.h>
+#include <qwxdgshell.h>
 
 #include <QColor>
 #include <QVariant>
@@ -297,6 +299,32 @@ void SurfaceWrapper::setup()
     m_surfaceItem->setShellSurface(m_shellSurface);
 
     if (!m_isProxy) {
+        if (auto toplevelItem = qobject_cast<WXdgToplevelSurfaceItem*>(m_surfaceItem)) {
+            connect(toplevelItem, &WXdgToplevelSurfaceItem::initialCommitReceived, this, [this] {
+                    auto toplevel = qobject_cast<WXdgToplevelSurface *>(m_shellSurface);
+                    auto handle = toplevel->handle()->handle();
+                    if (handle->requested.maximized) {
+                        toplevel->handle()->set_maximized(true);
+                        resize(maximizedGeometry().size());
+                        m_previousSurfaceState.setValueBypassingBindings(State::Maximized);
+                        m_surfaceState.setValueBypassingBindings(State::Maximized);
+                        setVisibleDecoration(false);
+                        setNoCornerRadius(true);
+
+                        return;
+                    }
+                    if (handle->requested.fullscreen) {
+                        toplevel->handle()->set_fullscreen(true);
+                        resize(fullscreenGeometry().size());
+                        m_previousSurfaceState.setValueBypassingBindings(State::Fullscreen);
+                        m_surfaceState.setValueBypassingBindings(State::Fullscreen);
+                        setVisibleDecoration(false);
+                        setNoCornerRadius(true);
+                        return;
+                    }
+
+                }, Qt::SingleShotConnection);
+        }
         m_shellSurface->safeConnect(&WToplevelSurface::requestMinimize, this, [this]() {
             minimize();
         });
@@ -1006,7 +1034,7 @@ void SurfaceWrapper::setSurfaceState(State newSurfaceState)
         targetGeometry = m_tilingGeometry;
     }
 
-    if (targetGeometry.isValid()) {
+    if (targetGeometry.isValid() && m_previousSurfaceState.value() != newSurfaceState) {
         startStateChangeAnimation(newSurfaceState, targetGeometry);
     } else {
         if (m_geometryAnimation) {
@@ -1414,7 +1442,7 @@ void SurfaceWrapper::doSetSurfaceState(State newSurfaceState)
 
 void SurfaceWrapper::onAnimationReady()
 {
-    Q_ASSERT(m_pendingState != m_surfaceState);
+    // Q_ASSERT(m_pendingState != m_surfaceState);
     Q_ASSERT(m_pendingGeometry.isValid());
 
     if (!resize(m_pendingGeometry.size(), true)) {
@@ -1649,6 +1677,7 @@ void SurfaceWrapper::minimize(bool onAnimation)
 
 void SurfaceWrapper::restoreFromMinimized(bool onAnimation)
 {
+    qWarning() << "xyb---state" << m_surfaceState.value();
     if (m_surfaceState != State::Minimized && m_hideByshowDesk)
         return;
     if (!m_hideByshowDesk)
@@ -1670,6 +1699,8 @@ void SurfaceWrapper::maximize()
 
 void SurfaceWrapper::unmaximize()
 {
+
+    qWarning() << "xyb---unmaximize state:" << m_surfaceState.value();
     if (m_surfaceState != State::Maximized)
         return;
 
