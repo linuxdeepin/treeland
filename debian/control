@@ -37,6 +37,7 @@ Build-Depends: cmake (>= 3.25.0),
                treeland-protocols (>= 0.5.9),
                libpam0g-dev,
                libmpv-dev,
+               libxcb-randr0-dev,
 Standards-Version: 4.6.0
 Section: dde
 Homepage: https://github.com/linuxdeepin/treeland.git

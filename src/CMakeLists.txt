@@ -24,6 +24,7 @@ pkg_search_module(PIXMAN REQUIRED IMPORTED_TARGET pixman-1)
 pkg_search_module(WAYLAND REQUIRED IMPORTED_TARGET wayland-server)
 pkg_search_module(LIBINPUT REQUIRED IMPORTED_TARGET libinput)
 pkg_search_module(XCB REQUIRED IMPORTED_TARGET xcb)
+pkg_search_module(XCB_RANDR REQUIRED IMPORTED_TARGET xcb-randr)
 pkg_check_modules(PAM REQUIRED IMPORTED_TARGET pam)
 pkg_check_modules(Systemd REQUIRED IMPORTED_TARGET libsystemd)
 # qt_finalize_target will collect all executable's private dependencies that are CMake targets
@@ -362,6 +363,7 @@ target_link_libraries(libtreeland
         PkgConfig::WAYLAND
         PkgConfig::LIBINPUT
         PkgConfig::XCB
+        PkgConfig::XCB_RANDR
         $<$<NOT:$<BOOL:${DISABLE_DDM}>>:DDM::Common>
         $<$<NOT:$<BOOL:${DISABLE_DDM}>>:PkgConfig::PAM>
         $<$<NOT:$<BOOL:${DISABLE_DDM}>>:PkgConfig::Systemd>
