@@ -1,4 +1,4 @@
-// Copyright (C) 2025 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2025-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
@@ -198,12 +198,15 @@ public:
     QByteArrayList propertyList() const override;
     void apply() override;
 
+protected:
+    explicit XSettings(QObject *parent);
+    QByteArray depopulateSettings();
+    void populateSettings(const QByteArray &xSettings);
+
 private:
     bool initX11(int screen, bool replace);
     bool createWindow(int screen, xcb_window_t *out_win, xcb_timestamp_t *out_time);
     bool manageScreen(int screen, xcb_window_t win, xcb_timestamp_t timestamp, bool replace);
-    QByteArray depopulateSettings();
-    void populateSettings(const QByteArray &xSettings);
     void setSettings(const QByteArray &data);
 
 private:

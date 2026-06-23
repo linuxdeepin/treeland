@@ -6,7 +6,7 @@
 
 #define XRESOURCE_ATOM_NAME "RESOURCE_MANAGER"
 
-static QPair<QByteArray, QByteArray> splitXResourceLine(const QByteArray &line)
+QPair<QByteArray, QByteArray> XResource::splitXResourceLine(const QByteArray &line)
 {
     int pos = -1;
     bool escaped = false;

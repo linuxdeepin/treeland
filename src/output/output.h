@@ -91,6 +91,9 @@ public:
                                      double heightPx,
                                      double widthMm,
                                      double heightMm);
+    static QPointF constrainToValidArea(const QPointF &pos,
+                                        const QSizeF &windowSize,
+                                        const QRectF &validGeo);
     qreal preferredScaleFactor(const QSize &pixelSize) const;
 
     OutputConfig* config() const;
@@ -137,9 +140,6 @@ private:
                                      const QRectF &normalGeo,
                                      const QRectF &validGeo,
                                      const QSizeF &offset);
-    QPointF constrainToValidArea(const QPointF &pos,
-                                 const QSizeF &windowSize,
-                                 const QRectF &validGeo);
     qreal preferredScaleFactor() const;
 
     QPointF calculateBasePosition(SurfaceWrapper *surface, const QPointF &dPos) const;
