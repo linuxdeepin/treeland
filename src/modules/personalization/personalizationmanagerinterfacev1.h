@@ -241,6 +241,9 @@ Q_SIGNALS:
     void borderChanged();
     void windowStateChanged();
 
+private Q_SLOTS:
+    void resetProperties();
+
 private:
     WWrapPointer<WToplevelSurface> m_target;
     PersonalizationManagerInterfaceV1 *m_manager = nullptr;
@@ -249,8 +252,6 @@ private:
     Shadow m_shadow {};
     Border m_border {};
     PersonalizationWindowContextV1::WindowStates m_states {};
-
-    QMetaObject::Connection m_connection;
 };
 
 class PersonalizationManagerInterfaceV1 : public QObject, public WServerInterface
