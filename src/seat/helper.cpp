@@ -1359,6 +1359,10 @@ void Helper::init(Treeland::Treeland *treeland)
             &RootSurfaceContainer::primaryOutputChanged,
             m_outputManagerV1,
             &OutputManagerV1::onPrimaryOutputChanged);
+    connect(m_rootSurfaceContainer,
+            &RootSurfaceContainer::primaryOutputChanged,
+            m_sessionManager,
+            &SessionManager::syncActiveSessionXWaylandPrimaryOutput);
     m_wallpaperColorV1 = m_server->attach<WallpaperColorInterfaceV1>();
     m_windowManagementInterfaceV1 = m_server->attach<WindowManagementInterfaceV1>();
     m_virtualOutputInterfaceV1 = m_server->attach<VirtualOutputManagerInterfaceV1>();
