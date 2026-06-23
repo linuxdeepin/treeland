@@ -3,17 +3,19 @@
 
 #include "multitaskview.h"
 
+#include "common/treelandlogging.h"
 #include "output/output.h"
 #include "seat/helper.h"
 #include "surface/surfacecontainer.h"
-#include "workspace/workspace.h"
 #include "treelanduserconfig.hpp"
-#include "common/treelandlogging.h"
+#include "workspace/workspace.h"
 
 #include <woutputitem.h>
 #include <woutputrenderwindow.h>
 
 #include <QtConcurrentMap>
+
+#include <ranges>
 
 WAYLIB_SERVER_USE_NAMESPACE
 
@@ -494,16 +496,35 @@ void MultitaskviewSurfaceModel::handleSurfaceStateChanged()
 void MultitaskviewSurfaceModel::handleSurfaceMappedChanged()
 {
     auto surface = qobject_cast<WSurface *>(sender());
-    auto it = std::find_if(workspace()->surfaces().begin(),
-                           workspace()->surfaces().end(),
-                           [surface](SurfaceWrapper *wrapper) {
-                               return wrapper->surface() == surface;
-                           });
-    Q_ASSERT_X(it != workspace()->surfaces().end(),
-               __func__,
-               "Monitoring mapped of a removed surface wrapper.");
-    if (surfaceReady(*it)) {
-        addReadySurface(*it);
+    if (!surface)
+        return;
+
+    auto findWrapper = [surface](const QList<SurfaceWrapper *> &surfaces) -> SurfaceWrapper * {
+        auto it = std::ranges::find(surfaces, surface, [](SurfaceWrapper *wrapper) {
+            return wrapper->surface();
+        });
+        return it != surfaces.end() ? *it : nullptr;
+    };
+
+    SurfaceWrapper *wrapper = findWrapper(workspace()->surfaces());
+    if (!wrapper) {
+        wrapper =
+            findWrapper(Helper::instance()->workspace()->showOnAllWorkspaceModel()->surfaces());
+    }
+    Q_ASSERT_X(wrapper, __func__, "Monitoring mapped of a removed surface wrapper.");
+    if (!wrapper)
+        return;
+
+    if (!surface->mapped()) {
+        removeReadySurface(wrapper);
+        if (wrapper->ownsOutput() == output()) {
+            monitorUnreadySurface(wrapper);
+        }
+        return;
+    }
+
+    if (surfaceReady(wrapper)) {
+        addReadySurface(wrapper);
     }
 }
 
@@ -532,6 +553,8 @@ void MultitaskviewSurfaceModel::handleSurfaceAdded(SurfaceWrapper *surface)
 
 void MultitaskviewSurfaceModel::handleSurfaceRemoved(SurfaceWrapper *surface)
 {
+    disconnectSurface(surface);
+
     auto toBeRemovedIt =
         std::find_if(m_data.begin(), m_data.end(), [surface](ModelDataPtr modelData) {
             return modelData->wrapper == surface;
@@ -541,14 +564,6 @@ void MultitaskviewSurfaceModel::handleSurfaceRemoved(SurfaceWrapper *surface)
     int toRemove = std::distance(m_data.begin(), toBeRemovedIt);
     beginRemoveRows({}, toRemove, toRemove);
     m_data.remove(toRemove);
-    disconnect(surface,
-               &SurfaceWrapper::ownsOutputChanged,
-               this,
-               &MultitaskviewSurfaceModel::handleWrapperOutputChanged);
-    disconnect(surface,
-               &SurfaceWrapper::surfaceStateChanged,
-               this,
-               &MultitaskviewSurfaceModel::handleSurfaceStateChanged);
     endRemoveRows();
     doCalculateLayout(m_data);
     auto [beginIndex, endIndex] = commitAndGetUpdateRange(m_data);
@@ -640,6 +655,33 @@ void MultitaskviewSurfaceModel::monitorUnreadySurface(SurfaceWrapper *surface)
             this,
             &MultitaskviewSurfaceModel::handleSurfaceMappedChanged,
             Qt::UniqueConnection);
+}
+
+void MultitaskviewSurfaceModel::disconnectSurface(SurfaceWrapper *surface)
+{
+    disconnect(surface,
+               &SurfaceWrapper::ownsOutputChanged,
+               this,
+               &MultitaskviewSurfaceModel::handleWrapperOutputChanged);
+    disconnect(surface,
+               &SurfaceWrapper::surfaceStateChanged,
+               this,
+               &MultitaskviewSurfaceModel::handleSurfaceStateChanged);
+    disconnect(surface,
+               &SurfaceWrapper::normalGeometryChanged,
+               this,
+               &MultitaskviewSurfaceModel::handleWrapperGeometryChanged);
+    disconnect(surface,
+               &SurfaceWrapper::geometryChanged,
+               this,
+               &MultitaskviewSurfaceModel::handleWrapperGeometryChanged);
+
+    if (auto wsurface = surface->surface()) {
+        disconnect(wsurface,
+                   &WSurface::mappedChanged,
+                   this,
+                   &MultitaskviewSurfaceModel::handleSurfaceMappedChanged);
+    }
 }
 
 bool MultitaskviewSurfaceModel::surfaceReady(SurfaceWrapper *surface)
