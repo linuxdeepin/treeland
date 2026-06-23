@@ -1,7 +1,8 @@
-// Copyright (C) 2025 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2025-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "outputconfigstate.h"
+#include "surface/surfacewrapper.h"
 
 void OutputConfigState::markScreenAsPrimary(const QString &outputName)
 {
@@ -38,4 +39,43 @@ bool OutputConfigState::shouldRestoreCopyMode() const
 void OutputConfigState::clearCopyModeIntent()
 {
     m_copyModeExited = false;
+}
+
+void OutputConfigState::recordSurfaceBinding(SurfaceWrapper *surface,
+                                               const QString &originalOutputName,
+                                               const QPointF &relativePosition,
+                                               const QSizeF &originalOutputSize,
+                                               int surfaceState)
+{
+    if (!surface)
+        return;
+
+    auto &bindings = m_surfaceBindings[originalOutputName];
+    for (int i = 0; i < bindings.size(); ++i) {
+        if (bindings[i].surface == surface) {
+            bindings[i].relativePosition = relativePosition;
+            bindings[i].originalOutputSize = originalOutputSize;
+            bindings[i].surfaceState = surfaceState;
+            return;
+        }
+    }
+
+    SurfaceBinding binding;
+    binding.surface = surface;
+    binding.relativePosition = relativePosition;
+    binding.originalOutputSize = originalOutputSize;
+    binding.surfaceState = surfaceState;
+
+    bindings.append(binding);
+}
+
+QList<SurfaceBinding> OutputConfigState::takeSurfaceBindings(const QString &outputName)
+{
+    return m_surfaceBindings.take(outputName);
+}
+
+bool OutputConfigState::hasSurfaceBindings(const QString &outputName) const
+{
+    auto it = m_surfaceBindings.constFind(outputName);
+    return it != m_surfaceBindings.constEnd() && !it->isEmpty();
 }
