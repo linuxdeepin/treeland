@@ -66,6 +66,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     , m_isIMCandidatePanel(false)
     , m_resizable(false)
     , m_maximizable(false)
+    , m_modal(false)
     , m_appId(appId)
 {
     QQmlEngine::setContextForObject(this, qmlEngine->rootContext());
@@ -102,6 +103,7 @@ SurfaceWrapper::SurfaceWrapper(SurfaceWrapper *original, QQuickItem *parent)
     , m_isIMCandidatePanel(false)
     , m_resizable(false)
     , m_maximizable(false)
+    , m_modal(false)
     , m_appId(original->m_appId)
 {
     QQmlEngine::setContextForObject(this, m_engine->rootContext());
@@ -171,6 +173,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     , m_isIMCandidatePanel(false)
     , m_resizable(false)
     , m_maximizable(false)
+    , m_modal(false)
     , m_appId(appId)
 {
     QQmlEngine::setContextForObject(this, qmlEngine->rootContext());
@@ -1353,12 +1356,26 @@ void SurfaceWrapper::doSetSurfaceState(State newSurfaceState)
         return;
     }
 
+    const bool wasMinimized = (m_surfaceState == State::Minimized);
+    const bool willBeMinimized = (newSurfaceState == State::Minimized);
+    const bool needMinimizeLinkage = (wasMinimized != willBeMinimized);
+
     setVisibleDecoration(newSurfaceState == State::Minimized || newSurfaceState == State::Normal);
     setNoCornerRadius(newSurfaceState == State::Maximized || newSurfaceState == State::Fullscreen
                       || newSurfaceState == State::Tiling);
 
     m_previousSurfaceState.setValueBypassingBindings(m_surfaceState);
     m_surfaceState.setValueBypassingBindings(newSurfaceState);
+
+    // Keep modal/parent minimize linkage ahead of this surface's own state change
+    // so focus fallback never sees the parent in the old state first.
+    if (needMinimizeLinkage && modal() && m_parentSurface) {
+        if (willBeMinimized && !m_parentSurface->isMinimized()) {
+            m_parentSurface->minimize(false);
+        } else if (!willBeMinimized && m_parentSurface->isMinimized()) {
+            m_parentSurface->restoreFromMinimized(false);
+        }
+    }
 
     switch (m_previousSurfaceState.value()) {
     case State::Maximized:
@@ -1401,6 +1418,19 @@ void SurfaceWrapper::doSetSurfaceState(State newSurfaceState)
     m_surfaceState.notify();
     updateTitleBar();
     updateVisible();
+
+    if (needMinimizeLinkage) {
+        for (SurfaceWrapper *child : std::as_const(m_subSurfaces)) {
+            if (willBeMinimized && child->modal())
+                continue; // Modal children stay visible when parent is minimized.
+            if (child->isMinimized() != willBeMinimized) {
+                if (willBeMinimized)
+                    child->minimize(false);
+                else
+                    child->restoreFromMinimized(false);
+            }
+        }
+    }
 }
 
 void SurfaceWrapper::onAnimationReady()
@@ -2031,6 +2061,37 @@ bool SurfaceWrapper::isResizable() const
 bool SurfaceWrapper::isMaximizable() const
 {
     return m_maximizable;
+}
+
+bool SurfaceWrapper::modal() const
+{
+    return m_modal;
+}
+
+void SurfaceWrapper::setModal(bool modal)
+{
+    if (m_modal == modal)
+        return;
+    m_modal = modal;
+    Q_EMIT modalChanged();
+}
+
+SurfaceWrapper *SurfaceWrapper::findModal() const
+{
+    if (m_wrapperAboutToRemove)
+        return nullptr;
+    for (auto *child : std::as_const(m_subSurfaces)) {
+        if (child->m_wrapperAboutToRemove)
+            continue;
+        if (child->modal()) {
+            if (SurfaceWrapper *deepModal = child->findModal())
+                return deepModal;
+            return child;
+        }
+        if (SurfaceWrapper *deepModal = child->findModal())
+            return deepModal;
+    }
+    return nullptr;
 }
 
 bool SurfaceWrapper::blur() const

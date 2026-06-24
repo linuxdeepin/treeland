@@ -1,9 +1,11 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
 
 #include <QSortFilterProxyModel>
+
+class SurfaceWrapper;
 
 class SurfaceFilterProxyModel : public QSortFilterProxyModel
 {
@@ -26,6 +28,8 @@ protected:
     bool lessThan(const QModelIndex &source_left, const QModelIndex &source_right) const override;
 
 private:
+    bool matchesAppIdFilter(SurfaceWrapper *surface) const;
+
     QString m_filterAppId;
     mutable int m_activeIndex = -1;
 };

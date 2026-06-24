@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "surfacefilterproxymodel.h"
-#include "workspace/workspacemodel.h"
+
+#include "common/treelandlogging.h"
 #include "surface/surfacewrapper.h"
+#include "workspace/workspacemodel.h"
 
 SurfaceFilterProxyModel::SurfaceFilterProxyModel(QObject *parent)
     : QSortFilterProxyModel(parent)
@@ -41,15 +43,32 @@ bool SurfaceFilterProxyModel::filterAcceptsRow(int source_row,
     QModelIndex index = sourceModel()->index(source_row, 0, source_parent);
     SurfaceWrapper *surface = sourceModel()->data(index).value<SurfaceWrapper *>();
 
-    if (m_filterAppId.isEmpty()) {
+    if (!surface) {
+        qCWarning(lcTlSurface) << "filterAcceptsRow: null surface at row" << source_row;
+        return false;
+    }
+
+    if (!matchesAppIdFilter(surface)) {
+        return false;
+    }
+
+    // Modal dialog handling (ref: KWin::TabBox::ClientModel::clientToAddToList)
+    SurfaceWrapper *modal = surface->findModal();
+    if (modal && modal != surface) {
+        return !matchesAppIdFilter(modal);
+    }
+
+    return true;
+}
+
+bool SurfaceFilterProxyModel::matchesAppIdFilter(SurfaceWrapper *surface) const
+{
+    if (m_filterAppId.isEmpty())
         return true;
-    }
-
-    if (surface) {
-        return surface->appId() == m_filterAppId;
-    }
-
-    return false;
+    if (surface->appId() == m_filterAppId)
+        return true;
+    return surface->modal() && surface->parentSurface()
+        && surface->parentSurface()->appId() == m_filterAppId;
 }
 
 bool SurfaceFilterProxyModel::lessThan(const QModelIndex &source_left,

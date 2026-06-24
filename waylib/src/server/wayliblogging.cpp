@@ -58,6 +58,7 @@ Q_LOGGING_CATEGORY(lcWlLayerSurface, "waylib.layer.surface", QtWarningMsg) // La
 // XDG
 Q_LOGGING_CATEGORY(lcWlXdgOutput, "waylib.xdg.output", QtWarningMsg)  // XDG output manager
 Q_LOGGING_CATEGORY(lcWlXdgDecoration, "waylib.xdg.decoration", QtWarningMsg) // XDG decoration mode
+Q_LOGGING_CATEGORY(lcWlXdgDialog, "waylib.xdg.dialog", QtWarningMsg) // xdg-dialog-v1 modal state
 
 // Output
 Q_LOGGING_CATEGORY(lcWlOutputLayer, "waylib.output.layer", QtWarningMsg)   // QtQuick output layer
