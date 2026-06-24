@@ -15,12 +15,7 @@ export DEB_BUILD_MAINT_OPTIONS = hardening=+all
 
 
 %:
-	dh $@
+	dh $@ --buildsystem=cmake+ninja --builddirectory=build
 
-
-# dh_make generated override targets
-# This is example for Cmake (See https://bugs.debian.org/641051 )
 override_dh_auto_configure:
-	dh_auto_configure -- \
-	-GNinja \
-	-DCMAKE_LIBRARY_PATH=$(DEB_HOST_MULTIARCH)
+	dh_auto_configure -- --preset ci -DCMAKE_BUILD_TYPE=None -DCMAKE_LIBRARY_PATH=$(DEB_HOST_MULTIARCH)

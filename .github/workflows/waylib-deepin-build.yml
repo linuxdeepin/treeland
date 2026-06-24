@@ -61,10 +61,6 @@ jobs:
         working-directory: waylib
         run: |
           set -euxo pipefail
-          # Disable qwlroots submodule, use system-installed qwlroots package
-          sed -i 's/-DCMAKE_INSTALL_PREFIX=\/usr/-DCMAKE_INSTALL_PREFIX=\/usr -DWITH_SUBMODULE_QWLROOTS=OFF/' debian/rules
-          echo "Modified debian/rules to disable qwlroots submodule:"
-          cat debian/rules
 
           dpkg-buildpackage -uc -us -b
           echo "✅ waylib deb package built successfully!"

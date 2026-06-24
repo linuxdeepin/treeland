@@ -8,10 +8,10 @@ include /usr/share/dpkg/default.mk
 export QT_SELECT = qt6
 
 %:
-	dh $@ --parallel
+	dh $@ --buildsystem=cmake+ninja --builddirectory=build
 
 override_dh_auto_configure:
-	dh_auto_configure -- -GNinja -DCMAKE_INSTALL_PREFIX=/usr
+	dh_auto_configure -- --preset ci -DCMAKE_BUILD_TYPE=None -DWITH_SUBMODULE_QWLROOTS=OFF
 
 #override_dh_auto_test:
 #	echo "skip auto test"

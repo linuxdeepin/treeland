@@ -65,12 +65,6 @@ jobs:
           # Install waylib build dependencies (qwlroots is now available from the installed deb)
           mk-build-deps --install --remove --tool='apt-get -o Debug::pkgProblemResolver=yes --no-install-recommends --yes' debian/control
 
-          # Build waylib with submodule disabled (use system qwlroots)
-          # Modify debian/rules to disable submodule
-          sed -i 's/-DCMAKE_INSTALL_PREFIX=\/usr/-DCMAKE_INSTALL_PREFIX=\/usr -DWITH_SUBMODULE_QWLROOTS=OFF/' debian/rules
-          echo "Modified debian/rules to disable qwlroots submodule:"
-          cat debian/rules
-
           dpkg-buildpackage -uc -us -b
           echo "✅ waylib deb package built successfully!"
           ls -la ../*.deb

@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 4,
   "configurePresets": [
     {
       "name": "ci",
@@ -9,8 +9,8 @@
       "binaryDir": "${sourceDir}/build",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "CMAKE_CXX_FLAGS": "-Wall -Wextra -Werror -Wno-stringop-overflow -Wno-sfinae-incomplete",
-        "CMAKE_C_FLAGS": "-Wall -Wextra -Werror -Wno-stringop-overflow"
+        "CMAKE_CXX_FLAGS": "$env{CXXFLAGS} -Wall -Wextra -Werror -Wno-error=stringop-overflow -Wno-sfinae-incomplete",
+        "CMAKE_C_FLAGS": "$env{CFLAGS} -Wall -Wextra -Werror -Wno-error=stringop-overflow"
       }
     }
   ],
