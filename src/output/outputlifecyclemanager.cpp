@@ -91,7 +91,7 @@ void OutputLifecycleManager::onScreenRemoved(Output *output,
         markScreenAsPrimaryIntent(output);
     }
 
-    if (!isCurrentPrimary && !wasPrimaryBeforeRemoval) {
+    if (!isCurrentPrimary) {
         auto primaryOutput = m_rootContainer->primaryOutput();
         if (primaryOutput) {
             m_rootContainer->moveSurfacesToOutput(surfaces, primaryOutput, output);
