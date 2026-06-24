@@ -9,6 +9,7 @@
 #include <QObject>
 
 class TreelandWallpaperSurfaceInterfaceV1;
+class Workspace;
 
 class WallpaperManager : public QObject
 {
@@ -57,6 +58,12 @@ public Q_SLOTS:
                         TreelandWallpaperInterfaceV1::WallpaperRoles roles);
     void onWallpaperNotifierBound(wl_resource *resource);
     void handleWallpaperSurfaceAdded(TreelandWallpaperSurfaceInterfaceV1 *interface);
+
+private:
+    void sendMissingWallpapersForNewOutput(
+        const WallpaperOutputConfig &outputConfig,
+        Workspace *workspace,
+        const QMap<QString, TreelandWallpaperInterfaceV1::WallpaperType> &beforeWallpapers);
 
 private:
     bool m_wallpaperConfigUpdated { false };
