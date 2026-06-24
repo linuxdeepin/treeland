@@ -27,87 +27,6 @@
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-bool xwayland_user_event_handler(wlr_xwayland *xwayland, xcb_generic_event_t *event);
-
-// --- Xcb::Property ---
-
-Xcb::Property::Property() = default;
-
-Xcb::Property::Property(xcb_connection_t *conn,
-                        xcb_window_t win,
-                        xcb_atom_t prop,
-                        xcb_atom_t type,
-                        uint32_t offset,
-                        uint32_t length)
-    : m_conn(conn)
-    , m_win(win)
-    , m_type(type)
-    , m_offset(offset)
-    , m_length(length)
-    , m_cookie(xcb_get_property_unchecked(conn, false, win, prop, type, offset, length))
-{
-}
-
-Xcb::Property::~Property()
-{
-    if (!m_retrieved && m_cookie.sequence)
-        xcb_discard_reply(m_conn, m_cookie.sequence);
-    else if (m_reply)
-        free(m_reply);
-}
-
-Xcb::Property::Property(Property &&other) noexcept
-    : m_conn(other.m_conn)
-    , m_win(other.m_win)
-    , m_type(other.m_type)
-    , m_cookie(other.m_cookie)
-    , m_reply(other.m_reply)
-{
-    other.m_retrieved = true;
-    other.m_reply = nullptr;
-    other.m_cookie = {};
-}
-
-Xcb::Property &Xcb::Property::operator=(Property &&other) noexcept
-{
-    if (this != &other) {
-        if (!m_retrieved && m_cookie.sequence)
-            xcb_discard_reply(m_conn, m_cookie.sequence);
-        else if (m_reply)
-            free(m_reply);
-
-        m_conn = other.m_conn;
-        m_win = other.m_win;
-        m_type = other.m_type;
-        m_cookie = other.m_cookie;
-        m_reply = other.m_reply;
-
-        other.m_retrieved = true;
-        other.m_reply = nullptr;
-        other.m_cookie = {};
-    }
-    return *this;
-}
-
-void Xcb::Property::getReply() const
-{
-    if (m_retrieved || !m_cookie.sequence)
-        return;
-    m_reply = xcb_get_property_reply(m_conn, m_cookie, nullptr);
-    m_retrieved = true;
-}
-
-QByteArray Xcb::Property::toByteArray() const
-{
-    getReply();
-    if (!m_reply || m_reply->type != m_type || m_reply->value_len == 0)
-        return QByteArray();
-    return QByteArray(static_cast<const char *>(xcb_get_property_value(m_reply)),
-                      xcb_get_property_value_length(m_reply));
-}
-
-// --- WXWayland ---
-
 class Q_DECL_HIDDEN WXWaylandPrivate : public WWrapObjectPrivate
 {
 public:
@@ -206,7 +125,8 @@ bool xwayland_user_event_handler(wlr_xwayland *xwayland, xcb_generic_event_t *ev
         }
     }
 
-    for (auto *surface : self->surfaceList()) {
+    const auto &list = self->surfaceList();
+    for (auto *surface : list) {
         QPointer<WXWaylandSurface> sp(surface);
         if (!sp)
             continue;
