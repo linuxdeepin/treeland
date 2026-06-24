@@ -27,41 +27,6 @@ class WSeat;
 class WXWaylandSurface;
 class WXWaylandPrivate;
 
-namespace Xcb {
-
-class Property
-{
-public:
-    Property(xcb_connection_t *conn,
-             xcb_window_t win,
-             xcb_atom_t prop,
-             xcb_atom_t type,
-             uint32_t offset = 0,
-             uint32_t length = 1024);
-    Property();
-    ~Property();
-    Property(const Property &) = delete;
-    Property &operator=(const Property &) = delete;
-    Property(Property &&other) noexcept;
-    Property &operator=(Property &&other) noexcept;
-
-    QByteArray toByteArray() const;
-
-private:
-    void getReply() const;
-
-    xcb_connection_t *m_conn = nullptr;
-    xcb_window_t m_win = XCB_WINDOW_NONE;
-    xcb_atom_t m_type = XCB_ATOM_NONE;
-    uint32_t m_offset = 0;
-    uint32_t m_length = 0;
-    mutable bool m_retrieved = false;
-    mutable xcb_get_property_cookie_t m_cookie = {};
-    mutable xcb_get_property_reply_t *m_reply = nullptr;
-};
-
-} // namespace Xcb
-
 class WAYLIB_SERVER_EXPORT WXWayland : public WWrapObject, public WServerInterface
 {
     Q_OBJECT
