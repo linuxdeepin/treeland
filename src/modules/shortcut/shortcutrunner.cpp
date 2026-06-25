@@ -20,19 +20,6 @@
 
 #include "qwayland-server-treeland-shortcut-manager-v2.h"
 
-static bool isModifierKeyInMask(int key, Qt::KeyboardModifiers mods)
-{
-    if ((mods & Qt::AltModifier) && key == Qt::Key_Alt)
-        return true;
-    if ((mods & Qt::ControlModifier) && key == Qt::Key_Control)
-        return true;
-    if ((mods & Qt::MetaModifier) && key == Qt::Key_Meta)
-        return true;
-    if ((mods & Qt::ShiftModifier) && key == Qt::Key_Shift)
-        return true;
-    return false;
-}
-
 ShortcutRunner::ShortcutRunner(QObject *parent)
     : QObject(parent)
 {
@@ -183,6 +170,12 @@ void ShortcutRunner::onActionTrigger(ShortcutAction action, const QString &name,
     case ShortcutAction::TaskSwitchPrev:
     case ShortcutAction::TaskSwitchSameAppNext:
     case ShortcutAction::TaskSwitchSameAppPrev: {
+        if (keyFlags.testFlag(ShortcutController::Repeat)
+            && helper->currentMode() == Helper::CurrentMode::Normal
+            && !m_quickSwitchPending) {
+            return;
+        }
+
         const bool isSameApp = (action == ShortcutAction::TaskSwitchSameAppNext || action == ShortcutAction::TaskSwitchSameAppPrev);
         const bool isPrev = (action == ShortcutAction::TaskSwitchPrev || action == ShortcutAction::TaskSwitchSameAppPrev);
         taskswitchAction(keyFlags.testFlag(ShortcutController::Repeat), isSameApp, isPrev);
@@ -429,13 +422,42 @@ void ShortcutRunner::onModifierReleased(QKeyEvent *event)
 {
     auto *helper = Helper::instance();
 
-    if (m_currentAction == ShortcutAction::TaskSwitchNext
-        || m_currentAction == ShortcutAction::TaskSwitchPrev
-        || m_currentAction == ShortcutAction::TaskSwitchSameAppNext
-        || m_currentAction == ShortcutAction::TaskSwitchSameAppPrev) {
-        auto modifiers =
-            helper->m_shortcutManager->controller()->modifierForAction(m_currentAction);
-        if (!isModifierKeyInMask(event->key(), modifiers))
+    const QList<ShortcutAction> taskSwitchActions = {
+        ShortcutAction::TaskSwitchNext,
+        ShortcutAction::TaskSwitchPrev,
+        ShortcutAction::TaskSwitchSameAppNext,
+        ShortcutAction::TaskSwitchSameAppPrev,
+    };
+
+    if (taskSwitchActions.contains(m_currentAction)) {
+        auto *controller = helper->m_shortcutManager->controller();
+        const auto currentModifiers = controller->modifierForAction(m_currentAction);
+
+        constexpr auto supportedModifiers =
+            Qt::AltModifier | Qt::MetaModifier | Qt::ControlModifier | Qt::ShiftModifier;
+
+        auto keyCombination = QKeyCombination(Qt::NoModifier,static_cast<Qt::Key>(event->key()));
+        const auto releasedModifier = ShortcutController::normalizeKeyCombination(keyCombination).keyboardModifiers() & supportedModifiers;
+
+        if (!(currentModifiers & releasedModifier))
+            return;
+
+        auto remainingModifiers = event->modifiers() & supportedModifiers;
+        remainingModifiers &= ~releasedModifier;
+
+        const bool hasActiveTaskSwitchModifiers =
+            std::any_of(taskSwitchActions.cbegin(), taskSwitchActions.cend(), [
+                controller,
+                currentModifiers,
+                remainingModifiers](auto action) {
+            const auto modifiers = controller->modifierForAction(action);
+            if (modifiers == Qt::NoModifier)
+                return false;
+            if ((modifiers & currentModifiers) != modifiers)
+                return false;
+            return (remainingModifiers & modifiers) == modifiers;
+        });
+        if (hasActiveTaskSwitchModifiers)
             return;
 
         if (m_quickSwitchPending && helper->currentMode() == Helper::CurrentMode::Normal) {
