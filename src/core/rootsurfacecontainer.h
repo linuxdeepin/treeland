@@ -64,6 +64,7 @@ public:
     void destroyForSurface(SurfaceWrapper *wrapper);
 
     SeatSurfaceManager *getSeatContainer(WSeat *seat) const;
+    const QMap<WSeat*, SeatSurfaceManager*> &seatContainers() const { return m_seatContainers; }
     WSeat *getDefaultSeat() const;
     SeatSurfaceManager *getSeatContainerOrDefault(WSeat *seat = nullptr) const;
 

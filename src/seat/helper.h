@@ -334,6 +334,8 @@ private:
     void setCursorPosition(const QPointF &position);
 
     bool beforeDisposeEvent(WSeat *seat, QWindow *window, QInputEvent *event) override;
+    bool beforeHandleEvent(WSeat *seat, WSurface *watched, QObject *shellObject,
+                           QObject *eventObject, QInputEvent *event) override;
     bool afterHandleEvent(WSeat *seat, WSurface *watched, QObject *shellObject,
                          QObject *eventObject, QInputEvent *event) override;
     bool unacceptedEvent(WSeat *seat, QWindow *window, QInputEvent *event) override;

@@ -1832,6 +1832,21 @@ void Helper::fakePressSurfaceBottomRightToReszie(SurfaceWrapper *surface)
     Q_EMIT surface->resizeRequested(Qt::BottomEdge | Qt::RightEdge);
 }
 
+bool Helper::beforeHandleEvent(WSeat *seat, WSurface *watched, QObject *,
+                                QObject *, QInputEvent *event)
+{
+    auto eventType = event->type();
+    if (eventType != QEvent::MouseMove && eventType != QEvent::HoverMove)
+        return false;
+
+    auto *container = m_rootSurfaceContainer->getSeatContainer(seat);
+    if (container && container->moveResizeState().surface
+        && container->moveResizeState().surface->surface() == watched)
+        return true;
+
+    return false;
+}
+
 bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *targetWindow, QInputEvent *event)
 {
     if (!m_instance || !m_renderWindow || !m_backend) {
@@ -1957,10 +1972,12 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *targetWindow, QInputEvent 
     // Per-seat move/resize handling
     const auto *seatContainer = m_rootSurfaceContainer->getSeatContainer(seat);
     if (seatContainer && seatContainer->moveResizeState().surface) {
-        if (Q_LIKELY(event->type() == QEvent::MouseMove || event->type() == QEvent::TouchUpdate)) {
+        if (Q_LIKELY(event->type() == QEvent::MouseMove
+                      || event->type() == QEvent::HoverMove
+                      || event->type() == QEvent::TouchUpdate)) {
             auto cursor = seat->cursor();
             Q_ASSERT(cursor);
-            QMouseEvent *ev = static_cast<QMouseEvent *>(event);
+            auto *ev = static_cast<QSinglePointEvent *>(event);
 
             const auto &moveResizeState = seatContainer->moveResizeState();
             auto ownsOutput = moveResizeState.surface->ownsOutput();

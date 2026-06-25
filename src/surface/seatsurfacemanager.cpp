@@ -94,6 +94,13 @@ void SeatSurfaceManager::setKeyboardFocusSurface(SurfaceWrapper *surface)
 
 void SeatSurfaceManager::beginMoveResize(SurfaceWrapper *surface, Qt::Edges edges)
 {
+    // Guard against re-entry: beginMoveResizeForSeat() may invoke this again
+    // with the same surface+edges. Without this early return, the subsequent
+    // endMoveResize() call would briefly clear the state, causing the
+    // surface to lose its move/resize tracking.
+    if (m_moveResizeState.surface == surface && m_moveResizeState.edges == edges)
+        return;
+
     if (m_moveResizeState.surface)
         endMoveResize();
 
