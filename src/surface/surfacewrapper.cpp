@@ -533,15 +533,6 @@ void SurfaceWrapper::updateActiveState()
         return;
     }
     m_shellSurface->setActivate(m_isActivated);
-    auto parent = parentSurface();
-    while (parent) {
-        if (!parent->hasActiveCapability()) {
-            // Maybe it's parent is Minimized or Unmapped
-            break;
-        }
-        parent->setActivate(m_isActivated);
-        parent = parent->parentSurface();
-    }
 }
 
 void SurfaceWrapper::setFocus(bool focus, Qt::FocusReason reason)
