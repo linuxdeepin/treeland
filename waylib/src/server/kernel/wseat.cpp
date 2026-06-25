@@ -214,18 +214,22 @@ public:
     inline void doSetKeyboardFocus(qw_surface *surface) {
         if (surface) {
             const wlr_keyboard_modifiers *modifiers = nullptr;
+            const uint32_t *keycodes = nullptr;
+            size_t numKeycodes = 0;
             auto keyboard = q_func()->keyboard();
             if (keyboard) {
                 auto *wlr_keyboard = wlr_keyboard_from_input_device(*keyboard->handle());
                 if (wlr_keyboard) {
                     modifiers = &wlr_keyboard->modifiers;
+                    keycodes = wlr_keyboard->keycodes;
+                    numKeycodes = wlr_keyboard->num_keycodes;
                 }
             }
 
             // Send keyboard enter with current modifiers.
             // This ensures the newly focused client receives the current modifier state
             // (Num Lock, Caps Lock, etc.) as required by Wayland protocol.
-            handle()->keyboard_enter(*surface, nullptr, 0, modifiers);
+            handle()->keyboard_enter(*surface, keycodes, numKeycodes, modifiers);
         } else {
             handle()->keyboard_clear_focus();
         }
