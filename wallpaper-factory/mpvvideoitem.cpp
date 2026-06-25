@@ -559,6 +559,7 @@ void MpvVideoItem::updatePlaybackSpeed()
 {
     constexpr double minSpeed = 0.0;
     constexpr double maxSpeed = 1.0;
+    constexpr double pauseThreshold = 0.5;
 
     if (m_elapsed.hasExpired(m_slowDownDuration)) {
         m_speedTimer->stop();
@@ -571,6 +572,13 @@ void MpvVideoItem::updatePlaybackSpeed()
 
     double ease = easeOutExpo(t);
     double speed = maxSpeed - ease * (maxSpeed - minSpeed);
+
+    if (speed < pauseThreshold) {
+        m_speedTimer->stop();
+        setPause(true);
+        return;
+    }
+
     setSpeed(speed);
 }
 
