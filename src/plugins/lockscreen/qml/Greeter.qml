@@ -16,7 +16,8 @@ FocusScope {
     required property QtObject output
     required property QtObject outputItem
     property string primaryOutputName
-    visible: primaryOutputName === "" || primaryOutputName === output.name
+    property bool isPrimaryOutput: primaryOutputName === "" || primaryOutputName === output.name
+    visible: true
 
     x: outputItem.x
     y: outputItem.y
@@ -119,23 +120,41 @@ FocusScope {
         enabled: true
     }
 
-    LockView {
-        id: lockView
+    Loader {
+        id: lockViewLoader
         anchors.fill: parent
-        onAnimationPlayFinished: function () {
-            if (lockView.state === LoginAnimation.Hide) {
-                root.animationPlayFinished()
+        active: isPrimaryOutput
+        sourceComponent: lockViewComponent
+    }
+
+    Component {
+        id: lockViewComponent
+        LockView {
+            id: lockView
+            anchors.fill: parent
+            onAnimationPlayFinished: function () {
+                if (lockView.state === LoginAnimation.Hide) {
+                    root.animationPlayFinished()
+                }
             }
         }
     }
 
-    ShutdownView {
-        id: shutdownView
-        visible: GreeterProxy.showShutdownView
+    Loader {
+        id: shutdownViewLoader
         anchors.fill: parent
+        active: GreeterProxy.showShutdownView && isPrimaryOutput
+        sourceComponent: shutdownViewComponent
+    }
 
-        onSwitchUser: {
-            root.switchUser()
+    Component {
+        id: shutdownViewComponent
+        ShutdownView {
+            id: shutdownView
+            anchors.fill: parent
+            onSwitchUser: {
+                root.switchUser()
+            }
         }
     }
 
