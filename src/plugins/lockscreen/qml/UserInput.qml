@@ -323,6 +323,7 @@ Item {
         passwordField.text = ''
         avatar.fallbackSource = currentUser.icon
         hintText.text = normalHint
+        Qt.callLater(function() { passwordField.forceActiveFocus() })
     }
 
     function startOtherUserMode() {
