@@ -50,10 +50,13 @@ WallpaperManager::~WallpaperManager()
 
 QString WallpaperManager::getOutputId(wlr_output *output)
 {
-    QString model = output->model;
-    QString outputId = model.append(output->serial);
+    const QString model = QString::fromUtf8(output->model);
+    const QString serial = QString::fromUtf8(output->serial);
+    if (!model.isEmpty() && !serial.isEmpty()) {
+        return model + serial;
+    }
 
-    return outputId;
+    return QString::fromUtf8(output->name);
 }
 
 QString WallpaperManager::getOutputId(Output *output)
@@ -312,14 +315,22 @@ QMap<QString, TreelandWallpaperInterfaceV1::WallpaperType> WallpaperManager::glo
 {
     QMap<QString, TreelandWallpaperInterfaceV1::WallpaperType> wallpapers;
     for (const WallpaperOutputConfig& output : std::as_const(m_wallpaperConfig)) {
-        if (!wallpapers.contains(output.lockscreenWallpaper)) {
-            if (!(exclusiveOutput &&
-                  output.outputName == getOutputId(exclusiveOutput)) && output.enable) {
-                wallpapers.insert(output.lockscreenWallpaper, output.lockScreenWallpapertype);
+        bool outputConnected = false;
+        for (Output *connectedOutput : std::as_const(Helper::instance()->m_outputList)) {
+            if (output.outputName == getOutputId(connectedOutput)) {
+                outputConnected = true;
+                break;
             }
         }
-        if (!output.enable) {
+        if (!outputConnected) {
             continue;
+        }
+
+        if (!wallpapers.contains(output.lockscreenWallpaper)) {
+            if (!(exclusiveOutput &&
+                  output.outputName == getOutputId(exclusiveOutput))) {
+                wallpapers.insert(output.lockscreenWallpaper, output.lockScreenWallpapertype);
+            }
         }
         for (const WallpaperWorkspaceConfig& workspace : std::as_const(output.workspaces)) {
             if (exclusiveOutput &&
@@ -328,7 +339,7 @@ QMap<QString, TreelandWallpaperInterfaceV1::WallpaperType> WallpaperManager::glo
                 continue;
             }
 
-            if (!wallpapers.contains(workspace.desktopWallpaper) && workspace.enable) {
+            if (!wallpapers.contains(workspace.desktopWallpaper)) {
                 wallpapers.insert(workspace.desktopWallpaper, workspace.desktopWallpapertype);
             }
         }
