@@ -49,14 +49,14 @@ Item {
             target: effect
             from: root.direction === MinimizeAnimation.Direction.Hide ? root.target.x : position.x
             to: root.direction === MinimizeAnimation.Direction.Hide ? position.x : root.target.x
-            easing.type: root.direction === MinimizeAnimation.Direction.Hide ? Easing.OutExpo : Easing.InExpo
+            easing.type: Easing.OutExpo
             duration: root.duration
         }
         YAnimator {
             target: effect
             from: root.direction === MinimizeAnimation.Direction.Hide ? root.target.y : position.y
             to: root.direction === MinimizeAnimation.Direction.Hide ? position.y : root.target.y
-            easing.type: root.direction === MinimizeAnimation.Direction.Hide ? Easing.OutExpo : Easing.InExpo
+            easing.type: Easing.OutExpo
             duration: root.duration
         }
         NumberAnimation {
@@ -64,7 +64,7 @@ Item {
             property: "width"
             from: root.direction === MinimizeAnimation.Direction.Hide ? root.target.width : position.width
             to: root.direction === MinimizeAnimation.Direction.Hide ? position.width : root.target.width
-            easing.type: root.direction === MinimizeAnimation.Direction.Hide ? Easing.OutExpo : Easing.InExpo
+            easing.type: Easing.OutExpo
             duration: root.duration
         }
         NumberAnimation {
@@ -72,14 +72,14 @@ Item {
             property: "height"
             from: root.direction === MinimizeAnimation.Direction.Hide ? root.target.height : position.height
             to: root.direction === MinimizeAnimation.Direction.Hide ? position.height : root.target.height
-            easing.type: root.direction === MinimizeAnimation.Direction.Hide ? Easing.OutExpo : Easing.InExpo
+            easing.type: Easing.OutExpo
             duration: root.duration
         }
         OpacityAnimator {
             target: effect
             from: root.direction === MinimizeAnimation.Direction.Hide ? 1 : 0
             to: root.direction === MinimizeAnimation.Direction.Hide ? 0 : 1
-            easing.type: root.direction === MinimizeAnimation.Direction.Hide ? Easing.OutExpo : Easing.InExpo
+            easing.type: Easing.OutExpo
             duration: root.duration
         }
         RotationAnimator {
@@ -87,6 +87,7 @@ Item {
             from: root.direction === MinimizeAnimation.Direction.Hide ? 0 : -30;
             to: root.direction === MinimizeAnimation.Direction.Hide ? -30 : 0;
             direction: root.direction === MinimizeAnimation.Direction.Hide ? RotationAnimator.Counterclockwise : RotationAnimator.Clockwise
+            easing.type: Easing.OutExpo
             duration: root.duration
         }
     }
