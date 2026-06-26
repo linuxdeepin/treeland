@@ -6,6 +6,8 @@
 #include "wxwaylandsurface.h"
 #include "wxwayland.h"
 
+#include <qwcompositor.h>
+
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -34,8 +36,21 @@ void WXWaylandSurfaceItemPrivate::configureSurface(const QRect &newGeometry)
     Q_Q(WXWaylandSurfaceItem);
     if (!q->isVisible())
         return;
+
+    const QSizeF oldContentSize = contentContainer ? contentContainer->size() : QSizeF();
     q->xwaylandSurface()->configure(newGeometry);
     q->updateSurfaceState();
+
+    if (!contentContainer || !surfaceState)
+        return;
+
+    const QSizeF newContentSize = surfaceState->contentSize;
+    if (oldContentSize != newContentSize) {
+        contentContainer->setSize(newContentSize);
+        if (surface)
+            beforeRequestResizeSurfaceStateSeq = surface->handle()->handle()->pending.seq;
+    }
+    updateContentPosition();
 }
 
 QSize WXWaylandSurfaceItemPrivate::expectSurfaceSize() const
@@ -183,6 +198,12 @@ QPointF WXWaylandSurfaceItem::implicitPosition() const
     const qreal ssr = d->surfaceSizeRatio;
 
     return QPointF(epos) / ssr - QPointF(leftPadding(), topPadding());
+}
+
+void WXWaylandSurfaceItem::configureSurfaceGeometry(const QRect &geometry)
+{
+    Q_D(WXWaylandSurfaceItem);
+    d->configureSurface(geometry);
 }
 
 

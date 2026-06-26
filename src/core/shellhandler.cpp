@@ -31,6 +31,7 @@
 #include <wlayersurface.h>
 #include <woutputrenderwindow.h>
 #include <wserver.h>
+#include <wseat.h>
 #include <wxdgpopupsurface.h>
 #include <wxdgshell.h>
 #include <wxdgtoplevelsurface.h>
@@ -54,6 +55,16 @@ QW_USE_NAMESPACE
 WAYLIB_SERVER_USE_NAMESPACE
 
 #define TREELAND_XDG_SHELL_VERSION 5
+
+namespace {
+
+bool overrideRedirectWantsKeyboardFocus(WXWaylandSurface *surface)
+{
+    return surface && !surface->isInvalidated() && surface->handle() && surface->isBypassManager()
+        && surface->hasCapability(WToplevelSurface::Capability::Focus);
+}
+
+} // namespace
 
 ShellHandler::ShellHandler(RootSurfaceContainer *rootContainer, WServer *server)
     : m_rootSurfaceContainer(rootContainer)
@@ -91,32 +102,43 @@ ShellHandler::ShellHandler(RootSurfaceContainer *rootContainer, WServer *server)
 
 void ShellHandler::updateWrapperContainer(SurfaceWrapper *wrapper, WSurface *parentSurface)
 {
+    if (!wrapper)
+        return;
+
+    if (!wrapper->shellSurface() || !wrapper->surface())
+        return;
+
     if (wrapper->parentSurface())
         wrapper->parentSurface()->removeSubSurface(wrapper);
 
     auto oldContainer = wrapper->container();
+    SurfaceWrapper *parentWrapper = nullptr;
+    SurfaceContainer *parentContainer = nullptr;
     if (parentSurface) {
-        auto parentWrapper = m_rootSurfaceContainer->getSurface(parentSurface);
-        auto parentContainer = qobject_cast<SurfaceContainer *>(parentWrapper->container());
-        parentWrapper->addSubSurface(wrapper);
-        if (oldContainer != parentContainer) {
-            if (oldContainer)
-                oldContainer->removeSurface(wrapper);
-            if (auto ws = qobject_cast<Workspace *>(parentContainer))
-                ws->addSurface(wrapper, parentWrapper->workspaceId());
-            else
-                parentContainer->addSurface(wrapper);
-        }
-    } else {
-        if (oldContainer) {
-            if (qobject_cast<Workspace *>(oldContainer) == nullptr) {
-                oldContainer->removeSurface(wrapper);
-                m_workspace->addSurface(wrapper);
+        parentWrapper = m_rootSurfaceContainer->getSurface(parentSurface);
+        parentContainer = parentWrapper ? parentWrapper->container() : nullptr;
+        if (parentWrapper && parentWrapper != wrapper && parentContainer) {
+            parentWrapper->addSubSurface(wrapper);
+            if (oldContainer != parentContainer) {
+                if (oldContainer)
+                    oldContainer->removeSurface(wrapper);
+                if (auto ws = qobject_cast<Workspace *>(parentContainer))
+                    ws->addSurface(wrapper, parentWrapper->workspaceId());
+                else
+                    parentContainer->addSurface(wrapper);
             }
-            // else do nothing, already in workspace
-        } else {
+            return;
+        }
+    }
+
+    if (oldContainer) {
+        if (qobject_cast<Workspace *>(oldContainer) == nullptr) {
+            oldContainer->removeSurface(wrapper);
             m_workspace->addSurface(wrapper);
         }
+        // else do nothing, already in workspace
+    } else {
+        m_workspace->addSurface(wrapper);
     }
 }
 
@@ -578,6 +600,21 @@ void ShellHandler::onXdgPopupSurfaceRemoved(WXdgPopupSurface *surface)
 
 void ShellHandler::onXWaylandSurfaceAdded(WXWaylandSurface *surface)
 {
+    connect(surface, &QObject::destroyed, this, [this, surface] {
+        m_pendingXWaylandOverrideRedirectFocuses.remove(surface);
+    });
+
+    surface->safeConnect(&WXWaylandSurface::focusIn,
+                         this,
+                         [this, surface = QPointer<WXWaylandSurface>(surface)] {
+                             handleXWaylandOverrideRedirectFocus(surface.data());
+                         });
+    surface->safeConnect(&WXWaylandSurface::grabFocus,
+                         this,
+                         [this, surface = QPointer<WXWaylandSurface>(surface)] {
+                             handleXWaylandOverrideRedirectFocus(surface.data());
+                         });
+
     surface->safeConnect(&WXWaylandSurface::associated,
                          this,
                          [this, surface = QPointer<WXWaylandSurface>(surface)] {
@@ -625,6 +662,7 @@ void ShellHandler::onXWaylandSurfaceAdded(WXWaylandSurface *surface)
     surface->safeConnect(&WXWaylandSurface::aboutToDissociate, this, [this, surface] {
         auto wrapper = m_rootSurfaceContainer->getSurface(surface);
         qCDebug(lcTlShell) << "WXWayland::aboutToDissociate" << surface << wrapper;
+        m_pendingXWaylandOverrideRedirectFocuses.remove(surface);
 
         // Cancel pending async property fetch for this surface.
         auto *xwayland = surface->xwayland();
@@ -641,6 +679,27 @@ void ShellHandler::onXWaylandSurfaceAdded(WXWaylandSurface *surface)
             }
             return; // never created
         }
+        if (surface->isBypassManager()) {
+            auto *seatContainer = m_rootSurfaceContainer->getSeatContainerOrDefault(nullptr);
+            if (seatContainer && seatContainer->keyboardFocusSurface() == wrapper) {
+                auto isKeyboardFocusable = [](SurfaceWrapper *candidate) {
+                    return candidate && candidate->surface() && candidate->surface()->mapped()
+                        && candidate->hasCapability(WToplevelSurface::Capability::Focus)
+                        && candidate->acceptKeyboardFocus();
+                };
+
+                auto *fallback = m_rootSurfaceContainer->getSurface(surface->parentSurface());
+                if (!isKeyboardFocusable(fallback)) {
+                    fallback = m_workspace && m_workspace->current()
+                        ? m_workspace->current()->latestActiveSurface()
+                        : nullptr;
+                }
+                if (fallback == wrapper || !isKeyboardFocusable(fallback))
+                    fallback = nullptr;
+
+                seatContainer->setKeyboardFocusSurface(fallback);
+            }
+        }
         // Persist XWayland window size
         if (m_windowConfigStore && !wrapper->appId().isEmpty()) {
             QSizeF sz = wrapper->normalGeometry().size();
@@ -655,6 +714,101 @@ void ShellHandler::onXWaylandSurfaceAdded(WXWaylandSurface *surface)
         Q_EMIT surfaceWrapperAboutToRemove(wrapper);
         m_rootSurfaceContainer->destroyForSurface(wrapper);
     });
+}
+
+void ShellHandler::handleXWaylandOverrideRedirectFocus(WXWaylandSurface *surface)
+{
+    if (!surface)
+        return;
+
+    if (!surface->isBypassManager())
+        return;
+
+    auto *wrapper = m_rootSurfaceContainer->getSurface(surface);
+    auto *waylandSurface = surface->surface();
+    const bool surfaceMapped = waylandSurface && waylandSurface->mapped();
+    const bool wantsKeyboardFocus = overrideRedirectWantsKeyboardFocus(surface);
+
+    if (!wantsKeyboardFocus) {
+        m_pendingXWaylandOverrideRedirectFocuses.remove(surface);
+        qCDebug(lcTlXwayland)
+            << "XWayland override-redirect focus ignored because wlroots reports it should not take keyboard focus"
+            << "surface" << surface
+            << "windowTypes" << surface->windowTypes().toInt();
+        return;
+    }
+
+    if (!surfaceMapped) {
+        m_pendingXWaylandOverrideRedirectFocuses.insert(surface);
+        qCDebug(lcTlXwayland)
+            << "XWayland override-redirect focus deferred"
+            << "surface" << surface;
+        return;
+    }
+
+    focusXWaylandOverrideRedirectSurface(surface, wrapper);
+}
+
+void ShellHandler::applyPendingXWaylandOverrideRedirectFocus(WXWaylandSurface *surface,
+                                                             SurfaceWrapper *wrapper)
+{
+    if (!m_pendingXWaylandOverrideRedirectFocuses.contains(surface))
+        return;
+
+    if (!surface || !surface->isBypassManager()) {
+        m_pendingXWaylandOverrideRedirectFocuses.remove(surface);
+        return;
+    }
+
+    if (!overrideRedirectWantsKeyboardFocus(surface)) {
+        qCDebug(lcTlXwayland)
+            << "XWayland pending override-redirect focus dropped because wlroots reports it should not take keyboard focus"
+            << "surface" << surface
+            << "windowTypes" << surface->windowTypes().toInt();
+        m_pendingXWaylandOverrideRedirectFocuses.remove(surface);
+        return;
+    }
+
+    auto *waylandSurface = surface->surface();
+    if (!waylandSurface || !waylandSurface->mapped())
+        return;
+
+    m_pendingXWaylandOverrideRedirectFocuses.remove(surface);
+
+    qCDebug(lcTlXwayland)
+        << "XWayland applying deferred override-redirect focus"
+        << "surface" << surface;
+
+    focusXWaylandOverrideRedirectSurface(surface, wrapper);
+}
+
+void ShellHandler::focusXWaylandOverrideRedirectSurface(WXWaylandSurface *surface,
+                                                        SurfaceWrapper *wrapper)
+{
+    if (!surface || !surface->isBypassManager() || !surface->surface()
+        || !surface->surface()->mapped()) {
+        return;
+    }
+
+    if (!overrideRedirectWantsKeyboardFocus(surface)) {
+        m_pendingXWaylandOverrideRedirectFocuses.remove(surface);
+        qCDebug(lcTlXwayland)
+            << "XWayland override-redirect keyboard focus skipped because wlroots reports it should not take keyboard focus"
+            << "surface" << surface
+            << "windowTypes" << surface->windowTypes().toInt();
+        return;
+    }
+
+    auto *targetWrapper = wrapper ? wrapper : m_rootSurfaceContainer->getSurface(surface);
+    if (auto *seatContainer = m_rootSurfaceContainer->getSeatContainerOrDefault(nullptr);
+        seatContainer && targetWrapper) {
+        seatContainer->setKeyboardFocusSurface(targetWrapper);
+        return;
+    }
+
+    if (auto *seat = m_rootSurfaceContainer->getDefaultSeat()) {
+        seat->setKeyboardFocusSurface(surface->surface());
+    }
 }
 
 void ShellHandler::fetchInitialProperties(WXWaylandSurface *surface, const QString &appId)
@@ -749,11 +903,34 @@ void ShellHandler::ensureXwaylandWrapper(WXWaylandSurface *surface, const QStrin
     }
 
     // Initialize wrapper
-    auto updateSurfaceWithParentContainer = [this, wrapper, surface] {
-        updateWrapperContainer(wrapper, surface->parentSurface());
+    auto updateSurfaceWithParentContainer =
+        [self = QPointer<ShellHandler>(this),
+         wrapper = QPointer<SurfaceWrapper>(wrapper),
+         surface = QPointer<WXWaylandSurface>(surface)] {
+        auto *handler = self.data();
+        auto *wrapperPtr = wrapper.data();
+        auto *surfacePtr = surface.data();
+        if (!handler || !wrapperPtr || !surfacePtr)
+            return;
+
+        if (wrapperPtr->shellSurface() != surfacePtr) {
+            return;
+        }
+
+        if (!surfacePtr->surface()) {
+            return;
+        }
+
+        auto parentXWaylandSurface = surfacePtr->parentXWaylandSurface();
+        auto parentSurface = surfacePtr->parentSurface();
+        if (parentXWaylandSurface && !parentSurface) {
+            return;
+        }
+
+        handler->updateWrapperContainer(wrapperPtr, parentSurface);
     };
     surface->safeConnect(&WXWaylandSurface::parentSurfaceChanged,
-                         this,
+                         wrapper,
                          updateSurfaceWithParentContainer);
     updateSurfaceWithParentContainer();
     Q_ASSERT(wrapper->parentItem());
@@ -763,6 +940,43 @@ void ShellHandler::ensureXwaylandWrapper(WXWaylandSurface *surface, const QStrin
     if (isNewWrapper) {
         setupSurfaceActiveWatcher(wrapper);
         registerSurfaceToForeignToplevel(wrapper);
+    }
+    if (isNewWrapper && wrapper->surface()) {
+        auto *seat = m_rootSurfaceContainer->getDefaultSeat();
+        auto *seatContainer = seat ? m_rootSurfaceContainer->getSeatContainer(seat) : nullptr;
+        const bool canSyncPreWrapperKeyboardFocus =
+            !surface->isBypassManager() || overrideRedirectWantsKeyboardFocus(surface);
+        if (seat && seatContainer && canSyncPreWrapperKeyboardFocus
+            && seat->keyboardFocusSurface() == wrapper->surface()
+            && seatContainer->keyboardFocusSurface() != wrapper) {
+            seatContainer->setKeyboardFocusSurface(wrapper);
+        } else if (!canSyncPreWrapperKeyboardFocus && seat
+                   && seat->keyboardFocusSurface() == wrapper->surface()) {
+            qCDebug(lcTlXwayland)
+                << "XWayland pre-wrapper keyboard focus sync skipped because wlroots reports it should not take keyboard focus"
+                << "surface" << surface
+                << "windowTypes" << surface->windowTypes().toInt();
+        }
+        wrapper->surface()->safeConnect(&WSurface::mappedChanged,
+                                        wrapper,
+                                        [this,
+                                         surface = QPointer<WXWaylandSurface>(surface),
+                                         wrapper = QPointer<SurfaceWrapper>(wrapper)] {
+                                            auto *surfacePtr = surface.data();
+                                            auto *wrapperPtr = wrapper.data();
+                                            if (!surfacePtr || !wrapperPtr || !surfacePtr->surface()
+                                                || !surfacePtr->surface()->mapped()) {
+                                                return;
+                                            }
+                                            applyPendingXWaylandOverrideRedirectFocus(surfacePtr,
+                                                                                     wrapperPtr);
+                                        });
+    }
+    if (isNewWrapper && wrapper->surface() && wrapper->surface()->mapped()) {
+        wrapper->onMappedChanged();
+    }
+    if (wrapper->surface() && wrapper->surface()->mapped()) {
+        applyPendingXWaylandOverrideRedirectFocus(surface, wrapper);
     }
     Q_EMIT surfaceWrapperAdded(wrapper);
 }

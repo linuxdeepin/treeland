@@ -15,7 +15,9 @@
 #include <qwcompositor.h>
 #include <qwxwaylandsurface.h>
 
+#include <QMetaObject>
 #include <QPointer>
+#include <QRect>
 
 #include <unistd.h>
 
@@ -71,6 +73,7 @@ public:
 
     QList<WXWaylandSurface*> children;
     QPointer<WXWaylandSurface> parent;
+    QMetaObject::Connection parentSurfaceChangedConnection;
     QRect lastRequestConfigureGeometry;
     WXWaylandSurface::ConfigureFlags lastRequestConfigureFlags = {0};
     WXWaylandSurface::WindowTypes windowTypes = {0};
@@ -87,6 +90,8 @@ void WXWaylandSurfacePrivate::instantRelease()
     W_Q(WXWaylandSurface);
     handle()->set_data(nullptr, nullptr);
     handle()->disconnect(q);
+    QObject::disconnect(parentSurfaceChangedConnection);
+    parentSurfaceChangedConnection = {};
 
     if (!surface)
         return;
@@ -117,6 +122,12 @@ void WXWaylandSurfacePrivate::init()
         updateParent();
     });
     QObject::connect(handle(), &qw_xwayland_surface::notify_request_activate, q, &WXWaylandSurface::requestActivate);
+    QObject::connect(handle(), &qw_xwayland_surface::notify_focus_in, q, [q] {
+        Q_EMIT q->focusIn();
+    });
+    QObject::connect(handle(), &qw_xwayland_surface::notify_grab_focus, q, [q] {
+        Q_EMIT q->grabFocus();
+    });
     QObject::connect(handle(), &qw_xwayland_surface::notify_request_configure,
                      q, [this, q] (wlr_xwayland_surface_configure_event *event) {
         lastRequestConfigureGeometry = QRect(event->x, event->y, event->width, event->height);
@@ -239,17 +250,29 @@ void WXWaylandSurfacePrivate::updateParent()
     if (parent == newParent)
         return;
 
+    W_Q(WXWaylandSurface);
+
+    const auto oldParentSurface = parent ? parent->surface() : nullptr;
     const bool hasParentChanged = (parent == nullptr) != (newParent == nullptr);
     // QPointer handles destroyed wrappers; isInvalidated() prevents accessing destroyed wlroots objects.
     if (parent && !parent->isInvalidated())
         parent->d_func()->updateChildren();
+    QObject::disconnect(parentSurfaceChangedConnection);
+    parentSurfaceChangedConnection = {};
     parent = newParent;
-    if (parent)
+    if (parent) {
         parent->d_func()->updateChildren();
+        parentSurfaceChangedConnection = QObject::connect(parent,
+                                                          &WToplevelSurface::surfaceChanged,
+                                                          q,
+                                                          &WToplevelSurface::parentSurfaceChanged);
+    }
 
-    W_Q(WXWaylandSurface);
+    const auto newParentSurface = parent ? parent->surface() : nullptr;
 
     Q_EMIT q->parentXWaylandSurfaceChanged();
+    if (oldParentSurface != newParentSurface)
+        Q_EMIT q->parentSurfaceChanged();
 
     if (hasParentChanged)
         Q_EMIT q->isToplevelChanged();
@@ -338,6 +361,12 @@ WSurface *WXWaylandSurface::surface() const
     W_DC(WXWaylandSurface);
 
     return d->surface;
+}
+
+WSurface *WXWaylandSurface::parentSurface() const
+{
+    auto parent = parentXWaylandSurface();
+    return parent ? parent->surface() : nullptr;
 }
 
 qw_xwayland_surface *WXWaylandSurface::handle() const

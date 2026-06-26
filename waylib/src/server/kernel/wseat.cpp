@@ -132,6 +132,117 @@ public:
         return nativeHandle()->keyboard_state.focused_surface;
     }
 
+    inline bool pointerButtonsPressed() const {
+        return nativeHandle()->pointer_state.button_count > 0;
+    }
+
+    inline wlr_surface *nativeSurfaceFor(WSurface *surface) const {
+        return surface && surface->handle() ? surface->handle()->handle() : nullptr;
+    }
+
+    inline bool shouldDeferPointerFocusChange(wlr_surface *nextFocus) const {
+        return pointerButtonsPressed()
+            && !handle()->pointer_has_grab()
+            && pointerFocusSurface() != nextFocus;
+    }
+
+    inline bool shouldDeferPointerEnter(WSurface *surface) const {
+        return shouldDeferPointerFocusChange(nativeSurfaceFor(surface));
+    }
+
+    inline bool shouldDeferPointerClear() const {
+        return shouldDeferPointerFocusChange(nullptr);
+    }
+
+    inline void clearDeferredPointerFocus() {
+        pendingPointerEnter = false;
+        pendingPointerClear = false;
+        pendingPointerEnterHadEventObject = false;
+        pendingPointerEnterSurface = nullptr;
+        pendingPointerEnterEventObject = nullptr;
+        pendingPointerEnterPosition = QPointF();
+    }
+
+    inline void deferPointerEnter(WSurface *surface, QObject *eventObject, const QPointF &position) {
+        pendingPointerEnter = true;
+        pendingPointerClear = false;
+        pendingPointerEnterHadEventObject = eventObject != nullptr;
+        pendingPointerEnterSurface = surface;
+        pendingPointerEnterEventObject = eventObject;
+        pendingPointerEnterPosition = position;
+
+        qCDebug(lcWlPointer)
+            << "Seat pointer enter deferred until buttons are released"
+            << "target" << surface
+            << "currentPointerFocus" << pointerFocusSurface()
+            << "buttonCount" << nativeHandle()->pointer_state.button_count;
+    }
+
+    inline void deferPointerClear() {
+        if (!pendingPointerEnter)
+            pendingPointerClear = true;
+
+        qCDebug(lcWlPointer)
+            << "Seat pointer clear deferred until buttons are released"
+            << "currentPointerFocus" << pointerFocusSurface()
+            << "hasPendingEnter" << pendingPointerEnter
+            << "buttonCount" << nativeHandle()->pointer_state.button_count;
+    }
+
+    inline void applyDeferredPointerFocus(uint32_t timestamp) {
+        if (!pendingPointerEnter && !pendingPointerClear)
+            return;
+
+        if (pointerButtonsPressed())
+            return;
+
+        if (handle()->pointer_has_grab()) {
+            qCDebug(lcWlPointer)
+                << "Seat deferred pointer focus dropped because wlroots grab is active"
+                << "buttonCount" << nativeHandle()->pointer_state.button_count
+                << "pointerFocus" << pointerFocusSurface();
+            clearDeferredPointerFocus();
+            return;
+        }
+
+        const bool applyEnter = pendingPointerEnter;
+        const bool applyClear = pendingPointerClear;
+        QPointer<WSurface> surface = pendingPointerEnterSurface;
+        QPointer<QObject> eventObject = pendingPointerEnterEventObject;
+        const bool hadEventObject = pendingPointerEnterHadEventObject;
+        const QPointF position = pendingPointerEnterPosition;
+        clearDeferredPointerFocus();
+
+        if (applyEnter) {
+            if (!surface || !surface->mapped() || !surface->handle()
+                    || (hadEventObject && !eventObject)) {
+                qCDebug(lcWlPointer)
+                    << "Seat deferred pointer enter dropped because target is no longer valid"
+                    << "target" << surface.data()
+                    << "hadEventObject" << hadEventObject;
+                return;
+            }
+
+            qCDebug(lcWlPointer)
+                << "Seat deferred pointer enter applying"
+                << "target" << surface.data()
+                << "timestamp" << timestamp
+                << "currentPointerFocus" << pointerFocusSurface();
+
+            if (doEnter(surface.data(), eventObject.data(), position))
+                doNotifyMotion(surface.data(), eventObject.data(), position, timestamp);
+            return;
+        }
+
+        if (applyClear && pointerFocusSurface()) {
+            qCDebug(lcWlPointer)
+                << "Seat deferred pointer clear applying"
+                << "timestamp" << timestamp
+                << "currentPointerFocus" << pointerFocusSurface();
+            doClearPointerFocus();
+        }
+    }
+
     inline bool doNotifyMotion(WSurface *target, QObject *eventObject, QPointF localPos, uint32_t timestamp) {
         if (target) {
             if (pointerFocusSurface()) {
@@ -150,6 +261,8 @@ public:
     }
     inline bool doNotifyButton(uint32_t button, wl_pointer_button_state state, uint32_t timestamp) {
         handle()->pointer_notify_button(timestamp, button, state);
+        if (state == WL_POINTER_BUTTON_STATE_RELEASED)
+            applyDeferredPointerFocus(timestamp);
         return true;
     }
     static inline wl_pointer_axis fromQtHorizontal(Qt::Orientation o) {
@@ -170,12 +283,19 @@ public:
         handle()->pointer_notify_frame();
     }
     inline bool doEnter(WSurface *surface, QObject *eventObject, const QPointF &position) {
+        if (shouldDeferPointerEnter(surface)) {
+            deferPointerEnter(surface, eventObject, position);
+            return true;
+        }
+
         // doEnter be called from QEvent::HoverEnter is normal,
         // but doNotifyMotion will call doEnter too,
         // so should compare pointerFocusEventObject and eventObject early
         if (pointerFocusEventObject == eventObject) {
+            clearDeferredPointerFocus();
             return true;
         }
+        clearDeferredPointerFocus();
         auto tmp = oldPointerFocusSurface;
         oldPointerFocusSurface = handle()->handle()->pointer_state.focused_surface;
         handle()->pointer_notify_enter(surface->handle()->handle(), position.x(), position.y());
@@ -205,6 +325,7 @@ public:
         return true;
     }
     inline void doClearPointerFocus() {
+        clearDeferredPointerFocus();
         pointerFocusEventObject.clear();
         handle()->pointer_notify_clear_focus();
         Q_ASSERT(!handle()->handle()->pointer_state.focused_surface);
@@ -367,6 +488,13 @@ public:
     QPointer<WSurface> m_keyboardFocusSurface;
     QMetaObject::Connection onEventObjectDestroy;
     wlr_surface *oldPointerFocusSurface = nullptr;
+
+    bool pendingPointerEnter = false;
+    bool pendingPointerClear = false;
+    bool pendingPointerEnterHadEventObject = false;
+    QPointer<WSurface> pendingPointerEnterSurface;
+    QPointer<QObject> pendingPointerEnterEventObject;
+    QPointF pendingPointerEnterPosition;
 
     bool gestureActive = false;
     int gestureFingers = 0;
@@ -903,6 +1031,10 @@ bool WSeat::sendEvent(WSurface *target, QObject *shellObject, QObject *eventObje
             break;
         auto nativeTarget = target->handle()->handle();
         Q_ASSERT(!currentFocus || d->oldPointerFocusSurface == nativeTarget || currentFocus == nativeTarget);
+        if (d->shouldDeferPointerClear()) {
+            d->deferPointerClear();
+            break;
+        }
         d->doClearPointerFocus();
         break;
     }
@@ -926,8 +1058,11 @@ bool WSeat::sendEvent(WSurface *target, QObject *shellObject, QObject *eventObje
         if (d->pointerFocusEventObject) {
             // received HoverEnter event of next eventObject before HoverLeave event of last eventObject,
             // so we should check the eventObject is still the same, if not, we should ignore this event
-            if (d->pointerFocusEventObject != eventObject)
+            if (d->pointerFocusEventObject != eventObject) {
+                if (d->shouldDeferPointerEnter(target))
+                    d->deferPointerEnter(target, eventObject, e->position());
                 break;
+            }
         }
         d->doNotifyMotion(target, eventObject, e->position(), e->timestamp());
         break;

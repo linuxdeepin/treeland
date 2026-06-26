@@ -7,6 +7,7 @@
 #include <wsurfaceitem.h>
 
 #include <QQmlEngine>
+#include <QRect>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -37,6 +38,8 @@ public:
 
     void moveTo(const QPointF &pos, bool configSurface);
     QPointF implicitPosition() const;
+    // Applies compositor-accepted X11 geometry and refreshes item state immediately.
+    void configureSurfaceGeometry(const QRect &geometry);
 
 Q_SIGNALS:
     void implicitPositionChanged();

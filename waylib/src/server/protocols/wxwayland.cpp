@@ -20,6 +20,7 @@
 #include <qwxwaylandsurface.h>
 
 #include <QCoreApplication>
+#include <QMetaEnum>
 #include <QTimer>
 
 #include <utility>

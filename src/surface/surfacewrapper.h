@@ -436,7 +436,7 @@ private:
     Type m_type;
     QPointer<Output> m_ownsOutput;
     QPointF m_positionInOwnsOutput;
-    SurfaceWrapper::State m_pendingState;
+    SurfaceWrapper::State m_pendingState = State::Normal;
     QRectF m_pendingGeometry;
     QPointer<QQuickItem> m_windowAnimation;
     QPointer<QQuickItem> m_minimizeAnimation;
@@ -488,6 +488,7 @@ private:
     bool m_socketEnabled{ false };
     bool m_windowAnimationEnabled{ true };
     bool m_acceptKeyboardFocus{ true };
+    bool m_applyingXwaylandConfigureRequestSize{ false };
     const QString m_appId;
 };
 

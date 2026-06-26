@@ -11,7 +11,7 @@
 
 #include <qwglobal.h>
 
-#include <QHash>
+#include <QByteArray>
 #include <QList>
 #include <QMap>
 #include <QObject>
@@ -168,6 +168,11 @@ private:
     void onInitialPropertiesReady(WAYLIB_SERVER_NAMESPACE::WXWaylandSurface *surface,
                                   const QString &appId,
                                   const QMap<xcb_atom_t, QByteArray> &result);
+    void handleXWaylandOverrideRedirectFocus(WAYLIB_SERVER_NAMESPACE::WXWaylandSurface *surface);
+    void applyPendingXWaylandOverrideRedirectFocus(WAYLIB_SERVER_NAMESPACE::WXWaylandSurface *surface,
+                                                   SurfaceWrapper *wrapper);
+    void focusXWaylandOverrideRedirectSurface(WAYLIB_SERVER_NAMESPACE::WXWaylandSurface *surface,
+                                              SurfaceWrapper *wrapper);
 
     WAYLIB_SERVER_NAMESPACE::WXdgShell *m_xdgShell = nullptr;
     WAYLIB_SERVER_NAMESPACE::WLayerShell *m_layerShell = nullptr;
@@ -201,6 +206,7 @@ private:
     // Pending toplevel surfaces (XDG or XWayland) awaiting async AppId resolve; callbacks continue
     // only if the pointer remains in this list
     QList<WAYLIB_SERVER_NAMESPACE::WToplevelSurface *> m_pendingAppIdResolveToplevels;
+    QSet<WAYLIB_SERVER_NAMESPACE::WXWaylandSurface *> m_pendingXWaylandOverrideRedirectFocuses;
     // New protocol based app id resolver (optional, may be null if module not loaded)
     AppIdResolverManager *m_appIdResolverManager = nullptr;
     WindowConfigStore *m_windowConfigStore = nullptr;
