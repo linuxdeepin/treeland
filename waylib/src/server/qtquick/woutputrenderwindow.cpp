@@ -138,8 +138,11 @@ public:
 
         }
         ~LayerData() {
-            if (renderer)
+            if (renderer) {
+                QObject::disconnect(rendererConnection);
                 renderer->deleteLater();
+            }
+
             if (wlrLayer) {
                 delete wlrLayer;
                 wlrLayer = nullptr;
@@ -149,6 +152,7 @@ public:
         OutputLayer *layer;
         QPointer<qw_output_layer> wlrLayer;
         QPointer<WBufferRenderer> renderer;
+        QMetaObject::Connection rendererConnection;
 
         // dirty state
         uint contentsIsDirty:1;
@@ -638,7 +642,7 @@ qw_buffer *OutputHelper::renderLayer(LayerData *layer, bool *dontEndRenderAndRet
         // for the new WBufferRenderer and createVisualRectangle
         renderWindowD()->updateDirtyNodes();
 
-        connect(layer->renderer, &WBufferRenderer::sceneGraphChanged, this, [layer] {
+        layer->rendererConnection = connect(layer->renderer, &WBufferRenderer::sceneGraphChanged, this, [layer] {
             layer->contentsIsDirty = true;
         });
     }
