@@ -209,7 +209,7 @@ public:
     wlr_surface *surface = nullptr;
 
     int32_t backgroundType = 0;
-    int32_t cornerRadius = 0;
+    int32_t cornerRadius = -1;
     Shadow shadow;
     Border border;
     PersonalizationWindowContextV1::WindowStates states;

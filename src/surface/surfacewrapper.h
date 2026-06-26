@@ -453,7 +453,7 @@ private:
                                          &SurfaceWrapper::surfaceStateChanged)
     int m_workspaceId = -1;
     int m_explicitAlwaysOnTop = 0;
-    qreal m_radius = 0.0;
+    qreal m_radius = -1.0;
     QRect m_iconGeometry;
     ActiveControlStates m_hasActiveCapability = ActiveControlState::UnMinimized;
 
