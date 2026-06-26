@@ -53,6 +53,15 @@
 QW_USE_NAMESPACE
 WAYLIB_SERVER_USE_NAMESPACE
 
+namespace {
+bool appIdCaseInsensitiveMatch(const QString &splashAppId, const QString &appId)
+{
+    if (splashAppId.isEmpty() || appId.isEmpty())
+        return false;
+    return splashAppId.compare(appId, Qt::CaseInsensitive) == 0;
+}
+} // anonymous namespace
+
 #define TREELAND_XDG_SHELL_VERSION 5
 
 ShellHandler::ShellHandler(RootSurfaceContainer *rootContainer, WServer *server)
@@ -432,6 +441,72 @@ void ShellHandler::onXdgToplevelSurfaceAdded(WXdgToplevelSurface *surface)
     ensureXdgWrapper(surface, QString());
 }
 
+
+SurfaceWrapper *ShellHandler::matchPrelaunchWrapper(const QString &surfaceAppId,
+                                                     const QString &effectiveAppId)
+{
+    if (!m_prelaunchWrappers.isEmpty() && !effectiveAppId.isEmpty()) {
+        m_pendingPrelaunchAppIds.remove(effectiveAppId);
+    }
+
+    // Level 1: Exact match
+    for (int i = 0; i < m_prelaunchWrappers.size(); ++i) {
+        auto *candidate = m_prelaunchWrappers[i];
+        if (candidate->appId() == effectiveAppId) {
+            qCDebug(lcTlShell) << "match prelaunch exact" << effectiveAppId;
+            m_prelaunchWrappers.removeAt(i);
+            return candidate;
+        }
+    }
+
+    // Level 2: Case-insensitive match
+    for (int i = 0; i < m_prelaunchWrappers.size(); ++i) {
+        auto *candidate = m_prelaunchWrappers[i];
+        if (appIdCaseInsensitiveMatch(candidate->appId(), effectiveAppId)) {
+            qCDebug(lcTlShell) << "match prelaunch case-insensitive"
+                               << candidate->appId() << effectiveAppId;
+            m_prelaunchWrappers.removeAt(i);
+            return candidate;
+        }
+    }
+
+    // Level 3: Fallback using surface's own appId
+    if (!surfaceAppId.isEmpty()) {
+        // Exact match with surface appId
+        for (int i = 0; i < m_prelaunchWrappers.size(); ++i) {
+            auto *candidate = m_prelaunchWrappers[i];
+            if (candidate->appId() == surfaceAppId) {
+                qCDebug(lcTlShell) << "match prelaunch fallback exact" << surfaceAppId;
+                m_prelaunchWrappers.removeAt(i);
+                return candidate;
+            }
+        }
+        // Case-insensitive match with surface appId
+        for (int i = 0; i < m_prelaunchWrappers.size(); ++i) {
+            auto *candidate = m_prelaunchWrappers[i];
+            if (appIdCaseInsensitiveMatch(candidate->appId(), surfaceAppId)) {
+                qCDebug(lcTlShell) << "match prelaunch fallback case-insensitive"
+                                   << candidate->appId() << surfaceAppId;
+                m_prelaunchWrappers.removeAt(i);
+                return candidate;
+            }
+        }
+    }
+
+    // Diagnostic log on match failure
+    if (!m_prelaunchWrappers.isEmpty()) {
+        QStringList splashAppIds;
+        for (const auto *w : m_prelaunchWrappers)
+            splashAppIds << w->appId();
+        qCDebug(lcTlShell) << "appId matching failed"
+                           << "targetAppId=" << effectiveAppId
+                           << "surfaceAppId=" << surfaceAppId
+                           << "splashAppIds=" << splashAppIds.join(",");
+    }
+
+    return nullptr;
+}
+
 void ShellHandler::ensureXdgWrapper(WXdgToplevelSurface *surface, const QString &targetAppId)
 {
     // Check if this matches a closed splash screen
@@ -445,20 +520,12 @@ void ShellHandler::ensureXdgWrapper(WXdgToplevelSurface *surface, const QString 
 
     SurfaceWrapper *wrapper = nullptr;
     bool isNewWrapper = true;
+    QString surfaceAppId = surface->appId();
 
-    if (!targetAppId.isEmpty()) {
-        m_pendingPrelaunchAppIds.remove(targetAppId);
-        for (int i = 0; i < m_prelaunchWrappers.size(); ++i) {
-            auto *candidate = m_prelaunchWrappers[i];
-            if (candidate->appId() == targetAppId) {
-                qCDebug(lcTlShell) << "match prelaunch xdg" << targetAppId;
-                m_prelaunchWrappers.removeAt(i);
-                candidate->convertToNormalSurface(surface, SurfaceWrapper::Type::XdgToplevel);
-                wrapper = candidate;
-                isNewWrapper = false; // matched from prelaunch, not newly created
-                break;
-            }
-        }
+    wrapper = matchPrelaunchWrapper(surfaceAppId, targetAppId);
+    if (wrapper) {
+        wrapper->convertToNormalSurface(surface, SurfaceWrapper::Type::XdgToplevel);
+        isNewWrapper = false;
     }
 
     if (!wrapper) {
@@ -716,20 +783,12 @@ void ShellHandler::ensureXwaylandWrapper(WXWaylandSurface *surface, const QStrin
 
     SurfaceWrapper *wrapper = nullptr;
     bool isNewWrapper = true;
+    QString surfaceAppId = surface->appId();
 
-    if (!targetAppId.isEmpty()) {
-        m_pendingPrelaunchAppIds.remove(targetAppId);
-        for (int i = 0; i < m_prelaunchWrappers.size(); ++i) {
-            auto *candidate = m_prelaunchWrappers[i];
-            if (candidate->appId() == targetAppId) {
-                qCDebug(lcTlShell) << "match prelaunch xwayland" << targetAppId;
-                m_prelaunchWrappers.removeAt(i);
-                candidate->convertToNormalSurface(surface, SurfaceWrapper::Type::XWayland);
-                wrapper = candidate;
-                isNewWrapper = false; // matched from prelaunch, not newly created
-                break;
-            }
-        }
+    wrapper = matchPrelaunchWrapper(surfaceAppId, targetAppId);
+    if (wrapper) {
+        wrapper->convertToNormalSurface(surface, SurfaceWrapper::Type::XWayland);
+        isNewWrapper = false;
     }
 
     if (!wrapper) {
