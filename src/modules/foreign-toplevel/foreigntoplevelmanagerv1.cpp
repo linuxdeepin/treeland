@@ -69,11 +69,6 @@ public:
     QList<ForeignToplevelHandleV1 *> handles;
 };
 
-struct dock_preview_surface_destroy_wrapper {
-    wl_listener listener;
-    DockPreviewContextV1Private *d;
-};
-
 struct foreign_toplevel_output {
     WOutput *output = nullptr;
     ForeignToplevelHandleV1 *toplevel = nullptr;
@@ -593,9 +588,7 @@ public:
 
     DockPreviewContextV1 *q = nullptr;
     QPointer<ForeignToplevelManagerInterfaceV1> manager;
-    wlr_surface *relativeSurface = nullptr;
-    QPointer<WSurface> relativeSurfaceObject;
-    dock_preview_surface_destroy_wrapper surfaceDestroyWrapper = {};
+    QPointer<WSurface> relativeSurface;
 
 protected:
     void destroy_resource(Resource *resource) override;
@@ -612,37 +605,16 @@ DockPreviewContextV1Private::DockPreviewContextV1Private(DockPreviewContextV1 *_
     : QtWaylandServer::treeland_dock_preview_context_v1(resource)
     , q(_q)
     , manager(_manager)
-    , relativeSurface(_relativeSurface)
-    , relativeSurfaceObject(WSurface::fromHandle(_relativeSurface))
+    , relativeSurface(WSurface::fromHandle(_relativeSurface))
 {
-    if (relativeSurface) {
-        surfaceDestroyWrapper.d = this;
-        surfaceDestroyWrapper.listener.notify = [](wl_listener *listener, void *) {
-            dock_preview_surface_destroy_wrapper *wrapper;
-            wrapper = wl_container_of(listener, wrapper, listener);
-            wl_list_remove(&wrapper->listener.link);
-            wl_list_init(&wrapper->listener.link);
-            if (wrapper->d->relativeSurfaceObject) {
-                wrapper->d->relativeSurfaceObject->setProperty(DockPreviewContextPropertyName, QVariant());
-                wrapper->d->relativeSurfaceObject = nullptr;
-            }
-            wrapper->d->relativeSurface = nullptr;
-            wl_resource_destroy(wrapper->d->resource()->handle);
-        };
-        wl_signal_add(&relativeSurface->events.destroy, &surfaceDestroyWrapper.listener);
-    }
 }
 
-DockPreviewContextV1Private::~DockPreviewContextV1Private()
-{
-    wl_list_remove(&surfaceDestroyWrapper.listener.link);
-}
+DockPreviewContextV1Private::~DockPreviewContextV1Private() = default;
 
 void DockPreviewContextV1Private::destroy_resource([[maybe_unused]] Resource *resource)
 {
-    if (relativeSurfaceObject) {
-        relativeSurfaceObject->setProperty(DockPreviewContextPropertyName, QVariant());
-        relativeSurfaceObject = nullptr;
+    if (relativeSurface) {
+        relativeSurface->setProperty(DockPreviewContextPropertyName, QVariant());
     }
     if (manager) {
         manager->releaseDockPreviewContext(q);
@@ -704,7 +676,7 @@ wl_resource *DockPreviewContextV1::resource() const
 
 WSurface *DockPreviewContextV1::relativeSurface() const
 {
-    return d->relativeSurfaceObject;
+    return d->relativeSurface;
 }
 
 void DockPreviewContextV1::enter()
