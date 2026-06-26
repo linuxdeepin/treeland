@@ -1,3 +1,23 @@
+treeland (0.8.13) unstable; urgency=medium
+
+  * fix(shortcut): avoid exiting task switch on partial modifier release
+  * fix(wallpaper): pause video playback after slowdown
+  * fix(output): avoid wrong rearrange on exclusive zone removal
+  * fix(xwayland): synchronize the primary output
+  * fix(waylib): prevent stale subsurface access
+  * fix(output): migrate surfaces when any non-last screen is removed
+  * fix: broadcast output state after applying config
+  * fix(workspace): implement addOutput to update surface ownsOutput
+    after VT switch
+  * fix(personalization): clean up stale Personalization on surface
+    teardown
+  * fix(wallpaper): show wallpaper for newly created workspace
+  * fix(multitaskview): properly handle surface unmapped and deduplicate
+    model data
+  * fix: improve surface wrapper handling and cleanup
+
+ -- rewine <luhongxu@deepin.org>  Fri, 26 Jun 2026 13:39:17 +0800
+
 treeland (0.8.12) unstable; urgency=medium
 
   * fix(taskswitch): fix window visibility issues and race condition in
