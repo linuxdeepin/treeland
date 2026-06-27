@@ -500,8 +500,10 @@ void WInputMethodHelper::handleActiveIMDestroyed()
 
 void WInputMethodHelper::notifyLeave()
 {
-    if (auto ti = focusedTextInput()) {
-        ti->sendLeave();
+    W_D(WInputMethodHelper);
+    for (auto *ti : std::as_const(d->textInputs)) {
+        if (ti->focusedSurface())
+            ti->sendLeave();
     }
 }
 
