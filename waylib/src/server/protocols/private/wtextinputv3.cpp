@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Yixue Wang <wangyixue@deepin.org>.
+// Copyright (C) 2023-2026 Yixue Wang <wangyixue@deepin.org>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wtextinputv3_p.h"
@@ -155,12 +155,24 @@ qw_text_input_v3 *WTextInputV3::handle() const
 
 void WTextInputV3::sendEnter(WSurface *surface)
 {
-    handle()->send_enter(surface->handle()->handle());
+    Q_ASSERT(surface);
+    if (!surface)
+        return;
+
+    auto *targetSurface = surface->handle()->handle();
+    auto *focusedSurface = handle()->handle()->focused_surface;
+    if (focusedSurface == targetSurface)
+        return;
+
+    if (focusedSurface)
+        handle()->send_leave();
+
+    handle()->send_enter(targetSurface);
 }
 
 void WTextInputV3::sendLeave()
 {
-    if (focusedSurface()) {
+    if (handle()->handle()->focused_surface) {
         handle()->send_leave();
     }
 }
