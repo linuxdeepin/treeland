@@ -135,6 +135,14 @@ void RootSurfaceContainer::addOutput(Output *output)
     // Register all outputs (including primary and proxy/copy) to ensure
     // LayerSurfaceContainer is initialized for every active display.
     SurfaceContainer::addOutput(output);
+
+    // Layer surfaces are re-entered by LayerSurfaceContainer::addOutput
+    // which calls setOutputs. Skip them here to avoid double re-enter.
+    for (auto s : std::as_const(surfaces())) {
+        if (s->type() == SurfaceWrapper::Type::Layer)
+            continue;
+        updateSurfaceOutputs(s);
+    }
 }
 
 void RootSurfaceContainer::removeOutput(Output *output)

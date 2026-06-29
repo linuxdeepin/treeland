@@ -90,13 +90,6 @@ int Workspace::getRightWorkspaceId(int workspaceId)
     return modelAt(index + 1)->id();
 }
 
-void Workspace::addOutput([[maybe_unused]] Output *output)
-{
-    // Update even if surface already has ownsOutput - the new output may be                    
-    // its original one 
-    updateSurfacesOwnsOutput();
-}
-
 void Workspace::addSurface(SurfaceWrapper *surface, int workspaceId)
 {
     Q_ASSERT(surface && !surface->container() && surface->workspaceId() == -1);
