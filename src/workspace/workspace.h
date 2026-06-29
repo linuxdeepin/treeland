@@ -47,7 +47,6 @@ public:
     Q_INVOKABLE int getLeftWorkspaceId(int workspaceId);
     Q_INVOKABLE int getRightWorkspaceId(int workspaceId);
 
-    void addOutput(Output *output) override;
     void addSurface(SurfaceWrapper *surface, int workspaceId);
     void addSurface(SurfaceWrapper *surface) override;
     Q_INVOKABLE void moveModelTo(int workspaceId, int destinationIndex);
