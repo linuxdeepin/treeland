@@ -1122,7 +1122,9 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
             if (attached->noTitlebar()) {
                 wrapper->setNoTitleBar(true);
                 auto layer = qobject_cast<WLayerSurface *>(wrapper->shellSurface());
-                if (!isLaunchpad(layer)) {
+                // Layer Shell surfaces (OSD, notifications, dock, etc.) should not have
+                // server-side decoration regardless of Personalization noTitlebar state.
+                if (!layer) {
                     wrapper->setNoDecoration(false);
                 }
             } else {
