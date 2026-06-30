@@ -173,7 +173,7 @@ protected:
         }
 
         qCDebug(lcTlProtocol) << "set_position serial" << x << y << serial << "for window_id"
-                                  << m_windowId;
+                              << m_windowId;
 
         m_wrapper->setPositionAutomatic(false);
         // Suppress only this class's xChanged/yChanged handlers to avoid
@@ -248,51 +248,77 @@ private:
     // Raise to top of current stacking tier (no tier change)
     void applyHwndTop()
     {
-        if (!m_wrapper || !m_wrapper->parentItem())
+        if (!m_wrapper)
             return;
-        auto *parent = m_wrapper->parentItem();
-        const auto children = parent->childItems();
-        if (children.isEmpty() || children.last() == m_wrapper)
-            return;
-        // stackAfter(last) brings this above the last child
-        m_wrapper->QQuickItem::stackAfter(children.last());
+        m_wrapper->stackToLast();
     }
 
-    // Lower to absolute bottom, clear topmost tier
+    // Lower to absolute bottom, clear topmost tier.
     void applyHwndBottom()
     {
         if (!m_wrapper)
             return;
         m_wrapper->setAlwaysOnTop(false);
-        if (!m_wrapper->parentItem())
-            return;
-        auto *parent = m_wrapper->parentItem();
-        const auto children = parent->childItems();
-        if (children.isEmpty() || children.first() == m_wrapper)
-            return;
-        m_wrapper->QQuickItem::stackBefore(children.first());
+        m_wrapper->stackToFirst();
     }
 
-    // Place this window directly below the identified sibling
+    // Place this window directly below the identified sibling.
+    // Matches Windows SetWindowPos semantics: top-level windows may only be
+    // ordered relative to other top-level peers, and child windows only
+    // relative to same-parent siblings. Cross-group requests are ignored.
     void applyHwndInsertAfter(uint32_t siblingId)
     {
         if (!m_manager || !m_wrapper)
             return;
 
         WineWindowControl *sibling = m_manager->controlForId(siblingId);
-        // If sibling not found or in different tier, fall back to hwnd_top
-        if (!sibling || !sibling->wrapper()) {
+        // If sibling is not found, the request has no effect (e.g. the
+        // sibling window was destroyed before this message arrived).
+        if (!sibling || !sibling->wrapper())
             return;
-        }
+        if (sibling == this)
+            return;
 
         SurfaceWrapper *siblingWrapper = sibling->wrapper();
-        // Both must share the same parent container
-        if (!m_wrapper->parentItem() || siblingWrapper->parentItem() != m_wrapper->parentItem()) {
+
+        // Protocol set_z_order: child windows may only be ordered relative to
+        // same-parent siblings. An independent top-level has no parentSurface,
+        // so the check only fires when m_wrapper is a child and its top-level
+        // ancestor differs from the sibling's.
+        if (m_wrapper->parentSurface()
+            && topLevelSurface(m_wrapper) != topLevelSurface(siblingWrapper)) {
+            qCWarning(lcTlProtocol)
+                << "hwnd_insert_after: child window" << m_windowId << "and sibling_id" << siblingId
+                << "belong to different top-level groups; ignoring";
             return;
         }
 
-        // Place this window before the sibling (visually below sibling)
-        m_wrapper->stackBefore(siblingWrapper);
+        // Protocol set_z_order: hwnd_insert_after must not mix tiers.
+        if (m_wrapper->effectiveAlwaysOnTop() != siblingWrapper->effectiveAlwaysOnTop()) {
+            qCWarning(lcTlProtocol) << "hwnd_insert_after: window" << m_windowId << "and sibling_id"
+                                    << siblingId << "belong to different tiers; ignoring";
+            return;
+        }
+
+        // Safety check: both windows must share the same Qt parent container.
+        if (!m_wrapper->parentItem() || siblingWrapper->parentItem() != m_wrapper->parentItem()) {
+            qCWarning(lcTlProtocol) << "hwnd_insert_after: window" << m_windowId << "and sibling_id"
+                                    << siblingId << "do not share a parent container; ignoring";
+            return;
+        }
+
+        // Place this window before the sibling (visually below sibling).
+        if (!m_wrapper->stackBefore(siblingWrapper)) {
+            qCWarning(lcTlProtocol) << "hwnd_insert_after: stackBefore failed for window"
+                                    << m_windowId << "(sibling_id =" << siblingId << ")";
+        }
+    }
+
+    static SurfaceWrapper *topLevelSurface(SurfaceWrapper *wrapper)
+    {
+        while (wrapper && wrapper->parentSurface())
+            wrapper = wrapper->parentSurface();
+        return wrapper;
     }
 
 private:
