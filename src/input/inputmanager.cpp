@@ -3,6 +3,7 @@
 
 #include "inputmanager.h"
 #include "seatuserconfig.hpp"
+#include "treelandconfig.hpp"
 #include "helper.h"
 #include "inputdevice.h"
 #include "modules/input-manager/inputmanagerinterfacev1.h"
@@ -14,10 +15,42 @@
 
 #include <qwseat.h>
 
+extern "C" {
+#include <wlr/interfaces/wlr_keyboard.h>
+}
+
 #include <wbackend.h>
 #include <wcursor.h>
 #include <winputdevice.h>
+#include <wseat.h>
 
+namespace {
+
+bool isSeatDConfigInitialized(SeatUserDConfig *config)
+{
+    if (!config)
+        return false;
+
+#if SEATUSERDCONFIG_DCONFIG_FILE_VERSION_MINOR > 0
+    return config->isInitializeSucceeded();
+#else
+    return config->isInitializeSucceed();
+#endif
+}
+
+bool isTreelandConfigInitialized(TreelandConfig *config)
+{
+    if (!config)
+        return false;
+
+#if TREELANDCONFIG_DCONFIG_FILE_VERSION_MINOR > 0
+    return config->isInitializeSucceeded();
+#else
+    return config->isInitializeSucceed();
+#endif
+}
+
+}
 
 InputManager::InputManager(QObject *parent)
     : QObject(parent)
@@ -41,11 +74,7 @@ void InputManager::setupSeatUserConfig(const QString &userName)
                                                    "org.deepin.dde.treeland",
                                                    "/" + userName);
 
-#if SEATUSERDCONFIG_DCONFIG_FILE_VERSION_MINOR > 0
-    if (m_seatDConfig->isInitializeSucceeded()) {
-#else
-    if (m_seatDConfig->isInitializeSucceed()) {
-#endif
+    if (isSeatDConfigInitialized(m_seatDConfig)) {
         onConfigInitializeSucceed();
     } else {
         connect(m_seatDConfig,
@@ -76,6 +105,17 @@ void InputManager::onConfigInitializeSucceed()
     for (WInputDevice *device : inputDevices) {
         onInputAdded(device);
     }
+
+    auto *globalConfig = Helper::instance()->globalConfig();
+    if (isTreelandConfigInitialized(globalConfig)) {
+        applyNumLockToKeyboards();
+    } else {
+        connect(globalConfig,
+                &TreelandConfig::configInitializeSucceed,
+                this,
+                &InputManager::applyNumLockToKeyboards,
+                Qt::SingleShotConnection);
+    }
 }
 
 void InputManager::onMouseSettingsCreated(MouseSettingsInterfaceV1 *interface)
@@ -99,12 +139,46 @@ void InputManager::onKeyboardSettingsCreated(KeyboardSettingsInterfaceV1 *interf
     if (!m_seatDConfig)
         return;
 
-#if SEATUSERDCONFIG_DCONFIG_FILE_VERSION_MINOR > 0
-    if (!m_seatDConfig->isInitializeSucceeded()) {
-#else
-    if (!m_seatDConfig->isInitializeSucceed()) {
-#endif
+    auto *globalConfig = Helper::instance()->globalConfig();
+    const bool seatConfigReady = isSeatDConfigInitialized(m_seatDConfig);
+    const bool globalConfigReady = isTreelandConfigInitialized(globalConfig);
+    if (!seatConfigReady || !globalConfigReady) {
+        auto retry = [this, interface] {
+            initializeKeyboardSettings(interface);
+        };
+
+        if (!seatConfigReady) {
+            connect(m_seatDConfig,
+                    &SeatUserDConfig::configInitializeSucceed,
+                    interface,
+                    retry,
+                    Qt::SingleShotConnection);
+        }
+
+        if (!globalConfigReady) {
+            connect(globalConfig,
+                    &TreelandConfig::configInitializeSucceed,
+                    interface,
+                    retry,
+                    Qt::SingleShotConnection);
+        }
         return;
+    }
+
+    initializeKeyboardSettings(interface);
+}
+
+bool InputManager::initializeKeyboardSettings(KeyboardSettingsInterfaceV1 *interface)
+{
+    if (interface->property("_treelandKeyboardSettingsInitialized").toBool())
+        return true;
+
+    if (!m_seatDConfig)
+        return false;
+
+    auto *globalConfig = Helper::instance()->globalConfig();
+    if (!isSeatDConfigInitialized(m_seatDConfig) || !isTreelandConfigInitialized(globalConfig)) {
+        return false;
     }
 
     KeyboardSettingsInterfaceV1::FeatureFlags features;
@@ -132,7 +206,7 @@ void InputManager::onKeyboardSettingsCreated(KeyboardSettingsInterfaceV1 *interf
     }
 
     interface->sendFeature(features, true);
-    interface->sendNumLock(m_seatDConfig->keyboardNumLock(), true);
+    interface->sendNumLock(globalConfig->keyboardNumLock(), true);
     interface->sendRepeat(m_seatDConfig->keyboardRate(), m_seatDConfig->keyboardDelay(), true);
     interface->sendDone();
 
@@ -140,6 +214,10 @@ void InputManager::onKeyboardSettingsCreated(KeyboardSettingsInterfaceV1 *interf
             &KeyboardSettingsInterfaceV1::applied,
             this,
             &InputManager::handleKeyboardSettingsApplied);
+
+    interface->setProperty("_treelandKeyboardSettingsInitialized", true);
+
+    return true;
 }
 
 void InputManager::onMousePointerConfigCreated(PointerDeviceConfigurationV1 *config)
@@ -147,11 +225,7 @@ void InputManager::onMousePointerConfigCreated(PointerDeviceConfigurationV1 *con
     if (!m_seatDConfig)
         return;
 
-#if SEATUSERDCONFIG_DCONFIG_FILE_VERSION_MINOR > 0
-    if (!m_seatDConfig->isInitializeSucceeded()) {
-#else
-    if (!m_seatDConfig->isInitializeSucceed()) {
-#endif
+    if (!isSeatDConfigInitialized(m_seatDConfig)) {
         return;
     }
 
@@ -227,11 +301,7 @@ void InputManager::handleMousePointerConfigApplied(PointerDeviceConfigurationV1:
         return;
     }
 
-#if SEATUSERDCONFIG_DCONFIG_FILE_VERSION_MINOR > 0
-    if (!m_seatDConfig->isInitializeSucceeded()) {
-#else
-    if (!m_seatDConfig->isInitializeSucceed()) {
-#endif
+    if (!isSeatDConfigInitialized(m_seatDConfig)) {
         interface->sendFailed();
         return;
     }
@@ -344,11 +414,7 @@ void InputManager::onTouchpadPointerConfigCreated(PointerDeviceConfigurationV1 *
     if (!m_seatDConfig)
         return;
 
-#if SEATUSERDCONFIG_DCONFIG_FILE_VERSION_MINOR > 0
-    if (!m_seatDConfig->isInitializeSucceeded()) {
-#else
-    if (!m_seatDConfig->isInitializeSucceed()) {
-#endif
+    if (!isSeatDConfigInitialized(m_seatDConfig)) {
         return;
     }
 
@@ -377,11 +443,7 @@ void InputManager::handleTouchpadPointerConfigApplied(PointerDeviceConfiguration
         return;
     }
 
-#if SEATUSERDCONFIG_DCONFIG_FILE_VERSION_MINOR > 0
-    if (!m_seatDConfig->isInitializeSucceeded()) {
-#else
-    if (!m_seatDConfig->isInitializeSucceed()) {
-#endif
+    if (!isSeatDConfigInitialized(m_seatDConfig)) {
         interface->sendFailed();
         return;
     }
@@ -469,17 +531,13 @@ void InputManager::handleKeyboardSettingsApplied(KeyboardSettingsInterfaceV1::Ch
         return;
     }
 
-#if SEATUSERDCONFIG_DCONFIG_FILE_VERSION_MINOR > 0
-    if (!m_seatDConfig->isInitializeSucceeded()) {
-#else
-    if (!m_seatDConfig->isInitializeSucceed()) {
-#endif
+    if (!isSeatDConfigInitialized(m_seatDConfig) || !isTreelandConfigInitialized(Helper::instance()->globalConfig())) {
         interface->sendFailed();
         return;
     }
 
     if (changes.testFlag(KeyboardSettingsInterfaceV1::NumLockChanged)) {
-        m_seatDConfig->setKeyboardNumLock(interface->numLock());
+        Helper::instance()->globalConfig()->setKeyboardNumLock(interface->numLock());
     }
 
     if (changes.testFlag(KeyboardSettingsInterfaceV1::RepeatChanged)) {
@@ -497,15 +555,37 @@ void InputManager::handleKeyboardSettingsApplied(KeyboardSettingsInterfaceV1::Ch
         }
     }
 
-    const auto devices = interface->wSeat()->deviceList();
-    for (WInputDevice *device : devices) {
-        if (device->type() != WInputDevice::Type::Keyboard)
-            continue;
+    if (changes.testFlag(KeyboardSettingsInterfaceV1::NumLockChanged))
+        setNumLockForSeat(interface->wSeat(), interface->numLock());
+}
 
-        if (changes.testFlag(KeyboardSettingsInterfaceV1::NumLockChanged)) {
-            setNumLockForDevice(device, interface->numLock());
+void InputManager::applyNumLockToKeyboards()
+{
+    auto *globalConfig = Helper::instance()->globalConfig();
+    if (!isTreelandConfigInitialized(globalConfig))
+        return;
+
+    auto *seatManager = Helper::instance()->seatManager();
+    if (seatManager) {
+        const auto seats = seatManager->seats();
+        for (WSeat *seat : seats) {
+            setNumLockForSeat(seat, globalConfig->keyboardNumLock());
         }
     }
+}
+
+void InputManager::setNumLockForSeat(WSeat *seat, bool enabled)
+{
+    if (!seat)
+        return;
+
+    const auto devices = seat->deviceList();
+    for (auto *device : devices) {
+        if (device->type() == WInputDevice::Type::Keyboard)
+            setNumLockForDevice(device, enabled);
+    }
+
+    setNumLockForDevice(seat->keyboardGroupKeyboard(), enabled);
 }
 
 void InputManager::setNumLockForDevice(WInputDevice *device, bool enabled)
@@ -530,18 +610,10 @@ void InputManager::setNumLockForDevice(WInputDevice *device, bool enabled)
     } else {
         locked &= ~(1u << numlock);
     }
-    xkb_state_update_mask(wlrKeyboard->xkb_state,
-                          xkb_state_serialize_mods(wlrKeyboard->xkb_state, XKB_STATE_MODS_DEPRESSED),
-                          xkb_state_serialize_mods(wlrKeyboard->xkb_state, XKB_STATE_MODS_LATCHED),
-                          locked, 0, 0, 0);
-
-    uint32_t leds = wlrKeyboard->leds;
-    if (enabled) {
-        leds |= WLR_LED_NUM_LOCK;
-    } else {
-        leds &= ~WLR_LED_NUM_LOCK;
-    }
-    wlr_keyboard_led_update(wlrKeyboard, leds);
+    const auto depressed = xkb_state_serialize_mods(wlrKeyboard->xkb_state, XKB_STATE_MODS_DEPRESSED);
+    const auto latched = xkb_state_serialize_mods(wlrKeyboard->xkb_state, XKB_STATE_MODS_LATCHED);
+    const auto group = xkb_state_serialize_layout(wlrKeyboard->xkb_state, XKB_STATE_LAYOUT_EFFECTIVE);
+    wlr_keyboard_notify_modifiers(wlrKeyboard, depressed, latched, locked, group);
 }
 
 void InputManager::onInputAdded(WInputDevice *input)
@@ -549,11 +621,7 @@ void InputManager::onInputAdded(WInputDevice *input)
     if (!m_seatDConfig)
         return;
 
-#if SEATUSERDCONFIG_DCONFIG_FILE_VERSION_MINOR > 0
-    if (!m_seatDConfig->isInitializeSucceeded()) {
-#else
-    if (!m_seatDConfig->isInitializeSucceed()) {
-#endif
+    if (!isSeatDConfigInitialized(m_seatDConfig)) {
         return;
     }
 
@@ -569,7 +637,10 @@ void InputManager::onInputAdded(WInputDevice *input)
         if (auto *keyboard = qobject_cast<qw_keyboard *>(input->handle())) {
             keyboard->set_repeat_info(m_seatDConfig->keyboardRate(), m_seatDConfig->keyboardDelay());
         }
-        setNumLockForDevice(input, m_seatDConfig->keyboardNumLock());
+        if (isTreelandConfigInitialized(Helper::instance()->globalConfig())) {
+            if (auto *seat = input->seat())
+                setNumLockForSeat(seat, Helper::instance()->globalConfig()->keyboardNumLock());
+        }
     }
 
     if (udev_device_get_property_value(udevDevice, "ID_INPUT_MOUSE")) {

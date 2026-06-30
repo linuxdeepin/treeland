@@ -6,6 +6,7 @@
 #include "seat/helper.h"
 #include "seatsmanager.h"
 #include "common/treelandlogging.h"
+#include "treelandconfig.hpp"
 
 #include <qwdisplay.h>
 #include <qwkeyboard.h>
@@ -17,32 +18,83 @@
 
 #include <xkbcommon/xkbcommon.h>
 
+#include <optional>
+
 static QList<KeyboardStateWatcherV1 *> s_watchers;
-static QHash<WSeat *, uint32_t> s_lastLockStates;
+static QHash<WSeat *, wlr_keyboard_modifiers> s_lastModifiers;
+
+
+namespace {
+bool isTreelandConfigInitialized(TreelandConfig *config)
+{
+    if (!config)
+        return false;
+
+#if TREELANDCONFIG_DCONFIG_FILE_VERSION_MINOR > 0
+    return config->isInitializeSucceeded();
+#else
+    return config->isInitializeSucceed();
+#endif
+}
+
+}
 
 struct ModifierInfo {
     uint32_t flag;
-    const char *ledName;
+    const char *modName;
 };
 
 static constexpr ModifierInfo s_modifierInfos[] = {
-    { KeyboardStateWatcherV1::CapsLock, XKB_LED_NAME_CAPS },
-    { KeyboardStateWatcherV1::NumLock, XKB_LED_NAME_NUM },
+    { KeyboardStateWatcherV1::CapsLock, XKB_MOD_NAME_CAPS },
+    { KeyboardStateWatcherV1::NumLock, XKB_MOD_NAME_NUM },
 };
 
-static uint32_t getLockStateBitfield(xkb_state *state)
+static std::optional<wlr_keyboard *> getSeatKeyboard(WSeat *seat)
 {
-    uint32_t locked = 0;
-    auto *keymap = xkb_state_get_keymap(state);
+    if (!seat || !seat->keyboardGroupKeyboard())
+        return std::nullopt;
 
+    auto *keyboard = qobject_cast<qw_keyboard *>(seat->keyboardGroupKeyboard()->handle());
+    if (!keyboard || !keyboard->handle() || !keyboard->handle()->keymap)
+        return std::nullopt;
+
+    return keyboard->handle();
+}
+
+static bool modifiersEqual(const wlr_keyboard_modifiers &a, const wlr_keyboard_modifiers &b)
+{
+    return a.depressed == b.depressed
+        && a.latched == b.latched
+        && a.locked == b.locked
+        && a.group == b.group;
+}
+
+static uint32_t lockStateBitfield(wlr_keyboard *keyboard, xkb_mod_mask_t locked)
+{
+    uint32_t state = 0;
     for (const auto &info : s_modifierInfos) {
-        xkb_led_index_t idx = xkb_keymap_led_get_index(keymap, info.ledName);
-        if (idx != XKB_LED_INVALID
-            && xkb_state_led_index_is_active(state, idx))
-            locked |= info.flag;
+        xkb_mod_index_t idx = xkb_keymap_mod_get_index(keyboard->keymap, info.modName);
+        if (idx != XKB_MOD_INVALID && (locked & (xkb_mod_mask_t(1) << idx)))
+            state |= info.flag;
     }
 
-    return locked;
+    return state;
+}
+
+static std::optional<uint32_t> getSeatLockState(WSeat *seat)
+{
+    const auto keyboard = getSeatKeyboard(seat);
+    if (!keyboard)
+        return std::nullopt;
+
+    return lockStateBitfield(*keyboard, (*keyboard)->modifiers.locked);
+}
+
+static uint32_t changedLockStateBitfield(wlr_keyboard *keyboard,
+                                         const wlr_keyboard_modifiers &previous,
+                                         const wlr_keyboard_modifiers &current)
+{
+    return lockStateBitfield(keyboard, previous.locked ^ current.locked);
 }
 
 struct KeyboardConnection {
@@ -76,6 +128,7 @@ private:
     void connectKeyboardGroup(WSeat *seat, WInputDevice *keyboardDevice);
 
     QList<KeyboardConnection> m_keyboardConnections;
+    bool m_keyboardConnectionsSetup = false;
 };
 
 TreelandKeyboardStateNotifyManagerInterfaceV1Private::TreelandKeyboardStateNotifyManagerInterfaceV1Private(
@@ -91,9 +144,7 @@ wl_global *TreelandKeyboardStateNotifyManagerInterfaceV1Private::global() const
 
 void TreelandKeyboardStateNotifyManagerInterfaceV1Private::bind_resource([[maybe_unused]] Resource *resource)
 {
-    if (resourceMap().isEmpty()) {
-        setupKeyboardConnections();
-    }
+    setupKeyboardConnections();
 }
 
 void TreelandKeyboardStateNotifyManagerInterfaceV1Private::connectKeyboardGroup(WSeat *seat, WInputDevice *keyboardDevice)
@@ -102,6 +153,9 @@ void TreelandKeyboardStateNotifyManagerInterfaceV1Private::connectKeyboardGroup(
         if (conn.seat == seat)
             return;
     }
+
+    if (const auto keyboard = getSeatKeyboard(seat))
+        s_lastModifiers[seat] = (*keyboard)->modifiers;
 
     KeyboardConnection conn;
     conn.seat = seat;
@@ -113,6 +167,10 @@ void TreelandKeyboardStateNotifyManagerInterfaceV1Private::connectKeyboardGroup(
 
 void TreelandKeyboardStateNotifyManagerInterfaceV1Private::setupKeyboardConnections()
 {
+    if (m_keyboardConnectionsSetup)
+        return;
+    m_keyboardConnectionsSetup = true;
+
     auto *helper = Helper::instance();
     const auto seats = helper->seatManager()->seats();
     for (auto *seat : seats) {
@@ -129,34 +187,47 @@ void TreelandKeyboardStateNotifyManagerInterfaceV1Private::setupKeyboardConnecti
 
 void TreelandKeyboardStateNotifyManagerInterfaceV1Private::onModifiersEvent(WSeat *seat)
 {
+    const auto keyboard = getSeatKeyboard(seat);
+    if (!keyboard)
+        return;
+
+    const auto currentModifiers = (*keyboard)->modifiers;
+    const auto previousModifiers = s_lastModifiers.value(seat, currentModifiers);
+    s_lastModifiers[seat] = currentModifiers;
+
+    if (modifiersEqual(previousModifiers, currentModifiers))
+        return;
+
+    const uint32_t changedLocks = changedLockStateBitfield(*keyboard, previousModifiers, currentModifiers);
+    if (changedLocks == 0)
+        return;
+
+    const uint32_t currentLocks = lockStateBitfield(*keyboard, currentModifiers.locked);
+
+    constexpr uint32_t NumLockMask = KeyboardStateWatcherV1::NumLock;
+
+    if (changedLocks & NumLockMask) {
+        const bool isLocked = currentLocks & NumLockMask;
+
+        if (isTreelandConfigInitialized(Helper::instance()->globalConfig())) {
+            Helper::instance()->globalConfig()->setKeyboardNumLock(isLocked);
+        }
+    }
+
     if (s_watchers.isEmpty())
         return;
-
-    qw_keyboard *keyboard = qobject_cast<qw_keyboard*>(seat->keyboardGroupKeyboard()->handle());
-    const auto *wlrKeyboard = keyboard->handle();
-    if (!wlrKeyboard || !wlrKeyboard->xkb_state)
-        return;
-
-    uint32_t currentLocks = getLockStateBitfield(wlrKeyboard->xkb_state);
-    uint32_t prevLocks = s_lastLockStates.value(seat, 0);
-    uint32_t changed = currentLocks ^ prevLocks;
-
-    if (changed == 0)
-        return;
-
-    s_lastLockStates[seat] = currentLocks;
 
     for (auto *watcher : std::as_const(s_watchers)) {
         if (watcher->seat() && watcher->wSeat() != seat)
             continue;
 
-        uint32_t watchMods = watcher->modifiers() & changed;
-        if (watchMods == 0)
+        const uint32_t changed = changedLocks & uint32_t(watcher->modifiers());
+        if (changed == 0)
             continue;
 
         for (int i = 0; i < 2; ++i) {
             uint32_t mod = (1u << i);
-            if (!(watchMods & mod))
+            if (!(changed & mod))
                 continue;
 
             bool isLocked = (currentLocks & mod) != 0;
@@ -178,14 +249,11 @@ void TreelandKeyboardStateNotifyManagerInterfaceV1Private::handleSeatDestroy(WSe
             m_keyboardConnections.removeAt(i);
         }
     }
+    s_lastModifiers.remove(seat);
 }
 
 void TreelandKeyboardStateNotifyManagerInterfaceV1Private::destroy(Resource *resource)
 {
-    if (resourceMap().size() == 1) {
-        m_keyboardConnections.clear();
-    }
-
     wl_resource_destroy(resource->handle);
 }
 
@@ -303,19 +371,16 @@ void KeyboardStateWatcherV1Private::apply([[maybe_unused]] Resource *resource)
     }
 
     for (auto *seat : std::as_const(seats)) {
-        qw_keyboard *keyboard =
-            qobject_cast<qw_keyboard *>(seat->keyboardGroupKeyboard()->handle());
-        if (!keyboard || !keyboard->handle()->xkb_state)
+        const auto currentLocks = getSeatLockState(seat);
+        if (!currentLocks)
             continue;
-
-        uint32_t currentLocks = getLockStateBitfield(keyboard->handle()->xkb_state);
 
         for (int i = 0; i < 2; ++i) {
             uint32_t mod = (1u << i);
             if (!(modifiers & mod))
                 continue;
 
-            bool isLocked = (currentLocks & mod) != 0;
+            bool isLocked = (*currentLocks & mod) != 0;
             if (isLocked && !(flags & KeyboardStateWatcherV1::WatchLocked))
                 continue;
             if (!isLocked && !(flags & KeyboardStateWatcherV1::WatchUnlocked))
@@ -337,6 +402,7 @@ TreelandKeyboardStateNotifyManagerInterfaceV1::~TreelandKeyboardStateNotifyManag
 void TreelandKeyboardStateNotifyManagerInterfaceV1::create(WServer *server)
 {
     d->init(server->handle()->handle(), InterfaceVersion);
+    d->setupKeyboardConnections();
 }
 
 void TreelandKeyboardStateNotifyManagerInterfaceV1::destroy([[maybe_unused]] WServer *server)
