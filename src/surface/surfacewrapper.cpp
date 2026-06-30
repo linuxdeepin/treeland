@@ -1825,6 +1825,20 @@ void SurfaceWrapper::stackToLast()
     }
 }
 
+void SurfaceWrapper::stackToFirst()
+{
+    if (!parentItem())
+        return;
+
+    if (m_parentSurface) {
+        m_parentSurface->stackToFirst();
+        stackBefore(m_parentSurface->stackFirstSurface());
+    } else {
+        auto first = parentItem()->childItems().first();
+        stackBefore(first);
+    }
+}
+
 void SurfaceWrapper::addSubSurface(SurfaceWrapper *surface)
 {
     Q_ASSERT(!surface->m_parentSurface);
@@ -1997,6 +2011,11 @@ void SurfaceWrapper::setHideByWorkspace(bool hide)
 bool SurfaceWrapper::alwaysOnTop() const
 {
     return m_alwaysOnTop;
+}
+
+bool SurfaceWrapper::effectiveAlwaysOnTop() const
+{
+    return m_explicitAlwaysOnTop > 0;
 }
 
 void SurfaceWrapper::setAlwaysOnTop(bool alwaysOnTop)

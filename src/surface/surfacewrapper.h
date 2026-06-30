@@ -235,6 +235,7 @@ public:
     void setHideByWorkspace(bool hide);
 
     bool alwaysOnTop() const;
+    bool effectiveAlwaysOnTop() const;
     void setAlwaysOnTop(bool alwaysOnTop);
 
     bool showOnAllWorkspace() const;
@@ -307,6 +308,7 @@ public Q_SLOTS:
     bool stackBefore(QQuickItem *item);
     bool stackAfter(QQuickItem *item);
     void stackToLast();
+    void stackToFirst();
 
     void updateSurfaceSizeRatio();
 
