@@ -10,6 +10,8 @@ Q_MOC_INCLUDE("seatuserconfig.hpp")
 
 #include <qwinputdevice.h>
 
+#include <wseat.h>
+
 #include <QObject>
 #include <QMap>
 
@@ -41,5 +43,9 @@ private Q_SLOTS:
     void onConfigInitializeSucceed();
 
 private:
+    bool initializeKeyboardSettings(KeyboardSettingsInterfaceV1 *interface);
+    void applyNumLockToKeyboards();
+    static void setNumLockForSeat(WSeat *seat, bool enabled);
+
     SeatUserDConfig* m_seatDConfig = nullptr;
 };
