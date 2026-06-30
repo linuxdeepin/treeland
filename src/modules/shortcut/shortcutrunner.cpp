@@ -358,7 +358,10 @@ void ShortcutRunner::taskswitchAction(bool isRepeat, bool isSameApp, bool isPrev
 
     if (helper->m_taskSwitch.isNull()) {
         auto contentItem = helper->window()->contentItem();
-        auto output = helper->rootSurfaceContainer()->primaryOutput();
+        auto output = helper->rootSurfaceContainer()->cursorOutput();
+        if (!output) {
+            output = helper->rootSurfaceContainer()->primaryOutput();
+        }
         helper->m_taskSwitch = helper->qmlEngine()->createTaskSwitcher(output, contentItem);
         helper->restoreFromShowDesktop();
         QObject::connect(helper->m_taskSwitch, SIGNAL(switchOnChanged()), helper, SLOT(deleteTaskSwitch()));
@@ -404,7 +407,10 @@ void ShortcutRunner::onQuickSwitchTimeout()
 
     if (helper->m_taskSwitch.isNull()) {
         auto contentItem = helper->window()->contentItem();
-        auto output = helper->rootSurfaceContainer()->primaryOutput();
+        auto output = helper->rootSurfaceContainer()->cursorOutput();
+        if (!output) {
+            output = helper->rootSurfaceContainer()->primaryOutput();
+        }
         helper->m_taskSwitch = helper->qmlEngine()->createTaskSwitcher(output, contentItem);
         helper->restoreFromShowDesktop();
         QObject::connect(helper->m_taskSwitch,
