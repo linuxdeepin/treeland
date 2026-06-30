@@ -83,6 +83,13 @@ void Multitaskview::exit(SurfaceWrapper *surface, bool immediately)
     // TODO: handle taskview gesture
     Q_EMIT aboutToExit();
 
+    if (!qFuzzyCompare(m_partialFactor, 0.0)) {
+        m_partialFactor = 0.0;
+        Q_EMIT partialFactorChanged();
+    } else {
+        m_partialFactor = 0.0;
+    }
+
     if (immediately) {
         setVisible(false);
     } else {
