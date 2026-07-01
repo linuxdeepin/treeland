@@ -520,10 +520,16 @@ void RootSurfaceContainer::moveSurfacesToOutput(const QList<SurfaceWrapper *> &s
                 newPos = targetGeometry.center() + relativePos;
                 surface->setOwnsOutput(targetOutput);
             }
-            newPos.setX(
-                qBound(targetGeometry.left(), newPos.x(), targetGeometry.right() - size.width()));
-            newPos.setY(
-                qBound(targetGeometry.top(), newPos.y(), targetGeometry.bottom() - size.height()));
+            if (newPos.x() + size.width() > targetGeometry.right())
+                newPos.setX(targetGeometry.right() - size.width());
+            if (newPos.x() < targetGeometry.left())
+                newPos.setX(targetGeometry.left());
+
+            if (newPos.y() + size.height() > targetGeometry.bottom())
+                newPos.setY(targetGeometry.bottom() - size.height());
+            if (newPos.y() < targetGeometry.top())
+                newPos.setY(targetGeometry.top());
+
             surface->setPosition(newPos);
         }
     }
