@@ -1037,41 +1037,35 @@ Personalization::Personalization(WToplevelSurface *target,
                 &PersonalizationWindowContextV1::backgroundTypeChanged,
                 this,
                 [this, context] {
-                    m_backgroundType = context->backgroundType();
-                    Q_EMIT backgroundTypeChanged();
+                    setBackgroundType(static_cast<Personalization::BackgroundType>(context->backgroundType()));
                 });
         connect(context,
                 &PersonalizationWindowContextV1::cornerRadiusChanged,
                 this,
                 [this, context] {
-                    m_cornerRadius = context->cornerRadius();
-                    Q_EMIT cornerRadiusChanged();
+                    setCornerRadius(context->cornerRadius());
                 });
 
         connect(context, &PersonalizationWindowContextV1::shadowChanged, this, [this, context] {
-            m_shadow = context->shadow();
-            Q_EMIT shadowChanged();
+            setShadow(context->shadow());
         });
 
         connect(context, &PersonalizationWindowContextV1::borderChanged, this, [this, context] {
-            m_border = context->border();
-            Q_EMIT borderChanged();
+            setBorder(context->border());
         });
 
         connect(context,
                 &PersonalizationWindowContextV1::windowStateChanged,
                 this,
                 [this, context] {
-                    m_states = context->states();
-                    Q_EMIT windowStateChanged();
+                    setWindowStates(context->states());
                 });
-        connect(context, &QObject::destroyed, this, &Personalization::resetProperties);
 
-        m_backgroundType = context->backgroundType();
-        m_cornerRadius = context->cornerRadius();
-        m_shadow = context->shadow();
-        m_border = context->border();
-        m_states = context->states();
+        setBackgroundType(static_cast<Personalization::BackgroundType>(context->backgroundType()));
+        setCornerRadius(context->cornerRadius());
+        setShadow(context->shadow());
+        setBorder(context->border());
+        setWindowStates(context->states());
     };
 
     connect(m_manager, &PersonalizationManagerInterfaceV1::windowContextCreated, this, update);
@@ -1083,17 +1077,11 @@ Personalization::Personalization(WToplevelSurface *target,
 
 void Personalization::resetProperties()
 {
-    m_backgroundType = Personalization::BackgroundType::Normal;
-    m_cornerRadius = 0;
-    m_shadow = {};
-    m_border = {};
-    m_states = {};
-
-    Q_EMIT backgroundTypeChanged();
-    Q_EMIT cornerRadiusChanged();
-    Q_EMIT shadowChanged();
-    Q_EMIT borderChanged();
-    Q_EMIT windowStateChanged();
+    setBackgroundType(Personalization::BackgroundType::Normal);
+    setCornerRadius(0);
+    setShadow({});
+    setBorder({});
+    setWindowStates({});
 }
 
 SurfaceWrapper *Personalization::surfaceWrapper() const
@@ -1103,7 +1091,7 @@ SurfaceWrapper *Personalization::surfaceWrapper() const
 
 Personalization::BackgroundType Personalization::backgroundType() const
 {
-    return static_cast<Personalization::BackgroundType>(m_backgroundType);
+    return m_backgroundType;
 }
 
 bool Personalization::noTitlebar() const
@@ -1113,6 +1101,46 @@ bool Personalization::noTitlebar() const
     }
 
     return m_states.testFlag(PersonalizationWindowContextV1::NoTitleBar);
+}
+
+void Personalization::setBackgroundType(BackgroundType type)
+{
+    if (m_backgroundType == type)
+        return;
+    m_backgroundType = type;
+    Q_EMIT backgroundTypeChanged();
+}
+
+void Personalization::setCornerRadius(int32_t radius)
+{
+    if (m_cornerRadius == radius)
+        return;
+    m_cornerRadius = radius;
+    Q_EMIT cornerRadiusChanged();
+}
+
+void Personalization::setShadow(const Shadow &shadow)
+{
+    if (m_shadow == shadow)
+        return;
+    m_shadow = shadow;
+    Q_EMIT shadowChanged();
+}
+
+void Personalization::setBorder(const Border &border)
+{
+    if (m_border == border)
+        return;
+    m_border = border;
+    Q_EMIT borderChanged();
+}
+
+void Personalization::setWindowStates(PersonalizationWindowContextV1::WindowStates states)
+{
+    if (m_states == states)
+        return;
+    m_states = states;
+    Q_EMIT windowStateChanged();
 }
 
 void PersonalizationManagerInterfaceV1::create(WServer *server)

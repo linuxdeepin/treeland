@@ -22,12 +22,14 @@ struct Shadow
     int32_t radius;
     QPoint offset;
     QColor color;
+    bool operator==(const Shadow &other) const = default;
 };
 
 struct Border
 {
     int32_t width;
     QColor color;
+    bool operator==(const Border &other) const = default;
 };
 
 class PersonalizationManagerInterfaceV1Private;
@@ -195,7 +197,7 @@ class Personalization : public QObject
 {
     Q_OBJECT
     QML_ANONYMOUS
-    Q_PROPERTY(int32_t backgroundType READ backgroundType NOTIFY backgroundTypeChanged)
+    Q_PROPERTY(BackgroundType backgroundType READ backgroundType NOTIFY backgroundTypeChanged)
     Q_PROPERTY(int32_t cornerRadius READ cornerRadius NOTIFY cornerRadiusChanged)
     Q_PROPERTY(Shadow shadow READ shadow NOTIFY shadowChanged)
     Q_PROPERTY(Border border READ border NOTIFY borderChanged)
@@ -245,9 +247,16 @@ private Q_SLOTS:
     void resetProperties();
 
 private:
+    void setBackgroundType(BackgroundType type);
+    void setCornerRadius(int32_t radius);
+    void setShadow(const Shadow &shadow);
+    void setBorder(const Border &border);
+    void setWindowStates(PersonalizationWindowContextV1::WindowStates states);
+
+private:
     WWrapPointer<WToplevelSurface> m_target;
     PersonalizationManagerInterfaceV1 *m_manager = nullptr;
-    int32_t m_backgroundType = Personalization::BackgroundType::Normal;
+    BackgroundType m_backgroundType = BackgroundType::Normal;
     int32_t m_cornerRadius = 0;
     Shadow m_shadow {};
     Border m_border {};
