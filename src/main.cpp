@@ -82,7 +82,7 @@ int main(int argc, char *argv[])
         bindThemeConfig();
         QObject::connect(Helper::instance(), &Helper::configChanged, &bindThemeConfig);
         QObject::connect(Helper::instance()->inputManager(), &InputManager::seatConfigChanged,
-                         g_theme, &QDeepinTheme::bindSeatConfig);
+                         [](SeatUserDConfig *config) { g_theme->bindSeatConfig(config); });
 
         quitCode = app.exec();
     }
