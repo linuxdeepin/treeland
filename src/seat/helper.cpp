@@ -1117,18 +1117,41 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
         connect(wrapper, &SurfaceWrapper::aboutToBeInvalidated,
                 attached, &Personalization::deleteLater);
 
-        auto updateNoTitlebar = [this, attached] {
+        auto updateDecorationParams = [attached] {
+            auto wrapper = attached->surfaceWrapper();
+            auto shadow = attached->shadow();
+            auto border = attached->border();
+            wrapper->setShadowParams(ShadowParams{
+                shadow.radius,
+                shadow.offset.y(),
+                shadow.color
+            });
+            wrapper->setBorderParams(BorderParams{
+                border.width,
+                border.color
+            });
+        };
+
+        auto updateNoTitlebar = [this, attached, isLayer, updateDecorationParams] {
             auto wrapper = attached->surfaceWrapper();
             if (attached->noTitlebar()) {
                 wrapper->setNoTitleBar(true);
-                auto layer = qobject_cast<WLayerSurface *>(wrapper->shellSurface());
-                if (!isLaunchpad(layer)) {
-                    wrapper->setNoDecoration(false);
+                if (isLayer) {
+                    bool needsDecoration = attached->shadow().radius > 0 || attached->border().width > 0;
+                    if (needsDecoration && wrapper->noDecoration()) {
+                        wrapper->setNoDecoration(false);
+                        updateDecorationParams();
+                    }
+                } else {
+                    wrapper->setNoDecoration(m_xdgDecorationManager->modeBySurface(wrapper->surface())
+                                         != WXdgDecorationManager::Server);
                 }
             } else {
                 wrapper->setNoTitleBar(false);
-                wrapper->setNoDecoration(m_xdgDecorationManager->modeBySurface(wrapper->surface())
-                                     != WXdgDecorationManager::Server);
+                if (!isLayer) {
+                    wrapper->setNoDecoration(m_xdgDecorationManager->modeBySurface(wrapper->surface())
+                                         != WXdgDecorationManager::Server);
+                }
             }
         };
 
@@ -1163,6 +1186,20 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
             auto layer = qobject_cast<WLayerSurface *>(wrapper->shellSurface());
             if (isLaunchpad(layer))
                 wrapper->setCoverEnabled(true);
+
+            connect(attached, &Personalization::shadowChanged, this, [attached, wrapper, updateDecorationParams]() {
+                if (attached->shadow().radius > 0 && wrapper->noDecoration()) {
+                    wrapper->setNoDecoration(false);
+                }
+                updateDecorationParams();
+            });
+
+            connect(attached, &Personalization::borderChanged, this, [attached, wrapper, updateDecorationParams]() {
+                if (attached->border().width > 0 && wrapper->noDecoration()) {
+                    wrapper->setNoDecoration(false);
+                }
+                updateDecorationParams();
+            });
         }
     }
 

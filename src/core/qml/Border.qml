@@ -1,4 +1,4 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 import QtQuick
@@ -9,9 +9,27 @@ Item {
     property real radius: 0
     property color outsideColor: Qt.rgba(0, 0, 0, 0.1)
     property color insideColor: Qt.rgba(255, 255, 255, 0.1)
+    property int borderWidth: 0
+    property color borderColor: Qt.transparent
+
+    Rectangle {
+        id: personalizationBorder
+        visible: borderWidth > 0
+        anchors {
+            fill: parent
+            margins: -borderWidth
+        }
+        color: "transparent"
+        border {
+            color: borderColor
+            width: borderWidth
+        }
+        radius: GraphicsInfo.api === GraphicsInfo.Software ? 0 : root.radius + borderWidth
+    }
 
     Rectangle {
         id: outsideBorder
+        visible: borderWidth <= 0
         anchors {
             fill: parent
             margins: -border.width
@@ -27,6 +45,7 @@ Item {
 
     Rectangle {
         id: insideBorder
+        visible: borderWidth <= 0
         anchors.fill: parent
         color: "transparent"
         border {
