@@ -24,7 +24,7 @@ public:
 
     QByteArrayView interfaceName() const override;
 
-    static constexpr int InterfaceVersion = 1;
+    static constexpr int InterfaceVersion = 2;
 
 Q_SIGNALS:
     void wallpaperCreated(TreelandWallpaperInterfaceV1 *interface);
@@ -52,6 +52,7 @@ public:
     enum WallpaperType {
         Image = 0,
         Video = 1,
+        Shader = 2,
     };
 
     enum WallpaperRole {
@@ -79,6 +80,9 @@ Q_SIGNALS:
     void videoSourceChanged(int workspaceIndex,
                             const QString &fileSource,
                             WallpaperRoles roles);
+    void shaderSourceChanged(int workspaceIndex,
+                             const QString &fileSource,
+                             WallpaperRoles roles);
 
 private:
     explicit TreelandWallpaperInterfaceV1(WOutput *output,

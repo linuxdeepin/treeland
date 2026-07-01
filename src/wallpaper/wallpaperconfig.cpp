@@ -3,6 +3,8 @@
 
 #include "wallpaperconfig.h"
 
+#include "common/treelandlogging.h"
+
 #define OUTPUT_NAME "outputName"
 #define LOCK_SCREEN_WALLAPER_TYPE "lockScreenWallpaperType"
 #define DESKTOP_WALLAPER_TYPE "desktopWallpaperType"
@@ -11,6 +13,21 @@
 #define LOCK_SCREEN_WALLPAPER "lockScreenWallpaper"
 #define WORKSPACES "workspaces"
 #define ENABLE "enable"
+
+static TreelandWallpaperInterfaceV1::WallpaperType wallpaperTypeFromJson(const QJsonObject &obj, const char *key)
+{
+    const auto type = static_cast<TreelandWallpaperInterfaceV1::WallpaperType>(obj[key].toInt());
+    switch (type) {
+    case TreelandWallpaperInterfaceV1::Image:
+    case TreelandWallpaperInterfaceV1::Video:
+    case TreelandWallpaperInterfaceV1::Shader:
+        return type;
+    }
+
+    qCWarning(lcTlWallpaper) << "Unsupported wallpaper type in config:" << obj[key].toInt()
+                             << "key:" << key << "- falling back to image";
+    return TreelandWallpaperInterfaceV1::Image;
+}
 
 QJsonObject WallpaperWorkspaceConfig::toJson() const
 {
@@ -27,7 +44,7 @@ WallpaperWorkspaceConfig WallpaperWorkspaceConfig::fromJson(const QJsonObject &o
     WallpaperWorkspaceConfig ws;
     ws.workspaceId = obj[WORKSPACE_INDEX].toInt();
     ws.desktopWallpaper = obj[DESKTOP_WALLPAPER].toString();
-    ws.desktopWallpapertype = static_cast<TreelandWallpaperInterfaceV1::WallpaperType>(obj[DESKTOP_WALLAPER_TYPE].toInt());
+    ws.desktopWallpapertype = wallpaperTypeFromJson(obj, DESKTOP_WALLAPER_TYPE);
     ws.enable = obj[ENABLE].toBool();
     return ws;
 }
@@ -64,7 +81,7 @@ WallpaperOutputConfig WallpaperOutputConfig::fromJson(const QJsonObject &obj)
     WallpaperOutputConfig out;
     out.outputName = obj[OUTPUT_NAME].toString();
     out.lockscreenWallpaper = obj[LOCK_SCREEN_WALLPAPER].toString();
-    out.lockScreenWallpapertype = static_cast<TreelandWallpaperInterfaceV1::WallpaperType>(obj[LOCK_SCREEN_WALLAPER_TYPE].toInt());
+    out.lockScreenWallpapertype = wallpaperTypeFromJson(obj, LOCK_SCREEN_WALLAPER_TYPE);
     out.enable = obj[ENABLE].toBool();
     QJsonArray workspacesArray = obj[WORKSPACES].toArray();
     for (const QJsonValue& value : std::as_const(workspacesArray)) {

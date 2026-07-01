@@ -33,12 +33,15 @@ qt_add_qml_module(${BIN_NAME}
     qwaylandwallpapershellintegrationplugin.cpp
     qwaylandwallpapersurface_p.h
     qwaylandwallpapersurface.cpp
+    shaderframeclock.h
+    shaderframeclock.cpp
     wallpaperwindow.h
     wallpaperwindow.cpp
     treelandwallpapernotifierclient.h
     treelandwallpapernotifierclient.cpp
     QML_FILES
     Image.qml
+    Shader.qml
     Video.qml
 
 )

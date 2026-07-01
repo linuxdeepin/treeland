@@ -56,6 +56,9 @@ public Q_SLOTS:
     void onVideoChanged(int workspaceIndex,
                         const QString &fileSource,
                         TreelandWallpaperInterfaceV1::WallpaperRoles roles);
+    void onShaderChanged(int workspaceIndex,
+                         const QString &fileSource,
+                         TreelandWallpaperInterfaceV1::WallpaperRoles roles);
     void onWallpaperNotifierBound(wl_resource *resource);
     void handleWallpaperSurfaceAdded(TreelandWallpaperSurfaceInterfaceV1 *interface);
 
