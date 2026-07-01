@@ -1,42 +1,54 @@
-// Copyright (C) 2025 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2025-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
 
-#include "shortcutmanager.h"
 #include "input/gestures.h"
 
 #include <QMap>
-#include <QKeySequence>
+#include <QKeyCombination>
+
 class Gesture;
+class QKeyEvent;
+
+enum class ShortcutAction : uint32_t;
 
 class ShortcutController : public QObject
 {
     Q_OBJECT
 public:
+    enum KeyFlag : uint32_t {
+        None = 0,
+        KeyPress = 0x1,
+        KeyRelease = 0x2,
+        Repeat = 0x4,
+        All = KeyPress | KeyRelease | Repeat
+    };
+    Q_DECLARE_FLAGS(KeyFlags, KeyFlag)
     explicit ShortcutController(QObject *parent = nullptr);
     ~ShortcutController() override;
 
-    uint registerKey(const QString &name, const QString& key, uint mode, ShortcutAction action);
+    uint registerKey(const QString &name, const QString& key, KeyFlags keybindFlags, ShortcutAction action);
     uint registerSwipeGesture(const QString &name, uint finger, SwipeGesture::Direction direction, ShortcutAction action);
     uint registerHoldGesture(const QString &name, uint finger, ShortcutAction action);
     void unregisterShortcut(const QString &name);
 
     void clear();
-    bool dispatchKeyPress(QKeyCombination sequence, bool repeat);
-    bool dispatchKeyRelease(QKeyCombination sequence);
+    bool dispatchKeyEvent(const QKeyEvent *event);
+    static QKeyCombination normalizeKeyCombination(QKeyCombination combination);
+    static bool isValidShortcutCombination(QKeyCombination combination);
 
 Q_SIGNALS:
-    void actionTriggered(ShortcutAction action, const QString &name, bool isGesture, bool isRepeat = false);
+    void actionTriggered(ShortcutAction action, const QString &name, bool isGesture, KeyFlags keyFlags = {});
     void actionProgress(ShortcutAction action, qreal progress, const QString &name);
     void actionFinished(ShortcutAction action, const QString &name, bool isTriggered);
 
 private:
-    static constexpr QKeyCombination normalizeKeyCombination(QKeyCombination combination);
 
-    QMap<int, QMap<ShortcutAction, std::pair<QString, bool>>> m_keyPressMap;
-    QMap<int, QMap<ShortcutAction, QString>> m_keyReleaseMap;
+    QMap<int, QMap<ShortcutAction, std::pair<QString, KeyFlags>>> m_keyMap;
     QMap<std::pair<uint, SwipeGesture::Direction>, QMap<ShortcutAction, QString>> m_gesturemap;
     QMap<std::pair<uint, SwipeGesture::Direction>, QObject*> m_gestures;
     QMap<QString, std::function<void()>> m_deleters;
 };
+
+Q_DECLARE_OPERATORS_FOR_FLAGS(ShortcutController::KeyFlags)

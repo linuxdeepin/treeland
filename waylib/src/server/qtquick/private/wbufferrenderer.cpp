@@ -1,4 +1,4 @@
-// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 JiDe Zhang <zhangjide@deepin.org>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wbufferrenderer_p.h"
@@ -6,6 +6,7 @@
 #include "wqmlhelper_p.h"
 #include "wtools.h"
 #include "wsgtextureprovider.h"
+#include "private/wprivateaccessor_p.h"
 
 #include <qwbuffer.h>
 #include <qwtexture.h>
@@ -18,13 +19,9 @@
 #include <QSGImageNode>
 #include <QSGSimpleRectNode>
 
-#define protected public
-#define private public
 #include <private/qsgsoftwarerenderer_p.h>
 #include <private/qsgsoftwarerenderablenodeupdater_p.h>
 #include <private/qsgsoftwarerenderablenode_p.h>
-#undef protected
-#undef private
 #include <private/qsgplaintexture_p.h>
 #include <private/qquickitem_p.h>
 #include <private/qsgdefaultrendercontext_p.h>
@@ -39,6 +36,13 @@
 #include <pixman.h>
 #include <drm_fourcc.h>
 #include <xf86drm.h>
+
+using QSGAbsSoftRenderer_NodesMap = QHash<QSGNode*, QSGSoftwareRenderableNode*>;
+W_DECLARE_PRIVATE_MEMBER(QSGAbsSoftRenderer_m_nodes_tag, QSGAbstractSoftwareRenderer, m_nodes, QSGAbsSoftRenderer_NodesMap);
+W_DECLARE_PRIVATE_MEMBER(QSGAbsSoftRenderer_m_background_tag, QSGAbstractSoftwareRenderer, m_background, QSGSimpleRectNode*);
+W_DECLARE_PRIVATE_MEMBER(QSGAbsSoftRenderer_m_dirtyRegion_tag, QSGAbstractSoftwareRenderer, m_dirtyRegion, QRegion);
+W_DECLARE_PRIVATE_MEMBER(QSGSoftRenderableNode_m_hasClipRegion_tag, QSGSoftwareRenderableNode, m_hasClipRegion, bool);
+W_DECLARE_PRIVATE_MEMBER(QSGSoftRenderableNode_m_opacity_tag, QSGSoftwareRenderableNode, m_opacity, float);
 
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -68,12 +72,12 @@ static void applyTransform(QSGSoftwareRenderer *renderer, const QTransform &t)
     if (t.isIdentity())
         return;
 
-    auto nodeIter = renderer->m_nodes.begin();
-    while (nodeIter != renderer->m_nodes.end()) {
+    auto nodeIter = W_PRIVATE_MEMBER(*renderer, QSGAbsSoftRenderer_m_nodes_tag{}).begin();
+    while (nodeIter != W_PRIVATE_MEMBER(*renderer, QSGAbsSoftRenderer_m_nodes_tag{}).end()) {
         auto node = *nodeIter;
         node->setTransform(node->transform() * t);
 
-        if (node->m_hasClipRegion)
+        if (W_PRIVATE_MEMBER(*node, QSGSoftRenderableNode_m_hasClipRegion_tag{}))
             node->setClipRegion(t.map(node->clipRegion()), true);
 
         ++nodeIter;
@@ -85,7 +89,17 @@ WBufferRenderer::WBufferRenderer(QQuickItem *parent)
     , m_cacheBuffer(true)
     , m_hideSource(false)
 {
-
+    // ensure graphical resources are released before scene graph is invalidated
+    // since WBufferRenderer's ItemHasContent bit is unset
+    // the invalidateSceneGraph slot will not be called through QQuickWindowPrivate::cleanupNodesOnShutdown
+    QMetaObject::Connection windowConn;
+    if (window())
+        windowConn = connect(window(), &QQuickWindow::sceneGraphInvalidated, this, &WBufferRenderer::invalidateSceneGraph);
+    connect(this, &QQuickItem::windowChanged, this, [this, windowConn](auto *window) mutable {
+        disconnect(windowConn);
+        if (window)
+            windowConn = connect(window, &QQuickWindow::sceneGraphInvalidated, this, &WBufferRenderer::invalidateSceneGraph);
+    });
 }
 
 WBufferRenderer::~WBufferRenderer()
@@ -142,7 +156,6 @@ void WBufferRenderer::setSourceList(QList<QQuickItem*> sources, bool hideSource)
         return;
 
     resetSources();
-    m_sourceList.clear();
     m_hideSource = hideSource;
 
     for (auto s : std::as_const(sources)) {
@@ -154,7 +167,7 @@ void WBufferRenderer::setSourceList(QList<QQuickItem*> sources, bool hideSource)
         connect(s, &QQuickItem::destroyed, this, [this] {
             const int index = indexOfSource(static_cast<QQuickItem*>(sender()));
             Q_ASSERT(index >= 0);
-            removeSource(index);
+            destroySource(index);
             m_sourceList.removeAt(index);
         });
 
@@ -469,13 +482,13 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
 #if QT_VERSION >= QT_VERSION_CHECK(6, 9, 0)
             softwareRenderer->setClearColorEnabled(!preserveColorContents);
 #else
-            auto bn = softwareRenderer->renderableNode(softwareRenderer->m_background);
+            auto bn = softwareRenderer->renderableNode(W_PRIVATE_MEMBER(*softwareRenderer, QSGAbsSoftRenderer_m_background_tag{}));
             if (bn) {
-                bn->m_opacity = preserveColorContents ? 0 : 1;
+                W_PRIVATE_MEMBER(*bn, QSGSoftRenderableNode_m_opacity_tag{}) = preserveColorContents ? 0 : 1;
             }
 #endif
             if (!state.dirty.isEmpty()) {
-                softwareRenderer->m_dirtyRegion += state.dirty;
+                W_PRIVATE_MEMBER(*softwareRenderer, QSGAbsSoftRenderer_m_dirtyRegion_tag{}) += state.dirty;
                 state.dirty = QRegion();
             }
 
@@ -577,7 +590,7 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
             state.dirty = softwareRenderer->flushRegion();
 
             auto currentImage = getImageFrom(state.renderTarget);
-            Q_ASSERT(currentImage && currentImage == softwareRenderer->m_rt.paintDevice);
+            Q_ASSERT(currentImage && currentImage == softwareRenderer->renderTarget().paintDevice);
             currentImage->setDevicePixelRatio(1.0);
             const auto scaleTF = QTransform::fromScale(devicePixelRatio, devicePixelRatio);
             const auto scaledFlushRegion = scaleTF.map(softwareRenderer->flushRegion());
@@ -687,11 +700,13 @@ void WBufferRenderer::invalidateSceneGraph()
 {
     if (m_textureProvider)
         m_textureProvider.reset();
+    resetSources();
 }
 
 void WBufferRenderer::releaseResources()
 {
     cleanTextureProvider();
+    resetSources();
 }
 
 void WBufferRenderer::cleanTextureProvider()
@@ -723,24 +738,28 @@ void WBufferRenderer::cleanTextureProvider()
 void WBufferRenderer::resetSources()
 {
     for (int i = 0; i < m_sourceList.size(); ++i) {
-        removeSource(i);
+        destroySource(i);
     }
+    m_sourceList.clear();
 }
 
-void WBufferRenderer::removeSource(int index)
+void WBufferRenderer::destroySource(int index)
 {
-    auto s = m_sourceList.at(index);
+    auto &s = m_sourceList[index];
     if (isRootItem(s.source))
         return;
 
     // Renderer of source is delay initialized in ensureRenderer. It might be null here.
-    if (s.renderer)
-        s.renderer->deleteLater();
+    if (s.renderer) {
+        delete s.renderer;
+        s.renderer = nullptr;
+    }
+    s.source->disconnect(this);
+
     auto d = QQuickItemPrivate::get(s.source);
     if (d->inDestructor)
         return;
 
-    s.source->disconnect(this);
     d->derefFromEffectItem(m_hideSource);
 }
 

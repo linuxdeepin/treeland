@@ -9,7 +9,9 @@ set(WAYLIB_INCLUDE_INSTALL_DIR
     CACHE STRING "Install directory for waylib headers"
 )
 
-find_package(Qt6 COMPONENTS GuiPrivate QuickPrivate QUIET)
+if(Qt6_VERSION VERSION_GREATER_EQUAL 6.10)
+    find_package(Qt6 REQUIRED COMPONENTS GuiPrivate QuickPrivate)
+endif()
 find_package(Qt6 COMPONENTS Core Gui Quick REQUIRED)
 
 qt_standard_project_setup(REQUIRES 6.8)
@@ -65,6 +67,22 @@ ws_generate(
     wayland-protocols
     staging/security-context/security-context-v1.xml
     security-context-v1-protocol
+)
+
+#TODO: Remove after wlroots 0.20
+ws_generate(
+    server
+    wayland-protocols
+    staging/xdg-toplevel-tag/xdg-toplevel-tag-v1.xml
+    xdg-toplevel-tag-v1-protocol
+)
+
+#TODO: Remove after wlroots 0.20
+ws_generate(
+    server
+    wayland-protocols
+    stable/xdg-shell/xdg-shell.xml
+    xdg-shell-protocol
 )
 
 #TODO: Remove after wlroots 0.20
@@ -136,6 +154,8 @@ set(SOURCES
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v2-protocol.c
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/xdg-output-unstable-v1-protocol.c
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/security-context-v1-protocol.c
+    ${WAYLAND_PROTOCOLS_OUTPUTDIR}/xdg-toplevel-tag-v1-protocol.c #TODO: Remove after wlroots 0.20
+    ${WAYLAND_PROTOCOLS_OUTPUTDIR}/xdg-shell-protocol.c #TODO: Remove after wlroots 0.20
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/ext-image-capture-source-v1-protocol.c #TODO: Remove after wlroots 0.20
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/ext-foreign-toplevel-list-v1-protocol.c #TODO Remove after wlroots 0.20
 
@@ -155,6 +175,7 @@ set(SOURCES
     protocols/wxdgshell.cpp
     protocols/wxdgsurface.cpp
     protocols/wxdgtoplevelsurface.cpp
+    protocols/wxdgtopleveltagmanager.cpp #TODO: Remove after wlroots 0.20
     protocols/wxdgpopupsurface.cpp
 
     protocols/wxwayland.cpp
@@ -250,6 +271,7 @@ set(HEADERS
     protocols/wxdgsurface.h
     protocols/WXdgSurface
     protocols/wxdgtoplevelsurface.h
+    protocols/wxdgtopleveltagmanager.h
     protocols/wxdgpopupsurface.h
     protocols/wlayersurface.h
     protocols/wxdgdecorationmanager.h
@@ -293,6 +315,7 @@ set(PRIVATE_HEADERS
     platformplugin/types.h
     kernel/private/wglobal_p.h
     kernel/private/wsurface_p.h
+    kernel/private/wprivateaccessor_p.h
     qtquick/private/woutputviewport_p.h
     qtquick/private/wquickcoordmapper_p.h
     qtquick/private/woutputitem_p.h
@@ -307,6 +330,8 @@ set(PRIVATE_HEADERS
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v1-protocol.h
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v2-protocol.h
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/xdg-output-unstable-v1-protocol.h
+    ${WAYLAND_PROTOCOLS_OUTPUTDIR}/xdg-toplevel-tag-v1-protocol.h #TODO: Remove after wlroots 0.20
+    ${WAYLAND_PROTOCOLS_OUTPUTDIR}/xdg-shell-protocol.h #TODO: Remove after wlroots 0.20
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/ext-image-capture-source-v1-protocol.h #TODO: Remove after wlroots 0.20
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/ext-foreign-toplevel-list-v1-protocol.h #TODO: Remove after wlroots 0.20
 

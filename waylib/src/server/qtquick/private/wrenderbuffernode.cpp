@@ -1,18 +1,13 @@
-// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 JiDe Zhang <zhangjide@deepin.org>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include <QDebug>
-#define protected public
-#define private public
-#include <private/qsgrenderer_p.h>
-#include <private/qsgbatchrenderer_p.h>
-#undef protected
-#undef private
 
 #include "wrenderbuffernode_p.h"
 #include "wbufferrenderer_p.h"
 #include "wqmlhelper_p.h"
 #include "platformplugin/types.h"
+#include "private/wprivateaccessor_p.h"
 
 #include <QQuickItem>
 #include <QRunnable>
@@ -22,12 +17,73 @@
 #include <private/qrhi_p.h>
 #include <private/qrhivulkan_p.h>
 #include <private/qsgrenderer_p.h>
+#include <private/qsgbatchrenderer_p.h>
 #include <private/qsgdefaultrendercontext_p.h>
 #include <private/qsgrhisupport_p.h>
 #include <private/qquickrendercontrol_p.h>
 #include <qobjectdefs.h>
 
 #include <algorithm>
+
+// QSGRenderer: access protected methods preprocess()/render() and private
+// bit-field members m_changed_emitted/m_is_rendering.
+//
+// preprocess() and render() are protected virtual functions — the template
+// accessor [temp.explicit]/12 trick legally bypasses access control here too.
+//
+// m_changed_emitted and m_is_rendering are private bit fields packed into a
+// single uint that immediately follows m_nodes_dont_preprocess. Use
+// W_DECLARE_PRIVATE_BITFIELD to reach that storage unit via memory arithmetic.
+//   Declaration order → bit position (GCC/Clang little-endian LSB-first):
+//     m_changed_emitted : 1  → bit 0
+//     m_is_rendering    : 1  → bit 1
+W_DECLARE_PRIVATE_METHOD(QSGRenderer_preprocess_tag, QSGRenderer, preprocess, void);
+W_DECLARE_PRIVATE_METHOD(QSGRenderer_render_tag, QSGRenderer, render, void);
+W_DECLARE_PRIVATE_BITFIELD(QSGRenderer_m_nodes_dont_preprocess_tag,
+                           QSGRenderer, m_nodes_dont_preprocess,
+                           QSet<QSGNode *>, uint);
+static constexpr unsigned k_m_changed_emitted_bit = 0;
+static constexpr unsigned k_m_is_rendering_bit    = 1;
+
+// Compile-time layout verification.
+//
+// W_DECLARE_PRIVATE_BITFIELD already checks at compile time that
+// m_nodes_dont_preprocess exists in QSGRenderer with the correct type.
+// What it cannot verify is whether the bit fields still immediately follow
+// that member in the class layout.
+//
+// Since the bit fields are the last members of QSGRenderer (Qt 6.11.1,
+// qsgrenderer_p.h:137–144), any insertion or reordering of members changes
+// sizeof(QSGRenderer).  We assert the known size as a layout fingerprint.
+// If this fires, diff qsgrenderer_p.h and update the accessor + constant below.
+//
+// Verified: Qt 6.11.1, x86_64 Linux.
+#if defined(Q_PROCESSOR_X86_64) && (defined(Q_OS_LINUX) || defined(Q_OS_FREEBSD))
+static_assert(sizeof(QSGRenderer) == 432,
+    "QSGRenderer size changed — review qsgrenderer_p.h and update the bit-field accessor");
+#endif
+
+// QSGBatchRenderer::Renderer::m_shaderManager is a private data member.
+// QSGBatchRenderer::Renderer::useDepthBuffer() is a private const method.
+// Access them via the explicit-instantiation template trick.
+W_DECLARE_PRIVATE_MEMBER(QSGBatchRenderer_m_shaderManager_tag,
+                         QSGBatchRenderer::Renderer, m_shaderManager,
+                         QSGBatchRenderer::ShaderManager*);
+W_DECLARE_PRIVATE_CONST_METHOD(QSGBatchRenderer_useDepthBuffer_tag,
+                                QSGBatchRenderer::Renderer, useDepthBuffer, bool);
+
+static inline QSGBatchRenderer::ShaderManager *&rendererShaderManager(QSGBatchRenderer::Renderer *r) {
+    return W_PRIVATE_MEMBER(*r, QSGBatchRenderer_m_shaderManager_tag{});
+}
+static inline bool rendererUseDepthBuffer(const QSGBatchRenderer::Renderer *r) {
+    return W_PRIVATE_CALL(*r, QSGBatchRenderer_useDepthBuffer_tag{});
+}
+static inline void rendererPreprocess(QSGRenderer *r) {
+    W_PRIVATE_CALL(*r, QSGRenderer_preprocess_tag{});
+}
+static inline void rendererRender(QSGRenderer *r) {
+    W_PRIVATE_CALL(*r, QSGRenderer_render_tag{});
+}
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -37,7 +93,17 @@ public:
     mutable QAtomicInt ref;
 
     explicit DataManagerBase(QQuickWindow *owner)
-        : QObject(owner) {}
+        : QObject(owner)
+    {
+        Q_ASSERT(owner->isSceneGraphInitialized());
+        connect(owner, &QQuickWindow::sceneGraphInvalidated, this, [this]() {
+            setParent(nullptr);
+            // per request from zccrs.
+            // Be Warned: objects may not be expected to be deleted in the rendering thread.
+            delete this;
+        }, static_cast<Qt::ConnectionType>(Qt::DirectConnection | Qt::SingleShotConnection));
+    }
+    virtual ~DataManagerBase() {};
 };
 
 template <class T>
@@ -168,7 +234,7 @@ public:
         {
             auto d = data.lock();
             if (d && dataList.contains(d)) {
-                if (get()->check(d->data, std::forward<DataKeys>(keys)...)) {
+                if (get()->check(d->data, keys...)) {
                     d->released = 0;
                     return data;
                 }
@@ -177,14 +243,15 @@ public:
         }
 
         for (auto data : std::as_const(dataList)) {
-            if (get()->check(data->data, std::forward<DataKeys>(keys)...)) {
+            if (get()->check(data->data, keys...)) {
                 data->released = 0;
                 return data;
             }
         }
 
-        auto newData = std::shared_ptr<Data>(new Data());
-        if ((newData->data = get()->create(std::forward<DataKeys>(keys)...))) {
+        auto newData = std::make_shared<Data>();
+        newData->data = get()->create(std::forward<DataKeys>(keys)...);
+        if (newData->data) {
             dataList.append(newData);
             return newData;
         }
@@ -254,17 +321,22 @@ protected:
         return static_cast<Derive*>(this);
     }
 
+    using QObject::deleteLater;
+    ~DataManager() override {
+        for (auto data : std::as_const(dataList)) {
+            Derive::destroy(data->data);
+        }
+    }
+
+private:
+    friend Derive;
+
     DataManager(QQuickWindow *owner)
         : DataManagerBase(owner) {
         Q_ASSERT(owner->findChildren<Derive*>(Qt::FindDirectChildrenOnly).size() == 0);
     }
 
-    using QObject::deleteLater;
-    ~DataManager() {
-        for (auto data : std::as_const(dataList)) {
-            Derive::destroy(data->data);
-        }
-    }
+protected:
 
     QList<std::shared_ptr<Data>> dataList;
     QRunnable *cleanJob = nullptr;
@@ -368,17 +440,17 @@ public:
         oldCB = dc->currentFrameCommandBuffer();
         context->prepareSync(renderer->devicePixelRatio(), cb, graphicsConfiguration());
 
-        renderer->m_is_rendering = true;
-        renderer->preprocess();
+        W_PRIVATE_BF_SET(*renderer, QSGRenderer_m_nodes_dont_preprocess_tag, k_m_is_rendering_bit, true);
+        rendererPreprocess(renderer);
 
         return true;
     }
 
     bool render(qreal oldDPR, QRhiCommandBuffer* &oldCB, bool forceDepthTest = false) {
-        Q_ASSERT(renderer->m_is_rendering);
-        renderer->render();
-        renderer->m_is_rendering = false;
-        renderer->m_changed_emitted = false;
+        Q_ASSERT(W_PRIVATE_BF_GET(*renderer, QSGRenderer_m_nodes_dont_preprocess_tag, k_m_is_rendering_bit));
+        rendererRender(renderer);
+        W_PRIVATE_BF_SET(*renderer, QSGRenderer_m_nodes_dont_preprocess_tag, k_m_is_rendering_bit, false);
+        W_PRIVATE_BF_SET(*renderer, QSGRenderer_m_nodes_dont_preprocess_tag, k_m_changed_emitted_bit, false);
 
         context->prepareSync(oldDPR, oldCB, graphicsConfiguration());
         bool ok = false;
@@ -386,13 +458,13 @@ public:
         do {
             if (forceDepthTest && Q_LIKELY(isBatchRenderer)) {
                 auto batchRenderer = static_cast<QSGBatchRenderer::Renderer*>(renderer);
-                if (auto sm = batchRenderer->m_shaderManager) {
+                if (auto sm = rendererShaderManager(batchRenderer)) {
                     if (Q_LIKELY(!sm->pipelineCache.isEmpty())) {
                         QVector<std::pair<QRhiGraphicsPipeline*, bool>> tmp;
                         tmp.reserve(sm->pipelineCache.size());
 
                         for (auto pipeline : std::as_const(sm->pipelineCache)) {
-                            tmp.append({pipeline, pipeline->hasDepthTest()});
+                            tmp.append(std::make_pair(pipeline, pipeline->hasDepthTest()));
                             pipeline->setDepthTest(true);
                         }
                         ok = rhi()->endOffscreenFrame() == QRhi::FrameOpSuccess;
@@ -452,7 +524,7 @@ private:
         isBatchRenderer = dynamic_cast<QSGBatchRenderer::Renderer*>(renderer);
     }
 
-    ~RhiManager() {
+    ~RhiManager() override {
         delete renderer;
     }
 
@@ -733,13 +805,19 @@ public:
                        texture->data->pixelSize().height() / float(m_rect.height() * devicePixelRatio)});
             rhi->render(renderData->rt.get());
         } else {
-            auto rhi = this->rhi->rhi();
-            QPointF sourcePos = renderMatrix.map(m_rect.topLeft()) * devicePixelRatio;
+            const QPoint sourcePos = (renderMatrix.map(m_rect.topLeft()) * devicePixelRatio).toPoint();
+            const QRect sourceTextureRect(sourcePos, texture->data->pixelSize());
+            const QRect renderTargetRect(QPoint(0, 0), ct->pixelSize());
+            const QRect copySourceRect = sourceTextureRect.intersected(renderTargetRect);
+            if (copySourceRect.isEmpty())
+                return;
 
+            auto rhi = this->rhi->rhi();
             auto rub = rhi->nextResourceUpdateBatch();
             QRhiTextureCopyDescription desc;
-            desc.setPixelSize(texture->data->pixelSize());
-            desc.setSourceTopLeft(sourcePos.toPoint());
+            desc.setPixelSize(copySourceRect.size());
+            desc.setSourceTopLeft(copySourceRect.topLeft());
+            desc.setDestinationTopLeft(copySourceRect.topLeft() - sourcePos);
             rub->copyTexture(texture->data, ct, desc);
 
             QRhiCommandBuffer *cb = nullptr;
@@ -766,7 +844,7 @@ public:
             // If the source renderer enable depth test, we should enable depth test also,
             // to ensure the contentNode's z order on RenderMode2DNoDepthBuffer render mode.
             const bool forceDepthTest = currentRenderer && currentRenderer->currentBatchRenderer()
-                                   && currentRenderer->currentBatchRenderer()->useDepthBuffer();
+                                   && rendererUseDepthBuffer(currentRenderer->currentBatchRenderer());
 
             if (clipList() || inheritedOpacity() < 1.0) {
                 if (!node)
@@ -1118,7 +1196,7 @@ QRectF WRenderBufferNode::rect() const
 
 WRenderBufferNode::RenderingFlags WRenderBufferNode::flags() const
 {
-    return BoundedRectRendering;
+    return BoundedRectRendering | DepthAwareRendering;
 }
 
 void WRenderBufferNode::resize(const QSizeF &size)

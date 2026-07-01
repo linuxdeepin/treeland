@@ -120,11 +120,14 @@ public:
     typedef Derive DeriveType;
 
     qw_class_box() {
+        QT_WARNING_PUSH
+        QT_WARNING_DISABLE_GCC("-Wmaybe-uninitialized")
         if constexpr (requires { static_cast<DeriveType*>(this)->init(); }) {
             static_cast<DeriveType*>(this)->init();
         } else {
             Q_ASSERT_X(false, "qw_class_box", "No default constructor.");
         }
+        QT_WARNING_POP
     }
 
     ~qw_class_box() {

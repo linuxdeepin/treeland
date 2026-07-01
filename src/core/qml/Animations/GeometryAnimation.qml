@@ -1,4 +1,4 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 import QtQuick
@@ -25,6 +25,12 @@ Item {
 
     function start() {
         animation.start();
+    }
+
+    XdgShadow {
+        anchors.fill: parent
+        visible: surface.visibleDecoration && !surface.noDecoration
+        cornerRadius: surface.radius
     }
 
     Loader {
@@ -114,13 +120,16 @@ Item {
         OpacityAnimator {
             target: frontEffect
             duration: root.duration / 2
-            easing.type: Easing.OutCubic
+            easing.type: Easing.Linear
             from: 1.0
             to: 0.0
         }
 
         onFinished: {
-            root.finished();
+            // Defer the signal emission to avoid deleting animation objects in the same callback stack.
+            Qt.callLater(function() {
+                root.finished();
+            })
         }
     }
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2023 justforlxz <justforlxz@gmail.com>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 import QtQuick
 import QtQuick.Layouts
@@ -15,6 +15,8 @@ D.Popup {
     property var maxListHeight: userItemHeight * 5 + padding * 2
     property var useScrollBar: listv.contentHeight > maxListHeight
     property var lastCheckedIndex: -1
+
+    signal otherUserRequested()
 
     focus: true
     padding: 6
@@ -112,7 +114,7 @@ D.Popup {
                             right: parent.right
                             bottom: parent.bottom
                         }
-                        visible: model.logined
+                        visible: model.loggedIn
 
                         Rectangle {
                             anchors.centerIn: parent
@@ -201,6 +203,53 @@ D.Popup {
             onClicked: selectCurrentUser(model.name, index)
 
             checked: UserModel.currentUserName === model.name
+        }
+
+        footer: D.CheckDelegate {
+            id: otherUserItem
+            height: Helper.globalConfig.showOtherUserOption ? 44 : 0
+            width: 220
+            padding: 4
+            focus: true
+            indicator: null
+            visible: Helper.globalConfig.showOtherUserOption
+
+            contentItem: RowLayout {
+                Control {
+                    Layout.preferredHeight: 36
+                    Layout.preferredWidth: 36
+                    Layout.alignment: Qt.AlignVCenter
+                    background: Item {
+                        D.DciIcon {
+                            anchors.fill: parent
+                            name: "login_user"
+                            sourceSize { width: 36; height: 36 }
+                        }
+                    }
+                }
+
+                Column {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 36
+                    Layout.alignment: Qt.AlignVCenter
+                    Text {
+                        text: qsTr("Other…")
+                        color: otherUserItem.ListView.isCurrentItem ? "white" : "black"
+                        font: D.DTK.fontManager.t8
+                    }
+                }
+            }
+
+            background: Rectangle {
+                anchors.fill: parent
+                radius: 6
+                color: otherUserItem.hovered ? Qt.rgba(0.2, 0.2, 0.2, 0.12) : "transparent"
+            }
+
+            onClicked: {
+                users.close()
+                users.otherUserRequested()
+            }
         }
     }
 }

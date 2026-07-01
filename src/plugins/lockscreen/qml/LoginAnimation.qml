@@ -1,7 +1,8 @@
-// Copyright (C) 2023 justforlxz <justforlxz@gmail.com>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 import QtQuick
+import Treeland
 
 Item {
     id: root
@@ -20,22 +21,22 @@ Item {
     required property var target
 
     function start(pos, to) {
-        xAni.from = pos.x
-        xAni.to = to.x
+        if (GreeterProxy.showAnimation) {
+            xAni.from = pos.x
+            xAni.to = to.x
 
-        yAni.from = pos.y
-        yAni.to = to.y
+            yAni.from = pos.y
+            yAni.to = to.y
 
-        effect.sourceItem = root.target
+            effect.sourceItem = root.target
 
-        visible = true
-        animation.start()
-    }
-
-    function skip(to) {
-        target.x = to.x
-        target.y = to.y
-        stop()
+            visible = true
+            animation.start()
+        } else {
+            target.x = to.x
+            target.y = to.y
+            stop()
+        }
     }
 
     function stop() {

@@ -1,4 +1,5 @@
 /***************************************************************************
+ * Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
  * Copyright (c) 2013 Abdurrahman AVCI <abdurrahmanavci@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -20,6 +21,8 @@
 #include "usermodel.h"
 
 #include "common/treelandlogging.h"
+#include "helper.h"
+#include "session/session.h"
 
 #include <Configuration.h>
 
@@ -35,6 +38,7 @@
 #include <QTranslator>
 
 #include <memory>
+#include <algorithm>
 #include <pwd.h>
 
 using namespace DDM;
@@ -139,10 +143,10 @@ QHash<int, QByteArray> UserModel::roleNames() const
     names[HomeDirRole] = QByteArrayLiteral("homeDir");
     names[IconRole] = QByteArrayLiteral("icon");
     names[NoPasswordRole] = QByteArrayLiteral("noPassword");
-    names[LoginedRole] = QByteArrayLiteral("logined");
+    names[LoggedInRole] = QByteArrayLiteral("loggedIn");
     names[IdentityRole] = QByteArrayLiteral("identity");
     names[PasswordHintRole] = QByteArrayLiteral("passwordHint");
-    names[LocaleRole] = QByteArrayLiteral("LocaleRole");
+    names[LocaleRole] = QByteArrayLiteral("locale");
     return names;
 }
 
@@ -161,14 +165,14 @@ int UserModel::rowCount(const QModelIndex &parent) const
     return parent.isValid() ? 0 : static_cast<int>(d->users.length());
 }
 
-void UserModel::updateUserLoginState(const QString &username, bool logined)
+void UserModel::updateUserLoginState(const QString &username, bool loggedIn)
 {
     auto user = std::find_if(d->users.begin(), d->users.end(), [&username](const UserPtr &user) {
         return user->userName() == username;
     });
 
     if (user != d->users.end()) {
-        (*user)->setLogined(logined);
+        (*user)->setLoggedIn(loggedIn);
         auto pos = std::distance(d->users.end(), user);
         Q_EMIT dataChanged(index(0, pos - 1), index(0, pos));
     }
@@ -179,7 +183,7 @@ void UserModel::updateUserLoginState(const QString &username, bool logined)
 void UserModel::clearUserLoginState()
 {
     for (auto &user : d->users) {
-        user->setLogined(false);
+        user->setLoggedIn(false);
     }
 
     Q_EMIT layoutChanged();
@@ -206,8 +210,8 @@ QVariant UserModel::data(const QModelIndex &index, int role) const
         return user->iconFile();
     case NoPasswordRole:
         return user->noPasswdLogin();
-    case LoginedRole:
-        return user->logined();
+    case LoggedInRole:
+        return user->loggedIn();
     case IdentityRole:
         return user->identity();
     case PasswordHintRole:
@@ -234,7 +238,7 @@ QVariant UserModel::get(const QString &username) const
             map["realName"] = user->fullName();
             map["homeDir"] = user->homeDir();
             map["noPassword"] = user->noPasswdLogin();
-            map["logined"] = user->logined();
+            map["loggedIn"] = user->loggedIn();
             map["identity"] = user->identity();
             map["passwordHint"] = user->passwordHint();
             map["locale"] = user->locale();
@@ -258,7 +262,7 @@ QVariant UserModel::get(int index) const
     map["realName"] = user->fullName();
     map["homeDir"] = user->homeDir();
     map["noPassword"] = user->noPasswdLogin();
-    map["logined"] = user->logined();
+    map["loggedIn"] = user->loggedIn();
     map["identity"] = user->identity();
     map["passwordHint"] = user->passwordHint();
     map["locale"] = user->locale();
@@ -312,7 +316,8 @@ void UserModel::setCurrentUserName(const QString &userName) noexcept
 
     for (const auto &user : d->users) {
         if (user->waylandSocket()) {
-            user->waylandSocket()->setEnabled(user->userName() == userName);
+            user->waylandSocket()->setEnabled(user->userName() == userName,
+                                              Helper::instance()->sessionManager()->globalSession()->socket());
         }
     }
 
@@ -350,4 +355,46 @@ void UserModel::onUserDeleted(quint64 uid)
     endResetModel();
 
     Q_EMIT countChanged();
+}
+
+bool UserModel::tryAddNssUser(const QString &userName)
+{
+    if (userName.isEmpty()) {
+        return false;
+    }
+
+    // Already in model?
+    bool found = std::any_of(d->users.cbegin(), d->users.cend(),
+                             [&userName](const UserPtr &u) { return u->userName() == userName; });
+    if (found) {
+        qCInfo(treelandGreeter) << "NSS user already in model:" << userName;
+        return true;
+    }
+
+    // TODO: getpwnam is synchronous and may block on slow NSS/LDAP backends;
+    // consider moving to an async worker thread in a future iteration.
+    struct passwd *pw = ::getpwnam(userName.toLocal8Bit().constData());
+    if (!pw) {
+        qCInfo(treelandGreeter) << "NSS user not found:" << userName;
+        return false;
+    }
+
+    // pw_gecos is comma-separated ("Full Name,Room,Work,Home,Other"); use only the first field.
+    QString fullName = QString::fromLocal8Bit(pw->pw_gecos).section(QLatin1Char(','), 0, 0);
+
+    qCInfo(treelandGreeter) << "Adding NSS/LDAP user to model:" << userName;
+    beginResetModel();
+    d->users.emplace_back(std::make_unique<User>(
+        userName,
+        static_cast<uid_t>(pw->pw_uid),
+        static_cast<gid_t>(pw->pw_gid),
+        QString::fromLocal8Bit(pw->pw_dir),
+        fullName));
+    std::sort(d->users.begin(), d->users.end(), [](const UserPtr &u1, const UserPtr &u2) {
+        return u1->userName() < u2->userName();
+    });
+    endResetModel();
+
+    Q_EMIT countChanged();
+    return true;
 }

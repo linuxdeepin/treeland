@@ -1,4 +1,4 @@
-// Copyright (C) 2023 justforlxz <justforlxz@gmail.com>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 import QtQuick
@@ -15,10 +15,6 @@ Popup {
     height: 280
     background: RoundBlur {
         radius: 12
-    }
-
-    function updateCurrentSession(index) {
-        GreeterModel.currentSession = index
     }
 
     ListView {
@@ -56,7 +52,7 @@ Popup {
                 }
                 onClicked: (mouse) => {
                     mouse.accepted = false
-                    updateCurrentSession(index)
+                    SessionModel.currentIndex = index
                     popup.close()
                 }
             }
@@ -77,7 +73,8 @@ Popup {
                     Layout.leftMargin: 5
                     Image {
                         anchors.fill: parent
-                        source: name
+                        // TODO: Provide icon for session
+                        // source: name
                         fillMode: Image.PreserveAspectFit
                     }
                 }
@@ -92,7 +89,6 @@ Popup {
         }
     }
     Component.onCompleted: {
-        list.currentIndex = GreeterModel.currentSession
+        list.currentIndex = SessionModel.currentIndex
     }
 }
-

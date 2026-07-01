@@ -21,6 +21,7 @@
 #include <QTemporaryFile>
 #include <random>
 #include <sys/stat.h>
+#include <unistd.h>
 #include <X11/Xauth.h>
 
 int main(int argc, char *argv[])
@@ -40,7 +41,8 @@ int main(int argc, char *argv[])
 
     // Create xauth file
     char *display = argv[1]; // display is passed as the first argument
-    const char *fileName = qPrintable(QStringLiteral("/tmp/.xauth_%1").arg(display));
+    QByteArray authFilePath = QByteArray("/tmp/.xauth_").append(display);
+    const char *fileName = authFilePath.constData();
     const int oldumask = umask(077);
     FILE * const authFp = fopen(fileName, "wb");
     if (!authFp)

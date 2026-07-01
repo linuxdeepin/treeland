@@ -1,5 +1,4 @@
-// SPDX-FileCopyrightText: 2023 UnionTech Software Technology Co., Ltd.
-//
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #ifndef USER_H
@@ -20,6 +19,8 @@ class User : public QObject
     Q_OBJECT
 public:
     explicit User(AccountsUserPtr ptr);
+    explicit User(const QString &userName, uid_t uid, gid_t gid,
+                  const QString &homeDir, const QString &fullName = {});
     ~User() override;
 
     [[nodiscard]] bool noPasswdLogin() const noexcept;
@@ -31,10 +32,10 @@ public:
     [[nodiscard]] const QString &homeDir() const noexcept;
     [[nodiscard]] const QUrl &iconFile() const noexcept;
     [[nodiscard]] const QString &passwordHint() const noexcept;
-    [[nodiscard]] bool logined() const noexcept;
+    [[nodiscard]] bool loggedIn() const noexcept;
     [[nodiscard]] const QLocale &locale() const noexcept;
     [[nodiscard]] static QString toString(AccountTypes type) noexcept;
-    void setLogined(bool newState) const noexcept;
+    void setLoggedIn(bool newState) const noexcept;
     void updateLimitTime(const QString &time) noexcept;
 
     void setWaylandSocket(std::shared_ptr<WAYLIB_SERVER_NAMESPACE::WSocket>);

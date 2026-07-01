@@ -1,4 +1,4 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "capturev1impl.h"
@@ -88,7 +88,13 @@ void capture_session_resource_destroy(struct wl_resource *resource)
         return;
     }
     Q_EMIT session->beforeDestroy();
-    delete session;
+    // Use deleteLater() instead of delete to avoid re-entrant QObject destruction
+    // when this callback is triggered from within a WClient::destroyed slot (which
+    // fires from ~QObject of the WClient). Immediate deletion would free the Qt
+    // Connection object that doActivate() is currently iterating, causing a UAF
+    // crash in QBasicAtomicPointer::loadRelaxed (qobject.cpp:4317).
+    session->resource = nullptr; // resource is being freed; prevent double-destroy
+    session->deleteLater();
 }
 
 void capture_context_resource_destroy(struct wl_resource *resource)
@@ -98,7 +104,8 @@ void capture_context_resource_destroy(struct wl_resource *resource)
         return;
     }
     Q_EMIT context->beforeDestroy();
-    delete context;
+    context->resource = nullptr;
+    context->deleteLater();
 }
 
 void capture_frame_resource_destroy(struct wl_resource *resource)
@@ -108,7 +115,8 @@ void capture_frame_resource_destroy(struct wl_resource *resource)
         return;
     }
     Q_EMIT frame->beforeDestroy();
-    delete frame;
+    frame->resource = nullptr;
+    frame->deleteLater();
 }
 
 void treeland_capture_manager_bind(wl_client *client, void *data, uint32_t version, uint32_t id)
@@ -138,9 +146,6 @@ treeland_capture_manager_v1::treeland_capture_manager_v1(wl_display *display, QO
 void treeland_capture_manager_v1::addClientResource(wl_client *client, wl_resource *resource)
 {
     WClient *wClient = WClient::get(client);
-    connect(wClient, &WClient::destroyed, this, [this, wClient, resource]() {
-        destroyClientResource(wClient, resource);
-    });
     clientResources.push_back({ wClient, resource });
 }
 
@@ -190,7 +195,7 @@ void handle_treeland_capture_manager_v1_get_context(wl_client *client,
                                    capture_context,
                                    capture_context_resource_destroy);
 
-    capture_context->setResource(client, context_resource);
+    capture_context->resource = context_resource;
     Q_EMIT manager->newCaptureContext(capture_context);
 }
 
@@ -212,7 +217,7 @@ void handle_treeland_capture_context_v1_create_session(wl_client *client,
         delete capture_session;
         return;
     }
-    capture_session->setResource(client, capture_session_resource);
+    capture_session->resource = capture_session_resource;
     wl_resource_set_implementation(capture_session_resource,
                                    &session_impl,
                                    capture_session,
@@ -262,7 +267,7 @@ void handle_treeland_capture_context_v1_capture(wl_client *client,
         return;
     }
 
-    capture_frame->setResource(client, capture_frame_resource);
+    capture_frame->resource = capture_frame_resource;
 
     wl_resource_set_implementation(capture_frame_resource,
                                    &frame_impl,
@@ -289,15 +294,6 @@ void treeland_capture_context_v1::sendSourceReady(QRect region, uint32_t source_
                                                   source_type);
 }
 
-void treeland_capture_context_v1::setResource(wl_client *client, wl_resource *resource)
-{
-    WClient *wClient = WClient::get(client);
-    connect(wClient, &WClient::destroyed, this, [this] {
-        wl_resource_destroy(this->resource);
-    });
-    this->resource = resource;
-}
-
 void handle_treeland_capture_frame_v1_destroy([[maybe_unused]] wl_client *client,
                                               wl_resource *resource)
 {
@@ -318,15 +314,6 @@ void handle_treeland_capture_frame_v1_copy(wl_client *client,
     Q_EMIT frame->copy(qwBuffer);
 }
 
-void treeland_capture_session_v1::setResource(wl_client *client, wl_resource *resource)
-{
-    WClient *wClient = WClient::get(client);
-    connect(wClient, &WClient::destroyed, this, [this] {
-        wl_resource_destroy(this->resource);
-    });
-    this->resource = resource;
-}
-
 void treeland_capture_session_v1::sendProduceMoreCancel()
 {
     treeland_capture_session_v1_send_cancel(resource,
@@ -343,15 +330,6 @@ void treeland_capture_session_v1::sendSourceResizeCancel()
 {
     treeland_capture_session_v1_send_cancel(resource,
                                             TREELAND_CAPTURE_SESSION_V1_CANCEL_REASON_RESIZING);
-}
-
-void treeland_capture_frame_v1::setResource(wl_client *client, wl_resource *resource)
-{
-    WClient *wClient = WClient::get(client);
-    connect(wClient, &WClient::destroyed, this, [this] {
-        wl_resource_destroy(this->resource);
-    });
-    this->resource = resource;
 }
 
 void treeland_capture_frame_v1::sendBuffer(uint32_t format,

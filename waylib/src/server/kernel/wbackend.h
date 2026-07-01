@@ -41,6 +41,8 @@ public:
     void activateSession();
     void deactivateSession();
 
+    QByteArrayView interfaceName() const override;
+
 Q_SIGNALS:
     void outputAdded(WOutput *output);
     void outputRemoved(WOutput *output);
@@ -54,7 +56,6 @@ protected:
     void create(WServer *server) override;
     void destroy(WServer *server) override;
     wl_global *global() const override;
-    QByteArrayView interfaceName() const override;
 };
 
 WAYLIB_SERVER_END_NAMESPACE

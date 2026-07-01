@@ -1,4 +1,4 @@
-// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 JiDe Zhang <zhangjide@deepin.org>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wqmlcreator_p.h"
@@ -7,9 +7,12 @@
 #include <QJSValue>
 #include <QQuickItem>
 #include <QQmlInfo>
-#define private public
 #include <private/qqmlcomponent_p.h>
-#undef private
+#include "private/wprivateaccessor_p.h"
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 10, 0)
+W_DECLARE_PRIVATE_MEMBER(QQmlComponentPrivate_m_state_tag, QQmlComponentPrivate, m_state, QQmlComponentPrivate::ConstructionState);
+#endif
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -207,7 +210,7 @@ void WQmlCreatorComponent::create(QSharedPointer<WQmlCreatorDelegateData> data)
     auto d = QQmlComponentPrivate::get(m_delegate);
 #if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
 #if QT_VERSION >= QT_VERSION_CHECK(6, 10, 0)
-    if (d->m_state.isCompletePending()) {
+    if (W_PRIVATE_MEMBER(*d, QQmlComponentPrivate_m_state_tag{}).isCompletePending()) {
 #else
     if (d->state.isCompletePending()) {
 #endif
@@ -229,7 +232,7 @@ void WQmlCreatorComponent::create(QSharedPointer<WQmlCreatorDelegateData> data, 
     auto d = QQmlComponentPrivate::get(m_delegate);
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 10, 0)
-    Q_ASSERT(!d->m_state.isCompletePending());
+    Q_ASSERT(!W_PRIVATE_MEMBER(*d, QQmlComponentPrivate_m_state_tag{}).isCompletePending());
 #elif QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
     Q_ASSERT(!d->state.isCompletePending());
 #else
@@ -282,7 +285,7 @@ void WQmlCreatorComponent::create(QSharedPointer<WQmlCreatorDelegateData> data, 
     } else {
         qWarning() << "WQmlCreatorComponent::create failed" << "parent=" << parent << "initialProperties=" << tmp;
 #if QT_VERSION >= QT_VERSION_CHECK(6, 10, 0)
-        for (auto e: d->m_state.errors)
+        for (auto e: W_PRIVATE_MEMBER(*d, QQmlComponentPrivate_m_state_tag{}).errors)
 #else
         for (auto e: d->state.errors)
 #endif

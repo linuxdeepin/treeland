@@ -1,4 +1,4 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #ifndef WXDGTOPLEVELSURFACE_H
@@ -15,11 +15,13 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 class WXdgToplevelSurfacePrivate;
 
 class WAYLIB_SERVER_EXPORT WXdgToplevelSurface : public WXdgSurface
-{    
+{
     Q_OBJECT
     W_DECLARE_PRIVATE(WXdgToplevelSurface)
     Q_PROPERTY(bool isResizeing READ isResizeing NOTIFY resizeingChanged FINAL)
     Q_PROPERTY(WXdgSurface* parentXdgSurface READ parentXdgSurface NOTIFY parentXdgSurfaceChanged FINAL)
+    Q_PROPERTY(QString tag READ tag NOTIFY tagChanged FINAL)
+    Q_PROPERTY(QString description READ description NOTIFY descriptionChanged FINAL)
     QML_NAMED_ELEMENT(WaylandXdgToplevelSurface)
     QML_UNCREATABLE("Only create in C++")
 
@@ -53,6 +55,11 @@ public:
     QString title() const override;
     QString appId() const override;
 
+    QString tag() const;
+    QString description() const;
+    void setTag(const QString &tag);
+    void setDescription(const QString &description);
+
     bool isInitialized() const override;
 
 public Q_SLOTS:
@@ -69,6 +76,9 @@ public Q_SLOTS:
 Q_SIGNALS:
     void parentXdgSurfaceChanged();
     void resizeingChanged();
+
+    void tagChanged();
+    void descriptionChanged();
 };
 
 WAYLIB_SERVER_END_NAMESPACE

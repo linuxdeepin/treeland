@@ -1,8 +1,9 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #pragma once
 
 #include "surface/surfacecontainer.h"
+#include "surface/seatsurfacemanager.h"
 
 #include <wglobal.h>
 
@@ -14,6 +15,8 @@ class WSurfaceItem;
 class WToplevelSurface;
 class WOutputLayout;
 class WCursor;
+class WSeat;
+class WInputDevice;
 WAYLIB_SERVER_END_NAMESPACE
 
 WAYLIB_SERVER_USE_NAMESPACE
@@ -37,6 +40,7 @@ class RootSurfaceContainer : public SurfaceContainer
 
 public:
     explicit RootSurfaceContainer(QQuickItem *parent);
+    ~RootSurfaceContainer() override;
 
     enum ContainerZOrder
     {
@@ -59,6 +63,19 @@ public:
     SurfaceWrapper *getSurface(WToplevelSurface *surface) const;
     void destroyForSurface(SurfaceWrapper *wrapper);
 
+    SeatSurfaceManager *getSeatContainer(WSeat *seat) const;
+    WSeat *getDefaultSeat() const;
+    SeatSurfaceManager *getSeatContainerOrDefault(WSeat *seat = nullptr) const;
+
+    void beginMoveResizeForSeat(WSeat *seat, SurfaceWrapper *surface, Qt::Edges edges);
+    void doMoveResizeForSeat(WSeat *seat, const QPointF &delta);
+    void endMoveResizeForSeat(WSeat *seat);
+    SurfaceWrapper *getMoveResizeSurfaceForSeat(WSeat *seat) const;
+    void setActivatedSurfaceForSeat(WSeat *seat, SurfaceWrapper *surface,
+                                    Qt::FocusReason reason);
+    SurfaceWrapper *getActivatedSurfaceForSeat(WSeat *seat) const;
+    void setupSeatManagement();
+
     WOutputLayout *outputLayout() const;
     WCursor *cursor() const;
 
@@ -70,6 +87,8 @@ public:
     void addOutput(Output *output) override;
     void removeOutput(Output *output) override;
 
+    // TODO(Lyn): These global move/resize interfaces should eventually be moved into the Seat
+    //       object (or SeatSurfaceManager), since move/resize state is inherently per-seat.
     void beginMoveResize(SurfaceWrapper *surface, Qt::Edges edges);
     void doMoveResize(const QPointF &incrementPos);
     void endMoveResize();
@@ -79,6 +98,7 @@ public:
     void moveSurfacesToOutput(const QList<SurfaceWrapper *> &surfaces,
                               Output *targetOutput,
                               Output *sourceOutput = nullptr);
+    void ensureSurfaceNormalPositionValid(SurfaceWrapper *surface);
 
 public Q_SLOTS:
     void startMove(SurfaceWrapper *surface);
@@ -105,7 +125,12 @@ private:
 
     void ensureCursorVisible();
     void updateSurfaceOutputs(SurfaceWrapper *surface);
-    void ensureSurfaceNormalPositionValid(SurfaceWrapper *surface);
+
+    void onSeatAdded(WSeat *seat);
+    void onSeatRemoved(WSeat *seat);
+
+    void setupSurfaceRequestHandlers(SurfaceWrapper *surface);
+    WSeat *determineSeatForRequest(SurfaceWrapper *surface);
 
     WOutputLayout *m_outputLayout = nullptr;
     OutputListModel *m_outputModel = nullptr;
@@ -113,14 +138,8 @@ private:
     WCursor *m_cursor = nullptr;
     WSurfaceItem *m_dragSurfaceItem = nullptr;
 
-    // for move resize
-    struct
-    {
-        SurfaceWrapper *surface = nullptr;
-        QRectF startGeometry;
-        Qt::Edges resizeEdges;
-        bool setSurfacePositionForAnchorEdgets = false;
-    } moveResizeState;
+    // Per-seat state management
+    QMap<WSeat*, SeatSurfaceManager*> m_seatContainers;
 };
 
 Q_DECLARE_OPAQUE_POINTER(WAYLIB_SERVER_NAMESPACE::WOutputLayout *)

@@ -56,6 +56,9 @@ public:
     QList<WXWaylandSurface*> toplevelSurfaces;
 
     WSocket *socket = nullptr;
+
+protected:
+    void instantRelease() override;
 };
 
 void WXWaylandPrivate::init()
@@ -89,6 +92,10 @@ void WXWaylandPrivate::init()
             continue;
         }
     }
+}
+
+void WXWaylandPrivate::instantRelease() {
+    delete handle<qw_xwayland>();
 }
 
 void WXWaylandPrivate::on_new_surface(wlr_xwayland_surface *xwl_surface)
@@ -347,6 +354,9 @@ void WXWayland::destroy([[maybe_unused]] WServer *server)
     d->screen = nullptr;
 
     for (auto surface : std::as_const(list)) {
+        // disconnect from on_surface_destroy
+        disconnect(surface->handle(), &qw_xwayland_surface::before_destroy,
+                   this, nullptr);
         removeSurface(surface);
         surface->safeDeleteLater();
     }

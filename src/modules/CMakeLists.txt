@@ -20,6 +20,11 @@ link_libraries(
     PkgConfig::WAYLAND_SERVER
 )
 
+target_sources(libtreeland
+    PRIVATE
+        ${CMAKE_BINARY_DIR}/protocols/xdg-shell-protocol.c
+)
+
 add_subdirectory(tools)
 add_subdirectory(foreign-toplevel)
 add_subdirectory(output-manager)
@@ -35,4 +40,9 @@ add_subdirectory(ddm)
 add_subdirectory(screensaver)
 add_subdirectory(prelaunch-splash)
 add_subdirectory(app-id-resolver)
-add_subdirectory(keystate)
+add_subdirectory(wine-window-state)
+add_subdirectory(wine-window-management)
+add_subdirectory(wallpaper)
+add_subdirectory(activation)
+add_subdirectory(input-manager)
+add_subdirectory(keyboard-state-notify)

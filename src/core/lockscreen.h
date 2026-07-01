@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Dingyuan Zhang <lxz@mkacg.com>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
@@ -8,6 +8,7 @@
 #include <map>
 #include <memory>
 
+class GreeterProxy;
 class QTimer;
 class ILockScreen;
 
@@ -35,7 +36,7 @@ public:
     };
     Q_ENUM(CurrentMode)
 
-    explicit LockScreen(ILockScreen *impl, SurfaceContainer *parent);
+    explicit LockScreen(ILockScreen *impl, SurfaceContainer *parent, GreeterProxy *greeterProxy);
 
     bool available() const;
     bool isLocked() const;
@@ -71,6 +72,7 @@ public:
 
 private:
     ILockScreen *m_impl{ nullptr };
+    GreeterProxy *m_greeterProxy{ nullptr };
     std::map<Output *, std::unique_ptr<QQuickItem, void (*)(QQuickItem *)>> m_components;
     std::unique_ptr<QTimer> m_delayTimer;
 #ifdef EXT_SESSION_LOCK_V1

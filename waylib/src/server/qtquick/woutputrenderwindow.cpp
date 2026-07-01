@@ -1,4 +1,4 @@
-// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "woutputrenderwindow.h"
@@ -41,13 +41,10 @@
 #include <QRunnable>
 #include <memory>
 
-#define protected public
-#define private public
 #include <private/qsgrenderer_p.h>
 #include <private/qsgsoftwarerenderer_p.h>
 #include <private/qquickanimatorcontroller_p.h>
-#undef protected
-#undef private
+#include "private/wprivateaccessor_p.h"
 #include <private/qquickwindow_p.h>
 #include <private/qquickrendercontrol_p.h>
 #include <private/qquickwindow_p.h>
@@ -71,6 +68,14 @@ extern "C" {
 
 #include <drm_fourcc.h>
 #include <limits>
+
+using QQuickAnimCtrl_AnimRoots_t = QHash<QAbstractAnimationJob *, QSharedPointer<QAbstractAnimationJob>>;
+W_DECLARE_PRIVATE_MEMBER(QQuickAnimCtrl_m_animationRoots_tag, QQuickAnimatorController, m_animationRoots, QQuickAnimCtrl_AnimRoots_t);
+
+using QQuickAnimCtrl_RunningAnimators_t = QSet<QQuickAnimatorJob *>;
+W_DECLARE_PRIVATE_MEMBER(QQuickAnimCtrl_m_runningAnimators_tag, QQuickAnimatorController, m_runningAnimators, QQuickAnimCtrl_RunningAnimators_t);
+
+W_DECLARE_PRIVATE_MEMBER(QQuickAnimCtrl_m_window_tag, QQuickAnimatorController, m_window, QQuickWindow*);
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -141,8 +146,10 @@ public:
         ~LayerData() {
             if (renderer)
                 renderer->deleteLater();
-            if (wlrLayer)
-                wlrLayer->deleteLater();
+            if (wlrLayer) {
+                delete wlrLayer;
+                wlrLayer = nullptr;
+            }
         }
 
         OutputLayer *layer;
@@ -174,9 +181,9 @@ public:
 
     ~OutputHelper()
     {
-        cleanLayerCompositor();
-        cleanCursorRender();
-        qDeleteAll(m_layers);
+        if (!m_layerProxys.isEmpty() || m_output || m_output2 || m_layerPorxyContainer
+                || m_cursorRenderer || m_cursorLayerProxy)
+            qFatal("Before destroying OutputHelper, ensure call invalidate method.");
     }
 
     inline void init() {
@@ -212,6 +219,9 @@ public:
 
     inline void invalidate() {
         m_output = nullptr;
+        cleanLayerCompositor();
+        cleanCursorRender();
+        qDeleteAll(m_layers);
     }
 
     inline qreal devicePixelRatio() const {
@@ -1477,18 +1487,18 @@ WOutputRenderWindowPrivate::doRenderOutputs(qw_output *needsFrameOutput, const Q
 static void QQuickAnimatorController_advance(QQuickAnimatorController *ac)
 {
     bool running = false;
-    for (const QSharedPointer<QAbstractAnimationJob> &job : std::as_const(ac->m_animationRoots)) {
+    for (const QSharedPointer<QAbstractAnimationJob> &job : std::as_const(W_PRIVATE_MEMBER(*ac, QQuickAnimCtrl_m_animationRoots_tag{}))) {
         if (job->isRunning()) {
             running = true;
             break;
         }
     }
 
-    for (QQuickAnimatorJob *job : std::as_const(ac->m_runningAnimators))
+    for (QQuickAnimatorJob *job : std::as_const(W_PRIVATE_MEMBER(*ac, QQuickAnimCtrl_m_runningAnimators_tag{})))
         job->commit();
 
     if (running)
-        ac->m_window->update();
+        W_PRIVATE_MEMBER(*ac, QQuickAnimCtrl_m_window_tag{})->update();
 }
 
 void WOutputRenderWindowPrivate::doRender(qw_output *needsFrameOutput,

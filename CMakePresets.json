@@ -32,7 +32,7 @@
             "generator": "Ninja",
             "binaryDir": "${sourceDir}/build",
             "cacheVariables": {
-                "CMAKE_CXX_FLAGS": "-Wall -Wextra -Werror -Wno-stringop-overflow",
+                "CMAKE_CXX_FLAGS": "-Wall -Wextra -Werror -Wno-stringop-overflow -Wno-sfinae-incomplete",
                 "CMAKE_C_FLAGS": "-Wall -Wextra -Werror -Wno-stringop-overflow"
             }
         },
@@ -47,19 +47,6 @@
                 "CMAKE_CXX_COMPILER": "clang++",
                 "CMAKE_CXX_FLAGS": "-Wall -Wextra -Werror -Wno-shift-overflow -Wno-overloaded-virtual",
                 "CMAKE_C_FLAGS": "-Wall -Wextra -Werror -Wno-shift-overflow -Wno-overloaded-virtual"
-            }
-        },
-        {
-            "name": "deb",
-            "displayName": "Debian Package Build Config",
-            "description": "Build configuration for Debian packaging with examples enabled",
-            "generator": "Ninja",
-            "cacheVariables": {
-                "CMAKE_C_COMPILER": "gcc",
-                "CMAKE_CXX_COMPILER": "g++",
-                "CMAKE_CXX_FLAGS": "-Wall -Wextra -Werror -Wno-stringop-overflow",
-                "CMAKE_C_FLAGS": "-Wall -Wextra -Werror -Wno-stringop-overflow",
-                "BUILD_TREELAND_EXAMPLES": "ON"
             }
         }
     ],
@@ -79,10 +66,18 @@
         {
             "name": "ci-clang",
             "configurePreset": "ci-clang"
-        },
+        }
+    ],
+    "testPresets": [
         {
-            "name": "deb",
-            "configurePreset": "deb"
+            "name": "ci",
+            "configurePreset": "ci",
+            "output": {
+                "outputOnFailure": true
+            },
+            "execution": {
+                "noTestsAction": "error"
+            }
         }
     ]
 }

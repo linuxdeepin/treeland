@@ -1,14 +1,14 @@
-// Copyright (C) 2025 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2025-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
-#include <QApplication>
+#include <QGuiApplication>
 #include <QObject>
 #include <QScreen>
 #include <QWaylandClientExtension>
 #include <QCommandLineParser>
 
 #include "qwayland-treeland-output-manager-v1.h"
-
+#define TREELAND_OUTPUT_MANAGER_V1_VERSION 2
 
 static wl_output *wlOutputForName(const QString &name)
 {
@@ -35,7 +35,7 @@ class OutputManagerV1
     Q_OBJECT
 public:
     explicit OutputManagerV1()
-        : QWaylandClientExtensionTemplate<OutputManagerV1>(2)
+        : QWaylandClientExtensionTemplate<OutputManagerV1>(TREELAND_OUTPUT_MANAGER_V1_VERSION)
     {
 
     }
@@ -76,7 +76,7 @@ protected:
 int main(int argc, char *argv[])
 {
     qputenv("QT_QPA_PLATFORM", "wayland");
-    QApplication app(argc, argv);
+    QGuiApplication app(argc, argv);
     QCommandLineParser parser;
     parser.setApplicationDescription("Test Color Control V1");
     parser.addHelpOption();
@@ -91,7 +91,7 @@ int main(int argc, char *argv[])
     parser.addOption(colorTempOption);
     parser.addOption(brightnessOption);
     parser.addPositionalArgument("output", "Name of the output to control.");
-    parser.process(QApplication::arguments());
+    parser.process(QGuiApplication::arguments());
     auto colorTemperature = parser.value(colorTempOption).toUInt();
     auto brightness = parser.value(brightnessOption).toDouble();
     auto outputName = parser.positionalArguments().value(0);

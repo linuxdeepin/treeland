@@ -287,7 +287,13 @@ void DataControlSourceV1::zwlr_data_control_source_v1_send(const QString &mime_t
     sigemptyset(&action.sa_mask);
     action.sa_flags = 0;
     sigaction(SIGPIPE, &action, &oldAction);
-    write(fd, ba.constData(), ba.size());
+    const ssize_t expected = static_cast<ssize_t>(ba.size());
+    const ssize_t written = write(fd, ba.constData(), static_cast<size_t>(ba.size()));
+    if (written < 0) {
+        qWarning() << "failed to write clipboard data:" << strerror(errno);
+    } else if (written != expected) {
+        qWarning() << "failed to write clipboard data: short write";
+    }
     sigaction(SIGPIPE, &oldAction, nullptr);
     close(fd);
 }

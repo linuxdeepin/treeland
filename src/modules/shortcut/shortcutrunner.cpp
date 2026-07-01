@@ -1,10 +1,11 @@
-// Copyright (C) 2025 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2025-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "shortcutrunner.h"
 #include "seat/helper.h"
+#include "shortcutcontroller.h"
 #include "workspace/workspace.h"
-#include "modules/window-management/windowmanagement.h"
+#include "modules/window-management/windowmanagementinterfacev1.h"
 #include "core/rootsurfacecontainer.h"
 #include "surface/surfacewrapper.h"
 #include "utils/fpsdisplaymanager.h"
@@ -15,12 +16,14 @@
 #include "woutputrenderwindow.h"
 #include "output/output.h"
 
+#include "qwayland-server-treeland-shortcut-manager-v2.h"
+
 ShortcutRunner::ShortcutRunner(QObject *parent)
     : QObject(parent)
 {
 }
 
-void ShortcutRunner::onActionTrigger(ShortcutAction action, const QString &name, bool isGesture, bool isRepeat)
+void ShortcutRunner::onActionTrigger(ShortcutAction action, const QString &name, bool isGesture, ShortcutController::KeyFlags keyFlags)
 {
     Q_UNUSED(isGesture)
     auto *helper = Helper::instance();
@@ -31,7 +34,7 @@ void ShortcutRunner::onActionTrigger(ShortcutAction action, const QString &name,
 
     switch (action) {
     case ShortcutAction::Notify:
-        helper->m_shortcutManager->sendActivated(name, isRepeat);
+        helper->m_shortcutManager->sendActivated(name, keyFlags);
         break;
     case ShortcutAction::Workspace1:
         helper->restoreFromShowDesktop();
@@ -69,10 +72,10 @@ void ShortcutRunner::onActionTrigger(ShortcutAction action, const QString &name,
         if (helper->currentMode() == Helper::CurrentMode::Multitaskview) {
             break;
         }
-        if (helper->m_showDesktop == WindowManagementV1::DesktopState::Normal)
-            helper->m_windowManagement->setDesktopState(WindowManagementV1::DesktopState::Show);
-        else if (helper->m_showDesktop == WindowManagementV1::DesktopState::Show)
-            helper->m_windowManagement->setDesktopState(WindowManagementV1::DesktopState::Normal);
+        if (helper->m_showDesktop == WindowManagementInterfaceV1::DesktopState::Normal)
+            helper->m_windowManagementInterfaceV1->setDesktopState(WindowManagementInterfaceV1::DesktopState::Show);
+        else if (helper->m_showDesktop == WindowManagementInterfaceV1::DesktopState::Show)
+            helper->m_windowManagementInterfaceV1->setDesktopState(WindowManagementInterfaceV1::DesktopState::Normal);
         break;
     case ShortcutAction::Maximize: {
         auto surface = helper->activatedSurface();
@@ -164,7 +167,7 @@ void ShortcutRunner::onActionTrigger(ShortcutAction action, const QString &name,
     case ShortcutAction::TaskSwitchSameAppPrev: {
         const bool isSameApp = (action == ShortcutAction::TaskSwitchSameAppNext || action == ShortcutAction::TaskSwitchSameAppPrev);
         const bool isPrev = (action == ShortcutAction::TaskSwitchPrev || action == ShortcutAction::TaskSwitchSameAppPrev);
-        taskswitchAction(isRepeat, isSameApp, isPrev);
+        taskswitchAction(keyFlags.testFlag(ShortcutController::Repeat), isSameApp, isPrev);
         break;
     }
     default:
@@ -229,7 +232,7 @@ void ShortcutRunner::onActionFinish(ShortcutAction action, const QString &name, 
     }
     default:
         if (isTriggered) {
-            onActionTrigger(action, name, true, false);
+            onActionTrigger(action, name, true, ShortcutController::KeyFlag::None);
         }
         break;
     }
@@ -342,7 +345,7 @@ void ShortcutRunner::taskswitchAction(bool isRepeat, bool isSameApp, bool isPrev
 
     if (helper->m_taskSwitch.isNull()) {
         auto contentItem = helper->window()->contentItem();
-        auto output = helper->rootContainer()->primaryOutput();
+        auto output = helper->rootSurfaceContainer()->primaryOutput();
         helper->m_taskSwitch = helper->qmlEngine()->createTaskSwitcher(output, contentItem);
         helper->restoreFromShowDesktop();
         QObject::connect(helper->m_taskSwitch, SIGNAL(switchOnChanged()), helper, SLOT(deleteTaskSwitch()));
@@ -377,4 +380,3 @@ void ShortcutRunner::taskswitchAction(bool isRepeat, bool isSameApp, bool isPrev
         QMetaObject::invokeMethod(helper->m_taskSwitch, "next");
     }
 }
-

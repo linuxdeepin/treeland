@@ -9,6 +9,10 @@
 
 #include <qwxwaylandsurface.h>
 #include <qwcompositor.h>
+#include <QPointer>
+
+#include <sys/syscall.h>
+#include <unistd.h>
 
 #define XCOORD_MAX 32767
 
@@ -58,7 +62,7 @@ public:
     mutable int pidFD = -1;
 
     QList<WXWaylandSurface*> children;
-    WXWaylandSurface *parent = nullptr;
+    QPointer<WXWaylandSurface> parent;
     QRect lastRequestConfigureGeometry;
     WXWaylandSurface::ConfigureFlags lastRequestConfigureFlags = {0};
     WXWaylandSurface::WindowTypes windowTypes = {0};
@@ -90,9 +94,11 @@ void WXWaylandSurfacePrivate::init()
         surface = new WSurface(qw_surface::from(nativeHandle()->surface), q);
         surface->setAttachedData<WXWaylandSurface>(q);
         Q_EMIT q->surfaceChanged();
+        Q_EMIT q->associated();
     });
     QObject::connect(handle(), &qw_xwayland_surface::notify_dissociate, q, [this, q] {
         Q_ASSERT(surface);
+        Q_EMIT q->aboutToDissociate();
         surface->safeDeleteLater();
         surface = nullptr;
         Q_EMIT q->surfaceChanged();
@@ -173,7 +179,7 @@ void WXWaylandSurfacePrivate::updateChildren()
     if (children == list)
         return;
 
-    const bool hasChildChanged = children.isEmpty() || list.isEmpty();
+    const bool hasChildChanged = children.isEmpty() != list.isEmpty();
     children = list;
 
     W_Q(WXWaylandSurface);
@@ -191,7 +197,8 @@ void WXWaylandSurfacePrivate::updateParent()
         return;
 
     const bool hasParentChanged = (parent == nullptr) != (newParent == nullptr);
-    if (parent)
+    // QPointer handles destroyed wrappers; isInvalidated() prevents accessing destroyed wlroots objects.
+    if (parent && !parent->isInvalidated())
         parent->d_func()->updateChildren();
     parent = newParent;
     if (parent)

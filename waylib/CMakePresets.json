@@ -9,7 +9,7 @@
       "binaryDir": "${sourceDir}/build",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "CMAKE_CXX_FLAGS": "-Wall -Wextra -Werror -Wno-stringop-overflow",
+        "CMAKE_CXX_FLAGS": "-Wall -Wextra -Werror -Wno-stringop-overflow -Wno-sfinae-incomplete",
         "CMAKE_C_FLAGS": "-Wall -Wextra -Werror -Wno-stringop-overflow"
       }
     }
@@ -19,6 +19,18 @@
       "name": "ci",
       "configurePreset": "ci",
       "jobs": 0
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "ci",
+      "configurePreset": "ci",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error"
+      }
     }
   ]
 }

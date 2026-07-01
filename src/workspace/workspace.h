@@ -1,4 +1,4 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #pragma once
 
@@ -80,24 +80,26 @@ public:
 
     void pushActivedSurface(SurfaceWrapper *surface);
     void removeActivedSurface(SurfaceWrapper *surface);
+    void clearActivedSurface();
     void setSwitcherEnabled(bool enabled);
 
     WorkspaceAnimationController *animationController() const;
     void createSwitcher();
+    void updateSurfaceOwnsOutput(SurfaceWrapper *surface);
+    void updateSurfacesOwnsOutput();
 
 Q_SIGNALS:
     void currentChanged();
     void currentFilterChanged();
     void currentIndexChanged();
     void countChanged();
+    void workspaceAdded();
 
 private:
     int nextWorkspaceId() const;
     int doCreateModel(const QString &name, bool visible = false);
     void doRemoveModel(int index);
     void doSetCurrentIndex(int newCurrentIndex);
-    void updateSurfaceOwnsOutput(SurfaceWrapper *surface);
-    void updateSurfacesOwnsOutput();
 
     uint m_currentIndex;
     WorkspaceListModel *m_models;

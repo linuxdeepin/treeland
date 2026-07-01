@@ -1,4 +1,4 @@
-// Copyright (C) 2023 justforlxz <justforlxz@gmail.com>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 import QtQuick
 import QtQuick.Controls
@@ -9,42 +9,14 @@ import LockScreen
 FocusScope {
     id: root
     clip: true
-    enum CurrentMode {
-        Lock = 1,
-        Shutdown = 2,
-        SwitchUser = 3
-    }
 
     signal animationPlayed
     signal animationPlayFinished
 
     required property QtObject output
     required property QtObject outputItem
-    property int currentMode: Greeter.CurrentMode.Lock
     property string primaryOutputName
     visible: primaryOutputName === "" || primaryOutputName === output.name
-
-    function start(showAnimation)
-    {
-        if (showAnimation === undefined) {
-            showAnimation = true
-        }
-        lockView.showAnimation = showAnimation
-        lockView.forceActiveFocus()
-        if (showAnimation) {
-            wallpaperController.type = WallpaperController.Scale
-        } else {
-            wallpaperController.type = WallpaperController.ScaleWithoutAnimation
-        }
-        switch (root.currentMode) {
-        case Greeter.CurrentMode.Lock:
-            lockView.start()
-            break;
-        case Greeter.CurrentMode.SwitchUser:
-            lockView.showUserView()
-            break;
-        }
-    }
 
     x: outputItem.x
     y: outputItem.y
@@ -53,41 +25,103 @@ FocusScope {
 
     palette.windowText: Qt.rgba(1.0, 1.0, 1.0, 1.0)
 
-    WallpaperController {
-        id: wallpaperController
-        output: root.output
-        lock: true
-        type: WallpaperController.Normal
+    /**************/
+    /* Components */
+    /**************/
+
+    Rectangle {
+        id: background
+
+        readonly property int duration: 1000
+        anchors.fill: parent
+        clip: true
+        color: 'black'
+        opacity: 0.0
+        transformOrigin: Item.Center
+        state: (GreeterProxy.isLocked || GreeterProxy.showShutdownView) ? "Show" : "Hide"
+        states: [
+            State {
+                name: "Show"
+                PropertyChanges {
+                    target: background
+                    scale: 1.2
+                }
+                PropertyChanges {
+                    target: background
+                    opacity: 1
+                }
+            },
+            State {
+                name: "Hide"
+                PropertyChanges {
+                    target: background
+                    scale: 1
+                }
+                PropertyChanges {
+                    target: background
+                    opacity: 0
+                }
+            }
+        ]
+
+        transitions: [
+            Transition {
+                from: "*"
+                to: "Show"
+                PropertyAnimation {
+                    property: "scale"
+                    duration: background.duration
+                    easing.type: Easing.OutExpo
+                }
+                PropertyAnimation {
+                    property: "opacity"
+                    duration: background.duration
+                    easing.type: Easing.OutExpo
+                }
+            },
+            Transition {
+                from: "*"
+                to: "Hide"
+                PropertyAnimation {
+                    property: "scale"
+                    duration: background.duration
+                    easing.type: Easing.OutExpo
+                }
+                PropertyAnimation {
+                    property: "opacity"
+                    duration: background.duration
+                    easing.type: Easing.OutExpo
+                }
+            }
+        ]
+        onStateChanged: {
+            if (state === "Show") {
+                Helper.startLockscreen(root.output, true);
+                wallpaper.play = true;
+            } else {
+                wallpaper.play = false;
+                Helper.showDesktop(root.output)
+            }
+        }
+
+        Wallpaper {
+            id: wallpaper
+
+            anchors.fill: parent
+            clip: true
+            wallpaperRole: Wallpaper.Lockscreen
+            output: root.output
+        }
     }
 
-    // prevent event passing through greeter
     MouseArea {
         anchors.fill: parent
         enabled: true
     }
 
-    Rectangle {
-        id: cover
-        anchors.fill: parent
-        color: 'black'
-        opacity: wallpaperController.type === WallpaperController.Normal ? 0 : 0.6
-        Behavior on opacity {
-            PropertyAnimation {
-                duration: wallpaperController.type === WallpaperController.ScaleWithoutAnimation ? 0 : 1000
-                easing.type: Easing.OutExpo
-            }
-        }
-    }
-
     LockView {
         id: lockView
-        visible: root.currentMode === Greeter.CurrentMode.Lock ||
-                 root.currentMode === Greeter.CurrentMode.SwitchUser
         anchors.fill: parent
-        onQuit: function () {
-            wallpaperController.type = WallpaperController.Normal
-            root.animationPlayed()
-        }
         onAnimationPlayFinished: function () {
             if (lockView.state === LoginAnimation.Hide) {
                 root.animationPlayFinished()
@@ -97,25 +131,40 @@ FocusScope {
 
     ShutdownView {
         id: shutdownView
-        visible: root.currentMode === Greeter.CurrentMode.Shutdown
+        visible: GreeterProxy.showShutdownView
         anchors.fill: parent
 
-        onClicked: function () {
-            wallpaperController.type = WallpaperController.Normal
-            root.animationPlayed()
-            root.animationPlayFinished()
-        }
-        onSwitchUser: function () {
-            root.currentMode = Greeter.CurrentMode.Lock
-            lockView.showUserView()
-        }
-        onLock: function () {
-            root.currentMode = Greeter.CurrentMode.Lock
-            lockView.start()
+        onSwitchUser: {
+            root.switchUser()
         }
     }
 
-    Component.onDestruction: {
-        wallpaperController.lock = false
+    /*****************************/
+    /* Functions and Connections */
+    /*****************************/
+
+    function switchUser() {
+        GreeterProxy.lock()
+        lockView.showUserView()
+    }
+
+    Connections {
+        target: GreeterProxy
+
+        function onLockChanged(isLocked) {
+            if (!isLocked)
+                root.animationPlayed()
+        }
+
+        function onShowShutdownViewChanged(show) {
+            if (!show && !GreeterProxy.isLocked) {
+                root.animationPlayed()
+                root.animationPlayFinished()
+            }
+        }
+
+        function onSwitchUser() {
+            root.switchUser()
+        }
     }
 }

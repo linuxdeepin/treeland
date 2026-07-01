@@ -76,6 +76,8 @@
 #include <QQmlComponent>
 #include <QVariant>
 
+#include <unistd.h>
+
 #define WLR_FRACTIONAL_SCALE_V1_VERSION 1
 #define EXT_DATA_CONTROL_MANAGER_V1_VERSION 1
 
@@ -753,8 +755,9 @@ void Helper::enableOutput(WOutput *output)
                 newState.set_mode(mode);
         }
         newState.set_enabled(true);
-        bool ok = qwoutput->commit_state(newState);
-        Q_ASSERT(ok);
+        if (!qwoutput->commit_state(newState)) {
+            qCritical("commit failed on output %s", qwoutput->handle()->name);
+        }
     }
 }
 

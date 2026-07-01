@@ -579,9 +579,7 @@ bool Scanner::process()
             printf("        Resource *resource() { return m_resource; }\n");
             printf("        const Resource *resource() const { return m_resource; }\n");
             printf("\n");
-            printf("        QMultiMap<struct ::wl_client*, Resource*> resourceMap() { return "
-                   "m_resource_map; }\n");
-            printf("        const QMultiMap<struct ::wl_client*, Resource*> resourceMap() const { "
+            printf("        const QMultiMap<struct ::wl_client*, Resource*> &resourceMap() const { "
                    "return m_resource_map; }\n");
             printf("\n");
             printf("        bool isGlobalRemoved() const { return m_globalRemovedEvent; }\n");
@@ -616,21 +614,19 @@ bool Scanner::process()
             printf("\n");
 
             printf("    protected:\n");
-            printf("        virtual Resource *%s_allocate();\n", interfaceNameStripped);
+            printf("        virtual Resource *allocate();\n");
             printf("\n");
-            printf("        virtual void %s_destroy_global();\n", interfaceNameStripped);
+            printf("        virtual void destroy_global();\n");
             printf("\n");
-            printf("        virtual void %s_bind_resource(Resource *resource);\n",
-                   interfaceNameStripped);
-            printf("        virtual void %s_destroy_resource(Resource *resource);\n",
-                   interfaceNameStripped);
+                 printf("        virtual void bind_resource(Resource *resource);\n");
+                 printf("        virtual void destroy_resource(Resource *resource);\n");
 
             bool hasRequests = !interface.requests.empty();
 
             if (hasRequests) {
                 printf("\n");
                 for (const WaylandEvent &e : interface.requests) {
-                    printf("        virtual void %s_", interfaceNameStripped);
+                    printf("        virtual void ");
                     printEvent(e);
                     printf(";\n");
                 }
@@ -726,7 +722,7 @@ bool Scanner::process()
             printf("        wl_event_source_remove(object->m_globalRemovedEvent);\n");
             printf("        object->m_globalRemovedEvent = nullptr;\n");
             printf("        wl_list_remove(&object->m_displayDestroyedListener.link);\n");
-            printf("        object->%s_destroy_global();\n", interfaceNameStripped);
+            printf("        object->destroy_global();\n");
             printf("        return 0;\n");
             printf("    }\n");
             printf("\n");
@@ -848,30 +844,27 @@ bool Scanner::process()
             printf("    }\n");
             printf("\n");
 
-            printf("    %s::Resource *%s::%s_allocate()\n",
-                   interfaceName,
-                   interfaceName,
-                   interfaceNameStripped);
+                 printf("    %s::Resource *%s::allocate()\n",
+                     interfaceName,
+                     interfaceName);
             printf("    {\n");
             printf("        return new Resource;\n");
             printf("    }\n");
             printf("\n");
 
-            printf("    void %s::%s_destroy_global()\n", interfaceName, interfaceNameStripped);
+            printf("    void %s::destroy_global()\n", interfaceName);
             printf("    {\n");
             printf("    }\n");
             printf("\n");
 
-            printf("    void %s::%s_bind_resource(Resource *)\n",
-                   interfaceName,
-                   interfaceNameStripped);
+                 printf("    void %s::bind_resource(Resource *)\n",
+                     interfaceName);
             printf("    {\n");
             printf("    }\n");
             printf("\n");
 
-            printf("    void %s::%s_destroy_resource(Resource *)\n",
-                   interfaceName,
-                   interfaceNameStripped);
+                 printf("    void %s::destroy_resource(Resource *)\n",
+                     interfaceName);
             printf("    {\n");
             printf("    }\n");
             printf("\n");
@@ -909,7 +902,7 @@ bool Scanner::process()
                    interfaceNameStripped);
             printf("        if (Q_LIKELY(that)) {\n");
             printf("            that->m_resource_map.remove(resource->client(), resource);\n");
-            printf("            that->%s_destroy_resource(resource);\n", interfaceNameStripped);
+            printf("            that->destroy_resource(resource);\n");
             printf("\n");
             printf("            that = resource->%s_object;\n", interfaceNameStripped);
             printf("            if (that && that->m_resource == resource)\n");
@@ -964,14 +957,14 @@ bool Scanner::process()
                    interfaceName,
                    interfaceName);
             printf("    {\n");
-            printf("        Resource *resource = %s_allocate();\n", interfaceNameStripped);
+            printf("        Resource *resource = allocate();\n");
             printf("        resource->%s_object = this;\n", interfaceNameStripped);
             printf("\n");
             printf("        wl_resource_set_implementation(handle, %s, resource, destroy_func);",
                    interfaceMember.constData());
             printf("\n");
             printf("        resource->handle = handle;\n");
-            printf("        %s_bind_resource(resource);\n", interfaceNameStripped);
+            printf("        bind_resource(resource);\n");
             printf("        return resource;\n");
             printf("    }\n");
 
@@ -1008,10 +1001,22 @@ bool Scanner::process()
 
                 for (const WaylandEvent &e : interface.requests) {
                     printf("\n");
-                    printf("    void %s::%s_", interfaceName, interfaceNameStripped);
-                    printEvent(e, true);
+                    printf("    void %s::", interfaceName);
+                    printEvent(e);
                     printf("\n");
                     printf("    {\n");
+                    if (isServerSide()) {
+                        if (e.request) {
+                            printf("        Q_UNUSED(resource);\n");
+                        }
+                    }
+                    for (const WaylandArgument &a : e.arguments) {
+                        bool isNewId = a.type == "new_id";
+                        if (isServerSide() && isNewId && e.request)
+                            printf("        Q_UNUSED(%s);\n", a.name.constData());
+                        else if (!isNewId || !isServerSide() || !e.request)
+                            printf("        Q_UNUSED(%s);\n", a.name.constData());
+                    }
                     printf("    }\n");
                 }
                 printf("\n");
@@ -1019,14 +1024,12 @@ bool Scanner::process()
                 for (const WaylandEvent &e : interface.requests) {
                     printf("\n");
                     printf("    void %s::", interfaceName);
-
                     printEventHandlerSignature(e, interfaceName, false);
-
                     printf("\n");
                     printf("    {\n");
                     printf("        Q_UNUSED(client);\n");
-                    printf("        Resource *r = Resource::fromResource(resource);\n");
-                    printf("        if (Q_UNLIKELY(!r->%s_object)) {\n", interfaceNameStripped);
+                    printf("        Resource *qResource = Resource::fromResource(resource);\n");
+                    printf("        if (Q_UNLIKELY(!qResource->%s_object)) {\n", interfaceNameStripped);
                     for (const WaylandArgument &a : e.arguments) {
                         if (a.type == QByteArrayLiteral("fd"))
                             printf("        close(%s);\n", a.name.constData());
@@ -1035,12 +1038,11 @@ bool Scanner::process()
                         printf("            wl_resource_destroy(resource);\n");
                     printf("            return;\n");
                     printf("        }\n");
-                    printf("        static_cast<%s *>(r->%s_object)->%s_%s(\n",
+                    printf("        static_cast<%s *>(qResource->%s_object)->%s(\n",
                            interfaceName,
                            interfaceNameStripped,
-                           interfaceNameStripped,
                            e.name.constData());
-                    printf("            r");
+                    printf("            qResource");
                     for (const WaylandArgument &a : e.arguments) {
                         printf(",\n");
                         QByteArray cType = waylandToCType(a.type, a.interface);
@@ -1180,9 +1182,6 @@ bool Scanner::process()
 
             const char *interfaceName = interface.name.constData();
 
-            QByteArray stripped = stripInterfaceName(interface.name);
-            const char *interfaceNameStripped = stripped.constData();
-
             printf("    class %s %s\n    {\n", clientExport.constData(), interfaceName);
             printf("    public:\n");
             printf("        %s(struct ::wl_registry *registry, int id, int version);\n",
@@ -1234,7 +1233,7 @@ bool Scanner::process()
                 printf("\n");
                 printf("    protected:\n");
                 for (const WaylandEvent &e : interface.events) {
-                    printf("        virtual void %s_", interfaceNameStripped);
+                    printf("        virtual void ");
                     printEvent(e);
                     printf(";\n");
                 }
@@ -1313,9 +1312,6 @@ bool Scanner::process()
             needsNewLine = true;
 
             const char *interfaceName = interface.name.constData();
-
-            QByteArray stripped = stripInterfaceName(interface.name);
-            const char *interfaceNameStripped = stripped.constData();
 
             bool hasEvents = !interface.events.empty();
 
@@ -1463,7 +1459,7 @@ bool Scanner::process()
             if (hasEvents) {
                 printf("\n");
                 for (const WaylandEvent &e : interface.events) {
-                    printf("    void %s::%s_", interfaceName, interfaceNameStripped);
+                    printf("    void %s::", interfaceName);
                     printEvent(e, true);
                     printf("\n");
                     printf("    {\n");
@@ -1474,9 +1470,8 @@ bool Scanner::process()
                     printf("\n");
                     printf("    {\n");
                     printf("        Q_UNUSED(object);\n");
-                    printf("        static_cast<%s *>(data)->%s_%s(",
+                    printf("        static_cast<%s *>(data)->%s(",
                            interfaceName,
-                           interfaceNameStripped,
                            e.name.constData());
                     bool needsComma = false;
                     for (const WaylandArgument &a : e.arguments) {

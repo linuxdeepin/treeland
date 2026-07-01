@@ -19,6 +19,7 @@
 #include <qwcompositor.h>
 #include <qwdisplay.h>
 #include <qwprimaryselection.h>
+#include <qwkeyboardgroup.h>
 
 #include <QQuickWindow>
 #include <QGuiApplication>
@@ -108,6 +109,15 @@ public:
 
         for (auto device : std::as_const(deviceList))
             detachInputDevice(device);
+
+        if (groupkeyboardDevice) {
+            detachInputDevice(groupkeyboardDevice);
+            groupkeyboardDevice->safeDeleteLater();
+        }
+
+        if (group) {
+            wlr_keyboard_group_destroy(group);
+        }
     }
 
     inline qw_seat *handle() const {
@@ -259,10 +269,8 @@ public:
             doTouchNotifyUp(time_msec, touch_id);
             break;
         case Stationary:
-            // stationary points are not sent through wayland, the client must cache them
-            break;
         case Unknown:
-            // Ignored
+            // stationary points are not sent through wayland, and unknown states are ignored.
             break;
         }
     }
@@ -287,10 +295,8 @@ public:
             QWindowSystemInterface::TouchPoint &tp(state->m_points[i]);
             if (tp.state == QEventPoint::Released)
                 state->m_points.removeAt(i--);
-            else if (tp.state == QEventPoint::Pressed)
-                tp.state = QEventPoint::Stationary;
-            else if (tp.state == QEventPoint::Updated)
-                tp.state = QEventPoint::Stationary;  // notiyfy: qtbase don't change Updated
+            else if (tp.state == QEventPoint::Pressed || tp.state == QEventPoint::Updated)
+                tp.state = QEventPoint::Stationary;  // notify: qtbase does not change Updated
             else if (tp.state != QEventPoint::Stationary)
                 Q_UNREACHABLE_RETURN();
         }
@@ -370,6 +376,8 @@ public:
     bool gestureActive = false;
     int gestureFingers = 0;
     qreal lastScale = 1.0;
+    wlr_keyboard_group *group = nullptr;
+    WInputDevice *groupkeyboardDevice = nullptr;
 
     struct EventState {
         // Don't use it, its may be a invalid pointer
@@ -551,7 +559,8 @@ void WSeatPrivate::on_keyboard_key(wlr_keyboard_key_event *event, WInputDevice *
         "XKB_KEY_XF86Switch_VT_1..12 and XKB_KEY_F1..F12 must be contiguous and ordered for keysym calculation"
     );
     if (sym >= XKB_KEY_XF86Switch_VT_1 && sym <= XKB_KEY_XF86Switch_VT_12) {
-        if (keyModifiers == (Qt::ControlModifier | Qt::AltModifier)) {
+        constexpr auto ctrlAlt = Qt::ControlModifier | Qt::AltModifier;
+        if ((keyModifiers & ctrlAlt) == ctrlAlt) {
             sym = XKB_KEY_F1 + (sym - XKB_KEY_XF86Switch_VT_1);
         }
     }
@@ -655,15 +664,17 @@ void WSeatPrivate::attachInputDevice(WInputDevice *device)
         keyboard->set_keymap(keymap);
         xkb_keymap_unref(keymap);
         xkb_context_unref(context);
-        keyboard->set_repeat_info(25, 600);
-
-        device->safeConnect(&qw_keyboard::notify_key, q, [this, device] (wlr_keyboard_key_event *event) {
-            on_keyboard_key(event, device);
-        });
-        device->safeConnect(&qw_keyboard::notify_modifiers, q, [this, device] () {
-            on_keyboard_modifiers(device);
-        });
-        handle()->set_keyboard(*keyboard);
+        if (device == groupkeyboardDevice) {
+            device->safeConnect(&qw_keyboard::notify_key, q, [this, device] (wlr_keyboard_key_event *event) {
+                on_keyboard_key(event, device);
+            });
+            device->safeConnect(&qw_keyboard::notify_modifiers, q, [this, device] () {
+                on_keyboard_modifiers(device);
+            });
+            q->setKeyboard(device);
+        } else {
+            wlr_keyboard_group_add_keyboard(group, keyboard->handle());
+        }
     }
 }
 
@@ -680,6 +691,10 @@ void WSeatPrivate::detachInputDevice(WInputDevice *device)
         touchDeviceList.removeOne(device);
     }
 
+    if (device->type() == WInputDevice::Type::Keyboard) {
+        auto keyboard = qobject_cast<qw_keyboard*>(device->handle());
+        wlr_keyboard_group_remove_keyboard(group, keyboard->handle());
+    }
     [[maybe_unused]] bool ok = QWlrootsIntegration::instance()->removeInputDevice(device);
     Q_ASSERT(ok);
 }
@@ -1490,6 +1505,13 @@ void WSeat::create(WServer *server)
     d->handle()->set_data(this, this);
     d->connect();
 
+    if (!d->group) {
+        d->group = wlr_keyboard_group_create();
+        qw_input_device *inputDevice = qw_input_device::from(&d->group->keyboard.base);
+        d->groupkeyboardDevice = new WInputDevice(inputDevice);
+        d->attachInputDevice(d->groupkeyboardDevice);
+    }
+
     for (auto i : std::as_const(d->deviceList)) {
         d->attachInputDevice(i);
 
@@ -1696,6 +1718,12 @@ bool WSeatEventFilter::beforeDisposeEvent(WSeat *, QWindow *, QInputEvent *)
 bool WSeatEventFilter::unacceptedEvent(WSeat *, QWindow *, QInputEvent *)
 {
     return false;
+}
+
+QList<WInputDevice*> WSeat::deviceList() const
+{
+    W_DC(WSeat);
+    return d->deviceList;
 }
 
 WAYLIB_SERVER_END_NAMESPACE

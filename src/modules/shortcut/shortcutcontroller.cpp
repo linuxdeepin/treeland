@@ -1,14 +1,31 @@
-// Copyright (C) 2025 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2025-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "shortcutcontroller.h"
-#include "input/inputdevice.h"
-#include "input/gestures.h"
 
 #include "qwayland-server-treeland-shortcut-manager-v2.h"
 
+#include "common/treelandlogging.h"
+#include "input/inputdevice.h"
+#include "input/gestures.h"
+
+#include <QKeyEvent>
+#include <QKeySequence>
+#include <cstdint>
+
+static_assert(
+    static_cast<uint32_t>(ShortcutController::KeyPress) ==
+        QtWaylandServer::treeland_shortcut_manager_v2::
+            keybind_flag_key_press &&
+    static_cast<uint32_t>(ShortcutController::KeyRelease) ==
+        QtWaylandServer::treeland_shortcut_manager_v2::
+            keybind_flag_key_release &&
+    static_cast<uint32_t>(ShortcutController::Repeat) ==
+        QtWaylandServer::treeland_shortcut_manager_v2::keybind_flag_repeat,
+    "treeland-shortcut-manager-v2: protocol's keybind_flag disagree with "
+    "Treeland in value");
+
 using BindError = QtWaylandServer::treeland_shortcut_manager_v2::bind_error;
-using KeybindMode = QtWaylandServer::treeland_shortcut_manager_v2::keybind_mode;
 
 ShortcutController::ShortcutController(QObject *parent)
     : QObject(parent)
@@ -20,7 +37,7 @@ ShortcutController::~ShortcutController()
     clear();
 }
 
-uint ShortcutController::registerKey(const QString &name, const QString& key, uint mode, ShortcutAction action)
+uint ShortcutController::registerKey(const QString &name, const QString& key, ShortcutController::KeyFlags keybindFlags, ShortcutAction action)
 {
     if (m_deleters.contains(name)) {
         return BindError::bind_error_name_conflict;
@@ -34,40 +51,28 @@ uint ShortcutController::registerKey(const QString &name, const QString& key, ui
         return BindError::bind_error_invalid_argument;
     }
     auto keyComb = normalizeKeyCombination(keySeq[0]);
-    if (keyComb == QKeyCombination(Qt::NoModifier, Qt::Key_unknown)) {
+    if (!isValidShortcutCombination(keyComb)) {
         return BindError::bind_error_invalid_argument;
     }
     int combined = keyComb.toCombined();
 
-    switch (mode) {
-    case KeybindMode::keybind_mode_key_press:
-    case KeybindMode::keybind_mode_key_press_repeat: {
-        auto &entry = m_keyPressMap[combined];
-        if (entry.contains(action)) {
-            return BindError::bind_error_duplicate_binding;
-        }
-        entry.insert(action, std::make_pair(name, mode == KeybindMode::keybind_mode_key_press_repeat));
-        m_deleters[name] = [this, combined, action]() {
-            m_keyPressMap[combined].remove(action);
-        };
-        return 0;
-    }
-    case KeybindMode::keybind_mode_key_release: {
-        auto &entry = m_keyReleaseMap[combined];
-        if (entry.contains(action)) {
-            return BindError::bind_error_duplicate_binding;
-        }
-        entry.insert(action, name);
-        m_deleters[name] = [this, combined, action]() {
-            m_keyReleaseMap[combined].remove(action);
-        };
-        return 0;
-    }
-    default:
+    if (keybindFlags & ~ShortcutController::KeyFlag::All) {
         return BindError::bind_error_invalid_argument;
-    };
+    }
 
-    Q_UNREACHABLE();
+    auto &entry = m_keyMap[combined];
+    if (entry.contains(action)) {
+        const auto &[prevName, flags] = entry[action];
+        m_deleters.remove(prevName);
+        qCInfo(treelandShortcut) << "Overriding existing key binding of"
+                                 << keySeq[0] << "for action" << static_cast<int>(action)
+                                 << "by name" << prevName << "with new name" << name << "and flags" << keybindFlags;
+    }
+    m_keyMap[combined][action] = std::make_pair(name, keybindFlags);
+    m_deleters[name] = [this, combined, action]() {
+        m_keyMap[combined].remove(action);
+    };
+    return 0;
 }
 
 uint ShortcutController::registerSwipeGesture(const QString &name, uint finger, SwipeGesture::Direction direction, ShortcutAction action)
@@ -182,28 +187,19 @@ void ShortcutController::unregisterShortcut(const QString &name)
     }
 }
 
-bool ShortcutController::dispatchKeyPress(QKeyCombination combination, bool repeat)
+bool ShortcutController::dispatchKeyEvent(const QKeyEvent *kevent)
 {
-    auto combined = normalizeKeyCombination(combination).toCombined();
-    if (m_keyPressMap.contains(combined)) {
-        for (const auto &[action, keybind] : std::as_const(m_keyPressMap[combined]).asKeyValueRange()) {
-            const auto& [name, canRepeat] = keybind;
-            if (repeat && !canRepeat) {
+    auto combined = normalizeKeyCombination(kevent->keyCombination()).toCombined();
+    ShortcutController::KeyFlags keyFlags = (kevent->isAutoRepeat() ? ShortcutController::Repeat : ShortcutController::None)
+        | (kevent->type() == QEvent::KeyPress ? ShortcutController::KeyPress : ShortcutController::None)
+        | (kevent->type() == QEvent::KeyRelease ? ShortcutController::KeyRelease : ShortcutController::None);
+    if (m_keyMap.contains(combined)) {
+        for (const auto &[action, keybind] : std::as_const(m_keyMap[combined]).asKeyValueRange()) {
+            const auto& [name, bindFlags] = keybind;
+            if ((bindFlags & keyFlags) != keyFlags) {
                 continue;
             }
-            emit actionTriggered(action, name, false, repeat);
-        }
-        return true;
-    }
-    return false;
-}
-
-bool ShortcutController::dispatchKeyRelease(QKeyCombination combination)
-{
-    auto combined = normalizeKeyCombination(combination).toCombined();
-    if (m_keyReleaseMap.contains(combined)) {
-        for (const auto &[action, name] : std::as_const(m_keyReleaseMap[combined]).asKeyValueRange()) {
-            emit actionTriggered(action, name, false);
+            emit actionTriggered(action, name, false, keyFlags);
         }
         return true;
     }
@@ -218,7 +214,7 @@ void ShortcutController::clear()
     m_deleters.clear();
 }
 
-constexpr QKeyCombination ShortcutController::normalizeKeyCombination(QKeyCombination combination) {
+QKeyCombination ShortcutController::normalizeKeyCombination(QKeyCombination combination) {
     Qt::KeyboardModifiers mods = combination.keyboardModifiers();
     Qt::Key key = combination.key(), nornalizedKey = Qt::Key_unknown;
 
@@ -243,4 +239,70 @@ constexpr QKeyCombination ShortcutController::normalizeKeyCombination(QKeyCombin
     }
 
     return QKeyCombination(mods, nornalizedKey);
+}
+
+
+// Decide whether a normalized (modifiers + key) combination is accepted as a
+// valid shortcut. Mirrors dde-daemon's IsGood()/isGoodNoMods()/isGoodModShift().
+bool ShortcutController::isValidShortcutCombination(QKeyCombination combination)
+{
+    const auto normalized = normalizeKeyCombination(combination);
+    const Qt::KeyboardModifiers mods = normalized.keyboardModifiers()
+        & (Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier | Qt::ShiftModifier);
+    const Qt::Key key = normalized.key();
+
+    // Modifier-only combinations: only Meta is accepted as a standalone shortcut.
+    if (key == Qt::Key_unknown)
+        return mods == Qt::MetaModifier;
+
+    // Rule 1: Ctrl / Alt / Meta + any non-modifier key.
+    if (mods & (Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier))
+        return true;
+
+    // Rule 2: Function keys.
+    if (key >= Qt::Key_F1 && key <= Qt::Key_F35)
+        return true;
+
+    // Rule 3: Misc function keys.
+    switch (key) {
+    case Qt::Key_Delete:
+    case Qt::Key_Backspace:
+    case Qt::Key_Pause:
+    case Qt::Key_Print:
+    case Qt::Key_Insert:
+    case Qt::Key_Help:
+    case Qt::Key_Menu:
+    case Qt::Key_Cancel:
+        return true;
+    default:
+        break;
+    }
+
+    // Rule 4: Shift + selected special/navigation keys.
+    if (mods == Qt::ShiftModifier) {
+        switch (key) {
+        case Qt::Key_Space:
+        case Qt::Key_Escape:
+        case Qt::Key_Tab:
+            return true;
+        default:
+            break;
+        }
+
+        if ((key >= Qt::Key_Home && key <= Qt::Key_PageDown)
+            || (key >= Qt::Key_Left && key <= Qt::Key_Down))
+            return true;
+    }
+
+    // Rule 5: Media / browser / hardware keys without modifiers.
+    if (mods == Qt::NoModifier) {
+        if (key >= Qt::Key_Back && key <= Qt::Key_KeyboardBrightnessDown)
+            return true;
+        if (key >= Qt::Key_LaunchMail && key <= Qt::Key_Launch9)
+            return true;
+        if (key >= Qt::Key_MediaPlay && key <= Qt::Key_MediaLast)
+            return true;
+    }
+
+    return false;
 }

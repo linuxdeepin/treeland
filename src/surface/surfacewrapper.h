@@ -1,4 +1,4 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #pragma once
 
@@ -10,6 +10,7 @@
 #include <QPointer>
 #include <QQuickItem>
 #include <QString>
+#include <QColor>
 
 Q_MOC_INCLUDE(<woutput.h>)
 Q_MOC_INCLUDE(<output / output.h>)
@@ -58,7 +59,7 @@ class SurfaceWrapper : public QQuickItem
     Q_PROPERTY(QQuickItem* decoration READ decoration NOTIFY noDecorationChanged FINAL)
     Q_PROPERTY(bool visibleDecoration READ visibleDecoration NOTIFY visibleDecorationChanged FINAL)
     Q_PROPERTY(bool clipInOutput READ clipInOutput NOTIFY clipInOutputChanged FINAL)
-    Q_PROPERTY(bool noTitleBar READ noTitleBar RESET resetNoTitleBar NOTIFY noTitleBarChanged FINAL)
+    Q_PROPERTY(bool noTitleBar READ noTitleBar NOTIFY noTitleBarChanged FINAL)
     Q_PROPERTY(bool noCornerRadius READ noCornerRadius NOTIFY noCornerRadiusChanged FINAL)
     Q_PROPERTY(int workspaceId READ workspaceId NOTIFY workspaceIdChanged FINAL)
     Q_PROPERTY(bool alwaysOnTop READ alwaysOnTop WRITE setAlwaysOnTop NOTIFY alwaysOnTopChanged FINAL)
@@ -79,6 +80,7 @@ class SurfaceWrapper : public QQuickItem
     Q_PROPERTY(bool isWindowAnimationRunning READ isWindowAnimationRunning NOTIFY windowAnimationRunningChanged FINAL)
     Q_PROPERTY(bool coverEnabled READ coverEnabled NOTIFY coverEnabledChanged FINAL)
     Q_PROPERTY(bool acceptKeyboardFocus READ acceptKeyboardFocus NOTIFY acceptKeyboardFocusChanged FINAL)
+    Q_PROPERTY(bool isActivated READ isActivated NOTIFY isActivatedChanged FINAL)
 
 public:
     enum class Type
@@ -105,10 +107,10 @@ public:
 
     enum class ActiveControlState : quint16
     {
-        Mapped = 1 << 0,
+        MappedOrSplash = 1 << 0,
         UnMinimized = 1 << 1,
         HasInitializeContainer = 1 << 2, // when not in Container, we can't stackToLast
-        Full = Mapped | UnMinimized | HasInitializeContainer,
+        Full = MappedOrSplash | UnMinimized | HasInitializeContainer,
     };
     Q_ENUM(ActiveControlState);
     Q_DECLARE_FLAGS(ActiveControlStates, ActiveControlState)
@@ -136,7 +138,8 @@ public:
                             QQuickItem *parent,
                             const QSize &initialSize,
                             const QString &appId,
-                            QW_NAMESPACE::qw_buffer *iconBuffer = nullptr);
+                            QW_NAMESPACE::qw_buffer *iconBuffer = nullptr,
+                            const QColor &backgroundColor = QColor("#ffffff"));
 
     void setFocus(bool focus, Qt::FocusReason reason);
 
@@ -146,6 +149,7 @@ public:
     QQuickItem *prelaunchSplash() const;
     QString appId() const;
     bool resize(const QSizeF &size);
+    void close();
 
     QRectF titlebarGeometry() const;
     QRectF boundingRect() const override;
@@ -216,7 +220,6 @@ public:
 
     bool noTitleBar() const;
     void setNoTitleBar(bool newNoTitleBar);
-    void resetNoTitleBar();
 
     bool noCornerRadius() const;
     void setNoCornerRadius(bool newNoCornerRadius);
@@ -235,6 +238,7 @@ public:
     bool showOnWorkspace(int workspaceIndex) const;
 
     bool hasActiveCapability() const;
+    bool hasCapability(WToplevelSurface::Capability cap) const;
 
     bool skipSwitcher() const;
     bool skipDockPreView() const;
@@ -267,10 +271,15 @@ public:
     void setHideByShowDesk(bool show);
     void setHideByLockScreen(bool hide);
 
-    void markWrapperToRemoved();
+    void destroy();
 
-    bool acceptKeyboardFocus() const;
+    bool acceptKeyboardFocus() const; // set by treeland-dde-shell
     void setAcceptKeyboardFocus(bool accept);
+
+    bool isActivated() const;
+
+    bool attention() const;
+    bool setAttention(bool attention);
 
 public Q_SLOTS:
     // for titlebar
@@ -320,6 +329,7 @@ Q_SIGNALS:
     void showOnAllWorkspaceChanged();
     void requestActive();
     void requestInactive();
+    void requestCloseSplash();
     void skipSwitcherChanged();
     void skipDockPreViewChanged();
     void skipMutiTaskViewChanged();
@@ -332,18 +342,22 @@ Q_SIGNALS:
     void coverEnabledChanged();
     void aboutToBeInvalidated();
     void acceptKeyboardFocusChanged();
+    void isActivatedChanged();
+    void attentionChanged();
     void surfaceItemCreated(); // Emitted once after surfaceItem is constructed
     void prelaunchSplashChanged();
     void typeChanged();
 
 private:
     ~SurfaceWrapper() override;
+    using QObject::deleteLater;
     using QQuickItem::setParentItem;
     using QQuickItem::setVisible;
     using QQuickItem::stackAfter;
     using QQuickItem::stackBefore;
     void setParent(QQuickItem *item);
     void setActivate(bool activate);
+    void updateActiveState();
     void setNormalGeometry(const QRectF &newNormalGeometry);
     void updateTitleBar();
     void updateDecoration();
@@ -351,6 +365,7 @@ private:
     void setContainer(SurfaceContainer *newContainer);
     void setVisibleDecoration(bool newVisibleDecoration);
 
+    void invalidate();
     void setup(); // Initialize m_surfaceItem related features
     void convertToNormalSurface(WToplevelSurface *shellSurface,
                                 Type type); // Transition from pre-launch mode to normal mode
@@ -365,7 +380,10 @@ private:
     void doSetSurfaceState(State newSurfaceState);
     Q_SLOT void onAnimationReady();
     Q_SLOT void onAnimationFinished();
-    Q_SLOT void onPrelaunchSplashDestroyRequested();
+    void syncPrelaunchMappedState();
+    void startPrelaunchSplashHideSequence();
+    Q_SLOT void onPrelaunchGeometryAnimationReady();
+    Q_SLOT void onPrelaunchGeometryAnimationFinished();
     bool startStateChangeAnimation(SurfaceWrapper::State targetState, const QRectF &targetGeometry);
     void onWindowAnimationFinished();
     Q_SLOT void onShowAnimationFinished();
@@ -376,6 +394,7 @@ private:
     void startShowDesktopAnimation(bool show);
     Q_SLOT void onShowDesktopAnimationFinished();
     void updateHasActiveCapability(ActiveControlState state, bool value);
+    void completeSplashTransition(const QSizeF &targetImplicitSize, bool hideDecoration = false);
 
     // wayland set by treeland-dde-shell, x11 set by bypassManager/windowTypes
     void setSkipDockPreView(bool skip);
@@ -424,18 +443,11 @@ private:
     QRect m_iconGeometry;
     ActiveControlStates m_hasActiveCapability = ActiveControlState::UnMinimized;
 
-    struct TitleBarState
-    {
-        constexpr static uint Default = 0;
-        constexpr static uint Visible = 1;
-        constexpr static uint Hidden = 2;
-    };
-
     uint m_positionAutomatic : 1;
     uint m_visibleDecoration : 1;
     uint m_clipInOutput : 1;
     uint m_noDecoration : 1;
-    uint m_titleBarState : 2;
+    uint m_noTitleBar : 1;
     uint m_noCornerRadius : 1;
     uint m_alwaysOnTop : 1;
     uint m_skipSwitcher : 1;
@@ -450,6 +462,8 @@ private:
     uint m_hideByLockScreen : 1;
     uint m_confirmHideByLockScreen : 1;
     uint m_blur : 1;
+    uint m_isActivated : 1;
+    uint m_attention : 1;
     SurfaceRole m_surfaceRole = SurfaceRole::Normal;
     quint32 m_autoPlaceYOffset = 0;
     QPoint m_clientRequstPos;

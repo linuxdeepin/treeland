@@ -1,10 +1,5 @@
-// Copyright (C) 2023 JiDe Zhang <zccrs@live.com>.
+// Copyright (C) 2023 - 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
-
-#include <QObject>
-#define private public
-#include <QScreen>
-#undef private
 
 #include "qwlrootsintegration.h"
 #include "qwlrootscreen.h"
@@ -61,13 +56,10 @@ extern "C" {
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-#define CALL_PROXY2(FunName, fallbackValue, ...) m_proxyIntegration ? m_proxyIntegration->FunName(__VA_ARGS__) : fallbackValue
-#define CALL_PROXY(FunName, ...) CALL_PROXY2(FunName, QPlatformIntegration::FunName(__VA_ARGS__), __VA_ARGS__)
-
-class Q_DECL_HIDDEN OffscreenSurface : public QPlatformOffscreenSurface
+class Q_DECL_HIDDEN PlatformOffscreenSurface : public QPlatformOffscreenSurface
 {
 public:
-    OffscreenSurface(QOffscreenSurface *surface)
+    PlatformOffscreenSurface(QOffscreenSurface *surface)
         : QPlatformOffscreenSurface(surface) {}
 
     bool isValid() const override {
@@ -80,9 +72,8 @@ public:
 };
 
 QWlrootsIntegration *QWlrootsIntegration::m_instance = nullptr;
-QWlrootsIntegration::QWlrootsIntegration(bool master, [[maybe_unused]] const QStringList &parameters, std::function<void ()> onInitialized)
-    : m_master(master)
-    , m_onInitialized(onInitialized)
+QWlrootsIntegration::QWlrootsIntegration([[maybe_unused]] const QStringList &parameters, std::function<void ()> onInitialized)
+    : m_onInitialized(onInitialized)
 {
     Q_ASSERT(!m_instance);
     m_instance = this;
@@ -99,29 +90,14 @@ QWlrootsIntegration *QWlrootsIntegration::instance()
     return m_instance;
 }
 
-void QWlrootsIntegration::setProxy(QPlatformIntegration *proxy)
-{
-    Q_ASSERT(!m_proxyIntegration);
-    Q_ASSERT_X(!m_master, "initializeProxyQPA", "Can't set proxy plugin for a master QPA plugin.");
-    m_proxyIntegration.reset(proxy);
-    if (m_placeholderScreen) {
-        QWindowSystemInterface::handleScreenRemoved(m_placeholderScreen.release());
-    }
-    m_fontDb.reset();
-}
-
 QWlrootsScreen *QWlrootsIntegration::addScreen(WOutput *output)
 {
     m_screens << new QWlrootsScreen(output);
 
-    if (isMaster()) {
-        QWindowSystemInterface::handleScreenAdded(m_screens.last());
+    QWindowSystemInterface::handleScreenAdded(m_screens.last());
 
-        if (m_placeholderScreen) {
-            QWindowSystemInterface::handleScreenRemoved(m_placeholderScreen.release());
-        }
-    } else {
-        [[maybe_unused]] auto screen = new QScreen(m_screens.last());
+    if (m_placeholderScreen) {
+        QWindowSystemInterface::handleScreenRemoved(m_placeholderScreen.release());
     }
 
     m_screens.last()->initialize();
@@ -135,12 +111,6 @@ void QWlrootsIntegration::removeScreen(WOutput *output)
     if (auto screen = output->screen()) {
         output->setScreen(nullptr);
         bool ok = m_screens.removeOne(screen);
-
-        if (!isMaster()) {
-            delete screen->screen();
-            delete screen;
-            return;
-        }
 
         if (ok && m_screens.isEmpty()) {
             m_placeholderScreen.reset(new QPlatformPlaceholderScreen);
@@ -245,13 +215,11 @@ QInputDevice *QWlrootsIntegration::getInputDeviceFrom(WInputDevice *device)
 
 void QWlrootsIntegration::initialize()
 {
-    if (isMaster()) {
 #if QT_VERSION >= QT_VERSION_CHECK(6, 9, 0)
-        m_services.reset(new QDesktopUnixServices);
+    m_services.reset(new QDesktopUnixServices);
 #else
-        m_services.reset(new QGenericUnixServices);
+    m_services.reset(new QGenericUnixServices);
 #endif
-    }
 
     if (m_onInitialized)
         m_onInitialized();
@@ -266,17 +234,10 @@ void QWlrootsIntegration::destroy()
 {
     if (m_placeholderScreen)
         QWindowSystemInterface::handleScreenRemoved(m_placeholderScreen.release());
-
-    if (m_proxyIntegration)
-        m_proxyIntegration->destroy();
 }
 
 bool QWlrootsIntegration::hasCapability(Capability cap) const
 {
-    if (m_proxyIntegration) {
-        return CALL_PROXY(hasCapability, cap);
-    }
-
     switch (cap) {
     case OpenGL:
     case ThreadedOpenGL:
@@ -290,7 +251,9 @@ bool QWlrootsIntegration::hasCapability(Capability cap) const
     case WindowManagement:
     case WindowActivation:
     case SyncState:
+#if QT_VERSION < QT_VERSION_CHECK(6, 11, 0)
     case RasterGLSurface:
+#endif
     case AllGLFunctionsQueryable:
     case ApplicationIcon:
     case SwitchableWidgetComposition:
@@ -306,9 +269,6 @@ bool QWlrootsIntegration::hasCapability(Capability cap) const
 
 QPlatformFontDatabase *QWlrootsIntegration::fontDatabase() const
 {
-    if (m_proxyIntegration)
-        return m_proxyIntegration->fontDatabase();
-
     if (!m_fontDb)
         m_fontDb.reset(new QGenericUnixFontDatabase);
     return m_fontDb.get();
@@ -324,12 +284,12 @@ QPlatformWindow *QWlrootsIntegration::createPlatformWindow(QWindow *window) cons
         return new QWlrootsRenderWindow(window);
     }
 
-    return CALL_PROXY2(createPlatformWindow, nullptr, window);
+    return nullptr;
 }
 
-QPlatformBackingStore *QWlrootsIntegration::createPlatformBackingStore(QWindow *window) const
+QPlatformBackingStore *QWlrootsIntegration::createPlatformBackingStore([[maybe_unused]] QWindow *window) const
 {
-    return CALL_PROXY2(createPlatformBackingStore, nullptr, window);
+    return nullptr;
 }
 
 #ifndef QT_NO_OPENGL
@@ -350,7 +310,7 @@ public:
         m_format.setMajorVersion(3);
 
         if (auto c = qobject_cast<QW::OpenGLContext*>(m_context)) {
-            auto eglConfig = q_configFromGLFormat(c->eglDisplay(), m_format, false, EGL_WINDOW_BIT);
+            auto eglConfig = q_configFromGLFormat(c->eglDisplay(), m_format, false, EGL_PBUFFER_BIT);
             if (eglConfig)
                 m_format = q_glFormatFromConfig(c->eglDisplay(), eglConfig, m_format);
             Q_ASSERT(m_format.renderableType() == QSurfaceFormat::OpenGLES);
@@ -397,7 +357,7 @@ QPlatformOpenGLContext *QWlrootsIntegration::createPlatformOpenGLContext(QOpenGL
     if (QW::OpenGLContext::check(context))
         return new OpenGLContext(context);
 
-    return CALL_PROXY(createPlatformOpenGLContext, context);
+    return QPlatformIntegration::createPlatformOpenGLContext(context);
 }
 
 QOpenGLContext::OpenGLModuleType QWlrootsIntegration::openGLModuleType()
@@ -408,51 +368,51 @@ QOpenGLContext::OpenGLModuleType QWlrootsIntegration::openGLModuleType()
 
 QAbstractEventDispatcher *QWlrootsIntegration::createEventDispatcher() const
 {
-    return CALL_PROXY2(createEventDispatcher, createUnixEventDispatcher());
+    return createUnixEventDispatcher();
 }
 
 QPlatformNativeInterface *QWlrootsIntegration::nativeInterface() const
 {
-    return CALL_PROXY2(nativeInterface, const_cast<QWlrootsIntegration*>(this));
+    return const_cast<QWlrootsIntegration*>(this);
 }
 
 QPlatformPixmap *QWlrootsIntegration::createPlatformPixmap(QPlatformPixmap::PixelType type) const
 {
-    return CALL_PROXY(createPlatformPixmap, type);
+    return QPlatformIntegration::createPlatformPixmap(type);
 }
 
 QPlatformWindow *QWlrootsIntegration::createForeignWindow(QWindow *window, WId id) const
 {
-    return CALL_PROXY(createForeignWindow, window, id);
+    return QPlatformIntegration::createForeignWindow(window, id);
 }
 
 QPlatformSharedGraphicsCache *QWlrootsIntegration::createPlatformSharedGraphicsCache(const char *cacheId) const
 {
-    return CALL_PROXY(createPlatformSharedGraphicsCache, cacheId);
+    return QPlatformIntegration::createPlatformSharedGraphicsCache(cacheId);
 }
 
 QPaintEngine *QWlrootsIntegration::createImagePaintEngine(QPaintDevice *paintDevice) const
 {
-    return CALL_PROXY(createImagePaintEngine, paintDevice);
+    return QPlatformIntegration::createImagePaintEngine(paintDevice);
 }
 
 #ifndef QT_NO_CLIPBOARD
 QPlatformClipboard *QWlrootsIntegration::clipboard() const
 {
-    return CALL_PROXY(clipboard);
+    return QPlatformIntegration::clipboard();
 }
 #endif
 
 #if QT_CONFIG(draganddrop)
 QPlatformDrag *QWlrootsIntegration::drag() const
 {
-    return CALL_PROXY(drag);
+    return QPlatformIntegration::drag();
 }
 #endif
 
 QPlatformInputContext *QWlrootsIntegration::inputContext() const
 {
-    return CALL_PROXY(inputContext);
+    return QPlatformIntegration::inputContext();
 }
 
 #if QT_CONFIG(accessibility)
@@ -464,83 +424,70 @@ QPlatformAccessibility *QWlrootsIntegration::accessibility() const
 
 QPlatformServices *QWlrootsIntegration::services() const
 {
-    if (isMaster())
-        return m_services.get();
-
-    return CALL_PROXY(services);
+    return m_services.get();
 }
 
 QVariant QWlrootsIntegration::styleHint(StyleHint hint) const
 {
-    return CALL_PROXY(styleHint, hint);
+    return QPlatformIntegration::styleHint(hint);
 }
 
 Qt::WindowState QWlrootsIntegration::defaultWindowState(Qt::WindowFlags flags) const
 {
-    return CALL_PROXY(defaultWindowState, flags);
-}
-
-Qt::KeyboardModifiers QWlrootsIntegration::queryKeyboardModifiers() const
-{
-    return CALL_PROXY(queryKeyboardModifiers);
-}
-
-QList<int> QWlrootsIntegration::possibleKeys(const QKeyEvent *event) const
-{
-    return CALL_PROXY(possibleKeys, event);
+    return QPlatformIntegration::defaultWindowState(flags);
 }
 
 QStringList QWlrootsIntegration::themeNames() const
 {
-    return CALL_PROXY(themeNames);
+    return QPlatformIntegration::themeNames();
 }
 
-QPlatformTheme *QWlrootsIntegration::createPlatformTheme(const QString &name) const
+QPlatformTheme *QWlrootsIntegration::createPlatformTheme([[maybe_unused]] const QString &name) const
 {
     // TODO: use custom platform theme to allow compositor set some hints, like as font
-    return CALL_PROXY2(createPlatformTheme, new QGenericUnixTheme(), name);
+    return new QGenericUnixTheme();
 }
 
 QPlatformOffscreenSurface *QWlrootsIntegration::createPlatformOffscreenSurface(QOffscreenSurface *surface) const
 {
     if (QW::OffscreenSurface::check(surface))
-        return new OffscreenSurface(surface);
+        return new PlatformOffscreenSurface(surface);
 
-    return CALL_PROXY(createPlatformOffscreenSurface, surface);
+    return QPlatformIntegration::createPlatformOffscreenSurface(surface);
 }
 
 #ifndef QT_NO_SESSIONMANAGER
 QPlatformSessionManager *QWlrootsIntegration::createPlatformSessionManager(const QString &id, const QString &key) const
 {
-    return CALL_PROXY(createPlatformSessionManager, id, key);
+    return QPlatformIntegration::createPlatformSessionManager(id, key);
 }
 #endif
 
 void QWlrootsIntegration::sync()
 {
-    CALL_PROXY(sync);
+    QPlatformIntegration::sync();
 }
 
 void QWlrootsIntegration::setApplicationIcon(const QIcon &icon) const
 {
-    CALL_PROXY(setApplicationIcon, icon);
+    QPlatformIntegration::setApplicationIcon(icon);
 }
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
 void QWlrootsIntegration::setApplicationBadge(qint64 number)
 {
-    CALL_PROXY(setApplicationBadge, number);
+    QPlatformIntegration::setApplicationBadge(number);
 }
 #endif
 
 void QWlrootsIntegration::beep() const
 {
-    CALL_PROXY(beep);
+    QPlatformIntegration::beep();
 }
 
 void QWlrootsIntegration::quit() const
 {
-    CALL_PROXY(quit);
+    QPlatformIntegration::quit();
 }
 
 void *QWlrootsIntegration::nativeResourceForScreen(const QByteArray &resource, QScreen *screen)
@@ -572,7 +519,7 @@ private:
 
 QPlatformVulkanInstance *QWlrootsIntegration::createPlatformVulkanInstance(QVulkanInstance *instance) const
 {
-    return m_proxyIntegration ? m_proxyIntegration->createPlatformVulkanInstance(instance) : new VulkanInstance(instance);
+    return new VulkanInstance(instance);
 }
 #endif
 

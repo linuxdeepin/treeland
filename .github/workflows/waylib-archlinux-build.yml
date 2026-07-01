@@ -25,9 +25,9 @@ jobs:
           pacman --noconfirm --noprogressbar -Syu
       - name: Install dependencies
         run: |
-          pacman -Syu --noconfirm --noprogressbar base-devel qt6-base qt6-declarative cmake pkgconfig pixman vulkan-headers wlroots0.19 wayland-protocols wlr-protocols git
-          pacman -Syu --noconfirm --noprogressbar clang ninja make
-          pacman -Syu --noconfirm --noprogressbar fakeroot meson sudo
+          pacman -S --noconfirm --noprogressbar base-devel qt6-base qt6-declarative cmake pkgconfig pixman vulkan-headers wlroots0.19 wayland-protocols wlr-protocols git
+          pacman -S --noconfirm --noprogressbar clang ninja make
+          pacman -S --noconfirm --noprogressbar fakeroot meson sudo
 
       - uses: actions/checkout@v4
 
@@ -42,8 +42,13 @@ jobs:
         working-directory: waylib
         run: |
           echo "Working directory:" $PWD
+          rm -rf build
           cmake --preset ci -DWITH_SUBMODULE_QWLROOTS=ON
           cmake --build --preset ci
+
+      - name: Run unit tests
+        working-directory: waylib
+        run: ctest --preset ci
 
       - name: Install waylib to staging directory
         working-directory: waylib
@@ -62,7 +67,7 @@ jobs:
           cd /tmp/waylib-install
 
           # Install zip if not available
-          pacman -Syu --noconfirm zip
+          pacman -S --noconfirm zip
 
           # Create package info
           echo "Creating package info..."

@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Yixue Wang <wangyixue@deepin.org>.
+// Copyright (C) 2024-2026 Yixue Wang <wangyixue@deepin.org>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wtextinputv2_p.h"
@@ -127,10 +127,7 @@ void text_input_manager_bind(wl_client *client,
         wl_client_post_no_memory(client);
         return;
     }
-    WClient *wClient = WClient::get(client);
-    QObject::connect(wClient, &WClient::destroyed, manager, [resource]{
-        wl_resource_destroy(resource);
-    });
+    // wl_client_destroy handles resource destruction via wl_map_for_each.
     wl_resource_set_implementation(resource, &manager_impl, manager, nullptr);
 }
 
@@ -182,9 +179,7 @@ void handle_manager_get_text_input(wl_client *client,
     Q_ASSERT(wSeat);
     text_input->d_func()->client = wClient;
     text_input->d_func()->seat = wSeat;
-    QObject::connect(wClient, &WClient::destroyed, text_input, [text_input_resource] {
-        wl_resource_destroy(text_input_resource);
-    });
+    // wl_client_destroy handles resource destruction via wl_map_for_each.
     wl_resource_set_implementation(text_input_resource, &text_input_impl, text_input, handle_text_input_resource_destroy);
     manager->d_func()->textInputs.append(text_input);
     QObject::connect(text_input, &WTextInput::entityAboutToDestroy, manager, [manager, text_input]{
@@ -204,8 +199,11 @@ void handle_text_input_enable([[maybe_unused]] wl_client *client, wl_resource *r
     Q_ASSERT(text_input);
     auto wSurface = WSurface::fromHandle(wlr_surface_from_resource(surface));
     // Surface must be existent already, this means wSurface should always be non-null.
+    // However, there can be a race between surface destruction and text input requests,
+    // so treat a missing WSurface as a warning rather than a fatal protocol error.
     if (!wSurface) {
-        wl_client_post_implementation_error(wl_resource_get_client(resource), "Enabled surface not found.");
+        qCWarning(qLcTextInputV2) << "Client" << client << "sent enable on surface" << surface
+                                  << "but no WSurface found (may be already destroyed). Ignoring.";
         return;
     }
     auto d = text_input->d_func();
@@ -226,7 +224,8 @@ void handle_text_input_disable([[maybe_unused]] wl_client *client, wl_resource *
     Q_ASSERT(text_input);
     auto wSurface = WSurface::fromHandle(wlr_surface_from_resource(surface));
     if (!wSurface) {
-        wl_client_post_implementation_error(wl_resource_get_client(resource), "Disabled surface not found, may be already destroyed.");
+        qCWarning(qLcTextInputV2) << "Client" << client << "sent disable on surface" << surface
+                                  << "but no WSurface found (may be already destroyed). Ignoring.";
         return;
     }
     auto d = text_input->d_func();

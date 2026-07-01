@@ -1,4 +1,4 @@
-// Copyright (C) 2023 JiDe Zhang <zccrs@live.com>.
+// Copyright (C) 2023-2026 JiDe Zhang <zccrs@live.com>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
@@ -8,9 +8,7 @@
 #include <qwglobal.h>
 
 #include <QPointer>
-#define protected public
 #include <qpa/qplatformintegration.h>
-#undef protected
 #include <qpa/qplatformvulkaninstance.h>
 #include <qpa/qplatformnativeinterface.h>
 
@@ -22,9 +20,6 @@ QW_USE_NAMESPACE
 
 QT_BEGIN_NAMESPACE
 class QInputDevice;
-namespace QtWaylandClient {
-class QWaylandIntegration;
-}
 QT_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -35,12 +30,10 @@ class QWlrootsScreen;
 class Q_DECL_HIDDEN QWlrootsIntegration : public QPlatformIntegration, public QPlatformNativeInterface
 {
 public:
-    QWlrootsIntegration(bool master, const QStringList &parameters, std::function<void()> onInitialized);
+    QWlrootsIntegration(const QStringList &parameters, std::function<void()> onInitialized);
     ~QWlrootsIntegration();
 
     static QWlrootsIntegration *instance();
-
-    void setProxy(QPlatformIntegration *proxy);
 
     QWlrootsScreen *addScreen(WOutput *output);
     void removeScreen(WOutput *output);
@@ -90,9 +83,6 @@ public:
     QVariant styleHint(StyleHint hint) const override;
     Qt::WindowState defaultWindowState(Qt::WindowFlags flags) const override;
 
-    Qt::KeyboardModifiers queryKeyboardModifiers() const override;
-    QList<int> possibleKeys(const QKeyEvent *) const override;
-
     QStringList themeNames() const override;
     QPlatformTheme *createPlatformTheme(const QString &name) const override;
 
@@ -125,16 +115,8 @@ private:
     std::unique_ptr<QPlatformPlaceholderScreen> m_placeholderScreen;
 
     QList<QWlrootsScreen*> m_screens;
-
-private:
-    inline bool isMaster() const {
-        return m_master;
-    }
-
     static QWlrootsIntegration *m_instance;
-    bool m_master = true;
     std::function<void()> m_onInitialized;
-    std::unique_ptr<QPlatformIntegration> m_proxyIntegration;
 };
 
 WAYLIB_SERVER_END_NAMESPACE

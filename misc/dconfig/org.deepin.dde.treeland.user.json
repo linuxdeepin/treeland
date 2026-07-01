@@ -234,13 +234,13 @@
             "visibility": "public"
         },
         "windowThemeType": {
-            "value": 0,
+            "value": 1,
             "serial": 0,
             "flags": ["global"],
             "name": "Global Window Theme Type",
             "name[zh_CN]": "全局窗口主题类型",
-            "description": "Set all window theme type",
-            "description[zh_CN]": "设置所有窗口的主题类型",
+            "description": "System theme type: 1 light, 2 dark",
+            "description[zh_CN]": "系统主题类型：1 亮色，2 暗色",
             "permissions": "readwrite",
             "visibility": "public"
         },
@@ -442,6 +442,17 @@
             "description[zh_CN]": "多任务视图加载因子",
             "permissions": "readonly",
             "visibility": "private"
+        },
+        "wallpaperConfig": {
+            "value": "",
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Wallpaper Config",
+            "name[zh_CN]": "壁纸配置",
+            "description": "A configuration to manage wallpapers used by the system, including desktop and lockscreen wallpapers for each screen and workspace.",
+            "description[zh_CN]": "用于管理系统当前使用的壁纸配置，包括每个屏幕和工作区的桌面壁纸和锁屏壁纸。",
+            "permissions": "readwrite",
+            "visibility": "public"
         }
     }
 }

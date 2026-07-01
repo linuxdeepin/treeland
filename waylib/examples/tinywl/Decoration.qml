@@ -30,21 +30,21 @@ Item {
         Cursor.shape: {
             switch(edges) {
             case Qt.TopEdge:
-                return Waylib.CursorShape.TopSide
+                return CursorShape.TopSide
             case Qt.RightEdge:
-                return Waylib.CursorShape.RightSide
+                return CursorShape.RightSide
             case Qt.BottomEdge:
-                return Waylib.CursorShape.BottomSide
+                return CursorShape.BottomSide
             case Qt.LeftEdge:
-                return Waylib.CursorShape.LeftSide
+                return CursorShape.LeftSide
             case Qt.TopEdge | Qt.LeftEdge:
-                return Waylib.CursorShape.TopLeftCorner
+                return CursorShape.TopLeftCorner
             case Qt.TopEdge | Qt.RightEdge:
-                return Waylib.CursorShape.TopRightCorner
+                return CursorShape.TopRightCorner
             case Qt.BottomEdge | Qt.LeftEdge:
-                return Waylib.CursorShape.BottomLeftCorner
+                return CursorShape.BottomLeftCorner
             case Qt.BottomEdge | Qt.RightEdge:
-                return Waylib.CursorShape.BottomRightCorner
+                return CursorShape.BottomRightCorner
             }
 
             return Qt.ArrowCursor;

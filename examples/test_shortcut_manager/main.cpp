@@ -1,4 +1,4 @@
-// Copyright (C) 2025 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2025-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 // This is a simple test application for the Treeland Shortcut Manager V2 protocol.
@@ -17,7 +17,7 @@
 //        ...
 //    ]
 
-#include <QApplication>
+#include <QGuiApplication>
 #include <QObject>
 #include <QScreen>
 #include <QWaylandClientExtension>
@@ -61,7 +61,7 @@ signals:
 int main(int argc, char *argv[])
 {
     qputenv("QT_QPA_PLATFORM", "wayland");
-    QApplication app(argc, argv);
+    QGuiApplication app(argc, argv);
     QCommandLineParser parser;
     parser.setApplicationDescription("Test Shortcut Manager V2");
     parser.addHelpOption();

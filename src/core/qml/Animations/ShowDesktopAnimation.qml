@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Lu YaNing <luyaning@uniontech.org>.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 import QtQuick
@@ -34,7 +34,10 @@ Item {
     ParallelAnimation {
         id: animation
         onFinished: {
-            root.finished();
+            // Defer the signal emission to avoid deleting animation objects in the same callback stack.
+            Qt.callLater(function() {
+                root.finished();
+            })
         }
         OpacityAnimator {
             target: effect

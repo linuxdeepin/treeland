@@ -47,10 +47,11 @@ static const QMap<QString, ShortcutV2::action> ActionMap = {
     {"TaskswitchSameAppPrev", ShortcutV2::action_taskswitch_sameapp_prev},
 };
 
-static const QMap<QString, ShortcutV2::keybind_mode> KeybindModeMap = {
-    {"KeyRelease", ShortcutV2::keybind_mode_key_release},
-    {"KeyPress", ShortcutV2::keybind_mode_key_press},
-    {"KeyPressRepeat", ShortcutV2::keybind_mode_key_press_repeat},
+static const QMap<QString, uint> KeybindModeMap = {
+    {"KeyPress", ShortcutV2::keybind_flag_key_press},
+    {"KeyRelease", ShortcutV2::keybind_flag_key_release},
+    {"KeyPressRepeat", ShortcutV2::keybind_flag_key_press | ShortcutV2::keybind_flag_repeat},
+    {"KeyReleaseRepeat", ShortcutV2::keybind_flag_key_release | ShortcutV2::keybind_flag_repeat},
 };
 
 static const QMap<QString, ShortcutV2::direction> GestureDirectionMap = {
@@ -189,30 +190,6 @@ ShortcutV2::ShortcutV2()
 
 void ShortcutV2::registerAllShortcuts()
 {
-    // NOTE: support of dynamic update shortcuts from ini file is temporarily dropped
-    // auto updateShortcuts = [this, customIni] {
-    //     QSettings custom(customIni, QSettings::IniFormat);
-    //     for (auto group : custom.childGroups()) {
-    //         const QString &action =
-    //             custom.value(QString("%1/Action").arg(group)).toString();
-    //         const QString &accels = transFromDaemonAccelStr(
-    //             custom.value(QString("%1/Accels").arg(group)).toString());
-    //         ShortcutContext *context =
-    //             new ShortcutContext(register_shortcut_context(accels));
-    //         connect(context, &ShortcutContext::shortcutHappened, this, [action] {
-    //             QProcess::startDetached(action);
-    //         });
-    //         m_customShortcuts.emplace_back(context);
-    //     }
-    // };
-
-    // QFileSystemWatcher *watcher = new QFileSystemWatcher({ customIni }, this);
-    // connect(watcher, &QFileSystemWatcher::fileChanged, this, [updateShortcuts] {
-    //     updateShortcuts();
-    // });
-
-    // updateShortcuts();
-
     QDir dir(TREELAND_DATA_DIR "/shortcuts");
     for (auto d : dir.entryInfoList(QDir::Filter::Files)) {
         qCInfo(treelandShortcut) << "Load shortcut:" << d.filePath();
@@ -288,12 +265,12 @@ void Shortcut::registerForManager(ShortcutV2 *manager)
     if (!shortcut.isEmpty()) {
         auto keybindName = QString("%1_key").arg(m_shortcutName);
 
-        ShortcutV2::keybind_mode mode = ShortcutV2::keybind_mode_key_press;
+        uint keybindFlags = ShortcutV2::keybind_flag_key_press;
         auto modeStr = m_settings.value("Shortcut/KeybindMode").toString();
         if (KeybindModeMap.contains(modeStr)) {
-            mode = KeybindModeMap.value(modeStr);
+            keybindFlags = KeybindModeMap.value(modeStr);
         }
-        manager->bind_key(keybindName, shortcut, mode, action);
+        manager->bind_key(keybindName, shortcut, keybindFlags, action);
         m_registeredBindings.append(keybindName);
     }
 

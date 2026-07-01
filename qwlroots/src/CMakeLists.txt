@@ -1,5 +1,5 @@
 set(TARGET qwlroots)
-set(CMAKE_NAME ${CMAKE_PROJECT_NAME})
+set(CMAKE_NAME "QWlroots")
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 add_compile_options(-Wall -Wextra -Werror=unused-variable -Werror=unused-parameter)
@@ -9,6 +9,10 @@ find_package(Qt${QT_VERSION_MAJOR}
     Core
     REQUIRED
 )
+
+if(Qt6_VERSION VERSION_GREATER_EQUAL 6.10)
+    find_package(Qt6 REQUIRED COMPONENTS CorePrivate)
+endif()
 
 find_package(PkgConfig REQUIRED)
 
@@ -249,6 +253,13 @@ target_link_libraries(${TARGET}
     PkgConfig::XKBCOMMON
 )
 
+if(Qt6_VERSION VERSION_GREATER_EQUAL 6.10)
+    target_link_libraries(${TARGET}
+        PRIVATE
+        Qt6::CorePrivate
+    )
+endif()
+
 if (QWLROOTS_USE_PERCOMPILE_HEADERS)
     target_precompile_headers(${TARGET}
         PRIVATE
@@ -272,6 +283,8 @@ target_include_directories(${TARGET}
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/types>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/util>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/interfaces>
+    PRIVATE
+        ${Qt${QT_VERSION_MAJOR}Core_PRIVATE_INCLUDE_DIRS}
 )
 
 target_include_directories(${TARGET}

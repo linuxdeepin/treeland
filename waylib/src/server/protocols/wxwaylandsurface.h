@@ -128,6 +128,11 @@ public Q_SLOTS:
     void restack(WXWaylandSurface *sibling, StackMode mode);
 
 Q_SIGNALS:
+    // Emitted after WXWaylandSurfacePrivate finishes handling notify_associate.
+    void associated();
+    // Emitted before WXWaylandSurfacePrivate handles notify_dissociate cleanup.
+    void aboutToDissociate();
+
     void parentXWaylandSurfaceChanged();
     void childrenChanged();
     void isToplevelChanged();

@@ -1,3 +1,242 @@
+treeland (0.8.8) unstable; urgency=medium
+
+  * fix: skip update on destroyed xwayland parent
+  * feat(input-manager): update default configuration values ​​for input
+    devices.
+  * fix: correct xwayland child change detection logic
+  * fix(debian): avoid restarting treeland on upgrade
+  * fix(surface): improve output geometry handling for maximized state
+  * chore(shortcut): add option to disable built-in shortcut daemon
+  * feat: implement on-demand hierarchical window tree via Qt Remote
+    Object
+  * fix(vt): switch VT through wlroots session (#913)
+  * fix: resolve splash transition size issue
+  * refactor(foreign-toplevel): remove globals and encapsulate handles
+  * feat(foreign-toplevel): localize manager-owned registries and idle
+    scheduling
+  * refactor(foreign-toplevel): multi-client handles via SurfaceEntry
+  * refactor: migrate foreign-toplevel protocol to qtwayland scanner
+  * feat(keystate): remove the implementation and examples of the kde-
+    keystate protocol
+  * feat(keyboard-state-notify): added implementation logic for treeland-
+    keyboard-state-notify-unstable
+  * fix: SSD fallback without PersonalizationV1
+  * refactor: rename and split surface destruction logic
+  * fix: use safe xwayland surface signals
+  * feat(dconfig): add seat-level input device DConfig
+  * fix: null check in input method grab
+  * refactor: unify shortcut validation logic
+  * fix: drain residual key release after capture shortcut
+  * fix: add serial to configure position response
+  * fix(dockpreview): drop invalidated wrappers from preview
+  * fix: guard against null surface/WSurface in idle inhibitor handling
+  * feat(wayland): add treeland-input-manager-unstable-v1 protocol
+    implementation
+
+ -- rewine <luhongxu@deepin.org>  Thu, 04 Jun 2026 20:57:21 +0800
+
+treeland (0.8.7) unstable; urgency=medium
+
+  * refactor(virtual-output): use QStringList join for output name
+    serialization
+  * fix(output): fix crash on screen copy mode when hot-plugging
+  * fix(shortcut): task switch shortcuts not responding to key hold auto-
+    repeat
+  * fix(wsocket): fix WClient::get() returning null during client
+    teardown
+  * ci: add unit test step to archlinux build workflows
+  * fix(debian): promote treeland-wallpaper-factory to a hard dependency
+  * fix: remove unused lambda capture in live test
+  * refactor(platformplugin): remove unused isMaster/proxy QPA mode
+  * refactor: replace #define-private-public hacks with template
+    accessor pattern
+  * fix(activation): address PR review findings
+  * feat: add token validation and expiration to xdg-activation
+  * fix: clear attention on activation
+  * feat: differentiate activation token disposition
+  * feat: add attention state to foreign-toplevel
+  * feat: implement xdg-activation-v1 with treeland private protocol
+  * fix(render): fix texture copy crash when window partially off-screen
+  * fix(woutputrenderwindow): destroy wlr layers before invalidating
+    output on removal
+  * fix: avoid crash on invalid image capture buffer
+  * fix: fix build errors with GCC 16.1.1 and Qt 6.11.1 on Arch Linux
+  * fix(virtual-output): move beforeDestroy signal to destroy method
+  * fix: skip redundant minimize requests
+  * fix: crash caused by treeland capture
+  * chore: fix compile warnings reported by clang
+  * fix(capture): avoid double wl_resource_destroy on client teardown
+  * chore(agents): introduce AI agent instructions and skills
+  * docs: migrate logging guidelines to agent skill
+  * feat: add other user login support
+  * feat: refactor treeland-ddm-v1 protocol implementation
+  * fix(build): add missing headers for gcc 16 compatibility
+
+ -- rewine <luhongxu@deepin.org>  Fri, 22 May 2026 10:02:44 +0800
+
+treeland (0.8.6) unstable; urgency=medium
+
+  * fix: fix multiple crashes caused by thread affinity and use-after-
+    free issues
+  * fix(surface): avoid SurfaceWrapper assert on QObject child
+    destruction
+  * refactor: remove redundant m_alive flag
+  * refactor: enforce SurfaceWrapper cleanup via markWrapperToRemoved
+  * refactor: simplify wine window data structures
+  * feat: add Wine window management protocol module
+  * refactor(shellhandler): consolidate compositor protocol startup into
+    single-shot init
+  * feat(modules): introduce WineWindowState protocol module and wire
+    initial integration
+  * fix: deepin ci failed
+  * Revert "fix: disconnect socket signals when shell surface is
+    removed"
+  * feat: refactor treeland-screensaver-v1 protocol implementation
+  * fix: 'wallpaper changed' events could not be sent or received
+  * fix: disconnect socket signals when shell surface is removed
+  * feat: refactor treeland-personalization-manager protocol
+    implementation
+  * fix: capturev1 resource destroy callbacks: use deleteLater() to
+    avoid UAF
+  * refactor: Remove manual resource tracking in interface
+    implementations
+  * refactor: Make `interfaceName()` public in WServerInterface
+    implementations
+  * fix: prevent crash during Wayland client destruction
+  * feat: rename qtwaylandscanner Resource object name
+  * fix: Remove redundant 'delete' operations in `destroy_global`
+  * refactor: privatize generated protocol implementations
+  * fix: use globalRemove to implement WServerInterface::destroy
+  * feat: refactor treeland-virtual-output-manager-v1 protocol
+    implementation
+  * [skip CI] Translate treeland.en_US.ts in pt_BR
+  * fix: prevent deadlock during Wayland client destruction
+  * fix: Gradia-like capture causes treeland crashed, and update
+    copyright to 2026
+  * feat: refactor wallpaper-color protocol implementation
+  * feat: refactor window-management protocol implementation
+  * fix: avoid set zero implicit size during splash transition
+  * chore: refine decoration handling logic
+
+ -- rewine <luhongxu@deepin.org>  Sat, 09 May 2026 18:04:20 +0800
+
+treeland (0.8.5) unstable; urgency=medium
+
+  * fix: correct CMake config name for submodule build
+  * fix: qw_buffer metatype handling for Clang builds
+  * chore: add org.freedesktop.ScreenSaver test for test_idle_inhibit_v1
+  * fix: add wl_display_flush for treeland_screensaver request
+  * chore: update translations for project TreeLand
+  * fix: fix renaming of treeland_screensaver_v1 protocol
+  * feat: add treeland-wallpaper-factory as recommended dependency
+  * fix: fix wallpaper scaling and clipping issues
+  * feat: improve prelaunch splash screen layout and styling
+  * feat(examples): add idle inhibit v1 test client
+  * fix: suppress unused parameter warnings in WallpaperLauncher
+  * fix: fix dconfig initialization check compatibility
+  * feat: implement wallpaper switching with smooth transitions
+  * fix: prevent crash by delaying output assignment until surface
+    mapped
+  * feat: implement wallpaper management system
+
+ -- rewine <luhongxu@uniontech.com>  Fri, 06 Mar 2026 09:44:57 +0800
+
+treeland (0.8.4) unstable; urgency=medium
+
+  * refactor: optimize PrelaunchSplash animation and destruction logic
+  * feat: add prelaunch splash v2 protocol support
+  * fix: fix cannot unlock session after crash recovery
+  * fix: memory leak in prelaunch splash
+  * feat: listen to the Lock/Unlock signal of
+    org.freedesktop.login1.Session
+  * chore: clean up the logic of greeter and lockscreen
+  * fix: WBufferRenderer missing disconnect during QQuickItem destructor
+  * refactor: move dock preview management to ShellHandler
+  * feat: make splash screens visible and closable via foreign-toplevel
+    protocol
+  * feat: implement video slow down and playback control
+  * feat: enhance wallpaper setting with file type detection
+  * fix: prevent crash when updateActiveState called on uninitialized
+    shell surface
+  * fix: keybinding to quit treeland
+  * fix: Treeland destruction timing
+  * fix: SessionManager: correct destruction routine of WXWayland
+    instances
+  * fix: qwlroots: expose qw_xwayland::destroy()
+  * fix: waylib: release renderers before scene graph invalidation
+  * fix: fix splash screen activation and keyboard focus handling
+  * feat: improve splash screen active state handling
+
+ -- rewine <luhongxu@uniontech.com>  Sat, 28 Feb 2026 14:03:33 +0800
+
+treeland (0.8.3) unstable; urgency=medium
+
+  * chore: refactor treeland screensaver to persistent daemon
+  * fix(xwayland): prevent use-after-free in xauth file path
+    construction
+  * fix: lower classed QML element waylib being non-addressable in QML
+  * feat: Add wallpaper producer support for Treeland Wayland compositor
+  * fix: resolve Qt 6.12 compilation errors
+  * chore: disable restrictive systemd security options
+  * fix: improve Qt6 private module compatibility
+  * fix: fix corner radius clipping when no compositor decoration
+  * refactor: move session related functionality out of Helper
+  * chore: enable prelaunch splash by default
+  * fix: add missing rendering flags to WSGRenderFootprintNode
+
+ -- rewine <luhongxu@uniontech.com>  Wed, 04 Feb 2026 16:06:58 +0800
+
+treeland (0.8.2) unstable; urgency=medium
+
+  * refactor: use const iterators for QVector in signal connector
+  * Revert "chore: temporary disable TreelandUserConfig smart pointer"
+  * fix: crash on session removal (logout) window active
+  * fix: fix compatibility with older dconfig versions
+  * fix: align dconfig theme type values with wayland protocol
+  * chore: remove splash theme type configuration
+  * refactor: extract prelaunch splash creation logic
+  * fix: fix splash screen icon buffer leak and size validation
+  * chore: apply clang-format code style cleanup
+  * fix: prevent icon buffer destruction during dconfig initialization
+  * refactor: clean up splash dconfig logic
+  * feat: add per-app prelaunch splash configuration
+  * feat: add splash screen theme color customization
+  * refactor: rename WindowSizeStore to WindowConfigStore
+  * fix: fix splash size incorrect due to dconfig async initialization
+  * feat: add splash screen theme support and adjust default window size
+  * feat: migrate window size storage to dconfig
+  * feat: Add wallpaper producer client for Treeland Wayland compositor
+  * feat: replace assert with runtime error handling for output commit
+  * fix: clean up all treeland originated warnings on treeland startup
+  * feat: expose a method to move XWayland window position relative to
+    wl_surface
+  * fix(WSurfaceItem): add subsurfaces.clear() after deleteLater
+  * chore: remove obsolete dconfig usage in personalization
+  * feat: add dconfig option to allow setting Numlock state on startup
+  * feat: add minimal wallpaper setting test client
+  * fix: use systemd sd-login API for session info query instead of D-
+    Bus
+  * fix: clean up warnings on treeland startup
+  * fix: decoration assert crash when proxy decoration is not created
+  * fix: remove unused DDM headers in treeland.cpp
+  * fix: compilation issues due to update in treeland-dde-shell-v1
+    protocol
+
+ -- rewine <luhongxu@uniontech.com>  Fri, 30 Jan 2026 09:51:46 +0800
+
+treeland (0.8.1) unstable; urgency=medium
+
+  * fix: update treeland-protocol structure names (#690)
+  * fix: systemd warnings caused by invalid directives in socket units.
+  * fix: fix user mistakenly marked as logged in when login happened
+    outside ddm
+  * fix: fix user cannot login after logout once
+  * fix: missing license LGPL-2.1-or-later for kde keystate protocol
+  * feat: adopt kde-keystate-v5 to expose states of stateful keys
+  * fix: fix treeland crash on virtual machine
+
+ -- rewine <luhongxu@uniontech.com>  Thu, 15 Jan 2026 11:07:00 +0800
+
 treeland (0.8.0) unstable; urgency=medium
 
   * chore: temporary disable TreelandUserConfig smart pointer

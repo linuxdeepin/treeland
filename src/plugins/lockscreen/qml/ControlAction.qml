@@ -1,4 +1,4 @@
-// Copyright (C) 2023 justforlxz <justforlxz@gmail.com>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 import QtQuick
@@ -10,21 +10,26 @@ import Treeland
 
 RowLayout {
     id: bottomGroup
-    property int buttonSize: 30
     spacing: 15
 
-    property bool powerVisible: powerList.visible
     required property Item rootItem
-    signal lock()
+    property int buttonSize: 30
+    property bool powerVisible: powerList.visible
+
+    signal otherUserRequested()
+
+    /***************/
+    /* Components */
+    /**************/
 
     // TODO: Design the interface of session selection
     D.Button {
         id: sessionItem
         Layout.alignment: Qt.AlignHCenter
-        visible: !GreeterModel.proxy.isLoggedIn
+        visible: !GreeterProxy.hasActiveSession
 
         contentItem: D.IconLabel {
-            text: SessionModel.data(SessionModel.index(GreeterModel.currentSession, 0), SessionModel.NameRole)
+            text: SessionModel.data(SessionModel.index(SessionModel.currentIndex, 0), SessionModel.NameRole)
             color: "white"
         }
 
@@ -44,16 +49,10 @@ RowLayout {
         }
     }
 
-    function showUserList()
-    {
-        userItem.expand = true
-        userList.open()
-    }
-
     ControlActionItem {
         id: userItem
         Layout.alignment: Qt.AlignHCenter
-        visible: userList.count > 1
+        visible: userList.count > 1 || Helper.globalConfig.showOtherUserOption
         iconName: "login_user"
 
         UserList {
@@ -61,6 +60,7 @@ RowLayout {
             x: (userItem.width - userList.width) / 2 - 10
             y: -userList.height - 10
             onClosed: userItem.expand = false
+            onOtherUserRequested: bottomGroup.otherUserRequested()
         }
 
         onClicked: {
@@ -107,10 +107,12 @@ RowLayout {
         id: actionItem
         property bool expand: false
         property string iconName
+        property alias hovered: button.hovered
         signal clicked()
         implicitWidth: bottomGroup.buttonSize + 6
         implicitHeight: bottomGroup.buttonSize + 6
         D.RoundButton {
+            id: button
             icon {
                 width: 16
                 height: 16
@@ -137,5 +139,14 @@ RowLayout {
             }
             onClicked: actionItem.clicked()
         }
+    }
+
+    /*****************************/
+    /* Functions and Connections */
+    /*****************************/
+
+    function showUserList() {
+        userItem.expand = true
+        userList.open()
     }
 }

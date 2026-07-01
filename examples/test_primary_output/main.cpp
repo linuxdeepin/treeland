@@ -1,9 +1,9 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "qwayland-treeland-output-manager-v1.h"
 
-#include <QApplication>
+#include <QGuiApplication>
 #include <QObject>
 #include <QWaylandClientExtension>
 
@@ -30,7 +30,7 @@ OutputManagerV1::OutputManagerV1()
 int main(int argc, char *argv[])
 {
     qputenv("QT_QPA_PLATFORM", "wayland");
-    QApplication app(argc, argv);
+    QGuiApplication app(argc, argv);
     OutputManagerV1 manager;
 
     QObject::connect(&manager, &OutputManagerV1::activeChanged, &manager, [&manager, argc, argv] {

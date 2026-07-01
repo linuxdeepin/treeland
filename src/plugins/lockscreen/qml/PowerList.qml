@@ -1,4 +1,4 @@
-// Copyright (C) 2023 ComixHe <heyuming@uniontech.com>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 import QtQuick
@@ -12,7 +12,6 @@ FocusScope {
     id: root
     property alias modelChildren: objModel.children
     property alias leftModelChildren: leftObjeModel.children
-    signal lock()
 
     implicitWidth: layout.width
     implicitHeight: layout.height
@@ -32,36 +31,34 @@ FocusScope {
 
                 ShutdownButton {
                     id: powerOff
-                    enabled: GreeterModel.proxy.canPowerOff
+                    enabled: GreeterProxy.canPowerOff
                     text: qsTr("Shut Down")
                     icon.name: "login_shutdown"
-                    onClicked: GreeterModel.proxy.powerOff()
+                    onClicked: GreeterProxy.powerOff()
                 }
 
                 ShutdownButton {
-                    enabled: GreeterModel.proxy.canReboot
+                    enabled: GreeterProxy.canReboot
                     text: qsTr("Reboot")
                     icon.name: "login_reboot"
-                    onClicked: GreeterModel.proxy.reboot()
+                    onClicked: GreeterProxy.reboot()
                 }
 
                 ShutdownButton {
-                    enabled: GreeterModel.proxy.canSuspend
+                    enabled: GreeterProxy.canSuspend
                     text: qsTr("Suspend")
                     icon.name: "login_suspend"
                     onClicked: {
-                        root.lock()
-                        GreeterModel.proxy.suspend()
+                        GreeterProxy.suspend()
                     }
                 }
 
                 ShutdownButton {
-                    enabled: GreeterModel.proxy.canHibernate
+                    enabled: GreeterProxy.canHibernate
                     text: qsTr("Hibernate")
                     icon.name: "login_hibernate"
                     onClicked: {
-                        root.lock()
-                        GreeterModel.proxy.hibernate()
+                        GreeterProxy.hibernate()
                     }
                 }
             }

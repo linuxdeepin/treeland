@@ -1,21 +1,25 @@
-// Copyright (C) 2023 Dingyuan Zhang <lxz@mkacg.com>.
+// Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
 
-#include "modules/foreign-toplevel/impl/foreign_toplevel_manager_impl.h"
-#include "treeland-foreign-toplevel-manager-protocol.h"
-
 #include <wserver.h>
 #include <wsurface.h>
-#include <wxdgsurface.h>
+
+#include <QPoint>
+#include <QObject>
+#include <QString>
+#include <memory>
+#include <vector>
 
 class SurfaceWrapper;
+class DockPreviewContextV1;
+class ForeignToplevelHandleV1;
+class ForeignToplevelManagerInterfaceV1Private;
 
-QW_USE_NAMESPACE
 WAYLIB_SERVER_USE_NAMESPACE
 
-class ForeignToplevelV1
+class ForeignToplevelManagerInterfaceV1
     : public QObject
     , public WServerInterface
 {
@@ -25,22 +29,25 @@ class ForeignToplevelV1
 public:
     enum class PreviewDirection
     {
-        top = TREELAND_DOCK_PREVIEW_CONTEXT_V1_DIRECTION_TOP,
-        right = TREELAND_DOCK_PREVIEW_CONTEXT_V1_DIRECTION_RIGHT,
-        bottom = TREELAND_DOCK_PREVIEW_CONTEXT_V1_DIRECTION_BOTTOM,
-        left = TREELAND_DOCK_PREVIEW_CONTEXT_V1_DIRECTION_LEFT,
+        top = 0,
+        right,
+        bottom,
+        left,
     };
-    Q_ENUM(PreviewDirection);
+    Q_ENUM(PreviewDirection)
 
-    explicit ForeignToplevelV1(QObject *parent = nullptr);
+    explicit ForeignToplevelManagerInterfaceV1(QObject *parent = nullptr);
+    ~ForeignToplevelManagerInterfaceV1() override;
 
     void addSurface(SurfaceWrapper *wrapper);
     void removeSurface(SurfaceWrapper *wrapper);
 
-    Q_INVOKABLE void enterDockPreview(WSurface *relative_surface);
-    Q_INVOKABLE void leaveDockPreview(WSurface *relative_surface);
+    Q_INVOKABLE void enterDockPreview(WSurface *relativeSurface);
+    Q_INVOKABLE void leaveDockPreview(WSurface *relativeSurface);
 
     QByteArrayView interfaceName() const override;
+
+    static constexpr int InterfaceVersion = 1;
 
 Q_SIGNALS:
     void requestDockPreview(std::vector<SurfaceWrapper *> surfaces,
@@ -55,18 +62,20 @@ Q_SIGNALS:
 
 protected:
     void create(WServer *server) override;
+    void destroy(WServer *server) override;
     wl_global *global() const override;
 
-private Q_SLOTS:
-    void onDockPreviewContextCreated(treeland_dock_preview_context_v1 *context);
-
 private:
-    treeland_foreign_toplevel_manager_v1 *m_manager = nullptr;
-    std::map<SurfaceWrapper *, std::unique_ptr<treeland_foreign_toplevel_handle_v1>> m_surfaces;
-};
+    wl_event_loop *eventLoop() const;
+    ForeignToplevelHandleV1 *handleForIdentifier(uint32_t identifier) const;
+    void releaseHandle(ForeignToplevelHandleV1 *handle);
+    void releaseDockPreviewContext(DockPreviewContextV1 *context);
+    void initializeToplevelHandle(SurfaceWrapper *wrapper, ForeignToplevelHandleV1 *handle);
 
-Q_DECLARE_OPAQUE_POINTER(treeland_foreign_toplevel_handle_v1_maximized_event *);
-Q_DECLARE_OPAQUE_POINTER(treeland_foreign_toplevel_handle_v1_minimized_event *);
-Q_DECLARE_OPAQUE_POINTER(treeland_foreign_toplevel_handle_v1_activated_event *);
-Q_DECLARE_OPAQUE_POINTER(treeland_foreign_toplevel_handle_v1_fullscreen_event *);
-Q_DECLARE_OPAQUE_POINTER(treeland_foreign_toplevel_handle_v1_set_rectangle_event *);
+    std::unique_ptr<ForeignToplevelManagerInterfaceV1Private> d;
+
+    friend class ForeignToplevelManagerInterfaceV1Private;
+    friend class DockPreviewContextV1;
+    friend class DockPreviewContextV1Private;
+    friend class ForeignToplevelHandleV1Private;
+};

@@ -1,6 +1,8 @@
 find_package(PkgConfig REQUIRED)
 find_package(Qt6 REQUIRED COMPONENTS Core Gui WaylandClient Quick)
-find_package(Qt6 COMPONENTS WaylandClientPrivate QuickPrivate QUIET)
+if(Qt6_VERSION VERSION_GREATER_EQUAL 6.10)
+    find_package(Qt6 REQUIRED COMPONENTS WaylandClientPrivate QuickPrivate)
+endif()
 find_package(TreelandProtocols REQUIRED)
 pkg_check_modules(EGL REQUIRED IMPORTED_TARGET egl gl)
 qt_add_executable(test-capture

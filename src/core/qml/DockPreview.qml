@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2024 UnionTech Software Technology Co., Ltd.
+// SPDX-FileCopyrightText: 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 import QtQuick
@@ -76,10 +76,22 @@ Item {
             }
         }
 
+        function removeSurface(surfaceWrapper) {
+            if (!surfaceWrapper)
+                return;
+
+            var index = desiredSurfaces.indexOf(surfaceWrapper);
+            if (index < 0)
+                return;
+
+            desiredSurfaces.splice(index, 1);
+            updateModel();
+        }
+
         function activateWindow(surfaceWrapper) {
             console.debug(qLcDockPreview, "activate preview window: ", surfaceWrapper)
             Helper.forceActivateSurface(surfaceWrapper)
-            ForeignToplevelV1.leaveDockPreview(root.target.shellSurface.surface)
+            ForeignToplevelManagerInterfaceV1.leaveDockPreview(root.target.shellSurface.surface)
             root.close();
         }
 
@@ -198,7 +210,7 @@ Item {
     states: [
         State {
             name: "dock_bottom"
-            when: direction === ForeignToplevelV1.PreviewDirection.bottom
+            when: direction === ForeignToplevelManagerInterfaceV1.PreviewDirection.bottom
             AnchorChanges {
                 target: root
                 anchors.horizontalCenter: root.target?.horizontalCenter
@@ -226,7 +238,7 @@ Item {
         },
         State {
             name: "dock_left"
-            when: direction === ForeignToplevelV1.PreviewDirection.left
+            when: direction === ForeignToplevelManagerInterfaceV1.PreviewDirection.left
             AnchorChanges {
                 target: root
                 anchors.verticalCenter: root.target?.verticalCenter
@@ -252,7 +264,7 @@ Item {
         },
         State {
             name: "dock_top"
-            when: direction === ForeignToplevelV1.PreviewDirection.top
+            when: direction === ForeignToplevelManagerInterfaceV1.PreviewDirection.top
             AnchorChanges {
                 target: root
                 anchors.horizontalCenter: root.target?.horizontalCenter
@@ -278,7 +290,7 @@ Item {
         },
         State {
             name: "dock_right"
-            when: direction === ForeignToplevelV1.PreviewDirection.right
+            when: direction === ForeignToplevelManagerInterfaceV1.PreviewDirection.right
             AnchorChanges {
                 target: root
                 anchors.verticalCenter: root.target?.verticalCenter
@@ -471,6 +483,13 @@ Item {
             implicitHeight: root.isHorizontal ? 120 : Math.max(80, Math.min(120, 240 * wrapper.height / wrapper.width))
             implicitWidth: root.isHorizontal ? Math.max(80, Math.min(240, 120 * wrapper.width / wrapper.height)) : 240
 
+            Connections {
+                target: wrapper
+                function onAboutToBeInvalidated() {
+                    listview.model.removeSurface(wrapper)
+                }
+            }
+
             ListView.onRemove: {
                 if (filterSurfaceModel.count) {
                     isRemoving = true
@@ -629,9 +648,9 @@ Item {
             enabled: listview.count !== 0
             onHoveredChanged: {
                 if (!hovered) {
-                    ForeignToplevelV1.leaveDockPreview(root.target.shellSurface.surface)
+                    ForeignToplevelManagerInterfaceV1.leaveDockPreview(root.target.shellSurface.surface)
                 } else {
-                    ForeignToplevelV1.enterDockPreview(root.target.shellSurface.surface)
+                    ForeignToplevelManagerInterfaceV1.enterDockPreview(root.target.shellSurface.surface)
                 }
             }
             cursorShape: Qt.ArrowCursor

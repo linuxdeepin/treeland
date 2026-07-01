@@ -51,6 +51,7 @@ public Q_SLOTS:
 
 private:
     friend class WSocket;
+    friend class WSocketPrivate;
     friend struct WlClientDestroyListener;
     explicit WClient(wl_client *client, WSocket *socket, bool isWlClientOwned = true);
     ~WClient() = default;
@@ -100,7 +101,7 @@ public:
     const QList<WClient *> &clients() const;
 
     bool isEnabled() const;
-    void setEnabled(bool on);
+    void setEnabled(bool on, const WSocket *excludedSocket = nullptr);
 
 Q_SIGNALS:
     void enabledChanged();

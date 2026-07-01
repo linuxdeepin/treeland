@@ -116,6 +116,7 @@ class WAYLIB_SERVER_EXPORT WSurfaceItem : public QQuickItem
     Q_PROPERTY(QQmlComponent* delegate READ delegate WRITE setDelegate NOTIFY delegateChanged FINAL)
     Q_PROPERTY(QRectF boundingRect READ boundingRect NOTIFY boundingRectChanged)
     Q_PROPERTY(bool subsurfacesVisible READ subsurfacesVisible WRITE setSubsurfacesVisible NOTIFY subsurfacesVisibleChanged FINAL)
+    Q_PROPERTY(bool ready READ isReady NOTIFY readyChanged FINAL)
     QML_NAMED_ELEMENT(SurfaceItem)
 
 public:
@@ -193,8 +194,12 @@ public:
     bool subsurfacesVisible() const;
     void setSubsurfacesVisible(bool newSubsurfacesVisible);
 
+    bool isReady() const;
+
     // Find WSurfaceItemContent in child items
     WSurfaceItemContent *findItemContent() const;
+
+    QPointF mapFromSurface(const QPointF &point) const;
 
 Q_SIGNALS:
     void surfaceChanged();
@@ -215,6 +220,7 @@ Q_SIGNALS:
     void shellSurfaceChanged();
     void boundingRectChanged();
     void subsurfacesVisibleChanged();
+    void readyChanged();
 
 protected:
     explicit WSurfaceItem(WSurfaceItemPrivate &dd, QQuickItem *parent = nullptr);

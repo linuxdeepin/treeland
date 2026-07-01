@@ -1,4 +1,4 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "surface/surfacewrapper.h"
@@ -9,10 +9,7 @@
 #include "seat/helper.h"
 #include "treelanduserconfig.hpp"
 #include "workspace/workspace.h"
-#include "seat/helper.h"
-
-#include <QVariant>
-#include <QTimer>
+#include "wtoplevelsurface.h"
 
 #include <winputpopupsurfaceitem.h>
 #include <wlayersurface.h>
@@ -26,8 +23,11 @@
 #include <wxwaylandsurface.h>
 #include <wxwaylandsurfaceitem.h>
 
-#include <qwlayershellv1.h>
 #include <qwbuffer.h>
+#include <qwlayershellv1.h>
+
+#include <QColor>
+#include <QVariant>
 
 #define OPEN_ANIMATION 1
 #define CLOSE_ANIMATION 2
@@ -46,7 +46,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     , m_visibleDecoration(true)
     , m_clipInOutput(false)
     , m_noDecoration(true)
-    , m_titleBarState(TitleBarState::Default)
+    , m_noTitleBar(true)
     , m_noCornerRadius(false)
     , m_alwaysOnTop(false)
     , m_skipSwitcher(false)
@@ -61,6 +61,8 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     , m_hideByLockScreen(false)
     , m_confirmHideByLockScreen(false)
     , m_blur(false)
+    , m_isActivated(false)
+    , m_attention(false)
     , m_appId(appId)
 {
     QQmlEngine::setContextForObject(this, qmlEngine->rootContext());
@@ -68,8 +70,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     setup();
 }
 
-SurfaceWrapper::SurfaceWrapper(SurfaceWrapper *original,
-                               QQuickItem *parent)
+SurfaceWrapper::SurfaceWrapper(SurfaceWrapper *original, QQuickItem *parent)
     : QQuickItem(parent)
     , m_engine(original->m_engine)
     , m_shellSurface(original->m_shellSurface)
@@ -78,7 +79,7 @@ SurfaceWrapper::SurfaceWrapper(SurfaceWrapper *original,
     , m_visibleDecoration(true)
     , m_clipInOutput(false)
     , m_noDecoration(true)
-    , m_titleBarState(TitleBarState::Default)
+    , m_noTitleBar(true)
     , m_noCornerRadius(false)
     , m_alwaysOnTop(false)
     , m_skipSwitcher(false)
@@ -93,6 +94,8 @@ SurfaceWrapper::SurfaceWrapper(SurfaceWrapper *original,
     , m_hideByLockScreen(false)
     , m_confirmHideByLockScreen(false)
     , m_blur(false)
+    , m_isActivated(false)
+    , m_attention(false)
     , m_appId(original->m_appId)
 {
     QQmlEngine::setContextForObject(this, m_engine->rootContext());
@@ -102,17 +105,20 @@ SurfaceWrapper::SurfaceWrapper(SurfaceWrapper *original,
     } else {
         setImplicitSize(original->implicitWidth(), original->implicitHeight());
         auto iconVar = original->prelaunchSplash()
-                           ? original->prelaunchSplash()->property("iconBuffer")
-                           : QVariant();
-        m_prelaunchSplash = m_engine->createPrelaunchSplash(this,
-             original->radius(),
-             iconVar.value<QW_NAMESPACE::qw_buffer *>());
+            ? original->prelaunchSplash()->property("iconBuffer")
+            : QVariant();
+        QColor bgColor = original->prelaunchSplash()
+            ? original->prelaunchSplash()->property("backgroundColor").value<QColor>()
+            : QColor("#ffffff");
+
+        m_prelaunchSplash =
+            m_engine->createPrelaunchSplash(this,
+                                            original->radius(),
+                                            iconVar.value<QW_NAMESPACE::qw_buffer *>(),
+                                            bgColor);
         setNoDecoration(false);
 
-        connect(original,
-            &SurfaceWrapper::surfaceItemCreated,
-                this,
-                [this, original]() {
+        connect(original, &SurfaceWrapper::surfaceItemCreated, this, [this, original]() {
             m_shellSurface = original->m_shellSurface;
             m_type = original->m_type;
             if (m_prelaunchSplash) {
@@ -120,12 +126,17 @@ SurfaceWrapper::SurfaceWrapper(SurfaceWrapper *original,
                 m_prelaunchSplash = nullptr;
             }
             setup();
-         });
+        });
     }
 }
 
 // Constructor used for the prelaunch splash
-SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine, QQuickItem *parent, const QSize &initialSize, const QString &appId, QW_NAMESPACE::qw_buffer *iconBuffer)
+SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
+                               QQuickItem *parent,
+                               const QSize &initialSize,
+                               const QString &appId,
+                               QW_NAMESPACE::qw_buffer *iconBuffer,
+                               const QColor &backgroundColor)
     : QQuickItem(parent)
     , m_engine(qmlEngine)
     , m_shellSurface(nullptr)
@@ -134,7 +145,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine, QQuickItem *parent, const Q
     , m_visibleDecoration(true)
     , m_clipInOutput(false)
     , m_noDecoration(true)
-    , m_titleBarState(TitleBarState::Default)
+    , m_noTitleBar(true)
     , m_noCornerRadius(false)
     , m_alwaysOnTop(false)
     , m_skipSwitcher(false)
@@ -149,6 +160,8 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine, QQuickItem *parent, const Q
     , m_hideByLockScreen(false)
     , m_confirmHideByLockScreen(false)
     , m_blur(false)
+    , m_isActivated(false)
+    , m_attention(false)
     , m_appId(appId)
 {
     QQmlEngine::setContextForObject(this, qmlEngine->rootContext());
@@ -159,23 +172,53 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine, QQuickItem *parent, const Q
     } else {
         setImplicitSize(800, 600);
     }
-    m_prelaunchSplash = m_engine->createPrelaunchSplash(this, radius(), iconBuffer);
-    // Connect to QML signal so C++ can destroy the QML item when requested
-    connect(m_prelaunchSplash,
-            SIGNAL(destroyRequested()),
-            this,
-            SLOT(onPrelaunchSplashDestroyRequested()));
+    m_prelaunchSplash =
+        m_engine->createPrelaunchSplash(this, radius(), iconBuffer, backgroundColor);
 
     setNoDecoration(false);
+    updateHasActiveCapability(ActiveControlState::MappedOrSplash, true); // Splash is true
+}
+
+void SurfaceWrapper::invalidate()
+{
+    Q_ASSERT_X(!m_wrapperAboutToRemove, Q_FUNC_INFO, "Can't call `invalidate` twice!");
+    m_wrapperAboutToRemove = true;
+    Q_EMIT aboutToBeInvalidated();
+
+    if (!m_skipDockPreView)
+        setSkipDockPreView(true);
+
+    if (m_container) {
+        m_container->removeSurface(this);
+        m_container = nullptr;
+    }
+    if (m_ownsOutput) {
+        m_ownsOutput->removeSurface(this);
+        m_ownsOutput = nullptr;
+    }
+    if (m_parentSurface) {
+        m_parentSurface->removeSubSurface(this);
+        m_parentSurface = nullptr;
+    }
+    for (auto subS : std::as_const(m_subSurfaces)) {
+        subS->m_parentSurface = nullptr;
+    }
+    m_subSurfaces.clear();
+    m_shellSurface = nullptr;
+    if (m_surfaceItem)
+        m_surfaceItem->disconnect(this);
 }
 
 SurfaceWrapper::~SurfaceWrapper()
 {
-    Q_ASSERT(!m_ownsOutput);
-    Q_ASSERT(!m_container);
-    Q_ASSERT(!m_parentSurface);
-    Q_ASSERT(m_subSurfaces.isEmpty());
-
+    if (!m_wrapperAboutToRemove) {
+        if (isWindowAnimationRunning()) {
+            qCWarning(treelandSurface)
+                << "SurfaceWrapper is being destroyed without destroy(); expected external"
+                   " destroy() rather than QObject parent-child destruction";
+        }
+        invalidate();
+    }
     if (m_titleBar) {
         delete m_titleBar;
         m_titleBar = nullptr;
@@ -277,8 +320,7 @@ void SurfaceWrapper::setup()
                                         this,
                                         [this](WSeat *, QPoint pos, quint32) {
                                             Q_EMIT requestShowWindowMenu(
-                                                { pos.x() + m_surfaceItem->leftPadding(),
-                                                  pos.y() + m_surfaceItem->topPadding() });
+                                                m_surfaceItem->mapFromSurface(pos).toPoint());
                                         });
         }
     }
@@ -295,7 +337,7 @@ void SurfaceWrapper::setup()
         });
     }
 
-    if (!m_prelaunchSplash || !m_prelaunchSplash->isVisible()) {
+    if (!m_prelaunchSplash) {
         setImplicitSize(m_surfaceItem->implicitWidth(), m_surfaceItem->implicitHeight());
         connect(m_surfaceItem, &WSurfaceItem::implicitWidthChanged, this, [this] {
             setImplicitWidth(m_surfaceItem->implicitWidth());
@@ -318,9 +360,7 @@ void SurfaceWrapper::setup()
     }
 
     if (!m_shellSurface->hasCapability(WToplevelSurface::Capability::Focus)) {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
         m_surfaceItem->setFocusPolicy(Qt::NoFocus);
-#endif
     }
 
     if (m_type == Type::XdgToplevel && !m_isProxy) // x11 will set later
@@ -397,7 +437,8 @@ void SurfaceWrapper::convertToNormalSurface(WToplevelSurface *shellSurface, Type
 {
     // Conversion only allowed from prelaunch (SplashScreen) state
     if (m_type != Type::SplashScreen || m_shellSurface != nullptr) {
-        qCCritical(treelandSurface) << "convertToNormalSurface can only be called on prelaunch surfaces";
+        qCCritical(treelandSurface)
+            << "convertToNormalSurface can only be called on prelaunch surfaces";
         return;
     }
 
@@ -408,19 +449,14 @@ void SurfaceWrapper::convertToNormalSurface(WToplevelSurface *shellSurface, Type
 
     // Call setup() to initialize surfaceItem related features
     setup();
+    m_surfaceItem->setVisible(false);
 
-    // If outputs were set during prelaunch, apply them now
-    if (m_prelaunchOutputs.size() > 0) {
-        setOutputs(m_prelaunchOutputs);
-        m_prelaunchOutputs.clear();
+    // Check if surface is still valid before accessing
+    WSurface *surf = surface();
+    if (surf && surf->mapped()) {
+        syncPrelaunchMappedState();
+        startPrelaunchSplashHideSequence();
     }
-
-    // setNoDecoration not called updateTitleBar when type is SplashScreen
-    updateTitleBar();
-    updateDecoration();
-
-    Q_ASSERT(m_prelaunchSplash);
-    QMetaObject::invokeMethod(m_prelaunchSplash, "hideAndDestroy", Qt::QueuedConnection);
 }
 
 void SurfaceWrapper::setParent(QQuickItem *item)
@@ -433,20 +469,41 @@ void SurfaceWrapper::setActivate(bool activate)
 {
     if (m_wrapperAboutToRemove)
         return;
-
-    // No shellSurface in prelaunch mode -> early return
-    if (!m_shellSurface)
+    if (m_isActivated == activate)
         return;
 
     Q_ASSERT(!activate || hasActiveCapability());
-    m_shellSurface->setActivate(activate);
+    m_isActivated = activate;
+
+    if (m_attention && m_isActivated)
+        setAttention(false);
+
+    // No shellSurface in prelaunch mode -> early return
+    if (m_shellSurface)
+        updateActiveState();
+
+    Q_EMIT isActivatedChanged();
+}
+
+void SurfaceWrapper::updateActiveState()
+{
+    if (!m_shellSurface) {
+        qCCritical(treelandSurface) << "updateActiveState called without a valid shellSurface";
+        return;
+    }
+    if (!m_shellSurface->isInitialized()) {
+        qCWarning(treelandSurface)
+            << "updateActiveState called with shellSurface not yet initialized";
+        return;
+    }
+    m_shellSurface->setActivate(m_isActivated);
     auto parent = parentSurface();
     while (parent) {
         if (!parent->hasActiveCapability()) {
             // Maybe it's parent is Minimized or Unmapped
             break;
         }
-        parent->setActivate(activate);
+        parent->setActivate(m_isActivated);
         parent = parent->parentSurface();
     }
 }
@@ -463,31 +520,142 @@ void SurfaceWrapper::setFocus(bool focus, Qt::FocusReason reason)
         m_surfaceItem->setFocus(false, reason);
 }
 
-void SurfaceWrapper::onPrelaunchSplashDestroyRequested()
+void SurfaceWrapper::syncPrelaunchMappedState()
 {
-    if (m_surfaceItem) {
-        setImplicitSize(m_surfaceItem->implicitWidth(), m_surfaceItem->implicitHeight());
-        connect(m_surfaceItem, &WSurfaceItem::implicitWidthChanged, this, [this] {
-            setImplicitWidth(m_surfaceItem->implicitWidth());
-        });
-        connect(m_surfaceItem, &WSurfaceItem::implicitHeightChanged, this, [this] {
-            setImplicitHeight(m_surfaceItem->implicitHeight());
-        });
-        connect(m_surfaceItem,
-                &WSurfaceItem::boundingRectChanged,
-                this,
-                &SurfaceWrapper::updateBoundingRect);
-        if (m_decoration)
-            m_decoration->stackBefore(m_surfaceItem);
+    if (!m_prelaunchOutputs.isEmpty()) {
+        setOutputs(m_prelaunchOutputs);
+        m_prelaunchOutputs.clear();
     }
 
-    updateVisible();
+    updateActiveState();
+}
 
-    if (!m_prelaunchSplash)
+void SurfaceWrapper::startPrelaunchSplashHideSequence()
+{
+    Q_ASSERT(m_surfaceItem != nullptr);
+    if (m_windowAnimation) {
+        qCDebug(treelandSurface) << "prelaunch splash transition is starting while window "
+                                    "animation is still running,"
+                                    "this may cause visual glitches, will delay the transition "
+                                    "until window animation finishes";
         return;
+    }
+    if (m_geometryAnimation) {
+        qCDebug(treelandSurface) << "prelaunch splash transition already prepared or running, skip";
+        return;
+    }
+
+    // Wait until surfaceItem has computed a valid scene-space implicit size.
+    // For XWayland, this happens in updateSurfaceState() after the first surface commit;
+    // for other types it may be deferred until componentComplete + first polish.
+    if (!m_surfaceItem->isReady()) {
+        connect(m_surfaceItem,
+                &WSurfaceItem::readyChanged,
+                this,
+                &SurfaceWrapper::startPrelaunchSplashHideSequence,
+                Qt::SingleShotConnection);
+        return;
+    }
+
+    // Use surfaceItem's scene-space implicit size: for XWayland, surf->size() is
+    // buffer-space and differs from scene-space after DPR scaling via surfaceSizeRatio.
+    const QSizeF targetImplicitSize(m_surfaceItem->implicitWidth(),
+                                    m_surfaceItem->implicitHeight());
+    const bool hasValidTargetImplicitSize =
+        targetImplicitSize.width() > 0 && targetImplicitSize.height() > 0;
+    if (!hasValidTargetImplicitSize) {
+        qCCritical(treelandSurface) << "Invalid target implicit size, skip transition animation"
+                                    << "targetImplicit=" << targetImplicitSize;
+    }
+
+    const bool needImplicitSizeTransition = hasValidTargetImplicitSize && (container() != nullptr)
+        && (!qFuzzyCompare(implicitWidth() + 1.0, targetImplicitSize.width() + 1.0)
+            || !qFuzzyCompare(implicitHeight() + 1.0, targetImplicitSize.height() + 1.0));
+
+    if (needImplicitSizeTransition) {
+        const QRectF fromGeometry(position(), size());
+        // XWayland clients manage their own position; respect it and don't shift.
+        // For all other types, keep the center fixed so the window expands from center.
+        const QPointF toTopLeft = (m_type == Type::XWayland) ? fromGeometry.topLeft()
+                                                             : fromGeometry.center()
+                - QPointF(targetImplicitSize.width() / 2.0, targetImplicitSize.height() / 2.0);
+        const QRectF toGeometry(toTopLeft, targetImplicitSize);
+        m_geometryAnimation =
+            m_engine->createGeometryAnimation(this, fromGeometry, toGeometry, container());
+
+        bool ok = connect(m_geometryAnimation,
+                          SIGNAL(ready()),
+                          this,
+                          SLOT(onPrelaunchGeometryAnimationReady()));
+        Q_ASSERT(ok);
+        ok = connect(m_geometryAnimation,
+                     SIGNAL(finished()),
+                     this,
+                     SLOT(onPrelaunchGeometryAnimationFinished()));
+        Q_ASSERT(ok);
+
+        ok = QMetaObject::invokeMethod(m_geometryAnimation, "start");
+        Q_ASSERT(ok);
+    } else {
+        completeSplashTransition(targetImplicitSize);
+    }
+}
+
+void SurfaceWrapper::onPrelaunchGeometryAnimationReady()
+{
+    Q_ASSERT(m_geometryAnimation);
+    const QRectF toGeo = m_geometryAnimation->property("toGeometry").toRectF();
+    // Move the wrapper to the animation's final position before revealing the real surface,
+    // so the window appears exactly where the animation ended (no position jump).
+    setPosition(toGeo.topLeft());
+    // Keep normalGeometry in sync so subsequent state transitions use the correct position.
+    setNormalGeometry(toGeo);
+
+    completeSplashTransition(toGeo.size(), true);
+}
+
+void SurfaceWrapper::onPrelaunchGeometryAnimationFinished()
+{
+    Q_ASSERT(m_geometryAnimation);
+    m_geometryAnimation->disconnect(this);
+    m_geometryAnimation->deleteLater();
+    m_geometryAnimation = nullptr;
+
+    if (m_decoration)
+        m_decoration->setVisible(true);
+}
+
+void SurfaceWrapper::completeSplashTransition(const QSizeF &targetImplicitSize, bool hideDecoration)
+{
+    setImplicitSize(targetImplicitSize.width(), targetImplicitSize.height());
+    connect(m_surfaceItem, &WSurfaceItem::implicitWidthChanged, this, [this] {
+        setImplicitWidth(m_surfaceItem->implicitWidth());
+    });
+    connect(m_surfaceItem, &WSurfaceItem::implicitHeightChanged, this, [this] {
+        setImplicitHeight(m_surfaceItem->implicitHeight());
+    });
+    connect(m_surfaceItem,
+            &WSurfaceItem::boundingRectChanged,
+            this,
+            &SurfaceWrapper::updateBoundingRect);
+    // setNoDecoration not called updateTitleBar when type is SplashScreen
+    updateTitleBar();
+    if (m_decoration) {
+        if (hideDecoration)
+            m_decoration->setVisible(false);
+        m_decoration->stackBefore(m_surfaceItem);
+    }
+
+    m_surfaceItem->setVisible(true);
+    Q_ASSERT(m_prelaunchSplash);
+    m_prelaunchSplash->setVisible(false);
     m_prelaunchSplash->deleteLater();
     m_prelaunchSplash = nullptr;
     Q_EMIT prelaunchSplashChanged();
+
+    // Now that the splash is hidden and deleted, the surface can be considered active if it's
+    // mapped
+    updateHasActiveCapability(ActiveControlState::MappedOrSplash, surface() && surface()->mapped());
 }
 
 WSurface *SurfaceWrapper::surface() const
@@ -531,6 +699,17 @@ bool SurfaceWrapper::resize(const QSizeF &size)
         return false;
 
     return m_surfaceItem->resizeSurface(size);
+}
+
+void SurfaceWrapper::close()
+{
+    if (m_type == Type::SplashScreen) {
+        // For splash screens, emit a signal to request closure
+        Q_EMIT requestCloseSplash();
+    } else if (m_shellSurface) {
+        // For normal surfaces, call the shell surface's close method
+        m_shellSurface->close();
+    }
 }
 
 QRectF SurfaceWrapper::titlebarGeometry() const
@@ -797,6 +976,7 @@ void SurfaceWrapper::setSurfaceState(State newSurfaceState)
         if (m_geometryAnimation) {
             m_geometryAnimation->disconnect(this);
             m_geometryAnimation->deleteLater();
+            m_geometryAnimation = nullptr;
         }
 
         doSetSurfaceState(newSurfaceState);
@@ -838,35 +1018,12 @@ bool SurfaceWrapper::isWindowAnimationRunning() const
     return !m_windowAnimation.isNull();
 }
 
-void SurfaceWrapper::markWrapperToRemoved()
+void SurfaceWrapper::destroy()
 {
-    Q_ASSERT_X(!m_wrapperAboutToRemove, Q_FUNC_INFO, "Can't call `markWrapperToRemoved` twice!");
-    m_wrapperAboutToRemove = true;
-    Q_EMIT aboutToBeInvalidated();
-
-    if (m_container) {
-        m_container->removeSurface(this);
-        m_container = nullptr;
-    }
-    if (m_ownsOutput) {
-        m_ownsOutput->removeSurface(this);
-        m_ownsOutput = nullptr;
-    }
-    if (m_parentSurface) {
-        m_parentSurface->removeSubSurface(this);
-        m_parentSurface = nullptr;
-    }
-    for (auto subS : std::as_const(m_subSurfaces)) {
-        subS->m_parentSurface = nullptr;
-    }
-    m_subSurfaces.clear();
-    m_shellSurface = nullptr;
-    if (m_surfaceItem)
-        m_surfaceItem->disconnect(this);
-
-    if (!isWindowAnimationRunning()) {
+    invalidate();
+    if (!isWindowAnimationRunning())
         deleteLater();
-    } // else delete this in Animation(for window close animation) finish
+    // else delete this in Animation(for window close animation) finish
 }
 
 bool SurfaceWrapper::acceptKeyboardFocus() const
@@ -883,29 +1040,46 @@ void SurfaceWrapper::setAcceptKeyboardFocus(bool accept)
     Q_EMIT acceptKeyboardFocusChanged();
 }
 
+bool SurfaceWrapper::isActivated() const
+{
+    return m_isActivated;
+}
+
+bool SurfaceWrapper::attention() const
+{
+    return m_attention;
+}
+
+bool SurfaceWrapper::setAttention(bool attention)
+{
+    if (m_attention == attention)
+        return true;
+    if (attention && m_isActivated) {
+        qCWarning(treelandSurface) << "setAttention(true) ignored: surface is already activated";
+        return false;
+    }
+    m_attention = attention;
+    Q_EMIT attentionChanged();
+    return true;
+}
+
 void SurfaceWrapper::setNoDecoration(bool newNoDecoration)
 {
     if (m_wrapperAboutToRemove)
         return;
 
-    setNoCornerRadius(newNoDecoration);
     if (m_noDecoration == newNoDecoration)
         return;
 
     m_noDecoration = newNoDecoration;
-
-    if (m_type == Type::SplashScreen) {
-        Q_EMIT noDecorationChanged();
-        return;
-    }
+    setNoCornerRadius(newNoDecoration);
 
     updateDecoration();
-    Q_EMIT noDecorationChanged();
 }
 
 void SurfaceWrapper::updateDecoration()
 {
-    if (m_titleBarState == TitleBarState::Default && m_type != Type::SplashScreen)
+    if (m_type != Type::SplashScreen)
         updateTitleBar();
 
     if (m_noDecoration) {
@@ -928,6 +1102,7 @@ void SurfaceWrapper::updateDecoration()
     }
 
     updateBoundingRect();
+    Q_EMIT noDecorationChanged();
 }
 
 void SurfaceWrapper::updateTitleBar()
@@ -984,12 +1159,12 @@ void SurfaceWrapper::updateBoundingRect()
 
 void SurfaceWrapper::updateVisible()
 {
-    if (m_prelaunchSplash && m_prelaunchSplash->isVisible())
-        return;
-
-    setVisible(!m_hideByWorkspace && !isMinimized() && (surface() && surface()->mapped())
-               && m_socketEnabled && m_hideByshowDesk && !m_confirmHideByLockScreen
-               && Helper::instance()->surfaceBelongsToCurrentSession(this));
+    bool isVisible = !m_hideByWorkspace && !isMinimized()
+        && ((surface() && surface()->mapped())
+            || (m_prelaunchSplash && m_prelaunchSplash->isVisible()))
+        && m_socketEnabled && m_hideByshowDesk && !m_confirmHideByLockScreen
+        && Helper::instance()->surfaceBelongsToCurrentSession(this);
+    setVisible(isVisible);
 }
 
 void SurfaceWrapper::updateSubSurfaceStacking()
@@ -1192,6 +1367,7 @@ void SurfaceWrapper::onAnimationReady()
         // abort change state if resize failed
         m_geometryAnimation->disconnect(this);
         m_geometryAnimation->deleteLater();
+        m_geometryAnimation = nullptr;
         return;
     }
 
@@ -1206,6 +1382,7 @@ void SurfaceWrapper::onAnimationFinished()
     Q_ASSERT(m_geometryAnimation);
     m_geometryAnimation->disconnect(this);
     m_geometryAnimation->deleteLater();
+    m_geometryAnimation = nullptr;
 }
 
 bool SurfaceWrapper::startStateChangeAnimation(State targetState, const QRectF &targetGeometry)
@@ -1246,6 +1423,10 @@ void SurfaceWrapper::onWindowAnimationFinished()
 void SurfaceWrapper::onShowAnimationFinished()
 {
     onWindowAnimationFinished();
+
+    if (m_prelaunchSplash && surface() && surface()->mapped()) {
+        startPrelaunchSplashHideSequence();
+    }
 }
 
 void SurfaceWrapper::onHideAnimationFinished()
@@ -1269,10 +1450,15 @@ void SurfaceWrapper::onMappedChanged()
 
     Q_ASSERT(surface());
     bool mapped = surface()->mapped() && !m_hideByLockScreen;
+
     if (!m_isProxy) {
         if (mapped) {
-            if (!m_prelaunchSplash)
+            if (!m_prelaunchSplash) {
                 createNewOrClose(OPEN_ANIMATION);
+            } else {
+                syncPrelaunchMappedState();
+                startPrelaunchSplashHideSequence();
+            }
             if (m_coverContent) {
                 m_coverContent->setVisible(true);
             }
@@ -1285,8 +1471,8 @@ void SurfaceWrapper::onMappedChanged()
         m_coverContent->setProperty("mapped", mapped);
     }
 
-    updateHasActiveCapability(ActiveControlState::Mapped, mapped);
-
+    // Splash can't call onMappedChanged, just use mapped state to update
+    updateHasActiveCapability(ActiveControlState::MappedOrSplash, mapped);
     updateVisible();
 }
 
@@ -1303,6 +1489,7 @@ void SurfaceWrapper::onMinimizeAnimationFinished()
     Q_ASSERT(m_minimizeAnimation);
     m_minimizeAnimation->disconnect(this);
     m_minimizeAnimation->deleteLater();
+    m_minimizeAnimation = nullptr;
 }
 
 void SurfaceWrapper::startMinimizeAnimation(const QRectF &iconGeometry, uint direction)
@@ -1347,6 +1534,7 @@ void SurfaceWrapper::onShowDesktopAnimationFinished()
     Q_ASSERT(m_showDesktopAnimation);
     m_showDesktopAnimation->disconnect(this);
     m_showDesktopAnimation->deleteLater();
+    m_showDesktopAnimation = nullptr;
     updateVisible();
 }
 
@@ -1356,6 +1544,7 @@ void SurfaceWrapper::startShowDesktopAnimation(bool show)
     if (m_showDesktopAnimation) {
         m_showDesktopAnimation->disconnect(this);
         m_showDesktopAnimation->deleteLater();
+        m_showDesktopAnimation = nullptr;
     }
 
     setHideByShowDesk(show);
@@ -1398,6 +1587,8 @@ void SurfaceWrapper::setRadius(qreal newRadius)
 
 void SurfaceWrapper::requestMinimize(bool onAnimation)
 {
+    if (m_surfaceState == State::Minimized)
+        return;
     setSurfaceState(State::Minimized);
     if (onAnimation)
         startMinimizeAnimation(iconGeometry(), CLOSE_ANIMATION);
@@ -1684,10 +1875,8 @@ bool SurfaceWrapper::noTitleBar() const
 {
     if (m_surfaceState == State::Fullscreen)
         return true;
-    if (m_titleBarState == TitleBarState::Visible)
-        return false;
 
-    return m_titleBarState == TitleBarState::Hidden || m_noDecoration;
+    return m_noTitleBar || m_noDecoration;
 }
 
 void SurfaceWrapper::setNoTitleBar(bool newNoTitleBar)
@@ -1695,21 +1884,11 @@ void SurfaceWrapper::setNoTitleBar(bool newNoTitleBar)
     if (m_wrapperAboutToRemove)
         return;
 
-    if (newNoTitleBar) {
-        m_titleBarState = TitleBarState::Hidden;
-    } else {
-        m_titleBarState = TitleBarState::Visible;
-    }
-
-    if (!m_shellSurface) // has prelaunchSplash
+    if (m_noTitleBar == newNoTitleBar)
         return;
 
-    updateTitleBar();
-}
+    m_noTitleBar = newNoTitleBar;
 
-void SurfaceWrapper::resetNoTitleBar()
-{
-    m_titleBarState = TitleBarState::Default;
     updateTitleBar();
 }
 
@@ -1911,6 +2090,18 @@ bool SurfaceWrapper::hasActiveCapability() const
     return m_hasActiveCapability == ActiveControlState::Full;
 }
 
+bool SurfaceWrapper::hasCapability(WToplevelSurface::Capability cap) const
+{
+    // SplashScreen doesn't have a real shellSurface
+    if (m_type == Type::SplashScreen) {
+        if (cap == WToplevelSurface::Capability::Activate)
+            return true;
+        // Focus, Maximized, FullScreen, Resize
+        return false;
+    }
+    return m_shellSurface && m_shellSurface->hasCapability(cap);
+}
+
 bool SurfaceWrapper::skipSwitcher() const
 {
     return m_skipSwitcher;
@@ -1932,8 +2123,9 @@ bool SurfaceWrapper::skipDockPreView() const
 
 void SurfaceWrapper::setSkipDockPreView(bool skip)
 {
-    if (m_type != Type::XdgToplevel && m_type != Type::XWayland) {
-        qCWarning(treelandSurface) << "Only xdgtoplevel and x11 surface can `setSkipDockPreView`";
+    if (!skip && (m_type != Type::XdgToplevel && m_type != Type::XWayland)) {
+        qCWarning(treelandSurface) << "Only XdgToplevel or XWayland surfaces are allowed to set "
+                                      "`skipDockPreView` to false.";
         return;
     }
 

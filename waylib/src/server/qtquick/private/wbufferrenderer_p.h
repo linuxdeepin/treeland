@@ -1,4 +1,4 @@
-// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 JiDe Zhang <zhangjide@deepin.org>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
@@ -12,9 +12,7 @@
 
 #include <QQuickItem>
 #include <QQuickRenderTarget>
-#define protected public
 #include <private/qsgrenderer_p.h>
-#undef protected
 
 Q_MOC_INCLUDE(<private/qsgplaintexture_p.h>)
 
@@ -106,7 +104,7 @@ protected:
 
 private:
     inline WOutputRenderWindow *renderWindow() const {
-        return qobject_cast<WOutputRenderWindow*>(parent());
+        return qobject_cast<WOutputRenderWindow*>(window());
     }
 
     inline bool shouldCacheBuffer() const {
@@ -125,7 +123,7 @@ private:
     }
 
     void resetSources();
-    void removeSource(int index);
+    void destroySource(int index);
     int indexOfSource(QQuickItem *item);
     QSGRenderer *ensureRenderer(int sourceIndex, QSGRenderContext *rc);
 

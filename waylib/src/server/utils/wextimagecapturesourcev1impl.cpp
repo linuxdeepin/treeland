@@ -1,4 +1,4 @@
-// Copyright (C) 2025 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2025-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wextimagecapturesourcev1impl.h"
@@ -16,7 +16,7 @@
 #include <qwcompositor.h>
 
 #include <QLoggingCategory>
-#include <private/qquickwindow_p.h>
+
 #include <memory>
 
 Q_LOGGING_CATEGORY(qLcImageCapture, "waylib.server.imagecapture")
@@ -122,17 +122,7 @@ WExtImageCaptureSourceV1Impl::WExtImageCaptureSourceV1Impl(WSurfaceItemContent *
     , m_renderEndConnection()
 {
     Q_ASSERT(m_surfaceContent);
-    
-    // Get texture provider and render window for thread setup
-    auto textureProvider = m_surfaceContent->wTextureProvider();
-    if (textureProvider) {
-        auto renderWindow = textureProvider->window();
-        if (renderWindow) {
-            // Move to render thread
-            moveToThread(QQuickWindowPrivate::get(renderWindow)->context->thread());
-        }
-    }
-    
+
     // Initialize wlr_ext_image_capture_source_v1
     wlr_ext_image_capture_source_v1_init(handle(), impl());
     
@@ -311,14 +301,18 @@ void WExtImageCaptureSourceV1Impl::copy_frame(wlr_ext_image_copy_capture_frame_v
     }
 
     auto buffer = textureProvider->qwBuffer();
-    if (!buffer) {
+    if (!buffer || !buffer->handle()) {
         qCWarning(qLcImageCapture) << "No internal buffer available";
         qw_ext_image_copy_capture_frame_v1::from(dst_frame)->fail(EXT_IMAGE_COPY_CAPTURE_FRAME_V1_FAILURE_REASON_UNKNOWN);
         return;
     }
 
     // Lock the buffer for the duration of the copy to prevent races during resize
-    buffer->lock();
+    if (!buffer->lock()) {
+        qCWarning(qLcImageCapture) << "Failed to lock internal buffer";
+        qw_ext_image_copy_capture_frame_v1::from(dst_frame)->fail(EXT_IMAGE_COPY_CAPTURE_FRAME_V1_FAILURE_REASON_UNKNOWN);
+        return;
+    }
     std::unique_ptr<qw_buffer, qw_buffer::unlocker> bufferGuard(buffer);
     
     // Get renderer

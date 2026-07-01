@@ -1,4 +1,4 @@
-// Copyright (C) 2023 justforlxz <justforlxz@gmail.com>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 import QtQuick
@@ -70,7 +70,10 @@ Item {
         id: animation
 
         onFinished: {
-            root.finished();
+            // Defer the signal emission to avoid deleting animation objects in the same callback stack.
+            Qt.callLater(function() {
+                root.finished();
+            })
         }
 
         PropertyAnimation {
@@ -95,7 +98,7 @@ Item {
             duration: root.duration
             from: root.direction === NewAnimation.Direction.Show ? 0 : 1
             to: root.direction !== NewAnimation.Direction.Show ? 0 : 1
-            easing.type: Easing.OutExpo
+            easing.type: root.direction === NewAnimation.Direction.Show ? Easing.Linear : Easing.OutExpo
         }
     }
 }

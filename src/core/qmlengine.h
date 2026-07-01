@@ -1,11 +1,13 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
 
 #include <wglobal.h>
+
 #include <qwglobal.h>
 
+#include <QColor>
 #include <QQmlApplicationEngine>
 #include <QQmlComponent>
 
@@ -67,11 +69,13 @@ public:
     QQuickItem *createShowDesktopAnimation(SurfaceWrapper *surface, QQuickItem *parent, bool show);
     QQuickItem *createCaptureSelector(QQuickItem *parent, CaptureManagerV1 *captureManager);
     QQuickItem *createWindowPicker(QQuickItem *parent);
-    QQuickItem *createLockScreenFallback(QQuickItem *parent, const QVariantMap &properties = QVariantMap());
+    QQuickItem *createLockScreenFallback(QQuickItem *parent,
+                                         const QVariantMap &properties = QVariantMap());
     QQuickItem *createFpsDisplay(QQuickItem *parent);
     QQuickItem *createPrelaunchSplash(QQuickItem *parent,
                                       qreal initialRadius,
-                                      QW_NAMESPACE::qw_buffer *iconBuffer = nullptr);
+                                      QW_NAMESPACE::qw_buffer *iconBuffer,
+                                      const QColor &backgroundColor);
 
     QQmlComponent *surfaceContentComponent()
     {

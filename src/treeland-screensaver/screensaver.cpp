@@ -3,9 +3,10 @@
 
 /**
  * org.freedesktop.ScreenSaver implementation using treeland_screensaver protocol
- * 
+ *
+ * This service runs as a persistent daemon under Treeland session.
  * For each Inhibit request a wayland connection is created, which will be terminated
- * upon UnInhibit. The app will exit when there are no more active inhibits.
+ * upon UnInhibit.
  */
 
 #include <QCoreApplication>
@@ -24,7 +25,7 @@ static uint32_t interfaceId;
 static uint32_t interfaceVersion;
 
 static uint cookieCounter = 0;
-static QHash<QString, QHash<uint, treeland_screensaver *>> inhibits;
+static QHash<QString, QHash<uint, treeland_screensaver_v1 *>> inhibits;
 
 static QStringList callers;
 QDBusServiceWatcher *watcher;
@@ -36,7 +37,7 @@ static void handleGlobalRegister([[maybe_unused]] void        *data,
                                  uint32_t                      id,
                                  const char                   *interface,
                                  uint32_t                      version) {
-    if (strcmp(interface, "treeland_screensaver") == 0) {
+    if (strcmp(interface, "treeland_screensaver_v1") == 0) {
         interfaceId = id;
         interfaceVersion = version;
     }
@@ -49,25 +50,27 @@ static void handleGlobalRemove([[maybe_unused]] void        *data,
         QCoreApplication::instance()->quit();
 }
 
-static const wl_registry_listener registryListener = { 
+static const wl_registry_listener registryListener = {
     .global = handleGlobalRegister,
     .global_remove = handleGlobalRemove
 };
 
 // Inhibit / Uninhibit implementation
 
-static treeland_screensaver *inhibit(const QString &appName, const QString &reason) {
-    treeland_screensaver *screensaver = static_cast<treeland_screensaver *>(
-        wl_registry_bind(registry, interfaceId, &treeland_screensaver_interface, interfaceVersion));
-    treeland_screensaver_inhibit(screensaver,
+static treeland_screensaver_v1 *inhibit(const QString &appName, const QString &reason) {
+    treeland_screensaver_v1 *screensaver = static_cast<treeland_screensaver_v1 *>(
+        wl_registry_bind(registry, interfaceId, &treeland_screensaver_v1_interface, interfaceVersion));
+    treeland_screensaver_v1_inhibit(screensaver,
                                  appName.toUtf8().constData(),
                                  reason.toUtf8().constData());
+    wl_display_flush(display);
     return screensaver;
 }
 
-static void uninhibit(treeland_screensaver *screensaver) {
-    treeland_screensaver_uninhibit(screensaver);
-    treeland_screensaver_destroy(screensaver);
+static void uninhibit(treeland_screensaver_v1 *screensaver) {
+    treeland_screensaver_v1_uninhibit(screensaver);
+    treeland_screensaver_v1_destroy(screensaver);
+    wl_display_flush(display);
 }
 
 // D-Bus adaptor
@@ -95,8 +98,6 @@ public Q_SLOTS:
             if (inhibits[caller].isEmpty())
                 inhibits.remove(caller);
         }
-        if (inhibits.isEmpty())
-            QCoreApplication::quit();
     }
 };
 
@@ -109,8 +110,6 @@ public Q_SLOTS:
         for (auto it = inhibits[caller].cbegin(); it != inhibits[caller].cend(); ++it) \
             uninhibit(it.value());                                                     \
         inhibits.remove(caller);                                                       \
-        if (inhibits.isEmpty())                                                        \
-            QCoreApplication::quit();                                                  \
     }
 
 static void onServiceUnregistered(const QString &service) {

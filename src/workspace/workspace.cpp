@@ -1,4 +1,4 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "workspace.h"
@@ -159,6 +159,7 @@ int Workspace::createModel(const QString &name, bool visible)
     auto id = doCreateModel(name, visible);
     Helper::instance()->config()->setNumWorkspace(count());
     Q_EMIT countChanged();
+    Q_EMIT workspaceAdded();
     return id;
 }
 
@@ -274,7 +275,7 @@ WorkspaceListModel *Workspace::models()
 
 void Workspace::updateSurfaceOwnsOutput(SurfaceWrapper *surface)
 {
-    auto outputs = surface->surface()->outputs();
+    auto outputs = surface->outputs();
     if (surface->ownsOutput() && outputs.contains(surface->ownsOutput()->output()))
         return;
 
@@ -380,6 +381,13 @@ void Workspace::removeActivedSurface(SurfaceWrapper *surface)
         Q_ASSERT(wpModel);
         wpModel->removeActivedSurface(surface);
     }
+}
+
+void Workspace::clearActivedSurface()
+{
+    for (auto wpModel : m_models->objects())
+        wpModel->clearActivedSurface();
+    m_showOnAllWorkspaceModel->clearActivedSurface();
 }
 
 void Workspace::setSwitcherEnabled(bool enabled)

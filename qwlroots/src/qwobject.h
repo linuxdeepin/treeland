@@ -1,4 +1,4 @@
-// Copyright (C) 2024 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2024-2026 JiDe Zhang <zhangjide@deepin.org>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
@@ -35,6 +35,7 @@ Q_SIGNALS:
 
 protected:
     static QHash<void*, QObject*> map;
+    static void cleanupDeclarativeData(QObject *obj);
 };
 
 template<typename Handle, typename Derive>
@@ -177,11 +178,29 @@ protected:
         map.remove((void*)m_handle);
     }
     inline void on_destroy() {
-        Q_EMIT before_destroy();
+        // Clean up QML engine's declarativeData before emitting signals.
+        // If QML engine freed QQmlData without zeroing declarativeData pointer,
+        // Qt's doActivate() reads a stale pointer and crashes in
+        // QQmlData::signalHasEndpoint().
+        cleanupDeclarativeData(this);
 
+        Q_EMIT before_destroy();
         do_destroy();
         m_handle = nullptr;
-        delete this;
+        // Use deleteLater() instead of delete this to defer ~QObject() to the
+        // next event loop iteration.  on_destroy() is called synchronously from
+        // inside a wlroots signal handler (wl_signal_emit_mutable), which may
+        // itself be called from inside a Qt signal's doActivate() loop.  Calling
+        // delete this here runs ~QObject(), which emits destroyed() and then
+        // unlinks every Connection this object owns from the sender's
+        // ConnectionData.  If any parent doActivate() is still iterating one of
+        // those ConnectionData lists (because this qw_object was connected to the
+        // same sender whose signal triggered the teardown), the now-freed
+        // Connection node produces heap corruption (e.g. receiver pointer of
+        // 0x907) that manifests as a SIGSEGV in a completely unrelated code path
+        // later.  Deferring destruction to the event loop means ~QObject() only
+        // runs after all nested doActivate() calls have returned.
+        deleteLater();
     }
 
     Handle *m_handle;

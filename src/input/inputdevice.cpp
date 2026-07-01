@@ -1,4 +1,4 @@
-// Copyright (C) 2024-2025 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "inputdevice.h"
@@ -28,7 +28,7 @@ static bool ensureStatus(libinput_config_status status)
     return true;
 }
 
-[[maybe_unused]] static bool configSendEventsMode(libinput_device *device, uint32_t mode)
+bool configSendEventsMode(libinput_device *device, uint32_t mode)
 {
     if (libinput_device_config_send_events_get_mode(device) == mode) {
         qCCritical(treelandInput) << "libinput_device_config_send_events_set_mode repeat set mode"
@@ -42,7 +42,7 @@ static bool ensureStatus(libinput_config_status status)
     return ensureStatus(status);
 }
 
-static bool configTapEnabled(libinput_device *device, libinput_config_tap_state tap)
+bool configTapEnabled(libinput_device *device, libinput_config_tap_state tap)
 {
     if (libinput_device_config_tap_get_finger_count(device) <= 0
         || libinput_device_config_tap_get_enabled(device) == tap) {
@@ -103,7 +103,7 @@ static bool configTapEnabled(libinput_device *device, libinput_config_tap_state 
     return ensureStatus(status);
 }
 
-[[maybe_unused]] static bool configAccelSpeed(libinput_device *device, double speed)
+bool configAccelSpeed(libinput_device *device, double speed)
 {
     if (!libinput_device_config_accel_is_available(device)
         || libinput_device_config_accel_get_speed(device) == speed) {
@@ -133,7 +133,7 @@ static bool configTapEnabled(libinput_device *device, libinput_config_tap_state 
     return ensureStatus(status);
 }
 
-[[maybe_unused]] static bool configAccelProfile(libinput_device *device, libinput_config_accel_profile profile)
+bool configAccelProfile(libinput_device *device, libinput_config_accel_profile profile)
 {
     if (!libinput_device_config_accel_is_available(device)
         || libinput_device_config_accel_get_profile(device) == profile) {
@@ -148,7 +148,7 @@ static bool configTapEnabled(libinput_device *device, libinput_config_tap_state 
     return ensureStatus(status);
 }
 
-[[maybe_unused]] static bool configNaturalScroll(libinput_device *device, bool natural)
+bool configNaturalScroll(libinput_device *device, bool natural)
 {
     if (!libinput_device_config_scroll_has_natural_scroll(device)
         || libinput_device_config_scroll_get_natural_scroll_enabled(device) == natural) {
@@ -164,7 +164,7 @@ static bool configTapEnabled(libinput_device *device, libinput_config_tap_state 
     return ensureStatus(status);
 }
 
-[[maybe_unused]] static bool configLeftHanded(libinput_device *device, bool left)
+bool configLeftHanded(libinput_device *device, bool left)
 {
     if (!libinput_device_config_left_handed_is_available(device)
         || libinput_device_config_left_handed_get(device) == left) {
@@ -262,7 +262,7 @@ static bool configTapEnabled(libinput_device *device, libinput_config_tap_state 
     return ensureStatus(status);
 }
 
-[[maybe_unused]] static bool configDwtEnabled(libinput_device *device, enum libinput_config_dwt_state enable)
+bool configDwtEnabled(libinput_device *device, enum libinput_config_dwt_state enable)
 {
     if (!libinput_device_config_dwt_is_available(device)
         || libinput_device_config_dwt_get_enabled(device) == enable) {
@@ -353,6 +353,16 @@ InputDevice *InputDevice::instance()
 
 bool InputDevice::initTouchPad(WInputDevice *device)
 {
+    if (!device) {
+        qCCritical(treelandInput) << "Cannot initialize touchpad for null device";
+        return false;
+    }
+
+    if (!device->qtDevice()) {
+        qCCritical(treelandInput) << "Cannot initialize touchpad: device has no qtDevice";
+        return false;
+    }
+
     if (device->handle()->is_libinput()
         && device->qtDevice()->type() == QInputDevice::DeviceType::TouchPad) {
         configTapEnabled(libinput_device_handle(device->handle()), LIBINPUT_CONFIG_TAP_ENABLED);

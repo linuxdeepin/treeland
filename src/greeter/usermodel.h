@@ -1,4 +1,5 @@
 /***************************************************************************
+ * Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
  * Copyright (c) 2013 Abdurrahman AVCI <abdurrahmanavci@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -50,7 +51,7 @@ public:
         HomeDirRole,
         IconRole,
         NoPasswordRole,
-        LoginedRole,
+        LoggedInRole,
         IdentityRole,
         PasswordHintRole,
         LocaleRole
@@ -76,9 +77,10 @@ public:
     UserPtr currentUser() const;
     void updateUserLimits(const QString &userName, const QString &time) const noexcept;
     void setCurrentUserName(const QString &userName) noexcept;
-    void updateUserLoginState(const QString &username, bool logined);
+    void updateUserLoginState(const QString &username, bool loggedIn);
     void clearUserLoginState();
     [[nodiscard]] bool containsAllUsers() const;
+    [[nodiscard]] Q_INVOKABLE bool tryAddNssUser(const QString &userName);
 
 Q_SIGNALS:
     void currentUserNameChanged();

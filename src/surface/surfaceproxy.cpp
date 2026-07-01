@@ -1,4 +1,4 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "surfaceproxy.h"
@@ -11,6 +11,14 @@
 SurfaceProxy::SurfaceProxy(QQuickItem *parent)
     : QQuickItem(parent)
 {
+}
+
+SurfaceProxy::~SurfaceProxy()
+{
+    if (m_proxySurface) {
+        m_proxySurface->destroy();
+        m_proxySurface = nullptr;
+    }
 }
 
 SurfaceWrapper *SurfaceProxy::surface() const
@@ -30,7 +38,7 @@ void SurfaceProxy::setSurface(SurfaceWrapper *newSurface)
 
     m_sourceSurface = newSurface;
     if (m_proxySurface) {
-        m_proxySurface->deleteLater();
+        m_proxySurface->destroy();
         m_proxySurface = nullptr;
     }
 
@@ -97,7 +105,7 @@ void SurfaceProxy::setSurface(SurfaceWrapper *newSurface)
         m_sourceConnections << connect(m_sourceSurface,
                                        &SurfaceWrapper::noTitleBarChanged,
                                        this,
-                                       &SurfaceProxy::updateProxySurfaceTitleBarAndDecoration);
+                                       &SurfaceProxy::updateNoTitleBar);
         m_sourceConnections << connect(m_sourceSurface,
                                        &SurfaceWrapper::radiusChanged,
                                        this,
@@ -105,11 +113,11 @@ void SurfaceProxy::setSurface(SurfaceWrapper *newSurface)
         m_sourceConnections << connect(m_sourceSurface,
                                        &SurfaceWrapper::noDecorationChanged,
                                        this,
-                                       &SurfaceProxy::updateProxySurfaceTitleBarAndDecoration);
+                                       &SurfaceProxy::updateNoDecoration);
         m_sourceConnections << connect(m_sourceSurface,
                                        &SurfaceWrapper::noCornerRadiusChanged,
                                        this,
-                                       &SurfaceProxy::updateProxySurfaceTitleBarAndDecoration);
+                                       &SurfaceProxy::updateNoCornerRadius);
 
         m_sourceConnections << connect(m_proxySurface,
                                        &SurfaceWrapper::widthChanged,
@@ -122,7 +130,7 @@ void SurfaceProxy::setSurface(SurfaceWrapper *newSurface)
 
         updateImplicitSize();
         updateProxySurfaceScale();
-        updateProxySurfaceTitleBarAndDecoration();
+        updateShape();
     } else {
         if (m_shadow) {
             m_shadow->deleteLater();
@@ -161,17 +169,26 @@ void SurfaceProxy::updateProxySurfaceScale()
     }
 }
 
-void SurfaceProxy::updateProxySurfaceTitleBarAndDecoration()
+void SurfaceProxy::updateShape()
 {
-    if (m_fullProxy) {
-        m_proxySurface->setNoTitleBar(m_sourceSurface->noTitleBar());
-        m_proxySurface->setNoDecoration(m_sourceSurface->noDecoration());
-        m_proxySurface->setNoCornerRadius(m_sourceSurface->noCornerRadius());
-    } else {
-        m_proxySurface->setNoTitleBar(m_sourceSurface->noTitleBar());
-        m_proxySurface->setNoDecoration(true);
-        m_proxySurface->setNoCornerRadius(false);
-    }
+    updateNoTitleBar();
+    updateNoDecoration();
+    updateNoCornerRadius();
+}
+
+void SurfaceProxy::updateNoTitleBar()
+{
+    m_proxySurface->setNoTitleBar(m_sourceSurface->noTitleBar());
+}
+
+void SurfaceProxy::updateNoDecoration()
+{
+    m_proxySurface->setNoDecoration(m_fullProxy ? m_sourceSurface->noDecoration() : false);
+}
+
+void SurfaceProxy::updateNoCornerRadius()
+{
+    m_proxySurface->setNoCornerRadius(m_fullProxy ? m_sourceSurface->noCornerRadius() : false);
 }
 
 void SurfaceProxy::updateImplicitSize()
@@ -285,7 +302,7 @@ void SurfaceProxy::setFullProxy(bool newFullProxy)
             m_shadow->stackBefore(m_proxySurface);
             QQuickItemPrivate::get(m_shadow)->culled = true;
         }
-        updateProxySurfaceTitleBarAndDecoration();
+        updateShape();
     }
 
     Q_EMIT fullProxyChanged();

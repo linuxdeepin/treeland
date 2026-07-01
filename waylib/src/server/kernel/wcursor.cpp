@@ -1,9 +1,9 @@
-// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023 - 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
-#define private public
+#include <QDebug>
 #include <QCursor>
-#undef private
+#include "private/wprivateaccessor_p.h"
 
 #include "wcursor.h"
 #include "private/wcursor_p.h"
@@ -29,6 +29,8 @@
 #include <QQuickWindow>
 #include <QLoggingCategory>
 #include <private/qcursor_p.h>
+
+W_DECLARE_PRIVATE_MEMBER(QCursor_d_tag, QCursor, d, QCursorData*);
 
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -119,9 +121,10 @@ void WCursorPrivate::on_button(wlr_pointer_button_event *event)
         lastPressedOrTouchDownPosition = q_func()->position();
     }
 
-    if (Q_LIKELY(seat)) {
-        seat->notifyButton(q_func(), WInputDevice::fromHandle(device),
-                           button, event->state, event->time_msec);
+    if (auto inputDevice = WInputDevice::fromHandle(device)) {
+        if (auto deviceSeat = inputDevice->seat()) {
+            deviceSeat->notifyButton(q_func(), inputDevice, button, event->state, event->time_msec);
+        }
     }
 }
 
@@ -129,11 +132,13 @@ void WCursorPrivate::on_axis(wlr_pointer_axis_event *event)
 {
     auto device = qw_pointer::from(event->pointer);
 
-    if (Q_LIKELY(seat)) {
-        seat->notifyAxis(q_func(), WInputDevice::fromHandle(device), event->source,
-                         event->orientation == WL_POINTER_AXIS_HORIZONTAL_SCROLL
-                         ? Qt::Horizontal : Qt::Vertical, event->relative_direction,
-                         event->delta, event->delta_discrete, event->time_msec);
+    if (auto inputDevice = WInputDevice::fromHandle(device)) {
+        if (auto deviceSeat = inputDevice->seat()) {
+            deviceSeat->notifyAxis(q_func(), inputDevice, event->source,
+                                 event->orientation == WL_POINTER_AXIS_HORIZONTAL_SCROLL
+                                 ? Qt::Horizontal : Qt::Vertical, event->relative_direction,
+                                 event->delta * scrollFactor, event->delta_discrete, event->time_msec);
+        }
     }
 }
 
@@ -336,8 +341,11 @@ void WCursorPrivate::processCursorMotion(qw_pointer *device, uint32_t time)
     qCDebug(waylibCursorInput) << "Processing cursor motion at" << q->position()
                               << "time:" << time;
 
-    if (Q_LIKELY(seat))
-        seat->notifyMotion(q, WInputDevice::fromHandle(device), time);
+    if (auto inputDevice = WInputDevice::fromHandle(device)) {
+        if (auto deviceSeat = inputDevice->seat()) {
+            deviceSeat->notifyMotion(q, inputDevice, time);
+        }
+    }
 }
 
 WCursor::WCursor(WCursorPrivate &dd, QObject *parent)
@@ -467,14 +475,14 @@ QCursor WCursor::toQCursor(CursorShape shape)
     // Ensure alloc a new QCursorData
     QCursor cursor(tmp, tmp);
 
-    Q_ASSERT(cursor.d->ref == 1);
-    Q_ASSERT(cursor.d->bm);
-    Q_ASSERT(cursor.d->bmm);
-    delete cursor.d->bm;
-    delete cursor.d->bmm;
-    cursor.d->bm = nullptr;
-    cursor.d->bmm = nullptr;
-    cursor.d->cshape = static_cast<Qt::CursorShape>(shape);
+    Q_ASSERT(W_PRIVATE_MEMBER(cursor, QCursor_d_tag{})->ref == 1);
+    Q_ASSERT(W_PRIVATE_MEMBER(cursor, QCursor_d_tag{})->bm);
+    Q_ASSERT(W_PRIVATE_MEMBER(cursor, QCursor_d_tag{})->bmm);
+    delete W_PRIVATE_MEMBER(cursor, QCursor_d_tag{})->bm;
+    delete W_PRIVATE_MEMBER(cursor, QCursor_d_tag{})->bmm;
+    W_PRIVATE_MEMBER(cursor, QCursor_d_tag{})->bm = nullptr;
+    W_PRIVATE_MEMBER(cursor, QCursor_d_tag{})->bmm = nullptr;
+    W_PRIVATE_MEMBER(cursor, QCursor_d_tag{})->cshape = static_cast<Qt::CursorShape>(shape);
 
     return cursor;
 }
@@ -705,6 +713,21 @@ QPointF WCursor::lastPressedOrTouchDownPosition() const
 {
     W_DC(WCursor);
     return d->lastPressedOrTouchDownPosition;
+}
+
+double WCursor::scrollFactor() const
+{
+    W_DC(WCursor);
+    return d->scrollFactor;
+}
+
+void WCursor::setScrollFactor(double factor)
+{
+    W_D(WCursor);
+    if (qFuzzyCompare(d->scrollFactor, factor))
+        return;
+    d->scrollFactor = factor;
+    Q_EMIT scrollFactorChanged();
 }
 
 WAYLIB_SERVER_END_NAMESPACE

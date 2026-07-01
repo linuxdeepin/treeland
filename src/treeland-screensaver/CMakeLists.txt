@@ -18,8 +18,6 @@ add_custom_command(
     COMMENT "Generating treeland-screensaver-v1.c"
 )
 
-configure_file("org.freedesktop.ScreenSaver.service.in" "org.freedesktop.ScreenSaver.service" IMMEDIATE @ONLY)
-
 qt_add_executable(treeland-screensaver
     screensaver.cpp
     ${TREELAND_SCREENSAVER_HEADER}
@@ -34,4 +32,3 @@ target_link_libraries(treeland-screensaver
 
 install(TARGETS treeland-screensaver RUNTIME DESTINATION "${CMAKE_INSTALL_LIBEXECDIR}")
 install(FILES org.freedesktop.ScreenSaver.xml DESTINATION "${CMAKE_INSTALL_DATADIR}/dbus-1/interfaces")
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/org.freedesktop.ScreenSaver.service DESTINATION "${CMAKE_INSTALL_DATADIR}/dbus-1/services")
