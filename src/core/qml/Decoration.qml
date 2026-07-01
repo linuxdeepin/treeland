@@ -70,13 +70,18 @@ Item {
         height: surface.height
         cornerRadius: surface.radius
         anchors.centerIn: parent
+        customShadowColor: surface.shadowParams.color
+        customShadowOffsetY: surface.shadowParams.offsetY
+        customShadowBlur: surface.shadowParams.radius
     }
 
     Border {
-        visible: surface.visibleDecoration
+        visible: surface.visibleDecoration && surface.borderParams.width > 0
         parent: surface.surfaceItem ? surface.surfaceItem : surface.prelaunchSplash
         z: SurfaceItem.ZOrder.ContentItem + 1
         anchors.fill: parent
         radius: surface.radius
+        borderWidth: surface.borderParams.width
+        borderColor: surface.borderParams.color
     }
 }
