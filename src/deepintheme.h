@@ -13,7 +13,6 @@
 #  include <private/qgenericunixthemes_p.h>
 #endif
 
-#include <functional>
 #include <vector>
 
 class SeatUserDConfig;

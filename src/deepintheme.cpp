@@ -10,6 +10,7 @@
 #include <DGuiApplicationHelper>
 
 #include <QGuiApplication>
+#include <QSizeF>
 #include <QStyleHints>
 #include <private/qguiapplication_p.h>
 
@@ -51,7 +52,7 @@ QVariant QDeepinTheme::themeHint(ThemeHint hint) const
     case MouseCursorTheme:
         return m_config->cursorThemeName();
     case MouseCursorSize:
-        return m_config->cursorSize();
+        return QSizeF(m_config->cursorSize(), m_config->cursorSize());
     case KeyboardAutoRepeatRate:
         return m_seatConfig ? m_seatConfig->keyboardRate() : QGenericUnixTheme::themeHint(hint);
     case KeyboardInputInterval:
@@ -103,7 +104,7 @@ void QDeepinTheme::bindConfig(TreelandUserConfig *config)
     addConnection(QObject::connect(m_config, &TreelandUserConfig::cursorBlinkChanged, m_config, [this]() { applyCursorSettings(); }));
     addConnection(QObject::connect(m_config, &TreelandUserConfig::cursorBlinkTimeChanged, m_config, [this]() { applyCursorSettings(); }));
     addConnection(QObject::connect(m_config, &TreelandUserConfig::doubleClickTimeChanged, m_config, [this]() { applyStyleHintSettings(); }));
-    addConnection(QObject::connect(m_config, &TreelandUserConfig::doubleClickDistanceChanged, m_config, [this]() { applyStyleHintSettings(); }));
+    addConnection(QObject::connect(m_config, &TreelandUserConfig::doubleClickDistanceChanged, m_config, [this]() { applyThemeSettings(); }));
     addConnection(QObject::connect(m_config, &TreelandUserConfig::dndDragThresholdChanged, m_config, [this]() { applyStyleHintSettings(); }));
     addConnection(QObject::connect(m_config, &TreelandUserConfig::fontChanged, m_config, [this]() { applyFontSettings(); }));
     addConnection(QObject::connect(m_config, &TreelandUserConfig::monoFontChanged, m_config, [this]() { applyFontSettings(); }));
@@ -111,7 +112,7 @@ void QDeepinTheme::bindConfig(TreelandUserConfig *config)
     addConnection(QObject::connect(m_config, &TreelandUserConfig::iconThemeNameChanged, m_config, [this]() { applyThemeSettings(); }));
     addConnection(QObject::connect(m_config, &TreelandUserConfig::themeNameChanged, m_config, [this]() { applyThemeSettings(); }));
     addConnection(QObject::connect(m_config, &TreelandUserConfig::preferDarkChanged, m_config, [this]() { applyStyleHintSettings(); }));
-    addConnection(QObject::connect(m_config, &TreelandUserConfig::cursorThemeNameChanged, m_config, [this]() { applyStyleHintSettings(); }));
+    addConnection(QObject::connect(m_config, &TreelandUserConfig::cursorThemeNameChanged, m_config, [this]() { applyThemeSettings(); }));
     addConnection(QObject::connect(m_config, &TreelandUserConfig::cursorSizeChanged, m_config, [this]() { applyThemeSettings(); }));
 
     applyAllSettings();
