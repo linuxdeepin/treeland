@@ -16,6 +16,7 @@
 #include <functional>
 #include <vector>
 
+class SeatUserDConfig;
 class TreelandUserConfig;
 
 class QDeepinTheme : public QGenericUnixTheme
@@ -29,6 +30,7 @@ public:
     const QFont *font(Font type) const override;
 
     void bindConfig(TreelandUserConfig *config);
+    void bindSeatConfig(SeatUserDConfig *config);
 
 private:
     void applyAllSettings();
@@ -36,9 +38,13 @@ private:
     void applyFontSettings();
     void applyThemeSettings();
     void applyStyleHintSettings();
+    void applyKeyboardSettings();
 
     void disconnectConfig();
+    void disconnectSeatConfig();
 
     QPointer<TreelandUserConfig> m_config;
+    QPointer<SeatUserDConfig> m_seatConfig;
     std::vector<QMetaObject::Connection> m_connections;
+    std::vector<QMetaObject::Connection> m_seatConnections;
 };

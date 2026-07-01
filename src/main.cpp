@@ -3,6 +3,7 @@
 
 #include "core/treeland.h"
 #include "deepintheme.h"
+#include "input/inputmanager.h"
 #include "seat/helper.h"
 #include "utils/cmdline.h"
 
@@ -80,6 +81,8 @@ int main(int argc, char *argv[])
 
         bindThemeConfig();
         QObject::connect(Helper::instance(), &Helper::configChanged, &bindThemeConfig);
+        QObject::connect(Helper::instance()->inputManager(), &InputManager::seatConfigChanged,
+                         g_theme, &QDeepinTheme::bindSeatConfig);
 
         quitCode = app.exec();
     }
