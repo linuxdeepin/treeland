@@ -9,10 +9,10 @@
 
 #include <DGuiApplicationHelper>
 
+#include <QCoreApplication>
 #include <QGuiApplication>
 #include <QSizeF>
 #include <QStyleHints>
-#include <private/qguiapplication_p.h>
 
 DCORE_USE_NAMESPACE;
 DGUI_USE_NAMESPACE;
@@ -152,7 +152,7 @@ void QDeepinTheme::applyThemeSettings()
     if (!m_config)
         return;
 
-    QGuiApplicationPrivate::handleThemeChanged();
+    QCoreApplication::postEvent(qGuiApp, new QEvent(QEvent::ThemeChange));
 }
 
 void QDeepinTheme::applyStyleHintSettings()
