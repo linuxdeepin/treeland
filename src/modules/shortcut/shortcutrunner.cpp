@@ -12,7 +12,6 @@
 #include "surface/surfacewrapper.h"
 #include "utils/fpsdisplaymanager.h"
 #include "interfaces/multitaskviewinterface.h"
-#include "core/lockscreen.h"
 #include "core/qmlengine.h"
 #include "workspaceanimationcontroller.h"
 #include "woutputrenderwindow.h"
@@ -120,26 +119,21 @@ void ShortcutRunner::onActionTrigger(ShortcutAction action, const QString &name,
         }
         break;
     case ShortcutAction::OpenMultiTaskView:
-        if (!helper->m_multitaskView ||
-            (helper->currentMode() != Helper::CurrentMode::Normal
-             && helper->currentMode() != Helper::CurrentMode::Multitaskview)) {
+        if (!helper->m_multitaskView || !helper->isNormalOrMultitaskview()) {
             break;
         }
         helper->m_multitaskView->setStatus(IMultitaskView::Exited);
         helper->m_multitaskView->toggleMultitaskView(IMultitaskView::ActiveReason::ShortcutKey);
         break;
     case ShortcutAction::CloseMultiTaskView:
-        if (!helper->m_multitaskView ||
-            (helper->currentMode() != Helper::CurrentMode::Normal
-             && helper->currentMode() != Helper::CurrentMode::Multitaskview)) {
+        if (!helper->m_multitaskView || !helper->isNormalOrMultitaskview()) {
             break;
         }
         helper->m_multitaskView->setStatus(IMultitaskView::Active);
         helper->m_multitaskView->toggleMultitaskView(IMultitaskView::ActiveReason::ShortcutKey);
         break;
     case ShortcutAction::ToggleMultitaskView:
-        if (helper->currentMode() == Helper::CurrentMode::Normal
-            || helper->currentMode() == Helper::CurrentMode::Multitaskview) {
+        if (helper->isNormalOrMultitaskview()) {
             helper->restoreFromShowDesktop();
             if (helper->m_multitaskView) {
                 helper->m_multitaskView->toggleMultitaskView(IMultitaskView::ActiveReason::ShortcutKey);
@@ -150,18 +144,11 @@ void ShortcutRunner::onActionTrigger(ShortcutAction action, const QString &name,
         helper->toggleFpsDisplay();
         break;
     case ShortcutAction::Lockscreen:
-#ifndef DISABLE_DDM
-        if (helper->m_lockScreen && helper->m_lockScreen->available() && helper->currentMode() == Helper::CurrentMode::Normal) {
+        if (helper->isNormalOrMultitaskview())
             helper->showLockScreen();
-        }
-#endif
         break;
     case ShortcutAction::ShutdownMenu:
-        if (helper->m_lockScreen && helper->m_lockScreen->available() && helper->currentMode() == Helper::CurrentMode::Normal) {
-            helper->setCurrentMode(Helper::CurrentMode::LockScreen);
-            helper->m_lockScreen->shutdown();
-            helper->setWorkspaceVisible(false);
-        }
+        helper->showShutdownMenu();
         break;
     case ShortcutAction::Quit:
         Q_EMIT helper->requestQuit();

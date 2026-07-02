@@ -236,7 +236,18 @@ public:
 
     void setCurrentMode(CurrentMode mode);
 
+    bool isNormalOrMultitaskview() const
+    {
+        return m_currentMode == CurrentMode::Normal || m_currentMode == CurrentMode::Multitaskview;
+    }
+
+    bool isLockScreenAvailable() const;
+
+    void prepareLockScreenTransition();
+
     void showLockScreen(bool switchToGreeter = true);
+    void showShutdownMenu();
+    void showSwitchUser();
 
     Output* getOutputAtCursor() const;
 
