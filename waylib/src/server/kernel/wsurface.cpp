@@ -6,6 +6,7 @@
 #include "wseat.h"
 #include "private/wsurface_p.h"
 #include "woutput.h"
+#include "wayliblogging.h"
 
 #include <qwoutput.h>
 #include <qwcompositor.h>
@@ -46,16 +47,30 @@ void WSurfacePrivate::on_commit()
 
     needsFrame = !wl_list_empty(&nativeHandle()->current.frame_callback_list);
 
-    if (nativeHandle()->current.committed & WLR_SURFACE_STATE_BUFFER)
+    const uint32_t committed = handle()->current_committed();
+    if (committed & WLR_SURFACE_STATE_BUFFER) {
         updateBuffer();
+        updateCommittedBuffer();
+    }
 
-    if (nativeHandle()->current.committed & WLR_SURFACE_STATE_OFFSET)
+    if (committed & WLR_SURFACE_STATE_OFFSET)
         updateBufferOffset();
 
     if (hasSubsurface) // Will make to true when qw_surface::newSubsurface
         updateHasSubsurface();
 
-    Q_EMIT q->commit(nativeHandle()->current.committed);
+    Q_EMIT q->commit(committed);
+
+    if (committed & WLR_SURFACE_STATE_BUFFER)
+        setCommittedBuffer(nullptr);
+}
+
+void WSurfacePrivate::on_client_commit()
+{
+    if (!(handle()->pending_committed() & WLR_SURFACE_STATE_BUFFER))
+        return;
+
+    capturePendingBuffer();
 }
 
 void WSurfacePrivate::init()
@@ -85,6 +100,9 @@ void WSurfacePrivate::connect()
 {
     W_Q(WSurface);
 
+    QObject::connect(handle(), &qw_surface::notify_client_commit, q, [this] {
+        on_client_commit();
+    });
     QObject::connect(handle(), &qw_surface::notify_commit, q, [this] {
         on_commit();
     });
@@ -146,6 +164,47 @@ void WSurfacePrivate::setBuffer(qw_buffer *newBuffer)
     }
 }
 
+void WSurfacePrivate::setCommittedBuffer(qw_buffer *newBuffer)
+{
+    if (committedBuffer.get() == newBuffer)
+        return;
+
+    if (newBuffer)
+        newBuffer->lock();
+
+    committedBuffer.reset(newBuffer);
+}
+
+void WSurfacePrivate::capturePendingBuffer()
+{
+    PendingCommittedBuffer pending;
+    pending.seq = handle()->pending_seq();
+
+    if (auto *newBuffer = handle()->pending_buffer()) {
+        newBuffer->lock();
+        pending.buffer.reset(newBuffer);
+    }
+
+    pendingCommittedBuffers.push_back(std::move(pending));
+
+    static constexpr size_t maxPendingCommittedBuffers = 16;
+    if (pendingCommittedBuffers.size() > maxPendingCommittedBuffers) {
+        qCDebug(lcWlSurface)
+            << "Dropping stale captured raw surface buffer"
+            << "surface" << q_func()
+            << "seq" << pendingCommittedBuffers.front().seq
+            << "pendingCount" << pendingCommittedBuffers.size();
+        pendingCommittedBuffers.erase(pendingCommittedBuffers.begin());
+    }
+
+    qCDebug(lcWlSurface)
+        << "Captured pending raw surface buffer"
+        << "surface" << q_func()
+        << "seq" << pendingCommittedBuffers.back().seq
+        << "rawBuffer" << pendingCommittedBuffers.back().buffer.get()
+        << "pendingCount" << pendingCommittedBuffers.size();
+}
+
 void WSurfacePrivate::updateBuffer()
 {
     qw_buffer *buffer = nullptr;
@@ -153,6 +212,36 @@ void WSurfacePrivate::updateBuffer()
         buffer = qw_buffer::from(&nativeHandle()->buffer->base);
 
     setBuffer(buffer);
+}
+
+void WSurfacePrivate::updateCommittedBuffer()
+{
+    const uint32_t seq = handle()->current_seq();
+    for (auto it = pendingCommittedBuffers.begin(); it != pendingCommittedBuffers.end(); ++it) {
+        if (it->seq != seq)
+            continue;
+
+        auto eraseEnd = it;
+        ++eraseEnd;
+        committedBuffer = std::move(it->buffer);
+        pendingCommittedBuffers.erase(pendingCommittedBuffers.begin(), eraseEnd);
+        qCDebug(lcWlSurface)
+            << "Activated committed raw surface buffer"
+            << "surface" << q_func()
+            << "seq" << seq
+            << "rawBuffer" << committedBuffer.get()
+            << "wrapperBuffer" << buffer.get()
+            << "remainingPending" << pendingCommittedBuffers.size();
+        return;
+    }
+
+    setCommittedBuffer(nullptr);
+    qCDebug(lcWlSurface)
+        << "No captured raw surface buffer matched commit"
+        << "surface" << q_func()
+        << "seq" << seq
+        << "wrapperBuffer" << buffer.get()
+        << "pendingCount" << pendingCommittedBuffers.size();
 }
 
 void WSurfacePrivate::updateBufferOffset()
@@ -306,6 +395,12 @@ qw_buffer *WSurface::buffer() const
 {
     W_DC(WSurface);
     return d->buffer.get();
+}
+
+qw_buffer *WSurface::committedBuffer() const
+{
+    W_DC(WSurface);
+    return d->committedBuffer.get();
 }
 
 void WSurface::notifyFrameDone()

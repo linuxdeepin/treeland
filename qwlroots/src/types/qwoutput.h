@@ -94,6 +94,7 @@ public:
 #endif
 
     QW_FUNC_MEMBER(output, get_primary_formats, const wlr_drm_format_set *, uint32_t buffer_caps)
+    QW_FUNC_MEMBER(output, begin_render_pass, wlr_render_pass *, wlr_output_state *state, const wlr_buffer_pass_options *options)
     QW_FUNC_MEMBER(output, add_software_cursors_to_render_pass, void, wlr_render_pass *render_pass, const pixman_region32_t *damage)
     QW_FUNC_MEMBER(output, configure_primary_swapchain, bool, const wlr_output_state *state, wlr_swapchain **swapchain)
 

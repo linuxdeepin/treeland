@@ -15,6 +15,7 @@
 #include <qwswapchain.h>
 #include <qwallocator.h>
 #include <qwcompositor.h>
+#include <qwtexture.h>
 
 #include <memory>
 
@@ -51,14 +52,15 @@ struct ConstraintBuilder {
         uint32_t format = DRM_FORMAT_ARGB8888; // fallback
         
         if (renderer && swapchain) {
-            struct wlr_buffer *buffer = wlr_swapchain_acquire(swapchain->handle());
+            struct wlr_buffer *buffer = swapchain->acquire();
             if (buffer) {
-                struct wlr_texture *texture = wlr_texture_from_buffer(renderer->handle(), buffer);
-                wlr_buffer_unlock(buffer);
+                auto *qbuffer = qw_buffer::from(buffer);
+                qw_texture *texture = qw_texture::from_buffer(*renderer, *qbuffer);
+                qbuffer->unlock();
                 
                 if (texture) {
-                    uint32_t shm_format = wlr_texture_preferred_read_format(texture);
-                    wlr_texture_destroy(texture);
+                    uint32_t shm_format = texture->preferred_read_format();
+                    delete texture;
                     if (shm_format != DRM_FORMAT_INVALID) {
                         format = shm_format;
                     }
@@ -83,7 +85,7 @@ struct ConstraintBuilder {
         
         if (!renderer || !swapchain) return;
         
-        int drm_fd = wlr_renderer_get_drm_fd(renderer->handle());
+        int drm_fd = renderer->get_drm_fd();
         if (swapchain->handle()->allocator && 
             (swapchain->handle()->allocator->buffer_caps & WLR_BUFFER_CAP_DMABUF) && 
             drm_fd >= 0) {

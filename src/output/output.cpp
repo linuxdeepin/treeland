@@ -30,7 +30,9 @@
 #include <qwlayershellv1.h>
 #include <qwoutputlayout.h>
 
+#include <QQuickWindow>
 #include <QQmlEngine>
+#include <QSGRendererInterface>
 
 #include <algorithm>
 #include <optional>
@@ -39,14 +41,28 @@
 #define DIFF_APP_OFFSET_FACTOR 2.0
 #define POPUP_EDGE_MARGIN 10
 
+namespace {
+
+bool shouldForceSoftwareCursorForVulkanRhi()
+{
+    const auto graphicsApi = QQuickWindow::graphicsApi();
+    return qgetenv("WLR_RENDERER") == "vulkan"
+        && graphicsApi == QSGRendererInterface::Vulkan;
+}
+
+}
+
 Output *Output::create(WOutput *output, QQmlEngine *engine, QObject *parent)
 {
     auto isSoftwareCursor = [](WOutput *output) -> bool {
-        return output->handle()->is_x11() || Helper::instance()->globalConfig()->forceSoftwareCursor();
+        return output->handle()->is_x11()
+            || Helper::instance()->globalConfig()->forceSoftwareCursor()
+            || shouldForceSoftwareCursorForVulkanRhi();
     };
     QQmlComponent delegate(engine, "Treeland", "PrimaryOutput");
+    const bool forceSoftwareCursor = isSoftwareCursor(output);
     QObject *obj = delegate.beginCreate(engine->rootContext());
-    delegate.setInitialProperties(obj, { { "forceSoftwareCursor", isSoftwareCursor(output) } });
+    delegate.setInitialProperties(obj, { { "forceSoftwareCursor", forceSoftwareCursor } });
     delegate.completeCreate();
     WOutputItem *outputItem = qobject_cast<WOutputItem *>(obj);
     Q_ASSERT(outputItem);
@@ -55,6 +71,7 @@ Output *Output::create(WOutput *output, QQmlEngine *engine, QObject *parent)
     auto contentItem = Helper::instance()->window()->contentItem();
     outputItem->setParentItem(contentItem);
     outputItem->setOutput(output);
+    output->setForceSoftwareCursor(forceSoftwareCursor);
 
     connect(Helper::instance()->globalConfig(),
             &TreelandConfig::forceSoftwareCursorChanged,
@@ -63,6 +80,7 @@ Output *Output::create(WOutput *output, QQmlEngine *engine, QObject *parent)
                 auto forceSoftwareCursor = isSoftwareCursor(output);
                 qCInfo(lcTlOutput) << "forceSoftwareCursor changed to" << forceSoftwareCursor;
                 obj->setProperty("forceSoftwareCursor", forceSoftwareCursor);
+                output->setForceSoftwareCursor(forceSoftwareCursor);
             });
 
     auto o = new Output(outputItem, parent);

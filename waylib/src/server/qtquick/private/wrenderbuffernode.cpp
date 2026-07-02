@@ -12,6 +12,7 @@
 #include "private/wprivateaccessor_p.h"
 
 #include <qwtexture.h>
+#include <qwbuffer.h>
 
 #include <QQuickItem>
 #include <QRunnable>
@@ -350,6 +351,7 @@ struct WlrAndRhiTexture {
     struct wlr_buffer *buffer = nullptr;
     qw_texture *wlrTexture = nullptr;
     QRhiTexture *rhiTexture = nullptr;
+    WRenderHelper::NativeTextureCleanup nativeCleanup;
 };
 
 class Q_DECL_HIDDEN RhiTextureManager : public DataManager<RhiTextureManager, WlrAndRhiTexture, QRhiTexture::Format, uint32_t, uint64_t, const QSize&>
@@ -364,9 +366,9 @@ class Q_DECL_HIDDEN RhiTextureManager : public DataManager<RhiTextureManager, Wl
     }
 
     static bool check(WlrAndRhiTexture *texture, QRhiTexture::Format, uint32_t drmFormat, uint64_t drmModifier, const QSize &size) {
-        auto buffer = texture->buffer;
+        auto buffer = qw_buffer::from(texture->buffer);
         wlr_dmabuf_attributes attribs;
-        if (!wlr_buffer_get_dmabuf(buffer, &attribs)) {
+        if (!buffer->get_dmabuf(&attribs)) {
                 qCWarning(lcWlRenderBuffer) << "Failed to get dmabuf attributes for texture" << texture << "with buffer" << buffer
                        << ", Can't check texture without dmabuf attributes";
             return false;
@@ -382,14 +384,16 @@ class Q_DECL_HIDDEN RhiTextureManager : public DataManager<RhiTextureManager, Wl
         if (!texture.rhiTexture)
             return nullptr;
 
-        return new WlrAndRhiTexture{texture.buffer, texture.texture, texture.rhiTexture};
+        return new WlrAndRhiTexture{texture.buffer, texture.texture,
+                                    texture.rhiTexture, texture.nativeCleanup};
     }
 
     static void destroy(WlrAndRhiTexture *texture) {
         delete texture->rhiTexture;
+        WRenderHelper::releaseNativeTexture(&texture->nativeCleanup);
         delete texture->wlrTexture;
         if (texture->buffer)
-            wlr_buffer_drop(texture->buffer);
+            qw_buffer::from(texture->buffer)->drop();
         delete texture;
     }
 };
@@ -657,6 +661,9 @@ public:
     }
 
     StateFlags changedStates() const override {
+        if (isVulkanRhi())
+            return ViewportState | ScissorState;
+
         if (Q_UNLIKELY(renderData && !contentNode))
             return (RenderTargetState | ViewportState);
 
@@ -675,10 +682,14 @@ public:
     //
     // We should fix this bug in Qt in the future.
     RenderingFlags flags() const override {
+        RenderingFlags result = DepthAwareRendering;
         if (Q_UNLIKELY(!contentNode))
-            return BoundedRectRendering | DepthAwareRendering;
+            result |= BoundedRectRendering;
 
-        return DepthAwareRendering;
+        if (isVulkanRhi())
+            result |= NoExternalRendering;
+
+        return result;
     }
 
     void releaseResources() override {
@@ -703,6 +714,14 @@ public:
         return renderTarget() == currentRenderer->currentRenderer()->renderTarget().rt
                    ? currentRenderer
                    : nullptr;
+    }
+
+    bool isVulkanRhi() const {
+        if (!m_item || !m_item->window())
+            return false;
+
+        auto *window = qobject_cast<WOutputRenderWindow *>(m_item->window());
+        return window && window->rhi() && window->rhi()->backend() == QRhi::Vulkan;
     }
 
     void prepare() override {

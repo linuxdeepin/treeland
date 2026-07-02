@@ -12,6 +12,7 @@
 #include <DGuiApplicationHelper>
 #include <DLog>
 
+#include <QByteArray>
 #include <QGuiApplication>
 #include <QMetaType>
 #include <QPalette>
@@ -54,7 +55,15 @@ int main(int argc, char *argv[])
     });
     //    QQuickStyle::setStyle("Material");
 
-    QGuiApplication::setAttribute(Qt::AA_UseOpenGLES);
+    const QByteArray wlrRenderer = qgetenv("WLR_RENDERER");
+    const bool hasExplicitWlrRenderer = !wlrRenderer.isEmpty() && wlrRenderer != "auto";
+    if (wlrRenderer != "vulkan")
+        QGuiApplication::setAttribute(Qt::AA_UseOpenGLES);
+    if (hasExplicitWlrRenderer) {
+        WRenderHelper::setupRendererBackend();
+        if (wlrRenderer == "vulkan")
+            qunsetenv("QSG_RHI_BACKEND");
+    }
     QGuiApplication::setHighDpiScaleFactorRoundingPolicy(
         Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
     QGuiApplication::setQuitOnLastWindowClosed(false);
@@ -77,7 +86,8 @@ int main(int argc, char *argv[])
 #endif
     DLogManager::registerJournalAppender();
 
-    WRenderHelper::setupRendererBackend();
+    if (!hasExplicitWlrRenderer)
+        WRenderHelper::setupRendererBackend();
     if (CmdLine::ref().tryExec())
         return 0;
     Q_ASSERT(qw_buffer::get_objects().isEmpty());

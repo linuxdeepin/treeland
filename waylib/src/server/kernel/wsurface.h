@@ -52,6 +52,10 @@ public:
     int bufferScale() const;
     QPoint bufferOffset() const;
     QW_NAMESPACE::qw_buffer *buffer() const;
+    // Raw producer buffer captured from the last committed attach. The legacy
+    // buffer() accessor intentionally keeps returning wlroots' client-buffer
+    // wrapper for existing texture paths.
+    QW_NAMESPACE::qw_buffer *committedBuffer() const;
 
     void notifyFrameDone();
 

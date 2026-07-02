@@ -14,6 +14,7 @@
 
 #include <qwxcursormanager.h>
 #include <qwbuffer.h>
+#include <qwrenderer.h>
 #include <qwtexture.h>
 #include <qwcompositor.h>
 
@@ -38,6 +39,32 @@ public:
             resetBuffer();
             return;
         }
+
+#ifdef ENABLE_VULKAN_RENDER
+        if (isVulkanRenderer()) {
+            if (isCachedImage(image) && buffer && directImageTextureValid)
+                return;
+
+            QImage ownedImage = image.copy();
+            ownedImage.setDevicePixelRatio(image.devicePixelRatio());
+
+            // WImageBufferImpl destroy following qw_buffer
+            auto buffer = qw_buffer::create(new WImageBufferImpl(ownedImage),
+                                           ownedImage.width(), ownedImage.height());
+            this->buffer.reset(buffer);
+
+            directImageTexture.setImage(ownedImage);
+            directImageTexture.setHasAlphaChannel(ownedImage.hasAlphaChannel());
+            directImageTextureValid = true;
+            updateCachedImage(image);
+
+            if (WSGTextureProvider::texture() || WSGTextureProvider::qwBuffer())
+                WSGTextureProvider::setBuffer(nullptr);
+            else
+                Q_EMIT textureChanged();
+            return;
+        }
+#endif
 
         // WImageBufferImpl destroy following qw_buffer
         auto buffer = qw_buffer::create(new WImageBufferImpl(image),
@@ -66,8 +93,15 @@ public:
     }
 
     void resetBuffer() {
+#ifdef ENABLE_VULKAN_RENDER
+        if (directImageTextureValid)
+            clearDirectImageTexture();
+#endif
         setBuffer(nullptr);
         buffer.reset();
+#ifdef ENABLE_VULKAN_RENDER
+        clearCachedImage();
+#endif
     }
     void reset() {
         resetBuffer();
@@ -77,6 +111,10 @@ public:
     QSGTexture *texture() const override {
         if (proxy)
             return proxy->texture();
+#ifdef ENABLE_VULKAN_RENDER
+        if (directImageTextureValid)
+            return const_cast<QSGPlainTexture *>(&directImageTexture);
+#endif
         return WSGTextureProvider::texture();
     }
     qw_texture *qwTexture() const override {
@@ -87,11 +125,76 @@ public:
     qw_buffer *qwBuffer() const override {
         if (proxy)
             return proxy->qwBuffer();
+#ifdef ENABLE_VULKAN_RENDER
+        if (directImageTextureValid)
+            return buffer.get();
+#endif
         return WSGTextureProvider::qwBuffer();
     }
 
+    QSGTexture *paintTexture() const {
+#ifdef ENABLE_VULKAN_RENDER
+        if (directImageTextureValid)
+            return const_cast<QSGPlainTexture *>(&directImageTexture);
+#endif
+        return WSGTextureProvider::texture();
+    }
+
+#ifdef ENABLE_VULKAN_RENDER
+    bool hasDirectImageTexture() const {
+        return directImageTextureValid;
+    }
+
+    bool hasVulkanRenderer() const {
+        return isVulkanRenderer();
+    }
+#endif
+
     std::unique_ptr<qw_buffer, qw_buffer::droper> buffer;
     QPointer<WSGTextureProvider> proxy;
+
+#ifdef ENABLE_VULKAN_RENDER
+private:
+    bool isVulkanRenderer() const {
+        return window() && window()->renderer()
+            && window()->renderer()->is_vk();
+    }
+
+    bool isCachedImage(const QImage &image) const {
+        return cachedImageKey == image.cacheKey()
+            && cachedImageSize == image.size()
+            && cachedImageDevicePixelRatio == image.devicePixelRatio()
+            && cachedImageFormat == image.format();
+    }
+
+    void updateCachedImage(const QImage &image) {
+        cachedImageKey = image.cacheKey();
+        cachedImageSize = image.size();
+        cachedImageDevicePixelRatio = image.devicePixelRatio();
+        cachedImageFormat = image.format();
+    }
+
+    void clearDirectImageTexture() {
+        directImageTexture.setTexture(nullptr);
+        directImageTexture.setTextureSize({});
+        directImageTexture.setHasAlphaChannel(false);
+        directImageTextureValid = false;
+    }
+
+    void clearCachedImage() {
+        cachedImageKey = 0;
+        cachedImageSize = {};
+        cachedImageDevicePixelRatio = 0;
+        cachedImageFormat = QImage::Format_Invalid;
+    }
+
+    qint64 cachedImageKey = 0;
+    QSize cachedImageSize;
+    qreal cachedImageDevicePixelRatio = 0;
+    QImage::Format cachedImageFormat = QImage::Format_Invalid;
+    QSGPlainTexture directImageTexture;
+    bool directImageTextureValid = false;
+#endif
 };
 
 WQuickCursorAttached::WQuickCursorAttached(QQuickItem *parent)
@@ -576,13 +679,30 @@ QSGNode *WQuickCursor::updatePaintNode(QSGNode *node, UpdatePaintNodeData *)
         tp->setImage(d->cursorImage->image());
     }
 
-    // Ignore the tp->proxy, Don't use tp->qwBuffer()
+    QSGTexture *texture = nullptr;
+#ifdef ENABLE_VULKAN_RENDER
+    if (tp->hasDirectImageTexture()) {
+        texture = tp->paintTexture();
+        if (!texture) {
+            delete node;
+            return nullptr;
+        }
+    } else
+#endif
     if (!tp->buffer) {
         delete node;
         return nullptr;
     }
+    else {
+        texture = tp->WSGTextureProvider::texture();
+    }
+#ifdef ENABLE_VULKAN_RENDER
+    if (!texture && tp->hasVulkanRenderer()) {
+        delete node;
+        return nullptr;
+    }
+#endif
 
-    auto texture = tp->WSGTextureProvider::texture();
     auto imageNode = static_cast<QSGImageNode*>(node);
     if (!imageNode)
         imageNode = window()->createImageNode();

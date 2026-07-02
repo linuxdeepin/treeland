@@ -81,6 +81,7 @@ set(HEADERS
     qwdisplay.h
     qwsession.h
     render/qwrenderer.h
+    render/qwrenderpass.h
     render/qwtexture.h
     render/qwallocator.h
     render/qwegl.h

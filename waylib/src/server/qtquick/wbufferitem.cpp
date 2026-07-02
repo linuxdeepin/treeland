@@ -13,8 +13,19 @@
 #include <QSGImageNode>
 #include <QThread>
 #include <private/qquickitem_p.h>
+#ifdef ENABLE_VULKAN_RENDER
+#include <private/qsgdefaultrendercontext_p.h>
+#endif
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
+
+#ifdef ENABLE_VULKAN_RENDER
+static QRhiCommandBuffer *currentFrameCommandBuffer(QSGRenderContext *context)
+{
+    auto *defaultContext = qobject_cast<QSGDefaultRenderContext *>(context);
+    return defaultContext ? defaultContext->currentFrameCommandBuffer() : nullptr;
+}
+#endif
 
 class Q_DECL_HIDDEN WBufferItemPrivate : public QQuickItemPrivate
 {
@@ -138,8 +149,13 @@ QSGNode *WBufferItem::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *)
         return nullptr;
     }
 
-    // Refresh provider with the latest buffer.
-    tp->setBuffer(d->buffer.get());
+    if (!tp->texture()) {
+        QRhiCommandBuffer *commandBuffer = nullptr;
+#ifdef ENABLE_VULKAN_RENDER
+        commandBuffer = currentFrameCommandBuffer(d->sceneGraphRenderContext());
+#endif
+        tp->setBuffer(d->buffer.get(), nullptr, commandBuffer);
+    }
 
     if (!tp->texture() || width() <= 0 || height() <= 0) {
         int bufW = -1;

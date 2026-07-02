@@ -77,6 +77,7 @@ class SurfaceWrapper : public QQuickItem
     // through treeland_dde_shell_surface_v1.set_surface_position
     Q_PROPERTY(QPoint clientRequstPos READ clientRequstPos NOTIFY clientRequstPosChanged FINAL)
     Q_PROPERTY(bool blur READ blur NOTIFY blurChanged FINAL)
+    Q_PROPERTY(bool isAnimationRunning READ isAnimationRunning NOTIFY animationRunningChanged FINAL)
     Q_PROPERTY(bool isWindowAnimationRunning READ isWindowAnimationRunning NOTIFY windowAnimationRunningChanged FINAL)
     Q_PROPERTY(bool coverEnabled READ coverEnabled NOTIFY coverEnabledChanged FINAL)
     Q_PROPERTY(bool acceptKeyboardFocus READ acceptKeyboardFocus NOTIFY acceptKeyboardFocusChanged FINAL)
@@ -350,6 +351,7 @@ Q_SIGNALS:
     void autoPlaceYOffsetChanged();
     void clientRequstPosChanged();
     void blurChanged();
+    void animationRunningChanged();
     void windowAnimationRunningChanged();
     void coverEnabledChanged();
     void aboutToBeInvalidated();

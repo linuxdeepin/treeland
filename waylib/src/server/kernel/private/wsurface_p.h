@@ -12,6 +12,9 @@
 #include <QObject>
 #include <QPointer>
 
+#include <memory>
+#include <vector>
+
 struct wlr_surface;
 struct wlr_subsurface;
 
@@ -40,7 +43,10 @@ public:
     void instantRelease() override;    // release qwobject etc.
     void updateOutputs();
     void setBuffer(QW_NAMESPACE::qw_buffer *newBuffer);
+    void setCommittedBuffer(QW_NAMESPACE::qw_buffer *newBuffer);
+    void capturePendingBuffer();
     void updateBuffer();
+    void updateCommittedBuffer();
     void updateBufferOffset();
     void updatePreferredBufferScale();
     void preferredBufferScaleChange();
@@ -60,6 +66,12 @@ public:
 
     bool needsFrame = false;
     std::unique_ptr<QW_NAMESPACE::qw_buffer, QW_NAMESPACE::qw_buffer::unlocker> buffer;
+    std::unique_ptr<QW_NAMESPACE::qw_buffer, QW_NAMESPACE::qw_buffer::unlocker> committedBuffer;
+    struct PendingCommittedBuffer {
+        uint32_t seq = 0;
+        std::unique_ptr<QW_NAMESPACE::qw_buffer, QW_NAMESPACE::qw_buffer::unlocker> buffer;
+    };
+    std::vector<PendingCommittedBuffer> pendingCommittedBuffers;
     QList<WOutput*> outputs;
     WOutput *framePacingOutput = nullptr;
     QMetaObject::Connection frameDoneConnection;

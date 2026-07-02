@@ -7,10 +7,15 @@
 
 #include <QSGTextureProvider>
 
+QT_BEGIN_NAMESPACE
+class QRhiCommandBuffer;
+QT_END_NAMESPACE
+
 QW_BEGIN_NAMESPACE
 class qw_texture;
 class qw_buffer;
 QW_END_NAMESPACE
+struct wlr_surface;
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WOutputRenderWindow;
@@ -26,9 +31,20 @@ public:
     explicit WSGTextureProvider(WOutputRenderWindow *window);
 
     WOutputRenderWindow *window() const;
+    static bool prefersDirectBufferImport(WOutputRenderWindow *window);
 
-    void setBuffer(QW_NAMESPACE::qw_buffer *buffer);
-    void setTexture(QW_NAMESPACE::qw_texture *texture, QW_NAMESPACE::qw_buffer *srcBuffer);
+    bool directBufferImportAllowed() const;
+    void setDirectBufferImportAllowed(bool allowed);
+
+    bool setBuffer(QW_NAMESPACE::qw_buffer *buffer);
+    bool setBuffer(QW_NAMESPACE::qw_buffer *buffer, wlr_surface *surface);
+    bool setBuffer(QW_NAMESPACE::qw_buffer *buffer, wlr_surface *surface,
+                   QRhiCommandBuffer *commandBuffer);
+    bool setTexture(QW_NAMESPACE::qw_texture *texture, QW_NAMESPACE::qw_buffer *srcBuffer);
+    bool setTexture(QW_NAMESPACE::qw_texture *texture, QW_NAMESPACE::qw_buffer *srcBuffer,
+                    wlr_surface *surface);
+    bool setTexture(QW_NAMESPACE::qw_texture *texture, QW_NAMESPACE::qw_buffer *srcBuffer,
+                    wlr_surface *surface, QRhiCommandBuffer *commandBuffer);
     void invalidate();
 
     QSGTexture *texture() const override;

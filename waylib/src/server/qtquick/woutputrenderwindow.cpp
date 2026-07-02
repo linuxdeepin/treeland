@@ -39,6 +39,8 @@
 #include <QQuickRenderControl>
 #include <QOpenGLFunctions>
 #include <QRunnable>
+#include <QHash>
+#include <algorithm>
 #include <memory>
 
 #include <private/qsgrenderer_p.h>
@@ -78,6 +80,35 @@ W_DECLARE_PRIVATE_MEMBER(QQuickAnimCtrl_m_runningAnimators_tag, QQuickAnimatorCo
 W_DECLARE_PRIVATE_MEMBER(QQuickAnimCtrl_m_window_tag, QQuickAnimatorController, m_window, QQuickWindow*);
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
+
+#ifdef ENABLE_VULKAN_RENDER
+static bool envFlagEnabledForVulkanRenderer(const char *name)
+{
+    const QByteArray value = qgetenv(name).trimmed().toLower();
+    return value == "1" || value == "true" || value == "yes" || value == "on";
+}
+
+static bool vulkanSoftwareCursorRequested()
+{
+    static const bool enabled = envFlagEnabledForVulkanRenderer("WAYLIB_VK_FORCE_SOFTWARE_CURSOR")
+        || envFlagEnabledForVulkanRenderer("TREELAND_VK_FORCE_SOFTWARE_CURSOR");
+    return enabled;
+}
+
+static bool vulkanHardwareCursorRequested()
+{
+    static const bool enabled = envFlagEnabledForVulkanRenderer("WAYLIB_VK_ENABLE_HARDWARE_CURSOR")
+        || envFlagEnabledForVulkanRenderer("TREELAND_VK_ENABLE_HARDWARE_CURSOR");
+    return enabled;
+}
+
+static bool vulkanOutputLayerCompositorDisabled()
+{
+    static const bool disabled = envFlagEnabledForVulkanRenderer("WAYLIB_VK_DISABLE_OUTPUT_LAYER_COMPOSITOR")
+        || envFlagEnabledForVulkanRenderer("TREELAND_VK_DISABLE_OUTPUT_LAYER_COMPOSITOR");
+    return disabled;
+}
+#endif
 
 // Call it before any wlroots render to clean up the GL state in Qt.
 // If you don't do this, there will be tearing, flickering and other graphics problems
@@ -193,6 +224,42 @@ public:
         return output()->output()->handle();
     }
 
+#ifdef ENABLE_VULKAN_RENDER
+    inline bool isVulkanRenderer() const {
+        return m_output && m_output->output() && m_output->output()->renderer()
+            && m_output->output()->renderer()->is_vk();
+    }
+
+    inline bool shouldDeferVulkanRenderRetry() {
+        if (!isVulkanRenderer() || m_vulkanRenderRetryDelayFrames <= 0)
+            return false;
+
+        --m_vulkanRenderRetryDelayFrames;
+        scheduleFrame();
+        return true;
+    }
+
+    inline bool noteVulkanRenderFailed() {
+        if (!isVulkanRenderer())
+            return false;
+
+        m_vulkanRenderFailureBackoffFrames = m_vulkanRenderFailureBackoffFrames
+            ? qMin(m_vulkanRenderFailureBackoffFrames * 2, 4)
+            : 1;
+        m_vulkanRenderRetryDelayFrames = m_vulkanRenderFailureBackoffFrames;
+        scheduleFrame();
+        return true;
+    }
+
+    inline void noteVulkanRenderSucceeded() {
+        if (!isVulkanRenderer())
+            return;
+
+        m_vulkanRenderFailureBackoffFrames = 0;
+        m_vulkanRenderRetryDelayFrames = 0;
+    }
+#endif
+
     inline WOutputRenderWindow *renderWindow() const {
         return static_cast<WOutputRenderWindow*>(parent());
     }
@@ -262,6 +329,10 @@ private:
     BufferRendererProxy *m_cursorLayerProxy = nullptr;
     bool m_cursorDirty = false;
     bool m_hardwareCursorRenderComplete = false;
+#ifdef ENABLE_VULKAN_RENDER
+    int m_vulkanRenderFailureBackoffFrames = 0;
+    int m_vulkanRenderRetryDelayFrames = 0;
+#endif
 
     // for compositeLayers
     QPointer<WOutputViewport> m_output2;
@@ -1043,8 +1114,12 @@ WBufferRenderer *OutputHelper::compositeLayers(const QList<LayerData*> layers, b
 
         if (ok) {
             // stop primary render
-            if (bufferRenderer()->currentBuffer())
+            if (bufferRenderer()->currentBuffer()) {
+#ifdef ENABLE_VULKAN_RENDER
+                bufferRenderer()->releaseCurrentBufferForScanout();
+#endif
                 bufferRenderer()->endRender();
+            }
             render(bufferRenderer2(), 0, {}, m_output->effectiveSourceRect(), m_output->targetRect(), true);
 
             return bufferRenderer2();
@@ -1072,6 +1147,28 @@ bool OutputHelper::commit(WBufferRenderer *buffer)
         Q_ASSERT(!this->buffer());
         return WOutputHelper::commit();
     }
+
+#ifdef ENABLE_VULKAN_RENDER
+    const bool scanoutReady = buffer->currentBufferReadyForScanout();
+    if (!scanoutReady) {
+        qCWarning(lcWlBufferRenderer)
+            << "Skipping output commit because current Vulkan render target was not released for scanout"
+            << qwoutput()->handle()->name
+            << "buffer size" << buffer->currentBuffer()->handle()->width
+            << "x" << buffer->currentBuffer()->handle()->height;
+        return false;
+    }
+
+    if (usesVulkanOutputLayerCompositor()) {
+        qCDebug(lcWlVulkanCompositor)
+            << "Committing Qt Quick layer through wlroots Vulkan render pass for output"
+            << qwoutput()->handle()->name
+            << "buffer size" << buffer->currentBuffer()->handle()->width
+            << "x" << buffer->currentBuffer()->handle()->height;
+        const bool ok = commitWithVulkanOutputLayer(buffer->currentBuffer());
+        return ok;
+    }
+#endif
 
     setBuffer(buffer->currentBuffer());
 
@@ -1101,6 +1198,22 @@ bool OutputHelper::tryToHardwareCursor(const LayerData *layer)
             m_hardwareCursorRenderComplete = false;
             return true;
         }
+
+#ifdef ENABLE_VULKAN_RENDER
+        if (isVulkanRenderer()
+            && WRenderHelper::getGraphicsApi() == QSGRendererInterface::Vulkan
+            && (vulkanSoftwareCursorRequested() || !vulkanHardwareCursorRequested())) {
+            static bool logged = false;
+            if (!logged) {
+                qCInfo(lcWlRenderer)
+                    << "Keeping cursor in Qt composition for Vulkan RHI with wlroots Vulkan renderer"
+                    << "forcedSoftware" << vulkanSoftwareCursorRequested()
+                    << "hardwareOptIn" << vulkanHardwareCursorRequested();
+                logged = true;
+            }
+            return false;
+        }
+#endif
 
         if (qwoutput()->handle()->software_cursor_locks > 0)
             break;
@@ -1169,6 +1282,11 @@ bool OutputHelper::tryToHardwareCursor(const LayerData *layer)
             // needs render cursor again
             if (!m_cursorRenderer) {
                 m_cursorRenderer = new WBufferRenderer(renderWindow()->contentItem());
+                // The rendered cursor buffer is handed directly to the backend
+                // cursor plane. Publishing it as a Qt texture as well can make
+                // the Vulkan RHI import/sample the same small swapchain buffer
+                // while wlroots is using it as the hardware cursor.
+                m_cursorRenderer->setCacheBuffer(false);
                 if (visualizeLayers())
                     m_cursorRenderer->setClearColor(Qt::cyan);
                 m_cursorLayerProxy = new BufferRendererProxy(m_cursorRenderer);
@@ -1278,6 +1396,25 @@ void WOutputRenderWindowPrivate::init()
     Q_ASSERT(m_renderer);
     Q_Q(WOutputRenderWindow);
 
+#ifdef ENABLE_VULKAN_RENDER
+    const bool explicitLayerCompositor = WOutputHelper::isVulkanOutputLayerCompositorRequested();
+    const bool automaticLayerCompositor = !explicitLayerCompositor
+        && WRenderHelper::getGraphicsApi() == QSGRendererInterface::Vulkan;
+    if (!vulkanOutputLayerCompositorDisabled()
+        && (explicitLayerCompositor || automaticLayerCompositor)) {
+        if (m_renderer->is_vk()) {
+            qCInfo(lcWlVulkanCompositor)
+                << "Vulkan output-layer compositor enabled: Qt Quick renders an intermediate dmabuf layer,"
+                   " then wlroots Vulkan render pass commits the output."
+                << (explicitLayerCompositor ? "mode: explicit environment request"
+                                            : "mode: automatic for Qt Quick Vulkan RHI");
+        } else {
+            qCInfo(lcWlVulkanCompositor)
+                << "Vulkan output-layer compositor requested but ignored because wlroots renderer is not Vulkan.";
+        }
+    }
+#endif
+
     if (QSGRendererInterface::isApiRhiBased(graphicsApi()))
         initRCWithRhi();
     Q_ASSERT(context);
@@ -1355,20 +1492,45 @@ bool WOutputRenderWindowPrivate::initRCWithRhi()
 // sanity check for Vulkan
 #ifdef ENABLE_VULKAN_RENDER
     if (rhiSupport->rhiBackend() == QRhi::Vulkan) {
+        if (!m_renderer || !m_renderer->handle() || !m_renderer->is_vk()) {
+            qCWarning(lcWlRenderer)
+                << "Vulkan: Qt RHI requested Vulkan, but wlroots renderer is not Vulkan."
+                << "Set WLR_RENDERER=vulkan before initializing the Qt scene graph.";
+            return false;
+        }
+
         vkInstance.reset(new QVulkanInstance());
 
-        auto phdev = wlr_vk_renderer_get_physical_device(m_renderer->handle());
-        auto dev = wlr_vk_renderer_get_device(m_renderer->handle());
-        auto queue_family = wlr_vk_renderer_get_queue_family(m_renderer->handle());
+        auto phdev = m_renderer->get_physical_device();
+        auto dev = m_renderer->get_device();
+        auto queue_family = m_renderer->get_queue_family();
+        if (Q_UNLIKELY(!phdev || !dev)) {
+            qCWarning(lcWlRenderer) << "Vulkan: wlroots renderer exposed null VkPhysicalDevice/VkDevice, cannot adopt into Qt RHI";
+            return false;
+        }
 
 #if QT_VERSION > QT_VERSION_CHECK(6, 6, 0)
-        auto instance = wlr_vk_renderer_get_instance(m_renderer->handle());
+        auto instance = m_renderer->get_instance();
+        if (Q_UNLIKELY(!instance)) {
+            qCWarning(lcWlRenderer)
+                << "Vulkan: wlroots renderer exposed null VkInstance, cannot adopt into Qt RHI";
+            return false;
+        }
         vkInstance->setVkInstance(instance);
 #endif
         //        vkInstance->setExtensions(fromCStyleList(vkRendererAttribs.extension_count, vkRendererAttribs.extensions));
         //        vkInstance->setLayers(fromCStyleList(vkRendererAttribs.layer_count, vkRendererAttribs.layers));
         vkInstance->setApiVersion({1, 1, 0});
-        vkInstance->create();
+        if (!vkInstance->create()) {
+            qCWarning(lcWlRenderer) << "Vulkan: QVulkanInstance::create() failed when adopting wlroots VkInstance, errorCode=" << vkInstance->errorCode();
+            return false;
+        }
+        qCInfo(lcWlRenderer)
+            << "Vulkan: adopting wlroots VkInstance/VkDevice into Qt RHI"
+            << "instance" << Qt::hex << reinterpret_cast<quintptr>(m_renderer->get_instance())
+            << "physicalDevice" << reinterpret_cast<quintptr>(phdev)
+            << "device" << reinterpret_cast<quintptr>(dev)
+            << Qt::dec << "queueFamily" << queue_family;
         q->setVulkanInstance(vkInstance.data());
 
         auto gd = QQuickGraphicsDevice::fromDeviceObjects(phdev, dev, queue_family);
@@ -1376,7 +1538,7 @@ bool WOutputRenderWindowPrivate::initRCWithRhi()
     } else
 #endif
     if (rhiSupport->rhiBackend() == QRhi::OpenGLES2) {
-        Q_ASSERT(wlr_renderer_is_gles2(m_renderer->handle()));
+        Q_ASSERT(m_renderer->is_gles2());
         auto egl = wlr_gles2_renderer_get_egl(m_renderer->handle());
         auto display = wlr_egl_get_display(egl);
         auto context = wlr_egl_get_context(egl);
@@ -1484,9 +1646,43 @@ WOutputRenderWindowPrivate::doRenderOutputs(qw_output *needsFrameOutput, const Q
         if (!helper->output()->depends().isEmpty())
             updateDirtyNodes();
 
+#ifdef ENABLE_VULKAN_RENDER
+        if (helper->shouldDeferVulkanRenderRetry())
+            continue;
+#endif
+
+#ifdef ENABLE_VULKAN_RENDER
+        const bool useVulkanLayerCompositor = helper->usesVulkanOutputLayerCompositor();
+        WBufferRenderer::RenderFlags renderFlags =
+            WBufferRenderer::RedirectOpenGLContextDefaultFrameBufferObject;
+        if (useVulkanLayerCompositor)
+            renderFlags |= WBufferRenderer::DontConfigureSwapchain;
+        if (useVulkanLayerCompositor) {
+            qCDebug(lcWlVulkanCompositor)
+                << "Rendering Qt Quick scene to intermediate Vulkan compositor layer for output"
+                << helper->qwoutput()->handle()->name
+                << "size" << helper->output()->output()->size()
+                << "format" << Qt::hex << format << Qt::dec;
+        }
+#else
+        const WBufferRenderer::RenderFlags renderFlags =
+            WBufferRenderer::RedirectOpenGLContextDefaultFrameBufferObject;
+#endif
+
         qw_buffer *buffer = helper->beginRender(helper->bufferRenderer(), helper->output()->output()->size(), format,
-                                                WBufferRenderer::RedirectOpenGLContextDefaultFrameBufferObject);
+                                                renderFlags);
         Q_ASSERT(buffer == helper->bufferRenderer()->currentBuffer());
+        if (!buffer) {
+#ifdef ENABLE_VULKAN_RENDER
+            if (!helper->extraState() && helper->noteVulkanRenderFailed())
+                continue;
+#endif
+        }
+#ifdef ENABLE_VULKAN_RENDER
+        else {
+            helper->noteVulkanRenderSucceeded();
+        }
+#endif
         if (buffer) {
             helper->render(helper->bufferRenderer(), 0, renderMatrix,
                            helper->output()->effectiveSourceRect(),
@@ -1561,6 +1757,14 @@ void WOutputRenderWindowPrivate::doRender(qw_output *needsFrameOutput,
     if (QSGRendererInterface::isApiRhiBased(WRenderHelper::getGraphicsApi()))
         rc()->endFrame();
 
+#ifdef ENABLE_VULKAN_RENDER
+    for (const auto &commitTarget : std::as_const(needsCommit)) {
+        WBufferRenderer *bufferRenderer = commitTarget.second;
+        if (bufferRenderer->currentBuffer())
+            bufferRenderer->releaseCurrentBufferForScanout();
+    }
+#endif
+
     // prevent gles2-render exception in wlroots.
     // wlroots may have render operations after commit, so do
     // not move the location during the reset operation.
@@ -1571,8 +1775,13 @@ void WOutputRenderWindowPrivate::doRender(qw_output *needsFrameOutput,
     if (doCommit) {
         committedOutputs.reserve(needsCommit.size());
         for (auto i : std::as_const(needsCommit)) {
+            bool commitAttempted = false;
+            bool commitSucceeded = false;
+            const bool hadCurrentBuffer = i.second->currentBuffer();
             if (Q_UNLIKELY(!i.first->framePending())) {
-                if (Q_LIKELY(i.first->commit(i.second))) {
+                commitAttempted = true;
+                commitSucceeded = i.first->commit(i.second);
+                if (Q_LIKELY(commitSucceeded)) {
                     // Make sure the output is still valid after commit
                     auto output = i.first->output()->output();
                     if (Q_LIKELY(needsFrameOutput)) {
@@ -1585,11 +1794,17 @@ void WOutputRenderWindowPrivate::doRender(qw_output *needsFrameOutput,
                 }
             }
 
-            if (i.second->currentBuffer()) {
+            if (hadCurrentBuffer) {
                 i.second->endRender();
             }
 
             i.first->resetState();
+#ifdef ENABLE_VULKAN_RENDER
+            if (hadCurrentBuffer && commitAttempted && !commitSucceeded
+                && i.first->noteVulkanRenderFailed()) {
+                i.first->update();
+            }
+#endif
         }
     }
 

@@ -5,6 +5,8 @@
 #include "wtools.h"
 #include "wayliblogging.h"
 
+#include <qwtexture.h>
+
 #include <QImage>
 
 extern "C" {
@@ -12,6 +14,7 @@ extern "C" {
 #include <wlr/render/wlr_renderer.h>
 }
 
+QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 WBufferDumper::DumpResult WBufferDumper::dumpBufferToImage(wlr_buffer *buffer, 
@@ -23,21 +26,21 @@ WBufferDumper::DumpResult WBufferDumper::dumpBufferToImage(wlr_buffer *buffer,
         return DumpResult::InvalidBuffer;
     }
 
-    wlr_texture *texture = wlr_texture_from_buffer(renderer, buffer);
+    qw_texture *texture = qw_texture::from_buffer(renderer, buffer);
     if (!texture) {
         qCWarning(lcWlBufferDumper) << "Failed to create texture from buffer";
         return DumpResult::TextureCreationFailed;
     }
 
-    uint32_t format = wlr_texture_preferred_read_format(texture);
+    uint32_t format = texture->preferred_read_format();
     
     QImage::Format qImageFormat = WTools::toImageFormat(format);
     if (qImageFormat == QImage::Format_Invalid) {
-        wlr_texture_destroy(texture);
+        delete texture;
         return DumpResult::UnsupportedFormat;
     }
 
-    outputImage = QImage(texture->width, texture->height, qImageFormat);
+    outputImage = QImage(texture->handle()->width, texture->handle()->height, qImageFormat);
     uint32_t stride = outputImage.bytesPerLine();
 
     wlr_texture_read_pixels_options options = {};
@@ -45,13 +48,13 @@ WBufferDumper::DumpResult WBufferDumper::dumpBufferToImage(wlr_buffer *buffer,
     options.format = format;
     options.stride = stride;
 
-    if (!wlr_texture_read_pixels(texture, &options)) {
+    if (!texture->read_pixels(&options)) {
         qCWarning(lcWlBufferDumper) << "Failed to read pixels from texture";
-        wlr_texture_destroy(texture);
+        delete texture;
         return DumpResult::TextureReadFailed;
     }
 
-    wlr_texture_destroy(texture);
+    delete texture;
 
     return DumpResult::Success;
 }

@@ -10,6 +10,9 @@
 #include <QObject>
 #include <QQuickRenderTarget>
 #include <QSGRendererInterface>
+#include <QSize>
+
+#include <memory>
 
 QT_BEGIN_NAMESPACE
 class QOpenGLContext;
@@ -60,6 +63,9 @@ public:
     const pixman_region32 *damage() const;
     void setLayers(const wlr_output_layer_state_array &layers);
     bool commit();
+    static bool isVulkanOutputLayerCompositorRequested();
+    bool usesVulkanOutputLayerCompositor() const;
+    bool commitWithVulkanOutputLayer(QW_NAMESPACE::qw_buffer *sourceBuffer);
     bool testCommit();
     bool testCommit(QW_NAMESPACE::qw_buffer *buffer, const wlr_output_layer_state_array &layers);
 
