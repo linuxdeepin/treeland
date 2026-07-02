@@ -12,6 +12,7 @@
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WSurface;
+class WSeat;
 WAYLIB_SERVER_END_NAMESPACE
 
 class ActivationManagerInterfaceV1Private;
@@ -29,7 +30,7 @@ public:
     Q_ENUM(TokenDisposition)
 
     explicit ActivationManagerInterfaceV1(
-        std::function<bool(WAYLIB_SERVER_NAMESPACE::WSurface *)> trustedSurfaceChecker,
+        std::function<bool(WAYLIB_SERVER_NAMESPACE::WSurface *, WAYLIB_SERVER_NAMESPACE::WSeat *)> trustedSurfaceChecker,
         QObject *parent = nullptr);
     ~ActivationManagerInterfaceV1() override;
 

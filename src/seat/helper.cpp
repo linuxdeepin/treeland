@@ -1598,19 +1598,30 @@ void Helper::init(Treeland::Treeland *treeland)
     connect(m_idleInhibitManager, &qw_idle_inhibit_manager_v1::notify_new_inhibitor, this, &Helper::onNewIdleInhibitor);
 
     m_activationManagerV1 = m_server->attach<ActivationManagerInterfaceV1>(
-        [this](WSurface *surface) -> bool {
-            // Determine whether the Surface can be trusted to transfer its active state.
+        [this](WSurface *surface, WSeat *seat) -> bool {
+            // Determine whether the surface can transfer activation for the same seat
+            // that produced the serial in set_serial.
+            if (!seat || !seat->isValid()) {
+                return false;
+            }
+
             auto wrapper = m_rootSurfaceContainer->getSurface(surface);
             if (!wrapper) {
                 return false;
             }
-            if (wrapper->isActivated()) {
+
+            if (seat->keyboardFocusSurface() == surface) {
                 return true;
             }
-            if (keyboardFocusSurface() == wrapper) {
-                // Special windows, such as Layer Shell, do not have the concept of "activation."
+
+            if (seat->pointerFocusSurface() == surface) {
                 return true;
             }
+
+            if (wrapper->isActivated() && getLastInteractingSeat(wrapper) == seat) {
+                return true;
+            }
+
             return false;
         });
     connect(m_activationManagerV1,
@@ -1635,6 +1646,7 @@ void Helper::init(Treeland::Treeland *treeland)
                 }
                 switch (disposition) {
                 case ActivationManagerInterfaceV1::TokenDisposition::Active:
+                    // TODO: activate the surface on the seat associated with the token
                     forceActivateSurface(wrapper, Qt::OtherFocusReason);
                     break;
                 case ActivationManagerInterfaceV1::TokenDisposition::Attention:

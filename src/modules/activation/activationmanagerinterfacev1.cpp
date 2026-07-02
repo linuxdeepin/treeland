@@ -6,9 +6,11 @@
 #include "qwayland-server-xdg-activation-v1.h"
 
 #include <wserver.h>
+#include <wseat.h>
 #include <wsurface.h>
 
 #include <qwdisplay.h>
+#include <qwseat.h>
 
 #include <QDeadlineTimer>
 #include <QPointer>
@@ -16,10 +18,6 @@
 
 #include <algorithm>
 #include <optional>
-
-extern "C" {
-#include <wlr/types/wlr_compositor.h>
-}
 
 WAYLIB_SERVER_USE_NAMESPACE
 using namespace Qt::StringLiterals;
@@ -64,12 +62,29 @@ protected:
 
     void set_serial(Resource * /*resource*/,
                     uint32_t serial,
-                    struct ::wl_resource * /*seat*/) override
+                    struct ::wl_resource *seat) override
     {
-        // TODO: validate serial/seat pair and support multi-seat
         if (m_committed)
             return;
+
+        auto *seatClient = seat ? wlr_seat_client_from_resource(seat) : nullptr;
+        if (!seatClient) {
+            qCWarning(lcTlActivation) << "set_serial: invalid seat resource, ignoring serial" << serial;
+            m_serial.reset();
+            m_seat.clear();
+            return;
+        }
+
+        auto *wseat = WSeat::fromHandle(qw_seat::from(seatClient->seat));
+        if (!wseat) {
+            qCWarning(lcTlActivation) << "set_serial: no WSeat for seat resource, ignoring serial" << serial;
+            m_serial.reset();
+            m_seat.clear();
+            return;
+        }
+
         m_serial = serial;
+        m_seat = wseat;
     }
 
     void set_surface(Resource * /*resource*/,
@@ -89,6 +104,7 @@ private:
     QString m_appId;
     std::optional<uint32_t> m_serial;
     bool m_committed = false;
+    QPointer<WSeat> m_seat; // set by set_serial; null if not called or seat destroyed
     QPointer<WSurface> m_surface; // set by set_surface; null if not called or surface destroyed
 };
 
@@ -111,7 +127,7 @@ class ActivationManagerInterfaceV1Private
 {
 public:
     explicit ActivationManagerInterfaceV1Private(ActivationManagerInterfaceV1 *q,
-                                                 std::function<bool(WSurface *)> trustedSurfaceChecker)
+                                                 std::function<bool(WSurface *, WSeat *)> trustedSurfaceChecker)
         : QtWaylandServer::xdg_activation_v1()
         , q(q)
         , m_trustedSurfaceChecker(std::move(trustedSurfaceChecker))
@@ -141,10 +157,10 @@ public:
         return token;
     }
 
-    bool isTrustedSurface(WSurface *surface) const
+    bool isTrustedSurface(WSurface *surface, WSeat *seat) const
     {
-        if (m_trustedSurfaceChecker)
-            return m_trustedSurfaceChecker(surface);
+        if (m_trustedSurfaceChecker && seat)
+            return m_trustedSurfaceChecker(surface, seat);
         return false; // conservative: no checker → treat as inactive
     }
 
@@ -239,7 +255,7 @@ private:
 
     ActivationManagerInterfaceV1 *q;
     QList<TokenInfo> m_tokens;
-    std::function<bool(WSurface *)> m_trustedSurfaceChecker;
+    std::function<bool(WSurface *, WSeat *)> m_trustedSurfaceChecker;
 
     static constexpr int TokenLifetimeMs = 60'000;
 };
@@ -267,7 +283,7 @@ void TokenContext::commit(Resource *resource)
     m_committed = true;
 
     // fromTrustedSurface: set_surface was called, surface still alive, and currently active
-    const bool fromTrustedSurface = m_surface && m_manager->isTrustedSurface(m_surface);
+    const bool fromTrustedSurface = m_surface && m_manager->isTrustedSurface(m_surface, m_seat);
     const QString token = m_manager->registerToken(m_appId, resource->client(), m_serial, fromTrustedSurface);
     send_done(token);
 }
@@ -277,7 +293,7 @@ void TokenContext::commit(Resource *resource)
 // ---------------------------------------------------------------------------
 
 ActivationManagerInterfaceV1::ActivationManagerInterfaceV1(
-    std::function<bool(WSurface *)> trustedSurfaceChecker,
+    std::function<bool(WAYLIB_SERVER_NAMESPACE::WSurface *, WAYLIB_SERVER_NAMESPACE::WSeat *)> trustedSurfaceChecker,
     QObject *parent)
     : QObject(parent)
     , WServerInterface()
