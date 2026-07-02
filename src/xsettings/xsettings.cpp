@@ -28,6 +28,11 @@ XSettings::XSettings(xcb_connection_t *connection, QObject *parent)
     initX11(-1, true);
 }
 
+XSettings::XSettings(QObject *parent)
+    : AbstractSettings(nullptr, parent)
+{
+}
+
 XSettings::~XSettings()
 {
 }
