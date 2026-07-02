@@ -11,6 +11,7 @@
 #include <QQuickItem>
 #include <QString>
 #include <QColor>
+#include <QMetaType>
 
 Q_MOC_INCLUDE(<woutput.h>)
 Q_MOC_INCLUDE(<output / output.h>)
@@ -23,6 +24,30 @@ class SurfaceContainer;
 QW_BEGIN_NAMESPACE
 class qw_buffer;
 QW_END_NAMESPACE
+
+struct ShadowParams
+{
+    Q_GADGET
+    Q_PROPERTY(int radius MEMBER radius)
+    Q_PROPERTY(int offsetY MEMBER offsetY)
+    Q_PROPERTY(QColor color MEMBER color)
+public:
+    int radius = 40;
+    int offsetY = 10;
+    QColor color = QColor(0, 0, 0, 102);
+    bool operator==(const ShadowParams &other) const = default;
+};
+
+struct BorderParams
+{
+    Q_GADGET
+    Q_PROPERTY(int width MEMBER width)
+    Q_PROPERTY(QColor color MEMBER color)
+public:
+    int width = 0;
+    QColor color = Qt::transparent;
+    bool operator==(const BorderParams &other) const = default;
+};
 
 class SurfaceWrapper : public QQuickItem
 {
@@ -84,6 +109,8 @@ class SurfaceWrapper : public QQuickItem
     Q_PROPERTY(bool isIMCandidatePanel READ isIMCandidatePanel NOTIFY isIMCandidatePanelChanged FINAL)
     Q_PROPERTY(bool isResizable READ isResizable NOTIFY resizableChanged FINAL)
     Q_PROPERTY(bool isMaximizable READ isMaximizable NOTIFY maximizableChanged FINAL)
+    Q_PROPERTY(ShadowParams shadowParams READ shadowParams NOTIFY shadowParamsChanged FINAL)
+    Q_PROPERTY(BorderParams borderParams READ borderParams NOTIFY borderParamsChanged FINAL)
 
 public:
     enum class Type
@@ -292,6 +319,11 @@ public:
     bool attention() const;
     bool setAttention(bool attention);
 
+    ShadowParams shadowParams() const;
+    void setShadowParams(const ShadowParams &params);
+    BorderParams borderParams() const;
+    void setBorderParams(const BorderParams &params);
+
 public Q_SLOTS:
     void minimize(bool onAnimation = true);
     void restoreFromMinimized(bool onAnimation = true);
@@ -360,6 +392,8 @@ Q_SIGNALS:
     void surfaceItemCreated(); // Emitted once after surfaceItem is constructed
     void prelaunchSplashChanged();
     void typeChanged();
+    void shadowParamsChanged();
+    void borderParamsChanged();
 
 private:
     ~SurfaceWrapper() override;
@@ -489,6 +523,11 @@ private:
     bool m_windowAnimationEnabled{ true };
     bool m_acceptKeyboardFocus{ true };
     const QString m_appId;
+    ShadowParams m_shadowParams;
+    BorderParams m_borderParams;
 };
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(SurfaceWrapper::ActiveControlStates)
+
+Q_DECLARE_METATYPE(ShadowParams)
+Q_DECLARE_METATYPE(BorderParams)

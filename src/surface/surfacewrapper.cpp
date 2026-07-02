@@ -1629,6 +1629,32 @@ void SurfaceWrapper::setRadius(qreal newRadius)
     Q_EMIT radiusChanged();
 }
 
+ShadowParams SurfaceWrapper::shadowParams() const
+{
+    return m_shadowParams;
+}
+
+void SurfaceWrapper::setShadowParams(const ShadowParams &params)
+{
+    if (m_shadowParams == params)
+        return;
+    m_shadowParams = params;
+    Q_EMIT shadowParamsChanged();
+}
+
+BorderParams SurfaceWrapper::borderParams() const
+{
+    return m_borderParams;
+}
+
+void SurfaceWrapper::setBorderParams(const BorderParams &params)
+{
+    if (m_borderParams == params)
+        return;
+    m_borderParams = params;
+    Q_EMIT borderParamsChanged();
+}
+
 void SurfaceWrapper::minimize(bool onAnimation)
 {
     if (m_surfaceState == State::Minimized)
