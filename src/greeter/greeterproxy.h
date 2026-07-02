@@ -41,6 +41,7 @@ class GreeterProxy
 
 public:
     explicit GreeterProxy(QObject *parent = nullptr);
+    explicit GreeterProxy(bool testMode, QObject *parent = nullptr);
     ~GreeterProxy();
 
     //////////////////////
@@ -314,6 +315,7 @@ private:
 
     QLocalSocket *m_socket{ nullptr };
     LockScreen *m_lockScreen{ nullptr };
+    bool m_testMode{ false };
 
     QString m_hostName{};
 
