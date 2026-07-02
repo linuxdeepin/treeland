@@ -23,6 +23,105 @@
             "description[zh_CN]": "当前输出的色温",
             "permissions": "readwrite",
             "visibility": "public"
+        },
+        "enabled": {
+            "value": true,
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Enabled",
+            "name[zh_CN]": "启用",
+            "description": "Whether this output was enabled in the last applied wlr-output-management configuration.",
+            "description[zh_CN]": "当前输出在上次应用的 wlr-output-management 配置中是否启用。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "x": {
+            "value": 0,
+            "serial": 0,
+            "flags": ["global"],
+            "name": "X Position",
+            "name[zh_CN]": "X 坐标",
+            "description": "Last applied x position of this output in the global compositor space.",
+            "description[zh_CN]": "当前输出上次应用到全局合成器空间的 X 坐标。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "y": {
+            "value": 0,
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Y Position",
+            "name[zh_CN]": "Y 坐标",
+            "description": "Last applied y position of this output in the global compositor space.",
+            "description[zh_CN]": "当前输出上次应用到全局合成器空间的 Y 坐标。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "width": {
+            "value": 0,
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Width",
+            "name[zh_CN]": "宽度",
+            "description": "Last committed output mode width in pixels. 0 means no output mode has been saved.",
+            "description[zh_CN]": "上次提交的输出模式宽度，单位为像素。0 表示未保存输出模式。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "height": {
+            "value": 0,
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Height",
+            "name[zh_CN]": "高度",
+            "description": "Last committed output mode height in pixels. 0 means no output mode has been saved.",
+            "description[zh_CN]": "上次提交的输出模式高度，单位为像素。0 表示未保存输出模式。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "refresh": {
+            "value": 0,
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Refresh Rate",
+            "name[zh_CN]": "刷新率",
+            "description": "Last committed output refresh rate in mHz. 0 means no output mode has been saved.",
+            "description[zh_CN]": "上次提交的输出刷新率，单位为 mHz。0 表示未保存输出模式。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "transform": {
+            "value": 0,
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Transform",
+            "name[zh_CN]": "变换",
+            "description": "Last committed wl_output_transform enum value for this output.",
+            "description[zh_CN]": "当前输出上次提交的 wl_output_transform 枚举值。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "scale": {
+            "value": 1.0,
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Scale",
+            "name[zh_CN]": "缩放",
+            "description": "Last committed output scale. Values must be greater than 0. The default value means no output mode has been saved.",
+            "description[zh_CN]": "当前输出上次提交的缩放值，必须大于 0。默认值表示未保存输出模式。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "adaptiveSyncEnabled": {
+            "value": false,
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Adaptive Sync Enabled",
+            "name[zh_CN]": "启用自适应同步",
+            "description": "Whether adaptive sync was enabled in the last committed output state.",
+            "description[zh_CN]": "当前输出上次提交的状态是否启用了自适应同步。",
+            "permissions": "readwrite",
+            "visibility": "public"
         }
     }
 }
