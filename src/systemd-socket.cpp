@@ -16,6 +16,7 @@
 #include <QDir>
 #include <QFile>
 #include <QLoggingCategory>
+#include <QTimer>
 #include <QTemporaryFile>
 #include <QtEnvironmentVariables>
 
@@ -29,19 +30,122 @@ Q_LOGGING_CATEGORY(lcSdSocket, "treeland.systemd.socket")
 typedef QMap<QString, QString> StringMap;
 Q_DECLARE_METATYPE(StringMap)
 
-class SignalReceiver : public QObject
+class SocketActivator : public QObject
 {
     Q_OBJECT
 public:
-    SignalReceiver(std::function<void()> activateFdFunc, QObject *parent = nullptr)
-        : QObject(parent), activateFd(activateFdFunc) {
+    SocketActivator(QDBusUnixFileDescriptor unixFileDescriptor,
+                     QString type,
+                     QDBusConnection connection,
+                     QObject *parent = nullptr)
+        : QObject(parent)
+        , m_unixFileDescriptor(unixFileDescriptor)
+        , m_type(std::move(type))
+        , m_connection(connection) {
     }
+
+    void start() {
+        m_connection.connect("org.deepin.Compositor1",
+                            "/org/deepin/Compositor1",
+                            "org.deepin.Compositor1",
+                            "SessionChanged",
+                            this,
+                            SLOT(activate()));
+        activate();
+    }
+
+    ~SocketActivator() {
+        qDeleteAll(m_tmpFiles);
+    }
+
 public Q_SLOTS:
-    void onSessionChanged() {
-        activateFd();
+    void activate() {
+        QDBusInterface updateFd("org.deepin.Compositor1",
+                                "/org/deepin/Compositor1",
+                                "org.deepin.Compositor1",
+                                m_connection);
+
+        if (updateFd.isValid()) {
+            if (m_type == "wayland") {
+                updateFd.call("ActivateWayland", QVariant::fromValue(m_unixFileDescriptor));
+
+                QDBusInterface dbus("org.freedesktop.DBus",
+                                    "/org/freedesktop/DBus",
+                                    "org.freedesktop.DBus",
+                                    QDBusConnection::sessionBus());
+                StringMap env;
+                env["WAYLAND_DISPLAY"] = "treeland.socket";
+
+                const auto extraEnvs = qgetenv("TREELAND_SESSION_ENVIRONMENTS");
+                if (!extraEnvs.isEmpty()) {
+                    const auto envs = extraEnvs.split('\n');
+                    for (const auto &i : envs) {
+                        const auto pair = i.split('=');
+                        if (pair.size() == 2) {
+                            env[QString::fromLocal8Bit(pair[0])] = QString::fromLocal8Bit(pair[1]);
+                        }
+                    }
+                }
+
+                dbus.call("UpdateActivationEnvironment", QVariant::fromValue(env));
+
+                sd_notify(0, "READY=1");
+            } else if (m_type == "xwayland") {
+                QDBusMessage reply = updateFd.call("XWaylandName");
+                if (reply.type() == QDBusMessage::ReplyMessage) {
+                    QVariantList values = reply.arguments();
+                    if (values.size() < 2) {
+                        qCWarning(lcSdSocket) << "Invalid XWaylandName reply";
+                        return;
+                    }
+                    QString xwaylandName = values.at(0).toString();
+                    QByteArray auth = values.at(1).toByteArray();
+
+                    QByteArray runtimeDir = qgetenv("XDG_RUNTIME_DIR");
+                    if (runtimeDir.isEmpty())
+                        runtimeDir = QDir::tempPath().toLocal8Bit();
+                    QTemporaryFile *authFile = new QTemporaryFile();
+                    authFile->setFileTemplate(QStringLiteral("%1/.xauth_XXXXXX").arg(runtimeDir));
+                    if (!authFile->open()) {
+                        qCWarning(lcSdSocket) << "Failed to create temporary xauth file";
+                        return;
+                    }
+                    QString authFileName = authFile->fileName();
+                    m_tmpFiles.append(authFile);
+                    authFile->setPermissions(QFile::ReadOwner | QFile::WriteOwner);
+                    authFile->write(auth);
+                    authFile->flush();
+                    authFile->close();
+
+                    QDBusInterface dbus("org.freedesktop.DBus",
+                                        "/org/freedesktop/DBus",
+                                        "org.freedesktop.DBus",
+                                        QDBusConnection::sessionBus());
+                    StringMap env;
+                    env["DISPLAY"] = xwaylandName;
+                    env["XAUTHORITY"] = authFileName;
+                    dbus.call("UpdateActivationEnvironment", QVariant::fromValue(env));
+
+                    sd_notify(0, "READY=1");
+                } else if (reply.type() == QDBusMessage::ErrorMessage) {
+                    qCWarning(lcSdSocket) << "XWaylandName failed:" << reply.errorMessage();
+                }
+            }
+        }
+        if (m_type == "xwayland" && !updateFd.isValid()) {
+            if (++m_retryCount < 20)
+                QTimer::singleShot(500, this, &SocketActivator::activate);
+            else
+                qCWarning(lcSdSocket) << "XWayland activation timed out after 10s";
+        }
     }
+
 private:
-    std::function<void()> activateFd;
+    QDBusUnixFileDescriptor m_unixFileDescriptor;
+    QString m_type;
+    QDBusConnection m_connection;
+    QList<QTemporaryFile *> m_tmpFiles;
+    int m_retryCount = 0;
 };
 
 int main(int argc, char *argv[])
@@ -70,100 +174,14 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    QList<QTemporaryFile *> tmpFiles;
     QDBusUnixFileDescriptor unixFileDescriptor(SD_LISTEN_FDS_START);
 
-    auto active = [unixFileDescriptor, type, &tmpFiles](QDBusConnection connection) {
-        auto activateFd = [unixFileDescriptor, type, &connection, &tmpFiles] {
-            QDBusInterface updateFd("org.deepin.Compositor1",
-                                    "/org/deepin/Compositor1",
-                                    "org.deepin.Compositor1",
-                                    connection);
+    auto *s1 = new SocketActivator(unixFileDescriptor, type, QDBusConnection::sessionBus(), &app);
+    auto *s2 = new SocketActivator(unixFileDescriptor, type, QDBusConnection::systemBus(), &app);
+    s1->start();
+    s2->start();
 
-            if (updateFd.isValid()) {
-                if (type == "wayland") {
-                    updateFd.call("ActivateWayland", QVariant::fromValue(unixFileDescriptor));
-
-                    QDBusInterface dbus("org.freedesktop.DBus",
-                                        "/org/freedesktop/DBus",
-                                        "org.freedesktop.DBus",
-                                        QDBusConnection::sessionBus());
-                    StringMap env;
-                    env["WAYLAND_DISPLAY"] = "treeland.socket";
-
-                    const auto extraEnvs = qgetenv("TREELAND_SESSION_ENVIRONMENTS");
-                    if (!extraEnvs.isEmpty()) {
-                        const auto envs = extraEnvs.split('\n');
-                        for (const auto &i : envs) {
-                            const auto pair = i.split('=');
-                            if (pair.size() == 2) {
-                                env[QString::fromLocal8Bit(pair[0])] = QString::fromLocal8Bit(pair[1]);
-                            }
-                        }
-                    }
-
-                    auto reply = dbus.call("UpdateActivationEnvironment", QVariant::fromValue(env));
-
-                    sd_notify(0, "READY=1");
-                } else if (type == "xwayland") {
-                    QDBusMessage reply = updateFd.call("XWaylandName");
-                    if (reply.type() == QDBusMessage::ReplyMessage) {
-                        QVariantList values = reply.arguments();
-                        if (values.size() < 2) {
-                            qCWarning(lcSdSocket) << "Invalid XWaylandName reply";
-                            return;
-                        }
-                        QString xwaylandName = values.at(0).toString();
-                        QByteArray auth = values.at(1).toByteArray();
-
-                        QByteArray runtimeDir = qgetenv("XDG_RUNTIME_DIR");
-                        if (runtimeDir.isEmpty())
-                            runtimeDir = QDir::tempPath().toLocal8Bit();
-                        QTemporaryFile *authFile = new QTemporaryFile();
-                        authFile->setFileTemplate(QStringLiteral("%1/.xauth_XXXXXX").arg(runtimeDir));
-                        if (!authFile->open()) {
-                            qCWarning(lcSdSocket) << "Failed to create temporary xauth file";
-                            return;
-                        }
-                        QString authFileName = authFile->fileName();
-                        tmpFiles.append(authFile);
-                        authFile->setPermissions(QFile::ReadOwner | QFile::WriteOwner);
-                        authFile->write(auth);
-                        authFile->flush();
-                        authFile->close();
-
-                        QDBusInterface dbus("org.freedesktop.DBus",
-                                            "/org/freedesktop/DBus",
-                                            "org.freedesktop.DBus",
-                                            QDBusConnection::sessionBus());
-                        StringMap env;
-                        env["DISPLAY"] = xwaylandName;
-                        env["XAUTHORITY"] = authFileName;
-                        auto reply =
-                            dbus.call("UpdateActivationEnvironment", QVariant::fromValue(env));
-
-                        sd_notify(0, "READY=1");
-                    }
-                }
-            }
-        };
-
-        connection.connect("org.deepin.Compositor1",
-                           "/org/deepin/Compositor1",
-                           "org.deepin.Compositor1",
-                           "SessionChanged",
-                           new SignalReceiver(activateFd),
-                           SLOT(onSessionChanged()));
-        activateFd();
-    };
-
-    active(QDBusConnection::sessionBus());
-    active(QDBusConnection::systemBus());
-
-    int ret = app.exec();
-    for (auto i : std::as_const(tmpFiles))
-        delete i;
-    return ret;
+    return app.exec();
 }
 
 #include "systemd-socket.moc"
