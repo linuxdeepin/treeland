@@ -296,7 +296,6 @@ Q_SIGNALS:
 private Q_SLOTS:
     void onShowDesktop();
     void deleteTaskSwitch();
-    void onPrepareForSleep(bool sleep);
     void onSessionNew(const QString &sessionId, const QDBusObjectPath &objectPath);
     void onSessionLock();
     void onSessionUnlock();
