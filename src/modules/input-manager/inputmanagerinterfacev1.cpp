@@ -52,8 +52,14 @@ void TreelandInputManagerInterfaceV1Private::destroy(Resource *resource)
 
 void TreelandInputManagerInterfaceV1Private::bind_resource(Resource *resource)
 {
+    // Report capabilities available on the seat. wl_seat is created before this
+    // global, so the client has normally bound it; the null case only occurs in
+    // the disconnect race. A client without a wl_seat binding cannot receive
+    // seat-referencing events, so it is skipped by protocol semantics.
     TreelandInputManagerInterfaceV1::DeviceTypes types = q->inputDeviceListTypes();
     struct wlr_seat_client *seatClient = Helper::instance()->seat()->handle()->client_for_wl_client(resource->client());
+    if (!seatClient)
+        return;
     struct wl_resource *clientResource;
     wl_resource_for_each(clientResource, &seatClient->resources) {
         send_capability_available(resource->handle, types.toInt(), clientResource);
@@ -173,6 +179,8 @@ void TreelandInputManagerInterfaceV1::sendCapabilityAvailable(TreelandInputManag
     for (const auto &resource : d->resourceMap()) {
         struct wlr_seat_client *seatClient =
             Helper::instance()->seat()->handle()->client_for_wl_client(resource->client());
+        if (!seatClient)
+            continue;  // No wl_seat binding: cannot deliver seat-referencing capability events.
         struct wl_resource *clientResource;
         wl_resource_for_each(clientResource, &seatClient->resources) {
             d->send_capability_available(resource->handle, types.toInt(), clientResource);
@@ -185,6 +193,8 @@ void TreelandInputManagerInterfaceV1::sendCapabilityUnavailable(TreelandInputMan
     for (const auto &resource : d->resourceMap()) {
         struct wlr_seat_client *seatClient =
             Helper::instance()->seat()->handle()->client_for_wl_client(resource->client());
+        if (!seatClient)
+            continue;  // No wl_seat binding: cannot deliver seat-referencing capability events.
         struct wl_resource *clientResource;
         wl_resource_for_each(clientResource, &seatClient->resources) {
             d->send_capability_unavailable(resource->handle, types.toInt(), clientResource);
@@ -267,6 +277,8 @@ void TreelandInputManagerInterfaceV1::onInputAdded(WInputDevice *input)
         for (const auto &resource : d->resourceMap()) {
             struct wlr_seat_client *seatClient =
                 Helper::instance()->seat()->handle()->client_for_wl_client(resource->client());
+            if (!seatClient)
+                continue;  // No wl_seat binding: cannot deliver seat-referencing capability events.
             struct wl_resource *clientResource;
             wl_resource_for_each(clientResource, &seatClient->resources) {
                 d->send_capability_available(resource->handle, type.toInt(), clientResource);
@@ -292,6 +304,8 @@ void TreelandInputManagerInterfaceV1::onInputRemoved(WInputDevice *input)
         for (const auto &resource : d->resourceMap()) {
             struct wlr_seat_client *seatClient =
                 Helper::instance()->seat()->handle()->client_for_wl_client(resource->client());
+            if (!seatClient)
+                continue;  // No wl_seat binding: cannot deliver seat-referencing capability events.
             struct wl_resource *clientResource;
             wl_resource_for_each(clientResource, &seatClient->resources) {
                 d->send_capability_unavailable(resource->handle, type.toInt(), clientResource);
