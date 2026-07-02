@@ -162,11 +162,9 @@ private:
     // Unified parent/container update for Xdg & XWayland toplevel wrappers.
     void updateWrapperContainer(SurfaceWrapper *wrapper,
                                 WAYLIB_SERVER_NAMESPACE::WSurface *parentSurface);
-    // Async X11 property fetch for XWayland surfaces
-    void fetchInitialProperties(WAYLIB_SERVER_NAMESPACE::WXWaylandSurface *surface,
-                                const QString &appId);
+    // Async X11 property fetch for XWayland surfaces after wrapper creation.
+    void fetchInitialProperties(WAYLIB_SERVER_NAMESPACE::WXWaylandSurface *surface);
     void onInitialPropertiesReady(WAYLIB_SERVER_NAMESPACE::WXWaylandSurface *surface,
-                                  const QString &appId,
                                   const QMap<xcb_atom_t, QByteArray> &result);
 
     WAYLIB_SERVER_NAMESPACE::WXdgShell *m_xdgShell = nullptr;

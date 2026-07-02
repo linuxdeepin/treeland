@@ -603,8 +603,10 @@ void ShellHandler::onXWaylandSurfaceAdded(WXWaylandSurface *surface)
                                                  self->m_pendingAppIdResolveToplevels.indexOf(raw);
                                              if (idx < 0)
                                                  return; // removed before callback
-                                             self->fetchInitialProperties(raw, appId);
                                              self->m_pendingAppIdResolveToplevels.removeAt(idx);
+                                             self->ensureXwaylandWrapper(raw, appId);
+                                             if (auto current = surface.data())
+                                                 self->fetchInitialProperties(current);
                                          });
                                      if (started) {
                                          qCDebug(lcTlShell)
@@ -619,8 +621,10 @@ void ShellHandler::onXWaylandSurfaceAdded(WXWaylandSurface *surface)
                                      }
                                  }
                              }
-                             // Async path not taken: directly fetch properties then match/create
-                             fetchInitialProperties(raw, QString());
+                             // Async path not taken: create/match first so the wrapper observes
+                             // the initial map lifecycle, then fetch optional xprops.
+                             ensureXwaylandWrapper(raw, QString());
+                             fetchInitialProperties(raw);
                          });
     surface->safeConnect(&WXWaylandSurface::aboutToDissociate, this, [this, surface] {
         auto wrapper = m_rootSurfaceContainer->getSurface(surface);
@@ -657,41 +661,42 @@ void ShellHandler::onXWaylandSurfaceAdded(WXWaylandSurface *surface)
     });
 }
 
-void ShellHandler::fetchInitialProperties(WXWaylandSurface *surface, const QString &appId)
+void ShellHandler::fetchInitialProperties(WXWaylandSurface *surface)
 {
-    auto *xwayland = surface->xwayland();
-    if (!xwayland) {
-        ensureXwaylandWrapper(surface, appId);
+    if (!m_imCandidatePanelManager)
         return;
-    }
+
+    auto *wrapper = m_rootSurfaceContainer->getSurface(surface);
+    if (!wrapper || wrapper->isIMCandidatePanel())
+        return;
+
+    auto *xwayland = surface->xwayland();
+    if (!xwayland)
+        return;
 
     auto windowId = surface->handle()->handle()->window_id;
-    QVector<WXWayland::AsyncPropRequest> requests;
-    if (m_imCandidatePanelManager) {
-        requests.append({ m_imCandidatePanelManager->imCandidatePanelAtom(), XCB_ATOM_CARDINAL });
-    }
-
-    if (requests.isEmpty()) {
-        ensureXwaylandWrapper(surface, appId);
+    auto atom = m_imCandidatePanelManager->imCandidatePanelAtom();
+    if (atom == XCB_ATOM_NONE)
         return;
-    }
+
+    QVector<WXWayland::AsyncPropRequest> requests;
+    requests.append({ atom, XCB_ATOM_CARDINAL });
 
     xwayland->readAsyncProperties(
         windowId,
         requests,
         50,
         [self = QPointer<ShellHandler>(this),
-         surface = QPointer<WXWaylandSurface>(surface),
-         appId](xcb_window_t, const QMap<xcb_atom_t, QByteArray> &result) {
+         surface = QPointer<WXWaylandSurface>(surface)](xcb_window_t,
+                                                        const QMap<xcb_atom_t, QByteArray> &result) {
             auto *raw = surface.data();
             if (!raw || !self)
                 return;
-            self->onInitialPropertiesReady(raw, appId, result);
+            self->onInitialPropertiesReady(raw, result);
         });
 }
 
 void ShellHandler::onInitialPropertiesReady(WXWaylandSurface *surface,
-                                            const QString &appId,
                                             const QMap<xcb_atom_t, QByteArray> &result)
 {
     if (m_imCandidatePanelManager) {
@@ -699,8 +704,10 @@ void ShellHandler::onInitialPropertiesReady(WXWaylandSurface *surface,
             result,
             m_imCandidatePanelManager->imCandidatePanelAtom());
         surface->setProperty("imCandidatePanel", value);
+        auto *wrapper = m_rootSurfaceContainer->getSurface(surface);
+        if (wrapper)
+            m_imCandidatePanelManager->checkAndApplyIMCandidatePanel(wrapper, surface);
     }
-    ensureXwaylandWrapper(surface, appId);
 }
 
 void ShellHandler::ensureXwaylandWrapper(WXWaylandSurface *surface, const QString &targetAppId)
