@@ -12,6 +12,7 @@
 #include "treelandconfig.hpp"
 #include "treelanduserconfig.hpp"
 #include "workspace/workspace.h"
+#include "wallpapermanager.h"
 
 #include <wcursor.h>
 #include <winputpopupsurface.h>
@@ -89,7 +90,7 @@ Output *Output::create(WOutput *output, QQmlEngine *engine, QObject *parent)
 
 
     // reset output color to config value
-    o->setOutputColor(-1, 0);
+    o->applyOutputColorConfig();
 
     if (CmdLine::ref().enableDebugView()) {
         o->m_debugMenuBar = Helper::instance()->qmlEngine()->createMenuBar(outputItem, contentItem);
@@ -150,9 +151,7 @@ Output::Output(WOutputItem *output, QObject *parent)
 {
     m_outputViewport = output->property("screenViewport").value<WOutputViewport *>();
 
-    // TODO: Investigate better ways to track the panel specific persistent settings.
-    // The connector name of the panel may change.
-    QString outputName = output->output()->name();
+    QString outputName = WallpaperManager::getOutputId(output->output()->nativeHandle());
     m_config = OutputConfig::createByName("org.deepin.dde.treeland.output",
                                     "org.deepin.dde.treeland",
                                     "/" + outputName, this);
@@ -1016,6 +1015,28 @@ OutputConfig *Output::config() const
     return m_config;
 }
 
+void Output::applyOutputColorConfig()
+{
+    auto *outputConfig = config();
+    auto applyConfig = [this, outputConfig] {
+        setOutputColor(outputConfig->brightness(),
+                       static_cast<uint32_t>(outputConfig->colorTemperature()));
+    };
+
+    if (outputConfig->isInitializeSucceeded()) {
+        applyConfig();
+        return;
+    }
+
+    if (!outputConfig->isInitializeFailed()) {
+        connect(outputConfig,
+                &OutputConfig::configInitializeSucceed,
+                this,
+                applyConfig,
+                Qt::SingleShotConnection);
+    }
+}
+
 namespace {
 static inline void kelvinToRGB(double kelvin, double &r, double &g, double &b)
 {
@@ -1068,15 +1089,23 @@ void Output::setOutputColor(qreal brightness,
                             uint32_t colorTemperature,
                             std::function<void(bool)> resultCallback)
 {
-    if (brightness < 0)
+    const bool brightnessRequested = brightness >= 0;
+    const bool colorTemperatureRequested = colorTemperature != 0;
+
+    if (!brightnessRequested)
         brightness = config()->brightness();
-    if (colorTemperature == 0)
+    if (!colorTemperatureRequested)
         colorTemperature = config()->colorTemperature();
 
+    brightness = qBound(0.0, brightness, 1.0);
+    colorTemperature = std::clamp(colorTemperature, 1000u, 20000u);
+
     qreal brightnessCorrection = 1.0;
+    bool backlightApplied = false;
 
     if (m_backlight) {
         qreal backlightBrightness = m_backlight->setBrightness(brightness);
+        backlightApplied = qFuzzyCompare(backlightBrightness, brightness);
         if (backlightBrightness != 0)
             brightnessCorrection = qBound(0.0, brightness / backlightBrightness, 1.0);
     } else {
@@ -1085,8 +1114,11 @@ void Output::setOutputColor(qreal brightness,
 
     const size_t gammaSize = output()->handle()->get_gamma_size();
     if (gammaSize == 0) {
+        if (backlightApplied) {
+            config()->setBrightness(brightness);
+        }
         if (resultCallback)
-            resultCallback(false);
+            resultCallback(backlightApplied && !colorTemperatureRequested);
         qCWarning(lcTlOutput) << " Output " << output()->name()
                              << " does not support gamma LUT! Brightness and color temperature adjustments through gamma will have no effect.";
         return;

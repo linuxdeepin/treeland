@@ -67,6 +67,17 @@
             "description[zh_CN]": "在登录用户列表中显示 Other... 选项，允许以未列出的用户（如 LDAP/NSS 用户）登录",
             "permissions": "readwrite",
             "visibility": "public"
+        },
+        "primaryOutputId": {
+            "value": "",
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Primary Output ID",
+            "name[zh_CN]": "主屏幕 ID",
+            "description": "Output id recorded as the primary output. Empty means no primary output has been saved.",
+            "description[zh_CN]": "记录为主屏幕的输出 ID。空字符串表示未保存主屏幕。",
+            "permissions": "readwrite",
+            "visibility": "public"
         }
     }
 }
