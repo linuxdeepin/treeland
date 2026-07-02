@@ -45,6 +45,14 @@ public:
     Q_ENUM(WindowState)
     Q_DECLARE_FLAGS(WindowStates, WindowState)
 
+    enum class DecorationState
+    {
+        NotSet,
+        EnabledDefault,
+        Custom
+    };
+    Q_ENUM(DecorationState)
+
     ~PersonalizationWindowContextV1() override;
 
     wl_resource *resource() const;
@@ -54,6 +62,8 @@ public:
     Shadow shadow() const;
     Border border() const;
     WindowStates states() const;
+    DecorationState shadowState() const;
+    DecorationState borderState() const;
 
     static PersonalizationWindowContextV1 *get(wl_resource *resource);
     static PersonalizationWindowContextV1 *getWindowContext(WSurface *surface);
@@ -202,6 +212,8 @@ class Personalization : public QObject
     Q_PROPERTY(Shadow shadow READ shadow NOTIFY shadowChanged)
     Q_PROPERTY(Border border READ border NOTIFY borderChanged)
     Q_PROPERTY(bool noTitlebar READ noTitlebar NOTIFY windowStateChanged)
+    Q_PROPERTY(bool shadowEnabled READ shadowEnabled NOTIFY shadowStateChanged)
+    Q_PROPERTY(bool borderEnabled READ borderEnabled NOTIFY borderStateChanged)
 
 public:
     enum BackgroundType
@@ -235,6 +247,8 @@ public:
     }
 
     bool noTitlebar() const;
+    bool shadowEnabled() const;
+    bool borderEnabled() const;
 
 Q_SIGNALS:
     void backgroundTypeChanged();
@@ -242,6 +256,8 @@ Q_SIGNALS:
     void shadowChanged();
     void borderChanged();
     void windowStateChanged();
+    void shadowStateChanged();
+    void borderStateChanged();
 
 private Q_SLOTS:
     void resetProperties();
@@ -252,6 +268,8 @@ private:
     void setShadow(const Shadow &shadow);
     void setBorder(const Border &border);
     void setWindowStates(PersonalizationWindowContextV1::WindowStates states);
+    void setShadowState(PersonalizationWindowContextV1::DecorationState state);
+    void setBorderState(PersonalizationWindowContextV1::DecorationState state);
 
 private:
     WWrapPointer<WToplevelSurface> m_target;
@@ -261,6 +279,8 @@ private:
     Shadow m_shadow {};
     Border m_border {};
     PersonalizationWindowContextV1::WindowStates m_states {};
+    PersonalizationWindowContextV1::DecorationState m_shadowState = PersonalizationWindowContextV1::DecorationState::NotSet;
+    PersonalizationWindowContextV1::DecorationState m_borderState = PersonalizationWindowContextV1::DecorationState::NotSet;
 };
 
 class PersonalizationManagerInterfaceV1 : public QObject, public WServerInterface
