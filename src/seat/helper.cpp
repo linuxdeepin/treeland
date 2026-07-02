@@ -3,6 +3,7 @@
 
 #include "helper.h"
 #include "seatsmanager.h"
+#include "systemdconfigmanager.h"
 #include <QScopeGuard>
 #include <QFile>
 #include <QRandomGenerator>
@@ -276,12 +277,10 @@ Helper::Helper(QObject *parent)
     Q_ASSERT(!m_instance);
     m_instance = this;
 
-    Q_ASSERT(!m_config);
-    m_config.reset(TreelandUserConfig::createByName("org.deepin.dde.treeland.user",
-                                              "org.deepin.dde.treeland",
-                                              "/dde")); // will update user path in Helper::init
-    m_globalConfig.reset(TreelandConfig::create("org.deepin.dde.treeland",
-                                                      QString()));
+    m_systemConfigManager = new SystemDConfigManager(this);
+    // Block on the global config after the pointer is stored, so any nested-loop
+    // callback reaching Helper::config()/globalConfig() sees a valid pointer.
+    m_systemConfigManager->initialize();
 
     m_renderWindow->setColor(Qt::black);
     m_rootSurfaceContainer->setFlag(QQuickItem::ItemIsFocusScope, true);
@@ -404,12 +403,12 @@ Helper *Helper::instance()
 
 TreelandUserConfig *Helper::config()
 {
-    return m_config.get();
+    return m_systemConfigManager->userConfig();
 }
 
 TreelandConfig *Helper::globalConfig()
 {
-    return m_globalConfig.get();
+    return m_systemConfigManager->globalConfig();
 }
 
 void Helper::syncPaletteTypeWithWindowThemeType(int32_t themeType)
@@ -442,7 +441,7 @@ void Helper::tryInitRemoteSource()
 {
     if (m_treelandRemoteSource)
         return;
-    if (m_globalConfig->debugSource()) {
+    if (m_systemConfigManager->globalConfig()->debugSource()) {
         m_treelandRemoteSource = new TreelandRemoteSource(this);
     }
 }
@@ -574,7 +573,7 @@ void Helper::onOutputAdded(WOutput *output)
 
         auto *config = outputObject->config();
         const QString outputId = WallpaperManager::getOutputId(outputObject);
-        const QString primaryOutputId = m_globalConfig->primaryOutputId();
+        const QString primaryOutputId = m_systemConfigManager->globalConfig()->primaryOutputId();
         if (config->enabled() && primaryOutputId == outputId) {
             m_rootSurfaceContainer->setPrimaryOutput(outputObject);
         } else if (config->enabled()
@@ -670,7 +669,7 @@ void Helper::onOutputAdded(WOutput *output)
                                        [this,
                                         restoreOutputConfig = std::move(restoreOutputConfig),
                                         outputObject = QPointer<Output>(o)]() mutable {
-                                           runWhenTreelandConfigInitialized(m_globalConfig.get(),
+                                           runWhenTreelandConfigInitialized(m_systemConfigManager->globalConfig(),
                                                                            outputObject,
                                                                            std::move(restoreOutputConfig));
                                        });
@@ -1559,17 +1558,15 @@ void Helper::init(Treeland::Treeland *treeland)
     m_personalizationInterfaceV1 = m_server->attach<PersonalizationManagerInterfaceV1>();
 
     auto updateCurrentUser = [this] {
-        m_config.reset(TreelandUserConfig::createByName("org.deepin.dde.treeland.user",
-                                                  "org.deepin.dde.treeland",
-                                                  "/" + m_userModel->currentUserName()));
+        m_systemConfigManager->resetUserConfig(m_userModel->currentUserName());
         // Notify QML that the config pointer has changed so bindings (e.g. sourceSize
         // on WQuickCursor) reconnect their notifiers to the new TreelandUserConfig object.
         Q_EMIT configChanged();
-        connect(m_config.get(),
+        connect(m_systemConfigManager->userConfig(),
                 &TreelandUserConfig::cursorThemeNameChanged,
                 m_sessionManager,
                 &SessionManager::syncActiveSessionCursorSettings);
-        connect(m_config.get(),
+        connect(m_systemConfigManager->userConfig(),
                 &TreelandUserConfig::cursorSizeChanged,
                 m_sessionManager,
                 &SessionManager::syncActiveSessionCursorSettings);
@@ -1581,25 +1578,12 @@ void Helper::init(Treeland::Treeland *treeland)
         }
 
         m_inputManager->setupSeatUserConfig(m_userModel->currentUserName());
-        auto onConfigInitialized = [this] {
-            m_sessionManager->syncActiveSessionCursorSettings();
-            syncPaletteTypeWithWindowThemeType(m_config->windowThemeType());
-            m_wallpaperManager->updateWallpaperConfig();
-            tryInitRemoteSource();
-        };
-        // TODO(YaoBing Xiao): pre-initialize dconfig, remove isInitializeSucceeded
-#if TREELANDCONFIG_DCONFIG_FILE_VERSION_MINOR > 0
-        if (m_config->isInitializeSucceeded()) {
-#else
-        if (m_config->isInitializeSucceed()) {
-#endif
-            onConfigInitialized();
-        } else {
-            connect(m_config.get(),
-                    &TreelandUserConfig::configInitializeSucceed,
-                    this,
-                    onConfigInitialized);
-        }
+        // resetUserConfig() blocks until the user config is ready, so the
+        // follow-up sync can run directly without a deferred signal connection.
+        m_sessionManager->syncActiveSessionCursorSettings();
+        syncPaletteTypeWithWindowThemeType(m_systemConfigManager->userConfig()->windowThemeType());
+        m_wallpaperManager->updateWallpaperConfig();
+        tryInitRemoteSource();
     };
     connect(m_userModel, &UserModel::currentUserNameChanged, this, updateCurrentUser);
 
@@ -1900,18 +1884,10 @@ void Helper::init(Treeland::Treeland *treeland)
 
     m_keyboardStateNotifyManagerInterfaceV1 = m_server->attach<TreelandKeyboardStateNotifyManagerInterfaceV1>();
 
-#if TREELANDCONFIG_DCONFIG_FILE_VERSION_MINOR > 0
-    if (m_globalConfig->isInitializeSucceeded()) {
-#else
-    if (m_globalConfig->isInitializeSucceed()) {
-#endif
-    } else {
-    }
-
     m_backend->handle()->start();
 
     // If the stored primary output is no longer present, select a random one as primary
-    const QString primaryOutputId = m_globalConfig->primaryOutputId();
+    const QString primaryOutputId = m_systemConfigManager->globalConfig()->primaryOutputId();
     if (!currentPrimaryMatchesId(m_rootSurfaceContainer, primaryOutputId)) {
         const auto &outputs = m_rootSurfaceContainer->outputs();
         if (!outputs.isEmpty()) {

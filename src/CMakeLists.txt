@@ -186,6 +186,8 @@ qt_add_qml_module(libtreeland
         seat/helper.h
         seat/seatsmanager.cpp
         seat/seatsmanager.h
+        seat/systemdconfigmanager.cpp
+        seat/systemdconfigmanager.h
         session/session.cpp
         session/session.h
         surface/surfacecontainer.cpp

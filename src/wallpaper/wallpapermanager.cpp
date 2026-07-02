@@ -88,8 +88,8 @@ WallpaperOutputConfig WallpaperManager::getOutputConfig(const QString &id)
 void WallpaperManager::updateWallpaperConfig()
 {
     m_wallpaperConfig.clear();
-    if (!Helper::instance()->m_config->wallpaperConfig().isEmpty()) {
-        QJsonDocument doc = QJsonDocument::fromJson(Helper::instance()->m_config->wallpaperConfig().toUtf8());
+    if (!Helper::instance()->config()->wallpaperConfig().isEmpty()) {
+        QJsonDocument doc = QJsonDocument::fromJson(Helper::instance()->config()->wallpaperConfig().toUtf8());
         if (doc.isArray()) {
             QJsonArray jsonArray = doc.array();
             for (const QJsonValue& value : jsonArray) {
@@ -111,7 +111,7 @@ void WallpaperManager::defaultWallpaperConfig()
     Q_ASSERT(workspace);
     for (Output *output : std::as_const(Helper::instance()->m_outputList)) {
         WallpaperOutputConfig outputConfig;
-        outputConfig.lockscreenWallpaper = Helper::instance()->m_config->defaultBackground();
+        outputConfig.lockscreenWallpaper = Helper::instance()->config()->defaultBackground();
         outputConfig.outputName = WallpaperManager::getOutputId(output);
         outputConfig.enable = output->output()->nativeHandle()->enabled;
         WallpaperType type = detectWallpaperType(outputConfig.lockscreenWallpaper);
@@ -124,7 +124,7 @@ void WallpaperManager::defaultWallpaperConfig()
 
         for (int i = 0; i < workspace->count(); i++) {
             WallpaperWorkspaceConfig workspaceConfig;
-            workspaceConfig.desktopWallpaper = Helper::instance()->m_config->defaultBackground();
+            workspaceConfig.desktopWallpaper = Helper::instance()->config()->defaultBackground();
             workspaceConfig.workspaceId = i;
             workspaceConfig.enable = true;
             WallpaperType type = detectWallpaperType(workspaceConfig.desktopWallpaper);
@@ -140,7 +140,7 @@ void WallpaperManager::defaultWallpaperConfig()
     }
 
     QString json = wallpaperConfigToJsonString();
-    Helper::instance()->m_config->setWallpaperConfig(json);
+    Helper::instance()->config()->setWallpaperConfig(json);
 }
 
 void WallpaperManager::ensureWallpaperConfigForOutput(Output *output)
@@ -207,7 +207,7 @@ void WallpaperManager::ensureWallpaperConfigForOutput(Output *output)
 
     if (update) {
         QString json = wallpaperConfigToJsonString();
-        Helper::instance()->m_config->setWallpaperConfig(json);
+        Helper::instance()->config()->setWallpaperConfig(json);
 
         if (isNewOutput) {
             Workspace *workspace = Helper::instance()->workspace();
@@ -307,7 +307,7 @@ void WallpaperManager::setOutputWallpaper(wlr_output *output, [[maybe_unused]] i
     }
 
     if (update) {
-        Helper::instance()->m_config->setWallpaperConfig(wallpaperConfigToJsonString());
+        Helper::instance()->config()->setWallpaperConfig(wallpaperConfigToJsonString());
     }
 }
 
@@ -379,7 +379,7 @@ void WallpaperManager::syncAddWorkspace()
     }
 
     if (update) {
-        Helper::instance()->m_config->setWallpaperConfig(wallpaperConfigToJsonString());
+        Helper::instance()->config()->setWallpaperConfig(wallpaperConfigToJsonString());
         Q_EMIT updateWallpaper();
     }
 }
