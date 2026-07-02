@@ -39,7 +39,6 @@ public:
     bool m_isLocked = false;
     bool m_showShutdownView = false;
     int lockCallCount = 0;
-    int switchUserCallCount = 0;
 
     explicit MockGreeterProxy(QObject *parent = nullptr)
         : GreeterProxy(true, parent)
@@ -69,12 +68,6 @@ public:
         ++lockCallCount;
         m_isLocked = true;
         Q_EMIT lockChanged(true);
-    }
-
-    void switchUser() override
-    {
-        ++switchUserCallCount;
-        GreeterProxy::switchUser();
     }
 };
 
@@ -171,22 +164,22 @@ void TestLockScreen::testShutdownWhenAlreadyVisible()
 void TestLockScreen::testSwitchUser()
 {
     m_lockScreen->setVisible(false);
-    int prevCount = m_mockGreeter->switchUserCallCount;
+    QSignalSpy spy(m_mockGreeter, &GreeterProxy::switchUser);
 
     m_lockScreen->switchUser();
 
     QVERIFY(m_lockScreen->isVisible());
-    QCOMPARE(m_mockGreeter->switchUserCallCount, prevCount + 1);
+    QCOMPARE(spy.count(), 1);
 }
 
 void TestLockScreen::testSwitchUserWhenAlreadyVisible()
 {
     m_lockScreen->setVisible(true);
-    int prevCount = m_mockGreeter->switchUserCallCount;
+    QSignalSpy spy(m_mockGreeter, &GreeterProxy::switchUser);
 
     m_lockScreen->switchUser();
 
-    QCOMPARE(m_mockGreeter->switchUserCallCount, prevCount);
+    QCOMPARE(spy.count(), 0);
 }
 
 void TestLockScreen::testIsLocked()
