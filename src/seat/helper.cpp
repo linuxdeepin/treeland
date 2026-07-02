@@ -1571,6 +1571,18 @@ void Helper::init(Treeland::Treeland *treeland)
             this,
             &Helper::onSurfaceModeChanged);
 
+    m_xdgDialogManagerV1 = m_server->attach<WXdgDialogManagerV1>();
+    connect(m_xdgDialogManagerV1,
+            &WXdgDialogManagerV1::surfaceModalChanged,
+            this,
+            [this](WXdgToplevelSurface *toplevel, bool modal) {
+                if (auto *wrapper = m_rootSurfaceContainer->getSurface(toplevel)) {
+                    wrapper->setModal(modal);
+                } else {
+                    qCWarning(lcTlShell) << "xdg-dialog-v1: no wrapper for toplevel" << toplevel;
+                }
+            });
+
     m_xdgToplevelTagManagerV1 = m_server->attach<WXdgToplevelTagManagerV1>();
 
     auto gammaControlManager = qw_gamma_control_manager_v1::create(*m_server->handle());
@@ -1740,7 +1752,31 @@ void Helper::activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
     if (wrapper && wrapper->isIMCandidatePanel())
         return;
 
-    WSeat *interactingSeat = m_currentEventSeat ? m_currentEventSeat : getLastInteractingSeat(wrapper);
+    // Plain activation: if the deepest modal is minimized, refuse to activate the parent
+    // entirely. The user must explicitly unminimize the modal first (e.g., click it).
+    SurfaceWrapper *originalWrapper = wrapper;
+    if (wrapper) {
+        if (SurfaceWrapper *modal = wrapper->findModal()) {
+            if (modal != wrapper) {
+                if (modal->workspaceId() != wrapper->workspaceId()
+                    && wrapper->workspaceId() != -1) {
+                    workspace()->moveSurfaceTo(modal, wrapper->workspaceId());
+                }
+
+                if (modal->isMinimized()) {
+                    qCCritical(lcTlShell) << "Refusing to activate parent with minimized modal"
+                                          << "parent =" << wrapper << "modal =" << modal;
+                    return;
+                }
+
+                originalWrapper->stackToLast();
+                wrapper = modal;
+            }
+        }
+    }
+
+    WSeat *interactingSeat =
+        m_currentEventSeat ? m_currentEventSeat : getLastInteractingSeat(wrapper);
     if (m_blockActivateSurface && wrapper && wrapper->type() != SurfaceWrapper::Type::LockScreen) {
         auto sh = wrapper->shellSurface();
         if (sh && wrapper->surface() && wrapper->surface()->mapped()
@@ -1802,11 +1838,29 @@ void Helper::forceActivateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reaso
         return;
     }
 
+    // Forced activation: the modal's minimized state is irrelevant — the caller explicitly
+    // requested this surface. However, if the parent itself is minimized, it must be restored
+    // here because the modal (which may already be unminimized) won't trigger parent linkage.
+    SurfaceWrapper *originalWrapper = wrapper;
+    const bool restoreAnimation =
+        !(reason == Qt::TabFocusReason || reason == Qt::BacktabFocusReason);
+    if (SurfaceWrapper *modal = wrapper->findModal()) {
+        if (modal != wrapper) {
+            if (modal->workspaceId() != wrapper->workspaceId() && wrapper->workspaceId() != -1) {
+                workspace()->moveSurfaceTo(modal, wrapper->workspaceId());
+            }
+            if (originalWrapper->isMinimized()) {
+                originalWrapper->restoreFromMinimized(restoreAnimation);
+            }
+            originalWrapper->stackToLast();
+            wrapper = modal;
+        }
+    }
+
     restoreFromShowDesktop(wrapper);
 
     if (wrapper->isMinimized()) {
-        wrapper->restoreFromMinimized(
-            !(reason == Qt::TabFocusReason || reason == Qt::BacktabFocusReason));
+        wrapper->restoreFromMinimized(restoreAnimation);
     }
 
     if (!wrapper->surface()->mapped()) {

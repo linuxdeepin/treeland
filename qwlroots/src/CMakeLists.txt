@@ -173,6 +173,7 @@ if (USE_WLROOTS_19)  # 0.19
         types/qwextimagecopycapturev1.h
         types/qwextimagecapturesourcev1.h
         types/qwextforeigntoplevellistv1.h
+        types/qwxdgdialogv1.h
         interfaces/qwextimagecapturesourcev1interface.h
     )
 else()
