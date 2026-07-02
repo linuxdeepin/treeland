@@ -247,7 +247,7 @@ private Q_SLOTS:
 Q_SIGNALS:
     void informationMessage(const QString &message);
 
-    virtual void switchUser();
+    void switchUser();
 
     void socketDisconnected();
 
