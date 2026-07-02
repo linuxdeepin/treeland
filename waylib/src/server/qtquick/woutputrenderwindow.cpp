@@ -218,6 +218,11 @@ public:
     inline void init() {
         // TODO: pre update scale after WOutputHelper::setScale
         output()->output()->safeConnect(&WOutput::scaleChanged, this, &OutputHelper::updateSceneDPR);
+#ifdef ENABLE_VULKAN_RENDER
+        output()->output()->safeConnect(&WOutput::modeChanged, this, [this] {
+            resetVulkanOutputLayerFallback("output mode changed");
+        });
+#endif
     }
 
     inline qw_output *qwoutput() const {
@@ -230,6 +235,56 @@ public:
             && m_output->output()->renderer()->is_vk();
     }
 
+    inline bool isVulkanRhiOutput() const {
+        return isVulkanRenderer()
+            && WRenderHelper::getGraphicsApi() == QSGRendererInterface::Vulkan;
+    }
+
+    inline bool shouldUseVulkanOutputLayerCompositor() {
+        if (!isVulkanRhiOutput())
+            return false;
+        if (vulkanOutputLayerCompositorDisabled())
+            return false;
+        if (WOutputHelper::isVulkanOutputLayerCompositorRequested())
+            return true;
+
+        if (!m_vulkanOutputLayerFallback)
+            return false;
+
+        if (m_vulkanOutputLayerFallbackRetryFrames > 0)
+            --m_vulkanOutputLayerFallbackRetryFrames;
+        if (m_vulkanOutputLayerFallbackRetryFrames <= 0) {
+            m_vulkanOutputLayerFallback = false;
+            qCInfo(lcWlVulkanCompositor)
+                << "Retrying Vulkan direct-primary output path for"
+                << qwoutput()->handle()->name
+                << "after temporary output-layer fallback";
+            return false;
+        }
+
+        return true;
+    }
+
+    inline void setCurrentVulkanRenderUsesOutputLayer(bool usesOutputLayer) {
+        m_vulkanCurrentRenderUsesOutputLayer = usesOutputLayer;
+    }
+
+    inline bool currentVulkanRenderUsesOutputLayer() const {
+        return m_vulkanCurrentRenderUsesOutputLayer;
+    }
+
+    inline void resetVulkanOutputLayerFallback(const char *reason) {
+        if (!m_vulkanOutputLayerFallback && m_vulkanOutputLayerFallbackRetryFrames == 0)
+            return;
+
+        qCDebug(lcWlVulkanCompositor)
+            << "Resetting Vulkan output-layer fallback for"
+            << qwoutput()->handle()->name
+            << "reason" << reason;
+        m_vulkanOutputLayerFallback = false;
+        m_vulkanOutputLayerFallbackRetryFrames = 0;
+    }
+
     inline bool shouldDeferVulkanRenderRetry() {
         if (!isVulkanRenderer() || m_vulkanRenderRetryDelayFrames <= 0)
             return false;
@@ -239,9 +294,27 @@ public:
         return true;
     }
 
-    inline bool noteVulkanRenderFailed() {
+    inline bool noteVulkanRenderFailed(bool usedOutputLayer) {
         if (!isVulkanRenderer())
             return false;
+
+        if (isVulkanRhiOutput()
+            && !usedOutputLayer
+            && !vulkanOutputLayerCompositorDisabled()
+            && !WOutputHelper::isVulkanOutputLayerCompositorRequested()) {
+            static constexpr int retryFrames = 120;
+            if (!m_vulkanOutputLayerFallback) {
+                qCWarning(lcWlVulkanCompositor)
+                    << "Vulkan direct-primary output path failed for"
+                    << qwoutput()->handle()->name
+                    << "- falling back to wlroots Vulkan output-layer compositor"
+                    << "retryFrames" << retryFrames;
+            }
+            m_vulkanOutputLayerFallback = true;
+            m_vulkanOutputLayerFallbackRetryFrames = retryFrames;
+            scheduleFrame();
+            return true;
+        }
 
         m_vulkanRenderFailureBackoffFrames = m_vulkanRenderFailureBackoffFrames
             ? qMin(m_vulkanRenderFailureBackoffFrames * 2, 4)
@@ -251,12 +324,16 @@ public:
         return true;
     }
 
-    inline void noteVulkanRenderSucceeded() {
+    inline void noteVulkanRenderSucceeded(bool usedOutputLayer) {
         if (!isVulkanRenderer())
             return;
 
         m_vulkanRenderFailureBackoffFrames = 0;
         m_vulkanRenderRetryDelayFrames = 0;
+        if (!usedOutputLayer) {
+            m_vulkanOutputLayerFallback = false;
+            m_vulkanOutputLayerFallbackRetryFrames = 0;
+        }
     }
 #endif
 
@@ -332,6 +409,9 @@ private:
 #ifdef ENABLE_VULKAN_RENDER
     int m_vulkanRenderFailureBackoffFrames = 0;
     int m_vulkanRenderRetryDelayFrames = 0;
+    bool m_vulkanOutputLayerFallback = false;
+    int m_vulkanOutputLayerFallbackRetryFrames = 0;
+    bool m_vulkanCurrentRenderUsesOutputLayer = false;
 #endif
 
     // for compositeLayers
@@ -1159,7 +1239,7 @@ bool OutputHelper::commit(WBufferRenderer *buffer)
         return false;
     }
 
-    if (usesVulkanOutputLayerCompositor()) {
+    if (currentVulkanRenderUsesOutputLayer()) {
         qCDebug(lcWlVulkanCompositor)
             << "Committing Qt Quick layer through wlroots Vulkan render pass for output"
             << qwoutput()->handle()->name
@@ -1398,20 +1478,22 @@ void WOutputRenderWindowPrivate::init()
 
 #ifdef ENABLE_VULKAN_RENDER
     const bool explicitLayerCompositor = WOutputHelper::isVulkanOutputLayerCompositorRequested();
-    const bool automaticLayerCompositor = !explicitLayerCompositor
-        && WRenderHelper::getGraphicsApi() == QSGRendererInterface::Vulkan;
-    if (!vulkanOutputLayerCompositorDisabled()
-        && (explicitLayerCompositor || automaticLayerCompositor)) {
+    const bool vulkanRhiOutput = WRenderHelper::getGraphicsApi() == QSGRendererInterface::Vulkan
+        && m_renderer->is_vk();
+    if (!vulkanOutputLayerCompositorDisabled() && explicitLayerCompositor) {
         if (m_renderer->is_vk()) {
             qCInfo(lcWlVulkanCompositor)
                 << "Vulkan output-layer compositor enabled: Qt Quick renders an intermediate dmabuf layer,"
                    " then wlroots Vulkan render pass commits the output."
-                << (explicitLayerCompositor ? "mode: explicit environment request"
-                                            : "mode: automatic for Qt Quick Vulkan RHI");
+                << "mode: explicit environment request";
         } else {
             qCInfo(lcWlVulkanCompositor)
                 << "Vulkan output-layer compositor requested but ignored because wlroots renderer is not Vulkan.";
         }
+    } else if (vulkanRhiOutput) {
+        qCInfo(lcWlVulkanCompositor)
+            << "Vulkan direct-primary output path enabled: Qt Quick renders directly into the wlroots primary buffer."
+            << "output-layerFallback" << !vulkanOutputLayerCompositorDisabled();
     }
 #endif
 
@@ -1652,7 +1734,8 @@ WOutputRenderWindowPrivate::doRenderOutputs(qw_output *needsFrameOutput, const Q
 #endif
 
 #ifdef ENABLE_VULKAN_RENDER
-        const bool useVulkanLayerCompositor = helper->usesVulkanOutputLayerCompositor();
+        const bool useVulkanLayerCompositor = helper->shouldUseVulkanOutputLayerCompositor();
+        helper->setCurrentVulkanRenderUsesOutputLayer(useVulkanLayerCompositor);
         WBufferRenderer::RenderFlags renderFlags =
             WBufferRenderer::RedirectOpenGLContextDefaultFrameBufferObject;
         if (useVulkanLayerCompositor)
@@ -1674,15 +1757,10 @@ WOutputRenderWindowPrivate::doRenderOutputs(qw_output *needsFrameOutput, const Q
         Q_ASSERT(buffer == helper->bufferRenderer()->currentBuffer());
         if (!buffer) {
 #ifdef ENABLE_VULKAN_RENDER
-            if (!helper->extraState() && helper->noteVulkanRenderFailed())
+            if (!helper->extraState() && helper->noteVulkanRenderFailed(useVulkanLayerCompositor))
                 continue;
 #endif
         }
-#ifdef ENABLE_VULKAN_RENDER
-        else {
-            helper->noteVulkanRenderSucceeded();
-        }
-#endif
         if (buffer) {
             helper->render(helper->bufferRenderer(), 0, renderMatrix,
                            helper->output()->effectiveSourceRect(),
@@ -1778,6 +1856,9 @@ void WOutputRenderWindowPrivate::doRender(qw_output *needsFrameOutput,
             bool commitAttempted = false;
             bool commitSucceeded = false;
             const bool hadCurrentBuffer = i.second->currentBuffer();
+#ifdef ENABLE_VULKAN_RENDER
+            const bool usedVulkanOutputLayer = i.first->currentVulkanRenderUsesOutputLayer();
+#endif
             if (Q_UNLIKELY(!i.first->framePending())) {
                 commitAttempted = true;
                 commitSucceeded = i.first->commit(i.second);
@@ -1800,9 +1881,12 @@ void WOutputRenderWindowPrivate::doRender(qw_output *needsFrameOutput,
 
             i.first->resetState();
 #ifdef ENABLE_VULKAN_RENDER
-            if (hadCurrentBuffer && commitAttempted && !commitSucceeded
-                && i.first->noteVulkanRenderFailed()) {
-                i.first->update();
+            if (hadCurrentBuffer && commitAttempted) {
+                if (commitSucceeded) {
+                    i.first->noteVulkanRenderSucceeded(usedVulkanOutputLayer);
+                } else if (i.first->noteVulkanRenderFailed(usedVulkanOutputLayer)) {
+                    i.first->update();
+                }
             }
 #endif
         }

@@ -244,6 +244,8 @@ public:
         }
         textureDirty = true;
 #ifdef ENABLE_VULKAN_RENDER
+        bufferContentSerial = 0;
+        pendingBufferContentSerial = 0;
         textureRetryBackoffFrames = 0;
         textureRetryDelayFrames = 0;
         releaseDeferredDirectBuffers();
@@ -286,6 +288,9 @@ public:
                 textureDirty = true;
                 // Get the new buffer pointer from surface
                 auto newBuffer = surface->buffer();
+                const quint32 newBufferContentSerial = surface->handle()
+                    ? surface->handle()->current_seq()
+                    : 0;
 #ifdef ENABLE_VULKAN_RENDER
                 auto newDirectBuffer = surface->committedBuffer();
                 registerSurfaceBufferExplicitRelease(surface.data(), newDirectBuffer);
@@ -294,12 +299,14 @@ public:
                 if (!live) {
                     // Non-live mode: defer to pendingBuffer
                     pendingBuffer.reset(newBuffer);
+                    pendingBufferContentSerial = newBufferContentSerial;
 #ifdef ENABLE_VULKAN_RENDER
                     pendingDirectBuffer.reset(newDirectBuffer);
 #endif
                 } else {
                     // Live mode: update buffer immediately
                     buffer.reset(newBuffer);
+                    bufferContentSerial = newBufferContentSerial;
 #ifdef ENABLE_VULKAN_RENDER
                     directBuffer.reset(newDirectBuffer);
 #endif
@@ -438,6 +445,8 @@ public:
     inline void swapBufferIfNeeded() {
         if (pendingBuffer) {
             buffer = std::move(pendingBuffer);
+            bufferContentSerial = pendingBufferContentSerial;
+            pendingBufferContentSerial = 0;
 #ifdef ENABLE_VULKAN_RENDER
             directBuffer = std::move(pendingDirectBuffer);
             pendingDirectBuffer.reset();
@@ -485,6 +494,8 @@ public:
     mutable WSGTextureProvider *textureProvider = nullptr;
     BufferRef buffer;
     BufferRef pendingBuffer;
+    quint32 bufferContentSerial = 0;
+    quint32 pendingBufferContentSerial = 0;
     mutable QMetaObject::Connection updateTextureConnection;
     bool dontCacheLastBuffer = false;
     bool live = true;
@@ -599,11 +610,14 @@ WSGTextureProvider *WSurfaceItemContent::wTextureProvider() const
 #ifdef ENABLE_VULKAN_RENDER
             if (WSGTextureProvider::prefersDirectBufferImport(w)) {
                 auto *preferredBuffer = d->textureBufferForPreferredPath(w);
-                textureUpdated = d->textureProvider->setBuffer(preferredBuffer, surfaceHandle);
+                textureUpdated = d->textureProvider->setBuffer(preferredBuffer, surfaceHandle,
+                                                               nullptr,
+                                                               d->bufferContentSerial);
                 qCDebug(lcWlSurface)
                     << "Initialized surface texture provider through preferred direct client dmabuf path"
                     << "surface" << d->surface
                     << "buffer" << preferredBuffer
+                    << "contentSerial" << d->bufferContentSerial
                     << "legacyBuffer" << d->buffer.get()
                     << "directBuffer" << d->directBuffer.get()
                     << "updated" << textureUpdated;
@@ -613,9 +627,13 @@ WSGTextureProvider *WSurfaceItemContent::wTextureProvider() const
                 if (auto texture = d->surface->handle()->get_texture()) {
                     textureUpdated = d->textureProvider->setTexture(qw_texture::from(texture),
                                                                     d->buffer.get(),
-                                                                    surfaceHandle);
+                                                                    surfaceHandle,
+                                                                    nullptr,
+                                                                    d->bufferContentSerial);
                 } else {
-                    textureUpdated = d->textureProvider->setBuffer(d->buffer.get(), surfaceHandle);
+                    textureUpdated = d->textureProvider->setBuffer(d->buffer.get(), surfaceHandle,
+                                                                   nullptr,
+                                                                   d->bufferContentSerial);
                 }
             }
             if (textureUpdated && d->textureProvider->texture()) {
@@ -832,11 +850,13 @@ QSGNode *WSurfaceItemContent::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeD
 #ifdef ENABLE_VULKAN_RENDER
         if (WSGTextureProvider::prefersDirectBufferImport(tp->window())) {
             auto *preferredBuffer = d->textureBufferForPreferredPath(tp->window());
-            textureUpdated = tp->setBuffer(preferredBuffer, surfaceHandle, commandBuffer);
+            textureUpdated = tp->setBuffer(preferredBuffer, surfaceHandle, commandBuffer,
+                                           d->bufferContentSerial);
             qCDebug(lcWlSurface)
                 << "Updated surface texture through preferred direct client dmabuf path"
                 << "surface" << d->surface
                 << "buffer" << preferredBuffer
+                << "contentSerial" << d->bufferContentSerial
                 << "legacyBuffer" << d->buffer.get()
                 << "directBuffer" << d->directBuffer.get()
                 << "updated" << textureUpdated
@@ -846,9 +866,11 @@ QSGNode *WSurfaceItemContent::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeD
         auto texture = !textureUpdated && d->surface ? d->surface->handle()->get_texture() : nullptr;
         if (texture) {
             textureUpdated = tp->setTexture(qw_texture::from(texture), d->buffer.get(),
-                                            surfaceHandle, commandBuffer);
+                                            surfaceHandle, commandBuffer,
+                                            d->bufferContentSerial);
         } else if (!textureUpdated) {
-            textureUpdated = tp->setBuffer(d->buffer.get(), surfaceHandle, commandBuffer);
+            textureUpdated = tp->setBuffer(d->buffer.get(), surfaceHandle, commandBuffer,
+                                           d->bufferContentSerial);
         }
 #ifdef ENABLE_VULKAN_RENDER
         d->noteTextureUpdateResult(textureUpdated);

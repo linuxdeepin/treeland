@@ -371,125 +371,345 @@ static quint64 vulkanHandleToInteger(Handle handle)
         return quint64(handle);
 }
 
-struct Q_DECL_HIDDEN PendingVulkanCommandCleanup {
-    VkDevice device = VK_NULL_HANDLE;
-    VkCommandPool commandPool = VK_NULL_HANDLE;
-    VkFence fence = VK_NULL_HANDLE;
-    VkSemaphore semaphore = VK_NULL_HANDLE;
+struct Q_DECL_HIDDEN VulkanInteropCommandFunctions {
+    PFN_vkCreateCommandPool vkCreateCommandPool = nullptr;
+    PFN_vkDestroyCommandPool vkDestroyCommandPool = nullptr;
+    PFN_vkAllocateCommandBuffers vkAllocateCommandBuffers = nullptr;
+    PFN_vkBeginCommandBuffer vkBeginCommandBuffer = nullptr;
+    PFN_vkEndCommandBuffer vkEndCommandBuffer = nullptr;
+    PFN_vkResetCommandBuffer vkResetCommandBuffer = nullptr;
+    PFN_vkCmdPipelineBarrier vkCmdPipelineBarrier = nullptr;
+    PFN_vkQueueSubmit vkQueueSubmit = nullptr;
+    PFN_vkCreateFence vkCreateFence = nullptr;
+    PFN_vkDestroyFence vkDestroyFence = nullptr;
+    PFN_vkGetFenceStatus vkGetFenceStatus = nullptr;
+    PFN_vkWaitForFences vkWaitForFences = nullptr;
+    PFN_vkResetFences vkResetFences = nullptr;
+    PFN_vkCreateSemaphore vkCreateSemaphore = nullptr;
+    PFN_vkDestroySemaphore vkDestroySemaphore = nullptr;
+    PFN_vkGetSemaphoreFdKHR vkGetSemaphoreFdKHR = nullptr;
+
+    bool resolve(VkDevice device, bool needSyncFileExport,
+                 const char *subject, const char *phase)
+    {
+        auto vkGetDeviceProcAddr = resolveVkGetDeviceProcAddr();
+        if (!vkGetDeviceProcAddr) {
+            qCWarning(lcWlRenderHelper)
+                << subject << phase
+                << "failed: vkGetDeviceProcAddr unavailable";
+            return false;
+        }
+
+        vkCreateCommandPool = reinterpret_cast<PFN_vkCreateCommandPool>(
+            vkGetDeviceProcAddr(device, "vkCreateCommandPool"));
+        vkDestroyCommandPool = reinterpret_cast<PFN_vkDestroyCommandPool>(
+            vkGetDeviceProcAddr(device, "vkDestroyCommandPool"));
+        vkAllocateCommandBuffers = reinterpret_cast<PFN_vkAllocateCommandBuffers>(
+            vkGetDeviceProcAddr(device, "vkAllocateCommandBuffers"));
+        vkBeginCommandBuffer = reinterpret_cast<PFN_vkBeginCommandBuffer>(
+            vkGetDeviceProcAddr(device, "vkBeginCommandBuffer"));
+        vkEndCommandBuffer = reinterpret_cast<PFN_vkEndCommandBuffer>(
+            vkGetDeviceProcAddr(device, "vkEndCommandBuffer"));
+        vkResetCommandBuffer = reinterpret_cast<PFN_vkResetCommandBuffer>(
+            vkGetDeviceProcAddr(device, "vkResetCommandBuffer"));
+        vkCmdPipelineBarrier = reinterpret_cast<PFN_vkCmdPipelineBarrier>(
+            vkGetDeviceProcAddr(device, "vkCmdPipelineBarrier"));
+        vkQueueSubmit = reinterpret_cast<PFN_vkQueueSubmit>(
+            vkGetDeviceProcAddr(device, "vkQueueSubmit"));
+        vkCreateFence = reinterpret_cast<PFN_vkCreateFence>(
+            vkGetDeviceProcAddr(device, "vkCreateFence"));
+        vkDestroyFence = reinterpret_cast<PFN_vkDestroyFence>(
+            vkGetDeviceProcAddr(device, "vkDestroyFence"));
+        vkGetFenceStatus = reinterpret_cast<PFN_vkGetFenceStatus>(
+            vkGetDeviceProcAddr(device, "vkGetFenceStatus"));
+        vkWaitForFences = reinterpret_cast<PFN_vkWaitForFences>(
+            vkGetDeviceProcAddr(device, "vkWaitForFences"));
+        vkResetFences = reinterpret_cast<PFN_vkResetFences>(
+            vkGetDeviceProcAddr(device, "vkResetFences"));
+        vkCreateSemaphore = reinterpret_cast<PFN_vkCreateSemaphore>(
+            vkGetDeviceProcAddr(device, "vkCreateSemaphore"));
+        vkDestroySemaphore = reinterpret_cast<PFN_vkDestroySemaphore>(
+            vkGetDeviceProcAddr(device, "vkDestroySemaphore"));
+        vkGetSemaphoreFdKHR = reinterpret_cast<PFN_vkGetSemaphoreFdKHR>(
+            vkGetDeviceProcAddr(device, "vkGetSemaphoreFdKHR"));
+
+        if (!vkCreateCommandPool || !vkDestroyCommandPool || !vkAllocateCommandBuffers
+            || !vkBeginCommandBuffer || !vkEndCommandBuffer || !vkResetCommandBuffer
+            || !vkCmdPipelineBarrier || !vkQueueSubmit || !vkCreateFence || !vkDestroyFence
+            || !vkGetFenceStatus || !vkWaitForFences || !vkResetFences
+            || (needSyncFileExport && (!vkCreateSemaphore || !vkDestroySemaphore
+                                       || !vkGetSemaphoreFdKHR))) {
+            qCWarning(lcWlRenderHelper)
+                << subject << phase
+                << "failed: required Vulkan command/sync functions unavailable"
+                << "exportSyncFile" << needSyncFileExport;
+            return false;
+        }
+
+        return true;
+    }
 };
 
-Q_GLOBAL_STATIC(QMutex, s_pendingVulkanCommandCleanupMutex)
-Q_GLOBAL_STATIC(QVector<PendingVulkanCommandCleanup>, s_pendingVulkanCommandCleanups)
+struct Q_DECL_HIDDEN VulkanInteropCommandSlot {
+    VkCommandBuffer commandBuffer = VK_NULL_HANDLE;
+    VkFence fence = VK_NULL_HANDLE;
+    VkSemaphore semaphore = VK_NULL_HANDLE;
+    bool busy = false;
+};
 
-static void destroyPendingVulkanCommandCleanup(PendingVulkanCommandCleanup *cleanup)
-{
-    if (!cleanup || cleanup->device == VK_NULL_HANDLE) {
-        if (cleanup)
-            *cleanup = {};
-        return;
+struct Q_DECL_HIDDEN VulkanInteropCommandContext {
+    VkDevice device = VK_NULL_HANDLE;
+    VkQueue queue = VK_NULL_HANDLE;
+    uint32_t queueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    VkCommandPool commandPool = VK_NULL_HANDLE;
+    VulkanInteropCommandFunctions api;
+    QVector<VulkanInteropCommandSlot> slots;
+
+    bool matches(VkDevice dev, VkQueue q, uint32_t family) const
+    {
+        return device == dev && queue == q && queueFamilyIndex == family;
     }
 
-    auto vkGetDeviceProcAddr = resolveVkGetDeviceProcAddr();
-    if (!vkGetDeviceProcAddr) {
-        qCWarning(lcWlRenderHelper)
-            << "Vulkan RHI command cleanup skipped: vkGetDeviceProcAddr unavailable"
-            << "commandPool" << Qt::hex << vulkanHandleToInteger(cleanup->commandPool)
-            << "fence" << vulkanHandleToInteger(cleanup->fence)
-            << "semaphore" << vulkanHandleToInteger(cleanup->semaphore) << Qt::dec;
-        *cleanup = {};
-        return;
+    bool init(VkDevice dev, VkQueue q, uint32_t family,
+              bool needSyncFileExport, const char *subject, const char *phase)
+    {
+        device = dev;
+        queue = q;
+        queueFamilyIndex = family;
+        if (!api.resolve(device, needSyncFileExport, subject, phase))
+            return false;
+
+        VkCommandPoolCreateInfo poolInfo = {};
+        poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+        poolInfo.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT
+            | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+        poolInfo.queueFamilyIndex = queueFamilyIndex;
+
+        VkResult res = api.vkCreateCommandPool(device, &poolInfo, nullptr, &commandPool);
+        if (res != VK_SUCCESS) {
+            qCWarning(lcWlRenderHelper)
+                << subject << phase
+                << "failed: vkCreateCommandPool"
+                << vkResultName(res) << int(res);
+            commandPool = VK_NULL_HANDLE;
+            return false;
+        }
+
+        return true;
     }
 
-    auto vkDestroyFence = reinterpret_cast<PFN_vkDestroyFence>(
-        vkGetDeviceProcAddr(cleanup->device, "vkDestroyFence"));
-    auto vkDestroySemaphore = reinterpret_cast<PFN_vkDestroySemaphore>(
-        vkGetDeviceProcAddr(cleanup->device, "vkDestroySemaphore"));
-    auto vkDestroyCommandPool = reinterpret_cast<PFN_vkDestroyCommandPool>(
-        vkGetDeviceProcAddr(cleanup->device, "vkDestroyCommandPool"));
-
-    if (cleanup->fence != VK_NULL_HANDLE && vkDestroyFence)
-        vkDestroyFence(cleanup->device, cleanup->fence, nullptr);
-    if (cleanup->semaphore != VK_NULL_HANDLE && vkDestroySemaphore)
-        vkDestroySemaphore(cleanup->device, cleanup->semaphore, nullptr);
-    if (cleanup->commandPool != VK_NULL_HANDLE && vkDestroyCommandPool)
-        vkDestroyCommandPool(cleanup->device, cleanup->commandPool, nullptr);
-
-    *cleanup = {};
-}
-
-static bool pendingVulkanCommandCleanupReady(PendingVulkanCommandCleanup *cleanup, bool wait)
-{
-    if (!cleanup || cleanup->device == VK_NULL_HANDLE || cleanup->fence == VK_NULL_HANDLE)
-        return true;
-
-    auto vkGetDeviceProcAddr = resolveVkGetDeviceProcAddr();
-    if (!vkGetDeviceProcAddr)
-        return true;
-
-    auto vkGetFenceStatus = reinterpret_cast<PFN_vkGetFenceStatus>(
-        vkGetDeviceProcAddr(cleanup->device, "vkGetFenceStatus"));
-    auto vkWaitForFences = reinterpret_cast<PFN_vkWaitForFences>(
-        vkGetDeviceProcAddr(cleanup->device, "vkWaitForFences"));
-
-    VkResult res = VK_SUCCESS;
-    if (wait) {
-        if (!vkWaitForFences)
+    bool ensureSyncFileExportFunctions(const char *subject, const char *phase)
+    {
+        if (api.vkCreateSemaphore && api.vkDestroySemaphore && api.vkGetSemaphoreFdKHR)
             return true;
-        res = vkWaitForFences(cleanup->device, 1, &cleanup->fence, VK_TRUE, UINT64_MAX);
-    } else {
-        if (!vkGetFenceStatus)
-            return true;
-        res = vkGetFenceStatus(cleanup->device, cleanup->fence);
+        return api.resolve(device, true, subject, phase);
     }
 
-    if (res == VK_SUCCESS)
-        return true;
-    if (res == VK_NOT_READY)
-        return false;
+    bool slotReady(VulkanInteropCommandSlot *slot, bool wait,
+                   const char *subject, const char *phase)
+    {
+        if (!slot || !slot->busy || slot->fence == VK_NULL_HANDLE)
+            return true;
 
-    qCWarning(lcWlRenderHelper)
-        << "Vulkan RHI command cleanup fence status failed"
-        << vkResultName(res) << int(res)
-        << "commandPool" << Qt::hex << vulkanHandleToInteger(cleanup->commandPool)
-        << "fence" << vulkanHandleToInteger(cleanup->fence) << Qt::dec;
-    return true;
+        VkResult res = VK_SUCCESS;
+        if (wait) {
+            res = api.vkWaitForFences(device, 1, &slot->fence, VK_TRUE, UINT64_MAX);
+        } else {
+            res = api.vkGetFenceStatus(device, slot->fence);
+        }
+
+        if (res == VK_NOT_READY)
+            return false;
+        if (res != VK_SUCCESS) {
+            qCWarning(lcWlRenderHelper)
+                << subject << phase
+                << "command fence status failed"
+                << vkResultName(res) << int(res)
+                << "fence" << Qt::hex << vulkanHandleToInteger(slot->fence) << Qt::dec;
+        }
+
+        slot->busy = false;
+        return true;
+    }
+
+    void retireCompletedSlots(bool wait)
+    {
+        for (auto &slot : slots)
+            slotReady(&slot, wait, "Vulkan RHI interop", "retire");
+    }
+
+    void destroy(bool wait)
+    {
+        retireCompletedSlots(wait);
+
+        for (auto &slot : slots) {
+            if (slot.semaphore != VK_NULL_HANDLE && api.vkDestroySemaphore)
+                api.vkDestroySemaphore(device, slot.semaphore, nullptr);
+            if (slot.fence != VK_NULL_HANDLE && api.vkDestroyFence)
+                api.vkDestroyFence(device, slot.fence, nullptr);
+        }
+        slots.clear();
+
+        if (commandPool != VK_NULL_HANDLE && api.vkDestroyCommandPool)
+            api.vkDestroyCommandPool(device, commandPool, nullptr);
+
+        commandPool = VK_NULL_HANDLE;
+        device = VK_NULL_HANDLE;
+        queue = VK_NULL_HANDLE;
+        queueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    }
+
+    VulkanInteropCommandSlot *acquireSlot(bool exportSyncFile,
+                                          const char *subject, const char *phase)
+    {
+        if (exportSyncFile && !ensureSyncFileExportFunctions(subject, phase))
+            return nullptr;
+
+        retireCompletedSlots(false);
+
+        for (auto &slot : slots) {
+            if (!slot.busy)
+                return ensureSlotObjects(&slot, exportSyncFile, subject, phase) ? &slot : nullptr;
+        }
+
+        static constexpr qsizetype maxCachedSlots = 8;
+        if (slots.size() < maxCachedSlots) {
+            slots.append(VulkanInteropCommandSlot{});
+            auto &slot = slots.last();
+            return ensureSlotObjects(&slot, exportSyncFile, subject, phase) ? &slot : nullptr;
+        }
+
+        VulkanInteropCommandSlot *slot = &slots.first();
+        if (!slotReady(slot, true, subject, phase))
+            return nullptr;
+        return ensureSlotObjects(slot, exportSyncFile, subject, phase) ? slot : nullptr;
+    }
+
+    bool ensureSlotObjects(VulkanInteropCommandSlot *slot, bool exportSyncFile,
+                           const char *subject, const char *phase)
+    {
+        if (!slot)
+            return false;
+
+        VkResult res = VK_SUCCESS;
+        if (slot->commandBuffer == VK_NULL_HANDLE) {
+            VkCommandBufferAllocateInfo allocInfo = {};
+            allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+            allocInfo.commandPool = commandPool;
+            allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+            allocInfo.commandBufferCount = 1;
+
+            res = api.vkAllocateCommandBuffers(device, &allocInfo, &slot->commandBuffer);
+            if (res != VK_SUCCESS) {
+                qCWarning(lcWlRenderHelper)
+                    << subject << phase
+                    << "failed: vkAllocateCommandBuffers"
+                    << vkResultName(res) << int(res);
+                return false;
+            }
+        }
+
+        if (slot->fence == VK_NULL_HANDLE) {
+            VkFenceCreateInfo fenceInfo = {};
+            fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+
+            res = api.vkCreateFence(device, &fenceInfo, nullptr, &slot->fence);
+            if (res != VK_SUCCESS) {
+                qCWarning(lcWlRenderHelper)
+                    << subject << phase
+                    << "failed: vkCreateFence"
+                    << vkResultName(res) << int(res);
+                return false;
+            }
+        }
+
+        res = api.vkResetFences(device, 1, &slot->fence);
+        if (res != VK_SUCCESS) {
+            qCWarning(lcWlRenderHelper)
+                << subject << phase
+                << "failed: vkResetFences"
+                << vkResultName(res) << int(res);
+            return false;
+        }
+
+        res = api.vkResetCommandBuffer(slot->commandBuffer, 0);
+        if (res != VK_SUCCESS) {
+            qCWarning(lcWlRenderHelper)
+                << subject << phase
+                << "failed: vkResetCommandBuffer"
+                << vkResultName(res) << int(res);
+            return false;
+        }
+
+        if (exportSyncFile && slot->semaphore == VK_NULL_HANDLE) {
+            VkExportSemaphoreCreateInfo exportInfo = {};
+            exportInfo.sType = VK_STRUCTURE_TYPE_EXPORT_SEMAPHORE_CREATE_INFO;
+            exportInfo.handleTypes = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_SYNC_FD_BIT;
+
+            VkSemaphoreCreateInfo semInfo = {};
+            semInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+            semInfo.pNext = &exportInfo;
+
+            res = api.vkCreateSemaphore(device, &semInfo, nullptr, &slot->semaphore);
+            if (res != VK_SUCCESS) {
+                qCWarning(lcWlRenderHelper)
+                    << subject << phase
+                    << "failed: vkCreateSemaphore"
+                    << vkResultName(res) << int(res);
+                return false;
+            }
+        }
+
+        return true;
+    }
+};
+
+Q_GLOBAL_STATIC(QMutex, s_vulkanInteropCommandMutex)
+Q_GLOBAL_STATIC(QVector<VulkanInteropCommandContext *>, s_vulkanInteropCommandContexts)
+
+static VulkanInteropCommandContext *vulkanInteropCommandContextFor(VkDevice device,
+                                                                   VkQueue queue,
+                                                                   uint32_t queueFamilyIndex,
+                                                                   bool needSyncFileExport,
+                                                                   const char *subject,
+                                                                   const char *phase)
+{
+    for (auto *context : std::as_const(*s_vulkanInteropCommandContexts)) {
+        if (context->matches(device, queue, queueFamilyIndex)) {
+            if (needSyncFileExport && !context->ensureSyncFileExportFunctions(subject, phase))
+                return nullptr;
+            return context;
+        }
+    }
+
+    auto context = std::make_unique<VulkanInteropCommandContext>();
+    if (!context->init(device, queue, queueFamilyIndex, needSyncFileExport, subject, phase))
+        return nullptr;
+
+    auto result = context.release();
+    s_vulkanInteropCommandContexts->append(result);
+    return result;
 }
 
 static void flushPendingVulkanCommandCleanups(bool wait = false)
 {
-    QVector<PendingVulkanCommandCleanup> pending;
-    {
-        QMutexLocker locker(s_pendingVulkanCommandCleanupMutex());
-        if (s_pendingVulkanCommandCleanups->isEmpty())
-            return;
-        pending.swap(*s_pendingVulkanCommandCleanups);
-    }
-
-    QVector<PendingVulkanCommandCleanup> remaining;
-    for (auto &cleanup : pending) {
-        if (pendingVulkanCommandCleanupReady(&cleanup, wait)) {
-            destroyPendingVulkanCommandCleanup(&cleanup);
-        } else {
-            remaining.append(cleanup);
-        }
-    }
-
-    if (!remaining.isEmpty()) {
-        QMutexLocker locker(s_pendingVulkanCommandCleanupMutex());
-        *s_pendingVulkanCommandCleanups += remaining;
-    }
+    QMutexLocker locker(s_vulkanInteropCommandMutex());
+    for (auto *context : std::as_const(*s_vulkanInteropCommandContexts))
+        context->retireCompletedSlots(wait);
 }
 
-static void queuePendingVulkanCommandCleanup(PendingVulkanCommandCleanup *cleanup)
+static void destroyVulkanInteropCommandContexts()
 {
-    if (!cleanup || cleanup->device == VK_NULL_HANDLE)
-        return;
+    QVector<VulkanInteropCommandContext *> contexts;
+    {
+        QMutexLocker locker(s_vulkanInteropCommandMutex());
+        contexts.swap(*s_vulkanInteropCommandContexts);
+    }
 
-    flushPendingVulkanCommandCleanups(false);
-
-    QMutexLocker locker(s_pendingVulkanCommandCleanupMutex());
-    s_pendingVulkanCommandCleanups->append(*cleanup);
-    *cleanup = {};
+    for (auto *context : std::as_const(contexts)) {
+        context->destroy(true);
+        delete context;
+    }
 }
 
 static void destroyVulkanImportedRenderTarget(VulkanImportedRenderTarget *target)
@@ -501,6 +721,7 @@ static void destroyVulkanImportedRenderTarget(VulkanImportedRenderTarget *target
     }
 
     flushPendingVulkanCommandCleanups(true);
+    destroyVulkanInteropCommandContexts();
 
     auto vkGetDeviceProcAddr = resolveVkGetDeviceProcAddr();
     if (!vkGetDeviceProcAddr) {
@@ -552,6 +773,7 @@ static void destroyVulkanImportedNativeTexture(VulkanImportedNativeTexture *text
     }
 
     flushPendingVulkanCommandCleanups(true);
+    destroyVulkanInteropCommandContexts();
 
     auto vkGetDeviceProcAddr = resolveVkGetDeviceProcAddr();
     if (!vkGetDeviceProcAddr) {
@@ -763,6 +985,141 @@ static bool importSyncFileIntoDmabuf(qw_buffer *buffer, int syncFileFd, const ch
     return true;
 }
 
+static bool submitVulkanImageBarrier(QRhi *rhi,
+                                     VkDevice expectedDevice,
+                                     VkImage image,
+                                     qw_buffer *buffer,
+                                     const char *subject,
+                                     const char *phase,
+                                     VkImageLayout oldLayout,
+                                     VkImageLayout newLayout,
+                                     uint32_t srcQueueFamily,
+                                     uint32_t dstQueueFamily,
+                                     VkAccessFlags srcAccessMask,
+                                     VkAccessFlags dstAccessMask,
+                                     VkPipelineStageFlags srcStageMask,
+                                     VkPipelineStageFlags dstStageMask,
+                                     bool exportSyncFile)
+{
+    if (!rhi || expectedDevice == VK_NULL_HANDLE || image == VK_NULL_HANDLE)
+        return false;
+
+    const auto *handles = static_cast<const QRhiVulkanNativeHandles *>(rhi->nativeHandles());
+    if (!handles || !handles->dev || !handles->gfxQueue || !handles->inst) {
+        qCWarning(lcWlRenderHelper)
+            << subject << phase
+            << "failed: QRhi Vulkan native handles unavailable";
+        return false;
+    }
+
+    if (handles->dev != expectedDevice) {
+        qCWarning(lcWlRenderHelper)
+            << subject << phase
+            << "failed: QRhi device differs from imported Vulkan image"
+            << "rhi" << Qt::hex << vulkanHandleToInteger(handles->dev)
+            << "expected" << vulkanHandleToInteger(expectedDevice) << Qt::dec;
+        return false;
+    }
+
+    const uint32_t queueFamily = static_cast<uint32_t>(handles->gfxQueueFamilyIdx);
+    QMutexLocker locker(s_vulkanInteropCommandMutex());
+    auto *context = vulkanInteropCommandContextFor(handles->dev,
+                                                   handles->gfxQueue,
+                                                   queueFamily,
+                                                   exportSyncFile,
+                                                   subject,
+                                                   phase);
+    if (!context)
+        return false;
+
+    auto *slot = context->acquireSlot(exportSyncFile, subject, phase);
+    if (!slot)
+        return false;
+
+    VkCommandBufferBeginInfo beginInfo = {};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+    VkResult res = context->api.vkBeginCommandBuffer(slot->commandBuffer, &beginInfo);
+    if (res != VK_SUCCESS) {
+        qCWarning(lcWlRenderHelper)
+            << subject << phase
+            << "failed: vkBeginCommandBuffer"
+            << vkResultName(res) << int(res);
+        return false;
+    }
+
+    VkImageMemoryBarrier barrier = {};
+    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    barrier.srcQueueFamilyIndex = srcQueueFamily;
+    barrier.dstQueueFamilyIndex = dstQueueFamily;
+    barrier.image = image;
+    barrier.oldLayout = oldLayout;
+    barrier.newLayout = newLayout;
+    barrier.srcAccessMask = srcAccessMask;
+    barrier.dstAccessMask = dstAccessMask;
+    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    barrier.subresourceRange.layerCount = 1;
+    barrier.subresourceRange.levelCount = 1;
+
+    context->api.vkCmdPipelineBarrier(slot->commandBuffer,
+                                      srcStageMask,
+                                      dstStageMask,
+                                      0, 0, nullptr, 0, nullptr, 1, &barrier);
+
+    res = context->api.vkEndCommandBuffer(slot->commandBuffer);
+    if (res != VK_SUCCESS) {
+        qCWarning(lcWlRenderHelper)
+            << subject << phase
+            << "failed: vkEndCommandBuffer"
+            << vkResultName(res) << int(res);
+        return false;
+    }
+
+    VkSubmitInfo submitInfo = {};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &slot->commandBuffer;
+    if (exportSyncFile) {
+        submitInfo.signalSemaphoreCount = 1;
+        submitInfo.pSignalSemaphores = &slot->semaphore;
+    }
+
+    res = context->api.vkQueueSubmit(handles->gfxQueue, 1, &submitInfo, slot->fence);
+    if (res != VK_SUCCESS) {
+        qCWarning(lcWlRenderHelper)
+            << subject << phase
+            << "failed: vkQueueSubmit"
+            << vkResultName(res) << int(res);
+        return false;
+    }
+
+    slot->busy = true;
+
+    if (!exportSyncFile)
+        return true;
+
+    VkSemaphoreGetFdInfoKHR getFdInfo = {};
+    getFdInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_GET_FD_INFO_KHR;
+    getFdInfo.semaphore = slot->semaphore;
+    getFdInfo.handleType = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_SYNC_FD_BIT;
+
+    int syncFileFd = -1;
+    res = context->api.vkGetSemaphoreFdKHR(handles->dev, &getFdInfo, &syncFileFd);
+    if (res != VK_SUCCESS || syncFileFd < 0) {
+        qCWarning(lcWlRenderHelper)
+            << subject << phase
+            << "failed: vkGetSemaphoreFdKHR"
+            << vkResultName(res) << int(res)
+            << "fd" << syncFileFd;
+        return false;
+    }
+
+    const bool ok = importSyncFileIntoDmabuf(buffer, syncFileFd, phase);
+    close(syncFileFd);
+    return ok;
+}
+
 static bool submitVulkanOutputTargetBarrier(QRhi *rhi,
                                             VulkanImportedRenderTarget *target,
                                             qw_buffer *buffer,
@@ -780,237 +1137,21 @@ static bool submitVulkanOutputTargetBarrier(QRhi *rhi,
     if (!rhi || !target || !target->isValid())
         return false;
 
-    flushPendingVulkanCommandCleanups(false);
-
-    const auto *handles = static_cast<const QRhiVulkanNativeHandles *>(rhi->nativeHandles());
-    if (!handles || !handles->dev || !handles->gfxQueue || !handles->inst) {
-        qCWarning(lcWlRenderHelper)
-            << "Vulkan RHI output" << phase
-            << "failed: QRhi Vulkan native handles unavailable";
-        return false;
-    }
-
-    if (handles->dev != target->device) {
-        qCWarning(lcWlRenderHelper)
-            << "Vulkan RHI output" << phase
-            << "failed: QRhi device differs from imported output target"
-            << "rhi" << Qt::hex << vulkanHandleToInteger(handles->dev)
-            << "target" << vulkanHandleToInteger(target->device) << Qt::dec;
-        return false;
-    }
-
-    auto vkGetDeviceProcAddr = resolveVkGetDeviceProcAddr();
-    if (!vkGetDeviceProcAddr) {
-        qCWarning(lcWlRenderHelper)
-            << "Vulkan RHI output" << phase
-            << "failed: vkGetDeviceProcAddr unavailable";
-        return false;
-    }
-
-    VkDevice device = handles->dev;
-    VkQueue queue = handles->gfxQueue;
-
-    auto vkCreateCommandPool = reinterpret_cast<PFN_vkCreateCommandPool>(
-        vkGetDeviceProcAddr(device, "vkCreateCommandPool"));
-    auto vkDestroyCommandPool = reinterpret_cast<PFN_vkDestroyCommandPool>(
-        vkGetDeviceProcAddr(device, "vkDestroyCommandPool"));
-    auto vkAllocateCommandBuffers = reinterpret_cast<PFN_vkAllocateCommandBuffers>(
-        vkGetDeviceProcAddr(device, "vkAllocateCommandBuffers"));
-    auto vkFreeCommandBuffers = reinterpret_cast<PFN_vkFreeCommandBuffers>(
-        vkGetDeviceProcAddr(device, "vkFreeCommandBuffers"));
-    auto vkBeginCommandBuffer = reinterpret_cast<PFN_vkBeginCommandBuffer>(
-        vkGetDeviceProcAddr(device, "vkBeginCommandBuffer"));
-    auto vkEndCommandBuffer = reinterpret_cast<PFN_vkEndCommandBuffer>(
-        vkGetDeviceProcAddr(device, "vkEndCommandBuffer"));
-    auto vkCmdPipelineBarrier = reinterpret_cast<PFN_vkCmdPipelineBarrier>(
-        vkGetDeviceProcAddr(device, "vkCmdPipelineBarrier"));
-    auto vkQueueSubmit = reinterpret_cast<PFN_vkQueueSubmit>(
-        vkGetDeviceProcAddr(device, "vkQueueSubmit"));
-    auto vkCreateFence = reinterpret_cast<PFN_vkCreateFence>(
-        vkGetDeviceProcAddr(device, "vkCreateFence"));
-    auto vkDestroyFence = reinterpret_cast<PFN_vkDestroyFence>(
-        vkGetDeviceProcAddr(device, "vkDestroyFence"));
-    auto vkCreateSemaphore = reinterpret_cast<PFN_vkCreateSemaphore>(
-        vkGetDeviceProcAddr(device, "vkCreateSemaphore"));
-    auto vkDestroySemaphore = reinterpret_cast<PFN_vkDestroySemaphore>(
-        vkGetDeviceProcAddr(device, "vkDestroySemaphore"));
-    auto vkGetSemaphoreFdKHR = reinterpret_cast<PFN_vkGetSemaphoreFdKHR>(
-        vkGetDeviceProcAddr(device, "vkGetSemaphoreFdKHR"));
-
-    if (!vkCreateCommandPool || !vkDestroyCommandPool || !vkAllocateCommandBuffers
-        || !vkFreeCommandBuffers || !vkBeginCommandBuffer || !vkEndCommandBuffer
-        || !vkCmdPipelineBarrier || !vkQueueSubmit || !vkCreateFence || !vkDestroyFence
-        || (exportSyncFile && (!vkCreateSemaphore || !vkDestroySemaphore || !vkGetSemaphoreFdKHR))) {
-        qCWarning(lcWlRenderHelper)
-            << "Vulkan RHI output" << phase
-            << "failed: required Vulkan command/sync functions unavailable"
-            << "exportSyncFile" << exportSyncFile;
-        return false;
-    }
-
-    VkCommandPoolCreateInfo poolInfo = {};
-    poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-    poolInfo.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
-    poolInfo.queueFamilyIndex = handles->gfxQueueFamilyIdx;
-
-    VkCommandPool commandPool = VK_NULL_HANDLE;
-    VkResult res = vkCreateCommandPool(device, &poolInfo, nullptr, &commandPool);
-    if (res != VK_SUCCESS) {
-        qCWarning(lcWlRenderHelper)
-            << "Vulkan RHI output" << phase
-            << "failed: vkCreateCommandPool"
-            << vkResultName(res) << int(res);
-        return false;
-    }
-
-    VkCommandBufferAllocateInfo allocInfo = {};
-    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    allocInfo.commandPool = commandPool;
-    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocInfo.commandBufferCount = 1;
-
-    VkCommandBuffer cb = VK_NULL_HANDLE;
-    res = vkAllocateCommandBuffers(device, &allocInfo, &cb);
-    if (res != VK_SUCCESS) {
-        qCWarning(lcWlRenderHelper)
-            << "Vulkan RHI output" << phase
-            << "failed: vkAllocateCommandBuffers"
-            << vkResultName(res) << int(res);
-        vkDestroyCommandPool(device, commandPool, nullptr);
-        return false;
-    }
-
-    VkCommandBufferBeginInfo beginInfo = {};
-    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-    res = vkBeginCommandBuffer(cb, &beginInfo);
-    if (res != VK_SUCCESS) {
-        qCWarning(lcWlRenderHelper)
-            << "Vulkan RHI output" << phase
-            << "failed: vkBeginCommandBuffer"
-            << vkResultName(res) << int(res);
-        vkFreeCommandBuffers(device, commandPool, 1, &cb);
-        vkDestroyCommandPool(device, commandPool, nullptr);
-        return false;
-    }
-
-    VkImageMemoryBarrier barrier = {};
-    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    barrier.srcQueueFamilyIndex = srcQueueFamily;
-    barrier.dstQueueFamilyIndex = dstQueueFamily;
-    barrier.image = target->image;
-    barrier.oldLayout = oldLayout;
-    barrier.newLayout = newLayout;
-    barrier.srcAccessMask = srcAccessMask;
-    barrier.dstAccessMask = dstAccessMask;
-    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    barrier.subresourceRange.layerCount = 1;
-    barrier.subresourceRange.levelCount = 1;
-
-    vkCmdPipelineBarrier(cb, srcStageMask, dstStageMask,
-                         0, 0, nullptr, 0, nullptr, 1, &barrier);
-
-    res = vkEndCommandBuffer(cb);
-    if (res != VK_SUCCESS) {
-        qCWarning(lcWlRenderHelper)
-            << "Vulkan RHI output" << phase
-            << "failed: vkEndCommandBuffer"
-            << vkResultName(res) << int(res);
-        vkFreeCommandBuffers(device, commandPool, 1, &cb);
-        vkDestroyCommandPool(device, commandPool, nullptr);
-        return false;
-    }
-
-    VkSemaphore semaphore = VK_NULL_HANDLE;
-    if (exportSyncFile) {
-        VkExportSemaphoreCreateInfo exportInfo = {};
-        exportInfo.sType = VK_STRUCTURE_TYPE_EXPORT_SEMAPHORE_CREATE_INFO;
-        exportInfo.handleTypes = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_SYNC_FD_BIT;
-
-        VkSemaphoreCreateInfo semInfo = {};
-        semInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-        semInfo.pNext = &exportInfo;
-
-        res = vkCreateSemaphore(device, &semInfo, nullptr, &semaphore);
-        if (res != VK_SUCCESS) {
-            qCWarning(lcWlRenderHelper)
-                << "Vulkan RHI output" << phase
-                << "failed: vkCreateSemaphore"
-                << vkResultName(res) << int(res);
-            vkFreeCommandBuffers(device, commandPool, 1, &cb);
-            vkDestroyCommandPool(device, commandPool, nullptr);
-            return false;
-        }
-    }
-
-    VkFenceCreateInfo fenceInfo = {};
-    fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-
-    VkFence fence = VK_NULL_HANDLE;
-    res = vkCreateFence(device, &fenceInfo, nullptr, &fence);
-    if (res != VK_SUCCESS) {
-        qCWarning(lcWlRenderHelper)
-            << "Vulkan RHI output" << phase
-            << "failed: vkCreateFence"
-            << vkResultName(res) << int(res);
-        if (semaphore != VK_NULL_HANDLE)
-            vkDestroySemaphore(device, semaphore, nullptr);
-        vkFreeCommandBuffers(device, commandPool, 1, &cb);
-        vkDestroyCommandPool(device, commandPool, nullptr);
-        return false;
-    }
-
-    VkSubmitInfo submitInfo = {};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &cb;
-    if (semaphore != VK_NULL_HANDLE) {
-        submitInfo.signalSemaphoreCount = 1;
-        submitInfo.pSignalSemaphores = &semaphore;
-    }
-
-    res = vkQueueSubmit(queue, 1, &submitInfo, fence);
-    if (res != VK_SUCCESS) {
-        qCWarning(lcWlRenderHelper)
-            << "Vulkan RHI output" << phase
-            << "failed: vkQueueSubmit"
-            << vkResultName(res) << int(res);
-        if (semaphore != VK_NULL_HANDLE)
-            vkDestroySemaphore(device, semaphore, nullptr);
-        vkDestroyFence(device, fence, nullptr);
-        vkFreeCommandBuffers(device, commandPool, 1, &cb);
-        vkDestroyCommandPool(device, commandPool, nullptr);
-        return false;
-    }
-
-    bool ok = true;
-    if (semaphore != VK_NULL_HANDLE) {
-        VkSemaphoreGetFdInfoKHR getFdInfo = {};
-        getFdInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_GET_FD_INFO_KHR;
-        getFdInfo.semaphore = semaphore;
-        getFdInfo.handleType = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_SYNC_FD_BIT;
-
-        int syncFileFd = -1;
-        res = vkGetSemaphoreFdKHR(device, &getFdInfo, &syncFileFd);
-        if (res != VK_SUCCESS || syncFileFd < 0) {
-            qCWarning(lcWlRenderHelper)
-                << "Vulkan RHI output" << phase
-                << "failed: vkGetSemaphoreFdKHR"
-                << vkResultName(res) << int(res)
-                << "fd" << syncFileFd;
-            ok = false;
-        } else {
-            ok = importSyncFileIntoDmabuf(buffer, syncFileFd, phase);
-            close(syncFileFd);
-        }
-    }
-
-    PendingVulkanCommandCleanup cleanup;
-    cleanup.device = device;
-    cleanup.commandPool = commandPool;
-    cleanup.fence = fence;
-    cleanup.semaphore = semaphore;
-    queuePendingVulkanCommandCleanup(&cleanup);
+    const bool ok = submitVulkanImageBarrier(rhi,
+                                             target->device,
+                                             target->image,
+                                             buffer,
+                                             "Vulkan RHI output",
+                                             phase,
+                                             oldLayout,
+                                             newLayout,
+                                             srcQueueFamily,
+                                             dstQueueFamily,
+                                             srcAccessMask,
+                                             dstAccessMask,
+                                             srcStageMask,
+                                             dstStageMask,
+                                             exportSyncFile);
 
     if (ok) {
         qCDebug(lcWlRenderHelper)
@@ -2331,8 +2472,6 @@ static bool acquireVulkanNativeTextureForSampling(QRhi *rhi,
     if (!rhi || !texture || !texture->isValid())
         return false;
 
-    flushPendingVulkanCommandCleanups(false);
-
     const auto *handles = static_cast<const QRhiVulkanNativeHandles *>(rhi->nativeHandles());
     if (!handles || !handles->dev || !handles->gfxQueue || !handles->inst) {
         qCWarning(lcWlRenderHelper)
@@ -2348,154 +2487,29 @@ static bool acquireVulkanNativeTextureForSampling(QRhi *rhi,
         return false;
     }
 
-    auto vkGetDeviceProcAddr = resolveVkGetDeviceProcAddr();
-    if (!vkGetDeviceProcAddr) {
-        qCWarning(lcWlRenderHelper)
-            << "Vulkan RHI client texture acquire failed: vkGetDeviceProcAddr unavailable";
-        return false;
-    }
-
     VkDevice device = handles->dev;
     VkQueue queue = handles->gfxQueue;
     texture->queue = queue;
     texture->queueFamilyIndex = handles->gfxQueueFamilyIdx;
 
-    auto vkCreateCommandPool = reinterpret_cast<PFN_vkCreateCommandPool>(
-        vkGetDeviceProcAddr(device, "vkCreateCommandPool"));
-    auto vkDestroyCommandPool = reinterpret_cast<PFN_vkDestroyCommandPool>(
-        vkGetDeviceProcAddr(device, "vkDestroyCommandPool"));
-    auto vkAllocateCommandBuffers = reinterpret_cast<PFN_vkAllocateCommandBuffers>(
-        vkGetDeviceProcAddr(device, "vkAllocateCommandBuffers"));
-    auto vkFreeCommandBuffers = reinterpret_cast<PFN_vkFreeCommandBuffers>(
-        vkGetDeviceProcAddr(device, "vkFreeCommandBuffers"));
-    auto vkBeginCommandBuffer = reinterpret_cast<PFN_vkBeginCommandBuffer>(
-        vkGetDeviceProcAddr(device, "vkBeginCommandBuffer"));
-    auto vkEndCommandBuffer = reinterpret_cast<PFN_vkEndCommandBuffer>(
-        vkGetDeviceProcAddr(device, "vkEndCommandBuffer"));
-    auto vkCmdPipelineBarrier = reinterpret_cast<PFN_vkCmdPipelineBarrier>(
-        vkGetDeviceProcAddr(device, "vkCmdPipelineBarrier"));
-    auto vkQueueSubmit = reinterpret_cast<PFN_vkQueueSubmit>(
-        vkGetDeviceProcAddr(device, "vkQueueSubmit"));
-    auto vkCreateFence = reinterpret_cast<PFN_vkCreateFence>(
-        vkGetDeviceProcAddr(device, "vkCreateFence"));
-    auto vkDestroyFence = reinterpret_cast<PFN_vkDestroyFence>(
-        vkGetDeviceProcAddr(device, "vkDestroyFence"));
-
-    if (!vkCreateCommandPool || !vkDestroyCommandPool || !vkAllocateCommandBuffers
-        || !vkFreeCommandBuffers || !vkBeginCommandBuffer || !vkEndCommandBuffer
-        || !vkCmdPipelineBarrier || !vkQueueSubmit || !vkCreateFence || !vkDestroyFence) {
-        qCWarning(lcWlRenderHelper)
-            << "Vulkan RHI client texture acquire failed: required Vulkan command functions unavailable";
-        return false;
-    }
-
-    VkCommandPoolCreateInfo poolInfo = {};
-    poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-    poolInfo.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
-    poolInfo.queueFamilyIndex = handles->gfxQueueFamilyIdx;
-
-    VkCommandPool commandPool = VK_NULL_HANDLE;
-    VkResult res = vkCreateCommandPool(device, &poolInfo, nullptr, &commandPool);
-    if (res != VK_SUCCESS) {
-        qCWarning(lcWlRenderHelper)
-            << "Vulkan RHI client texture acquire failed: vkCreateCommandPool"
-            << vkResultName(res) << int(res);
-        return false;
-    }
-
-    VkCommandBufferAllocateInfo allocInfo = {};
-    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    allocInfo.commandPool = commandPool;
-    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocInfo.commandBufferCount = 1;
-
-    VkCommandBuffer cb = VK_NULL_HANDLE;
-    res = vkAllocateCommandBuffers(device, &allocInfo, &cb);
-    if (res != VK_SUCCESS) {
-        qCWarning(lcWlRenderHelper)
-            << "Vulkan RHI client texture acquire failed: vkAllocateCommandBuffers"
-            << vkResultName(res) << int(res);
-        vkDestroyCommandPool(device, commandPool, nullptr);
-        return false;
-    }
-
-    VkCommandBufferBeginInfo beginInfo = {};
-    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-    res = vkBeginCommandBuffer(cb, &beginInfo);
-    if (res != VK_SUCCESS) {
-        qCWarning(lcWlRenderHelper)
-            << "Vulkan RHI client texture acquire failed: vkBeginCommandBuffer"
-            << vkResultName(res) << int(res);
-        vkFreeCommandBuffers(device, commandPool, 1, &cb);
-        vkDestroyCommandPool(device, commandPool, nullptr);
-        return false;
-    }
-
     const VkImageLayout oldLayout = texture->layout;
-    VkImageMemoryBarrier barrier = {};
-    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_FOREIGN_EXT;
-    barrier.dstQueueFamilyIndex = handles->gfxQueueFamilyIdx;
-    barrier.image = texture->image;
-    barrier.oldLayout = oldLayout;
-    barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    barrier.srcAccessMask = 0;
-    barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    barrier.subresourceRange.layerCount = 1;
-    barrier.subresourceRange.levelCount = 1;
-
-    vkCmdPipelineBarrier(cb,
-                         VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-                         VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                         0, 0, nullptr, 0, nullptr, 1, &barrier);
-
-    res = vkEndCommandBuffer(cb);
-    if (res != VK_SUCCESS) {
-        qCWarning(lcWlRenderHelper)
-            << "Vulkan RHI client texture acquire failed: vkEndCommandBuffer"
-            << vkResultName(res) << int(res);
-        vkFreeCommandBuffers(device, commandPool, 1, &cb);
-        vkDestroyCommandPool(device, commandPool, nullptr);
+    if (!submitVulkanImageBarrier(rhi,
+                                  device,
+                                  texture->image,
+                                  nullptr,
+                                  "Vulkan RHI client texture",
+                                  "acquire",
+                                  oldLayout,
+                                  VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                                  VK_QUEUE_FAMILY_FOREIGN_EXT,
+                                  handles->gfxQueueFamilyIdx,
+                                  0,
+                                  VK_ACCESS_SHADER_READ_BIT,
+                                  VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                                  VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                                  false)) {
         return false;
     }
-
-    VkSubmitInfo submitInfo = {};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &cb;
-
-    VkFenceCreateInfo fenceInfo = {};
-    fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-
-    VkFence fence = VK_NULL_HANDLE;
-    res = vkCreateFence(device, &fenceInfo, nullptr, &fence);
-    if (res != VK_SUCCESS) {
-        qCWarning(lcWlRenderHelper)
-            << "Vulkan RHI client texture acquire failed: vkCreateFence"
-            << vkResultName(res) << int(res);
-        vkFreeCommandBuffers(device, commandPool, 1, &cb);
-        vkDestroyCommandPool(device, commandPool, nullptr);
-        return false;
-    }
-
-    res = vkQueueSubmit(queue, 1, &submitInfo, fence);
-    if (res != VK_SUCCESS) {
-        qCWarning(lcWlRenderHelper)
-            << "Vulkan RHI client texture acquire failed: vkQueueSubmit"
-            << vkResultName(res) << int(res);
-        vkDestroyFence(device, fence, nullptr);
-        vkFreeCommandBuffers(device, commandPool, 1, &cb);
-        vkDestroyCommandPool(device, commandPool, nullptr);
-        return false;
-    }
-
-    PendingVulkanCommandCleanup cleanup;
-    cleanup.device = device;
-    cleanup.commandPool = commandPool;
-    cleanup.fence = fence;
-    queuePendingVulkanCommandCleanup(&cleanup);
 
     texture->layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     qCDebug(lcWlRenderHelper)

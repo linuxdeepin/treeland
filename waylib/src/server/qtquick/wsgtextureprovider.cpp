@@ -116,6 +116,7 @@ public:
         uint32_t drmFormat = 0;
         uint64_t drmModifier = 0;
         bool hasAlpha = false;
+        quint32 contentSerial = 0;
         quint64 lastUsed = 0;
     };
 
@@ -199,6 +200,7 @@ public:
             nativeCleanup = {};
             if (buffer == entry.buffer)
                 buffer = nullptr;
+            bufferContentSerial = 0;
         }
 
         qCDebug(lcWlQtQuickTexture)
@@ -249,10 +251,14 @@ public:
     }
 
     void activateVulkanDmabufTextureCacheEntry(int index, qw_buffer *newBuffer,
-                                               const char *backendName, bool cacheHit)
+                                               quint32 newBufferContentSerial,
+                                               const char *backendName, bool cacheHit,
+                                               bool reacquired)
     {
         auto &entry = vulkanDmabufTextureCache[index];
         entry.lastUsed = ++vulkanDmabufTextureUseSerial;
+        if (newBufferContentSerial != 0)
+            entry.contentSerial = newBufferContentSerial;
 
         auto oldTexture = texture;
         const bool oldOwnsTexture = ownsTexture;
@@ -262,6 +268,7 @@ public:
         texture = nullptr;
         ownsTexture = false;
         buffer = newBuffer;
+        bufferContentSerial = newBufferContentSerial;
         qtTexture.setOwnsTexture(false);
         qtTexture.setTexture(entry.rhiTexture);
         qtTexture.setHasAlphaChannel(entry.hasAlpha);
@@ -273,7 +280,9 @@ public:
             << "Vulkan renderer dmabuf texture import path"
             << "qtBackend" << backendName
             << "cacheHit" << cacheHit
+            << "reacquired" << reacquired
             << "buffer" << pointerAddress(newBuffer)
+            << "contentSerial" << newBufferContentSerial
             << "rhiTexture" << rhiTexture
             << "size" << entry.size
             << "format" << Qt::hex << entry.drmFormat << Qt::dec
@@ -326,6 +335,7 @@ public:
         texture = nullptr;
         ownsTexture = false;
         buffer = nullptr;
+        bufferContentSerial = 0;
 #ifdef ENABLE_VULKAN_RENDER
         clearVulkanDmabufTextureCache();
 #endif
@@ -333,7 +343,8 @@ public:
 
     bool replaceTexture(qw_texture *newTexture, bool newOwnsTexture, qw_buffer *newBuffer,
                         bool allowBufferDirectImport = true, wlr_surface *surface = nullptr,
-                        QRhiCommandBuffer *commandBuffer = nullptr) {
+                        QRhiCommandBuffer *commandBuffer = nullptr,
+                        quint32 newBufferContentSerial = 0) {
         Q_ASSERT(newTexture);
 
         WRenderHelper::NativeTextureCleanup newCleanup;
@@ -373,6 +384,7 @@ public:
         texture = newTexture;
         ownsTexture = newOwnsTexture;
         buffer = newBuffer;
+        bufferContentSerial = newBufferContentSerial;
         rhiTexture = qtTexture.rhiTexture();
         nativeCleanup = newCleanup;
 
@@ -383,7 +395,8 @@ public:
         return true;
     }
 
-    bool replaceBufferWithDirectDmabufTexture(qw_buffer *newBuffer, wlr_surface *surface)
+    bool replaceBufferWithDirectDmabufTexture(qw_buffer *newBuffer, wlr_surface *surface,
+                                             quint32 newBufferContentSerial)
     {
 #ifdef ENABLE_VULKAN_RENDER
         if (!newBuffer || !window || !window->rhi())
@@ -404,12 +417,22 @@ public:
             int cacheIndex = findVulkanDmabufTextureCacheEntry(newBuffer);
             if (cacheIndex >= 0) {
                 auto &entry = vulkanDmabufTextureCache[cacheIndex];
+                if (newBufferContentSerial != 0
+                    && entry.contentSerial == newBufferContentSerial
+                    && entry.rhiTexture) {
+                    activateVulkanDmabufTextureCacheEntry(cacheIndex, newBuffer,
+                                                          newBufferContentSerial,
+                                                          backendName, true, false);
+                    return true;
+                }
+
                 if (WRenderHelper::acquireImportedVulkanTextureFromBuffer(window->rhi(),
                                                                           newBuffer,
                                                                           surface,
                                                                           &entry.nativeCleanup)) {
                     activateVulkanDmabufTextureCacheEntry(cacheIndex, newBuffer,
-                                                          backendName, true);
+                                                          newBufferContentSerial,
+                                                          backendName, true, true);
                     return true;
                 }
 
@@ -434,13 +457,15 @@ public:
                 entry.drmFormat = importedTexture.drmFormat;
                 entry.drmModifier = importedTexture.drmModifier;
                 entry.hasAlpha = importedTexture.hasAlpha;
+                entry.contentSerial = newBufferContentSerial;
                 importedTexture.texture = nullptr;
                 importedTexture.nativeCleanup = {};
 
                 vulkanDmabufTextureCache.append(entry);
                 cacheIndex = vulkanDmabufTextureCache.size() - 1;
                 activateVulkanDmabufTextureCacheEntry(cacheIndex, newBuffer,
-                                                      backendName, false);
+                                                      newBufferContentSerial,
+                                                      backendName, false, true);
                 trimVulkanDmabufTextureCache();
                 return true;
             }
@@ -458,6 +483,7 @@ public:
         texture = nullptr;
         ownsTexture = false;
         buffer = newBuffer;
+        bufferContentSerial = newBufferContentSerial;
         rhiTexture = qtTexture.rhiTexture();
         nativeCleanup = newCleanup;
 
@@ -520,6 +546,7 @@ public:
     WRenderHelper::NativeTextureCleanup nativeCleanup;
     bool smooth = true;
     bool directBufferImportAllowed = false;
+    quint32 bufferContentSerial = 0;
 #ifdef ENABLE_VULKAN_RENDER
     QVector<DeferredVulkanTextureRelease> deferredVulkanTextureReleases;
     QVector<VulkanDmabufTextureCacheEntry> vulkanDmabufTextureCache;
@@ -581,16 +608,23 @@ void WSGTextureProvider::setDirectBufferImportAllowed(bool allowed)
 
 bool WSGTextureProvider::setBuffer(qw_buffer *buffer)
 {
-    return setBuffer(buffer, nullptr);
+    return setBuffer(buffer, nullptr, nullptr, 0);
 }
 
 bool WSGTextureProvider::setBuffer(qw_buffer *buffer, wlr_surface *surface)
 {
-    return setBuffer(buffer, surface, nullptr);
+    return setBuffer(buffer, surface, nullptr, 0);
 }
 
 bool WSGTextureProvider::setBuffer(qw_buffer *buffer, wlr_surface *surface,
                                    QRhiCommandBuffer *commandBuffer)
+{
+    return setBuffer(buffer, surface, commandBuffer, 0);
+}
+
+bool WSGTextureProvider::setBuffer(qw_buffer *buffer, wlr_surface *surface,
+                                   QRhiCommandBuffer *commandBuffer,
+                                   quint32 bufferContentSerial)
 {
     W_D(WSGTextureProvider);
 
@@ -612,6 +646,7 @@ bool WSGTextureProvider::setBuffer(qw_buffer *buffer, wlr_surface *surface,
     if (sameBuffer && !allowDirectBufferImport && !needsSameBufferUpload) {
         // The buffer object is not changed, but maybe the buffer's content is changed.
         // So should emit textureChanged() signal too.
+        d->bufferContentSerial = bufferContentSerial;
         if (buffer)
             Q_EMIT textureChanged();
         return true;
@@ -632,6 +667,8 @@ bool WSGTextureProvider::setBuffer(qw_buffer *buffer, wlr_surface *surface,
             << "bufferHasDmabuf" << bufferHasNativeDmabuf
             << "hasExistingTexture" << d->hasTexture()
             << "currentBuffer" << pointerAddress(d->buffer)
+            << "bufferContentSerial" << bufferContentSerial
+            << "currentBufferContentSerial" << d->bufferContentSerial
             << "commandBuffer" << pointerAddress(commandBuffer)
             << "size" << bufferSize(buffer);
 
@@ -645,7 +682,8 @@ bool WSGTextureProvider::setBuffer(qw_buffer *buffer, wlr_surface *surface,
         bool triedDirectBufferImport = false;
         if (directImportEligible) {
             triedDirectBufferImport = true;
-            if (d->replaceBufferWithDirectDmabufTexture(buffer, surface)) {
+            if (d->replaceBufferWithDirectDmabufTexture(buffer, surface,
+                                                        bufferContentSerial)) {
                 Q_EMIT textureChanged();
                 return true;
             }
@@ -679,7 +717,7 @@ bool WSGTextureProvider::setBuffer(qw_buffer *buffer, wlr_surface *surface,
 
         if (d->replaceTexture(texture, ownsTexture, buffer,
                               directImportEligible && !triedDirectBufferImport,
-                              surface, commandBuffer)) {
+                              surface, commandBuffer, bufferContentSerial)) {
             Q_EMIT textureChanged();
             return true;
         }
@@ -688,6 +726,7 @@ bool WSGTextureProvider::setBuffer(qw_buffer *buffer, wlr_surface *surface,
 
     d->cleanTexture();
     d->buffer = buffer;
+    d->bufferContentSerial = bufferContentSerial;
 
     if (buffer) {
         Q_ASSERT(d->window);
@@ -719,18 +758,26 @@ bool WSGTextureProvider::setBuffer(qw_buffer *buffer, wlr_surface *surface,
 
 bool WSGTextureProvider::setTexture(qw_texture *texture, qw_buffer *srcBuffer)
 {
-    return setTexture(texture, srcBuffer, nullptr);
+    return setTexture(texture, srcBuffer, nullptr, nullptr, 0);
 }
 
 bool WSGTextureProvider::setTexture(qw_texture *texture, qw_buffer *srcBuffer,
                                     wlr_surface *surface)
 {
-    return setTexture(texture, srcBuffer, surface, nullptr);
+    return setTexture(texture, srcBuffer, surface, nullptr, 0);
 }
 
 bool WSGTextureProvider::setTexture(qw_texture *texture, qw_buffer *srcBuffer,
                                     wlr_surface *surface,
                                     QRhiCommandBuffer *commandBuffer)
+{
+    return setTexture(texture, srcBuffer, surface, commandBuffer, 0);
+}
+
+bool WSGTextureProvider::setTexture(qw_texture *texture, qw_buffer *srcBuffer,
+                                    wlr_surface *surface,
+                                    QRhiCommandBuffer *commandBuffer,
+                                    quint32 bufferContentSerial)
 {
     W_D(WSGTextureProvider);
     if (d->isVulkanRenderer()) {
@@ -747,6 +794,8 @@ bool WSGTextureProvider::setTexture(qw_texture *texture, qw_buffer *srcBuffer,
             << "sourceBufferHasDmabuf" << sourceBufferHasDmabuf
             << "hasExistingTexture" << d->hasTexture()
             << "currentBuffer" << pointerAddress(d->buffer)
+            << "bufferContentSerial" << bufferContentSerial
+            << "currentBufferContentSerial" << d->bufferContentSerial
             << "commandBuffer" << pointerAddress(commandBuffer)
             << "sourceSize" << bufferSize(srcBuffer);
 
@@ -763,7 +812,8 @@ bool WSGTextureProvider::setTexture(qw_texture *texture, qw_buffer *srcBuffer,
         bool triedDirectBufferImport = false;
         if (srcBuffer && directImportEligible) {
             triedDirectBufferImport = true;
-            if (d->replaceBufferWithDirectDmabufTexture(srcBuffer, surface)) {
+            if (d->replaceBufferWithDirectDmabufTexture(srcBuffer, surface,
+                                                        bufferContentSerial)) {
                 Q_EMIT textureChanged();
                 return true;
             }
@@ -777,7 +827,7 @@ bool WSGTextureProvider::setTexture(qw_texture *texture, qw_buffer *srcBuffer,
 
         if (d->replaceTexture(texture, false, srcBuffer,
                               directImportEligible && !triedDirectBufferImport,
-                              surface, commandBuffer)) {
+                              surface, commandBuffer, bufferContentSerial)) {
             Q_EMIT textureChanged();
             return true;
         }
@@ -787,6 +837,7 @@ bool WSGTextureProvider::setTexture(qw_texture *texture, qw_buffer *srcBuffer,
     d->cleanTexture();
     d->texture = texture;
     d->buffer = srcBuffer;
+    d->bufferContentSerial = bufferContentSerial;
     d->ownsTexture = false;
     if (texture)
         d->updateRhiTexture(commandBuffer);

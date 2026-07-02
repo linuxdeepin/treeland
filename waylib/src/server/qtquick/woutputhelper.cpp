@@ -261,8 +261,7 @@ bool WOutputHelper::usesVulkanOutputLayerCompositor() const
     if (!d->renderer() || !d->renderer()->is_vk())
         return false;
 
-    return isVulkanOutputLayerCompositorRequested()
-        || WRenderHelper::getGraphicsApi() == QSGRendererInterface::Vulkan;
+    return isVulkanOutputLayerCompositorRequested();
 #else
     return false;
 #endif
@@ -315,10 +314,17 @@ bool WOutputHelper::commitWithVulkanOutputLayer(qw_buffer *sourceBuffer)
         return finishCommit(ok);
     }
 
-    if (Q_UNLIKELY(!usesVulkanOutputLayerCompositor())) {
+    if (Q_UNLIKELY(vulkanOutputLayerCompositorDisabled()
+                   || !d->renderer()
+                   || !d->renderer()->is_vk()
+                   || WRenderHelper::getGraphicsApi() != QSGRendererInterface::Vulkan)) {
         qCWarning(lcWlVulkanCompositor)
-            << "Vulkan output-layer compositor requested for non-Vulkan renderer on output"
-            << d->qwoutput()->handle()->name;
+            << "Vulkan output-layer compositor requested but unavailable on output"
+            << d->qwoutput()->handle()->name
+            << "disabled" << vulkanOutputLayerCompositorDisabled()
+            << "hasRenderer" << bool(d->renderer())
+            << "rendererIsVulkan" << (d->renderer() ? d->renderer()->is_vk() : false)
+            << "graphicsApi" << WRenderHelper::getGraphicsApi();
         return finishCommit(false);
     }
 
