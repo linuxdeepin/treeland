@@ -362,21 +362,6 @@ Helper::Helper(QObject *parent)
     });
 
     // Connect to systemd-logind's PrepareForSleep signal for hibernate blackout
-    bool connected = QDBusConnection::systemBus().connect(
-        "org.freedesktop.login1",           // service
-        "/org/freedesktop/login1",          // path
-        "org.freedesktop.login1.Manager",   // interface
-        "PrepareForSleep",                  // signal name
-        this,                               // receiver
-        SLOT(onPrepareForSleep(bool))       // slot
-    );
-
-    if (!connected) {
-        qCWarning(lcTlCore) << "Failed to connect to systemd-logind PrepareForSleep signal";
-    } else {
-        qCInfo(lcTlCore) << "Successfully connected to systemd-logind PrepareForSleep signal";
-    }
-
     // Also connect to SessionNew signal for logging purposes
     QDBusConnection::systemBus().connect(
         "org.freedesktop.login1",
@@ -2987,18 +2972,6 @@ void Helper::handleNewForeignToplevelCaptureRequest(wlr_ext_foreign_toplevel_ima
     if (!success) {
         qCWarning(lcTlCapture) << "Failed to accept foreign toplevel image capture request";
         delete imageCaptureSource;
-    }
-}
-
-void Helper::onPrepareForSleep(bool sleep)
-{
-    if (sleep) {
-        qCInfo(lcTlCore) << "Rendering black frames to all outputs before hibernate";
-        disableRender();
-        // TODO：should we disable output？
-    } else {
-        qCInfo(lcTlCore) << "Re-enabled rendering after hibernate";
-        enableRender();
     }
 }
 
