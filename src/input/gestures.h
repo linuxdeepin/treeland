@@ -134,9 +134,11 @@ public:
 
     void registerSwipeGesture(SwipeGesture *gesture);
     void unregisterSwipeGesture(SwipeGesture *gesture);
+    void removeSwipeGesture(SwipeGesture *gesture);
 
     void registerHoldGesture(HoldGesture *gesture);
     void unregisterHoldGesture(HoldGesture *gesture);
+    void removeHoldGesture(HoldGesture *gesture);
 
     int startSwipeGesture(uint fingerCount);
     int startSwipeGesture(const QPointF &startPos);
