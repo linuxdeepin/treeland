@@ -3,6 +3,10 @@
 
 #pragma once
 
+// TODO(unit-test): Helper is a singleton with deep coupling to the compositor runtime
+// (WServer, WSeat, WBackend, session manager, etc.), making it impossible to instantiate
+// in isolation. Ref: WM-29. Solution: Refactor to accept dependencies via constructor/parameters.
+
 #include "core/qmlengine.h"
 #include "modules/activation/activationmanagerinterfacev1.h"
 #include "modules/shortcut/shortcutmanager.h"
