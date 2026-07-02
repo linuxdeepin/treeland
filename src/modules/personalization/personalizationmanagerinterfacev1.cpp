@@ -213,6 +213,8 @@ public:
     Shadow shadow;
     Border border;
     PersonalizationWindowContextV1::WindowStates states;
+    PersonalizationWindowContextV1::DecorationState shadowState = PersonalizationWindowContextV1::DecorationState::NotSet;
+    PersonalizationWindowContextV1::DecorationState borderState = PersonalizationWindowContextV1::DecorationState::NotSet;
 
 protected:
     void destroy_resource(Resource *resource) override;
@@ -222,6 +224,8 @@ protected:
     void set_shadow(Resource *resource, int32_t radius, int32_t offset_x, int32_t offset_y, int32_t r, int32_t g, int32_t b, int32_t a) override;
     void set_border(Resource *resource, int32_t width, int32_t r, int32_t g, int32_t b, int32_t a) override;
     void set_titlebar(Resource *resource, int32_t mode) override;
+    void set_shadow_enabled(Resource *resource, uint32_t enabled) override;
+    void set_border_enabled(Resource *resource, uint32_t enabled) override;
 };
 
 PersonalizationWindowContextV1Private::PersonalizationWindowContextV1Private(
@@ -266,6 +270,7 @@ void PersonalizationWindowContextV1Private::set_shadow([[maybe_unused]] Resource
                                                         int32_t a)
 {
     shadow = Shadow{ radius, QPoint{ offset_x, offset_y }, QColor{ r, g, b, a } };
+    shadowState = PersonalizationWindowContextV1::DecorationState::Custom;
     Q_EMIT q->shadowChanged();
 }
 
@@ -277,6 +282,7 @@ void PersonalizationWindowContextV1Private::set_border([[maybe_unused]] Resource
                                                         int32_t a)
 {
     border = Border{ width, QColor{ r, g, b, a } };
+    borderState = PersonalizationWindowContextV1::DecorationState::Custom;
     Q_EMIT q->borderChanged();
 }
 
@@ -286,6 +292,48 @@ void PersonalizationWindowContextV1Private::set_titlebar([[maybe_unused]] Resour
         PersonalizationWindowContextV1::WindowState::NoTitleBar,
         mode == TREELAND_PERSONALIZATION_WINDOW_CONTEXT_V1_ENABLE_MODE_DISABLE);
     Q_EMIT q->windowStateChanged();
+}
+
+void PersonalizationWindowContextV1Private::set_shadow_enabled([[maybe_unused]] Resource *resource, uint32_t enabled)
+{
+    if (enabled) {
+        if (shadowState == PersonalizationWindowContextV1::DecorationState::NotSet) {
+            shadow = Shadow{ 40, QPoint{ 0, 10 }, QColor{ 0, 0, 0, 102 } };
+            shadowState = PersonalizationWindowContextV1::DecorationState::EnabledDefault;
+            Q_EMIT q->shadowChanged();
+        }
+        auto oldState = shadowState;
+        shadowState = PersonalizationWindowContextV1::DecorationState::EnabledDefault;
+        if (oldState != shadowState) {
+            Q_EMIT q->shadowStateChanged();
+        }
+    } else {
+        shadow = Shadow{};
+        shadowState = PersonalizationWindowContextV1::DecorationState::NotSet;
+        Q_EMIT q->shadowChanged();
+        Q_EMIT q->shadowStateChanged();
+    }
+}
+
+void PersonalizationWindowContextV1Private::set_border_enabled([[maybe_unused]] Resource *resource, uint32_t enabled)
+{
+    if (enabled) {
+        if (borderState == PersonalizationWindowContextV1::DecorationState::NotSet) {
+            border = Border{ 1, QColor{ 255, 255, 255, 26 } };
+            borderState = PersonalizationWindowContextV1::DecorationState::EnabledDefault;
+            Q_EMIT q->borderChanged();
+        }
+        auto oldState = borderState;
+        borderState = PersonalizationWindowContextV1::DecorationState::EnabledDefault;
+        if (oldState != borderState) {
+            Q_EMIT q->borderStateChanged();
+        }
+    } else {
+        border = Border{};
+        borderState = PersonalizationWindowContextV1::DecorationState::NotSet;
+        Q_EMIT q->borderChanged();
+        Q_EMIT q->borderStateChanged();
+    }
 }
 
 PersonalizationWindowContextV1::PersonalizationWindowContextV1(
@@ -326,6 +374,16 @@ Shadow PersonalizationWindowContextV1::shadow() const
 Border PersonalizationWindowContextV1::border() const
 {
     return d->border;
+}
+
+PersonalizationWindowContextV1::DecorationState PersonalizationWindowContextV1::shadowState() const
+{
+    return d->shadowState;
+}
+
+PersonalizationWindowContextV1::DecorationState PersonalizationWindowContextV1::borderState() const
+{
+    return d->borderState;
 }
 
 PersonalizationWindowContextV1 *PersonalizationWindowContextV1::get(wl_resource *resource)
@@ -1103,6 +1161,16 @@ bool Personalization::noTitlebar() const
     return m_states.testFlag(PersonalizationWindowContextV1::NoTitleBar);
 }
 
+bool Personalization::shadowEnabled() const
+{
+    return m_shadowState != PersonalizationWindowContextV1::DecorationState::NotSet;
+}
+
+bool Personalization::borderEnabled() const
+{
+    return m_borderState != PersonalizationWindowContextV1::DecorationState::NotSet;
+}
+
 void Personalization::setBackgroundType(BackgroundType type)
 {
     if (m_backgroundType == type)
@@ -1141,6 +1209,22 @@ void Personalization::setWindowStates(PersonalizationWindowContextV1::WindowStat
         return;
     m_states = states;
     Q_EMIT windowStateChanged();
+}
+
+void Personalization::setShadowState(PersonalizationWindowContextV1::DecorationState state)
+{
+    if (m_shadowState == state)
+        return;
+    m_shadowState = state;
+    Q_EMIT shadowStateChanged();
+}
+
+void Personalization::setBorderState(PersonalizationWindowContextV1::DecorationState state)
+{
+    if (m_borderState == state)
+        return;
+    m_borderState = state;
+    Q_EMIT borderStateChanged();
 }
 
 void PersonalizationManagerInterfaceV1::create(WServer *server)
