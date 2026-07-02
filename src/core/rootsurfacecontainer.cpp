@@ -8,6 +8,8 @@
 #include "seat/helper.h"
 #include "seat/seatsmanager.h"
 #include "surface/surfacewrapper.h"
+#include "treelandconfig.hpp"
+#include "wallpaper/wallpapermanager.h"
 #include "workspace/workspace.h"
 
 #include <wcursor.h>
@@ -21,9 +23,37 @@
 
 #include <qwoutputlayout.h>
 
+#include <QPointer>
 #include <QQuickWindow>
 
 WAYLIB_SERVER_USE_NAMESPACE
+
+namespace {
+
+void setPrimaryOutputConfig(Output *output)
+{
+    auto *helper = Helper::instance();
+    if (!helper)
+        return;
+
+    auto *config = helper->globalConfig();
+    auto setConfig = [config, output = QPointer<Output>(output)] {
+        const QString outputId = output ? WallpaperManager::getOutputId(output) : QString();
+        config->setPrimaryOutputId(outputId);
+    };
+
+    if (config->isInitializeSucceeded()) {
+        setConfig();
+    } else if (!config->isInitializeFailed()) {
+        QObject::connect(config,
+                         &TreelandConfig::configInitializeSucceed,
+                         helper,
+                         setConfig,
+                         Qt::SingleShotConnection);
+    }
+}
+
+}
 
 OutputListModel::OutputListModel(QObject *parent)
     : ObjectListModel("output", parent)
@@ -375,12 +405,15 @@ Output *RootSurfaceContainer::primaryOutput() const
     return m_primaryOutput;
 }
 
-void RootSurfaceContainer::setPrimaryOutput(Output *newPrimaryOutput)
+void RootSurfaceContainer::setPrimaryOutput(Output *newPrimaryOutput, bool updateDconfig)
 {
     if (m_primaryOutput == newPrimaryOutput)
         return;
+
     m_primaryOutput = newPrimaryOutput;
     Q_EMIT primaryOutputChanged();
+    if (updateDconfig)
+        setPrimaryOutputConfig(newPrimaryOutput);
 }
 
 const QList<Output *> &RootSurfaceContainer::outputs() const

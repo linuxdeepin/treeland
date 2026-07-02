@@ -7,6 +7,7 @@
 #include "core/rootsurfacecontainer.h"
 #include "output.h"
 #include "outputconfigstate.h"
+#include "wallpaper/wallpapermanager.h"
 
 OutputLifecycleManager::OutputLifecycleManager(RootSurfaceContainer *rootContainer,
                                                OutputConfigState *configState,

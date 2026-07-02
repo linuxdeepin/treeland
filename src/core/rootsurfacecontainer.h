@@ -82,7 +82,7 @@ public:
 
     Output *cursorOutput() const;
     Output *primaryOutput() const;
-    void setPrimaryOutput(Output *newPrimaryOutput);
+    void setPrimaryOutput(Output *newPrimaryOutput, bool updateDconfig = false);
     const QList<Output *> &outputs() const;
 
     void addOutput(Output *output) override;

@@ -181,7 +181,7 @@ void OutputManagerV1Private::set_primary_output(Resource *resource, const QStrin
     auto *rootSurfaceContainer = Helper::instance()->rootSurfaceContainer();
     for (Output *o : std::as_const(rootSurfaceContainer->outputs())) {
         if (o->output()->name() == output) {
-            rootSurfaceContainer->setPrimaryOutput(o);
+            rootSurfaceContainer->setPrimaryOutput(o, true);
             break;
         }
     }

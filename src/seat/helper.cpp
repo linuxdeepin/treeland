@@ -5,6 +5,7 @@
 #include "seatsmanager.h"
 #include <QScopeGuard>
 #include <QFile>
+#include <QRandomGenerator>
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QJsonObject>
@@ -47,6 +48,7 @@
 #include "output/output.h"
 #include "output/outputconfigstate.h"
 #include "output/outputlifecyclemanager.h"
+#include "outputconfig.hpp"
 #include "session/session.h"
 #include "surface/surfacecontainer.h"
 #include "surface/surfacewrapper.h"
@@ -133,6 +135,7 @@
 #include <QKeySequence>
 #include <QLoggingCategory>
 #include <QMouseEvent>
+#include <QPointer>
 #include <QQmlContext>
 #include <QQuickWindow>
 #include <QThreadPool>
@@ -175,6 +178,87 @@ static QByteArray readWindowProperty(xcb_connection_t *connection,
     } while (remaining > 0);
 
     return data;
+}
+
+static void runWhenOutputConfigInitialized(OutputConfig *config,
+                                           QObject *context,
+                                           std::function<void()> callback)
+{
+    if (!config || !context) {
+        return;
+    }
+
+    if (config->isInitializeSucceeded()) {
+        callback();
+        return;
+    }
+
+    QObject::connect(config,
+                     &OutputConfig::configInitializeSucceed,
+                     context,
+                     [callback = std::move(callback)] { callback(); });
+}
+
+static void runWhenTreelandConfigInitialized(TreelandConfig *config,
+                                             QObject *context,
+                                             std::function<void()> callback)
+{
+    if (!config || !context) {
+        return;
+    }
+
+    if (config->isInitializeSucceeded() || config->isInitializeFailed()) {
+        callback();
+        return;
+    }
+
+    auto sharedCallback = std::make_shared<std::function<void()>>(std::move(callback));
+    QObject::connect(config,
+                     &TreelandConfig::configInitializeSucceed,
+                     context,
+                     [sharedCallback] { (*sharedCallback)(); });
+    QObject::connect(config,
+                     &TreelandConfig::configInitializeFailed,
+                     context,
+                     [sharedCallback] { (*sharedCallback)(); });
+}
+
+static bool hasSavedOutputState(OutputConfig *config)
+{
+    return config && (!config->enabledIsDefaultValue()
+                      || !config->widthIsDefaultValue()
+                      || !config->heightIsDefaultValue()
+                      || !config->refreshIsDefaultValue()
+                      || !config->scaleIsDefaultValue()
+                      || !config->transformIsDefaultValue()
+                      || !config->adaptiveSyncEnabledIsDefaultValue());
+}
+
+static bool outputMatchesId(Output *output, const QString &outputId)
+{
+    return output && output->output() && output->output()->isEnabled()
+        && WallpaperManager::getOutputId(output) == outputId;
+}
+
+static bool currentPrimaryMatchesId(RootSurfaceContainer *rootContainer, const QString &outputId)
+{
+    return rootContainer && outputMatchesId(rootContainer->primaryOutput(), outputId);
+}
+
+static Output *findFirstEnabledOutput(RootSurfaceContainer *rootContainer,
+                                      Output *excludeOutput = nullptr)
+{
+    if (!rootContainer) {
+        return nullptr;
+    }
+
+    for (auto *output : rootContainer->outputs()) {
+        if (output != excludeOutput && output && output->output() && output->output()->isEnabled()) {
+            return output;
+        }
+    }
+
+    return nullptr;
 }
 
 Helper *Helper::m_instance = nullptr;
@@ -489,16 +573,77 @@ void Helper::onOutputAdded(WOutput *output)
 
     o->enable();
 
-    QString cache_location = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
-    QSettings settings(cache_location + "/output.ini", QSettings::IniFormat);
-    settings.beginGroup(QString("output.%1").arg(output->name()));
-    if (settings.contains("scale") && m_mode != OutputMode::Copy) {
+    auto publishOutput = [this, output, outputObject = QPointer<Output>(o)] {
+        if (!outputObject) {
+            return;
+        }
+
+        m_outputManager->newOutput(output);
+        m_wallpaperManager->ensureWallpaperConfigForOutput(outputObject);
+    };
+    auto restoreOutputConfig = [this, output, outputObject = QPointer<Output>(o), publishOutput] {
+        auto publish = qScopeGuard(publishOutput);
+        if (!outputObject || m_mode == OutputMode::Copy) {
+            return;
+        }
+
+        auto *config = outputObject->config();
+        const QString outputId = WallpaperManager::getOutputId(outputObject);
+        const QString primaryOutputId = m_globalConfig->primaryOutputId();
+        if (config->enabled() && primaryOutputId == outputId) {
+            m_rootSurfaceContainer->setPrimaryOutput(outputObject);
+        } else if (config->enabled()
+                   && m_rootSurfaceContainer->primaryOutput()
+                   && m_rootSurfaceContainer->primaryOutput()->output()
+                   && !m_rootSurfaceContainer->primaryOutput()->output()->isEnabled()
+                   && !currentPrimaryMatchesId(m_rootSurfaceContainer, primaryOutputId)) {
+            m_rootSurfaceContainer->setPrimaryOutput(outputObject);
+        }
+
+        if (!hasSavedOutputState(config)) {
+            return;
+        }
+
+        if (!config->enabled()) {
+            qw_output_state newState;
+            newState.set_enabled(false);
+            if (!output->handle()->commit_state(newState)) {
+                qCCritical(lcTlCore) << "commit failed on output" << output->name();
+            }
+            if (outputObject == m_rootSurfaceContainer->primaryOutput()) {
+                auto *fallbackOutput = findFirstEnabledOutput(m_rootSurfaceContainer, outputObject);
+                if (fallbackOutput) {
+                    m_rootSurfaceContainer->setPrimaryOutput(fallbackOutput);
+                }
+            }
+            return;
+        }
+
+        const int width = static_cast<int>(config->width());
+        const int height = static_cast<int>(config->height());
+        const int refresh = static_cast<int>(config->refresh());
+        const double scale = config->scale();
+        const qlonglong transform = config->transform();
+        if (width <= 0 || height <= 0 || refresh <= 0 || scale <= 0.0) {
+            qCWarning(lcTlCore) << "Ignoring invalid output dconfig for" << output->name()
+                                << "width:" << width
+                                << "height:" << height
+                                << "refresh:" << refresh
+                                << "scale:" << scale;
+            return;
+        }
+        if (transform < WL_OUTPUT_TRANSFORM_NORMAL || transform > WL_OUTPUT_TRANSFORM_FLIPPED_270) {
+            qCWarning(lcTlCore) << "Ignoring invalid output dconfig for" << output->name()
+                                << "transform:" << transform;
+            return;
+        }
+
         qw_output_state newState;
         newState.set_enabled(true);
 
-        int width = settings.value("width").toInt();
-        int height = settings.value("height").toInt();
-        int refresh = settings.value("refresh").toInt();
+        if (auto *layout = m_rootSurfaceContainer->outputLayout()) {
+            layout->move(output, QPoint(static_cast<int>(config->x()), static_cast<int>(config->y())));
+        }
 
         wlr_output_mode *mode, *configMode = nullptr;
         wl_list_for_each(mode, &output->nativeHandle()->modes, link) {
@@ -514,16 +659,37 @@ void Helper::onOutputAdded(WOutput *output)
                                      height,
                                      refresh);
 
-        newState.set_adaptive_sync_enabled(settings.value("adaptiveSyncEnabled").toBool());
-        newState.set_transform(static_cast<wl_output_transform>(settings.value("transform").toInt()));
-        newState.set_scale(settings.value("scale").toFloat());
+        newState.set_adaptive_sync_enabled(config->adaptiveSyncEnabled());
+        newState.set_transform(static_cast<wl_output_transform>(transform));
+        newState.set_scale(scale);
         if (!output->handle()->commit_state(newState)) {
             qCCritical(lcTlCore) << "commit failed on output" << output->name();
+            return;
         }
+
+        if (auto *outputItem = outputObject->outputItem()) {
+            QMetaObject::invokeMethod(outputItem,
+                                      "setTransform",
+                                      Q_ARG(QVariant, QVariant::fromValue(static_cast<WOutput::Transform>(transform))));
+        }
+    };
+    auto *outputConfig = o->config();
+    if (outputConfig->isInitializeFailed()) {
+        publishOutput();
+    } else {
+        if (!outputConfig->isInitializeSucceeded()) {
+            connect(outputConfig, &OutputConfig::configInitializeFailed, o, publishOutput);
+        }
+        runWhenOutputConfigInitialized(outputConfig,
+                                       o,
+                                       [this,
+                                        restoreOutputConfig = std::move(restoreOutputConfig),
+                                        outputObject = QPointer<Output>(o)]() mutable {
+                                           runWhenTreelandConfigInitialized(m_globalConfig.get(),
+                                                                           outputObject,
+                                                                           std::move(restoreOutputConfig));
+                                       });
     }
-    settings.endGroup();
-    m_outputManager->newOutput(output);
-    m_wallpaperManager->ensureWallpaperConfigForOutput(o);
 }
 
 void Helper::onOutputRemoved(WOutput *output)
@@ -801,11 +967,9 @@ void Helper::onOutputTestOrApply(qw_output_configuration_v1 *config, bool onlyTe
         WOutputHelper::ExtraState extraState;
         wlr_output_state_set_enabled(extraState.get(), state.enabled);
 
-        // Only set mode/scale/transform properties when enabling output
-        // Reason: wlroots doesn't allow setting these properties on disabled outputs
-        // When user disables output and changes properties:
-        //   1. Properties are saved in QSettings (see onOutputCommitFinished)
-        //   2. When re-enabling, properties are loaded from QSettings and applied here
+        // Only set mode/scale/transform properties when enabling output.
+        // wlroots doesn't allow setting these properties on disabled outputs,
+        // so they are persisted only after a successful enabled commit.
         if (state.enabled) {
             if (state.mode) {
                 wlr_output_state_set_mode(extraState.get(), state.mode);
@@ -893,27 +1057,52 @@ void Helper::onOutputCommitFinished(qw_output_configuration_v1 *config, bool suc
     if (m_pendingOutputConfig.pendingCommits == 0) {
         bool ok = m_pendingOutputConfig.allSuccess;
         if (ok) {
-            // TODO: Replace QSettings with DConfig to support customization
-            // and avoid IO operations in main thread
-            QString cache_location = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
-            QSettings settings(cache_location + "/output.ini", QSettings::IniFormat);
             for (const WOutputState &state : std::as_const(m_pendingOutputConfig.states)) {
-                // Only save configuration for enabled outputs
-                // Reason: When disabled, mode/scale/transform are not committed to wlroots,
-                // so we should not save uncommitted values
-                if (!state.enabled) {
-                    qCDebug(lcTlCore) << "Skipping config save for disabled output:" << state.output->name();
+                auto *output = getOutput(state.output);
+                if (!output) {
+                    qCWarning(lcTlCore) << "Cannot save output dconfig, output object not found:"
+                                        << state.output->name();
                     continue;
                 }
 
-                settings.beginGroup(QString("output.%1").arg(state.output->name()));
-                settings.setValue("width", state.mode ? state.mode->width : state.customModeSize.width());
-                settings.setValue("height", state.mode ? state.mode->height : state.customModeSize.height());
-                settings.setValue("refresh", state.mode ? state.mode->refresh : state.customModeRefresh);
-                settings.setValue("transform", state.transform);
-                settings.setValue("scale", state.scale);
-                settings.setValue("adaptiveSyncEnabled", state.adaptiveSyncEnabled);
-                settings.endGroup();
+                auto *outputConfig = output->config();
+                const bool enabled = state.enabled;
+                const qlonglong x = state.x;
+                const qlonglong y = state.y;
+                const qlonglong width = state.mode ? state.mode->width : state.customModeSize.width();
+                const qlonglong height = state.mode ? state.mode->height : state.customModeSize.height();
+                const qlonglong refresh = state.mode ? state.mode->refresh : state.customModeRefresh;
+                const qlonglong transform = output->output()->nativeHandle()->transform;
+                const double scale = state.scale;
+                const bool adaptiveSyncEnabled = state.adaptiveSyncEnabled;
+                runWhenOutputConfigInitialized(outputConfig, output, [outputConfig = QPointer<OutputConfig>(outputConfig),
+                                                                      enabled,
+                                                                      x,
+                                                                      y,
+                                                                      width,
+                                                                      height,
+                                                                      refresh,
+                                                                      transform,
+                                                                      scale,
+                                                                      adaptiveSyncEnabled] {
+                    if (!outputConfig) {
+                        return;
+                    }
+
+                    outputConfig->setEnabled(enabled);
+                    if (!enabled) {
+                        return;
+                    }
+
+                    outputConfig->setX(x);
+                    outputConfig->setY(y);
+                    outputConfig->setWidth(width);
+                    outputConfig->setHeight(height);
+                    outputConfig->setRefresh(refresh);
+                    outputConfig->setTransform(transform);
+                    outputConfig->setScale(scale);
+                    outputConfig->setAdaptiveSyncEnabled(adaptiveSyncEnabled);
+                });
             }
         }
         m_outputManager->sendResult(config, ok);
@@ -1735,6 +1924,16 @@ void Helper::init(Treeland::Treeland *treeland)
     }
 
     m_backend->handle()->start();
+
+    // If the stored primary output is no longer present, select a random one as primary
+    const QString primaryOutputId = m_globalConfig->primaryOutputId();
+    if (!currentPrimaryMatchesId(m_rootSurfaceContainer, primaryOutputId)) {
+        const auto &outputs = m_rootSurfaceContainer->outputs();
+        if (!outputs.isEmpty()) {
+            int randomIndex = QRandomGenerator::global()->bounded(outputs.size());
+            m_rootSurfaceContainer->setPrimaryOutput(outputs.at(randomIndex));
+        }
+    }
 }
 
 SeatsManager *Helper::seatManager() const
