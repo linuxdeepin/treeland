@@ -1,4 +1,4 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 import QtQuick
@@ -60,7 +60,7 @@ Item {
             // Maybe missing onPositionChanged when use touchscreen
             edges = WaylibHelper.getEdges(Qt.rect(0, 0, width, height), Qt.point(event.x, event.y), 10)
             if (edges)
-                surface.requestResize(edges)
+                surface.resizeRequested(edges)
         }
     }
 
@@ -70,13 +70,18 @@ Item {
         height: surface.height
         cornerRadius: surface.radius
         anchors.centerIn: parent
+        customShadowColor: surface.shadowParams.color
+        customShadowOffsetY: surface.shadowParams.offsetY
+        customShadowBlur: surface.shadowParams.radius
     }
 
     Border {
-        visible: surface.visibleDecoration
+        visible: surface.visibleDecoration && surface.borderParams.width > 0
         parent: surface.surfaceItem ? surface.surfaceItem : surface.prelaunchSplash
         z: SurfaceItem.ZOrder.ContentItem + 1
         anchors.fill: parent
         radius: surface.radius
+        borderWidth: surface.borderParams.width
+        borderColor: surface.borderParams.color
     }
 }

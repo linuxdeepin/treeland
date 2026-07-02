@@ -37,22 +37,9 @@
 DCORE_USE_NAMESPACE
 
 static QList<PersonalizationWindowContextV1 *> s_windowContexts;
-static QList<PersonalizationWallpaperContextV1 *> s_wallpaperContexts;
 static QList<PersonalizationCursorContextV1 *> s_cursorContexts;
 static QList<PersonalizationFontContextV1 *> s_fontContexts;
 static QList<PersonalizationAppearanceContextV1 *> s_appearanceContexts;
-
-#define DEFAULT_WALLPAPER "qrc:/desktop.webp"
-#define DEFAULT_WALLPAPER_ISDARK false
-
-static QString defaultBackground()
-{
-    static QString defaultBg = [] {
-        const QString configDefaultBg = Helper::instance()->config()->defaultBackground();
-        return QFile::exists(configDefaultBg) ? configDefaultBg : DEFAULT_WALLPAPER;
-    }();
-    return defaultBg;
-}
 
 static std::optional<int32_t> protocolWindowThemeTypeToDConfig(uint32_t type)
 {
@@ -62,11 +49,11 @@ static std::optional<int32_t> protocolWindowThemeTypeToDConfig(uint32_t type)
     case TREELAND_PERSONALIZATION_APPEARANCE_CONTEXT_V1_THEME_TYPE_DARK:
         return 2;
     case TREELAND_PERSONALIZATION_APPEARANCE_CONTEXT_V1_THEME_TYPE_AUTO:
-        qCCritical(treelandConfig)
+        qCCritical(lcTlConfig)
             << "Protocol window theme type AUTO is not supported by dconfig.";
         return std::nullopt;
     default:
-        qCWarning(treelandConfig) << "Unknown protocol window theme type:" << type;
+        qCWarning(lcTlConfig) << "Unknown protocol window theme type:" << type;
         return std::nullopt;
     }
 }
@@ -79,7 +66,7 @@ static uint32_t dconfigWindowThemeTypeToProtocol(int32_t type)
     case 2:
         return TREELAND_PERSONALIZATION_APPEARANCE_CONTEXT_V1_THEME_TYPE_DARK;
     default:
-        qCWarning(treelandConfig)
+        qCWarning(lcTlConfig)
             << "Unknown dconfig windowThemeType:" << type << ", fallback to light.";
         return TREELAND_PERSONALIZATION_APPEARANCE_CONTEXT_V1_THEME_TYPE_LIGHT;
     }
@@ -102,7 +89,6 @@ public:
 
 protected:
     void get_window_context(Resource *resource, uint32_t id, struct ::wl_resource *surface) override;
-    void get_wallpaper_context(Resource *resource, uint32_t id) override;
     void get_cursor_context(Resource *resource, uint32_t id) override;
     void get_font_context(Resource *resource, uint32_t id) override;
     void get_appearance_context(Resource *resource, uint32_t id) override;
@@ -146,26 +132,6 @@ void PersonalizationManagerInterfaceV1Private::get_window_context(Resource *reso
     });
 
     Q_EMIT q->windowContextCreated(context);
-}
-
-void PersonalizationManagerInterfaceV1Private::get_wallpaper_context(Resource *resource, uint32_t id)
-{
-    wl_resource *wallpaperContextResource = wl_resource_create(resource->client(),
-                                                            &treeland_personalization_wallpaper_context_v1_interface,
-                                                            resource->version(),
-                                                            id);
-    if (!wallpaperContextResource) {
-        wl_client_post_no_memory(resource->client());
-        return;
-    }
-
-    auto *context = new PersonalizationWallpaperContextV1(wallpaperContextResource);
-    s_wallpaperContexts.append(context);
-    QObject::connect(context, &QObject::destroyed, [context]() {
-        s_wallpaperContexts.removeOne(context);
-    });
-
-    Q_EMIT q->onWallpaperContextCreated(context);
 }
 
 void PersonalizationManagerInterfaceV1Private::get_cursor_context(Resource *resource, uint32_t id)
@@ -247,6 +213,8 @@ public:
     Shadow shadow;
     Border border;
     PersonalizationWindowContextV1::WindowStates states;
+    PersonalizationWindowContextV1::ShadowState shadowState = PersonalizationWindowContextV1::ShadowState::Unset;
+    PersonalizationWindowContextV1::BorderState borderState = PersonalizationWindowContextV1::BorderState::Unset;
 
 protected:
     void destroy_resource(Resource *resource) override;
@@ -255,6 +223,10 @@ protected:
     void set_round_corner_radius(Resource *resource, int32_t radius) override;
     void set_shadow(Resource *resource, int32_t radius, int32_t offset_x, int32_t offset_y, int32_t r, int32_t g, int32_t b, int32_t a) override;
     void set_border(Resource *resource, int32_t width, int32_t r, int32_t g, int32_t b, int32_t a) override;
+    void enable_shadow(Resource *resource) override;
+    void disable_shadow(Resource *resource) override;
+    void enable_border(Resource *resource) override;
+    void disable_border(Resource *resource) override;
     void set_titlebar(Resource *resource, int32_t mode) override;
 };
 
@@ -300,6 +272,8 @@ void PersonalizationWindowContextV1Private::set_shadow([[maybe_unused]] Resource
                                                         int32_t a)
 {
     shadow = Shadow{ radius, QPoint{ offset_x, offset_y }, QColor{ r, g, b, a } };
+    shadowState = PersonalizationWindowContextV1::ShadowState::Enabled;
+    send_shadow_configured(radius, offset_x, offset_y, r, g, b, a);
     Q_EMIT q->shadowChanged();
 }
 
@@ -311,6 +285,39 @@ void PersonalizationWindowContextV1Private::set_border([[maybe_unused]] Resource
                                                         int32_t a)
 {
     border = Border{ width, QColor{ r, g, b, a } };
+    borderState = PersonalizationWindowContextV1::BorderState::Enabled;
+    send_border_configured(width, r, g, b, a);
+    Q_EMIT q->borderChanged();
+}
+
+void PersonalizationWindowContextV1Private::enable_shadow([[maybe_unused]] Resource *resource)
+{
+    shadow = Shadow{ 40, QPoint{ 0, 10 }, QColor{ 0, 0, 0, 102 } };
+    shadowState = PersonalizationWindowContextV1::ShadowState::Enabled;
+    send_shadow_configured(shadow.radius, shadow.offset.x(), shadow.offset.y(),
+                           shadow.color.red(), shadow.color.green(),
+                           shadow.color.blue(), shadow.color.alpha());
+    Q_EMIT q->shadowChanged();
+}
+
+void PersonalizationWindowContextV1Private::disable_shadow([[maybe_unused]] Resource *resource)
+{
+    shadowState = PersonalizationWindowContextV1::ShadowState::Disabled;
+    Q_EMIT q->shadowChanged();
+}
+
+void PersonalizationWindowContextV1Private::enable_border([[maybe_unused]] Resource *resource)
+{
+    border = Border{ 1, QColor{ 255, 255, 255, 26 } };
+    borderState = PersonalizationWindowContextV1::BorderState::Enabled;
+    send_border_configured(border.width, border.color.red(), border.color.green(),
+                           border.color.blue(), border.color.alpha());
+    Q_EMIT q->borderChanged();
+}
+
+void PersonalizationWindowContextV1Private::disable_border([[maybe_unused]] Resource *resource)
+{
+    borderState = PersonalizationWindowContextV1::BorderState::Disabled;
     Q_EMIT q->borderChanged();
 }
 
@@ -357,14 +364,24 @@ Shadow PersonalizationWindowContextV1::shadow() const
     return d->shadow;
 }
 
+PersonalizationWindowContextV1::ShadowState PersonalizationWindowContextV1::shadowState() const
+{
+    return d->shadowState;
+}
+
 Border PersonalizationWindowContextV1::border() const
 {
     return d->border;
 }
 
+PersonalizationWindowContextV1::BorderState PersonalizationWindowContextV1::borderState() const
+{
+    return d->borderState;
+}
+
 PersonalizationWindowContextV1 *PersonalizationWindowContextV1::get(wl_resource *resource)
 {
-    for (auto *context : s_windowContexts) {
+    for (auto *context : std::as_const(s_windowContexts)) {
         if (context->resource() == resource) {
             return context;
         }
@@ -375,7 +392,7 @@ PersonalizationWindowContextV1 *PersonalizationWindowContextV1::get(wl_resource 
 
 PersonalizationWindowContextV1 *PersonalizationWindowContextV1::getWindowContext(WSurface *surface)
 {
-    for (auto *context : s_windowContexts) {
+    for (auto *context : std::as_const(s_windowContexts)) {
         if (context->surface() == surface->handle()->handle()) {
             return context;
         }
@@ -387,157 +404,6 @@ PersonalizationWindowContextV1 *PersonalizationWindowContextV1::getWindowContext
 PersonalizationWindowContextV1::WindowStates PersonalizationWindowContextV1::states() const
 {
     return d->states;
-}
-
-
-
-class PersonalizationWallpaperContextV1Private
-    : public QtWaylandServer::treeland_personalization_wallpaper_context_v1
-{
-public:
-    PersonalizationWallpaperContextV1Private(PersonalizationWallpaperContextV1 *_q,
-                                             wl_resource *resource);
-    ~PersonalizationWallpaperContextV1Private() override = default;
-
-    PersonalizationWallpaperContextV1 *q = nullptr;
-
-    int32_t fd = -1;
-    uint32_t uid = 0;
-    uint32_t options = 0;
-    bool isDark = false;
-    QString metaData;
-    QString identifier;
-    QString outputName;
-
-protected:
-    void destroy_resource(Resource *resource) override;
-    void destroy(Resource *resource) override;
-    void set_fd(Resource *resource, int32_t fd, const QString &metadata) override;
-    void set_identifier(Resource *resource, const QString &identifier) override;
-    void set_output(Resource *resource, const QString &output) override;
-    void set_on(Resource *resource, uint32_t options) override;
-    void set_isdark(Resource *resource, uint32_t isdark) override;
-    void commit(Resource *resource) override;
-    void get_metadata(Resource *resource) override;
-};
-
-PersonalizationWallpaperContextV1Private::PersonalizationWallpaperContextV1Private(
-    PersonalizationWallpaperContextV1 *_q,
-    wl_resource *resource)
-    : QtWaylandServer::treeland_personalization_wallpaper_context_v1(resource)
-    , q(_q)
-{
-}
-
-void PersonalizationWallpaperContextV1Private::destroy_resource([[maybe_unused]] Resource *resource)
-{
-    delete q;
-}
-
-void PersonalizationWallpaperContextV1Private::destroy(Resource *resource)
-{
-    wl_resource_destroy(resource->handle);
-}
-
-void PersonalizationWallpaperContextV1Private::set_fd([[maybe_unused]] Resource *resource, int32_t _fd, const QString &_metadata)
-{
-    fd = _fd;
-    metaData = _metadata;
-}
-
-void PersonalizationWallpaperContextV1Private::set_identifier([[maybe_unused]] Resource *resource, const QString &_identifier)
-{
-    identifier = _identifier;
-}
-
-void PersonalizationWallpaperContextV1Private::set_output([[maybe_unused]] Resource *resource, const QString &_output)
-{
-    outputName = _output;
-}
-
-void PersonalizationWallpaperContextV1Private::set_on([[maybe_unused]] Resource *resource, uint32_t _options)
-{
-    options = _options;
-}
-
-void PersonalizationWallpaperContextV1Private::set_isdark([[maybe_unused]] Resource *resource, uint32_t _isdark)
-{
-    isDark = _isdark;
-}
-
-void PersonalizationWallpaperContextV1Private::commit([[maybe_unused]] Resource *resource)
-{
-    Q_EMIT q->commit(q);
-}
-
-void PersonalizationWallpaperContextV1Private::get_metadata([[maybe_unused]] Resource *resource)
-{
-    Q_EMIT q->getWallpapers(q);
-}
-
-PersonalizationWallpaperContextV1::PersonalizationWallpaperContextV1(wl_resource *resource)
-    : QObject(nullptr)
-    , d(new PersonalizationWallpaperContextV1Private(this, resource))
-{
-}
-
-PersonalizationWallpaperContextV1::~PersonalizationWallpaperContextV1() = default;
-
-wl_resource *PersonalizationWallpaperContextV1::resource() const
-{
-    return d->resource()->handle;
-}
-
-int32_t PersonalizationWallpaperContextV1::fd() const
-{
-    return d->fd;
-}
-
-uint32_t PersonalizationWallpaperContextV1::uid() const
-{
-    return d->uid;
-}
-
-uint32_t PersonalizationWallpaperContextV1::options() const
-{
-    return d->options;
-}
-
-bool PersonalizationWallpaperContextV1::isDark() const
-{
-    return d->isDark;
-}
-
-QString PersonalizationWallpaperContextV1::metaData() const
-{
-    return d->metaData;
-}
-
-QString PersonalizationWallpaperContextV1::identifier() const
-{
-    return d->identifier;
-}
-
-QString PersonalizationWallpaperContextV1::outputName() const
-{
-    return d->outputName;
-}
-
-void PersonalizationWallpaperContextV1::setMetaData(const QString &data)
-{
-    d->metaData = data;
-    d->send_metadata(data);
-}
-
-PersonalizationWallpaperContextV1 *PersonalizationWallpaperContextV1::get(wl_resource *resource)
-{
-    for (auto *context : s_wallpaperContexts) {
-        if (context->resource() == resource) {
-            return context;
-        }
-    }
-
-    return nullptr;
 }
 
 class PersonalizationCursorContextV1Private
@@ -663,7 +529,7 @@ void PersonalizationCursorContextV1::sendSize()
 
 PersonalizationCursorContextV1 *PersonalizationCursorContextV1::get(wl_resource *resource)
 {
-    for (auto *context : s_cursorContexts) {
+    for (auto *context : std::as_const(s_cursorContexts)) {
         if (context->resource() == resource) {
             return context;
         }
@@ -852,7 +718,7 @@ void PersonalizationAppearanceContextV1::sendWindowTitlebarHeight(uint32_t heigh
 
 PersonalizationAppearanceContextV1 *PersonalizationAppearanceContextV1::get(wl_resource *resource)
 {
-    for (auto *context : s_appearanceContexts) {
+    for (auto *context : std::as_const(s_appearanceContexts)) {
         if (context->resource() == resource) {
             return context;
         }
@@ -959,35 +825,13 @@ void PersonalizationFontContextV1::sendFontSize(uint32_t size)
 
 PersonalizationFontContextV1 *PersonalizationFontContextV1::get(wl_resource *resource)
 {
-    for (auto *context : s_fontContexts) {
+    for (auto *context : std::as_const(s_fontContexts)) {
         if (context->resource() == resource) {
             return context;
         }
     }
 
     return nullptr;
-}
-
-void PersonalizationManagerInterfaceV1::updateCacheWallpaperPath(uid_t uid)
-{
-    QString cache_location = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
-    d->cacheDirectory = cache_location + QString("/wallpaper/%1/").arg(uid);
-    d->settingFile = d->cacheDirectory + "wallpaper.ini";
-
-    QSettings settings(d->settingFile, QSettings::IniFormat);
-    d->iniMetaData = settings.value("metadata").toString();
-}
-
-QString PersonalizationManagerInterfaceV1::readWallpaperSettings(const QString &group,
-                                                  const QString &output,
-                                                  int workspaceId)
-{
-    if (d->settingFile.isEmpty() || output.isEmpty() || workspaceId < 1)
-        return defaultBackground();
-
-    QSettings settings(d->settingFile, QSettings::IniFormat);
-    settings.beginGroup(QString("%1.%2.%3").arg(group).arg(output).arg(workspaceId));
-    return settings.value("path", defaultBackground()).toString();
 }
 
 PersonalizationManagerInterfaceV1::PersonalizationManagerInterfaceV1(QObject *parent)
@@ -1005,18 +849,6 @@ PersonalizationManagerInterfaceV1::PersonalizationManagerInterfaceV1(QObject *pa
 PersonalizationManagerInterfaceV1::~PersonalizationManagerInterfaceV1()
 {
     Q_CLEANUP_RESOURCE(default_background);
-}
-
-void PersonalizationManagerInterfaceV1::onWallpaperContextCreated(PersonalizationWallpaperContextV1 *context)
-{
-    connect(context,
-            &PersonalizationWallpaperContextV1::commit,
-            this,
-            &PersonalizationManagerInterfaceV1::onWallpaperCommit);
-    connect(context,
-            &PersonalizationWallpaperContextV1::getWallpapers,
-            this,
-            &PersonalizationManagerInterfaceV1::onGetWallpapers);
 }
 
 void PersonalizationManagerInterfaceV1::onCursorContextCreated(PersonalizationCursorContextV1 *context)
@@ -1058,25 +890,25 @@ void PersonalizationManagerInterfaceV1::onAppearanceContextCreated(Personalizati
 {
     connect(context, &PersonalizationAppearanceContextV1::roundCornerRadiusChanged, this, [](int32_t radius) {
         Helper::instance()->config()->setWindowRadius(radius);
-        for (auto *c : s_appearanceContexts) {
+        for (auto *c : std::as_const(s_appearanceContexts)) {
             c->sendRoundCornerRadius(radius);
         }
     });
     connect(context, &PersonalizationAppearanceContextV1::iconThemeChanged, this, [](const QString &theme) {
         Helper::instance()->config()->setIconThemeName(theme);
-        for (auto *c : s_appearanceContexts) {
+        for (auto *c : std::as_const(s_appearanceContexts)) {
             c->sendIconTheme(theme);
         }
     });
     connect(context, &PersonalizationAppearanceContextV1::activeColorChanged, this, [](const QString &color) {
         Helper::instance()->config()->setActiveColor(color);
-        for (auto *c : s_appearanceContexts) {
+        for (auto *c : std::as_const(s_appearanceContexts)) {
             c->sendActiveColor(color);
         }
     });
     connect(context, &PersonalizationAppearanceContextV1::windowOpacityChanged, this, [](uint32_t opacity) {
         Helper::instance()->config()->setWindowOpacity(opacity);
-        for (auto *c : s_appearanceContexts) {
+        for (auto *c : std::as_const(s_appearanceContexts)) {
             c->sendWindowOpacity(opacity);
         }
     });
@@ -1084,14 +916,15 @@ void PersonalizationManagerInterfaceV1::onAppearanceContextCreated(Personalizati
         const auto dconfigType = protocolWindowThemeTypeToDConfig(type);
         if (dconfigType.has_value()) {
             Helper::instance()->config()->setWindowThemeType(*dconfigType);
+            Helper::syncPaletteTypeWithWindowThemeType(*dconfigType);
         }
-        for (auto *c : s_appearanceContexts) {
+        for (auto *c : std::as_const(s_appearanceContexts)) {
             c->sendWindowThemeType(type);
         }
     });
     connect(context, &PersonalizationAppearanceContextV1::titlebarHeightChanged, this, [](uint32_t height) {
         Helper::instance()->config()->setWindowTitlebarHeight(height);
-        for (auto *c : s_appearanceContexts) {
+        for (auto *c : std::as_const(s_appearanceContexts)) {
             c->sendWindowTitlebarHeight(height);
         }
     });
@@ -1170,71 +1003,6 @@ void PersonalizationManagerInterfaceV1::onFontContextCreated(PersonalizationFont
     context->blockSignals(false);
 }
 
-void PersonalizationManagerInterfaceV1::saveImage(PersonalizationWallpaperContextV1 *context,
-                                   const QString &prefix)
-{
-    if (!context || context->fd() == -1 || d->settingFile.isEmpty()) {
-        return;
-    }
-
-    QDir dir(d->cacheDirectory);
-    if (!dir.exists()) {
-        dir.mkpath(d->cacheDirectory);
-    }
-
-    QString output = context->outputName();
-    if (output.isEmpty()) {
-        for (QScreen *screen : QGuiApplication::screens()) {
-            output = screen->name();
-            break;
-        }
-    }
-
-    QString dest = d->cacheDirectory + prefix + "_" + output + "_"
-        + QDateTime::currentDateTime().toString("yyyyMMddhhmmss");
-
-    QFile src_file;
-    if (!src_file.open(context->fd(), QIODevice::ReadOnly))
-        return;
-
-    QByteArray data = src_file.readAll();
-    src_file.close();
-
-    QFile dest_file(dest);
-    if (dest_file.open(QIODevice::WriteOnly)) {
-        dest_file.write(data);
-        dest_file.close();
-    }
-
-    QSettings settings(d->settingFile, QSettings::IniFormat);
-
-    int workspaceId = 1;
-    settings.beginGroup(QString("%1.%2.%3").arg(prefix).arg(output).arg(workspaceId));
-
-    const QString &old_path = settings.value("path").toString();
-    QFile::remove(old_path);
-
-    settings.setValue("path", dest);
-    settings.setValue("isdark", context->isDark());
-    settings.endGroup();
-
-    settings.setValue("metadata", context->metaData());
-    d->iniMetaData = context->metaData();
-}
-
-void PersonalizationManagerInterfaceV1::onWallpaperCommit(PersonalizationWallpaperContextV1 *context)
-{
-    if (context->options() & TREELAND_PERSONALIZATION_WALLPAPER_CONTEXT_V1_OPTIONS_BACKGROUND) {
-        saveImage(context, "background");
-        Q_EMIT backgroundChanged(context->outputName(), context->isDark());
-    }
-
-    if (context->options() & TREELAND_PERSONALIZATION_WALLPAPER_CONTEXT_V1_OPTIONS_LOCKSCREEN) {
-        saveImage(context, "lockscreen");
-        Q_EMIT lockscreenChanged();
-    }
-}
-
 void PersonalizationManagerInterfaceV1::onCursorCommit(PersonalizationCursorContextV1 *context)
 {
     if (!context->size().isValid() || context->theme().isEmpty()) {
@@ -1245,15 +1013,6 @@ void PersonalizationManagerInterfaceV1::onCursorCommit(PersonalizationCursorCont
     setCursorSize(context->size());
 
     context->verify(true);
-}
-
-void PersonalizationManagerInterfaceV1::onGetWallpapers(PersonalizationWallpaperContextV1 *context)
-{
-    QDir dir(d->cacheDirectory);
-    if (!dir.exists())
-        return;
-
-    context->setMetaData(d->iniMetaData);
 }
 
 uid_t PersonalizationManagerInterfaceV1::userId()
@@ -1268,7 +1027,6 @@ void PersonalizationManagerInterfaceV1::setUserId(uid_t uid)
     }
 
     d->userId = uid;
-    updateCacheWallpaperPath(uid);
     Q_EMIT userIdChanged(uid);
 }
 
@@ -1308,32 +1066,6 @@ QString PersonalizationManagerInterfaceV1::iconTheme() const
     return Helper::instance()->config()->iconThemeName();
 }
 
-QString PersonalizationManagerInterfaceV1::background(const QString &output, int workspaceId)
-{
-    return readWallpaperSettings("background", output, workspaceId);
-}
-
-QString PersonalizationManagerInterfaceV1::lockscreen(const QString &output, int workspaceId)
-{
-    return readWallpaperSettings("lockscreen", output, workspaceId);
-}
-
-bool PersonalizationManagerInterfaceV1::backgroundIsDark(const QString &output, int workspaceId)
-{
-    if (d->settingFile.isEmpty())
-        return DEFAULT_WALLPAPER_ISDARK;
-
-    QSettings settings(d->settingFile, QSettings::IniFormat);
-    settings.beginGroup(QString("background.%1.%2").arg(output).arg(workspaceId));
-    return settings.value("isdark", DEFAULT_WALLPAPER_ISDARK).toBool();
-}
-
-bool PersonalizationManagerInterfaceV1::isAnimagedImage(const QString &source)
-{
-    QImageReader reader(source);
-    return reader.imageCount() > 1;
-}
-
 Personalization::Personalization(WToplevelSurface *target,
                                  PersonalizationManagerInterfaceV1 *manager,
                                  SurfaceWrapper *parent)
@@ -1342,7 +1074,7 @@ Personalization::Personalization(WToplevelSurface *target,
     , m_manager(manager)
 {
     connect(target, &WToplevelSurface::aboutToBeInvalidated, this, [this] {
-        disconnect(m_connection);
+        disconnect(m_manager, &PersonalizationManagerInterfaceV1::windowContextCreated, this, nullptr);
     });
 
     auto update = [this](PersonalizationWindowContextV1 *context) {
@@ -1352,53 +1084,61 @@ Personalization::Personalization(WToplevelSurface *target,
             return;
         }
 
-        disconnect(m_connection);
-
         connect(context,
                 &PersonalizationWindowContextV1::backgroundTypeChanged,
                 this,
                 [this, context] {
-                    m_backgroundType = context->backgroundType();
-                    Q_EMIT backgroundTypeChanged();
+                    setBackgroundType(static_cast<Personalization::BackgroundType>(context->backgroundType()));
                 });
         connect(context,
                 &PersonalizationWindowContextV1::cornerRadiusChanged,
                 this,
                 [this, context] {
-                    m_cornerRadius = context->cornerRadius();
-                    Q_EMIT cornerRadiusChanged();
+                    setCornerRadius(context->cornerRadius());
                 });
 
         connect(context, &PersonalizationWindowContextV1::shadowChanged, this, [this, context] {
-            m_shadow = context->shadow();
-            Q_EMIT shadowChanged();
+            setShadow(context->shadow());
+            setShadowState(context->shadowState());
         });
 
         connect(context, &PersonalizationWindowContextV1::borderChanged, this, [this, context] {
-            m_border = context->border();
-            Q_EMIT borderChanged();
+            setBorder(context->border());
+            setBorderState(context->borderState());
         });
 
         connect(context,
                 &PersonalizationWindowContextV1::windowStateChanged,
                 this,
                 [this, context] {
-                    m_states = context->states();
-                    Q_EMIT windowStateChanged();
+                    setWindowStates(context->states());
                 });
 
-        m_backgroundType = context->backgroundType();
-        m_cornerRadius = context->cornerRadius();
-        m_shadow = context->shadow();
-        m_border = context->border();
-        m_states = context->states();
+        setBackgroundType(static_cast<Personalization::BackgroundType>(context->backgroundType()));
+        setCornerRadius(context->cornerRadius());
+        setShadow(context->shadow());
+        setShadowState(context->shadowState());
+        setBorder(context->border());
+        setBorderState(context->borderState());
+        setWindowStates(context->states());
     };
 
-    m_connection = connect(m_manager, &PersonalizationManagerInterfaceV1::windowContextCreated, this, update);
+    connect(m_manager, &PersonalizationManagerInterfaceV1::windowContextCreated, this, update);
 
     if (auto *context = PersonalizationWindowContextV1::getWindowContext(m_target->surface())) {
         update(context);
     }
+}
+
+void Personalization::resetProperties()
+{
+    setBackgroundType(Personalization::BackgroundType::Normal);
+    setCornerRadius(0);
+    setShadow({});
+    setShadowState(PersonalizationWindowContextV1::ShadowState::Unset);
+    setBorder({});
+    setBorderState(PersonalizationWindowContextV1::BorderState::Unset);
+    setWindowStates({});
 }
 
 SurfaceWrapper *Personalization::surfaceWrapper() const
@@ -1408,7 +1148,7 @@ SurfaceWrapper *Personalization::surfaceWrapper() const
 
 Personalization::BackgroundType Personalization::backgroundType() const
 {
-    return static_cast<Personalization::BackgroundType>(m_backgroundType);
+    return m_backgroundType;
 }
 
 bool Personalization::noTitlebar() const
@@ -1418,6 +1158,72 @@ bool Personalization::noTitlebar() const
     }
 
     return m_states.testFlag(PersonalizationWindowContextV1::NoTitleBar);
+}
+
+bool Personalization::shadowEnabled() const
+{
+    return m_shadowState == PersonalizationWindowContextV1::ShadowState::Enabled;
+}
+
+bool Personalization::borderEnabled() const
+{
+    return m_borderState == PersonalizationWindowContextV1::BorderState::Enabled;
+}
+
+void Personalization::setBackgroundType(BackgroundType type)
+{
+    if (m_backgroundType == type)
+        return;
+    m_backgroundType = type;
+    Q_EMIT backgroundTypeChanged();
+}
+
+void Personalization::setCornerRadius(int32_t radius)
+{
+    if (m_cornerRadius == radius)
+        return;
+    m_cornerRadius = radius;
+    Q_EMIT cornerRadiusChanged();
+}
+
+void Personalization::setShadow(const Shadow &shadow)
+{
+    if (m_shadow == shadow)
+        return;
+    m_shadow = shadow;
+    Q_EMIT shadowChanged();
+}
+
+void Personalization::setBorder(const Border &border)
+{
+    if (m_border == border)
+        return;
+    m_border = border;
+    Q_EMIT borderChanged();
+}
+
+void Personalization::setWindowStates(PersonalizationWindowContextV1::WindowStates states)
+{
+    if (m_states == states)
+        return;
+    m_states = states;
+    Q_EMIT windowStateChanged();
+}
+
+void Personalization::setShadowState(PersonalizationWindowContextV1::ShadowState state)
+{
+    if (m_shadowState == state)
+        return;
+    m_shadowState = state;
+    Q_EMIT shadowChanged();
+}
+
+void Personalization::setBorderState(PersonalizationWindowContextV1::BorderState state)
+{
+    if (m_borderState == state)
+        return;
+    m_borderState = state;
+    Q_EMIT borderChanged();
 }
 
 void PersonalizationManagerInterfaceV1::create(WServer *server)
@@ -1438,9 +1244,4 @@ wl_global *PersonalizationManagerInterfaceV1::global() const
 QByteArrayView PersonalizationManagerInterfaceV1::interfaceName() const
 {
     return d->interfaceName();
-}
-
-QString PersonalizationManagerInterfaceV1::defaultWallpaper() const
-{
-    return DEFAULT_WALLPAPER;
 }

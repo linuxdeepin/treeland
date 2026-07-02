@@ -8,6 +8,7 @@
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QJsonObject>
+#include <qnamespace.h>
 #ifdef EXT_SESSION_LOCK_V1
 #include "wsessionlock.h"
 #include "wsessionlockmanager.h"
@@ -24,26 +25,27 @@
 #include "core/treeland.h"
 #include "core/windowpicker.h"
 #include "greeter/greeterproxy.h"
-#include "greeter/usermodel.h"
 #include "greeter/sessionmodel.h"
+#include "greeter/usermodel.h"
 #include "input/inputdevice.h"
+#include "inputmanager.h"
 #include "interfaces/multitaskviewinterface.h"
 #include "modules/capture/capture.h"
 #include "modules/dde-shell/ddeshellattached.h"
 #include "modules/dde-shell/ddeshellmanagerinterfacev1.h"
 #include "modules/ddm/ddminterfacev1.h"
+#include "modules/input-manager/inputmanagerinterfacev1.h"
+#include "modules/keyboard-state-notify/keyboardstatenotifymanagerinterfacev1.h"
 #include "modules/output-manager/outputmanagement.h"
 #include "modules/personalization/personalizationmanagerinterfacev1.h"
+#include "modules/resource/treelandremotesource.h"
 #include "modules/screensaver/screensaverinterfacev1.h"
 #include "modules/shortcut/shortcutcontroller.h"
 #include "modules/shortcut/shortcutmanager.h"
 #include "modules/shortcut/shortcutrunner.h"
 #include "modules/wallpaper-color/wallpapercolorinterfacev1.h"
-#include "modules/input-manager/inputmanagerinterfacev1.h"
-#include "modules/keyboard-state-notify/keyboardstatenotifymanagerinterfacev1.h"
-#include "modules/resource/treelandremotesource.h"
-#include "output/outputconfigstate.h"
 #include "output/output.h"
+#include "output/outputconfigstate.h"
 #include "output/outputlifecyclemanager.h"
 #include "session/session.h"
 #include "surface/surfacecontainer.h"
@@ -52,20 +54,24 @@
 #include "treelanduserconfig.hpp"
 #include "utils/cmdline.h"
 #include "utils/fpsdisplaymanager.h"
-#include "workspace/workspace.h"
 #include "wallpaper/wallpapermanager.h"
 #include "wallpapershellinterfacev1.h"
-#include "inputmanager.h"
+#include "workspace/workspace.h"
 
+#include <rhi/qrhi.h>
 #include <xcb/xcb.h>
 #include <xcb/xproto.h>
 
 #include <WBackend>
+#include <WForeignToplevel>
+#include <WOutput>
+#include <WServer>
+#include <WSurfaceItem>
+#include <WXdgOutput>
+#include <wayland-util.h>
 #include <wcursorshapemanagerv1.h>
 #include <wextimagecapturesourcev1impl.h>
-#include <WForeignToplevel>
 #include <wlayersurface.h>
-#include <WOutput>
 #include <woutputhelper.h>
 #include <woutputitem.h>
 #include <woutputlayout.h>
@@ -77,11 +83,8 @@
 #include <wrenderhelper.h>
 #include <wseat.h>
 #include <wsecuritycontextmanager.h>
-#include <WServer>
 #include <wsocket.h>
-#include <WSurfaceItem>
 #include <wtoplevelsurface.h>
-#include <WXdgOutput>
 #include <wxdgshell.h>
 #include <wxdgtoplevelsurface.h>
 #include <wxdgtopleveltagmanager.h>
@@ -121,6 +124,8 @@
 #include <qwxwayland.h>
 #include <qwxwaylandsurface.h>
 
+#include <DGuiApplicationHelper>
+
 #include <QAction>
 #include <QDBusConnection>
 #include <QDBusInterface>
@@ -130,14 +135,12 @@
 #include <QMouseEvent>
 #include <QQmlContext>
 #include <QQuickWindow>
-#include <QtConcurrent>
-#include <rhi/qrhi.h>
+#include <QThreadPool>
 
 #include <functional>
 #include <pwd.h>
 #include <unistd.h>
 #include <utility>
-#include <wayland-util.h>
 
 #define EXT_DATA_CONTROL_MANAGER_V1_VERSION 1
 #define WLR_FRACTIONAL_SCALE_V1_VERSION 1
@@ -203,6 +206,10 @@ Helper::Helper(QObject *parent)
 #endif
 
     m_shellHandler = new ShellHandler(m_rootSurfaceContainer, m_server);
+    connect(m_shellHandler->workspace(),
+            &Workspace::workspaceAdded,
+            m_wallpaperManager,
+            &WallpaperManager::syncAddWorkspace);
     tryInitRemoteSource();
 
     m_outputConfigState = new OutputConfigState(this);
@@ -237,7 +244,8 @@ Helper::Helper(QObject *parent)
         if (!wrapper) {
             // Qt focus lost (e.g. focus item became null) — clear Wayland keyboard focus
             // on all seats to avoid stale focus state.
-            for (auto *seat : m_seatManager->seats()) {
+            const auto seats = m_seatManager->seats();
+            for (auto *seat : seats) {
                 if (auto *seatContainer = m_rootSurfaceContainer->getSeatContainer(seat)) {
                     seatContainer->setKeyboardFocusSurface(nullptr);
                 }
@@ -252,7 +260,8 @@ Helper::Helper(QObject *parent)
                 seatContainer->setKeyboardFocusSurface(wrapper);
             }
         } else {
-            for (auto *seat : m_seatManager->seats()) {
+            const auto seats = m_seatManager->seats();
+            for (auto *seat : seats) {
                 if (!seat || !seat->isValid()) {
                     continue;
                 }
@@ -279,9 +288,9 @@ Helper::Helper(QObject *parent)
     );
 
     if (!connected) {
-        qCWarning(treelandCore) << "Failed to connect to systemd-logind PrepareForSleep signal";
+        qCWarning(lcTlCore) << "Failed to connect to systemd-logind PrepareForSleep signal";
     } else {
-        qCInfo(treelandCore) << "Successfully connected to systemd-logind PrepareForSleep signal";
+        qCInfo(lcTlCore) << "Successfully connected to systemd-logind PrepareForSleep signal";
     }
 
     // Also connect to SessionNew signal for logging purposes
@@ -311,7 +320,7 @@ Helper::~Helper()
     // destroy before m_rootSurfaceContainer
     delete m_shellHandler;
     if (m_rootSurfaceContainer) {
-        for (auto s : m_rootSurfaceContainer->surfaces()) {
+        for (auto s : std::as_const(m_rootSurfaceContainer->surfaces())) {
             if (auto c = s->container())
                 c->removeSurface(s);
         }
@@ -334,6 +343,32 @@ TreelandConfig *Helper::globalConfig()
     return m_globalConfig.get();
 }
 
+void Helper::syncPaletteTypeWithWindowThemeType(int32_t themeType)
+{
+    auto *guiHelper = DTK_GUI_NAMESPACE::DGuiApplicationHelper::instance();
+    if (!guiHelper) {
+        qCCritical(lcTlConfig) << "DGuiApplicationHelper instance not available, cannot sync "
+                                      "palette type with window theme type.";
+        return;
+    }
+
+    qCDebug(lcTlConfig) << "Syncing palette type with window theme type:" << themeType;
+
+    switch (themeType) {
+    case 2:
+        guiHelper->setPaletteType(Dtk::Gui::DGuiApplicationHelper::DarkType);
+        break;
+    case 1:
+        guiHelper->setPaletteType(Dtk::Gui::DGuiApplicationHelper::LightType);
+        break;
+    default:
+        qCWarning(lcTlConfig) << "Unknown windowThemeType:" << themeType
+                                  << ", fallback to light.";
+        guiHelper->setPaletteType(Dtk::Gui::DGuiApplicationHelper::LightType);
+        break;
+    }
+}
+
 void Helper::tryInitRemoteSource()
 {
     if (m_treelandRemoteSource)
@@ -351,14 +386,14 @@ bool Helper::isNvidiaCardPresent()
         return false;
 
     QString deviceName = rhi->driverInfo().deviceName;
-    qCDebug(treelandCore) << "Graphics Device:" << deviceName;
+    qCDebug(lcTlCore) << "Graphics Device:" << deviceName;
 
     return deviceName.contains("NVIDIA", Qt::CaseInsensitive);
 }
 
 void Helper::setWorkspaceVisible(bool visible)
 {
-    for (auto *surface : m_rootSurfaceContainer->surfaces()) {
+    for (auto *surface : std::as_const(m_rootSurfaceContainer->surfaces())) {
         if (surface->type() == SurfaceWrapper::Type::Layer) {
             surface->setHideByLockScreen(m_currentMode == CurrentMode::LockScreen);
         }
@@ -431,7 +466,7 @@ void Helper::onOutputAdded(WOutput *output)
     if (shouldRestoreCopyMode) {
         Output *primaryOutput = m_rootSurfaceContainer->primaryOutput();
         if (!primaryOutput) {
-            qCWarning(treelandCore) << "Cannot restore Copy Mode: no primary output available";
+            qCWarning(lcTlCore) << "Cannot restore Copy Mode: no primary output available";
             o = createNormalOutput(output);
         } else {
             const auto &allSurfaces = getWorkspaceSurfaces();
@@ -453,10 +488,6 @@ void Helper::onOutputAdded(WOutput *output)
     }
 
     o->enable();
-    m_outputManager->newOutput(output);
-
-    m_wallpaperColorV1->updateWallpaperColor(output->name(),
-                                             m_personalizationInterfaceV1->backgroundIsDark(output->name()));
 
     QString cache_location = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
     QSettings settings(cache_location + "/output.ini", QSettings::IniFormat);
@@ -487,10 +518,11 @@ void Helper::onOutputAdded(WOutput *output)
         newState.set_transform(static_cast<wl_output_transform>(settings.value("transform").toInt()));
         newState.set_scale(settings.value("scale").toFloat());
         if (!output->handle()->commit_state(newState)) {
-            qCCritical(treelandCore) << "commit failed on output" << output->name();
+            qCCritical(lcTlCore) << "commit failed on output" << output->name();
         }
     }
     settings.endGroup();
+    m_outputManager->newOutput(output);
     m_wallpaperManager->ensureWallpaperConfigForOutput(o);
 }
 
@@ -548,7 +580,7 @@ void Helper::onOutputRemoved(WOutput *output)
             m_rootSurfaceContainer->removeOutput(o);
         }
 
-        for (auto oldOutput : oldOutputsToDelete) {
+        for (auto oldOutput : std::as_const(oldOutputsToDelete)) {
             m_rootSurfaceContainer->removeOutput(oldOutput);
             delete oldOutput;
         }
@@ -596,8 +628,8 @@ void Helper::setGamma(struct wlr_gamma_control_manager_v1_set_gamma_event *event
     qw_output_state newState;
     newState.set_gamma_lut(ramp_size, r, g, b);
     if (!qwOutput->commit_state(newState)) {
-        qCCritical(treelandCore, "commit failed on output  %s", qwOutput->handle()->name);
-        qCWarning(treelandCore) << "Failed to set gamma lut!";
+        qCCritical(lcTlCore, "commit failed on output  %s", qwOutput->handle()->name);
+        qCWarning(lcTlCore) << "Failed to set gamma lut!";
         // TODO: use software impl it.
         qw_gamma_control_v1::from(gamma_control)->send_failed_and_destroy();
     }
@@ -607,7 +639,7 @@ void Helper::handleCopyModeOutputDisable(Output *affectedOutput)
 {
     int affectedIndex = m_outputList.indexOf(affectedOutput);
     if (affectedIndex < 0) {
-        qCWarning(treelandCore) << "Disabled output not found in m_outputList";
+        qCWarning(lcTlCore) << "Disabled output not found in m_outputList";
         return;
     }
 
@@ -745,7 +777,7 @@ void Helper::onOutputTestOrApply(qw_output_configuration_v1 *config, bool onlyTe
 
         WOutputRenderWindow *renderWindow = viewport->outputRenderWindow();
         if (!renderWindow) {
-            qCWarning(treelandCore) << "No renderWindow for output" << state.output->name();
+            qCWarning(lcTlCore) << "No renderWindow for output" << state.output->name();
             m_outputManager->sendResult(config, false);
             m_pendingOutputConfig = {};
             return;
@@ -760,7 +792,7 @@ void Helper::onOutputTestOrApply(qw_output_configuration_v1 *config, bool onlyTe
 
         auto outputHelper = renderWindow->getOutputHelper(viewport);
         if (!outputHelper) {
-            qCWarning(treelandCore) << "No output helper for viewport" << viewport;
+            qCWarning(lcTlCore) << "No output helper for viewport" << viewport;
             m_outputManager->sendResult(config, false);
             m_pendingOutputConfig = {};
             return;
@@ -796,7 +828,7 @@ void Helper::onOutputTestOrApply(qw_output_configuration_v1 *config, bool onlyTe
         }
 
         if (!outputHelper->setExtraState(extraState)) {
-            qCWarning(treelandCore) << "Failed to set extra state for output" << state.output->name();
+            qCWarning(lcTlCore) << "Failed to set extra state for output" << state.output->name();
             m_outputManager->sendResult(config, false);
             m_pendingOutputConfig = {};
             return;
@@ -823,7 +855,7 @@ void Helper::onOutputTestOrApply(qw_output_configuration_v1 *config, bool onlyTe
                         }
                     }
                 } else {
-                    qCWarning(treelandCore) << "Commit callback received unexpected state pointer!"
+                    qCWarning(lcTlCore) << "Commit callback received unexpected state pointer!"
                                             << "Expected:" << extraState.get()
                                             << "Got:" << committedState.get();
                     self->onOutputCommitFinished(config, false);
@@ -870,7 +902,7 @@ void Helper::onOutputCommitFinished(qw_output_configuration_v1 *config, bool suc
                 // Reason: When disabled, mode/scale/transform are not committed to wlroots,
                 // so we should not save uncommitted values
                 if (!state.enabled) {
-                    qCDebug(treelandCore) << "Skipping config save for disabled output:" << state.output->name();
+                    qCDebug(lcTlCore) << "Skipping config save for disabled output:" << state.output->name();
                     continue;
                 }
 
@@ -901,7 +933,7 @@ void Helper::onSetOutputPowerMode(wlr_output_power_v1_set_mode_event *event)
         }
         newState.set_enabled(false);
         if (!output->commit_state(newState)) {
-            qCCritical(treelandCore, "commit failed on output %s", output->handle()->name);
+            qCCritical(lcTlCore, "commit failed on output %s", output->handle()->name);
         }
         break;
     case ZWLR_OUTPUT_POWER_V1_MODE_ON:
@@ -910,7 +942,7 @@ void Helper::onSetOutputPowerMode(wlr_output_power_v1_set_mode_event *event)
         }
         newState.set_enabled(true);
         if (!output->commit_state(newState)) {
-            qCCritical(treelandCore, "commit failed on output %s", output->handle()->name);
+            qCCritical(lcTlCore, "commit failed on output %s", output->handle()->name);
         }
         break;
     }
@@ -919,13 +951,13 @@ void Helper::onSetOutputPowerMode(wlr_output_power_v1_set_mode_event *event)
 void Helper::onNewIdleInhibitor(wlr_idle_inhibitor_v1 *wlr_inhibitor)
 {
     if (!wlr_inhibitor->surface) {
-        qCInfo(treelandCore) << "Ignoring idle inhibitor with null surface";
+        qCInfo(lcTlCore) << "Ignoring idle inhibitor with null surface";
         return;
     }
 
     auto wsurface = WSurface::fromHandle(wlr_inhibitor->surface);
     if (!wsurface) {
-        qCWarning(treelandCore) << "No WSurface found for idle inhibitor surface"
+        qCWarning(lcTlCore) << "No WSurface found for idle inhibitor surface"
                                 << wlr_inhibitor->surface;
         return;
     }
@@ -1000,7 +1032,7 @@ void Helper::onShowDesktop()
 void Helper::onSetCopyOutput(VirtualOutputInterfaceV1 *interface)
 {
     Output *mirrorOutput = nullptr;
-    for (Output *output : m_outputList) {
+    for (Output *output : std::as_const(m_outputList)) {
         if (!interface->outputList().contains(output->output()->name())) {
             QString screen = output->output()->name() + " does not exist!";
             interface->sendError(VirtualOutputInterfaceV1::INVALID_OUTPUT, screen);
@@ -1066,13 +1098,18 @@ void Helper::onRestoreCopyOutput(VirtualOutputInterfaceV1 *interface)
 
 void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
 {
+    if (wrapper->isIMCandidatePanel())
+        return;
+
     bool isXdgToplevel = wrapper->type() == SurfaceWrapper::Type::XdgToplevel;
     bool isXdgPopup = wrapper->type() == SurfaceWrapper::Type::XdgPopup;
     bool isXwayland = wrapper->type() == SurfaceWrapper::Type::XWayland;
     bool isLayer = wrapper->type() == SurfaceWrapper::Type::Layer;
 
-    connect(m_sessionManager->activeSession().lock().get(), &Session::aboutToBeDestroyed,
-            wrapper, &SurfaceWrapper::requestClose);
+    connect(m_sessionManager->activeSession().lock().get(),
+            &Session::aboutToBeDestroyed,
+            wrapper,
+            &SurfaceWrapper::closeSurface);
 
     if (isXdgToplevel || isXdgPopup || isLayer) {
         auto *attached =
@@ -1080,18 +1117,41 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
         connect(wrapper, &SurfaceWrapper::aboutToBeInvalidated,
                 attached, &Personalization::deleteLater);
 
-        auto updateNoTitlebar = [this, attached] {
+        auto updateDecorationParams = [attached] {
+            auto wrapper = attached->surfaceWrapper();
+            auto shadow = attached->shadow();
+            auto border = attached->border();
+            wrapper->setShadowParams(SurfaceWrapper::ShadowParams{
+                shadow.radius,
+                shadow.offset.y(),
+                shadow.color
+            });
+            wrapper->setBorderParams(SurfaceWrapper::BorderParams{
+                border.width,
+                border.color
+            });
+        };
+
+        auto updateNoTitlebar = [this, attached, isLayer, updateDecorationParams] {
             auto wrapper = attached->surfaceWrapper();
             if (attached->noTitlebar()) {
                 wrapper->setNoTitleBar(true);
-                auto layer = qobject_cast<WLayerSurface *>(wrapper->shellSurface());
-                if (!isLaunchpad(layer)) {
-                    wrapper->setNoDecoration(false);
+                if (isLayer) {
+                    bool needsDecoration = attached->shadowEnabled() || attached->borderEnabled();
+                    if (needsDecoration && wrapper->noDecoration()) {
+                        wrapper->setNoDecoration(false);
+                        updateDecorationParams();
+                    }
+                } else {
+                    wrapper->setNoDecoration(m_xdgDecorationManager->modeBySurface(wrapper->surface())
+                                         != WXdgDecorationManager::Server);
                 }
             } else {
                 wrapper->setNoTitleBar(false);
-                wrapper->setNoDecoration(m_xdgDecorationManager->modeBySurface(wrapper->surface())
-                                     != WXdgDecorationManager::Server);
+                if (!isLayer) {
+                    wrapper->setNoDecoration(m_xdgDecorationManager->modeBySurface(wrapper->surface())
+                                         != WXdgDecorationManager::Server);
+                }
             }
         };
 
@@ -1116,11 +1176,30 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
             attached->surfaceWrapper()->setBlur(attached->backgroundType() == Personalization::BackgroundType::Blur);
         };
         connect(attached, &Personalization::backgroundTypeChanged, this, updateBlur);
+        auto updateCornerRadius = [attached] {
+            attached->surfaceWrapper()->setRadius(attached->cornerRadius());
+        };
+        connect(attached, &Personalization::cornerRadiusChanged, this, updateCornerRadius);
+        updateCornerRadius();
         updateBlur();
         if (isLayer) {
             auto layer = qobject_cast<WLayerSurface *>(wrapper->shellSurface());
             if (isLaunchpad(layer))
                 wrapper->setCoverEnabled(true);
+
+            connect(attached, &Personalization::shadowChanged, this, [attached, wrapper, updateDecorationParams]() {
+                if (attached->shadowEnabled() && wrapper->noDecoration()) {
+                    wrapper->setNoDecoration(false);
+                }
+                updateDecorationParams();
+            });
+
+            connect(attached, &Personalization::borderChanged, this, [attached, wrapper, updateDecorationParams]() {
+                if (attached->borderEnabled() && wrapper->noDecoration()) {
+                    wrapper->setNoDecoration(false);
+                }
+                updateDecorationParams();
+            });
         }
     }
 
@@ -1218,6 +1297,9 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
 
 void Helper::onSurfaceWrapperAboutToRemove(SurfaceWrapper *wrapper)
 {
+    if (wrapper->isIMCandidatePanel())
+        return;
+
     if (!wrapper->skipDockPreView()) {
         m_foreignToplevel->removeSurface(wrapper->shellSurface());
         m_extForeignToplevelListV1->removeSurface(wrapper->shellSurface());
@@ -1314,6 +1396,10 @@ void Helper::init(Treeland::Treeland *treeland)
             &RootSurfaceContainer::primaryOutputChanged,
             m_outputManagerV1,
             &OutputManagerV1::onPrimaryOutputChanged);
+    connect(m_rootSurfaceContainer,
+            &RootSurfaceContainer::primaryOutputChanged,
+            m_sessionManager,
+            &SessionManager::syncActiveSessionXWaylandPrimaryOutput);
     m_wallpaperColorV1 = m_server->attach<WallpaperColorInterfaceV1>();
     m_windowManagementInterfaceV1 = m_server->attach<WindowManagementInterfaceV1>();
     m_virtualOutputInterfaceV1 = m_server->attach<VirtualOutputManagerInterfaceV1>();
@@ -1339,6 +1425,17 @@ void Helper::init(Treeland::Treeland *treeland)
         m_config.reset(TreelandUserConfig::createByName("org.deepin.dde.treeland.user",
                                                   "org.deepin.dde.treeland",
                                                   "/" + m_userModel->currentUserName()));
+        // Notify QML that the config pointer has changed so bindings (e.g. sourceSize
+        // on WQuickCursor) reconnect their notifiers to the new TreelandUserConfig object.
+        Q_EMIT configChanged();
+        connect(m_config.get(),
+                &TreelandUserConfig::cursorThemeNameChanged,
+                m_sessionManager,
+                &SessionManager::syncActiveSessionCursorSettings);
+        connect(m_config.get(),
+                &TreelandUserConfig::cursorSizeChanged,
+                m_sessionManager,
+                &SessionManager::syncActiveSessionCursorSettings);
         auto user = m_userModel->currentUser();
         m_personalizationInterfaceV1->setUserId(user ? user->UID() : getuid());
         // TODO(YaoBing Xiao): remove "dde"
@@ -1347,41 +1444,29 @@ void Helper::init(Treeland::Treeland *treeland)
         }
 
         m_inputManager->setupSeatUserConfig(m_userModel->currentUserName());
+        auto onConfigInitialized = [this] {
+            m_sessionManager->syncActiveSessionCursorSettings();
+            syncPaletteTypeWithWindowThemeType(m_config->windowThemeType());
+            m_wallpaperManager->updateWallpaperConfig();
+            tryInitRemoteSource();
+        };
         // TODO(YaoBing Xiao): pre-initialize dconfig, remove isInitializeSucceeded
 #if TREELANDCONFIG_DCONFIG_FILE_VERSION_MINOR > 0
         if (m_config->isInitializeSucceeded()) {
 #else
         if (m_config->isInitializeSucceed()) {
 #endif
-            m_wallpaperManager->updateWallpaperConfig();
-            tryInitRemoteSource();
+            onConfigInitialized();
         } else {
             connect(m_config.get(),
                     &TreelandUserConfig::configInitializeSucceed,
-                    m_wallpaperManager,
-                    &WallpaperManager::updateWallpaperConfig);
-            connect(m_config.get(),
-                    &TreelandUserConfig::configInitializeSucceed,
                     this,
-                    &Helper::tryInitRemoteSource);
+                    onConfigInitialized);
         }
     };
     connect(m_userModel, &UserModel::currentUserNameChanged, this, updateCurrentUser);
 
     updateCurrentUser();
-
-    connect(m_personalizationInterfaceV1,
-            &PersonalizationManagerInterfaceV1::backgroundChanged,
-            this,
-            [this](const QString &output, bool isdark) {
-                m_wallpaperColorV1->updateWallpaperColor(output, isdark);
-            });
-
-    for (auto output : m_rootSurfaceContainer->outputs()) {
-        const QString &outputName = output->output()->name();
-        m_wallpaperColorV1->updateWallpaperColor(outputName,
-                                                 m_personalizationInterfaceV1->backgroundIsDark(outputName));
-    }
 
     connect(m_windowManagementInterfaceV1,
             &WindowManagementInterfaceV1::desktopStateChanged,
@@ -1432,7 +1517,7 @@ void Helper::init(Treeland::Treeland *treeland)
     // Initialize seats from configuration
     m_seat = m_seatManager->initializeFromConfig("/etc/deepin/treeland/seats.json", m_server);
     if (!m_seat) {
-        qCCritical(treelandCore) << "Failed to initialize seats!";
+        qCCritical(lcTlCore) << "Failed to initialize seats!";
         return;
     }
 
@@ -1447,11 +1532,11 @@ void Helper::init(Treeland::Treeland *treeland)
     connect(m_seatManager, &SeatsManager::deviceAdded, this, [this](WInputDevice *device) {
         m_seatManager->assignDevice(device, m_renderWindow,
                                    m_rootSurfaceContainer->outputLayout(), m_seat);
-        InputDevice::instance()->initTouchPad(device);
     });
 
     // Setup drag request handling for all seats
-    for (auto *seat : m_seatManager->seats()) {
+    const auto seats = m_seatManager->seats();
+    for (auto *seat : seats) {
         disconnect(seat, &WSeat::requestDrag, this, nullptr);
         connect(seat, &WSeat::requestDrag, this, [this, seat](WSurface *surface) {
             handleRequestDragForSeat(seat, surface);
@@ -1466,7 +1551,7 @@ void Helper::init(Treeland::Treeland *treeland)
     }
 
     if (!m_seat) {
-        qCCritical(treelandCore) << "No seat available after initialization, cannot continue";
+        qCCritical(lcTlCore) << "No seat available after initialization, cannot continue";
         return;
     }
     m_shellHandler->init(m_server, m_seat);
@@ -1477,7 +1562,7 @@ void Helper::init(Treeland::Treeland *treeland)
 
     m_renderer = WRenderHelper::createRenderer(m_backend->handle());
     if (!m_renderer) {
-        qCFatal(treelandCore) << "Failed to create renderer";
+        qCFatal(lcTlCore) << "Failed to create renderer";
     }
 
     m_allocator = qw_allocator::autocreate(*m_backend->handle(), *m_renderer);
@@ -1505,7 +1590,7 @@ void Helper::init(Treeland::Treeland *treeland)
     static const auto isXWaylandClient =
         [sessionManager = QPointer(m_sessionManager)](WClient *client) {
             if (sessionManager) {
-                for (auto session : sessionManager->sessions()) {
+                for (const auto &session : std::as_const(sessionManager->sessions())) {
                     if (session && session->xwayland() && session->xwayland()->waylandClient() == client)
                         return true;
                 }
@@ -1571,11 +1656,18 @@ void Helper::init(Treeland::Treeland *treeland)
             [this](ActivationManagerInterfaceV1::TokenDisposition disposition, WSurface *wsurface) {
                 auto wrapper = m_rootSurfaceContainer->getSurface(wsurface);
                 if (!wrapper) {
-                    qCWarning(treelandCore) << "Activation request for unknown surface!";
+                    qCWarning(lcTlCore) << "Activation request for unknown surface!";
                     return;
                 }
+                // Don't use hasActiveCapability() here — it also checks UnMinimized,
+                // but minimized windows should be allowed to activate (which unminimizes them).
                 if (!wsurface->mapped()) {
-                    qCWarning(treelandCore) << "Activation request for unmapped surface!";
+                    qCWarning(lcTlCore) << "Activation request for unmapped surface!";
+                    return;
+                }
+                if (!wrapper->hasInitializeContainer()) {
+                    qCWarning(lcTlCore) << "Activation request for surface without initialized container:"
+                                       << "container =" << wrapper->container();
                     return;
                 }
                 switch (disposition) {
@@ -1682,6 +1774,9 @@ WSeat *Helper::getSeatForEvent(QInputEvent *event) const
 
 void Helper::activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
 {
+    if (wrapper && wrapper->isIMCandidatePanel())
+        return;
+
     WSeat *interactingSeat = m_currentEventSeat ? m_currentEventSeat : getLastInteractingSeat(wrapper);
     if (m_blockActivateSurface && wrapper && wrapper->type() != SurfaceWrapper::Type::LockScreen) {
         auto sh = wrapper->shellSurface();
@@ -1700,7 +1795,7 @@ void Helper::activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
             if (wrapper->hasActiveCapability()) {
                 setActivatedSurface(wrapper);
             } else {
-                qCCritical(treelandShell) << "Trying to activate a surface which doesn't have ActiveCapability!";
+                qCCritical(lcTlShell) << "Trying to activate a surface which doesn't have ActiveCapability!";
             }
         }
     }
@@ -1736,23 +1831,23 @@ void Helper::activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
 void Helper::forceActivateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
 {
     if (!wrapper) {
-        qCCritical(treelandShell) << "Don't force activate to empty surface! do you want `Helper::activeSurface(nullptr)`?";
+        qCCritical(lcTlShell) << "Don't force activate to empty surface! do you want `Helper::activeSurface(nullptr)`?";
         return;
     }
     if (!wrapper->shellSurface()) {
-        qCWarning(treelandShell) << "Try to force activate a destroyed surface!";
+        qCWarning(lcTlShell) << "Try to force activate a destroyed surface!";
         return;
     }
 
     restoreFromShowDesktop(wrapper);
 
     if (wrapper->isMinimized()) {
-        wrapper->requestCancelMinimize(
+        wrapper->restoreFromMinimized(
             !(reason == Qt::TabFocusReason || reason == Qt::BacktabFocusReason));
     }
 
     if (!wrapper->surface()->mapped()) {
-        qCWarning(treelandShell) << "Can't activate unmapped surface: " << wrapper;
+        qCWarning(lcTlShell) << "Can't activate unmapped surface: " << wrapper;
         return;
     }
 
@@ -1771,7 +1866,7 @@ void Helper::fakePressSurfaceBottomRightToReszie(SurfaceWrapper *surface)
     auto position = surface->geometry().bottomRight();
     m_fakelastPressedPosition = position;
     m_seat->setCursorPosition(position);
-    Q_EMIT surface->requestResize(Qt::BottomEdge | Qt::RightEdge);
+    Q_EMIT surface->resizeRequested(Qt::BottomEdge | Qt::RightEdge);
 }
 
 bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *targetWindow, QInputEvent *event)
@@ -1797,13 +1892,13 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *targetWindow, QInputEvent 
             if (key >= Qt::Key_F1 && key <= Qt::Key_F12) {
                 const int vtnr = key - Qt::Key_F1 + 1;
                 const bool sessionActive = m_backend->isSessionActive();
-                qCWarning(treelandCore) << "Ctrl+Alt+Fn VT shortcut received"
+                qCWarning(lcTlCore) << "Ctrl+Alt+Fn VT shortcut received"
                                         << vtnr << "sessionActive" << sessionActive;
                 if (!sessionActive) {
                     return true;
                 }
 
-                qCWarning(treelandCore) << "Ctrl+Alt+Fn VT shortcut requested" << vtnr;
+                qCWarning(lcTlCore) << "Ctrl+Alt+Fn VT shortcut requested" << vtnr;
                 m_backend->session()->change_vt(vtnr);
                 return true;
             }
@@ -1816,7 +1911,7 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *targetWindow, QInputEvent 
         if (device) {
             targetSeat = m_seatManager->getSeatForDevice(device);
             if (!targetSeat) {
-                qCWarning(treelandCore) << "Device has no associated seat, using default seat";
+                qCWarning(lcTlCore) << "Device has no associated seat, using default seat";
                 targetSeat = seat;
             }
         }
@@ -1872,13 +1967,10 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *targetWindow, QInputEvent 
 
         if (event->type() == QEvent::KeyRelease && !m_captureSelector) {
             auto kevent = static_cast<QKeyEvent *>(event);
-            if (m_taskSwitch && m_taskSwitch->property("switchOn").toBool()) {
-                if (kevent->key() == Qt::Key_Alt || kevent->key() == Qt::Key_Meta) {
-                    auto filter = Helper::instance()->workspace()->currentFilter();
-                    filter->setFilterAppId("");
-                    setCurrentMode(CurrentMode::Normal);
-                    QMetaObject::invokeMethod(m_taskSwitch, "exit");
-                }
+            const int key = kevent->key();
+            if (key == Qt::Key_Alt || key == Qt::Key_Control || key == Qt::Key_Shift
+                || key == Qt::Key_Meta) {
+                Q_EMIT modifierKeyReleased(kevent);
             }
         }
     }
@@ -1917,6 +2009,10 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *targetWindow, QInputEvent 
             auto increment_pos = ev->globalPosition() - moveResizeState.initialPosition;
             m_rootSurfaceContainer->doMoveResizeForSeat(seat, increment_pos);
 
+            return true;
+        } else if (event->type() == QEvent::KeyPress
+                   && static_cast<QKeyEvent *>(event)->key() == Qt::Key_Escape) {
+            m_rootSurfaceContainer->cancelMoveResizeForSeat(seat);
             return true;
         } else if (event->type() == QEvent::MouseButtonRelease
                    || event->type() == QEvent::TouchEnd) {
@@ -1968,12 +2064,13 @@ bool Helper::afterHandleEvent([[maybe_unused]] WSeat *seat,
 
         WSeat *eventSeat = getSeatForEvent(event);
         if (eventSeat && surface) {
-            // LayerSurface cannot be activated, nor should it be activated.
-            if (surface->type() == SurfaceWrapper::Type::Layer) {
+            // IM candidate panel should not be activated.
+            if (surface->isIMCandidatePanel()) {
                 return false;
             }
 
-            for (auto *seat : m_seatManager->seats()) {
+            const auto seats = m_seatManager->seats();
+            for (auto *seat : seats) {
                 if (seat != eventSeat && surface) {
                     auto *container = m_rootSurfaceContainer->getSeatContainer(seat);
                     if (container && container->moveResizeState().surface == surface) {
@@ -1983,7 +2080,10 @@ bool Helper::afterHandleEvent([[maybe_unused]] WSeat *seat,
                 }
             }
 
-            m_rootSurfaceContainer->setActivatedSurfaceForSeat(eventSeat, surface, Qt::MouseFocusReason);
+            if (surface->shellSurface()->hasCapability(WToplevelSurface::Capability::Activate))
+                m_rootSurfaceContainer->setActivatedSurfaceForSeat(eventSeat,
+                                                                   surface,
+                                                                   Qt::MouseFocusReason);
 
             if (surface->shellSurface()->hasCapability(WToplevelSurface::Capability::Focus)
                 && surface->acceptKeyboardFocus()) {
@@ -2094,11 +2194,9 @@ bool Helper::doGesture(QInputEvent *event)
 Output *Helper::createNormalOutput(WOutput *output)
 {
     Output *o = Output::create(output, qmlEngine(), this);
-    auto future = QtConcurrent::run([o, this]() {
-        if (isNvidiaCardPresent()) {
-            o->outputItem()->setProperty("forceSoftwareCursor", true);
-        }
-    });
+    if (isNvidiaCardPresent()) {
+        o->outputItem()->setProperty("forceSoftwareCursor", true);
+    }
     o->outputItem()->stackBefore(m_rootSurfaceContainer);
     m_rootSurfaceContainer->addOutput(o);
     return o;
@@ -2116,13 +2214,13 @@ WOutputViewport *Helper::getOwnOutputViewport(WOutput *output)
     // but we need the OutputViewport that is a direct child of the OutputItem
     Output *outputObj = getOutput(output);
     if (!outputObj || !outputObj->outputItem()) {
-        qCWarning(treelandCore) << "Invalid output object for" << output->name();
+        qCWarning(lcTlCore) << "Invalid output object for" << output->name();
         return nullptr;
     }
 
     WOutputViewport *viewport = outputObj->outputItem()->findChild<WOutputViewport *>({}, Qt::FindDirectChildrenOnly);
     if (!viewport) {
-        qCWarning(treelandCore) << "No viewport found for output" << output->name()
+        qCWarning(lcTlCore) << "No viewport found for output" << output->name()
                                 << "- OutputItem may not have been fully initialized";
     }
     return viewport;
@@ -2210,7 +2308,8 @@ void Helper::setActivatedSurface(SurfaceWrapper *newActivateSurface)
 
 void Helper::setCursorPosition(const QPointF &position)
 {
-    for (auto *seat : m_seatManager->seats()) {
+    const auto seats = m_seatManager->seats();
+    for (auto *seat : seats) {
         m_rootSurfaceContainer->endMoveResizeForSeat(seat);
     }
     m_seat->setCursorPosition(position);
@@ -2265,7 +2364,7 @@ void Helper::handleLockScreen(LockScreenInterface *lockScreen)
 void Helper::onSessionNew(const QString &sessionId, const QDBusObjectPath &sessionPath)
 {
     const auto path = sessionPath.path();
-    qCDebug(treelandCore) << "Session new, sessionId:" << sessionId << ", sessionPath:" << path;
+    qCDebug(lcTlCore) << "Session new, sessionId:" << sessionId << ", sessionPath:" << path;
     QDBusConnection::systemBus().connect("org.freedesktop.login1", path, "org.freedesktop.login1.Session", "Lock", this, SLOT(onSessionLock()));
     QDBusConnection::systemBus().connect("org.freedesktop.login1", path, "org.freedesktop.login1.Session", "Unlock", this, SLOT(onSessionUnlock()));
 }
@@ -2329,7 +2428,7 @@ void Helper::allowNonDrmOutputAutoChangeMode(WOutput *output)
                             if (newState->state->committed & WLR_OUTPUT_STATE_MODE) {
                                 auto output = qobject_cast<qw_output *>(sender());
                                 if (!output->commit_state(newState->state)) {
-                                    qCCritical(treelandCore, "commit failed on output %s",
+                                    qCCritical(lcTlCore, "commit failed on output %s",
                                                output->handle()->name);
                                 }
                             }
@@ -2531,7 +2630,7 @@ void Helper::setLockScreenImpl(ILockScreen *impl)
 
     m_greeterProxy->setLockScreen(m_lockScreen);
 
-    for (auto *output : m_rootSurfaceContainer->outputs()) {
+    for (auto *output : std::as_const(m_rootSurfaceContainer->outputs())) {
         m_lockScreen->addOutput(output);
     }
 
@@ -2638,7 +2737,7 @@ void Helper::restoreFromShowDesktop(SurfaceWrapper *activeSurface)
         m_showDesktop = WindowManagementInterfaceV1::DesktopState::Normal;
         m_windowManagementInterfaceV1->setDesktopState(WindowManagementInterfaceV1::DesktopState::Normal);
         if (activeSurface) {
-            activeSurface->requestCancelMinimize();
+            activeSurface->restoreFromMinimized();
         }
         const auto &surfaces = getWorkspaceSurfaces();
         for (auto &surface : surfaces) {
@@ -2653,7 +2752,7 @@ void Helper::restoreFromShowDesktop(SurfaceWrapper *activeSurface)
 Output *Helper::getOutputAtCursor() const
 {
     QPoint cursorPos = QCursor::pos();
-    for (auto output : m_outputList) {
+    for (auto output : std::as_const(m_outputList)) {
         QRectF outputGeometry(output->outputItem()->position(), output->outputItem()->size());
         if (outputGeometry.contains(cursorPos)) {
             return output;
@@ -2666,43 +2765,43 @@ Output *Helper::getOutputAtCursor() const
 void Helper::handleNewForeignToplevelCaptureRequest(wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request *request)
 {
     if (!request || !request->toplevel_handle) {
-        qCWarning(treelandCapture) << "Invalid capture request or toplevel handle";
+        qCWarning(lcTlCapture) << "Invalid capture request or toplevel handle";
         return;
     }
 
     auto *qw_handle = qw_ext_foreign_toplevel_handle_v1::from(request->toplevel_handle);
     WToplevelSurface *toplevelSurface = m_extForeignToplevelListV1->findSurfaceByHandle(qw_handle);
     if (!toplevelSurface) {
-        qCWarning(treelandCapture) << "Could not find toplevel surface for handle";
+        qCWarning(lcTlCapture) << "Could not find toplevel surface for handle";
         return;
     }
 
     SurfaceWrapper *surfaceWrapper = m_rootSurfaceContainer->getSurface(toplevelSurface);
     if (!surfaceWrapper) {
-        qCWarning(treelandCapture) << "Could not find SurfaceWrapper for toplevel surface";
+        qCWarning(lcTlCapture) << "Could not find SurfaceWrapper for toplevel surface";
         return;
     }
 
     WSurfaceItem *surfaceItem = surfaceWrapper->surfaceItem();
     if (!surfaceItem) {
-        qCWarning(treelandCapture) << "Could not get WSurfaceItem from SurfaceWrapper";
+        qCWarning(lcTlCapture) << "Could not get WSurfaceItem from SurfaceWrapper";
         return;
     }
 
     WSurfaceItemContent *surfaceContent = surfaceItem->findItemContent();
     if (!surfaceContent) {
-        qCWarning(treelandCapture) << "Could not find WSurfaceItemContent";
+        qCWarning(lcTlCapture) << "Could not find WSurfaceItemContent";
         return;
     }
 
-    qCDebug(treelandCapture) << "Found WSurfaceItemContent for capture:"
+    qCDebug(lcTlCapture) << "Found WSurfaceItemContent for capture:"
              << "size=" << surfaceContent->size()
              << "implicitSize=" << QSizeF(surfaceContent->implicitWidth(), surfaceContent->implicitHeight())
              << "isTextureProvider=" << surfaceContent->isTextureProvider();
 
     auto *output = surfaceWrapper->ownsOutput()->output();
     if (!output) {
-        qCWarning(treelandCapture) << "Could not get WOutput from SurfaceWrapper";
+        qCWarning(lcTlCapture) << "Could not get WOutput from SurfaceWrapper";
         return;
     }
 
@@ -2712,7 +2811,7 @@ void Helper::handleNewForeignToplevelCaptureRequest(wlr_ext_foreign_toplevel_ima
         request, *imageCaptureSource);
 
     if (!success) {
-        qCWarning(treelandCapture) << "Failed to accept foreign toplevel image capture request";
+        qCWarning(lcTlCapture) << "Failed to accept foreign toplevel image capture request";
         delete imageCaptureSource;
     }
 }
@@ -2720,11 +2819,11 @@ void Helper::handleNewForeignToplevelCaptureRequest(wlr_ext_foreign_toplevel_ima
 void Helper::onPrepareForSleep(bool sleep)
 {
     if (sleep) {
-        qCInfo(treelandCore) << "Rendering black frames to all outputs before hibernate";
+        qCInfo(lcTlCore) << "Rendering black frames to all outputs before hibernate";
         disableRender();
         // TODO：should we disable output？
     } else {
-        qCInfo(treelandCore) << "Re-enabled rendering after hibernate";
+        qCInfo(lcTlCore) << "Re-enabled rendering after hibernate";
         enableRender();
     }
 }
@@ -2822,7 +2921,7 @@ void Helper::restoreCopyMode()
 {
     Output *primaryOutput = m_rootSurfaceContainer->primaryOutput();
     if (!primaryOutput) {
-        qCWarning(treelandCore) << "Cannot restore Copy Mode: no primary output available";
+        qCWarning(lcTlCore) << "Cannot restore Copy Mode: no primary output available";
         return;
     }
 
@@ -2843,7 +2942,7 @@ bool Helper::setXWindowPositionRelative(uint wid, WSurface *anchor, wl_fixed_t d
 {
     SurfaceWrapper *ach = m_rootSurfaceContainer->getSurface(anchor);
     if (!ach) {
-        qCWarning(treelandCore) << "setXWindowPositionRelative: Failed to get SurfaceWrapper from WSurface";
+        qCWarning(lcTlCore) << "setXWindowPositionRelative: Failed to get SurfaceWrapper from WSurface";
         return false;
     }
 
@@ -2859,7 +2958,7 @@ bool Helper::setXWindowPositionRelative(uint wid, WSurface *anchor, wl_fixed_t d
         }
     }
     if (!target) {
-        qCWarning(treelandCore) << "setXWindowPositionRelative: XWayland surface corresponding to WID" << wid << "not found!";
+        qCWarning(lcTlCore) << "setXWindowPositionRelative: XWayland surface corresponding to WID" << wid << "not found!";
         return false;
     }
 

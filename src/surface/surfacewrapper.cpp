@@ -63,6 +63,9 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     , m_blur(false)
     , m_isActivated(false)
     , m_attention(false)
+    , m_isIMCandidatePanel(false)
+    , m_resizable(false)
+    , m_maximizable(false)
     , m_appId(appId)
 {
     QQmlEngine::setContextForObject(this, qmlEngine->rootContext());
@@ -96,6 +99,9 @@ SurfaceWrapper::SurfaceWrapper(SurfaceWrapper *original, QQuickItem *parent)
     , m_blur(false)
     , m_isActivated(false)
     , m_attention(false)
+    , m_isIMCandidatePanel(false)
+    , m_resizable(false)
+    , m_maximizable(false)
     , m_appId(original->m_appId)
 {
     QQmlEngine::setContextForObject(this, m_engine->rootContext());
@@ -162,13 +168,16 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     , m_blur(false)
     , m_isActivated(false)
     , m_attention(false)
+    , m_isIMCandidatePanel(false)
+    , m_resizable(false)
+    , m_maximizable(false)
     , m_appId(appId)
 {
     QQmlEngine::setContextForObject(this, qmlEngine->rootContext());
     if (initialSize.isValid() && initialSize.width() > 0 && initialSize.height() > 0) {
         // Also set implicit size to keep QML layout consistent
         setImplicitSize(initialSize.width(), initialSize.height());
-        qCDebug(treelandSurface) << "Prelaunch Splash: set initial size to" << initialSize;
+        qCDebug(lcTlSurface) << "Prelaunch Splash: set initial size to" << initialSize;
     } else {
         setImplicitSize(800, 600);
     }
@@ -213,7 +222,7 @@ SurfaceWrapper::~SurfaceWrapper()
 {
     if (!m_wrapperAboutToRemove) {
         if (isWindowAnimationRunning()) {
-            qCWarning(treelandSurface)
+            qCWarning(lcTlSurface)
                 << "SurfaceWrapper is being destroyed without destroy(); expected external"
                    " destroy() rather than QObject parent-child destruction";
         }
@@ -289,37 +298,37 @@ void SurfaceWrapper::setup()
 
     if (!m_isProxy) {
         m_shellSurface->safeConnect(&WToplevelSurface::requestMinimize, this, [this]() {
-            requestMinimize();
+            minimize();
         });
         m_shellSurface->safeConnect(&WToplevelSurface::requestCancelMinimize, this, [this]() {
-            requestCancelMinimize();
+            restoreFromMinimized();
         });
         m_shellSurface->safeConnect(&WToplevelSurface::requestMaximize,
                                     this,
-                                    &SurfaceWrapper::requestMaximize);
+                                    &SurfaceWrapper::maximize);
         m_shellSurface->safeConnect(&WToplevelSurface::requestCancelMaximize,
                                     this,
-                                    &SurfaceWrapper::requestCancelMaximize);
-        m_shellSurface->safeConnect(&WToplevelSurface::requestMove,
-                                    this,
-                                    &SurfaceWrapper::requestMove);
+                                    &SurfaceWrapper::unmaximize);
+        m_shellSurface->safeConnect(&WToplevelSurface::requestMove, this, [this]() {
+            Q_EMIT moveRequested();
+        });
         m_shellSurface->safeConnect(&WToplevelSurface::requestResize,
                                     this,
                                     [this](WSeat *, Qt::Edges edge, quint32) {
-                                        Q_EMIT requestResize(edge);
+                                        Q_EMIT resizeRequested(edge);
                                     });
         m_shellSurface->safeConnect(&WToplevelSurface::requestFullscreen,
                                     this,
-                                    &SurfaceWrapper::requestFullscreen);
+                                    &SurfaceWrapper::enterFullscreen);
         m_shellSurface->safeConnect(&WToplevelSurface::requestCancelFullscreen,
                                     this,
-                                    &SurfaceWrapper::requestCancelFullscreen);
+                                    &SurfaceWrapper::leaveFullscreen);
 
         if (m_type == Type::XdgToplevel) {
             m_shellSurface->safeConnect(&WToplevelSurface::requestShowWindowMenu,
                                         this,
                                         [this](WSeat *, QPoint pos, quint32) {
-                                            Q_EMIT requestShowWindowMenu(
+                                            Q_EMIT windowMenuRequested(
                                                 m_surfaceItem->mapFromSurface(pos).toPoint());
                                         });
         }
@@ -336,6 +345,16 @@ void SurfaceWrapper::setup()
             Q_EMIT appIdChanged();
         });
     }
+
+    if (m_type == Type::XdgToplevel || m_type == Type::XWayland) {
+        m_shellSurface->safeConnect(&WToplevelSurface::minimumSizeChanged,
+                                    this,
+                                    &SurfaceWrapper::updateSizeCapabilities);
+        m_shellSurface->safeConnect(&WToplevelSurface::maximumSizeChanged,
+                                    this,
+                                    &SurfaceWrapper::updateSizeCapabilities);
+    }
+    updateSizeCapabilities();
 
     if (!m_prelaunchSplash) {
         setImplicitSize(m_surfaceItem->implicitWidth(), m_surfaceItem->implicitHeight());
@@ -424,12 +443,29 @@ void SurfaceWrapper::setup()
         connect(xwaylandSurface,
                 &WXWaylandSurface::bypassManagerChanged,
                 this,
-                updateX11shouldSkipDock);
+                [this, updateX11shouldSkipDock]() {
+                    updateX11shouldSkipDock();
+                    updateSizeCapabilities();
+                });
         connect(xwaylandSurface,
                 &WXWaylandSurface::windowTypesChanged,
                 this,
-                updateX11shouldSkipDock);
+                [this, updateX11shouldSkipDock]() {
+                    updateX11shouldSkipDock();
+                    updateSizeCapabilities();
+                });
         updateX11shouldSkipDock();
+    }
+    // Connect DConfig windowRadius change so QML bindings re-evaluate radius()
+    if (m_type == Type::XdgToplevel || m_type == Type::XWayland) {
+        if (auto *helper = Helper::instance()) {
+            if (auto *config = helper->config()) {
+                connect(config,
+                        &TreelandUserConfig::windowRadiusChanged,
+                        this,
+                        &SurfaceWrapper::radiusChanged);
+            }
+        }
     }
 }
 
@@ -437,7 +473,7 @@ void SurfaceWrapper::convertToNormalSurface(WToplevelSurface *shellSurface, Type
 {
     // Conversion only allowed from prelaunch (SplashScreen) state
     if (m_type != Type::SplashScreen || m_shellSurface != nullptr) {
-        qCCritical(treelandSurface)
+        qCCritical(lcTlSurface)
             << "convertToNormalSurface can only be called on prelaunch surfaces";
         return;
     }
@@ -488,24 +524,15 @@ void SurfaceWrapper::setActivate(bool activate)
 void SurfaceWrapper::updateActiveState()
 {
     if (!m_shellSurface) {
-        qCCritical(treelandSurface) << "updateActiveState called without a valid shellSurface";
+        qCCritical(lcTlSurface) << "updateActiveState called without a valid shellSurface";
         return;
     }
     if (!m_shellSurface->isInitialized()) {
-        qCWarning(treelandSurface)
+        qCWarning(lcTlSurface)
             << "updateActiveState called with shellSurface not yet initialized";
         return;
     }
     m_shellSurface->setActivate(m_isActivated);
-    auto parent = parentSurface();
-    while (parent) {
-        if (!parent->hasActiveCapability()) {
-            // Maybe it's parent is Minimized or Unmapped
-            break;
-        }
-        parent->setActivate(m_isActivated);
-        parent = parent->parentSurface();
-    }
 }
 
 void SurfaceWrapper::setFocus(bool focus, Qt::FocusReason reason)
@@ -534,14 +561,14 @@ void SurfaceWrapper::startPrelaunchSplashHideSequence()
 {
     Q_ASSERT(m_surfaceItem != nullptr);
     if (m_windowAnimation) {
-        qCDebug(treelandSurface) << "prelaunch splash transition is starting while window "
+        qCDebug(lcTlSurface) << "prelaunch splash transition is starting while window "
                                     "animation is still running,"
                                     "this may cause visual glitches, will delay the transition "
                                     "until window animation finishes";
         return;
     }
     if (m_geometryAnimation) {
-        qCDebug(treelandSurface) << "prelaunch splash transition already prepared or running, skip";
+        qCDebug(lcTlSurface) << "prelaunch splash transition already prepared or running, skip";
         return;
     }
 
@@ -564,7 +591,7 @@ void SurfaceWrapper::startPrelaunchSplashHideSequence()
     const bool hasValidTargetImplicitSize =
         targetImplicitSize.width() > 0 && targetImplicitSize.height() > 0;
     if (!hasValidTargetImplicitSize) {
-        qCCritical(treelandSurface) << "Invalid target implicit size, skip transition animation"
+        qCCritical(lcTlSurface) << "Invalid target implicit size, skip transition animation"
                                     << "targetImplicit=" << targetImplicitSize;
     }
 
@@ -692,20 +719,20 @@ QString SurfaceWrapper::appId() const
     return QString();
 }
 
-bool SurfaceWrapper::resize(const QSizeF &size)
+bool SurfaceWrapper::resize(const QSizeF &size, bool tryExec)
 {
     // No surfaceItem in prelaunch mode -> return false
     if (!m_surfaceItem)
         return false;
 
-    return m_surfaceItem->resizeSurface(size);
+    return m_surfaceItem->resizeSurface(size, tryExec);
 }
 
 void SurfaceWrapper::close()
 {
     if (m_type == Type::SplashScreen) {
         // For splash screens, emit a signal to request closure
-        Q_EMIT requestCloseSplash();
+        Q_EMIT splashCloseRequested();
     } else if (m_shellSurface) {
         // For normal surfaces, call the shell surface's close method
         m_shellSurface->close();
@@ -899,11 +926,11 @@ void SurfaceWrapper::setOutputs(const QList<WOutput *> &outputs)
         return;
     }
     if (!surface()) {
-        qCDebug(treelandSurface) << "SurfaceWrapper::setOutputs called but surface() is null!";
+        qCDebug(lcTlSurface) << "SurfaceWrapper::setOutputs called but surface() is null!";
         return;
     }
-    auto oldOutputs = surface()->outputs();
-    for (auto output : oldOutputs) {
+    const auto oldOutputs = surface()->outputs();
+    for (auto output : std::as_const(oldOutputs)) {
         if (outputs.contains(output)) {
             continue;
         }
@@ -1055,12 +1082,30 @@ bool SurfaceWrapper::setAttention(bool attention)
     if (m_attention == attention)
         return true;
     if (attention && m_isActivated) {
-        qCWarning(treelandSurface) << "setAttention(true) ignored: surface is already activated";
+        qCWarning(lcTlSurface) << "setAttention(true) ignored: surface is already activated";
         return false;
     }
     m_attention = attention;
     Q_EMIT attentionChanged();
     return true;
+}
+
+bool SurfaceWrapper::isInputPopupLike() const
+{
+    return m_type == Type::InputPopup || m_isIMCandidatePanel;
+}
+
+bool SurfaceWrapper::isIMCandidatePanel() const
+{
+    return m_isIMCandidatePanel;
+}
+
+void SurfaceWrapper::setIMCandidatePanel(bool isIMCandidatePanel)
+{
+    if (m_isIMCandidatePanel == isIMCandidatePanel)
+        return;
+    m_isIMCandidatePanel = isIMCandidatePanel;
+    Q_EMIT isIMCandidatePanelChanged();
 }
 
 void SurfaceWrapper::setNoDecoration(bool newNoDecoration)
@@ -1340,8 +1385,8 @@ void SurfaceWrapper::doSetSurfaceState(State newSurfaceState)
         m_shellSurface->setMaximize(true);
         break;
     case State::Minimized:
-        m_shellSurface->setMinimize(true);
         updateHasActiveCapability(ActiveControlState::UnMinimized, false);
+        m_shellSurface->setMinimize(true);
         break;
     case State::Fullscreen:
         m_shellSurface->setFullScreen(true);
@@ -1363,8 +1408,8 @@ void SurfaceWrapper::onAnimationReady()
     Q_ASSERT(m_pendingState != m_surfaceState);
     Q_ASSERT(m_pendingGeometry.isValid());
 
-    if (!resize(m_pendingGeometry.size())) {
-        // abort change state if resize failed
+    if (!resize(m_pendingGeometry.size(), true)) {
+        // abort change state if cannot resize
         m_geometryAnimation->disconnect(this);
         m_geometryAnimation->deleteLater();
         m_geometryAnimation = nullptr;
@@ -1374,6 +1419,7 @@ void SurfaceWrapper::onAnimationReady()
     QPointF alignedPos = alignToPixelGrid(m_pendingGeometry.topLeft());
     setPosition(alignedPos);
     doSetSurfaceState(m_pendingState);
+    resize(m_pendingGeometry.size());
 }
 
 void SurfaceWrapper::onAnimationFinished()
@@ -1560,16 +1606,14 @@ void SurfaceWrapper::startShowDesktopAnimation(bool show)
 
 qreal SurfaceWrapper::radius() const
 {
-    // TODO: move to dconfig
-    if (m_type == Type::InputPopup)
+    if (isInputPopupLike())
         return 0;
     if (m_type == Type::XdgPopup)
         return 8;
 
     qreal radius = m_radius;
-
-    // TODO: Handle: XdgToplevel, popup, InputPopup, XWayland (bypass, window type:
-    // menu/normal/popup)
+    // m_radius > 1 means radius was explicitly set via Personalization protocol;
+    // m_radius <= 1 means no per-window override, fall back to DConfig.
     if (radius < 1 && m_type != Type::Layer) {
         radius = Helper::instance()->config()->windowRadius();
     }
@@ -1585,7 +1629,33 @@ void SurfaceWrapper::setRadius(qreal newRadius)
     Q_EMIT radiusChanged();
 }
 
-void SurfaceWrapper::requestMinimize(bool onAnimation)
+ShadowParams SurfaceWrapper::shadowParams() const
+{
+    return m_shadowParams;
+}
+
+void SurfaceWrapper::setShadowParams(const ShadowParams &params)
+{
+    if (m_shadowParams == params)
+        return;
+    m_shadowParams = params;
+    Q_EMIT shadowParamsChanged();
+}
+
+BorderParams SurfaceWrapper::borderParams() const
+{
+    return m_borderParams;
+}
+
+void SurfaceWrapper::setBorderParams(const BorderParams &params)
+{
+    if (m_borderParams == params)
+        return;
+    m_borderParams = params;
+    Q_EMIT borderParamsChanged();
+}
+
+void SurfaceWrapper::minimize(bool onAnimation)
 {
     if (m_surfaceState == State::Minimized)
         return;
@@ -1594,7 +1664,7 @@ void SurfaceWrapper::requestMinimize(bool onAnimation)
         startMinimizeAnimation(iconGeometry(), CLOSE_ANIMATION);
 }
 
-void SurfaceWrapper::requestCancelMinimize(bool onAnimation)
+void SurfaceWrapper::restoreFromMinimized(bool onAnimation)
 {
     if (m_surfaceState != State::Minimized && m_hideByshowDesk)
         return;
@@ -1606,15 +1676,16 @@ void SurfaceWrapper::requestCancelMinimize(bool onAnimation)
         startMinimizeAnimation(iconGeometry(), OPEN_ANIMATION);
 }
 
-void SurfaceWrapper::requestMaximize()
+void SurfaceWrapper::maximize()
 {
-    if (m_surfaceState == State::Minimized || m_surfaceState == State::Fullscreen)
+    if (m_surfaceState == State::Minimized || m_surfaceState == State::Fullscreen
+        || !isMaximizable())
         return;
 
     setSurfaceState(State::Maximized);
 }
 
-void SurfaceWrapper::requestCancelMaximize()
+void SurfaceWrapper::unmaximize()
 {
     if (m_surfaceState != State::Maximized)
         return;
@@ -1622,15 +1693,15 @@ void SurfaceWrapper::requestCancelMaximize()
     setSurfaceState(State::Normal);
 }
 
-void SurfaceWrapper::requestToggleMaximize()
+void SurfaceWrapper::toggleMaximized()
 {
     if (m_surfaceState == State::Maximized)
-        requestCancelMaximize();
+        unmaximize();
     else
-        requestMaximize();
+        maximize();
 }
 
-void SurfaceWrapper::requestFullscreen()
+void SurfaceWrapper::enterFullscreen()
 {
     if (m_surfaceState == State::Minimized)
         return;
@@ -1638,7 +1709,7 @@ void SurfaceWrapper::requestFullscreen()
     setSurfaceState(State::Fullscreen);
 }
 
-void SurfaceWrapper::requestCancelFullscreen()
+void SurfaceWrapper::leaveFullscreen()
 {
     if (m_surfaceState != State::Fullscreen)
         return;
@@ -1646,7 +1717,7 @@ void SurfaceWrapper::requestCancelFullscreen()
     setSurfaceState(m_previousSurfaceState);
 }
 
-void SurfaceWrapper::requestClose()
+void SurfaceWrapper::closeSurface()
 {
     // No shellSurface in prelaunch mode -> early return
     if (!m_shellSurface)
@@ -1966,8 +2037,7 @@ void SurfaceWrapper::setAlwaysOnTop(bool alwaysOnTop)
 
 bool SurfaceWrapper::showOnAllWorkspace() const
 {
-    if (m_type == Type::Layer || m_type == Type::XdgPopup || m_type == Type::InputPopup)
-        [[unlikely]]
+    if (m_type == Type::Layer || m_type == Type::XdgPopup || isInputPopupLike()) [[unlikely]]
         return true;
     return m_workspaceId == Workspace::ShowOnAllWorkspaceId;
 }
@@ -1977,6 +2047,16 @@ bool SurfaceWrapper::showOnWorkspace(int workspaceIndex) const
     if (m_workspaceId == workspaceIndex)
         return true;
     return showOnAllWorkspace();
+}
+
+bool SurfaceWrapper::isResizable() const
+{
+    return m_resizable;
+}
+
+bool SurfaceWrapper::isMaximizable() const
+{
+    return m_maximizable;
 }
 
 bool SurfaceWrapper::blur() const
@@ -2073,15 +2153,35 @@ void SurfaceWrapper::updateExplicitAlwaysOnTop()
         sub->updateExplicitAlwaysOnTop();
 }
 
+void SurfaceWrapper::updateSizeCapabilities()
+{
+    if (!m_shellSurface) {
+        return;
+    }
+
+    const bool resizable = m_shellSurface->hasCapability(WToplevelSurface::Capability::Resize);
+    const bool maximizable = m_shellSurface->hasCapability(WToplevelSurface::Capability::Maximized);
+
+    if (m_resizable != resizable) {
+        m_resizable = resizable;
+        Q_EMIT resizableChanged();
+    }
+
+    if (m_maximizable != maximizable) {
+        m_maximizable = maximizable;
+        Q_EMIT maximizableChanged();
+    }
+}
+
 void SurfaceWrapper::updateHasActiveCapability(ActiveControlState state, bool value)
 {
     bool oldValue = hasActiveCapability();
     m_hasActiveCapability.setFlag(state, value);
     if (oldValue != hasActiveCapability()) {
         if (hasActiveCapability())
-            Q_EMIT requestActive();
+            Q_EMIT activationRequested();
         else
-            Q_EMIT requestInactive();
+            Q_EMIT inactivationRequested();
     }
 }
 
@@ -2124,7 +2224,7 @@ bool SurfaceWrapper::skipDockPreView() const
 void SurfaceWrapper::setSkipDockPreView(bool skip)
 {
     if (!skip && (m_type != Type::XdgToplevel && m_type != Type::XWayland)) {
-        qCWarning(treelandSurface) << "Only XdgToplevel or XWayland surfaces are allowed to set "
+        qCWarning(lcTlSurface) << "Only XdgToplevel or XWayland surfaces are allowed to set "
                                       "`skipDockPreView` to false.";
         return;
     }

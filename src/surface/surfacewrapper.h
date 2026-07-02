@@ -11,6 +11,7 @@
 #include <QQuickItem>
 #include <QString>
 #include <QColor>
+#include <QMetaType>
 
 Q_MOC_INCLUDE(<woutput.h>)
 Q_MOC_INCLUDE(<output / output.h>)
@@ -23,6 +24,30 @@ class SurfaceContainer;
 QW_BEGIN_NAMESPACE
 class qw_buffer;
 QW_END_NAMESPACE
+
+struct ShadowParams
+{
+    Q_GADGET
+    Q_PROPERTY(int radius MEMBER radius)
+    Q_PROPERTY(int offsetY MEMBER offsetY)
+    Q_PROPERTY(QColor color MEMBER color)
+public:
+    int radius = 40;
+    int offsetY = 10;
+    QColor color = QColor(0, 0, 0, 102);
+    bool operator==(const ShadowParams &other) const = default;
+};
+
+struct BorderParams
+{
+    Q_GADGET
+    Q_PROPERTY(int width MEMBER width)
+    Q_PROPERTY(QColor color MEMBER color)
+public:
+    int width = 0;
+    QColor color = Qt::transparent;
+    bool operator==(const BorderParams &other) const = default;
+};
 
 class SurfaceWrapper : public QQuickItem
 {
@@ -81,6 +106,11 @@ class SurfaceWrapper : public QQuickItem
     Q_PROPERTY(bool coverEnabled READ coverEnabled NOTIFY coverEnabledChanged FINAL)
     Q_PROPERTY(bool acceptKeyboardFocus READ acceptKeyboardFocus NOTIFY acceptKeyboardFocusChanged FINAL)
     Q_PROPERTY(bool isActivated READ isActivated NOTIFY isActivatedChanged FINAL)
+    Q_PROPERTY(bool isIMCandidatePanel READ isIMCandidatePanel NOTIFY isIMCandidatePanelChanged FINAL)
+    Q_PROPERTY(bool isResizable READ isResizable NOTIFY resizableChanged FINAL)
+    Q_PROPERTY(bool isMaximizable READ isMaximizable NOTIFY maximizableChanged FINAL)
+    Q_PROPERTY(ShadowParams shadowParams READ shadowParams NOTIFY shadowParamsChanged FINAL)
+    Q_PROPERTY(BorderParams borderParams READ borderParams NOTIFY borderParamsChanged FINAL)
 
 public:
     enum class Type
@@ -148,7 +178,7 @@ public:
     WSurfaceItem *surfaceItem() const;
     QQuickItem *prelaunchSplash() const;
     QString appId() const;
-    bool resize(const QSizeF &size);
+    bool resize(const QSizeF &size, bool tryExec = false);
     void close();
 
     QRectF titlebarGeometry() const;
@@ -237,6 +267,11 @@ public:
     bool showOnAllWorkspace() const;
     bool showOnWorkspace(int workspaceIndex) const;
 
+    // Keep this policy on SurfaceWrapper so future window rules can override it
+    // without pushing policy into waylib or QML.
+    bool isResizable() const;
+    bool isMaximizable() const;
+
     bool hasActiveCapability() const;
     bool hasCapability(WToplevelSurface::Capability cap) const;
 
@@ -277,20 +312,27 @@ public:
     void setAcceptKeyboardFocus(bool accept);
 
     bool isActivated() const;
+    bool isIMCandidatePanel() const;
+    void setIMCandidatePanel(bool isIMCandidatePanel);
+    bool isInputPopupLike() const;
 
     bool attention() const;
     bool setAttention(bool attention);
 
+    ShadowParams shadowParams() const;
+    void setShadowParams(const ShadowParams &params);
+    BorderParams borderParams() const;
+    void setBorderParams(const BorderParams &params);
+
 public Q_SLOTS:
-    // for titlebar
-    void requestMinimize(bool onAnimation = true);
-    void requestCancelMinimize(bool onAnimation = true);
-    void requestMaximize();
-    void requestCancelMaximize();
-    void requestToggleMaximize();
-    void requestFullscreen();
-    void requestCancelFullscreen();
-    void requestClose();
+    void minimize(bool onAnimation = true);
+    void restoreFromMinimized(bool onAnimation = true);
+    void maximize();
+    void unmaximize();
+    void toggleMaximized();
+    void enterFullscreen();
+    void leaveFullscreen();
+    void closeSurface();
     void onMappedChanged();
     void onSocketEnabledChanged();
 
@@ -313,9 +355,9 @@ Q_SIGNALS:
     void previousSurfaceStateChanged();
     void surfaceStateChanged();
     void radiusChanged();
-    void requestMove(); // for titlebar
-    void requestResize(Qt::Edges edges);
-    void requestShowWindowMenu(QPointF pos);
+    void moveRequested();
+    void resizeRequested(Qt::Edges edges);
+    void windowMenuRequested(QPointF pos);
     void geometryChanged();
     void containerChanged();
     void visibleDecorationChanged();
@@ -327,9 +369,9 @@ Q_SIGNALS:
     void workspaceIdChanged();
     void alwaysOnTopChanged();
     void showOnAllWorkspaceChanged();
-    void requestActive();
-    void requestInactive();
-    void requestCloseSplash();
+    void activationRequested();
+    void inactivationRequested();
+    void splashCloseRequested();
     void skipSwitcherChanged();
     void skipDockPreViewChanged();
     void skipMutiTaskViewChanged();
@@ -343,10 +385,15 @@ Q_SIGNALS:
     void aboutToBeInvalidated();
     void acceptKeyboardFocusChanged();
     void isActivatedChanged();
+    void isIMCandidatePanelChanged();
+    void resizableChanged();
+    void maximizableChanged();
     void attentionChanged();
     void surfaceItemCreated(); // Emitted once after surfaceItem is constructed
     void prelaunchSplashChanged();
     void typeChanged();
+    void shadowParamsChanged();
+    void borderParamsChanged();
 
 private:
     ~SurfaceWrapper() override;
@@ -389,6 +436,7 @@ private:
     Q_SLOT void onShowAnimationFinished();
     Q_SLOT void onHideAnimationFinished();
     void updateExplicitAlwaysOnTop();
+    void updateSizeCapabilities();
     void startMinimizeAnimation(const QRectF &iconGeometry, uint direction);
     Q_SLOT void onMinimizeAnimationFinished();
     void startShowDesktopAnimation(bool show);
@@ -464,6 +512,9 @@ private:
     uint m_blur : 1;
     uint m_isActivated : 1;
     uint m_attention : 1;
+    uint m_isIMCandidatePanel : 1;
+    uint m_resizable : 1;
+    uint m_maximizable : 1;
     SurfaceRole m_surfaceRole = SurfaceRole::Normal;
     quint32 m_autoPlaceYOffset = 0;
     QPoint m_clientRequstPos;
@@ -472,6 +523,11 @@ private:
     bool m_windowAnimationEnabled{ true };
     bool m_acceptKeyboardFocus{ true };
     const QString m_appId;
+    ShadowParams m_shadowParams;
+    BorderParams m_borderParams;
 };
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(SurfaceWrapper::ActiveControlStates)
+
+Q_DECLARE_METATYPE(SurfaceWrapper::ShadowParams)
+Q_DECLARE_METATYPE(SurfaceWrapper::BorderParams)

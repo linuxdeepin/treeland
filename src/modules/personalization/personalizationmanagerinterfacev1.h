@@ -22,12 +22,14 @@ struct Shadow
     int32_t radius;
     QPoint offset;
     QColor color;
+    bool operator==(const Shadow &other) const = default;
 };
 
 struct Border
 {
     int32_t width;
     QColor color;
+    bool operator==(const Border &other) const = default;
 };
 
 class PersonalizationManagerInterfaceV1Private;
@@ -43,13 +45,31 @@ public:
     Q_ENUM(WindowState)
     Q_DECLARE_FLAGS(WindowStates, WindowState)
 
+    enum class ShadowState
+    {
+        Unset,
+        Disabled,
+        Enabled,
+    };
+    Q_ENUM(ShadowState)
+
+    enum class BorderState
+    {
+        Unset,
+        Disabled,
+        Enabled,
+    };
+    Q_ENUM(BorderState)
+
     ~PersonalizationWindowContextV1() override;
 
     wl_resource *resource() const;
     wlr_surface *surface() const;
     int32_t backgroundType() const;
     int32_t cornerRadius() const;
+    ShadowState shadowState() const;
     Shadow shadow() const;
+    BorderState borderState() const;
     Border border() const;
     WindowStates states() const;
 
@@ -73,39 +93,6 @@ private:
 };
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(PersonalizationWindowContextV1::WindowStates)
-
-class PersonalizationWallpaperContextV1Private;
-class PersonalizationWallpaperContextV1 : public QObject
-{
-    Q_OBJECT
-public:
-    ~PersonalizationWallpaperContextV1() override;
-
-    wl_resource *resource() const;
-    int32_t fd() const;
-    uint32_t uid() const;
-    uint32_t options() const;
-    bool isDark() const;
-    QString metaData() const;
-    QString identifier() const;
-    QString outputName() const;
-
-    void setMetaData(const QString &data);
-
-    static PersonalizationWallpaperContextV1 *get(wl_resource *resource);
-
-Q_SIGNALS:
-    void commit(PersonalizationWallpaperContextV1 *context);
-    void getWallpapers(PersonalizationWallpaperContextV1 *context);
-
-private:
-    explicit PersonalizationWallpaperContextV1(wl_resource *resource);
-
-private:
-    std::unique_ptr<PersonalizationWallpaperContextV1Private> d;
-
-    friend class PersonalizationManagerInterfaceV1Private;
-};
 
 class PersonalizationCursorContextV1Private;
 class PersonalizationCursorContextV1 : public QObject
@@ -228,11 +215,13 @@ class Personalization : public QObject
 {
     Q_OBJECT
     QML_ANONYMOUS
-    Q_PROPERTY(int32_t backgroundType READ backgroundType NOTIFY backgroundTypeChanged)
+    Q_PROPERTY(BackgroundType backgroundType READ backgroundType NOTIFY backgroundTypeChanged)
     Q_PROPERTY(int32_t cornerRadius READ cornerRadius NOTIFY cornerRadiusChanged)
     Q_PROPERTY(Shadow shadow READ shadow NOTIFY shadowChanged)
     Q_PROPERTY(Border border READ border NOTIFY borderChanged)
     Q_PROPERTY(bool noTitlebar READ noTitlebar NOTIFY windowStateChanged)
+    Q_PROPERTY(bool shadowEnabled READ shadowEnabled NOTIFY shadowChanged)
+    Q_PROPERTY(bool borderEnabled READ borderEnabled NOTIFY borderChanged)
 
 public:
     enum BackgroundType
@@ -266,6 +255,8 @@ public:
     }
 
     bool noTitlebar() const;
+    bool shadowEnabled() const;
+    bool borderEnabled() const;
 
 Q_SIGNALS:
     void backgroundTypeChanged();
@@ -274,16 +265,28 @@ Q_SIGNALS:
     void borderChanged();
     void windowStateChanged();
 
+private Q_SLOTS:
+    void resetProperties();
+
+private:
+    void setBackgroundType(BackgroundType type);
+    void setCornerRadius(int32_t radius);
+    void setShadow(const Shadow &shadow);
+    void setBorder(const Border &border);
+    void setWindowStates(PersonalizationWindowContextV1::WindowStates states);
+    void setShadowState(PersonalizationWindowContextV1::ShadowState state);
+    void setBorderState(PersonalizationWindowContextV1::BorderState state);
+
 private:
     WWrapPointer<WToplevelSurface> m_target;
     PersonalizationManagerInterfaceV1 *m_manager = nullptr;
-    int32_t m_backgroundType = Personalization::BackgroundType::Normal;
+    BackgroundType m_backgroundType = BackgroundType::Normal;
     int32_t m_cornerRadius = 0;
     Shadow m_shadow {};
     Border m_border {};
     PersonalizationWindowContextV1::WindowStates m_states {};
-
-    QMetaObject::Connection m_connection;
+    PersonalizationWindowContextV1::ShadowState m_shadowState = PersonalizationWindowContextV1::ShadowState::Unset;
+    PersonalizationWindowContextV1::BorderState m_borderState = PersonalizationWindowContextV1::BorderState::Unset;
 };
 
 class PersonalizationManagerInterfaceV1 : public QObject, public WServerInterface
@@ -298,14 +301,11 @@ public:
     explicit PersonalizationManagerInterfaceV1(QObject *parent = nullptr);
     ~PersonalizationManagerInterfaceV1() override;
 
-    void onWallpaperContextCreated(PersonalizationWallpaperContextV1 *context);
     void onCursorContextCreated(PersonalizationCursorContextV1 *context);
     void onAppearanceContextCreated(PersonalizationAppearanceContextV1 *context);
     void onFontContextCreated(PersonalizationFontContextV1 *context);
 
     void onWindowPersonalizationChanged();
-    void onWallpaperCommit(PersonalizationWallpaperContextV1 *context);
-    void onGetWallpapers(PersonalizationWallpaperContextV1 *context);
 
     void onCursorCommit(PersonalizationCursorContextV1 *context);
 
@@ -324,22 +324,13 @@ public:
 
     QByteArrayView interfaceName() const override;
 
-    QString defaultWallpaper() const;
-
-    static constexpr int InterfaceVersion = 1;
+    static constexpr int InterfaceVersion = 2;
 Q_SIGNALS:
     void userIdChanged(uid_t uid);
-    void backgroundChanged(const QString &output, bool isdark);
     void lockscreenChanged();
     void cursorThemeChanged(const QString &name);
     void cursorSizeChanged(const QSize &size);
     void windowContextCreated(PersonalizationWindowContextV1 *context);
-
-public Q_SLOTS:
-    QString background(const QString &output, int workspaceId = 1);
-    QString lockscreen(const QString &output, int workspaceId = 1);
-    bool backgroundIsDark(const QString &output, int workspaceId = 1);
-    bool isAnimagedImage(const QString &source);
 
 protected:
     void create(WServer *server) override;
@@ -347,9 +338,5 @@ protected:
     wl_global *global() const override;
 
 private:
-    void saveImage(PersonalizationWallpaperContextV1 *context, const QString &prefix);
-    void updateCacheWallpaperPath(uid_t uid);
-    QString readWallpaperSettings(const QString &group, const QString &output, int workspaceId = 1);
-
     std::unique_ptr<PersonalizationManagerInterfaceV1Private> d;
 };
