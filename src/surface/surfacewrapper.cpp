@@ -25,6 +25,7 @@
 
 #include <qwbuffer.h>
 #include <qwlayershellv1.h>
+#include <qwrenderer.h>
 
 #include <QColor>
 #include <QVariant>
@@ -32,6 +33,21 @@
 #define OPEN_ANIMATION 1
 #define CLOSE_ANIMATION 2
 #define ALWAYSONTOPLAYER 1
+
+namespace {
+bool isVulkanRendererBackend()
+{
+#ifdef ENABLE_VULKAN_RENDER
+    auto *helper = Helper::instance();
+    if (!helper || !helper->window() || !helper->window()->renderer())
+        return false;
+
+    return wlr_renderer_is_vk(helper->window()->renderer()->handle());
+#else
+    return false;
+#endif
+}
+}
 
 SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
                                WToplevelSurface *shellSurface,
@@ -609,6 +625,7 @@ void SurfaceWrapper::startPrelaunchSplashHideSequence()
         const QRectF toGeometry(toTopLeft, targetImplicitSize);
         m_geometryAnimation =
             m_engine->createGeometryAnimation(this, fromGeometry, toGeometry, container());
+        Q_EMIT animationRunningChanged();
 
         bool ok = connect(m_geometryAnimation,
                           SIGNAL(ready()),
@@ -647,6 +664,7 @@ void SurfaceWrapper::onPrelaunchGeometryAnimationFinished()
     m_geometryAnimation->disconnect(this);
     m_geometryAnimation->deleteLater();
     m_geometryAnimation = nullptr;
+    Q_EMIT animationRunningChanged();
 
     if (m_decoration)
         m_decoration->setVisible(true);
@@ -1004,6 +1022,7 @@ void SurfaceWrapper::setSurfaceState(State newSurfaceState)
             m_geometryAnimation->disconnect(this);
             m_geometryAnimation->deleteLater();
             m_geometryAnimation = nullptr;
+            Q_EMIT animationRunningChanged();
         }
 
         doSetSurfaceState(newSurfaceState);
@@ -1270,6 +1289,8 @@ void SurfaceWrapper::createNewOrClose(uint direction)
     case Type::XWayland: {
         m_windowAnimation = m_engine->createNewAnimation(this, container(), direction);
         m_windowAnimation->setProperty("enableBlur", m_blur);
+        if (m_type == Type::SplashScreen && isVulkanRendererBackend())
+            m_windowAnimation->setProperty("liveSource", false);
     } break;
     case Type::Layer: {
         auto scope = QString(static_cast<WLayerSurfaceItem *>(m_surfaceItem)
@@ -1413,6 +1434,7 @@ void SurfaceWrapper::onAnimationReady()
         m_geometryAnimation->disconnect(this);
         m_geometryAnimation->deleteLater();
         m_geometryAnimation = nullptr;
+        Q_EMIT animationRunningChanged();
         return;
     }
 
@@ -1429,6 +1451,7 @@ void SurfaceWrapper::onAnimationFinished()
     m_geometryAnimation->disconnect(this);
     m_geometryAnimation->deleteLater();
     m_geometryAnimation = nullptr;
+    Q_EMIT animationRunningChanged();
 }
 
 bool SurfaceWrapper::startStateChangeAnimation(State targetState, const QRectF &targetGeometry)
@@ -1438,6 +1461,7 @@ bool SurfaceWrapper::startStateChangeAnimation(State targetState, const QRectF &
 
     m_geometryAnimation =
         m_engine->createGeometryAnimation(this, geometry(), targetGeometry, container());
+    Q_EMIT animationRunningChanged();
     m_geometryAnimation->setProperty("enableBlur", m_blur);
     m_pendingState = targetState;
     m_pendingGeometry = targetGeometry;

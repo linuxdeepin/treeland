@@ -75,6 +75,7 @@ public:
     const QMatrix4x4 &currentWorldTransform() const;
     QW_NAMESPACE::qw_buffer *currentBuffer() const;
     QW_NAMESPACE::qw_buffer *lastBuffer() const;
+    bool currentBufferReadyForScanout() const;
     QRhiTexture *currentRenderTarget() const;
     const QW_NAMESPACE::qw_damage_ring *damageRing() const;
     QW_NAMESPACE::qw_damage_ring *damageRing();
@@ -99,6 +100,7 @@ protected:
     void render(int sourceIndex, const QMatrix4x4 &renderMatrix,
                 const QRectF &sourceRect = {}, const QRectF &targetRect = {},
                 bool preserveColorContents = false);
+    bool releaseCurrentBufferForScanout();
     void endRender();
     void componentComplete() override;
 
@@ -143,6 +145,7 @@ private:
         QQuickRenderTarget renderTarget;
         QSGRenderTarget sgRenderTarget;
         QRegion dirty;
+        bool scanoutReady = true;
     } state;
 
     QPointer<WOutput> m_output;

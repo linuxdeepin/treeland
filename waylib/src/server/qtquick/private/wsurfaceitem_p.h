@@ -87,4 +87,3 @@ public:
 };
 
 WAYLIB_SERVER_END_NAMESPACE
-

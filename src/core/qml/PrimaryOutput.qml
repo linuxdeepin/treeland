@@ -19,6 +19,9 @@ OutputItem {
         required property QtObject outputCursor
         readonly property point rawPosition: parent.mapFromGlobal(cursor.position.x, cursor.position.y)
         readonly property real effectiveScale: rootOutputItem.devicePixelRatio || 1.0
+        readonly property bool useCursorOutputLayer: GraphicsInfo.api !== GraphicsInfo.Vulkan
+                && GraphicsInfo.api !== GraphicsInfo.VulkanRhi
+                && !outputCursor.output.forceSoftwareCursor
 
         // Align cursor position to pixel grid to prevent blur on fractional DPR displays
         function alignToPixelGrid(value) {
@@ -35,7 +38,7 @@ OutputItem {
         x: position.x - hotSpot.x
         y: position.y - hotSpot.y
         visible: valid && outputCursor.visible
-        OutputLayer.enabled: !outputCursor.output.forceSoftwareCursor
+        OutputLayer.enabled: useCursorOutputLayer
         OutputLayer.keepLayer: true
         OutputLayer.outputs: [screenViewport]
         OutputLayer.flags: OutputLayer.Cursor

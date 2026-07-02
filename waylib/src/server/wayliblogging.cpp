@@ -72,3 +72,4 @@ Q_LOGGING_CATEGORY(lcWlPlatform, "waylib.platform", QtWarningMsg)          // QP
 Q_LOGGING_CATEGORY(lcWlRenderHelper, "waylib.render.helper", QtWarningMsg) // Render target creation and buffer import
 Q_LOGGING_CATEGORY(lcWlRenderBuffer, "waylib.render.buffer", QtWarningMsg) // Render buffer node DMA-BUF
 Q_LOGGING_CATEGORY(lcWlBufferRenderer, "waylib.render.bufferrenderer", QtWarningMsg) // Buffer renderer texture provider
+Q_LOGGING_CATEGORY(lcWlVulkanCompositor, "waylib.vulkan.compositor", QtInfoMsg) // Vulkan output-layer composition path

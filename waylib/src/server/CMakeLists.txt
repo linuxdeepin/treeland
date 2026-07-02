@@ -12,7 +12,7 @@ set(WAYLIB_INCLUDE_INSTALL_DIR
 if(Qt6_VERSION VERSION_GREATER_EQUAL 6.10)
     find_package(Qt6 REQUIRED COMPONENTS GuiPrivate QuickPrivate)
 endif()
-find_package(Qt6 COMPONENTS Core Gui Quick REQUIRED)
+find_package(Qt6 COMPONENTS Core Gui Quick ShaderTools REQUIRED)
 
 qt_standard_project_setup(REQUIRES 6.8)
 

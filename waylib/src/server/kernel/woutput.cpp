@@ -14,6 +14,7 @@
 #include <qwoutputlayout.h>
 #include <qwrenderer.h>
 #include <qwswapchain.h>
+#include <qwbuffer.h>
 #include <qwallocator.h>
 #include <qwrendererinterface.h>
 #include <qwoutputinterface.h>
@@ -314,7 +315,7 @@ static struct wlr_swapchain *create_swapchain(struct wlr_output *output,
 
 static bool test_swapchain(struct wlr_output *output,
                            struct wlr_swapchain *swapchain, const struct wlr_output_state *state) {
-    struct wlr_buffer *buffer = wlr_swapchain_acquire(swapchain);
+    struct wlr_buffer *buffer = qw_swapchain::from(swapchain)->acquire();
     if (buffer == NULL) {
         return false;
     }
@@ -323,7 +324,7 @@ static bool test_swapchain(struct wlr_output *output,
     copy.committed |= WLR_OUTPUT_STATE_BUFFER;
     copy.buffer = buffer;
     bool ok = wlr_output_test_state(output, &copy);
-    wlr_buffer_unlock(buffer);
+    qw_buffer::from(buffer)->unlock();
     return ok;
 }
 

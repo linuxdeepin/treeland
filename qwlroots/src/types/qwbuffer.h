@@ -48,6 +48,10 @@ public:
     QW_FUNC_MEMBER(buffer, get_shm, bool, wlr_shm_attributes *attribs)
     QW_FUNC_MEMBER(buffer, begin_data_ptr_access, bool, uint32_t flags, void **data, uint32_t *format, size_t *stride)
     QW_FUNC_MEMBER(buffer, end_data_ptr_access, void)
+
+    QW_ALWAYS_INLINE size_t lock_count() const {
+        return handle() ? handle()->n_locks : 0;
+    }
 };
 
 class QW_CLASS_REINTERPRET_CAST(client_buffer)

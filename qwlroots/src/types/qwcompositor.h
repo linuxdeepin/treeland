@@ -4,6 +4,7 @@
 #pragma once
 
 #include <qwobject.h>
+#include <qwbuffer.h>
 
 extern "C" {
 #include <math.h>
@@ -51,6 +52,26 @@ public:
     QW_FUNC_MEMBER(surface, for_each_surface, void, wlr_surface_iterator_func_t iterator, void *user_data)
     QW_FUNC_MEMBER(surface, get_buffer_source_box, void, wlr_fbox *box)
     QW_FUNC_MEMBER(surface, get_effective_damage, void, pixman_region32_t *damage)
+    QW_ALWAYS_INLINE qw_buffer *pending_buffer() const {
+        return handle() && handle()->pending.buffer
+            ? qw_buffer::from(handle()->pending.buffer)
+            : nullptr;
+    }
+    QW_ALWAYS_INLINE uint32_t pending_committed() const {
+        return handle() ? handle()->pending.committed : 0;
+    }
+    QW_ALWAYS_INLINE uint32_t pending_seq() const {
+        return handle() ? handle()->pending.seq : 0;
+    }
+    QW_ALWAYS_INLINE uint32_t current_committed() const {
+        return handle() ? handle()->current.committed : 0;
+    }
+    QW_ALWAYS_INLINE uint32_t current_seq() const {
+        return handle() ? handle()->current.seq : 0;
+    }
+    QW_ALWAYS_INLINE const pixman_region32_t *buffer_damage() const {
+        return &handle()->buffer_damage;
+    }
 #if WLR_VERSION_MINOR < 19
     QW_FUNC_MEMBER(surface, get_extends, void, wlr_box *box)
 #else
