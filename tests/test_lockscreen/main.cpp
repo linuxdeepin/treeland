@@ -9,6 +9,7 @@
 #include "core/lockscreen.h"
 #include "interfaces/lockscreeninterface.h"
 #include "greeter/greeterproxy.h"
+#include "surface/surfacecontainer.h"
 
 class MockLockScreen : public QObject, public ILockScreen
 {
@@ -79,6 +80,7 @@ private:
     QQuickWindow *m_window = nullptr;
     MockLockScreen *m_mockImpl = nullptr;
     MockGreeterProxy *m_mockGreeter = nullptr;
+    SurfaceContainer *m_parentContainer = nullptr;
     LockScreen *m_lockScreen = nullptr;
 
 private Q_SLOTS:
@@ -100,13 +102,16 @@ void TestLockScreen::initTestCase()
     m_window = new QQuickWindow;
     m_mockImpl = new MockLockScreen();
     m_mockGreeter = new MockGreeterProxy();
-    m_lockScreen = new LockScreen(m_mockImpl, nullptr, m_mockGreeter);
-    m_lockScreen->setParentItem(m_window->contentItem());
+    // Use SurfaceContainer(QQuickItem*) to avoid triggering ensureQmlContext()
+    m_parentContainer = new SurfaceContainer(static_cast<QQuickItem *>(nullptr));
+    m_parentContainer->setParentItem(m_window->contentItem());
+    m_lockScreen = new LockScreen(m_mockImpl, m_parentContainer, m_mockGreeter);
 }
 
 void TestLockScreen::cleanupTestCase()
 {
     delete m_lockScreen;
+    delete m_parentContainer;
     delete m_mockGreeter;
     delete m_mockImpl;
     delete m_window;

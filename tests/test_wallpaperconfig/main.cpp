@@ -104,7 +104,7 @@ private Q_SLOTS:
     void testContainsWorkspaceFound()
     {
         WallpaperOutputConfig config;
-        WallpaperWorkspaceConfig ws;
+        WallpaperWorkspaceConfig ws{};
         ws.workspaceId = 3;
         config.workspaces = {ws};
         QVERIFY(config.containsWorkspace(3));
@@ -113,7 +113,7 @@ private Q_SLOTS:
     void testContainsWorkspaceNotFound()
     {
         WallpaperOutputConfig config;
-        WallpaperWorkspaceConfig ws;
+        WallpaperWorkspaceConfig ws{};
         ws.workspaceId = 1;
         config.workspaces = {ws};
         QVERIFY(!config.containsWorkspace(99));
