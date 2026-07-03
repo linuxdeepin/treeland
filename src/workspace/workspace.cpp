@@ -48,17 +48,21 @@ void Workspace::moveSurfaceTo(SurfaceWrapper *surface, int workspaceId)
     Q_ASSERT(to);
 
     from->removeSurface(surface);
-    if (surface->shellSurface()->isActivated())
-        Helper::instance()->activateSurface(current()->latestActiveSurface());
-
     to->addSurface(surface);
-    if (surface->hasActiveCapability()
-        && surface->shellSurface()->hasCapability(WToplevelSurface::Capability::Activate)) {
-        if (surface->showOnWorkspace(current()->id())) {
-            Helper::instance()->activateSurface(surface);
-        } else {
-            pushActivedSurface(surface);
-        }
+
+    // Transient children follow parent to new workspace (ref: KWin::Window::setDesktops)
+    for (auto *child : surface->subSurfaces()) {
+        moveSurfaceTo(child, workspaceId);
+    }
+    // Modal dialog pulls parent along
+    if (surface->modal() && surface->parentSurface()) {
+        moveSurfaceTo(surface->parentSurface(), workspaceId);
+    }
+
+    // TODO(rewine): Unified Activation Capability Check
+    if (surface->hasActiveCapability()) {
+        this->removeActivedSurface(surface);
+        this->pushActivedSurface(surface);
     }
 }
 
