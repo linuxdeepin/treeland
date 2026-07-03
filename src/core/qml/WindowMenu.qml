@@ -74,20 +74,14 @@ D.Menu {
         property int leftWorkspaceId: surface ? Helper.workspace.getLeftWorkspaceId(surface.workspaceId) : -1
         text: qsTr("Move to Left Work Space")
         enabled: leftWorkspaceId >= 0
-        onTriggered: {
-            Helper.workspace.moveSurfaceTo(surface, leftWorkspaceId)
-            Helper.activateSurface(Helper.workspace.current.latestActiveSurface())
-        }
+        onTriggered: Helper.workspace.moveSurfaceTo(surface, leftWorkspaceId)
     }
 
     D.MenuItem {
         property int rightWorkspaceId: surface ? Helper.workspace.getRightWorkspaceId(surface.workspaceId) : -1
         text: qsTr("Move to Right Work Space")
         enabled: rightWorkspaceId >= 0
-        onTriggered: {
-            Helper.workspace.moveSurfaceTo(surface, rightWorkspaceId)
-            Helper.activateSurface(Helper.workspace.current.latestActiveSurface())
-        }
+        onTriggered: Helper.workspace.moveSurfaceTo(surface, rightWorkspaceId)
     }
 
     D.MenuItem {

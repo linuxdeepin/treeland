@@ -1369,11 +1369,12 @@ void SurfaceWrapper::doSetSurfaceState(State newSurfaceState)
 
     // Keep modal/parent minimize linkage ahead of this surface's own state change
     // so focus fallback never sees the parent in the old state first.
-    if (needMinimizeLinkage && modal() && m_parentSurface) {
-        if (willBeMinimized && !m_parentSurface->isMinimized()) {
-            m_parentSurface->minimize(false);
-        } else if (!willBeMinimized && m_parentSurface->isMinimized()) {
-            m_parentSurface->restoreFromMinimized(false);
+    if (needMinimizeLinkage) {
+        if (auto *parent = linkedParentForMinimize(willBeMinimized)) {
+            if (willBeMinimized)
+                parent->minimize(false);
+            else
+                parent->restoreFromMinimized(false);
         }
     }
 
@@ -1420,15 +1421,11 @@ void SurfaceWrapper::doSetSurfaceState(State newSurfaceState)
     updateVisible();
 
     if (needMinimizeLinkage) {
-        for (SurfaceWrapper *child : std::as_const(m_subSurfaces)) {
-            if (willBeMinimized && child->modal())
-                continue; // Modal children stay visible when parent is minimized.
-            if (child->isMinimized() != willBeMinimized) {
-                if (willBeMinimized)
-                    child->minimize(false);
-                else
-                    child->restoreFromMinimized(false);
-            }
+        for (SurfaceWrapper *child : linkedChildrenForMinimize(willBeMinimized)) {
+            if (willBeMinimized)
+                child->minimize(false);
+            else
+                child->restoreFromMinimized(false);
         }
     }
 }
@@ -2111,6 +2108,84 @@ SurfaceWrapper *SurfaceWrapper::findModal() const
             return deepModal;
     }
     return nullptr;
+}
+
+SurfaceWrapper::ModalRedirect SurfaceWrapper::computeModalRedirect() const
+{
+    ModalRedirect redirect;
+    SurfaceWrapper *modal = findModal();
+    if (!modal || modal == this)
+        return redirect;
+
+    redirect.modal = modal;
+    if (modal->workspaceId() != workspaceId() && workspaceId() != -1) {
+        redirect.needsWorkspaceMove = true;
+        redirect.targetWorkspaceId = workspaceId();
+    }
+    redirect.refuseActivation = modal->isMinimized();
+    return redirect;
+}
+
+SurfaceWrapper *SurfaceWrapper::linkedParentForMinimize(bool willBeMinimized) const
+{
+    if (!modal() || !m_parentSurface)
+        return nullptr;
+    if (willBeMinimized && !m_parentSurface->isMinimized())
+        return m_parentSurface;
+    if (!willBeMinimized && m_parentSurface->isMinimized())
+        return m_parentSurface;
+    return nullptr;
+}
+
+QList<SurfaceWrapper *> SurfaceWrapper::linkedChildrenForMinimize(bool willBeMinimized) const
+{
+    QList<SurfaceWrapper *> result;
+    for (SurfaceWrapper *child : std::as_const(m_subSurfaces)) {
+        // Modal children stay visible when the parent is minimized.
+        if (willBeMinimized && child->modal())
+            continue;
+        if (child->isMinimized() != willBeMinimized)
+            result.append(child);
+    }
+    return result;
+}
+
+// Test-only bare constructor: no shell surface, no QML setup. Only the pure
+// decision-logic accessors (modal, isMinimized, subSurfaces, parentSurface,
+// workspaceId, findModal, ...) are meaningful on instances created this way.
+SurfaceWrapper::SurfaceWrapper(TestTag, QQuickItem *parent)
+    : QQuickItem(parent)
+    , m_engine(nullptr)
+    , m_shellSurface(nullptr)
+    , m_type(Type::XdgToplevel)
+    , m_positionAutomatic(true)
+    , m_visibleDecoration(true)
+    , m_clipInOutput(false)
+    , m_noDecoration(true)
+    , m_noTitleBar(true)
+    , m_noCornerRadius(false)
+    , m_alwaysOnTop(false)
+    , m_skipSwitcher(false)
+    , m_skipDockPreView(true)
+    , m_skipMutiTaskView(false)
+    , m_isDdeShellSurface(false)
+    , m_xwaylandPositionFromSurface(true)
+    , m_wrapperAboutToRemove(false)
+    , m_isProxy(false)
+    , m_hideByWorkspace(false)
+    , m_hideByshowDesk(true)
+    , m_hideByLockScreen(false)
+    , m_confirmHideByLockScreen(false)
+    , m_blur(false)
+    , m_isActivated(false)
+    , m_attention(false)
+    , m_isIMCandidatePanel(false)
+    , m_resizable(false)
+    , m_maximizable(false)
+    , m_modal(false)
+    , m_appId()
+{
+    m_pendingState = State::Normal;
 }
 
 bool SurfaceWrapper::blur() const

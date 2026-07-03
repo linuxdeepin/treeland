@@ -249,6 +249,20 @@ public:
     bool modal() const;
     SurfaceWrapper *findModal() const;
 
+    // Pure decision logic for modal-aware activation redirection (used by
+    // Helper::activateSurface). Computes which modal descendant to redirect to,
+    // whether it needs to be moved to this surface's workspace, and whether
+    // activation must be refused because the modal is minimized. Has no side
+    // effects — the caller applies the result.
+    struct ModalRedirect
+    {
+        SurfaceWrapper *modal = nullptr; // deepest modal to redirect to (nullptr if none)
+        bool needsWorkspaceMove = false; // modal is on a different workspace
+        int targetWorkspaceId = -1;      // workspace the modal should move to
+        bool refuseActivation = false;   // modal is minimized, refuse to activate parent
+    };
+    ModalRedirect computeModalRedirect() const;
+
     bool hasActiveCapability() const;
     bool hasCapability(WToplevelSurface::Capability cap) const;
 
@@ -410,6 +424,14 @@ private:
     void updateExplicitAlwaysOnTop();
     void updateSizeCapabilities();
     void setModal(bool modal);
+
+    // Pure decision helpers for modal-aware minimize linkage (used by
+    // doSetSurfaceState). Return which parent/children need their minimize
+    // state toggled when this surface transitions to willBeMinimized, without
+    // applying any side effect.
+    SurfaceWrapper *linkedParentForMinimize(bool willBeMinimized) const;
+    QList<SurfaceWrapper *> linkedChildrenForMinimize(bool willBeMinimized) const;
+
     void startMinimizeAnimation(const QRectF &iconGeometry, uint direction);
     Q_SLOT void onMinimizeAnimationFinished();
     void startShowDesktopAnimation(bool show);
@@ -421,6 +443,13 @@ private:
     void setSkipDockPreView(bool skip);
     void setSkipSwitcher(bool skip);
     void setSkipMutiTaskView(bool skip);
+
+    friend class ModalLogicTest;
+    // Test-only constructor: a bare wrapper without a shell surface or QML
+    // setup, used to exercise the pure modal/minimize decision logic in unit
+    // tests without a running Wayland compositor.
+    enum class TestTag {};
+    SurfaceWrapper(TestTag, QQuickItem *parent = nullptr);
 
     QmlEngine *m_engine;
     QPointer<SurfaceContainer> m_container;

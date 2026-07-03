@@ -48,6 +48,13 @@ void Workspace::moveSurfaceTo(SurfaceWrapper *surface, int workspaceId)
     Q_ASSERT(to);
 
     from->removeSurface(surface);
+    // Focus fallback: if the moved surface was the active one, reactivate the
+    // latest active surface on the current workspace so the workspace that lost
+    // the window regains focus. Kept inside moveSurfaceTo so every caller
+    // (WindowMenu, WindowSelectionGrid, WorkspaceSelectionList, ...) benefits.
+    if (surface->shellSurface()->isActivated())
+        Helper::instance()->activateSurface(current()->latestActiveSurface());
+
     to->addSurface(surface);
 
     // Transient children follow parent to new workspace (ref: KWin::Window::setDesktops)

@@ -1280,6 +1280,14 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
     bool isXwayland = wrapper->type() == SurfaceWrapper::Type::XWayland;
     bool isLayer = wrapper->type() == SurfaceWrapper::Type::Layer;
 
+    // Apply any xdg-dialog-v1 modal state that arrived before this wrapper was
+    // created (buffered in the surfaceModalChanged handler).
+    if (isXdgToplevel) {
+        auto *toplevel = qobject_cast<WXdgToplevelSurface *>(wrapper->shellSurface());
+        if (toplevel && m_pendingModalStates.contains(toplevel))
+            wrapper->setModal(m_pendingModalStates.take(toplevel));
+    }
+
     connect(m_sessionManager->activeSession().lock().get(),
             &Session::aboutToBeDestroyed,
             wrapper,
@@ -1752,8 +1760,20 @@ void Helper::init(Treeland::Treeland *treeland)
             [this](WXdgToplevelSurface *toplevel, bool modal) {
                 if (auto *wrapper = m_rootSurfaceContainer->getSurface(toplevel)) {
                     wrapper->setModal(modal);
-                } else {
-                    qCWarning(lcTlShell) << "xdg-dialog-v1: no wrapper for toplevel" << toplevel;
+                } else if (toplevel) {
+                    // The SurfaceWrapper does not exist yet (e.g. set_modal arrived
+                    // during get_xdg_dialog, before treeland created the wrapper).
+                    // Buffer the state and apply it when the wrapper is created,
+                    // otherwise the modal state is lost until the next set/unset.
+                    const bool wasBuffered = m_pendingModalStates.contains(toplevel);
+                    m_pendingModalStates.insert(toplevel, modal);
+                    if (!wasBuffered) {
+                        QObject::connect(toplevel, &QObject::destroyed, this,
+                                         [this](QObject *obj) {
+                                             m_pendingModalStates.remove(
+                                                 static_cast<WXdgToplevelSurface *>(obj));
+                                         });
+                    }
                 }
             });
 
@@ -1948,26 +1968,23 @@ void Helper::activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
     if (wrapper && wrapper->isIMCandidatePanel())
         return;
 
-    // Plain activation: if the deepest modal is minimized, refuse to activate the parent
-    // entirely. The user must explicitly unminimize the modal first (e.g., click it).
+    // Plain activation: if the deepest modal is minimized, refuse to activate the
+    // parent entirely. The user must explicitly unminimize the modal first (e.g.,
+    // click it). The minimized check runs before any side effect (moveSurfaceTo)
+    // so a refused activation never moves the modal between workspaces.
     SurfaceWrapper *originalWrapper = wrapper;
     if (wrapper) {
-        if (SurfaceWrapper *modal = wrapper->findModal()) {
-            if (modal != wrapper) {
-                if (modal->workspaceId() != wrapper->workspaceId()
-                    && wrapper->workspaceId() != -1) {
-                    workspace()->moveSurfaceTo(modal, wrapper->workspaceId());
-                }
-
-                if (modal->isMinimized()) {
-                    qCCritical(lcTlShell) << "Refusing to activate parent with minimized modal"
-                                          << "parent =" << wrapper << "modal =" << modal;
-                    return;
-                }
-
-                originalWrapper->stackToLast();
-                wrapper = modal;
+        auto redirect = wrapper->computeModalRedirect();
+        if (redirect.modal) {
+            if (redirect.refuseActivation) {
+                qCInfo(lcTlShell) << "Refusing to activate parent with minimized modal"
+                                   << "parent =" << wrapper << "modal =" << redirect.modal;
+                return;
             }
+            if (redirect.needsWorkspaceMove)
+                workspace()->moveSurfaceTo(redirect.modal, redirect.targetWorkspaceId);
+            originalWrapper->stackToLast();
+            wrapper = redirect.modal;
         }
     }
 

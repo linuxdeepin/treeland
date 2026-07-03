@@ -398,6 +398,11 @@ private:
     ShellHandler *m_shellHandler = nullptr;
     WXdgDecorationManager *m_xdgDecorationManager = nullptr;
     WXdgDialogManagerV1 *m_xdgDialogManagerV1 = nullptr;
+    // Modal state reported by xdg-dialog-v1 before the SurfaceWrapper exists.
+    // Buffered here and applied when the wrapper is created, so a client that
+    // calls set_modal during get_xdg_dialog (before the wrapper exists) does not
+    // lose its modal state permanently.
+    QMap<WXdgToplevelSurface *, bool> m_pendingModalStates;
     WXdgToplevelTagManagerV1 *m_xdgToplevelTagManagerV1 = nullptr;
     WForeignToplevel *m_foreignToplevel = nullptr;
     WExtForeignToplevelListV1 *m_extForeignToplevelListV1 = nullptr;

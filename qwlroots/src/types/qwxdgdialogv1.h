@@ -17,9 +17,6 @@ class QW_CLASS_OBJECT(xdg_dialog_v1)
     Q_OBJECT
  
     QW_SIGNAL(set_modal)
-
-public:
-    QW_FUNC_STATIC(xdg_dialog_v1, try_from_wlr_xdg_toplevel, qw_xdg_dialog_v1 *, wlr_xdg_toplevel *xdg_toplevel)
 };
 
 class QW_CLASS_OBJECT(xdg_wm_dialog_v1)
