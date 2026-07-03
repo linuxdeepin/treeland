@@ -144,7 +144,7 @@ private:
 
     QPointF calculateBasePosition(SurfaceWrapper *surface, const QPointF &dPos) const;
     void handleLayerShellPopup(SurfaceWrapper *surface, const QRectF &normalGeo);
-    void handleRegularPopup(SurfaceWrapper *surface, const QRectF &normalGeo, bool isSubMenu, WOutputItem *targetOutput);
+    void handleRegularPopup(SurfaceWrapper *surface, const QRectF &normalGeo, WOutputItem *targetOutput);
     void clearPopupCache(SurfaceWrapper *surface);
 
     Type m_type;
