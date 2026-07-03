@@ -5,7 +5,7 @@
         "brightness": {
             "value": 1.0e0,
             "serial": 0,
-            "flags": ["global"],
+            "flags": [],
             "name": "Brightness",
             "name[zh_CN]": "亮度",
             "description": "Brightness of this Output (in range 0.0 - 1.0)",
@@ -16,7 +16,7 @@
         "colorTemperature": {
             "value": 6600,
             "serial": 0,
-            "flags": ["global"],
+            "flags": [],
             "name": "Color Temperature",
             "name[zh_CN]": "色温",
             "description": "Color temperature of this Output (in Kelvin)",
@@ -27,7 +27,7 @@
         "enabled": {
             "value": true,
             "serial": 0,
-            "flags": ["global"],
+            "flags": [],
             "name": "Enabled",
             "name[zh_CN]": "启用",
             "description": "Whether this output was enabled in the last applied wlr-output-management configuration.",
@@ -38,7 +38,7 @@
         "x": {
             "value": 0,
             "serial": 0,
-            "flags": ["global"],
+            "flags": [],
             "name": "X Position",
             "name[zh_CN]": "X 坐标",
             "description": "Last applied x position of this output in the global compositor space.",
@@ -49,7 +49,7 @@
         "y": {
             "value": 0,
             "serial": 0,
-            "flags": ["global"],
+            "flags": [],
             "name": "Y Position",
             "name[zh_CN]": "Y 坐标",
             "description": "Last applied y position of this output in the global compositor space.",
@@ -60,7 +60,7 @@
         "width": {
             "value": 0,
             "serial": 0,
-            "flags": ["global"],
+            "flags": [],
             "name": "Width",
             "name[zh_CN]": "宽度",
             "description": "Last committed output mode width in pixels. 0 means no output mode has been saved.",
@@ -71,7 +71,7 @@
         "height": {
             "value": 0,
             "serial": 0,
-            "flags": ["global"],
+            "flags": [],
             "name": "Height",
             "name[zh_CN]": "高度",
             "description": "Last committed output mode height in pixels. 0 means no output mode has been saved.",
@@ -82,7 +82,7 @@
         "refresh": {
             "value": 0,
             "serial": 0,
-            "flags": ["global"],
+            "flags": [],
             "name": "Refresh Rate",
             "name[zh_CN]": "刷新率",
             "description": "Last committed output refresh rate in mHz. 0 means no output mode has been saved.",
@@ -93,7 +93,7 @@
         "transform": {
             "value": 0,
             "serial": 0,
-            "flags": ["global"],
+            "flags": [],
             "name": "Transform",
             "name[zh_CN]": "变换",
             "description": "Last committed wl_output_transform enum value for this output.",
@@ -104,7 +104,7 @@
         "scale": {
             "value": 1.0,
             "serial": 0,
-            "flags": ["global"],
+            "flags": [],
             "name": "Scale",
             "name[zh_CN]": "缩放",
             "description": "Last committed output scale. Values must be greater than 0. The default value means no output mode has been saved.",
@@ -115,7 +115,7 @@
         "adaptiveSyncEnabled": {
             "value": false,
             "serial": 0,
-            "flags": ["global"],
+            "flags": [],
             "name": "Adaptive Sync Enabled",
             "name[zh_CN]": "启用自适应同步",
             "description": "Whether adaptive sync was enabled in the last committed output state.",

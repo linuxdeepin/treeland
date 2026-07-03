@@ -5,7 +5,7 @@
         "enablePrelaunchSplash": {
             "value": true,
             "serial": 0,
-            "flags": ["global"],
+            "flags": [],
             "name": "Enable Prelaunch Splash",
             "name[zh_CN]": "启用预启动闪屏",
             "description": "Whether to show prelaunch splash for this app",
@@ -16,7 +16,7 @@
         "lastWindowWidth": {
             "value": 800,
             "serial": 0,
-            "flags": ["global"],
+            "flags": [],
             "name": "Last Window Width",
             "name[zh_CN]": "上次关闭时的窗口宽度",
             "description": "Window width saved when the window was last closed",
@@ -27,7 +27,7 @@
         "lastWindowHeight": {
             "value": 600,
             "serial": 0,
-            "flags": ["global"],
+            "flags": [],
             "name": "Last Window Height",
             "name[zh_CN]": "上次关闭时的窗口高度",
             "description": "Window height saved when the window was last closed",
@@ -38,7 +38,7 @@
         "splashThemeType": {
             "value": 0,
             "serial": 0,
-            "flags": ["global"],
+            "flags": [],
             "name": "Splash Theme Type",
             "name[zh_CN]": "闪屏主题类型",
             "description": "Splash theme preference: 0 follow system, 1 light, 2 dark",
@@ -49,7 +49,7 @@
         "splashDarkPalette": {
             "value": "#181818",
             "serial": 0,
-            "flags": ["global"],
+            "flags": [],
             "name": "Splash Dark Palette",
             "name[zh_CN]": "闪屏暗色配色",
             "description": "Background color used when splash theme is dark",
@@ -60,7 +60,7 @@
         "splashLightPalette": {
             "value": "#FFFFFF",
             "serial": 0,
-            "flags": ["global"],
+            "flags": [],
             "name": "Splash Light Palette",
             "name[zh_CN]": "闪屏亮色配色",
             "description": "Background color used when splash theme is light",
