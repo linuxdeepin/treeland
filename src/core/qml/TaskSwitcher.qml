@@ -111,7 +111,7 @@ Item {
                 id: currentContext
                 visible: previewWindows.count === 0
 
-                sourceSurface: switchView.currentItem.surface
+                sourceSurface: switchView.currentItem ? switchView.currentItem.surface : null
                 anchors.centerIn: previewItem
                 sourceComponent: undefined
 
@@ -482,6 +482,20 @@ Item {
 
         focusReason = Qt.TabFocusReason
         switchIndex(nextIndex)
+    }
+
+    function previousSameApp() {
+        if (switchView.currentItem && switchView.currentItem.surface)
+            root.model.setFilterAppId(switchView.currentItem.surface.appId)
+
+        previous()
+    }
+
+    function nextSameApp() {
+        if (switchView.currentItem && switchView.currentItem.surface)
+            root.model.setFilterAppId(switchView.currentItem.surface.appId)
+
+        next()
     }
 
     function show() {
