@@ -328,11 +328,12 @@ void ShortcutRunner::finishWorkspaceSwipe()
 void ShortcutRunner::taskswitchAction(bool isRepeat, bool isSameApp, bool isPrev)
 {
     auto *helper = Helper::instance();
-    if (helper->currentMode() != Helper::CurrentMode::Normal && helper->currentMode() != Helper::CurrentMode::WindowSwitch)
+    const auto modeBefore = helper->currentMode();
+    if (modeBefore != Helper::CurrentMode::Normal && modeBefore != Helper::CurrentMode::WindowSwitch)
         return;
 
-    if (!isRepeat && helper->currentMode() == Helper::CurrentMode::Normal) {
-        auto current = helper->workspace()->current();
+    if (!isRepeat && !isSameApp && modeBefore == Helper::CurrentMode::Normal) {
+        auto *current = helper->workspace()->current();
         if (current) {
             auto nextSurface = current->findNextActivedSurface();
             if (nextSurface)
@@ -367,30 +368,26 @@ void ShortcutRunner::taskswitchAction(bool isRepeat, bool isSameApp, bool isPrev
     m_taskAltCount = 0;
     helper->setCurrentMode(Helper::CurrentMode::WindowSwitch);
 
-    QString appid;
-    if (isSameApp) {
-        auto surface = Helper::instance()->activatedSurface();
-        if (surface) {
-            appid = surface->shellSurface()->appId();
-        }
+    if (m_quickSwitchPending) {
+        m_quickSwitchTimer->stop();
+        m_quickSwitchPending = false;
     }
-    auto filter = Helper::instance()->workspace()->currentFilter();
-    filter->setFilterAppId(appid);
-    if (isPrev) {
+
+    if (isSameApp)
+        QMetaObject::invokeMethod(helper->m_taskSwitch, isPrev ? "previousSameApp" : "nextSameApp");
+    else if (isPrev)
         QMetaObject::invokeMethod(helper->m_taskSwitch, "previous");
-    } else {
+    else
         QMetaObject::invokeMethod(helper->m_taskSwitch, "next");
-    }
-    qCWarning(lcTlShortcut) << "TaskSwitch: navigating in full task switcher";
 }
 
 void ShortcutRunner::onQuickSwitchTimeout()
 {
-    m_quickSwitchPending = false;
-
     auto *helper = Helper::instance();
-    if (helper->currentMode() != Helper::CurrentMode::Normal)
+    if (helper->currentMode() != Helper::CurrentMode::Normal) {
+        m_quickSwitchPending = false;
         return;
+    }
 
     if (helper->m_taskSwitch.isNull()) {
         auto contentItem = helper->window()->contentItem();
@@ -463,6 +460,7 @@ void ShortcutRunner::onModifierReleased(QKeyEvent *event)
             auto filter = helper->workspace()->currentFilter();
             filter->setFilterAppId("");
             helper->setCurrentMode(Helper::CurrentMode::Normal);
+            m_quickSwitchPending = false;
             QMetaObject::invokeMethod(helper->m_taskSwitch, "exit");
         }
     }

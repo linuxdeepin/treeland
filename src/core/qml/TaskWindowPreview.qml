@@ -16,16 +16,16 @@ Loader {
     property alias previewComponent: sourceComponent
 
     transformOrigin: Item.Center
-    property real preferredHeight: sourceSurface.height < (parent.height - 2 * vSpacing) ?
+    property real preferredHeight: !sourceSurface ? 0 : sourceSurface.height < (parent.height - 2 * vSpacing) ?
                                        sourceSurface.height : (parent.height - 2 * vSpacing)
-    property real preferredWidth: sourceSurface.width < (parent.width - 2 * hSpacing) ?
+    property real preferredWidth: !sourceSurface ? 0 : sourceSurface.width < (parent.width - 2 * hSpacing) ?
                                       sourceSurface.width : (parent.width - 2 * hSpacing)
-    property bool refHeight: preferredHeight * sourceSurface.width / sourceSurface.height < (parent.width - 2 * hSpacing)
+    property bool refHeight: sourceSurface && preferredHeight * sourceSurface.width / sourceSurface.height < (parent.width - 2 * hSpacing)
     readonly property real hSpacing: 20
     readonly property real vSpacing: 20
 
-    height: refHeight ? preferredHeight : preferredWidth * sourceSurface.height / sourceSurface.width
-    width: refHeight ? preferredHeight * sourceSurface.width / sourceSurface.height : preferredWidth
+    height: !sourceSurface ? 0 : refHeight ? preferredHeight : preferredWidth * sourceSurface.height / sourceSurface.width
+    width: !sourceSurface ? 0 : refHeight ? preferredHeight * sourceSurface.width / sourceSurface.height : preferredWidth
 
     onLoaderStatusChanged: {
         if (loaderStatus === -1) {

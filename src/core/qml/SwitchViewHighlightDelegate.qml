@@ -8,10 +8,11 @@ Rectangle {
     property ListView sourceView: ListView.view
     readonly property int aniDuration: 400
 
-    x: sourceView.currentItem.x + sourceView.borderMargin
-    y: sourceView.currentItem.y + (sourceView.vMargin / 2 - 2 * sourceView.borderMargin)
-    height: sourceView.currentItem.height - 2 * (sourceView.vMargin / 2 - 2 * sourceView.borderMargin)
-    width: sourceView.currentItem.width - 2 * sourceView.vSpacing + 2 * sourceView.borderMargin
+    visible: sourceView.currentItem
+    x: sourceView.currentItem ? sourceView.currentItem.x + sourceView.borderMargin : 0
+    y: sourceView.currentItem ? sourceView.currentItem.y + (sourceView.vMargin / 2 - 2 * sourceView.borderMargin) : 0
+    height: sourceView.currentItem ? sourceView.currentItem.height - 2 * (sourceView.vMargin / 2 - 2 * sourceView.borderMargin) : 0
+    width: sourceView.currentItem ? sourceView.currentItem.width - 2 * sourceView.vSpacing + 2 * sourceView.borderMargin : 0
     color: "transparent"
     radius: sourceView.radius
     border {
