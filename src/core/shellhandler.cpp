@@ -871,31 +871,30 @@ void ShellHandler::setupSurfaceActiveWatcher(SurfaceWrapper *wrapper)
         });
         */
     } else if (wrapper->type() == SurfaceWrapper::Type::Layer) {
-        connect(wrapper, &SurfaceWrapper::activationRequested, this, [wrapper]() {
-            auto layerSurface = qobject_cast<WLayerSurface *>(wrapper->shellSurface());
-            if (layerSurface->keyboardInteractivity() == WLayerSurface::KeyboardInteractivity::None)
-                return;
+        connect(wrapper, &SurfaceWrapper::hasFocusCapabilityChanged, this, [this, wrapper]() {
+            if (wrapper->hasFocusCapability()) {
+                auto layerSurface = qobject_cast<WLayerSurface *>(wrapper->shellSurface());
+                Q_ASSERT(layerSurface->keyboardInteractivity()
+                         != WLayerSurface::KeyboardInteractivity::None);
+                /*
+                 * For OnDemand keyboardInteractivity, only allow surfaces with z-order above
+                 * normal windows (Top/Overlay) to receive keyboard focus, to avoid dock/dde-desktop
+                 * grabbing focus when they restart.
+                 */
+                if (layerSurface->layer() >= WLayerSurface::LayerType::Top
+                    || layerSurface->keyboardInteractivity()
+                        == WLayerSurface::KeyboardInteractivity::Exclusive)
+                    Helper::instance()->requestKeyboardFocus(wrapper);
+            } else {
+                // Only the current keyboard focus owner should drive focus fallback.
+                // Closing an unfocused layer surface, such as a notification, must not
+                // move focus away from the current owner, which may be a layer-shell
+                // surface that does not participate in fallback history.
+                if (Helper::instance()->keyboardFocusSurface() != wrapper)
+                    return;
 
-            /*
-             * For OnDemand keyboardInteractivity, only allow surfaces with z-order above
-             * normal windows (Top/Overlay) to receive keyboard focus, to avoid dock/dde-desktop
-             * grabbing focus when they restart.
-             */
-            if (layerSurface->layer() >= WLayerSurface::LayerType::Top
-                || layerSurface->keyboardInteractivity()
-                    == WLayerSurface::KeyboardInteractivity::Exclusive)
-                Helper::instance()->activateSurface(wrapper);
-        });
-
-        connect(wrapper, &SurfaceWrapper::inactivationRequested, this, [this, wrapper]() {
-            // Only the current keyboard focus owner should drive focus fallback.
-            // Closing an unfocused layer surface, such as a notification, must not
-            // move focus away from the current owner, which may be a layer-shell
-            // surface that does not participate in fallback history.
-            if (Helper::instance()->keyboardFocusSurface() != wrapper)
-                return;
-
-            Helper::instance()->activateSurface(m_workspace->current()->latestActiveSurface());
+                Helper::instance()->activateSurface(m_workspace->current()->latestActiveSurface());
+            }
         });
     } else { // Xdgtoplevel or X11 or Splash
         connect(wrapper, &SurfaceWrapper::activationRequested, this, [this, wrapper]() {
