@@ -373,12 +373,13 @@ void ShortcutRunner::taskswitchAction(bool isRepeat, bool isSameApp, bool isPrev
         m_quickSwitchPending = false;
     }
 
-    if (isSameApp)
+    if (isSameApp) {
         QMetaObject::invokeMethod(helper->m_taskSwitch, isPrev ? "previousSameApp" : "nextSameApp");
-    else if (isPrev)
-        QMetaObject::invokeMethod(helper->m_taskSwitch, "previous");
-    else
-        QMetaObject::invokeMethod(helper->m_taskSwitch, "next");
+    } else {
+        auto filter = helper->workspace()->currentFilter();
+        filter->setFilterAppId({});
+        QMetaObject::invokeMethod(helper->m_taskSwitch, isPrev ? "previous" : "next");
+    }
 }
 
 void ShortcutRunner::onQuickSwitchTimeout()
