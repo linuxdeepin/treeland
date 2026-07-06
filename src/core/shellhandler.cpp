@@ -291,6 +291,7 @@ ForeignToplevelManagerInterfaceV1 *ShellHandler::foreignToplevel() const
 void ShellHandler::createComponent(QmlEngine *engine, QQuickItem *parentItem)
 {
     m_windowMenu = engine->createWindowMenu(Helper::instance());
+    QObject::connect(m_windowMenu, SIGNAL(closed()), this, SLOT(onWindowMenuClosed()));
     m_dockPreview = engine->createDockPreview(parentItem);
     setupDockPreview();
 }
@@ -1028,6 +1029,11 @@ void ShellHandler::setupSurfaceWindowMenu(SurfaceWrapper *wrapper)
                                           QVariant::fromValue(wrapper),
                                           QVariant::fromValue(pos));
             });
+}
+
+void ShellHandler::onWindowMenuClosed()
+{
+    Helper::instance()->activateSurface(m_workspace->current()->latestActiveSurface());
 }
 
 void ShellHandler::handleDdeShellSurfaceAdded(WSurface *surface, SurfaceWrapper *wrapper)
