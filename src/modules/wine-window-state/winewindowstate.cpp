@@ -142,9 +142,7 @@ protected:
         }
 
         auto *helper = Helper::instance();
-        if (!helper || helper->blockActivateSurface() || !m_wrapper->acceptKeyboardFocus()
-            || !m_wrapper->hasActiveCapability()
-            || !m_wrapper->shellSurface()->hasCapability(WToplevelSurface::Capability::Activate)) {
+        if (!m_wrapper->hasActiveCapability()) {
             send_activate_denied(serial);
             return;
         }
