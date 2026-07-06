@@ -128,6 +128,7 @@ private Q_SLOTS:
 
     void setupDockPreview();
     void onInputPopupSurfaceV2Removed(WAYLIB_SERVER_NAMESPACE::WInputPopupSurface *surface);
+    void onWindowMenuClosed();
 
 private:
     void setupSurfaceActiveWatcher(SurfaceWrapper *wrapper);
