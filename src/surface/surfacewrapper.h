@@ -376,6 +376,7 @@ Q_SIGNALS:
     void modalChanged();
     void attentionChanged();
     void surfaceItemCreated(); // Emitted once after surfaceItem is constructed
+    void hasFocusCapabilityChanged();
     void prelaunchSplashChanged();
     void typeChanged();
 

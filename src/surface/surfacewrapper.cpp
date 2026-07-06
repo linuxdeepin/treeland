@@ -188,7 +188,6 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
         m_engine->createPrelaunchSplash(this, radius(), iconBuffer, backgroundColor);
 
     setNoDecoration(false);
-    updateFocusControlState(FocusControlState::Mapped, true);
     updateHasActiveCapability(ActiveControlState::HasActivateCapability, true);
     updateHasActiveCapability(ActiveControlState::MappedOrSplash, true); // Splash is true
 }
@@ -512,6 +511,8 @@ void SurfaceWrapper::convertToNormalSurface(WToplevelSurface *shellSurface, Type
     // Check if surface is still valid before accessing
     WSurface *surf = surface();
     if (surf && surf->mapped()) {
+        updateFocusControlState(FocusControlState::Mapped, true);
+        // ActiveControlState::MappedOrSplash is already true
         syncPrelaunchMappedState();
         startPrelaunchSplashHideSequence();
     }
@@ -560,8 +561,10 @@ void SurfaceWrapper::updateActiveState()
 void SurfaceWrapper::setFocus(bool focus, Qt::FocusReason reason)
 {
     // No surfaceItem in prelaunch mode -> early return
-    if (!m_surfaceItem)
+    if (!m_surfaceItem) {
+        qCWarning(lcTlSurface) << "setFocus called but m_surfaceItem is null, appId:" << m_appId;
         return;
+    }
 
     if (focus)
         m_surfaceItem->forceActiveFocus(reason);
@@ -2282,8 +2285,11 @@ void SurfaceWrapper::updateFocusControlState(FocusControlState state, bool value
 {
     auto old = hasFocusCapability();
     m_focusControlStates.setFlag(state, value);
-    if (old != hasFocusCapability() && m_surfaceItem) {
-        m_surfaceItem->setFocusPolicy(hasFocusCapability() ? Qt::StrongFocus : Qt::NoFocus);
+    auto now = hasFocusCapability();
+    if (old != now) {
+        if (m_surfaceItem)
+            m_surfaceItem->setFocusPolicy(now ? Qt::StrongFocus : Qt::NoFocus);
+        Q_EMIT hasFocusCapabilityChanged();
     }
 }
 
