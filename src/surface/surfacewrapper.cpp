@@ -188,6 +188,8 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
         m_engine->createPrelaunchSplash(this, radius(), iconBuffer, backgroundColor);
 
     setNoDecoration(false);
+    updateFocusControlState(FocusControlState::Mapped, true);
+    updateHasActiveCapability(ActiveControlState::HasActivateCapability, true);
     updateHasActiveCapability(ActiveControlState::MappedOrSplash, true); // Splash is true
 }
 
@@ -215,6 +217,10 @@ void SurfaceWrapper::invalidate()
     for (auto subS : std::as_const(m_subSurfaces)) {
         subS->m_parentSurface = nullptr;
     }
+
+    updateHasActiveCapability(ActiveControlState::MappedOrSplash, false);
+    updateFocusControlState(FocusControlState::Mapped, false);
+
     m_subSurfaces.clear();
     m_shellSurface = nullptr;
     if (m_surfaceItem)
@@ -262,6 +268,9 @@ void SurfaceWrapper::setup()
 {
     Q_ASSERT(m_shellSurface);
     Q_ASSERT(m_type != Type::SplashScreen);
+
+    updateActivateCapability();
+    updateFocusCapability();
 
     switch (m_type) {
     case Type::XdgToplevel:
@@ -381,12 +390,20 @@ void SurfaceWrapper::setup()
         onSocketEnabledChanged();
     }
 
-    if (!m_shellSurface->hasCapability(WToplevelSurface::Capability::Focus)) {
-        m_surfaceItem->setFocusPolicy(Qt::NoFocus);
-    }
+    updateActivateCapability();
+    updateFocusCapability();
 
     if (m_type == Type::XdgToplevel && !m_isProxy) // x11 will set later
         setSkipDockPreView(false);
+
+    if (m_type == Type::Layer) {
+        if (auto *layerSurface = qobject_cast<WLayerSurface *>(m_shellSurface.data())) {
+            connect(layerSurface,
+                    &WLayerSurface::keyboardInteractivityChanged,
+                    this,
+                    &SurfaceWrapper::updateFocusCapability);
+        }
+    }
 
     if (m_type == Type::XWayland && !m_isProxy) {
         auto xwaylandSurface = qobject_cast<WXWaylandSurface *>(m_shellSurface);
@@ -449,6 +466,8 @@ void SurfaceWrapper::setup()
                 [this, updateX11shouldSkipDock]() {
                     updateX11shouldSkipDock();
                     updateSizeCapabilities();
+                    updateActivateCapability();
+                    updateFocusCapability();
                 });
         connect(xwaylandSurface,
                 &WXWaylandSurface::windowTypesChanged,
@@ -1058,16 +1077,15 @@ void SurfaceWrapper::destroy()
 
 bool SurfaceWrapper::acceptKeyboardFocus() const
 {
-    return m_acceptKeyboardFocus;
+    return m_focusControlStates.testFlag(FocusControlState::AcceptKeyboardFocus);
 }
 
 void SurfaceWrapper::setAcceptKeyboardFocus(bool accept)
 {
-    if (m_acceptKeyboardFocus == accept)
+    if (acceptKeyboardFocus() == accept)
         return;
 
-    m_acceptKeyboardFocus = accept;
-    Q_EMIT acceptKeyboardFocusChanged();
+    updateFocusControlState(FocusControlState::AcceptKeyboardFocus, accept);
 }
 
 bool SurfaceWrapper::isActivated() const
@@ -1383,6 +1401,7 @@ void SurfaceWrapper::doSetSurfaceState(State newSurfaceState)
         break;
     case State::Minimized:
         m_shellSurface->setMinimize(false);
+        updateFocusControlState(FocusControlState::UnMinimized, true);
         updateHasActiveCapability(ActiveControlState::UnMinimized, true);
         break;
     case State::Fullscreen:
@@ -1402,6 +1421,7 @@ void SurfaceWrapper::doSetSurfaceState(State newSurfaceState)
         m_shellSurface->setMaximize(true);
         break;
     case State::Minimized:
+        updateFocusControlState(FocusControlState::UnMinimized, false);
         updateHasActiveCapability(ActiveControlState::UnMinimized, false);
         m_shellSurface->setMinimize(true);
         break;
@@ -1549,6 +1569,7 @@ void SurfaceWrapper::onMappedChanged()
 
     // Splash can't call onMappedChanged, just use mapped state to update
     updateHasActiveCapability(ActiveControlState::MappedOrSplash, mapped);
+    updateFocusControlState(FocusControlState::Mapped, mapped);
     updateVisible();
 }
 
@@ -2174,6 +2195,11 @@ bool SurfaceWrapper::hasInitializeContainer() const
     return m_hasActiveCapability.testFlag(ActiveControlState::HasInitializeContainer);
 }
 
+bool SurfaceWrapper::hasFocusCapability() const
+{
+    return m_focusControlStates == FocusControlState::Full;
+}
+
 void SurfaceWrapper::setHasInitializeContainer(bool value)
 {
     Q_ASSERT(!value || m_container != nullptr);
@@ -2236,6 +2262,28 @@ void SurfaceWrapper::updateHasActiveCapability(ActiveControlState state, bool va
             Q_EMIT activationRequested();
         else
             Q_EMIT inactivationRequested();
+    }
+}
+
+void SurfaceWrapper::updateActivateCapability()
+{
+    updateHasActiveCapability(ActiveControlState::HasActivateCapability,
+                                m_shellSurface
+                                    && m_shellSurface->hasCapability(WToplevelSurface::Capability::Activate));
+}
+
+void SurfaceWrapper::updateFocusCapability()
+{
+    updateFocusControlState(FocusControlState::HasFocusCapability,
+                            m_shellSurface && m_shellSurface->hasCapability(WToplevelSurface::Capability::Focus));
+}
+
+void SurfaceWrapper::updateFocusControlState(FocusControlState state, bool value)
+{
+    auto old = hasFocusCapability();
+    m_focusControlStates.setFlag(state, value);
+    if (old != hasFocusCapability() && m_surfaceItem) {
+        m_surfaceItem->setFocusPolicy(hasFocusCapability() ? Qt::StrongFocus : Qt::NoFocus);
     }
 }
 
