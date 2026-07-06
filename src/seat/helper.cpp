@@ -1418,17 +1418,15 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
         If it is converted into a normal window and remains active,
         it should actively acquire focus.
     */
-    if ((wrapper->isActivated() || wrapper->prelaunchSplash())
-        && wrapper != keyboardFocusSurface()
-        && wrapper->hasCapability(WToplevelSurface::Capability::Focus)
-        && wrapper->acceptKeyboardFocus()) {
-            WSeat *seat = m_currentEventSeat ? m_currentEventSeat : m_seat;
-            if (seat) {
-                seat->setKeyboardFocusSurface(wrapper->surface());
-                if (auto *seatContainer = m_rootSurfaceContainer->getSeatContainer(seat)) {
-                    seatContainer->setKeyboardFocusSurface(wrapper);
-                }
+    if ((wrapper->isActivated() || wrapper->prelaunchSplash()) && wrapper != keyboardFocusSurface()
+        && wrapper->hasFocusCapability()) {
+        WSeat *seat = m_currentEventSeat ? m_currentEventSeat : m_seat;
+        if (seat) {
+            seat->setKeyboardFocusSurface(wrapper->surface());
+            if (auto *seatContainer = m_rootSurfaceContainer->getSeatContainer(seat)) {
+                seatContainer->setKeyboardFocusSurface(wrapper);
             }
+        }
     }
 }
 
@@ -1974,9 +1972,7 @@ void Helper::activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
     WSeat *interactingSeat =
         m_currentEventSeat ? m_currentEventSeat : getLastInteractingSeat(wrapper);
     if (m_blockActivateSurface && wrapper && wrapper->type() != SurfaceWrapper::Type::LockScreen) {
-        auto sh = wrapper->shellSurface();
-        if (sh && wrapper->surface() && wrapper->surface()->mapped()
-            && sh->hasCapability(WToplevelSurface::Capability::Activate)) {
+        if (wrapper->hasActiveCapability()) {
             workspace()->pushActivedSurface(wrapper);
         }
         return;
@@ -1985,21 +1981,15 @@ void Helper::activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
     if (!wrapper) {
         setActivatedSurface(nullptr);
     } else {
-        auto sh = wrapper->shellSurface();
-        if (sh && sh->hasCapability(WToplevelSurface::Capability::Activate)) {
-            if (wrapper->hasActiveCapability()) {
-                setActivatedSurface(wrapper);
-            } else {
-                qCCritical(lcTlShell) << "Trying to activate a surface which doesn't have ActiveCapability!";
-            }
+        if (wrapper->hasActiveCapability()) {
+            setActivatedSurface(wrapper);
+        } else {
+            qCCritical(lcTlShell)
+                << "Trying to activate a surface which doesn't have ActiveCapability!";
         }
     }
 
-    if (!wrapper
-        || (wrapper->shellSurface()
-            && wrapper->shellSurface()->hasCapability(WToplevelSurface::Capability::Focus)
-            && wrapper->acceptKeyboardFocus())) {
-
+    if (!wrapper || wrapper->hasFocusCapability()) {
         WSeat *targetSeat = interactingSeat ? interactingSeat : m_seat;
 
         if (targetSeat && targetSeat->nativeHandle()) {
@@ -2293,13 +2283,12 @@ bool Helper::afterHandleEvent([[maybe_unused]] WSeat *seat,
                 }
             }
 
-            if (surface->shellSurface()->hasCapability(WToplevelSurface::Capability::Activate))
+            if (surface->hasActiveCapability())
                 m_rootSurfaceContainer->setActivatedSurfaceForSeat(eventSeat,
                                                                    surface,
                                                                    Qt::MouseFocusReason);
 
-            if (surface->shellSurface()->hasCapability(WToplevelSurface::Capability::Focus)
-                && surface->acceptKeyboardFocus()) {
+            if (surface->hasFocusCapability()) {
                 if (eventSeat && eventSeat->nativeHandle()) {
                     updateSurfaceSeatInteraction(surface, eventSeat);
 
@@ -2326,10 +2315,7 @@ bool Helper::afterHandleEvent([[maybe_unused]] WSeat *seat,
                 }
             }
 
-            if (auto sh = surface->shellSurface();
-                sh && surface->surface() && surface->surface()->mapped()
-                && sh->hasCapability(WToplevelSurface::Capability::Activate)
-                && surface->hasActiveCapability()) {
+            if (surface->hasActiveCapability()) {
                 surface->setActivate(true);
                 surface->stackToLast();
                 workspace()->pushActivedSurface(surface);
@@ -2499,7 +2485,7 @@ void Helper::setActivatedSurface(SurfaceWrapper *newActivateSurface)
         }
     }
 
-    if (m_activatedSurface && m_activatedSurface->shellSurface())
+    if (m_activatedSurface)
         m_activatedSurface->setActivate(false);
 
     if (newActivateSurface) {
@@ -2509,11 +2495,9 @@ void Helper::setActivatedSurface(SurfaceWrapper *newActivateSurface)
             newActivateSurface->setHideByShowDesk(true);
         }
 
+        Q_ASSERT(newActivateSurface->hasActiveCapability());
         newActivateSurface->setActivate(true);
-        if (auto sh = newActivateSurface->shellSurface();
-            sh && newActivateSurface->surface() && newActivateSurface->surface()->mapped()) {
-            workspace()->pushActivedSurface(newActivateSurface);
-        }
+        workspace()->pushActivedSurface(newActivateSurface);
     }
     m_activatedSurface = newActivateSurface;
     Q_EMIT activatedSurfaceChanged();
