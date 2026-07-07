@@ -5,6 +5,7 @@
 
 #include "common/treelandlogging.h"
 #include "core/imcandidatepanelmanager.h"
+#include "core/popupfocusmanager.h"
 #include "core/qmlengine.h"
 #include "core/windowconfigstore.h"
 #include "layersurfacecontainer.h"
@@ -577,6 +578,15 @@ void ShellHandler::onXdgPopupSurfaceRemoved(WXdgPopupSurface *surface)
     m_rootSurfaceContainer->destroyForSurface(wrapper);
 }
 
+void ShellHandler::closeAllPopupSurfaces()
+{
+    const auto popupSurfaces = m_popupContainer->surfaces();
+    for (auto *w : popupSurfaces) {
+        if (w->type() == SurfaceWrapper::Type::XdgPopup)
+            w->closeSurface();
+    }
+}
+
 void ShellHandler::onXWaylandSurfaceAdded(WXWaylandSurface *surface)
 {
     surface->safeConnect(&WXWaylandSurface::associated,
@@ -845,31 +855,17 @@ void ShellHandler::setupSurfaceActiveWatcher(SurfaceWrapper *wrapper)
     Q_ASSERT_X(wrapper->container(), Q_FUNC_INFO, "Must setContainer at first!");
 
     if (wrapper->type() == SurfaceWrapper::Type::XdgPopup) {
-        connect(wrapper, &SurfaceWrapper::activationRequested, this, [this, wrapper]() {
-            auto parent = wrapper->parentSurface();
-            while (parent->type() == SurfaceWrapper::Type::XdgPopup) {
-                parent = parent->parentSurface();
-            }
-            if (!parent) {
-                qCCritical(lcTlShell) << "A new popup without toplevel parent!";
+        // When the popup surface gains focus capability (mapped + grab active),
+        // move keyboard focus to the popup. PopupFocusManager handles
+        // grab tracking and focus restoration when the grab ends.
+        connect(wrapper, &SurfaceWrapper::hasFocusCapabilityChanged, this, [this, wrapper]() {
+            if (!wrapper->hasFocusCapability())
                 return;
+            if (auto *pfm = Helper::instance()->popupFocusManager()) {
+                if (auto *popupSurface = qobject_cast<WXdgPopupSurface *>(wrapper->shellSurface()))
+                    pfm->giveFocus(popupSurface);
             }
-            if (!parent->showOnWorkspace(m_workspace->current()->id())) {
-                qCWarning(lcTlShell)
-                    << "A popup active, but it's parent not in current workspace!";
-                return;
-            }
-            Helper::instance()->activateSurface(parent);
         });
-
-        /*
-        connect(wrapper, &SurfaceWrapper::inactivationRequested, this, [this, wrapper]() {
-            auto parent = wrapper->parentSurface();
-            if (!parent || parent->type() == SurfaceWrapper::Type::XdgPopup)
-                return;
-            Helper::instance()->activateSurface(m_workspace->current()->latestActiveSurface());
-        });
-        */
     } else if (wrapper->type() == SurfaceWrapper::Type::Layer) {
         connect(wrapper, &SurfaceWrapper::hasFocusCapabilityChanged, this, [this, wrapper]() {
             if (wrapper->hasFocusCapability()) {

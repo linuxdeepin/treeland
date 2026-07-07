@@ -88,4 +88,7 @@ Q_DECLARE_LOGGING_CATEGORY(lcTlXwayland)
 // DDM integration
 Q_DECLARE_LOGGING_CATEGORY(lcTlDdm)
 
+// Popup focus management
+Q_DECLARE_LOGGING_CATEGORY(lcTlPopupFocus)
+
 #endif // TREELAND_LOGGING_H
