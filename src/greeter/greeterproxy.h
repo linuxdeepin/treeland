@@ -41,6 +41,7 @@ class GreeterProxy
 
 public:
     explicit GreeterProxy(QObject *parent = nullptr);
+    explicit GreeterProxy(bool testMode, QObject *parent = nullptr);
     ~GreeterProxy();
 
     //////////////////////
@@ -89,7 +90,7 @@ public:
      *
      * @return true if is locked
      */
-    inline bool isLocked()         const { return m_isLocked;         };
+    virtual bool isLocked()         const { return m_isLocked;         };
 
     /**
      * @brief Get the number of failed login attempts (password incorrect)
@@ -106,7 +107,7 @@ public:
      *
      * @return true if shutdown view is shown
      */
-    inline bool showShutdownView() const { return m_showShutdownView; };
+    virtual bool showShutdownView() const { return m_showShutdownView; };
 
     /**
      * @brief Get whether to show animation on lock/unlock
@@ -134,7 +135,7 @@ public:
      *
      * @param show true to show shutdown view, false to hide
      */
-    void setShowShutdownView(bool show);
+    virtual void setShowShutdownView(bool show);
 
     ////////////////////
     // Public methods //
@@ -194,7 +195,7 @@ public Q_SLOTS:
      * Listen to org.freedesktop.login1.Session.Lock signal to detect
      * if the session is successfully locked.
      */
-    void lock();
+    virtual void lock();
 
     /** @brief Unlock given user with given password.
      * This function will call DDM to perform the unlock.
@@ -314,6 +315,7 @@ private:
 
     QLocalSocket *m_socket{ nullptr };
     LockScreen *m_lockScreen{ nullptr };
+    bool m_testMode{ false };
 
     QString m_hostName{};
 
