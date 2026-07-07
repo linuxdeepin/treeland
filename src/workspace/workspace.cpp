@@ -4,13 +4,14 @@
 #include "workspace.h"
 
 #include "common/treelandlogging.h"
+#include "core/popupfocusmanager.h"
 #include "core/rootsurfacecontainer.h"
 #include "output/output.h"
 #include "seat/helper.h"
 #include "surface/surfacecontainer.h"
 #include "surface/surfacewrapper.h"
-#include "workspaceanimationcontroller.h"
 #include "treelanduserconfig.hpp"
+#include "workspaceanimationcontroller.h"
 
 Workspace::Workspace(SurfaceContainer *parent)
     : SurfaceContainer(parent)
@@ -243,6 +244,11 @@ void Workspace::switchTo(int index)
 {
     if (index < 0 || index >= m_models->rowCount() || index == currentIndex())
         return;
+
+    // Close all popup grabs when switching workspaces.
+    if (auto *pfm = Helper::instance()->popupFocusManager())
+        pfm->dismissAll();
+
     auto oldCurrentIndex = currentIndex();
     setCurrentIndex(index);
     Helper::instance()->activateSurface(current()->latestActiveSurface());
