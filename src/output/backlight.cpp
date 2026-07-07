@@ -10,24 +10,42 @@
 
 QW_USE_NAMESPACE
 
-Backlight::Backlight(const QString &name)
-    : m_name(name)
+Backlight::Backlight(const QString &name, const QString &basePath)
+    : m_maxBrightness(0)
+    , m_brightnessLevel(0)
+    , m_name(name)
+    , m_basePath(basePath)
 {
-    QFile maxBrightnessFile(QString("/sys/class/backlight/%1/max_brightness").arg(name));
-    Q_ASSERT(maxBrightnessFile.open(QIODevice::ReadOnly));
+    QFile maxBrightnessFile(QString("%1/%2/max_brightness").arg(m_basePath, name));
+    if (!maxBrightnessFile.open(QIODevice::ReadOnly)) {
+        qCWarning(lcTlOutput) << "Backlight: Failed to open max_brightness for" << name;
+        return;
+    }
 
     bool ok = false;
     m_maxBrightness = maxBrightnessFile.readLine().trimmed().toLongLong(&ok);
     maxBrightnessFile.close();
-    Q_ASSERT(ok);
-    Q_ASSERT(m_maxBrightness > 0);
+    if (!ok || m_maxBrightness <= 0) {
+        qCWarning(lcTlOutput) << "Backlight: Invalid max_brightness for" << name;
+        m_maxBrightness = 0;
+        return;
+    }
 
-    QFile brightnessFile(QString("/sys/class/backlight/%1/brightness").arg(name));
-    Q_ASSERT(brightnessFile.open(QIODevice::ReadOnly));
+    QFile brightnessFile(QString("%1/%2/brightness").arg(m_basePath, name));
+    if (!brightnessFile.open(QIODevice::ReadOnly)) {
+        qCWarning(lcTlOutput) << "Backlight: Failed to open brightness for" << name;
+        m_maxBrightness = 0;
+        return;
+    }
 
     m_brightnessLevel = brightnessFile.readLine().trimmed().toLongLong(&ok);
     brightnessFile.close();
-    Q_ASSERT(ok);
+    if (!ok) {
+        qCWarning(lcTlOutput) << "Backlight: Invalid brightness for" << name;
+        m_maxBrightness = 0;
+        m_brightnessLevel = 0;
+        return;
+    }
 }
 
 Backlight::~Backlight()
@@ -37,6 +55,8 @@ Backlight::~Backlight()
 
 qreal Backlight::brightness() const
 {
+    if (m_maxBrightness <= 0)
+        return 0.0;
     return m_brightnessLevel / static_cast<qreal>(m_maxBrightness);
 }
 
@@ -48,7 +68,7 @@ qreal Backlight::setBrightness(qreal brightness)
         return this->brightness();
     }
 
-    QFile brightnessFile(QString("/sys/class/backlight/%1/brightness").arg(m_name));
+    QFile brightnessFile(QString("%1/%2/brightness").arg(m_basePath, m_name));
     if (!brightnessFile.open(QIODevice::WriteOnly)) {
         qCWarning(lcTlOutput) << "Output" << m_name << ": Failed to open backlight brightness file for writing.";
         return this->brightness();
@@ -57,7 +77,10 @@ qreal Backlight::setBrightness(qreal brightness)
     QByteArray brightnessStr = QByteArray::number(brightnessLevel);
     qint64 written = brightnessFile.write(brightnessStr);
     brightnessFile.close();
-    Q_ASSERT(written == brightnessStr.size());
+    if (written != brightnessStr.size()) {
+        qCWarning(lcTlOutput) << "Output" << m_name << ": Failed to write backlight brightness.";
+        return this->brightness();
+    }
 
     m_brightnessLevel = brightnessLevel;
     return this->brightness();    

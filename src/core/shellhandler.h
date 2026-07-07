@@ -3,6 +3,9 @@
 
 #pragma once
 
+// TODO(unit-test): ShellHandler depends on the running Wayland compositor for wl_client
+// and surface resources. Ref: WM-29. Solution: Extract protocol interaction logic into testable pure components.
+
 #include "modules/foreign-toplevel/foreigntoplevelmanagerv1.h"
 
 #include <xcb/xcb.h>
