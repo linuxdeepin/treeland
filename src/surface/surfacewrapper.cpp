@@ -2216,6 +2216,16 @@ void SurfaceWrapper::setHasInitializeContainer(bool value)
         // m_prelaunchSplash can't get mapped signal
         createNewOrClose(OPEN_ANIMATION);
     }
+
+    // If the surface was already mapped before the wrapper could connect to
+    // mappedChanged (e.g. wrapper created after the surface's initial map),
+    // onMappedChanged was never triggered. Make up for it here so that
+    // MappedOrSplash gets set and hasActiveCapability() can turn true,
+    // otherwise the window would be drawn but never activated/focused.
+    if (!m_prelaunchSplash && value && surface() && surface()->mapped()
+        && !m_hasActiveCapability.testFlag(ActiveControlState::MappedOrSplash)) {
+        onMappedChanged();
+    }
 }
 
 void SurfaceWrapper::disableWindowAnimation(bool disable)
