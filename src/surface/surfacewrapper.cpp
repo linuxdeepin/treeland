@@ -306,6 +306,8 @@ void SurfaceWrapper::setup()
     m_surfaceItem->setDelegate(m_engine->surfaceContentComponent());
     m_surfaceItem->setResizeMode(WSurfaceItem::ManualResize);
     m_surfaceItem->setShellSurface(m_shellSurface);
+    // Initialize focus policy even if focus capability state never toggles later.
+    m_surfaceItem->setFocusPolicy(hasFocusCapability() ? Qt::StrongFocus : Qt::NoFocus);
 
     if (!m_isProxy) {
         m_shellSurface->safeConnect(&WToplevelSurface::requestMinimize, this, [this]() {
@@ -562,7 +564,7 @@ void SurfaceWrapper::setFocus(bool focus, Qt::FocusReason reason)
 {
     // No surfaceItem in prelaunch mode -> early return
     if (!m_surfaceItem) {
-        qCWarning(lcTlSurface) << "setFocus called but m_surfaceItem is null, appId:" << m_appId;
+        qCDebug(lcTlSurface) << "setFocus called but m_surfaceItem is null, appId:" << m_appId;
         return;
     }
 
