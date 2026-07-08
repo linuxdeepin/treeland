@@ -9,8 +9,14 @@
 
 #include <QQuickWindow>
 #include <QQmlParserStatus>
+#include <QVector>
 
 Q_MOC_INCLUDE(<wquickoutputlayout.h>)
+
+QW_BEGIN_NAMESPACE
+class qw_buffer;
+class qw_texture;
+QW_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -18,7 +24,9 @@ class WOutputViewport;
 class WOutputLayer;
 class WBufferRenderer;
 class WOutputHelper;
+class WSGTextureProvider;
 class WOutputRenderWindowPrivate;
+
 class WAYLIB_SERVER_EXPORT WOutputRenderWindow : public QQuickWindow, public QQmlParserStatus
 {
     Q_OBJECT
@@ -53,6 +61,17 @@ public:
     void init(QW_NAMESPACE::qw_renderer *renderer, QW_NAMESPACE::qw_allocator *allocator);
     QW_NAMESPACE::qw_renderer *renderer() const;
     QW_NAMESPACE::qw_allocator *allocator() const;
+
+    bool prepareTextureSamplingForRenderPass(QW_NAMESPACE::qw_buffer *currentBuffer,
+                                             const QVector<WSGTextureProvider *> &activeProviders,
+                                             const char *purpose,
+                                             int sourceIndex,
+                                             qsizetype *uploadFlushCount,
+                                             qsizetype *preparedTextureCount,
+                                             QVector<QW_NAMESPACE::qw_texture *> *preparedTextures);
+    bool finishTextureSamplingForRenderPass(const QVector<QW_NAMESPACE::qw_texture *> &preparedTextures,
+                                            const char *purpose,
+                                            int sourceIndex);
 
     qreal width() const;
     qreal height() const;

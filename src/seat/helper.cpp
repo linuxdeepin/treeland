@@ -69,6 +69,7 @@
 
 #include <WBackend>
 #include <WForeignToplevel>
+#include <WLinuxDmabufV1>
 #include <WOutput>
 #include <WServer>
 #include <WSurfaceItem>
@@ -1629,7 +1630,12 @@ void Helper::init(Treeland::Treeland *treeland)
     }
 
     m_allocator = qw_allocator::autocreate(*m_backend->handle(), *m_renderer);
-    m_renderer->init_wl_display(*m_server->handle());
+    if (!m_renderer->init_wl_shm(*m_server->handle()))
+        qCFatal(lcTlCore) << "Failed to initialize wl_shm for renderer";
+
+    qCInfo(lcTlCore) << "Initialized wl_shm for renderer";
+    m_server->attach<WLinuxDmabufV1>(m_renderer);
+
     qw_drm::create(*m_server->handle(), *m_renderer);
 
     // free follow display

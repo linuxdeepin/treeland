@@ -96,7 +96,7 @@ Q_SIGNALS:
 protected:
     QW_NAMESPACE::qw_buffer *beginRender(const QSize &pixelSize, qreal devicePixelRatio,
                                         uint32_t format, RenderFlags flags = {});
-    void render(int sourceIndex, const QMatrix4x4 &renderMatrix,
+    bool render(int sourceIndex, const QMatrix4x4 &renderMatrix,
                 const QRectF &sourceRect = {}, const QRectF &targetRect = {},
                 bool preserveColorContents = false);
     void endRender();
@@ -117,6 +117,8 @@ private:
     Q_SLOT void invalidateSceneGraph();
     void releaseResources() override;
     void cleanTextureProvider();
+    bool isPrimaryOutputRendererForVulkan() const;
+    bool shouldExposeVulkanCacheProvider() const;
 
     inline bool isRootItem(const QQuickItem *source) const {
         return nullptr == source;
@@ -142,7 +144,11 @@ private:
         std::unique_ptr<QW_NAMESPACE::qw_buffer, QW_NAMESPACE::qw_buffer::unlocker> buffer;
         QQuickRenderTarget renderTarget;
         QSGRenderTarget sgRenderTarget;
+        QQuickRenderTarget preserveRenderTarget;
+        QSGRenderTarget preserveSgRenderTarget;
+        QSGRenderTarget activeSgRenderTarget;
         QRegion dirty;
+        bool renderBufferReleasedForCache = false;
     } state;
 
     QPointer<WOutput> m_output;

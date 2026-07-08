@@ -347,9 +347,9 @@ protected:
 };
 
 struct WlrAndRhiTexture {
-    struct wlr_buffer *buffer = nullptr;
-    qw_texture *wlrTexture = nullptr;
     QRhiTexture *rhiTexture = nullptr;
+    uint32_t drmFormat = 0;
+    uint64_t drmModifier = 0;
 };
 
 class Q_DECL_HIDDEN RhiTextureManager : public DataManager<RhiTextureManager, WlrAndRhiTexture, QRhiTexture::Format, uint32_t, uint64_t, const QSize&>
@@ -364,32 +364,30 @@ class Q_DECL_HIDDEN RhiTextureManager : public DataManager<RhiTextureManager, Wl
     }
 
     static bool check(WlrAndRhiTexture *texture, QRhiTexture::Format, uint32_t drmFormat, uint64_t drmModifier, const QSize &size) {
-        auto buffer = texture->buffer;
-        wlr_dmabuf_attributes attribs;
-        if (!wlr_buffer_get_dmabuf(buffer, &attribs)) {
-                qCWarning(lcWlRenderBuffer) << "Failed to get dmabuf attributes for texture" << texture << "with buffer" << buffer
-                       << ", Can't check texture without dmabuf attributes";
-            return false;
-        }
-        return attribs.format == drmFormat && attribs.modifier == drmModifier && texture->rhiTexture->pixelSize() == size;
+        return texture->drmFormat == drmFormat
+            && texture->drmModifier == drmModifier
+            && texture->rhiTexture
+            && texture->rhiTexture->pixelSize() == size;
     }
 
     WlrAndRhiTexture *create(QRhiTexture::Format format, uint32_t drmFormat, uint64_t drmModifier, const QSize &size) {
-        auto ow = qobject_cast<WOutputRenderWindow*>(owner());
-        auto texture = WRenderHelper::newTexture(ow->allocator(), ow->renderer(),
-                                                 drmFormat, drmModifier, owner()->rhi(),
-                                                 size, format, QRhiTexture::RenderTarget);
-        if (!texture.rhiTexture)
+        auto texture = owner()->rhi()->newTexture(format, size, 1, QRhiTexture::RenderTarget);
+        texture->setName(QByteArrayLiteral("WaylibRenderBufferNodeTexture"));
+        if (!texture->create()) {
+            qCWarning(lcWlRenderBuffer) << "Failed to create QRhi texture for WRenderBufferNode"
+                                        << "format" << format
+                                        << "drmFormat" << drmFormat
+                                        << "modifier" << drmModifier
+                                        << "size" << size;
+            delete texture;
             return nullptr;
+        }
 
-        return new WlrAndRhiTexture{texture.buffer, texture.texture, texture.rhiTexture};
+        return new WlrAndRhiTexture{texture, drmFormat, drmModifier};
     }
 
     static void destroy(WlrAndRhiTexture *texture) {
         delete texture->rhiTexture;
-        delete texture->wlrTexture;
-        if (texture->buffer)
-            wlr_buffer_drop(texture->buffer);
         delete texture;
     }
 };
@@ -657,10 +655,14 @@ public:
     }
 
     StateFlags changedStates() const override {
-        if (Q_UNLIKELY(renderData && !contentNode))
-            return (RenderTargetState | ViewportState);
-
-        return {0};
+        return DepthState
+               | StencilState
+               | ScissorState
+               | ColorState
+               | BlendState
+               | CullState
+               | ViewportState
+               | RenderTargetState;
     }
 
     // ###: Should disable DepthAwareRendering here, because
@@ -830,6 +832,18 @@ public:
 
         auto ct = currentRenderTexture();
         Q_ASSERT(ct);
+
+        if (renderWindow()->rhi()
+            && renderWindow()->rhi()->backend() == QRhi::Vulkan) {
+            if (auto renderTargetBuffer = WRenderHelper::lookupBuffer(ct)) {
+                qCDebug(lcWlRenderBuffer) << "Skipping WRenderBufferNode copy from Vulkan wlroots render buffer"
+                                          << "textureSize" << ct->pixelSize()
+                                          << "renderTargetBuffer" << renderTargetBuffer
+                                          << "wlrBuffer" << renderTargetBuffer->handle();
+                reset();
+                return;
+            }
+        }
 
         if (renderData) {
             renderData->texture.setTexture(ct);
