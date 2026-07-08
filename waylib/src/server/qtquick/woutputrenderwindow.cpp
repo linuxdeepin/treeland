@@ -13,6 +13,7 @@
 #include "wpresentation.h"
 #include "wbufferrenderer_p.h"
 #include "wquicktextureproxy.h"
+#include "wquickcursor.h"
 #include "wsgtextureprovider.h"
 #include "wsurface.h"
 #include "weventjunkman.h"
@@ -692,8 +693,11 @@ qw_buffer *OutputHelper::renderLayer(LayerData *layer, bool *dontEndRenderAndRet
 
         const auto layerFlags = layer->layer->layer->flags();
         const bool sizeSensitive = layerFlags & WOutputLayer::SizeSensitive;
+        const bool cursorLayer = layerFlags & WOutputLayer::Cursor;
         const bool isRef = layer->mapFrom && layer->mapTo;
-        if (isRef) {
+        if (cursorLayer) {
+            viewportMatrix = output()->mapToViewport(source->parentItem());
+        } else if (isRef) {
             viewportMatrix = output()->mapToViewport(layer->mapTo);
             const auto xScale = layer->mapTo->width() / layer->mapFrom->output()->width();
             const auto yScale = layer->mapTo->height() / layer->mapFrom->output()->height();
@@ -715,8 +719,19 @@ qw_buffer *OutputHelper::renderLayer(LayerData *layer, bool *dontEndRenderAndRet
 
         // matrix function: map source to output buffer
         const auto outputMatrix = viewportMatrix * output()->sourceRectToTargetRectTransfrom();
-        noClipMapRect = outputMatrix.mapRect(noClipMapRect);
-        mapRect = outputMatrix.mapRect(mapRect);
+        if (cursorLayer) {
+            auto cursorItem = qobject_cast<WQuickCursor *>(source);
+            if (!cursorItem || !cursorItem->cursor())
+                return nullptr;
+
+            const QPointF outputLocalPosition = cursorItem->cursor()->position()
+                                                - QPointF(output()->output()->position());
+            noClipMapRect = QRectF(outputLocalPosition - cursorItem->hotSpot(), source->size());
+            mapRect = noClipMapRect;
+        } else {
+            noClipMapRect = outputMatrix.mapRect(noClipMapRect);
+            mapRect = outputMatrix.mapRect(mapRect);
+        }
 
         QTransform revertScaleTransform;
         if (!sizeSensitive) {
@@ -756,7 +771,7 @@ qw_buffer *OutputHelper::renderLayer(LayerData *layer, bool *dontEndRenderAndRet
         }
         Q_ASSERT(!pixelSize.isEmpty());
 
-        QMatrix4x4 renderMatrix = revertScaleTransform * viewportMatrix;
+        QMatrix4x4 renderMatrix = cursorLayer ? QMatrix4x4() : revertScaleTransform * viewportMatrix;
         if (isRef) {
             renderMatrix = layer->mapFromLayer->renderMatrix * renderMatrix;
         }
