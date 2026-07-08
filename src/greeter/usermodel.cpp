@@ -61,36 +61,6 @@ UserModel::UserModel(QObject *parent)
     connect(&d->manager, &DAccountsManager::UserAdded, this, &UserModel::onUserAdded);
     connect(&d->manager, &DAccountsManager::UserDeleted, this, &UserModel::onUserDeleted);
 
-    connect(this, &UserModel::currentUserNameChanged, [this] {
-        auto user = getUser(d->currentUserName);
-        if (!user) {
-            qCWarning(lcTlGreeter) << "Couldn't find user:" << d->currentUserName;
-            return;
-        }
-
-        auto locale = user->locale();
-        qCInfo(lcTlGreeter) << "Current locale:" << locale.language();
-        auto *newTrans = new QTranslator{ this };
-        auto dirs = QStandardPaths::standardLocations(QStandardPaths::GenericDataLocation);
-        for (const auto &dir : dirs) {
-            if (newTrans->load(locale, "greeter", ".", dir + "/treeland/translations", ".qm")) {
-                if (d->lastTrans) {
-                    QGuiApplication::removeTranslator(d->lastTrans);
-                    d->lastTrans->deleteLater();
-                }
-                d->lastTrans = newTrans;
-                QGuiApplication::installTranslator(d->lastTrans);
-                Q_EMIT updateTranslations(locale);
-                Q_EMIT dataChanged(createIndex(0, 0), createIndex(rowCount(), 0));
-                qmlEngine(this)->retranslate();
-                return;
-            }
-        }
-
-        newTrans->deleteLater();
-        qCWarning(lcTlGreeter) << "Failed to load new translator under" << dirs.last();
-    });
-
     auto userList = d->manager.userList();
     if (!userList) {
         qFatal() << userList.error();
