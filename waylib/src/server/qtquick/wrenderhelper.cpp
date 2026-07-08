@@ -1299,11 +1299,10 @@ bool WRenderHelper::prepareTextureForSampling(QQuickRenderControl *rc,
         return false;
     }
 
-    wlr_vk_image_attribs samplingAttribs = {};
     const bool ok = wlr_vk_renderer_prepare_texture_for_sampling(renderer->handle(),
                                                                  texture->handle(),
                                                                  handles->commandBuffer,
-                                                                 &samplingAttribs);
+                                                                 nullptr);
     commandBuffer->endExternal();
 
     if (!ok) {
@@ -1317,14 +1316,6 @@ bool WRenderHelper::prepareTextureForSampling(QQuickRenderControl *rc,
         return false;
     }
 
-    qCDebug(lcWlQtQuickTexture) << "Vulkan texture prepared for sampling"
-                                << "purpose" << purpose
-                                << "wlrTexture" << texture->handle()
-                                << "image" << vkImageName(samplingAttribs.image)
-                                << "rawLayout" << vkImageLayoutName(rawAttribs.layout)
-                                << "sampleLayout" << vkImageLayoutName(samplingAttribs.layout)
-                                << "format" << hex32(samplingAttribs.format)
-                                << "size" << wlrTextureSize(texture);
 #else
     Q_UNUSED(rc);
     Q_UNUSED(renderer);
@@ -1409,13 +1400,6 @@ bool WRenderHelper::finishTextureSampling(QQuickRenderControl *rc,
         return false;
     }
 
-    qCDebug(lcWlQtQuickTexture) << "Vulkan texture sampling finished"
-                                << "purpose" << purpose
-                                << "wlrTexture" << texture->handle()
-                                << "image" << vkImageName(attribs.image)
-                                << "layout" << vkImageLayoutName(attribs.layout)
-                                << "format" << hex32(attribs.format)
-                                << "size" << wlrTextureSize(texture);
 #else
     Q_UNUSED(rc);
     Q_UNUSED(renderer);

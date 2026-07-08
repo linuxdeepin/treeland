@@ -329,11 +329,6 @@ bool WBufferRenderer::isPrimaryOutputRendererForVulkan() const
     return vd && vd->attached && vd->bufferRenderer == this;
 }
 
-bool WBufferRenderer::shouldExposeVulkanCacheProvider() const
-{
-    return !isPrimaryOutputRendererForVulkan();
-}
-
 QTransform WBufferRenderer::inputMapToOutput(const QRectF &sourceRect, const QRectF &targetRect,
                                              const QSize &pixelSize, const qreal devicePixelRatio)
 {
@@ -484,9 +479,7 @@ static QSGRenderTarget toRhiSgRenderTarget(QQuickWindowPrivate *wd, const QQuick
     return sgRT;
 }
 
-static QVector<WSGTextureProvider *> activeTextureProvidersForPass(QQuickItem *root,
-                                                                   qw_buffer *currentBuffer,
-                                                                   int sourceIndex)
+static QVector<WSGTextureProvider *> activeTextureProvidersForPass(QQuickItem *root)
 {
     QVector<WSGTextureProvider *> providers;
     if (!root)
@@ -511,26 +504,6 @@ static QVector<WSGTextureProvider *> activeTextureProvidersForPass(QQuickItem *r
 
         seen.insert(provider);
         providers.append(provider);
-
-        if (lcWlQtQuickTexture().isDebugEnabled()) {
-            auto providerBuffer = provider->qwBuffer();
-            auto providerTexture = provider->qwTexture();
-            const auto itemType = item->metaObject() ? item->metaObject()->className() : "<unknown>";
-            qCDebug(lcWlQtQuickTexture) << "Collected active Vulkan texture provider for render pass"
-                                        << "sourceIndex" << sourceIndex
-                                        << "sourceItem" << item
-                                        << "sourceItemType" << itemType
-                                        << "sourceObjectName" << item->objectName()
-                                        << "provider" << provider
-                                        << "providerBuffer" << providerBuffer
-                                        << "providerWlrBuffer" << (providerBuffer ? providerBuffer->handle() : nullptr)
-                                        << "providerTexture" << providerTexture
-                                        << "wlrTexture" << (providerTexture ? providerTexture->handle() : nullptr)
-                                        << "currentBuffer" << currentBuffer
-                                        << "currentWlrBuffer" << (currentBuffer ? currentBuffer->handle() : nullptr)
-                                        << "policy" << int(provider->vulkanSamplingPolicy())
-                                        << "textureSize" << (provider->texture() ? provider->texture()->textureSize() : QSize());
-        }
     }
 
     return providers;
@@ -689,23 +662,17 @@ bool WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
         }
     }
 
-    qsizetype uploadFlushCount = 0;
-    qsizetype preparedTextureCount = 0;
     QVector<qw_texture *> preparedTextures;
     auto outputWindow = renderWindow();
     const auto activeTextureProviders = activeTextureProvidersForPass(isRootItem(source.source)
                                                                           ? wd->contentItem
-                                                                          : source.source,
-                                                                      state.buffer.get(),
-                                                                      sourceIndex);
+                                                                          : source.source);
     constexpr const char *samplingPurpose = "qt-render-pass-texture";
     if (outputWindow
         && !outputWindow->prepareTextureSamplingForRenderPass(state.buffer.get(),
                                                               activeTextureProviders,
                                                               samplingPurpose,
                                                               sourceIndex,
-                                                              &uploadFlushCount,
-                                                              &preparedTextureCount,
                                                               &preparedTextures)) {
         qCWarning(lcWlBufferRenderer) << "Skipping render pass because Vulkan texture sampling prepare failed"
                                       << "renderer" << this
@@ -729,12 +696,7 @@ bool WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
             // sourceIndex, we should let the RHI (Rendering Hardware Interface)
             // complete the results of this drawing here to ensure the current
             // drawing result is available for use.
-            if (isVulkanRhi) {
-                qCDebug(lcWlBufferRenderer) << "Deferring Vulkan QRhi finish to render-control endFrame"
-                                            << "renderer" << this
-                                            << "sourceIndex" << sourceIndex
-                                            << "buffer" << state.buffer.get();
-            } else {
+            if (!isVulkanRhi) {
                 wd->rhi->finish();
             }
         } else {
@@ -771,16 +733,6 @@ bool WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
         }
     }
 
-    if (isVulkanRhi) {
-        qCDebug(lcWlBufferRenderer) << "Keeping Vulkan sampled textures in shader-read layout for render pass"
-                                    << "renderer" << this
-                                    << "sourceIndex" << sourceIndex
-                                    << "currentBuffer" << state.buffer.get()
-                                    << "wlrBuffer" << (state.buffer ? state.buffer->handle() : nullptr)
-                                    << "uploadFlushCount" << uploadFlushCount
-                                    << "preparedTextureCount" << preparedTextureCount;
-    }
-
     if (auto dr = qobject_cast<QSGDefaultRenderContext*>(state.context)) {
         QRhiResourceUpdateBatch *resourceUpdates = wd->rhi->nextResourceUpdateBatch();
         dr->currentFrameCommandBuffer()->resourceUpdate(resourceUpdates);
@@ -788,19 +740,6 @@ bool WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
 
     if (shouldCacheBuffer() && !isVulkanRhi) {
         wTextureProvider()->setBuffer(state.buffer.get());
-    } else if (shouldCacheBuffer() && !shouldExposeVulkanCacheProvider()) {
-        qCDebug(lcWlBufferRenderer) << "Skipping Vulkan primary output cache provider update during render"
-                                    << "renderer" << this
-                                    << "sourceIndex" << sourceIndex
-                                    << "currentBuffer" << state.buffer.get()
-                                    << "wlrBuffer" << (state.buffer ? state.buffer->handle() : nullptr);
-    } else if (shouldCacheBuffer()) {
-        qCDebug(lcWlBufferRenderer) << "Deferring Vulkan cache provider update until render buffer release"
-                                    << "renderer" << this
-                                    << "sourceIndex" << sourceIndex
-                                    << "currentBuffer" << state.buffer.get()
-                                    << "wlrBuffer" << (state.buffer ? state.buffer->handle() : nullptr)
-                                    << "releasedForCache" << state.renderBufferReleasedForCache;
     }
 
     return true;
@@ -823,25 +762,12 @@ void WBufferRenderer::endRender()
 
         m_lastBuffer = buffer.get();
         if (shouldCacheBuffer() && isVulkanRhi) {
-            if (!shouldExposeVulkanCacheProvider()) {
+            if (isPrimaryOutputRendererForVulkan()) {
                 if (m_textureProvider)
                     m_textureProvider->setBuffer(nullptr);
-                qCDebug(lcWlBufferRenderer) << "Skipped Vulkan primary output cache provider after render buffer release"
-                                            << "renderer" << this
-                                            << "buffer" << buffer.get()
-                                            << "wlrBuffer" << buffer->handle();
             } else if (canExposeCompletedCache) {
                 if (auto provider = wTextureProvider())
                     provider->setBuffer(buffer.get());
-                qCDebug(lcWlBufferRenderer) << "Updated Vulkan cache provider after render buffer release"
-                                            << "renderer" << this
-                                            << "buffer" << buffer.get()
-                                            << "wlrBuffer" << buffer->handle();
-            } else {
-                qCDebug(lcWlBufferRenderer) << "Skipping Vulkan cache provider update because render buffer is not cacheable"
-                                            << "renderer" << this
-                                            << "buffer" << buffer.get()
-                                            << "wlrBuffer" << buffer->handle();
             }
         }
     }

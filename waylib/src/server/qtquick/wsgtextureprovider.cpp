@@ -20,44 +20,6 @@ extern "C" {
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-static const char *vulkanSamplingPolicyName(WSGTextureProvider::VulkanSamplingPolicy policy)
-{
-    switch (policy) {
-    case WSGTextureProvider::VulkanSamplingPolicy::Invalid:
-        return "invalid";
-    case WSGTextureProvider::VulkanSamplingPolicy::Raw:
-        return "raw";
-    case WSGTextureProvider::VulkanSamplingPolicy::ShmUpload:
-        return "shm-upload";
-    }
-
-    return "unknown";
-}
-
-static WSGTextureProvider::VulkanSamplingPolicy classifyVulkanSamplingPolicy(qw_buffer *buffer)
-{
-    if (!buffer)
-        return WSGTextureProvider::VulkanSamplingPolicy::Raw;
-
-    wlr_dmabuf_attributes dmabuf = {};
-    if (wlr_buffer_get_dmabuf(buffer->handle(), &dmabuf))
-        return WSGTextureProvider::VulkanSamplingPolicy::Raw;
-
-    void *data = nullptr;
-    uint32_t format = 0;
-    size_t stride = 0;
-    if (wlr_buffer_begin_data_ptr_access(buffer->handle(),
-                                         WLR_BUFFER_DATA_PTR_ACCESS_READ,
-                                         &data,
-                                         &format,
-                                         &stride)) {
-        wlr_buffer_end_data_ptr_access(buffer->handle());
-        return WSGTextureProvider::VulkanSamplingPolicy::ShmUpload;
-    }
-
-    return WSGTextureProvider::VulkanSamplingPolicy::Raw;
-}
-
 class Q_DECL_HIDDEN BufferRef
 {
 public:
@@ -142,7 +104,6 @@ public:
         rhiTexture = nullptr;
         texture = nullptr;
         ownsTexture = false;
-        vulkanSamplingPolicy = WSGTextureProvider::VulkanSamplingPolicy::Invalid;
 
         if (!oldRhiTexture && !oldTexture && !oldBuffer.get())
             return;
@@ -204,8 +165,7 @@ public:
 
     bool updateRhiTexture() {
         Q_ASSERT(texture);
-        const bool forceShaderReadOnlyLayout = isVulkanRhi()
-                                               && vulkanSamplingPolicy != WSGTextureProvider::VulkanSamplingPolicy::Invalid;
+        const bool forceShaderReadOnlyLayout = isVulkanRhi();
         bool ok = WRenderHelper::makeTexture(window->rhi(), texture, &qtTexture, forceShaderReadOnlyLayout);
         if (Q_UNLIKELY(!ok)) {
             auto bufferHandle = buffer.get();
@@ -215,7 +175,6 @@ public:
                                           << "wlrTexture" << texture->handle()
                                           << "qwBuffer" << bufferHandle
                                           << "wlrBuffer" << (bufferHandle ? bufferHandle->handle() : nullptr)
-                                          << "policy" << vulkanSamplingPolicyName(vulkanSamplingPolicy)
                                           << "bufferSize" << (bufferHandle ? QSize(bufferHandle->handle()->width,
                                                                                    bufferHandle->handle()->height)
                                                                           : QSize());
@@ -224,14 +183,6 @@ public:
 
         rhiTexture = qtTexture.rhiTexture();
         updateMipmapFiltering();
-        qCDebug(lcWlQtQuickTexture) << "Updated Qt texture provider sampling policy"
-                                    << "provider" << q_func()
-                                    << "qwTexture" << texture
-                                    << "wlrTexture" << texture->handle()
-                                    << "qwBuffer" << buffer.get()
-                                    << "wlrBuffer" << (buffer.get() ? buffer.get()->handle() : nullptr)
-                                    << "policy" << vulkanSamplingPolicyName(vulkanSamplingPolicy)
-                                    << "forceShaderReadOnlyLayout" << forceShaderReadOnlyLayout;
         return true;
     }
 
@@ -243,7 +194,6 @@ public:
     qw_texture *texture = nullptr;
     bool ownsTexture = false;
     BufferRef buffer;
-    WSGTextureProvider::VulkanSamplingPolicy vulkanSamplingPolicy = WSGTextureProvider::VulkanSamplingPolicy::Invalid;
 
     // qt resources
     QSGPlainTexture qtTexture;
@@ -275,7 +225,6 @@ void WSGTextureProvider::setBuffer(qw_buffer *buffer)
     W_D(WSGTextureProvider);
     d->cleanTexture();
     d->buffer.reset(buffer);
-    d->vulkanSamplingPolicy = classifyVulkanSamplingPolicy(buffer);
 
     if (buffer) {
         Q_ASSERT(d->window);
@@ -310,7 +259,6 @@ void WSGTextureProvider::setTexture(qw_texture *texture, qw_buffer *srcBuffer)
     d->cleanTexture();
     d->texture = texture;
     d->buffer.reset(srcBuffer);
-    d->vulkanSamplingPolicy = classifyVulkanSamplingPolicy(srcBuffer);
     d->ownsTexture = false;
     if (texture && !d->updateRhiTexture())
         d->cleanTexture();
@@ -349,12 +297,6 @@ qw_buffer *WSGTextureProvider::qwBuffer() const
 {
     W_DC(WSGTextureProvider);
     return d->buffer.get();
-}
-
-WSGTextureProvider::VulkanSamplingPolicy WSGTextureProvider::vulkanSamplingPolicy() const
-{
-    W_DC(WSGTextureProvider);
-    return d->vulkanSamplingPolicy;
 }
 
 bool WSGTextureProvider::smooth() const

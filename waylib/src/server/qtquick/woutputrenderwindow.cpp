@@ -450,8 +450,6 @@ public:
                                              const QVector<WSGTextureProvider *> &activeProviders,
                                              const char *purpose,
                                              int sourceIndex,
-                                             qsizetype *uploadFlushCount,
-                                             qsizetype *preparedTextureCount,
                                              QVector<qw_texture *> *preparedTextures);
     bool finishTextureSamplingForRenderPass(const QVector<qw_texture *> &preparedTextures,
                                             const char *purpose,
@@ -1682,15 +1680,9 @@ bool WOutputRenderWindowPrivate::prepareTextureSamplingForRenderPass(qw_buffer *
                                                                      const QVector<WSGTextureProvider *> &activeProviders,
                                                                      const char *purpose,
                                                                      int sourceIndex,
-                                                                     qsizetype *uploadFlushCount,
-                                                                     qsizetype *preparedTextureCount,
                                                                      QVector<qw_texture *> *preparedTextures)
 {
-    Q_ASSERT(uploadFlushCount);
-    Q_ASSERT(preparedTextureCount);
     Q_ASSERT(preparedTextures);
-    *uploadFlushCount = 0;
-    *preparedTextureCount = 0;
     preparedTextures->clear();
 
     if (WRenderHelper::getGraphicsApi(rc()) != QSGRendererInterface::Vulkan)
@@ -1699,8 +1691,6 @@ bool WOutputRenderWindowPrivate::prepareTextureSamplingForRenderPass(qw_buffer *
     QSet<qw_texture *> seenTextures;
     qsizetype skippedCurrentRenderTarget = 0;
     qsizetype invalidProviderCount = 0;
-    qsizetype rawTextureCount = 0;
-    qsizetype shmUploadProviderCount = 0;
     for (auto provider : activeProviders) {
         if (!provider) {
             ++invalidProviderCount;
@@ -1719,16 +1709,6 @@ bool WOutputRenderWindowPrivate::prepareTextureSamplingForRenderPass(qw_buffer *
                 auto renderTargetBuffer = WRenderHelper::lookupBuffer(rhiTexture);
                 if (renderTargetBuffer == currentBuffer) {
                     ++skippedCurrentRenderTarget;
-                    qCDebug(lcWlQtQuickTexture) << "Skipping current Vulkan render target texture during sampling prepare"
-                                                << "purpose" << purpose
-                                                << "sourceIndex" << sourceIndex
-                                                << "currentBuffer" << currentBuffer
-                                                << "currentWlrBuffer" << currentBuffer->handle()
-                                                << "provider" << provider
-                                                << "providerBuffer" << providerBuffer
-                                                << "providerWlrBuffer" << (providerBuffer ? providerBuffer->handle() : nullptr)
-                                                << "rhiTexture" << rhiTexture
-                                                << "textureSize" << sampleTexture->textureSize();
                     continue;
                 }
             }
@@ -1739,17 +1719,6 @@ bool WOutputRenderWindowPrivate::prepareTextureSamplingForRenderPass(qw_buffer *
             ++invalidProviderCount;
             continue;
         }
-
-        const auto samplingPolicy = provider->vulkanSamplingPolicy();
-        if (samplingPolicy == WSGTextureProvider::VulkanSamplingPolicy::Invalid) {
-            ++invalidProviderCount;
-            continue;
-        }
-
-        if (samplingPolicy != WSGTextureProvider::VulkanSamplingPolicy::ShmUpload)
-            ++rawTextureCount;
-        else
-            ++shmUploadProviderCount;
 
         if (seenTextures.contains(texture))
             continue;
@@ -1766,12 +1735,9 @@ bool WOutputRenderWindowPrivate::prepareTextureSamplingForRenderPass(qw_buffer *
                                           << "providerWlrBuffer" << (providerBuffer ? providerBuffer->handle() : nullptr)
                                           << "qwTexture" << texture
                                           << "wlrTexture" << texture->handle()
-                                          << "policy" << int(samplingPolicy)
                                           << "qtTextureSize" << (sampleTexture ? sampleTexture->textureSize() : QSize())
                                           << "activeProviderCount" << activeProviders.size()
-                                          << "uploadFlushCount" << *uploadFlushCount
-                                          << "preparedTextureCount" << *preparedTextureCount
-                                          << "rawTextureCount" << rawTextureCount
+                                          << "preparedTextureCount" << preparedTextures->size()
                                           << "skippedCurrentRenderTarget" << skippedCurrentRenderTarget
                                           << "invalidProviderCount" << invalidProviderCount;
             provider->setTexture(nullptr, nullptr);
@@ -1779,23 +1745,8 @@ bool WOutputRenderWindowPrivate::prepareTextureSamplingForRenderPass(qw_buffer *
         }
 
         preparedTextures->append(texture);
-        ++(*preparedTextureCount);
-        if (samplingPolicy == WSGTextureProvider::VulkanSamplingPolicy::ShmUpload)
-            ++(*uploadFlushCount);
     }
 
-    qCDebug(lcWlQtQuickTexture) << "Prepared Vulkan texture sampling for render pass"
-                                << "purpose" << purpose
-                                << "sourceIndex" << sourceIndex
-                                << "currentBuffer" << currentBuffer
-                                << "currentWlrBuffer" << (currentBuffer ? currentBuffer->handle() : nullptr)
-                                << "activeProviderCount" << activeProviders.size()
-                                << "uploadFlushCount" << *uploadFlushCount
-                                << "preparedTextureCount" << *preparedTextureCount
-                                << "rawTextureCount" << rawTextureCount
-                                << "shmUploadProviderCount" << shmUploadProviderCount
-                                << "skippedCurrentRenderTarget" << skippedCurrentRenderTarget
-                                << "invalidProviderCount" << invalidProviderCount;
     return true;
 }
 
@@ -1823,10 +1774,6 @@ bool WOutputRenderWindowPrivate::finishTextureSamplingForRenderPass(const QVecto
         }
     }
 
-    qCDebug(lcWlQtQuickTexture) << "Finished Vulkan texture sampling for render pass"
-                                << "purpose" << purpose
-                                << "sourceIndex" << sourceIndex
-                                << "preparedTextureCount" << preparedTextures.size();
     return true;
 }
 
@@ -2221,8 +2168,6 @@ bool WOutputRenderWindow::prepareTextureSamplingForRenderPass(qw_buffer *current
                                                               const QVector<WSGTextureProvider *> &activeProviders,
                                                               const char *purpose,
                                                               int sourceIndex,
-                                                              qsizetype *uploadFlushCount,
-                                                              qsizetype *preparedTextureCount,
                                                               QVector<qw_texture *> *preparedTextures)
 {
     Q_D(WOutputRenderWindow);
@@ -2230,8 +2175,6 @@ bool WOutputRenderWindow::prepareTextureSamplingForRenderPass(qw_buffer *current
                                                   activeProviders,
                                                   purpose,
                                                   sourceIndex,
-                                                  uploadFlushCount,
-                                                  preparedTextureCount,
                                                   preparedTextures);
 }
 
