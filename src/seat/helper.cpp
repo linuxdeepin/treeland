@@ -1594,8 +1594,9 @@ void Helper::init(Treeland::Treeland *treeland)
     m_server->start();
 
     // Initialize seats from configuration
-    m_seat = m_seatManager->initializeFromConfig("/etc/deepin/treeland/seats.json", m_server);
-    if (!m_seat) {
+    m_primarySeat =
+        m_seatManager->initializeFromConfig("/etc/deepin/treeland/seats.json", m_server);
+    if (!m_primarySeat) {
         qCCritical(lcTlCore) << "Failed to initialize seats!";
         return;
     }
@@ -1609,8 +1610,10 @@ void Helper::init(Treeland::Treeland *treeland)
     // Connect device signals and handle device lifecycle
     m_seatManager->connectBackendSignals(m_backend);
     connect(m_seatManager, &SeatsManager::deviceAdded, this, [this](WInputDevice *device) {
-        m_seatManager->assignDevice(device, m_renderWindow,
-                                   m_rootSurfaceContainer->outputLayout(), m_seat);
+        m_seatManager->assignDevice(device,
+                                    m_renderWindow,
+                                    m_rootSurfaceContainer->outputLayout(),
+                                    m_primarySeat);
     });
 
     // Setup drag request handling for all seats
@@ -1629,12 +1632,12 @@ void Helper::init(Treeland::Treeland *treeland)
         m_rootSurfaceContainer->setupSeatManagement();
     }
 
-    if (!m_seat) {
+    if (!m_primarySeat) {
         qCCritical(lcTlCore) << "No seat available after initialization, cannot continue";
         return;
     }
-    m_shellHandler->init(m_server, m_seat);
-    m_popupFocusManager = new PopupFocusManager(m_seat, this);
+    m_shellHandler->init(m_server, m_primarySeat);
+    m_popupFocusManager = new PopupFocusManager(m_primarySeat, this);
     connect(m_popupFocusManager,
             &PopupFocusManager::aboutToDismissAll,
             m_shellHandler,
@@ -1891,7 +1894,7 @@ WSeat *Helper::getSeatForEvent(QInputEvent *event) const
     return m_seatManager->getSeatForEvent(event);
 }
 
-void Helper::activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
+void Helper::activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason, WSeat *seat)
 {
     if (wrapper && wrapper->isIMCandidatePanel())
         return;
@@ -1926,23 +1929,19 @@ void Helper::activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
         return;
     }
 
-    if (!wrapper) {
-        setActivatedSurface(nullptr);
+    if (!wrapper || wrapper->hasActiveCapability()) {
+        setActivatedSurface(wrapper, seat);
     } else {
-        if (wrapper->hasActiveCapability()) {
-            setActivatedSurface(wrapper);
-        } else {
-            qCCritical(lcTlShell)
-                << "Trying to activate a surface which doesn't have ActiveCapability!";
-        }
+        qCCritical(lcTlShell)
+            << "Trying to activate a surface which doesn't have ActiveCapability!";
     }
 
     if (!wrapper || wrapper->hasFocusCapability()) {
-        requestKeyboardFocus(wrapper, reason);
+        requestKeyboardFocus(wrapper, reason, seat);
     }
 }
 
-void Helper::forceActivateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason)
+void Helper::forceActivateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason, WSeat *seat)
 {
     if (!wrapper) {
         qCCritical(lcTlShell) << "Don't force activate to empty surface! do you want `Helper::activeSurface(nullptr)`?";
@@ -1985,7 +1984,7 @@ void Helper::forceActivateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reaso
 
     if (!wrapper->showOnWorkspace(workspace()->current()->id()))
         workspace()->switchTo(workspace()->modelIndexOfSurface(wrapper));
-    Helper::instance()->activateSurface(wrapper, reason);
+    Helper::instance()->activateSurface(wrapper, reason, seat);
 }
 
 RootSurfaceContainer *Helper::rootSurfaceContainer() const
@@ -1997,7 +1996,7 @@ void Helper::fakePressSurfaceBottomRightToReszie(SurfaceWrapper *surface)
 {
     auto position = surface->geometry().bottomRight();
     m_fakelastPressedPosition = position;
-    m_seat->setCursorPosition(position);
+    m_primarySeat->setCursorPosition(position);
     Q_EMIT surface->resizeRequested(Qt::BottomEdge | Qt::RightEdge);
 }
 
@@ -2055,7 +2054,7 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *targetWindow, QInputEvent 
     m_currentEventSeat = targetSeat;
     [[maybe_unused]] auto clearEventSeat = qScopeGuard([this] { m_currentEventSeat = nullptr; });
 
-    if (seat == m_seat) {
+    if (seat == m_primarySeat) {
         // NOTE: Unable to distinguish meta from other key combinations
         //       For example, Meta+S will still receive Meta release after
         //       fully releasing the key, actively detect whether there are
@@ -2156,8 +2155,8 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *targetWindow, QInputEvent 
     if (m_shortcutManager->tryHandleCaptureEvent(seat, event))
         return true;
 
-    if (seat == m_seat && !m_captureSelector && m_currentMode != CurrentMode::LockScreen &&
-        (event->type() == QEvent::KeyPress || event->type() == QEvent::KeyRelease)) {
+    if (seat == m_primarySeat && !m_captureSelector && m_currentMode != CurrentMode::LockScreen
+        && (event->type() == QEvent::KeyPress || event->type() == QEvent::KeyRelease)) {
         do {
             auto kevent = static_cast<QKeyEvent *>(event);
             // SKIP Meta+Meta
@@ -2181,9 +2180,8 @@ bool Helper::afterHandleEvent([[maybe_unused]] WSeat *seat,
                               QObject *,
                               QInputEvent *event)
 {
-    if (!m_instance || !m_renderWindow || !m_backend) {
+    if (!m_instance || !m_renderWindow || !m_backend)
         return false;
-    }
 
     if (event->isSinglePointEvent() && static_cast<QSinglePointEvent *>(event)->isBeginEvent()) {
         // surfaceItem is qml type: XdgSurfaceItem or LayerSurfaceItem
@@ -2193,66 +2191,11 @@ bool Helper::afterHandleEvent([[maybe_unused]] WSeat *seat,
         Q_ASSERT(toplevelSurface->surface() == watched);
 
         auto surface = m_rootSurfaceContainer->getSurface(watched);
-
         WSeat *eventSeat = getSeatForEvent(event);
+
         if (eventSeat && surface) {
-            // IM candidate panel should not be activated.
-            if (surface->isIMCandidatePanel()) {
-                return false;
-            }
-
-            const auto seats = m_seatManager->seats();
-            for (auto *seat : seats) {
-                if (seat != eventSeat && surface) {
-                    auto *container = m_rootSurfaceContainer->getSeatContainer(seat);
-                    if (container && container->moveResizeState().surface == surface) {
-                        // Another seat is dragging this specific window, interrupt it
-                        m_rootSurfaceContainer->endMoveResizeForSeat(seat);
-                    }
-                }
-            }
-
-            if (surface->hasActiveCapability())
-                m_rootSurfaceContainer->setActivatedSurfaceForSeat(eventSeat,
-                                                                   surface,
-                                                                   Qt::MouseFocusReason);
-
-            if (surface->hasFocusCapability()) {
-                if (eventSeat && eventSeat->nativeHandle()) {
-                    updateSurfaceSeatInteraction(surface, eventSeat);
-
-                    surface->setFocus(true, Qt::MouseFocusReason);
-
-                    if (!surface->surface() || !eventSeat->nativeHandle()) {
-                        return false;
-                    }
-
-                    if (!surface->surface() || !surface->surface()->handle()) {
-                        return false;
-                    }
-
-                    auto keyboard = eventSeat->keyboard();
-                    if (!keyboard) {
-                        return false;
-                    }
-
-                    surface->setProperty("lastInteractionTime", QDateTime::currentMSecsSinceEpoch());
-                    eventSeat->setKeyboardFocusSurface(surface->surface());
-                    if (auto *seatContainer = m_rootSurfaceContainer->getSeatContainer(eventSeat)) {
-                        seatContainer->setKeyboardFocusSurface(surface);
-                    }
-                }
-            }
-
-            if (surface->hasActiveCapability()) {
-                surface->setActivate(true);
-                surface->stackToLast();
-                workspace()->pushActivedSurface(surface);
-
-                if (eventSeat == m_seat) {
-                    setActivatedSurface(surface);
-                }
-            }
+            updateSurfaceSeatInteraction(surface, eventSeat);
+            activateSurface(surface, Qt::MouseFocusReason, eventSeat);
         }
     }
 
@@ -2261,23 +2204,12 @@ bool Helper::afterHandleEvent([[maybe_unused]] WSeat *seat,
 
 bool Helper::unacceptedEvent(WSeat *, QWindow *, QInputEvent *event)
 {
-    if (!m_instance || !m_renderWindow || !m_backend) {
+    if (!m_instance || !m_renderWindow || !m_backend)
         return false;
-    }
-    if (event->isSinglePointEvent()) {
-        if (static_cast<QSinglePointEvent *>(event)->isBeginEvent()) {
-            WSeat *eventSeat = getSeatForEvent(event);
-            if (eventSeat) {
-                if (auto *seatContainer = m_rootSurfaceContainer->getSeatContainer(eventSeat)) {
-                    seatContainer->setActivatedSurface(nullptr, Qt::OtherFocusReason);
-                    seatContainer->setKeyboardFocusSurface(nullptr);
-                }
-            }
 
-            if (!eventSeat || eventSeat == m_seat) {
-                activateSurface(nullptr, Qt::OtherFocusReason);
-            }
-        }
+    if (event->isSinglePointEvent() && static_cast<QSinglePointEvent *>(event)->isBeginEvent()) {
+        WSeat *eventSeat = getSeatForEvent(event);
+        activateSurface(nullptr, Qt::OtherFocusReason, eventSeat);
     }
 
     return false;
@@ -2398,8 +2330,18 @@ SurfaceWrapper *Helper::activatedSurface() const
     return m_activatedSurface;
 }
 
-void Helper::setActivatedSurface(SurfaceWrapper *newActivateSurface)
+void Helper::setActivatedSurface(SurfaceWrapper *newActivateSurface, WSeat *seat)
 {
+    if (seat && seat != m_primarySeat) {
+        // Per-seat activation: delegate to SeatSurfaceManager
+        if (auto *container = m_rootSurfaceContainer->getSeatContainer(seat)) {
+            if (container->activatedSurface() != newActivateSurface)
+                container->setActivatedSurface(newActivateSurface, Qt::OtherFocusReason);
+        }
+        return;
+    }
+
+    // Primary seat / global activation
     if (m_activatedSurface == newActivateSurface)
         return;
 
@@ -2494,12 +2436,13 @@ void Helper::onRenderWindowActiveFocusItemChanged()
     }
 }
 
-void Helper::requestKeyboardFocus(SurfaceWrapper *wrapper, Qt::FocusReason reason)
+void Helper::requestKeyboardFocus(SurfaceWrapper *wrapper, Qt::FocusReason reason, WSeat *seat)
 {
-    WSeat *targetSeat =
-        m_currentEventSeat ? m_currentEventSeat : getLastInteractingSeat(wrapper);
+    WSeat *targetSeat = seat;
     if (!targetSeat)
-        targetSeat = m_seat;
+        targetSeat = m_currentEventSeat ? m_currentEventSeat : getLastInteractingSeat(wrapper);
+    if (!targetSeat)
+        targetSeat = m_primarySeat;
 
     if (!targetSeat || !targetSeat->nativeHandle())
         return;
@@ -2537,27 +2480,27 @@ void Helper::setCursorPosition(const QPointF &position)
     for (auto *seat : seats) {
         m_rootSurfaceContainer->endMoveResizeForSeat(seat);
     }
-    m_seat->setCursorPosition(position);
+    m_primarySeat->setCursorPosition(position);
 }
 
 void Helper::handleRequestDrag([[maybe_unused]] WSurface *surface)
 {
-    m_seat->setAlwaysUpdateHoverTarget(true);
+    m_primarySeat->setAlwaysUpdateHoverTarget(true);
 
-    struct wlr_drag *drag = m_seat->nativeHandle()->drag;
+    struct wlr_drag *drag = m_primarySeat->nativeHandle()->drag;
     Q_ASSERT(drag);
     QObject::connect(qw_drag::from(drag), &qw_drag::notify_drop, this, [this] {
         if (m_ddeShellV1)
-            DDEActiveInterface::sendDrop(m_seat);
+            DDEActiveInterface::sendDrop(m_primarySeat);
     });
 
     QObject::connect(qw_drag::from(drag), &qw_drag::before_destroy, this, [this, drag] {
         drag->data = NULL;
-        m_seat->setAlwaysUpdateHoverTarget(false);
+        m_primarySeat->setAlwaysUpdateHoverTarget(false);
     });
 
     if (m_ddeShellV1)
-        DDEActiveInterface::sendStartDrag(m_seat);
+        DDEActiveInterface::sendStartDrag(m_primarySeat);
 }
 
 void Helper::handleLockScreen(LockScreenInterface *lockScreen)
@@ -2933,32 +2876,32 @@ void Helper::showSwitchUser()
 
 WSeat *Helper::seat() const
 {
-    return m_seat;
+    return m_primarySeat;
 }
 
 void Helper::handleLeftButtonStateChanged(const QInputEvent *event)
 {
-    Q_ASSERT(m_ddeShellV1 && m_seat);
+    Q_ASSERT(m_ddeShellV1 && m_primarySeat);
     const QMouseEvent *me = static_cast<const QMouseEvent *>(event);
     if (me->button() == Qt::LeftButton) {
         if (event->type() == QEvent::MouseButtonPress) {
-            DDEActiveInterface::sendActiveIn(DDEActiveInterface::Mouse, m_seat);
+            DDEActiveInterface::sendActiveIn(DDEActiveInterface::Mouse, m_primarySeat);
         } else {
-            DDEActiveInterface::sendActiveOut(DDEActiveInterface::Mouse, m_seat);
+            DDEActiveInterface::sendActiveOut(DDEActiveInterface::Mouse, m_primarySeat);
         }
     }
 }
 
 void Helper::handleWhellValueChanged(const QInputEvent *event)
 {
-    Q_ASSERT(m_ddeShellV1 && m_seat);
+    Q_ASSERT(m_ddeShellV1 && m_primarySeat);
     const QWheelEvent *we = static_cast<const QWheelEvent *>(event);
     QPoint delta = we->angleDelta();
     if (delta.x() + delta.y() < 0) {
-        DDEActiveInterface::sendActiveOut(DDEActiveInterface::Wheel, m_seat);
+        DDEActiveInterface::sendActiveOut(DDEActiveInterface::Wheel, m_primarySeat);
     }
     if (delta.x() + delta.y() > 0) {
-        DDEActiveInterface::sendActiveIn(DDEActiveInterface::Wheel, m_seat);
+        DDEActiveInterface::sendActiveIn(DDEActiveInterface::Wheel, m_primarySeat);
     }
 }
 
@@ -3196,7 +3139,7 @@ bool Helper::setXWindowPositionRelative(uint wid, WSurface *anchor, wl_fixed_t d
 
 WXWayland *Helper::createXWayland()
 {
-    return shellHandler()->createXWayland(m_server, m_seat, m_compositor, false);
+    return shellHandler()->createXWayland(m_server, m_primarySeat, m_compositor, false);
 }
 
 WSeat *Helper::findSeatForSurface(SurfaceWrapper *wrapper) const

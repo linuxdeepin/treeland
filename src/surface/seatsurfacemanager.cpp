@@ -40,7 +40,6 @@ void SeatSurfaceManager::setActivatedSurface(SurfaceWrapper *surface, Qt::FocusR
         return;
 
     m_activatedSurface = surface;
-    m_keyboardFocusSurface = surface;
     Q_EMIT activatedSurfaceChanged(surface);
 }
 
