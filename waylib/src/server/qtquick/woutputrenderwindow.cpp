@@ -10,9 +10,11 @@
 #include "woutputviewport_p.h"
 #include "wqmlhelper_p.h"
 #include "woutputlayer.h"
+#include "wpresentation.h"
 #include "wbufferrenderer_p.h"
 #include "wquicktextureproxy.h"
 #include "wsgtextureprovider.h"
+#include "wsurface.h"
 #include "weventjunkman.h"
 #include "winputdevice.h"
 #include "wseat.h"
@@ -454,6 +456,11 @@ public:
     bool finishTextureSamplingForRenderPass(const QVector<qw_texture *> &preparedTextures,
                                             const char *purpose,
                                             int sourceIndex);
+    void setCurrentPresentationOutput(WOutput *output);
+    void markSurfaceTexturedForPresentation(WSurface *surface);
+    void submitPresentationFeedbackForOutput(WOutput *output);
+    void clearPresentationFeedbackForOutput(WOutput *output);
+    void clearPresentationFeedback();
     void doRender(qw_output *needsFrameOutput, const QList<OutputHelper*> &outputs,
                   bool forceRender, bool doCommit);
 
@@ -481,6 +488,9 @@ public:
 
     QPointer<qw_renderer> m_renderer;
     QPointer<qw_allocator> m_allocator;
+    QPointer<WPresentation> m_presentation;
+    QPointer<WOutput> m_currentPresentationOutput;
+    QHash<WOutput *, QVector<QPointer<WSurface>>> m_pendingPresentationSurfaces;
 
     QList<OutputHelper*> outputs;
     QList<OutputLayer*> layers;
@@ -611,14 +621,19 @@ qw_buffer *OutputHelper::beginRender(WBufferRenderer *renderer,
 bool OutputHelper::render(WBufferRenderer *renderer, int sourceIndex, const QMatrix4x4 &renderMatrix,
                           const QRectF &sourceRect, const QRectF &targetRect, bool preserveColorContents)
 {
-    renderWindowD()->pushRenderer(renderer);
+    auto *windowPrivate = renderWindowD();
+    auto *presentationOutput = m_output ? m_output->output() : nullptr;
+    windowPrivate->setCurrentPresentationOutput(presentationOutput);
+    windowPrivate->pushRenderer(renderer);
     const bool ok = renderer->render(sourceIndex, renderMatrix, sourceRect, targetRect, preserveColorContents);
+    windowPrivate->setCurrentPresentationOutput(nullptr);
     if (!ok) {
         qCWarning(lcWlBufferRenderer) << "WBufferRenderer render pass failed"
                                       << "renderer" << renderer
                                       << "sourceIndex" << sourceIndex
                                       << "currentBuffer" << renderer->currentBuffer()
                                       << "lastBuffer" << renderer->lastBuffer();
+        windowPrivate->clearPresentationFeedbackForOutput(presentationOutput);
     }
     return ok;
 }
@@ -1777,6 +1792,65 @@ bool WOutputRenderWindowPrivate::finishTextureSamplingForRenderPass(const QVecto
     return true;
 }
 
+void WOutputRenderWindowPrivate::setCurrentPresentationOutput(WOutput *output)
+{
+    m_currentPresentationOutput = output;
+}
+
+void WOutputRenderWindowPrivate::markSurfaceTexturedForPresentation(WSurface *surface)
+{
+    auto *output = m_currentPresentationOutput.data();
+    if (!m_presentation || !m_presentation->isValid() || !surface || !output)
+        return;
+
+    if (surface->framePacingOutput() != output)
+        return;
+
+    auto &surfaces = m_pendingPresentationSurfaces[output];
+    for (const auto &existing : std::as_const(surfaces)) {
+        if (existing == surface)
+            return;
+    }
+
+    surfaces.append(surface);
+}
+
+void WOutputRenderWindowPrivate::submitPresentationFeedbackForOutput(WOutput *output)
+{
+    if (!output) {
+        clearPresentationFeedback();
+        return;
+    }
+
+    const auto surfaces = m_pendingPresentationSurfaces.take(output);
+    if (surfaces.isEmpty() || !m_presentation || !m_presentation->isValid())
+        return;
+
+    int submittedCount = 0;
+    for (const auto &surface : surfaces) {
+        if (!surface || surface->framePacingOutput() != output)
+            continue;
+
+        m_presentation->surfaceTexturedOnOutput(surface, output);
+        ++submittedCount;
+    }
+
+    qCDebug(lcWlPresentation) << "Submitted presentation feedback for output"
+                              << "output" << output
+                              << "surfaceCount" << submittedCount;
+}
+
+void WOutputRenderWindowPrivate::clearPresentationFeedbackForOutput(WOutput *output)
+{
+    if (output)
+        m_pendingPresentationSurfaces.remove(output);
+}
+
+void WOutputRenderWindowPrivate::clearPresentationFeedback()
+{
+    m_pendingPresentationSurfaces.clear();
+}
+
 // ###: QQuickAnimatorController::advance symbol not export
 static void QQuickAnimatorController_advance(QQuickAnimatorController *ac)
 {
@@ -1805,6 +1879,7 @@ void WOutputRenderWindowPrivate::doRender(qw_output *needsFrameOutput,
         return;
 
     inRendering = true;
+    clearPresentationFeedback();
 
     W_Q(WOutputRenderWindow);
     for (OutputLayer *layer : std::as_const(layers)) {
@@ -1844,10 +1919,11 @@ void WOutputRenderWindowPrivate::doRender(qw_output *needsFrameOutput,
     if (doCommit) {
         committedOutputs.reserve(needsCommit.size());
         for (auto i : std::as_const(needsCommit)) {
+            auto output = i.first->output()->output();
             if (Q_UNLIKELY(!i.first->framePending())) {
+                submitPresentationFeedbackForOutput(output);
                 if (Q_LIKELY(i.first->commit(i.second))) {
                     // Make sure the output is still valid after commit
-                    auto output = i.first->output()->output();
                     if (Q_LIKELY(needsFrameOutput)) {
                         Q_ASSERT(output->handle() == needsFrameOutput);
                         if (committedOutputs.isEmpty())
@@ -1856,6 +1932,8 @@ void WOutputRenderWindowPrivate::doRender(qw_output *needsFrameOutput,
                         committedOutputs.append(output);
                     }
                 }
+            } else {
+                clearPresentationFeedbackForOutput(output);
             }
 
             if (i.second->currentBuffer()) {
@@ -1864,7 +1942,10 @@ void WOutputRenderWindowPrivate::doRender(qw_output *needsFrameOutput,
 
             i.first->resetState();
         }
+    } else {
+        clearPresentationFeedback();
     }
+    clearPresentationFeedback();
 
     resetGlState();
 
@@ -2162,6 +2243,20 @@ qw_allocator *WOutputRenderWindow::allocator() const
 {
     Q_D(const WOutputRenderWindow);
     return d->m_allocator;
+}
+
+void WOutputRenderWindow::setPresentation(WPresentation *presentation)
+{
+    Q_D(WOutputRenderWindow);
+    d->m_presentation = presentation;
+    if (!presentation)
+        d->clearPresentationFeedback();
+}
+
+void WOutputRenderWindow::markSurfaceTexturedForPresentation(WSurface *surface)
+{
+    Q_D(WOutputRenderWindow);
+    d->markSurfaceTexturedForPresentation(surface);
 }
 
 bool WOutputRenderWindow::prepareTextureSamplingForRenderPass(qw_buffer *currentBuffer,

@@ -71,6 +71,7 @@
 #include <WForeignToplevel>
 #include <WLinuxDmabufV1>
 #include <WOutput>
+#include <WPresentation>
 #include <WServer>
 #include <WSurfaceItem>
 #include <WXdgOutput>
@@ -1863,6 +1864,11 @@ void Helper::init(Treeland::Treeland *treeland)
 
     qCInfo(lcTlCore) << "Initialized wl_shm for renderer";
     m_server->attach<WLinuxDmabufV1>(m_renderer);
+    if (WRenderHelper::getGraphicsApi() == QSGRendererInterface::Vulkan) {
+        auto *presentation = m_server->attach<WPresentation>(m_backend->handle());
+        m_renderWindow->setPresentation(presentation);
+        qCInfo(lcTlCore) << "Attached presentation-time protocol for Vulkan renderer";
+    }
 
     qw_drm::create(*m_server->handle(), *m_renderer);
 

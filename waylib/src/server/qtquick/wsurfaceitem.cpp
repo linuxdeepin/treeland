@@ -577,8 +577,12 @@ public:
 
     void render(const RenderState*) override
     {
-        if (Q_LIKELY(m_owner))
-            m_owner->d_func()->rendered = true;
+        if (Q_LIKELY(m_owner)) {
+            auto *ownerPrivate = m_owner->d_func();
+            ownerPrivate->rendered = true;
+            if (auto *renderWindow = m_owner->outputRenderWindow())
+                renderWindow->markSurfaceTexturedForPresentation(ownerPrivate->surface);
+        }
     }
 
     RenderingFlags flags() const override
