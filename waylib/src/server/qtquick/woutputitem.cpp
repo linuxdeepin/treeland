@@ -160,6 +160,9 @@ void WOutputItemPrivate::updateCursors()
                 }
 
                 updateCursorVisible(safeOc.data());
+                if (safeOc->output() && safeOc->output()->output()) {
+                    safeOc->output()->output()->scheduleFrame();
+                }
             });
         }
 
