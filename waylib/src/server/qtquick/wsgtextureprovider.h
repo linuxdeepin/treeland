@@ -23,6 +23,12 @@ class WAYLIB_SERVER_EXPORT WSGTextureProvider : public QSGTextureProvider, publi
     Q_PROPERTY(bool smooth READ smooth WRITE setSmooth NOTIFY smoothChanged FINAL)
 
 public:
+    enum class VulkanSamplingPolicy {
+        Invalid,
+        Raw,
+        ShmUpload,
+    };
+
     explicit WSGTextureProvider(WOutputRenderWindow *window);
 
     WOutputRenderWindow *window() const;
@@ -32,8 +38,10 @@ public:
     void invalidate();
 
     QSGTexture *texture() const override;
+    bool hasTexture() const;
     virtual QW_NAMESPACE::qw_texture *qwTexture() const;
     virtual QW_NAMESPACE::qw_buffer *qwBuffer() const;
+    VulkanSamplingPolicy vulkanSamplingPolicy() const;
 
     bool smooth() const;
     void setSmooth(bool newSmooth);

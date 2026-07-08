@@ -188,8 +188,10 @@ public:
 
         m_tp = tp;
         onTextureChanged();
-        connect(tp, &QSGTextureProvider::textureChanged,
-                this, &SGTextureProviderNode::onTextureChanged, Qt::DirectConnection);
+        if (tp) {
+            connect(tp, &QSGTextureProvider::textureChanged,
+                    this, &SGTextureProviderNode::onTextureChanged, Qt::DirectConnection);
+        }
     }
 
     inline QSGTextureProvider *textureProvider() const {
@@ -202,8 +204,13 @@ public:
         appendChildNode(image);
         image->setFlag(QSGNode::OwnedByParent);
         if (m_tp) {
-            m_image->setTexture(m_tp->texture());
-            Q_ASSERT(m_image->texture());
+            auto texture = m_tp->texture();
+            if (texture) {
+                m_image->setTexture(texture);
+            } else {
+                delete m_image;
+                m_image = nullptr;
+            }
         }
     }
 

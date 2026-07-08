@@ -3,6 +3,7 @@
 
 #include "wrenderbufferblitter.h"
 #include "wrenderbuffernode_p.h"
+#include "wayliblogging.h"
 #include "private/wglobal_p.h"
 
 #include <QSGImageNode>
@@ -95,6 +96,7 @@ public:
     Content *content = nullptr;
     QQuickItem *container = nullptr;
     mutable BlitTextureProvider *tp = nullptr;
+    bool vulkanDisabledLogged = false;
 };
 
 class Q_DECL_HIDDEN Content : public QQuickItem
@@ -260,6 +262,24 @@ static void onTextureChanged(WRenderBufferNode *node, void *data) {
 
 QSGNode *WRenderBufferBlitter::updatePaintNode(QSGNode *oldNode, [[maybe_unused]] QQuickItem::UpdatePaintNodeData *oldData)
 {
+    W_D(WRenderBufferBlitter);
+    if (window()->graphicsApi() == QSGRendererInterface::Vulkan) {
+        if (d->tp) {
+            d->tp->setTexture(nullptr);
+            Q_EMIT d->tp->textureChanged();
+        }
+        delete oldNode;
+
+        if (!d->vulkanDisabledLogged) {
+            qCInfo(lcWlRenderBuffer) << "Disabled RenderBufferBlitter on Vulkan"
+                                     << "window" << window()
+                                     << "itemSize" << size()
+                                     << "reason" << "wlroots render buffer lacks TRANSFER_SRC usage";
+            d->vulkanDisabledLogged = true;
+        }
+
+        return nullptr;
+    }
 
     auto node = static_cast<WRenderBufferNode*>(oldNode);
     if (Q_LIKELY(node)) {
@@ -267,7 +287,6 @@ QSGNode *WRenderBufferBlitter::updatePaintNode(QSGNode *oldNode, [[maybe_unused]
         return node;
     }
 
-    W_D(WRenderBufferBlitter);
     if (window()->graphicsApi() == QSGRendererInterface::Software) {
         node = WRenderBufferNode::createSoftwareNode(this);
     } else {
