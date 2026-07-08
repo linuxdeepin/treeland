@@ -66,8 +66,6 @@ public:
                                              const QVector<WSGTextureProvider *> &activeProviders,
                                              const char *purpose,
                                              int sourceIndex,
-                                             qsizetype *uploadFlushCount,
-                                             qsizetype *preparedTextureCount,
                                              QVector<QW_NAMESPACE::qw_texture *> *preparedTextures);
     bool finishTextureSamplingForRenderPass(const QVector<QW_NAMESPACE::qw_texture *> &preparedTextures,
                                             const char *purpose,

@@ -118,7 +118,6 @@ private:
     void releaseResources() override;
     void cleanTextureProvider();
     bool isPrimaryOutputRendererForVulkan() const;
-    bool shouldExposeVulkanCacheProvider() const;
 
     inline bool isRootItem(const QQuickItem *source) const {
         return nullptr == source;

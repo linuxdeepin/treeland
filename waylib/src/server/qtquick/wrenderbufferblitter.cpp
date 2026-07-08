@@ -274,7 +274,7 @@ QSGNode *WRenderBufferBlitter::updatePaintNode(QSGNode *oldNode, [[maybe_unused]
             qCInfo(lcWlRenderBuffer) << "Disabled RenderBufferBlitter on Vulkan"
                                      << "window" << window()
                                      << "itemSize" << size()
-                                     << "reason" << "wlroots render buffer lacks TRANSFER_SRC usage";
+                                     << "reason" << "Vulkan backdrop source unavailable";
             d->vulkanDisabledLogged = true;
         }
 
