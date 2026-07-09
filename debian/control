@@ -20,6 +20,7 @@ Build-Depends: cmake (>= 3.25.0),
                libdrm-dev,
                pkg-config,
                qml6-module-qtquick-templates,
+               qml6-module-qtquick-effects,
                qt6-base-dev (>= 6.8.0),
                qt6-base-private-dev (>= 6.8.0),
                qt6-base-dev-tools (>= 6.8.0),
@@ -50,6 +51,7 @@ Section: dde
 Architecture: any
 Multi-Arch: same
 Depends: qml6-module-qtquick-layouts,
+         qml6-module-qtquick-effects,
          qml6-module-qtquick-particles,
          treeland-data (= ${source:Version}),
          xwayland,

@@ -254,6 +254,7 @@ qt_add_qml_module(libtreeland
         core/qml/Animations/LaunchpadAnimation.qml
         core/qml/Animations/LayerShellAnimation.qml
         core/qml/Effects/Blur.qml
+        core/qml/Effects/GlassEffect.qml
         core/qml/Effects/LaunchpadCover.qml
         core/qml/TaskSwitcher.qml
         core/qml/TaskWindowPreview.qml
@@ -290,6 +291,19 @@ qt_add_shaders(libtreeland "treeland_shaders_ng"
     FILES
         ${PROJECT_RESOURCES_DIR}/shaders/radiussmoothtexture.vert
         ${PROJECT_RESOURCES_DIR}/shaders/radiussmoothtexture.frag
+)
+
+# Liquid Glass shaders are used with ShaderEffect, not custom QSGGeometry,
+# so BATCHABLE is unnecessary (it only adds an unused batchable variant).
+qt_add_shaders(libtreeland "treeland_liquidglass_shaders"
+    PRECOMPILE
+    PREFIX
+        "/shaders"
+    BASE
+        ${PROJECT_RESOURCES_DIR}/shaders
+    FILES
+        ${PROJECT_RESOURCES_DIR}/shaders/liquidglass.vert
+        ${PROJECT_RESOURCES_DIR}/shaders/liquidglass.frag
 )
 
 qt_add_resources(libtreeland "treeland_assets"
