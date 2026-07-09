@@ -329,10 +329,13 @@ static bool test_swapchain(struct wlr_output *output,
 
 static bool wlr_output_configure_primary_swapchain(struct wlr_output *output, int width, int height,
                                                    uint32_t format, struct wlr_swapchain **swapchain_ptr,
-                                                   bool test) {
+                                                   bool test, struct wlr_swapchain **replaced_swapchain_ptr) {
     wlr_output_state empty_state;
     wlr_output_state_init(&empty_state);
     wlr_output_state *state = &empty_state;
+
+    if (replaced_swapchain_ptr)
+        *replaced_swapchain_ptr = nullptr;
 
     // Re-use the existing swapchain if possible
     struct wlr_swapchain *old_swapchain = *swapchain_ptr;
@@ -371,7 +374,11 @@ static bool wlr_output_configure_primary_swapchain(struct wlr_output *output, in
         }
     }
 
-    wlr_swapchain_destroy(*swapchain_ptr);
+    if (replaced_swapchain_ptr) {
+        *replaced_swapchain_ptr = *swapchain_ptr;
+    } else if (*swapchain_ptr) {
+        wlr_swapchain_destroy(*swapchain_ptr);
+    }
     *swapchain_ptr = swapchain;
     return true;
 }
@@ -397,21 +404,33 @@ static bool output_pick_cursor_format(struct wlr_output *output,
 // End
 
 bool WOutput::configurePrimarySwapchain(const QSize &size, uint32_t format,
-                                        qw_swapchain **swapchain, bool doTest)
+                                        qw_swapchain **swapchain, bool doTest,
+                                        qw_swapchain **replacedSwapchain)
 {
     Q_ASSERT(!size.isEmpty());
-    wlr_swapchain *sc = (*swapchain)->handle();
+    if (replacedSwapchain)
+        *replacedSwapchain = nullptr;
+
+    wlr_swapchain *sc = *swapchain ? (*swapchain)->handle() : nullptr;
+    wlr_swapchain *replacedSc = nullptr;
     bool ok = wlr_output_configure_primary_swapchain(nativeHandle(), size.width(), size.height(),
-                                                     format, &sc, doTest);
+                                                     format, &sc, doTest,
+                                                     replacedSwapchain ? &replacedSc : nullptr);
     if (!ok)
         return false;
     *swapchain = qw_swapchain::from(sc);
+    if (replacedSwapchain)
+        *replacedSwapchain = qw_swapchain::from(replacedSc);
     return true;
 }
 
-bool WOutput::configureCursorSwapchain(const QSize &size, uint32_t drmFormat, qw_swapchain **swapchain)
+bool WOutput::configureCursorSwapchain(const QSize &size, uint32_t drmFormat, qw_swapchain **swapchain,
+                                       qw_swapchain **replacedSwapchain)
 {
     Q_ASSERT(!size.isEmpty());
+    if (replacedSwapchain)
+        *replacedSwapchain = nullptr;
+
     auto sc = *swapchain;
     if (!sc || sc->handle()->width != size.width() || sc->handle()->height != size.height()) {
         wlr_drm_format format = {};
@@ -420,12 +439,18 @@ bool WOutput::configureCursorSwapchain(const QSize &size, uint32_t drmFormat, qw
             return false;
         }
 
-        delete sc;
+        auto oldSc = sc;
         sc = qw_swapchain::create(*allocator(), size.width(), size.height(), &format);
         wlr_drm_format_finish(&format);
         if (!sc) {
             qCDebug(lcWlOutputBuffer) << "Failed to create cursor swapchain with selected format";
             return false;
+        }
+
+        if (replacedSwapchain) {
+            *replacedSwapchain = oldSc;
+        } else {
+            delete oldSc;
         }
     }
 
