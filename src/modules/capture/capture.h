@@ -425,6 +425,7 @@ private:
     void handleItemSelectorSelectionRegionChanged();
     WOutputRenderWindow *renderWindow() const;
     void createImage();
+    void finishSelection();
     void releaseMaskSurface();
 
     void updateItemSelectorItemTypes();
@@ -440,6 +441,7 @@ private:
     bool m_itemSelectionMode{ true };
     SelectionMode m_selectionMode = SelectionMode::SelectRegion;
     bool m_doNotFinish{ false };
+    bool m_maskSurfaceReleased{ false };
     QPointer<SurfaceContainer> m_savedContainer{};
     WWrapPointer<SurfaceWrapper> m_canvas{};
     ToolBarModel *m_toolBarModel{ nullptr };

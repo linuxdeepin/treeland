@@ -606,9 +606,8 @@ void CaptureSourceSelector::doneSelection()
 void CaptureSourceSelector::cancelSelection()
 {
     if (captureManager() && captureManager()->contextInSelection()) {
-        releaseMaskSurface();
         captureManager()->contextInSelection()->sendSourceFailed(CaptureContextV1::UserCancel);
-        captureManager()->clearContextInSelection(captureManager()->contextInSelection());
+        finishSelection();
     }
 }
 
@@ -684,17 +683,17 @@ void CaptureSourceSelector::createImage()
     if (m_selectedSource) {
         m_selectedSource->createImage();
         if (m_selectedSource->imageValid()) {
-            releaseMaskSurface();
+            finishSelection();
         } else {
             connect(m_selectedSource,
                     &CaptureSource::imageReady,
                     this,
-                    &CaptureSourceSelector::releaseMaskSurface);
+                    &CaptureSourceSelector::finishSelection,
+                    Qt::UniqueConnection);
         }
     } else {
-        releaseMaskSurface();
+        finishSelection();
     }
-    captureManager()->clearContextInSelection(captureManager()->contextInSelection());
 }
 
 CaptureManagerV1 *CaptureSourceSelector::captureManager() const
@@ -1211,14 +1210,30 @@ ToolBarModel *CaptureSourceSelector::toolBarModel() const
     return m_toolBarModel;
 }
 
+void CaptureSourceSelector::finishSelection()
+{
+    releaseMaskSurface();
+
+    if (captureManager() && captureManager()->contextInSelection()) {
+        captureManager()->clearContextInSelection(captureManager()->contextInSelection());
+    }
+}
+
 void CaptureSourceSelector::releaseMaskSurface()
 {
+    if (m_maskSurfaceReleased)
+        return;
+
+    m_maskSurfaceReleased = true;
+
     // Mask surface should be reparented before destruction.
     // If reparent in destructor, it's already marked as deleted in qml
-    disconnect(m_selectedSource,
-               &CaptureSource::imageReady,
-               this,
-               &CaptureSourceSelector::releaseMaskSurface);
+    if (m_selectedSource) {
+        disconnect(m_selectedSource,
+                   &CaptureSource::imageReady,
+                   this,
+                   &CaptureSourceSelector::finishSelection);
+    }
     if (m_savedContainer) {
         QQueue<WWrapPointer<SurfaceWrapper>> q;
         q.enqueue(m_canvas);
