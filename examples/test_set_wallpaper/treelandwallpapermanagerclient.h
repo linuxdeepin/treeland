@@ -15,7 +15,7 @@ class TreelandWallpaperManagerV1
 {
     Q_OBJECT
 public:
-    static constexpr int InterfaceVersion = 1;
+    static constexpr int InterfaceVersion = 2;
     explicit TreelandWallpaperManagerV1();
     ~TreelandWallpaperManagerV1() override;
 

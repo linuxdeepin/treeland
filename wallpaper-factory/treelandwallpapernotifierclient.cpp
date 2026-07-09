@@ -8,8 +8,19 @@
 
 #include <private/qquickanimatedimage_p.h>
 
-#define TREELANDWALLPAPERPRODUCEV1VERSION 1
+#include <QColor>
+#include <QDir>
+#include <QFileInfo>
+#include <QUrl>
+#include <QVariant>
+
+#define TREELANDWALLPAPERPRODUCEV1VERSION 2
 #define WALLPAPERSOURCE "wallpaperSource"
+
+static QString shaderFragmentPath(const QString &packagePath)
+{
+    return QDir(packagePath).filePath(QStringLiteral("fragment.qsb"));
+}
 
 static QSize maxScreenSize()
 {
@@ -123,6 +134,40 @@ void TreelandWallpaperNotifierClientV1::treeland_wallpaper_notifier_v1_add(uint3
         break;
     }
 
+    case QtWayland::treeland_wallpaper_notifier_v1::
+        wallpaper_source_type::wallpaper_source_type_shader: {
+        const QString fragmentPath = shaderFragmentPath(file_source);
+        const QFileInfo packageInfo(file_source);
+        const QFileInfo fragmentInfo(fragmentPath);
+        if (!packageInfo.isDir() || !fragmentInfo.isFile() || !fragmentInfo.isReadable()) {
+            qCWarning(WALLPAPER) << "Shader wallpaper package is not readable"
+                                 << "package:" << file_source
+                                 << "packageExists:" << packageInfo.exists()
+                                 << "packageIsDir:" << packageInfo.isDir()
+                                 << "fragment:" << fragmentPath
+                                 << "fragmentExists:" << fragmentInfo.exists()
+                                 << "fragmentIsFile:" << fragmentInfo.isFile()
+                                 << "fragmentReadable:" << fragmentInfo.isReadable();
+            delete wallpaperWindow;
+            return;
+        }
+
+        wallpaperWindow->loadFromModule("com.treeland.wallfactory", "Shader");
+        wallpaperWindow->setColor(QColor(Qt::black));
+        QObject *root = wallpaperWindow->rootObject();
+        if (!root) {
+            qCWarning(WALLPAPER) << "Failed to load Shader wallpaper QML"
+                                 << "package:" << file_source
+                                 << "fragment:" << fragmentPath;
+            delete wallpaperWindow;
+            return;
+        }
+
+        root->setProperty("fragmentShader", QUrl::fromLocalFile(fragmentPath));
+        window->setLoaded(true);
+        break;
+    }
+
     default:
         qCCritical(WALLPAPER) << "Unsupported wallpaper source type:"
                               << source_type;
@@ -162,11 +207,8 @@ void TreelandWallpaperNotifierClientV1::updateAllRefreshInterval()
     foreach(auto window, std::as_const(m_windows)) {
         QObject *root = window->rootObject();
         auto *video = qobject_cast<MpvVideoItem *>(root);
-        if (!video) {
-            continue;
-        }
-
-        video->setRefreshInterval(minRefreshInterval);
+        if (video)
+            video->setRefreshInterval(minRefreshInterval);
     }
 }
 
@@ -210,6 +252,8 @@ void TreelandWallpaperNotifierClientV1::onPlayChanged(bool play)
     auto *video = qobject_cast<MpvVideoItem *>(root);
     if (video) {
         video->setPause(!play);
+    } else if (root->property("running").isValid()) {
+        root->setProperty("running", play);
     } else {
         if (QQuickAnimatedImage *image = qobject_cast<QQuickAnimatedImage *>(root)) {
             if (image->frameCount() > 1) {
@@ -229,6 +273,8 @@ void TreelandWallpaperNotifierClientV1::onSlowDownChanged(uint32_t duration)
     auto *video = qobject_cast<MpvVideoItem *>(root);
     if (video) {
         video->slowDown(duration);
+    } else if (root->property("running").isValid()) {
+        QMetaObject::invokeMethod(root, "slowDown", Q_ARG(QVariant, QVariant::fromValue(duration)));
     } else {
         if (QQuickAnimatedImage *image = qobject_cast<QQuickAnimatedImage *>(root)) {
             if (image->frameCount() > 1) {

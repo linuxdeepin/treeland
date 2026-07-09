@@ -163,6 +163,7 @@ protected:
     void destroy(Resource *resource) override;
     void set_image_source(Resource *resource, const QString &fileSource, uint32_t nativeRole) override;
     void set_video_source(Resource *resource, const QString &fileSource, uint32_t nativeRole) override;
+    void set_shader_source(Resource *resource, const QString &fileSource, uint32_t nativeRole) override;
 };
 
 TreelandWallpaperInterfaceV1Private::TreelandWallpaperInterfaceV1Private(TreelandWallpaperInterfaceV1 *_q,
@@ -211,6 +212,17 @@ void TreelandWallpaperInterfaceV1Private::set_video_source([[maybe_unused]] Reso
     Q_EMIT q->videoSourceChanged(workspace->currentIndex(), fileSource, roles);
 }
 
+void TreelandWallpaperInterfaceV1Private::set_shader_source([[maybe_unused]] Resource *resource,
+                                                            const QString &fileSource,
+                                                            uint32_t nativeRole)
+{
+    TreelandWallpaperInterfaceV1::WallpaperRoles roles =
+        static_cast<TreelandWallpaperInterfaceV1::WallpaperRoles>(nativeRole);
+    Workspace *workspace = Helper::instance()->workspace();
+    Q_ASSERT(workspace);
+    Q_EMIT q->shaderSourceChanged(workspace->currentIndex(), fileSource, roles);
+}
+
 TreelandWallpaperInterfaceV1::TreelandWallpaperInterfaceV1(WOutput *output,
                                                            const QString &userName,
                                                            wl_resource *resource,
@@ -249,6 +261,10 @@ void TreelandWallpaperInterfaceV1::sendError(const QString &source, Error error)
 
 void TreelandWallpaperInterfaceV1::sendChanged(WallpaperRoles roles, WallpaperType type, const QString &source)
 {
+    if (type == Shader && wl_resource_get_version(d->resource) < TreelandWallpaperManagerInterfaceV1::InterfaceVersion) {
+        return;
+    }
+
     d->send_changed(roles, type, source);
 }
 

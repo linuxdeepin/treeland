@@ -49,6 +49,11 @@ TreelandWallpaperNotifierInterfaceV1::TreelandWallpaperNotifierInterfaceV1(QObje
 void TreelandWallpaperNotifierInterfaceV1::sendAdd(TreelandWallpaperInterfaceV1::WallpaperType type, const QString &fileSource)
 {
     for (const auto &resource : d->resourceMap()) {
+        if (type == TreelandWallpaperInterfaceV1::Shader
+            && resource->version() < TreelandWallpaperNotifierInterfaceV1::InterfaceVersion) {
+            continue;
+        }
+
         d->send_add(resource->handle, type, fileSource);
     }
 }
@@ -84,5 +89,10 @@ QByteArrayView TreelandWallpaperNotifierInterfaceV1::interfaceName() const
 
 void TreelandWallpaperNotifierInterfaceV1::sendAddForResource(wl_resource *resource, TreelandWallpaperInterfaceV1::WallpaperType type, const QString &fileSource)
 {
+    if (type == TreelandWallpaperInterfaceV1::Shader
+        && wl_resource_get_version(resource) < TreelandWallpaperNotifierInterfaceV1::InterfaceVersion) {
+        return;
+    }
+
     d->send_add(resource, type, fileSource);
 }

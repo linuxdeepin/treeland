@@ -77,7 +77,8 @@ Package: treeland-examples
 Section: dde
 Architecture: any
 Multi-Arch: same
-Depends: ${misc:Depends},
+Depends: qt6-shader-baker,
+         ${misc:Depends},
          ${shlibs:Depends},
 Description: examples for treeland.
 

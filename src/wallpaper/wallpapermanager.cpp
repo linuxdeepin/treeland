@@ -17,8 +17,21 @@
 enum class WallpaperType {
     Image,
     Video,
+    Shader,
     Unknown
 };
+
+static bool isValidWallpaperType(TreelandWallpaperInterfaceV1::WallpaperType type)
+{
+    switch (type) {
+    case TreelandWallpaperInterfaceV1::Image:
+    case TreelandWallpaperInterfaceV1::Video:
+    case TreelandWallpaperInterfaceV1::Shader:
+        return true;
+    }
+
+    return false;
+}
 
 static WallpaperType detectWallpaperType(const QString &path)
 {
@@ -281,6 +294,12 @@ QString WallpaperManager::wallpaperConfigToJsonString()
 
 void WallpaperManager::setOutputWallpaper(wlr_output *output, [[maybe_unused]] int workspaceIndex, const QString &fileSource, TreelandWallpaperInterfaceV1::WallpaperRoles roles, TreelandWallpaperInterfaceV1::WallpaperType type)
 {
+    if (!isValidWallpaperType(type)) {
+        qCWarning(lcTlWallpaper) << "Rejecting unsupported wallpaper type:" << type
+                                 << "source:" << fileSource;
+        return;
+    }
+
     bool update = false;
     for (WallpaperOutputConfig &outputConfig : m_wallpaperConfig) {
         if (outputConfig.outputName == getOutputId(output)) {
@@ -479,6 +498,10 @@ void WallpaperManager::onWallpaperAdded(TreelandWallpaperInterfaceV1 *interface)
             &TreelandWallpaperInterfaceV1::videoSourceChanged,
             this,
             &WallpaperManager::onVideoChanged);
+    connect(interface,
+            &TreelandWallpaperInterfaceV1::shaderSourceChanged,
+            this,
+            &WallpaperManager::onShaderChanged);
 }
 
 void WallpaperManager::onImageChanged(int workspaceIndex, const QString &fileSource, TreelandWallpaperInterfaceV1::WallpaperRoles roles)
@@ -522,6 +545,28 @@ void WallpaperManager::onVideoChanged(int workspaceIndex, const QString &fileSou
         Q_EMIT updateWallpaper();
     } else {
         Helper::instance()->m_wallpaperNotifierInterfaceV1->sendAdd(TreelandWallpaperInterfaceV1::Video, fileSource);
+    }
+}
+
+void WallpaperManager::onShaderChanged(int workspaceIndex, const QString &fileSource, TreelandWallpaperInterfaceV1::WallpaperRoles roles)
+{
+    TreelandWallpaperInterfaceV1 *interface =
+        static_cast<TreelandWallpaperInterfaceV1 *>(sender());
+    auto *output = interface->wOutput();
+    if (!output)
+        return;
+
+    QMap<QString, TreelandWallpaperInterfaceV1::WallpaperType> globalWallpapers = globalValidWallpaper(nullptr, -1);
+    setOutputWallpaper(output->nativeHandle(),
+                       workspaceIndex,
+                       fileSource,
+                       roles,
+                       TreelandWallpaperInterfaceV1::Shader);
+    if (globalWallpapers.contains(fileSource)) {
+        interface->sendError(fileSource, TreelandWallpaperInterfaceV1::AlreadyUsed);
+        Q_EMIT updateWallpaper();
+    } else {
+        Helper::instance()->m_wallpaperNotifierInterfaceV1->sendAdd(TreelandWallpaperInterfaceV1::Shader, fileSource);
     }
 }
 

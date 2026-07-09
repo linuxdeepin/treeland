@@ -25,7 +25,7 @@ public:
 
     QByteArrayView interfaceName() const override;
 
-    static constexpr int InterfaceVersion = 1;
+    static constexpr int InterfaceVersion = 2;
 
     void sendAddForResource(wl_resource *resource, TreelandWallpaperInterfaceV1::WallpaperType type, const QString &fileSource);
     void sendAdd(TreelandWallpaperInterfaceV1::WallpaperType type, const QString &fileSource);
