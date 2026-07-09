@@ -858,7 +858,7 @@ void ShellHandler::setupSurfaceActiveWatcher(SurfaceWrapper *wrapper)
         // When the popup surface gains focus capability (mapped + grab active),
         // move keyboard focus to the popup. PopupFocusManager handles
         // grab tracking and focus restoration when the grab ends.
-        connect(wrapper, &SurfaceWrapper::hasFocusCapabilityChanged, this, [this, wrapper]() {
+        connect(wrapper, &SurfaceWrapper::hasFocusCapabilityChanged, this, [wrapper]() {
             if (!wrapper->hasFocusCapability())
                 return;
             if (auto *pfm = Helper::instance()->popupFocusManager()) {
