@@ -56,6 +56,7 @@ public:
     QQuickRenderTarget preserveRenderTarget(QW_NAMESPACE::qw_buffer *buffer) const;
     bool acquireRenderBuffer(QQuickRenderControl *rc, QW_NAMESPACE::qw_buffer *buffer, const char *purpose);
     bool releaseRenderBuffer(QQuickRenderControl *rc, QW_NAMESPACE::qw_buffer *buffer, QRhiTexture *renderTargetTexture, const char *purpose);
+    void cleanupRetiredRenderResources(bool force = false);
     std::pair<QW_NAMESPACE::qw_buffer*, QQuickRenderTarget> lastRenderTarget() const;
     static QW_NAMESPACE::qw_renderer *createRenderer(QW_NAMESPACE::qw_backend *backend);
     static QW_NAMESPACE::qw_renderer *createRenderer(QW_NAMESPACE::qw_backend *backend, QSGRendererInterface::GraphicsApi api);

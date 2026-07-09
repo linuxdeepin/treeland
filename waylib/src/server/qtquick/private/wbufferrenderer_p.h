@@ -118,6 +118,8 @@ private:
     void releaseResources() override;
     void cleanTextureProvider();
     bool isPrimaryOutputRendererForVulkan() const;
+    void retireSwapchain(QW_NAMESPACE::qw_swapchain *swapchain, bool defer);
+    void cleanupRetiredResources(bool force = false);
 
     inline bool isRootItem(const QQuickItem *source) const {
         return nullptr == source;
@@ -131,6 +133,11 @@ private:
     QW_NAMESPACE::qw_swapchain *m_swapchain = nullptr;
     WRenderHelper *m_renderHelper = nullptr;
     QPointer<QW_NAMESPACE::qw_buffer> m_lastBuffer;
+    struct RetiredSwapchain {
+        int framesLeft = 0;
+        QW_NAMESPACE::qw_swapchain *swapchain = nullptr;
+    };
+    QList<RetiredSwapchain> m_retiredSwapchains;
 
     struct RenderState {
         RenderFlags flags;

@@ -449,6 +449,7 @@ public:
                     bool forceRender);
     bool releaseRenderBuffer(WBufferRenderer *renderer, const char *purpose);
     void releaseRenderBuffers(QVector<std::pair<OutputHelper *, WBufferRenderer *>> &needsCommit);
+    void cleanupRetiredRenderResources(bool force);
     bool prepareTextureSamplingForRenderPass(qw_buffer *currentBuffer,
                                              const QVector<WSGTextureProvider *> &activeProviders,
                                              const char *purpose,
@@ -1706,6 +1707,37 @@ void WOutputRenderWindowPrivate::releaseRenderBuffers(QVector<std::pair<OutputHe
     }
 }
 
+void WOutputRenderWindowPrivate::cleanupRetiredRenderResources(bool force)
+{
+    QSet<WBufferRenderer *> seenRenderers;
+    auto cleanupRenderer = [&seenRenderers, force] (WBufferRenderer *renderer) {
+        if (!renderer || seenRenderers.contains(renderer))
+            return;
+
+        seenRenderers.insert(renderer);
+        renderer->cleanupRetiredResources(force);
+    };
+
+    for (auto helper : std::as_const(outputs)) {
+        if (!helper)
+            continue;
+
+        if (helper->m_output)
+            cleanupRenderer(helper->bufferRenderer());
+
+        if (helper->m_output2)
+            cleanupRenderer(helper->bufferRenderer2());
+
+        if (helper->m_cursorRenderer)
+            cleanupRenderer(helper->m_cursorRenderer);
+
+        for (auto layer : std::as_const(helper->m_layers)) {
+            if (layer)
+                cleanupRenderer(layer->renderer);
+        }
+    }
+}
+
 bool WOutputRenderWindowPrivate::prepareTextureSamplingForRenderPass(qw_buffer *currentBuffer,
                                                                      const QVector<WSGTextureProvider *> &activeProviders,
                                                                      const char *purpose,
@@ -1787,6 +1819,7 @@ bool WOutputRenderWindowPrivate::finishTextureSamplingForRenderPass(const QVecto
     if (WRenderHelper::getGraphicsApi(rc()) != QSGRendererInterface::Vulkan)
         return true;
 
+    bool ok = true;
     for (qsizetype i = preparedTextures.size() - 1; i >= 0; --i) {
         auto texture = preparedTextures.at(i);
         if (!texture)
@@ -1800,11 +1833,11 @@ bool WOutputRenderWindowPrivate::finishTextureSamplingForRenderPass(const QVecto
                                           << "wlrTexture" << texture->handle()
                                           << "preparedTextureCount" << preparedTextures.size()
                                           << "releaseIndex" << i;
-            return false;
+            ok = false;
         }
     }
 
-    return true;
+    return ok;
 }
 
 void WOutputRenderWindowPrivate::setCurrentPresentationOutput(WOutput *output)
@@ -1921,8 +1954,10 @@ void WOutputRenderWindowPrivate::doRender(qw_output *needsFrameOutput,
     if (rhiBased)
         releaseRenderBuffers(needsCommit);
 
-    if (rhiBased)
+    if (rhiBased) {
         rc()->endFrame();
+        cleanupRetiredRenderResources(false);
+    }
 
     // prevent gles2-render exception in wlroots.
     // wlroots may have render operations after commit, so do

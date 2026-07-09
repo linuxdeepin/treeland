@@ -50,6 +50,8 @@ extern "C" {
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
+static constexpr int s_retiredVulkanResourceFrameDelay = 4;
+
 struct Q_DECL_HIDDEN RhiRenderEntry {
     const QRhiRenderTarget *renderTarget;
     const QRhiTexture *texture;
@@ -339,26 +341,62 @@ public:
         , renderer(renderer)
     {}
     ~WRenderHelperPrivate() {
-        resetRenderBuffer();
+        resetRenderBuffer(false);
+        cleanupRetiredRenderBuffers(true);
     }
 
-    void resetRenderBuffer();
+    struct RetiredBuffers {
+        int framesLeft = 0;
+        QList<BufferData *> buffers;
+    };
+
+    bool shouldDeferRenderBufferCleanup() const;
+    void resetRenderBuffer(bool defer);
+    void cleanupRetiredRenderBuffers(bool force);
     void onBufferDestroy();
     static bool ensureRhiRenderTarget(QQuickRenderControl *rc, BufferData *data);
 
     W_DECLARE_PUBLIC(WRenderHelper)
     qw_renderer *renderer;
     QList<BufferData*> buffers;
+    QList<RetiredBuffers> retiredBuffers;
     BufferData *lastBuffer = nullptr;
 
     QSize size;
 };
 
-void WRenderHelperPrivate::resetRenderBuffer()
+bool WRenderHelperPrivate::shouldDeferRenderBufferCleanup() const
 {
-    qDeleteAll(buffers);
+#ifdef ENABLE_VULKAN_RENDER
+    return renderer && wlr_renderer_is_vk(renderer->handle());
+#else
+    return false;
+#endif
+}
+
+void WRenderHelperPrivate::resetRenderBuffer(bool defer)
+{
+    if (defer && !buffers.isEmpty()) {
+        retiredBuffers.append({s_retiredVulkanResourceFrameDelay, buffers});
+    } else {
+        qDeleteAll(buffers);
+    }
     lastBuffer = nullptr;
     buffers.clear();
+}
+
+void WRenderHelperPrivate::cleanupRetiredRenderBuffers(bool force)
+{
+    for (qsizetype i = 0; i < retiredBuffers.size();) {
+        auto &retired = retiredBuffers[i];
+        if (!force && retired.framesLeft-- > 0) {
+            ++i;
+            continue;
+        }
+
+        qDeleteAll(retired.buffers);
+        retiredBuffers.removeAt(i);
+    }
 }
 
 void WRenderHelperPrivate::onBufferDestroy()
@@ -450,9 +488,15 @@ void WRenderHelper::setSize(const QSize &size)
     if (d->size == size)
         return;
     d->size = size;
-    d->resetRenderBuffer();
+    d->resetRenderBuffer(d->shouldDeferRenderBufferCleanup());
 
     Q_EMIT sizeChanged();
+}
+
+void WRenderHelper::cleanupRetiredRenderResources(bool force)
+{
+    W_D(WRenderHelper);
+    d->cleanupRetiredRenderBuffers(force);
 }
 
 bool WRenderHelper::acquireRenderBuffer(QQuickRenderControl *rc, qw_buffer *buffer, const char *purpose)
