@@ -25,9 +25,39 @@ public:
     }
     inline void setTexture(QSGTexture *tex) {
         m_texture = tex;
+        updateTextureOptions();
+    }
+
+    inline void setSmooth(bool smooth) {
+        if (m_smooth == smooth)
+            return;
+
+        m_smooth = smooth;
+        updateTextureOptions();
+        Q_EMIT textureChanged();
+    }
+
+    inline void setAntialiasing(bool antialiasing) {
+        if (m_antialiasing == antialiasing)
+            return;
+
+        m_antialiasing = antialiasing;
+        updateTextureOptions();
+        Q_EMIT textureChanged();
     }
 
 private:
+    inline void updateTextureOptions() {
+        if (!m_texture)
+            return;
+
+        m_texture->setFiltering(m_smooth ? QSGTexture::Linear : QSGTexture::Nearest);
+        m_texture->setAnisotropyLevel(m_antialiasing ? QSGTexture::Anisotropy4x : QSGTexture::AnisotropyNone);
+    }
+
+    bool m_antialiasing = false;
+    bool m_smooth = false;
+
     QSGTexture *m_texture = nullptr;
 };
 
@@ -158,8 +188,12 @@ BlitTextureProvider *WRenderBufferBlitterPrivate::ensureTextureProvider() const
     if (Q_LIKELY(tp))
         return tp;
 
+    auto q = const_cast<WRenderBufferBlitter *>(q_func());
     tp = new BlitTextureProvider();
-
+    tp->setSmooth(q->smooth());
+    tp->setAntialiasing(q->antialiasing());
+    QObject::connect(q, &QQuickItem::smoothChanged, tp, &BlitTextureProvider::setSmooth);
+    QObject::connect(q, &QQuickItem::antialiasingChanged, tp, &BlitTextureProvider::setAntialiasing);
     if (!content->offscreen())
         tp->connect(tp, &BlitTextureProvider::textureChanged,
                     content, &Content::update, Qt::UniqueConnection);
