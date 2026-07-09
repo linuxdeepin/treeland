@@ -681,6 +681,8 @@ void Helper::onOutputRemoved(WOutput *output)
     m_outputManager->removeOutput(output);
     m_wallpaperManager->removeOutputWallpaper(output->handle()->handle());
 
+    m_powerOffOutputs.remove(output->nativeHandle());
+
     delete o;
 }
 
@@ -1030,21 +1032,25 @@ void Helper::onSetOutputPowerMode(wlr_output_power_v1_set_mode_event *event)
 
     switch (event->mode) {
     case ZWLR_OUTPUT_POWER_V1_MODE_OFF:
-        if (!output->handle()->enabled) {
-            return;
-        }
+        if (m_powerOffOutputs.contains(event->output))
+            return; // already disabled by output_power
+        if (!output->handle()->enabled)
+            return; // already disabled by output_management, not ours
         newState.set_enabled(false);
         if (!output->commit_state(newState)) {
             qCCritical(lcTlCore, "commit failed on output %s", output->handle()->name);
-        }
-        break;
-    case ZWLR_OUTPUT_POWER_V1_MODE_ON:
-        if (output->handle()->enabled) {
             return;
         }
+        m_powerOffOutputs.insert(event->output);
+        break;
+    case ZWLR_OUTPUT_POWER_V1_MODE_ON:
+        if (!m_powerOffOutputs.remove(event->output))
+            return; // not disabled by output_power, nothing to do
         newState.set_enabled(true);
         if (!output->commit_state(newState)) {
             qCCritical(lcTlCore, "commit failed on output %s", output->handle()->name);
+            m_powerOffOutputs.insert(event->output);
+            return;
         }
         break;
     }
@@ -1980,6 +1986,21 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *targetWindow, QInputEvent 
 
     if (event->isInputEvent()) {
         m_idleNotifier->notify_activity(seat->nativeHandle());
+
+        // Wake DPMS-off outputs on any input event
+        // Only re-enable outputs disabled by output_power, not user-disabled outputs
+        for (auto *out : std::as_const(m_outputList)) {
+            auto *wlr_out = out->output()->nativeHandle();
+            if (!wlr_out->enabled && wlr_out->current_mode && m_powerOffOutputs.contains(wlr_out)) {
+                qw_output_state state;
+                state.set_enabled(true);
+                if (!out->output()->handle()->commit_state(state)) {
+                    qCWarning(lcTlCore) << "Failed to wake output" << wlr_out->name;
+                } else {
+                    m_powerOffOutputs.remove(wlr_out);
+                }
+            }
+        }
     }
 
     if (event->type() == QEvent::KeyPress) {
