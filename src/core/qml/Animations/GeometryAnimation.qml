@@ -28,6 +28,7 @@ Item {
     }
 
     XdgShadow {
+        surface: root.surface
         anchors.fill: parent
         visible: surface.visibleDecoration && !surface.noDecoration
         cornerRadius: surface.radius

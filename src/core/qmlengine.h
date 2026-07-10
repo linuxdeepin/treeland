@@ -44,7 +44,7 @@ public:
     QObject *createWindowMenu(QObject *parent);
     QQuickItem *createBorder(SurfaceWrapper *surface, QQuickItem *parent);
     QQuickItem *createTaskBar(Output *output, QQuickItem *parent);
-    QQuickItem *createXdgShadow(QQuickItem *parent);
+    QQuickItem *createXdgShadow(SurfaceWrapper *surface, QQuickItem *parent);
     QQuickItem *createTaskSwitcher(Output *output, QQuickItem *parent);
     QQuickItem *createGeometryAnimation(SurfaceWrapper *surface,
                                         const QRectF &startGeo,

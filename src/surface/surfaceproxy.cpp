@@ -51,7 +51,7 @@ void SurfaceProxy::setSurface(SurfaceWrapper *newSurface)
         QQuickItemPrivate::get(m_proxySurface)->culled = true;
         if (!m_fullProxy) {
             if (!m_shadow)
-                m_shadow = m_sourceSurface->m_engine->createXdgShadow(this);
+                m_shadow = m_sourceSurface->m_engine->createXdgShadow(m_sourceSurface, this);
             m_shadow->setProperty("cornerRadius", radius());
             m_shadow->stackBefore(m_proxySurface);
             QQuickItemPrivate::get(m_shadow)->culled = true;
@@ -297,7 +297,7 @@ void SurfaceProxy::setFullProxy(bool newFullProxy)
                 m_shadow = nullptr;
             }
         } else if (!m_shadow) {
-            m_shadow = m_sourceSurface->m_engine->createXdgShadow(this);
+            m_shadow = m_sourceSurface->m_engine->createXdgShadow(m_sourceSurface, this);
             m_shadow->setProperty("cornerRadius", radius());
             m_shadow->stackBefore(m_proxySurface);
             QQuickItemPrivate::get(m_shadow)->culled = true;

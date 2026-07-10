@@ -66,6 +66,7 @@ Item {
 
     XdgShadow {
         id: shadow
+        surface: root.surface
         width: surface.width
         height: surface.height
         cornerRadius: surface.radius
@@ -73,7 +74,7 @@ Item {
     }
 
     Border {
-        visible: surface.visibleDecoration
+        surface: root.surface
         parent: surface.surfaceItem ? surface.surfaceItem : surface.prelaunchSplash
         z: SurfaceItem.ZOrder.ContentItem + 1
         anchors.fill: parent

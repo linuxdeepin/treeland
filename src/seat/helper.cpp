@@ -1261,6 +1261,34 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
         connect(attached, &Personalization::cornerRadiusChanged, this, updateCornerRadius);
         updateCornerRadius();
         updateBlur();
+
+        auto updateShadow = [attached] {
+            auto wrapper = attached->surfaceWrapper();
+            auto shadow = attached->shadow();
+
+            wrapper->setShadow(SurfaceShadow{
+                shadow.radius,
+                shadow.offset.x(),
+                shadow.offset.y(),
+                shadow.color
+            });
+        };
+
+        auto updateBorder = [attached] {
+            auto wrapper = attached->surfaceWrapper();
+            auto border = attached->border();
+
+            wrapper->setBorder(SurfaceBorder{
+                border.width,
+                border.color
+            });
+        };
+
+        connect(attached, &Personalization::shadowChanged, this, updateShadow);
+        connect(attached, &Personalization::borderChanged, this, updateBorder);
+        updateShadow();
+        updateBorder();
+
         if (isLayer) {
             auto layer = qobject_cast<WLayerSurface *>(wrapper->shellSurface());
             if (isLaunchpad(layer))

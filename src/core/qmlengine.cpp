@@ -105,9 +105,11 @@ QQuickItem *QmlEngine::createTaskBar(Output *output, QQuickItem *parent)
     return createComponent(taskBarComponent, parent, { { "output", QVariant::fromValue(output) } });
 }
 
-QQuickItem *QmlEngine::createXdgShadow(QQuickItem *parent)
+QQuickItem *QmlEngine::createXdgShadow(SurfaceWrapper *surface, QQuickItem *parent)
 {
-    return createComponent(xdgShadowComponent, parent);
+    return createComponent(xdgShadowComponent,
+                           parent,
+                           { { "surface", QVariant::fromValue(surface) } });
 }
 
 QQuickItem *QmlEngine::createTaskSwitcher(Output *output, QQuickItem *parent)
