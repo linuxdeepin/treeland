@@ -36,6 +36,17 @@ public:
     void updateSubsurfaceItem();
     void onPaddingsChanged();
     void updateContentPosition();
+    void trackSubsurfaceItemLifetime(WSurfaceItem *item) {
+        Q_Q(WSurfaceItem);
+        Q_ASSERT(item);
+
+        // Container destruction can delete child items without emitting
+        // SubsurfaceContainer::subsurfaceRemoved for each one. Remove the raw
+        // address synchronously before a later geometry update can observe it.
+        QObject::connect(item, &QObject::destroyed, q, [this, item] {
+            subsurfaces.removeAll(item);
+        }, Qt::DirectConnection);
+    }
     WSurfaceItem *ensureSubsurfaceItem(WSurface *subsurfaceSurface, QQuickItem *parent);
     void updateSubsurfaceContainers();
     void connectSubsurfaceContainerSignals(SubsurfaceContainer *container);

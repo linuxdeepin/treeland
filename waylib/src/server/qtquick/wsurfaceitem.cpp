@@ -1369,6 +1369,7 @@ WSurfaceItem *WSurfaceItemPrivate::ensureSubsurfaceItem(WSurface *subsurfaceSurf
 
     Q_ASSERT(subsurfaceSurface);
     auto surfaceItem = new WSurfaceItem(parent);
+    trackSubsurfaceItemLifetime(surfaceItem);
     // Delay destroy WSurfaceItem, because if the cause of destroy is because the parent
     // surface destroy, and the parent WSurfaceItem::cacheLastBuffer maybe enabled,
     // will disable this connection at parent WSurfaceItem::releaseResources to save the
