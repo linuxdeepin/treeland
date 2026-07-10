@@ -261,6 +261,7 @@ public:
     DDMInterfaceV1 *ddmInterfaceV1() const;
 
     void activateSession();
+    bool activateUserSession(const QString &username, int sessionId);
     void deactivateSession();
     void enableRender();
     void disableRender();
