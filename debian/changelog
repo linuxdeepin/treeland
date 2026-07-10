@@ -1,3 +1,33 @@
+treeland (0.8.14) unstable; urgency=medium
+
+  * fix(output): ignore saved disabled state during restore
+  * fix(greeter): activate DDM user sessions atomically
+  * feat(effects): implement iOS 26 Liquid Glass effect with reusable
+    components
+  * refactor(seat): unify surface activation paths and add per-seat
+    support
+  * feat(popup): replace mouse-intercept popup handling with keyboard
+    grab tracking
+  * fix: unify layer surface focus handling
+  * fix: refactor keyboard focus handling logic
+  * refactor: consolidate active capability checks
+  * fix(shortcut): clear app filter for all-app task switch
+  * fix(xwayland): X11 apps cannot connect after treeland restart
+  * fix(input): keep num lock synchronized across keyboard devices
+  * fix(im-candidate): correct position offset with contentGeometry
+  * fix(shortcut): keep same-app task switch filter in QML
+  * fix(dconfig): remove global flag from all items
+  * fix: allow lockscreen shortcut in multitaskview
+  * feat: implement xdg-dialog-v1 protocol with KWin-style modal linkage
+  * refactor: remove redundant PrepareForSleep D-Bus handling
+  * fix(output): persist output state with dconfig
+  * fix(activation): validate seat in set_serial and pass seat to
+    trustedSurfaceChecker
+  * fix: fix z-order issues in wine window management
+  * fix: keep oversized surfaces on target output
+
+ -- rewine <luhongxu@deepin.org>  Fri, 10 Jul 2026 16:47:31 +0800
+
 treeland (0.8.13) unstable; urgency=medium
 
   * fix(shortcut): avoid exiting task switch on partial modifier release
