@@ -2438,6 +2438,19 @@ void Helper::onRenderWindowActiveFocusItemChanged()
 
 void Helper::requestKeyboardFocus(SurfaceWrapper *wrapper, Qt::FocusReason reason, WSeat *seat)
 {
+
+    if (wrapper) {
+        // Pop up through parent hierarchy until we find a non-popup surface
+        while (wrapper && wrapper->type() == SurfaceWrapper::Type::XdgPopup) {
+            wrapper = wrapper->parentSurface();
+        }
+        if (!wrapper || !wrapper->hasFocusCapability()) {
+            qCDebug(lcTlShell) << "Request keyboard focus for surface without focus capability!"
+                                 << "surface =" << wrapper;
+            return;
+        }
+    }
+
     WSeat *targetSeat = seat;
     if (!targetSeat)
         targetSeat = m_currentEventSeat ? m_currentEventSeat : getLastInteractingSeat(wrapper);
