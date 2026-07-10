@@ -62,6 +62,19 @@ public:
     bool activeSocketEnabled() const;
     void setActiveSocketEnabled(bool newEnabled);
 
+    struct ActiveSessionUpdate
+    {
+        std::shared_ptr<Session> session;
+        bool activeSessionChanged = false;
+
+        explicit operator bool() const noexcept
+        {
+            return session != nullptr;
+        }
+    };
+
+    ActiveSessionUpdate prepareActiveUserSession(const QString &username, int id);
+    void commitActiveUserSession(const ActiveSessionUpdate &update);
     void updateActiveUserSession(const QString &username, int id);
     void removeSession(std::shared_ptr<Session> session);
     std::shared_ptr<Session> sessionForId(int id) const;

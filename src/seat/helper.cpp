@@ -2999,6 +2999,20 @@ void Helper::activateSession() {
         m_backend->activateSession();
 }
 
+bool Helper::activateUserSession(const QString &username, int sessionId)
+{
+    if (!m_userModel->getUser(username))
+        return false;
+
+    const auto update = m_sessionManager->prepareActiveUserSession(username, sessionId);
+    if (!update)
+        return false;
+
+    m_userModel->setCurrentUserName(username);
+    m_sessionManager->commitActiveUserSession(update);
+    return true;
+}
+
 void Helper::deactivateSession() {
     if (m_backend->isSessionActive())
         m_backend->deactivateSession();
