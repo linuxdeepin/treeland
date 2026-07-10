@@ -246,22 +246,6 @@ static bool currentPrimaryMatchesId(RootSurfaceContainer *rootContainer, const Q
     return rootContainer && outputMatchesId(rootContainer->primaryOutput(), outputId);
 }
 
-static Output *findFirstEnabledOutput(RootSurfaceContainer *rootContainer,
-                                      Output *excludeOutput = nullptr)
-{
-    if (!rootContainer) {
-        return nullptr;
-    }
-
-    for (auto *output : rootContainer->outputs()) {
-        if (output != excludeOutput && output && output->output() && output->output()->isEnabled()) {
-            return output;
-        }
-    }
-
-    return nullptr;
-}
-
 Helper *Helper::m_instance = nullptr;
 
 Helper::Helper(QObject *parent)
@@ -535,10 +519,9 @@ void Helper::onOutputAdded(WOutput *output)
         auto *config = outputObject->config();
         const QString outputId = WallpaperManager::getOutputId(outputObject);
         const QString primaryOutputId = m_globalConfig->primaryOutputId();
-        if (config->enabled() && primaryOutputId == outputId) {
+        if (primaryOutputId == outputId) {
             m_rootSurfaceContainer->setPrimaryOutput(outputObject);
-        } else if (config->enabled()
-                   && m_rootSurfaceContainer->primaryOutput()
+        } else if (m_rootSurfaceContainer->primaryOutput()
                    && m_rootSurfaceContainer->primaryOutput()->output()
                    && !m_rootSurfaceContainer->primaryOutput()->output()->isEnabled()
                    && !currentPrimaryMatchesId(m_rootSurfaceContainer, primaryOutputId)) {
@@ -546,21 +529,6 @@ void Helper::onOutputAdded(WOutput *output)
         }
 
         if (!hasSavedOutputState(config)) {
-            return;
-        }
-
-        if (!config->enabled()) {
-            qw_output_state newState;
-            newState.set_enabled(false);
-            if (!output->handle()->commit_state(newState)) {
-                qCCritical(lcTlCore) << "commit failed on output" << output->name();
-            }
-            if (outputObject == m_rootSurfaceContainer->primaryOutput()) {
-                auto *fallbackOutput = findFirstEnabledOutput(m_rootSurfaceContainer, outputObject);
-                if (fallbackOutput) {
-                    m_rootSurfaceContainer->setPrimaryOutput(fallbackOutput);
-                }
-            }
             return;
         }
 
