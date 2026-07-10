@@ -17,14 +17,14 @@ Item {
     property bool glassMode: true
     property bool glassBlurEnabled: true
     property real effectRadius: 34
-    property real glassBezelWidth: 16
-    property real glassThickness: 72
-    property real glassDisplacementFactor: 0.65
-    property real glassIor: 1.42
+    property real glassBezelWidth: 30
+    property real glassThickness: 50
+    property real glassDisplacementFactor: 1.0
+    property real glassIor: 1.2
     property real glassDispersion: 0.012
     property real glassBrightness: 0.05
     property real glassContrast: -0.12
-    property real glassSaturation: -0.15
+    property real glassSaturation: 0.4
     property real glassColorization: 0.12
     property int glassBlurMax: 36
     property real glassStrokeWidth: 1.4
@@ -51,6 +51,7 @@ Item {
 
         width: outputsContainer.implicitWidth
         height: outputsContainer.implicitHeight
+        color: "black"
 
         Row {
             id: outputsContainer
@@ -137,9 +138,10 @@ Item {
                     Image {
                         id: background
                         source: root.wallpaperSource
-                        fillMode: Image.PreserveAspectCrop
+                        fillMode: Image.PreserveAspectFit
                         asynchronous: true
                         anchors.fill: parent
+                        smooth: true
                     }
 
                     Column {
@@ -351,7 +353,7 @@ Item {
         Item {
             id: effectPanel
             width: 500
-            height: 100
+            height: 300
             x: (parent.width - width) / 2
             y: (parent.height - height) / 2
 
@@ -400,6 +402,7 @@ Item {
                         lightPower: root.glassLightPower
                         edgeSaturation: root.glassEdgeSaturation
                         reflectionOffset: root.glassReflectionOffset
+                        smooth: true
                     }
                 }
             }

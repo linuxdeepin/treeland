@@ -476,7 +476,7 @@
             "visibility": "public"
         },
         "glassBezel": {
-            "value": 32,
+            "value": 30,
             "serial": 0,
             "flags": [],
             "name": "Glass Bezel Width",
@@ -487,7 +487,7 @@
             "visibility": "public"
         },
         "glassThickness": {
-            "value": 72,
+            "value": 50,
             "serial": 0,
             "flags": [],
             "name": "Glass Base Thickness",
@@ -520,7 +520,7 @@
             "visibility": "public"
         },
         "glassDisplacementFactor": {
-            "value": 0.65,
+            "value": 1.0,
             "serial": 0,
             "flags": [],
             "name": "Glass Displacement Factor",
@@ -531,7 +531,7 @@
             "visibility": "public"
         },
         "glassIor": {
-            "value": 1.4,
+            "value": 1.2,
             "serial": 0,
             "flags": [],
             "name": "Glass Refraction Index",
@@ -564,7 +564,7 @@
             "visibility": "public"
         },
         "glassEdgeSaturation": {
-            "value": 0.0,
+            "value": 0.4,
             "serial": 0,
             "flags": [],
             "name": "Glass Edge Saturation",
