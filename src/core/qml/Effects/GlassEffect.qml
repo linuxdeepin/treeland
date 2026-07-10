@@ -16,10 +16,10 @@ Item {
     property real blurMultiplier: 0.0
 
     // Glass material parameters (aligned with liquid-dom naming)
-    property real bezelWidth: 18        // edge bevel width (px)
-    property real thickness: 90         // base glass thickness (px)
+    property real bezelWidth: 30        // edge bevel width (px)
+    property real thickness: 50         // base glass thickness (px)
     property real displacementFactor: 1 // scalar on displacement
-    property real ior: 1.5             // refractive index
+    property real ior: 1.2              // refractive index
     property real dispersion: 0.02     // RGB channel separation
 
     // Colour controls — applied to the backdrop BEFORE refraction, so the
@@ -27,7 +27,7 @@ Item {
     // Delegated to MultiEffect (avoid duplicate implementation)
     property real brightness: 0.0       // [-1, 1], 0 = no change
     property real contrast: 0.0         // [-1, 1], 0 = no change
-    property real saturation: 0.0       // [-1, 1], 0 = no change
+    property real saturation: 0.4       // [-1, 1], 0 = no change
     property real colorization: 0.0     // [0, 1], 0 = no tint
     property color colorizationColor: Qt.rgba(1, 1, 1, 1)
 
@@ -97,6 +97,7 @@ Item {
         id: glassShader
         objectName: "glassShader"
         anchors.fill: parent
+        smooth: true // Enables linear filtering for the sampler to prevent jagged steps
         property variant source: effect.multiEffectEnabled ? blurredSource : effect.source
         readonly property vector2d itemSize: Qt.vector2d(Math.max(width, 1), Math.max(height, 1))
         readonly property real radius: effect.radius
@@ -107,13 +108,13 @@ Item {
         readonly property real dispersion: effect.dispersion
         readonly property color highlightColor: effect.highlightColor
         readonly property real strokeWidth: effect.strokeWidth
-        readonly property real specularOpacity: effect.highlightEnabled ? effect.specularOpacity : 0.0
         readonly property real strokeStrength: effect.highlightEnabled ? effect.strokeStrength : 0.0
-        readonly property real rimReflectionStrength: effect.rimReflectionEnabled ? 0.22 : 0.0
         readonly property vector2d lightDirection: effect.lightDirection
         readonly property real lightPower: effect.lightPower
         readonly property real edgeSaturation: effect.edgeSaturation
         readonly property real reflectionOffset: effect.reflectionOffset
+        readonly property real specularOpacity: effect.highlightEnabled ? effect.specularOpacity : 0.0
+        readonly property real rimReflectionStrength: effect.rimReflectionEnabled ? 0.22 : 0.0
         vertexShader: "qrc:/shaders/liquidglass.vert.qsb"
         fragmentShader: "qrc:/shaders/liquidglass.frag.qsb"
     }
