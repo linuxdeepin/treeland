@@ -1,3 +1,55 @@
+treeland (0.8.14) unstable; urgency=medium
+
+  * fix(surface): stop propagating active state to parent surfaces
+  * fix(lockscreen): prevent window interaction on secondary screens
+    while locked
+  * ci(debian): enable -Werror in qwlroots and waylib deb builds
+  * fix(wallpaper): ignore output enable state for valid wallpapers
+  * fix(input): sync pressed keys on keyboard focus changes
+  * fix: fix destroyed callback issues in GestureRecognizer
+  * refactor: add guarded setter methods for Personalization properties
+  * fix(output): window display not updated after VT switch
+  * fix(taskswitch): place switcher on cursor screen with correct global
+    position
+  * fix(waylib): guard text-input-v3 focus transitions
+  * fix: keep oversized surfaces on target output
+  * fix: fix z-order issues in wine window management
+  * fix(activation): validate seat in set_serial and pass seat to
+    trustedSurfaceChecker
+  * fix(output): persist output state with dconfig
+  * refactor: remove redundant PrepareForSleep D-Bus handling
+  * feat: implement xdg-dialog-v1 protocol with KWin-style modal linkage
+  * fix: allow lockscreen shortcut in multitaskview
+  * fix(dconfig): remove global flag from all items
+  * fix(popup): stop forcing submenu position to parent side
+  * fix(shortcut): keep same-app task switch filter in QML
+  * fix(im-candidate): correct position offset with contentGeometry
+  * fix(input): keep num lock synchronized across keyboard devices
+  * fix(xwayland): X11 apps cannot connect after treeland restart
+  * fix(shortcut): clear app filter for all-app task switch
+  * refactor: consolidate active capability checks
+  * fix: refactor keyboard focus handling logic
+  * fix(ShellHandler): restore keyboard focus after WindowMenu closes
+  * fix: unify layer surface focus handling
+  * feat(popup): replace mouse-intercept popup handling with keyboard
+    grab tracking
+  * fix(multitaskview): remove redundant partialFactor reset in
+    MultitaskviewProxy
+  * fix(greeter): remove redundant translator loading on user switch
+  * refactor(seat): unify surface activation paths and add per-seat
+    support
+  * fix(shellhandler): remove unused this capture in popup focus lambda
+  * fix(examples): add missing <unistd.h> in test_capture
+  * feat(effects): implement iOS 26 Liquid Glass effect with reusable
+    components
+  * fix: issue caused by #948
+  * fix(greeter): activate DDM user sessions atomically
+  * fix: Skip keyboard focus assignment for XdgPopup surfaces
+  * fix(output): ignore saved disabled state during restore
+  * feat(effects): tune Liquid Glass edge rendering defaults
+
+ -- HongXu Lu <luhongxu@uniontech.com>  Fri, 10 Jul 2026 16:36:59 +0800
+
 treeland (0.8.13) unstable; urgency=medium
 
   * fix(shortcut): avoid exiting task switch on partial modifier release
