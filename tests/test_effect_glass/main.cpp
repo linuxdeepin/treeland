@@ -155,6 +155,7 @@ private:
             "radiusProducesTransparentCorners",
             "largeBezelWithSmallRadiusDoesNotIntroduceCornerDiagonalSeam",
             "largeBezelRemainsVisibleAlongStraightEdgesWithSmallRadius",
+            "highDispersionRefractsEdgesWithSpecularDisabled",
             "zeroBlurMultiplierStillAppliesGaussianBlur",
             "blurAmountAndMultiplierChangeRenderedBlurStrength",
             "blurToggleProducesDifferentRender",
@@ -364,6 +365,7 @@ private Q_SLOTS:
             "saturation",
             "colorization",
             "edgeSaturation",
+            "reflectionOffset",
         };
 
         for (const QByteArray &name : propertyNames) {
@@ -389,6 +391,27 @@ private Q_SLOTS:
         QCOMPARE(shader->property("ior").toReal(), 1.37);
         QCOMPARE(shader->property("dispersion").toReal(), 0.021);
         QCOMPARE(m_glass->property("multiEffectEnabled").toBool(), true);
+    }
+
+    void shaderReceivesEdgeMaterialPropertiesUsedByFragmentShader()
+    {
+        auto *shader = m_glass->findChild<QObject *>("glassShader");
+        QVERIFY(shader);
+
+        QVERIFY2(m_glass->setProperty("edgeSaturation", 1.35),
+                 "GlassEffect must expose edgeSaturation as a runtime QML property");
+        QVERIFY2(m_glass->setProperty("reflectionOffset", 27.0),
+                 "GlassEffect must expose reflectionOffset as a runtime QML property");
+        QTest::qWait(10);
+
+        const bool edgeSaturationForwarded = shader->property("edgeSaturation").isValid();
+        const bool reflectionOffsetForwarded = shader->property("reflectionOffset").isValid();
+        QVERIFY2(edgeSaturationForwarded && reflectionOffsetForwarded,
+                 qPrintable(QStringLiteral("glassShader must receive edgeSaturation and reflectionOffset for the fragment shader: edgeSaturation=%1 reflectionOffset=%2")
+                                .arg(edgeSaturationForwarded ? QStringLiteral("valid") : QStringLiteral("missing"))
+                                .arg(reflectionOffsetForwarded ? QStringLiteral("valid") : QStringLiteral("missing"))));
+        QCOMPARE(shader->property("edgeSaturation").toReal(), 1.35);
+        QCOMPARE(shader->property("reflectionOffset").toReal(), 27.0);
     }
 
     // ── Rendering tests: grabToImage + image comparison ───────────────
@@ -629,6 +652,65 @@ private Q_SLOTS:
                  qPrintable(QStringLiteral("large straight-edge bezel should remain active beyond the small radius: changedPixels=%1 regionPixels=%2")
                                 .arg(activePixels)
                                 .arg(rightStraightEdge.width() * rightStraightEdge.height())));
+    }
+
+    void highDispersionRefractsEdgesWithSpecularDisabled()
+    {
+        setSmallRadiusLargeBezel();
+        QVERIFY(m_glass->setProperty("highlightEnabled", false));
+        QVERIFY(m_glass->setProperty("rimReflectionEnabled", false));
+        QVERIFY(m_glass->setProperty("blurEnabled", false));
+        QVERIFY(m_glass->setProperty("radius", 8.0));
+        QVERIFY(m_glass->setProperty("bezelWidth", 64.0));
+        QVERIFY(m_glass->setProperty("thickness", 140.0));
+        QVERIFY(m_glass->setProperty("displacementFactor", 1.0));
+        QVERIFY(m_glass->setProperty("ior", 1.5));
+        QVERIFY(m_glass->setProperty("dispersion", 0.0));
+        QVERIFY(m_glass->setProperty("strokeStrength", 0.0));
+        QVERIFY(m_glass->setProperty("specularOpacity", 0.0));
+        QVERIFY(m_glass->setProperty("edgeSaturation", 0.0));
+        QTest::qWait(50);
+
+        const QImage zeroDispersion = grabImage(m_scene);
+        QVERIFY(!zeroDispersion.isNull());
+
+        QVERIFY(m_glass->setProperty("dispersion", 0.2));
+        QTest::qWait(50);
+
+        const QImage highDispersion = grabImage(m_scene);
+        QVERIFY(!highDispersion.isNull());
+
+        // Sample all straight-edge bevels. The fixture has black vertical
+        // contrast bars at x=25% and x=75%, so the left/right bevels cross
+        // high-contrast backdrop content without relying on exact colors.
+        const QList<QRect> edgeRefractionBands = {
+            QRect(0, 56, 72, 144),
+            QRect(184, 56, 72, 144),
+            QRect(56, 0, 144, 72),
+            QRect(56, 184, 144, 72),
+        };
+        const QRect centerInterior(104, 104, 48, 48);
+
+        int edgeChanged = 0;
+        int edgePixels = 0;
+        for (const QRect &band : edgeRefractionBands) {
+            edgeChanged += regionDiffCount(zeroDispersion, highDispersion, band, 6);
+            edgePixels += band.width() * band.height();
+        }
+        const int centerChanged = regionDiffCount(zeroDispersion, highDispersion, centerInterior, 6);
+
+        QVERIFY2(edgeChanged > edgePixels / 10,
+                 qPrintable(QStringLiteral("high dispersion should visibly change edge refraction without specular: edgeChanged=%1 regionPixels=%2")
+                                .arg(edgeChanged)
+                                .arg(edgePixels)));
+        QVERIFY2(centerChanged < centerInterior.width() * centerInterior.height() / 20,
+                 qPrintable(QStringLiteral("high dispersion should leave the flat center comparatively stable: centerChanged=%1 regionPixels=%2")
+                                .arg(centerChanged)
+                                .arg(centerInterior.width() * centerInterior.height())));
+        QVERIFY2(edgeChanged > centerChanged * 4 + 20,
+                 qPrintable(QStringLiteral("dispersion response should be edge-dominated: edgeChanged=%1 centerChanged=%2")
+                                .arg(edgeChanged)
+                                .arg(centerChanged)));
     }
 
     void zeroBlurMultiplierStillAppliesGaussianBlur()

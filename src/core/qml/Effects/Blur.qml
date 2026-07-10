@@ -53,7 +53,7 @@ RenderBufferBlitter {
             ior: Helper.config.glassIor
             dispersion: Helper.config.glassDispersion
             contrast: -0.12
-            saturation: -0.15
+            saturation: 0.4
             colorization: 0.12
             edgeSaturation: Helper.config.glassEdgeSaturation
             highlightColor: Qt.rgba(1, 1, 1, 0.3)
