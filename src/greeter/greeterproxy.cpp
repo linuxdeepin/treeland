@@ -487,7 +487,8 @@ void GreeterProxy::readyRead()
                 break;
             }
 
-            userModel()->setCurrentUserName(user);
+            if (!Helper::instance()->activateUserSession(user, sessionId))
+                break;
 
             qCInfo(lcTlGreeter) << "activate successfully: " << user << ", XDG_SESSION_ID: " << sessionId;
         } break;
