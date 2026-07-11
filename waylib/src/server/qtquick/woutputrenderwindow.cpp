@@ -20,6 +20,7 @@
 #include "winputdevice.h"
 #include "wseat.h"
 #include "wayliblogging.h"
+#include "utils/private/wvulkantrace_p.h"
 
 #include "platformplugin/qwlrootsintegration.h"
 #include "platformplugin/qwlrootscreen.h"
@@ -38,8 +39,12 @@
 #include <qwoutputlayer.h>
 #include <qwegl.h>
 #include <qwoutputinterface.h>
+#ifdef ENABLE_VULKAN_RENDER
+#include <qwvulkan.h>
+#endif
 
 #include <QOffscreenSurface>
+#include <QElapsedTimer>
 #include <QQuickRenderControl>
 #include <QOpenGLFunctions>
 #include <QRunnable>
@@ -66,9 +71,6 @@
 #include <private/qquickrectangle_p.h>
 
 extern "C" {
-#ifdef ENABLE_VULKAN_RENDER
-#include <wlr/render/vulkan.h>
-#endif
 #include <wlr/render/gles2.h>
 }
 
@@ -1477,12 +1479,12 @@ bool WOutputRenderWindowPrivate::initRCWithRhi()
     if (rhiSupport->rhiBackend() == QRhi::Vulkan) {
         vkInstance.reset(new QVulkanInstance());
 
-        auto phdev = wlr_vk_renderer_get_physical_device(m_renderer->handle());
-        auto dev = wlr_vk_renderer_get_device(m_renderer->handle());
-        auto queue_family = wlr_vk_renderer_get_queue_family(m_renderer->handle());
+        auto phdev = qw_vulkan::rendererPhysicalDevice(m_renderer);
+        auto dev = qw_vulkan::rendererDevice(m_renderer);
+        auto queue_family = qw_vulkan::rendererQueueFamily(m_renderer);
 
 #if QT_VERSION > QT_VERSION_CHECK(6, 6, 0)
-        auto instance = wlr_vk_renderer_get_instance(m_renderer->handle());
+        auto instance = qw_vulkan::rendererInstance(m_renderer);
         vkInstance->setVkInstance(instance);
 #endif
         //        vkInstance->setExtensions(fromCStyleList(vkRendererAttribs.extension_count, vkRendererAttribs.extensions));
@@ -1528,6 +1530,8 @@ bool WOutputRenderWindowPrivate::initRCWithRhi()
     rcd->ownRhi = result.own;
     Q_ASSERT(rcd->rhi == result.rhi);
     Q_ASSERT(!swapchain);
+
+    WVulkanTrace::activate(rhiSupport->rhiBackend() == QRhi::Vulkan);
 
     return true;
 }
@@ -1750,6 +1754,7 @@ bool WOutputRenderWindowPrivate::prepareTextureSamplingForRenderPass(qw_buffer *
     if (WRenderHelper::getGraphicsApi(rc()) != QSGRendererInterface::Vulkan)
         return true;
 
+    W_Q(WOutputRenderWindow);
     QSet<qw_texture *> seenTextures;
     qsizetype skippedCurrentRenderTarget = 0;
     qsizetype invalidProviderCount = 0;
@@ -1762,6 +1767,8 @@ bool WOutputRenderWindowPrivate::prepareTextureSamplingForRenderPass(qw_buffer *
         auto providerBuffer = provider->qwBuffer();
         if (currentBuffer && providerBuffer == currentBuffer) {
             ++skippedCurrentRenderTarget;
+            WVulkanTrace::sampleDisposition(q, provider, provider->qwTexture(),
+                                            WVulkanTrace::SampleDisposition::CurrentRenderTarget);
             continue;
         }
 
@@ -1771,6 +1778,8 @@ bool WOutputRenderWindowPrivate::prepareTextureSamplingForRenderPass(qw_buffer *
                 auto renderTargetBuffer = WRenderHelper::lookupBuffer(rhiTexture);
                 if (renderTargetBuffer == currentBuffer) {
                     ++skippedCurrentRenderTarget;
+                    WVulkanTrace::sampleDisposition(q, provider, provider->qwTexture(),
+                                                    WVulkanTrace::SampleDisposition::CurrentRenderTarget);
                     continue;
                 }
             }
@@ -1779,14 +1788,29 @@ bool WOutputRenderWindowPrivate::prepareTextureSamplingForRenderPass(qw_buffer *
         auto texture = provider->qwTexture();
         if (!texture || !provider->hasTexture()) {
             ++invalidProviderCount;
+            WVulkanTrace::sampleDisposition(q, provider, texture,
+                                            WVulkanTrace::SampleDisposition::InvalidProvider);
             continue;
         }
 
-        if (seenTextures.contains(texture))
+        if (seenTextures.contains(texture)) {
+            WVulkanTrace::sampleDisposition(q, provider, texture,
+                                            WVulkanTrace::SampleDisposition::DuplicateTexture);
             continue;
+        }
 
         seenTextures.insert(texture);
-        if (!WRenderHelper::prepareTextureForSampling(rc(), m_renderer, texture, purpose)) {
+        QElapsedTimer prepareTimer;
+        if (WVulkanTrace::enabled())
+            prepareTimer.start();
+        const bool prepareOk = WRenderHelper::prepareTextureForSampling(rc(), m_renderer,
+                                                                        texture, purpose);
+        const qint64 prepareUsec = prepareTimer.isValid() ? prepareTimer.nsecsElapsed() / 1000 : 0;
+        WVulkanTrace::sampleDisposition(q, provider, texture,
+                                        prepareOk ? WVulkanTrace::SampleDisposition::Prepared
+                                                  : WVulkanTrace::SampleDisposition::PrepareFailed,
+                                        prepareUsec);
+        if (!prepareOk) {
             qCWarning(lcWlQtQuickTexture) << "Skipping wlroots texture for this Vulkan render pass because sampling prepare failed"
                                           << "purpose" << purpose
                                           << "sourceIndex" << sourceIndex
@@ -1819,13 +1843,21 @@ bool WOutputRenderWindowPrivate::finishTextureSamplingForRenderPass(const QVecto
     if (WRenderHelper::getGraphicsApi(rc()) != QSGRendererInterface::Vulkan)
         return true;
 
+    W_Q(WOutputRenderWindow);
     bool ok = true;
     for (qsizetype i = preparedTextures.size() - 1; i >= 0; --i) {
         auto texture = preparedTextures.at(i);
         if (!texture)
             continue;
 
-        if (!WRenderHelper::finishTextureSampling(rc(), m_renderer, texture, purpose)) {
+        QElapsedTimer finishTimer;
+        if (WVulkanTrace::enabled())
+            finishTimer.start();
+        const bool finishOk = WRenderHelper::finishTextureSampling(rc(), m_renderer,
+                                                                   texture, purpose);
+        WVulkanTrace::sampleFinished(q, texture, finishOk,
+                                     finishTimer.isValid() ? finishTimer.nsecsElapsed() / 1000 : 0);
+        if (!finishOk) {
             qCWarning(lcWlQtQuickTexture) << "Vulkan texture sampling finish failed for render pass"
                                           << "purpose" << purpose
                                           << "sourceIndex" << sourceIndex
@@ -1927,9 +1959,11 @@ void WOutputRenderWindowPrivate::doRender(qw_output *needsFrameOutput,
         return;
 
     inRendering = true;
+    W_Q(WOutputRenderWindow);
+    WVulkanTrace::beginFrame(q);
     clearPresentationFeedback();
 
-    W_Q(WOutputRenderWindow);
+    WVulkanTrace::setFrameStage(q, WVulkanTrace::FrameStage::Polish);
     for (OutputLayer *layer : std::as_const(layers)) {
         layer->beforeRender(q);
     }
@@ -1937,10 +1971,14 @@ void WOutputRenderWindowPrivate::doRender(qw_output *needsFrameOutput,
     rc()->polishItems();
 
     const bool rhiBased = QSGRendererInterface::isApiRhiBased(WRenderHelper::getGraphicsApi());
-    if (rhiBased)
+    if (rhiBased) {
+        WVulkanTrace::setFrameStage(q, WVulkanTrace::FrameStage::BeginFrame);
         rc()->beginFrame();
+    }
+    WVulkanTrace::setFrameStage(q, WVulkanTrace::FrameStage::Sync);
     rc()->sync();
 
+    WVulkanTrace::setFrameStage(q, WVulkanTrace::FrameStage::Recording);
     QQuickAnimatorController_advance(animationController.get());
     Q_EMIT q->beforeRendering();
     runAndClearJobs(&beforeRenderingJobs);
@@ -1948,14 +1986,19 @@ void WOutputRenderWindowPrivate::doRender(qw_output *needsFrameOutput,
     QVector<std::pair<OutputHelper *, WBufferRenderer *>> needsCommit;
     needsCommit = doRenderOutputs(needsFrameOutput, outputs, forceRender);
 
+    WVulkanTrace::setFrameStage(q, WVulkanTrace::FrameStage::AfterRenderingJobs);
     Q_EMIT q->afterRendering();
     runAndClearJobs(&afterRenderingJobs);
 
-    if (rhiBased)
+    if (rhiBased) {
+        WVulkanTrace::setFrameStage(q, WVulkanTrace::FrameStage::ReleaseRenderBuffers);
         releaseRenderBuffers(needsCommit);
+    }
 
     if (rhiBased) {
+        WVulkanTrace::setFrameStage(q, WVulkanTrace::FrameStage::BeforeEndFrame);
         rc()->endFrame();
+        WVulkanTrace::setFrameStage(q, WVulkanTrace::FrameStage::AfterEndFrame);
         cleanupRetiredRenderResources(false);
     }
 
@@ -1966,13 +2009,17 @@ void WOutputRenderWindowPrivate::doRender(qw_output *needsFrameOutput,
     resetGlState();
 
     QList<QPointer<WOutput>> committedOutputs;
+    WVulkanTrace::setFrameStage(q, WVulkanTrace::FrameStage::OutputCommit);
     if (doCommit) {
         committedOutputs.reserve(needsCommit.size());
         for (auto i : std::as_const(needsCommit)) {
             auto output = i.first->output()->output();
             if (Q_UNLIKELY(!i.first->framePending())) {
                 submitPresentationFeedbackForOutput(output);
-                if (Q_LIKELY(i.first->commit(i.second))) {
+                const quint32 sequenceBefore = output->nativeHandle()->commit_seq;
+                const bool commitOk = i.first->commit(i.second);
+                WVulkanTrace::outputCommitted(q, output->handle(), sequenceBefore, commitOk);
+                if (Q_LIKELY(commitOk)) {
                     // Make sure the output is still valid after commit
                     if (Q_LIKELY(needsFrameOutput)) {
                         Q_ASSERT(output->handle() == needsFrameOutput);
@@ -2007,8 +2054,10 @@ void WOutputRenderWindowPrivate::doRender(qw_output *needsFrameOutput,
     if (glContext)
         glContext->doneCurrent();
 
+    WVulkanTrace::setFrameStage(q, WVulkanTrace::FrameStage::RenderEnd);
     inRendering = false;
     Q_EMIT q->renderEnd(committedOutputs);
+    WVulkanTrace::endFrame(q, committedOutputs.size());
 }
 
 // TODO: Support QWindow::setCursor
@@ -2034,6 +2083,7 @@ WOutputRenderWindow::WOutputRenderWindow(QObject *parent)
 
 WOutputRenderWindow::~WOutputRenderWindow()
 {
+    WVulkanTrace::windowDestroyed(this);
     qGuiApp->removeEventFilter(this);
 
     renderControl()->disconnect(this);

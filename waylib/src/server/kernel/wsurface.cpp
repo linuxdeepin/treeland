@@ -5,6 +5,7 @@
 #include "qwglobal.h"
 #include "wseat.h"
 #include "private/wsurface_p.h"
+#include "utils/private/wvulkantrace_p.h"
 #include "woutput.h"
 
 #include <qwoutput.h>
@@ -44,18 +45,22 @@ void WSurfacePrivate::on_commit()
 {
     W_Q(WSurface);
 
+    const quint32 committedState = nativeHandle()->current.committed;
+
     needsFrame = !wl_list_empty(&nativeHandle()->current.frame_callback_list);
 
-    if (nativeHandle()->current.committed & WLR_SURFACE_STATE_BUFFER)
+    if (committedState & WLR_SURFACE_STATE_BUFFER)
         updateBuffer();
 
-    if (nativeHandle()->current.committed & WLR_SURFACE_STATE_OFFSET)
+    if (committedState & WLR_SURFACE_STATE_OFFSET)
         updateBufferOffset();
 
     if (hasSubsurface) // Will make to true when qw_surface::newSubsurface
         updateHasSubsurface();
 
-    Q_EMIT q->commit(nativeHandle()->current.committed);
+    WVulkanTrace::surfaceCommit(q, q->pid(), nativeHandle()->current.seq,
+                                committedState, q->buffer());
+    Q_EMIT q->commit(committedState);
 }
 
 void WSurfacePrivate::init()
@@ -129,14 +134,13 @@ void WSurfacePrivate::setBuffer(qw_buffer *newBuffer)
 {
     if (buffer) {
         if (auto clientBuffer = qw_client_buffer::get(*buffer)) {
-            Q_ASSERT(clientBuffer->handle()->n_ignore_locks > 0);
-            clientBuffer->handle()->n_ignore_locks--;
+            clientBuffer->remove_ignore_lock();
         }
     }
 
     if (newBuffer) {
         if (auto clientBuffer = qw_client_buffer::get(*newBuffer)) {
-            clientBuffer->handle()->n_ignore_locks++;
+            clientBuffer->add_ignore_lock();
         }
 
         newBuffer->lock();
