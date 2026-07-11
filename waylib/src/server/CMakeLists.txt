@@ -188,6 +188,7 @@ set(SOURCES
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/ext-foreign-toplevel-list-v1-protocol.c #TODO Remove after wlroots 0.20
 
     utils/wtools.cpp
+    utils/wvulkantrace.cpp
     utils/wthreadutils.cpp
     utils/wimagebuffer.cpp
     utils/wcursorimage.cpp
@@ -379,6 +380,7 @@ set(PRIVATE_HEADERS
     protocols/private/wtextinputv2_p.h
     protocols/private/wtextinputv3_p.h
     protocols/private/wvirtualkeyboardv1_p.h
+    utils/private/wvulkantrace_p.h
 )
 
 if(NOT DISABLE_XWAYLAND)

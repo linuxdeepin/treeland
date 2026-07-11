@@ -54,6 +54,37 @@ class QW_CLASS_REINTERPRET_CAST(client_buffer)
 {
 public:
     QW_FUNC_STATIC(client_buffer, get, qw_client_buffer *, wlr_buffer *buffer)
+
+    QW_ALWAYS_INLINE wlr_texture *texture() const
+    {
+        return handle()->texture;
+    }
+
+    QW_ALWAYS_INLINE qw_buffer *source() const
+    {
+        return qw_buffer::from(handle()->source);
+    }
+
+    QW_ALWAYS_INLINE void add_ignore_lock() const
+    {
+#ifdef WLR_PRIVATE
+        ++handle()->n_ignore_locks;
+#else
+        ++handle()->WLR_PRIVATE.n_ignore_locks;
+#endif
+    }
+
+    QW_ALWAYS_INLINE void remove_ignore_lock() const
+    {
+#ifdef WLR_PRIVATE
+        auto &ignoreLocks = handle()->n_ignore_locks;
+#else
+        auto &ignoreLocks = handle()->WLR_PRIVATE.n_ignore_locks;
+#endif
+        Q_ASSERT(ignoreLocks > 0);
+        if (Q_LIKELY(ignoreLocks > 0))
+            --ignoreLocks;
+    }
 };
 
 QW_END_NAMESPACE

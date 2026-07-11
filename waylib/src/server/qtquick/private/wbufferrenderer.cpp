@@ -9,6 +9,7 @@
 #include "wtools.h"
 #include "wsgtextureprovider.h"
 #include "private/wprivateaccessor_p.h"
+#include "utils/private/wvulkantrace_p.h"
 
 #include <qwbuffer.h>
 #include <qwtexture.h>
@@ -708,6 +709,8 @@ bool WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
                                                                           ? wd->contentItem
                                                                           : source.source);
     constexpr const char *samplingPurpose = "qt-render-pass-texture";
+    WVulkanTrace::beginPass(outputWindow, this, state.buffer.get(), samplingPurpose,
+                            sourceIndex, activeTextureProviders.size());
     if (outputWindow
         && !outputWindow->prepareTextureSamplingForRenderPass(state.buffer.get(),
                                                               activeTextureProviders,
@@ -719,6 +722,7 @@ bool WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
                                       << "sourceIndex" << sourceIndex
                                       << "currentBuffer" << state.buffer.get()
                                       << "wlrBuffer" << (state.buffer ? state.buffer->handle() : nullptr);
+        WVulkanTrace::endPass(outputWindow, false);
         return false;
     }
 
@@ -788,8 +792,11 @@ bool WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
                                       << "currentBuffer" << state.buffer.get()
                                       << "wlrBuffer" << (state.buffer ? state.buffer->handle() : nullptr)
                                       << "preparedTextureCount" << preparedTextures.size();
+        WVulkanTrace::endPass(outputWindow, false);
         return false;
     }
+
+    WVulkanTrace::endPass(outputWindow, true);
 
     if (shouldCacheBuffer() && !isVulkanRhi) {
         wTextureProvider()->setBuffer(state.buffer.get());
