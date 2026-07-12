@@ -10,6 +10,10 @@
 
 #include <QQuickItem>
 
+QW_BEGIN_NAMESPACE
+class qw_buffer;
+QW_END_NAMESPACE
+
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WOutputViewportPrivate;
@@ -47,6 +51,7 @@ public:
     QSGTextureProvider *textureProvider() const override;
     WSGTextureProvider *wTextureProvider() const override;
     WOutputRenderWindow *outputRenderWindow() const override;
+    QW_NAMESPACE::qw_buffer *lastBuffer() const;
 
     QQuickItem *input() const;
     void setInput(QQuickItem *item);
