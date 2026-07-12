@@ -71,6 +71,8 @@ public:
                                              const char *purpose,
                                              int sourceIndex,
                                              QVector<QW_NAMESPACE::qw_texture *> *preparedTextures);
+    bool prepareTextureForCurrentRenderPass(QW_NAMESPACE::qw_texture *texture,
+                                            const char *purpose);
     bool finishTextureSamplingForRenderPass(const QVector<QW_NAMESPACE::qw_texture *> &preparedTextures,
                                             const char *purpose,
                                             int sourceIndex);
