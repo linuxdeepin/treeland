@@ -13,6 +13,7 @@
 #include <qwrenderer.h>
 
 #include <rhi/qrhi.h>
+#include <QQuickRenderControl>
 #include <private/qsgplaintexture_p.h>
 
 #include <utility>
@@ -429,6 +430,21 @@ void WSGTextureProvider::setBuffer(qw_buffer *buffer)
         d->adoptTexture(candidateTexture,
                         candidateOwnsTexture,
                         std::move(candidateBuffer));
+
+        // Immediately prepare new texture for sampling if we're in an active render frame.
+        // This is critical for textures created during updatePaintNode() (e.g., cursor textures)
+        // which would otherwise miss the prepareTextureSamplingForRenderPass() call that
+        // happens before renderNextFrame().
+        const bool prepareOk = d->window->prepareTextureForCurrentRenderPass(candidateTexture,
+                                                                             "setbuffer-immediate");
+        if (!prepareOk) {
+            qCWarning(lcWlQtQuickTexture)
+                << "Immediate texture preparation failed for new Vulkan texture"
+                << "provider" << this
+                << "qwTexture" << candidateTexture
+                << "wlrTexture" << candidateTexture->handle();
+        }
+
         Q_EMIT textureChanged();
         return;
     }

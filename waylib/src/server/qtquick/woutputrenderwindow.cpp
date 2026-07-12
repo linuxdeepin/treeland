@@ -150,6 +150,7 @@ public:
                 QObject::disconnect(rendererConnection);
                 renderer->deleteLater();
             }
+            QObject::disconnect(cursorContentChangedConnection);
 
             if (wlrLayer) {
                 delete wlrLayer;
@@ -161,6 +162,7 @@ public:
         QPointer<qw_output_layer> wlrLayer;
         QPointer<WBufferRenderer> renderer;
         QMetaObject::Connection rendererConnection;
+        QMetaObject::Connection cursorContentChangedConnection;
 
         // dirty state
         uint contentsIsDirty:1;
@@ -171,6 +173,7 @@ public:
         QRect mapToOutput;
         QSize pixelSize;
         QMatrix4x4 renderMatrix;
+        quint64 cursorContentRevision = 0;
 
         // for proxy
         LayerData *mapFromLayer = nullptr; // check mapFrom before use
@@ -457,6 +460,8 @@ public:
                                              const char *purpose,
                                              int sourceIndex,
                                              QVector<qw_texture *> *preparedTextures);
+    bool prepareTextureForCurrentRenderPass(qw_texture *texture,
+                                            const char *purpose);
     bool finishTextureSamplingForRenderPass(const QVector<qw_texture *> &preparedTextures,
                                             const char *purpose,
                                             int sourceIndex);
@@ -506,6 +511,8 @@ public:
 #endif
 
     QStack<WBufferRenderer*> rendererList;
+    QVector<qw_texture *> *m_currentPreparedTextures = nullptr;
+    QSet<qw_texture *> m_currentPreparedTextureSet;
 };
 
 WOutputRenderWindowPrivate *OutputHelper::renderWindowD() const
@@ -543,7 +550,19 @@ bool OutputHelper::attachLayer(OutputLayer *layer)
     if (!qwlayer)
         return false;
 
-    m_layers.append(new LayerData(layer, qwlayer));
+    auto layerData = new LayerData(layer, qwlayer);
+    m_layers.append(layerData);
+
+    if (auto cursorItem = qobject_cast<WQuickCursor *>(layer->layer->parent())) {
+        layerData->cursorContentChangedConnection = connect(cursorItem, &WQuickCursor::contentChanged, this, [this, layerData] {
+            layerData->contentsIsDirty = true;
+            if (contentIsDirty())
+                scheduleFrame();
+            else
+                update();
+        });
+    }
+
     connect(layer->layer, &WOutputLayer::zChanged, this, &OutputHelper::sortLayers);
     sortLayers();
 
@@ -726,6 +745,12 @@ qw_buffer *OutputHelper::renderLayer(LayerData *layer, bool *dontEndRenderAndRet
             auto cursorItem = qobject_cast<WQuickCursor *>(source);
             if (!cursorItem || !cursorItem->cursor())
                 return nullptr;
+
+            const auto cursorRevision = cursorItem->contentRevision();
+            if (layer->cursorContentRevision != cursorRevision) {
+                layer->cursorContentRevision = cursorRevision;
+                layer->contentsIsDirty = true;
+            }
 
             const QPointF outputLocalPosition = cursorItem->cursor()->position()
                                                 - QPointF(output()->output()->position());
@@ -1750,10 +1775,13 @@ bool WOutputRenderWindowPrivate::prepareTextureSamplingForRenderPass(qw_buffer *
 {
     Q_ASSERT(preparedTextures);
     preparedTextures->clear();
+    m_currentPreparedTextures = nullptr;
+    m_currentPreparedTextureSet.clear();
 
     if (WRenderHelper::getGraphicsApi(rc()) != QSGRendererInterface::Vulkan)
         return true;
 
+    m_currentPreparedTextures = preparedTextures;
     W_Q(WOutputRenderWindow);
     QSet<qw_texture *> seenTextures;
     qsizetype skippedCurrentRenderTarget = 0;
@@ -1831,8 +1859,33 @@ bool WOutputRenderWindowPrivate::prepareTextureSamplingForRenderPass(qw_buffer *
         }
 
         preparedTextures->append(texture);
+        m_currentPreparedTextureSet.insert(texture);
     }
 
+    return true;
+}
+
+bool WOutputRenderWindowPrivate::prepareTextureForCurrentRenderPass(qw_texture *texture,
+                                                                    const char *purpose)
+{
+    if (WRenderHelper::getGraphicsApi(rc()) != QSGRendererInterface::Vulkan)
+        return true;
+
+    if (!texture || !m_currentPreparedTextures)
+        return true;
+
+    if (m_currentPreparedTextureSet.contains(texture))
+        return true;
+
+    const bool prepareOk = WRenderHelper::prepareTextureForSampling(rc(),
+                                                                    m_renderer,
+                                                                    texture,
+                                                                    purpose);
+    if (!prepareOk)
+        return false;
+
+    m_currentPreparedTextureSet.insert(texture);
+    m_currentPreparedTextures->append(texture);
     return true;
 }
 
@@ -1840,8 +1893,11 @@ bool WOutputRenderWindowPrivate::finishTextureSamplingForRenderPass(const QVecto
                                                                     const char *purpose,
                                                                     int sourceIndex)
 {
-    if (WRenderHelper::getGraphicsApi(rc()) != QSGRendererInterface::Vulkan)
+    if (WRenderHelper::getGraphicsApi(rc()) != QSGRendererInterface::Vulkan) {
+        m_currentPreparedTextures = nullptr;
+        m_currentPreparedTextureSet.clear();
         return true;
+    }
 
     W_Q(WOutputRenderWindow);
     bool ok = true;
@@ -1869,6 +1925,8 @@ bool WOutputRenderWindowPrivate::finishTextureSamplingForRenderPass(const QVecto
         }
     }
 
+    m_currentPreparedTextures = nullptr;
+    m_currentPreparedTextureSet.clear();
     return ok;
 }
 
@@ -2371,6 +2429,13 @@ bool WOutputRenderWindow::prepareTextureSamplingForRenderPass(qw_buffer *current
                                                   purpose,
                                                   sourceIndex,
                                                   preparedTextures);
+}
+
+bool WOutputRenderWindow::prepareTextureForCurrentRenderPass(qw_texture *texture,
+                                                             const char *purpose)
+{
+    Q_D(WOutputRenderWindow);
+    return d->prepareTextureForCurrentRenderPass(texture, purpose);
 }
 
 bool WOutputRenderWindow::finishTextureSamplingForRenderPass(const QVector<qw_texture *> &preparedTextures,
