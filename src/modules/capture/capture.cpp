@@ -19,10 +19,13 @@
 #include <woutputviewport.h>
 #include <wquickcursor.h>
 #include <wquicktextureproxy.h>
+#include <wbufferdumper.h>
 #include <wtools.h>
 
+#include <qwbuffer.h>
 #include <qwcompositor.h>
 #include <qwdisplay.h>
+#include <qwrenderer.h>
 #include <qwlayershellv1.h>
 
 #include <QLoggingCategory>
@@ -30,6 +33,8 @@
 #include <QQuickItemGrabResult>
 #include <QSGTextureProvider>
 
+#include <cstring>
+#include <memory>
 #include <utility>
 
 static inline QRectF scaledRect(const QRectF &rect, qreal devicePixelRatio)
@@ -139,11 +144,26 @@ void CaptureContextV1::onCapture(treeland_capture_frame_v1 *frame)
     }
     m_frame = frame;
     auto notifyBuffer = [this] {
+        if (!m_frame)
+            return;
+        if (!m_captureSource || !m_captureSource->imageValid()) {
+            qCWarning(lcTlCapture) << "Cannot notify capture buffer without a valid source image";
+            m_frame->sendFailed();
+            return;
+        }
+
+        const QRect crop = source()->cropRect();
+        if (crop.isEmpty()) {
+            qCWarning(lcTlCapture) << "Cannot notify capture buffer for empty crop rect" << crop;
+            m_frame->sendFailed();
+            return;
+        }
+
         m_frame->sendBuffer(
             WTools::drmToShmFormat(WTools::toDrmFormat(m_captureSource->image().format())),
-            source()->cropRect().width(),
-            source()->cropRect().height(),
-            source()->cropRect().width() * 4);
+            crop.width(),
+            crop.height(),
+            crop.width() * 4);
         m_frame->sendBufferDone();
         connect(m_frame,
                 &treeland_capture_frame_v1::copy,
@@ -157,6 +177,16 @@ void CaptureContextV1::onCapture(treeland_capture_frame_v1 *frame)
     if (m_captureSource->imageValid()) {
         notifyBuffer();
     } else {
+        connect(m_captureSource,
+                &CaptureSource::imageFailed,
+                this,
+                [this] {
+                    if (!m_frame)
+                        return;
+                    qCWarning(lcTlCapture) << "Failed to create one-shot capture image";
+                    m_frame->sendFailed();
+                },
+                Qt::SingleShotConnection);
         connect(m_captureSource, &CaptureSource::imageReady, this, notifyBuffer);
     }
     Q_EMIT finishSelect();
@@ -164,8 +194,12 @@ void CaptureContextV1::onCapture(treeland_capture_frame_v1 *frame)
 
 void CaptureContextV1::handleFrameCopy(QW_NAMESPACE::qw_buffer *buffer)
 {
-    if (m_captureSource) {
-        m_captureSource->copyBuffer(buffer);
+    if (m_captureSource && m_frame) {
+        if (!m_captureSource->copyBuffer(buffer)) {
+            qCWarning(lcTlCapture) << "Failed to copy capture image into client buffer";
+            m_frame->sendFailed();
+            return;
+        }
         m_frame->sendReady();
     } else {
         wl_client_post_implementation_error(wl_resource_get_client(m_handle->resource),
@@ -682,14 +716,20 @@ void CaptureSourceSelector::createImage()
                this,
                &CaptureSourceSelector::createImage);
     if (m_selectedSource) {
-        m_selectedSource->createImage();
         if (m_selectedSource->imageValid()) {
             releaseMaskSurface();
         } else {
             connect(m_selectedSource,
                     &CaptureSource::imageReady,
                     this,
-                    &CaptureSourceSelector::releaseMaskSurface);
+                    &CaptureSourceSelector::releaseMaskSurface,
+                    Qt::SingleShotConnection);
+            connect(m_selectedSource,
+                    &CaptureSource::imageFailed,
+                    this,
+                    &CaptureSourceSelector::releaseMaskSurface,
+                    Qt::SingleShotConnection);
+            m_selectedSource->createImage();
         }
     } else {
         releaseMaskSurface();
@@ -770,8 +810,8 @@ qw_buffer *CaptureSourceSurface::internalBuffer()
     Q_ASSERT(m_sourceList.size() == 1);
     if (m_sourceList.first().first && m_surfaceItemContent->surface()
         && m_surfaceItemContent->surface()->buffer()) {
-        if (auto clientBuffer = wlr_client_buffer_get(*m_surfaceItemContent->surface()->buffer())) {
-            return qw_buffer::from(clientBuffer->source);
+        if (auto clientBuffer = qw_client_buffer::get(*m_surfaceItemContent->surface()->buffer())) {
+            return clientBuffer->source();
         } else {
             return m_surfaceItemContent->surface()->buffer();
         }
@@ -913,49 +953,146 @@ QImage CaptureSource::image() const
     return m_image;
 }
 
+static QImage normalizeCaptureImage(QImage image)
+{
+    if (image.isNull())
+        return {};
+
+    if (image.format() != QImage::Format_ARGB32_Premultiplied)
+        image = image.convertToFormat(QImage::Format_ARGB32_Premultiplied);
+
+    return image;
+}
+
 void CaptureSource::createImage()
 {
-    if (m_sourceList.size() == 1 && m_sourceList.first().first) {
-        auto grabber = new WTextureCapturer(m_sourceList.first().second, this);
-        grabber->grabToImage()
-            .then([this](QImage image) {
-                m_image = std::move(image);
-                Q_EMIT imageReady();
-            })
-            .onFailed([](const std::exception &e) {
-                qCCritical(lcTlCapture) << e.what();
-            });
-    } else {
-        // TODO: support multiple sources
+    if (m_sourceList.size() != 1 || !m_sourceList.first().first || !m_sourceList.first().second) {
+        qCWarning(lcTlCapture) << "Cannot create capture image from invalid source list"
+                               << "sourceCount" << m_sourceList.size();
+        Q_EMIT imageFailed();
+        return;
     }
+
+    auto renderWindow = m_sourceList.first().second->outputRenderWindow();
+    auto renderer = renderWindow ? renderWindow->renderer() : nullptr;
+    auto buffer = sourceDMABuffer();
+    if (!buffer || !renderer) {
+        qCWarning(lcTlCapture) << "Cannot create capture image without source buffer or renderer"
+                               << "buffer" << buffer
+                               << "renderer" << renderer;
+        Q_EMIT imageFailed();
+        return;
+    }
+
+    if (!buffer->lock()) {
+        qCWarning(lcTlCapture) << "Failed to lock capture source buffer" << buffer;
+        Q_EMIT imageFailed();
+        return;
+    }
+
+    std::unique_ptr<qw_buffer, qw_buffer::unlocker> bufferGuard(buffer);
+
+    QImage image;
+    const auto result = WBufferDumper::dumpBufferToImage(buffer, renderer, image);
+    if (result != WBufferDumper::DumpResult::Success) {
+        qCWarning(lcTlCapture) << "Failed to dump capture source buffer"
+                               << "result" << WBufferDumper::dumpResultToString(result)
+                               << "buffer" << buffer;
+        Q_EMIT imageFailed();
+        return;
+    }
+
+    image = normalizeCaptureImage(std::move(image));
+    if (image.isNull()) {
+        qCWarning(lcTlCapture) << "Capture source dump produced an invalid image";
+        Q_EMIT imageFailed();
+        return;
+    }
+
+    m_image = std::move(image);
+    Q_EMIT imageReady();
 }
 
 qw_buffer *CaptureSource::sourceDMABuffer()
 {
     auto buffer = internalBuffer();
+    if (!buffer)
+        return nullptr;
     if (!m_bufferConn)
         m_bufferConn =
             connect(buffer, &qw_buffer::destroyed, this, &CaptureSource::bufferDestroyed);
     return buffer;
 }
 
-void CaptureSource::copyBuffer(qw_buffer *buffer)
+bool CaptureSource::copyBuffer(qw_buffer *buffer)
 {
-    Q_ASSERT(imageValid());
+    if (!imageValid() || !buffer) {
+        qCWarning(lcTlCapture) << "Cannot copy capture image without valid image or buffer"
+                               << "imageValid" << imageValid()
+                               << "buffer" << buffer;
+        return false;
+    }
+
     auto width = cropRect().width();
     auto height = cropRect().height();
+    if (width <= 0 || height <= 0) {
+        qCWarning(lcTlCapture) << "Cannot copy capture image with invalid crop rect"
+                               << cropRect();
+        return false;
+    }
+
     uint32_t format;
     size_t stride;
     void *data;
-    buffer->begin_data_ptr_access(WLR_BUFFER_DATA_PTR_ACCESS_WRITE, &data, &format, &stride);
-    Q_ASSERT(stride == static_cast<size_t>(width) * 4); // For QImage
-    QImage img = image().copy(cropRect());
-    auto bufFormat = WTools::toImageFormat(format);
-    if (image().format() != bufFormat) {
-        img = image().convertToFormat(bufFormat);
+    if (!buffer->begin_data_ptr_access(WLR_BUFFER_DATA_PTR_ACCESS_WRITE, &data, &format, &stride)
+        || !data) {
+        qCWarning(lcTlCapture) << "Failed to access client capture buffer for writing"
+                               << "buffer" << buffer;
+        return false;
     }
-    memcpy(data, img.constBits(), stride * height);
+
+    bool copied = false;
+    do {
+        auto bufFormat = WTools::toImageFormat(format);
+        if (bufFormat == QImage::Format_Invalid) {
+            qCWarning(lcTlCapture) << "Client capture buffer has unsupported format"
+                                   << "format" << format;
+            break;
+        }
+
+        QImage img = image().copy(cropRect());
+        if (img.isNull() || img.width() != width || img.height() != height) {
+            qCWarning(lcTlCapture) << "Failed to crop capture image"
+                                   << "cropRect" << cropRect()
+                                   << "imageSize" << image().size();
+            break;
+        }
+
+        if (img.format() != bufFormat)
+            img = img.convertToFormat(bufFormat);
+
+        if (img.isNull()) {
+            qCWarning(lcTlCapture) << "Failed to convert capture image to client buffer format"
+                                   << "format" << bufFormat;
+            break;
+        }
+
+        if (stride < static_cast<size_t>(img.bytesPerLine())) {
+            qCWarning(lcTlCapture) << "Client capture buffer stride is too small"
+                                   << "stride" << stride
+                                   << "imageStride" << img.bytesPerLine();
+            break;
+        }
+
+        auto dst = static_cast<uchar *>(data);
+        for (int y = 0; y < img.height(); ++y) {
+            memcpy(dst + stride * y, img.constScanLine(y), img.bytesPerLine());
+        }
+        copied = true;
+    } while (false);
+
     buffer->end_data_ptr_access();
+    return copied;
 }
 
 CaptureSourceOutput::CaptureSourceOutput(WOutputViewport *viewport)
@@ -967,10 +1104,11 @@ CaptureSourceOutput::CaptureSourceOutput(WOutputViewport *viewport)
 qw_buffer *CaptureSourceOutput::internalBuffer()
 {
     Q_ASSERT(m_sourceList.size() == 1);
-    if (m_sourceList.first().first && m_outputViewport->wTextureProvider())
-        return m_outputViewport->wTextureProvider()->qwBuffer();
-    else
-        return nullptr;
+    if (m_sourceList.first().first && m_outputViewport)
+        return m_outputViewport->lastBuffer();
+
+    qCWarning(lcTlCapture) << "Output capture source has no valid output viewport";
+    return nullptr;
 }
 
 QRect CaptureSourceOutput::cropRect() const
@@ -1000,11 +1138,12 @@ CaptureSourceRegion::CaptureSourceRegion(WOutputViewport *viewport, const QRect 
 qw_buffer *CaptureSourceRegion::internalBuffer()
 {
     if (m_sourceList.size() == 1 && m_sourceList.first().first
-        && m_sourceList.first().second->wTextureProvider()) {
-        return m_sourceList.first().second->wTextureProvider()->qwBuffer();
-    } else {
-        return nullptr;
+        && !m_viewportRegions.isEmpty() && m_viewportRegions.first().first) {
+        return m_viewportRegions.first().first->lastBuffer();
     }
+
+    qCWarning(lcTlCapture) << "Region capture source has no valid output viewport";
+    return nullptr;
 }
 
 CaptureSource::CaptureSourceType CaptureSourceRegion::sourceType()

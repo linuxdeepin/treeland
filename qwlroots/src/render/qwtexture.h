@@ -18,6 +18,8 @@ public:
     QW_FUNC_STATIC(texture, from_dmabuf, qw_texture *, wlr_renderer *renderer, wlr_dmabuf_attributes *attribs)
     QW_FUNC_STATIC(texture, from_buffer, qw_texture *, wlr_renderer *renderer, wlr_buffer *buffer)
 
+    QW_FUNC_MEMBER(texture, read_pixels, bool, const wlr_texture_read_pixels_options *options)
+    QW_FUNC_MEMBER(texture, preferred_read_format, uint32_t)
     QW_FUNC_MEMBER(texture, update_from_buffer, bool, wlr_buffer *buffer, const pixman_region32_t *damage)
 
 private:
