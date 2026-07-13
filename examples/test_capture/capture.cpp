@@ -194,7 +194,7 @@ void TreelandCaptureSession::start()
 {
     QtWayland::treeland_capture_session_v1::start();
     m_started = true;
-    Q_EMIT started();
+    Q_EMIT startedChanged();
 }
 
 void TreelandCaptureSession::doneFrame()
