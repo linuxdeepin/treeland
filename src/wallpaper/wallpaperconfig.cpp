@@ -10,7 +10,6 @@
 #define DESKTOP_WALLPAPER "desktopWallpaper"
 #define LOCK_SCREEN_WALLPAPER "lockScreenWallpaper"
 #define WORKSPACES "workspaces"
-#define ENABLE "enable"
 
 QJsonObject WallpaperWorkspaceConfig::toJson() const
 {
@@ -18,7 +17,6 @@ QJsonObject WallpaperWorkspaceConfig::toJson() const
     obj[WORKSPACE_INDEX] = workspaceId;
     obj[DESKTOP_WALLPAPER] = desktopWallpaper;
     obj[DESKTOP_WALLAPER_TYPE] = desktopWallpapertype;
-    obj[ENABLE] = enable;
     return obj;
 }
 
@@ -28,7 +26,6 @@ WallpaperWorkspaceConfig WallpaperWorkspaceConfig::fromJson(const QJsonObject &o
     ws.workspaceId = obj[WORKSPACE_INDEX].toInt();
     ws.desktopWallpaper = obj[DESKTOP_WALLPAPER].toString();
     ws.desktopWallpapertype = static_cast<TreelandWallpaperInterfaceV1::WallpaperType>(obj[DESKTOP_WALLAPER_TYPE].toInt());
-    ws.enable = obj[ENABLE].toBool();
     return ws;
 }
 
@@ -38,7 +35,6 @@ QJsonObject WallpaperOutputConfig::toJson() const
     obj[OUTPUT_NAME] = outputName;
     obj[LOCK_SCREEN_WALLPAPER] = lockscreenWallpaper;
     obj[LOCK_SCREEN_WALLAPER_TYPE] = lockScreenWallpapertype;
-    obj[ENABLE] = enable;
     QJsonArray workspacesArray;
     for (const WallpaperWorkspaceConfig& ws : std::as_const(workspaces)) {
         workspacesArray.append(ws.toJson());
@@ -65,7 +61,6 @@ WallpaperOutputConfig WallpaperOutputConfig::fromJson(const QJsonObject &obj)
     out.outputName = obj[OUTPUT_NAME].toString();
     out.lockscreenWallpaper = obj[LOCK_SCREEN_WALLPAPER].toString();
     out.lockScreenWallpapertype = static_cast<TreelandWallpaperInterfaceV1::WallpaperType>(obj[LOCK_SCREEN_WALLAPER_TYPE].toInt());
-    out.enable = obj[ENABLE].toBool();
     QJsonArray workspacesArray = obj[WORKSPACES].toArray();
     for (const QJsonValue& value : std::as_const(workspacesArray)) {
         out.workspaces.append(WallpaperWorkspaceConfig::fromJson(value.toObject()));
