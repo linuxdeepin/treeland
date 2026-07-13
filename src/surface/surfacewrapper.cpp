@@ -391,9 +391,6 @@ void SurfaceWrapper::setup()
         onSocketEnabledChanged();
     }
 
-    updateActivateCapability();
-    updateFocusCapability();
-
     if (m_type == Type::XdgToplevel && !m_isProxy) // x11 will set later
         setSkipDockPreView(false);
 
@@ -490,6 +487,25 @@ void SurfaceWrapper::setup()
             }
         }
     }
+
+    updateActivateCapability();
+    updateFocusCapability();
+    if (m_prelaunchSplash) {
+        m_surfaceItem->setVisible(false);
+
+        // Check if surface is still valid before accessing
+        WSurface *surf = surface();
+        if (surf && surf->mapped()) {
+            updateFocusControlState(FocusControlState::Mapped, true);
+            // ActiveControlState::MappedOrSplash is already true
+            syncPrelaunchMappedState();
+            startPrelaunchSplashHideSequence();
+        }
+    } else {
+        updateFocusControlState(FocusControlState::Mapped, surface() && surface()->mapped());
+        updateHasActiveCapability(ActiveControlState::MappedOrSplash,
+                                  surface() && surface()->mapped());
+    }
 }
 
 void SurfaceWrapper::convertToNormalSurface(WToplevelSurface *shellSurface, Type type)
@@ -508,16 +524,6 @@ void SurfaceWrapper::convertToNormalSurface(WToplevelSurface *shellSurface, Type
 
     // Call setup() to initialize surfaceItem related features
     setup();
-    m_surfaceItem->setVisible(false);
-
-    // Check if surface is still valid before accessing
-    WSurface *surf = surface();
-    if (surf && surf->mapped()) {
-        updateFocusControlState(FocusControlState::Mapped, true);
-        // ActiveControlState::MappedOrSplash is already true
-        syncPrelaunchMappedState();
-        startPrelaunchSplashHideSequence();
-    }
 }
 
 void SurfaceWrapper::setParent(QQuickItem *item)
@@ -2215,16 +2221,6 @@ void SurfaceWrapper::setHasInitializeContainer(bool value)
         // Start open animation when container initialized
         // m_prelaunchSplash can't get mapped signal
         createNewOrClose(OPEN_ANIMATION);
-    }
-
-    // If the surface was already mapped before the wrapper could connect to
-    // mappedChanged (e.g. wrapper created after the surface's initial map),
-    // onMappedChanged was never triggered. Make up for it here so that
-    // MappedOrSplash gets set and hasActiveCapability() can turn true,
-    // otherwise the window would be drawn but never activated/focused.
-    if (!m_prelaunchSplash && value && surface() && surface()->mapped()
-        && !m_hasActiveCapability.testFlag(ActiveControlState::MappedOrSplash)) {
-        onMappedChanged();
     }
 }
 
