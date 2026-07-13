@@ -37,7 +37,7 @@ public:
                             const QString &fileSource,
                             TreelandWallpaperInterfaceV1::WallpaperRoles roles,
                             TreelandWallpaperInterfaceV1::WallpaperType type);
-    QMap<QString, TreelandWallpaperInterfaceV1::WallpaperType> globalValidWallpaper(wlr_output *exclusiveOutput, int exclusiveworkspaceId);
+    QMap<QString, TreelandWallpaperInterfaceV1::WallpaperType> globalValidWallpaper(wlr_output *excludedOutput = nullptr);
     void syncAddWorkspace();
     void removeOutputWallpaper(wlr_output *output);
     QString currentWorkspaceWallpaper(WOutput *output);
