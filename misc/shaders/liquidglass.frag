@@ -9,10 +9,20 @@
 // Key concepts ported from liquid-dom's GLASS_SHADER (WGSL → GLSL 440):
 //   • Convex-squircle height profile for the beveled edge
 //   • Physical refraction via refract() with per-channel IOR dispersion
-//   • Luminance-gated environment reflection
+//   • Luminance-gated environment reflection (rim band only)
 //   • Coloured edge specular (refracted ↔ reflected mix)
 //   • Additive white rim specular with configurable opacity
 //   • Tint, saturation, and brightness handled by MultiEffect (not shader)
+//
+// Performance structure (hot path, sample-bound):
+//   1. Outside AA band          → 0 samples
+//   2. Flat interior            → 1 sample
+//   3. Bezel interior           → 1–3 sharp refraction samples
+//   4. Silhouette AA band only  → 2×2 mono geometric SS
+//   5. Lit rim                  → + reflection samples
+//   Dispersion RGB split is gated on the uniform (coherent across the draw).
+//   Do NOT multi-tap filter warped content: it smears bright icon edges into
+//   pale ghosts. Keep a single bilinear sample so ellipses stay sharp.
 
 layout(location = 0) in vec2 texCoord;
 layout(location = 0) out vec4 fragColor;
@@ -30,75 +40,178 @@ layout(std140, binding = 0) uniform buf {
     vec4 highlightColor;       // coloured specular tint (white in liquid-dom)
     float strokeWidth;         // specular rim band width (px) — liquid-dom specular.width
     float strokeStrength;      // specular strength — liquid-dom specular.strength
-    vec2 lightDirection;       // 2D light dir (normalised at runtime)
+    vec2 lightDirection;       // 2D light dir (renormalized in shader)
     float lightPower;          // specular sharpness exponent — liquid-dom specular.sharpness
     float edgeSaturation;      // extra edge saturation boost
     float reflectionOffset;    // reflection sampling offset (px) — liquid-dom reflectionOffset
     float specularOpacity;     // white specular opacity — liquid-dom specular.opacity
-    float rimReflectionStrength; // 0 = current pure-white rim, >0 tints rim from nearby backdrop
+    float rimReflectionStrength; // 0 = pure-white rim, >0 tints rim from backdrop
 } ubuf;
 
 layout(binding = 1) uniform sampler2D source;
+
+const vec3 kLumaWeights = vec3(0.2126, 0.7152, 0.0722);
+const vec3 kViewDir = vec3(0.0, 0.0, -1.0);
 
 // ---------------------------------------------------------------------------
 // SDF helpers (rounded rectangle)
 // ---------------------------------------------------------------------------
 
-float roundedRectDistance(vec2 p, vec2 halfSize, float radius)
+// Returns (signed distance, outward surface normal).
+// Flat-edge midpoints use an axis-aligned fallback when delta ~ 0.
+vec3 roundedRectSDF(vec2 p, vec2 halfSize, float radius)
 {
     float r = min(radius, min(halfSize.x, halfSize.y));
-    vec2 q = abs(p) - halfSize + vec2(r);
-    return length(max(q, vec2(0.0))) + min(max(q.x, q.y), 0.0) - r;
+    vec2 inner = halfSize - vec2(r);
+    vec2 delta = p - clamp(p, -inner, inner);
+    float len2 = dot(delta, delta);
+    // inversesqrt avoids a separate sqrt+divide for the normal.
+    float invLen = inversesqrt(max(len2, 1e-16));
+    float len = len2 * invLen; // == sqrt(len2) for len2 > 0
+
+    // SDF: distance to the rounded rectangle boundary (negative inside).
+    vec2 q = abs(p) - inner;
+    float dist = len + min(max(q.x, q.y), 0.0) - r;
+
+    vec2 edge = halfSize - abs(p);
+    float useX = step(edge.x, edge.y);
+    vec2 axisNormal = vec2(sign(p.x) * useX, sign(p.y) * (1.0 - useX));
+    vec2 normal = (len2 > 1e-16) ? (delta * invLen) : axisNormal;
+
+    return vec3(dist, normal);
 }
 
+// Normal-only path for the expanded-radius refraction field (dist unused).
 vec2 roundedRectNormal(vec2 p, vec2 halfSize, float radius)
 {
     float r = min(radius, min(halfSize.x, halfSize.y));
     vec2 inner = halfSize - vec2(r);
-    vec2 corner = clamp(p, -inner, inner);
-    vec2 delta = p - corner;
-    float len = length(delta);
-
-    if (len > 0.0001)
-        return delta / len;
+    vec2 delta = p - clamp(p, -inner, inner);
+    float len2 = dot(delta, delta);
+    if (len2 > 1e-16)
+        return delta * inversesqrt(len2);
 
     vec2 edge = halfSize - abs(p);
-    if (edge.x < edge.y)
-        return vec2(sign(p.x), 0.0);
-
-    return vec2(0.0, sign(p.y));
+    float useX = step(edge.x, edge.y);
+    return vec2(sign(p.x) * useX, sign(p.y) * (1.0 - useX));
 }
 
 // ---------------------------------------------------------------------------
-// Colour helpers
+// Colour / math helpers
 // ---------------------------------------------------------------------------
 
 vec3 applySaturation(vec3 color, float saturationValue)
 {
-    float luminance = dot(color, vec3(0.2126, 0.7152, 0.0722));
+    float luminance = dot(color, kLumaWeights);
     return mix(vec3(luminance), color, saturationValue);
 }
 
 vec4 sampleBackdrop(vec2 coord)
 {
+    // Soft clamp: ShaderEffect source wrap is not guaranteed clamp-to-edge.
     return texture(source, clamp(coord, vec2(0.001), vec2(0.999)));
 }
 
+// Product defaults are lightPower 2 or 3 — multiply is cheaper than pow.
+float specularPower(float x, float p)
+{
+    float v = max(x, 0.0);
+    // Uniform-driven: whole draw takes one arm, no pixel divergence.
+    if (abs(p - 2.0) < 0.001)
+        return v * v;
+    if (abs(p - 3.0) < 0.001)
+        return v * v * v;
+    if (abs(p - 4.0) < 0.001) {
+        float v2 = v * v;
+        return v2 * v2;
+    }
+    return pow(v, p);
+}
 
-// ---------------------------------------------------------------------------
-// Height profile: convex squircle (from liquid-dom)
-// Returns vec2(height, derivative) where x is bezelProgress [0..1]:
-//   x=0 at the shape boundary, x=1 at bezelWidth inside.
-// The surface rises steeply at the edge and flattens toward the interior.
-// ---------------------------------------------------------------------------
-
+// Height profile: convex squircle (liquid-dom).
+// Returns vec2(height, derivative); x is bezelProgress [0..1]
+// (0 = shape boundary, 1 = bezelWidth inside).
+// height  = (1 - u^4)^0.25  where u = 1 - clamp(x, 0, 1)
+// derivative = d(height)/dx = u^3 * height / inside  [= u^3 / inside^0.75]
 vec2 convexSquircle(float x)
 {
     float u = 1.0 - clamp(x, 0.0, 1.0);
-    float inside = max(1.0 - pow(u, 4.0), 0.0001);
-    float height = pow(inside, 0.25);
-    float derivative = pow(u, 3.0) / pow(inside, 0.75);
+    float u2 = u * u;
+    float u4 = u2 * u2;
+    float inside = max(1.0 - u4, 0.0001);
+    float height = sqrt(sqrt(inside));                  // inside^0.25
+    float derivative = (u2 * u) * height / inside;     // u^3 / inside^0.75
     return vec2(height, derivative);
+}
+
+vec2 refractDisplacement(vec3 ray, float scale)
+{
+    return ray.xy / max(-ray.z, 0.0001) * scale;
+}
+
+// Sample backdrop with optional RGB dispersion along `offsetDir` (in UV).
+// Uniform `useDispersion` keeps the branch coherent across the whole draw.
+vec3 sampleDispersed(vec2 baseUv, vec2 offsetDir, float offsetPx, vec2 pixelSize, bool useDispersion)
+{
+    vec2 baseOffset = offsetDir * (offsetPx * pixelSize);
+    if (useDispersion) {
+        float refDisp = max(ubuf.dispersion, 0.0) * 2.0;
+        vec2 uvR = baseUv + baseOffset * (1.0 - refDisp);
+        vec2 uvG = baseUv + baseOffset;
+        vec2 uvB = baseUv + baseOffset * (1.0 + refDisp);
+        return vec3(
+            sampleBackdrop(uvR).r,
+            sampleBackdrop(uvG).g,
+            sampleBackdrop(uvB).b
+        );
+    }
+    return sampleBackdrop(baseUv + baseOffset).rgb;
+}
+
+// Refraction at pixel-space point `p` (origin = item center). Used for
+// silhouette 2×2 supersampling where the normal rotates within one pixel.
+// `aaWidth` is the parent fragment's screen-space SDF width (fwidth at offsets
+// is unreliable). Edge SS always uses mono IOR; dispersion stays on the
+// single-center bezel path.
+vec3 sampleRefractedAt(
+    vec2 p,
+    vec2 halfSize,
+    vec2 size,
+    vec2 pixelSize,
+    float bw,
+    float aaWidth,
+    float baseIor,
+    vec2 lightDir)
+{
+    vec3 localSdf = roundedRectSDF(p, halfSize, ubuf.radius);
+    float sdf = localSdf.x;
+    vec2 n = localSdf.yz;
+    float inward = max(-sdf, 0.0);
+    float cover = 1.0 - smoothstep(0.0, aaWidth, sdf);
+    vec2 uv = (p + halfSize) / size;
+
+    if (cover <= 1e-4)
+        return sampleBackdrop(uv).rgb;
+
+    float bezelProgress = inward / bw;
+    vec2 profile = convexSquircle(bezelProgress);
+    float surfaceHeight = ubuf.thickness + profile.x * bw;
+    vec2 refrN = roundedRectNormal(p, halfSize, ubuf.radius + bw);
+    float bevelFade = 1.0 - smoothstep(bw * 0.85, bw, inward);
+    float outerSoft = smoothstep(0.0, max(2.5 * aaWidth, 2.5), inward);
+    float slope = min(profile.y * bevelFade * outerSoft, 8.0);
+    vec3 surfN = normalize(vec3(refrN * slope, 1.0));
+
+    float lightFacing = clamp(dot(n, lightDir) * 0.5 + 0.5, 0.0, 1.0);
+    float dirOpt = mix(0.85, 1.15, lightFacing);
+    float scale = surfaceHeight * ubuf.displacementFactor * dirOpt * cover;
+
+    if (slope < 1e-4 || scale < 1e-4)
+        return sampleBackdrop(uv).rgb;
+
+    vec3 ray = refract(kViewDir, surfN, 1.0 / baseIor);
+    // Geometric 2×2 already SS the silhouette; single bilinear is enough here.
+    return sampleBackdrop(uv + refractDisplacement(ray, scale) * pixelSize).rgb;
 }
 
 // ---------------------------------------------------------------------------
@@ -109,229 +222,179 @@ void main()
 {
     vec2 size = max(ubuf.itemSize, vec2(1.0));
     vec2 pixelSize = 1.0 / size;
-    vec2 pixel = texCoord * size;
-    vec2 centered = pixel - size * 0.5;
+    vec2 centered = texCoord * size - size * 0.5;
     vec2 halfSize = size * 0.5;
 
-    // SDF distance: negative inside, positive outside
-    float sdf = roundedRectDistance(centered, halfSize, ubuf.radius);
-    float distance = sdf;
-    vec2 normal = roundedRectNormal(centered, halfSize, ubuf.radius);
+    // SDF + normal in one pass (shared corner-clamp computation).
+    vec3 sdfResult = roundedRectSDF(centered, halfSize, ubuf.radius);
+    float sdf = sdfResult.x;
+    vec2 normal = sdfResult.yz;
 
-    // Fill mask: 1 inside, 0 outside. Use SDF derivatives for antialiasing
-    // so rounded corners stay smooth under scale/transform instead of using a
-    // fixed feather or the specular rim width.
-    float shapeAntialiasWidth = max(fwidth(sdf), 0.75);
-    float fillMask = 1.0 - smoothstep(0.0, shapeAntialiasWidth, distance);
+    // Screen-space AA width from SDF derivatives. Floor 0.5px keeps thin
+    // coverage without the heavier 0.75 blur on sharp 1× edges.
+    float shapeAntialiasWidth = max(fwidth(sdf), 0.5);
+    float fillMask = 1.0 - smoothstep(0.0, shapeAntialiasWidth, sdf);
 
-    // ── Bevel zone (convex squircle height profile) ──────────────────
-    // Keep large bevels on straight edges, but avoid geometric singularities:
-    // 1. tiny items cannot fit opposing bevel bands, so cap by item size;
-    // 2. rounded corners cannot fit a bevel wider than the radius, so cap
-    //    only inside the corner patch;
-    // 3. square/overlapping corners blend x/y edge normals instead of jumping
-    //    between the nearest horizontal/vertical edge normal.
+    // ── 0 samples: fully outside the AA band ──────────────────────────
+    if (fillMask <= 0.0) {
+        fragColor = vec4(0.0);
+        return;
+    }
+
+    float outAlpha = fillMask * ubuf.qt_Opacity;
+    float inwardDistance = max(-sdf, 0.0);
+
+    float rimWidthPx = max(ubuf.strokeWidth, 0.0001);
+    // Rim outer/inner feathers track shape AA so highlights stay aligned
+    // with the coverage edge under scale / HiDPI.
+    float rimBandMask =
+        (1.0 - smoothstep(0.0, shapeAntialiasWidth, sdf))
+        * (1.0 - smoothstep(rimWidthPx, rimWidthPx + shapeAntialiasWidth, inwardDistance));
+
     float configuredBezel = max(ubuf.bezelWidth, 1.0);
-    float maxSizeBezel = max(
+    float bw = max(
         min(configuredBezel, max(min(halfSize.x, halfSize.y) - shapeAntialiasWidth, 1.0)),
         1.0);
-    float inwardDistance = max(-distance, 0.0);
 
-    // Distance from the SDF boundary drives the bevel profile.  The refraction
-    // direction itself stays on the rounded-rect SDF gradient; overriding it
-    // with axis-aligned edge normals breaks the continuous displacement vector
-    // field used by liquid-dom and SVG displacement-map implementations.
-    float bw = maxSizeBezel;
+    // ── 1 sample: flat interior past bezel and rim ────────────────────
+    // Slope and rim contribution are both zero; refracted == background.
+    if (inwardDistance > bw && rimBandMask <= 0.0) {
+        vec3 color = sampleBackdrop(texCoord).rgb;
+        fragColor = vec4(clamp(color, 0.0, 1.0) * outAlpha, outAlpha);
+        return;
+    }
 
-    float bezelProgress = clamp(inwardDistance / bw, 0.0, 1.0);
-
-    vec2 profileResult = convexSquircle(bezelProgress);
-    float profileHeight = profileResult.x * bw;
-    float flatHeight = convexSquircle(1.0).x * bw;
-    // Surface is thicker at the bevel edge, flattens in the interior.
-    float surfaceHeight = ubuf.thickness
-        + (inwardDistance > bw ? flatHeight : profileHeight);
-
-    // ── Refraction Slope (Geometric Radiating Field) ─────────────────────────
-    // The user's hand-drawn sketch explicitly defines the displacement vector field:
-    // 1. Vectors are straight lines (no curving along their path).
-    // 2. On straight edges, vectors are perfectly perpendicular.
-    // 3. In corners, vectors radiate from a deep inner center.
-    // 4. The fanning region starts exactly `bw` pixels earlier than the outer corner.
-    // 
-    // By calculating the normal using an expanded radius `ubuf.radius + bw`, we
-    // push the center of the normal fan inward by `bw`. This perfectly recreates
-    // the vector field shown in the sketch, extending the corner's diagonal pull
-    // exactly `bw` pixels along the straight edges!
-    vec2 refractionNormal = roundedRectNormal(centered, halfSize, ubuf.radius + bw);
-
-    // Surface slope from analytical derivative, clamped to ~85°.
-    float surfaceDerivative = (inwardDistance > bw) ? 0.0 : profileResult.y;
-    float clampedSlope = min(surfaceDerivative, 11.43); // tan(1.4835) ≈ 85°
-    vec2 surfaceSlope = refractionNormal * clampedSlope;
-
-    // 3D surface normal from 2D slope
-    vec3 surfaceNormal = normalize(vec3(surfaceSlope, 1.0));
-    // Shared light direction for both edge optics and specular rim.  The
-    // physical view-ray refraction remains normal-based; this only modulates
-    // the bezel's optical strength so internal dispersion and border highlight
-    // read as one coherent light setup.
+    // ── Bezel / rim band ──────────────────────────────────────────────
+    // Prefer the QML unit lightDirection; renorm defensively if unbound.
     vec2 rawLightDir = ubuf.lightDirection;
-    vec2 lightDir = length(rawLightDir) > 0.0001
-        ? normalize(rawLightDir)
+    float lightLen2 = dot(rawLightDir, rawLightDir);
+    vec2 lightDir = lightLen2 > 1e-8
+        ? rawLightDir * inversesqrt(lightLen2)
         : vec2(-0.70710678, -0.70710678);
+    // Specular is pure ALU and only non-zero in the lit rim.  The uniform
+    // gate skips that work for the entire draw when highlights are disabled.
+    float combinedSpecular = 0.0;
+    if (ubuf.strokeStrength > 1e-4) {
+        float inwardProgress = clamp(inwardDistance / max(rimWidthPx, 1.0), 0.0, 1.0);
+        float strengthFalloff = 1.0 - inwardProgress * inwardProgress * 0.5;
+        float normalAlignment = abs(dot(normal, lightDir));
+        combinedSpecular = clamp(
+            specularPower(normalAlignment, ubuf.lightPower)
+                * ubuf.strokeStrength * strengthFalloff * rimBandMask,
+            0.0, 1.0);
+    }
+
+    // Height profile + radiating refraction field (radius + bw).
+    float bezelProgress = inwardDistance / bw;
+    vec2 profileResult = convexSquircle(bezelProgress);
+    // convexSquircle clamps progress; its height is exactly 1 past the bezel.
+    float surfaceHeight = ubuf.thickness + profileResult.x * bw;
+
+    // Expanded-radius normal only — distance is unused here.
+    vec2 refractionNormal = roundedRectNormal(centered, halfSize, ubuf.radius + bw);
+    float bevelFade = 1.0 - smoothstep(bw * 0.85, bw, inwardDistance);
+    // Outer ease-in: squircle derivative peaks at the silhouette (→∞ then clamp
+    // to ~85°). Without this, UV warp slams to max just inside the coverage
+    // edge and high-contrast backdrop edges grow triangular spikes / hooks.
+    float outerSoft = smoothstep(0.0, max(2.5 * shapeAntialiasWidth, 2.5), inwardDistance);
+    float clampedSlope = min(profileResult.y * bevelFade * outerSoft, 8.0); // tan≈83°
+    vec3 surfaceNormal = normalize(vec3(refractionNormal * clampedSlope, 1.0));
+
     float lightFacing = clamp(dot(normal, lightDir) * 0.5 + 0.5, 0.0, 1.0);
     float directionalOpticalStrength = mix(0.85, 1.15, lightFacing);
 
-    // ── Physical refraction with per-channel IOR dispersion ───────────
     float baseIor = max(ubuf.ior, 1.0001);
-    
-    // Prism Effect (Caustics/Curvature): Dispersion is violently amplified at the 
-    // steep edges where the surface normal tilts away from the viewer (Fresnel-like).
-    // This simulates the complex lens focusing that creates bright, separated color bands.
-    float prismEffect = 1.0 + pow(1.0 - surfaceNormal.z, 2.0) * 0.3;
-    float disp = max(ubuf.dispersion, 0.0) * directionalOpticalStrength * prismEffect;
+    float nz = 1.0 - surfaceNormal.z;
+    float nz2 = nz * nz;
+    float prismEffect = 1.0 + nz2 * 0.3;
+    // Uniform gate: whole draw shares one arm (no per-pixel dispersion flicker).
+    bool useDispersion = ubuf.dispersion > 1e-4;
+    float disp = useDispersion
+        ? (ubuf.dispersion * directionalOpticalStrength * prismEffect)
+        : 0.0;
 
-    vec3 refractedRayRed = refract(
-        vec3(0.0, 0.0, -1.0), surfaceNormal,
-        1.0 / max(baseIor - disp, 1.0001));
-    vec3 refractedRayGreen = refract(
-        vec3(0.0, 0.0, -1.0), surfaceNormal,
-        1.0 / baseIor);
-    vec3 refractedRayBlue = refract(
-        vec3(0.0, 0.0, -1.0), surfaceNormal,
-        1.0 / max(baseIor + disp, 1.0001));
+    // fillMask is already the 0..1 AA coverage; do not re-smoothstep it
+    // against fwidth (which can be > 1 under scale and would crush interior
+    // refraction). Soft edge fade is exactly the coverage itself.
+    float displaceScale = fillMask;
+    float commonScale = surfaceHeight * ubuf.displacementFactor
+        * directionalOpticalStrength * displaceScale;
 
-    // Per-channel pixel displacement (zero outside the shape).
-    float displaceScale = fillMask > 0.0 ? 1.0 : 0.0;
-    vec2 displacementRed = refractedRayRed.xy
-        / max(-refractedRayRed.z, 0.0001)
-        * surfaceHeight * ubuf.displacementFactor * directionalOpticalStrength * displaceScale;
-    vec2 displacementGreen = refractedRayGreen.xy
-        / max(-refractedRayGreen.z, 0.0001)
-        * surfaceHeight * ubuf.displacementFactor * directionalOpticalStrength * displaceScale;
-    vec2 displacementBlue = refractedRayBlue.xy
-        / max(-refractedRayBlue.z, 0.0001)
-        * surfaceHeight * ubuf.displacementFactor * directionalOpticalStrength * displaceScale;
+    // Refraction samples.
+    // Only the shape AA band needs geometric 2×2 SS (coverage + normal rotate
+    // inside a pixel). The bezel interior keeps a single sharp warp sample so
+    // high-contrast icon edges become clean ellipses, not pale side-lobes.
+    bool needEdgeSS = fillMask < 0.999;
 
-    vec2 refractedUvRed   = texCoord + displacementRed   * pixelSize;
-    vec2 refractedUvGreen = texCoord + displacementGreen * pixelSize;
-    vec2 refractedUvBlue  = texCoord + displacementBlue  * pixelSize;
-
-    // Sample backdrop with refraction. Bilinear filtering smoothly blends 
-    // the small sub-pixel RGB splits into continuous cyan/red fringes.
-    vec3 refractedColor = vec3(
-        sampleBackdrop(refractedUvRed).r,
-        sampleBackdrop(refractedUvGreen).g,
-        sampleBackdrop(refractedUvBlue).b
-    );
-
-    float edgeInfluence = 1.0 - smoothstep(0.0, bw, inwardDistance);
-
-    // ── Environment reflection (luminance-gated with internal dispersion) ──
-    // Edge reflections in thick curved glass exhibit color separation due to 
-    // multiple internal reflections and high curvature. We simulate this by 
-    // applying a scaled dispersion to the reflection offset.
-    float refDisp = max(ubuf.dispersion, 0.0) * 2.0; 
-    vec2 reflectedUvRed   = texCoord + normal * (ubuf.reflectionOffset * (1.0 - refDisp)) * pixelSize;
-    vec2 reflectedUvGreen = texCoord + normal * ubuf.reflectionOffset * pixelSize;
-    vec2 reflectedUvBlue  = texCoord + normal * (ubuf.reflectionOffset * (1.0 + refDisp)) * pixelSize;
-
-    vec3 reflectedColor = vec3(
-        sampleBackdrop(reflectedUvRed).r,
-        sampleBackdrop(reflectedUvGreen).g,
-        sampleBackdrop(reflectedUvBlue).b
-    );
-
-    vec3 glass = refractedColor;
-
-    // Reflection shows when reflected area is bright AND refracted area is dark.
-    // We add a Fresnel term so the reflection naturally strengthens at steep edges.
-    float refractedLuma = dot(refractedColor, vec3(0.2126, 0.7152, 0.0722));
-    float reflectedLuma = dot(reflectedColor, vec3(0.2126, 0.7152, 0.0722));
-    float reflectionPresence = smoothstep(0.2, 0.85, reflectedLuma);
-    float refractionAcceptance = 1.0 - smoothstep(0.35, 0.85, refractedLuma);
-    
-    float fresnel = pow(1.0 - surfaceNormal.z, 3.0);
-    float reflectionBlend = clamp(reflectionPresence * refractionAcceptance + fresnel * 0.3, 0.0, 1.0);
-
-    vec3 edgeSpecularColor = mix(refractedColor, reflectedColor, reflectionBlend);
-
-    // ── Edge-local saturation boost (global saturation is MultiEffect's job) ──
-    // Glass material only affects the bezel zone. The flat interior shows
-    // the original backdrop untouched — like a transparent window with
-    // beveled edges.
-    vec3 glassInterior = glass;
-    // edgeSaturation is an additive boost on top of MultiEffect's global saturation
-    glassInterior = applySaturation(glassInterior, 1.0 + edgeInfluence * ubuf.edgeSaturation);
-
-    // ── Specular rim highlights (directional, from liquid-dom) ───────
-    float rimWidthPx = max(ubuf.strokeWidth, 0.0001);
-    float specularInwardDistancePx = max(-distance, 0.0);
-    float specularOuterMask = 1.0 - smoothstep(0.0, 1.0, max(distance, 0.0));
-    float specularInnerMask = 1.0 - smoothstep(
-        rimWidthPx, rimWidthPx + 1.0, specularInwardDistancePx);
-    float rimBandMask = specularOuterMask * specularInnerMask;
-
-    // Inward progress: 0 at boundary, 1 at rimWidth inside
-    float inwardProgress = clamp(
-        specularInwardDistancePx / max(rimWidthPx, 1.0), 0.0, 1.0);
-    // Quadratic falloff (liquid-dom: specularFalloff * progress²)
-    float strengthFalloff = 1.0 - inwardProgress * inwardProgress * 0.5;
-
-    vec2 specularNormal = lightDir;
-    
-    // Reuse the dispersed reflectedColor to tint the specular rim, ensuring
-    // the white highlights also gain the beautiful rainbow chromatic aberration.
-    vec3 rimReflectionTint = mix(
-        vec3(1.0), reflectedColor, ubuf.rimReflectionStrength);
-    float normalAlignment = dot(normal, specularNormal);
-
-    // Primary and opposite rim contributions are both derived from the same
-    // configurable specular normal, matching the reference "Specular Angle"
-    // control: rotating one normal rotates the whole rim highlight pattern.
-    float rimSpecular = pow(max(normalAlignment, 0.0), ubuf.lightPower);
-    float oppositeRimSpecular = pow(max(-normalAlignment, 0.0), ubuf.lightPower);
-
-    float primaryOpacity = clamp(
-        rimSpecular * ubuf.strokeStrength * strengthFalloff, 0.0, 1.0);
-    float oppositeOpacity = clamp(
-        oppositeRimSpecular * ubuf.strokeStrength * strengthFalloff, 0.0, 1.0);
-    float combinedSpecular = clamp(
-        (primaryOpacity + oppositeOpacity) * rimBandMask, 0.0, 1.0);
-
-    // White specular (additive, modulated by specularOpacity)
-    float whiteSpecularOpacity = combinedSpecular * ubuf.specularOpacity;
-    vec3 whiteSpecular = rimReflectionTint * whiteSpecularOpacity;
-
-    // Coloured specular tint (highlightColor, for compatibility with
-    // liquid-dom's pure-white specular we default highlightColor to white)
-    vec3 coloredSpecular = ubuf.highlightColor.rgb
-        * ubuf.highlightColor.a
-        * combinedSpecular * 0.5;
-
-    // ── Compositing (from liquid-dom) ─────────────────────────────────
-    vec3 background = sampleBackdrop(texCoord).rgb;
-    vec3 color = background;
-    if (fillMask > 0.0) {
-        // 1. Glass interior: the whole shape composites the same refracted
-        //    surface field. The center stays visually transparent when the
-        //    source is unblurred because refractedColor equals background
-        //    over the flat interior.
-        color = mix(color, glassInterior, fillMask);
-        // 2. Coloured edge specular (refracted ↔ reflected mix)
-        color = mix(color, edgeSpecularColor, combinedSpecular * fillMask);
-        // 3. White specular (additive) — rim band only
-        color = color + whiteSpecular * fillMask;
-        // 4. Coloured specular tint — rim band only
-        color = color + coloredSpecular * fillMask;
+    vec3 refractedColor;
+    if (clampedSlope < 1e-4 || commonScale < 1e-4) {
+        refractedColor = sampleBackdrop(texCoord).rgb;
+    } else if (needEdgeSS) {
+        vec2 o = vec2(0.25);
+        vec3 acc =
+            sampleRefractedAt(centered + vec2(-o.x, -o.y), halfSize, size, pixelSize,
+                              bw, shapeAntialiasWidth, baseIor, lightDir)
+          + sampleRefractedAt(centered + vec2( o.x, -o.y), halfSize, size, pixelSize,
+                              bw, shapeAntialiasWidth, baseIor, lightDir)
+          + sampleRefractedAt(centered + vec2(-o.x,  o.y), halfSize, size, pixelSize,
+                              bw, shapeAntialiasWidth, baseIor, lightDir)
+          + sampleRefractedAt(centered + vec2( o.x,  o.y), halfSize, size, pixelSize,
+                              bw, shapeAntialiasWidth, baseIor, lightDir);
+        refractedColor = acc * 0.25;
+    } else if (useDispersion) {
+        vec2 scaledPixel = commonScale * pixelSize;
+        vec3 rayR = refract(kViewDir, surfaceNormal, 1.0 / max(baseIor - disp, 1.0001));
+        vec3 rayG = refract(kViewDir, surfaceNormal, 1.0 / baseIor);
+        vec3 rayB = refract(kViewDir, surfaceNormal, 1.0 / max(baseIor + disp, 1.0001));
+        refractedColor = vec3(
+            sampleBackdrop(texCoord + refractDisplacement(rayR, 1.0) * scaledPixel).r,
+            sampleBackdrop(texCoord + refractDisplacement(rayG, 1.0) * scaledPixel).g,
+            sampleBackdrop(texCoord + refractDisplacement(rayB, 1.0) * scaledPixel).b
+        );
+    } else {
+        vec3 ray = refract(kViewDir, surfaceNormal, 1.0 / baseIor);
+        refractedColor = sampleBackdrop(
+            texCoord + refractDisplacement(ray, commonScale) * pixelSize).rgb;
     }
 
-    // ── Corner alpha (rounded-rect clip, SDF derivative antialiasing) ──
-    float cornerAlpha = 1.0 - smoothstep(0.0, shapeAntialiasWidth, max(sdf, 0.0));
-    // Premultiplied alpha: transparent pixels must have zero RGB too,
-    // otherwise MultiEffect's blur bleeds false colour (white corners)
-    // when sampling the layer texture.
-    float outAlpha = cornerAlpha * ubuf.qt_Opacity;
-    fragColor = vec4(clamp(color, vec3(0.0), vec3(1.0)) * outAlpha, outAlpha);
+    float edgeInfluence = 1.0 - smoothstep(0.0, bw, inwardDistance);
+    vec3 glassInterior = refractedColor;
+    // Skip the luma mix when edge saturation is off or we are past the bezel.
+    if (ubuf.edgeSaturation != 0.0 && edgeInfluence > 0.0)
+        glassInterior = applySaturation(
+            refractedColor, 1.0 + edgeInfluence * ubuf.edgeSaturation);
+
+    // Base glass: fillMask is 1 over almost the whole interior of the shape,
+    // so avoid a redundant background fetch on the common path.
+    vec3 color;
+    if (fillMask >= 0.999)
+        color = glassInterior;
+    else
+        color = mix(sampleBackdrop(texCoord).rgb, glassInterior, fillMask);
+
+    // Reflection + rim specular only where combinedSpecular contributes.
+    // (highlightEnabled=false zeroes strokeStrength → this whole block is skipped.)
+    if (combinedSpecular > 1e-4) {
+        vec3 reflectedColor = sampleDispersed(
+            texCoord, normal, ubuf.reflectionOffset, pixelSize, useDispersion);
+
+        float fresnel = nz2 * nz; // (1 - n.z)^3
+        float reflectionBlend = clamp(
+            smoothstep(0.2, 0.85, dot(reflectedColor, kLumaWeights))
+                * (1.0 - smoothstep(0.35, 0.85, dot(refractedColor, kLumaWeights)))
+                + fresnel * 0.3,
+            0.0, 1.0);
+
+        vec3 edgeSpecularColor = mix(refractedColor, reflectedColor, reflectionBlend);
+        vec3 rimReflectionTint = mix(vec3(1.0), reflectedColor, ubuf.rimReflectionStrength);
+        
+        vec3 specularAdd = rimReflectionTint * ubuf.specularOpacity 
+                         + ubuf.highlightColor.rgb * (ubuf.highlightColor.a * 0.5);
+
+        float specularMask = combinedSpecular * fillMask;
+        color = mix(color, edgeSpecularColor, specularMask);
+        color += specularAdd * specularMask;
+    }
+
+    fragColor = vec4(clamp(color, 0.0, 1.0) * outAlpha, outAlpha);
 }
