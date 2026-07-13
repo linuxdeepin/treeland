@@ -95,7 +95,7 @@ private:
     qreal m_glassThickness = 50;
     qreal m_glassDisplacementFactor = 1.0;
     qreal m_glassIor = 1.2;
-    qreal m_glassDispersion = 0.05;
+    qreal m_glassDispersion = 0.0;
     qreal m_glassBrightness = 0.0;
     qreal m_glassEdgeSaturation = 0.4;
     qreal m_glassLightAngle = -127;

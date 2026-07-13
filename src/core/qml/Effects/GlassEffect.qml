@@ -17,10 +17,10 @@ Item {
 
     // Glass material parameters (aligned with liquid-dom naming)
     property real bezelWidth: 30        // edge bevel width (px)
-    property real thickness: 50         // base glass thickness (px)
+    property real thickness: 20         // base glass thickness (px)
     property real displacementFactor: 1 // scalar on displacement
-    property real ior: 1.2              // refractive index
-    property real dispersion: 0.02     // RGB channel separation
+    property real ior: 1.5              // refractive index
+    property real dispersion: 0.0      // RGB channel separation; 0 disables
 
     // Colour controls — applied to the backdrop BEFORE refraction, so the
     // glass specular / rim highlights stay sharp and uncoloured.
@@ -48,6 +48,7 @@ Item {
     property bool rimReflectionEnabled: true
 
     // Light direction.  Degrees; 0 points right, -90 points up.
+    // Always a unit vector (cos/sin); the fragment shader consumes it as-is.
     property real lightAngle: -135.0
     readonly property real lightAngleRadians: lightAngle * Math.PI / 180
     property real lightPower: 2.0        // specular sharpness exponent
