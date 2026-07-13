@@ -14,7 +14,6 @@ public:
     int workspaceId;
     QString desktopWallpaper;
     TreelandWallpaperInterfaceV1::WallpaperType desktopWallpapertype;
-    bool enable;
 
     QJsonObject toJson() const;
 
@@ -27,7 +26,6 @@ public:
     QString lockscreenWallpaper;
     QList<WallpaperWorkspaceConfig> workspaces;
     TreelandWallpaperInterfaceV1::WallpaperType lockScreenWallpapertype;
-    bool enable;
 
     QJsonObject toJson() const;
     bool containsWorkspace(int id) const;
