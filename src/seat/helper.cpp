@@ -2316,23 +2316,33 @@ SurfaceWrapper *Helper::keyboardFocusSurface() const
 
 SurfaceWrapper *Helper::activatedSurface() const
 {
-    return m_activatedSurface;
+    if (!m_rootSurfaceContainer)
+        return nullptr;
+
+    auto *seatContainer = m_rootSurfaceContainer->getSeatContainerOrDefault(m_primarySeat);
+    return seatContainer ? seatContainer->activatedSurface() : nullptr;
 }
 
 void Helper::setActivatedSurface(SurfaceWrapper *newActivateSurface, WSeat *seat)
 {
-    if (seat && seat != m_primarySeat) {
-        // Per-seat activation: delegate to SeatSurfaceManager
-        if (auto *container = m_rootSurfaceContainer->getSeatContainer(seat)) {
-            if (container->activatedSurface() != newActivateSurface)
-                container->setActivatedSurface(newActivateSurface, Qt::OtherFocusReason);
-        }
+    if (!m_rootSurfaceContainer) {
         return;
     }
 
-    // Primary seat / global activation
-    if (m_activatedSurface == newActivateSurface)
+    WSeat *targetSeat = seat ? seat : m_primarySeat;
+    auto *seatContainer = m_rootSurfaceContainer->getSeatContainerOrDefault(targetSeat);
+    if (!seatContainer) {
         return;
+    }
+
+    if (seatContainer->activatedSurface() == newActivateSurface)
+        return;
+
+    const bool isPrimarySeat = (targetSeat == m_primarySeat);
+    auto *oldPrimarySurface = isPrimarySeat ? activatedSurface() : nullptr;
+
+    if (oldPrimarySurface)
+        oldPrimarySurface->setActivate(false);
 
     if (newActivateSurface) {
         Q_ASSERT(newActivateSurface->showOnWorkspace(workspace()->current()->id()));
@@ -2345,9 +2355,6 @@ void Helper::setActivatedSurface(SurfaceWrapper *newActivateSurface, WSeat *seat
         }
     }
 
-    if (m_activatedSurface)
-        m_activatedSurface->setActivate(false);
-
     if (newActivateSurface) {
         if (m_showDesktop == WindowManagementInterfaceV1::DesktopState::Show) {
             m_showDesktop = WindowManagementInterfaceV1::DesktopState::Normal;
@@ -2356,26 +2363,19 @@ void Helper::setActivatedSurface(SurfaceWrapper *newActivateSurface, WSeat *seat
         }
 
         Q_ASSERT(newActivateSurface->hasActiveCapability());
-        newActivateSurface->setActivate(true);
         workspace()->pushActivedSurface(newActivateSurface);
     }
 
-    if (m_activatedSurface)
-        disconnect(m_activatedSurface,
-                   &SurfaceWrapper::hasFocusCapabilityChanged,
-                   this,
-                   &Helper::onActivatedSurfaceFocusCapabilityChanged);
+    seatContainer->setActivatedSurface(newActivateSurface, Qt::OtherFocusReason);
 
-    m_activatedSurface = newActivateSurface;
-
-    if (m_activatedSurface) {
-        connect(m_activatedSurface,
-                &SurfaceWrapper::hasFocusCapabilityChanged,
-                this,
-                &Helper::onActivatedSurfaceFocusCapabilityChanged);
+    if (isPrimarySeat && newActivateSurface) {
+        Q_ASSERT(newActivateSurface->hasActiveCapability());
+        newActivateSurface->setActivate(true);
     }
 
-    Q_EMIT activatedSurfaceChanged();
+    if (isPrimarySeat && oldPrimarySurface != activatedSurface()) {
+        Q_EMIT activatedSurfaceChanged();
+    }
 }
 
 void Helper::onRenderWindowActiveFocusItemChanged()
@@ -2449,30 +2449,22 @@ void Helper::requestKeyboardFocus(SurfaceWrapper *wrapper, Qt::FocusReason reaso
     if (!targetSeat || !targetSeat->nativeHandle())
         return;
 
+    auto *seatContainer = m_rootSurfaceContainer->getSeatContainer(targetSeat);
+
     if (wrapper) {
         wrapper->setFocus(true, reason);
         if (m_currentEventSeat && targetSeat == m_currentEventSeat) {
             updateSurfaceSeatInteraction(wrapper, targetSeat);
         }
-    } else if (auto currentFocus = keyboardFocusSurface()) {
+    } else if (auto currentFocus =
+                   seatContainer ? seatContainer->keyboardFocusSurface() : keyboardFocusSurface()) {
         currentFocus->setFocus(false, reason);
     }
 
     // Ensure Wayland keyboard focus is set and also inform SeatSurfaceManager
     targetSeat->setKeyboardFocusSurface(wrapper ? wrapper->surface() : nullptr);
-    if (auto *seatContainer = m_rootSurfaceContainer->getSeatContainer(targetSeat)) {
+    if (seatContainer) {
         seatContainer->setKeyboardFocusSurface(wrapper);
-    }
-}
-
-void Helper::onActivatedSurfaceFocusCapabilityChanged()
-{
-    if (!m_activatedSurface)
-        return;
-    if (m_activatedSurface->hasFocusCapability()) {
-        requestKeyboardFocus(m_activatedSurface, Qt::ActiveWindowFocusReason);
-    } else {
-        requestKeyboardFocus(nullptr, Qt::ActiveWindowFocusReason);
     }
 }
 
@@ -2791,8 +2783,8 @@ void Helper::setLockScreenImpl(ILockScreen *impl)
 #ifdef EXT_SESSION_LOCK_V1
         setNoAnimation(false);
 #endif
-        if (m_activatedSurface) {
-            m_activatedSurface->setFocus(true, Qt::NoFocusReason);
+        if (auto *surface = activatedSurface()) {
+            surface->setFocus(true, Qt::NoFocusReason);
         }
     });
     if (!impl) {

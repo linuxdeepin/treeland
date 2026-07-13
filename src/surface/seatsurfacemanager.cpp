@@ -2,17 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "seatsurfacemanager.h"
+
 #include "rootsurfacecontainer.h"
 #include "seat/helper.h"
 #include "seat/seatsmanager.h"
-#include "common/treelandlogging.h"
 
 #include <winputdevice.h>
 #include <woutput.h>
-#include <woutputlayout.h>
 #include <woutputitem.h>
-#include <wxdgtoplevelsurface.h>
+#include <woutputlayout.h>
 #include <wseat.h>
+#include <wxdgtoplevelsurface.h>
+
 #include <qwoutput.h>
 
 #include <QDateTime>
@@ -39,8 +40,39 @@ void SeatSurfaceManager::setActivatedSurface(SurfaceWrapper *surface, Qt::FocusR
     if (m_activatedSurface == surface)
         return;
 
+    if (m_activatedSurface) {
+        disconnect(m_activatedSurface,
+                   &SurfaceWrapper::hasFocusCapabilityChanged,
+                   this,
+                   &SeatSurfaceManager::onActivatedSurfaceFocusCapabilityChanged);
+    }
+
     m_activatedSurface = surface;
+
+    if (m_activatedSurface) {
+        connect(m_activatedSurface,
+                &SurfaceWrapper::hasFocusCapabilityChanged,
+                this,
+                &SeatSurfaceManager::onActivatedSurfaceFocusCapabilityChanged);
+    }
+
     Q_EMIT activatedSurfaceChanged(surface);
+}
+
+void SeatSurfaceManager::onActivatedSurfaceFocusCapabilityChanged()
+{
+    if (!m_activatedSurface)
+        return;
+
+    auto *helper = Helper::instance();
+    if (!helper)
+        return;
+
+    if (m_activatedSurface->hasFocusCapability()) {
+        helper->requestKeyboardFocus(m_activatedSurface, Qt::ActiveWindowFocusReason, m_seat);
+    } else {
+        helper->requestKeyboardFocus(nullptr, Qt::ActiveWindowFocusReason, m_seat);
+    }
 }
 
 void SeatSurfaceManager::setKeyboardFocusSurface(SurfaceWrapper *surface)

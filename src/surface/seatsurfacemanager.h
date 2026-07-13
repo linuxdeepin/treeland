@@ -52,6 +52,8 @@ Q_SIGNALS:
     void moveResizeChanged();
 
 private:
+    void onActivatedSurfaceFocusCapabilityChanged();
+
     WSeat *m_seat = nullptr;
     RootSurfaceContainer *m_rootContainer = nullptr;
     

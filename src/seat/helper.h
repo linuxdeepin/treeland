@@ -355,7 +355,6 @@ private:
     SurfaceWrapper *keyboardFocusSurface() const;
     SurfaceWrapper *activatedSurface() const;
     void setActivatedSurface(SurfaceWrapper *newActivateSurface, WSeat *seat = nullptr);
-    void onActivatedSurfaceFocusCapabilityChanged();
 
     void setCursorPosition(const QPointF &position);
 
@@ -456,7 +455,6 @@ private:
     QPointer<QQuickItem> m_taskSwitch;
     QList<qw_idle_inhibitor_v1 *> m_idleInhibitors;
 
-    SurfaceWrapper *m_activatedSurface = nullptr;
     LockScreen *m_lockScreen = nullptr;
     float m_animationSpeed = 1.0;
     OutputMode m_mode = OutputMode::Extension;
