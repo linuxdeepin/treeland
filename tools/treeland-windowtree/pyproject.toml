@@ -22,3 +22,6 @@ treeland-windowtree = "treeland_windowtree.cli:main"
 
 [tool.setuptools]
 packages = ["treeland_windowtree"]
+
+[tool.setuptools.package-data]
+treeland_windowtree = ["treelandwindowtree.rep"]
