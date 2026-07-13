@@ -113,8 +113,7 @@ class LockScreen;
 class LockScreenInterface;
 class Multitaskview;
 class Output;
-class OutputConfigState;
-class OutputLifecycleManager;
+class OutputManager;
 class OutputManagerV1;
 class PersonalizationManagerInterfaceV1;
 class RootSurfaceContainer;
@@ -345,6 +344,7 @@ private:
     friend class WallpaperItem;
     friend class WallpaperSwitcherItem;
     friend class InputManager;
+    friend class OutputManager;
 
     void allowNonDrmOutputAutoChangeMode(WOutput *output);
     int indexOfOutput(WOutput *output) const;
@@ -365,14 +365,26 @@ private:
     bool doGesture(QInputEvent *event);
     Output *createNormalOutput(WOutput *output);
     Output *createCopyOutput(WOutput *output, Output *proxy);
+    bool ensureOutputInRootContainer(Output *output);
+    void removeOutputFromRootContainer(Output *output);
+    void removeOutputFromRootContainer(WOutput *output);
     WOutputViewport *getOwnOutputViewport(WOutput *output);
     QList<SurfaceWrapper *> getWorkspaceSurfaces(Output *filterOutput = nullptr);
     void moveSurfacesToOutput(const QList<SurfaceWrapper *> &surfaces,
                               Output *targetOutput,
                               Output *sourceOutput);
     void handleCopyModeOutputDisable(Output *affectedOutput);
+    bool restoreConfiguredCopyMode();
+    void restoreExtensionModeFromConfig(bool preserveSingleOutputConfig = false);
+    void restoreInitialOutputConfiguration();
     void restoreCopyMode();
-    void applyCopyModeToOutputs(Output *primaryOutput, const QList<SurfaceWrapper *> &surfaces);
+    void applyCopyModeToOutputs(Output *primaryOutput,
+                                const QList<SurfaceWrapper *> &surfaces,
+                                const QStringList &outputIds = {},
+                                bool persistConfig = true);
+    void saveCurrentOutputConfig(Output *output);
+    Output *findOutputByName(const QString &name) const;
+    Output *findOutputById(const QString &id) const;
     bool isNvidiaCardPresent();
     void setWorkspaceVisible(bool visible);
     void restoreFromShowDesktop(SurfaceWrapper *activeSurface = nullptr);
@@ -382,6 +394,7 @@ private:
 
     void switchWorkspaceForSeat(WSeat *seat, int index);
     void handleRequestDragForSeat(WSeat *seat, WSurface *surface);
+    void enableAllOutput();
 
     WSeat *m_currentEventSeat = nullptr;
 
@@ -444,11 +457,8 @@ private:
 #endif
     // private data
     QList<Output *> m_outputList;
-    OutputConfigState *m_outputConfigState = nullptr;
-    // outputs disabled by output_power (should be re-enabled on input)
     QSet<wlr_output *> m_powerOffOutputs;
-
-    OutputLifecycleManager *m_outputLifecycleManager = nullptr;
+    OutputManager *m_outputManagerHelper = nullptr;
     QPointer<QQuickItem> m_taskSwitch;
     QList<qw_idle_inhibitor_v1 *> m_idleInhibitors;
 
@@ -471,6 +481,7 @@ private:
 
     bool m_noAnimation{ false };
     bool m_isDDMDisplay{ false };
+    bool scanned{ false };
     void tryInitRemoteSource();
 
     TreelandRemoteSource *m_treelandRemoteSource = nullptr;

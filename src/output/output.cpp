@@ -385,9 +385,9 @@ void Output::enable()
     // needs this signal to render next frame. Because QWOutput::frame signal
     // maybe Q_EMIT before WOutputRenderWindow::attach, if no commit here,
     // WOutputRenderWindow will ignore this output on render.
-    if (!qwoutput->property("_Enabled").toBool()) {
-        qwoutput->setProperty("_Enabled", true);
-
+    const bool cachedEnabled = qwoutput->property("_Enabled").toBool();
+    const bool outputEnabled = qwoutput->handle()->enabled;
+    if (!cachedEnabled || !outputEnabled) {
         if (!qwoutput->handle()->current_mode) {
             auto mode = qwoutput->preferred_mode();
             if (mode) {
@@ -403,7 +403,12 @@ void Output::enable()
         newState.set_enabled(true);
         if (!qwoutput->commit_state(newState)) {
             qCCritical(lcTlCore, "commit failed on output %s", qwoutput->handle()->name);
+            return;
         }
+        qwoutput->setProperty("_Enabled", true);
+        qCInfo(lcTlOutput) << "Enabled output" << qwoutput->handle()->name
+                           << "cached:" << cachedEnabled
+                           << "was enabled:" << outputEnabled;
     }
 }
 
