@@ -21,7 +21,7 @@ Item {
     property real glassThickness: 50
     property real glassDisplacementFactor: 1.0
     property real glassIor: 1.2
-    property real glassDispersion: 0.012
+    property real glassDispersion: 0.0
     property real glassBrightness: 0.05
     property real glassContrast: -0.12
     property real glassSaturation: 0.4
