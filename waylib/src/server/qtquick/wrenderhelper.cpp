@@ -1,4 +1,4 @@
-// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 JiDe Zhang <zhangjide@deepin.org>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wrenderhelper.h"
@@ -843,6 +843,36 @@ bool WRenderHelper::makeTexture(QRhi *rhi, qw_texture *handle, QSGPlainTexture *
     if (Q_UNLIKELY(!updateTexture))
         return false;
     updateTexture(rhi, handle, texture);
+    return true;
+}
+
+bool WRenderHelper::makeTextureFromShm(qw_buffer *buffer, QSGPlainTexture *texture)
+{
+    void *data = nullptr;
+    uint32_t format = 0;
+    size_t stride = 0;
+    if (!buffer->begin_data_ptr_access(WLR_BUFFER_DATA_PTR_ACCESS_READ, &data, &format, &stride))
+        return false;
+
+    const QSize size(buffer->handle()->width, buffer->handle()->height);
+    const QImage::Format imageFormat = WTools::toImageFormat(format);
+    QImage image;
+    if (imageFormat != QImage::Format_Invalid && data && size.isValid()) {
+        // Deep-copy the shm pixels while the data pointer is accessible. The
+        // QSGPlainTexture uploads the QImage lazily during the render cycle, so
+        // the image must own its data instead of referencing the shm mapping
+        // (which is only safely accessible between begin/end_data_ptr_access).
+        image = QImage(static_cast<const uchar *>(data), size.width(), size.height(),
+                       static_cast<int>(stride), imageFormat).copy();
+    }
+    buffer->end_data_ptr_access();
+
+    if (image.isNull())
+        return false;
+
+    texture->setImage(image);
+    texture->setTextureSize(size);
+    texture->setHasAlphaChannel(image.hasAlphaChannel());
     return true;
 }
 

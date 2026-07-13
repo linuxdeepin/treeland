@@ -13,6 +13,7 @@
 
 #include <rhi/qrhi.h>
 #include <private/qsgplaintexture_p.h>
+#include <memory>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -35,23 +36,36 @@ public:
     }
 
     void cleanTexture() {
+        class TextureCleanupJob : public QRunnable
+        {
+        public:
+            TextureCleanupJob(QRhiTexture *texture)
+                : texture(texture) { }
+            void run() override {
+                texture->deleteLater();
+            }
+            QRhiTexture *texture;
+        };
+
         if (rhiTexture) {
             Q_ASSERT(window);
-            class TextureCleanupJob : public QRunnable
-            {
-            public:
-                TextureCleanupJob(QRhiTexture *texture)
-                    : texture(texture) { }
-                void run() override {
-                    texture->deleteLater();
-                }
-                QRhiTexture *texture;
-            };
-
             // Delay clean the qt rhi textures.
             window->scheduleRenderJob(new TextureCleanupJob(rhiTexture),
                                       QQuickWindow::AfterSynchronizingStage);
             rhiTexture = nullptr;
+        }
+
+        if (shmTexture) {
+            if (QRhiTexture *tex = shmTexture->rhiTexture()) {
+                Q_ASSERT(window);
+                window->scheduleRenderJob(new TextureCleanupJob(tex),
+                                          QQuickWindow::AfterSynchronizingStage);
+            }
+            // Prevent QSGPlainTexture from deleting the texture in its
+            // destructor; the deferred job above owns the cleanup.
+            shmTexture->setOwnsTexture(false);
+            shmTexture.reset();
+            hasShmImage = false;
         }
 
         if (ownsTexture && texture)
@@ -85,6 +99,19 @@ public:
     QSGPlainTexture qtTexture;
     QRhiTexture *rhiTexture = nullptr;
     bool smooth = true;
+
+    // For shm buffers in vulkan mode: a Qt-owned texture uploaded from shm
+    // pixels, instead of borrowing wlroots' device-local VkImage.
+    std::unique_ptr<QSGPlainTexture> shmTexture;
+    bool hasShmImage = false;
+
+    QSGPlainTexture *createPlainTexture() {
+        QSGPlainTexture *t = new QSGPlainTexture;
+        t->setOwnsTexture(true);
+        t->setFiltering(smooth ? QSGTexture::Linear : QSGTexture::Nearest);
+        t->setMipmapFiltering(smooth ? QSGTexture::Linear : QSGTexture::Nearest);
+        return t;
+    }
 };
 
 WSGTextureProvider::WSGTextureProvider(WOutputRenderWindow *window)
@@ -101,15 +128,58 @@ WOutputRenderWindow *WSGTextureProvider::window() const
 
 void WSGTextureProvider::setBuffer(qw_buffer *buffer)
 {
+    W_D(WSGTextureProvider);
+
     if (buffer == qwBuffer()) {
         // The buffer object is not changed, but maybe the buffer's content is changed.
         // So should emit textureChanged() signal too.
-        if (buffer)
+        if (buffer) {
+#ifdef ENABLE_VULKAN_RENDER
+            // For the shm upload path, wlroots applies damage to its own texture
+            // (which we don't use). Re-read the shm pixels so the Qt-owned
+            // texture reflects the latest content.
+            //
+            // NOTE: This re-reads and re-uploads the entire buffer, not just
+            // the damaged region. Partial dirty-region optimization (via
+            // QRhiTextureUpdater or a custom QSGTexture) is deferred to a
+            // future iteration.
+            //
+            // makeTextureFromShm calls setImage() internally; QSGPlainTexture
+            // compares the new and old images via QImage::operator==, which
+            // does a memcmp on pixel data (not a pointer comparison), so
+            // unchanged content skips the GPU upload but is not zero-cost.
+            if (d->hasShmImage)
+                WRenderHelper::makeTextureFromShm(buffer, d->shmTexture.get());
+#endif
             Q_EMIT textureChanged();
+        }
         return;
     }
 
-    W_D(WSGTextureProvider);
+#ifdef ENABLE_VULKAN_RENDER
+    // In vulkan mode, shm client buffers must be uploaded by Qt itself instead of
+    // borrowing wlroots' device-local VkImage. That VkImage shares the VkDevice
+    // with Qt but runs on a separate command stream without cross-stream sync,
+    // so Qt may sample it before the upload is complete. dmabuf buffers are
+    // unaffected (dma-buf sync provides cross-stream synchronization).
+    if (buffer && WRenderHelper::getGraphicsApi() == QSGRendererInterface::Vulkan) {
+        wlr_shm_attributes shmAttrs;
+        if (buffer->get_shm(&shmAttrs)) {
+            std::unique_ptr<QSGPlainTexture> shmTex(d->createPlainTexture());
+            if (WRenderHelper::makeTextureFromShm(buffer, shmTex.get())) {
+                d->cleanTexture();
+                d->buffer = buffer;
+                d->shmTexture = std::move(shmTex);
+                d->hasShmImage = true;
+                Q_EMIT textureChanged();
+                return;
+            }
+            // Shm upload failed (e.g. unsupported pixel format): fall back
+            // to the wlroots texture path below.
+        }
+    }
+#endif
+
     d->cleanTexture();
     d->buffer = buffer;
 
@@ -164,6 +234,8 @@ void WSGTextureProvider::invalidate()
 QSGTexture *WSGTextureProvider::texture() const
 {
     W_DC(WSGTextureProvider);
+    if (d->hasShmImage)
+        return d->shmTexture.get();
     return d->texture ? const_cast<QSGPlainTexture*>(&d->qtTexture) : nullptr;
 }
 
@@ -195,6 +267,12 @@ void WSGTextureProvider::setSmooth(bool newSmooth)
                                         : QSGTexture::Nearest);
     d->qtTexture.setMipmapFiltering(newSmooth ? QSGTexture::Linear
                                               : QSGTexture::Nearest);
+    if (d->shmTexture) {
+        d->shmTexture->setFiltering(newSmooth ? QSGTexture::Linear
+                                              : QSGTexture::Nearest);
+        d->shmTexture->setMipmapFiltering(newSmooth ? QSGTexture::Linear
+                                                    : QSGTexture::Nearest);
+    }
 
     Q_EMIT smoothChanged();
 }
