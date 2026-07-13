@@ -10,10 +10,15 @@ import subprocess
 
 from pybind11.setup_helpers import Pybind11Extension, build_ext
 from setuptools import setup
+from setuptools.command.sdist import sdist
 
 
 ROOT = pathlib.Path(__file__).parent.resolve()
-REP_FILE = (ROOT / ".." / ".." / "src" / "modules" / "resource" / "treelandwindowtree.rep").resolve()
+PACKAGED_REP_FILE = ROOT / "treeland_windowtree" / "treelandwindowtree.rep"
+SOURCE_REP_FILE = (
+    ROOT / ".." / ".." / "src" / "modules" / "resource" / "treelandwindowtree.rep"
+).resolve()
+REP_FILE = PACKAGED_REP_FILE if PACKAGED_REP_FILE.is_file() else SOURCE_REP_FILE
 
 
 def _command_from_env(name: str, default: str) -> str:
@@ -23,6 +28,14 @@ def _command_from_env(name: str, default: str) -> str:
 def _pkg_config(args: list[str]) -> list[str]:
     output = subprocess.check_output(["pkg-config", *args], text=True)
     return output.split()
+
+
+class Sdist(sdist):
+    def make_release_tree(self, base_dir: str, files: list[str]) -> None:
+        super().make_release_tree(base_dir, files)
+        packaged_rep_file = pathlib.Path(base_dir) / PACKAGED_REP_FILE.relative_to(ROOT)
+        packaged_rep_file.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(SOURCE_REP_FILE, packaged_rep_file)
 
 
 class BuildExt(build_ext):
@@ -91,7 +104,7 @@ ext_modules = [
 
 setup_kwargs = {
     "ext_modules": ext_modules,
-    "cmdclass": {"build_ext": BuildExt},
+    "cmdclass": {"build_ext": BuildExt, "sdist": Sdist},
 }
 
 
