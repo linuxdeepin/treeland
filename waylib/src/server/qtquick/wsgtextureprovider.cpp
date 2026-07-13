@@ -4,6 +4,7 @@
 #include "wsgtextureprovider.h"
 #include "woutputrenderwindow.h"
 #include "wrenderhelper.h"
+#include "wtools.h"
 #include "private/wglobal_p.h"
 #include "wayliblogging.h"
 
@@ -35,7 +36,13 @@ public:
     }
 
     void cleanTexture() {
-        if (rhiTexture) {
+        auto *oldRhiTexture = qtTexture.rhiTexture();
+        if (oldRhiTexture) {
+            // QSGPlainTexture does not own the QRhiTexture in this provider.
+            // Clear its pointer before scheduling the deferred destruction.
+            qtTexture.setOwnsTexture(false);
+            qtTexture.setTexture(nullptr);
+
             Q_ASSERT(window);
             class TextureCleanupJob : public QRunnable
             {
@@ -49,14 +56,44 @@ public:
             };
 
             // Delay clean the qt rhi textures.
-            window->scheduleRenderJob(new TextureCleanupJob(rhiTexture),
+            window->scheduleRenderJob(new TextureCleanupJob(oldRhiTexture),
                                       QQuickWindow::AfterSynchronizingStage);
-            rhiTexture = nullptr;
+        } else if (imageBacked) {
+            qtTexture.setImage({});
         }
+        imageBacked = false;
 
         if (ownsTexture && texture)
             delete texture;
         texture = nullptr;
+    }
+
+    bool updateImageTexture(qw_buffer *newBuffer) {
+        void *data = nullptr;
+        uint32_t drmFormat = 0;
+        size_t stride = 0;
+        if (!newBuffer->begin_data_ptr_access(WLR_BUFFER_DATA_PTR_ACCESS_READ,
+                                              &data, &drmFormat, &stride))
+            return false;
+
+        const auto imageFormat = WTools::convertToDrmSupportedFormat(
+            WTools::toImageFormat(drmFormat));
+        if (imageFormat == QImage::Format_Invalid) {
+            newBuffer->end_data_ptr_access();
+            return false;
+        }
+        const auto image = QImage(static_cast<const uchar *>(data),
+                                  static_cast<int>(newBuffer->handle()->width),
+                                  static_cast<int>(newBuffer->handle()->height),
+                                  static_cast<int>(stride), imageFormat)
+                               .copy();
+        newBuffer->end_data_ptr_access();
+        if (image.isNull())
+            return false;
+
+        qtTexture.setImage(image);
+        imageBacked = true;
+        return true;
     }
 
     void updateRhiTexture() {
@@ -65,13 +102,9 @@ public:
         if (Q_UNLIKELY(!ok)) {
             qCWarning(lcWlQtQuickTexture) << "Failed to make texture:" << texture
                                         << ", width height:" << texture->handle()->width
-                                        << texture->handle()->height;
-            return;
+                                        << ", height:" << texture->handle()->height;
         }
-
-        rhiTexture = qtTexture.rhiTexture();
     }
-
     W_DECLARE_PUBLIC(WSGTextureProvider)
 
     QPointer<WOutputRenderWindow> window;
@@ -80,10 +113,9 @@ public:
     qw_texture *texture = nullptr;
     bool ownsTexture = false;
     qw_buffer *buffer = nullptr;
-
+    bool imageBacked = false;
     // qt resources
     QSGPlainTexture qtTexture;
-    QRhiTexture *rhiTexture = nullptr;
     bool smooth = true;
 };
 
@@ -101,38 +133,46 @@ WOutputRenderWindow *WSGTextureProvider::window() const
 
 void WSGTextureProvider::setBuffer(qw_buffer *buffer)
 {
-    if (buffer == qwBuffer()) {
-        // The buffer object is not changed, but maybe the buffer's content is changed.
-        // So should emit textureChanged() signal too.
+    W_D(WSGTextureProvider);
+    if (buffer == d->buffer) {
+        // The buffer object is not changed, but its contents may have changed.
+        if (buffer && d->imageBacked)
+            d->updateImageTexture(buffer);
         if (buffer)
             Q_EMIT textureChanged();
         return;
     }
 
-    W_D(WSGTextureProvider);
     d->cleanTexture();
     d->buffer = buffer;
 
     if (buffer) {
         Q_ASSERT(d->window);
-        if (auto clientBuffer = qw_client_buffer::get(*buffer)) {
-            // Acquire texture from client buffer. wlroots already generate texture for us if this is a client buffer.
-            // By the way, there is something wrong with getting texture from a client buffer using wlr_texture_from_buffer,
-            // See: https://gitlab.freedesktop.org/wlroots/wlroots/-/issues/3897
-            // Possible patch:  https://gitlab.freedesktop.org/wlroots/wlroots/-/merge_requests/4889
-            d->texture = qw_texture::from(clientBuffer->handle()->texture);
-            d->ownsTexture = false;
+        if (WRenderHelper::getGraphicsApi() == QSGRendererInterface::Vulkan
+            && d->updateImageTexture(buffer)) {
+            // SHM uploads are owned by Qt RHI. This avoids wlroots' deferred
+            // Vulkan stage command buffer, which is submitted only by a wlroots
+            // render pass and is not part of Qt's command stream.
         } else {
-            d->texture = qw_texture::from_buffer(*d->window->renderer(), *buffer);
-            d->ownsTexture = true;
-        }
-        if (Q_UNLIKELY(!d->texture)) {
-            qCWarning(lcWlQtQuickTexture) << "Failed to update texture from buffer:" << buffer
-                                        << ", width height:" << buffer->handle()->width
-                                        << buffer->handle()->height
-                                        << ", n_locks:" << buffer->handle()->n_locks;
-        } else {
-            d->updateRhiTexture();
+            if (auto clientBuffer = qw_client_buffer::get(*buffer)) {
+                // Acquire texture from client buffer. wlroots already generate texture for us if this is a client buffer.
+                // By the way, there is something wrong with getting texture from a client buffer using wlr_texture_from_buffer,
+                // See: https://gitlab.freedesktop.org/wlroots/wlroots/-/issues/3897
+                // Possible patch: https://gitlab.freedesktop.org/wlroots/wlroots/-/merge_requests/4889
+                d->texture = qw_texture::from(clientBuffer->handle()->texture);
+                d->ownsTexture = false;
+            } else {
+                d->texture = qw_texture::from_buffer(*d->window->renderer(), *buffer);
+                d->ownsTexture = true;
+            }
+            if (Q_UNLIKELY(!d->texture)) {
+                qCWarning(lcWlQtQuickTexture) << "Failed to update texture from buffer:" << buffer
+                                            << ", width height:" << buffer->handle()->width
+                                            << buffer->handle()->height
+                                            << ", n_locks:" << buffer->handle()->n_locks;
+            } else {
+                d->updateRhiTexture();
+            }
         }
     }
 
@@ -164,7 +204,9 @@ void WSGTextureProvider::invalidate()
 QSGTexture *WSGTextureProvider::texture() const
 {
     W_DC(WSGTextureProvider);
-    return d->texture ? const_cast<QSGPlainTexture*>(&d->qtTexture) : nullptr;
+    return (d->imageBacked || d->texture)
+        ? const_cast<QSGPlainTexture*>(&d->qtTexture)
+        : nullptr;
 }
 
 qw_texture *WSGTextureProvider::qwTexture() const

@@ -126,6 +126,10 @@ QImage::Format WTools::toImageFormat(uint32_t drmFormat)
         return QImage::Format_RGB32;
     case DRM_FORMAT_RGBX8888:
         return QImage::Format_RGBX8888;
+    case DRM_FORMAT_BGRX8888:
+        return QImage::Format_RGB32;
+    case DRM_FORMAT_BGRA8888:
+        return QImage::Format_ARGB32;
     case DRM_FORMAT_ARGB8888:
         return QImage::Format_ARGB32_Premultiplied;
     case DRM_FORMAT_RGBA8888:

@@ -27,6 +27,8 @@
 
 QT_WARNING_PUSH
 QT_WARNING_DISABLE_GCC("-Wmissing-field-initializers")
+QT_WARNING_DISABLE_CLANG("-Wmissing-field-initializers")
+QT_WARNING_DISABLE_CLANG("-Wmissing-designated-field-initializers")
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 

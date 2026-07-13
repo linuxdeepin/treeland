@@ -11,6 +11,7 @@
 #include "wsgtextureprovider.h"
 #include "wsurface.h"
 #include "wsurfaceitem_p.h"
+#include "wrenderhelper.h"
 #include "wayliblogging.h"
 
 #include <private/qquickitem_p.h>
@@ -464,7 +465,9 @@ WSGTextureProvider *WSurfaceItemContent::wTextureProvider() const
                 d->textureProvider, &WSGTextureProvider::setSmooth);
 
         if (d->surface) {
-            if (auto texture = d->surface->handle()->get_texture()) {
+            const auto api = WRenderHelper::getGraphicsApi();
+            if (auto texture = d->surface->handle()->get_texture();
+                texture && api != QSGRendererInterface::Vulkan) {
                 d->textureProvider->setTexture(qw_texture::from(texture), d->buffer.get());
             } else {
                 d->textureProvider->setBuffer(d->buffer.get());
@@ -595,8 +598,9 @@ QSGNode *WSurfaceItemContent::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeD
 
     auto tp = wTextureProvider();
     if (d->live || !tp->texture()) {
-        auto texture = d->surface ? d->surface->handle()->get_texture() : nullptr;
-        if (texture) {
+        const auto api = WRenderHelper::getGraphicsApi();
+        if (auto texture = d->surface ? d->surface->handle()->get_texture() : nullptr;
+            texture && api != QSGRendererInterface::Vulkan) {
             tp->setTexture(qw_texture::from(texture), d->buffer.get());
         } else {
             tp->setBuffer(d->buffer.get());
