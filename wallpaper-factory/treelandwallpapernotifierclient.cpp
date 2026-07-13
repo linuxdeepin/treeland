@@ -74,6 +74,12 @@ void TreelandWallpaperNotifierClientV1::instantiate()
 
 void TreelandWallpaperNotifierClientV1::treeland_wallpaper_notifier_v1_add(uint32_t source_type, const QString &file_source)
 {
+    foreach (auto window, m_windows) {
+        if (window->property(WALLPAPERSOURCE).toString() == file_source) {
+            return;
+        }
+    }
+
     QQuickView *wallpaperWindow = new QQuickView;
     WallpaperWindow *window = WallpaperWindow::get(wallpaperWindow);
     window->setSource(file_source);
