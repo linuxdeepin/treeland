@@ -24,17 +24,6 @@
             "permissions": "readwrite",
             "visibility": "public"
         },
-        "enabled": {
-            "value": true,
-            "serial": 0,
-            "flags": [],
-            "name": "Enabled",
-            "name[zh_CN]": "启用",
-            "description": "Whether this output was enabled in the last applied wlr-output-management configuration.",
-            "description[zh_CN]": "当前输出在上次应用的 wlr-output-management 配置中是否启用。",
-            "permissions": "readwrite",
-            "visibility": "public"
-        },
         "x": {
             "value": 0,
             "serial": 0,

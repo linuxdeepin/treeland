@@ -12,6 +12,7 @@
 #include <QJsonObject>
 #include <QRandomGenerator>
 #include <QScopeGuard>
+#include <QPoint>
 #include <qnamespace.h>
 #ifdef EXT_SESSION_LOCK_V1
 #include "wsessionlock.h"
@@ -49,8 +50,7 @@
 #include "modules/shortcut/shortcutrunner.h"
 #include "modules/wallpaper-color/wallpapercolorinterfacev1.h"
 #include "output/output.h"
-#include "output/outputconfigstate.h"
-#include "output/outputlifecyclemanager.h"
+#include "output/outputmanager.h"
 #include "outputconfig.hpp"
 #include "session/session.h"
 #include "surface/surfacecontainer.h"
@@ -119,6 +119,7 @@
 #include <qwlayershellv1.h>
 #include <qwlogging.h>
 #include <qwoutput.h>
+#include <qwoutputlayout.h>
 #include <qwoutputpowermanagementv1.h>
 #include <qwrenderer.h>
 #include <qwscreencopyv1.h>
@@ -144,6 +145,7 @@
 #include <QQuickWindow>
 #include <QThreadPool>
 
+#include <algorithm>
 #include <functional>
 #include <pwd.h>
 #include <unistd.h>
@@ -229,8 +231,7 @@ static void runWhenTreelandConfigInitialized(TreelandConfig *config,
 
 static bool hasSavedOutputState(OutputConfig *config)
 {
-    return config && (!config->enabledIsDefaultValue()
-                      || !config->widthIsDefaultValue()
+    return config && (!config->widthIsDefaultValue()
                       || !config->heightIsDefaultValue()
                       || !config->refreshIsDefaultValue()
                       || !config->scaleIsDefaultValue()
@@ -284,9 +285,20 @@ Helper::Helper(QObject *parent)
             &WallpaperManager::syncAddWorkspace);
     tryInitRemoteSource();
 
-    m_outputConfigState = new OutputConfigState(this);
-    m_outputLifecycleManager =
-        new OutputLifecycleManager(m_rootSurfaceContainer, m_outputConfigState, this);
+    m_outputManagerHelper = new OutputManager(m_rootSurfaceContainer, m_globalConfig.get(), this);
+    connect(m_outputManagerHelper,
+            &OutputManager::copyOutputConfigurationChanged,
+            this,
+            [this](bool enabled, const QString &name, const QStringList &outputNames) {
+                if (!m_virtualOutputInterfaceV1 || name.isEmpty()) {
+                    return;
+                }
+                if (enabled) {
+                    m_virtualOutputInterfaceV1->updateVirtualOutput(name, outputNames);
+                } else {
+                    m_virtualOutputInterfaceV1->removeVirtualOutput(name);
+                }
+            });
 
 #ifdef EXT_SESSION_LOCK_V1
     m_lockScreenGraceTimer = new QTimer(this);
@@ -474,36 +486,85 @@ void Helper::onOutputAdded(WOutput *output)
     // TODO: 应该让helper发出Output的信号，每个需要output的单元单独connect。
     allowNonDrmOutputAutoChangeMode(output);
     Output *o = nullptr;
+    const bool isInitialOutput = !scanned;
+    qCInfo(lcTlOutput) << "Output added" << output->name()
+                       << "id:" << WallpaperManager::getOutputId(output->nativeHandle())
+                       << "scan complete:" << scanned
+                       << "mode:" << static_cast<int>(m_mode);
 
-    bool shouldRestoreCopyMode = (m_mode == OutputMode::Extension && m_outputConfigState
-                                  && m_outputConfigState->shouldRestoreCopyMode()
-                                  && m_outputList.size() >= 1); // This output + existing outputs
-
-    if (shouldRestoreCopyMode) {
-        Output *primaryOutput = m_rootSurfaceContainer->primaryOutput();
-        if (!primaryOutput) {
-            qCWarning(lcTlCore) << "Cannot restore Copy Mode: no primary output available";
-            o = createNormalOutput(output);
-        } else {
-            const auto &allSurfaces = getWorkspaceSurfaces();
-            applyCopyModeToOutputs(primaryOutput, allSurfaces);
-            o = createCopyOutput(output, primaryOutput);
-        }
+    if (!scanned) {
+        // The initial scan collects normal outputs first. Copy mode is restored once,
+        // after backend start has reported all outputs.
+        o = createNormalOutput(output);
     } else if (m_mode == OutputMode::Extension || !m_rootSurfaceContainer->primaryOutput()) {
         o = createNormalOutput(output);
     } else if (m_mode == OutputMode::Copy) {
         o = createCopyOutput(output, m_rootSurfaceContainer->primaryOutput());
     }
     m_outputList.append(o);
-    // Handle primary output restoration via lifecycle manager
-    if (m_outputLifecycleManager) {
-        m_outputLifecycleManager->setMode(m_mode == OutputMode::Extension
-                                              ? OutputLifecycleManager::Mode::Extension
-                                              : OutputLifecycleManager::Mode::Copy);
-        m_outputLifecycleManager->onScreenAdded(o);
+    if (!ensureOutputInRootContainer(o)) {
+        qCWarning(lcTlCore) << "Failed to register output in root container" << output->name();
+    }
+    if (m_outputManagerHelper) {
+        m_outputManagerHelper->setMode(m_mode == OutputMode::Extension
+                                           ? OutputManager::Mode::Extension
+                                           : OutputManager::Mode::Copy);
+        if (scanned) {
+            m_outputManagerHelper->onScreenAdded(o, getWorkspaceSurfaces());
+        }
     }
 
     o->enable();
+    if (scanned && m_mode == OutputMode::Copy) {
+        QStringList copyOutputs = m_outputManagerHelper->copyOutputIds();
+        const QString addedOutputId = WallpaperManager::getOutputId(o);
+        if (!copyOutputs.contains(addedOutputId)) {
+            copyOutputs.append(addedOutputId);
+            m_outputManagerHelper->storeCopyOutputConfig(true, {}, copyOutputs);
+        }
+    }
+    if (scanned && m_mode == OutputMode::Extension) {
+        const QString addedOutputId = WallpaperManager::getOutputId(o);
+        runWhenTreelandConfigInitialized(m_globalConfig.get(), this, [this, addedOutputId] {
+            QMetaObject::invokeMethod(this, [this, addedOutputId] {
+                if (m_mode != OutputMode::Extension || !m_globalConfig->createCopyOutput()) {
+                    return;
+                }
+
+                QStringList configuredCopyOutputs = m_outputManagerHelper->copyOutputIds();
+                if (!configuredCopyOutputs.contains(addedOutputId)) {
+                    const bool waitingForAnotherCopyMember = configuredCopyOutputs.size() == 1
+                        && findOutputById(configuredCopyOutputs.constFirst());
+                    if (!waitingForAnotherCopyMember) {
+                        m_outputManagerHelper->storeCopyOutputConfig(false);
+                        return;
+                    }
+
+                    configuredCopyOutputs.append(addedOutputId);
+                    m_outputManagerHelper->storeCopyOutputConfig(true, {}, configuredCopyOutputs);
+                }
+
+                const bool allCopyOutputsAvailable =
+                    configuredCopyOutputs.size() >= 2
+                    && std::all_of(configuredCopyOutputs.cbegin(),
+                                   configuredCopyOutputs.cend(),
+                                   [this](const QString &id) { return findOutputById(id); });
+                if (allCopyOutputsAvailable) {
+                    restoreConfiguredCopyMode();
+                }
+            }, Qt::QueuedConnection);
+        });
+    }
+    const bool shouldDisableOutput = !scanned;
+    if (shouldDisableOutput) {
+        qw_output_state disabledState;
+        disabledState.set_enabled(false);
+        if (!output->handle()->commit_state(disabledState)) {
+            qCCritical(lcTlCore) << "commit failed while disabling added output" << output->name();
+        } else if (!scanned) {
+            qCInfo(lcTlOutput) << "Temporarily disabled output during initial scan" << output->name();
+        }
+    }
 
     auto publishOutput = [this, output, outputObject = QPointer<Output>(o)] {
         if (!outputObject) {
@@ -513,9 +574,39 @@ void Helper::onOutputAdded(WOutput *output)
         m_outputManager->newOutput(output);
         m_wallpaperManager->ensureWallpaperConfigForOutput(outputObject);
     };
-    auto restoreOutputConfig = [this, output, outputObject = QPointer<Output>(o), publishOutput] {
+    auto restoreOutputConfig = [this,
+                                output,
+                                outputObject = QPointer<Output>(o),
+                                publishOutput,
+                                isInitialOutput] {
         auto publish = qScopeGuard(publishOutput);
         if (!outputObject || m_mode == OutputMode::Copy) {
+            return;
+        }
+
+        // Saved geometry belongs exclusively to the initial backend scan.
+        // A hot-plugged output keeps outputLayout's auto-added position, which
+        // extends the current topology to the right.
+        if (!isInitialOutput) {
+            return;
+        }
+
+        const QString singleOutputId = m_globalConfig->singleOutputId();
+        if (!singleOutputId.isEmpty()
+            && WallpaperManager::getOutputId(outputObject) != singleOutputId) {
+            if (output->isEnabled()) {
+                qw_output_state disabledState;
+                disabledState.set_enabled(false);
+                if (!output->handle()->commit_state(disabledState)) {
+                    qCCritical(lcTlOutput)
+                        << "Failed to disable non-selected output while restoring single-output display"
+                        << output->name();
+                    return;
+                }
+            }
+            qCInfo(lcTlOutput) << "Disabled non-selected output while restoring single-output display"
+                               << output->name()
+                               << "selected output id:" << singleOutputId;
             return;
         }
 
@@ -532,6 +623,9 @@ void Helper::onOutputAdded(WOutput *output)
         }
 
         if (!hasSavedOutputState(config)) {
+            if (!output->isEnabled()) {
+                outputObject->enable();
+            }
             return;
         }
 
@@ -588,6 +682,8 @@ void Helper::onOutputAdded(WOutput *output)
                                       "setTransform",
                                       Q_ARG(QVariant, QVariant::fromValue(static_cast<WOutput::Transform>(transform))));
         }
+
+        saveCurrentOutputConfig(outputObject);
     };
     auto *outputConfig = o->config();
     if (outputConfig->isInitializeFailed()) {
@@ -615,69 +711,126 @@ void Helper::onOutputRemoved(WOutput *output)
     const auto o = m_outputList.takeAt(index);
 
     const auto &surfaces = getWorkspaceSurfaces(o);
-    if (m_mode == OutputMode::Copy) {
-        if (m_outputConfigState) {
-            m_outputConfigState->recordCopyModeExit();
-        }
+    const QStringList copyOutputs = m_outputManagerHelper->copyOutputIds();
+    const bool removedCopyOutput = copyOutputs.contains(WallpaperManager::getOutputId(o));
+    if (m_mode == OutputMode::Copy && removedCopyOutput) {
+        const bool removedCopySource = !copyOutputs.isEmpty()
+            && copyOutputs.constFirst() == WallpaperManager::getOutputId(o);
 
-        m_mode = OutputMode::Extension;
-        Q_EMIT outputModeChanged();
-
-        QList<Output *> outputsToConvert;
-        QList<Output *> oldOutputsToDelete;
-
-        bool removedWasPrimary = (output == m_rootSurfaceContainer->primaryOutput()->output());
-        Output *primaryCandidate = nullptr;
-
-        for (int i = 0; i < m_outputList.size(); i++) {
-            Output *copyOutput = m_outputList.at(i);
-
-            if (copyOutput->isPrimary()) {
-                if (!primaryCandidate)
-                    primaryCandidate = copyOutput;
-                continue;
+        if (removedCopySource && !m_outputList.isEmpty()) {
+            Output *newCopySource = nullptr;
+            for (const auto &outputId : std::as_const(copyOutputs)) {
+                newCopySource = findOutputById(outputId);
+                if (newCopySource) {
+                    break;
+                }
+            }
+            if (!newCopySource) {
+                newCopySource = m_outputList.constFirst();
             }
 
-            Output *normalOutput = createNormalOutput(copyOutput->output());
-            normalOutput->enable();
-
-            outputsToConvert.append(normalOutput);
-            oldOutputsToDelete.append(copyOutput);
-
-            m_outputList.replace(i, normalOutput);
-
-            if (!primaryCandidate) {
-                primaryCandidate = normalOutput;
+            const auto newCopySourceId = WallpaperManager::getOutputId(newCopySource);
+            QStringList updatedCopyOutputs{ newCopySourceId };
+            for (const auto &outputId : std::as_const(copyOutputs)) {
+                if (outputId != newCopySourceId && findOutputById(outputId)) {
+                    updatedCopyOutputs.append(outputId);
+                }
             }
-        }
 
-        if (removedWasPrimary && primaryCandidate) {
-            m_rootSurfaceContainer->setPrimaryOutput(primaryCandidate);
+            const int newCopySourceIndex = m_outputList.indexOf(newCopySource);
+            removeOutputFromRootContainer(newCopySource);
+            Output *normalCopySource = createNormalOutput(newCopySource->output());
+            normalCopySource->enable();
+            m_outputList.replace(newCopySourceIndex, normalCopySource);
+            newCopySource->deleteLater();
+
+            for (int i = 0; i < m_outputList.size(); ++i) {
+                Output *copyOutput = m_outputList.at(i);
+                if (copyOutput == normalCopySource
+                    || !copyOutputs.contains(WallpaperManager::getOutputId(copyOutput))) {
+                    continue;
+                }
+
+                removeOutputFromRootContainer(copyOutput);
+                Output *replacement = createCopyOutput(copyOutput->output(), normalCopySource);
+                replacement->enable();
+                m_rootSurfaceContainer->addOutput(replacement);
+                m_outputList.replace(i, replacement);
+                copyOutput->deleteLater();
+            }
+
+            m_rootSurfaceContainer->setPrimaryOutput(normalCopySource);
             if (!surfaces.isEmpty()) {
-                moveSurfacesToOutput(surfaces, primaryCandidate, o);
+                moveSurfacesToOutput(surfaces, normalCopySource, o);
             }
-        }
+            removeOutputFromRootContainer(o);
 
-        if (removedWasPrimary) {
-            m_rootSurfaceContainer->removeOutput(o);
-        }
+            // Persist only the active copy group. A subsequently connected
+            // output is added as a new member, regardless of whether it is the
+            // disconnected source or a different output.
+            m_outputManagerHelper->storeCopyOutputConfig(true, {}, updatedCopyOutputs);
+        } else {
 
-        for (auto oldOutput : std::as_const(oldOutputsToDelete)) {
-            m_rootSurfaceContainer->removeOutput(oldOutput);
-            delete oldOutput;
+            m_mode = OutputMode::Extension;
+            Q_EMIT outputModeChanged();
+
+            QList<Output *> outputsToConvert;
+            QList<Output *> oldOutputsToDelete;
+
+            bool removedWasPrimary = (output == m_rootSurfaceContainer->primaryOutput()->output());
+            Output *primaryCandidate = nullptr;
+
+            for (int i = 0; i < m_outputList.size(); i++) {
+                Output *copyOutput = m_outputList.at(i);
+
+                if (copyOutput->isPrimary()) {
+                    if (!primaryCandidate)
+                        primaryCandidate = copyOutput;
+                    continue;
+                }
+
+                removeOutputFromRootContainer(copyOutput);
+                Output *normalOutput = createNormalOutput(copyOutput->output());
+                normalOutput->enable();
+                saveCurrentOutputConfig(normalOutput);
+
+                outputsToConvert.append(normalOutput);
+                oldOutputsToDelete.append(copyOutput);
+
+                m_outputList.replace(i, normalOutput);
+
+                if (!primaryCandidate) {
+                    primaryCandidate = normalOutput;
+                }
+            }
+
+            if (removedWasPrimary && primaryCandidate) {
+                m_rootSurfaceContainer->setPrimaryOutput(primaryCandidate);
+                if (!surfaces.isEmpty()) {
+                    moveSurfacesToOutput(surfaces, primaryCandidate, o);
+                }
+            }
+
+            removeOutputFromRootContainer(o);
+
+            for (auto oldOutput : std::as_const(oldOutputsToDelete)) {
+                delete oldOutput;
+            }
         }
 
     } else {
-        bool wasPrimary = (o == m_rootSurfaceContainer->primaryOutput());
-
-        if (wasPrimary && m_outputConfigState) {
-            m_outputConfigState->markScreenAsPrimary(o->output()->name());
+        removeOutputFromRootContainer(o);
+        bool removedConfiguredSingleOutput = false;
+        if (m_outputManagerHelper) {
+            m_outputManagerHelper->setMode(m_mode == OutputMode::Extension
+                                               ? OutputManager::Mode::Extension
+                                               : OutputManager::Mode::Copy);
+            removedConfiguredSingleOutput = m_outputManagerHelper->onScreenRemoved(o, surfaces);
         }
-
-        m_rootSurfaceContainer->removeOutput(o);
-        if (m_outputLifecycleManager) {
-            m_outputLifecycleManager->setMode(OutputLifecycleManager::Mode::Extension);
-            m_outputLifecycleManager->onScreenRemoved(o, surfaces);
+        if (removedConfiguredSingleOutput) {
+            // Keep the unavailable output as the configured single-output target.
+            // The remaining outputs are enabled only as a temporary fallback.
+            restoreExtensionModeFromConfig(true);
         }
     }
 
@@ -727,8 +880,8 @@ void Helper::handleCopyModeOutputDisable(Output *affectedOutput)
         return;
     }
 
-    if (m_outputConfigState) {
-        m_outputConfigState->recordCopyModeExit();
+    if (m_outputManagerHelper) {
+        m_outputManagerHelper->storeCopyOutputConfig(false);
     }
 
     m_mode = OutputMode::Extension;
@@ -744,8 +897,10 @@ void Helper::handleCopyModeOutputDisable(Output *affectedOutput)
         }
 
         Output *copyOutput = m_outputList.at(i);
+        removeOutputFromRootContainer(copyOutput);
         Output *normalOutput = createNormalOutput(copyOutput->output());
         normalOutput->enable();
+        saveCurrentOutputConfig(normalOutput);
         copyOutput->deleteLater();
         m_outputList.replace(i, normalOutput);
 
@@ -822,10 +977,49 @@ void Helper::onOutputTestOrApply(qw_output_configuration_v1 *config, bool onlyTe
     m_pendingOutputConfig.pendingCommits = 0;
     m_pendingOutputConfig.allSuccess = true;
 
-    if (m_outputLifecycleManager) {
-        m_outputLifecycleManager->setMode(m_mode == OutputMode::Extension
-                                              ? OutputLifecycleManager::Mode::Extension
-                                              : OutputLifecycleManager::Mode::Copy);
+    if (scanned && m_outputManagerHelper && m_globalConfig && !m_globalConfig->singleOutputId().isEmpty()) {
+        const QString singleOutputId = m_globalConfig->singleOutputId();
+        for (const auto &state : std::as_const(states)) {
+            if (state.enabled && !state.output->isEnabled()) {
+                Output *output = getOutput(state.output);
+                if (output && WallpaperManager::getOutputId(output) != singleOutputId) {
+                    m_outputManagerHelper->clearSingleOutputConfig();
+                    enableAllOutput();
+                    break;
+                }
+            }
+        }
+    }
+
+    if (m_mode == OutputMode::Copy) {
+        // Output-management positions describe independent outputs. Convert copy
+        // proxies before applying the requested layout so their target-output
+        // binding cannot keep them overlapping the copy source at (0, 0).
+        for (int i = 0; i < m_outputList.size(); ++i) {
+            Output *copyOutput = m_outputList.at(i);
+            if (copyOutput->isPrimary()) {
+                continue;
+            }
+
+            removeOutputFromRootContainer(copyOutput);
+            Output *normalOutput = createNormalOutput(copyOutput->output());
+            copyOutput->deleteLater();
+            m_outputList.replace(i, normalOutput);
+        }
+    }
+
+    if (m_mode != OutputMode::Extension) {
+        m_mode = OutputMode::Extension;
+        Q_EMIT outputModeChanged();
+    }
+    if (m_outputManagerHelper) {
+        m_outputManagerHelper->clearCopyModeRestoreIntent();
+    }
+
+    if (m_outputManagerHelper) {
+        m_outputManagerHelper->setMode(m_mode == OutputMode::Extension
+                                           ? OutputManager::Mode::Extension
+                                           : OutputManager::Mode::Copy);
 
         for (const auto &state : std::as_const(states)) {
             Output *outputObj = getOutput(state.output);
@@ -835,12 +1029,9 @@ void Helper::onOutputTestOrApply(qw_output_configuration_v1 *config, bool onlyTe
 
             if (!state.enabled && state.output->isEnabled()) {
                 const auto &surfaces = getWorkspaceSurfaces(outputObj);
-                m_outputLifecycleManager->onScreenDisabled(outputObj, surfaces);
+                m_outputManagerHelper->onScreenDisabled(outputObj, surfaces);
             } else if (state.enabled && !state.output->isEnabled()) {
-                m_outputLifecycleManager->onScreenEnabled(outputObj);
-                if (m_outputLifecycleManager->takeCopyModeRestoreIntent()) {
-                    restoreCopyMode();
-                }
+                m_outputManagerHelper->clearCopyModeRestoreIntent();
             }
         }
     }
@@ -869,6 +1060,13 @@ void Helper::onOutputTestOrApply(qw_output_configuration_v1 *config, bool onlyTe
 
         if (state.enabled) {
             auto *layout = m_rootSurfaceContainer->outputLayout();
+            if (!ensureOutputInRootContainer(output)) {
+                qCWarning(lcTlCore) << "Cannot apply enabled output configuration; output is not in root layout"
+                                    << state.output->name();
+                m_outputManager->sendResult(config, false);
+                m_pendingOutputConfig = {};
+                return;
+            }
             if (layout) {
                 layout->move(state.output, QPoint(state.x, state.y));
             }
@@ -916,9 +1114,11 @@ void Helper::onOutputTestOrApply(qw_output_configuration_v1 *config, bool onlyTe
             return;
         }
         auto config = m_pendingOutputConfig.config;
+        const QString outputName = state.output->name();
+        const bool enabled = state.enabled;
         QPointer<Helper> self(this);
         outputHelper->scheduleCommitJob(
-            [self, config, extraState, renderWindow, viewport](bool success, WOutputHelper::ExtraState committedState) {
+            [self, config, extraState, renderWindow, viewport, outputName, enabled](bool success, WOutputHelper::ExtraState committedState) {
                 if (!self) {
                     return;
                 }
@@ -975,12 +1175,19 @@ void Helper::onOutputCommitFinished(qw_output_configuration_v1 *config, bool suc
     if (m_pendingOutputConfig.pendingCommits == 0) {
         bool ok = m_pendingOutputConfig.allSuccess;
         if (ok) {
+            m_outputManagerHelper->storeSingleOutputConfig();
+            // An output-management enable/disable transaction describes an
+            // extension/single-output topology, never a copy topology.
+            m_outputManagerHelper->storeCopyOutputConfig(false);
+
             for (const WOutputState &state : std::as_const(m_pendingOutputConfig.states)) {
                 auto *output = getOutput(state.output);
                 if (!output) {
-                    qCWarning(lcTlCore) << "Cannot save output dconfig, output object not found:"
-                                        << state.output->name();
                     continue;
+                }
+
+                if (m_outputManagerHelper && state.enabled) {
+                    m_outputManagerHelper->onScreenEnabled(output);
                 }
 
                 auto *outputConfig = output->config();
@@ -1003,12 +1210,12 @@ void Helper::onOutputCommitFinished(qw_output_configuration_v1 *config, bool suc
                                                                       transform,
                                                                       scale,
                                                                       adaptiveSyncEnabled] {
-                    if (!outputConfig) {
+
+                    if (!enabled) {
                         return;
                     }
 
-                    outputConfig->setEnabled(enabled);
-                    if (!enabled) {
+                    if (!outputConfig) {
                         return;
                     }
 
@@ -1142,10 +1349,18 @@ void Helper::onShowDesktop()
 
 void Helper::onSetCopyOutput(VirtualOutputInterfaceV1 *interface)
 {
-    Output *mirrorOutput = nullptr;
-    for (Output *output : std::as_const(m_outputList)) {
-        if (!interface->outputList().contains(output->output()->name())) {
-            QString screen = output->output()->name() + " does not exist!";
+    const QStringList requestedOutputs = interface->outputList();
+    if (requestedOutputs.size() < 2) {
+        interface->sendError(VirtualOutputInterfaceV1::INVALID_SCREEN_NUMBER,
+                             "The number of screens applying for copy mode is less than 2!");
+        return;
+    }
+
+    Output *mirrorOutput = findOutputByName(requestedOutputs.constFirst());
+    for (const auto &outputName : std::as_const(requestedOutputs)) {
+        auto *output = findOutputByName(outputName);
+        if (!output) {
+            QString screen = outputName + " does not exist!";
             interface->sendError(VirtualOutputInterfaceV1::INVALID_OUTPUT, screen);
 
             return;
@@ -1157,14 +1372,11 @@ void Helper::onSetCopyOutput(VirtualOutputInterfaceV1 *interface)
             interface->sendError(VirtualOutputInterfaceV1::INVALID_OUTPUT, screen);
             return;
         }
-
-        if (output->output()->name() == interface->outputList().at(0))
-            mirrorOutput = output;
     }
 
     for (int i = 0; i < m_outputList.size(); i++) {
         Output *currentOutput = m_outputList.at(i);
-        if (currentOutput == mirrorOutput)
+        if (currentOutput == mirrorOutput || !requestedOutputs.contains(currentOutput->output()->name()))
             continue;
 
         // When setting the primaryOutput as a copy screen, set the mirrorOutput
@@ -1172,13 +1384,23 @@ void Helper::onSetCopyOutput(VirtualOutputInterfaceV1 *interface)
         if (m_rootSurfaceContainer->primaryOutput() == currentOutput)
             m_rootSurfaceContainer->setPrimaryOutput(mirrorOutput);
 
+        removeOutputFromRootContainer(currentOutput);
         Output *o = createCopyOutput(currentOutput->output(), mirrorOutput);
-        m_rootSurfaceContainer->removeOutput(currentOutput);
         currentOutput->deleteLater();
         m_outputList.replace(i, o);
+        m_rootSurfaceContainer->addOutput(o);
+        o->enable();
     }
 
     m_mode = OutputMode::Copy;
+    QStringList requestedOutputIds;
+    requestedOutputIds.reserve(requestedOutputs.size());
+    for (const auto &outputName : std::as_const(requestedOutputs)) {
+        if (auto *output = findOutputByName(outputName)) {
+            requestedOutputIds.append(WallpaperManager::getOutputId(output));
+        }
+    }
+    m_outputManagerHelper->storeCopyOutputConfig(true, interface->name(), requestedOutputIds);
     const auto &surfaces = getWorkspaceSurfaces();
     moveSurfacesToOutput(surfaces, mirrorOutput, nullptr);
 }
@@ -1199,12 +1421,15 @@ void Helper::onRestoreCopyOutput(VirtualOutputInterfaceV1 *interface)
         if (currentOutput->output()->name() == targetName)
             continue;
 
-        Output *o = createNormalOutput(m_outputList.at(i)->output());
+        removeOutputFromRootContainer(currentOutput);
+        Output *o = createNormalOutput(currentOutput->output());
         o->enable();
-        m_outputList.at(i)->deleteLater();
+        saveCurrentOutputConfig(o);
+        currentOutput->deleteLater();
         m_outputList.replace(i, o);
     }
     m_mode = OutputMode::Extension;
+    m_outputManagerHelper->storeCopyOutputConfig(false);
 }
 
 void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
@@ -1863,17 +2088,11 @@ void Helper::init(Treeland::Treeland *treeland)
     } else {
     }
 
+    // start() synchronously reports the initially available outputs through
+    // onOutputAdded(). Restore the stored topology only after that scan completes.
     m_backend->handle()->start();
-
-    // If the stored primary output is no longer present, select a random one as primary
-    const QString primaryOutputId = m_globalConfig->primaryOutputId();
-    if (!currentPrimaryMatchesId(m_rootSurfaceContainer, primaryOutputId)) {
-        const auto &outputs = m_rootSurfaceContainer->outputs();
-        if (!outputs.isEmpty()) {
-            int randomIndex = QRandomGenerator::global()->bounded(outputs.size());
-            m_rootSurfaceContainer->setPrimaryOutput(outputs.at(randomIndex));
-        }
-    }
+    scanned = true;
+    restoreInitialOutputConfiguration();
 }
 
 SeatsManager *Helper::seatManager() const
@@ -2266,6 +2485,7 @@ Output *Helper::createNormalOutput(WOutput *output)
         o->outputItem()->setProperty("forceSoftwareCursor", true);
     }
     o->outputItem()->stackBefore(m_rootSurfaceContainer);
+    removeOutputFromRootContainer(output);
     m_rootSurfaceContainer->addOutput(o);
     return o;
 }
@@ -2273,6 +2493,93 @@ Output *Helper::createNormalOutput(WOutput *output)
 Output *Helper::createCopyOutput(WOutput *output, Output *proxy)
 {
     return Output::createCopy(output, proxy, qmlEngine(), this);
+}
+
+bool Helper::ensureOutputInRootContainer(Output *output)
+{
+    if (!output || !output->output()) {
+        return false;
+    }
+
+    auto *layout = m_rootSurfaceContainer->outputLayout();
+    if (!layout) {
+        return false;
+    }
+
+    const bool inRoot = m_rootSurfaceContainer->outputs().contains(output);
+    const bool inLayout = layout->outputs().contains(output->output());
+    if (inRoot && inLayout) {
+        return true;
+    }
+
+    qCInfo(lcTlOutput) << "Re-registering output before applying output configuration"
+                       << output->output()->name()
+                       << "in root:" << inRoot
+                       << "in layout:" << inLayout;
+
+    if (!inRoot && inLayout) {
+        removeOutputFromRootContainer(output->output());
+    }
+
+    if (!inRoot) {
+        m_rootSurfaceContainer->addOutput(output);
+    } else if (!inLayout) {
+        layout->autoAdd(output->output());
+    }
+
+    return m_rootSurfaceContainer->outputs().contains(output)
+        && layout->outputs().contains(output->output());
+}
+
+void Helper::removeOutputFromRootContainer(Output *output)
+{
+    if (!output || !output->output()) {
+        return;
+    }
+
+    auto *layout = m_rootSurfaceContainer->outputLayout();
+    const bool inRoot = m_rootSurfaceContainer->outputs().contains(output);
+    const bool inLayout = layout && layout->outputs().contains(output->output());
+    if (!inRoot && !inLayout) {
+        return;
+    }
+
+    if (!inRoot || !inLayout) {
+        qCWarning(lcTlCore) << "Output root/layout registration is inconsistent before removal"
+                            << output->output()->name()
+                            << "in root:" << inRoot
+                            << "in layout:" << inLayout;
+        if (inRoot && !inLayout) {
+            m_rootSurfaceContainer->outputModel()->removeObject(output);
+            m_rootSurfaceContainer->SurfaceContainer::removeOutput(output);
+        } else if (!inRoot && inLayout) {
+            layout->remove(output->output());
+        }
+        return;
+    }
+
+    m_rootSurfaceContainer->removeOutput(output);
+}
+
+void Helper::removeOutputFromRootContainer(WOutput *output)
+{
+    if (!output) {
+        return;
+    }
+
+    for (auto *rootOutput : std::as_const(m_rootSurfaceContainer->outputs())) {
+        if (rootOutput && rootOutput->output() == output) {
+            removeOutputFromRootContainer(rootOutput);
+            return;
+        }
+    }
+
+    auto *layout = m_rootSurfaceContainer->outputLayout();
+    if (layout && layout->outputs().contains(output)) {
+        qCWarning(lcTlCore) << "Removing stale output layout entry before re-registering"
+                            << output->name();
+        layout->remove(output);
+    }
 }
 
 WOutputViewport *Helper::getOwnOutputViewport(WOutput *output)
@@ -2320,6 +2627,43 @@ void Helper::moveSurfacesToOutput(const QList<SurfaceWrapper *> &surfaces,
                                   Output *sourceOutput)
 {
     m_rootSurfaceContainer->moveSurfacesToOutput(surfaces, targetOutput, sourceOutput);
+}
+
+void Helper::saveCurrentOutputConfig(Output *output)
+{
+    if (!output) {
+        return;
+    }
+
+    auto *outputConfig = output->config();
+    auto saveConfig = [outputObject = QPointer<Output>(output),
+                       outputConfig = QPointer<OutputConfig>(outputConfig)] {
+        if (!outputObject || !outputConfig) {
+            return;
+        }
+
+        if (!outputObject->output() || !outputObject->output()->nativeHandle()->current_mode) {
+            return;
+        }
+
+        auto *wlrOutput = outputObject->output()->nativeHandle();
+        auto *mode = wlrOutput->current_mode;
+        outputConfig->setWidth(mode->width);
+        outputConfig->setHeight(mode->height);
+        outputConfig->setRefresh(mode->refresh);
+        outputConfig->setTransform(wlrOutput->transform);
+        outputConfig->setScale(wlrOutput->scale);
+        outputConfig->setAdaptiveSyncEnabled(wlrOutput->adaptive_sync_status == WLR_OUTPUT_ADAPTIVE_SYNC_ENABLED);
+
+        if (auto *layout = outputObject->output()->layout()) {
+            if (auto *layoutOutput = layout->handle()->get(wlrOutput)) {
+                outputConfig->setX(layoutOutput->x);
+                outputConfig->setY(layoutOutput->y);
+            }
+        }
+    };
+
+    runWhenOutputConfigInitialized(outputConfig, output, std::move(saveConfig));
 }
 
 SurfaceWrapper *Helper::keyboardFocusSurface() const
@@ -2567,6 +2911,26 @@ Output *Helper::getOutput(WOutput *output) const
     return nullptr;
 }
 
+Output *Helper::findOutputByName(const QString &name) const
+{
+    for (auto *output : std::as_const(m_outputList)) {
+        if (output && output->output() && output->output()->name() == name) {
+            return output;
+        }
+    }
+    return nullptr;
+}
+
+Output *Helper::findOutputById(const QString &id) const
+{
+    for (auto *output : std::as_const(m_outputList)) {
+        if (output && output->output() && WallpaperManager::getOutputId(output) == id) {
+            return output;
+        }
+    }
+    return nullptr;
+}
+
 void Helper::addOutput()
 {
     qobject_cast<qw_multi_backend *>(m_backend->handle())
@@ -2583,21 +2947,44 @@ void Helper::addOutput()
 
 void Helper::setOutputMode(OutputMode mode)
 {
-    if (m_outputList.length() < 2 || m_mode == mode)
+    if (m_outputList.isEmpty())
         return;
+
+    const bool refreshExtensionMode = (m_mode == mode && mode == OutputMode::Extension);
+    if (m_mode == mode && !refreshExtensionMode)
+        return;
+
+    if (refreshExtensionMode) {
+        m_outputManagerHelper->clearSingleOutputConfig();
+        m_outputManagerHelper->storeCopyOutputConfig(false);
+        restoreExtensionModeFromConfig();
+        return;
+    }
+
     m_mode = mode;
+    if (mode == OutputMode::Extension) {
+        m_outputManagerHelper->clearSingleOutputConfig();
+        restoreExtensionModeFromConfig();
+    }
+    m_outputManagerHelper->storeCopyOutputConfig(
+        mode == OutputMode::Copy,
+        QStringLiteral("copy-output"),
+        m_outputManagerHelper->currentOutputIds(m_rootSurfaceContainer->primaryOutput()));
     Q_EMIT outputModeChanged();
     for (int i = 0; i < m_outputList.size(); i++) {
         if (m_outputList.at(i) == m_rootSurfaceContainer->primaryOutput())
             continue;
         Output *o = nullptr;
         if (mode == OutputMode::Copy) {
+            removeOutputFromRootContainer(m_outputList.at(i));
             o = createCopyOutput(m_outputList.at(i)->output(),
                                  m_rootSurfaceContainer->primaryOutput());
-            m_rootSurfaceContainer->removeOutput(m_outputList.at(i));
+            m_rootSurfaceContainer->addOutput(o);
         } else if (mode == OutputMode::Extension) {
+            removeOutputFromRootContainer(m_outputList.at(i));
             o = createNormalOutput(m_outputList.at(i)->output());
             o->enable();
+            saveCurrentOutputConfig(o);
         }
         m_outputList.at(i)->deleteLater();
         m_outputList.replace(i, o);
@@ -3032,9 +3419,16 @@ void Helper::toggleFpsDisplay()
     m_fpsDisplay = qmlEngine()->createFpsDisplay(m_renderWindow->contentItem());
 }
 
-void Helper::applyCopyModeToOutputs(Output *primaryOutput, const QList<SurfaceWrapper *> &surfaces)
+void Helper::applyCopyModeToOutputs(Output *primaryOutput,
+                                    const QList<SurfaceWrapper *> &surfaces,
+                                    const QStringList &outputIds,
+                                    bool persistConfig)
 {
     Q_ASSERT(primaryOutput);
+
+    if (primaryOutput->output() && !primaryOutput->output()->isEnabled()) {
+        primaryOutput->enable();
+    }
 
     // Convert existing outputs to copy outputs
     for (int i = 0; i < m_outputList.size(); i++) {
@@ -3043,9 +3437,12 @@ void Helper::applyCopyModeToOutputs(Output *primaryOutput, const QList<SurfaceWr
         if (existingOutput == primaryOutput) {
             continue;
         }
+        if (!outputIds.isEmpty() && !outputIds.contains(WallpaperManager::getOutputId(existingOutput))) {
+            continue;
+        }
 
+        removeOutputFromRootContainer(existingOutput);
         Output *copyOutput = createCopyOutput(existingOutput->output(), primaryOutput);
-        m_rootSurfaceContainer->removeOutput(existingOutput);
         existingOutput->deleteLater();
         m_outputList.replace(i, copyOutput);
         m_rootSurfaceContainer->addOutput(copyOutput);
@@ -3053,27 +3450,194 @@ void Helper::applyCopyModeToOutputs(Output *primaryOutput, const QList<SurfaceWr
     }
 
     m_mode = OutputMode::Copy;
+    if (m_outputManagerHelper) {
+        m_outputManagerHelper->clearCopyModeRestoreIntent();
+    }
+    if (persistConfig) {
+        m_outputManagerHelper->storeCopyOutputConfig(
+            true,
+            {},
+            outputIds.isEmpty() ? m_outputManagerHelper->currentOutputIds(primaryOutput) : outputIds);
+    }
     Q_EMIT outputModeChanged();
 
     if (!surfaces.isEmpty()) {
         moveSurfacesToOutput(surfaces, primaryOutput, nullptr);
     }
+}
 
-    if (m_outputConfigState) {
-        m_outputConfigState->clearCopyModeIntent();
+bool Helper::restoreConfiguredCopyMode()
+{
+    if (!m_outputManagerHelper || m_mode != OutputMode::Extension) {
+        return false;
     }
+
+    const auto restoreConfig = m_outputManagerHelper->copyModeRestoreConfig(m_outputList.size());
+    if (!restoreConfig) {
+        return false;
+    }
+
+    qCInfo(lcTlOutput) << "Restoring configured Copy Mode"
+                       << "name:" << restoreConfig.name
+                       << "ids:" << restoreConfig.outputIds
+                       << "outputs:" << restoreConfig.outputNames;
+    if (m_virtualOutputInterfaceV1 && !restoreConfig.name.isEmpty()) {
+        m_virtualOutputInterfaceV1->restoreVirtualOutput(restoreConfig.name, restoreConfig.outputNames);
+    }
+
+    m_rootSurfaceContainer->setPrimaryOutput(restoreConfig.primaryOutput);
+    const auto &allSurfaces = getWorkspaceSurfaces();
+    applyCopyModeToOutputs(restoreConfig.primaryOutput, allSurfaces, restoreConfig.outputIds, false);
+    return true;
+}
+
+void Helper::restoreExtensionModeFromConfig(bool preserveSingleOutputConfig)
+{
+    if (m_outputList.isEmpty()) {
+        return;
+    }
+
+    m_mode = OutputMode::Extension;
+    m_outputManagerHelper->setMode(OutputManager::Mode::Extension);
+    Q_EMIT outputModeChanged();
+
+    for (auto *outputObject : std::as_const(m_outputList)) {
+        if (!outputObject || !outputObject->output()) {
+            continue;
+        }
+
+        // Extension mode always enables every available output. Restoring the
+        // saved mode and geometry may wait for DConfig initialization, but
+        // enabling an output must not depend on that initialization succeeding.
+        outputObject->enable();
+
+        auto restoreOutput = [this, outputObject = QPointer<Output>(outputObject)] {
+            if (!outputObject || !outputObject->output()) {
+                return;
+            }
+
+            auto *output = outputObject->output();
+            auto *config = outputObject->config();
+            if (!hasSavedOutputState(config)) {
+                return;
+            }
+
+            const int width = static_cast<int>(config->width());
+            const int height = static_cast<int>(config->height());
+            const int refresh = static_cast<int>(config->refresh());
+            const double scale = config->scale();
+            const qlonglong transform = config->transform();
+            if (width <= 0 || height <= 0 || refresh <= 0 || scale <= 0.0
+                || transform < WL_OUTPUT_TRANSFORM_NORMAL
+                || transform > WL_OUTPUT_TRANSFORM_FLIPPED_270) {
+                qCWarning(lcTlOutput) << "Ignoring invalid saved extension state for"
+                                      << output->name();
+                return;
+            }
+
+            if (auto *layout = m_rootSurfaceContainer->outputLayout()) {
+                layout->move(output, QPoint(static_cast<int>(config->x()),
+                                            static_cast<int>(config->y())));
+            }
+
+            qw_output_state state;
+            state.set_enabled(true);
+            wlr_output_mode *mode = nullptr;
+            wlr_output_mode *savedMode = nullptr;
+            wl_list_for_each(mode, &output->nativeHandle()->modes, link) {
+                if (mode->width == width && mode->height == height && mode->refresh == refresh) {
+                    savedMode = mode;
+                    break;
+                }
+            }
+            if (savedMode) {
+                state.set_mode(savedMode);
+            } else {
+                state.set_custom_mode(width, height, refresh);
+            }
+            state.set_adaptive_sync_enabled(config->adaptiveSyncEnabled());
+            state.set_transform(static_cast<wl_output_transform>(transform));
+            state.set_scale(scale);
+            if (!output->handle()->commit_state(state)) {
+                qCCritical(lcTlOutput) << "Failed to restore extension state for"
+                                       << output->name();
+            }
+        };
+
+        runWhenOutputConfigInitialized(outputObject->config(),
+                                       outputObject,
+                                       std::move(restoreOutput));
+    }
+
+    // A temporary fallback must not replace an unavailable single-output target.
+    // Other extension-mode transitions persist the currently enabled topology.
+    if (!preserveSingleOutputConfig) {
+        m_outputManagerHelper->storeSingleOutputConfig();
+    }
+
+    Output *primaryOutput = findOutputById(m_globalConfig->primaryOutputId());
+    if (!primaryOutput) {
+        primaryOutput = m_outputList.constFirst();
+    }
+    m_rootSurfaceContainer->setPrimaryOutput(primaryOutput);
+    const auto surfaces = getWorkspaceSurfaces();
+    if (!surfaces.isEmpty()) {
+        moveSurfacesToOutput(surfaces, primaryOutput, nullptr);
+    }
+}
+
+void Helper::restoreInitialOutputConfiguration()
+{
+    runWhenTreelandConfigInitialized(m_globalConfig.get(), this, [this] {
+        const QString singleOutputId = m_globalConfig->singleOutputId();
+        if (!singleOutputId.isEmpty()) {
+            if (findOutputById(singleOutputId)) {
+                m_outputManagerHelper->restoreConfiguredSingleOutput(getWorkspaceSurfaces(), true);
+                return;
+            }
+
+            m_outputManagerHelper->clearSingleOutputConfig();
+            restoreExtensionModeFromConfig();
+            return;
+        }
+
+        if (m_globalConfig->createCopyOutput()) {
+            if (m_outputList.size() >= 2 && restoreConfiguredCopyMode()) {
+                return;
+            }
+
+            const QStringList copyOutputs = m_outputManagerHelper->copyOutputIds();
+            if (copyOutputs.size() == 1 && findOutputById(copyOutputs.constFirst())) {
+                // One remaining member cannot render a copy topology yet. Keep
+                // the intent so the next connected output can join the group.
+                restoreExtensionModeFromConfig(true);
+                return;
+            }
+
+            qCWarning(lcTlOutput) << "Clearing invalid initial copy-output configuration";
+            m_outputManagerHelper->storeCopyOutputConfig(false);
+            restoreExtensionModeFromConfig();
+            return;
+        }
+
+        restoreExtensionModeFromConfig();
+        m_outputManagerHelper->restorePrimaryOutput();
+    });
 }
 
 void Helper::restoreCopyMode()
 {
-    Output *primaryOutput = m_rootSurfaceContainer->primaryOutput();
+    const QStringList copyOutputs = m_outputManagerHelper->copyOutputIds();
+    Output *primaryOutput = copyOutputs.isEmpty()
+        ? m_rootSurfaceContainer->primaryOutput()
+        : findOutputById(copyOutputs.constFirst());
     if (!primaryOutput) {
         qCWarning(lcTlCore) << "Cannot restore Copy Mode: no primary output available";
         return;
     }
 
     const auto &allSurfaces = getWorkspaceSurfaces();
-    applyCopyModeToOutputs(primaryOutput, allSurfaces);
+    applyCopyModeToOutputs(primaryOutput, allSurfaces, copyOutputs, false);
 }
 
 /**
@@ -3153,6 +3717,25 @@ void Helper::handleRequestDragForSeat(WSeat *seat, WSurface *)
 
     if (m_ddeShellV1)
         DDEActiveInterface::sendStartDrag(seat);
+}
+
+void Helper::enableAllOutput()
+{
+    for (auto *output : std::as_const(m_outputList)) {
+        if (!output || !output->output()) {
+            continue;
+        }
+
+        struct wlr_output_state state;
+        wlr_output_state_init(&state);
+        wlr_output_state_set_enabled(&state, true);
+        const bool ok = wlr_output_commit_state(output->output()->nativeHandle(), &state);
+        wlr_output_state_finish(&state);
+
+        if (!ok) {
+            qCWarning(lcTlOutput) << "Failed to enable output" << output->output()->name();
+        }
+    }
 }
 
 WSeat *Helper::getLastInteractingSeat(SurfaceWrapper *surface) const

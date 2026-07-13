@@ -89,6 +89,50 @@
             "description[zh_CN]": "是否默认在带有数字小键盘的键盘上启用数字锁定。启用时数字小键盘输入数字。",
             "permissions": "readwrite",
             "visibility": "public"
+        },
+        "singleOutputId": {
+            "value": "",
+            "serial": 0,
+            "flags": [],
+            "name": "Single Output ID",
+            "name[zh_CN]": "单屏显示输出 ID",
+            "description": "Output ID used for single-output display. Empty means multiple outputs may be enabled. This selection is independent of copy and extension mode.",
+            "description[zh_CN]": "单屏显示时使用的输出 ID。空字符串表示可启用多个输出。此选择与复制和扩展模式相互独立。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "createCopyOutput": {
+            "value": false,
+            "serial": 0,
+            "flags": [],
+            "name": "Create Copy Output",
+            "name[zh_CN]": "创建复制输出",
+            "description": "Whether treeland should restore copy output mode when enough outputs are available.",
+            "description[zh_CN]": "当存在足够输出时，treeland 是否恢复复制输出模式。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "copyOutputName": {
+            "value": "",
+            "serial": 0,
+            "flags": [],
+            "name": "Copy Output Name",
+            "name[zh_CN]": "复制输出名称",
+            "description": "Virtual output group name used when restoring copy output mode.",
+            "description[zh_CN]": "恢复复制输出模式时使用的虚拟输出组名称。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "copyOutputOutputs": {
+            "value": "",
+            "serial": 0,
+            "flags": [],
+            "name": "Copy Output IDs",
+            "name[zh_CN]": "复制输出 ID 队列",
+            "description": "JSON string array of output IDs for copy mode. The first element is copied and subsequent elements mirror it.",
+            "description[zh_CN]": "复制模式输出 ID 的 JSON 字符串数组。第一个元素是被复制屏，后续元素镜像它。",
+            "permissions": "readwrite",
+            "visibility": "public"
         }
     }
 }
