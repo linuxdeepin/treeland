@@ -60,12 +60,6 @@ public Q_SLOTS:
     void handleWallpaperSurfaceAdded(TreelandWallpaperSurfaceInterfaceV1 *interface);
 
 private:
-    void sendMissingWallpapersForNewOutput(
-        const WallpaperOutputConfig &outputConfig,
-        Workspace *workspace,
-        const QMap<QString, TreelandWallpaperInterfaceV1::WallpaperType> &beforeWallpapers);
-
-private:
     bool m_wallpaperConfigUpdated { false };
     QList<WallpaperOutputConfig> m_wallpaperConfig;
 };
