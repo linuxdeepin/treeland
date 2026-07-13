@@ -147,11 +147,6 @@ void RootSurfaceContainer::destroyForSurface(SurfaceWrapper *wrapper)
         container->surfaceDestroyed(wrapper);
     }
 
-    auto *helper = Helper::instance();
-    if (helper && helper->activatedSurface() == wrapper) {
-        helper->setActivatedSurface(nullptr);
-    }
-
     wrapper->destroy();
 }
 
@@ -678,6 +673,12 @@ void RootSurfaceContainer::onSeatAdded(WSeat *seat)
     m_seatContainers[seat] = container;
 
     connect(container, &SeatSurfaceManager::moveResizeChanged, this, &RootSurfaceContainer::moveResizeFinised);
+    connect(container, &SeatSurfaceManager::activatedSurfaceChanged, this, [seat]() {
+        auto *helper = Helper::instance();
+        if (helper && helper->seat() == seat) {
+            Q_EMIT helper->activatedSurfaceChanged();
+        }
+    });
 }
 
 void RootSurfaceContainer::onSeatRemoved(WSeat *seat)
