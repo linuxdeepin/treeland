@@ -1,4 +1,4 @@
-// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 JiDe Zhang <zhangjide@deepin.org>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wrenderhelper.h"
@@ -6,6 +6,7 @@
 #include "wayliblogging.h"
 #include "private/wqmlhelper_p.h"
 #include "private/wglobal_p.h"
+#include "private/wvulkandmabufimport_p.h"
 
 #include <qwbackend.h>
 #include <qwoutput.h>
@@ -58,6 +59,9 @@ struct Q_DECL_HIDDEN BufferData {
 
     ~BufferData() {
         resetWindowRenderTarget();
+#ifdef ENABLE_VULKAN_RENDER
+        vulkanReleaseDmabufImage(vkDmabufImage);
+#endif
     }
 
     qw_buffer *buffer = nullptr;
@@ -65,6 +69,11 @@ struct Q_DECL_HIDDEN BufferData {
     WImageRenderTarget paintDevice;
     QQuickRenderTarget renderTarget;
     QQuickWindowRenderTarget windowRenderTarget;
+#ifdef ENABLE_VULKAN_RENDER
+    // Vulkan image imported with COLOR_ATTACHMENT usage for the render target.
+    // Released after the RHI wrapper in ~BufferData().
+    VkDmabufImage vkDmabufImage;
+#endif
 
     inline void resetWindowRenderTarget() {
 #if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
@@ -269,6 +278,7 @@ void WRenderHelperPrivate::onBufferDestroy()
             if (lastBuffer == data)
                 lastBuffer = nullptr;
             buffers.removeAt(i);
+            delete data;
             break;
         }
     }
@@ -553,11 +563,11 @@ QQuickRenderTarget WRenderHelper::acquireRenderTarget(QQuickRenderControl *rc, q
 
     std::unique_ptr<BufferData> bufferData(new BufferData);
     bufferData->buffer = buffer;
-    auto texture = qw_texture::from_buffer(*d->renderer, *buffer);
 
     QQuickRenderTarget rt;
 
     if (wlr_renderer_is_pixman(d->renderer->handle())) {
+        std::unique_ptr<qw_texture> texture(qw_texture::from_buffer(*d->renderer, *buffer));
         pixman_image_t *image = wlr_pixman_texture_get_image(texture->handle());
         void *data = pixman_image_get_data(image);
         if (bufferData->paintDevice.constBits() != data)
@@ -567,12 +577,27 @@ QQuickRenderTarget WRenderHelper::acquireRenderTarget(QQuickRenderControl *rc, q
     }
 #ifdef ENABLE_VULKAN_RENDER
     else if (wlr_renderer_is_vk(d->renderer->handle())) {
-        wlr_vk_image_attribs attribs;
-        wlr_vk_texture_get_image_attribs(texture->handle(), &attribs);
-        rt = QQuickRenderTarget::fromVulkanImage(attribs.image, attribs.layout, attribs.format, d->size);
+        // wlr_texture_from_buffer creates a sampled-only VkImage that cannot be
+        // used as a color attachment. Import the dmabuf directly with
+        // COLOR_ATTACHMENT usage so QRhiTextureRenderTarget can render into it.
+        wlr_dmabuf_attributes dmabuf;
+        if (buffer->get_dmabuf(&dmabuf)) {
+            wlr_renderer *renderer = d->renderer->handle();
+            bufferData->vkDmabufImage = vulkanImportDmabufForRender(
+                wlr_vk_renderer_get_physical_device(renderer),
+                wlr_vk_renderer_get_device(renderer), &dmabuf);
+            if (!bufferData->vkDmabufImage.isNull()) {
+                rt = QQuickRenderTarget::fromVulkanImage(
+                    bufferData->vkDmabufImage.image, VK_IMAGE_LAYOUT_UNDEFINED,
+                    bufferData->vkDmabufImage.format, d->size);
+            }
+        } else {
+            return {};
+        }
     }
 #endif
     else if (wlr_renderer_is_gles2(d->renderer->handle())) {
+        std::unique_ptr<qw_texture> texture(qw_texture::from_buffer(*d->renderer, *buffer));
         wlr_gles2_texture_attribs attribs;
         wlr_gles2_texture_get_attribs(texture->handle(), &attribs);
 
@@ -580,7 +605,6 @@ QQuickRenderTarget WRenderHelper::acquireRenderTarget(QQuickRenderControl *rc, q
         rt.setMirrorVertically(true);
     }
 
-    delete texture;
     bufferData->renderTarget = rt;
 
     if (QSGRendererInterface::isApiRhiBased(getGraphicsApi(rc))) {

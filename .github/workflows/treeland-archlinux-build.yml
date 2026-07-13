@@ -34,7 +34,7 @@ jobs:
       - name: Install graphics and wayland dependencies
         run: |
           # Core graphics and wayland dependencies (matching qwlroots and waylib builds)
-          pacman -S --noconfirm --noprogressbar pixman vulkan-headers wayland wayland-protocols wlr-protocols libxcb mesa
+          pacman -S --noconfirm --noprogressbar pixman vulkan-headers wayland wayland-protocols wlr-protocols libxcb
           pacman -S --noconfirm --noprogressbar wlroots0.19 libinput pam systemd-libs jemalloc gcc-libs glibc
 
       - name: Install additional waylib/qwlroots dependencies
