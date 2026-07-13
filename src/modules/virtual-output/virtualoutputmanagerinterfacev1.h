@@ -5,6 +5,8 @@
 
 #include <wserver.h>
 
+#include <QStringList>
+
 QW_USE_NAMESPACE
 WAYLIB_SERVER_USE_NAMESPACE
 
@@ -21,6 +23,9 @@ public:
     ~VirtualOutputManagerInterfaceV1() override;
 
     QByteArrayView interfaceName() const override;
+    void restoreVirtualOutput(const QString &name, const QStringList &outputs);
+    void updateVirtualOutput(const QString &name, const QStringList &outputs);
+    void removeVirtualOutput(const QString &name);
 
     static constexpr int InterfaceVersion = 1;
 
@@ -51,6 +56,7 @@ public:
     ~VirtualOutputInterfaceV1() override;
 
     wl_resource *resource() const;
+    QString name() const;
     QStringList outputList() const;
     void sendOutputs(const QString &name, const QByteArray &outputs);
     void sendError(uint32_t code, const QString &message);

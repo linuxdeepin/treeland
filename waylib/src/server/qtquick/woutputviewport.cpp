@@ -116,9 +116,12 @@ void WOutputViewport::invalidate()
 {
     W_D(WOutputViewport);
     if (d->componentComplete && d->output && d->window) {
+        // detach() can synchronously notify layer changes after removing this
+        // viewport from the render window. Mark it detached first so slots
+        // querying layers during that notification don't look it up again.
+        d->attached = false;
         d->outputWindow()->detach(this);
         d->output = nullptr;
-        d->attached = false;
     }
 }
 
