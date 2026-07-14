@@ -17,7 +17,9 @@
 #include "modules/wine-window-state/winewindowstate.h"
 #include "rootsurfacecontainer.h"
 #include "seat/helper.h"
+#include "seat/seatsmanager.h"
 #include "session/session.h"
+#include "surface/seatsurfacemanager.h"
 #include "surface/surfacewrapper.h"
 #include "treelandconfig.hpp"
 #include "treelanduserconfig.hpp"
@@ -850,6 +852,45 @@ void ShellHandler::onDockPreviewTooltip(
                               QVariant::fromValue(direction));
 }
 
+void ShellHandler::onSurfaceInactivationRequested(SurfaceWrapper *wrapper)
+{
+    Q_ASSERT(wrapper);
+    if (wrapper->type() != SurfaceWrapper::Type::Layer)
+        m_workspace->removeActivedSurface(wrapper);
+
+    auto *helper = Helper::instance();
+    auto *seatManager = helper->seatManager();
+    WSeat *primarySeat = helper->seat();
+    const auto seats = seatManager->seats();
+    auto *container = helper->rootSurfaceContainer();
+
+    for (auto *seat : seats) {
+        auto *seatContainer = container->getSeatContainer(seat);
+        const bool isKeyboardFocusOwner = seatContainer->keyboardFocusSurface() == wrapper;
+        const bool isActivatedOwner = seatContainer->activatedSurface() == wrapper;
+
+        if (isKeyboardFocusOwner) {
+            // activateSurface implicitly clears the old activated state and falls back focus.
+            // TODO(multi-seat): non-primary seats should also perform focus fallback once
+            // per-seat workspace stacking is supported.
+            if (seat == primarySeat) {
+                helper->activateSurface(m_workspace->current()->latestActiveSurface(),
+                                        Qt::OtherFocusReason,
+                                        seat);
+            } else {
+                helper->requestKeyboardFocus(nullptr, Qt::OtherFocusReason, seat);
+            }
+            continue;
+        }
+
+        if (isActivatedOwner) { // not isKeyboardFocusOwner
+            // Clear the activated state so foreign-toplevel clients do not observe a
+            // minimized-but-activated window.
+            helper->setActivatedSurface(nullptr, seat);
+        }
+    }
+}
+
 void ShellHandler::setupSurfaceActiveWatcher(SurfaceWrapper *wrapper)
 {
     Q_ASSERT_X(wrapper->container(), Q_FUNC_INFO, "Must setContainer at first!");
@@ -882,14 +923,7 @@ void ShellHandler::setupSurfaceActiveWatcher(SurfaceWrapper *wrapper)
                         == WLayerSurface::KeyboardInteractivity::Exclusive)
                     Helper::instance()->requestKeyboardFocus(wrapper);
             } else {
-                // Only the current keyboard focus owner should drive focus fallback.
-                // Closing an unfocused layer surface, such as a notification, must not
-                // move focus away from the current owner, which may be a layer-shell
-                // surface that does not participate in fallback history.
-                if (Helper::instance()->keyboardFocusSurface() != wrapper)
-                    return;
-
-                Helper::instance()->activateSurface(m_workspace->current()->latestActiveSurface());
+                onSurfaceInactivationRequested(wrapper);
             }
         });
     } else { // Xdgtoplevel or X11 or Splash
@@ -901,21 +935,7 @@ void ShellHandler::setupSurfaceActiveWatcher(SurfaceWrapper *wrapper)
         });
 
         connect(wrapper, &SurfaceWrapper::inactivationRequested, this, [this, wrapper]() {
-            m_workspace->removeActivedSurface(wrapper);
-            // The window may already be inactive. Keep history cleanup above, but
-            // avoid changing focus unless this window still owns keyboard focus.
-            if (Helper::instance()->keyboardFocusSurface() != wrapper) {
-                // Requests from task bars or other external controllers can minimize the
-                // active window after keyboard focus has already moved away from it. Clear
-                // the compositor active state so foreign-toplevel clients do not observe a
-                // minimized-but-activated window, but do not fall back focus from the
-                // current keyboard focus owner.
-                if (Helper::instance()->activatedSurface() == wrapper)
-                    Helper::instance()->setActivatedSurface(nullptr);
-                return;
-            }
-
-            Helper::instance()->activateSurface(m_workspace->current()->latestActiveSurface());
+            onSurfaceInactivationRequested(wrapper);
         });
 
         if (wrapper->hasActiveCapability()) {
