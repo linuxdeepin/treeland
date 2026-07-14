@@ -3,7 +3,6 @@
 
 import QtQuick
 import Waylib.Server
-import QtQuick.Effects
 
 Item {
     id: root
@@ -24,10 +23,12 @@ Item {
     property var position: WaylandLayerSurface.AnchorType.Bottom
     property var enableBlur: false
 
-    x: target.x
-    y: target.y
-    width: target.width
-    height: target.height
+    readonly property rect sourceRect: target.boundingRect
+
+    x: target.x + sourceRect.x
+    y: target.y + sourceRect.y
+    width: sourceRect.width
+    height: sourceRect.height
 
     function start() {
         visible = true;
@@ -42,20 +43,13 @@ Item {
 
     Loader {
         active: root.enableBlur
-        anchors.fill: effect
-        sourceComponent: RenderBufferBlitter {
-            id: blitter
+        x: effect.x - root.sourceRect.x
+        y: effect.y - root.sourceRect.y
+        width: root.target.width
+        height: root.target.height
+        sourceComponent: Blur {
             anchors.fill: parent
-            MultiEffect {
-                id: blur
-                anchors.fill: parent
-                source: blitter.content
-                autoPaddingEnabled: false
-                blurEnabled: true
-                blur: 1.0
-                blurMax: 64
-                saturation: 0.2
-            }
+            radius: root.target.radius
         }
     }
 
@@ -64,8 +58,9 @@ Item {
         live: root.direction === LayerShellAnimation.Direction.Show
         hideSource: true
         sourceItem: root.target
-        width: root.target.width
-        height: root.target.height
+        sourceRect: root.sourceRect
+        width: root.width
+        height: root.height
     }
 
     ParallelAnimation {
