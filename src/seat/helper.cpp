@@ -2050,15 +2050,12 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *targetWindow, QInputEvent 
     [[maybe_unused]] auto clearEventSeat = qScopeGuard([this] { m_currentEventSeat = nullptr; });
 
     if (seat == m_primarySeat) {
-        // NOTE: Unable to distinguish meta from other key combinations
-        //       For example, Meta+S will still receive Meta release after
-        //       fully releasing the key, actively detect whether there are
-        //       other keys, and reset the state.
         if (event->type() == QEvent::KeyPress) {
             auto kevent = static_cast<QKeyEvent *>(event);
             switch (kevent->key()) {
             case Qt::Key_Meta:
             case Qt::Key_Super_L:
+            case Qt::Key_Super_R:
                 if (auto *seatContainer = m_rootSurfaceContainer->getSeatContainer(seat))
                     seatContainer->setMetaKeyPressed(true);
                 break;
@@ -2146,24 +2143,28 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *targetWindow, QInputEvent 
         }
     }
 
-    // handle shortcut
-    if (m_shortcutManager->tryHandleCaptureEvent(seat, event))
+    // Capture mode: intercept key events before dispatchKeyEvent
+    if (m_shortcutManager->isCaptureActive() && m_shortcutManager->tryHandleCaptureEvent(seat, event))
         return true;
 
     if (seat == m_primarySeat && !m_captureSelector && m_currentMode != CurrentMode::LockScreen
         && (event->type() == QEvent::KeyPress || event->type() == QEvent::KeyRelease)) {
-        do {
-            auto kevent = static_cast<QKeyEvent *>(event);
-            // SKIP Meta+Meta
-            auto *seatContainer = m_rootSurfaceContainer->getSeatContainer(seat);
-            if (kevent->key() == Qt::Key_Meta && kevent->modifiers() == Qt::NoModifier
-                && seatContainer && !seatContainer->metaKeyPressed()) {
-                break;
-            }
+        auto kevent = static_cast<QKeyEvent *>(event);
+        auto *seatContainer = m_rootSurfaceContainer->getSeatContainer(seat);
 
-            if (m_shortcutManager->controller()->dispatchKeyEvent(kevent))
+        // Meta: consume press as modifier; suppress release when used in combo
+        if (kevent->key() == Qt::Key_Meta || kevent->key() == Qt::Key_Super_L || kevent->key() == Qt::Key_Super_R) {
+            if (kevent->type() == QEvent::KeyPress) {
                 return true;
-        } while (false);
+            }
+            if (kevent->type() == QEvent::KeyRelease && seatContainer && !seatContainer->metaKeyPressed()) {
+                return false;
+            }
+        }
+
+        if (m_shortcutManager->controller()->dispatchKeyEvent(kevent)) {
+            return true;
+        }
     }
 
     return false;

@@ -1037,10 +1037,11 @@ void ShellHandler::setupSurfaceWindowMenu(SurfaceWrapper *wrapper)
             &SurfaceWrapper::windowMenuRequested,
             m_windowMenu,
             [this, wrapper](QPointF pos) {
-                QMetaObject::invokeMethod(m_windowMenu,
+                bool ok = QMetaObject::invokeMethod(m_windowMenu,
                                           "showWindowMenu",
                                           QVariant::fromValue(wrapper),
                                           QVariant::fromValue(pos));
+                qCDebug(lcTlShortcut) << "showWindowMenu invokeMethod result=" << ok;
             });
 }
 

@@ -573,17 +573,16 @@ ShortcutCaptureV1 *ShortcutManagerV2Private::resetCaptureState()
 //                                      ShortcutController::isValidShortcutCombination().
 bool ShortcutManagerV2Private::tryHandleCaptureEvent(WSeat *seat, QInputEvent *event)
 {
-    // Post-capture drain: consume residual KeyRelease events from the captured session.
-    // This prevents the release of the captured key from immediately firing a newly
-    // bound shortcut that uses KeyRelease trigger semantics.
+    // Drain the captured key's residual KeyRelease to avoid triggering
+    // a newly bound shortcut with KeyRelease trigger semantics.
     if (m_drainKey != Qt::Key_unknown && seat == m_drainSeat
         && event->type() == QEvent::KeyRelease) {
         auto *ke = static_cast<QKeyEvent *>(event);
         if (static_cast<Qt::Key>(ke->key()) == m_drainKey) {
             m_drainKey = Qt::Key_unknown;
             m_drainSeat = nullptr;
+            return true;
         }
-        return true; // consume all key releases until the captured key is released
     }
 
     if (!m_pendingCapture)
@@ -694,6 +693,11 @@ wl_global *ShortcutManagerV2::global() const
 bool ShortcutManagerV2::tryHandleCaptureEvent(WSeat *seat, QInputEvent *event)
 {
     return d->tryHandleCaptureEvent(seat, event);
+}
+
+bool ShortcutManagerV2::isCaptureActive()
+{
+    return d->m_pendingCapture || d->m_drainKey != Qt::Key_unknown;
 }
 
 QByteArrayView ShortcutManagerV2::interfaceName() const

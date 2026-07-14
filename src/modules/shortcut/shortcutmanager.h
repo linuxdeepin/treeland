@@ -68,6 +68,7 @@ public:
     void sendActivated(const QString& name, ShortcutController::KeyFlags keyFlags);
 
     bool tryHandleCaptureEvent(WAYLIB_SERVER_NAMESPACE::WSeat *seat, QInputEvent *event);
+    bool isCaptureActive();
 
 public Q_SLOTS:
     void onSessionChanged();

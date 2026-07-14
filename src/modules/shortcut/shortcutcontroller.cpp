@@ -74,6 +74,15 @@ uint ShortcutController::registerKey(const QString &name, const QString& key, Sh
         m_keyMap[combined].remove(action);
         m_actionCombinedMap.remove(action);
     };
+    if (lcTlShortcut().isInfoEnabled()) {
+        QStringList flagNames;
+        if (keybindFlags.testFlag(ShortcutController::KeyPress)) flagNames << "KeyPress";
+        if (keybindFlags.testFlag(ShortcutController::KeyRelease)) flagNames << "KeyRelease";
+        if (keybindFlags.testFlag(ShortcutController::Repeat)) flagNames << "Repeat";
+        if (flagNames.isEmpty()) flagNames << "None";
+        qCInfo(lcTlShortcut).noquote() << "register shortcut:" << key << "->" << name
+            << "flags:" << flagNames.join('|');
+    }
     return 0;
 }
 
@@ -195,17 +204,30 @@ bool ShortcutController::dispatchKeyEvent(const QKeyEvent *kevent)
     ShortcutController::KeyFlags keyFlags = (kevent->isAutoRepeat() ? ShortcutController::Repeat : ShortcutController::None)
         | (kevent->type() == QEvent::KeyPress ? ShortcutController::KeyPress : ShortcutController::None)
         | (kevent->type() == QEvent::KeyRelease ? ShortcutController::KeyRelease : ShortcutController::None);
-    if (m_keyMap.contains(combined)) {
-        for (const auto &[action, keybind] : std::as_const(m_keyMap[combined]).asKeyValueRange()) {
-            const auto& [name, bindFlags] = keybind;
-            if ((bindFlags & keyFlags) != keyFlags) {
-                continue;
-            }
-            emit actionTriggered(action, name, false, keyFlags);
-        }
-        return true;
+
+    bool matched = m_keyMap.contains(combined);
+    if (matched) {
+        qCInfo(lcTlShortcut).noquote()
+            << "shortcut match:" << QKeySequence(kevent->keyCombination()).toString(QKeySequence::PortableText)
+            << (kevent->type() == QEvent::KeyPress ? "press" : "release")
+            << (kevent->isAutoRepeat() ? "repeat" : "");
     }
-    return false;
+    if (!matched)
+        return false;
+
+    for (const auto &[action, keybind] : std::as_const(m_keyMap[combined]).asKeyValueRange()) {
+        const auto& [name, bindFlags] = keybind;
+        // Match if the event flags are a subset of the binding flags.
+        // Each shortcut's behavior is determined by its registration flags:
+        // KeyPress-only → triggers on press,
+        // KeyRelease-only → triggers on release,
+        // Both → triggers on both.
+        if ((bindFlags & keyFlags) != keyFlags) {
+            continue;
+        }
+        Q_EMIT actionTriggered(action, name, false, keyFlags);
+    }
+    return true;
 }
 
 Qt::KeyboardModifiers ShortcutController::modifierForAction(ShortcutAction action) const
