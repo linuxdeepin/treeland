@@ -89,6 +89,11 @@ void WSGDamageTracker::onTransformChanged(NodeId node, const QTransform &newTran
     updateDescendants(node);
 }
 
+bool WSGDamageTracker::hasNode(NodeId node) const
+{
+    return m_nodes.contains(node);
+}
+
 QRegion WSGDamageTracker::takeFrameDamage()
 {
     QRegion result;

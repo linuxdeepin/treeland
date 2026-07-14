@@ -162,7 +162,7 @@ private:
     QList<Data> m_sourceList;
     QW_NAMESPACE::qw_damage_ring m_damageRing;
     std::unique_ptr<WSGDamageTracker> m_damageTracker;
-    QSGAbstractRenderer *m_damageObserver = nullptr;
+    WSGDamageObserverRenderer *m_damageObserver = nullptr;
     mutable std::unique_ptr<WSGTextureProvider> m_textureProvider;
     QColor m_clearColor = Qt::transparent;
     QList<QObject*> m_cacheBufferLocker;

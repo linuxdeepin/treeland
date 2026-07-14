@@ -27,10 +27,11 @@ class WSGDamageTracker;
 // within the controlled QQuickRenderControl sync→preprocess→render sequence,
 // so no additional locking is needed.
 //
-// Bounding rect strategy: For QSGRenderNode, use rect(). For other node types
-// or when the bounding rect cannot be determined, call tracker->reset() to
-// fall back to full damage (add_whole). This conservative approach ensures
-// correctness; precision can be improved in later iterations.
+// Bounding rect strategy: For QSGRenderNode with a valid rect(), report
+// onNodeAdded/onGeometryChanged. For other node types or empty rects, skip
+// (return) — do NOT call reset(), which would wipe all tracker state and
+// force a full repaint every frame. The WSGDamageInfoNode surface-damage
+// path and the add_whole() fallback cover missed cases.
 class WAYLIB_SERVER_EXPORT WSGDamageObserverRenderer : public QSGAbstractRenderer
 {
     Q_OBJECT

@@ -14,6 +14,7 @@
 #include "wayliblogging.h"
 
 #include "private/wsgdamageinfonode_p.h"
+#include "private/wbufferrenderer_p.h"
 #include "wtools.h"
 
 #include <private/qquickitem_p.h>
@@ -614,6 +615,20 @@ public:
     QPointer<WSurfaceItemContent> m_owner;
 };
 
+// Collect the combined transform from a QSGNode's local coordinate system
+// to the scene graph root by walking up ancestor QSGTransformNode instances.
+// QSGImageNode itself has no transform (its position is encoded in geometry),
+// so this gives the item-local-to-root transform.
+static QTransform nodeToRootTransform(QSGNode *node)
+{
+    QTransform t;
+    for (QSGNode *parent = node->parent(); parent; parent = parent->parent()) {
+        if (parent->type() == QSGNode::TransformNodeType)
+            t = static_cast<QSGTransformNode*>(parent)->matrix().toTransform() * t;
+    }
+    return t;
+}
+
 QSGNode *WSurfaceItemContent::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *)
 {
     W_D(WSurfaceItemContent);
@@ -628,7 +643,23 @@ QSGNode *WSurfaceItemContent::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeD
         }
     }
 
+    // Get the damage tracker for this output. currentRenderer() is valid
+    // during the sync phase because pushRenderer() is called before
+    // renderNextFrame() which triggers sync.
+    auto rw = outputRenderWindow();
+    auto br = rw ? rw->currentRenderer() : nullptr;
+    auto tracker = br ? br->damageTracker() : nullptr;
+
     if (!tp->texture() || width() <= 0 || height() <= 0) {
+        // Notify tracker that the node is being removed before deletion.
+        if (oldNode && tracker) {
+            for (QSGNode *child = oldNode->firstChild(); child; child = child->nextSibling()) {
+                if (child->type() == WSGDamageInfoNode::Type) {
+                    static_cast<WSGDamageInfoNode *>(child)->notifyRemoved(tracker);
+                    break;
+                }
+            }
+        }
         delete oldNode;
         return nullptr;
     }
@@ -646,8 +677,8 @@ QSGNode *WSurfaceItemContent::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeD
     // surface damage and reports it to the tracker via preprocess().
     WSGDamageInfoNode *damageInfoNode = nullptr;
     for (QSGNode *child = node->firstChild(); child; child = child->nextSibling()) {
-        if (auto din = dynamic_cast<WSGDamageInfoNode *>(child)) {
-            damageInfoNode = din;
+        if (child->type() == WSGDamageInfoNode::Type) {
+            damageInfoNode = static_cast<WSGDamageInfoNode *>(child);
             break;
         }
     }
@@ -661,9 +692,22 @@ QSGNode *WSurfaceItemContent::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeD
         damageInfoNode->setDamage(d->m_pendingSurfaceDamage);
         d->m_pendingSurfaceDamage = QRegion();
     }
-    // Tracker is set via WSGDamageInfoNode::setCurrentTracker() in
-    // WBufferRenderer::render() before renderNextFrame(), so no explicit
-    // setTracker() call is needed here.
+    // Set the tracker per-node (no global static — each output has its own
+    // tracker obtained through the renderWindow → bufferRenderer chain).
+    damageInfoNode->setTracker(tracker);
+
+    // Register the image node in the tracker and sync transform/geometry.
+    // The tracker maps surface-local damage to root-local coordinates via
+    // this transform chain. When bufferOffset is applied, the damage region
+    // is translated to buffer-local coords (origin at bufferOffset), so the
+    // transform includes that offset.
+    if (tracker) {
+        QTransform localToRoot = nodeToRootTransform(node);
+        if (!d->ignoreBufferOffset)
+            localToRoot = localToRoot * QTransform::fromTranslate(d->bufferOffset.x(), d->bufferOffset.y());
+        const QRectF localRect(QPointF(0, 0), size());
+        damageInfoNode->syncRegistration(tracker, localToRoot, localRect);
+    }
 
     auto texture = tp->texture();
     node->setTexture(texture);

@@ -78,6 +78,11 @@ public:
     // Both old and new root-local rects are damaged.
     void onTransformChanged(NodeId node, const QTransform &newTransform);
 
+    // Check whether a node is currently registered in the tracker.
+    // Useful for Layer 3 to decide between onNodeAdded() and
+    // onGeometryChanged()/onTransformChanged() when syncing state.
+    bool hasNode(NodeId node) const;
+
     // --- Output ---
 
     // Returns the accumulated frame damage in root-local coordinates and

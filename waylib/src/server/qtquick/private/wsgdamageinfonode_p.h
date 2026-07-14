@@ -5,8 +5,10 @@
 
 #include <wglobal.h>
 
+#include <QRectF>
 #include <QRegion>
 #include <QSGNode>
+#include <QTransform>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -28,7 +30,7 @@ class WSGDamageTracker;
 //   - The damage region is in the parent node's local coordinate system
 //     (i.e., the surface content's local coordinates).
 //   - WSGDamageTracker maps it to root-local coordinates via the node's
-//     transform chain (set by Layer 3b observer or explicit registration).
+//     transform chain (set by syncRegistration()).
 //
 // Lifecycle:
 //   - Created in updatePaintNode alongside WSGRenderFootprintNode.
@@ -38,6 +40,10 @@ class WSGDamageTracker;
 class WAYLIB_SERVER_EXPORT WSGDamageInfoNode : public QSGNode
 {
 public:
+    // Custom type value above Qt's built-in NodeType range (max = RenderNodeType)
+    // for type()-based identification without dynamic_cast.
+    static constexpr NodeType Type = static_cast<NodeType>(256);
+
     explicit WSGDamageInfoNode();
     ~WSGDamageInfoNode() override = default;
 
@@ -54,13 +60,21 @@ public:
     // Typically the parent QSGNode pointer.
     void setNodeId(const void *nodeId);
 
-    // Set the current tracker for all WSGDamageInfoNode instances. Called by
-    // WBufferRenderer::render() before renderNextFrame() so that preprocess()
-    // can report damage. This solves the timing issue where currentRenderer()
-    // is not yet available during updatePaintNode (sync runs before render).
-    static void setCurrentTracker(WSGDamageTracker *tracker);
+    // Register or update the parent node in the tracker. Called from
+    // updatePaintNode with the node's local-to-root transform and local rect.
+    // On first call, registers the node via setNodeParent/setNodeTransform/
+    // onNodeAdded. On subsequent calls, only fires onTransformChanged/
+    // onGeometryChanged when values actually change, avoiding spurious damage.
+    void syncRegistration(WSGDamageTracker *tracker,
+                          const QTransform &localToRoot,
+                          const QRectF &localRect);
 
-    // QSGNode override — called by QSGRenderer during preprocess phase.
+    // Notify the tracker that the parent node is being removed (deleted).
+    // Called before deleting the parent QSGNode so the tracker can clean up
+    // and damage the node's last known area.
+    void notifyRemoved(WSGDamageTracker *tracker);
+
+    // QSGNode override — called by QSGRenderer during the preprocess phase.
     void preprocess() override;
 
 private:
@@ -68,7 +82,11 @@ private:
     WSGDamageTracker *m_tracker = nullptr;
     const void *m_nodeId = nullptr;
 
-    static WSGDamageTracker *s_currentTracker;
+    // Registration state — tracks the last transform/rect reported to the
+    // tracker so we only fire change events when something actually moved.
+    QTransform m_lastTransform;
+    QRectF m_lastRect;
+    bool m_registered = false;
 };
 
 WAYLIB_SERVER_END_NAMESPACE

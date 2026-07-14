@@ -38,11 +38,12 @@ void WSGDamageObserverRenderer::nodeChanged(QSGNode *node, QSGNode::DirtyState s
     if (!(state & observedMask))
         return;
 
-    // Try to get the node's local bounding rect.
     // For QSGRenderNode, rect() gives the local bounding rect.
-    // For other node types (TransformNode, OpacityNode, etc.), we cannot
-    // easily determine a bounding rect without traversing children, so
-    // fall back to reset() (full damage) for correctness.
+    // For other node types (TransformNode, OpacityNode, etc.) or render nodes
+    // with an empty rect, we cannot easily determine a bounding rect — skip
+    // rather than calling reset(), which would wipe all tracker state.
+    // The WSGDamageInfoNode surface-damage path and the add_whole() fallback
+    // in WBufferRenderer::render() cover these cases.
     if (node->type() == QSGNode::RenderNodeType) {
         auto renderNode = static_cast<QSGRenderNode *>(node);
         QRectF rect = renderNode->rect();
@@ -53,13 +54,12 @@ void WSGDamageObserverRenderer::nodeChanged(QSGNode *node, QSGNode::DirtyState s
                 // DirtyMatrix: transform changed — damage old + new root rect.
                 m_tracker->onGeometryChanged(node, rect);
             }
-            return;
         }
+        // Empty/invalid rect: skip — covered by surface damage + fallback.
     }
-
-    // Conservative fallback: cannot determine bounding rect → reset tracker
-    // to force full damage on next takeFrameDamage().
-    m_tracker->reset();
+    // Non-RenderNode (TransformNode, etc.): skip — covered by surface damage
+    // path via WSGDamageInfoNode, which syncs the full transform on every
+    // updatePaintNode call.
 }
 
 WAYLIB_SERVER_END_NAMESPACE

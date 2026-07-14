@@ -10,7 +10,6 @@
 #include "private/wprivateaccessor_p.h"
 #include "private/wsgdamagetracker_p.h"
 #include "private/wsgdamageobserver_p.h"
-#include "private/wsgdamageinfonode_p.h"
 
 #include <qwbuffer.h>
 #include <qwtexture.h>
@@ -583,11 +582,10 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
         }
     }
 
-    // Set the current tracker so WSGDamageInfoNode::preprocess() can report
-    // surface damage. Cleared after renderNextFrame() returns.
-    WSGDamageInfoNode::setCurrentTracker(m_damageTracker.get());
+    // WSGDamageInfoNode gets its tracker via setTracker() in updatePaintNode
+    // (per-node, through the renderWindow → bufferRenderer → tracker chain),
+    // so no global static is needed here.
     state.context->renderNextFrame(renderer);
-    WSGDamageInfoNode::setCurrentTracker(nullptr);
 
     { // after render
         if (!softwareRenderer) {
