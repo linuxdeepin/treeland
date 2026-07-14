@@ -33,9 +33,13 @@ PopupFocusManager::PopupFocusManager(WSeat *seat, QObject *parent)
 
 PopupFocusManager::~PopupFocusManager() = default;
 
-void PopupFocusManager::giveFocus(WXdgPopupSurface *popupSurface)
+void PopupFocusManager::giveFocus(SurfaceWrapper *popupWrapper)
 {
-    if (!m_hasPopupGrab || !popupSurface || !m_seat->nativeHandle())
+    if (!m_hasPopupGrab || !popupWrapper || !m_seat->nativeHandle())
+        return;
+
+    auto *popupSurface = qobject_cast<WXdgPopupSurface *>(popupWrapper->shellSurface());
+    if (!popupSurface)
         return;
 
     // Only give focus to popups that belong to our seat's active popup grab.
@@ -54,9 +58,9 @@ void PopupFocusManager::giveFocus(WXdgPopupSurface *popupSurface)
 
     // Move keyboard focus to the popup surface via the normal waylib path.
     // TODO(rewine): Support multi-seat
-    m_seat->setKeyboardFocusSurface(popupSurface->surface());
+    Helper::instance()->requestKeyboardFocus(popupWrapper, Qt::ActiveWindowFocusReason, m_seat);
 
-    qCDebug(lcTlPopupFocus) << "Moved keyboard focus to popup surface:" << popupSurface;
+    qCDebug(lcTlPopupFocus) << "Moved keyboard focus to popup surface:" << popupWrapper;
 }
 
 void PopupFocusManager::dismissAll()
@@ -100,6 +104,6 @@ void PopupFocusManager::onKeyboardGrabEnd()
 
     if (saved && saved->hasFocusCapability()) {
         // TODO(rewine): Only restore focus if the saved surface belongs to the same seat.
-        Helper::instance()->requestKeyboardFocus(saved, Qt::ActiveWindowFocusReason);
+        Helper::instance()->requestKeyboardFocus(saved, Qt::ActiveWindowFocusReason, m_seat);
     }
 }

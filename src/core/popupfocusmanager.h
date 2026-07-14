@@ -12,7 +12,6 @@ class SurfaceWrapper;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WSeat;
-class WXdgPopupSurface;
 WAYLIB_SERVER_END_NAMESPACE
 
 // Manages xdg_popup keyboard grab lifecycle for the compositor.
@@ -33,10 +32,10 @@ public:
     explicit PopupFocusManager(WAYLIB_SERVER_NAMESPACE::WSeat *seat, QObject *parent = nullptr);
     ~PopupFocusManager() override;
 
-    // Move keyboard focus to the given xdg_popup surface. If this is the first
+    // Move keyboard focus to the given popup surface wrapper. If this is the first
     // popup during the current grab, the previously focused surface is saved
     // for later restoration. No-op if no popup grab is active.
-    void giveFocus(WAYLIB_SERVER_NAMESPACE::WXdgPopupSurface *popupSurface);
+    void giveFocus(SurfaceWrapper *popupWrapper);
 
     // Dismiss all active popup surfaces. No-op if no popup grab is active.
     void dismissAll();
