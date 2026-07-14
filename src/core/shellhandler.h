@@ -135,6 +135,7 @@ private Q_SLOTS:
 
 private:
     void setupSurfaceActiveWatcher(SurfaceWrapper *wrapper);
+    void onSurfaceInactivationRequested(SurfaceWrapper *wrapper);
     void setupSurfaceWindowMenu(SurfaceWrapper *wrapper);
     void updateLayerSurfaceContainer(SurfaceWrapper *surface);
     void registerSurfaceToForeignToplevel(SurfaceWrapper *wrapper);
