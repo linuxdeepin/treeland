@@ -23,6 +23,7 @@
 #include <QDBusInterface>
 #include <QDBusPendingCall>
 #include <QDBusReply>
+#include <QDBusServiceWatcher>
 #include <QGuiApplication>
 #include <QLocalSocket>
 #include <QScopeGuard>
@@ -91,6 +92,27 @@ GreeterProxy::GreeterProxy(QObject *parent)
     : QObject(parent)
 {
     m_socket = new QLocalSocket(this);
+    auto conn = QDBusConnection::systemBus();
+    auto *displayManagerWatcher =
+        new QDBusServiceWatcher(QStringLiteral("org.deepin.DisplayManager"),
+                                conn,
+                                QDBusServiceWatcher::WatchForRegistration
+                                    | QDBusServiceWatcher::WatchForUnregistration,
+                                this);
+    connect(displayManagerWatcher,
+            &QDBusServiceWatcher::serviceRegistered,
+            this,
+            [this](const QString &) {
+                qCInfo(lcTlGreeter) << "Display manager service registered";
+                updateAuthSocket();
+            });
+    connect(displayManagerWatcher,
+            &QDBusServiceWatcher::serviceUnregistered,
+            this,
+            [this](const QString &) {
+                qCWarning(lcTlGreeter) << "Display manager service unregistered";
+                m_socket->abort();
+            });
 
     // connect signals
     connect(m_socket, &QLocalSocket::connected, this, &GreeterProxy::connected);
@@ -98,7 +120,6 @@ GreeterProxy::GreeterProxy(QObject *parent)
     connect(m_socket, &QLocalSocket::readyRead, this, &GreeterProxy::readyRead);
     connect(m_socket, &QLocalSocket::errorOccurred, this, &GreeterProxy::error);
 
-    auto conn = QDBusConnection::systemBus();
     conn.connect(Logind::serviceName(),
                  Logind::managerPath(),
                  Logind::managerIfaceName(),
