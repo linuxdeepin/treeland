@@ -270,11 +270,11 @@ public:
             if (Q_LIKELY((q->isVisible() || lastRendered) && live))
                 surface->scheduleFrameIfNeeded();
 
-            // Collect wayland surface effective damage and forward to the
-            // WSGDamageInfoNode for refined damage tracking. The damage is
-            // in surface-local coordinates; translate by -bufferOffset to
-            // convert to image node local coordinates.
-            if (bufferChanged && damageInfoNode) {
+            // Collect wayland surface effective damage into a pure QRegion.
+            // Do NOT touch QSGNode here — it is only safe to access in
+            // updatePaintNode (QtQuick development convention). The pending
+            // damage is transferred to WSGDamageInfoNode in updatePaintNode.
+            if (bufferChanged) {
                 pixman_region32 effectiveDamage;
                 pixman_region32_init(&effectiveDamage);
                 surface->handle()->get_effective_damage(&effectiveDamage);
@@ -282,8 +282,10 @@ public:
                 pixman_region32_fini(&effectiveDamage);
                 if (!damageRegion.isEmpty() && !ignoreBufferOffset)
                     damageRegion.translate(-bufferOffset);
-                if (!damageRegion.isEmpty())
-                    damageInfoNode->setDamage(damageRegion);
+                if (!damageRegion.isEmpty()) {
+                    m_pendingSurfaceDamage += damageRegion;
+                    q->update();
+                }
             }
         });
 
@@ -392,10 +394,9 @@ public:
     bool lastRendered = false;
     QAtomicInteger<bool> rendered = false;
 
-    // Damage info node for refined surface-level damage tracking.
-    // Created in updatePaintNode, damage filled on surface commit,
-    // consumed by preprocess() during the scene graph preprocess phase.
-    WSGDamageInfoNode *damageInfoNode = nullptr;
+    // Pending surface damage accumulated from commit callbacks (GUI thread).
+    // Transferred to WSGDamageInfoNode in updatePaintNode (render thread sync).
+    QRegion m_pendingSurfaceDamage;
 };
 
 
@@ -628,7 +629,6 @@ QSGNode *WSurfaceItemContent::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeD
     }
 
     if (!tp->texture() || width() <= 0 || height() <= 0) {
-        d->damageInfoNode = nullptr;  // child nodes will be deleted with oldNode
         delete oldNode;
         return nullptr;
     }
@@ -639,13 +639,31 @@ QSGNode *WSurfaceItemContent::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeD
         node->setOwnsTexture(false);
         QSGNode *fpnode = new WSGRenderFootprintNode(this);
         node->appendChildNode(fpnode);
-        // Attach a WSGDamageInfoNode for refined surface damage tracking.
-        // Its damage (from wayland surface get_effective_damage) is reported
-        // to the WSGDamageTracker via preprocess() each frame.
-        d->damageInfoNode = new WSGDamageInfoNode();
-        d->damageInfoNode->setNodeId(node);
-        node->appendChildNode(d->damageInfoNode);
     }
+
+    // Find or create the WSGDamageInfoNode (all QSGNode operations are in
+    // updatePaintNode per QtQuick convention). The node carries refined
+    // surface damage and reports it to the tracker via preprocess().
+    WSGDamageInfoNode *damageInfoNode = nullptr;
+    for (QSGNode *child = node->firstChild(); child; child = child->nextSibling()) {
+        if (auto din = dynamic_cast<WSGDamageInfoNode *>(child)) {
+            damageInfoNode = din;
+            break;
+        }
+    }
+    if (!damageInfoNode) {
+        damageInfoNode = new WSGDamageInfoNode();
+        damageInfoNode->setNodeId(node);
+        node->appendChildNode(damageInfoNode);
+    }
+    // Transfer pending surface damage (pure data → QSGNode, safe in updatePaintNode)
+    if (!d->m_pendingSurfaceDamage.isEmpty()) {
+        damageInfoNode->setDamage(d->m_pendingSurfaceDamage);
+        d->m_pendingSurfaceDamage = QRegion();
+    }
+    // Tracker is set via WSGDamageInfoNode::setCurrentTracker() in
+    // WBufferRenderer::render() before renderNextFrame(), so no explicit
+    // setTracker() call is needed here.
 
     auto texture = tp->texture();
     node->setTexture(texture);

@@ -54,6 +54,12 @@ public:
     // Typically the parent QSGNode pointer.
     void setNodeId(const void *nodeId);
 
+    // Set the current tracker for all WSGDamageInfoNode instances. Called by
+    // WBufferRenderer::render() before renderNextFrame() so that preprocess()
+    // can report damage. This solves the timing issue where currentRenderer()
+    // is not yet available during updatePaintNode (sync runs before render).
+    static void setCurrentTracker(WSGDamageTracker *tracker);
+
     // QSGNode override — called by QSGRenderer during preprocess phase.
     void preprocess() override;
 
@@ -61,6 +67,8 @@ private:
     QRegion m_damage;
     WSGDamageTracker *m_tracker = nullptr;
     const void *m_nodeId = nullptr;
+
+    static WSGDamageTracker *s_currentTracker;
 };
 
 WAYLIB_SERVER_END_NAMESPACE

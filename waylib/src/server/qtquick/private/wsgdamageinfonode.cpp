@@ -6,6 +6,8 @@
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
+WSGDamageTracker *WSGDamageInfoNode::s_currentTracker = nullptr;
+
 WSGDamageInfoNode::WSGDamageInfoNode()
 {
     setFlag(QSGNode::OwnedByParent);
@@ -27,10 +29,16 @@ void WSGDamageInfoNode::setNodeId(const void *nodeId)
     m_nodeId = nodeId;
 }
 
+void WSGDamageInfoNode::setCurrentTracker(WSGDamageTracker *tracker)
+{
+    s_currentTracker = tracker;
+}
+
 void WSGDamageInfoNode::preprocess()
 {
-    if (m_tracker && m_nodeId && !m_damage.isEmpty()) {
-        m_tracker->onContentDirty(m_nodeId, m_damage);
+    WSGDamageTracker *tracker = m_tracker ? m_tracker : s_currentTracker;
+    if (tracker && m_nodeId && !m_damage.isEmpty()) {
+        tracker->onContentDirty(m_nodeId, m_damage);
     }
     m_damage = QRegion();
 }

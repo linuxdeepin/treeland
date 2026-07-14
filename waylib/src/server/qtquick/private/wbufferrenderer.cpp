@@ -8,6 +8,9 @@
 #include "wtools.h"
 #include "wsgtextureprovider.h"
 #include "private/wprivateaccessor_p.h"
+#include "private/wsgdamagetracker_p.h"
+#include "private/wsgdamageobserver_p.h"
+#include "private/wsgdamageinfonode_p.h"
 
 #include <qwbuffer.h>
 #include <qwtexture.h>
@@ -33,6 +36,7 @@
 #include <private/qopenglcontext_p.h>
 #endif
 #include <private/qsgbatchrenderer_p.h>
+#include <private/qsgabstractrenderer_p.h>
 
 #include <pixman.h>
 #include <drm_fourcc.h>
@@ -89,6 +93,7 @@ WBufferRenderer::WBufferRenderer(QQuickItem *parent)
     : QQuickItem(parent)
     , m_cacheBuffer(true)
     , m_hideSource(false)
+    , m_damageTracker(std::make_unique<WSGDamageTracker>())
 {
     // ensure graphical resources are released before scene graph is invalidated
     // since WBufferRenderer's ItemHasContent bit is unset
@@ -275,6 +280,11 @@ const qw_damage_ring *WBufferRenderer::damageRing() const
 qw_damage_ring *WBufferRenderer::damageRing()
 {
     return &m_damageRing;
+}
+
+WSGDamageTracker *WBufferRenderer::damageTracker() const
+{
+    return m_damageTracker.get();
 }
 
 bool WBufferRenderer::isTextureProvider() const
@@ -573,12 +583,34 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
         }
     }
 
+    // Set the current tracker so WSGDamageInfoNode::preprocess() can report
+    // surface damage. Cleared after renderNextFrame() returns.
+    WSGDamageInfoNode::setCurrentTracker(m_damageTracker.get());
     state.context->renderNextFrame(renderer);
+    WSGDamageInfoNode::setCurrentTracker(nullptr);
 
     { // after render
         if (!softwareRenderer) {
-            // TODO: get damage area from QRhi renderer
-            m_damageRing.add_whole();
+            // Consume per-frame damage from the tracker (root-local logical coords).
+            // Falls back to add_whole() on empty damage (first frame, reset, or
+            // when the observer could not determine a bounding rect).
+            QRegion frameDamage = m_damageTracker->takeFrameDamage();
+            if (frameDamage.isEmpty()) {
+                m_damageRing.add_whole();
+            } else {
+                const auto scaleTF = QTransform::fromScale(devicePixelRatio, devicePixelRatio);
+                QRegion pixelDamage = scaleTF.map(frameDamage);
+                pixelDamage &= QRect(QPoint(0, 0), state.pixelSize);
+                if (pixelDamage.isEmpty()) {
+                    m_damageRing.add_whole();
+                } else {
+                    WPixmanRegion damage;
+                    if (WTools::toPixmanRegion(pixelDamage, damage))
+                        m_damageRing.add(damage);
+                    else
+                        m_damageRing.add_whole();
+                }
+            }
             // ###: maybe Qt bug? Before executing QRhi::endOffscreenFrame, we may
             // use the same QSGRenderer for multiple drawings. This can lead to
             // rendering the same content for different QSGRhiRenderTarget instances
@@ -798,6 +830,12 @@ QSGRenderer *WBufferRenderer::ensureRenderer(int sourceIndex, QSGRenderContext *
                      this, &WBufferRenderer::sceneGraphChanged);
 
     d.renderer->setClearColor(m_clearColor);
+
+    // Mount the damage observer renderer to the same rootNode so it
+    // receives nodeChanged() callbacks for structural/transform changes.
+    if (!m_damageObserver)
+        m_damageObserver = new WSGDamageObserverRenderer(m_damageTracker.get(), this);
+    m_damageObserver->setRootNode(rootNode);
 
     return d.renderer;
 }

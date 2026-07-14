@@ -34,6 +34,8 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WRenderHelper;
 class WSGTextureProvider;
+class WSGDamageTracker;
+class WSGDamageObserverRenderer;
 class WAYLIB_SERVER_EXPORT WBufferRenderer : public QQuickItem
 {
     friend class WOutputRenderWindow;
@@ -78,6 +80,11 @@ public:
     QRhiTexture *currentRenderTarget() const;
     const QW_NAMESPACE::qw_damage_ring *damageRing() const;
     QW_NAMESPACE::qw_damage_ring *damageRing();
+
+    // Damage tracker for the RHI render path. Layer 3 nodes (WSGDamageInfoNode)
+    // report surface damage to this tracker; the observer renderer reports
+    // structural changes. render() consumes takeFrameDamage().
+    WSGDamageTracker *damageTracker() const;
 
     bool isTextureProvider() const override;
     QSGTextureProvider *textureProvider() const override;
@@ -154,6 +161,8 @@ private:
 
     QList<Data> m_sourceList;
     QW_NAMESPACE::qw_damage_ring m_damageRing;
+    std::unique_ptr<WSGDamageTracker> m_damageTracker;
+    QSGAbstractRenderer *m_damageObserver = nullptr;
     mutable std::unique_ptr<WSGTextureProvider> m_textureProvider;
     QColor m_clearColor = Qt::transparent;
     QList<QObject*> m_cacheBufferLocker;

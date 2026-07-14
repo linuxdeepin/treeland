@@ -153,6 +153,7 @@ set(SOURCES
     qtquick/private/wrenderbuffernode.cpp
     qtquick/private/wsgdamagetracker.cpp
     qtquick/private/wsgdamageinfonode.cpp
+    qtquick/private/wsgdamageobserver.cpp
 
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v1-protocol.c
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v2-protocol.c
@@ -335,6 +336,7 @@ set(PRIVATE_HEADERS
     qtquick/private/wrenderbuffernode_p.h
     qtquick/private/wsgdamagetracker_p.h
     qtquick/private/wsgdamageinfonode_p.h
+    qtquick/private/wsgdamageobserver_p.h
     qtquick/private/wsurfaceitem_p.h
 
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v1-protocol.h
