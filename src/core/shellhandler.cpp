@@ -902,10 +902,8 @@ void ShellHandler::setupSurfaceActiveWatcher(SurfaceWrapper *wrapper)
         connect(wrapper, &SurfaceWrapper::hasFocusCapabilityChanged, this, [wrapper]() {
             if (!wrapper->hasFocusCapability())
                 return;
-            if (auto *pfm = Helper::instance()->popupFocusManager()) {
-                if (auto *popupSurface = qobject_cast<WXdgPopupSurface *>(wrapper->shellSurface()))
-                    pfm->giveFocus(popupSurface);
-            }
+            if (auto *pfm = Helper::instance()->popupFocusManager())
+                pfm->giveFocus(wrapper);
         });
     } else if (wrapper->type() == SurfaceWrapper::Type::Layer) {
         connect(wrapper, &SurfaceWrapper::hasFocusCapabilityChanged, this, [this, wrapper]() {

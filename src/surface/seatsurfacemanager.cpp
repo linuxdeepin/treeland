@@ -79,6 +79,7 @@ void SeatSurfaceManager::setKeyboardFocusSurface(SurfaceWrapper *surface)
 {
     if (m_keyboardFocusSurface == surface)
         return;
+    Q_ASSERT(m_seat && m_seat->nativeHandle());
 
     auto *oldSurface = m_keyboardFocusSurface;
     // Clear focus from old surface if no other seat has it
@@ -107,19 +108,18 @@ void SeatSurfaceManager::setKeyboardFocusSurface(SurfaceWrapper *surface)
 
         if (!otherSeatHasFocus)
             oldSurface->setFocus(false, Qt::OtherFocusReason);
-
-        if (m_seat && m_seat->nativeHandle())
-            m_seat->setKeyboardFocusSurface(nullptr);
     }
 
     // Assign new keyboard focus surface and update interaction metadata
     m_keyboardFocusSurface = surface;
-    if (surface && m_seat && m_seat->nativeHandle()) {
+    m_seat->setKeyboardFocusSurface(surface ? surface->surface() : nullptr);
+
+    if (surface) {
         surface->setProperty("lastInteractingSeat", QVariant::fromValue(m_seat));
         surface->setProperty("lastInteractionTime", QDateTime::currentMSecsSinceEpoch());
 
-        surface->setFocus(true, Qt::OtherFocusReason);
-        m_seat->setKeyboardFocusSurface(surface->surface());
+        // Qt focus is managed by the caller (requestKeyboardFocus or Qt Scene Graph),
+        // only set Wayland keyboard focus here.
     }
 }
 
