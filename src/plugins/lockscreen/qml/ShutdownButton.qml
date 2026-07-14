@@ -46,14 +46,18 @@ D.Button {
                 RoundBlur {
                     anchors.fill: parent
                     radius: btn.width / 2
-                    color: root.D.ColorSelector.backgroundColor
+                    color: root.activeFocus && !root.hovered && !root.pressed
+                           ? Qt.rgba(1.0, 1.0, 1.0, 0.2)
+                           : root.D.ColorSelector.backgroundColor
                 }
                 D.OutsideBoxBorder {
                     anchors.fill: parent
-                    visible: root.pressed || root.activeFocus
-                    borderWidth: 3
+                    visible: root.activeFocus || root.pressed
+                    borderWidth: root.activeFocus ? 2 : 3
                     radius: width / 2
-                    color: Qt.rgba(1.0, 1.0, 1.0, 0.3)
+                    color: root.activeFocus
+                           ? "#FFFFFF"
+                           : Qt.rgba(1.0, 1.0, 1.0, 0.3)
                 }
             }
         }
@@ -73,18 +77,22 @@ D.Button {
             color: root.D.ColorSelector.textColor
 
             background: Item {
-                visible: root.pressed || root.hovered
+                visible: root.activeFocus || root.hovered || root.pressed
                 RoundBlur {
                     anchors.fill: parent
                     radius: 6
-                    color: root.D.ColorSelector.backgroundColor
+                    color: root.activeFocus && !root.hovered && !root.pressed
+                           ? Qt.rgba(1.0, 1.0, 1.0, 0.2)
+                           : root.D.ColorSelector.backgroundColor
                 }
                 D.OutsideBoxBorder {
-                    visible: root.pressed
+                    visible: root.activeFocus || root.pressed
                     anchors.fill: parent
                     borderWidth: 2
                     radius: 6
-                    color: Qt.rgba(1.0, 1.0, 1.0, 0.3)
+                    color: root.activeFocus
+                           ? "#FFFFFF"
+                           : Qt.rgba(1.0, 1.0, 1.0, 0.3)
                 }
             }
         }
