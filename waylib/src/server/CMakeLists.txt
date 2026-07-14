@@ -151,6 +151,7 @@ set(SOURCES
     qtquick/private/wqmlhelper.cpp
     qtquick/private/wbufferrenderer.cpp
     qtquick/private/wrenderbuffernode.cpp
+    qtquick/private/wsgdamagetracker.cpp
 
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v1-protocol.c
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v2-protocol.c
@@ -331,6 +332,7 @@ set(PRIVATE_HEADERS
     qtquick/private/wquicktextureproxy_p.h
     qtquick/private/wbufferrenderer_p.h
     qtquick/private/wrenderbuffernode_p.h
+    qtquick/private/wsgdamagetracker_p.h
     qtquick/private/wsurfaceitem_p.h
 
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v1-protocol.h
