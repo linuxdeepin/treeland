@@ -6,6 +6,7 @@
 #include <wglobal.h>
 
 #include <QHash>
+#include <QList>
 #include <QRegion>
 #include <QTransform>
 
@@ -51,6 +52,7 @@ public:
 
     // Set the local-to-parent transform for a node.
     // Identity transform by default.
+    // Must be called before onNodeAdded() so the transform chain is correct.
     void setNodeTransform(NodeId node, const QTransform &transform);
 
     // --- Event-driven API ---
@@ -105,6 +107,11 @@ private:
     QRectF mapToRoot(NodeId node, const QRectF &localRect) const;
     // Map a local region to root-local coordinates.
     QRegion mapToRoot(NodeId node, const QRegion &localRegion) const;
+
+    // Recursively update lastRootRect for all descendants of the given node
+    // and damage their old + new root rects. Called after an ancestor's
+    // transform or geometry changes to keep descendant caches in sync.
+    void updateDescendants(NodeId parent);
 };
 
 WAYLIB_SERVER_END_NAMESPACE

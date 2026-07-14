@@ -13,6 +13,9 @@
 #include "wsurfaceitem_p.h"
 #include "wayliblogging.h"
 
+#include "private/wsgdamageinfonode_p.h"
+#include "wtools.h"
+
 #include <private/qquickitem_p.h>
 
 #include <qwalphamodifierv1.h>
@@ -266,6 +269,20 @@ public:
 
             if (Q_LIKELY((q->isVisible() || lastRendered) && live))
                 surface->scheduleFrameIfNeeded();
+
+            // Collect wayland surface effective damage and forward to the
+            // WSGDamageInfoNode for refined damage tracking. The damage is
+            // in surface-local coordinates, which match the image node's
+            // local coordinate system (origin at bufferOffset, size = surface size).
+            if (bufferChanged && damageInfoNode) {
+                pixman_region32 effectiveDamage;
+                pixman_region32_init(&effectiveDamage);
+                surface->handle()->get_effective_damage(&effectiveDamage);
+                QRegion damageRegion = WTools::fromPixmanRegion(&effectiveDamage);
+                pixman_region32_fini(&effectiveDamage);
+                if (!damageRegion.isEmpty())
+                    damageInfoNode->setDamage(damageRegion);
+            }
         });
 
         updateFrameDoneConnection();
@@ -372,6 +389,11 @@ public:
     bool ignoreBufferOffset = false;
     bool lastRendered = false;
     QAtomicInteger<bool> rendered = false;
+
+    // Damage info node for refined surface-level damage tracking.
+    // Created in updatePaintNode, damage filled on surface commit,
+    // consumed by preprocess() on the render thread.
+    WSGDamageInfoNode *damageInfoNode = nullptr;
 };
 
 
@@ -614,6 +636,12 @@ QSGNode *WSurfaceItemContent::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeD
         node->setOwnsTexture(false);
         QSGNode *fpnode = new WSGRenderFootprintNode(this);
         node->appendChildNode(fpnode);
+        // Attach a WSGDamageInfoNode for refined surface damage tracking.
+        // Its damage (from wayland surface get_effective_damage) is reported
+        // to the WSGDamageTracker via preprocess() each frame.
+        d->damageInfoNode = new WSGDamageInfoNode();
+        d->damageInfoNode->setNodeId(node);
+        node->appendChildNode(d->damageInfoNode);
     }
 
     auto texture = tp->texture();

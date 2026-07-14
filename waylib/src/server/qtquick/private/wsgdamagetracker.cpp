@@ -29,7 +29,21 @@ void WSGDamageTracker::onNodeRemoved(NodeId node)
     if (it == m_nodes.end())
         return;
     m_frameDamage += it->lastRootRect.toAlignedRect();
-    m_nodes.erase(it);
+
+    // Collect and recursively remove all descendants first, so their
+    // damage is reported and no orphaned nodes with dangling parent
+    // pointers remain in m_nodes.
+    QList<NodeId> children;
+    for (auto childIt = m_nodes.begin(); childIt != m_nodes.end(); ++childIt) {
+        if (childIt->parent == node)
+            children.append(childIt.key());
+    }
+    for (NodeId child : children)
+        onNodeRemoved(child);
+
+    // Use remove(key) instead of erase(iterator) — the recursive calls above
+    // may have triggered rehashing, invalidating the iterator 'it'.
+    m_nodes.remove(node);
 }
 
 void WSGDamageTracker::onGeometryChanged(NodeId node, const QRectF &newLocalRect)
@@ -69,6 +83,10 @@ void WSGDamageTracker::onTransformChanged(NodeId node, const QTransform &newTran
 
     m_frameDamage += oldRootRect.toAlignedRect();
     m_frameDamage += data.lastRootRect.toAlignedRect();
+
+    // Ancestor transform changed — recursively update all descendants'
+    // lastRootRect and damage their old + new root rects.
+    updateDescendants(node);
 }
 
 QRegion WSGDamageTracker::takeFrameDamage()
@@ -88,7 +106,12 @@ QTransform WSGDamageTracker::nodeToRootTransform(NodeId node) const
 {
     QTransform t;
     NodeId current = node;
+    int depth = 0;
     while (current) {
+        if (Q_UNLIKELY(++depth > 64)) {
+            Q_ASSERT(false && "Cycle detected in node parent chain");
+            break;
+        }
         auto it = m_nodes.find(current);
         if (it == m_nodes.end())
             break;
@@ -106,6 +129,19 @@ QRectF WSGDamageTracker::mapToRoot(NodeId node, const QRectF &localRect) const
 QRegion WSGDamageTracker::mapToRoot(NodeId node, const QRegion &localRegion) const
 {
     return nodeToRootTransform(node).map(localRegion);
+}
+
+void WSGDamageTracker::updateDescendants(NodeId parent)
+{
+    for (auto it = m_nodes.begin(); it != m_nodes.end(); ++it) {
+        if (it->parent == parent) {
+            QRectF oldRootRect = it->lastRootRect;
+            it->lastRootRect = mapToRoot(it.key(), it->localRect);
+            m_frameDamage += oldRootRect.toAlignedRect();
+            m_frameDamage += it->lastRootRect.toAlignedRect();
+            updateDescendants(it.key());
+        }
+    }
 }
 
 WAYLIB_SERVER_END_NAMESPACE

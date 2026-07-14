@@ -37,6 +37,10 @@ private Q_SLOTS:
     void testMultiEventAccumulation();
     void testResetFallback();
     void testTransformChanged();
+    void testThreeLevelNestedTransform();
+    void testScaleTransform();
+    void testChildOwnTransformPlusParent();
+    void testRemoveParentWithChildren();
 };
 
 void WSGDamageTrackerTest::init()
@@ -208,6 +212,106 @@ void WSGDamageTrackerTest::testTransformChanged()
     QRegion expected(0, 0, 50, 50);
     expected |= QRegion(100, 0, 50, 50);
     QCOMPARE(damage, expected);
+}
+
+// 3-level nested: root→child→grandchild, each translate, verify accumulation
+void WSGDamageTrackerTest::testThreeLevelNestedTransform()
+{
+    WSGDamageTracker tracker;
+
+    // root: translate(10, 0)
+    tracker.setNodeParent(nid(0), nullptr);
+    tracker.setNodeTransform(nid(0), QTransform::fromTranslate(10, 0));
+    tracker.onNodeAdded(nid(0), QRectF(0, 0, 100, 100));
+
+    // child: translate(20, 0) under root
+    tracker.setNodeParent(nid(1), nid(0));
+    tracker.setNodeTransform(nid(1), QTransform::fromTranslate(20, 0));
+    tracker.onNodeAdded(nid(1), QRectF(0, 0, 100, 100));
+
+    // grandchild: translate(30, 0) under child
+    tracker.setNodeParent(nid(2), nid(1));
+    tracker.setNodeTransform(nid(2), QTransform::fromTranslate(30, 0));
+    tracker.onNodeAdded(nid(2), QRectF(0, 0, 100, 100));
+    tracker.takeFrameDamage();
+
+    // Content dirty on grandchild at local (5, 5, 5, 5)
+    // Mapped through: translate(30) * translate(20) * translate(10) = (65, 5, 5, 5)
+    tracker.onContentDirty(nid(2), QRegion(5, 5, 5, 5));
+
+    QRegion damage = tracker.takeFrameDamage();
+    QCOMPARE(damage, QRegion(65, 5, 5, 5));
+}
+
+// Scale transform: fromScale(2,2), onContentDirty maps correctly
+void WSGDamageTrackerTest::testScaleTransform()
+{
+    WSGDamageTracker tracker;
+
+    tracker.setNodeParent(nid(0), nullptr);
+    tracker.setNodeTransform(nid(0), QTransform::fromScale(2, 2));
+    tracker.onNodeAdded(nid(0), QRectF(0, 0, 100, 100));
+    tracker.takeFrameDamage();
+
+    // local (5, 5, 5, 5) scaled by 2 → (10, 10, 10, 10)
+    tracker.onContentDirty(nid(0), QRegion(5, 5, 5, 5));
+
+    QRegion damage = tracker.takeFrameDamage();
+    QCOMPARE(damage, QRegion(10, 10, 10, 10));
+}
+
+// Child has own non-identity transform + parent transform
+void WSGDamageTrackerTest::testChildOwnTransformPlusParent()
+{
+    WSGDamageTracker tracker;
+
+    // parent: translate(100, 0)
+    tracker.setNodeParent(nid(0), nullptr);
+    tracker.setNodeTransform(nid(0), QTransform::fromTranslate(100, 0));
+    tracker.onNodeAdded(nid(0), QRectF(0, 0, 200, 200));
+
+    // child: translate(10, 0) under parent
+    tracker.setNodeParent(nid(1), nid(0));
+    tracker.setNodeTransform(nid(1), QTransform::fromTranslate(10, 0));
+    tracker.onNodeAdded(nid(1), QRectF(0, 0, 50, 50));
+    tracker.takeFrameDamage();
+
+    // Content dirty at child local (5, 5, 5, 5)
+    // Mapped: translate(10) * translate(100) = (115, 5, 5, 5)
+    tracker.onContentDirty(nid(1), QRegion(5, 5, 5, 5));
+
+    QRegion damage = tracker.takeFrameDamage();
+    QCOMPARE(damage, QRegion(115, 5, 5, 5));
+}
+
+// Remove parent with children: all descendants damaged and removed
+void WSGDamageTrackerTest::testRemoveParentWithChildren()
+{
+    WSGDamageTracker tracker;
+
+    // parent: translate(100, 0), rect (0,0,50,50) → root (100,0,50,50)
+    tracker.setNodeParent(nid(0), nullptr);
+    tracker.setNodeTransform(nid(0), QTransform::fromTranslate(100, 0));
+    tracker.onNodeAdded(nid(0), QRectF(0, 0, 50, 50));
+
+    // child: identity transform, rect (5,5,10,10) → root (105,5,10,10)
+    tracker.setNodeParent(nid(1), nid(0));
+    tracker.setNodeTransform(nid(1), QTransform());
+    tracker.onNodeAdded(nid(1), QRectF(5, 5, 10, 10));
+    tracker.takeFrameDamage();
+
+    // Remove parent — should recursively remove child too
+    tracker.onNodeRemoved(nid(0));
+
+    QRegion damage = tracker.takeFrameDamage();
+    // Both parent's and child's lastRootRect should be damaged
+    QRegion expected(100, 0, 50, 50);
+    expected |= QRegion(105, 5, 10, 10);
+    QCOMPARE(damage, expected);
+
+    // After removal, no damage from further events on removed child
+    tracker.onContentDirty(nid(1), QRegion(0, 0, 10, 10));
+    QCOMPARE(tracker.takeFrameDamage(), QRegion());
 }
 
 QTEST_MAIN(WSGDamageTrackerTest)
