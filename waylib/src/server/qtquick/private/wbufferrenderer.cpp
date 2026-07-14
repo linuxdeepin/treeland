@@ -267,6 +267,11 @@ QRhiTexture *WBufferRenderer::currentRenderTarget() const
     return colorAttachment->texture();
 }
 
+bool WBufferRenderer::isColorPreserved() const
+{
+    return state.colorPreserved;
+}
+
 const qw_damage_ring *WBufferRenderer::damageRing() const
 {
     return &m_damageRing;
@@ -331,7 +336,8 @@ QTransform WBufferRenderer::inputMapToOutput(const QRectF &sourceRect, const QRe
 }
 
 qw_buffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePixelRatio,
-                                        uint32_t format, RenderFlags flags)
+                                        uint32_t format, RenderFlags flags,
+                                        WGlobal::ColorContentsMode mode)
 {
     Q_ASSERT(!state.buffer);
     Q_ASSERT(m_output);
@@ -378,8 +384,7 @@ qw_buffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePixe
 
     auto wd = QQuickWindowPrivate::get(window());
     Q_ASSERT(wd->renderControl);
-    auto lastRT = m_renderHelper->lastRenderTarget();
-    auto rt = m_renderHelper->acquireRenderTarget(wd->renderControl, buffer);
+    auto rt = m_renderHelper->acquireRenderTarget(wd->renderControl, buffer, mode, &state.colorPreserved);
     if (rt.isNull()) {
         buffer->unlock();
         return nullptr;
@@ -420,6 +425,7 @@ qw_buffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePixe
     }
 
     state.flags = flags;
+    state.colorContentsMode = mode;
     state.context = wd->context;
     state.pixelSize = pixelSize;
     state.devicePixelRatio = devicePixelRatio;
@@ -436,8 +442,7 @@ inline static QRect scaleToRect(const QRectF &s, qreal scale) {
 }
 
 void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
-                             const QRectF &sourceRect, const QRectF &targetRect,
-                             bool preserveColorContents)
+                             const QRectF &sourceRect, const QRectF &targetRect)
 {
     Q_ASSERT(state.buffer);
 
@@ -477,16 +482,13 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
     auto softwareRenderer = dynamic_cast<QSGSoftwareRenderer*>(renderer);
     { // before render
         if (softwareRenderer) {
-            // Avoid do clear before paint, for the software renderer this
-            // work is expensive.
-            if (m_clearColor.alpha() == 0)
-                preserveColorContents = true;
+            const bool clearColor = !state.colorPreserved;
 #if QT_VERSION >= QT_VERSION_CHECK(6, 9, 0)
-            softwareRenderer->setClearColorEnabled(!preserveColorContents);
+            softwareRenderer->setClearColorEnabled(clearColor);
 #else
             auto bn = softwareRenderer->renderableNode(W_PRIVATE_MEMBER(*softwareRenderer, QSGAbsSoftRenderer_m_background_tag{}));
             if (bn) {
-                W_PRIVATE_MEMBER(*bn, QSGSoftRenderableNode_m_opacity_tag{}) = preserveColorContents ? 0 : 1;
+                W_PRIVATE_MEMBER(*bn, QSGSoftRenderableNode_m_opacity_tag{}) = clearColor ? 1 : 0;
             }
 #endif
             if (!state.dirty.isEmpty()) {
@@ -564,12 +566,6 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
             renderer->setProjectionMatrix(projectionMatrix);
             renderer->setProjectionMatrixWithNativeNDC(projectionMatrixWithNativeNDC);
 
-            auto textureRT = static_cast<QRhiTextureRenderTarget*>(state.sgRenderTarget.rt);
-            if (preserveColorContents) {
-                textureRT->setFlags(textureRT->flags() | QRhiTextureRenderTarget::PreserveColorContents);
-            } else {
-                textureRT->setFlags(textureRT->flags() & ~QRhiTextureRenderTarget::PreserveColorContents);
-            }
         }
     }
 

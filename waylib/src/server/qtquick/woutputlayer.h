@@ -23,6 +23,7 @@ class WAYLIB_SERVER_EXPORT WOutputLayer : public QObject
     Q_PROPERTY(bool keepLayer READ keepLayer WRITE setKeepLayer NOTIFY keepLayerChanged FINAL)
     Q_PROPERTY(bool force READ force WRITE setForce NOTIFY forceChanged FINAL)
     Q_PROPERTY(Flags flags READ flags WRITE setFlags NOTIFY flagsChanged FINAL)
+    Q_PROPERTY(WGlobal::ColorContentsMode colorContentsMode READ colorContentsMode WRITE setColorContentsMode NOTIFY colorContentsModeChanged FINAL)
     Q_PROPERTY(QList<WOutputViewport*> outputs READ outputs WRITE setOutputs NOTIFY outputsChanged FINAL)
     Q_PROPERTY(QList<WOutputViewport*> inOutputsByHardware READ inOutputsByHardware NOTIFY inOutputsByHardwareChanged FINAL)
     Q_PROPERTY(int z READ z WRITE setZ NOTIFY zChanged FINAL)
@@ -35,7 +36,6 @@ public:
     enum Flag {
         SizeSensitive = 1 << 0,
         DontClip = 1 << 1,
-        PreserveColorContents = 1 << 2,
         NoAlpha = 1 << 3,
         Cursor = 1 << 4,
     };
@@ -53,6 +53,9 @@ public:
 
     Flags flags() const;
     void setFlags(const Flags &newFlags);
+
+    WGlobal::ColorContentsMode colorContentsMode() const;
+    void setColorContentsMode(WGlobal::ColorContentsMode mode);
 
     const QList<WOutputViewport *> &outputs() const;
     void setOutputs(const QList<WOutputViewport*> &newOutputList);
@@ -74,6 +77,7 @@ public:
 Q_SIGNALS:
     void enabledChanged();
     void flagsChanged();
+    void colorContentsModeChanged();
     void outputsChanged();
     void inOutputsByHardwareChanged();
     void zChanged();

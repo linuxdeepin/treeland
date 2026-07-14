@@ -10,6 +10,7 @@ target_link_libraries(test_wshmtexture
         Qt6::Core
         Qt6::Gui
         Qt6::Qml
+        Qt6::Quick
         Qt6::Test
 )
 

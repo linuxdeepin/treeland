@@ -76,6 +76,7 @@ public:
     QW_NAMESPACE::qw_buffer *currentBuffer() const;
     QW_NAMESPACE::qw_buffer *lastBuffer() const;
     QRhiTexture *currentRenderTarget() const;
+    bool isColorPreserved() const;
     const QW_NAMESPACE::qw_damage_ring *damageRing() const;
     QW_NAMESPACE::qw_damage_ring *damageRing();
 
@@ -95,10 +96,10 @@ Q_SIGNALS:
 
 protected:
     QW_NAMESPACE::qw_buffer *beginRender(const QSize &pixelSize, qreal devicePixelRatio,
-                                        uint32_t format, RenderFlags flags = {});
+                                        uint32_t format, RenderFlags flags = {},
+                                        WGlobal::ColorContentsMode mode = WGlobal::ColorContentsMode::DontCare);
     void render(int sourceIndex, const QMatrix4x4 &renderMatrix,
-                const QRectF &sourceRect = {}, const QRectF &targetRect = {},
-                bool preserveColorContents = false);
+                const QRectF &sourceRect = {}, const QRectF &targetRect = {});
     void endRender();
     void componentComplete() override;
 
@@ -133,6 +134,8 @@ private:
 
     struct RenderState {
         RenderFlags flags;
+        WGlobal::ColorContentsMode colorContentsMode = WGlobal::ColorContentsMode::DontCare;
+        bool colorPreserved = false;
         QSGRenderContext *context;
         QSGRenderer *renderer;
         QSGBatchRenderer::Renderer *batchRenderer;
