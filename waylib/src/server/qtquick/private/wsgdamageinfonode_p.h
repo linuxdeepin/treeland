@@ -20,7 +20,7 @@ class WSGDamageTracker;
 // the wayland surface's get_effective_damage.
 //
 // The node sets QSGNode::UsePreprocess so that QSGRenderer calls preprocess()
-// during the scene graph preprocess phase (render thread, before rendering).
+// during the scene graph preprocess phase (before rendering).
 // In preprocess(), the node reports its damage to the associated WSGDamageTracker
 // via onContentDirty(), then clears its damage (consumed once per frame).
 //

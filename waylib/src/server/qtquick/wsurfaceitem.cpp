@@ -272,14 +272,16 @@ public:
 
             // Collect wayland surface effective damage and forward to the
             // WSGDamageInfoNode for refined damage tracking. The damage is
-            // in surface-local coordinates, which match the image node's
-            // local coordinate system (origin at bufferOffset, size = surface size).
+            // in surface-local coordinates; translate by -bufferOffset to
+            // convert to image node local coordinates.
             if (bufferChanged && damageInfoNode) {
                 pixman_region32 effectiveDamage;
                 pixman_region32_init(&effectiveDamage);
                 surface->handle()->get_effective_damage(&effectiveDamage);
                 QRegion damageRegion = WTools::fromPixmanRegion(&effectiveDamage);
                 pixman_region32_fini(&effectiveDamage);
+                if (!damageRegion.isEmpty() && !ignoreBufferOffset)
+                    damageRegion.translate(-bufferOffset);
                 if (!damageRegion.isEmpty())
                     damageInfoNode->setDamage(damageRegion);
             }
@@ -392,7 +394,7 @@ public:
 
     // Damage info node for refined surface-level damage tracking.
     // Created in updatePaintNode, damage filled on surface commit,
-    // consumed by preprocess() on the render thread.
+    // consumed by preprocess() during the scene graph preprocess phase.
     WSGDamageInfoNode *damageInfoNode = nullptr;
 };
 
@@ -626,6 +628,7 @@ QSGNode *WSurfaceItemContent::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeD
     }
 
     if (!tp->texture() || width() <= 0 || height() <= 0) {
+        d->damageInfoNode = nullptr;  // child nodes will be deleted with oldNode
         delete oldNode;
         return nullptr;
     }
