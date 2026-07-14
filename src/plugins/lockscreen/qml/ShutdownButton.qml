@@ -50,7 +50,7 @@ D.Button {
                 }
                 D.OutsideBoxBorder {
                     anchors.fill: parent
-                    visible: root.pressed
+                    visible: root.pressed || root.activeFocus
                     borderWidth: 3
                     radius: width / 2
                     color: Qt.rgba(1.0, 1.0, 1.0, 0.3)
