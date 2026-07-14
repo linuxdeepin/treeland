@@ -680,7 +680,7 @@ void SeatsManager::assignDevice(WInputDevice *device,
     // Filter out system buttons
     if (deviceType == WInputDevice::Type::Keyboard &&
         (deviceName.contains("Power Button") || deviceName.contains("Sleep Button") ||
-         deviceName.contains("Lid Switch") || deviceName.contains("Video Bus"))) {
+         deviceName.contains("Lid Switch"))) {
         return;
     }
 
