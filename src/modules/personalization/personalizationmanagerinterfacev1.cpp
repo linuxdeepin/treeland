@@ -879,42 +879,38 @@ void PersonalizationManagerInterfaceV1::onAppearanceContextCreated(Personalizati
     });
 
     connect(context, &PersonalizationAppearanceContextV1::requestRoundCornerRadius, context, [this, context] {
-        context->setRoundCornerRadius(windowRadius());
+        context->sendRoundCornerRadius(windowRadius());
     });
 
     connect(context, &PersonalizationAppearanceContextV1::requestIconTheme, context, [this, context] {
-        context->setIconTheme(iconTheme());
+        context->sendIconTheme(iconTheme());
     });
 
     connect(context, &PersonalizationAppearanceContextV1::requestActiveColor, context, [context] {
-        context->setActiveColor(Helper::instance()->config()->activeColor());
+        context->sendActiveColor(Helper::instance()->config()->activeColor());
     });
 
     connect(context, &PersonalizationAppearanceContextV1::requestWindowOpacity, context, [context] {
-        context->setWindowOpacity(Helper::instance()->config()->windowOpacity());
+        context->sendWindowOpacity(Helper::instance()->config()->windowOpacity());
     });
 
     connect(context, &PersonalizationAppearanceContextV1::requestWindowThemeType, context, [context] {
         const auto protocolType = dconfigWindowThemeTypeToProtocol(
             Helper::instance()->config()->windowThemeType());
-        context->setWindowThemeType(protocolType);
+        context->sendWindowThemeType(protocolType);
     });
 
     connect(context, &PersonalizationAppearanceContextV1::requestWindowTitlebarHeight, context, [context] {
-        context->setWindowTitlebarHeight(Helper::instance()->config()->windowTitlebarHeight());
+        context->sendWindowTitlebarHeight(Helper::instance()->config()->windowTitlebarHeight());
     });
 
-    context->blockSignals(true);
-
-    context->setRoundCornerRadius(Helper::instance()->config()->windowRadius());
-    context->setIconTheme(Helper::instance()->config()->iconThemeName());
-    context->setActiveColor(Helper::instance()->config()->activeColor());
-    context->setWindowOpacity(Helper::instance()->config()->windowOpacity());
-    context->setWindowThemeType(dconfigWindowThemeTypeToProtocol(
+    context->sendRoundCornerRadius(Helper::instance()->config()->windowRadius());
+    context->sendIconTheme(Helper::instance()->config()->iconThemeName());
+    context->sendActiveColor(Helper::instance()->config()->activeColor());
+    context->sendWindowOpacity(Helper::instance()->config()->windowOpacity());
+    context->sendWindowThemeType(dconfigWindowThemeTypeToProtocol(
         Helper::instance()->config()->windowThemeType()));
-    context->setWindowTitlebarHeight(Helper::instance()->config()->windowTitlebarHeight());
-
-    context->blockSignals(false);
+    context->sendWindowTitlebarHeight(Helper::instance()->config()->windowTitlebarHeight());
 }
 
 void PersonalizationManagerInterfaceV1::onFontContextCreated(PersonalizationFontContextV1 *context)
