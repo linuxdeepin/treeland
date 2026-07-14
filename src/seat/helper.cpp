@@ -2,13 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "helper.h"
+
+#include "qwxdgshell.h"
 #include "seatsmanager.h"
-#include <QScopeGuard>
+
 #include <QFile>
-#include <QRandomGenerator>
-#include <QJsonDocument>
 #include <QJsonArray>
+#include <QJsonDocument>
 #include <QJsonObject>
+#include <QRandomGenerator>
+#include <QScopeGuard>
 #include <qnamespace.h>
 #ifdef EXT_SESSION_LOCK_V1
 #include "wsessionlock.h"
@@ -88,6 +91,7 @@
 #include <wsecuritycontextmanager.h>
 #include <wsocket.h>
 #include <wtoplevelsurface.h>
+#include <wxdgpopupsurface.h>
 #include <wxdgshell.h>
 #include <wxdgtoplevelsurface.h>
 #include <wxdgtopleveltagmanager.h>
@@ -2382,57 +2386,19 @@ void Helper::setActivatedSurface(SurfaceWrapper *newActivateSurface, WSeat *seat
 
 void Helper::onRenderWindowActiveFocusItemChanged()
 {
-    if (!m_seatManager)
-        return;
-
-    // If an explicit event seat is present we already handled activation
-    // in activateSurface(), avoid re-applying focus here to prevent races.
-    if (m_currentEventSeat)
-        return;
-
-    auto wrapper = keyboardFocusSurface();
-    if (!wrapper) {
-        // Qt focus lost (e.g. focus item became null) — clear Wayland keyboard focus
-        // on all seats to avoid stale focus state.
-        const auto seats = m_seatManager->seats();
-        for (auto *seat : seats) {
-            if (auto *seatContainer = m_rootSurfaceContainer->getSeatContainer(seat)) {
-                seatContainer->setKeyboardFocusSurface(nullptr);
-            }
-        }
-        return;
-    }
-
-    WSeat *interactingSeat = getLastInteractingSeat(wrapper);
-    if (interactingSeat) {
-        updateSurfaceSeatInteraction(wrapper, interactingSeat);
-        if (auto *seatContainer = m_rootSurfaceContainer->getSeatContainer(interactingSeat)) {
-            seatContainer->setKeyboardFocusSurface(wrapper);
-        }
-    } else {
-        const auto seats = m_seatManager->seats();
-        for (auto *seat : seats) {
-            if (!seat || !seat->isValid()) {
-                continue;
-            }
-
-            if (seat->pointerFocusSurface() == wrapper->surface()) {
-                if (auto *seatContainer = m_rootSurfaceContainer->getSeatContainer(seat)) {
-                    seatContainer->setKeyboardFocusSurface(wrapper);
-                }
-                updateSurfaceSeatInteraction(wrapper, seat);
-                break;
-            }
-        }
-    }
+    // TODO(muit-seat): Need to check whether the following logic is required.
 }
 
 void Helper::requestKeyboardFocus(SurfaceWrapper *wrapper, Qt::FocusReason reason, WSeat *seat)
 {
-
     if (wrapper) {
-        // Pop up through parent hierarchy until we find a non-popup surface
-        while (wrapper && wrapper->type() == SurfaceWrapper::Type::XdgPopup) {
+        // Pop up through parent hierarchy until we find a non-popup surface or grabbed popup
+        while (wrapper) {
+            auto *popupSurface = qobject_cast<WXdgPopupSurface *>(wrapper->shellSurface());
+            if (!popupSurface)
+                break;
+            if (popupSurface->handle()->handle()->seat)
+                break;
             wrapper = wrapper->parentSurface();
         }
         if (!wrapper || !wrapper->hasFocusCapability()) {
@@ -2442,32 +2408,20 @@ void Helper::requestKeyboardFocus(SurfaceWrapper *wrapper, Qt::FocusReason reaso
         }
     }
 
-    WSeat *targetSeat = seat;
-    if (!targetSeat)
-        targetSeat = m_currentEventSeat ? m_currentEventSeat : getLastInteractingSeat(wrapper);
-    if (!targetSeat)
-        targetSeat = m_primarySeat;
-
-    if (!targetSeat || !targetSeat->nativeHandle())
-        return;
-
-    auto *seatContainer = m_rootSurfaceContainer->getSeatContainer(targetSeat);
+    if (!seat)
+        seat = m_primarySeat;
 
     if (wrapper) {
         wrapper->setFocus(true, reason);
-        if (m_currentEventSeat && targetSeat == m_currentEventSeat) {
-            updateSurfaceSeatInteraction(wrapper, targetSeat);
-        }
-    } else if (auto currentFocus =
-                   seatContainer ? seatContainer->keyboardFocusSurface() : keyboardFocusSurface()) {
-        currentFocus->setFocus(false, reason);
     }
+    // Old surface focus clearing is delegated to SeatSurfaceManager::setKeyboardFocusSurface,
+    // which handles multi-seat arbitration.
 
-    // Ensure Wayland keyboard focus is set and also inform SeatSurfaceManager
-    targetSeat->setKeyboardFocusSurface(wrapper ? wrapper->surface() : nullptr);
-    if (seatContainer) {
-        seatContainer->setKeyboardFocusSurface(wrapper);
-    }
+    // Delegate to SeatSurfaceManager which handles Wayland focus, multi-seat arbitration,
+    // and interaction metadata in one place.
+    auto *seatContainer = m_rootSurfaceContainer->getSeatContainer(seat);
+    Q_ASSERT(seatContainer);
+    seatContainer->setKeyboardFocusSurface(wrapper);
 }
 
 void Helper::setCursorPosition(const QPointF &position)
