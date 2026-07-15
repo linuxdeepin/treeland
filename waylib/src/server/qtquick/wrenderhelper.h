@@ -15,6 +15,7 @@ class QQuickRenderControl;
 class QSGTexture;
 class QSGPlainTexture;
 class QRhi;
+class QRhiCommandBuffer;
 QT_END_NAMESPACE
 
 QW_BEGIN_NAMESPACE
@@ -47,10 +48,36 @@ public:
 
     static QW_NAMESPACE::qw_buffer *toBuffer(QW_NAMESPACE::qw_renderer *renderer, QSGTexture *texture, QSGRendererInterface::GraphicsApi api);
 
-    QQuickRenderTarget acquireRenderTarget(QQuickRenderControl *rc, QW_NAMESPACE::qw_buffer *buffer,
-                                           WGlobal::ColorContentsMode mode = WGlobal::ColorContentsMode::DontCare,
-                                           bool *colorPreserved = nullptr);
-    std::pair<QW_NAMESPACE::qw_buffer*, QQuickRenderTarget> lastRenderTarget() const;
+    // Opaque value type holding a weak reference to the internal buffer data
+    // managed by WRenderHelper. When the underlying buffer data is destroyed
+    // (e.g. the buffer is removed), all RenderTarget instances referencing it
+    // automatically become null — similar to how QPointer tracks QObject.
+    class WAYLIB_SERVER_EXPORT RenderTarget {
+    public:
+        RenderTarget();
+        RenderTarget(const RenderTarget &);
+        RenderTarget &operator=(const RenderTarget &);
+        ~RenderTarget();
+
+        bool isNull() const;
+        QQuickRenderTarget rt() const;
+        QW_NAMESPACE::qw_buffer *buffer() const;
+        bool colorPreserved() const;
+
+    private:
+        friend class WRenderHelper;
+        class Private;
+        Private *d = nullptr;
+    };
+
+    RenderTarget acquireRenderTarget(QQuickRenderControl *rc, QW_NAMESPACE::qw_buffer *buffer,
+                                     WGlobal::ColorContentsMode mode = WGlobal::ColorContentsMode::DontCare);
+    // For Vulkan render targets: insert a layout barrier before Qt RHI's
+    // render pass so the image matches the render pass's initialLayout.
+    // No-op for non-Vulkan backends or buffers without a Vulkan dmabuf image.
+    void prepareVulkanRenderTarget(QRhiCommandBuffer *cb, const RenderTarget &rt);
+    void finishVulkanRenderTarget(QRhiCommandBuffer *cb, const RenderTarget &rt);
+    RenderTarget lastRenderTarget() const;
     static QW_NAMESPACE::qw_renderer *createRenderer(QW_NAMESPACE::qw_backend *backend);
     static QW_NAMESPACE::qw_renderer *createRenderer(QW_NAMESPACE::qw_backend *backend, QSGRendererInterface::GraphicsApi api);
 

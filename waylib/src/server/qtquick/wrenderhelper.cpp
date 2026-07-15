@@ -7,6 +7,7 @@
 #include "private/wqmlhelper_p.h"
 #include "private/wglobal_p.h"
 #include "private/wvulkandmabufimport_p.h"
+#include <memory>
 
 #include <qwbackend.h>
 #include <qwoutput.h>
@@ -28,6 +29,9 @@
 #include <private/qsgadaptationlayer_p.h>
 #include <private/qsgsoftwarepixmaptexture_p.h>
 #include <private/qsgrhisupport_p.h>
+#ifdef ENABLE_VULKAN_RENDER
+#include <rhi/qrhi_platform.h>
+#endif
 
 extern "C" {
 #define static
@@ -140,6 +144,42 @@ struct Q_DECL_HIDDEN BufferData {
 #endif
     }
 };
+
+class WRenderHelper::RenderTarget::Private {
+public:
+    std::weak_ptr<BufferData> data;
+};
+
+WRenderHelper::RenderTarget::RenderTarget() : d(new Private) {}
+WRenderHelper::RenderTarget::RenderTarget(const RenderTarget &other)
+    : d(other.d ? new Private(*other.d) : nullptr) {}
+WRenderHelper::RenderTarget &WRenderHelper::RenderTarget::operator=(const RenderTarget &other) {
+    if (this != &other) {
+        delete d;
+        d = other.d ? new Private(*other.d) : nullptr;
+    }
+    return *this;
+}
+WRenderHelper::RenderTarget::~RenderTarget() { delete d; }
+
+bool WRenderHelper::RenderTarget::isNull() const {
+    return !d || d->data.expired();
+}
+QQuickRenderTarget WRenderHelper::RenderTarget::rt() const {
+    if (!d) return {};
+    auto data = d->data.lock();
+    return data ? data->renderTarget : QQuickRenderTarget();
+}
+qw_buffer *WRenderHelper::RenderTarget::buffer() const {
+    if (!d) return nullptr;
+    auto data = d->data.lock();
+    return data ? data->buffer : nullptr;
+}
+bool WRenderHelper::RenderTarget::colorPreserved() const {
+    if (!d) return false;
+    auto data = d->data.lock();
+    return data ? data->colorPreserved : false;
+}
 
 static constexpr WGlobal::ColorContentsMode resolveColorContentsMode(WGlobal::ColorContentsMode requested,
                                                                       bool softwareRenderer) noexcept
@@ -301,17 +341,16 @@ public:
 
     W_DECLARE_PUBLIC(WRenderHelper)
     qw_renderer *renderer;
-    QList<BufferData*> buffers;
-    BufferData *lastBuffer = nullptr;
+    QList<std::shared_ptr<BufferData>> buffers;
+    std::weak_ptr<BufferData> lastBuffer;
 
     QSize size;
 };
 
 void WRenderHelperPrivate::resetRenderBuffer()
 {
-    qDeleteAll(buffers);
-    lastBuffer = nullptr;
     buffers.clear();
+    lastBuffer.reset();
 }
 
 void WRenderHelperPrivate::onBufferDestroy()
@@ -321,15 +360,14 @@ void WRenderHelperPrivate::onBufferDestroy()
     for (int i = 0; i < buffers.count(); ++i) {
         auto data = buffers[i];
         if (data->buffer == buffer) {
-            if (lastBuffer == data)
-                lastBuffer = nullptr;
+            auto locked = lastBuffer.lock();
+            if (locked && locked == data)
+                lastBuffer.reset();
             buffers.removeAt(i);
-            delete data;
             break;
         }
     }
 }
-
 bool WRenderHelperPrivate::ensureRhiRenderTarget(QQuickRenderControl *rc, BufferData *data,
                                                  QRhiTextureRenderTarget::Flags flags)
 {
@@ -592,9 +630,8 @@ qw_buffer *WRenderHelper::toBuffer(qw_renderer *renderer, QSGTexture *texture, Q
     return nullptr;
 }
 
-QQuickRenderTarget WRenderHelper::acquireRenderTarget(QQuickRenderControl *rc, qw_buffer *buffer,
-                                                      WGlobal::ColorContentsMode mode,
-                                                      bool *colorPreserved)
+WRenderHelper::RenderTarget WRenderHelper::acquireRenderTarget(QQuickRenderControl *rc, qw_buffer *buffer,
+                                                                 WGlobal::ColorContentsMode mode)
 {
     W_D(WRenderHelper);
     Q_ASSERT(buffer);
@@ -616,7 +653,7 @@ QQuickRenderTarget WRenderHelper::acquireRenderTarget(QQuickRenderControl *rc, q
                         << "Recreating Vulkan render target for buffer" << buffer
                         << "to change color preserved from" << data->colorPreserved
                         << "to" << needPreserve;
-                    if (!recreateRhiRenderTarget(data, flags))
+                    if (!recreateRhiRenderTarget(data.get(), flags))
                         return {};
                 } else
 #endif
@@ -632,9 +669,9 @@ QQuickRenderTarget WRenderHelper::acquireRenderTarget(QQuickRenderControl *rc, q
             }
             data->colorPreserved = needPreserve;
             d->lastBuffer = data;
-            if (colorPreserved)
-                *colorPreserved = data->colorPreserved;
-            return data->renderTarget;
+            RenderTarget result;
+            result.d->data = data;
+            return result;
         }
     }
 
@@ -705,23 +742,80 @@ QQuickRenderTarget WRenderHelper::acquireRenderTarget(QQuickRenderControl *rc, q
     connect(buffer, SIGNAL(before_destroy()),
             this, SLOT(onBufferDestroy()), Qt::UniqueConnection);
 
-    d->buffers.append(bufferData.release());
-    d->lastBuffer = d->buffers.last();
-
-    if (colorPreserved)
-        *colorPreserved = d->buffers.last()->colorPreserved;
-
-    return d->buffers.last()->renderTarget;
+    d->buffers.append(std::shared_ptr<BufferData>(bufferData.release()));
+    RenderTarget result;
+    result.d->data = d->buffers.last();
+    return result;
 }
 
-std::pair<qw_buffer *, QQuickRenderTarget> WRenderHelper::lastRenderTarget() const
+WRenderHelper::RenderTarget WRenderHelper::lastRenderTarget() const
 {
     W_DC(WRenderHelper);
-    if (!d->lastBuffer)
-        return {nullptr, {}};
+    auto data = d->lastBuffer.lock();
+    if (!data)
+        return {};
 
-    return {d->lastBuffer->buffer, d->lastBuffer->renderTarget};
+    RenderTarget result;
+    result.d->data = data;
+    return result;
 }
+#ifdef ENABLE_VULKAN_RENDER
+void WRenderHelper::prepareVulkanRenderTarget(QRhiCommandBuffer *cb, const RenderTarget &rt)
+{
+    if (!rt.d)
+        return;
+    auto data = rt.d->data.lock();
+    if (!data || data->vkDmabufImage.isNull())
+        return;
+
+    // After the previous frame's finishVulkanRenderTarget() the image is in
+    // GENERAL.  Qt RHI's render pass for a PreserveColorContents target expects
+    // initialLayout = COLOR_ATTACHMENT_OPTIMAL, so transition back.  On the
+    // very first frame the layout is still UNDEFINED and Qt RHI handles that
+    // transition itself — no barrier needed.
+    if (data->vkDmabufImage.layout != VK_IMAGE_LAYOUT_GENERAL)
+        return;
+
+    cb->beginExternal();
+    auto handles = static_cast<const QRhiVulkanCommandBufferNativeHandles *>(cb->nativeHandles());
+    Q_ASSERT(handles && handles->commandBuffer);
+
+    vulkanTransitionImageLayout(handles->commandBuffer, data->vkDmabufImage.image,
+                                VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                                0, VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                                VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
+    cb->endExternal();
+
+    data->vkDmabufImage.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+}
+
+void WRenderHelper::finishVulkanRenderTarget(QRhiCommandBuffer *cb, const RenderTarget &rt)
+{
+    if (!rt.d)
+        return;
+    auto data = rt.d->data.lock();
+    if (!data || data->vkDmabufImage.isNull())
+        return;
+
+    // Qt RHI's texture render pass leaves the image in COLOR_ATTACHMENT_OPTIMAL
+    // (attDesc.finalLayout, qrhivulkan.cpp).  DRM/KMS needs GENERAL to read the
+    // dmabuf, especially on tiled GPUs (NVIDIA) where the tiling differs.
+    if (data->vkDmabufImage.layout == VK_IMAGE_LAYOUT_GENERAL)
+        return;
+
+    cb->beginExternal();
+    auto handles = static_cast<const QRhiVulkanCommandBufferNativeHandles *>(cb->nativeHandles());
+    Q_ASSERT(handles && handles->commandBuffer);
+
+    vulkanTransitionImageLayout(handles->commandBuffer, data->vkDmabufImage.image,
+                                VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL,
+                                VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, 0,
+                                VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
+    cb->endExternal();
+
+    data->vkDmabufImage.layout = VK_IMAGE_LAYOUT_GENERAL;
+}
+#endif // ENABLE_VULKAN_RENDER
 
 static qw_renderer *createRendererWithType(const char *type, qw_backend *backend)
 {

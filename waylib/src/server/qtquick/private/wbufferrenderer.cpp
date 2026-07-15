@@ -269,7 +269,7 @@ QRhiTexture *WBufferRenderer::currentRenderTarget() const
 
 bool WBufferRenderer::isColorPreserved() const
 {
-    return state.colorPreserved;
+    return state.renderTarget.colorPreserved();
 }
 
 const qw_damage_ring *WBufferRenderer::damageRing() const
@@ -384,7 +384,7 @@ qw_buffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePixe
 
     auto wd = QQuickWindowPrivate::get(window());
     Q_ASSERT(wd->renderControl);
-    auto rt = m_renderHelper->acquireRenderTarget(wd->renderControl, buffer, mode, &state.colorPreserved);
+    auto rt = m_renderHelper->acquireRenderTarget(wd->renderControl, buffer, mode);
     if (rt.isNull()) {
         buffer->unlock();
         return nullptr;
@@ -395,7 +395,8 @@ qw_buffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePixe
     m_damageRing.rotate_buffer(wbuffer, damage);
     state.dirty = WTools::fromPixmanRegion(damage);
 
-    auto rtd = QQuickRenderTargetPrivate::get(&rt);
+    auto rtValue = rt.rt();
+    auto rtd = QQuickRenderTargetPrivate::get(&rtValue);
     QSGRenderTarget sgRT;
 
     if (rtd->type == QQuickRenderTargetPrivate::Type::PaintDevice) {
@@ -482,7 +483,7 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
     auto softwareRenderer = dynamic_cast<QSGSoftwareRenderer*>(renderer);
     { // before render
         if (softwareRenderer) {
-            const bool clearColor = !state.colorPreserved;
+            const bool clearColor = !state.renderTarget.colorPreserved();
 #if QT_VERSION >= QT_VERSION_CHECK(6, 9, 0)
             softwareRenderer->setClearColorEnabled(clearColor);
 #else
@@ -503,7 +504,7 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
             if (!mapTransform.isIdentity())
                 state.worldTransform = mapTransform * state.worldTransform;
             state.worldTransform.optimize();
-            auto image = getImageFrom(state.renderTarget);
+            auto image = getImageFrom(state.renderTarget.rt());
             image->setDevicePixelRatio(devicePixelRatio);
 
             // TODO: Should set to QSGSoftwareRenderer, but it's not support specify matrix.
@@ -525,7 +526,7 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
             state.worldTransform.optimize();
 
             bool flipY = wd->rhi ? !wd->rhi->isYUpInNDC() : false;
-            if (state.renderTarget.mirrorVertically())
+            if (state.renderTarget.rt().mirrorVertically())
                 flipY = !flipY;
 
             if (viewportRect.isValid()) {
@@ -569,7 +570,11 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
         }
     }
 
+    if (m_renderHelper)
+        m_renderHelper->prepareVulkanRenderTarget(state.sgRenderTarget.cb, state.renderTarget);
     state.context->renderNextFrame(renderer);
+    if (m_renderHelper)
+        m_renderHelper->finishVulkanRenderTarget(state.sgRenderTarget.cb, state.renderTarget);
 
     { // after render
         if (!softwareRenderer) {
@@ -587,7 +592,7 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
         } else {
             state.dirty = softwareRenderer->flushRegion();
 
-            auto currentImage = getImageFrom(state.renderTarget);
+            auto currentImage = getImageFrom(state.renderTarget.rt());
             Q_ASSERT(currentImage && currentImage == softwareRenderer->renderTarget().paintDevice);
             currentImage->setDevicePixelRatio(1.0);
             const auto scaleTF = QTransform::fromScale(devicePixelRatio, devicePixelRatio);

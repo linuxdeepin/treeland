@@ -158,7 +158,7 @@ std::pair<qw_buffer *, QQuickRenderTarget> WOutputHelper::acquireRenderTarget(QQ
         return {};
     }
 
-    return {buffer, rt};
+    return {buffer, rt.rt()};
 }
 
 std::pair<qw_buffer*, QQuickRenderTarget> WOutputHelper::lastRenderTarget()
@@ -167,7 +167,8 @@ std::pair<qw_buffer*, QQuickRenderTarget> WOutputHelper::lastRenderTarget()
     if (!d->renderHelper)
         return {nullptr, {}};
 
-    return d->renderHelper->lastRenderTarget();
+    auto rt = d->renderHelper->lastRenderTarget();
+    return {rt.buffer(), rt.rt()};
 }
 
 void WOutputHelper::setBuffer(qw_buffer *buffer)

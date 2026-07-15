@@ -5,6 +5,7 @@
 
 #include <wglobal.h>
 #include <woutputrenderwindow.h>
+#include <wrenderhelper.h>
 
 #include <qwglobal.h>
 #include <qwdamagering.h>
@@ -32,7 +33,6 @@ struct pixman_region32;
 struct wlr_swapchain;
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WRenderHelper;
 class WSGTextureProvider;
 class WAYLIB_SERVER_EXPORT WBufferRenderer : public QQuickItem
 {
@@ -135,7 +135,6 @@ private:
     struct RenderState {
         RenderFlags flags;
         WGlobal::ColorContentsMode colorContentsMode = WGlobal::ColorContentsMode::DontCare;
-        bool colorPreserved = false;
         QSGRenderContext *context;
         QSGRenderer *renderer;
         QSGBatchRenderer::Renderer *batchRenderer;
@@ -143,7 +142,7 @@ private:
         QSize pixelSize;
         qreal devicePixelRatio;
         std::unique_ptr<QW_NAMESPACE::qw_buffer, QW_NAMESPACE::qw_buffer::unlocker> buffer;
-        QQuickRenderTarget renderTarget;
+        WRenderHelper::RenderTarget renderTarget;
         QSGRenderTarget sgRenderTarget;
         QRegion dirty;
     } state;

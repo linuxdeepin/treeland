@@ -592,6 +592,29 @@ void vulkanReleaseDmabufImage(VkDmabufImage &import)
     }
     import.memoryCount = 0;
 }
+void vulkanTransitionImageLayout(VkCommandBuffer cmdBuf, VkImage image,
+                                VkImageLayout oldLayout, VkImageLayout newLayout,
+                                VkAccessFlags srcAccess, VkAccessFlags dstAccess,
+                                VkPipelineStageFlags srcStage, VkPipelineStageFlags dstStage)
+{
+    VkImageMemoryBarrier barrier = {};
+    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.oldLayout = oldLayout;
+    barrier.newLayout = newLayout;
+    barrier.srcAccessMask = srcAccess;
+    barrier.dstAccessMask = dstAccess;
+    barrier.image = image;
+    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    barrier.subresourceRange.baseMipLevel = 0;
+    barrier.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
+    barrier.subresourceRange.baseArrayLayer = 0;
+    barrier.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
+
+    vkCmdPipelineBarrier(cmdBuf, srcStage, dstStage, 0,
+                         0, nullptr, 0, nullptr, 1, &barrier);
+}
 
 WAYLIB_SERVER_END_NAMESPACE
 

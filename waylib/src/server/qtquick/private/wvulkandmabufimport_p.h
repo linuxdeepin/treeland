@@ -28,6 +28,9 @@ struct VkDmabufImage {
     uint32_t memoryCount = 0;
     VkFormat format = VK_FORMAT_UNDEFINED;
     VkDevice device = VK_NULL_HANDLE;
+    // Actual VkImage layout of 'image', tracked so waylib can insert barriers
+    // Qt RHI does not know about (COLOR_ATTACHMENT_OPTIMAL ↔ GENERAL).
+    VkImageLayout layout = VK_IMAGE_LAYOUT_UNDEFINED;
 
     bool isNull() const { return image == VK_NULL_HANDLE; }
 };
@@ -44,6 +47,14 @@ VkDmabufImage vulkanImportDmabufForRender(VkPhysicalDevice physicalDevice,
 // Releases the image and memory held by an imported dmabuf image. Safe to call
 // on a default-constructed (null) instance.
 void vulkanReleaseDmabufImage(VkDmabufImage &import);
+// Records a VkImage layout transition barrier on the given command buffer.
+// oldLayout→newLayout with appropriate access/stage masks.  This helper
+// exists because wrenderhelper.cpp includes Qt headers before vulkan.h,
+// causing VK_NO_PROTOTYPES to suppress the real function prototypes.
+void vulkanTransitionImageLayout(VkCommandBuffer cmdBuf, VkImage image,
+                                VkImageLayout oldLayout, VkImageLayout newLayout,
+                                VkAccessFlags srcAccess, VkAccessFlags dstAccess,
+                                VkPipelineStageFlags srcStage, VkPipelineStageFlags dstStage);
 #endif // ENABLE_VULKAN_RENDER
 
 WAYLIB_SERVER_END_NAMESPACE
