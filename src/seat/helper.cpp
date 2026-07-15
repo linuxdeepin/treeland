@@ -1649,9 +1649,9 @@ void Helper::init(Treeland::Treeland *treeland)
     qw_viewporter::create(*m_server->handle());
     m_renderWindow->init(m_renderer, m_allocator);
 
-    auto *xwaylandOutputManager =
+    m_xwaylandOutputManager =
         m_server->attach<WXdgOutputManager>(m_rootSurfaceContainer->outputLayout());
-    xwaylandOutputManager->setScaleOverride(1.0);
+    m_xwaylandOutputManager->setScaleOverride(1.0);
 
     static const auto isXWaylandClient =
         [sessionManager = QPointer(m_sessionManager)](WClient *client) {
@@ -1664,7 +1664,22 @@ void Helper::init(Treeland::Treeland *treeland)
         return false;
        };
     xdgOutputManager->setFilter([](WClient *client) { return !isXWaylandClient(client); });
-    xwaylandOutputManager->setFilter([](WClient *client) { return isXWaylandClient(client); });
+    m_xwaylandOutputManager->setFilter([](WClient *client) {
+        return isXWaylandClient(client);
+    });
+
+    // XWayland perceives screen geometry in physical-pixel space scaled by
+    // maxDPR (the highest output scale), so that root window / xrandr geometry
+    // matches the coordinates XWayland clients actually receive.
+    auto updateXWaylandOutputScale = [this]() {
+        if (m_xwaylandOutputManager)
+            m_xwaylandOutputManager->setScaleOverride(m_renderWindow->effectiveDevicePixelRatio());
+    };
+    connect(m_renderWindow,
+            &WOutputRenderWindow::effectiveDevicePixelRatioChanged,
+            this,
+            updateXWaylandOutputScale);
+    updateXWaylandOutputScale();
     // User dde does not has a real Logind session, so just pass 0 as id
     m_sessionManager->updateActiveUserSession(QStringLiteral("dde"), 0);
     connect(m_userModel, &UserModel::userLoggedIn, m_sessionManager, &SessionManager::updateActiveUserSession);
