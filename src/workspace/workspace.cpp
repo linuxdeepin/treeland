@@ -12,6 +12,8 @@
 #include "treelanduserconfig.hpp"
 #include "workspaceanimationcontroller.h"
 
+#include <algorithm>
+
 Workspace::Workspace(SurfaceContainer *parent)
     : SurfaceContainer(parent)
     , m_currentIndex(Helper::instance()->config()->currentWorkspace())
@@ -135,11 +137,26 @@ void Workspace::removeSurface(SurfaceWrapper *surface)
     surface->setHasInitializeContainer(false);
 
     WorkspaceModel *from = nullptr;
-    if (surface->showOnAllWorkspace())
+    if (m_showOnAllWorkspaceModel->hasSurface(surface)) {
         from = m_showOnAllWorkspaceModel;
-    else
+    } else if (surface->workspaceId() != -1) {
         from = modelFromId(surface->workspaceId());
+    }
+    if (!from || !from->hasSurface(surface)) {
+        const auto models = m_models->objects();
+        auto it = std::find_if(models.constBegin(), models.constEnd(), [surface](WorkspaceModel *model) {
+            return model->hasSurface(surface);
+        });
+        from = it == models.constEnd() ? nullptr : *it;
+    }
     Q_ASSERT(from);
+    if (!from) {
+        qCWarning(lcTlWorkspace) << "Failed to find workspace model for surface removal"
+                                 << "surface=" << surface
+                                 << "workspaceId=" << surface->workspaceId()
+                                 << "showOnAllWorkspace=" << surface->showOnAllWorkspace();
+        return;
+    }
 
     from->removeSurface(surface);
     SurfaceContainer::removeSurface(surface);
@@ -389,8 +406,13 @@ void Workspace::stopPreviewing()
 
 void Workspace::pushActivedSurface(SurfaceWrapper *surface)
 {
-    if (surface->type() == SurfaceWrapper::Type::XdgPopup) {
-        qCWarning(lcTlWorkspace) << "XdgPopup can't participate in focus fallback!";
+    if (surface->type() == SurfaceWrapper::Type::XdgPopup
+        || surface->isXWaylandPopupLikeTransient()) {
+        qCWarning(lcTlWorkspace) << "Popup surface can't participate in focus fallback!"
+                                 << "surface=" << surface
+                                 << "type=" << surface->type()
+                                 << "xwayland_popup_like="
+                                 << surface->isXWaylandPopupLikeTransient();
         return;
     }
     if (surface->showOnAllWorkspace()) [[unlikely]] {

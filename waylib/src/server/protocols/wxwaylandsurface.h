@@ -1,4 +1,4 @@
-// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 JiDe Zhang <zhangjide@deepin.org>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
@@ -28,6 +28,7 @@ class WAYLIB_SERVER_EXPORT WXWaylandSurface : public WToplevelSurface
     Q_PROPERTY(bool bypassManager READ isBypassManager NOTIFY bypassManagerChanged FINAL)
     Q_PROPERTY(QRect geometry READ geometry NOTIFY geometryChanged FINAL)
     Q_PROPERTY(WindowTypes windowTypes READ windowTypes NOTIFY windowTypesChanged FINAL)
+    Q_PROPERTY(InputModel inputModel READ inputModel NOTIFY inputModelChanged FINAL)
     Q_PROPERTY(DecorationsFlags decorationsFlags READ decorationsFlags NOTIFY decorationsFlagsChanged FINAL)
     QML_NAMED_ELEMENT(XWaylandSurface)
     QML_UNCREATABLE("Only create in C++")
@@ -76,6 +77,14 @@ public:
     Q_ENUM(DecorationsFlag)
     Q_DECLARE_FLAGS(DecorationsFlags, DecorationsFlag)
 
+    enum InputModel {
+        InputModelNone = 0,
+        InputModelPassive = 1,
+        InputModelLocal = 2,
+        InputModelGlobal = 3
+    };
+    Q_ENUM(InputModel)
+
     explicit WXWaylandSurface(QW_NAMESPACE::qw_xwayland_surface *handle, WXWayland *xwayland, QObject *parent = nullptr);
     ~WXWaylandSurface();
 
@@ -88,7 +97,7 @@ public:
     WXWaylandSurface *parentXWaylandSurface() const;
     WXWayland *xwayland() const;
 
-    const QList<WXWaylandSurface *> &children() const;
+    QList<WXWaylandSurface *> children() const;
     bool isToplevel() const;
     bool hasChild() const;
     bool isMaximized() const override;
@@ -114,7 +123,9 @@ public:
 
     bool isBypassManager() const;
     WindowTypes windowTypes() const;
+    InputModel inputModel() const;
     DecorationsFlags decorationsFlags() const;
+    bool supportsWmTakeFocus() const;
 
 public Q_SLOTS:
     bool checkNewSize(const QSize &size, QSize *clipedSize = nullptr) override;
@@ -124,6 +135,9 @@ public Q_SLOTS:
     void setMinimize(bool on) override;
     void setFullScreen(bool on) override;
     void setActivate(bool on) override;
+    void forceActivate();
+    void requestNativeFocus();
+    bool offerFocus();
     void close() override;
     void restack(WXWaylandSurface *sibling, StackMode mode);
 
@@ -140,10 +154,19 @@ Q_SIGNALS:
     void bypassManagerChanged();
     void geometryChanged();
     void windowTypesChanged();
+    void inputModelChanged();
     void decorationsFlagsChanged();
+    void focusIn();
+    void grabFocus();
 
     void requestConfigure(QRect geometry, ConfigureFlags flags);
     void requestActivate();
+
+private:
+    friend class WXWayland;
+    friend class WXWaylandSurfacePrivate;
+    friend class WXWaylandPrivate;
+    void cleanupTreeRelationsBeforeDestroy();
 };
 
 WAYLIB_SERVER_END_NAMESPACE

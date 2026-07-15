@@ -6,6 +6,7 @@
 #include "private/wglobal_p.h"
 #include "wseat.h"
 #include "wsocket.h"
+#include "wayliblogging.h"
 #include "wxwaylandsurface.h"
 
 #include <xcb/xcb.h>
@@ -201,6 +202,7 @@ void WXWaylandPrivate::on_surface_destroy(qw_xwayland_surface *xwl_surface)
 
     auto surface = WXWaylandSurface::fromHandle(xwl_surface);
     Q_ASSERT(surface);
+    surface->cleanupTreeRelationsBeforeDestroy();
     bool ok = surfaceList.removeOne(surface);
     Q_ASSERT(ok);
     q->removeSurface(surface);
@@ -452,6 +454,7 @@ void WXWayland::destroy([[maybe_unused]] WServer *server)
         // disconnect from on_surface_destroy
         disconnect(surface->handle(), &qw_xwayland_surface::before_destroy,
                    this, nullptr);
+        surface->cleanupTreeRelationsBeforeDestroy();
         removeSurface(surface);
         surface->safeDeleteLater();
     }
@@ -495,6 +498,18 @@ void WXWayland::readAsyncProperties(
         d->xcbAsyncTimeoutForWindow(windowId);
     });
     props.timer->start(timeoutMs);
+
+    auto oldIt = d->asyncProps.find(windowId);
+    if (oldIt != d->asyncProps.end()) {
+        if (oldIt->timer) {
+            oldIt->timer->stop();
+            delete oldIt->timer;
+        }
+        qCDebug(lcWlXWayland) << "[XWL_ASYNC_PROPS_REPLACE] Replacing pending async properties:"
+                               << "window_id=" << windowId
+                               << "request_count=" << requests.size();
+        d->asyncProps.erase(oldIt);
+    }
 
     d->asyncProps.insert(windowId, std::move(props));
 }
@@ -543,23 +558,39 @@ void WXWaylandPrivate::xcbPollReplies()
 
         // Fire callback when all replies received AND propNotifySeen.
         if (windowDone && props.propNotifySeen) {
-            auto resultCopy = props.results;
-            props.callback(windowId, resultCopy);
-
             toRemove.append(windowId);
         }
     }
+
+    struct CompletedAsyncProperties
+    {
+        xcb_window_t windowId = XCB_WINDOW_NONE;
+        QMap<xcb_atom_t, QByteArray> result;
+        std::function<void(xcb_window_t, const QMap<xcb_atom_t, QByteArray> &)> callback;
+    };
+
+    QList<CompletedAsyncProperties> completed;
 
     // Cleanup completed windows.
     for (auto windowId : std::as_const(toRemove)) {
         auto it = asyncProps.find(windowId);
         if (it != asyncProps.end()) {
+            CompletedAsyncProperties item;
+            item.windowId = windowId;
+            item.result = it->results;
+            item.callback = std::move(it->callback);
             if (it->timer) {
                 it->timer->stop();
                 delete it->timer;
             }
             asyncProps.erase(it);
+            completed.append(std::move(item));
         }
+    }
+
+    for (auto &item : completed) {
+        if (item.callback)
+            item.callback(item.windowId, item.result);
     }
 }
 
@@ -600,13 +631,17 @@ void WXWaylandPrivate::xcbAsyncTimeoutForWindow(xcb_window_t windowId)
     }
 
     auto resultCopy = props.results;
-    props.callback(windowId, resultCopy);
+    auto callback = std::move(props.callback);
 
     // Cleanup.
     if (props.timer) {
-        delete props.timer;
+        props.timer->stop();
+        props.timer->deleteLater();
     }
     asyncProps.erase(it);
+
+    if (callback)
+        callback(windowId, resultCopy);
 }
 
 void WXWayland::cancelAsyncProperties(xcb_window_t windowId)

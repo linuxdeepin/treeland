@@ -1046,6 +1046,103 @@ bool WSeat::sendEvent(WSurface *target, QObject *shellObject, QObject *eventObje
     return true;
 }
 
+bool WSeat::redirectPointerEvent(WSurface *target,
+                                 QObject *eventObject,
+                                 QInputEvent *event,
+                                 const QPointF &localPos)
+{
+    if (!target || !target->handle() || !target->handle()->handle() || !event
+        || !event->isPointerEvent())
+        return false;
+
+    auto inputDevice = WInputDevice::from(event->device());
+    if (Q_UNLIKELY(!inputDevice || inputDevice->seat() != this))
+        return false;
+
+    W_D(WSeat);
+    const auto nativeTarget = target->handle()->handle();
+    const auto focusBefore = d->pointerFocusSurface();
+    const auto *pointEvent =
+        event->isSinglePointEvent() ? static_cast<QSinglePointEvent *>(event) : nullptr;
+
+    qCDebug(lcWlPointer) << "[WL_POINTER_REDIRECT] Redirect pointer event:"
+                         << "event_type=" << event->type()
+                         << "seat=" << this
+                         << "target=" << target
+                         << "eventObject=" << eventObject
+                         << "focus_before=" << focusBefore
+                         << "local_pos=" << localPos
+                         << "global_pos=" << (pointEvent ? pointEvent->globalPosition() : QPointF());
+
+    if (focusBefore != nativeTarget || d->pointerFocusEventObject != eventObject) {
+        if (focusBefore)
+            d->doClearPointerFocus();
+        if (!d->doEnter(target, eventObject, localPos)) {
+            qCDebug(lcWlPointer) << "[WL_POINTER_REDIRECT] Failed to enter redirected target:"
+                                 << "seat=" << this
+                                 << "target=" << target
+                                 << "eventObject=" << eventObject
+                                 << "focus_before=" << focusBefore
+                                 << "focus_after=" << d->pointerFocusSurface();
+            return false;
+        }
+    }
+
+    event->accept();
+
+    switch (event->type()) {
+    case QEvent::HoverEnter:
+        break;
+    case QEvent::MouseButtonPress: {
+        auto *e = static_cast<QMouseEvent *>(event);
+        Q_ASSERT(e->source() == Qt::MouseEventNotSynthesized);
+        d->doNotifyButton(WCursor::toNativeButton(e->button()),
+                          WL_POINTER_BUTTON_STATE_PRESSED,
+                          event->timestamp());
+        break;
+    }
+    case QEvent::MouseButtonRelease: {
+        auto *e = static_cast<QMouseEvent *>(event);
+        Q_ASSERT(e->source() == Qt::MouseEventNotSynthesized);
+        d->doNotifyButton(WCursor::toNativeButton(e->button()),
+                          WL_POINTER_BUTTON_STATE_RELEASED,
+                          event->timestamp());
+        break;
+    }
+    case QEvent::HoverMove: Q_FALLTHROUGH();
+    case QEvent::MouseMove: {
+        d->doNotifyMotion(target, eventObject, localPos, event->timestamp());
+        break;
+    }
+    case QEvent::Wheel: {
+        if (auto *we = dynamic_cast<WSeatWheelEvent *>(event)) {
+            d->doNotifyAxis(static_cast<wl_pointer_axis_source>(we->wlrSource()),
+                            we->orientation(),
+                            we->relativeDirection(),
+                            we->wlrDelta(),
+                            -(we->angleDelta().x() + we->angleDelta().y()),
+                            we->timestamp());
+        } else {
+            qCWarning(lcWlSeat, "A redirected Wheel event was not sent by wlroots and will be ignored");
+        }
+        break;
+    }
+    default:
+        qCDebug(lcWlPointer) << "[WL_POINTER_REDIRECT] Unsupported redirected pointer event:"
+                             << "event_type=" << event->type()
+                             << "seat=" << this
+                             << "target=" << target;
+        return false;
+    }
+
+    qCDebug(lcWlPointer) << "[WL_POINTER_REDIRECT] Redirected pointer event delivered:"
+                         << "event_type=" << event->type()
+                         << "seat=" << this
+                         << "target=" << target
+                         << "focus_after=" << d->pointerFocusSurface();
+    return true;
+}
+
 WSeat *WSeat::get(QInputEvent *event)
 {
     auto inputDevice = WInputDevice::from(event->device());

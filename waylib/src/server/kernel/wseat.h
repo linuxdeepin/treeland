@@ -86,6 +86,10 @@ public:
     // WSurfaceItem is a kind of shellObject
     static bool sendEvent(WSurface *target, QObject *shellObject, QObject *eventObject, QInputEvent *event);
     static WSeat *get(QInputEvent *event);
+    bool redirectPointerEvent(WSurface *target,
+                              QObject *eventObject,
+                              QInputEvent *event,
+                              const QPointF &localPos);
 
     WSeatEventFilter *eventFilter() const;
     void setEventFilter(WSeatEventFilter *filter);
