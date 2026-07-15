@@ -456,8 +456,7 @@ void ForeignToplevelManagerInterfaceV1::initializeToplevelHandle(SurfaceWrapper 
     });
 
     connect(handle, &ForeignToplevelHandleV1::requestActivate, wrapper, [wrapper](WSeat *seat) {
-        Q_UNUSED(seat);
-        Helper::instance()->forceActivateSurface(wrapper);
+        Helper::instance()->forceActivateSurface(wrapper, Qt::OtherFocusReason, seat);
     });
 
     connect(handle,

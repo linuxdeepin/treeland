@@ -120,6 +120,7 @@ struct TokenInfo
     std::optional<uint32_t> serial;
     bool fromTrustedSurface = false; // set_surface called and surface was active at commit time
     QDeadlineTimer expiry;           // invalidated 60 s after registration
+    QPointer<WSeat> seat;            // seat associated with the token via set_serial
 };
 
 class ActivationManagerInterfaceV1Private
@@ -146,11 +147,12 @@ public:
     QString registerToken(const QString &appId,
                           wl_client *client,
                           std::optional<uint32_t> serial,
-                          bool fromTrustedSurface)
+                          bool fromTrustedSurface,
+                          WSeat *seat)
     {
         const QString token = QUuid::createUuid().toString(QUuid::WithoutBraces);
         m_tokens.append(TokenInfo{ token, appId, client, serial, fromTrustedSurface,
-                                   QDeadlineTimer(TokenLifetimeMs) });
+                                   QDeadlineTimer(TokenLifetimeMs), seat });
         qCDebug(lcTlActivation) << "Registered activation token" << token.left(8) + u"..."_s
                                << "for app" << appId
                                << (fromTrustedSurface ? "" : "(inactive-surface-token-request)");
@@ -208,16 +210,18 @@ protected:
         }
 
         auto disposition = dispositionForToken(token);
-        qCInfo(lcTlActivation) << "activate: emitting activateRequested for token" << token.left(8) + u"..."_s
-                             << "with disposition" << disposition;
-        // Keep token one-shot semantics; Helper performs the policy check.
+        // Retrieve the seat associated with the token before consuming it.
+        WSeat *tokenSeat = nullptr;
         auto it = std::find_if(m_tokens.begin(), m_tokens.end(),
                                [&token](const TokenInfo &t) { return t.token == token; });
         if (it != m_tokens.end()) {
+            tokenSeat = it->seat.data();
             m_tokens.erase(it);
         }
-        
-        Q_EMIT q->activateRequested(disposition, wsurface);
+
+        qCInfo(lcTlActivation) << "activate: emitting activateRequested for token" << token.left(8) + u"..."_s
+                             << "with disposition" << disposition;
+        Q_EMIT q->activateRequested(disposition, wsurface, tokenSeat);
     }
 
 private:
@@ -284,7 +288,7 @@ void TokenContext::commit(Resource *resource)
 
     // fromTrustedSurface: set_surface was called, surface still alive, and currently active
     const bool fromTrustedSurface = m_surface && m_manager->isTrustedSurface(m_surface, m_seat);
-    const QString token = m_manager->registerToken(m_appId, resource->client(), m_serial, fromTrustedSurface);
+    const QString token = m_manager->registerToken(m_appId, resource->client(), m_serial, fromTrustedSurface, m_seat);
     send_done(token);
 }
 
