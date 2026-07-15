@@ -324,6 +324,32 @@ void Workspace::createSwitcher()
         });
     }
 }
+void Workspace::reloadFromConfig()
+{
+    auto *config = Helper::instance()->config();
+    auto targetCount = static_cast<int>(config->numWorkspace());
+    auto targetIndex = static_cast<int>(config->currentWorkspace());
+
+    bool countChanged = false;
+    while (count() < targetCount) {
+        doCreateModel(QStringLiteral("workspace-%1").arg(count()), false);
+        countChanged = true;
+    }
+
+    while (count() > targetCount) {
+        doRemoveModel(count() - 1);
+        countChanged = true;
+    }
+
+    if (countChanged)
+        Q_EMIT countChanged();
+
+    if (targetIndex >= count())
+        targetIndex = count() - 1;
+    if (targetIndex < 0)
+        targetIndex = 0;
+    setCurrentIndex(targetIndex);
+}
 
 int Workspace::count() const
 {
