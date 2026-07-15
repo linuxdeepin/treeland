@@ -4,6 +4,7 @@
 #include "seatsurfacemanager.h"
 
 #include "rootsurfacecontainer.h"
+#include "common/treelandlogging.h"
 #include "seat/helper.h"
 #include "seat/seatsmanager.h"
 
@@ -75,13 +76,28 @@ void SeatSurfaceManager::onActivatedSurfaceFocusCapabilityChanged()
     }
 }
 
-void SeatSurfaceManager::setKeyboardFocusSurface(SurfaceWrapper *surface)
+void SeatSurfaceManager::setKeyboardFocusSurface(SurfaceWrapper *surface, Qt::FocusReason reason)
 {
     if (m_keyboardFocusSurface == surface)
         return;
     Q_ASSERT(m_seat && m_seat->nativeHandle());
 
     auto *oldSurface = m_keyboardFocusSurface;
+
+    // Only check priority when transferring focus between two surfaces.
+    // Clearing focus to nullptr (e.g. surfaceDestroyed) must always be allowed.
+    if (oldSurface && surface) {
+        int oldSurfacePriority = oldSurface->shellSurface() ? oldSurface->shellSurface()->keyboardFocusPriority() : 0;
+        int newSurfacePriority = surface->shellSurface() ? surface->shellSurface()->keyboardFocusPriority() : 0;
+        if (oldSurfacePriority > newSurfacePriority) {
+            qCDebug(lcTlShell) << "Keyboard focus rejected: current surface priority"
+                               << oldSurfacePriority
+                               << "> new surface priority"
+                               << newSurfacePriority;
+            return;
+        }
+    }
+
     // Clear focus from old surface if no other seat has it
     if (oldSurface) {
         bool otherSeatHasFocus = false;
@@ -115,11 +131,9 @@ void SeatSurfaceManager::setKeyboardFocusSurface(SurfaceWrapper *surface)
     m_seat->setKeyboardFocusSurface(surface ? surface->surface() : nullptr);
 
     if (surface) {
+        surface->setFocus(true, reason);
         surface->setProperty("lastInteractingSeat", QVariant::fromValue(m_seat));
         surface->setProperty("lastInteractionTime", QDateTime::currentMSecsSinceEpoch());
-
-        // Qt focus is managed by the caller (requestKeyboardFocus or Qt Scene Graph),
-        // only set Wayland keyboard focus here.
     }
 }
 

@@ -24,7 +24,7 @@ public:
     SurfaceWrapper *activatedSurface() const { return m_activatedSurface; }
     void setActivatedSurface(SurfaceWrapper *surface, Qt::FocusReason reason);
     SurfaceWrapper *keyboardFocusSurface() const { return m_keyboardFocusSurface; }
-    void setKeyboardFocusSurface(SurfaceWrapper *surface);
+    void setKeyboardFocusSurface(SurfaceWrapper *surface, Qt::FocusReason reason = Qt::OtherFocusReason);
 
     struct MoveResizeState {
         SurfaceWrapper *surface = nullptr;  ///< The surface being moved/resized
