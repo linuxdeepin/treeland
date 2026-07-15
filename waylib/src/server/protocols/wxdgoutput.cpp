@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Lu YaNing <luyaning@uniontech.org>.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wxdgoutput.h"
@@ -10,6 +10,7 @@
 #include "xdg-output-unstable-v1-protocol.h"
 
 #include <assert.h>
+#include <cmath>
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -87,20 +88,26 @@ static void output_update(struct way_xdg_output_v1 *xdg_output) {
     struct wlr_output_layout_output *layout_output = xdg_output->layout_output;
     bool updated = false;
 
-    if (layout_output->x != xdg_output->x || layout_output->y != xdg_output->y) {
-        xdg_output->x = layout_output->x;
-        xdg_output->y = layout_output->y;
+    int32_t x, y;
+    if (xdg_output->manager->scale_override > 0.0) {
+        x = static_cast<int32_t>(std::floor(layout_output->x * xdg_output->manager->scale_override));
+        y = static_cast<int32_t>(std::floor(layout_output->y * xdg_output->manager->scale_override));
+    } else {
+        x = layout_output->x;
+        y = layout_output->y;
+    }
+
+    if (x != xdg_output->x || y != xdg_output->y) {
+        xdg_output->x = x;
+        xdg_output->y = y;
         updated = true;
     }
 
     int width, height;
+    wlr_output_effective_resolution(layout_output->output, &width, &height);
     if (xdg_output->manager->scale_override > 0.0) {
-        wlr_output_transformed_resolution(layout_output->output, &width, &height);
-
-        width /= xdg_output->manager->scale_override;
-        height /= xdg_output->manager->scale_override;
-    } else {
-        wlr_output_effective_resolution(layout_output->output, &width, &height);
+        width = static_cast<int>(std::ceil(width * xdg_output->manager->scale_override));
+        height = static_cast<int>(std::ceil(height * xdg_output->manager->scale_override));
     }
 
     if (xdg_output->width != width || xdg_output->height != height) {
@@ -437,8 +444,8 @@ void WXdgOutputManager::create([[maybe_unused]] WServer *wserver)
     W_D(WXdgOutputManager);
     if (d->layout) {
         d->manager = way_xdg_output_manager_v1_create(*server()->handle(),
-                                                    *d->layout->handle(),
-                                                    d->scaleOverride);
+                                                      *d->layout->handle(),
+                                                      d->scaleOverride);
         m_handle = d->manager;
     } else {
         qCWarning(lcWlXdgOutput) << "Output layout not set, xdg output manager will never be created!";
