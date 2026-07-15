@@ -73,6 +73,7 @@ class WSurface;
 class WSurfaceItem;
 class WToplevelSurface;
 class WXdgDecorationManager;
+class WXdgOutputManager;
 class WXWayland;
 
 class WForeignToplevel;
@@ -426,6 +427,7 @@ private:
     PersonalizationManagerInterfaceV1 *m_personalizationInterfaceV1 = nullptr;
     WallpaperColorInterfaceV1 *m_wallpaperColorV1 = nullptr;
     WOutputManagerV1 *m_outputManager = nullptr;
+    WXdgOutputManager *m_xwaylandOutputManager = nullptr;
     WindowManagementInterfaceV1 *m_windowManagementInterfaceV1 = nullptr;
     WindowManagementInterfaceV1::DesktopState m_showDesktop = WindowManagementInterfaceV1::DesktopState::Normal;
     DDEShellManagerInterfaceV1 *m_ddeShellV1 = nullptr;
