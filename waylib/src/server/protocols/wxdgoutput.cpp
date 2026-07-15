@@ -41,7 +41,7 @@ struct Q_DECL_HIDDEN way_xdg_output_manager_v1 {
     struct wl_listener layout_change;
     struct wl_listener layout_destroy;
 
-    float scale_override;
+    float output_scale;
 };
 
 struct Q_DECL_HIDDEN way_xdg_output_v1 {
@@ -87,20 +87,26 @@ static void output_update(struct way_xdg_output_v1 *xdg_output) {
     struct wlr_output_layout_output *layout_output = xdg_output->layout_output;
     bool updated = false;
 
-    if (layout_output->x != xdg_output->x || layout_output->y != xdg_output->y) {
-        xdg_output->x = layout_output->x;
-        xdg_output->y = layout_output->y;
+    int32_t x, y;
+    if (xdg_output->manager->output_scale > 0.0) {
+        x = static_cast<int32_t>(layout_output->x * xdg_output->manager->output_scale);
+        y = static_cast<int32_t>(layout_output->y * xdg_output->manager->output_scale);
+    } else {
+        x = layout_output->x;
+        y = layout_output->y;
+    }
+
+    if (x != xdg_output->x || y != xdg_output->y) {
+        xdg_output->x = x;
+        xdg_output->y = y;
         updated = true;
     }
 
     int width, height;
-    if (xdg_output->manager->scale_override > 0.0) {
-        wlr_output_transformed_resolution(layout_output->output, &width, &height);
-
-        width /= xdg_output->manager->scale_override;
-        height /= xdg_output->manager->scale_override;
-    } else {
-        wlr_output_effective_resolution(layout_output->output, &width, &height);
+    wlr_output_effective_resolution(layout_output->output, &width, &height);
+    if (xdg_output->manager->output_scale > 0.0) {
+        width = static_cast<int>(width * xdg_output->manager->output_scale);
+        height = static_cast<int>(height * xdg_output->manager->output_scale);
     }
 
     if (xdg_output->width != width || xdg_output->height != height) {
@@ -312,13 +318,13 @@ static void handle_display_destroy(struct wl_listener *listener, void *data) {
 }
 
 static struct way_xdg_output_manager_v1 *way_xdg_output_manager_v1_create(
-    struct wl_display *display, struct wlr_output_layout *layout, float scale_override) {
+    struct wl_display *display, struct wlr_output_layout *layout, float output_scale) {
     struct way_xdg_output_manager_v1 *manager =
         static_cast<way_xdg_output_manager_v1 *>(calloc(1, sizeof(*manager)));
     if (manager == NULL) {
         return NULL;
     }
-    manager->scale_override = scale_override;
+    manager->output_scale = output_scale;
     manager->layout = layout;
     manager->global = wl_global_create(display,
                                        &zxdg_output_manager_v1_interface, OUTPUT_MANAGER_VERSION, manager,
@@ -368,7 +374,7 @@ public:
     static bool isOverrideClientCallback(void *data, struct wl_client *client);
 
     WOutputLayout *layout = nullptr;
-    qreal scaleOverride = 0.0;
+    qreal outputScale = 0.0;
     struct way_xdg_output_manager_v1 *manager{ nullptr };
 };
 
@@ -381,30 +387,30 @@ WXdgOutputManager::WXdgOutputManager(WOutputLayout *layout)
     d->layout = layout;
 }
 
-void WXdgOutputManager::setScaleOverride(qreal scaleOverride)
+void WXdgOutputManager::setOutputScale(qreal outputScale)
 {
     Q_D(WXdgOutputManager);
-    if (qFuzzyCompare(d->scaleOverride, scaleOverride))
+    if (qFuzzyCompare(d->outputScale, outputScale))
         return;
 
-    d->scaleOverride = scaleOverride;
+    d->outputScale = outputScale;
     if (d->manager) {
-        d->manager->scale_override = scaleOverride;
+        d->manager->output_scale = outputScale;
         output_manager_send_details(d->manager);
     }
 
-    Q_EMIT scaleOverrideChanged();
+    Q_EMIT outputScaleChanged();
 }
 
-qreal WXdgOutputManager::scaleOverride() const
+qreal WXdgOutputManager::outputScale() const
 {
     Q_D(const WXdgOutputManager);
-    return d->scaleOverride;
+    return d->outputScale;
 }
 
-void WXdgOutputManager::resetScaleOverride()
+void WXdgOutputManager::resetOutputScale()
 {
-    setScaleOverride(0.0);
+    setOutputScale(0.0);
 }
 
 QByteArrayView WXdgOutputManager::interfaceName() const
@@ -438,7 +444,7 @@ void WXdgOutputManager::create([[maybe_unused]] WServer *wserver)
     if (d->layout) {
         d->manager = way_xdg_output_manager_v1_create(*server()->handle(),
                                                     *d->layout->handle(),
-                                                    d->scaleOverride);
+                                                    d->outputScale);
         m_handle = d->manager;
     } else {
         qCWarning(lcWlXdgOutput) << "Output layout not set, xdg output manager will never be created!";

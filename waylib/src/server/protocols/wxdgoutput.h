@@ -19,14 +19,14 @@ public:
 
     WOutputLayout *layout() const;
 
-    void setScaleOverride(qreal scaleOverride);
-    qreal scaleOverride() const;
-    void resetScaleOverride();
+    void setOutputScale(qreal outputScale);
+    qreal outputScale() const;
+    void resetOutputScale();
 
     QByteArrayView interfaceName() const override;
 
 Q_SIGNALS:
-    void scaleOverrideChanged();
+    void outputScaleChanged();
 
 protected:
     void create(WServer *wserver) override;
