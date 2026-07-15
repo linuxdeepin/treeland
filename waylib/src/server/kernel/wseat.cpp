@@ -229,9 +229,9 @@ public:
             // Send keyboard enter with current modifiers.
             // This ensures the newly focused client receives the current modifier state
             // (Num Lock, Caps Lock, etc.) as required by Wayland protocol.
-            handle()->keyboard_enter(*surface, keycodes, numKeycodes, modifiers);
+            handle()->keyboard_notify_enter(*surface, keycodes, numKeycodes, modifiers);
         } else {
-            handle()->keyboard_clear_focus();
+            handle()->keyboard_notify_clear_focus();
         }
     }
     inline void doTouchNotifyDown(WSurface *surface, uint32_t time_msec, int32_t touch_id, const QPointF &pos) {
