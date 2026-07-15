@@ -59,6 +59,8 @@ public:
     Q_INVOKABLE WorkspaceModel *modelAt(int index) const;
     Q_INVOKABLE WorkspaceModel *modelFromId(int id) const;
 
+    void reloadFromConfig();
+
     int count() const;
     int currentIndex() const;
     WorkspaceModel *showOnAllWorkspaceModel() const;
