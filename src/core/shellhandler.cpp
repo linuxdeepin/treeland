@@ -57,6 +57,77 @@ WAYLIB_SERVER_USE_NAMESPACE
 
 #define TREELAND_XDG_SHELL_VERSION 5
 
+namespace {
+
+uint32_t xwaylandWindowId(WXWaylandSurface *surface)
+{
+    if (!surface || surface->isInvalidated() || !surface->handle() || !surface->handle()->handle())
+        return 0;
+
+    return surface->handle()->handle()->window_id;
+}
+
+WXWaylandSurface *xwaylandShellSurface(SurfaceWrapper *wrapper)
+{
+    if (!wrapper || wrapper->type() != SurfaceWrapper::Type::XWayland)
+        return nullptr;
+
+    return qobject_cast<WXWaylandSurface *>(wrapper->shellSurface());
+}
+
+WXWaylandSurface *managedXwaylandShellSurface(SurfaceWrapper *wrapper)
+{
+    auto *surface = xwaylandShellSurface(wrapper);
+    if (!surface || surface->isBypassManager())
+        return nullptr;
+
+    return surface;
+}
+
+QQuickItem *qtStackSiblingForTransient(SurfaceWrapper *wrapper, SurfaceWrapper *parentWrapper)
+{
+    if (!wrapper || !parentWrapper || !wrapper->parentItem())
+        return nullptr;
+
+    QQuickItem *sibling = parentWrapper;
+    for (auto *child : parentWrapper->subSurfaces()) {
+        if (child == wrapper)
+            break;
+        if (!child)
+            continue;
+
+        auto *last = child->stackLastSurface();
+        if (last && last->parentItem() == wrapper->parentItem())
+            sibling = last;
+    }
+
+    return sibling;
+}
+
+WXWaylandSurface *xwaylandRestackSiblingForTransient(SurfaceWrapper *wrapper,
+                                                     SurfaceWrapper *parentWrapper)
+{
+    if (!wrapper || !parentWrapper)
+        return nullptr;
+
+    auto *sibling = managedXwaylandShellSurface(parentWrapper);
+    for (auto *child : parentWrapper->subSurfaces()) {
+        if (child == wrapper)
+            break;
+        if (auto *childSurface = managedXwaylandShellSurface(child))
+            sibling = childSurface;
+    }
+
+    return sibling;
+}
+
+bool isCurrentXwaylandAssociation(WXWaylandSurface *surface, WSurface *associatedSurface)
+{
+    return surface && associatedSurface && surface->surface() == associatedSurface;
+}
+
+} // namespace
+
 ShellHandler::ShellHandler(RootSurfaceContainer *rootContainer, WServer *server)
     : m_rootSurfaceContainer(rootContainer)
     , m_backgroundContainer(new LayerSurfaceContainer(rootContainer))
@@ -93,32 +164,166 @@ ShellHandler::ShellHandler(RootSurfaceContainer *rootContainer, WServer *server)
 
 void ShellHandler::updateWrapperContainer(SurfaceWrapper *wrapper, WSurface *parentSurface)
 {
+    if (!wrapper) {
+        qCWarning(lcTlXwayland) << "[XWL_PARENT_CONTAINER] Skip container update for null wrapper:"
+                                 << "parentSurface=" << parentSurface;
+        return;
+    }
+
     if (wrapper->parentSurface())
         wrapper->parentSurface()->removeSubSurface(wrapper);
 
     auto oldContainer = wrapper->container();
-    if (parentSurface) {
-        auto parentWrapper = m_rootSurfaceContainer->getSurface(parentSurface);
-        auto parentContainer = qobject_cast<SurfaceContainer *>(parentWrapper->container());
-        parentWrapper->addSubSurface(wrapper);
-        if (oldContainer != parentContainer) {
-            if (oldContainer)
-                oldContainer->removeSurface(wrapper);
-            if (auto ws = qobject_cast<Workspace *>(parentContainer))
-                ws->addSurface(wrapper, parentWrapper->workspaceId());
-            else
-                parentContainer->addSurface(wrapper);
-        }
-    } else {
+    auto moveToWorkspace = [this, wrapper, oldContainer] {
         if (oldContainer) {
             if (qobject_cast<Workspace *>(oldContainer) == nullptr) {
                 oldContainer->removeSurface(wrapper);
                 m_workspace->addSurface(wrapper);
             }
-            // else do nothing, already in workspace
-        } else {
-            m_workspace->addSurface(wrapper);
+            return;
         }
+
+        m_workspace->addSurface(wrapper);
+    };
+
+    if (parentSurface) {
+        auto parentWrapper = m_rootSurfaceContainer->getSurface(parentSurface);
+        if (!parentWrapper || parentWrapper == wrapper || !parentWrapper->container()) {
+            qCWarning(lcTlXwayland)
+                << "[XWL_PARENT_CONTAINER] Parent wrapper unavailable, keeping child in workspace:"
+                << "wrapper=" << wrapper
+                << "parentSurface=" << parentSurface
+                << "parentWrapper=" << parentWrapper
+                << "parentContainer=" << (parentWrapper ? parentWrapper->container() : nullptr);
+            moveToWorkspace();
+            return;
+        }
+
+        auto parentContainer = qobject_cast<SurfaceContainer *>(parentWrapper->container());
+        if (!parentContainer) {
+            qCWarning(lcTlXwayland)
+                << "[XWL_PARENT_CONTAINER] Parent container is not a SurfaceContainer, keeping child in workspace:"
+                << "wrapper=" << wrapper
+                << "parentSurface=" << parentSurface
+                << "parentWrapper=" << parentWrapper
+                << "parentContainer=" << parentWrapper->container();
+            moveToWorkspace();
+            return;
+        }
+
+        parentWrapper->addSubSurface(wrapper);
+
+        SurfaceContainer *targetContainer = parentContainer;
+        bool targetNeedsManualInitialization = false;
+        auto *xwaylandSurface = xwaylandShellSurface(wrapper);
+        const bool managedXWaylandPopup =
+            wrapper->isXWaylandPopupLikeTransient() && xwaylandSurface
+            && !xwaylandSurface->isBypassManager();
+        if (wrapper->isXWaylandPopupLikeTransient()) {
+            if (managedXWaylandPopup) {
+                targetContainer = parentContainer;
+            } else {
+                QQuickItem *ancestorContainer = parentWrapper->container();
+                while (ancestorContainer
+                       && ancestorContainer->parentItem() != m_popupContainer->parentItem()) {
+                    ancestorContainer = ancestorContainer->parentItem();
+                }
+
+                if (ancestorContainer && ancestorContainer->z() > m_popupContainer->z()) {
+                    wrapper->setZ(5);
+                    targetContainer = parentContainer;
+                } else {
+                    targetContainer = m_popupContainer;
+                }
+            }
+            targetNeedsManualInitialization = true;
+        }
+
+        qCDebug(lcTlXwayland) << "[XWL_POPUP_ROUTE] XWayland parent container route:"
+                               << "wrapper=" << wrapper
+                               << "parentSurface=" << parentSurface
+                               << "parentWrapper=" << parentWrapper
+                               << "oldContainer=" << oldContainer
+                               << "parentContainer=" << parentContainer
+                               << "targetContainer=" << targetContainer
+                               << "popup_like=" << wrapper->isXWaylandPopupLikeTransient()
+                               << "managed_xwayland_popup=" << managedXWaylandPopup
+                               << "bypass_manager="
+                               << (xwaylandSurface ? xwaylandSurface->isBypassManager() : false)
+                               << "wrapper_z=" << wrapper->z()
+                               << "wrapper_geometry=" << wrapper->geometry()
+                               << "parent_geometry=" << parentWrapper->geometry();
+
+        if (oldContainer != targetContainer) {
+            if (oldContainer)
+                oldContainer->removeSurface(wrapper);
+            if (auto ws = qobject_cast<Workspace *>(targetContainer))
+                ws->addSurface(wrapper, parentWrapper->workspaceId());
+            else
+                targetContainer->addSurface(wrapper);
+        }
+
+        if (targetNeedsManualInitialization) {
+            wrapper->setHasInitializeContainer(true);
+            wrapper->setOwnsOutput(parentWrapper->ownsOutput());
+        }
+
+        if (managedXWaylandPopup) {
+            const bool sameQuickParent = wrapper->parentItem() == parentWrapper->parentItem();
+            auto *qtSibling = qtStackSiblingForTransient(wrapper, parentWrapper);
+            const bool qtStacked =
+                sameQuickParent && qtSibling && wrapper != qtSibling && wrapper->stackAfter(qtSibling);
+            auto *x11Sibling = xwaylandRestackSiblingForTransient(wrapper, parentWrapper);
+            if (x11Sibling && x11Sibling != xwaylandSurface) {
+                xwaylandSurface->restack(x11Sibling, WXWaylandSurface::XCB_STACK_MODE_ABOVE);
+            } else {
+                xwaylandSurface->restack(nullptr, WXWaylandSurface::XCB_STACK_MODE_ABOVE);
+            }
+
+            qCDebug(lcTlXwayland) << "[XWL_POPUP_STACK] XWayland managed popup transient stack sync:"
+                                   << "window_id=" << xwaylandWindowId(xwaylandSurface)
+                                   << "wrapper=" << wrapper
+                                   << "parent_window_id="
+                                   << xwaylandWindowId(managedXwaylandShellSurface(parentWrapper))
+                                   << "parentWrapper=" << parentWrapper
+                                   << "same_qquick_parent=" << sameQuickParent
+                                   << "qt_stack_sibling=" << qtSibling
+                                   << "qt_stacked=" << qtStacked
+                                   << "x11_sibling_window_id=" << xwaylandWindowId(x11Sibling)
+                                   << "x11_sibling=" << x11Sibling
+                                   << "targetContainer=" << targetContainer
+                                   << "wrapper_geometry=" << wrapper->geometry()
+                                   << "parent_geometry=" << parentWrapper->geometry();
+
+            if (!sameQuickParent || !qtStacked) {
+                qCWarning(lcTlXwayland)
+                    << "[XWL_POPUP_STACK] XWayland managed popup QtQuick stack sync incomplete:"
+                    << "window_id=" << xwaylandWindowId(xwaylandSurface)
+                    << "wrapper=" << wrapper
+                    << "parentWrapper=" << parentWrapper
+                    << "same_qquick_parent=" << sameQuickParent
+                    << "qt_stack_sibling=" << qtSibling
+                    << "targetContainer=" << targetContainer;
+            }
+        }
+    } else {
+        auto *xwaylandSurface = xwaylandShellSurface(wrapper);
+        const bool oldContainerIsWorkspace = qobject_cast<Workspace *>(oldContainer) != nullptr;
+        if (xwaylandSurface && oldContainer && !oldContainerIsWorkspace
+            && (xwaylandSurface->isBypassManager() || wrapper->isXWaylandPopupLikeTransient()
+                || oldContainer == m_popupContainer)) {
+            qCDebug(lcTlXwayland)
+                << "[XWL_PARENT_CONTAINER] Keep parentless XWayland popup in current container:"
+                << "window_id=" << xwaylandWindowId(xwaylandSurface)
+                << "wrapper=" << wrapper
+                << "oldContainer=" << oldContainer
+                << "bypass_manager=" << xwaylandSurface->isBypassManager()
+                << "popup_like=" << wrapper->isXWaylandPopupLikeTransient()
+                << "window_types=" << xwaylandSurface->windowTypes();
+            return;
+        }
+
+        moveToWorkspace();
     }
 }
 
@@ -581,12 +786,40 @@ void ShellHandler::onXdgPopupSurfaceRemoved(WXdgPopupSurface *surface)
 
 void ShellHandler::onXWaylandSurfaceAdded(WXWaylandSurface *surface)
 {
+    if (surface && surface->handle() && surface->handle()->handle()) {
+        qCInfo(lcTlXwayland) << "[CREATE] XWayland surface added:"
+                              << "window_id=" << surface->handle()->handle()->window_id
+                              << "surface=" << surface;
+    } else {
+        qCWarning(lcTlXwayland) << "[CREATE] XWayland surface added with null handle:" << surface;
+    }
+
+    surface->safeConnect(&WXWaylandSurface::focusIn,
+                         this,
+                         [surface = QPointer<WXWaylandSurface>(surface)] {
+                             if (auto *raw = surface.data())
+                                 Helper::instance()->acceptXWaylandFocus(raw, false);
+                         });
+    surface->safeConnect(&WXWaylandSurface::grabFocus,
+                         this,
+                         [surface = QPointer<WXWaylandSurface>(surface)] {
+                             if (auto *raw = surface.data())
+                                 Helper::instance()->acceptXWaylandFocus(raw, true);
+                         });
+
     surface->safeConnect(&WXWaylandSurface::associated,
                          this,
                          [this, surface = QPointer<WXWaylandSurface>(surface)] {
                              auto raw = surface.data();
                              if (!raw)
                                  return; // surface destroyed before callback
+
+                             qCInfo(lcTlXwayland) << "[ASSOCIATE] XWayland surface associated:"
+                                                   << "window_id=" << (raw->handle() && raw->handle()->handle()
+                                                                       ? raw->handle()->handle()->window_id : 0)
+                                                   << "prelaunchWrappers=" << m_prelaunchWrappers.size()
+                                                   << "closedSplashAppIds=" << m_closedSplashAppIds;
+
                              // If prelaunch wrappers or closed splash appIds exist and resolver is
                              // available, attempt async resolve; if started, remaining logic
                              // handled in callback, then return
@@ -627,12 +860,19 @@ void ShellHandler::onXWaylandSurfaceAdded(WXWaylandSurface *surface)
                          });
     surface->safeConnect(&WXWaylandSurface::aboutToDissociate, this, [this, surface] {
         auto wrapper = m_rootSurfaceContainer->getSurface(surface);
-        qCDebug(lcTlShell) << "WXWayland::aboutToDissociate" << surface << wrapper;
+
+        uint32_t windowId = 0;
+        if (surface && surface->handle() && surface->handle()->handle()) {
+            windowId = surface->handle()->handle()->window_id;
+        }
+        qCInfo(lcTlXwayland) << "[DISSOCIATE] XWayland surface dissociating:"
+                              << "window_id=" << windowId
+                              << "wrapper=" << wrapper;
+        Helper::instance()->clearXWaylandPopupFocusState(surface);
 
         // Cancel pending async property fetch for this surface.
         auto *xwayland = surface->xwayland();
-        if (xwayland) {
-            auto windowId = surface->handle()->handle()->window_id;
+        if (xwayland && windowId != 0) {
             xwayland->cancelAsyncProperties(windowId);
         }
 
@@ -662,20 +902,29 @@ void ShellHandler::onXWaylandSurfaceAdded(WXWaylandSurface *surface)
 
 void ShellHandler::fetchInitialProperties(WXWaylandSurface *surface, const QString &appId)
 {
-    auto *xwayland = surface->xwayland();
-    if (!xwayland) {
-        ensureXwaylandWrapper(surface, appId);
+    auto *associatedSurface = surface ? surface->surface() : nullptr;
+    if (!isCurrentXwaylandAssociation(surface, associatedSurface)) {
+        qCDebug(lcTlXwayland) << "[XWL_ASSOCIATION_SKIP] Skip initial property fetch for unassociated surface:"
+                               << "window_id=" << xwaylandWindowId(surface)
+                               << "surface=" << surface
+                               << "associatedSurface=" << associatedSurface;
         return;
     }
 
-    auto windowId = surface->handle()->handle()->window_id;
+    auto *xwayland = surface->xwayland();
+    if (!xwayland) {
+        ensureXwaylandWrapper(surface, appId, associatedSurface);
+        return;
+    }
+
+    auto windowId = xwaylandWindowId(surface);
     QVector<WXWayland::AsyncPropRequest> requests;
     if (m_imCandidatePanelManager) {
         requests.append({ m_imCandidatePanelManager->imCandidatePanelAtom(), XCB_ATOM_CARDINAL });
     }
 
     if (requests.isEmpty()) {
-        ensureXwaylandWrapper(surface, appId);
+        ensureXwaylandWrapper(surface, appId, associatedSurface);
         return;
     }
 
@@ -685,33 +934,66 @@ void ShellHandler::fetchInitialProperties(WXWaylandSurface *surface, const QStri
         50,
         [self = QPointer<ShellHandler>(this),
          surface = QPointer<WXWaylandSurface>(surface),
+         associatedSurface = QPointer<WSurface>(associatedSurface),
+         windowId,
          appId](xcb_window_t, const QMap<xcb_atom_t, QByteArray> &result) {
             auto *raw = surface.data();
+            auto *expectedSurface = associatedSurface.data();
             if (!raw || !self)
                 return;
-            self->onInitialPropertiesReady(raw, appId, result);
+            if (!isCurrentXwaylandAssociation(raw, expectedSurface)) {
+                qCDebug(lcTlXwayland) << "[XWL_ASSOCIATION_SKIP] Drop stale initial property reply:"
+                                       << "window_id=" << windowId
+                                       << "surface=" << raw
+                                       << "expectedSurface=" << expectedSurface
+                                       << "currentSurface=" << raw->surface();
+                return;
+            }
+            self->onInitialPropertiesReady(raw, expectedSurface, appId, result);
         });
 }
 
 void ShellHandler::onInitialPropertiesReady(WXWaylandSurface *surface,
+                                            WSurface *associatedSurface,
                                             const QString &appId,
                                             const QMap<xcb_atom_t, QByteArray> &result)
 {
+    if (!isCurrentXwaylandAssociation(surface, associatedSurface)) {
+        qCDebug(lcTlXwayland) << "[XWL_ASSOCIATION_SKIP] Drop stale initial properties before wrapper creation:"
+                               << "window_id=" << xwaylandWindowId(surface)
+                               << "surface=" << surface
+                               << "expectedSurface=" << associatedSurface
+                               << "currentSurface=" << (surface ? surface->surface() : nullptr);
+        return;
+    }
+
     if (m_imCandidatePanelManager) {
         bool value = IMCandidatePanelManager::parseIMCandidatePanelProperty(
             result,
             m_imCandidatePanelManager->imCandidatePanelAtom());
         surface->setProperty("imCandidatePanel", value);
     }
-    ensureXwaylandWrapper(surface, appId);
+    ensureXwaylandWrapper(surface, appId, associatedSurface);
 }
 
-void ShellHandler::ensureXwaylandWrapper(WXWaylandSurface *surface, const QString &targetAppId)
+void ShellHandler::ensureXwaylandWrapper(WXWaylandSurface *surface,
+                                         const QString &targetAppId,
+                                         WSurface *associatedSurface)
 {
+    if (!isCurrentXwaylandAssociation(surface, associatedSurface)) {
+        qCDebug(lcTlXwayland) << "[XWL_WRAPPER_SKIP] Skip wrapper creation for stale XWayland association:"
+                               << "window_id=" << xwaylandWindowId(surface)
+                               << "surface=" << surface
+                               << "expectedSurface=" << associatedSurface
+                               << "currentSurface=" << (surface ? surface->surface() : nullptr);
+        return;
+    }
+
     // Check if this matches a closed splash screen
     if (!targetAppId.isEmpty() && m_closedSplashAppIds.contains(targetAppId)) {
-        qCDebug(lcTlShell)
-            << "XWayland surface matches closed splash, closing immediately: appId=" << targetAppId;
+        qCWarning(lcTlXwayland) << "[CLOSE_BY_SPLASH] XWayland surface closed due to closedSplashAppIds match:"
+                                 << "appId=" << targetAppId
+                                 << "window_id=" << xwaylandWindowId(surface);
         m_closedSplashAppIds.remove(targetAppId);
         surface->close();
         return;
@@ -719,6 +1001,21 @@ void ShellHandler::ensureXwaylandWrapper(WXWaylandSurface *surface, const QStrin
 
     SurfaceWrapper *wrapper = nullptr;
     bool isNewWrapper = true;
+
+    wrapper = m_rootSurfaceContainer->getSurface(surface);
+    if (!wrapper)
+        wrapper = m_rootSurfaceContainer->getSurface(associatedSurface);
+
+    if (wrapper) {
+        qCDebug(lcTlXwayland) << "[WRAPPER_REUSE] Reusing existing XWayland wrapper:"
+                               << "window_id=" << xwaylandWindowId(surface)
+                               << "wrapper=" << wrapper
+                               << "surface=" << surface
+                               << "associatedSurface=" << associatedSurface;
+        if (m_imCandidatePanelManager)
+            m_imCandidatePanelManager->checkAndApplyIMCandidatePanel(wrapper, surface);
+        return;
+    }
 
     if (!targetAppId.isEmpty()) {
         m_pendingPrelaunchAppIds.remove(targetAppId);
@@ -742,6 +1039,10 @@ void ShellHandler::ensureXwaylandWrapper(WXWaylandSurface *surface, const QStrin
                                      targetAppId);
         m_workspace->addSurface(wrapper);
         isNewWrapper = true; // newly created
+        qCInfo(lcTlXwayland) << "[WRAPPER_CREATE] New XWayland wrapper created:"
+                              << "wrapper=" << wrapper
+                              << "appId=" << targetAppId
+                              << "window_id=" << xwaylandWindowId(surface);
     }
 
     // IM candidate panel detection via XWayland xprop
@@ -752,13 +1053,53 @@ void ShellHandler::ensureXwaylandWrapper(WXWaylandSurface *surface, const QStrin
     }
 
     // Initialize wrapper
-    auto updateSurfaceWithParentContainer = [this, wrapper, surface] {
-        updateWrapperContainer(wrapper, surface->parentSurface());
+    auto updateSurfaceWithParentContainer = [this,
+                                             wrapper = QPointer<SurfaceWrapper>(wrapper),
+                                             surface = QPointer<WXWaylandSurface>(surface)] {
+        auto *rawWrapper = wrapper.data();
+        auto *rawSurface = surface.data();
+        if (!rawWrapper || !rawSurface)
+            return;
+        if (!rawSurface->surface()) {
+            qCDebug(lcTlXwayland) << "[XWL_PARENT_CONTAINER] Skip container update for dissociated XWayland surface:"
+                                   << "window_id=" << xwaylandWindowId(rawSurface)
+                                   << "wrapper=" << rawWrapper
+                                   << "surface=" << rawSurface;
+            return;
+        }
+
+        WSurface *parentSurface = nullptr;
+        if (rawSurface) {
+            if (auto *x11Parent = rawSurface->parentXWaylandSurface())
+                parentSurface = x11Parent->surface();
+        }
+        SurfaceWrapper *parentWrapper = parentSurface ? m_rootSurfaceContainer->getSurface(parentSurface) : nullptr;
+        qCDebug(lcTlXwayland) << "[XWL_PARENT_CONTAINER] XWayland container update:"
+                               << "wrapper=" << rawWrapper
+                               << "parentSurface=" << parentSurface
+                               << "parentWrapper=" << parentWrapper;
+        updateWrapperContainer(rawWrapper, parentSurface);
     };
-    surface->safeConnect(&WXWaylandSurface::parentSurfaceChanged,
+    surface->safeConnect(&WXWaylandSurface::parentXWaylandSurfaceChanged,
                          this,
                          updateSurfaceWithParentContainer);
     updateSurfaceWithParentContainer();
+
+    for (auto *child : surface->children()) {
+        if (!child || !child->surface())
+            continue;
+
+        auto *childWrapper = m_rootSurfaceContainer->getSurface(child->surface());
+        if (!childWrapper)
+            continue;
+
+        qCDebug(lcTlXwayland) << "[XWL_PARENT_CONTAINER] Retrying XWayland child container update:"
+                               << "parentWrapper=" << wrapper
+                               << "childWrapper=" << childWrapper
+                               << "childSurface=" << child->surface();
+        updateWrapperContainer(childWrapper, surface->surface());
+    }
+
     Q_ASSERT(wrapper->parentItem());
     setupSurfaceWindowMenu(wrapper);
     // Only setup active watcher for newly created wrappers;
@@ -914,22 +1255,29 @@ void ShellHandler::setupSurfaceActiveWatcher(SurfaceWrapper *wrapper)
             }
         });
     } else { // Xdgtoplevel or X11 or Splash
-        connect(wrapper, &SurfaceWrapper::activationRequested, this, [this, wrapper]() {
+        auto activateWrapper = [this, wrapper]() {
+            if (wrapper->isXWaylandPopupLikeTransient()) {
+                qCDebug(lcTlXwayland) << "[XWL_AUTO_ACTIVATE_SKIP] Keep parent focus for XWayland popup-like transient:"
+                                       << "wrapper=" << wrapper
+                                       << "parentWrapper=" << wrapper->parentSurface()
+                                       << "surface=" << wrapper->shellSurface();
+                return;
+            }
+
             if (wrapper->showOnWorkspace(m_workspace->current()->id()))
                 Helper::instance()->activateSurface(wrapper);
             else
                 m_workspace->pushActivedSurface(wrapper);
-        });
+        };
+
+        connect(wrapper, &SurfaceWrapper::activationRequested, this, activateWrapper);
 
         connect(wrapper, &SurfaceWrapper::inactivationRequested, this, [this, wrapper]() {
             onSurfaceInactivationRequested(wrapper);
         });
 
         if (wrapper->hasActiveCapability()) {
-            if (wrapper->showOnWorkspace(m_workspace->current()->id()))
-                Helper::instance()->activateSurface(wrapper);
-            else
-                m_workspace->pushActivedSurface(wrapper);
+            activateWrapper();
         }
     }
 }

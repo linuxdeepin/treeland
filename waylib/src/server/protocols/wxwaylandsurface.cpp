@@ -1,4 +1,4 @@
-// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 JiDe Zhang <zhangjide@deepin.org>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wxwaylandsurface.h"
@@ -7,6 +7,7 @@
 #include "wsurface.h"
 #include "wtools.h"
 #include "wxwayland.h"
+#include "wayliblogging.h"
 
 #include <sys/syscall.h>
 
@@ -25,6 +26,101 @@
 
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
+
+namespace {
+
+WXWaylandSurface::InputModel toInputModel(wlr_xwayland_icccm_input_model model)
+{
+    switch (model) {
+    case WLR_ICCCM_INPUT_MODEL_NONE:
+        return WXWaylandSurface::InputModelNone;
+    case WLR_ICCCM_INPUT_MODEL_PASSIVE:
+        return WXWaylandSurface::InputModelPassive;
+    case WLR_ICCCM_INPUT_MODEL_LOCAL:
+        return WXWaylandSurface::InputModelLocal;
+    case WLR_ICCCM_INPUT_MODEL_GLOBAL:
+        return WXWaylandSurface::InputModelGlobal;
+    }
+    return WXWaylandSurface::InputModelNone;
+}
+
+const char *inputModelName(WXWaylandSurface::InputModel model)
+{
+    switch (model) {
+    case WXWaylandSurface::InputModelNone:
+        return "none";
+    case WXWaylandSurface::InputModelPassive:
+        return "passive";
+    case WXWaylandSurface::InputModelLocal:
+        return "local";
+    case WXWaylandSurface::InputModelGlobal:
+        return "global";
+    }
+    return "unknown";
+}
+
+uint32_t xwaylandWindowId(const wlr_xwayland_surface *surface)
+{
+    return surface ? surface->window_id : 0;
+}
+
+bool protocolsContain(const wlr_xwayland_surface *surface, xcb_atom_t atom)
+{
+    if (!surface || atom == XCB_ATOM_NONE)
+        return false;
+
+    for (size_t i = 0; i < surface->protocols_len; ++i) {
+        if (surface->protocols[i] == atom)
+            return true;
+    }
+
+    return false;
+}
+
+int validChildCount(const QList<QPointer<WXWaylandSurface>> &children)
+{
+    int count = 0;
+    for (const auto &child : children) {
+        auto *raw = child.data();
+        if (raw && !raw->isInvalidated())
+            ++count;
+    }
+    return count;
+}
+
+bool childListEquals(const QList<QPointer<WXWaylandSurface>> &a,
+                     const QList<QPointer<WXWaylandSurface>> &b)
+{
+    if (a.size() != b.size())
+        return false;
+
+    for (qsizetype i = 0; i < a.size(); ++i) {
+        if (a.at(i).data() != b.at(i).data())
+            return false;
+    }
+
+    return true;
+}
+
+int removeChildFromCache(QList<QPointer<WXWaylandSurface>> &children, WXWaylandSurface *surface)
+{
+    int removed = 0;
+    for (auto it = children.begin(); it != children.end();) {
+        auto *child = it->data();
+        if (!child || child == surface) {
+            if (child == surface)
+                ++removed;
+            it = children.erase(it);
+            continue;
+        }
+
+        ++it;
+    }
+
+    return removed;
+}
+
+} // namespace
 
 class Q_DECL_HIDDEN WXWaylandSurfacePrivate : public WToplevelSurfacePrivate
 {
@@ -69,7 +165,7 @@ public:
     WXWayland *xwayland = nullptr;
     mutable int pidFD = -1;
 
-    QList<WXWaylandSurface*> children;
+    QList<QPointer<WXWaylandSurface>> children;
     QPointer<WXWaylandSurface> parent;
     QRect lastRequestConfigureGeometry;
     WXWaylandSurface::ConfigureFlags lastRequestConfigureFlags = {0};
@@ -80,11 +176,13 @@ public:
     uint minimized:1;
     uint fullscreen:1;
     uint activated:1;
+    uint treeRelationsCleaned:1 = false;
 };
 
 void WXWaylandSurfacePrivate::instantRelease()
 {
     W_Q(WXWaylandSurface);
+    q->cleanupTreeRelationsBeforeDestroy();
     handle()->set_data(nullptr, nullptr);
     handle()->disconnect(q);
 
@@ -162,8 +260,9 @@ void WXWaylandSurfacePrivate::init()
                      q, &WXWaylandSurface::bypassManagerChanged);
     QObject::connect(handle(), &qw_xwayland_surface::notify_set_geometry,
                      q, &WXWaylandSurface::geometryChanged);
-    QObject::connect(handle(), &qw_xwayland_surface::notify_set_hints, q, [this] {
+    QObject::connect(handle(), &qw_xwayland_surface::notify_set_hints, q, [this, q] {
         updateSizeHints();
+        Q_EMIT q->inputModelChanged();
     });
     QObject::connect(handle(), &qw_xwayland_surface::notify_set_window_type,
                      q, [this] {
@@ -175,6 +274,18 @@ void WXWaylandSurfacePrivate::init()
                      q, &WXWaylandSurface::titleChanged);
     QObject::connect(handle(), &qw_xwayland_surface::notify_set_class,
                      q, &WXWaylandSurface::appIdChanged);
+    QObject::connect(handle(), &qw_xwayland_surface::notify_focus_in, q, [this, q] {
+        qCDebug(lcWlXWayland) << "[XWL_FOCUS_IN] XWayland focus accepted:"
+                               << "window_id=" << xwaylandWindowId(nativeHandle())
+                               << "surface=" << q_func();
+        Q_EMIT q->focusIn();
+    });
+    QObject::connect(handle(), &qw_xwayland_surface::notify_grab_focus, q, [this, q] {
+        qCDebug(lcWlXWayland) << "[XWL_GRAB_FOCUS] XWayland keyboard grab focus:"
+                               << "window_id=" << xwaylandWindowId(nativeHandle())
+                               << "surface=" << q_func();
+        Q_EMIT q->grabFocus();
+    });
     updateChildren();
     updateParent();
     updateSizeHints();
@@ -212,17 +323,18 @@ void WXWaylandSurfacePrivate::updateSizeHints()
 
 void WXWaylandSurfacePrivate::updateChildren()
 {
-    QList<WXWaylandSurface*> list;
+    QList<QPointer<WXWaylandSurface>> list;
 
     struct wlr_xwayland_surface *child, *next;
     wl_list_for_each_safe(child, next, &nativeHandle()->children, parent_link) {
-        list << WXWaylandSurface::fromHandle(qw_xwayland_surface::from(child));
+        if (auto *surface = WXWaylandSurface::fromHandle(qw_xwayland_surface::from(child)))
+            list << surface;
     }
 
-    if (children == list)
+    if (childListEquals(children, list))
         return;
 
-    const bool hasChildChanged = children.isEmpty() != list.isEmpty();
+    const bool hasChildChanged = (validChildCount(children) == 0) != (validChildCount(list) == 0);
     children = list;
 
     W_Q(WXWaylandSurface);
@@ -261,7 +373,7 @@ void WXWaylandSurfacePrivate::updateWindowTypes()
 
     for (size_t i = 0; i < nativeHandle()->window_type_len; ++i) {
         auto atomType = xwayland->atomType(nativeHandle()->window_type[i]);
-        
+
         switch (atomType) {
         case WXWayland::_NET_WM_WINDOW_TYPE_NORMAL:
             types |= WXWaylandSurface::NET_WM_WINDOW_TYPE_NORMAL;
@@ -313,7 +425,7 @@ WXWaylandSurface::WXWaylandSurface(qw_xwayland_surface *handle, WXWayland *xwayl
 
 WXWaylandSurface::~WXWaylandSurface()
 {
-
+    cleanupTreeRelationsBeforeDestroy();
 }
 
 WXWaylandSurface *WXWaylandSurface::fromHandle(qw_xwayland_surface *handle)
@@ -361,11 +473,19 @@ WXWayland *WXWaylandSurface::xwayland() const
     return d->xwayland;
 }
 
-const QList<WXWaylandSurface*> &WXWaylandSurface::children() const
+QList<WXWaylandSurface*> WXWaylandSurface::children() const
 {
     W_DC(WXWaylandSurface);
 
-    return d->children;
+    QList<WXWaylandSurface *> list;
+    list.reserve(d->children.size());
+    for (const auto &child : d->children) {
+        auto *raw = child.data();
+        if (raw && !raw->isInvalidated())
+            list << raw;
+    }
+
+    return list;
 }
 
 bool WXWaylandSurface::isToplevel() const
@@ -376,8 +496,7 @@ bool WXWaylandSurface::isToplevel() const
 
 bool WXWaylandSurface::hasChild() const
 {
-    W_DC(WXWaylandSurface);
-    return wl_list_empty(&d->nativeHandle()->children) == 0;
+    return !children().isEmpty();
 }
 
 bool WXWaylandSurface::isMaximized() const
@@ -423,8 +542,22 @@ bool WXWaylandSurface::hasCapability(Capability cap) const
                     | NET_WM_WINDOW_TYPE_COMBO | NET_WM_WINDOW_TYPE_MENU
                     | NET_WM_WINDOW_TYPE_NOTIFICATION | NET_WM_WINDOW_TYPE_SPLASH));
     case Focus:
-        return wlr_xwayland_surface_override_redirect_wants_focus(d->nativeHandle())
-            && wlr_xwayland_surface_icccm_input_model(d->nativeHandle()) != WLR_ICCCM_INPUT_MODEL_NONE;
+    {
+        const auto model = inputModel();
+        const bool acceptsInput = model != InputModelNone;
+        const bool overrideRedirect = isBypassManager();
+        const bool overrideRedirectWantsFocus = overrideRedirect ? d->handle()->wants_focus() : true;
+        const bool hasFocus = acceptsInput && (!overrideRedirect || overrideRedirectWantsFocus);
+        qCDebug(lcWlXWayland) << "[XWL_FOCUS_CAP] XWayland focus capability:"
+                               << "window_id=" << xwaylandWindowId(d->nativeHandle())
+                               << "surface=" << this
+                               << "override_redirect=" << overrideRedirect
+                               << "window_types=" << d->windowTypes
+                               << "input_model=" << inputModelName(model)
+                               << "override_redirect_wants_focus=" << overrideRedirectWantsFocus
+                               << "has_focus_capability=" << hasFocus;
+        return hasFocus;
+    }
     case Activate:
     case FullScreen:
         return !isBypassManager();
@@ -537,6 +670,22 @@ WXWaylandSurface::DecorationsFlags WXWaylandSurface::decorationsFlags() const
     return WXWaylandSurface::DecorationsFlags::fromInt(d->nativeHandle()->decorations);
 }
 
+WXWaylandSurface::InputModel WXWaylandSurface::inputModel() const
+{
+    W_DC(WXWaylandSurface);
+    return toInputModel(d->handle()->icccm_input_model());
+}
+
+bool WXWaylandSurface::supportsWmTakeFocus() const
+{
+    W_DC(WXWaylandSurface);
+
+    if (!d->xwayland)
+        return false;
+
+    return protocolsContain(d->nativeHandle(), d->xwayland->atom("WM_TAKE_FOCUS"));
+}
+
 bool WXWaylandSurface::checkNewSize(const QSize &size, QSize *clipedSize)
 {
     const QSize minSize = this->minSize();
@@ -629,6 +778,56 @@ void WXWaylandSurface::setActivate(bool on)
     Q_EMIT activateChanged();
 }
 
+void WXWaylandSurface::forceActivate()
+{
+    W_D(WXWaylandSurface);
+
+    const bool wasActivated = d->activated;
+    d->activated = true;
+    qCDebug(lcWlXWayland) << "[XWL_FORCE_ACTIVATE] Force XWayland native activation:"
+                           << "window_id=" << xwaylandWindowId(d->nativeHandle())
+                           << "surface=" << this
+                           << "input_model=" << inputModelName(inputModel())
+                           << "was_activated=" << wasActivated;
+    handle()->activate(true);
+    if (!wasActivated)
+        Q_EMIT activateChanged();
+}
+
+void WXWaylandSurface::requestNativeFocus()
+{
+    W_D(WXWaylandSurface);
+
+    qCDebug(lcWlXWayland) << "[XWL_NATIVE_FOCUS] Request XWayland native focus:"
+                           << "window_id=" << xwaylandWindowId(d->nativeHandle())
+                           << "surface=" << this
+                           << "input_model=" << inputModelName(inputModel())
+                           << "activated_state=" << d->activated;
+    handle()->activate(true);
+}
+
+bool WXWaylandSurface::offerFocus()
+{
+    W_D(WXWaylandSurface);
+
+    const auto inputModel = this->inputModel();
+    const bool overrideRedirect = isBypassManager();
+    const bool supportsTakeFocus = supportsWmTakeFocus();
+    qCDebug(lcWlXWayland) << "[XWL_OFFER_FOCUS] XWayland offer focus:"
+                           << "window_id=" << xwaylandWindowId(d->nativeHandle())
+                           << "surface=" << this
+                           << "input_model=" << inputModelName(inputModel)
+                           << "override_redirect=" << overrideRedirect
+                           << "supports_wm_take_focus=" << supportsTakeFocus
+                           << "protocols_len=" << d->nativeHandle()->protocols_len;
+
+    if (overrideRedirect || !supportsTakeFocus)
+        return false;
+
+    handle()->offer_focus();
+    return true;
+}
+
 void WXWaylandSurface::close()
 {
     handle()->close();
@@ -642,6 +841,63 @@ void WXWaylandSurface::restack(WXWaylandSurface *sibling, StackMode mode)
     }
 
     handle()->restack(nullptr, static_cast<xcb_stack_mode_t>(mode));
+}
+
+void WXWaylandSurface::cleanupTreeRelationsBeforeDestroy()
+{
+    W_D(WXWaylandSurface);
+
+    if (d->treeRelationsCleaned)
+        return;
+    d->treeRelationsCleaned = true;
+
+    const uint32_t windowId = !isInvalidated() ? xwaylandWindowId(d->nativeHandle()) : 0;
+    auto *oldParent = d->parent.data();
+    const int oldChildCount = validChildCount(d->children);
+
+    if (oldParent) {
+        auto *parentPrivate = oldParent->d_func();
+        const int parentChildCountBefore = validChildCount(parentPrivate->children);
+        const int removed = removeChildFromCache(parentPrivate->children, this);
+        const int parentChildCountAfter = validChildCount(parentPrivate->children);
+
+        if (removed > 0) {
+            Q_EMIT oldParent->childrenChanged();
+            if ((parentChildCountBefore == 0) != (parentChildCountAfter == 0))
+                Q_EMIT oldParent->hasChildChanged();
+        }
+    }
+
+    // This object is being destroyed. Keep the cached tree relation safe, but
+    // do not report a real reparent-to-toplevel event to consumers.
+    d->parent = nullptr;
+
+    const auto children = d->children;
+    d->children.clear();
+    for (const auto &childPointer : children) {
+        auto *child = childPointer.data();
+        if (!child)
+            continue;
+
+        auto *childPrivate = child->d_func();
+        if (childPrivate->parent != this)
+            continue;
+
+        childPrivate->parent = nullptr;
+        Q_EMIT child->parentXWaylandSurfaceChanged();
+        Q_EMIT child->isToplevelChanged();
+    }
+
+    if (oldChildCount > 0) {
+        Q_EMIT childrenChanged();
+        Q_EMIT hasChildChanged();
+    }
+
+    qCDebug(lcWlXWayland) << "[XWL_TREE_CLEANUP] Cleaned XWayland surface tree cache before destroy:"
+                           << "window_id=" << windowId
+                           << "surface=" << this
+                           << "oldParent=" << oldParent
+                           << "old_child_count=" << oldChildCount;
 }
 
 WAYLIB_SERVER_END_NAMESPACE

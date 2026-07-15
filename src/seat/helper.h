@@ -26,6 +26,7 @@
 #include <QSet>
 #include <QList>
 #include <QMap>
+#include <QPointer>
 #include <qevent.h>
 
 #include <optional>
@@ -72,6 +73,7 @@ class WSurface;
 class WSurfaceItem;
 class WToplevelSurface;
 class WXdgDecorationManager;
+class WXWaylandSurface;
 class WXWayland;
 
 class WForeignToplevel;
@@ -277,6 +279,9 @@ public:
     WSeat *findSeatForSurface(SurfaceWrapper *wrapper) const;
     WSeat *getLastInteractingSeat(SurfaceWrapper *surface) const;
     WSeat *currentEventSeat() const { return m_currentEventSeat; }
+    void acceptXWaylandFocus(WAYLIB_SERVER_NAMESPACE::WXWaylandSurface *surface, bool grab);
+    void clearXWaylandFocusOffer(WAYLIB_SERVER_NAMESPACE::WXWaylandSurface *surface);
+    void clearXWaylandPopupFocusState(WAYLIB_SERVER_NAMESPACE::WXWaylandSurface *surface);
 
     bool isDDMDisplay() const { return m_isDDMDisplay; }
 
@@ -350,10 +355,39 @@ private:
     SurfaceWrapper *keyboardFocusSurface() const;
     SurfaceWrapper *activatedSurface() const;
     void setActivatedSurface(SurfaceWrapper *newActivateSurface, WSeat *seat = nullptr);
+    bool offerXWaylandPopupTransientFocus(SurfaceWrapper *wrapper,
+                                          Qt::FocusReason reason,
+                                          WSeat *seat);
+    void commitXWaylandPopupTransientFocus(WAYLIB_SERVER_NAMESPACE::WXWaylandSurface *surface,
+                                           SurfaceWrapper *wrapper,
+                                           Qt::FocusReason reason,
+                                           WSeat *seat,
+                                           const char *source,
+                                           bool requestNativeFocus);
+    SurfaceWrapper *activeXWaylandPopupPointerOwner(WSeat *seat) const;
+    SurfaceWrapper *findXWaylandPopupPointerTarget(WSeat *seat,
+                                                   SurfaceWrapper *eventTarget,
+                                                   QInputEvent *event,
+                                                   QPointF *targetLocalPos) const;
+    void setXWaylandPopupPointerOwner(SurfaceWrapper *wrapper, WSeat *seat, const char *reason);
+    void updateXWaylandPopupPointerOwnerForEvent(SurfaceWrapper *wrapper,
+                                                 WSeat *seat,
+                                                 QInputEvent *event,
+                                                 const char *reason);
+    void clearXWaylandPopupPointerOwner(WAYLIB_SERVER_NAMESPACE::WXWaylandSurface *surface,
+                                        const char *reason);
+    bool redirectXWaylandPopupPointerEvent(WSeat *seat,
+                                           SurfaceWrapper *eventTarget,
+                                           QObject *eventObject,
+                                           QInputEvent *event);
+    void restoreXWaylandPopupTransientFocus(WAYLIB_SERVER_NAMESPACE::WXWaylandSurface *surface,
+                                            const char *reason);
 
     void setCursorPosition(const QPointF &position);
 
     bool beforeDisposeEvent(WSeat *seat, QWindow *window, QInputEvent *event) override;
+    bool beforeHandleEvent(WSeat *seat, WSurface *watched, QObject *shellObject,
+                           QObject *eventObject, QInputEvent *event) override;
     bool afterHandleEvent(WSeat *seat, WSurface *watched, QObject *shellObject,
                          QObject *eventObject, QInputEvent *event) override;
     bool unacceptedEvent(WSeat *seat, QWindow *window, QInputEvent *event) override;
@@ -372,6 +406,30 @@ private:
     void restoreCopyMode();
     void applyCopyModeToOutputs(Output *primaryOutput, const QList<SurfaceWrapper *> &surfaces);
     bool isNvidiaCardPresent();
+
+    struct XWaylandFocusOffer
+    {
+        QPointer<QObject> wrapper;
+        QPointer<WSeat> seat;
+        Qt::FocusReason reason = Qt::OtherFocusReason;
+    };
+    QMap<WXWaylandSurface *, XWaylandFocusOffer> m_pendingXWaylandFocusOffers;
+    struct XWaylandPopupFocusCommit
+    {
+        QPointer<QObject> wrapper;
+        QPointer<QObject> parentWrapper;
+        QPointer<WSeat> seat;
+    };
+    QMap<WXWaylandSurface *, XWaylandPopupFocusCommit> m_committedXWaylandPopupFocuses;
+    struct XWaylandPopupPointerOwner
+    {
+        QPointer<QObject> wrapper;
+        QPointer<QObject> parentWrapper;
+        QPointer<WSeat> seat;
+        int pressedButtons = 0;
+    };
+    QMap<WSeat *, XWaylandPopupPointerOwner> m_xwaylandPopupPointerOwners;
+    bool m_redirectingXWaylandPopupPointerEvent = false;
     void setWorkspaceVisible(bool visible);
     void restoreFromShowDesktop(SurfaceWrapper *activeSurface = nullptr);
     void setNoAnimation(bool noAnimation);

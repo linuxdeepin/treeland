@@ -50,6 +50,7 @@ Q_LOGGING_CATEGORY(lcWlForeignToplevel, "waylib.protocols.foreigntoplevel", QtWa
 Q_LOGGING_CATEGORY(lcWlInputMethod, "waylib.protocols.inputmethod", QtInfoMsg) // Input method v2 and virtual keyboard
 Q_LOGGING_CATEGORY(lcWlExtForeignToplevel, "waylib.protocols.extforeigntoplevel", QtWarningMsg) // ext-foreign-toplevel-list-v1
 Q_LOGGING_CATEGORY(lcWlTextInput, "waylib.protocols.textinput", QtInfoMsg) // Text input v1/v2/v3 protocol
+Q_LOGGING_CATEGORY(lcWlXWayland, "waylib.protocols.xwayland", QtInfoMsg) // XWayland surface lifecycle and focus model
 
 // Layer shell
 Q_LOGGING_CATEGORY(lcWlLayerShell, "waylib.layer.shell", QtWarningMsg) // wlr-layer-shell surface requests

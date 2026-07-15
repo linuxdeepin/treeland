@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.
+// Copyright (C) 2023-2026 Dingyuan Zhang <zhangdingyuan@uniontech.com>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR
 // GPL-3.0-only
 
@@ -38,6 +38,8 @@ class QW_CLASS_OBJECT(xwayland_surface)
     QW_SIGNAL(set_decorations)
     QW_SIGNAL(set_override_redirect)
     QW_SIGNAL(set_geometry)
+    QW_SIGNAL(focus_in)
+    QW_SIGNAL(grab_focus)
     QW_SIGNAL(ping_timeout)
     QW_SIGNAL(associate)
     QW_SIGNAL(dissociate)
@@ -49,6 +51,7 @@ public:
     QW_FUNC_MEMBER(xwayland_surface, restack, void, wlr_xwayland_surface *sibling, enum xcb_stack_mode_t mode)
     QW_FUNC_MEMBER(xwayland_surface, configure, void, int16_t x, int16_t y, uint16_t width, uint16_t height)
     QW_FUNC_MEMBER(xwayland_surface, close, void)
+    QW_FUNC_MEMBER(xwayland_surface, offer_focus, void)
     QW_FUNC_MEMBER(xwayland_surface, set_withdrawn, void, bool withdrawn)
     QW_FUNC_MEMBER(xwayland_surface, set_minimized, void, bool minimized)
 #if WLR_VERSION_MINOR < 19
@@ -61,13 +64,13 @@ public:
 #if WLR_VERSION_MINOR < 19
     QW_FUNC_MEMBER(xwayland, icccm_input_model, enum wlr_xwayland_icccm_input_model)
 #else
-    QW_FUNC_MEMBER(xwayland_surface, icccm_input_model, void)
+    QW_FUNC_MEMBER(xwayland_surface, icccm_input_model, enum wlr_xwayland_icccm_input_model)
 #endif
 
 #if WLR_VERSION_MINOR < 19
     QW_FUNC_MEMBER(xwayland_or_surface, wants_focus, bool)
 #else
-    QW_FUNC_MEMBER(xwayland_surface_override_redirect, wants_focus, void)
+    QW_FUNC_MEMBER(xwayland_surface_override_redirect, wants_focus, bool)
 #endif
 };
 

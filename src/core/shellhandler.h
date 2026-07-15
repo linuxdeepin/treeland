@@ -160,7 +160,8 @@ private:
                           const QString &appId);
     // Creates or matches a wrapper from prelaunch splash, then initializes it
     void ensureXwaylandWrapper(WAYLIB_SERVER_NAMESPACE::WXWaylandSurface *surface,
-                               const QString &appId);
+                               const QString &appId,
+                               WAYLIB_SERVER_NAMESPACE::WSurface *associatedSurface);
     // Unified parent/container update for Xdg & XWayland toplevel wrappers.
     void updateWrapperContainer(SurfaceWrapper *wrapper,
                                 WAYLIB_SERVER_NAMESPACE::WSurface *parentSurface);
@@ -168,6 +169,7 @@ private:
     void fetchInitialProperties(WAYLIB_SERVER_NAMESPACE::WXWaylandSurface *surface,
                                 const QString &appId);
     void onInitialPropertiesReady(WAYLIB_SERVER_NAMESPACE::WXWaylandSurface *surface,
+                                  WAYLIB_SERVER_NAMESPACE::WSurface *associatedSurface,
                                   const QString &appId,
                                   const QMap<xcb_atom_t, QByteArray> &result);
 
