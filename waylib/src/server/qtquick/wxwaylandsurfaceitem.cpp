@@ -1,10 +1,13 @@
-// Copyright (C) 2023-2024 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 JiDe Zhang <zhangjide@deepin.org>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wxwaylandsurfaceitem.h"
 #include "wsurfaceitem_p.h"
 #include "wxwaylandsurface.h"
 #include "wxwayland.h"
+#include "wayliblogging.h"
+
+#include <qwxwaylandsurface.h>
 
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -32,7 +35,7 @@ public:
 void WXWaylandSurfaceItemPrivate::configureSurface(const QRect &newGeometry)
 {
     Q_Q(WXWaylandSurfaceItem);
-    if (!q->isVisible())
+    if (!q->isVisible() || !surfaceState)
         return;
     q->xwaylandSurface()->configure(newGeometry);
     q->updateSurfaceState();
@@ -113,6 +116,9 @@ bool WXWaylandSurfaceItem::setShellSurface(WToplevelSurface *surface)
                     WXWaylandSurface::ConfigureFlag::XCB_CONFIG_WINDOW_POSITION)) {
                 Q_EMIT implicitPositionChanged();
             }
+            if (resizeMode() == ResizeMode::SizeFromSurface) {
+                syncConfigureFromRequest();
+            }
         });
         xwaylandSurface()->safeConnect(&WXWaylandSurface::geometryChanged, this, updateGeometry);
         connect(this, &WXWaylandSurfaceItem::topPaddingChanged,
@@ -171,6 +177,49 @@ void WXWaylandSurfaceItem::moveTo(const QPointF &pos, bool configSurface)
         updatePosition();
         d->positionConfigured = true;
     }
+}
+
+void WXWaylandSurfaceItem::syncConfigureFromRequest()
+{
+    Q_D(WXWaylandSurfaceItem);
+
+    auto *surface = xwaylandSurface();
+    if (!surface)
+        return;
+
+    const auto requestFlags = surface->requestConfigureFlags();
+    const QRect requestGeometry = surface->requestConfigureGeometry();
+    const QRect contentGeometryBefore = surface->getContentGeometry();
+    const QSizeF itemSizeBefore = size();
+    const QSizeF implicitSizeBefore(implicitWidth(), implicitHeight());
+    const bool syncEnabled = resizeMode() == ResizeMode::SizeFromSurface;
+
+    if (syncEnabled) {
+        d->configureSurface(QRect(d->explicitSurfacePosition(), d->expectSurfaceSize()));
+        if (d->surfaceState && effectiveVisible())
+            resize(ResizeMode::SizeFromSurface);
+    }
+
+    uint32_t windowId = 0;
+    if (surface->handle() && surface->handle()->handle())
+        windowId = surface->handle()->handle()->window_id;
+
+    qCDebug(lcWlXWayland) << "[XWL_ITEM_CONFIGURE] XWayland item configure sync:"
+                           << "window_id=" << windowId
+                           << "item=" << this
+                           << "sync_enabled=" << syncEnabled
+                           << "visible=" << isVisible()
+                           << "effective_visible=" << effectiveVisible()
+                           << "resize_mode=" << resizeMode()
+                           << "request_flags=" << static_cast<int>(requestFlags)
+                           << "request_geometry=" << requestGeometry
+                           << "content_before=" << contentGeometryBefore
+                           << "content_after=" << surface->getContentGeometry()
+                           << "surface_size_ratio=" << surfaceSizeRatio()
+                           << "item_size_before=" << itemSizeBefore
+                           << "item_size_after=" << size()
+                           << "implicit_before=" << implicitSizeBefore
+                           << "implicit_after=" << QSizeF(implicitWidth(), implicitHeight());
 }
 
 QPointF WXWaylandSurfaceItem::implicitPosition() const

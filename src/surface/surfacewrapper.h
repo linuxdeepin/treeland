@@ -305,6 +305,7 @@ public:
     bool isIMCandidatePanel() const;
     void setIMCandidatePanel(bool isIMCandidatePanel);
     bool isInputPopupLike() const;
+    bool isXWaylandPopupLikeTransient() const;
 
     bool attention() const;
     bool setAttention(bool attention);
@@ -431,6 +432,8 @@ private:
     void updateFocusControlState(FocusControlState state, bool value);
     void updateActivateCapability();
     void updateFocusCapability();
+    bool computeXWaylandPopupLikeTransient() const;
+    void updateXWaylandPopupPolicy();
     void completeSplashTransition(const QSizeF &targetImplicitSize, bool hideDecoration = false);
 
     // wayland set by treeland-dde-shell, x11 set by bypassManager/windowTypes
@@ -506,6 +509,7 @@ private:
     uint m_isActivated : 1;
     uint m_attention : 1;
     uint m_isIMCandidatePanel : 1;
+    uint m_xwaylandPopupLikeTransient : 1;
     uint m_resizable : 1;
     uint m_maximizable : 1;
     uint m_modal : 1;

@@ -25,6 +25,7 @@
 
 #include <qwbuffer.h>
 #include <qwlayershellv1.h>
+#include <qwxwaylandsurface.h>
 
 #include <QColor>
 #include <QVariant>
@@ -64,6 +65,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     , m_isActivated(false)
     , m_attention(false)
     , m_isIMCandidatePanel(false)
+    , m_xwaylandPopupLikeTransient(false)
     , m_resizable(false)
     , m_maximizable(false)
     , m_modal(false)
@@ -101,6 +103,7 @@ SurfaceWrapper::SurfaceWrapper(SurfaceWrapper *original, QQuickItem *parent)
     , m_isActivated(false)
     , m_attention(false)
     , m_isIMCandidatePanel(false)
+    , m_xwaylandPopupLikeTransient(false)
     , m_resizable(false)
     , m_maximizable(false)
     , m_modal(false)
@@ -171,6 +174,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     , m_isActivated(false)
     , m_attention(false)
     , m_isIMCandidatePanel(false)
+    , m_xwaylandPopupLikeTransient(false)
     , m_resizable(false)
     , m_maximizable(false)
     , m_modal(false)
@@ -431,21 +435,15 @@ void SurfaceWrapper::setup()
         }
 
         auto updateX11shouldSkipDock = [this]() {
-            // TODO: support missing type in waylib
-            // https://github.com/linuxdeepin/dde-shell/blob/b94a3cec4e01cba64f56e040e74419248985d03d/panels/dock/taskmanager/x11window.cpp#L81-L107
             auto xwaylandSurface = qobject_cast<WXWaylandSurface *>(this->shellSurface());
             if (!xwaylandSurface)
                 return;
             auto atoms = xwaylandSurface->windowTypes();
             bool skipDock = false;
             skipDock |= xwaylandSurface->isBypassManager();
-            // skipDock |= atoms.testFlag(WXWaylandSurface::WindowType::_NET_WM_WINDOW_TYPE_DIALOG)
-            // && !isActionMinimizeAllowed();
             skipDock |= atoms.testFlag(WXWaylandSurface::WindowType::NET_WM_WINDOW_TYPE_UTILITY);
             skipDock |= atoms.testFlag(WXWaylandSurface::WindowType::NET_WM_WINDOW_TYPE_COMBO);
-            // skipDock |= atoms.testFlag(WXWaylandSurface::WindowType::NET_WM_WINDOW_TYPE_DESKTOP);
             skipDock |= atoms.testFlag(WXWaylandSurface::WindowType::NET_WM_WINDOW_TYPE_DND);
-            // skipDock |= atoms.testFlag(WXWaylandSurface::WindowType::NET_WM_WINDOW_TYPE_DOCK);
             skipDock |=
                 atoms.testFlag(WXWaylandSurface::WindowType::NET_WM_WINDOW_TYPE_DROPDOWN_MENU);
             skipDock |= atoms.testFlag(WXWaylandSurface::WindowType::NET_WM_WINDOW_TYPE_MENU);
@@ -453,8 +451,19 @@ void SurfaceWrapper::setup()
                 atoms.testFlag(WXWaylandSurface::WindowType::NET_WM_WINDOW_TYPE_NOTIFICATION);
             skipDock |= atoms.testFlag(WXWaylandSurface::WindowType::NET_WM_WINDOW_TYPE_POPUP_MENU);
             skipDock |= atoms.testFlag(WXWaylandSurface::WindowType::NET_WM_WINDOW_TYPE_SPLASH);
-            // skipDock |= atoms.testFlag(WXWaylandSurface::WindowType::NET_WM_WINDOW_TYPE_TOOLBAR);
             skipDock |= atoms.testFlag(WXWaylandSurface::WindowType::NET_WM_WINDOW_TYPE_TOOLTIP);
+
+            uint32_t windowId = 0;
+            if (xwaylandSurface->handle() && xwaylandSurface->handle()->handle()) {
+                windowId = xwaylandSurface->handle()->handle()->window_id;
+            }
+            qCDebug(lcTlXwayland) << "[WINDOW_TYPES] XWayland window types changed:"
+                                   << "window_id=" << windowId
+                                   << "wrapper=" << this
+                                   << "atoms=" << atoms
+                                   << "isBypassManager=" << xwaylandSurface->isBypassManager()
+                                   << "skipDock=" << skipDock;
+
             setSkipDockPreView(skipDock);
         };
 
@@ -466,6 +475,7 @@ void SurfaceWrapper::setup()
                     updateSizeCapabilities();
                     updateActivateCapability();
                     updateFocusCapability();
+                    updateXWaylandPopupPolicy();
                 });
         connect(xwaylandSurface,
                 &WXWaylandSurface::windowTypesChanged,
@@ -473,8 +483,27 @@ void SurfaceWrapper::setup()
                 [this, updateX11shouldSkipDock]() {
                     updateX11shouldSkipDock();
                     updateSizeCapabilities();
+                    updateFocusCapability();
+                    updateXWaylandPopupPolicy();
                 });
+        connect(xwaylandSurface,
+                &WXWaylandSurface::inputModelChanged,
+                this,
+                &SurfaceWrapper::updateFocusCapability);
+        connect(xwaylandSurface,
+                &WXWaylandSurface::parentXWaylandSurfaceChanged,
+                this,
+                &SurfaceWrapper::updateXWaylandPopupPolicy);
+        connect(m_surfaceItem,
+                &WSurfaceItem::readyChanged,
+                this,
+                &SurfaceWrapper::updateXWaylandPopupPolicy);
+        connect(m_surfaceItem,
+                &WSurfaceItem::effectiveVisibleChanged,
+                this,
+                &SurfaceWrapper::updateXWaylandPopupPolicy);
         updateX11shouldSkipDock();
+        updateXWaylandPopupPolicy();
     }
     // Connect DConfig windowRadius change so QML bindings re-evaluate radius()
     if (m_type == Type::XdgToplevel || m_type == Type::XWayland) {
@@ -1127,6 +1156,83 @@ bool SurfaceWrapper::isInputPopupLike() const
     return m_type == Type::InputPopup || m_isIMCandidatePanel;
 }
 
+bool SurfaceWrapper::computeXWaylandPopupLikeTransient() const
+{
+    if (m_type != Type::XWayland || m_isIMCandidatePanel)
+        return false;
+
+    auto *xwaylandSurface = qobject_cast<WXWaylandSurface *>(m_shellSurface.data());
+    if (!xwaylandSurface || !xwaylandSurface->parentXWaylandSurface())
+        return false;
+
+    const auto windowTypes = xwaylandSurface->windowTypes();
+    return windowTypes.testFlag(WXWaylandSurface::NET_WM_WINDOW_TYPE_UTILITY)
+        || windowTypes.testFlag(WXWaylandSurface::NET_WM_WINDOW_TYPE_TOOLTIP)
+        || windowTypes.testFlag(WXWaylandSurface::NET_WM_WINDOW_TYPE_DND)
+        || windowTypes.testFlag(WXWaylandSurface::NET_WM_WINDOW_TYPE_DROPDOWN_MENU)
+        || windowTypes.testFlag(WXWaylandSurface::NET_WM_WINDOW_TYPE_POPUP_MENU)
+        || windowTypes.testFlag(WXWaylandSurface::NET_WM_WINDOW_TYPE_COMBO)
+        || windowTypes.testFlag(WXWaylandSurface::NET_WM_WINDOW_TYPE_MENU)
+        || windowTypes.testFlag(WXWaylandSurface::NET_WM_WINDOW_TYPE_NOTIFICATION)
+        || windowTypes.testFlag(WXWaylandSurface::NET_WM_WINDOW_TYPE_SPLASH);
+}
+
+bool SurfaceWrapper::isXWaylandPopupLikeTransient() const
+{
+    return m_xwaylandPopupLikeTransient;
+}
+
+void SurfaceWrapper::updateXWaylandPopupPolicy()
+{
+    if (m_type != Type::XWayland || !m_surfaceItem)
+        return;
+
+    auto *xwaylandSurface = qobject_cast<WXWaylandSurface *>(m_shellSurface.data());
+    auto *xwaylandSurfaceItem = qobject_cast<WXWaylandSurfaceItem *>(m_surfaceItem);
+    if (!xwaylandSurface || !xwaylandSurfaceItem)
+        return;
+
+    const bool oldPopupLike = m_xwaylandPopupLikeTransient;
+    const bool newPopupLike = computeXWaylandPopupLikeTransient();
+    if (oldPopupLike != newPopupLike) {
+        m_xwaylandPopupLikeTransient = newPopupLike;
+        Q_EMIT showOnAllWorkspaceChanged();
+    }
+
+    const auto oldResizeMode = xwaylandSurfaceItem->resizeMode();
+    const auto targetResizeMode =
+        newPopupLike ? WSurfaceItem::SizeFromSurface : WSurfaceItem::ManualResize;
+    if (oldResizeMode != targetResizeMode)
+        xwaylandSurfaceItem->setResizeMode(targetResizeMode);
+
+    if (newPopupLike) {
+        disableWindowAnimation(true);
+        xwaylandSurfaceItem->syncConfigureFromRequest();
+    }
+
+    uint32_t windowId = 0;
+    if (xwaylandSurface->handle() && xwaylandSurface->handle()->handle())
+        windowId = xwaylandSurface->handle()->handle()->window_id;
+
+    qCDebug(lcTlXwayland) << "[XWL_POPUP_POLICY] XWayland popup-like transient policy:"
+                           << "window_id=" << windowId
+                           << "wrapper=" << this
+                           << "popup_like_before=" << oldPopupLike
+                           << "popup_like_after=" << newPopupLike
+                           << "parent_xwayland=" << xwaylandSurface->parentXWaylandSurface()
+                           << "window_types=" << xwaylandSurface->windowTypes()
+                           << "resize_mode_before=" << oldResizeMode
+                           << "resize_mode_after=" << xwaylandSurfaceItem->resizeMode()
+                           << "animation_enabled=" << m_windowAnimationEnabled
+                           << "request_configure_geometry="
+                           << xwaylandSurface->requestConfigureGeometry()
+                           << "content_geometry=" << xwaylandSurface->getContentGeometry()
+                           << "surface_size_ratio=" << xwaylandSurfaceItem->surfaceSizeRatio()
+                           << "implicit_size=" << QSizeF(xwaylandSurfaceItem->implicitWidth(),
+                                                        xwaylandSurfaceItem->implicitHeight())
+                           << "wrapper_geometry=" << geometry();
+}
+
 bool SurfaceWrapper::isIMCandidatePanel() const
 {
     return m_isIMCandidatePanel;
@@ -1137,6 +1243,7 @@ void SurfaceWrapper::setIMCandidatePanel(bool isIMCandidatePanel)
     if (m_isIMCandidatePanel == isIMCandidatePanel)
         return;
     m_isIMCandidatePanel = isIMCandidatePanel;
+    updateXWaylandPopupPolicy();
     Q_EMIT isIMCandidatePanelChanged();
 }
 
@@ -1556,10 +1663,39 @@ void SurfaceWrapper::onMappedChanged()
         return;
 
     Q_ASSERT(surface());
-    bool mapped = surface()->mapped() && !m_hideByLockScreen;
+    bool mapped = surface() && surface()->mapped() && !m_hideByLockScreen;
 
-    if (!m_isProxy) {
-        if (mapped) {
+    if (m_type == Type::XWayland) {
+        auto *xwaylandSurface = qobject_cast<WXWaylandSurface *>(m_shellSurface.data());
+        uint32_t windowId = 0;
+        if (xwaylandSurface && xwaylandSurface->handle() && xwaylandSurface->handle()->handle()) {
+            windowId = xwaylandSurface->handle()->handle()->window_id;
+        }
+        qCDebug(lcTlXwayland) << "[XWL_MAP] XWayland mapped changed:"
+                               << "window_id=" << windowId
+                               << "wrapper=" << this
+                               << "mapped=" << mapped
+                               << "focus_states_before=" << m_focusControlStates
+                               << "active_states_before=" << m_hasActiveCapability
+                               << "shellSurface=" << m_shellSurface.data();
+        if (!mapped && xwaylandSurface) {
+            if (auto *helper = Helper::instance())
+                helper->clearXWaylandPopupFocusState(xwaylandSurface);
+        }
+    }
+
+    if (m_coverContent) {
+        m_coverContent->setProperty("mapped", mapped);
+    }
+
+    // Keep focus state in place before activation so mapped XWayland transients can receive
+    // keyboard focus during the same activation pass.
+    if (mapped) {
+        updateFocusControlState(FocusControlState::Mapped, true);
+        updateHasActiveCapability(ActiveControlState::MappedOrSplash, true);
+        updateVisible();
+
+        if (!m_isProxy) {
             if (!m_prelaunchSplash) {
                 createNewOrClose(OPEN_ANIMATION);
             } else {
@@ -1569,19 +1705,16 @@ void SurfaceWrapper::onMappedChanged()
             if (m_coverContent) {
                 m_coverContent->setVisible(true);
             }
-        } else {
+        }
+    } else {
+        updateHasActiveCapability(ActiveControlState::MappedOrSplash, false);
+        updateFocusControlState(FocusControlState::Mapped, false);
+
+        if (!m_isProxy) {
             createNewOrClose(CLOSE_ANIMATION);
         }
+        updateVisible();
     }
-
-    if (m_coverContent) {
-        m_coverContent->setProperty("mapped", mapped);
-    }
-
-    // Splash can't call onMappedChanged, just use mapped state to update
-    updateHasActiveCapability(ActiveControlState::MappedOrSplash, mapped);
-    updateFocusControlState(FocusControlState::Mapped, mapped);
-    updateVisible();
 }
 
 void SurfaceWrapper::onSocketEnabledChanged()
@@ -1755,9 +1888,21 @@ void SurfaceWrapper::leaveFullscreen()
 
 void SurfaceWrapper::closeSurface()
 {
-    // No shellSurface in prelaunch mode -> early return
     if (!m_shellSurface)
         return;
+
+    if (m_type == Type::XWayland) {
+        auto *xwaylandSurface = qobject_cast<WXWaylandSurface *>(m_shellSurface.data());
+        uint32_t windowId = 0;
+        if (xwaylandSurface && xwaylandSurface->handle() && xwaylandSurface->handle()->handle()) {
+            windowId = xwaylandSurface->handle()->handle()->window_id;
+        }
+        bool mapped = surface() ? surface()->mapped() : false;
+        qCWarning(lcTlXwayland) << "[CLOSE_SURFACE] XWayland closeSurface called:"
+                                 << "window_id=" << windowId
+                                 << "wrapper=" << this
+                                 << "mapped=" << mapped;
+    }
 
     m_shellSurface->close();
 }
@@ -2092,7 +2237,8 @@ void SurfaceWrapper::setAlwaysOnTop(bool alwaysOnTop)
 
 bool SurfaceWrapper::showOnAllWorkspace() const
 {
-    if (m_type == Type::Layer || m_type == Type::XdgPopup || isInputPopupLike()) [[unlikely]]
+    if (m_type == Type::Layer || m_type == Type::XdgPopup || isInputPopupLike()
+        || isXWaylandPopupLikeTransient()) [[unlikely]]
         return true;
     return m_workspaceId == Workspace::ShowOnAllWorkspaceId;
 }
@@ -2189,10 +2335,32 @@ void SurfaceWrapper::updateSurfaceSizeRatio()
 {
     if (m_type == Type::XWayland && m_surfaceItem && window()) {
         const qreal targetScale = window()->effectiveDevicePixelRatio();
-        if (m_surfaceItem->bufferScale() < targetScale)
-            m_surfaceItem->setSurfaceSizeRatio(targetScale / m_surfaceItem->bufferScale());
-        else
-            m_surfaceItem->setSurfaceSizeRatio(1.0);
+        const qreal bufferScale = m_surfaceItem->bufferScale();
+        const qreal oldRatio = m_surfaceItem->surfaceSizeRatio();
+        const qreal newRatio = bufferScale < targetScale ? targetScale / bufferScale : 1.0;
+        m_surfaceItem->setSurfaceSizeRatio(newRatio);
+
+        auto *xwaylandSurface = qobject_cast<WXWaylandSurface *>(m_shellSurface.data());
+        uint32_t windowId = 0;
+        QRect contentGeometry;
+        QRect requestConfigureGeometry;
+        if (xwaylandSurface && xwaylandSurface->handle() && xwaylandSurface->handle()->handle()) {
+            windowId = xwaylandSurface->handle()->handle()->window_id;
+            contentGeometry = xwaylandSurface->getContentGeometry();
+            requestConfigureGeometry = xwaylandSurface->requestConfigureGeometry();
+        }
+        qCDebug(lcTlXwayland) << "[XWL_SIZE_RATIO] XWayland surface size ratio update:"
+                               << "window_id=" << windowId
+                               << "wrapper=" << this
+                               << "target_scale=" << targetScale
+                               << "buffer_scale=" << bufferScale
+                               << "old_ratio=" << oldRatio
+                               << "new_ratio=" << newRatio
+                               << "implicit_size=" << QSizeF(m_surfaceItem->implicitWidth(),
+                                                            m_surfaceItem->implicitHeight())
+                               << "content_geometry=" << contentGeometry
+                               << "request_configure_geometry=" << requestConfigureGeometry
+                               << "wrapper_geometry=" << geometry();
     }
 }
 
@@ -2285,15 +2453,38 @@ void SurfaceWrapper::updateActivateCapability()
 
 void SurfaceWrapper::updateFocusCapability()
 {
-    updateFocusControlState(FocusControlState::HasFocusCapability,
-                            m_shellSurface && m_shellSurface->hasCapability(WToplevelSurface::Capability::Focus));
+    bool hasCap = m_shellSurface && m_shellSurface->hasCapability(WToplevelSurface::Capability::Focus);
+    if (m_type == Type::XWayland) {
+        auto *xwaylandSurface = qobject_cast<WXWaylandSurface *>(m_shellSurface.data());
+        uint32_t windowId = 0;
+        if (xwaylandSurface && xwaylandSurface->handle() && xwaylandSurface->handle()->handle()) {
+            windowId = xwaylandSurface->handle()->handle()->window_id;
+        }
+        qCDebug(lcTlXwayland) << "[XWL_FOCUS_CAP] SurfaceWrapper focus capability update:"
+                               << "window_id=" << windowId
+                               << "wrapper=" << this
+                               << "has_focus_capability=" << hasCap
+                               << "focus_states_before=" << m_focusControlStates;
+    }
+    updateFocusControlState(FocusControlState::HasFocusCapability, hasCap);
 }
 
 void SurfaceWrapper::updateFocusControlState(FocusControlState state, bool value)
 {
     auto old = hasFocusCapability();
+    const auto oldStates = m_focusControlStates;
     m_focusControlStates.setFlag(state, value);
     auto now = hasFocusCapability();
+    if (m_type == Type::XWayland && oldStates != m_focusControlStates) {
+        qCDebug(lcTlXwayland) << "[XWL_FOCUS_STATE] SurfaceWrapper focus state changed:"
+                               << "wrapper=" << this
+                               << "state=" << state
+                               << "value=" << value
+                               << "old_states=" << oldStates
+                               << "new_states=" << m_focusControlStates
+                               << "old_has_focus_capability=" << old
+                               << "new_has_focus_capability=" << now;
+    }
     if (old != now) {
         if (m_surfaceItem)
             m_surfaceItem->setFocusPolicy(now ? Qt::StrongFocus : Qt::NoFocus);

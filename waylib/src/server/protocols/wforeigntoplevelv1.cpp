@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.
+// Copyright (C) 2023-2026 Dingyuan Zhang <zhangdingyuan@uniontech.com>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wforeigntoplevelv1.h"
@@ -25,6 +25,47 @@ public:
     WForeignToplevelPrivate(WForeignToplevel *qq)
         : WObjectPrivate(qq)
     {
+    }
+
+    WToplevelSurface *parentForSurface(WToplevelSurface *surface) const
+    {
+        if (auto *xdgSurface = qobject_cast<WXdgToplevelSurface *>(surface))
+            return xdgSurface->parentXdgSurface();
+        if (auto *xwaylandSurface = qobject_cast<WXWaylandSurface *>(surface))
+            return xwaylandSurface->parentXWaylandSurface();
+        return nullptr;
+    }
+
+    void updateSurfaceParent(WToplevelSurface *surface)
+    {
+        auto surfaceIt = surfaces.find(surface);
+        if (surfaceIt == surfaces.end())
+            return;
+
+        auto *parent = parentForSurface(surface);
+        if (!parent) {
+            surfaceIt->second->set_parent(nullptr);
+            return;
+        }
+
+        auto parentIt = surfaces.find(parent);
+        if (parentIt == surfaces.end()) {
+            qCWarning(lcWlForeignToplevel)
+                << "Toplevel surface" << surface
+                << "has set parent surface, but foreign_toplevel_handle for parent surface not found";
+            return;
+        }
+
+        surfaceIt->second->set_parent(*parentIt->second);
+    }
+
+    void retryChildrenOf(WToplevelSurface *parent)
+    {
+        for (const auto &[surface, handle] : surfaces) {
+            Q_UNUSED(handle);
+            if (surface != parent && parentForSurface(surface) == parent)
+                updateSurfaceParent(surface);
+        }
     }
 
     void initSurface(WToplevelSurface *surface)
@@ -58,45 +99,19 @@ public:
         });
 
         if (auto *xdgSurface = qobject_cast<WXdgToplevelSurface *>(surface)) {
-            auto updateSurfaceParent = [this, handle, xdgSurface] {
-                WToplevelSurface *p = xdgSurface->parentXdgSurface();
-                if (!p) {
-                    handle->set_parent(nullptr);
-                    return;
-                }
-                if (!surfaces.contains(p)) {
-                    qCCritical(lcWlForeignToplevel)
-                        << "Xdg toplevel surface " << xdgSurface
-                        << "has set parent surface, but foreign_toplevel_handle for parent surface "
-                           "not found!";
-                    return;
-                }
-                handle->set_parent(*surfaces.at(p));
-            };
             xdgSurface->safeConnect(&WXdgToplevelSurface::parentXdgSurfaceChanged,
                                     handle,
-                                    updateSurfaceParent);
-            updateSurfaceParent();
+                                    [this, xdgSurface] {
+                                        updateSurfaceParent(xdgSurface);
+                                    });
+            updateSurfaceParent(xdgSurface);
         } else if (auto *xwaylandSurface = qobject_cast<WXWaylandSurface *>(surface)) {
-            auto updateSurfaceParent = [this, handle, xwaylandSurface] {
-                WToplevelSurface *p = xwaylandSurface->parentXWaylandSurface();
-                if (!p) {
-                    handle->set_parent(nullptr);
-                    return;
-                }
-                if (!surfaces.contains(p)) {
-                    qCCritical(lcWlForeignToplevel)
-                        << "X11 surface " << xwaylandSurface
-                        << "has set parent surface, but foreign_toplevel_handle for parent surface "
-                           "not found!";
-                    return;
-                }
-                handle->set_parent(*surfaces.at(p));
-            };
             xwaylandSurface->safeConnect(&WXWaylandSurface::parentXWaylandSurfaceChanged,
                                          handle,
-                                         updateSurfaceParent);
-            updateSurfaceParent();
+                                         [this, xwaylandSurface] {
+                                             updateSurfaceParent(xwaylandSurface);
+                                         });
+            updateSurfaceParent(xwaylandSurface);
         }
 
         surface->surface()->safeConnect(&WSurface::outputEntered,
@@ -179,6 +194,7 @@ public:
             *q->nativeInterface<qw_foreign_toplevel_manager_v1>());
         surfaces.insert({ surface, std::unique_ptr<qw_foreign_toplevel_handle_v1>(handle) });
         initSurface(surface);
+        retryChildrenOf(surface);
     }
 
     void remove(WToplevelSurface *surface)

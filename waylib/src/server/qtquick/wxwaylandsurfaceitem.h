@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 JiDe Zhang <zhangjide@deepin.org>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
@@ -37,6 +37,7 @@ public:
 
     void moveTo(const QPointF &pos, bool configSurface);
     QPointF implicitPosition() const;
+    Q_SLOT void syncConfigureFromRequest();
 
 Q_SIGNALS:
     void implicitPositionChanged();
