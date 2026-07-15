@@ -63,7 +63,8 @@ UserModel::UserModel(QObject *parent)
 
     auto userList = d->manager.userList();
     if (!userList) {
-        qFatal() << userList.error();
+        qCWarning(lcTlGreeter) << "Failed to get user list:" << userList.error();
+        return;
     }
 
     const auto uids = userList.value();
@@ -95,8 +96,12 @@ UserModel::UserModel(QObject *parent)
     }
 
     if (d->currentUserName.isEmpty()) {
-        qCWarning(lcTlGreeter) << "Couldn't find last user, using current running user as current user";
-        d->currentUserName = d->users.first()->userName();
+        if (d->users.isEmpty()) {
+            qCWarning(lcTlGreeter) << "No users found, currentUserName remains empty";
+        } else {
+            qCWarning(lcTlGreeter) << "Couldn't find last user, using current running user as current user";
+            d->currentUserName = d->users.first()->userName();
+        }
     }
 }
 
