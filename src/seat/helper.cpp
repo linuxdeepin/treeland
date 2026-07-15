@@ -1506,6 +1506,9 @@ void Helper::init(Treeland::Treeland *treeland)
             syncPaletteTypeWithWindowThemeType(m_config->windowThemeType());
             m_wallpaperManager->updateWallpaperConfig();
             tryInitRemoteSource();
+            //TODO: Isolate workspaces for different users to prevent them from sharing the same one.
+            if (m_userModel->currentUserName() != "dde")
+                m_shellHandler->workspace()->reloadFromConfig();
         };
         // TODO(YaoBing Xiao): pre-initialize dconfig, remove isInitializeSucceeded
 #if TREELANDCONFIG_DCONFIG_FILE_VERSION_MINOR > 0
