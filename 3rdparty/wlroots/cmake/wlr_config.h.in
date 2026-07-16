@@ -1,0 +1,18 @@
+// SPDX-FileCopyrightText: 2026 UnionTech Software Technology Co., Ltd.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+#ifndef WLR_CONFIG_H
+#define WLR_CONFIG_H
+
+#cmakedefine01 WLR_HAS_DRM_BACKEND
+#cmakedefine01 WLR_HAS_LIBINPUT_BACKEND
+#cmakedefine01 WLR_HAS_X11_BACKEND
+#cmakedefine01 WLR_HAS_GLES2_RENDERER
+#cmakedefine01 WLR_HAS_VULKAN_RENDERER
+#cmakedefine01 WLR_HAS_GBM_ALLOCATOR
+#cmakedefine01 WLR_HAS_UDMABUF_ALLOCATOR
+#cmakedefine01 WLR_HAS_XWAYLAND
+#cmakedefine01 WLR_HAS_SESSION
+#cmakedefine01 WLR_HAS_COLOR_MANAGEMENT
+
+#endif

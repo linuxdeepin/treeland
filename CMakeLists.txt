@@ -57,6 +57,12 @@ endif()
 # NOTE: Enable Qt logging with context.
 add_definitions("-DQT_MESSAGELOGCONTEXT")
 
+option(WITH_VENDOR_WLROOTS "Build vendored wlroots from 3rdparty/wlroots" ON)
+add_feature_info(vendor_wlroots WITH_VENDOR_WLROOTS "Build wlroots from 3rdparty source")
+if(WITH_VENDOR_WLROOTS)
+    add_subdirectory(3rdparty/wlroots)
+endif()
+
 set(LOCAL_QML_IMPORT_PATH "${PROJECT_BINARY_DIR}/qt/qml")
 
 if(WITH_SUBMODULE_WAYLIB)
@@ -74,7 +80,9 @@ set(QML_IMPORT_PATH "${LOCAL_QML_IMPORT_PATH}" CACHE STRING "For LSP" FORCE)
 find_package(PkgConfig REQUIRED)
 find_package(Qt6 CONFIG REQUIRED Core DBus Gui Qml Quick QuickControls2 LinguistTools Test QuickTest)
 
-pkg_check_modules(WLROOTS REQUIRED IMPORTED_TARGET wlroots-0.19)
+if(NOT TARGET PkgConfig::WLROOTS)
+    pkg_check_modules(WLROOTS REQUIRED IMPORTED_TARGET wlroots-0.19)
+endif()
 
 qt_standard_project_setup(REQUIRES 6.8)
 

@@ -1,0 +1,24 @@
+// SPDX-FileCopyrightText: 2026 UnionTech Software Technology Co., Ltd.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+#ifndef WLR_INTERNAL_CONFIG_H
+#define WLR_INTERNAL_CONFIG_H
+
+#cmakedefine01 HAVE_EGL
+#cmakedefine01 HAVE_LIBLIFTOFF
+#cmakedefine01 HAVE_XCB_ERRORS
+#cmakedefine01 HAVE_EVENTFD
+#cmakedefine01 HAVE_GBM_BO_GET_FD_FOR_PLANE
+#cmakedefine01 HAVE_LIBINPUT_BUSTYPE
+#cmakedefine01 HAVE_LIBINPUT_SWITCH_KEYPAD_SLIDE
+#cmakedefine01 HAVE_XWAYLAND_LISTENFD
+#cmakedefine01 HAVE_XWAYLAND_NO_TOUCH_POINTER_EMULATION
+#cmakedefine01 HAVE_XWAYLAND_FORCE_XRANDR_EMULATION
+#cmakedefine01 HAVE_XWAYLAND_TERMINATE_DELAY
+#cmakedefine01 HAVE_XCB_XFIXES_SET_CLIENT_DISCONNECT_MODE
+#cmakedefine01 HAVE_LIBLIFTOFF_0_5
+
+#cmakedefine ICONDIR "@ICONDIR@"
+#cmakedefine XWAYLAND_PATH "@XWAYLAND_PATH@"
+
+#endif
