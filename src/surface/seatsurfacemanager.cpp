@@ -14,8 +14,11 @@
 #include <woutputlayout.h>
 #include <wseat.h>
 #include <wxdgtoplevelsurface.h>
+#include <wxdgpopupsurface.h>
 
 #include <qwoutput.h>
+#include <qwseat.h>
+#include <qwxdgshell.h>
 
 #include <QDateTime>
 
@@ -28,6 +31,16 @@ SeatSurfaceManager::SeatSurfaceManager(WSeat *seat, RootSurfaceContainer *parent
 {
     Q_ASSERT(seat);
     Q_ASSERT(parent);
+
+    auto *seatHandle = seat->handle();
+    connect(seatHandle,
+            &qw_seat::notify_keyboard_grab_begin,
+            this,
+            &SeatSurfaceManager::onKeyboardGrabBegin);
+    connect(seatHandle,
+            &qw_seat::notify_keyboard_grab_end,
+            this,
+            &SeatSurfaceManager::onKeyboardGrabEnd);
 }
 
 SeatSurfaceManager::~SeatSurfaceManager()
@@ -282,5 +295,63 @@ void SeatSurfaceManager::surfaceDestroyed(SurfaceWrapper *surface)
 
     if (m_keyboardFocusSurface == surface) {
         setKeyboardFocusSurface(nullptr);
+    }
+}
+
+void SeatSurfaceManager::givePopupFocus(SurfaceWrapper *popupWrapper)
+{
+    if (!m_hasPopupGrab)
+        return;
+
+    Q_ASSERT(popupWrapper);
+    auto *popupSurface = qobject_cast<WXdgPopupSurface *>(popupWrapper->shellSurface());
+    if (!popupSurface)
+        return;
+
+    // Only give focus to popups that belong to our seat's active popup grab.
+    auto *wlrPopup = popupSurface->handle()->handle();
+    if (!wlrPopup || wlrPopup->seat != m_seat->nativeHandle())
+        return;
+
+    // Move keyboard focus to the popup surface directly.
+    setKeyboardFocusSurface(popupWrapper, Qt::ActiveWindowFocusReason);
+
+    qCDebug(lcTlPopupFocus) << "Moved keyboard focus to popup surface:" << popupWrapper;
+}
+
+void SeatSurfaceManager::dismissPopups()
+{
+    if (!m_hasPopupGrab)
+        return;
+
+    qCDebug(lcTlPopupFocus) << "Dismissing popup grab";
+    m_seat->handle()->keyboard_end_grab();
+}
+
+void SeatSurfaceManager::onKeyboardGrabBegin()
+{
+
+    if (m_hasPopupGrab) {
+        // Already tracking; nested popups reuse the same grab.
+        return;
+    }
+    // TODO(rewine): Should the impact of IME and drag be considered?
+
+    m_hasPopupGrab = true;
+    qCDebug(lcTlPopupFocus) << "Popup keyboard grab started";
+}
+
+void SeatSurfaceManager::onKeyboardGrabEnd()
+{
+    if (!m_hasPopupGrab)
+        return;
+
+    m_hasPopupGrab = false;
+
+    qCDebug(lcTlPopupFocus) << "Popup keyboard grab ended, restoring focus to:"
+                            << m_activatedSurface;
+
+    if (m_activatedSurface && m_activatedSurface->hasFocusCapability()) {
+        setKeyboardFocusSurface(m_activatedSurface, Qt::ActiveWindowFocusReason);
     }
 }

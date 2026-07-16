@@ -4,7 +4,6 @@
 #include "workspace.h"
 
 #include "common/treelandlogging.h"
-#include "core/popupfocusmanager.h"
 #include "core/rootsurfacecontainer.h"
 #include "output/output.h"
 #include "seat/helper.h"
@@ -246,8 +245,7 @@ void Workspace::switchTo(int index)
         return;
 
     // Close all popup grabs when switching workspaces.
-    if (auto *pfm = Helper::instance()->popupFocusManager())
-        pfm->dismissAll();
+    Helper::instance()->rootSurfaceContainer()->dismissAllPopups();
 
     auto oldCurrentIndex = currentIndex();
     setCurrentIndex(index);
