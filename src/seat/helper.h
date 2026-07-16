@@ -358,17 +358,37 @@ private:
     bool offerXWaylandPopupTransientFocus(SurfaceWrapper *wrapper,
                                           Qt::FocusReason reason,
                                           WSeat *seat);
+    bool deferXWaylandPopupTransientFocus(SurfaceWrapper *wrapper,
+                                          Qt::FocusReason reason,
+                                          WSeat *seat,
+                                          const char *source);
+    void commitDeferredXWaylandPopupTransientFocus(SurfaceWrapper *wrapper,
+                                                   Qt::FocusReason reason,
+                                                   WSeat *seat,
+                                                   bool sequenceBelongsBeforeUpdate,
+                                                   const char *source);
+    void clearDeferredXWaylandPopupTransientFocus(WAYLIB_SERVER_NAMESPACE::WXWaylandSurface *surface,
+                                                  const char *reason);
     void commitXWaylandPopupTransientFocus(WAYLIB_SERVER_NAMESPACE::WXWaylandSurface *surface,
                                            SurfaceWrapper *wrapper,
                                            Qt::FocusReason reason,
                                            WSeat *seat,
                                            const char *source,
                                            bool requestNativeFocus);
+    bool xwaylandPopupUsesDeferredPointerFocus(SurfaceWrapper *wrapper) const;
     SurfaceWrapper *activeXWaylandPopupPointerOwner(WSeat *seat) const;
     SurfaceWrapper *findXWaylandPopupPointerTarget(WSeat *seat,
                                                    SurfaceWrapper *eventTarget,
                                                    QInputEvent *event,
                                                    QPointF *targetLocalPos) const;
+    SurfaceWrapper *activeXWaylandPointerButtonSequenceWrapper(WSeat *seat) const;
+    SurfaceWrapper *xwaylandPointerButtonSequenceWrapper(WSeat *seat, bool requireMapped) const;
+    bool xwaylandPointerButtonSequenceBelongsTo(WSeat *seat, SurfaceWrapper *wrapper) const;
+    bool xwaylandPointerButtonSequenceBlocksPopup(SurfaceWrapper *wrapper, WSeat *seat) const;
+    bool xwaylandPointerButtonSequenceAllowsRelatedPopupMove(SurfaceWrapper *wrapper,
+                                                             WSeat *seat,
+                                                             QInputEvent *event) const;
+    SurfaceWrapper *xwaylandPopupTransientParentWrapper(SurfaceWrapper *wrapper, WSeat *seat) const;
     void setXWaylandPopupPointerOwner(SurfaceWrapper *wrapper, WSeat *seat, const char *reason);
     void updateXWaylandPopupPointerOwnerForEvent(SurfaceWrapper *wrapper,
                                                  WSeat *seat,
@@ -376,10 +396,42 @@ private:
                                                  const char *reason);
     void clearXWaylandPopupPointerOwner(WAYLIB_SERVER_NAMESPACE::WXWaylandSurface *surface,
                                         const char *reason);
+    void updateXWaylandPointerButtonSequence(SurfaceWrapper *wrapper,
+                                             WSeat *seat,
+                                             QInputEvent *event,
+                                             const char *reason);
+    void clearXWaylandPointerButtonSequence(WAYLIB_SERVER_NAMESPACE::WXWaylandSurface *surface,
+                                            const char *reason);
+    bool redirectXWaylandPopupBlockedRelease(SurfaceWrapper *popup,
+                                             SurfaceWrapper *sequenceWrapper,
+                                             WSeat *seat,
+                                             QInputEvent *event,
+                                             const char *reason);
+    bool finishXWaylandPendingPointerButtonRelease(WSeat *seat,
+                                                   QInputEvent *event,
+                                                   const char *reason);
+    bool consumeXWaylandPointerButtonSequenceRelease(WSeat *seat,
+                                                     QInputEvent *event,
+                                                     SurfaceWrapper *eventWrapper,
+                                                     const char *reason);
+    void armXWaylandPopupOpeningPointerGuard(SurfaceWrapper *wrapper,
+                                             WSeat *seat,
+                                             const QInputEvent *event,
+                                             const char *reason);
+    bool filterXWaylandPopupOpeningPointerEvent(SurfaceWrapper *wrapper,
+                                                WSeat *seat,
+                                                QInputEvent *event,
+                                                const char *reason);
+    void clearXWaylandPopupOpeningPointerGuard(WAYLIB_SERVER_NAMESPACE::WXWaylandSurface *surface,
+                                               const char *reason);
     bool redirectXWaylandPopupPointerEvent(WSeat *seat,
                                            SurfaceWrapper *eventTarget,
                                            QObject *eventObject,
                                            QInputEvent *event);
+    bool redirectDirectXWaylandPopupPointerEvent(SurfaceWrapper *wrapper,
+                                                 WSeat *seat,
+                                                 QObject *eventObject,
+                                                 QInputEvent *event);
     void restoreXWaylandPopupTransientFocus(WAYLIB_SERVER_NAMESPACE::WXWaylandSurface *surface,
                                             const char *reason);
 
@@ -421,6 +473,15 @@ private:
         QPointer<WSeat> seat;
     };
     QMap<WXWaylandSurface *, XWaylandPopupFocusCommit> m_committedXWaylandPopupFocuses;
+    struct XWaylandDeferredPopupFocus
+    {
+        QPointer<QObject> wrapper;
+        QPointer<QObject> parentWrapper;
+        QPointer<WSeat> seat;
+        Qt::FocusReason reason = Qt::OtherFocusReason;
+        uint32_t windowId = 0;
+    };
+    QMap<WSeat *, XWaylandDeferredPopupFocus> m_deferredXWaylandPopupFocuses;
     struct XWaylandPopupPointerOwner
     {
         QPointer<QObject> wrapper;
@@ -429,6 +490,24 @@ private:
         int pressedButtons = 0;
     };
     QMap<WSeat *, XWaylandPopupPointerOwner> m_xwaylandPopupPointerOwners;
+    struct XWaylandPointerButtonSequence
+    {
+        QPointer<QObject> wrapper;
+        QPointer<QObject> parentWrapper;
+        QPointer<WSeat> seat;
+        int pressedButtons = 0;
+        bool popupLike = false;
+        bool pendingUnmapRelease = false;
+        uint32_t windowId = 0;
+    };
+    QMap<WSeat *, XWaylandPointerButtonSequence> m_xwaylandPointerButtonSequences;
+    struct XWaylandPopupOpeningPointerGuard
+    {
+        QPointer<QObject> wrapper;
+        QPointer<WSeat> seat;
+        QPointF scenePos;
+    };
+    QMap<WSeat *, XWaylandPopupOpeningPointerGuard> m_xwaylandPopupOpeningPointerGuards;
     bool m_redirectingXWaylandPopupPointerEvent = false;
     void setWorkspaceVisible(bool visible);
     void restoreFromShowDesktop(SurfaceWrapper *activeSurface = nullptr);

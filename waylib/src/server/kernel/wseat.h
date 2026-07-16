@@ -19,6 +19,7 @@ QW_END_NAMESPACE
 
 QT_BEGIN_NAMESPACE
 class QInputEvent;
+class QMouseEvent;
 class QWindow;
 class QPointingDevice;
 class QQuickItem;
@@ -90,11 +91,15 @@ public:
                               QObject *eventObject,
                               QInputEvent *event,
                               const QPointF &localPos);
+    bool pointerHasGrab() const;
+    // Updates wlroots pointer button state without dispatching the button to a client.
+    bool consumePointerButtonEvent(QMouseEvent *event);
 
     WSeatEventFilter *eventFilter() const;
     void setEventFilter(WSeatEventFilter *filter);
 
     WSurface *pointerFocusSurface() const;
+    bool pointerFocusMatches(WSurface *surface, QObject *eventObject) const;
 
     void setKeyboardFocusSurface(WSurface *surface);
     WSurface *keyboardFocusSurface() const;

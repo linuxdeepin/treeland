@@ -72,6 +72,7 @@
 #include <WOutput>
 #include <WServer>
 #include <WSurfaceItem>
+#include <WCursor>
 #include <WXdgOutput>
 #include <wayland-util.h>
 #include <wcursorshapemanagerv1.h>
@@ -136,6 +137,7 @@
 #include <QDBusConnection>
 #include <QDBusInterface>
 #include <QDBusObjectPath>
+#include <QGuiApplication>
 #include <QKeySequence>
 #include <QLoggingCategory>
 #include <QMouseEvent>
@@ -143,6 +145,7 @@
 #include <QQmlContext>
 #include <QQuickWindow>
 #include <QScopedValueRollback>
+#include <QStyleHints>
 #include <QThreadPool>
 
 #include <functional>
@@ -165,6 +168,14 @@ uint32_t xwaylandWindowId(SurfaceWrapper *wrapper)
         return 0;
 
     return surface->handle()->handle()->window_id;
+}
+
+WXWaylandSurface *xwaylandSurfaceForWrapper(SurfaceWrapper *wrapper)
+{
+    if (!wrapper || wrapper->type() != SurfaceWrapper::Type::XWayland)
+        return nullptr;
+
+    return qobject_cast<WXWaylandSurface *>(wrapper->shellSurface());
 }
 
 uint32_t xwaylandWindowId(WXWaylandSurface *surface)
@@ -208,6 +219,117 @@ bool isXWaylandPopupPointerEvent(const QInputEvent *event)
     }
 }
 
+bool isXWaylandPointerButtonEvent(const QInputEvent *event)
+{
+    if (!event)
+        return false;
+
+    return event->type() == QEvent::MouseButtonPress
+        || event->type() == QEvent::MouseButtonRelease;
+}
+
+bool xwaylandPopupPointerEventNeedsButtonSequence(const QInputEvent *event)
+{
+    if (!event)
+        return false;
+
+    switch (event->type()) {
+    case QEvent::MouseButtonRelease:
+        return true;
+    case QEvent::MouseMove:
+        return static_cast<const QMouseEvent *>(event)->buttons() != Qt::NoButton;
+    default:
+        return false;
+    }
+}
+
+bool isXWaylandPopupPointerEnterOrMove(const QInputEvent *event)
+{
+    if (!event)
+        return false;
+
+    switch (event->type()) {
+    case QEvent::HoverEnter:
+    case QEvent::HoverMove:
+    case QEvent::MouseMove:
+        return true;
+    default:
+        return false;
+    }
+}
+
+enum class X11GlobalRequestFallbackReason {
+    None,
+    EventTarget,
+    ParentWrapper,
+    ResolvedParentWrapper,
+    X11ParentChain,
+    ActivePointerOwner,
+};
+
+const char *x11GlobalRequestFallbackReasonName(X11GlobalRequestFallbackReason reason)
+{
+    switch (reason) {
+    case X11GlobalRequestFallbackReason::None:
+        return "none";
+    case X11GlobalRequestFallbackReason::EventTarget:
+        return "event-target";
+    case X11GlobalRequestFallbackReason::ParentWrapper:
+        return "parent-wrapper";
+    case X11GlobalRequestFallbackReason::ResolvedParentWrapper:
+        return "resolved-parent-wrapper";
+    case X11GlobalRequestFallbackReason::X11ParentChain:
+        return "x11-parent-chain";
+    case X11GlobalRequestFallbackReason::ActivePointerOwner:
+        return "active-pointer-owner";
+    }
+
+    return "unknown";
+}
+
+struct X11RequestGeometryInfo
+{
+    bool valid = false;
+    QRectF rawGeometry;
+    QRectF effectiveGeometry;
+    QPointF unwrappedParentOffset;
+    uint32_t directParentWindowId = 0;
+    QRectF directParentGeometry;
+    uint32_t effectiveParentWindowId = 0;
+    QRectF effectiveParentGeometry;
+    int unwrappedParentDepth = 0;
+    bool usedUnwrappedParentOffset = false;
+    bool parentChainTruncated = false;
+};
+
+struct X11GlobalRequestFallbackDecision
+{
+    bool hasX11RequestPosition = false;
+    bool allowed = false;
+    bool sceneEdgeAllowed = false;
+    const char *rejectReason = "not-evaluated";
+    QPointF sceneLocalPos;
+    QPointF globalLocalPos;
+    QRectF requestGeometry;
+    bool sceneContains = false;
+    bool globalContains = false;
+    qreal sceneMissDistance = 0.0;
+    qreal missThreshold = 0.0;
+    qreal sceneEdgeHitThreshold = 0.0;
+};
+
+struct XWaylandPopupGlobalHit
+{
+    bool valid = false;
+    bool contains = false;
+    bool itemContains = false;
+    bool inputRegionContains = false;
+    QPointF cursorPos;
+    QPointF localPos;
+    QPointF itemGlobalTopLeft;
+    QRectF itemGlobalGeometry;
+};
+
 QPointF pointerEventScenePosition(const QInputEvent *event)
 {
     if (!event || !event->isSinglePointEvent())
@@ -216,15 +338,347 @@ QPointF pointerEventScenePosition(const QInputEvent *event)
     return static_cast<const QSinglePointEvent *>(event)->scenePosition();
 }
 
-bool popupPointerLocalPosition(SurfaceWrapper *wrapper,
-                               const QInputEvent *event,
-                               QPointF *localPos,
-                               bool *contains)
+QPointF pointerEventGlobalPosition(const QInputEvent *event)
+{
+    if (!event || !event->isSinglePointEvent())
+        return QPointF();
+
+    return static_cast<const QSinglePointEvent *>(event)->globalPosition();
+}
+
+QPointF pointerCursorGlobalPosition(WSeat *seat, const QInputEvent *event)
+{
+    if (seat && seat->cursor())
+        return seat->cursor()->position();
+
+    return pointerEventGlobalPosition(event);
+}
+
+qreal xwaylandSurfaceSizeRatio(SurfaceWrapper *wrapper)
+{
+    auto *surfaceItem = wrapper ? wrapper->surfaceItem() : nullptr;
+    if (!surfaceItem || surfaceItem->surfaceSizeRatio() <= 0.0)
+        return 1.0;
+
+    return surfaceItem->surfaceSizeRatio();
+}
+
+bool xwaylandSurfaceReady(WXWaylandSurface *surface)
+{
+    return surface && !surface->isInvalidated() && surface->handle()
+        && surface->handle()->handle();
+}
+
+X11RequestGeometryInfo xwaylandRequestGeometryInfo(SurfaceWrapper *wrapper)
+{
+    X11RequestGeometryInfo info;
+
+    if (!wrapper || !wrapper->isXWaylandPopupLikeTransient())
+        return info;
+
+    auto *xwaylandSurface = xwaylandSurfaceForWrapper(wrapper);
+    if (!xwaylandSurfaceReady(xwaylandSurface))
+        return info;
+
+    const QRectF requestRect(xwaylandSurface->requestConfigureGeometry());
+    if (!requestRect.isValid() || requestRect.isEmpty())
+        return info;
+
+    info.valid = true;
+    info.rawGeometry = requestRect;
+    info.effectiveGeometry = requestRect;
+
+    auto *parent = xwaylandSurface->parentXWaylandSurface();
+    for (int depth = 0; parent && depth < 32; ++depth) {
+        if (parent == xwaylandSurface || !xwaylandSurfaceReady(parent)) {
+            info.parentChainTruncated = true;
+            break;
+        }
+
+        const QRectF parentGeometry(parent->geometry());
+        if (depth == 0) {
+            info.directParentWindowId = xwaylandWindowId(parent);
+            info.directParentGeometry = parentGeometry;
+        }
+
+        if (parent->surface())
+            break;
+
+        info.unwrappedParentOffset += parentGeometry.topLeft();
+        info.effectiveParentWindowId = xwaylandWindowId(parent);
+        info.effectiveParentGeometry = parentGeometry;
+        info.unwrappedParentDepth = depth + 1;
+
+        auto *nextParent = parent->parentXWaylandSurface();
+        if (nextParent == parent) {
+            info.parentChainTruncated = true;
+            break;
+        }
+        parent = nextParent;
+    }
+
+    if (!info.unwrappedParentOffset.isNull()) {
+        info.effectiveGeometry.translate(info.unwrappedParentOffset);
+        info.usedUnwrappedParentOffset = true;
+    }
+
+    return info;
+}
+
+bool xwaylandRequestPointerLocalPosition(SurfaceWrapper *wrapper,
+                                         const QInputEvent *event,
+                                         QPointF *localPos,
+                                         bool *contains,
+                                         QRectF *requestGeometry,
+                                         QPointF *globalLocalPos = nullptr,
+                                         bool *globalContains = nullptr,
+                                         bool *usedEffectiveRequestGeometry = nullptr,
+                                         X11RequestGeometryInfo *requestInfo = nullptr)
 {
     if (localPos)
         *localPos = QPointF();
     if (contains)
         *contains = false;
+    if (requestGeometry)
+        *requestGeometry = QRectF();
+    if (globalLocalPos)
+        *globalLocalPos = QPointF();
+    if (globalContains)
+        *globalContains = false;
+    if (usedEffectiveRequestGeometry)
+        *usedEffectiveRequestGeometry = false;
+    if (requestInfo)
+        *requestInfo = X11RequestGeometryInfo();
+
+    if (!wrapper || !wrapper->isXWaylandPopupLikeTransient() || !event
+        || !event->isSinglePointEvent()) {
+        return false;
+    }
+
+    const X11RequestGeometryInfo info = xwaylandRequestGeometryInfo(wrapper);
+    if (requestInfo)
+        *requestInfo = info;
+    if (!info.valid)
+        return false;
+
+    const QRectF rawRequestRect = info.rawGeometry;
+    const QRectF effectiveRequestRect = info.effectiveGeometry;
+
+    const qreal surfaceSizeRatio = xwaylandSurfaceSizeRatio(wrapper);
+    const QPointF scenePosition = pointerEventScenePosition(event);
+    const QPointF scaledScenePosition(scenePosition.x() * surfaceSizeRatio,
+                                      scenePosition.y() * surfaceSizeRatio);
+    const QPointF rawLocal = scaledScenePosition - rawRequestRect.topLeft();
+    const QPointF effectiveLocal = scaledScenePosition - effectiveRequestRect.topLeft();
+    const QPointF rawGlobalLocal = pointerEventGlobalPosition(event) - rawRequestRect.topLeft();
+    const QPointF effectiveGlobalLocal =
+        pointerEventGlobalPosition(event) - effectiveRequestRect.topLeft();
+    const QRectF rawLocalRequestRect(QPointF(), rawRequestRect.size());
+    const QRectF effectiveLocalRequestRect(QPointF(), effectiveRequestRect.size());
+    const bool rawContains = rawLocalRequestRect.contains(rawLocal);
+    const bool effectiveContains = effectiveLocalRequestRect.contains(effectiveLocal);
+    const bool rawGlobalContains = rawLocalRequestRect.contains(rawGlobalLocal);
+    const bool effectiveGlobalContains =
+        effectiveLocalRequestRect.contains(effectiveGlobalLocal);
+    const bool useEffectiveRequestGeometry =
+        !rawContains && info.usedUnwrappedParentOffset;
+
+    if (localPos)
+        *localPos = useEffectiveRequestGeometry ? effectiveLocal : rawLocal;
+    if (contains)
+        *contains = useEffectiveRequestGeometry ? effectiveContains : rawContains;
+    if (requestGeometry)
+        *requestGeometry = useEffectiveRequestGeometry ? effectiveRequestRect : rawRequestRect;
+    if (globalLocalPos)
+        *globalLocalPos =
+            useEffectiveRequestGeometry ? effectiveGlobalLocal : rawGlobalLocal;
+    if (globalContains)
+        *globalContains =
+            useEffectiveRequestGeometry ? effectiveGlobalContains : rawGlobalContains;
+    if (usedEffectiveRequestGeometry)
+        *usedEffectiveRequestGeometry = useEffectiveRequestGeometry;
+
+    return true;
+}
+
+XWaylandPopupGlobalHit xwaylandPopupGlobalHitTest(SurfaceWrapper *wrapper,
+                                                  WSeat *seat,
+                                                  const QInputEvent *event)
+{
+    XWaylandPopupGlobalHit hit;
+
+    if (!wrapper || !wrapper->isXWaylandPopupLikeTransient() || !event
+        || !event->isSinglePointEvent()) {
+        return hit;
+    }
+
+    auto *surfaceItem = wrapper->surfaceItem();
+    auto *eventItem = surfaceItem ? surfaceItem->eventItem() : nullptr;
+    if (!eventItem || !eventItem->window())
+        return hit;
+
+    hit.valid = true;
+    hit.cursorPos = pointerCursorGlobalPosition(seat, event);
+    hit.localPos = eventItem->mapFromGlobal(hit.cursorPos);
+    hit.itemContains = eventItem->contains(hit.localPos);
+    hit.inputRegionContains =
+        wrapper->surface() ? wrapper->surface()->inputRegionContains(hit.localPos) : false;
+    hit.contains = hit.itemContains || hit.inputRegionContains;
+
+    hit.itemGlobalTopLeft = eventItem->mapToGlobal(QPointF());
+    const QPointF itemGlobalBottomRight =
+        eventItem->mapToGlobal(QPointF(eventItem->width(), eventItem->height()));
+    hit.itemGlobalGeometry = QRectF(hit.itemGlobalTopLeft, itemGlobalBottomRight).normalized();
+
+    return hit;
+}
+
+qreal distanceOutsideRect(const QRectF &rect, const QPointF &point)
+{
+    if (!rect.isValid() || rect.isEmpty())
+        return 0.0;
+
+    const qreal dx = point.x() < rect.left()
+        ? rect.left() - point.x()
+        : (point.x() > rect.right() ? point.x() - rect.right() : 0.0);
+    const qreal dy = point.y() < rect.top()
+        ? rect.top() - point.y()
+        : (point.y() > rect.bottom() ? point.y() - rect.bottom() : 0.0);
+
+    return qMax(dx, dy);
+}
+
+QPointF boundedPointInRect(const QRectF &rect, const QPointF &point)
+{
+    if (!rect.isValid() || rect.isEmpty())
+        return point;
+
+    constexpr qreal edgeEpsilon = 0.001;
+    const qreal maxX = rect.right() > rect.left()
+        ? qMax(rect.left(), rect.right() - edgeEpsilon)
+        : rect.right();
+    const qreal maxY = rect.bottom() > rect.top()
+        ? qMax(rect.top(), rect.bottom() - edgeEpsilon)
+        : rect.bottom();
+
+    return QPointF(qBound(rect.left(), point.x(), maxX),
+                   qBound(rect.top(), point.y(), maxY));
+}
+
+qreal x11GlobalRequestFallbackMissThreshold()
+{
+    const QStyleHints *styleHints = QGuiApplication::styleHints();
+    return styleHints ? qMax<qreal>(styleHints->startDragDistance(), 10.0) : 10.0;
+}
+
+qreal x11RequestSceneEdgeHitThreshold()
+{
+    return 2.0;
+}
+
+bool x11RequestSceneEdgeHitAllowed(X11GlobalRequestFallbackReason fallbackReason)
+{
+    switch (fallbackReason) {
+    case X11GlobalRequestFallbackReason::ParentWrapper:
+    case X11GlobalRequestFallbackReason::ResolvedParentWrapper:
+    case X11GlobalRequestFallbackReason::X11ParentChain:
+    case X11GlobalRequestFallbackReason::ActivePointerOwner:
+        return true;
+    case X11GlobalRequestFallbackReason::None:
+    case X11GlobalRequestFallbackReason::EventTarget:
+        return false;
+    }
+
+    return false;
+}
+
+X11GlobalRequestFallbackDecision x11GlobalRequestFallbackDecision(
+    X11GlobalRequestFallbackReason fallbackReason,
+    bool itemContains,
+    bool inputRegionContains,
+    bool hasX11RequestPosition,
+    const QRectF &requestGeometry,
+    const QPointF &sceneLocalPos,
+    bool sceneContains,
+    const QPointF &globalLocalPos,
+    bool globalContains)
+{
+    X11GlobalRequestFallbackDecision decision;
+    decision.hasX11RequestPosition = hasX11RequestPosition;
+    decision.requestGeometry = requestGeometry;
+    decision.sceneLocalPos = sceneLocalPos;
+    decision.globalLocalPos = globalLocalPos;
+    decision.sceneContains = sceneContains;
+    decision.globalContains = globalContains;
+    decision.missThreshold = x11GlobalRequestFallbackMissThreshold();
+    decision.sceneEdgeHitThreshold =
+        qMin(decision.missThreshold, x11RequestSceneEdgeHitThreshold());
+
+    if (fallbackReason == X11GlobalRequestFallbackReason::None) {
+        decision.rejectReason = "unrelated";
+        return decision;
+    }
+
+    if (itemContains || inputRegionContains) {
+        decision.rejectReason = "item-or-input-region-hit";
+        return decision;
+    }
+
+    if (!hasX11RequestPosition) {
+        decision.rejectReason = "no-x11-request";
+        return decision;
+    }
+
+    if (sceneContains) {
+        decision.rejectReason = "scene-request-hit";
+        return decision;
+    }
+
+    if (!globalContains) {
+        decision.rejectReason = "global-request-miss";
+        return decision;
+    }
+
+    const QRectF localRequestRect(QPointF(), requestGeometry.size());
+    decision.sceneMissDistance = distanceOutsideRect(localRequestRect, sceneLocalPos);
+    if (decision.sceneMissDistance <= decision.missThreshold) {
+        if (decision.sceneMissDistance <= decision.sceneEdgeHitThreshold
+            && x11RequestSceneEdgeHitAllowed(fallbackReason)) {
+            decision.allowed = true;
+            decision.sceneEdgeAllowed = true;
+            decision.rejectReason = "scene-edge-hit";
+            return decision;
+        }
+
+        decision.rejectReason = "scene-edge-miss";
+        return decision;
+    }
+
+    decision.allowed = true;
+    decision.rejectReason = "allowed";
+    return decision;
+}
+
+bool popupPointerLocalPosition(SurfaceWrapper *wrapper,
+                               const QInputEvent *event,
+                               QPointF *localPos,
+                               bool *contains,
+                               bool *usedX11RequestPosition = nullptr,
+                               X11GlobalRequestFallbackReason x11GlobalFallbackReason =
+                                   X11GlobalRequestFallbackReason::None,
+                               bool *usedX11GlobalRequestPosition = nullptr,
+                               bool *usedX11EffectiveRequestGeometry = nullptr)
+{
+    if (localPos)
+        *localPos = QPointF();
+    if (contains)
+        *contains = false;
+    if (usedX11RequestPosition)
+        *usedX11RequestPosition = false;
+    if (usedX11GlobalRequestPosition)
+        *usedX11GlobalRequestPosition = false;
+    if (usedX11EffectiveRequestGeometry)
+        *usedX11EffectiveRequestGeometry = false;
 
     if (!wrapper || !wrapper->surfaceItem() || !event || !event->isSinglePointEvent())
         return false;
@@ -234,10 +688,69 @@ bool popupPointerLocalPosition(SurfaceWrapper *wrapper,
         return false;
 
     const QPointF local = eventItem->mapFromScene(pointerEventScenePosition(event));
+    const bool itemContains = eventItem->contains(local);
+    const bool inputRegionContains =
+        !itemContains && wrapper->surface() ? wrapper->surface()->inputRegionContains(local) : false;
+    bool localContains = itemContains || inputRegionContains;
+
     if (localPos)
         *localPos = local;
     if (contains)
-        *contains = eventItem->contains(local);
+        *contains = localContains;
+
+    if (!localContains) {
+        QPointF x11LocalPos;
+        QPointF x11GlobalLocalPos;
+        bool x11Contains = false;
+        bool x11GlobalContains = false;
+        bool x11UsedEffectiveRequestGeometry = false;
+        QRectF x11RequestGeometry;
+        const bool hasX11RequestPosition =
+            xwaylandRequestPointerLocalPosition(wrapper,
+                                                event,
+                                                &x11LocalPos,
+                                                &x11Contains,
+                                                &x11RequestGeometry,
+                                                &x11GlobalLocalPos,
+                                                &x11GlobalContains,
+                                                &x11UsedEffectiveRequestGeometry);
+        if (hasX11RequestPosition && x11Contains) {
+            if (localPos)
+                *localPos = x11LocalPos;
+            if (contains)
+                *contains = true;
+            if (usedX11RequestPosition)
+                *usedX11RequestPosition = true;
+            if (usedX11EffectiveRequestGeometry)
+                *usedX11EffectiveRequestGeometry = x11UsedEffectiveRequestGeometry;
+        } else {
+            const auto globalFallback = x11GlobalRequestFallbackDecision(x11GlobalFallbackReason,
+                                                                         itemContains,
+                                                                         inputRegionContains,
+                                                                         hasX11RequestPosition,
+                                                                         x11RequestGeometry,
+                                                                         x11LocalPos,
+                                                                         x11Contains,
+                                                                         x11GlobalLocalPos,
+                                                                         x11GlobalContains);
+            if (globalFallback.allowed) {
+                if (localPos) {
+                    *localPos = globalFallback.sceneEdgeAllowed
+                        ? boundedPointInRect(QRectF(QPointF(), x11RequestGeometry.size()),
+                                             x11LocalPos)
+                        : x11GlobalLocalPos;
+                }
+                if (contains)
+                    *contains = true;
+                if (usedX11RequestPosition)
+                    *usedX11RequestPosition = true;
+                if (usedX11GlobalRequestPosition)
+                    *usedX11GlobalRequestPosition = !globalFallback.sceneEdgeAllowed;
+                if (usedX11EffectiveRequestGeometry)
+                    *usedX11EffectiveRequestGeometry = x11UsedEffectiveRequestGeometry;
+            }
+        }
+    }
 
     return true;
 }
@@ -1988,10 +2501,11 @@ void Helper::activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason, WS
         return;
 
     if (wrapper && wrapper->isXWaylandPopupLikeTransient() && reason == Qt::MouseFocusReason) {
+        auto *parentWrapper = xwaylandPopupTransientParentWrapper(wrapper, seat);
         qCDebug(lcTlXwayland) << "[XWL_POPUP_MOUSE_ACTIVATE_SKIP] Keep XWayland popup mouse activation pointer-only:"
                                << "window_id=" << xwaylandWindowId(wrapper)
                                << "wrapper=" << wrapper
-                               << "parentWrapper=" << wrapper->parentSurface()
+                               << "parentWrapper=" << parentWrapper
                                << "seat=" << seat
                                << "reason=" << reason
                                << "geometry=" << wrapper->geometry();
@@ -2069,22 +2583,356 @@ SurfaceWrapper *Helper::findXWaylandPopupPointerTarget(WSeat *seat,
     if (!seat || !event || !isXWaylandPopupPointerEvent(event) || !event->isSinglePointEvent())
         return nullptr;
 
+    const QPointF scenePos = pointerEventScenePosition(event);
+    const auto x11GlobalFallbackReasonFor = [&](SurfaceWrapper *candidate) {
+        if (!candidate)
+            return X11GlobalRequestFallbackReason::None;
+
+        auto *candidateXWaylandSurface = xwaylandSurfaceForWrapper(candidate);
+        if (!candidateXWaylandSurface)
+            return X11GlobalRequestFallbackReason::None;
+
+        if (!eventTarget || eventTarget->type() != SurfaceWrapper::Type::XWayland) {
+            if (candidate == activeXWaylandPopupPointerOwner(seat))
+                return X11GlobalRequestFallbackReason::ActivePointerOwner;
+            return X11GlobalRequestFallbackReason::None;
+        }
+
+        auto *eventTargetXWaylandSurface = xwaylandSurfaceForWrapper(eventTarget);
+        if (!eventTargetXWaylandSurface)
+            return X11GlobalRequestFallbackReason::None;
+
+        if (candidate == eventTarget)
+            return X11GlobalRequestFallbackReason::EventTarget;
+
+        if (candidate->parentSurface() == eventTarget)
+            return X11GlobalRequestFallbackReason::ParentWrapper;
+
+        if (xwaylandPopupTransientParentWrapper(candidate, seat) == eventTarget)
+            return X11GlobalRequestFallbackReason::ResolvedParentWrapper;
+
+        auto *parentXWaylandSurface = candidateXWaylandSurface->parentXWaylandSurface();
+        for (int depth = 0; parentXWaylandSurface && depth < 32;
+             ++depth, parentXWaylandSurface = parentXWaylandSurface->parentXWaylandSurface()) {
+            if (parentXWaylandSurface == eventTargetXWaylandSurface
+                || xwaylandWindowId(parentXWaylandSurface)
+                    == xwaylandWindowId(eventTargetXWaylandSurface)) {
+                return X11GlobalRequestFallbackReason::X11ParentChain;
+            }
+        }
+
+        return X11GlobalRequestFallbackReason::None;
+    };
+    const auto logHitTest = [&](const char *stage,
+                                SurfaceWrapper *candidate,
+                                const QPointF &localPos,
+                                bool contains,
+                                bool usedX11RequestPosition,
+                                bool usedX11GlobalRequestPosition,
+                                bool usedX11EffectiveRequestGeometry,
+                                X11GlobalRequestFallbackReason x11GlobalFallbackReason,
+                                bool usedGlobalItemPosition) {
+        auto *xwaylandSurface = xwaylandSurfaceForWrapper(candidate);
+        auto *parentXWaylandSurface =
+            xwaylandSurface ? xwaylandSurface->parentXWaylandSurface() : nullptr;
+        auto *surfaceItem = candidate ? candidate->surfaceItem() : nullptr;
+        auto *eventItem = surfaceItem ? surfaceItem->eventItem() : nullptr;
+        const QPointF itemLocalPos = eventItem ? eventItem->mapFromScene(scenePos) : QPointF();
+        const bool itemContains = eventItem ? eventItem->contains(itemLocalPos) : false;
+        const bool inputRegionContains = candidate && candidate->surface()
+            ? candidate->surface()->inputRegionContains(itemLocalPos)
+            : false;
+        QPointF x11LocalPos;
+        QPointF x11GlobalLocalPos;
+        bool x11Contains = false;
+        bool x11GlobalContains = false;
+        bool x11UsedEffectiveRequestGeometry = false;
+        QRectF x11RequestGeometry;
+        X11RequestGeometryInfo x11RequestInfo;
+        const bool hasX11RequestPosition =
+            xwaylandRequestPointerLocalPosition(candidate,
+                                                event,
+                                                &x11LocalPos,
+                                                &x11Contains,
+                                                &x11RequestGeometry,
+                                                &x11GlobalLocalPos,
+                                                &x11GlobalContains,
+                                                &x11UsedEffectiveRequestGeometry,
+                                                &x11RequestInfo);
+        const qreal surfaceSizeRatio = xwaylandSurfaceSizeRatio(candidate);
+        const QPointF scaledScenePos(scenePos.x() * surfaceSizeRatio,
+                                     scenePos.y() * surfaceSizeRatio);
+        const QRectF x11EffectiveRequestGeometry =
+            x11RequestInfo.valid ? x11RequestInfo.effectiveGeometry : QRectF();
+        const QPointF x11EffectiveLocalPos = x11RequestInfo.valid
+            ? scaledScenePos - x11EffectiveRequestGeometry.topLeft()
+            : QPointF();
+        const QPointF x11EffectiveGlobalLocalPos = x11RequestInfo.valid
+            ? pointerEventGlobalPosition(event) - x11EffectiveRequestGeometry.topLeft()
+            : QPointF();
+        const QRectF x11EffectiveLocalRect(QPointF(), x11EffectiveRequestGeometry.size());
+        const bool x11EffectiveContains =
+            x11RequestInfo.valid && x11EffectiveLocalRect.contains(x11EffectiveLocalPos);
+        const bool x11EffectiveGlobalContains =
+            x11RequestInfo.valid && x11EffectiveLocalRect.contains(x11EffectiveGlobalLocalPos);
+        const auto globalFallback =
+            x11GlobalRequestFallbackDecision(x11GlobalFallbackReason,
+                                             itemContains,
+                                             inputRegionContains,
+                                             hasX11RequestPosition,
+                                             x11RequestGeometry,
+                                             x11LocalPos,
+                                             x11Contains,
+                                             x11GlobalLocalPos,
+                                             x11GlobalContains);
+        const auto globalHit = xwaylandPopupGlobalHitTest(candidate, seat, event);
+        const char *hitSource = "none";
+        if (contains) {
+            if (usedGlobalItemPosition) {
+                hitSource = globalHit.inputRegionContains && !globalHit.itemContains
+                    ? "global-input-region"
+                    : "global-item";
+            } else if (usedX11GlobalRequestPosition) {
+                hitSource = usedX11EffectiveRequestGeometry
+                    ? "x11-request-parent-chain-global"
+                    : "x11-request-global";
+            } else if (usedX11RequestPosition) {
+                hitSource = globalFallback.sceneEdgeAllowed
+                    ? "x11-request-scene-edge"
+                    : (usedX11EffectiveRequestGeometry ? "x11-request-parent-chain"
+                                                       : "x11-request-scene");
+            } else if (inputRegionContains && !itemContains) {
+                hitSource = "input-region";
+            } else {
+                hitSource = "item";
+            }
+        }
+        qCDebug(lcTlXwayland) << "[XWL_POPUP_HIT_TEST] XWayland popup pointer hit test:"
+                               << "stage=" << stage
+                               << "event_type=" << event->type()
+                               << "window_id=" << xwaylandWindowId(candidate)
+                               << "parent_window_id=" << xwaylandWindowId(parentXWaylandSurface)
+                               << "candidate=" << candidate
+                               << "eventTarget=" << eventTarget
+                               << "event_target_window_id=" << xwaylandWindowId(eventTarget)
+                               << "event_target_type="
+                               << (eventTarget ? static_cast<int>(eventTarget->type()) : -1)
+                               << "event_target_shell_surface="
+                               << (eventTarget ? eventTarget->shellSurface() : nullptr)
+                               << "event_target_popup_like="
+                               << (eventTarget ? eventTarget->isXWaylandPopupLikeTransient() : false)
+                               << "seat=" << seat
+                               << "scene_pos=" << scenePos
+                               << "global_pos=" << pointerEventGlobalPosition(event)
+                               << "local_pos=" << localPos
+                               << "contains=" << contains
+                               << "hit_source=" << hitSource
+                               << "item_local_pos=" << itemLocalPos
+                               << "item_contains=" << itemContains
+                               << "input_region_contains=" << inputRegionContains
+                               << "used_global_item_position=" << usedGlobalItemPosition
+                               << "cursor_pos=" << globalHit.cursorPos
+                               << "global_item_local_pos=" << globalHit.localPos
+                               << "global_item_contains=" << globalHit.itemContains
+                               << "global_input_region_contains="
+                               << globalHit.inputRegionContains
+                               << "global_item_geometry=" << globalHit.itemGlobalGeometry
+                               << "used_x11_request_position=" << usedX11RequestPosition
+                               << "used_x11_global_request_position="
+                               << usedX11GlobalRequestPosition
+                               << "used_x11_effective_request_geometry="
+                               << usedX11EffectiveRequestGeometry
+                               << "x11_effective_request_geometry="
+                               << x11EffectiveRequestGeometry
+                               << "x11_effective_scene_local_pos="
+                               << x11EffectiveLocalPos
+                               << "x11_effective_contains="
+                               << x11EffectiveContains
+                               << "x11_effective_global_local_pos="
+                               << x11EffectiveGlobalLocalPos
+                               << "x11_effective_global_contains="
+                               << x11EffectiveGlobalContains
+                               << "x11_unwrapped_parent_offset="
+                               << x11RequestInfo.unwrappedParentOffset
+                               << "x11_unwrapped_parent_offset_used="
+                               << x11RequestInfo.usedUnwrappedParentOffset
+                               << "x11_direct_parent_window_id="
+                               << x11RequestInfo.directParentWindowId
+                               << "x11_direct_parent_geometry="
+                               << x11RequestInfo.directParentGeometry
+                               << "x11_effective_parent_window_id="
+                               << x11RequestInfo.effectiveParentWindowId
+                               << "x11_effective_parent_geometry="
+                               << x11RequestInfo.effectiveParentGeometry
+                               << "x11_unwrapped_parent_depth="
+                               << x11RequestInfo.unwrappedParentDepth
+                               << "x11_parent_chain_truncated="
+                               << x11RequestInfo.parentChainTruncated
+                               << "allow_x11_global_request_position="
+                               << globalFallback.allowed
+                               << "x11_global_request_fallback_reason="
+                               << x11GlobalRequestFallbackReasonName(x11GlobalFallbackReason)
+                               << "x11_global_request_reject_reason="
+                               << globalFallback.rejectReason
+                               << "x11_scene_request_miss_distance="
+                               << globalFallback.sceneMissDistance
+                               << "x11_scene_edge_hit_threshold="
+                               << globalFallback.sceneEdgeHitThreshold
+                               << "x11_scene_edge_hit_allowed="
+                               << globalFallback.sceneEdgeAllowed
+                               << "x11_global_request_miss_threshold="
+                               << globalFallback.missThreshold
+                               << "x11_global_request_hit_ignored="
+                               << (x11GlobalFallbackReason != X11GlobalRequestFallbackReason::None
+                                   && x11GlobalContains && !x11Contains && !itemContains
+                                   && !inputRegionContains && !usedX11GlobalRequestPosition
+                                   && !globalFallback.sceneEdgeAllowed)
+                               << "has_x11_request_position=" << hasX11RequestPosition
+                               << "x11_request_geometry=" << x11RequestGeometry
+                               << "x11_raw_request_geometry=" << x11RequestInfo.rawGeometry
+                               << "x11_scene_local_pos=" << x11LocalPos
+                               << "x11_contains=" << x11Contains
+                               << "x11_global_local_pos=" << x11GlobalLocalPos
+                               << "x11_global_contains=" << x11GlobalContains
+                               << "surface_size_ratio="
+                               << surfaceSizeRatio
+                               << "input_model="
+                               << xwaylandInputModelName(xwaylandSurface
+                                                             ? xwaylandSurface->inputModel()
+                                                             : WXWaylandSurface::InputModelNone)
+                               << "wrapper_geometry="
+                               << (candidate ? candidate->geometry() : QRectF());
+    };
+
+    SurfaceWrapper *owner = activeXWaylandPopupPointerOwner(seat);
     bool ownerContains = false;
     QPointF ownerLocalPos;
-    if (auto *owner = activeXWaylandPopupPointerOwner(seat)) {
+    bool ownerUsedX11RequestPosition = false;
+    bool ownerUsedX11GlobalRequestPosition = false;
+    bool ownerUsedX11EffectiveRequestGeometry = false;
+    bool ownerUsedGlobalItemPosition = false;
+    bool ownerHasPressedSequence = false;
+    bool ownerPointerHasGrab = false;
+    bool ownerPointerFocusContinuationAllowed = false;
+    const char *ownerPointerFocusContinuationReason = "no-owner";
+    auto logOwnerPointerFocusContinuation = [&](const char *action, const char *reason) {
+        auto *ownerEventItem = owner && owner->surfaceItem()
+            ? owner->surfaceItem()->eventItem()
+            : nullptr;
+        const bool ownerItemContains =
+            ownerEventItem ? ownerEventItem->contains(ownerLocalPos) : false;
+        const bool ownerInputRegionContains = owner && owner->surface()
+            ? owner->surface()->inputRegionContains(ownerLocalPos)
+            : false;
         const auto ownerIt = m_xwaylandPopupPointerOwners.constFind(seat);
-        const bool hasPressedSequence =
+        auto *storedParentWrapper =
+            ownerIt != m_xwaylandPopupPointerOwners.constEnd()
+            ? qobject_cast<SurfaceWrapper *>(ownerIt->parentWrapper.data())
+            : nullptr;
+
+        qCDebug(lcTlXwayland) << "[XWL_POPUP_POINTER_OWNER_CONTINUE] XWayland popup pointer owner continuation:"
+                               << "action=" << action
+                               << "reason=" << reason
+                               << "event_type=" << event->type()
+                               << "window_id=" << xwaylandWindowId(owner)
+                               << "owner=" << owner
+                               << "owner_surface=" << (owner ? owner->surface() : nullptr)
+                               << "pointer_focus_surface="
+                               << (seat ? seat->pointerFocusSurface() : nullptr)
+                               << "eventTarget=" << eventTarget
+                               << "event_target_window_id=" << xwaylandWindowId(eventTarget)
+                               << "event_target_type="
+                               << (eventTarget ? static_cast<int>(eventTarget->type()) : -1)
+                               << "event_target_shell_surface="
+                               << (eventTarget ? eventTarget->shellSurface() : nullptr)
+                               << "stored_parentWrapper=" << storedParentWrapper
+                               << "resolved_parentWrapper="
+                               << xwaylandPopupTransientParentWrapper(owner, seat)
+                               << "seat=" << seat
+                               << "local_pos=" << ownerLocalPos
+                               << "item_contains=" << ownerItemContains
+                               << "input_region_contains=" << ownerInputRegionContains
+                               << "hit_contains=" << ownerContains
+                               << "has_pressed_sequence=" << ownerHasPressedSequence
+                               << "pointer_has_grab=" << ownerPointerHasGrab
+                               << "used_x11_request_position="
+                               << ownerUsedX11RequestPosition
+                               << "used_global_item_position="
+                               << ownerUsedGlobalItemPosition
+                               << "used_x11_global_request_position="
+                               << ownerUsedX11GlobalRequestPosition
+                               << "used_x11_effective_request_geometry="
+                               << ownerUsedX11EffectiveRequestGeometry
+                               << "scene_pos=" << scenePos
+                               << "global_pos=" << pointerEventGlobalPosition(event)
+                               << "owner_geometry="
+                               << (owner ? owner->geometry() : QRectF());
+    };
+    if (owner) {
+        const auto ownerIt = m_xwaylandPopupPointerOwners.constFind(seat);
+        ownerHasPressedSequence =
             ownerIt != m_xwaylandPopupPointerOwners.constEnd() && ownerIt->pressedButtons > 0;
-        popupPointerLocalPosition(owner, event, &ownerLocalPos, &ownerContains);
-        if (ownerContains || hasPressedSequence) {
+        ownerPointerHasGrab = seat->pointerHasGrab();
+        const X11GlobalRequestFallbackReason ownerGlobalFallbackReason =
+            x11GlobalFallbackReasonFor(owner);
+        popupPointerLocalPosition(owner,
+                                  event,
+                                  &ownerLocalPos,
+                                  &ownerContains,
+                                  &ownerUsedX11RequestPosition,
+                                  ownerGlobalFallbackReason,
+                                  &ownerUsedX11GlobalRequestPosition,
+                                  &ownerUsedX11EffectiveRequestGeometry);
+        if (!ownerContains) {
+            const auto globalHit = xwaylandPopupGlobalHitTest(owner, seat, event);
+            if (globalHit.contains) {
+                ownerLocalPos = globalHit.localPos;
+                ownerContains = true;
+                ownerUsedGlobalItemPosition = true;
+            }
+        }
+        logHitTest("active-owner",
+                   owner,
+                   ownerLocalPos,
+                   ownerContains,
+                   ownerUsedX11RequestPosition,
+                   ownerUsedX11GlobalRequestPosition,
+                   ownerUsedX11EffectiveRequestGeometry,
+                   ownerGlobalFallbackReason,
+                   ownerUsedGlobalItemPosition);
+        if (ownerHasPressedSequence) {
             if (targetLocalPos)
                 *targetLocalPos = ownerLocalPos;
             return owner;
         }
+
+        if (!owner->surfaceItem() || !owner->surfaceItem()->eventItem()) {
+            ownerPointerFocusContinuationReason = "missing-event-item";
+        } else if (!owner->surface()) {
+            ownerPointerFocusContinuationReason = "missing-surface";
+        } else if (seat->pointerFocusSurface() != owner->surface()) {
+            ownerPointerFocusContinuationReason = "pointer-focus-not-owner";
+        } else if (eventTarget && eventTarget->type() == SurfaceWrapper::Type::XWayland) {
+            ownerPointerFocusContinuationReason = "xwayland-event-target";
+        } else if (workspace() && workspace()->current()
+                   && !owner->showOnWorkspace(workspace()->current()->id())) {
+            ownerPointerFocusContinuationReason = "not-current-workspace";
+        } else if (!ownerContains && !ownerPointerHasGrab) {
+            ownerPointerFocusContinuationReason = "outside-without-pointer-grab";
+        } else {
+            ownerPointerFocusContinuationAllowed = true;
+            ownerPointerFocusContinuationReason =
+                ownerPointerHasGrab ? "pointer-grab-owner" : "pointer-focus-owner";
+        }
     }
 
-    if (!m_rootSurfaceContainer)
+    if (!m_rootSurfaceContainer) {
+        if (ownerContains && targetLocalPos)
+            *targetLocalPos = ownerLocalPos;
+        if (ownerContains)
+            return owner;
         return nullptr;
+    }
 
     const auto surfaces = m_rootSurfaceContainer->surfaces();
     for (auto it = surfaces.crbegin(); it != surfaces.crend(); ++it) {
@@ -2097,7 +2945,50 @@ SurfaceWrapper *Helper::findXWaylandPopupPointerTarget(WSeat *seat,
 
         QPointF localPos;
         bool contains = false;
-        if (!popupPointerLocalPosition(candidate, event, &localPos, &contains) || !contains)
+        bool usedX11RequestPosition = false;
+        bool usedX11GlobalRequestPosition = false;
+        bool usedX11EffectiveRequestGeometry = false;
+        const X11GlobalRequestFallbackReason x11GlobalFallbackReason =
+            x11GlobalFallbackReasonFor(candidate);
+        if (!popupPointerLocalPosition(candidate,
+                                       event,
+                                       &localPos,
+                                       &contains,
+                                       &usedX11RequestPosition,
+                                       x11GlobalFallbackReason,
+                                       &usedX11GlobalRequestPosition,
+                                       &usedX11EffectiveRequestGeometry)) {
+            logHitTest("candidate-map-failed",
+                       candidate,
+                       localPos,
+                       contains,
+                       false,
+                       false,
+                       false,
+                       x11GlobalFallbackReason,
+                       false);
+            continue;
+        }
+        bool usedGlobalItemPosition = false;
+        if (!contains) {
+            const auto globalHit = xwaylandPopupGlobalHitTest(candidate, seat, event);
+            if (globalHit.contains) {
+                localPos = globalHit.localPos;
+                contains = true;
+                usedGlobalItemPosition = true;
+            }
+        }
+
+        logHitTest("candidate",
+                   candidate,
+                   localPos,
+                   contains,
+                   usedX11RequestPosition,
+                   usedX11GlobalRequestPosition,
+                   usedX11EffectiveRequestGeometry,
+                   x11GlobalFallbackReason,
+                   usedGlobalItemPosition);
+        if (!contains)
             continue;
 
         if (targetLocalPos)
@@ -2105,7 +2996,183 @@ SurfaceWrapper *Helper::findXWaylandPopupPointerTarget(WSeat *seat,
         return candidate;
     }
 
+    if (ownerContains) {
+        if (targetLocalPos)
+            *targetLocalPos = ownerLocalPos;
+        return owner;
+    }
+
+    if (ownerPointerFocusContinuationAllowed) {
+        logOwnerPointerFocusContinuation("continue", ownerPointerFocusContinuationReason);
+        if (targetLocalPos)
+            *targetLocalPos = ownerLocalPos;
+        return owner;
+    }
+
+    if (owner)
+        logOwnerPointerFocusContinuation("skip", ownerPointerFocusContinuationReason);
+
+    logHitTest("miss",
+               nullptr,
+               QPointF(),
+               false,
+               false,
+               false,
+               false,
+               X11GlobalRequestFallbackReason::None,
+               false);
     return nullptr;
+}
+
+SurfaceWrapper *Helper::activeXWaylandPointerButtonSequenceWrapper(WSeat *seat) const
+{
+    return xwaylandPointerButtonSequenceWrapper(seat, true);
+}
+
+SurfaceWrapper *Helper::xwaylandPointerButtonSequenceWrapper(WSeat *seat, bool requireMapped) const
+{
+    if (!seat)
+        return nullptr;
+
+    const auto it = m_xwaylandPointerButtonSequences.constFind(seat);
+    if (it == m_xwaylandPointerButtonSequences.constEnd() || it->pressedButtons <= 0)
+        return nullptr;
+
+    auto *wrapper = qobject_cast<SurfaceWrapper *>(it->wrapper.data());
+    if (!wrapper || !wrapper->surface())
+        return nullptr;
+
+    if (requireMapped && !wrapper->surface()->mapped())
+        return nullptr;
+
+    return wrapper;
+}
+
+bool Helper::xwaylandPointerButtonSequenceBelongsTo(WSeat *seat, SurfaceWrapper *wrapper) const
+{
+    return wrapper && activeXWaylandPointerButtonSequenceWrapper(seat) == wrapper;
+}
+
+bool Helper::xwaylandPointerButtonSequenceBlocksPopup(SurfaceWrapper *wrapper, WSeat *seat) const
+{
+    if (!wrapper || !wrapper->isXWaylandPopupLikeTransient())
+        return false;
+
+    auto *sequenceWrapper = activeXWaylandPointerButtonSequenceWrapper(seat);
+    return sequenceWrapper && sequenceWrapper != wrapper;
+}
+
+bool Helper::xwaylandPointerButtonSequenceAllowsRelatedPopupMove(SurfaceWrapper *wrapper,
+                                                                 WSeat *seat,
+                                                                 QInputEvent *event) const
+{
+    if (!wrapper || !wrapper->isXWaylandPopupLikeTransient() || !seat || !event)
+        return false;
+    if (!wrapper->surface() || !wrapper->surface()->mapped() || !event->isSinglePointEvent())
+        return false;
+
+    if (!isXWaylandPopupPointerEnterOrMove(event)
+        || xwaylandPopupPointerEventNeedsButtonSequence(event)) {
+        return false;
+    }
+
+    auto *sequenceWrapper = activeXWaylandPointerButtonSequenceWrapper(seat);
+    if (!sequenceWrapper || sequenceWrapper == wrapper
+        || !sequenceWrapper->isXWaylandPopupLikeTransient()) {
+        return false;
+    }
+
+    const auto sequenceIt = m_xwaylandPointerButtonSequences.constFind(seat);
+    auto *storedSequenceParent =
+        sequenceIt != m_xwaylandPointerButtonSequences.constEnd()
+        ? qobject_cast<SurfaceWrapper *>(sequenceIt->parentWrapper.data())
+        : nullptr;
+    auto *wrapperParent = xwaylandPopupTransientParentWrapper(wrapper, seat);
+    auto *sequenceParent = xwaylandPopupTransientParentWrapper(sequenceWrapper, seat);
+    if (wrapperParent && sequenceParent && wrapperParent == sequenceParent)
+        return true;
+    if (wrapperParent && storedSequenceParent && wrapperParent == storedSequenceParent)
+        return true;
+    if ((wrapperParent && wrapperParent == sequenceWrapper)
+        || (sequenceParent && sequenceParent == wrapper)
+        || (storedSequenceParent && storedSequenceParent == wrapper)) {
+        return true;
+    }
+
+    auto *xwaylandSurface = xwaylandSurfaceForWrapper(wrapper);
+    auto *sequenceXWaylandSurface = xwaylandSurfaceForWrapper(sequenceWrapper);
+    if (!xwaylandSurface || !sequenceXWaylandSurface)
+        return false;
+
+    const auto sameXWaylandSurface = [](WXWaylandSurface *lhs, WXWaylandSurface *rhs) {
+        if (!lhs || !rhs)
+            return false;
+        if (lhs == rhs)
+            return true;
+
+        const uint32_t lhsWindowId = xwaylandWindowId(lhs);
+        return lhsWindowId != 0 && lhsWindowId == xwaylandWindowId(rhs);
+    };
+    const auto hasXWaylandAncestor = [&](WXWaylandSurface *surface,
+                                         WXWaylandSurface *ancestor) {
+        if (!surface || !ancestor)
+            return false;
+
+        auto *parent = surface->parentXWaylandSurface();
+        for (int depth = 0; parent && depth < 32;
+             ++depth, parent = parent->parentXWaylandSurface()) {
+            if (sameXWaylandSurface(parent, ancestor))
+                return true;
+            if (parent == surface || parent->isInvalidated())
+                return false;
+        }
+
+        return false;
+    };
+
+    if (hasXWaylandAncestor(xwaylandSurface, sequenceXWaylandSurface)
+        || hasXWaylandAncestor(sequenceXWaylandSurface, xwaylandSurface)) {
+        return true;
+    }
+
+    return sameXWaylandSurface(xwaylandSurface->parentXWaylandSurface(),
+                               sequenceXWaylandSurface->parentXWaylandSurface());
+}
+
+SurfaceWrapper *Helper::xwaylandPopupTransientParentWrapper(SurfaceWrapper *wrapper, WSeat *seat) const
+{
+    if (!wrapper || !wrapper->isXWaylandPopupLikeTransient())
+        return nullptr;
+
+    if (auto *parentWrapper = wrapper->parentSurface())
+        return parentWrapper;
+
+    SurfaceWrapper *activeSurface = nullptr;
+    if (m_rootSurfaceContainer) {
+        if (auto *seatContainer = m_rootSurfaceContainer->getSeatContainerOrDefault(seat))
+            activeSurface = seatContainer->activatedSurface();
+    }
+    if (!activeSurface)
+        activeSurface = activatedSurface();
+
+    if (activeSurface && activeSurface != wrapper && activeSurface->type() == SurfaceWrapper::Type::XWayland)
+        return activeSurface;
+
+    return nullptr;
+}
+
+bool Helper::xwaylandPopupUsesDeferredPointerFocus(SurfaceWrapper *wrapper) const
+{
+    if (!wrapper || !wrapper->isXWaylandPopupLikeTransient())
+        return false;
+
+    auto *xwaylandSurface = xwaylandSurfaceForWrapper(wrapper);
+    if (!xwaylandSurface)
+        return false;
+
+    const auto inputModel = xwaylandSurface->inputModel();
+    return inputModel == WXWaylandSurface::InputModelLocal
+        || inputModel == WXWaylandSurface::InputModelPassive;
 }
 
 void Helper::setXWaylandPopupPointerOwner(SurfaceWrapper *wrapper, WSeat *seat, const char *reason)
@@ -2113,10 +3180,11 @@ void Helper::setXWaylandPopupPointerOwner(SurfaceWrapper *wrapper, WSeat *seat, 
     if (!wrapper || !wrapper->isXWaylandPopupLikeTransient() || !seat)
         return;
 
+    auto *parentWrapper = xwaylandPopupTransientParentWrapper(wrapper, seat);
     auto &owner = m_xwaylandPopupPointerOwners[seat];
     const bool sameOwner = owner.wrapper == wrapper;
     owner.wrapper = wrapper;
-    owner.parentWrapper = wrapper->parentSurface();
+    owner.parentWrapper = parentWrapper;
     owner.seat = seat;
     if (!sameOwner) {
         owner.pressedButtons = 0;
@@ -2126,7 +3194,7 @@ void Helper::setXWaylandPopupPointerOwner(SurfaceWrapper *wrapper, WSeat *seat, 
                            << "reason=" << reason
                            << "window_id=" << xwaylandWindowId(wrapper)
                            << "wrapper=" << wrapper
-                           << "parentWrapper=" << wrapper->parentSurface()
+                           << "parentWrapper=" << parentWrapper
                            << "seat=" << seat
                            << "same_owner=" << sameOwner
                            << "pressed_buttons=" << owner.pressedButtons
@@ -2186,6 +3254,373 @@ void Helper::clearXWaylandPopupPointerOwner(WXWaylandSurface *surface, const cha
     }
 }
 
+void Helper::updateXWaylandPointerButtonSequence(SurfaceWrapper *wrapper,
+                                                 WSeat *seat,
+                                                 QInputEvent *event,
+                                                 const char *reason)
+{
+    if (!seat || !event || !isXWaylandPointerButtonEvent(event))
+        return;
+
+    if (event->type() == QEvent::MouseButtonPress && !wrapper)
+        return;
+
+    if (event->type() == QEvent::MouseButtonPress) {
+        auto &sequence = m_xwaylandPointerButtonSequences[seat];
+        const int oldPressedButtons = sequence.pressedButtons;
+        if (sequence.pressedButtons <= 0 || !sequence.wrapper) {
+            auto *parentWrapper = wrapper->parentSurface();
+            if (!parentWrapper)
+                parentWrapper = xwaylandPopupTransientParentWrapper(wrapper, seat);
+            sequence.wrapper = wrapper;
+            sequence.parentWrapper = parentWrapper;
+            sequence.seat = seat;
+            sequence.popupLike = wrapper->isXWaylandPopupLikeTransient();
+            sequence.pressedButtons = 0;
+            sequence.pendingUnmapRelease = false;
+            sequence.windowId = xwaylandWindowId(wrapper);
+        }
+        sequence.pressedButtons += 1;
+
+        auto *sequenceWrapper = qobject_cast<SurfaceWrapper *>(sequence.wrapper.data());
+        qCDebug(lcTlXwayland) << "[XWL_POINTER_SEQUENCE] Update XWayland pointer button sequence:"
+                               << "reason=" << reason
+                               << "event_type=" << event->type()
+                               << "event_window_id=" << xwaylandWindowId(wrapper)
+                               << "event_wrapper=" << wrapper
+                               << "sequence_window_id=" << xwaylandWindowId(sequenceWrapper)
+                               << "sequence_wrapper=" << sequenceWrapper
+                               << "seat=" << seat
+                               << "popup_like=" << sequence.popupLike
+                               << "pending_unmap_release=" << sequence.pendingUnmapRelease
+                               << "pressed_buttons_before=" << oldPressedButtons
+                               << "pressed_buttons_after=" << sequence.pressedButtons;
+        return;
+    }
+
+    auto sequenceIt = m_xwaylandPointerButtonSequences.find(seat);
+    if (sequenceIt == m_xwaylandPointerButtonSequences.end()) {
+        qCDebug(lcTlXwayland) << "[XWL_POINTER_SEQUENCE] Ignore XWayland pointer release without active sequence:"
+                               << "reason=" << reason
+                               << "event_window_id=" << xwaylandWindowId(wrapper)
+                               << "event_wrapper=" << wrapper
+                               << "seat=" << seat;
+        return;
+    }
+
+    const int oldPressedButtons = sequenceIt->pressedButtons;
+    if (sequenceIt->pressedButtons > 0)
+        sequenceIt->pressedButtons -= 1;
+
+    auto *sequenceWrapper = qobject_cast<SurfaceWrapper *>(sequenceIt->wrapper.data());
+    const int newPressedButtons = sequenceIt->pressedButtons;
+    qCDebug(lcTlXwayland) << "[XWL_POINTER_SEQUENCE] Update XWayland pointer button sequence:"
+                           << "reason=" << reason
+                           << "event_type=" << event->type()
+                           << "event_window_id=" << xwaylandWindowId(wrapper)
+                           << "event_wrapper=" << wrapper
+                           << "sequence_window_id="
+                           << (sequenceWrapper ? xwaylandWindowId(sequenceWrapper) : sequenceIt->windowId)
+                           << "sequence_wrapper=" << sequenceWrapper
+                           << "seat=" << seat
+                           << "popup_like=" << sequenceIt->popupLike
+                           << "pending_unmap_release=" << sequenceIt->pendingUnmapRelease
+                           << "pressed_buttons_before=" << oldPressedButtons
+                           << "pressed_buttons_after=" << newPressedButtons;
+
+    if (newPressedButtons <= 0)
+        m_xwaylandPointerButtonSequences.erase(sequenceIt);
+}
+
+void Helper::clearXWaylandPointerButtonSequence(WXWaylandSurface *surface, const char *reason)
+{
+    for (auto it = m_xwaylandPointerButtonSequences.begin();
+         it != m_xwaylandPointerButtonSequences.end();) {
+        auto *wrapper = qobject_cast<SurfaceWrapper *>(it->wrapper.data());
+        auto *xwaylandSurface =
+            wrapper ? qobject_cast<WXWaylandSurface *>(wrapper->shellSurface()) : nullptr;
+        if (xwaylandSurface != surface) {
+            ++it;
+            continue;
+        }
+
+        if (it->popupLike && it->pressedButtons > 0) {
+            it->pendingUnmapRelease = true;
+            it->windowId = xwaylandWindowId(surface);
+            qCDebug(lcTlXwayland) << "[XWL_POINTER_SEQUENCE_PENDING_RELEASE] Keep XWayland popup button sequence until release:"
+                                   << "reason=" << reason
+                                   << "window_id=" << it->windowId
+                                   << "surface=" << surface
+                                   << "wrapper=" << wrapper
+                                   << "seat=" << it.key()
+                                   << "popup_like=" << it->popupLike
+                                   << "pressed_buttons=" << it->pressedButtons;
+            ++it;
+            continue;
+        }
+
+        qCDebug(lcTlXwayland) << "[XWL_POINTER_SEQUENCE] Clear XWayland pointer button sequence:"
+                              << "reason=" << reason
+                              << "window_id=" << xwaylandWindowId(surface)
+                              << "surface=" << surface
+                              << "wrapper=" << wrapper
+                              << "seat=" << it.key()
+                              << "popup_like=" << it->popupLike
+                              << "pending_unmap_release=" << it->pendingUnmapRelease
+                              << "pressed_buttons=" << it->pressedButtons;
+        it = m_xwaylandPointerButtonSequences.erase(it);
+    }
+}
+
+bool Helper::redirectXWaylandPopupBlockedRelease(SurfaceWrapper *popup,
+                                                 SurfaceWrapper *sequenceWrapper,
+                                                 WSeat *seat,
+                                                 QInputEvent *event,
+                                                 const char *reason)
+{
+    if (!popup || !sequenceWrapper || !seat || !event
+        || event->type() != QEvent::MouseButtonRelease) {
+        return false;
+    }
+    if (!sequenceWrapper->surface() || !sequenceWrapper->surface()->mapped()
+        || !sequenceWrapper->surfaceItem() || !sequenceWrapper->surfaceItem()->eventItem()) {
+        return false;
+    }
+
+    QPointF sequenceLocalPos;
+    popupPointerLocalPosition(sequenceWrapper, event, &sequenceLocalPos, nullptr);
+
+    QScopedValueRollback<bool> redirectGuard(m_redirectingXWaylandPopupPointerEvent, true);
+    const bool delivered = seat->redirectPointerEvent(sequenceWrapper->surface(),
+                                                      sequenceWrapper->surfaceItem()->eventItem(),
+                                                      event,
+                                                      sequenceLocalPos);
+    qCDebug(lcTlXwayland) << "[XWL_POPUP_POINTER_RELEASE_REDIRECT] Redirect blocked XWayland popup release to button sequence owner:"
+                           << "delivered=" << delivered
+                           << "reason=" << reason
+                           << "event_type=" << event->type()
+                           << "popup_window_id=" << xwaylandWindowId(popup)
+                           << "popup=" << popup
+                           << "popup_parentWrapper=" << xwaylandPopupTransientParentWrapper(popup, seat)
+                           << "sequence_window_id=" << xwaylandWindowId(sequenceWrapper)
+                           << "sequence_wrapper=" << sequenceWrapper
+                           << "seat=" << seat
+                           << "local_pos=" << sequenceLocalPos
+                           << "scene_pos=" << pointerEventScenePosition(event)
+                           << "popup_geometry=" << popup->geometry();
+
+    if (delivered) {
+        updateXWaylandPointerButtonSequence(sequenceWrapper, seat, event, reason);
+        armXWaylandPopupOpeningPointerGuard(popup, seat, event, reason);
+    }
+
+    return delivered;
+}
+
+bool Helper::finishXWaylandPendingPointerButtonRelease(WSeat *seat,
+                                                       QInputEvent *event,
+                                                       const char *reason)
+{
+    if (!seat || !event || event->type() != QEvent::MouseButtonRelease)
+        return false;
+
+    auto sequenceIt = m_xwaylandPointerButtonSequences.find(seat);
+    if (sequenceIt == m_xwaylandPointerButtonSequences.end()
+        || sequenceIt->pressedButtons <= 0
+        || !sequenceIt->popupLike
+        || !sequenceIt->pendingUnmapRelease) {
+        return false;
+    }
+
+    auto *sequenceWrapper = qobject_cast<SurfaceWrapper *>(sequenceIt->wrapper.data());
+    if (sequenceWrapper && sequenceWrapper->surface() && sequenceWrapper->surface()->mapped()
+        && sequenceWrapper->surfaceItem() && sequenceWrapper->surfaceItem()->eventItem()) {
+        QPointF localPos;
+        popupPointerLocalPosition(sequenceWrapper, event, &localPos, nullptr);
+
+        QScopedValueRollback<bool> redirectGuard(m_redirectingXWaylandPopupPointerEvent, true);
+        const bool delivered = seat->redirectPointerEvent(sequenceWrapper->surface(),
+                                                          sequenceWrapper->surfaceItem()->eventItem(),
+                                                          event,
+                                                          localPos);
+        qCDebug(lcTlXwayland) << "[XWL_POINTER_SEQUENCE_PENDING_RELEASE] Redirect pending XWayland popup release:"
+                               << "delivered=" << delivered
+                               << "reason=" << reason
+                               << "event_type=" << event->type()
+                               << "sequence_window_id=" << xwaylandWindowId(sequenceWrapper)
+                               << "sequence_wrapper=" << sequenceWrapper
+                               << "seat=" << seat
+                               << "local_pos=" << localPos
+                               << "scene_pos=" << pointerEventScenePosition(event);
+        if (delivered) {
+            updateXWaylandPointerButtonSequence(sequenceWrapper,
+                                                seat,
+                                                event,
+                                                "pending-unmap-release-delivered");
+            return true;
+        }
+    }
+
+    return consumeXWaylandPointerButtonSequenceRelease(seat, event, sequenceWrapper, reason);
+}
+
+bool Helper::consumeXWaylandPointerButtonSequenceRelease(WSeat *seat,
+                                                        QInputEvent *event,
+                                                        SurfaceWrapper *eventWrapper,
+                                                        const char *reason)
+{
+    if (!seat || !event || event->type() != QEvent::MouseButtonRelease)
+        return false;
+
+    auto *mouseEvent = static_cast<QMouseEvent *>(event);
+    const bool consumed = seat->consumePointerButtonEvent(mouseEvent);
+    const auto sequenceIt = m_xwaylandPointerButtonSequences.constFind(seat);
+    qCDebug(lcTlXwayland) << "[XWL_POINTER_SEQUENCE_RELEASE_CONSUME] Consume XWayland pointer release for pending sequence:"
+                           << "consumed=" << consumed
+                           << "reason=" << reason
+                           << "event_type=" << event->type()
+                           << "event_window_id=" << xwaylandWindowId(eventWrapper)
+                           << "event_wrapper=" << eventWrapper
+                           << "sequence_window_id="
+                           << (sequenceIt != m_xwaylandPointerButtonSequences.constEnd()
+                               ? sequenceIt->windowId
+                               : 0)
+                           << "seat=" << seat
+                           << "scene_pos=" << pointerEventScenePosition(event);
+
+    if (!consumed)
+        return false;
+
+    updateXWaylandPointerButtonSequence(eventWrapper,
+                                        seat,
+                                        event,
+                                        "pending-unmap-release-consumed");
+    event->accept();
+    return true;
+}
+
+void Helper::armXWaylandPopupOpeningPointerGuard(SurfaceWrapper *wrapper,
+                                                 WSeat *seat,
+                                                 const QInputEvent *event,
+                                                 const char *reason)
+{
+    if (!wrapper || !wrapper->isXWaylandPopupLikeTransient() || !seat || !event
+        || !event->isSinglePointEvent()) {
+        return;
+    }
+
+    auto &guard = m_xwaylandPopupOpeningPointerGuards[seat];
+    guard.wrapper = wrapper;
+    guard.seat = seat;
+    guard.scenePos = pointerEventScenePosition(event);
+
+    qCDebug(lcTlXwayland) << "[XWL_POPUP_OPENING_GUARD] Arm XWayland popup opening pointer guard:"
+                           << "reason=" << reason
+                           << "window_id=" << xwaylandWindowId(wrapper)
+                           << "wrapper=" << wrapper
+                           << "seat=" << seat
+                           << "scene_pos=" << guard.scenePos
+                           << "geometry=" << wrapper->geometry();
+}
+
+bool Helper::filterXWaylandPopupOpeningPointerEvent(SurfaceWrapper *wrapper,
+                                                    WSeat *seat,
+                                                    QInputEvent *event,
+                                                    const char *reason)
+{
+    if (!seat || !event)
+        return false;
+
+    auto guardIt = m_xwaylandPopupOpeningPointerGuards.find(seat);
+    if (guardIt == m_xwaylandPopupOpeningPointerGuards.end())
+        return false;
+
+    auto *guardWrapper = qobject_cast<SurfaceWrapper *>(guardIt->wrapper.data());
+    if (!guardWrapper || !guardWrapper->surface() || !guardWrapper->surface()->mapped()) {
+        qCDebug(lcTlXwayland) << "[XWL_POPUP_OPENING_GUARD] Clear stale XWayland popup opening pointer guard:"
+                               << "reason=" << reason
+                               << "guard_window_id=" << xwaylandWindowId(guardWrapper)
+                               << "guard_wrapper=" << guardWrapper
+                               << "event_window_id=" << xwaylandWindowId(wrapper)
+                               << "event_wrapper=" << wrapper
+                               << "seat=" << seat;
+        m_xwaylandPopupOpeningPointerGuards.erase(guardIt);
+        return false;
+    }
+
+    if (guardWrapper != wrapper)
+        return false;
+
+    if (!isXWaylandPopupPointerEnterOrMove(event)) {
+        qCDebug(lcTlXwayland) << "[XWL_POPUP_OPENING_GUARD] Clear XWayland popup opening pointer guard:"
+                               << "reason= intentional-pointer-event"
+                               << "event_reason=" << reason
+                               << "event_type=" << event->type()
+                               << "window_id=" << xwaylandWindowId(wrapper)
+                               << "wrapper=" << wrapper
+                               << "seat=" << seat;
+        m_xwaylandPopupOpeningPointerGuards.erase(guardIt);
+        return false;
+    }
+
+    const QPointF scenePos = pointerEventScenePosition(event);
+    const qreal distance = (scenePos - guardIt->scenePos).manhattanLength();
+    const QStyleHints *styleHints = QGuiApplication::styleHints();
+    const int threshold = styleHints ? styleHints->startDragDistance() : 10;
+    if (distance > threshold) {
+        qCDebug(lcTlXwayland) << "[XWL_POPUP_OPENING_GUARD] Clear XWayland popup opening pointer guard:"
+                               << "reason= pointer-moved"
+                               << "event_reason=" << reason
+                               << "event_type=" << event->type()
+                               << "window_id=" << xwaylandWindowId(wrapper)
+                               << "wrapper=" << wrapper
+                               << "seat=" << seat
+                               << "distance=" << distance
+                               << "threshold=" << threshold
+                               << "scene_pos=" << scenePos
+                               << "guard_scene_pos=" << guardIt->scenePos;
+        m_xwaylandPopupOpeningPointerGuards.erase(guardIt);
+        return false;
+    }
+
+    qCDebug(lcTlXwayland) << "[XWL_POPUP_OPENING_GUARD] Suppress XWayland popup opening pointer event:"
+                           << "reason=" << reason
+                           << "event_type=" << event->type()
+                           << "window_id=" << xwaylandWindowId(wrapper)
+                           << "wrapper=" << wrapper
+                           << "seat=" << seat
+                           << "distance=" << distance
+                           << "threshold=" << threshold
+                           << "scene_pos=" << scenePos
+                           << "guard_scene_pos=" << guardIt->scenePos
+                           << "geometry=" << wrapper->geometry();
+    event->accept();
+    return true;
+}
+
+void Helper::clearXWaylandPopupOpeningPointerGuard(WXWaylandSurface *surface, const char *reason)
+{
+    for (auto it = m_xwaylandPopupOpeningPointerGuards.begin();
+         it != m_xwaylandPopupOpeningPointerGuards.end();) {
+        auto *wrapper = qobject_cast<SurfaceWrapper *>(it->wrapper.data());
+        auto *xwaylandSurface =
+            wrapper ? qobject_cast<WXWaylandSurface *>(wrapper->shellSurface()) : nullptr;
+        if (xwaylandSurface != surface) {
+            ++it;
+            continue;
+        }
+
+        qCDebug(lcTlXwayland) << "[XWL_POPUP_OPENING_GUARD] Clear XWayland popup opening pointer guard:"
+                               << "reason=" << reason
+                               << "window_id=" << xwaylandWindowId(surface)
+                               << "surface=" << surface
+                               << "wrapper=" << wrapper
+                               << "seat=" << it.key()
+                               << "scene_pos=" << it->scenePos;
+        it = m_xwaylandPopupOpeningPointerGuards.erase(it);
+    }
+}
+
 bool Helper::redirectXWaylandPopupPointerEvent(WSeat *seat,
                                                SurfaceWrapper *eventTarget,
                                                QObject *eventObject,
@@ -2207,6 +3642,87 @@ bool Helper::redirectXWaylandPopupPointerEvent(WSeat *seat,
         return false;
     }
 
+    const bool buttonSequenceBelongsToPopup =
+        xwaylandPointerButtonSequenceBelongsTo(seat, targetPopup);
+    const bool buttonSequenceBlocksPopup =
+        xwaylandPointerButtonSequenceBlocksPopup(targetPopup, seat);
+    const bool allowRelatedPopupMove =
+        buttonSequenceBlocksPopup
+        && xwaylandPointerButtonSequenceAllowsRelatedPopupMove(targetPopup, seat, event);
+    if ((buttonSequenceBlocksPopup && !allowRelatedPopupMove)
+        || (xwaylandPopupPointerEventNeedsButtonSequence(event)
+            && !buttonSequenceBelongsToPopup)) {
+        auto *sequenceWrapper = activeXWaylandPointerButtonSequenceWrapper(seat);
+        const auto sequenceIt = m_xwaylandPointerButtonSequences.constFind(seat);
+        const int sequencePressedButtons =
+            sequenceIt != m_xwaylandPointerButtonSequences.constEnd()
+            ? sequenceIt->pressedButtons
+            : 0;
+        qCDebug(lcTlXwayland) << "[XWL_POPUP_POINTER_REDIRECT_SKIP] Skip XWayland popup pointer redirect:"
+                               << "reason="
+                               << (buttonSequenceBlocksPopup
+                                       ? "active-button-sequence-on-other-surface"
+                                       : "missing-popup-button-sequence")
+                               << "event_type=" << event->type()
+                               << "popup_window_id=" << xwaylandWindowId(targetPopup)
+                               << "popup=" << targetPopup
+                               << "eventTarget=" << eventTarget
+                               << "sequence_window_id=" << xwaylandWindowId(sequenceWrapper)
+                               << "sequence_wrapper=" << sequenceWrapper
+                               << "sequence_pressed_buttons=" << sequencePressedButtons
+                               << "seat=" << seat
+                               << "eventObject=" << eventObject
+                               << "local_pos=" << targetLocalPos
+                               << "scene_pos=" << pointerEventScenePosition(event)
+                               << "popup_geometry=" << targetPopup->geometry();
+        if (buttonSequenceBlocksPopup && sequenceWrapper
+            && event->type() == QEvent::MouseButtonRelease) {
+            if (redirectXWaylandPopupBlockedRelease(targetPopup,
+                                                    sequenceWrapper,
+                                                    seat,
+                                                    event,
+                                                    "redirect-skip-sequence-release")) {
+                return true;
+            }
+            if (consumeXWaylandPointerButtonSequenceRelease(seat,
+                                                            event,
+                                                            sequenceWrapper,
+                                                            "redirect-skip-sequence-release-fallback")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    if (allowRelatedPopupMove) {
+        auto *sequenceWrapper = activeXWaylandPointerButtonSequenceWrapper(seat);
+        const auto sequenceIt = m_xwaylandPointerButtonSequences.constFind(seat);
+        const int sequencePressedButtons =
+            sequenceIt != m_xwaylandPointerButtonSequences.constEnd()
+            ? sequenceIt->pressedButtons
+            : 0;
+        qCDebug(lcTlXwayland) << "[XWL_POPUP_POINTER_RELATED_MOVE] Allow related XWayland popup pointer move during active sequence:"
+                               << "event_type=" << event->type()
+                               << "popup_window_id=" << xwaylandWindowId(targetPopup)
+                               << "popup=" << targetPopup
+                               << "eventTarget=" << eventTarget
+                               << "sequence_window_id=" << xwaylandWindowId(sequenceWrapper)
+                               << "sequence_wrapper=" << sequenceWrapper
+                               << "sequence_pressed_buttons=" << sequencePressedButtons
+                               << "seat=" << seat
+                               << "eventObject=" << eventObject
+                               << "local_pos=" << targetLocalPos
+                               << "scene_pos=" << pointerEventScenePosition(event)
+                               << "popup_geometry=" << targetPopup->geometry();
+    }
+
+    if (filterXWaylandPopupOpeningPointerEvent(targetPopup,
+                                               seat,
+                                               event,
+                                               "redirect-pointer-event")) {
+        return true;
+    }
+
     setXWaylandPopupPointerOwner(targetPopup, seat, "redirect-pointer-event");
 
     QScopedValueRollback<bool> redirectGuard(m_redirectingXWaylandPopupPointerEvent, true);
@@ -2226,10 +3742,325 @@ bool Helper::redirectXWaylandPopupPointerEvent(WSeat *seat,
                            << "scene_pos=" << pointerEventScenePosition(event)
                            << "popup_geometry=" << targetPopup->geometry();
 
-    if (delivered)
+    if (delivered) {
+        const bool sequenceBelongsBeforeUpdate =
+            xwaylandPointerButtonSequenceBelongsTo(seat, targetPopup);
         updateXWaylandPopupPointerOwnerForEvent(targetPopup, seat, event, "redirect-delivered");
+        updateXWaylandPointerButtonSequence(targetPopup, seat, event, "redirect-delivered");
+
+        if (event->isSinglePointEvent()
+            && static_cast<QSinglePointEvent *>(event)->isBeginEvent()) {
+            updateSurfaceSeatInteraction(targetPopup, seat);
+            offerXWaylandPopupTransientFocus(targetPopup, Qt::MouseFocusReason, seat);
+        } else if (event->type() == QEvent::MouseButtonRelease) {
+            commitDeferredXWaylandPopupTransientFocus(targetPopup,
+                                                      Qt::MouseFocusReason,
+                                                      seat,
+                                                      sequenceBelongsBeforeUpdate,
+                                                      "redirect-release-delivered");
+        }
+    }
 
     return delivered;
+}
+
+bool Helper::redirectDirectXWaylandPopupPointerEvent(SurfaceWrapper *wrapper,
+                                                     WSeat *seat,
+                                                     QObject *eventObject,
+                                                     QInputEvent *event)
+{
+    if (!wrapper || !wrapper->isXWaylandPopupLikeTransient() || !seat || !event
+        || m_redirectingXWaylandPopupPointerEvent || !isXWaylandPopupPointerEvent(event)) {
+        return false;
+    }
+
+    if (!wrapper->surface() || !wrapper->surfaceItem()
+        || !wrapper->surfaceItem()->eventItem()) {
+        return false;
+    }
+    QObject *targetEventObject = eventObject ? eventObject : wrapper->surfaceItem()->eventItem();
+    const bool pointerFocusMatchesBefore =
+        seat->pointerFocusMatches(wrapper->surface(), targetEventObject);
+
+    if (filterXWaylandPopupOpeningPointerEvent(wrapper,
+                                               seat,
+                                               event,
+                                               "direct-popup-pointer-event")) {
+        return true;
+    }
+
+    QPointF localPos;
+    bool contains = false;
+    bool usedX11RequestPosition = false;
+    bool usedX11EffectiveRequestGeometry = false;
+    bool usedGlobalItemPosition = false;
+    XWaylandPopupGlobalHit globalHit;
+    if (!popupPointerLocalPosition(wrapper,
+                                   event,
+                                   &localPos,
+                                   &contains,
+                                   &usedX11RequestPosition,
+                                   X11GlobalRequestFallbackReason::None,
+                                   nullptr,
+                                   &usedX11EffectiveRequestGeometry)) {
+        const auto *pointEvent =
+            event->isSinglePointEvent() ? static_cast<QSinglePointEvent *>(event) : nullptr;
+        if (pointEvent)
+            localPos = pointEvent->position();
+    }
+    if (!contains) {
+        globalHit = xwaylandPopupGlobalHitTest(wrapper, seat, event);
+        if (globalHit.contains) {
+            localPos = globalHit.localPos;
+            contains = true;
+            usedGlobalItemPosition = true;
+        }
+    } else {
+        globalHit = xwaylandPopupGlobalHitTest(wrapper, seat, event);
+    }
+
+    const bool sequenceBelongsToWrapper =
+        xwaylandPointerButtonSequenceBelongsTo(seat, wrapper);
+    const bool relatedSequenceMove =
+        xwaylandPointerButtonSequenceAllowsRelatedPopupMove(wrapper, seat, event);
+    const bool pointerHasGrab = seat->pointerHasGrab();
+    if (!contains && !sequenceBelongsToWrapper && !relatedSequenceMove && !pointerHasGrab) {
+        qCDebug(lcTlXwayland) << "[XWL_POPUP_POINTER_DIRECT_SKIP] Skip direct XWayland popup pointer redirect:"
+                               << "reason= outside-without-pointer-grab"
+                               << "event_type=" << event->type()
+                               << "window_id=" << xwaylandWindowId(wrapper)
+                               << "wrapper=" << wrapper
+                               << "parentWrapper="
+                               << xwaylandPopupTransientParentWrapper(wrapper, seat)
+                               << "seat=" << seat
+                               << "eventObject=" << targetEventObject
+                               << "local_pos=" << localPos
+                               << "contains=" << contains
+                               << "used_global_item_position=" << usedGlobalItemPosition
+                               << "cursor_pos=" << globalHit.cursorPos
+                               << "global_item_local_pos=" << globalHit.localPos
+                               << "global_item_contains=" << globalHit.itemContains
+                               << "global_input_region_contains="
+                               << globalHit.inputRegionContains
+                               << "global_item_geometry=" << globalHit.itemGlobalGeometry
+                               << "sequence_belongs=" << sequenceBelongsToWrapper
+                               << "related_sequence_move=" << relatedSequenceMove
+                               << "pointer_has_grab=" << pointerHasGrab
+                               << "scene_pos=" << pointerEventScenePosition(event)
+                               << "geometry=" << wrapper->geometry();
+        return false;
+    }
+
+    setXWaylandPopupPointerOwner(wrapper, seat, "direct-popup-pointer-event");
+
+    QScopedValueRollback<bool> redirectGuard(m_redirectingXWaylandPopupPointerEvent, true);
+    const bool delivered = seat->redirectPointerEvent(wrapper->surface(),
+                                                      targetEventObject,
+                                                      event,
+                                                      localPos);
+    qCDebug(lcTlXwayland) << "[XWL_POPUP_POINTER_DIRECT_REDIRECT] Redirect direct XWayland popup pointer event:"
+                           << "delivered=" << delivered
+                           << "event_type=" << event->type()
+                           << "window_id=" << xwaylandWindowId(wrapper)
+                           << "wrapper=" << wrapper
+                           << "parentWrapper=" << xwaylandPopupTransientParentWrapper(wrapper, seat)
+                           << "seat=" << seat
+                           << "eventObject=" << targetEventObject
+                           << "local_pos=" << localPos
+                           << "contains=" << contains
+                           << "used_global_item_position=" << usedGlobalItemPosition
+                           << "cursor_pos=" << globalHit.cursorPos
+                           << "global_item_local_pos=" << globalHit.localPos
+                           << "global_item_contains=" << globalHit.itemContains
+                           << "global_input_region_contains="
+                           << globalHit.inputRegionContains
+                           << "global_item_geometry=" << globalHit.itemGlobalGeometry
+                           << "used_x11_request_position=" << usedX11RequestPosition
+                           << "used_x11_effective_request_geometry="
+                           << usedX11EffectiveRequestGeometry
+                           << "dispatch_mode= recovery"
+                           << "pointer_focus_matches_before="
+                           << pointerFocusMatchesBefore
+                           << "scene_pos=" << pointerEventScenePosition(event)
+                           << "geometry=" << wrapper->geometry();
+
+    if (!delivered)
+        return false;
+
+    updateXWaylandPopupPointerOwnerForEvent(wrapper,
+                                            seat,
+                                            event,
+                                            "direct-redirect-delivered");
+    updateXWaylandPointerButtonSequence(wrapper, seat, event, "direct-redirect-delivered");
+
+    if (event->isSinglePointEvent()
+        && static_cast<QSinglePointEvent *>(event)->isBeginEvent()) {
+        updateSurfaceSeatInteraction(wrapper, seat);
+        offerXWaylandPopupTransientFocus(wrapper, Qt::MouseFocusReason, seat);
+        qCDebug(lcTlXwayland) << "[XWL_POPUP_MOUSE_ACTIVATE_SKIP] Skip XWayland popup activation after redirected pointer begin:"
+                               << "window_id=" << xwaylandWindowId(wrapper)
+                               << "wrapper=" << wrapper
+                               << "parentWrapper="
+                               << xwaylandPopupTransientParentWrapper(wrapper, seat)
+                               << "seat=" << seat
+                               << "event_type=" << event->type()
+                               << "geometry=" << wrapper->geometry();
+    } else if (event->type() == QEvent::MouseButtonRelease) {
+        commitDeferredXWaylandPopupTransientFocus(wrapper,
+                                                  Qt::MouseFocusReason,
+                                                  seat,
+                                                  sequenceBelongsToWrapper,
+                                                  "direct-release-delivered");
+    }
+
+    return true;
+}
+
+bool Helper::deferXWaylandPopupTransientFocus(SurfaceWrapper *wrapper,
+                                              Qt::FocusReason reason,
+                                              WSeat *seat,
+                                              const char *source)
+{
+    if (!wrapper || !wrapper->isXWaylandPopupLikeTransient() || !seat)
+        return false;
+
+    auto *xwaylandSurface = xwaylandSurfaceForWrapper(wrapper);
+    if (!xwaylandSurface)
+        return false;
+
+    XWaylandDeferredPopupFocus deferred;
+    deferred.wrapper = wrapper;
+    deferred.parentWrapper = xwaylandPopupTransientParentWrapper(wrapper, seat);
+    deferred.seat = seat;
+    deferred.reason = reason;
+    deferred.windowId = xwaylandWindowId(wrapper);
+    m_deferredXWaylandPopupFocuses.insert(seat, deferred);
+
+    qCDebug(lcTlXwayland) << "[XWL_POPUP_FOCUS_DECISION] XWayland popup focus decision:"
+                           << "action=" << "defer-pointer-focus"
+                           << "source=" << source
+                           << "window_id=" << deferred.windowId
+                           << "wrapper=" << wrapper
+                           << "parentWrapper="
+                           << qobject_cast<SurfaceWrapper *>(deferred.parentWrapper.data())
+                           << "seat=" << seat
+                           << "reason=" << reason
+                           << "input_model=" << xwaylandInputModelName(xwaylandSurface->inputModel())
+                           << "supports_wm_take_focus=" << xwaylandSurface->supportsWmTakeFocus()
+                           << "geometry=" << wrapper->geometry();
+    return true;
+}
+
+void Helper::commitDeferredXWaylandPopupTransientFocus(SurfaceWrapper *wrapper,
+                                                       Qt::FocusReason reason,
+                                                       WSeat *seat,
+                                                       bool sequenceBelongsBeforeUpdate,
+                                                       const char *source)
+{
+    if (!seat)
+        return;
+
+    auto deferredIt = m_deferredXWaylandPopupFocuses.find(seat);
+    if (deferredIt == m_deferredXWaylandPopupFocuses.end())
+        return;
+
+    auto *deferredWrapper = qobject_cast<SurfaceWrapper *>(deferredIt->wrapper.data());
+    auto *deferredParentWrapper =
+        qobject_cast<SurfaceWrapper *>(deferredIt->parentWrapper.data());
+    auto *xwaylandSurface = xwaylandSurfaceForWrapper(deferredWrapper);
+    const bool sameWrapper = wrapper && deferredWrapper == wrapper;
+    const bool mapped = deferredWrapper && deferredWrapper->surface()
+        && deferredWrapper->surface()->mapped();
+    const bool hasCapabilities = deferredWrapper && deferredWrapper->hasActiveCapability()
+        && deferredWrapper->hasFocusCapability();
+    const bool ownerMatches = activeXWaylandPopupPointerOwner(seat) == deferredWrapper;
+    const bool alreadyFocused = seat && deferredWrapper && deferredWrapper->surface()
+        && seat->keyboardFocusSurface() == deferredWrapper->surface();
+
+    auto logDecision = [&](const char *action, const char *why) {
+        qCDebug(lcTlXwayland) << "[XWL_POPUP_FOCUS_DECISION] XWayland popup focus decision:"
+                               << "action=" << action
+                               << "why=" << why
+                               << "source=" << source
+                               << "event_reason=" << reason
+                               << "deferred_reason=" << deferredIt->reason
+                               << "window_id="
+                               << (deferredWrapper ? xwaylandWindowId(deferredWrapper)
+                                                   : deferredIt->windowId)
+                               << "wrapper=" << deferredWrapper
+                               << "event_wrapper=" << wrapper
+                               << "parentWrapper=" << deferredParentWrapper
+                               << "seat=" << seat
+                               << "same_wrapper=" << sameWrapper
+                               << "mapped=" << mapped
+                               << "has_capabilities=" << hasCapabilities
+                               << "owner_matches=" << ownerMatches
+                               << "sequence_belongs_before_update="
+                               << sequenceBelongsBeforeUpdate
+                               << "already_focused=" << alreadyFocused
+                               << "input_model="
+                               << xwaylandInputModelName(xwaylandSurface
+                                                             ? xwaylandSurface->inputModel()
+                                                             : WXWaylandSurface::InputModelNone)
+                               << "geometry="
+                               << (deferredWrapper ? deferredWrapper->geometry() : QRectF());
+    };
+
+    const char *skipReason = nullptr;
+    if (!sameWrapper)
+        skipReason = "different-wrapper";
+    else if (!xwaylandSurface)
+        skipReason = "missing-xwayland-surface";
+    else if (!mapped)
+        skipReason = "unmapped";
+    else if (!hasCapabilities)
+        skipReason = "missing-capability";
+    else if (!sequenceBelongsBeforeUpdate)
+        skipReason = "sequence-not-owned-by-popup";
+    else if (!ownerMatches)
+        skipReason = "pointer-owner-changed";
+    else if (alreadyFocused)
+        skipReason = "already-focused";
+
+    if (skipReason) {
+        logDecision("skip-deferred-focus", skipReason);
+        m_deferredXWaylandPopupFocuses.erase(deferredIt);
+        return;
+    }
+
+    const Qt::FocusReason deferredReason = deferredIt->reason;
+    logDecision("commit-deferred-focus", "release-delivered");
+    m_deferredXWaylandPopupFocuses.erase(deferredIt);
+    commitXWaylandPopupTransientFocus(xwaylandSurface,
+                                      deferredWrapper,
+                                      deferredReason,
+                                      seat,
+                                      source,
+                                      true);
+}
+
+void Helper::clearDeferredXWaylandPopupTransientFocus(WXWaylandSurface *surface,
+                                                      const char *reason)
+{
+    for (auto it = m_deferredXWaylandPopupFocuses.begin();
+         it != m_deferredXWaylandPopupFocuses.end();) {
+        auto *wrapper = qobject_cast<SurfaceWrapper *>(it->wrapper.data());
+        auto *xwaylandSurface = xwaylandSurfaceForWrapper(wrapper);
+        if (xwaylandSurface != surface) {
+            ++it;
+            continue;
+        }
+
+        qCDebug(lcTlXwayland) << "[XWL_POPUP_FOCUS_DECISION] XWayland popup focus decision:"
+                               << "action=" << "clear-deferred-focus"
+                               << "reason=" << reason
+                               << "window_id=" << xwaylandWindowId(surface)
+                               << "surface=" << surface
+                               << "wrapper=" << wrapper
+                               << "seat=" << it.key()
+                               << "deferred_reason=" << it->reason;
+        it = m_deferredXWaylandPopupFocuses.erase(it);
+    }
 }
 
 bool Helper::offerXWaylandPopupTransientFocus(SurfaceWrapper *wrapper,
@@ -2250,10 +4081,11 @@ bool Helper::offerXWaylandPopupTransientFocus(SurfaceWrapper *wrapper,
     const bool supportsTakeFocus = xwaylandSurface && xwaylandSurface->supportsWmTakeFocus();
     const auto inputModel =
         xwaylandSurface ? xwaylandSurface->inputModel() : WXWaylandSurface::InputModelNone;
+    auto *parentWrapper = xwaylandPopupTransientParentWrapper(wrapper, targetSeat);
     qCDebug(lcTlXwayland) << "[XWL_OFFER_FOCUS] Offer focus for XWayland popup-like transient:"
                            << "window_id=" << xwaylandWindowId(wrapper)
                            << "wrapper=" << wrapper
-                           << "parentWrapper=" << wrapper->parentSurface()
+                           << "parentWrapper=" << parentWrapper
                            << "seat=" << targetSeat
                            << "reason=" << reason
                            << "mapped=" << mapped
@@ -2276,8 +4108,25 @@ bool Helper::offerXWaylandPopupTransientFocus(SurfaceWrapper *wrapper,
         return true;
     }
 
-    if (inputModel == WXWaylandSurface::InputModelLocal
-        || inputModel == WXWaylandSurface::InputModelPassive) {
+    if (targetSeat && wrapper->surface()
+        && targetSeat->keyboardFocusSurface() == wrapper->surface()) {
+        qCDebug(lcTlXwayland) << "[XWL_FOCUS_ACCEPT_SKIP] XWayland popup focus already active:"
+                               << "window_id=" << xwaylandWindowId(wrapper)
+                               << "wrapper=" << wrapper
+                               << "surface=" << xwaylandSurface
+                               << "seat=" << targetSeat
+                               << "reason=" << reason
+                               << "input_model=" << xwaylandInputModelName(inputModel);
+        return true;
+    }
+
+    if (xwaylandPopupUsesDeferredPointerFocus(wrapper)) {
+        if (reason == Qt::MouseFocusReason) {
+            return deferXWaylandPopupTransientFocus(wrapper,
+                                                    reason,
+                                                    targetSeat,
+                                                    "local-input-pointer-press");
+        }
         commitXWaylandPopupTransientFocus(xwaylandSurface,
                                           wrapper,
                                           reason,
@@ -2333,16 +4182,17 @@ void Helper::commitXWaylandPopupTransientFocus(WXWaylandSurface *surface,
 
     XWaylandPopupFocusCommit commit;
     commit.wrapper = wrapper;
-    commit.parentWrapper = wrapper->parentSurface();
+    commit.parentWrapper = xwaylandPopupTransientParentWrapper(wrapper, seat);
     commit.seat = seat;
     m_committedXWaylandPopupFocuses.insert(surface, commit);
 
+    auto *parentWrapper = qobject_cast<SurfaceWrapper *>(commit.parentWrapper.data());
     qCDebug(lcTlXwayland) << "[XWL_POPUP_FOCUS_COMMIT] Committed explicit XWayland popup focus:"
                            << "source=" << source
                            << "window_id=" << xwaylandWindowId(wrapper)
                            << "surface=" << surface
                            << "wrapper=" << wrapper
-                           << "parentWrapper=" << wrapper->parentSurface()
+                           << "parentWrapper=" << parentWrapper
                            << "seat=" << seat
                            << "reason=" << reason
                            << "request_native_focus=" << requestNativeFocus
@@ -2400,7 +4250,13 @@ void Helper::acceptXWaylandFocus(WXWaylandSurface *surface, bool grab)
                 return;
             }
 
-            if (wrapper == popupOwner->parentSurface()) {
+            SurfaceWrapper *popupParent = popupOwner->parentSurface();
+            if (!popupParent) {
+                const auto ownerIt = m_xwaylandPopupPointerOwners.constFind(targetSeat);
+                if (ownerIt != m_xwaylandPopupPointerOwners.constEnd())
+                    popupParent = qobject_cast<SurfaceWrapper *>(ownerIt->parentWrapper.data());
+            }
+            if (wrapper == popupParent) {
                 qCDebug(lcTlXwayland) << "[XWL_POPUP_PARENT_FOCUS_KEEP] Keep parent focus while popup pointer owner is active:"
                                        << "parent_window_id=" << xwaylandWindowId(wrapper)
                                        << "parentWrapper=" << wrapper
@@ -2474,7 +4330,10 @@ void Helper::clearXWaylandFocusOffer(WXWaylandSurface *surface)
 
 void Helper::clearXWaylandPopupFocusState(WXWaylandSurface *surface)
 {
+    clearDeferredXWaylandPopupTransientFocus(surface, "clear-state");
     clearXWaylandPopupPointerOwner(surface, "clear-state");
+    clearXWaylandPointerButtonSequence(surface, "clear-state");
+    clearXWaylandPopupOpeningPointerGuard(surface, "clear-state");
     clearXWaylandFocusOffer(surface);
     restoreXWaylandPopupTransientFocus(surface, "clear-state");
 }
@@ -2491,7 +4350,7 @@ void Helper::restoreXWaylandPopupTransientFocus(WXWaylandSurface *surface, const
     auto *wrapper = qobject_cast<SurfaceWrapper *>(commit.wrapper.data());
     auto *parentWrapper = qobject_cast<SurfaceWrapper *>(commit.parentWrapper.data());
     if (!parentWrapper && wrapper)
-        parentWrapper = wrapper->parentSurface();
+        parentWrapper = xwaylandPopupTransientParentWrapper(wrapper, commit.seat.data());
 
     WSeat *targetSeat = commit.seat.data();
     if (!targetSeat && parentWrapper)
@@ -2807,7 +4666,7 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *targetWindow, QInputEvent 
 bool Helper::beforeHandleEvent(WSeat *seat,
                                WSurface *watched,
                                QObject *surfaceItem,
-                               QObject *,
+                               QObject *eventObject,
                                QInputEvent *event)
 {
     if (!m_instance || !m_renderWindow || !m_backend || !event)
@@ -2816,6 +4675,9 @@ bool Helper::beforeHandleEvent(WSeat *seat,
     if (!isXWaylandPopupPointerEvent(event))
         return false;
 
+    if (finishXWaylandPendingPointerButtonRelease(seat, event, "before-handle-pending-release"))
+        return true;
+
     auto *wrapper = m_rootSurfaceContainer ? m_rootSurfaceContainer->getSurface(watched) : nullptr;
     if (redirectXWaylandPopupPointerEvent(seat, wrapper, surfaceItem, event))
         return true;
@@ -2823,13 +4685,129 @@ bool Helper::beforeHandleEvent(WSeat *seat,
     if (!wrapper || !wrapper->isXWaylandPopupLikeTransient())
         return false;
 
+    if (xwaylandPointerButtonSequenceBlocksPopup(wrapper, seat)) {
+        auto *sequenceWrapper = activeXWaylandPointerButtonSequenceWrapper(seat);
+        const auto sequenceIt = m_xwaylandPointerButtonSequences.constFind(seat);
+        const int sequencePressedButtons =
+            sequenceIt != m_xwaylandPointerButtonSequences.constEnd()
+            ? sequenceIt->pressedButtons
+            : 0;
+
+        if (event->type() == QEvent::MouseButtonRelease && sequenceWrapper) {
+            if (redirectXWaylandPopupBlockedRelease(wrapper,
+                                                    sequenceWrapper,
+                                                    seat,
+                                                    event,
+                                                    "direct-skip-sequence-release")) {
+                return true;
+            }
+            if (consumeXWaylandPointerButtonSequenceRelease(seat,
+                                                            event,
+                                                            sequenceWrapper,
+                                                            "direct-skip-sequence-release-fallback")) {
+                return true;
+            }
+            return false;
+        }
+
+        if (xwaylandPointerButtonSequenceAllowsRelatedPopupMove(wrapper, seat, event)) {
+            qCDebug(lcTlXwayland) << "[XWL_POPUP_POINTER_DIRECT_RELATED_MOVE] Allow direct related XWayland popup pointer move during active sequence:"
+                                   << "event_type=" << event->type()
+                                   << "window_id=" << xwaylandWindowId(wrapper)
+                                   << "wrapper=" << wrapper
+                                   << "parentWrapper="
+                                   << xwaylandPopupTransientParentWrapper(wrapper, seat)
+                                   << "sequence_window_id="
+                                   << xwaylandWindowId(sequenceWrapper)
+                                   << "sequence_wrapper=" << sequenceWrapper
+                                   << "sequence_pressed_buttons="
+                                   << sequencePressedButtons
+                                   << "seat=" << seat
+                                   << "watched=" << watched
+                                   << "surfaceItem=" << surfaceItem
+                                   << "scene_pos=" << pointerEventScenePosition(event)
+                                   << "wrapper_geometry=" << wrapper->geometry();
+            if (redirectDirectXWaylandPopupPointerEvent(wrapper, seat, eventObject, event))
+                return true;
+        }
+
+        if (!isXWaylandPopupPointerEnterOrMove(event))
+            return false;
+
+        qCDebug(lcTlXwayland) << "[XWL_POPUP_POINTER_DIRECT_SKIP] Skip direct XWayland popup pointer event:"
+                               << "reason= active-button-sequence-on-other-surface"
+                               << "event_type=" << event->type()
+                               << "window_id=" << xwaylandWindowId(wrapper)
+                               << "wrapper=" << wrapper
+                               << "parentWrapper=" << xwaylandPopupTransientParentWrapper(wrapper, seat)
+                               << "sequence_window_id=" << xwaylandWindowId(sequenceWrapper)
+                               << "sequence_wrapper=" << sequenceWrapper
+                               << "sequence_pressed_buttons=" << sequencePressedButtons
+                               << "seat=" << seat
+                               << "watched=" << watched
+                               << "surfaceItem=" << surfaceItem
+                               << "scene_pos=" << pointerEventScenePosition(event)
+                               << "wrapper_geometry=" << wrapper->geometry();
+        return true;
+    }
+
+    auto *popupEventObject = wrapper->surfaceItem()
+        ? wrapper->surfaceItem()->eventItem()
+        : nullptr;
+    const bool eventObjectMatches = popupEventObject && eventObject == popupEventObject;
+    const bool pointerFocusMatches = eventObjectMatches && wrapper->surface() && seat
+        && seat->pointerFocusMatches(wrapper->surface(), eventObject);
+    const bool pointerHasGrab = seat && seat->pointerHasGrab();
+    if (pointerFocusMatches && !pointerHasGrab) {
+        if (filterXWaylandPopupOpeningPointerEvent(wrapper,
+                                                  seat,
+                                                  event,
+                                                  "direct-native-pointer-event")) {
+            return true;
+        }
+
+        const auto *pointEvent =
+            event->isSinglePointEvent() ? static_cast<QSinglePointEvent *>(event) : nullptr;
+        qCDebug(lcTlXwayland) << "[XWL_POPUP_POINTER_DIRECT_NATIVE] Use native delivery for direct XWayland popup pointer event:"
+                               << "dispatch_mode= native"
+                               << "event_type=" << event->type()
+                               << "window_id=" << xwaylandWindowId(wrapper)
+                               << "wrapper=" << wrapper
+                               << "parentWrapper="
+                               << xwaylandPopupTransientParentWrapper(wrapper, seat)
+                               << "seat=" << seat
+                               << "eventObject=" << eventObject
+                               << "expected_event_object=" << popupEventObject
+                               << "event_object_matches=" << eventObjectMatches
+                               << "pointer_focus_surface=" << seat->pointerFocusSurface()
+                               << "pointer_focus_matches=" << pointerFocusMatches
+                               << "pointer_has_grab=" << pointerHasGrab
+                               << "local_pos="
+                               << (pointEvent ? pointEvent->position() : QPointF())
+                               << "scene_pos=" << pointerEventScenePosition(event)
+                               << "global_pos=" << pointerEventGlobalPosition(event)
+                               << "wrapper_geometry=" << wrapper->geometry();
+        setXWaylandPopupPointerOwner(wrapper, seat, "direct-native-pointer-event");
+
+        if (event->isSinglePointEvent()
+            && static_cast<QSinglePointEvent *>(event)->isBeginEvent()) {
+            updateSurfaceSeatInteraction(wrapper, seat);
+            offerXWaylandPopupTransientFocus(wrapper, Qt::MouseFocusReason, seat);
+        }
+
+        return false;
+    }
+
+    if (redirectDirectXWaylandPopupPointerEvent(wrapper, seat, eventObject, event))
+        return true;
+
     const auto *pointEvent =
         event->isSinglePointEvent() ? static_cast<QSinglePointEvent *>(event) : nullptr;
     qCDebug(lcTlXwayland) << "[XWL_POPUP_POINTER_PREPARE] Prepare XWayland popup pointer event:"
                            << "event_type=" << event->type()
                            << "window_id=" << xwaylandWindowId(wrapper)
                            << "wrapper=" << wrapper
-                           << "parentWrapper=" << wrapper->parentSurface()
+                           << "parentWrapper=" << xwaylandPopupTransientParentWrapper(wrapper, seat)
                            << "seat=" << seat
                            << "watched=" << watched
                            << "surfaceItem=" << surfaceItem
@@ -2881,11 +4859,23 @@ bool Helper::afterHandleEvent([[maybe_unused]] WSeat *seat,
                                        << "local_pos=" << pointEvent->position()
                                        << "global_pos=" << pointEvent->globalPosition()
                                        << "wrapper_geometry=" << surface->geometry();
+                const bool popupSequenceBelongsBeforeUpdate =
+                    surface->isXWaylandPopupLikeTransient()
+                    && xwaylandPointerButtonSequenceBelongsTo(eventSeat, surface);
                 if (surface->isXWaylandPopupLikeTransient()) {
                     updateXWaylandPopupPointerOwnerForEvent(surface,
                                                             eventSeat,
                                                             event,
                                                             "direct-delivered");
+                }
+                updateXWaylandPointerButtonSequence(surface, eventSeat, event, "direct-delivered");
+                if (surface->isXWaylandPopupLikeTransient()
+                    && event->type() == QEvent::MouseButtonRelease) {
+                    commitDeferredXWaylandPopupTransientFocus(surface,
+                                                              Qt::MouseFocusReason,
+                                                              eventSeat,
+                                                              popupSequenceBelongsBeforeUpdate,
+                                                              "direct-delivered-release");
                 }
             }
 
@@ -2896,7 +4886,8 @@ bool Helper::afterHandleEvent([[maybe_unused]] WSeat *seat,
                     qCDebug(lcTlXwayland) << "[XWL_POPUP_MOUSE_ACTIVATE_SKIP] Skip XWayland popup activation after pointer begin:"
                                            << "window_id=" << xwaylandWindowId(surface)
                                            << "wrapper=" << surface
-                                           << "parentWrapper=" << surface->parentSurface()
+                                           << "parentWrapper="
+                                           << xwaylandPopupTransientParentWrapper(surface, eventSeat)
                                            << "seat=" << eventSeat
                                            << "event_type=" << event->type()
                                            << "geometry=" << surface->geometry();
