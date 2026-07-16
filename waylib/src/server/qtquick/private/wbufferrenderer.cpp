@@ -51,8 +51,6 @@ W_DECLARE_PRIVATE_MEMBER(QSGSoftRenderableNode_m_opacity_tag, QSGSoftwareRendera
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-static constexpr int s_retiredVulkanResourceFrameDelay = 4;
-
 inline static WImageRenderTarget *getImageFrom(const QQuickRenderTarget &rt)
 {
     auto d = QQuickRenderTargetPrivate::get(&rt);
@@ -128,7 +126,7 @@ void WBufferRenderer::retireSwapchain(qw_swapchain *swapchain, bool defer)
         return;
     }
 
-    m_retiredSwapchains.append({s_retiredVulkanResourceFrameDelay, swapchain});
+    m_retiredSwapchains.append(swapchain);
 }
 
 void WBufferRenderer::cleanupRetiredResources(bool force)
@@ -136,16 +134,8 @@ void WBufferRenderer::cleanupRetiredResources(bool force)
     if (m_renderHelper)
         m_renderHelper->cleanupRetiredRenderResources(force);
 
-    for (qsizetype i = 0; i < m_retiredSwapchains.size();) {
-        auto &retired = m_retiredSwapchains[i];
-        if (!force && retired.framesLeft-- > 0) {
-            ++i;
-            continue;
-        }
-
-        delete retired.swapchain;
-        m_retiredSwapchains.removeAt(i);
-    }
+    qDeleteAll(m_retiredSwapchains);
+    m_retiredSwapchains.clear();
 }
 
 WOutput *WBufferRenderer::output() const
@@ -705,9 +695,11 @@ bool WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
 
     QVector<qw_texture *> preparedTextures;
     auto outputWindow = renderWindow();
-    const auto activeTextureProviders = activeTextureProvidersForPass(isRootItem(source.source)
-                                                                          ? wd->contentItem
-                                                                          : source.source);
+    const auto activeTextureProviders = isVulkanRhi
+        ? activeTextureProvidersForPass(isRootItem(source.source)
+                                            ? wd->contentItem
+                                            : source.source)
+        : QVector<WSGTextureProvider *> {};
     constexpr const char *samplingPurpose = "qt-render-pass-texture";
     WVulkanTrace::beginPass(outputWindow, this, state.buffer.get(), samplingPurpose,
                             sourceIndex, activeTextureProviders.size());

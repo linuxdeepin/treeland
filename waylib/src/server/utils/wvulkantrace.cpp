@@ -456,8 +456,7 @@ void activate(bool vulkanActive)
         return;
 
     qCDebug(lcWlRenderHelper).noquote()
-        << QStringLiteral("VKTRACE event=trace-start asyncOffscreenRequested=%1 sampledBufferCompletionFencePublished=false pid=%2")
-               .arg(qEnvironmentVariableIntValue("QT_RHI_VK_ASYNC_OFFSCREEN") != 0)
+        << QStringLiteral("VKTRACE event=trace-start pid=%1")
                .arg(QCoreApplication::applicationPid());
 }
 
@@ -1088,7 +1087,7 @@ void sampleFinished(WOutputRenderWindow *window, qw_texture *texture,
     if (ok && elapsedUsec <= 1000)
         return;
 
-    const QString message = QStringLiteral("VKTRACE event=sample-finish frame=%1 pass=%2 sampleId=%3 sourceBufferId=%4 texture=%5 result=%6 elapsedUsec=%7 completionFencePublished=false")
+    const QString message = QStringLiteral("VKTRACE event=sample-finish frame=%1 pass=%2 sampleId=%3 sourceBufferId=%4 texture=%5 result=%6 elapsedUsec=%7")
                                 .arg(frameId)
                                 .arg(passId)
                                 .arg(providerRecord.sampleId)

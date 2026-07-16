@@ -133,11 +133,7 @@ private:
     QW_NAMESPACE::qw_swapchain *m_swapchain = nullptr;
     WRenderHelper *m_renderHelper = nullptr;
     QPointer<QW_NAMESPACE::qw_buffer> m_lastBuffer;
-    struct RetiredSwapchain {
-        int framesLeft = 0;
-        QW_NAMESPACE::qw_swapchain *swapchain = nullptr;
-    };
-    QList<RetiredSwapchain> m_retiredSwapchains;
+    QList<QW_NAMESPACE::qw_swapchain *> m_retiredSwapchains;
 
     struct RenderState {
         RenderFlags flags;

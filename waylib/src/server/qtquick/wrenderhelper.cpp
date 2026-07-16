@@ -1,4 +1,4 @@
-// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 JiDe Zhang <zhangjide@deepin.org>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wrenderhelper.h"
@@ -54,8 +54,6 @@ extern "C" {
 
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
-
-static constexpr int s_retiredVulkanResourceFrameDelay = 4;
 
 struct Q_DECL_HIDDEN RhiRenderEntry {
     const QRhiRenderTarget *renderTarget;
@@ -351,7 +349,6 @@ public:
     }
 
     struct RetiredBuffers {
-        int framesLeft = 0;
         QList<BufferData *> buffers;
     };
 
@@ -382,7 +379,7 @@ bool WRenderHelperPrivate::shouldDeferRenderBufferCleanup() const
 void WRenderHelperPrivate::resetRenderBuffer(bool defer)
 {
     if (defer && !buffers.isEmpty()) {
-        retiredBuffers.append({s_retiredVulkanResourceFrameDelay, buffers});
+        retiredBuffers.append({buffers});
     } else {
         qDeleteAll(buffers);
     }
@@ -392,16 +389,10 @@ void WRenderHelperPrivate::resetRenderBuffer(bool defer)
 
 void WRenderHelperPrivate::cleanupRetiredRenderBuffers(bool force)
 {
-    for (qsizetype i = 0; i < retiredBuffers.size();) {
-        auto &retired = retiredBuffers[i];
-        if (!force && retired.framesLeft-- > 0) {
-            ++i;
-            continue;
-        }
-
+    Q_UNUSED(force);
+    for (auto &retired : retiredBuffers)
         qDeleteAll(retired.buffers);
-        retiredBuffers.removeAt(i);
-    }
+    retiredBuffers.clear();
 }
 
 void WRenderHelperPrivate::onBufferDestroy()
@@ -527,6 +518,20 @@ bool WRenderHelper::acquireRenderBuffer(QQuickRenderControl *rc, qw_buffer *buff
         return false;
     }
 
+    if (rc->rhi()->isDeviceLost() || !rc->rhi()->isRecordingFrame()) {
+        qCWarning(lcWlRenderHelper) << "Vulkan render buffer acquire failed: QRhi frame is not usable"
+                                    << "purpose" << purpose
+                                    << "deviceLost" << rc->rhi()->isDeviceLost()
+                                    << "recordingFrame" << rc->rhi()->isRecordingFrame()
+                                    << "qwBuffer" << buffer
+                                    << "wlrBuffer" << buffer->handle()
+                                    << "image" << vkImageName(attribs.image)
+                                    << "layout" << vkImageLayoutName(attribs.layout)
+                                    << "format" << hex32(attribs.format)
+                                    << "size" << wlrBufferSize(buffer);
+        return false;
+    }
+
     auto commandBuffer = rc->commandBuffer();
     if (!commandBuffer) {
         qCWarning(lcWlRenderHelper) << "Vulkan render buffer acquire failed: missing QRhi command buffer"
@@ -626,6 +631,20 @@ bool WRenderHelper::releaseRenderBuffer(QQuickRenderControl *rc,
         return false;
     }
 
+    if (rc->rhi()->isDeviceLost() || !rc->rhi()->isRecordingFrame()) {
+        qCWarning(lcWlRenderHelper) << "Vulkan render buffer release failed: QRhi frame is not usable"
+                                    << "purpose" << purpose
+                                    << "deviceLost" << rc->rhi()->isDeviceLost()
+                                    << "recordingFrame" << rc->rhi()->isRecordingFrame()
+                                    << "qwBuffer" << buffer
+                                    << "wlrBuffer" << buffer->handle()
+                                    << "image" << vkImageName(attribs.image)
+                                    << "layout" << vkImageLayoutName(attribs.layout)
+                                    << "format" << hex32(attribs.format)
+                                    << "size" << wlrBufferSize(buffer);
+        return false;
+    }
+
     auto commandBuffer = rc->commandBuffer();
     if (!commandBuffer) {
         qCWarning(lcWlRenderHelper) << "Vulkan render buffer release failed: missing QRhi command buffer"
@@ -692,6 +711,11 @@ bool WRenderHelper::releaseRenderBuffer(QQuickRenderControl *rc,
                                     << "size" << wlrBufferSize(buffer);
         return false;
     }
+
+    // wlroots has recorded a transition and ownership release to GENERAL.
+    // Keep QRhi's external-image tracker in sync so that a reused output
+    // buffer starts from the layout which will exist after this submission.
+    renderTargetTexture->setNativeLayout(VK_IMAGE_LAYOUT_GENERAL);
 
     qCDebug(lcWlRenderHelper) << "Vulkan render buffer release recorded"
                               << "purpose" << purpose
@@ -1451,6 +1475,19 @@ bool WRenderHelper::prepareTextureForSampling(QQuickRenderControl *rc,
         return false;
     }
 
+    if (rc->rhi()->isDeviceLost() || !rc->rhi()->isRecordingFrame()) {
+        qCWarning(lcWlQtQuickTexture) << "Vulkan texture sampling prepare failed: QRhi frame is not usable"
+                                      << "purpose" << purpose
+                                      << "deviceLost" << rc->rhi()->isDeviceLost()
+                                      << "recordingFrame" << rc->rhi()->isRecordingFrame()
+                                      << "wlrTexture" << texture->handle()
+                                      << "image" << vkImageName(rawAttribs.image)
+                                      << "wlrootsLayout" << vkImageLayoutName(rawAttribs.layout)
+                                      << "format" << hex32(rawAttribs.format)
+                                      << "size" << wlrTextureSize(texture);
+        return false;
+    }
+
     auto commandBuffer = rc->commandBuffer();
     if (!commandBuffer) {
         qCWarning(lcWlQtQuickTexture) << "Vulkan texture sampling prepare failed: missing QRhi command buffer"
@@ -1528,6 +1565,19 @@ bool WRenderHelper::finishTextureSampling(QQuickRenderControl *rc,
     if (!rc || !rc->rhi() || rc->rhi()->backend() != QRhi::Vulkan) {
         qCWarning(lcWlQtQuickTexture) << "Vulkan texture sampling finish failed: missing Vulkan QRhi"
                                       << "purpose" << purpose
+                                      << "wlrTexture" << texture->handle()
+                                      << "image" << vkImageName(attribs.image)
+                                      << "layout" << vkImageLayoutName(attribs.layout)
+                                      << "format" << hex32(attribs.format)
+                                      << "size" << wlrTextureSize(texture);
+        return false;
+    }
+
+    if (rc->rhi()->isDeviceLost() || !rc->rhi()->isRecordingFrame()) {
+        qCWarning(lcWlQtQuickTexture) << "Vulkan texture sampling finish failed: QRhi frame is not usable"
+                                      << "purpose" << purpose
+                                      << "deviceLost" << rc->rhi()->isDeviceLost()
+                                      << "recordingFrame" << rc->rhi()->isRecordingFrame()
                                       << "wlrTexture" << texture->handle()
                                       << "image" << vkImageName(attribs.image)
                                       << "layout" << vkImageLayoutName(attribs.layout)
