@@ -5,7 +5,6 @@
 
 #include "common/treelandlogging.h"
 #include "core/imcandidatepanelmanager.h"
-#include "core/popupfocusmanager.h"
 #include "core/qmlengine.h"
 #include "core/windowconfigstore.h"
 #include "layersurfacecontainer.h"
@@ -580,15 +579,6 @@ void ShellHandler::onXdgPopupSurfaceRemoved(WXdgPopupSurface *surface)
     m_rootSurfaceContainer->destroyForSurface(wrapper);
 }
 
-void ShellHandler::closeAllPopupSurfaces()
-{
-    const auto popupSurfaces = m_popupContainer->surfaces();
-    for (auto *w : popupSurfaces) {
-        if (w->type() == SurfaceWrapper::Type::XdgPopup)
-            w->closeSurface();
-    }
-}
-
 void ShellHandler::onXWaylandSurfaceAdded(WXWaylandSurface *surface)
 {
     surface->safeConnect(&WXWaylandSurface::associated,
@@ -897,13 +887,12 @@ void ShellHandler::setupSurfaceActiveWatcher(SurfaceWrapper *wrapper)
 
     if (wrapper->type() == SurfaceWrapper::Type::XdgPopup) {
         // When the popup surface gains focus capability (mapped + grab active),
-        // move keyboard focus to the popup. PopupFocusManager handles
+        // move keyboard focus to the popup. SeatSurfaceManager handles
         // grab tracking and focus restoration when the grab ends.
-        connect(wrapper, &SurfaceWrapper::hasFocusCapabilityChanged, this, [wrapper]() {
+        connect(wrapper, &SurfaceWrapper::hasFocusCapabilityChanged, this, [this, wrapper]() {
             if (!wrapper->hasFocusCapability())
                 return;
-            if (auto *pfm = Helper::instance()->popupFocusManager())
-                pfm->giveFocus(wrapper);
+            m_rootSurfaceContainer->givePopupFocus(wrapper);
         });
     } else if (wrapper->type() == SurfaceWrapper::Type::Layer) {
         connect(wrapper, &SurfaceWrapper::hasFocusCapabilityChanged, this, [this, wrapper]() {

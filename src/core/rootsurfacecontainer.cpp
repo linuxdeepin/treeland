@@ -22,6 +22,7 @@
 #include <winputdevice.h>
 
 #include <qwoutputlayout.h>
+#include <qwxdgshell.h>
 
 #include <QPointer>
 #include <QQuickWindow>
@@ -736,6 +737,35 @@ SeatSurfaceManager *RootSurfaceContainer::getSeatContainerOrDefault(WSeat *seat)
     }
 
     return container;
+}
+
+void RootSurfaceContainer::dismissAllPopups()
+{
+    for (auto *container : std::as_const(m_seatContainers)) {
+        container->dismissPopups();
+    }
+}
+
+void RootSurfaceContainer::givePopupFocus(SurfaceWrapper *popupWrapper)
+{
+    if (!popupWrapper)
+        return;
+
+    // Route to the correct seat based on wlr_xdg_popup->seat.
+    auto *popupSurface = qobject_cast<WXdgPopupSurface *>(popupWrapper->shellSurface());
+    if (!popupSurface)
+        return;
+
+    auto *wlrPopup = popupSurface->handle()->handle();
+    if (!wlrPopup || !wlrPopup->seat)
+        return;
+
+    for (auto it = m_seatContainers.constBegin(); it != m_seatContainers.constEnd(); ++it) {
+        if (it.key()->nativeHandle() == wlrPopup->seat) {
+            it.value()->givePopupFocus(popupWrapper);
+            return;
+        }
+    }
 }
 
 void RootSurfaceContainer::beginMoveResizeForSeat(WSeat *seat, SurfaceWrapper *surface, Qt::Edges edges)

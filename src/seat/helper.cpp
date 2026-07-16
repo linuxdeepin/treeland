@@ -23,7 +23,6 @@
 #endif
 #include "common/treelandlogging.h"
 #include "core/layersurfacecontainer.h"
-#include "core/popupfocusmanager.h"
 #include "core/qmlengine.h"
 #include "core/rootsurfacecontainer.h"
 #include "core/shellhandler.h"
@@ -1618,11 +1617,6 @@ void Helper::init(Treeland::Treeland *treeland)
         return;
     }
     m_shellHandler->init(m_server, m_primarySeat);
-    m_popupFocusManager = new PopupFocusManager(m_primarySeat, this);
-    connect(m_popupFocusManager,
-            &PopupFocusManager::aboutToDismissAll,
-            m_shellHandler,
-            &ShellHandler::closeAllPopupSurfaces);
 
     connect(m_shellHandler->wallpaperShell(),
             &TreelandWallpaperShellInterfaceV1::wallpaperSurfaceAdded,

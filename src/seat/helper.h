@@ -115,7 +115,6 @@ class OutputConfigState;
 class OutputLifecycleManager;
 class OutputManagerV1;
 class PersonalizationManagerInterfaceV1;
-class PopupFocusManager;
 class RootSurfaceContainer;
 class ScreensaverInterfaceV1;
 class SessionManager;
@@ -214,10 +213,6 @@ public:
     void addSocket(WSocket *socket);
     [[nodiscard]] WXWayland *createXWayland();
 
-    PopupFocusManager *popupFocusManager() const
-    {
-        return m_popupFocusManager;
-    }
     WSeat *seat() const;
 
     bool toggleDebugMenuBar();
@@ -427,7 +422,6 @@ private:
     WForeignToplevel *m_foreignToplevel = nullptr;
     WExtForeignToplevelListV1 *m_extForeignToplevelListV1 = nullptr;
     ShortcutManagerV2 *m_shortcutManager = nullptr;
-    PopupFocusManager *m_popupFocusManager = nullptr;
     PersonalizationManagerInterfaceV1 *m_personalizationInterfaceV1 = nullptr;
     WallpaperColorInterfaceV1 *m_wallpaperColorV1 = nullptr;
     WOutputManagerV1 *m_outputManager = nullptr;
