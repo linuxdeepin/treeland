@@ -15,108 +15,71 @@ Item {
     property real blurAmount: 1.0
     property real blurMultiplier: 0.0
 
-    // Glass material parameters (aligned with liquid-dom naming)
-    property real bezelWidth: 30        // edge bevel width (px)
-    property real thickness: 20         // base glass thickness (px)
-    property real displacementFactor: 1 // scalar on displacement
-    property real ior: 1.5              // refractive index
-    property real dispersion: 0.0      // RGB channel separation; 0 disables
+    // Glass material parameters
+    property real bezelWidth: 60         // edge bevel width (px)
+    property real thickness: 50          // base glass thickness (px)
+    property real ior: 3.0               // refractive index
+    property real specularOpacity: 0.55  // specular highlight strength
+    property real tintOpacity: 0.08      // white tint mix amount
+    property real shadow: 0.5            // outer shadow strength (MultiEffect)
 
-    // Colour controls — applied to the backdrop BEFORE refraction, so the
-    // glass specular / rim highlights stay sharp and uncoloured.
-    // Delegated to MultiEffect (avoid duplicate implementation)
-    property real brightness: 0.0       // [-1, 1], 0 = no change
-    property real contrast: 0.0         // [-1, 1], 0 = no change
-    property real saturation: 0.4       // [-1, 1], 0 = no change
-    property real colorization: 0.0     // [0, 1], 0 = no tint
-    property color colorizationColor: Qt.rgba(1, 1, 1, 1)
-
-    // Edge-local saturation boost — MultiEffect can't do spatially-varying, so
-    // this stays in the shader.  Only affects the bezel zone.
-    property real edgeSaturation: 0.0
-
-    // Specular / highlight controls
-    property color highlightColor: Qt.rgba(1, 1, 1, 0.35)
-    property real strokeWidth: 1.5      // specular rim band width (px)
-    property real strokeStrength: 1.0   // specular strength
-    property real specularOpacity: 0.6  // white specular opacity (liquid-dom demo value)
-    property bool highlightEnabled: false  // master toggle for edge specular highlights
-
-    // Rim reflection tint: when enabled, the white specular rim picks up a
-    // small amount of nearby backdrop colour.  The shader receives only a
-    // float gate to avoid bool/int uniform binding issues on GLES drivers.
-    property bool rimReflectionEnabled: true
-
-    // Light direction.  Degrees; 0 points right, -90 points up.
-    // Always a unit vector (cos/sin); the fragment shader consumes it as-is.
-    property real lightAngle: -135.0
-    readonly property real lightAngleRadians: lightAngle * Math.PI / 180
-    property real lightPower: 2.0        // specular sharpness exponent
-    readonly property vector2d lightDirection: Qt.vector2d(
-        Math.cos(effect.lightAngleRadians),
-        Math.sin(effect.lightAngleRadians))
-
-    // Reflection
-    property real reflectionOffset: 18   // reflection sampling offset (px)
-
-
-    // True when MultiEffect is needed for blur or colour grading of the backdrop
     readonly property bool multiEffectEnabled:
-        (blurEnabled && blurAmount > 0 && blurMax > 0)
-        || brightness != 0 || contrast != 0 || saturation != 0 || colorization > 0
+        blurEnabled && blurAmount > 0 && blurMax > 0
+    readonly property bool shadowEnabled: shadow > 0
 
     anchors.fill: parent
 
-    // ── Stage 1: blur + colour-grade the raw backdrop ──────────────────
-    // NOT directly visible — its layer texture is sampled by the glass
-    // shader.  Blur happens here so the glass specular / rim highlights
-    // added in Stage 2 stay sharp.
+    // ── Stage 1: blur the raw backdrop ───────────────────────────────
+    // Not drawn to screen; its layer texture is sampled by Stage 2.
     MultiEffect {
         id: blurredSource
         anchors.fill: parent
         visible: effect.multiEffectEnabled
         layer.enabled: effect.multiEffectEnabled
         smooth: true
-        opacity: 0   // not drawn to screen; sampled as a texture
+        opacity: 0
         source: effect.source
         autoPaddingEnabled: false
         blurEnabled: effect.blurEnabled && effect.blurAmount > 0
         blur: blurEnabled ? effect.blurAmount : 0.0
         blurMax: effect.blurMax
         blurMultiplier: effect.blurMultiplier
-        brightness: effect.brightness
-        contrast: effect.contrast
-        saturation: effect.saturation
-        colorization: effect.colorization
-        colorizationColor: effect.colorizationColor
     }
 
-    // ── Stage 2: glass shader refracts the (blurred) backdrop and adds
-    // specular highlights / rim light on top.  This item intentionally
-    // owns no rounded Shape clip; wrappers such as Glass.qml provide that.
+    // ── Stage 2: glass shader refracts the (blurred) backdrop ───────
+    // Not drawn to screen; its layer texture is sampled by Stage 3.
     ShaderEffect {
         id: glassShader
         objectName: "glassShader"
         anchors.fill: parent
-        smooth: true // Enables linear filtering for the sampler to prevent jagged steps
+        smooth: true
+        opacity: 0
+        layer.enabled: true
         property variant source: effect.multiEffectEnabled ? blurredSource : effect.source
         readonly property vector2d itemSize: Qt.vector2d(Math.max(width, 1), Math.max(height, 1))
         readonly property real radius: effect.radius
         readonly property real bezelWidth: effect.bezelWidth
         readonly property real thickness: effect.thickness
-        readonly property real displacementFactor: effect.displacementFactor
         readonly property real ior: effect.ior
-        readonly property real dispersion: effect.dispersion
-        readonly property color highlightColor: effect.highlightColor
-        readonly property real strokeWidth: effect.strokeWidth
-        readonly property real strokeStrength: effect.highlightEnabled ? effect.strokeStrength : 0.0
-        readonly property vector2d lightDirection: effect.lightDirection
-        readonly property real lightPower: effect.lightPower
-        readonly property real edgeSaturation: effect.edgeSaturation
-        readonly property real reflectionOffset: effect.reflectionOffset
-        readonly property real specularOpacity: effect.highlightEnabled ? effect.specularOpacity : 0.0
-        readonly property real rimReflectionStrength: effect.rimReflectionEnabled ? 0.22 : 0.0
+        readonly property real specularOpacity: effect.specularOpacity
+        readonly property real tintOpacity: effect.tintOpacity
         vertexShader: "qrc:/shaders/liquidglass.vert.qsb"
         fragmentShader: "qrc:/shaders/liquidglass.frag.qsb"
+    }
+
+    // ── Stage 3: final output with outer shadow ─────────────────────
+    // autoPaddingEnabled expands the item beyond the source size so the
+    // shadow can overflow the glass bounds.
+    MultiEffect {
+        id: shadowOutput
+        width: effect.width
+        height: effect.height
+        source: glassShader
+        autoPaddingEnabled: effect.shadowEnabled
+        shadowEnabled: effect.shadowEnabled
+        shadowOpacity: effect.shadow
+        shadowColor: "black"
+        shadowBlur: 0.5
+        shadowScale: 1.0
     }
 }

@@ -9,8 +9,6 @@ Blur {
     id: root
     glassEnabled: false
     blurMax: 64
-    brightness: 0
-    highlightEnabled: false
 
     property color color: Qt.rgba(1, 1, 1, 0.1)
 
