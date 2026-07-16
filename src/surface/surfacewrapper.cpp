@@ -1162,19 +1162,30 @@ bool SurfaceWrapper::computeXWaylandPopupLikeTransient() const
         return false;
 
     auto *xwaylandSurface = qobject_cast<WXWaylandSurface *>(m_shellSurface.data());
-    if (!xwaylandSurface || !xwaylandSurface->parentXWaylandSurface())
+    if (!xwaylandSurface)
         return false;
 
-    const auto windowTypes = xwaylandSurface->windowTypes();
-    return windowTypes.testFlag(WXWaylandSurface::NET_WM_WINDOW_TYPE_UTILITY)
-        || windowTypes.testFlag(WXWaylandSurface::NET_WM_WINDOW_TYPE_TOOLTIP)
-        || windowTypes.testFlag(WXWaylandSurface::NET_WM_WINDOW_TYPE_DND)
-        || windowTypes.testFlag(WXWaylandSurface::NET_WM_WINDOW_TYPE_DROPDOWN_MENU)
-        || windowTypes.testFlag(WXWaylandSurface::NET_WM_WINDOW_TYPE_POPUP_MENU)
-        || windowTypes.testFlag(WXWaylandSurface::NET_WM_WINDOW_TYPE_COMBO)
-        || windowTypes.testFlag(WXWaylandSurface::NET_WM_WINDOW_TYPE_MENU)
-        || windowTypes.testFlag(WXWaylandSurface::NET_WM_WINDOW_TYPE_NOTIFICATION)
-        || windowTypes.testFlag(WXWaylandSurface::NET_WM_WINDOW_TYPE_SPLASH);
+    // Check explicit popup window types (requires parent - transient_for relationship)
+    if (xwaylandSurface->parentXWaylandSurface()) {
+        const auto windowTypes = xwaylandSurface->windowTypes();
+        if (windowTypes.testFlag(WXWaylandSurface::NET_WM_WINDOW_TYPE_UTILITY)
+            || windowTypes.testFlag(WXWaylandSurface::NET_WM_WINDOW_TYPE_TOOLTIP)
+            || windowTypes.testFlag(WXWaylandSurface::NET_WM_WINDOW_TYPE_DND)
+            || windowTypes.testFlag(WXWaylandSurface::NET_WM_WINDOW_TYPE_DROPDOWN_MENU)
+            || windowTypes.testFlag(WXWaylandSurface::NET_WM_WINDOW_TYPE_POPUP_MENU)
+            || windowTypes.testFlag(WXWaylandSurface::NET_WM_WINDOW_TYPE_COMBO)
+            || windowTypes.testFlag(WXWaylandSurface::NET_WM_WINDOW_TYPE_MENU)
+            || windowTypes.testFlag(WXWaylandSurface::NET_WM_WINDOW_TYPE_NOTIFICATION)
+            || windowTypes.testFlag(WXWaylandSurface::NET_WM_WINDOW_TYPE_SPLASH)) {
+            return true;
+        }
+    }
+
+    // Fallback: override-redirect windows are popups/menus/tooltips that
+    // didn't set _NET_WM_WINDOW_TYPE (e.g. WeChat emoji picker).
+    // Don't require parentXWaylandSurface - some X11 popups use the
+    // root window as parent and have no parentXWaylandSurface.
+    return xwaylandSurface->isBypassManager();
 }
 
 bool SurfaceWrapper::isXWaylandPopupLikeTransient() const
