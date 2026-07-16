@@ -1,5 +1,7 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+
+pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQml
@@ -7,9 +9,9 @@ import QtQml
 Behavior {
     id: root
 
-    property QtObject fadeTarget: targetProperty.object
+    property QtObject fadeTarget: targetProperty.object // dynamic target object, type varies
     property string fadeProperty: "opacity"
-    property var fadeProperties: [fadeProperty]
+    property var fadeProperties: [fadeProperty] // JS array used with join/forEach, keep as var
     property int exitValue: 0
     property int enterValue: exitValue
     property int fadeDuration: 300
@@ -39,26 +41,32 @@ Behavior {
     }
 
     readonly property Component defaultExitAnimation: NumberAnimation {
+        // qmllint disable unqualified: qmllint directive — root properties needed in animation template
         properties: root.fadeProperties.join(',')
         duration: root.fadeDuration
         to: root.exitValue
         easing.type: root.easingType === "Linear" ? Easing.Linear : Easing["In"+root.easingType]
+        // qmllint enable unqualified
     }
     property Component exitAnimation: defaultExitAnimation
 
     readonly property Component defaultEnterAnimation: NumberAnimation {
+        // qmllint disable unqualified: qmllint directive — root properties needed in animation template
         properties: root.fadeProperties.join(',')
         duration: root.fadeDuration
         from: root.enterValue
         to: root.fadeTarget[root.fadeProperties[0]]
         easing.type: root.easingType === "Linear" ? Easing.Linear : Easing["Out"+root.easingType]
+        // qmllint enable unqualified
     }
     property Component enterAnimation: NumberAnimation {
+        // qmllint disable unqualified: qmllint directive — root properties needed in animation template
        properties: root.fadeProperties.join(',')
        duration: root.fadeDuration
        from: root.enterValue
        to: root.fadeTarget[root.fadeProperties[0]]
        easing.type: root.easingType === "Linear" ? Easing.Linear : Easing["Out"+root.easingType]
+        // qmllint enable unqualified
     }
 
     SequentialAnimation {

@@ -1,5 +1,8 @@
 // Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Layouts
 import Treeland
@@ -10,11 +13,11 @@ import QtQuick.Controls
 D.Popup {
     id: users
 
-    property var count: UserModel.count
-    property var userItemHeight: 44
-    property var maxListHeight: userItemHeight * 5 + padding * 2
-    property var useScrollBar: listv.contentHeight > maxListHeight
-    property var lastCheckedIndex: -1
+    property int count: UserModel.count
+    property real userItemHeight: 44
+    property real maxListHeight: userItemHeight * 5 + padding * 2
+    property bool useScrollBar: listv.contentHeight > maxListHeight
+    property int lastCheckedIndex: -1
 
     signal otherUserRequested()
 
@@ -28,7 +31,7 @@ D.Popup {
         radius: 12
     }
 
-    function selectCurrentUser(userName, index) {
+    function selectCurrentUser(userName: string, index: int): void {
         UserModel.currentUserName = userName
         users.lastCheckedIndex = index
         userList.close()
@@ -60,6 +63,7 @@ D.Popup {
         }
 
         delegate: D.CheckDelegate {
+            // qmllint disable unqualified: qmllint directive — selectCurrentUser and listv are outer scope
             id: singleUser
             height: 44
             width: 220
@@ -201,6 +205,7 @@ D.Popup {
             }
 
             onClicked: selectCurrentUser(model.name, index)
+            // qmllint enable unqualified
 
             checked: UserModel.currentUserName === model.name
         }
@@ -247,8 +252,10 @@ D.Popup {
             }
 
             onClicked: {
+                // qmllint disable unqualified: qmllint directive — users is an outer scope id
                 users.close()
                 users.otherUserRequested()
+                // qmllint enable unqualified
             }
         }
     }

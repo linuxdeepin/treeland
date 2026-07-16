@@ -1,6 +1,8 @@
 // Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import Treeland
 import Waylib.Server
@@ -17,9 +19,9 @@ Item {
     signal finished
 
     required property SurfaceWrapper target
-    required property var direction
+    required property int direction
     property int duration: 400 * Helper.animationSpeed
-    property var enableBlur: false
+    property bool enableBlur: false
 
     x: target.x
     y: target.y
@@ -39,7 +41,7 @@ Item {
         }
     ]
 
-    function start() {
+    function start(): void {
         animation.start();
     }
 
@@ -47,8 +49,10 @@ Item {
         active: root.enableBlur
         anchors.fill: parent
         sourceComponent: Blur {
+            // qmllint disable unqualified: qmllint directive — root.target is outer scope, accessed from inline Component
             anchors.fill: parent
             radius: root.target.radius
+            // qmllint enable unqualified
         }
     }
 

@@ -1,5 +1,8 @@
-// Copyright (C) 2023 ComixHe <heyuming@uniontech.com>.
+// Copyright (C) 2023-2026 ComixHe <heyuming@uniontech.com>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Controls
 import Treeland
@@ -9,7 +12,7 @@ Control {
     id: timedataWidget
 
     property date currentDate: new Date()
-    property var currentLocale: Qt.locale()
+    property locale currentLocale: Qt.locale()
 
     Timer {
         interval: 1000

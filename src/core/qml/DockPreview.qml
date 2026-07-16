@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -21,7 +23,7 @@ Item {
     // set by States
     property bool isHorizontal
     // set by show()
-    property var target
+    property var target // mixed type: PrimaryOutput or Output, keep as var
     property point pos
     property int direction
     // auto update by binding
@@ -54,12 +56,12 @@ Item {
             Qt.callLater(()=> { lastSize = count })
         }
 
-        property var desiredSurfaces: []
+        property var desiredSurfaces: [] // JS array of SurfaceWrapper, keep as var
         onDesiredSurfacesChanged:  {
             updateModel();
         }
 
-        function updateModel() {
+        function updateModel(): void {
             var newSize = desiredSurfaces.length;
             var oldSize = filterSurfaceModel.count;
             root.isNewDockPreview = oldSize === 0 && newSize !== 0;
@@ -76,7 +78,7 @@ Item {
             }
         }
 
-        function removeSurface(surfaceWrapper) {
+        function removeSurface(surfaceWrapper: SurfaceWrapper): void {
             if (!surfaceWrapper)
                 return;
 
@@ -88,24 +90,24 @@ Item {
             updateModel();
         }
 
-        function activateWindow(surfaceWrapper) {
+        function activateWindow(surfaceWrapper: SurfaceWrapper): void {
             console.debug(qLcDockPreview, "activate preview window: ", surfaceWrapper)
             Helper.forceActivateSurface(surfaceWrapper)
             ForeignToplevelManagerInterfaceV1.leaveDockPreview(root.target.shellSurface.surface)
             root.close();
         }
 
-        function previewWindow(surfaceWrapper) {
+        function previewWindow(surfaceWrapper: SurfaceWrapper): void {
             console.debug(qLcDockPreview, "start preview window: ", surfaceWrapper)
             Helper.workspace.startPreviewing(surfaceWrapper);
         }
 
-        function stopPreviewWindow() {
+        function stopPreviewWindow(): void {
             console.debug(qLcDockPreview, "stop preview window")
             Helper.workspace.stopPreviewing();
         }
 
-        function closeAllWindow() {
+        function closeAllWindow(): void {
             console.debug(qLcDockPreview, "close all preview windows")
             var tmp = filterSurfaceModel.desiredSurfaces;
             filterSurfaceModel.desiredSurfaces = [ ];
@@ -115,7 +117,7 @@ Item {
             root.close();
         }
 
-        function closeSpecialWindow(surfaceId) {
+        function closeSpecialWindow(surfaceId: int): void {
             let surfaceWrapper = filterSurfaceModel.get(surfaceId)?.wrapper
             console.debug(qLcDockPreview, "close a special window: ", surfaceWrapper)
             filterSurfaceModel.remove(surfaceId)
@@ -123,7 +125,7 @@ Item {
         }
     }
 
-    function show(surfaces, target, pos, direction) {
+    function show(surfaces: var, target: var, pos: point, direction: int): void {
         console.info(qLcDockPreview, "start show windows: ", surfaces)
         root.parent = target.parent;
 
@@ -148,7 +150,7 @@ Item {
         root.isShowing = true;
     }
 
-    function showTooltip(tooltip, target, pos, direction) {
+    function showTooltip(tooltip: string, target: var, pos: point, direction: int): void {
         console.info(qLcDockPreview, "start show tooltip: ", tooltip, target, pos, direction)
         root.parent = target.parent;
         if (root.isShowing && !root.isTooltip)
@@ -170,7 +172,7 @@ Item {
         root.isShowing = true;
     }
 
-    function close() {
+    function close(): void {
         console.info(qLcDockPreview, "stop dock preview")
         root.isShowing = false;
     }
@@ -337,7 +339,7 @@ Item {
         text: root.tooltip
     }
 
-    function getWidth(removing) {
+    function getWidth(removing: bool): real {
         let tooltipWidth = Math.min(tooltipMetrics.width + listview.spacing * 2, root.outPutSize.width);
         if (removing && root.isTooltip)
             return tooltipWidth;
@@ -366,7 +368,7 @@ Item {
         return width
     }
 
-    function getHeight(removing) {
+    function getHeight(removing: bool): real {
         if (removing && root.isTooltip)
             return tooltipMetrics.height;
 
@@ -476,8 +478,8 @@ Item {
             radius: listview.radius
             color: Qt.rgba(0, 0, 0, 0.05) // TODO: dark mode
 
-            required property var index
-            required property var wrapper // from filterSurfaceModel
+            required property int index
+            required property SurfaceWrapper wrapper // from filterSurfaceModel
             property bool isRemoving: false
 
             implicitHeight: root.isHorizontal ? 120 : Math.max(80, Math.min(120, 240 * wrapper.height / wrapper.width))

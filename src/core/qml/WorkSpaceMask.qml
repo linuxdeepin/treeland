@@ -1,5 +1,7 @@
-// Copyright (C) 2024 lbwtw <xiaoyaobing@uniontech.com>.
+// Copyright (C) 2024-2026 lbwtw <xiaoyaobing@uniontech.com>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+
+pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQml
@@ -15,6 +17,7 @@ Loader {
     Component {
         id: rectComponent
 
+        // qmllint disable unqualified: qmllint directive — root properties needed in mask component
         Rectangle {
             anchors.fill: parent
             color: "black"
@@ -63,6 +66,7 @@ Loader {
                     }
                 }
             ]
+            // qmllint enable unqualified
         }
     }
 }
