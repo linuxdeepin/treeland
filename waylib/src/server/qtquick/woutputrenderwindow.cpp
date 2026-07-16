@@ -380,6 +380,46 @@ class Q_DECL_HIDDEN RenderControl : public QQuickRenderControl
 public:
     RenderControl() = default;
 
+    QRhi::FrameOpResult beginFrameChecked()
+    {
+        QQuickRenderControl::beginFrame();
+
+        auto *d = QQuickRenderControlPrivate::get(this);
+        switch (d->frameStatus) {
+        case QQuickRenderControlPrivate::RecordingFrame:
+            return QRhi::FrameOpSuccess;
+        case QQuickRenderControlPrivate::DeviceLostInBeginFrame:
+            return QRhi::FrameOpDeviceLost;
+        case QQuickRenderControlPrivate::ErrorInBeginFrame:
+            return d->rhi && d->rhi->isDeviceLost()
+                ? QRhi::FrameOpDeviceLost
+                : QRhi::FrameOpError;
+        case QQuickRenderControlPrivate::NotRecordingFrame:
+            break;
+        }
+        return QRhi::FrameOpError;
+    }
+
+    QRhi::FrameOpResult endFrameChecked()
+    {
+        auto *d = QQuickRenderControlPrivate::get(this);
+        if (!d->rhi
+            || !d->window
+            || d->frameStatus != QQuickRenderControlPrivate::RecordingFrame
+            || !d->rhi->isRecordingFrame()) {
+            return d->rhi && d->rhi->isDeviceLost()
+                ? QRhi::FrameOpDeviceLost
+                : QRhi::FrameOpError;
+        }
+
+        const auto result = d->rhi->endOffscreenFrame();
+        // Match QQuickRenderControl::endFrame(), while retaining the QRhi
+        // submission result which the public void API discards.
+        d->frameStatus = QQuickRenderControlPrivate::NotRecordingFrame;
+        Q_EMIT d->window->afterFrameEnd();
+        return result;
+    }
+
     QWindow *renderWindow(QPoint *) override {
         return m_renderWindow;
     }
@@ -453,7 +493,7 @@ public:
     doRenderOutputs(qw_output *needsFrameOutput, const QList<OutputHelper *> &outputs,
                     bool forceRender);
     bool releaseRenderBuffer(WBufferRenderer *renderer, const char *purpose);
-    void releaseRenderBuffers(QVector<std::pair<OutputHelper *, WBufferRenderer *>> &needsCommit);
+    bool releaseRenderBuffers(QVector<std::pair<OutputHelper *, WBufferRenderer *>> &needsCommit);
     void cleanupRetiredRenderResources(bool force);
     bool prepareTextureSamplingForRenderPass(qw_buffer *currentBuffer,
                                              const QVector<WSGTextureProvider *> &activeProviders,
@@ -470,6 +510,16 @@ public:
     void submitPresentationFeedbackForOutput(WOutput *output);
     void clearPresentationFeedbackForOutput(WOutput *output);
     void clearPresentationFeedback();
+    inline void failCurrentFrame()
+    {
+        frameFailed = true;
+    }
+    inline void failCurrentFrameFatally(const QString &message)
+    {
+        frameFailed = true;
+        if (fatalRenderError.isEmpty())
+            fatalRenderError = message;
+    }
     void doRender(qw_output *needsFrameOutput, const QList<OutputHelper*> &outputs,
                   bool forceRender, bool doCommit);
 
@@ -494,6 +544,8 @@ public:
     bool componentCompleted = true;
     bool inRendering = false;
     bool renderEnabled = true;
+    bool frameFailed = false;
+    QString fatalRenderError;
 
     QPointer<qw_renderer> m_renderer;
     QPointer<qw_allocator> m_allocator;
@@ -1645,9 +1697,13 @@ WOutputRenderWindowPrivate::doRenderOutputs(qw_output *needsFrameOutput, const Q
                                               << "renderer" << helper->bufferRenderer()
                                               << "currentBuffer" << helper->bufferRenderer()->currentBuffer()
                                               << "output" << helper->output();
-                (void)releaseRenderBuffer(helper->bufferRenderer(), "compositor-render-buffer-abort");
+                if (!releaseRenderBuffer(helper->bufferRenderer(), "compositor-render-buffer-abort")) {
+                    failCurrentFrameFatally(QStringLiteral("Failed to release an aborted Vulkan output render buffer"));
+                }
                 helper->bufferRenderer()->endRender();
                 helper->resetState();
+                if (frameFailed)
+                    break;
                 continue;
             }
         }
@@ -1708,11 +1764,12 @@ bool WOutputRenderWindowPrivate::releaseRenderBuffer(WBufferRenderer *renderer, 
     return ok;
 }
 
-void WOutputRenderWindowPrivate::releaseRenderBuffers(QVector<std::pair<OutputHelper *, WBufferRenderer *>> &needsCommit)
+bool WOutputRenderWindowPrivate::releaseRenderBuffers(QVector<std::pair<OutputHelper *, WBufferRenderer *>> &needsCommit)
 {
     if (WRenderHelper::getGraphicsApi(rc()) != QSGRendererInterface::Vulkan)
-        return;
+        return true;
 
+    bool ok = true;
     for (qsizetype i = 0; i < needsCommit.size();) {
         auto helper = needsCommit[i].first;
         auto renderer = needsCommit[i].second;
@@ -1726,14 +1783,16 @@ void WOutputRenderWindowPrivate::releaseRenderBuffers(QVector<std::pair<OutputHe
             continue;
         }
 
-        qCWarning(lcWlRenderHelper) << "Skipping wlroots commit because Vulkan render buffer release failed"
-                                    << "renderer" << renderer
-                                    << "qwBuffer" << renderer->currentBuffer()
-                                    << "wlrBuffer" << renderer->currentBuffer()->handle();
+        qCCritical(lcWlRenderHelper) << "Vulkan output frame cannot be committed because render buffer release failed"
+                                     << "renderer" << renderer
+                                     << "qwBuffer" << renderer->currentBuffer()
+                                     << "wlrBuffer" << renderer->currentBuffer()->handle();
+        ok = false;
         renderer->endRender();
         helper->resetState();
         needsCommit.removeAt(i);
     }
+    return ok;
 }
 
 void WOutputRenderWindowPrivate::cleanupRetiredRenderResources(bool force)
@@ -1854,8 +1913,14 @@ bool WOutputRenderWindowPrivate::prepareTextureSamplingForRenderPass(qw_buffer *
                                           << "preparedTextureCount" << preparedTextures->size()
                                           << "skippedCurrentRenderTarget" << skippedCurrentRenderTarget
                                           << "invalidProviderCount" << invalidProviderCount;
-            provider->setTexture(nullptr, nullptr);
-            continue;
+            failCurrentFrame();
+            // The pass has not drawn yet. Return ownership of every texture
+            // acquired earlier in the prepass and keep all providers bound to
+            // their previously valid texture.
+            (void)finishTextureSamplingForRenderPass(*preparedTextures,
+                                                      purpose,
+                                                      sourceIndex);
+            return false;
         }
 
         preparedTextures->append(texture);
@@ -1881,8 +1946,10 @@ bool WOutputRenderWindowPrivate::prepareTextureForCurrentRenderPass(qw_texture *
                                                                     m_renderer,
                                                                     texture,
                                                                     purpose);
-    if (!prepareOk)
+    if (!prepareOk) {
+        failCurrentFrame();
         return false;
+    }
 
     m_currentPreparedTextureSet.insert(texture);
     m_currentPreparedTextures->append(texture);
@@ -1927,6 +1994,9 @@ bool WOutputRenderWindowPrivate::finishTextureSamplingForRenderPass(const QVecto
 
     m_currentPreparedTextures = nullptr;
     m_currentPreparedTextureSet.clear();
+    if (!ok) {
+        failCurrentFrameFatally(QStringLiteral("Failed to return one or more sampled Vulkan textures to wlroots"));
+    }
     return ok;
 }
 
@@ -2017,9 +2087,39 @@ void WOutputRenderWindowPrivate::doRender(qw_output *needsFrameOutput,
         return;
 
     inRendering = true;
+    frameFailed = false;
+    fatalRenderError.clear();
     W_Q(WOutputRenderWindow);
     WVulkanTrace::beginFrame(q);
     clearPresentationFeedback();
+
+    const auto finishFrame = [this, q] (const QList<QPointer<WOutput>> &committedOutputs) {
+        clearPresentationFeedback();
+        m_currentPreparedTextures = nullptr;
+        m_currentPreparedTextureSet.clear();
+
+        resetGlState();
+
+        // On Intel&Nvidia multi-GPU environment, wlroots using Intel card do render for all
+        // outputs, and blit nvidia's output buffer in drm_connector_state_update_primary_fb,
+        // the 'blit' behavior will make EGL context to Nvidia renderer. So must done current
+        // OpenGL context here in order to ensure QtQuick always make EGL context to Intel
+        // renderer before next frame.
+        if (glContext)
+            glContext->doneCurrent();
+
+        WVulkanTrace::setFrameStage(q, WVulkanTrace::FrameStage::RenderEnd);
+        inRendering = false;
+        Q_EMIT q->renderEnd(committedOutputs);
+        WVulkanTrace::endFrame(q, committedOutputs.size());
+
+        if (!fatalRenderError.isEmpty()) {
+            qCCritical(lcWlRenderer) << "Fatal Vulkan rendering failure; requesting compositor shutdown"
+                                     << "reason" << fatalRenderError;
+            Q_EMIT q->sceneGraphError(QQuickWindow::ContextNotAvailable,
+                                      fatalRenderError);
+        }
+    };
 
     WVulkanTrace::setFrameStage(q, WVulkanTrace::FrameStage::Polish);
     for (OutputLayer *layer : std::as_const(layers)) {
@@ -2028,10 +2128,27 @@ void WOutputRenderWindowPrivate::doRender(qw_output *needsFrameOutput,
 
     rc()->polishItems();
 
-    const bool rhiBased = QSGRendererInterface::isApiRhiBased(WRenderHelper::getGraphicsApi());
+    const auto graphicsApi = WRenderHelper::getGraphicsApi();
+    const bool isVulkan = graphicsApi == QSGRendererInterface::Vulkan;
+    const bool rhiBased = QSGRendererInterface::isApiRhiBased(graphicsApi);
     if (rhiBased) {
         WVulkanTrace::setFrameStage(q, WVulkanTrace::FrameStage::BeginFrame);
-        rc()->beginFrame();
+        if (isVulkan) {
+            const auto beginResult = rc()->beginFrameChecked();
+            if (beginResult != QRhi::FrameOpSuccess) {
+                if (beginResult == QRhi::FrameOpDeviceLost) {
+                    failCurrentFrameFatally(QStringLiteral("Vulkan device was lost while beginning the Qt Quick frame"));
+                } else {
+                    failCurrentFrame();
+                    qCWarning(lcWlRenderer) << "Skipping Vulkan output frame because QRhi beginOffscreenFrame failed"
+                                            << "frameResult" << beginResult;
+                }
+                finishFrame({});
+                return;
+            }
+        } else {
+            rc()->beginFrame();
+        }
     }
     WVulkanTrace::setFrameStage(q, WVulkanTrace::FrameStage::Sync);
     rc()->sync();
@@ -2050,14 +2167,26 @@ void WOutputRenderWindowPrivate::doRender(qw_output *needsFrameOutput,
 
     if (rhiBased) {
         WVulkanTrace::setFrameStage(q, WVulkanTrace::FrameStage::ReleaseRenderBuffers);
-        releaseRenderBuffers(needsCommit);
+        if (!releaseRenderBuffers(needsCommit)) {
+            failCurrentFrameFatally(QStringLiteral("Failed to release one or more Vulkan output render buffers"));
+        }
     }
 
+    bool vulkanFrameCompleted = false;
     if (rhiBased) {
         WVulkanTrace::setFrameStage(q, WVulkanTrace::FrameStage::BeforeEndFrame);
-        rc()->endFrame();
+        if (isVulkan) {
+            const auto endResult = rc()->endFrameChecked();
+            vulkanFrameCompleted = endResult == QRhi::FrameOpSuccess;
+            if (!vulkanFrameCompleted) {
+                failCurrentFrameFatally(endResult == QRhi::FrameOpDeviceLost
+                                            ? QStringLiteral("Vulkan device was lost while submitting the Qt Quick frame")
+                                            : QStringLiteral("Failed to submit the Vulkan Qt Quick frame"));
+            }
+        } else {
+            rc()->endFrame();
+        }
         WVulkanTrace::setFrameStage(q, WVulkanTrace::FrameStage::AfterEndFrame);
-        cleanupRetiredRenderResources(false);
     }
 
     // prevent gles2-render exception in wlroots.
@@ -2068,11 +2197,12 @@ void WOutputRenderWindowPrivate::doRender(qw_output *needsFrameOutput,
 
     QList<QPointer<WOutput>> committedOutputs;
     WVulkanTrace::setFrameStage(q, WVulkanTrace::FrameStage::OutputCommit);
-    if (doCommit) {
+    if (doCommit || (isVulkan && frameFailed)) {
+        const bool allowCommit = doCommit && !frameFailed;
         committedOutputs.reserve(needsCommit.size());
         for (auto i : std::as_const(needsCommit)) {
             auto output = i.first->output()->output();
-            if (Q_UNLIKELY(!i.first->framePending())) {
+            if (allowCommit && Q_UNLIKELY(!i.first->framePending())) {
                 submitPresentationFeedbackForOutput(output);
                 const quint32 sequenceBefore = output->nativeHandle()->commit_seq;
                 const bool commitOk = i.first->commit(i.second);
@@ -2100,22 +2230,17 @@ void WOutputRenderWindowPrivate::doRender(qw_output *needsFrameOutput,
     } else {
         clearPresentationFeedback();
     }
-    clearPresentationFeedback();
 
-    resetGlState();
-
-    // On Intel&Nvidia multi-GPU environment, wlroots using Intel card do render for all
-    // outputs, and blit nvidia's output buffer in drm_connector_state_update_primary_fb,
-    // the 'blit' behavior will make EGL context to Nvidia renderer. So must done current
-    // OpenGL context here in order to ensure QtQuick always make EGL context to Intel
-    // renderer before next frame.
-    if (glContext)
-        glContext->doneCurrent();
-
-    WVulkanTrace::setFrameStage(q, WVulkanTrace::FrameStage::RenderEnd);
-    inRendering = false;
-    Q_EMIT q->renderEnd(committedOutputs);
-    WVulkanTrace::endFrame(q, committedOutputs.size());
+    if (vulkanFrameCompleted) {
+        // endOffscreenFrame() has completed all GPU work for this frame. Run
+        // retirement only after output commit/reset has transferred or dropped
+        // every buffer reference, so imported QRhi wrappers are destroyed
+        // before their wlroots textures and buffer locks are released.
+        cleanupRetiredRenderResources(false);
+    }
+    finishFrame(committedOutputs);
+    if (vulkanFrameCompleted)
+        runAndClearJobs(&afterSwapJobs);
 }
 
 // TODO: Support QWindow::setCursor

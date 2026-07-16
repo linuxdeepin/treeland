@@ -114,71 +114,42 @@ public:
         class TextureCleanupJob : public QRunnable
         {
         public:
-            TextureCleanupJob(WOutputRenderWindow *window,
-                              QRhiTexture *rhiTexture,
+            TextureCleanupJob(QRhiTexture *rhiTexture,
                               qw_texture *texture,
                               bool ownsTexture,
                               BufferRef buffer,
                               WVulkanTrace::CleanupToken cleanupToken,
-                              int framesLeft,
-                              bool waitForVulkanFrame)
-                : window(window)
-                , rhiTexture(rhiTexture)
+                              bool deleteRhiTextureImmediately)
+                : rhiTexture(rhiTexture)
                 , texture(texture)
                 , ownsTexture(ownsTexture)
                 , buffer(std::move(buffer))
                 , cleanupToken(cleanupToken)
-                , framesLeft(framesLeft)
-                , waitForVulkanFrame(waitForVulkanFrame)
+                , deleteRhiTextureImmediately(deleteRhiTextureImmediately)
             {
             }
 
             ~TextureCleanupJob() override
             {
-                if (rhiTexture)
-                    rhiTexture->deleteLater();
-                if (ownsTexture && texture)
-                    delete texture;
+                cleanup();
             }
 
             void run() override
             {
+                WVulkanTrace::cleanupRunning(cleanupToken);
+                cleanup();
+            }
+
+        private:
+            void cleanup()
+            {
                 if (rhiTexture) {
-                    rhiTexture->deleteLater();
+                    if (deleteRhiTextureImmediately)
+                        delete rhiTexture;
+                    else
+                        rhiTexture->deleteLater();
                     rhiTexture = nullptr;
                 }
-
-                auto *rhi = window ? window->rhi() : nullptr;
-                const bool successfulVulkanFrame = !waitForVulkanFrame
-                    || (rhi && !rhi->isDeviceLost()
-                        && rhi->isRecordingFrame());
-                if (window && (framesLeft > 0 || !successfulVulkanFrame)) {
-                    const int nextFramesLeft = successfulVulkanFrame
-                        ? framesLeft - 1
-                        : framesLeft;
-                    auto *nextJob = new TextureCleanupJob(window,
-                                                          nullptr,
-                                                          texture,
-                                                          ownsTexture,
-                                                          std::move(buffer),
-                                                          cleanupToken,
-                                                          nextFramesLeft,
-                                                          waitForVulkanFrame);
-                    texture = nullptr;
-                    ownsTexture = false;
-                    window->scheduleRenderJob(nextJob,
-                                              QQuickWindow::AfterRenderingStage);
-                    // Keep the delay progressing even when the scene itself
-                    // has become static after a surface replacement. A failed
-                    // Vulkan beginFrame does not consume the safety delay and
-                    // waits for the next naturally requested frame instead of
-                    // creating a retry loop.
-                    if (successfulVulkanFrame)
-                        window->update();
-                    return;
-                }
-
-                WVulkanTrace::cleanupRunning(cleanupToken);
                 if (ownsTexture && texture) {
                     delete texture;
                     texture = nullptr;
@@ -186,39 +157,34 @@ public:
                 }
             }
 
-            QPointer<WOutputRenderWindow> window;
             QRhiTexture *rhiTexture = nullptr;
             qw_texture *texture = nullptr;
             bool ownsTexture = false;
             BufferRef buffer;
             WVulkanTrace::CleanupToken cleanupToken;
-            int framesLeft = 0;
-            bool waitForVulkanFrame = false;
+            bool deleteRhiTextureImmediately = false;
         };
 
         if (window) {
-            static constexpr int RetiredVulkanTextureFrameDelay = 4;
-            const bool waitForVulkanFrame = isVulkanRhi();
-            const int frameDelay = waitForVulkanFrame
-                ? RetiredVulkanTextureFrameDelay
-                : 0;
-            window->scheduleRenderJob(new TextureCleanupJob(window,
-                                                            oldRhiTexture,
+            const bool isVulkan = isVulkanRhi();
+            window->scheduleRenderJob(new TextureCleanupJob(oldRhiTexture,
                                                             oldTexture,
                                                             oldOwnsTexture,
                                                             std::move(oldBuffer),
                                                             cleanupToken,
-                                                            frameDelay,
-                                                            waitForVulkanFrame),
-                                      QQuickWindow::AfterRenderingStage);
-            if (frameDelay > 0)
-                window->update();
+                                                            isVulkan),
+                                      isVulkan ? QQuickWindow::AfterSwapStage
+                                               : QQuickWindow::AfterRenderingStage);
             return;
         }
 
         WVulkanTrace::cleanupRunning(cleanupToken);
-        if (oldRhiTexture)
-            oldRhiTexture->deleteLater();
+        if (oldRhiTexture) {
+            if (isVulkanRhi())
+                delete oldRhiTexture;
+            else
+                oldRhiTexture->deleteLater();
+        }
         if (oldOwnsTexture && oldTexture)
             delete oldTexture;
     }
@@ -279,13 +245,16 @@ public:
                                          : (smooth ? QSGTexture::Linear : QSGTexture::Nearest));
     }
 
-    bool updateRhiTexture(qw_texture *newTexture, qw_buffer *newBuffer)
+    bool updateRhiTexture(qw_texture *newTexture, qw_buffer *newBuffer,
+                          QSGPlainTexture *targetTexture = nullptr)
     {
         Q_ASSERT(newTexture);
+        if (!targetTexture)
+            targetTexture = &qtTexture;
         const bool forceShaderReadOnlyLayout = isVulkanRhi();
         const bool ok = WRenderHelper::makeTexture(window->rhi(),
                                                    newTexture,
-                                                   &qtTexture,
+                                                   targetTexture,
                                                    forceShaderReadOnlyLayout);
         if (Q_UNLIKELY(!ok)) {
             const QSize bufferSize = newBuffer
@@ -419,17 +388,14 @@ void WSGTextureProvider::setBuffer(qw_buffer *buffer)
         }
 
         WVulkanTrace::providerBind(this, d->window, candidateBuffer.get(), candidateTexture);
-        if (!d->updateRhiTexture(candidateTexture, candidateBuffer.get())) {
+        QSGPlainTexture candidateQtTexture;
+        if (!d->updateRhiTexture(candidateTexture, candidateBuffer.get(), &candidateQtTexture)) {
             WVulkanTrace::providerDiscard(this, d->window, candidateTexture,
                                           "qt-wrap-failed");
             if (candidateOwnsTexture)
                 delete candidateTexture;
             return;
         }
-
-        d->adoptTexture(candidateTexture,
-                        candidateOwnsTexture,
-                        std::move(candidateBuffer));
 
         // Immediately prepare new texture for sampling if we're in an active render frame.
         // This is critical for textures created during updatePaintNode() (e.g., cursor textures)
@@ -439,11 +405,34 @@ void WSGTextureProvider::setBuffer(qw_buffer *buffer)
                                                                              "setbuffer-immediate");
         if (!prepareOk) {
             qCWarning(lcWlQtQuickTexture)
-                << "Immediate texture preparation failed for new Vulkan texture"
+                << "Immediate texture preparation failed; keeping the previous Vulkan texture"
                 << "provider" << this
                 << "qwTexture" << candidateTexture
                 << "wlrTexture" << candidateTexture->handle();
+            WVulkanTrace::providerDiscard(this, d->window, candidateTexture,
+                                          "sampling-prepare-failed");
+            auto *candidateRhiTexture = candidateQtTexture.rhiTexture();
+            candidateQtTexture.setOwnsTexture(false);
+            d->scheduleCleanup(candidateRhiTexture,
+                               candidateTexture,
+                               candidateOwnsTexture,
+                               std::move(candidateBuffer));
+            return;
         }
+
+        // During an active pass publish the candidate only after wlroots
+        // sampling ownership has been acquired. Outside a pass it will be
+        // acquired by the normal prepass before the next draw. Until this point
+        // scene-graph nodes continue to see the old, valid texture.
+        auto *candidateRhiTexture = candidateQtTexture.rhiTexture();
+        Q_ASSERT(candidateRhiTexture);
+        candidateQtTexture.setOwnsTexture(false);
+        d->qtTexture.setTexture(candidateRhiTexture);
+        d->qtTexture.setHasAlphaChannel(candidateQtTexture.hasAlphaChannel());
+        d->qtTexture.setTextureSize(candidateQtTexture.textureSize());
+        d->adoptTexture(candidateTexture,
+                        candidateOwnsTexture,
+                        std::move(candidateBuffer));
 
         Q_EMIT textureChanged();
         return;
