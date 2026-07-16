@@ -47,19 +47,28 @@ public:
     void setMetaKeyPressed(bool pressed);
     void surfaceDestroyed(SurfaceWrapper *surface);
 
+    // Popup keyboard grab management
+    void givePopupFocus(SurfaceWrapper *popupWrapper);
+    void dismissPopups();
+
 Q_SIGNALS:
     void activatedSurfaceChanged(SurfaceWrapper *surface);
     void moveResizeChanged();
 
 private:
     void onActivatedSurfaceFocusCapabilityChanged();
+    void onKeyboardGrabBegin();
+    void onKeyboardGrabEnd();
 
     WSeat *m_seat = nullptr;
     RootSurfaceContainer *m_rootContainer = nullptr;
-    
+
     // Per-seat state
     SurfaceWrapper *m_activatedSurface = nullptr;
     SurfaceWrapper *m_keyboardFocusSurface = nullptr;
     MoveResizeState m_moveResizeState;
     bool m_metaKeyPressed = false;
+
+    // Popup grab state
+    bool m_hasPopupGrab = false;
 };
