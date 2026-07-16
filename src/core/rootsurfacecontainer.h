@@ -76,6 +76,8 @@ public:
                                     Qt::FocusReason reason);
     SurfaceWrapper *getActivatedSurfaceForSeat(WSeat *seat) const;
     void setupSeatManagement();
+    void dismissAllPopups();
+    void givePopupFocus(SurfaceWrapper *popupWrapper);
 
     WOutputLayout *outputLayout() const;
     WCursor *cursor() const;
