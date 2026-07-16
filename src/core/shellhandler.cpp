@@ -46,9 +46,11 @@
 
 #include <QColor>
 #include <QPointer>
+#include <QSet>
 #include <QTimer>
 
 #include <algorithm>
+#include <cstdlib>
 #include <functional>
 #include <optional>
 
@@ -67,6 +69,43 @@ uint32_t xwaylandWindowId(WXWaylandSurface *surface)
     return surface->handle()->handle()->window_id;
 }
 
+const char *xwaylandInputModelName(WXWaylandSurface::InputModel model)
+{
+    switch (model) {
+    case WXWaylandSurface::InputModelNone:
+        return "none";
+    case WXWaylandSurface::InputModelPassive:
+        return "passive";
+    case WXWaylandSurface::InputModelLocal:
+        return "local";
+    case WXWaylandSurface::InputModelGlobal:
+        return "global";
+    }
+    return "unknown";
+}
+
+WXWaylandSurface::InputModel xwaylandInputModel(WXWaylandSurface *surface)
+{
+    if (!surface || surface->isInvalidated() || !surface->handle() || !surface->handle()->handle())
+        return WXWaylandSurface::InputModelNone;
+
+    return surface->inputModel();
+}
+
+bool xwaylandSupportsWmTakeFocus(WXWaylandSurface *surface)
+{
+    return surface && !surface->isInvalidated() && surface->handle() && surface->handle()->handle()
+        && surface->supportsWmTakeFocus();
+}
+
+QRect xwaylandGeometry(WXWaylandSurface *surface)
+{
+    if (!surface || surface->isInvalidated() || !surface->handle() || !surface->handle()->handle())
+        return QRect();
+
+    return surface->geometry();
+}
+
 WXWaylandSurface *xwaylandShellSurface(SurfaceWrapper *wrapper)
 {
     if (!wrapper || wrapper->type() != SurfaceWrapper::Type::XWayland)
@@ -82,6 +121,263 @@ WXWaylandSurface *managedXwaylandShellSurface(SurfaceWrapper *wrapper)
         return nullptr;
 
     return surface;
+}
+
+struct XWaylandParentResolution
+{
+    WXWaylandSurface *directParent = nullptr;
+    WXWaylandSurface *resolvedParent = nullptr;
+    WSurface *resolvedSurface = nullptr;
+    SurfaceWrapper *resolvedWrapper = nullptr;
+    int resolvedDepth = -1;
+    bool chainTruncated = false;
+    bool usedX11TreeParent = false;
+    xcb_window_t x11TreeDirectWindow = XCB_WINDOW_NONE;
+    xcb_window_t x11TreeResolvedWindow = XCB_WINDOW_NONE;
+    int x11TreeResolvedDepth = -1;
+    bool x11TreeQueried = false;
+    bool x11TreeTruncated = false;
+    const char *x11TreeRejectReason = "not-run";
+};
+
+QRect xwaylandRequestConfigureGeometry(WXWaylandSurface *surface)
+{
+    if (!surface || surface->isInvalidated() || !surface->handle() || !surface->handle()->handle())
+        return QRect();
+
+    return surface->requestConfigureGeometry();
+}
+
+WXWaylandSurface *findXWaylandSurfaceByWindowId(const QList<WXWayland *> &xwaylands,
+                                                xcb_window_t windowId)
+{
+    if (windowId == XCB_WINDOW_NONE)
+        return nullptr;
+
+    for (auto *xwayland : xwaylands) {
+        if (!xwayland)
+            continue;
+
+        const auto surfaces = xwayland->surfaceList();
+        for (auto *candidate : surfaces) {
+            if (xwaylandWindowId(candidate) == windowId)
+                return candidate;
+        }
+    }
+
+    return nullptr;
+}
+
+WXWayland *findXWaylandForSurface(const QList<WXWayland *> &xwaylands,
+                                  WXWaylandSurface *surface)
+{
+    if (!surface)
+        return nullptr;
+
+    for (auto *xwayland : xwaylands) {
+        if (!xwayland)
+            continue;
+
+        const auto surfaces = xwayland->surfaceList();
+        if (surfaces.contains(surface))
+            return xwayland;
+    }
+
+    return nullptr;
+}
+
+bool tryResolveXWaylandParentFromNativeTree(WXWaylandSurface *surface,
+                                            RootSurfaceContainer *rootSurfaceContainer,
+                                            const QList<WXWayland *> &xwaylands,
+                                            XWaylandParentResolution *resolution)
+{
+    if (!surface || !rootSurfaceContainer || !resolution)
+        return false;
+
+    auto *xwayland = findXWaylandForSurface(xwaylands, surface);
+    auto *connection = xwayland ? xwayland->xcbConnection() : nullptr;
+    auto *screen = xwayland ? xwayland->xcbScreen() : nullptr;
+    auto *directParent = surface->parentXWaylandSurface();
+    const xcb_window_t directParentWindow = xwaylandWindowId(directParent);
+
+    resolution->x11TreeDirectWindow = directParentWindow;
+    resolution->x11TreeQueried = directParentWindow != XCB_WINDOW_NONE;
+
+    if (!xwayland || !connection || directParentWindow == XCB_WINDOW_NONE) {
+        resolution->x11TreeRejectReason = !xwayland ? "missing-xwayland"
+            : (!connection ? "missing-xcb-connection" : "missing-direct-parent-window");
+        return false;
+    }
+
+    const xcb_window_t rootWindow = screen ? screen->root : XCB_WINDOW_NONE;
+    constexpr int maxNativeParentDepth = 32;
+    QSet<xcb_window_t> visited;
+    xcb_window_t currentWindow = directParentWindow;
+
+    for (int depth = 0; currentWindow != XCB_WINDOW_NONE && depth < maxNativeParentDepth;
+         ++depth) {
+        if (currentWindow == rootWindow) {
+            resolution->x11TreeRejectReason = "reached-root";
+            return false;
+        }
+
+        if (visited.contains(currentWindow)) {
+            resolution->x11TreeTruncated = true;
+            resolution->x11TreeRejectReason = "loop";
+            return false;
+        }
+        visited.insert(currentWindow);
+
+        auto *candidate = findXWaylandSurfaceByWindowId(xwaylands, currentWindow);
+        WSurface *candidateSurface = candidate && candidate != surface ? candidate->surface() : nullptr;
+        auto *candidateWrapper =
+            candidateSurface ? rootSurfaceContainer->getSurface(candidateSurface) : nullptr;
+        if (candidateWrapper) {
+            resolution->resolvedParent = candidate;
+            resolution->resolvedSurface = candidateSurface;
+            resolution->resolvedWrapper = candidateWrapper;
+            resolution->resolvedDepth = depth;
+            resolution->usedX11TreeParent = true;
+            resolution->x11TreeResolvedWindow = currentWindow;
+            resolution->x11TreeResolvedDepth = depth;
+            resolution->x11TreeRejectReason = "resolved";
+
+            qCDebug(lcTlXwayland)
+                << "[XWL_PARENT_TREE] Resolved XWayland native parent tree:"
+                << "window_id=" << xwaylandWindowId(surface)
+                << "direct_parent_window_id=" << directParentWindow
+                << "resolved_parent_window_id=" << currentWindow
+                << "depth=" << depth
+                << "resolved_parent=" << candidate
+                << "parentSurface=" << candidateSurface
+                << "parentWrapper=" << candidateWrapper
+                << "parent_geometry=" << xwaylandGeometry(candidate)
+                << "parent_request_geometry=" << xwaylandRequestConfigureGeometry(candidate);
+            return true;
+        }
+
+        xcb_generic_error_t *error = nullptr;
+        auto *reply = xcb_query_tree_reply(connection,
+                                           xcb_query_tree(connection, currentWindow),
+                                           &error);
+        if (error) {
+            qCDebug(lcTlXwayland)
+                << "[XWL_PARENT_TREE] Failed to query XWayland native parent tree:"
+                << "window_id=" << xwaylandWindowId(surface)
+                << "query_window_id=" << currentWindow
+                << "depth=" << depth
+                << "xcb_error_code=" << error->error_code;
+            std::free(error);
+            if (reply)
+                std::free(reply);
+            resolution->x11TreeRejectReason = "xcb-error";
+            return false;
+        }
+
+        if (!reply) {
+            resolution->x11TreeRejectReason = "missing-query-reply";
+            return false;
+        }
+
+        const xcb_window_t parentWindow = reply->parent;
+        qCDebug(lcTlXwayland)
+            << "[XWL_PARENT_TREE] XWayland native parent tree step:"
+            << "window_id=" << xwaylandWindowId(surface)
+            << "query_window_id=" << currentWindow
+            << "parent_window_id=" << parentWindow
+            << "depth=" << depth
+            << "candidate=" << candidate
+            << "candidate_surface=" << candidateSurface
+            << "candidate_wrapper=" << candidateWrapper;
+        std::free(reply);
+
+        if (parentWindow == currentWindow) {
+            resolution->x11TreeTruncated = true;
+            resolution->x11TreeRejectReason = "self-parent";
+            return false;
+        }
+
+        currentWindow = parentWindow;
+    }
+
+    if (currentWindow != XCB_WINDOW_NONE)
+        resolution->x11TreeTruncated = true;
+    resolution->x11TreeRejectReason =
+        resolution->x11TreeTruncated ? "max-depth" : "no-parent";
+    return false;
+}
+
+XWaylandParentResolution resolveXWaylandParent(WXWaylandSurface *surface,
+                                               RootSurfaceContainer *rootSurfaceContainer,
+                                               const QList<WXWayland *> &xwaylands)
+{
+    XWaylandParentResolution resolution;
+    if (!surface || !rootSurfaceContainer)
+        return resolution;
+
+    constexpr int maxParentDepth = 16;
+    auto *parent = surface->parentXWaylandSurface();
+    resolution.directParent = parent;
+
+    for (int depth = 0; parent && depth < maxParentDepth;
+         ++depth, parent = parent->parentXWaylandSurface()) {
+        if (parent == surface || parent->isInvalidated()) {
+            resolution.chainTruncated = true;
+            break;
+        }
+
+        auto *parentSurface = parent->surface();
+        auto *parentWrapper = parentSurface ? rootSurfaceContainer->getSurface(parentSurface) : nullptr;
+        if (!parentSurface || !parentWrapper)
+            continue;
+
+        resolution.resolvedParent = parent;
+        resolution.resolvedSurface = parentSurface;
+        resolution.resolvedWrapper = parentWrapper;
+        resolution.resolvedDepth = depth;
+        return resolution;
+    }
+
+    if (parent)
+        resolution.chainTruncated = true;
+
+    tryResolveXWaylandParentFromNativeTree(surface,
+                                           rootSurfaceContainer,
+                                           xwaylands,
+                                           &resolution);
+    return resolution;
+}
+
+void logXWaylandParentChain(WXWaylandSurface *surface,
+                            RootSurfaceContainer *rootSurfaceContainer,
+                            const XWaylandParentResolution &resolution)
+{
+    if (!surface || !rootSurfaceContainer)
+        return;
+
+    constexpr int maxParentDepth = 16;
+    auto *parent = surface->parentXWaylandSurface();
+    for (int depth = 0; parent && depth < maxParentDepth;
+         ++depth, parent = parent->parentXWaylandSurface()) {
+        auto *parentSurface = (!parent->isInvalidated()) ? parent->surface() : nullptr;
+        auto *parentWrapper = parentSurface ? rootSurfaceContainer->getSurface(parentSurface) : nullptr;
+
+        qCDebug(lcTlXwayland) << "[XWL_PARENT_CHAIN] XWayland parent chain:"
+                               << "window_id=" << xwaylandWindowId(surface)
+                               << "depth=" << depth
+                               << "parent_window_id=" << xwaylandWindowId(parent)
+                               << "parent=" << parent
+                               << "parent_surface=" << parentSurface
+                               << "parent_wrapper=" << parentWrapper
+                               << "parent_geometry=" << xwaylandGeometry(parent)
+                               << "parent_request_geometry="
+                               << xwaylandRequestConfigureGeometry(parent)
+                               << "resolved_here=" << (parent == resolution.resolvedParent)
+                               << "chain_truncated=" << resolution.chainTruncated;
+
+        if (parent == surface || parent->isInvalidated())
+            break;
+    }
 }
 
 QQuickItem *qtStackSiblingForTransient(SurfaceWrapper *wrapper, SurfaceWrapper *parentWrapper)
@@ -309,6 +605,32 @@ void ShellHandler::updateWrapperContainer(SurfaceWrapper *wrapper, WSurface *par
     } else {
         auto *xwaylandSurface = xwaylandShellSurface(wrapper);
         const bool oldContainerIsWorkspace = qobject_cast<Workspace *>(oldContainer) != nullptr;
+        const bool unresolvedXWaylandPopupParent =
+            xwaylandSurface && wrapper->isXWaylandPopupLikeTransient()
+            && xwaylandSurface->parentXWaylandSurface();
+        if (unresolvedXWaylandPopupParent) {
+            if (oldContainer != m_popupContainer) {
+                if (oldContainer)
+                    oldContainer->removeSurface(wrapper);
+                m_popupContainer->addSurface(wrapper);
+            }
+
+            wrapper->setHasInitializeContainer(true);
+
+            qCDebug(lcTlXwayland)
+                << "[XWL_POPUP_ROUTE] XWayland unresolved-parent popup route:"
+                << "window_id=" << xwaylandWindowId(xwaylandSurface)
+                << "parent_window_id="
+                << xwaylandWindowId(xwaylandSurface->parentXWaylandSurface())
+                << "wrapper=" << wrapper
+                << "oldContainer=" << oldContainer
+                << "targetContainer=" << m_popupContainer
+                << "bypass_manager=" << xwaylandSurface->isBypassManager()
+                << "window_types=" << xwaylandSurface->windowTypes()
+                << "wrapper_geometry=" << wrapper->geometry();
+            return;
+        }
+
         if (xwaylandSurface && oldContainer && !oldContainerIsWorkspace
             && (xwaylandSurface->isBypassManager() || wrapper->isXWaylandPopupLikeTransient()
                 || oldContainer == m_popupContainer)) {
@@ -789,7 +1111,15 @@ void ShellHandler::onXWaylandSurfaceAdded(WXWaylandSurface *surface)
     if (surface && surface->handle() && surface->handle()->handle()) {
         qCInfo(lcTlXwayland) << "[CREATE] XWayland surface added:"
                               << "window_id=" << surface->handle()->handle()->window_id
-                              << "surface=" << surface;
+                              << "surface=" << surface
+                              << "parent_window_id="
+                              << xwaylandWindowId(surface->parentXWaylandSurface())
+                              << "geometry=" << xwaylandGeometry(surface)
+                              << "window_types=" << surface->windowTypes()
+                              << "input_model=" << xwaylandInputModelName(xwaylandInputModel(surface))
+                              << "bypass_manager=" << surface->isBypassManager()
+                              << "supports_wm_take_focus="
+                              << xwaylandSupportsWmTakeFocus(surface);
     } else {
         qCWarning(lcTlXwayland) << "[CREATE] XWayland surface added with null handle:" << surface;
     }
@@ -817,6 +1147,15 @@ void ShellHandler::onXWaylandSurfaceAdded(WXWaylandSurface *surface)
                              qCInfo(lcTlXwayland) << "[ASSOCIATE] XWayland surface associated:"
                                                    << "window_id=" << (raw->handle() && raw->handle()->handle()
                                                                        ? raw->handle()->handle()->window_id : 0)
+                                                   << "parent_window_id="
+                                                   << xwaylandWindowId(raw->parentXWaylandSurface())
+                                                   << "geometry=" << xwaylandGeometry(raw)
+                                                   << "window_types=" << raw->windowTypes()
+                                                   << "input_model="
+                                                   << xwaylandInputModelName(xwaylandInputModel(raw))
+                                                   << "bypass_manager=" << raw->isBypassManager()
+                                                   << "supports_wm_take_focus="
+                                                   << xwaylandSupportsWmTakeFocus(raw)
                                                    << "prelaunchWrappers=" << m_prelaunchWrappers.size()
                                                    << "closedSplashAppIds=" << m_closedSplashAppIds;
 
@@ -867,7 +1206,15 @@ void ShellHandler::onXWaylandSurfaceAdded(WXWaylandSurface *surface)
         }
         qCInfo(lcTlXwayland) << "[DISSOCIATE] XWayland surface dissociating:"
                               << "window_id=" << windowId
-                              << "wrapper=" << wrapper;
+                              << "parent_window_id="
+                              << xwaylandWindowId(surface->parentXWaylandSurface())
+                              << "wrapper=" << wrapper
+                              << "geometry=" << xwaylandGeometry(surface)
+                              << "window_types=" << surface->windowTypes()
+                              << "input_model=" << xwaylandInputModelName(xwaylandInputModel(surface))
+                              << "bypass_manager=" << surface->isBypassManager()
+                              << "supports_wm_take_focus="
+                              << xwaylandSupportsWmTakeFocus(surface);
         Helper::instance()->clearXWaylandPopupFocusState(surface);
 
         // Cancel pending async property fetch for this surface.
@@ -1042,7 +1389,15 @@ void ShellHandler::ensureXwaylandWrapper(WXWaylandSurface *surface,
         qCInfo(lcTlXwayland) << "[WRAPPER_CREATE] New XWayland wrapper created:"
                               << "wrapper=" << wrapper
                               << "appId=" << targetAppId
-                              << "window_id=" << xwaylandWindowId(surface);
+                              << "window_id=" << xwaylandWindowId(surface)
+                              << "parent_window_id="
+                              << xwaylandWindowId(surface->parentXWaylandSurface())
+                              << "geometry=" << xwaylandGeometry(surface)
+                              << "window_types=" << surface->windowTypes()
+                              << "input_model=" << xwaylandInputModelName(xwaylandInputModel(surface))
+                              << "bypass_manager=" << surface->isBypassManager()
+                              << "supports_wm_take_focus="
+                              << xwaylandSupportsWmTakeFocus(surface);
     }
 
     // IM candidate panel detection via XWayland xprop
@@ -1068,16 +1423,39 @@ void ShellHandler::ensureXwaylandWrapper(WXWaylandSurface *surface,
             return;
         }
 
-        WSurface *parentSurface = nullptr;
-        if (rawSurface) {
-            if (auto *x11Parent = rawSurface->parentXWaylandSurface())
-                parentSurface = x11Parent->surface();
-        }
-        SurfaceWrapper *parentWrapper = parentSurface ? m_rootSurfaceContainer->getSurface(parentSurface) : nullptr;
+        const auto parentResolution =
+            resolveXWaylandParent(rawSurface, m_rootSurfaceContainer.data(), m_xwaylands);
+        WSurface *parentSurface = parentResolution.resolvedSurface;
+        SurfaceWrapper *parentWrapper = parentResolution.resolvedWrapper;
         qCDebug(lcTlXwayland) << "[XWL_PARENT_CONTAINER] XWayland container update:"
+                               << "window_id=" << xwaylandWindowId(rawSurface)
                                << "wrapper=" << rawWrapper
+                               << "direct_parent_window_id="
+                               << xwaylandWindowId(parentResolution.directParent)
+                               << "resolved_parent_window_id="
+                               << xwaylandWindowId(parentResolution.resolvedParent)
+                               << "resolved_depth=" << parentResolution.resolvedDepth
+                               << "chain_truncated=" << parentResolution.chainTruncated
+                               << "used_x11_tree_parent="
+                               << parentResolution.usedX11TreeParent
+                               << "x11_tree_direct_window_id="
+                               << parentResolution.x11TreeDirectWindow
+                               << "x11_tree_resolved_window_id="
+                               << parentResolution.x11TreeResolvedWindow
+                               << "x11_tree_resolved_depth="
+                               << parentResolution.x11TreeResolvedDepth
+                               << "x11_tree_queried=" << parentResolution.x11TreeQueried
+                               << "x11_tree_truncated="
+                               << parentResolution.x11TreeTruncated
+                               << "x11_tree_reject_reason="
+                               << parentResolution.x11TreeRejectReason
                                << "parentSurface=" << parentSurface
                                << "parentWrapper=" << parentWrapper;
+        if (parentResolution.directParent
+            && (parentResolution.directParent->isInvalidated()
+                || parentResolution.directParent->surface() != parentResolution.resolvedSurface)) {
+            logXWaylandParentChain(rawSurface, m_rootSurfaceContainer.data(), parentResolution);
+        }
         updateWrapperContainer(rawWrapper, parentSurface);
     };
     surface->safeConnect(&WXWaylandSurface::parentXWaylandSurfaceChanged,

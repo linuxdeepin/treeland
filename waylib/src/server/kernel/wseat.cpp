@@ -24,6 +24,7 @@
 
 #include <QQuickWindow>
 #include <QGuiApplication>
+#include <QMouseEvent>
 #include <QQuickItem>
 #include <QDebug>
 #include <QTimer>
@@ -39,6 +40,58 @@ QT_END_NAMESPACE
 
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
+
+namespace {
+
+void silentPointerGrabEnter(wlr_seat_pointer_grab *, wlr_surface *, double, double)
+{
+}
+
+void silentPointerGrabClearFocus(wlr_seat_pointer_grab *)
+{
+}
+
+void silentPointerGrabMotion(wlr_seat_pointer_grab *, uint32_t, double, double)
+{
+}
+
+uint32_t silentPointerGrabButton(wlr_seat_pointer_grab *,
+                                 uint32_t,
+                                 uint32_t,
+                                 wl_pointer_button_state)
+{
+    return 0;
+}
+
+void silentPointerGrabAxis(wlr_seat_pointer_grab *,
+                           uint32_t,
+                           wl_pointer_axis,
+                           double,
+                           int32_t,
+                           wl_pointer_axis_source,
+                           wl_pointer_axis_relative_direction)
+{
+}
+
+void silentPointerGrabFrame(wlr_seat_pointer_grab *)
+{
+}
+
+void silentPointerGrabCancel(wlr_seat_pointer_grab *)
+{
+}
+
+const wlr_pointer_grab_interface silentPointerGrabInterface = {
+    silentPointerGrabEnter,
+    silentPointerGrabClearFocus,
+    silentPointerGrabMotion,
+    silentPointerGrabButton,
+    silentPointerGrabAxis,
+    silentPointerGrabFrame,
+    silentPointerGrabCancel,
+};
+
+} // namespace
 
 #if QT_CONFIG(wheelevent)
 class Q_DECL_HIDDEN WSeatWheelEvent : public QWheelEvent {
@@ -738,6 +791,12 @@ wlr_seat *WSeat::nativeHandle() const
     return d_func()->nativeHandle();
 }
 
+bool WSeat::pointerHasGrab() const
+{
+    auto *seatHandle = handle();
+    return seatHandle && seatHandle->pointer_has_grab();
+}
+
 QString WSeat::name() const
 {
     return d_func()->name;
@@ -1064,6 +1123,7 @@ bool WSeat::redirectPointerEvent(WSurface *target,
     const auto focusBefore = d->pointerFocusSurface();
     const auto *pointEvent =
         event->isSinglePointEvent() ? static_cast<QSinglePointEvent *>(event) : nullptr;
+    const bool inputRegionAccepts = target->inputRegionContains(localPos);
 
     qCDebug(lcWlPointer) << "[WL_POINTER_REDIRECT] Redirect pointer event:"
                          << "event_type=" << event->type()
@@ -1072,6 +1132,7 @@ bool WSeat::redirectPointerEvent(WSurface *target,
                          << "eventObject=" << eventObject
                          << "focus_before=" << focusBefore
                          << "local_pos=" << localPos
+                         << "input_region_accepts=" << inputRegionAccepts
                          << "global_pos=" << (pointEvent ? pointEvent->globalPosition() : QPointF());
 
     if (focusBefore != nativeTarget || d->pointerFocusEventObject != eventObject) {
@@ -1083,7 +1144,8 @@ bool WSeat::redirectPointerEvent(WSurface *target,
                                  << "target=" << target
                                  << "eventObject=" << eventObject
                                  << "focus_before=" << focusBefore
-                                 << "focus_after=" << d->pointerFocusSurface();
+                                 << "focus_after=" << d->pointerFocusSurface()
+                                 << "input_region_accepts=" << inputRegionAccepts;
             return false;
         }
     }
@@ -1139,7 +1201,58 @@ bool WSeat::redirectPointerEvent(WSurface *target,
                          << "event_type=" << event->type()
                          << "seat=" << this
                          << "target=" << target
-                         << "focus_after=" << d->pointerFocusSurface();
+                         << "focus_after=" << d->pointerFocusSurface()
+                         << "input_region_accepts=" << inputRegionAccepts;
+    return true;
+}
+
+bool WSeat::consumePointerButtonEvent(QMouseEvent *event)
+{
+    if (!event)
+        return false;
+
+    wl_pointer_button_state state;
+    switch (event->type()) {
+    case QEvent::MouseButtonPress:
+        state = WL_POINTER_BUTTON_STATE_PRESSED;
+        break;
+    case QEvent::MouseButtonRelease:
+        state = WL_POINTER_BUTTON_STATE_RELEASED;
+        break;
+    default:
+        return false;
+    }
+
+    if (event->button() == Qt::NoButton)
+        return false;
+
+    W_D(WSeat);
+    auto *seatHandle = d->handle();
+    if (!seatHandle)
+        return false;
+
+    if (seatHandle->pointer_has_grab()) {
+        qCDebug(lcWlPointer) << "[WL_POINTER_BUTTON_CONSUME] Skip consumed pointer button event:"
+                             << "event_type=" << event->type()
+                             << "seat=" << this
+                             << "button=" << event->button()
+                             << "timestamp=" << event->timestamp()
+                             << "reason=active-pointer-grab";
+        return false;
+    }
+
+    wlr_seat_pointer_grab silentGrab = {};
+    silentGrab.interface = &silentPointerGrabInterface;
+
+    seatHandle->pointer_start_grab(&silentGrab);
+    d->doNotifyButton(WCursor::toNativeButton(event->button()), state, event->timestamp());
+    seatHandle->pointer_end_grab();
+
+    qCDebug(lcWlPointer) << "[WL_POINTER_BUTTON_CONSUME] Consumed pointer button event:"
+                         << "event_type=" << event->type()
+                         << "seat=" << this
+                         << "button=" << event->button()
+                         << "timestamp=" << event->timestamp();
     return true;
 }
 
@@ -1155,6 +1268,14 @@ WSurface *WSeat::pointerFocusSurface() const
     if (auto fs = d->pointerFocusSurface())
         return WSurface::fromHandle(qw_surface::from(fs));
     return nullptr;
+}
+
+bool WSeat::pointerFocusMatches(WSurface *surface, QObject *eventObject) const
+{
+    W_DC(WSeat);
+    return surface && eventObject && surface->handle() && surface->handle()->handle()
+        && d->pointerFocusSurface() == surface->handle()->handle()
+        && d->pointerFocusEventObject == eventObject;
 }
 
 void WSeat::setKeyboardFocusSurface(WSurface *surface)
