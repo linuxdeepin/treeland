@@ -11,12 +11,42 @@
 class Gesture;
 class QKeyEvent;
 
-enum class ShortcutAction : uint32_t;
-
 class ShortcutController : public QObject
 {
     Q_OBJECT
 public:
+    // Values defined in treeland-shortcut-manager-v2 protocol
+    enum class ShortcutAction : uint32_t {
+        Notify                = 1,
+        Workspace1            = 2,
+        Workspace2            = 3,
+        Workspace3            = 4,
+        Workspace4            = 5,
+        Workspace5            = 6,
+        Workspace6            = 7,
+        PrevWorkspace         = 8,
+        NextWorkspace         = 9,
+        ShowDesktop           = 10,
+        Maximize              = 11,
+        CancelMaximize        = 12,
+        MoveWindow            = 13,
+        CloseWindow           = 14,
+        ShowWindowMenu        = 15,
+        OpenMultiTaskView     = 16,
+        CloseMultiTaskView    = 17,
+        ToggleMultitaskView   = 18,
+        ToggleFpsDisplay      = 19,
+        Lockscreen            = 20,
+        ShutdownMenu          = 21,
+        Quit                  = 22,
+        TaskSwitchNext        = 24,
+        TaskSwitchPrev        = 25,
+        TaskSwitchSameAppNext = 26,
+        TaskSwitchSameAppPrev = 27,
+    };
+    Q_ENUM(ShortcutAction)
+    static const char *actionName(ShortcutAction action);
+
     enum KeyFlag : uint32_t {
         None = 0,
         KeyPress = 0x1,
@@ -52,5 +82,8 @@ private:
     QMap<QString, std::function<void()>> m_deleters;
     QMap<ShortcutAction, int> m_actionCombinedMap;
 };
+
+// Convenience alias so existing bare `ShortcutAction` references keep working
+using ShortcutAction = ShortcutController::ShortcutAction;
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(ShortcutController::KeyFlags)
