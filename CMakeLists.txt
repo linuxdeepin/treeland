@@ -59,9 +59,14 @@ set(LOCAL_QML_IMPORT_PATH "${PROJECT_BINARY_DIR}/qt/qml")
 if(WITH_SUBMODULE_WAYLIB)
     set(WITH_SUBMODULE_QWLROOTS ON)
     include(${CMAKE_CURRENT_SOURCE_DIR}/qwlroots/cmake/WaylandScannerHelpers.cmake)
+    # Vendored wlroots must be available before waylib/qwlroots consumers.
+    # Scaffold in wlroots/; upstream sources under 3rdparty/wlroots.
+    add_subdirectory(wlroots)
     add_subdirectory(waylib)
     list(APPEND LOCAL_QML_IMPORT_PATH "${PROJECT_BINARY_DIR}/waylib/src/server")
 else()
+    # Still vendor wlroots for treeland modules that link Wlroots::wlroots.
+    add_subdirectory(wlroots)
     find_package(Waylib REQUIRED Server)
 endif()
 
@@ -70,8 +75,6 @@ set(QML_IMPORT_PATH "${LOCAL_QML_IMPORT_PATH}" CACHE STRING "For LSP" FORCE)
 # PKG-CONFIG
 find_package(PkgConfig REQUIRED)
 find_package(Qt6 CONFIG REQUIRED Core DBus Gui Qml Quick QuickControls2 LinguistTools Test QuickTest)
-
-pkg_check_modules(WLROOTS REQUIRED IMPORTED_TARGET wlroots-0.19)
 
 qt_standard_project_setup(REQUIRES 6.8)
 

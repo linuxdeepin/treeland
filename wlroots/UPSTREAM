@@ -1,0 +1,19 @@
+# Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
+# SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+
+# Vendored wlroots upstream pin (machine-readable + human-readable).
+# Updated by: wlroots/update-from-upstream.sh
+#
+# History model: NON-SQUASH git subtree under 3rdparty/wlroots so
+# `git blame 3rdparty/wlroots/<file>` shows original upstream authors.
+# Treeland-local patches are normal commits on top of the subtree.
+#
+# SOURCE_URL  - git remote to fetch from
+# REF         - last requested ref (tag, branch, or commit-ish)
+# COMMIT      - full SHA of pure upstream tip currently merged
+# VERSION     - project version string from upstream meson.build
+
+SOURCE_URL=https://gitlab.freedesktop.org/wlroots/wlroots.git
+REF=0.19.3
+COMMIT=88a869855742281c98c22cab9641b317b8d065ef
+VERSION=0.19.3

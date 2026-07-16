@@ -4,6 +4,7 @@
 #include <time.h>
 #include <wayland-server-core.h>
 #include <wlr/types/wlr_compositor.h>
+#include <wlr/types/wlr_data_device.h>
 #include <wlr/util/log.h>
 #include "types/wlr_seat.h"
 
@@ -415,6 +416,11 @@ void wlr_seat_pointer_start_grab(struct wlr_seat *wlr_seat,
 	assert(wlr_seat);
 	grab->seat = wlr_seat;
 	wlr_seat->pointer_state.grab = grab;
+
+    // Preserve drag grab priority
+    if (wlr_seat->drag && grab != &wlr_seat->drag->pointer_grab) {
+        return;
+    }
 
 	wl_signal_emit_mutable(&wlr_seat->events.pointer_grab_begin, grab);
 }

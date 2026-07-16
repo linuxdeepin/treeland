@@ -4,7 +4,7 @@ include(CMakeFindDependencyMacro)
 find_dependency(Qt@QT_VERSION_MAJOR@Core REQUIRED)
 find_dependency(PkgConfig REQUIRED)
 
-pkg_check_modules(WLROOTS REQUIRED IMPORTED_TARGET @wlr@=@WLROOTS_VERSION@)
+@QWLROOTS_WLROOTS_CMAKE_CONFIG_INIT@
 pkg_check_modules(WAYLAND_SERVER REQUIRED IMPORTED_TARGET wayland-server)
 pkg_check_modules(PIXMAN REQUIRED IMPORTED_TARGET pixman-1)
 pkg_check_modules(XKBCOMMON REQUIRED IMPORTED_TARGET xkbcommon)
