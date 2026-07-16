@@ -11,7 +11,6 @@
 #include <QObject>
 #include <QQmlEngine>
 
-class ShortcutController;
 class ShortcutManagerV2Private;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -21,36 +20,6 @@ class WSocket;
 WAYLIB_SERVER_END_NAMESPACE
 
 WAYLIB_SERVER_USE_NAMESPACE
-
-// Forward declaration - values defined in treeland-shortcut-manager-v2 protocol
-enum class ShortcutAction : uint32_t {
-    Notify                = 1,
-    Workspace1            = 2,
-    Workspace2            = 3,
-    Workspace3            = 4,
-    Workspace4            = 5,
-    Workspace5            = 6,
-    Workspace6            = 7,
-    PrevWorkspace         = 8,
-    NextWorkspace         = 9,
-    ShowDesktop           = 10,
-    Maximize              = 11,
-    CancelMaximize        = 12,
-    MoveWindow            = 13,
-    CloseWindow           = 14,
-    ShowWindowMenu        = 15,
-    OpenMultiTaskView     = 16,
-    CloseMultiTaskView    = 17,
-    ToggleMultitaskView   = 18,
-    ToggleFpsDisplay      = 19,
-    Lockscreen            = 20,
-    ShutdownMenu          = 21,
-    Quit                  = 22,
-    TaskSwitchNext        = 24,
-    TaskSwitchPrev        = 25,
-    TaskSwitchSameAppNext = 26,
-    TaskSwitchSameAppPrev = 27,
-};
 
 class ShortcutManagerV2
     : public QObject
