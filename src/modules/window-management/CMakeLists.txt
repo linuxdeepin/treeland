@@ -13,7 +13,7 @@ impl_treeland(
         ${CMAKE_SOURCE_DIR}/src/modules/window-management/windowmanagementinterfacev1.cpp
         ${CMAKE_BINARY_DIR}/src/modules/window-management/wayland-treeland-window-management-v1-server-protocol.c
     LINK
-        PkgConfig::WLROOTS
+        Wlroots::wlroots
         Waylib::WaylibServer
         Qt6::Core
         Qt6::Gui

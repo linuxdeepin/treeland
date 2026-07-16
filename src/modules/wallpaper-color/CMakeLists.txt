@@ -13,7 +13,7 @@ impl_treeland(
         ${CMAKE_SOURCE_DIR}/src/modules/wallpaper-color/wallpapercolorinterfacev1.cpp
         ${CMAKE_BINARY_DIR}/src/modules/wallpaper-color/wayland-treeland-wallpaper-color-v1-server-protocol.c
     LINK
-        PkgConfig::WLROOTS
+        Wlroots::wlroots
         Waylib::WaylibServer
         Qt6::Core
         Qt6::Gui

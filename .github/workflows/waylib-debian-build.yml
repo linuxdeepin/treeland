@@ -5,12 +5,16 @@ on:
     paths:
       - 'waylib/**'
       - 'qwlroots/**'
+      - 'wlroots/**'
+      - '3rdparty/wlroots/**'
       - '.github/workflows/waylib-debian-build.yml'
 
   pull_request:
     paths:
       - 'waylib/**'
       - 'qwlroots/**'
+      - 'wlroots/**'
+      - '3rdparty/wlroots/**'
       - '.github/workflows/waylib-debian-build.yml'
 
 jobs:
@@ -20,9 +24,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build qwlroots first
-        working-directory: qwlroots
+      - name: Build waylib deb package
+        working-directory: waylib
         run: |
+          set -euxo pipefail
           # Configure apt sources for unstable
           echo "deb http://deb.debian.org/debian unstable main" > /etc/apt/sources.list
           echo "deb http://deb.debian.org/debian sid main" >> /etc/apt/sources.list
@@ -32,44 +37,20 @@ jobs:
 
           # Add deepin community repository to install wlr-protocols
           echo "deb [trusted=yes] http://mirrors.kernel.org/deepin/beige/ crimson main commercial community" > /etc/apt/sources.list.d/deepin-community.list
-
-          # Update package lists (ignore signature errors for this temporary repo)
           apt-get update --allow-unauthenticated
-
-          # Install wlr-protocols package directly
           apt-get install -y --allow-unauthenticated wlr-protocols
-          # Remove deepin repository to avoid system pollution
           rm -f /etc/apt/sources.list.d/deepin-community.list
           apt-get update
 
-          # Install other build dependencies for qwlroots
+          # qwlroots is built from the monorepo submodule below
+          sed -i '/^[[:space:]]*qwlroots,/d' debian/control
           mk-build-deps --install --remove --tool='apt-get -o Debug::pkgProblemResolver=yes --no-install-recommends --yes' debian/control
 
-          # Build qwlroots deb package
-          dpkg-buildpackage -uc -us -b
-          echo "✅ qwlroots deb package built successfully!"
-          ls -la ../*.deb
-
-      - name: Install qwlroots deb package
-        run: |
-          # Install the built qwlroots package
-          dpkg -i qwlroots*.deb || apt-get install -f -y
-          echo "✅ qwlroots package installed!"
-
-      - name: Build waylib deb package
-        working-directory: waylib
-        run: |
-          # Install remaining build dependencies for waylib
-          apt-get install -y devscripts equivs
-
-          # Install waylib build dependencies (qwlroots is now available from the installed deb)
-          mk-build-deps --install --remove --tool='apt-get -o Debug::pkgProblemResolver=yes --no-install-recommends --yes' debian/control
-
-          # Build waylib with submodule disabled (use system qwlroots)
-          # Modify debian/rules to disable submodule
-          sed -i 's/-DCMAKE_INSTALL_PREFIX=\/usr/-DCMAKE_INSTALL_PREFIX=\/usr -DWITH_SUBMODULE_QWLROOTS=OFF/' debian/rules
-          echo "Modified debian/rules to disable qwlroots submodule:"
-          cat debian/rules
+          # Build waylib with monorepo qwlroots so it uses vendored wlroots
+          ln -sfn ../qwlroots qwlroots
+          echo "Created symlink: waylib/qwlroots -> ../qwlroots"
+          ls -la qwlroots
+          echo "usr/lib/*/libqwlroots.a" > debian/not-installed
 
           dpkg-buildpackage -uc -us -b
           echo "✅ waylib deb package built successfully!"
