@@ -11,6 +11,7 @@
 
 #include <QKeyEvent>
 #include <QKeySequence>
+#include <QMetaEnum>
 #include <cstdint>
 
 static_assert(
@@ -35,6 +36,13 @@ ShortcutController::ShortcutController(QObject *parent)
 ShortcutController::~ShortcutController()
 {
     clear();
+}
+
+const char *ShortcutController::actionName(ShortcutAction action)
+{
+    const auto meta = QMetaEnum::fromType<ShortcutAction>();
+    const char *key = meta.valueToKey(static_cast<int>(action));
+    return key ? key : "Unknown";
 }
 
 uint ShortcutController::registerKey(const QString &name, const QString& key, ShortcutController::KeyFlags keybindFlags, ShortcutAction action)
@@ -64,8 +72,8 @@ uint ShortcutController::registerKey(const QString &name, const QString& key, Sh
     if (entry.contains(action)) {
         const auto &[prevName, flags] = entry[action];
         m_deleters.remove(prevName);
-        qCInfo(lcTlShortcut) << "Overriding existing key binding of"
-                                 << keySeq[0] << "for action" << static_cast<int>(action)
+        qCInfo(lcTlShortcut).noquote() << "Overriding existing key binding of"
+                                 << keySeq[0] << "for action" << actionName(action)
                                  << "by name" << prevName << "with new name" << name << "and flags" << keybindFlags;
     }
     m_keyMap[combined][action] = std::make_pair(name, keybindFlags);
@@ -140,6 +148,13 @@ uint ShortcutController::registerSwipeGesture(const QString &name, uint finger, 
         }
     };
 
+    if (lcTlShortcut().isInfoEnabled()) {
+        static const char *dirNames[] = {"Invalid", "Down", "Left", "Up", "Right"};
+        qCInfo(lcTlShortcut).noquote() << "register swipe gesture:" << name
+            << "finger:" << finger
+            << "direction:" << dirNames[direction]
+            << "action:" << actionName(action);
+    }
     return 0;
 }
 
@@ -188,6 +203,11 @@ uint ShortcutController::registerHoldGesture(const QString &name, uint finger, S
         }
     };
 
+    if (lcTlShortcut().isInfoEnabled()) {
+        qCInfo(lcTlShortcut).noquote() << "register hold gesture:" << name
+            << "finger:" << finger
+            << "action:" << actionName(action);
+    }
     return 0;
 }
 
