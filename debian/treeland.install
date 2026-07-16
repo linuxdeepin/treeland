@@ -1,4 +1,5 @@
 usr/bin/treeland
+usr/bin/treeland-debug
 usr/bin/treeland.sh
 usr/lib/systemd/user/*
 usr/lib/systemd/system/*
@@ -7,4 +8,3 @@ usr/share/*/translations/*
 usr/share/dbus-1/system.d/*
 usr/lib/*/lib*.so.*
 usr/lib/*/treeland/plugins/lib*.so
-
