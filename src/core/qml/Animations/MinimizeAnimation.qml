@@ -1,6 +1,8 @@
 // Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Effects
 import Treeland
@@ -17,12 +19,12 @@ Item {
 
     clip: false
 
-    required property var target
+    required property SurfaceWrapper target
     required property rect position
-    required property var direction
+    required property int direction
     property int duration: 400 * Helper.animationSpeed
 
-    function start() {
+    function start(): void {
         mainAnimation.start();
     }
 

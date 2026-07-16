@@ -1,6 +1,8 @@
 // Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Layouts
 import Treeland
@@ -14,8 +16,8 @@ Item {
 
     property bool switchOn: true
     property int focusReason: Qt.TabFocusReason
-    required property QtObject output
-    readonly property QtObject model: Helper.workspace.currentFilter
+    required property QtObject output // Treeland Output (QML_ANONYMOUS), cannot use as named type
+    readonly property QtObject model: Helper.workspace.currentFilter // SurfaceFilterProxyModel, not QML-registered
 
     // control all switch item
     property bool enableBlur: GraphicsInfo.api !== GraphicsInfo.Software
@@ -224,9 +226,11 @@ Item {
                     MouseArea {
                         anchors.fill: parent
                         onClicked: {
+                            // qmllint disable unqualified: qmllint directive — switchView and switchIndex are outer scope
                             let pos = mapToItem(switchView.contentItem, mouse.x, mouse.y)
                             let index = switchView.indexAt(pos.x, pos.y)
                             switchIndex(index)
+                            // qmllint enable unqualified
                         }
                     }
                 }
@@ -384,6 +388,7 @@ Item {
 
             Connections {
                 target: previewWindows
+                // qmllint disable unqualified: qmllint directive — previewWindows is an outer scope id
                 function onRestoreSurfaces() {
                     if (surface && surface.shellSurface) {
                         surface.x = windowItem.surfaceX
@@ -391,6 +396,7 @@ Item {
                         surface.opacity = 1.0
                     }
                 }
+                // qmllint enable unqualified
             }
         }
 
@@ -402,7 +408,7 @@ Item {
         }
     }
 
-    function previewPostion(surface, content) {
+    function previewPostion(surface: SurfaceWrapper, content: Item): var {
         const hSpacing = 20
         const vSpacing = 20
         let preferredHeight = surface.height < (content.height - 2 * vSpacing) ?
@@ -417,7 +423,7 @@ Item {
         }
     }
 
-    function ensurePreview() {
+    function ensurePreview(): void {
         if (!previewContext.sourceComponent && root.enableAnimation)
             previewContext.sourceComponent = previewContext.previewComponent
 
@@ -435,7 +441,7 @@ Item {
         }
     }
 
-    function prejudgment() {
+    function prejudgment(): bool {
         if (previewWindows.finishedAnimations < previewWindows.totalAnimations) {
             previewWindows.restoreSurfaces()
             previewWindows.model = []
@@ -456,7 +462,7 @@ Item {
         return true;
     }
 
-    function previous() {
+    function previous(): void {
         if (!prejudgment())
             return;
 
@@ -470,7 +476,7 @@ Item {
         switchIndex(nextIndex)
     }
 
-    function next() {
+    function next(): void {
         if (!prejudgment())
             return;
 
@@ -484,21 +490,21 @@ Item {
         switchIndex(nextIndex)
     }
 
-    function previousSameApp() {
+    function previousSameApp(): void {
         if (switchView.currentItem && switchView.currentItem.surface)
             root.model.setFilterAppId(switchView.currentItem.surface.appId)
 
         previous()
     }
 
-    function nextSameApp() {
+    function nextSameApp(): void {
         if (switchView.currentItem && switchView.currentItem.surface)
             root.model.setFilterAppId(switchView.currentItem.surface.appId)
 
         next()
     }
 
-    function show() {
+    function show(): void {
         if (!prejudgment())
             return;
 
@@ -509,7 +515,7 @@ Item {
         switchIndex(nextIndex)
     }
 
-    function switchIndex(next) {
+    function switchIndex(next: int): void {
         if ((next >= 0 && next < switchView.count) && showTask(true)) {
             previewContext.sourceSurface = switchView.currentItem.surface
             switchView.currentIndex = next
@@ -519,7 +525,7 @@ Item {
         }
     }
 
-    function showTask(visible) {
+    function showTask(visible: bool): bool {
         if (visible && switchView.count === 0) {
             root.visible = false
             return false
@@ -531,7 +537,7 @@ Item {
         return switchView.currentItem && switchView.visible
     }
 
-    function exit() {
+    function exit(): void {
         if (!root.visible) {
             root.switchOn = false
             return

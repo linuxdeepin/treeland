@@ -10,6 +10,9 @@ qt_add_library(multitaskview SHARED
 
 qt_add_qml_module(multitaskview
     URI MultitaskView
+    IMPORTS
+        Treeland
+        Waylib.Server
     SOURCES
         multitaskview.h
         multitaskview.cpp

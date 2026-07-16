@@ -1,6 +1,8 @@
 // Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import Treeland
 import MultitaskView
@@ -12,11 +14,11 @@ import org.deepin.dtk.style as DS
 
 Item {
     id: root
-    required property QtObject output
+    required property QtObject output // Treeland Output (QML_ANONYMOUS), cannot use as named type
     required property WorkspaceModel workspace
     required property int workspaceListPadding
     required property Item draggedParent
-    required property QtObject dragManager
+    required property QtObject dragManager // QtObject with dynamic properties, defined in QML
     required property Multitaskview multitaskview
     required property bool exited
     required property real partialGestureFactor
@@ -112,6 +114,7 @@ Item {
         Loader {
             id: windowLoader
             sourceComponent: Repeater {
+                // qmllint disable unqualified: qmllint directive — surfaceModel and root are outer scope
                 id: surfaceRepeater
                 model: surfaceModel
                 Item {
@@ -243,7 +246,7 @@ Item {
                         radius: delegateCornerRadius + Helper.config.highlightBorderWidth
                     }
 
-                    function conv(y, item = parent) { // convert to draggedParent's coord
+                    function conv(y: real, item: Item): real { // convert to draggedParent's coord
                         return mapToItem(draggedParent, mapFromItem(item, 0, y)).y
                     }
 
@@ -405,6 +408,7 @@ Item {
             active: surfaceModel.count === 0
             anchors.centerIn: parent
             sourceComponent: Control {
+                // qmllint disable unqualified: qmllint directive — root and surfaceModel are outer scope
                 id: emptyWindowHint
                 width: 200
                 height: 50

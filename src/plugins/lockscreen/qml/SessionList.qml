@@ -1,6 +1,8 @@
 // Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
@@ -36,6 +38,7 @@ Popup {
         }
 
         delegate: Item {
+            // qmllint disable unqualified: qmllint directive — popup is an outer scope id
             required property string name
             required property int index
             width: parent.width
@@ -56,6 +59,7 @@ Popup {
                     popup.close()
                 }
             }
+            // qmllint enable unqualified
 
             Rectangle {
                 id: background

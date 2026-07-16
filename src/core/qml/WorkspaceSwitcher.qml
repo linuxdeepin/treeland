@@ -1,5 +1,7 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+
+pragma ComponentBehavior: Bound
 
 import QtQuick
 import Treeland
@@ -19,7 +21,7 @@ Item {
             id: animationDelegate
 
             required property int index
-            required property QtObject output
+            required property QtObject output // Treeland Output (QML_ANONYMOUS), cannot use as named type
             readonly property real localAnimationScaleFactor: width / Helper.workspace.animationController.refWidth
             clip: true
             x: output.outputItem.x
@@ -33,6 +35,7 @@ Item {
                 Repeater {
                     model: Helper.workspace.models
                     delegate: Item {
+                        // qmllint disable unqualified: qmllint directive — animationDelegate is an outer delegate id
                         width: animationDelegate.output.outputItem.width
                         height: animationDelegate.output.outputItem.height
                         id: workspaceDelegate
@@ -46,6 +49,7 @@ Item {
                             workspace: workspaceDelegate.workspace
                             output: animationDelegate.output
                         }
+                        // qmllint enable unqualified
                     }
                 }
             }

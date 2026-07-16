@@ -1,6 +1,8 @@
 // Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import Treeland
 
@@ -18,9 +20,9 @@ Item {
     }
 
     property int state: LoginAnimation.Show
-    required property var target
+    required property Item target
 
-    function start(pos, to) {
+    function start(pos: point, to: point): void {
         if (GreeterProxy.showAnimation) {
             xAni.from = pos.x
             xAni.to = to.x
@@ -39,7 +41,7 @@ Item {
         }
     }
 
-    function stop() {
+    function stop(): void {
         visible = false
         effect.sourceItem = null
         stopped()

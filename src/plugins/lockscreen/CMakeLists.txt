@@ -11,6 +11,8 @@ qt_add_library(lockscreen SHARED
 
 qt_add_qml_module(lockscreen
     URI LockScreen
+    IMPORTS
+        Treeland
     SOURCES
         logoprovider.h
         logoprovider.cpp

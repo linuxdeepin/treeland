@@ -1,6 +1,8 @@
 // Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
@@ -73,7 +75,7 @@ RowLayout {
         Layout.alignment: Qt.AlignHCenter
         iconName: "login_power"
 
-        function closePopup() {
+        function closePopup(): void {
             powerList.close()
         }
 
@@ -145,7 +147,7 @@ RowLayout {
     /* Functions and Connections */
     /*****************************/
 
-    function showUserList() {
+    function showUserList(): void {
         userItem.expand = true
         userList.open()
     }

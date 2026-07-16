@@ -1,6 +1,8 @@
 // Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Controls
 import Waylib.Server
@@ -16,12 +18,12 @@ OutputItem {
     cursorDelegate: Cursor {
         id: cursorItem
 
-        required property QtObject outputCursor
+        required property QtObject outputCursor // outputCursor is WQuickCursor (QML_ANONYMOUS), cannot use as named type
         readonly property point rawPosition: parent.mapFromGlobal(cursor.position.x, cursor.position.y)
         readonly property real effectiveScale: rootOutputItem.devicePixelRatio || 1.0
 
         // Align cursor position to pixel grid to prevent blur on fractional DPR displays
-        function alignToPixelGrid(value) {
+        function alignToPixelGrid(value: real): real {
             return Math.round(value * effectiveScale) / effectiveScale
         }
 
@@ -37,12 +39,14 @@ OutputItem {
         visible: valid && outputCursor.visible
         OutputLayer.enabled: !outputCursor.output.forceSoftwareCursor
         OutputLayer.keepLayer: true
+        // qmllint disable unqualified: qmllint directive — screenViewport is an outer scope property
         OutputLayer.outputs: [screenViewport]
         OutputLayer.flags: OutputLayer.Cursor
         OutputLayer.cursorHotSpot: hotSpot
 
         themeName: Helper.config.cursorThemeName
         sourceSize: Qt.size(Helper.config.cursorSize, Helper.config.cursorSize)
+        // qmllint enable unqualified
     }
 
     OutputViewport {
@@ -63,12 +67,12 @@ OutputItem {
         Timer {
             id: setTransform
 
-            property var scheduleTransform
+            property int scheduleTransform
             onTriggered: screenViewport.rotateOutput(scheduleTransform)
             interval: rotationAnimator.duration / 2
         }
 
-        function rotationOutput(orientation) {
+        function rotationOutput(orientation: int): void {
             setTransform.scheduleTransform = orientation
             setTransform.start()
 
@@ -175,7 +179,7 @@ OutputItem {
 
             Connections {
                 target: Helper
-                function onLaunchpadMappedChanged(output, mapped) {
+                function onLaunchpadMappedChanged(output: WaylandOutput, mapped: bool) {
                     if (output !== rootOutputItem.output) {
                         return;
                     }
@@ -183,7 +187,7 @@ OutputItem {
                     wallpaper.state = mapped ? "Scale" : "Normal"
                 }
 
-                function onShowDesktopRequested(output) {
+                function onShowDesktopRequested(output: WaylandOutput) {
                     if (output !== rootOutputItem.output) {
                         return;
                     }
@@ -193,7 +197,7 @@ OutputItem {
                     wallpaper.slowDown()
                 }
 
-                function onStartLockscreened(output, showAnimation) {
+                function onStartLockscreened(output: WaylandOutput, showAnimation: bool) {
                     if (output !== rootOutputItem.output) {
                         return;
                     }
@@ -205,15 +209,15 @@ OutputItem {
         }
     }
 
-    function setTransform(transform) {
+    function setTransform(transform: int): void {
         screenViewport.rotationOutput(transform)
     }
 
-    function setScale(scale) {
+    function setScale(scale: real): void {
         screenViewport.setOutputScale(scale)
     }
 
-    function invalidate() {
+    function invalidate(): void {
         screenViewport.invalidate()
     }
 }

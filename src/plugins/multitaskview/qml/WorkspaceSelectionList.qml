@@ -1,5 +1,7 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+
+pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Controls
@@ -12,8 +14,8 @@ import MultitaskView
 Item {
     id: root
 
-    required property QtObject output
-    required property QtObject dragManager
+    required property QtObject output // Treeland Output (QML_ANONYMOUS), cannot use as named type
+    required property QtObject dragManager // QtObject with dynamic properties, defined in QML
     required property Multitaskview multitaskview
     readonly property real whRatio: output.outputItem.width / output.outputItem.height
     readonly property real workspaceDelegateHeight: (Helper.config.workspaceThumbHeight + 2 * Helper.config.workspaceThumbMargin) / output.outputItem.devicePixelRatio
@@ -81,6 +83,7 @@ Item {
         id: visualModel
         model: Helper.workspace.models
         delegate: Item {
+            // qmllint disable unqualified: qmllint directive — root, dragManager and other outer scope properties
             required property WorkspaceModel workspace
             required property int index
             id: workspaceThumbDelegate
@@ -312,6 +315,7 @@ Item {
                     }
                 }
             }
+            // qmllint enable unqualified
         }
     }
 

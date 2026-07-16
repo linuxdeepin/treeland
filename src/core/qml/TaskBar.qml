@@ -1,12 +1,14 @@
 // Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import Waylib.Server
 import Treeland
 
 ListView {
-    required property QtObject output
+    required property QtObject output // Treeland Output (QML_ANONYMOUS), cannot use as named type
     readonly property OutputItem outputItem: output.outputItem
 
     width: 250 + leftMargin + rightMargin

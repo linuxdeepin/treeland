@@ -1,5 +1,7 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+
+pragma ComponentBehavior: Bound
 
 import QtQuick
 import Waylib.Server
@@ -112,12 +114,12 @@ OutputItem {
 
         Timer {
             id: transformTimer
-            property var scheduleTransform
+            property int scheduleTransform
             onTriggered: viewport.rotateOutput(scheduleTransform)
             interval: rotationAnimator.duration / 2
         }
 
-        function rotationOutput(orientation) {
+        function rotationOutput(orientation: int): void {
             transformTimer.scheduleTransform = orientation
             transformTimer.start()
 
@@ -141,15 +143,15 @@ OutputItem {
         }
     }
 
-    function setTransform(transform) {
+    function setTransform(transform: int): void {
         viewport.rotationOutput(transform)
     }
 
-    function setScale(scale) {
+    function setScale(scale: real): void {
         viewport.setOutputScale(scale)
     }
 
-    function invalidate() {
+    function invalidate(): void {
         viewport.invalidate()
     }
 }
