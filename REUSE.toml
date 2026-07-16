@@ -57,6 +57,12 @@ SPDX-FileCopyrightText = "None"
 SPDX-License-Identifier = "GPL-2.0-only"
 
 [[annotations]]
+path = ["3rdparty/wlroots/**"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "wlroots contributors"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
 path = ["src/greeter/**.h", "src/greeter/**.cpp"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "None"

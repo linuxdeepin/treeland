@@ -7,12 +7,44 @@ Build-Depends: debhelper-compat (= 13),
                ninja-build,
                qt6-base-private-dev,
                qt6-base-dev-tools,
-               wayland-protocols,
+               wayland-protocols (>= 1.41),
                wlr-protocols,
-               libwlroots-0.19-dev,
-               libpixman-1-dev,
+               libwayland-dev (>= 1.23.1),
+               libxkbcommon-dev,
+               libudev-dev,
+               libseat-dev,
+               libdisplay-info-dev (>= 0.1.1),
+               libliftoff-dev (>= 0.4.1),
+               liblcms2-dev,
+               libinput-dev,
+               libegl1-mesa-dev,
+               libegl-dev,
+               libgbm-dev,
+               libgles2-mesa-dev,
+               libvulkan-dev,
+               glslang-tools,
+               hwdata,
+               libcap-dev,
+               libcairo2-dev,
+               libdrm-dev (>= 2.4.122),
+               libpixman-1-dev (>= 0.43.0),
+               libpng-dev,
+               libx11-xcb-dev,
+               libxcb1-dev,
+               libxcb-composite0-dev,
+               libxcb-dri3-dev,
+               libxcb-errors-dev,
                libxcb-ewmh-dev,
-               libdrm-dev
+               libxcb-icccm4-dev,
+               libxcb-image0-dev,
+               libxcb-present-dev,
+               libxcb-render0-dev,
+               libxcb-render-util0-dev,
+               libxcb-res0-dev,
+               libxcb-shm0-dev,
+               libxcb-xfixes0-dev,
+               libxcb-xinput-dev,
+               xwayland
 Standards-Version: 4.6.0
 Section: libs
 Homepage: https://github.com/vioken/qwlroots.git
@@ -26,7 +58,7 @@ Architecture: any
 Multi-Arch: same
 Depends:
   ${misc:Depends},
-  libwlroots-0.19-dev
+  ${shlibs:Depends}
 Replaces: libqwlroots1
 Description: Qt and QML bindings for wlroots
   qwlroots is a binding of wlroots, which provides a Qt style development interface.

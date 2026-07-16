@@ -4,11 +4,15 @@ on:
   push:
     paths:
       - 'qwlroots/**'
+      - 'wlroots/**'
+      - '3rdparty/wlroots/**'
       - '.github/workflows/qwlroots-debian-build.yml'
 
   pull_request:
     paths:
       - 'qwlroots/**'
+      - 'wlroots/**'
+      - '3rdparty/wlroots/**'
       - '.github/workflows/qwlroots-debian-build.yml'
 
 jobs:

@@ -5,12 +5,16 @@ on:
     paths:
       - 'waylib/**'
       - 'qwlroots/**'
+      - 'wlroots/**'
+      - '3rdparty/wlroots/**'
       - '.github/workflows/waylib-archlinux-build.yml'
 
   pull_request:
     paths:
       - 'waylib/**'
       - 'qwlroots/**'
+      - 'wlroots/**'
+      - '3rdparty/wlroots/**'
       - '.github/workflows/waylib-archlinux-build.yml'
 
 jobs:
@@ -25,8 +29,17 @@ jobs:
           pacman --noconfirm --noprogressbar -Syu
       - name: Install dependencies
         run: |
-          pacman -S --noconfirm --noprogressbar base-devel qt6-base qt6-declarative cmake pkgconfig pixman vulkan-headers wlroots0.19 wayland-protocols wlr-protocols git
-          pacman -S --noconfirm --noprogressbar clang ninja make
+          # Vendored waylib-wlroots deps from Arch wlroots0.19 package metadata
+          # (do not install system wlroots0.19)
+          pacman -S --noconfirm --noprogressbar base-devel \
+            qt6-base qt6-declarative cmake pkgconfig ninja clang make git \
+            pixman wayland wayland-protocols wlr-protocols \
+            libxcb libx11 libxkbcommon libdrm libinput seatd \
+            libdisplay-info libliftoff lcms2 \
+            mesa libglvnd vulkan-headers vulkan-icd-loader \
+            glslang hwdata systemd \
+            xcb-util-errors xcb-util-renderutil xcb-util-wm \
+            xorg-xwayland
           pacman -S --noconfirm --noprogressbar fakeroot meson sudo
 
       - uses: actions/checkout@v4

@@ -16,29 +16,51 @@ endif()
 
 find_package(PkgConfig REQUIRED)
 
-if (USE_WLROOTS_19)
-    set(wlr wlroots-0.19)
-    set(WLROOTS_MINIMUM_REQUIRED 0.19.0)
-else ()
-    set(wlr wlroots-0.18)
-    set(WLROOTS_MINIMUM_REQUIRED 0.18.0)
+if (TARGET Wlroots::wlroots)
+    set(WLROOTS_TARGET Wlroots::wlroots)
+    # WLROOTS_VERSION* and WLR_HAVE_* already set by wlroots/ (sources in 3rdparty/wlroots)
+    # Keep pkg-config module name for installed .pc / Config.cmake metadata.
+    if (USE_WLROOTS_19)
+        set(wlr wlroots-0.19)
+    else()
+        set(wlr wlroots-0.18)
+    endif()
+    message(STATUS "Using vendored Wlroots::wlroots ${WLROOTS_VERSION}")
+    set(QWLROOTS_WLROOTS_CMAKE_CONFIG_INIT
+        "set(QWLROOTS_USE_VENDORED_WLROOTS TRUE)
+if(NOT TARGET Wlroots::wlroots)
+    find_library(WAYLIB_WLROOTS_LIBRARY REQUIRED NAMES waylib-wlroots)
+    add_library(Wlroots::wlroots SHARED IMPORTED)
+    set_target_properties(Wlroots::wlroots PROPERTIES IMPORTED_LOCATION \"\${WAYLIB_WLROOTS_LIBRARY}\")
+endif()")
+else()
+    if (USE_WLROOTS_19)
+        set(wlr wlroots-0.19)
+        set(WLROOTS_MINIMUM_REQUIRED 0.19.0)
+    else ()
+        set(wlr wlroots-0.18)
+        set(WLROOTS_MINIMUM_REQUIRED 0.18.0)
+    endif()
+
+    pkg_check_modules(WLROOTS REQUIRED IMPORTED_TARGET ${wlr}>=${WLROOTS_MINIMUM_REQUIRED})
+    pkg_get_variable(WLR_HAVE_DRM_BACKEND ${wlr} have_drm_backend)
+    pkg_get_variable(WLR_HAVE_X11_BACKEND ${wlr} have_x11_backend)
+    pkg_get_variable(WLR_HAVE_LIBINPUT_BACKEND ${wlr} have_libinput_backend)
+    pkg_get_variable(WLR_HAVE_XWAYLAND ${wlr} have_xwayland)
+    pkg_get_variable(WLR_HAVE_GLES2_RENDERER ${wlr} have_gles2_renderer)
+    pkg_get_variable(WLR_HAVE_VULKAN_RENDERER ${wlr} have_vulkan_renderer)
+    pkg_get_variable(WLR_HAVE_GBM_ALLOCATOR ${wlr} have_gbm_allocator)
+    pkg_get_variable(WLR_HAVE_SESSION ${wlr} have_session)
+    setup_package_version_variables(WLROOTS)
+    set(WLROOTS_TARGET PkgConfig::WLROOTS)
+    set(QWLROOTS_WLROOTS_CMAKE_CONFIG_INIT
+        "pkg_check_modules(WLROOTS REQUIRED IMPORTED_TARGET ${wlr}=${WLROOTS_VERSION})")
 endif()
 
-pkg_check_modules(WLROOTS REQUIRED IMPORTED_TARGET ${wlr}>=${WLROOTS_MINIMUM_REQUIRED})
 pkg_check_modules(WAYLAND_SERVER REQUIRED IMPORTED_TARGET wayland-server)
 pkg_check_modules(PIXMAN REQUIRED IMPORTED_TARGET pixman-1)
 pkg_check_modules(WAYLAND_PROTOCOLS REQUIRED wayland-protocols)
 pkg_check_modules(XKBCOMMON REQUIRED IMPORTED_TARGET xkbcommon)
-
-pkg_get_variable(WLR_HAVE_DRM_BACKEND ${wlr} have_drm_backend)
-pkg_get_variable(WLR_HAVE_X11_BACKEND ${wlr} have_x11_backend)
-pkg_get_variable(WLR_HAVE_LIBINPUT_BACKEND ${wlr} have_libinput_backend)
-pkg_get_variable(WLR_HAVE_XWAYLAND ${wlr} have_xwayland)
-pkg_get_variable(WLR_HAVE_GLES2_RENDERER ${wlr} have_gles2_renderer)
-pkg_get_variable(WLR_HAVE_VULKAN_RENDERER ${wlr} have_vulkan_renderer)
-pkg_get_variable(WLR_HAVE_GBM_ALLOCATOR ${wlr} have_gbm_allocator)
-pkg_get_variable(WLR_HAVE_SESSION ${wlr} have_session)
-setup_package_version_variables(WLROOTS)
 include(CMakePackageConfigHelpers)
 configure_file(${PROJECT_SOURCE_DIR}/src/cmake/qwconfig.h.in generate/qwconfig.h @ONLY)
 
@@ -248,7 +270,7 @@ set_target_properties(${TARGET}
 target_link_libraries(${TARGET}
     PUBLIC
     Qt${QT_VERSION_MAJOR}::Core
-    PkgConfig::WLROOTS
+    $<BUILD_INTERFACE:${WLROOTS_TARGET}>
     PkgConfig::WAYLAND_SERVER
     PkgConfig::PIXMAN
     PkgConfig::XKBCOMMON

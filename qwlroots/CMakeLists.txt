@@ -34,6 +34,18 @@ include(WaylandScannerHelpers)
 # For Unix/Linux
 include(GNUInstallDirs)
 
+# Monorepo layout: treeland/wlroots + treeland/3rdparty/wlroots
+# REALPATH so waylib/qwlroots -> ../qwlroots symlinks still resolve correctly.
+if(NOT TARGET Wlroots::wlroots)
+    get_filename_component(_qwlroots_src_real "${CMAKE_CURRENT_SOURCE_DIR}" REALPATH)
+    set(_waylib_wlroots_cmake "${_qwlroots_src_real}/../wlroots")
+    get_filename_component(_waylib_wlroots_cmake "${_waylib_wlroots_cmake}" ABSOLUTE)
+    if(EXISTS "${_waylib_wlroots_cmake}/CMakeLists.txt")
+        message(STATUS "Using vendored wlroots from ${_waylib_wlroots_cmake}")
+        add_subdirectory("${_waylib_wlroots_cmake}" "${CMAKE_CURRENT_BINARY_DIR}/_waylib_wlroots")
+    endif()
+endif()
+
 add_subdirectory(src)
 enable_testing()
 add_subdirectory(tests)
