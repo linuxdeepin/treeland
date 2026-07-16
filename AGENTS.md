@@ -9,6 +9,7 @@
 ## Where to Look
 - `src/core/`: lifecycle + QML engine glue (for example `src/core/qmlengine.*`, `src/core/treeland.*`).
 - `src/surface/`: surface/window wrappers, state/visibility/geometry (for example `src/surface/surfacewrapper.cpp`).
+- `src/seat/`: compositor seat management, `Helper` initialization hub, protocol wiring entry point (for example `src/seat/helper.*`).
 - `src/workspace/`: workspace model and switching.
 - `src/plugins/` + `src/modules/`: integration points and feature composition.
 - `src/common/treelandlogging.*`: centralized treeland logging categories.

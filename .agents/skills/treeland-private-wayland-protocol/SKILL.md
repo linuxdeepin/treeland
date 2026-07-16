@@ -39,6 +39,8 @@ Look at generated files first:
 
 Do not guess generated class names, `Resource` callback signatures, `init(...)` overloads, or `interfaceName()`.
 
+Note: the `treeland_*.xml` protocol files are provided by an external CMake package `TreelandProtocols` (via `find_package(TreelandProtocols REQUIRED)`), not from the treeland source tree. They are accessed through `${TREELAND_PROTOCOLS_DATA_DIR}/treeland-*.xml`. Do not search for XML files under `src/modules/`.
+
 From generated `qwayland-server-*.h/.cpp`, confirm at least these facts directly:
 
 - which helper APIs are generated, such as `resourceMap()`, `resource()`, `isGlobalRemoved()`, and `interfaceVersion()`
@@ -114,9 +116,9 @@ It usually exists for one concrete protocol object and is responsible for:
 #### When a public child wrapper is needed
 Not every child resource needs its own public header.
 
-If the child object is only an internal detail of the manager, keep it as a private `.cpp` resource class like `appidresolver` or `prelaunch-splash`.
+If the child object is only an internal detail of the manager with no business API needed by other treeland code, keep it as a private `.cpp` resource class.
 
-If the child object must be referenced by treeland business code for a longer lifetime, needs a parent, emits signals, provides extra methods, or is owned by other classes, use a public QObject wrapper like `output-manager`, with a private protocol implementation class under it.
+If the child object must be referenced by treeland business code for a longer lifetime, needs a parent, emits signals, provides extra methods, or is owned by other classes, expose it as a public QObject wrapper (like the handle/context classes in `foreign-toplevel`), with a private protocol implementation class under it.
 
 ### Design Preference
 Use this rule:
@@ -137,6 +139,9 @@ The public class usually implements:
 Recommended pattern:
 
 ```cpp
+// Required: #include <qwdisplay.h>
+// operator* on QWDisplay returns the underlying wl_display&,
+// which is equivalent to server->handle()->handle() but preferred.
 void Manager::create(WServer *server)
 {
     d->init(*server->handle(), InterfaceVersion);
@@ -148,6 +153,13 @@ void Manager::destroy(WServer *server)
     d->globalRemove();
 }
 
+// In the private manager class (.cpp):
+// m_global is protected in the generated base. The public class cannot access
+// d->m_global directly (protected does not extend to external pointer access).
+// Expose it through a small public accessor in the private subclass:
+wl_global *globalHandle() const { return m_global; }
+
+// In the public class:
 wl_global *Manager::global() const
 {
     return d->globalHandle();
@@ -331,15 +343,12 @@ That still counts as a protocol registration entry point. The real criteria are:
 
 If a protocol is neither registered directly from `Helper::init` nor initialized through a higher-level object such as `ShellHandler`, it is usually still not fully integrated.
 
-## Existing Samples You Should Not Copy Blindly
-- `foreign-toplevel`
-- `capture`
+## Samples To Avoid
+`capture` uses `ws_generate_local` (raw wayland-scanner) instead of the preferred `local_qtwayland_server_protocol_treeland(...)` path, and does not use `QtWaylandServer::*` at all. Do not use it as a template.
 
-This refers to treeland private protocol implementations, not upstream wlroots/waylib protocol wrappers.
+`foreign-toplevel` has been fully migrated to the `QtWaylandServer::*` plus `local_qtwayland_server_protocol_treeland(...)` path. It is a valid reference for protocols that need public child wrappers (`ForeignToplevelHandleV1`, `DockPreviewContextV1`), but is too large and complex to be a starting point for simple new protocols.
 
-These are not wrong implementations, but they do not follow the currently preferred Qt scanner path and instead use a more direct `wayland-scanner` style.
-
-For new private protocols, prefer the `QtWaylandServer::*` plus `local_qtwayland_server_protocol_treeland(...)` path. Treat those modules as historical compatibility samples, not as the default template.
+For new private protocols, prefer `appidresolver`, `prelaunch-splash`, or `screensaver` as templates.
 
 ## Reference Starting Points
 - `src/modules/app-id-resolver/appidresolver.cpp`

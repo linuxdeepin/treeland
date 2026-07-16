@@ -26,7 +26,7 @@ Category variable naming: `lcTl` + PascalCase module name (e.g. `lcTlCore`, `lcT
 
 String ID naming: `treeland.<module>[.<submodule>]` (e.g. `treeland.core`, `treeland.input.gestures`).
 
-The only exceptions are standalone executables that cannot include the centralized header (e.g. `treeland-xwayland`, `treeland-sd`, `treeland-shortcut`). These may define local `Q_LOGGING_CATEGORY` in their own `.cpp` file.
+The only exceptions are standalone executables that cannot include the centralized header (e.g. `treeland-xwayland`, `treeland-sd`, `treeland-shortcut`, `treeland-screensaver`). These may define local `Q_LOGGING_CATEGORY` in their own `.cpp` file.
 
 ### Waylib code
 Use centralized categories declared in:
@@ -75,7 +75,8 @@ waylib
 │   └── waylib.layer.surface        lcWlLayerSurface
 ├── XDG
 │   ├── waylib.xdg.output           lcWlXdgOutput
-│   └── waylib.xdg.decoration       lcWlXdgDecoration
+│   ├── waylib.xdg.decoration       lcWlXdgDecoration
+│   └── waylib.xdg.dialog           lcWlXdgDialog
 ├── Output extras
 │   ├── waylib.output.layer         lcWlOutputLayer
 │   └── waylib.output.helper        lcWlOutputHelper
@@ -95,12 +96,15 @@ waylib
 
 2. **No local Q_LOGGING_CATEGORY in library code** — All categories for treeland and waylib library code must be declared in the centralized `*logging.h/.cpp`. Only standalone executables (e.g. `treeland-xwayland`) may define local categories in their own `.cpp` file.
 
-3. **No logging header includes in .h files** — Only `treelandlogging.h` / `wayliblogging.h` themselves may declare categories. Other `.h` files must not `#include` logging headers or use `qC*()` macros. Use forward-declared categories in `.h` only if absolutely necessary (prefer moving the log call to `.cpp`).
+3. **No logging header includes in .h files** — Only `treelandlogging.h` / `wayliblogging.h` themselves may declare categories. Other `.h` files must not `#include` logging headers or use `qC*()` macros. Move log calls to `.cpp` instead.
 
-4. **Every category must have a comment** — Each `Q_LOGGING_CATEGORY` definition must have a `//` comment explaining its scope, e.g.:
-   ```cpp
-   Q_LOGGING_CATEGORY(lcWlSeat, "waylib.seat", QtInfoMsg) // Seat management (keyboard focus, capability)
-   ```
+4. **Every category must have a comment** — Each `Q_LOGGING_CATEGORY` definition must be documented. Two conventions are in use:
+   - **Treeland** (`treelandlogging.cpp`): uses section-level `//` comments (e.g., `// Core modules`, `// Input modules`) to annotate groups of related categories.
+   - **Waylib** (`wayliblogging.cpp`): uses per-category `//` inline comments on each definition, e.g.:
+     ```cpp
+     Q_LOGGING_CATEGORY(lcWlSeat, "waylib.seat", QtInfoMsg) // Seat management (keyboard focus, capability)
+     ```
+   When adding a new category to either file, follow the existing convention of that file.
 
 ## Log Levels
 Choose the lowest level that still matches the operational importance.

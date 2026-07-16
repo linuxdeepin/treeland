@@ -71,7 +71,7 @@ public:
 
     wl_global *globalHandle() const
     {
-        return this->m_global;
+        return m_global;
     }
 
 protected:
