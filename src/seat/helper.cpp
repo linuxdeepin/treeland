@@ -2383,7 +2383,17 @@ void Helper::setActivatedSurface(SurfaceWrapper *newActivateSurface, WSeat *seat
 
 void Helper::onRenderWindowActiveFocusItemChanged()
 {
-    // TODO(muit-seat): Need to check whether the following logic is required.
+    if (!keyboardFocusSurface()) {
+        // Keyboard focus moved to a non-client window (e.g. internal QML component).
+        // Notify all seats to clear the keyboard focus surface.
+        const auto seats = m_seatManager->seats();
+        for (auto *seat : seats) {
+            if (auto *seatContainer = m_rootSurfaceContainer->getSeatContainer(seat)) {
+                if (seatContainer->keyboardFocusSurface())
+                    seatContainer->setKeyboardFocusSurface(nullptr);
+            }
+        }
+    }
 }
 
 void Helper::requestKeyboardFocus(SurfaceWrapper *wrapper, Qt::FocusReason reason, WSeat *seat)
