@@ -19,16 +19,16 @@ WAYLIB_SERVER_USE_NAMESPACE
 
 struct Shadow
 {
-    int32_t radius;
-    QPoint offset;
-    QColor color;
+    int32_t radius = 0;
+    QPoint offset = {};
+    QColor color = Qt::transparent;
     bool operator==(const Shadow &other) const = default;
 };
 
 struct Border
 {
-    int32_t width;
-    QColor color;
+    int32_t width = 0;
+    QColor color = Qt::transparent;
     bool operator==(const Border &other) const = default;
 };
 

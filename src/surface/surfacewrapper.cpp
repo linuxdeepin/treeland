@@ -71,6 +71,11 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
 {
     QQmlEngine::setContextForObject(this, qmlEngine->rootContext());
 
+    if (m_type != Type::Layer) {
+        m_shadow = SurfaceShadow{ 40, 0, 10, QColor(0, 0, 0, 102) };
+        m_border = SurfaceBorder{ 1, QColor(255, 255, 255, 26) };
+    }
+
     setup();
 }
 
@@ -82,7 +87,7 @@ SurfaceWrapper::SurfaceWrapper(SurfaceWrapper *original, QQuickItem *parent)
     , m_positionAutomatic(true)
     , m_visibleDecoration(true)
     , m_clipInOutput(false)
-    , m_noDecoration(true)
+    , m_noDecoration(original->m_noDecoration)
     , m_noTitleBar(true)
     , m_noCornerRadius(false)
     , m_alwaysOnTop(false)
@@ -105,6 +110,8 @@ SurfaceWrapper::SurfaceWrapper(SurfaceWrapper *original, QQuickItem *parent)
     , m_maximizable(false)
     , m_modal(false)
     , m_appId(original->m_appId)
+    , m_shadow(original->m_shadow)
+    , m_border(original->m_border)
 {
     QQmlEngine::setContextForObject(this, m_engine->rootContext());
 
@@ -177,6 +184,12 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     , m_appId(appId)
 {
     QQmlEngine::setContextForObject(this, qmlEngine->rootContext());
+
+    if (m_type != Type::Layer) {
+        m_shadow = SurfaceShadow{ 40, 0, 10, QColor(0, 0, 0, 102) };
+        m_border = SurfaceBorder{ 1, QColor(255, 255, 255, 26) };
+    }
+
     if (initialSize.isValid() && initialSize.width() > 0 && initialSize.height() > 0) {
         // Also set implicit size to keep QML layout consistent
         setImplicitSize(initialSize.width(), initialSize.height());
@@ -1689,6 +1702,42 @@ void SurfaceWrapper::setRadius(qreal newRadius)
         return;
     m_radius = newRadius;
     Q_EMIT radiusChanged();
+}
+
+SurfaceShadow SurfaceWrapper::shadow() const
+{
+    return m_shadow;
+}
+
+void SurfaceWrapper::setShadow(const SurfaceShadow &shadow)
+{
+    SurfaceShadow newShadow = shadow;
+    if (newShadow.radius == -1) {
+        newShadow = SurfaceShadow{ 40, 0, 10, QColor(0, 0, 0, 102) };
+    }
+
+    if (m_shadow == newShadow)
+        return;
+    m_shadow = newShadow;
+    Q_EMIT shadowChanged();
+}
+
+SurfaceBorder SurfaceWrapper::border() const
+{
+    return m_border;
+}
+
+void SurfaceWrapper::setBorder(const SurfaceBorder &border)
+{
+    SurfaceBorder newBorder = border;
+    if (newBorder.width == -1) {
+        newBorder = SurfaceBorder{ 1, QColor(255, 255, 255, 26) };
+    }
+
+    if (m_border == newBorder)
+        return;
+    m_border = newBorder;
+    Q_EMIT borderChanged();
 }
 
 void SurfaceWrapper::minimize(bool onAnimation)

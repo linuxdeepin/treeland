@@ -11,6 +11,7 @@
 #include <QQuickItem>
 #include <QString>
 #include <QColor>
+#include <QMetaType>
 
 Q_MOC_INCLUDE(<woutput.h>)
 Q_MOC_INCLUDE(<output / output.h>)
@@ -23,6 +24,32 @@ class SurfaceContainer;
 QW_BEGIN_NAMESPACE
 class qw_buffer;
 QW_END_NAMESPACE
+
+struct SurfaceShadow
+{
+    Q_GADGET
+    Q_PROPERTY(int radius MEMBER radius)
+    Q_PROPERTY(int offsetX MEMBER offsetX)
+    Q_PROPERTY(int offsetY MEMBER offsetY)
+    Q_PROPERTY(QColor color MEMBER color)
+public:
+    int radius = 0;
+    int offsetX = 0;
+    int offsetY = 0;
+    QColor color = Qt::transparent;
+    bool operator==(const SurfaceShadow &other) const = default;
+};
+
+struct SurfaceBorder
+{
+    Q_GADGET
+    Q_PROPERTY(int width MEMBER width)
+    Q_PROPERTY(QColor color MEMBER color)
+public:
+    int width = 0;
+    QColor color = Qt::transparent;
+    bool operator==(const SurfaceBorder &other) const = default;
+};
 
 class SurfaceWrapper : public QQuickItem
 {
@@ -85,6 +112,8 @@ class SurfaceWrapper : public QQuickItem
     Q_PROPERTY(bool isResizable READ isResizable NOTIFY resizableChanged FINAL)
     Q_PROPERTY(bool isMaximizable READ isMaximizable NOTIFY maximizableChanged FINAL)
     Q_PROPERTY(bool modal READ modal NOTIFY modalChanged FINAL)
+    Q_PROPERTY(SurfaceShadow shadow READ shadow NOTIFY shadowChanged FINAL)
+    Q_PROPERTY(SurfaceBorder border READ border NOTIFY borderChanged FINAL)
 
 public:
     enum class Type
@@ -309,6 +338,11 @@ public:
     bool attention() const;
     bool setAttention(bool attention);
 
+    SurfaceShadow shadow() const;
+    void setShadow(const SurfaceShadow &shadow);
+    SurfaceBorder border() const;
+    void setBorder(const SurfaceBorder &border);
+
 public Q_SLOTS:
     void minimize(bool onAnimation = true);
     void restoreFromMinimized(bool onAnimation = true);
@@ -379,6 +413,8 @@ Q_SIGNALS:
     void hasFocusCapabilityChanged();
     void prelaunchSplashChanged();
     void typeChanged();
+    void shadowChanged();
+    void borderChanged();
 
 private:
     ~SurfaceWrapper() override;
@@ -516,7 +552,12 @@ private:
     bool m_socketEnabled{ false };
     bool m_windowAnimationEnabled{ true };
     const QString m_appId;
+    SurfaceShadow m_shadow;
+    SurfaceBorder m_border;
 };
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(SurfaceWrapper::ActiveControlStates)
 Q_DECLARE_OPERATORS_FOR_FLAGS(SurfaceWrapper::FocusControlStates)
+
+Q_DECLARE_METATYPE(SurfaceShadow)
+Q_DECLARE_METATYPE(SurfaceBorder)
