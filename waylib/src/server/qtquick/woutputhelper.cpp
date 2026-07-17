@@ -139,7 +139,8 @@ QWindow *WOutputHelper::outputWindow() const
 }
 
 std::pair<qw_buffer *, QQuickRenderTarget> WOutputHelper::acquireRenderTarget(QQuickRenderControl *rc,
-                                                                             wlr_swapchain **swapchain)
+                                                                             wlr_swapchain **swapchain,
+                                                                             WGlobal::ColorContentsMode mode)
 {
     W_D(WOutputHelper);
 
@@ -151,13 +152,13 @@ std::pair<qw_buffer *, QQuickRenderTarget> WOutputHelper::acquireRenderTarget(QQ
         d->renderHelper = new WRenderHelper(d->renderer(), this);
         d->renderHelper->setSize(d->output->size());
     }
-    auto rt = d->renderHelper->acquireRenderTarget(rc, buffer);
+    auto rt = d->renderHelper->acquireRenderTarget(rc, buffer, mode);
     if (rt.isNull()) {
         buffer->unlock();
         return {};
     }
 
-    return {buffer, rt};
+    return {buffer, rt.rt()};
 }
 
 std::pair<qw_buffer*, QQuickRenderTarget> WOutputHelper::lastRenderTarget()
@@ -166,7 +167,8 @@ std::pair<qw_buffer*, QQuickRenderTarget> WOutputHelper::lastRenderTarget()
     if (!d->renderHelper)
         return {nullptr, {}};
 
-    return d->renderHelper->lastRenderTarget();
+    auto rt = d->renderHelper->lastRenderTarget();
+    return {rt.buffer(), rt.rt()};
 }
 
 void WOutputHelper::setBuffer(qw_buffer *buffer)

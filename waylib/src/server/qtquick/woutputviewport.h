@@ -25,7 +25,7 @@ class WAYLIB_SERVER_EXPORT WOutputViewport : public QQuickItem, public virtual W
     Q_PROPERTY(qreal devicePixelRatio READ devicePixelRatio WRITE setDevicePixelRatio NOTIFY devicePixelRatioChanged)
     Q_PROPERTY(bool offscreen READ offscreen WRITE setOffscreen NOTIFY offscreenChanged)
     Q_PROPERTY(bool cacheBuffer READ cacheBuffer WRITE setCacheBuffer NOTIFY cacheBufferChanged FINAL)
-    Q_PROPERTY(bool preserveColorContents READ preserveColorContents WRITE setPreserveColorContents NOTIFY preserveColorContentsChanged FINAL)
+    Q_PROPERTY(WGlobal::ColorContentsMode colorContentsMode READ colorContentsMode WRITE setColorContentsMode NOTIFY colorContentsModeChanged FINAL)
     Q_PROPERTY(bool live READ live WRITE setLive NOTIFY liveChanged FINAL)
     Q_PROPERTY(QRectF sourceRect READ sourceRect WRITE setSourceRect RESET resetSourceRect NOTIFY sourceRectChanged FINAL)
     Q_PROPERTY(QRectF targetRect READ targetRect WRITE setTargetRect RESET resetTargetRect NOTIFY targetRectChanged FINAL)
@@ -67,8 +67,8 @@ public:
     bool cacheBuffer() const;
     void setCacheBuffer(bool newCacheBuffer);
 
-    bool preserveColorContents() const;
-    void setPreserveColorContents(bool newPreserveColorContents);
+    WGlobal::ColorContentsMode colorContentsMode() const;
+    void setColorContentsMode(WGlobal::ColorContentsMode mode);
 
     bool live() const;
     void setLive(bool newLive);
@@ -112,7 +112,7 @@ Q_SIGNALS:
     void devicePixelRatioChanged();
     void offscreenChanged();
     void cacheBufferChanged();
-    void preserveColorContentsChanged();
+    void colorContentsModeChanged();
     void outputRenderInitialized();
     void inputChanged();
     void liveChanged();

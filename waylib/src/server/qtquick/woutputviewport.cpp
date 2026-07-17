@@ -266,19 +266,20 @@ void WOutputViewport::setCacheBuffer(bool newCacheBuffer)
     d->bufferRenderer->setCacheBuffer(newCacheBuffer);
 }
 
-bool WOutputViewport::preserveColorContents() const
+WGlobal::ColorContentsMode WOutputViewport::colorContentsMode() const
 {
     W_DC(WOutputViewport);
-    return d->preserveColorContents;
+    return d->colorContentsMode;
 }
 
-void WOutputViewport::setPreserveColorContents(bool newPreserveColorContents)
+void WOutputViewport::setColorContentsMode(WGlobal::ColorContentsMode mode)
 {
     W_D(WOutputViewport);
-    if (d->preserveColorContents == newPreserveColorContents)
+    if (d->colorContentsMode == mode)
         return;
-    d->preserveColorContents = newPreserveColorContents;
-    Q_EMIT preserveColorContentsChanged();
+    d->colorContentsMode = mode;
+    d->update();
+    Q_EMIT colorContentsModeChanged();
 }
 
 bool WOutputViewport::live() const
