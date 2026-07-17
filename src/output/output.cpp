@@ -159,6 +159,16 @@ Output::Output(WOutputItem *output, QObject *parent)
 
 Output::~Output()
 {
+    // Copy outputs reuse the primary output's hardware layers. Detach them
+    // explicitly before destroying the viewport so that the output gets a new
+    // frame and stale hardware-plane contents (notably the cursor) are cleared.
+    if (m_type == Type::Proxy && m_outputViewport) {
+        for (auto *layer : std::as_const(m_hardwareLayersOfPrimaryOutput)) {
+            Helper::instance()->window()->detach(layer, m_outputViewport);
+        }
+        m_hardwareLayersOfPrimaryOutput.clear();
+    }
+
     if (m_taskBar) {
         delete m_taskBar;
         m_taskBar = nullptr;
