@@ -13,6 +13,7 @@ Item {
     visible: false
 
     property bool switchOn: true
+    property double lastSwitchTimestamp: 0
     property int focusReason: Qt.TabFocusReason
     required property QtObject output
     readonly property QtObject model: Helper.workspace.currentFilter
@@ -26,6 +27,7 @@ Item {
 
     readonly property int leftpreferredMargin: 20
     readonly property int rightpreferredMargin: 20
+    readonly property int mouseExitInterval: 400
     readonly property real radius: enableRadius ? 18 : 0
 
     x: output.outputItem.x + output.validRect.x
@@ -80,7 +82,7 @@ Item {
         anchors.fill: parent
 
         onClicked: {
-            root.exit()
+            root.exitByMouse()
         }
     }
 
@@ -116,7 +118,7 @@ Item {
                 sourceComponent: undefined
 
                 onClicked: {
-                    root.exit()
+                    root.exitByMouse()
                 }
             }
         }
@@ -291,7 +293,8 @@ Item {
 
         delegate: Item {
             id: windowItem
-            required property SurfaceWrapper surface
+            required property SurfaceWrapper modelData
+            readonly property SurfaceWrapper surface: modelData
             property real surfaceX: 0
             property real surfaceY: 0
 
@@ -435,7 +438,10 @@ Item {
         }
     }
 
-    function prejudgment() {
+    function prejudgment(updateTimestamp) {
+        if (updateTimestamp)
+            root.lastSwitchTimestamp = Date.now()
+
         if (previewWindows.finishedAnimations < previewWindows.totalAnimations) {
             previewWindows.restoreSurfaces()
             previewWindows.model = []
@@ -457,7 +463,7 @@ Item {
     }
 
     function previous() {
-        if (!prejudgment())
+        if (!prejudgment(true))
             return;
 
         var nextIndex = (switchView.currentIndex - 1 + switchView.count) % switchView.count
@@ -471,7 +477,7 @@ Item {
     }
 
     function next() {
-        if (!prejudgment())
+        if (!prejudgment(true))
             return;
 
         var nextIndex = (switchView.currentIndex + 1) % switchView.count
@@ -499,7 +505,7 @@ Item {
     }
 
     function show() {
-        if (!prejudgment())
+        if (!prejudgment(true))
             return;
 
         var nextIndex = switchView.currentIndex;
@@ -531,6 +537,11 @@ Item {
         return switchView.currentItem && switchView.visible
     }
 
+    function exitByMouse() {
+        if (Date.now() - root.lastSwitchTimestamp >= root.mouseExitInterval)
+            exit()
+    }
+
     function exit() {
         if (!root.visible) {
             root.switchOn = false
@@ -538,7 +549,7 @@ Item {
         }
 
         if (previewWindows.finishedAnimations !== previewWindows.totalAnimations) {
-            prejudgment()
+            prejudgment(false)
             return
         }
 
@@ -555,12 +566,16 @@ Item {
             switchItemAnimation.start()
         }
 
+        const playSurfaceAnimation = root.enableAnimation
+                && switchView.count > 0 && switchView.count <= 18
+        const surfaceSnapshot = playSurfaceAnimation ? root.model.surfaceSnapshot() : []
+
         if (switchView.currentItem)
             Helper.forceActivateSurface(switchView.currentItem.surface, focusReason)
 
-        if (root.enableAnimation && switchView.count > 0 && switchView.count <= 18) {
+        if (playSurfaceAnimation) {
             previewWindows.reverse = false
-            previewWindows.model = root.model
+            previewWindows.model = surfaceSnapshot
         } else {
             previewWindows.reverse = false
             previewWindows.finishedAnimations = 0
