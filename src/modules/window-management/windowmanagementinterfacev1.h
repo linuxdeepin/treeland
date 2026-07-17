@@ -37,7 +37,6 @@ public:
 
 Q_SIGNALS:
     void desktopStateChanged();
-    void requestShowDesktop(uint32_t state);
 
 protected:
     void create(WServer *server) override;
