@@ -142,6 +142,12 @@ GreeterProxy::GreeterProxy(QObject *parent)
     updateAuthSocket();
 }
 
+GreeterProxy::GreeterProxy(bool testMode, QObject *parent)
+    : QObject(parent)
+    , m_testMode(testMode)
+{
+}
+
 GreeterProxy::~GreeterProxy() { }
 
 ////////////////////////
@@ -255,6 +261,10 @@ void GreeterProxy::logout()
 
 void GreeterProxy::lock()
 {
+    if (m_testMode) {
+        setLock(true);
+        return;
+    }
     auto session = Helper::instance()->sessionManager()->activeSession().lock();
     if (!session || session->username() == "dde") {
         qCInfo(lcTlGreeter) << "Trying to lock when no user session active, show lockscreen directly.";
