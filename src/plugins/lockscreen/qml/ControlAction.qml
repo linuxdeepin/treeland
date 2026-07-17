@@ -91,11 +91,20 @@ RowLayout {
             x: 0
             y: rootItem.height / 5 * 2
             modal: true
-            contentItem: PowerList { }
+            contentItem: PowerList {
+                id: innerPowerList
+            }
             background: MouseArea {
                 onClicked: powerItem.closePopup()
             }
-            onClosed: powerItem.expand = false
+            onOpened: {
+                innerPowerList.focusPowerOff()
+                innerPowerList.enableLoopInside()
+            }
+            onClosed: {
+                innerPowerList.loopInside = false
+                powerItem.expand = false
+            }
         }
         onClicked: {
             powerItem.expand = true

@@ -9,6 +9,10 @@ FocusScope {
     id: root
 
     signal switchUser()
+    Component.onCompleted: {
+        lockBtn.forceActiveFocus()
+    }
+        
 
     MouseArea {
         anchors.fill: parent
@@ -17,6 +21,10 @@ FocusScope {
     }
 
     PowerList {
+        id:powerList
+        onTabOutForward: lockBtn.forceActiveFocus()                                                                                                                                              
+        onTabOutBackward: logoutBtn.forceActiveFocus()
+
         width: parent.width
         height: 140
         anchors {
@@ -27,23 +35,32 @@ FocusScope {
 
         modelChildren: [
             ShutdownButton {
+                id:lockBtn
                 visible: !GreeterProxy.isLocked
                 text: qsTr("lock")
                 icon.name: "login_lock"
                 onClicked: GreeterProxy.lock()
+                KeyNavigation.tab: switchBtn
+                KeyNavigation.backtab: powerList.listHibernateBtn
             },
             ShutdownButton {
+                id:switchBtn
                 visible: !GreeterProxy.isLocked
                 text: qsTr("switch user")
                 icon.name: "login_switchuser"
                 enabled: UserModel.count > 1
                 onClicked: root.switchUser()
+                KeyNavigation.tab: logoutBtn
+                KeyNavigation.backtab: lockBtn
             },
             ShutdownButton {
+                id:logoutBtn
                 visible: !GreeterProxy.isLocked
                 text: qsTr("Logout")
                 icon.name: "login_logout"
                 onClicked: GreeterProxy.logout()
+                KeyNavigation.tab: powerList.listPowerOffBtn
+                KeyNavigation.backtab: switchBtn
             }
         ]
     }
