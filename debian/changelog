@@ -1,3 +1,32 @@
+treeland (0.8.15) unstable; urgency=medium
+
+  * fix(lockscreen): accept numpad Enter key for password submission
+  * fix(seat): clear keyboard focus for all seats on internal QML focus
+  * fix(greeter): reconnect to DDM on service changes
+  * refactor(surface): merge PopupFocusManager into SeatSurfaceManager
+  * fix(tools): replace Python WindowTree client replace
+  * refactor: use Q_ENUM reflection for ShortcutAction name logging
+  * refactor: remove built-in shortcut daemon (treeland-shortcut)
+  * fix: improve shortcut event dispatch and Alt+Tab task switch
+    reliability
+  * fix(workspace): reload workspace config after DConfig initialized
+  * fix(seat): add keyboardFocusPriority check in
+    setKeyboardFocusSurface
+  * fix(activation): pass seat through activation pipeline for multi-
+    seat
+  * fix: avoid writes when querying personalization state
+  * refactor(keyboard-focus): unify focus management path
+  * fix: correct shadow rendering during layer shell window animations
+  * fix: allow Video Bus brightness shortcuts
+  * fix(wallpaper): resend all wallpapers after output reconnect
+  * refactor: consolidate surface capability init
+  * fix: auto-wake DPMS-off outputs on input events
+  * fix(wallpaper): restore wallpapers after output reconnect
+  * fix(effects): tune liquid glass defaults and disable dispersion
+  * fix(effects): smooth glass edges and optimize liquidglass shader
+
+ -- rewine <luhongxu@deepin.org>  Fri, 17 Jul 2026 13:02:47 +0800
+
 treeland (0.8.14) unstable; urgency=medium
 
   * fix(output): ignore saved disabled state during restore
