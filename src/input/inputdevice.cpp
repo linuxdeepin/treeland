@@ -419,12 +419,12 @@ InputDevice *InputDevice::instance()
 
 void InputDevice::unregisterTouchpadSwipe(SwipeGesture *gesture)
 {
-    m_touchpadRecognizer->unregisterSwipeGesture(gesture);
+    m_touchpadRecognizer->removeSwipeGesture(gesture);
 }
 
 void InputDevice::unregisterTouchpadHold(HoldGesture *gesture)
 {
-    m_touchpadRecognizer->unregisterHoldGesture(gesture);
+    m_touchpadRecognizer->removeHoldGesture(gesture);
 }
 
 void InputDevice::processSwipeStart(uint finger)
