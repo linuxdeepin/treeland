@@ -152,7 +152,7 @@ Item {
                 if (event.key === Qt.Key_CapsLock) {
                     capsIndicatorVisible = !capsIndicatorVisible
                     event.accepted = true
-                } else if (event.key === Qt.Key_Return) {
+                } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
                     if (loginGroup.enteringOtherUser)
                         confirmOtherUser()
                     else
