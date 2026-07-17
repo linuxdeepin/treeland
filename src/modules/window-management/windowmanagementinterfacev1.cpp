@@ -50,7 +50,7 @@ void WindowManagementInterfaceV1Private::destroy(Resource *resource) {
 
 void WindowManagementInterfaceV1Private::set_desktop([[maybe_unused]] Resource *resource, uint32_t state)
 {
-    Q_EMIT q->requestShowDesktop(state);
+    q->setDesktopState(static_cast<WindowManagementInterfaceV1::DesktopState>(state));
 }
 
 WindowManagementInterfaceV1::WindowManagementInterfaceV1(QObject *parent)
@@ -71,30 +71,15 @@ WindowManagementInterfaceV1::DesktopState WindowManagementInterfaceV1::desktopSt
 
 void WindowManagementInterfaceV1::setDesktopState(DesktopState state)
 {
-    uint32_t s = 0;
-    switch (state) {
-    case DesktopState::Normal:
-        s = TREELAND_WINDOW_MANAGEMENT_V1_DESKTOP_STATE_NORMAL;
-        break;
-    case DesktopState::Show:
-        s = TREELAND_WINDOW_MANAGEMENT_V1_DESKTOP_STATE_SHOW;
-        break;
-    case DesktopState::Preview:
-        s = TREELAND_WINDOW_MANAGEMENT_V1_DESKTOP_STATE_PREVIEW_SHOW;
-        break;
-    default:
-        Q_UNREACHABLE();
-        break;
-    }
+    d->state = static_cast<uint32_t>(state);
 
-    d->state = s;
     for (const auto &resource : d->resourceMap()) {
-        d->send_show_desktop(resource->handle, s);
+        d->send_show_desktop(resource->handle, d->state);
     }
 
     Q_EMIT desktopStateChanged();
 
-    qmlWarning(this) << QString("Try to show desktop state (%1)!").arg(s);
+    qmlWarning(this) << QString("Try to show desktop state (%1)!").arg(d->state);
 }
 
 void WindowManagementInterfaceV1::create(WServer *server)
