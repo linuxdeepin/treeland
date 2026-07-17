@@ -152,6 +152,8 @@ set(SOURCES
     qtquick/private/wbufferrenderer.cpp
     qtquick/private/wrenderbuffernode.cpp
 
+    sgrenderer/wsgdamagetracker.cpp
+
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v1-protocol.c
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v2-protocol.c
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/xdg-output-unstable-v1-protocol.c
@@ -333,6 +335,8 @@ set(PRIVATE_HEADERS
     qtquick/private/wrenderbuffernode_p.h
     qtquick/private/wsurfaceitem_p.h
 
+    sgrenderer/wsgdamagetracker.h
+
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v1-protocol.h
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v2-protocol.h
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/xdg-output-unstable-v1-protocol.h
@@ -363,6 +367,9 @@ endif()
 
 add_library(${TARGET} SHARED ${SOURCES})
 add_library(Waylib::WaylibServer ALIAS ${TARGET})
+
+# Build vendored wlroots renderer for sgrenderer BAL
+add_subdirectory(sgrenderer/vendor/wlroots)
 
 qt_add_qml_module(${TARGET}
     URI Waylib.Server
@@ -411,6 +418,8 @@ target_link_libraries(${TARGET}
 target_link_libraries(${TARGET}
     PUBLIC
         QWlroots::QWlroots
+    PRIVATE
+        Waylib::SGRendererWlrootsVendor
 )
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
@@ -420,6 +429,9 @@ target_include_directories(${TARGET}
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/kernel>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/qtquick>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/qtquick/private>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/sgrenderer>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/sgrenderer/vendor/wlroots/include>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/sgrenderer/vendor/wlroots/extensions>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/utils>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/protocols>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/protocols/private>

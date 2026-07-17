@@ -33,7 +33,8 @@
             "binaryDir": "${sourceDir}/build",
             "cacheVariables": {
                 "CMAKE_CXX_FLAGS": "-Wall -Wextra -Werror -Wno-stringop-overflow -Wno-sfinae-incomplete",
-                "CMAKE_C_FLAGS": "-Wall -Wextra -Werror -Wno-stringop-overflow"
+                "CMAKE_C_FLAGS": "-Wall -Wextra -Werror -Wno-stringop-overflow",
+                "WSG_VENDOR_ENABLE_VULKAN": "OFF"
             }
         },
         {

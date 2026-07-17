@@ -34,6 +34,7 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WRenderHelper;
 class WSGTextureProvider;
+class WSGDirtyNodeObserver;
 class WAYLIB_SERVER_EXPORT WBufferRenderer : public QQuickItem
 {
     friend class WOutputRenderWindow;
@@ -150,6 +151,9 @@ private:
     struct Data {
         QQuickItem *source = nullptr; // Don't using QPointer, See isRootItem
         QSGRenderer *renderer = nullptr;
+        // Passive nodeChanged() observer registered on the renderer's root node;
+        // created/destroyed in ensureRenderer()/destroySource().
+        WSGDirtyNodeObserver *damageObserver = nullptr;
     };
 
     QList<Data> m_sourceList;

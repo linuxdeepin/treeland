@@ -1,0 +1,14 @@
+// SPDX-FileCopyrightText: 2017-2023 wlroots contributors
+// SPDX-License-Identifier: MIT
+//
+// Vendored from wlroots 0.19.3 (commit 88a869855742281c98c22cab9641b317b8d065ef)
+// Source path: generated from include/meson.build
+// Modifications: Adapted from meson configuration_data to CMake configure_file.
+
+#ifndef WLROOTS_VENDOR_CONFIG_H
+#define WLROOTS_VENDOR_CONFIG_H
+
+#cmakedefine01 HAVE_EVENTFD
+#cmakedefine01 HAVE_GBM_BO_GET_FD_FOR_PLANE
+
+#endif

@@ -23,7 +23,7 @@ ColumnLimit: 100
 # Disable reflow of some specific comments
 # qdoc comments: indentation rules are different.
 # Translation comments and SPDX license identifiers are also excluded.
-CommentPragmas: "^!|^:|^ SPDX-License-Identifier:"
+CommentPragmas: "^!|^:|^ SPDX-License-.*"
 
 PointerAlignment: Right
 

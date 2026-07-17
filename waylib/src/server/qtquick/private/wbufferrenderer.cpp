@@ -7,6 +7,7 @@
 #include "wqmlhelper_p.h"
 #include "wtools.h"
 #include "wsgtextureprovider.h"
+#include "wsgdamagetracker.h"
 #include "private/wprivateaccessor_p.h"
 
 #include <qwbuffer.h>
@@ -401,7 +402,8 @@ qw_buffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePixe
                                                 1.0 / devicePixelRatio).map(state.dirty);
         }
     } else {
-        state.dirty = QRegion();
+        // Keep the rotate_buffer() damage for the RHI path; it will be
+        // combined with dirty-node scan results in render().
 
         Q_ASSERT(rtd->type == QQuickRenderTargetPrivate::Type::RhiRenderTarget);
         sgRT.rt = rtd->u.rhiRt;
@@ -573,12 +575,45 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
         }
     }
 
+    // Collect the dirty QSG-node damage for RHI damage tracking. The dirty
+    // nodes were recorded by the WSGDirtyNodeObserver during sync() (via
+    // nodeChanged()); consume them now, before renderNextFrame() clears the
+    // dirty flags during preprocess().
+    QRegion rhiScannedDamage;
+    if (!softwareRenderer && source.damageObserver) {
+        const QRegion dirty = source.damageObserver->tracker().consumeDamageRegion(renderer->rootNode());
+        if (!dirty.isEmpty()) {
+            // Convert from root-node logical coordinates to buffer pixel coordinates.
+            QTransform toPixel = QTransform::fromScale(devicePixelRatio, devicePixelRatio);
+            toPixel *= inputMapToOutput(sourceRect, targetRect,
+                                        state.pixelSize, devicePixelRatio);
+            toPixel *= state.worldTransform.toTransform();
+            rhiScannedDamage = toPixel.map(dirty);
+            rhiScannedDamage &= QRect(QPoint(0, 0), state.pixelSize);
+            // The damage region is in buffer pixel space. When the render
+            // target mirrors vertically the rendered content's Y axis is
+            // flipped, so flip the damage region to match the mirrored output.
+            if (state.renderTarget.mirrorVertically()) {
+                QTransform flipY;
+                flipY.scale(1, -1);
+                flipY.translate(0, -state.pixelSize.height());
+                rhiScannedDamage = flipY.map(rhiScannedDamage);
+            }
+        }
+    }
+
     state.context->renderNextFrame(renderer);
 
     { // after render
         if (!softwareRenderer) {
-            // TODO: get damage area from QRhi renderer
-            m_damageRing.add_whole();
+            // Combine rotate_buffer() damage with scanned dirty-node damage.
+            QRegion combinedDamage = state.dirty | rhiScannedDamage;
+            state.dirty = QRegion();
+            if (!combinedDamage.isEmpty()) {
+                WPixmanRegion pixmanDamage;
+                WTools::toPixmanRegion(combinedDamage, pixmanDamage);
+                m_damageRing.add(pixmanDamage);
+            }
             // ###: maybe Qt bug? Before executing QRhi::endOffscreenFrame, we may
             // use the same QSGRenderer for multiple drawings. This can lead to
             // rendering the same content for different QSGRhiRenderTarget instances
@@ -748,6 +783,16 @@ void WBufferRenderer::resetSources()
 void WBufferRenderer::destroySource(int index)
 {
     auto &s = m_sourceList[index];
+
+    // Destroy the dirty-node observer first: it deregisters itself from the
+    // renderer's root node (QSGRootNode::m_renderers) while the scene graph is
+    // still alive, mirroring the s.renderer cleanup below. Done for the root
+    // source too, whose observer sits on the window's root node.
+    if (s.damageObserver) {
+        delete s.damageObserver;
+        s.damageObserver = nullptr;
+    }
+
     if (isRootItem(s.source))
         return;
 
@@ -779,27 +824,44 @@ int WBufferRenderer::indexOfSource(QQuickItem *s)
 QSGRenderer *WBufferRenderer::ensureRenderer(int sourceIndex, QSGRenderContext *rc)
 {
     Data &d = m_sourceList[sourceIndex];
-    if (isRootItem(d.source))
-        return QQuickWindowPrivate::get(window())->renderer;
+    QSGRenderer *renderer = nullptr;
+    if (isRootItem(d.source)) {
+        // The root source reuses the window's own renderer (it owns the
+        // contentItem scene graph), so we don't create one here.
+        renderer = QQuickWindowPrivate::get(window())->renderer;
+    } else if (Q_LIKELY(d.renderer)) {
+        renderer = d.renderer;
+    } else {
+        auto rootNode = WQmlHelper::getRootNode(d.source);
+        Q_ASSERT(rootNode);
 
-    if (Q_LIKELY(d.renderer))
-        return d.renderer;
+        auto dr = qobject_cast<QSGDefaultRenderContext*>(rc);
+        const bool useDepth = dr ? dr->useDepthBufferFor2D() : false;
+        const auto renderMode = useDepth ? QSGRendererInterface::RenderMode2D
+                                         : QSGRendererInterface::RenderMode2DNoDepthBuffer;
+        d.renderer = rc->createRenderer(renderMode);
+        d.renderer->setRootNode(rootNode);
+        QObject::connect(d.renderer, &QSGRenderer::sceneGraphChanged,
+                         this, &WBufferRenderer::sceneGraphChanged);
 
-    auto rootNode = WQmlHelper::getRootNode(d.source);
-    Q_ASSERT(rootNode);
+        d.renderer->setClearColor(m_clearColor);
+        renderer = d.renderer;
+    }
 
-    auto dr = qobject_cast<QSGDefaultRenderContext*>(rc);
-    const bool useDepth = dr ? dr->useDepthBufferFor2D() : false;
-    const auto renderMode = useDepth ? QSGRendererInterface::RenderMode2D
-                                     : QSGRendererInterface::RenderMode2DNoDepthBuffer;
-    d.renderer = rc->createRenderer(renderMode);
-    d.renderer->setRootNode(rootNode);
-    QObject::connect(d.renderer, &QSGRenderer::sceneGraphChanged,
-                     this, &WBufferRenderer::sceneGraphChanged);
+    // Phase 1 RHI damage tracking: register a passive dirty-node observer on
+    // the renderer's root node. QSGRenderer::nodeChanged() (fired during
+    // sync()) is forwarded to a WSGDamageTracker that render() queries for the
+    // damage region. QSGRootNode keeps a QList of registered renderers, so this
+    // extra observer does not displace the renderer above. Lazily attached
+    // once per source; destroyed in destroySource().
+    if (renderer && !d.damageObserver) {
+        if (auto *rootNode = renderer->rootNode()) {
+            d.damageObserver = new WSGDirtyNodeObserver();
+            d.damageObserver->setRootNode(rootNode);
+        }
+    }
 
-    d.renderer->setClearColor(m_clearColor);
-
-    return d.renderer;
+    return renderer;
 }
 
 WAYLIB_SERVER_END_NAMESPACE
