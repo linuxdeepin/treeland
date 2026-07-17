@@ -12,6 +12,8 @@
 #include <vulkan/vulkan_core.h>
 #include <wlr/render/wlr_renderer.h>
 
+struct wlr_buffer;
+
 struct wlr_vk_image_attribs {
 	VkImage image;
 	VkImageLayout layout;
@@ -32,5 +34,17 @@ void wlr_vk_texture_get_image_attribs(struct wlr_texture *texture,
 	struct wlr_vk_image_attribs *attribs);
 bool wlr_vk_texture_has_alpha(struct wlr_texture *texture);
 
-#endif
+bool wlr_vk_renderer_prepare_texture_for_sampling(struct wlr_renderer *renderer,
+	struct wlr_texture *texture, VkCommandBuffer cb,
+	struct wlr_vk_image_attribs *attribs);
+bool wlr_vk_renderer_finish_texture_sampling(struct wlr_renderer *renderer,
+	struct wlr_texture *texture, VkCommandBuffer cb);
 
+bool wlr_vk_renderer_get_render_buffer_attribs(struct wlr_renderer *renderer,
+	struct wlr_buffer *buffer, struct wlr_vk_image_attribs *attribs);
+bool wlr_vk_renderer_record_render_buffer_acquire(struct wlr_renderer *renderer,
+	struct wlr_buffer *buffer, VkCommandBuffer cb);
+bool wlr_vk_renderer_record_render_buffer_release(struct wlr_renderer *renderer,
+	struct wlr_buffer *buffer, VkCommandBuffer cb, VkImageLayout old_layout);
+
+#endif

@@ -1,6 +1,8 @@
 #include <assert.h>
 #include <drm_fourcc.h>
+#include <errno.h>
 #include <fcntl.h>
+#include <poll.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
@@ -12,6 +14,7 @@
 #include <xf86drm.h>
 #include "render/pixel_format.h"
 #include "render/vulkan.h"
+#include "util/time.h"
 
 static const struct wlr_texture_impl texture_impl;
 
@@ -835,4 +838,191 @@ void wlr_vk_texture_get_image_attribs(struct wlr_texture *texture,
 bool wlr_vk_texture_has_alpha(struct wlr_texture *texture) {
 	struct wlr_vk_texture *vk_texture = vulkan_get_texture(texture);
 	return vk_texture->has_alpha;
+}
+
+static void release_completed_stage_buffers(struct wlr_vk_renderer *renderer) {
+	int64_t now = get_current_time_msec();
+	struct wlr_vk_shared_buffer *buf;
+	wl_list_for_each(buf, &renderer->stage.buffers, link) {
+		if (buf->allocs.size == 0) {
+			continue;
+		}
+
+		buf->allocs.size = 0;
+		buf->last_used_ms = now;
+	}
+}
+
+static bool submit_pending_stage_uploads(struct wlr_vk_renderer *renderer) {
+	if (renderer->stage.cb == NULL) {
+		return true;
+	}
+
+	if (!vulkan_submit_stage_wait(renderer)) {
+		wlr_log(WLR_ERROR, "Failed to submit pending Vulkan texture stage upload");
+		return false;
+	}
+
+	release_completed_stage_buffers(renderer);
+	return true;
+}
+
+static bool wait_sync_file_fds(int sync_file_fds[static WLR_DMABUF_MAX_PLANES]) {
+	bool ok = true;
+
+	for (size_t i = 0; i < WLR_DMABUF_MAX_PLANES; i++) {
+		int fd = sync_file_fds[i];
+		if (fd < 0) {
+			continue;
+		}
+
+		struct pollfd pollfd = {
+			.fd = fd,
+			.events = POLLIN,
+		};
+		int ret;
+		do {
+			ret = poll(&pollfd, 1, 1000);
+		} while (ret < 0 && errno == EINTR);
+
+		if (ret < 0) {
+			wlr_log_errno(WLR_ERROR, "Failed to wait for texture DMA-BUF sync_file");
+			ok = false;
+		} else if (ret == 0) {
+			wlr_log(WLR_ERROR, "Timed out while waiting for texture DMA-BUF sync_file");
+			ok = false;
+		}
+
+		close(fd);
+		sync_file_fds[i] = -1;
+	}
+
+	return ok;
+}
+
+static void close_sync_file_fds(int sync_file_fds[static WLR_DMABUF_MAX_PLANES]) {
+	for (size_t i = 0; i < WLR_DMABUF_MAX_PLANES; i++) {
+		if (sync_file_fds[i] < 0) {
+			continue;
+		}
+
+		close(sync_file_fds[i]);
+		sync_file_fds[i] = -1;
+	}
+}
+
+static void fill_sampling_attribs(struct wlr_vk_texture *texture,
+		struct wlr_vk_image_attribs *attribs) {
+	if (attribs == NULL) {
+		return;
+	}
+
+	attribs->image = texture->image;
+	attribs->format = texture->format->vk;
+	attribs->layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+}
+
+bool wlr_vk_renderer_prepare_texture_for_sampling(struct wlr_renderer *wlr_renderer,
+		struct wlr_texture *wlr_texture, VkCommandBuffer cb,
+		struct wlr_vk_image_attribs *attribs) {
+	if (wlr_renderer == NULL || wlr_texture == NULL || cb == VK_NULL_HANDLE) {
+		return false;
+	}
+	if (!wlr_renderer_is_vk(wlr_renderer) || !wlr_texture_is_vk(wlr_texture)) {
+		return false;
+	}
+
+	struct wlr_vk_renderer *renderer = vulkan_get_renderer(wlr_renderer);
+	struct wlr_vk_texture *texture = vulkan_get_texture(wlr_texture);
+	if (texture->renderer != renderer) {
+		wlr_log(WLR_ERROR, "Vulkan texture belongs to a different renderer");
+		return false;
+	}
+
+	if (!submit_pending_stage_uploads(renderer)) {
+		return false;
+	}
+
+	if (texture->dmabuf_imported && !texture->owned) {
+		int sync_file_fds[WLR_DMABUF_MAX_PLANES];
+		for (size_t i = 0; i < WLR_DMABUF_MAX_PLANES; i++) {
+			sync_file_fds[i] = -1;
+		}
+
+		if (texture->buffer != NULL) {
+			if (!vulkan_sync_foreign_texture_acquire(texture, sync_file_fds)) {
+				close_sync_file_fds(sync_file_fds);
+				wlr_log(WLR_ERROR, "Failed to wait for foreign texture DMA-BUF fence");
+				return false;
+			}
+			if (!wait_sync_file_fds(sync_file_fds)) {
+				return false;
+			}
+		}
+
+		VkImageMemoryBarrier barrier = {
+			.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+			.srcQueueFamilyIndex = VK_QUEUE_FAMILY_FOREIGN_EXT,
+			.dstQueueFamilyIndex = renderer->dev->queue_family,
+			.image = texture->image,
+			.oldLayout = VK_IMAGE_LAYOUT_GENERAL,
+			.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+			.srcAccessMask = 0,
+			.dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
+			.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+			.subresourceRange.layerCount = 1,
+			.subresourceRange.levelCount = 1,
+		};
+
+		vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
+			0, NULL, 0, NULL, 1, &barrier);
+
+		texture->owned = true;
+	}
+
+	texture->transitioned = true;
+	fill_sampling_attribs(texture, attribs);
+	return true;
+}
+
+bool wlr_vk_renderer_finish_texture_sampling(struct wlr_renderer *wlr_renderer,
+		struct wlr_texture *wlr_texture, VkCommandBuffer cb) {
+	if (wlr_renderer == NULL || wlr_texture == NULL || cb == VK_NULL_HANDLE) {
+		return false;
+	}
+	if (!wlr_renderer_is_vk(wlr_renderer) || !wlr_texture_is_vk(wlr_texture)) {
+		return false;
+	}
+
+	struct wlr_vk_renderer *renderer = vulkan_get_renderer(wlr_renderer);
+	struct wlr_vk_texture *texture = vulkan_get_texture(wlr_texture);
+	if (texture->renderer != renderer) {
+		wlr_log(WLR_ERROR, "Vulkan texture belongs to a different renderer");
+		return false;
+	}
+
+	if (!texture->dmabuf_imported || !texture->owned) {
+		return true;
+	}
+
+	VkImageMemoryBarrier barrier = {
+		.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+		.srcQueueFamilyIndex = renderer->dev->queue_family,
+		.dstQueueFamilyIndex = VK_QUEUE_FAMILY_FOREIGN_EXT,
+		.image = texture->image,
+		.oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+		.newLayout = VK_IMAGE_LAYOUT_GENERAL,
+		.srcAccessMask = VK_ACCESS_SHADER_READ_BIT,
+		.dstAccessMask = 0,
+		.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+		.subresourceRange.layerCount = 1,
+		.subresourceRange.levelCount = 1,
+	};
+
+	vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+		VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0,
+		0, NULL, 0, NULL, 1, &barrier);
+	texture->owned = false;
+	return true;
 }
