@@ -12,6 +12,9 @@ SurfaceFilterProxyModel::SurfaceFilterProxyModel(QObject *parent)
 
 void SurfaceFilterProxyModel::setFilterAppId(const QString &appid)
 {
+    if (m_filterAppId == appid)
+        return;
+
 #if QT_VERSION >= QT_VERSION_CHECK(6, 10, 0)
     beginFilterChange();
     m_filterAppId = appid;
@@ -20,6 +23,18 @@ void SurfaceFilterProxyModel::setFilterAppId(const QString &appid)
     m_filterAppId = appid;
     invalidateFilter();
 #endif
+}
+
+QVariantList SurfaceFilterProxyModel::surfaceSnapshot() const
+{
+    QVariantList surfaces;
+    surfaces.reserve(rowCount());
+
+    for (int row = 0; row < rowCount(); ++row) {
+        surfaces.append(data(index(row, 0), Qt::DisplayRole));
+    }
+
+    return surfaces;
 }
 
 int SurfaceFilterProxyModel::activeIndex()
