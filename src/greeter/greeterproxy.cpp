@@ -411,7 +411,7 @@ void GreeterProxy::onSessionUnlock()
 
 bool GreeterProxy::isConnected() const
 {
-    return m_socket->state() == QLocalSocket::ConnectedState;
+    return m_socket && m_socket->state() == QLocalSocket::ConnectedState;
 }
 
 void GreeterProxy::connected()
