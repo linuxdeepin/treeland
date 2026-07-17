@@ -140,9 +140,21 @@ Item {
             width: loginGroup.width
             height: 30
             anchors.horizontalCenter: parent.horizontalCenter
+            horizontalAlignment: TextInput.AlignHCenter
             echoMode: loginGroup.enteringOtherUser ? TextInput.Normal
                       : (showPasswordBtn.hiddenPWD ? TextInput.Password : TextInput.Normal)
-            rightPadding: capsIndicator.visible ? 24 + capsIndicator.width : 24
+            rightPadding: 22
+            leftPadding:{
+                var remaining = width - contentWidth - rightPadding
+                if(capsIndicator.visible)
+                {
+                    return rightPadding
+                }
+                else
+                {
+                    return Math.max(8, remaining > rightPadding ? rightPadding : remaining)
+                }
+            }
             maximumLength: 510
             placeholderText: loginGroup.enteringOtherUser ? qsTr("Username") : qsTr("Password")
             placeholderTextColor: Qt.rgba(1.0, 1.0, 1.0, 0.6)
@@ -161,52 +173,56 @@ Item {
                 }
             }
 
-            RowLayout {
+            D.ActionButton {
+                id: capsIndicator
                 height: parent.height
+                anchors {
+                    left: parent.left
+                    leftMargin: 3
+                    verticalCenter:parent.verticalCenter
+                }
+                visible: passwordField.capsIndicatorVisible && !loginGroup.enteringOtherUser
+                palette.windowText: undefined
+                icon {
+                    name: "login_capslock"
+                    height: 10
+                    width: 10
+                }
+                Layout.alignment: Qt.AlignHCenter
+                implicitWidth: 16
+                implicitHeight: 16
+            }
+
+            D.ActionButton {
+                id: showPasswordBtn
                 anchors {
                     right: parent.right
                     rightMargin: 3
+                    verticalCenter:parent.verticalCenter
+                }
+                property bool hiddenPWD: true
+                visible: !loginGroup.enteringOtherUser
+                icon {
+                    name: hiddenPWD ? "login_display_password" : "login_hidden_password"
+                    height: 10
+                    width: 10
+                }
+                Layout.alignment: Qt.AlignHCenter
+                implicitWidth: 16
+                implicitHeight: 16
+                hoverEnabled: true
+
+                background: Rectangle {
+                    anchors.fill: parent
+                    radius: 4
+                    color: showPasswordBtn.hovered ? Qt.rgba(
+                                                        0, 0, 0,
+                                                        0.1) : "transparent"
                 }
 
-                D.ActionButton {
-                    id: capsIndicator
-                    visible: passwordField.capsIndicatorVisible && !loginGroup.enteringOtherUser
-                    palette.windowText: undefined
-                    icon {
-                        name: "login_capslock"
-                        height: 10
-                        width: 10
-                    }
-                    Layout.alignment: Qt.AlignHCenter
-                    implicitWidth: 16
-                    implicitHeight: 16
-                }
-
-                D.ActionButton {
-                    id: showPasswordBtn
-                    property bool hiddenPWD: true
-                    visible: !loginGroup.enteringOtherUser
-                    icon {
-                        name: hiddenPWD ? "login_display_password" : "login_hidden_password"
-                        height: 10
-                        width: 10
-                    }
-                    Layout.alignment: Qt.AlignHCenter
-                    implicitWidth: 16
-                    implicitHeight: 16
-                    hoverEnabled: true
-
-                    background: Rectangle {
-                        anchors.fill: parent
-                        radius: 4
-                        color: showPasswordBtn.hovered ? Qt.rgba(
-                                                            0, 0, 0,
-                                                            0.1) : "transparent"
-                    }
-
-                    onClicked: hiddenPWD = !hiddenPWD
-                }
+                onClicked: hiddenPWD = !hiddenPWD
             }
+        
 
             background: RoundBlur {
                 color: Qt.rgba(1, 1, 1, 0.4)
