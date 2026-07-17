@@ -32,11 +32,14 @@
 #include <QTimer>
 
 #include <cmath>
+#include <sys/types.h>
+#include <utility>
 
 #include <qpa/qwindowsysteminterface.h>
 #include <private/qxkbcommon_p.h>
 #include <private/qquickwindow_p.h>
 #include <private/qquickdeliveryagent_p_p.h>
+#include <wayland-server-core.h>
 
 QT_BEGIN_NAMESPACE
 Q_GUI_EXPORT bool qt_sendShortcutOverrideEvent(QObject *o, ulong timestamp, int k, Qt::KeyboardModifiers mods, const QString &text = QString(), bool autorep = false, ushort count = 1);
@@ -44,6 +47,66 @@ QT_END_NAMESPACE
 
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
+
+static const char *pointerConstraintTypeName(WSeat::PointerConstraintType type)
+{
+    switch (type) {
+    case WSeat::PointerConstraintType::Locked:
+        return "locked";
+    case WSeat::PointerConstraintType::Confined:
+        return "confined";
+    }
+
+    Q_UNREACHABLE_RETURN("unknown");
+}
+
+static WSeat::PointerConstraintType pointerConstraintType(qw_pointer_constraint_v1 *constraint)
+{
+    Q_ASSERT(constraint && constraint->handle());
+    return constraint->handle()->type == WLR_POINTER_CONSTRAINT_V1_LOCKED
+        ? WSeat::PointerConstraintType::Locked
+        : WSeat::PointerConstraintType::Confined;
+}
+
+static const char *focusedCursorRequestName(WSeat::FocusedCursorRequest request)
+{
+    switch (request) {
+    case WSeat::FocusedCursorRequest::None:
+        return "none";
+    case WSeat::FocusedCursorRequest::Hidden:
+        return "hidden";
+    case WSeat::FocusedCursorRequest::Surface:
+        return "surface";
+    case WSeat::FocusedCursorRequest::Shape:
+        return "shape";
+    }
+
+    Q_UNREACHABLE_RETURN("unknown");
+}
+
+static const char *pointerConstraintLifetimeName(uint32_t lifetime)
+{
+    switch (lifetime) {
+    case ZWP_POINTER_CONSTRAINTS_V1_LIFETIME_ONESHOT:
+        return "oneshot";
+    case ZWP_POINTER_CONSTRAINTS_V1_LIFETIME_PERSISTENT:
+        return "persistent";
+    }
+
+    return "unknown";
+}
+
+static qint64 pointerConstraintClientPid(wlr_pointer_constraint_v1 *constraint)
+{
+    if (!constraint || !constraint->resource)
+        return -1;
+
+    pid_t pid = -1;
+    uid_t uid = 0;
+    gid_t gid = 0;
+    wl_client_get_credentials(wl_resource_get_client(constraint->resource), &pid, &uid, &gid);
+    return pid;
+}
 
 #if QT_CONFIG(wheelevent)
 class Q_DECL_HIDDEN WSeatWheelEvent : public QWheelEvent {
@@ -165,8 +228,63 @@ public:
             && activePointerConstraint->handle()->type == WLR_POINTER_CONSTRAINT_V1_LOCKED;
     }
 
-    inline void deactivatePointerConstraint() {
+    inline WSeat::FocusedCursorRequest focusedCursorRequestKind() const {
+        if (!cursorClient || cursorClient != nativeHandle()->pointer_state.focused_client)
+            return WSeat::FocusedCursorRequest::None;
+
+        return focusedCursorRequest;
+    }
+
+    inline WSeat::PointerConstraintActivationContext pointerConstraintActivationContext(
+        qw_pointer_constraint_v1 *constraint,
+        WSurface *surface) {
+        WSeat::PointerConstraintActivationContext context;
+        context.constraintType = pointerConstraintType(constraint);
+        context.cursorRequest = focusedCursorRequestKind();
+        context.surface = surface;
+        context.seat = q_func();
+        context.constraint = constraint;
+        return context;
+    }
+
+    inline bool pointerConstraintActivationAllowed(qw_pointer_constraint_v1 *constraint,
+                                                   WSurface *surface,
+                                                   QString *reason = nullptr) {
+        if (!constraint || !constraint->handle()) {
+            if (reason)
+                *reason = QStringLiteral("constraint handle is null");
+            return false;
+        }
+
+        const auto context = pointerConstraintActivationContext(constraint, surface);
+
+        if (context.constraintType == WSeat::PointerConstraintType::Locked
+            && context.cursorRequest != WSeat::FocusedCursorRequest::Hidden) {
+            if (reason) {
+                *reason = QStringLiteral("focused cursor request is %1, not hidden")
+                    .arg(QLatin1String(focusedCursorRequestName(context.cursorRequest)));
+            }
+            return false;
+        }
+
+        if (pointerConstraintActivationFilter) {
+            QString filterReason;
+            if (!pointerConstraintActivationFilter(context, &filterReason)) {
+                if (reason) {
+                    *reason = filterReason.isEmpty()
+                        ? QStringLiteral("compositor policy rejected activation")
+                        : filterReason;
+                }
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    inline void deactivatePointerConstraint(const QString &reason = QString()) {
         auto *constraint = activePointerConstraint.data();
+        auto *handle = constraint ? constraint->handle() : nullptr;
 
         activePointerConstraint.clear();
         QObject::disconnect(activePointerConstraintDestroyConnection);
@@ -174,29 +292,66 @@ public:
         activePointerConstraintDestroyConnection = {};
         activePointerConstraintRegionConnection = {};
 
-        if (constraint && constraint->handle())
+        if (handle) {
+            qCInfo(lcWlSeat)
+                << "Deactivating pointer constraint"
+                << "type =" << pointerConstraintTypeName(pointerConstraintType(constraint))
+                << "lifetime =" << pointerConstraintLifetimeName(handle->lifetime)
+                << "constraint =" << handle
+                << "surface =" << handle->surface
+                << "seat =" << handle->seat
+                << "clientPid =" << pointerConstraintClientPid(handle)
+                << "reason =" << reason;
             constraint->send_deactivated();
+        }
     }
 
     inline void updatePointerConstraint(WSurface *surface, const QPointF &surfacePos) {
         auto *constraint = constraintForSurface(surface);
         if (!constraint) {
             if (activePointerConstraint)
-                deactivatePointerConstraint();
+                deactivatePointerConstraint(QStringLiteral("focused surface has no pointer constraint"));
             return;
         }
 
         if (activePointerConstraint && activePointerConstraint->handle() == constraint->handle()) {
-            if (!pointerConstraintContains(constraint, surfacePos))
-                deactivatePointerConstraint();
+            if (!pointerConstraintContains(constraint, surfacePos)) {
+                deactivatePointerConstraint(QStringLiteral("pointer left constraint region"));
+                return;
+            }
+
+            QString denyReason;
+            if (!pointerConstraintActivationAllowed(constraint, surface, &denyReason))
+                deactivatePointerConstraint(denyReason);
             return;
         }
 
         if (activePointerConstraint)
-            deactivatePointerConstraint();
+            deactivatePointerConstraint(QStringLiteral("switching active pointer constraint"));
 
-        if (!pointerConstraintContains(constraint, surfacePos))
+        if (!pointerConstraintContains(constraint, surfacePos)) {
+            qCDebug(lcWlSeat)
+                << "Not activating pointer constraint: pointer outside region"
+                << "type =" << pointerConstraintTypeName(pointerConstraintType(constraint))
+                << "constraint =" << constraint->handle()
+                << "surface =" << surface
+                << "surfacePos =" << surfacePos;
             return;
+        }
+
+        QString denyReason;
+        if (!pointerConstraintActivationAllowed(constraint, surface, &denyReason)) {
+            qCDebug(lcWlSeat)
+                << "Not activating pointer constraint"
+                << "type =" << pointerConstraintTypeName(pointerConstraintType(constraint))
+                << "lifetime =" << pointerConstraintLifetimeName(constraint->handle()->lifetime)
+                << "constraint =" << constraint->handle()
+                << "surface =" << surface
+                << "seat =" << q_func()
+                << "clientPid =" << pointerConstraintClientPid(constraint->handle())
+                << "reason =" << denyReason;
+            return;
+        }
 
         activePointerConstraint = constraint;
         activePointerConstraintDestroyConnection =
@@ -213,6 +368,15 @@ public:
                              q_func(), [this] {
                                  updatePointerConstraint();
                              });
+        qCInfo(lcWlSeat)
+            << "Activating pointer constraint"
+            << "type =" << pointerConstraintTypeName(pointerConstraintType(constraint))
+            << "lifetime =" << pointerConstraintLifetimeName(constraint->handle()->lifetime)
+            << "constraint =" << constraint->handle()
+            << "surface =" << surface
+            << "seat =" << q_func()
+            << "clientPid =" << pointerConstraintClientPid(constraint->handle())
+            << "cursorRequest =" << focusedCursorRequestName(focusedCursorRequestKind());
         constraint->send_activated();
     }
 
@@ -287,7 +451,7 @@ public:
         auto tmp = oldPointerFocusSurface;
         oldPointerFocusSurface = handle()->handle()->pointer_state.focused_surface;
         if (activePointerConstraint && activePointerConstraint->handle()->surface != surface->handle()->handle())
-            deactivatePointerConstraint();
+            deactivatePointerConstraint(QStringLiteral("pointer entered another surface"));
 
         handle()->pointer_notify_enter(surface->handle()->handle(), position.x(), position.y());
         if (!pointerFocusSurface()) {
@@ -319,7 +483,7 @@ public:
     }
     inline void doClearPointerFocus() {
         if (activePointerConstraint)
-            deactivatePointerConstraint();
+            deactivatePointerConstraint(QStringLiteral("pointer focus cleared"));
         pointerFocusEventObject.clear();
         handle()->pointer_notify_clear_focus();
         Q_ASSERT(!handle()->handle()->pointer_state.focused_surface);
@@ -485,6 +649,8 @@ public:
     QPointer<QObject> pointerFocusEventObject;
     QPointer<WSurface> m_keyboardFocusSurface;
     QPointer<qw_pointer_constraint_v1> activePointerConstraint;
+    WSeat::FocusedCursorRequest focusedCursorRequest = WSeat::FocusedCursorRequest::None;
+    WSeat::PointerConstraintActivationFilter pointerConstraintActivationFilter;
     QMetaObject::Connection onEventObjectDestroy;
     QMetaObject::Connection activePointerConstraintDestroyConnection;
     QMetaObject::Connection activePointerConstraintRegionConnection;
@@ -583,6 +749,8 @@ void WSeatPrivate::on_request_set_cursor(wlr_seat_pointer_request_set_cursor_eve
         auto *surface = event->surface ? qw_surface::from(event->surface) : nullptr;
         cursorClient = event->seat_client;
         cursorShape = WGlobal::CursorShape::Invalid;
+        focusedCursorRequest = surface ? WSeat::FocusedCursorRequest::Surface
+                                       : WSeat::FocusedCursorRequest::Hidden;
 
         if (cursorSurface)
             cursorSurface->safeDeleteLater();
@@ -598,7 +766,14 @@ void WSeatPrivate::on_request_set_cursor(wlr_seat_pointer_request_set_cursor_eve
         cursorSurfaceHotspot.rx() = event->hotspot_x;
         cursorSurfaceHotspot.ry() = event->hotspot_y;
 
+        qCDebug(lcWlSeat)
+            << "Focused client requested cursor surface"
+            << "seat =" << q_func()
+            << "seatClient =" << event->seat_client
+            << "surface =" << event->surface
+            << "cursorRequest =" << focusedCursorRequestName(focusedCursorRequest);
         Q_EMIT q->requestCursorSurface(cursorSurface, cursorSurfaceHotspot);
+        updatePointerConstraint();
     }
 }
 
@@ -1285,6 +1460,21 @@ void WSeat::setAlwaysUpdateHoverTarget(bool newIgnoreSurfacePointerEventExclusiv
     Q_EMIT alwaysUpdateHoverTargetChanged();
 }
 
+void WSeat::setPointerConstraintActivationFilter(PointerConstraintActivationFilter filter)
+{
+    W_D(WSeat);
+    d->pointerConstraintActivationFilter = std::move(filter);
+    if (isValid())
+        d->updatePointerConstraint();
+}
+
+void WSeat::reevaluatePointerConstraint()
+{
+    W_D(WSeat);
+    if (isValid())
+        d->updatePointerConstraint();
+}
+
 void WSeat::notifyRelativeMotion(uint32_t timestamp, const QPointF &delta,
                                  const QPointF &unacceleratedDelta)
 {
@@ -1295,7 +1485,8 @@ void WSeat::notifyRelativeMotion(uint32_t timestamp, const QPointF &delta,
 void WSeat::refreshPointerConstraint()
 {
     W_D(WSeat);
-    d->updatePointerConstraint();
+    if (isValid())
+        d->updatePointerConstraint();
 }
 
 bool WSeat::pointerMotionLocked() const
@@ -1618,11 +1809,18 @@ void WSeat::setCursorShape(wlr_seat_client *client, WGlobal::CursorShape shape)
         return;
     d->cursorShape = shape;
     d->cursorClient = client;
+    d->focusedCursorRequest = FocusedCursorRequest::Shape;
 
     if (d->cursorSurface)
         d->cursorSurface->safeDeleteLater();
 
+    qCDebug(lcWlSeat)
+        << "Focused client requested cursor shape"
+        << "seat =" << this
+        << "seatClient =" << client
+        << "shape =" << static_cast<int>(shape);
     Q_EMIT requestCursorShape(shape);
+    d->updatePointerConstraint();
 }
 
 WSeatEventFilter *WSeat::eventFilter() const
