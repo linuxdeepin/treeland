@@ -970,123 +970,21 @@ static struct wlr_vk_render_buffer *get_or_create_render_buffer(
 
 bool waylib_vk_renderer_get_render_buffer_attribs(struct wlr_renderer *wlr_renderer,
 		struct wlr_buffer *wlr_buffer, struct wlr_vk_image_attribs *attribs) {
-	if (wlr_renderer == NULL || wlr_buffer == NULL || attribs == NULL) {
-		return false;
-	}
-	if (!wlr_renderer_is_vk(wlr_renderer)) {
-		return false;
-	}
-
-	struct wlr_vk_renderer *renderer = vulkan_get_renderer(wlr_renderer);
-	struct wlr_vk_render_buffer *render_buffer =
-		get_or_create_render_buffer(renderer, wlr_buffer);
-	if (render_buffer == NULL) {
-		return false;
-	}
-
-	struct wlr_dmabuf_attributes dmabuf = {0};
-	if (!wlr_buffer_get_dmabuf(wlr_buffer, &dmabuf)) {
-		wlr_log(WLR_ERROR, "wlr_buffer_get_dmabuf() failed");
-		return false;
-	}
-
-	const struct wlr_vk_format *format = vulkan_get_format_from_drm(dmabuf.format);
-	if (format == NULL) {
-		wlr_log(WLR_ERROR, "Unsupported pixel format %"PRIx32 " (%.4s)",
-			dmabuf.format, (const char *)&dmabuf.format);
-		return false;
-	}
-
-	attribs->image = render_buffer->image;
-	attribs->layout = VK_IMAGE_LAYOUT_GENERAL;
-	attribs->format = format->vk;
-	return true;
+	return wlr_vk_renderer_get_render_buffer_attribs(
+		wlr_renderer, wlr_buffer, attribs);
 }
 
 bool waylib_vk_renderer_record_render_buffer_acquire(struct wlr_renderer *wlr_renderer,
 		struct wlr_buffer *wlr_buffer, VkCommandBuffer cb) {
-	if (wlr_renderer == NULL || wlr_buffer == NULL || cb == VK_NULL_HANDLE) {
-		return false;
-	}
-	if (!wlr_renderer_is_vk(wlr_renderer)) {
-		return false;
-	}
-
-	struct wlr_vk_renderer *renderer = vulkan_get_renderer(wlr_renderer);
-	struct wlr_vk_render_buffer *render_buffer =
-		get_or_create_render_buffer(renderer, wlr_buffer);
-	if (render_buffer == NULL) {
-		return false;
-	}
-
-	/* Match wlroots pass.c / tinywl: foreign ownership transfer into the
-	 * graphics queue before writing the scanout image. */
-	VkImageLayout src_layout = VK_IMAGE_LAYOUT_GENERAL;
-	if (!render_buffer->srgb.transitioned && !render_buffer->plain.transitioned) {
-		src_layout = VK_IMAGE_LAYOUT_PREINITIALIZED;
-	}
-	// The sRGB and plain pathways share the imported VkImage. Once this
-	// acquire barrier runs, both pathways observe GENERAL on subsequent use.
-	render_buffer->srgb.transitioned = true;
-	render_buffer->plain.transitioned = true;
-
-	VkImageMemoryBarrier barrier = {
-		.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-		.srcQueueFamilyIndex = VK_QUEUE_FAMILY_FOREIGN_EXT,
-		.dstQueueFamilyIndex = renderer->dev->queue_family,
-		.image = render_buffer->image,
-		.oldLayout = src_layout,
-		.newLayout = VK_IMAGE_LAYOUT_GENERAL,
-		.srcAccessMask = 0,
-		.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT |
-			VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-		.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-		.subresourceRange.layerCount = 1,
-		.subresourceRange.levelCount = 1,
-	};
-
-	vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-		VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-		0, 0, NULL, 0, NULL, 1, &barrier);
-	return true;
+	return wlr_vk_renderer_record_render_buffer_acquire(
+		wlr_renderer, wlr_buffer, cb);
 }
 
 bool waylib_vk_renderer_record_render_buffer_release(struct wlr_renderer *wlr_renderer,
 		struct wlr_buffer *wlr_buffer, VkCommandBuffer cb,
 		VkImageLayout old_layout) {
-	if (wlr_renderer == NULL || wlr_buffer == NULL || cb == VK_NULL_HANDLE) {
-		return false;
-	}
-	if (!wlr_renderer_is_vk(wlr_renderer)) {
-		return false;
-	}
-
-	struct wlr_vk_renderer *renderer = vulkan_get_renderer(wlr_renderer);
-	struct wlr_vk_render_buffer *render_buffer =
-		get_render_buffer(renderer, wlr_buffer);
-	if (render_buffer == NULL) {
-		return false;
-	}
-
-	VkImageMemoryBarrier barrier = {
-		.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-		.srcQueueFamilyIndex = renderer->dev->queue_family,
-		.dstQueueFamilyIndex = VK_QUEUE_FAMILY_FOREIGN_EXT,
-		.image = render_buffer->image,
-		.oldLayout = old_layout,
-		.newLayout = VK_IMAGE_LAYOUT_GENERAL,
-		.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT |
-			VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-		.dstAccessMask = 0,
-		.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-		.subresourceRange.layerCount = 1,
-		.subresourceRange.levelCount = 1,
-	};
-
-	vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-		VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-		0, 0, NULL, 0, NULL, 1, &barrier);
-	return true;
+	return wlr_vk_renderer_record_render_buffer_release(
+		wlr_renderer, wlr_buffer, cb, old_layout);
 }
 
 static bool buffer_export_sync_file(struct wlr_vk_renderer *renderer, struct wlr_buffer *buffer,
@@ -2662,6 +2560,123 @@ struct wlr_renderer *vulkan_renderer_create_for_device(struct wlr_vk_device *dev
 error:
 	vulkan_destroy(&renderer->wlr_renderer);
 	return NULL;
+}
+
+bool wlr_vk_renderer_get_render_buffer_attribs(struct wlr_renderer *wlr_renderer,
+		struct wlr_buffer *wlr_buffer, struct wlr_vk_image_attribs *attribs) {
+	if (wlr_renderer == NULL || wlr_buffer == NULL || attribs == NULL) {
+		return false;
+	}
+	if (!wlr_renderer_is_vk(wlr_renderer)) {
+		return false;
+	}
+
+	struct wlr_vk_renderer *renderer = vulkan_get_renderer(wlr_renderer);
+	struct wlr_vk_render_buffer *render_buffer =
+		get_or_create_render_buffer(renderer, wlr_buffer);
+	if (render_buffer == NULL) {
+		return false;
+	}
+
+	struct wlr_dmabuf_attributes dmabuf = {0};
+	if (!wlr_buffer_get_dmabuf(wlr_buffer, &dmabuf)) {
+		wlr_log(WLR_ERROR, "wlr_buffer_get_dmabuf failed");
+		return false;
+	}
+
+	const struct wlr_vk_format *format = vulkan_get_format_from_drm(dmabuf.format);
+	if (format == NULL) {
+		wlr_log(WLR_ERROR, "Unsupported pixel format %"PRIx32 " (%.4s)",
+			dmabuf.format, (const char *)&dmabuf.format);
+		return false;
+	}
+
+	attribs->image = render_buffer->image;
+	attribs->layout = VK_IMAGE_LAYOUT_GENERAL;
+	attribs->format = format->vk;
+	return true;
+}
+
+bool wlr_vk_renderer_record_render_buffer_acquire(struct wlr_renderer *wlr_renderer,
+		struct wlr_buffer *wlr_buffer, VkCommandBuffer cb) {
+	if (wlr_renderer == NULL || wlr_buffer == NULL || cb == VK_NULL_HANDLE) {
+		return false;
+	}
+	if (!wlr_renderer_is_vk(wlr_renderer)) {
+		return false;
+	}
+
+	struct wlr_vk_renderer *renderer = vulkan_get_renderer(wlr_renderer);
+	struct wlr_vk_render_buffer *render_buffer =
+		get_or_create_render_buffer(renderer, wlr_buffer);
+	if (render_buffer == NULL) {
+		return false;
+	}
+
+	VkImageLayout src_layout = VK_IMAGE_LAYOUT_GENERAL;
+	if (!render_buffer->srgb.transitioned || !render_buffer->plain.transitioned) {
+		src_layout = VK_IMAGE_LAYOUT_PREINITIALIZED;
+		render_buffer->srgb.transitioned = true;
+		render_buffer->plain.transitioned = true;
+	}
+
+	VkImageMemoryBarrier barrier = {
+		.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+		.srcQueueFamilyIndex = VK_QUEUE_FAMILY_FOREIGN_EXT,
+		.dstQueueFamilyIndex = renderer->dev->queue_family,
+		.image = render_buffer->image,
+		.oldLayout = src_layout,
+		.newLayout = VK_IMAGE_LAYOUT_GENERAL,
+		.srcAccessMask = 0,
+		.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT |
+			VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+		.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+		.subresourceRange.layerCount = 1,
+		.subresourceRange.levelCount = 1,
+	};
+
+	vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+		VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+		0, 0, NULL, 0, NULL, 1, &barrier);
+	return true;
+}
+
+bool wlr_vk_renderer_record_render_buffer_release(struct wlr_renderer *wlr_renderer,
+		struct wlr_buffer *wlr_buffer, VkCommandBuffer cb,
+		VkImageLayout old_layout) {
+	if (wlr_renderer == NULL || wlr_buffer == NULL || cb == VK_NULL_HANDLE) {
+		return false;
+	}
+	if (!wlr_renderer_is_vk(wlr_renderer)) {
+		return false;
+	}
+
+	struct wlr_vk_renderer *renderer = vulkan_get_renderer(wlr_renderer);
+	struct wlr_vk_render_buffer *render_buffer =
+		get_render_buffer(renderer, wlr_buffer);
+	if (render_buffer == NULL) {
+		return false;
+	}
+
+	VkImageMemoryBarrier barrier = {
+		.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+		.srcQueueFamilyIndex = renderer->dev->queue_family,
+		.dstQueueFamilyIndex = VK_QUEUE_FAMILY_FOREIGN_EXT,
+		.image = render_buffer->image,
+		.oldLayout = old_layout,
+		.newLayout = VK_IMAGE_LAYOUT_GENERAL,
+		.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT |
+			VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+		.dstAccessMask = 0,
+		.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+		.subresourceRange.layerCount = 1,
+		.subresourceRange.levelCount = 1,
+	};
+
+	vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+		VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+		0, 0, NULL, 0, NULL, 1, &barrier);
+	return true;
 }
 
 struct wlr_renderer *wlr_vk_renderer_create_with_drm_fd(int drm_fd) {
