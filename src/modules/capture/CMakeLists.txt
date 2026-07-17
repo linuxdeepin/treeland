@@ -51,7 +51,7 @@ PRIVATE
 
 target_link_libraries(${MODULE_NAME}
     PRIVATE
-        PkgConfig::WLROOTS
+        Wlroots::wlroots
         Waylib::WaylibServer
         Qt6::Core
         Qt6::Gui

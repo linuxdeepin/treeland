@@ -4,11 +4,15 @@ on:
   push:
     paths:
       - 'qwlroots/**'
+      - 'wlroots/**'
+      - '3rdparty/wlroots/**'
       - '.github/workflows/qwlroots-archlinux-build.yml'
 
   pull_request:
     paths:
       - 'qwlroots/**'
+      - 'wlroots/**'
+      - '3rdparty/wlroots/**'
       - '.github/workflows/qwlroots-archlinux-build.yml'
 
 jobs:
@@ -25,8 +29,17 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pacman -S --noconfirm qt6-base cmake pkgconfig wlroots0.19 pixman wayland-protocols wlr-protocols
-          pacman -S --noconfirm clang ninja base-devel git
+          # Vendored waylib-wlroots deps from Arch wlroots0.19 package metadata
+          # (do not install system wlroots0.19)
+          pacman -S --noconfirm \
+            qt6-base cmake pkgconfig ninja clang base-devel git \
+            pixman wayland wayland-protocols wlr-protocols \
+            libxcb libx11 libxkbcommon libdrm libinput seatd \
+            libdisplay-info libliftoff lcms2 \
+            mesa libglvnd vulkan-headers vulkan-icd-loader \
+            glslang hwdata systemd \
+            xcb-util-errors xcb-util-renderutil xcb-util-wm \
+            xorg-xwayland
 
       - name: Configure and build qwlroots
         working-directory: qwlroots

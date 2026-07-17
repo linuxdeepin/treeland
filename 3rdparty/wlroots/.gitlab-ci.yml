@@ -1,0 +1,8 @@
+include: https://gitlab.freedesktop.org/emersion/dalligi/-/raw/master/templates/multi.yml
+alpine:
+  extends: .dalligi
+  pages: true
+archlinux:
+  extends: .dalligi
+freebsd:
+  extends: .dalligi

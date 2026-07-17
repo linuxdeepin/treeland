@@ -19,7 +19,7 @@ impl_treeland(
     INCLUDE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
     LINK
-        PkgConfig::WLROOTS
+        Wlroots::wlroots
         Waylib::WaylibServer
         Qt6::Core
         Qt6::Gui
