@@ -1642,7 +1642,15 @@ void Helper::init(Treeland::Treeland *treeland)
         qCInfo(lcTlCore) << "Attached presentation-time protocol for Vulkan renderer";
     }
 
-    qw_drm::create(*m_server->handle(), *m_renderer);
+    if (m_renderer->supports_implicit_dmabuf_texture_formats()) {
+        if (qw_drm::create(*m_server->handle(), *m_renderer)) {
+            qCInfo(lcTlCore) << "Created legacy wl_drm global for implicit DMA-BUF clients";
+        } else {
+            qCWarning(lcTlCore) << "Failed to create legacy wl_drm global despite implicit DMA-BUF support";
+        }
+    } else {
+        qCInfo(lcTlCore) << "Skipping legacy wl_drm global: renderer does not support implicit DMA-BUF modifiers";
+    }
 
     // free follow display
     m_compositor = qw_compositor::create(*m_server->handle(), 6, *m_renderer);

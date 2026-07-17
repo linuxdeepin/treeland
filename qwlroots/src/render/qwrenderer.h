@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <qwdrmformatset.h>
 #include <qwobject.h>
 
 extern "C" {
@@ -37,6 +38,11 @@ public:
     QW_FUNC_MEMBER(renderer, init_wl_shm, bool, wl_display *wl_display)
     QW_FUNC_MEMBER(renderer, get_drm_fd, int)
     QW_FUNC_MEMBER(renderer, get_texture_formats, const wlr_drm_format_set *, uint32_t buffer_caps)
+
+    QW_ALWAYS_INLINE bool supports_implicit_dmabuf_texture_formats() const
+    {
+        return qw_drm_format_set::has_implicit_modifier(get_texture_formats(WLR_BUFFER_CAP_DMABUF));
+    }
 
 protected:
     QW_FUNC_MEMBER(renderer, destroy, void)
