@@ -158,6 +158,7 @@ void GreeterProxy::setShowShutdownView(bool show) {
 void GreeterProxy::setLock(bool isLocked)
 {
     if (isLocked && !m_isLocked) {
+        // m_isLocked must be set before m_lockScreen->lock() to prevent re-entry
         m_isLocked = true;
         if (m_lockScreen && !m_lockScreen->isVisible())
             m_lockScreen->lock();
@@ -263,6 +264,7 @@ void GreeterProxy::lock()
     }
     qCInfo(lcTlGreeter) << "Locking user" << session->username() << "with session id" << session->id();
     SocketWriter(m_socket) << quint32(GreeterMessages::Lock) << session->id();
+    setLock(true);
 }
 
 //////////////////////////////
@@ -368,8 +370,8 @@ void GreeterProxy::onSessionLock()
             qCWarning(lcTlGreeter)
                 << "Lock signal received for non-exist session id:" << id << ", ignore.";
         else if (activeSession->id() != id)
-            qCWarning(lcTlGreeter)
-                << "Lock signal received for non-active session id:" << id << ", ignore.";
+            qCDebug(lcTlGreeter)
+                << "Lock signal received for session id:" << id << ", already locked via lock() call.";
         else
             QMetaObject::invokeMethod(this, [this] {
                 setLock(true);
