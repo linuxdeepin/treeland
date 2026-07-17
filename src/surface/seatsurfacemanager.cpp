@@ -2,18 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "seatsurfacemanager.h"
+
 #include "rootsurfacecontainer.h"
+#include "common/treelandlogging.h"
 #include "seat/helper.h"
 #include "seat/seatsmanager.h"
-#include "common/treelandlogging.h"
 
 #include <winputdevice.h>
 #include <woutput.h>
-#include <woutputlayout.h>
 #include <woutputitem.h>
-#include <wxdgtoplevelsurface.h>
+#include <woutputlayout.h>
 #include <wseat.h>
+#include <wxdgtoplevelsurface.h>
+#include <wxdgpopupsurface.h>
+
 #include <qwoutput.h>
+#include <qwseat.h>
+#include <qwxdgshell.h>
 
 #include <QDateTime>
 
@@ -26,6 +31,16 @@ SeatSurfaceManager::SeatSurfaceManager(WSeat *seat, RootSurfaceContainer *parent
 {
     Q_ASSERT(seat);
     Q_ASSERT(parent);
+
+    auto *seatHandle = seat->handle();
+    connect(seatHandle,
+            &qw_seat::notify_keyboard_grab_begin,
+            this,
+            &SeatSurfaceManager::onKeyboardGrabBegin);
+    connect(seatHandle,
+            &qw_seat::notify_keyboard_grab_end,
+            this,
+            &SeatSurfaceManager::onKeyboardGrabEnd);
 }
 
 SeatSurfaceManager::~SeatSurfaceManager()
@@ -39,17 +54,63 @@ void SeatSurfaceManager::setActivatedSurface(SurfaceWrapper *surface, Qt::FocusR
     if (m_activatedSurface == surface)
         return;
 
+    if (m_activatedSurface) {
+        disconnect(m_activatedSurface,
+                   &SurfaceWrapper::hasFocusCapabilityChanged,
+                   this,
+                   &SeatSurfaceManager::onActivatedSurfaceFocusCapabilityChanged);
+    }
+
     m_activatedSurface = surface;
-    m_keyboardFocusSurface = surface;
+
+    if (m_activatedSurface) {
+        connect(m_activatedSurface,
+                &SurfaceWrapper::hasFocusCapabilityChanged,
+                this,
+                &SeatSurfaceManager::onActivatedSurfaceFocusCapabilityChanged);
+    }
+
     Q_EMIT activatedSurfaceChanged(surface);
 }
 
-void SeatSurfaceManager::setKeyboardFocusSurface(SurfaceWrapper *surface)
+void SeatSurfaceManager::onActivatedSurfaceFocusCapabilityChanged()
+{
+    if (!m_activatedSurface)
+        return;
+
+    auto *helper = Helper::instance();
+    if (!helper)
+        return;
+
+    if (m_activatedSurface->hasFocusCapability()) {
+        helper->requestKeyboardFocus(m_activatedSurface, Qt::ActiveWindowFocusReason, m_seat);
+    } else {
+        helper->requestKeyboardFocus(nullptr, Qt::ActiveWindowFocusReason, m_seat);
+    }
+}
+
+void SeatSurfaceManager::setKeyboardFocusSurface(SurfaceWrapper *surface, Qt::FocusReason reason)
 {
     if (m_keyboardFocusSurface == surface)
         return;
+    Q_ASSERT(m_seat && m_seat->nativeHandle());
 
     auto *oldSurface = m_keyboardFocusSurface;
+
+    // Only check priority when transferring focus between two surfaces.
+    // Clearing focus to nullptr (e.g. surfaceDestroyed) must always be allowed.
+    if (oldSurface && surface) {
+        int oldSurfacePriority = oldSurface->shellSurface() ? oldSurface->shellSurface()->keyboardFocusPriority() : 0;
+        int newSurfacePriority = surface->shellSurface() ? surface->shellSurface()->keyboardFocusPriority() : 0;
+        if (oldSurfacePriority > newSurfacePriority) {
+            qCDebug(lcTlShell) << "Keyboard focus rejected: current surface priority"
+                               << oldSurfacePriority
+                               << "> new surface priority"
+                               << newSurfacePriority;
+            return;
+        }
+    }
+
     // Clear focus from old surface if no other seat has it
     if (oldSurface) {
         bool otherSeatHasFocus = false;
@@ -76,19 +137,16 @@ void SeatSurfaceManager::setKeyboardFocusSurface(SurfaceWrapper *surface)
 
         if (!otherSeatHasFocus)
             oldSurface->setFocus(false, Qt::OtherFocusReason);
-
-        if (m_seat && m_seat->nativeHandle())
-            m_seat->setKeyboardFocusSurface(nullptr);
     }
 
     // Assign new keyboard focus surface and update interaction metadata
     m_keyboardFocusSurface = surface;
-    if (surface && m_seat && m_seat->nativeHandle()) {
+    m_seat->setKeyboardFocusSurface(surface ? surface->surface() : nullptr);
+
+    if (surface) {
+        surface->setFocus(true, reason);
         surface->setProperty("lastInteractingSeat", QVariant::fromValue(m_seat));
         surface->setProperty("lastInteractionTime", QDateTime::currentMSecsSinceEpoch());
-
-        surface->setFocus(true, Qt::OtherFocusReason);
-        m_seat->setKeyboardFocusSurface(surface->surface());
     }
 }
 
@@ -237,5 +295,63 @@ void SeatSurfaceManager::surfaceDestroyed(SurfaceWrapper *surface)
 
     if (m_keyboardFocusSurface == surface) {
         setKeyboardFocusSurface(nullptr);
+    }
+}
+
+void SeatSurfaceManager::givePopupFocus(SurfaceWrapper *popupWrapper)
+{
+    if (!m_hasPopupGrab)
+        return;
+
+    Q_ASSERT(popupWrapper);
+    auto *popupSurface = qobject_cast<WXdgPopupSurface *>(popupWrapper->shellSurface());
+    if (!popupSurface)
+        return;
+
+    // Only give focus to popups that belong to our seat's active popup grab.
+    auto *wlrPopup = popupSurface->handle()->handle();
+    if (!wlrPopup || wlrPopup->seat != m_seat->nativeHandle())
+        return;
+
+    // Move keyboard focus to the popup surface directly.
+    setKeyboardFocusSurface(popupWrapper, Qt::ActiveWindowFocusReason);
+
+    qCDebug(lcTlPopupFocus) << "Moved keyboard focus to popup surface:" << popupWrapper;
+}
+
+void SeatSurfaceManager::dismissPopups()
+{
+    if (!m_hasPopupGrab)
+        return;
+
+    qCDebug(lcTlPopupFocus) << "Dismissing popup grab";
+    m_seat->handle()->keyboard_end_grab();
+}
+
+void SeatSurfaceManager::onKeyboardGrabBegin()
+{
+
+    if (m_hasPopupGrab) {
+        // Already tracking; nested popups reuse the same grab.
+        return;
+    }
+    // TODO(rewine): Should the impact of IME and drag be considered?
+
+    m_hasPopupGrab = true;
+    qCDebug(lcTlPopupFocus) << "Popup keyboard grab started";
+}
+
+void SeatSurfaceManager::onKeyboardGrabEnd()
+{
+    if (!m_hasPopupGrab)
+        return;
+
+    m_hasPopupGrab = false;
+
+    qCDebug(lcTlPopupFocus) << "Popup keyboard grab ended, restoring focus to:"
+                            << m_activatedSurface;
+
+    if (m_activatedSurface && m_activatedSurface->hasFocusCapability()) {
+        setKeyboardFocusSurface(m_activatedSurface, Qt::ActiveWindowFocusReason);
     }
 }

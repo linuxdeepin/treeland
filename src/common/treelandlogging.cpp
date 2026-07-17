@@ -84,3 +84,6 @@ Q_LOGGING_CATEGORY(lcTlXwayland, "treeland.xwayland")
 
 // DDM integration
 Q_LOGGING_CATEGORY(lcTlDdm, "treeland.ddm")
+
+// Popup focus management
+Q_LOGGING_CATEGORY(lcTlPopupFocus, "treeland.popup.focus")

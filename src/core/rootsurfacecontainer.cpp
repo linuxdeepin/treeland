@@ -22,6 +22,7 @@
 #include <winputdevice.h>
 
 #include <qwoutputlayout.h>
+#include <qwxdgshell.h>
 
 #include <QPointer>
 #include <QQuickWindow>
@@ -145,11 +146,6 @@ void RootSurfaceContainer::destroyForSurface(SurfaceWrapper *wrapper)
     // Clean up per-seat state for this surface
     for (auto *container : std::as_const(m_seatContainers)) {
         container->surfaceDestroyed(wrapper);
-    }
-
-    auto *helper = Helper::instance();
-    if (helper && helper->activatedSurface() == wrapper) {
-        helper->setActivatedSurface(nullptr);
     }
 
     wrapper->destroy();
@@ -678,6 +674,12 @@ void RootSurfaceContainer::onSeatAdded(WSeat *seat)
     m_seatContainers[seat] = container;
 
     connect(container, &SeatSurfaceManager::moveResizeChanged, this, &RootSurfaceContainer::moveResizeFinised);
+    connect(container, &SeatSurfaceManager::activatedSurfaceChanged, this, [seat]() {
+        auto *helper = Helper::instance();
+        if (helper && helper->seat() == seat) {
+            Q_EMIT helper->activatedSurfaceChanged();
+        }
+    });
 }
 
 void RootSurfaceContainer::onSeatRemoved(WSeat *seat)
@@ -735,6 +737,35 @@ SeatSurfaceManager *RootSurfaceContainer::getSeatContainerOrDefault(WSeat *seat)
     }
 
     return container;
+}
+
+void RootSurfaceContainer::dismissAllPopups()
+{
+    for (auto *container : std::as_const(m_seatContainers)) {
+        container->dismissPopups();
+    }
+}
+
+void RootSurfaceContainer::givePopupFocus(SurfaceWrapper *popupWrapper)
+{
+    if (!popupWrapper)
+        return;
+
+    // Route to the correct seat based on wlr_xdg_popup->seat.
+    auto *popupSurface = qobject_cast<WXdgPopupSurface *>(popupWrapper->shellSurface());
+    if (!popupSurface)
+        return;
+
+    auto *wlrPopup = popupSurface->handle()->handle();
+    if (!wlrPopup || !wlrPopup->seat)
+        return;
+
+    for (auto it = m_seatContainers.constBegin(); it != m_seatContainers.constEnd(); ++it) {
+        if (it.key()->nativeHandle() == wlrPopup->seat) {
+            it.value()->givePopupFocus(popupWrapper);
+            return;
+        }
+    }
 }
 
 void RootSurfaceContainer::beginMoveResizeForSeat(WSeat *seat, SurfaceWrapper *surface, Qt::Edges edges)

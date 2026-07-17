@@ -867,13 +867,11 @@ void Output::handleLayerShellPopup(SurfaceWrapper *surface, const QRectF &normal
     surface->moveNormalGeometryInOutput(pos);
 }
 
-void Output::handleRegularPopup(SurfaceWrapper *surface, const QRectF &normalGeo, bool isSubMenu, WOutputItem *targetOutput)
+void Output::handleRegularPopup(SurfaceWrapper *surface, const QRectF &normalGeo, WOutputItem *targetOutput)
 {
     if (normalGeo.isEmpty()) {
         return;
     }
-
-    auto parentSurfaceWrapper = surface->parentSurface();
 
     auto dPos = popupDPos(surface);
     if (!dPos.has_value())
@@ -886,18 +884,12 @@ void Output::handleRegularPopup(SurfaceWrapper *surface, const QRectF &normalGeo
 
     QRectF outputRect(targetOutput->position(), targetOutput->size());
 
-    if (isSubMenu) {
-        pos.setX(parentSurfaceWrapper->x() + parentSurfaceWrapper->width());
-        if (pos.x() + normalGeo.width() > outputRect.right()) {
-            pos.setX(parentSurfaceWrapper->x() - normalGeo.width());
-        }
-    } else {
-        if (pos.x() < outputRect.left()) {
-            pos.setX(outputRect.left());
-        }
-        if (pos.x() + normalGeo.width() > outputRect.right()) {
-            pos.setX(outputRect.right() - normalGeo.width());
-        }
+    // TODO: Use xdg_positioner::constraint_adjustment to properly respect client's positioning constraints
+    if (pos.x() < outputRect.left()) {
+        pos.setX(outputRect.left());
+    }
+    if (pos.x() + normalGeo.width() > outputRect.right()) {
+        pos.setX(outputRect.right() - normalGeo.width());
     }
 
     adjustToOutputBounds(pos, normalGeo, outputRect);
@@ -955,8 +947,7 @@ void Output::arrangePopupSurface(SurfaceWrapper *surface)
     if (parentSurfaceWrapper->type() == SurfaceWrapper::Type::Layer) {
         handleLayerShellPopup(surface, normalGeo);
     } else {
-        bool isSubMenu = (parentSurfaceWrapper->type() == SurfaceWrapper::Type::XdgPopup);
-        handleRegularPopup(surface, normalGeo, isSubMenu, targetOutput);
+        handleRegularPopup(surface, normalGeo, targetOutput);
     }
 }
 

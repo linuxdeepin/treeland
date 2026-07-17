@@ -79,7 +79,7 @@ class SurfaceWrapper : public QQuickItem
     Q_PROPERTY(bool blur READ blur NOTIFY blurChanged FINAL)
     Q_PROPERTY(bool isWindowAnimationRunning READ isWindowAnimationRunning NOTIFY windowAnimationRunningChanged FINAL)
     Q_PROPERTY(bool coverEnabled READ coverEnabled NOTIFY coverEnabledChanged FINAL)
-    Q_PROPERTY(bool acceptKeyboardFocus READ acceptKeyboardFocus NOTIFY acceptKeyboardFocusChanged FINAL)
+    Q_PROPERTY(bool acceptKeyboardFocus READ acceptKeyboardFocus FINAL)
     Q_PROPERTY(bool isActivated READ isActivated NOTIFY isActivatedChanged FINAL)
     Q_PROPERTY(bool isIMCandidatePanel READ isIMCandidatePanel NOTIFY isIMCandidatePanelChanged FINAL)
     Q_PROPERTY(bool isResizable READ isResizable NOTIFY resizableChanged FINAL)
@@ -114,10 +114,22 @@ public:
         MappedOrSplash = 1 << 0,
         UnMinimized = 1 << 1,
         HasInitializeContainer = 1 << 2, // when not in Container, we can't stackToLast
-        Full = MappedOrSplash | UnMinimized | HasInitializeContainer,
+        HasActivateCapability = 1 << 3,  // shellSurface supports Activate capability
+        Full = ((1 << 4) - 1),
     };
     Q_ENUM(ActiveControlState);
     Q_DECLARE_FLAGS(ActiveControlStates, ActiveControlState)
+
+    enum class FocusControlState : quint16
+    {
+        Mapped = 1 << 0,
+        UnMinimized = 1 << 1,
+        AcceptKeyboardFocus = 1 << 2, // set by treeland-dde-shell
+        HasFocusCapability = 1 << 3,  // shellSurface supports Focus capability
+        Full = ((1 << 4) - 1),
+    };
+    Q_ENUM(FocusControlState);
+    Q_DECLARE_FLAGS(FocusControlStates, FocusControlState)
 
     enum class SurfaceRole
     {
@@ -250,6 +262,7 @@ public:
     SurfaceWrapper *findModal() const;
 
     bool hasActiveCapability() const;
+    bool hasFocusCapability() const;
     bool hasCapability(WToplevelSurface::Capability cap) const;
 
     bool skipSwitcher() const;
@@ -356,7 +369,6 @@ Q_SIGNALS:
     void windowAnimationRunningChanged();
     void coverEnabledChanged();
     void aboutToBeInvalidated();
-    void acceptKeyboardFocusChanged();
     void isActivatedChanged();
     void isIMCandidatePanelChanged();
     void resizableChanged();
@@ -364,6 +376,7 @@ Q_SIGNALS:
     void modalChanged();
     void attentionChanged();
     void surfaceItemCreated(); // Emitted once after surfaceItem is constructed
+    void hasFocusCapabilityChanged();
     void prelaunchSplashChanged();
     void typeChanged();
 
@@ -415,6 +428,9 @@ private:
     void startShowDesktopAnimation(bool show);
     Q_SLOT void onShowDesktopAnimationFinished();
     void updateHasActiveCapability(ActiveControlState state, bool value);
+    void updateFocusControlState(FocusControlState state, bool value);
+    void updateActivateCapability();
+    void updateFocusCapability();
     void completeSplashTransition(const QSizeF &targetImplicitSize, bool hideDecoration = false);
 
     // wayland set by treeland-dde-shell, x11 set by bypassManager/windowTypes
@@ -462,7 +478,11 @@ private:
     int m_explicitAlwaysOnTop = 0;
     qreal m_radius = 0.0;
     QRect m_iconGeometry;
-    ActiveControlStates m_hasActiveCapability = ActiveControlState::UnMinimized;
+    ActiveControlStates m_hasActiveCapability =
+        ActiveControlStates(ActiveControlState::UnMinimized);
+    FocusControlStates m_focusControlStates =
+        FocusControlStates(FocusControlState::AcceptKeyboardFocus)
+        | FocusControlStates(FocusControlState::UnMinimized);
 
     uint m_positionAutomatic : 1;
     uint m_visibleDecoration : 1;
@@ -495,8 +515,8 @@ private:
 
     bool m_socketEnabled{ false };
     bool m_windowAnimationEnabled{ true };
-    bool m_acceptKeyboardFocus{ true };
     const QString m_appId;
 };
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(SurfaceWrapper::ActiveControlStates)
+Q_DECLARE_OPERATORS_FOR_FLAGS(SurfaceWrapper::FocusControlStates)

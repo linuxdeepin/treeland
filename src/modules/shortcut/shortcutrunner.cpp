@@ -2,22 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "shortcutrunner.h"
-#include "seat/helper.h"
-#include "common/treelandlogging.h"
-#include "treelandconfig.hpp"
-#include "shortcutcontroller.h"
-#include "workspace/workspace.h"
-#include "modules/window-management/windowmanagementinterfacev1.h"
-#include "core/rootsurfacecontainer.h"
-#include "surface/surfacewrapper.h"
-#include "utils/fpsdisplaymanager.h"
-#include "interfaces/multitaskviewinterface.h"
+
 #include "core/qmlengine.h"
+#include "core/rootsurfacecontainer.h"
+#include "interfaces/multitaskviewinterface.h"
+#include "modules/window-management/windowmanagementinterfacev1.h"
+#include "output/output.h"
+#include "seat/helper.h"
+#include "shortcutcontroller.h"
+#include "surface/surfacewrapper.h"
+#include "treelandconfig.hpp"
+#include "utils/fpsdisplaymanager.h"
+#include "workspace/workspace.h"
 #include "workspaceanimationcontroller.h"
 #include "woutputrenderwindow.h"
-#include "output/output.h"
-
-#include "qwayland-server-treeland-shortcut-manager-v2.h"
 
 ShortcutRunner::ShortcutRunner(QObject *parent)
     : QObject(parent)
@@ -114,8 +112,8 @@ void ShortcutRunner::onActionTrigger(ShortcutAction action, const QString &name,
         break;
     }
     case ShortcutAction::ShowWindowMenu:
-        if (helper->m_activatedSurface) {
-            Q_EMIT helper->m_activatedSurface->windowMenuRequested({ 0, 0 });
+        if (auto surface = helper->activatedSurface()) {
+            Q_EMIT surface->windowMenuRequested({ 0, 0 });
         }
         break;
     case ShortcutAction::OpenMultiTaskView:
@@ -328,11 +326,12 @@ void ShortcutRunner::finishWorkspaceSwipe()
 void ShortcutRunner::taskswitchAction(bool isRepeat, bool isSameApp, bool isPrev)
 {
     auto *helper = Helper::instance();
-    if (helper->currentMode() != Helper::CurrentMode::Normal && helper->currentMode() != Helper::CurrentMode::WindowSwitch)
+    const auto modeBefore = helper->currentMode();
+    if (modeBefore != Helper::CurrentMode::Normal && modeBefore != Helper::CurrentMode::WindowSwitch)
         return;
 
-    if (!isRepeat && helper->currentMode() == Helper::CurrentMode::Normal) {
-        auto current = helper->workspace()->current();
+    if (!isRepeat && !isSameApp && modeBefore == Helper::CurrentMode::Normal) {
+        auto *current = helper->workspace()->current();
         if (current) {
             auto nextSurface = current->findNextActivedSurface();
             if (nextSurface)
@@ -367,30 +366,27 @@ void ShortcutRunner::taskswitchAction(bool isRepeat, bool isSameApp, bool isPrev
     m_taskAltCount = 0;
     helper->setCurrentMode(Helper::CurrentMode::WindowSwitch);
 
-    QString appid;
+    if (m_quickSwitchPending) {
+        m_quickSwitchTimer->stop();
+        m_quickSwitchPending = false;
+    }
+
     if (isSameApp) {
-        auto surface = Helper::instance()->activatedSurface();
-        if (surface) {
-            appid = surface->shellSurface()->appId();
-        }
-    }
-    auto filter = Helper::instance()->workspace()->currentFilter();
-    filter->setFilterAppId(appid);
-    if (isPrev) {
-        QMetaObject::invokeMethod(helper->m_taskSwitch, "previous");
+        QMetaObject::invokeMethod(helper->m_taskSwitch, isPrev ? "previousSameApp" : "nextSameApp");
     } else {
-        QMetaObject::invokeMethod(helper->m_taskSwitch, "next");
+        auto filter = helper->workspace()->currentFilter();
+        filter->setFilterAppId({});
+        QMetaObject::invokeMethod(helper->m_taskSwitch, isPrev ? "previous" : "next");
     }
-    qCWarning(lcTlShortcut) << "TaskSwitch: navigating in full task switcher";
 }
 
 void ShortcutRunner::onQuickSwitchTimeout()
 {
-    m_quickSwitchPending = false;
-
     auto *helper = Helper::instance();
-    if (helper->currentMode() != Helper::CurrentMode::Normal)
+    if (helper->currentMode() != Helper::CurrentMode::Normal) {
+        m_quickSwitchPending = false;
         return;
+    }
 
     if (helper->m_taskSwitch.isNull()) {
         auto contentItem = helper->window()->contentItem();
@@ -463,6 +459,7 @@ void ShortcutRunner::onModifierReleased(QKeyEvent *event)
             auto filter = helper->workspace()->currentFilter();
             filter->setFilterAppId("");
             helper->setCurrentMode(Helper::CurrentMode::Normal);
+            m_quickSwitchPending = false;
             QMetaObject::invokeMethod(helper->m_taskSwitch, "exit");
         }
     }

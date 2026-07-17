@@ -23,6 +23,7 @@
 #include <wxdgdialogmanagerv1.h>
 #include <wxdgtopleveltagmanager.h>
 
+#include <QSet>
 #include <QList>
 #include <QMap>
 #include <qevent.h>
@@ -140,6 +141,7 @@ class InputManager;
 
 struct wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request;
 struct wlr_idle_inhibitor_v1;
+struct wlr_output;
 struct wlr_output_power_v1_set_mode_event;
 namespace Treeland {
 class Treeland;
@@ -256,6 +258,7 @@ public:
     DDMInterfaceV1 *ddmInterfaceV1() const;
 
     void activateSession();
+    bool activateUserSession(const QString &username, int sessionId);
     void deactivateSession();
     void enableRender();
     void disableRender();
@@ -280,9 +283,15 @@ public:
     RootSurfaceContainer *rootContainer() const { return m_rootSurfaceContainer; }
     inline WBackend *backend() const { return m_backend; }
 public Q_SLOTS:
-    void activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason = Qt::OtherFocusReason);
+    void activateSurface(SurfaceWrapper *wrapper,
+                         Qt::FocusReason reason = Qt::OtherFocusReason,
+                         WSeat *seat = nullptr);
     void forceActivateSurface(SurfaceWrapper *wrapper,
-                              Qt::FocusReason reason = Qt::OtherFocusReason);
+                              Qt::FocusReason reason = Qt::OtherFocusReason,
+                              WSeat *seat = nullptr);
+    void requestKeyboardFocus(SurfaceWrapper *wrapper,
+                              Qt::FocusReason reason = Qt::OtherFocusReason,
+                              WSeat *seat = nullptr);
     void fakePressSurfaceBottomRightToReszie(SurfaceWrapper *surface);
     bool surfaceBelongsToCurrentSession(SurfaceWrapper *wrapper);
 
@@ -340,7 +349,7 @@ private:
 
     SurfaceWrapper *keyboardFocusSurface() const;
     SurfaceWrapper *activatedSurface() const;
-    void setActivatedSurface(SurfaceWrapper *newActivateSurface);
+    void setActivatedSurface(SurfaceWrapper *newActivateSurface, WSeat *seat = nullptr);
 
     void setCursorPosition(const QPointF &position);
 
@@ -348,7 +357,7 @@ private:
     bool afterHandleEvent(WSeat *seat, WSurface *watched, QObject *shellObject,
                          QObject *eventObject, QInputEvent *event) override;
     bool unacceptedEvent(WSeat *seat, QWindow *window, QInputEvent *event) override;
-
+    void onRenderWindowActiveFocusItemChanged();
     void handleLeftButtonStateChanged(const QInputEvent *event);
     void handleWhellValueChanged(const QInputEvent *event);
     bool doGesture(QInputEvent *event);
@@ -395,7 +404,7 @@ private:
     RootSurfaceContainer *m_rootSurfaceContainer = nullptr;
 
     // wayland helper
-    WSeat *m_seat = nullptr;
+    WSeat *m_primarySeat = nullptr;
     WBackend *m_backend = nullptr;
     qw_renderer *m_renderer = nullptr;
     qw_allocator *m_allocator = nullptr;
@@ -434,11 +443,13 @@ private:
     // private data
     QList<Output *> m_outputList;
     OutputConfigState *m_outputConfigState = nullptr;
+    // outputs disabled by output_power (should be re-enabled on input)
+    QSet<wlr_output *> m_powerOffOutputs;
+
     OutputLifecycleManager *m_outputLifecycleManager = nullptr;
     QPointer<QQuickItem> m_taskSwitch;
     QList<qw_idle_inhibitor_v1 *> m_idleInhibitors;
 
-    SurfaceWrapper *m_activatedSurface = nullptr;
     LockScreen *m_lockScreen = nullptr;
     float m_animationSpeed = 1.0;
     OutputMode m_mode = OutputMode::Extension;

@@ -16,7 +16,9 @@
 #include "modules/wine-window-state/winewindowstate.h"
 #include "rootsurfacecontainer.h"
 #include "seat/helper.h"
+#include "seat/seatsmanager.h"
 #include "session/session.h"
+#include "surface/seatsurfacemanager.h"
 #include "surface/surfacewrapper.h"
 #include "treelandconfig.hpp"
 #include "treelanduserconfig.hpp"
@@ -291,6 +293,7 @@ ForeignToplevelManagerInterfaceV1 *ShellHandler::foreignToplevel() const
 void ShellHandler::createComponent(QmlEngine *engine, QQuickItem *parentItem)
 {
     m_windowMenu = engine->createWindowMenu(Helper::instance());
+    QObject::connect(m_windowMenu, SIGNAL(closed()), this, SLOT(onWindowMenuClosed()));
     m_dockPreview = engine->createDockPreview(parentItem);
     setupDockPreview();
 }
@@ -839,62 +842,76 @@ void ShellHandler::onDockPreviewTooltip(
                               QVariant::fromValue(direction));
 }
 
+void ShellHandler::onSurfaceInactivationRequested(SurfaceWrapper *wrapper)
+{
+    Q_ASSERT(wrapper);
+    if (wrapper->type() != SurfaceWrapper::Type::Layer)
+        m_workspace->removeActivedSurface(wrapper);
+
+    auto *helper = Helper::instance();
+    auto *seatManager = helper->seatManager();
+    WSeat *primarySeat = helper->seat();
+    const auto seats = seatManager->seats();
+    auto *container = helper->rootSurfaceContainer();
+
+    for (auto *seat : seats) {
+        auto *seatContainer = container->getSeatContainer(seat);
+        const bool isKeyboardFocusOwner = seatContainer->keyboardFocusSurface() == wrapper;
+        const bool isActivatedOwner = seatContainer->activatedSurface() == wrapper;
+
+        if (isKeyboardFocusOwner) {
+            // activateSurface implicitly clears the old activated state and falls back focus.
+            // TODO(multi-seat): non-primary seats should also perform focus fallback once
+            // per-seat workspace stacking is supported.
+            if (seat == primarySeat) {
+                helper->activateSurface(m_workspace->current()->latestActiveSurface(),
+                                        Qt::OtherFocusReason,
+                                        seat);
+            } else {
+                helper->requestKeyboardFocus(nullptr, Qt::OtherFocusReason, seat);
+            }
+            continue;
+        }
+
+        if (isActivatedOwner) { // not isKeyboardFocusOwner
+            // Clear the activated state so foreign-toplevel clients do not observe a
+            // minimized-but-activated window.
+            helper->setActivatedSurface(nullptr, seat);
+        }
+    }
+}
+
 void ShellHandler::setupSurfaceActiveWatcher(SurfaceWrapper *wrapper)
 {
     Q_ASSERT_X(wrapper->container(), Q_FUNC_INFO, "Must setContainer at first!");
 
     if (wrapper->type() == SurfaceWrapper::Type::XdgPopup) {
-        connect(wrapper, &SurfaceWrapper::activationRequested, this, [this, wrapper]() {
-            auto parent = wrapper->parentSurface();
-            while (parent->type() == SurfaceWrapper::Type::XdgPopup) {
-                parent = parent->parentSurface();
-            }
-            if (!parent) {
-                qCCritical(lcTlShell) << "A new popup without toplevel parent!";
+        // When the popup surface gains focus capability (mapped + grab active),
+        // move keyboard focus to the popup. SeatSurfaceManager handles
+        // grab tracking and focus restoration when the grab ends.
+        connect(wrapper, &SurfaceWrapper::hasFocusCapabilityChanged, this, [this, wrapper]() {
+            if (!wrapper->hasFocusCapability())
                 return;
-            }
-            if (!parent->showOnWorkspace(m_workspace->current()->id())) {
-                qCWarning(lcTlShell)
-                    << "A popup active, but it's parent not in current workspace!";
-                return;
-            }
-            Helper::instance()->activateSurface(parent);
+            m_rootSurfaceContainer->givePopupFocus(wrapper);
         });
-
-        /*
-        connect(wrapper, &SurfaceWrapper::inactivationRequested, this, [this, wrapper]() {
-            auto parent = wrapper->parentSurface();
-            if (!parent || parent->type() == SurfaceWrapper::Type::XdgPopup)
-                return;
-            Helper::instance()->activateSurface(m_workspace->current()->latestActiveSurface());
-        });
-        */
     } else if (wrapper->type() == SurfaceWrapper::Type::Layer) {
-        connect(wrapper, &SurfaceWrapper::activationRequested, this, [wrapper]() {
-            auto layerSurface = qobject_cast<WLayerSurface *>(wrapper->shellSurface());
-            if (layerSurface->keyboardInteractivity() == WLayerSurface::KeyboardInteractivity::None)
-                return;
-
-            /*
-             * For OnDemand keyboardInteractivity, only allow surfaces with z-order above
-             * normal windows (Top/Overlay) to receive keyboard focus, to avoid dock/dde-desktop
-             * grabbing focus when they restart.
-             */
-            if (layerSurface->layer() >= WLayerSurface::LayerType::Top
-                || layerSurface->keyboardInteractivity()
-                    == WLayerSurface::KeyboardInteractivity::Exclusive)
-                Helper::instance()->activateSurface(wrapper);
-        });
-
-        connect(wrapper, &SurfaceWrapper::inactivationRequested, this, [this, wrapper]() {
-            // Only the current keyboard focus owner should drive focus fallback.
-            // Closing an unfocused layer surface, such as a notification, must not
-            // move focus away from the current owner, which may be a layer-shell
-            // surface that does not participate in fallback history.
-            if (Helper::instance()->keyboardFocusSurface() != wrapper)
-                return;
-
-            Helper::instance()->activateSurface(m_workspace->current()->latestActiveSurface());
+        connect(wrapper, &SurfaceWrapper::hasFocusCapabilityChanged, this, [this, wrapper]() {
+            if (wrapper->hasFocusCapability()) {
+                auto layerSurface = qobject_cast<WLayerSurface *>(wrapper->shellSurface());
+                Q_ASSERT(layerSurface->keyboardInteractivity()
+                         != WLayerSurface::KeyboardInteractivity::None);
+                /*
+                 * For OnDemand keyboardInteractivity, only allow surfaces with z-order above
+                 * normal windows (Top/Overlay) to receive keyboard focus, to avoid dock/dde-desktop
+                 * grabbing focus when they restart.
+                 */
+                if (layerSurface->layer() >= WLayerSurface::LayerType::Top
+                    || layerSurface->keyboardInteractivity()
+                        == WLayerSurface::KeyboardInteractivity::Exclusive)
+                    Helper::instance()->requestKeyboardFocus(wrapper);
+            } else {
+                onSurfaceInactivationRequested(wrapper);
+            }
         });
     } else { // Xdgtoplevel or X11 or Splash
         connect(wrapper, &SurfaceWrapper::activationRequested, this, [this, wrapper]() {
@@ -905,21 +922,7 @@ void ShellHandler::setupSurfaceActiveWatcher(SurfaceWrapper *wrapper)
         });
 
         connect(wrapper, &SurfaceWrapper::inactivationRequested, this, [this, wrapper]() {
-            m_workspace->removeActivedSurface(wrapper);
-            // The window may already be inactive. Keep history cleanup above, but
-            // avoid changing focus unless this window still owns keyboard focus.
-            if (Helper::instance()->keyboardFocusSurface() != wrapper) {
-                // Requests from task bars or other external controllers can minimize the
-                // active window after keyboard focus has already moved away from it. Clear
-                // the compositor active state so foreign-toplevel clients do not observe a
-                // minimized-but-activated window, but do not fall back focus from the
-                // current keyboard focus owner.
-                if (Helper::instance()->activatedSurface() == wrapper)
-                    Helper::instance()->setActivatedSurface(nullptr);
-                return;
-            }
-
-            Helper::instance()->activateSurface(m_workspace->current()->latestActiveSurface());
+            onSurfaceInactivationRequested(wrapper);
         });
 
         if (wrapper->hasActiveCapability()) {
@@ -1023,11 +1026,17 @@ void ShellHandler::setupSurfaceWindowMenu(SurfaceWrapper *wrapper)
             &SurfaceWrapper::windowMenuRequested,
             m_windowMenu,
             [this, wrapper](QPointF pos) {
-                QMetaObject::invokeMethod(m_windowMenu,
+                bool ok = QMetaObject::invokeMethod(m_windowMenu,
                                           "showWindowMenu",
                                           QVariant::fromValue(wrapper),
                                           QVariant::fromValue(pos));
+                qCDebug(lcTlShortcut) << "showWindowMenu invokeMethod result=" << ok;
             });
+}
+
+void ShellHandler::onWindowMenuClosed()
+{
+    Helper::instance()->activateSurface(m_workspace->current()->latestActiveSurface());
 }
 
 void ShellHandler::handleDdeShellSurfaceAdded(WSurface *surface, SurfaceWrapper *wrapper)

@@ -30,7 +30,6 @@ class RootSurfaceContainer;
 class LayerSurfaceContainer;
 class Workspace;
 class SurfaceContainer;
-class PopupSurfaceContainer;
 class IMCandidatePanelManager;
 class QmlEngine;
 class ForeignToplevelManagerInterfaceV1;
@@ -99,6 +98,7 @@ public:
         return m_wallpaperShell;
     }
 
+
 Q_SIGNALS:
     void surfaceWrapperAdded(SurfaceWrapper *wrapper);
     void surfaceWrapperAboutToRemove(SurfaceWrapper *wrapper);
@@ -128,9 +128,11 @@ private Q_SLOTS:
 
     void setupDockPreview();
     void onInputPopupSurfaceV2Removed(WAYLIB_SERVER_NAMESPACE::WInputPopupSurface *surface);
+    void onWindowMenuClosed();
 
 private:
     void setupSurfaceActiveWatcher(SurfaceWrapper *wrapper);
+    void onSurfaceInactivationRequested(SurfaceWrapper *wrapper);
     void setupSurfaceWindowMenu(SurfaceWrapper *wrapper);
     void updateLayerSurfaceContainer(SurfaceWrapper *surface);
     void registerSurfaceToForeignToplevel(SurfaceWrapper *wrapper);
@@ -185,8 +187,6 @@ private:
     Workspace *m_workspace = nullptr;
     LayerSurfaceContainer *m_topContainer = nullptr;
     LayerSurfaceContainer *m_overlayContainer = nullptr;
-    // FIXME: https://github.com/linuxdeepin/treeland/pull/428 Caused damage to the tooltip
-    // Need to find a better way to handle popup click events
     SurfaceContainer *m_popupContainer = nullptr;
     IMCandidatePanelManager *m_imCandidatePanelManager = nullptr;
     QObject *m_windowMenu = nullptr;

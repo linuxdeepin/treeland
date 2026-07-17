@@ -41,7 +41,8 @@ public:
 Q_SIGNALS:
     // The server emits one signal with precomputed disposition for policy handling.
     void activateRequested(TokenDisposition disposition,
-                           WAYLIB_SERVER_NAMESPACE::WSurface *surface);
+                           WAYLIB_SERVER_NAMESPACE::WSurface *surface,
+                           WAYLIB_SERVER_NAMESPACE::WSeat *seat);
 
 protected:
     void create(WAYLIB_SERVER_NAMESPACE::WServer *server) override;

@@ -523,29 +523,49 @@ void SessionManager::syncActiveSessionCursorSettings()
  */
 void SessionManager::updateActiveUserSession(const QString &username, int id)
 {
+    commitActiveUserSession(prepareActiveUserSession(username, id));
+}
+
+SessionManager::ActiveSessionUpdate SessionManager::prepareActiveUserSession(const QString &username,
+                                                                             int id)
+{
     // Get previous active session
     auto previous = m_activeSession.lock();
     // Get new session for uid, creating if necessary
     auto session = ensureSession(id, username);
     if (!session) {
         qCWarning(lcTlInput) << "Failed to ensure session for user" << username;
-        return;
+        return {};
     }
-    if (previous != session) {
+
+    const bool activeSessionChanged = previous != session;
+    if (activeSessionChanged) {
         // Update active session
         m_activeSession = session;
         // Clear activated surface
         // TODO: Each Wayland socket's active surface needs to be cleaned up individually.
         Helper::instance()->activateSurface(nullptr);
-        // Emit signal and update socket enabled state
+        // Update socket enabled state before publishing activation notifications.
         if (previous && previous->m_socket)
             previous->m_socket->setEnabled(false, globalSession()->socket());
         session->m_socket->setEnabled(true);
+    }
+
+    return { session, activeSessionChanged };
+}
+
+void SessionManager::commitActiveUserSession(const ActiveSessionUpdate &update)
+{
+    if (!update)
+        return;
+
+    if (update.activeSessionChanged) {
         Q_EMIT socketFileChanged();
         // Notify session changed through DBus, treeland-sd will listen it to update envs
         Q_EMIT sessionChanged();
         syncActiveSessionXWaylandPrimaryOutput();
     }
-    qCInfo(lcTlCore) << "Listening on:" << session->m_socket->fullServerName();
+
+    qCInfo(lcTlCore) << "Listening on:" << update.session->m_socket->fullServerName();
     syncActiveSessionCursorSettings();
 }

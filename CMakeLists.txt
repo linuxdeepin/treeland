@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.25.0)
 
 project(Treeland
-    VERSION 0.8.13
+    VERSION 0.8.14
     LANGUAGES CXX C)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
@@ -31,9 +31,6 @@ option(DISABLE_DDM "Disable DDM and greeter" OFF)
 if (DISABLE_DDM)
     add_compile_definitions("DISABLE_DDM")
 endif()
-
-# Only disables the bundled client daemon; the protocol (src/modules/shortcut) is unaffected.
-option(DISABLE_BUILTIN_SHORTCUTS "Disable Treeland's built-in shortcut daemon and its bundled default shortcuts" ON)
 
 # Alternative lock mechanism: Wayland ext-session-lock
 option(EXT_SESSION_LOCK_V1 "Enable Wayland ext-session-lock support (alternative to DDM)" ON)
