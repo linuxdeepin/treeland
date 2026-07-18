@@ -147,6 +147,9 @@ struct wlr_xwayland_surface {
 	char *startup_id;
 	pid_t pid;
 	bool has_utf8_title;
+	bool has_wm_transient_for;
+	xcb_window_t transient_for;
+	xcb_window_t client_leader;
 
 	struct wl_list children; // wlr_xwayland_surface.parent_link
 	struct wlr_xwayland_surface *parent;
@@ -224,6 +227,7 @@ struct wlr_xwayland_surface {
 		struct wl_signal set_opacity;
 		struct wl_signal focus_in;
 		struct wl_signal grab_focus;
+		struct wl_signal pointer_grab_focus;
 		/* can be used to set initial maximized/fullscreen geometry */
 		struct wl_signal map_request;
 		struct wl_signal ping_timeout;

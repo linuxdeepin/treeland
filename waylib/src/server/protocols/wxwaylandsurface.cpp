@@ -219,6 +219,12 @@ void WXWaylandSurfacePrivate::init()
                      q, [this, q] (wlr_xwayland_surface_configure_event *event) {
         lastRequestConfigureGeometry = QRect(event->x, event->y, event->width, event->height);
         lastRequestConfigureFlags = WXWaylandSurface::ConfigureFlags(event->mask);
+        qCDebug(lcWlXWayland) << "[XWL_REQUEST_CONFIGURE] XWayland request configure:"
+                               << "window_id=" << xwaylandWindowId(nativeHandle())
+                               << "mapped=" << (surface && surface->mapped())
+                               << "request_flags=" << static_cast<int>(lastRequestConfigureFlags)
+                               << "request_geometry=" << lastRequestConfigureGeometry
+                               << "native_geometry=" << q->geometry();
 
         if (!surface || !surface->mapped()) {
             q->configure(lastRequestConfigureGeometry);
@@ -259,7 +265,26 @@ void WXWaylandSurfacePrivate::init()
     QObject::connect(handle(), &qw_xwayland_surface::notify_set_override_redirect,
                      q, &WXWaylandSurface::bypassManagerChanged);
     QObject::connect(handle(), &qw_xwayland_surface::notify_set_geometry,
-                     q, &WXWaylandSurface::geometryChanged);
+                     q, [this, q] {
+        const QRect actualGeometry = q->geometry();
+        const QRect oldRequestGeometry = lastRequestConfigureGeometry;
+        const auto oldRequestFlags = lastRequestConfigureFlags;
+        const bool hadPendingRequest = oldRequestFlags != WXWaylandSurface::ConfigureFlags();
+
+        lastRequestConfigureGeometry = actualGeometry;
+        lastRequestConfigureFlags = WXWaylandSurface::ConfigureFlags();
+
+        if (hadPendingRequest || oldRequestGeometry != actualGeometry) {
+            qCDebug(lcWlXWayland) << "[XWL_SET_GEOMETRY_SYNC] XWayland geometry confirmed:"
+                                   << "window_id=" << xwaylandWindowId(nativeHandle())
+                                   << "old_request_flags=" << static_cast<int>(oldRequestFlags)
+                                   << "old_request_geometry=" << oldRequestGeometry
+                                   << "actual_geometry=" << actualGeometry
+                                   << "request_flags_cleared=" << hadPendingRequest;
+        }
+
+        Q_EMIT q->geometryChanged();
+    });
     QObject::connect(handle(), &qw_xwayland_surface::notify_set_hints, q, [this, q] {
         updateSizeHints();
         Q_EMIT q->inputModelChanged();
@@ -285,6 +310,12 @@ void WXWaylandSurfacePrivate::init()
                                << "window_id=" << xwaylandWindowId(nativeHandle())
                                << "surface=" << q_func();
         Q_EMIT q->grabFocus();
+    });
+    QObject::connect(handle(), &qw_xwayland_surface::notify_pointer_grab_focus, q, [this, q] {
+        qCDebug(lcWlXWayland) << "[XWL_POINTER_GRAB_FOCUS] XWayland pointer grab focus:"
+                               << "window_id=" << xwaylandWindowId(nativeHandle())
+                               << "surface=" << q_func();
+        Q_EMIT q->pointerGrabFocus();
     });
     updateChildren();
     updateParent();

@@ -158,6 +158,7 @@ Q_SIGNALS:
     void decorationsFlagsChanged();
     void focusIn();
     void grabFocus();
+    void pointerGrabFocus();
 
     void requestConfigure(QRect geometry, ConfigureFlags flags);
     void requestActivate();
