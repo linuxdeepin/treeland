@@ -147,6 +147,9 @@ struct wlr_xwayland_surface {
 	char *startup_id;
 	pid_t pid;
 	bool has_utf8_title;
+	bool has_wm_transient_for;
+	xcb_window_t transient_for;
+	xcb_window_t client_leader;
 
 	struct wl_list children; // wlr_xwayland_surface.parent_link
 	struct wlr_xwayland_surface *parent;
@@ -224,6 +227,7 @@ struct wlr_xwayland_surface {
 		struct wl_signal set_opacity;
 		struct wl_signal focus_in;
 		struct wl_signal grab_focus;
+		struct wl_signal pointer_grab_focus;
 		/* can be used to set initial maximized/fullscreen geometry */
 		struct wl_signal map_request;
 		struct wl_signal ping_timeout;
@@ -284,6 +288,18 @@ void wlr_xwayland_set_cursor(struct wlr_xwayland *wlr_xwayland,
 
 void wlr_xwayland_surface_activate(struct wlr_xwayland_surface *surface,
 	bool activated);
+
+/**
+ * Force the X11 input focus request for a surface.
+ *
+ * Unlike wlr_xwayland_surface_activate(), this reissues the native focus
+ * request even when the XWM focus cache already points at the surface. When
+ * the window manager controls input focus and the cache already matches, the
+ * focus is moved through PointerRoot first so the client receives a fresh
+ * FocusIn event. This is intended for recovery when compositor and client
+ * focus state disagree after an X11 transient is unmapped.
+ */
+void wlr_xwayland_surface_force_focus(struct wlr_xwayland_surface *surface);
 
 /**
  * Restack surface relative to sibling.

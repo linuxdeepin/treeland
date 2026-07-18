@@ -137,6 +137,8 @@ public Q_SLOTS:
     void setActivate(bool on) override;
     void forceActivate();
     void requestNativeFocus();
+    // Reissues the native X11 focus request even if XWM already caches this surface as focused.
+    void forceNativeFocus();
     bool offerFocus();
     void close() override;
     void restack(WXWaylandSurface *sibling, StackMode mode);
@@ -158,6 +160,7 @@ Q_SIGNALS:
     void decorationsFlagsChanged();
     void focusIn();
     void grabFocus();
+    void pointerGrabFocus();
 
     void requestConfigure(QRect geometry, ConfigureFlags flags);
     void requestActivate();

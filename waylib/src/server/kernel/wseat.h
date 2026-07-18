@@ -34,6 +34,7 @@ struct wlr_seat_client;
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WSurface;
+class WClient;
 class WSeat;
 class WAYLIB_SERVER_EXPORT WSeatEventFilter : public QObject
 {
@@ -92,8 +93,13 @@ public:
                               QInputEvent *event,
                               const QPointF &localPos);
     bool pointerHasGrab() const;
-    // Updates wlroots pointer button state without dispatching the button to a client.
-    bool consumePointerButtonEvent(QMouseEvent *event);
+    // Completes a release sequence after its original surface disappeared. The release is
+    // delivered only when the pointer can be focused on the expected Wayland client.
+    bool recoverPointerButtonRelease(WSurface *target,
+                                     QObject *eventObject,
+                                     const QPointF &localPos,
+                                     QMouseEvent *event,
+                                     WClient *expectedClient);
 
     WSeatEventFilter *eventFilter() const;
     void setEventFilter(WSeatEventFilter *filter);

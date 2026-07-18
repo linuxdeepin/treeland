@@ -414,9 +414,51 @@ void SurfaceWrapper::setup()
         connect(xwaylandSurfaceItem,
                 &WXWaylandSurfaceItem::implicitPositionChanged,
                 this,
-                [this, xwaylandSurfaceItem]() {
-                    if (m_xwaylandPositionFromSurface)
-                        moveNormalGeometryInOutput(xwaylandSurfaceItem->implicitPosition());
+                [this, xwaylandSurface, xwaylandSurfaceItem]() {
+                    const QPointF implicitPosition = xwaylandSurfaceItem->implicitPosition();
+                    const QPointF oldPosition = position();
+                    const QRectF oldGeometry = geometry();
+                    uint32_t windowId = 0;
+                    if (xwaylandSurface && xwaylandSurface->handle()
+                        && xwaylandSurface->handle()->handle()) {
+                        windowId = xwaylandSurface->handle()->handle()->window_id;
+                    }
+
+                    if (!m_xwaylandPositionFromSurface) {
+                        qCDebug(lcTlXwayland)
+                            << "[XWL_WRAPPER_POSITION_SYNC] Skip XWayland wrapper position sync:"
+                            << "reason=position-from-surface-disabled"
+                            << "window_id=" << windowId
+                            << "wrapper=" << this
+                            << "popup_like=" << m_xwaylandPopupLikeTransient
+                            << "old_position=" << oldPosition
+                            << "implicit_position=" << implicitPosition
+                            << "request_configure_geometry="
+                            << (xwaylandSurface ? xwaylandSurface->requestConfigureGeometry()
+                                                : QRect())
+                            << "wrapper_geometry=" << oldGeometry;
+                        return;
+                    }
+
+                    moveNormalGeometryInOutput(implicitPosition);
+
+                    const QPointF newPosition = position();
+                    if (newPosition == oldPosition)
+                        return;
+
+                    qCDebug(lcTlXwayland)
+                        << "[XWL_WRAPPER_POSITION_SYNC] XWayland wrapper position synced:"
+                        << "window_id=" << windowId
+                        << "wrapper=" << this
+                        << "popup_like=" << m_xwaylandPopupLikeTransient
+                        << "old_position=" << oldPosition
+                        << "new_position=" << newPosition
+                        << "implicit_position=" << implicitPosition
+                        << "old_geometry=" << oldGeometry
+                        << "new_geometry=" << geometry()
+                        << "request_configure_geometry="
+                        << (xwaylandSurface ? xwaylandSurface->requestConfigureGeometry()
+                                            : QRect());
                 });
 
         connect(this, &QQuickItem::xChanged, xwaylandSurface, [this, xwaylandSurfaceItem]() {

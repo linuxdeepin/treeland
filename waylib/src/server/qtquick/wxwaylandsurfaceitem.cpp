@@ -19,13 +19,16 @@ public:
     void configureSurface(const QRect &newGeometry);
     QSize expectSurfaceSize() const;
     QPoint explicitSurfacePosition() const;
+    void emitImplicitPositionChangedIfNeeded(const char *reason);
     static inline WXWaylandSurfaceItemPrivate *get(WXWaylandSurfaceItem *qq) {
         return qq->d_func();
     }
 
 public:
     QPointF surfacePosition;
+    QPointF lastImplicitPosition;
     bool positionConfigured = false;
+    bool hasLastImplicitPosition = false;
 
     QPointer<WXWaylandSurfaceItem> parentSurfaceItem;
     QSize minimumSize;
@@ -71,6 +74,43 @@ QPoint WXWaylandSurfaceItemPrivate::explicitSurfacePosition() const
     return (pos * ssr + QPointF(q->leftPadding(), q->topPadding()) * ssr).toPoint();
 }
 
+void WXWaylandSurfaceItemPrivate::emitImplicitPositionChangedIfNeeded(const char *reason)
+{
+    Q_Q(WXWaylandSurfaceItem);
+
+    auto *surface = q->xwaylandSurface();
+    if (!surface)
+        return;
+
+    const QPointF position = q->implicitPosition();
+    if (hasLastImplicitPosition && lastImplicitPosition == position)
+        return;
+
+    const bool hadLastPosition = hasLastImplicitPosition;
+    const QPointF oldPosition = lastImplicitPosition;
+    hasLastImplicitPosition = true;
+    lastImplicitPosition = position;
+
+    uint32_t windowId = 0;
+    if (surface->handle() && surface->handle()->handle())
+        windowId = surface->handle()->handle()->window_id;
+
+    qCDebug(lcWlXWayland) << "[XWL_ITEM_POSITION] XWayland item implicit position changed:"
+                           << "reason=" << reason
+                           << "window_id=" << windowId
+                           << "item=" << q
+                           << "old_position=" << oldPosition
+                           << "new_position=" << position
+                           << "request_flags="
+                           << static_cast<int>(surface->requestConfigureFlags())
+                           << "request_geometry=" << surface->requestConfigureGeometry()
+                           << "surface_geometry=" << surface->geometry()
+                           << "surface_size_ratio=" << q->surfaceSizeRatio()
+                           << "had_last_position=" << hadLastPosition;
+
+    Q_EMIT q->implicitPositionChanged();
+}
+
 WXWaylandSurfaceItem::WXWaylandSurfaceItem(QQuickItem *parent)
     : WSurfaceItem(*new WXWaylandSurfaceItemPrivate(), parent)
 {
@@ -99,6 +139,9 @@ bool WXWaylandSurfaceItem::setShellSurface(WToplevelSurface *surface)
         });
 
         auto updateGeometry = [this] {
+            Q_D(WXWaylandSurfaceItem);
+            d->emitImplicitPositionChangedIfNeeded("set-geometry");
+
             const auto rm = resizeMode();
             if (rm != SizeFromSurface)
                 return;
@@ -112,15 +155,19 @@ bool WXWaylandSurfaceItem::setShellSurface(WToplevelSurface *surface)
             }
         };
         xwaylandSurface()->safeConnect(&WXWaylandSurface::requestConfigure, this, [this] {
+            Q_D(WXWaylandSurfaceItem);
             if (xwaylandSurface()->requestConfigureFlags().testAnyFlags(
                     WXWaylandSurface::ConfigureFlag::XCB_CONFIG_WINDOW_POSITION)) {
-                Q_EMIT implicitPositionChanged();
+                d->emitImplicitPositionChangedIfNeeded("request-configure");
             }
             if (resizeMode() == ResizeMode::SizeFromSurface) {
                 syncConfigureFromRequest();
             }
         });
         xwaylandSurface()->safeConnect(&WXWaylandSurface::geometryChanged, this, updateGeometry);
+        Q_D(WXWaylandSurfaceItem);
+        d->lastImplicitPosition = implicitPosition();
+        d->hasLastImplicitPosition = true;
         connect(this, &WXWaylandSurfaceItem::topPaddingChanged,
                this, &WXWaylandSurfaceItem::updatePosition, Qt::UniqueConnection);
         connect(this, &WXWaylandSurfaceItem::leftPaddingChanged,
@@ -227,8 +274,14 @@ QPointF WXWaylandSurfaceItem::implicitPosition() const
     const Q_D(WXWaylandSurfaceItem);
 
     auto xwaylandSurface = qobject_cast<WXWaylandSurface *>(d->shellSurface);
-
-    const QPoint epos = xwaylandSurface->requestConfigureGeometry().topLeft();
+    // Popup-like surfaces use SizeFromSurface and need their ConfigureRequest
+    // position before the first buffer is committed. Managed toplevels are
+    // compositor-positioned: following an unacknowledged request while their
+    // native geometry still points elsewhere makes the scene item oscillate
+    // independently from the X11 window and its buffer.
+    const QPoint epos = resizeMode() == SizeFromSurface
+        ? xwaylandSurface->requestConfigureGeometry().topLeft()
+        : xwaylandSurface->geometry().topLeft();
     const qreal ssr = d->surfaceSizeRatio;
 
     return QPointF(epos) / ssr - QPointF(leftPadding(), topPadding());
@@ -288,12 +341,12 @@ void WXWaylandSurfaceItem::surfaceSizeRatioChange()
 {
     WSurfaceItem::surfaceSizeRatioChange();
 
-    W_DC(WXWaylandSurfaceItem);
+    W_D(WXWaylandSurfaceItem);
 
     if (d->positionConfigured) {
         updatePosition();
     } else {
-        Q_EMIT implicitPositionChanged();
+        d->emitImplicitPositionChangedIfNeeded("surface-size-ratio");
     }
 }
 

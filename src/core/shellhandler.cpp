@@ -1136,6 +1136,18 @@ void ShellHandler::onXWaylandSurfaceAdded(WXWaylandSurface *surface)
                              if (auto *raw = surface.data())
                                  Helper::instance()->acceptXWaylandFocus(raw, true);
                          });
+    surface->safeConnect(&WXWaylandSurface::pointerGrabFocus,
+                         this,
+                         [surface = QPointer<WXWaylandSurface>(surface)] {
+                             if (auto *raw = surface.data())
+                                 Helper::instance()->acceptXWaylandPointerGrabFocus(raw);
+                         });
+    surface->safeConnect(&WXWaylandSurface::requestActivate,
+                         this,
+                         [surface = QPointer<WXWaylandSurface>(surface)] {
+                             if (auto *raw = surface.data())
+                                 Helper::instance()->handleXWaylandRequestActivate(raw);
+                         });
 
     surface->safeConnect(&WXWaylandSurface::associated,
                          this,

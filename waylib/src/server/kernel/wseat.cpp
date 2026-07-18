@@ -5,6 +5,7 @@
 #include "wcursor.h"
 #include "winputdevice.h"
 #include "woutput.h"
+#include "wsocket.h"
 #include "wsurface.h"
 #include "wxdgsurface.h"
 #include "platformplugin/qwlrootsintegration.h"
@@ -185,25 +186,31 @@ public:
         return nativeHandle()->keyboard_state.focused_surface;
     }
 
+    inline bool hasPressedPointerButtons() const {
+        return nativeHandle()->pointer_state.button_count > 0;
+    }
+
     inline bool doNotifyMotion(WSurface *target, QObject *eventObject, QPointF localPos, uint32_t timestamp) {
-        if (target) {
-            if (pointerFocusSurface()) {
-                Q_ASSERT(pointerFocusEventObject == eventObject);
-                Q_ASSERT(pointerFocusSurface() == target->handle()->handle());
-            } else {
-                // Maybe this seat is grabbed by a xdg popup surface, so the surface of under mouse
-                // can't take pointer focus, but maybe the popup is closed now, so we should try again
-                // take pointer focus for this surface.
-                doEnter(target, eventObject, localPos);
+        if (target && !handle()->pointer_has_grab()
+            && (pointerFocusSurface() != target->handle()->handle()
+                || pointerFocusEventObject != eventObject)) {
+            // wlroots resets its pressed-button state when pointer focus changes.
+            // Keep the implicit button sequence on its current native surface;
+            // callers must redirect motion to that surface with matching local
+            // coordinates instead of changing focus mid-sequence.
+            if (hasPressedPointerButtons()
+                && pointerFocusSurface() != target->handle()->handle()) {
+                return false;
             }
+            if (!doEnter(target, eventObject, localPos))
+                return false;
         }
 
         handle()->pointer_notify_motion(timestamp, localPos.x(), localPos.y());
         return true;
     }
     inline bool doNotifyButton(uint32_t button, wl_pointer_button_state state, uint32_t timestamp) {
-        handle()->pointer_notify_button(timestamp, button, state);
-        return true;
+        return handle()->pointer_notify_button(timestamp, button, state) != 0;
     }
     static inline wl_pointer_axis fromQtHorizontal(Qt::Orientation o) {
         return o == Qt::Horizontal ? WL_POINTER_AXIS_HORIZONTAL_SCROLL
@@ -223,36 +230,39 @@ public:
         handle()->pointer_notify_frame();
     }
     inline bool doEnter(WSurface *surface, QObject *eventObject, const QPointF &position) {
-        // doEnter be called from QEvent::HoverEnter is normal,
-        // but doNotifyMotion will call doEnter too,
-        // so should compare pointerFocusEventObject and eventObject early
-        if (pointerFocusEventObject == eventObject) {
+        if (!surface || !surface->handle() || !surface->handle()->handle())
+            return false;
+
+        auto *nativeTarget = surface->handle()->handle();
+        // The Qt event-object cache and wlroots pointer focus can diverge when a
+        // surface disappears without a matching hover transition. Both must match
+        // before an enter can be considered redundant.
+        if (pointerFocusEventObject == eventObject && pointerFocusSurface() == nativeTarget)
             return true;
-        }
+
         auto tmp = oldPointerFocusSurface;
-        oldPointerFocusSurface = handle()->handle()->pointer_state.focused_surface;
-        handle()->pointer_notify_enter(surface->handle()->handle(), position.x(), position.y());
-        if (!pointerFocusSurface()) {
+        oldPointerFocusSurface = pointerFocusSurface();
+        handle()->pointer_notify_enter(nativeTarget, position.x(), position.y());
+        if (pointerFocusSurface() != nativeTarget) {
             // Because if the last pointer focus surface is a popup, the 'pointerNotifyEnter'
             // will call 'xdg_pointer_grab_enter' in wlroots, and the 'xdg_pointer_grab_enter'
-            // will call 'wlr_seat_pointer_clear_focus' if the surface's client and the popup's
-            // client is not equal.
+            // may reject the target or clear focus.
             oldPointerFocusSurface = tmp;
             return false;
         }
-        Q_ASSERT(pointerFocusSurface() == surface->handle()->handle());
 
-        Q_ASSERT(!pointerFocusEventObject || eventObject != pointerFocusEventObject);
-        if (pointerFocusEventObject) {
-            Q_ASSERT(onEventObjectDestroy);
-            QObject::disconnect(onEventObjectDestroy);
-        }
-        pointerFocusEventObject = eventObject;
-        if (eventObject) {
-            onEventObjectDestroy = QObject::connect(eventObject, &QObject::destroyed,
-                                                    q_func(), [this] {
-                doClearPointerFocus();
-            });
+        if (pointerFocusEventObject != eventObject) {
+            if (pointerFocusEventObject) {
+                Q_ASSERT(onEventObjectDestroy);
+                QObject::disconnect(onEventObjectDestroy);
+            }
+            pointerFocusEventObject = eventObject;
+            if (eventObject) {
+                onEventObjectDestroy = QObject::connect(eventObject, &QObject::destroyed,
+                                                        q_func(), [this] {
+                    doClearPointerFocus();
+                });
+            }
         }
 
         return true;
@@ -951,10 +961,23 @@ bool WSeat::sendEvent(WSurface *target, QObject *shellObject, QObject *eventObje
         return true;
 
     event->accept();
+    bool pointerReleaseHandled = false;
 
     switch (event->type()) {
     case QEvent::HoverEnter: {
         auto e = static_cast<QHoverEvent*>(event);
+        if (!d->handle()->pointer_has_grab() && d->hasPressedPointerButtons()
+            && target && target->handle()
+            && d->pointerFocusSurface() != target->handle()->handle()) {
+            qCDebug(lcWlPointer) << "[WL_POINTER_FOCUS_SYNC] Preserve pointer focus during button sequence:"
+                                 << "event_type=" << event->type()
+                                 << "seat=" << seat
+                                 << "target=" << target
+                                 << "focus=" << d->pointerFocusSurface()
+                                 << "button_count="
+                                 << d->nativeHandle()->pointer_state.button_count;
+            break;
+        }
         return d->doEnter(target, eventObject, e->position());
     }
     case QEvent::HoverLeave: {
@@ -964,6 +987,15 @@ bool WSeat::sendEvent(WSurface *target, QObject *shellObject, QObject *eventObje
         // we should don't do anything.
         if (d->pointerFocusEventObject != eventObject)
             break;
+        if (!d->handle()->pointer_has_grab() && d->hasPressedPointerButtons()) {
+            qCDebug(lcWlPointer) << "[WL_POINTER_FOCUS_SYNC] Preserve pointer focus on hover leave during button sequence:"
+                                 << "seat=" << seat
+                                 << "target=" << target
+                                 << "focus=" << d->pointerFocusSurface()
+                                 << "button_count="
+                                 << d->nativeHandle()->pointer_state.button_count;
+            break;
+        }
         auto nativeTarget = target->handle()->handle();
         Q_ASSERT(!currentFocus || d->oldPointerFocusSurface == nativeTarget || currentFocus == nativeTarget);
         d->doClearPointerFocus();
@@ -972,27 +1004,102 @@ bool WSeat::sendEvent(WSurface *target, QObject *shellObject, QObject *eventObje
     case QEvent::MouseButtonPress: {
         auto e = static_cast<QMouseEvent*>(event);
         Q_ASSERT(e->source() == Qt::MouseEventNotSynthesized);
-        d->doNotifyButton(WCursor::toNativeButton(e->button()), WL_POINTER_BUTTON_STATE_PRESSED, event->timestamp());
+        const auto *focusBefore = d->pointerFocusSurface();
+        const bool hadPointerGrab = d->handle()->pointer_has_grab();
+        const bool hadPressedButtons = d->hasPressedPointerButtons();
+        if (!hadPointerGrab && !hadPressedButtons && target
+            && !d->doEnter(target, eventObject, e->position())) {
+            qCDebug(lcWlPointer) << "[WL_POINTER_FOCUS_SYNC] Failed to focus pointer press target:"
+                                 << "seat=" << seat
+                                 << "target=" << target
+                                 << "eventObject=" << eventObject
+                                 << "focus_before=" << focusBefore
+                                 << "focus_after=" << d->pointerFocusSurface()
+                                 << "local_pos=" << e->position();
+            event->ignore();
+            return false;
+        }
+        const bool dispatched = d->doNotifyButton(WCursor::toNativeButton(e->button()),
+                                                  WL_POINTER_BUTTON_STATE_PRESSED,
+                                                  event->timestamp());
+        if (!dispatched && !hadPointerGrab) {
+            qCDebug(lcWlPointer) << "[WL_POINTER_BUTTON_DISPATCH] Pointer press was not dispatched:"
+                                 << "seat=" << seat
+                                 << "target=" << target
+                                 << "focus_before=" << focusBefore
+                                 << "focus_after=" << d->pointerFocusSurface()
+                                 << "button=" << e->button()
+                                 << "button_count=" << d->nativeHandle()->pointer_state.button_count;
+            event->ignore();
+            return false;
+        }
+        if (!hadPointerGrab && focusBefore != d->pointerFocusSurface()) {
+            qCDebug(lcWlPointer) << "[WL_POINTER_FOCUS_SYNC] Synchronized pointer focus before press:"
+                                 << "seat=" << seat
+                                 << "target=" << target
+                                 << "focus_before=" << focusBefore
+                                 << "focus_after=" << d->pointerFocusSurface()
+                                 << "eventObject=" << eventObject
+                                 << "local_pos=" << e->position();
+        }
         break;
     }
     case QEvent::MouseButtonRelease: {
         auto e = static_cast<QMouseEvent*>(event);
         Q_ASSERT(e->source() == Qt::MouseEventNotSynthesized);
-        d->doNotifyButton(WCursor::toNativeButton(e->button()), WL_POINTER_BUTTON_STATE_RELEASED, event->timestamp());
+        const auto *focusBefore = d->pointerFocusSurface();
+        const bool hadPointerGrab = d->handle()->pointer_has_grab();
+        const size_t buttonCountBefore =
+            d->nativeHandle()->pointer_state.button_count;
+        const bool dispatched = d->doNotifyButton(WCursor::toNativeButton(e->button()),
+                                                  WL_POINTER_BUTTON_STATE_RELEASED,
+                                                  event->timestamp());
+        if (!dispatched && !hadPointerGrab) {
+            qCDebug(lcWlPointer) << "[WL_POINTER_BUTTON_DISPATCH] Pointer release was not dispatched:"
+                                 << "seat=" << seat
+                                 << "target=" << target
+                                 << "focus_before=" << focusBefore
+                                 << "focus_after=" << d->pointerFocusSurface()
+                                 << "button=" << e->button()
+                                 << "button_count_before=" << buttonCountBefore
+                                 << "button_count_after="
+                                 << d->nativeHandle()->pointer_state.button_count;
+            // There is no native pressed button to balance, but the physical
+            // release still ends compositor-side routing state. Treat it as
+            // consumed so afterHandleEvent can retire that logical sequence.
+            if (buttonCountBefore == 0) {
+                pointerReleaseHandled = true;
+                break;
+            }
+            event->ignore();
+            return false;
+        }
+        pointerReleaseHandled = true;
+        if (!hadPointerGrab && target && target->handle()
+            && focusBefore != target->handle()->handle()) {
+            qCDebug(lcWlPointer) << "[WL_POINTER_FOCUS_SYNC] Delivered release without changing active sequence focus:"
+                                 << "seat=" << seat
+                                 << "target=" << target
+                                 << "focus=" << focusBefore
+                                 << "eventObject=" << eventObject
+                                 << "button_count_before=" << buttonCountBefore;
+        }
         break;
     }
     case QEvent::HoverMove: Q_FALLTHROUGH();
     case QEvent::MouseMove: {
         auto e = static_cast<QMouseEvent*>(event);
         Q_ASSERT(e->source() == Qt::MouseEventNotSynthesized);
-        // When begin drag, the wlroots will grab pointer event for drag, and the pointer focus is nullptr.
-        if (d->pointerFocusEventObject) {
-            // received HoverEnter event of next eventObject before HoverLeave event of last eventObject,
-            // so we should check the eventObject is still the same, if not, we should ignore this event
-            if (d->pointerFocusEventObject != eventObject)
-                break;
+        if (!d->doNotifyMotion(target, eventObject, e->position(), e->timestamp())) {
+            qCDebug(lcWlPointer) << "[WL_POINTER_FOCUS_SYNC] Failed to focus pointer motion target:"
+                                 << "seat=" << seat
+                                 << "target=" << target
+                                 << "eventObject=" << eventObject
+                                 << "focus=" << d->pointerFocusSurface()
+                                 << "local_pos=" << e->position();
+            event->ignore();
+            return false;
         }
-        d->doNotifyMotion(target, eventObject, e->position(), e->timestamp());
         break;
     }
     case QEvent::Wheel: {
@@ -1086,8 +1193,11 @@ bool WSeat::sendEvent(WSurface *target, QObject *shellObject, QObject *eventObje
     case QEvent::HoverMove: Q_FALLTHROUGH();
     case QEvent::MouseMove: {
         // Maybe this event is eat by the event grabber
-        if (target != seat->pointerFocusSurface())
+        if (target != seat->pointerFocusSurface()
+            && !(event->type() == QEvent::MouseButtonRelease
+                 && pointerReleaseHandled)) {
             return true;
+        }
         break;
     case QEvent::KeyPress:
     case QEvent::KeyRelease:
@@ -1121,6 +1231,10 @@ bool WSeat::redirectPointerEvent(WSurface *target,
     W_D(WSeat);
     const auto nativeTarget = target->handle()->handle();
     const auto focusBefore = d->pointerFocusSurface();
+    const bool hadPointerGrab = d->handle()->pointer_has_grab();
+    const bool hadPressedButtons = d->hasPressedPointerButtons();
+    const bool unmatchedRelease = event->type() == QEvent::MouseButtonRelease
+        && !hadPointerGrab && !hadPressedButtons;
     const auto *pointEvent =
         event->isSinglePointEvent() ? static_cast<QSinglePointEvent *>(event) : nullptr;
     const bool inputRegionAccepts = target->inputRegionContains(localPos);
@@ -1135,8 +1249,21 @@ bool WSeat::redirectPointerEvent(WSurface *target,
                          << "input_region_accepts=" << inputRegionAccepts
                          << "global_pos=" << (pointEvent ? pointEvent->globalPosition() : QPointF());
 
-    if (focusBefore != nativeTarget || d->pointerFocusEventObject != eventObject) {
-        if (focusBefore)
+    if (!unmatchedRelease
+        && (focusBefore != nativeTarget || d->pointerFocusEventObject != eventObject)) {
+        if (!hadPointerGrab && hadPressedButtons && focusBefore != nativeTarget) {
+            qCDebug(lcWlPointer) << "[WL_POINTER_REDIRECT] Refuse pointer focus change during button sequence:"
+                                 << "event_type=" << event->type()
+                                 << "seat=" << this
+                                 << "target=" << target
+                                 << "eventObject=" << eventObject
+                                 << "focus=" << focusBefore
+                                 << "button_count="
+                                 << d->nativeHandle()->pointer_state.button_count
+                                 << "local_pos=" << localPos;
+            return false;
+        }
+        if (focusBefore && focusBefore != nativeTarget)
             d->doClearPointerFocus();
         if (!d->doEnter(target, eventObject, localPos)) {
             qCDebug(lcWlPointer) << "[WL_POINTER_REDIRECT] Failed to enter redirected target:"
@@ -1158,17 +1285,43 @@ bool WSeat::redirectPointerEvent(WSurface *target,
     case QEvent::MouseButtonPress: {
         auto *e = static_cast<QMouseEvent *>(event);
         Q_ASSERT(e->source() == Qt::MouseEventNotSynthesized);
-        d->doNotifyButton(WCursor::toNativeButton(e->button()),
-                          WL_POINTER_BUTTON_STATE_PRESSED,
-                          event->timestamp());
+        if (!d->doNotifyButton(WCursor::toNativeButton(e->button()),
+                               WL_POINTER_BUTTON_STATE_PRESSED,
+                               event->timestamp())
+            && !hadPointerGrab) {
+            qCDebug(lcWlPointer) << "[WL_POINTER_REDIRECT] Redirected pointer press was not dispatched:"
+                                 << "seat=" << this
+                                 << "target=" << target
+                                 << "focus=" << d->pointerFocusSurface()
+                                 << "button=" << e->button()
+                                 << "button_count=" << d->nativeHandle()->pointer_state.button_count;
+            event->ignore();
+            return false;
+        }
         break;
     }
     case QEvent::MouseButtonRelease: {
         auto *e = static_cast<QMouseEvent *>(event);
         Q_ASSERT(e->source() == Qt::MouseEventNotSynthesized);
-        d->doNotifyButton(WCursor::toNativeButton(e->button()),
-                          WL_POINTER_BUTTON_STATE_RELEASED,
-                          event->timestamp());
+        const size_t buttonCountBefore =
+            d->nativeHandle()->pointer_state.button_count;
+        if (!d->doNotifyButton(WCursor::toNativeButton(e->button()),
+                               WL_POINTER_BUTTON_STATE_RELEASED,
+                               event->timestamp())
+            && !hadPointerGrab) {
+            qCDebug(lcWlPointer) << "[WL_POINTER_REDIRECT] Redirected pointer release was not dispatched:"
+                                 << "seat=" << this
+                                 << "target=" << target
+                                 << "focus=" << d->pointerFocusSurface()
+                                 << "button=" << e->button()
+                                 << "button_count_before=" << buttonCountBefore
+                                 << "button_count_after="
+                                 << d->nativeHandle()->pointer_state.button_count;
+            if (buttonCountBefore == 0)
+                break;
+            event->ignore();
+            return false;
+        }
         break;
     }
     case QEvent::HoverMove: Q_FALLTHROUGH();
@@ -1206,25 +1359,16 @@ bool WSeat::redirectPointerEvent(WSurface *target,
     return true;
 }
 
-bool WSeat::consumePointerButtonEvent(QMouseEvent *event)
+bool WSeat::recoverPointerButtonRelease(WSurface *target,
+                                        QObject *eventObject,
+                                        const QPointF &localPos,
+                                        QMouseEvent *event,
+                                        WClient *expectedClient)
 {
-    if (!event)
-        return false;
-
-    wl_pointer_button_state state;
-    switch (event->type()) {
-    case QEvent::MouseButtonPress:
-        state = WL_POINTER_BUTTON_STATE_PRESSED;
-        break;
-    case QEvent::MouseButtonRelease:
-        state = WL_POINTER_BUTTON_STATE_RELEASED;
-        break;
-    default:
+    if (!event || event->type() != QEvent::MouseButtonRelease
+        || event->button() == Qt::NoButton || !expectedClient) {
         return false;
     }
-
-    if (event->button() == Qt::NoButton)
-        return false;
 
     W_D(WSeat);
     auto *seatHandle = d->handle();
@@ -1232,28 +1376,98 @@ bool WSeat::consumePointerButtonEvent(QMouseEvent *event)
         return false;
 
     if (seatHandle->pointer_has_grab()) {
-        qCDebug(lcWlPointer) << "[WL_POINTER_BUTTON_CONSUME] Skip consumed pointer button event:"
-                             << "event_type=" << event->type()
+        qCDebug(lcWlPointer) << "[WL_POINTER_RELEASE_RECOVERY] Skip XWayland pointer release recovery:"
+                             << "reason=active-pointer-grab"
                              << "seat=" << this
+                             << "target=" << target
+                             << "expected_client=" << expectedClient
                              << "button=" << event->button()
-                             << "timestamp=" << event->timestamp()
-                             << "reason=active-pointer-grab";
+                             << "timestamp=" << event->timestamp();
         return false;
     }
 
+    auto *nativeSeat = seatHandle->handle();
+    auto *focusBefore = nativeSeat->pointer_state.focused_surface;
+    auto *focusedClient = nativeSeat->pointer_state.focused_client;
+    if (focusedClient && focusedClient->client != expectedClient->handle()) {
+        qCDebug(lcWlPointer) << "[WL_POINTER_RELEASE_RECOVERY] Skip XWayland pointer release recovery:"
+                             << "reason=different-client-focused"
+                             << "seat=" << this
+                             << "target=" << target
+                             << "target_client=" << (target ? target->waylandClient() : nullptr)
+                             << "expected_client=" << expectedClient
+                             << "focused_client=" << focusedClient
+                             << "focus_before=" << focusBefore
+                             << "button=" << event->button()
+                             << "timestamp=" << event->timestamp();
+        return false;
+    }
+
+    if (!focusedClient) {
+        if (!target || !target->handle() || !target->handle()->handle()
+            || target->waylandClient() != expectedClient) {
+            qCDebug(lcWlPointer) << "[WL_POINTER_RELEASE_RECOVERY] Skip XWayland pointer release recovery:"
+                                 << "reason=expected-client-not-focused"
+                                 << "seat=" << this
+                                 << "target=" << target
+                                 << "target_client=" << (target ? target->waylandClient() : nullptr)
+                                 << "expected_client=" << expectedClient
+                                 << "focused_client=" << focusedClient
+                                 << "focus_before=" << focusBefore
+                                 << "button=" << event->button()
+                                 << "timestamp=" << event->timestamp();
+            return false;
+        }
+
+        if (!d->doEnter(target, eventObject, localPos)) {
+            qCDebug(lcWlPointer) << "[WL_POINTER_RELEASE_RECOVERY] Skip XWayland pointer release recovery:"
+                                 << "reason=failed-to-focus-recovery-target"
+                                 << "seat=" << this
+                                 << "target=" << target
+                                 << "expected_client=" << expectedClient
+                                 << "focus_before=" << focusBefore
+                                 << "focus_after=" << nativeSeat->pointer_state.focused_surface
+                                 << "local_pos=" << localPos;
+            return false;
+        }
+
+        focusedClient = nativeSeat->pointer_state.focused_client;
+        if (!focusedClient || focusedClient->client != expectedClient->handle())
+            return false;
+    }
+
+    const size_t buttonCountBefore = nativeSeat->pointer_state.button_count;
     wlr_seat_pointer_grab silentGrab = {};
     silentGrab.interface = &silentPointerGrabInterface;
 
     seatHandle->pointer_start_grab(&silentGrab);
-    d->doNotifyButton(WCursor::toNativeButton(event->button()), state, event->timestamp());
+    seatHandle->pointer_notify_button(event->timestamp(),
+                                      WCursor::toNativeButton(event->button()),
+                                      WL_POINTER_BUTTON_STATE_RELEASED);
     seatHandle->pointer_end_grab();
 
-    qCDebug(lcWlPointer) << "[WL_POINTER_BUTTON_CONSUME] Consumed pointer button event:"
-                         << "event_type=" << event->type()
+    const size_t buttonCountAfterBalance = nativeSeat->pointer_state.button_count;
+    const uint32_t serial = wlr_seat_pointer_send_button(nativeSeat,
+                                                         event->timestamp(),
+                                                         WCursor::toNativeButton(event->button()),
+                                                         WL_POINTER_BUTTON_STATE_RELEASED);
+    if (serial != 0)
+        wlr_seat_pointer_send_frame(nativeSeat);
+
+    qCDebug(lcWlPointer) << "[WL_POINTER_RELEASE_RECOVERY] Recover XWayland pointer release:"
+                         << "delivered=" << (serial != 0)
                          << "seat=" << this
+                         << "target=" << target
+                         << "expected_client=" << expectedClient
+                         << "focused_client=" << nativeSeat->pointer_state.focused_client
+                         << "focus_before=" << focusBefore
+                         << "focus_after=" << nativeSeat->pointer_state.focused_surface
                          << "button=" << event->button()
-                         << "timestamp=" << event->timestamp();
-    return true;
+                         << "timestamp=" << event->timestamp()
+                         << "button_count_before=" << buttonCountBefore
+                         << "button_count_after_balance=" << buttonCountAfterBalance
+                         << "serial=" << serial;
+    return serial != 0;
 }
 
 WSeat *WSeat::get(QInputEvent *event)

@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <wlr/config.h>
@@ -22,6 +23,7 @@ static const char *const atom_map[ATOM_LAST] = {
 	[WM_DELETE_WINDOW] = "WM_DELETE_WINDOW",
 	[WM_PROTOCOLS] = "WM_PROTOCOLS",
 	[WM_HINTS] = "WM_HINTS",
+	[WM_CLIENT_LEADER] = "WM_CLIENT_LEADER",
 	[WM_NORMAL_HINTS] = "WM_NORMAL_HINTS",
 	[WM_SIZE_HINTS] = "WM_SIZE_HINTS",
 	[WM_WINDOW_ROLE] = "WM_WINDOW_ROLE",
@@ -244,6 +246,7 @@ static struct wlr_xwayland_surface *xwayland_surface_create(
 	wl_signal_init(&surface->events.set_opacity);
 	wl_signal_init(&surface->events.focus_in);
 	wl_signal_init(&surface->events.grab_focus);
+	wl_signal_init(&surface->events.pointer_grab_focus);
 	wl_signal_init(&surface->events.map_request);
 	wl_signal_init(&surface->events.ping_timeout);
 
@@ -472,7 +475,15 @@ static void xwm_surface_activate(struct wlr_xwm *xwm,
 		return;
 	}
 
-	if (xsurface != xwm->focus_surface && xsurface != xwm->offered_focus) {
+	if (xsurface != NULL && xsurface == xwm->offered_focus &&
+			xsurface != xwm->focus_surface) {
+		wlr_log(WLR_DEBUG, "Activating Xwayland surface %u with pending "
+			"focus offer; forcing input focus", xsurface->window_id);
+	}
+
+	// A focus offer is only advisory. If the compositor later activates the
+	// same surface, request X input focus even when the offer is still pending.
+	if (xsurface != xwm->focus_surface) {
 		xwm_focus_window(xwm, xsurface);
 	}
 
@@ -605,6 +616,7 @@ static void xwayland_surface_destroy(struct wlr_xwayland_surface *xsurface) {
 	assert(wl_list_empty(&xsurface->events.set_opacity.listener_list));
 	assert(wl_list_empty(&xsurface->events.focus_in.listener_list));
 	assert(wl_list_empty(&xsurface->events.grab_focus.listener_list));
+	assert(wl_list_empty(&xsurface->events.pointer_grab_focus.listener_list));
 	assert(wl_list_empty(&xsurface->events.map_request.listener_list));
 	assert(wl_list_empty(&xsurface->events.ping_timeout.listener_list));
 
@@ -794,6 +806,255 @@ static bool has_parent(struct wlr_xwayland_surface *parent,
 	return false;
 }
 
+static bool is_usable_parent(struct wlr_xwayland_surface *parent,
+		struct wlr_xwayland_surface *child) {
+	return parent != NULL && parent != child && parent->surface != NULL;
+}
+
+static xcb_window_t xsurface_window_group(
+		struct wlr_xwayland_surface *xsurface) {
+	if (xsurface == NULL || xsurface->hints == NULL ||
+			!(xsurface->hints->flags & XCB_ICCCM_WM_HINT_WINDOW_GROUP)) {
+		return XCB_WINDOW_NONE;
+	}
+
+	return xsurface->hints->window_group;
+}
+
+static bool xsurface_matches_group_key(struct wlr_xwayland_surface *candidate,
+		xcb_window_t window_group, xcb_window_t client_leader,
+		bool *matched_group, bool *matched_client_leader) {
+	bool group_match = false;
+	bool client_leader_match = false;
+	xcb_window_t candidate_group = xsurface_window_group(candidate);
+
+	if (window_group != XCB_WINDOW_NONE) {
+		group_match = candidate_group == window_group ||
+			candidate->window_id == window_group ||
+			candidate->client_leader == window_group;
+	}
+	if (client_leader != XCB_WINDOW_NONE) {
+		client_leader_match = candidate->client_leader == client_leader ||
+			candidate->window_id == client_leader;
+	}
+
+	if (matched_group != NULL) {
+		*matched_group = group_match;
+	}
+	if (matched_client_leader != NULL) {
+		*matched_client_leader = client_leader_match;
+	}
+	return group_match || client_leader_match;
+}
+
+static struct wlr_xwayland_surface *find_group_transient_parent(
+		struct wlr_xwm *xwm, struct wlr_xwayland_surface *xsurface,
+		struct wlr_xwayland_surface *direct_parent) {
+	xcb_window_t window_group = xsurface_window_group(xsurface);
+	xcb_window_t client_leader = xsurface->client_leader;
+
+	if (window_group == XCB_WINDOW_NONE && direct_parent != NULL) {
+		window_group = xsurface_window_group(direct_parent);
+	}
+	if (client_leader == XCB_WINDOW_NONE && direct_parent != NULL) {
+		client_leader = direct_parent->client_leader;
+	}
+	if (window_group == XCB_WINDOW_NONE && client_leader == XCB_WINDOW_NONE) {
+		return NULL;
+	}
+
+	struct wlr_xwayland_surface *best_parent = NULL;
+	int best_score = -1;
+
+	struct wlr_xwayland_surface *candidate;
+	wl_list_for_each(candidate, &xwm->surfaces, link) {
+		if (!is_usable_parent(candidate, xsurface) ||
+				candidate->override_redirect || has_parent(candidate, xsurface)) {
+			continue;
+		}
+
+		bool matched_group = false;
+		bool matched_client_leader = false;
+		if (!xsurface_matches_group_key(candidate, window_group, client_leader,
+				&matched_group, &matched_client_leader)) {
+			continue;
+		}
+
+		int score = 0;
+		if (matched_group) {
+			score += 100;
+		}
+		if (matched_client_leader) {
+			score += 50;
+		}
+		if (candidate->window_id == window_group ||
+				candidate->window_id == client_leader) {
+			score += 30;
+		}
+		if (candidate->parent == NULL) {
+			score += 20;
+		} else if (!is_usable_parent(candidate->parent, xsurface)) {
+			score += 10;
+		}
+		if (candidate->surface->mapped) {
+			score += 5;
+		}
+
+		// Surfaces are kept in creation order. Prefer the later surface on ties,
+		// matching how group transients are generally associated with mapped
+		// windows that existed before them.
+		if (score >= best_score) {
+			best_parent = candidate;
+			best_score = score;
+		}
+	}
+
+	if (best_parent != NULL) {
+		wlr_log(WLR_DEBUG, "Resolved Xwayland group transient parent for "
+			"surface %u to surface %u (WM_TRANSIENT_FOR %u, "
+			"window_group %u, client_leader %u, score %d)",
+			xsurface->window_id, best_parent->window_id,
+			xsurface->transient_for, window_group, client_leader, best_score);
+	} else {
+		wlr_log(WLR_DEBUG, "Could not resolve Xwayland group transient parent "
+			"for surface %u (WM_TRANSIENT_FOR %u, window_group %u, "
+			"client_leader %u)",
+			xsurface->window_id, xsurface->transient_for,
+			window_group, client_leader);
+	}
+
+	return best_parent;
+}
+
+static struct wlr_xwayland_surface *resolve_wm_transient_for_parent(
+		struct wlr_xwm *xwm, struct wlr_xwayland_surface *xsurface) {
+	if (!xsurface->has_wm_transient_for) {
+		return NULL;
+	}
+
+	xcb_window_t transient_for = xsurface->transient_for;
+	struct wlr_xwayland_surface *direct_parent =
+		lookup_surface(xwm, transient_for);
+	if (is_usable_parent(direct_parent, xsurface) ||
+			direct_parent == xsurface) {
+		return direct_parent;
+	}
+
+	const xcb_window_t root = xwm->screen ? xwm->screen->root : XCB_WINDOW_NONE;
+	xcb_window_t current = transient_for;
+	for (int depth = 0;
+			transient_for != XCB_WINDOW_NONE && transient_for != root &&
+			current != XCB_WINDOW_NONE && depth < 32; ++depth) {
+		if (current == root) {
+			break;
+		}
+
+		struct wlr_xwayland_surface *candidate =
+			lookup_surface(xwm, current);
+		if (is_usable_parent(candidate, xsurface)) {
+			if (current != transient_for) {
+				wlr_log(WLR_DEBUG, "Adjusted WM_TRANSIENT_FOR parent "
+					"for Xwayland surface %u from X11 child %u "
+					"to managed ancestor %u at depth %d",
+					xsurface->window_id, transient_for, current, depth);
+			}
+			return candidate;
+		}
+		if (candidate == xsurface) {
+			wlr_log(WLR_DEBUG, "Ignoring WM_TRANSIENT_FOR parent tree "
+				"that points back to Xwayland surface %u", xsurface->window_id);
+			return direct_parent;
+		}
+
+		xcb_generic_error_t *error = NULL;
+		xcb_query_tree_reply_t *reply = xcb_query_tree_reply(xwm->xcb_conn,
+			xcb_query_tree(xwm->xcb_conn, current), &error);
+		if (error != NULL) {
+			wlr_log(WLR_DEBUG, "Failed to query WM_TRANSIENT_FOR parent "
+				"tree for Xwayland surface %u at X11 window %u: "
+				"X11 error %u", xsurface->window_id, current, error->error_code);
+			free(error);
+			free(reply);
+			return direct_parent;
+		}
+		if (reply == NULL) {
+			wlr_log(WLR_DEBUG, "Failed to query WM_TRANSIENT_FOR parent "
+				"tree for Xwayland surface %u at X11 window %u: "
+				"missing reply", xsurface->window_id, current);
+			return direct_parent;
+		}
+
+		xcb_window_t parent = reply->parent;
+		free(reply);
+		if (parent == current) {
+			wlr_log(WLR_DEBUG, "Ignoring cyclic WM_TRANSIENT_FOR X11 parent "
+				"tree for Xwayland surface %u at X11 window %u",
+				xsurface->window_id, current);
+			return direct_parent;
+		}
+		current = parent;
+	}
+
+	if (current != XCB_WINDOW_NONE && current != root &&
+			transient_for != XCB_WINDOW_NONE && transient_for != root) {
+		wlr_log(WLR_DEBUG, "Stopped WM_TRANSIENT_FOR parent tree search "
+			"for Xwayland surface %u at X11 window %u: max depth reached",
+			xsurface->window_id, current);
+	}
+	struct wlr_xwayland_surface *group_parent =
+		find_group_transient_parent(xwm, xsurface, direct_parent);
+	return group_parent != NULL ? group_parent : direct_parent;
+}
+
+static bool set_xwayland_surface_parent(struct wlr_xwayland_surface *xsurface,
+		struct wlr_xwayland_surface *parent, const char *reason) {
+	if (parent != NULL && has_parent(parent, xsurface)) {
+		wlr_log(WLR_INFO, "%p with %p would create a loop", xsurface, parent);
+		parent = NULL;
+	}
+
+	if (xsurface->parent == parent) {
+		return false;
+	}
+
+	struct wlr_xwayland_surface *old_parent = xsurface->parent;
+	wl_list_remove(&xsurface->parent_link);
+	xsurface->parent = parent;
+	if (xsurface->parent != NULL) {
+		wl_list_insert(&xsurface->parent->children, &xsurface->parent_link);
+	} else {
+		wl_list_init(&xsurface->parent_link);
+	}
+
+	wlr_log(WLR_DEBUG, "Updated Xwayland transient parent for surface %u "
+		"from %u to %u (%s)",
+		xsurface->window_id,
+		old_parent != NULL ? old_parent->window_id : XCB_WINDOW_NONE,
+		parent != NULL ? parent->window_id : XCB_WINDOW_NONE,
+		reason != NULL ? reason : "unknown");
+	wl_signal_emit_mutable(&xsurface->events.set_parent, NULL);
+	return true;
+}
+
+static void update_surface_parent_from_metadata(struct wlr_xwm *xwm,
+		struct wlr_xwayland_surface *xsurface, const char *reason) {
+	struct wlr_xwayland_surface *found_parent =
+		resolve_wm_transient_for_parent(xwm, xsurface);
+	set_xwayland_surface_parent(xsurface, found_parent, reason);
+}
+
+static void update_related_group_transient_parents(struct wlr_xwm *xwm,
+		struct wlr_xwayland_surface *changed_surface, const char *reason) {
+	struct wlr_xwayland_surface *xsurface;
+	wl_list_for_each(xsurface, &xwm->surfaces, link) {
+		if (xsurface == changed_surface || !xsurface->has_wm_transient_for) {
+			continue;
+		}
+
+		update_surface_parent_from_metadata(xwm, xsurface, reason);
+	}
+}
+
 static void read_surface_parent(struct wlr_xwm *xwm,
 		struct wlr_xwayland_surface *xsurface,
 		xcb_get_property_reply_t *reply) {
@@ -802,28 +1063,16 @@ static void read_surface_parent(struct wlr_xwm *xwm,
 		return;
 	}
 
-	struct wlr_xwayland_surface *found_parent = NULL;
+	xsurface->has_wm_transient_for = false;
+	xsurface->transient_for = XCB_WINDOW_NONE;
+
 	xcb_window_t *xid = xcb_get_property_value(reply);
 	if (reply->type != XCB_ATOM_NONE && xid != NULL) {
-		found_parent = lookup_surface(xwm, *xid);
-		if (!has_parent(found_parent, xsurface)) {
-			xsurface->parent = found_parent;
-		} else {
-			wlr_log(WLR_INFO, "%p with %p would create a loop", xsurface,
-						found_parent);
-		}
-	} else {
-		xsurface->parent = NULL;
+		xsurface->has_wm_transient_for = true;
+		xsurface->transient_for = *xid;
 	}
 
-	wl_list_remove(&xsurface->parent_link);
-	if (xsurface->parent != NULL) {
-		wl_list_insert(&xsurface->parent->children, &xsurface->parent_link);
-	} else {
-		wl_list_init(&xsurface->parent_link);
-	}
-
-	wl_signal_emit_mutable(&xsurface->events.set_parent, NULL);
+	update_surface_parent_from_metadata(xwm, xsurface, "WM_TRANSIENT_FOR");
 }
 
 static void read_surface_window_type(struct wlr_xwm *xwm,
@@ -907,6 +1156,26 @@ static void read_surface_hints(struct wlr_xwm *xwm,
 	}
 
 	wl_signal_emit_mutable(&xsurface->events.set_hints, NULL);
+	update_surface_parent_from_metadata(xwm, xsurface, "WM_HINTS");
+	update_related_group_transient_parents(xwm, xsurface, "WM_HINTS");
+}
+
+static void read_surface_client_leader(struct wlr_xwm *xwm,
+		struct wlr_xwayland_surface *xsurface,
+		xcb_get_property_reply_t *reply) {
+	if (reply->type != XCB_ATOM_WINDOW && reply->type != XCB_ATOM_NONE) {
+		wlr_log(WLR_DEBUG, "Invalid WM_CLIENT_LEADER property type");
+		return;
+	}
+
+	xsurface->client_leader = XCB_WINDOW_NONE;
+	xcb_window_t *xid = xcb_get_property_value(reply);
+	if (reply->type != XCB_ATOM_NONE && xid != NULL) {
+		xsurface->client_leader = *xid;
+	}
+
+	update_surface_parent_from_metadata(xwm, xsurface, "WM_CLIENT_LEADER");
+	update_related_group_transient_parents(xwm, xsurface, "WM_CLIENT_LEADER");
 }
 
 static void read_surface_normal_hints(struct wlr_xwm *xwm,
@@ -1077,6 +1346,10 @@ static void read_surface_property(struct wlr_xwm *xwm,
 	} else if (property == XCB_ATOM_WM_NAME ||
 			property == xwm->atoms[NET_WM_NAME]) {
 		read_surface_title(xwm, xsurface, property, reply);
+	} else if (property == xwm->atoms[WM_HINTS]) {
+		read_surface_hints(xwm, xsurface, reply);
+	} else if (property == xwm->atoms[WM_CLIENT_LEADER]) {
+		read_surface_client_leader(xwm, xsurface, reply);
 	} else if (property == XCB_ATOM_WM_TRANSIENT_FOR) {
 		read_surface_parent(xwm, xsurface, reply);
 	} else if (property == xwm->atoms[NET_WM_PID]) {
@@ -1087,8 +1360,6 @@ static void read_surface_property(struct wlr_xwm *xwm,
 		read_surface_protocols(xwm, xsurface, reply);
 	} else if (property == xwm->atoms[NET_WM_STATE]) {
 		read_surface_net_wm_state(xwm, xsurface, reply);
-	} else if (property == xwm->atoms[WM_HINTS]) {
-		read_surface_hints(xwm, xsurface, reply);
 	} else if (property == xwm->atoms[WM_NORMAL_HINTS]) {
 		read_surface_normal_hints(xwm, xsurface, reply);
 	} else if (property == xwm->atoms[MOTIF_WM_HINTS]) {
@@ -1160,9 +1431,10 @@ static void xwayland_surface_associate(struct wlr_xwm *xwm,
 	const xcb_atom_t props[] = {
 		XCB_ATOM_WM_CLASS,
 		XCB_ATOM_WM_NAME,
+		xwm->atoms[WM_HINTS],
+		xwm->atoms[WM_CLIENT_LEADER],
 		XCB_ATOM_WM_TRANSIENT_FOR,
 		xwm->atoms[WM_PROTOCOLS],
-		xwm->atoms[WM_HINTS],
 		xwm->atoms[WM_NORMAL_HINTS],
 		xwm->atoms[MOTIF_WM_HINTS],
 		xwm->atoms[NET_STARTUP_ID],
@@ -1190,6 +1462,131 @@ static void xwayland_surface_associate(struct wlr_xwm *xwm,
 	}
 
 	wl_signal_emit_mutable(&xsurface->events.associate, NULL);
+	update_related_group_transient_parents(xwm, xsurface, "associate");
+}
+
+static bool xwm_translate_window_origin_to_root(struct wlr_xwm *xwm,
+		xcb_window_t window, int16_t *root_x, int16_t *root_y,
+		xcb_window_t *parent) {
+	if (root_x != NULL) {
+		*root_x = 0;
+	}
+	if (root_y != NULL) {
+		*root_y = 0;
+	}
+	if (parent != NULL) {
+		*parent = XCB_WINDOW_NONE;
+	}
+	if (xwm->screen == NULL || window == XCB_WINDOW_NONE) {
+		return false;
+	}
+
+	xcb_generic_error_t *tree_error = NULL;
+	xcb_query_tree_reply_t *tree_reply = xcb_query_tree_reply(xwm->xcb_conn,
+		xcb_query_tree(xwm->xcb_conn, window), &tree_error);
+	if (tree_error != NULL) {
+		free(tree_error);
+		free(tree_reply);
+		return false;
+	}
+	if (tree_reply != NULL) {
+		if (parent != NULL) {
+			*parent = tree_reply->parent;
+		}
+		free(tree_reply);
+	}
+
+	xcb_generic_error_t *translate_error = NULL;
+	xcb_translate_coordinates_reply_t *translate_reply =
+		xcb_translate_coordinates_reply(xwm->xcb_conn,
+			xcb_translate_coordinates(xwm->xcb_conn, window,
+				xwm->screen->root, 0, 0),
+			&translate_error);
+	if (translate_error != NULL) {
+		free(translate_error);
+		free(translate_reply);
+		return false;
+	}
+	if (translate_reply == NULL) {
+		return false;
+	}
+
+	if (root_x != NULL) {
+		*root_x = translate_reply->dst_x;
+	}
+	if (root_y != NULL) {
+		*root_y = translate_reply->dst_y;
+	}
+	free(translate_reply);
+	return true;
+}
+
+static bool xwm_translate_coordinates(struct wlr_xwm *xwm,
+		xcb_window_t source, xcb_window_t destination,
+		int16_t source_x, int16_t source_y,
+		int16_t *destination_x, int16_t *destination_y) {
+	if (destination_x != NULL) {
+		*destination_x = 0;
+	}
+	if (destination_y != NULL) {
+		*destination_y = 0;
+	}
+	if (source == XCB_WINDOW_NONE || destination == XCB_WINDOW_NONE ||
+			destination_x == NULL || destination_y == NULL) {
+		return false;
+	}
+
+	xcb_generic_error_t *translate_error = NULL;
+	xcb_translate_coordinates_reply_t *translate_reply =
+		xcb_translate_coordinates_reply(xwm->xcb_conn,
+			xcb_translate_coordinates(xwm->xcb_conn, source, destination,
+				source_x, source_y),
+			&translate_error);
+	if (translate_error != NULL) {
+		wlr_log(WLR_DEBUG,
+			"Failed to translate Xwayland coordinates: source %u "
+			"destination %u point %d,%d error %d",
+			source, destination, source_x, source_y,
+			translate_error->error_code);
+		free(translate_error);
+		free(translate_reply);
+		return false;
+	}
+	if (translate_reply == NULL) {
+		return false;
+	}
+
+	*destination_x = translate_reply->dst_x;
+	*destination_y = translate_reply->dst_y;
+	free(translate_reply);
+	return true;
+}
+
+static bool xwm_translate_coordinates_to_root(struct wlr_xwm *xwm,
+		xcb_window_t source, int16_t source_x, int16_t source_y,
+		int16_t *root_x, int16_t *root_y) {
+	if (xwm->screen == NULL) {
+		if (root_x != NULL) {
+			*root_x = 0;
+		}
+		if (root_y != NULL) {
+			*root_y = 0;
+		}
+		return false;
+	}
+
+	return xwm_translate_coordinates(xwm, source, xwm->screen->root,
+		source_x, source_y, root_x, root_y);
+}
+
+static int16_t clamp_i32_to_i16(int32_t value) {
+	if (value > INT16_MAX) {
+		return INT16_MAX;
+	}
+	if (value < INT16_MIN) {
+		return INT16_MIN;
+	}
+	return (int16_t)value;
 }
 
 static void xwm_handle_create_notify(struct wlr_xwm *xwm,
@@ -1201,7 +1598,26 @@ static void xwm_handle_create_notify(struct wlr_xwm *xwm,
 		return;
 	}
 
-	xwayland_surface_create(xwm, ev->window, ev->x, ev->y,
+	const xcb_window_t root =
+		xwm->screen != NULL ? xwm->screen->root : XCB_WINDOW_NONE;
+	int16_t root_x = 0;
+	int16_t root_y = 0;
+	xcb_window_t queried_parent = XCB_WINDOW_NONE;
+	bool has_root_position = xwm_translate_window_origin_to_root(xwm,
+		ev->window, &root_x, &root_y, &queried_parent);
+	int16_t create_x = has_root_position ? root_x : ev->x;
+	int16_t create_y = has_root_position ? root_y : ev->y;
+	if (ev->override_redirect || ev->parent != root ||
+			(has_root_position && (root_x != ev->x || root_y != ev->y))) {
+		wlr_log(WLR_DEBUG, "Xwayland CreateNotify geometry for window %u: "
+			"event_parent %u queried_parent %u root %u event %d,%d %ux%u "
+			"override_redirect %d translated %d root_position %d,%d chosen %d,%d",
+			ev->window, ev->parent, queried_parent, root, ev->x, ev->y,
+			ev->width, ev->height, ev->override_redirect, has_root_position,
+			root_x, root_y, create_x, create_y);
+	}
+
+	xwayland_surface_create(xwm, ev->window, create_x, create_y,
 		ev->width, ev->height, ev->override_redirect);
 }
 
@@ -1231,10 +1647,81 @@ static void xwm_handle_configure_request(struct wlr_xwm *xwm,
 		return;
 	}
 
+	int16_t configure_x = surface->x;
+	int16_t configure_y = surface->y;
+	xcb_window_t queried_parent = XCB_WINDOW_NONE;
+	const xcb_window_t root =
+		xwm->screen != NULL ? xwm->screen->root : XCB_WINDOW_NONE;
+	bool translated_position = false;
+	if (mask & (XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y)) {
+		int16_t current_root_x = 0;
+		int16_t current_root_y = 0;
+		bool has_current_root = xwm_translate_window_origin_to_root(xwm,
+			ev->window, &current_root_x, &current_root_y, &queried_parent);
+		if (has_current_root) {
+			configure_x = current_root_x;
+			configure_y = current_root_y;
+		}
+
+		xcb_window_t parent = queried_parent != XCB_WINDOW_NONE ?
+			queried_parent : ev->parent;
+		if (parent == XCB_WINDOW_NONE) {
+			parent = root;
+		}
+
+		if ((mask & (XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y)) ==
+				(XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y)) {
+			int16_t translated_x = 0;
+			int16_t translated_y = 0;
+			if (xwm_translate_coordinates_to_root(xwm, parent, ev->x, ev->y,
+					&translated_x, &translated_y)) {
+				configure_x = translated_x;
+				configure_y = translated_y;
+				translated_position = true;
+			} else {
+				configure_x = ev->x;
+				configure_y = ev->y;
+			}
+		} else {
+			int16_t parent_root_x = 0;
+			int16_t parent_root_y = 0;
+			if (xwm_translate_coordinates_to_root(xwm, parent, 0, 0,
+					&parent_root_x, &parent_root_y)) {
+				if (mask & XCB_CONFIG_WINDOW_X) {
+					configure_x = clamp_i32_to_i16((int32_t)parent_root_x + ev->x);
+				}
+				if (mask & XCB_CONFIG_WINDOW_Y) {
+					configure_y = clamp_i32_to_i16((int32_t)parent_root_y + ev->y);
+				}
+				translated_position = true;
+			} else {
+				if (mask & XCB_CONFIG_WINDOW_X) {
+					configure_x = ev->x;
+				}
+				if (mask & XCB_CONFIG_WINDOW_Y) {
+					configure_y = ev->y;
+				}
+			}
+		}
+
+		if (parent != root ||
+				((mask & XCB_CONFIG_WINDOW_X) && configure_x != ev->x) ||
+				((mask & XCB_CONFIG_WINDOW_Y) && configure_y != ev->y)) {
+			wlr_log(WLR_DEBUG,
+				"Xwayland ConfigureRequest root geometry for surface %u: "
+				"event_parent %u queried_parent %u root %u mask 0x%x raw %d,%d %ux%u "
+				"chosen %d,%d translated %d current %d,%d %ux%u",
+				surface->window_id, ev->parent, queried_parent, root, mask,
+				ev->x, ev->y, ev->width, ev->height, configure_x, configure_y,
+				translated_position, surface->x, surface->y,
+				surface->width, surface->height);
+		}
+	}
+
 	struct wlr_xwayland_surface_configure_event wlr_event = {
 		.surface = surface,
-		.x = mask & XCB_CONFIG_WINDOW_X ? ev->x : surface->x,
-		.y = mask & XCB_CONFIG_WINDOW_Y ? ev->y : surface->y,
+		.x = configure_x,
+		.y = configure_y,
 		.width = mask & XCB_CONFIG_WINDOW_WIDTH ? ev->width : surface->width,
 		.height = mask & XCB_CONFIG_WINDOW_HEIGHT ? ev->height : surface->height,
 		.mask = mask,
@@ -1268,13 +1755,37 @@ static void xwm_handle_configure_notify(struct wlr_xwm *xwm,
 		return;
 	}
 
+	const xcb_window_t root =
+		xwm->screen != NULL ? xwm->screen->root : XCB_WINDOW_NONE;
+	int16_t root_x = 0;
+	int16_t root_y = 0;
+	xcb_window_t queried_parent = XCB_WINDOW_NONE;
+	bool has_root_position = xwm_translate_window_origin_to_root(xwm,
+		ev->window, &root_x, &root_y, &queried_parent);
+	int16_t new_x = has_root_position ? root_x : ev->x;
+	int16_t new_y = has_root_position ? root_y : ev->y;
+
 	bool geometry_changed =
-		(xsurface->x != ev->x || xsurface->y != ev->y ||
+		(xsurface->x != new_x || xsurface->y != new_y ||
 		 xsurface->width != ev->width || xsurface->height != ev->height);
 
+	if (geometry_changed || xsurface->override_redirect || ev->override_redirect ||
+			(queried_parent != XCB_WINDOW_NONE && queried_parent != root) ||
+			(has_root_position && (root_x != ev->x || root_y != ev->y))) {
+		wlr_log(WLR_DEBUG, "Xwayland ConfigureNotify geometry for "
+			"surface %u: old %d,%d %ux%u event %d,%d %ux%u "
+			"queried_parent %u root %u override_redirect old=%d new=%d "
+			"translated %d root_position %d,%d chosen %d,%d geometry_changed %d",
+			xsurface->window_id, xsurface->x, xsurface->y,
+			xsurface->width, xsurface->height, ev->x, ev->y,
+			ev->width, ev->height, queried_parent, root,
+			xsurface->override_redirect, ev->override_redirect,
+			has_root_position, root_x, root_y, new_x, new_y, geometry_changed);
+	}
+
 	if (geometry_changed) {
-		xsurface->x = ev->x;
-		xsurface->y = ev->y;
+		xsurface->x = new_x;
+		xsurface->y = new_y;
 		xsurface->width = ev->width;
 		xsurface->height = ev->height;
 	}
@@ -1380,6 +1891,7 @@ static void xwm_handle_map_notify(struct wlr_xwm *xwm,
 		wlr_xwayland_surface_set_withdrawn(xsurface, false);
 		wlr_xwayland_surface_restack(xsurface, NULL, XCB_STACK_MODE_BELOW);
 	}
+	update_related_group_transient_parents(xwm, xsurface, "map");
 }
 
 static void xwm_handle_unmap_notify(struct wlr_xwm *xwm,
@@ -1854,19 +2366,24 @@ static bool validate_focus_serial(uint16_t last_focus_seq, uint16_t event_seq) {
 
 static void xwm_handle_focus_in(struct wlr_xwm *xwm,
 		xcb_focus_in_event_t *ev) {
-	// Ignore pointer focus change events
-	if (ev->detail == XCB_NOTIFY_DETAIL_POINTER) {
-		return;
-	}
-
 	// Do not interfere with keyboard grabs, but notify the
 	// compositor. Note that many legitimate X11 applications use
 	// keyboard grabs to "steal" focus for e.g. popup menus.
 	struct wlr_xwayland_surface *xsurface = lookup_surface(xwm, ev->event);
 	if (ev->mode == XCB_NOTIFY_MODE_GRAB) {
 		if (xsurface) {
-			wl_signal_emit_mutable(&xsurface->events.grab_focus, NULL);
+			if (ev->detail == XCB_NOTIFY_DETAIL_POINTER) {
+				wl_signal_emit_mutable(
+					&xsurface->events.pointer_grab_focus, NULL);
+			} else {
+				wl_signal_emit_mutable(&xsurface->events.grab_focus, NULL);
+			}
 		}
+		return;
+	}
+
+	// Ignore pointer focus change events except the grab notification above.
+	if (ev->detail == XCB_NOTIFY_DETAIL_POINTER) {
 		return;
 	}
 	if (ev->mode == XCB_NOTIFY_MODE_UNGRAB) {
@@ -2110,21 +2627,72 @@ void wlr_xwayland_surface_activate(struct wlr_xwayland_surface *xsurface,
 	}
 }
 
+void wlr_xwayland_surface_force_focus(
+		struct wlr_xwayland_surface *xsurface) {
+	if (xsurface->override_redirect) {
+		return;
+	}
+
+	struct wlr_xwm *xwm = xsurface->xwm;
+	bool refresh_focus = xwm->focus_surface == xsurface &&
+		(!xsurface->hints || xsurface->hints->input);
+	wlr_log(WLR_DEBUG, "Forcing Xwayland input focus to surface %u "
+		"(cached focus surface %u, offered focus surface %u, refresh %d)",
+		xsurface->window_id,
+		xwm->focus_surface != NULL ?
+			xwm->focus_surface->window_id : XCB_WINDOW_NONE,
+		xwm->offered_focus != NULL ?
+			xwm->offered_focus->window_id : XCB_WINDOW_NONE,
+		refresh_focus);
+
+	// The purpose of this entry point is to bypass the focus cache check in
+	// xwm_surface_activate(). If the cache already points at this surface, a
+	// second SetInputFocus to the same window does not produce FocusIn. Cycle via
+	// PointerRoot first so clients with stale internal focus state can observe a
+	// real FocusOut/FocusIn pair. Do not do this for globally-active clients:
+	// their input hint forbids the window manager from setting focus directly.
+	if (refresh_focus) {
+		xwm_focus_window(xwm, NULL);
+	}
+	xwm_focus_window(xwm, xsurface);
+	xwm_set_focused_window(xwm, xsurface);
+	xwm_schedule_flush(xwm);
+}
+
 void wlr_xwayland_surface_configure(struct wlr_xwayland_surface *xsurface,
 		int16_t x, int16_t y, uint16_t width, uint16_t height) {
 	int old_w = xsurface->width;
 	int old_h = xsurface->height;
+	struct wlr_xwm *xwm = xsurface->xwm;
+	const xcb_window_t root =
+		xwm->screen != NULL ? xwm->screen->root : XCB_WINDOW_NONE;
 
 	xsurface->x = x;
 	xsurface->y = y;
 	xsurface->width = width;
 	xsurface->height = height;
 
-	struct wlr_xwm *xwm = xsurface->xwm;
+	int16_t configure_x = x;
+	int16_t configure_y = y;
+	xcb_window_t parent = XCB_WINDOW_NONE;
+	int16_t ignored_root_x = 0;
+	int16_t ignored_root_y = 0;
+	xwm_translate_window_origin_to_root(xwm, xsurface->window_id,
+		&ignored_root_x, &ignored_root_y, &parent);
+	if (parent != XCB_WINDOW_NONE && parent != root &&
+			xwm_translate_coordinates(xwm, root, parent, x, y,
+				&configure_x, &configure_y)) {
+		wlr_log(WLR_DEBUG,
+			"Xwayland ConfigureWindow parent-relative geometry for surface %u: "
+			"parent %u root %u root_geometry %d,%d %ux%u parent_geometry %d,%d",
+			xsurface->window_id, parent, root, x, y, width, height,
+			configure_x, configure_y);
+	}
+
 	uint32_t mask = XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y |
 		XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT |
 		XCB_CONFIG_WINDOW_BORDER_WIDTH;
-	uint32_t values[] = {x, y, width, height, 0};
+	uint32_t values[] = {configure_x, configure_y, width, height, 0};
 	xcb_configure_window(xwm->xcb_conn, xsurface->window_id, mask, values);
 
 	// If the window size did not change, then we cannot rely on
@@ -2133,6 +2701,14 @@ void wlr_xwayland_surface_configure(struct wlr_xwayland_surface *xsurface,
 	// 4.1.5. But we ignore override-redirect windows as ICCCM does
 	// not apply to them.
 	if (width == old_w && height == old_h && !xsurface->override_redirect) {
+		if (configure_x != x || configure_y != y) {
+			wlr_log(WLR_DEBUG,
+				"Xwayland synthetic ConfigureNotify root geometry for surface %u: "
+				"root_geometry %d,%d %ux%u configure_window_geometry %d,%d",
+				xsurface->window_id, x, y, width, height,
+				configure_x, configure_y);
+		}
+
 		xcb_configure_notify_event_t configure_notify = {
 			.response_type = XCB_CONFIGURE_NOTIFY,
 			.event = xsurface->window_id,
