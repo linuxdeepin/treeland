@@ -2,6 +2,7 @@
 #include <drm_fourcc.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <inttypes.h>
 #include <poll.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -867,6 +868,52 @@ static bool submit_pending_stage_uploads(struct wlr_vk_renderer *renderer) {
 	return true;
 }
 
+static void close_sync_file_fds(int sync_file_fds[static WLR_DMABUF_MAX_PLANES]) {
+	for (size_t i = 0; i < WLR_DMABUF_MAX_PLANES; i++) {
+		if (sync_file_fds[i] < 0) {
+			continue;
+		}
+
+		close(sync_file_fds[i]);
+		sync_file_fds[i] = -1;
+	}
+}
+
+struct wlr_vk_texture_sync_wait {
+	int fd;
+	size_t semaphore_index;
+};
+
+// Returns 1 when signaled, 0 on timeout, and -1 on an error or invalid poll
+// result. A sync_file is only considered ready when POLLIN is reported.
+static int poll_sync_file(int fd, int timeout_ms) {
+	struct pollfd pollfd = {
+		.fd = fd,
+		.events = POLLIN,
+	};
+
+	int ret;
+	do {
+		ret = poll(&pollfd, 1, timeout_ms);
+	} while (ret < 0 && errno == EINTR);
+
+	if (ret < 0) {
+		wlr_log_errno(WLR_ERROR, "Failed to poll texture DMA-BUF sync_file");
+		return -1;
+	}
+	if (ret == 0) {
+		return 0;
+	}
+	if ((pollfd.revents & (POLLERR | POLLNVAL)) != 0 ||
+			(pollfd.revents & POLLIN) == 0) {
+		wlr_log(WLR_ERROR, "Invalid texture DMA-BUF sync_file poll result: 0x%x",
+			pollfd.revents);
+		return -1;
+	}
+
+	return 1;
+}
+
 static bool wait_sync_file_fds(int sync_file_fds[static WLR_DMABUF_MAX_PLANES]) {
 	bool ok = true;
 
@@ -876,20 +923,11 @@ static bool wait_sync_file_fds(int sync_file_fds[static WLR_DMABUF_MAX_PLANES]) 
 			continue;
 		}
 
-		struct pollfd pollfd = {
-			.fd = fd,
-			.events = POLLIN,
-		};
-		int ret;
-		do {
-			ret = poll(&pollfd, 1, 1000);
-		} while (ret < 0 && errno == EINTR);
-
-		if (ret < 0) {
-			wlr_log_errno(WLR_ERROR, "Failed to wait for texture DMA-BUF sync_file");
-			ok = false;
-		} else if (ret == 0) {
+		int ret = poll_sync_file(fd, 1000);
+		if (ret == 0) {
 			wlr_log(WLR_ERROR, "Timed out while waiting for texture DMA-BUF sync_file");
+			ok = false;
+		} else if (ret < 0) {
 			ok = false;
 		}
 
@@ -900,15 +938,335 @@ static bool wait_sync_file_fds(int sync_file_fds[static WLR_DMABUF_MAX_PLANES]) 
 	return ok;
 }
 
-static void close_sync_file_fds(int sync_file_fds[static WLR_DMABUF_MAX_PLANES]) {
+static bool collect_sync_file_fds(struct wlr_vk_renderer *renderer,
+		int sync_file_fds[static WLR_DMABUF_MAX_PLANES]) {
+	size_t count = 0;
+	for (size_t i = 0; i < WLR_DMABUF_MAX_PLANES; i++) {
+		count += sync_file_fds[i] >= 0;
+	}
+	if (count == 0) {
+		return true;
+	}
+
+	struct wlr_vk_texture_sync_wait *waits = wl_array_add(
+		&renderer->texture_sync_pending, count * sizeof(*waits));
+	if (waits == NULL) {
+		close_sync_file_fds(sync_file_fds);
+		return false;
+	}
+
+	size_t wait_index = 0;
 	for (size_t i = 0; i < WLR_DMABUF_MAX_PLANES; i++) {
 		if (sync_file_fds[i] < 0) {
 			continue;
 		}
 
-		close(sync_file_fds[i]);
+		waits[wait_index++] = (struct wlr_vk_texture_sync_wait) {
+			.fd = sync_file_fds[i],
+			.semaphore_index = SIZE_MAX,
+		};
 		sync_file_fds[i] = -1;
 	}
+
+	return true;
+}
+
+void wlr_vk_renderer_abort_texture_sync_batch(struct wlr_renderer *wlr_renderer) {
+	if (wlr_renderer == NULL || !wlr_renderer_is_vk(wlr_renderer)) {
+		return;
+	}
+
+	struct wlr_vk_renderer *renderer = vulkan_get_renderer(wlr_renderer);
+	struct wlr_vk_texture_sync_wait *wait;
+	wl_array_for_each(wait, &renderer->texture_sync_pending) {
+		if (wait->fd >= 0) {
+			close(wait->fd);
+			wait->fd = -1;
+		}
+	}
+
+	renderer->texture_sync_pending.size = 0;
+	renderer->texture_sync_wait_infos.size = 0;
+	renderer->texture_sync_batch_active = false;
+}
+
+bool wlr_vk_renderer_begin_texture_sync_batch(struct wlr_renderer *wlr_renderer) {
+	if (wlr_renderer == NULL || !wlr_renderer_is_vk(wlr_renderer)) {
+		return false;
+	}
+
+	struct wlr_vk_renderer *renderer = vulkan_get_renderer(wlr_renderer);
+	if (renderer->texture_sync_batch_active) {
+		wlr_log(WLR_ERROR, "Vulkan texture sync batch is already active");
+		wlr_vk_renderer_abort_texture_sync_batch(wlr_renderer);
+		return false;
+	}
+	if (renderer->texture_sync_pending.size != 0) {
+		wlr_log(WLR_ERROR, "Discarding stale Vulkan texture sync batch entries");
+		wlr_vk_renderer_abort_texture_sync_batch(wlr_renderer);
+	}
+
+	renderer->texture_sync_batch_active = true;
+	return true;
+}
+
+static bool wait_texture_sync_entries(struct wlr_vk_texture_sync_wait *waits,
+		size_t count) {
+	bool ok = true;
+	for (size_t i = 0; i < count; i++) {
+		if (waits[i].fd < 0) {
+			continue;
+		}
+
+		int ret = poll_sync_file(waits[i].fd, 1000);
+		if (ret == 0) {
+			wlr_log(WLR_ERROR, "Timed out while waiting for texture DMA-BUF sync_file");
+			ok = false;
+		} else if (ret < 0) {
+			ok = false;
+		}
+
+		close(waits[i].fd);
+		waits[i].fd = -1;
+	}
+	return ok;
+}
+
+static struct wlr_vk_texture_sync_sem *texture_sync_sem_at(
+		struct wlr_vk_renderer *renderer, size_t index) {
+	size_t count = renderer->texture_sync_semaphores.size /
+		sizeof(struct wlr_vk_texture_sync_sem);
+	assert(index < count);
+	return &((struct wlr_vk_texture_sync_sem *)
+		renderer->texture_sync_semaphores.data)[index];
+}
+
+// Returns an index instead of a pointer because wl_array_add() may move the
+// backing allocation while multiple semaphores are claimed for one batch.
+static bool acquire_texture_sync_sem(struct wlr_vk_renderer *renderer,
+		uint64_t cur_point, size_t *index) {
+	struct wlr_vk_texture_sync_sem *sems = renderer->texture_sync_semaphores.data;
+	size_t count = renderer->texture_sync_semaphores.size / sizeof(*sems);
+	for (size_t i = 0; i < count; i++) {
+		if (sems[i].release_point <= cur_point) {
+			sems[i].release_point = UINT64_MAX;
+			*index = i;
+			return true;
+		}
+	}
+
+	VkSemaphoreCreateInfo semaphore_info = {
+		.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+	};
+	VkSemaphore semaphore;
+	VkResult res = vkCreateSemaphore(renderer->dev->dev, &semaphore_info,
+		NULL, &semaphore);
+	if (res != VK_SUCCESS) {
+		wlr_vk_error("vkCreateSemaphore", res);
+		return false;
+	}
+
+	struct wlr_vk_texture_sync_sem *sem = wl_array_add(
+		&renderer->texture_sync_semaphores, sizeof(*sem));
+	if (sem == NULL) {
+		vkDestroySemaphore(renderer->dev->dev, semaphore, NULL);
+		return false;
+	}
+
+	*sem = (struct wlr_vk_texture_sync_sem) {
+		.semaphore = semaphore,
+		.release_point = UINT64_MAX,
+	};
+	*index = count;
+	return true;
+}
+
+static void release_claimed_texture_sync_sems(struct wlr_vk_renderer *renderer,
+		struct wlr_vk_texture_sync_wait *waits, size_t count) {
+	for (size_t i = 0; i < count; i++) {
+		if (waits[i].semaphore_index == SIZE_MAX) {
+			continue;
+		}
+		texture_sync_sem_at(renderer, waits[i].semaphore_index)->release_point = 0;
+		waits[i].semaphore_index = SIZE_MAX;
+	}
+}
+
+static bool submit_texture_sync_waits(struct wlr_vk_renderer *renderer,
+		struct wlr_vk_texture_sync_wait *waits,
+		VkSemaphoreSubmitInfoKHR *wait_infos, size_t wait_count) {
+	if (wait_count == 0) {
+		return true;
+	}
+	if (wait_count > UINT32_MAX) {
+		wlr_log(WLR_ERROR, "Too many Vulkan texture sync waits in one batch: %zu",
+			wait_count);
+		return false;
+	}
+	if (renderer->texture_sync_timeline_point == UINT64_MAX) {
+		wlr_log(WLR_ERROR, "Vulkan texture sync timeline value exhausted");
+		return false;
+	}
+
+	uint64_t new_point = renderer->texture_sync_timeline_point + 1;
+	VkSemaphoreSubmitInfoKHR signal_info = {
+		.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO_KHR,
+		.semaphore = renderer->texture_sync_timeline_semaphore,
+		.value = new_point,
+		.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+	};
+	VkSubmitInfo2KHR submit = {
+		.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2_KHR,
+		.waitSemaphoreInfoCount = (uint32_t)wait_count,
+		.pWaitSemaphoreInfos = wait_infos,
+		.commandBufferInfoCount = 0,
+		.pCommandBufferInfos = NULL,
+		.signalSemaphoreInfoCount = 1,
+		.pSignalSemaphoreInfos = &signal_info,
+	};
+	VkResult res = renderer->dev->api.vkQueueSubmit2KHR(renderer->dev->queue,
+		1, &submit, VK_NULL_HANDLE);
+	if (res != VK_SUCCESS) {
+		wlr_vk_error("vkQueueSubmit2KHR", res);
+		return false;
+	}
+
+	renderer->texture_sync_timeline_point = new_point;
+	for (size_t i = 0; i < wait_count; i++) {
+		texture_sync_sem_at(renderer, waits[i].semaphore_index)->release_point = new_point;
+	}
+
+	wlr_log(WLR_DEBUG, "Vulkan foreign texture: submitted one GPU wait-only "
+		"batch for %zu DMA-BUF sync_file(s), timeline point %" PRIu64,
+		wait_count, new_point);
+	return true;
+}
+
+bool wlr_vk_renderer_flush_texture_sync_batch(struct wlr_renderer *wlr_renderer) {
+	if (wlr_renderer == NULL || !wlr_renderer_is_vk(wlr_renderer)) {
+		return false;
+	}
+
+	struct wlr_vk_renderer *renderer = vulkan_get_renderer(wlr_renderer);
+	if (!renderer->texture_sync_batch_active) {
+		return true;
+	}
+
+	struct wlr_vk_texture_sync_wait *waits = renderer->texture_sync_pending.data;
+	size_t wait_count = renderer->texture_sync_pending.size / sizeof(*waits);
+	size_t pending_count = 0;
+	for (size_t i = 0; i < wait_count; i++) {
+		int ret = poll_sync_file(waits[i].fd, 0);
+		if (ret < 0) {
+			wlr_vk_renderer_abort_texture_sync_batch(wlr_renderer);
+			return false;
+		}
+		if (ret > 0) {
+			close(waits[i].fd);
+			waits[i].fd = -1;
+			continue;
+		}
+
+		if (pending_count != i) {
+			waits[pending_count] = waits[i];
+			waits[i].fd = -1;
+		}
+		pending_count++;
+	}
+	renderer->texture_sync_pending.size = pending_count * sizeof(*waits);
+	wait_count = pending_count;
+
+	if (wait_count == 0) {
+		wlr_vk_renderer_abort_texture_sync_batch(wlr_renderer);
+		return true;
+	}
+	if (wait_count > UINT32_MAX) {
+		bool ok = wait_texture_sync_entries(waits, wait_count);
+		wlr_vk_renderer_abort_texture_sync_batch(wlr_renderer);
+		return ok;
+	}
+
+	bool can_gpu_wait = renderer->texture_sync_timeline_semaphore != VK_NULL_HANDLE
+		&& renderer->dev->api.vkImportSemaphoreFdKHR != NULL
+		&& renderer->dev->api.vkQueueSubmit2KHR != NULL
+		&& renderer->dev->api.vkGetSemaphoreCounterValueKHR != NULL
+		&& !renderer->texture_sync_force_poll;
+	if (!can_gpu_wait) {
+		bool ok = wait_texture_sync_entries(waits, wait_count);
+		wlr_vk_renderer_abort_texture_sync_batch(wlr_renderer);
+		return ok;
+	}
+
+	uint64_t cur_point = 0;
+	VkResult res = renderer->dev->api.vkGetSemaphoreCounterValueKHR(
+		renderer->dev->dev, renderer->texture_sync_timeline_semaphore, &cur_point);
+	if (res != VK_SUCCESS) {
+		wlr_vk_error("vkGetSemaphoreCounterValueKHR", res);
+		bool ok = wait_texture_sync_entries(waits, wait_count);
+		wlr_vk_renderer_abort_texture_sync_batch(wlr_renderer);
+		return ok;
+	}
+
+	renderer->texture_sync_wait_infos.size = 0;
+	VkSemaphoreSubmitInfoKHR *wait_infos = wl_array_add(
+		&renderer->texture_sync_wait_infos, wait_count * sizeof(*wait_infos));
+	if (wait_infos == NULL) {
+		bool ok = wait_texture_sync_entries(waits, wait_count);
+		wlr_vk_renderer_abort_texture_sync_batch(wlr_renderer);
+		return ok;
+	}
+
+	size_t claimed_count = 0;
+	for (; claimed_count < wait_count; claimed_count++) {
+		if (!acquire_texture_sync_sem(renderer, cur_point,
+				&waits[claimed_count].semaphore_index)) {
+			release_claimed_texture_sync_sems(renderer, waits, claimed_count);
+			bool ok = wait_texture_sync_entries(waits, wait_count);
+			wlr_vk_renderer_abort_texture_sync_batch(wlr_renderer);
+			return ok;
+		}
+	}
+
+	size_t imported_count = 0;
+	for (; imported_count < wait_count; imported_count++) {
+		struct wlr_vk_texture_sync_sem *sem = texture_sync_sem_at(renderer,
+			waits[imported_count].semaphore_index);
+		VkImportSemaphoreFdInfoKHR import_info = {
+			.sType = VK_STRUCTURE_TYPE_IMPORT_SEMAPHORE_FD_INFO_KHR,
+			.handleType = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_SYNC_FD_BIT,
+			.flags = VK_SEMAPHORE_IMPORT_TEMPORARY_BIT,
+			.semaphore = sem->semaphore,
+			.fd = waits[imported_count].fd,
+		};
+		res = renderer->dev->api.vkImportSemaphoreFdKHR(renderer->dev->dev,
+			&import_info);
+		if (res != VK_SUCCESS) {
+			wlr_vk_error("vkImportSemaphoreFdKHR", res);
+			break;
+		}
+
+		waits[imported_count].fd = -1; // consumed by successful import
+		wait_infos[imported_count] = (VkSemaphoreSubmitInfoKHR) {
+			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO_KHR,
+			.semaphore = sem->semaphore,
+			.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+		};
+	}
+
+	if (imported_count < wait_count) {
+		release_claimed_texture_sync_sems(renderer,
+			&waits[imported_count], wait_count - imported_count);
+		bool gpu_ok = submit_texture_sync_waits(renderer, waits, wait_infos,
+			imported_count);
+		bool cpu_ok = wait_texture_sync_entries(&waits[imported_count],
+			wait_count - imported_count);
+		wlr_vk_renderer_abort_texture_sync_batch(wlr_renderer);
+		return gpu_ok && cpu_ok;
+	}
+
+	bool ok = submit_texture_sync_waits(renderer, waits, wait_infos, wait_count);
+	wlr_vk_renderer_abort_texture_sync_batch(wlr_renderer);
+	return ok;
 }
 
 static void fill_sampling_attribs(struct wlr_vk_texture *texture,
@@ -955,7 +1313,19 @@ bool wlr_vk_renderer_prepare_texture_for_sampling(struct wlr_renderer *wlr_rende
 				wlr_log(WLR_ERROR, "Failed to wait for foreign texture DMA-BUF fence");
 				return false;
 			}
-			if (!wait_sync_file_fds(sync_file_fds)) {
+
+			static bool logged_foreign_sync_method;
+			if (!logged_foreign_sync_method) {
+				logged_foreign_sync_method = true;
+				wlr_log(WLR_DEBUG, "Vulkan foreign texture: handling DMA-BUF "
+					"sync_file via %s", renderer->texture_sync_batch_active
+						? "deferred frame batch" : "immediate CPU poll");
+			}
+
+			bool waited = renderer->texture_sync_batch_active
+				? collect_sync_file_fds(renderer, sync_file_fds)
+				: wait_sync_file_fds(sync_file_fds);
+			if (!waited) {
 				return false;
 			}
 		}

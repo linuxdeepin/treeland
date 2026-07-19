@@ -260,6 +260,13 @@ struct wlr_vk_command_buffer {
 
 #define VULKAN_COMMAND_BUFFERS_CAP 64
 
+// Binary semaphore holding an imported foreign-texture DMA-BUF sync_file.
+// Reusable once the texture_sync timeline semaphore reaches release_point.
+struct wlr_vk_texture_sync_sem {
+	VkSemaphore semaphore;
+	uint64_t release_point;
+};
+
 // Vulkan wlr_renderer implementation on top of a wlr_vk_device.
 struct wlr_vk_renderer {
 	struct wlr_renderer wlr_renderer;
@@ -295,6 +302,18 @@ struct wlr_vk_renderer {
 
 	VkSemaphore timeline_semaphore;
 	uint64_t timeline_point;
+
+	// Frame-batched waiting on foreign texture DMA-BUF sync_files (Qt/QRhi
+	// path). Unsignaled sync_files are imported into binary semaphores and
+	// waited on by a command-buffer-free submission. The semaphore wait scope
+	// covers the later Qt submission on the same queue.
+	VkSemaphore texture_sync_timeline_semaphore;
+	uint64_t texture_sync_timeline_point;
+	struct wl_array texture_sync_semaphores; // struct wlr_vk_texture_sync_sem
+	struct wl_array texture_sync_pending; // private texture sync wait entries
+	struct wl_array texture_sync_wait_infos; // VkSemaphoreSubmitInfoKHR scratch
+	bool texture_sync_batch_active;
+	bool texture_sync_force_poll; // env WLR_VK_FORCE_SYNC_POLL
 
 	size_t last_pool_size;
 	struct wl_list descriptor_pools; // wlr_vk_descriptor_pool.link
