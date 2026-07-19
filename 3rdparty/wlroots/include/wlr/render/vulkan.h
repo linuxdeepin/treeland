@@ -26,6 +26,7 @@ VkInstance wlr_vk_renderer_get_instance(struct wlr_renderer *renderer);
 VkPhysicalDevice wlr_vk_renderer_get_physical_device(struct wlr_renderer *renderer);
 VkDevice wlr_vk_renderer_get_device(struct wlr_renderer *renderer);
 uint32_t wlr_vk_renderer_get_queue_family(struct wlr_renderer *renderer);
+VkQueue wlr_vk_renderer_get_queue(struct wlr_renderer *renderer);
 
 bool wlr_renderer_is_vk(struct wlr_renderer *wlr_renderer);
 bool wlr_texture_is_vk(struct wlr_texture *texture);
@@ -39,6 +40,13 @@ bool wlr_vk_renderer_prepare_texture_for_sampling(struct wlr_renderer *renderer,
 	struct wlr_vk_image_attribs *attribs);
 bool wlr_vk_renderer_finish_texture_sampling(struct wlr_renderer *renderer,
 	struct wlr_texture *texture, VkCommandBuffer cb);
+
+// Collect foreign-texture sync_files while a compositor frame is recorded,
+// then submit one semaphore-only wait before the compositor command buffer is
+// submitted to the same queue. The abort function is idempotent.
+bool wlr_vk_renderer_begin_texture_sync_batch(struct wlr_renderer *renderer);
+bool wlr_vk_renderer_flush_texture_sync_batch(struct wlr_renderer *renderer);
+void wlr_vk_renderer_abort_texture_sync_batch(struct wlr_renderer *renderer);
 
 bool wlr_vk_renderer_get_render_buffer_attribs(struct wlr_renderer *renderer,
 	struct wlr_buffer *buffer, struct wlr_vk_image_attribs *attribs);

@@ -1107,6 +1107,8 @@ static void vulkan_destroy(struct wlr_renderer *wlr_renderer) {
 		return;
 	}
 
+	wlr_vk_renderer_abort_texture_sync_batch(wlr_renderer);
+
 	VkResult res = vkDeviceWaitIdle(renderer->dev->dev);
 	if (res != VK_SUCCESS) {
 		wlr_vk_error("vkDeviceWaitIdle", res);
@@ -1187,6 +1189,21 @@ static void vulkan_destroy(struct wlr_renderer *wlr_renderer) {
 	vkFreeMemory(dev->dev, renderer->dummy3d_mem, NULL);
 
 	vkDestroySemaphore(dev->dev, renderer->timeline_semaphore, NULL);
+
+	struct wlr_vk_texture_sync_sem *texture_sync_sem;
+	wl_array_for_each(texture_sync_sem, &renderer->texture_sync_semaphores) {
+		if (texture_sync_sem->semaphore != VK_NULL_HANDLE) {
+			vkDestroySemaphore(dev->dev, texture_sync_sem->semaphore, NULL);
+		}
+	}
+	wl_array_release(&renderer->texture_sync_semaphores);
+	wl_array_release(&renderer->texture_sync_pending);
+	wl_array_release(&renderer->texture_sync_wait_infos);
+
+	if (renderer->texture_sync_timeline_semaphore != VK_NULL_HANDLE) {
+		vkDestroySemaphore(dev->dev, renderer->texture_sync_timeline_semaphore, NULL);
+	}
+
 	vkDestroyPipelineLayout(dev->dev, renderer->output_pipe_layout, NULL);
 	vkDestroyDescriptorSetLayout(dev->dev, renderer->output_ds_srgb_layout, NULL);
 	vkDestroyDescriptorSetLayout(dev->dev, renderer->output_ds_lut3d_layout, NULL);
@@ -2488,6 +2505,10 @@ struct wlr_renderer *vulkan_renderer_create_for_device(struct wlr_vk_device *dev
 	wl_list_init(&renderer->render_buffers);
 	wl_list_init(&renderer->color_transforms);
 	wl_list_init(&renderer->pipeline_layouts);
+	wl_array_init(&renderer->texture_sync_semaphores);
+	wl_array_init(&renderer->texture_sync_pending);
+	wl_array_init(&renderer->texture_sync_wait_infos);
+	renderer->texture_sync_force_poll = getenv("WLR_VK_FORCE_SYNC_POLL") != NULL;
 
 	uint64_t cap_syncobj_timeline;
 	if (dev->drm_fd >= 0 && drmGetCap(dev->drm_fd, DRM_CAP_SYNCOBJ_TIMELINE, &cap_syncobj_timeline) == 0) {
@@ -2525,6 +2546,26 @@ struct wlr_renderer *vulkan_renderer_create_for_device(struct wlr_vk_device *dev
 		wlr_vk_error("vkCreateSemaphore", res);
 		goto error;
 	}
+
+	bool can_gpu_wait_texture_sync = dev->implicit_sync_interop
+		&& dev->api.vkImportSemaphoreFdKHR != NULL
+		&& dev->api.vkQueueSubmit2KHR != NULL
+		&& dev->api.vkGetSemaphoreCounterValueKHR != NULL
+		&& !renderer->texture_sync_force_poll;
+	if (can_gpu_wait_texture_sync) {
+		res = vkCreateSemaphore(dev->dev, &semaphore_info, NULL,
+			&renderer->texture_sync_timeline_semaphore);
+		if (res != VK_SUCCESS) {
+			wlr_vk_error("vkCreateSemaphore", res);
+			renderer->texture_sync_timeline_semaphore = VK_NULL_HANDLE;
+			can_gpu_wait_texture_sync = false;
+		}
+	}
+
+	wlr_log(WLR_DEBUG, "Vulkan foreign-texture frame sync initialized "
+		"(implicit_sync_interop=%d, force_poll=%d, gpu_wait=%s)",
+		dev->implicit_sync_interop, renderer->texture_sync_force_poll,
+		can_gpu_wait_texture_sync ? "enabled" : "disabled");
 
 	return &renderer->wlr_renderer;
 
@@ -2701,4 +2742,9 @@ VkDevice wlr_vk_renderer_get_device(struct wlr_renderer *renderer) {
 uint32_t wlr_vk_renderer_get_queue_family(struct wlr_renderer *renderer) {
 	struct wlr_vk_renderer *vk_renderer = vulkan_get_renderer(renderer);
 	return vk_renderer->dev->queue_family;
+}
+
+VkQueue wlr_vk_renderer_get_queue(struct wlr_renderer *renderer) {
+	struct wlr_vk_renderer *vk_renderer = vulkan_get_renderer(renderer);
+	return vk_renderer->dev->queue;
 }
