@@ -74,6 +74,11 @@ public:
                                       QW_NAMESPACE::qw_renderer *renderer,
                                       QW_NAMESPACE::qw_texture *texture,
                                       const char *purpose);
+    static bool beginTextureSyncBatch(QQuickRenderControl *rc,
+                                      QW_NAMESPACE::qw_renderer *renderer,
+                                      bool verifyQueue);
+    static bool flushTextureSyncBatch(QW_NAMESPACE::qw_renderer *renderer);
+    static void abortTextureSyncBatch(QW_NAMESPACE::qw_renderer *renderer);
 
     struct TextureEntry {
         wlr_buffer *buffer;

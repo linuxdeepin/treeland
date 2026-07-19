@@ -49,6 +49,11 @@ inline uint32_t rendererQueueFamily(qw_renderer *renderer)
     return wlr_vk_renderer_get_queue_family(renderer->handle());
 }
 
+inline VkQueue rendererQueue(qw_renderer *renderer)
+{
+    return wlr_vk_renderer_get_queue(renderer->handle());
+}
+
 inline void textureImageAttribs(qw_texture *texture, wlr_vk_image_attribs *attribs)
 {
     wlr_vk_texture_get_image_attribs(texture->handle(), attribs);
@@ -72,6 +77,21 @@ inline bool finishTextureSampling(qw_renderer *renderer, qw_texture *texture,
 {
     return wlr_vk_renderer_finish_texture_sampling(renderer->handle(), texture->handle(),
                                                     commandBuffer);
+}
+
+inline bool beginTextureSyncBatch(qw_renderer *renderer)
+{
+    return wlr_vk_renderer_begin_texture_sync_batch(renderer->handle());
+}
+
+inline bool flushTextureSyncBatch(qw_renderer *renderer)
+{
+    return wlr_vk_renderer_flush_texture_sync_batch(renderer->handle());
+}
+
+inline void abortTextureSyncBatch(qw_renderer *renderer)
+{
+    wlr_vk_renderer_abort_texture_sync_batch(renderer->handle());
 }
 
 inline bool renderBufferAttribs(qw_renderer *renderer, wlr_buffer *buffer,

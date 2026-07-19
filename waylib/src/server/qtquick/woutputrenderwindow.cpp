@@ -546,6 +546,8 @@ public:
     bool renderEnabled = true;
     bool frameFailed = false;
     QString fatalRenderError;
+    bool textureSyncQueueValidated = false;
+    bool textureSyncBatchDisabled = false;
 
     QPointer<qw_renderer> m_renderer;
     QPointer<qw_allocator> m_allocator;
@@ -2094,6 +2096,7 @@ void WOutputRenderWindowPrivate::doRender(qw_output *needsFrameOutput,
     clearPresentationFeedback();
 
     const auto finishFrame = [this, q] (const QList<QPointer<WOutput>> &committedOutputs) {
+        WRenderHelper::abortTextureSyncBatch(m_renderer);
         clearPresentationFeedback();
         m_currentPreparedTextures = nullptr;
         m_currentPreparedTextureSet.clear();
@@ -2146,6 +2149,17 @@ void WOutputRenderWindowPrivate::doRender(qw_output *needsFrameOutput,
                 finishFrame({});
                 return;
             }
+            if (!textureSyncBatchDisabled) {
+                const bool batchStarted = WRenderHelper::beginTextureSyncBatch(
+                    rc(), m_renderer, !textureSyncQueueValidated);
+                if (batchStarted) {
+                    textureSyncQueueValidated = true;
+                } else {
+                    // The immediate CPU-wait path remains correct, and avoids
+                    // retrying queue validation in the frame hot path.
+                    textureSyncBatchDisabled = true;
+                }
+            }
         } else {
             rc()->beginFrame();
         }
@@ -2176,12 +2190,18 @@ void WOutputRenderWindowPrivate::doRender(qw_output *needsFrameOutput,
     if (rhiBased) {
         WVulkanTrace::setFrameStage(q, WVulkanTrace::FrameStage::BeforeEndFrame);
         if (isVulkan) {
-            const auto endResult = rc()->endFrameChecked();
-            vulkanFrameCompleted = endResult == QRhi::FrameOpSuccess;
-            if (!vulkanFrameCompleted) {
-                failCurrentFrameFatally(endResult == QRhi::FrameOpDeviceLost
-                                            ? QStringLiteral("Vulkan device was lost while submitting the Qt Quick frame")
-                                            : QStringLiteral("Failed to submit the Vulkan Qt Quick frame"));
+            if (!WRenderHelper::flushTextureSyncBatch(m_renderer)) {
+                // The recorded frame may sample a texture whose producer has
+                // not completed. Never submit it without the required wait.
+                failCurrentFrameFatally(QStringLiteral("Failed to synchronize Vulkan textures before submitting the Qt Quick frame"));
+            } else {
+                const auto endResult = rc()->endFrameChecked();
+                vulkanFrameCompleted = endResult == QRhi::FrameOpSuccess;
+                if (!vulkanFrameCompleted) {
+                    failCurrentFrameFatally(endResult == QRhi::FrameOpDeviceLost
+                                                ? QStringLiteral("Vulkan device was lost while submitting the Qt Quick frame")
+                                                : QStringLiteral("Failed to submit the Vulkan Qt Quick frame"));
+                }
             }
         } else {
             rc()->endFrame();

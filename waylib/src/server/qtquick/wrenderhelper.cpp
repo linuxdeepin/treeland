@@ -1442,6 +1442,72 @@ bool WRenderHelper::makeTexture(QRhi *rhi, qw_texture *handle, QSGPlainTexture *
     return updateTexture(rhi, handle, texture, forceVulkanShaderReadOnlyLayout);
 }
 
+bool WRenderHelper::beginTextureSyncBatch(QQuickRenderControl *rc,
+                                          qw_renderer *renderer,
+                                          bool verifyQueue)
+{
+#ifdef ENABLE_VULKAN_RENDER
+    if (!renderer || !qw_vulkan::isRenderer(renderer))
+        return true;
+
+    if (verifyQueue) {
+        if (!rc || !rc->rhi() || rc->rhi()->backend() != QRhi::Vulkan) {
+            qCWarning(lcWlRenderHelper) << "Cannot begin Vulkan texture sync batch: missing Vulkan QRhi";
+            return false;
+        }
+
+        const auto *nativeHandles = static_cast<const QRhiVulkanNativeHandles *>(rc->rhi()->nativeHandles());
+        if (!nativeHandles
+            || nativeHandles->dev != qw_vulkan::rendererDevice(renderer)
+            || nativeHandles->gfxQueueFamilyIdx != qw_vulkan::rendererQueueFamily(renderer)
+            || nativeHandles->gfxQueue != qw_vulkan::rendererQueue(renderer)) {
+            qCWarning(lcWlRenderHelper) << "Cannot begin Vulkan texture sync batch: Qt and wlroots do not share the same queue"
+                                        << "qtDevice" << (nativeHandles ? nativeHandles->dev : VK_NULL_HANDLE)
+                                        << "wlrootsDevice" << qw_vulkan::rendererDevice(renderer)
+                                        << "qtQueueFamily" << (nativeHandles ? nativeHandles->gfxQueueFamilyIdx : 0)
+                                        << "wlrootsQueueFamily" << qw_vulkan::rendererQueueFamily(renderer);
+            return false;
+        }
+    }
+
+    if (!qw_vulkan::beginTextureSyncBatch(renderer)) {
+        qCWarning(lcWlRenderHelper) << "Failed to begin Vulkan texture sync batch; using immediate CPU waits for this frame";
+        return false;
+    }
+#else
+    Q_UNUSED(rc);
+    Q_UNUSED(renderer);
+    Q_UNUSED(verifyQueue);
+#endif
+    return true;
+}
+
+bool WRenderHelper::flushTextureSyncBatch(qw_renderer *renderer)
+{
+#ifdef ENABLE_VULKAN_RENDER
+    if (!renderer || !qw_vulkan::isRenderer(renderer))
+        return true;
+
+    if (!qw_vulkan::flushTextureSyncBatch(renderer)) {
+        qCWarning(lcWlRenderHelper) << "Failed to flush Vulkan texture sync batch";
+        return false;
+    }
+#else
+    Q_UNUSED(renderer);
+#endif
+    return true;
+}
+
+void WRenderHelper::abortTextureSyncBatch(qw_renderer *renderer)
+{
+#ifdef ENABLE_VULKAN_RENDER
+    if (renderer && qw_vulkan::isRenderer(renderer))
+        qw_vulkan::abortTextureSyncBatch(renderer);
+#else
+    Q_UNUSED(renderer);
+#endif
+}
+
 bool WRenderHelper::prepareTextureForSampling(QQuickRenderControl *rc,
                                               qw_renderer *renderer,
                                               qw_texture *texture,
