@@ -41,6 +41,9 @@ public:
     WSurface *textInputFocusSurface() const;
     QRect textInputCursorRect() const;
 
+    // Returns true when the seat's current keyboard grab is the one installed by this helper.
+    bool isActiveKeyboardGrabOwner() const;
+
 Q_SIGNALS:
     void inputPopupSurfaceV2Added(WInputPopupSurface *popupSurface);
     void inputPopupSurfaceV2Removed(WInputPopupSurface *popupSurface);
@@ -57,6 +60,7 @@ private:
     void updatePopupSurface(WInputPopupSurface *popup, QRect cursorRect);
     void notifyLeave();
     void resendKeyboardFocus();
+    void handleKeyboardGrabBegin();
     void connectToTI(WTextInput *ti);
     void disableTI(WTextInput *ti);
     void handleTIEnabled();
