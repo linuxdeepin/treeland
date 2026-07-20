@@ -1,4 +1,4 @@
-// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
@@ -10,6 +10,7 @@
 #include <QSGImageNode>
 #include <QSGRenderNode>
 #include <private/qquickitem_p.h>
+#include <qwsubcompositor.h>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -36,7 +37,7 @@ public:
     void updateSubsurfaceItem();
     void onPaddingsChanged();
     void updateContentPosition();
-    WSurfaceItem *ensureSubsurfaceItem(WSurface *subsurfaceSurface, QQuickItem *parent);
+    WSurfaceItem *ensureSubsurfaceItem(QW_NAMESPACE::qw_subsurface *subsurface, QQuickItem *parent);
     void updateSubsurfaceContainers();
     void connectSubsurfaceContainerSignals(SubsurfaceContainer *container);
 
@@ -87,4 +88,3 @@ public:
 };
 
 WAYLIB_SERVER_END_NAMESPACE
-
