@@ -179,6 +179,7 @@ WInputMethodHelper::WInputMethodHelper(WServer *server, WSeat *seat)
         if (auto *activeKG = d->activeKeyboardGrab)
             d->setKeyboard(activeKG, d->seat->keyboard());
     });
+    connect(d->seat->handle(), &QW_NAMESPACE::qw_seat::notify_keyboard_grab_begin, this, &WInputMethodHelper::handleKeyboardGrabBegin);
     connect(d->inputMethodManagerV2, &WInputMethodManagerV2::newInputMethod, this, &WInputMethodHelper::handleNewIMV2);
     connect(d->textInputManagerV3, &WTextInputManagerV3::newTextInput, this, &WInputMethodHelper::handleNewTI);
     connect(d->virtualKeyboardManagerV1, &WVirtualKeyboardManagerV1::newVirtualKeyboard, this, &WInputMethodHelper::handleNewVKV1);
@@ -262,6 +263,15 @@ qw_input_method_keyboard_grab_v2 *WInputMethodHelper::activeKeyboardGrab() const
 {
     W_DC(WInputMethodHelper);
     return d->activeKeyboardGrab;
+}
+
+
+bool WInputMethodHelper::isActiveKeyboardGrabOwner() const
+{
+    W_DC(WInputMethodHelper);
+    if (!d->activeKeyboardGrab)
+        return false;
+    return d->seat->nativeHandle()->keyboard_state.grab == &d->keyboardGrab;
 }
 
 const QList<WInputDevice *> &WInputMethodHelper::virtualKeyboards() const
@@ -354,6 +364,20 @@ void WInputMethodHelper::handleNewVKV1(wlr_virtual_keyboard_v1 *vkv1)
         d->virtualKeyboards.removeOne(keyboard);
         keyboard->safeDeleteLater();
     });
+}
+
+void WInputMethodHelper::handleKeyboardGrabBegin()
+{
+    W_D(WInputMethodHelper);
+    // If another grab (popup, drag, etc.) silently replaced our keyboard grab,
+    // notify all text inputs to leave so the IME can deactivate.
+    // Our grab v2 object is still alive (endGrab only runs on before_destroy),
+    // so activeKeyboardGrab is non-null, but seat->keyboard_state.grab no longer
+    // points to our keyboardGrab.
+    if (d->activeKeyboardGrab && d->seat->nativeHandle()->keyboard_state.grab != &d->keyboardGrab) {
+        qCDebug(lcWlInputMethod) << "IME keyboard grab silently replaced, notifying leave";
+        notifyLeave();
+    }
 }
 
 void WInputMethodHelper::resendKeyboardFocus()

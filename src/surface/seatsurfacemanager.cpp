@@ -7,6 +7,7 @@
 #include "common/treelandlogging.h"
 #include "seat/helper.h"
 #include "seat/seatsmanager.h"
+#include "core/shellhandler.h"
 
 #include <winputdevice.h>
 #include <woutput.h>
@@ -17,8 +18,11 @@
 #include <wxdgpopupsurface.h>
 
 #include <qwoutput.h>
+#include <WInputMethodHelper>
+
 #include <qwseat.h>
 #include <qwxdgshell.h>
+#include <wlr/types/wlr_data_device.h>
 
 #include <QDateTime>
 
@@ -330,12 +334,44 @@ void SeatSurfaceManager::dismissPopups()
 
 void SeatSurfaceManager::onKeyboardGrabBegin()
 {
-
     if (m_hasPopupGrab) {
-        // Already tracking; nested popups reuse the same grab.
+        // Already tracking a popup grab; nested popups share the same flag.
         return;
     }
-    // TODO(rewine): Should the impact of IME and drag be considered?
+
+    auto *seatNative = m_seat->nativeHandle();
+    auto *grab = seatNative->keyboard_state.grab;
+    if (!grab) {
+        qCWarning(lcTlPopupFocus) << "keyboard_state.grab is null";
+        return;
+    }
+
+    // Detect IME keyboard grab:
+    // WInputMethodHelper::handleNewKGV2 sets activeKeyboardGrab before
+    // calling keyboard_start_grab, so it is already non-null when we get here.
+    // Use isActiveKeyboardGrabOwner() to check if the seat's current grab
+    // is the one installed by the IME helper.
+    if (auto *imHelper = Helper::instance()->shellHandler()->inputMethodHelper()) {
+        if (imHelper->isActiveKeyboardGrabOwner()) {
+            qCDebug(lcTlPopupFocus) << "IME keyboard grab started (not popup)";
+            return;
+        }
+    }
+
+    // Detect DnD drag keyboard grab:
+    // In wlr_seat_start_drag(), drag->keyboard_grab.data = drag is set before
+    // wlr_seat_keyboard_start_grab() is called (which emits keyboard_grab_begin),
+    // but seat->drag = drag is set AFTER the grab begins. So seat->drag is still
+    // nullptr when this signal handler runs. Instead, cast grab->data to a
+    // wlr_drag pointer and validate via grab_type (enum values 0-2 are safe;
+    // an xdg_popup_grab's client pointer will never equal those small integers).
+    if (grab->data) {
+        auto *possibleDrag = static_cast<struct wlr_drag *>(grab->data);
+        if (possibleDrag->grab_type <= WLR_DRAG_GRAB_KEYBOARD_TOUCH) {
+            qCDebug(lcTlPopupFocus) << "Drag keyboard grab started (not popup)";
+            return;
+        }
+    }
 
     m_hasPopupGrab = true;
     qCDebug(lcTlPopupFocus) << "Popup keyboard grab started";
