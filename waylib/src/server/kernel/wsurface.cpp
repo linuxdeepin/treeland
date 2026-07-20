@@ -1,4 +1,4 @@
-// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wsurface.h"
@@ -206,7 +206,7 @@ void WSurfacePrivate::setSubsurface(qw_subsurface *newSubsurface)
     if (subsurface == newSubsurface)
         return;
     subsurface = newSubsurface;
-    QObject::connect(subsurface, &qw_subsurface::destroyed, q, &WSurface::isSubsurfaceChanged);
+    QObject::connect(subsurface, &qw_subsurface::before_destroy, q, &WSurface::isSubsurfaceChanged);
 
     if (isSubsurface != !subsurface.isNull()){
         isSubsurface = !subsurface.isNull();

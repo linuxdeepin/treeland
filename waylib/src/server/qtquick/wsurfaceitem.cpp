@@ -1017,8 +1017,8 @@ void WSurfaceItem::releaseResources()
             d->subsurfaces.removeOne(item);
             item->releaseResources();
             auto surface = item->surface();
-            if (surface) {
-                bool ok = QObject::disconnect(surface, &WSurface::destroyed, this, nullptr);
+            if (auto sub = surface ? qw_subsurface::try_from_wlr_surface(surface->handle()->handle()) : nullptr) {
+                bool ok = QObject::disconnect(sub, &qw_subsurface::before_destroy, this, nullptr);
                 Q_ASSERT(ok);
             }
         }
@@ -1301,10 +1301,11 @@ void WSurfaceItemPrivate::updateSubsurfaceItem()
         wlr_subsurface *subsurface;
         QQuickItem *prev = nullptr;
         wl_list_for_each(subsurface, subsurfaceList, current.link) {
-            WSurface *surface = WSurface::fromHandle(subsurface->surface);
+            auto qwSubsurface = qw_subsurface::from(subsurface);
+            WSurface *surface = WSurface::fromHandle(qwSubsurface->handle()->surface);
             if (!surface)
                 continue;
-            WSurfaceItem *item = ensureSubsurfaceItem(surface, container);
+            WSurfaceItem *item = ensureSubsurfaceItem(qwSubsurface, container);
             item->setSurfaceSizeRatio(surfaceSizeRatio);
             Q_ASSERT(item->parentItem() == container);
             if (prev) {
@@ -1342,9 +1343,13 @@ void WSurfaceItemPrivate::updateContentPosition()
     updateBoundingRect();
 }
 
-WSurfaceItem *WSurfaceItemPrivate::ensureSubsurfaceItem(WSurface *subsurfaceSurface, QQuickItem *parent)
+WSurfaceItem *WSurfaceItemPrivate::ensureSubsurfaceItem(qw_subsurface *subsurface, QQuickItem *parent)
 {
     Q_Q(WSurfaceItem);
+
+    Q_ASSERT(subsurface);
+    WSurface *subsurfaceSurface = WSurface::fromHandle(subsurface->handle()->surface);
+    Q_ASSERT(subsurfaceSurface);
 
     for (int i = 0; i < subsurfaces.count(); ++i) {
         auto surfaceItem = subsurfaces.at(i);
@@ -1367,7 +1372,6 @@ WSurfaceItem *WSurfaceItemPrivate::ensureSubsurfaceItem(WSurface *subsurfaceSurf
         }
     }
 
-    Q_ASSERT(subsurfaceSurface);
     auto surfaceItem = new WSurfaceItem(parent);
     // Delay destroy WSurfaceItem, because if the cause of destroy is because the parent
     // surface destroy, and the parent WSurfaceItem::cacheLastBuffer maybe enabled,
@@ -1376,8 +1380,8 @@ WSurfaceItem *WSurfaceItemPrivate::ensureSubsurfaceItem(WSurface *subsurfaceSurf
     // contents.
     QPointer<WSurfaceItem> surfaceItemGuard(surfaceItem);
     QObject::connect(
-        subsurfaceSurface,
-        &WSurface::destroyed,
+        subsurface,
+        &qw_subsurface::before_destroy,
         q,
         [this, surfaceItemGuard] {
             auto surfaceItem = surfaceItemGuard.data();
@@ -1389,8 +1393,7 @@ WSurfaceItem *WSurfaceItemPrivate::ensureSubsurfaceItem(WSurface *subsurfaceSurf
             // already scheduled for deletion.
             if (subsurfaces.removeOne(surfaceItem))
                 surfaceItem->deleteLater();
-        },
-        Qt::QueuedConnection);
+        });
     surfaceItem->setDelegate(delegate);
     surfaceItem->setFlags(surfaceFlags);
     surfaceItem->setSurface(subsurfaceSurface);
