@@ -98,6 +98,7 @@ public:
         return m_wallpaperShell;
     }
 
+    [[nodiscard]] WAYLIB_SERVER_NAMESPACE::WInputMethodHelper *inputMethodHelper() const { return m_inputMethodHelper; }
 
 Q_SIGNALS:
     void surfaceWrapperAdded(SurfaceWrapper *wrapper);
