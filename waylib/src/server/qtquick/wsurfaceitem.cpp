@@ -41,6 +41,14 @@ public:
     {
     }
 
+    ~SubsurfaceContainer() override
+    {
+        const auto subsurfaces = m_subsurfaces;
+        m_subsurfaces.clear();
+        for (auto surfaceItem : subsurfaces)
+            Q_EMIT subsurfaceRemoved(surfaceItem);
+    }
+
     bool isEmpty() const {
         return m_subsurfaces.empty();
     }
@@ -1011,14 +1019,14 @@ void WSurfaceItem::releaseResources()
         // Keep subsurface items alive as part of this item's cached last buffer.
         // They must leave d->subsurfaces, otherwise later bounding-rect updates may
         // treat cached/detached items as live subsurfaces. Once removed, the
-        // queued auto-destroy handler below will skip deleteLater().
+        // auto-destroy handler below will skip deleteLater().
         const auto subsurfaces = d->subsurfaces;
         for (auto item : subsurfaces) {
             d->subsurfaces.removeOne(item);
             item->releaseResources();
             auto surface = item->surface();
             if (surface) {
-                bool ok = QObject::disconnect(surface, &WSurface::destroyed, this, nullptr);
+                bool ok = QObject::disconnect(surface, &WSurface::aboutToBeInvalidated, this, nullptr);
                 Q_ASSERT(ok);
             }
         }
@@ -1377,20 +1385,19 @@ WSurfaceItem *WSurfaceItemPrivate::ensureSubsurfaceItem(WSurface *subsurfaceSurf
     QPointer<WSurfaceItem> surfaceItemGuard(surfaceItem);
     QObject::connect(
         subsurfaceSurface,
-        &WSurface::destroyed,
+        &WSurface::aboutToBeInvalidated,
         q,
         [this, surfaceItemGuard] {
             auto surfaceItem = surfaceItemGuard.data();
             if (!surfaceItem)
                 return;
-            // d->subsurfaces is the single live-subsurface registry for the parent. The
-            // queued handler only owns deletion while the item is still in that registry:
-            // if another path removed it first, it is either cached with the parent or
-            // already scheduled for deletion.
+            // d->subsurfaces is the single live-subsurface registry for the parent.
+            // aboutToBeInvalidated is emitted before WSurface is actually destroyed; once
+            // the surface is invalidated, the item must leave the live registry so parent
+            // commits cannot calculate geometry from a dead subsurface.
             if (subsurfaces.removeOne(surfaceItem))
                 surfaceItem->deleteLater();
-        },
-        Qt::QueuedConnection);
+        });
     surfaceItem->setDelegate(delegate);
     surfaceItem->setFlags(surfaceFlags);
     surfaceItem->setSurface(subsurfaceSurface);
@@ -1430,7 +1437,7 @@ void WSurfaceItemPrivate::connectSubsurfaceContainerSignals(SubsurfaceContainer 
                      q_func(),
                      [this](WSurfaceItem *item) {
                          // Container child removal is another lifetime path besides
-                         // WSurface::destroyed; keep the parent registry in sync before
+                         // WSurface::aboutToBeInvalidated; keep the parent registry in sync before
                          // recalculating geometry from d->subsurfaces.
                          subsurfaces.removeOne(item);
                          updateBoundingRect();
