@@ -25,6 +25,7 @@ set_target_properties(${MODULE_NAME} PROPERTIES
 qt_add_qml_module(${MODULE_NAME}
     URI Treeland.Capture
     VERSION 1.0
+    IMPORTS Treeland 2.0
     NO_PLUGIN
     SOURCES
         ${CMAKE_SOURCE_DIR}/src/modules/capture/capture.h

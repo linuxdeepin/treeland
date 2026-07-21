@@ -11,6 +11,8 @@
 #include <QRect>
 #include <QQmlEngine>
 
+Q_MOC_INCLUDE("woutput.h")
+
 struct wlr_surface;
 
 QW_BEGIN_NAMESPACE

@@ -39,6 +39,7 @@ class WAYLIB_SERVER_EXPORT WSeatEventFilter : public QObject
     friend class WSeat;
     friend class WSeatPrivate;
     Q_OBJECT
+    QML_ANONYMOUS
 public:
     explicit WSeatEventFilter(QObject *parent = nullptr);
 

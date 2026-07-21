@@ -9,6 +9,8 @@
 
 #include <QQmlEngine>
 
+Q_MOC_INCLUDE("wlayersurface.h")
+
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WXdgShell;
