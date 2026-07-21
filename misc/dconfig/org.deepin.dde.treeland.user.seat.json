@@ -144,6 +144,17 @@
             "description[zh_CN]": "按住按键后开始重复输入前的等待时间（以毫秒为单位）。值越低等待时间越短。有效范围通常为 0 到 1000 毫秒。",
             "permissions": "readwrite",
             "visibility": "public"
+        },
+        "touchpadHoldTimeoutMs": {
+            "value": 0,
+            "serial": 0,
+            "flags": [],
+            "name": "Touchpad Hold Gesture Timeout",
+            "name[zh_CN]": "触控板长按手势超时",
+            "description": "Duration in milliseconds to wait after a libinput HOLD BEGIN event before triggering the hold gesture action.",
+            "description[zh_CN]": "收到 libinput HOLD BEGIN 事件后等待多少毫秒再触发 hold 手势动作。",
+            "permissions": "readwrite",
+            "visibility": "public"
         }
     }
 }

@@ -357,7 +357,6 @@ HoldGesture::HoldGesture(QObject *parent)
     , m_holdTimer(new QTimer(this))
 {
     m_holdTimer->setSingleShot(true);
-    m_holdTimer->setInterval(1000);
     connect(m_holdTimer, &QTimer::timeout, this, &HoldGesture::longPressed);
 }
 
@@ -433,7 +432,16 @@ void GestureRecognizer::registerHoldGesture(HoldGesture *gesture)
         m_holdGestures.removeOne(gesture);
         m_activeHoldGestures.removeOne(gesture);
     });
+    gesture->setInterval(m_holdTimeout);
     m_holdGestures << gesture;
+}
+
+void GestureRecognizer::setHoldTimeout(int msec)
+{
+    m_holdTimeout = msec;
+    for (auto &&gesture : std::as_const(m_holdGestures)) {
+        gesture->setInterval(msec);
+    }
 }
 
 void GestureRecognizer::unregisterHoldGesture(HoldGesture *gesture)

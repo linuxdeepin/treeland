@@ -96,6 +96,8 @@ void InputManager::onConfigInitializeSucceed()
         }
     }
 
+    InputDevice::instance()->setHoldTimeout(m_seatDConfig->touchpadHoldTimeoutMs());
+
     auto backend = Helper::instance()->backend();
     connect(backend,
             &WBackend::inputAdded,
