@@ -404,6 +404,8 @@ InputDevice *InputDevice::instance()
 [[maybe_unused]] HoldGesture* InputDevice::registerTouchpadHold(const HoldFeedBack &feed)
 {
     auto hold_gesture = new HoldGesture();
+    hold_gesture->setMinimumFingerCount(feed.fingerCount);
+    hold_gesture->setMaximumFingerCount(feed.fingerCount);
 
     if (feed.actionCallback) {
         QObject::connect(hold_gesture, &HoldGesture::cancelled, feed.actionCallback);

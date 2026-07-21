@@ -361,6 +361,44 @@ HoldGesture::HoldGesture(QObject *parent)
     connect(m_holdTimer, &QTimer::timeout, this, &HoldGesture::longPressed);
 }
 
+bool HoldGesture::minimumFingerCountIsRelevant() const
+{
+    return m_minimumFingerCountRelevant;
+}
+
+void HoldGesture::setMinimumFingerCount(uint count)
+{
+    if (count == m_minimumFingerCount) {
+        return;
+    }
+    m_minimumFingerCount = count;
+    m_minimumFingerCountRelevant = true;
+}
+
+uint HoldGesture::minimumFingerCount() const
+{
+    return m_minimumFingerCount;
+}
+
+bool HoldGesture::maximumFingerCountIsRelevant() const
+{
+    return m_maximumFingerCountRelevant;
+}
+
+void HoldGesture::setMaximumFingerCount(uint count)
+{
+    if (count == m_maximumFingerCount) {
+        return;
+    }
+    m_maximumFingerCount = count;
+    m_maximumFingerCountRelevant = true;
+}
+
+uint HoldGesture::maximumFingerCount() const
+{
+    return m_maximumFingerCount;
+}
+
 HoldGesture::~HoldGesture()
 {
     if (m_holdTimer != nullptr) {
@@ -411,10 +449,16 @@ void GestureRecognizer::startHoldGesture(uint fingerCount)
 {
     m_currentFingerCount = fingerCount;
     for (auto &&gesture : std::as_const(m_holdGestures)) {
-        if (!gesture->isActive()) {
-            gesture->startTimer();
-            m_activeHoldGestures << gesture;
-        }
+        if (gesture->isActive())
+            continue;
+
+        if ((gesture->minimumFingerCountIsRelevant() && gesture->minimumFingerCount() > fingerCount)
+            || (gesture->maximumFingerCountIsRelevant()
+                && gesture->maximumFingerCount() < fingerCount))
+            continue;
+
+        gesture->startTimer();
+        m_activeHoldGestures << gesture;
     }
 }
 
