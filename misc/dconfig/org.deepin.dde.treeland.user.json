@@ -476,35 +476,35 @@
             "visibility": "public"
         },
         "glassBezel": {
-            "value": 30,
+            "value": 60,
             "serial": 0,
             "flags": [],
             "name": "Glass Bezel Width",
             "name[zh_CN]": "玻璃边缘厚度",
-            "description": "The width of the rounded edge bevel for the Liquid Glass effect. Controls how much light bends around the border.",
-            "description[zh_CN]": "液态玻璃效果的边缘倒角厚度，控制光线在边界处的折射强度。",
+            "description": "The rounded edge bevel width in pixels for the Liquid Glass effect. Range: 2-60.",
+            "description[zh_CN]": "液态玻璃效果的圆角边缘倒角宽度（像素）。范围：2-60。",
             "permissions": "readwrite",
             "visibility": "public"
         },
         "glassThickness": {
-            "value": 20,
+            "value": 50,
             "serial": 0,
             "flags": [],
             "name": "Glass Base Thickness",
             "name[zh_CN]": "玻璃基础厚度",
-            "description": "The base thickness of the Liquid Glass effect. Controls the overall strength of background image distortion/refraction.",
-            "description[zh_CN]": "液态玻璃效果的基础厚度，控制整体对背景图像的畸变/折射强度。",
+            "description": "The glass thickness in pixels for Liquid Glass refraction. Range: 10.0-200.0.",
+            "description[zh_CN]": "液态玻璃折射使用的玻璃厚度（像素）。范围：10.0-200.0。",
             "permissions": "readwrite",
             "visibility": "public"
         },
         "blurAmount": {
-            "value": 1.0,
+            "value": 0.6,
             "serial": 0,
             "flags": [],
             "name": "Blur Amount",
             "name[zh_CN]": "模糊量",
-            "description": "Normalized blur amount applied by Qt MultiEffect. 0 disables the blur contribution while keeping the effect item alive; 1 uses the configured blur strength fully. Range: 0.0-1.0.",
-            "description[zh_CN]": "Qt MultiEffect 使用的归一化模糊量。0 表示关闭模糊贡献但保留效果项，1 表示完整使用配置的模糊强度。范围：0.0-1.0。",
+            "description": "Normalized blur amount applied by Qt MultiEffect. 0 disables the blur contribution while keeping the effect item alive; default 0.6 uses 60% of the configured blur strength. Range: 0.0-1.0.",
+            "description[zh_CN]": "Qt MultiEffect 使用的归一化模糊量。0 表示关闭模糊贡献但保留效果项；默认 0.6 表示使用配置模糊强度的 60%。范围：0.0-1.0。",
             "permissions": "readwrite",
             "visibility": "public"
         },
@@ -519,36 +519,36 @@
             "permissions": "readwrite",
             "visibility": "public"
         },
-        "glassDisplacementFactor": {
-            "value": 1.0,
-            "serial": 0,
-            "flags": [],
-            "name": "Glass Displacement Factor",
-            "name[zh_CN]": "玻璃位移强度",
-            "description": "Scalar applied to Liquid Glass refraction displacement. Higher values bend the sampled backdrop more strongly. Range: 0.0-4.0.",
-            "description[zh_CN]": "液态玻璃折射位移的缩放系数。值越大，背景采样弯曲越明显。范围：0.0-4.0。",
-            "permissions": "readwrite",
-            "visibility": "public"
-        },
         "glassIor": {
             "value": 1.5,
             "serial": 0,
             "flags": [],
             "name": "Glass Refraction Index",
             "name[zh_CN]": "玻璃折射率",
-            "description": "Refraction index used by the Liquid Glass material. Values near 1 reduce refraction; larger values bend light more. Range: 1.0-2.5.",
-            "description[zh_CN]": "液态玻璃材质使用的折射率。接近 1 时折射较弱，值越大光线弯折越明显。范围：1.0-2.5。",
+            "description": "Refraction index used by the Liquid Glass material. Default 1.5 matches common glass. Range: 1.0-3.0.",
+            "description[zh_CN]": "液态玻璃材质使用的折射率。默认 1.5 对应常见玻璃。范围：1.0-3.0。",
             "permissions": "readwrite",
             "visibility": "public"
         },
-        "glassDispersion": {
+        "glassSpecular": {
             "value": 0.0,
             "serial": 0,
             "flags": [],
-            "name": "Glass Dispersion",
-            "name[zh_CN]": "玻璃色散",
-            "description": "Chromatic dispersion amount for the Liquid Glass refraction. 0 disables RGB channel separation. Range: 0.0-0.1.",
-            "description[zh_CN]": "液态玻璃折射的色散强度。0 表示关闭 RGB 通道分离。范围：0.0-0.1。",
+            "name": "Glass Specular",
+            "name[zh_CN]": "玻璃高光",
+            "description": "Specular highlight opacity for the Liquid Glass rim. Range: 0.0-1.0.",
+            "description[zh_CN]": "液态玻璃边缘的镜面高光不透明度。范围：0.0-1.0。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "glassTint": {
+            "value": 0.0,
+            "serial": 0,
+            "flags": [],
+            "name": "Glass Tint",
+            "name[zh_CN]": "玻璃染色",
+            "description": "White tint mix for the Liquid Glass material. 0 disables tint. Range: 0.0-0.4.",
+            "description[zh_CN]": "液态玻璃材质的白色染色混合比例。0 表示关闭染色。范围：0.0-0.4。",
             "permissions": "readwrite",
             "visibility": "public"
         },
@@ -563,47 +563,25 @@
             "permissions": "readwrite",
             "visibility": "public"
         },
-        "glassEdgeSaturation": {
-            "value": 0.4,
+        "glassContrast": {
+            "value": 0.0,
             "serial": 0,
             "flags": [],
-            "name": "Glass Edge Saturation",
-            "name[zh_CN]": "玻璃边缘饱和度",
-            "description": "Additional saturation applied only inside the Liquid Glass bevel/edge zone. 0 keeps the sampled backdrop unchanged. Range: 0.0-1.0.",
-            "description[zh_CN]": "仅应用在液态玻璃倒角/边缘区域的额外饱和度。0 表示保持采样背景不变。范围：0.0-1.0。",
+            "name": "Glass Contrast",
+            "name[zh_CN]": "玻璃对比度",
+            "description": "Contrast adjustment applied by Qt MultiEffect before Liquid Glass refraction. 0 keeps the sampled backdrop unchanged. Range: -1.0-1.0.",
+            "description[zh_CN]": "液态玻璃折射前由 Qt MultiEffect 应用的对比度调节。0 表示保持采样背景不变。范围：-1.0-1.0。",
             "permissions": "readwrite",
             "visibility": "public"
         },
-        "glassLightAngle": {
-            "value": -127,
+        "glassSaturation": {
+            "value": 0.04,
             "serial": 0,
             "flags": [],
-            "name": "Glass Light Angle",
-            "name[zh_CN]": "玻璃光线角度",
-            "description": "Light direction angle in degrees for Liquid Glass optical modulation. 0 points right, -90 points up, 90 points down. Range: -180.0-180.0.",
-            "description[zh_CN]": "液态玻璃光学调制使用的光线方向角度（度）。0 向右，-90 向上，90 向下。范围：-180.0-180.0。",
-            "permissions": "readwrite",
-            "visibility": "public"
-        },
-        "glassReflectionOffset": {
-            "value": 12.0,
-            "serial": 0,
-            "flags": [],
-            "name": "Glass Reflection Offset",
-            "name[zh_CN]": "玻璃反射偏移",
-            "description": "Backdrop sampling offset in pixels for Liquid Glass reflection/rim tint. 0 samples from the current pixel. Range: 0.0-60.0.",
-            "description[zh_CN]": "液态玻璃反射/边缘染色使用的背景采样偏移（像素）。0 表示从当前像素采样。范围：0.0-60.0。",
-            "permissions": "readwrite",
-            "visibility": "public"
-        },
-        "glassHighlightEnabled": {
-            "value": false,
-            "serial": 0,
-            "flags": [],
-            "name": "Glass Highlight Enabled",
-            "name[zh_CN]": "玻璃高光开关",
-            "description": "Enable directional specular rim highlights on the Liquid Glass edge. When disabled, the glass shows only refraction and reflection without bright rim light.",
-            "description[zh_CN]": "在液态玻璃边缘启用方向性镜面高光。关闭时玻璃仅显示折射和反射，无明亮边缘高光。",
+            "name": "Glass Saturation",
+            "name[zh_CN]": "玻璃饱和度",
+            "description": "Saturation adjustment applied by Qt MultiEffect before Liquid Glass refraction. Default 0.04 adds a subtle saturation lift. Range: -1.0-1.0.",
+            "description[zh_CN]": "液态玻璃折射前由 Qt MultiEffect 应用的饱和度调节。默认 0.04 表示轻微提升饱和度。范围：-1.0-1.0。",
             "permissions": "readwrite",
             "visibility": "public"
         }
