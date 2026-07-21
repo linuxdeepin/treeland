@@ -159,6 +159,7 @@ public:
 
     void startHoldGesture(uint fingerCount);
     void endHoldGesture();
+    void setHoldTimeout(int msec);
 
 private:
     void cancelSwipeActiveGestures();
@@ -173,5 +174,6 @@ private:
 
     QPointF m_currentDelta = QPointF(0, 0);
     uint m_currentFingerCount = 0;
+    int m_holdTimeout = 0;
     GestureRecognizer::Axis m_currentSwipeAxis = GestureRecognizer::None;
 };

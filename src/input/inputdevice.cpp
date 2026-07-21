@@ -472,3 +472,8 @@ void InputDevice::processHoldEnd()
         m_touchpadRecognizer->endHoldGesture();
     }
 }
+
+void InputDevice::setHoldTimeout(int msec)
+{
+    m_touchpadRecognizer->setHoldTimeout(msec);
+}
