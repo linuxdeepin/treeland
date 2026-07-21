@@ -53,6 +53,7 @@ public:
 
     void processHoldStart(uint finger);
     void processHoldEnd();
+    void setHoldTimeout(int msec);
 
 private:
     InputDevice(QObject *parent = nullptr);
