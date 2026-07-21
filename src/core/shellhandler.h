@@ -20,6 +20,8 @@
 
 Q_MOC_INCLUDE("workspace/workspace.h")
 Q_MOC_INCLUDE(<wlayersurface.h>)
+Q_MOC_INCLUDE(<wxdgtoplevelsurface.h>)
+Q_MOC_INCLUDE(<wxwaylandsurface.h>)
 
 QW_BEGIN_NAMESPACE
 class qw_buffer;
