@@ -19,6 +19,7 @@
 #include <QSet>
 
 Q_MOC_INCLUDE("workspace/workspace.h")
+Q_MOC_INCLUDE(<wlayersurface.h>)
 
 QW_BEGIN_NAMESPACE
 class qw_buffer;
