@@ -1,6 +1,7 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
+#include <array>
 #include <cmath>
 #include <algorithm>
 
@@ -145,8 +146,12 @@ private:
             "specularProducesDifferentRender",
             "tintControlProducesDifferentRender",
             "specularControlChangesRim",
+            "narrowBezelPreservesInnerRim",
             "radiusProducesTransparentCorners",
+            "nonUniformScaleKeepsEdgeAntialiasingSymmetric",
             "largeBezelWithSmallRadiusDoesNotIntroduceCornerDiagonalSeam",
+            "smallRadiusSoftensRefractionAtSilhouette",
+            "smallRadiusCapsWholeRefractionBand",
             "radiusLargerThanBezelDoesNotIntroduceCornerDiagonalSeam",
             "tintControlChangesRenderedColor",
             "zeroBlurMultiplierStillAppliesGaussianBlur",
@@ -181,6 +186,10 @@ private:
         m_glass->setProperty("saturation", 0.04);
         m_glass->setProperty("specular", 0.0);
         m_glass->setProperty("tint", 0.0);
+        m_scene->setProperty("backdropVisible", true);
+        m_scene->setProperty("glassXScale", 1.0);
+        m_scene->setProperty("glassYScale", 1.0);
+        m_scene->setProperty("cornerProbeVisible", false);
         QTest::qWait(50);
     }
 
@@ -495,6 +504,31 @@ private Q_SLOTS:
                  qPrintable(QStringLiteral("specular control must visibly change rim highlights, edgeDiff=%1").arg(edgeDiff)));
     }
 
+    void narrowBezelPreservesInnerRim()
+    {
+        m_glass->setProperty("radius", 60.0);
+        m_glass->setProperty("bezelWidth", 3.0);
+        m_glass->setProperty("blurEnabled", false);
+        m_glass->setProperty("specular", 0.0);
+        QTest::qWait(50);
+
+        const QImage withoutSpecular = grabImage(m_scene);
+        QVERIFY(!withoutSpecular.isNull());
+
+        m_glass->setProperty("specular", 1.0);
+        QTest::qWait(50);
+
+        const QImage withSpecular = grabImage(m_scene);
+        QVERIFY(!withSpecular.isNull());
+
+        const QRect innerTopRim(64, 4, 128, 1);
+        const int changed = regionDiffCount(withoutSpecular, withSpecular, innerTopRim, 2);
+        QVERIFY2(changed > innerTopRim.width() / 2,
+                 qPrintable(QStringLiteral("narrow bezel must preserve the fixed-width inner rim: changed=%1 width=%2")
+                                .arg(changed)
+                                .arg(innerTopRim.width())));
+    }
+
 
 
     void radiusProducesTransparentCorners()
@@ -534,6 +568,32 @@ private Q_SLOTS:
                                 .arg(qAlpha(centerPx))));
     }
 
+    void nonUniformScaleKeepsEdgeAntialiasingSymmetric()
+    {
+        m_scene->setProperty("backdropVisible", false);
+        m_scene->setProperty("glassXScale", 0.75);
+        m_scene->setProperty("glassYScale", 0.25);
+        m_glass->setProperty("radius", 0.0);
+        QTest::qWait(50);
+
+        const QImage img = grabImage(m_scene);
+        QVERIFY(!img.isNull());
+
+        int horizontalPartialAlpha = 0;
+        int verticalPartialAlpha = 0;
+        for (int coordinate = 0; coordinate < img.width(); ++coordinate) {
+            const int horizontalAlpha = qAlpha(img.pixel(coordinate, img.height() / 2));
+            const int verticalAlpha = qAlpha(img.pixel(img.width() / 2, coordinate));
+            horizontalPartialAlpha += horizontalAlpha > 0 && horizontalAlpha < 255;
+            verticalPartialAlpha += verticalAlpha > 0 && verticalAlpha < 255;
+        }
+
+        QVERIFY2(std::abs(horizontalPartialAlpha - verticalPartialAlpha) <= 1,
+                 qPrintable(QStringLiteral("non-uniform scaling must preserve symmetric screen-space AA: horizontal=%1 vertical=%2")
+                                .arg(horizontalPartialAlpha)
+                                .arg(verticalPartialAlpha)));
+    }
+
     void largeBezelWithSmallRadiusDoesNotIntroduceCornerDiagonalSeam()
     {
         setSmallRadiusLargeBezel();
@@ -545,6 +605,73 @@ private Q_SLOTS:
         QVERIFY2(seamStep < 96,
                  qPrintable(QStringLiteral("small-radius/large-bezel corner has a sharp diagonal seam: max cross-diagonal step=%1")
                                 .arg(seamStep)));
+    }
+
+    void smallRadiusSoftensRefractionAtSilhouette()
+    {
+        m_scene->setProperty("cornerProbeVisible", true);
+        setSmallRadiusLargeBezel();
+
+        m_glass->setProperty("ior", 1.0001);
+        QTest::qWait(50);
+        const QImage neutral = grabImage(m_scene);
+        QVERIFY(!neutral.isNull());
+
+        m_glass->setProperty("ior", 1.45);
+        QTest::qWait(50);
+        const QImage refracted = grabImage(m_scene);
+        QVERIFY(!refracted.isNull());
+
+        const auto patchDifference = [&](const std::array<QPoint, 3> &centers) {
+            int difference = 0;
+            for (const QPoint &center : centers) {
+                for (int y = center.y() - 1; y <= center.y() + 1; ++y) {
+                    for (int x = center.x() - 1; x <= center.x() + 1; ++x)
+                        difference += colorDistance(neutral.pixel(x, y), refracted.pixel(x, y));
+                }
+            }
+            return difference;
+        };
+
+        const std::array<QPoint, 3> silhouette = {
+            QPoint(250, 1),
+            QPoint(253, 2),
+            QPoint(254, 5),
+        };
+        const std::array<QPoint, 3> innerArc = {
+            QPoint(250, 4),
+            QPoint(251, 5),
+            QPoint(252, 7),
+        };
+        const int silhouetteDifference = patchDifference(silhouette);
+        const int innerDifference = patchDifference(innerArc);
+        QVERIFY2(silhouetteDifference * 5 < innerDifference * 3,
+                 qPrintable(QStringLiteral("small-corner refraction must ease in from the silhouette: silhouette=%1 inner=%2")
+                                .arg(silhouetteDifference)
+                                .arg(innerDifference)));
+    }
+
+    void smallRadiusCapsWholeRefractionBand()
+    {
+        setSmallRadiusLargeBezel();
+
+        m_glass->setProperty("ior", 1.0001);
+        QTest::qWait(50);
+        const QImage neutral = grabImage(m_scene);
+        QVERIFY(!neutral.isNull());
+
+        m_glass->setProperty("ior", 1.45);
+        QTest::qWait(50);
+        const QImage refracted = grabImage(m_scene);
+        QVERIFY(!refracted.isNull());
+
+        const QRect beyondCornerLimitedBand(214, 80, 30, 96);
+        const int changed = regionDiffCount(neutral, refracted, beyondCornerLimitedBand, 4);
+        const int samples = beyondCornerLimitedBand.width() * beyondCornerLimitedBand.height();
+        QVERIFY2(changed <= samples / 20,
+                 qPrintable(QStringLiteral("small radius must cap the whole refraction band: changed=%1 samples=%2")
+                                .arg(changed)
+                                .arg(samples)));
     }
 
     void radiusLargerThanBezelDoesNotIntroduceCornerDiagonalSeam()
