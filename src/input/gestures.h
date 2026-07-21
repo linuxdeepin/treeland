@@ -106,8 +106,20 @@ public:
     void stopTimer();
     bool isActive() const;
 
+    bool minimumFingerCountIsRelevant() const;
+    void setMinimumFingerCount(uint count);
+    uint minimumFingerCount() const;
+
+    bool maximumFingerCountIsRelevant() const;
+    void setMaximumFingerCount(uint count);
+    uint maximumFingerCount() const;
+
 private:
     QTimer *m_holdTimer;
+    bool m_minimumFingerCountRelevant = false;
+    uint m_minimumFingerCount = 0;
+    bool m_maximumFingerCountRelevant = false;
+    uint m_maximumFingerCount = 0;
 };
 
 class GestureRecognizer : public QObject
