@@ -67,9 +67,6 @@ void WSurfacePrivate::init()
     updateBuffer();
     updateHasSubsurface();
 
-    if (auto sub = qw_subsurface::try_from_wlr_surface(handle()->handle()))
-        setSubsurface(sub);
-
     wlr_surface *surface = nativeHandle();
     wlr_subsurface *subsurface;
     wl_list_for_each(subsurface, &surface->current.subsurfaces_below, current.link) {
@@ -198,20 +195,6 @@ WSurface *WSurfacePrivate::ensureSubsurface(wlr_subsurface *subsurface)
     QObject::connect(surface->handle(), &qw_surface::before_destroy, surface, &WSurface::safeDeleteLater);
 
     return surface;
-}
-
-void WSurfacePrivate::setSubsurface(qw_subsurface *newSubsurface)
-{
-    W_Q(WSurface);
-    if (subsurface == newSubsurface)
-        return;
-    subsurface = newSubsurface;
-    QObject::connect(subsurface, &qw_subsurface::before_destroy, q, &WSurface::isSubsurfaceChanged);
-
-    if (isSubsurface != !subsurface.isNull()){
-        isSubsurface = !subsurface.isNull();
-        Q_EMIT q->isSubsurfaceChanged();
-    }
 }
 
 void WSurfacePrivate::setHasSubsurface(bool newHasSubsurface)
@@ -386,8 +369,7 @@ WOutput *WSurface::framePacingOutput() const
 
 bool WSurface::isSubsurface() const
 {
-    W_DC(WSurface);
-    return d->isSubsurface;
+    return qw_subsurface::try_from_wlr_surface(handle()->handle()) != nullptr;
 }
 
 bool WSurface::hasSubsurface() const

@@ -1,4 +1,4 @@
-// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
@@ -28,7 +28,7 @@ class WAYLIB_SERVER_EXPORT WSurface : public WWrapObject
     Q_OBJECT
     W_DECLARE_PRIVATE(WSurface)
     Q_PROPERTY(bool mapped READ mapped NOTIFY mappedChanged)
-    Q_PROPERTY(bool isSubsurface READ isSubsurface NOTIFY isSubsurfaceChanged)
+    Q_PROPERTY(bool isSubsurface READ isSubsurface)
     Q_PROPERTY(bool hasSubsurface READ hasSubsurface NOTIFY hasSubsurfaceChanged)
     Q_PROPERTY(bool needsFrame READ needsFrame)
     Q_PROPERTY(QList<WSurface*> subsurfaces READ subsurfaces NOTIFY newSubsurface)
@@ -79,7 +79,6 @@ public Q_SLOTS:
 Q_SIGNALS:
     void mappedChanged();
     void bufferOffsetChanged();
-    void isSubsurfaceChanged();
     void hasSubsurfaceChanged();
     void newSubsurface(WSurface *subsurface);
     void preferredBufferScaleChanged();
