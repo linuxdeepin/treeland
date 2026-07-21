@@ -11,6 +11,8 @@
 #include <QString>
 #include <memory>
 
+Q_MOC_INCLUDE("modules/foreign-toplevel/foreigntoplevelhandlev1.h")
+
 class ForeignToplevelHandleV1;
 class ForeignToplevelManagerInterfaceV1;
 class DockPreviewContextV1Private;
