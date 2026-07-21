@@ -7,6 +7,8 @@
 #include <WServer>
 #include <limits.h>
 
+Q_MOC_INCLUDE("woutput.h")
+
 QW_BEGIN_NAMESPACE
 class qw_output_layout;
 QW_END_NAMESPACE

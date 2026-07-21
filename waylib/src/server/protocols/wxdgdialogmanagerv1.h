@@ -7,6 +7,8 @@
 
 #include <QObject>
 
+Q_MOC_INCLUDE("wxdgtoplevelsurface.h")
+
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WXdgToplevelSurface;

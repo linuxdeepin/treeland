@@ -9,6 +9,9 @@
 
 #include <QObject>
 
+Q_MOC_INCLUDE("woutput.h")
+Q_MOC_INCLUDE("winputdevice.h")
+
 QW_BEGIN_NAMESPACE
 class qw_session;
 QW_END_NAMESPACE

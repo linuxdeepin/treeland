@@ -13,6 +13,8 @@
 
 #include <functional>
 
+Q_MOC_INCLUDE("wxwaylandsurface.h")
+
 QW_BEGIN_NAMESPACE
 class qw_xwayland;
 class qw_compositor;
