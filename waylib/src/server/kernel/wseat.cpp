@@ -516,17 +516,19 @@ void WSeatPrivate::on_request_start_drag(wlr_seat_request_start_drag_event *even
 void WSeatPrivate::on_start_drag(wlr_drag *drag)
 {
     doClearPointerFocus();
+    W_Q(WSeat);
+    if (dragSurface)
+        dragSurface->safeDeleteLater();
+    dragSurface = nullptr;
+
     if (drag->icon) {
-        W_Q(WSeat);
         auto *surface = qw_surface::from(drag->icon->surface);
         auto *wsurface = new WSurface(surface, q);
         QObject::connect(surface, &qw_surface::before_destroy,
                          wsurface, &WSurface::safeDeleteLater);
-        if (dragSurface)
-            dragSurface->safeDeleteLater();
         dragSurface = wsurface;
-        Q_EMIT q->requestDrag(dragSurface.get());
     }
+    Q_EMIT q->requestDrag(dragSurface.get());
 }
 void WSeatPrivate::handleKeyEvent(QKeyEvent &e)
 {
