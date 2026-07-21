@@ -12,6 +12,8 @@
 
 #include <sys/types.h>
 
+Q_MOC_INCLUDE(<woutput.h>)
+
 class SurfaceEntry;
 class ForeignToplevelManagerInterfaceV1;
 class ForeignToplevelHandleV1Private;
