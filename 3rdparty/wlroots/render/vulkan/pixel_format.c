@@ -428,6 +428,23 @@ static bool query_modifier_support(struct wlr_vk_device *dev,
 			}
 
 			if (supported) {
+				// Transfer-source support is optional and must not remove an
+				// otherwise valid render modifier. Users can inspect the actual
+				// image usage and fall back when this stricter query fails.
+				const VkImageUsageFlags transfer_src_usage =
+					vulkan_render_usage | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+				const VkFormat variant = p.has_mutable_srgb ?
+					props->format.vk_srgb : VK_FORMAT_UNDEFINED;
+				struct wlr_vk_format_modifier_props transfer_src = {0};
+				const char *transfer_src_errmsg = NULL;
+				if ((m.drmFormatModifierTilingFeatures &
+						VK_FORMAT_FEATURE_TRANSFER_SRC_BIT) &&
+						query_modifier_usage_support(dev, props->format.vk,
+							variant, transfer_src_usage, &m, &transfer_src,
+							&transfer_src_errmsg)) {
+					p.transfer_src_max_extent = transfer_src.max_extent;
+				}
+
 				props->dmabuf.render_mods[props->dmabuf.render_mod_count++] = p;
 				wlr_drm_format_set_add(&dev->dmabuf_render_formats,
 					props->format.drm, m.drmFormatModifier);

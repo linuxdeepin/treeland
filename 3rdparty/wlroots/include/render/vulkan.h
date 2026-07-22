@@ -43,6 +43,7 @@ struct wlr_vk_device {
 	bool sync_file_import_export;
 	bool implicit_sync_interop;
 	bool sampler_ycbcr_conversion;
+	bool separate_depth_stencil_layouts;
 
 	// we only ever need one queue for rendering and transfer commands
 	uint32_t queue_family;
@@ -98,6 +99,7 @@ const struct wlr_vk_format *vulkan_get_format_from_drm(uint32_t drm_format);
 struct wlr_vk_format_modifier_props {
 	VkDrmFormatModifierPropertiesEXT props;
 	VkExtent2D max_extent;
+	VkExtent2D transfer_src_max_extent;
 	bool has_mutable_srgb;
 };
 
@@ -208,6 +210,7 @@ struct wlr_vk_render_buffer {
 	VkDeviceMemory memories[WLR_DMABUF_MAX_PLANES];
 	uint32_t mem_count;
 	VkImage image;
+	VkImageUsageFlags image_usage;
 
 	// Framebuffer and image view for rendering directly onto the buffer image.
 	// This requires that the image support an _SRGB VkFormat, and does
@@ -495,7 +498,7 @@ struct wlr_vk_texture *vulkan_get_texture(struct wlr_texture *wlr_texture);
 VkImage vulkan_import_dmabuf(struct wlr_vk_renderer *renderer,
 	const struct wlr_dmabuf_attributes *attribs,
 	VkDeviceMemory mems[static WLR_DMABUF_MAX_PLANES], uint32_t *n_mems,
-	bool for_render, bool *using_mutable_srgb);
+	bool for_render, bool *using_mutable_srgb, VkImageUsageFlags *image_usage);
 struct wlr_texture *vulkan_texture_from_buffer(
 	struct wlr_renderer *wlr_renderer, struct wlr_buffer *buffer);
 void vulkan_texture_destroy(struct wlr_vk_texture *texture);
