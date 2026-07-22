@@ -54,6 +54,11 @@ inline VkQueue rendererQueue(qw_renderer *renderer)
     return wlr_vk_renderer_get_queue(renderer->handle());
 }
 
+inline bool rendererHasSeparateDepthStencilLayouts(qw_renderer *renderer)
+{
+    return wlr_vk_renderer_has_separate_depth_stencil_layouts(renderer->handle());
+}
+
 inline void textureImageAttribs(qw_texture *texture, wlr_vk_image_attribs *attribs)
 {
     wlr_vk_texture_get_image_attribs(texture->handle(), attribs);

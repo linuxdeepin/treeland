@@ -17,6 +17,7 @@
 Q_MOC_INCLUDE(<private/qsgplaintexture_p.h>)
 
 QT_BEGIN_NAMESPACE
+class QRhiRenderTarget;
 class QSGPlainTexture;
 class QSGRenderContext;
 namespace QSGBatchRenderer {
@@ -76,6 +77,7 @@ public:
     QW_NAMESPACE::qw_buffer *currentBuffer() const;
     QW_NAMESPACE::qw_buffer *lastBuffer() const;
     QRhiTexture *currentRenderTarget() const;
+    QRhiRenderTarget *currentVulkanBackdropResumeTarget() const;
     const QW_NAMESPACE::qw_damage_ring *damageRing() const;
     QW_NAMESPACE::qw_damage_ring *damageRing();
 
@@ -148,8 +150,11 @@ private:
         QSGRenderTarget sgRenderTarget;
         QQuickRenderTarget preserveRenderTarget;
         QSGRenderTarget preserveSgRenderTarget;
+        QQuickRenderTarget vulkanBackdropResumeRenderTarget;
+        QSGRenderTarget vulkanBackdropResumeSgRenderTarget;
         QSGRenderTarget activeSgRenderTarget;
         QRegion dirty;
+        bool vulkanBackdropActive = false;
         bool renderBufferReleasedForCache = false;
     } state;
 

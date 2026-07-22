@@ -1944,10 +1944,20 @@ bool WOutputRenderWindowPrivate::prepareTextureForCurrentRenderPass(qw_texture *
     if (m_currentPreparedTextureSet.contains(texture))
         return true;
 
+    W_Q(WOutputRenderWindow);
+    QElapsedTimer prepareTimer;
+    if (WVulkanTrace::enabled())
+        prepareTimer.start();
     const bool prepareOk = WRenderHelper::prepareTextureForSampling(rc(),
                                                                     m_renderer,
                                                                     texture,
                                                                     purpose);
+    WVulkanTrace::sampleDynamicDisposition(
+        q,
+        texture,
+        prepareOk ? WVulkanTrace::SampleDisposition::Prepared
+                  : WVulkanTrace::SampleDisposition::PrepareFailed,
+        prepareTimer.isValid() ? prepareTimer.nsecsElapsed() / 1000 : 0);
     if (!prepareOk) {
         failCurrentFrame();
         return false;

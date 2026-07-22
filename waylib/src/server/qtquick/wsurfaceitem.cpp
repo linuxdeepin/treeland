@@ -622,15 +622,20 @@ public:
 
     ~WSGRenderFootprintNode() {}
 
+    void setBinding(const void *provider, qw_texture *texture)
+    {
+        m_provider = provider;
+        m_texture = texture;
+    }
+
     void render(const RenderState*) override
     {
         if (Q_LIKELY(m_owner)) {
             auto *ownerPrivate = m_owner->d_func();
             ownerPrivate->rendered = true;
             if (auto *renderWindow = m_owner->outputRenderWindow()) {
-                auto *provider = ownerPrivate->textureProvider;
-                WVulkanTrace::surfaceFootprint(renderWindow, provider,
-                                               provider ? provider->qwTexture() : nullptr,
+                WVulkanTrace::surfaceFootprint(renderWindow, m_provider,
+                                               m_texture,
                                                ownerPrivate->surface);
                 renderWindow->markSurfaceTexturedForPresentation(ownerPrivate->surface);
             }
@@ -643,6 +648,8 @@ public:
     }
 
     QPointer<WSurfaceItemContent> m_owner;
+    const void *m_provider = nullptr;
+    qw_texture *m_texture = nullptr;
 };
 
 QSGNode *WSurfaceItemContent::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *)
@@ -669,15 +676,31 @@ QSGNode *WSurfaceItemContent::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeD
     }
 
     auto node = static_cast<QSGImageNode*>(oldNode);
+    const bool traceEnabled = WVulkanTrace::enabled();
+    WSGRenderFootprintNode *footprintNode = nullptr;
     if (Q_UNLIKELY(!node)) {
         node = window()->createImageNode();
         node->setOwnsTexture(false);
-        QSGNode *fpnode = new WSGRenderFootprintNode(this);
-        node->appendChildNode(fpnode);
+        footprintNode = new WSGRenderFootprintNode(this);
+        node->appendChildNode(footprintNode);
+    } else if (Q_UNLIKELY(traceEnabled)) {
+        for (auto *child = node->firstChild(); child; child = child->nextSibling()) {
+            footprintNode = dynamic_cast<WSGRenderFootprintNode *>(child);
+            if (footprintNode)
+                break;
+        }
+        if (!footprintNode) {
+            footprintNode = new WSGRenderFootprintNode(this);
+            node->appendChildNode(footprintNode);
+        }
     }
 
     auto texture = tp->texture();
     node->setTexture(texture);
+    if (Q_UNLIKELY(traceEnabled)) {
+        Q_ASSERT(footprintNode);
+        footprintNode->setBinding(tp, tp->qwTexture());
+    }
     const QRectF textureGeometry = d->bufferSourceBox;
     node->setSourceRect(textureGeometry);
     const QRectF targetGeometry(d->ignoreBufferOffset ? QPointF() : d->bufferOffset, size());

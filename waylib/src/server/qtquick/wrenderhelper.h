@@ -52,8 +52,12 @@ public:
 
     static QW_NAMESPACE::qw_buffer *toBuffer(QW_NAMESPACE::qw_renderer *renderer, QSGTexture *texture, QSGRendererInterface::GraphicsApi api);
 
-    QQuickRenderTarget acquireRenderTarget(QQuickRenderControl *rc, QW_NAMESPACE::qw_buffer *buffer);
-    QQuickRenderTarget preserveRenderTarget(QW_NAMESPACE::qw_buffer *buffer) const;
+    QQuickRenderTarget acquireRenderTarget(QQuickRenderControl *rc,
+                                           QW_NAMESPACE::qw_buffer *buffer,
+                                           bool useVulkanBackdrop = false);
+    QQuickRenderTarget preserveRenderTarget(QW_NAMESPACE::qw_buffer *buffer,
+                                            bool useVulkanBackdrop = false) const;
+    QQuickRenderTarget vulkanBackdropResumeRenderTarget(QW_NAMESPACE::qw_buffer *buffer) const;
     bool acquireRenderBuffer(QQuickRenderControl *rc, QW_NAMESPACE::qw_buffer *buffer, const char *purpose);
     bool releaseRenderBuffer(QQuickRenderControl *rc, QW_NAMESPACE::qw_buffer *buffer, QRhiTexture *renderTargetTexture, const char *purpose);
     void cleanupRetiredRenderResources(bool force = false);

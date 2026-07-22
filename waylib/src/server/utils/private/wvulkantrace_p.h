@@ -95,6 +95,10 @@ void beginPass(WOutputRenderWindow *window, const void *renderer,
 void sampleDisposition(WOutputRenderWindow *window, const void *provider,
                        QW_NAMESPACE::qw_texture *texture,
                        SampleDisposition disposition, qint64 elapsedUsec = 0);
+void sampleDynamicDisposition(WOutputRenderWindow *window,
+                              QW_NAMESPACE::qw_texture *texture,
+                              SampleDisposition disposition,
+                              qint64 elapsedUsec = 0);
 void sampleFinished(WOutputRenderWindow *window,
                     QW_NAMESPACE::qw_texture *texture, bool ok,
                     qint64 elapsedUsec);

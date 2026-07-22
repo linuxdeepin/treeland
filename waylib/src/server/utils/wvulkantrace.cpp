@@ -90,9 +90,13 @@ struct PassRecord {
     QHash<quintptr, SampleDisposition> providerDispositions;
     int prepareCount = 0;
     int prepareFailureCount = 0;
+    int prepareMetadataMissCount = 0;
     int finishCount = 0;
     int finishFailureCount = 0;
+    int finishMetadataMissCount = 0;
     int footprintCount = 0;
+    int footprintMetadataMissCount = 0;
+    int bindingChangeCount = 0;
     int missingProviderCount = 0;
     int drawAfterPrepareFailureCount = 0;
     int currentTargetFeedbackCount = 0;
@@ -1010,10 +1014,14 @@ void sampleDisposition(WOutputRenderWindow *window, const void *provider,
         auto &pass = windowRecord.passStack.last();
         const quintptr providerKey = reinterpret_cast<quintptr>(provider);
         const quintptr textureKey = reinterpret_cast<quintptr>(texture);
-        providerRecord = s_providers.value(providerKey);
-        if (!providerRecord.sampleId)
-            return;
-        pass.providerDispositions.insert(providerKey, disposition);
+        providerRecord = textureKey ? s_textures.value(textureKey)
+                                    : ProviderRecord {};
+        if (!providerRecord.sampleId
+            || (providerKey && providerRecord.provider != providerKey)) {
+            providerRecord = s_providers.value(providerKey);
+        }
+        if (providerKey)
+            pass.providerDispositions.insert(providerKey, disposition);
         if (disposition == SampleDisposition::Prepared) {
             if (textureKey)
                 pass.preparedTextures.insert(textureKey);
@@ -1025,12 +1033,19 @@ void sampleDisposition(WOutputRenderWindow *window, const void *provider,
             ++pass.prepareFailureCount;
             ++windowRecord.prepareFailureCount;
         }
-        windowRecord.bufferIds.insert(providerRecord.sourceBufferId);
-        auto sourceIt = s_sourceBuffers.find(providerRecord.sourceBuffer);
-        if (sourceIt != s_sourceBuffers.end()
-            && sourceIt->sourceBufferId == providerRecord.sourceBufferId) {
-            sourceIt->lastFrameId = windowRecord.frameId;
-            sourceIt->lastWindow = reinterpret_cast<quintptr>(window);
+        if (!providerRecord.sampleId
+            && (disposition == SampleDisposition::Prepared
+                || disposition == SampleDisposition::PrepareFailed)) {
+            ++pass.prepareMetadataMissCount;
+        }
+        if (providerRecord.sampleId) {
+            windowRecord.bufferIds.insert(providerRecord.sourceBufferId);
+            auto sourceIt = s_sourceBuffers.find(providerRecord.sourceBuffer);
+            if (sourceIt != s_sourceBuffers.end()
+                && sourceIt->sourceBufferId == providerRecord.sourceBufferId) {
+                sourceIt->lastFrameId = windowRecord.frameId;
+                sourceIt->lastWindow = reinterpret_cast<quintptr>(window);
+            }
         }
         frameId = windowRecord.frameId;
         passId = pass.passId;
@@ -1056,6 +1071,25 @@ void sampleDisposition(WOutputRenderWindow *window, const void *provider,
         qCDebug(lcWlQtQuickTexture).noquote() << message;
 }
 
+void sampleDynamicDisposition(WOutputRenderWindow *window,
+                              qw_texture *texture,
+                              SampleDisposition disposition,
+                              qint64 elapsedUsec)
+{
+    if (!enabled() || !window || !texture)
+        return;
+
+    const auto providerRecord = providerRecordForTexture(
+        reinterpret_cast<quintptr>(texture));
+    sampleDisposition(window,
+                      providerRecord.provider
+                          ? reinterpret_cast<const void *>(providerRecord.provider)
+                          : nullptr,
+                      texture,
+                      disposition,
+                      elapsedUsec);
+}
+
 void sampleFinished(WOutputRenderWindow *window, qw_texture *texture,
                     bool ok, qint64 elapsedUsec)
 {
@@ -1072,10 +1106,10 @@ void sampleFinished(WOutputRenderWindow *window, qw_texture *texture,
             return;
         auto &pass = windowRecord.passStack.last();
         providerRecord = s_textures.value(reinterpret_cast<quintptr>(texture));
-        if (!providerRecord.sampleId)
-            return;
         ++pass.finishCount;
         ++windowRecord.finishCount;
+        if (!providerRecord.sampleId)
+            ++pass.finishMetadataMissCount;
         if (!ok) {
             ++pass.finishFailureCount;
             ++windowRecord.finishFailureCount;
@@ -1115,12 +1149,28 @@ void surfaceFootprint(WOutputRenderWindow *window, const void *provider,
     auto &pass = windowRecord.passStack.last();
     const quintptr providerKey = reinterpret_cast<quintptr>(provider);
     const quintptr textureKey = reinterpret_cast<quintptr>(texture);
-    const auto providerRecord = s_providers.value(providerKey);
-    if (!providerRecord.sampleId)
-        return;
 
     ++pass.footprintCount;
     ++windowRecord.footprintCount;
+
+    const auto currentProviderRecord = s_providers.value(providerKey);
+    auto providerRecord = textureKey ? s_textures.value(textureKey)
+                                     : ProviderRecord {};
+    if (!providerRecord.sampleId || providerRecord.provider != providerKey)
+        providerRecord = currentProviderRecord;
+
+    const bool bindingChanged = textureKey
+                                && currentProviderRecord.sampleId
+                                && currentProviderRecord.texture != textureKey;
+    if (bindingChanged)
+        ++pass.bindingChangeCount;
+
+    if (!providerRecord.sampleId) {
+        ++pass.footprintMetadataMissCount;
+        ++pass.invalidProviderDrawCount;
+        return;
+    }
+
     windowRecord.bufferIds.insert(providerRecord.sourceBufferId);
     auto sourceIt = s_sourceBuffers.find(providerRecord.sourceBuffer);
     if (sourceIt != s_sourceBuffers.end()
@@ -1133,10 +1183,16 @@ void surfaceFootprint(WOutputRenderWindow *window, const void *provider,
         sourceIt->lastSurface = reinterpret_cast<quintptr>(surface);
     }
 
-    if (textureKey && pass.preparedTextures.contains(textureKey))
+    if ((textureKey && pass.preparedTextures.contains(textureKey))
+        || (bindingChanged
+            && pass.preparedTextures.contains(currentProviderRecord.texture))) {
         return;
+    }
 
-    if (!pass.providerDispositions.contains(providerKey)) {
+    const quintptr dispositionProviderKey = providerRecord.provider
+        ? providerRecord.provider
+        : providerKey;
+    if (!pass.providerDispositions.contains(dispositionProviderKey)) {
         if (providerRecord.sampleId) {
             ++pass.missingProviderCount;
             ++windowRecord.missingPrepareCount;
@@ -1146,7 +1202,7 @@ void surfaceFootprint(WOutputRenderWindow *window, const void *provider,
         return;
     }
 
-    const auto disposition = pass.providerDispositions.value(providerKey);
+    const auto disposition = pass.providerDispositions.value(dispositionProviderKey);
     switch (disposition) {
     case SampleDisposition::PrepareFailed:
         ++pass.drawAfterPrepareFailureCount;
@@ -1181,22 +1237,35 @@ void endPass(WOutputRenderWindow *window, bool ok)
         if (windowRecord.passStack.isEmpty())
             return;
         const auto pass = windowRecord.passStack.takeLast();
-        trackedActivity = !pass.providerDispositions.isEmpty() || pass.footprintCount > 0;
-        invariantFailure = pass.missingProviderCount > 0
+        trackedActivity = !pass.providerDispositions.isEmpty()
+                          || pass.prepareCount > 0
+                          || pass.finishCount > 0
+                          || pass.footprintCount > 0;
+        // A footprint node is a separately scheduled QSGRenderNode. Its
+        // execution is useful evidence, but does not prove that the parent
+        // image geometry sampled the texture. Keep missing-provider reports
+        // diagnostic-only until an exact QSG draw dependency is available.
+        invariantFailure = pass.prepareFailureCount > 0
                            || pass.drawAfterPrepareFailureCount > 0
                            || pass.currentTargetFeedbackCount > 0
                            || pass.finishFailureCount > 0
                            || pass.prepareCount != pass.finishCount
                            || !ok;
-        message = QStringLiteral("VKTRACE event=pass-end frame=%1 pass=%2 result=%3 prepareCount=%4 prepareFailures=%5 finishCount=%6 finishFailures=%7 footprintCount=%8 missingActiveProvider=%9 drawAfterPrepareFailure=%10 currentTargetFeedback=%11 invalidProviderDraw=%12")
+        message = QStringLiteral("VKTRACE event=pass-end frame=%1 pass=%2 result=%3 sourceIndex=%4 providerCount=%5 prepareCount=%6 prepareFailures=%7 prepareMetadataMisses=%8 finishCount=%9 finishFailures=%10 finishMetadataMisses=%11 footprintCount=%12 footprintMetadataMisses=%13 bindingChanges=%14 missingActiveProvider=%15 drawAfterPrepareFailure=%16 currentTargetFeedback=%17 invalidProviderDraw=%18")
                       .arg(windowRecord.frameId)
                       .arg(pass.passId)
                       .arg(ok)
+                      .arg(pass.sourceIndex)
+                      .arg(pass.providerCount)
                       .arg(pass.prepareCount)
                       .arg(pass.prepareFailureCount)
+                      .arg(pass.prepareMetadataMissCount)
                       .arg(pass.finishCount)
                       .arg(pass.finishFailureCount)
+                      .arg(pass.finishMetadataMissCount)
                       .arg(pass.footprintCount)
+                      .arg(pass.footprintMetadataMissCount)
+                      .arg(pass.bindingChangeCount)
                       .arg(pass.missingProviderCount)
                       .arg(pass.drawAfterPrepareFailureCount)
                       .arg(pass.currentTargetFeedbackCount)

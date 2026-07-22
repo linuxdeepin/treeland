@@ -10,12 +10,15 @@
 #include "wqmlhelper_p.h"
 #include "platformplugin/types.h"
 #include "private/wprivateaccessor_p.h"
+#include "utils/private/wvulkantrace_p.h"
 
 #include <qwtexture.h>
 
 #include <QQuickItem>
 #include <QRunnable>
+#include <QScopeGuard>
 #include <QSGImageNode>
+#include <QVulkanFunctions>
 #include <private/qquickitem_p.h>
 #include <private/qsgplaintexture_p.h>
 #include <private/qrhi_p.h>
@@ -29,8 +32,8 @@
 
 #include <algorithm>
 
-// QSGRenderer: access protected methods preprocess()/render() and private
-// bit-field members m_changed_emitted/m_is_rendering.
+// QSGRenderer: access protected render stages and private bit-field members
+// m_changed_emitted/m_is_rendering.
 //
 // preprocess() and render() are protected virtual functions — the template
 // accessor [temp.explicit]/12 trick legally bypasses access control here too.
@@ -91,6 +94,72 @@ static inline void rendererRender(QSGRenderer *r) {
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
+static bool recordVulkanDepthStencilPassBarrier(QRhi *rhi,
+                                                QRhiCommandBuffer *commandBuffer,
+                                                QRhiTexture *depthStencilTexture)
+{
+    if (!rhi || rhi->backend() != QRhi::Vulkan || !commandBuffer
+        || !depthStencilTexture) {
+        return false;
+    }
+
+    const auto *nativeHandles = static_cast<const QRhiVulkanNativeHandles *>(
+        rhi->nativeHandles());
+    auto *vkTexture = static_cast<QVkTexture *>(depthStencilTexture);
+    if (!nativeHandles || !nativeHandles->inst
+        || nativeHandles->dev == VK_NULL_HANDLE
+        || vkTexture->image == VK_NULL_HANDLE) {
+        return false;
+    }
+
+    QVulkanDeviceFunctions *deviceFunctions =
+        nativeHandles->inst->deviceFunctions(nativeHandles->dev);
+    if (!deviceFunctions)
+        return false;
+
+    commandBuffer->beginExternal();
+    const auto *commandBufferHandles =
+        static_cast<const QRhiVulkanCommandBufferNativeHandles *>(
+            commandBuffer->nativeHandles());
+    if (!commandBufferHandles
+        || commandBufferHandles->commandBuffer == VK_NULL_HANDLE) {
+        commandBuffer->endExternal();
+        return false;
+    }
+
+    VkImageMemoryBarrier barrier = {};
+    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    barrier.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT
+        | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+    barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT
+        | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+    barrier.oldLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    barrier.newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.image = vkTexture->image;
+    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT
+        | VK_IMAGE_ASPECT_STENCIL_BIT;
+    barrier.subresourceRange.baseMipLevel = 0;
+    barrier.subresourceRange.levelCount = 1;
+    barrier.subresourceRange.baseArrayLayer = 0;
+    barrier.subresourceRange.layerCount = 1;
+
+    constexpr VkPipelineStageFlags depthStencilStages =
+        VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT
+        | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+    deviceFunctions->vkCmdPipelineBarrier(
+        commandBufferHandles->commandBuffer,
+        depthStencilStages,
+        depthStencilStages,
+        VK_DEPENDENCY_BY_REGION_BIT,
+        0, nullptr,
+        0, nullptr,
+        1, &barrier);
+    commandBuffer->endExternal();
+    return true;
+}
+
 class Q_DECL_HIDDEN DataManagerBase : public QObject
 {
 public:
@@ -132,6 +201,9 @@ public:
 
     DataManagerPointer &operator=(const DataManagerPointer<T> &other) noexcept
     {
+        if (this == &other)
+            return *this;
+
         deref();
         pointer = other.pointer;
         ref();
@@ -140,6 +212,10 @@ public:
 
     DataManagerPointer &operator=(DataManagerPointer<T> &&other) noexcept
     {
+        if (this == &other)
+            return *this;
+
+        deref();
         pointer = std::exchange(other.pointer, nullptr);
         return *this;
     }
@@ -149,6 +225,9 @@ public:
     }
 
     inline DataManagerPointer<T> &operator=(T* p) {
+        if (pointer == p)
+            return *this;
+
         deref();
         pointer = p;
         ref();
@@ -350,28 +429,36 @@ struct WlrAndRhiTexture {
     QRhiTexture *rhiTexture = nullptr;
     uint32_t drmFormat = 0;
     uint64_t drmModifier = 0;
+    QRhiTexture::Flags flags;
 };
 
-class Q_DECL_HIDDEN RhiTextureManager : public DataManager<RhiTextureManager, WlrAndRhiTexture, QRhiTexture::Format, uint32_t, uint64_t, const QSize&>
+class Q_DECL_HIDDEN RhiTextureManager : public DataManager<RhiTextureManager, WlrAndRhiTexture, QRhiTexture::Format, uint32_t, uint64_t, const QSize&, QRhiTexture::Flags>
 {
     Q_OBJECT
 
     friend class DataManager;
 
     RhiTextureManager(QQuickWindow *owner)
-        : DataManager<RhiTextureManager, WlrAndRhiTexture, QRhiTexture::Format, uint32_t, uint64_t, const QSize&>(owner) {
+        : DataManager<RhiTextureManager, WlrAndRhiTexture, QRhiTexture::Format,
+                      uint32_t, uint64_t, const QSize&, QRhiTexture::Flags>(owner) {
         Q_ASSERT(owner->findChildren<RhiTextureManager*>(Qt::FindDirectChildrenOnly).size() == 1);
     }
 
-    static bool check(WlrAndRhiTexture *texture, QRhiTexture::Format, uint32_t drmFormat, uint64_t drmModifier, const QSize &size) {
+    static bool check(WlrAndRhiTexture *texture, QRhiTexture::Format,
+                      uint32_t drmFormat, uint64_t drmModifier,
+                      const QSize &size, QRhiTexture::Flags flags) {
         return texture->drmFormat == drmFormat
             && texture->drmModifier == drmModifier
             && texture->rhiTexture
-            && texture->rhiTexture->pixelSize() == size;
+            && texture->rhiTexture->pixelSize() == size
+            && texture->flags == flags;
     }
 
-    WlrAndRhiTexture *create(QRhiTexture::Format format, uint32_t drmFormat, uint64_t drmModifier, const QSize &size) {
-        auto texture = owner()->rhi()->newTexture(format, size, 1, QRhiTexture::RenderTarget);
+    WlrAndRhiTexture *create(QRhiTexture::Format format,
+                             uint32_t drmFormat, uint64_t drmModifier,
+                             const QSize &size, QRhiTexture::Flags flags) {
+        auto texture = owner()->rhi()->newTexture(format, size, 1,
+                                                  QRhiTexture::RenderTarget | flags);
         texture->setName(QByteArrayLiteral("WaylibRenderBufferNodeTexture"));
         if (!texture->create()) {
             qCWarning(lcWlRenderBuffer) << "Failed to create QRhi texture for WRenderBufferNode"
@@ -383,7 +470,7 @@ class Q_DECL_HIDDEN RhiTextureManager : public DataManager<RhiTextureManager, Wl
             return nullptr;
         }
 
-        return new WlrAndRhiTexture{texture, drmFormat, drmModifier};
+        return new WlrAndRhiTexture{texture, drmFormat, drmModifier, flags};
     }
 
     static void destroy(WlrAndRhiTexture *texture) {
@@ -521,18 +608,25 @@ private:
     RhiManager(QQuickWindow *owner)
         : DataManager<RhiManager, void>(owner) {
         Q_ASSERT(owner->findChildren<RhiManager*>(Qt::FindDirectChildrenOnly).size() == 1);
-        std::unique_ptr<QOffscreenSurface> fallbackSurface(new QW::OffscreenSurface(nullptr));
-        fallbackSurface->create();
+        if (owner->rhi()->backend() == QRhi::Vulkan) {
+            m_rhi.reset(new Rhi());
+            m_rhi->rhi = owner->rhi();
+            m_rhi->own = false;
+            m_rhi->gc = owner->graphicsConfiguration();
+        } else {
+            std::unique_ptr<QOffscreenSurface> fallbackSurface(new QW::OffscreenSurface(nullptr));
+            fallbackSurface->create();
 
-        auto rhi = QSGRhiSupport::instance()->createRhi(owner, fallbackSurface.get());
-        if (!rhi.rhi)
-            return;
-        Q_ASSERT(rhi.rhi->backend() == owner->rhi()->backend());
-        m_rhi.reset(new Rhi());
-        m_rhi->rhi = rhi.rhi;
-        m_rhi->own = rhi.own;
-        m_rhi->gc = owner->graphicsConfiguration();
-        m_rhi->offscreenSurface = fallbackSurface.release();
+            auto rhi = QSGRhiSupport::instance()->createRhi(owner, fallbackSurface.get());
+            if (!rhi.rhi)
+                return;
+            Q_ASSERT(rhi.rhi->backend() == owner->rhi()->backend());
+            m_rhi.reset(new Rhi());
+            m_rhi->rhi = rhi.rhi;
+            m_rhi->own = rhi.own;
+            m_rhi->gc = owner->graphicsConfiguration();
+            m_rhi->offscreenSurface = fallbackSurface.release();
+        }
 
         context = QQuickWindowPrivate::get(owner)->context;
         // Don't use RenderMode2D, when use this renderer on an exists renderTarget
@@ -563,9 +657,9 @@ private:
     }
 
     struct Rhi {
-        QRhi *rhi;
-        QOffscreenSurface *offscreenSurface;
-        bool own;
+        QRhi *rhi = nullptr;
+        QOffscreenSurface *offscreenSurface = nullptr;
+        bool own = false;
         QQuickGraphicsConfiguration gc;
 
         ~Rhi() {
@@ -587,6 +681,206 @@ private:
     bool isBatchRenderer = false;
 
     QScopedPointer<Rhi> m_rhi;
+};
+
+// A QSG batch renderer owns its Elements and their shader-resource bindings.
+// Reusing one renderer for multiple blitter roots in the same Vulkan command
+// buffer lets Qt recycle and update a descriptor set that an earlier root has
+// already bound. Keep one renderer per blitter role instead. Qt's render
+// context still shares shader and pipeline caches between these renderers.
+class Q_DECL_HIDDEN VulkanInlineRenderer
+{
+public:
+    VulkanInlineRenderer(QQuickWindow *owner, const void *blitterNode,
+                         const char *role)
+        : m_owner(owner)
+        , m_blitterNode(blitterNode)
+        , m_role(role)
+    {
+        if (!owner || !owner->rhi()
+            || owner->rhi()->backend() != QRhi::Vulkan) {
+            return;
+        }
+
+        m_rhi = owner->rhi();
+        m_graphicsConfiguration = owner->graphicsConfiguration();
+        m_context = QQuickWindowPrivate::get(owner)->context;
+        if (!m_context)
+            return;
+
+        // RenderMode2DNoDepthBuffer matches the existing RhiManager path: the
+        // surrounding compositor renderer owns the shared depth attachment.
+        m_renderer = m_context->createRenderer(
+            QSGRendererInterface::RenderMode2DNoDepthBuffer);
+
+        if (m_renderer && WVulkanTrace::enabled()) {
+            qCDebug(lcWlRenderBuffer).noquote()
+                << QStringLiteral("VKTRACE event=blitter-inline-renderer-create node=%1 role=%2 renderer=%3")
+                       .arg(quintptr(m_blitterNode), 0, 16)
+                       .arg(QString::fromLatin1(m_role))
+                       .arg(quintptr(m_renderer), 0, 16);
+        }
+    }
+
+    ~VulkanInlineRenderer()
+    {
+        if (!m_renderer)
+            return;
+
+        Q_ASSERT(!m_prepared);
+        m_renderer->setRootNode(nullptr);
+        if (WVulkanTrace::enabled()) {
+            qCDebug(lcWlRenderBuffer).noquote()
+                << QStringLiteral("VKTRACE event=blitter-inline-renderer-destroy node=%1 role=%2 renderer=%3")
+                       .arg(quintptr(m_blitterNode), 0, 16)
+                       .arg(QString::fromLatin1(m_role))
+                       .arg(quintptr(m_renderer), 0, 16);
+        }
+        delete m_renderer;
+    }
+
+    bool isValid() const
+    {
+        return m_renderer && m_rhi && m_context;
+    }
+
+    QQuickWindow *owner() const
+    {
+        return m_owner;
+    }
+
+    QSGRenderer *renderer() const
+    {
+        return m_renderer;
+    }
+
+    QSGRootNode *rootNode() const
+    {
+        return m_renderer ? m_renderer->rootNode() : nullptr;
+    }
+
+    bool sync(const QSize &pixelSize, QSGRootNode *rootNode,
+              const QMatrix4x4 &matrix = {},
+              const QMatrix4x4 &baseProjectionMatrix = {},
+              QSGRenderer *base = nullptr, const QVector2D &dpr = {})
+    {
+        if (!isValid() || !rootNode || m_prepared)
+            return false;
+
+        if (base) {
+            m_renderer->setDevicePixelRatio(base->devicePixelRatio());
+            m_renderer->setDeviceRect(base->deviceRect());
+            m_renderer->setViewportRect(base->viewportRect());
+            m_renderer->setProjectionMatrix(baseProjectionMatrix);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+            m_renderer->setProjectionMatrixWithNativeNDC(
+                base->projectionMatrixWithNativeNDC(0));
+#else
+            m_renderer->setProjectionMatrixWithNativeNDC(
+                base->projectionMatrixWithNativeNDC());
+#endif
+        } else {
+            if (dpr.x() <= 0.0f || dpr.y() <= 0.0f)
+                return false;
+
+            m_renderer->setDevicePixelRatio(1.0);
+            m_renderer->setDeviceRect(QRect(QPoint(0, 0), pixelSize));
+            m_renderer->setViewportRect(pixelSize);
+            const QRectF rect(
+                QPointF(0, 0),
+                QSizeF(pixelSize.width() / dpr.x(),
+                       pixelSize.height() / dpr.y()));
+            // The backdrop is exposed as an ordinary, unmirrored QSGTexture.
+            // Match QQuickWindow's projection for a redirected render target
+            // so Vulkan's Y-down NDC does not turn the rotated copy upside down.
+            m_renderer->setProjectionMatrixToRect(
+                rect,
+                !m_rhi->isYUpInNDC()
+                    ? QSGRenderer::MatrixTransformFlipY
+                    : QSGRenderer::MatrixTransformFlag {});
+        }
+
+        if (Q_UNLIKELY(!matrix.isIdentity())) {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+            m_renderer->setProjectionMatrix(
+                m_renderer->projectionMatrix(0) * matrix);
+            m_renderer->setProjectionMatrixWithNativeNDC(
+                m_renderer->projectionMatrixWithNativeNDC(0) * matrix);
+#else
+            m_renderer->setProjectionMatrix(
+                m_renderer->projectionMatrix() * matrix);
+            m_renderer->setProjectionMatrixWithNativeNDC(
+                m_renderer->projectionMatrixWithNativeNDC() * matrix);
+#endif
+        }
+
+        auto *oldRoot = m_renderer->rootNode();
+        m_renderer->setRootNode(rootNode);
+        if (oldRoot != rootNode && WVulkanTrace::enabled()) {
+            qCDebug(lcWlRenderBuffer).noquote()
+                << QStringLiteral("VKTRACE event=blitter-inline-renderer-root node=%1 role=%2 renderer=%3 old=%4 new=%5")
+                       .arg(quintptr(m_blitterNode), 0, 16)
+                       .arg(QString::fromLatin1(m_role))
+                       .arg(quintptr(m_renderer), 0, 16)
+                       .arg(quintptr(oldRoot), 0, 16)
+                       .arg(quintptr(rootNode), 0, 16);
+        }
+        return true;
+    }
+
+    bool prepareInline(QRhiRenderTarget *renderTarget,
+                       QRhiCommandBuffer *commandBuffer)
+    {
+        if (!isValid() || !rootNode() || !renderTarget || !commandBuffer
+            || m_prepared) {
+            return false;
+        }
+
+        m_renderer->setRenderTarget(
+            {renderTarget, renderTarget->renderPassDescriptor(), commandBuffer});
+        auto *defaultContext = static_cast<QSGDefaultRenderContext *>(m_context);
+        m_oldDpr = defaultContext->currentDevicePixelRatio();
+        m_oldCommandBuffer = defaultContext->currentFrameCommandBuffer();
+        m_context->prepareSync(m_renderer->devicePixelRatio(), commandBuffer,
+                               m_graphicsConfiguration);
+
+        // These public Qt stages deliberately split resource preparation from
+        // draw recording so the caller can begin the compatible render pass in
+        // between. They also maintain QSGRenderer's private state themselves.
+        m_renderer->prepareSceneInline();
+        m_prepared = true;
+        return true;
+    }
+
+    void renderInline()
+    {
+        Q_ASSERT(m_renderer && m_prepared);
+        m_renderer->renderSceneInline();
+        m_context->prepareSync(m_oldDpr, m_oldCommandBuffer,
+                               m_graphicsConfiguration);
+        m_oldCommandBuffer = nullptr;
+        m_prepared = false;
+    }
+
+    void detachRoot()
+    {
+        if (!m_renderer)
+            return;
+        Q_ASSERT(!m_prepared);
+        m_renderer->setRootNode(nullptr);
+    }
+
+private:
+    QQuickWindow *m_owner = nullptr;
+    const void *m_blitterNode = nullptr;
+    const char *m_role = nullptr;
+    QRhi *m_rhi = nullptr;
+    QSGRenderContext *m_context = nullptr;
+    QSGRenderer *m_renderer = nullptr;
+    QQuickGraphicsConfiguration m_graphicsConfiguration;
+    qreal m_oldDpr = 1.0;
+    QRhiCommandBuffer *m_oldCommandBuffer = nullptr;
+    bool m_prepared = false;
 };
 
 static QSizeF mapSize(const QRectF &source, const QMatrix4x4 &matrix)
@@ -665,22 +959,25 @@ public:
                | RenderTargetState;
     }
 
-    // ###: Should disable DepthAwareRendering here, because
-    // if enable depth test, Qt will render the opaque nodes first,
-    // maybe an opaque node's z-order is higher than the render node,
-    // will get the wrong texture when copy texture in RhiNode::render.
-    // But the opaque node will be cover the wrong area to the
-    // RhiNode::renderTarget after RhiNode::render, but if you using
-    // MultiEffect's blur effect for the copied texture, the blur result
-    // will contains the opaque node's contains. Fortunately, this kind
-    // of problem is not very obvious.
-    //
-    // We should fix this bug in Qt in the future.
     RenderingFlags flags() const override {
-        if (Q_UNLIKELY(!contentNode))
-            return BoundedRectRendering | DepthAwareRendering;
+        RenderingFlags flags;
+        if (!contentNode)
+            flags |= BoundedRectRendering;
+        const bool isVulkan = m_item && m_item->window()
+            && m_item->window()->graphicsApi()
+                == QSGRendererInterface::Vulkan;
 
-        return DepthAwareRendering;
+        // Vulkan backdrop rendering must remain in painter order. Advertising
+        // depth awareness lets Qt move opaque nodes above this node ahead of
+        // it, so they get copied into the backdrop and are then overpainted by
+        // the separately rendered effect content.
+        const bool needsPainterOrder = isVulkan;
+        if (!needsPainterOrder)
+            flags |= DepthAwareRendering;
+        if (isVulkan)
+            flags |= NoExternalRendering;
+
+        return flags;
     }
 
     void releaseResources() override {
@@ -709,6 +1006,10 @@ public:
 
     void prepare() override {
         contentNode = nullptr;
+        vulkanReady = false;
+        vulkanResumeTarget = nullptr;
+        vulkanCopySourceRect = {};
+        vulkanCopyDestination = {};
 
         if (Q_UNLIKELY(!m_item || !m_item->window())) {
             reset();
@@ -735,15 +1036,60 @@ public:
         }
 
         const auto currentRenderer = maybeBufferRenderer();
+        const bool isVulkan = window->rhi()
+            && window->rhi()->backend() == QRhi::Vulkan;
+        if (isVulkan) {
+            if (!currentRenderer) {
+                setVulkanUnavailable("not rendering through WBufferRenderer", ct);
+                return;
+            }
+            if (!ct->flags().testFlag(QRhiTexture::UsedAsTransferSource)) {
+                setVulkanUnavailable("output modifier does not support transfer-source usage", ct);
+                return;
+            }
+            if (ct->sampleCount() != 1) {
+                setVulkanUnavailable("multisampled output copy is unsupported", ct);
+                return;
+            }
+
+            auto resumeTarget = currentRenderer->currentVulkanBackdropResumeTarget();
+            if (!resumeTarget
+                || resumeTarget->resourceType() != QRhiResource::TextureRenderTarget
+                || renderTarget()->resourceType() != QRhiResource::TextureRenderTarget) {
+                setVulkanUnavailable("Vulkan backdrop resume target is unavailable", ct);
+                return;
+            }
+
+            auto currentTextureTarget = static_cast<QRhiTextureRenderTarget *>(renderTarget());
+            auto resumeTextureTarget = static_cast<QRhiTextureRenderTarget *>(resumeTarget);
+            const auto currentDesc = currentTextureTarget->description();
+            const auto resumeDesc = resumeTextureTarget->description();
+            if (currentDesc.colorAttachmentCount() < 1
+                || resumeDesc.colorAttachmentCount() < 1
+                || currentDesc.colorAttachmentAt(0)->texture() != ct
+                || resumeDesc.colorAttachmentAt(0)->texture() != ct
+                || !currentDesc.depthTexture()
+                || currentDesc.depthTexture() != resumeDesc.depthTexture()
+                || currentDesc.depthStencilBuffer()
+                || resumeDesc.depthStencilBuffer()
+                || !resumeTextureTarget->flags().testFlag(
+                    QRhiTextureRenderTarget::PreserveColorContents)
+                || !resumeTextureTarget->flags().testFlag(
+                    QRhiTextureRenderTarget::PreserveDepthStencilContents)) {
+                setVulkanUnavailable("Vulkan backdrop target attachments are incompatible", ct);
+                return;
+            }
+            vulkanResumeTarget = resumeTextureTarget;
+        }
+
         // TODO: Apple viewport to matrix, needs get QSGRenderer
         renderMatrix = currentRenderer
                            ? currentRenderer->currentWorldTransform() * (*this->matrix())
                            : *this->matrix();
         devicePixelRatio = effectiveDevicePixelRatio();
-        const auto oldManager = manager;
-        manager = RhiTextureManager::resolveByOwner(manager, window);
-
-        if (oldManager != manager) {
+        if (Q_UNLIKELY(!manager || manager->owner() != window)) {
+            const auto oldManager = manager;
+            manager = RhiTextureManager::resolveByOwner(manager, window);
             sgTexture()->setTexture(nullptr);
             if (oldManager)
                 oldManager->release(texture);
@@ -751,10 +1097,12 @@ public:
         }
 
         Q_ASSERT(ct->rhi() == window->rhi());
-        rhi = rhi->resolveByOwner(rhi, window);
+        if (Q_UNLIKELY(!rhi || rhi->owner() != window))
+            rhi = RhiManager::resolveByOwner(rhi, window);
         Q_ASSERT(rhi);
 
-        const bool hasRotation = renderMatrix.flags().testAnyFlags(QMatrix4x4::Rotation2D | QMatrix4x4::Rotation);
+        hasRotation = renderMatrix.flags().testAnyFlags(
+            QMatrix4x4::Rotation2D | QMatrix4x4::Rotation);
         QSize pixelSize;
 
         if (hasRotation) {
@@ -777,6 +1125,7 @@ public:
                 renderData->rootNode.appendChildNode(renderData->imageNode);
             }
         } else {
+            vulkanRotationRenderer.reset();
             renderData.reset();
 
             QSizeF size = renderMatrix.mapRect(m_rect).size() * devicePixelRatio;
@@ -788,10 +1137,43 @@ public:
             pixelSize = size.toSize();
         }
 
+        if (pixelSize.isEmpty()) {
+            reset();
+            return;
+        }
+
+        if (isVulkan) {
+            const QRect renderTargetRect(QPoint(0, 0), ct->pixelSize());
+            if (hasRotation) {
+                // Keep the same source coordinate domain as the GLES2 path.
+                // A projective rotation and a fractional DPR do not commute,
+                // so a DPR-scaled mapped bounding box can omit pixels that the
+                // inverse transform still samples.
+                vulkanCopySourceRect = renderTargetRect;
+                vulkanCopyDestination = QPoint(0, 0);
+            } else {
+                const QPoint sourcePos =
+                    (renderMatrix.map(m_rect.topLeft()) * devicePixelRatio).toPoint();
+                vulkanCopySourceRect = QRect(sourcePos, pixelSize)
+                    .intersected(renderTargetRect);
+                vulkanCopyDestination = vulkanCopySourceRect.topLeft() - sourcePos;
+            }
+
+            if (vulkanCopySourceRect.isEmpty()) {
+                reset();
+                return;
+            }
+        }
+
         {
             auto format = attribs.format;
             auto modifier = attribs.modifier;
-            texture = manager->resolve(texture, ct->format(), std::move(format), std::move(modifier), pixelSize);
+            QRhiTexture::Flags textureFlags = isVulkan
+                ? ct->flags() & QRhiTexture::sRGB
+                : QRhiTexture::Flags {};
+            texture = manager->resolve(texture, ct->format(), std::move(format),
+                                       std::move(modifier), pixelSize,
+                                       std::move(textureFlags));
         }
         if (Q_UNLIKELY(texture.expired())) {
             reset();
@@ -803,16 +1185,39 @@ public:
         if (renderData) {
             if (!renderData->rt || sgTexture()->rhiTexture() != texture->data->rhiTexture) {
                 QRhiTextureRenderTargetDescription rtDesc(texture->data->rhiTexture);
-                const auto flags = QRhiTextureRenderTarget::PreserveColorContents
-                    | QRhiTextureRenderTarget::PreserveDepthStencilContents;
+                const auto flags = isVulkan
+                    ? QRhiTextureRenderTarget::Flags {}
+                    : QRhiTextureRenderTarget::PreserveColorContents
+                        | QRhiTextureRenderTarget::PreserveDepthStencilContents;
                 auto newRT = rhi->rhi()->newTextureRenderTarget(rtDesc, flags);
                 newRT->setRenderPassDescriptor(newRT->newCompatibleRenderPassDescriptor());
                 if (!newRT->create()) {
                     delete newRT;
+                    if (isVulkan)
+                        setVulkanUnavailable("failed to create rotated backdrop render target", ct);
                     return;
                 }
 
                 renderData->rt.reset(newRT);
+            }
+
+            if (isVulkan
+                && (!renderData->scratchTexture
+                    || renderData->scratchTexture->format() != ct->format()
+                    || renderData->scratchTexture->pixelSize() != vulkanCopySourceRect.size()
+                    || (renderData->scratchTexture->flags() & QRhiTexture::sRGB)
+                        != (ct->flags() & QRhiTexture::sRGB))) {
+                const QRhiTexture::Flags scratchFlags = ct->flags() & QRhiTexture::sRGB;
+                std::unique_ptr<QRhiTexture> scratchTexture(
+                    rhi->rhi()->newTexture(ct->format(), vulkanCopySourceRect.size(),
+                                           1, scratchFlags));
+                scratchTexture->setName(
+                    QByteArrayLiteral("WaylibRenderBufferNodeScratchTexture"));
+                if (!scratchTexture->create()) {
+                    setVulkanUnavailable("failed to create rotated backdrop scratch texture", ct);
+                    return;
+                }
+                renderData->scratchTexture = std::move(scratchTexture);
             }
         }
 
@@ -820,6 +1225,79 @@ public:
             auto rootNode = WQmlHelper::getRootNode(m_content);
             if (rootNode && rootNode->firstChild()) {
                 contentNode = rootNode;
+            }
+        }
+
+        if (isVulkan) {
+            const auto ensureInlineRenderer = [&] (
+                std::unique_ptr<VulkanInlineRenderer> &inlineRenderer,
+                const char *role) {
+                if (inlineRenderer && inlineRenderer->owner() != window)
+                    inlineRenderer.reset();
+                if (!inlineRenderer) {
+                    inlineRenderer = std::make_unique<VulkanInlineRenderer>(
+                        window, this, role);
+                }
+                return inlineRenderer->isValid();
+            };
+
+            if (hasRotation
+                && !ensureInlineRenderer(vulkanRotationRenderer, "rotation")) {
+                setVulkanUnavailable(
+                    "failed to create the Vulkan rotation inline renderer", ct);
+                return;
+            }
+
+            if (contentNode) {
+                if (!ensureInlineRenderer(vulkanContentRenderer, "content")) {
+                    setVulkanUnavailable(
+                        "failed to create the Vulkan content inline renderer", ct);
+                    return;
+                }
+            } else {
+                vulkanContentRenderer.reset();
+            }
+        }
+
+        vulkanReady = isVulkan;
+        if (isVulkan && WVulkanTrace::enabled()) {
+            const bool outerDepthEnabled = currentRenderer
+                && currentRenderer->currentBatchRenderer()
+                && rendererUseDepthBuffer(
+                    currentRenderer->currentBatchRenderer());
+            qCDebug(lcWlRenderBuffer).noquote()
+                << QStringLiteral("VKTRACE event=blitter-prepare node=%1 item=%2 current=%3 resume=%4 color=%5 depth=%6 copyX=%7 copyY=%8 copyW=%9 copyH=%10 dstX=%11 dstY=%12 rotated=%13 content=%14 ordering=%15 depthAware=%16 outerDepth=%17")
+                       .arg(quintptr(this), 0, 16)
+                       .arg(quintptr(m_item.data()), 0, 16)
+                       .arg(quintptr(renderTarget()), 0, 16)
+                       .arg(quintptr(vulkanResumeTarget), 0, 16)
+                       .arg(quintptr(ct), 0, 16)
+                       .arg(quintptr(static_cast<QRhiTextureRenderTarget *>(renderTarget())
+                                         ->description().depthTexture()), 0, 16)
+                       .arg(vulkanCopySourceRect.x())
+                       .arg(vulkanCopySourceRect.y())
+                       .arg(vulkanCopySourceRect.width())
+                       .arg(vulkanCopySourceRect.height())
+                       .arg(vulkanCopyDestination.x())
+                       .arg(vulkanCopyDestination.y())
+                       .arg(hasRotation)
+                       .arg(bool(contentNode))
+                       .arg(QStringLiteral("painter"))
+                       .arg(false)
+                       .arg(outerDepthEnabled);
+            if (hasRotation) {
+                qCDebug(lcWlRenderBuffer).noquote()
+                    << QStringLiteral("VKTRACE event=blitter-rotation-geometry node=%1 copyX=%2 copyY=%3 copyW=%4 copyH=%5 targetW=%6 targetH=%7 backdropW=%8 backdropH=%9 dpr=%10")
+                           .arg(quintptr(this), 0, 16)
+                           .arg(vulkanCopySourceRect.x())
+                           .arg(vulkanCopySourceRect.y())
+                           .arg(vulkanCopySourceRect.width())
+                           .arg(vulkanCopySourceRect.height())
+                           .arg(ct->pixelSize().width())
+                           .arg(ct->pixelSize().height())
+                           .arg(pixelSize.width())
+                           .arg(pixelSize.height())
+                           .arg(devicePixelRatio, 0, 'f', 3);
             }
         }
     }
@@ -835,14 +1313,8 @@ public:
 
         if (renderWindow()->rhi()
             && renderWindow()->rhi()->backend() == QRhi::Vulkan) {
-            if (auto renderTargetBuffer = WRenderHelper::lookupBuffer(ct)) {
-                qCDebug(lcWlRenderBuffer) << "Skipping WRenderBufferNode copy from Vulkan wlroots render buffer"
-                                          << "textureSize" << ct->pixelSize()
-                                          << "renderTargetBuffer" << renderTargetBuffer
-                                          << "wlrBuffer" << renderTargetBuffer->handle();
-                reset();
-                return;
-            }
+            renderVulkan(ct, rhiTexture);
+            return;
         }
 
         if (renderData) {
@@ -959,6 +1431,303 @@ public:
     }
 
 private:
+    void setVulkanUnavailable(const char *reason, QRhiTexture *renderTexture) {
+        vulkanReady = false;
+        vulkanResumeTarget = nullptr;
+        const bool hadTexture = sgTexture()->rhiTexture();
+        reset(false);
+        if (hadTexture)
+            doNotifyTextureChanged();
+        if (vulkanUnavailableLogged)
+            return;
+
+        qCWarning(lcWlRenderBuffer) << "Disabled RenderBufferBlitter for Vulkan render target"
+                                    << "reason" << reason
+                                    << "item" << m_item
+                                    << "itemSize" << m_size
+                                    << "renderTargetSize"
+                                    << (renderTexture ? renderTexture->pixelSize() : QSize());
+        vulkanUnavailableLogged = true;
+    }
+
+    void renderVulkan(QRhiTexture *currentTexture, QRhiTexture *backdropTexture) {
+        if (!vulkanReady || !vulkanResumeTarget || !rhi)
+            return;
+
+        const quint64 passSequence = ++vulkanPassSequence;
+
+        auto cb = commandBuffer();
+        if (!cb) {
+            setVulkanUnavailable("missing current QRhi command buffer", currentTexture);
+            return;
+        }
+        if (hasRotation
+            && (!renderData || !renderData->rt || !renderData->scratchTexture)) {
+            setVulkanUnavailable("rotated backdrop resources are incomplete", currentTexture);
+            return;
+        }
+
+        auto rub = rhi->rhi()->nextResourceUpdateBatch();
+        QRhiTextureCopyDescription copyDescription;
+        copyDescription.setPixelSize(vulkanCopySourceRect.size());
+        copyDescription.setSourceTopLeft(vulkanCopySourceRect.topLeft());
+        copyDescription.setDestinationTopLeft(vulkanCopyDestination);
+        rub->copyTexture(hasRotation ? renderData->scratchTexture.get() : backdropTexture,
+                         currentTexture,
+                         copyDescription);
+
+        if (WVulkanTrace::enabled()) {
+            qCDebug(lcWlRenderBuffer).noquote()
+                << QStringLiteral("VKTRACE event=blitter-pass node=%1 sequence=%2 phase=end-main-and-copy commandBuffer=%3 current=%4 backdrop=%5 resume=%6")
+                       .arg(quintptr(this), 0, 16)
+                       .arg(passSequence)
+                       .arg(quintptr(cb), 0, 16)
+                       .arg(quintptr(currentTexture), 0, 16)
+                       .arg(quintptr(backdropTexture), 0, 16)
+                       .arg(quintptr(vulkanResumeTarget), 0, 16);
+        }
+
+        // Vulkan cannot copy an image while it is an active color attachment.
+        // Split the outer pass, keep every operation on Qt's command buffer,
+        // then resume on a render-pass-compatible target that loads both the
+        // shared color and depth-stencil attachments.
+        cb->endPass(rub);
+        bool outerPassActive = false;
+        const auto passFlags = QRhiCommandBuffer::ExternalContent
+            | QRhiCommandBuffer::DoNotTrackResourcesForCompute;
+        const auto resumeOuterPass = [&] {
+            if (outerPassActive)
+                return;
+            cb->beginPass(vulkanResumeTarget,
+                          Qt::transparent,
+                          QRhiDepthStencilClearValue(1.0f, 0),
+                          nullptr,
+                          passFlags);
+            outerPassActive = true;
+            if (WVulkanTrace::enabled()) {
+                qCDebug(lcWlRenderBuffer).noquote()
+                    << QStringLiteral("VKTRACE event=blitter-pass node=%1 sequence=%2 phase=resume-main commandBuffer=%3 resume=%4")
+                           .arg(quintptr(this), 0, 16)
+                           .arg(passSequence)
+                           .arg(quintptr(cb), 0, 16)
+                           .arg(quintptr(vulkanResumeTarget), 0, 16);
+            }
+        };
+        const auto passGuard = qScopeGuard(resumeOuterPass);
+
+        auto *depthStencilTexture = static_cast<QRhiTextureRenderTarget *>(
+                                        renderTarget())
+                                        ->description()
+                                        .depthTexture();
+        if (!recordVulkanDepthStencilPassBarrier(
+                rhi->rhi(), cb, depthStencilTexture)) {
+            // Restore the outer pass before disabling this node. The caller
+            // still owns that pass and expects it to remain active.
+            resumeOuterPass();
+            setVulkanUnavailable(
+                "failed to record the depth-stencil pass barrier",
+                currentTexture);
+            return;
+        }
+        if (WVulkanTrace::enabled()) {
+            qCDebug(lcWlRenderBuffer).noquote()
+                << QStringLiteral("VKTRACE event=blitter-pass node=%1 sequence=%2 phase=depth-stencil-barrier depth=%3")
+                       .arg(quintptr(this), 0, 16)
+                       .arg(passSequence)
+                       .arg(quintptr(depthStencilTexture), 0, 16);
+        }
+
+        if (hasRotation) {
+            if (!vulkanRotationRenderer) {
+                setVulkanUnavailable(
+                    "missing Vulkan rotation inline renderer", currentTexture);
+                return;
+            }
+
+            auto scratchTexture = renderData->scratchTexture.get();
+            renderData->texture.setTexture(scratchTexture);
+            renderData->texture.setTextureSize(scratchTexture->pixelSize());
+
+            const QPointF sourcePos = renderMatrix.map(m_rect.topLeft());
+            const QRectF imageRect(
+                -(devicePixelRatio - 1) * sourcePos,
+                scratchTexture->pixelSize());
+            const QRectF imageSourceRect(
+                QPointF(0, 0), scratchTexture->pixelSize());
+
+            // The full-size scratch texture deliberately reproduces the GLES2
+            // image geometry. This keeps every texel reachable by the inverse
+            // projective transform, including at fractional DPR.
+            renderData->imageNode->setSourceRect(imageSourceRect);
+            renderData->imageNode->setRect(imageRect);
+
+            if (WVulkanTrace::enabled()) {
+                qCDebug(lcWlRenderBuffer).noquote()
+                    << QStringLiteral("VKTRACE event=blitter-rotation-draw node=%1 sequence=%2 rectX=%3 rectY=%4 rectW=%5 rectH=%6 sourceX=%7 sourceY=%8 sourceW=%9 sourceH=%10 scratchW=%11 scratchH=%12")
+                           .arg(quintptr(this), 0, 16)
+                           .arg(passSequence)
+                           .arg(imageRect.x(), 0, 'f', 3)
+                           .arg(imageRect.y(), 0, 'f', 3)
+                           .arg(imageRect.width(), 0, 'f', 3)
+                           .arg(imageRect.height(), 0, 'f', 3)
+                           .arg(imageSourceRect.x(), 0, 'f', 3)
+                           .arg(imageSourceRect.y(), 0, 'f', 3)
+                           .arg(imageSourceRect.width(), 0, 'f', 3)
+                           .arg(imageSourceRect.height(), 0, 'f', 3)
+                           .arg(scratchTexture->pixelSize().width())
+                           .arg(scratchTexture->pixelSize().height());
+            }
+
+            if (!vulkanRotationRenderer->sync(
+                    backdropTexture->pixelSize(),
+                    &renderData->rootNode,
+                    renderMatrix.inverted(),
+                    {},
+                    nullptr,
+                    {backdropTexture->pixelSize().width()
+                         / float(m_rect.width() * devicePixelRatio),
+                     backdropTexture->pixelSize().height()
+                         / float(m_rect.height() * devicePixelRatio)})) {
+                setVulkanUnavailable(
+                    "failed to synchronize the Vulkan rotation inline renderer",
+                    currentTexture);
+                return;
+            }
+            if (!vulkanRotationRenderer->prepareInline(renderData->rt.get(), cb)) {
+                setVulkanUnavailable(
+                    "failed to prepare the Vulkan rotation inline renderer",
+                    currentTexture);
+                return;
+            }
+            cb->beginPass(renderData->rt.get(),
+                          Qt::transparent,
+                          QRhiDepthStencilClearValue(1.0f, 0),
+                          nullptr,
+                          passFlags);
+            vulkanRotationRenderer->renderInline();
+            cb->endPass();
+            if (WVulkanTrace::enabled()) {
+                qCDebug(lcWlRenderBuffer).noquote()
+                    << QStringLiteral("VKTRACE event=blitter-pass node=%1 sequence=%2 phase=rotation-complete renderer=%3 root=%4")
+                           .arg(quintptr(this), 0, 16)
+                           .arg(passSequence)
+                           .arg(quintptr(vulkanRotationRenderer->renderer()), 0, 16)
+                           .arg(quintptr(vulkanRotationRenderer->rootNode()), 0, 16);
+            }
+        }
+
+        if (sgTexture()->rhiTexture() != backdropTexture)
+            sgTexture()->setTexture(backdropTexture);
+        doNotifyTextureChanged();
+
+        if (!contentNode)
+            return;
+
+        if (!vulkanContentRenderer) {
+            setVulkanUnavailable(
+                "missing Vulkan content inline renderer", currentTexture);
+            return;
+        }
+
+        auto currentRenderer = maybeBufferRenderer();
+        if (!currentRenderer) {
+            reset();
+            return;
+        }
+
+        QSGNode *childContainer = nullptr;
+        if (clipList() || inheritedOpacity() < 1.0) {
+            if (!node)
+                node.reset(new Node);
+
+            node->opacityNode.setOpacity(inheritedOpacity());
+            node->transformNode.setMatrix(*this->matrix());
+            childContainer = &node->opacityNode;
+            if (clipList()) {
+                if (!node->clipNode) {
+                    node->clipNode = new QQuickDefaultClipNode(
+                        QRectF(0, 0, 65535, 65535));
+                    node->clipNode->setFlag(QSGNode::OwnedByParent, false);
+                    node->clipNode->setClipRect(node->clipNode->rect());
+                    node->clipNode->update();
+
+                    node->rootNode.reparentChildNodesTo(node->clipNode);
+                    node->rootNode.appendChildNode(node->clipNode);
+                }
+            } else {
+                if (node->clipNode)
+                    node->clipNode->reparentChildNodesTo(&node->rootNode);
+
+                delete node->clipNode;
+                node->clipNode = nullptr;
+            }
+
+            overrideChildNodesTo(contentNode, childContainer);
+        }
+
+        const auto childGuard = qScopeGuard([&] {
+            if (childContainer) {
+                // The temporary wrapper borrows the content subtree. Detach
+                // the dedicated renderer while the borrowed nodes are still
+                // below its root, then restore their real parent.
+                if (vulkanContentRenderer)
+                    vulkanContentRenderer->detachRoot();
+                restoreChildNodesTo(childContainer, contentNode);
+            }
+        });
+
+        QSGRootNode *contentRenderRoot = nullptr;
+        QMatrix4x4 contentMatrix;
+        if (childContainer) {
+            contentRenderRoot = &node->rootNode;
+        } else {
+            node.reset();
+            contentRenderRoot = contentNode;
+            contentMatrix = *this->matrix();
+        }
+
+        if (node && node->clipNode) {
+            if (!node->clipNode->clipList()) {
+                node->clipNode->setRendererClipList(clipList());
+            } else {
+                auto lastClipNode = node->clipNode->clipList();
+                while (auto cliplist = lastClipNode->clipList())
+                    lastClipNode = cliplist;
+                Q_ASSERT(!lastClipNode->clipList());
+                const_cast<QSGClipNode *>(lastClipNode)->setRendererClipList(clipList());
+            }
+        }
+
+        if (!vulkanContentRenderer->sync(
+                currentTexture->pixelSize(),
+                contentRenderRoot,
+                contentMatrix,
+                *projectionMatrix(),
+                currentRenderer->currentRenderer())) {
+            setVulkanUnavailable(
+                "failed to synchronize the Vulkan content inline renderer",
+                currentTexture);
+            return;
+        }
+        if (!vulkanContentRenderer->prepareInline(vulkanResumeTarget, cb)) {
+            setVulkanUnavailable(
+                "failed to prepare the Vulkan content inline renderer",
+                currentTexture);
+            return;
+        }
+
+        resumeOuterPass();
+        vulkanContentRenderer->renderInline();
+        if (WVulkanTrace::enabled()) {
+            qCDebug(lcWlRenderBuffer).noquote()
+                << QStringLiteral("VKTRACE event=blitter-pass node=%1 sequence=%2 phase=content-complete renderer=%3 root=%4")
+                       .arg(quintptr(this), 0, 16)
+                       .arg(passSequence)
+                       .arg(quintptr(vulkanContentRenderer->renderer()), 0, 16)
+                       .arg(quintptr(vulkanContentRenderer->rootNode()), 0, 16);
+        }
+    }
+
     void reset(bool notifyTexture = true) {
         if (renderData)
             renderData->rt.reset();
@@ -973,6 +1742,10 @@ private:
 
     void destroy() {
         reset(false);
+        // Inline renderers must detach from their roots before the temporary
+        // root containers below are destroyed.
+        vulkanContentRenderer.reset();
+        vulkanRotationRenderer.reset();
         renderData.reset();
         node.reset();
         manager = nullptr;
@@ -984,6 +1757,15 @@ private:
     DataManagerPointer<RhiManager> rhi;
     QMatrix4x4 renderMatrix;
     qreal devicePixelRatio;
+    bool hasRotation = false;
+    bool vulkanReady = false;
+    bool vulkanUnavailableLogged = false;
+    quint64 vulkanPassSequence = 0;
+    QRhiTextureRenderTarget *vulkanResumeTarget = nullptr;
+    QRect vulkanCopySourceRect;
+    QPoint vulkanCopyDestination;
+    std::unique_ptr<VulkanInlineRenderer> vulkanContentRenderer;
+    std::unique_ptr<VulkanInlineRenderer> vulkanRotationRenderer;
 
     struct Node {
         Node() {
@@ -1015,6 +1797,7 @@ private:
         };
 
         std::unique_ptr<QRhiTextureRenderTarget, QRhiTextureRenderTargetDeleter> rt;
+        std::unique_ptr<QRhiTexture> scratchTexture;
         QSGRootNode rootNode;
         QSGImageNode *imageNode;
         QSGPlainTexture texture;
