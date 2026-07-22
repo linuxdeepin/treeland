@@ -900,7 +900,8 @@ static struct wlr_vk_render_buffer *create_render_buffer(
 
 	bool using_mutable_srgb = false;
 	buffer->image = vulkan_import_dmabuf(renderer, &dmabuf,
-		buffer->memories, &buffer->mem_count, true, &using_mutable_srgb);
+		buffer->memories, &buffer->mem_count, true, &using_mutable_srgb,
+		&buffer->image_usage);
 	if (!buffer->image) {
 		goto error;
 	}
@@ -2606,6 +2607,7 @@ bool wlr_vk_renderer_get_render_buffer_attribs(struct wlr_renderer *wlr_renderer
 	attribs->image = render_buffer->image;
 	attribs->layout = VK_IMAGE_LAYOUT_GENERAL;
 	attribs->format = format->vk;
+	attribs->usage = render_buffer->image_usage;
 	return true;
 }
 
@@ -2747,4 +2749,14 @@ uint32_t wlr_vk_renderer_get_queue_family(struct wlr_renderer *renderer) {
 VkQueue wlr_vk_renderer_get_queue(struct wlr_renderer *renderer) {
 	struct wlr_vk_renderer *vk_renderer = vulkan_get_renderer(renderer);
 	return vk_renderer->dev->queue;
+}
+
+bool wlr_vk_renderer_has_separate_depth_stencil_layouts(
+		struct wlr_renderer *renderer) {
+	if (renderer == NULL || !wlr_renderer_is_vk(renderer)) {
+		return false;
+	}
+
+	struct wlr_vk_renderer *vk_renderer = vulkan_get_renderer(renderer);
+	return vk_renderer->dev->separate_depth_stencil_layouts;
 }

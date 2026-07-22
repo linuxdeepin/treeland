@@ -18,6 +18,7 @@ struct wlr_vk_image_attribs {
 	VkImage image;
 	VkImageLayout layout;
 	VkFormat format;
+	VkImageUsageFlags usage;
 };
 
 struct wlr_renderer *wlr_vk_renderer_create_with_drm_fd(int drm_fd);
@@ -27,6 +28,8 @@ VkPhysicalDevice wlr_vk_renderer_get_physical_device(struct wlr_renderer *render
 VkDevice wlr_vk_renderer_get_device(struct wlr_renderer *renderer);
 uint32_t wlr_vk_renderer_get_queue_family(struct wlr_renderer *renderer);
 VkQueue wlr_vk_renderer_get_queue(struct wlr_renderer *renderer);
+bool wlr_vk_renderer_has_separate_depth_stencil_layouts(
+	struct wlr_renderer *renderer);
 
 bool wlr_renderer_is_vk(struct wlr_renderer *wlr_renderer);
 bool wlr_texture_is_vk(struct wlr_texture *texture);
