@@ -115,7 +115,7 @@ set_target_properties(libtreeland PROPERTIES
 qt_add_qml_module(libtreeland
     URI Treeland
     VERSION "2.0"
-    IMPORTS Waylib.Server 1.0
+    IMPORTS Waylib.Server
 
     SOURCES
         ${DDM_DBUS_SOURCES}
