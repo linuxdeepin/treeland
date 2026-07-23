@@ -118,6 +118,16 @@ void SurfaceProxy::setSurface(SurfaceWrapper *newSurface)
                                        &SurfaceWrapper::noCornerRadiusChanged,
                                        this,
                                        &SurfaceProxy::updateNoCornerRadius);
+        m_sourceConnections
+            << connect(m_sourceSurface, &SurfaceWrapper::surfaceStateChanged, this, [this]() {
+                   if (m_proxySurface && m_sourceSurface) {
+                       auto newState = m_sourceSurface->surfaceState();
+                       if (m_proxySurface->m_surfaceState != newState) {
+                           m_proxySurface->m_surfaceState.setValueBypassingBindings(newState);
+                           m_proxySurface->m_surfaceState.notify();
+                       }
+                   }
+               });
 
         m_sourceConnections << connect(m_proxySurface,
                                        &SurfaceWrapper::widthChanged,
