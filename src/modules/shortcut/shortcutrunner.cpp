@@ -294,7 +294,7 @@ void ShortcutRunner::finishWorkspaceSwipe()
     if (!m_slideBounce && (m_desktopOffset > 0.98 || m_desktopOffset < -0.98)) {
         // m_desktopOffset is very close to 1 or -1, just set to the toId directly
         // Not need to play the slide animation
-        workspace->setCurrentIndex(m_toId);
+        workspace->switchTo(m_toId, false);
         auto *controller = workspace->animationController();
         controller->setRunning(false);
         return;
@@ -319,7 +319,7 @@ void ShortcutRunner::finishWorkspaceSwipe()
     if (m_toId >= 0 && m_toId < workspace->count()) {
         controller->slideRunning(m_toId);
         controller->startSlideAnimation();
-        workspace->setCurrentIndex(m_toId);
+        workspace->switchTo(m_toId, false);
     }
 }
 
