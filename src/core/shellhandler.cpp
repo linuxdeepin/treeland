@@ -14,6 +14,7 @@
 #include "modules/prelaunch-splash/prelaunchsplash.h"
 #include "modules/wine-window-management/winewindowmanagement.h"
 #include "modules/wine-window-state/winewindowstate.h"
+#include "output/output.h"
 #include "rootsurfacecontainer.h"
 #include "seat/helper.h"
 #include "seat/seatsmanager.h"
@@ -56,6 +57,21 @@ QW_USE_NAMESPACE
 WAYLIB_SERVER_USE_NAMESPACE
 
 #define TREELAND_XDG_SHELL_VERSION 5
+
+namespace {
+bool isValidRestoreSize(const QSize &size)
+{
+    return size.isValid() && size.width() > 0 && size.height() > 0;
+}
+
+QSize restoreSizeForPrelaunchWrapper(const SurfaceWrapper *wrapper)
+{
+    QSize size = wrapper->normalGeometry().size().toSize();
+    if (!isValidRestoreSize(size))
+        size = QSize(qRound(wrapper->implicitWidth()), qRound(wrapper->implicitHeight()));
+    return isValidRestoreSize(size) ? size : QSize();
+}
+} // namespace
 
 ShellHandler::ShellHandler(RootSurfaceContainer *rootContainer, WServer *server)
     : m_rootSurfaceContainer(rootContainer)
@@ -127,6 +143,8 @@ void ShellHandler::handlePrelaunchSplashRequested(const QString &appId,
                                                   const QString &instanceId,
                                                   QW_NAMESPACE::qw_buffer *iconBuffer)
 {
+    m_unmatchedPrelaunchAppIds.remove(appId);
+
     auto skipSplash = [this, appId, iconBuffer] {
         if (iconBuffer) {
             iconBuffer->unlock();
@@ -178,6 +196,10 @@ void ShellHandler::createPrelaunchSplash(const QString &appId,
     Q_UNUSED(instanceId); // TODO: will be provided by AM DBus in future
 
     if (!m_pendingPrelaunchAppIds.contains(appId)) {
+        // A real window may have consumed the pending identity while DConfig was still loading.
+        // Preserve the now-available restore size for that wrapper instead of creating a late
+        // splash.
+        updateUnmatchedPrelaunchLastSize(appId, lastSize);
         if (iconBuffer) {
             iconBuffer->unlock();
         }
@@ -244,6 +266,9 @@ void ShellHandler::createPrelaunchSplash(const QString &appId,
                                qCDebug(lcTlShell)
                                    << "Prelaunch splash timeout, destroy wrapper appId="
                                    << wrapper->appId();
+                               rememberUnmatchedPrelaunchAppId(
+                                   wrapper->appId(),
+                                   restoreSizeForPrelaunchWrapper(wrapper));
                                m_prelaunchWrappers.removeAt(idx);
                                m_rootSurfaceContainer->destroyForSurface(wrapper);
                            });
@@ -254,8 +279,8 @@ void ShellHandler::handlePrelaunchSplashClosed(const QString &appId, const QStri
 {
     Q_UNUSED(instanceId); // TODO: will be provided by AM DBus in future
 
-    // Remove pending prelaunch request if it hasn't created a wrapper yet
-    m_pendingPrelaunchAppIds.remove(appId);
+    // Remove pending prelaunch request if it hasn't created a wrapper yet.
+    const bool removedPendingRequest = m_pendingPrelaunchAppIds.remove(appId);
 
     // Find and destroy any existing prelaunch wrapper with the matching appId
     for (int i = 0; i < m_prelaunchWrappers.size(); ++i) {
@@ -263,11 +288,91 @@ void ShellHandler::handlePrelaunchSplashClosed(const QString &appId, const QStri
         if (wrapper->appId() == appId) {
             qCDebug(lcTlShell)
                 << "Client requested close_splash, destroy wrapper appId=" << appId;
+            rememberUnmatchedPrelaunchAppId(appId, restoreSizeForPrelaunchWrapper(wrapper));
             m_prelaunchWrappers.removeAt(i);
             m_rootSurfaceContainer->destroyForSurface(wrapper);
             return;
         }
     }
+
+    if (removedPendingRequest)
+        rememberUnmatchedPrelaunchAppId(appId);
+}
+
+bool ShellHandler::hasPrelaunchAppIdCandidates() const
+{
+    return !m_prelaunchWrappers.isEmpty() || !m_pendingPrelaunchAppIds.isEmpty()
+        || !m_closedSplashAppIds.isEmpty() || !m_unmatchedPrelaunchAppIds.isEmpty();
+}
+
+void ShellHandler::rememberUnmatchedPrelaunchAppId(const QString &appId,
+                                                   const QSize &lastNormalSize)
+{
+    if (appId.isEmpty() || m_closedSplashAppIds.contains(appId))
+        return;
+
+    const quint64 generation = ++m_prelaunchAppIdGeneration;
+    UnmatchedPrelaunchInfo info;
+    info.generation = generation;
+    if (isValidRestoreSize(lastNormalSize))
+        info.lastNormalSize = lastNormalSize;
+    m_unmatchedPrelaunchAppIds.insert(appId, info);
+
+    const qlonglong configuredTimeout =
+        Helper::instance()->globalConfig()->prelaunchSplashTimeoutMs();
+    const qlonglong requestedRetention =
+        configuredTimeout > 0 ? configuredTimeout : qlonglong(5000);
+    const int retentionMs = static_cast<int>(
+        qBound(qlonglong(5000), requestedRetention, qlonglong(60000)));
+    qCDebug(lcTlShell) << "Retaining unmatched prelaunch appId" << appId << "normal size"
+                       << info.lastNormalSize << "for" << retentionMs << "ms";
+
+    QTimer::singleShot(retentionMs, this, [this, appId, generation] {
+        const auto it = m_unmatchedPrelaunchAppIds.constFind(appId);
+        if (it != m_unmatchedPrelaunchAppIds.cend() && it->generation == generation)
+            m_unmatchedPrelaunchAppIds.remove(appId);
+    });
+}
+
+void ShellHandler::updateUnmatchedPrelaunchLastSize(const QString &appId,
+                                                    const QSize &lastNormalSize)
+{
+    if (!isValidRestoreSize(lastNormalSize))
+        return;
+
+    auto it = m_unmatchedPrelaunchAppIds.find(appId);
+    if (it == m_unmatchedPrelaunchAppIds.end())
+        return;
+
+    it->lastNormalSize = lastNormalSize;
+    for (const QPointer<SurfaceWrapper> &wrapper : std::as_const(it->waitingWrappers)) {
+        if (wrapper)
+            wrapper->setRestoredNormalSize(lastNormalSize);
+    }
+    it->waitingWrappers.clear();
+    qCDebug(lcTlShell) << "Updated unmatched prelaunch normal size for" << appId << "to"
+                       << lastNormalSize;
+}
+
+void ShellHandler::seedUnmatchedPrelaunchLastSize(const QString &appId,
+                                                 SurfaceWrapper *wrapper)
+{
+    if (appId.isEmpty() || !wrapper)
+        return;
+
+    auto it = m_unmatchedPrelaunchAppIds.find(appId);
+    if (it == m_unmatchedPrelaunchAppIds.end())
+        return;
+
+    if (isValidRestoreSize(it->lastNormalSize)) {
+        wrapper->setRestoredNormalSize(it->lastNormalSize);
+        qCDebug(lcTlShell) << "Seeded unmatched prelaunch normal size for" << appId << "as"
+                           << it->lastNormalSize;
+        return;
+    }
+
+    if (!it->waitingWrappers.contains(wrapper))
+        it->waitingWrappers.append(wrapper);
 }
 
 Workspace *ShellHandler::workspace() const
@@ -398,10 +503,28 @@ void ShellHandler::removeXWayland(WXWayland *xwayland)
 
 void ShellHandler::onXdgToplevelSurfaceAdded(WXdgToplevelSurface *surface)
 {
-    // If there are prelaunch wrappers or closed splash appIds and the resolver is available
+    surface->safeConnect(
+        &WXdgToplevelSurface::initialConfigureRequested,
+        this,
+        [this, surface] {
+            if (surface->isMaximizeRequested())
+                configureInitialXdgMaximize(surface);
+        },
+        Qt::DirectConnection);
+    surface->safeConnect(&WToplevelSurface::requestMaximize, this, [this, surface] {
+        if (surface->isInitialized() && surface->surface()
+            && (!surface->surface()->mapped()
+                || !m_rootSurfaceContainer->getSurface(surface))) {
+            configureInitialXdgMaximize(surface);
+        }
+    });
+    surface->safeConnect(&WToplevelSurface::requestCancelMaximize, this, [this, surface] {
+        cancelPendingInitialXdgMaximize(surface);
+    });
+
+    // If there are prelaunch identities to match and the resolver is available
     // -> attempt async resolve; remaining logic continues in the callback on success
-    if ((!m_prelaunchWrappers.isEmpty() || !m_closedSplashAppIds.isEmpty())
-        && m_appIdResolverManager) {
+    if (hasPrelaunchAppIdCandidates() && m_appIdResolverManager) {
         int pidfd = surface->pidFD();
         if (pidfd >= 0) {
             // Register pending before starting async resolve (unified list)
@@ -435,8 +558,85 @@ void ShellHandler::onXdgToplevelSurfaceAdded(WXdgToplevelSurface *surface)
     ensureXdgWrapper(surface, QString());
 }
 
+bool ShellHandler::configureInitialXdgMaximize(WXdgToplevelSurface *surface)
+{
+    if (!surface || !surface->isInitialized() || !surface->isMaximizeRequested()
+        || !surface->hasCapability(WToplevelSurface::Capability::Maximized)) {
+        return false;
+    }
+
+    SurfaceWrapper *wrapper = m_rootSurfaceContainer->getSurface(surface);
+    Output *output = wrapper ? wrapper->ownsOutput() : nullptr;
+    if (!output) {
+        if (auto *parentSurface = surface->parentSurface()) {
+            if (auto *parentWrapper = m_rootSurfaceContainer->getSurface(parentSurface))
+                output = parentWrapper->ownsOutput();
+        }
+    }
+    if (!output)
+        output = m_rootSurfaceContainer->primaryOutput();
+    if (!output)
+        return false;
+
+    QRectF targetGeometry = output->validGeometry();
+    if (!targetGeometry.isValid() || targetGeometry.isEmpty())
+        return false;
+
+    QSize configureSize = targetGeometry.size().toSize();
+    QSize clippedSize;
+    if (!surface->checkNewSize(configureSize, &clippedSize))
+        configureSize = clippedSize;
+    if (!configureSize.isValid() || configureSize.isEmpty())
+        return false;
+    targetGeometry.setSize(configureSize);
+
+    // Waylib has already scheduled the 0x0 fallback on this event-loop turn. wlroots keeps one
+    // idle configure, so these size and state updates replace that fallback atomically.
+    bool configured = true;
+    if (wrapper)
+        configured = wrapper->resize(targetGeometry.size());
+    else
+        surface->resize(configureSize);
+    if (!configured)
+        return false;
+
+    surface->setMaximize(true);
+    if (wrapper) {
+        wrapper->adoptInitialXdgMaximize(targetGeometry);
+    } else {
+        m_pendingInitialXdgMaximizeGeometries.insert(surface, targetGeometry);
+    }
+
+    qCDebug(lcTlShell) << "Configured initial XDG maximize for" << surface->appId() << "target"
+                       << targetGeometry << "wrapperReady" << bool(wrapper);
+    return true;
+}
+
+void ShellHandler::cancelPendingInitialXdgMaximize(WXdgToplevelSurface *surface)
+{
+    const auto it = m_pendingInitialXdgMaximizeGeometries.find(surface);
+    if (it == m_pendingInitialXdgMaximizeGeometries.end())
+        return;
+
+    m_pendingInitialXdgMaximizeGeometries.erase(it);
+    if (surface->isInitialized()) {
+        surface->resize(QSize());
+        surface->setMaximize(false);
+    }
+    qCDebug(lcTlShell) << "Cancelled pending initial XDG maximize for" << surface->appId();
+}
+
 void ShellHandler::ensureXdgWrapper(WXdgToplevelSurface *surface, const QString &targetAppId)
 {
+    const QRectF initialMaximizedGeometry =
+        m_pendingInitialXdgMaximizeGeometries.take(surface);
+
+    if (!targetAppId.isEmpty()) {
+        const bool wasPending = m_pendingPrelaunchAppIds.remove(targetAppId);
+        if (wasPending && !m_unmatchedPrelaunchAppIds.contains(targetAppId))
+            rememberUnmatchedPrelaunchAppId(targetAppId);
+    }
+
     // Check if this matches a closed splash screen
     if (!targetAppId.isEmpty() && m_closedSplashAppIds.contains(targetAppId)) {
         qCInfo(lcTlShell) << "XDG surface matches closed splash, closing immediately: appId="
@@ -450,13 +650,14 @@ void ShellHandler::ensureXdgWrapper(WXdgToplevelSurface *surface, const QString 
     bool isNewWrapper = true;
 
     if (!targetAppId.isEmpty()) {
-        m_pendingPrelaunchAppIds.remove(targetAppId);
         for (int i = 0; i < m_prelaunchWrappers.size(); ++i) {
             auto *candidate = m_prelaunchWrappers[i];
             if (candidate->appId() == targetAppId) {
                 qCDebug(lcTlShell) << "match prelaunch xdg" << targetAppId;
                 m_prelaunchWrappers.removeAt(i);
-                candidate->convertToNormalSurface(surface, SurfaceWrapper::Type::XdgToplevel);
+                candidate->convertToNormalSurface(surface,
+                                                  SurfaceWrapper::Type::XdgToplevel,
+                                                  initialMaximizedGeometry);
                 wrapper = candidate;
                 isNewWrapper = false; // matched from prelaunch, not newly created
                 break;
@@ -468,7 +669,11 @@ void ShellHandler::ensureXdgWrapper(WXdgToplevelSurface *surface, const QString 
         wrapper = new SurfaceWrapper(Helper::instance()->qmlEngine(),
                                      surface,
                                      SurfaceWrapper::Type::XdgToplevel,
-                                     targetAppId);
+                                     targetAppId,
+                                     nullptr,
+                                     initialMaximizedGeometry);
+        if (!surface->parentSurface())
+            seedUnmatchedPrelaunchLastSize(targetAppId, wrapper);
         m_workspace->addSurface(wrapper);
         isNewWrapper = true; // newly created
     }
@@ -507,6 +712,7 @@ void ShellHandler::ensureXdgWrapper(WXdgToplevelSurface *surface, const QString 
 
 void ShellHandler::onXdgToplevelSurfaceRemoved(WXdgToplevelSurface *surface)
 {
+    m_pendingInitialXdgMaximizeGeometries.remove(surface);
     auto wrapper = m_rootSurfaceContainer->getSurface(surface);
     // If async resolve still pending, cancel it. If wrapper never created, just return: compositor
     // never exposed this surface (from treeland's perspective).
@@ -521,13 +727,11 @@ void ShellHandler::onXdgToplevelSurfaceRemoved(WXdgToplevelSurface *surface)
     if (interface) {
         delete interface;
     }
-    // Persist the last size of a normal window (prefer normalGeometry) when an appId is present
-    if (m_windowConfigStore && !wrapper->appId().isEmpty()) {
-        QSizeF sz = wrapper->normalGeometry().size();
-        if (!sz.isValid() || sz.isEmpty()) {
-            sz = wrapper->geometry().size();
-        }
-        const QSize s = sz.toSize();
+    // Persist only geometry observed from the real client. A prelaunch splash or a maximized
+    // presentation geometry is not a valid restore size.
+    if (m_windowConfigStore && !wrapper->appId().isEmpty()
+        && wrapper->hasReliableNormalGeometry()) {
+        const QSize s = wrapper->normalGeometry().size().toSize();
         if (s.isValid() && s.width() > 0 && s.height() > 0) {
             m_windowConfigStore->saveLastSize(wrapper->appId(), s);
         }
@@ -587,11 +791,10 @@ void ShellHandler::onXWaylandSurfaceAdded(WXWaylandSurface *surface)
                              auto raw = surface.data();
                              if (!raw)
                                  return; // surface destroyed before callback
-                             // If prelaunch wrappers or closed splash appIds exist and resolver is
-                             // available, attempt async resolve; if started, remaining logic
-                             // handled in callback, then return
-                             if ((!m_prelaunchWrappers.isEmpty() || !m_closedSplashAppIds.isEmpty())
-                                 && m_appIdResolverManager) {
+                             // If prelaunch identities exist and the resolver is available,
+                             // attempt async resolve; if started, remaining logic is handled in
+                             // the callback.
+                             if (hasPrelaunchAppIdCandidates() && m_appIdResolverManager) {
                                  int pidfd = raw->pidFD();
                                  if (pidfd >= 0) {
                                      m_pendingAppIdResolveToplevels.append(raw);
@@ -644,13 +847,11 @@ void ShellHandler::onXWaylandSurfaceAdded(WXWaylandSurface *surface)
             }
             return; // never created
         }
-        // Persist XWayland window size
-        if (m_windowConfigStore && !wrapper->appId().isEmpty()) {
-            QSizeF sz = wrapper->normalGeometry().size();
-            if (!sz.isValid() || sz.isEmpty()) {
-                sz = wrapper->geometry().size();
-            }
-            const QSize s = sz.toSize();
+        // Only task-level XWayland windows may update the per-app restore size. Utility and child
+        // windows frequently share the same appId and must not overwrite the main window.
+        if (m_windowConfigStore && !wrapper->appId().isEmpty() && surface->isToplevel()
+            && !wrapper->skipDockPreView() && wrapper->hasReliableNormalGeometry()) {
+            const QSize s = wrapper->normalGeometry().size().toSize();
             if (s.isValid() && s.width() > 0 && s.height() > 0) {
                 m_windowConfigStore->saveLastSize(wrapper->appId(), s);
             }
@@ -708,6 +909,12 @@ void ShellHandler::onInitialPropertiesReady(WXWaylandSurface *surface,
 
 void ShellHandler::ensureXwaylandWrapper(WXWaylandSurface *surface, const QString &targetAppId)
 {
+    if (!targetAppId.isEmpty()) {
+        const bool wasPending = m_pendingPrelaunchAppIds.remove(targetAppId);
+        if (wasPending && !m_unmatchedPrelaunchAppIds.contains(targetAppId))
+            rememberUnmatchedPrelaunchAppId(targetAppId);
+    }
+
     // Check if this matches a closed splash screen
     if (!targetAppId.isEmpty() && m_closedSplashAppIds.contains(targetAppId)) {
         qCDebug(lcTlShell)
@@ -721,7 +928,6 @@ void ShellHandler::ensureXwaylandWrapper(WXWaylandSurface *surface, const QStrin
     bool isNewWrapper = true;
 
     if (!targetAppId.isEmpty()) {
-        m_pendingPrelaunchAppIds.remove(targetAppId);
         for (int i = 0; i < m_prelaunchWrappers.size(); ++i) {
             auto *candidate = m_prelaunchWrappers[i];
             if (candidate->appId() == targetAppId) {
@@ -740,6 +946,8 @@ void ShellHandler::ensureXwaylandWrapper(WXWaylandSurface *surface, const QStrin
                                      surface,
                                      SurfaceWrapper::Type::XWayland,
                                      targetAppId);
+        if (surface->isToplevel() && !wrapper->skipDockPreView())
+            seedUnmatchedPrelaunchLastSize(targetAppId, wrapper);
         m_workspace->addSurface(wrapper);
         isNewWrapper = true; // newly created
     }

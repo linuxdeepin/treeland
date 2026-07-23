@@ -16,7 +16,9 @@
 #include <QMap>
 #include <QObject>
 #include <QPointer>
+#include <QRectF>
 #include <QSet>
+#include <QSize>
 
 Q_MOC_INCLUDE("workspace/workspace.h")
 Q_MOC_INCLUDE(<wlayersurface.h>)
@@ -157,11 +159,20 @@ private:
                                const QString &darkPalette,
                                const QString &lightPalette,
                                qlonglong splashThemeType);
+    bool hasPrelaunchAppIdCandidates() const;
+    void rememberUnmatchedPrelaunchAppId(const QString &appId,
+                                         const QSize &lastNormalSize = QSize());
+    void updateUnmatchedPrelaunchLastSize(const QString &appId, const QSize &lastNormalSize);
+    void seedUnmatchedPrelaunchLastSize(const QString &appId, SurfaceWrapper *wrapper);
 
     // --- helpers (internal) ---
     // Creates or matches a wrapper from prelaunch splash, then initializes it
     void ensureXdgWrapper(WAYLIB_SERVER_NAMESPACE::WXdgToplevelSurface *surface,
                           const QString &appId);
+    bool configureInitialXdgMaximize(
+        WAYLIB_SERVER_NAMESPACE::WXdgToplevelSurface *surface);
+    void cancelPendingInitialXdgMaximize(
+        WAYLIB_SERVER_NAMESPACE::WXdgToplevelSurface *surface);
     // Creates or matches a wrapper from prelaunch splash, then initializes it
     void ensureXwaylandWrapper(WAYLIB_SERVER_NAMESPACE::WXWaylandSurface *surface,
                                const QString &appId);
@@ -200,11 +211,25 @@ private:
     QSet<QString> m_pendingPrelaunchAppIds;
     // AppIds of closed splash screens, used to close matching real windows
     QSet<QString> m_closedSplashAppIds;
+    struct UnmatchedPrelaunchInfo
+    {
+        quint64 generation = 0;
+        QSize lastNormalSize;
+        QList<QPointer<SurfaceWrapper>> waitingWrappers;
+    };
+    // Launch context whose splash disappeared before a real surface could be matched. Keep its
+    // restore size for a short grace period so an already-maximized first buffer cannot replace
+    // it.
+    QHash<QString, UnmatchedPrelaunchInfo> m_unmatchedPrelaunchAppIds;
+    quint64 m_prelaunchAppIdGeneration = 0;
     // Dock preview QML object
     QObject *m_dockPreview = nullptr;
     // Pending toplevel surfaces (XDG or XWayland) awaiting async AppId resolve; callbacks continue
     // only if the pointer remains in this list
     QList<WAYLIB_SERVER_NAMESPACE::WToplevelSurface *> m_pendingAppIdResolveToplevels;
+    // Accepted XDG initial maximize configurations waiting for asynchronous wrapper creation.
+    QHash<WAYLIB_SERVER_NAMESPACE::WXdgToplevelSurface *, QRectF>
+        m_pendingInitialXdgMaximizeGeometries;
     // New protocol based app id resolver (optional, may be null if module not loaded)
     AppIdResolverManager *m_appIdResolverManager = nullptr;
     WindowConfigStore *m_windowConfigStore = nullptr;

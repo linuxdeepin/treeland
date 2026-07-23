@@ -92,6 +92,9 @@ public:
     const QList<WXWaylandSurface *> &children() const;
     bool isToplevel() const;
     bool hasChild() const;
+    // The latest EWMH state requested by the X11 client. Unlike isMaximized(), this also
+    // reflects state read during association before the compositor has acknowledged it.
+    bool isMaximizeRequested() const;
     bool isMaximized() const override;
     bool isMinimized() const override;
     bool isFullScreen() const override;

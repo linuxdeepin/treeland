@@ -48,7 +48,7 @@ public:
     WWRAP_HANDLE_FUNCTIONS(qw_xwayland_surface, wlr_xwayland_surface)
 
     inline bool isMaximized() const {
-        return nativeHandle()->maximized_horz && nativeHandle()->maximized_vert;
+        return handle()->is_maximized();
     }
 
     wl_client *waylandClient() const override {
@@ -136,7 +136,7 @@ void WXWaylandSurfacePrivate::init()
         }
     });
     QObject::connect(handle(), &qw_xwayland_surface::notify_request_maximize, q, [this, q] {
-        if (nativeHandle()->maximized_horz && nativeHandle()->maximized_vert) {
+        if (isMaximized()) {
             Q_EMIT q->requestMaximize();
         } else {
             Q_EMIT q->requestCancelMaximize();
@@ -381,6 +381,12 @@ bool WXWaylandSurface::hasChild() const
 {
     W_DC(WXWaylandSurface);
     return wl_list_empty(&d->nativeHandle()->children) == 0;
+}
+
+bool WXWaylandSurface::isMaximizeRequested() const
+{
+    W_DC(WXWaylandSurface);
+    return d->isMaximized();
 }
 
 bool WXWaylandSurface::isMaximized() const
