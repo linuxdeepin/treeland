@@ -355,6 +355,7 @@ public:
     void updateCapabilities();
     void attachInputDevice(WInputDevice *device);
     void detachInputDevice(WInputDevice *device);
+    bool canSetCursor(wlr_seat_client *client) const;
     // handle spontaneous & synthetic key event for focusWindow
     void handleKeyEvent(QKeyEvent &e);
 
@@ -452,12 +453,25 @@ void WSeatPrivate::on_destroy()
     q_func()->m_handle = nullptr;
 }
 
+bool WSeatPrivate::canSetCursor(wlr_seat_client *client) const
+{
+    const auto *seat = nativeHandle();
+    if (seat->pointer_state.focused_client == client)
+        return true;
+
+    const auto *drag = seat->drag;
+    return drag
+            && drag->grab_type == WLR_DRAG_GRAB_KEYBOARD_POINTER
+            && drag->seat_client == client;
+}
+
 void WSeatPrivate::on_request_set_cursor(wlr_seat_pointer_request_set_cursor_event *event)
 {
-    auto focused_client = nativeHandle()->pointer_state.focused_client;
-    /* This can be sent by any client, so we check to make sure this one is
-     * actually has pointer focus first. */
-    if (focused_client == event->seat_client) {
+    const bool accepted = canSetCursor(event->seat_client);
+
+    /* This can be sent by any client, so only accept it from the pointer-focused
+     * client or the source client of the active pointer drag. */
+    if (accepted) {
         /* Once we've vetted the client, we can tell the cursor to use the
          * provided surface as the cursor image. It will set the hardware cursor
          * on the output that it's currently on and continue to do so as the
@@ -804,7 +818,7 @@ WGlobal::CursorShape WSeat::requestedCursorShape() const
 {
     W_DC(WSeat);
 
-    if (d->cursorClient != d->nativeHandle()->pointer_state.focused_client) {
+    if (!d->canSetCursor(d->cursorClient)) {
         qCWarning(lcWlSeat, "Focused client never set cursor shape nor surface, will fallback to `Default`");
         return WGlobal::CursorShape::Default;
     }
@@ -816,7 +830,7 @@ WSurface *WSeat::requestedCursorSurface() const
 {
     W_DC(WSeat);
 
-    if (d->cursorClient == d->nativeHandle()->pointer_state.focused_client)
+    if (d->canSetCursor(d->cursorClient))
         return d->cursorSurface;
     return nullptr;
 }
@@ -1479,7 +1493,8 @@ void WSeat::notifyTouchFrame([[maybe_unused]] WCursor *cursor)
 void WSeat::setCursorShape(wlr_seat_client *client, WGlobal::CursorShape shape)
 {
     W_D(WSeat);
-    if (client != d->nativeHandle()->pointer_state.focused_client)
+    const bool accepted = d->canSetCursor(client);
+    if (!accepted)
         return;
     d->cursorShape = shape;
     d->cursorClient = client;
