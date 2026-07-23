@@ -67,7 +67,7 @@ public:
     void setCurrentIndex(int newCurrentIndex);
     Q_INVOKABLE void switchToNext();
     Q_INVOKABLE void switchToPrev();
-    Q_INVOKABLE void switchTo(int index);
+    Q_INVOKABLE void switchTo(int index, bool animated = true);
 
     WorkspaceModel *current() const;
     void setCurrent(WorkspaceModel *container);
