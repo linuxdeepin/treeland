@@ -239,7 +239,7 @@ void Workspace::switchToPrev()
     }
 }
 
-void Workspace::switchTo(int index)
+void Workspace::switchTo(int index, bool animated)
 {
     if (index < 0 || index >= m_models->rowCount() || index == currentIndex())
         return;
@@ -250,8 +250,18 @@ void Workspace::switchTo(int index)
     auto oldCurrentIndex = currentIndex();
     setCurrentIndex(index);
     Helper::instance()->activateSurface(current()->latestActiveSurface());
-    createSwitcher();
-    m_animationController->slide(oldCurrentIndex, currentIndex());
+
+    if (animated) {
+        createSwitcher();
+        m_animationController->slide(oldCurrentIndex, currentIndex());
+    } else if (m_switcher && m_switcher->isVisible()) {
+        // activateSurface restacks the target surface via stackToLast(), placing it above
+        // the already-visible workspace switcher. Raise the switcher back on top so the
+        // slide animation is not visually broken by the real window peeking through.
+        auto *switcherParent = m_switcher->parentItem();
+        Q_ASSERT(switcherParent && !switcherParent->childItems().isEmpty());
+        m_switcher->stackAfter(switcherParent->childItems().last());
+    }
 }
 
 WorkspaceModel *Workspace::current() const
