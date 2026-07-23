@@ -37,6 +37,9 @@ public:
 
     void moveTo(const QPointF &pos, bool configSurface);
     QPointF implicitPosition() const;
+    // Initial state negotiation may need to configure the X11 window before its first
+    // compositor-visible frame. The visibility bypass is limited to this single call.
+    bool configureSurfaceWhileHidden(const QRectF &geometry);
 
 Q_SIGNALS:
     void implicitPositionChanged();

@@ -13,7 +13,7 @@ class Q_DECL_HIDDEN WXWaylandSurfaceItemPrivate : public WSurfaceItemPrivate
 {
     Q_DECLARE_PUBLIC(WXWaylandSurfaceItem)
 public:
-    void configureSurface(const QRect &newGeometry);
+    bool configureSurface(const QRect &newGeometry);
     QSize expectSurfaceSize() const;
     QPoint explicitSurfacePosition() const;
     static inline WXWaylandSurfaceItemPrivate *get(WXWaylandSurfaceItem *qq) {
@@ -23,19 +23,21 @@ public:
 public:
     QPointF surfacePosition;
     bool positionConfigured = false;
+    bool allowConfigureWhileHidden = false;
 
     QPointer<WXWaylandSurfaceItem> parentSurfaceItem;
     QSize minimumSize;
     QSize maximumSize;
 };
 
-void WXWaylandSurfaceItemPrivate::configureSurface(const QRect &newGeometry)
+bool WXWaylandSurfaceItemPrivate::configureSurface(const QRect &newGeometry)
 {
     Q_Q(WXWaylandSurfaceItem);
-    if (!q->isVisible())
-        return;
+    if (!q->isVisible() && !allowConfigureWhileHidden)
+        return false;
     q->xwaylandSurface()->configure(newGeometry);
     q->updateSurfaceState();
+    return true;
 }
 
 QSize WXWaylandSurfaceItemPrivate::expectSurfaceSize() const
@@ -185,6 +187,26 @@ QPointF WXWaylandSurfaceItem::implicitPosition() const
     return QPointF(epos) / ssr - QPointF(leftPadding(), topPadding());
 }
 
+bool WXWaylandSurfaceItem::configureSurfaceWhileHidden(const QRectF &geometry)
+{
+    Q_D(WXWaylandSurfaceItem);
+    if (!geometry.isValid() || geometry.isEmpty())
+        return false;
+
+    const QPointF previousPosition = d->surfacePosition;
+    d->surfacePosition = geometry.topLeft();
+    d->allowConfigureWhileHidden = true;
+    const bool configured = WSurfaceItem::resizeSurface(geometry.size());
+    d->allowConfigureWhileHidden = false;
+
+    if (!configured) {
+        d->surfacePosition = previousPosition;
+        return false;
+    }
+
+    d->positionConfigured = true;
+    return true;
+}
 
 void WXWaylandSurfaceItem::onSurfaceCommit()
 {
@@ -221,8 +243,7 @@ void WXWaylandSurfaceItem::initSurface()
 bool WXWaylandSurfaceItem::doResizeSurface(const QSize &newSize)
 {
     Q_D(WXWaylandSurfaceItem);
-    d->configureSurface(QRect(d->explicitSurfacePosition(), newSize));
-    return true;
+    return d->configureSurface(QRect(d->explicitSurfacePosition(), newSize));
 }
 
 QRectF WXWaylandSurfaceItem::getContentGeometry() const

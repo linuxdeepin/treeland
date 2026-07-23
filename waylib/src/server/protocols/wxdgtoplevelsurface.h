@@ -42,6 +42,9 @@ public:
     WSurface *parentSurface() const override;
 
     bool isResizeing() const;
+    // The latest state requested by the client, including requests received before a
+    // compositor-side SurfaceItem has been created.
+    bool isMaximizeRequested() const;
     bool isActivated() const override;
     bool isMaximized() const override;
     bool isMinimized() const override;
@@ -74,6 +77,11 @@ public Q_SLOTS:
     void close() override;
 
 Q_SIGNALS:
+    // Emitted synchronously during the initial empty commit after a default 0x0 configure has
+    // been scheduled. Compositor policy may override the scheduled size and states before the
+    // configure is dispatched.
+    void initialConfigureRequested();
+
     void parentXdgSurfaceChanged();
     void resizeingChanged();
 

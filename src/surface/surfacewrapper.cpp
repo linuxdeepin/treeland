@@ -19,6 +19,7 @@
 #include <woutputrenderwindow.h>
 #include <wsocket.h>
 #include <wxdgpopupsurfaceitem.h>
+#include <wxdgtoplevelsurface.h>
 #include <wxdgtoplevelsurfaceitem.h>
 #include <wxwaylandsurface.h>
 #include <wxwaylandsurfaceitem.h>
@@ -27,17 +28,41 @@
 #include <qwlayershellv1.h>
 
 #include <QColor>
+#include <QTimer>
 #include <QVariant>
 
 #define OPEN_ANIMATION 1
 #define CLOSE_ANIMATION 2
 #define ALWAYSONTOPLAYER 1
 
+namespace {
+constexpr int initialMaximizeCommitTimeoutMs = 1500;
+constexpr qreal initialMaximizeSizeTolerance = 2.0;
+constexpr int defaultNormalWidth = 800;
+constexpr int defaultNormalHeight = 600;
+
+bool sizesMatch(const QSizeF &first, const QSizeF &second)
+{
+    return qAbs(first.width() - second.width()) <= initialMaximizeSizeTolerance
+        && qAbs(first.height() - second.height()) <= initialMaximizeSizeTolerance;
+}
+} // namespace
+
 SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
                                WToplevelSurface *shellSurface,
                                Type type,
                                const QString &appId,
                                QQuickItem *parent)
+    : SurfaceWrapper(qmlEngine, shellSurface, type, appId, parent, {})
+{
+}
+
+SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
+                               WToplevelSurface *shellSurface,
+                               Type type,
+                               const QString &appId,
+                               QQuickItem *parent,
+                               const QRectF &initialMaximizedGeometry)
     : QQuickItem(parent)
     , m_engine(qmlEngine)
     , m_shellSurface(shellSurface)
@@ -70,6 +95,14 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     , m_appId(appId)
 {
     QQmlEngine::setContextForObject(this, qmlEngine->rootContext());
+
+    if (m_type == Type::XdgToplevel && initialMaximizedGeometry.isValid()
+        && !initialMaximizedGeometry.isEmpty()) {
+        m_initialMaximizePending = true;
+        m_initialMaximizeConfigured = true;
+        m_initialMaximizeGeometry = initialMaximizedGeometry;
+        m_maximizedGeometry = initialMaximizedGeometry;
+    }
 
     setup();
 }
@@ -177,13 +210,16 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     , m_appId(appId)
 {
     QQmlEngine::setContextForObject(this, qmlEngine->rootContext());
-    if (initialSize.isValid() && initialSize.width() > 0 && initialSize.height() > 0) {
+    const QSize restoredSize =
+        initialSize.isValid() && initialSize.width() > 0 && initialSize.height() > 0
+        ? initialSize
+        : QSize(defaultNormalWidth, defaultNormalHeight);
+    if (restoredSize == initialSize) {
         // Also set implicit size to keep QML layout consistent
-        setImplicitSize(initialSize.width(), initialSize.height());
-        qCDebug(lcTlSurface) << "Prelaunch Splash: set initial size to" << initialSize;
-    } else {
-        setImplicitSize(800, 600);
+        qCDebug(lcTlSurface) << "Prelaunch Splash: set initial size to" << restoredSize;
     }
+    setImplicitSize(restoredSize.width(), restoredSize.height());
+    setRestoredNormalSize(restoredSize);
     m_prelaunchSplash =
         m_engine->createPrelaunchSplash(this, radius(), iconBuffer, backgroundColor);
 
@@ -196,6 +232,9 @@ void SurfaceWrapper::invalidate()
 {
     Q_ASSERT_X(!m_wrapperAboutToRemove, Q_FUNC_INFO, "Can't call `invalidate` twice!");
     m_wrapperAboutToRemove = true;
+    m_initialMaximizePending = false;
+    m_initialMaximizeConfigured = false;
+    ++m_initialMaximizeGeneration;
     Q_EMIT aboutToBeInvalidated();
 
     if (!m_skipDockPreView)
@@ -268,6 +307,18 @@ void SurfaceWrapper::setup()
     Q_ASSERT(m_shellSurface);
     Q_ASSERT(m_type != Type::SplashScreen);
 
+    const auto initialMaximizeRequested = [this] {
+        if (m_isProxy)
+            return false;
+
+        const auto *xwaylandSurface = qobject_cast<WXWaylandSurface *>(m_shellSurface);
+        return xwaylandSurface && xwaylandSurface->isMaximizeRequested();
+    };
+    // XWayland negotiates its initial state after map. Native XDG initial state is prepared by
+    // ShellHandler during the initial empty commit and may already be armed before setup().
+    if (!hasConfiguredInitialXdgMaximize())
+        m_initialMaximizePending = initialMaximizeRequested();
+
     updateActivateCapability();
     updateFocusCapability();
 
@@ -302,10 +353,29 @@ void SurfaceWrapper::setup()
         Q_UNREACHABLE();
     }
 
+    if (m_initialMaximizePending)
+        m_surfaceItem->setVisible(false);
+
     QQmlEngine::setContextForObject(m_surfaceItem, m_engine->rootContext());
     m_surfaceItem->setDelegate(m_engine->surfaceContentComponent());
     m_surfaceItem->setResizeMode(WSurfaceItem::ManualResize);
     m_surfaceItem->setShellSurface(m_shellSurface);
+    connect(m_surfaceItem, &WSurfaceItem::readyChanged, this, [this] {
+        if (m_surfaceItem->isReady()) {
+            tryApplyInitialMaximize();
+            tryApplyDeferredSurfaceState();
+        }
+    });
+    if (m_type == Type::XWayland) {
+        connect(this, &QQuickItem::visibleChanged, this, [this] {
+            if (isVisible())
+                tryApplyDeferredSurfaceState();
+        });
+        connect(m_surfaceItem, &QQuickItem::visibleChanged, this, [this] {
+            if (m_surfaceItem->isVisible())
+                tryApplyDeferredSurfaceState();
+        });
+    }
     // Initialize focus policy even if focus capability state never toggles later.
     m_surfaceItem->setFocusPolicy(hasFocusCapability() ? Qt::StrongFocus : Qt::NoFocus);
 
@@ -349,6 +419,21 @@ void SurfaceWrapper::setup()
     m_shellSurface->surface()->safeConnect(&WSurface::mappedChanged,
                                            this,
                                            &SurfaceWrapper::onMappedChanged);
+    m_shellSurface->surface()->safeConnect(&WSurface::commit,
+                                           this,
+                                           [this](quint32) {
+                                               if (!m_initialMaximizePending
+                                                   || !m_initialMaximizeConfigured) {
+                                                   return;
+                                               }
+                                               // WSurfaceItem observes the native commit
+                                               // separately. Check after all direct commit
+                                               // handlers have refreshed its implicit size.
+                                               QTimer::singleShot(
+                                                   0,
+                                                   this,
+                                                   &SurfaceWrapper::handleInitialMaximizeCommit);
+                                           });
 
     Q_EMIT surfaceItemCreated();
 
@@ -368,6 +453,18 @@ void SurfaceWrapper::setup()
                                     &SurfaceWrapper::updateSizeCapabilities);
     }
     updateSizeCapabilities();
+    if (m_initialMaximizePending && !isMaximizable()) {
+        const bool cancelInitialXdgConfigure = hasConfiguredInitialXdgMaximize();
+        m_initialMaximizePending = false;
+        m_initialMaximizeConfigured = false;
+        ++m_initialMaximizeGeneration;
+        if (cancelInitialXdgConfigure && m_shellSurface->isInitialized()) {
+            m_shellSurface->resize(QSize());
+            m_shellSurface->setMaximize(false);
+        }
+        if (!m_prelaunchSplash)
+            m_surfaceItem->setVisible(true);
+    }
 
     if (!m_prelaunchSplash) {
         setImplicitSize(m_surfaceItem->implicitWidth(), m_surfaceItem->implicitHeight());
@@ -507,16 +604,33 @@ void SurfaceWrapper::setup()
             updateFocusControlState(FocusControlState::Mapped, true);
             // ActiveControlState::MappedOrSplash is already true
             syncPrelaunchMappedState();
-            startPrelaunchSplashHideSequence();
         }
     } else {
         updateFocusControlState(FocusControlState::Mapped, surface() && surface()->mapped());
         updateHasActiveCapability(ActiveControlState::MappedOrSplash,
                                   surface() && surface()->mapped());
     }
+
+    // Also cover a request which arrived while setup() was connecting the surface.
+    if (!m_initialMaximizePending && isMaximizable() && initialMaximizeRequested())
+        m_initialMaximizePending = true;
+    if (m_initialMaximizePending) {
+        m_surfaceItem->setVisible(false);
+        qCDebug(lcTlSurface) << "Detected initial maximize request for" << appId() << "type"
+                             << static_cast<int>(m_type);
+    }
+
+    if (hasConfiguredInitialXdgMaximize())
+        activateConfiguredInitialXdgMaximize();
+
+    tryApplyInitialMaximize();
+    if (m_prelaunchSplash && surface() && surface()->mapped())
+        startPrelaunchSplashHideSequence();
 }
 
-void SurfaceWrapper::convertToNormalSurface(WToplevelSurface *shellSurface, Type type)
+void SurfaceWrapper::convertToNormalSurface(WToplevelSurface *shellSurface,
+                                            Type type,
+                                            const QRectF &initialMaximizedGeometry)
 {
     // Conversion only allowed from prelaunch (SplashScreen) state
     if (m_type != Type::SplashScreen || m_shellSurface != nullptr) {
@@ -528,10 +642,34 @@ void SurfaceWrapper::convertToNormalSurface(WToplevelSurface *shellSurface, Type
     // Assign new shell surface (QPointer auto-detects destruction)
     m_shellSurface = shellSurface;
     m_type = type;
+    if (m_type == Type::XdgToplevel && initialMaximizedGeometry.isValid()
+        && !initialMaximizedGeometry.isEmpty()) {
+        m_initialMaximizePending = true;
+        m_initialMaximizeConfigured = true;
+        m_initialMaximizeGeometry = initialMaximizedGeometry;
+        m_maximizedGeometry = initialMaximizedGeometry;
+    }
     Q_EMIT typeChanged();
 
     // Call setup() to initialize surfaceItem related features
     setup();
+}
+
+void SurfaceWrapper::adoptInitialXdgMaximize(const QRectF &targetGeometry)
+{
+    if (m_type != Type::XdgToplevel || !targetGeometry.isValid()
+        || targetGeometry.isEmpty()) {
+        return;
+    }
+
+    m_initialMaximizePending = true;
+    m_initialMaximizeConfigured = true;
+    m_initialMaximizeGeometry = targetGeometry;
+    if (!m_maximizedGeometry.isValid() || m_maximizedGeometry.isEmpty())
+        m_maximizedGeometry = targetGeometry;
+
+    activateConfiguredInitialXdgMaximize();
+    tryApplyInitialMaximize();
 }
 
 void SurfaceWrapper::setParent(QQuickItem *item)
@@ -601,6 +739,10 @@ void SurfaceWrapper::syncPrelaunchMappedState()
 void SurfaceWrapper::startPrelaunchSplashHideSequence()
 {
     Q_ASSERT(m_surfaceItem != nullptr);
+    if (m_initialMaximizePending) {
+        tryApplyInitialMaximize();
+        return;
+    }
     if (m_windowAnimation) {
         qCDebug(lcTlSurface) << "prelaunch splash transition is starting while window "
                                     "animation is still running,"
@@ -609,7 +751,8 @@ void SurfaceWrapper::startPrelaunchSplashHideSequence()
         return;
     }
     if (m_geometryAnimation) {
-        qCDebug(lcTlSurface) << "prelaunch splash transition already prepared or running, skip";
+        qCDebug(lcTlSurface)
+            << "Prelaunch splash transition deferred until geometry animation finishes";
         return;
     }
 
@@ -636,18 +779,18 @@ void SurfaceWrapper::startPrelaunchSplashHideSequence()
                                     << "targetImplicit=" << targetImplicitSize;
     }
 
+    if (hasValidTargetImplicitSize && !captureNormalGeometryFromSurfaceItem(false)) {
+        qCWarning(lcTlSurface) << "Failed to capture client normal geometry for prelaunch surface"
+                               << appId() << "targetImplicit=" << targetImplicitSize;
+    }
+
     const bool needImplicitSizeTransition = hasValidTargetImplicitSize && (container() != nullptr)
         && (!qFuzzyCompare(implicitWidth() + 1.0, targetImplicitSize.width() + 1.0)
             || !qFuzzyCompare(implicitHeight() + 1.0, targetImplicitSize.height() + 1.0));
 
     if (needImplicitSizeTransition) {
         const QRectF fromGeometry(position(), size());
-        // XWayland clients manage their own position; respect it and don't shift.
-        // For all other types, keep the center fixed so the window expands from center.
-        const QPointF toTopLeft = (m_type == Type::XWayland) ? fromGeometry.topLeft()
-                                                             : fromGeometry.center()
-                - QPointF(targetImplicitSize.width() / 2.0, targetImplicitSize.height() / 2.0);
-        const QRectF toGeometry(toTopLeft, targetImplicitSize);
+        const QRectF toGeometry = m_normalGeometry;
         m_geometryAnimation =
             m_engine->createGeometryAnimation(this, fromGeometry, toGeometry, container());
 
@@ -677,7 +820,7 @@ void SurfaceWrapper::onPrelaunchGeometryAnimationReady()
     // so the window appears exactly where the animation ended (no position jump).
     setPosition(toGeo.topLeft());
     // Keep normalGeometry in sync so subsequent state transitions use the correct position.
-    setNormalGeometry(toGeo);
+    setNormalGeometryFromSurface(toGeo);
 
     completeSplashTransition(toGeo.size(), true);
 }
@@ -685,12 +828,15 @@ void SurfaceWrapper::onPrelaunchGeometryAnimationReady()
 void SurfaceWrapper::onPrelaunchGeometryAnimationFinished()
 {
     Q_ASSERT(m_geometryAnimation);
+    const QPointer<QQuickItem> finishedAnimation = m_geometryAnimation;
     m_geometryAnimation->disconnect(this);
     m_geometryAnimation->deleteLater();
     m_geometryAnimation = nullptr;
 
     if (m_decoration)
         m_decoration->setVisible(true);
+
+    continuePendingTransitionsAfterAnimation(finishedAnimation);
 }
 
 void SurfaceWrapper::completeSplashTransition(const QSizeF &targetImplicitSize, bool hideDecoration)
@@ -724,6 +870,7 @@ void SurfaceWrapper::completeSplashTransition(const QSizeF &targetImplicitSize, 
     // Now that the splash is hidden and deleted, the surface can be considered active if it's
     // mapped
     updateHasActiveCapability(ActiveControlState::MappedOrSplash, surface() && surface()->mapped());
+    tryApplyDeferredSurfaceState();
 }
 
 WSurface *SurfaceWrapper::surface() const
@@ -795,6 +942,11 @@ QRectF SurfaceWrapper::normalGeometry() const
     return m_normalGeometry;
 }
 
+bool SurfaceWrapper::hasReliableNormalGeometry() const
+{
+    return m_normalGeometrySource == NormalGeometrySource::Client;
+}
+
 void SurfaceWrapper::moveNormalGeometryInOutput(const QPointF &position)
 {
     QPointF alignedPosition = alignToPixelGrid(position);
@@ -806,12 +958,78 @@ void SurfaceWrapper::moveNormalGeometryInOutput(const QPointF &position)
     }
 }
 
-void SurfaceWrapper::setNormalGeometry(const QRectF &newNormalGeometry)
+void SurfaceWrapper::setNormalGeometry(const QRectF &newNormalGeometry, bool applyDeferredState)
 {
-    if (m_normalGeometry == newNormalGeometry)
+    if (m_normalGeometry == newNormalGeometry) {
+        if (applyDeferredState)
+            tryApplyDeferredSurfaceState();
         return;
+    }
     m_normalGeometry = newNormalGeometry;
     Q_EMIT normalGeometryChanged();
+    if (applyDeferredState)
+        tryApplyDeferredSurfaceState();
+}
+
+void SurfaceWrapper::setNormalGeometryFromSurface(const QRectF &newNormalGeometry,
+                                                  bool applyDeferredState)
+{
+    m_normalGeometrySource = NormalGeometrySource::Client;
+    setNormalGeometry(newNormalGeometry, false);
+    if (applyDeferredState)
+        tryApplyDeferredSurfaceState();
+}
+
+void SurfaceWrapper::setRestoredNormalSize(const QSizeF &size, bool applyInitialMaximize)
+{
+    if (!size.isValid() || size.isEmpty()
+        || m_normalGeometrySource == NormalGeometrySource::Client) {
+        return;
+    }
+
+    const QPointF topLeft = m_normalGeometrySource == NormalGeometrySource::None
+        ? position()
+        : m_normalGeometry.topLeft();
+    m_normalGeometrySource = NormalGeometrySource::Restored;
+    setNormalGeometry(QRectF(topLeft, size), false);
+    if (applyInitialMaximize)
+        tryApplyInitialMaximize();
+    tryApplyDeferredSurfaceState();
+}
+
+bool SurfaceWrapper::hasUsableNormalGeometry() const
+{
+    return m_normalGeometrySource != NormalGeometrySource::None && m_normalGeometry.isValid()
+        && !m_normalGeometry.isEmpty();
+}
+
+bool SurfaceWrapper::captureNormalGeometryFromSurfaceItem(bool applyDeferredState)
+{
+    if (!m_surfaceItem || !m_surfaceItem->isReady()
+        || (m_type != Type::XdgToplevel && m_type != Type::XWayland)) {
+        return false;
+    }
+
+    const QSizeF surfaceSize(m_surfaceItem->implicitWidth(), m_surfaceItem->implicitHeight());
+    if (surfaceSize.isEmpty() || !surfaceSize.isValid())
+        return false;
+
+    QRectF clientNormalGeometry = geometry();
+    if (m_prelaunchSplash) {
+        QPointF topLeft = m_normalGeometry.isValid() ? m_normalGeometry.topLeft() : position();
+        if (m_type != Type::XWayland) {
+            topLeft = geometry().center()
+                - QPointF(surfaceSize.width() / 2.0, surfaceSize.height() / 2.0);
+        }
+        clientNormalGeometry = QRectF(topLeft, surfaceSize);
+    } else if (!clientNormalGeometry.isValid() || clientNormalGeometry.isEmpty()) {
+        clientNormalGeometry = QRectF(position(), surfaceSize);
+    }
+
+    setNormalGeometryFromSurface(clientNormalGeometry, applyDeferredState);
+    qCDebug(lcTlSurface) << "Captured client normal geometry for" << appId()
+                         << clientNormalGeometry << "prelaunch" << bool(m_prelaunchSplash);
+    return true;
 }
 
 QRectF SurfaceWrapper::maximizedGeometry() const
@@ -831,14 +1049,29 @@ void SurfaceWrapper::setMaximizedGeometry(const QRectF &newMaximizedGeometry)
     // to avoid incorrect sizing of Xwayland windows.
     updateSurfaceSizeRatio();
 
-    if (m_surfaceState == State::Maximized) {
+    if (m_pendingState == State::Maximized && m_geometryAnimation) {
+        m_pendingGeometry = newMaximizedGeometry;
+        m_geometryAnimation->setProperty("toGeometry", newMaximizedGeometry);
+    }
+    if (hasConfiguredInitialXdgMaximize()) {
+        m_initialMaximizeGeometry =
+            QRectF(alignToPixelGrid(newMaximizedGeometry.topLeft()),
+                   newMaximizedGeometry.size());
+        refreshConfiguredInitialXdgMaximize();
+        tryApplyInitialMaximize();
+    } else if (m_initialMaximizePending) {
+        if (m_initialMaximizeConfigured) {
+            m_initialMaximizeConfigured = false;
+            ++m_initialMaximizeGeneration;
+        }
+        tryApplyInitialMaximize();
+    } else if (m_surfaceState == State::Maximized) {
         setPosition(newMaximizedGeometry.topLeft());
         resize(newMaximizedGeometry.size());
-    } else if (m_pendingState == State::Maximized && m_geometryAnimation) {
-        m_geometryAnimation->setProperty("targetGeometry", newMaximizedGeometry);
     }
 
     Q_EMIT maximizedGeometryChanged();
+    tryApplyDeferredSurfaceState();
 }
 
 QRectF SurfaceWrapper::fullscreenGeometry() const
@@ -858,16 +1091,19 @@ void SurfaceWrapper::setFullscreenGeometry(const QRectF &newFullscreenGeometry)
     // to avoid incorrect sizing of Xwayland windows.
     updateSurfaceSizeRatio();
 
+    if (m_pendingState == State::Fullscreen && m_geometryAnimation) {
+        m_pendingGeometry = newFullscreenGeometry;
+        m_geometryAnimation->setProperty("toGeometry", newFullscreenGeometry);
+    }
     if (m_surfaceState == State::Fullscreen) {
         setPosition(newFullscreenGeometry.topLeft());
         resize(newFullscreenGeometry.size());
-    } else if (m_pendingState == State::Fullscreen && m_geometryAnimation) {
-        m_geometryAnimation->setProperty("targetGeometry", newFullscreenGeometry);
     }
 
     Q_EMIT fullscreenGeometryChanged();
 
     updateClipRect();
+    tryApplyDeferredSurfaceState();
 }
 
 QRectF SurfaceWrapper::tilingGeometry() const
@@ -893,6 +1129,7 @@ void SurfaceWrapper::setTilingGeometry(const QRectF &newTilingGeometry)
     }
 
     Q_EMIT tilingGeometryChanged();
+    tryApplyDeferredSurfaceState();
 }
 
 bool SurfaceWrapper::positionAutomatic() const
@@ -1017,14 +1254,61 @@ void SurfaceWrapper::setSurfaceState(State newSurfaceState)
     if (m_wrapperAboutToRemove)
         return;
 
-    if (m_geometryAnimation)
+    if (m_initialMaximizePending) {
+        if (newSurfaceState == State::Maximized) {
+            tryApplyInitialMaximize();
+        } else {
+            deferSurfaceState(newSurfaceState);
+        }
         return;
+    }
 
-    if (m_surfaceState == newSurfaceState)
+    if (m_geometryAnimation) {
+        deferSurfaceState(newSurfaceState);
         return;
+    }
+
+    if (m_windowAnimation) {
+        deferSurfaceState(newSurfaceState);
+        return;
+    }
+
+    if (m_surfaceState == newSurfaceState) {
+        m_hasDeferredSurfaceState = false;
+        return;
+    }
+
+    if (!hasInitializeContainer() || !m_surfaceItem) {
+        deferSurfaceState(newSurfaceState);
+        return;
+    }
 
     if (container()->filterSurfaceStateChange(this, newSurfaceState, m_surfaceState))
         return;
+
+    if (newSurfaceState == State::Minimized) {
+        doSetSurfaceState(newSurfaceState);
+        return;
+    }
+
+    const bool isManagedToplevel =
+        m_type == Type::XdgToplevel || m_type == Type::XWayland;
+    const bool waitingForSurfaceGeometry =
+        isManagedToplevel && (!m_surfaceItem->isReady() || !geometry().isValid());
+    const bool waitingForMappedXwayland =
+        m_type == Type::XWayland
+        && (!surface() || !surface()->mapped() || !isVisible());
+    if (waitingForSurfaceGeometry || waitingForMappedXwayland) {
+        deferSurfaceState(newSurfaceState);
+        return;
+    }
+
+    if (isManagedToplevel && m_surfaceState == State::Normal
+        && newSurfaceState != State::Normal
+        && !captureNormalGeometryFromSurfaceItem()) {
+        deferSurfaceState(newSurfaceState);
+        return;
+    }
 
     QRectF targetGeometry;
 
@@ -1038,17 +1322,262 @@ void SurfaceWrapper::setSurfaceState(State newSurfaceState)
         targetGeometry = m_tilingGeometry;
     }
 
-    if (targetGeometry.isValid()) {
-        startStateChangeAnimation(newSurfaceState, targetGeometry);
-    } else {
-        if (m_geometryAnimation) {
-            m_geometryAnimation->disconnect(this);
-            m_geometryAnimation->deleteLater();
-            m_geometryAnimation = nullptr;
+    if (!targetGeometry.isValid()
+        || (isManagedToplevel && newSurfaceState == State::Normal
+            && !hasUsableNormalGeometry())) {
+        deferSurfaceState(newSurfaceState);
+        return;
+    }
+
+    startStateChangeAnimation(newSurfaceState, targetGeometry);
+}
+
+void SurfaceWrapper::deferSurfaceState(State newSurfaceState)
+{
+    m_deferredSurfaceState = newSurfaceState;
+    m_hasDeferredSurfaceState = true;
+}
+
+void SurfaceWrapper::tryApplyDeferredSurfaceState()
+{
+    if (!m_hasDeferredSurfaceState || m_geometryAnimation || m_initialMaximizePending
+        || m_wrapperAboutToRemove) {
+        return;
+    }
+
+    const State deferredState = m_deferredSurfaceState;
+    m_hasDeferredSurfaceState = false;
+    setSurfaceState(deferredState);
+}
+
+void SurfaceWrapper::tryApplyInitialMaximize()
+{
+    if (m_type == Type::XdgToplevel) {
+        if (!hasConfiguredInitialXdgMaximize() || m_wrapperAboutToRemove || m_windowAnimation
+            || m_geometryAnimation || !hasInitializeContainer() || !m_surfaceItem
+            || !m_surfaceItem->isReady() || !surface() || !surface()->mapped()) {
+            return;
         }
 
-        doSetSurfaceState(newSurfaceState);
+        armInitialMaximizeCommitTimeout();
+        handleInitialMaximizeCommit();
+        return;
     }
+
+    if (!m_initialMaximizePending || m_initialMaximizeConfigured || m_wrapperAboutToRemove
+        || m_windowAnimation || m_geometryAnimation || !hasInitializeContainer() || !m_surfaceItem
+        || !m_surfaceItem->isReady() || !surface() || !surface()->mapped()
+        || !m_maximizedGeometry.isValid() || m_maximizedGeometry.isEmpty()) {
+        return;
+    }
+
+    const QRectF targetGeometry(alignToPixelGrid(m_maximizedGeometry.topLeft()),
+                                m_maximizedGeometry.size());
+    const QSizeF surfaceSize(m_surfaceItem->implicitWidth(), m_surfaceItem->implicitHeight());
+    const bool surfaceAlreadyMaximized = sizesMatch(surfaceSize, targetGeometry.size());
+
+    // A target-sized first buffer is presentation state, not evidence of the client's normal
+    // bounds. Preserve a restored prelaunch/DConfig size in that case.
+    if (!hasReliableNormalGeometry() && !surfaceAlreadyMaximized)
+        captureNormalGeometryFromSurfaceItem(false);
+
+    if (!hasUsableNormalGeometry()) {
+        const QSizeF fallbackSize(qMin<qreal>(defaultNormalWidth, targetGeometry.width()),
+                                  qMin<qreal>(defaultNormalHeight, targetGeometry.height()));
+        setRestoredNormalSize(fallbackSize, false);
+        qCDebug(lcTlSurface) << "Using non-persisted normal geometry fallback for" << appId()
+                             << fallbackSize << "before initial maximize";
+    }
+    if (!hasUsableNormalGeometry())
+        return;
+
+    // Keep the last normal buffer available for capture, then hide the real item before the
+    // state configure is sent. Presentation resumes only after the matching buffer commit.
+    m_surfaceItem->setVisible(false);
+    bool configured = false;
+    setXwaylandPositionFromSurface(false);
+    if (m_type == Type::XWayland) {
+        auto *xwaylandItem = qobject_cast<WXWaylandSurfaceItem *>(m_surfaceItem);
+        configured =
+            xwaylandItem && xwaylandItem->configureSurfaceWhileHidden(targetGeometry);
+    } else {
+        configured = resize(targetGeometry.size());
+    }
+
+    if (!configured) {
+        setXwaylandPositionFromSurface(true);
+        qCDebug(lcTlSurface) << "Initial maximize configure is not ready for" << appId()
+                             << "target" << targetGeometry;
+        return;
+    }
+
+    m_initialMaximizeGeometry = targetGeometry;
+    m_initialMaximizeConfigured = true;
+    if (m_surfaceState != State::Maximized)
+        doSetSurfaceState(State::Maximized);
+
+    qCDebug(lcTlSurface) << "Configured hidden initial maximize for" << appId() << "type"
+                         << static_cast<int>(m_type) << "target" << targetGeometry
+                         << "normal" << m_normalGeometry << "normalFromClient"
+                         << hasReliableNormalGeometry() << "prelaunch"
+                         << bool(m_prelaunchSplash);
+
+    armInitialMaximizeCommitTimeout();
+}
+
+bool SurfaceWrapper::hasConfiguredInitialXdgMaximize() const
+{
+    return m_type == Type::XdgToplevel && m_initialMaximizePending
+        && m_initialMaximizeConfigured && m_initialMaximizeGeometry.isValid()
+        && !m_initialMaximizeGeometry.isEmpty();
+}
+
+void SurfaceWrapper::refreshConfiguredInitialXdgMaximize()
+{
+    if (!hasConfiguredInitialXdgMaximize() || !m_shellSurface
+        || !m_shellSurface->isInitialized()) {
+        return;
+    }
+
+    if (resize(m_initialMaximizeGeometry.size()))
+        m_shellSurface->setMaximize(true);
+}
+
+void SurfaceWrapper::activateConfiguredInitialXdgMaximize()
+{
+    if (!hasConfiguredInitialXdgMaximize() || !m_surfaceItem || !isMaximizable())
+        return;
+
+    const QRectF targetGeometry(alignToPixelGrid(m_initialMaximizeGeometry.topLeft()),
+                                m_initialMaximizeGeometry.size());
+    m_initialMaximizeGeometry = targetGeometry;
+
+    if (!hasUsableNormalGeometry()) {
+        const QSizeF fallbackSize(qMin<qreal>(defaultNormalWidth, targetGeometry.width()),
+                                  qMin<qreal>(defaultNormalHeight, targetGeometry.height()));
+        setRestoredNormalSize(fallbackSize, false);
+        qCDebug(lcTlSurface) << "Using non-persisted normal geometry fallback for" << appId()
+                             << fallbackSize << "before initial XDG maximize";
+    }
+
+    m_surfaceItem->setVisible(false);
+    setPosition(targetGeometry.topLeft());
+    if (m_surfaceState != State::Maximized)
+        doSetSurfaceState(State::Maximized, false);
+
+    qCDebug(lcTlSurface) << "Adopted configured initial XDG maximize for" << appId() << "target"
+                         << targetGeometry << "normal" << m_normalGeometry << "prelaunch"
+                         << bool(m_prelaunchSplash);
+}
+
+void SurfaceWrapper::cancelConfiguredInitialXdgMaximize()
+{
+    if (!hasConfiguredInitialXdgMaximize())
+        return;
+
+    m_initialMaximizePending = false;
+    m_initialMaximizeConfigured = false;
+    ++m_initialMaximizeGeneration;
+
+    if (hasUsableNormalGeometry())
+        resize(m_normalGeometry.size());
+    else
+        m_shellSurface->resize(QSize());
+
+    if (m_surfaceState == State::Maximized)
+        doSetSurfaceState(State::Normal);
+    else
+        m_shellSurface->setMaximize(false);
+
+    if (m_prelaunchSplash) {
+        if (surface() && surface()->mapped())
+            startPrelaunchSplashHideSequence();
+    } else {
+        m_surfaceItem->setVisible(true);
+        if (surface() && surface()->mapped() && !m_windowAnimation)
+            createNewOrClose(OPEN_ANIMATION);
+    }
+
+    qCDebug(lcTlSurface) << "Cancelled configured initial XDG maximize for" << appId();
+    tryApplyDeferredSurfaceState();
+}
+
+void SurfaceWrapper::armInitialMaximizeCommitTimeout()
+{
+    const quint64 generation = ++m_initialMaximizeGeneration;
+    QTimer::singleShot(initialMaximizeCommitTimeoutMs, this, [this, generation] {
+        if (!m_initialMaximizePending || !m_initialMaximizeConfigured
+            || generation != m_initialMaximizeGeneration) {
+            return;
+        }
+
+        if (initialMaximizeTargetCommitted()) {
+            finishInitialMaximize(false);
+            return;
+        }
+
+        qCWarning(lcTlSurface) << "Timed out waiting for initial maximized buffer from" << appId()
+                               << "target" << m_initialMaximizeGeometry << "actual"
+                               << QSizeF(m_surfaceItem->implicitWidth(),
+                                         m_surfaceItem->implicitHeight());
+        finishInitialMaximize(true);
+    });
+}
+
+void SurfaceWrapper::handleInitialMaximizeCommit()
+{
+    if (!m_initialMaximizePending || !m_initialMaximizeConfigured || m_wrapperAboutToRemove
+        || !surface() || !surface()->mapped()) {
+        return;
+    }
+
+    if (!initialMaximizeTargetCommitted()) {
+        qCDebug(lcTlSurface) << "Waiting for initial maximized buffer from" << appId()
+                             << "target" << m_initialMaximizeGeometry.size() << "actual"
+                             << QSizeF(m_surfaceItem->implicitWidth(),
+                                       m_surfaceItem->implicitHeight());
+        return;
+    }
+
+    finishInitialMaximize(false);
+}
+
+bool SurfaceWrapper::initialMaximizeTargetCommitted() const
+{
+    if (!m_surfaceItem || !m_initialMaximizeGeometry.isValid())
+        return false;
+
+    const QSizeF actualSize(m_surfaceItem->implicitWidth(), m_surfaceItem->implicitHeight());
+    const QSizeF targetSize = m_initialMaximizeGeometry.size();
+    return sizesMatch(actualSize, targetSize);
+}
+
+void SurfaceWrapper::finishInitialMaximize(bool timedOut)
+{
+    if (!m_initialMaximizePending)
+        return;
+
+    const QRectF targetGeometry = m_initialMaximizeGeometry;
+    m_initialMaximizePending = false;
+    m_initialMaximizeConfigured = false;
+    ++m_initialMaximizeGeneration;
+
+    setPosition(targetGeometry.topLeft());
+    setImplicitSize(targetGeometry.width(), targetGeometry.height());
+    setXwaylandPositionFromSurface(true);
+
+    if (m_prelaunchSplash) {
+        completeSplashTransition(targetGeometry.size());
+    } else {
+        m_surfaceItem->setVisible(true);
+        updateBoundingRect();
+        if (surface() && surface()->mapped() && !m_windowAnimation)
+            createNewOrClose(OPEN_ANIMATION);
+    }
+
+    qCDebug(lcTlSurface) << "Presented initial maximized surface for" << appId() << "target"
+                         << targetGeometry << "timedOut" << timedOut;
+    tryApplyDeferredSurfaceState();
 }
 
 QBindable<SurfaceWrapper::State> SurfaceWrapper::bindableSurfaceState()
@@ -1160,6 +1689,7 @@ void SurfaceWrapper::setNoDecoration(bool newNoDecoration)
     setNoCornerRadius(newNoDecoration);
 
     updateDecoration();
+    refreshConfiguredInitialXdgMaximize();
 }
 
 void SurfaceWrapper::updateDecoration()
@@ -1278,8 +1808,14 @@ void SurfaceWrapper::geometryChange(const QRectF &newGeo, const QRectF &oldGeome
     if (m_container && m_container->filterSurfaceGeometryChanged(this, newGeometry, oldGeometry))
         return;
 
-    if (isNormal() && !m_geometryAnimation) {
-        setNormalGeometry(newGeometry);
+    if (isNormal() && !m_geometryAnimation && !m_initialMaximizePending) {
+        const bool comesFromSurface =
+            m_shellSurface && !m_prelaunchSplash && m_surfaceItem && m_surfaceItem->isReady()
+            && (m_type == Type::XdgToplevel || m_type == Type::XWayland);
+        if (comesFromSurface)
+            setNormalGeometryFromSurface(newGeometry, false);
+        else
+            setNormalGeometry(newGeometry, false);
     }
 
     if (widthValid() && heightValid()) {
@@ -1291,6 +1827,7 @@ void SurfaceWrapper::geometryChange(const QRectF &newGeo, const QRectF &oldGeome
     if (newGeometry.size() != oldGeometry.size())
         updateBoundingRect();
     updateClipRect();
+    tryApplyDeferredSurfaceState();
 }
 
 void SurfaceWrapper::createNewOrClose(uint direction)
@@ -1380,7 +1917,7 @@ void SurfaceWrapper::itemChange(ItemChange change, const ItemChangeData &data)
     return QQuickItem::itemChange(change, data);
 }
 
-void SurfaceWrapper::doSetSurfaceState(State newSurfaceState)
+void SurfaceWrapper::doSetSurfaceState(State newSurfaceState, bool configureShellSurface)
 {
     if (m_wrapperAboutToRemove)
         return;
@@ -1416,45 +1953,49 @@ void SurfaceWrapper::doSetSurfaceState(State newSurfaceState)
         }
     }
 
-    switch (m_previousSurfaceState.value()) {
-    case State::Maximized:
-        m_shellSurface->setMaximize(false);
-        break;
-    case State::Minimized:
-        m_shellSurface->setMinimize(false);
-        updateFocusControlState(FocusControlState::UnMinimized, true);
-        updateHasActiveCapability(ActiveControlState::UnMinimized, true);
-        break;
-    case State::Fullscreen:
-        m_shellSurface->setFullScreen(false);
-        break;
-    case State::Normal:
-        [[fallthrough]];
-    case State::Tiling:
-        [[fallthrough]];
-    default:
-        break;
+    if (configureShellSurface) {
+        switch (m_previousSurfaceState.value()) {
+        case State::Maximized:
+            m_shellSurface->setMaximize(false);
+            break;
+        case State::Minimized:
+            m_shellSurface->setMinimize(false);
+            updateFocusControlState(FocusControlState::UnMinimized, true);
+            updateHasActiveCapability(ActiveControlState::UnMinimized, true);
+            break;
+        case State::Fullscreen:
+            m_shellSurface->setFullScreen(false);
+            break;
+        case State::Normal:
+            [[fallthrough]];
+        case State::Tiling:
+            [[fallthrough]];
+        default:
+            break;
+        }
     }
     m_previousSurfaceState.notify();
 
-    switch (m_surfaceState.value()) {
-    case State::Maximized:
-        m_shellSurface->setMaximize(true);
-        break;
-    case State::Minimized:
-        updateFocusControlState(FocusControlState::UnMinimized, false);
-        updateHasActiveCapability(ActiveControlState::UnMinimized, false);
-        m_shellSurface->setMinimize(true);
-        break;
-    case State::Fullscreen:
-        m_shellSurface->setFullScreen(true);
-        break;
-    case State::Normal:
-        [[fallthrough]];
-    case State::Tiling:
-        [[fallthrough]];
-    default:
-        break;
+    if (configureShellSurface) {
+        switch (m_surfaceState.value()) {
+        case State::Maximized:
+            m_shellSurface->setMaximize(true);
+            break;
+        case State::Minimized:
+            updateFocusControlState(FocusControlState::UnMinimized, false);
+            updateHasActiveCapability(ActiveControlState::UnMinimized, false);
+            m_shellSurface->setMinimize(true);
+            break;
+        case State::Fullscreen:
+            m_shellSurface->setFullScreen(true);
+            break;
+        case State::Normal:
+            [[fallthrough]];
+        case State::Tiling:
+            [[fallthrough]];
+        default:
+            break;
+        }
     }
     m_surfaceState.notify();
     updateTitleBar();
@@ -1479,27 +2020,86 @@ void SurfaceWrapper::onAnimationReady()
     Q_ASSERT(m_pendingState != m_surfaceState);
     Q_ASSERT(m_pendingGeometry.isValid());
 
-    if (!resize(m_pendingGeometry.size(), true)) {
-        // abort change state if cannot resize
+    auto deferPendingState = [this] {
+        const State deferredState = m_pendingState;
+        setXwaylandPositionFromSurface(true);
+        const QPointer<QQuickItem> failedAnimation = m_geometryAnimation;
         m_geometryAnimation->disconnect(this);
         m_geometryAnimation->deleteLater();
         m_geometryAnimation = nullptr;
+        deferSurfaceState(deferredState);
+        continuePendingTransitionsAfterAnimation(failedAnimation);
+    };
+
+    if (!resize(m_pendingGeometry.size(), true)) {
+        // abort change state if cannot resize
+        deferPendingState();
+        return;
+    }
+
+    const bool completingXwaylandPrelaunch =
+        m_type == Type::XWayland && m_prelaunchSplash;
+    if (completingXwaylandPrelaunch) {
+        // WXWaylandSurfaceItem intentionally ignores configure requests while it is hidden.
+        // GeometryAnimation.hideSource already owns presentation at this point, so making the
+        // real item visible enables the native configure without exposing it directly.
+        if (!isVisible()) {
+            deferPendingState();
+            return;
+        }
+        m_surfaceItem->setVisible(true);
+        Q_ASSERT(m_surfaceItem->isVisible());
+    }
+
+    if (m_type == Type::XWayland
+        && (!surface() || !surface()->mapped() || !isVisible()
+            || !m_surfaceItem->isVisible())) {
+        deferPendingState();
         return;
     }
 
     QPointF alignedPos = alignToPixelGrid(m_pendingGeometry.topLeft());
     setPosition(alignedPos);
-    doSetSurfaceState(m_pendingState);
-    resize(m_pendingGeometry.size());
+    bool resizeCallSucceeded = true;
+    if (m_type == Type::XWayland) {
+        // XWayland's configure path can reject a hidden item. Configure first so state is not
+        // acknowledged unless the native geometry request was actually sent.
+        resizeCallSucceeded = resize(m_pendingGeometry.size());
+        if (!resizeCallSucceeded) {
+            qCDebug(lcTlSurface) << "Deferred XWayland state because native configure was skipped"
+                                 << appId() << m_pendingGeometry;
+            deferPendingState();
+            return;
+        }
+        doSetSurfaceState(m_pendingState);
+    } else {
+        doSetSurfaceState(m_pendingState);
+        resizeCallSucceeded = resize(m_pendingGeometry.size());
+    }
+
+    if (m_type == Type::XWayland) {
+        qCDebug(lcTlSurface) << "Requested XWayland state geometry for" << appId()
+                             << "state" << static_cast<int>(m_pendingState)
+                             << "target" << m_pendingGeometry
+                             << "prelaunch" << completingXwaylandPrelaunch
+                             << "surfaceItemVisible" << m_surfaceItem->isVisible()
+                             << "resizeCallSucceeded" << resizeCallSucceeded;
+    }
+
+    if (m_prelaunchSplash && surface() && surface()->mapped())
+        completeSplashTransition(m_pendingGeometry.size());
 }
 
 void SurfaceWrapper::onAnimationFinished()
 {
     setXwaylandPositionFromSurface(true);
     Q_ASSERT(m_geometryAnimation);
+    const QPointer<QQuickItem> finishedAnimation = m_geometryAnimation;
     m_geometryAnimation->disconnect(this);
     m_geometryAnimation->deleteLater();
     m_geometryAnimation = nullptr;
+
+    continuePendingTransitionsAfterAnimation(finishedAnimation);
 }
 
 bool SurfaceWrapper::startStateChangeAnimation(State targetState, const QRectF &targetGeometry)
@@ -1523,6 +2123,24 @@ bool SurfaceWrapper::startStateChangeAnimation(State targetState, const QRectF &
     return ok;
 }
 
+void SurfaceWrapper::continuePendingTransitionsAfterAnimation(QQuickItem *animation)
+{
+    Q_ASSERT(animation);
+    connect(animation, &QObject::destroyed, this, [this] {
+        // QObject::destroyed is emitted while the object is being torn down. Continue on the
+        // next event-loop turn so every ShaderEffectSource child has released hideSource.
+        QTimer::singleShot(0, this, [this] {
+            if (m_wrapperAboutToRemove)
+                return;
+
+            tryApplyInitialMaximize();
+            if (m_prelaunchSplash && surface() && surface()->mapped())
+                startPrelaunchSplashHideSequence();
+            tryApplyDeferredSurfaceState();
+        });
+    });
+}
+
 void SurfaceWrapper::onWindowAnimationFinished()
 {
     Q_ASSERT(m_windowAnimation);
@@ -1539,11 +2157,13 @@ void SurfaceWrapper::onWindowAnimationFinished()
 
 void SurfaceWrapper::onShowAnimationFinished()
 {
+    Q_ASSERT(m_windowAnimation);
+    const QPointer<QQuickItem> finishedAnimation = m_windowAnimation;
     onWindowAnimationFinished();
 
-    if (m_prelaunchSplash && surface() && surface()->mapped()) {
-        startPrelaunchSplashHideSequence();
-    }
+    // onWindowAnimationFinished() disconnects the animation before scheduling its deletion, so
+    // install the destruction continuation afterwards.
+    continuePendingTransitionsAfterAnimation(finishedAnimation);
 }
 
 void SurfaceWrapper::onHideAnimationFinished()
@@ -1571,7 +2191,11 @@ void SurfaceWrapper::onMappedChanged()
     if (!m_isProxy) {
         if (mapped) {
             if (!m_prelaunchSplash) {
-                createNewOrClose(OPEN_ANIMATION);
+                if (m_initialMaximizePending) {
+                    tryApplyInitialMaximize();
+                } else if (!m_geometryAnimation) {
+                    createNewOrClose(OPEN_ANIMATION);
+                }
             } else {
                 syncPrelaunchMappedState();
                 startPrelaunchSplashHideSequence();
@@ -1592,6 +2216,10 @@ void SurfaceWrapper::onMappedChanged()
     updateHasActiveCapability(ActiveControlState::MappedOrSplash, mapped);
     updateFocusControlState(FocusControlState::Mapped, mapped);
     updateVisible();
+    if (mapped) {
+        tryApplyInitialMaximize();
+        tryApplyDeferredSurfaceState();
+    }
 }
 
 void SurfaceWrapper::onSocketEnabledChanged()
@@ -1728,13 +2356,72 @@ void SurfaceWrapper::maximize()
         || !isMaximizable())
         return;
 
+    // ShellHandler folds a native XDG launch-time request into the initial configure. Calling
+    // set_maximized before the initial empty commit would violate wlroots' initialized
+    // precondition, while waiting for map would turn it into a second visible state change.
+    if (m_type == Type::XdgToplevel && (!surface() || !surface()->mapped()))
+        return;
+
+    const bool prelaunchGeometryTransition =
+        m_geometryAnimation && m_pendingState == m_surfaceState;
+    const bool isLaunchTimeRequest =
+        m_type == Type::XWayland
+        && (!hasInitializeContainer() || m_prelaunchSplash || m_windowAnimation
+            || prelaunchGeometryTransition || !m_surfaceItem || !m_surfaceItem->isReady()
+            || !surface() || !surface()->mapped());
+    if (!m_initialMaximizePending && isLaunchTimeRequest) {
+        m_initialMaximizePending = true;
+        // A running NewAnimation uses a live ShaderEffectSource. Keep its source intact until
+        // the animation object is gone; tryApplyInitialMaximize() hides it immediately after.
+        if (m_surfaceItem && (!m_windowAnimation || m_prelaunchSplash))
+            m_surfaceItem->setVisible(false);
+        qCDebug(lcTlSurface) << "Promoted launch-time maximize request for" << appId() << "type"
+                             << static_cast<int>(m_type);
+        tryApplyInitialMaximize();
+        return;
+    }
+
     setSurfaceState(State::Maximized);
 }
 
 void SurfaceWrapper::unmaximize()
 {
-    if (m_surfaceState != State::Maximized)
+    if (hasConfiguredInitialXdgMaximize()) {
+        cancelConfiguredInitialXdgMaximize();
         return;
+    }
+
+    if (m_initialMaximizePending) {
+        if (!m_initialMaximizeConfigured && m_surfaceState == State::Normal) {
+            m_initialMaximizePending = false;
+            ++m_initialMaximizeGeneration;
+            setXwaylandPositionFromSurface(true);
+
+            if (m_prelaunchSplash && surface() && surface()->mapped()) {
+                startPrelaunchSplashHideSequence();
+            } else if (!m_prelaunchSplash && !m_windowAnimation && !m_geometryAnimation) {
+                m_surfaceItem->setVisible(true);
+                if (surface() && surface()->mapped())
+                    createNewOrClose(OPEN_ANIMATION);
+            }
+
+            qCDebug(lcTlSurface) << "Cancelled unconfigured initial maximize for" << appId();
+            return;
+        }
+
+        setSurfaceState(State::Normal);
+        return;
+    }
+
+    if (m_surfaceState != State::Maximized) {
+        const bool maximizeAnimationPending =
+            m_geometryAnimation && m_pendingState == State::Maximized;
+        const bool maximizeStateDeferred =
+            m_hasDeferredSurfaceState && m_deferredSurfaceState == State::Maximized;
+        if (maximizeAnimationPending || maximizeStateDeferred)
+            setSurfaceState(State::Normal);
+        return;
+    }
 
     setSurfaceState(State::Normal);
 }
@@ -2021,6 +2708,7 @@ void SurfaceWrapper::setNoTitleBar(bool newNoTitleBar)
     m_noTitleBar = newNoTitleBar;
 
     updateTitleBar();
+    refreshConfiguredInitialXdgMaximize();
 }
 
 bool SurfaceWrapper::noCornerRadius() const
@@ -2231,6 +2919,11 @@ void SurfaceWrapper::setHasInitializeContainer(bool value)
         // Start open animation when container initialized
         // m_prelaunchSplash can't get mapped signal
         createNewOrClose(OPEN_ANIMATION);
+    }
+
+    if (value) {
+        tryApplyInitialMaximize();
+        tryApplyDeferredSurfaceState();
     }
 }
 

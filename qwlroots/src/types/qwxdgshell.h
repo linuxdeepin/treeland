@@ -87,6 +87,30 @@ class QW_CLASS_OBJECT(xdg_toplevel)
     QW_SIGNAL(set_app_id, char*)
 
 public:
+    QW_ALWAYS_INLINE bool is_initial_commit() const
+    {
+        const auto *toplevel = handle();
+        return toplevel && toplevel->base && toplevel->base->initial_commit;
+    }
+
+    QW_ALWAYS_INLINE bool is_maximize_requested() const
+    {
+        const auto *toplevel = handle();
+        return toplevel && toplevel->requested.maximized;
+    }
+
+    QW_ALWAYS_INLINE bool is_minimize_requested() const
+    {
+        const auto *toplevel = handle();
+        return toplevel && toplevel->requested.minimized;
+    }
+
+    QW_ALWAYS_INLINE bool is_fullscreen_requested() const
+    {
+        const auto *toplevel = handle();
+        return toplevel && toplevel->requested.fullscreen;
+    }
+
     QW_FUNC_STATIC(xdg_toplevel, from_resource, qw_xdg_toplevel *, wl_resource *resource)
     QW_FUNC_STATIC(xdg_toplevel, try_from_wlr_surface, qw_xdg_toplevel *, wlr_surface *surface)
 
