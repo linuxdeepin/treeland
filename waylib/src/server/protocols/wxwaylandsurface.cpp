@@ -1,4 +1,4 @@
-// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wxwaylandsurface.h"
@@ -292,6 +292,9 @@ void WXWaylandSurfacePrivate::updateWindowTypes()
             break;
         case WXWayland::_NET_WM_WINDOW_TYPE_SPLASH:
             types |= WXWaylandSurface::NET_WM_WINDOW_TYPE_SPLASH;
+            break;
+        case WXWayland::_NET_WM_WINDOW_TYPE_DIALOG:
+            types |= WXWaylandSurface::NET_WM_WINDOW_TYPE_DIALOG;
             break;
         default:
             break;
