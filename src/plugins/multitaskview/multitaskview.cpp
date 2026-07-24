@@ -118,6 +118,8 @@ void MultitaskviewSurfaceModel::initializeModel()
     for (const auto &surface : std::as_const(surfaces)) {
         if (!Helper::instance()->surfaceBelongsToCurrentSession(surface))
             continue;
+        if (surface->skipMutiTaskView())
+            continue;
         if (surface->ownsOutput() == output()) {
             if (surfaceReady(surface)) {
                 m_data.push_back(std::make_shared<SurfaceModelData>(
