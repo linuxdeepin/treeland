@@ -152,6 +152,7 @@ private:
             "largeBezelWithSmallRadiusDoesNotIntroduceCornerDiagonalSeam",
             "smallRadiusSoftensRefractionAtSilhouette",
             "smallRadiusCapsWholeRefractionBand",
+            "contentEdgePullChangesSilhouetteRefraction",
             "radiusLargerThanBezelDoesNotIntroduceCornerDiagonalSeam",
             "tintControlChangesRenderedColor",
             "zeroBlurMultiplierStillAppliesGaussianBlur",
@@ -672,6 +673,30 @@ private Q_SLOTS:
                  qPrintable(QStringLiteral("small radius must cap the whole refraction band: changed=%1 samples=%2")
                                 .arg(changed)
                                 .arg(samples)));
+    }
+
+    void contentEdgePullChangesSilhouetteRefraction()
+    {
+        setSmallRadiusLargeBezel();
+        m_glass->setProperty("contentRampEnd", 0.15);
+        m_glass->setProperty("contentEdgePull", 0.0);
+        QTest::qWait(50);
+
+        const QImage noEdgePull = grabImage(m_scene);
+        QVERIFY(!noEdgePull.isNull());
+
+        m_glass->setProperty("contentEdgePull", 1.0);
+        QTest::qWait(50);
+
+        const QImage fullEdgePull = grabImage(m_scene);
+        QVERIFY(!fullEdgePull.isNull());
+
+        const QRect rightEdgeBand(fullEdgePull.width() - 4, 48, 3, 160);
+        const int changed = regionDiffCount(noEdgePull, fullEdgePull, rightEdgeBand, 4);
+        QVERIFY2(changed > rightEdgeBand.width() * rightEdgeBand.height() / 2,
+                 qPrintable(QStringLiteral("contentEdgePull must visibly change silhouette refraction: changed=%1 regionPixels=%2")
+                                .arg(changed)
+                                .arg(rightEdgeBand.width() * rightEdgeBand.height())));
     }
 
     void radiusLargerThanBezelDoesNotIntroduceCornerDiagonalSeam()

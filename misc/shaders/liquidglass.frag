@@ -184,14 +184,17 @@ void main()
     float thick = max(ubuf.thickness, 0.0);
     // Ease refraction in from the silhouette; the profile derivative peaks at
     // the edge and otherwise turns high-contrast corners into thin spikes.
+    // contentEdgePull lifts this softening floor so non-zero values really keep
+    // optical pull at the glass lip instead of being cancelled by outerSoft=0.
+    float edgePull = clamp(ubuf.contentEdgePull, 0.0, 1.0);
     float outerSoft = smoothstep(0.0, max(2.5 * edgeAA, 2.5), distFromEdge);
+    float slopeSoft = mix(outerSoft, 1.0, edgePull);
     float rawTan = profile.y * (thick / localBezel);
     float maxTan = max(ubuf.refractionMaxTan, 0.1);
-    float slopeMag = min(rawTan, maxTan) * outerSoft;
+    float slopeMag = min(rawTan, maxTan) * slopeSoft;
 
     float H = h * thick;
 
-    float edgePull = clamp(ubuf.contentEdgePull, 0.0, 1.0);
     float rampEnd = clamp(ubuf.contentRampEnd, 0.05, 1.0);
     float contentRamp = mix(edgePull, 1.0, smoothstep(0.0, rampEnd, t));
     float maxDisp = min(min(bezel * 0.85, thick * 0.75), 48.0);

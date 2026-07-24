@@ -27,9 +27,11 @@ Item {
     property real glassBlurMultiplier: 0.0
     property real glassSpecular: 0.0
     property real glassTint: 0.0
-    property real glassContentEdgePull: 0.42
-    property real glassContentRampEnd: 0.50
     property real glassRefractionMaxTan: 2.75
+    property real glassContentEdgePull: 0.0
+    property real glassContentRampEnd: 0.15
+    property real glassProfilePower: 4.0
+    property real glassInnerShadow: 0.25
     property real glassBrightness: 0.0
     property real glassContrast: 0.0
     property real glassSaturation: 0.04
@@ -240,6 +242,12 @@ Item {
                                 Label { text: "blurMultiplier " + root.glassBlurMultiplier.toFixed(2); color: "white" }
                                 Slider { from: 0; to: 4; stepSize: 0.05; value: root.glassBlurMultiplier; onMoved: root.glassBlurMultiplier = value }
                             }
+                            Label {
+                                text: "Optics / Profile"
+                                color: "white"
+                                font.bold: true
+                                Layout.columnSpan: 4
+                            }
                             Column {
                                 spacing: 2
                                 Label { text: "specular " + root.glassSpecular.toFixed(2); color: "white" }
@@ -252,18 +260,28 @@ Item {
                             }
                             Column {
                                 spacing: 2
-                                Label { text: "edge pull " + root.glassContentEdgePull.toFixed(2); color: "white" }
-                                Slider { from: 0; to: 1; stepSize: 0.02; value: root.glassContentEdgePull; onMoved: root.glassContentEdgePull = value }
-                            }
-                            Column {
-                                spacing: 2
-                                Label { text: "ramp end t " + root.glassContentRampEnd.toFixed(2); color: "white" }
-                                Slider { from: 0.05; to: 1; stepSize: 0.02; value: root.glassContentRampEnd; onMoved: root.glassContentRampEnd = value }
-                            }
-                            Column {
-                                spacing: 2
                                 Label { text: "max tan " + root.glassRefractionMaxTan.toFixed(2); color: "white" }
                                 Slider { from: 0.5; to: 6; stepSize: 0.05; value: root.glassRefractionMaxTan; onMoved: root.glassRefractionMaxTan = value }
+                            }
+                            Column {
+                                spacing: 2
+                                Label { text: "edge pull " + root.glassContentEdgePull.toFixed(2); color: "white" }
+                                Slider { from: 0; to: 1; stepSize: 0.05; value: root.glassContentEdgePull; onMoved: root.glassContentEdgePull = value }
+                            }
+                            Column {
+                                spacing: 2
+                                Label { text: "ramp end " + root.glassContentRampEnd.toFixed(2); color: "white" }
+                                Slider { from: 0.05; to: 1; stepSize: 0.05; value: root.glassContentRampEnd; onMoved: root.glassContentRampEnd = value }
+                            }
+                            Column {
+                                spacing: 2
+                                Label { text: "profilePower " + root.glassProfilePower.toFixed(2); color: "white" }
+                                Slider { from: 1; to: 10; stepSize: 0.1; value: root.glassProfilePower; onMoved: root.glassProfilePower = value }
+                            }
+                            Column {
+                                spacing: 2
+                                Label { text: "innerShadow " + root.glassInnerShadow.toFixed(2); color: "white" }
+                                Slider { from: 0; to: 1; stepSize: 0.05; value: root.glassInnerShadow; onMoved: root.glassInnerShadow = value }
                             }
                             Column {
                                 spacing: 2
@@ -407,9 +425,11 @@ Item {
                         ior: root.glassIor
                         specular: root.glassSpecular
                         tint: root.glassTint
+                        refractionMaxTan: root.glassRefractionMaxTan
                         contentEdgePull: root.glassContentEdgePull
                         contentRampEnd: root.glassContentRampEnd
-                        refractionMaxTan: root.glassRefractionMaxTan
+                        profilePower: root.glassProfilePower
+                        innerShadow: root.glassInnerShadow
                         smooth: true
                         brightness: root.glassBrightness
                         contrast: root.glassContrast

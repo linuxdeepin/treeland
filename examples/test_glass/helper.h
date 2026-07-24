@@ -33,6 +33,8 @@ class GlassConfig : public QObject {
     Q_PROPERTY(qreal glassContentEdgePull READ glassContentEdgePull WRITE setGlassContentEdgePull NOTIFY glassContentEdgePullChanged)
     Q_PROPERTY(qreal glassContentRampEnd READ glassContentRampEnd WRITE setGlassContentRampEnd NOTIFY glassContentRampEndChanged)
     Q_PROPERTY(qreal glassRefractionMaxTan READ glassRefractionMaxTan WRITE setGlassRefractionMaxTan NOTIFY glassRefractionMaxTanChanged)
+    Q_PROPERTY(qreal glassProfilePower READ glassProfilePower WRITE setGlassProfilePower NOTIFY glassProfilePowerChanged)
+    Q_PROPERTY(qreal glassInnerShadow READ glassInnerShadow WRITE setGlassInnerShadow NOTIFY glassInnerShadowChanged)
     Q_PROPERTY(qreal glassBrightness READ glassBrightness WRITE setGlassBrightness NOTIFY glassBrightnessChanged)
     Q_PROPERTY(qreal glassContrast READ glassContrast WRITE setGlassContrast NOTIFY glassContrastChanged)
     Q_PROPERTY(qreal glassSaturation READ glassSaturation WRITE setGlassSaturation NOTIFY glassSaturationChanged)
@@ -66,6 +68,10 @@ public:
     void setGlassContentRampEnd(qreal v) { if (m_glassContentRampEnd != v) { m_glassContentRampEnd = v; emit glassContentRampEndChanged(); } }
     qreal glassRefractionMaxTan() const { return m_glassRefractionMaxTan; }
     void setGlassRefractionMaxTan(qreal v) { if (m_glassRefractionMaxTan != v) { m_glassRefractionMaxTan = v; emit glassRefractionMaxTanChanged(); } }
+    qreal glassProfilePower() const { return m_glassProfilePower; }
+    void setGlassProfilePower(qreal v) { if (m_glassProfilePower != v) { m_glassProfilePower = v; emit glassProfilePowerChanged(); } }
+    qreal glassInnerShadow() const { return m_glassInnerShadow; }
+    void setGlassInnerShadow(qreal v) { if (m_glassInnerShadow != v) { m_glassInnerShadow = v; emit glassInnerShadowChanged(); } }
     qreal glassBrightness() const { return m_glassBrightness; }
     void setGlassBrightness(qreal v) { if (m_glassBrightness != v) { m_glassBrightness = v; emit glassBrightnessChanged(); } }
     qreal glassContrast() const { return m_glassContrast; }
@@ -86,6 +92,8 @@ Q_SIGNALS:
     void glassContentEdgePullChanged();
     void glassContentRampEndChanged();
     void glassRefractionMaxTanChanged();
+    void glassProfilePowerChanged();
+    void glassInnerShadowChanged();
     void glassBrightnessChanged();
     void glassContrastChanged();
     void glassSaturationChanged();
@@ -103,6 +111,8 @@ private:
     qreal m_glassContentEdgePull = 0.42;
     qreal m_glassContentRampEnd = 0.50;
     qreal m_glassRefractionMaxTan = 2.75;
+    qreal m_glassProfilePower = 4.0;
+    qreal m_glassInnerShadow = 0.25;
     qreal m_glassBrightness = 0.0;
     qreal m_glassContrast = 0.0;
     qreal m_glassSaturation = 0.04;
