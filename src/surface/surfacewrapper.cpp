@@ -860,6 +860,20 @@ void SurfaceWrapper::completeSplashTransition(const QSizeF &targetImplicitSize, 
         m_decoration->stackBefore(m_surfaceItem);
     }
 
+    if (m_isActivated && m_type == Type::XWayland) {
+        auto *xwaylandSurface = qobject_cast<WXWaylandSurface *>(m_shellSurface);
+        if (xwaylandSurface && !xwaylandSurface->isBypassManager()) {
+            // wlroots initially places a managed XWayland window at the bottom of the native
+            // X11 stack. A prelaunch wrapper is already activated, so the normal activation
+            // path cannot observe a wrapper change and raise the newly attached X11 window.
+            // Synchronize both stacks exactly when the real surface takes over presentation.
+            stackToLast();
+            xwaylandSurface->restack(nullptr, WXWaylandSurface::XCB_STACK_MODE_ABOVE);
+            qCDebug(lcTlSurface)
+                << "Synchronized active prelaunch XWayland stacking for" << appId();
+        }
+    }
+
     m_surfaceItem->setVisible(true);
     Q_ASSERT(m_prelaunchSplash);
     m_prelaunchSplash->setVisible(false);
