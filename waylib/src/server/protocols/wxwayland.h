@@ -46,6 +46,7 @@ public:
         _NET_WM_WINDOW_TYPE_MENU,
         _NET_WM_WINDOW_TYPE_NOTIFICATION,
         _NET_WM_WINDOW_TYPE_SPLASH,
+        _NET_WM_WINDOW_TYPE_DIALOG,
         _NET_SUPPORTED,
         AtomCount
     };
