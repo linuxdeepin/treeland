@@ -286,10 +286,41 @@ Item {
         id: previewWindows
 
         property bool reverse: false
+        property bool animationRunning: false
         property int finishedAnimations: 0
         property int totalAnimations: previewWindows.count
-        signal animationsFinished
+        signal startAnimations()
         signal restoreSurfaces()
+
+        function beginAnimation(surfaceSnapshot, surface, reason) {
+            previewWindows.finishedAnimations = 0
+            // Repeater creates the delegates synchronously, so every surface state is
+            // saved by Component.onCompleted before activating the selected surface.
+            previewWindows.model = surfaceSnapshot
+
+            if (surface)
+                Helper.forceActivateSurface(surface, reason)
+
+            previewWindows.animationRunning = true
+            previewWindows.startAnimations()
+        }
+
+        function finishAnimation(interrupted) {
+            if (!previewWindows.animationRunning)
+                return
+
+            // stop() can emit finished synchronously. Mark the animation stopped before
+            // restoring delegates so those callbacks cannot finish it a second time.
+            previewWindows.animationRunning = false
+            previewWindows.restoreSurfaces()
+            previewWindows.model = []
+            previewWindows.finishedAnimations = 0
+
+            if (!interrupted && !previewWindows.reverse) {
+                showTask(false)
+                root.switchOn = false
+            }
+        }
 
         delegate: Item {
             id: windowItem
@@ -297,6 +328,16 @@ Item {
             readonly property SurfaceWrapper surface: modelData
             property real surfaceX: 0
             property real surfaceY: 0
+            property int surfaceTransformOrigin: Item.Center
+
+            function animationFinished() {
+                if (!previewWindows.animationRunning)
+                    return
+
+                previewWindows.finishedAnimations += 1
+                if (previewWindows.finishedAnimations === previewWindows.totalAnimations)
+                    previewWindows.finishAnimation(false)
+            }
 
             ParallelAnimation {
                 id: previewAnimation
@@ -312,14 +353,15 @@ Item {
 
                 ScaleAnimator {
                     target: previewAnimation.target
-                    from: previewWindows.reverse ? 1.0 : previewAnimation.scaleFrom
-                    to: previewWindows.reverse ? previewAnimation.scaleFrom : 1.0
+                    from: previewWindows.reverse ? 1 : previewAnimation.scaleFrom
+                    to: previewWindows.reverse ? previewAnimation.scaleFrom : 1
                     duration: previewAnimation.duration
                     easing.type: Easing.OutExpo
                 }
 
                 OpacityAnimator {
-                    loops: Helper.activatedSurface === surface || surface.visible ? 1 : 0
+                    loops: surface
+                           && (Helper.activatedSurface === surface || surface.visible) ? 1 : 0
                     target: previewAnimation.target;
                     from: previewWindows.reverse ? 1.0 : previewAnimation.opacityFrom
                     to: previewWindows.reverse ? previewAnimation.opacityFrom : 1.0
@@ -343,64 +385,65 @@ Item {
                     easing.type: Easing.OutExpo
                 }
 
-                onFinished: {
-                    previewWindows.finishedAnimations += 1
-
-                    if (previewWindows.finishedAnimations === previewWindows.totalAnimations) {
-                        previewWindows.animationsFinished()
-
-                        previewWindows.finishedAnimations = 0
-                        previewWindows.model = []
-                    }
-                }
+                onFinished: windowItem.animationFinished()
             }
 
             Component.onCompleted: {
-                if (!surface)
+                if (!surface || !surface.shellSurface)
                     return
 
-                var wh = previewPostion(surface, previewItem)
                 windowItem.surfaceX = surface.x
                 windowItem.surfaceY = surface.y
+                windowItem.surfaceTransformOrigin = surface.transformOrigin
 
+                const wh = previewPostion(surface, previewItem)
                 previewAnimation.target = surface
                 previewAnimation.xFrom = (40 + previewItem.width - wh.width) / 2.0
                 previewAnimation.yFrom = (104 + previewItem.height - wh.height) / 2.0
                 previewAnimation.xTo = windowItem.surfaceX
                 previewAnimation.yTo = windowItem.surfaceY
                 previewAnimation.scaleFrom = wh.width / surface.width
-
-                if (surface === Helper.activatedSurface) {
-                    surface.transformOrigin = Item.TopLeft
-                    previewAnimation.opacityFrom = 1.0
-                    surface.opacity = 1.0
-                } else {
-                    previewAnimation.duration = 500
-                    surface.x = previewAnimation.xFrom
-                    surface.y = previewAnimation.yFrom
-                    surface.opacity = 0.0
-                    surface.scale = previewAnimation.scaleFrom
-                }
-
-                previewAnimation.start()
             }
 
             Connections {
                 target: previewWindows
-                function onRestoreSurfaces() {
-                    if (surface && surface.shellSurface) {
-                        surface.x = windowItem.surfaceX
-                        surface.y = windowItem.surfaceY
-                        surface.opacity = 1.0
-                    }
-                }
-            }
-        }
 
-        onAnimationsFinished: {
-            if (!previewWindows.reverse) {
-                showTask(false)
-                root.switchOn = false
+                function onStartAnimations() {
+                    if (!surface || !surface.shellSurface) {
+                        // Do not clear the Repeater model while this signal is still being
+                        // delivered to the remaining delegates.
+                        Qt.callLater(function() {
+                            windowItem.animationFinished()
+                        })
+                        return
+                    }
+
+                    if (surface === Helper.activatedSurface) {
+                        surface.transformOrigin = Item.TopLeft
+                        previewAnimation.opacityFrom = 1.0
+                        surface.opacity = 1.0
+                    } else {
+                        previewAnimation.duration = 500
+                        surface.x = previewAnimation.xFrom
+                        surface.y = previewAnimation.yFrom
+                        surface.opacity = 0.0
+                        surface.scale = previewAnimation.scaleFrom
+                    }
+
+                    previewAnimation.start()
+                }
+
+                function onRestoreSurfaces() {
+                    previewAnimation.stop()
+
+                    if (!surface || !surface.shellSurface)
+                        return
+
+                    surface.x = windowItem.surfaceX
+                    surface.y = windowItem.surfaceY
+                    surface.scale = 1
+                    surface.transformOrigin = windowItem.surfaceTransformOrigin
+                }
             }
         }
     }
@@ -442,11 +485,8 @@ Item {
         if (updateTimestamp)
             root.lastSwitchTimestamp = Date.now()
 
-        if (previewWindows.finishedAnimations < previewWindows.totalAnimations) {
-            previewWindows.restoreSurfaces()
-            previewWindows.model = []
-            previewWindows.finishedAnimations = 0
-
+        if (previewWindows.animationRunning) {
+            previewWindows.finishAnimation(true)
             showTask(false)
         }
 
@@ -548,7 +588,7 @@ Item {
             return
         }
 
-        if (previewWindows.finishedAnimations !== previewWindows.totalAnimations) {
+        if (previewWindows.animationRunning) {
             prejudgment(false)
             return
         }
@@ -570,12 +610,12 @@ Item {
                 && switchView.count > 0 && switchView.count <= 18
         const surfaceSnapshot = playSurfaceAnimation ? root.model.surfaceSnapshot() : []
 
-        if (switchView.currentItem)
-            Helper.forceActivateSurface(switchView.currentItem.surface, focusReason)
+        const activationSurface = switchView.currentItem
+                ? switchView.currentItem.surface : null
 
-        if (playSurfaceAnimation) {
+        if (playSurfaceAnimation && surfaceSnapshot.length > 0) {
             previewWindows.reverse = false
-            previewWindows.model = surfaceSnapshot
+            previewWindows.beginAnimation(surfaceSnapshot, activationSurface, focusReason)
         } else {
             previewWindows.reverse = false
             previewWindows.finishedAnimations = 0
