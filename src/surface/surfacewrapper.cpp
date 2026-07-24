@@ -430,7 +430,7 @@ void SurfaceWrapper::setup()
             moveNormalGeometryInOutput(xwaylandSurfaceItem->implicitPosition());
         }
 
-        auto updateX11shouldSkipDock = [this]() {
+        auto updateX11SkipFlags = [this]() {
             // TODO: support missing type in waylib
             // https://github.com/linuxdeepin/dde-shell/blob/b94a3cec4e01cba64f56e040e74419248985d03d/panels/dock/taskmanager/x11window.cpp#L81-L107
             auto xwaylandSurface = qobject_cast<WXWaylandSurface *>(this->shellSurface());
@@ -456,13 +456,21 @@ void SurfaceWrapper::setup()
             // skipDock |= atoms.testFlag(WXWaylandSurface::WindowType::NET_WM_WINDOW_TYPE_TOOLBAR);
             skipDock |= atoms.testFlag(WXWaylandSurface::WindowType::NET_WM_WINDOW_TYPE_TOOLTIP);
             setSkipDockPreView(skipDock);
+
+            bool notSkipSwitcher = false;
+            notSkipSwitcher |=
+                atoms.testFlag(WXWaylandSurface::WindowType::NET_WM_WINDOW_TYPE_NORMAL);
+            notSkipSwitcher |=
+                atoms.testFlag(WXWaylandSurface::WindowType::NET_WM_WINDOW_TYPE_DIALOG);
+            setSkipSwitcher(!notSkipSwitcher);
+            setSkipMutiTaskView(!notSkipSwitcher);
         };
 
         connect(xwaylandSurface,
                 &WXWaylandSurface::bypassManagerChanged,
                 this,
-                [this, updateX11shouldSkipDock]() {
-                    updateX11shouldSkipDock();
+                [this, updateX11SkipFlags]() {
+                    updateX11SkipFlags();
                     updateSizeCapabilities();
                     updateActivateCapability();
                     updateFocusCapability();
@@ -470,11 +478,11 @@ void SurfaceWrapper::setup()
         connect(xwaylandSurface,
                 &WXWaylandSurface::windowTypesChanged,
                 this,
-                [this, updateX11shouldSkipDock]() {
-                    updateX11shouldSkipDock();
+                [this, updateX11SkipFlags]() {
+                    updateX11SkipFlags();
                     updateSizeCapabilities();
                 });
-        updateX11shouldSkipDock();
+        updateX11SkipFlags();
     }
     // Connect DConfig windowRadius change so QML bindings re-evaluate radius()
     if (m_type == Type::XdgToplevel || m_type == Type::XWayland) {

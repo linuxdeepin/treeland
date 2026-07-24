@@ -56,16 +56,17 @@ bool SurfaceFilterProxyModel::filterAcceptsRow(int source_row,
     QModelIndex index = sourceModel()->index(source_row, 0, source_parent);
     SurfaceWrapper *surface = sourceModel()->data(index).value<SurfaceWrapper *>();
 
+    if (!surface || surface->skipSwitcher()) {
+        return false;
+    }
+
     if (m_filterAppId.isEmpty()) {
         return true;
     }
 
-    if (surface) {
-        return surface->appId() == m_filterAppId;
-    }
-
-    return false;
+    return surface->appId() == m_filterAppId;
 }
+
 
 bool SurfaceFilterProxyModel::lessThan(const QModelIndex &source_left,
                                        const QModelIndex &source_right) const
