@@ -1236,6 +1236,8 @@ void SurfaceWrapper::updateBoundingRect()
 
 void SurfaceWrapper::updateVisible()
 {
+    if (m_wrapperAboutToRemove)
+        return;
     bool isVisible = !m_hideByWorkspace && !isMinimized()
         && ((surface() && surface()->mapped())
             || (m_prelaunchSplash && m_prelaunchSplash->isVisible()))
