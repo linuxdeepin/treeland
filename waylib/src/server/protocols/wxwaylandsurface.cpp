@@ -422,10 +422,13 @@ bool WXWaylandSurface::hasCapability(Capability cap) const
                     | NET_WM_WINDOW_TYPE_DROPDOWN_MENU | NET_WM_WINDOW_TYPE_POPUP_MENU
                     | NET_WM_WINDOW_TYPE_COMBO | NET_WM_WINDOW_TYPE_MENU
                     | NET_WM_WINDOW_TYPE_NOTIFICATION | NET_WM_WINDOW_TYPE_SPLASH));
+    // TODO(xwayland): To implement ICCCM focus model, refer to
+    // https://github.com/labwc/labwc/blob/9ba3303246b1b1bf4dbf13793faa62ec74872e3b/src/xwayland.c#L108
+    case Activate: [[fallthrough]];
     case Focus:
-        return wlr_xwayland_surface_override_redirect_wants_focus(d->nativeHandle())
+        return !isBypassManager()
+            && wlr_xwayland_surface_override_redirect_wants_focus(d->nativeHandle())
             && wlr_xwayland_surface_icccm_input_model(d->nativeHandle()) != WLR_ICCCM_INPUT_MODEL_NONE;
-    case Activate:
     case FullScreen:
         return !isBypassManager();
     default:
