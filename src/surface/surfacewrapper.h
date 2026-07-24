@@ -180,6 +180,7 @@ public:
 
     QRectF geometry() const;
     QRectF normalGeometry() const;
+    bool hasReliableNormalGeometry() const;
     void moveNormalGeometryInOutput(const QPointF &position);
     QPointF alignToPixelGrid(const QPointF &pos) const;
     QRectF alignGeometryToPixelGrid(const QRectF &geometry) const;
@@ -381,6 +382,19 @@ Q_SIGNALS:
     void typeChanged();
 
 private:
+    SurfaceWrapper(QmlEngine *qmlEngine,
+                   WToplevelSurface *shellSurface,
+                   Type type,
+                   const QString &appId,
+                   QQuickItem *parent,
+                   const QRectF &initialMaximizedGeometry);
+
+    enum class NormalGeometrySource : quint8 {
+        None,
+        Restored,
+        Client,
+    };
+
     ~SurfaceWrapper() override;
     using QObject::deleteLater;
     using QQuickItem::setParentItem;
@@ -390,7 +404,12 @@ private:
     void setParent(QQuickItem *item);
     void setActivate(bool activate);
     void updateActiveState();
-    void setNormalGeometry(const QRectF &newNormalGeometry);
+    void setNormalGeometry(const QRectF &newNormalGeometry, bool applyDeferredState = true);
+    void setNormalGeometryFromSurface(const QRectF &newNormalGeometry,
+                                      bool applyDeferredState = true);
+    void setRestoredNormalSize(const QSizeF &size, bool applyInitialMaximize = true);
+    bool hasUsableNormalGeometry() const;
+    bool captureNormalGeometryFromSurfaceItem(bool applyDeferredState = true);
     void updateTitleBar();
     void updateDecoration();
     void setBoundedRect(const QRectF &newBoundedRect);
@@ -399,8 +418,11 @@ private:
 
     void invalidate();
     void setup(); // Initialize m_surfaceItem related features
+    // Transition from pre-launch mode to normal mode.
     void convertToNormalSurface(WToplevelSurface *shellSurface,
-                                Type type); // Transition from pre-launch mode to normal mode
+                                Type type,
+                                const QRectF &initialMaximizedGeometry = {});
+    void adoptInitialXdgMaximize(const QRectF &targetGeometry);
     void updateBoundingRect();
     void updateVisible();
     void updateSubSurfaceStacking();
@@ -409,7 +431,18 @@ private:
     void createNewOrClose(uint direction);
     void itemChange(ItemChange change, const ItemChangeData &data) override;
 
-    void doSetSurfaceState(State newSurfaceState);
+    void doSetSurfaceState(State newSurfaceState, bool configureShellSurface = true);
+    void deferSurfaceState(State newSurfaceState);
+    void tryApplyDeferredSurfaceState();
+    void tryApplyInitialMaximize();
+    bool hasConfiguredInitialXdgMaximize() const;
+    void refreshConfiguredInitialXdgMaximize();
+    void activateConfiguredInitialXdgMaximize();
+    void cancelConfiguredInitialXdgMaximize();
+    void armInitialMaximizeCommitTimeout();
+    void handleInitialMaximizeCommit();
+    bool initialMaximizeTargetCommitted() const;
+    void finishInitialMaximize(bool timedOut);
     Q_SLOT void onAnimationReady();
     Q_SLOT void onAnimationFinished();
     void syncPrelaunchMappedState();
@@ -417,6 +450,7 @@ private:
     Q_SLOT void onPrelaunchGeometryAnimationReady();
     Q_SLOT void onPrelaunchGeometryAnimationFinished();
     bool startStateChangeAnimation(SurfaceWrapper::State targetState, const QRectF &targetGeometry);
+    void continuePendingTransitionsAfterAnimation(QQuickItem *animation);
     void onWindowAnimationFinished();
     Q_SLOT void onShowAnimationFinished();
     Q_SLOT void onHideAnimationFinished();
@@ -459,8 +493,15 @@ private:
     Type m_type;
     QPointer<Output> m_ownsOutput;
     QPointF m_positionInOwnsOutput;
-    SurfaceWrapper::State m_pendingState;
+    SurfaceWrapper::State m_pendingState = State::Normal;
     QRectF m_pendingGeometry;
+    SurfaceWrapper::State m_deferredSurfaceState = State::Normal;
+    bool m_hasDeferredSurfaceState = false;
+    NormalGeometrySource m_normalGeometrySource = NormalGeometrySource::None;
+    bool m_initialMaximizePending = false;
+    bool m_initialMaximizeConfigured = false;
+    QRectF m_initialMaximizeGeometry;
+    quint64 m_initialMaximizeGeneration = 0;
     QPointer<QQuickItem> m_windowAnimation;
     QPointer<QQuickItem> m_minimizeAnimation;
     QPointer<QQuickItem> m_showDesktopAnimation;

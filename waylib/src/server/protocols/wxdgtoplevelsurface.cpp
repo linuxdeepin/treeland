@@ -4,6 +4,7 @@
 #include "wxdgtoplevelsurface.h"
 
 #include "private/wtoplevelsurface_p.h"
+#include "wayliblogging.h"
 #include "wseat.h"
 #include "wtools.h"
 
@@ -38,6 +39,10 @@ public:
 
     void instantRelease() override;
     void updateSizeFromCommit();
+
+    inline bool isMaximizeRequested() const {
+        return handle()->is_maximize_requested();
+    }
 
     W_DECLARE_PUBLIC(WXdgToplevelSurface)
 
@@ -148,8 +153,17 @@ void WXdgToplevelSurfacePrivate::connect()
     W_Q(WXdgToplevelSurface);
 
     auto surface = qw_xdg_surface::from(nativeHandle()->base);
-    q->surface()->safeConnect(&WSurface::commit, q, [this] {
+    q->surface()->safeConnect(&WSurface::commit, q, [this, q] {
         updateSizeFromCommit();
+
+        // The initial xdg_surface configure is a protocol handshake and must not depend on
+        // whether a QtQuick item has already been created. Treeland may wait for asynchronous
+        // app-id resolution before creating that item.
+        if (handle()->is_initial_commit()) {
+            qCDebug(lcWlSurface) << "Scheduling initial XDG toplevel configure for" << q;
+            handle()->set_size(0, 0);
+            Q_EMIT q->initialConfigureRequested();
+        }
     });
     QObject::connect(surface, &qw_xdg_surface::notify_configure, q, [this] (wlr_xdg_surface_configure *event) {
         on_configure(event);
@@ -165,7 +179,7 @@ void WXdgToplevelSurfacePrivate::connect()
         Q_EMIT q->requestResize(seat, WTools::toQtEdge(event->edges), event->serial);
     });
     QObject::connect(handle(), &qw_xdg_toplevel::notify_request_maximize, q, [q, this] () {
-        if ((*handle())->requested.maximized) {
+        if (isMaximizeRequested()) {
             Q_EMIT q->requestMaximize();
         } else {
             Q_EMIT q->requestCancelMaximize();
@@ -173,12 +187,12 @@ void WXdgToplevelSurfacePrivate::connect()
     });
     QObject::connect(handle(), &qw_xdg_toplevel::notify_request_minimize, q, [q, this] () {
         // Wayland clients can't request unset minimization on this surface
-        if ((*handle())->requested.minimized) {
+        if (handle()->is_minimize_requested()) {
             Q_EMIT q->requestMinimize();
         }
     });
     QObject::connect(handle(), &qw_xdg_toplevel::notify_request_fullscreen, q, [q, this] () {
-        if ((*handle())->requested.fullscreen) {
+        if (handle()->is_fullscreen_requested()) {
             Q_EMIT q->requestFullscreen();
         } else {
             Q_EMIT q->requestCancelFullscreen();
@@ -275,6 +289,12 @@ bool WXdgToplevelSurface::isResizeing() const
 {
     W_DC(WXdgToplevelSurface);
     return d->resizeing;
+}
+
+bool WXdgToplevelSurface::isMaximizeRequested() const
+{
+    W_DC(WXdgToplevelSurface);
+    return d->isMaximizeRequested();
 }
 
 bool WXdgToplevelSurface::isActivated() const
