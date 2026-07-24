@@ -1,3 +1,27 @@
+treeland (0.8.16) unstable; urgency=medium
+
+  * fix(waylib/xwayland): deny Activate for surfaces without Focus
+    capability
+  * fix(workspace): activate focus on touchpad gesture workspace switch
+  * feat: set fcitx input method environment in session service
+  * fix(input): trigger hold gesture immediately with configurable
+    timeout
+  * fix(input): filter hold gestures by finger count at start
+  * fix(output): restore configured topology after output reconnect
+  * fix: fix XWayland cursor truncation on fractional-scaled multi-
+    monitor
+  * fix: resolve sfinae and qml type registration warnings
+  * fix(task-switcher): preserve surface positions during exit
+  * fix(surface): remove cached subsurface state
+  * fix(surface): distinguish popup/IME/drag keyboard grabs
+  * fix(surface): track subsurface teardown independently
+  * fix(taskswitch): reset currentMode when dismissed by mouse click
+  * fix(output): detach proxy hardware layers before output teardown
+  * fix(lockscreen): reposition caps indicator and center password input
+  * feat(wm): implement show-desktop via taskbar click
+
+ -- rewine <luhongxu@deepin.org>  Fri, 24 Jul 2026 11:21:58 +0800
+
 treeland (0.8.15) unstable; urgency=medium
 
   * fix(lockscreen): accept numpad Enter key for password submission
