@@ -143,6 +143,7 @@ public:
     void updateCursor();
     void updateImplicitSize();
     void setHotSpot(const QPoint &newHotSpot);
+    void markContentDirty();
 
     inline quint32 getCursorSize() const {
         return qMax(cursorSize.width(), cursorSize.height());
@@ -161,6 +162,7 @@ public:
     QString xcursorThemeName;
     QSize cursorSize = QSize(24, 24);
     QPoint hotSpot;
+    quint64 contentRevision = 0;
 };
 
 void WQuickCursorPrivate::setHotSpot(const QPoint &newHotSpot)
@@ -276,7 +278,7 @@ void WQuickCursorPrivate::onImageChanged()
 
     if (!cursorSurfaceItem) {
         setHotSpot(cursorImage->hotSpot());
-        q_func()->update();
+        markContentDirty();
     }
 }
 
@@ -284,6 +286,7 @@ void WQuickCursorPrivate::updateCursor()
 {
     W_Q(WQuickCursor);
 
+    const quint64 oldContentRevision = contentRevision;
     auto cursor = this->cursor->cursor();
     if (WGlobal::isClientResourceCursor(cursor)) {
         // First try use cursor shape
@@ -308,7 +311,21 @@ void WQuickCursorPrivate::updateCursor()
         setHotSpot(cursorImage->hotSpot());
     }
 
+    if (contentRevision == oldContentRevision)
+        markContentDirty();
     Q_EMIT q_func()->validChanged();
+}
+
+void WQuickCursorPrivate::markContentDirty()
+{
+    ++contentRevision;
+
+    W_Q(WQuickCursor);
+    if (q->flags().testFlag(QQuickItem::ItemHasContents))
+        q->update();
+    if (output)
+        output->scheduleFrame();
+    Q_EMIT q->contentChanged();
 }
 
 void WQuickCursorPrivate::updateImplicitSize()
@@ -395,6 +412,12 @@ bool WQuickCursor::valid() const
 
     return d->cursorSurfaceItem
            ||  !WGlobal::isInvalidCursor(d->cursorImage->cursor());
+}
+
+quint64 WQuickCursor::contentRevision() const
+{
+    W_DC(WQuickCursor);
+    return d->contentRevision;
 }
 
 WCursor *WQuickCursor::cursor() const

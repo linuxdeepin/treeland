@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "core/treeland.h"
+#include "common/treelandlogging.h"
 #include "utils/cmdline.h"
 
 #include <wrenderhelper.h>
@@ -12,9 +13,11 @@
 #include <DGuiApplicationHelper>
 #include <DLog>
 
+#include <QByteArray>
 #include <QGuiApplication>
 #include <QMetaType>
 #include <QPalette>
+#include <QQuickWindow>
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 10, 0)
 #  include <private/qgenericunixtheme_p.h>
@@ -46,6 +49,9 @@ public:
 int main(int argc, char *argv[])
 {
     qw_log::init();
+    const QByteArray wlrRenderer = qgetenv("WLR_RENDERER");
+    const bool explicitVulkanRenderer = wlrRenderer == "vulkan";
+
     DTK_GUI_NAMESPACE::DGuiApplicationHelper::setAttribute(
         DTK_GUI_NAMESPACE::DGuiApplicationHelper::DontSaveApplicationTheme,
         true);
@@ -54,7 +60,11 @@ int main(int argc, char *argv[])
     });
     //    QQuickStyle::setStyle("Material");
 
-    QGuiApplication::setAttribute(Qt::AA_UseOpenGLES);
+    if (explicitVulkanRenderer)
+        QQuickWindow::setGraphicsApi(QSGRendererInterface::Vulkan);
+    else
+        QGuiApplication::setAttribute(Qt::AA_UseOpenGLES);
+
     QGuiApplication::setHighDpiScaleFactorRoundingPolicy(
         Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
     QGuiApplication::setQuitOnLastWindowClosed(false);
@@ -76,6 +86,9 @@ int main(int argc, char *argv[])
     }
 #endif
     DLogManager::registerJournalAppender();
+    if (explicitVulkanRenderer) {
+        qCInfo(lcTlCore) << "Explicit Vulkan renderer requested; Qt::AA_UseOpenGLES was not set";
+    }
 
     WRenderHelper::setupRendererBackend();
     if (CmdLine::ref().tryExec())

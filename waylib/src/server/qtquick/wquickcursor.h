@@ -59,6 +59,7 @@ public:
     bool isTextureProvider() const override;
 
     bool valid() const;
+    quint64 contentRevision() const;
 
     WCursor *cursor() const;
     void setCursor(WCursor *cursor);
@@ -82,6 +83,7 @@ Q_SIGNALS:
     void currentRenderWindowChanged();
     void hotSpotChanged();
     void outputChanged();
+    void contentChanged();
 
 private Q_SLOTS:
     void invalidateSceneGraph();

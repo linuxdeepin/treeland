@@ -69,7 +69,9 @@
 
 #include <WBackend>
 #include <WForeignToplevel>
+#include <WLinuxDmabufV1>
 #include <WOutput>
+#include <WPresentation>
 #include <WServer>
 #include <WSurfaceItem>
 #include <WXdgOutput>
@@ -1857,8 +1859,26 @@ void Helper::init(Treeland::Treeland *treeland)
     }
 
     m_allocator = qw_allocator::autocreate(*m_backend->handle(), *m_renderer);
-    m_renderer->init_wl_display(*m_server->handle());
-    qw_drm::create(*m_server->handle(), *m_renderer);
+    if (!m_renderer->init_wl_shm(*m_server->handle()))
+        qCFatal(lcTlCore) << "Failed to initialize wl_shm for renderer";
+
+    qCInfo(lcTlCore) << "Initialized wl_shm for renderer";
+    m_server->attach<WLinuxDmabufV1>(m_renderer);
+    if (WRenderHelper::getGraphicsApi() == QSGRendererInterface::Vulkan) {
+        auto *presentation = m_server->attach<WPresentation>(m_backend->handle());
+        m_renderWindow->setPresentation(presentation);
+        qCInfo(lcTlCore) << "Attached presentation-time protocol for Vulkan renderer";
+    }
+
+    if (m_renderer->supports_implicit_dmabuf_texture_formats()) {
+        if (qw_drm::create(*m_server->handle(), *m_renderer)) {
+            qCInfo(lcTlCore) << "Created legacy wl_drm global for implicit DMA-BUF clients";
+        } else {
+            qCWarning(lcTlCore) << "Failed to create legacy wl_drm global despite implicit DMA-BUF support";
+        }
+    } else {
+        qCInfo(lcTlCore) << "Skipping legacy wl_drm global: renderer does not support implicit DMA-BUF modifiers";
+    }
 
     // free follow display
     m_compositor = qw_compositor::create(*m_server->handle(), 6, *m_renderer);

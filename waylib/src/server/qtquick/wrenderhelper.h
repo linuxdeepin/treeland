@@ -10,11 +10,15 @@
 #include <QQuickRenderTarget>
 #include <QSGRendererInterface>
 
+#include <memory>
+
 QT_BEGIN_NAMESPACE
 class QQuickRenderControl;
 class QSGTexture;
 class QSGPlainTexture;
 class QRhi;
+class QRhiRenderTarget;
+class QRhiTexture;
 QT_END_NAMESPACE
 
 QW_BEGIN_NAMESPACE
@@ -26,6 +30,7 @@ class qw_texture;
 QW_END_NAMESPACE
 
 struct wlr_buffer;
+struct wlr_texture;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -47,7 +52,15 @@ public:
 
     static QW_NAMESPACE::qw_buffer *toBuffer(QW_NAMESPACE::qw_renderer *renderer, QSGTexture *texture, QSGRendererInterface::GraphicsApi api);
 
-    QQuickRenderTarget acquireRenderTarget(QQuickRenderControl *rc, QW_NAMESPACE::qw_buffer *buffer);
+    QQuickRenderTarget acquireRenderTarget(QQuickRenderControl *rc,
+                                           QW_NAMESPACE::qw_buffer *buffer,
+                                           bool useVulkanBackdrop = false);
+    QQuickRenderTarget preserveRenderTarget(QW_NAMESPACE::qw_buffer *buffer,
+                                            bool useVulkanBackdrop = false) const;
+    QQuickRenderTarget vulkanBackdropResumeRenderTarget(QW_NAMESPACE::qw_buffer *buffer) const;
+    bool acquireRenderBuffer(QQuickRenderControl *rc, QW_NAMESPACE::qw_buffer *buffer, const char *purpose);
+    bool releaseRenderBuffer(QQuickRenderControl *rc, QW_NAMESPACE::qw_buffer *buffer, QRhiTexture *renderTargetTexture, const char *purpose);
+    void cleanupRetiredRenderResources(bool force = false);
     std::pair<QW_NAMESPACE::qw_buffer*, QQuickRenderTarget> lastRenderTarget() const;
     static QW_NAMESPACE::qw_renderer *createRenderer(QW_NAMESPACE::qw_backend *backend);
     static QW_NAMESPACE::qw_renderer *createRenderer(QW_NAMESPACE::qw_backend *backend, QSGRendererInterface::GraphicsApi api);
@@ -55,7 +68,21 @@ public:
     static void setupRendererBackend(QW_NAMESPACE::qw_backend *testBackend = nullptr);
     static QSGRendererInterface::GraphicsApi probe(QW_NAMESPACE::qw_backend *testBackend, const QList<QSGRendererInterface::GraphicsApi> &apiList);
 
-    static bool makeTexture(QRhi *rhi, QW_NAMESPACE::qw_texture *handle, QSGPlainTexture *texture);
+    static bool makeTexture(QRhi *rhi, QW_NAMESPACE::qw_texture *handle, QSGPlainTexture *texture,
+                            bool forceVulkanShaderReadOnlyLayout = false);
+    static bool prepareTextureForSampling(QQuickRenderControl *rc,
+                                          QW_NAMESPACE::qw_renderer *renderer,
+                                          QW_NAMESPACE::qw_texture *texture,
+                                          const char *purpose);
+    static bool finishTextureSampling(QQuickRenderControl *rc,
+                                      QW_NAMESPACE::qw_renderer *renderer,
+                                      QW_NAMESPACE::qw_texture *texture,
+                                      const char *purpose);
+    static bool beginTextureSyncBatch(QQuickRenderControl *rc,
+                                      QW_NAMESPACE::qw_renderer *renderer,
+                                      bool verifyQueue);
+    static bool flushTextureSyncBatch(QW_NAMESPACE::qw_renderer *renderer);
+    static void abortTextureSyncBatch(QW_NAMESPACE::qw_renderer *renderer);
 
     struct TextureEntry {
         wlr_buffer *buffer;

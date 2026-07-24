@@ -43,6 +43,7 @@ struct wlr_vk_device {
 	bool sync_file_import_export;
 	bool implicit_sync_interop;
 	bool sampler_ycbcr_conversion;
+	bool separate_depth_stencil_layouts;
 
 	// we only ever need one queue for rendering and transfer commands
 	uint32_t queue_family;
@@ -98,6 +99,7 @@ const struct wlr_vk_format *vulkan_get_format_from_drm(uint32_t drm_format);
 struct wlr_vk_format_modifier_props {
 	VkDrmFormatModifierPropertiesEXT props;
 	VkExtent2D max_extent;
+	VkExtent2D transfer_src_max_extent;
 	bool has_mutable_srgb;
 };
 
@@ -208,6 +210,7 @@ struct wlr_vk_render_buffer {
 	VkDeviceMemory memories[WLR_DMABUF_MAX_PLANES];
 	uint32_t mem_count;
 	VkImage image;
+	VkImageUsageFlags image_usage;
 
 	// Framebuffer and image view for rendering directly onto the buffer image.
 	// This requires that the image support an _SRGB VkFormat, and does
@@ -260,6 +263,13 @@ struct wlr_vk_command_buffer {
 
 #define VULKAN_COMMAND_BUFFERS_CAP 64
 
+// Binary semaphore holding an imported foreign-texture DMA-BUF sync_file.
+// Reusable once the texture_sync timeline semaphore reaches release_point.
+struct wlr_vk_texture_sync_sem {
+	VkSemaphore semaphore;
+	uint64_t release_point;
+};
+
 // Vulkan wlr_renderer implementation on top of a wlr_vk_device.
 struct wlr_vk_renderer {
 	struct wlr_renderer wlr_renderer;
@@ -295,6 +305,18 @@ struct wlr_vk_renderer {
 
 	VkSemaphore timeline_semaphore;
 	uint64_t timeline_point;
+
+	// Frame-batched waiting on foreign texture DMA-BUF sync_files (Qt/QRhi
+	// path). Unsignaled sync_files are imported into binary semaphores and
+	// waited on by a command-buffer-free submission. The semaphore wait scope
+	// covers the later Qt submission on the same queue.
+	VkSemaphore texture_sync_timeline_semaphore;
+	uint64_t texture_sync_timeline_point;
+	struct wl_array texture_sync_semaphores; // struct wlr_vk_texture_sync_sem
+	struct wl_array texture_sync_pending; // private texture sync wait entries
+	struct wl_array texture_sync_wait_infos; // VkSemaphoreSubmitInfoKHR scratch
+	bool texture_sync_batch_active;
+	bool texture_sync_force_poll; // env WLR_VK_FORCE_SYNC_POLL
 
 	size_t last_pool_size;
 	struct wl_list descriptor_pools; // wlr_vk_descriptor_pool.link
@@ -476,7 +498,7 @@ struct wlr_vk_texture *vulkan_get_texture(struct wlr_texture *wlr_texture);
 VkImage vulkan_import_dmabuf(struct wlr_vk_renderer *renderer,
 	const struct wlr_dmabuf_attributes *attribs,
 	VkDeviceMemory mems[static WLR_DMABUF_MAX_PLANES], uint32_t *n_mems,
-	bool for_render, bool *using_mutable_srgb);
+	bool for_render, bool *using_mutable_srgb, VkImageUsageFlags *image_usage);
 struct wlr_texture *vulkan_texture_from_buffer(
 	struct wlr_renderer *wlr_renderer, struct wlr_buffer *buffer);
 void vulkan_texture_destroy(struct wlr_vk_texture *texture);

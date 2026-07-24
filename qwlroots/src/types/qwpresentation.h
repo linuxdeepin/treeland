@@ -17,11 +17,11 @@ class QW_CLASS_OBJECT(presentation)
     Q_OBJECT
 
 public:
-    QW_FUNC_STATIC(presentation, create, qw_presentation *, wl_display *display, wlr_backend *backend)
+    QW_FUNC_STATIC(presentation, create, qw_presentation *, wl_display *display, wlr_backend *backend, uint32_t version)
 
-    QW_FUNC_MEMBER(presentation, surface_sampled, wlr_presentation_feedback *, wlr_surface *surface)
-    QW_FUNC_MEMBER(presentation, surface_textured_on_output, void, wlr_surface *surface, wlr_output *output)
-    QW_FUNC_MEMBER(presentation, surface_scanned_out_on_output, void, wlr_surface *surface, wlr_output *output)
+    QW_FUNC_STATIC(presentation, surface_sampled, wlr_presentation_feedback *, wlr_surface *surface)
+    QW_FUNC_STATIC(presentation, surface_textured_on_output, void, wlr_surface *surface, wlr_output *output)
+    QW_FUNC_STATIC(presentation, surface_scanned_out_on_output, void, wlr_surface *surface, wlr_output *output)
 };
 
 class QW_CLASS_REINTERPRET_CAST(presentation_event)

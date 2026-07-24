@@ -32,6 +32,7 @@ public:
     void invalidate();
 
     QSGTexture *texture() const override;
+    bool hasTexture() const;
     virtual QW_NAMESPACE::qw_texture *qwTexture() const;
     virtual QW_NAMESPACE::qw_buffer *qwBuffer() const;
 

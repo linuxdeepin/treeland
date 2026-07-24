@@ -17,6 +17,7 @@
 Q_MOC_INCLUDE(<private/qsgplaintexture_p.h>)
 
 QT_BEGIN_NAMESPACE
+class QRhiRenderTarget;
 class QSGPlainTexture;
 class QSGRenderContext;
 namespace QSGBatchRenderer {
@@ -76,6 +77,7 @@ public:
     QW_NAMESPACE::qw_buffer *currentBuffer() const;
     QW_NAMESPACE::qw_buffer *lastBuffer() const;
     QRhiTexture *currentRenderTarget() const;
+    QRhiRenderTarget *currentVulkanBackdropResumeTarget() const;
     const QW_NAMESPACE::qw_damage_ring *damageRing() const;
     QW_NAMESPACE::qw_damage_ring *damageRing();
 
@@ -96,7 +98,7 @@ Q_SIGNALS:
 protected:
     QW_NAMESPACE::qw_buffer *beginRender(const QSize &pixelSize, qreal devicePixelRatio,
                                         uint32_t format, RenderFlags flags = {});
-    void render(int sourceIndex, const QMatrix4x4 &renderMatrix,
+    bool render(int sourceIndex, const QMatrix4x4 &renderMatrix,
                 const QRectF &sourceRect = {}, const QRectF &targetRect = {},
                 bool preserveColorContents = false);
     void endRender();
@@ -117,6 +119,9 @@ private:
     Q_SLOT void invalidateSceneGraph();
     void releaseResources() override;
     void cleanTextureProvider();
+    bool isPrimaryOutputRendererForVulkan() const;
+    void retireSwapchain(QW_NAMESPACE::qw_swapchain *swapchain, bool defer);
+    void cleanupRetiredResources(bool force = false);
 
     inline bool isRootItem(const QQuickItem *source) const {
         return nullptr == source;
@@ -130,6 +135,7 @@ private:
     QW_NAMESPACE::qw_swapchain *m_swapchain = nullptr;
     WRenderHelper *m_renderHelper = nullptr;
     QPointer<QW_NAMESPACE::qw_buffer> m_lastBuffer;
+    QList<QW_NAMESPACE::qw_swapchain *> m_retiredSwapchains;
 
     struct RenderState {
         RenderFlags flags;
@@ -142,7 +148,14 @@ private:
         std::unique_ptr<QW_NAMESPACE::qw_buffer, QW_NAMESPACE::qw_buffer::unlocker> buffer;
         QQuickRenderTarget renderTarget;
         QSGRenderTarget sgRenderTarget;
+        QQuickRenderTarget preserveRenderTarget;
+        QSGRenderTarget preserveSgRenderTarget;
+        QQuickRenderTarget vulkanBackdropResumeRenderTarget;
+        QSGRenderTarget vulkanBackdropResumeSgRenderTarget;
+        QSGRenderTarget activeSgRenderTarget;
         QRegion dirty;
+        bool vulkanBackdropActive = false;
+        bool renderBufferReleasedForCache = false;
     } state;
 
     QPointer<WOutput> m_output;

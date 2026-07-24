@@ -260,14 +260,13 @@ static void onTextureChanged(WRenderBufferNode *node, void *data) {
 
 QSGNode *WRenderBufferBlitter::updatePaintNode(QSGNode *oldNode, [[maybe_unused]] QQuickItem::UpdatePaintNodeData *oldData)
 {
-
+    W_D(WRenderBufferBlitter);
     auto node = static_cast<WRenderBufferNode*>(oldNode);
     if (Q_LIKELY(node)) {
         node->resize(size());
         return node;
     }
 
-    W_D(WRenderBufferBlitter);
     if (window()->graphicsApi() == QSGRendererInterface::Software) {
         node = WRenderBufferNode::createSoftwareNode(this);
     } else {

@@ -4,10 +4,13 @@
 #include "wbufferrenderer_p.h"
 #include "wayliblogging.h"
 #include "wrenderhelper.h"
+#include "wrenderbufferblitter.h"
 #include "wqmlhelper_p.h"
+#include "woutputviewport_p.h"
 #include "wtools.h"
 #include "wsgtextureprovider.h"
 #include "private/wprivateaccessor_p.h"
+#include "utils/private/wvulkantrace_p.h"
 
 #include <qwbuffer.h>
 #include <qwtexture.h>
@@ -19,6 +22,8 @@
 
 #include <QSGImageNode>
 #include <QSGSimpleRectNode>
+#include <QSet>
+#include <QStack>
 
 #include <private/qsgsoftwarerenderer_p.h>
 #include <private/qsgsoftwarerenderablenodeupdater_p.h>
@@ -107,9 +112,32 @@ WBufferRenderer::~WBufferRenderer()
 {
     cleanTextureProvider();
     resetSources();
+    cleanupRetiredResources(true);
 
     delete m_renderHelper;
     delete m_swapchain;
+}
+
+void WBufferRenderer::retireSwapchain(qw_swapchain *swapchain, bool defer)
+{
+    if (!swapchain)
+        return;
+
+    if (!defer) {
+        delete swapchain;
+        return;
+    }
+
+    m_retiredSwapchains.append(swapchain);
+}
+
+void WBufferRenderer::cleanupRetiredResources(bool force)
+{
+    if (m_renderHelper)
+        m_renderHelper->cleanupRetiredRenderResources(force);
+
+    qDeleteAll(m_retiredSwapchains);
+    m_retiredSwapchains.clear();
 }
 
 WOutput *WBufferRenderer::output() const
@@ -258,13 +286,21 @@ qw_buffer *WBufferRenderer::lastBuffer() const
 
 QRhiTexture *WBufferRenderer::currentRenderTarget() const
 {
-    if (!state.sgRenderTarget.rt)
+    auto renderTarget = state.activeSgRenderTarget.rt
+                        ? state.activeSgRenderTarget.rt
+                        : state.sgRenderTarget.rt;
+    if (!renderTarget)
         return nullptr;
-    auto textureRT = static_cast<QRhiTextureRenderTarget*>(state.sgRenderTarget.rt);
+    auto textureRT = static_cast<QRhiTextureRenderTarget*>(renderTarget);
     auto colorAttachment = textureRT->description().colorAttachmentAt(0);
     if (!colorAttachment)
         return nullptr;
     return colorAttachment->texture();
+}
+
+QRhiRenderTarget *WBufferRenderer::currentVulkanBackdropResumeTarget() const
+{
+    return state.vulkanBackdropResumeSgRenderTarget.rt;
 }
 
 const qw_damage_ring *WBufferRenderer::damageRing() const
@@ -279,6 +315,9 @@ qw_damage_ring *WBufferRenderer::damageRing()
 
 bool WBufferRenderer::isTextureProvider() const
 {
+    if (isPrimaryOutputRendererForVulkan())
+        return false;
+
     return true;
 }
 
@@ -289,6 +328,9 @@ QSGTextureProvider *WBufferRenderer::textureProvider() const
 
 WSGTextureProvider *WBufferRenderer::wTextureProvider() const
 {
+    if (isPrimaryOutputRendererForVulkan())
+        return nullptr;
+
     auto w = qobject_cast<WOutputRenderWindow*>(window());
     auto d = QQuickItemPrivate::get(this);
     if (!w || !d->sceneGraphRenderContext() || QThread::currentThread() != d->sceneGraphRenderContext()->thread()) {
@@ -302,6 +344,20 @@ WSGTextureProvider *WBufferRenderer::wTextureProvider() const
     }
 
     return m_textureProvider.get();
+}
+
+bool WBufferRenderer::isPrimaryOutputRendererForVulkan() const
+{
+    auto wd = window() ? QQuickWindowPrivate::get(window()) : nullptr;
+    if (!wd || !wd->rhi || wd->rhi->backend() != QRhi::Vulkan)
+        return false;
+
+    auto viewport = qobject_cast<WOutputViewport *>(parentItem());
+    if (!viewport)
+        return false;
+
+    auto vd = WOutputViewportPrivate::get(viewport);
+    return vd && vd->attached && vd->bufferRenderer == this;
 }
 
 QTransform WBufferRenderer::inputMapToOutput(const QRectF &sourceRect, const QRectF &targetRect,
@@ -330,6 +386,36 @@ QTransform WBufferRenderer::inputMapToOutput(const QRectF &sourceRect, const QRe
     return t;
 }
 
+static QSGRenderTarget toRhiSgRenderTarget(QQuickWindowPrivate *wd, const QQuickRenderTarget &rt);
+
+static bool hasActiveRenderBufferBlitter(QQuickItem *root)
+{
+    if (!root)
+        return false;
+
+    QStack<QQuickItem *> items;
+    items.push(root);
+    while (!items.isEmpty()) {
+        auto *item = items.pop();
+        if (!item)
+            continue;
+
+        if (item->isVisible()
+            && item->opacity() > 0.0
+            && item->width() > 0.0
+            && item->height() > 0.0
+            && qobject_cast<WRenderBufferBlitter *>(item)) {
+            return true;
+        }
+
+        const auto children = QQuickItemPrivate::get(item)->paintOrderChildItems();
+        for (auto child = children.crbegin(); child != children.crend(); ++child)
+            items.push(*child);
+    }
+
+    return false;
+}
+
 qw_buffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePixelRatio,
                                         uint32_t format, RenderFlags flags)
 {
@@ -341,6 +427,9 @@ qw_buffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePixe
 
     Q_EMIT beforeRendering();
 
+    auto wd = QQuickWindowPrivate::get(window());
+    const bool isVulkanRhi = wd->rhi && wd->rhi->backend() == QRhi::Vulkan;
+
     // configure swapchain
     if (flags.testFlag(RenderFlag::DontConfigureSwapchain)) {
         auto renderFormat = pickFormat(m_output->renderer(), format);
@@ -351,17 +440,22 @@ qw_buffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePixe
 
         if (!m_swapchain || QSize(m_swapchain->handle()->width, m_swapchain->handle()->height) != pixelSize
             || m_swapchain->handle()->format.format != renderFormat->format) {
-            if (m_swapchain)
-                delete m_swapchain;
+            retireSwapchain(m_swapchain, isVulkanRhi);
             m_swapchain = qw_swapchain::create(m_output->allocator()->handle(), pixelSize.width(), pixelSize.height(), renderFormat);
         }
     } else if (flags.testFlag(RenderFlag::UseCursorFormats)) {
-        bool ok = m_output->configureCursorSwapchain(pixelSize, format, &m_swapchain);
+        qw_swapchain *replacedSwapchain = nullptr;
+        bool ok = m_output->configureCursorSwapchain(pixelSize, format, &m_swapchain,
+                                                     isVulkanRhi ? &replacedSwapchain : nullptr);
+        retireSwapchain(replacedSwapchain, isVulkanRhi);
         if (!ok)
             return nullptr;
     } else {
+        qw_swapchain *replacedSwapchain = nullptr;
         bool ok = m_output->configurePrimarySwapchain(pixelSize, format, &m_swapchain,
-                                                      !flags.testFlag(DontTestSwapchain));
+                                                      !flags.testFlag(DontTestSwapchain),
+                                                      isVulkanRhi ? &replacedSwapchain : nullptr);
+        retireSwapchain(replacedSwapchain, isVulkanRhi);
         if (!ok)
             return nullptr;
     }
@@ -376,14 +470,30 @@ qw_buffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePixe
         m_renderHelper = new WRenderHelper(m_output->renderer());
     m_renderHelper->setSize(pixelSize);
 
-    auto wd = QQuickWindowPrivate::get(window());
     Q_ASSERT(wd->renderControl);
     auto lastRT = m_renderHelper->lastRenderTarget();
-    auto rt = m_renderHelper->acquireRenderTarget(wd->renderControl, buffer);
+    bool requestVulkanBackdrop = false;
+    if (isVulkanRhi) {
+        for (const auto &source : std::as_const(m_sourceList)) {
+            auto root = isRootItem(source.source) ? wd->contentItem : source.source;
+            if (hasActiveRenderBufferBlitter(root)) {
+                requestVulkanBackdrop = true;
+                break;
+            }
+        }
+    }
+
+    auto rt = m_renderHelper->acquireRenderTarget(
+        wd->renderControl, buffer, requestVulkanBackdrop);
     if (rt.isNull()) {
         buffer->unlock();
         return nullptr;
     }
+    auto vulkanBackdropResumeRenderTarget = requestVulkanBackdrop
+        ? m_renderHelper->vulkanBackdropResumeRenderTarget(buffer)
+        : QQuickRenderTarget {};
+    const bool vulkanBackdropActive = requestVulkanBackdrop
+        && !vulkanBackdropResumeRenderTarget.isNull();
 
     // For software renderer, update the dirty parts relative to the last paint device.
     WPixmanRegion damage;
@@ -403,11 +513,7 @@ qw_buffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePixe
     } else {
         state.dirty = QRegion();
 
-        Q_ASSERT(rtd->type == QQuickRenderTargetPrivate::Type::RhiRenderTarget);
-        sgRT.rt = rtd->u.rhiRt;
-        sgRT.cb = wd->redirect.commandBuffer;
-        Q_ASSERT(sgRT.cb);
-        sgRT.rpDesc = rtd->u.rhiRt->renderPassDescriptor();
+        sgRT = toRhiSgRenderTarget(wd, rt);
 
 #ifndef QT_NO_OPENGL
         if (wd->rhi->backend() == QRhi::OpenGLES2) {
@@ -426,6 +532,37 @@ qw_buffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePixe
     state.buffer.reset(buffer);
     state.renderTarget = rt;
     state.sgRenderTarget = sgRT;
+    state.activeSgRenderTarget = sgRT;
+    state.vulkanBackdropActive = vulkanBackdropActive;
+    state.preserveRenderTarget = m_renderHelper->preserveRenderTarget(
+        buffer, vulkanBackdropActive);
+    if (!state.preserveRenderTarget.isNull()) {
+        auto preserveRtd = QQuickRenderTargetPrivate::get(&state.preserveRenderTarget);
+        if (preserveRtd->type == QQuickRenderTargetPrivate::Type::RhiRenderTarget)
+            state.preserveSgRenderTarget = toRhiSgRenderTarget(wd, state.preserveRenderTarget);
+    }
+    state.vulkanBackdropResumeRenderTarget = vulkanBackdropResumeRenderTarget;
+    if (!state.vulkanBackdropResumeRenderTarget.isNull()) {
+        auto resumeRtd = QQuickRenderTargetPrivate::get(
+            &state.vulkanBackdropResumeRenderTarget);
+        if (resumeRtd->type == QQuickRenderTargetPrivate::Type::RhiRenderTarget) {
+            state.vulkanBackdropResumeSgRenderTarget = toRhiSgRenderTarget(
+                wd, state.vulkanBackdropResumeRenderTarget);
+        }
+    }
+    state.renderBufferReleasedForCache = false;
+
+    if (isVulkanRhi && WVulkanTrace::enabled()) {
+        qCDebug(lcWlBufferRenderer).noquote()
+            << QStringLiteral("VKTRACE event=blitter-target-select renderer=%1 buffer=%2 requested=%3 active=%4 main=%5 preserveColor=%6 resume=%7")
+                   .arg(quintptr(this), 0, 16)
+                   .arg(quintptr(buffer), 0, 16)
+                   .arg(requestVulkanBackdrop)
+                   .arg(vulkanBackdropActive)
+                   .arg(quintptr(state.sgRenderTarget.rt), 0, 16)
+                   .arg(quintptr(state.preserveSgRenderTarget.rt), 0, 16)
+                   .arg(quintptr(state.vulkanBackdropResumeSgRenderTarget.rt), 0, 16);
+    }
 
     return buffer;
 }
@@ -435,7 +572,50 @@ inline static QRect scaleToRect(const QRectF &s, qreal scale) {
                  (s.size() * scale).toSize());
 }
 
-void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
+static QSGRenderTarget toRhiSgRenderTarget(QQuickWindowPrivate *wd, const QQuickRenderTarget &rt)
+{
+    auto rtd = QQuickRenderTargetPrivate::get(&rt);
+    Q_ASSERT(rtd->type == QQuickRenderTargetPrivate::Type::RhiRenderTarget);
+
+    QSGRenderTarget sgRT;
+    sgRT.rt = rtd->u.rhiRt;
+    sgRT.cb = wd->redirect.commandBuffer;
+    Q_ASSERT(sgRT.cb);
+    sgRT.rpDesc = rtd->u.rhiRt->renderPassDescriptor();
+    return sgRT;
+}
+
+static QVector<WSGTextureProvider *> activeTextureProvidersForPass(QQuickItem *root)
+{
+    QVector<WSGTextureProvider *> providers;
+    if (!root)
+        return providers;
+
+    QSet<WSGTextureProvider *> seen;
+    const auto items = WOutputRenderWindow::paintOrderItemList(root, [] (QQuickItem *item) {
+        return item
+               && item->isVisible()
+               && item->flags().testFlag(QQuickItem::ItemHasContents)
+               && item->isTextureProvider();
+    });
+
+    providers.reserve(items.size());
+    for (auto item : items) {
+        if (!item)
+            continue;
+
+        auto provider = qobject_cast<WSGTextureProvider *>(item->textureProvider());
+        if (!provider || seen.contains(provider))
+            continue;
+
+        seen.insert(provider);
+        providers.append(provider);
+    }
+
+    return providers;
+}
+
+bool WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
                              const QRectF &sourceRect, const QRectF &targetRect,
                              bool preserveColorContents)
 {
@@ -449,6 +629,19 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
     state.renderer = renderer;
     state.batchRenderer = dynamic_cast<QSGBatchRenderer::Renderer*>(renderer);
     state.worldTransform = renderMatrix;
+    const bool isVulkanRhi = wd->rhi && wd->rhi->backend() == QRhi::Vulkan;
+    auto activeRenderTarget = state.renderTarget;
+    auto activeSgRenderTarget = state.sgRenderTarget;
+    if (isVulkanRhi && preserveColorContents && state.preserveSgRenderTarget.rt) {
+        activeRenderTarget = state.preserveRenderTarget;
+        activeSgRenderTarget = state.preserveSgRenderTarget;
+        qCDebug(lcWlBufferRenderer) << "Using Vulkan preserve render target for render pass"
+                                    << "renderer" << this
+                                    << "sourceIndex" << sourceIndex
+                                    << "buffer" << state.buffer.get()
+                                    << "renderTarget" << activeSgRenderTarget.rt;
+    }
+    state.activeSgRenderTarget = activeSgRenderTarget;
     // The renderer should always receive the window's DPR (Device Pixel Ratio)
     // because, regardless of the DPR used for rendering, all resources within
     // a window are loaded based on the window's own DPR.
@@ -471,7 +664,7 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
     // are always consistent. Otherwise, some Items might render incorrectly.
     renderer->setDevicePixelRatio(window()->effectiveDevicePixelRatio());
     renderer->setDeviceRect(QRect(QPoint(0, 0), state.pixelSize));
-    renderer->setRenderTarget(state.sgRenderTarget);
+    renderer->setRenderTarget(activeSgRenderTarget);
     const auto viewportRect = scaleToRect(targetRect, devicePixelRatio);
 
     auto softwareRenderer = dynamic_cast<QSGSoftwareRenderer*>(renderer);
@@ -523,7 +716,7 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
             state.worldTransform.optimize();
 
             bool flipY = wd->rhi ? !wd->rhi->isYUpInNDC() : false;
-            if (state.renderTarget.mirrorVertically())
+            if (activeRenderTarget.mirrorVertically())
                 flipY = !flipY;
 
             if (viewportRect.isValid()) {
@@ -564,13 +757,40 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
             renderer->setProjectionMatrix(projectionMatrix);
             renderer->setProjectionMatrixWithNativeNDC(projectionMatrixWithNativeNDC);
 
-            auto textureRT = static_cast<QRhiTextureRenderTarget*>(state.sgRenderTarget.rt);
-            if (preserveColorContents) {
-                textureRT->setFlags(textureRT->flags() | QRhiTextureRenderTarget::PreserveColorContents);
-            } else {
-                textureRT->setFlags(textureRT->flags() & ~QRhiTextureRenderTarget::PreserveColorContents);
+            auto textureRT = static_cast<QRhiTextureRenderTarget*>(activeSgRenderTarget.rt);
+            if (!isVulkanRhi) {
+                if (preserveColorContents) {
+                    textureRT->setFlags(textureRT->flags() | QRhiTextureRenderTarget::PreserveColorContents);
+                } else {
+                    textureRT->setFlags(textureRT->flags() & ~QRhiTextureRenderTarget::PreserveColorContents);
+                }
             }
         }
+    }
+
+    QVector<qw_texture *> preparedTextures;
+    auto outputWindow = renderWindow();
+    const auto activeTextureProviders = isVulkanRhi
+        ? activeTextureProvidersForPass(isRootItem(source.source)
+                                            ? wd->contentItem
+                                            : source.source)
+        : QVector<WSGTextureProvider *> {};
+    constexpr const char *samplingPurpose = "qt-render-pass-texture";
+    WVulkanTrace::beginPass(outputWindow, this, state.buffer.get(), samplingPurpose,
+                            sourceIndex, activeTextureProviders.size());
+    if (outputWindow
+        && !outputWindow->prepareTextureSamplingForRenderPass(state.buffer.get(),
+                                                              activeTextureProviders,
+                                                              samplingPurpose,
+                                                              sourceIndex,
+                                                              &preparedTextures)) {
+        qCWarning(lcWlBufferRenderer) << "Skipping render pass because Vulkan texture sampling prepare failed"
+                                      << "renderer" << this
+                                      << "sourceIndex" << sourceIndex
+                                      << "currentBuffer" << state.buffer.get()
+                                      << "wlrBuffer" << (state.buffer ? state.buffer->handle() : nullptr);
+        WVulkanTrace::endPass(outputWindow, false);
+        return false;
     }
 
     state.context->renderNextFrame(renderer);
@@ -587,7 +807,9 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
             // sourceIndex, we should let the RHI (Rendering Hardware Interface)
             // complete the results of this drawing here to ensure the current
             // drawing result is available for use.
-            wd->rhi->finish();
+            if (!isVulkanRhi) {
+                wd->rhi->finish();
+            }
         } else {
             state.dirty = softwareRenderer->flushRegion();
 
@@ -627,24 +849,61 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
         dr->currentFrameCommandBuffer()->resourceUpdate(resourceUpdates);
     }
 
-    if (shouldCacheBuffer())
+    if (outputWindow
+        && !outputWindow->finishTextureSamplingForRenderPass(preparedTextures,
+                                                             samplingPurpose,
+                                                             sourceIndex)) {
+        qCWarning(lcWlBufferRenderer) << "Skipping render pass because Vulkan texture sampling finish failed"
+                                      << "renderer" << this
+                                      << "sourceIndex" << sourceIndex
+                                      << "currentBuffer" << state.buffer.get()
+                                      << "wlrBuffer" << (state.buffer ? state.buffer->handle() : nullptr)
+                                      << "preparedTextureCount" << preparedTextures.size();
+        WVulkanTrace::endPass(outputWindow, false);
+        return false;
+    }
+
+    WVulkanTrace::endPass(outputWindow, true);
+
+    if (shouldCacheBuffer() && !isVulkanRhi) {
         wTextureProvider()->setBuffer(state.buffer.get());
+    }
+
+    return true;
 }
 
 void WBufferRenderer::endRender()
 {
     Q_ASSERT(state.buffer.get());
+    auto wd = QQuickWindowPrivate::get(window());
+    const bool isVulkanRhi = wd->rhi && wd->rhi->backend() == QRhi::Vulkan;
+    const bool canExposeCompletedCache = state.renderBufferReleasedForCache;
     {
         std::unique_ptr<qw_buffer, qw_buffer::unlocker> buffer;
         buffer.swap(state.buffer);
         state.renderer = nullptr;
         state.batchRenderer = nullptr;
+        state.activeSgRenderTarget = {};
+        state.preserveRenderTarget = {};
+        state.preserveSgRenderTarget = {};
+        state.vulkanBackdropResumeRenderTarget = {};
+        state.vulkanBackdropResumeSgRenderTarget = {};
+        state.vulkanBackdropActive = false;
 
         m_lastBuffer = buffer.get();
+        if (shouldCacheBuffer() && isVulkanRhi) {
+            if (isPrimaryOutputRendererForVulkan()) {
+                if (m_textureProvider)
+                    m_textureProvider->setBuffer(nullptr);
+            } else if (canExposeCompletedCache) {
+                if (auto provider = wTextureProvider())
+                    provider->setBuffer(buffer.get());
+            }
+        }
     }
+    state.renderBufferReleasedForCache = false;
 
 #ifndef QT_NO_OPENGL
-    auto wd = QQuickWindowPrivate::get(window());
     if (state.flags.testFlag(RedirectOpenGLContextDefaultFrameBufferObject)
         && wd->rhi && wd->rhi->backend() == QRhi::OpenGLES2) {
         auto glContext = QOpenGLContext::currentContext();
@@ -666,6 +925,11 @@ void WBufferRenderer::updateTextureProvider()
     if (!m_textureProvider)
         return;
 
+    if (isPrimaryOutputRendererForVulkan()) {
+        m_textureProvider->setBuffer(nullptr);
+        return;
+    }
+
     if (shouldCacheBuffer()) {
         const bool hasCachedBuffer = m_textureProvider->qwBuffer();
         // Ensure only update the buffer when the "shouldCacheBuffer" state is changed.
@@ -679,12 +943,19 @@ void WBufferRenderer::updateTextureProvider()
 
 QSGNode *WBufferRenderer::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *)
 {
+    auto texture = m_textureProvider ? m_textureProvider->texture() : nullptr;
+    if (!texture) {
+        delete oldNode;
+        return nullptr;
+    }
+
     auto node = static_cast<QSGImageNode*>(oldNode);
     if (Q_UNLIKELY(!node)) {
         node = window()->createImageNode();
         node->setOwnsTexture(false);
-        node->setTexture(m_textureProvider->texture());
+        node->setTexture(texture);
     } else {
+        node->setTexture(texture);
         node->markDirty(QSGNode::DirtyMaterial);
     }
 
@@ -702,12 +973,14 @@ void WBufferRenderer::invalidateSceneGraph()
 {
     if (m_textureProvider)
         m_textureProvider.reset();
+    cleanupRetiredResources(true);
     resetSources();
 }
 
 void WBufferRenderer::releaseResources()
 {
     cleanTextureProvider();
+    cleanupRetiredResources(true);
     resetSources();
 }
 
