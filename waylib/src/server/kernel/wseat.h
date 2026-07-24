@@ -10,9 +10,12 @@
 #include <QEvent>
 #include <QSharedData>
 
+#include <functional>
+
 Q_MOC_INCLUDE(<wsurface.h>)
 
 QW_BEGIN_NAMESPACE
+class qw_pointer_constraint_v1;
 class qw_seat;
 class qw_surface;
 QW_END_NAMESPACE
@@ -65,6 +68,29 @@ class WAYLIB_SERVER_EXPORT WSeat : public WWrapObject, public WServerInterface
 public:
     WSeat(const QString &name = QStringLiteral("seat0"));
 
+    enum class PointerConstraintType {
+        Locked,
+        Confined,
+    };
+
+    enum class FocusedCursorRequest {
+        None,
+        Hidden,
+        Surface,
+        Shape,
+    };
+
+    struct PointerConstraintActivationContext {
+        PointerConstraintType constraintType = PointerConstraintType::Confined;
+        FocusedCursorRequest cursorRequest = FocusedCursorRequest::None;
+        WSurface *surface = nullptr;
+        WSeat *seat = nullptr;
+        QW_NAMESPACE::qw_pointer_constraint_v1 *constraint = nullptr;
+    };
+
+    using PointerConstraintActivationFilter =
+        std::function<bool(const PointerConstraintActivationContext &context, QString *reason)>;
+
     static WSeat *fromHandle(const QW_NAMESPACE::qw_seat *handle);
     static WSeat *fromInputEvent(QInputEvent *event);
     QW_NAMESPACE::qw_seat *handle() const;
@@ -108,6 +134,9 @@ public:
     bool alwaysUpdateHoverTarget() const;
     void setAlwaysUpdateHoverTarget(bool newIgnoreSurfacePointerEventExclusiveGrabber);
 
+    void setPointerConstraintActivationFilter(PointerConstraintActivationFilter filter);
+    void reevaluatePointerConstraint();
+
     QList<WInputDevice*> deviceList() const;
 
     QByteArrayView interfaceName() const override;
@@ -141,6 +170,10 @@ protected:
     bool filterUnacceptedEvent(QWindow *targetWindow, QInputEvent *event);
 
     // pointer
+    void notifyRelativeMotion(uint32_t timestamp, const QPointF &delta,
+                              const QPointF &unacceleratedDelta);
+    void refreshPointerConstraint();
+    bool pointerMotionLocked() const;
     void notifyMotion(WCursor *cursor, WInputDevice *device, uint32_t timestamp);
     void notifyButton(WCursor *cursor, WInputDevice *device,
                       Qt::MouseButton button, wl_pointer_button_state_t state,
