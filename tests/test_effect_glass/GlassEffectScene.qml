@@ -12,6 +12,10 @@ Item {
 
     /// Expose the GlassEffect instance for property manipulation from C++.
     property alias glass: glassEffect
+    property alias backdropVisible: backdrop.visible
+    property alias glassXScale: glassScale.xScale
+    property alias glassYScale: glassScale.yScale
+    property bool cornerProbeVisible: false
 
     /// A colourful, high-contrast backdrop so refraction / highlights / rim
     /// tint are clearly visible in grabbed images.
@@ -73,6 +77,25 @@ Item {
             width: 8; height: 112
             color: "#000000"
         }
+        Grid {
+            anchors.top: parent.top
+            anchors.right: parent.right
+            columns: 8
+            visible: root.cornerProbeVisible
+
+            Repeater {
+                model: 64
+
+                Rectangle {
+                    required property int index
+                    width: 8
+                    height: 8
+                    color: ((index % 8) + Math.floor(index / 8)) % 2 === 0
+                        ? "#ffffff"
+                        : "#000000"
+                }
+            }
+        }
     }
 
     GlassEffect {
@@ -80,5 +103,11 @@ Item {
         objectName: "glassEffect"
         anchors.fill: parent
         source: backdrop
+
+        transform: Scale {
+            id: glassScale
+            origin.x: glassEffect.width * 0.5
+            origin.y: glassEffect.height * 0.5
+        }
     }
 }

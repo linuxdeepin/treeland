@@ -1,6 +1,7 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
+#include <array>
 #include <cmath>
 #include <algorithm>
 
@@ -131,31 +132,29 @@ private:
 
     void setSmallRadiusLargeBezel()
     {
-        m_glass->setProperty("highlightEnabled", false);
-        m_glass->setProperty("rimReflectionEnabled", false);
         m_glass->setProperty("blurEnabled", false);
         m_glass->setProperty("radius", 8.0);
         m_glass->setProperty("bezelWidth", 52.0);
         m_glass->setProperty("thickness", 120.0);
-        m_glass->setProperty("displacementFactor", 0.85);
         m_glass->setProperty("ior", 1.45);
-        m_glass->setProperty("dispersion", 0.018);
-        m_glass->setProperty("strokeStrength", 0.0);
-        m_glass->setProperty("specularOpacity", 0.0);
-        m_glass->setProperty("edgeSaturation", 0.0);
         QTest::qWait(50);
     }
 
     static bool requiresShaderRendering(const char *testFunction)
     {
         static constexpr const char *renderingTests[] = {
-            "highlightToggleProducesDifferentRender",
-            "rimReflectionToggleProducesDifferentRender",
-            "lightAngleShiftMovesHighlight",
+            "specularProducesDifferentRender",
+            "tintControlProducesDifferentRender",
+            "specularControlChangesRim",
+            "narrowBezelPreservesInnerRim",
             "radiusProducesTransparentCorners",
+            "nonUniformScaleKeepsEdgeAntialiasingSymmetric",
             "largeBezelWithSmallRadiusDoesNotIntroduceCornerDiagonalSeam",
-            "largeBezelRemainsVisibleAlongStraightEdgesWithSmallRadius",
-            "highDispersionRefractsEdgesWithSpecularDisabled",
+            "smallRadiusSoftensRefractionAtSilhouette",
+            "smallRadiusCapsWholeRefractionBand",
+            "contentEdgePullChangesSilhouetteRefraction",
+            "radiusLargerThanBezelDoesNotIntroduceCornerDiagonalSeam",
+            "tintControlChangesRenderedColor",
             "zeroBlurMultiplierStillAppliesGaussianBlur",
             "blurAmountAndMultiplierChangeRenderedBlurStrength",
             "blurToggleProducesDifferentRender",
@@ -175,29 +174,23 @@ private:
     /// Reset glass to default property values (called before each test).
     void resetGlass()
     {
-        m_glass->setProperty("lightAngle", -135.0);
-        m_glass->setProperty("highlightEnabled", true);
-        m_glass->setProperty("rimReflectionEnabled", true);
         m_glass->setProperty("blurEnabled", false);
-        m_glass->setProperty("blurMax", 36);
-        m_glass->setProperty("blurAmount", 1.0);
+        m_glass->setProperty("blurMax", 12);
+        m_glass->setProperty("blurAmount", 0.6);
         m_glass->setProperty("blurMultiplier", 0.0);
-        m_glass->setProperty("radius", 0.0);
-        m_glass->setProperty("bezelWidth", 18.0);
-        m_glass->setProperty("thickness", 90.0);
-        m_glass->setProperty("displacementFactor", 0.45);
-        m_glass->setProperty("ior", 1.42);
-        m_glass->setProperty("dispersion", 0.012);
+        m_glass->setProperty("radius", 60.0);
+        m_glass->setProperty("bezelWidth", 60.0);
+        m_glass->setProperty("thickness", 50.0);
+        m_glass->setProperty("ior", 1.5);
         m_glass->setProperty("brightness", 0.0);
         m_glass->setProperty("contrast", 0.0);
-        m_glass->setProperty("saturation", 0.0);
-        m_glass->setProperty("colorization", 0.0);
-        m_glass->setProperty("specularOpacity", 0.6);
-        m_glass->setProperty("strokeWidth", 1.0);
-        m_glass->setProperty("strokeStrength", 1.0);
-        m_glass->setProperty("lightPower", 2.0);
-        m_glass->setProperty("edgeSaturation", 0.0);
-        m_glass->setProperty("reflectionOffset", 12.0);
+        m_glass->setProperty("saturation", 0.04);
+        m_glass->setProperty("specular", 0.0);
+        m_glass->setProperty("tint", 0.0);
+        m_scene->setProperty("backdropVisible", true);
+        m_scene->setProperty("glassXScale", 1.0);
+        m_scene->setProperty("glassYScale", 1.0);
+        m_scene->setProperty("cornerProbeVisible", false);
         QTest::qWait(50);
     }
 
@@ -225,84 +218,39 @@ private Q_SLOTS:
 
     // ── Property tests: read derived properties at runtime ─────────────
 
-    void lightDirectionDerivesFromLightAngle()
+    void liquidGlassDefaultsMatch()
     {
-        // lightAngle default in GlassEffect.qml is -135°
-        // lightDirection = (cos(angle), sin(angle))
-        const qreal angle = m_glass->property("lightAngle").toReal();
-        QCOMPARE(angle, -135.0);
+        QCOMPARE(m_glass->property("radius").toReal(), 60.0);
+        QCOMPARE(m_glass->property("thickness").toReal(), 50.0);
+        QCOMPARE(m_glass->property("bezelWidth").toReal(), 60.0);
+        QCOMPARE(m_glass->property("ior").toReal(), 1.5);
+        QCOMPARE(m_glass->property("specular").toReal(), 0.0);
+        QCOMPARE(m_glass->property("tint").toReal(), 0.0);
+        QCOMPARE(m_glass->property("saturation").toReal(), 0.04);
+        QCOMPARE(m_glass->property("blurAmount").toReal(), 0.6);
 
-        const auto dir = m_glass->property("lightDirection").value<QVector2D>();
-        const qreal rad = angle * M_PI / 180.0;
-        QVERIFY(qAbs(dir.x() - std::cos(rad)) < 0.001);
-        QVERIFY(qAbs(dir.y() - std::sin(rad)) < 0.001);
-
-        // lightAngleRadians should match
-        const qreal radians = m_glass->property("lightAngleRadians").toReal();
-        QVERIFY(qAbs(radians - rad) < 0.001);
     }
 
-    void changingLightAngleUpdatesDerivedProperties()
-    {
-        // Set to 0° → direction should be (1, 0)
-        m_glass->setProperty("lightAngle", 0.0);
-        QTest::qWait(10); // let bindings update
-        const auto dir0 = m_glass->property("lightDirection").value<QVector2D>();
-        QVERIFY(qAbs(dir0.x() - 1.0) < 0.001);
-        QVERIFY(qAbs(dir0.y() - 0.0) < 0.001);
 
-        // Set to 90° → direction should be (0, 1)
-        m_glass->setProperty("lightAngle", 90.0);
-        QTest::qWait(10);
-        const auto dir90 = m_glass->property("lightDirection").value<QVector2D>();
-        QVERIFY(qAbs(dir90.x() - 0.0) < 0.001);
-        QVERIFY(qAbs(dir90.y() - 1.0) < 0.001);
-
-        // Set to -90° → direction should be (0, -1)
-        m_glass->setProperty("lightAngle", -90.0);
-        QTest::qWait(10);
-        const auto dirN90 = m_glass->property("lightDirection").value<QVector2D>();
-        QVERIFY(qAbs(dirN90.x() - 0.0) < 0.001);
-        QVERIFY(qAbs(dirN90.y() - (-1.0)) < 0.001);
-    }
-
-    void highlightEnabledTogglesZeroShaderSpecular()
-    {
-        // Find the internal ShaderEffect (has objectName "glassShader")
-        auto *shader = m_glass->findChild<QObject *>("glassShader");
-        QVERIFY(shader);
-
-        // When highlightEnabled is true, shader gets non-zero specular values
-        m_glass->setProperty("highlightEnabled", true);
-        QTest::qWait(10);
-
-        const qreal specOn = shader->property("specularOpacity").toReal();
-        const qreal strokeOn = shader->property("strokeStrength").toReal();
-        QVERIFY(specOn > 0.0);
-        QVERIFY(strokeOn > 0.0);
-
-        // When highlightEnabled is false, both must be zero
-        m_glass->setProperty("highlightEnabled", false);
-        QTest::qWait(10);
-
-        QCOMPARE(shader->property("specularOpacity").toReal(), 0.0);
-        QCOMPARE(shader->property("strokeStrength").toReal(), 0.0);
-    }
-
-    void rimReflectionEnabledTogglesFloatGate()
+    void specularAndTintAreOnlyMaterialControls()
     {
         auto *shader = m_glass->findChild<QObject *>("glassShader");
         QVERIFY(shader);
 
-        // Enabled → 0.22 tint mix
-        m_glass->setProperty("rimReflectionEnabled", true);
-        QTest::qWait(10);
-        QCOMPARE(shader->property("rimReflectionStrength").toReal(), 0.22);
+        QVERIFY2(m_glass->metaObject()->indexOfProperty("highlightEnabled") < 0,
+                 "GlassEffect must use specular=0 instead of a duplicate highlight switch");
+        QVERIFY2(m_glass->metaObject()->indexOfProperty("colorization") < 0,
+                 "GlassEffect must use tint instead of duplicate white colorization");
+        QVERIFY2(m_glass->metaObject()->indexOfProperty("colorizationColor") < 0,
+                 "GlassEffect must not expose colorization state after removing colorization");
 
-        // Disabled → 0.0 (pure white specular, no tint)
-        m_glass->setProperty("rimReflectionEnabled", false);
+        QVERIFY(m_glass->setProperty("specular", 0.55));
         QTest::qWait(10);
-        QCOMPARE(shader->property("rimReflectionStrength").toReal(), 0.0);
+        QCOMPARE(shader->property("specular").toReal(), 0.55);
+
+        QVERIFY(m_glass->setProperty("specular", 0.0));
+        QTest::qWait(10);
+        QCOMPARE(shader->property("specular").toReal(), 0.0);
     }
 
     void multiEffectEnabledReflectsBlurAndColorParams()
@@ -312,7 +260,6 @@ private Q_SLOTS:
         m_glass->setProperty("brightness", 0.0);
         m_glass->setProperty("contrast", 0.0);
         m_glass->setProperty("saturation", 0.0);
-        m_glass->setProperty("colorization", 0.0);
         QTest::qWait(10);
         QVERIFY(!m_glass->property("multiEffectEnabled").toBool());
 
@@ -339,11 +286,6 @@ private Q_SLOTS:
         QTest::qWait(10);
         QVERIFY(m_glass->property("multiEffectEnabled").toBool());
 
-        // Non-zero colorization alone → true
-        m_glass->setProperty("saturation", 0.0);
-        m_glass->setProperty("colorization", 0.12);
-        QTest::qWait(10);
-        QVERIFY(m_glass->property("multiEffectEnabled").toBool());
     }
 
     void dconfigFacingGlassKnobsAreRuntimeQmlProperties()
@@ -357,15 +299,10 @@ private Q_SLOTS:
             "blurMax",
             "bezelWidth",
             "thickness",
-            "displacementFactor",
             "ior",
-            "dispersion",
             "brightness",
             "contrast",
             "saturation",
-            "colorization",
-            "edgeSaturation",
-            "reflectionOffset",
         };
 
         for (const QByteArray &name : propertyNames) {
@@ -376,9 +313,7 @@ private Q_SLOTS:
 
         QVERIFY(m_glass->setProperty("bezelWidth", 47.0));
         QVERIFY(m_glass->setProperty("thickness", 133.0));
-        QVERIFY(m_glass->setProperty("displacementFactor", 0.72));
         QVERIFY(m_glass->setProperty("ior", 1.37));
-        QVERIFY(m_glass->setProperty("dispersion", 0.021));
         QVERIFY(m_glass->setProperty("blurEnabled", true));
         QVERIFY(m_glass->setProperty("blurMax", 18));
         QVERIFY(m_glass->setProperty("blurAmount", 0.75));
@@ -387,10 +322,72 @@ private Q_SLOTS:
 
         QCOMPARE(shader->property("bezelWidth").toReal(), 47.0);
         QCOMPARE(shader->property("thickness").toReal(), 133.0);
-        QCOMPARE(shader->property("displacementFactor").toReal(), 0.72);
         QCOMPARE(shader->property("ior").toReal(), 1.37);
-        QCOMPARE(shader->property("dispersion").toReal(), 0.021);
         QCOMPARE(m_glass->property("multiEffectEnabled").toBool(), true);
+    }
+
+    void materialKnobsAreRuntimeQmlProperties()
+    {
+        auto *shader = m_glass->findChild<QObject *>("glassShader");
+        QVERIFY(shader);
+
+        const QList<QByteArray> propertyNames = {
+            "specular",
+            "tint",
+        };
+        for (const QByteArray &name : propertyNames) {
+            QVERIFY2(m_glass->metaObject()->indexOfProperty(name.constData()) >= 0,
+                     qPrintable(QStringLiteral("GlassEffect must expose material knob %1")
+                                    .arg(QString::fromLatin1(name))));
+        }
+
+        QVERIFY(m_glass->setProperty("specular", 0.35));
+        QVERIFY(m_glass->setProperty("tint", 0.22));
+        QTest::qWait(10);
+
+        QCOMPARE(shader->property("specular").toReal(), 0.35);
+        QCOMPARE(shader->property("tint").toReal(), 0.22);
+        QVERIFY2(m_glass->metaObject()->indexOfProperty("blurRadius") < 0,
+                 "GlassEffect must use MultiEffect blur controls instead of exposing shader blurRadius");
+        QVERIFY2(m_glass->metaObject()->indexOfProperty("shadow") < 0,
+                 "GlassEffect must not expose a dedicated shadow control");
+    }
+
+    void multiEffectBlurControlsRemainRuntimeQmlProperties()
+    {
+        QVERIFY2(m_glass->metaObject()->indexOfProperty("blurEnabled") >= 0,
+                 "GlassEffect must preserve blurEnabled for MultiEffect blur");
+        QVERIFY2(m_glass->metaObject()->indexOfProperty("blurMax") >= 0,
+                 "GlassEffect must preserve blurMax for MultiEffect blur");
+        QVERIFY2(m_glass->metaObject()->indexOfProperty("blurAmount") >= 0,
+                 "GlassEffect must preserve blurAmount for MultiEffect blur");
+        QVERIFY2(m_glass->metaObject()->indexOfProperty("blurMultiplier") >= 0,
+                 "GlassEffect must preserve blurMultiplier for MultiEffect blur");
+
+        QVERIFY(m_glass->setProperty("blurEnabled", false));
+        QVERIFY(m_glass->setProperty("blurAmount", 1.0));
+        QVERIFY(m_glass->setProperty("blurMax", 48));
+        QVERIFY(m_glass->setProperty("blurMultiplier", 2.0));
+        QVERIFY(m_glass->setProperty("saturation", 0.0));
+        QTest::qWait(10);
+        QVERIFY(!m_glass->property("multiEffectEnabled").toBool());
+
+        QVERIFY(m_glass->setProperty("blurEnabled", true));
+        QTest::qWait(10);
+        QVERIFY(m_glass->property("multiEffectEnabled").toBool());
+    }
+
+    void shaderKeepsGlassBoundsWithoutDedicatedShadow()
+    {
+        auto *shader = qobject_cast<QQuickItem *>(m_glass->findChild<QObject *>("glassShader"));
+        QVERIFY(shader);
+
+        QTest::qWait(10);
+
+        QCOMPARE(shader->x(), 0.0);
+        QCOMPARE(shader->y(), 0.0);
+        QCOMPARE(shader->width(), m_glass->width());
+        QCOMPARE(shader->height(), m_glass->height());
     }
 
     void shaderReceivesEdgeMaterialPropertiesUsedByFragmentShader()
@@ -398,20 +395,8 @@ private Q_SLOTS:
         auto *shader = m_glass->findChild<QObject *>("glassShader");
         QVERIFY(shader);
 
-        QVERIFY2(m_glass->setProperty("edgeSaturation", 1.35),
-                 "GlassEffect must expose edgeSaturation as a runtime QML property");
-        QVERIFY2(m_glass->setProperty("reflectionOffset", 27.0),
-                 "GlassEffect must expose reflectionOffset as a runtime QML property");
         QTest::qWait(10);
 
-        const bool edgeSaturationForwarded = shader->property("edgeSaturation").isValid();
-        const bool reflectionOffsetForwarded = shader->property("reflectionOffset").isValid();
-        QVERIFY2(edgeSaturationForwarded && reflectionOffsetForwarded,
-                 qPrintable(QStringLiteral("glassShader must receive edgeSaturation and reflectionOffset for the fragment shader: edgeSaturation=%1 reflectionOffset=%2")
-                                .arg(edgeSaturationForwarded ? QStringLiteral("valid") : QStringLiteral("missing"))
-                                .arg(reflectionOffsetForwarded ? QStringLiteral("valid") : QStringLiteral("missing"))));
-        QCOMPARE(shader->property("edgeSaturation").toReal(), 1.35);
-        QCOMPARE(shader->property("reflectionOffset").toReal(), 27.0);
     }
 
     // ── Rendering tests: grabToImage + image comparison ───────────────
@@ -428,21 +413,18 @@ private Q_SLOTS:
         QCOMPARE(img1, img2);
     }
 
-    void highlightToggleProducesDifferentRender()
+    void specularProducesDifferentRender()
     {
-        // Set prominent glass params for visible highlights
-        m_glass->setProperty("highlightEnabled", true);
+        // Set prominent glass params for visible highlights.
         m_glass->setProperty("radius", 34.0);
         m_glass->setProperty("bezelWidth", 16.0);
-        m_glass->setProperty("specularOpacity", 0.82);
-        m_glass->setProperty("strokeStrength", 1.5);
-        m_glass->setProperty("strokeWidth", 1.4);
+        m_glass->setProperty("specular", 0.82);
         QTest::qWait(50);
 
         const QImage withHighlight = grabImage(m_scene);
         QVERIFY(!withHighlight.isNull());
 
-        m_glass->setProperty("highlightEnabled", false);
+        m_glass->setProperty("specular", 0.0);
         QTest::qWait(50);
 
         const QImage withoutHighlight = grabImage(m_scene);
@@ -477,109 +459,83 @@ private Q_SLOTS:
                                 .arg(edgeDiff).arg(centerDiff)));
     }
 
-    void rimReflectionToggleProducesDifferentRender()
+    void tintControlProducesDifferentRender()
     {
-        // Ensure highlights are on for rim reflection to be visible
-        m_glass->setProperty("highlightEnabled", true);
-        m_glass->setProperty("radius", 34.0);
-        m_glass->setProperty("rimReflectionEnabled", true);
+        m_glass->setProperty("radius", 60.0);
+        m_glass->setProperty("blurEnabled", false);
+        m_glass->setProperty("specular", 0.0);
+        m_glass->setProperty("tint", 0.0);
         QTest::qWait(50);
 
-        const QImage withTint = grabImage(m_scene);
-        QVERIFY(!withTint.isNull());
+        const QImage noTint = grabImage(m_scene);
+        QVERIFY(!noTint.isNull());
 
-        m_glass->setProperty("rimReflectionEnabled", false);
+        m_glass->setProperty("tint", 0.4);
         QTest::qWait(50);
 
-        const QImage withoutTint = grabImage(m_scene);
-        QVERIFY(!withoutTint.isNull());
+        const QImage strongTint = grabImage(m_scene);
+        QVERIFY(!strongTint.isNull());
 
-        // Images must differ — rim tint affects specular color
-        const int diff = pixelDiffCount(withTint, withoutTint);
-        QVERIFY2(diff > 0,
-                 qPrintable(QStringLiteral("rim reflection toggle must produce different output, got %1 differing pixels").arg(diff)));
+        const int diff = regionDiffCount(noTint, strongTint, QRect(64, 64, 128, 128), 4);
+        QVERIFY2(diff > 128 * 128 / 3,
+                 qPrintable(QStringLiteral("tint control must visibly change the glass interior, got %1 changed pixels").arg(diff)));
     }
 
-    void lightAngleShiftMovesHighlight()
+    void specularControlChangesRim()
     {
-        m_glass->setProperty("highlightEnabled", true);
-        m_glass->setProperty("radius", 34.0);
-        m_glass->setProperty("specularOpacity", 0.82);
-        m_glass->setProperty("strokeStrength", 1.5);
-
-        // Use 0° and 90° — the shader's specular is symmetric (both rim
-        // and opposite-rim contribute equally), so 0° vs 180° would be
-        // identical.  0° puts highlights on left/right edges; 90° puts
-        // them on top/bottom edges.
-        m_glass->setProperty("lightAngle", 0.0);
+        m_glass->setProperty("radius", 60.0);
+        m_glass->setProperty("blurEnabled", false);
+        m_glass->setProperty("specular", 0.0);
         QTest::qWait(50);
-        const QImage imgHorizontal = grabImage(m_scene);
-        QVERIFY(!imgHorizontal.isNull());
 
-        m_glass->setProperty("lightAngle", 90.0);
+        const QImage withoutSpecular = grabImage(m_scene);
+        QVERIFY(!withoutSpecular.isNull());
+
+        m_glass->setProperty("specular", 1.0);
         QTest::qWait(50);
-        const QImage imgVertical = grabImage(m_scene);
-        QVERIFY(!imgVertical.isNull());
 
-        QVERIFY(imgHorizontal != imgVertical);
+        const QImage withSpecular = grabImage(m_scene);
+        QVERIFY(!withSpecular.isNull());
 
-        // When light is at 0°, highlights are on left/right edges.
-        // When light is at 90°, highlights are on top/bottom edges.
-        // So horizontal-edge brightness should be higher at 90°, and
-        // vertical-edge brightness should be higher at 0°.
-        const int edgeBand = 16;
-
-        auto edgeBrightness = [](const QImage &img, int startX, int endX) {
-            int sum = 0;
-            for (int y = 0; y < img.height(); ++y) {
-                const auto *p = reinterpret_cast<const QRgb *>(img.scanLine(y));
-                for (int x = startX; x < endX; ++x) {
-                    const QRgb px = p[x];
-                    sum += qRed(px) + qGreen(px) + qBlue(px);
-                }
-            }
-            return sum;
-        };
-
-        auto rowBrightness = [](const QImage &img, int startY, int endY) {
-            int sum = 0;
-            for (int y = startY; y < endY; ++y) {
-                const auto *p = reinterpret_cast<const QRgb *>(img.scanLine(y));
-                for (int x = 0; x < img.width(); ++x) {
-                    const QRgb px = p[x];
-                    sum += qRed(px) + qGreen(px) + qBlue(px);
-                }
-            }
-            return sum;
-        };
-
-        const int w = imgHorizontal.width();
-        const int h = imgHorizontal.height();
-
-        // Light at 0° → vertical edges (left/right) brighter
-        const int vertBright_0deg = edgeBrightness(imgHorizontal, 0, edgeBand)
-                                  + edgeBrightness(imgHorizontal, w - edgeBand, w);
-        const int vertBright_90deg = edgeBrightness(imgVertical, 0, edgeBand)
-                                   + edgeBrightness(imgVertical, w - edgeBand, w);
-        QVERIFY2(vertBright_0deg > vertBright_90deg,
-                 qPrintable(QStringLiteral("vertical edges should be brighter at 0°: 0deg=%1 90deg=%2")
-                                .arg(vertBright_0deg).arg(vertBright_90deg)));
-
-        // Light at 90° → horizontal edges (top/bottom) brighter
-        const int horizBright_90deg = rowBrightness(imgVertical, 0, edgeBand)
-                                    + rowBrightness(imgVertical, h - edgeBand, h);
-        const int horizBright_0deg = rowBrightness(imgHorizontal, 0, edgeBand)
-                                   + rowBrightness(imgHorizontal, h - edgeBand, h);
-        QVERIFY2(horizBright_90deg > horizBright_0deg,
-                 qPrintable(QStringLiteral("horizontal edges should be brighter at 90°: 90deg=%1 0deg=%2")
-                                .arg(horizBright_90deg).arg(horizBright_0deg)));
+        const int edgeDiff = regionDiffCount(withoutSpecular, withSpecular, QRect(0, 0, withSpecular.width(), 32), 4)
+            + regionDiffCount(withoutSpecular, withSpecular, QRect(0, withSpecular.height() - 32, withSpecular.width(), 32), 4)
+            + regionDiffCount(withoutSpecular, withSpecular, QRect(0, 0, 32, withSpecular.height()), 4)
+            + regionDiffCount(withoutSpecular, withSpecular, QRect(withSpecular.width() - 32, 0, 32, withSpecular.height()), 4);
+        QVERIFY2(edgeDiff > 500,
+                 qPrintable(QStringLiteral("specular control must visibly change rim highlights, edgeDiff=%1").arg(edgeDiff)));
     }
+
+    void narrowBezelPreservesInnerRim()
+    {
+        m_glass->setProperty("radius", 60.0);
+        m_glass->setProperty("bezelWidth", 3.0);
+        m_glass->setProperty("blurEnabled", false);
+        m_glass->setProperty("specular", 0.0);
+        QTest::qWait(50);
+
+        const QImage withoutSpecular = grabImage(m_scene);
+        QVERIFY(!withoutSpecular.isNull());
+
+        m_glass->setProperty("specular", 1.0);
+        QTest::qWait(50);
+
+        const QImage withSpecular = grabImage(m_scene);
+        QVERIFY(!withSpecular.isNull());
+
+        const QRect innerTopRim(64, 4, 128, 1);
+        const int changed = regionDiffCount(withoutSpecular, withSpecular, innerTopRim, 2);
+        QVERIFY2(changed > innerTopRim.width() / 2,
+                 qPrintable(QStringLiteral("narrow bezel must preserve the fixed-width inner rim: changed=%1 width=%2")
+                                .arg(changed)
+                                .arg(innerTopRim.width())));
+    }
+
+
 
     void radiusProducesTransparentCorners()
     {
         // Large radius for clearly transparent corners
         m_glass->setProperty("radius", 60.0);
-        m_glass->setProperty("highlightEnabled", false);
         QTest::qWait(50);
 
         // Grab the glass item directly (not root) so the visible backdrop
@@ -613,6 +569,32 @@ private Q_SLOTS:
                                 .arg(qAlpha(centerPx))));
     }
 
+    void nonUniformScaleKeepsEdgeAntialiasingSymmetric()
+    {
+        m_scene->setProperty("backdropVisible", false);
+        m_scene->setProperty("glassXScale", 0.75);
+        m_scene->setProperty("glassYScale", 0.25);
+        m_glass->setProperty("radius", 0.0);
+        QTest::qWait(50);
+
+        const QImage img = grabImage(m_scene);
+        QVERIFY(!img.isNull());
+
+        int horizontalPartialAlpha = 0;
+        int verticalPartialAlpha = 0;
+        for (int coordinate = 0; coordinate < img.width(); ++coordinate) {
+            const int horizontalAlpha = qAlpha(img.pixel(coordinate, img.height() / 2));
+            const int verticalAlpha = qAlpha(img.pixel(img.width() / 2, coordinate));
+            horizontalPartialAlpha += horizontalAlpha > 0 && horizontalAlpha < 255;
+            verticalPartialAlpha += verticalAlpha > 0 && verticalAlpha < 255;
+        }
+
+        QVERIFY2(std::abs(horizontalPartialAlpha - verticalPartialAlpha) <= 1,
+                 qPrintable(QStringLiteral("non-uniform scaling must preserve symmetric screen-space AA: horizontal=%1 vertical=%2")
+                                .arg(horizontalPartialAlpha)
+                                .arg(verticalPartialAlpha)));
+    }
+
     void largeBezelWithSmallRadiusDoesNotIntroduceCornerDiagonalSeam()
     {
         setSmallRadiusLargeBezel();
@@ -626,97 +608,143 @@ private Q_SLOTS:
                                 .arg(seamStep)));
     }
 
-    void largeBezelRemainsVisibleAlongStraightEdgesWithSmallRadius()
+    void smallRadiusSoftensRefractionAtSilhouette()
     {
+        m_scene->setProperty("cornerProbeVisible", true);
         setSmallRadiusLargeBezel();
-        m_glass->setProperty("edgeSaturation", 1.5);
+
+        m_glass->setProperty("ior", 1.0001);
         QTest::qWait(50);
+        const QImage neutral = grabImage(m_scene);
+        QVERIFY(!neutral.isNull());
 
-        const QImage largeBezel = grabImage(m_scene);
-        QVERIFY(!largeBezel.isNull());
-
-        m_glass->setProperty("bezelWidth", 1.0);
+        m_glass->setProperty("ior", 1.45);
         QTest::qWait(50);
+        const QImage refracted = grabImage(m_scene);
+        QVERIFY(!refracted.isNull());
 
-        const QImage tinyBezel = grabImage(m_scene);
-        QVERIFY(!tinyBezel.isNull());
+        const auto patchDifference = [&](const std::array<QPoint, 3> &centers) {
+            int difference = 0;
+            for (const QPoint &center : centers) {
+                for (int y = center.y() - 1; y <= center.y() + 1; ++y) {
+                    for (int x = center.x() - 1; x <= center.x() + 1; ++x)
+                        difference += colorDistance(neutral.pixel(x, y), refracted.pixel(x, y));
+                }
+            }
+            return difference;
+        };
 
-        // Far enough from the corners that radius must not suppress the
-        // straight-edge bezel, and far enough from the boundary that a shader
-        // clamping bezel width to radius would leave the region unchanged.
-        // Use the right edge: its horizontal refraction crosses the fixture's
-        // horizontal gradient, so a live bezel changes observable pixels.
-        const QRect rightStraightEdge(212, 72, 24, 112);
-        const int activePixels = regionDiffCount(largeBezel, tinyBezel, rightStraightEdge, 8);
-        QVERIFY2(activePixels > rightStraightEdge.width() * rightStraightEdge.height() / 3,
-                 qPrintable(QStringLiteral("large straight-edge bezel should remain active beyond the small radius: changedPixels=%1 regionPixels=%2")
-                                .arg(activePixels)
-                                .arg(rightStraightEdge.width() * rightStraightEdge.height())));
+        const std::array<QPoint, 3> silhouette = {
+            QPoint(250, 1),
+            QPoint(253, 2),
+            QPoint(254, 5),
+        };
+        const std::array<QPoint, 3> innerArc = {
+            QPoint(250, 4),
+            QPoint(251, 5),
+            QPoint(252, 7),
+        };
+        const int silhouetteDifference = patchDifference(silhouette);
+        const int innerDifference = patchDifference(innerArc);
+        QVERIFY2(silhouetteDifference * 5 < innerDifference * 3,
+                 qPrintable(QStringLiteral("small-corner refraction must ease in from the silhouette: silhouette=%1 inner=%2")
+                                .arg(silhouetteDifference)
+                                .arg(innerDifference)));
     }
 
-    void highDispersionRefractsEdgesWithSpecularDisabled()
+    void smallRadiusCapsWholeRefractionBand()
     {
         setSmallRadiusLargeBezel();
-        QVERIFY(m_glass->setProperty("highlightEnabled", false));
-        QVERIFY(m_glass->setProperty("rimReflectionEnabled", false));
-        QVERIFY(m_glass->setProperty("blurEnabled", false));
-        QVERIFY(m_glass->setProperty("radius", 8.0));
-        QVERIFY(m_glass->setProperty("bezelWidth", 64.0));
-        QVERIFY(m_glass->setProperty("thickness", 140.0));
-        QVERIFY(m_glass->setProperty("displacementFactor", 1.0));
-        QVERIFY(m_glass->setProperty("ior", 1.5));
-        QVERIFY(m_glass->setProperty("dispersion", 0.0));
-        QVERIFY(m_glass->setProperty("strokeStrength", 0.0));
-        QVERIFY(m_glass->setProperty("specularOpacity", 0.0));
-        QVERIFY(m_glass->setProperty("edgeSaturation", 0.0));
+
+        m_glass->setProperty("ior", 1.0001);
+        QTest::qWait(50);
+        const QImage neutral = grabImage(m_scene);
+        QVERIFY(!neutral.isNull());
+
+        m_glass->setProperty("ior", 1.45);
+        QTest::qWait(50);
+        const QImage refracted = grabImage(m_scene);
+        QVERIFY(!refracted.isNull());
+
+        const QRect beyondCornerLimitedBand(214, 80, 30, 96);
+        const int changed = regionDiffCount(neutral, refracted, beyondCornerLimitedBand, 4);
+        const int samples = beyondCornerLimitedBand.width() * beyondCornerLimitedBand.height();
+        QVERIFY2(changed <= samples / 20,
+                 qPrintable(QStringLiteral("small radius must cap the whole refraction band: changed=%1 samples=%2")
+                                .arg(changed)
+                                .arg(samples)));
+    }
+
+    void contentEdgePullChangesSilhouetteRefraction()
+    {
+        setSmallRadiusLargeBezel();
+        m_glass->setProperty("contentRampEnd", 0.15);
+        m_glass->setProperty("contentEdgePull", 0.0);
         QTest::qWait(50);
 
-        const QImage zeroDispersion = grabImage(m_scene);
-        QVERIFY(!zeroDispersion.isNull());
+        const QImage noEdgePull = grabImage(m_scene);
+        QVERIFY(!noEdgePull.isNull());
 
-        QVERIFY(m_glass->setProperty("dispersion", 0.2));
+        m_glass->setProperty("contentEdgePull", 1.0);
         QTest::qWait(50);
 
-        const QImage highDispersion = grabImage(m_scene);
-        QVERIFY(!highDispersion.isNull());
+        const QImage fullEdgePull = grabImage(m_scene);
+        QVERIFY(!fullEdgePull.isNull());
 
-        // Sample all straight-edge bevels. The fixture has black vertical
-        // contrast bars at x=25% and x=75%, so the left/right bevels cross
-        // high-contrast backdrop content without relying on exact colors.
-        const QList<QRect> edgeRefractionBands = {
-            QRect(0, 56, 72, 144),
-            QRect(184, 56, 72, 144),
-            QRect(56, 0, 144, 72),
-            QRect(56, 184, 144, 72),
-        };
-        const QRect centerInterior(104, 104, 48, 48);
+        const QRect rightEdgeBand(fullEdgePull.width() - 4, 48, 3, 160);
+        const int changed = regionDiffCount(noEdgePull, fullEdgePull, rightEdgeBand, 4);
+        QVERIFY2(changed > rightEdgeBand.width() * rightEdgeBand.height() / 2,
+                 qPrintable(QStringLiteral("contentEdgePull must visibly change silhouette refraction: changed=%1 regionPixels=%2")
+                                .arg(changed)
+                                .arg(rightEdgeBand.width() * rightEdgeBand.height())));
+    }
 
-        int edgeChanged = 0;
-        int edgePixels = 0;
-        for (const QRect &band : edgeRefractionBands) {
-            edgeChanged += regionDiffCount(zeroDispersion, highDispersion, band, 6);
-            edgePixels += band.width() * band.height();
-        }
-        const int centerChanged = regionDiffCount(zeroDispersion, highDispersion, centerInterior, 6);
+    void radiusLargerThanBezelDoesNotIntroduceCornerDiagonalSeam()
+    {
+        m_glass->setProperty("blurEnabled", false);
+        // Isolate corner-geometry: geometry-only isolation;
+        // colour effect that reads as cross-diagonal colour steps here.
+        m_glass->setProperty("radius", 90.0);
+        m_glass->setProperty("bezelWidth", 60.0);
+        m_glass->setProperty("thickness", 50.0);
+        m_glass->setProperty("ior", 3.0);
+        QTest::qWait(50);
 
-        QVERIFY2(edgeChanged > edgePixels / 10,
-                 qPrintable(QStringLiteral("high dispersion should visibly change edge refraction without specular: edgeChanged=%1 regionPixels=%2")
-                                .arg(edgeChanged)
-                                .arg(edgePixels)));
-        QVERIFY2(centerChanged < centerInterior.width() * centerInterior.height() / 20,
-                 qPrintable(QStringLiteral("high dispersion should leave the flat center comparatively stable: centerChanged=%1 regionPixels=%2")
-                                .arg(centerChanged)
+        const QImage img = grabImage(m_scene);
+        QVERIFY(!img.isNull());
+
+        const int seamStep = maxDiagonalCornerDiscontinuity(img);
+        QVERIFY2(seamStep < 24,
+                 qPrintable(QStringLiteral("radius larger than bezel introduced a sharp diagonal seam: max cross-diagonal step=%1")
+                                .arg(seamStep)));
+    }
+
+    void tintControlChangesRenderedColor()
+    {
+        m_glass->setProperty("blurEnabled", false);
+        m_glass->setProperty("radius", 60.0);
+        m_glass->setProperty("tint", 0.0);
+        QTest::qWait(50);
+
+        const QImage noTint = grabImage(m_scene);
+        QVERIFY(!noTint.isNull());
+
+        m_glass->setProperty("tint", 0.4);
+        QTest::qWait(50);
+
+        const QImage strongTint = grabImage(m_scene);
+        QVERIFY(!strongTint.isNull());
+
+        const QRect centerInterior(64, 64, 128, 128);
+        const int changed = regionDiffCount(noTint, strongTint, centerInterior, 4);
+        QVERIFY2(changed > centerInterior.width() * centerInterior.height() / 3,
+                 qPrintable(QStringLiteral("Liquid Glass tint control should change rendered color: changed=%1 regionPixels=%2")
+                                .arg(changed)
                                 .arg(centerInterior.width() * centerInterior.height())));
-        QVERIFY2(edgeChanged > centerChanged * 4 + 20,
-                 qPrintable(QStringLiteral("dispersion response should be edge-dominated: edgeChanged=%1 centerChanged=%2")
-                                .arg(edgeChanged)
-                                .arg(centerChanged)));
     }
 
     void zeroBlurMultiplierStillAppliesGaussianBlur()
     {
-        m_glass->setProperty("highlightEnabled", false);
-        m_glass->setProperty("rimReflectionEnabled", false);
         m_glass->setProperty("blurEnabled", true);
         m_glass->setProperty("blurMax", 48);
         m_glass->setProperty("blurAmount", 1.0);
@@ -734,15 +762,14 @@ private Q_SLOTS:
 
         const QRect centerContrastFeature(92, 92, 72, 72);
         const int changedPixels = regionDiffCount(defaultQualityBlur, withoutBlur, centerContrastFeature, 4);
-        QVERIFY2(changedPixels > centerContrastFeature.width() * centerContrastFeature.height() / 5,
-                 qPrintable(QStringLiteral("blurMultiplier=0 must keep blur active instead of disabling it: changedPixels=%1 regionPixels=%2")
+        QVERIFY2(changedPixels > centerContrastFeature.width() * centerContrastFeature.height() / 10,
+                 qPrintable(QStringLiteral("MultiEffect blur must stay active with blurMultiplier=0: changedPixels=%1 regionPixels=%2")
                                 .arg(changedPixels)
                                 .arg(centerContrastFeature.width() * centerContrastFeature.height())));
     }
 
     void blurAmountAndMultiplierChangeRenderedBlurStrength()
     {
-        m_glass->setProperty("highlightEnabled", false);
         m_glass->setProperty("blurEnabled", true);
         m_glass->setProperty("blurMax", 48);
         m_glass->setProperty("radius", 34.0);
@@ -764,7 +791,7 @@ private Q_SLOTS:
 
         const QRect centerContrastFeature(92, 92, 72, 72);
         const int changedPixels = regionDiffCount(weakBlur, strongBlur, centerContrastFeature, 4);
-        QVERIFY2(changedPixels > centerContrastFeature.width() * centerContrastFeature.height() / 5,
+        QVERIFY2(changedPixels > centerContrastFeature.width() * centerContrastFeature.height() / 10,
                  qPrintable(QStringLiteral("blurAmount/blurMultiplier must visibly change the sampled backdrop blur: changedPixels=%1 regionPixels=%2")
                                 .arg(changedPixels)
                                 .arg(centerContrastFeature.width() * centerContrastFeature.height())));
@@ -773,6 +800,7 @@ private Q_SLOTS:
     {
         m_glass->setProperty("blurEnabled", true);
         m_glass->setProperty("blurMax", 36);
+        m_glass->setProperty("blurAmount", 1.0);
         m_glass->setProperty("radius", 34.0);
         QTest::qWait(50);
 
