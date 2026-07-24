@@ -45,6 +45,50 @@ vec2 roundedRectNormal(vec2 p, vec2 halfSize, float r)
     return vec2(sign(p.x) * useX, sign(p.y) * (1.0 - useX));
 }
 
+float smoother01(float v)
+{
+    v = clamp(v, 0.0, 1.0);
+    return v * v * v * (v * (v * 6.0 - 15.0) + 10.0);
+}
+
+float getFieldT(vec2 p, vec2 halfSize, float outerRadius, float bezel)
+{
+    float rr = min(max(outerRadius, 0.0), min(halfSize.x, halfSize.y));
+    vec2 d = halfSize - abs(p);
+
+    // outerX/Y: how far the corner arc extends into the x/y direction.
+    float outerX = d.x < rr ? rr - sqrt(max(0.0, d.x * (2.0 * rr - d.x))) : 0.0;
+    float outerY = d.y < rr ? rr - sqrt(max(0.0, d.y * (2.0 * rr - d.y))) : 0.0;
+
+    // Directional bezel progress, adjusted for corner arc offset.
+    float topProgress = clamp((d.y - outerX) / bezel, 0.0, 1.0);
+    float sideProgress = clamp((d.x - outerY) / bezel, 0.0, 1.0);
+
+    // Geometric mean of smoothed progressions: ensures t=0 at silhouette,
+    // t=1 at flat region, and a smooth blend in corners when radius < bezel.
+    // Replaces the old binary top/side split which produced a fold line.
+    return sqrt(smoother01(topProgress) * smoother01(sideProgress));
+}
+
+vec4 expandingCornerBezelField(vec2 p, vec2 halfSize, float outerRadius, float bezel)
+{
+    float t = getFieldT(p, halfSize, outerRadius, bezel);
+    
+    float eps = 0.5;
+    float tx = getFieldT(p + vec2(eps, 0.0), halfSize, outerRadius, bezel);
+    float tnx = getFieldT(p - vec2(eps, 0.0), halfSize, outerRadius, bezel);
+    float ty = getFieldT(p + vec2(0.0, eps), halfSize, outerRadius, bezel);
+    float tny = getFieldT(p - vec2(0.0, eps), halfSize, outerRadius, bezel);
+    
+    vec2 grad = vec2(tx - tnx, ty - tny) / (2.0 * eps);
+    float gradLen = length(grad);
+    
+    float localBezel = gradLen > 1e-5 ? 1.0 / gradLen : bezel;
+    vec2 normal = gradLen > 1e-5 ? -(grad / gradLen) : roundedRectNormal(p, halfSize, outerRadius);
+    
+    return vec4(t, localBezel, normal);
+}
+
 vec2 surfaceProfile(float t)
 {
     // Squircle-like profile and analytic derivative.
@@ -84,9 +128,16 @@ void main()
 
     float distFromEdge = -sd;
     float configuredBezel = max(ubuf.bezelWidth, 1.0);
-    float effectExtent = ubuf.specular > 1e-4
-        ? max(configuredBezel, 5.0)
-        : configuredBezel;
+    float outerRadius = min(max(ubuf.radius, 0.0), min(halfSize.x, halfSize.y));
+    float maxSizeBezel = max(min(halfSize.x, halfSize.y) - 1.0, 1.0);
+    float sizeLimitedBezel = min(configuredBezel, maxSizeBezel);
+    
+    bool expandingCorners = outerRadius < sizeLimitedBezel;
+    float effectExtent = expandingCorners ? sizeLimitedBezel * 1.5 : sizeLimitedBezel;
+    
+    if (ubuf.specular > 1e-4)
+        effectExtent = max(effectExtent, 5.0);
+
     if (distFromEdge > effectExtent) {
         vec3 color = sampleBg(texCoord);
         if (ubuf.tint > 1e-4)
@@ -95,9 +146,33 @@ void main()
         fragColor = vec4(clamp(color, 0.0, 1.0) * alpha, alpha);
         return;
     }
-    float maxBezel = min(max(ubuf.radius, 0.0), min(halfSize.x, halfSize.y)) - 1.0;
-    float bezel = max(min(configuredBezel, maxBezel), 1.0);
-    float t = clamp(distFromEdge / bezel, 0.0, 1.0);
+
+    float bezel;
+    float t;
+    float localBezel;
+    vec2 n2;
+
+    if (expandingCorners) {
+        bezel = sizeLimitedBezel;
+        vec4 field = expandingCornerBezelField(p, halfSize, outerRadius, bezel);
+        t = field.x;
+        localBezel = field.y;
+        n2 = field.zw;
+    } else {
+        bezel = sizeLimitedBezel;
+        t = clamp(distFromEdge / bezel, 0.0, 1.0);
+        localBezel = bezel;
+        n2 = roundedRectNormal(p, halfSize, outerRadius);
+    }
+
+    if (expandingCorners && t >= 1.0 && (ubuf.specular <= 1e-4 || distFromEdge >= 5.0)) {
+        vec3 color = sampleBg(texCoord);
+        if (ubuf.tint > 1e-4)
+            color = mix(color, vec3(1.0), clamp(ubuf.tint, 0.0, 1.0));
+        float alpha = shapeAlpha * ubuf.qt_Opacity;
+        fragColor = vec4(clamp(color, 0.0, 1.0) * alpha, alpha);
+        return;
+    }
 
     vec2 profile = surfaceProfile(t);
     float h = profile.x;
@@ -106,11 +181,10 @@ void main()
     // Ease refraction in from the silhouette; the profile derivative peaks at
     // the edge and otherwise turns high-contrast corners into thin spikes.
     float outerSoft = smoothstep(0.0, max(2.5 * edgeAA, 2.5), distFromEdge);
-    float rawTan = profile.y * (thick / bezel);
+    float rawTan = profile.y * (thick / localBezel);
     float maxTan = max(ubuf.refractionMaxTan, 0.1);
     float slopeMag = min(rawTan, maxTan) * outerSoft;
 
-    vec2 n2 = roundedRectNormal(p, halfSize, ubuf.radius);
     float H = h * thick;
 
     float edgePull = clamp(ubuf.contentEdgePull, 0.0, 1.0);
