@@ -584,6 +584,61 @@
             "description[zh_CN]": "液态玻璃折射前由 Qt MultiEffect 应用的饱和度调节。默认 0.04 表示轻微提升饱和度。范围：-1.0-1.0。",
             "permissions": "readwrite",
             "visibility": "public"
+        },
+        "glassContentEdgePull": {
+            "value": 0.0,
+            "serial": 0,
+            "flags": [],
+            "name": "Glass Content Edge Pull",
+            "name[zh_CN]": "玻璃内容边缘拉力",
+            "description": "Fraction of optical pull kept at the glass silhouette lip. 0 disables edge pull (content stays in place at the edge); 1 applies full refraction at the lip. Range: 0.0-1.0.",
+            "description[zh_CN]": "玻璃轮廓边缘保留的光学拉力比例。0 表示禁用边缘拉力（内容在边缘保持不动）；1 表示在边缘应用完整折射。范围：0.0-1.0。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "glassContentRampEnd": {
+            "value": 0.15,
+            "serial": 0,
+            "flags": [],
+            "name": "Glass Content Ramp End",
+            "name[zh_CN]": "玻璃内容渐变终点",
+            "description": "Bezel-t position where content pull ramps from edge to full refraction. Lower values make the ramp shorter. Range: 0.05-1.0.",
+            "description[zh_CN]": "内容拉力从边缘渐变到完整折射的 bezel-t 位置。值越小渐变越短。范围：0.05-1.0。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "glassRefractionMaxTan": {
+            "value": 2.75,
+            "serial": 0,
+            "flags": [],
+            "name": "Glass Refraction Max Tangent",
+            "name[zh_CN]": "玻璃折射最大正切值",
+            "description": "Cap on the geometric surface slope tangent near the silhouette. Lower values reduce edge distortion. Range: 0.1-10.0.",
+            "description[zh_CN]": "轮廓附近几何表面斜率正切值的上限。值越小边缘变形越小。范围：0.1-10.0。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "glassProfilePower": {
+            "value": 4.0,
+            "serial": 0,
+            "flags": [],
+            "name": "Glass Profile Power",
+            "name[zh_CN]": "玻璃轮廓幂次",
+            "description": "Surface profile exponent controlling the super-ellipse shape. 4 gives the default squircle; 2 produces a rounder profile; higher values sharpen the bezel transition. Range: 1.0-10.0.",
+            "description[zh_CN]": "控制超椭圆形状的表面轮廓指数。4 为默认的方圆形；2 产生更圆的轮廓；值越高边缘过渡越尖锐。范围：1.0-10.0。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "glassInnerShadow": {
+            "value": 0.25,
+            "serial": 0,
+            "flags": [],
+            "name": "Glass Inner Shadow",
+            "name[zh_CN]": "玻璃内阴影",
+            "description": "Inner shadow intensity at the glass rim. 0 disables the shadow; 1 applies maximum darkening. Range: 0.0-1.0.",
+            "description[zh_CN]": "玻璃边缘的内阴影强度。0 表示禁用阴影；1 表示最大程度加深。范围：0.0-1.0。",
+            "permissions": "readwrite",
+            "visibility": "public"
         }
     }
 }

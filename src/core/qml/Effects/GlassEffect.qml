@@ -17,10 +17,12 @@ Item {
     property real ior: 1.5
     property real specular: 0.0
     property real tint: 0.0
-    // Content UV pull vs optical path (test_glass tunable).
-    property real contentEdgePull: 0.42
-    property real contentRampEnd: 0.50
+    // Limit the geometric surface slope near the silhouette.
     property real refractionMaxTan: 2.75
+    property real contentEdgePull: 0.0
+    property real contentRampEnd: 0.15
+    property real profilePower: 4.0
+    property real innerShadow: 0.25
 
     // Compatibility inputs kept for existing Blur.qml users. MultiEffect owns
     // backdrop blur and colour adjustment before the refraction shader.
@@ -66,18 +68,20 @@ Item {
         anchors.fill: parent
         smooth: true
         property variant source: effect.multiEffectEnabled ? processedTexture : effect.source
+        // Property order MUST match the UBO layout in liquidglass.frag (after qt_Matrix, qt_Opacity)
         readonly property vector2d itemSize: Qt.vector2d(Math.max(width, 1), Math.max(height, 1))
+        readonly property vector2d lightDirection: effect.lightDirection
         readonly property real radius: effect.radius
         readonly property real bezelWidth: effect.bezelWidth
+        readonly property real thickness: effect.thickness
+        readonly property real ior: effect.ior
+        readonly property real specular: Math.max(0, Math.min(1, effect.specular))
         readonly property real tint: Math.max(0, Math.min(1, effect.tint))
         readonly property real contentEdgePull: Math.max(0, Math.min(1, effect.contentEdgePull))
         readonly property real contentRampEnd: Math.max(0.05, Math.min(1, effect.contentRampEnd))
         readonly property real refractionMaxTan: Math.max(0.1, effect.refractionMaxTan)
-        readonly property real thickness: effect.thickness
-        readonly property real ior: effect.ior
-        readonly property real specular: Math.max(0, Math.min(1, effect.specular))
-
-        readonly property vector2d lightDirection: effect.lightDirection
+        readonly property real profilePower: Math.max(1, effect.profilePower)
+        readonly property real innerShadow: Math.max(0, Math.min(1, effect.innerShadow))
 
         vertexShader: "qrc:/shaders/liquidglass.vert.qsb"
         fragmentShader: "qrc:/shaders/liquidglass.frag.qsb"

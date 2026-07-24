@@ -20,6 +20,8 @@ layout(std140, binding = 0) uniform buf {
     float contentEdgePull;    // fraction of optical pull kept at the glass lip (0–1)
     float contentRampEnd;     // t in bezel where content pull reaches full (0–1)
     float refractionMaxTan;   // cap on geometric slope tan(theta)
+    float profilePower;       // surface profile exponent (default 4.0 = squircle)
+    float innerShadow;        // inner shadow intensity (0–1, default 0.25)
 } ubuf;
 
 layout(binding = 1) uniform sampler2D source;
@@ -91,13 +93,15 @@ vec4 expandingCornerBezelField(vec2 p, vec2 halfSize, float outerRadius, float b
 
 vec2 surfaceProfile(float t)
 {
-    // Squircle-like profile and analytic derivative.
+    // Generalized super-ellipse profile: s^p → height = (1 - s^p)^(1/p).
+    // profilePower=4 gives the original squircle; lower values flatten, higher sharpen.
+    float pp = max(ubuf.profilePower, 1.0);
     float s = 1.0 - clamp(t, 0.0, 1.0);
-    float s2 = s * s;
-    float s4 = s2 * s2;
-    float inside = max(1.0 - s4, 1e-4);
-    float height = sqrt(sqrt(inside));
-    float derivative = s2 * s * height / inside;
+    float sp = pow(s, pp);
+    float inside = max(1.0 - sp, 1e-4);
+    float height = pow(inside, 1.0 / pp);
+    // Analytic derivative: d(height)/dt = s^(pp-1) * height / inside
+    float derivative = pow(s, pp - 1.0) * height / inside;
     return vec2(height, derivative);
 }
 
@@ -224,8 +228,8 @@ void main()
         color += vec3(innerRim * 0.12 * clamp(ubuf.specular, 0.0, 1.0));
     }
 
-    float innerShadow = 1.0 - smoothstep(0.0, bezel * 0.6, distFromEdge);
-    color *= mix(1.0, 0.75, innerShadow * 0.25);
+    float innerShadowMask = 1.0 - smoothstep(0.0, bezel * 0.6, distFromEdge);
+    color *= mix(1.0, 0.75, innerShadowMask * clamp(ubuf.innerShadow, 0.0, 1.0));
 
 
     if (ubuf.tint > 1e-4)

@@ -53,6 +53,11 @@ RenderBufferBlitter {
             brightness: blitter.brightness
             contrast: blitter.contrast
             saturation: blitter.saturation
+            contentEdgePull: Helper.config.glassContentEdgePull
+            contentRampEnd: Helper.config.glassContentRampEnd
+            refractionMaxTan: Helper.config.glassRefractionMaxTan
+            profilePower: Helper.config.glassProfilePower
+            innerShadow: Helper.config.glassInnerShadow
         }
     }
 
