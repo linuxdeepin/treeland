@@ -1,5 +1,7 @@
-// Copyright (C) 2024 lbwtw <xiaoyaobing@uniontech.com>.
+// Copyright (C) 2024-2026 lbwtw <xiaoyaobing@uniontech.com>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+
+pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Effects
@@ -96,6 +98,7 @@ Loader {
     Component {
         id: sourceComponent
 
+        // qmllint disable unqualified: qmllint directive — root and sourceSurface are outer scope
         Item {
             anchors.fill: parent
             transformOrigin: root.transformOrigin
@@ -123,6 +126,7 @@ Loader {
                     root.clicked()
                 }
             }
+            // qmllint enable unqualified
         }
     }
 }

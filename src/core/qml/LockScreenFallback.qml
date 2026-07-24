@@ -1,12 +1,14 @@
-// Copyright (C) 2025 misaka18931 <miruku2937@gmail.com>.
+// Copyright (C) 2025-2026 misaka18931 <miruku2937@gmail.com>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+
+pragma ComponentBehavior: Bound
 
 import QtQuick 2.15
 
 FocusScope {
     id: root
     clip: true
-    required property QtObject outputItem
+    required property Item outputItem
     
     // Position and size
     x: outputItem.x

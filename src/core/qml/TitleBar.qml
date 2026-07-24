@@ -1,6 +1,8 @@
 // Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Shapes
@@ -108,6 +110,7 @@ Control {
             Loader {
                 objectName: "minimizeBtn"
                 sourceComponent: D.WindowButton {
+                    // qmllint disable unqualified: qmllint directive — root and surface are outer scope
                     icon.name: "window_minimize"
                     textColor: root.textColor
                     height: root.height
@@ -117,6 +120,7 @@ Control {
                     onClicked: {
                         surface.minimize()
                     }
+                    // qmllint enable unqualified
                 }
             }
 
@@ -125,6 +129,7 @@ Control {
                 objectName: "maxOrWindedBtn"
                 active: root.canToggleMaximize
                 sourceComponent: D.WindowButton {
+                    // qmllint disable unqualified: qmllint directive — root and surface are outer scope
                     icon.name: surface.shellSurface.isMaximized ? "window_restore" : "window_maximize"
                     textColor: root.textColor
                     height: root.height
@@ -135,12 +140,14 @@ Control {
                         Helper.activateSurface(surface)
                         surface.toggleMaximized()
                     }
+                    // qmllint enable unqualified
                 }
             }
 
             Loader {
                 objectName: "closeBtn"
                 sourceComponent: Item {
+                    // qmllint disable unqualified: qmllint directive — root and surface are outer scope
                     height: root.height
                     width: closeBtn.implicitWidth
                     Rectangle {
@@ -159,6 +166,7 @@ Control {
                             surface.closeSurface()
                         }
                     }
+                    // qmllint enable unqualified
                 }
             }
         }
@@ -169,6 +177,7 @@ Control {
         y: titlebar.y
         active: !root.noRadius
         sourceComponent: Shape {
+            // qmllint disable unqualified: qmllint directive — titlebar and surface are outer scope
             anchors.fill: parent
             preferredRendererType: Shape.CurveRenderer
             ShapePath {
@@ -181,6 +190,7 @@ Control {
                     topRightRadius: surface.radius
                 }
             }
+            // qmllint enable unqualified
         }
     }
 }

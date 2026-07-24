@@ -1,6 +1,8 @@
 // Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Effects
 import QtQuick.Shapes
@@ -36,6 +38,7 @@ RenderBufferBlitter {
     Component {
         id: glassComponent
         GlassEffect {
+            // qmllint disable unqualified: qmllint directive — blitter properties needed in effect component
             anchors.fill: parent
             source: blitter.content
             radius: blitter.radius
@@ -63,6 +66,7 @@ RenderBufferBlitter {
             rimReflectionEnabled: true
             lightPower: 3.0
             reflectionOffset: Helper.config.glassReflectionOffset
+            // qmllint enable unqualified
         }
     }
 
@@ -73,6 +77,7 @@ RenderBufferBlitter {
 
             MultiEffect {
                 id: blur
+                // qmllint disable unqualified: qmllint directive — blitter properties needed in effect component
                 anchors.fill: parent
                 layer.enabled: blitter.radiusEnabled
                 smooth: blitter.radiusEnabled
@@ -84,13 +89,16 @@ RenderBufferBlitter {
                 blurMax: blitter.blurMax
                 blurMultiplier: blitter.multiplier
                 saturation: 0.2
+                // qmllint enable unqualified
             }
 
             Loader {
                 x: blur.x
                 y: blur.y
                 active: blitter.radiusEnabled
+                // qmllint disable unqualified: qmllint directive — blitter is outer scope
                 sourceComponent: Shape {
+                    // qmllint disable unqualified: qmllint directive — blitter and blur are outer scope
                     anchors.fill: parent
                     preferredRendererType: Shape.CurveRenderer
                     ShapePath {
@@ -102,6 +110,7 @@ RenderBufferBlitter {
                             radius: blitter.radius
                         }
                     }
+                    // qmllint enable unqualified
                 }
             }
         }

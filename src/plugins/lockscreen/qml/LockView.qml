@@ -1,5 +1,8 @@
 // Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -15,7 +18,7 @@ FocusScope {
     /* Components */
     /**************/
 
-    function show() {
+    function show(): void {
         root.forceActiveFocus()
         root.visible = true
         root.state = LoginAnimation.Show
@@ -25,7 +28,7 @@ FocusScope {
         bottomAnimation.item.start({x: controlAction.x, y: controlAction.y + controlAction.height}, {x: controlAction.x, y: controlAction.y})
     }
 
-    function hide() {
+    function hide(): void {
         root.state = LoginAnimation.Hide
         leftAnimation.item.start({x: quickAction.x, y: quickAction.y}, {x: root.x - quickAction.width, y: quickAction.y})
         logoAnimation.item.start({x: logo.x, y: logo.y}, {x: root.x - logo.width, y: logo.y})
@@ -43,9 +46,11 @@ FocusScope {
         id: leftAnimation
         anchors.fill: parent
         sourceComponent: LoginAnimation {
+            // qmllint disable unqualified: qmllint directive — quickAction and root are outer scope
             anchors.fill: parent
             target: quickAction
             state: root.state
+            // qmllint enable unqualified
         }
     }
 
@@ -53,9 +58,11 @@ FocusScope {
         id: logoAnimation
         anchors.fill: parent
         sourceComponent: LoginAnimation {
+            // qmllint disable unqualified: qmllint directive — logo and root are outer scope
             anchors.fill: parent
             target: logo
             state: root.state
+            // qmllint enable unqualified
         }
     }
 
@@ -63,12 +70,14 @@ FocusScope {
         id: rightAnimation
         anchors.fill: parent
         sourceComponent: LoginAnimation {
+            // qmllint disable unqualified: qmllint directive — userInput and root are outer scope
             state: root.state
             target: userInput
             anchors.fill: parent
             onStopped: {
                 root.animationPlayFinished()
             }
+            // qmllint enable unqualified
         }
     }
 
@@ -76,9 +85,11 @@ FocusScope {
         id: bottomAnimation
         anchors.fill: parent
         sourceComponent: LoginAnimation {
+            // qmllint disable unqualified: qmllint directive — controlAction and root are outer scope
             state: root.state
             target: controlAction
             anchors.fill: parent
+            // qmllint enable unqualified
         }
     }
 
@@ -181,7 +192,7 @@ FocusScope {
 
     Connections {
         target: GreeterProxy
-        function onLockChanged(isLocked) {
+        function onLockChanged(isLocked: bool) {
             if (isLocked) {
                 root.show()
             } else {
@@ -196,11 +207,11 @@ FocusScope {
         }
     }
 
-    function showUserView() {
+    function showUserView(): void {
         root.animationPlayFinished.connect(root.__showUserList)
     }
 
-    function __showUserList() {
+    function __showUserList(): void {
         controlAction.showUserList()
         root.animationPlayFinished.disconnect(root.__showUserList)
     }

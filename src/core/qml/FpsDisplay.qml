@@ -1,5 +1,7 @@
-// Copyright (C) 2025 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2025-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+
+pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Controls
@@ -10,7 +12,7 @@ Item {
     anchors.fill: parent
 
     property real scaleFactor: 1.0
-    property var targetWindow: null
+    property Window targetWindow: null
     property alias fpsManager: internalManager
 
     FpsDisplayManager {

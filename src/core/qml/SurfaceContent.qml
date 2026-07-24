@@ -1,5 +1,7 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+
+pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Shapes
@@ -18,12 +20,20 @@ Item {
     opacity: content.alphaModifier
 
     Loader {
+        id: blurLoader
         anchors.fill: parent
         active: wrapper?.blur ?? false
-        sourceComponent: Blur {
+        sourceComponent: blurComponent
+        onLoaded: {
+            item.radius = Qt.binding(() => cornerRadius)
+            item.radiusEnabled = Qt.binding(() => cornerRadius > 0)
+        }
+    }
+
+    Component {
+        id: blurComponent
+        Blur {
             anchors.fill: parent
-            radiusEnabled: cornerRadius > 0
-            radius: cornerRadius
         }
     }
 
@@ -59,6 +69,7 @@ Item {
         }
 
         sourceComponent: Shape {
+            // qmllint disable unqualified: qmllint directive — content, wrapper, cornerRadius are outer scope
             fillMode: Shape.PreserveAspectFit
             preferredRendererType: Shape.CurveRenderer
             ShapePath {
@@ -77,6 +88,7 @@ Item {
                     bottomRightRadius: cornerRadius * scale
                 }
             }
+            // qmllint enable unqualified
         }
     }
 }

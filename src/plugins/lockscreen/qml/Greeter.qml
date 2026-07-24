@@ -1,5 +1,8 @@
 // Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -13,8 +16,8 @@ FocusScope {
     signal animationPlayed
     signal animationPlayFinished
 
-    required property QtObject output
-    required property QtObject outputItem
+    required property QtObject output // Treeland Output (QML_ANONYMOUS), cannot use as named type
+    required property Item outputItem
     property string primaryOutputName
     property bool isPrimaryOutput: primaryOutputName === "" || primaryOutputName === output.name
     visible: true
@@ -130,6 +133,7 @@ FocusScope {
     Component {
         id: lockViewComponent
         LockView {
+            // qmllint disable unqualified: qmllint directive — root is outer scope
             id: lockView
             anchors.fill: parent
             onAnimationPlayFinished: function () {
@@ -137,6 +141,7 @@ FocusScope {
                     root.animationPlayFinished()
                 }
             }
+            // qmllint enable unqualified
         }
     }
 
@@ -150,11 +155,13 @@ FocusScope {
     Component {
         id: shutdownViewComponent
         ShutdownView {
+            // qmllint disable unqualified: qmllint directive — root is outer scope
             id: shutdownView
             anchors.fill: parent
             onSwitchUser: {
                 root.switchUser()
             }
+            // qmllint enable unqualified
         }
     }
 
@@ -162,7 +169,7 @@ FocusScope {
     /* Functions and Connections */
     /*****************************/
 
-    function switchUser() {
+    function switchUser(): void {
         GreeterProxy.lock()
         lockView.showUserView()
     }
@@ -170,12 +177,12 @@ FocusScope {
     Connections {
         target: GreeterProxy
 
-        function onLockChanged(isLocked) {
+        function onLockChanged(isLocked: bool) {
             if (!isLocked)
                 root.animationPlayed()
         }
 
-        function onShowShutdownViewChanged(show) {
+        function onShowShutdownViewChanged(show: bool) {
             if (!show && !GreeterProxy.isLocked) {
                 root.animationPlayed()
                 root.animationPlayFinished()

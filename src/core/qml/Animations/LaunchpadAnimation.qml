@@ -1,5 +1,7 @@
-// Copyright (C) 2024 justforlxz <justforlxz@gmail.com>.
+// Copyright (C) 2024-2026 justforlxz <justforlxz@gmail.com>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+
+pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Effects
@@ -18,20 +20,20 @@ Item {
     visible: false
     clip: true
 
-    required property var target
-    required property var direction
+    required property Item target
+    required property int direction
     property int duration: 400 * Helper.animationSpeed
 
     width: target.width
     height: target.height
     state: "None"
 
-    function start() {
+    function start(): void {
         visible = true;
         root.state = direction === LaunchpadAnimation.Direction.Show ? "Show" : "Hide"
     }
 
-    function stop() {
+    function stop(): void {
         visible = false;
         effect.sourceItem = null;
         finished();

@@ -1,6 +1,8 @@
 // Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Effects
@@ -123,7 +125,7 @@ Multitaskview {
         Item {
             id: outputPlacementItem
             required property int index
-            required property QtObject output
+            required property QtObject output // Treeland Output (QML_ANONYMOUS), cannot use as named type
             x: output.outputItem.x
             y: output.outputItem.y
             width: output.outputItem.width
@@ -200,6 +202,7 @@ Multitaskview {
                 readonly property real localFactor: outputPlacementItem.width / Helper.workspace.animationController.refWidth
                 anchors.fill: parent
                 sourceComponent: Item {
+                    // qmllint disable unqualified: qmllint directive — outputPlacementItem and workspaceAnimation are outer scope
                     id: animationDelegate
                     clip: true
                     visible: Helper.workspace.animationController.running
@@ -255,6 +258,7 @@ Multitaskview {
                             }
                         }
                     }
+                    // qmllint enable unqualified
                 }
             }
         }

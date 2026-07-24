@@ -1,5 +1,8 @@
 // Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -325,7 +328,7 @@ Item {
     /* Functions and Connections */
     /*****************************/
 
-    function updateUser() {
+    function updateUser(): void {
         loginGroup.enteringOtherUser = false
         loginGroup.showUserNotFoundError = false
         let currentUser = UserModel.get(UserModel.currentUserName)
@@ -335,7 +338,7 @@ Item {
         hintText.text = normalHint
     }
 
-    function startOtherUserMode() {
+    function startOtherUserMode(): void {
         loginGroup.enteringOtherUser = true
         loginGroup.showUserNotFoundError = false
         username.text = qsTr("Enter username")
@@ -343,7 +346,7 @@ Item {
         passwordField.forceActiveFocus()
     }
 
-    function confirmOtherUser() {
+    function confirmOtherUser(): void {
         let name = passwordField.text.trim()
         if (name.length === 0) return
         if (UserModel.tryAddNssUser(name)) {
@@ -357,7 +360,7 @@ Item {
         }
     }
 
-    function userLogin() {
+    function userLogin(): void {
         let user = UserModel.get(UserModel.currentUserName)
         if (user.loggedIn)
             GreeterProxy.unlock(user.name, passwordField.text)
@@ -367,7 +370,7 @@ Item {
 
     Connections {
         target: GreeterProxy
-        function onFailedAttemptsChanged (attempts) {
+        function onFailedAttemptsChanged(attempts: int) {
             if (attempts > 0) {
                 passwordField.selectAll()
                 if (loginGroup.activeFocus) {
@@ -384,11 +387,11 @@ Item {
     Connections {
         target: UserModel
 
-        function onUpdateTranslations(locale) {
+        function onUpdateTranslations(locale: locale) {
             updateUser()
         }
 
-        function onCurrentUserNameChanged(name) {
+        function onCurrentUserNameChanged(name: string) {
             updateUser()
         }
     }

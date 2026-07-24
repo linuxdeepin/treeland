@@ -1,6 +1,8 @@
 // Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import Treeland
 import Waylib.Server
@@ -13,7 +15,7 @@ Item {
     required property rect fromGeometry
     required property rect toGeometry
     property int duration: 200 * Helper.animationSpeed
-    property var enableBlur: false
+    property bool enableBlur: false
 
     signal ready
     signal finished
@@ -23,7 +25,7 @@ Item {
     width: fromGeometry.width
     height: fromGeometry.height
 
-    function start() {
+    function start(): void {
         animation.start();
     }
 
@@ -37,8 +39,10 @@ Item {
         active: root.enableBlur
         anchors.fill: parent
         sourceComponent: Blur {
+            // qmllint disable unqualified: qmllint directive — root.surface is outer scope, accessed from inline Component
             anchors.fill: parent
-            radius: surface.radius
+            radius: root.surface.radius
+            // qmllint enable unqualified
         }
     }
 
