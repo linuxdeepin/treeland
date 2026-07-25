@@ -10,6 +10,7 @@
 #include "output/output.h"
 #include "seat/helper.h"
 #include "shortcutcontroller.h"
+#include "surface/quicktile.h"
 #include "surface/surfacewrapper.h"
 #include "treelandconfig.hpp"
 #include "utils/fpsdisplaymanager.h"
@@ -102,6 +103,19 @@ void ShortcutRunner::onActionTrigger(ShortcutAction action, const QString &name,
         if (surface) {
             Q_EMIT surface->moveRequested();
         }
+        break;
+    }
+    case ShortcutAction::TileLeft:
+    case ShortcutAction::TileRight: {
+        auto surface = helper->activatedSurface();
+        if (!surface)
+            break;
+        auto *out = surface->ownsOutput();
+        if (!out)
+            break;
+        const auto mode =
+            (action == ShortcutAction::TileLeft) ? QuickTile::Mode::Left : QuickTile::Mode::Right;
+        QuickTile::apply(surface, mode, out);
         break;
     }
     case ShortcutAction::CloseWindow: {
