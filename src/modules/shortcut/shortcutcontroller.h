@@ -43,6 +43,8 @@ public:
         TaskSwitchPrev        = 25,
         TaskSwitchSameAppNext = 26,
         TaskSwitchSameAppPrev = 27,
+        TileLeft              = 28,
+        TileRight             = 29,
     };
     Q_ENUM(ShortcutAction)
     static const char *actionName(ShortcutAction action);
