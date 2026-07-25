@@ -1012,42 +1012,87 @@ SurfaceWrapper::State SurfaceWrapper::surfaceState() const
     return m_surfaceState;
 }
 
-void SurfaceWrapper::setSurfaceState(State newSurfaceState)
+bool SurfaceWrapper::checkSetSurfaceState(State newSurfaceState)
 {
     if (m_wrapperAboutToRemove)
-        return;
+        return false;
 
     if (m_geometryAnimation)
-        return;
+        return false;
 
     if (m_surfaceState == newSurfaceState)
-        return;
+        return false;
 
     if (container()->filterSurfaceStateChange(this, newSurfaceState, m_surfaceState))
+        return false;
+
+    return true;
+}
+
+void SurfaceWrapper::setSurfaceState(State newSurfaceState)
+{
+    if (!checkSetSurfaceState(newSurfaceState))
         return;
 
-    QRectF targetGeometry;
-
-    if (newSurfaceState == State::Maximized) {
-        targetGeometry = m_maximizedGeometry;
-    } else if (newSurfaceState == State::Fullscreen) {
-        targetGeometry = m_fullscreenGeometry;
-    } else if (newSurfaceState == State::Normal) {
-        targetGeometry = m_normalGeometry;
-    } else if (newSurfaceState == State::Tiling) {
-        targetGeometry = m_tilingGeometry;
-    }
+    const QRectF targetGeometry = targetGeometryForState(newSurfaceState);
 
     if (targetGeometry.isValid()) {
         startStateChangeAnimation(newSurfaceState, targetGeometry);
     } else {
-        if (m_geometryAnimation) {
-            m_geometryAnimation->disconnect(this);
-            m_geometryAnimation->deleteLater();
-            m_geometryAnimation = nullptr;
-        }
-
+        abortGeometryAnimation();
         doSetSurfaceState(newSurfaceState);
+    }
+}
+
+void SurfaceWrapper::setSurfaceStateDirectly(State newSurfaceState)
+{
+    if (!checkSetSurfaceState(newSurfaceState))
+        return;
+
+    const QRectF targetGeometry = targetGeometryForState(newSurfaceState);
+    abortGeometryAnimation();
+
+    if (targetGeometry.isValid()) {
+        if (!applySurfaceStateGeometry(newSurfaceState, targetGeometry))
+            return;
+    } else {
+        doSetSurfaceState(newSurfaceState);
+    }
+}
+
+QRectF SurfaceWrapper::targetGeometryForState(State state) const
+{
+    switch (state) {
+    case State::Maximized:
+        return m_maximizedGeometry;
+    case State::Fullscreen:
+        return m_fullscreenGeometry;
+    case State::Normal:
+        return m_normalGeometry;
+    case State::Tiling:
+        return m_tilingGeometry;
+    default:
+        return QRectF();
+    }
+}
+
+bool SurfaceWrapper::applySurfaceStateGeometry(State state, const QRectF &targetGeometry)
+{
+    if (!resize(targetGeometry.size(), true))
+        return false;
+
+    setPosition(alignToPixelGrid(targetGeometry.topLeft()));
+    doSetSurfaceState(state);
+    resize(targetGeometry.size());
+    return true;
+}
+
+void SurfaceWrapper::abortGeometryAnimation()
+{
+    if (m_geometryAnimation) {
+        m_geometryAnimation->disconnect(this);
+        m_geometryAnimation->deleteLater();
+        m_geometryAnimation = nullptr;
     }
 }
 
@@ -1508,27 +1553,18 @@ void SurfaceWrapper::onAnimationReady()
     Q_ASSERT(m_pendingState != m_surfaceState);
     Q_ASSERT(m_pendingGeometry.isValid());
 
-    if (!resize(m_pendingGeometry.size(), true)) {
+    if (!applySurfaceStateGeometry(m_pendingState, m_pendingGeometry)) {
         // abort change state if cannot resize
-        m_geometryAnimation->disconnect(this);
-        m_geometryAnimation->deleteLater();
-        m_geometryAnimation = nullptr;
+        abortGeometryAnimation();
         return;
     }
-
-    QPointF alignedPos = alignToPixelGrid(m_pendingGeometry.topLeft());
-    setPosition(alignedPos);
-    doSetSurfaceState(m_pendingState);
-    resize(m_pendingGeometry.size());
 }
 
 void SurfaceWrapper::onAnimationFinished()
 {
     setXwaylandPositionFromSurface(true);
     Q_ASSERT(m_geometryAnimation);
-    m_geometryAnimation->disconnect(this);
-    m_geometryAnimation->deleteLater();
-    m_geometryAnimation = nullptr;
+    abortGeometryAnimation();
 }
 
 bool SurfaceWrapper::startStateChangeAnimation(State targetState, const QRectF &targetGeometry)
