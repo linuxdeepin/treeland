@@ -203,6 +203,7 @@ public:
     State previousSurfaceState() const;
     State surfaceState() const;
     void setSurfaceState(State newSurfaceState);
+    void setSurfaceStateDirectly(State newSurfaceState);
     QBindable<State> bindableSurfaceState();
     bool isNormal() const;
     bool isMaximized() const;
@@ -410,6 +411,10 @@ private:
     void createNewOrClose(uint direction);
     void itemChange(ItemChange change, const ItemChangeData &data) override;
 
+    QRectF targetGeometryForState(State state) const;
+    bool applySurfaceStateGeometry(State state, const QRectF &targetGeometry);
+    bool checkSetSurfaceState(State);
+    void abortGeometryAnimation();
     void doSetSurfaceState(State newSurfaceState);
     Q_SLOT void onAnimationReady();
     Q_SLOT void onAnimationFinished();
