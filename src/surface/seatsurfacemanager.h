@@ -4,6 +4,7 @@
 #pragma once
 
 #include "surface/surfacewrapper.h"
+#include "surface/quicktile.h"
 #include <wseat.h>
 #include <QQuickItem>
 #include <QMap>
@@ -32,6 +33,7 @@ public:
         QRectF startGeometry;               ///< Geometry at start of move/resize
         QPointF initialPosition;            ///< Initial cursor position
         bool settingPositionFlag = false;   ///< Flag to prevent recursive updates
+        QuickTile::Mode detectedTileMode = QuickTile::Mode::None;  ///< Edge-tiling mode detected during move
     };
 
     MoveResizeState &moveResizeState() { return m_moveResizeState; }

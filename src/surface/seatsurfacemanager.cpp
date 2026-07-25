@@ -8,6 +8,7 @@
 #include "seat/helper.h"
 #include "seat/seatsmanager.h"
 #include "core/shellhandler.h"
+#include "output/output.h"
 
 #include <winputdevice.h>
 #include <woutput.h>
@@ -158,6 +159,14 @@ void SeatSurfaceManager::beginMoveResize(SurfaceWrapper *surface, Qt::Edges edge
 {
     if (m_moveResizeState.surface)
         endMoveResize();
+    // Move of a tiled/maximized window: instantly de-tile to Normal BEFORE
+    // recording startGeometry, so startGeometry captures normalGeometry and no
+    // state-change animation contends with doMoveResize's setPosition.
+    if (edges == Qt::Edges()) {
+        const auto st = surface->surfaceState();
+        if (st == SurfaceWrapper::State::Tiling || st == SurfaceWrapper::State::Maximized)
+            surface->setSurfaceStateDirectly(SurfaceWrapper::State::Normal);
+    }
 
     if (surface->surfaceState() != SurfaceWrapper::State::Normal ||
         surface->isAnimationRunning())
@@ -167,6 +176,7 @@ void SeatSurfaceManager::beginMoveResize(SurfaceWrapper *surface, Qt::Edges edge
     m_moveResizeState.edges = edges;
     m_moveResizeState.startGeometry = surface->geometry();
     m_moveResizeState.settingPositionFlag = false;
+    m_moveResizeState.detectedTileMode = QuickTile::Mode::None;
 
     surface->setXwaylandPositionFromSurface(false);
     surface->setPositionAutomatic(false);
@@ -206,24 +216,32 @@ void SeatSurfaceManager::endMoveResize()
         return;
 
     auto surface = m_moveResizeState.surface;
-    auto *sh = surface->shellSurface();
-    if (sh && sh->isInitialized()) {
-        // Mark resize operation as complete
-        surface->shellSurface()->setResizeing(false);
+    const auto detectedMode = m_moveResizeState.detectedTileMode;
 
-        // Ensure window is still visible on screen after move/resize
-        if (m_rootContainer) {
-            m_rootContainer->ensureSurfaceNormalPositionValid(surface);
-        }
-
-        surface->setXwaylandPositionFromSurface(true);
-    }
-
-    // Clear state and notify
+    // Clear state first so filterSurfaceStateChange won't intercept the
+    // subsequent setSurfaceState(Tiling) issued by QuickTile::apply.
     m_moveResizeState.surface = nullptr;
     m_moveResizeState.edges = Qt::Edges();
     m_moveResizeState.startGeometry = QRectF();
     m_moveResizeState.initialPosition = QPointF();
+    m_moveResizeState.settingPositionFlag = false;
+    m_moveResizeState.detectedTileMode = QuickTile::Mode::None;
+
+    auto *sh = surface->shellSurface();
+    if (sh && sh->isInitialized()) {
+        // Mark resize operation as complete
+        surface->shellSurface()->setResizeing(false);
+        surface->setXwaylandPositionFromSurface(true);
+    }
+
+    if (detectedMode == QuickTile::Mode::None) {
+        // Ensure window is still visible on screen after a plain move/resize.
+        if (m_rootContainer)
+            m_rootContainer->ensureSurfaceNormalPositionValid(surface);
+    } else {
+        Output *out = m_rootContainer ? m_rootContainer->cursorOutput() : nullptr;
+        QuickTile::apply(surface, detectedMode, out);
+    }
 
     Q_EMIT moveResizeChanged();
 }
@@ -240,6 +258,9 @@ void SeatSurfaceManager::cancelMoveResize()
 
     auto surface = m_moveResizeState.surface;
     auto startGeo = m_moveResizeState.startGeometry;
+    // Cancel discards any edge-tiling detected during the move: restore the
+    // original (normal) geometry captured at beginMoveResize.
+    m_moveResizeState.detectedTileMode = QuickTile::Mode::None;
 
     // Restore original geometry before ending
     if (m_moveResizeState.edges != Qt::Edges()) {
