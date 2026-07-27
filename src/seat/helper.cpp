@@ -2474,6 +2474,9 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *targetWindow, QInputEvent 
 
             auto increment_pos = ev->globalPosition() - moveResizeState.initialPosition;
             m_rootSurfaceContainer->doMoveResizeForSeat(seat, increment_pos);
+            // Edge-tiling detection during move (resize is not tiled).
+            if (moveResizeState.edges == Qt::Edges())
+                m_rootSurfaceContainer->detectEdgeTilingForSeat(seat);
 
             return true;
         } else if (event->type() == QEvent::KeyPress

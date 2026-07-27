@@ -551,6 +551,39 @@
             "description[zh_CN]": "控制超椭圆形状的表面轮廓指数。2 产生更圆的轮廓；值越高边缘过渡越尖锐。范围：1.0-10.0。",
             "permissions": "readwrite",
             "visibility": "public"
+        },
+        "edgeSideTriggerDistance": {
+            "value": 20,
+            "serial": 0,
+            "flags": [],
+            "name": "Edge Side Trigger Distance",
+            "name[zh_CN]": "左右边缘触发距离",
+            "description": "Distance in pixels from the left/right screen edge at which half-screen tiling triggers",
+            "description[zh_CN]": "距离屏幕左/右边缘多少像素时触发半屏平铺",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "edgeTopTriggerDistance": {
+            "value": 5,
+            "serial": 0,
+            "flags": [],
+            "name": "Edge Top Trigger Distance",
+            "name[zh_CN]": "顶部边缘触发距离",
+            "description": "Distance in pixels from the top screen edge at which maximize triggers",
+            "description[zh_CN]": "距离屏幕顶部边缘多少像素时触发最大化",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "edgeInnerDelayMs": {
+            "value": 250,
+            "serial": 0,
+            "flags": [],
+            "name": "Edge Inner Delay",
+            "name[zh_CN]": "内边延迟",
+            "description": "Delay in milliseconds before activating edge tiling on an inner edge between screens",
+            "description[zh_CN]": "多屏内边延迟激活边缘平铺的毫秒数",
+            "permissions": "readwrite",
+            "visibility": "public"
         }
     }
 }
