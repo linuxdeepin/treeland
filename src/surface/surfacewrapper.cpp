@@ -1263,6 +1263,35 @@ void SurfaceWrapper::updateSubSurfaceStacking()
     }
 }
 
+void SurfaceWrapper::ensureAboveParent()
+{
+    if (!m_parentSurface)
+        return;
+
+    if (!parentItem() || parentItem() != m_parentSurface->parentItem())
+        return;
+
+    const auto &children = parentItem()->childItems();
+    int childIndex = children.indexOf(this);
+    if (childIndex == -1)
+        return;
+
+    // Surface that should sit directly below this child: the previous sibling's
+    // top-most surface, or the parent itself if this is the first child.
+    const auto &siblings = m_parentSurface->m_subSurfaces;
+    int myPos = siblings.lastIndexOf(this);
+    SurfaceWrapper *below = (myPos > 0) ? siblings[myPos - 1]->stackLastSurface() : m_parentSurface;
+    int belowIndex = children.indexOf(below);
+    if (belowIndex == -1)
+        return;
+
+    if (childIndex > belowIndex)
+        return;
+
+    qCDebug(lcTlSurface) << "Reordering surface" << this << "above parent" << m_parentSurface;
+    m_parentSurface->updateSubSurfaceStacking();
+}
+
 void SurfaceWrapper::updateClipRect()
 {
     if (!clip() || !window())
@@ -1917,6 +1946,7 @@ void SurfaceWrapper::addSubSurface(SurfaceWrapper *surface)
     surface->m_parentSurface = this;
     surface->updateExplicitAlwaysOnTop();
     m_subSurfaces.append(surface);
+    surface->ensureAboveParent();
 }
 
 void SurfaceWrapper::removeSubSurface(SurfaceWrapper *surface)
