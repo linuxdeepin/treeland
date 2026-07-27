@@ -9,6 +9,7 @@
 #include "seat/seatsmanager.h"
 #include "surface/surfacewrapper.h"
 #include "treelandconfig.hpp"
+#include "treelanduserconfig.hpp"
 #include "wallpaper/wallpapermanager.h"
 #include "workspace/workspace.h"
 
@@ -388,7 +389,11 @@ WCursor *RootSurfaceContainer::cursor() const
 Output *RootSurfaceContainer::cursorOutput() const
 {
     Q_ASSERT(m_cursor->layout() == m_outputLayout);
-    const auto &pos = m_cursor->position();
+    return outputAt(m_cursor->position());
+}
+
+Output *RootSurfaceContainer::outputAt(const QPointF &pos) const
+{
     auto o = m_outputLayout->handle()->output_at(pos.x(), pos.y());
     if (!o)
         return nullptr;
@@ -819,12 +824,136 @@ void RootSurfaceContainer::doMoveResizeForSeat(WSeat *seat, const QPointF &delta
     }
 }
 
+QQuickItem *RootSurfaceContainer::ensureEdgeTilePreview()
+{
+    if (m_edgeTilePreview)
+        return m_edgeTilePreview;
+
+    auto *engine = Helper::instance()->qmlEngine();
+    if (!engine)
+        return nullptr;
+
+    m_edgeTilePreview = engine->createEdgeTilePreview(this);
+    if (m_edgeTilePreview)
+        m_edgeTilePreview->setZ(OverlayZOrder);
+    return m_edgeTilePreview;
+}
+
+void RootSurfaceContainer::updateEdgeTilePreview(QuickTile::Mode mode, Output *out)
+{
+    auto *preview = ensureEdgeTilePreview();
+    if (!preview)
+        return;
+
+    if (mode == QuickTile::Mode::None || !out) {
+        preview->setVisible(false);
+        return;
+    }
+
+    const QRectF geo = QuickTile::geometry(mode, out);
+    if (!geo.isValid()) {
+        preview->setVisible(false);
+        return;
+    }
+
+    preview->setX(geo.x());
+    preview->setY(geo.y());
+    preview->setWidth(geo.width());
+    preview->setHeight(geo.height());
+    preview->setVisible(true);
+}
+
+void RootSurfaceContainer::detectEdgeTilingForSeat(WSeat *seat)
+{
+    auto *container = getSeatContainerOrDefault(seat);
+    if (!container)
+        return;
+
+    auto *cfg = Helper::instance()->config();
+    const qreal sideTrigger = cfg ? qreal(cfg->edgeSideTriggerDistance()) : 20.0;
+    const qreal topTrigger = cfg ? qreal(cfg->edgeTopTriggerDistance()) : 5.0;
+    auto &mrState = container->moveResizeState();
+    QuickTile::Mode mode = QuickTile::Mode::None;
+    Output *out = nullptr;
+    bool innerBorder = false;
+
+    if (mrState.surface && mrState.edges == Qt::Edges()) {
+        WSeat *actualSeat = seat ? seat : getDefaultSeat();
+        WCursor *cursor = actualSeat ? actualSeat->cursor() : nullptr;
+        const QPointF pos = cursor ? cursor->position() : QPointF();
+        out = outputAt(pos);
+        if (out) {
+            const QRectF area = out->validGeometry();
+            if (pos.x() <= area.left() + sideTrigger) {
+                mode = QuickTile::Mode::Left;
+            } else if (pos.x() >= area.right() - sideTrigger) {
+                mode = QuickTile::Mode::Right;
+            } else if (pos.y() <= area.top() + topTrigger) {
+                mode = QuickTile::Mode::Maximize;
+            }
+
+            // Multi-screen inner-edge detection:
+            // Sample 1px outside the edge; if another output covers that
+            // point, this is an inner edge
+            if (mode != QuickTile::Mode::None) {
+                QPointF samplePt;
+                switch (mode) {
+                case QuickTile::Mode::Maximize:
+                    samplePt = QPointF(pos.x(), area.top() - 1.0);
+                    break;
+                case QuickTile::Mode::Left:
+                    samplePt = QPointF(area.left() - 1.0, pos.y());
+                    break;
+                case QuickTile::Mode::Right:
+                    samplePt = QPointF(area.right(), pos.y());
+                    break;
+                case QuickTile::Mode::None:
+                    break;
+                }
+                for (Output *o : outputs()) {
+                    if (o == out)
+                        continue;
+                    if (o->geometry().contains(samplePt)) {
+                        innerBorder = true;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    // Re-evaluate when the edge state changes, or when the cursor crosses to
+    // a different output while the preview is active
+    if (mrState.detectedTileMode != mode || mrState.edgeTileInnerBorder != innerBorder
+        || out != mrState.detectedTileOutput) {
+        mrState.detectedTileMode = mode;
+        mrState.edgeTileInnerBorder = innerBorder;
+        mrState.detectedTileOutput = out;
+
+        if (mode == QuickTile::Mode::None) {
+            container->stopEdgeTileDelay();
+            mrState.edgeTilePreviewActive = false;
+            updateEdgeTilePreview(QuickTile::Mode::None, nullptr);
+        } else if (innerBorder) {
+            container->stopEdgeTileDelay();
+            mrState.edgeTilePreviewActive = false;
+            updateEdgeTilePreview(QuickTile::Mode::None, nullptr);
+            container->startEdgeTileDelay();
+        } else {
+            container->stopEdgeTileDelay();
+            mrState.edgeTilePreviewActive = true;
+            updateEdgeTilePreview(mode, out);
+        }
+    }
+}
+
 void RootSurfaceContainer::endMoveResizeForSeat(WSeat *seat)
 {
     auto *container = getSeatContainerOrDefault(seat);
     if (container) {
         container->endMoveResize();
     }
+    updateEdgeTilePreview(QuickTile::Mode::None, nullptr);
 }
 
 void RootSurfaceContainer::cancelMoveResizeForSeat(WSeat *seat)
@@ -833,6 +962,7 @@ void RootSurfaceContainer::cancelMoveResizeForSeat(WSeat *seat)
     if (container) {
         container->cancelMoveResize();
     }
+    updateEdgeTilePreview(QuickTile::Mode::None, nullptr);
 }
 
 SurfaceWrapper *RootSurfaceContainer::getMoveResizeSurfaceForSeat(WSeat *seat) const

@@ -36,6 +36,7 @@ QmlEngine::QmlEngine(QObject *parent)
     , showDesktopAnimatioComponentn(this, "Treeland", "ShowDesktopAnimation")
     , captureSelectorComponent(this, "Treeland", "CaptureSelectorLayer")
     , windowPickerComponent(this, "Treeland", "WindowPickerLayer")
+    , edgeTilePreviewComponent(this, "Treeland", "EdgeTilePreview")
     , launchpadAnimationComponent(this, "Treeland", "LaunchpadAnimation")
     , launchpadCoverComponent(this, "Treeland", "LaunchpadCover")
     , layershellAnimationComponent(this, "Treeland", "LayerShellAnimation")
@@ -243,6 +244,11 @@ QQuickItem *QmlEngine::createCaptureSelector(QQuickItem *parent, CaptureManagerV
 QQuickItem *QmlEngine::createWindowPicker(QQuickItem *parent)
 {
     return createComponent(windowPickerComponent, parent);
+}
+
+QQuickItem *QmlEngine::createEdgeTilePreview(QQuickItem *parent)
+{
+    return createComponent(edgeTilePreviewComponent, parent);
 }
 
 QQuickItem *QmlEngine::createLockScreenFallback(QQuickItem *parent, const QVariantMap &properties)
