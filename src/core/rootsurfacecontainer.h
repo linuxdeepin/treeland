@@ -21,6 +21,8 @@ WAYLIB_SERVER_END_NAMESPACE
 
 WAYLIB_SERVER_USE_NAMESPACE
 
+class Output;
+
 class OutputListModel : public ObjectListModel<Output>
 {
     Q_OBJECT
@@ -69,6 +71,7 @@ public:
 
     void beginMoveResizeForSeat(WSeat *seat, SurfaceWrapper *surface, Qt::Edges edges);
     void doMoveResizeForSeat(WSeat *seat, const QPointF &delta);
+    void detectEdgeTilingForSeat(WSeat *seat);
     void endMoveResizeForSeat(WSeat *seat);
     void cancelMoveResizeForSeat(WSeat *seat);
     SurfaceWrapper *getMoveResizeSurfaceForSeat(WSeat *seat) const;
@@ -83,6 +86,8 @@ public:
     WCursor *cursor() const;
 
     Output *cursorOutput() const;
+    Output *outputAt(const QPointF &pos) const;
+    void updateEdgeTilePreview(QuickTile::Mode mode, Output *out);
     Output *primaryOutput() const;
     void setPrimaryOutput(Output *newPrimaryOutput, bool updateDconfig = false);
     const QList<Output *> &outputs() const;
@@ -128,7 +133,7 @@ private:
 
     void ensureCursorVisible();
     void updateSurfaceOutputs(SurfaceWrapper *surface);
-
+    QQuickItem *ensureEdgeTilePreview();
     void onSeatAdded(WSeat *seat);
     void onSeatRemoved(WSeat *seat);
 
@@ -140,6 +145,7 @@ private:
     QPointer<Output> m_primaryOutput;
     WCursor *m_cursor = nullptr;
     WSurfaceItem *m_dragSurfaceItem = nullptr;
+    QPointer<QQuickItem> m_edgeTilePreview;
 
     // Per-seat state management
     QMap<WSeat*, SeatSurfaceManager*> m_seatContainers;
