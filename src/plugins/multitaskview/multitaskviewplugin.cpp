@@ -52,27 +52,49 @@ void MultitaskViewPlugin::toggleMultitaskView(IMultitaskView::ActiveReason reaso
         });
 
         m_multitaskview->enter(static_cast<Multitaskview::ActiveReason>(reason));
+        if (static_cast<Multitaskview::ActiveReason>(reason)
+            == Multitaskview::ActiveReason::ShortcutKey)
+            updatePartialFactor(1.0);
     } else {
         if (reason == IMultitaskView::Gesture) {
             if (m_multitaskview->status() == Multitaskview::Exited) {
                 m_multitaskview->exit(nullptr);
+                updatePartialFactor(0.0);
             } else {
                 m_multitaskview->enter(static_cast<Multitaskview::ActiveReason>(reason));
+                updatePartialFactor(1.0);
             }
         } else {
             if (m_multitaskview->status() == Multitaskview::Exited) {
                 m_multitaskview->enter(static_cast<Multitaskview::ActiveReason>(reason));
+                updatePartialFactor(1.0);
             } else {
                 m_multitaskview->exit(nullptr);
+                updatePartialFactor(0.0);
             }
         }
     }
 }
 
-void MultitaskViewPlugin::updatePartialFactor(qreal delta)
+void MultitaskViewPlugin::commitGesture(bool triggered)
 {
     if (m_multitaskview) {
-        m_multitaskview->updatePartialFactor(delta);
+        m_multitaskview->commitGesture(triggered);
+    }
+}
+
+qreal MultitaskViewPlugin::partialFactor()
+{
+    if (m_multitaskview) {
+        return m_multitaskview->partialFactor();
+    }
+    return 0.0;
+}
+
+void MultitaskViewPlugin::updatePartialFactor(qreal progress)
+{
+    if (m_multitaskview) {
+        m_multitaskview->updatePartialFactor(progress);
     }
 }
 

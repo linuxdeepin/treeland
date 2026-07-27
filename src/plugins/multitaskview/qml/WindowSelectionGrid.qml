@@ -98,13 +98,10 @@ Item {
             if (exited || status === Multitaskview.Uninitialized)
                 return "initial";
 
-            if (multitaskview.activeReason === Multitaskview.ShortcutKey){
-                return "taskview";
-            } else {
-                if (root.inProgress) return "partial";
+            if (root.inProgress) return "partial";
 
-                if (root.partialGestureFactor > 0.5) return "taskview";
-            }
+            if (root.partialGestureFactor > 0.5) return "taskview";
+
             return "initial";
         }
         visible: surfaceModel.modelReady
