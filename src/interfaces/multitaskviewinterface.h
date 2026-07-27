@@ -26,10 +26,12 @@ public:
         Exited
     };
 
+    virtual qreal partialFactor() = 0;
     virtual void setStatus(IMultitaskView::Status status) = 0;
     virtual void toggleMultitaskView(IMultitaskView::ActiveReason reason) = 0;
-    virtual void updatePartialFactor(qreal delta) = 0;
+    virtual void updatePartialFactor(qreal progress) = 0;
     virtual void immediatelyExit() = 0;
+    virtual void commitGesture(bool triggered) = 0;
 };
 
 Q_DECLARE_INTERFACE(IMultitaskView, "org.deepin.treeland.v1.MultitaskViewInterface")

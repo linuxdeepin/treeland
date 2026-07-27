@@ -18,7 +18,7 @@ class Multitaskview : public QQuickItem
 {
     Q_OBJECT
     QML_ELEMENT
-    Q_PROPERTY(Status status READ status NOTIFY statusChanged FINAL)
+    Q_PROPERTY(Status status READ status NOTIFY actionFinished FINAL)
     Q_PROPERTY(ActiveReason activeReason READ activeReason NOTIFY activeReasonChanged FINAL)
     Q_PROPERTY(qreal partialFactor READ partialFactor NOTIFY partialFactorChanged FINAL)
 
@@ -50,6 +50,7 @@ public:
     Multitaskview(QQuickItem *parent = nullptr);
 
     Status status() const;
+    void commitGesture(bool triggered);
     void setStatus(Status status);
     void updatePartialFactor(qreal progress);
     ActiveReason activeReason() const;
@@ -57,7 +58,7 @@ public:
     void setActiveReason(ActiveReason activeReason);
 
 Q_SIGNALS:
-    void statusChanged();
+    void actionFinished();
     void activeReasonChanged();
     void partialFactorChanged();
     void aboutToExit(); // Focus has been updated, waiting for exit
@@ -70,6 +71,7 @@ private:
     Status m_status;
     ActiveReason m_activeReason;
     qreal m_partialFactor{ 0.0 };
+    bool m_gestureCommitted{ false };
 };
 
 class MultitaskviewSurfaceModel : public QAbstractListModel
