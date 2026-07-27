@@ -21,9 +21,9 @@ Multitaskview {
     property bool initialized: false
     property bool exited: false
     property real taskviewVal: 0
-    property bool inProgress: true
+    property bool inProgress: false
 
-    onStatusChanged: {
+    onActionFinished: {
         if (root.status === Multitaskview.Exited) {
             exited = true
         } else {
@@ -35,14 +35,10 @@ Multitaskview {
         }
     }
 
-    onPartialFactorChanged: {
-        if (root.activeReason === Multitaskview.Gesture) {
-            inProgress = true
-        }
-    }
+    onPartialFactorChanged: inProgress = true
 
     states: [
-        State{
+        State {
             name: "initial"
             PropertyChanges {
                 target: root
@@ -65,33 +61,40 @@ Multitaskview {
         }
     ]
     state: {
-        if (!initialized) return "initial";
+        if (!initialized || exited) return "initial";
 
-        if (exited) {
-            root.visible = false;
+        if (root.inProgress) return "partial";
 
-            return "initial";
-        }
+        if (taskviewVal >= 0.5) return "taskview";
 
-        if (activeReason === Multitaskview.ShortcutKey) {
-            return "taskview";
-        } else {
-            if (root.inProgress) return "partial";
-
-            if (taskviewVal >=0.5) return "taskview";
-
-            return "initial";
-        }
+        return "initial";
     }
 
-    transitions: Transition {
-        to: "initial, taskview"
-        NumberAnimation {
-            duration: Helper.config.multitaskviewAnimationDuration
-            property: "taskviewVal"
-            easing.type: Helper.config.multitaskviewEasingCurveType
+    transitions: [
+        Transition {
+            to: "initial"
+            SequentialAnimation {
+                NumberAnimation {
+                    duration: Helper.config.multitaskviewAnimationDuration
+                    property: "taskviewVal"
+                    easing.type: Helper.config.multitaskviewEasingCurveType
+                }
+                ScriptAction {
+                    script: root.visible = false;
+                }
+            }
+        },
+        Transition {
+            to: "taskview"
+            SequentialAnimation {
+                NumberAnimation {
+                    duration: Helper.config.multitaskviewAnimationDuration
+                    property: "taskviewVal"
+                    easing.type: Helper.config.multitaskviewEasingCurveType
+                }
+            }
         }
-    }
+    ]
 
     QtObject {
         id: multitaskviewDragManager

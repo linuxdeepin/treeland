@@ -117,14 +117,16 @@ void ShortcutRunner::onActionTrigger(ShortcutAction action, const QString &name,
         }
         break;
     case ShortcutAction::OpenMultiTaskView:
-        if (!helper->m_multitaskView || !helper->isNormalOrMultitaskview()) {
+        if (!helper->m_multitaskView || !helper->isNormalOrMultitaskview()
+            || helper->currentMode() == Helper::CurrentMode::Multitaskview) {
             break;
         }
         helper->m_multitaskView->setStatus(IMultitaskView::Exited);
         helper->m_multitaskView->toggleMultitaskView(IMultitaskView::ActiveReason::ShortcutKey);
         break;
     case ShortcutAction::CloseMultiTaskView:
-        if (!helper->m_multitaskView || !helper->isNormalOrMultitaskview()) {
+        if (!helper->m_multitaskView || !helper->isNormalOrMultitaskview()
+            || helper->currentMode() == Helper::CurrentMode::Normal) {
             break;
         }
         helper->m_multitaskView->setStatus(IMultitaskView::Active);
@@ -184,15 +186,27 @@ void ShortcutRunner::onActionProgress(ShortcutAction action, qreal progress, con
     case ShortcutAction::OpenMultiTaskView:
     {
         auto helper = Helper::instance();
-        if (helper->m_multitaskView)
-            helper->m_multitaskView->updatePartialFactor(progress);
+        if (!helper->m_multitaskView)
+            break;
+        if (helper->currentMode() == Helper::CurrentMode::Normal
+            && qFuzzyIsNull(helper->m_multitaskView->partialFactor())) {
+            helper->m_multitaskView->toggleMultitaskView(IMultitaskView::ActiveReason::Gesture);
+        }
+        if (helper->currentMode() == Helper::CurrentMode::Multitaskview) {
+            break;
+        }
+        helper->m_multitaskView->updatePartialFactor(progress);
         break;
     }
     case ShortcutAction::CloseMultiTaskView:
     {
         auto helper = Helper::instance();
-        if (helper->m_multitaskView)
-            helper->m_multitaskView->updatePartialFactor(-progress);
+        if (!helper->m_multitaskView)
+            break;
+        if (helper->currentMode() != Helper::CurrentMode::Multitaskview) {
+            break;
+        }
+        helper->m_multitaskView->updatePartialFactor(1 - progress);
         break;
     }
     default:
@@ -213,8 +227,11 @@ void ShortcutRunner::onActionFinish(ShortcutAction action, const QString &name, 
         auto helper = Helper::instance();
         if (!helper->m_multitaskView)
             break;
-        helper->m_multitaskView->setStatus(IMultitaskView::Active);
+        const bool triggered = helper->m_multitaskView->partialFactor() > 0.5;
+        helper->m_multitaskView->setStatus(triggered ? IMultitaskView::Active
+                                                     : IMultitaskView::Exited);
         helper->m_multitaskView->toggleMultitaskView(IMultitaskView::ActiveReason::Gesture);
+        helper->m_multitaskView->commitGesture(triggered);
         break;
     }
     case ShortcutAction::CloseMultiTaskView:
@@ -222,8 +239,14 @@ void ShortcutRunner::onActionFinish(ShortcutAction action, const QString &name, 
         auto helper = Helper::instance();
         if (!helper->m_multitaskView)
             break;
-        helper->m_multitaskView->setStatus(IMultitaskView::Exited);
+        const bool triggered = (1.0 - helper->m_multitaskView->partialFactor()) > 0.5;
+        if (qFuzzyCompare(helper->m_multitaskView->partialFactor(), 0.0)
+            && helper->currentMode() != Helper::CurrentMode::Multitaskview)
+            break;
+        helper->m_multitaskView->setStatus(triggered ? IMultitaskView::Exited
+                                                     : IMultitaskView::Active);
         helper->m_multitaskView->toggleMultitaskView(IMultitaskView::ActiveReason::Gesture);
+        helper->m_multitaskView->commitGesture(!triggered);
         break;
     }
     default:

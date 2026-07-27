@@ -33,10 +33,9 @@ Multitaskview::Status Multitaskview::status() const
 
 void Multitaskview::setStatus(Status status)
 {
-    if (status == m_status)
-        return;
-    m_status = status;
-    Q_EMIT statusChanged();
+    if (status != m_status)
+        m_status = status;
+    Q_EMIT actionFinished();
 }
 
 Multitaskview::ActiveReason Multitaskview::activeReason() const
@@ -57,9 +56,9 @@ qreal Multitaskview::partialFactor() const
     return m_partialFactor;
 }
 
-void Multitaskview::updatePartialFactor(qreal delta)
+void Multitaskview::updatePartialFactor(qreal progress)
 {
-    qreal newPartialFactor = qBound(0.0, m_partialFactor + delta, 1.0);
+    qreal newPartialFactor = qBound(0.0, progress, 1.0);
     if (qFuzzyCompare(newPartialFactor, m_partialFactor))
         return;
     m_partialFactor = newPartialFactor;
@@ -78,8 +77,9 @@ void Multitaskview::exit(SurfaceWrapper *surface, bool immediately)
             Helper::instance()->workspace()->current()->latestActiveSurface());
     }
 
-    Helper::instance()->setCurrentMode(Helper::CurrentMode::Normal);
-
+    if (Helper::instance()->currentMode() == Helper::CurrentMode::Multitaskview) {
+        Helper::instance()->setCurrentMode(Helper::CurrentMode::Normal);
+    }
     // TODO: handle taskview gesture
     Q_EMIT aboutToExit();
 
@@ -93,11 +93,23 @@ void Multitaskview::exit(SurfaceWrapper *surface, bool immediately)
 void Multitaskview::enter(ActiveReason reason)
 {
     Helper::instance()->activateSurface(nullptr);
+    if (reason == ActiveReason::ShortcutKey)
+        Helper::instance()->setCurrentMode(Helper::CurrentMode::Multitaskview);
     setActiveReason(reason);
     setStatus(Active);
-    Helper::instance()->setCurrentMode(Helper::CurrentMode::Multitaskview);
 }
 
+void Multitaskview::commitGesture(bool triggered)
+{
+    if (m_gestureCommitted == triggered)
+        return;
+    m_gestureCommitted = triggered;
+    if (triggered) {
+        Helper::instance()->setCurrentMode(Helper::CurrentMode::Multitaskview);
+    } else if (Helper::instance()->currentMode() == Helper::CurrentMode::Multitaskview) {
+        Helper::instance()->setCurrentMode(Helper::CurrentMode::Normal);
+    }
+}
 MultitaskviewSurfaceModel::MultitaskviewSurfaceModel(QObject *parent)
     : QAbstractListModel(parent)
 {

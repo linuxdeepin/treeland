@@ -37,10 +37,12 @@ public:
         return true;
     }
 
+    qreal partialFactor() override;
     void setStatus(IMultitaskView::Status status) override;
-    void updatePartialFactor(qreal delta) override;
+    void updatePartialFactor(qreal progress) override;
     void toggleMultitaskView(IMultitaskView::ActiveReason reason) override;
     void immediatelyExit() override;
+    void commitGesture(bool triggered) override;
 
 private:
     QQuickItem *createMultitaskview(QQuickItem *parent);
