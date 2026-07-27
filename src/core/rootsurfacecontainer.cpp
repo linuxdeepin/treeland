@@ -808,12 +808,37 @@ void RootSurfaceContainer::beginMoveResizeForSeat(WSeat *seat, SurfaceWrapper *s
         container->endMoveResize();
     }
 
+    const auto state = surface->surfaceState();
+    const bool wasTiled = edges == Qt::Edges()
+        && (state == SurfaceWrapper::State::Tiling || state == SurfaceWrapper::State::Maximized);
+    const QRectF tiledGeo = wasTiled ? surface->geometry() : QRectF();
+
     container->beginMoveResize(surface, edges);
 
     WSeat *actualSeat = seat ? seat : getDefaultSeat();
-    if (actualSeat && actualSeat->cursor()) {
-        container->moveResizeState().initialPosition = actualSeat->cursor()->position();
+    const bool hasCursor = actualSeat && actualSeat->cursor();
+    const QPointF cursor = hasCursor ? actualSeat->cursor()->position() : QPointF();
+
+    // De-tile: restore saved size, reposition so the cursor stays at the same
+    // relative grab ratio within the window
+    if (wasTiled && !tiledGeo.isEmpty() && hasCursor
+        && container->moveResizeState().surface == surface) {
+        const QSizeF restoredSize = surface->normalGeometry().isValid()
+            ? surface->normalGeometry().size()
+            : tiledGeo.size();
+        const qreal fx =
+            tiledGeo.width() > 0 ? (cursor.x() - tiledGeo.left()) / tiledGeo.width() : 0;
+        const qreal fy =
+            tiledGeo.height() > 0 ? (cursor.y() - tiledGeo.top()) / tiledGeo.height() : 0;
+        QPointF newPos(cursor.x() - fx * restoredSize.width(),
+                       cursor.y() - fy * restoredSize.height());
+        newPos = surface->alignToPixelGrid(newPos);
+        surface->setPosition(newPos);
+        container->moveResizeState().startGeometry = QRectF(newPos, restoredSize);
     }
+
+    if (actualSeat && actualSeat->cursor())
+        container->moveResizeState().initialPosition = cursor;
 }
 
 void RootSurfaceContainer::doMoveResizeForSeat(WSeat *seat, const QPointF &delta)
