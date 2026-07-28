@@ -6,7 +6,9 @@
 #include <qwglobal.h>
 
 extern "C" {
+#define static
 #include <wlr/types/wlr_color_management_v1.h>
+#undef static
 }
 
 QW_BEGIN_NAMESPACE
