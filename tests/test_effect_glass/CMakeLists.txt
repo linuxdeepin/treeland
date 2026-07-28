@@ -47,6 +47,7 @@ qt_add_qml_module(test_effect_glass
 
 qt_add_shaders(test_effect_glass "test_glass_shaders"
     PRECOMPILE
+    OPTIMIZED
     PREFIX
         "/shaders"
     BASE
