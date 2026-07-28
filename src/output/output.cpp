@@ -214,6 +214,43 @@ std::pair<WOutputViewport *, QQuickItem *> Output::getOutputItemProperty()
     return std::make_pair(viewportCopy, textureProxy);
 }
 
+void Output::moveSurfaceWithTitlebarClamp(SurfaceWrapper *surface, const QPointF &pos)
+{
+    const auto validGeo = this->validGeometry();
+    QRectF candidateGeo(pos, surface->normalGeometry().size());
+
+    QRectF titlebarGeometry = surface->titlebarGeometry();
+    if (!titlebarGeometry.isValid()) {
+        qreal titleHeight = Helper::instance()->config()->windowTitlebarHeight();
+        titlebarGeometry = QRectF(0, 0, candidateGeo.width(), titleHeight);
+    }
+    titlebarGeometry.translate(candidateGeo.topLeft());
+
+    if ((titlebarGeometry & validGeo).isEmpty()) {
+        if (titlebarGeometry.top() < validGeo.top()) {
+            candidateGeo.moveTop(candidateGeo.top() + validGeo.top() - titlebarGeometry.top());
+        } else if (titlebarGeometry.bottom() > validGeo.bottom()) {
+            candidateGeo.moveBottom(candidateGeo.bottom()
+                                    - (titlebarGeometry.bottom() - validGeo.bottom()));
+        }
+        // moveTop/moveBottom do not change left/right, so titlebarGeometry's
+        // horizontal extent is still valid for the check below.
+        if (titlebarGeometry.left() < validGeo.left()) {
+            candidateGeo.moveLeft(candidateGeo.left() + validGeo.left() - titlebarGeometry.left());
+        } else if (titlebarGeometry.right() > validGeo.right()) {
+            candidateGeo.moveRight(candidateGeo.right()
+                                   - (titlebarGeometry.right() - validGeo.right()));
+        }
+    }
+
+    if (candidateGeo.topLeft() == surface->normalGeometry().topLeft()) {
+        // Final clamped position is unchanged; skip no-op move.
+        return;
+    }
+
+    surface->moveNormalGeometryInOutput(candidateGeo.topLeft());
+}
+
 void Output::placeUnderCursor(SurfaceWrapper *surface, quint32 yOffset)
 {
     QSizeF cursorSize;
@@ -224,7 +261,7 @@ void Output::placeUnderCursor(SurfaceWrapper *surface, quint32 yOffset)
 
     normalGeo.moveLeft(wCursor->position().x() + (cursorSize.width() - surface->width()) / 2);
     normalGeo.moveTop(wCursor->position().y() + cursorSize.height() + yOffset);
-    surface->moveNormalGeometryInOutput(normalGeo.topLeft());
+    moveSurfaceWithTitlebarClamp(surface, normalGeo.topLeft());
 }
 
 void Output::placeClientRequstPos(SurfaceWrapper *surface, QPoint clientRequstPos)
@@ -232,7 +269,7 @@ void Output::placeClientRequstPos(SurfaceWrapper *surface, QPoint clientRequstPo
     QRectF normalGeo = surface->normalGeometry();
     normalGeo.moveLeft(clientRequstPos.x());
     normalGeo.moveTop(clientRequstPos.y());
-    surface->moveNormalGeometryInOutput(normalGeo.topLeft());
+    moveSurfaceWithTitlebarClamp(surface, normalGeo.topLeft());
 }
 
 void Output::placeCentered(SurfaceWrapper *surface)
@@ -242,7 +279,7 @@ void Output::placeCentered(SurfaceWrapper *surface)
     normalGeo.moveCenter(validGeo.center());
     normalGeo.moveTop(qMax(normalGeo.top(), validGeo.top()));
     normalGeo.moveLeft(qMax(normalGeo.left(), validGeo.left()));
-    surface->moveNormalGeometryInOutput(normalGeo.topLeft());
+    moveSurfaceWithTitlebarClamp(surface, normalGeo.topLeft());
 }
 
 void Output::placeSmartCascaded(SurfaceWrapper *surface)
@@ -290,7 +327,7 @@ void Output::placeSmartCascaded(SurfaceWrapper *surface)
     }
 
     newPos = constrainToValidArea(newPos, normalGeo.size(), validGeo);
-    surface->moveNormalGeometryInOutput(newPos);
+    moveSurfaceWithTitlebarClamp(surface, newPos);
 }
 
 QPointF Output::calculateBottomRightPosition(const QRectF &activeGeo,
@@ -687,108 +724,96 @@ void Output::arrangeNonLayerSurface(SurfaceWrapper *surface, ArrangeReason reaso
     surface->setMaximizedGeometry(validGeo);
 
     QRectF normalGeo = surface->normalGeometry();
-    do {
-        if (surface->positionAutomatic()) {
-            if (normalGeo.isEmpty())
+
+    if (surface->positionAutomatic()) {
+        if (normalGeo.isEmpty())
+            return;
+
+        // NOTE: Xwayland popups don't have parents
+        SurfaceWrapper *parentSurfaceWrapper = surface->parentSurface();
+
+        if (parentSurfaceWrapper) {
+            if (surface->type() == SurfaceWrapper::Type::XdgPopup
+                || surface->type() == SurfaceWrapper::Type::InputPopup) {
+                arrangePopupSurface(surface);
                 return;
-
-            // NOTE: Xwayland's popup don't has parent
-            SurfaceWrapper *parentSurfaceWrapper = surface->parentSurface();
-
-            if (parentSurfaceWrapper) {
-                if (surface->type() == SurfaceWrapper::Type::XdgPopup
-                    || surface->type() == SurfaceWrapper::Type::InputPopup) {
-                    arrangePopupSurface(surface);
-                    return;
-                }
-                QPointF dPos{ (parentSurfaceWrapper->width() - surface->width()) / 2,
-                              (parentSurfaceWrapper->height() - surface->height()) / 2 };
-                QPointF topLeft;
-                topLeft.setX(parentSurfaceWrapper->x() + dPos.x());
-                topLeft.setY(parentSurfaceWrapper->y() + dPos.y());
-                normalGeo.moveTopLeft(topLeft);
-                surface->moveNormalGeometryInOutput(normalGeo.topLeft());
+            }
+            QPointF dPos{ (parentSurfaceWrapper->width() - surface->width()) / 2,
+                          (parentSurfaceWrapper->height() - surface->height()) / 2 };
+            QPointF topLeft;
+            topLeft.setX(parentSurfaceWrapper->x() + dPos.x());
+            topLeft.setY(parentSurfaceWrapper->y() + dPos.y());
+            if (parentSurfaceWrapper->ownsOutput() != this) {
+                // Parent is on a different output: follow it without clamping
+                // to this output's validGeo.
+                surface->moveNormalGeometryInOutput(topLeft);
             } else {
-                if (reason != ArrangeReason::InitialPlacement) {
-                    auto newPos = constrainToValidArea(normalGeo.topLeft(), normalGeo.size(), validGeo);
-                    if (newPos != normalGeo.topLeft())
-                        surface->moveNormalGeometryInOutput(newPos);
-                } else {
-                    auto outputValidGeometry = surface->ownsOutput()->validGeometry();
-                    if (normalGeo.width() > outputValidGeometry.width()
-                        || normalGeo.height() > outputValidGeometry.height())
-                        surface->resize(outputValidGeometry.size());
-                    if (surface->type() == SurfaceWrapper::Type::XdgToplevel
-                        || surface->type() == SurfaceWrapper::Type::SplashScreen) {
-                        placeSmartCascaded(surface);
-                    } else {
-                        placeCentered(surface);
-                    }
-                }
+                // Parent and child share this output: apply the titlebar clamp
+                // so near-edge dialogs remain accessible.
+                moveSurfaceWithTitlebarClamp(surface, topLeft);
             }
-        } else if (reason == ArrangeReason::OutputGeometryChanged) {
-            if (!m_initialWindowPositionRatio.contains(surface)) {
-                qreal xRatio = 0.5, yRatio = 0.5; // Default center position
-                if (validGeo.width() > normalGeo.width()) {
-                    xRatio = (normalGeo.x() - validGeo.x()) / (validGeo.width() - normalGeo.width());
-                    xRatio = qBound(0.0, xRatio, 1.0);
-                }
-                if (validGeo.height() > normalGeo.height()) {
-                    yRatio = (normalGeo.y() - validGeo.y()) / (validGeo.height() - normalGeo.height());
-                    yRatio = qBound(0.0, yRatio, 1.0);
-                }
-                m_initialWindowPositionRatio[surface] = QPointF(xRatio, yRatio);
-            }
-
-            QPointF ratio = m_initialWindowPositionRatio[surface];
-            QPointF newPos;
-            newPos.setX(validGeo.x() + ratio.x() * (validGeo.width() - normalGeo.width()));
-            newPos.setY(validGeo.y() + ratio.y() * (validGeo.height() - normalGeo.height()));
-
-            // Boundary protection ensures that at least 30% of the window remains within the screen.
-            const qreal minVisibleRatio = 0.3;
-            const int minVisibleX = qMin(100, int(normalGeo.width() * minVisibleRatio));
-            const int minVisibleY = qMin(100, int(normalGeo.height() * minVisibleRatio));
-            newPos.setX(qBound(validGeo.left() - normalGeo.width() + minVisibleX,
-                            newPos.x(),
-                            validGeo.right() - minVisibleX));
-            newPos.setY(qBound(validGeo.top() - normalGeo.height() + minVisibleY,
-                            newPos.y(),
-                            validGeo.bottom() - minVisibleY));
-            surface->moveNormalGeometryInOutput(newPos);
         } else {
-            QPoint clientRequstPos = surface->clientRequstPos();
-            if (!clientRequstPos.isNull()) {
-                placeClientRequstPos(surface, clientRequstPos);
+            if (reason != ArrangeReason::InitialPlacement) {
+                auto constrained =
+                    constrainToValidArea(normalGeo.topLeft(), normalGeo.size(), validGeo);
+                if (constrained != normalGeo.topLeft())
+                    moveSurfaceWithTitlebarClamp(surface, constrained);
+            } else {
+                auto outputValidGeometry = surface->ownsOutput()->validGeometry();
+                if (normalGeo.width() > outputValidGeometry.width()
+                    || normalGeo.height() > outputValidGeometry.height())
+                    surface->resize(outputValidGeometry.size());
+                if (surface->type() == SurfaceWrapper::Type::XdgToplevel
+                    || surface->type() == SurfaceWrapper::Type::SplashScreen) {
+                    placeSmartCascaded(surface);
+                } else {
+                    placeCentered(surface);
+                }
             }
-
-            break;
         }
-    } while (false);
-
-    QRectF titlebarGeometry = surface->titlebarGeometry();
-    if (!titlebarGeometry.isValid()) {
-        qreal titleHeight = Helper::instance()->config()->windowTitlebarHeight();
-        titlebarGeometry = QRectF(0, 0, normalGeo.width(), titleHeight);
-    }
-    titlebarGeometry.translate(normalGeo.topLeft());
-
-    if ((titlebarGeometry & validGeo).isEmpty()) {
-        if (titlebarGeometry.top() < validGeo.top()) {
-            normalGeo.moveTop(normalGeo.top() + validGeo.top() - titlebarGeometry.top());
-        } else if (titlebarGeometry.bottom() > validGeo.bottom()) {
-            normalGeo.moveBottom(normalGeo.bottom() - (titlebarGeometry.bottom() - validGeo.bottom()));
+    } else if (reason == ArrangeReason::OutputGeometryChanged) {
+        if (!m_initialWindowPositionRatio.contains(surface)) {
+            qreal xRatio = 0.5, yRatio = 0.5; // Default center position
+            if (validGeo.width() > normalGeo.width()) {
+                xRatio = (normalGeo.x() - validGeo.x()) / (validGeo.width() - normalGeo.width());
+                xRatio = qBound(0.0, xRatio, 1.0);
+            }
+            if (validGeo.height() > normalGeo.height()) {
+                yRatio = (normalGeo.y() - validGeo.y()) / (validGeo.height() - normalGeo.height());
+                yRatio = qBound(0.0, yRatio, 1.0);
+            }
+            m_initialWindowPositionRatio[surface] = QPointF(xRatio, yRatio);
         }
 
-        if (titlebarGeometry.left() < validGeo.left()) {
-            normalGeo.moveLeft(normalGeo.left() + validGeo.left() - titlebarGeometry.left());
-        } else if (titlebarGeometry.right() > validGeo.right()) {
-            normalGeo.moveRight(normalGeo.right() - (titlebarGeometry.right() - validGeo.right()));
-        }
+        QPointF ratio = m_initialWindowPositionRatio[surface];
+        QPointF pos;
+        pos.setX(validGeo.x() + ratio.x() * (validGeo.width() - normalGeo.width()));
+        pos.setY(validGeo.y() + ratio.y() * (validGeo.height() - normalGeo.height()));
 
-        if (normalGeo != surface->normalGeometry()) {
-            surface->moveNormalGeometryInOutput(normalGeo.topLeft());
+        // Boundary protection ensures that at least 30% of the window remains within the screen.
+        const qreal minVisibleRatio = 0.3;
+        const int minVisibleX = qMin(100, int(normalGeo.width() * minVisibleRatio));
+        const int minVisibleY = qMin(100, int(normalGeo.height() * minVisibleRatio));
+        pos.setX(qBound(validGeo.left() - normalGeo.width() + minVisibleX,
+                        pos.x(),
+                        validGeo.right() - minVisibleX));
+        pos.setY(qBound(validGeo.top() - normalGeo.height() + minVisibleY,
+                        pos.y(),
+                        validGeo.bottom() - minVisibleY));
+        moveSurfaceWithTitlebarClamp(surface, pos);
+    } else {
+        QPoint clientRequstPos = surface->clientRequstPos();
+        if (!clientRequstPos.isNull()) {
+            placeClientRequstPos(surface, clientRequstPos);
+        } else if (reason == ArrangeReason::LayerSurfaceRemoved
+                   || reason == ArrangeReason::ExclusiveZoneChanged) {
+            // validGeo has changed (panel added/removed); re-run the titlebar
+            // clamp so the titlebar remains visible in the updated work area.
+            // The window position itself is preserved — only clamped if needed.
+            moveSurfaceWithTitlebarClamp(surface, normalGeo.topLeft());
         }
+        // For InitialPlacement with non-automatic positioning the compositor
+        // deliberately does not move the window: client geometry is authoritative.
     }
 }
 
