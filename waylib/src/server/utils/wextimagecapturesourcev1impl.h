@@ -26,7 +26,7 @@ public:
 
     QW_INTERFACE(start, void, bool with_cursors);
     QW_INTERFACE(stop, void);
-    QW_INTERFACE(schedule_frame, void);
+    QW_INTERFACE(request_frame, void, bool schedule_frame);
     QW_INTERFACE(copy_frame, void, wlr_ext_image_copy_capture_frame_v1 *dst_frame,
                  wlr_ext_image_capture_source_v1_frame_event *frame_event);
     QW_INTERFACE(get_pointer_cursor, wlr_ext_image_capture_source_v1_cursor *, wlr_seat *seat);

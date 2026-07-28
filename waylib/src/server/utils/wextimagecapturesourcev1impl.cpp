@@ -215,12 +215,12 @@ void WExtImageCaptureSourceV1Impl::stop()
     }
 }
 
-void WExtImageCaptureSourceV1Impl::schedule_frame()
+void WExtImageCaptureSourceV1Impl::request_frame(bool schedule_frame)
 {
-    qCDebug(lcWlImageCapture) << "WExtImageCaptureSourceV1Impl::schedule_frame()";
+    qCDebug(lcWlImageCapture) << "WExtImageCaptureSourceV1Impl::request_frame()";
     
     if (!m_capturing) {
-        qCWarning(lcWlImageCapture) << "schedule_frame called but not capturing";
+        qCWarning(lcWlImageCapture) << "request_frame called but not capturing";
         return;
     }
     
