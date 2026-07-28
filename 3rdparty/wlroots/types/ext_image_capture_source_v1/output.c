@@ -40,7 +40,7 @@ struct wlr_ext_output_image_capture_source_v1 {
 struct wlr_ext_output_image_capture_source_v1_frame_event {
 	struct wlr_ext_image_capture_source_v1_frame_event base;
 	struct wlr_buffer *buffer;
-	struct timespec *when;
+	struct timespec when;
 };
 
 static void output_source_start(struct wlr_ext_image_capture_source_v1 *base,
@@ -70,9 +70,12 @@ static void output_source_stop(struct wlr_ext_image_capture_source_v1 *base) {
 	}
 }
 
-static void output_source_schedule_frame(struct wlr_ext_image_capture_source_v1 *base) {
+static void output_source_request_frame(struct wlr_ext_image_capture_source_v1 *base,
+		bool schedule_frame) {
 	struct wlr_ext_output_image_capture_source_v1 *source = wl_container_of(base, source, base);
-	wlr_output_update_needs_frame(source->output);
+	if (schedule_frame) {
+		wlr_output_update_needs_frame(source->output);
+	}
 }
 
 static void output_source_copy_frame(struct wlr_ext_image_capture_source_v1 *base,
@@ -85,7 +88,7 @@ static void output_source_copy_frame(struct wlr_ext_image_capture_source_v1 *bas
 	if (wlr_ext_image_copy_capture_frame_v1_copy_buffer(frame,
 			event->buffer, source->output->renderer)) {
 		wlr_ext_image_copy_capture_frame_v1_ready(frame,
-			source->output->transform, event->when);
+			source->output->transform, &event->when);
 	}
 }
 
@@ -99,7 +102,7 @@ static struct wlr_ext_image_capture_source_v1_cursor *output_source_get_pointer_
 static const struct wlr_ext_image_capture_source_v1_interface output_source_impl = {
 	.start = output_source_start,
 	.stop = output_source_stop,
-	.schedule_frame = output_source_schedule_frame,
+	.request_frame = output_source_request_frame,
 	.copy_frame = output_source_copy_frame,
 	.get_pointer_cursor = output_source_get_pointer_cursor,
 };
@@ -263,10 +266,13 @@ struct wlr_ext_output_image_capture_source_manager_v1 *wlr_ext_output_image_capt
 	return manager;
 }
 
-static void output_cursor_source_schedule_frame(struct wlr_ext_image_capture_source_v1 *base) {
+static void output_cursor_source_request_frame(struct wlr_ext_image_capture_source_v1 *base,
+		bool schedule_frame) {
 	struct output_cursor_source *cursor_source = wl_container_of(base, cursor_source, base);
-	wlr_output_update_needs_frame(cursor_source->output);
-	cursor_source->needs_frame = true;
+	if (schedule_frame) {
+		wlr_output_update_needs_frame(cursor_source->output);
+		cursor_source->needs_frame = true;
+	}
 }
 
 static void output_cursor_source_copy_frame(struct wlr_ext_image_capture_source_v1 *base,
@@ -293,7 +299,7 @@ static void output_cursor_source_copy_frame(struct wlr_ext_image_capture_source_
 }
 
 static const struct wlr_ext_image_capture_source_v1_interface output_cursor_source_impl = {
-	.schedule_frame = output_cursor_source_schedule_frame,
+	.request_frame = output_cursor_source_request_frame,
 	.copy_frame = output_cursor_source_copy_frame,
 };
 
@@ -390,4 +396,14 @@ static void output_cursor_source_finish(struct output_cursor_source *cursor_sour
 	wlr_ext_image_capture_source_v1_cursor_finish(&cursor_source->base);
 	wl_list_remove(&cursor_source->output_commit.link);
 	wl_list_remove(&cursor_source->prev_buffer_release.link);
+}
+
+struct wlr_output *wlr_output_try_from_ext_image_capture_source_v1(struct wlr_ext_image_capture_source_v1 *source) {
+	if (source->impl == &output_source_impl) {
+		struct wlr_ext_output_image_capture_source_v1 *output_source =
+			(struct wlr_ext_output_image_capture_source_v1*)source;
+		return output_source->output;
+	}
+
+	return NULL;
 }

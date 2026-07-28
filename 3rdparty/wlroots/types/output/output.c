@@ -16,20 +16,9 @@
 
 static void send_geometry(struct wl_resource *resource) {
 	struct wlr_output *output = wlr_output_from_resource(resource);
-
-	const char *make = output->make;
-	if (make == NULL) {
-		make = "Unknown";
-	}
-
-	const char *model = output->model;
-	if (model == NULL) {
-		model = "Unknown";
-	}
-
 	wl_output_send_geometry(resource, 0, 0,
 		output->phys_width, output->phys_height, output->subpixel,
-		make, model, output->transform);
+		"Unknown", "Unknown", output->transform);
 }
 
 static void send_current_mode(struct wl_resource *resource) {
@@ -244,6 +233,29 @@ static void output_apply_state(struct wlr_output *output,
 		output->transform = state->transform;
 	}
 
+	if (state->committed & WLR_OUTPUT_STATE_IMAGE_DESCRIPTION) {
+		if (state->image_description != NULL) {
+			output->image_description_value = *state->image_description;
+			output->image_description = &output->image_description_value;
+		} else {
+			output->image_description = NULL;
+		}
+
+		struct wlr_output_cursor *output_cursor;
+		wl_list_for_each(output_cursor, &output->cursors, link) {
+			output_cursor_refresh_color_transform(output_cursor, output->image_description);
+		}
+	}
+
+	if (state->committed & WLR_OUTPUT_STATE_COLOR_TRANSFORM) {
+		wlr_color_transform_unref(output->color_transform);
+		if (state->color_transform != NULL) {
+			output->color_transform = wlr_color_transform_ref(state->color_transform);
+		} else {
+			output->color_transform = NULL;
+		}
+	}
+
 	bool geometry_updated = state->committed &
 		(WLR_OUTPUT_STATE_MODE | WLR_OUTPUT_STATE_TRANSFORM |
 		WLR_OUTPUT_STATE_SUBPIXEL);
@@ -409,6 +421,7 @@ void wlr_output_finish(struct wlr_output *output) {
 
 	wlr_swapchain_destroy(output->cursor_swapchain);
 	wlr_buffer_unlock(output->cursor_front_buffer);
+	wlr_color_transform_unref(output->color_transform);
 
 	wlr_swapchain_destroy(output->swapchain);
 
@@ -502,6 +515,14 @@ bool output_pending_enabled(struct wlr_output *output,
 	return output->enabled;
 }
 
+const struct wlr_output_image_description *output_pending_image_description(
+		struct wlr_output *output, const struct wlr_output_state *state) {
+	if (state->committed & WLR_OUTPUT_STATE_IMAGE_DESCRIPTION) {
+		return state->image_description;
+	}
+	return output->image_description;
+}
+
 /**
  * Compare a struct wlr_output_state with the current state of a struct
  * wlr_output.
@@ -509,8 +530,7 @@ bool output_pending_enabled(struct wlr_output *output,
  * Returns a bitfield of the unchanged fields.
  *
  * Some fields are not checked: damage always changes in-between frames, the
- * gamma LUT is too expensive to check, the contents of the buffer might have
- * changed, etc.
+ * contents of the buffer might have changed, etc.
  */
 static uint32_t output_compare_state(struct wlr_output *output,
 		const struct wlr_output_state *state) {
@@ -555,6 +575,10 @@ static uint32_t output_compare_state(struct wlr_output *output,
 	if ((state->committed & WLR_OUTPUT_STATE_SUBPIXEL) &&
 			output->subpixel == state->subpixel) {
 		fields |= WLR_OUTPUT_STATE_SUBPIXEL;
+	}
+	if ((state->committed & WLR_OUTPUT_STATE_COLOR_TRANSFORM) &&
+			output->color_transform == state->color_transform) {
+		fields |= WLR_OUTPUT_STATE_COLOR_TRANSFORM;
 	}
 	return fields;
 }
@@ -638,29 +662,25 @@ static bool output_basic_test(struct wlr_output *output,
 		}
 	}
 
-	if (!enabled && state->committed & WLR_OUTPUT_STATE_BUFFER) {
-		wlr_log(WLR_DEBUG, "Tried to commit a buffer on a disabled output");
-		return false;
-	}
-	if (!enabled && state->committed & WLR_OUTPUT_STATE_MODE) {
-		wlr_log(WLR_DEBUG, "Tried to modeset a disabled output");
-		return false;
-	}
-	if (!enabled && state->committed & WLR_OUTPUT_STATE_ADAPTIVE_SYNC_ENABLED) {
-		wlr_log(WLR_DEBUG, "Tried to enable adaptive sync on a disabled output");
-		return false;
-	}
-	if (!enabled && state->committed & WLR_OUTPUT_STATE_RENDER_FORMAT) {
-		wlr_log(WLR_DEBUG, "Tried to set format for a disabled output");
-		return false;
-	}
-	if (!enabled && state->committed & WLR_OUTPUT_STATE_GAMMA_LUT) {
-		wlr_log(WLR_DEBUG, "Tried to set the gamma lut on a disabled output");
-		return false;
-	}
-	if (!enabled && state->committed & WLR_OUTPUT_STATE_SUBPIXEL) {
-		wlr_log(WLR_DEBUG, "Tried to set the subpixel layout on a disabled output");
-		return false;
+	const struct {
+		enum wlr_output_state_field field;
+		const char *name;
+	} needs_enabled[] = {
+		{ WLR_OUTPUT_STATE_BUFFER, "buffer" },
+		{ WLR_OUTPUT_STATE_MODE, "mode" },
+		{ WLR_OUTPUT_STATE_ADAPTIVE_SYNC_ENABLED, "adaptive sync" },
+		{ WLR_OUTPUT_STATE_RENDER_FORMAT, "render format" },
+		{ WLR_OUTPUT_STATE_SUBPIXEL, "subpixel" },
+		{ WLR_OUTPUT_STATE_COLOR_TRANSFORM, "color transform" },
+		{ WLR_OUTPUT_STATE_IMAGE_DESCRIPTION, "image description" },
+	};
+	if (!enabled) {
+		for (size_t i = 0; i < sizeof(needs_enabled) / sizeof(needs_enabled[0]); i++) {
+			if (state->committed & needs_enabled[i].field) {
+				wlr_log(WLR_DEBUG, "Tried to set %s on a disabled output", needs_enabled[i].name);
+				return false;
+			}
+		}
 	}
 
 	if (state->committed & WLR_OUTPUT_STATE_LAYERS) {
@@ -678,6 +698,18 @@ static bool output_basic_test(struct wlr_output *output,
 			!output->backend->features.timeline) {
 		wlr_log(WLR_DEBUG, "Wait/signal timelines are not supported for this output");
 		return false;
+	}
+
+	if ((state->committed & WLR_OUTPUT_STATE_IMAGE_DESCRIPTION) &&
+			state->image_description != NULL) {
+		if (!(output->supported_primaries & state->image_description->primaries)) {
+			wlr_log(WLR_DEBUG, "Unsupported image description primaries");
+			return false;
+		}
+		if (!(output->supported_transfer_functions & state->image_description->transfer_function)) {
+			wlr_log(WLR_DEBUG, "Unsupported image description transfer function");
+			return false;
+		}
 	}
 
 	return true;
@@ -728,7 +760,7 @@ bool output_prepare_commit(struct wlr_output *output, const struct wlr_output_st
 
 	struct wlr_output_event_precommit pre_event = {
 		.output = output,
-		.when = &now,
+		.when = now,
 		.state = state,
 	};
 	wl_signal_emit_mutable(&output->events.precommit, &pre_event);
@@ -752,7 +784,7 @@ void output_send_commit_event(struct wlr_output *output, const struct wlr_output
 	clock_gettime(CLOCK_MONOTONIC, &now);
 	struct wlr_output_event_commit event = {
 		.output = output,
-		.when = &now,
+		.when = now,
 		.state = state,
 	};
 	wl_signal_emit_mutable(&output->events.commit, &event);

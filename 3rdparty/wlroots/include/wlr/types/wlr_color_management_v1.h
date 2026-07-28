@@ -9,11 +9,12 @@
 #ifndef WLR_TYPES_WLR_COLOR_MANAGEMENT_V1_H
 #define WLR_TYPES_WLR_COLOR_MANAGEMENT_V1_H
 
-#include <wayland-server.h>
+#include <wayland-server-core.h>
+#include <wayland-protocols/color-management-v1-enum.h>
+
 #include <wlr/render/color.h>
 
-#include "color-management-v1-protocol.h"
-
+struct wlr_renderer;
 struct wlr_surface;
 
 struct wlr_image_description_v1_data {
@@ -59,6 +60,10 @@ struct wlr_color_manager_v1 {
 	struct wl_global *global;
 
 	struct {
+		struct wl_signal destroy;
+	} events;
+
+	struct {
 		struct wlr_color_manager_v1_features features;
 
 		enum wp_color_manager_v1_render_intent *render_intents;
@@ -73,7 +78,7 @@ struct wlr_color_manager_v1 {
 		struct wl_list outputs; // wlr_color_management_output_v1.link
 		struct wl_list surface_feedbacks; // wlr_color_management_surface_feedback_v1.link
 
-		uint32_t last_image_desc_identity;
+		uint64_t last_image_desc_identity;
 
 		struct wl_listener display_destroy;
 	} WLR_PRIVATE;
@@ -88,5 +93,45 @@ wlr_surface_get_image_description_v1_data(struct wlr_surface *surface);
 void wlr_color_manager_v1_set_surface_preferred_image_description(
 	struct wlr_color_manager_v1 *manager, struct wlr_surface *surface,
 	const struct wlr_image_description_v1_data *data);
+
+/**
+ * Convert a protocol transfer function to enum wlr_color_transfer_function.
+ * Aborts if there is no matching wlroots entry.
+ */
+enum wlr_color_transfer_function
+wlr_color_manager_v1_transfer_function_to_wlr(enum wp_color_manager_v1_transfer_function tf);
+
+/**
+ * Convert an enum wlr_color_transfer_function value into a protocol transfer function.
+ */
+enum wp_color_manager_v1_transfer_function
+wlr_color_manager_v1_transfer_function_from_wlr(enum wlr_color_transfer_function tf);
+
+/**
+ * Convert a protocol named primaries to enum wlr_color_named_primaries.
+ * Aborts if there is no matching wlroots entry.
+ */
+enum wlr_color_named_primaries
+wlr_color_manager_v1_primaries_to_wlr(enum wp_color_manager_v1_primaries primaries);
+
+/**
+ * Convert an enum wlr_color_named_primaries value into protocol primaries.
+ */
+enum wp_color_manager_v1_primaries
+wlr_color_manager_v1_primaries_from_wlr(enum wlr_color_named_primaries primaries);
+
+/**
+ * Get a list of supported transfer functions for a renderer. The caller is
+ * responsible for free'ing the array.
+ */
+enum wp_color_manager_v1_transfer_function *
+wlr_color_manager_v1_transfer_function_list_from_renderer(struct wlr_renderer *renderer, size_t *len);
+
+/**
+ * Get a list of supported named primaries for a renderer. The caller is
+ * responsible for free'ing the array.
+ */
+enum wp_color_manager_v1_primaries *
+wlr_color_manager_v1_primaries_list_from_renderer(struct wlr_renderer *renderer, size_t *len);
 
 #endif

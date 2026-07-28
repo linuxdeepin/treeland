@@ -14,6 +14,7 @@
 #include <time.h>
 #include <wayland-server-protocol.h>
 #include <wayland-util.h>
+#include <wlr/render/color.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_buffer.h>
 #include <wlr/util/addon.h>
@@ -52,6 +53,7 @@ struct wlr_output_cursor {
 
 	struct {
 		struct wl_listener renderer_destroy;
+		struct wlr_color_transform *color_transform;
 	} WLR_PRIVATE;
 };
 
@@ -68,17 +70,42 @@ enum wlr_output_state_field {
 	WLR_OUTPUT_STATE_SCALE = 1 << 4,
 	WLR_OUTPUT_STATE_TRANSFORM = 1 << 5,
 	WLR_OUTPUT_STATE_ADAPTIVE_SYNC_ENABLED = 1 << 6,
-	WLR_OUTPUT_STATE_GAMMA_LUT = 1 << 7,
-	WLR_OUTPUT_STATE_RENDER_FORMAT = 1 << 8,
-	WLR_OUTPUT_STATE_SUBPIXEL = 1 << 9,
-	WLR_OUTPUT_STATE_LAYERS = 1 << 10,
-	WLR_OUTPUT_STATE_WAIT_TIMELINE = 1 << 11,
-	WLR_OUTPUT_STATE_SIGNAL_TIMELINE = 1 << 12,
+	WLR_OUTPUT_STATE_RENDER_FORMAT = 1 << 7,
+	WLR_OUTPUT_STATE_SUBPIXEL = 1 << 8,
+	WLR_OUTPUT_STATE_LAYERS = 1 << 9,
+	WLR_OUTPUT_STATE_WAIT_TIMELINE = 1 << 10,
+	WLR_OUTPUT_STATE_SIGNAL_TIMELINE = 1 << 11,
+	WLR_OUTPUT_STATE_COLOR_TRANSFORM = 1 << 12,
+	WLR_OUTPUT_STATE_IMAGE_DESCRIPTION = 1 << 13,
 };
 
 enum wlr_output_state_mode_type {
 	WLR_OUTPUT_STATE_MODE_FIXED,
 	WLR_OUTPUT_STATE_MODE_CUSTOM,
+};
+
+/**
+ * Colorimetric image description.
+ *
+ * Carries information about the color encoding used for a struct wlr_buffer.
+ *
+ * Supported primaries are advertised in wlr_output.supported_primaries.
+ * Supported transfer functions are advertised in
+ * wlr_output.supported_transfer_functions.
+ *
+ * mastering_display_primaries, mastering_luminance, max_cll and max_fall are
+ * optional. Luminances are given in cd/m².
+ */
+struct wlr_output_image_description {
+	enum wlr_color_named_primaries primaries;
+	enum wlr_color_transfer_function transfer_function;
+
+	struct wlr_color_primaries mastering_display_primaries;
+	struct {
+		double min, max;
+	} mastering_luminance;
+	double max_cll; // max content light level
+	double max_fall; // max frame-average light level
 };
 
 /**
@@ -122,9 +149,6 @@ struct wlr_output_state {
 		int32_t refresh; // mHz, may be zero
 	} custom_mode;
 
-	uint16_t *gamma_lut;
-	size_t gamma_lut_size;
-
 	struct wlr_output_layer_state *layers;
 	size_t layers_len;
 
@@ -132,6 +156,10 @@ struct wlr_output_state {
 	uint64_t wait_point;
 	struct wlr_drm_syncobj_timeline *signal_timeline;
 	uint64_t signal_point;
+
+	struct wlr_color_transform *color_transform;
+
+	struct wlr_output_image_description *image_description;
 };
 
 struct wlr_output_impl;
@@ -160,6 +188,7 @@ struct wlr_output {
 	char *description; // may be NULL
 	char *make, *model, *serial; // may be NULL
 	int32_t phys_width, phys_height; // mm
+	const struct wlr_color_primaries *default_primaries; // may be NULL
 
 	// Note: some backends may have zero modes
 	struct wl_list modes; // wlr_output_mode.link
@@ -167,12 +196,16 @@ struct wlr_output {
 	int32_t width, height;
 	int32_t refresh; // mHz, may be zero
 
+	uint32_t supported_primaries; // bitfield of enum wlr_color_named_primaries
+	uint32_t supported_transfer_functions; // bitfield of enum wlr_color_transfer_function
+
 	bool enabled;
 	float scale;
 	enum wl_output_subpixel subpixel;
 	enum wl_output_transform transform;
 	enum wlr_output_adaptive_sync_status adaptive_sync_status;
 	uint32_t render_format;
+	const struct wlr_output_image_description *image_description;
 
 	// Indicates whether making changes to adaptive sync status is supported.
 	// If false, changes to adaptive sync status is guaranteed to fail. If
@@ -235,6 +268,9 @@ struct wlr_output {
 
 	struct {
 		struct wl_listener display_destroy;
+		struct wlr_output_image_description image_description_value;
+		struct wlr_color_transform *color_transform;
+		struct wlr_color_primaries default_primaries_value;
 	} WLR_PRIVATE;
 };
 
@@ -245,13 +281,13 @@ struct wlr_output_event_damage {
 
 struct wlr_output_event_precommit {
 	struct wlr_output *output;
-	struct timespec *when;
+	struct timespec when;
 	const struct wlr_output_state *state;
 };
 
 struct wlr_output_event_commit {
 	struct wlr_output *output;
-	struct timespec *when;
+	struct timespec when;
 	const struct wlr_output_state *state;
 };
 
@@ -528,17 +564,6 @@ void wlr_output_state_set_subpixel(struct wlr_output_state *state,
 void wlr_output_state_set_buffer(struct wlr_output_state *state,
 	struct wlr_buffer *buffer);
 /**
- * Sets the gamma table for an output. `r`, `g` and `b` are gamma ramps for
- * red, green and blue. `size` is the length of the ramps and must not exceed
- * the value returned by wlr_output_get_gamma_size().
- *
- * Providing zero-sized ramps resets the gamma table.
- *
- * This state will be applied once wlr_output_commit_state() is called.
- */
-bool wlr_output_state_set_gamma_lut(struct wlr_output_state *state,
-	size_t ramp_size, const uint16_t *r, const uint16_t *g, const uint16_t *b);
-/**
  * Sets the damage region for an output. This is used as a hint to the backend
  * and can be used to reduce power consumption or increase performance on some
  * devices.
@@ -586,6 +611,19 @@ void wlr_output_state_set_wait_timeline(struct wlr_output_state *state,
  */
 void wlr_output_state_set_signal_timeline(struct wlr_output_state *state,
 	struct wlr_drm_syncobj_timeline *timeline, uint64_t dst_point);
+/**
+ * Set the color transform for an output.
+ *
+ * The color transform is applied after blending output layers.
+ */
+void wlr_output_state_set_color_transform(struct wlr_output_state *state,
+	struct wlr_color_transform *tr);
+
+/**
+ * Set the colorimetry image description.
+ */
+bool wlr_output_state_set_image_description(struct wlr_output_state *state,
+	const struct wlr_output_image_description *image_desc);
 
 /**
  * Copies the output state from src to dst. It is safe to then

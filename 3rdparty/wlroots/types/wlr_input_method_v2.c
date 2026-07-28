@@ -56,7 +56,8 @@ static void input_method_destroy(struct wlr_input_method_v2 *input_method) {
 			popup_surface, tmp, &input_method->popup_surfaces, link) {
 		popup_surface_destroy(popup_surface);
 	}
-	wl_signal_emit_mutable(&input_method->events.destroy, input_method);
+	wlr_input_method_keyboard_grab_v2_destroy(input_method->keyboard_grab);
+	wl_signal_emit_mutable(&input_method->events.destroy, NULL);
 
 	assert(wl_list_empty(&input_method->events.commit.listener_list));
 	assert(wl_list_empty(&input_method->events.new_popup_surface.listener_list));
@@ -65,7 +66,6 @@ static void input_method_destroy(struct wlr_input_method_v2 *input_method) {
 
 	wl_list_remove(wl_resource_get_link(input_method->resource));
 	wl_list_remove(&input_method->seat_client_destroy.link);
-	wlr_input_method_keyboard_grab_v2_destroy(input_method->keyboard_grab);
 	input_state_reset(&input_method->pending);
 	input_state_reset(&input_method->current);
 	free(input_method);
@@ -102,7 +102,7 @@ static void im_commit(struct wl_client *client, struct wl_resource *resource,
 	input_method->current = input_method->pending;
 	input_method->pending = (struct wlr_input_method_v2_state){0};
 
-	wl_signal_emit_mutable(&input_method->events.commit, input_method);
+	wl_signal_emit_mutable(&input_method->events.commit, NULL);
 }
 
 static void im_commit_string(struct wl_client *client,
@@ -271,8 +271,7 @@ void wlr_input_method_keyboard_grab_v2_destroy(
 	if (!keyboard_grab) {
 		return;
 	}
-	wl_signal_emit_mutable(&keyboard_grab->events.destroy, keyboard_grab);
-
+	wl_signal_emit_mutable(&keyboard_grab->events.destroy, NULL);
 	assert(wl_list_empty(&keyboard_grab->events.destroy.listener_list));
 
 	keyboard_grab->input_method->keyboard_grab = NULL;
@@ -575,7 +574,7 @@ static void manager_get_input_method(struct wl_client *client,
 	wl_resource_set_user_data(im_resource, input_method);
 	wl_list_insert(&im_manager->input_methods,
 		wl_resource_get_link(input_method->resource));
-	wl_signal_emit_mutable(&im_manager->events.input_method, input_method);
+	wl_signal_emit_mutable(&im_manager->events.new_input_method, input_method);
 }
 
 static void manager_destroy(struct wl_client *client,
@@ -606,9 +605,9 @@ static void input_method_manager_bind(struct wl_client *wl_client, void *data,
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_input_method_manager_v2 *manager =
 		wl_container_of(listener, manager, display_destroy);
-	wl_signal_emit_mutable(&manager->events.destroy, manager);
+	wl_signal_emit_mutable(&manager->events.destroy, NULL);
 
-	assert(wl_list_empty(&manager->events.input_method.listener_list));
+	assert(wl_list_empty(&manager->events.new_input_method.listener_list));
 	assert(wl_list_empty(&manager->events.destroy.listener_list));
 
 	wl_list_remove(&manager->display_destroy.link);
@@ -623,7 +622,7 @@ struct wlr_input_method_manager_v2 *wlr_input_method_manager_v2_create(
 		return NULL;
 	}
 
-	wl_signal_init(&im_manager->events.input_method);
+	wl_signal_init(&im_manager->events.new_input_method);
 	wl_signal_init(&im_manager->events.destroy);
 
 	wl_list_init(&im_manager->input_methods);

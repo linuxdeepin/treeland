@@ -82,8 +82,7 @@ static void notification_destroy(struct wlr_idle_notification_v1 *notification) 
 }
 
 static void notification_reset_timer(struct wlr_idle_notification_v1 *notification) {
-	if (notification->notifier->inhibited && 
-			notification->obey_inhibitors) {
+	if (notification->notifier->inhibited && notification->obey_inhibitors) {
 		notification_set_idle(notification, false);
 		if (notification->timer != NULL) {
 			wl_event_source_timer_update(notification->timer, 0);
@@ -177,7 +176,7 @@ static void notifier_handle_get_input_idle_notification(
 		struct wl_client *client,
 		struct wl_resource *notifier_resource, uint32_t id,
 		uint32_t timeout, struct wl_resource *seat_resource) {
-	construct_idle_notification(client, notifier_resource, id, 
+	construct_idle_notification(client, notifier_resource, id,
 		timeout, seat_resource, false);
 }
 
@@ -191,10 +190,8 @@ static void notifier_handle_get_idle_notification(
 
 static const struct ext_idle_notifier_v1_interface notifier_impl = {
 	.destroy = resource_handle_destroy,
-	.get_idle_notification = 
-		notifier_handle_get_idle_notification,
-	.get_input_idle_notification = 
-		notifier_handle_get_input_idle_notification,
+	.get_idle_notification = notifier_handle_get_idle_notification,
+	.get_input_idle_notification = notifier_handle_get_input_idle_notification,
 };
 
 static void notifier_bind(struct wl_client *client, void *data,
@@ -257,12 +254,9 @@ void wlr_idle_notifier_v1_set_inhibited(struct wlr_idle_notifier_v1 *notifier,
 
 void wlr_idle_notifier_v1_notify_activity(struct wlr_idle_notifier_v1 *notifier,
 		struct wlr_seat *seat) {
-
 	struct wlr_idle_notification_v1 *notification;
 	wl_list_for_each(notification, &notifier->notifications, link) {
-		if (notification->seat == seat && 
-			!(notifier->inhibited && 
-				notification->obey_inhibitors)) {
+		if (notification->seat == seat && !(notifier->inhibited && notification->obey_inhibitors)) {
 			notification_handle_activity(notification);
 		}
 	}

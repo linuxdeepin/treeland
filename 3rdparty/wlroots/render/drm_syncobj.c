@@ -167,14 +167,21 @@ bool wlr_drm_syncobj_timeline_check(struct wlr_drm_syncobj_timeline *timeline,
 	etime = ETIME;
 #endif
 
-	uint32_t signaled_point;
-	int ret = drmSyncobjTimelineWait(timeline->drm_fd, &timeline->handle, &point, 1, 0, flags, &signaled_point);
+	int ret = drmSyncobjTimelineWait(timeline->drm_fd, &timeline->handle, &point, 1, 0, flags, NULL);
 	if (ret != 0 && ret != -etime) {
-		wlr_log_errno(WLR_ERROR, "drmSyncobjWait() failed");
+		wlr_log_errno(WLR_ERROR, "drmSyncobjTimelineWait() failed");
 		return false;
 	}
 
 	*result = ret == 0;
+	return true;
+}
+
+bool wlr_drm_syncobj_timeline_signal(struct wlr_drm_syncobj_timeline *timeline, uint64_t point) {
+	if (drmSyncobjTimelineSignal(timeline->drm_fd, &timeline->handle, &point, 1) != 0) {
+		wlr_log(WLR_ERROR, "drmSyncobjTimelineSignal() failed");
+		return false;
+	}
 	return true;
 }
 

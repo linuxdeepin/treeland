@@ -29,6 +29,8 @@ struct wlr_renderer {
 	// Capabilities required for the buffer used as a render target (bitmask of
 	// enum wlr_buffer_cap)
 	uint32_t render_buffer_caps;
+	// Supported color encodings for YCbCr textures
+	uint32_t color_encodings; // bitmask of enum wlr_color_encoding
 
 	struct {
 		struct wl_signal destroy;
@@ -41,6 +43,10 @@ struct wlr_renderer {
 	} events;
 
 	struct {
+		/**
+		 * Whether color transforms are supported for input textures
+		 */
+		bool input_color_transform;
 		/**
 		 * Does the renderer support color transforms on its output?
 		 */

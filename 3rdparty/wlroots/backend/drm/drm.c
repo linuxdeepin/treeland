@@ -24,6 +24,7 @@
 #include "backend/drm/fb.h"
 #include "backend/drm/iface.h"
 #include "backend/drm/util.h"
+#include "render/color.h"
 #include "types/wlr_output.h"
 #include "util/env.h"
 #include "config.h"
@@ -37,11 +38,12 @@ static const uint32_t COMMIT_OUTPUT_STATE =
 	WLR_OUTPUT_STATE_BUFFER |
 	WLR_OUTPUT_STATE_MODE |
 	WLR_OUTPUT_STATE_ENABLED |
-	WLR_OUTPUT_STATE_GAMMA_LUT |
 	WLR_OUTPUT_STATE_ADAPTIVE_SYNC_ENABLED |
 	WLR_OUTPUT_STATE_LAYERS |
 	WLR_OUTPUT_STATE_WAIT_TIMELINE |
-	WLR_OUTPUT_STATE_SIGNAL_TIMELINE;
+	WLR_OUTPUT_STATE_SIGNAL_TIMELINE |
+	WLR_OUTPUT_STATE_COLOR_TRANSFORM |
+	WLR_OUTPUT_STATE_IMAGE_DESCRIPTION;
 
 static const uint32_t SUPPORTED_OUTPUT_STATE =
 	WLR_OUTPUT_STATE_BACKEND_OPTIONAL | COMMIT_OUTPUT_STATE;
@@ -365,7 +367,17 @@ static void drm_plane_finish_surface(struct wlr_drm_plane *plane) {
 	}
 
 	drm_fb_clear(&plane->queued_fb);
+	if (plane->queued_release_timeline != NULL) {
+		wlr_drm_syncobj_timeline_signal(plane->queued_release_timeline, plane->queued_release_point);
+		wlr_drm_syncobj_timeline_unref(plane->queued_release_timeline);
+		plane->queued_release_timeline = NULL;
+	}
 	drm_fb_clear(&plane->current_fb);
+	if (plane->current_release_timeline != NULL) {
+		wlr_drm_syncobj_timeline_signal(plane->current_release_timeline, plane->current_release_point);
+		wlr_drm_syncobj_timeline_unref(plane->current_release_timeline);
+		plane->current_release_timeline = NULL;
+	}
 
 	finish_drm_surface(&plane->mgpu_surf);
 }
@@ -554,6 +566,18 @@ static void drm_connector_apply_commit(const struct wlr_drm_connector_state *sta
 	struct wlr_drm_crtc *crtc = conn->crtc;
 
 	drm_fb_copy(&crtc->primary->queued_fb, state->primary_fb);
+	if (crtc->primary->queued_release_timeline != NULL) {
+		wlr_drm_syncobj_timeline_signal(crtc->primary->queued_release_timeline, crtc->primary->queued_release_point);
+		wlr_drm_syncobj_timeline_unref(crtc->primary->queued_release_timeline);
+	}
+	if (state->base->signal_timeline != NULL) {
+		crtc->primary->queued_release_timeline = wlr_drm_syncobj_timeline_ref(state->base->signal_timeline);
+		crtc->primary->queued_release_point = state->base->signal_point;
+	} else {
+		crtc->primary->queued_release_timeline = NULL;
+		crtc->primary->queued_release_point = 0;
+	}
+
 	crtc->primary->viewport = state->primary_viewport;
 	if (crtc->cursor != NULL) {
 		drm_fb_copy(&crtc->cursor->queued_fb, state->cursor_fb);
@@ -644,7 +668,6 @@ static void drm_connector_state_init(struct wlr_drm_connector_state *state,
 		.base = base,
 		.active = output_pending_enabled(&conn->output, base),
 		.primary_in_fence_fd = -1,
-		.out_fence_fd = -1,
 	};
 
 	struct wlr_output_mode *mode = conn->output.current_mode;
@@ -854,6 +877,19 @@ static bool drm_connector_prepare(struct wlr_drm_connector_state *conn_state, bo
 				dmabuf.format, dmabuf.modifier);
 			return false;
 		}
+	}
+
+	if ((state->committed & WLR_OUTPUT_STATE_COLOR_TRANSFORM) && state->color_transform != NULL &&
+			state->color_transform->type != COLOR_TRANSFORM_LUT_3X1D) {
+		wlr_drm_conn_log(conn, WLR_DEBUG,
+			"Only 3x1D LUT color transforms are supported");
+		return false;
+	}
+
+	if ((state->committed & WLR_OUTPUT_STATE_IMAGE_DESCRIPTION) &&
+			conn->backend->iface != &atomic_iface) {
+		wlr_log(WLR_DEBUG, "Image descriptions are only supported by the atomic interface");
+		return false;
 	}
 
 	if (test_only && conn->backend->mgpu_renderer.wlr_rend) {
@@ -1702,7 +1738,11 @@ static bool connect_drm_connector(struct wlr_drm_connector *wlr_conn,
 	size_t edid_len = 0;
 	uint8_t *edid = get_drm_prop_blob(drm->fd,
 		wlr_conn->id, wlr_conn->props.edid, &edid_len);
-	parse_edid(wlr_conn, edid_len, edid);
+	if (edid_len > 0) {
+		parse_edid(wlr_conn, edid_len, edid);
+	} else {
+		wlr_log(WLR_DEBUG, "Connector has no EDID");
+	}
 	free(edid);
 
 	char *subconnector = NULL;
@@ -1999,6 +2039,14 @@ static void handle_page_flip(int fd, unsigned seq,
 	struct wlr_drm_plane *plane = conn->crtc->primary;
 	if (plane->queued_fb) {
 		drm_fb_move(&plane->current_fb, &plane->queued_fb);
+		if (plane->current_release_timeline != NULL) {
+			wlr_drm_syncobj_timeline_signal(plane->current_release_timeline, plane->current_release_point);
+			wlr_drm_syncobj_timeline_unref(plane->current_release_timeline);
+		}
+		plane->current_release_timeline = plane->queued_release_timeline;
+		plane->current_release_point = plane->queued_release_point;
+		plane->queued_release_timeline = NULL;
+		plane->queued_release_point = 0;
 	}
 	if (conn->crtc->cursor && conn->crtc->cursor->queued_fb) {
 		drm_fb_move(&conn->crtc->cursor->current_fb,
@@ -2120,7 +2168,7 @@ struct wlr_drm_lease *wlr_drm_create_lease(struct wlr_output **outputs,
 		wlr_log(WLR_DEBUG, "Connector %d", conn->id);
 
 		if (!drm_connector_alloc_crtc(conn)) {
-			wlr_log(WLR_ERROR, "Failled to allocate connector CRTC");
+			wlr_log(WLR_ERROR, "Failed to allocate connector CRTC");
 			return NULL;
 		}
 

@@ -10,6 +10,7 @@
 #include <wlr/types/wlr_ext_image_capture_source_v1.h>
 #include <wlr/util/log.h>
 #include "ext-image-capture-source-v1-protocol.h"
+#include "render/wlr_renderer.h"
 
 static void source_handle_destroy(struct wl_client *client,
 		struct wl_resource *source_resource) {
@@ -96,6 +97,12 @@ static uint32_t get_swapchain_shm_format(struct wlr_swapchain *swapchain,
 	return format;
 }
 
+static void add_drm_format(struct wlr_drm_format_set *set, const struct wlr_drm_format *fmt) {
+	for (size_t i = 0; i < fmt->len; i++) {
+		wlr_drm_format_set_add(set, fmt->format, fmt->modifiers[i]);
+	}
+}
+
 bool wlr_ext_image_capture_source_v1_set_constraints_from_swapchain(struct wlr_ext_image_capture_source_v1 *source,
 		struct wlr_swapchain *swapchain, struct wlr_renderer *renderer) {
 	source->width = swapchain->width;
@@ -130,9 +137,21 @@ bool wlr_ext_image_capture_source_v1_set_constraints_from_swapchain(struct wlr_e
 		wlr_drm_format_set_finish(&source->dmabuf_formats);
 		source->dmabuf_formats = (struct wlr_drm_format_set){0};
 
-		for (size_t i = 0; i < swapchain->format.len; i++) {
-			wlr_drm_format_set_add(&source->dmabuf_formats,
-				swapchain->format.format, swapchain->format.modifiers[i]);
+		add_drm_format(&source->dmabuf_formats, &swapchain->format);
+
+		const struct wlr_drm_format_set *render_formats =
+			wlr_renderer_get_render_formats(renderer);
+		assert(render_formats != NULL);
+
+		// Not all clients support fancy formats. Always ensure we provide
+		// support for ARGB8888 and XRGB8888 for simple clients.
+		uint32_t fallback_formats[] = { DRM_FORMAT_ARGB8888, DRM_FORMAT_XRGB8888 };
+		for (size_t i = 0; i < sizeof(fallback_formats) / sizeof(fallback_formats[0]); i++) {
+			const struct wlr_drm_format *fmt =
+				wlr_drm_format_set_get(render_formats, fallback_formats[i]);
+			if (fmt != NULL && swapchain->format.format != fmt->format) {
+				add_drm_format(&source->dmabuf_formats, fmt);
+			}
 		}
 	}
 

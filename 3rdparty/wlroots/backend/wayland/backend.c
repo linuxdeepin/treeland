@@ -55,14 +55,6 @@ struct wlr_wl_backend *get_wl_backend_from_backend(struct wlr_backend *wlr_backe
 static int dispatch_events(int fd, uint32_t mask, void *data) {
 	struct wlr_wl_backend *wl = data;
 
-	if ((mask & WL_EVENT_HANGUP) || (mask & WL_EVENT_ERROR)) {
-		if (mask & WL_EVENT_ERROR) {
-			wlr_log(WLR_ERROR, "Failed to read from remote Wayland display");
-		}
-		wlr_backend_destroy(&wl->backend);
-		return 0;
-	}
-
 	int count = 0;
 	if (mask & WL_EVENT_READABLE) {
 		count = wl_display_dispatch(wl->remote_display);
@@ -73,6 +65,18 @@ static int dispatch_events(int fd, uint32_t mask, void *data) {
 	if (mask == 0) {
 		count = wl_display_dispatch_pending(wl->remote_display);
 		wl_display_flush(wl->remote_display);
+	}
+
+	// Make sure we've consumed all data before disconnecting due to hangup,
+	// so that we process any wl_display.error events
+	if (!(mask & WL_EVENT_READABLE) && (mask & (WL_EVENT_HANGUP | WL_EVENT_ERROR))) {
+		if (mask & WL_EVENT_ERROR) {
+			wlr_log(WLR_ERROR, "Failed to read from remote Wayland display");
+		} else {
+			wlr_log(WLR_DEBUG, "Disconnected from remote Wayland display");
+		}
+		wlr_backend_destroy(&wl->backend);
+		return 0;
 	}
 
 	if (count < 0) {

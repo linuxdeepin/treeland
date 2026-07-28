@@ -19,7 +19,9 @@
 #include <wlr/util/log.h>
 
 #include "backend/x11.h"
+#include "render/pixel_format.h"
 #include "util/time.h"
+#include "types/wlr_buffer.h"
 #include "types/wlr_output.h"
 
 static const uint32_t SUPPORTED_OUTPUT_STATE =
@@ -166,17 +168,19 @@ static bool output_test(struct wlr_output *wlr_output,
 
 	if (state->committed & WLR_OUTPUT_STATE_BUFFER) {
 		struct wlr_buffer *buffer = state->buffer;
-		struct wlr_dmabuf_attributes dmabuf_attrs;
-		struct wlr_shm_attributes shm_attrs;
-		uint32_t format = DRM_FORMAT_INVALID;
-		if (wlr_buffer_get_dmabuf(buffer, &dmabuf_attrs)) {
-			format = dmabuf_attrs.format;
-		} else if (wlr_buffer_get_shm(buffer, &shm_attrs)) {
-			format = shm_attrs.format;
-		}
+		uint32_t format = buffer_get_drm_format(buffer);
 		if (format != x11->x11_format->drm) {
 			wlr_log(WLR_DEBUG, "Unsupported buffer format");
 			return false;
+		}
+		struct wlr_shm_attributes shm;
+		if (wlr_buffer_get_shm(buffer, &shm)) {
+			const struct wlr_pixel_format_info *info = drm_get_pixel_format_info(format);
+			if (shm.stride != pixel_format_info_min_stride(info, shm.width)) {
+				// xcb_shm_create_pixmap() does not allow arbitrary strides.
+				wlr_log(WLR_DEBUG, "Unsupported shm buffer stride");
+				return false;
+			}
 		}
 	}
 
@@ -264,6 +268,12 @@ static xcb_pixmap_t import_shm(struct wlr_x11_output *output,
 	if (shm->format != x11->x11_format->drm) {
 		// The pixmap's depth must match the window's depth, otherwise Present
 		// will throw a Match error
+		return XCB_PIXMAP_NONE;
+	}
+
+	const struct wlr_pixel_format_info *info = drm_get_pixel_format_info(shm->format);
+	if (shm->stride != pixel_format_info_min_stride(info, shm->width)) {
+		// xcb_shm_create_pixmap() does not allow arbitrary strides.
 		return XCB_PIXMAP_NONE;
 	}
 

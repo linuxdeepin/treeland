@@ -153,7 +153,7 @@ static void manager_handle_create_icon(struct wl_client *client, struct wl_resou
 
 	struct wl_resource *icon_resource = wl_resource_create(client,
 		&xdg_toplevel_icon_v1_interface, wl_resource_get_version(resource), id);
-	if (resource == NULL) {
+	if (icon_resource == NULL) {
 		wl_client_post_no_memory(client);
 		free(icon);
 		return;

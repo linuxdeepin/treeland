@@ -17,7 +17,6 @@
 #include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/util/box.h>
 #include <wlr/util/log.h>
-#include "types/wlr_buffer.h"
 #include "types/wlr_output.h"
 
 struct wlr_cursor_device {
@@ -499,13 +498,8 @@ static int handle_xcursor_timer(void *data) {
 static void output_cursor_set_xcursor_image(struct wlr_cursor_output_cursor *output_cursor, size_t i) {
 	struct wlr_xcursor_image *image = output_cursor->xcursor->images[i];
 
-	struct wlr_readonly_data_buffer *ro_buffer = readonly_data_buffer_create(
-		DRM_FORMAT_ARGB8888, 4 * image->width, image->width, image->height, image->buffer);
-	if (ro_buffer == NULL) {
-		return;
-	}
-	wlr_output_cursor_set_buffer(output_cursor->output_cursor, &ro_buffer->base, image->hotspot_x, image->hotspot_y);
-	wlr_buffer_drop(&ro_buffer->base);
+	struct wlr_buffer *buffer = wlr_xcursor_image_get_buffer(image);
+	wlr_output_cursor_set_buffer(output_cursor->output_cursor, buffer, image->hotspot_x, image->hotspot_y);
 
 	output_cursor->xcursor_index = i;
 
@@ -640,14 +634,14 @@ static void output_cursor_output_handle_output_commit(
 	const struct wlr_output_event_commit *event = data;
 
 	if (event->state->committed & (WLR_OUTPUT_STATE_SCALE | WLR_OUTPUT_STATE_TRANSFORM
-				| WLR_OUTPUT_STATE_ENABLED)) {
+			| WLR_OUTPUT_STATE_ENABLED | WLR_OUTPUT_STATE_IMAGE_DESCRIPTION)) {
 		cursor_output_cursor_update(output_cursor);
 	}
 
 	struct wlr_surface *surface = output_cursor->cursor->state->surface;
 	if (surface && output_cursor->output_cursor->visible &&
 			(event->state->committed & WLR_OUTPUT_STATE_BUFFER)) {
-		wlr_surface_send_frame_done(surface, event->when);
+		wlr_surface_send_frame_done(surface, &event->when);
 	}
 }
 
@@ -962,7 +956,7 @@ static void handle_tablet_tool_axis(struct wl_listener *listener, void *data) {
 
 static void handle_tablet_tool_button(struct wl_listener *listener,
 		void *data) {
-	struct wlr_tablet_tool_button *event = data;
+	struct wlr_tablet_tool_button_event *event = data;
 	struct wlr_cursor_device *device;
 	device = wl_container_of(listener, device, tablet_tool_button);
 	wl_signal_emit_mutable(&device->cursor->events.tablet_tool_button, event);

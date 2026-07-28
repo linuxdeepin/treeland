@@ -23,7 +23,7 @@ static xcb_atom_t data_device_manager_dnd_action_to_atom(
 
 static enum wl_data_device_manager_dnd_action
 		data_device_manager_dnd_action_from_atom(struct wlr_xwm *xwm,
-		enum atom_name atom) {
+		xcb_atom_t atom) {
 	if (atom == xwm->atoms[DND_ACTION_COPY] ||
 			atom == xwm->atoms[DND_ACTION_PRIVATE]) {
 		return WL_DATA_DEVICE_MANAGER_DND_ACTION_COPY;
@@ -83,7 +83,12 @@ static void xwm_dnd_send_enter(struct wlr_xwm *xwm) {
 		// data and must be retrieved with the DND_TYPE_LIST property
 		data.data32[1] |= 1;
 
-		xcb_atom_t targets[n];
+		xcb_atom_t *targets = malloc(n * sizeof(targets[0]));
+		if (targets == NULL) {
+			wlr_log(WLR_ERROR, "Allocation failed");
+			return;
+		}
+
 		size_t i = 0;
 		char **mime_type_ptr;
 		wl_array_for_each(mime_type_ptr, mime_types) {
@@ -99,6 +104,8 @@ static void xwm_dnd_send_enter(struct wlr_xwm *xwm) {
 			XCB_ATOM_ATOM,
 			32, // format
 			n, targets);
+
+		free(targets);
 	}
 
 	xwm_dnd_send_event(xwm, xwm->atoms[DND_ENTER], &data);

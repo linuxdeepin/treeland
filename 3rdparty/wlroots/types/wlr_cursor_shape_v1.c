@@ -5,9 +5,11 @@
 #include <wlr/types/wlr_cursor_shape_v1.h>
 #include <wlr/types/wlr_seat.h>
 #include <wlr/types/wlr_tablet_tool.h>
+
+#include "cursor-shape-v1-protocol.h"
 #include "types/wlr_tablet_v2.h"
 
-#define CURSOR_SHAPE_MANAGER_V1_VERSION 1
+#define CURSOR_SHAPE_MANAGER_V1_VERSION 2
 
 struct wlr_cursor_shape_device_v1 {
 	struct wl_resource *resource;
@@ -46,7 +48,8 @@ static void device_handle_set_shape(struct wl_client *client, struct wl_resource
 		return;
 	}
 
-	if (shape == 0 || shape > WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_ZOOM_OUT) {
+	uint32_t version = wl_resource_get_version(device_resource);
+	if (!wp_cursor_shape_device_v1_shape_is_valid(shape, version)) {
 		wl_resource_post_error(device_resource, WP_CURSOR_SHAPE_DEVICE_V1_ERROR_INVALID_SHAPE,
 			"Invalid shape %"PRIu32, shape);
 		return;
@@ -256,6 +259,8 @@ static const char *const shape_names[] = {
 	[WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_ALL_SCROLL] = "all-scroll",
 	[WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_ZOOM_IN] = "zoom-in",
 	[WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_ZOOM_OUT] = "zoom-out",
+	[WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_DND_ASK] = "dnd-ask",
+	[WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_ALL_RESIZE] = "all-resize",
 };
 
 const char *wlr_cursor_shape_v1_name(enum wp_cursor_shape_device_v1_shape shape) {

@@ -1,6 +1,8 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <wlr/types/wlr_alpha_modifier_v1.h>
+#include <wlr/types/wlr_color_management_v1.h>
+#include <wlr/types/wlr_color_representation_v1.h>
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_scene.h>
 #include <wlr/types/wlr_fractional_scale_v1.h>
@@ -11,37 +13,146 @@
 #include <wlr/util/transform.h>
 #include "types/wlr_scene.h"
 
+static double get_surface_preferred_buffer_scale(struct wlr_surface *surface) {
+	double scale = 1;
+	struct wlr_surface_output *surface_output;
+	wl_list_for_each(surface_output, &surface->current_outputs, link) {
+		if (surface_output->output->scale > scale) {
+			scale = surface_output->output->scale;
+		}
+	}
+	return scale;
+}
+
+// Output used for frame pacing (surface frame callbacks, presentation
+// time feedback, etc), may be NULL
+static struct wlr_output *get_surface_frame_pacing_output(struct wlr_surface *surface) {
+	struct wlr_output *frame_pacing_output = NULL;
+	struct wlr_surface_output *surface_output;
+	wl_list_for_each(surface_output, &surface->current_outputs, link) {
+		if (!surface_output->suspended && (frame_pacing_output == NULL ||
+				surface_output->output->refresh > frame_pacing_output->refresh)) {
+			frame_pacing_output = surface_output->output;
+		}
+	}
+	return frame_pacing_output;
+}
+
+static int get_tf_preference(enum wlr_color_transfer_function tf) {
+	switch (tf) {
+	case WLR_COLOR_TRANSFER_FUNCTION_GAMMA22:
+		return 0;
+	case WLR_COLOR_TRANSFER_FUNCTION_ST2084_PQ:
+		return 1;
+	case WLR_COLOR_TRANSFER_FUNCTION_BT1886:
+	case WLR_COLOR_TRANSFER_FUNCTION_SRGB:
+	case WLR_COLOR_TRANSFER_FUNCTION_EXT_LINEAR:
+		return -1;
+	}
+	abort(); // unreachable
+}
+
+static int get_primaries_preference(enum wlr_color_named_primaries primaries) {
+	switch (primaries) {
+	case WLR_COLOR_NAMED_PRIMARIES_SRGB:
+		return 0;
+	case WLR_COLOR_NAMED_PRIMARIES_BT2020:
+		return 1;
+	}
+	abort(); // unreachable
+}
+
+static void get_surface_preferred_image_description(struct wlr_surface *surface,
+		struct wlr_image_description_v1_data *out) {
+	struct wlr_output_image_description preferred = {
+		.transfer_function = WLR_COLOR_TRANSFER_FUNCTION_GAMMA22,
+		.primaries = WLR_COLOR_NAMED_PRIMARIES_SRGB,
+	};
+
+	struct wlr_surface_output *surface_output;
+	wl_list_for_each(surface_output, &surface->current_outputs, link) {
+		const struct wlr_output_image_description *img_desc =
+			surface_output->output->image_description;
+		if (img_desc == NULL) {
+			continue;
+		}
+		if (get_tf_preference(preferred.transfer_function) < get_tf_preference(img_desc->transfer_function)) {
+			preferred.transfer_function = img_desc->transfer_function;
+		}
+		if (get_primaries_preference(preferred.primaries) < get_primaries_preference(img_desc->primaries)) {
+			preferred.primaries = img_desc->primaries;
+		}
+	}
+
+	*out = (struct wlr_image_description_v1_data){
+		.tf_named = wlr_color_manager_v1_transfer_function_from_wlr(preferred.transfer_function),
+		.primaries_named = wlr_color_manager_v1_primaries_from_wlr(preferred.primaries),
+	};
+}
+
 static void handle_scene_buffer_outputs_update(
 		struct wl_listener *listener, void *data) {
 	struct wlr_scene_surface *surface =
 		wl_container_of(listener, surface, outputs_update);
+	struct wlr_scene_outputs_update_event *event = data;
+	struct wlr_scene *scene = scene_node_get_root(&surface->buffer->node);
 
-	if (surface->buffer->primary_output == NULL) {
+	// If the surface is no longer visible on any output in the scene, keep the
+	// last sent preferred configuration to avoid unnecessary redraws
+	bool suspend = event->size == 0;
+
+	// To avoid sending redundant leave/enter events when a surface is hidden and then shown
+	// without moving to a different output the following policy is implemented:
+	//
+	// 1. When a surface transitions from being visible on >0 outputs to being visible on 0 outputs
+	//    don't send any leave events.
+	//
+	// 2. When a surface transitions from being visible on 0 outputs to being visible on >0 outputs
+	//    send leave events for all entered outputs on which the surface is no longer visible as
+	//    well as enter events for any outputs not already entered.
+	struct wlr_surface_output *entered_output, *tmp;
+	wl_list_for_each_safe(entered_output, tmp, &surface->surface->current_outputs, link) {
+		bool active = false;
+		for (size_t i = 0; i < event->size; i++) {
+			if (entered_output->output == event->active[i]->output) {
+				active = true;
+				break;
+			}
+		}
+
+		struct wlr_scene_output *scene_output;
+		wl_list_for_each(scene_output, &scene->outputs, link) {
+			if (scene_output->output == entered_output->output) {
+				entered_output->suspended = suspend;
+				if (!suspend && !active) {
+					wlr_surface_send_leave(surface->surface, entered_output->output);
+				}
+				break;
+			}
+		}
+	}
+
+	// No reason to update the preferred configuration if we aren't sending leave/enter events.
+	if (suspend) {
 		return;
 	}
-	double scale = surface->buffer->primary_output->output->scale;
+
+	for (size_t i = 0; i < event->size; i++) {
+		// This function internally checks if an enter event was already sent for the output
+		// to avoid sending redundant events.
+		wlr_surface_send_enter(surface->surface, event->active[i]->output);
+	}
+
+	double scale = get_surface_preferred_buffer_scale(surface->surface);
 	wlr_fractional_scale_v1_notify_scale(surface->surface, scale);
 	wlr_surface_set_preferred_buffer_scale(surface->surface, ceil(scale));
-	wlr_surface_set_preferred_buffer_transform(surface->surface,
-		surface->buffer->primary_output->output->transform);
-}
 
-static void handle_scene_buffer_output_enter(
-		struct wl_listener *listener, void *data) {
-	struct wlr_scene_surface *surface =
-		wl_container_of(listener, surface, output_enter);
-	struct wlr_scene_output *output = data;
-
-	wlr_surface_send_enter(surface->surface, output->output);
-}
-
-static void handle_scene_buffer_output_leave(
-		struct wl_listener *listener, void *data) {
-	struct wlr_scene_surface *surface =
-		wl_container_of(listener, surface, output_leave);
-	struct wlr_scene_output *output = data;
-
-	wlr_surface_send_leave(surface->surface, output->output);
+	if (scene->color_manager_v1 != NULL) {
+		struct wlr_image_description_v1_data img_desc = {0};
+		get_surface_preferred_image_description(surface->surface, &img_desc);
+		wlr_color_manager_v1_set_surface_preferred_image_description(scene->color_manager_v1,
+			surface->surface, &img_desc);
+	}
 }
 
 static void handle_scene_buffer_output_sample(
@@ -49,15 +160,22 @@ static void handle_scene_buffer_output_sample(
 	struct wlr_scene_surface *surface =
 		wl_container_of(listener, surface, output_sample);
 	const struct wlr_scene_output_sample_event *event = data;
-	struct wlr_scene_output *scene_output = event->output;
-	if (surface->buffer->primary_output != scene_output) {
+	struct wlr_output *output = event->output->output;
+	if (get_surface_frame_pacing_output(surface->surface) != output) {
 		return;
 	}
 
 	if (event->direct_scanout) {
-		wlr_presentation_surface_scanned_out_on_output(surface->surface, scene_output->output);
+		wlr_presentation_surface_scanned_out_on_output(surface->surface, output);
 	} else {
-		wlr_presentation_surface_textured_on_output(surface->surface, scene_output->output);
+		wlr_presentation_surface_textured_on_output(surface->surface, output);
+	}
+
+	struct wlr_linux_drm_syncobj_surface_v1_state *syncobj_surface_state =
+		wlr_linux_drm_syncobj_v1_get_surface_state(surface->surface);
+	if (syncobj_surface_state != NULL && event->release_timeline != NULL) {
+		wlr_linux_drm_syncobj_v1_state_add_release_point(syncobj_surface_state,
+			event->release_timeline, event->release_point, output->event_loop);
 	}
 }
 
@@ -65,9 +183,19 @@ static void handle_scene_buffer_frame_done(
 		struct wl_listener *listener, void *data) {
 	struct wlr_scene_surface *surface =
 		wl_container_of(listener, surface, frame_done);
-	struct timespec *now = data;
+	struct wlr_scene_frame_done_event *event = data;
+	if (get_surface_frame_pacing_output(surface->surface) != event->output->output) {
+		return;
+	}
 
-	wlr_surface_send_frame_done(surface->surface, now);
+	wlr_surface_send_frame_done(surface->surface, &event->when);
+}
+
+void wlr_scene_surface_send_frame_done(struct wlr_scene_surface *scene_surface,
+		const struct timespec *when) {
+	if (!pixman_region32_empty(&scene_surface->buffer->node.visible)) {
+		wlr_surface_send_frame_done(scene_surface->surface, when);
+	}
 }
 
 static void scene_surface_handle_surface_destroy(
@@ -159,11 +287,37 @@ static void surface_reconfigure(struct wlr_scene_surface *scene_surface) {
 		opacity = (float)alpha_modifier_state->multiplier;
 	}
 
+	enum wlr_color_transfer_function tf = WLR_COLOR_TRANSFER_FUNCTION_GAMMA22;
+	enum wlr_color_named_primaries primaries = WLR_COLOR_NAMED_PRIMARIES_SRGB;
+	const struct wlr_image_description_v1_data *img_desc =
+		wlr_surface_get_image_description_v1_data(surface);
+	if (img_desc != NULL) {
+		tf = wlr_color_manager_v1_transfer_function_to_wlr(img_desc->tf_named);
+		primaries = wlr_color_manager_v1_primaries_to_wlr(img_desc->primaries_named);
+	}
+
+	enum wlr_color_encoding color_encoding = WLR_COLOR_ENCODING_NONE;
+	enum wlr_color_range color_range = WLR_COLOR_RANGE_NONE;
+	const struct wlr_color_representation_v1_surface_state *color_repr =
+		wlr_color_representation_v1_get_surface_state(surface);
+	if (color_repr != NULL) {
+		if (color_repr->coefficients != 0) {
+			color_encoding = wlr_color_representation_v1_color_encoding_to_wlr(color_repr->coefficients);
+		}
+		if (color_repr->range != 0) {
+			color_range = wlr_color_representation_v1_color_range_to_wlr(color_repr->range);
+		}
+	}
+
 	wlr_scene_buffer_set_opaque_region(scene_buffer, &opaque);
 	wlr_scene_buffer_set_source_box(scene_buffer, &src_box);
 	wlr_scene_buffer_set_dest_size(scene_buffer, width, height);
 	wlr_scene_buffer_set_transform(scene_buffer, state->transform);
 	wlr_scene_buffer_set_opacity(scene_buffer, opacity);
+	wlr_scene_buffer_set_transfer_function(scene_buffer, tf);
+	wlr_scene_buffer_set_primaries(scene_buffer, primaries);
+	wlr_scene_buffer_set_color_encoding(scene_buffer, color_encoding);
+	wlr_scene_buffer_set_color_range(scene_buffer, color_range);
 
 	scene_buffer_unmark_client_buffer(scene_buffer);
 
@@ -187,27 +341,15 @@ static void surface_reconfigure(struct wlr_scene_surface *scene_surface) {
 		struct wlr_linux_drm_syncobj_surface_v1_state *syncobj_surface_state =
 			wlr_linux_drm_syncobj_v1_get_surface_state(surface);
 
-		struct wlr_drm_syncobj_timeline *wait_timeline = NULL;
-		uint64_t wait_point = 0;
-		if (syncobj_surface_state != NULL) {
-			wait_timeline = syncobj_surface_state->acquire_timeline;
-			wait_point = syncobj_surface_state->acquire_point;
-		}
-
 		struct wlr_scene_buffer_set_buffer_options options = {
 			.damage = &surface->buffer_damage,
-			.wait_timeline = wait_timeline,
-			.wait_point = wait_point,
 		};
+		if (syncobj_surface_state != NULL) {
+			options.wait_timeline = syncobj_surface_state->acquire_timeline;
+			options.wait_point = syncobj_surface_state->acquire_point;
+		}
 		wlr_scene_buffer_set_buffer_with_options(scene_buffer,
 			&surface->buffer->base, &options);
-
-		if (syncobj_surface_state != NULL &&
-				(surface->current.committed & WLR_SURFACE_STATE_BUFFER) &&
-				surface->buffer->source != NULL) {
-			wlr_linux_drm_syncobj_v1_state_signal_release_with_buffer(syncobj_surface_state,
-				surface->buffer->source);
-		}
 	} else {
 		wlr_scene_buffer_set_buffer(scene_buffer, NULL);
 	}
@@ -230,10 +372,9 @@ static void handle_scene_surface_surface_commit(
 	// the surface anyway.
 	int lx, ly;
 	bool enabled = wlr_scene_node_coords(&scene_buffer->node, &lx, &ly);
-
-	if (!wl_list_empty(&surface->surface->current.frame_callback_list) &&
-			surface->buffer->primary_output != NULL && enabled) {
-		wlr_output_schedule_frame(surface->buffer->primary_output->output);
+	struct wlr_output *output = get_surface_frame_pacing_output(surface->surface);
+	if (!wl_list_empty(&surface->surface->current.frame_callback_list) && output && enabled) {
+		wlr_output_schedule_frame(output);
 	}
 }
 
@@ -256,8 +397,6 @@ static void surface_addon_destroy(struct wlr_addon *addon) {
 	wlr_addon_finish(&surface->addon);
 
 	wl_list_remove(&surface->outputs_update.link);
-	wl_list_remove(&surface->output_enter.link);
-	wl_list_remove(&surface->output_leave.link);
 	wl_list_remove(&surface->output_sample.link);
 	wl_list_remove(&surface->frame_done.link);
 	wl_list_remove(&surface->surface_destroy.link);
@@ -302,12 +441,6 @@ struct wlr_scene_surface *wlr_scene_surface_create(struct wlr_scene_tree *parent
 
 	surface->outputs_update.notify = handle_scene_buffer_outputs_update;
 	wl_signal_add(&scene_buffer->events.outputs_update, &surface->outputs_update);
-
-	surface->output_enter.notify = handle_scene_buffer_output_enter;
-	wl_signal_add(&scene_buffer->events.output_enter, &surface->output_enter);
-
-	surface->output_leave.notify = handle_scene_buffer_output_leave;
-	wl_signal_add(&scene_buffer->events.output_leave, &surface->output_leave);
 
 	surface->output_sample.notify = handle_scene_buffer_output_sample;
 	wl_signal_add(&scene_buffer->events.output_sample, &surface->output_sample);

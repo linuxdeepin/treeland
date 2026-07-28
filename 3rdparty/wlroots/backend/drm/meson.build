@@ -7,6 +7,7 @@ hwdata = dependency(
 
 libdisplay_info = dependency(
 	'libdisplay-info',
+	version: '>=0.2.0',
 	required: 'drm' in backends,
 	fallback: 'libdisplay-info',
 	not_found_message: 'Required for the DRM backend.',

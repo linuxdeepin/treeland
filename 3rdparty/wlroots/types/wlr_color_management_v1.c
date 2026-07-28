@@ -1,14 +1,18 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_color_management_v1.h>
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/util/addon.h>
 
+#include "color-management-v1-protocol.h"
 #include "render/color.h"
+#include "util/mem.h"
 
-#define COLOR_MANAGEMENT_V1_VERSION 1
+#define COLOR_MANAGEMENT_V1_VERSION 2
 
 struct wlr_color_management_output_v1 {
 	struct wl_resource *resource;
@@ -62,36 +66,47 @@ static void resource_handle_destroy(struct wl_client *client, struct wl_resource
 	wl_resource_destroy(resource);
 }
 
-static enum wlr_color_named_primaries named_primaries_to_wlr(
-		enum wp_color_manager_v1_primaries primaries) {
-	switch (primaries) {
-	case WP_COLOR_MANAGER_V1_PRIMARIES_SRGB:
-		return WLR_COLOR_NAMED_PRIMARIES_SRGB;
-	case WP_COLOR_MANAGER_V1_PRIMARIES_BT2020:
-		return WLR_COLOR_NAMED_PRIMARIES_BT2020;
-	default:
-		abort();
-	}
-}
-
-static enum wlr_color_transfer_function transfer_function_to_wlr(
-		enum wp_color_manager_v1_transfer_function tf) {
-	switch (tf) {
-	case WP_COLOR_MANAGER_V1_TRANSFER_FUNCTION_SRGB:
-		return WLR_COLOR_TRANSFER_FUNCTION_SRGB;
-	case WP_COLOR_MANAGER_V1_TRANSFER_FUNCTION_ST2084_PQ:
-		return WLR_COLOR_TRANSFER_FUNCTION_ST2084_PQ;
-	default:
-		abort();
-	}
-}
-
 static int32_t encode_cie1931_coord(float value) {
 	return round(value * 1000 * 1000);
 }
 
 static float decode_cie1931_coord(int32_t raw) {
 	return (float)raw / (1000 * 1000);
+}
+
+static bool cie1931_xy_equal(const struct wlr_color_cie1931_xy *a,
+		const struct wlr_color_cie1931_xy *b) {
+	return a->x == b->x && a->y == b->y;
+}
+
+static bool primaries_equal(const struct wlr_color_primaries *a,
+		const struct wlr_color_primaries *b) {
+	return cie1931_xy_equal(&a->red, &b->red) &&
+		cie1931_xy_equal(&a->green, &b->green) &&
+		cie1931_xy_equal(&a->blue, &b->blue) &&
+		cie1931_xy_equal(&a->white, &b->white);
+}
+
+static bool img_desc_data_equal(const struct wlr_image_description_v1_data *a,
+		const struct wlr_image_description_v1_data *b) {
+	if (a->tf_named != b->tf_named ||
+			a->primaries_named != b->primaries_named ||
+			a->has_mastering_display_primaries != b->has_mastering_display_primaries ||
+			a->has_mastering_luminance != b->has_mastering_luminance ||
+			a->max_cll != b->max_cll ||
+			a->max_fall != b->max_fall) {
+		return false;
+	}
+	if (a->has_mastering_display_primaries &&
+			!primaries_equal(&a->mastering_display_primaries, &b->mastering_display_primaries)) {
+		return false;
+	}
+	if (a->has_mastering_luminance &&
+			(a->mastering_luminance.min != b->mastering_luminance.min ||
+				a->mastering_luminance.max != b->mastering_luminance.max)) {
+		return false;
+	}
+	return true;
 }
 
 static const struct wp_image_description_v1_interface image_desc_impl;
@@ -127,10 +142,12 @@ static void image_desc_handle_get_information(struct wl_client *client,
 	}
 
 	struct wlr_color_primaries primaries;
-	wlr_color_primaries_from_named(&primaries, named_primaries_to_wlr(image_desc->data.primaries_named));
+	wlr_color_primaries_from_named(&primaries,
+		wlr_color_manager_v1_primaries_to_wlr(image_desc->data.primaries_named));
 
 	struct wlr_color_luminances luminances;
-	wlr_color_transfer_function_get_default_luminance(transfer_function_to_wlr(image_desc->data.tf_named), &luminances);
+	wlr_color_transfer_function_get_default_luminance(
+		wlr_color_manager_v1_transfer_function_to_wlr(image_desc->data.tf_named), &luminances);
 
 	wp_image_description_info_v1_send_primaries_named(resource, image_desc->data.primaries_named);
 	wp_image_description_info_v1_send_primaries(resource,
@@ -196,9 +213,23 @@ static void image_desc_create_ready(struct wlr_color_manager_v1 *manager,
 	wl_resource_set_implementation(image_desc->resource, &image_desc_impl,
 		image_desc, image_desc_handle_resource_destroy);
 
+	uint32_t version = wl_resource_get_version(image_desc->resource);
+	if (!wp_color_manager_v1_transfer_function_is_valid(data->tf_named, version)) {
+		wp_image_description_v1_send_failed(image_desc->resource,
+			WP_IMAGE_DESCRIPTION_V1_CAUSE_LOW_VERSION, "unhandled value for tf_named");
+		return;
+	}
+
 	// TODO: de-duplicate identity
-	uint32_t identity = ++manager->last_image_desc_identity;
-	wp_image_description_v1_send_ready(image_desc->resource, identity);
+	uint64_t identity = ++manager->last_image_desc_identity;
+	uint32_t identity_hi = identity >> 32;
+	uint32_t identity_lo = (uint32_t)identity;
+
+	if (version >= WP_IMAGE_DESCRIPTION_V1_READY2_SINCE_VERSION) {
+		wp_image_description_v1_send_ready2(image_desc->resource, identity_hi, identity_lo);
+	} else {
+		wp_image_description_v1_send_ready(image_desc->resource, identity_lo);
+	}
 }
 
 static void image_desc_create_failed(struct wl_resource *parent_resource, uint32_t id,
@@ -231,9 +262,14 @@ static void cm_output_handle_get_image_description(struct wl_client *client,
 	}
 
 	struct wlr_image_description_v1_data data = {
-		.tf_named = WP_COLOR_MANAGER_V1_TRANSFER_FUNCTION_SRGB,
+		.tf_named = WP_COLOR_MANAGER_V1_TRANSFER_FUNCTION_GAMMA22,
 		.primaries_named = WP_COLOR_MANAGER_V1_PRIMARIES_SRGB,
 	};
+	const struct wlr_output_image_description *image_desc = cm_output->output->image_description;
+	if (image_desc != NULL) {
+		data.tf_named = wlr_color_manager_v1_transfer_function_from_wlr(image_desc->transfer_function);
+		data.primaries_named = wlr_color_manager_v1_primaries_from_wlr(image_desc->primaries);
+	}
 	image_desc_create_ready(cm_output->manager, cm_output_resource, id, &data, true);
 }
 
@@ -305,6 +341,13 @@ static void cm_surface_handle_set_image_description(struct wl_client *client,
 	}
 
 	struct wlr_image_description_v1 *image_desc = image_desc_from_resource(image_desc_resource);
+
+	if (image_desc == NULL) {
+		wl_resource_post_error(cm_surface_resource,
+			WP_COLOR_MANAGEMENT_SURFACE_V1_ERROR_IMAGE_DESCRIPTION,
+			"Image description to be set is invalid");
+		return;
+	}
 
 	bool found = false;
 	for (size_t i = 0; i < cm_surface->manager->render_intents_len; i++) {
@@ -475,8 +518,10 @@ static void image_desc_creator_params_handle_create(struct wl_client *client,
 		return;
 	}
 
-	if (!check_mastering_luminance_range(params_resource, &params->data, params->data.max_cll, "max_cll") ||
-			!check_mastering_luminance_range(params_resource, &params->data, params->data.max_fall, "max_fall")) {
+	uint32_t version = wl_resource_get_version(params_resource);
+	if (version < 2 &&
+			(!check_mastering_luminance_range(params_resource, &params->data, params->data.max_cll, "max_cll") ||
+			!check_mastering_luminance_range(params_resource, &params->data, params->data.max_fall, "max_fall"))) {
 		return;
 	}
 
@@ -673,29 +718,35 @@ static void manager_handle_get_output(struct wl_client *client,
 	struct wlr_color_manager_v1 *manager = manager_from_resource(manager_resource);
 	struct wlr_output *output = wlr_output_from_resource(output_resource);
 
+	uint32_t version = wl_resource_get_version(manager_resource);
+	struct wl_resource *cm_output_resource = wl_resource_create(client,
+		&wp_color_management_output_v1_interface, version, id);
+	if (!cm_output_resource) {
+		wl_client_post_no_memory(client);
+		return;
+	}
+	wl_resource_set_implementation(cm_output_resource, &cm_output_impl,
+		NULL, cm_output_handle_resource_destroy);
+
+	if (output == NULL) {
+		return; // leave the wp_color_management_output_v1 resource inert
+	}
+
 	struct wlr_color_management_output_v1 *cm_output = calloc(1, sizeof(*cm_output));
 	if (cm_output == NULL) {
 		wl_client_post_no_memory(client);
 		return;
 	}
 
+	cm_output->resource = cm_output_resource;
 	cm_output->manager = manager;
-
-	uint32_t version = wl_resource_get_version(manager_resource);
-	cm_output->resource = wl_resource_create(client,
-		&wp_color_management_output_v1_interface, version, id);
-	if (!cm_output->resource) {
-		wl_client_post_no_memory(client);
-		free(cm_output);
-		return;
-	}
-	wl_resource_set_implementation(cm_output->resource, &cm_output_impl,
-		cm_output, cm_output_handle_resource_destroy);
+	cm_output->output = output;
 
 	cm_output->output_destroy.notify = cm_output_handle_output_destroy;
 	wl_signal_add(&output->events.destroy, &cm_output->output_destroy);
 
 	wl_list_insert(&manager->outputs, &cm_output->link);
+	wl_resource_set_user_data(cm_output->resource, cm_output);
 }
 
 static struct wlr_color_management_surface_v1 *cm_surface_from_surface(struct wlr_surface *surface) {
@@ -778,7 +829,7 @@ static void manager_handle_get_surface_feedback(struct wl_client *client,
 
 	surface_feedback->surface = surface;
 	surface_feedback->data = (struct wlr_image_description_v1_data){
-		.tf_named = WP_COLOR_MANAGER_V1_TRANSFER_FUNCTION_SRGB,
+		.tf_named = WP_COLOR_MANAGER_V1_TRANSFER_FUNCTION_GAMMA22,
 		.primaries_named = WP_COLOR_MANAGER_V1_PRIMARIES_SRGB,
 	};
 
@@ -875,8 +926,11 @@ static void manager_bind(struct wl_client *client, void *data,
 			manager->render_intents[i]);
 	}
 	for (size_t i = 0; i < manager->transfer_functions_len; i++) {
-		wp_color_manager_v1_send_supported_tf_named(resource,
-			manager->transfer_functions[i]);
+		enum wp_color_manager_v1_transfer_function tf = manager->transfer_functions[i];
+		if (!wp_color_manager_v1_transfer_function_is_valid(tf, version)) {
+			continue;
+		}
+		wp_color_manager_v1_send_supported_tf_named(resource, tf);
 	}
 	for (size_t i = 0; i < manager->primaries_len; i++) {
 		wp_color_manager_v1_send_supported_primaries_named(resource,
@@ -888,23 +942,14 @@ static void manager_bind(struct wl_client *client, void *data,
 
 static void manager_handle_display_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_color_manager_v1 *manager = wl_container_of(listener, manager, display_destroy);
+	wl_signal_emit_mutable(&manager->events.destroy, NULL);
+	assert(wl_list_empty(&manager->events.destroy.listener_list));
 	wl_list_remove(&manager->display_destroy.link);
 	wl_global_destroy(manager->global);
 	free(manager->render_intents);
 	free(manager->transfer_functions);
 	free(manager->primaries);
 	free(manager);
-}
-
-static bool memdup(void *out, const void *src, size_t size) {
-	void *dst = malloc(size);
-	if (dst == NULL) {
-		return false;
-	}
-	memcpy(dst, src, size);
-	void **dst_ptr = out;
-	*dst_ptr = dst;
-	return true;
 }
 
 struct wlr_color_manager_v1 *wlr_color_manager_v1_create(struct wl_display *display,
@@ -918,6 +963,10 @@ struct wlr_color_manager_v1 *wlr_color_manager_v1_create(struct wl_display *disp
 		}
 	}
 	assert(has_perceptual_render_intent);
+
+	for (size_t i = 0; i < options->transfer_functions_len; i++) {
+		assert(options->transfer_functions[i] != WP_COLOR_MANAGER_V1_TRANSFER_FUNCTION_SRGB);
+	}
 
 	// TODO: add support for all of these features
 	assert(!options->features.icc_v2_v4);
@@ -946,6 +995,7 @@ struct wlr_color_manager_v1 *wlr_color_manager_v1_create(struct wl_display *disp
 	manager->transfer_functions_len = options->transfer_functions_len;
 	manager->primaries_len = options->primaries_len;
 
+	wl_signal_init(&manager->events.destroy);
 	wl_list_init(&manager->outputs);
 	wl_list_init(&manager->surface_feedbacks);
 
@@ -981,14 +1031,131 @@ void wlr_color_manager_v1_set_surface_preferred_image_description(
 		struct wlr_color_manager_v1 *manager, struct wlr_surface *surface,
 		const struct wlr_image_description_v1_data *data) {
 	// TODO: de-duplicate identity
-	uint32_t identity = ++manager->last_image_desc_identity;
+	uint64_t identity = ++manager->last_image_desc_identity;
+	uint32_t identity_hi = identity >> 32;
+	uint32_t identity_lo = (uint32_t)identity;
 
 	struct wlr_color_management_surface_feedback_v1 *surface_feedback;
 	wl_list_for_each(surface_feedback, &manager->surface_feedbacks, link) {
-		if (surface_feedback->surface == surface) {
-			surface_feedback->data = *data;
+		if (surface_feedback->surface != surface ||
+				img_desc_data_equal(&surface_feedback->data, data)) {
+			continue;
+		}
+
+		surface_feedback->data = *data;
+
+		uint32_t version = wl_resource_get_version(surface_feedback->resource);
+		if (version >= WP_COLOR_MANAGEMENT_SURFACE_FEEDBACK_V1_PREFERRED_CHANGED2_SINCE_VERSION) {
+			wp_color_management_surface_feedback_v1_send_preferred_changed2(
+				surface_feedback->resource, identity_hi, identity_lo);
+		} else {
 			wp_color_management_surface_feedback_v1_send_preferred_changed(
-				surface_feedback->resource, identity);
+				surface_feedback->resource, identity_lo);
 		}
 	}
+}
+
+enum wlr_color_transfer_function
+wlr_color_manager_v1_transfer_function_to_wlr(enum wp_color_manager_v1_transfer_function tf) {
+	switch (tf) {
+	case WP_COLOR_MANAGER_V1_TRANSFER_FUNCTION_COMPOUND_POWER_2_4:
+		return WLR_COLOR_TRANSFER_FUNCTION_SRGB;
+	case WP_COLOR_MANAGER_V1_TRANSFER_FUNCTION_ST2084_PQ:
+		return WLR_COLOR_TRANSFER_FUNCTION_ST2084_PQ;
+	case WP_COLOR_MANAGER_V1_TRANSFER_FUNCTION_EXT_LINEAR:
+		return WLR_COLOR_TRANSFER_FUNCTION_EXT_LINEAR;
+	case WP_COLOR_MANAGER_V1_TRANSFER_FUNCTION_GAMMA22:
+		return WLR_COLOR_TRANSFER_FUNCTION_GAMMA22;
+	case WP_COLOR_MANAGER_V1_TRANSFER_FUNCTION_BT1886:
+		return WLR_COLOR_TRANSFER_FUNCTION_BT1886;
+	default:
+		abort();
+	}
+}
+
+enum wp_color_manager_v1_transfer_function
+wlr_color_manager_v1_transfer_function_from_wlr(enum wlr_color_transfer_function tf) {
+	switch (tf) {
+	case WLR_COLOR_TRANSFER_FUNCTION_SRGB:
+		return WP_COLOR_MANAGER_V1_TRANSFER_FUNCTION_COMPOUND_POWER_2_4;
+	case WLR_COLOR_TRANSFER_FUNCTION_ST2084_PQ:
+		return WP_COLOR_MANAGER_V1_TRANSFER_FUNCTION_ST2084_PQ;
+	case WLR_COLOR_TRANSFER_FUNCTION_EXT_LINEAR:
+		return WP_COLOR_MANAGER_V1_TRANSFER_FUNCTION_EXT_LINEAR;
+	case WLR_COLOR_TRANSFER_FUNCTION_GAMMA22:
+		return WP_COLOR_MANAGER_V1_TRANSFER_FUNCTION_GAMMA22;
+	case WLR_COLOR_TRANSFER_FUNCTION_BT1886:
+		return WP_COLOR_MANAGER_V1_TRANSFER_FUNCTION_BT1886;
+	}
+	abort();
+}
+
+enum wlr_color_named_primaries
+wlr_color_manager_v1_primaries_to_wlr(enum wp_color_manager_v1_primaries primaries) {
+	switch (primaries) {
+	case WP_COLOR_MANAGER_V1_PRIMARIES_SRGB:
+		return WLR_COLOR_NAMED_PRIMARIES_SRGB;
+	case WP_COLOR_MANAGER_V1_PRIMARIES_BT2020:
+		return WLR_COLOR_NAMED_PRIMARIES_BT2020;
+	default:
+		abort();
+	}
+}
+
+enum wp_color_manager_v1_primaries
+wlr_color_manager_v1_primaries_from_wlr(enum wlr_color_named_primaries primaries) {
+	switch (primaries) {
+	case WLR_COLOR_NAMED_PRIMARIES_SRGB:
+		return WP_COLOR_MANAGER_V1_PRIMARIES_SRGB;
+	case WLR_COLOR_NAMED_PRIMARIES_BT2020:
+		return WP_COLOR_MANAGER_V1_PRIMARIES_BT2020;
+	}
+	abort();
+}
+
+enum wp_color_manager_v1_transfer_function *
+wlr_color_manager_v1_transfer_function_list_from_renderer(struct wlr_renderer *renderer, size_t *len) {
+	if (!renderer->features.input_color_transform) {
+		*len = 0;
+		return NULL;
+	}
+
+	const enum wp_color_manager_v1_transfer_function list[] = {
+		WP_COLOR_MANAGER_V1_TRANSFER_FUNCTION_GAMMA22,
+		WP_COLOR_MANAGER_V1_TRANSFER_FUNCTION_ST2084_PQ,
+		WP_COLOR_MANAGER_V1_TRANSFER_FUNCTION_EXT_LINEAR,
+		WP_COLOR_MANAGER_V1_TRANSFER_FUNCTION_BT1886,
+		WP_COLOR_MANAGER_V1_TRANSFER_FUNCTION_COMPOUND_POWER_2_4,
+	};
+
+	enum wp_color_manager_v1_transfer_function *out = NULL;
+	if (!memdup(&out, list, sizeof(list))) {
+		*len = 0;
+		return NULL;
+	}
+
+	*len = sizeof(list) / sizeof(list[0]);
+	return out;
+}
+
+enum wp_color_manager_v1_primaries *
+wlr_color_manager_v1_primaries_list_from_renderer(struct wlr_renderer *renderer, size_t *len) {
+	if (!renderer->features.input_color_transform) {
+		*len = 0;
+		return NULL;
+	}
+
+	const enum wp_color_manager_v1_primaries list[] = {
+		WP_COLOR_MANAGER_V1_PRIMARIES_SRGB,
+		WP_COLOR_MANAGER_V1_PRIMARIES_BT2020,
+	};
+
+	enum wp_color_manager_v1_primaries *out = NULL;
+	if (!memdup(&out, list, sizeof(list))) {
+		*len = 0;
+		return NULL;
+	}
+
+	*len = sizeof(list) / sizeof(list[0]);
+	return out;
 }

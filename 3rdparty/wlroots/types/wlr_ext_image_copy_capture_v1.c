@@ -6,25 +6,15 @@
 #include <wlr/types/wlr_ext_image_copy_capture_v1.h>
 #include <wlr/types/wlr_seat.h>
 #include <wlr/render/wlr_renderer.h>
+#include "ext-image-copy-capture-v1-protocol.h"
 #include "render/pixel_format.h"
 
 #define IMAGE_COPY_CAPTURE_MANAGER_V1_VERSION 1
 
-struct wlr_ext_image_copy_capture_session_v1 {
-	struct wl_resource *resource;
-	struct wlr_ext_image_capture_source_v1 *source;
-	struct wlr_ext_image_copy_capture_frame_v1 *frame;
-
-	struct wl_listener source_destroy;
-	struct wl_listener source_constraints_update;
-	struct wl_listener source_frame;
-
-	pixman_region32_t damage;
-};
-
 struct wlr_ext_image_copy_capture_cursor_session_v1 {
 	struct wl_resource *resource;
 	struct wlr_ext_image_capture_source_v1_cursor *source;
+	struct wlr_ext_image_copy_capture_manager_v1 *manager;
 	bool capture_session_created;
 
 	struct {
@@ -39,9 +29,17 @@ struct wlr_ext_image_copy_capture_cursor_session_v1 {
 	struct wl_listener source_update;
 };
 
+static const struct ext_image_copy_capture_manager_v1_interface manager_impl;
 static const struct ext_image_copy_capture_frame_v1_interface frame_impl;
 static const struct ext_image_copy_capture_session_v1_interface session_impl;
 static const struct ext_image_copy_capture_cursor_session_v1_interface cursor_session_impl;
+
+static struct wlr_ext_image_copy_capture_manager_v1 *manager_from_resource(
+		struct wl_resource *resource) {
+	assert(wl_resource_instance_of(resource,
+		&ext_image_copy_capture_manager_v1_interface, &manager_impl));
+	return wl_resource_get_user_data(resource);
+}
 
 static struct wlr_ext_image_copy_capture_frame_v1 *frame_from_resource(
 		struct wl_resource *resource) {
@@ -280,10 +278,10 @@ static void frame_handle_capture(struct wl_client *client,
 
 	frame->capturing = true;
 
-	bool need_frame = !pixman_region32_empty(&frame->session->damage);
+	bool schedule_frame = !pixman_region32_empty(&frame->session->damage);
 	struct wlr_ext_image_capture_source_v1 *source = frame->session->source;
-	if (need_frame && source->impl->schedule_frame) {
-		source->impl->schedule_frame(source);
+	if (source->impl->request_frame) {
+		source->impl->request_frame(source, schedule_frame);
 	}
 }
 
@@ -384,6 +382,8 @@ static void session_destroy(struct wlr_ext_image_copy_capture_session_v1 *sessio
 		return;
 	}
 
+	wl_signal_emit_mutable(&session->events.destroy, NULL);
+
 	if (session->frame != NULL) {
 		wlr_ext_image_copy_capture_frame_v1_fail(session->frame,
 			EXT_IMAGE_COPY_CAPTURE_FRAME_V1_FAILURE_REASON_STOPPED);
@@ -400,6 +400,9 @@ static void session_destroy(struct wlr_ext_image_copy_capture_session_v1 *sessio
 	wl_list_remove(&session->source_destroy.link);
 	wl_list_remove(&session->source_constraints_update.link);
 	wl_list_remove(&session->source_frame.link);
+
+	assert(wl_list_empty(&session->events.destroy.listener_list));
+
 	free(session);
 }
 
@@ -437,7 +440,7 @@ static void session_handle_resource_destroy(struct wl_resource *resource) {
 }
 
 static void session_create(struct wl_resource *parent_resource, uint32_t new_id,
-		struct wlr_ext_image_capture_source_v1 *source, uint32_t options) {
+		struct wlr_ext_image_capture_source_v1 *source, uint32_t options, struct wlr_ext_image_copy_capture_manager_v1 *manager) {
 	struct wl_client *client = wl_resource_get_client(parent_resource);
 	uint32_t version = wl_resource_get_version(parent_resource);
 	struct wl_resource *session_resource = wl_resource_create(client,
@@ -480,6 +483,9 @@ static void session_create(struct wl_resource *parent_resource, uint32_t new_id,
 
 	wl_resource_set_user_data(session_resource, session);
 	session_send_constraints(session);
+
+	wl_signal_init(&session->events.destroy);
+	wl_signal_emit_mutable(&manager->events.new_session, session);
 }
 
 static void cursor_session_destroy(struct wlr_ext_image_copy_capture_cursor_session_v1 *cursor_session) {
@@ -512,14 +518,16 @@ static void cursor_session_handle_get_capture_session(struct wl_client *client,
 		return;
 	}
 
-	cursor_session->capture_session_created = true;
-
+	struct wlr_ext_image_copy_capture_manager_v1 *manager = NULL;
 	struct wlr_ext_image_capture_source_v1 *source = NULL;
+
 	if (cursor_session != NULL) {
+		manager = cursor_session->manager;
+		cursor_session->capture_session_created = true;
 		source = &cursor_session->source->base;
 	}
 
-	session_create(cursor_session_resource, new_id, source, 0);
+	session_create(cursor_session_resource, new_id, source, 0, manager);
 }
 
 static const struct ext_image_copy_capture_cursor_session_v1_interface cursor_session_impl = {
@@ -582,7 +590,7 @@ static void manager_handle_create_session(struct wl_client *client,
 		struct wl_resource *source_resource, uint32_t options) {
 	struct wlr_ext_image_capture_source_v1 *source =
 		wlr_ext_image_capture_source_v1_from_resource(source_resource);
-	session_create(manager_resource, new_id, source, options);
+	session_create(manager_resource, new_id, source, options, manager_from_resource(manager_resource));
 }
 
 static void manager_handle_create_pointer_cursor_session(struct wl_client *client,
@@ -623,6 +631,7 @@ static void manager_handle_create_pointer_cursor_session(struct wl_client *clien
 
 	cursor_session->resource = cursor_session_resource;
 	cursor_session->source = source_cursor;
+	cursor_session->manager = manager_from_resource(manager_resource);
 
 	cursor_session->source_destroy.notify = cursor_session_handle_source_destroy;
 	wl_signal_add(&source_cursor->base.events.destroy, &cursor_session->source_destroy);
@@ -648,18 +657,20 @@ static const struct ext_image_copy_capture_manager_v1_interface manager_impl = {
 
 static void manager_bind(struct wl_client *client, void *data,
 		uint32_t version, uint32_t id) {
+	struct wlr_ext_image_copy_capture_manager_v1 *manager = data;
 	struct wl_resource *resource = wl_resource_create(client,
 		&ext_image_copy_capture_manager_v1_interface, version, id);
 	if (!resource) {
 		wl_client_post_no_memory(client);
 		return;
 	}
-	wl_resource_set_implementation(resource, &manager_impl, NULL, NULL);
+	wl_resource_set_implementation(resource, &manager_impl, manager, NULL);
 }
 
 static void manager_handle_display_destroy(struct wl_listener *listener, void *data) {
 	struct wlr_ext_image_copy_capture_manager_v1 *manager =
 		wl_container_of(listener, manager, display_destroy);
+	assert(wl_list_empty(&manager->events.new_session.listener_list));
 	wl_list_remove(&manager->display_destroy.link);
 	wl_global_destroy(manager->global);
 	free(manager);
@@ -683,6 +694,8 @@ struct wlr_ext_image_copy_capture_manager_v1 *wlr_ext_image_copy_capture_manager
 
 	manager->display_destroy.notify = manager_handle_display_destroy;
 	wl_display_add_destroy_listener(display, &manager->display_destroy);
+
+	wl_signal_init(&manager->events.new_session);
 
 	return manager;
 }

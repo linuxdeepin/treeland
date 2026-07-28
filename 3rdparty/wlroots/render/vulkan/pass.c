@@ -57,28 +57,33 @@ static void convert_pixman_box_to_vk_rect(const pixman_box32_t *box, VkRect2D *r
 }
 
 static float color_to_linear(float non_linear) {
-	// See https://www.w3.org/Graphics/Color/srgb
-	return (non_linear > 0.04045) ?
-		pow((non_linear + 0.055) / 1.055, 2.4) :
-		non_linear / 12.92;
+	return pow(non_linear, 2.2);
 }
 
 static float color_to_linear_premult(float non_linear, float alpha) {
 	return (alpha == 0) ? 0 : color_to_linear(non_linear / alpha) * alpha;
 }
 
-static void mat3_to_mat4(const float mat3[9], float mat4[4][4]) {
-	memset(mat4, 0, sizeof(float) * 16);
-	mat4[0][0] = mat3[0];
-	mat4[0][1] = mat3[1];
-	mat4[0][3] = mat3[2];
+static void encode_proj_matrix(const float mat3[9], float mat4[4][4]) {
+	float result[4][4] = {
+		{ mat3[0], mat3[1], 0, mat3[2] },
+		{ mat3[3], mat3[4], 0, mat3[5] },
+		{ 0, 0, 1, 0 },
+		{ 0, 0, 0, 1 },
+	};
 
-	mat4[1][0] = mat3[3];
-	mat4[1][1] = mat3[4];
-	mat4[1][3] = mat3[5];
+	memcpy(mat4, result, sizeof(result));
+}
 
-	mat4[2][2] = 1.f;
-	mat4[3][3] = 1.f;
+static void encode_color_matrix(const float mat3[9], float mat4[4][4]) {
+	float result[4][4] = {
+		{ mat3[0], mat3[1], mat3[2], 0 },
+		{ mat3[3], mat3[4], mat3[5], 0 },
+		{ mat3[6], mat3[7], mat3[8], 0 },
+		{ 0, 0, 0, 0 },
+	};
+
+	memcpy(mat4, result, sizeof(result));
 }
 
 static void render_pass_destroy(struct wlr_vk_render_pass *pass) {
@@ -175,6 +180,46 @@ static bool render_pass_wait_render_buffer(struct wlr_vk_render_pass *pass,
 	return true;
 }
 
+static bool unwrap_color_transform(struct wlr_color_transform *transform,
+		float matrix[static 9], enum wlr_color_transfer_function *tf) {
+	if (transform == NULL) {
+		wlr_matrix_identity(matrix);
+		*tf = WLR_COLOR_TRANSFER_FUNCTION_GAMMA22;
+		return true;
+	}
+	struct wlr_color_transform_inverse_eotf *eotf;
+	struct wlr_color_transform_matrix *as_matrix;
+	struct wlr_color_transform_pipeline *pipeline;
+	switch (transform->type) {
+	case COLOR_TRANSFORM_INVERSE_EOTF:
+		eotf = wlr_color_transform_inverse_eotf_from_base(transform);
+		wlr_matrix_identity(matrix);
+		*tf = eotf->tf;
+		return true;
+	case COLOR_TRANSFORM_MATRIX:
+		as_matrix = wl_container_of(transform, as_matrix, base);
+		memcpy(matrix, as_matrix->matrix, sizeof(float[9]));
+		*tf = WLR_COLOR_TRANSFER_FUNCTION_EXT_LINEAR;
+		return true;
+	case COLOR_TRANSFORM_PIPELINE:
+		pipeline = wl_container_of(transform, pipeline, base);
+		if (pipeline->len != 2
+				|| pipeline->transforms[0]->type != COLOR_TRANSFORM_MATRIX
+				|| pipeline->transforms[1]->type != COLOR_TRANSFORM_INVERSE_EOTF) {
+			return false;
+		}
+		as_matrix = wl_container_of(pipeline->transforms[0], as_matrix, base);
+		eotf = wlr_color_transform_inverse_eotf_from_base(pipeline->transforms[1]);
+		memcpy(matrix, as_matrix->matrix, sizeof(float[9]));
+		*tf = eotf->tf;
+		return true;
+	case COLOR_TRANSFORM_LCMS2:
+	case COLOR_TRANSFORM_LUT_3X1D:
+		return false;
+	}
+	return false;
+}
+
 static bool render_pass_submit(struct wlr_render_pass *wlr_pass) {
 	struct wlr_vk_render_pass *pass = get_render_pass(wlr_pass);
 	struct wlr_vk_renderer *renderer = pass->renderer;
@@ -196,7 +241,7 @@ static bool render_pass_submit(struct wlr_render_pass *wlr_pass) {
 	assert(stage_cb != NULL);
 	renderer->stage.cb = NULL;
 
-	if (!pass->srgb_pathway) {
+	if (pass->two_pass) {
 		// Apply output shader to map blend image to actual output image
 		vkCmdNextSubpass(render_cb->vk, VK_SUBPASS_CONTENTS_INLINE);
 
@@ -212,25 +257,55 @@ static bool render_pass_submit(struct wlr_render_pass *wlr_pass) {
 			.uv_off = { 0, 0 },
 			.uv_size = { 1, 1 },
 		};
+		encode_proj_matrix(final_matrix, vert_pcr_data.mat4);
 
+		float matrix[9];
+		enum wlr_color_transfer_function tf = WLR_COLOR_TRANSFER_FUNCTION_GAMMA22;
+		bool need_lut = false;
 		size_t dim = 1;
-		if (pass->color_transform && pass->color_transform->type == COLOR_TRANSFORM_LUT_3D) {
-			struct wlr_color_transform_lut3d *lut3d =
-				wlr_color_transform_lut3d_from_base(pass->color_transform);
-			dim = lut3d->dim_len;
+		struct wlr_vk_color_transform *transform = NULL;
+		if (pass->color_transform != NULL) {
+			transform = get_color_transform(pass->color_transform, renderer);
+			assert(transform);
+			need_lut = transform->lut_3d.dim > 0;
+			dim = need_lut ? transform->lut_3d.dim : 1;
+			memcpy(matrix, transform->color_matrix, sizeof(matrix));
+			tf = transform->inverse_eotf;
+		}
+		if (pass->color_transform == NULL || need_lut) {
+			wlr_matrix_identity(matrix);
 		}
 
 		struct wlr_vk_frag_output_pcr_data frag_pcr_data = {
 			.lut_3d_offset = 0.5f / dim,
 			.lut_3d_scale = (float)(dim - 1) / dim,
 		};
-		mat3_to_mat4(final_matrix, vert_pcr_data.mat4);
 
-		if (pass->color_transform) {
-			bind_pipeline(pass, render_buffer->plain.render_setup->output_pipe_lut3d);
+		encode_color_matrix(matrix, frag_pcr_data.matrix);
+
+		VkPipeline pipeline = VK_NULL_HANDLE;
+		if (need_lut) {
+			pipeline = render_buffer->two_pass.render_setup->output_pipe_lut3d;
 		} else {
-			bind_pipeline(pass, render_buffer->plain.render_setup->output_pipe_srgb);
+			switch (tf) {
+			case WLR_COLOR_TRANSFER_FUNCTION_EXT_LINEAR:
+				pipeline = render_buffer->two_pass.render_setup->output_pipe_identity;
+				break;
+			case WLR_COLOR_TRANSFER_FUNCTION_SRGB:
+				pipeline = render_buffer->two_pass.render_setup->output_pipe_srgb;
+				break;
+			case WLR_COLOR_TRANSFER_FUNCTION_ST2084_PQ:
+				pipeline = render_buffer->two_pass.render_setup->output_pipe_pq;
+				break;
+			case WLR_COLOR_TRANSFER_FUNCTION_GAMMA22:
+				pipeline = render_buffer->two_pass.render_setup->output_pipe_gamma22;
+				break;
+			case WLR_COLOR_TRANSFER_FUNCTION_BT1886:
+				pipeline = render_buffer->two_pass.render_setup->output_pipe_bt1886;
+				break;
+			}
 		}
+		bind_pipeline(pass, pipeline);
 		vkCmdPushConstants(render_cb->vk, renderer->output_pipe_layout,
 			VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(vert_pcr_data), &vert_pcr_data);
 		vkCmdPushConstants(render_cb->vk, renderer->output_pipe_layout,
@@ -238,16 +313,13 @@ static bool render_pass_submit(struct wlr_render_pass *wlr_pass) {
 			sizeof(frag_pcr_data), &frag_pcr_data);
 
 		VkDescriptorSet lut_ds;
-		if (pass->color_transform && pass->color_transform->type == COLOR_TRANSFORM_LUT_3D) {
-			struct wlr_vk_color_transform *transform =
-				get_color_transform(pass->color_transform, renderer);
-			assert(transform);
+		if (need_lut) {
 			lut_ds = transform->lut_3d.ds;
 		} else {
 			lut_ds = renderer->output_ds_lut3d_dummy;
 		}
 		VkDescriptorSet ds[] = {
-			render_buffer->plain.blend_descriptor_set, // set 0
+			render_buffer->two_pass.blend_descriptor_set, // set 0
 			lut_ds, // set 1
 		};
 		size_t ds_len = sizeof(ds) / sizeof(ds[0]);
@@ -381,30 +453,26 @@ static bool render_pass_submit(struct wlr_render_pass *wlr_pass) {
 
 	// also add acquire/release barriers for the current render buffer
 	VkImageLayout src_layout = VK_IMAGE_LAYOUT_GENERAL;
-	if (pass->srgb_pathway) {
-		if (!render_buffer->srgb.transitioned) {
-			src_layout = VK_IMAGE_LAYOUT_PREINITIALIZED;
-			render_buffer->srgb.transitioned = true;
-		}
-	} else {
-		if (!render_buffer->plain.transitioned) {
-			src_layout = VK_IMAGE_LAYOUT_PREINITIALIZED;
-			render_buffer->plain.transitioned = true;
-		}
+	if (!pass->render_buffer_out->transitioned) {
+		src_layout = VK_IMAGE_LAYOUT_PREINITIALIZED;
+		pass->render_buffer_out->transitioned = true;
+	}
+
+	if (pass->two_pass) {
 		// The render pass changes the blend image layout from
 		// color attachment to read only, so on each frame, before
 		// the render pass starts, we change it back
 		VkImageLayout blend_src_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		if (!render_buffer->plain.blend_transitioned) {
+		if (!render_buffer->two_pass.blend_transitioned) {
 			blend_src_layout = VK_IMAGE_LAYOUT_UNDEFINED;
-			render_buffer->plain.blend_transitioned = true;
+			render_buffer->two_pass.blend_transitioned = true;
 		}
 
 		VkImageMemoryBarrier blend_acq_barrier = {
 			.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
 			.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
 			.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-			.image = render_buffer->plain.blend_image,
+			.image = render_buffer->two_pass.blend_image,
 			.oldLayout = blend_src_layout,
 			.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
 			.srcAccessMask = VK_ACCESS_SHADER_READ_BIT,
@@ -600,7 +668,7 @@ error:
 
 static void render_pass_mark_box_updated(struct wlr_vk_render_pass *pass,
 		const struct wlr_box *box) {
-	if (pass->srgb_pathway) {
+	if (!pass->two_pass) {
 		return;
 	}
 
@@ -660,14 +728,11 @@ static void render_pass_add_rect(struct wlr_render_pass *wlr_pass,
 		wlr_matrix_project_box(matrix, &box, WL_OUTPUT_TRANSFORM_NORMAL, proj);
 		wlr_matrix_multiply(matrix, pass->projection, matrix);
 
-		struct wlr_vk_render_format_setup *setup = pass->srgb_pathway ?
-			pass->render_buffer->srgb.render_setup :
-			pass->render_buffer->plain.render_setup;
 		struct wlr_vk_pipeline *pipe = setup_get_or_create_pipeline(
-			setup,
+			pass->render_setup,
 			&(struct wlr_vk_pipeline_key) {
 				.source = WLR_VK_SHADER_SOURCE_SINGLE_COLOR,
-				.layout = { .ycbcr_format = NULL },
+				.layout = {0},
 			});
 		if (!pipe) {
 			pass->failed = true;
@@ -678,7 +743,7 @@ static void render_pass_add_rect(struct wlr_render_pass *wlr_pass,
 			.uv_off = { 0, 0 },
 			.uv_size = { 1, 1 },
 		};
-		mat3_to_mat4(matrix, vert_pcr_data.mat4);
+		encode_proj_matrix(matrix, vert_pcr_data.mat4);
 
 		bind_pipeline(pass, pipe->vk);
 		vkCmdPushConstants(cb, pipe->layout->vk,
@@ -761,20 +826,62 @@ static void render_pass_add_texture(struct wlr_render_pass *wlr_pass,
 			src_box.height / options->texture->height,
 		},
 	};
-	mat3_to_mat4(matrix, vert_pcr_data.mat4);
+	encode_proj_matrix(matrix, vert_pcr_data.mat4);
 
-	struct wlr_vk_render_format_setup *setup = pass->srgb_pathway ?
-		pass->render_buffer->srgb.render_setup :
-		pass->render_buffer->plain.render_setup;
+	enum wlr_color_transfer_function tf = options->transfer_function;
+	if (tf == 0) {
+		tf = WLR_COLOR_TRANSFER_FUNCTION_GAMMA22;
+	}
+
+	bool srgb_image_view = false;
+	enum wlr_vk_texture_transform tex_transform = 0;
+	switch (tf) {
+	case WLR_COLOR_TRANSFER_FUNCTION_SRGB:
+		if (texture->using_mutable_srgb) {
+			tex_transform = WLR_VK_TEXTURE_TRANSFORM_IDENTITY;
+			srgb_image_view = true;
+		} else {
+			tex_transform = WLR_VK_TEXTURE_TRANSFORM_SRGB;
+		}
+		break;
+	case WLR_COLOR_TRANSFER_FUNCTION_EXT_LINEAR:
+		tex_transform = WLR_VK_TEXTURE_TRANSFORM_IDENTITY;
+		break;
+	case WLR_COLOR_TRANSFER_FUNCTION_ST2084_PQ:
+		tex_transform = WLR_VK_TEXTURE_TRANSFORM_ST2084_PQ;
+		break;
+	case WLR_COLOR_TRANSFER_FUNCTION_GAMMA22:
+		tex_transform = WLR_VK_TEXTURE_TRANSFORM_GAMMA22;
+		break;
+	case WLR_COLOR_TRANSFER_FUNCTION_BT1886:
+		tex_transform = WLR_VK_TEXTURE_TRANSFORM_BT1886;
+		break;
+	}
+
+	enum wlr_color_encoding color_encoding = options->color_encoding;
+	bool is_ycbcr = vulkan_format_is_ycbcr(texture->format);
+	if (is_ycbcr && color_encoding == WLR_COLOR_ENCODING_NONE) {
+		color_encoding = WLR_COLOR_ENCODING_BT601;
+	}
+
+	enum wlr_color_range color_range = options->color_range;
+	if (is_ycbcr && color_range == WLR_COLOR_RANGE_NONE) {
+		color_range = WLR_COLOR_RANGE_LIMITED;
+	}
+
 	struct wlr_vk_pipeline *pipe = setup_get_or_create_pipeline(
-		setup,
+		pass->render_setup,
 		&(struct wlr_vk_pipeline_key) {
 			.source = WLR_VK_SHADER_SOURCE_TEXTURE,
 			.layout = {
-				.ycbcr_format = texture->format->is_ycbcr ? texture->format : NULL,
+				.ycbcr = {
+					.format = is_ycbcr ? texture->format : NULL,
+					.encoding = color_encoding,
+					.range = color_range,
+				},
 				.filter_mode = options->filter_mode,
 			},
-			.texture_transform = texture->transform,
+			.texture_transform = tex_transform,
 			.blend_mode = !texture->has_alpha && alpha == 1.0 ?
 				WLR_RENDER_BLEND_MODE_NONE : options->blend_mode,
 		});
@@ -784,11 +891,33 @@ static void render_pass_add_texture(struct wlr_render_pass *wlr_pass,
 	}
 
 	struct wlr_vk_texture_view *view =
-		vulkan_texture_get_or_create_view(texture, pipe->layout);
+		vulkan_texture_get_or_create_view(texture, pipe->layout, srgb_image_view);
 	if (!view) {
 		pass->failed = true;
 		return;
 	}
+
+	float color_matrix[9];
+	if (options->primaries != NULL) {
+		struct wlr_color_primaries srgb;
+		wlr_color_primaries_from_named(&srgb, WLR_COLOR_NAMED_PRIMARIES_SRGB);
+
+		wlr_color_primaries_transform_absolute_colorimetric(options->primaries,
+			&srgb, color_matrix);
+	} else {
+		wlr_matrix_identity(color_matrix);
+	}
+
+	float luminance_multiplier = 1;
+	if (options->luminance_multiplier != NULL) {
+		luminance_multiplier = *options->luminance_multiplier;
+	}
+
+	struct wlr_vk_frag_texture_pcr_data frag_pcr_data = {
+		.alpha = alpha,
+		.luminance_multiplier = luminance_multiplier,
+	};
+	encode_color_matrix(color_matrix, frag_pcr_data.matrix);
 
 	bind_pipeline(pass, pipe->vk);
 
@@ -798,8 +927,8 @@ static void render_pass_add_texture(struct wlr_render_pass *wlr_pass,
 	vkCmdPushConstants(cb, pipe->layout->vk,
 		VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(vert_pcr_data), &vert_pcr_data);
 	vkCmdPushConstants(cb, pipe->layout->vk,
-		VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(vert_pcr_data), sizeof(float),
-		&alpha);
+		VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(vert_pcr_data),
+		sizeof(frag_pcr_data), &frag_pcr_data);
 
 	pixman_region32_t clip;
 	get_clip_region(pass, options->clip, &clip);
@@ -877,9 +1006,9 @@ void vk_color_transform_destroy(struct wlr_addon *addon) {
 }
 
 static bool create_3d_lut_image(struct wlr_vk_renderer *renderer,
-		const struct wlr_color_transform_lut3d *lut_3d,
+		struct wlr_color_transform *tr, size_t dim_len,
 		VkImage *image, VkImageView *image_view,
-		VkDeviceMemory *memory,	VkDescriptorSet *ds,
+		VkDeviceMemory *memory, VkDescriptorSet *ds,
 		struct wlr_vk_descriptor_pool **ds_pool) {
 	VkDevice dev = renderer->dev->dev;
 	VkResult res;
@@ -903,7 +1032,7 @@ static bool create_3d_lut_image(struct wlr_vk_renderer *renderer,
 		.samples = VK_SAMPLE_COUNT_1_BIT,
 		.sharingMode = VK_SHARING_MODE_EXCLUSIVE,
 		.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-		.extent = (VkExtent3D) { lut_3d->dim_len, lut_3d->dim_len, lut_3d->dim_len },
+		.extent = (VkExtent3D) { dim_len, dim_len, dim_len },
 		.tiling = VK_IMAGE_TILING_OPTIMAL,
 		.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
 	};
@@ -964,7 +1093,7 @@ static bool create_3d_lut_image(struct wlr_vk_renderer *renderer,
 	}
 
 	size_t bytes_per_block = 4 * sizeof(float);
-	size_t size = lut_3d->dim_len * lut_3d->dim_len * lut_3d->dim_len * bytes_per_block;
+	size_t size = dim_len * dim_len * dim_len * bytes_per_block;
 	struct wlr_vk_buffer_span span = vulkan_get_stage_span(renderer,
 		size, bytes_per_block);
 	if (!span.buffer || span.alloc.size != size) {
@@ -972,18 +1101,26 @@ static bool create_3d_lut_image(struct wlr_vk_renderer *renderer,
 		goto fail_imageview;
 	}
 
-	char *map = (char*)span.buffer->cpu_mapping + span.alloc.start;
-	float *dst = (float*)map;
-	size_t dim_len = lut_3d->dim_len;
+	float sample_range = 1.0f / (dim_len - 1);
+	char *map = (char *)span.buffer->cpu_mapping + span.alloc.start;
+	float *dst = (float *)map;
 	for (size_t b_index = 0; b_index < dim_len; b_index++) {
 		for (size_t g_index = 0; g_index < dim_len; g_index++) {
 			for (size_t r_index = 0; r_index < dim_len; r_index++) {
 				size_t sample_index = r_index + dim_len * g_index + dim_len * dim_len * b_index;
-				size_t src_offset = 3 * sample_index;
 				size_t dst_offset = 4 * sample_index;
-				dst[dst_offset] = lut_3d->lut_3d[src_offset];
-				dst[dst_offset + 1] = lut_3d->lut_3d[src_offset + 1];
-				dst[dst_offset + 2] = lut_3d->lut_3d[src_offset + 2];
+
+				float rgb_in[3] = {
+					r_index * sample_range,
+					g_index * sample_range,
+					b_index * sample_range,
+				};
+				float rgb_out[3];
+				wlr_color_transform_eval(tr, rgb_out, rgb_in);
+
+				dst[dst_offset] = rgb_out[0];
+				dst[dst_offset + 1] = rgb_out[1];
+				dst[dst_offset + 2] = rgb_out[2];
 				dst[dst_offset + 3] = 1.0;
 			}
 		}
@@ -996,9 +1133,9 @@ static bool create_3d_lut_image(struct wlr_vk_renderer *renderer,
 		VK_ACCESS_TRANSFER_WRITE_BIT);
 	VkBufferImageCopy copy = {
 		.bufferOffset = span.alloc.start,
-		.imageExtent.width = lut_3d->dim_len,
-		.imageExtent.height = lut_3d->dim_len,
-		.imageExtent.depth = lut_3d->dim_len,
+		.imageExtent.width = dim_len,
+		.imageExtent.height = dim_len,
+		.imageExtent.depth = dim_len,
 		.imageSubresource.layerCount = 1,
 		.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
 	};
@@ -1049,9 +1186,13 @@ static struct wlr_vk_color_transform *vk_color_transform_create(
 		return NULL;
 	}
 
-	if (transform->type == COLOR_TRANSFORM_LUT_3D) {
-		if (!create_3d_lut_image(renderer,
-				wlr_color_transform_lut3d_from_base(transform),
+	bool need_lut = !unwrap_color_transform(transform, vk_transform->color_matrix,
+		&vk_transform->inverse_eotf);
+
+	if (need_lut) {
+		vk_transform->lut_3d.dim = 33;
+		if (!create_3d_lut_image(renderer, transform,
+				vk_transform->lut_3d.dim,
 				&vk_transform->lut_3d.image,
 				&vk_transform->lut_3d.image_view,
 				&vk_transform->lut_3d.memory,
@@ -1077,29 +1218,68 @@ static const struct wlr_addon_interface vk_color_transform_impl = {
 
 struct wlr_vk_render_pass *vulkan_begin_render_pass(struct wlr_vk_renderer *renderer,
 		struct wlr_vk_render_buffer *buffer, const struct wlr_buffer_pass_options *options) {
-	bool using_srgb_pathway;
+	uint32_t inv_eotf;
 	if (options != NULL && options->color_transform != NULL) {
-		using_srgb_pathway = false;
+		if (options->color_transform->type == COLOR_TRANSFORM_INVERSE_EOTF) {
+			struct wlr_color_transform_inverse_eotf *tr =
+				wlr_color_transform_inverse_eotf_from_base(options->color_transform);
+			inv_eotf = tr->tf;
+		} else {
+			// Color transform is not an inverse EOTF
+			inv_eotf = 0;
+		}
+	} else {
+		// This is the default when unspecified
+		inv_eotf = WLR_COLOR_TRANSFER_FUNCTION_GAMMA22;
+	}
 
-		if (!get_color_transform(options->color_transform, renderer)) {
+	bool using_linear_pathway = inv_eotf == WLR_COLOR_TRANSFER_FUNCTION_EXT_LINEAR;
+	bool using_srgb_pathway = inv_eotf == WLR_COLOR_TRANSFER_FUNCTION_SRGB &&
+		buffer->srgb.out.framebuffer != VK_NULL_HANDLE;
+	bool using_two_pass_pathway = !using_linear_pathway && !using_srgb_pathway;
+
+	if (using_linear_pathway && !buffer->linear.out.image_view) {
+		struct wlr_dmabuf_attributes attribs;
+		wlr_buffer_get_dmabuf(buffer->wlr_buffer, &attribs);
+		if (!vulkan_setup_one_pass_framebuffer(buffer, &attribs, false)) {
+			wlr_log(WLR_ERROR, "Failed to set up blend image");
+			return NULL;
+		}
+	}
+
+	if (using_two_pass_pathway) {
+		if (options != NULL && options->color_transform != NULL &&
+				!get_color_transform(options->color_transform, renderer)) {
 			/* Try to create a new color transform */
 			if (!vk_color_transform_create(renderer, options->color_transform)) {
 				wlr_log(WLR_ERROR, "Failed to create color transform");
 				return NULL;
 			}
 		}
-	} else {
-		// Use srgb pathway if it is the default/has already been set up
-		using_srgb_pathway = buffer->srgb.framebuffer != VK_NULL_HANDLE;
+
+		if (!buffer->two_pass.out.image_view) {
+			struct wlr_dmabuf_attributes attribs;
+			wlr_buffer_get_dmabuf(buffer->wlr_buffer, &attribs);
+			if (!vulkan_setup_two_pass_framebuffer(buffer, &attribs)) {
+				wlr_log(WLR_ERROR, "Failed to set up blend image");
+				return NULL;
+			}
+		}
 	}
 
-	if (!using_srgb_pathway && !buffer->plain.image_view) {
-		struct wlr_dmabuf_attributes attribs;
-		wlr_buffer_get_dmabuf(buffer->wlr_buffer, &attribs);
-		if (!vulkan_setup_plain_framebuffer(buffer, &attribs)) {
-			wlr_log(WLR_ERROR, "Failed to set up blend image");
-			return NULL;
-		}
+	struct wlr_vk_render_format_setup *render_setup;
+	struct wlr_vk_render_buffer_out *buffer_out;
+	if (using_two_pass_pathway) {
+		render_setup = buffer->two_pass.render_setup;
+		buffer_out = &buffer->two_pass.out;
+	} else if (using_srgb_pathway) {
+		render_setup = buffer->srgb.render_setup;
+		buffer_out = &buffer->srgb.out;
+	} else if (using_linear_pathway) {
+		render_setup = buffer->linear.render_setup;
+		buffer_out = &buffer->linear.out;
+	} else {
+		abort(); // unreachable
 	}
 
 	struct wlr_vk_render_pass *pass = calloc(1, sizeof(*pass));
@@ -1109,7 +1289,7 @@ struct wlr_vk_render_pass *vulkan_begin_render_pass(struct wlr_vk_renderer *rend
 
 	wlr_render_pass_init(&pass->base, &render_pass_impl);
 	pass->renderer = renderer;
-	pass->srgb_pathway = using_srgb_pathway;
+	pass->two_pass = using_two_pass_pathway;
 	if (options != NULL && options->color_transform != NULL) {
 		pass->color_transform = wlr_color_transform_ref(options->color_transform);
 	}
@@ -1153,14 +1333,9 @@ struct wlr_vk_render_pass *vulkan_begin_render_pass(struct wlr_vk_renderer *rend
 		.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
 		.renderArea = rect,
 		.clearValueCount = 0,
+		.renderPass = render_setup->render_pass,
+		.framebuffer = buffer_out->framebuffer,
 	};
-	if (pass->srgb_pathway) {
-		rp_info.renderPass = buffer->srgb.render_setup->render_pass;
-		rp_info.framebuffer = buffer->srgb.framebuffer;
-	} else {
-		rp_info.renderPass = buffer->plain.render_setup->render_pass;
-		rp_info.framebuffer = buffer->plain.framebuffer;
-	}
 	vkCmdBeginRenderPass(cb->vk, &rp_info, VK_SUBPASS_CONTENTS_INLINE);
 
 	vkCmdSetViewport(cb->vk, 0, 1, &(VkViewport){
@@ -1175,6 +1350,8 @@ struct wlr_vk_render_pass *vulkan_begin_render_pass(struct wlr_vk_renderer *rend
 
 	wlr_buffer_lock(buffer->wlr_buffer);
 	pass->render_buffer = buffer;
+	pass->render_buffer_out = buffer_out;
+	pass->render_setup = render_setup;
 	pass->command_buffer = cb;
 	return pass;
 }

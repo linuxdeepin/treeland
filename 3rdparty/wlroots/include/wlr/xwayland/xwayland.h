@@ -17,6 +17,7 @@
 #include <wlr/util/addon.h>
 
 struct wlr_box;
+struct wlr_buffer;
 struct wlr_xwm;
 struct wlr_data_source;
 struct wlr_drag;
@@ -41,7 +42,6 @@ struct wlr_xwayland {
 	bool own_server;
 	struct wlr_xwm *xwm;
 	struct wlr_xwayland_shell_v1 *shell_v1;
-	struct wlr_xwayland_cursor *cursor;
 
 	// Value the DISPLAY environment variable should be set to by the compositor
 	const char *display_name;
@@ -67,6 +67,11 @@ struct wlr_xwayland {
 	void *data;
 
 	struct {
+		struct wlr_buffer *cursor_buffer;
+		struct {
+			int32_t x, y;
+		} cursor_hotspot;
+
 		struct wl_listener server_start;
 		struct wl_listener server_ready;
 		struct wl_listener server_destroy;
@@ -146,7 +151,6 @@ struct wlr_xwayland_surface {
 	char *role;
 	char *startup_id;
 	pid_t pid;
-	bool has_utf8_title;
 
 	struct wl_list children; // wlr_xwayland_surface.parent_link
 	struct wlr_xwayland_surface *parent;
@@ -217,11 +221,13 @@ struct wlr_xwayland_surface {
 		struct wl_signal set_startup_id;
 		struct wl_signal set_window_type;
 		struct wl_signal set_hints;
+		struct wl_signal set_size_hints;
 		struct wl_signal set_decorations;
 		struct wl_signal set_strut_partial;
 		struct wl_signal set_override_redirect;
 		struct wl_signal set_geometry;
 		struct wl_signal set_opacity;
+		struct wl_signal set_icon;
 		struct wl_signal focus_in;
 		struct wl_signal grab_focus;
 		/* can be used to set initial maximized/fullscreen geometry */
@@ -279,8 +285,7 @@ struct wlr_xwayland *wlr_xwayland_create_with_server(struct wl_display *display,
 void wlr_xwayland_destroy(struct wlr_xwayland *wlr_xwayland);
 
 void wlr_xwayland_set_cursor(struct wlr_xwayland *wlr_xwayland,
-	uint8_t *pixels, uint32_t stride, uint32_t width, uint32_t height,
-	int32_t hotspot_x, int32_t hotspot_y);
+	struct wlr_buffer *buffer, int32_t hotspot_x, int32_t hotspot_y);
 
 void wlr_xwayland_surface_activate(struct wlr_xwayland_surface *surface,
 	bool activated);
@@ -402,6 +407,15 @@ enum wlr_xwayland_icccm_input_model wlr_xwayland_surface_icccm_input_model(
 void wlr_xwayland_set_workareas(struct wlr_xwayland *wlr_xwayland,
 	const struct wlr_box *workareas, size_t num_workareas);
 
+/**
+ * Fetches the icon set via the _NET_WM_ICON property.
+ *
+ * Returns true on success. The caller is responsible for freeing the reply
+ * using xcb_ewmh_get_wm_icon_reply_wipe().
+ */
+bool wlr_xwayland_surface_fetch_icon(
+	const struct wlr_xwayland_surface *xsurface,
+	xcb_ewmh_get_wm_icon_reply_t *icon_reply);
 
 /**
  * Get the XCB connection of the XWM.

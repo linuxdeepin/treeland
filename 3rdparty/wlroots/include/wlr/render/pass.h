@@ -12,6 +12,7 @@
 #include <pixman.h>
 #include <stdint.h>
 #include <wayland-server-core.h>
+#include <wlr/render/color.h>
 #include <wlr/util/box.h>
 
 struct wlr_renderer;
@@ -30,8 +31,9 @@ struct wlr_render_timer;
 struct wlr_buffer_pass_options {
 	/* Timer to measure the duration of the render pass */
 	struct wlr_render_timer *timer;
-	/* Color transform to apply to the output of the render pass,
-	 * leave NULL to indicate sRGB/no custom transform */
+	/* Color transform to apply to the output of the render pass.
+	 * Leave NULL to indicate the default transform (Gamma 2.2 encoding for
+	 * sRGB monitors) */
 	struct wlr_color_transform *color_transform;
 
 	/* Signal a timeline synchronization point when the render pass completes.
@@ -99,6 +101,16 @@ struct wlr_render_texture_options {
 	enum wlr_scale_filter_mode filter_mode;
 	/* Blend mode */
 	enum wlr_render_blend_mode blend_mode;
+	/* Transfer function the source texture is encoded with */
+	enum wlr_color_transfer_function transfer_function;
+	/* Primaries describing the color volume of the source texture */
+	const struct wlr_color_primaries *primaries;
+	/* Color encoding of the source texture for YCbCr conversion to RGB */
+	enum wlr_color_encoding color_encoding;
+	/* Color range of the source texture */
+	enum wlr_color_range color_range;
+	/* Default: 1.0 */
+	const float *luminance_multiplier;
 
 	/* Wait for a timeline synchronization point before texturing.
 	 *

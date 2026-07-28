@@ -7,6 +7,7 @@
 #include <vulkan/vulkan.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/render/wlr_texture.h>
+#include <wlr/render/color.h>
 #include <wlr/render/drm_format_set.h>
 #include <wlr/render/interface.h>
 #include <wlr/util/addon.h>
@@ -85,7 +86,6 @@ struct wlr_vk_format {
 	uint32_t drm;
 	VkFormat vk;
 	VkFormat vk_srgb; // sRGB version of the format, or 0 if nonexistent
-	bool is_ycbcr;
 };
 
 extern const VkImageUsageFlags vulkan_render_usage, vulkan_shm_tex_usage, vulkan_dma_tex_usage;
@@ -124,10 +124,17 @@ void vulkan_format_props_query(struct wlr_vk_device *dev,
 const struct wlr_vk_format_modifier_props *vulkan_format_props_find_modifier(
 	const struct wlr_vk_format_props *props, uint64_t mod, bool render);
 void vulkan_format_props_finish(struct wlr_vk_format_props *props);
+bool vulkan_format_is_ycbcr(const struct wlr_vk_format *format);
 
 struct wlr_vk_pipeline_layout_key {
-	const struct wlr_vk_format *ycbcr_format;
 	enum wlr_scale_filter_mode filter_mode;
+
+	// for YCbCr pipelines only
+	struct {
+		const struct wlr_vk_format *format;
+		enum wlr_color_encoding encoding;
+		enum wlr_color_range range;
+	} ycbcr;
 };
 
 struct wlr_vk_pipeline_layout {
@@ -151,6 +158,9 @@ struct wlr_vk_pipeline_layout {
 enum wlr_vk_texture_transform {
 	WLR_VK_TEXTURE_TRANSFORM_IDENTITY = 0,
 	WLR_VK_TEXTURE_TRANSFORM_SRGB = 1,
+	WLR_VK_TEXTURE_TRANSFORM_ST2084_PQ = 2,
+	WLR_VK_TEXTURE_TRANSFORM_GAMMA22 = 3,
+	WLR_VK_TEXTURE_TRANSFORM_BT1886 = 4,
 };
 
 enum wlr_vk_shader_source {
@@ -161,8 +171,12 @@ enum wlr_vk_shader_source {
 // Constants used to pick the color transform for the blend-to-output
 // fragment shader. Must match those in shaders/output.frag
 enum wlr_vk_output_transform {
-	WLR_VK_OUTPUT_TRANSFORM_INVERSE_SRGB = 0,
-	WLR_VK_OUTPUT_TRANSFORM_LUT3D = 1,
+	WLR_VK_OUTPUT_TRANSFORM_IDENTITY = 0,
+	WLR_VK_OUTPUT_TRANSFORM_INVERSE_SRGB = 1,
+	WLR_VK_OUTPUT_TRANSFORM_INVERSE_ST2084_PQ = 2,
+	WLR_VK_OUTPUT_TRANSFORM_LUT3D = 3,
+	WLR_VK_OUTPUT_TRANSFORM_INVERSE_GAMMA22 = 4,
+	WLR_VK_OUTPUT_TRANSFORM_INVERSE_BT1886 = 5,
 };
 
 struct wlr_vk_pipeline_key {
@@ -189,16 +203,28 @@ struct wlr_vk_render_format_setup {
 	struct wl_list link; // wlr_vk_renderer.render_format_setups
 	const struct wlr_vk_format *render_format; // used in renderpass
 	bool use_blending_buffer;
+	bool use_srgb;
 	VkRenderPass render_pass;
 
+	VkPipeline output_pipe_identity;
 	VkPipeline output_pipe_srgb;
+	VkPipeline output_pipe_pq;
 	VkPipeline output_pipe_lut3d;
+	VkPipeline output_pipe_gamma22;
+	VkPipeline output_pipe_bt1886;
 
 	struct wlr_vk_renderer *renderer;
 	struct wl_list pipelines; // struct wlr_vk_pipeline.link
 };
 
-// Renderer-internal represenation of an wlr_buffer imported for rendering.
+// Final output framebuffer and image view
+struct wlr_vk_render_buffer_out {
+	VkImageView image_view;
+	VkFramebuffer framebuffer;
+	bool transitioned;
+};
+
+// Renderer-internal representation of an wlr_buffer imported for rendering.
 struct wlr_vk_render_buffer {
 	struct wlr_buffer *wlr_buffer;
 	struct wlr_addon addon;
@@ -209,25 +235,27 @@ struct wlr_vk_render_buffer {
 	uint32_t mem_count;
 	VkImage image;
 
+	// Framebuffer and image view for rendering directly onto the buffer image,
+	// without any color transform.
+	struct {
+		struct wlr_vk_render_buffer_out out;
+		struct wlr_vk_render_format_setup *render_setup;
+	} linear;
+
 	// Framebuffer and image view for rendering directly onto the buffer image.
 	// This requires that the image support an _SRGB VkFormat, and does
 	// not work with color transforms.
 	struct {
+		struct wlr_vk_render_buffer_out out;
 		struct wlr_vk_render_format_setup *render_setup;
-		VkImageView image_view;
-		VkFramebuffer framebuffer;
-		bool transitioned;
 	} srgb;
 
 	// Framebuffer, image view, and blending image to render indirectly
 	// onto the buffer image. This works for general image types and permits
 	// color transforms.
 	struct {
+		struct wlr_vk_render_buffer_out out;
 		struct wlr_vk_render_format_setup *render_setup;
-
-		VkImageView image_view;
-		VkFramebuffer framebuffer;
-		bool transitioned;
 
 		VkImage blend_image;
 		VkImageView blend_image_view;
@@ -235,10 +263,12 @@ struct wlr_vk_render_buffer {
 		VkDescriptorSet blend_descriptor_set;
 		struct wlr_vk_descriptor_pool *blend_attachment_pool;
 		bool blend_transitioned;
-	} plain;
+	} two_pass;
 };
 
-bool vulkan_setup_plain_framebuffer(struct wlr_vk_render_buffer *buffer,
+bool vulkan_setup_one_pass_framebuffer(struct wlr_vk_render_buffer *buffer,
+	const struct wlr_dmabuf_attributes *dmabuf, bool srgb);
+bool vulkan_setup_two_pass_framebuffer(struct wlr_vk_render_buffer *buffer,
 	const struct wlr_dmabuf_attributes *dmabuf);
 
 struct wlr_vk_command_buffer {
@@ -334,7 +364,14 @@ struct wlr_vk_vert_pcr_data {
 	float uv_size[2];
 };
 
+struct wlr_vk_frag_texture_pcr_data {
+	float matrix[4][4]; // only a 3x3 subset is used
+	float alpha;
+	float luminance_multiplier;
+};
+
 struct wlr_vk_frag_output_pcr_data {
+	float matrix[4][4]; // only a 3x3 subset is used
 	float lut_3d_offset;
 	float lut_3d_scale;
 };
@@ -342,6 +379,7 @@ struct wlr_vk_frag_output_pcr_data {
 struct wlr_vk_texture_view {
 	struct wl_list link; // struct wlr_vk_texture.views
 	const struct wlr_vk_pipeline_layout *layout;
+	bool srgb;
 
 	VkDescriptorSet ds;
 	VkImageView image_view;
@@ -356,7 +394,7 @@ struct wlr_vk_pipeline_layout *get_or_create_pipeline_layout(
 	const struct wlr_vk_pipeline_layout_key *key);
 struct wlr_vk_texture_view *vulkan_texture_get_or_create_view(
 	struct wlr_vk_texture *texture,
-	const struct wlr_vk_pipeline_layout *layout);
+	const struct wlr_vk_pipeline_layout *layout, bool srgb);
 
 // Creates a vulkan renderer for the given device.
 struct wlr_renderer *vulkan_renderer_create_for_device(struct wlr_vk_device *dev);
@@ -381,12 +419,14 @@ struct wlr_vk_render_pass {
 	struct wlr_render_pass base;
 	struct wlr_vk_renderer *renderer;
 	struct wlr_vk_render_buffer *render_buffer;
+	struct wlr_vk_render_buffer_out *render_buffer_out;
+	struct wlr_vk_render_format_setup *render_setup;
 	struct wlr_vk_command_buffer *command_buffer;
 	struct rect_union updated_region;
 	VkPipeline bound_pipeline;
 	float projection[9];
 	bool failed;
-	bool srgb_pathway; // if false, rendering via intermediate blending buffer
+	bool two_pass; // rendering via intermediate blending buffer
 	struct wlr_color_transform *color_transform;
 
 	struct wlr_drm_syncobj_timeline *signal_timeline;
@@ -454,13 +494,12 @@ struct wlr_vk_texture {
 	VkDeviceMemory memories[WLR_DMABUF_MAX_PLANES];
 	VkImage image;
 	const struct wlr_vk_format *format;
-	enum wlr_vk_texture_transform transform;
 	struct wlr_vk_command_buffer *last_used_cb; // to track when it can be destroyed
 	bool dmabuf_imported;
 	bool owned; // if dmabuf_imported: whether we have ownership of the image
 	bool transitioned; // if dma_imported: whether we transitioned it away from preinit
 	bool has_alpha; // whether the image is has alpha channel
-	bool using_mutable_srgb; // is this accessed through _SRGB format view
+	bool using_mutable_srgb; // can be accessed through _SRGB format view
 	struct wl_list foreign_link; // wlr_vk_renderer.foreign_textures
 	struct wl_list destroy_link; // wlr_vk_command_buffer.destroy_textures
 	struct wl_list link; // wlr_vk_renderer.textures
@@ -469,7 +508,7 @@ struct wlr_vk_texture {
 	struct wlr_buffer *buffer;
 	struct wlr_addon buffer_addon;
 
-	struct wl_list views; // struct wlr_vk_texture_ds.link
+	struct wl_list views; // struct wlr_vk_texture_view.link
 };
 
 struct wlr_vk_texture *vulkan_get_texture(struct wlr_texture *wlr_texture);
@@ -511,18 +550,23 @@ struct wlr_vk_buffer_span {
 };
 
 
-// Lookup table for a color transform
+// Prepared form for a color transform
 struct wlr_vk_color_transform {
 	struct wlr_addon addon; // owned by: wlr_vk_renderer
 	struct wl_list link; // wlr_vk_renderer, list of all color transforms
 
+	// if populated, carries the entire transform, other parameters are to be ignored
 	struct {
+		size_t dim;
 		VkImage image;
 		VkImageView image_view;
 		VkDeviceMemory memory;
 		VkDescriptorSet ds;
 		struct wlr_vk_descriptor_pool *ds_pool;
 	} lut_3d;
+
+	float color_matrix[9];
+	enum wlr_color_transfer_function inverse_eotf;
 };
 void vk_color_transform_destroy(struct wlr_addon *addon);
 

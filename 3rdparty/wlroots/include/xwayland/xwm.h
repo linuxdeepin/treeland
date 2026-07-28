@@ -36,6 +36,7 @@ enum atom_name {
 	NET_WM_STATE,
 	NET_WM_STRUT_PARTIAL,
 	NET_WM_WINDOW_TYPE,
+	NET_WM_ICON,
 	WM_TAKE_FOCUS,
 	WINDOW,
 	NET_ACTIVE_WINDOW,
@@ -115,6 +116,7 @@ struct wlr_xwm {
 	xcb_connection_t *xcb_conn;
 	xcb_screen_t *screen;
 	xcb_window_t window;
+	xcb_window_t no_focus_window;
 	xcb_visualid_t visual_id;
 	xcb_colormap_t colormap;
 	xcb_render_pictformat_t render_format_id;
@@ -167,8 +169,8 @@ struct wlr_xwm *xwm_create(struct wlr_xwayland *wlr_xwayland, int wm_fd);
 
 void xwm_destroy(struct wlr_xwm *xwm);
 
-void xwm_set_cursor(struct wlr_xwm *xwm, const uint8_t *pixels, uint32_t stride,
-	uint32_t width, uint32_t height, int32_t hotspot_x, int32_t hotspot_y);
+void xwm_set_cursor(struct wlr_xwm *xwm, struct wlr_buffer *buffer,
+	int32_t hotspot_x, int32_t hotspot_y);
 
 int xwm_handle_selection_event(struct wlr_xwm *xwm, xcb_generic_event_t *event);
 int xwm_handle_selection_client_message(struct wlr_xwm *xwm,

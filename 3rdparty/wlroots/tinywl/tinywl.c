@@ -56,6 +56,7 @@ struct tinywl_server {
 	struct wlr_seat *seat;
 	struct wl_listener new_input;
 	struct wl_listener request_cursor;
+	struct wl_listener pointer_focus_change;
 	struct wl_listener request_set_selection;
 	struct wl_list keyboards;
 	enum tinywl_cursor_mode cursor_mode;
@@ -333,6 +334,18 @@ static void seat_request_cursor(struct wl_listener *listener, void *data) {
 	}
 }
 
+static void seat_pointer_focus_change(struct wl_listener *listener, void *data) {
+	struct tinywl_server *server = wl_container_of(
+			listener, server, pointer_focus_change);
+	/* This event is raised when the pointer focus is changed, including when the
+	 * client is closed. We set the cursor image to its default if target surface
+	 * is NULL */
+	struct wlr_seat_pointer_focus_change_event *event = data;
+	if (event->new_surface == NULL) {
+		wlr_cursor_set_xcursor(server->cursor, server->cursor_mgr, "default");
+	}
+}
+
 static void seat_request_set_selection(struct wl_listener *listener, void *data) {
 	/* This event is raised by the seat when a client wants to set the selection,
 	 * usually when the user copies something. wlroots allows compositors to
@@ -601,7 +614,7 @@ static void server_new_output(struct wl_listener *listener, void *data) {
 	struct wlr_output *wlr_output = data;
 
 	/* Configures the output created by the backend to use our allocator
-	 * and our renderer. Must be done once, before commiting the output */
+	 * and our renderer. Must be done once, before committing the output */
 	wlr_output_init_render(wlr_output, server->allocator, server->renderer);
 
 	/* The output may be disabled, switch it on. */
@@ -710,7 +723,7 @@ static void xdg_toplevel_destroy(struct wl_listener *listener, void *data) {
 static void begin_interactive(struct tinywl_toplevel *toplevel,
 		enum tinywl_cursor_mode mode, uint32_t edges) {
 	/* This function sets up an interactive move or resize operation, where the
-	 * compositor stops propegating pointer events to clients and instead
+	 * compositor stops propagating pointer events to clients and instead
 	 * consumes them itself, to move or resize windows. */
 	struct tinywl_server *server = toplevel->server;
 
@@ -893,7 +906,7 @@ int main(int argc, char *argv[]) {
 
 	struct tinywl_server server = {0};
 	/* The Wayland display is managed by libwayland. It handles accepting
-	 * clients from the Unix socket, manging Wayland globals, and so on. */
+	 * clients from the Unix socket, managing Wayland globals, and so on. */
 	server.wl_display = wl_display_create();
 	/* The backend is a wlroots feature which abstracts the underlying input and
 	 * output hardware. The autocreate option will choose the most suitable
@@ -1018,6 +1031,9 @@ int main(int argc, char *argv[]) {
 	server.request_cursor.notify = seat_request_cursor;
 	wl_signal_add(&server.seat->events.request_set_cursor,
 			&server.request_cursor);
+	server.pointer_focus_change.notify = seat_pointer_focus_change;
+	wl_signal_add(&server.seat->pointer_state.events.focus_change,
+			&server.pointer_focus_change);
 	server.request_set_selection.notify = seat_request_set_selection;
 	wl_signal_add(&server.seat->events.request_set_selection,
 			&server.request_set_selection);
@@ -1069,6 +1085,7 @@ int main(int argc, char *argv[]) {
 
 	wl_list_remove(&server.new_input.link);
 	wl_list_remove(&server.request_cursor.link);
+	wl_list_remove(&server.pointer_focus_change.link);
 	wl_list_remove(&server.request_set_selection.link);
 
 	wl_list_remove(&server.new_output.link);

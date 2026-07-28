@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <wayland-server-core.h>
 #include <wlr/render/drm_syncobj.h>
 #include <wlr/types/wlr_buffer.h>
 #include <wlr/types/wlr_compositor.h>
@@ -11,6 +12,7 @@
 #include <xf86drm.h>
 #include "config.h"
 #include "linux-drm-syncobj-v1-protocol.h"
+#include "render/drm_syncobj_merger.h"
 
 #define LINUX_DRM_SYNCOBJ_V1_VERSION 1
 
@@ -158,20 +160,39 @@ static void surface_synced_finish_state(void *_state) {
 	struct wlr_linux_drm_syncobj_surface_v1_state *state = _state;
 	wlr_drm_syncobj_timeline_unref(state->acquire_timeline);
 	wlr_drm_syncobj_timeline_unref(state->release_timeline);
+	wlr_drm_syncobj_merger_unref(state->release_merger);
 }
 
 static void surface_synced_move_state(void *_dst, void *_src) {
 	struct wlr_linux_drm_syncobj_surface_v1_state *dst = _dst, *src = _src;
-	// TODO: immediately signal dst.release_timeline if necessary
+	if (src->acquire_timeline == NULL) {
+		// ignore commits that did not attach a buffer
+		return;
+	}
 	surface_synced_finish_state(dst);
 	*dst = *src;
+	dst->committed = true;
 	*src = (struct wlr_linux_drm_syncobj_surface_v1_state){0};
 }
+
+static void surface_synced_commit(struct wlr_surface_synced *synced) {
+	struct wlr_linux_drm_syncobj_surface_v1 *surface = wl_container_of(synced, surface, synced);
+
+	if (!surface->current.committed) {
+		return;
+	}
+
+	surface->current.release_merger = wlr_drm_syncobj_merger_create(
+		surface->current.release_timeline, surface->current.release_point);
+	surface->current.committed = false;
+}
+
 
 static const struct wlr_surface_synced_impl surface_synced_impl = {
 	.state_size = sizeof(struct wlr_linux_drm_syncobj_surface_v1_state),
 	.finish_state = surface_synced_finish_state,
 	.move_state = surface_synced_move_state,
+	.commit = surface_synced_commit,
 };
 
 static void manager_handle_destroy(struct wl_client *client,
@@ -365,6 +386,7 @@ static void manager_handle_import_timeline(struct wl_client *client,
 	struct wl_resource *timeline_resource = wl_resource_create(client,
 		&wp_linux_drm_syncobj_timeline_v1_interface, version, id);
 	if (timeline_resource == NULL) {
+		wlr_drm_syncobj_timeline_unref(timeline);
 		wl_resource_post_no_memory(resource);
 		return;
 	}
@@ -422,6 +444,11 @@ struct wlr_linux_drm_syncobj_manager_v1 *wlr_linux_drm_syncobj_manager_v1_create
 		struct wl_display *display, uint32_t version, int drm_fd) {
 	assert(version <= LINUX_DRM_SYNCOBJ_V1_VERSION);
 
+	if (!HAVE_LINUX_SYNC_FILE) {
+		wlr_log(WLR_INFO, "Linux sync_file unavailable, disabling linux-drm-syncobj-v1");
+		return NULL;
+	}
+
 	if (!check_syncobj_eventfd(drm_fd)) {
 		wlr_log(WLR_INFO, "DRM syncobj eventfd unavailable, disabling linux-drm-syncobj-v1");
 		return NULL;
@@ -467,20 +494,14 @@ wlr_linux_drm_syncobj_v1_get_surface_state(struct wlr_surface *wlr_surface) {
 }
 
 struct release_signaller {
-	struct wlr_drm_syncobj_timeline *timeline;
-	uint64_t point;
+	struct wlr_drm_syncobj_merger *merger;
 	struct wl_listener buffer_release;
 };
 
 static void release_signaller_handle_buffer_release(struct wl_listener *listener, void *data) {
 	struct release_signaller *signaller = wl_container_of(listener, signaller, buffer_release);
 
-	if (drmSyncobjTimelineSignal(signaller->timeline->drm_fd, &signaller->timeline->handle,
-			&signaller->point, 1) != 0) {
-		wlr_log(WLR_ERROR, "drmSyncobjTimelineSignal() failed");
-	}
-
-	wlr_drm_syncobj_timeline_unref(signaller->timeline);
+	wlr_drm_syncobj_merger_unref(signaller->merger);
 	wl_list_remove(&signaller->buffer_release.link);
 	free(signaller);
 }
@@ -488,7 +509,7 @@ static void release_signaller_handle_buffer_release(struct wl_listener *listener
 bool wlr_linux_drm_syncobj_v1_state_signal_release_with_buffer(
 		struct wlr_linux_drm_syncobj_surface_v1_state *state, struct wlr_buffer *buffer) {
 	assert(buffer->n_locks > 0);
-	if (state->release_timeline == NULL) {
+	if (state->release_merger == NULL) {
 		// This can happen if an existing surface with a buffer has a
 		// syncobj_surface_v1_state created but no new buffer with release
 		// timeline committed.
@@ -500,11 +521,23 @@ bool wlr_linux_drm_syncobj_v1_state_signal_release_with_buffer(
 		return false;
 	}
 
-	signaller->timeline = wlr_drm_syncobj_timeline_ref(state->release_timeline);
-	signaller->point = state->release_point;
-
+	signaller->merger = wlr_drm_syncobj_merger_ref(state->release_merger);
 	signaller->buffer_release.notify = release_signaller_handle_buffer_release;
 	wl_signal_add(&buffer->events.release, &signaller->buffer_release);
 
 	return true;
+}
+
+bool wlr_linux_drm_syncobj_v1_state_add_release_point(
+		struct wlr_linux_drm_syncobj_surface_v1_state *state,
+		struct wlr_drm_syncobj_timeline *release_timeline, uint64_t release_point,
+		struct wl_event_loop *event_loop) {
+	if (state->release_merger == NULL) {
+		// This can happen if an existing surface with a buffer has a
+		// syncobj_surface_v1_state created but no new buffer with release
+		// timeline committed.
+		return true;
+	}
+	return wlr_drm_syncobj_merger_add(state->release_merger,
+		release_timeline, release_point, event_loop);
 }

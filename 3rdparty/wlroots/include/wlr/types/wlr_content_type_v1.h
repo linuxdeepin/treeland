@@ -10,7 +10,7 @@
 #define WLR_TYPES_WLR_CONTENT_TYPE_V1_H
 
 #include <wayland-server-core.h>
-#include "content-type-v1-protocol.h"
+#include <wayland-protocols/content-type-v1-enum.h>
 
 struct wlr_surface;
 

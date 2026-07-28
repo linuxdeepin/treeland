@@ -85,11 +85,11 @@ static void frame_output_handle_commit(struct wl_listener *listener,
 			attribs.fd[i], size, attribs.offset[i], attribs.stride[i], i);
 	}
 
-	time_t tv_sec = event->when->tv_sec;
+	time_t tv_sec = event->when.tv_sec;
 	uint32_t tv_sec_hi = (sizeof(tv_sec) > 4) ? tv_sec >> 32 : 0;
 	uint32_t tv_sec_lo = tv_sec & 0xFFFFFFFF;
 	zwlr_export_dmabuf_frame_v1_send_ready(frame->resource,
-		tv_sec_hi, tv_sec_lo, event->when->tv_nsec);
+		tv_sec_hi, tv_sec_lo, event->when.tv_nsec);
 	frame_destroy(frame);
 }
 

@@ -9,6 +9,7 @@ wlr_files += files(
 	'color.c',
 	'dmabuf.c',
 	'drm_format_set.c',
+	'drm_syncobj_merger.c',
 	'drm_syncobj.c',
 	'pass.c',
 	'pixel_format.c',
@@ -17,13 +18,18 @@ wlr_files += files(
 	'wlr_texture.c',
 )
 
-if cc.has_header('linux/dma-buf.h') and target_machine.system() == 'linux'
+has_dma_buf_import_sync_file = cc.has_header('linux/dma-buf.h') and cc.has_define(
+	'DMA_BUF_IOCTL_IMPORT_SYNC_FILE',
+	prefix: '#include <linux/dma-buf.h>',
+)
+if has_dma_buf_import_sync_file and target_machine.system() == 'linux'
 	wlr_files += files('dmabuf_linux.c')
 else
 	wlr_files += files('dmabuf_fallback.c')
 endif
 
 internal_config.set10('HAVE_EVENTFD', cc.has_header('sys/eventfd.h'))
+internal_config.set10('HAVE_LINUX_SYNC_FILE', cc.has_header('linux/sync_file.h'))
 
 if 'gles2' in renderers or 'auto' in renderers
 	egl = dependency('egl', required: 'gles2' in renderers)

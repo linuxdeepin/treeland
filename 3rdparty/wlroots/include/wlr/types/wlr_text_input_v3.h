@@ -57,10 +57,10 @@ struct wlr_text_input_v3 {
 	struct wl_list link;
 
 	struct {
-		struct wl_signal enable; // struct wlr_text_input_v3
-		struct wl_signal commit; // struct wlr_text_input_v3
-		struct wl_signal disable; // struct wlr_text_input_v3
-		struct wl_signal destroy; // struct wlr_text_input_v3
+		struct wl_signal enable;
+		struct wl_signal commit;
+		struct wl_signal disable;
+		struct wl_signal destroy;
 	} events;
 
 	struct {
@@ -74,8 +74,8 @@ struct wlr_text_input_manager_v3 {
 	struct wl_list text_inputs; // wlr_text_input_v3.link
 
 	struct {
-		struct wl_signal text_input; // struct wlr_text_input_v3
-		struct wl_signal destroy; // struct wlr_text_input_manager_v3
+		struct wl_signal new_text_input; // struct wlr_text_input_v3
+		struct wl_signal destroy;
 	} events;
 
 	struct {

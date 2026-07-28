@@ -15,6 +15,7 @@ void handle_xdg_toplevel_ack_configure(
 	toplevel->pending.resizing = configure->resizing;
 	toplevel->pending.activated = configure->activated;
 	toplevel->pending.tiled = configure->tiled;
+	toplevel->pending.constrained = configure->constrained;
 	toplevel->pending.suspended = configure->suspended;
 
 	toplevel->pending.width = configure->width;
@@ -80,7 +81,7 @@ struct wlr_xdg_toplevel_configure *send_xdg_toplevel_configure(
 		states[nstates++] = XDG_TOPLEVEL_STATE_ACTIVATED;
 	}
 	if (configure->tiled && version >= XDG_TOPLEVEL_STATE_TILED_LEFT_SINCE_VERSION) {
-		const struct {
+		static const struct {
 			enum wlr_edges edge;
 			enum xdg_toplevel_state state;
 		} tiled[] = {
@@ -90,7 +91,7 @@ struct wlr_xdg_toplevel_configure *send_xdg_toplevel_configure(
 			{ WLR_EDGE_BOTTOM, XDG_TOPLEVEL_STATE_TILED_BOTTOM },
 		};
 
-		for (size_t i = 0; i < sizeof(tiled)/sizeof(tiled[0]); ++i) {
+		for (size_t i = 0; i < sizeof(tiled) / sizeof(tiled[0]); ++i) {
 			if ((configure->tiled & tiled[i].edge) == 0) {
 				continue;
 			}
@@ -99,6 +100,24 @@ struct wlr_xdg_toplevel_configure *send_xdg_toplevel_configure(
 	}
 	if (configure->suspended && version >= XDG_TOPLEVEL_STATE_SUSPENDED_SINCE_VERSION) {
 		states[nstates++] = XDG_TOPLEVEL_STATE_SUSPENDED;
+	}
+	if (configure->constrained && version >= XDG_TOPLEVEL_STATE_CONSTRAINED_LEFT_SINCE_VERSION) {
+		static const struct {
+			enum wlr_edges edge;
+			enum xdg_toplevel_state state;
+		} constrained[] = {
+			{ WLR_EDGE_LEFT, XDG_TOPLEVEL_STATE_CONSTRAINED_LEFT },
+			{ WLR_EDGE_RIGHT, XDG_TOPLEVEL_STATE_CONSTRAINED_RIGHT },
+			{ WLR_EDGE_TOP, XDG_TOPLEVEL_STATE_CONSTRAINED_TOP },
+			{ WLR_EDGE_BOTTOM, XDG_TOPLEVEL_STATE_CONSTRAINED_BOTTOM },
+		};
+
+		for (size_t i = 0; i < sizeof(constrained) / sizeof(constrained[0]); ++i) {
+			if ((configure->constrained & constrained[i].edge) == 0) {
+				continue;
+			}
+			states[nstates++] = constrained[i].state;
+		}
 	}
 	assert(nstates <= sizeof(states) / sizeof(states[0]));
 
@@ -636,5 +655,12 @@ uint32_t wlr_xdg_toplevel_set_suspended(struct wlr_xdg_toplevel *toplevel,
 	assert(toplevel->base->client->shell->version >=
 		XDG_TOPLEVEL_STATE_SUSPENDED_SINCE_VERSION);
 	toplevel->scheduled.suspended = suspended;
+	return wlr_xdg_surface_schedule_configure(toplevel->base);
+}
+
+uint32_t wlr_xdg_toplevel_set_constrained(struct wlr_xdg_toplevel *toplevel, uint32_t constrained) {
+	assert(toplevel->base->client->shell->version >=
+		XDG_TOPLEVEL_STATE_CONSTRAINED_LEFT_SINCE_VERSION);
+	toplevel->scheduled.constrained = constrained;
 	return wlr_xdg_surface_schedule_configure(toplevel->base);
 }

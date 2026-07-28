@@ -83,6 +83,28 @@ void parse_edid(struct wlr_drm_connector *conn, size_t len, const uint8_t *data)
 	output->model = di_info_get_model(info);
 	output->serial = di_info_get_serial(info);
 
+	const struct di_color_primaries *color_characteristics = di_info_get_default_color_primaries(info);
+	if (color_characteristics->has_primaries) {
+		output->default_primaries_value = (struct wlr_color_primaries) {
+			.red = { .x = color_characteristics->primary[0].x, .y = color_characteristics->primary[0].y },
+			.green = { .x = color_characteristics->primary[1].x, .y = color_characteristics->primary[1].y },
+			.blue = { .x = color_characteristics->primary[2].x, .y = color_characteristics->primary[2].y },
+			.white = { .x = color_characteristics->default_white.x, .y = color_characteristics->default_white.y },
+		};
+		output->default_primaries = &output->default_primaries_value;
+	}
+
+	const struct di_supported_signal_colorimetry *colorimetry = di_info_get_supported_signal_colorimetry(info);
+	bool has_bt2020 = colorimetry->bt2020_cycc || colorimetry->bt2020_ycc || colorimetry->bt2020_rgb;
+	if (conn->props.colorspace != 0 && has_bt2020) {
+		output->supported_primaries |= WLR_COLOR_NAMED_PRIMARIES_BT2020;
+	}
+
+	const struct di_hdr_static_metadata *hdr_static_metadata = di_info_get_hdr_static_metadata(info);
+	if (conn->props.hdr_output_metadata != 0 && hdr_static_metadata->type1 && hdr_static_metadata->pq) {
+		output->supported_transfer_functions |= WLR_COLOR_TRANSFER_FUNCTION_ST2084_PQ;
+	}
+
 	di_info_destroy(info);
 }
 

@@ -23,16 +23,21 @@
  * SOFTWARE.
  */
 
+#include <drm_fourcc.h>
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <wlr/util/log.h>
 #include <wlr/xcursor.h>
+#include "types/wlr_buffer.h"
 #include "xcursor/xcursor.h"
+
+#include "xcursor/cursor_data.h"
 
 static void xcursor_destroy(struct wlr_xcursor *cursor) {
 	for (size_t i = 0; i < cursor->image_count; i++) {
+		readonly_data_buffer_drop(cursor->images[i]->readonly_buffer);
 		free(cursor->images[i]->buffer);
 		free(cursor->images[i]);
 	}
@@ -42,7 +47,42 @@ static void xcursor_destroy(struct wlr_xcursor *cursor) {
 	free(cursor);
 }
 
-#include "xcursor/cursor_data.h"
+static struct wlr_xcursor_image *xcursor_image_create(uint32_t width, uint32_t height,
+		uint32_t hotspot_x, uint32_t hotspot_y, uint32_t delay, const void *buffer) {
+	struct wlr_xcursor_image *image = calloc(1, sizeof(*image));
+	if (image == NULL) {
+		return NULL;
+	}
+
+	image->width = width;
+	image->height = height;
+	image->hotspot_x = hotspot_x;
+	image->hotspot_y = hotspot_y;
+	image->delay = delay;
+
+	size_t stride = width * sizeof(uint32_t);
+	size_t size = stride * height;
+	image->buffer = malloc(size);
+	if (image->buffer == NULL) {
+		goto err_image;
+	}
+
+	memcpy(image->buffer, buffer, size);
+
+	image->readonly_buffer = readonly_data_buffer_create(DRM_FORMAT_ARGB8888,
+		stride, width, height, image->buffer);
+	if (image->readonly_buffer == NULL) {
+		goto err_buffer;
+	}
+
+	return image;
+
+err_buffer:
+	free(image->buffer);
+err_image:
+	free(image);
+	return NULL;
+}
 
 static struct wlr_xcursor *xcursor_create_from_data(
 		const struct cursor_metadata *metadata, struct wlr_xcursor_theme *theme) {
@@ -60,31 +100,15 @@ static struct wlr_xcursor *xcursor_create_from_data(
 	cursor->name = strdup(metadata->name);
 	cursor->total_delay = 0;
 
-	struct wlr_xcursor_image *image = calloc(1, sizeof(*image));
+	struct wlr_xcursor_image *image = xcursor_image_create(metadata->width, metadata->height,
+		metadata->hotspot_x, metadata->hotspot_y, 0, cursor_data + metadata->offset);
 	if (!image) {
 		goto err_free_images;
 	}
 
 	cursor->images[0] = image;
-	image->buffer = NULL;
-	image->width = metadata->width;
-	image->height = metadata->height;
-	image->hotspot_x = metadata->hotspot_x;
-	image->hotspot_y = metadata->hotspot_y;
-	image->delay = 0;
-
-	int size = metadata->width * metadata->height * sizeof(uint32_t);
-	image->buffer = malloc(size);
-	if (!image->buffer) {
-		goto err_free_image;
-	}
-
-	memcpy(image->buffer, cursor_data + metadata->offset, size);
 
 	return cursor;
-
-err_free_image:
-	free(image);
 
 err_free_images:
 	free(cursor->name);
@@ -132,28 +156,13 @@ static struct wlr_xcursor *xcursor_create_from_xcursor_images(
 	cursor->total_delay = 0;
 
 	for (int i = 0; i < images->nimage; i++) {
-		struct wlr_xcursor_image *image = calloc(1, sizeof(*image));
+		const struct xcursor_image *data = images->images[i];
+		struct wlr_xcursor_image *image = xcursor_image_create(data->width, data->height,
+			data->xhot, data->yhot, data->delay, data->pixels);
 		if (image == NULL) {
 			break;
 		}
 
-		image->buffer = NULL;
-
-		image->width = images->images[i]->width;
-		image->height = images->images[i]->height;
-		image->hotspot_x = images->images[i]->xhot;
-		image->hotspot_y = images->images[i]->yhot;
-		image->delay = images->images[i]->delay;
-
-		size_t size = image->width * image->height * 4;
-		image->buffer = malloc(size);
-		if (!image->buffer) {
-			free(image);
-			break;
-		}
-
-		/* copy pixels to shm pool */
-		memcpy(image->buffer, images->images[i]->pixels, size);
 		cursor->total_delay += image->delay;
 		cursor->images[i] = image;
 		cursor->image_count++;
@@ -334,6 +343,10 @@ static int xcursor_frame_and_duration(struct wlr_xcursor *cursor,
 
 int wlr_xcursor_frame(struct wlr_xcursor *_cursor, uint32_t time) {
 	return xcursor_frame_and_duration(_cursor, time, NULL);
+}
+
+struct wlr_buffer *wlr_xcursor_image_get_buffer(struct wlr_xcursor_image *image) {
+	return &image->readonly_buffer->base;
 }
 
 const char *wlr_xcursor_get_resize_name(enum wlr_edges edges) {

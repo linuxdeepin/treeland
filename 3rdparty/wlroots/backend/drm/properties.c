@@ -22,8 +22,10 @@ struct prop_info {
 static const struct prop_info connector_info[] = {
 #define INDEX(name) (offsetof(struct wlr_drm_connector_props, name) / sizeof(uint32_t))
 	{ "CRTC_ID", INDEX(crtc_id) },
+	{ "Colorspace", INDEX(colorspace) },
 	{ "DPMS", INDEX(dpms) },
 	{ "EDID", INDEX(edid) },
+	{ "HDR_OUTPUT_METADATA", INDEX(hdr_output_metadata) },
 	{ "PATH", INDEX(path) },
 	{ "content type", INDEX(content_type) },
 	{ "link-status", INDEX(link_status) },

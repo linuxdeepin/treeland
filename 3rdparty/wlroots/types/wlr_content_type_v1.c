@@ -3,6 +3,8 @@
 #include <wlr/types/wlr_content_type_v1.h>
 #include <wlr/types/wlr_compositor.h>
 
+#include "content-type-v1-protocol.h"
+
 #define CONTENT_TYPE_VERSION 1
 
 struct wlr_content_type_v1_surface {

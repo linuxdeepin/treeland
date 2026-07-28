@@ -10,6 +10,7 @@
 #define WLR_RENDER_COLOR_H
 
 #include <stdbool.h>
+#include <stdint.h>
 #include <sys/types.h>
 
 /**
@@ -26,6 +27,60 @@ enum wlr_color_named_primaries {
 enum wlr_color_transfer_function {
 	WLR_COLOR_TRANSFER_FUNCTION_SRGB = 1 << 0,
 	WLR_COLOR_TRANSFER_FUNCTION_ST2084_PQ = 1 << 1,
+	WLR_COLOR_TRANSFER_FUNCTION_EXT_LINEAR = 1 << 2,
+	WLR_COLOR_TRANSFER_FUNCTION_GAMMA22 = 1 << 3,
+	WLR_COLOR_TRANSFER_FUNCTION_BT1886 = 1 << 4,
+};
+
+/**
+ * Specifies alpha blending modes.  Note that premultiplied_electrical
+ * is the default, so there is no "none" or "unset" value.
+ */
+enum wlr_alpha_mode {
+	WLR_COLOR_ALPHA_MODE_PREMULTIPLIED_ELECTRICAL,
+	WLR_COLOR_ALPHA_MODE_PREMULTIPLIED_OPTICAL,
+	WLR_COLOR_ALPHA_MODE_STRAIGHT,
+};
+
+/**
+ * Well-known color encodings, each representing a set of matrix coefficients
+ * used to convert that particular YCbCr encoding to RGB.  NONE means the
+ * value is unset or unknown.
+ */
+enum wlr_color_encoding {
+	WLR_COLOR_ENCODING_NONE = 0,
+	WLR_COLOR_ENCODING_IDENTITY = 1 << 0,
+	WLR_COLOR_ENCODING_BT709 = 1 << 1,
+	WLR_COLOR_ENCODING_FCC = 1 << 2,
+	WLR_COLOR_ENCODING_BT601 = 1 << 3,
+	WLR_COLOR_ENCODING_SMPTE240 = 1 << 4,
+	WLR_COLOR_ENCODING_BT2020 = 1 << 5,
+	WLR_COLOR_ENCODING_BT2020_CL = 1 << 6,
+	WLR_COLOR_ENCODING_ICTCP = 1 << 7,
+};
+
+/**
+ * Specifies whether a particular color-encoding uses full- or limited-range
+ * values.  NONE means the value is unset or unknown.
+ */
+enum wlr_color_range {
+	WLR_COLOR_RANGE_NONE,
+	WLR_COLOR_RANGE_LIMITED,
+	WLR_COLOR_RANGE_FULL,
+};
+
+/**
+ * Chroma sample locations, corresponding to Chroma420SampleLocType code
+ * points in H.273.  NONE means the value is unset or unknown.
+ */
+enum wlr_color_chroma_location {
+	WLR_COLOR_CHROMA_LOCATION_NONE,
+	WLR_COLOR_CHROMA_LOCATION_TYPE0,
+	WLR_COLOR_CHROMA_LOCATION_TYPE1,
+	WLR_COLOR_CHROMA_LOCATION_TYPE2,
+	WLR_COLOR_CHROMA_LOCATION_TYPE3,
+	WLR_COLOR_CHROMA_LOCATION_TYPE4,
+	WLR_COLOR_CHROMA_LOCATION_TYPE5,
 };
 
 /**
@@ -73,10 +128,31 @@ struct wlr_color_transform *wlr_color_transform_init_linear_to_icc(
 	const void *data, size_t size);
 
 /**
- * Initialize a color transformation to apply sRGB encoding.
- * Returns NULL on failure.
+ * Initialize a color transformation to apply EOTF⁻¹ encoding. Returns
+ * NULL on failure.
  */
-struct wlr_color_transform *wlr_color_transform_init_srgb(void);
+struct wlr_color_transform *wlr_color_transform_init_linear_to_inverse_eotf(
+	enum wlr_color_transfer_function tf);
+
+/**
+ * Initialize a color transformation to apply three 1D look-up tables. dim
+ * is the number of elements in each individual LUT. Returns NULL on failure.
+ */
+struct wlr_color_transform *wlr_color_transform_init_lut_3x1d(size_t dim,
+	const uint16_t *r, const uint16_t *g, const uint16_t *b);
+
+/**
+ * Initialize a color transformation to apply a 3×3 matrix. Returns NULL on
+ * failure.
+ */
+struct wlr_color_transform *wlr_color_transform_init_matrix(const float matrix[static 9]);
+
+/**
+ * Initialize a color transformation to apply a sequence of color transforms
+ * one after another.
+ */
+struct wlr_color_transform *wlr_color_transform_init_pipeline(
+	struct wlr_color_transform **transforms, size_t len);
 
 /**
  * Increase the reference count of the color transform by 1.
@@ -88,5 +164,24 @@ struct wlr_color_transform *wlr_color_transform_ref(struct wlr_color_transform *
  * all associated resources when the reference count hits zero.
  */
 void wlr_color_transform_unref(struct wlr_color_transform *tr);
+
+/**
+ * Evaluate a color transform for a given RGB triplet.
+ */
+void wlr_color_transform_eval(struct wlr_color_transform *tr,
+	float out[static 3], const float in[static 3]);
+
+/**
+ * Obtain primaries values from a well-known primaries name.
+ */
+void wlr_color_primaries_from_named(struct wlr_color_primaries *out,
+	enum wlr_color_named_primaries named);
+
+/**
+ * Compute the matrix to convert between two linear RGB color spaces
+ */
+void wlr_color_primaries_transform_absolute_colorimetric(
+	const struct wlr_color_primaries *source,
+	const struct wlr_color_primaries *destination, float matrix[static 9]);
 
 #endif
