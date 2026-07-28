@@ -208,8 +208,8 @@ public:
         pointerFocusEventObject.clear();
         handle()->pointer_notify_clear_focus();
         Q_ASSERT(!handle()->handle()->pointer_state.focused_surface);
-        if (cursor) // reset cursur from QCursor resource, the last cursor is from wlr_surface
-            cursor->setCursor(cursor->cursor());
+        if (cursor) // reset cursor from QCursor resource, the last cursor is from wlr_surface
+            Q_EMIT cursor->cursorChanged();
     }
     inline void doSetKeyboardFocus(qw_surface *surface) {
         if (surface) {

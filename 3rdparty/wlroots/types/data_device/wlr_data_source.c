@@ -19,6 +19,7 @@ void wlr_data_source_init(struct wlr_data_source *source,
 	};
 	wl_array_init(&source->mime_types);
 	wl_signal_init(&source->events.destroy);
+	wl_signal_init(&source->events.dnd_action);
 }
 
 void wlr_data_source_send(struct wlr_data_source *source, const char *mime_type,
@@ -74,6 +75,7 @@ void wlr_data_source_dnd_action(struct wlr_data_source *source,
 	if (source->impl->dnd_action) {
 		source->impl->dnd_action(source, action);
 	}
+	wl_signal_emit_mutable(&source->events.dnd_action, source);
 }
 
 

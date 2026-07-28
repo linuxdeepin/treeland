@@ -37,6 +37,7 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 
 WCursorPrivate::WCursorPrivate(WCursor *qq)
     : WWrapObjectPrivate(qq)
+    , overrideCursor(WCursor::toQCursor(WGlobal::CursorShape::Invalid))
 {
     initHandle(qw_cursor::create());
     handle()->set_data(this, qq);
@@ -556,7 +557,9 @@ Qt::CursorShape WCursor::defaultCursor()
 QCursor WCursor::cursor() const
 {
     W_DC(WCursor);
-    return d->cursor;
+    return WGlobal::isInvalidCursor(d->overrideCursor)
+            ? d->cursor
+            : d->overrideCursor;
 }
 
 void WCursor::setCursor(const QCursor &cursor)
@@ -565,7 +568,26 @@ void WCursor::setCursor(const QCursor &cursor)
 
     if (d->cursor == cursor)
         return;
+
     d->cursor = cursor;
+    if (WGlobal::isInvalidCursor(d->overrideCursor))
+        Q_EMIT cursorChanged();
+}
+
+QCursor WCursor::overrideCursor() const
+{
+    W_DC(WCursor);
+    return d->overrideCursor;
+}
+
+void WCursor::setOverrideCursor(const QCursor &cursor)
+{
+    W_D(WCursor);
+
+    if (d->overrideCursor == cursor)
+        return;
+
+    d->overrideCursor = cursor;
     Q_EMIT cursorChanged();
 }
 

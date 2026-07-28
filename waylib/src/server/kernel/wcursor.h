@@ -64,6 +64,9 @@ public:
     QCursor cursor() const;
     void setCursor(const QCursor &cursor);
 
+    QCursor overrideCursor() const;
+    void setOverrideCursor(const QCursor &cursor);
+
     // from client
     CursorShape requestedCursorShape() const;
     std::pair<WSurface*, QPoint> requestedCursorSurface() const;
