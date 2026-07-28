@@ -26,6 +26,9 @@ layout(std140, binding = 0) uniform buf {
 
 layout(binding = 1) uniform sampler2D source;
 
+const float kSqrt2 = 1.4142135623730951;
+const float kInvSqrt2 = 0.7071067811865476;
+
 vec2 halfSize = max(ubuf.itemSize, vec2(1.0)) * 0.5;
 
 float sdRoundedRect(vec2 p, vec2 halfSize, float r)
@@ -35,23 +38,49 @@ float sdRoundedRect(vec2 p, vec2 halfSize, float r)
     return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - rr;
 }
 
+// Analytic gradient of sdRoundedRect w.r.t. p (outward-pointing, unit length on the surface).
+vec2 sdRoundedRectGrad(vec2 p, vec2 halfSize, float r)
+{
+    float rr = min(max(r, 0.0), min(halfSize.x, halfSize.y));
+    vec2 ap = abs(p);
+    vec2 q = ap - halfSize + rr;
+    vec2 s = vec2(p.x < 0.0 ? -1.0 : 1.0, p.y < 0.0 ? -1.0 : 1.0);
+
+    if (min(q.x, q.y) > 0.0) {
+        float ql = length(q);
+        return s * (q / max(ql, 1e-6));
+    }
+
+    // Flat / interior: sd = max(q.x, q.y) - rr when inside the expanded rect.
+    if (q.x > q.y)
+        return vec2(s.x, 0.0);
+    if (q.y > q.x)
+        return vec2(0.0, s.y);
+    // Tie on the diagonal — any convex combination is a subgradient; pick the bisector.
+    return s * kInvSqrt2;
+}
+
 // ── Linear bezel field ────────────────────────────────────────────────
+float fieldBezel()
+{
+    float limit = min(halfSize.x, halfSize.y);
+    return clamp(ubuf.bezelWidth, 1.0, max(limit - 1.0, 1.0));
+}
+
 float fieldT(vec2 p, float rr)
 {
     float limit = min(halfSize.x, halfSize.y);
     float r = clamp(rr, 0.0, limit);
-    float b = clamp(ubuf.bezelWidth, 1.0, max(limit - 1.0, 1.0));
+    float b = fieldBezel();
     return clamp(-sdRoundedRect(p, halfSize, r) / b, 0.0, 1.0);
 }
 
+// Outward unit normal of the bezel field (matches previous -normalize(∇fieldT)).
 vec2 fieldNormal(vec2 p, float rr)
 {
-    float e = 0.5;
-    float dx = fieldT(p + vec2(e, 0.0), rr) - fieldT(p - vec2(e, 0.0), rr);
-    float dy = fieldT(p + vec2(0.0, e), rr) - fieldT(p - vec2(0.0, e), rr);
-    vec2 g = vec2(dx, dy);
+    vec2 g = sdRoundedRectGrad(p, halfSize, rr);
     float len = length(g);
-    return len > 1e-5 ? -(g / len) : vec2(0.0);
+    return len > 1e-5 ? (g / len) : vec2(0.0);
 }
 
 // ── Rounded-square Coons map (actual → virtual) ───────────────────────
@@ -80,7 +109,7 @@ float cornerQuinticDerivative(float value)
 float cornerArcParameter(float value)
 {
     float s = clamp(value, 0.0, 1.0);
-    float tangent = 1.4142135623730951;
+    float tangent = kSqrt2;
     float s2 = s * s;
     float s3 = s2 * s;
     return (s3 - 2.0 * s2 + s) * tangent
@@ -91,7 +120,7 @@ float cornerArcParameter(float value)
 float cornerArcParameterDerivative(float value)
 {
     float s = clamp(value, 0.0, 1.0);
-    float tangent = 1.4142135623730951;
+    float tangent = kSqrt2;
     return (3.0 * s * s - 4.0 * s + 1.0) * tangent
         + (-6.0 * s * s + 6.0 * s)
         + (3.0 * s * s - 2.0 * s) * tangent;
@@ -120,7 +149,7 @@ BoundaryResult cornerTopBoundary(float value, float alpha)
         return result;
     }
     float local = (value - (1.0 - alpha)) / alpha;
-    BoundaryResult arc = cornerUnitArc(vec2(0.0, 1.0), vec2(0.7071067811865476),
+    BoundaryResult arc = cornerUnitArc(vec2(0.0, 1.0), vec2(kInvSqrt2),
                                        cornerArcParameter(local), cornerArcParameterDerivative(local));
     result.point = vec2(1.0 - alpha) + alpha * arc.point;
     result.derivative = arc.derivative;
@@ -136,7 +165,7 @@ BoundaryResult cornerRightBoundary(float value, float alpha)
         return result;
     }
     float local = (value - (1.0 - alpha)) / alpha;
-    BoundaryResult arc = cornerUnitArc(vec2(1.0, 0.0), vec2(0.7071067811865476),
+    BoundaryResult arc = cornerUnitArc(vec2(1.0, 0.0), vec2(kInvSqrt2),
                                        cornerArcParameter(local), cornerArcParameterDerivative(local));
     result.point = vec2(1.0 - alpha) + alpha * arc.point;
     result.derivative = arc.derivative;
@@ -151,7 +180,7 @@ RoundedMapResult roundedSquareMap(vec2 canonical, float alpha)
     BoundaryResult right = cornerRightBoundary(v, alpha);
     vec2 topDelta = top.point - vec2(u, 1.0);
     vec2 rightDelta = right.point - vec2(1.0, v);
-    float cornerDelta = alpha * (0.7071067811865476 - 1.0);
+    float cornerDelta = alpha * (kInvSqrt2 - 1.0);
     float hu = cornerQuintic(u);
     float hv = cornerQuintic(v);
     float dhu = cornerQuinticDerivative(u);
@@ -180,7 +209,7 @@ vec4 inverseCornerJacobian(vec4 jacobian)
 
 vec2 cornerDiscToSquare(vec2 point)
 {
-    float root2 = 1.4142135623730951;
+    float root2 = kSqrt2;
     float a = 2.0 + point.x * point.x - point.y * point.y;
     float b = 2.0 - point.x * point.x + point.y * point.y;
     return 0.5 * vec2(
@@ -193,14 +222,17 @@ vec2 cornerDiscToSquare(vec2 point)
 
 vec2 invertRoundedSquare(vec2 point, float alpha)
 {
-    float corner = 1.0 - alpha + alpha * 0.7071067811865476;
+    float corner = 1.0 - alpha + alpha * kInvSqrt2;
     if (distance(point, vec2(corner)) <= 1e-5)
         return vec2(1.0);
     vec2 discInitial = cornerDiscToSquare(point);
     vec2 canonical = clamp(mix(point, discInitial, alpha), vec2(0.0), vec2(1.0));
-    for (int iteration = 0; iteration < 7; ++iteration) {
+    // Good disc initial guess typically converges in 3–4 steps; keep 5 with error exit.
+    for (int iteration = 0; iteration < 5; ++iteration) {
         RoundedMapResult mapped = roundedSquareMap(canonical, alpha);
         vec2 error = mapped.point - point;
+        if (dot(error, error) <= 1e-10)
+            break;
         vec4 inverse = inverseCornerJacobian(mapped.jacobian);
         canonical = clamp(
             canonical - vec2(inverse.x * error.x + inverse.y * error.y,
@@ -276,20 +308,22 @@ vec2 preservePostprocessDepth(vec2 actualPoint, vec2 mappedPoint, float actualRa
     float sourceT = sourcePostprocessDepth(actualPoint, actualRadius, bezel);
     float targetT = mix(baseT, sourceT, strength);
     vec2 result = mappedPoint;
-    float gradientStep = 0.5;
+    float b = fieldBezel();
     for (int iteration = 0; iteration < 3; ++iteration) {
-        float error = fieldT(result, opticalRadius) - targetT;
-        float gx = (fieldT(result + vec2(gradientStep, 0.0), opticalRadius)
-                    - fieldT(result - vec2(gradientStep, 0.0), opticalRadius))
-            / (2.0 * gradientStep);
-        float gy = (fieldT(result + vec2(0.0, gradientStep), opticalRadius)
-                    - fieldT(result - vec2(0.0, gradientStep), opticalRadius))
-            / (2.0 * gradientStep);
-        float gradientSquared = gx * gx + gy * gy;
+        float sdVal = sdRoundedRect(result, halfSize, opticalRadius);
+        float currentT = clamp(-sdVal / b, 0.0, 1.0);
+        float error = currentT - targetT;
+        if (abs(error) <= 1e-5)
+            break;
+
+        // ∇fieldT ≈ -∇sd / bezel inside the unclamped band; sd is 1-Lipschitz.
+        vec2 gsd = sdRoundedRectGrad(result, halfSize, opticalRadius);
+        vec2 g = -gsd / b;
+        float gradientSquared = dot(g, g);
         if (gradientSquared <= 1e-10)
             break;
         float stepLength = clamp(error / gradientSquared, -bezel * bezel, bezel * bezel);
-        result -= vec2(gx, gy) * stepLength;
+        result -= g * stepLength;
     }
     return result;
 }
@@ -311,14 +345,22 @@ vec3 sampleBg(vec2 uv)
     return texture(source, clamp(uv, vec2(0.002), vec2(0.998))).rgb;
 }
 
+vec4 finishColor(vec3 color, float shapeAlpha)
+{
+    if (ubuf.tint > 1e-4)
+        color = mix(color, vec3(1.0), clamp(ubuf.tint, 0.0, 1.0));
+    float alpha = shapeAlpha * ubuf.qt_Opacity;
+    return vec4(clamp(color, 0.0, 1.0) * alpha, alpha);
+}
+
 // ── Main ──────────────────────────────────────────────────────────────
 void main()
 {
     vec2 size = max(ubuf.itemSize, vec2(1.0));
     vec2 p = texCoord * size - size * 0.5;
 
-
-    float sd = sdRoundedRect(p, halfSize, ubuf.radius);
+    float outerRadius = min(max(ubuf.radius, 0.0), min(halfSize.x, halfSize.y));
+    float sd = sdRoundedRect(p, halfSize, outerRadius);
 
     // Anti-aliased shape edge.
     float scale = length(vec2(dFdx(sd), dFdy(sd)));
@@ -331,27 +373,40 @@ void main()
     }
 
     float configuredBezel = max(ubuf.bezelWidth, 1.0);
-    float outerRadius = min(max(ubuf.radius, 0.0), min(halfSize.x, halfSize.y));
     float maxSizeBezel = max(min(halfSize.x, halfSize.y) - 1.0, 1.0);
     float bezel = min(configuredBezel, maxSizeBezel);
     // virtualRadius is private: radius < bezel → follow bezel, else follow radius.
     float opticalRadius = clamp(max(outerRadius, bezel), 0.0, min(halfSize.x, halfSize.y));
+
+    float effectExtent = bezel;
+    if (ubuf.specular > 1e-4)
+        effectExtent = max(effectExtent, 5.0);
+
+    // Parameterized ring margin so the cheap center path never skips pixels that
+    // mapping/preserve could still pull into the bezel effect band.
+    //
+    // radiusLift = opticalRadius - outerRadius (0 when radius >= bezel).
+    // Bounds used (all scale with lift; zero when mapping is identity):
+    //   • fixed-p SDF shrink when r rises:     (√2 - 1) * lift
+    //   • Coons corner boundary displacement:  (1 - 1/√2) * lift
+    //   • preserve depth correction travel:    lift
+    // Sum = lift * (1 + 1/√2).
+    float radiusLift = max(opticalRadius - outerRadius, 0.0);
+    float safetyMargin = radiusLift * (1.0 + kInvSqrt2);
+
+    float actualDistFromEdge = -sd;
+    if (actualDistFromEdge > effectExtent + safetyMargin) {
+        fragColor = finishColor(sampleBg(texCoord), shapeAlpha);
+        return;
+    }
 
     // Deform actual coordinates to virtual optical coordinates.
     vec2 mappedPoint = mapActualToVirtualPoint(p, outerRadius, opticalRadius, bezel);
     vec2 shadePoint = preservePostprocessDepth(p, mappedPoint, outerRadius, opticalRadius, bezel);
     float opticalDistFromEdge = -sdRoundedRect(shadePoint, halfSize, opticalRadius);
 
-    float effectExtent = bezel;
-    if (ubuf.specular > 1e-4)
-        effectExtent = max(effectExtent, 5.0);
-
     if (opticalDistFromEdge > effectExtent) {
-        vec3 color = sampleBg(texCoord);
-        if (ubuf.tint > 1e-4)
-            color = mix(color, vec3(1.0), clamp(ubuf.tint, 0.0, 1.0));
-        float alpha = shapeAlpha * ubuf.qt_Opacity;
-        fragColor = vec4(clamp(color, 0.0, 1.0) * alpha, alpha);
+        fragColor = finishColor(sampleBg(texCoord), shapeAlpha);
         return;
     }
 
@@ -373,7 +428,10 @@ void main()
     float H = h * thick;
 
     float rampEnd = clamp(ubuf.contentRampEnd, 0.001, 1.0);
-    float contentRamp = mix(edgePull, 1.0, smoothstep(0.0, rampEnd, t));
+    // edgePull=0 → contentRamp = smoothstep(0, rampEnd, t); keep exact mix for pull>0.
+    float contentRamp = (edgePull <= 1e-5)
+        ? smoothstep(0.0, rampEnd, t)
+        : mix(edgePull, 1.0, smoothstep(0.0, rampEnd, t));
     float maxDisp = min(min(bezel * 0.85, thick * 0.75), 48.0)
         * max(maxTan / 2.75, 1.0);
 
@@ -389,8 +447,8 @@ void main()
     vec2 offG = inward * magG;
 
     vec2 baseUv = shadePoint / size + 0.5;
-    vec2 uvG = clamp(baseUv + offG / size, vec2(0.002), vec2(0.998));
-    vec3 color = sampleBg(uvG);
+    // sampleBg clamps; avoid a second clamp here.
+    vec3 color = sampleBg(baseUv + offG / size);
 
     if (ubuf.specular > 1e-4) {
         vec3 N = normalize(vec3(n2 * slopeMag, 1.0));
@@ -408,12 +466,10 @@ void main()
         color += vec3(innerRim * 0.12 * clamp(ubuf.specular, 0.0, 1.0));
     }
 
-    float innerShadowMask = 1.0 - smoothstep(0.0, bezel * 0.6, opticalDistFromEdge);
-    color *= mix(1.0, 0.75, innerShadowMask * clamp(ubuf.innerShadow, 0.0, 1.0));
+    if (ubuf.innerShadow > 1e-4) {
+        float innerShadowMask = 1.0 - smoothstep(0.0, bezel * 0.6, opticalDistFromEdge);
+        color *= mix(1.0, 0.75, innerShadowMask * clamp(ubuf.innerShadow, 0.0, 1.0));
+    }
 
-    if (ubuf.tint > 1e-4)
-        color = mix(color, vec3(1.0), clamp(ubuf.tint, 0.0, 1.0));
-
-    float alpha = shapeAlpha * ubuf.qt_Opacity;
-    fragColor = vec4(clamp(color, 0.0, 1.0) * alpha, alpha);
+    fragColor = finishColor(color, shapeAlpha);
 }

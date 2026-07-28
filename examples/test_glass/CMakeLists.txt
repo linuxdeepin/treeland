@@ -54,6 +54,7 @@ qt_add_qml_module(treeland_stub
 )
 qt_add_shaders(treeland_stub "treeland_stub_liquidglass_shaders"
     PRECOMPILE
+    OPTIMIZED
     PREFIX
         "/shaders"
     BASE
