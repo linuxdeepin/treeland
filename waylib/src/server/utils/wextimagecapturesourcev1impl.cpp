@@ -233,8 +233,11 @@ void WExtImageCaptureSourceV1Impl::request_frame(bool schedule_frame)
         return;
     }
     
-    // Request output update to ensure next frame will be rendered
-    wlr_output_update_needs_frame(m_output->nativeHandle());
+    // Only request a new frame when schedule_frame is true; when false, only
+    // deliver already-pending frames (upstream semantics: scene.c:140, output.c:76).
+    if (schedule_frame) {
+        wlr_output_update_needs_frame(m_output->nativeHandle());
+    }
     
     // Get render window to check if currently rendering
     auto textureProvider = m_surfaceContent->wTextureProvider();
