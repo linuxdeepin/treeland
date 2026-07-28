@@ -3704,15 +3704,44 @@ void Helper::handleRequestDragForSeat(WSeat *seat, WSurface *)
     struct wlr_drag *drag = seat->nativeHandle()->drag;
     Q_ASSERT(drag);
 
-    QObject::connect(qw_drag::from(drag), &qw_drag::notify_drop, this, [this, seat] {
+    auto *qwDrag = qw_drag::from(drag);
+    QObject::connect(qwDrag, &qw_drag::notify_drop, this, [this, seat] {
         if (m_ddeShellV1)
             DDEActiveInterface::sendDrop(seat);
     });
 
-    QObject::connect(qw_drag::from(drag), &qw_drag::before_destroy, this, [seat, drag] {
+    QPointer<WCursor> dragCursor = seat->cursor();
+    QObject::connect(qwDrag, &qw_drag::before_destroy, this, [seat, drag, dragCursor] {
+        if (dragCursor)
+            dragCursor->setOverrideCursor(WCursor::toQCursor(WGlobal::CursorShape::Invalid));
         drag->data = NULL;
         seat->setAlwaysUpdateHoverTarget(false);
     });
+
+    // TODO: https://gitlab.freedesktop.org/wayland/wayland/-/work_items/444
+    const auto updateCursor = [drag, dragCursor] {
+        if (!dragCursor || drag->grab_type != WLR_DRAG_GRAB_KEYBOARD_POINTER)
+            return;
+
+        const auto action = drag->source
+                ? drag->source->current_dnd_action
+                : WL_DATA_DEVICE_MANAGER_DND_ACTION_NONE;
+        auto shape = WGlobal::CursorShape::NoDrop;
+        if (action == WL_DATA_DEVICE_MANAGER_DND_ACTION_COPY)
+            shape = WGlobal::CursorShape::Copy;
+        else if (action == WL_DATA_DEVICE_MANAGER_DND_ACTION_MOVE)
+            shape = WGlobal::CursorShape::Move;
+        else if (action == WL_DATA_DEVICE_MANAGER_DND_ACTION_ASK)
+            shape = WGlobal::CursorShape::DndAsk;
+        dragCursor->setOverrideCursor(WCursor::toQCursor(shape));
+    };
+
+    if (drag->source) {
+        auto *qwSource = qw_data_source::from(drag->source);
+        QObject::connect(qwSource, &qw_data_source::notify_dnd_action,
+                         qwDrag, updateCursor);
+    }
+    updateCursor();
 
     if (m_ddeShellV1)
         DDEActiveInterface::sendStartDrag(seat);

@@ -77,6 +77,7 @@ public:
 
     QW_NAMESPACE::qw_xcursor_manager *xcursor_manager = nullptr;
     QCursor cursor;
+    QCursor overrideCursor;
 
     WSeat *seat = nullptr;
     QPointer<QWindow> eventWindow;

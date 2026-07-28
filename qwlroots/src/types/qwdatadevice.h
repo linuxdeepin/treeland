@@ -18,6 +18,8 @@ class QW_CLASS_OBJECT(data_source)
     QW_OBJECT
     Q_OBJECT
 
+    QW_SIGNAL(dnd_action)
+
 public:
     QW_FUNC_MEMBER(data_source, init, void, const wlr_data_source_impl *impl)
     QW_FUNC_MEMBER(data_source, accept, void, uint32_t serial, const char *mime_type)
