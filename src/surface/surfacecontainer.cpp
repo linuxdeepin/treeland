@@ -203,8 +203,11 @@ void SurfaceContainer::removeOutput(Output *output)
 
 void SurfaceContainer::ensureQmlContext()
 {
-    if (QQmlEngine *engine = qmlEngine(parentContainer())) {
-        parentContainer()->setQmlEngine(engine);
+    auto *pc = parentContainer();
+    if (!pc)
+        return;
+    if (QQmlEngine *engine = qmlEngine(pc)) {
+        pc->setQmlEngine(engine);
     }
 }
 
