@@ -1,4 +1,4 @@
-// Copyright (C) 2022 JiDe Zhang <zccrs@live.com>.
+// Copyright (C) 2022-2026 JiDe Zhang <zccrs@live.com>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
@@ -126,7 +126,8 @@ public:
     QW_FUNC_MEMBER(output_state, set_render_format, void, uint32_t format)
     QW_FUNC_MEMBER(output_state, set_subpixel, void, enum wl_output_subpixel subpixel)
     QW_FUNC_MEMBER(output_state, set_buffer, void, wlr_buffer *buffer)
-    QW_FUNC_MEMBER(output_state, set_gamma_lut, bool, size_t ramp_size, const uint16_t *r, const uint16_t *g, const uint16_t *b)
+    QW_FUNC_MEMBER(output_state, set_color_transform, void, wlr_color_transform *tr)
+    QW_FUNC_MEMBER(output_state, set_image_description, bool, const wlr_output_image_description *image_desc)
     QW_FUNC_MEMBER(output_state, set_damage, void, const pixman_region32_t *damage)
     QW_FUNC_MEMBER(output_state, set_layers, void, wlr_output_layer_state *layers, size_t layers_len)
     QW_FUNC_MEMBER(output_state, copy, bool, const wlr_output_state *src)

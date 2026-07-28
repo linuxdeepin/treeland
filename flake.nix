@@ -183,7 +183,7 @@
               xorg.libXdmcp
               xorg.xcbutilerrors
               seatd
-              wlroots_0_19
+              wlroots_0_20
               mesa
               libdrm
               vulkan-loader

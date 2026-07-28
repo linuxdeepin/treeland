@@ -1,4 +1,4 @@
-// Copyright (C) 2022 JiDe Zhang <zccrs@live.com>.
+// Copyright (C) 2022-2026 JiDe Zhang <zccrs@live.com>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
@@ -179,7 +179,7 @@ class QW_EXPORT qw_scene_buffer : public qw_scene_node
     QW_SIGNAL(output_enter, wlr_scene_output*)
     QW_SIGNAL(output_leave, wlr_scene_output*)
     QW_SIGNAL(output_sample, wlr_scene_output_sample_event*)
-    QW_SIGNAL(frame_done, timespec*)
+    QW_SIGNAL(frame_done, wlr_scene_frame_done_event*)
 
 public:
     QW_FUNC_STATIC(scene_buffer, create, qw_scene_buffer *, wlr_scene_tree *parent, wlr_buffer *buffer)
@@ -192,7 +192,7 @@ public:
     QW_FUNC_MEMBER(scene_buffer, set_transform, void, enum wl_output_transform transform)
     QW_FUNC_MEMBER(scene_buffer, set_opacity, void, float opacity)
     QW_FUNC_MEMBER(scene_buffer, set_filter_mode, void, enum wlr_scale_filter_mode filter_mode)
-    QW_FUNC_MEMBER(scene_buffer, send_frame_done, void, timespec *now)
+    QW_FUNC_MEMBER(scene_buffer, send_frame_done, void, wlr_scene_frame_done_event *event)
 };
 
 qw_scene_node *qw_scene_node::create(HandleType *handle) {

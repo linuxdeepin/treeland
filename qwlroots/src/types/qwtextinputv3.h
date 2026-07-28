@@ -34,7 +34,7 @@ class QW_CLASS_OBJECT(text_input_manager_v3)
     QW_OBJECT
     Q_OBJECT
 
-    QW_SIGNAL(text_input, wlr_text_input_v3*)
+    QW_SIGNAL(new_text_input, wlr_text_input_v3*)
 
 public:
     QW_FUNC_STATIC(text_input_manager_v3, create, qw_text_input_manager_v3 *, wl_display *wl_display)

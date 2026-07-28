@@ -455,20 +455,20 @@ void Helper::init()
     connect(gammaControlManager, &qw_gamma_control_manager_v1::notify_set_gamma, this, []
             (wlr_gamma_control_manager_v1_set_gamma_event *event) {
         auto *qwOutput = qw_output::from(event->output);
-        size_t ramp_size = 0;
-        uint16_t *r = nullptr, *g = nullptr, *b = nullptr;
         wlr_gamma_control_v1 *gamma_control = event->control;
-        if (gamma_control) {
-            ramp_size = gamma_control->ramp_size;
-            r = gamma_control->table;
-            g = gamma_control->table + gamma_control->ramp_size;
-            b = gamma_control->table + 2 * gamma_control->ramp_size;
-        }
         qw_output_state newState;
-        newState.set_gamma_lut(ramp_size, r, g, b);
+        if (gamma_control) {
+            if (!qw_gamma_control_v1::from(gamma_control)->apply(newState)) {
+                qw_gamma_control_v1::from(gamma_control)->send_failed_and_destroy();
+                return;
+            }
+        } else {
+            newState.set_color_transform(nullptr);
+        }
 
         if (!qwOutput->commit_state(newState)) {
-            qw_gamma_control_v1::from(gamma_control)->send_failed_and_destroy();
+            if (gamma_control)
+                qw_gamma_control_v1::from(gamma_control)->send_failed_and_destroy();
         }
     });
 

@@ -38,6 +38,7 @@ function(wlroots_generate_protocols target)
         # Staging upstream protocols
         "alpha-modifier-v1|${_wlr_wp_dir}/staging/alpha-modifier/alpha-modifier-v1.xml"
         "color-management-v1|${_wlr_wp_dir}/staging/color-management/color-management-v1.xml"
+        "color-representation-v1|${_wlr_wp_dir}/staging/color-representation/color-representation-v1.xml"
         "content-type-v1|${_wlr_wp_dir}/staging/content-type/content-type-v1.xml"
         "cursor-shape-v1|${_wlr_wp_dir}/staging/cursor-shape/cursor-shape-v1.xml"
         "drm-lease-v1|${_wlr_wp_dir}/staging/drm-lease/drm-lease-v1.xml"
@@ -47,6 +48,7 @@ function(wlroots_generate_protocols target)
         "ext-image-copy-capture-v1|${_wlr_wp_dir}/staging/ext-image-copy-capture/ext-image-copy-capture-v1.xml"
         "ext-session-lock-v1|${_wlr_wp_dir}/staging/ext-session-lock/ext-session-lock-v1.xml"
         "ext-data-control-v1|${_wlr_wp_dir}/staging/ext-data-control/ext-data-control-v1.xml"
+        "ext-workspace-v1|${_wlr_wp_dir}/staging/ext-workspace/ext-workspace-v1.xml"
         "fractional-scale-v1|${_wlr_wp_dir}/staging/fractional-scale/fractional-scale-v1.xml"
         "linux-drm-syncobj-v1|${_wlr_wp_dir}/staging/linux-drm-syncobj/linux-drm-syncobj-v1.xml"
         "security-context-v1|${_wlr_wp_dir}/staging/security-context/security-context-v1.xml"
@@ -55,6 +57,7 @@ function(wlroots_generate_protocols target)
         "xdg-dialog-v1|${_wlr_wp_dir}/staging/xdg-dialog/xdg-dialog-v1.xml"
         "xdg-system-bell-v1|${_wlr_wp_dir}/staging/xdg-system-bell/xdg-system-bell-v1.xml"
         "xdg-toplevel-icon-v1|${_wlr_wp_dir}/staging/xdg-toplevel-icon/xdg-toplevel-icon-v1.xml"
+        "xdg-toplevel-tag-v1|${_wlr_wp_dir}/staging/xdg-toplevel-tag/xdg-toplevel-tag-v1.xml"
         "xwayland-shell-v1|${_wlr_wp_dir}/staging/xwayland-shell/xwayland-shell-v1.xml"
         "tearing-control-v1|${_wlr_wp_dir}/staging/tearing-control/tearing-control-v1.xml"
         "ext-transient-seat-v1|${_wlr_wp_dir}/staging/ext-transient-seat/ext-transient-seat-v1.xml"

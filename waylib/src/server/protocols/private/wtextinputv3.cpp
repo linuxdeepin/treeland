@@ -46,7 +46,7 @@ void WTextInputManagerV3::create(WServer *server)
     auto manager = qw_text_input_manager_v3::create(*server->handle());
     Q_ASSERT(manager);
     m_handle = manager;
-    connect(manager, &qw_text_input_manager_v3::notify_text_input, this, [this, d](wlr_text_input_v3 *w_text_input_v3){
+    connect(manager, &qw_text_input_manager_v3::notify_new_text_input, this, [this, d](wlr_text_input_v3 *w_text_input_v3){
         auto text_input_v3 = qw_text_input_v3::from(w_text_input_v3);
         auto ti = new WTextInputV3(text_input_v3, this);
         d->textInputs.append(ti);
