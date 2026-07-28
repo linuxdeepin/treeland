@@ -8,8 +8,10 @@
 #include <QImage>
 
 extern "C" {
+#define static
 #include <wlr/types/wlr_buffer.h>
 #include <wlr/render/wlr_renderer.h>
+#undef static
 }
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
