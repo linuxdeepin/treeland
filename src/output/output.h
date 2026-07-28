@@ -140,6 +140,11 @@ private:
     QPointF constrainToValidArea(const QPointF &pos,
                                  const QSizeF &windowSize,
                                  const QRectF &validGeo);
+    // Move surface to pos and then clamp it so that its titlebar remains
+    // visible within this output's validGeometry.  Always prefer this helper
+    // over calling surface->moveNormalGeometryInOutput() directly when the
+    // window is expected to stay on this output.
+    void moveSurfaceWithTitlebarClamp(SurfaceWrapper *surface, const QPointF &pos);
     qreal preferredScaleFactor() const;
 
     QPointF calculateBasePosition(SurfaceWrapper *surface, const QPointF &dPos) const;
