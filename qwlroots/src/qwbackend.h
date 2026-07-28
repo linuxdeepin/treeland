@@ -6,9 +6,9 @@
 #include <qwobject.h>
 
 extern "C" {
+#define static
 #include <wlr/backend.h>
 #include <wlr/backend/multi.h>
-#define static
 #include <wlr/backend/drm.h>
 #undef static
 #include <wlr/backend/wayland.h>
