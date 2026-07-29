@@ -1,4 +1,4 @@
-// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "woutputhelper.h"
@@ -138,8 +138,8 @@ QWindow *WOutputHelper::outputWindow() const
     return d->outputWindow;
 }
 
-std::pair<qw_buffer *, QQuickRenderTarget> WOutputHelper::acquireRenderTarget(QQuickRenderControl *rc,
-                                                                             wlr_swapchain **swapchain)
+WRenderHelper::RenderTarget WOutputHelper::acquireRenderTarget(QQuickRenderControl *rc,
+                                                               wlr_swapchain **swapchain)
 {
     W_D(WOutputHelper);
 
@@ -157,14 +157,14 @@ std::pair<qw_buffer *, QQuickRenderTarget> WOutputHelper::acquireRenderTarget(QQ
         return {};
     }
 
-    return {buffer, rt};
+    return rt;
 }
 
-std::pair<qw_buffer*, QQuickRenderTarget> WOutputHelper::lastRenderTarget()
+WRenderHelper::RenderTarget WOutputHelper::lastRenderTarget()
 {
     W_DC(WOutputHelper);
     if (!d->renderHelper)
-        return {nullptr, {}};
+        return {};
 
     return d->renderHelper->lastRenderTarget();
 }

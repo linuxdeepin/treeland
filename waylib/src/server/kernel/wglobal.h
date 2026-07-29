@@ -1,4 +1,4 @@
-// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
@@ -192,6 +192,13 @@ class WAYLIB_SERVER_EXPORT WGlobal {
     QML_UNCREATABLE("Use for enums")
 
 public:
+    enum class ColorContentsMode {
+        DontCare,
+        Clear,
+        Preserve,
+    };
+    Q_ENUM(ColorContentsMode)
+
     enum class CursorShape {
         Default = Qt::CustomCursor + 1,
         Invalid,

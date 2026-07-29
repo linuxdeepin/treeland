@@ -1,4 +1,4 @@
-// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "woutputviewport.h"
@@ -269,19 +269,19 @@ void WOutputViewport::setCacheBuffer(bool newCacheBuffer)
     d->bufferRenderer->setCacheBuffer(newCacheBuffer);
 }
 
-bool WOutputViewport::preserveColorContents() const
+WGlobal::ColorContentsMode WOutputViewport::colorContentsMode() const
 {
     W_DC(WOutputViewport);
-    return d->preserveColorContents;
+    return d->colorContentsMode;
 }
 
-void WOutputViewport::setPreserveColorContents(bool newPreserveColorContents)
+void WOutputViewport::setColorContentsMode(WGlobal::ColorContentsMode mode)
 {
     W_D(WOutputViewport);
-    if (d->preserveColorContents == newPreserveColorContents)
+    if (d->colorContentsMode == mode)
         return;
-    d->preserveColorContents = newPreserveColorContents;
-    Q_EMIT preserveColorContentsChanged();
+    d->colorContentsMode = mode;
+    Q_EMIT colorContentsModeChanged();
 }
 
 bool WOutputViewport::live() const

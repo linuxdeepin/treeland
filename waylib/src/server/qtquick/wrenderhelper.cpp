@@ -1,4 +1,4 @@
-// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wrenderhelper.h"
@@ -6,6 +6,7 @@
 #include "wayliblogging.h"
 #include "private/wqmlhelper_p.h"
 #include "private/wglobal_p.h"
+#include <memory>
 
 #include <qwbackend.h>
 #include <qwoutput.h>
@@ -27,6 +28,9 @@
 #include <private/qsgadaptationlayer_p.h>
 #include <private/qsgsoftwarepixmaptexture_p.h>
 #include <private/qsgrhisupport_p.h>
+#ifdef ENABLE_VULKAN_RENDER
+#include <rhi/qrhi_platform.h>
+#endif
 
 extern "C" {
 #define static
@@ -52,19 +56,22 @@ struct Q_DECL_HIDDEN RhiRenderEntry {
 Q_GLOBAL_STATIC(QVector<RhiRenderEntry>, s_rhiRenderBuffers)
 
 struct Q_DECL_HIDDEN BufferData {
-    BufferData() {
-
-    }
+    BufferData() = default;
 
     ~BufferData() {
         resetWindowRenderTarget();
     }
 
     qw_buffer *buffer = nullptr;
+#ifdef ENABLE_VULKAN_RENDER
+    // Non-owning; used to talk to wlroots' wlr_vk_render_buffer for this buffer.
+    wlr_renderer *renderer = nullptr;
+#endif
     // for software renderer
     WImageRenderTarget paintDevice;
     QQuickRenderTarget renderTarget;
     QQuickWindowRenderTarget windowRenderTarget;
+    bool colorPreserved = false;
 
     inline void resetWindowRenderTarget() {
 #if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
@@ -131,12 +138,103 @@ struct Q_DECL_HIDDEN BufferData {
     }
 };
 
+class WRenderHelper::RenderTarget::Private {
+public:
+    std::weak_ptr<BufferData> data;
+};
+
+WRenderHelper::RenderTarget::RenderTarget() : d(new Private) {}
+WRenderHelper::RenderTarget::RenderTarget(const RenderTarget &other)
+    : d(other.d ? new Private(*other.d) : nullptr) {}
+WRenderHelper::RenderTarget &WRenderHelper::RenderTarget::operator=(const RenderTarget &other)
+{
+    if (this != &other) {
+        delete d;
+        d = other.d ? new Private(*other.d) : nullptr;
+    }
+    return *this;
+}
+WRenderHelper::RenderTarget::~RenderTarget() { delete d; }
+
+bool WRenderHelper::RenderTarget::isNull() const
+{
+    return !d || d->data.expired();
+}
+
+QQuickRenderTarget WRenderHelper::RenderTarget::rt() const
+{
+    if (!d)
+        return {};
+    auto data = d->data.lock();
+    return data ? data->renderTarget : QQuickRenderTarget();
+}
+
+qw_buffer *WRenderHelper::RenderTarget::buffer() const
+{
+    if (!d)
+        return nullptr;
+    auto data = d->data.lock();
+    return data ? data->buffer : nullptr;
+}
+
+bool WRenderHelper::RenderTarget::colorPreserved() const
+{
+    if (!d)
+        return false;
+    auto data = d->data.lock();
+    return data ? data->colorPreserved : false;
+}
+
+static constexpr WGlobal::ColorContentsMode resolveColorContentsMode(
+    WGlobal::ColorContentsMode requested, bool softwareRenderer) noexcept
+{
+    if (requested != WGlobal::ColorContentsMode::DontCare)
+        return requested;
+    // Software clear is expensive; default to preserve.
+    return softwareRenderer ? WGlobal::ColorContentsMode::Preserve
+                            : WGlobal::ColorContentsMode::Clear;
+}
+
+static QRhiTextureRenderTarget::Flags rhiRenderTargetFlags(WGlobal::ColorContentsMode mode)
+{
+    Q_ASSERT(mode != WGlobal::ColorContentsMode::DontCare);
+    return mode == WGlobal::ColorContentsMode::Preserve
+        ? QRhiTextureRenderTarget::PreserveColorContents
+        : QRhiTextureRenderTarget::Flags{};
+}
+
+static bool recreateRhiRenderTarget(BufferData *data, QRhiTextureRenderTarget::Flags flags)
+{
+#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+    auto renderTarget = static_cast<QRhiTextureRenderTarget *>(
+        data->windowRenderTarget.rt.renderTarget);
+    auto &rpDesc = data->windowRenderTarget.res.rpDesc;
+#else
+    auto renderTarget = static_cast<QRhiTextureRenderTarget *>(
+        data->windowRenderTarget.renderTarget);
+    auto &rpDesc = data->windowRenderTarget.rpDesc;
+#endif
+    Q_ASSERT(renderTarget);
+    renderTarget->destroy();
+    renderTarget->setFlags(flags);
+
+    auto newRpDesc = renderTarget->newCompatibleRenderPassDescriptor();
+    if (!newRpDesc)
+        return false;
+    delete rpDesc;
+    rpDesc = newRpDesc;
+    renderTarget->setRenderPassDescriptor(rpDesc);
+    return renderTarget->create();
+}
+
+
 // Copy from qquickrendertarget.cpp
 static bool createRhiRenderTarget(const QRhiColorAttachment &colorAttachment,
                                   const QSize &pixelSize,
                                   int sampleCount,
                                   QRhi *rhi,
-                                  QQuickWindowRenderTarget &dst)
+                                  QQuickWindowRenderTarget &dst,
+                                  QRhiTextureRenderTarget::Flags flags)
 {
     std::unique_ptr<QRhiRenderBuffer> depthStencil(rhi->newRenderBuffer(QRhiRenderBuffer::DepthStencil, pixelSize, sampleCount));
     if (!depthStencil->create()) {
@@ -146,7 +244,7 @@ static bool createRhiRenderTarget(const QRhiColorAttachment &colorAttachment,
 
     QRhiTextureRenderTargetDescription rtDesc(colorAttachment);
     rtDesc.setDepthStencilBuffer(depthStencil.get());
-    std::unique_ptr<QRhiTextureRenderTarget> rt(rhi->newTextureRenderTarget(rtDesc));
+    std::unique_ptr<QRhiTextureRenderTarget> rt(rhi->newTextureRenderTarget(rtDesc, flags));
     std::unique_ptr<QRhiRenderPassDescriptor> rp(rt->newCompatibleRenderPassDescriptor());
     rt->setRenderPassDescriptor(rp.get());
 
@@ -170,7 +268,8 @@ static bool createRhiRenderTarget(const QRhiColorAttachment &colorAttachment,
     return true;
 }
 
-bool createRhiRenderTarget(QRhi *rhi, const QQuickRenderTarget &source, QQuickWindowRenderTarget &dst)
+bool createRhiRenderTarget(QRhi *rhi, const QQuickRenderTarget &source, QQuickWindowRenderTarget &dst,
+                           QRhiTextureRenderTarget::Flags flags)
 {
     auto rtd = QQuickRenderTargetPrivate::get(&source);
 
@@ -178,14 +277,14 @@ bool createRhiRenderTarget(QRhi *rhi, const QQuickRenderTarget &source, QQuickWi
     case QQuickRenderTargetPrivate::Type::NativeTexture: {
         const auto format = rtd->u.nativeTexture.rhiFormat == QRhiTexture::UnknownFormat ? QRhiTexture::RGBA8
                                                                                          : QRhiTexture::Format(rtd->u.nativeTexture.rhiFormat);
-        const auto flags = QRhiTexture::RenderTarget | QRhiTexture::Flags(
+        const auto textureFlags = QRhiTexture::RenderTarget | QRhiTexture::Flags(
 #if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
                                rtd->u.nativeTexture.rhiFormatFlags
 #else
                                rtd->u.nativeTexture.rhiFlags
 #endif
                                                                           );
-        std::unique_ptr<QRhiTexture> texture(rhi->newTexture(format, rtd->pixelSize, rtd->sampleCount, flags));
+        std::unique_ptr<QRhiTexture> texture(rhi->newTexture(format, rtd->pixelSize, rtd->sampleCount, textureFlags));
         texture->setName(QByteArrayLiteral("WaylibTexture"));
 #if QT_VERSION < QT_VERSION_CHECK(6, 6, 0)
         if (!texture->createFrom({ rtd->u.nativeTexture.object, rtd->u.nativeTexture.layout }))
@@ -194,7 +293,7 @@ bool createRhiRenderTarget(QRhi *rhi, const QQuickRenderTarget &source, QQuickWi
 #endif
             return false;
         QRhiColorAttachment att(texture.get());
-        if (!createRhiRenderTarget(att, rtd->pixelSize, rtd->sampleCount, rhi, dst))
+        if (!createRhiRenderTarget(att, rtd->pixelSize, rtd->sampleCount, rhi, dst, flags))
             return false;
 #if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
         dst.res.texture = texture.release();
@@ -210,7 +309,7 @@ bool createRhiRenderTarget(QRhi *rhi, const QQuickRenderTarget &source, QQuickWi
             return false;
         }
         QRhiColorAttachment att(renderbuffer.get());
-        if (!createRhiRenderTarget(att, rtd->pixelSize, rtd->sampleCount, rhi, dst))
+        if (!createRhiRenderTarget(att, rtd->pixelSize, rtd->sampleCount, rhi, dst, flags))
             return false;
         renderbuffer->setName(QByteArrayLiteral("WaylibRenderBuffer"));
 #if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
@@ -242,21 +341,21 @@ public:
 
     void resetRenderBuffer();
     void onBufferDestroy();
-    static bool ensureRhiRenderTarget(QQuickRenderControl *rc, BufferData *data);
+    static bool ensureRhiRenderTarget(QQuickRenderControl *rc, BufferData *data,
+                                      QRhiTextureRenderTarget::Flags flags);
 
     W_DECLARE_PUBLIC(WRenderHelper)
     qw_renderer *renderer;
-    QList<BufferData*> buffers;
-    BufferData *lastBuffer = nullptr;
+    QList<std::shared_ptr<BufferData>> buffers;
+    std::weak_ptr<BufferData> lastBuffer;
 
     QSize size;
 };
 
 void WRenderHelperPrivate::resetRenderBuffer()
 {
-    qDeleteAll(buffers);
-    lastBuffer = nullptr;
     buffers.clear();
+    lastBuffer.reset();
 }
 
 void WRenderHelperPrivate::onBufferDestroy()
@@ -266,15 +365,17 @@ void WRenderHelperPrivate::onBufferDestroy()
     for (int i = 0; i < buffers.count(); ++i) {
         auto data = buffers[i];
         if (data->buffer == buffer) {
-            if (lastBuffer == data)
-                lastBuffer = nullptr;
+            auto locked = lastBuffer.lock();
+            if (locked && locked == data)
+                lastBuffer.reset();
             buffers.removeAt(i);
             break;
         }
     }
 }
 
-bool WRenderHelperPrivate::ensureRhiRenderTarget(QQuickRenderControl *rc, BufferData *data)
+bool WRenderHelperPrivate::ensureRhiRenderTarget(QQuickRenderControl *rc, BufferData *data,
+                                                 QRhiTextureRenderTarget::Flags flags)
 {
     data->resetWindowRenderTarget();
 #if QT_VERSION < QT_VERSION_CHECK(6, 6, 0)
@@ -283,7 +384,7 @@ bool WRenderHelperPrivate::ensureRhiRenderTarget(QQuickRenderControl *rc, Buffer
     auto rhi = rc->rhi();
 #endif
     auto tmp = data->renderTarget;
-    bool ok = createRhiRenderTarget(rhi, tmp, data->windowRenderTarget);
+    bool ok = createRhiRenderTarget(rhi, tmp, data->windowRenderTarget, flags);
     if (!ok)
         return false;
 #if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
@@ -535,7 +636,8 @@ qw_buffer *WRenderHelper::toBuffer(qw_renderer *renderer, QSGTexture *texture, Q
     return nullptr;
 }
 
-QQuickRenderTarget WRenderHelper::acquireRenderTarget(QQuickRenderControl *rc, qw_buffer *buffer)
+WRenderHelper::RenderTarget WRenderHelper::acquireRenderTarget(QQuickRenderControl *rc, qw_buffer *buffer,
+                                                               WGlobal::ColorContentsMode mode)
 {
     W_D(WRenderHelper);
     Q_ASSERT(buffer);
@@ -543,21 +645,56 @@ QQuickRenderTarget WRenderHelper::acquireRenderTarget(QQuickRenderControl *rc, q
     if (d->size.isEmpty())
         return {};
 
+    const bool isSoftware = wlr_renderer_is_pixman(d->renderer->handle());
+    const auto resolvedMode = resolveColorContentsMode(mode, isSoftware);
+    const bool needPreserve = resolvedMode == WGlobal::ColorContentsMode::Preserve;
+    const auto flags = rhiRenderTargetFlags(resolvedMode);
+
     for (int i = 0; i < d->buffers.count(); ++i) {
         auto data = d->buffers[i];
         if (data->buffer == buffer) {
+            if (needPreserve != data->colorPreserved) {
+#ifdef ENABLE_VULKAN_RENDER
+                if (data->renderer && wlr_renderer_is_vk(data->renderer)) {
+                    qCWarning(lcWlRenderHelper)
+                        << "Recreating Vulkan render target for buffer" << buffer
+                        << "to change color preserved from" << data->colorPreserved
+                        << "to" << needPreserve;
+                    if (!recreateRhiRenderTarget(data.get(), flags))
+                        return {};
+                } else
+#endif
+                {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+                    auto renderTarget = data->windowRenderTarget.rt.renderTarget;
+#else
+                    auto renderTarget = data->windowRenderTarget.renderTarget;
+#endif
+                    if (renderTarget)
+                        static_cast<QRhiTextureRenderTarget *>(renderTarget)->setFlags(flags);
+                }
+            }
+            data->colorPreserved = needPreserve;
             d->lastBuffer = data;
-            return data->renderTarget;
+            RenderTarget result;
+            result.d->data = data;
+            return result;
         }
     }
 
     std::unique_ptr<BufferData> bufferData(new BufferData);
     bufferData->buffer = buffer;
-    auto texture = qw_texture::from_buffer(*d->renderer, *buffer);
+    bufferData->colorPreserved = needPreserve;
+#ifdef ENABLE_VULKAN_RENDER
+    bufferData->renderer = d->renderer->handle();
+#endif
 
     QQuickRenderTarget rt;
 
-    if (wlr_renderer_is_pixman(d->renderer->handle())) {
+    if (isSoftware) {
+        std::unique_ptr<qw_texture> texture(qw_texture::from_buffer(*d->renderer, *buffer));
+        if (!texture)
+            return {};
         pixman_image_t *image = wlr_pixman_texture_get_image(texture->handle());
         void *data = pixman_image_get_data(image);
         if (bufferData->paintDevice.constBits() != data)
@@ -567,12 +704,23 @@ QQuickRenderTarget WRenderHelper::acquireRenderTarget(QQuickRenderControl *rc, q
     }
 #ifdef ENABLE_VULKAN_RENDER
     else if (wlr_renderer_is_vk(d->renderer->handle())) {
-        wlr_vk_image_attribs attribs;
-        wlr_vk_texture_get_image_attribs(texture->handle(), &attribs);
-        rt = QQuickRenderTarget::fromVulkanImage(attribs.image, attribs.layout, attribs.format, d->size);
+        // Reuse wlroots' wlr_vk_render_buffer (same VkImage as tinywl/scene),
+        // not a parallel dmabuf import owned by waylib.
+        wlr_vk_image_attribs attribs = {};
+        if (!waylib_vk_renderer_get_render_buffer_attribs(d->renderer->handle(),
+                                                         buffer->handle(), &attribs)) {
+            return {};
+        }
+        rt = QQuickRenderTarget::fromVulkanImage(attribs.image,
+                                                 attribs.layout,
+                                                 attribs.format,
+                                                 d->size);
     }
 #endif
     else if (wlr_renderer_is_gles2(d->renderer->handle())) {
+        std::unique_ptr<qw_texture> texture(qw_texture::from_buffer(*d->renderer, *buffer));
+        if (!texture)
+            return {};
         wlr_gles2_texture_attribs attribs;
         wlr_gles2_texture_get_attribs(texture->handle(), &attribs);
 
@@ -580,13 +728,12 @@ QQuickRenderTarget WRenderHelper::acquireRenderTarget(QQuickRenderControl *rc, q
         rt.setMirrorVertically(true);
     }
 
-    delete texture;
     bufferData->renderTarget = rt;
 
     if (QSGRendererInterface::isApiRhiBased(getGraphicsApi(rc))) {
         if (!rt.isNull()) {
             // Force convert to Rhi render target
-            if (!d->ensureRhiRenderTarget(rc, bufferData.get()))
+            if (!d->ensureRhiRenderTarget(rc, bufferData.get(), flags))
                 bufferData->renderTarget = {};
         }
 
@@ -602,20 +749,104 @@ QQuickRenderTarget WRenderHelper::acquireRenderTarget(QQuickRenderControl *rc, q
     connect(buffer, SIGNAL(before_destroy()),
             this, SLOT(onBufferDestroy()), Qt::UniqueConnection);
 
-    d->buffers.append(bufferData.release());
+    d->buffers.append(std::shared_ptr<BufferData>(bufferData.release()));
     d->lastBuffer = d->buffers.last();
 
-    return d->buffers.last()->renderTarget;
+    RenderTarget result;
+    result.d->data = d->buffers.last();
+    return result;
 }
 
-std::pair<qw_buffer *, QQuickRenderTarget> WRenderHelper::lastRenderTarget() const
+WRenderHelper::RenderTarget WRenderHelper::lastRenderTarget() const
 {
     W_DC(WRenderHelper);
-    if (!d->lastBuffer)
-        return {nullptr, {}};
+    auto data = d->lastBuffer.lock();
+    if (!data)
+        return {};
 
-    return {d->lastBuffer->buffer, d->lastBuffer->renderTarget};
+    RenderTarget result;
+    result.d->data = data;
+    return result;
 }
+
+#ifdef ENABLE_VULKAN_RENDER
+void WRenderHelper::prepareVulkanRenderTarget(QRhiCommandBuffer *cb, const RenderTarget &rt)
+{
+    if (!rt.d || !cb)
+        return;
+    auto data = rt.d->data.lock();
+    if (!data || !data->buffer || !data->renderer || !wlr_renderer_is_vk(data->renderer))
+        return;
+
+    cb->beginExternal();
+    auto handles = static_cast<const QRhiVulkanCommandBufferNativeHandles *>(cb->nativeHandles());
+    if (!handles || handles->commandBuffer == VK_NULL_HANDLE) {
+        cb->endExternal();
+        qCWarning(lcWlRenderHelper, "Vulkan render buffer acquire: missing native command buffer");
+        return;
+    }
+
+    // FOREIGN_EXT -> graphics queue, same as wlroots pass.c / PR #1171.
+    if (!waylib_vk_renderer_record_render_buffer_acquire(data->renderer,
+                                                         data->buffer->handle(),
+                                                         handles->commandBuffer)) {
+        qCWarning(lcWlRenderHelper) << "Vulkan render buffer acquire failed for" << data->buffer;
+    }
+    cb->endExternal();
+}
+
+void WRenderHelper::finishVulkanRenderTarget(QRhiCommandBuffer *cb, const RenderTarget &rt)
+{
+    if (!rt.d || !cb)
+        return;
+    auto data = rt.d->data.lock();
+    if (!data || !data->buffer || !data->renderer || !wlr_renderer_is_vk(data->renderer))
+        return;
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+    QRhiTexture *qtTexture = data->windowRenderTarget.res.texture;
+#else
+    QRhiTexture *qtTexture = data->windowRenderTarget.texture;
+#endif
+    if (!qtTexture) {
+        qCWarning(lcWlRenderHelper, "Vulkan render buffer release: missing Qt QRhiTexture");
+        return;
+    }
+
+    const auto native = qtTexture->nativeTexture();
+#if QT_VERSION < QT_VERSION_CHECK(6, 6, 0)
+    const auto oldLayout = VkImageLayout(native.layout);
+#else
+    const auto oldLayout = VkImageLayout(native.layout);
+#endif
+    if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED) {
+        qCWarning(lcWlRenderHelper, "Vulkan render buffer release: Qt texture layout is UNDEFINED");
+        return;
+    }
+
+    cb->beginExternal();
+    auto handles = static_cast<const QRhiVulkanCommandBufferNativeHandles *>(cb->nativeHandles());
+    if (!handles || handles->commandBuffer == VK_NULL_HANDLE) {
+        cb->endExternal();
+        qCWarning(lcWlRenderHelper, "Vulkan render buffer release: missing native command buffer");
+        return;
+    }
+
+    // graphics queue -> FOREIGN_EXT + GENERAL for KMS, using Qt's real old layout.
+    if (!waylib_vk_renderer_record_render_buffer_release(data->renderer,
+                                                         data->buffer->handle(),
+                                                         handles->commandBuffer,
+                                                         oldLayout)) {
+        qCWarning(lcWlRenderHelper) << "Vulkan render buffer release failed for" << data->buffer;
+        cb->endExternal();
+        return;
+    }
+    cb->endExternal();
+
+    // Keep QRhi's external-image tracker in sync with the post-release layout.
+    qtTexture->setNativeLayout(VK_IMAGE_LAYOUT_GENERAL);
+}
+#endif // ENABLE_VULKAN_RENDER
 
 static qw_renderer *createRendererWithType(const char *type, qw_backend *backend)
 {

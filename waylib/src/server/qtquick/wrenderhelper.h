@@ -1,4 +1,4 @@
-// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
@@ -15,6 +15,7 @@ class QQuickRenderControl;
 class QSGTexture;
 class QSGPlainTexture;
 class QRhi;
+class QRhiCommandBuffer;
 QT_END_NAMESPACE
 
 QW_BEGIN_NAMESPACE
@@ -47,8 +48,35 @@ public:
 
     static QW_NAMESPACE::qw_buffer *toBuffer(QW_NAMESPACE::qw_renderer *renderer, QSGTexture *texture, QSGRendererInterface::GraphicsApi api);
 
-    QQuickRenderTarget acquireRenderTarget(QQuickRenderControl *rc, QW_NAMESPACE::qw_buffer *buffer);
-    std::pair<QW_NAMESPACE::qw_buffer*, QQuickRenderTarget> lastRenderTarget() const;
+    // Opaque handle to an internal BufferData. Becomes null when the buffer
+    // is destroyed (similar to QPointer).
+    class WAYLIB_SERVER_EXPORT RenderTarget {
+    public:
+        RenderTarget();
+        RenderTarget(const RenderTarget &);
+        RenderTarget &operator=(const RenderTarget &);
+        ~RenderTarget();
+
+        bool isNull() const;
+        QQuickRenderTarget rt() const;
+        QW_NAMESPACE::qw_buffer *buffer() const;
+        bool colorPreserved() const;
+
+    private:
+        friend class WRenderHelper;
+        class Private;
+        Private *d = nullptr;
+    };
+
+    RenderTarget acquireRenderTarget(QQuickRenderControl *rc, QW_NAMESPACE::qw_buffer *buffer,
+                                     WGlobal::ColorContentsMode mode = WGlobal::ColorContentsMode::DontCare);
+    RenderTarget lastRenderTarget() const;
+
+#ifdef ENABLE_VULKAN_RENDER
+    // Record wlroots render_buffer FOREIGN acquire/release around Qt RHI pass.
+    void prepareVulkanRenderTarget(QRhiCommandBuffer *cb, const RenderTarget &rt);
+    void finishVulkanRenderTarget(QRhiCommandBuffer *cb, const RenderTarget &rt);
+#endif
     static QW_NAMESPACE::qw_renderer *createRenderer(QW_NAMESPACE::qw_backend *backend);
     static QW_NAMESPACE::qw_renderer *createRenderer(QW_NAMESPACE::qw_backend *backend, QSGRendererInterface::GraphicsApi api);
 
