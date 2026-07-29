@@ -571,6 +571,17 @@ bool WXWaylandSurface::isBelow() const
     return d->handle()->below;
 }
 
+bool WXWaylandSurface::isX11Mapped() const
+{
+    W_DC(WXWaylandSurface);
+    const auto *handle = d->handle();
+    // wlroots owns the map/stack state: MapNotify links the managed window
+    // into surfaces_in_stack_order, while UnmapNotify dissociates it and
+    // unlinks it. Do not keep a second map state in waylib.
+    return handle && !handle->override_redirect && !handle->withdrawn
+        && !wl_list_empty(&handle->stack_link);
+}
+
 bool WXWaylandSurface::isModal() const
 {
     W_DC(WXWaylandSurface);

@@ -16,13 +16,10 @@
 
 #include <wserver.h>
 #ifndef DISABLE_XWAYLAND
-#include <wxwayland.h>
+#include <wxwaylandsurface.h>
 #endif
 #include <wsurfaceitem.h>
 #include <wxdgpopupsurface.h>
-#ifndef DISABLE_XWAYLAND
-#include <wxwaylandsurface.h>
-#endif
 #include <woutputrenderwindow.h>
 
 #include <wlr_all.h>
@@ -188,6 +185,12 @@ void FocusController::setActivatedSurface(SurfaceWrapper *newActivateSurface, WS
     }
 
     if (seatContainer->activatedSurface() == newActivateSurface) {
+        // A prelaunch wrapper can already be active when its real X11 window
+        // maps; reapply the stacking policy for this window only.
+#ifndef DISABLE_XWAYLAND
+        if (raise && newActivateSurface)
+            newActivateSurface->applyXWaylandStacking();
+#endif
         return;
     }
 
@@ -202,15 +205,19 @@ void FocusController::setActivatedSurface(SurfaceWrapper *newActivateSurface, WS
     if (newActivateSurface) {
         Q_ASSERT(newActivateSurface->showOnWorkspace(m_server->workspace()->current()->id()));
         if (raise) {
-            newActivateSurface->stackToLast();
+            bool keepAtBottom = false;
 #ifndef DISABLE_XWAYLAND
             if (newActivateSurface->type() == SurfaceWrapper::Type::XWayland) {
-                auto xwaylandSurface =
+                auto *xwaylandSurface =
                     qobject_cast<WXWaylandSurface *>(newActivateSurface->shellSurface());
-                Q_ASSERT(!xwaylandSurface->isBypassManager());
-                xwaylandSurface->restack(nullptr, WXWaylandSurface::XCB_STACK_MODE_ABOVE);
+                keepAtBottom = xwaylandSurface && !newActivateSurface->parentSurface()
+                    && !xwaylandSurface->isAbove() && xwaylandSurface->isBelow();
             }
 #endif
+            if (keepAtBottom)
+                newActivateSurface->stackToFirst();
+            else
+                newActivateSurface->stackToLast();
         }
     }
 
@@ -239,6 +246,10 @@ void FocusController::setActivatedSurface(SurfaceWrapper *newActivateSurface, WS
         newActivateSurface->setActivate(true);
     }
 
+#ifndef DISABLE_XWAYLAND
+    if (raise && newActivateSurface)
+        newActivateSurface->applyXWaylandStacking();
+#endif
 }
 
 void FocusController::onRenderWindowActiveFocusItemChanged()
