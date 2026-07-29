@@ -200,6 +200,7 @@ void SurfaceWrapper::invalidate()
 {
     Q_ASSERT_X(!m_wrapperAboutToRemove, Q_FUNC_INFO, "Can't call `invalidate` twice!");
     m_wrapperAboutToRemove = true;
+    m_pendingPrelaunchXWaylandStackSync = false;
     Q_EMIT aboutToBeInvalidated();
 
     if (!m_skipDockPreView)
@@ -537,6 +538,10 @@ void SurfaceWrapper::setup()
                 &WXWaylandSurface::belowChanged,
                 this,
                 &SurfaceWrapper::updateXWaylandStackingState);
+        connect(xwaylandSurface,
+                &WXWaylandSurface::x11MapCompleted,
+                this,
+                &SurfaceWrapper::syncPrelaunchXWaylandStacking);
         updateX11SkipFlags();
         updateXWaylandStackingState();
     }
@@ -605,6 +610,8 @@ void SurfaceWrapper::setActivate(bool activate)
 
     Q_ASSERT(!activate || hasActiveCapability());
     m_isActivated = activate;
+    if (activate)
+        syncPrelaunchXWaylandStacking();
 
     if (m_attention && m_isActivated)
         setAttention(false);
@@ -805,6 +812,8 @@ void SurfaceWrapper::completeSplashTransition(const QSizeF &targetImplicitSize, 
         m_decoration->stackBefore(m_surfaceItem);
     }
 
+    requestPrelaunchXWaylandStackSync();
+
     m_surfaceItem->setVisible(true);
     if (m_type == Type::XWayland
         && (m_surfaceState == State::Maximized || m_surfaceState == State::Fullscreen)) {
@@ -831,6 +840,57 @@ void SurfaceWrapper::completeSplashTransition(const QSizeF &targetImplicitSize, 
     // Now that the splash is hidden and deleted, the surface can be considered active if it's
     // mapped
     updateHasActiveCapability(ActiveControlState::MappedOrSplash, surface() && surface()->mapped());
+}
+
+void SurfaceWrapper::requestPrelaunchXWaylandStackSync()
+{
+    if (m_isProxy || m_type != Type::XWayland)
+        return;
+
+    auto *xwaylandSurface = qobject_cast<WXWaylandSurface *>(m_shellSurface);
+    if (!xwaylandSurface || xwaylandSurface->isBypassManager())
+        return;
+
+    m_pendingPrelaunchXWaylandStackSync = true;
+    if (!xwaylandSurface->isX11Mapped()) {
+        qCDebug(lcTlSurface)
+            << "Deferring prelaunch XWayland stacking until X11 map completes for" << appId();
+        return;
+    }
+
+    syncPrelaunchXWaylandStacking();
+}
+
+void SurfaceWrapper::syncPrelaunchXWaylandStacking()
+{
+    if (!m_pendingPrelaunchXWaylandStackSync)
+        return;
+
+    auto *xwaylandSurface = qobject_cast<WXWaylandSurface *>(m_shellSurface);
+    if (m_wrapperAboutToRemove || m_isProxy || m_type != Type::XWayland || !xwaylandSurface
+        || xwaylandSurface->isBypassManager()) {
+        m_pendingPrelaunchXWaylandStackSync = false;
+        return;
+    }
+
+    if (!m_isActivated || !xwaylandSurface->isX11Mapped())
+        return;
+
+    // wlroots initially places a managed XWayland window at the bottom of the native X11
+    // stack. A prelaunch wrapper is already activated, so the normal activation path cannot
+    // observe a wrapper change and raise the newly attached X11 window. Synchronize both
+    // stacks after wlroots has finished handling XCB_MAP_NOTIFY, mirroring the stacking
+    // direction updateXWaylandStackingState() gives to _NET_WM_STATE_ABOVE/BELOW windows.
+    if (!xwaylandSurface->isAbove() && xwaylandSurface->isBelow()) {
+        stackToFirst();
+        xwaylandSurface->restack(nullptr, WXWaylandSurface::XCB_STACK_MODE_BELOW);
+    } else {
+        stackToLast();
+        xwaylandSurface->restack(nullptr, WXWaylandSurface::XCB_STACK_MODE_ABOVE);
+    }
+    m_pendingPrelaunchXWaylandStackSync = false;
+    qCDebug(lcTlSurface)
+        << "Synchronized active prelaunch XWayland stacking after X11 map for" << appId();
 }
 
 WSurface *SurfaceWrapper::surface() const
