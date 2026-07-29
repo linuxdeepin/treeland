@@ -67,6 +67,8 @@ public:
     uint minimized:1;
     uint fullscreen:1;
     uint activated:1;
+    bool x11Mapped = false;
+    quint64 x11MapGeneration = 0;
 
 private:
     // XWayland owns this handle and destroys it after notifying the

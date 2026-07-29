@@ -58,6 +58,7 @@ void WXWaylandSurfacePrivate::init()
     });
     q->listeners()->add(&m_handle->events.dissociate, this, [this, q] (void *) {
         Q_ASSERT(surface);
+        q->setX11Mapped(false);
         Q_EMIT q->aboutToDissociate();
         delete surface;
         surface = nullptr;
@@ -486,6 +487,12 @@ bool WXWaylandSurface::isBypassManager() const
     return d->handle()->override_redirect;
 }
 
+bool WXWaylandSurface::isX11Mapped() const
+{
+    W_DC(WXWaylandSurface);
+    return d->x11Mapped;
+}
+
 WXWaylandSurface::WindowTypes WXWaylandSurface::windowTypes() const
 {
     W_DC(WXWaylandSurface);
@@ -603,6 +610,36 @@ void WXWaylandSurface::restack(WXWaylandSurface *sibling, StackMode mode)
     }
 
     wlr_xwayland_surface_restack(handle(), nullptr, static_cast<xcb_stack_mode_t>(mode));
+}
+
+void WXWaylandSurface::setX11Mapped(bool mapped)
+{
+    W_D(WXWaylandSurface);
+
+    if (d->x11Mapped == mapped)
+        return;
+
+    d->x11Mapped = mapped;
+    const quint64 generation = ++d->x11MapGeneration;
+    if (!mapped)
+        return;
+
+    // wlroots invokes the user event handler before its own XCB_MAP_NOTIFY handler.
+    // Defer notification so consumers run after wlroots performs the initial X11 restack.
+    QPointer<WXWaylandSurface> guard(this);
+    QMetaObject::invokeMethod(
+        this,
+        [guard, generation] {
+            if (!guard)
+                return;
+
+            const auto *d = guard->d_func();
+            if (!d->x11Mapped || d->x11MapGeneration != generation)
+                return;
+
+            Q_EMIT guard->x11MapCompleted();
+        },
+        Qt::QueuedConnection);
 }
 
 WAYLIB_SERVER_END_NAMESPACE
