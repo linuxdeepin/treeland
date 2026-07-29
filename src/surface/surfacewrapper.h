@@ -28,6 +28,9 @@ WAYLIB_SERVER_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WSeat;
 class WSocket;
+#ifndef DISABLE_XWAYLAND
+class WXWaylandSurface;
+#endif
 WAYLIB_SERVER_END_NAMESPACE
 
 class QmlEngine;
@@ -341,6 +344,9 @@ public:
     SurfaceWrapper *stackFirstSurface() const;
     SurfaceWrapper *stackLastSurface() const;
     bool hasChild(SurfaceWrapper *child) const;
+#ifndef DISABLE_XWAYLAND
+    void applyXWaylandStacking();
+#endif
 
     QQuickItem *titleBar() const;
     QQuickItem *decoration() const;
@@ -553,6 +559,7 @@ private:
                                 Type type); // Transition from pre-launch mode to normal mode
     void updateBoundingRect();
     void updateVisible();
+    bool shouldBeVisible() const;
     void setRenderingEnabled(bool enabled);
     void syncRenderingState();
     void suspendAnimations();
@@ -612,6 +619,11 @@ private:
     void updateActivateCapability();
     void updateFocusCapability();
     void completeSplashTransition(const QSizeF &targetImplicitSize, bool hideDecoration = false);
+#ifndef DISABLE_XWAYLAND
+    void lowerXWaylandStacking();
+    void scheduleXWaylandStackingUpdate();
+    void flushXWaylandStackingUpdate();
+#endif
 
     // wayland set by treeland-dde-shell, x11 set by bypassManager/windowTypes
     void setSkipDockPreView(bool skip);
@@ -732,6 +744,10 @@ private:
     bool m_sessionVisibilityChanging{ false };
     bool m_liveSuppressed{ false };
     bool m_windowAnimationEnabled{ true };
+#ifndef DISABLE_XWAYLAND
+    bool m_xwaylandStackingVisible{ false };
+    bool m_xwaylandStackingUpdateQueued{ false };
+#endif
 
     QPointer<WSeat> m_pendingActivationSeat;
     std::unique_ptr<SurfaceWindowTransition> m_windowTransition;

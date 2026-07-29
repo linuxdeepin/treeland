@@ -646,6 +646,7 @@ void SurfaceWrapper::setup()
                 &SurfaceWrapper::updateXWaylandStackingState);
         updateX11SkipFlags();
         updateXWaylandStackingState();
+        scheduleXWaylandStackingUpdate();
     }
 #endif
     updateActivateCapability();
@@ -948,6 +949,124 @@ void SurfaceWrapper::completeSplashTransition(const QSizeF &targetImplicitSize, 
     // mapped
     updateHasActiveCapability(ActiveControlState::MappedOrSplash, surface() && surface()->mapped());
 }
+
+#ifndef DISABLE_XWAYLAND
+void SurfaceWrapper::applyXWaylandStacking()
+{
+    if (m_wrapperAboutToRemove || m_isProxy || m_type != Type::XWayland || !shouldBeVisible()
+        || !parentItem()) {
+        return;
+    }
+
+    auto *xwaylandSurface = qobject_cast<WXWaylandSurface *>(m_shellSurface.data());
+    if (!xwaylandSurface || xwaylandSurface->isBypassManager() || !xwaylandSurface->isX11Mapped()) {
+        return;
+    }
+
+    // Place this window relative to its visible scene neighbors instead of
+    // raising it to the absolute top. The native stack must follow the painted
+    // order for ABOVE/BELOW layers, transient windows and restored windows, so
+    // only this window is moved and the anchor is the adjacent visible managed
+    // XWayland window.
+    WXWaylandSurface *surfaceBelow = nullptr;
+    WXWaylandSurface *surfaceAbove = nullptr;
+    qreal belowZ = 0;
+    qreal aboveZ = 0;
+    int belowIndex = -1;
+    int aboveIndex = -1;
+
+    const auto &items = parentItem()->childItems();
+    const int selfIndex = items.indexOf(this);
+    if (selfIndex < 0)
+        return;
+
+    const qreal selfZ = z();
+    for (int i = 0; i < items.size(); ++i) {
+        if (i == selfIndex)
+            continue;
+
+        auto *sibling = qobject_cast<SurfaceWrapper *>(items.at(i));
+        // Descendants are positioned after this window below; using a
+        // transient that may itself be out of place as the anchor would drag
+        // this window into the wrong layer.
+        if (!sibling || sibling->m_wrapperAboutToRemove || sibling->m_isProxy
+            || sibling->m_type != Type::XWayland || !sibling->isVisible() || hasChild(sibling)) {
+            continue;
+        }
+
+        auto *siblingSurface = qobject_cast<WXWaylandSurface *>(sibling->m_shellSurface.data());
+        if (!siblingSurface || siblingSurface->isBypassManager()
+            || !siblingSurface->isX11Mapped()) {
+            continue;
+        }
+
+        const qreal siblingZ = sibling->z();
+        const bool isBelow = siblingZ < selfZ || (siblingZ == selfZ && i < selfIndex);
+        if (isBelow) {
+            if (!surfaceBelow || siblingZ > belowZ || (siblingZ == belowZ && i > belowIndex)) {
+                surfaceBelow = siblingSurface;
+                belowZ = siblingZ;
+                belowIndex = i;
+            }
+        } else if (!surfaceAbove || siblingZ < aboveZ || (siblingZ == aboveZ && i < aboveIndex)) {
+            surfaceAbove = siblingSurface;
+            aboveZ = siblingZ;
+            aboveIndex = i;
+        }
+    }
+
+    if (surfaceBelow) {
+        xwaylandSurface->restack(surfaceBelow, WXWaylandSurface::XCB_STACK_MODE_ABOVE);
+    } else if (surfaceAbove) {
+        xwaylandSurface->restack(surfaceAbove, WXWaylandSurface::XCB_STACK_MODE_BELOW);
+    } else {
+        // The only visible managed X11 window still needs to sit above hidden
+        // windows so a later workspace or minimize restore cannot put them in
+        // front of visible content.
+        xwaylandSurface->restack(nullptr, WXWaylandSurface::XCB_STACK_MODE_ABOVE);
+    }
+
+    // Transients inherit the stacking layer of their parent, so they must be
+    // placed again after the parent moved or changed layer.
+    for (auto *child : std::as_const(m_subSurfaces))
+        child->applyXWaylandStacking();
+}
+
+void SurfaceWrapper::lowerXWaylandStacking()
+{
+    if (m_wrapperAboutToRemove || m_isProxy || m_type != Type::XWayland)
+        return;
+
+    auto *xwaylandSurface = qobject_cast<WXWaylandSurface *>(m_shellSurface.data());
+    if (!xwaylandSurface || xwaylandSurface->isBypassManager() || !xwaylandSurface->isX11Mapped()) {
+        return;
+    }
+
+    xwaylandSurface->restack(nullptr, WXWaylandSurface::XCB_STACK_MODE_BELOW);
+}
+
+void SurfaceWrapper::scheduleXWaylandStackingUpdate()
+{
+    if (m_wrapperAboutToRemove || m_isProxy || m_type != Type::XWayland
+        || m_xwaylandStackingUpdateQueued) {
+        return;
+    }
+
+    m_xwaylandStackingUpdateQueued = true;
+    // MapNotify and the first Wayland buffer commit can be ready in the same
+    // wl_event_loop_dispatch(). Queue the update so it runs after the loop has
+    // dispatched the pending X11 source as well.
+    QMetaObject::invokeMethod(this,
+                              &SurfaceWrapper::flushXWaylandStackingUpdate,
+                              Qt::QueuedConnection);
+}
+
+void SurfaceWrapper::flushXWaylandStackingUpdate()
+{
+    m_xwaylandStackingUpdateQueued = false;
+    applyXWaylandStacking();
+}
+#endif
 
 WSurface *SurfaceWrapper::surface() const
 {
@@ -1735,18 +1854,33 @@ void SurfaceWrapper::setRenderingEnabled(bool enabled)
     updateVisible();
 }
 
-void SurfaceWrapper::updateVisible()
+bool SurfaceWrapper::shouldBeVisible() const
 {
-    if (m_wrapperAboutToRemove)
-        return;
     const bool mapped = surface() && surface()->mapped();
     // A pure splash must not depend on its child's effective visibility:
     // hiding this wrapper also hides that child, preventing later restoration.
     const bool splash = m_prelaunchSplash
         && (m_type == Type::SplashScreen || m_prelaunchSplash->isVisible());
-    bool isVisible = m_renderingEnabled && !m_hideByWorkspace && !isMinimized() && (mapped || splash)
+    return m_renderingEnabled && !m_hideByWorkspace && !isMinimized() && (mapped || splash)
         && m_socketEnabled && m_hideByshowDesk && !m_confirmHideByLockScreen;
+}
+
+void SurfaceWrapper::updateVisible()
+{
+    if (m_wrapperAboutToRemove)
+        return;
+    const bool isVisible = shouldBeVisible();
     setVisible(isVisible);
+
+#ifndef DISABLE_XWAYLAND
+    if (m_xwaylandStackingVisible != isVisible) {
+        m_xwaylandStackingVisible = isVisible;
+        if (isVisible)
+            applyXWaylandStacking();
+        else
+            lowerXWaylandStacking();
+    }
+#endif
 }
 
 void SurfaceWrapper::updateSubSurfaceStacking()
@@ -2249,6 +2383,10 @@ void SurfaceWrapper::onMappedChanged()
     updateHasActiveCapability(ActiveControlState::MappedOrSplash, mapped);
     updateFocusControlState(FocusControlState::Mapped, mapped);
     updateVisible();
+#ifndef DISABLE_XWAYLAND
+    if (mapped)
+        scheduleXWaylandStackingUpdate();
+#endif
 }
 
 void SurfaceWrapper::bindVisibilitySocket(WSocket *socket)
@@ -2911,6 +3049,13 @@ void SurfaceWrapper::addSubSurface(SurfaceWrapper *surface)
     surface->updateStackingLayer();
     m_subSurfaces.append(surface);
     surface->ensureAboveParent();
+
+#ifndef DISABLE_XWAYLAND
+    // Re-evaluate the window state against the new parent: a transient must
+    // stay above its owner even if it carries _NET_WM_STATE_BELOW.
+    if (!surface->m_isProxy)
+        surface->updateXWaylandStackingState();
+#endif
 }
 
 void SurfaceWrapper::removeSubSurface(SurfaceWrapper *surface)
@@ -3357,14 +3502,21 @@ void SurfaceWrapper::updateXWaylandStackingState()
         return;
 
     const bool above = xwaylandSurface->isAbove();
-    const bool below = !above && xwaylandSurface->isBelow();
+    // A transient child always belongs above its owner. Do not let a client
+    // asking for _NET_WM_STATE_BELOW push it underneath the parent; the
+    // parent relation wins over the window state hint.
+    const bool below = !above && !m_parentSurface && xwaylandSurface->isBelow();
     setAlwaysOnBottom(below);
     setAlwaysOnTop(above);
-    if (above) {
+
+    if (above)
         stackToLast();
-    } else if (below) {
+    else if (below)
         stackToFirst();
-    }
+    else if (m_parentSurface)
+        ensureAboveParent();
+
+    applyXWaylandStacking();
 }
 #endif
 
