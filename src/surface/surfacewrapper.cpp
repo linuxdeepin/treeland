@@ -1641,8 +1641,13 @@ void SurfaceWrapper::onMinimizeAnimationFinished()
 
 void SurfaceWrapper::startMinimizeAnimation(const QRectF &iconGeometry, uint direction)
 {
-    if (m_minimizeAnimation)
+    if (m_minimizeAnimation) {
+        m_minimizeAnimation->setProperty("direction", direction);
+        m_minimizeAnimation->setProperty("position", QVariant::fromValue(iconGeometry));
+        const bool ok = QMetaObject::invokeMethod(m_minimizeAnimation, "redirect");
+        Q_ASSERT(ok);
         return;
+    }
     if (!Helper::instance()->surfaceBelongsToCurrentSession(this))
         return;
 
