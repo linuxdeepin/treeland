@@ -1,10 +1,11 @@
-// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
 
 #include <wglobal.h>
 #include <woutput.h>
+#include <wrenderhelper.h>
 #include <qwglobal.h>
 
 #include <QObject>
@@ -44,9 +45,9 @@ public:
     WOutput *output() const;
     QWindow *outputWindow() const;
 
-    std::pair<QW_NAMESPACE::qw_buffer*, QQuickRenderTarget> acquireRenderTarget(QQuickRenderControl *rc,
-                                                                               wlr_swapchain **swapchain = nullptr);
-    std::pair<QW_NAMESPACE::qw_buffer*, QQuickRenderTarget> lastRenderTarget();
+    WRenderHelper::RenderTarget acquireRenderTarget(QQuickRenderControl *rc,
+                                                    wlr_swapchain **swapchain = nullptr);
+    WRenderHelper::RenderTarget lastRenderTarget();
 
     void setBuffer(QW_NAMESPACE::qw_buffer *buffer);
     QW_NAMESPACE::qw_buffer *buffer() const;

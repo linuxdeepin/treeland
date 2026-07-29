@@ -1,4 +1,4 @@
-// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
@@ -23,7 +23,7 @@ public:
     WOutputViewportPrivate()
         : attached(false)
         , offscreen(false)
-        , preserveColorContents(false)
+        , colorContentsMode(WGlobal::ColorContentsMode::DontCare)
         , live(true)
         , forceRender(false)
         , ignoreViewport(false)
@@ -84,7 +84,7 @@ public:
 
     uint attached:1;
     uint offscreen:1;
-    uint preserveColorContents:1;
+    WGlobal::ColorContentsMode colorContentsMode;
     uint live:1;
     uint forceRender:1;
     uint ignoreViewport:1;

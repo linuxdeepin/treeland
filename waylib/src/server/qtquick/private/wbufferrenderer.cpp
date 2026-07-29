@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2026 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wbufferrenderer_p.h"
@@ -267,6 +267,11 @@ QRhiTexture *WBufferRenderer::currentRenderTarget() const
     return colorAttachment->texture();
 }
 
+bool WBufferRenderer::isColorPreserved() const
+{
+    return state.renderTarget.colorPreserved();
+}
+
 const qw_damage_ring *WBufferRenderer::damageRing() const
 {
     return &m_damageRing;
@@ -331,7 +336,8 @@ QTransform WBufferRenderer::inputMapToOutput(const QRectF &sourceRect, const QRe
 }
 
 qw_buffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePixelRatio,
-                                        uint32_t format, RenderFlags flags)
+                                        uint32_t format, RenderFlags flags,
+                                        WGlobal::ColorContentsMode mode)
 {
     Q_ASSERT(!state.buffer);
     Q_ASSERT(m_output);
@@ -378,8 +384,7 @@ qw_buffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePixe
 
     auto wd = QQuickWindowPrivate::get(window());
     Q_ASSERT(wd->renderControl);
-    auto lastRT = m_renderHelper->lastRenderTarget();
-    auto rt = m_renderHelper->acquireRenderTarget(wd->renderControl, buffer);
+    auto rt = m_renderHelper->acquireRenderTarget(wd->renderControl, buffer, mode);
     if (rt.isNull()) {
         buffer->unlock();
         return nullptr;
@@ -390,7 +395,8 @@ qw_buffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePixe
     m_damageRing.rotate_buffer(wbuffer, damage);
     state.dirty = WTools::fromPixmanRegion(damage);
 
-    auto rtd = QQuickRenderTargetPrivate::get(&rt);
+    auto rtValue = rt.rt();
+    auto rtd = QQuickRenderTargetPrivate::get(&rtValue);
     QSGRenderTarget sgRT;
 
     if (rtd->type == QQuickRenderTargetPrivate::Type::PaintDevice) {
@@ -420,6 +426,7 @@ qw_buffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePixe
     }
 
     state.flags = flags;
+    state.colorContentsMode = mode;
     state.context = wd->context;
     state.pixelSize = pixelSize;
     state.devicePixelRatio = devicePixelRatio;
@@ -436,8 +443,7 @@ inline static QRect scaleToRect(const QRectF &s, qreal scale) {
 }
 
 void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
-                             const QRectF &sourceRect, const QRectF &targetRect,
-                             bool preserveColorContents)
+                             const QRectF &sourceRect, const QRectF &targetRect)
 {
     Q_ASSERT(state.buffer);
 
@@ -475,18 +481,18 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
     const auto viewportRect = scaleToRect(targetRect, devicePixelRatio);
 
     auto softwareRenderer = dynamic_cast<QSGSoftwareRenderer*>(renderer);
+    const bool isVulkanRhi = wd->rhi && wd->rhi->backend() == QRhi::Vulkan;
     { // before render
         if (softwareRenderer) {
             // Avoid do clear before paint, for the software renderer this
             // work is expensive.
-            if (m_clearColor.alpha() == 0)
-                preserveColorContents = true;
+            const bool clearColor = !state.renderTarget.colorPreserved();
 #if QT_VERSION >= QT_VERSION_CHECK(6, 9, 0)
-            softwareRenderer->setClearColorEnabled(!preserveColorContents);
+            softwareRenderer->setClearColorEnabled(clearColor);
 #else
             auto bn = softwareRenderer->renderableNode(W_PRIVATE_MEMBER(*softwareRenderer, QSGAbsSoftRenderer_m_background_tag{}));
             if (bn) {
-                W_PRIVATE_MEMBER(*bn, QSGSoftRenderableNode_m_opacity_tag{}) = preserveColorContents ? 0 : 1;
+                W_PRIVATE_MEMBER(*bn, QSGSoftRenderableNode_m_opacity_tag{}) = clearColor ? 1 : 0;
             }
 #endif
             if (!state.dirty.isEmpty()) {
@@ -501,7 +507,7 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
             if (!mapTransform.isIdentity())
                 state.worldTransform = mapTransform * state.worldTransform;
             state.worldTransform.optimize();
-            auto image = getImageFrom(state.renderTarget);
+            auto image = getImageFrom(state.renderTarget.rt());
             image->setDevicePixelRatio(devicePixelRatio);
 
             // TODO: Should set to QSGSoftwareRenderer, but it's not support specify matrix.
@@ -523,7 +529,7 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
             state.worldTransform.optimize();
 
             bool flipY = wd->rhi ? !wd->rhi->isYUpInNDC() : false;
-            if (state.renderTarget.mirrorVertically())
+            if (state.renderTarget.rt().mirrorVertically())
                 flipY = !flipY;
 
             if (viewportRect.isValid()) {
@@ -564,16 +570,18 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
             renderer->setProjectionMatrix(projectionMatrix);
             renderer->setProjectionMatrixWithNativeNDC(projectionMatrixWithNativeNDC);
 
-            auto textureRT = static_cast<QRhiTextureRenderTarget*>(state.sgRenderTarget.rt);
-            if (preserveColorContents) {
-                textureRT->setFlags(textureRT->flags() | QRhiTextureRenderTarget::PreserveColorContents);
-            } else {
-                textureRT->setFlags(textureRT->flags() & ~QRhiTextureRenderTarget::PreserveColorContents);
-            }
         }
     }
 
+#ifdef ENABLE_VULKAN_RENDER
+    if (m_renderHelper)
+        m_renderHelper->prepareVulkanRenderTarget(state.sgRenderTarget.cb, state.renderTarget);
+#endif
     state.context->renderNextFrame(renderer);
+#ifdef ENABLE_VULKAN_RENDER
+    if (m_renderHelper)
+        m_renderHelper->finishVulkanRenderTarget(state.sgRenderTarget.cb, state.renderTarget);
+#endif
 
     { // after render
         if (!softwareRenderer) {
@@ -587,11 +595,12 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
             // sourceIndex, we should let the RHI (Rendering Hardware Interface)
             // complete the results of this drawing here to ensure the current
             // drawing result is available for use.
-            wd->rhi->finish();
+            if (!isVulkanRhi)
+                wd->rhi->finish();
         } else {
             state.dirty = softwareRenderer->flushRegion();
 
-            auto currentImage = getImageFrom(state.renderTarget);
+            auto currentImage = getImageFrom(state.renderTarget.rt());
             Q_ASSERT(currentImage && currentImage == softwareRenderer->renderTarget().paintDevice);
             currentImage->setDevicePixelRatio(1.0);
             const auto scaleTF = QTransform::fromScale(devicePixelRatio, devicePixelRatio);
