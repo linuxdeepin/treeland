@@ -12,13 +12,13 @@ Item {
     // Liquid Glass material controls.
     // Blur and shadow stay delegated to Qt Quick MultiEffect / callers.
     property real radius: 12
-    property real thickness: 40
-    property real bezelWidth: 36
+    property real thickness: 30
+    property real bezelWidth: 30
     property real ior: 1.33
     property real specular: 0.0
     property real tint: 0.0
     // Limit the geometric surface slope near the silhouette.
-    property real refractionMaxTan: 2.0
+    property real refractionMaxTan: 3.3
     property real contentEdgePull: 0.0
     property real contentRampEnd: 0.0
     property real profilePower: 2.0
