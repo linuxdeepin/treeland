@@ -19,6 +19,7 @@ PartOf=dde-session-pre.target
 Before=dde-session-pre.target
 
 [Service]
+Environment=SEATD_SOCK=/run/dde-seatd.sock
 ExecCondition=/bin/sh -c 'test "$TREELAND_RUN_MODE" = "user" || exit 2'
 Type=dbus
 BusName=org.deepin.Compositor1
