@@ -144,12 +144,7 @@ Item {
             echoMode: loginGroup.enteringOtherUser ? TextInput.Normal
                       : (showPasswordBtn.hiddenPWD ? TextInput.Password : TextInput.Normal)
             rightPadding: 22
-            leftPadding: {
-                var remaining = width - contentWidth - rightPadding
-                if (capsIndicator.visible)
-                    return rightPadding
-                return Math.max(8, remaining > rightPadding ? rightPadding : remaining)
-            }
+            leftPadding: 22
             maximumLength: 510
             placeholderText: loginGroup.enteringOtherUser ? qsTr("Username") : qsTr("Password")
             placeholderTextColor: Qt.rgba(1.0, 1.0, 1.0, 0.6)
