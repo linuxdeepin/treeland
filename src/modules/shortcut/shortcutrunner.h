@@ -28,11 +28,16 @@ private:
     void finishWorkspaceSwipe();
     void taskswitchAction(bool isRepeat, bool isSameApp, bool isPrev);
 
+    // dynamic bounce check: true when cb pushes beyond workspace boundary
+    inline bool isWorkspaceBounce(qreal cb, int currentIndex, int wsCount) const
+    {
+        return (cb > 0 && currentIndex >= wsCount - 1) || (cb < 0 && currentIndex <= 0);
+    }
+
     qreal m_desktopOffset = 0;
     int m_fromId = 0;
     int m_toId = 0;
     bool m_slideEnable = false;
-    bool m_slideBounce = false;
 
     QTimer *m_quickSwitchTimer = nullptr;
     ShortcutAction m_currentAction;
