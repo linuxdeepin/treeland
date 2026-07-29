@@ -186,7 +186,7 @@ void ShortcutRunner::onActionProgress(ShortcutAction action, qreal progress, con
     case ShortcutAction::OpenMultiTaskView:
     {
         auto helper = Helper::instance();
-        if (!helper->m_multitaskView)
+        if (!helper->m_multitaskView || !helper->isNormalOrMultitaskview())
             break;
         if (helper->currentMode() == Helper::CurrentMode::Normal
             && qFuzzyIsNull(helper->m_multitaskView->partialFactor())) {
@@ -201,7 +201,7 @@ void ShortcutRunner::onActionProgress(ShortcutAction action, qreal progress, con
     case ShortcutAction::CloseMultiTaskView:
     {
         auto helper = Helper::instance();
-        if (!helper->m_multitaskView)
+        if (!helper->m_multitaskView || !helper->isNormalOrMultitaskview())
             break;
         if (helper->currentMode() != Helper::CurrentMode::Multitaskview) {
             break;
@@ -225,7 +225,7 @@ void ShortcutRunner::onActionFinish(ShortcutAction action, const QString &name, 
     case ShortcutAction::OpenMultiTaskView:
     {
         auto helper = Helper::instance();
-        if (!helper->m_multitaskView)
+        if (!helper->m_multitaskView || !helper->isNormalOrMultitaskview())
             break;
         const bool triggered = helper->m_multitaskView->partialFactor() > 0.5;
         helper->m_multitaskView->setStatus(triggered ? IMultitaskView::Active
@@ -237,7 +237,7 @@ void ShortcutRunner::onActionFinish(ShortcutAction action, const QString &name, 
     case ShortcutAction::CloseMultiTaskView:
     {
         auto helper = Helper::instance();
-        if (!helper->m_multitaskView)
+        if (!helper->m_multitaskView || !helper->isNormalOrMultitaskview())
             break;
         const bool triggered = (1.0 - helper->m_multitaskView->partialFactor()) > 0.5;
         if (qFuzzyCompare(helper->m_multitaskView->partialFactor(), 0.0)
@@ -269,83 +269,47 @@ void ShortcutRunner::updateWorkspaceSwipe(qreal cb)
     Q_ASSERT(controller);
 
     m_desktopOffset = cb;
+
     if (!m_slideEnable) {
         m_slideEnable = true;
-        m_slideBounce = false;
-
         m_fromId = workspace->currentIndex();
-        if (cb > 0) {
-            m_toId = m_fromId + 1;
-            if (m_toId > workspace->count())
-                return;
-
-            if (m_toId == workspace->count())
-                m_slideBounce = true;
-        } else if (cb < 0) {
-            m_toId = m_fromId - 1;
-            if (m_toId < -1)
-                return;
-
-            if (m_toId == -1)
-                m_slideBounce = true;
-        }
-
-        controller->slideNormal(m_fromId, m_toId);
+        controller->slideNormal(m_fromId);
         workspace->createSwitcher();
         controller->setRunning(true);
     }
 
-    if (m_slideEnable) {
-        controller->startGestureSlide(m_desktopOffset, m_slideBounce);
-    }
+    controller->startGestureSlide(
+        cb,
+        isWorkspaceBounce(cb, workspace->currentIndex(), workspace->count()));
 }
 
 void ShortcutRunner::finishWorkspaceSwipe()
 {
     if (!m_slideEnable)
         return;
-
     m_slideEnable = false;
-
-    // precision control. if it is infinitely close to 0, resetting the current index will cause
-    // flickering
-    qreal epison = std::floor(std::abs(m_desktopOffset) * 100) / 100;
-    if (epison < 0.01)
-        return;
-
     Workspace *workspace = Helper::instance()->workspace();
-    if (!m_slideBounce && (m_desktopOffset > 0.98 || m_desktopOffset < -0.98)) {
-        // m_desktopOffset is very close to 1 or -1, just set to the toId directly
-        // Not need to play the slide animation
-        workspace->switchTo(m_toId, false);
-        auto *controller = workspace->animationController();
-        controller->setRunning(false);
-        return;
-    }
+    int currentIdx = workspace->currentIndex();
+    int wsCount = workspace->count();
 
-    m_fromId = workspace->currentIndex();
-    m_toId = 0;
-
+    // determine target based on offset threshold, but never cross boundary
+    m_toId = currentIdx;
     if (m_desktopOffset > 0.3) {
-        m_toId = m_slideBounce ? m_fromId : m_fromId + 1;
-        if (m_toId >= workspace->count())
-            return;
+        if (!isWorkspaceBounce(m_desktopOffset, currentIdx, wsCount))
+            m_toId = currentIdx + 1;
     } else if (m_desktopOffset <= -0.3) {
-        m_toId = m_slideBounce ? m_fromId : m_fromId - 1;
-        if (m_toId < 0)
-            return;
-    } else {
-        m_toId = m_fromId;
+        if (!isWorkspaceBounce(m_desktopOffset, currentIdx, wsCount))
+            m_toId = currentIdx - 1;
     }
+
+    // final safety bounds check
+    m_toId = qBound(0, m_toId, wsCount - 1);
 
     auto controller = workspace->animationController();
-    if (m_toId >= 0 && m_toId < workspace->count()) {
-        controller->slideRunning(m_toId);
-        controller->startSlideAnimation();
-        workspace->switchTo(m_toId, false);
-    }
+    controller->slideRunning(m_toId);
+    controller->startSlideAnimation();
+    workspace->switchTo(m_toId, false);
 }
-
 void ShortcutRunner::taskswitchAction(bool isRepeat, bool isSameApp, bool isPrev)
 {
     auto *helper = Helper::instance();

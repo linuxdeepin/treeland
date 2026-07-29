@@ -2342,7 +2342,8 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *targetWindow, QInputEvent 
         seat->cursor()->setVisible(false);
     }
 
-    doGesture(event);
+    if (m_currentMode != CurrentMode::LockScreen)
+        doGesture(event);
 
     // Per-seat move/resize handling
     const auto *seatContainer = m_rootSurfaceContainer->getSeatContainer(seat);
