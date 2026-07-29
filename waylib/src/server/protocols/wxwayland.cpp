@@ -67,6 +67,7 @@ public:
 
     void xcbPollReplies();
     void xcbAsyncTimeoutForWindow(xcb_window_t windowId);
+    void setX11Mapped(xcb_window_t windowId, bool mapped);
 
     W_DECLARE_PUBLIC(WXWayland)
 
@@ -89,16 +90,29 @@ bool xwayland_user_event_handler(wlr_xwayland *xwayland, xcb_generic_event_t *ev
         return false;
 
     const uint8_t response_type = event->response_type & ~0x80;
-    if (response_type != XCB_PROPERTY_NOTIFY)
-        return false;
-
-    auto *pe = reinterpret_cast<const xcb_property_notify_event_t *>(event);
     auto *self = WXWayland::fromHandle(xwayland);
 
     if (!self)
         return false;
 
     auto *d = self->d_func();
+
+    if (response_type == XCB_MAP_NOTIFY) {
+        auto *me = reinterpret_cast<const xcb_map_notify_event_t *>(event);
+        d->setX11Mapped(me->window, true);
+        return false;
+    }
+
+    if (response_type == XCB_UNMAP_NOTIFY) {
+        auto *ue = reinterpret_cast<const xcb_unmap_notify_event_t *>(event);
+        d->setX11Mapped(ue->window, false);
+        return false;
+    }
+
+    if (response_type != XCB_PROPERTY_NOTIFY)
+        return false;
+
+    auto *pe = reinterpret_cast<const xcb_property_notify_event_t *>(event);
 
     // Trigger async property reading infrastructure if this window is being tracked.
     if (!d->asyncProps.isEmpty()) {
@@ -137,6 +151,20 @@ bool xwayland_user_event_handler(wlr_xwayland *xwayland, xcb_generic_event_t *ev
 
     // Do not consume the event; let xcb and wlroots continue normal processing.
     return false;
+}
+
+void WXWaylandPrivate::setX11Mapped(xcb_window_t windowId, bool mapped)
+{
+    for (auto *surface : std::as_const(surfaceList)) {
+        QPointer<WXWaylandSurface> guard(surface);
+        if (!guard)
+            continue;
+        if (guard->handle()->window_id != windowId)
+            continue;
+
+        guard->setX11Mapped(mapped);
+        break;
+    }
 }
 
 void WXWaylandPrivate::init()
