@@ -14,6 +14,12 @@
 #include <rhi/qrhi.h>
 #include <private/qsgplaintexture_p.h>
 
+extern "C" {
+#ifdef ENABLE_VULKAN_RENDER
+#include <wlr/render/vulkan.h>
+#endif
+}
+
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class Q_DECL_HIDDEN WSGTextureProviderPrivate : public WObjectPrivate
@@ -26,8 +32,6 @@ public:
         qtTexture.setOwnsTexture(false);
         qtTexture.setFiltering(smooth ? QSGTexture::Linear
                                       : QSGTexture::Nearest);
-        qtTexture.setMipmapFiltering(smooth ? QSGTexture::Linear
-                                            : QSGTexture::Nearest);
     }
 
     ~WSGTextureProviderPrivate() {
@@ -35,7 +39,12 @@ public:
     }
 
     void cleanTexture() {
-        if (rhiTexture) {
+        auto *oldRhiTexture = qtTexture.rhiTexture();
+        if (oldRhiTexture) {
+            // QSGPlainTexture does not own the QRhiTexture in this provider.
+            qtTexture.setOwnsTexture(false);
+            qtTexture.setTexture(nullptr);
+
             Q_ASSERT(window);
             class TextureCleanupJob : public QRunnable
             {
@@ -49,14 +58,28 @@ public:
             };
 
             // Delay clean the qt rhi textures.
-            window->scheduleRenderJob(new TextureCleanupJob(rhiTexture),
+            window->scheduleRenderJob(new TextureCleanupJob(oldRhiTexture),
                                       QQuickWindow::AfterSynchronizingStage);
-            rhiTexture = nullptr;
         }
 
         if (ownsTexture && texture)
             delete texture;
         texture = nullptr;
+    }
+
+    void flushVulkanStageIfNeeded() {
+#ifdef ENABLE_VULKAN_RENDER
+        if (!window || !window->renderer())
+            return;
+        auto *renderer = window->renderer()->handle();
+        if (!wlr_renderer_is_vk(renderer))
+            return;
+        // SHM uploads are recorded on wlroots' stage CB and only submitted by
+        // a wlroots render pass. Flush before Qt samples the image.
+        if (!waylib_vk_renderer_flush_stage(renderer)) {
+            qCWarning(lcWlQtQuickTexture) << "Failed to flush Vulkan stage CB for SHM upload";
+        }
+#endif
     }
 
     void updateRhiTexture() {
@@ -69,7 +92,7 @@ public:
             return;
         }
 
-        rhiTexture = qtTexture.rhiTexture();
+        flushVulkanStageIfNeeded();
     }
 
     W_DECLARE_PUBLIC(WSGTextureProvider)
@@ -83,7 +106,6 @@ public:
 
     // qt resources
     QSGPlainTexture qtTexture;
-    QRhiTexture *rhiTexture = nullptr;
     bool smooth = true;
 };
 
@@ -101,15 +123,17 @@ WOutputRenderWindow *WSGTextureProvider::window() const
 
 void WSGTextureProvider::setBuffer(qw_buffer *buffer)
 {
-    if (buffer == qwBuffer()) {
+    W_D(WSGTextureProvider);
+    if (buffer == d->buffer) {
         // The buffer object is not changed, but maybe the buffer's content is changed.
         // So should emit textureChanged() signal too.
-        if (buffer)
+        if (buffer && d->texture) {
+            d->flushVulkanStageIfNeeded();
             Q_EMIT textureChanged();
+        }
         return;
     }
 
-    W_D(WSGTextureProvider);
     d->cleanTexture();
     d->buffer = buffer;
 
@@ -193,8 +217,6 @@ void WSGTextureProvider::setSmooth(bool newSmooth)
     d->smooth = newSmooth;
     d->qtTexture.setFiltering(newSmooth ? QSGTexture::Linear
                                         : QSGTexture::Nearest);
-    d->qtTexture.setMipmapFiltering(newSmooth ? QSGTexture::Linear
-                                              : QSGTexture::Nearest);
 
     Q_EMIT smoothChanged();
 }
