@@ -55,7 +55,7 @@ RenderBufferBlitter {
             saturation: blitter.saturation
             contentEdgePull: 0.0
             contentRampEnd: 0.0
-            refractionMaxTan: 2.0
+            refractionMaxTan: 3.3
             profilePower: Helper.config.glassProfilePower
             innerShadow: 0.0
         }

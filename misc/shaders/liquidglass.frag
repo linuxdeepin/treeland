@@ -345,6 +345,21 @@ vec3 sampleBg(vec2 uv)
     return texture(source, clamp(uv, vec2(0.002), vec2(0.998))).rgb;
 }
 
+// Stretch-aware 5-tap filter. radiusPx≈0 collapses to a single sample.
+vec3 sampleBgSoft(vec2 uv, vec2 resolution, float radiusPx)
+{
+    if (radiusPx < 0.01)
+        return sampleBg(uv);
+
+    vec2 px = vec2(radiusPx) / max(resolution, vec2(1.0));
+    vec3 color = sampleBg(uv) * 0.36;
+    color += sampleBg(uv + vec2(px.x, 0.0)) * 0.16;
+    color += sampleBg(uv - vec2(px.x, 0.0)) * 0.16;
+    color += sampleBg(uv + vec2(0.0, px.y)) * 0.16;
+    color += sampleBg(uv - vec2(0.0, px.y)) * 0.16;
+    return color;
+}
+
 vec4 finishColor(vec3 color, float shapeAlpha)
 {
     if (ubuf.tint > 1e-4)
@@ -416,16 +431,14 @@ void main()
     float maxTan = max(ubuf.refractionMaxTan, 0.1);
 
     vec2 profile = surfaceProfile(t);
-    float h = profile.x;
-
+    // Path length stays slab-like (not h*thickness). Profile height collapsed
+    // to ~0 at the lip and left an unrefracted ring inside the outline.
     float thick = max(ubuf.thickness, 0.0);
     float edgePull = clamp(ubuf.contentEdgePull, 0.0, 1.0);
-    float outerSoft = smoothstep(0.0, max(2.5 * edgeAA, 2.5), opticalDistFromEdge);
-    float slopeSoft = mix(outerSoft, 1.0, edgePull);
-    float rawTan = profile.y * (thick / bezel);
-    float slopeMag = min(rawTan, maxTan) * slopeSoft;
+    float rawTan = profile.y * (thick / max(bezel, 1.0));
+    float slopeMag = min(rawTan, maxTan);
 
-    float H = h * thick;
+    float H = thick;
 
     float rampEnd = clamp(ubuf.contentRampEnd, 0.001, 1.0);
     // edgePull=0 → contentRamp = smoothstep(0, rampEnd, t); keep exact mix for pull>0.
@@ -441,14 +454,21 @@ void main()
     float sinI = slopeMag * incidentInvLen;
     float sinT = clamp(sinI / iorG, 0.0, 0.999);
     float tanT = sinT * inversesqrt(max(1.0 - sinT * sinT, 1e-4));
-    float magG = H * contentRamp * max(slopeMag - tanT, 0.0);
-    magG = min(magG, maxDisp);
+    // Cap the geometric Snell term first, then apply contentRamp so edgePull
+    // still controls the lip when thickness would otherwise slam into maxDisp.
+    float magG = min(H * max(slopeMag - tanT, 0.0), maxDisp) * contentRamp;
     vec2 inward = -n2;
     vec2 offG = inward * magG;
 
-    vec2 baseUv = shadePoint / size + 0.5;
-    // sampleBg clamps; avoid a second clamp here.
-    vec3 color = sampleBg(baseUv + offG / size);
+    vec2 sampleUv = shadePoint / size + 0.5 + offG / size;
+    // Soften only where UV stretch exceeds ~1px (curved warp jaggies).
+    float filterPx = 0.0;
+    if (magG > 0.5) {
+        float stretchX = length(vec2(dFdx(sampleUv.x), dFdy(sampleUv.x))) * size.x;
+        float stretchY = length(vec2(dFdx(sampleUv.y), dFdy(sampleUv.y))) * size.y;
+        filterPx = clamp(max(max(stretchX, stretchY) - 1.0, 0.0) * 0.85, 0.0, 2.5);
+    }
+    vec3 color = sampleBgSoft(sampleUv, size, filterPx);
 
     if (ubuf.specular > 1e-4) {
         vec3 N = normalize(vec3(n2 * slopeMag, 1.0));

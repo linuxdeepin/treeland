@@ -103,14 +103,14 @@ private:
     int m_blurStrength = 60;
     qreal m_blurAmount = 0.6;
     qreal m_blurMultiplier = 0.0;
-    qreal m_glassBezel = 36;
-    qreal m_glassThickness = 40;
+    qreal m_glassBezel = 30;
+    qreal m_glassThickness = 30;
     qreal m_glassIor = 1.33;
     qreal m_glassSpecular = 0.0;
     qreal m_glassTint = 0.0;
     qreal m_glassContentEdgePull = 0.0;
     qreal m_glassContentRampEnd = 0.0;
-    qreal m_glassRefractionMaxTan = 2.0;
+    qreal m_glassRefractionMaxTan = 3.3;
     qreal m_glassProfilePower = 2.0;
     qreal m_glassInnerShadow = 0.0;
     qreal m_glassBrightness = 0.0;
