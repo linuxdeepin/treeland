@@ -490,6 +490,8 @@ private:
     void updateActivateCapability();
     void updateFocusCapability();
     void completeSplashTransition(const QSizeF &targetImplicitSize, bool hideDecoration = false);
+    void requestPrelaunchXWaylandStackSync();
+    void syncPrelaunchXWaylandStacking();
 
     // wayland set by treeland-dde-shell, x11 set by bypassManager/windowTypes
     void setSkipDockPreView(bool skip);
@@ -592,6 +594,7 @@ private:
 
     bool m_socketEnabled{ false };
     bool m_windowAnimationEnabled{ true };
+    bool m_pendingPrelaunchXWaylandStackSync{ false };
     const QString m_appId;
 };
 
