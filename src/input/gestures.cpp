@@ -317,6 +317,13 @@ int GestureRecognizer::startSwipeGesture(uint fingerCount,
                 continue;
             }
         }
+        // Axis not yet locked — skip all gestures. The first updateSwipeGesture
+        // will lock the axis, then the two-pass loop rebuilds the active list
+        // with only matching-direction gestures.
+        if (m_currentSwipeAxis == Axis::None) {
+            continue;
+        }
+
         switch (gesture->direction()) {
         case SwipeGesture::Up:
             [[fallthrough]];

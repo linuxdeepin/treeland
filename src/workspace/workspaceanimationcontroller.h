@@ -1,4 +1,4 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #pragma once
 
@@ -55,7 +55,7 @@ Q_SIGNALS:
 
 public Q_SLOTS:
     void slideRunning(uint toWorkspaceIndex);
-    void slideNormal(uint fromWorkspaceIndex, uint toWorkspaceIndex);
+    void slideNormal(uint fromWorkspaceIndex);
     void slide(uint fromWorkspaceIndex, uint toWorkspaceIndex);
     void bounce(uint currentWorkspaceIndex, Direction direction);
     void setRunning(bool running);

@@ -1,4 +1,4 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "workspaceanimationcontroller.h"
 
@@ -131,13 +131,14 @@ void WorkspaceAnimationController::slideRunning(uint toWorkspaceIndex)
     m_currentDirection = m_animationDestination > m_animationInitial ? Right : Left;
 }
 
-void WorkspaceAnimationController::slideNormal(uint fromWorkspaceIndex, uint toWorkspaceIndex)
+void WorkspaceAnimationController::slideNormal(uint fromWorkspaceIndex)
 {
+    m_slideAnimation->stop();
+    m_bounceAnimation->stop();
     m_initialIndex = fromWorkspaceIndex;
-    m_destinationIndex = toWorkspaceIndex;
+    m_destinationIndex = fromWorkspaceIndex;
     m_animationInitial = refWrap() * fromWorkspaceIndex;
-    m_animationDestination = refWrap() * toWorkspaceIndex;
-    m_currentDirection = (fromWorkspaceIndex < toWorkspaceIndex) ? Right : Left;
+    m_animationDestination = m_animationInitial;
     setViewportPos(m_animationInitial);
 }
 
@@ -145,7 +146,10 @@ void WorkspaceAnimationController::slide(uint fromWorkspaceIndex, uint toWorkspa
 {
     m_needBounce = false;
     slideRunning(toWorkspaceIndex);
-    slideNormal(fromWorkspaceIndex, toWorkspaceIndex);
+    slideNormal(fromWorkspaceIndex);
+    m_destinationIndex = toWorkspaceIndex;
+    m_animationDestination = refWrap() * toWorkspaceIndex;
+    m_currentDirection = (fromWorkspaceIndex < toWorkspaceIndex) ? Right : Left;
     startSlideAnimation();
 }
 
