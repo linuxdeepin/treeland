@@ -595,6 +595,7 @@ private:
     void updateActivateCapability();
     void updateFocusCapability();
     void completeSplashTransition(const QSizeF &targetImplicitSize, bool hideDecoration = false);
+    void syncXWaylandStacking();
 
     // wayland set by treeland-dde-shell, x11 set by bypassManager/windowTypes
     void setSkipDockPreView(bool skip);

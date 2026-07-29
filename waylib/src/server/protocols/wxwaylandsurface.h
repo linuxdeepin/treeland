@@ -14,6 +14,7 @@
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WXWayland;
+class WXWaylandPrivate;
 class WSeat;
 class WXWaylandSurfacePrivate;
 class WAYLIB_SERVER_EXPORT WXWaylandSurface : public WToplevelSurface
@@ -123,6 +124,7 @@ public:
     bool isBypassManager() const;
     bool isAbove() const;
     bool isBelow() const;
+    bool isX11Mapped() const;
     bool isModal() const;
     WindowTypes windowTypes() const;
     DecorationsFlags decorationsFlags() const;
@@ -144,6 +146,11 @@ Q_SIGNALS:
     void associated();
     // Emitted before WXWaylandSurfacePrivate handles notify_dissociate cleanup.
     void aboutToDissociate();
+    // Emitted asynchronously (queued) after wlroots has handled XCB_MAP_NOTIFY
+    // and linked the managed X11 window into its stack order. Override-redirect
+    // and already-unmapped windows are filtered out. Assumes the Wayland event
+    // loop runs on the single Qt main thread (see WServerPrivate).
+    void x11MapCompleted();
 
     void parentXWaylandSurfaceChanged();
     void childrenChanged();
@@ -160,6 +167,10 @@ Q_SIGNALS:
 
     void requestConfigure(QRect geometry, ConfigureFlags flags);
     void requestActivate();
+
+private:
+    friend class WXWaylandPrivate;
+    void notifyX11MapCompleted();
 };
 
 WAYLIB_SERVER_END_NAMESPACE

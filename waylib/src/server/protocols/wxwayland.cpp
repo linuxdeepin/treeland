@@ -67,6 +67,7 @@ public:
 
     void xcbPollReplies();
     void xcbAsyncTimeoutForWindow(xcb_window_t windowId);
+    void scheduleX11MapCompleted(xcb_window_t windowId);
 
     W_DECLARE_PUBLIC(WXWayland)
 
@@ -89,16 +90,28 @@ bool xwayland_user_event_handler(wlr_xwayland *xwayland, xcb_generic_event_t *ev
         return false;
 
     const uint8_t response_type = event->response_type & ~0x80;
-    if (response_type != XCB_PROPERTY_NOTIFY)
-        return false;
-
-    auto *pe = reinterpret_cast<const xcb_property_notify_event_t *>(event);
     auto *self = WXWayland::fromHandle(xwayland);
 
     if (!self)
         return false;
 
     auto *d = self->d_func();
+
+    // This handler runs before wlroots handles the event. Schedule a queued
+    // callback so consumers observe MapNotify only after wlroots has updated
+    // its own map/stacking state (including the initial restack below).
+    // Unmap needs no hook here: wlroots emits dissociate and clears its stack
+    // entry synchronously while handling UnmapNotify.
+    if (response_type == XCB_MAP_NOTIFY) {
+        auto *me = reinterpret_cast<const xcb_map_notify_event_t *>(event);
+        d->scheduleX11MapCompleted(me->window);
+        return false;
+    }
+
+    if (response_type != XCB_PROPERTY_NOTIFY)
+        return false;
+
+    auto *pe = reinterpret_cast<const xcb_property_notify_event_t *>(event);
 
     // Trigger async property reading infrastructure if this window is being tracked.
     if (!d->asyncProps.isEmpty()) {
@@ -137,6 +150,26 @@ bool xwayland_user_event_handler(wlr_xwayland *xwayland, xcb_generic_event_t *ev
 
     // Do not consume the event; let xcb and wlroots continue normal processing.
     return false;
+}
+
+void WXWaylandPrivate::scheduleX11MapCompleted(xcb_window_t windowId)
+{
+    for (auto *surface : std::as_const(surfaceList)) {
+        QPointer<WXWaylandSurface> guard(surface);
+        if (!guard)
+            continue;
+        if (guard->handle()->window_id != windowId)
+            continue;
+
+        QMetaObject::invokeMethod(
+            surface,
+            [guard] {
+                if (guard)
+                    guard->notifyX11MapCompleted();
+            },
+            Qt::QueuedConnection);
+        break;
+    }
 }
 
 void WXWaylandPrivate::init()
