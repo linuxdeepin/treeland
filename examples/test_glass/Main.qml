@@ -18,8 +18,8 @@ Item {
     property real effectWidth: 300
     property real effectHeight: 200
     property real effectRadius: 12
-    property real glassThickness: 40
-    property real glassBezelWidth: 36
+    property real glassThickness: 30
+    property real glassBezelWidth: 30
     property real glassIor: 1.33
     property bool glassBlurEnabled: true
     property int glassBlurMax: 64
@@ -27,7 +27,7 @@ Item {
     property real glassBlurMultiplier: 0.0
     property real glassSpecular: 0.0
     property real glassTint: 0.0
-    property real glassRefractionMaxTan: 2.0
+    property real glassRefractionMaxTan: 3.3
     property real glassContentEdgePull: 0.0
     property real glassContentRampEnd: 0.0
     property real glassProfilePower: 2.0

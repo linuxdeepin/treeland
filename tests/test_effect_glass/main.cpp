@@ -143,6 +143,9 @@ private:
         m_glass->setProperty("thickness", 120.0);
         m_glass->setProperty("profilePower", 4.0);
         m_glass->setProperty("ior", 1.45);
+        // Extreme corner stress fixture: keep slope cap fixed so product
+        // refractionMaxTan defaults do not retune this geometry check.
+        m_glass->setProperty("refractionMaxTan", 2.0);
         QTest::qWait(50);
     }
 
@@ -228,13 +231,14 @@ private Q_SLOTS:
     void liquidGlassDefaultsMatch()
     {
         QCOMPARE(m_glass->property("radius").toReal(), 12.0);
-        QCOMPARE(m_glass->property("thickness").toReal(), 40.0);
-        QCOMPARE(m_glass->property("bezelWidth").toReal(), 36.0);
+        QCOMPARE(m_glass->property("thickness").toReal(), 30.0);
+        QCOMPARE(m_glass->property("bezelWidth").toReal(), 30.0);
         QCOMPARE(m_glass->property("ior").toReal(), 1.33);
         QCOMPARE(m_glass->property("specular").toReal(), 0.0);
         QCOMPARE(m_glass->property("tint").toReal(), 0.0);
         QCOMPARE(m_glass->property("saturation").toReal(), 0.0);
         QCOMPARE(m_glass->property("blurAmount").toReal(), 0.6);
+        QCOMPARE(m_glass->property("refractionMaxTan").toReal(), 3.3);
 
     }
     void dconfigDefaultsMatch()
@@ -245,8 +249,8 @@ private Q_SLOTS:
 
         const QJsonObject contents =
             QJsonDocument::fromJson(descriptor.readAll()).object().value("contents").toObject();
-        QCOMPARE(contents.value("glassBezel").toObject().value("value").toDouble(), 36.0);
-        QCOMPARE(contents.value("glassThickness").toObject().value("value").toDouble(), 40.0);
+        QCOMPARE(contents.value("glassBezel").toObject().value("value").toDouble(), 30.0);
+        QCOMPARE(contents.value("glassThickness").toObject().value("value").toDouble(), 30.0);
         QCOMPARE(contents.value("glassProfilePower").toObject().value("value").toDouble(), 2.0);
         QCOMPARE(contents.value("glassSaturation").toObject().value("value").toDouble(), 0.0);
         QCOMPARE(contents.value("glassSpecular").toObject().value("value").toDouble(), 0.0);
