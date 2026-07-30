@@ -315,13 +315,21 @@ public:
     }
     inline bool doNotifyModifiers(WInputDevice *device) {
         auto keyboard = qobject_cast<qw_keyboard*>(device->handle());
+
+        // wlr_seat_set_keyboard() already sends modifiers when the keyboard
+        // changes, so skip the explicit send to avoid a duplicate.
+        bool keyboardChanged = (q_func()->keyboard() != device);
         q_func()->setKeyboard(device);
 
         if (!keyboardFocusSurface())
             return false;
 
-        /* Send modifiers to the client. */
-        this->handle()->keyboard_notify_modifiers(&keyboard->handle()->modifiers);
+        // Only send modifiers explicitly when the keyboard did NOT change.
+        // If it changed, wlr_seat_set_keyboard() already sent them.
+        if (!keyboardChanged) {
+            /* Send modifiers to the client. */
+            this->handle()->keyboard_notify_modifiers(&keyboard->handle()->modifiers);
+        }
         return true;
     }
     inline void doMouseMove(WCursor *cursor, const QPointingDevice *device, uint32_t timestamp) {
@@ -655,17 +663,17 @@ void WSeatPrivate::attachInputDevice(WInputDevice *device)
     if (device->type() == WInputDevice::Type::Keyboard) {
         auto keyboard = qobject_cast<qw_keyboard*>(device->handle());
 
-        /* We need to prepare an XKB keymap and assign it to the keyboard. This
-         * assumes the defaults (e.g. layout = "us"). */
-        struct xkb_rule_names rules = {};
-        struct xkb_context *context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
-        struct xkb_keymap *keymap = xkb_map_new_from_names(context, &rules,
-                                                           XKB_KEYMAP_COMPILE_NO_FLAGS);
-
-        keyboard->set_keymap(keymap);
-        xkb_keymap_unref(keymap);
-        xkb_context_unref(context);
         if (device == groupkeyboardDevice || device->isVirtual()) {
+            /* We need to prepare an XKB keymap and assign it to the keyboard.
+             * This assumes the defaults (e.g. layout = "us"). */
+            struct xkb_rule_names rules = {};
+            struct xkb_context *context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
+            struct xkb_keymap *keymap = xkb_map_new_from_names(context, &rules,
+                                                               XKB_KEYMAP_COMPILE_NO_FLAGS);
+            keyboard->set_keymap(keymap);
+            xkb_keymap_unref(keymap);
+            xkb_context_unref(context);
+
             device->safeConnect(&qw_keyboard::notify_key, q, [this, device] (wlr_keyboard_key_event *event) {
                 on_keyboard_key(event, device);
             });
@@ -674,6 +682,22 @@ void WSeatPrivate::attachInputDevice(WInputDevice *device)
             });
             q->setKeyboard(device);
         } else {
+            // Reuse group keymap pointer so wlr_seat_set_keyboard() sees
+            // no keymap change and skips a spurious keymap event.
+            if (group && group->keyboard.keymap) {
+                keyboard->set_keymap(group->keyboard.keymap);
+            } else {
+                qCWarning(lcWlSeat,
+                          "WSeat: group keyboard has no keymap for physical keyboard '%s'",
+                          qPrintable(device->name()));
+                struct xkb_rule_names rules = {};
+                struct xkb_context *context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
+                struct xkb_keymap *keymap = xkb_map_new_from_names(context, &rules,
+                                                                   XKB_KEYMAP_COMPILE_NO_FLAGS);
+                keyboard->set_keymap(keymap);
+                xkb_keymap_unref(keymap);
+                xkb_context_unref(context);
+            }
             wlr_keyboard_group_add_keyboard(group, keyboard->handle());
         }
     }
@@ -693,8 +717,11 @@ void WSeatPrivate::detachInputDevice(WInputDevice *device)
     }
 
     if (device->type() == WInputDevice::Type::Keyboard) {
-        auto keyboard = qobject_cast<qw_keyboard*>(device->handle());
-        wlr_keyboard_group_remove_keyboard(group, keyboard->handle());
+        // Only physical keyboards are group members.
+        if (device != groupkeyboardDevice && !device->isVirtual()) {
+            auto keyboard = qobject_cast<qw_keyboard*>(device->handle());
+            wlr_keyboard_group_remove_keyboard(group, keyboard->handle());
+        }
     }
     [[maybe_unused]] bool ok = QWlrootsIntegration::instance()->removeInputDevice(device);
     Q_ASSERT(ok);
