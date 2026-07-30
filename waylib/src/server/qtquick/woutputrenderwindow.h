@@ -58,6 +58,18 @@ public:
     WBufferRenderer *currentRenderer() const;
     bool inRendering() const;
 
+    // Render a single item (its entire SG subtree: content + subsurfaces) into
+    // an offscreen buffer via the given WBufferRenderer. The item is
+    // temporarily re-parented under a transient root node for isolation.
+    // Must be called during the render pass (e.g. in afterRendering signal).
+    // Returns the rendered buffer (same as renderer->lastBuffer()), or
+    // nullptr on failure.
+    wlr_buffer *renderItemToBuffer(WBufferRenderer *renderer,
+                                   QQuickItem *item,
+                                   const QSize &pixelSize,
+                                   qreal dpr,
+                                   uint32_t format);
+
     void setRenderEnabled(bool enabled);
 
     static QList<QPointer<QQuickItem>> paintOrderItemList(QQuickItem *root, std::function<bool(QQuickItem*)> filter);
