@@ -56,11 +56,49 @@ precedence = "aggregate"
 SPDX-FileCopyrightText = "None"
 SPDX-License-Identifier = "GPL-2.0-only"
 
+# ===== 3RDPARTY wlroots (vendored upstream) REUSE Configuration =====
+# wlroots upstream ships NO per-file SPDX headers; it relies on a root MIT
+# LICENSE plus textual copyright blocks in xcursor/ and protocol/*.xml.
+# In a single REUSE.toml, reuse resolves multiple matching [[annotations]]
+# blocks by LAST-match-wins (it returns the last matching block in file
+# order, not the most path-specific one). Therefore the broad MIT fallback
+# is listed FIRST, and the narrower exception blocks are listed AFTER it so
+# they take precedence for their specific files.
+
+# General fallback for the rest of vendored wlroots (MIT).
 [[annotations]]
 path = ["3rdparty/wlroots/**"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "wlroots contributors"
 SPDX-License-Identifier = "MIT"
+
+# tinywl example: CC0 / public domain (tinywl/LICENSE)
+[[annotations]]
+path = ["3rdparty/wlroots/tinywl/**"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "None"
+SPDX-License-Identifier = "CC0-1.0"
+
+# server-decoration.xml: KDE/KWin protocol (LGPL-2.1-or-later, Martin Gräßlin)
+[[annotations]]
+path = ["3rdparty/wlroots/protocol/server-decoration.xml"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2015 Martin Gräßlin"
+SPDX-License-Identifier = "LGPL-2.1-or-later"
+
+# HPND-style protocol XMLs ("Permission to use, copy, modify, distribute, and sell ... without fee")
+[[annotations]]
+path = [
+    "3rdparty/wlroots/protocol/drm.xml",
+    "3rdparty/wlroots/protocol/wlr-data-control-unstable-v1.xml",
+    "3rdparty/wlroots/protocol/wlr-foreign-toplevel-management-unstable-v1.xml",
+    "3rdparty/wlroots/protocol/wlr-gamma-control-unstable-v1.xml",
+    "3rdparty/wlroots/protocol/wlr-layer-shell-unstable-v1.xml",
+    "3rdparty/wlroots/protocol/wlr-output-management-unstable-v1.xml",
+]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "wlroots contributors"
+SPDX-License-Identifier = "HPND"
 
 [[annotations]]
 path = ["src/greeter/**.h", "src/greeter/**.cpp"]
