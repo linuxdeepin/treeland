@@ -360,7 +360,15 @@ void WInputMethodHelper::handleNewVKV1(wlr_virtual_keyboard_v1 *vkv1)
     d->virtualKeyboards.append(keyboard);
     d->seat->attachInputDevice(keyboard);
     keyboard->safeConnect(&qw_input_device::before_destroy, this, [d, keyboard] () {
-        if (d->seat) d->seat->detachInputDevice(keyboard);
+        if (d->seat) {
+            // Switch seat keyboard to group before the virtual keyboard's
+            // wlr_keyboard is destroyed. This removes handle_keyboard_destroy
+            // listener from the virtual keyboard, preventing
+            // wlr_seat_set_keyboard(NULL).
+            if (d->seat->keyboard() == keyboard && d->seat->keyboardGroupKeyboard())
+                d->seat->setKeyboard(d->seat->keyboardGroupKeyboard());
+            d->seat->detachInputDevice(keyboard);
+        }
         d->virtualKeyboards.removeOne(keyboard);
         keyboard->safeDeleteLater();
     });
