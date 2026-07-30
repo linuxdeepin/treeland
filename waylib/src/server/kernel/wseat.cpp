@@ -1110,6 +1110,11 @@ void WSeat::setKeyboardFocusSurface(WSurface *surface)
     if (d->m_keyboardFocusSurface == surface)
         return;
 
+    if (!keyboard() && d->groupkeyboardDevice) {
+        qCWarning(lcWlSeat, "WSeat: seat keyboard is NULL in setKeyboardFocusSurface, restoring group keyboard");
+        setKeyboard(d->groupkeyboardDevice);
+    }
+
     d->m_keyboardFocusSurface = surface;
     if (isValid())
         d->doSetKeyboardFocus(surface ? surface->handle() : nullptr);
