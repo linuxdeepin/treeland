@@ -127,8 +127,8 @@ WExtImageCaptureSourceV1Impl::WExtImageCaptureSourceV1Impl(WSurfaceItemContent *
     auto surface = m_surfaceContent->surface();
     if (surface && surface->handle()) {
         auto wlr_surface = surface->handle()->handle();
-        int width = wlr_surface->current.width;
-        int height = wlr_surface->current.height;
+        int width = wlr_surface->current.buffer_width;
+        int height = wlr_surface->current.buffer_height;
         
         // Validate dimensions before setting constraints
         if (width > 0 && height > 0) {
@@ -253,15 +253,20 @@ void WExtImageCaptureSourceV1Impl::handleRenderEnd()
         return;
     }
     
-    // Get surface size and validate it
-    QSize surfaceSize = m_surfaceContent->size().toSize();
-    if (surfaceSize.width() <= 0 || surfaceSize.height() <= 0) {
-        qCWarning(lcWlImageCapture) << "Invalid surface size for damage region:" << surfaceSize;
+    // Get buffer pixel size and validate it
+    auto surface = m_surfaceContent->surface();
+    int bufferWidth = 0, bufferHeight = 0;
+    if (surface && surface->handle() && surface->handle()->handle()) {
+        bufferWidth = surface->handle()->handle()->current.buffer_width;
+        bufferHeight = surface->handle()->handle()->current.buffer_height;
+    }
+    if (bufferWidth <= 0 || bufferHeight <= 0) {
+        qCWarning(lcWlImageCapture) << "Invalid buffer size for damage region:" << bufferWidth << "x" << bufferHeight;
         return;
     }
     
     // Create damage region with RAII
-    WPixmanRegion fullDamage(0, 0, surfaceSize.width(), surfaceSize.height());
+    WPixmanRegion fullDamage(0, 0, bufferWidth, bufferHeight);
     
     // Create frame event and Q_EMIT
     wlr_ext_image_capture_source_v1_frame_event event {
@@ -269,7 +274,7 @@ void WExtImageCaptureSourceV1Impl::handleRenderEnd()
     };
     wl_signal_emit_mutable(&handle()->events.frame, &event);
     
-    qCDebug(lcWlImageCapture) << "Frame event emitted with damage region:" << surfaceSize;
+    qCDebug(lcWlImageCapture) << "Frame event emitted with damage region:" << bufferWidth << "x" << bufferHeight;
 }
 
 void WExtImageCaptureSourceV1Impl::copy_frame(wlr_ext_image_copy_capture_frame_v1 *dst_frame, 
