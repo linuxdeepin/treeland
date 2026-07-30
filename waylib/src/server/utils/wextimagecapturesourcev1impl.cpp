@@ -9,11 +9,10 @@
 #include "woutput.h"
 #include "wtools.h"
 #include "wayliblogging.h"
+#include "wbufferrenderer_p.h"
 
 #include <wlr_all.h>
 #include <wcontainerof.h>
-
-#include <memory>
 
 extern "C" {
 #include <pixman.h>
@@ -120,53 +119,88 @@ const struct wlr_ext_image_capture_source_v1_interface WExtImageCaptureSourceV1I
     .get_pointer_cursor = WExtImageCaptureSourceV1Impl::get_pointer_cursor,
 };
 
-WExtImageCaptureSourceV1Impl::WExtImageCaptureSourceV1Impl(WSurfaceItemContent *surfaceContent, WOutput *output)
-    : QObject(surfaceContent) // TODO: Check if Qt object tree destruction timing is appropriate
-    , m_surfaceContent(surfaceContent)
+WExtImageCaptureSourceV1Impl::WExtImageCaptureSourceV1Impl(QQuickItem *surfaceItem, WOutput *output)
+    : QObject(surfaceItem)
+    , m_surfaceItem(surfaceItem)
     , m_output(output)
     , m_capturing(false)
-    , m_renderEndConnection()
 {
-    Q_ASSERT(m_surfaceContent);
+    Q_ASSERT(m_surfaceItem);
+    Q_ASSERT(m_output);
 
     // Initialize wlr_ext_image_capture_source_v1
     wlr_ext_image_capture_source_v1_init(&source, &impl);
     s_captureSourceMap.insert(&source, this);
 
-    // Get actual surface size and set constraints directly
-    auto surface = m_surfaceContent->surface();
-    if (surface && surface->handle()) {
-        auto wlr_surface = surface->handle();
-        int width = wlr_surface->current.width;
-        int height = wlr_surface->current.height;
+    // Set initial constraints from the surfaceItem's bounding rect * dpr
+    const auto pixelSize = computePixelSize();
+    if (pixelSize.isValid() && !pixelSize.isEmpty()) {
+        ConstraintBuilder builder(&source, m_output);
+        builder.setSize(pixelSize.width(), pixelSize.height());
+        builder.buildShmFormats();
+        builder.buildDmabufFormats();
+        builder.apply();
 
-        // Validate dimensions before setting constraints
-        if (width > 0 && height > 0) {
-            // Use constraint builder helper directly
-            ConstraintBuilder builder(&source, m_output);
-            builder.setSize(width, height);
-            builder.buildShmFormats();
-            builder.buildDmabufFormats();
-            builder.apply();
-
-            qCDebug(lcWlImageCapture) << "Initial constraints set successfully:";
-            qCDebug(lcWlImageCapture) << "  - Width:" << width;
-            qCDebug(lcWlImageCapture) << "  - Height:" << height;
-        } else {
-            qCWarning(lcWlImageCapture) << "Invalid surface dimensions for constraints:" << width << "x" << height;
-        }
+        qCDebug(lcWlImageCapture) << "Initial constraints set:" << pixelSize;
     } else {
-        qCWarning(lcWlImageCapture) << "No valid surface available for setting initial constraints";
+        qCWarning(lcWlImageCapture) << "Invalid surface dimensions for constraints:" << pixelSize;
     }
 }
 
 WExtImageCaptureSourceV1Impl::~WExtImageCaptureSourceV1Impl()
 {
     if (m_capturing) {
-        qCDebug(lcWlImageCapture) << "WExtImageCaptureSourceV1Impl destroyed while capturing";
+        stop();
     }
+    delete m_captureRenderer;
+
     wlr_ext_image_capture_source_v1_finish(&source);
     s_captureSourceMap.remove(&source);
+}
+
+WOutputRenderWindow *WExtImageCaptureSourceV1Impl::renderWindow() const
+{
+    if (!m_surfaceItem)
+        return nullptr;
+    return qobject_cast<WOutputRenderWindow *>(m_surfaceItem->window());
+}
+
+qreal WExtImageCaptureSourceV1Impl::computeDpr() const
+{
+    auto rw = renderWindow();
+    if (!rw) {
+        qCWarning(lcWlImageCapture) << "Cannot compute DPR: no render window available";
+        return 0;
+    }
+    return rw->effectiveDevicePixelRatio();
+}
+
+QSize WExtImageCaptureSourceV1Impl::computePixelSize() const
+{
+    if (!m_surfaceItem)
+        return { };
+
+    const auto sz = m_surfaceItem->size();
+    if (sz.isEmpty())
+        return { };
+
+    const qreal dpr = computeDpr();
+    if (dpr == 0)
+        return { };
+
+    return QSize(qCeil(sz.width() * dpr), qCeil(sz.height() * dpr));
+}
+
+void WExtImageCaptureSourceV1Impl::updateConstraints(const QSize &pixelSize)
+{
+    if (!pixelSize.isValid() || pixelSize.isEmpty())
+        return;
+
+    ConstraintBuilder builder(handle(), m_output);
+    builder.setSize(pixelSize.width(), pixelSize.height());
+    builder.buildShmFormats();
+    builder.buildDmabufFormats();
+    builder.apply();
 }
 
 void WExtImageCaptureSourceV1Impl::start(struct wlr_ext_image_capture_source_v1 *source, bool with_cursors)
@@ -179,7 +213,6 @@ void WExtImageCaptureSourceV1Impl::start(struct wlr_ext_image_capture_source_v1 
 void WExtImageCaptureSourceV1Impl::start(bool with_cursors)
 {
     // TODO: Implement cursor capture if needed
-    m_capturing = true;
     qCDebug(lcWlImageCapture) << "WExtImageCaptureSourceV1Impl::start() with_cursors:" << with_cursors;
 
     // TODO: Optimize multiple clients capturing the same window
@@ -187,39 +220,34 @@ void WExtImageCaptureSourceV1Impl::start(bool with_cursors)
     // which means multiple render listeners for the same surface. Consider implementing
     // a manager to share render events among multiple capture sources.
 
-    if (!m_surfaceContent) {
-        qCWarning(lcWlImageCapture) << "No surface content available for capture";
-        return;
-    }
-
-    // Get render window
-    auto textureProvider = m_surfaceContent->wTextureProvider();
-    if (!textureProvider) {
-        qCWarning(lcWlImageCapture) << "No texture provider available for start";
-        return;
-    }
-
-    auto renderWindow = textureProvider->window();
-    if (!renderWindow) {
+    auto rw = renderWindow();
+    if (!rw) {
         qCWarning(lcWlImageCapture) << "No render window available for start";
         return;
     }
 
-    // Connect to renderEnd signal
-    m_renderEndConnection = connect(renderWindow,
-                                   &WOutputRenderWindow::renderEnd,
-                                   this,
-                                   &WExtImageCaptureSourceV1Impl::handleRenderEnd,
-                                   Qt::AutoConnection);
+    m_capturing = true;
 
-    if (!m_renderEndConnection) {
-        qCWarning(lcWlImageCapture) << "Cannot connect to render end of output render window";
+    if (!m_captureRenderer) {
+        m_captureRenderer = new WBufferRenderer(rw->contentItem());
+        m_captureRenderer->setOutput(m_output);
+        m_captureRenderer->setVisible(false);
     }
 
-    // If not currently rendering, trigger immediately
-    if (!renderWindow->inRendering()) {
-        QMetaObject::invokeMethod(this, &WExtImageCaptureSourceV1Impl::handleRenderEnd, Qt::AutoConnection);
-    }
+    m_afterRenderingConnection = connect(rw,
+                                         &QQuickWindow::afterRendering,
+                                         this,
+                                         &WExtImageCaptureSourceV1Impl::doOffscreenRender,
+                                         Qt::AutoConnection);
+
+    m_renderEndConnection = connect(rw,
+                                    &WOutputRenderWindow::renderEnd,
+                                    this,
+                                    &WExtImageCaptureSourceV1Impl::handleRenderEnd,
+                                    Qt::AutoConnection);
+
+    // Trigger first frame
+    wlr_output_update_needs_frame(m_output->handle());
 }
 
 void WExtImageCaptureSourceV1Impl::stop(struct wlr_ext_image_capture_source_v1 *source)
@@ -234,11 +262,19 @@ void WExtImageCaptureSourceV1Impl::stop()
     m_capturing = false;
     qCDebug(lcWlImageCapture) << "WExtImageCaptureSourceV1Impl::stop()";
 
-    // Disconnect render end connection
+    if (m_afterRenderingConnection) {
+        disconnect(m_afterRenderingConnection);
+        m_afterRenderingConnection = QMetaObject::Connection();
+    }
     if (m_renderEndConnection) {
         disconnect(m_renderEndConnection);
         m_renderEndConnection = QMetaObject::Connection();
     }
+
+    if (m_renderedBuffer) {
+        wlr_buffer_unlock(m_renderedBuffer);
+    }
+    m_renderedBuffer = nullptr;
 }
 
 void WExtImageCaptureSourceV1Impl::request_frame(struct wlr_ext_image_capture_source_v1 *source, bool schedule_frame)
@@ -257,54 +293,78 @@ void WExtImageCaptureSourceV1Impl::schedule_frame(bool schedule_frame)
         return;
     }
 
-    if (!m_surfaceContent) {
-        qCWarning(lcWlImageCapture) << "No surface content available for frame scheduling";
+    if (schedule_frame)
+        wlr_output_update_needs_frame(m_output->handle());
+}
+
+void WExtImageCaptureSourceV1Impl::doOffscreenRender()
+{
+    if (!m_capturing || !m_surfaceItem || !m_captureRenderer)
+        return;
+
+    auto rw = renderWindow();
+    if (!rw)
+        return;
+
+    const auto pixelSize = computePixelSize();
+    if (pixelSize.isEmpty()) {
+        qCWarning(lcWlImageCapture) << "Invalid pixel size for offscreen render:" << pixelSize;
         return;
     }
 
-    if (schedule_frame) {
-        // Request output update to ensure next frame will be rendered
-        wlr_output_update_needs_frame(m_output->handle());
+    const qreal dpr = rw->effectiveDevicePixelRatio();
+
+    if (m_renderedBuffer) {
+        wlr_buffer_unlock(m_renderedBuffer);
+        m_renderedBuffer = nullptr;
     }
 
-    // Get render window to check if currently rendering
-    auto textureProvider = m_surfaceContent->wTextureProvider();
-    if (textureProvider) {
-        auto renderWindow = textureProvider->window();
-        if (renderWindow && !renderWindow->inRendering()) {
-            QMetaObject::invokeMethod(this, &WExtImageCaptureSourceV1Impl::handleRenderEnd, Qt::AutoConnection);
-        }
+    m_renderedBuffer = rw->renderItemToBuffer(m_captureRenderer,
+                                              m_surfaceItem,
+                                              pixelSize,
+                                              dpr,
+                                              DRM_FORMAT_ARGB8888);
+
+    if (m_renderedBuffer) {
+        // Lock to prevent swapchain from recycling before copy_frame
+        wlr_buffer_lock(m_renderedBuffer);
     }
 
-    qCDebug(lcWlImageCapture) << "Scheduled frame capture";
+    qCDebug(lcWlImageCapture) << "Offscreen render done, buffer:"
+                              << (m_renderedBuffer ? m_renderedBuffer.get() : nullptr)
+                              << "size:" << pixelSize;
 }
 
 void WExtImageCaptureSourceV1Impl::handleRenderEnd()
 {
-    qCDebug(lcWlImageCapture) << "WExtImageCaptureSourceV1Impl::handleRenderEnd() - triggering frame event";
-
     if (!m_capturing) {
         qCWarning(lcWlImageCapture) << "handleRenderEnd called but not capturing";
         return;
     }
 
-    // Get surface size and validate it
-    QSize surfaceSize = m_surfaceContent->size().toSize();
-    if (surfaceSize.width() <= 0 || surfaceSize.height() <= 0) {
-        qCWarning(lcWlImageCapture) << "Invalid surface size for damage region:" << surfaceSize;
+    if (!m_renderedBuffer) {
+        qCWarning(lcWlImageCapture) << "No rendered buffer available for frame event";
         return;
     }
 
-    // Create damage region with RAII
-    WPixmanRegion fullDamage(0, 0, surfaceSize.width(), surfaceSize.height());
+    auto wlr_buf = m_renderedBuffer.get();
+    const int bufferWidth = wlr_buf->width;
+    const int bufferHeight = wlr_buf->height;
+    if (bufferWidth <= 0 || bufferHeight <= 0) {
+        qCWarning(lcWlImageCapture) << "Invalid buffer size:" << bufferWidth << "x" << bufferHeight;
+        return;
+    }
 
-    // Create frame event and emit
+    // TODO: partial damage
+    WPixmanRegion fullDamage(0, 0, bufferWidth, bufferHeight);
+
     wlr_ext_image_capture_source_v1_frame_event event {
         .damage = fullDamage.get(),
     };
     wl_signal_emit_mutable(&source.events.frame, &event);
 
-    qCDebug(lcWlImageCapture) << "Frame event emitted with damage region:" << surfaceSize;
+    qCDebug(lcWlImageCapture) << "Frame event emitted with damage:" << bufferWidth << "x"
+                              << bufferHeight;
 }
 
 void WExtImageCaptureSourceV1Impl::copy_frame(struct wlr_ext_image_capture_source_v1 *source,
@@ -316,8 +376,9 @@ void WExtImageCaptureSourceV1Impl::copy_frame(struct wlr_ext_image_capture_sourc
     self->copy_frame(dst_frame, frame_event);
 }
 
-void WExtImageCaptureSourceV1Impl::copy_frame(wlr_ext_image_copy_capture_frame_v1 *dst_frame,
-                                              [[maybe_unused]] wlr_ext_image_capture_source_v1_frame_event *frame_event)
+void WExtImageCaptureSourceV1Impl::copy_frame(
+    wlr_ext_image_copy_capture_frame_v1 *dst_frame,
+    [[maybe_unused]] wlr_ext_image_capture_source_v1_frame_event *frame_event)
 {
     qCDebug(lcWlImageCapture) << "WExtImageCaptureSourceV1Impl::copy_frame()";
 
@@ -327,39 +388,8 @@ void WExtImageCaptureSourceV1Impl::copy_frame(wlr_ext_image_copy_capture_frame_v
         return;
     }
 
-    if (!m_surfaceContent) {
-        qCWarning(lcWlImageCapture) << "No surface content available for frame copy";
-        wlr_ext_image_copy_capture_frame_v1_fail(dst_frame, EXT_IMAGE_COPY_CAPTURE_FRAME_V1_FAILURE_REASON_UNKNOWN);
-        return;
-    }
-
-    // Get texture provider
-    auto textureProvider = m_surfaceContent->wTextureProvider();
-    if (!textureProvider) {
-        qCWarning(lcWlImageCapture) << "No texture provider available";
-        wlr_ext_image_copy_capture_frame_v1_fail(dst_frame, EXT_IMAGE_COPY_CAPTURE_FRAME_V1_FAILURE_REASON_UNKNOWN);
-        return;
-    }
-
-    auto buffer = textureProvider->qwBuffer();
-    if (!buffer) {
-        qCWarning(lcWlImageCapture) << "No internal buffer available";
-        wlr_ext_image_copy_capture_frame_v1_fail(dst_frame, EXT_IMAGE_COPY_CAPTURE_FRAME_V1_FAILURE_REASON_UNKNOWN);
-        return;
-    }
-
-    // Lock the buffer for the duration of the copy to prevent races during resize
-    if (!wlr_buffer_lock(buffer)) {
-        qCWarning(lcWlImageCapture) << "Failed to lock internal buffer";
-        wlr_ext_image_copy_capture_frame_v1_fail(dst_frame, EXT_IMAGE_COPY_CAPTURE_FRAME_V1_FAILURE_REASON_UNKNOWN);
-        return;
-    }
-    WBufferUnlockPtr bufferGuard(buffer);
-
-    // Get renderer
-    auto renderWindow = textureProvider->window();
-    if (!renderWindow) {
-        qCWarning(lcWlImageCapture) << "No render window available";
+    if (!m_renderedBuffer) {
+        qCWarning(lcWlImageCapture) << "No rendered buffer available for copy";
         wlr_ext_image_copy_capture_frame_v1_fail(dst_frame, EXT_IMAGE_COPY_CAPTURE_FRAME_V1_FAILURE_REASON_UNKNOWN);
         return;
     }
@@ -370,57 +400,45 @@ void WExtImageCaptureSourceV1Impl::copy_frame(wlr_ext_image_copy_capture_frame_v
         wlr_ext_image_copy_capture_frame_v1_fail(dst_frame, EXT_IMAGE_COPY_CAPTURE_FRAME_V1_FAILURE_REASON_UNKNOWN);
         return;
     }
-
-    // Prefer the client buffer source if present
-    wlr_buffer *src = buffer;
-    if (auto clientBuf = wlr_client_buffer_get(buffer)) {
-        src = clientBuf->source;
-    }
-
-    // Critical safety checks: validate all required pointers and buffers before copying
-    if (!src) {
-        qCWarning(lcWlImageCapture) << "Source buffer is null, cannot copy frame";
-        if (dst_frame) {
-            wlr_ext_image_copy_capture_frame_v1_fail(dst_frame, EXT_IMAGE_COPY_CAPTURE_FRAME_V1_FAILURE_REASON_BUFFER_CONSTRAINTS);
-        }
-        return;
-    }
+    auto src = m_renderedBuffer.get();
+    // Buffer is already locked in doOffscreenRender; unlock after copy.
+    // copy_buffer calls fail() + frame_destroy + free internally on failure,
+    // so do NOT touch dst_frame afterwards.
 
     if (!dst_frame || !dst_frame->buffer) {
-        qCWarning(lcWlImageCapture) << "Destination frame or buffer is null, cannot copy";
+        qCWarning(lcWlImageCapture) << "Destination frame or buffer is null";
         if (dst_frame) {
             wlr_ext_image_copy_capture_frame_v1_fail(dst_frame, EXT_IMAGE_COPY_CAPTURE_FRAME_V1_FAILURE_REASON_BUFFER_CONSTRAINTS);
         }
+        wlr_buffer_unlock(src);
+        m_renderedBuffer = nullptr;
         return;
     }
 
-    // Validate buffer dimensions to prevent crashes during resize
+    // Validate buffer dimensions
     if (dst_frame->buffer->width != src->width || dst_frame->buffer->height != src->height) {
-        qCWarning(lcWlImageCapture) << "Buffer size mismatch during resize (dst:" << dst_frame->buffer->width << "x" << dst_frame->buffer->height
-                                   << ", src:" << src->width << "x" << src->height << "), updating constraints";
+        qCWarning(lcWlImageCapture) << "Buffer size mismatch (dst:" << dst_frame->buffer->width
+                                    << "x" << dst_frame->buffer->height << ", src:" << src->width
+                                    << "x" << src->height << "), updating constraints";
 
-        // Update constraints when we detect a size mismatch
-        ConstraintBuilder builder(&source, m_output);
-        builder.setSize(src->width, src->height);
-        builder.buildShmFormats();
-        builder.buildDmabufFormats();
-        builder.apply();
-
+        updateConstraints(QSize(src->width, src->height));
         qCDebug(lcWlImageCapture) << "Constraints updated to new size:" << src->width << "x" << src->height;
 
-        // Check again after constraints update - the client might have already provided a correctly sized buffer
         if (dst_frame->buffer->width != src->width || dst_frame->buffer->height != src->height) {
-            qCDebug(lcWlImageCapture) << "Buffer size still mismatched after constraint update, skipping frame";
+            qCDebug(lcWlImageCapture) << "Buffer size still mismatched after constraint update";
             wlr_ext_image_copy_capture_frame_v1_fail(dst_frame, EXT_IMAGE_COPY_CAPTURE_FRAME_V1_FAILURE_REASON_BUFFER_CONSTRAINTS);
+            wlr_buffer_unlock(src);
+            m_renderedBuffer = nullptr;
             return;
         }
-
-        qCDebug(lcWlImageCapture) << "Buffer size now matches after constraint update, proceeding with copy";
     }
 
-    // Use wlroots image copy function with validated buffers
     bool success = wlr_ext_image_copy_capture_frame_v1_copy_buffer(dst_frame, src, renderer);
     qCDebug(lcWlImageCapture) << "Copy result:" << success;
+
+    // Unlock regardless of success/failure.
+    wlr_buffer_unlock(src);
+    m_renderedBuffer = nullptr;
 
     if (success) {
         // Successfully copied, mark frame as ready
@@ -436,16 +454,6 @@ void WExtImageCaptureSourceV1Impl::copy_frame(wlr_ext_image_copy_capture_frame_v
         qCWarning(lcWlImageCapture) << "  - Unsupported buffer format";
         qCWarning(lcWlImageCapture) << "  - Renderer issues";
         qCWarning(lcWlImageCapture) << "  - Memory access problems";
-
-        // Check if it's a buffer constraints issue
-        if (dst_frame->buffer && buffer) {
-            if (dst_frame->buffer->width != buffer->width ||
-                dst_frame->buffer->height != buffer->height) {
-                qCWarning(lcWlImageCapture) << "Buffer size mismatch detected, using BUFFER_CONSTRAINTS failure reason";
-                wlr_ext_image_copy_capture_frame_v1_fail(dst_frame, EXT_IMAGE_COPY_CAPTURE_FRAME_V1_FAILURE_REASON_BUFFER_CONSTRAINTS);
-                return;
-            }
-        }
 
         // For other failures, use UNKNOWN reason
         wlr_ext_image_copy_capture_frame_v1_fail(dst_frame, EXT_IMAGE_COPY_CAPTURE_FRAME_V1_FAILURE_REASON_UNKNOWN);
