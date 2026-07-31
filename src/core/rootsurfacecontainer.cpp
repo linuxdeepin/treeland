@@ -430,8 +430,29 @@ void RootSurfaceContainer::ensureCursorVisible()
 
 void RootSurfaceContainer::updateSurfaceOutputs(SurfaceWrapper *surface)
 {
-    const QRectF geometry = surface->geometry();
-    auto outputs = m_outputLayout->getIntersectedOutputs(geometry.toRect());
+    QList<WOutput *> outputs;
+
+    if (surface->type() != SurfaceWrapper::Type::Layer) {
+        for (auto *output : m_outputModel->objects()) {
+            if (!output->output()->isEnabled())
+                continue;
+
+            outputs.append(output->output());
+            if (outputs.size() > 1)
+                break;
+        }
+
+        if (outputs.size() != 1) {
+            const QRectF geometry = surface->geometry();
+            outputs = m_outputLayout->getIntersectedOutputs(geometry.toRect());
+            outputs.removeIf([](WOutput *output) {
+                return !output->isEnabled();
+            });
+        }
+    } else {
+        const QRectF geometry = surface->geometry();
+        outputs = m_outputLayout->getIntersectedOutputs(geometry.toRect());
+    }
     surface->setOutputs(outputs);
 
     if (auto *ws = Helper::instance()->workspace())

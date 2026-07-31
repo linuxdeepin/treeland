@@ -1,4 +1,4 @@
-// Copyright (C) 2023 rewine <luhongxu@deepin.org>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "woutputmanagerv1.h"
@@ -8,6 +8,8 @@
 #include <qwoutput.h>
 #include <qwoutputmanagementv1.h>
 #include <qwdisplay.h>
+
+#include <QHash>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -39,7 +41,8 @@ public:
     qw_output_manager_v1 *manager { nullptr };
     QPointer<WBackend> backend;
     QList<WOutputState> stateList;
-    QList<WOutputState> stateListPending;
+    QHash<qw_output_configuration_v1 *, QList<WOutputState>> pendingStateLists;
+    qw_output_configuration_v1 *currentPendingConfig { nullptr };
 };
 
 WOutputManagerV1::WOutputManagerV1()
@@ -53,7 +56,7 @@ void WOutputManagerV1Private::outputMgrApplyOrTest(qw_output_configuration_v1 *c
     W_Q(WOutputManagerV1);
     wlr_output_configuration_head_v1 *config_head;
 
-    stateListPending.clear();
+    QList<WOutputState> pendingStates;
 
     wl_list_for_each(config_head, &config->handle()->heads, link) {
         auto *output = QW_NAMESPACE::qw_output::from(config_head->state.output);
@@ -61,7 +64,7 @@ void WOutputManagerV1Private::outputMgrApplyOrTest(qw_output_configuration_v1 *c
 
         const auto &state = config_head->state;
 
-        stateListPending.append(WOutputState {
+        pendingStates.append(WOutputState {
             .output = woutput,
             .enabled = state.enabled,
             .mode = state.mode,
@@ -75,13 +78,15 @@ void WOutputManagerV1Private::outputMgrApplyOrTest(qw_output_configuration_v1 *c
         });
     }
 
+    currentPendingConfig = config;
+    pendingStateLists.insert(config, std::move(pendingStates));
     Q_EMIT q->requestTestOrApply(config, onlyTest);
 }
 
-const QList<WOutputState> &WOutputManagerV1::stateListPending()
+QList<WOutputState> WOutputManagerV1::stateListPending(qw_output_configuration_v1 *config) const
 {
-    W_D(WOutputManagerV1);
-    return d->stateListPending;
+    W_D(const WOutputManagerV1);
+    return d->pendingStateLists.value(config ? config : d->currentPendingConfig);
 }
 
 void WOutputManagerV1::updateConfig()
@@ -119,15 +124,18 @@ void WOutputManagerV1::sendResult(qw_output_configuration_v1 *config, bool ok)
 {
     W_D(WOutputManagerV1);
 
+    const QList<WOutputState> pendingStates = d->pendingStateLists.take(config);
+    if (d->currentPendingConfig == config)
+        d->currentPendingConfig = nullptr;
+
     if (ok) {
         config->send_succeeded();
-        d->stateList = d->stateListPending;
+        d->stateList = pendingStates;
     } else {
         config->send_failed();
     }
 
     delete config;
-    d->stateListPending.clear();
 
     // Schedule updateConfig through the event loop to avoid recursion
     QMetaObject::invokeMethod(this, &WOutputManagerV1::updateConfig, Qt::QueuedConnection);
