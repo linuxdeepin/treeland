@@ -1,3 +1,27 @@
+treeland (0.8.17) unstable; urgency=medium
+
+  * fix(seat): restore group keyboard when virtual keyboard is destroyed
+  * fix(gesture): fix workspace gesture issues and add lock screen
+    guards
+  * fix(input): update cursor from DnD action
+  * fix(output): avoid enabling output before restoring topology
+  * fix(glass): pull refraction to lip and retune glass defaults
+  * fix(animation): smooth minimize transitions
+  * feat(glass): implement Liquid Glass effect with smooth corner
+    deformation
+  * fix(multitaskview): resolve transition, gesture and workspace
+    switching issues
+  * fix(output): prevent repeated repositioning of child windows across
+    outputs
+  * fix(surface): child may remain below parent after XdgToplevel
+    set_parent
+  * fix(task-switcher): restore surface state after interrupted exit
+  * fix(surface): fix skipSwitcher/skipMultitaskView for X11 surfaces
+  * feat(waylib): add _NET_WM_WINDOW_TYPE_DIALOG support for XWayland
+  * fix(surface): add m_wrapperAboutToRemove guard to updateBoundingRect
+
+ -- rewine <luhongxu@deepin.org>  Fri, 31 Jul 2026 10:50:39 +0800
+
 treeland (0.8.16) unstable; urgency=medium
 
   * fix(waylib/xwayland): deny Activate for surfaces without Focus
