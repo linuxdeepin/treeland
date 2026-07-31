@@ -1,48 +1,12 @@
-<?xml version="1.0" ?><!DOCTYPE TS><TS version="2.1" language="zh_CN">
-<context>
-    <name>Center</name>
-    <message>
-        <source>Return to default mode</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
-        <source>Do you want to back to default?</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
-        <source>This action will reboot machine, please confirm.</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
-        <source>Back To Default Mode</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
-        <source>Other Users</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
-        <source>Power</source>
-        <translation type="vanished">电源</translation>
-    </message>
-</context>
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE TS>
+<TS version="2.1" language="zh_CN">
 <context>
     <name>ControlAction</name>
     <message>
-        <source>Other Users</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
-        <location filename="../qml/ControlAction.qml" line="55"/>
+        <location filename="../qml/ControlAction.qml" line="83"/>
         <source>Power</source>
         <translation>电源</translation>
-    </message>
-</context>
-<context>
-    <name>Greeter</name>
-    <message>
-        <source>Password is incorrect.</source>
-        <translation type="vanished">密码错误</translation>
     </message>
 </context>
 <context>
@@ -54,47 +18,32 @@
     </message>
 </context>
 <context>
-    <name>LockView</name>
-    <message>
-        <location filename="../qml/LockView.qml" line="176"/>
-        <source>Password is incorrect.</source>
-        <translation>密码错误</translation>
-    </message>
-</context>
-<context>
     <name>PowerList</name>
     <message>
-        <location filename="../qml/PowerList.qml" line="60"/>
+        <location filename="../qml/PowerList.qml" line="58"/>
         <source>Hibernate</source>
         <translation>休眠</translation>
     </message>
     <message>
-        <location filename="../qml/PowerList.qml" line="50"/>
+        <location filename="../qml/PowerList.qml" line="49"/>
         <source>Suspend</source>
         <translation>待机</translation>
     </message>
     <message>
-        <location filename="../qml/PowerList.qml" line="43"/>
+        <location filename="../qml/PowerList.qml" line="42"/>
         <source>Reboot</source>
         <translation>重启</translation>
     </message>
     <message>
-        <location filename="../qml/PowerList.qml" line="36"/>
+        <location filename="../qml/PowerList.qml" line="35"/>
         <source>Shut Down</source>
         <translation>关机</translation>
     </message>
 </context>
 <context>
-    <name>SessionModel</name>
-    <message>
-        <source>%1 (Wayland)</source>
-        <translation type="unfinished"/>
-    </message>
-</context>
-<context>
     <name>ShutdownView</name>
     <message>
-        <location filename="../qml/ShutdownView.qml" line="32"/>
+        <location filename="../qml/ShutdownView.qml" line="31"/>
         <source>lock</source>
         <translation>锁定</translation>
     </message>
@@ -104,20 +53,9 @@
         <translation>切换帐户</translation>
     </message>
     <message>
-        <location filename="../qml/ShutdownView.qml" line="43"/>
+        <location filename="../qml/ShutdownView.qml" line="44"/>
         <source>Logout</source>
         <translation>注销</translation>
-    </message>
-</context>
-<context>
-    <name>User</name>
-    <message>
-        <source>Administrator</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
-        <source>Standard User</source>
-        <translation type="unfinished"/>
     </message>
 </context>
 <context>
@@ -128,9 +66,37 @@
         <translation>请输入密码</translation>
     </message>
     <message>
-        <location filename="../qml/UserInput.qml" line="141"/>
+        <location filename="../qml/UserInput.qml" line="154"/>
         <source>Password</source>
         <translation>密码</translation>
+    </message>
+    <message>
+        <location filename="../qml/UserInput.qml" line="154"/>
+        <source>Username</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/UserInput.qml" line="341"/>
+        <source>Enter username</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/UserInput.qml" line="354"/>
+        <source>User not found.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../qml/UserInput.qml" line="376"/>
+        <source>Password is incorrect.</source>
+        <translation type="unfinished">密码错误</translation>
+    </message>
+</context>
+<context>
+    <name>UserList</name>
+    <message>
+        <location filename="../qml/UserList.qml" line="236"/>
+        <source>Other…</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 </TS>
