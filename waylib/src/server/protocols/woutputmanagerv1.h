@@ -1,4 +1,4 @@
-// Copyright (C) 2023 rewine <luhongxu@deepin.org>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
@@ -50,7 +50,8 @@ class WAYLIB_SERVER_EXPORT WOutputManagerV1: public QObject, public WObject,  pu
 public:
     explicit WOutputManagerV1();
 
-    const QList<WOutputState> &stateListPending();
+    QList<WOutputState> stateListPending(
+        QW_NAMESPACE::qw_output_configuration_v1 *config = nullptr) const;
 
     void sendResult(QW_NAMESPACE::qw_output_configuration_v1 *config, bool ok);
     void newOutput(WOutput *output);

@@ -147,6 +147,7 @@
 
 #include <algorithm>
 #include <functional>
+#include <limits>
 #include <pwd.h>
 #include <unistd.h>
 #include <utility>
@@ -237,6 +238,39 @@ static bool hasSavedOutputState(OutputConfig *config)
                       || !config->scaleIsDefaultValue()
                       || !config->transformIsDefaultValue()
                       || !config->adaptiveSyncEnabledIsDefaultValue());
+}
+
+static wlr_output_mode *closestOutputMode(WOutput *output,
+                                          int width,
+                                          int height,
+                                          int refresh)
+{
+    if (!output || !output->nativeHandle()) {
+        return nullptr;
+    }
+
+    wlr_output_mode *mode = nullptr;
+    wlr_output_mode *closestMode = nullptr;
+    qint64 closestResolutionDistance = std::numeric_limits<qint64>::max();
+    qint64 closestRefreshDistance = std::numeric_limits<qint64>::max();
+    wl_list_for_each(mode, &output->nativeHandle()->modes, link) {
+        const qint64 resolutionDistance = std::abs(static_cast<qint64>(mode->width) - width)
+            + std::abs(static_cast<qint64>(mode->height) - height);
+        const qint64 refreshDistance = std::abs(static_cast<qint64>(mode->refresh) - refresh);
+        if (resolutionDistance < closestResolutionDistance
+            || (resolutionDistance == closestResolutionDistance
+                && refreshDistance < closestRefreshDistance)) {
+            closestMode = mode;
+            closestResolutionDistance = resolutionDistance;
+            closestRefreshDistance = refreshDistance;
+        }
+
+        if (resolutionDistance == 0 && refreshDistance == 0) {
+            break;
+        }
+    }
+
+    return closestMode;
 }
 
 static bool outputMatchesId(Output *output, const QString &outputId)
@@ -502,8 +536,13 @@ void Helper::onOutputAdded(WOutput *output)
         o = createCopyOutput(output, m_rootSurfaceContainer->primaryOutput());
     }
     m_outputList.append(o);
-    if (!ensureOutputInRootContainer(o)) {
+    const bool outputRegistered = ensureOutputInRootContainer(o);
+    if (!outputRegistered) {
         qCWarning(lcTlCore) << "Failed to register output in root container" << output->name();
+    }
+    if (scanned && m_mode == OutputMode::Copy
+        && outputRegistered && !output->isEnabled()) {
+        o->enable();
     }
     if (m_outputManagerHelper) {
         m_outputManagerHelper->setMode(m_mode == OutputMode::Extension
@@ -587,6 +626,13 @@ void Helper::onOutputAdded(WOutput *output)
         // A hot-plugged output keeps outputLayout's auto-added position, which
         // extends the current topology to the right.
         if (!isInitialOutput) {
+            const bool restoreAsExtensionOutput =
+                m_mode == OutputMode::Extension
+                && m_globalConfig->singleOutputId().isEmpty()
+                && !m_globalConfig->createCopyOutput();
+            if (restoreAsExtensionOutput && !output->isEnabled()) {
+                outputObject->enable();
+            }
             return;
         }
 
@@ -654,19 +700,11 @@ void Helper::onOutputAdded(WOutput *output)
             layout->move(output, QPoint(static_cast<int>(config->x()), static_cast<int>(config->y())));
         }
 
-        wlr_output_mode *mode, *configMode = nullptr;
-        wl_list_for_each(mode, &output->nativeHandle()->modes, link) {
-            if (mode->width == width && mode->height == height && mode->refresh == refresh) {
-                configMode = mode;
-                break;
-            }
+        if (auto *mode = closestOutputMode(output, width, height, refresh)) {
+            newState.set_mode(mode);
+        } else {
+            newState.set_custom_mode(width, height, refresh);
         }
-        if (configMode)
-            newState.set_mode(configMode);
-        else
-            newState.set_custom_mode(width,
-                                     height,
-                                     refresh);
 
         newState.set_adaptive_sync_enabled(config->adaptiveSyncEnabled());
         newState.set_transform(static_cast<wl_output_transform>(transform));
@@ -918,7 +956,69 @@ void Helper::handleCopyModeOutputDisable(Output *affectedOutput)
 
 void Helper::onOutputTestOrApply(qw_output_configuration_v1 *config, bool onlyTest)
 {
-    QList<WOutputState> states = m_outputManager->stateListPending();
+    QList<WOutputState> states = m_outputManager->stateListPending(config);
+
+    const auto enabledOutputCount = std::count_if(
+        states.cbegin(),
+        states.cend(),
+        [](const WOutputState &state) {
+            return state.enabled;
+        });
+    const bool allEnabledOutputsOverlap = enabledOutputCount > 1
+        && std::all_of(states.cbegin(), states.cend(), [](const WOutputState &state) {
+               return !state.enabled || (state.x == 0 && state.y == 0);
+           });
+    const auto currentlyEnabledOutputCount = std::count_if(
+        states.cbegin(),
+        states.cend(),
+        [](const WOutputState &state) {
+            return state.output->isEnabled();
+        });
+    const bool expandingFromSingleOutput =
+        currentlyEnabledOutputCount == 1 && enabledOutputCount > 1;
+
+    if (m_mode == OutputMode::Extension
+        && (allEnabledOutputsOverlap || expandingFromSingleOutput)) {
+        QList<WOutputState> restoredStates = states;
+        bool configsValid = true;
+        bool hasNonZeroPosition = false;
+
+        for (auto &state : restoredStates) {
+            if (!state.enabled) {
+                continue;
+            }
+
+            Output *output = getOutput(state.output);
+            OutputConfig *outputConfig = output ? output->config() : nullptr;
+            if (!outputConfig || !outputConfig->isInitializeSucceeded()
+                || !hasSavedOutputState(outputConfig)) {
+                configsValid = false;
+                break;
+            }
+
+            const int width = static_cast<int>(outputConfig->width());
+            const int height = static_cast<int>(outputConfig->height());
+            const int refresh = static_cast<int>(outputConfig->refresh());
+            if (width <= 0 || height <= 0 || refresh <= 0) {
+                configsValid = false;
+                break;
+            }
+
+            state.x = static_cast<int32_t>(outputConfig->x());
+            state.y = static_cast<int32_t>(outputConfig->y());
+            hasNonZeroPosition |= state.x != 0 || state.y != 0;
+
+            state.mode = closestOutputMode(state.output, width, height, refresh);
+            if (!state.mode) {
+                configsValid = false;
+                break;
+            }
+        }
+
+        if (configsValid && hasNonZeroPosition) {
+            states = std::move(restoredStates);
+        }
+    }
 
     if (onlyTest) {
         bool ok = true;
@@ -1179,6 +1279,13 @@ void Helper::onOutputCommitFinished(qw_output_configuration_v1 *config, bool suc
             // extension/single-output topology, never a copy topology.
             m_outputManagerHelper->storeCopyOutputConfig(false);
 
+            const auto enabledOutputCount = std::count_if(
+                m_pendingOutputConfig.states.cbegin(),
+                m_pendingOutputConfig.states.cend(),
+                [](const WOutputState &state) {
+                    return state.enabled;
+                });
+
             for (const WOutputState &state : std::as_const(m_pendingOutputConfig.states)) {
                 auto *output = getOutput(state.output);
                 if (!output) {
@@ -1191,6 +1298,7 @@ void Helper::onOutputCommitFinished(qw_output_configuration_v1 *config, bool suc
 
                 auto *outputConfig = output->config();
                 const bool enabled = state.enabled;
+                const bool preservePosition = enabled && enabledOutputCount == 1;
                 const qlonglong x = state.x;
                 const qlonglong y = state.y;
                 const qlonglong width = state.mode ? state.mode->width : state.customModeSize.width();
@@ -1208,7 +1316,8 @@ void Helper::onOutputCommitFinished(qw_output_configuration_v1 *config, bool suc
                                                                       refresh,
                                                                       transform,
                                                                       scale,
-                                                                      adaptiveSyncEnabled] {
+                                                                      adaptiveSyncEnabled,
+                                                                      preservePosition] {
 
                     if (!enabled) {
                         return;
@@ -1218,6 +1327,9 @@ void Helper::onOutputCommitFinished(qw_output_configuration_v1 *config, bool suc
                         return;
                     }
 
+                    if (preservePosition) {
+                        return;
+                    }
                     outputConfig->setX(x);
                     outputConfig->setY(y);
                     outputConfig->setWidth(width);
@@ -3516,6 +3628,10 @@ void Helper::restoreExtensionModeFromConfig(bool preserveSingleOutputConfig)
                 return;
             }
 
+            if (!m_outputList.contains(outputObject)) {
+                return;
+            }
+
             auto *output = outputObject->output();
             auto *config = outputObject->config();
             if (!hasSavedOutputState(config)) {
@@ -3542,16 +3658,8 @@ void Helper::restoreExtensionModeFromConfig(bool preserveSingleOutputConfig)
 
             qw_output_state state;
             state.set_enabled(true);
-            wlr_output_mode *mode = nullptr;
-            wlr_output_mode *savedMode = nullptr;
-            wl_list_for_each(mode, &output->nativeHandle()->modes, link) {
-                if (mode->width == width && mode->height == height && mode->refresh == refresh) {
-                    savedMode = mode;
-                    break;
-                }
-            }
-            if (savedMode) {
-                state.set_mode(savedMode);
+            if (auto *mode = closestOutputMode(output, width, height, refresh)) {
+                state.set_mode(mode);
             } else {
                 state.set_custom_mode(width, height, refresh);
             }
