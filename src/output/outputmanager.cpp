@@ -16,6 +16,7 @@
 #include <utility>
 
 #include <qwoutput.h>
+#include <woutputlayout.h>
 
 namespace {
 QString serializeOutputIds(const QStringList &outputs)
@@ -91,6 +92,12 @@ bool OutputManager::restoreConfiguredSingleOutput(const QList<SurfaceWrapper *> 
             if (!output->output()->isEnabled()) {
                 output->enable();
             }
+            if (auto *layout = m_rootContainer->outputLayout();
+                output->output()->isEnabled()
+                && layout
+                && !layout->outputs().contains(output->output())) {
+                layout->autoAdd(output->output());
+            }
             continue;
         }
         if (output->output()->isEnabled()) {
@@ -103,6 +110,12 @@ bool OutputManager::restoreConfiguredSingleOutput(const QList<SurfaceWrapper *> 
                 qCWarning(lcTlOutput) << "Failed to disable non-selected output while restoring single-output display"
                                       << output->output()->name();
             }
+        }
+        if (auto *layout = m_rootContainer->outputLayout();
+            !output->output()->isEnabled()
+            && layout
+            && layout->outputs().contains(output->output())) {
+            layout->remove(output->output());
         }
     }
 

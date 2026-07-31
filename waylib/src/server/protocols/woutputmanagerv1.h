@@ -54,6 +54,9 @@ public:
         QW_NAMESPACE::qw_output_configuration_v1 *config = nullptr) const;
 
     void sendResult(QW_NAMESPACE::qw_output_configuration_v1 *config, bool ok);
+    void sendResult(QW_NAMESPACE::qw_output_configuration_v1 *config,
+                    bool ok,
+                    const QList<WOutputState> &appliedStates);
     void newOutput(WOutput *output);
     void removeOutput(WOutput *output);
     QW_NAMESPACE::qw_output_manager_v1 *handle() const;
