@@ -649,6 +649,10 @@ void Helper::onOutputAdded(WOutput *output)
                     return;
                 }
             }
+            if (auto *layout = m_rootSurfaceContainer->outputLayout();
+                layout && layout->outputs().contains(output)) {
+                layout->remove(output);
+            }
             qCInfo(lcTlOutput) << "Disabled non-selected output while restoring single-output display"
                                << output->name()
                                << "selected output id:" << singleOutputId;
@@ -1159,14 +1163,14 @@ void Helper::onOutputTestOrApply(qw_output_configuration_v1 *config, bool onlyTe
 
         if (state.enabled) {
             auto *layout = m_rootSurfaceContainer->outputLayout();
-            if (!ensureOutputInRootContainer(output)) {
-                qCWarning(lcTlCore) << "Cannot apply enabled output configuration; output is not in root layout"
+            if (!layout || !m_rootSurfaceContainer->outputs().contains(output)) {
+                qCWarning(lcTlCore) << "Cannot apply enabled output configuration; output is not in root container"
                                     << state.output->name();
                 m_outputManager->sendResult(config, false);
                 m_pendingOutputConfig = {};
                 return;
             }
-            if (layout) {
+            if (layout->outputs().contains(state.output)) {
                 layout->move(state.output, QPoint(state.x, state.y));
             }
         }
@@ -1213,16 +1217,31 @@ void Helper::onOutputTestOrApply(qw_output_configuration_v1 *config, bool onlyTe
             return;
         }
         auto config = m_pendingOutputConfig.config;
-        const QString outputName = state.output->name();
         const bool enabled = state.enabled;
+        const QPoint outputPosition(state.x, state.y);
         QPointer<Helper> self(this);
         outputHelper->scheduleCommitJob(
-            [self, config, extraState, renderWindow, viewport, outputName, enabled](bool success, WOutputHelper::ExtraState committedState) {
+            [self,
+             config,
+             extraState,
+             renderWindow,
+             viewport,
+             output = QPointer<WOutput>(state.output),
+             outputPosition,
+             enabled](bool success, WOutputHelper::ExtraState committedState) {
                 if (!self) {
                     return;
                 }
 
                 if (committedState == extraState) {
+                    if (success && output) {
+                        auto *layout = self->m_rootSurfaceContainer->outputLayout();
+                        if (layout && enabled && !layout->outputs().contains(output)) {
+                            layout->add(output, outputPosition);
+                        } else if (layout && !enabled && layout->outputs().contains(output)) {
+                            layout->remove(output);
+                        }
+                    }
                     self->onOutputCommitFinished(config, success);
                     if (success && committedState) {
                         bool wasStateOnlyCommit = (committedState->committed & (WLR_OUTPUT_STATE_MODE |
@@ -1341,7 +1360,7 @@ void Helper::onOutputCommitFinished(qw_output_configuration_v1 *config, bool suc
                 });
             }
         }
-        m_outputManager->sendResult(config, ok);
+        m_outputManager->sendResult(config, ok, m_pendingOutputConfig.states);
         m_pendingOutputConfig = {};
     }
 }
@@ -3541,6 +3560,13 @@ void Helper::applyCopyModeToOutputs(Output *primaryOutput,
     if (primaryOutput->output() && !primaryOutput->output()->isEnabled()) {
         primaryOutput->enable();
     }
+    if (auto *layout = m_rootSurfaceContainer->outputLayout();
+        primaryOutput->output()
+        && primaryOutput->output()->isEnabled()
+        && layout
+        && !layout->outputs().contains(primaryOutput->output())) {
+        layout->autoAdd(primaryOutput->output());
+    }
 
     // Convert existing outputs to copy outputs
     for (int i = 0; i < m_outputList.size(); i++) {
@@ -3622,6 +3648,12 @@ void Helper::restoreExtensionModeFromConfig(bool preserveSingleOutputConfig)
         // saved mode and geometry may wait for DConfig initialization, but
         // enabling an output must not depend on that initialization succeeding.
         outputObject->enable();
+        if (auto *layout = m_rootSurfaceContainer->outputLayout();
+            outputObject->output()->isEnabled()
+            && layout
+            && !layout->outputs().contains(outputObject->output())) {
+            layout->autoAdd(outputObject->output());
+        }
 
         auto restoreOutput = [this, outputObject = QPointer<Output>(outputObject)] {
             if (!outputObject || !outputObject->output()) {
@@ -3871,6 +3903,12 @@ void Helper::enableAllOutput()
 
         if (!ok) {
             qCWarning(lcTlOutput) << "Failed to enable output" << output->output()->name();
+            continue;
+        }
+
+        if (auto *layout = m_rootSurfaceContainer->outputLayout();
+            layout && !layout->outputs().contains(output->output())) {
+            layout->autoAdd(output->output());
         }
     }
 }
