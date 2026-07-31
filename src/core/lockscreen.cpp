@@ -124,6 +124,10 @@ void LockScreen::removeOutput(Output *output)
     SurfaceContainer::removeOutput(output);
 #if EXT_SESSION_LOCK_V1
     auto outputItem = output->outputItem();
+    disconnect(outputItem,
+               &WOutputItem::geometryChanged,
+               this,
+               &LockScreen::onOutputGeometryChanged);
     m_lockSurfaces.erase(outputItem);
     m_fallbackItems.erase(outputItem);
 
@@ -249,9 +253,12 @@ void LockScreen::onLockSurfaceRemoved(WSessionLockSurface *surface)
 void LockScreen::onOutputGeometryChanged()
 {
     WOutputItem *outputItem = qobject_cast<WOutputItem *>(QObject::sender());
-    Q_ASSERT(m_lockSurfaces.find(outputItem) != m_lockSurfaces.end());
+    const auto it = m_lockSurfaces.find(outputItem);
+    if (it == m_lockSurfaces.end()) {
+        return;
+    }
 
-    auto *lockSurface = m_lockSurfaces[outputItem].get();
+    auto *lockSurface = it->second.get();
     if (lockSurface) {
         // Resize the lock surface to match the new output size
         lockSurface->configureSize(outputItem->size().toSize());
