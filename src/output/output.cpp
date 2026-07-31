@@ -193,8 +193,15 @@ bool Output::isPrimary() const
 void Output::updatePositionFromLayout()
 {
     WOutputLayout *layout = output()->layout();
-    Q_ASSERT(layout);
+    if (!layout) {
+        return;
+    }
+
     auto *layoutOutput = layout->handle()->get(output()->nativeHandle());
+    if (!layoutOutput) {
+        return;
+    }
+
     QPointF pos(layoutOutput->x, layoutOutput->y);
     m_item->setPosition(pos);
 }

@@ -123,14 +123,22 @@ void WOutputManagerV1::updateConfig()
 void WOutputManagerV1::sendResult(qw_output_configuration_v1 *config, bool ok)
 {
     W_D(WOutputManagerV1);
+    sendResult(config, ok, d->pendingStateLists.value(config));
+}
 
-    const QList<WOutputState> pendingStates = d->pendingStateLists.take(config);
+void WOutputManagerV1::sendResult(qw_output_configuration_v1 *config,
+                                  bool ok,
+                                  const QList<WOutputState> &appliedStates)
+{
+    W_D(WOutputManagerV1);
+
+    d->pendingStateLists.remove(config);
     if (d->currentPendingConfig == config)
         d->currentPendingConfig = nullptr;
 
     if (ok) {
         config->send_succeeded();
-        d->stateList = pendingStates;
+        d->stateList = appliedStates;
     } else {
         config->send_failed();
     }
