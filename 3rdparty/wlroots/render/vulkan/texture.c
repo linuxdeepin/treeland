@@ -1363,9 +1363,24 @@ bool wlr_vk_renderer_prepare_texture_for_sampling(struct wlr_renderer *wlr_rende
 			.subresourceRange.levelCount = 1,
 		};
 
-		vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
-			0, NULL, 0, NULL, 1, &barrier);
+		bool deferred = false;
+		if (renderer->texture_barrier_batch_active
+				&& !renderer->texture_barrier_batch_release) {
+			VkImageMemoryBarrier *slot = wl_array_add(
+				&renderer->texture_acquire_barriers, sizeof(barrier));
+			if (slot != NULL) {
+				*slot = barrier;
+				deferred = true;
+			} else {
+				wlr_log_errno(WLR_ERROR,
+					"Failed to queue Vulkan texture acquire barrier");
+			}
+		}
+		if (!deferred) {
+			vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+				VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
+				0, NULL, 0, NULL, 1, &barrier);
+		}
 
 		texture->owned = true;
 	}
@@ -1409,9 +1424,87 @@ bool wlr_vk_renderer_finish_texture_sampling(struct wlr_renderer *wlr_renderer,
 		.subresourceRange.levelCount = 1,
 	};
 
-	vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-		VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0,
-		0, NULL, 0, NULL, 1, &barrier);
+	bool deferred = false;
+	if (renderer->texture_barrier_batch_active
+			&& renderer->texture_barrier_batch_release) {
+		VkImageMemoryBarrier *slot = wl_array_add(
+			&renderer->texture_release_barriers, sizeof(barrier));
+		if (slot != NULL) {
+			*slot = barrier;
+			deferred = true;
+		} else {
+			wlr_log_errno(WLR_ERROR,
+				"Failed to queue Vulkan texture release barrier");
+		}
+	}
+	if (!deferred) {
+		vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+			VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0,
+			0, NULL, 0, NULL, 1, &barrier);
+	}
 	texture->owned = false;
 	return true;
+}
+
+bool wlr_vk_renderer_begin_texture_barrier_batch(struct wlr_renderer *wlr_renderer,
+		bool release) {
+	if (wlr_renderer == NULL || !wlr_renderer_is_vk(wlr_renderer)) {
+		return false;
+	}
+
+	struct wlr_vk_renderer *renderer = vulkan_get_renderer(wlr_renderer);
+	if (renderer->texture_barrier_batch_active) {
+		wlr_log(WLR_ERROR, "Vulkan texture barrier batch is already active");
+		wlr_vk_renderer_abort_texture_barrier_batch(wlr_renderer);
+	}
+
+	renderer->texture_barrier_batch_active = true;
+	renderer->texture_barrier_batch_release = release;
+	return true;
+}
+
+bool wlr_vk_renderer_flush_texture_barrier_batch(struct wlr_renderer *wlr_renderer,
+		VkCommandBuffer cb) {
+	if (wlr_renderer == NULL || !wlr_renderer_is_vk(wlr_renderer)) {
+		return false;
+	}
+
+	struct wlr_vk_renderer *renderer = vulkan_get_renderer(wlr_renderer);
+	if (!renderer->texture_barrier_batch_active) {
+		return true;
+	}
+
+	const bool release = renderer->texture_barrier_batch_release;
+	struct wl_array *barriers = release
+		? &renderer->texture_release_barriers
+		: &renderer->texture_acquire_barriers;
+	const size_t count = barriers->size / sizeof(VkImageMemoryBarrier);
+
+	if (cb != VK_NULL_HANDLE && count > 0) {
+		VkPipelineStageFlags src_stage = release
+			? VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
+			: VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+		VkPipelineStageFlags dst_stage = release
+			? VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT
+			: VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+		vkCmdPipelineBarrier(cb, src_stage, dst_stage, 0,
+			0, NULL, 0, NULL, (uint32_t)count, barriers->data);
+	}
+
+	barriers->size = 0;
+	renderer->texture_barrier_batch_active = false;
+	renderer->texture_barrier_batch_release = false;
+	return true;
+}
+
+void wlr_vk_renderer_abort_texture_barrier_batch(struct wlr_renderer *wlr_renderer) {
+	if (wlr_renderer == NULL || !wlr_renderer_is_vk(wlr_renderer)) {
+		return;
+	}
+
+	struct wlr_vk_renderer *renderer = vulkan_get_renderer(wlr_renderer);
+	renderer->texture_acquire_barriers.size = 0;
+	renderer->texture_release_barriers.size = 0;
+	renderer->texture_barrier_batch_active = false;
+	renderer->texture_barrier_batch_release = false;
 }

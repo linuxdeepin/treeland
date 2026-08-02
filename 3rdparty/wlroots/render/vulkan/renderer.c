@@ -1138,6 +1138,7 @@ static void vulkan_destroy(struct wlr_renderer *wlr_renderer) {
 	}
 
 	wlr_vk_renderer_abort_texture_sync_batch(wlr_renderer);
+	wlr_vk_renderer_abort_texture_barrier_batch(wlr_renderer);
 
 	VkResult res = vkDeviceWaitIdle(renderer->dev->dev);
 	if (res != VK_SUCCESS) {
@@ -1229,6 +1230,8 @@ static void vulkan_destroy(struct wlr_renderer *wlr_renderer) {
 	wl_array_release(&renderer->texture_sync_semaphores);
 	wl_array_release(&renderer->texture_sync_pending);
 	wl_array_release(&renderer->texture_sync_wait_infos);
+	wl_array_release(&renderer->texture_acquire_barriers);
+	wl_array_release(&renderer->texture_release_barriers);
 
 	if (renderer->texture_sync_timeline_semaphore != VK_NULL_HANDLE) {
 		vkDestroySemaphore(dev->dev, renderer->texture_sync_timeline_semaphore, NULL);
@@ -2538,6 +2541,8 @@ struct wlr_renderer *vulkan_renderer_create_for_device(struct wlr_vk_device *dev
 	wl_array_init(&renderer->texture_sync_semaphores);
 	wl_array_init(&renderer->texture_sync_pending);
 	wl_array_init(&renderer->texture_sync_wait_infos);
+	wl_array_init(&renderer->texture_acquire_barriers);
+	wl_array_init(&renderer->texture_release_barriers);
 	renderer->texture_sync_force_poll = getenv("WLR_VK_FORCE_SYNC_POLL") != NULL;
 
 	uint64_t cap_syncobj_timeline;

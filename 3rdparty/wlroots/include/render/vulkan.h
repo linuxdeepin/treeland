@@ -318,6 +318,15 @@ struct wlr_vk_renderer {
 	bool texture_sync_batch_active;
 	bool texture_sync_force_poll; // env WLR_VK_FORCE_SYNC_POLL
 
+	// Per-pass batching of foreign-texture acquire/release barriers (Qt/QRhi
+	// path). Instead of emitting one vkCmdPipelineBarrier per texture, the
+	// barriers are accumulated while a batch is active and recorded as a
+	// single call before (acquire phase) or after (release phase) the Qt draw.
+	struct wl_array texture_acquire_barriers; // VkImageMemoryBarrier
+	struct wl_array texture_release_barriers; // VkImageMemoryBarrier
+	bool texture_barrier_batch_active;
+	bool texture_barrier_batch_release; // current batch is the release phase
+
 	size_t last_pool_size;
 	struct wl_list descriptor_pools; // wlr_vk_descriptor_pool.link
 	struct wl_list render_format_setups; // wlr_vk_render_format_setup.link

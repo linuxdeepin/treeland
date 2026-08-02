@@ -55,6 +55,22 @@ bool wlr_vk_renderer_begin_texture_sync_batch(struct wlr_renderer *renderer);
 bool wlr_vk_renderer_flush_texture_sync_batch(struct wlr_renderer *renderer);
 void wlr_vk_renderer_abort_texture_sync_batch(struct wlr_renderer *renderer);
 
+// Batch the per-texture queue-family-ownership/layout barriers that
+// wlr_vk_renderer_prepare_texture_for_sampling() and
+// wlr_vk_renderer_finish_texture_sampling() would otherwise emit one at a
+// time. Begin a batch (release=false for the pre-draw acquire phase,
+// release=true for the post-draw release phase), call prepare/finish for each
+// texture, then flush once to record a single vkCmdPipelineBarrier covering
+// every accumulated texture. While a batch is active, prepare defers acquire
+// barriers and finish defers release barriers; a call belonging to the other
+// phase still records immediately so the two phases never mix in one flush.
+// abort discards any pending barriers and is idempotent.
+bool wlr_vk_renderer_begin_texture_barrier_batch(struct wlr_renderer *renderer,
+	bool release);
+bool wlr_vk_renderer_flush_texture_barrier_batch(struct wlr_renderer *renderer,
+	VkCommandBuffer cb);
+void wlr_vk_renderer_abort_texture_barrier_batch(struct wlr_renderer *renderer);
+
 bool wlr_vk_renderer_get_render_buffer_attribs(struct wlr_renderer *renderer,
 	struct wlr_buffer *buffer, struct wlr_vk_image_attribs *attribs);
 bool wlr_vk_renderer_record_render_buffer_acquire(struct wlr_renderer *renderer,
