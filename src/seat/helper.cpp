@@ -1327,11 +1327,10 @@ void Helper::onOutputCommitFinished(qw_output_configuration_v1 *config, bool suc
                         return;
                     }
 
-                    if (preservePosition) {
-                        return;
+                    if (!preservePosition) {
+                        outputConfig->setX(x);
+                        outputConfig->setY(y);
                     }
-                    outputConfig->setX(x);
-                    outputConfig->setY(y);
                     outputConfig->setWidth(width);
                     outputConfig->setHeight(height);
                     outputConfig->setRefresh(refresh);
