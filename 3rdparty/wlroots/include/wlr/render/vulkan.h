@@ -71,6 +71,15 @@ bool wlr_vk_renderer_flush_texture_barrier_batch(struct wlr_renderer *renderer,
 	VkCommandBuffer cb);
 void wlr_vk_renderer_abort_texture_barrier_batch(struct wlr_renderer *renderer);
 
+// Enable the GPU-side asynchronous staging-upload path used for shared-memory
+// (CPU-rendered) client buffers. It submits the staging copy without blocking
+// the caller and relies on queue submission ordering to finish the upload
+// before the texture is sampled, so it must only be enabled when the consumer
+// (e.g. Qt/QRhi) submits its command buffers to the same VkQueue as the
+// renderer. When disabled (the default) staging uploads use a blocking wait.
+void wlr_vk_renderer_set_stage_async_enabled(struct wlr_renderer *renderer,
+	bool enabled);
+
 bool wlr_vk_renderer_get_render_buffer_attribs(struct wlr_renderer *renderer,
 	struct wlr_buffer *buffer, struct wlr_vk_image_attribs *attribs);
 bool wlr_vk_renderer_record_render_buffer_acquire(struct wlr_renderer *renderer,
@@ -86,5 +95,4 @@ bool waylib_vk_renderer_record_render_buffer_acquire(struct wlr_renderer *render
 	struct wlr_buffer *buffer, VkCommandBuffer cb);
 bool waylib_vk_renderer_record_render_buffer_release(struct wlr_renderer *renderer,
 	struct wlr_buffer *buffer, VkCommandBuffer cb, VkImageLayout old_layout);
-bool waylib_vk_renderer_flush_stage(struct wlr_renderer *renderer);
 #endif

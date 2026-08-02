@@ -413,15 +413,78 @@ bool vulkan_submit_stage_wait(struct wlr_vk_renderer *renderer) {
 	return vulkan_wait_command_buffer(cb, renderer);
 }
 
-bool waylib_vk_renderer_flush_stage(struct wlr_renderer *wlr_renderer) {
-	if (wlr_renderer == NULL || !wlr_renderer_is_vk(wlr_renderer)) {
-		return false;
-	}
-	struct wlr_vk_renderer *renderer = vulkan_get_renderer(wlr_renderer);
+bool vulkan_submit_stage_async(struct wlr_vk_renderer *renderer) {
 	if (renderer->stage.cb == NULL) {
 		return true;
 	}
-	return vulkan_submit_stage_wait(renderer);
+
+	struct wlr_vk_command_buffer *cb = renderer->stage.cb;
+	renderer->stage.cb = NULL;
+
+	uint64_t timeline_point = vulkan_end_command_buffer(cb, renderer);
+	if (timeline_point == 0) {
+		return false;
+	}
+
+	VkTimelineSemaphoreSubmitInfoKHR timeline_submit_info = {
+		.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO_KHR,
+		.signalSemaphoreValueCount = 1,
+		.pSignalSemaphoreValues = &timeline_point,
+	};
+	VkSubmitInfo submit_info = {
+		.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+		.pNext = &timeline_submit_info,
+		.commandBufferCount = 1,
+		.pCommandBuffers = &cb->vk,
+		.signalSemaphoreCount = 1,
+		.pSignalSemaphores = &renderer->timeline_semaphore,
+	};
+	VkResult res = vkQueueSubmit(renderer->dev->queue, 1, &submit_info, VK_NULL_HANDLE);
+	if (res != VK_SUCCESS) {
+		wlr_vk_error("vkQueueSubmit", res);
+		return false;
+	}
+
+	renderer->stage.last_timeline_point = timeline_point;
+
+	// Hide the staging buffers used by this submission from the allocator.
+	// release_command_buffer_resources() returns them (with their allocations
+	// reset) once this command buffer's timeline point is reached, so the CPU
+	// never reuses a span the GPU is still reading. Sampling of the uploaded
+	// content happens in a later submission on the same queue, so queue
+	// submission ordering guarantees the upload completes first.
+	size_t hidden = 0;
+	struct wlr_vk_shared_buffer *buf, *tmp;
+	wl_list_for_each_safe(buf, tmp, &renderer->stage.buffers, link) {
+		if (buf->allocs.size == 0) {
+			continue;
+		}
+		wl_list_remove(&buf->link);
+		wl_list_insert(&cb->stage_buffers, &buf->link);
+		++hidden;
+	}
+
+	static bool logged_async_stage;
+	if (!logged_async_stage) {
+		logged_async_stage = true;
+		wlr_log(WLR_INFO, "vk-stage: using GPU-side asynchronous staging "
+			"uploads (set WLR_VK_FORCE_STAGE_BLOCK=1 to force the blocking path)");
+	}
+	wlr_log(WLR_DEBUG, "vk-stage: submitted staging command buffer "
+		"timeline_point=%llu buffers_hidden=%zu",
+		(unsigned long long)timeline_point, hidden);
+
+	return true;
+}
+
+void wlr_vk_renderer_set_stage_async_enabled(struct wlr_renderer *wlr_renderer,
+		bool enabled) {
+	if (wlr_renderer == NULL || !wlr_renderer_is_vk(wlr_renderer)) {
+		return;
+	}
+
+	struct wlr_vk_renderer *renderer = vulkan_get_renderer(wlr_renderer);
+	renderer->stage_async_enabled = enabled;
 }
 
 struct wlr_vk_format_props *vulkan_format_props_from_drm(
@@ -489,6 +552,7 @@ static void release_command_buffer_resources(struct wlr_vk_command_buffer *cb,
 		wlr_texture_destroy(&texture->wlr_texture);
 	}
 
+	size_t reclaimed = 0;
 	struct wlr_vk_shared_buffer *buf, *buf_tmp;
 	wl_list_for_each_safe(buf, buf_tmp, &cb->stage_buffers, link) {
 		buf->allocs.size = 0;
@@ -496,6 +560,10 @@ static void release_command_buffer_resources(struct wlr_vk_command_buffer *cb,
 
 		wl_list_remove(&buf->link);
 		wl_list_insert(&renderer->stage.buffers, &buf->link);
+		++reclaimed;
+	}
+	if (reclaimed > 0) {
+		wlr_log(WLR_DEBUG, "vk-stage: reclaimed %zu staging buffers", reclaimed);
 	}
 
 	if (cb->color_transform) {
@@ -2544,6 +2612,7 @@ struct wlr_renderer *vulkan_renderer_create_for_device(struct wlr_vk_device *dev
 	wl_array_init(&renderer->texture_acquire_barriers);
 	wl_array_init(&renderer->texture_release_barriers);
 	renderer->texture_sync_force_poll = getenv("WLR_VK_FORCE_SYNC_POLL") != NULL;
+	renderer->stage_force_block = getenv("WLR_VK_FORCE_STAGE_BLOCK") != NULL;
 
 	uint64_t cap_syncobj_timeline;
 	if (dev->drm_fd >= 0 && drmGetCap(dev->drm_fd, DRM_CAP_SYNCOBJ_TIMELINE, &cap_syncobj_timeline) == 0) {

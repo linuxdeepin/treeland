@@ -327,6 +327,15 @@ struct wlr_vk_renderer {
 	bool texture_barrier_batch_active;
 	bool texture_barrier_batch_release; // current batch is the release phase
 
+	// Force the legacy blocking staging-upload path instead of the
+	// GPU-side asynchronous one (env WLR_VK_FORCE_STAGE_BLOCK).
+	bool stage_force_block;
+	// Enable the GPU-side asynchronous staging-upload path. Must only be set
+	// once the consumer (Qt/QRhi) is confirmed to submit to the same VkQueue,
+	// since the path relies on queue submission ordering for the upload to
+	// complete before the uploaded texture is sampled.
+	bool stage_async_enabled;
+
 	size_t last_pool_size;
 	struct wl_list descriptor_pools; // wlr_vk_descriptor_pool.link
 	struct wl_list render_format_setups; // wlr_vk_render_format_setup.link
@@ -400,6 +409,14 @@ VkCommandBuffer vulkan_record_stage_cb(struct wlr_vk_renderer *renderer);
 // Submits the current stage command buffer and waits until it has
 // finished execution.
 bool vulkan_submit_stage_wait(struct wlr_vk_renderer *renderer);
+
+// Submits the current stage command buffer without blocking the CPU. The
+// staging buffers it used are hidden in the command buffer's stage_buffers
+// list and reclaimed once its timeline point is reached. Callers that sample
+// the uploaded content must submit their own command buffer to the same queue
+// afterwards so queue submission ordering guarantees the upload finishes
+// first.
+bool vulkan_submit_stage_async(struct wlr_vk_renderer *renderer);
 
 struct wlr_vk_render_pass_texture {
 	struct wlr_vk_texture *texture;

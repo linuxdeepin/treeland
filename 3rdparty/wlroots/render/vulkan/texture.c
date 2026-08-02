@@ -876,12 +876,35 @@ static bool submit_pending_stage_uploads(struct wlr_vk_renderer *renderer) {
 		return true;
 	}
 
-	if (!vulkan_submit_stage_wait(renderer)) {
+	// The GPU-side asynchronous path is only safe when the consumer submits
+	// to the same queue (see wlr_vk_renderer_set_stage_async_enabled). Fall
+	// back to the legacy blocking path otherwise, or when explicitly forced.
+	if (!renderer->stage_async_enabled || renderer->stage_force_block) {
+		static bool logged_blocking_stage;
+		if (!logged_blocking_stage) {
+			logged_blocking_stage = true;
+			wlr_log(WLR_INFO, "vk-stage: using blocking staging uploads "
+				"(async path %s)", renderer->stage_force_block
+					? "forced off via WLR_VK_FORCE_STAGE_BLOCK"
+					: "not enabled");
+		}
+		if (!vulkan_submit_stage_wait(renderer)) {
+			wlr_log(WLR_ERROR, "Failed to submit pending Vulkan texture stage upload");
+			return false;
+		}
+
+		release_completed_stage_buffers(renderer);
+		return true;
+	}
+
+	// GPU-side asynchronous path: submit the staging command buffer without
+	// blocking the render thread. The staging spans are reclaimed once the
+	// submission's timeline point is reached (see vulkan_submit_stage_async).
+	if (!vulkan_submit_stage_async(renderer)) {
 		wlr_log(WLR_ERROR, "Failed to submit pending Vulkan texture stage upload");
 		return false;
 	}
 
-	release_completed_stage_buffers(renderer);
 	return true;
 }
 
