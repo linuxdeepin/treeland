@@ -1,9 +1,12 @@
 @PACKAGE_INIT@
 
 include(CMakeFindDependencyMacro)
-find_dependency(QWlroots)
+
+# WaylandScannerHelpers provides ws_generate() and sets WAYLAND_PROTOCOLS_OUTPUTDIR.
+# Needed by downstream projects (e.g. treeland src/modules) that generate protocols.
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}")
+include(WaylandScannerHelpers)
 
 include(${CMAKE_CURRENT_LIST_DIR}/WaylibServerTargets.cmake)
 
 check_required_components(WaylibServer)
-

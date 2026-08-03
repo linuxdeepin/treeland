@@ -8,10 +8,11 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-option(WITH_SUBMODULE_QWLROOTS "Use the QWlroots from git submodule" ON)
+option(USE_WLROOTS_19 "Use wlroots 0.19 version" ON)
 option(BUILD_EXAMPLES "A minimum viable product Wayland compositor based on waylib and other examples" ON)
 option(BUILD_TESTS "Build test demos" ON)
 option(DISABLE_XWAYLAND "Disable the xwayland support" OFF)
+option(DISABLE_WLR_PROTOCOLS "Disable support for wlr protocols, such as wlr-layer-shell" OFF)
 # Don't install tinywl by default, using for debug in local
 option(INSTALL_TINYWL "A minimum viable product Wayland compositor based on waylib" OFF)
 option(ADDRESS_SANITIZER "Enable address sanitize" OFF)
@@ -21,14 +22,12 @@ find_package(Qt6 COMPONENTS Core Gui Quick REQUIRED)
 if(Qt6_VERSION VERSION_GREATER_EQUAL 6.10)
     find_package(Qt6 REQUIRED COMPONENTS GuiPrivate QuickPrivate)
 endif()
-if(WITH_SUBMODULE_QWLROOTS)
-    # Use qwlroots from project root directory
-    include(${CMAKE_SOURCE_DIR}/qwlroots/cmake/WaylandScannerHelpers.cmake)
-    add_subdirectory(${CMAKE_SOURCE_DIR}/qwlroots qwlroots)
-    message("Using QWlroots from submodule")
-else()
-    find_package(QWlroots REQUIRED)
-endif()
+
+# qwlroots infrastructure is now built as part of waylib (no separate library).
+# WaylandScannerHelpers provides the ws_generate() macro for protocol code generation.
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/")
+include(WaylandScannerHelpers)
+include(PackageVersionHelper)
 
 if(DISABLE_XWAYLAND)
     add_definitions(-DDISABLE_XWAYLAND)
@@ -42,8 +41,6 @@ endif()
 # For Unix/Linux
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/")
-include(PackageVersionHelper)
 
 add_subdirectory(src)
 if(BUILD_EXAMPLES)

@@ -25,35 +25,56 @@ find_package(PkgConfig REQUIRED)
 pkg_search_module(LIBDRM REQUIRED IMPORTED_TARGET libdrm)
 set(WAYLIB_WLROOTS_INCLUDE_DIRS "")
 set(WAYLIB_WLROOTS_PUBLIC_TARGET "")
-if (QWLROOTS_USE_VENDORED_WLROOTS)
-    if (NOT TARGET Wlroots::wlroots)
-        find_library(WAYLIB_WLROOTS_LIBRARY REQUIRED NAMES waylib-wlroots)
-        add_library(Wlroots::wlroots SHARED IMPORTED)
-        set_target_properties(Wlroots::wlroots PROPERTIES IMPORTED_LOCATION "${WAYLIB_WLROOTS_LIBRARY}")
-    endif()
+if (TARGET Wlroots::wlroots)
+    # Vendored wlroots from monorepo (wlroots/ subdirectory).
+    # WLROOTS_VERSION* and WLR_HAVE_* are exported by wlroots/CMakeLists.txt.
     set(WLROOTS_TARGET Wlroots::wlroots)
     set(WAYLIB_WLROOTS_PUBLIC_TARGET Wlroots::wlroots)
-    set(_waylib_wlroots_include "${CMAKE_SOURCE_DIR}/../3rdparty/wlroots/include")
+    set(_waylib_wlroots_include "${PROJECT_SOURCE_DIR}/../3rdparty/wlroots/include")
     if (NOT EXISTS "${_waylib_wlroots_include}/wlr")
-        message(FATAL_ERROR "QWlroots uses vendored wlroots, but headers were not found at ${_waylib_wlroots_include}")
+        message(FATAL_ERROR "Vendored wlroots headers not found at ${_waylib_wlroots_include}")
     endif()
     list(APPEND WAYLIB_WLROOTS_INCLUDE_DIRS "$<BUILD_INTERFACE:${_waylib_wlroots_include}>")
-elseif(TARGET Wlroots::wlroots)
-    # Headers/link come via QWlroots::QWlroots public interface.
-    set(WLROOTS_TARGET "")
 else()
-    pkg_search_module(WLROOTS REQUIRED IMPORTED_TARGET wlroots-0.19)
+    # System-installed wlroots.
+    if (USE_WLROOTS_19)
+        set(wlr wlroots-0.19)
+        set(WLROOTS_MINIMUM_REQUIRED 0.19.0)
+    else()
+        set(wlr wlroots-0.18)
+        set(WLROOTS_MINIMUM_REQUIRED 0.18.0)
+    endif()
+    pkg_check_modules(WLROOTS REQUIRED IMPORTED_TARGET ${wlr}>=${WLROOTS_MINIMUM_REQUIRED})
+    pkg_get_variable(WLR_HAVE_DRM_BACKEND ${wlr} have_drm_backend)
+    pkg_get_variable(WLR_HAVE_X11_BACKEND ${wlr} have_x11_backend)
+    pkg_get_variable(WLR_HAVE_LIBINPUT_BACKEND ${wlr} have_libinput_backend)
+    pkg_get_variable(WLR_HAVE_XWAYLAND ${wlr} have_xwayland)
+    pkg_get_variable(WLR_HAVE_GLES2_RENDERER ${wlr} have_gles2_renderer)
+    pkg_get_variable(WLR_HAVE_VULKAN_RENDERER ${wlr} have_vulkan_renderer)
+    pkg_get_variable(WLR_HAVE_GBM_ALLOCATOR ${wlr} have_gbm_allocator)
+    pkg_get_variable(WLR_HAVE_SESSION ${wlr} have_session)
+    setup_package_version_variables(WLROOTS)
     set(WLROOTS_TARGET PkgConfig::WLROOTS)
+    set(WAYLIB_WLROOTS_PUBLIC_TARGET PkgConfig::WLROOTS)
 endif()
 pkg_search_module(WAYLAND REQUIRED IMPORTED_TARGET wayland-server)
 pkg_search_module(WAYLAND_PROTOCOLS REQUIRED IMPORTED_TARGET wayland-protocols)
-pkg_search_module(WLR_PROTOCOLS REQUIRED wlr-protocols)
+if (NOT DISABLE_WLR_PROTOCOLS)
+    pkg_search_module(WLR_PROTOCOLS REQUIRED wlr-protocols)
+endif()
+if ((NOT WLR_HAVE_XWAYLAND) AND (NOT DISABLE_XWAYLAND))
+    message(FATAL_ERROR "wlroots lacks support for xwayland, and `DISABLE_XWAYLAND` set to OFF!")
+endif()
 pkg_search_module(PIXMAN REQUIRED IMPORTED_TARGET pixman-1)
 pkg_search_module(XKBCOMMON REQUIRED IMPORTED_TARGET xkbcommon)
 pkg_search_module(XCB REQUIRED IMPORTED_TARGET xcb)
 pkg_search_module(EGL REQUIRED IMPORTED_TARGET egl)
 
 add_compile_definitions(WLR_PRIVATE=)
+
+# Generate qwconfig.h for qwlroots infrastructure (now built as part of waylib)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/qwlroots/cmake/qwconfig.h.in
+    ${CMAKE_CURRENT_BINARY_DIR}/generate/qwconfig.h @ONLY)
 
 ws_generate(
     server
@@ -122,7 +143,30 @@ ws_generate(
     ext-foreign-toplevel-list-v1-protocol
 )
 
+# qwlroots protocol generation (merged from qwlroots/src/CMakeLists.txt)
+ws_generate(server wayland-protocols unstable/fullscreen-shell/fullscreen-shell-unstable-v1.xml fullscreen-shell-unstable-v1-protocol)
+ws_generate(server wayland-protocols unstable/tablet/tablet-unstable-v2.xml tablet-unstable-v2-protocol)
+ws_generate(server wayland-protocols unstable/pointer-constraints/pointer-constraints-unstable-v1.xml pointer-constraints-unstable-v1-protocol)
+ws_generate(server wayland-protocols staging/alpha-modifier/alpha-modifier-v1.xml alpha-modifier-v1-protocol)
+ws_generate(server wayland-protocols staging/ext-transient-seat/ext-transient-seat-v1.xml ext-transient-seat-v1-protocol)
+if (USE_WLROOTS_19)
+    ws_generate(server wayland-protocols staging/ext-image-copy-capture/ext-image-copy-capture-v1.xml ext-image-copy-capture-v1-protocol)
+endif()
+ws_generate(server wayland-protocols staging/content-type/content-type-v1.xml content-type-v1-protocol)
+ws_generate(server wayland-protocols staging/cursor-shape/cursor-shape-v1.xml cursor-shape-v1-protocol)
+ws_generate(server wayland-protocols staging/tearing-control/tearing-control-v1.xml tearing-control-v1-protocol)
+ws_generate(server wayland-protocols stable/tablet/tablet-v2.xml tablet-v2-protocol)
+
+if (NOT DISABLE_WLR_PROTOCOLS)
+    ws_generate(server wlr-protocols unstable/wlr-layer-shell-unstable-v1.xml wlr-layer-shell-unstable-v1-protocol)
+    ws_generate(server wlr-protocols unstable/wlr-output-power-management-unstable-v1.xml wlr-output-power-management-unstable-v1-protocol)
+endif()
+
 set(SOURCES
+    qwlroots/qwobject.cpp
+    qwlroots/qwbackend.cpp
+    qwlroots/types/qwinputdevice.cpp
+
     wayliblogging.cpp
 
     kernel/wbackend.cpp
@@ -332,7 +376,130 @@ set(HEADERS
     protocols/WSessionLock
     protocols/wsessionlocksurface.h
     protocols/WSessionLockSurface
+
+    # qwlroots headers (merged from qwlroots/src, now built as part of waylib)
+    qwlroots/qwglobal.h
+    qwlroots/qwobject.h
+    qwlroots/qwbackend.h
+    qwlroots/qwdisplay.h
+    qwlroots/qwsession.h
+    qwlroots/render/qwrenderer.h
+    qwlroots/render/qwtexture.h
+    qwlroots/render/qwallocator.h
+    qwlroots/render/qwegl.h
+    qwlroots/render/qwswapchain.h
+    qwlroots/render/qwdmabuf.h
+    qwlroots/render/qwdrmformatset.h
+    qwlroots/render/qwcolor.h
+    qwlroots/render/qwdrmsyncobj.h
+    qwlroots/types/qwalphamodifierv1.h
+    qwlroots/types/qwbuffer.h
+    qwlroots/types/qwcompositor.h
+    qwlroots/types/qwexportdmabufv1.h
+    qwlroots/types/qwsubcompositor.h
+    qwlroots/types/qwdatadevice.h
+    qwlroots/types/qwdatacontrolv1.h
+    qwlroots/types/qwextdatacontrolv1.h
+    qwlroots/types/qwdrm.h
+    qwlroots/types/qwdrmleasev1.h
+    qwlroots/types/qwforeigntoplevelhandlev1.h
+    qwlroots/types/qwfractionalscalemanagerv1.h
+    qwlroots/types/qwgammacontorlv1.h
+    qwlroots/types/qwidleinhibitv1.h
+    qwlroots/types/qwidlenotifyv1.h
+    qwlroots/types/qwinputdevice.h
+    qwlroots/types/qwinputmethodv2.h
+    qwlroots/types/qwkeyboard.h
+    qwlroots/types/qwkeyboardgroup.h
+    qwlroots/types/qwkeyboardshortcutsinhibitv1.h
+    qwlroots/types/qwlinuxdmabufv1.h
+    qwlroots/types/qwlinuxdrmsyncobjv1.h
+    qwlroots/types/qwoutput.h
+    qwlroots/types/qwoutputlayer.h
+    qwlroots/types/qwoutputlayout.h
+    qwlroots/types/qwoutputmanagementv1.h
+    qwlroots/types/qwpointer.h
+    qwlroots/types/qwpointerconstraintsv1.h
+    qwlroots/types/qwpointergesturesv1.h
+    qwlroots/types/qwpresentation.h
+    qwlroots/types/qwprimaryselection.h
+    qwlroots/types/qwprimaryselectionv1.h
+    qwlroots/types/qwrelativepointerv1.h
+    qwlroots/types/qwscene.h
+    qwlroots/types/qwscreencopyv1.h
+    qwlroots/types/qwseat.h
+    qwlroots/types/qwsecuritycontextmanagerv1.h
+    qwlroots/types/qwsessionlockv1.h
+    qwlroots/types/qwshm.h
+    qwlroots/types/qwsinglepixelbufferv1.h
+    qwlroots/types/qwswitch.h
+    qwlroots/types/qwtablet.h
+    qwlroots/types/qwtabletpad.h
+    qwlroots/types/qwtabletv2.h
+    qwlroots/types/qwtearingcontrolv1.h
+    qwlroots/types/qwtextinputv3.h
+    qwlroots/types/qwtouch.h
+    qwlroots/types/qwtransientseatv1.h
+    qwlroots/types/qwviewporter.h
+    qwlroots/types/qwvirtualkeyboardv1.h
+    qwlroots/types/qwvirtualpointerv1.h
+    qwlroots/types/qwxcursormanager.h
+    qwlroots/types/qwxdgactivationv1.h
+    qwlroots/types/qwxdgdecorationmanagerv1.h
+    qwlroots/types/qwxdgforeignregistry.h
+    qwlroots/types/qwxdgforeignv1.h
+    qwlroots/types/qwxdgforeignv2.h
+    qwlroots/types/qwxdgoutputv1.h
+    qwlroots/types/qwxdgshell.h
+    qwlroots/types/qwdamagering.h
+    qwlroots/types/qwcursor.h
+    qwlroots/types/qwcursorshapev1.h
+    qwlroots/types/qwcontenttypev1.h
+    qwlroots/util/qwsignalconnector.h
+    qwlroots/util/qwlogging.h
+    qwlroots/util/qwbox.h
+    qwlroots/interfaces/qwinterface.h
+    qwlroots/interfaces/qwbackendinterface.h
+    qwlroots/interfaces/qwbufferinterface.h
+    qwlroots/interfaces/qwrendererinterface.h
+    qwlroots/interfaces/qwoutputinterface.h
+    qwlroots/interfaces/qwkeyboardinterface.h
+    qwlroots/interfaces/qwswitchinterface.h
+    qwlroots/interfaces/qwpointerinterface.h
+    qwlroots/interfaces/qwtabletpadinterface.h
+    ${CMAKE_CURRENT_BINARY_DIR}/generate/qwconfig.h
 )
+
+if (USE_WLROOTS_19)
+    list(APPEND HEADERS
+        qwlroots/types/qwcolormanagerv1.h
+        qwlroots/types/qwextimagecopycapturev1.h
+        qwlroots/types/qwextimagecapturesourcev1.h
+        qwlroots/types/qwextforeigntoplevellistv1.h
+        qwlroots/types/qwxdgdialogv1.h
+        qwlroots/interfaces/qwextimagecapturesourcev1interface.h
+    )
+else()
+    list(APPEND HEADERS
+        qwlroots/types/qwfullscreenshellv1.h
+    )
+endif()
+
+if (NOT DISABLE_XWAYLAND)
+    list(APPEND HEADERS
+        qwlroots/types/qwxwaylandshellv1.h
+        qwlroots/types/qwxwayland.h
+        qwlroots/types/qwxwaylandsurface.h
+        qwlroots/types/qwxwaylandserver.h
+    )
+endif()
+
+if (NOT DISABLE_WLR_PROTOCOLS)
+    list(APPEND HEADERS
+        qwlroots/types/qwlayershellv1.h
+        qwlroots/types/qwoutputpowermanagementv1.h
+    )
+endif()
 
 set(PRIVATE_HEADERS
     platformplugin/qwlrootsintegration.h
@@ -398,6 +565,7 @@ target_compile_definitions(${TARGET}
     PRIVATE
     WLR_USE_UNSTABLE
     LIBWAYLIB_SERVER_LIBRARY
+    QWLROOTS_LIBRARY
     QT_NO_SIGNALS_SLOTS_KEYWORDS
 )
 
@@ -431,7 +599,6 @@ target_link_libraries(${TARGET}
 
 target_link_libraries(${TARGET}
     PUBLIC
-        QWlroots::QWlroots
         ${WAYLIB_WLROOTS_PUBLIC_TARGET}
 )
 
@@ -445,6 +612,12 @@ target_include_directories(${TARGET}
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/utils>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/protocols>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/protocols/private>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/qwlroots>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/qwlroots/render>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/qwlroots/types>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/qwlroots/util>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/qwlroots/interfaces>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/generate>
         ${WAYLIB_WLROOTS_INCLUDE_DIRS}
         $<INSTALL_INTERFACE:${WAYLIB_INCLUDE_INSTALL_DIR}>
     PRIVATE
@@ -506,6 +679,7 @@ write_basic_package_version_file(
 install(FILES
     ${CMAKE_CURRENT_BINARY_DIR}/WaylibServerConfig.cmake
     ${CMAKE_CURRENT_BINARY_DIR}/WaylibServerConfigVersion.cmake
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/WaylandScannerHelpers.cmake
     DESTINATION ${WAYLIB_CMAKE_INSTALL_DIR}
 )
 
@@ -518,5 +692,5 @@ install(
 
 include(${PROJECT_SOURCE_DIR}/cmake/Helpers.cmake)
 add_pkgconfig_module(${TARGET} ${TARGET} ${WAYLIB_INCLUDE_INSTALL_DIR}
-    "qwlroots, Qt6Gui, Qt6Quick"
+    "Qt6Gui, Qt6Quick"
 )
