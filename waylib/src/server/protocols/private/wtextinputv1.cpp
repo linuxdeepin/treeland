@@ -147,7 +147,7 @@ void WTextInputV1::sendEnter(WSurface *surface)
     // Note: For text input v1, activation and surface focus is managed by client.
     // Do not send focus to text input unless it's activated.
     if (d_func()->active)
-        zwp_text_input_v1_send_enter(d_func()->resource, surface->handle()->handle()->resource);
+        zwp_text_input_v1_send_enter(d_func()->resource, surface->handle()->resource);
     Q_EMIT this->enabled();
 }
 

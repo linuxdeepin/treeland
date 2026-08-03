@@ -68,6 +68,6 @@ void WallpaperSurface::init()
 {
     W_D(WallpaperSurface);
 
-    d->surface = new WSurface(qw_surface::from(wlr_surface_from_resource(d->interface->surfaceResource())), this);
+    d->surface = new WSurface(wlr_surface_from_resource(d->interface->surfaceResource()), this);
     d->surface->setAttachedData<WallpaperSurface>(this);
 }

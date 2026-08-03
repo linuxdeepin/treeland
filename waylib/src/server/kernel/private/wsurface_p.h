@@ -6,7 +6,6 @@
 #include "wsurface.h"
 #include "private/wglobal_p.h"
 
-#include <qwcompositor.h>
 #include <qwbuffer.h>
 
 #include <QObject>
@@ -15,18 +14,14 @@
 struct wlr_surface;
 struct wlr_subsurface;
 
-QW_BEGIN_NAMESPACE
-class qw_subsurface;
-QW_END_NAMESPACE
-
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class Q_DECL_HIDDEN WSurfacePrivate : public WWrapObjectPrivate {
 public:
-    WSurfacePrivate(WSurface *qq, QW_NAMESPACE::qw_surface *handle);
+    WSurfacePrivate(WSurface *qq, wlr_surface *handle);
     ~WSurfacePrivate();
 
-    WWRAP_HANDLE_FUNCTIONS(QW_NAMESPACE::qw_surface, wlr_surface)
+    inline wlr_surface *handle() const { return surfaceHandle; }
 
     wl_client *waylandClient() const override;
 
@@ -36,7 +31,18 @@ public:
     // end slot function
 
     void init();
-    void connect();
+    struct NativeListener {
+        using Callback = void (*)(WSurfacePrivate *, void *);
+
+        wl_listener listener;
+        WSurfacePrivate *owner = nullptr;
+        Callback callback = nullptr;
+    };
+
+    void addListener(NativeListener &listener, wl_signal *signal, NativeListener::Callback callback);
+    static void handleNativeEvent(wl_listener *listener, void *data);
+    void connectNativeEvents();
+    void disconnectNativeEvents();
     void instantRelease() override;    // release qwobject etc.
     void updateOutputs();
     void setBuffer(QW_NAMESPACE::qw_buffer *newBuffer);
@@ -51,7 +57,12 @@ public:
 
     W_DECLARE_PUBLIC(WSurface)
 
-    QPointer<QW_NAMESPACE::qw_subsurface> subsurface;
+    wlr_surface *surfaceHandle = nullptr;
+    NativeListener commitListener;
+    NativeListener mapListener;
+    NativeListener unmapListener;
+    NativeListener newSubsurfaceListener;
+    NativeListener destroyListener;
     bool hasSubsurface = false;
     uint32_t preferredBufferScale = 1;
     uint32_t explicitPreferredBufferScale = 0;

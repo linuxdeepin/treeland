@@ -11,9 +11,7 @@
 #include "private/wglobal_p.h"
 #include "wayliblogging.h"
 
-#include <qwcompositor.h>
 #include <qwdatadevice.h>
-#include <qwcompositor.h>
 #include <qwdisplay.h>
 #include <qwprimaryselection.h>
 
@@ -138,7 +136,7 @@ public:
         if (target) {
             if (pointerFocusSurface()) {
                 Q_ASSERT(pointerFocusEventObject == eventObject);
-                Q_ASSERT(pointerFocusSurface() == target->handle()->handle());
+                Q_ASSERT(pointerFocusSurface() == target->handle());
             } else {
                 // Maybe this seat is grabbed by a xdg popup surface, so the surface of under mouse
                 // can't take pointer focus, but maybe the popup is closed now, so we should try again
@@ -180,7 +178,7 @@ public:
         }
         auto tmp = oldPointerFocusSurface;
         oldPointerFocusSurface = handle()->pointer_state.focused_surface;
-        wlr_seat_pointer_notify_enter(handle(), surface->handle()->handle(), position.x(), position.y());
+        wlr_seat_pointer_notify_enter(handle(), surface->handle(), position.x(), position.y());
         if (!pointerFocusSurface()) {
             // Because if the last pointer focus surface is a popup, the 'pointerNotifyEnter'
             // will call 'xdg_pointer_grab_enter' in wlroots, and the 'xdg_pointer_grab_enter'
@@ -189,7 +187,7 @@ public:
             oldPointerFocusSurface = tmp;
             return false;
         }
-        Q_ASSERT(pointerFocusSurface() == surface->handle()->handle());
+        Q_ASSERT(pointerFocusSurface() == surface->handle());
 
         Q_ASSERT(!pointerFocusEventObject || eventObject != pointerFocusEventObject);
         if (pointerFocusEventObject) {
@@ -213,7 +211,7 @@ public:
         if (cursor) // reset cursor from QCursor resource, the last cursor is from wlr_surface
             Q_EMIT cursor->cursorChanged();
     }
-    inline void doSetKeyboardFocus(qw_surface *surface) {
+    inline void doSetKeyboardFocus(wlr_surface *surface) {
         if (surface) {
             const wlr_keyboard_modifiers *modifiers = nullptr;
             const uint32_t *keycodes = nullptr;
@@ -231,13 +229,13 @@ public:
             // Send keyboard enter with current modifiers.
             // This ensures the newly focused client receives the current modifier state
             // (Num Lock, Caps Lock, etc.) as required by Wayland protocol.
-            wlr_seat_keyboard_notify_enter(handle(), surface->handle(), keycodes, numKeycodes, modifiers);
+            wlr_seat_keyboard_notify_enter(handle(), surface, keycodes, numKeycodes, modifiers);
         } else {
             wlr_seat_keyboard_notify_clear_focus(handle());
         }
     }
     inline void doTouchNotifyDown(WSurface *surface, uint32_t time_msec, int32_t touch_id, const QPointF &pos) {
-        wlr_seat_touch_notify_down(handle(), surface->handle()->handle(), time_msec, touch_id, pos.x(), pos.y());
+        wlr_seat_touch_notify_down(handle(), surface->handle(), time_msec, touch_id, pos.x(), pos.y());
     }
     inline void doTouchNotifyMotion(uint32_t time_msec, int32_t touch_id, const QPointF &pos) {
         wlr_seat_touch_notify_motion(handle(), time_msec, touch_id, pos.x(), pos.y());
@@ -500,7 +498,7 @@ void WSeatPrivate::on_request_set_cursor(wlr_seat_pointer_request_set_cursor_eve
          * provided surface as the cursor image. It will set the hardware cursor
          * on the output that it's currently on and continue to do so as the
          * cursor moves between outputs. */
-        auto *surface = event->surface ? qw_surface::from(event->surface) : nullptr;
+        auto *surface = event->surface;
         cursorClient = event->seat_client;
         cursorShape = WGlobal::CursorShape::Invalid;
 
@@ -510,8 +508,6 @@ void WSeatPrivate::on_request_set_cursor(wlr_seat_pointer_request_set_cursor_eve
         W_Q(WSeat);
         if (surface) {
             cursorSurface = new WSurface(surface, q);
-            QObject::connect(surface, &qw_surface::before_destroy,
-                             cursorSurface, &WSurface::safeDeleteLater);
         } else {
             cursorSurface.clear();
         }
@@ -560,10 +556,7 @@ void WSeatPrivate::on_start_drag(wlr_drag *drag)
     dragSurface = nullptr;
 
     if (drag->icon) {
-        auto *surface = qw_surface::from(drag->icon->surface);
-        auto *wsurface = new WSurface(surface, q);
-        QObject::connect(surface, &qw_surface::before_destroy,
-                         wsurface, &WSurface::safeDeleteLater);
+        auto *wsurface = new WSurface(drag->icon->surface, q);
         dragSurface = wsurface;
     }
     Q_EMIT q->requestDrag(dragSurface.get());
@@ -1031,7 +1024,7 @@ bool WSeat::sendEvent(WSurface *target, QObject *shellObject, QObject *eventObje
         // we should don't do anything.
         if (d->pointerFocusEventObject != eventObject)
             break;
-        auto nativeTarget = target->handle()->handle();
+        auto nativeTarget = target->handle();
         Q_ASSERT(!currentFocus || d->oldPointerFocusSurface == nativeTarget || currentFocus == nativeTarget);
         d->doClearPointerFocus();
         break;
@@ -1182,7 +1175,7 @@ WSurface *WSeat::pointerFocusSurface() const
 {
     W_DC(WSeat);
     if (auto fs = d->pointerFocusSurface())
-        return WSurface::fromHandle(qw_surface::from(fs));
+        return WSurface::fromHandle(fs);
     return nullptr;
 }
 

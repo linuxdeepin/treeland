@@ -74,7 +74,7 @@ public:
     WSurface *surface() const override;
     QW_NAMESPACE::qw_layer_surface_v1 *handle() const;
     wlr_layer_surface_v1 *nativeHandle() const;
-    QW_NAMESPACE::qw_surface *inputTargetAt(QPointF &localPos) const;
+    wlr_surface *inputTargetAt(QPointF &localPos) const;
 
     static WLayerSurface *fromHandle(QW_NAMESPACE::qw_layer_surface_v1 *handle);
     static WLayerSurface *fromSurface(WSurface *surface);

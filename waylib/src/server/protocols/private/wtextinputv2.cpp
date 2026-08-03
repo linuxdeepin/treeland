@@ -384,7 +384,7 @@ void WTextInputV2::sendEnter(WSurface *surface)
     W_D(WTextInputV2);
     d->focusedSurface = surface;
     connect(d->focusedSurface, &WSurface::aboutToBeInvalidated, this, &WTextInputV2::sendLeave, Qt::UniqueConnection);
-    zwp_text_input_v2_send_enter(d->resource, 0, surface->handle()->handle()->resource);
+    zwp_text_input_v2_send_enter(d->resource, 0, surface->handle()->resource);
     if (d->enabledSurface == d->focusedSurface) {
         Q_EMIT enabled();
     }
@@ -397,7 +397,7 @@ void WTextInputV2::sendLeave()
         qCWarning(lcWlTextInput()) << "Send leave to a null focused surface.";
         return;
     }
-    zwp_text_input_v2_send_leave(d->resource, 0, d->focusedSurface->handle()->handle()->resource);
+    zwp_text_input_v2_send_leave(d->resource, 0, d->focusedSurface->handle()->resource);
     if (d->enabledSurface == d->focusedSurface) {
         Q_EMIT disabled();
     }

@@ -76,9 +76,6 @@ void WLayerSurfacePrivate::instantRelease()
     W_Q(WLayerSurface);
     handle()->set_data(nullptr, nullptr);
     handle()->disconnect(q);
-    auto qsurface = qw_surface::from((*handle())->surface);
-    qsurface->disconnect(q);
-
     if (!surface)
         return;
     surface->safeDeleteLater();
@@ -91,8 +88,7 @@ void WLayerSurfacePrivate::init()
     handle()->set_data(this, q);
 
     Q_ASSERT(!q->surface());
-    auto qsurface = qw_surface::from((*handle())->surface);
-    surface = new WSurface(qsurface, q);
+    surface = new WSurface((*handle())->surface, q);
     surface->setAttachedData<WLayerSurface>(q);
     updateLayerProperty();
     output = nativeHandle()->output ? WOutput::fromHandle(nativeHandle()->output) : nullptr;
@@ -104,7 +100,7 @@ void WLayerSurfacePrivate::connect()
 {
     W_Q(WLayerSurface);
 
-    surface->safeConnect(&qw_surface::notify_commit, q, [this] () {
+    surface->safeConnect(&WSurface::commit, q, [this] () {
         updateLayerProperty();
     });
 }
@@ -287,13 +283,13 @@ wlr_layer_surface_v1 *WLayerSurface::nativeHandle() const
     return d->nativeHandle();
 }
 
-qw_surface *WLayerSurface::inputTargetAt(QPointF &localPos) const
+wlr_surface *WLayerSurface::inputTargetAt(QPointF &localPos) const
 {
     W_DC(WLayerSurface);
     // find a wlr_suface object who can receive the events
     const QPointF pos = localPos;
-    auto sur = d->handle()->surface_at(pos.x(), pos.y(), &localPos.rx(), &localPos.ry());
-    return sur ? qw_surface::from(sur) : nullptr;
+    return wlr_layer_surface_v1_surface_at(d->handle()->handle(), pos.x(), pos.y(),
+                                           &localPos.rx(), &localPos.ry());
 }
 
 WLayerSurface *WLayerSurface::fromHandle(qw_layer_surface_v1 *handle)

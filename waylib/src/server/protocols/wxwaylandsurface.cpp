@@ -52,7 +52,7 @@ public:
     }
 
     wl_client *waylandClient() const override {
-        return surface->handle()->handle()->resource->client;
+        return surface->handle()->resource->client;
     }
 
     void instantRelease() override;
@@ -101,7 +101,7 @@ void WXWaylandSurfacePrivate::init()
 
     QObject::connect(handle(), &qw_xwayland_surface::notify_associate, q, [this, q] {
         Q_ASSERT(!WSurface::fromHandle(nativeHandle()->surface));
-        surface = new WSurface(qw_surface::from(nativeHandle()->surface), q);
+        surface = new WSurface(nativeHandle()->surface, q);
         surface->setAttachedData<WXWaylandSurface>(q);
         Q_EMIT q->surfaceChanged();
         Q_EMIT q->associated();

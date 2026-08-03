@@ -37,7 +37,7 @@ public:
     void updateSubsurfaceItem();
     void onPaddingsChanged();
     void updateContentPosition();
-    WSurfaceItem *ensureSubsurfaceItem(QW_NAMESPACE::qw_subsurface *subsurface, QQuickItem *parent);
+    WSurfaceItem *ensureSubsurfaceItem(wlr_subsurface *subsurface, QQuickItem *parent);
     void updateSubsurfaceContainers();
     void connectSubsurfaceContainerSignals(SubsurfaceContainer *container);
 

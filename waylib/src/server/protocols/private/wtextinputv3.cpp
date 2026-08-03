@@ -159,7 +159,7 @@ void WTextInputV3::sendEnter(WSurface *surface)
     if (!surface)
         return;
 
-    auto *targetSurface = surface->handle()->handle();
+    auto *targetSurface = surface->handle();
     auto *focusedSurface = handle()->handle()->focused_surface;
     if (focusedSurface == targetSurface)
         return;

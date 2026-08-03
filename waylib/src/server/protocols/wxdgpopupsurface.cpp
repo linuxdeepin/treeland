@@ -61,7 +61,7 @@ void WXdgPopupSurfacePrivate::init()
     handle()->set_data(this, q);
 
     Q_ASSERT(!q->surface());
-    surface = new WSurface(qw_surface::from(nativeHandle()->base->surface), q);
+    surface = new WSurface(nativeHandle()->base->surface, q);
     surface->setAttachedData<WXdgPopupSurface>(q);
 
     connect();
@@ -114,13 +114,12 @@ qw_xdg_popup *WXdgPopupSurface::handle() const
     return d->handle();
 }
 
-qw_surface *WXdgPopupSurface::inputTargetAt(QPointF &localPos) const
+wlr_surface *WXdgPopupSurface::inputTargetAt(QPointF &localPos) const
 {
     // find a wlr_suface object who can receive the events
     const QPointF pos = localPos;
-    auto xdgSurface = qw_xdg_surface::from(handle()->handle()->base);
-    auto sur = xdgSurface->surface_at(pos.x(), pos.y(), &localPos.rx(), &localPos.ry());
-    return sur ? qw_surface::from(sur) : nullptr;
+    return wlr_xdg_surface_surface_at(handle()->handle()->base, pos.x(), pos.y(),
+                                      &localPos.rx(), &localPos.ry());
 }
 
 WXdgPopupSurface *WXdgPopupSurface::fromHandle(qw_xdg_popup *handle)

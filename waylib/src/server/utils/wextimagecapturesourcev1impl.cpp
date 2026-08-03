@@ -126,7 +126,7 @@ WExtImageCaptureSourceV1Impl::WExtImageCaptureSourceV1Impl(WSurfaceItemContent *
     // Get actual surface size and set constraints directly
     auto surface = m_surfaceContent->surface();
     if (surface && surface->handle()) {
-        auto wlr_surface = surface->handle()->handle();
+        auto *wlr_surface = surface->handle();
         int width = wlr_surface->current.width;
         int height = wlr_surface->current.height;
         

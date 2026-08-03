@@ -52,8 +52,7 @@ void WSessionLockSurfacePrivate::init() {
     handle()->set_data(this, q);
 
     Q_ASSERT(!q->surface());
-    auto qsurface = qw_surface::from((*handle())->surface);
-    surface = new WSurface(qsurface, q);
+    surface = new WSurface((*handle())->surface, q);
     surface->setAttachedData<WSessionLockSurface>(q);
 
     output = nativeHandle()->output ? WOutput::fromHandle(nativeHandle()->output) : nullptr;
@@ -64,8 +63,6 @@ void WSessionLockSurfacePrivate::instantRelease()
     W_Q(WSessionLockSurface);
     
     handle()->set_data(nullptr, nullptr);
-    auto qsurface = qw_surface::from((*handle())->surface);
-    qsurface->disconnect(q);
     if (!surface)
         return;
     surface->safeDeleteLater();

@@ -3819,7 +3819,7 @@ bool Helper::setXWindowPositionRelative(uint wid, WSurface *anchor, wl_fixed_t d
     for (SurfaceWrapper *wrapper : std::as_const(rootSurfaceContainer()->surfaces())) {
         if (wrapper->type() == SurfaceWrapper::Type::XWayland) {
             wlr_xwayland_surface *surface =
-                wlr_xwayland_surface_try_from_wlr_surface(wrapper->surface()->handle()->handle());
+                wlr_xwayland_surface_try_from_wlr_surface(wrapper->surface()->handle());
             if (surface && surface->window_id == static_cast<xcb_window_t>(wid)) {
                 target = wrapper;
                 break;

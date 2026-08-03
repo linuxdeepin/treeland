@@ -65,8 +65,7 @@ WSurface *WInputPopupSurface::surface() const
 {
     auto wSurface = WSurface::fromHandle(handle()->handle()->surface);
     if (!wSurface) {
-        wSurface = new WSurface(qw_surface::from(handle()->handle()->surface));
-        connect(handle(), &qw_surface::before_destroy, wSurface, &WSurface::safeDeleteLater);
+        wSurface = new WSurface(handle()->handle()->surface);
     }
     return wSurface;
 }

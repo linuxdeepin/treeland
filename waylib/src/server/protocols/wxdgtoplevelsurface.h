@@ -33,7 +33,7 @@ public:
 
     WSurface *surface() const override;
     QW_NAMESPACE::qw_xdg_toplevel *handle() const;
-    QW_NAMESPACE::qw_surface *inputTargetAt(QPointF &localPos) const;
+    wlr_surface *inputTargetAt(QPointF &localPos) const;
 
     static WXdgToplevelSurface *fromHandle(QW_NAMESPACE::qw_xdg_toplevel *handle);
     static WXdgToplevelSurface *fromSurface(WSurface *surface);

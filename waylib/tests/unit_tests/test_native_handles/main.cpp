@@ -7,6 +7,7 @@
 #include <WOutput>
 #include <WCursor>
 #include <WSeat>
+#include <WSurface>
 #include <woutputlayout.h>
 
 #include <QTest>
@@ -41,6 +42,7 @@ static_assert(std::is_same_v<decltype(std::declval<WOutput &>().handle()), wlr_o
 static_assert(std::is_same_v<decltype(std::declval<WOutputLayout &>().handle()), wlr_output_layout *>);
 static_assert(std::is_same_v<decltype(std::declval<WCursor &>().handle()), wlr_cursor *>);
 static_assert(std::is_same_v<decltype(std::declval<WSeat &>().handle()), wlr_seat *>);
+static_assert(std::is_same_v<decltype(std::declval<WSurface &>().handle()), wlr_surface *>);
 
 class NativeHandlesTest : public QObject
 {
