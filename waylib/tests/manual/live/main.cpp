@@ -92,7 +92,7 @@ void Helper::initProtocols(WOutputRenderWindow *window, QQmlEngine *qmlEngine)
         m_seat->detachInputDevice(device);
     });
 
-    m_allocator = qw_allocator::autocreate(*m_backend->handle(), *m_renderer);
+    m_allocator = qw_allocator::autocreate(m_backend->handle(), *m_renderer);
     m_renderer->init_wl_display(m_server->handle());
 
     // free follow display
@@ -149,7 +149,7 @@ void Helper::initProtocols(WOutputRenderWindow *window, QQmlEngine *qmlEngine)
     });
     connect(xdgShell, &WXdgShell::popupSurfaceRemoved, m_xdgShellCreator, &WQmlCreator::removeByOwner);
 
-    m_backend->handle()->start();
+    wlr_backend_start(m_backend->handle());
     QProcess waylandClientDemo;
 
     waylandClientDemo.setProgram(PROJECT_BINARY_DIR"/examples/animationclient/animationclient");

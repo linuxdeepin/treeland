@@ -68,7 +68,7 @@ void TestHelper::initProtocols(WOutputRenderWindow *window, QQmlEngine *qmlEngin
         m_seat->detachInputDevice(device);
     });
 
-    m_allocator = qw_allocator::autocreate(*m_backend->handle(), *m_renderer);
+    m_allocator = qw_allocator::autocreate(m_backend->handle(), *m_renderer);
     m_renderer->init_wl_display(m_server->handle());
 
     m_compositor = qw_compositor::create(m_server->handle(), 6, *m_renderer);
@@ -91,7 +91,7 @@ void TestHelper::initProtocols(WOutputRenderWindow *window, QQmlEngine *qmlEngin
     });
 
     window->init(m_renderer, m_allocator);
-    m_backend->handle()->start();
+    wlr_backend_start(m_backend->handle());
 }
 
 bool TestHelper::usesSoftwareRenderer() const

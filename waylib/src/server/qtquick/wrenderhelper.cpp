@@ -7,14 +7,12 @@
 #include "private/wqmlhelper_p.h"
 #include "private/wglobal_p.h"
 
-#include <qwbackend.h>
 #include <qwoutput.h>
 #include <qwrenderer.h>
 #include <qwswapchain.h>
 #include <qwbuffer.h>
 #include <qwtexture.h>
 #include <qwbufferinterface.h>
-#include <qwdisplay.h>
 #include <qwegl.h>
 #include <qwallocator.h>
 #include <qwrendererinterface.h>
@@ -29,6 +27,7 @@
 #include <private/qsgrhisupport_p.h>
 
 extern "C" {
+#include <wlr/backend.h>
 #define static
 #include <wlr/render/gles2.h>
 #undef static
@@ -617,22 +616,22 @@ std::pair<qw_buffer *, QQuickRenderTarget> WRenderHelper::lastRenderTarget() con
     return {d->lastBuffer->buffer, d->lastBuffer->renderTarget};
 }
 
-static qw_renderer *createRendererWithType(const char *type, qw_backend *backend)
+static qw_renderer *createRendererWithType(const char *type, wlr_backend *backend)
 {
     qputenv("WLR_RENDERER", type);
-    auto render = qw_renderer::autocreate(*backend);
+    auto render = qw_renderer::autocreate(backend);
     qunsetenv("WLR_RENDERER");
 
     return render;
 }
 
-qw_renderer *WRenderHelper::createRenderer(qw_backend *backend)
+qw_renderer *WRenderHelper::createRenderer(wlr_backend *backend)
 {
     auto api = getGraphicsApi();
     return createRenderer(backend, api);
 }
 
-qw_renderer *WRenderHelper::createRenderer(qw_backend *backend, QSGRendererInterface::GraphicsApi api)
+qw_renderer *WRenderHelper::createRenderer(wlr_backend *backend, QSGRendererInterface::GraphicsApi api)
 {
     qw_renderer *renderer = nullptr;
     switch (api) {
@@ -674,7 +673,7 @@ constexpr const char *GraphicsApiName(QSGRendererInterface::GraphicsApi api)
     }
 }
 
-void WRenderHelper::setupRendererBackend(qw_backend *testBackend)
+void WRenderHelper::setupRendererBackend(wlr_backend *testBackend)
 {
     const auto wlrRenderer = qgetenv("WLR_RENDERER");
 
@@ -692,15 +691,15 @@ void WRenderHelper::setupRendererBackend(qw_backend *testBackend)
             QSGRendererInterface::Software
             // TODO: Add vulkan to list.
         };
-        std::unique_ptr<qw_display> display { nullptr };
+        std::unique_ptr<wl_display, decltype(&wl_display_destroy)> display { nullptr, wl_display_destroy };
         if (!testBackend) {
-            display.reset(new qw_display());
-            testBackend = qw_backend::autocreate(display->get_event_loop(), nullptr);
+            display.reset(wl_display_create());
+            testBackend = wlr_backend_autocreate(wl_display_get_event_loop(display.get()), nullptr);
 
             if (!testBackend)
                 qFatal("Failed to create wlr_backend");
 
-            testBackend->start();
+            wlr_backend_start(testBackend);
         }
         QQuickWindow::setGraphicsApi(WRenderHelper::probe(testBackend, apiList));
     } else if (wlrRenderer == "gles2") {
@@ -718,7 +717,7 @@ void WRenderHelper::setupRendererBackend(qw_backend *testBackend)
     }
 }
 
-QSGRendererInterface::GraphicsApi WRenderHelper::probe(qw_backend *testBackend, const QList<QSGRendererInterface::GraphicsApi> &apiList)
+QSGRendererInterface::GraphicsApi WRenderHelper::probe(wlr_backend *testBackend, const QList<QSGRendererInterface::GraphicsApi> &apiList)
 {
     auto acceptApi = QSGRendererInterface::Unknown;
 
@@ -738,7 +737,7 @@ QSGRendererInterface::GraphicsApi WRenderHelper::probe(qw_backend *testBackend, 
 
         // TODO: how to test when formats gets NULL
         if (formats && formats->len) {
-            std::unique_ptr<qw_allocator> alloc(qw_allocator::autocreate(*testBackend, *renderer.get()));
+            std::unique_ptr<qw_allocator> alloc(qw_allocator::autocreate(testBackend, *renderer.get()));
 
             bool hasSupportedFormat = false;
             for (size_t formatId = 0; formatId < formats->len; formatId++) {

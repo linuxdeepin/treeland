@@ -20,12 +20,12 @@ QT_END_NAMESPACE
 QW_BEGIN_NAMESPACE
 class qw_renderer;
 class qw_allocator;
-class qw_backend;
 class qw_buffer;
 class qw_texture;
 QW_END_NAMESPACE
 
 struct wlr_buffer;
+struct wlr_backend;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -49,11 +49,11 @@ public:
 
     QQuickRenderTarget acquireRenderTarget(QQuickRenderControl *rc, QW_NAMESPACE::qw_buffer *buffer);
     std::pair<QW_NAMESPACE::qw_buffer*, QQuickRenderTarget> lastRenderTarget() const;
-    static QW_NAMESPACE::qw_renderer *createRenderer(QW_NAMESPACE::qw_backend *backend);
-    static QW_NAMESPACE::qw_renderer *createRenderer(QW_NAMESPACE::qw_backend *backend, QSGRendererInterface::GraphicsApi api);
+    static QW_NAMESPACE::qw_renderer *createRenderer(wlr_backend *backend);
+    static QW_NAMESPACE::qw_renderer *createRenderer(wlr_backend *backend, QSGRendererInterface::GraphicsApi api);
 
-    static void setupRendererBackend(QW_NAMESPACE::qw_backend *testBackend = nullptr);
-    static QSGRendererInterface::GraphicsApi probe(QW_NAMESPACE::qw_backend *testBackend, const QList<QSGRendererInterface::GraphicsApi> &apiList);
+    static void setupRendererBackend(wlr_backend *testBackend = nullptr);
+    static QSGRendererInterface::GraphicsApi probe(wlr_backend *testBackend, const QList<QSGRendererInterface::GraphicsApi> &apiList);
 
     static bool makeTexture(QRhi *rhi, QW_NAMESPACE::qw_texture *handle, QSGPlainTexture *texture);
 

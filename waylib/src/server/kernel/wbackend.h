@@ -5,16 +5,13 @@
 
 #include <WServer>
 
-#include <qwbackend.h>
-
 #include <QObject>
 
 Q_MOC_INCLUDE("woutput.h")
 Q_MOC_INCLUDE("winputdevice.h")
 
-QW_BEGIN_NAMESPACE
-class qw_session;
-QW_END_NAMESPACE
+struct wlr_backend;
+struct wlr_session;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -30,8 +27,8 @@ class WAYLIB_SERVER_EXPORT WBackend : public QObject, public WObject,  public WS
 public:
     explicit WBackend();
 
-    QW_NAMESPACE::qw_backend *handle() const;
-    QW_NAMESPACE::qw_session *session() const;
+    wlr_backend *handle() const;
+    wlr_session *session() const;
 
     QList<WOutput*> outputList() const;
     QList<WInputDevice*> inputDeviceList() const;

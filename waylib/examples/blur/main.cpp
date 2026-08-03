@@ -77,7 +77,7 @@ void Helper::initProtocols(WOutputRenderWindow *window, QQmlEngine *qmlEngine)
         m_seat->detachInputDevice(device);
     });
 
-    m_allocator = qw_allocator::autocreate(*m_backend->handle(), *m_renderer);
+    m_allocator = qw_allocator::autocreate(m_backend->handle(), *m_renderer);
     m_renderer->init_wl_display(m_server->handle());
 
     // free follow display
@@ -115,7 +115,7 @@ void Helper::initProtocols(WOutputRenderWindow *window, QQmlEngine *qmlEngine)
     });
     window->init(m_renderer, m_allocator);
 
-    m_backend->handle()->start();
+    wlr_backend_start(m_backend->handle());
 }
 
 int main(int argc, char *argv[]) {
@@ -140,10 +140,9 @@ int main(int argc, char *argv[]) {
     helper->initProtocols(window, &waylandEngine);
 
     // multi output
-    qobject_cast<qw_multi_backend*>(helper->backend()->handle())->for_each_backend([] (wlr_backend *backend, void *) {
-        if (auto x11 = qw_x11_backend::from(backend)) {
-            x11->output_create();
-        }
+    wlr_multi_for_each_backend(helper->backend()->handle(), [] (wlr_backend *backend, void *) {
+        if (wlr_backend_is_x11(backend))
+            wlr_x11_output_create(backend);
     }, nullptr);
 
     return app.exec();

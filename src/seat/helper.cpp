@@ -1990,7 +1990,7 @@ void Helper::init(Treeland::Treeland *treeland)
         qCFatal(lcTlCore) << "Failed to create renderer";
     }
 
-    m_allocator = qw_allocator::autocreate(*m_backend->handle(), *m_renderer);
+    m_allocator = qw_allocator::autocreate(m_backend->handle(), *m_renderer);
     m_renderer->init_wl_display(m_server->handle());
     qw_drm::create(m_server->handle(), *m_renderer);
 
@@ -2224,7 +2224,7 @@ void Helper::init(Treeland::Treeland *treeland)
 
     // start() synchronously reports the initially available outputs through
     // onOutputAdded(). Restore the stored topology only after that scan completes.
-    m_backend->handle()->start();
+    wlr_backend_start(m_backend->handle());
     scanned = true;
     restoreInitialOutputConfiguration();
 }
@@ -2390,7 +2390,7 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *targetWindow, QInputEvent 
                 }
 
                 qCWarning(lcTlCore) << "Ctrl+Alt+Fn VT shortcut requested" << vtnr;
-                m_backend->session()->change_vt(vtnr);
+                wlr_session_change_vt(m_backend->session(), vtnr);
                 return true;
             }
         }
@@ -3068,16 +3068,12 @@ Output *Helper::findOutputById(const QString &id) const
 
 void Helper::addOutput()
 {
-    qobject_cast<qw_multi_backend *>(m_backend->handle())
-        ->for_each_backend(
-            [](wlr_backend *backend, void *) {
-                if (auto x11 = qw_x11_backend::from(backend)) {
-                    qw_output::from(x11->output_create());
-                } else if (auto wayland = qw_wayland_backend::from(backend)) {
-                    qw_output::from(wayland->output_create());
-                }
-            },
-            nullptr);
+    wlr_multi_for_each_backend(m_backend->handle(), [](wlr_backend *backend, void *) {
+        if (wlr_backend_is_x11(backend))
+            wlr_x11_output_create(backend);
+        else if (wlr_backend_is_wl(backend))
+            wlr_wl_output_create(backend);
+    }, nullptr);
 }
 
 void Helper::setOutputMode(OutputMode mode)
