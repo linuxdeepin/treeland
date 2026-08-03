@@ -142,11 +142,11 @@ void Helper::initProtocols(QQmlEngine *qmlEngine)
     });
 
     m_allocator = qw_allocator::autocreate(*m_backend->handle(), *m_renderer);
-    m_renderer->init_wl_display(*m_server->handle());
+    m_renderer->init_wl_display(m_server->handle());
 
     // free follow display
-    m_compositor = qw_compositor::create(*m_server->handle(), 6, *m_renderer);
-    qw_subcompositor::create(*m_server->handle());
+    m_compositor = qw_compositor::create(m_server->handle(), 6, *m_renderer);
+    qw_subcompositor::create(m_server->handle());
 
     connect(m_renderWindow, &WOutputRenderWindow::outputViewportInitialized, this, [] (WOutputViewport *viewport) {
         // Trigger qw_output::frame signal in order to ensure WOutputHelper::renderable

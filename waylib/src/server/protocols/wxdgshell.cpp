@@ -118,7 +118,7 @@ void WXdgShell::create(WServer *server)
 {
     W_D(WXdgShell);
     // free follow display
-    auto xdg_shell = qw_xdg_shell::create(*server->handle(), d->version);
+    auto xdg_shell = qw_xdg_shell::create(server->handle(), d->version);
     QObject::connect(xdg_shell, &qw_xdg_shell::notify_new_toplevel, this, [this] (wlr_xdg_toplevel *toplevel_surface) {
         d_func()->onNewXdgToplevelSurface(qw_xdg_toplevel::from(toplevel_surface));
     });

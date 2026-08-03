@@ -75,7 +75,7 @@ void WSessionLockManager::create(WServer *server)
 {
     W_D(WSessionLockManager);
 
-    auto *session_lock_manager = qw_session_lock_manager_v1::create(*server->handle());
+    auto *session_lock_manager = qw_session_lock_manager_v1::create(server->handle());
     connect(session_lock_manager, &qw_session_lock_manager_v1::notify_new_lock, this, [d](wlr_session_lock_v1 *lock) {
         d->onNewLock(qw_session_lock_v1::from(lock));
     });

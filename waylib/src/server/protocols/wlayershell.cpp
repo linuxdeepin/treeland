@@ -94,7 +94,7 @@ void WLayerShell::create(WServer *server)
 {
     W_D(WLayerShell);
 
-    auto *layer_shell = qw_layer_shell_v1::create(*server->handle(), 4);
+    auto *layer_shell = qw_layer_shell_v1::create(server->handle(), 4);
     connect(layer_shell, &qw_layer_shell_v1::notify_new_surface, this, [d](wlr_layer_surface_v1 *surface) {
         d->onNewSurface(qw_layer_surface_v1::from(surface));
     });

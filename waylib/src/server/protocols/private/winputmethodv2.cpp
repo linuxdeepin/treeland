@@ -44,7 +44,7 @@ QByteArrayView WInputMethodManagerV2::interfaceName() const
 
 void WInputMethodManagerV2::create(WServer *server)
 {
-    auto handle = qw_input_method_manager_v2::create(*server->handle());
+    auto handle = qw_input_method_manager_v2::create(server->handle());
     Q_ASSERT(handle);
     m_handle = handle;
     connect(handle, &qw_input_method_manager_v2::notify_input_method, this, [this](wlr_input_method_v2* im) {

@@ -5,8 +5,6 @@
 
 #include <wglobal.h>
 
-#include <qwglobal.h>
-
 #include <QDeadlineTimer>
 #include <QFuture>
 #include <QObject>
@@ -18,10 +16,7 @@ class QPlatformTheme;
 class QProcess;
 QT_END_NAMESPACE
 
-QW_BEGIN_NAMESPACE
-class qw_display;
-QW_END_NAMESPACE
-
+struct wl_display;
 struct wl_global;
 
 Q_MOC_INCLUDE("private/wserver_p.h")
@@ -91,7 +86,7 @@ public:
     explicit WServer(QObject *parent = nullptr);
     ~WServer();
 
-    QW_NAMESPACE::qw_display *handle() const;
+    wl_display *handle() const;
 
     void attach(WServerInterface *interface);
     template<typename Interface, typename... Args>

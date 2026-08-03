@@ -1540,7 +1540,7 @@ void WSeat::create(WServer *server)
     W_D(WSeat);
     // destroy follow display
     const auto name = d->name.toUtf8();
-    m_handle = qw_seat::create(*server->handle(), name.constData());
+    m_handle = qw_seat::create(server->handle(), name.constData());
     initHandle(d->handle());
     d->handle()->set_data(this, this);
     d->connect();
@@ -1560,7 +1560,7 @@ void WSeat::create(WServer *server)
     }
 
     if (!qEnvironmentVariableIsSet("WAYLIB_DISABLE_GESTURE"))
-        d->gesture = qw_pointer_gestures_v1::create(*server->handle());
+        d->gesture = qw_pointer_gestures_v1::create(server->handle());
 
     d->updateCapabilities();
 

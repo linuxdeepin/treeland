@@ -314,7 +314,7 @@ QByteArrayView ActivationManagerInterfaceV1::interfaceName() const
 
 void ActivationManagerInterfaceV1::create(WServer *server)
 {
-    d->init(*server->handle(), InterfaceVersion);
+    d->init(server->handle(), InterfaceVersion);
 }
 
 void ActivationManagerInterfaceV1::destroy([[maybe_unused]] WServer *server)
@@ -326,6 +326,5 @@ wl_global *ActivationManagerInterfaceV1::global() const
 {
     return d->globalHandle();
 }
-
 
 

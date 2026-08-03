@@ -196,7 +196,7 @@ void WOutputManagerV1::create(WServer *server)
 {
     W_D(WOutputManagerV1);
 
-    d->manager = qw_output_manager_v1::create(*server->handle());
+    d->manager = qw_output_manager_v1::create(server->handle());
     connect(d->manager, &qw_output_manager_v1::notify_test, this, [d](wlr_output_configuration_v1 *config) {
         d->outputMgrApplyOrTest(qw_output_configuration_v1::from(config), true);
     });

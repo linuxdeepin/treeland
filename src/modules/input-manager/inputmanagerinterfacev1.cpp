@@ -196,7 +196,7 @@ TreelandInputManagerInterfaceV1::~TreelandInputManagerInterfaceV1() = default;
 
 void TreelandInputManagerInterfaceV1::create(WServer *server)
 {
-    d->init(server->handle()->handle(), InterfaceVersion);
+    d->init(server->handle(), InterfaceVersion);
 }
 
 void TreelandInputManagerInterfaceV1::destroy([[maybe_unused]] WServer *server)

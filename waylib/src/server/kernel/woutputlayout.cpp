@@ -66,7 +66,7 @@ void WOutputLayoutPrivate::updateImplicitSize()
 WOutputLayout::WOutputLayout(WOutputLayoutPrivate &dd, WServer *server)
     : WWrapObject(dd, server)
 {
-    auto h = new qw_output_layout(*server->handle());
+    auto h = new qw_output_layout(server->handle());
     initHandle(h);
 
     handle()->set_data(this, this);

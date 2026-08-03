@@ -264,7 +264,7 @@ WineWindowStateManager::~WineWindowStateManager() = default;
 
 void WineWindowStateManager::create(WServer *server)
 {
-    d->init(*server->handle(), InterfaceVersion);
+    d->init(server->handle(), InterfaceVersion);
 }
 
 void WineWindowStateManager::destroy([[maybe_unused]] WServer *server)

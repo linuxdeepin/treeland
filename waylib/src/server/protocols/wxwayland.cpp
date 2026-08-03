@@ -412,7 +412,7 @@ void WXWayland::create(WServer *server)
     W_D(WXWayland);
     // free follow display
 
-    auto handle = qw_xwayland::create(*server->handle(), *d->compositor, d->lazy);
+    auto handle = qw_xwayland::create(server->handle(), *d->compositor, d->lazy);
     initHandle(handle);
     m_handle = handle;
     d->socket->bind(handle->handle()->server->x_fd[1]);

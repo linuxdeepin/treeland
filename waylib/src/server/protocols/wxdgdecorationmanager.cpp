@@ -114,7 +114,7 @@ void WXdgDecorationManager::create(WServer *server)
 {
     W_D(WXdgDecorationManager);
 
-    m_handle = qw_xdg_decoration_manager_v1::create(*server->handle());
+    m_handle = qw_xdg_decoration_manager_v1::create(server->handle());
     connect(d->handle(), &qw_xdg_decoration_manager_v1::notify_new_toplevel_decoration, this, [d](wlr_xdg_toplevel_decoration_v1 *decorat) {
         d->onNewToplevelDecoration(qw_xdg_toplevel_decoration_v1::from(decorat));
     });

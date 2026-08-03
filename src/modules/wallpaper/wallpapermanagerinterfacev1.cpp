@@ -125,7 +125,7 @@ TreelandWallpaperManagerInterfaceV1::~TreelandWallpaperManagerInterfaceV1() = de
 
 void TreelandWallpaperManagerInterfaceV1::create(WServer *server)
 {
-    d->init(server->handle()->handle(), InterfaceVersion);
+    d->init(server->handle(), InterfaceVersion);
 }
 
 void TreelandWallpaperManagerInterfaceV1::destroy([[maybe_unused]] WServer *server)

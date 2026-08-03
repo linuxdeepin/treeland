@@ -401,7 +401,7 @@ TreelandKeyboardStateNotifyManagerInterfaceV1::~TreelandKeyboardStateNotifyManag
 
 void TreelandKeyboardStateNotifyManagerInterfaceV1::create(WServer *server)
 {
-    d->init(server->handle()->handle(), InterfaceVersion);
+    d->init(server->handle(), InterfaceVersion);
     d->setupKeyboardConnections();
 }
 

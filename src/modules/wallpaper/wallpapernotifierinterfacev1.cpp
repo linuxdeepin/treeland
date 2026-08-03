@@ -64,7 +64,7 @@ TreelandWallpaperNotifierInterfaceV1::~TreelandWallpaperNotifierInterfaceV1() = 
 
 void TreelandWallpaperNotifierInterfaceV1::create(WServer *server)
 {
-    d->init(server->handle()->handle(), InterfaceVersion);
+    d->init(server->handle(), InterfaceVersion);
 }
 
 void TreelandWallpaperNotifierInterfaceV1::destroy([[maybe_unused]] WServer *server)

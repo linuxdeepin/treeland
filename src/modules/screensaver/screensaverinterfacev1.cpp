@@ -90,7 +90,7 @@ bool ScreensaverInterfaceV1::isInhibited() const
 
 void ScreensaverInterfaceV1::create(WServer *server)
 {
-    d->init(server->handle()->handle(), InterfaceVersion);
+    d->init(server->handle(), InterfaceVersion);
 }
 
 void ScreensaverInterfaceV1::destroy([[maybe_unused]] WServer *server)

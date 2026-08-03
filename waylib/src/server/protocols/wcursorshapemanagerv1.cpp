@@ -135,7 +135,7 @@ QByteArrayView WCursorShapeManagerV1::interfaceName() const
 void WCursorShapeManagerV1::create(WServer *server)
 {
     if (!m_handle) {
-        m_handle = qw_cursor_shape_manager_v1::create(*server->handle(), CURSOR_SHAPE_MANAGER_V1_VERSION);
+        m_handle = qw_cursor_shape_manager_v1::create(server->handle(), CURSOR_SHAPE_MANAGER_V1_VERSION);
         QObject::connect(handle(), &qw_cursor_shape_manager_v1::notify_request_set_shape, this, []
                          (wlr_cursor_shape_manager_v1_request_set_shape_event *event) {
             if (auto *seat = WSeat::fromHandle(QW_NAMESPACE::qw_seat::from(event->seat_client->seat))) {

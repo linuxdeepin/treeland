@@ -433,7 +433,7 @@ static void text_input_manager_bind(wl_client *wl_client, void *data, uint32_t v
 
 void WTextInputManagerV1::create(WServer *server)
 {
-    m_global = wl_global_create(server->handle()->handle(),
+    m_global = wl_global_create(server->handle(),
                                 &zwp_text_input_manager_v1_interface,
                                 1,
                                 this,

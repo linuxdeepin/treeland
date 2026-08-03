@@ -12,10 +12,12 @@
 #include "wsocket.h"
 #include "platformplugin/qwlrootsintegration.h"
 
-#include <qwdisplay.h>
-#include <qwdatadevice.h>
-#include <qwprimaryselectionv1.h>
 #include <qwxwaylandshellv1.h>
+
+extern "C" {
+#include <wlr/types/wlr_data_device.h>
+#include <wlr/types/wlr_primary_selection_v1.h>
+}
 
 #include <QVector>
 #include <QThread>
@@ -77,13 +79,15 @@ static bool globalFilter(const wl_client *client,
 WServerPrivate::WServerPrivate(WServer *qq)
     : WObjectPrivate(qq)
 {
-    display.reset(new qw_display());
-    wl_display_set_global_filter(display->handle(), globalFilter, this);
+    display = wl_display_create();
+    Q_ASSERT(display);
+    wl_display_set_global_filter(display, globalFilter, this);
 }
 
 WServerPrivate::~WServerPrivate()
 {
-
+    if (display)
+        wl_display_destroy(display);
 }
 
 void WServerPrivate::init()
@@ -91,8 +95,10 @@ void WServerPrivate::init()
     Q_ASSERT(display);
 
     // free follow display
-    [[maybe_unused]] auto ddm = qw_data_device_manager::create(*display);
-    [[maybe_unused]] auto psm = qw_primary_selection_v1_device_manager::create(*display);
+    [[maybe_unused]] auto *ddm = wlr_data_device_manager_create(display);
+    [[maybe_unused]] auto *psm = wlr_primary_selection_v1_device_manager_create(display);
+    Q_ASSERT(ddm);
+    Q_ASSERT(psm);
 
     W_Q(WServer);
 
@@ -102,7 +108,7 @@ void WServerPrivate::init()
             Q_ASSERT(wl_global_get_interface(global)->name == i->interfaceName());
     }
 
-    loop = wl_display_get_event_loop(display->handle());
+    loop = wl_display_get_event_loop(display);
     int fd = wl_event_loop_get_fd(loop);
 
     sockNot.reset(new QSocketNotifier(fd, QSocketNotifier::Read));
@@ -134,7 +140,7 @@ void WServerPrivate::stop()
         QObject::disconnect(dispatcher, nullptr, q, nullptr);
 
     if (display)
-        wl_display_destroy_clients(*display);
+        wl_display_destroy_clients(display);
 
     auto list = interfaceList;
     interfaceList.clear();
@@ -149,7 +155,7 @@ void WServerPrivate::stop()
 // when destroy-signal cascades make the pre-saved next node self-linked.
 void WServerPrivate::safeFlushClients()
 {
-    struct wl_list *head = wl_display_get_client_list(display->handle());
+    struct wl_list *head = wl_display_get_client_list(display);
     struct wl_list *node = head->next;
     while (node != head) {
         // Self-linked node: already destroyed, stop to avoid infinite loop.
@@ -163,7 +169,7 @@ void WServerPrivate::safeFlushClients()
 
 void WServerPrivate::initSocket(WSocket *socketServer)
 {
-    bool ok = socketServer->listen(display->handle());
+    bool ok = socketServer->listen(display);
     Q_ASSERT(ok);
 }
 
@@ -336,10 +342,10 @@ WServer::WServer(WServerPrivate &dd, QObject *parent)
 {
 }
 
-qw_display *WServer::handle() const
+wl_display *WServer::handle() const
 {
     W_DC(WServer);
-    return d->display.get();
+    return d->display;
 }
 
 void WServer::stop()

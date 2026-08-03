@@ -327,13 +327,13 @@ void Helper::init()
     }
 
     m_allocator = qw_allocator::autocreate(*m_backend->handle(), *m_renderer);
-    m_renderer->init_wl_display(*m_server->handle());
+    m_renderer->init_wl_display(m_server->handle());
 
     // free follow display
-    m_compositor = qw_compositor::create(*m_server->handle(), 6, *m_renderer);
-    qw_subcompositor::create(*m_server->handle());
-    qw_screencopy_manager_v1::create(*m_server->handle());
-    qw_viewporter::create(*m_server->handle());
+    m_compositor = qw_compositor::create(m_server->handle(), 6, *m_renderer);
+    qw_subcompositor::create(m_server->handle());
+    qw_screencopy_manager_v1::create(m_server->handle());
+    qw_viewporter::create(m_server->handle());
     m_renderWindow->init(m_renderer, m_allocator);
 
     // for xwayland
@@ -451,7 +451,7 @@ void Helper::init()
         return;
     }
 
-    auto gammaControlManager = qw_gamma_control_manager_v1::create(*m_server->handle());
+    auto gammaControlManager = qw_gamma_control_manager_v1::create(m_server->handle());
     connect(gammaControlManager, &qw_gamma_control_manager_v1::notify_set_gamma, this, []
             (wlr_gamma_control_manager_v1_set_gamma_event *event) {
         auto *qwOutput = qw_output::from(event->output);
@@ -511,10 +511,10 @@ void Helper::init()
     });
 
     m_server->attach<WCursorShapeManagerV1>();
-    qw_fractional_scale_manager_v1::create(*m_server->handle(), WLR_FRACTIONAL_SCALE_V1_VERSION);
-    qw_data_control_manager_v1::create(*m_server->handle());
-    qw_ext_data_control_manager_v1::create(*m_server->handle(), EXT_DATA_CONTROL_MANAGER_V1_VERSION);
-    qw_alpha_modifier_v1::create(*m_server->handle());
+    qw_fractional_scale_manager_v1::create(m_server->handle(), WLR_FRACTIONAL_SCALE_V1_VERSION);
+    qw_data_control_manager_v1::create(m_server->handle());
+    qw_ext_data_control_manager_v1::create(m_server->handle(), EXT_DATA_CONTROL_MANAGER_V1_VERSION);
+    qw_alpha_modifier_v1::create(m_server->handle());
 
     m_backend->handle()->start();
 

@@ -110,7 +110,7 @@ QByteArrayView WXdgDialogManagerV1::interfaceName() const
 
 void WXdgDialogManagerV1::create(WServer *server)
 {
-    auto *wm = qw_xdg_wm_dialog_v1::create(*server->handle(), 1);
+    auto *wm = qw_xdg_wm_dialog_v1::create(server->handle(), 1);
     m_handle = wm;
 
     connect(wm, &qw_xdg_wm_dialog_v1::notify_new_dialog, this, [this](wlr_xdg_dialog_v1 *dialog) {

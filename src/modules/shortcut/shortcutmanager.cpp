@@ -675,7 +675,7 @@ ShortcutManagerV2::~ShortcutManagerV2() = default;
 
 void ShortcutManagerV2::create(WServer *server)
 {
-    d->init(server->handle()->handle(), InterfaceVersion);
+    d->init(server->handle(), InterfaceVersion);
 }
 
 void ShortcutManagerV2::destroy(WServer *server)

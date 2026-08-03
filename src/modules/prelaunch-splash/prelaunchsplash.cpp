@@ -125,7 +125,7 @@ PrelaunchSplash::~PrelaunchSplash() = default;
 
 void PrelaunchSplash::create(WAYLIB_SERVER_NAMESPACE::WServer *server)
 {
-    d->init(*server->handle(), InterfaceVersion);
+    d->init(server->handle(), InterfaceVersion);
     qCDebug(lcTlPrelaunchSplash) << "PrelaunchSplash v2 global created";
 }
 

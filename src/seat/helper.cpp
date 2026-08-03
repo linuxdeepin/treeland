@@ -1991,21 +1991,21 @@ void Helper::init(Treeland::Treeland *treeland)
     }
 
     m_allocator = qw_allocator::autocreate(*m_backend->handle(), *m_renderer);
-    m_renderer->init_wl_display(*m_server->handle());
-    qw_drm::create(*m_server->handle(), *m_renderer);
+    m_renderer->init_wl_display(m_server->handle());
+    qw_drm::create(m_server->handle(), *m_renderer);
 
     // free follow display
-    m_compositor = qw_compositor::create(*m_server->handle(), 6, *m_renderer);
-    qw_subcompositor::create(*m_server->handle());
-    qw_screencopy_manager_v1::create(*m_server->handle());
-    qw_ext_image_copy_capture_manager_v1::create(*m_server->handle(), 1);
-    qw_ext_output_image_capture_source_manager_v1::create(*m_server->handle(), 1);
-    m_foreignToplevelImageCaptureManager = qw_ext_foreign_toplevel_image_capture_source_manager_v1::create(*m_server->handle(), 1);
+    m_compositor = qw_compositor::create(m_server->handle(), 6, *m_renderer);
+    qw_subcompositor::create(m_server->handle());
+    qw_screencopy_manager_v1::create(m_server->handle());
+    qw_ext_image_copy_capture_manager_v1::create(m_server->handle(), 1);
+    qw_ext_output_image_capture_source_manager_v1::create(m_server->handle(), 1);
+    m_foreignToplevelImageCaptureManager = qw_ext_foreign_toplevel_image_capture_source_manager_v1::create(m_server->handle(), 1);
     connect(m_foreignToplevelImageCaptureManager,
             &qw_ext_foreign_toplevel_image_capture_source_manager_v1::notify_new_request,
             this, &Helper::handleNewForeignToplevelCaptureRequest);
 
-    qw_viewporter::create(*m_server->handle());
+    qw_viewporter::create(m_server->handle());
     m_renderWindow->init(m_renderer, m_allocator);
 
     m_xwaylandOutputManager =
@@ -2062,7 +2062,7 @@ void Helper::init(Treeland::Treeland *treeland)
 
     m_xdgToplevelTagManagerV1 = m_server->attach<WXdgToplevelTagManagerV1>();
 
-    auto gammaControlManager = qw_gamma_control_manager_v1::create(*m_server->handle());
+    auto gammaControlManager = qw_gamma_control_manager_v1::create(m_server->handle());
     connect(gammaControlManager,
             &qw_gamma_control_manager_v1::notify_set_gamma,
             this,
@@ -2074,16 +2074,16 @@ void Helper::init(Treeland::Treeland *treeland)
             &Helper::onOutputTestOrApply);
 
     m_server->attach<WCursorShapeManagerV1>();
-    qw_fractional_scale_manager_v1::create(*m_server->handle(), WLR_FRACTIONAL_SCALE_V1_VERSION);
-    qw_data_control_manager_v1::create(*m_server->handle());
-    qw_ext_data_control_manager_v1::create(*m_server->handle(), EXT_DATA_CONTROL_MANAGER_V1_VERSION);
-    qw_alpha_modifier_v1::create(*m_server->handle());
-    auto *foreignRegistry = qw_xdg_foreign_registry::create(*m_server->handle());
-    qw_xdg_foreign_v2::create(*m_server->handle(), *foreignRegistry);
+    qw_fractional_scale_manager_v1::create(m_server->handle(), WLR_FRACTIONAL_SCALE_V1_VERSION);
+    qw_data_control_manager_v1::create(m_server->handle());
+    qw_ext_data_control_manager_v1::create(m_server->handle(), EXT_DATA_CONTROL_MANAGER_V1_VERSION);
+    qw_alpha_modifier_v1::create(m_server->handle());
+    auto *foreignRegistry = qw_xdg_foreign_registry::create(m_server->handle());
+    qw_xdg_foreign_v2::create(m_server->handle(), *foreignRegistry);
 
-    m_idleNotifier = qw_idle_notifier_v1::create(*m_server->handle());
+    m_idleNotifier = qw_idle_notifier_v1::create(m_server->handle());
 
-    m_idleInhibitManager = qw_idle_inhibit_manager_v1::create(*m_server->handle());
+    m_idleInhibitManager = qw_idle_inhibit_manager_v1::create(m_server->handle());
     connect(m_idleInhibitManager, &qw_idle_inhibit_manager_v1::notify_new_inhibitor, this, &Helper::onNewIdleInhibitor);
 
     m_activationManagerV1 = m_server->attach<ActivationManagerInterfaceV1>(
@@ -2149,7 +2149,7 @@ void Helper::init(Treeland::Treeland *treeland)
 
     m_screensaverInterfaceV1 = m_server->attach<ScreensaverInterfaceV1>();
 
-    m_outputPowerManager = qw_output_power_manager_v1::create(*m_server->handle());
+    m_outputPowerManager = qw_output_power_manager_v1::create(m_server->handle());
 
     connect(m_outputPowerManager, &qw_output_power_manager_v1::notify_set_mode, this, &Helper::onSetOutputPowerMode);
 #ifdef EXT_SESSION_LOCK_V1

@@ -238,7 +238,7 @@ void DDEShellManagerInterfaceV1::checkRegionalConflict([[maybe_unused]] const QR
 
 void DDEShellManagerInterfaceV1::create(WServer *server)
 {
-    d->init(server->handle()->handle(), InterfaceVersion);
+    d->init(server->handle(), InterfaceVersion);
 }
 
 void DDEShellManagerInterfaceV1::destroy([[maybe_unused]] WServer *server)

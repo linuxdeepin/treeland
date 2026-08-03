@@ -43,7 +43,7 @@ QByteArrayView WTextInputManagerV3::interfaceName() const
 void WTextInputManagerV3::create(WServer *server)
 {
     W_D(WTextInputManagerV3);
-    auto manager = qw_text_input_manager_v3::create(*server->handle());
+    auto manager = qw_text_input_manager_v3::create(server->handle());
     Q_ASSERT(manager);
     m_handle = manager;
     connect(manager, &qw_text_input_manager_v3::notify_text_input, this, [this, d](wlr_text_input_v3 *w_text_input_v3){

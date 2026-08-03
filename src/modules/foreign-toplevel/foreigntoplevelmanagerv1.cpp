@@ -388,8 +388,8 @@ QByteArrayView ForeignToplevelManagerInterfaceV1::interfaceName() const
 
 void ForeignToplevelManagerInterfaceV1::create(WServer *server)
 {
-    d->init(server->handle()->handle(), InterfaceVersion);
-    d->event_loop = wl_display_get_event_loop(server->handle()->handle());
+    d->init(server->handle(), InterfaceVersion);
+    d->event_loop = wl_display_get_event_loop(server->handle());
 }
 
 void ForeignToplevelManagerInterfaceV1::destroy([[maybe_unused]] WServer *server)

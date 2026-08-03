@@ -91,7 +91,7 @@ TreelandWallpaperShellInterfaceV1::~TreelandWallpaperShellInterfaceV1() = defaul
 
 void TreelandWallpaperShellInterfaceV1::create(WServer *server)
 {
-    d->init(server->handle()->handle(), InterfaceVersion);
+    d->init(server->handle(), InterfaceVersion);
 }
 
 void TreelandWallpaperShellInterfaceV1::destroy([[maybe_unused]] WServer *server)

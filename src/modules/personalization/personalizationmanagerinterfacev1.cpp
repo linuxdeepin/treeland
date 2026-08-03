@@ -1141,7 +1141,7 @@ void Personalization::setWindowStates(PersonalizationWindowContextV1::WindowStat
 
 void PersonalizationManagerInterfaceV1::create(WServer *server)
 {
-    d->init(server->handle()->handle(), InterfaceVersion);
+    d->init(server->handle(), InterfaceVersion);
 }
 
 void PersonalizationManagerInterfaceV1::destroy([[maybe_unused]] WServer *server)
