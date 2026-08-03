@@ -690,7 +690,12 @@ install(
     NAMESPACE Waylib::
 )
 
+if (USE_WLROOTS_19)
+    set(WLROOTS_PC "wlroots-0.19")
+else()
+    set(WLROOTS_PC "wlroots-0.18")
+endif()
 include(${PROJECT_SOURCE_DIR}/cmake/Helpers.cmake)
 add_pkgconfig_module(${TARGET} ${TARGET} ${WAYLIB_INCLUDE_INSTALL_DIR}
-    "Qt6Gui, Qt6Quick"
+    "${WLROOTS_PC}, Qt6Gui, Qt6Quick"
 )

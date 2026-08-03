@@ -1,6 +1,18 @@
 @PACKAGE_INIT@
 
 include(CMakeFindDependencyMacro)
+find_dependency(PkgConfig)
+
+# wlroots is now a PUBLIC dependency (qw_ headers include wlr/*.h).
+# Previously provided transitively via find_dependency(QWlroots).
+if(NOT DEFINED USE_WLROOTS_19)
+    set(USE_WLROOTS_19 @USE_WLROOTS_19@)
+endif()
+if(USE_WLROOTS_19)
+    pkg_check_modules(WLROOTS REQUIRED IMPORTED_TARGET wlroots-0.19)
+else()
+    pkg_check_modules(WLROOTS REQUIRED IMPORTED_TARGET wlroots-0.18)
+endif()
 
 # WaylandScannerHelpers provides ws_generate() and sets WAYLAND_PROTOCOLS_OUTPUTDIR.
 # Needed by downstream projects (e.g. treeland src/modules) that generate protocols.
