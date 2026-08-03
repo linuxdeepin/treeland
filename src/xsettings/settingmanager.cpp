@@ -84,10 +84,12 @@ QString SettingManager::cursorTheme() const
 
 void SettingManager::setCursorSize(qreal value)
 {
-    m_resource->setPropertyValue(XResource::toByteArray(XResource::Xcursor_Size), value);
-    m_resource->setPropertyValue(XResource::toByteArray(XResource::Gtk_CursorThemeSize), value);
-    m_settings->setPropertyValue(XSettings::toByteArray(XSettings::Xcursor_Size), value);
-    m_settings->setPropertyValue(XSettings::toByteArray(XSettings::Gtk_CursorThemeSize), value);
+    const int size = qRound(value);
+
+    m_resource->setPropertyValue(XResource::toByteArray(XResource::Xcursor_Size), size);
+    m_resource->setPropertyValue(XResource::toByteArray(XResource::Gtk_CursorThemeSize), size);
+    m_settings->setPropertyValue(XSettings::toByteArray(XSettings::Xcursor_Size), size);
+    m_settings->setPropertyValue(XSettings::toByteArray(XSettings::Gtk_CursorThemeSize), size);
 }
 
 qreal SettingManager::cursorSize() const
@@ -110,13 +112,13 @@ void SettingManager::setGlobalScale(qreal scale)
 {
     m_resource->setPropertyValue(XResource::toByteArray(XResource::Xft_DPI), scale * BASE_DPI);
     m_settings->setPropertyValue(XSettings::toByteArray(XSettings::Gdk_WindowScalingFactor), qFloor(scale));
-    m_settings->setPropertyValue(XSettings::toByteArray(XSettings::Gdk_UnscaledDPI), scale * XSETTINGS_BASE_DPI_FIXED);
-    m_settings->setPropertyValue(XSettings::toByteArray(XSettings::Xft_DPI), scale * XSETTINGS_BASE_DPI_FIXED);
+    m_settings->setPropertyValue(XSettings::toByteArray(XSettings::Gdk_UnscaledDPI), XSETTINGS_BASE_DPI_FIXED);
+    m_settings->setPropertyValue(XSettings::toByteArray(XSettings::Xft_DPI), qRound(scale * XSETTINGS_BASE_DPI_FIXED));
 }
 
 qreal SettingManager::globalScale() const
 {
-    return m_settings->getPropertyValue(XSettings::toByteArray(XSettings::Gdk_UnscaledDPI)).toReal() / XSETTINGS_BASE_DPI_FIXED;
+    return m_settings->getPropertyValue(XSettings::toByteArray(XSettings::Xft_DPI)).toReal() / XSETTINGS_BASE_DPI_FIXED;
 }
 
 void SettingManager::apply()
