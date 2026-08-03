@@ -1151,7 +1151,7 @@ WInputDevice *WSeat::keyboard() const
     auto w_keyboard = d->handle()->get_keyboard();
     if (w_keyboard) {
         auto q_keyboard = qw_keyboard::from(w_keyboard);
-        auto device = WInputDevice::fromHandle(q_keyboard);
+        auto device = WInputDevice::fromHandle(static_cast<qw_input_device*>(q_keyboard)->handle());
         Q_ASSERT(device);
         return device;
     } else {

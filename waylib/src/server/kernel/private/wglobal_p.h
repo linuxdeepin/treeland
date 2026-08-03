@@ -1,9 +1,10 @@
-// Copyright (C) 2024 JiDe Zhang <zhangjide@deepin.org>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #pragma once
 
 #include "wglobal.h"
+#include "utils/wscopedlistener.h"
 #include <qwobject.h>
+#include <QHash>
 #include <QPointer>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -45,16 +46,30 @@ public:
         return qobject_cast<Handle*>(m_handle.get());
     }
 
+    template<typename Wlr>
+    inline Wlr *nativeHandle() const {
+        return static_cast<Wlr*>(m_nativeHandle);
+    }
+
+    static WWrapObject *fromNativeHandle(const void *handle);
+
 protected:
     W_DECLARE_PUBLIC(WWrapObject)
 
     void initHandle(QW_NAMESPACE::qw_object_basic *handle);
+    void initNativeHandle(void *handle, wl_signal *destroySignal);
     void invalidate();
     virtual void instantRelease() {}
 
     QList<QMetaObject::Connection> connectionsWithHandle;
     QPointer<QW_NAMESPACE::qw_object_basic> m_handle;
+    void *m_nativeHandle = nullptr;
+    WScopedListener m_destroyListener;
     uint invalidated:1;
+
+private:
+    static QHash<void*, WWrapObject*> &nativeHandleMap();
+    void onNativeDestroy();
 };
 
 #define WWRAP_HANDLE_FUNCTIONS(QW, WLR) \
@@ -64,6 +79,14 @@ inline QW *handle() const { \
 \
 inline WLR *nativeHandle() const { \
     return handle()->handle(); \
+}
+
+#define WWRAP_NATIVE_HANDLE_FUNCTIONS(WLR) \
+inline WLR *nativeHandle() const { \
+    return WWrapObjectPrivate::nativeHandle<WLR>(); \
+} \
+inline WLR *handle() const { \
+    return nativeHandle(); \
 }
 
 WAYLIB_SERVER_END_NAMESPACE

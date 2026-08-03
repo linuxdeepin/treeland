@@ -6,7 +6,7 @@
 #include<qwbuffer.h>
 #include<qwbufferinterface.h>
 #include<qwcompositor.h>
-#include<qwconfig.h>
+#include "waylib_wlr_config.h"
 #include<qwcontenttypev1.h>
 #include<qwcursor.h>
 #include<qwcursorshapev1.h>

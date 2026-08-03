@@ -1,0 +1,47 @@
+// SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+
+#ifndef WAYLIB_WLR_CONFIG_H
+#define WAYLIB_WLR_CONFIG_H
+
+// wlroots version (0.19 only; <18 branches removed)
+#ifndef WLR_VERSION
+#define WLR_VERSION "@WLROOTS_VERSION@"
+#endif
+#ifndef WLR_VERSION_MAJOR
+#define WLR_VERSION_MAJOR @WLROOTS_VERSION_MAJOR@
+#endif
+#ifndef WLR_VERSION_MINOR
+#define WLR_VERSION_MINOR @WLROOTS_VERSION_MINOR@
+#endif
+#ifndef WLR_VERSION_PATCH
+#define WLR_VERSION_PATCH @WLROOTS_VERSION_PATCH@
+#endif
+
+// Feature flags (mapped from vendored wlroots WLR_HAS_* / pkg-config)
+// Values match qwlroots qwconfig.h to avoid redefinition warnings
+#ifndef WLR_HAVE_DRM_BACKEND
+#cmakedefine WLR_HAVE_DRM_BACKEND @WLR_HAVE_DRM_BACKEND@
+#endif
+#ifndef WLR_HAVE_X11_BACKEND
+#cmakedefine WLR_HAVE_X11_BACKEND @WLR_HAVE_X11_BACKEND@
+#endif
+#ifndef WLR_HAVE_LIBINPUT_BACKEND
+#cmakedefine WLR_HAVE_LIBINPUT_BACKEND @WLR_HAVE_LIBINPUT_BACKEND@
+#endif
+#ifndef WLR_HAVE_XWAYLAND
+#cmakedefine WLR_HAVE_XWAYLAND @WLR_HAVE_XWAYLAND@
+#endif
+#ifndef WLR_HAVE_GLES2_RENDERER
+#cmakedefine WLR_HAVE_GLES2_RENDERER @WLR_HAVE_GLES2_RENDERER@
+#endif
+#ifndef WLR_HAVE_VULKAN_RENDERER
+#cmakedefine WLR_HAVE_VULKAN_RENDERER @WLR_HAVE_VULKAN_RENDERER@
+#endif
+#ifndef WLR_HAVE_GBM_ALLOCATOR
+#cmakedefine WLR_HAVE_GBM_ALLOCATOR @WLR_HAVE_GBM_ALLOCATOR@
+#endif
+#ifndef WLR_HAVE_SESSION
+#cmakedefine WLR_HAVE_SESSION @WLR_HAVE_SESSION@
+#endif
+
+#endif // WAYLIB_WLR_CONFIG_H

@@ -107,6 +107,7 @@ WWrapObject::~WWrapObject()
 
 WWrapObjectPrivate::WWrapObjectPrivate(WWrapObject *q)
     : WObjectPrivate(q)
+    , m_nativeHandle(nullptr)
     , invalidated(false)
 {
 
@@ -123,6 +124,45 @@ void WWrapObjectPrivate::initHandle(QW_NAMESPACE::qw_object_basic *handle)
     Q_ASSERT(!m_handle);
     Q_ASSERT(!invalidated);
     m_handle = handle;
+}
+
+QHash<void*, WWrapObject*> &WWrapObjectPrivate::nativeHandleMap()
+{
+    static QHash<void*, WWrapObject*> map;
+    return map;
+}
+
+WWrapObject *WWrapObjectPrivate::fromNativeHandle(const void *handle)
+{
+    if (!handle)
+        return nullptr;
+    return nativeHandleMap().value(const_cast<void*>(handle));
+}
+
+void WWrapObjectPrivate::initNativeHandle(void *handle, wl_signal *destroySignal)
+{
+    Q_ASSERT(!m_nativeHandle);
+    Q_ASSERT(!invalidated);
+    Q_ASSERT(handle);
+    m_nativeHandle = handle;
+    nativeHandleMap().insert(handle, q_func());
+    if (destroySignal) {
+        m_destroyListener.connect(destroySignal, [](wl_listener *listener, void *) {
+            auto *self = WScopedListener::owner<WWrapObjectPrivate, &WWrapObjectPrivate::m_destroyListener>(listener);
+            self->onNativeDestroy();
+        });
+    }
+}
+
+void WWrapObjectPrivate::onNativeDestroy()
+{
+    W_Q(WWrapObject);
+    if (m_nativeHandle) {
+        nativeHandleMap().remove(m_nativeHandle);
+        m_nativeHandle = nullptr;
+    }
+    m_destroyListener.remove();
+    q->safeDeleteLater();
 }
 
 static inline QObjectPrivate::Connection *getConnectionDPtr(const QMetaObject::Connection *connection)
@@ -157,6 +197,11 @@ void WWrapObjectPrivate::invalidate()
         m_handle = nullptr;
     }
     connectionsWithHandle.clear();
+    if (m_nativeHandle) {
+        nativeHandleMap().remove(m_nativeHandle);
+        m_nativeHandle = nullptr;
+    }
+    m_destroyListener.remove();
 
     Q_EMIT q->invalidated();
 }

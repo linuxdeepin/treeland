@@ -23,7 +23,7 @@ if(Qt6_VERSION VERSION_GREATER_EQUAL 6.10)
 endif()
 if(WITH_SUBMODULE_QWLROOTS)
     # Use qwlroots from project root directory
-    include(${CMAKE_SOURCE_DIR}/qwlroots/cmake/WaylandScannerHelpers.cmake)
+    include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/WaylandScannerHelpers.cmake)
     add_subdirectory(${CMAKE_SOURCE_DIR}/qwlroots qwlroots)
     message("Using QWlroots from submodule")
 else()

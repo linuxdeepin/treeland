@@ -113,7 +113,7 @@ void WCursorPrivate::on_button(wlr_pointer_button_event *event)
         lastPressedOrTouchDownPosition = q_func()->position();
     }
 
-    if (auto inputDevice = WInputDevice::fromHandle(device)) {
+    if (auto inputDevice = WInputDevice::fromHandle(static_cast<qw_input_device*>(device)->handle())) {
         if (auto deviceSeat = inputDevice->seat()) {
             deviceSeat->notifyButton(q_func(), inputDevice, button, event->state, event->time_msec);
         }
@@ -124,7 +124,7 @@ void WCursorPrivate::on_axis(wlr_pointer_axis_event *event)
 {
     auto device = qw_pointer::from(event->pointer);
 
-    if (auto inputDevice = WInputDevice::fromHandle(device)) {
+    if (auto inputDevice = WInputDevice::fromHandle(static_cast<qw_input_device*>(device)->handle())) {
         if (auto deviceSeat = inputDevice->seat()) {
             deviceSeat->notifyAxis(q_func(), inputDevice, event->source,
                                  event->orientation == WL_POINTER_AXIS_HORIZONTAL_SCROLL
@@ -145,7 +145,7 @@ void WCursorPrivate::on_swipe_begin(wlr_pointer_swipe_begin_event *event)
 {
     auto device = qw_pointer::from(event->pointer);
     if (Q_LIKELY(seat)) {
-        seat->notifyGestureBegin(q_func(), WInputDevice::fromHandle(device),
+        seat->notifyGestureBegin(q_func(), WInputDevice::fromHandle(static_cast<qw_input_device*>(device)->handle()),
                                event->time_msec, event->fingers, WGestureEvent::SwipeGesture);
     }
 }
@@ -155,7 +155,7 @@ void WCursorPrivate::on_swipe_update(wlr_pointer_swipe_update_event *event)
     auto device = qw_pointer::from(event->pointer);
     if (Q_LIKELY(seat)) {
         QPointF delta = QPointF(event->dx, event->dy);
-        seat->notifyGestureUpdate(q_func(), WInputDevice::fromHandle(device),
+        seat->notifyGestureUpdate(q_func(), WInputDevice::fromHandle(static_cast<qw_input_device*>(device)->handle()),
                                 event->time_msec, delta, 0, 0, WGestureEvent::SwipeGesture);
     }
 }
@@ -164,7 +164,7 @@ void WCursorPrivate::on_swipe_end(wlr_pointer_swipe_end_event *event)
 {
     auto device = qw_pointer::from(event->pointer);
     if (Q_LIKELY(seat)) {
-        seat->notifyGestureEnd(q_func(), WInputDevice::fromHandle(device),
+        seat->notifyGestureEnd(q_func(), WInputDevice::fromHandle(static_cast<qw_input_device*>(device)->handle()),
                              event->time_msec, event->cancelled, WGestureEvent::SwipeGesture);
     }
 }
@@ -173,7 +173,7 @@ void WCursorPrivate::on_pinch_begin(wlr_pointer_pinch_begin_event *event)
 {
     auto device = qw_pointer::from(event->pointer);
     if (Q_LIKELY(seat)) {
-        seat->notifyGestureBegin(q_func(), WInputDevice::fromHandle(device),
+        seat->notifyGestureBegin(q_func(), WInputDevice::fromHandle(static_cast<qw_input_device*>(device)->handle()),
                               event->time_msec, event->fingers, WGestureEvent::PinchGesture);
     }
 }
@@ -183,7 +183,7 @@ void WCursorPrivate::on_pinch_update(wlr_pointer_pinch_update_event *event)
     auto device = qw_pointer::from(event->pointer);
     if (Q_LIKELY(seat)) {
         QPointF delta = QPointF(event->dx, event->dy);
-        seat->notifyGestureUpdate(q_func(), WInputDevice::fromHandle(device),
+        seat->notifyGestureUpdate(q_func(), WInputDevice::fromHandle(static_cast<qw_input_device*>(device)->handle()),
                                 event->time_msec, delta, event->scale, event->rotation,
                                 WGestureEvent::PinchGesture);
     }
@@ -193,7 +193,7 @@ void WCursorPrivate::on_pinch_end(wlr_pointer_pinch_end_event *event)
 {
     auto device = qw_pointer::from(event->pointer);
     if (Q_LIKELY(seat)) {
-        seat->notifyGestureEnd(q_func(), WInputDevice::fromHandle(device),
+        seat->notifyGestureEnd(q_func(), WInputDevice::fromHandle(static_cast<qw_input_device*>(device)->handle()),
                              event->time_msec, event->cancelled,
                              WGestureEvent::PinchGesture);
     }
@@ -203,7 +203,7 @@ void WCursorPrivate::on_hold_begin(wlr_pointer_hold_begin_event *event)
 {
     auto device = qw_pointer::from(event->pointer);
     if (Q_LIKELY(seat)) {
-        seat->notifyHoldBegin(q_func(), WInputDevice::fromHandle(device),
+        seat->notifyHoldBegin(q_func(), WInputDevice::fromHandle(static_cast<qw_input_device*>(device)->handle()),
                               event->time_msec, event->fingers);
     }
 }
@@ -212,7 +212,7 @@ void WCursorPrivate::on_hold_end(wlr_pointer_hold_end_event *event)
 {
     auto device = qw_pointer::from(event->pointer);
     if (Q_LIKELY(seat)) {
-        seat->notifyHoldEnd(q_func(), WInputDevice::fromHandle(device),
+        seat->notifyHoldEnd(q_func(), WInputDevice::fromHandle(static_cast<qw_input_device*>(device)->handle()),
                             event->time_msec, event->cancelled);
     }
 }
@@ -225,7 +225,7 @@ void WCursorPrivate::on_touch_down(wlr_touch_down_event *event)
     lastPressedOrTouchDownPosition = q_func()->position();
 
     if (Q_LIKELY(seat)) {
-        seat->notifyTouchDown(q_func(), WInputDevice::fromHandle(device),
+        seat->notifyTouchDown(q_func(), WInputDevice::fromHandle(static_cast<qw_input_device*>(device)->handle()),
                               event->touch_id, event->time_msec);
     }
 
@@ -238,7 +238,7 @@ void WCursorPrivate::on_touch_motion(wlr_touch_motion_event *event)
     q_func()->setScalePosition(device, QPointF(event->x, event->y));
 
     if (Q_LIKELY(seat)) {
-        seat->notifyTouchMotion(q_func(), WInputDevice::fromHandle(device),
+        seat->notifyTouchMotion(q_func(), WInputDevice::fromHandle(static_cast<qw_input_device*>(device)->handle()),
                                 event->touch_id, event->time_msec);
     }
 }
@@ -255,7 +255,7 @@ void WCursorPrivate::on_touch_cancel(wlr_touch_cancel_event *event)
     auto device = qw_touch::from(event->touch);
 
     if (Q_LIKELY(seat)) {
-        seat->notifyTouchCancel(q_func(), WInputDevice::fromHandle(device),
+        seat->notifyTouchCancel(q_func(), WInputDevice::fromHandle(static_cast<qw_input_device*>(device)->handle()),
                                 event->touch_id, event->time_msec);
     }
 }
@@ -265,7 +265,7 @@ void WCursorPrivate::on_touch_up(wlr_touch_up_event *event)
     auto device = qw_touch::from(event->touch);
 
     if (Q_LIKELY(seat)) {
-        seat->notifyTouchUp(q_func(), WInputDevice::fromHandle(device),
+        seat->notifyTouchUp(q_func(), WInputDevice::fromHandle(static_cast<qw_input_device*>(device)->handle()),
                             event->touch_id, event->time_msec);
     }
 }
@@ -333,7 +333,7 @@ void WCursorPrivate::processCursorMotion(qw_pointer *device, uint32_t time)
     qCDebug(lcWlPointer) << "Processing cursor motion at" << q->position()
                               << "time:" << time;
 
-    if (auto inputDevice = WInputDevice::fromHandle(device)) {
+    if (auto inputDevice = WInputDevice::fromHandle(static_cast<qw_input_device*>(device)->handle())) {
         if (auto deviceSeat = inputDevice->seat()) {
             deviceSeat->notifyMotion(q, inputDevice, time);
         }

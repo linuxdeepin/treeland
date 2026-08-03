@@ -1,17 +1,13 @@
-// Copyright (C) 2023-2026 JiDe Zhang <zhangjide@deepin.org>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
 
 #include <wglobal.h>
 #include <QObject>
-#include <qwglobal.h>
 #include <QMap>
 #include <QMutex>
 
-QW_BEGIN_NAMESPACE
-class qw_input_device;
-QW_END_NAMESPACE
+#include <wlr/types/wlr_input_device.h>
 
 QT_BEGIN_NAMESPACE
 class QInputDevice;
@@ -23,7 +19,6 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 class WSeat;
 class WInputDevicePrivate;
 
-// Internal helper for parsing /proc/bus/input/devices
 struct ProcDeviceInfo {
     QString name;
     QString physPath;
@@ -47,6 +42,7 @@ private:
     QMap<QString, ProcDeviceInfo> m_deviceMap;
     QMutex m_mutex;
 };
+
 class WAYLIB_SERVER_EXPORT WInputDevice : public WWrapObject
 {
     W_DECLARE_PRIVATE(WInputDevice)
@@ -69,11 +65,11 @@ public:
     };
     Q_ENUM(LibinputPointerType)
 
-    WInputDevice(QW_NAMESPACE::qw_input_device *handle, bool isVirtual = false);
+    WInputDevice(wlr_input_device *handle, bool isVirtual = false);
 
-    QW_NAMESPACE::qw_input_device *handle() const;
+    wlr_input_device *handle() const;
 
-    static WInputDevice *fromHandle(const QW_NAMESPACE::qw_input_device *handle);
+    static WInputDevice *fromHandle(const wlr_input_device *handle);
 
     template<class QInputDevice>
     inline QInputDevice *qtDevice() const {

@@ -132,7 +132,7 @@ public:
         }
 
         if (keyboard) {
-            auto *virtualKeyboard = wlr_input_device_get_virtual_keyboard(*keyboard->handle());
+            auto *virtualKeyboard = wlr_input_device_get_virtual_keyboard(keyboard->handle());
             // refer to:
             // https://github.com/swaywm/sway/blob/master/sway/input/keyboard.c#L391
             if (virtualKeyboard
@@ -142,7 +142,7 @@ public:
                     == wl_resource_get_client(kgHandle->resource)) {
                 return;
             }
-            kgv2->set_keyboard(wlr_keyboard_from_input_device(*keyboard->handle()));
+            kgv2->set_keyboard(wlr_keyboard_from_input_device(keyboard->handle()));
         } else {
             kgv2->set_keyboard(nullptr);
         }
@@ -356,10 +356,10 @@ void WInputMethodHelper::handleNewIPSV2(qw_input_popup_surface_v2 *ipsv2)
 void WInputMethodHelper::handleNewVKV1(wlr_virtual_keyboard_v1 *vkv1)
 {
     W_D(WInputMethodHelper);
-    WInputDevice *keyboard = new WInputDevice(qw_input_device::from(&vkv1->keyboard.base), true);
+    WInputDevice *keyboard = new WInputDevice(&vkv1->keyboard.base, true);
     d->virtualKeyboards.append(keyboard);
     d->seat->attachInputDevice(keyboard);
-    keyboard->safeConnect(&qw_input_device::before_destroy, this, [d, keyboard] () {
+    QObject::connect(keyboard, &WWrapObject::aboutToBeInvalidated, this, [d, keyboard] () {
         if (d->seat) {
             // Switch seat keyboard to group before the virtual keyboard's
             // wlr_keyboard is destroyed. This removes handle_keyboard_destroy

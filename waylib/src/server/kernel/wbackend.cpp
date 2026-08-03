@@ -41,7 +41,7 @@ public:
     // begin slot function
     void on_new_output(wlr_output *output);
     void on_new_input(wlr_input_device *device);
-    void on_input_destroy(qw_input_device *data);
+    void on_input_destroy(WInputDevice *data);
     void on_output_destroy(qw_output *output);
     // end slot function
 
@@ -86,20 +86,19 @@ void WBackendPrivate::on_new_output(wlr_output *output)
 void WBackendPrivate::on_new_input(wlr_input_device *device)
 {
     W_Q(WBackend);
-    auto qinput_device = qw_input_device::from(device);
-    auto winput_device = new WInputDevice(qinput_device);
+    auto winput_device = new WInputDevice(device);
     inputList << winput_device;
-    winput_device->safeConnect(&qw_input_device::before_destroy, q, [this, qinput_device] {
-        on_input_destroy(qinput_device);
+    QObject::connect(winput_device, &WWrapObject::aboutToBeInvalidated, q, [this, winput_device] {
+        on_input_destroy(winput_device);
     });
 
     Q_EMIT q->inputAdded(winput_device);
 }
 
-void WBackendPrivate::on_input_destroy(qw_input_device *data)
+void WBackendPrivate::on_input_destroy(WInputDevice *data)
 {
     for (int i = 0; i < inputList.count(); ++i) {
-        if (inputList.at(i)->handle() == data) {
+        if (inputList.at(i) == data) {
             auto device = inputList.takeAt(i);
 
             W_Q(WBackend);

@@ -129,7 +129,7 @@ SPDX-License-Identifier = "CC0-1.0"
 
 # Project files for waylib
 [[annotations]]
-path = ["waylib/**.cmake", "waylib/*CMakeLists.txt", "waylib/**.pc.in", "waylib/**cmake.in"]
+path = ["waylib/**.cmake", "waylib/*CMakeLists.txt", "waylib/**.pc.in", "waylib/**cmake.in", "waylib/**.h.in"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "None"
 SPDX-License-Identifier = "CC0-1.0"

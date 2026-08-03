@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <qwconfig.h>
+#include "waylib_wlr_config.h"
 #include <qtguiglobal.h>
 #include <QtQmlIntegration>
 
