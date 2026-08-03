@@ -130,11 +130,11 @@ QWlrootsScreen *QWlrootsIntegration::getScreenFrom(const WOutput *output)
 QPointer<QInputDevice> QWlrootsIntegration::addInputDevice(WInputDevice *device, const QString &seatName)
 {
     QPointer<QInputDevice> qtdev;
-    auto qwDevice = device->handle();
-    const QString name = QString::fromUtf8(qwDevice->handle()->name);
+    auto *nativeDevice = device->handle();
+    const QString name = QString::fromUtf8(nativeDevice->name);
     qint64 systemId = reinterpret_cast<qint64>(device);
 
-    switch (qwDevice->handle()->type) {
+    switch (nativeDevice->type) {
     case WLR_INPUT_DEVICE_KEYBOARD: {
         qtdev = new QInputDevice(name, systemId, QInputDevice::DeviceType::Keyboard, seatName);
         break;
@@ -159,7 +159,7 @@ QPointer<QInputDevice> QWlrootsIntegration::addInputDevice(WInputDevice *device,
         break;
     }
     case WLR_INPUT_DEVICE_TABLET_PAD: {
-        auto pad = wlr_tablet_pad_from_input_device(qwDevice->handle());
+        auto pad = wlr_tablet_pad_from_input_device(nativeDevice);
         qtdev = new QPointingDevice(name, systemId, QInputDevice::DeviceType::TouchPad, QPointingDevice::PointerType::Pen,
                                     QInputDevice::Capability::Position | QInputDevice::Capability::Hover | QInputDevice::Capability::Pressure,
                                     1, pad->button_count, seatName, QPointingDeviceUniqueId());

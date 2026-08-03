@@ -10,7 +10,6 @@
 #include "private/wglobal_p.h"
 
 #include <qwoutput.h>
-#include <qwinputdevice.h>
 
 extern "C" {
 #include <wlr/backend.h>
@@ -44,7 +43,7 @@ public:
     // begin slot function
     void on_new_output(wlr_output *output);
     void on_new_input(wlr_input_device *device);
-    void on_input_destroy(qw_input_device *data);
+    void on_input_destroy(wlr_input_device *data);
     void on_output_destroy(qw_output *output);
     // end slot function
 
@@ -98,17 +97,16 @@ void WBackendPrivate::on_new_output(wlr_output *output)
 void WBackendPrivate::on_new_input(wlr_input_device *device)
 {
     W_Q(WBackend);
-    auto qinput_device = qw_input_device::from(device);
-    auto winput_device = new WInputDevice(qinput_device);
+    auto winput_device = new WInputDevice(device);
     inputList << winput_device;
-    winput_device->safeConnect(&qw_input_device::before_destroy, q, [this, qinput_device] {
-        on_input_destroy(qinput_device);
+    QObject::connect(winput_device, &WInputDevice::invalidated, q, [this, device] {
+        on_input_destroy(device);
     });
 
     Q_EMIT q->inputAdded(winput_device);
 }
 
-void WBackendPrivate::on_input_destroy(qw_input_device *data)
+void WBackendPrivate::on_input_destroy(wlr_input_device *data)
 {
     for (int i = 0; i < inputList.count(); ++i) {
         if (inputList.at(i)->handle() == data) {
@@ -116,7 +114,6 @@ void WBackendPrivate::on_input_destroy(qw_input_device *data)
 
             W_Q(WBackend);
             Q_EMIT q->inputRemoved(device);
-            device->safeDeleteLater();
             return;
         }
     }
@@ -297,10 +294,10 @@ void WBackend::destroy([[maybe_unused]] WServer *server)
 {
     W_D(WBackend);
 
-    qDeleteAll(d->inputList);
-    qDeleteAll(d->outputList);
-    d->inputList.clear();
-    d->outputList.clear();
+    const auto inputList = std::exchange(d->inputList, {});
+    const auto outputList = std::exchange(d->outputList, {});
+    qDeleteAll(inputList);
+    qDeleteAll(outputList);
     d->disconnectBackend();
     d->session = nullptr;
     m_handle = nullptr;

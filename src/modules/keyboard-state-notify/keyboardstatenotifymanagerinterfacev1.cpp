@@ -9,8 +9,6 @@
 #include "treelandconfig.hpp"
 
 #include <qwdisplay.h>
-#include <qwkeyboard.h>
-#include <qwinputdevice.h>
 #include <qwseat.h>
 
 #include <wbackend.h>
@@ -54,11 +52,11 @@ static std::optional<wlr_keyboard *> getSeatKeyboard(WSeat *seat)
     if (!seat || !seat->keyboardGroupKeyboard())
         return std::nullopt;
 
-    auto *keyboard = qobject_cast<qw_keyboard *>(seat->keyboardGroupKeyboard()->handle());
-    if (!keyboard || !keyboard->handle() || !keyboard->handle()->keymap)
+    auto *keyboard = wlr_keyboard_from_input_device(seat->keyboardGroupKeyboard()->handle());
+    if (!keyboard || !keyboard->keymap)
         return std::nullopt;
 
-    return keyboard->handle();
+    return keyboard;
 }
 
 static bool modifiersEqual(const wlr_keyboard_modifiers &a, const wlr_keyboard_modifiers &b)
@@ -159,7 +157,7 @@ void TreelandKeyboardStateNotifyManagerInterfaceV1Private::connectKeyboardGroup(
 
     KeyboardConnection conn;
     conn.seat = seat;
-    conn.modifiersConnection = keyboardDevice->safeConnect(&qw_keyboard::notify_modifiers, q, [this, seat] () {
+    conn.modifiersConnection = QObject::connect(keyboardDevice, &WInputDevice::keyboardModifiers, q, [this, seat] () {
         onModifiersEvent(seat);
     });
     m_keyboardConnections.push_back(conn);

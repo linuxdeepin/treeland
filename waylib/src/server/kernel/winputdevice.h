@@ -5,13 +5,11 @@
 
 #include <wglobal.h>
 #include <QObject>
-#include <qwglobal.h>
 #include <QMap>
 #include <QMutex>
 
-QW_BEGIN_NAMESPACE
-class qw_input_device;
-QW_END_NAMESPACE
+struct wlr_input_device;
+struct wlr_keyboard_key_event;
 
 QT_BEGIN_NAMESPACE
 class QInputDevice;
@@ -49,6 +47,7 @@ private:
 };
 class WAYLIB_SERVER_EXPORT WInputDevice : public WWrapObject
 {
+    Q_OBJECT
     W_DECLARE_PRIVATE(WInputDevice)
 public:
     enum class Type {
@@ -69,11 +68,11 @@ public:
     };
     Q_ENUM(LibinputPointerType)
 
-    WInputDevice(QW_NAMESPACE::qw_input_device *handle, bool isVirtual = false);
+    WInputDevice(wlr_input_device *handle, bool isVirtual = false);
 
-    QW_NAMESPACE::qw_input_device *handle() const;
+    wlr_input_device *handle() const;
 
-    static WInputDevice *fromHandle(const QW_NAMESPACE::qw_input_device *handle);
+    static WInputDevice *fromHandle(const wlr_input_device *handle);
 
     template<class QInputDevice>
     inline QInputDevice *qtDevice() const {
@@ -91,6 +90,10 @@ public:
     bool isVirtual() const;
 
     LibinputPointerType libinputPointerType() const;
+
+Q_SIGNALS:
+    void keyboardKey(wlr_keyboard_key_event *event);
+    void keyboardModifiers();
 
 private:
     friend class QWlrootsIntegration;

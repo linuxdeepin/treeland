@@ -12,7 +12,6 @@
 #include "wayliblogging.h"
 
 #include <qwseat.h>
-#include <qwkeyboard.h>
 #include <qwcursor.h>
 #include <qwcompositor.h>
 #include <qwdatadevice.h>
@@ -20,7 +19,10 @@
 #include <qwcompositor.h>
 #include <qwdisplay.h>
 #include <qwprimaryselection.h>
-#include <qwkeyboardgroup.h>
+
+extern "C" {
+#include <wlr/types/wlr_keyboard_group.h>
+}
 
 #include <QQuickWindow>
 #include <QGuiApplication>
@@ -84,7 +86,7 @@ public:
             if (!focusWindow) {
                 return;
             }
-            auto rawdevice = qobject_cast<qw_keyboard*>(WInputDevice::from(m_repeatKey->device())->handle())->handle();
+            auto *rawdevice = wlr_keyboard_from_input_device(WInputDevice::from(m_repeatKey->device())->handle());
             m_repeatTimer.setInterval(1000 / rawdevice->repeat_info.rate);
             auto evPress = QKeyEvent(QEvent::KeyPress, m_repeatKey->key(), m_repeatKey->modifiers(),
                 m_repeatKey->nativeScanCode(), m_repeatKey->nativeVirtualKey(), m_repeatKey->nativeModifiers(),
@@ -218,7 +220,7 @@ public:
             size_t numKeycodes = 0;
             auto keyboard = q_func()->keyboard();
             if (keyboard) {
-                auto *wlr_keyboard = wlr_keyboard_from_input_device(*keyboard->handle());
+                auto *wlr_keyboard = wlr_keyboard_from_input_device(keyboard->handle());
                 if (wlr_keyboard) {
                     modifiers = &wlr_keyboard->modifiers;
                     keycodes = wlr_keyboard->keycodes;
@@ -314,7 +316,7 @@ public:
         return true;
     }
     inline bool doNotifyModifiers(WInputDevice *device) {
-        auto keyboard = qobject_cast<qw_keyboard*>(device->handle());
+        auto *keyboard = wlr_keyboard_from_input_device(device->handle());
 
         // wlr_seat_set_keyboard() already sends modifiers when the keyboard
         // changes, so skip the explicit send to avoid a duplicate.
@@ -328,7 +330,7 @@ public:
         // If it changed, wlr_seat_set_keyboard() already sent them.
         if (!keyboardChanged) {
             /* Send modifiers to the client. */
-            this->handle()->keyboard_notify_modifiers(&keyboard->handle()->modifiers);
+            this->handle()->keyboard_notify_modifiers(&keyboard->modifiers);
         }
         return true;
     }
@@ -551,11 +553,11 @@ void WSeatPrivate::handleKeyEvent(QKeyEvent &e)
 }
 void WSeatPrivate::on_keyboard_key(wlr_keyboard_key_event *event, WInputDevice *device)
 {
-    auto keyboard = qobject_cast<qw_keyboard*>(device->handle());
+    auto *keyboard = wlr_keyboard_from_input_device(device->handle());
 
     auto code = event->keycode + 8; // map to wl_keyboard::keymap_format::keymap_format_xkb_v1
     auto et = event->state == WL_KEYBOARD_KEY_STATE_PRESSED ? QEvent::KeyPress : QEvent::KeyRelease;
-    xkb_keysym_t sym = xkb_state_key_get_one_sym(keyboard->handle()->xkb_state, code);
+    xkb_keysym_t sym = xkb_state_key_get_one_sym(keyboard->xkb_state, code);
 
     // Qt doesn't support XF86Switch_VT_1 to XF86Switch_VT_12, so convert them to
     // Ctrl+Alt+F1 to Ctrl+Alt+F12
@@ -574,23 +576,23 @@ void WSeatPrivate::on_keyboard_key(wlr_keyboard_key_event *event, WInputDevice *
         }
     }
 
-    int qtkey = QXkbCommon::keysymToQtKey(sym, keyModifiers, keyboard->handle()->xkb_state, code);
-    const QString &text = QXkbCommon::lookupString(keyboard->handle()->xkb_state, code);
+    int qtkey = QXkbCommon::keysymToQtKey(sym, keyModifiers, keyboard->xkb_state, code);
+    const QString &text = QXkbCommon::lookupString(keyboard->xkb_state, code);
 
-    QKeyEvent e(et, qtkey, keyModifiers, code, event->keycode, keyboard->get_modifiers(),
+    QKeyEvent e(et, qtkey, keyModifiers, code, event->keycode, wlr_keyboard_get_modifiers(keyboard),
                 text, false, 1, device->qtDevice());
     e.setTimestamp(event->time_msec);
 
     if (focusWindow) {
         handleKeyEvent(e);
-        if (et == QEvent::KeyPress && xkb_keymap_key_repeats(keyboard->handle()->keymap, code)) {
+        if (et == QEvent::KeyPress && xkb_keymap_key_repeats(keyboard->keymap, code)) {
             if (m_repeatKey) {
                 m_repeatTimer.stop();
             }
-            m_repeatKey = std::make_unique<QKeyEvent>(et, qtkey, keyModifiers, code, event->keycode, keyboard->get_modifiers(),
+            m_repeatKey = std::make_unique<QKeyEvent>(et, qtkey, keyModifiers, code, event->keycode, wlr_keyboard_get_modifiers(keyboard),
                 text, false, 1, device->qtDevice());
             m_repeatKey->setTimestamp(event->time_msec);
-            m_repeatTimer.setInterval(keyboard->handle()->repeat_info.delay);
+            m_repeatTimer.setInterval(keyboard->repeat_info.delay);
             m_repeatTimer.start();
         } else if (et == QEvent::KeyRelease && m_repeatKey && m_repeatKey->nativeScanCode() == code) {
             m_repeatTimer.stop();
@@ -608,8 +610,8 @@ void WSeatPrivate::on_keyboard_key(wlr_keyboard_key_event *event, WInputDevice *
 
 void WSeatPrivate::on_keyboard_modifiers(WInputDevice *device)
 {
-    auto keyboard = qobject_cast<qw_keyboard*>(device->handle());
-    keyModifiers = QXkbCommon::modifiers(keyboard->handle()->xkb_state);
+    auto *keyboard = wlr_keyboard_from_input_device(device->handle());
+    keyModifiers = QXkbCommon::modifiers(keyboard->xkb_state);
     doNotifyModifiers(device);
 }
 
@@ -661,7 +663,7 @@ void WSeatPrivate::attachInputDevice(WInputDevice *device)
     Q_ASSERT(qtDevice);
 
     if (device->type() == WInputDevice::Type::Keyboard) {
-        auto keyboard = qobject_cast<qw_keyboard*>(device->handle());
+        auto *keyboard = wlr_keyboard_from_input_device(device->handle());
 
         if (device == groupkeyboardDevice || device->isVirtual()) {
             /* We need to prepare an XKB keymap and assign it to the keyboard.
@@ -670,14 +672,14 @@ void WSeatPrivate::attachInputDevice(WInputDevice *device)
             struct xkb_context *context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
             struct xkb_keymap *keymap = xkb_map_new_from_names(context, &rules,
                                                                XKB_KEYMAP_COMPILE_NO_FLAGS);
-            keyboard->set_keymap(keymap);
+            wlr_keyboard_set_keymap(keyboard, keymap);
             xkb_keymap_unref(keymap);
             xkb_context_unref(context);
 
-            device->safeConnect(&qw_keyboard::notify_key, q, [this, device] (wlr_keyboard_key_event *event) {
+            QObject::connect(device, &WInputDevice::keyboardKey, q, [this, device] (wlr_keyboard_key_event *event) {
                 on_keyboard_key(event, device);
             });
-            device->safeConnect(&qw_keyboard::notify_modifiers, q, [this, device] () {
+            QObject::connect(device, &WInputDevice::keyboardModifiers, q, [this, device] () {
                 on_keyboard_modifiers(device);
             });
             q->setKeyboard(device);
@@ -685,7 +687,7 @@ void WSeatPrivate::attachInputDevice(WInputDevice *device)
             // Reuse group keymap pointer so wlr_seat_set_keyboard() sees
             // no keymap change and skips a spurious keymap event.
             if (group && group->keyboard.keymap) {
-                keyboard->set_keymap(group->keyboard.keymap);
+                wlr_keyboard_set_keymap(keyboard, group->keyboard.keymap);
             } else {
                 qCWarning(lcWlSeat,
                           "WSeat: group keyboard has no keymap for physical keyboard '%s'",
@@ -694,11 +696,11 @@ void WSeatPrivate::attachInputDevice(WInputDevice *device)
                 struct xkb_context *context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
                 struct xkb_keymap *keymap = xkb_map_new_from_names(context, &rules,
                                                                    XKB_KEYMAP_COMPILE_NO_FLAGS);
-                keyboard->set_keymap(keymap);
+                wlr_keyboard_set_keymap(keyboard, keymap);
                 xkb_keymap_unref(keymap);
                 xkb_context_unref(context);
             }
-            wlr_keyboard_group_add_keyboard(group, keyboard->handle());
+            wlr_keyboard_group_add_keyboard(group, keyboard);
         }
     }
 }
@@ -719,8 +721,8 @@ void WSeatPrivate::detachInputDevice(WInputDevice *device)
     if (device->type() == WInputDevice::Type::Keyboard) {
         // Only physical keyboards are group members.
         if (device != groupkeyboardDevice && !device->isVirtual()) {
-            auto keyboard = qobject_cast<qw_keyboard*>(device->handle());
-            wlr_keyboard_group_remove_keyboard(group, keyboard->handle());
+            auto *keyboard = wlr_keyboard_from_input_device(device->handle());
+            wlr_keyboard_group_remove_keyboard(group, keyboard);
         }
     }
     [[maybe_unused]] bool ok = QWlrootsIntegration::instance()->removeInputDevice(device);
@@ -1150,8 +1152,7 @@ WInputDevice *WSeat::keyboard() const
     W_DC(WSeat);
     auto w_keyboard = d->handle()->get_keyboard();
     if (w_keyboard) {
-        auto q_keyboard = qw_keyboard::from(w_keyboard);
-        auto device = WInputDevice::fromHandle(q_keyboard);
+        auto device = WInputDevice::fromHandle(&w_keyboard->base);
         Q_ASSERT(device);
         return device;
     } else {
@@ -1164,7 +1165,7 @@ void WSeat::setKeyboard(WInputDevice *newKeyboard)
     W_D(WSeat);
     if (newKeyboard == keyboard())
         return;
-    d->handle()->set_keyboard(*qobject_cast<qw_keyboard *>(newKeyboard->handle()));
+    wlr_seat_set_keyboard(d->nativeHandle(), wlr_keyboard_from_input_device(newKeyboard->handle()));
     Q_EMIT this->keyboardChanged();
 }
 
@@ -1547,8 +1548,7 @@ void WSeat::create(WServer *server)
 
     if (!d->group) {
         d->group = wlr_keyboard_group_create();
-        qw_input_device *inputDevice = qw_input_device::from(&d->group->keyboard.base);
-        d->groupkeyboardDevice = new WInputDevice(inputDevice);
+        d->groupkeyboardDevice = new WInputDevice(&d->group->keyboard.base);
         d->attachInputDevice(d->groupkeyboardDevice);
     }
 

@@ -16,11 +16,12 @@ QT_END_NAMESPACE
 
 QW_BEGIN_NAMESPACE
 class qw_xcursor_manager;
-class qw_input_device;
 class qw_cursor;
 class qw_output_cursor;
 class qw_surface;
 QW_END_NAMESPACE
+
+struct wlr_input_device;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -102,10 +103,10 @@ protected:
     WCursor(WCursorPrivate &dd, QObject *parent = nullptr);
     ~WCursor() override = default;
 
-    virtual void move(QW_NAMESPACE::qw_input_device *device, const QPointF &delta);
-    virtual void setPosition(QW_NAMESPACE::qw_input_device *device, const QPointF &pos);
-    virtual bool setPositionWithChecker(QW_NAMESPACE::qw_input_device *device, const QPointF &pos);
-    virtual void setScalePosition(QW_NAMESPACE::qw_input_device *device, const QPointF &ratio);
+    virtual void move(wlr_input_device *device, const QPointF &delta);
+    virtual void setPosition(wlr_input_device *device, const QPointF &pos);
+    virtual bool setPositionWithChecker(wlr_input_device *device, const QPointF &pos);
+    virtual void setScalePosition(wlr_input_device *device, const QPointF &ratio);
 
 private:
     friend class WSeat;

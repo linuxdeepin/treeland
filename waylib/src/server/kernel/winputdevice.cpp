@@ -6,10 +6,15 @@
 #include "private/wglobal_p.h"
 #include "wayliblogging.h"
 
-#include <qwinputdevice.h>
+extern "C" {
+#include <wlr/backend/libinput.h>
+#include <wlr/types/wlr_input_device.h>
+#include <wlr/types/wlr_keyboard.h>
+}
 
 #include <QDebug>
 #include <QFile>
+#include <QHash>
 #include <QInputDevice>
 #include <QPointer>
 #include <QScopeGuard>
@@ -21,6 +26,9 @@
 
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
+
+using InputDeviceRegistry = QHash<const wlr_input_device *, WInputDevice *>;
+Q_GLOBAL_STATIC(InputDeviceRegistry, s_inputDevices)
 
 // DeviceInfoParser implementation
 DeviceInfoParser& DeviceInfoParser::instance()
@@ -85,49 +93,97 @@ QString DeviceInfoParser::getPhysicalPath(const QString& deviceName)
 class Q_DECL_HIDDEN WInputDevicePrivate : public WWrapObjectPrivate
 {
 public:
-    WInputDevicePrivate(WInputDevice *qq, void *handle, bool _isVirtual)
+    WInputDevicePrivate(WInputDevice *qq, wlr_input_device *handle, bool _isVirtual)
         : WWrapObjectPrivate(qq)
+        , handle(handle)
         , isVirtual(_isVirtual)
     {
-        initHandle(reinterpret_cast<qw_input_device*>(handle));
-        this->handle()->set_data(this, qq);
-    }
-
-    void instantRelease() override {
-        if (handle()) {
-            qCDebug(lcWlInput) << "Releasing input device:" 
-                                << QString::fromUtf8(nativeHandle()->name);
-            handle()->set_data(nullptr, nullptr);
-            if (seat)
-                seat->detachInputDevice(q_func());
+        Q_ASSERT(handle);
+        Q_ASSERT(!s_inputDevices->contains(handle));
+        s_inputDevices->insert(handle, qq);
+        wl_list_init(&destroy.link);
+        wl_list_init(&key.link);
+        wl_list_init(&modifiers.link);
+        destroy.notify = handleDestroy;
+        wl_signal_add(&handle->events.destroy, &destroy);
+        if (handle->type == WLR_INPUT_DEVICE_KEYBOARD) {
+            auto *keyboard = wlr_keyboard_from_input_device(handle);
+            key.notify = handleKey;
+            wl_signal_add(&keyboard->events.key, &key);
+            modifiers.notify = handleModifiers;
+            wl_signal_add(&keyboard->events.modifiers, &modifiers);
         }
     }
 
-    WWRAP_HANDLE_FUNCTIONS(qw_input_device, wlr_input_device)
+    void instantRelease() override {
+        if (handle) {
+            qCDebug(lcWlInput) << "Releasing input device:" 
+                                << QString::fromUtf8(handle->name);
+            if (seat)
+                seat->detachInputDevice(q_func());
+            s_inputDevices->remove(handle);
+            if (!wl_list_empty(&destroy.link)) {
+                wl_list_remove(&destroy.link);
+                wl_list_init(&destroy.link);
+            }
+            for (wl_listener *listener : { &key, &modifiers }) {
+                if (!wl_list_empty(&listener->link)) {
+                    wl_list_remove(&listener->link);
+                    wl_list_init(&listener->link);
+                }
+            }
+            handle = nullptr;
+        }
+    }
+
+    static void handleDestroy(wl_listener *listener, [[maybe_unused]] void *data)
+    {
+        WInputDevicePrivate *self;
+        self = wl_container_of(listener, self, destroy);
+        self->q_func()->safeDeleteLater();
+    }
+
+    static void handleKey(wl_listener *listener, void *data)
+    {
+        WInputDevicePrivate *self;
+        self = wl_container_of(listener, self, key);
+        Q_EMIT self->q_func()->keyboardKey(static_cast<wlr_keyboard_key_event *>(data));
+    }
+
+    static void handleModifiers(wl_listener *listener, [[maybe_unused]] void *data)
+    {
+        WInputDevicePrivate *self;
+        self = wl_container_of(listener, self, modifiers);
+        Q_EMIT self->q_func()->keyboardModifiers();
+    }
 
     W_DECLARE_PUBLIC(WInputDevice)
 
     QPointer<QInputDevice> qtDevice;
     QPointer<QObject> hoverTarget;
+    wlr_input_device *handle = nullptr;
+    wl_listener destroy;
+    wl_listener key;
+    wl_listener modifiers;
     WSeat *seat = nullptr;
     bool isVirtual = false;
 };
 
-WInputDevice::WInputDevice(qw_input_device *handle, bool isVirtual)
+WInputDevice::WInputDevice(wlr_input_device *handle, bool isVirtual)
     : WWrapObject(*new WInputDevicePrivate(this, handle, isVirtual))
 {
 
 }
 
-qw_input_device *WInputDevice::handle() const
+wlr_input_device *WInputDevice::handle() const
 {
     W_DC(WInputDevice);
-    return d->handle();
+    return d->handle;
 }
 
-WInputDevice *WInputDevice::fromHandle(const qw_input_device *handle)
+WInputDevice *WInputDevice::fromHandle(const wlr_input_device *handle)
 {
-    return handle->get_data<WInputDevice>();
+    return s_inputDevices->value(handle);
 }
 
 WInputDevice *WInputDevice::from(const QInputDevice *device)
@@ -141,7 +197,7 @@ WInputDevice::Type WInputDevice::type() const
 {
     W_DC(WInputDevice);
 
-    switch (d->nativeHandle()->type) {
+    switch (d->handle->type) {
     case WLR_INPUT_DEVICE_KEYBOARD: return Type::Keyboard;
     case WLR_INPUT_DEVICE_POINTER: return Type::Pointer;
     case WLR_INPUT_DEVICE_TOUCH: return Type::Touch;
@@ -150,8 +206,8 @@ WInputDevice::Type WInputDevice::type() const
     case WLR_INPUT_DEVICE_SWITCH: return Type::Switch;
     }
 
-    qCWarning(lcWlInput) << "Unknown input device type:" << d->nativeHandle()->type 
-                          << "from device:" << QString::fromUtf8(d->nativeHandle()->name);
+    qCWarning(lcWlInput) << "Unknown input device type:" << d->handle->type
+                          << "from device:" << QString::fromUtf8(d->handle->name);
     return Type::Unknow;
 }
 
@@ -159,8 +215,8 @@ QString WInputDevice::name() const
 {
     W_DC(WInputDevice);
 
-    if (d->nativeHandle() && d->nativeHandle()->name) {
-        return QString::fromUtf8(d->nativeHandle()->name);
+    if (d->handle && d->handle->name) {
+        return QString::fromUtf8(d->handle->name);
     }
 
     if (d->qtDevice) {
@@ -174,7 +230,7 @@ void WInputDevice::setSeat(WSeat *seat)
 {
     W_D(WInputDevice);
     if (d->seat != seat) {
-        qCDebug(lcWlInput) << "Input device" << QString::fromUtf8(d->nativeHandle()->name)
+        qCDebug(lcWlInput) << "Input device" << QString::fromUtf8(d->handle->name)
                             << "assigned to seat:" << (seat ? seat->name() : QString("(null)"));
         d->seat = seat;
     }
@@ -192,7 +248,7 @@ void WInputDevice::setQtDevice(QInputDevice *device)
     if (d->qtDevice != device) {
         qCDebug(lcWlInput) << "Qt device" << (device ? device->name() : QString("(null)"))
                             << "associated with input device:" 
-                            << QString::fromUtf8(d->nativeHandle()->name);
+                            << QString::fromUtf8(d->handle->name);
         d->qtDevice = device;
     }
 }
@@ -206,8 +262,8 @@ QInputDevice *WInputDevice::qtDevice() const
 QString WInputDevice::devicePath() const
 {
     W_DC(WInputDevice);
-    if (d->handle() && d->handle()->handle() && d->handle()->is_libinput()) {
-        if (auto libinputDevice = wlr_libinput_get_device_handle(d->handle()->handle())) {
+    if (d->handle && wlr_input_device_is_libinput(d->handle)) {
+        if (auto libinputDevice = wlr_libinput_get_device_handle(d->handle)) {
             if (auto udevDevice = libinput_device_get_udev_device(libinputDevice)) {
                 auto deviceGuard = qScopeGuard([udevDevice] { udev_device_unref(udevDevice); });
 
@@ -245,11 +301,11 @@ bool WInputDevice::isVirtual() const
 
 WInputDevice::LibinputPointerType WInputDevice::libinputPointerType() const
 {
-    if (!handle()->is_libinput()) {
+    if (!wlr_input_device_is_libinput(handle())) {
         return LibinputPointerType::Unknown;
     }
 
-    struct libinput_device *inputDevice = wlr_libinput_get_device_handle(handle()->handle());
+    struct libinput_device *inputDevice = wlr_libinput_get_device_handle(handle());
     struct udev_device *udevDevice = libinput_device_get_udev_device(inputDevice);
 
     if (udev_device_get_property_value(udevDevice, "ID_INPUT_MOUSE")) {
@@ -278,7 +334,7 @@ void WInputDevice::setExclusiveGrabber(QObject *grabber)
     }
     auto firstPoint = dd->activePoints.values().first();
     qCDebug(lcWlInput) << "Setting exclusive grabber" << grabber 
-                         << "for device:" << QString::fromUtf8(d->nativeHandle()->name);
+                         << "for device:" << QString::fromUtf8(d->handle->name);
     dd->setExclusiveGrabber(nullptr, firstPoint.eventPoint, grabber);
 }
 

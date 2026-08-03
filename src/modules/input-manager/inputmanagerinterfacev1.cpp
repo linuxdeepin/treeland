@@ -7,13 +7,18 @@
 #include "common/treelandlogging.h"
 
 #include <qwdisplay.h>
-#include <qwinputdevice.h>
 #include <qwseat.h>
 
 #include <wbackend.h>
 #include <winputdevice.h>
 
+#include <libinput.h>
+#include <libudev.h>
 #include <wayland-server-core.h>
+
+extern "C" {
+#include <wlr/backend/libinput.h>
+}
 
 static QList<MouseSettingsInterfaceV1 *> s_mouseSettings;
 static QList<TouchpadSettingsInterfaceV1 *> s_touchpadSettings;
@@ -222,7 +227,7 @@ TreelandInputManagerInterfaceV1::DeviceTypes TreelandInputManagerInterfaceV1::in
 
 TreelandInputManagerInterfaceV1::DeviceTypes TreelandInputManagerInterfaceV1::inputDeviceType(WInputDevice *input) const
 {
-    if (!input->handle()->is_libinput()) {
+    if (!wlr_input_device_is_libinput(input->handle())) {
         return TreelandInputManagerInterfaceV1::DeviceType::Unknown;
     }
 
@@ -232,7 +237,7 @@ TreelandInputManagerInterfaceV1::DeviceTypes TreelandInputManagerInterfaceV1::in
 
     TreelandInputManagerInterfaceV1::DeviceTypes types;
     struct udev_device *device =
-        libinput_device_get_udev_device(wlr_libinput_get_device_handle(input->handle()->handle()));
+        libinput_device_get_udev_device(wlr_libinput_get_device_handle(input->handle()));
     if (udev_device_get_property_value(device, "ID_INPUT_MOUSE")) {
         types |= TreelandInputManagerInterfaceV1::DeviceType::Mouse;
     }
