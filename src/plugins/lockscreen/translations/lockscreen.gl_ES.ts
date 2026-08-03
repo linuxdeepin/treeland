@@ -1,12 +1,10 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!DOCTYPE TS>
-<TS version="2.1" language="gl_ES">
+<?xml version="1.0" ?><!DOCTYPE TS><TS version="2.1" language="gl_ES">
 <context>
     <name>ControlAction</name>
     <message>
         <location filename="../qml/ControlAction.qml" line="83"/>
         <source>Power</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished"/>
     </message>
 </context>
 <context>
@@ -73,22 +71,22 @@
     <message>
         <location filename="../qml/UserInput.qml" line="154"/>
         <source>Username</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished"/>
     </message>
     <message>
         <location filename="../qml/UserInput.qml" line="341"/>
         <source>Enter username</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished"/>
     </message>
     <message>
         <location filename="../qml/UserInput.qml" line="354"/>
         <source>User not found.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished"/>
     </message>
     <message>
         <location filename="../qml/UserInput.qml" line="376"/>
         <source>Password is incorrect.</source>
-        <translation type="unfinished">O contrasinal non é válido</translation>
+        <translation>O contrasinal non é válido</translation>
     </message>
 </context>
 <context>
@@ -96,7 +94,7 @@
     <message>
         <location filename="../qml/UserList.qml" line="236"/>
         <source>Other…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished"/>
     </message>
 </context>
 </TS>
