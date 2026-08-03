@@ -198,7 +198,7 @@ void OutputManagerV1Private::get_color_control(Resource *resource,
                                "Invalid output resource");
         return;
     }
-    auto *o = Helper::instance()->getOutput(WOutput::fromHandle(qw_output::from(wlr_output)));
+    auto *o = Helper::instance()->getOutput(WOutput::fromHandle(wlr_output));
     if (!o) {
         wl_resource_post_error(resource->handle,
                                WL_DISPLAY_ERROR_INVALID_OBJECT,

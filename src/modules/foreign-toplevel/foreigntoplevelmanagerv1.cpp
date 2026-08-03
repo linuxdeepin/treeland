@@ -830,7 +830,7 @@ void ForeignToplevelHandleV1Private::set_fullscreen(Resource *resource, struct :
             wl_resource_post_error(resource->handle, 0, "wlr_output_from_resource failed!");
             return;
         }
-        wrappedOutput = WOutput::fromHandle(qw_output::from(wlrOutput));
+        wrappedOutput = WOutput::fromHandle(wlrOutput);
     }
 
     Q_EMIT q->requestFullscreen(true, wrappedOutput);
@@ -895,7 +895,6 @@ void ForeignToplevelHandleV1::output_enter(WOutput *output)
         return;
     }
 
-    auto *qwOutput = output->handle();
     if (std::any_of(d->outputs.begin(),
                     d->outputs.end(),
                     [output](const foreign_toplevel_output &toplevel_output) {
@@ -906,7 +905,7 @@ void ForeignToplevelHandleV1::output_enter(WOutput *output)
     auto toplevel_output = foreign_toplevel_output{ .output = output, .toplevel = this };
     d->outputs.append(toplevel_output);
 
-    connect(qwOutput, &qw_output::notify_bind, this, [toplevel_output](wlr_output_event_bind *event) {
+    connect(output, &WOutput::bound, this, [toplevel_output](wlr_output_event_bind *event) {
         const wl_client *client = wl_resource_get_client(event->resource);
         if (wl_resource_get_client(toplevel_output.toplevel->resource()) == client) {
             toplevel_output.toplevel->send_output(toplevel_output.output, true);
@@ -1011,7 +1010,7 @@ void ForeignToplevelHandleV1::send_output(WOutput *output, bool enter)
     const wl_client *client = wl_resource_get_client(resource());
     struct wl_resource *output_resource;
 
-    wl_resource_for_each(output_resource, &output->nativeHandle()->resources)
+    wl_resource_for_each(output_resource, &output->handle()->resources)
     {
         if (wl_resource_get_client(output_resource) == client) {
             if (enter) {

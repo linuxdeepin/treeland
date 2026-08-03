@@ -119,7 +119,6 @@
 #include <qwlayershellv1.h>
 #include <qwlogging.h>
 #include <qwoutput.h>
-#include <qwoutputlayout.h>
 #include <qwoutputpowermanagementv1.h>
 #include <qwrenderer.h>
 #include <qwscreencopyv1.h>
@@ -128,6 +127,10 @@
 #include <qwviewporter.h>
 #include <qwxdgforeignregistry.h>
 #include <qwxdgforeignv2.h>
+
+extern "C" {
+#include <wlr/types/wlr_output_layout.h>
+}
 #include <qwxwayland.h>
 #include <qwxwaylandsurface.h>
 
@@ -245,7 +248,7 @@ static wlr_output_mode *closestOutputMode(WOutput *output,
                                           int height,
                                           int refresh)
 {
-    if (!output || !output->nativeHandle()) {
+    if (!output || !output->handle()) {
         return nullptr;
     }
 
@@ -253,7 +256,7 @@ static wlr_output_mode *closestOutputMode(WOutput *output,
     wlr_output_mode *closestMode = nullptr;
     qint64 closestResolutionDistance = std::numeric_limits<qint64>::max();
     qint64 closestRefreshDistance = std::numeric_limits<qint64>::max();
-    wl_list_for_each(mode, &output->nativeHandle()->modes, link) {
+    wl_list_for_each(mode, &output->handle()->modes, link) {
         const qint64 resolutionDistance = std::abs(static_cast<qint64>(mode->width) - width)
             + std::abs(static_cast<qint64>(mode->height) - height);
         const qint64 refreshDistance = std::abs(static_cast<qint64>(mode->refresh) - refresh);
@@ -522,7 +525,7 @@ void Helper::onOutputAdded(WOutput *output)
     Output *o = nullptr;
     const bool isInitialOutput = !scanned;
     qCInfo(lcTlOutput) << "Output added" << output->name()
-                       << "id:" << WallpaperManager::getOutputId(output->nativeHandle())
+                       << "id:" << WallpaperManager::getOutputId(output->handle())
                        << "scan complete:" << scanned
                        << "mode:" << static_cast<int>(m_mode);
 
@@ -595,9 +598,11 @@ void Helper::onOutputAdded(WOutput *output)
     }
     const bool shouldDisableOutput = !scanned;
     if (shouldDisableOutput) {
-        qw_output_state disabledState;
-        disabledState.set_enabled(false);
-        if (!output->handle()->commit_state(disabledState)) {
+        wlr_output_state disabledState;
+        wlr_output_state_init(&disabledState);
+        auto finishState = qScopeGuard([&disabledState] { wlr_output_state_finish(&disabledState); });
+        wlr_output_state_set_enabled(&disabledState, false);
+        if (!wlr_output_commit_state(output->handle(), &disabledState)) {
             qCCritical(lcTlCore) << "commit failed while disabling added output" << output->name();
         } else if (!scanned) {
             qCInfo(lcTlOutput) << "Temporarily disabled output during initial scan" << output->name();
@@ -639,9 +644,11 @@ void Helper::onOutputAdded(WOutput *output)
         if (!singleOutputId.isEmpty()
             && WallpaperManager::getOutputId(outputObject) != singleOutputId) {
             if (output->isEnabled()) {
-                qw_output_state disabledState;
-                disabledState.set_enabled(false);
-                if (!output->handle()->commit_state(disabledState)) {
+                wlr_output_state disabledState;
+                wlr_output_state_init(&disabledState);
+                auto finishState = qScopeGuard([&disabledState] { wlr_output_state_finish(&disabledState); });
+                wlr_output_state_set_enabled(&disabledState, false);
+                if (!wlr_output_commit_state(output->handle(), &disabledState)) {
                     qCCritical(lcTlOutput)
                         << "Failed to disable non-selected output while restoring single-output display"
                         << output->name();
@@ -702,23 +709,25 @@ void Helper::onOutputAdded(WOutput *output)
             return;
         }
 
-        qw_output_state newState;
-        newState.set_enabled(true);
+        wlr_output_state newState;
+        wlr_output_state_init(&newState);
+        auto finishState = qScopeGuard([&newState] { wlr_output_state_finish(&newState); });
+        wlr_output_state_set_enabled(&newState, true);
 
         if (auto *layout = m_rootSurfaceContainer->outputLayout()) {
             layout->move(output, QPoint(static_cast<int>(config->x()), static_cast<int>(config->y())));
         }
 
         if (auto *mode = closestOutputMode(output, width, height, refresh)) {
-            newState.set_mode(mode);
+            wlr_output_state_set_mode(&newState, mode);
         } else {
-            newState.set_custom_mode(width, height, refresh);
+            wlr_output_state_set_custom_mode(&newState, width, height, refresh);
         }
 
-        newState.set_adaptive_sync_enabled(config->adaptiveSyncEnabled());
-        newState.set_transform(static_cast<wl_output_transform>(transform));
-        newState.set_scale(scale);
-        if (!output->handle()->commit_state(newState)) {
+        wlr_output_state_set_adaptive_sync_enabled(&newState, config->adaptiveSyncEnabled());
+        wlr_output_state_set_transform(&newState, static_cast<wl_output_transform>(transform));
+        wlr_output_state_set_scale(&newState, scale);
+        if (!wlr_output_commit_state(output->handle(), &newState)) {
             qCCritical(lcTlCore) << "commit failed on output" << output->name();
             return;
         }
@@ -881,9 +890,9 @@ void Helper::onOutputRemoved(WOutput *output)
     }
 
     m_outputManager->removeOutput(output);
-    m_wallpaperManager->removeOutputWallpaper(output->handle()->handle());
+    m_wallpaperManager->removeOutputWallpaper(output->handle());
 
-    m_powerOffOutputs.remove(output->nativeHandle());
+    m_powerOffOutputs.remove(output->handle());
 
     delete o;
 }
@@ -898,7 +907,6 @@ void Helper::onSurfaceModeChanged(WSurface *surface, WXdgDecorationManager::Deco
 
 void Helper::setGamma(struct wlr_gamma_control_manager_v1_set_gamma_event *event)
 {
-    auto *qwOutput = qw_output::from(event->output);
     size_t ramp_size = 0;
     uint16_t *r = nullptr, *g = nullptr, *b = nullptr;
     wlr_gamma_control_v1 *gamma_control = event->control;
@@ -908,10 +916,12 @@ void Helper::setGamma(struct wlr_gamma_control_manager_v1_set_gamma_event *event
         g = gamma_control->table + gamma_control->ramp_size;
         b = gamma_control->table + 2 * gamma_control->ramp_size;
     }
-    qw_output_state newState;
-    newState.set_gamma_lut(ramp_size, r, g, b);
-    if (!qwOutput->commit_state(newState)) {
-        qCCritical(lcTlCore, "commit failed on output  %s", qwOutput->handle()->name);
+    wlr_output_state newState;
+    wlr_output_state_init(&newState);
+    auto finishState = qScopeGuard([&newState] { wlr_output_state_finish(&newState); });
+    wlr_output_state_set_gamma_lut(&newState, ramp_size, r, g, b);
+    if (!wlr_output_commit_state(event->output, &newState)) {
+        qCCritical(lcTlCore, "commit failed on output  %s", event->output->name);
         qCWarning(lcTlCore) << "Failed to set gamma lut!";
         // TODO: use software impl it.
         qw_gamma_control_v1::from(gamma_control)->send_failed_and_destroy();
@@ -1043,20 +1053,23 @@ void Helper::onOutputTestOrApply(qw_output_configuration_v1 *config, bool onlyTe
                 ok = false;
                 continue;
             }
-            qw_output_state newState;
-            newState.set_enabled(state.enabled);
+            wlr_output_state newState;
+            wlr_output_state_init(&newState);
+            auto finishState = qScopeGuard([&newState] { wlr_output_state_finish(&newState); });
+            wlr_output_state_set_enabled(&newState, state.enabled);
             if (state.enabled) {
                 if (state.mode)
-                    newState.set_mode(state.mode);
+                    wlr_output_state_set_mode(&newState, state.mode);
                 else
-                    newState.set_custom_mode(state.customModeSize.width(),
-                                             state.customModeSize.height(),
-                                             state.customModeRefresh);
-                newState.set_adaptive_sync_enabled(state.adaptiveSyncEnabled);
-                newState.set_transform(static_cast<wl_output_transform>(state.transform));
-                newState.set_scale(state.scale);
+                    wlr_output_state_set_custom_mode(&newState,
+                                                     state.customModeSize.width(),
+                                                     state.customModeSize.height(),
+                                                     state.customModeRefresh);
+                wlr_output_state_set_adaptive_sync_enabled(&newState, state.adaptiveSyncEnabled);
+                wlr_output_state_set_transform(&newState, static_cast<wl_output_transform>(state.transform));
+                wlr_output_state_set_scale(&newState, state.scale);
             }
-            ok &= state.output->handle()->test_state(newState);
+            ok &= wlr_output_test_state(state.output->handle(), &newState);
         }
 
         m_outputManager->sendResult(config, ok);
@@ -1328,7 +1341,7 @@ void Helper::onOutputCommitFinished(qw_output_configuration_v1 *config, bool suc
                 const qlonglong width = state.mode ? state.mode->width : state.customModeSize.width();
                 const qlonglong height = state.mode ? state.mode->height : state.customModeSize.height();
                 const qlonglong refresh = state.mode ? state.mode->refresh : state.customModeRefresh;
-                const qlonglong transform = output->output()->nativeHandle()->transform;
+                const qlonglong transform = output->output()->handle()->transform;
                 const double scale = state.scale;
                 const bool adaptiveSyncEnabled = state.adaptiveSyncEnabled;
                 runWhenOutputConfigInitialized(outputConfig, output, [outputConfig = QPointer<OutputConfig>(outputConfig),
@@ -1371,18 +1384,20 @@ void Helper::onOutputCommitFinished(qw_output_configuration_v1 *config, bool suc
 
 void Helper::onSetOutputPowerMode(wlr_output_power_v1_set_mode_event *event)
 {
-    auto output = qw_output::from(event->output);
-    qw_output_state newState;
+    auto *output = event->output;
+    wlr_output_state newState;
+    wlr_output_state_init(&newState);
+    auto finishState = qScopeGuard([&newState] { wlr_output_state_finish(&newState); });
 
     switch (event->mode) {
     case ZWLR_OUTPUT_POWER_V1_MODE_OFF:
         if (m_powerOffOutputs.contains(event->output))
             return; // already disabled by output_power
-        if (!output->handle()->enabled)
+        if (!output->enabled)
             return; // already disabled by output_management, not ours
-        newState.set_enabled(false);
-        if (!output->commit_state(newState)) {
-            qCCritical(lcTlCore, "commit failed on output %s", output->handle()->name);
+        wlr_output_state_set_enabled(&newState, false);
+        if (!wlr_output_commit_state(output, &newState)) {
+            qCCritical(lcTlCore, "commit failed on output %s", output->name);
             return;
         }
         m_powerOffOutputs.insert(event->output);
@@ -1390,9 +1405,9 @@ void Helper::onSetOutputPowerMode(wlr_output_power_v1_set_mode_event *event)
     case ZWLR_OUTPUT_POWER_V1_MODE_ON:
         if (!m_powerOffOutputs.remove(event->output))
             return; // not disabled by output_power, nothing to do
-        newState.set_enabled(true);
-        if (!output->commit_state(newState)) {
-            qCCritical(lcTlCore, "commit failed on output %s", output->handle()->name);
+        wlr_output_state_set_enabled(&newState, true);
+        if (!wlr_output_commit_state(output, &newState)) {
+            qCCritical(lcTlCore, "commit failed on output %s", output->name);
             m_powerOffOutputs.insert(event->output);
             return;
         }
@@ -2361,11 +2376,13 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *targetWindow, QInputEvent 
         // Wake DPMS-off outputs on any input event
         // Only re-enable outputs disabled by output_power, not user-disabled outputs
         for (auto *out : std::as_const(m_outputList)) {
-            auto *wlr_out = out->output()->nativeHandle();
+            auto *wlr_out = out->output()->handle();
             if (!wlr_out->enabled && wlr_out->current_mode && m_powerOffOutputs.contains(wlr_out)) {
-                qw_output_state state;
-                state.set_enabled(true);
-                if (!out->output()->handle()->commit_state(state)) {
+                wlr_output_state state;
+                wlr_output_state_init(&state);
+                auto finishState = qScopeGuard([&state] { wlr_output_state_finish(&state); });
+                wlr_output_state_set_enabled(&state, true);
+                if (!wlr_output_commit_state(out->output()->handle(), &state)) {
                     qCWarning(lcTlCore) << "Failed to wake output" << wlr_out->name;
                 } else {
                     m_powerOffOutputs.remove(wlr_out);
@@ -2777,11 +2794,11 @@ void Helper::saveCurrentOutputConfig(Output *output)
             return;
         }
 
-        if (!outputObject->output() || !outputObject->output()->nativeHandle()->current_mode) {
+        if (!outputObject->output() || !outputObject->output()->handle()->current_mode) {
             return;
         }
 
-        auto *wlrOutput = outputObject->output()->nativeHandle();
+        auto *wlrOutput = outputObject->output()->handle();
         auto *mode = wlrOutput->current_mode;
         outputConfig->setWidth(mode->width);
         outputConfig->setHeight(mode->height);
@@ -2791,7 +2808,7 @@ void Helper::saveCurrentOutputConfig(Output *output)
         outputConfig->setAdaptiveSyncEnabled(wlrOutput->adaptive_sync_status == WLR_OUTPUT_ADAPTIVE_SYNC_ENABLED);
 
         if (auto *layout = outputObject->output()->layout()) {
-            if (auto *layoutOutput = layout->handle()->get(wlrOutput)) {
+            if (auto *layoutOutput = wlr_output_layout_get(layout->handle(), wlrOutput)) {
                 outputConfig->setX(layoutOutput->x);
                 outputConfig->setY(layoutOutput->y);
             }
@@ -3015,12 +3032,11 @@ void Helper::onExtSessionLock(WSessionLock *lock)
 
 void Helper::allowNonDrmOutputAutoChangeMode(WOutput *output)
 {
-    output->safeConnect(&qw_output::notify_request_state,
+    output->safeConnect(&WOutput::requestState,
                         this,
-                        [this](wlr_output_event_request_state *newState) {
+                        [output](wlr_output_event_request_state *newState) {
                             if (newState->state->committed & WLR_OUTPUT_STATE_MODE) {
-                                auto output = qobject_cast<qw_output *>(sender());
-                                if (!output->commit_state(newState->state)) {
+                                if (!wlr_output_commit_state(output->handle(), newState->state)) {
                                     qCCritical(lcTlCore, "commit failed on output %s",
                                                output->handle()->name);
                                 }
@@ -3688,17 +3704,19 @@ void Helper::restoreExtensionModeFromConfig(bool preserveSingleOutputConfig)
                                             static_cast<int>(config->y())));
             }
 
-            qw_output_state state;
-            state.set_enabled(true);
+            wlr_output_state state;
+            wlr_output_state_init(&state);
+            auto finishState = qScopeGuard([&state] { wlr_output_state_finish(&state); });
+            wlr_output_state_set_enabled(&state, true);
             if (auto *mode = closestOutputMode(output, width, height, refresh)) {
-                state.set_mode(mode);
+                wlr_output_state_set_mode(&state, mode);
             } else {
-                state.set_custom_mode(width, height, refresh);
+                wlr_output_state_set_custom_mode(&state, width, height, refresh);
             }
-            state.set_adaptive_sync_enabled(config->adaptiveSyncEnabled());
-            state.set_transform(static_cast<wl_output_transform>(transform));
-            state.set_scale(scale);
-            if (!output->handle()->commit_state(state)) {
+            wlr_output_state_set_adaptive_sync_enabled(&state, config->adaptiveSyncEnabled());
+            wlr_output_state_set_transform(&state, static_cast<wl_output_transform>(transform));
+            wlr_output_state_set_scale(&state, scale);
+            if (!wlr_output_commit_state(output->handle(), &state)) {
                 qCCritical(lcTlOutput) << "Failed to restore extension state for"
                                        << output->name();
             }
@@ -3898,7 +3916,7 @@ void Helper::enableAllOutput()
         struct wlr_output_state state;
         wlr_output_state_init(&state);
         wlr_output_state_set_enabled(&state, true);
-        const bool ok = wlr_output_commit_state(output->output()->nativeHandle(), &state);
+        const bool ok = wlr_output_commit_state(output->output()->handle(), &state);
         wlr_output_state_finish(&state);
 
         if (!ok) {

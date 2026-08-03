@@ -343,7 +343,7 @@ qw_buffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePixe
 
     // configure swapchain
     if (flags.testFlag(RenderFlag::DontConfigureSwapchain)) {
-        auto renderFormat = pickFormat(m_output->renderer(), format);
+        auto renderFormat = pickFormat(qw_renderer::from(m_output->renderer()), format);
         if (!renderFormat) {
             qCWarning(lcWlBufferRenderer, "wlr_renderer doesn't support format 0x%s", drmGetFormatName(format));
             return nullptr;
@@ -353,17 +353,21 @@ qw_buffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePixe
             || m_swapchain->handle()->format.format != renderFormat->format) {
             if (m_swapchain)
                 delete m_swapchain;
-            m_swapchain = qw_swapchain::create(m_output->allocator()->handle(), pixelSize.width(), pixelSize.height(), renderFormat);
+            m_swapchain = qw_swapchain::create(m_output->allocator(), pixelSize.width(), pixelSize.height(), renderFormat);
         }
     } else if (flags.testFlag(RenderFlag::UseCursorFormats)) {
-        bool ok = m_output->configureCursorSwapchain(pixelSize, format, &m_swapchain);
+        auto *swapchain = m_swapchain ? m_swapchain->handle() : nullptr;
+        bool ok = m_output->configureCursorSwapchain(pixelSize, format, &swapchain);
         if (!ok)
             return nullptr;
+        m_swapchain = qw_swapchain::from(swapchain);
     } else {
-        bool ok = m_output->configurePrimarySwapchain(pixelSize, format, &m_swapchain,
+        auto *swapchain = m_swapchain ? m_swapchain->handle() : nullptr;
+        bool ok = m_output->configurePrimarySwapchain(pixelSize, format, &swapchain,
                                                       !flags.testFlag(DontTestSwapchain));
         if (!ok)
             return nullptr;
+        m_swapchain = qw_swapchain::from(swapchain);
     }
 
     // TODO: Support scanout buffer of wlr_surface(from WSurfaceItem)
@@ -373,7 +377,7 @@ qw_buffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePixe
     auto buffer = qw_buffer::from(wbuffer);
 
     if (!m_renderHelper)
-        m_renderHelper = new WRenderHelper(m_output->renderer());
+        m_renderHelper = new WRenderHelper(qw_renderer::from(m_output->renderer()));
     m_renderHelper->setSize(pixelSize);
 
     auto wd = QQuickWindowPrivate::get(window());

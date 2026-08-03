@@ -12,6 +12,11 @@
 
 Q_MOC_INCLUDE(<wquickoutputlayout.h>)
 
+QW_BEGIN_NAMESPACE
+class qw_allocator;
+class qw_renderer;
+QW_END_NAMESPACE
+
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WOutputViewport;

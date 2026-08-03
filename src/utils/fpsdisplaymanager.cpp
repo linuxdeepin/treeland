@@ -166,8 +166,8 @@ void FpsDisplayManager::detectDisplayRefreshRate()
 {
     if (m_targetWindow) {
         if (auto output = getOutputForWindow()) {
-            if (auto qwoutput = output->handle()) {
-                if (auto mode = qwoutput->preferred_mode()) {
+            if (auto nativeOutput = output->handle()) {
+                if (auto mode = wlr_output_preferred_mode(nativeOutput)) {
                     int32_t refresh = mode->refresh;
                     if (refresh > 0) {
                         m_displayRefreshRate = qRound(refresh / 1000.0);
@@ -276,8 +276,8 @@ WOutput *FpsDisplayManager::findBestOutput(const QVector<WOutput*> &outputs) con
     for (auto output : outputs) {
         if (!output) continue;
 
-        if (auto qwoutput = output->handle()) {
-            if (auto mode = qwoutput->preferred_mode()) {
+        if (auto nativeOutput = output->handle()) {
+            if (auto mode = wlr_output_preferred_mode(nativeOutput)) {
                 int refreshRate = qRound(mode->refresh / 1000.0);
                 if (refreshRate > maxRefreshRate) {
                     maxRefreshRate = refreshRate;

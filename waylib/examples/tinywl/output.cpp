@@ -17,10 +17,14 @@
 #include <wquicktextureproxy.h>
 #include <wxdgpopupsurfaceitem.h>
 
-#include <qwoutputlayout.h>
 #include <qwlayershellv1.h>
 
 #include <QQmlEngine>
+
+extern "C" {
+#include <wlr/backend/x11.h>
+#include <wlr/types/wlr_output_layout.h>
+}
 
 Q_LOGGING_CATEGORY(qLcLayerShell, "tinywl.shell.layer", QtWarningMsg)
 
@@ -29,7 +33,7 @@ Output *Output::createPrimary(WOutput *output, QQmlEngine *engine, QObject *pare
     QQmlComponent delegate(engine, "Tinywl", "PrimaryOutput");
     QObject *obj = delegate.beginCreate(engine->rootContext());
     delegate.setInitialProperties(obj, {
-        {"forceSoftwareCursor", output->handle()->is_x11()}
+        {"forceSoftwareCursor", wlr_output_is_x11(output->handle())}
     });
     delegate.completeCreate();
     WOutputItem *outputItem = qobject_cast<WOutputItem *>(obj);
@@ -446,7 +450,7 @@ void Output::updatePositionFromLayout()
     WOutputLayout * layout = output()->layout();
     Q_ASSERT(layout);
 
-    auto *layoutOutput = layout->handle()->get(output()->nativeHandle());
+    auto *layoutOutput = wlr_output_layout_get(layout->handle(), output()->handle());
     QPointF pos(layoutOutput->x, layoutOutput->y);
     m_item->setPosition(pos);
 }

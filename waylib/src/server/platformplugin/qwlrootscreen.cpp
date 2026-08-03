@@ -47,7 +47,7 @@ int QWlrootsScreen::depth() const
 
 QImage::Format QWlrootsScreen::format() const
 {
-    auto format = WTools::toImageFormat(m_output->nativeHandle()->render_format);
+    auto format = WTools::toImageFormat(m_output->handle()->render_format);
     if (format != QImage::Format_Invalid)
         return format;
 
@@ -235,7 +235,7 @@ void QWlrootsScreen::initialize()
 
 wlr_output *QWlrootsScreen::handle() const
 {
-    return m_output->handle()->handle();
+    return m_output->handle();
 }
 
 WAYLIB_SERVER_END_NAMESPACE

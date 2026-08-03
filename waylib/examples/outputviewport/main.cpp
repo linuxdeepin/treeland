@@ -92,25 +92,27 @@ void Helper::initProtocols(WOutputRenderWindow *window, QQmlEngine *qmlEngine)
             WOutput *output = viewport->output();
 
             // Enable on default
-            auto qwoutput = output->handle();
+            auto *nativeOutput = output->handle();
             // Don't care for WOutput::isEnabled, must do WOutput::commit here,
             // In order to ensure trigger QWOutput::frame signal, WOutputRenderWindow
             // needs this signal to render next frmae. Because QWOutput::frame signal
             // maybe Q_EMIT before WOutputRenderWindow::attach, if no commit here,
             // WOutputRenderWindow will ignore this ouptut on render.
-            if (!qwoutput->property("_Enabled").toBool()) {
-                qwoutput->setProperty("_Enabled", true);
-                qw_output_state newState;
+            if (!output->property("_Enabled").toBool()) {
+                output->setProperty("_Enabled", true);
+                wlr_output_state newState;
+                wlr_output_state_init(&newState);
 
-                if (!qwoutput->handle()->current_mode) {
-                    auto mode = qwoutput->preferred_mode();
+                if (!nativeOutput->current_mode) {
+                    auto mode = wlr_output_preferred_mode(nativeOutput);
                     if (mode)
-                        newState.set_mode(mode);
+                        wlr_output_state_set_mode(&newState, mode);
                 }
-                newState.set_enabled(true);
-                if (!qwoutput->commit_state(newState)) {
-                    qCritical("commit failed on output %s", qwoutput->handle()->name);
+                wlr_output_state_set_enabled(&newState, true);
+                if (!wlr_output_commit_state(nativeOutput, &newState)) {
+                    qCritical("commit failed on output %s", nativeOutput->name);
                 }
+                wlr_output_state_finish(&newState);
             }
         }
     });

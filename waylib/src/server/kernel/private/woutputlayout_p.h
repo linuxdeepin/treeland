@@ -4,7 +4,7 @@
 #include "woutputlayout.h"
 #include "wglobal_p.h"
 
-#include <qwoutputlayout.h>
+struct wlr_output_layout;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -14,18 +14,19 @@ public:
     WOutputLayoutPrivate(WOutputLayout *qq);
     ~WOutputLayoutPrivate();
 
-    WWRAP_HANDLE_FUNCTIONS(qw_output_layout, wlr_output_layout)
-
     void doAdd(WOutput *output);
 
-    void instantRelease() override {
-        if (handle())
-            handle()->set_data(nullptr, nullptr);
-    }
+    void instantRelease() override;
+
+    static void handleDestroy(wl_listener *listener, void *data);
+    static void handleChange(wl_listener *listener, void *data);
 
     W_DECLARE_PUBLIC(WOutputLayout)
 
     QList<WOutput*> outputs;
+    wlr_output_layout *handle = nullptr;
+    wl_listener destroy;
+    wl_listener change;
 
     void updateImplicitSize();
     int implicitWidth { 0 };

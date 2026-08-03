@@ -21,11 +21,14 @@
 #include <wseat.h>
 #include <winputdevice.h>
 
-#include <qwoutputlayout.h>
 #include <qwxdgshell.h>
 
 #include <QPointer>
 #include <QQuickWindow>
+
+extern "C" {
+#include <wlr/types/wlr_output_layout.h>
+}
 
 WAYLIB_SERVER_USE_NAMESPACE
 
@@ -92,7 +95,7 @@ void RootSurfaceContainer::init(WServer *server)
         setHeight(height);
     });
 
-    m_outputLayout->safeConnect(&qw_output_layout::notify_change, this, [this] {
+    connect(m_outputLayout, &WOutputLayout::changed, this, [this] {
         for (auto output : std::as_const(outputs())) {
             output->updatePositionFromLayout();
         }
@@ -282,9 +285,9 @@ void RootSurfaceContainer::addBySubContainer(SurfaceContainer *sub, SurfaceWrapp
                     // If parentSurface is Layer surface, follow parentSurface->ownsOutput
                     auto pos = parentSurface->position() + parentSurface->surfaceItem()->position()
                         + xdgPopupSurface->getPopupPosition();
-                    if (auto op = m_outputLayout->handle()->output_at(pos.x(), pos.y()))
+                    if (auto op = wlr_output_layout_output_at(m_outputLayout->handle(), pos.x(), pos.y()))
                         output =
-                            Helper::instance()->getOutput(WOutput::fromHandle(qw_output::from(op)));
+                            Helper::instance()->getOutput(WOutput::fromHandle(op));
                 }
             }
             surface->setOwnsOutput(output);
@@ -389,11 +392,11 @@ Output *RootSurfaceContainer::cursorOutput() const
 {
     Q_ASSERT(m_cursor->layout() == m_outputLayout);
     const auto &pos = m_cursor->position();
-    auto o = m_outputLayout->handle()->output_at(pos.x(), pos.y());
+    auto o = wlr_output_layout_output_at(m_outputLayout->handle(), pos.x(), pos.y());
     if (!o)
         return nullptr;
 
-    return Helper::instance()->getOutput(WOutput::fromHandle(qw_output::from(o)));
+    return Helper::instance()->getOutput(WOutput::fromHandle(o));
 }
 
 Output *RootSurfaceContainer::primaryOutput() const
@@ -420,7 +423,7 @@ const QList<Output *> &RootSurfaceContainer::outputs() const
 void RootSurfaceContainer::ensureCursorVisible()
 {
     const auto cursorPos = m_cursor->position();
-    if (m_outputLayout->handle()->output_at(cursorPos.x(), cursorPos.y()))
+    if (wlr_output_layout_output_at(m_outputLayout->handle(), cursorPos.x(), cursorPos.y()))
         return;
 
     if (m_primaryOutput) {

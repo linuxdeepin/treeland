@@ -190,7 +190,7 @@ public:
     }
 
     inline qw_output *qwoutput() const {
-        return output()->output()->handle();
+        return qw_output::from(output()->output()->handle());
     }
 
     inline WOutputRenderWindow *renderWindow() const {
@@ -1576,7 +1576,7 @@ void WOutputRenderWindowPrivate::doRender(qw_output *needsFrameOutput,
                     // Make sure the output is still valid after commit
                     auto output = i.first->output()->output();
                     if (Q_LIKELY(needsFrameOutput)) {
-                        Q_ASSERT(output->handle() == needsFrameOutput);
+                        Q_ASSERT(output->handle() == needsFrameOutput->handle());
                         if (committedOutputs.isEmpty())
                             committedOutputs.append(output);
                     } else if (!committedOutputs.contains(output)) {
@@ -1664,10 +1664,10 @@ void WOutputRenderWindow::attach(WOutputViewport *output)
     }
 
     if (!containsOutput) {
-        output->output()->safeConnect(&qw_output::notify_frame,
+        output->output()->safeConnect(&WOutput::frame,
                                       this,
                                       qOverload<>(&WOutputRenderWindow::render));
-        connect(newOutput->qwoutput(), &qw_output::notify_needs_frame,
+        connect(output->output(), &WOutput::needsFrame,
                 output->output(),
                 &WOutput::scheduleFrame);
     }
@@ -1703,7 +1703,7 @@ void WOutputRenderWindow::detach(WOutputViewport *output)
     if (output->output() && !d->containsOutput(output->output())) {
         bool ok = output->output()->safeDisconnect(this);
         Q_ASSERT(ok);
-        ok = disconnect(outputHelper->qwoutput(), &qw_output::notify_needs_frame,
+        ok = disconnect(output->output(), &WOutput::needsFrame,
                         output->output(),
                         &WOutput::scheduleFrame);
         Q_ASSERT(ok);

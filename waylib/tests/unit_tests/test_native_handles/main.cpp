@@ -4,6 +4,8 @@
 #include <WServer>
 #include <WBackend>
 #include <WInputDevice>
+#include <WOutput>
+#include <woutputlayout.h>
 
 #include <QTest>
 #include <QPointer>
@@ -11,6 +13,7 @@
 
 extern "C" {
 #include <interfaces/wlr_input_device.h>
+#include <wlr/backend/headless.h>
 }
 
 #include <type_traits>
@@ -19,6 +22,8 @@ extern "C" {
 struct wl_display;
 struct wlr_backend;
 struct wlr_input_device;
+struct wlr_output;
+struct wlr_output_layout;
 struct wlr_session;
 
 WAYLIB_SERVER_USE_NAMESPACE
@@ -28,6 +33,8 @@ static_assert(std::is_same_v<decltype(std::declval<WBackend &>().handle()), wlr_
 static_assert(std::is_same_v<decltype(std::declval<WBackend &>().session()), wlr_session *>);
 static_assert(std::is_same_v<decltype(std::declval<WInputDevice &>().handle()), wlr_input_device *>);
 static_assert(std::is_constructible_v<WInputDevice, wlr_input_device *>);
+static_assert(std::is_same_v<decltype(std::declval<WOutput &>().handle()), wlr_output *>);
+static_assert(std::is_same_v<decltype(std::declval<WOutputLayout &>().handle()), wlr_output_layout *>);
 
 class NativeHandlesTest : public QObject
 {
@@ -68,6 +75,70 @@ private Q_SLOTS:
         QVERIFY(!WInputDevice::fromHandle(&nativeDevice));
         QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
         QVERIFY(device.isNull());
+    }
+
+    void backendRemovesDestroyedInputDevice()
+    {
+        qputenv("WLR_BACKENDS", "headless");
+        WServer server;
+        auto *backend = server.attach<WBackend>();
+        server.start();
+
+        wlr_input_device nativeDevice;
+        wlr_input_device_init(&nativeDevice, WLR_INPUT_DEVICE_POINTER, "backend-test-pointer");
+        QSignalSpy added(backend, &WBackend::inputAdded);
+        QSignalSpy removed(backend, &WBackend::inputRemoved);
+        wl_signal_emit_mutable(&backend->handle()->events.new_input, &nativeDevice);
+        QCOMPARE(added.count(), 1);
+        QCOMPARE(backend->inputDeviceList().size(), 1);
+
+        wlr_input_device_finish(&nativeDevice);
+
+        QCOMPARE(removed.count(), 1);
+        QVERIFY(backend->inputDeviceList().isEmpty());
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        server.stop();
+        qunsetenv("WLR_BACKENDS");
+    }
+
+    void outputAndLayoutTrackNativeLifetime()
+    {
+        WServer server;
+        auto *nativeBackend = wlr_headless_backend_create(wl_display_get_event_loop(server.handle()));
+        QVERIFY(nativeBackend);
+        auto *nativeOutput = wlr_headless_add_output(nativeBackend, 800, 600);
+        QVERIFY(nativeOutput);
+
+        QPointer<WOutput> output = new WOutput(nativeOutput, nullptr);
+        QCOMPARE(output->handle(), nativeOutput);
+        QCOMPARE(WOutput::fromHandle(nativeOutput), output.data());
+
+        auto *layout = new WOutputLayout(&server);
+        QVERIFY(layout->handle());
+        QSignalSpy layoutChanged(layout, &WOutputLayout::changed);
+        layout->add(output, QPoint(30, 40));
+        QCOMPARE(layoutChanged.count(), 1);
+        QCOMPARE(output->position(), QPoint(30, 40));
+        QCOMPARE(layout->outputs(), QList<WOutput *> { output });
+
+        QSignalSpy invalidated(output, &WOutput::invalidated);
+        bool aboutToBeInvalidated = false;
+        connect(output, &WOutput::aboutToBeInvalidated, this, [&] {
+            aboutToBeInvalidated = true;
+            QCOMPARE(output->handle(), nativeOutput);
+            QVERIFY(!WOutput::fromHandle(nativeOutput));
+        });
+        wlr_output_destroy(nativeOutput);
+
+        QVERIFY(aboutToBeInvalidated);
+        QCOMPARE(invalidated.count(), 1);
+        QVERIFY(!output->handle());
+        QVERIFY(!WOutput::fromHandle(nativeOutput));
+        QVERIFY(layout->outputs().isEmpty());
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        QVERIFY(output.isNull());
+
+        wlr_backend_destroy(nativeBackend);
     }
 };
 

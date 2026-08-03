@@ -9,8 +9,6 @@
 #include "platformplugin/qwlrootscreen.h"
 #include "private/wglobal_p.h"
 
-#include <qwoutput.h>
-
 extern "C" {
 #include <wlr/backend.h>
 #include <wlr/backend/drm.h>
@@ -44,7 +42,7 @@ public:
     void on_new_output(wlr_output *output);
     void on_new_input(wlr_input_device *device);
     void on_input_destroy(wlr_input_device *data);
-    void on_output_destroy(qw_output *output);
+    void on_output_destroy(wlr_output *output);
     // end slot function
 
     void connectBackend();
@@ -81,14 +79,13 @@ private:
 void WBackendPrivate::on_new_output(wlr_output *output)
 {
     W_Q(WBackend);
-    auto qoutput = qw_output::from(output);
-    auto woutput = new WOutput(qoutput, q);
+    auto woutput = new WOutput(output, q);
 
     outputList << woutput;
     QWlrootsIntegration::instance()->addScreen(woutput);
 
-    woutput->safeConnect(&qw_output::before_destroy, q, [this, qoutput] {
-        on_output_destroy(qoutput);
+    QObject::connect(woutput, &WOutput::aboutToBeInvalidated, q, [this, output] {
+        on_output_destroy(output);
     });
 
     Q_EMIT q->outputAdded(woutput);
@@ -99,7 +96,7 @@ void WBackendPrivate::on_new_input(wlr_input_device *device)
     W_Q(WBackend);
     auto winput_device = new WInputDevice(device);
     inputList << winput_device;
-    QObject::connect(winput_device, &WInputDevice::invalidated, q, [this, device] {
+    QObject::connect(winput_device, &WInputDevice::aboutToBeInvalidated, q, [this, device] {
         on_input_destroy(device);
     });
 
@@ -119,7 +116,7 @@ void WBackendPrivate::on_input_destroy(wlr_input_device *data)
     }
 }
 
-void WBackendPrivate::on_output_destroy(qw_output *output)
+void WBackendPrivate::on_output_destroy(wlr_output *output)
 {
     for (int i = 0; i < outputList.count(); ++i) {
         if (outputList.at(i)->handle() == output) {
@@ -128,7 +125,6 @@ void WBackendPrivate::on_output_destroy(qw_output *output)
             W_Q(WBackend);
             Q_EMIT q->outputRemoved(woutput);
             QWlrootsIntegration::instance()->removeScreen(woutput);
-            woutput->safeDeleteLater();
             return;
         }
     }

@@ -51,9 +51,9 @@ struct ConstraintBuilder {
         uint32_t format = DRM_FORMAT_ARGB8888; // fallback
         
         if (renderer && swapchain) {
-            struct wlr_buffer *buffer = wlr_swapchain_acquire(swapchain->handle());
+            struct wlr_buffer *buffer = wlr_swapchain_acquire(swapchain);
             if (buffer) {
-                struct wlr_texture *texture = wlr_texture_from_buffer(renderer->handle(), buffer);
+                struct wlr_texture *texture = wlr_texture_from_buffer(renderer, buffer);
                 wlr_buffer_unlock(buffer);
                 
                 if (texture) {
@@ -83,9 +83,9 @@ struct ConstraintBuilder {
         
         if (!renderer || !swapchain) return;
         
-        int drm_fd = wlr_renderer_get_drm_fd(renderer->handle());
-        if (swapchain->handle()->allocator && 
-            (swapchain->handle()->allocator->buffer_caps & WLR_BUFFER_CAP_DMABUF) && 
+        int drm_fd = wlr_renderer_get_drm_fd(renderer);
+        if (swapchain->allocator &&
+            (swapchain->allocator->buffer_caps & WLR_BUFFER_CAP_DMABUF) &&
             drm_fd >= 0) {
             
             struct stat dev_stat;
@@ -97,9 +97,9 @@ struct ConstraintBuilder {
                 source->dmabuf_formats = (struct wlr_drm_format_set){};
                 
                 // Copy DMA-BUF formats from swapchain
-                for (size_t i = 0; i < swapchain->handle()->format.len; i++) {
+                for (size_t i = 0; i < swapchain->format.len; i++) {
                     wlr_drm_format_set_add(&source->dmabuf_formats,
-                        swapchain->handle()->format.format, swapchain->handle()->format.modifiers[i]);
+                        swapchain->format.format, swapchain->format.modifiers[i]);
                 }
                 qCDebug(lcWlImageCapture) << "Set DMA-BUF constraints";
             }
@@ -230,7 +230,7 @@ void WExtImageCaptureSourceV1Impl::schedule_frame()
     }
     
     // Request output update to ensure next frame will be rendered
-    wlr_output_update_needs_frame(m_output->nativeHandle());
+    wlr_output_update_needs_frame(m_output->handle());
     
     // Get render window to check if currently rendering
     auto textureProvider = m_surfaceContent->wTextureProvider();
@@ -375,7 +375,7 @@ void WExtImageCaptureSourceV1Impl::copy_frame(wlr_ext_image_copy_capture_frame_v
     }
 
     // Use wlroots image copy function with validated buffers
-    bool success = qw_ext_image_copy_capture_frame_v1::copy_buffer(dst_frame, src, renderer->handle());
+    bool success = qw_ext_image_copy_capture_frame_v1::copy_buffer(dst_frame, src, renderer);
     qCDebug(lcWlImageCapture) << "Copy result:" << success;
     
     if (success) {

@@ -75,18 +75,21 @@ void TestHelper::initProtocols(WOutputRenderWindow *window, QQmlEngine *qmlEngin
     qw_subcompositor::create(m_server->handle());
 
     connect(window, &WOutputRenderWindow::outputViewportInitialized, this, [](WOutputViewport *viewport) {
-        auto qwoutput = viewport->output()->handle();
-        if (!qwoutput->property("_Enabled").toBool()) {
-            qwoutput->setProperty("_Enabled", true);
-            qw_output_state newState;
-            if (!qwoutput->handle()->current_mode) {
-                auto mode = qwoutput->preferred_mode();
+        auto *output = viewport->output();
+        auto *nativeOutput = output->handle();
+        if (!output->property("_Enabled").toBool()) {
+            output->setProperty("_Enabled", true);
+            wlr_output_state newState;
+            wlr_output_state_init(&newState);
+            if (!nativeOutput->current_mode) {
+                auto mode = wlr_output_preferred_mode(nativeOutput);
                 if (mode)
-                    newState.set_mode(mode);
+                    wlr_output_state_set_mode(&newState, mode);
             }
-            newState.set_enabled(true);
-            if (!qwoutput->commit_state(newState))
-                qCritical("commit failed on output %s", qwoutput->handle()->name);
+            wlr_output_state_set_enabled(&newState, true);
+            if (!wlr_output_commit_state(nativeOutput, &newState))
+                qCritical("commit failed on output %s", nativeOutput->name);
+            wlr_output_state_finish(&newState);
         }
     });
 

@@ -28,9 +28,13 @@
 #include <wxdgpopupsurfaceitem.h>
 
 #include <qwlayershellv1.h>
-#include <qwoutputlayout.h>
 
 #include <QQmlEngine>
+
+extern "C" {
+#include <wlr/backend/x11.h>
+#include <wlr/types/wlr_output_layout.h>
+}
 
 #include <algorithm>
 #include <optional>
@@ -42,7 +46,7 @@
 Output *Output::create(WOutput *output, QQmlEngine *engine, QObject *parent)
 {
     auto isSoftwareCursor = [](WOutput *output) -> bool {
-        return output->handle()->is_x11() || Helper::instance()->globalConfig()->forceSoftwareCursor();
+        return wlr_output_is_x11(output->handle()) || Helper::instance()->globalConfig()->forceSoftwareCursor();
     };
     QQmlComponent delegate(engine, "Treeland", "PrimaryOutput");
     QObject *obj = delegate.beginCreate(engine->rootContext());
@@ -151,7 +155,7 @@ Output::Output(WOutputItem *output, QObject *parent)
 {
     m_outputViewport = output->property("screenViewport").value<WOutputViewport *>();
 
-    QString outputName = WallpaperManager::getOutputId(output->output()->nativeHandle());
+    QString outputName = WallpaperManager::getOutputId(output->output()->handle());
     m_config = OutputConfig::createByName("org.deepin.dde.treeland.output",
                                     "org.deepin.dde.treeland",
                                     "/" + outputName, this);
@@ -197,7 +201,7 @@ void Output::updatePositionFromLayout()
         return;
     }
 
-    auto *layoutOutput = layout->handle()->get(output()->nativeHandle());
+    auto *layoutOutput = wlr_output_layout_get(layout->handle(), output()->handle());
     if (!layoutOutput) {
         return;
     }
@@ -415,45 +419,49 @@ double Output::calcPreferredScale(double widthPx, double heightPx, double widthM
 
 qreal Output::preferredScaleFactor(const QSize &pixelSize) const
 {
-    auto o = output()->handle()->handle();
+    auto o = output()->handle();
     return calcPreferredScale(pixelSize.width(), pixelSize.height(), o->phys_width, o->phys_height);
 }
 
 void Output::enable()
 {
     // Enable on default
-    auto qwoutput = output()->handle();
-    qw_output_state newState;
+    auto *woutput = output();
+    auto *nativeOutput = woutput->handle();
+    wlr_output_state newState;
+    wlr_output_state_init(&newState);
     // Don't care for WOutput::isEnabled, must do WOutput::commit here,
     // In order to ensure trigger QWOutput::frame signal, WOutputRenderWindow
     // needs this signal to render next frame. Because QWOutput::frame signal
     // maybe Q_EMIT before WOutputRenderWindow::attach, if no commit here,
     // WOutputRenderWindow will ignore this output on render.
-    const bool cachedEnabled = qwoutput->property("_Enabled").toBool();
-    const bool outputEnabled = qwoutput->handle()->enabled;
+    const bool cachedEnabled = woutput->property("_Enabled").toBool();
+    const bool outputEnabled = nativeOutput->enabled;
     if (!cachedEnabled || !outputEnabled) {
-        if (!qwoutput->handle()->current_mode) {
-            auto mode = qwoutput->preferred_mode();
+        if (!nativeOutput->current_mode) {
+            auto mode = wlr_output_preferred_mode(nativeOutput);
             if (mode) {
-                newState.set_mode(mode);
+                wlr_output_state_set_mode(&newState, mode);
 
                 // TODO: read user config
-                newState.set_scale(preferredScaleFactor({ mode->width, mode->height }));
+                wlr_output_state_set_scale(&newState, preferredScaleFactor({ mode->width, mode->height }));
             }
         } else {
             // TODO: read user config
-            newState.set_scale(preferredScaleFactor(output()->size()));
+            wlr_output_state_set_scale(&newState, preferredScaleFactor(woutput->size()));
         }
-        newState.set_enabled(true);
-        if (!qwoutput->commit_state(newState)) {
-            qCCritical(lcTlCore, "commit failed on output %s", qwoutput->handle()->name);
+        wlr_output_state_set_enabled(&newState, true);
+        if (!wlr_output_commit_state(nativeOutput, &newState)) {
+            qCCritical(lcTlCore, "commit failed on output %s", nativeOutput->name);
+            wlr_output_state_finish(&newState);
             return;
         }
-        qwoutput->setProperty("_Enabled", true);
-        qCInfo(lcTlOutput) << "Enabled output" << qwoutput->handle()->name
+        woutput->setProperty("_Enabled", true);
+        qCInfo(lcTlOutput) << "Enabled output" << nativeOutput->name
                            << "cached:" << cachedEnabled
                            << "was enabled:" << outputEnabled;
     }
+    wlr_output_state_finish(&newState);
 }
 
 void Output::updateOutputHardwareLayers()
@@ -1150,7 +1158,7 @@ void Output::setOutputColor(qreal brightness,
         brightnessCorrection = brightness;
     }
 
-    const size_t gammaSize = output()->handle()->get_gamma_size();
+    const size_t gammaSize = wlr_output_get_gamma_size(output()->handle());
     if (gammaSize == 0) {
         if (backlightApplied) {
             config()->setBrightness(brightness);

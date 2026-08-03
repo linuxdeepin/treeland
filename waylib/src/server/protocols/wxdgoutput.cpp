@@ -16,9 +16,12 @@
 
 #include <wayland-server-core.h>
 
+extern "C" {
+#include <wlr/types/wlr_output_layout.h>
+}
+
 #include <qwdisplay.h>
 #include <qwxdgoutputv1.h>
-#include <qwoutputlayout.h>
 #include <QQmlInfo>
 
 // Copy from wlroots
@@ -444,7 +447,7 @@ void WXdgOutputManager::create([[maybe_unused]] WServer *wserver)
     W_D(WXdgOutputManager);
     if (d->layout) {
         d->manager = way_xdg_output_manager_v1_create(server()->handle(),
-                                                      *d->layout->handle(),
+                                                      d->layout->handle(),
                                                       d->scaleOverride);
         m_handle = d->manager;
     } else {

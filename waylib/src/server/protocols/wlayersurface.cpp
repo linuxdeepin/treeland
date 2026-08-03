@@ -95,7 +95,7 @@ void WLayerSurfacePrivate::init()
     surface = new WSurface(qsurface, q);
     surface->setAttachedData<WLayerSurface>(q);
     updateLayerProperty();
-    output = nativeHandle()->output ? WOutput::fromHandle(qw_output::from(nativeHandle()->output)) : nullptr;
+    output = nativeHandle()->output ? WOutput::fromHandle(nativeHandle()->output) : nullptr;
 
     connect();
 }

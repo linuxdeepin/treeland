@@ -104,7 +104,7 @@ bool OutputManager::restoreConfiguredSingleOutput(const QList<SurfaceWrapper *> 
             struct wlr_output_state state;
             wlr_output_state_init(&state);
             wlr_output_state_set_enabled(&state, false);
-            const bool committed = wlr_output_commit_state(output->output()->nativeHandle(), &state);
+            const bool committed = wlr_output_commit_state(output->output()->handle(), &state);
             wlr_output_state_finish(&state);
             if (!committed) {
                 qCWarning(lcTlOutput) << "Failed to disable non-selected output while restoring single-output display"

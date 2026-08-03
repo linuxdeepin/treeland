@@ -5,7 +5,10 @@
 
 #include <wglobal.h>
 #include <wtypes.h>
-#include <qwoutput.h>
+
+extern "C" {
+#include <wlr/types/wlr_output.h>
+}
 
 #include <QObject>
 #include <QSize>
@@ -20,11 +23,9 @@ class QScreen;
 class QQuickWindow;
 QT_END_NAMESPACE
 
-QW_BEGIN_NAMESPACE
-class qw_renderer;
-class qw_swapchain;
-class qw_allocator;
-QW_END_NAMESPACE
+struct wlr_allocator;
+struct wlr_renderer;
+struct wlr_swapchain;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -62,24 +63,23 @@ public:
     };
     Q_ENUM(Transform)
 
-    explicit WOutput(QW_NAMESPACE::qw_output *handle, WBackend *backend);
+    explicit WOutput(wlr_output *handle, WBackend *backend);
     ~WOutput();
 
     WBackend *backend() const;
     WServer *server() const;
-    QW_NAMESPACE::qw_renderer *renderer() const;
-    QW_NAMESPACE::qw_swapchain *swapchain() const;
-    QW_NAMESPACE::qw_allocator *allocator() const;
+    wlr_renderer *renderer() const;
+    wlr_swapchain *swapchain() const;
+    wlr_allocator *allocator() const;
     bool configurePrimarySwapchain(const QSize &size, uint32_t format,
-                                   QW_NAMESPACE::qw_swapchain **swapchain,
+                                   wlr_swapchain **swapchain,
                                    bool doTest = true);
     bool configureCursorSwapchain(const QSize &size, uint32_t format,
-                                  QW_NAMESPACE::qw_swapchain **swapchain);
+                                  wlr_swapchain **swapchain);
 
-    QW_NAMESPACE::qw_output *handle() const;
-    wlr_output *nativeHandle() const;
+    wlr_output *handle() const;
 
-    static WOutput *fromHandle(const QW_NAMESPACE::qw_output *handle);
+    static WOutput *fromHandle(const wlr_output *handle);
 
     static WOutput *fromScreen(const QScreen *screen);
 
@@ -120,6 +120,10 @@ Q_SIGNALS:
     void cursorAdded(WAYLIB_SERVER_NAMESPACE::WCursor *cursor);
     void cursorRemoved(WAYLIB_SERVER_NAMESPACE::WCursor *cursor);
     void cursorListChanged();
+    void frame();
+    void needsFrame();
+    void requestState(wlr_output_event_request_state *event);
+    void bound(wlr_output_event_bind *event);
 
 private:
     friend class QWlrootsIntegration;

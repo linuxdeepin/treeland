@@ -7,12 +7,8 @@
 #include "woutput.h"
 #include "woutputlayout.h"
 
-#include <qwoutput.h>
-#include <qwoutputlayout.h>
-
 #include <QQuickWindow>
 
-QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class Q_DECL_HIDDEN WQuickOutputLayoutPrivate : public WOutputLayoutPrivate

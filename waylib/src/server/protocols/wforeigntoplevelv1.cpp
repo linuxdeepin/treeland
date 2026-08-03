@@ -102,13 +102,13 @@ public:
         surface->surface()->safeConnect(&WSurface::outputEntered,
                                         handle,
                                         [handle](WOutput *output) {
-                                            handle->output_enter(output->nativeHandle());
+                                            handle->output_enter(output->handle());
                                         });
 
         surface->surface()->safeConnect(&WSurface::outputLeave,
                                         handle,
                                         [handle](WOutput *output) {
-                                            handle->output_leave(output->nativeHandle());
+                                            handle->output_leave(output->handle());
                                         });
 
         QObject::connect(handle,

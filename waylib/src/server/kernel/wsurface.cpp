@@ -104,17 +104,13 @@ void WSurfacePrivate::updateOutputs()
     framePacingOutput = nullptr;
     wlr_surface_output *output;
     wl_list_for_each(output, &nativeHandle()->current_outputs, link) {
-        auto qo = qw_output::from(output->output);
-        if (!qo)
-            continue;
-        auto o = WOutput::fromHandle(qo);
+        auto o = WOutput::fromHandle(output->output);
         if (!o)
             continue;
         outputs << o;
 
         if (!framePacingOutput
-            || framePacingOutput->nativeHandle()->refresh
-                < qo->handle()->refresh) {
+            || framePacingOutput->handle()->refresh < output->output->refresh) {
             framePacingOutput = o;
         }
     }
@@ -306,7 +302,7 @@ void WSurface::enterOutput(WOutput *output)
     W_D(WSurface);
     if (d->outputs.contains(output))
         return;
-    wlr_surface_send_enter(d->nativeHandle(), output->handle()->handle());
+    wlr_surface_send_enter(d->nativeHandle(), output->handle());
 
     connect(output, &WOutput::aboutToBeInvalidated, this, [this, output] {
         leaveOutput(output);
@@ -336,7 +332,7 @@ void WSurface::leaveOutput(WOutput *output)
     W_D(WSurface);
     if (!d->outputs.contains(output))
         return;
-    wlr_surface_send_leave(d->nativeHandle(), output->handle()->handle());
+    wlr_surface_send_leave(d->nativeHandle(), output->handle());
 
     output->safeDisconnect(this);
     d->updateOutputs();
@@ -458,7 +454,7 @@ bool WSurface::scheduleFrameIfNeeded()
     W_D(WSurface);
     if (needsFrame() && d->framePacingOutput) {
         d->needsFrame = false;
-        d->framePacingOutput->handle()->schedule_frame();
+        wlr_output_schedule_frame(d->framePacingOutput->handle());
         return true;
     }
     return false;

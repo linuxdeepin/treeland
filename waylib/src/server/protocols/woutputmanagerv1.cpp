@@ -59,8 +59,7 @@ void WOutputManagerV1Private::outputMgrApplyOrTest(qw_output_configuration_v1 *c
     QList<WOutputState> pendingStates;
 
     wl_list_for_each(config_head, &config->handle()->heads, link) {
-        auto *output = QW_NAMESPACE::qw_output::from(config_head->state.output);
-        auto *woutput = WOutput::fromHandle(output);
+        auto *woutput = WOutput::fromHandle(config_head->state.output);
 
         const auto &state = config_head->state;
 
@@ -95,7 +94,7 @@ void WOutputManagerV1::updateConfig()
 
     auto *config = qw_output_configuration_v1::create();
     for (const WOutputState &state : std::as_const(d->stateList)) {
-        auto *wlr_output = state.output->nativeHandle();
+        auto *wlr_output = state.output->handle();
         auto *configHead = qw_output_configuration_head_v1::create(*config, wlr_output);
         auto *handle = configHead->handle();
 
@@ -152,7 +151,7 @@ void WOutputManagerV1::sendResult(qw_output_configuration_v1 *config,
 void WOutputManagerV1::newOutput(WOutput *output)
 {
     W_D(WOutputManagerV1);
-    const auto *wlr_output = output->nativeHandle();
+    const auto *wlr_output = output->handle();
 
     auto outputItem = WOutputItem::getOutputItem(output);
 

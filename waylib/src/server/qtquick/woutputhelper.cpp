@@ -46,7 +46,6 @@ public:
         // In wlroots, damage is triggered after a cursor move.
         // However, Waylib uses a custom cursor instead of having wlroots render it.
         // So, we don't need to listen to the damage signal."
-        // output->safeConnect(&qw_output::notify_damage, qq, [] {});
         output->safeConnect(&WOutput::modeChanged, qq, [this] {
             if (renderHelper)
                 renderHelper->setSize(this->output->size());
@@ -57,12 +56,12 @@ public:
         wlr_output_state_finish(&state);
     }
 
-    inline qw_output *qwoutput() const {
+    inline wlr_output *wlrOutput() const {
         return output->handle();
     }
 
     inline qw_renderer *renderer() const {
-        return output->renderer();
+        return qw_renderer::from(output->renderer());
     }
 
     inline QWlrootsOutputWindow *qpaWindow() const {
@@ -75,7 +74,7 @@ public:
 
     inline void update() {
         setContentIsDirty(true);
-        qwoutput()->schedule_frame();
+        wlr_output_schedule_frame(wlrOutput());
     }
 
     W_DECLARE_PUBLIC(WOutputHelper)
@@ -107,7 +106,7 @@ void WOutputHelperPrivate::setContentIsDirty(bool newValue)
 
 qw_buffer *WOutputHelperPrivate::acquireBuffer(wlr_swapchain **sc)
 {
-    bool ok = qwoutput()->configure_primary_swapchain(&state, sc);
+    bool ok = wlr_output_configure_primary_swapchain(wlrOutput(), &state, sc);
     if (!ok)
         return nullptr;
     auto newBuffer = qw_swapchain::from(*sc)->acquire();
@@ -143,7 +142,7 @@ std::pair<qw_buffer *, QQuickRenderTarget> WOutputHelper::acquireRenderTarget(QQ
 {
     W_D(WOutputHelper);
 
-    qw_buffer *buffer = d->acquireBuffer(swapchain ? swapchain : &d->qwoutput()->handle()->swapchain);
+    qw_buffer *buffer = d->acquireBuffer(swapchain ? swapchain : &d->wlrOutput()->swapchain);
     if (!buffer)
         return {};
 
@@ -240,9 +239,9 @@ bool WOutputHelper::commit()
         wlr_output_state_copy(&state, d->extraState.get());
     }
 
-    bool ok = d->qwoutput()->commit_state(&state);
+    bool ok = wlr_output_commit_state(d->wlrOutput(), &state);
     if (!ok) {
-        qCCritical(lcWlOutputHelper, "commit failed on output %s", d->qwoutput()->handle()->name);
+        qCCritical(lcWlOutputHelper, "commit failed on output %s", d->wlrOutput()->name);
     }
     wlr_output_state_finish(&state);
     ExtraState committedExtraState = d->extraState;
@@ -313,7 +312,7 @@ WOutputHelper::ExtraState WOutputHelper::extraState() const
 bool WOutputHelper::testCommit()
 {
     W_D(WOutputHelper);
-    return d->qwoutput()->test_state(&d->state);
+    return wlr_output_test_state(d->wlrOutput(), &d->state);
 }
 
 bool WOutputHelper::testCommit(qw_buffer *buffer, const wlr_output_layer_state_array &layers)
@@ -326,7 +325,7 @@ bool WOutputHelper::testCommit(qw_buffer *buffer, const wlr_output_layer_state_a
     if (!layers.isEmpty())
         wlr_output_state_set_layers(&state, const_cast<wlr_output_layer_state*>(layers.data()), layers.length());
 
-    bool ok = d->qwoutput()->test_state(&state);
+    bool ok = wlr_output_test_state(d->wlrOutput(), &state);
     if (state.committed & WLR_OUTPUT_STATE_BUFFER) {
         Q_ASSERT(buffer);
         buffer->unlock();
@@ -344,13 +343,13 @@ bool WOutputHelper::contentIsDirty() const
 bool WOutputHelper::needsFrame() const
 {
     W_DC(WOutputHelper);
-    return d->output->nativeHandle()->needs_frame;
+    return d->output->handle()->needs_frame;
 }
 
 bool WOutputHelper::framePending() const
 {
     W_DC(WOutputHelper);
-    return d->output->nativeHandle()->frame_pending;
+    return d->output->handle()->frame_pending;
 }
 
 void WOutputHelper::resetState()
@@ -382,7 +381,7 @@ void WOutputHelper::update()
 void WOutputHelper::scheduleFrame()
 {
     W_D(WOutputHelper);
-    d->qwoutput()->schedule_frame();
+    wlr_output_schedule_frame(d->wlrOutput());
 }
 
 bool WOutputHelper::willBeEnabled() const

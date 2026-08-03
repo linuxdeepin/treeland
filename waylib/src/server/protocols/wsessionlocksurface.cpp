@@ -56,7 +56,7 @@ void WSessionLockSurfacePrivate::init() {
     surface = new WSurface(qsurface, q);
     surface->setAttachedData<WSessionLockSurface>(q);
 
-    output = nativeHandle()->output ? WOutput::fromHandle(qw_output::from(nativeHandle()->output)) : nullptr;
+    output = nativeHandle()->output ? WOutput::fromHandle(nativeHandle()->output) : nullptr;
 }
 
 void WSessionLockSurfacePrivate::instantRelease()

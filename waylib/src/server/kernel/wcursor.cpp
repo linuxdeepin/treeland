@@ -19,7 +19,6 @@
 #include <qwcursor.h>
 #include <qwoutput.h>
 #include <qwxcursormanager.h>
-#include <qwoutputlayout.h>
 #include <qwinputdevice.h>
 #include <qwpointer.h>
 #include <qwtouch.h>
@@ -667,7 +666,7 @@ void WCursor::setLayout(WOutputLayout *layout)
         return;
 
     d->outputLayout = layout;
-    d->handle()->attach_output_layout(*d->outputLayout->handle());
+    d->handle()->attach_output_layout(d->outputLayout->handle());
 
     if (d->outputLayout) {
         for (auto o : d->outputLayout->outputs())

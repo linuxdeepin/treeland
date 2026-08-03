@@ -140,6 +140,7 @@ public:
     {
         WInputDevicePrivate *self;
         self = wl_container_of(listener, self, destroy);
+        s_inputDevices->remove(self->handle);
         self->q_func()->safeDeleteLater();
     }
 

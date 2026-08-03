@@ -454,7 +454,6 @@ void Helper::init()
     auto gammaControlManager = qw_gamma_control_manager_v1::create(m_server->handle());
     connect(gammaControlManager, &qw_gamma_control_manager_v1::notify_set_gamma, this, []
             (wlr_gamma_control_manager_v1_set_gamma_event *event) {
-        auto *qwOutput = qw_output::from(event->output);
         size_t ramp_size = 0;
         uint16_t *r = nullptr, *g = nullptr, *b = nullptr;
         wlr_gamma_control_v1 *gamma_control = event->control;
@@ -464,12 +463,14 @@ void Helper::init()
             g = gamma_control->table + gamma_control->ramp_size;
             b = gamma_control->table + 2 * gamma_control->ramp_size;
         }
-        qw_output_state newState;
-        newState.set_gamma_lut(ramp_size, r, g, b);
+        wlr_output_state newState;
+        wlr_output_state_init(&newState);
+        wlr_output_state_set_gamma_lut(&newState, ramp_size, r, g, b);
 
-        if (!qwOutput->commit_state(newState)) {
+        if (!wlr_output_commit_state(event->output, &newState)) {
             qw_gamma_control_v1::from(gamma_control)->send_failed_and_destroy();
         }
+        wlr_output_state_finish(&newState);
     });
 
     connect(wOutputManager, &WOutputManagerV1::requestTestOrApply, this, [this, wOutputManager]
@@ -478,21 +479,23 @@ void Helper::init()
         bool ok = true;
         for (auto state : std::as_const(states)) {
             WOutput *output = state.output;
-            qw_output_state newState;
+            wlr_output_state newState;
+            wlr_output_state_init(&newState);
 
-            newState.set_enabled(state.enabled);
+            wlr_output_state_set_enabled(&newState, state.enabled);
             if (state.enabled) {
                 if (state.mode)
-                    newState.set_mode(state.mode);
+                    wlr_output_state_set_mode(&newState, state.mode);
                 else
-                    newState.set_custom_mode(state.customModeSize.width(),
-                                             state.customModeSize.height(),
-                                             state.customModeRefresh);
+                    wlr_output_state_set_custom_mode(&newState,
+                                                     state.customModeSize.width(),
+                                                     state.customModeSize.height(),
+                                                     state.customModeRefresh);
 
-                newState.set_adaptive_sync_enabled(state.adaptiveSyncEnabled);
+                wlr_output_state_set_adaptive_sync_enabled(&newState, state.adaptiveSyncEnabled);
                 if (!onlyTest) {
-                    newState.set_transform(static_cast<wl_output_transform>(state.transform));
-                    newState.set_scale(state.scale);
+                    wlr_output_state_set_transform(&newState, static_cast<wl_output_transform>(state.transform));
+                    wlr_output_state_set_scale(&newState, state.scale);
 
                     WOutputViewport *viewport = getOutput(output)->screenViewport();
                     if (viewport) {
@@ -503,9 +506,10 @@ void Helper::init()
             }
 
             if (onlyTest)
-                ok &= output->handle()->test_state(newState);
+                ok &= wlr_output_test_state(output->handle(), &newState);
             else
-                ok &= output->handle()->commit_state(newState);
+                ok &= wlr_output_commit_state(output->handle(), &newState);
+            wlr_output_state_finish(&newState);
         }
         wOutputManager->sendResult(config, ok);
     });
@@ -727,11 +731,10 @@ void Helper::setCursorPosition(const QPointF &position)
 
 void Helper::allowNonDrmOutputAutoChangeMode(WOutput *output)
 {
-    output->safeConnect(&qw_output::notify_request_state,
-        this, [this] (wlr_output_event_request_state *newState) {
+    output->safeConnect(&WOutput::requestState,
+        this, [output] (wlr_output_event_request_state *newState) {
         if (newState->state->committed & WLR_OUTPUT_STATE_MODE) {
-            auto output = qobject_cast<qw_output*>(sender());
-            output->commit_state(newState->state);
+            wlr_output_commit_state(output->handle(), newState->state);
         }
     });
 }
@@ -739,25 +742,27 @@ void Helper::allowNonDrmOutputAutoChangeMode(WOutput *output)
 void Helper::enableOutput(WOutput *output)
 {
     // Enable on default
-    auto qwoutput = output->handle();
+    auto *nativeOutput = output->handle();
     // Don't care for WOutput::isEnabled, must do WOutput::commit here,
     // In order to ensure trigger QWOutput::frame signal, WOutputRenderWindow
     // needs this signal to render next frmae. Because QWOutput::frame signal
     // maybe Q_EMIT before WOutputRenderWindow::attach, if no commit here,
     // WOutputRenderWindow will ignore this ouptut on render.
-    if (!qwoutput->property("_Enabled").toBool()) {
-        qwoutput->setProperty("_Enabled", true);
-        qw_output_state newState;
+    if (!output->property("_Enabled").toBool()) {
+        output->setProperty("_Enabled", true);
+        wlr_output_state newState;
+        wlr_output_state_init(&newState);
 
-        if (!qwoutput->handle()->current_mode) {
-            auto mode = qwoutput->preferred_mode();
+        if (!nativeOutput->current_mode) {
+            auto mode = wlr_output_preferred_mode(nativeOutput);
             if (mode)
-                newState.set_mode(mode);
+                wlr_output_state_set_mode(&newState, mode);
         }
-        newState.set_enabled(true);
-        if (!qwoutput->commit_state(newState)) {
-            qCritical("commit failed on output %s", qwoutput->handle()->name);
+        wlr_output_state_set_enabled(&newState, true);
+        if (!wlr_output_commit_state(nativeOutput, &newState)) {
+            qCritical("commit failed on output %s", nativeOutput->name);
         }
+        wlr_output_state_finish(&newState);
     }
 }
 
