@@ -579,7 +579,7 @@ void SeatsManager::setupAllSeats(QQuickWindow *renderWindow,
                                  WCursor *seat0Cursor)
 {
     for (auto *seat : std::as_const(m_seats)) {
-        if (!seat->nativeHandle()) {
+        if (!seat->handle()) {
             qCWarning(lcTlSeat) << "Seat" << seat->name() << "has no native handle, skipping configuration";
             continue;
         }
@@ -686,7 +686,7 @@ void SeatsManager::assignDevice(WInputDevice *device,
 
     // Auto-assign device to appropriate seat
     WSeat *assignedSeat = autoAssignDevice(device);
-    if (!assignedSeat && fallbackSeat && fallbackSeat->nativeHandle()) {
+    if (!assignedSeat && fallbackSeat && fallbackSeat->handle()) {
         fallbackSeat->attachInputDevice(device);
         assignedSeat = fallbackSeat;
         qCDebug(lcTlSeat) << "Device" << deviceName << "assigned to fallback seat";

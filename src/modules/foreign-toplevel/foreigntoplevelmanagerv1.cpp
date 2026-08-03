@@ -19,8 +19,10 @@
 #include <map>
 
 #include <wayland-server.h>
+extern "C" {
+#include <wlr/types/wlr_seat.h>
+}
 #include <woutput.h>
-#include <qwseat.h>
 #include <wsocket.h>
 #include <wtoplevelsurface.h>
 #include <wxdgtoplevelsurface.h>
@@ -798,7 +800,7 @@ void ForeignToplevelHandleV1Private::activate(Resource *resource, struct ::wl_re
         return;
     }
 
-    Q_EMIT q->requestActivate(WSeat::fromHandle(qw_seat::from(seat_client->seat)));
+    Q_EMIT q->requestActivate(WSeat::fromHandle(seat_client->seat));
 }
 
 void ForeignToplevelHandleV1Private::close([[maybe_unused]] Resource *resource)

@@ -232,7 +232,7 @@ void text_input_handle_activate([[maybe_unused]] wl_client *client,
                                 wl_resource *surface)
 {
     wlr_seat_client *seat_client =  wlr_seat_client_from_resource(seat);
-    WSeat *wSeat = WSeat::fromHandle(qw_seat::from(seat_client->seat));
+    WSeat *wSeat = WSeat::fromHandle(seat_client->seat);
     Q_ASSERT(wSeat);
     WTextInputV1 *text_input = text_input_from_resource(resource);
     auto d = text_input->d_func();
@@ -261,7 +261,7 @@ void text_input_handle_deactivate([[maybe_unused]] wl_client *client,
     WTextInputV1 *text_input = text_input_from_resource(resource);
     auto d = text_input->d_func();
     wlr_seat_client *seat_client = wlr_seat_client_from_resource(seat);
-    WSeat *wSeat = WSeat::fromHandle(qw_seat::from(seat_client->seat));
+    WSeat *wSeat = WSeat::fromHandle(seat_client->seat);
     if (!wSeat || wSeat != text_input->seat())
         return;
 

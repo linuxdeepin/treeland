@@ -91,7 +91,7 @@ qw_input_method_v2 *WInputMethodV2::handle() const
 WSeat *WInputMethodV2::seat() const
 {
     W_DC(WInputMethodV2);
-    return WSeat::fromHandle(qw_seat::from(d->nativeHandle()->seat));
+    return WSeat::fromHandle(d->nativeHandle()->seat);
 }
 
 void WInputMethodV2::sendContentType(quint32 hint, quint32 purpose)

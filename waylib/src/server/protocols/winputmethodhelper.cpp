@@ -18,7 +18,6 @@
 #include <qwinputmethodv2.h>
 #include <qwtextinputv3.h>
 #include <qwvirtualkeyboardv1.h>
-#include <qwseat.h>
 #include <qwbox.h>
 
 #include <QQmlInfo>
@@ -107,17 +106,17 @@ public:
         }
 
         if (kgHandle->keyboard) {
-            seat->handle()->keyboard_send_modifiers(&kgHandle->keyboard->modifiers);
+            wlr_seat_keyboard_send_modifiers(seat->handle(), &kgHandle->keyboard->modifiers);
         }
         // Only end the grab if our grab is still the active one on the seat.
         // A popup grab may have silently replaced us (wlr_seat_keyboard_start_grab
         // unconditionally overwrites keyboard_state.grab).
-        auto isStillActive = seat->nativeHandle()->keyboard_state.grab == &keyboardGrab;
+        auto isStillActive = seat->handle()->keyboard_state.grab == &keyboardGrab;
         qCDebug(lcWlInputMethod) << "endGrab: isStillActive" << isStillActive << "grab ptr"
-                                 << seat->nativeHandle()->keyboard_state.grab << "&keyboardGrab"
+                                 << seat->handle()->keyboard_state.grab << "&keyboardGrab"
                                  << &keyboardGrab;
         if (isStillActive) {
-            seat->handle()->keyboard_end_grab();
+            wlr_seat_keyboard_end_grab(seat->handle());
         }
     }
 
@@ -178,7 +177,7 @@ WInputMethodHelper::WInputMethodHelper(WServer *server, WSeat *seat)
         if (auto *activeKG = d->activeKeyboardGrab)
             d->setKeyboard(activeKG, d->seat->keyboard());
     });
-    connect(d->seat->handle(), &QW_NAMESPACE::qw_seat::notify_keyboard_grab_begin, this, &WInputMethodHelper::handleKeyboardGrabBegin);
+    connect(d->seat, &WSeat::keyboardGrabBegin, this, &WInputMethodHelper::handleKeyboardGrabBegin);
     connect(d->inputMethodManagerV2, &WInputMethodManagerV2::newInputMethod, this, &WInputMethodHelper::handleNewIMV2);
     connect(d->textInputManagerV3, &WTextInputManagerV3::newTextInput, this, &WInputMethodHelper::handleNewTI);
     connect(d->virtualKeyboardManagerV1, &WVirtualKeyboardManagerV1::newVirtualKeyboard, this, &WInputMethodHelper::handleNewVKV1);
@@ -270,7 +269,7 @@ bool WInputMethodHelper::isActiveKeyboardGrabOwner() const
     W_DC(WInputMethodHelper);
     if (!d->activeKeyboardGrab)
         return false;
-    return d->seat->nativeHandle()->keyboard_state.grab == &d->keyboardGrab;
+    return d->seat->handle()->keyboard_state.grab == &d->keyboardGrab;
 }
 
 const QList<WInputDevice *> &WInputMethodHelper::virtualKeyboards() const
@@ -310,14 +309,14 @@ void WInputMethodHelper::handleNewKGV2(qw_input_method_keyboard_grab_v2 *kgv2)
     }
     d->activeKeyboardGrab = kgv2;
     d->setKeyboard(kgv2, d->seat->keyboard());
-    d->grabInterface = *d->seat->nativeHandle()->keyboard_state.grab->interface;
+    d->grabInterface = *d->seat->handle()->keyboard_state.grab->interface;
     d->grabInterface.key = handleKey;
     d->grabInterface.modifiers = handleModifiers;
-    d->keyboardGrab.seat = d->seat->nativeHandle();
+    d->keyboardGrab.seat = d->seat->handle();
     d->handlerArg.grab = kgv2;
     d->keyboardGrab.data = &d->handlerArg;
     d->keyboardGrab.interface = &d->grabInterface;
-    d->seat->handle()->keyboard_start_grab(&d->keyboardGrab);
+    wlr_seat_keyboard_start_grab(d->seat->handle(), &d->keyboardGrab);
     qCDebug(lcWlInputMethod) << "IME keyboard grab installed";
     d->activeKeyboardGrabDestroyConnection =
         connect(kgv2, &qw_input_method_keyboard_grab_v2::before_destroy, this, [this, d] {
@@ -380,7 +379,7 @@ void WInputMethodHelper::handleKeyboardGrabBegin()
     // Our grab v2 object is still alive (endGrab only runs on before_destroy),
     // so activeKeyboardGrab is non-null, but seat->keyboard_state.grab no longer
     // points to our keyboardGrab.
-    if (d->activeKeyboardGrab && d->seat->nativeHandle()->keyboard_state.grab != &d->keyboardGrab) {
+    if (d->activeKeyboardGrab && d->seat->handle()->keyboard_state.grab != &d->keyboardGrab) {
         qCDebug(lcWlInputMethod) << "IME keyboard grab silently replaced, notifying leave";
         notifyLeave();
     }

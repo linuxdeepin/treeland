@@ -100,7 +100,7 @@ WTextInputV3::WTextInputV3(qw_text_input_v3 *h, QObject *parent)
 
 WSeat *WTextInputV3::seat() const
 {
-    return WSeat::fromHandle(qw_seat::from(handle()->handle()->seat));
+    return WSeat::fromHandle(handle()->handle()->seat);
 }
 
 WSurface *WTextInputV3::focusedSurface() const

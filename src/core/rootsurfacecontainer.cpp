@@ -785,7 +785,7 @@ void RootSurfaceContainer::givePopupFocus(SurfaceWrapper *popupWrapper)
         return;
 
     for (auto it = m_seatContainers.constBegin(); it != m_seatContainers.constEnd(); ++it) {
-        if (it.key()->nativeHandle() == wlrPopup->seat) {
+        if (it.key()->handle() == wlrPopup->seat) {
             it.value()->givePopupFocus(popupWrapper);
             return;
         }

@@ -7,20 +7,13 @@
 #include <woutputlayout.h>
 #include <wsurface.h>
 
-#include <qwglobal.h>
 #include <QPointF>
 
 QT_BEGIN_NAMESPACE
 class QWindow;
 QT_END_NAMESPACE
 
-QW_BEGIN_NAMESPACE
-class qw_xcursor_manager;
-class qw_cursor;
-class qw_output_cursor;
-class qw_surface;
-QW_END_NAMESPACE
-
+struct wlr_cursor;
 struct wlr_input_device;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -45,9 +38,9 @@ public:
 
     explicit WCursor(QObject *parent = nullptr);
 
-    QW_NAMESPACE::qw_cursor *handle() const;
+    wlr_cursor *handle() const;
 
-    static WCursor *fromHandle(const QW_NAMESPACE::qw_cursor *handle);
+    static WCursor *fromHandle(const wlr_cursor *handle);
 
     static Qt::MouseButton fromNativeButton(uint32_t code);
     static uint32_t toNativeButton(Qt::MouseButton button);

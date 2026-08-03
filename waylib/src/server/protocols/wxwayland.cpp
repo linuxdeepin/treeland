@@ -304,7 +304,7 @@ void WXWayland::setAtomSupported(xcb_atom_t atom, bool supported)
 void WXWayland::setSeat(WSeat *seat)
 {
     if (auto handle = this->handle())
-        handle->set_seat(*seat->handle());
+        handle->set_seat(seat->handle());
 }
 
 WSeat *WXWayland::seat() const
@@ -313,8 +313,7 @@ WSeat *WXWayland::seat() const
         return nullptr;
     if (!handle()->handle()->seat)
         return nullptr;
-    auto seat = qw_seat::from(handle()->handle()->seat);
-    return WSeat::fromHandle(seat);
+    return WSeat::fromHandle(handle()->handle()->seat);
 }
 
 xcb_connection_t *WXWayland::xcbConnection() const

@@ -172,7 +172,7 @@ void handle_manager_get_text_input(wl_client *client,
     }
     text_input->d_func()->resource = text_input_resource;
     auto wClient = WClient::get(client);
-    auto wSeat = WSeat::fromHandle(qw_seat::from(seat_client->seat));
+    auto wSeat = WSeat::fromHandle(seat_client->seat);
     Q_ASSERT(wClient);
     Q_ASSERT(wSeat);
     text_input->d_func()->client = wClient;

@@ -2371,7 +2371,7 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *targetWindow, QInputEvent 
     }
 
     if (event->isInputEvent()) {
-        m_idleNotifier->notify_activity(seat->nativeHandle());
+        m_idleNotifier->notify_activity(seat->handle());
 
         // Wake DPMS-off outputs on any input event
         // Only re-enable outputs disabled by output_power, not user-disabled outputs
@@ -2952,7 +2952,7 @@ void Helper::handleRequestDrag([[maybe_unused]] WSurface *surface)
 {
     m_primarySeat->setAlwaysUpdateHoverTarget(true);
 
-    struct wlr_drag *drag = m_primarySeat->nativeHandle()->drag;
+    struct wlr_drag *drag = m_primarySeat->handle()->drag;
     Q_ASSERT(drag);
     QObject::connect(qw_drag::from(drag), &qw_drag::notify_drop, this, [this] {
         if (m_ddeShellV1)
@@ -3856,11 +3856,11 @@ WSeat *Helper::findSeatForSurface(SurfaceWrapper *wrapper) const
 
 void Helper::handleRequestDragForSeat(WSeat *seat, WSurface *)
 {
-    if (!seat || !seat->nativeHandle())
+    if (!seat || !seat->handle())
         return;
 
     seat->setAlwaysUpdateHoverTarget(true);
-    struct wlr_drag *drag = seat->nativeHandle()->drag;
+    struct wlr_drag *drag = seat->handle()->drag;
     Q_ASSERT(drag);
 
     auto *qwDrag = qw_drag::from(drag);

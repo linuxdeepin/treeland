@@ -12,11 +12,6 @@
 
 Q_MOC_INCLUDE(<wsurface.h>)
 
-QW_BEGIN_NAMESPACE
-class qw_seat;
-class qw_surface;
-QW_END_NAMESPACE
-
 QT_BEGIN_NAMESPACE
 class QInputEvent;
 class QWindow;
@@ -65,10 +60,9 @@ class WAYLIB_SERVER_EXPORT WSeat : public WWrapObject, public WServerInterface
 public:
     WSeat(const QString &name = QStringLiteral("seat0"));
 
-    static WSeat *fromHandle(const QW_NAMESPACE::qw_seat *handle);
+    static WSeat *fromHandle(const wlr_seat *handle);
     static WSeat *fromInputEvent(QInputEvent *event);
-    QW_NAMESPACE::qw_seat *handle() const;
-    wlr_seat *nativeHandle() const;
+    wlr_seat *handle() const;
 
     QString name() const;
 
@@ -115,6 +109,12 @@ public:
 Q_SIGNALS:
     void keyboardChanged();
     void keyboardFocusSurfaceChanged();
+    void pointerGrabBegin();
+    void pointerGrabEnd();
+    void keyboardGrabBegin();
+    void keyboardGrabEnd();
+    void touchGrabBegin();
+    void touchGrabEnd();
     void requestCursorShape(WAYLIB_SERVER_NAMESPACE::WGlobal::CursorShape shape);
     void requestCursorSurface(WAYLIB_SERVER_NAMESPACE::WSurface *surface, const QPoint &hotspot);
     void requestDrag(WAYLIB_SERVER_NAMESPACE::WSurface *surface);

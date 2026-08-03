@@ -12,9 +12,11 @@
 #include <qwcompositor.h>
 #include <qwdisplay.h>
 #include <qwoutput.h>
-#include <qwseat.h>
 
 #include <wayland-server.h>
+extern "C" {
+#include <wlr/types/wlr_seat.h>
+}
 
 static QList<DDEShellSurfaceInterface *> s_shellSurfaces;
 static QList<DDEActiveInterface *> s_ddeActives;
@@ -522,7 +524,7 @@ WSeat *DDEActiveInterface::seat() const
 {
     auto wlrSeat =
         static_cast<struct wlr_seat_client *>(wl_resource_get_user_data(d->seatResouce))->seat;
-    return WSeat::fromHandle(qw_seat::from(wlrSeat));
+    return WSeat::fromHandle(wlrSeat);
 }
 
 void DDEActiveInterface::sendActiveIn(uint32_t reason)

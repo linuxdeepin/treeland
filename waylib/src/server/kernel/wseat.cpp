@@ -11,23 +11,24 @@
 #include "private/wglobal_p.h"
 #include "wayliblogging.h"
 
-#include <qwseat.h>
-#include <qwcursor.h>
 #include <qwcompositor.h>
 #include <qwdatadevice.h>
-#include <qwpointergesturesv1.h>
 #include <qwcompositor.h>
 #include <qwdisplay.h>
 #include <qwprimaryselection.h>
 
 extern "C" {
+#include <wlr/types/wlr_data_device.h>
 #include <wlr/types/wlr_keyboard_group.h>
+#include <wlr/types/wlr_pointer_gestures_v1.h>
+#include <wlr/types/wlr_seat.h>
 }
 
 #include <QQuickWindow>
 #include <QGuiApplication>
 #include <QQuickItem>
 #include <QDebug>
+#include <QHash>
 #include <QTimer>
 
 #include <qpa/qwindowsysteminterface.h>
@@ -41,6 +42,9 @@ QT_END_NAMESPACE
 
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
+
+using SeatRegistry = QHash<const wlr_seat *, WSeat *>;
+Q_GLOBAL_STATIC(SeatRegistry, s_seats)
 
 #if QT_CONFIG(wheelevent)
 class Q_DECL_HIDDEN WSeatWheelEvent : public QWheelEvent {
@@ -117,21 +121,17 @@ public:
         }
     }
 
-    inline qw_seat *handle() const {
-        return q_func()->nativeInterface<qw_seat>();
-    }
-
-    inline wlr_seat *nativeHandle() const {
-        Q_ASSERT(handle());
-        return handle()->handle();
+    inline wlr_seat *handle() const {
+        Q_ASSERT(seatHandle);
+        return seatHandle;
     }
 
     inline wlr_surface *pointerFocusSurface() const {
-        return nativeHandle()->pointer_state.focused_surface;
+        return handle()->pointer_state.focused_surface;
     }
 
     inline wlr_surface *keyboardFocusSurface() const {
-        return nativeHandle()->keyboard_state.focused_surface;
+        return handle()->keyboard_state.focused_surface;
     }
 
     inline bool doNotifyMotion(WSurface *target, QObject *eventObject, QPointF localPos, uint32_t timestamp) {
@@ -147,11 +147,11 @@ public:
             }
         }
 
-        handle()->pointer_notify_motion(timestamp, localPos.x(), localPos.y());
+        wlr_seat_pointer_notify_motion(handle(), timestamp, localPos.x(), localPos.y());
         return true;
     }
     inline bool doNotifyButton(uint32_t button, wl_pointer_button_state state, uint32_t timestamp) {
-        handle()->pointer_notify_button(timestamp, button, state);
+        wlr_seat_pointer_notify_button(handle(), timestamp, button, state);
         return true;
     }
     static inline wl_pointer_axis fromQtHorizontal(Qt::Orientation o) {
@@ -164,12 +164,12 @@ public:
         if (!pointerFocusSurface())
             return false;
 
-        handle()->pointer_notify_axis(timestamp, fromQtHorizontal(orientation), delta, delta_discrete,
-                                      source, relative_direction);
+        wlr_seat_pointer_notify_axis(handle(), timestamp, fromQtHorizontal(orientation), delta,
+                                     delta_discrete, source, relative_direction);
         return true;
     }
     inline void doNotifyFrame() {
-        handle()->pointer_notify_frame();
+        wlr_seat_pointer_notify_frame(handle());
     }
     inline bool doEnter(WSurface *surface, QObject *eventObject, const QPointF &position) {
         // doEnter be called from QEvent::HoverEnter is normal,
@@ -179,8 +179,8 @@ public:
             return true;
         }
         auto tmp = oldPointerFocusSurface;
-        oldPointerFocusSurface = handle()->handle()->pointer_state.focused_surface;
-        handle()->pointer_notify_enter(surface->handle()->handle(), position.x(), position.y());
+        oldPointerFocusSurface = handle()->pointer_state.focused_surface;
+        wlr_seat_pointer_notify_enter(handle(), surface->handle()->handle(), position.x(), position.y());
         if (!pointerFocusSurface()) {
             // Because if the last pointer focus surface is a popup, the 'pointerNotifyEnter'
             // will call 'xdg_pointer_grab_enter' in wlroots, and the 'xdg_pointer_grab_enter'
@@ -208,8 +208,8 @@ public:
     }
     inline void doClearPointerFocus() {
         pointerFocusEventObject.clear();
-        handle()->pointer_notify_clear_focus();
-        Q_ASSERT(!handle()->handle()->pointer_state.focused_surface);
+        wlr_seat_pointer_notify_clear_focus(handle());
+        Q_ASSERT(!handle()->pointer_state.focused_surface);
         if (cursor) // reset cursor from QCursor resource, the last cursor is from wlr_surface
             Q_EMIT cursor->cursorChanged();
     }
@@ -231,29 +231,29 @@ public:
             // Send keyboard enter with current modifiers.
             // This ensures the newly focused client receives the current modifier state
             // (Num Lock, Caps Lock, etc.) as required by Wayland protocol.
-            handle()->keyboard_notify_enter(*surface, keycodes, numKeycodes, modifiers);
+            wlr_seat_keyboard_notify_enter(handle(), surface->handle(), keycodes, numKeycodes, modifiers);
         } else {
-            handle()->keyboard_notify_clear_focus();
+            wlr_seat_keyboard_notify_clear_focus(handle());
         }
     }
     inline void doTouchNotifyDown(WSurface *surface, uint32_t time_msec, int32_t touch_id, const QPointF &pos) {
-        handle()->touch_notify_down(surface->handle()->handle(), time_msec, touch_id, pos.x(), pos.y());
+        wlr_seat_touch_notify_down(handle(), surface->handle()->handle(), time_msec, touch_id, pos.x(), pos.y());
     }
     inline void doTouchNotifyMotion(uint32_t time_msec, int32_t touch_id, const QPointF &pos) {
-        handle()->touch_notify_motion(time_msec, touch_id, pos.x(), pos.y());
+        wlr_seat_touch_notify_motion(handle(), time_msec, touch_id, pos.x(), pos.y());
     }
     inline void doTouchNotifyUp(uint32_t time_msec, int32_t touch_id) {
-        handle()->touch_notify_up(time_msec, touch_id);
+        wlr_seat_touch_notify_up(handle(), time_msec, touch_id);
     }
     inline void doTouchNotifyCancel(WInputDevice *device) {
         auto *state = device->getAttachedData<WSeatPrivate::DeviceState>();
         for (int i = state->m_points.size() - 1; i >= 0; --i) {
             const auto &qtPoint = state->m_points.at(i);
             if (qtPoint.state == static_cast<QEventPoint::State>(WEvent::PointCancelled)) {
-                auto point = handle()->touch_get_point(qtPoint.id);
+                auto point = wlr_seat_touch_get_point(handle(), qtPoint.id);
                 Q_ASSERT(point);
                 state->m_points.removeAt(i);
-                handle()->touch_notify_cancel(point->client);
+                wlr_seat_touch_notify_cancel(handle(), point->client);
             }
         }
     }
@@ -301,7 +301,7 @@ public:
             else if (tp.state != QEventPoint::Stationary)
                 Q_UNREACHABLE_RETURN();
         }
-        handle()->touch_notify_frame();
+        wlr_seat_touch_notify_frame(handle());
     }
 
     // for keyboard event
@@ -312,7 +312,7 @@ public:
             return false;
 
         /* Send keys to the client. */
-        this->handle()->keyboard_notify_key(timestamp, keycode, state);
+        wlr_seat_keyboard_notify_key(handle(), timestamp, keycode, state);
         return true;
     }
     inline bool doNotifyModifiers(WInputDevice *device) {
@@ -330,7 +330,7 @@ public:
         // If it changed, wlr_seat_set_keyboard() already sent them.
         if (!keyboardChanged) {
             /* Send modifiers to the client. */
-            this->handle()->keyboard_notify_modifiers(&keyboard->modifiers);
+            wlr_seat_keyboard_notify_modifiers(handle(), &keyboard->modifiers);
         }
         return true;
     }
@@ -361,7 +361,18 @@ public:
     void on_keyboard_modifiers(WInputDevice *device);
     // end slot function
 
-    void connect();
+    struct NativeListener {
+        using Callback = void (*)(WSeatPrivate *, void *);
+
+        wl_listener listener;
+        WSeatPrivate *owner = nullptr;
+        Callback callback = nullptr;
+    };
+
+    void addListener(NativeListener &listener, wl_signal *signal, NativeListener::Callback callback);
+    static void handleNativeEvent(wl_listener *listener, void *data);
+    void connectNativeEvents();
+    void disconnectNativeEvents();
     void updateCapabilities();
     void attachInputDevice(WInputDevice *device);
     void detachInputDevice(WInputDevice *device);
@@ -371,8 +382,21 @@ public:
     W_DECLARE_PUBLIC(WSeat)
 
     QString name;
+    wlr_seat *seatHandle = nullptr;
+    NativeListener destroyListener;
+    NativeListener requestSetCursor;
+    NativeListener requestSetSelection;
+    NativeListener requestSetPrimarySelection;
+    NativeListener requestStartDrag;
+    NativeListener startDrag;
+    NativeListener pointerGrabBegin;
+    NativeListener pointerGrabEnd;
+    NativeListener keyboardGrabBegin;
+    NativeListener keyboardGrabEnd;
+    NativeListener touchGrabBegin;
+    NativeListener touchGrabEnd;
     WCursor *cursor = nullptr;
-    qw_pointer_gestures_v1 *gesture = nullptr;
+    wlr_pointer_gestures_v1 *gesture = nullptr;
     QVector<WInputDevice*> deviceList;
     QVector<WInputDevice*> touchDeviceList;
     QPointer<WSeatEventFilter> eventFilter;
@@ -459,12 +483,16 @@ public:
 
 void WSeatPrivate::on_destroy()
 {
+    auto *seat = seatHandle;
+    disconnectNativeEvents();
+    s_seats->remove(seat);
+    seatHandle = nullptr;
     q_func()->m_handle = nullptr;
 }
 
 void WSeatPrivate::on_request_set_cursor(wlr_seat_pointer_request_set_cursor_event *event)
 {
-    auto focused_client = nativeHandle()->pointer_state.focused_client;
+    auto focused_client = handle()->pointer_state.focused_client;
     /* This can be sent by any client, so we check to make sure this one is
      * actually has pointer focus first. */
     if (focused_client == event->seat_client) {
@@ -496,24 +524,24 @@ void WSeatPrivate::on_request_set_cursor(wlr_seat_pointer_request_set_cursor_eve
 
 void WSeatPrivate::on_request_set_selection(wlr_seat_request_set_selection_event *event)
 {
-    handle()->set_selection(event->source, event->serial);
+    wlr_seat_set_selection(handle(), event->source, event->serial);
 }
 
 void WSeatPrivate::on_request_set_primary_selection(wlr_seat_request_set_primary_selection_event *event)
 {
-    wlr_seat_set_primary_selection(nativeHandle(), event->source, event->serial);
+    wlr_seat_set_primary_selection(handle(), event->source, event->serial);
 }
 
 void WSeatPrivate::on_request_start_drag(wlr_seat_request_start_drag_event *event)
 {
-    if (handle()->validate_pointer_grab_serial(event->origin, event->serial)) {
-        wlr_seat_start_pointer_drag(nativeHandle(), event->drag, event->serial);
+    if (wlr_seat_validate_pointer_grab_serial(handle(), event->origin, event->serial)) {
+        wlr_seat_start_pointer_drag(handle(), event->drag, event->serial);
         return;
     }
 
     struct wlr_touch_point *point;
-    if (handle()->validate_touch_grab_serial(event->origin, event->serial, &point)) {
-        wlr_seat_start_touch_drag(nativeHandle(), event->drag, event->serial, point);
+    if (wlr_seat_validate_touch_grab_serial(handle(), event->origin, event->serial, &point)) {
+        wlr_seat_start_touch_drag(handle(), event->drag, event->serial, point);
         return;
     }
 
@@ -615,27 +643,95 @@ void WSeatPrivate::on_keyboard_modifiers(WInputDevice *device)
     doNotifyModifiers(device);
 }
 
-void WSeatPrivate::connect()
+void WSeatPrivate::addListener(NativeListener &listener, wl_signal *signal,
+                               NativeListener::Callback callback)
 {
-    W_Q(WSeat);
-    QObject::connect(handle(), &qw_seat::destroyed, q, [this] {
-        on_destroy();
+    listener.owner = this;
+    listener.callback = callback;
+    listener.listener.notify = handleNativeEvent;
+    wl_list_init(&listener.listener.link);
+    wl_signal_add(signal, &listener.listener);
+}
+
+void WSeatPrivate::handleNativeEvent(wl_listener *listener, void *data)
+{
+    NativeListener *native;
+    native = wl_container_of(listener, native, listener);
+    native->callback(native->owner, data);
+}
+
+void WSeatPrivate::connectNativeEvents()
+{
+    addListener(destroyListener, &seatHandle->events.destroy, [](WSeatPrivate *self, void *) {
+        self->on_destroy();
     });
-    QObject::connect(handle(), &qw_seat::notify_request_set_cursor, q, [this] (wlr_seat_pointer_request_set_cursor_event *event) {
-        on_request_set_cursor(event);
+    addListener(requestSetCursor, &seatHandle->events.request_set_cursor,
+                [](WSeatPrivate *self, void *data) {
+                    self->on_request_set_cursor(static_cast<wlr_seat_pointer_request_set_cursor_event *>(data));
+                });
+    addListener(requestSetSelection, &seatHandle->events.request_set_selection,
+                [](WSeatPrivate *self, void *data) {
+                    self->on_request_set_selection(static_cast<wlr_seat_request_set_selection_event *>(data));
+                });
+    addListener(requestSetPrimarySelection, &seatHandle->events.request_set_primary_selection,
+                [](WSeatPrivate *self, void *data) {
+                    self->on_request_set_primary_selection(
+                        static_cast<wlr_seat_request_set_primary_selection_event *>(data));
+                });
+    addListener(requestStartDrag, &seatHandle->events.request_start_drag,
+                [](WSeatPrivate *self, void *data) {
+                    self->on_request_start_drag(static_cast<wlr_seat_request_start_drag_event *>(data));
+                });
+    addListener(startDrag, &seatHandle->events.start_drag, [](WSeatPrivate *self, void *data) {
+        self->on_start_drag(static_cast<wlr_drag *>(data));
     });
-    QObject::connect(handle(), &qw_seat::notify_request_set_selection, q, [this] (wlr_seat_request_set_selection_event *event) {
-        on_request_set_selection(event);
-    });
-    QObject::connect(handle(), &qw_seat::notify_request_set_primary_selection, q, [this] (wlr_seat_request_set_primary_selection_event *event) {
-        on_request_set_primary_selection(event);
-    });
-    QObject::connect(handle(), &qw_seat::notify_request_start_drag, q, [this] (wlr_seat_request_start_drag_event *event) {
-        on_request_start_drag(event);
-    });
-    QObject::connect(handle(), &qw_seat::notify_start_drag, q, [this] (wlr_drag *drag) {
-        on_start_drag(drag);
-    });
+    addListener(pointerGrabBegin, &seatHandle->events.pointer_grab_begin,
+                [](WSeatPrivate *self, void *) {
+                    Q_EMIT self->q_func()->pointerGrabBegin();
+                });
+    addListener(pointerGrabEnd, &seatHandle->events.pointer_grab_end,
+                [](WSeatPrivate *self, void *) {
+                    Q_EMIT self->q_func()->pointerGrabEnd();
+                });
+    addListener(keyboardGrabBegin, &seatHandle->events.keyboard_grab_begin,
+                [](WSeatPrivate *self, void *) {
+                    Q_EMIT self->q_func()->keyboardGrabBegin();
+                });
+    addListener(keyboardGrabEnd, &seatHandle->events.keyboard_grab_end,
+                [](WSeatPrivate *self, void *) {
+                    Q_EMIT self->q_func()->keyboardGrabEnd();
+                });
+    addListener(touchGrabBegin, &seatHandle->events.touch_grab_begin,
+                [](WSeatPrivate *self, void *) {
+                    Q_EMIT self->q_func()->touchGrabBegin();
+                });
+    addListener(touchGrabEnd, &seatHandle->events.touch_grab_end,
+                [](WSeatPrivate *self, void *) {
+                    Q_EMIT self->q_func()->touchGrabEnd();
+                });
+}
+
+void WSeatPrivate::disconnectNativeEvents()
+{
+    for (NativeListener *listener : {
+             &destroyListener,
+             &requestSetCursor,
+             &requestSetSelection,
+             &requestSetPrimarySelection,
+             &requestStartDrag,
+             &startDrag,
+             &pointerGrabBegin,
+             &pointerGrabEnd,
+             &keyboardGrabBegin,
+             &keyboardGrabEnd,
+             &touchGrabBegin,
+             &touchGrabEnd,
+         }) {
+        if (!wl_list_empty(&listener->listener.link)) {
+            wl_list_remove(&listener->listener.link);
+            wl_list_init(&listener->listener.link);
+        }
+    }
 }
 
 void WSeatPrivate::updateCapabilities()
@@ -652,15 +748,17 @@ void WSeatPrivate::updateCapabilities()
         }
     }
 
-    handle()->set_capabilities(caps);
+    wlr_seat_set_capabilities(handle(), caps);
 }
 
 void WSeatPrivate::attachInputDevice(WInputDevice *device)
 {
     W_Q(WSeat);
     device->setSeat(q);
-    auto qtDevice = QWlrootsIntegration::instance()->addInputDevice(device, name);
-    Q_ASSERT(qtDevice);
+    if (auto *integration = QWlrootsIntegration::instance()) {
+        auto qtDevice = integration->addInputDevice(device, name);
+        Q_ASSERT(qtDevice);
+    }
 
     if (device->type() == WInputDevice::Type::Keyboard) {
         auto *keyboard = wlr_keyboard_from_input_device(device->handle());
@@ -725,8 +823,10 @@ void WSeatPrivate::detachInputDevice(WInputDevice *device)
             wlr_keyboard_group_remove_keyboard(group, keyboard);
         }
     }
-    [[maybe_unused]] bool ok = QWlrootsIntegration::instance()->removeInputDevice(device);
-    Q_ASSERT(ok);
+    if (auto *integration = QWlrootsIntegration::instance()) {
+        [[maybe_unused]] bool ok = integration->removeInputDevice(device);
+        Q_ASSERT(ok);
+    }
 }
 
 WSeat::WSeat(const QString &name)
@@ -735,9 +835,9 @@ WSeat::WSeat(const QString &name)
 
 }
 
-WSeat *WSeat::fromHandle(const qw_seat *handle)
+WSeat *WSeat::fromHandle(const wlr_seat *handle)
 {
-    return handle->get_data<WSeat>();
+    return s_seats->value(handle);
 }
 
 // Some event filter related functions needs to get WSeat from QInputEvent,
@@ -759,14 +859,9 @@ WSeat *WSeat::fromInputEvent(QInputEvent *event) {
     }
 }
 
-qw_seat *WSeat::handle() const
+wlr_seat *WSeat::handle() const
 {
-    return d_func()->handle();
-}
-
-wlr_seat *WSeat::nativeHandle() const
-{
-    return d_func()->nativeHandle();
+    return d_func()->seatHandle;
 }
 
 QString WSeat::name() const
@@ -833,7 +928,7 @@ WGlobal::CursorShape WSeat::requestedCursorShape() const
 {
     W_DC(WSeat);
 
-    if (d->cursorClient != d->nativeHandle()->pointer_state.focused_client) {
+    if (d->cursorClient != d->handle()->pointer_state.focused_client) {
         qCWarning(lcWlSeat, "Focused client never set cursor shape nor surface, will fallback to `Default`");
         return WGlobal::CursorShape::Default;
     }
@@ -845,7 +940,7 @@ WSurface *WSeat::requestedCursorSurface() const
 {
     W_DC(WSeat);
 
-    if (d->cursorClient == d->nativeHandle()->pointer_state.focused_client)
+    if (d->cursorClient == d->handle()->pointer_state.focused_client)
         return d->cursorSurface;
     return nullptr;
 }
@@ -1013,31 +1108,31 @@ bool WSeat::sendEvent(WSurface *target, QObject *shellObject, QObject *eventObje
         switch (e->gestureType()) {
             case Qt::NativeGestureType::BeginNativeGesture:
                 if (e->libInputGestureType() == WGestureEvent::WLibInputGestureType::SwipeGesture)
-                    d->gesture->send_swipe_begin(d->nativeHandle(), e->timestamp(), e->fingerCount());
+                    wlr_pointer_gestures_v1_send_swipe_begin(d->gesture, d->handle(), e->timestamp(), e->fingerCount());
                 if (e->libInputGestureType() == WGestureEvent::WLibInputGestureType::PinchGesture)
-                    d->gesture->send_pinch_begin(d->nativeHandle(), e->timestamp(), e->fingerCount());
+                    wlr_pointer_gestures_v1_send_pinch_begin(d->gesture, d->handle(), e->timestamp(), e->fingerCount());
                 if (e->libInputGestureType() == WGestureEvent::WLibInputGestureType::HoldGesture)
-                    d->gesture->send_hold_begin(d->nativeHandle(), e->timestamp(), e->fingerCount());
+                    wlr_pointer_gestures_v1_send_hold_begin(d->gesture, d->handle(), e->timestamp(), e->fingerCount());
                 break;
             case Qt::NativeGestureType::PanNativeGesture:
                 if (e->libInputGestureType() == WGestureEvent::WLibInputGestureType::SwipeGesture)
-                    d->gesture->send_swipe_update(d->nativeHandle(), e->timestamp(), e->delta().x(), e->delta().y());
+                    wlr_pointer_gestures_v1_send_swipe_update(d->gesture, d->handle(), e->timestamp(), e->delta().x(), e->delta().y());
                 if (e->libInputGestureType() == WGestureEvent::WLibInputGestureType::PinchGesture)
-                    d->gesture->send_pinch_update(d->nativeHandle(), e->timestamp(), e->delta().x(), e->delta().y(), d->lastScale, 0);
+                    wlr_pointer_gestures_v1_send_pinch_update(d->gesture, d->handle(), e->timestamp(), e->delta().x(), e->delta().y(), d->lastScale, 0);
                 break;
             case Qt::NativeGestureType::ZoomNativeGesture:
-                d->gesture->send_pinch_update(d->nativeHandle(), e->timestamp(), e->delta().x(), e->delta().y(), d->lastScale, 0);
+                wlr_pointer_gestures_v1_send_pinch_update(d->gesture, d->handle(), e->timestamp(), e->delta().x(), e->delta().y(), d->lastScale, 0);
                 break;
             case Qt::NativeGestureType::RotateNativeGesture:
-                d->gesture->send_pinch_update(d->nativeHandle(), e->timestamp(), e->delta().x(), e->delta().y(), d->lastScale, e->value());
+                wlr_pointer_gestures_v1_send_pinch_update(d->gesture, d->handle(), e->timestamp(), e->delta().x(), e->delta().y(), d->lastScale, e->value());
                 break;
             case Qt::NativeGestureType::EndNativeGesture:
                 if (e->libInputGestureType() == WGestureEvent::WLibInputGestureType::SwipeGesture)
-                    d->gesture->send_swipe_end(d->nativeHandle(), e->timestamp(), e->cancelled());
+                    wlr_pointer_gestures_v1_send_swipe_end(d->gesture, d->handle(), e->timestamp(), e->cancelled());
                 if (e->libInputGestureType() == WGestureEvent::WLibInputGestureType::PinchGesture)
-                    d->gesture->send_pinch_end(d->nativeHandle(), e->timestamp(), e->cancelled());
+                    wlr_pointer_gestures_v1_send_pinch_end(d->gesture, d->handle(), e->timestamp(), e->cancelled());
                 if (e->libInputGestureType() == WGestureEvent::WLibInputGestureType::HoldGesture)
-                    d->gesture->send_hold_end(d->nativeHandle(), e->timestamp(), e->cancelled());
+                    wlr_pointer_gestures_v1_send_hold_end(d->gesture, d->handle(), e->timestamp(), e->cancelled());
                 break;
             default:
                 break;
@@ -1150,7 +1245,7 @@ WInputDevice *WSeat::keyboardGroupKeyboard() const
 WInputDevice *WSeat::keyboard() const
 {
     W_DC(WSeat);
-    auto w_keyboard = d->handle()->get_keyboard();
+    auto *w_keyboard = wlr_seat_get_keyboard(d->handle());
     if (w_keyboard) {
         auto device = WInputDevice::fromHandle(&w_keyboard->base);
         Q_ASSERT(device);
@@ -1165,7 +1260,7 @@ void WSeat::setKeyboard(WInputDevice *newKeyboard)
     W_D(WSeat);
     if (newKeyboard == keyboard())
         return;
-    wlr_seat_set_keyboard(d->nativeHandle(), wlr_keyboard_from_input_device(newKeyboard->handle()));
+    wlr_seat_set_keyboard(d->handle(), wlr_keyboard_from_input_device(newKeyboard->handle()));
     Q_EMIT this->keyboardChanged();
 }
 
@@ -1512,7 +1607,7 @@ void WSeat::notifyTouchFrame([[maybe_unused]] WCursor *cursor)
 void WSeat::setCursorShape(wlr_seat_client *client, WGlobal::CursorShape shape)
 {
     W_D(WSeat);
-    if (client != d->nativeHandle()->pointer_state.focused_client)
+    if (client != d->handle()->pointer_state.focused_client)
         return;
     d->cursorShape = shape;
     d->cursorClient = client;
@@ -1541,10 +1636,12 @@ void WSeat::create(WServer *server)
     W_D(WSeat);
     // destroy follow display
     const auto name = d->name.toUtf8();
-    m_handle = qw_seat::create(server->handle(), name.constData());
-    initHandle(d->handle());
-    d->handle()->set_data(this, this);
-    d->connect();
+    d->seatHandle = wlr_seat_create(server->handle(), name.constData());
+    Q_ASSERT(d->seatHandle);
+    Q_ASSERT(!s_seats->contains(d->seatHandle));
+    s_seats->insert(d->seatHandle, this);
+    m_handle = d->seatHandle;
+    d->connectNativeEvents();
 
     if (!d->group) {
         d->group = wlr_keyboard_group_create();
@@ -1560,7 +1657,7 @@ void WSeat::create(WServer *server)
     }
 
     if (!qEnvironmentVariableIsSet("WAYLIB_DISABLE_GESTURE"))
-        d->gesture = qw_pointer_gestures_v1::create(server->handle());
+        d->gesture = wlr_pointer_gestures_v1_create(server->handle());
 
     d->updateCapabilities();
 
@@ -1587,16 +1684,15 @@ void WSeat::destroy(WServer *)
     if (d->cursor)
         setCursor(nullptr);
 
-    if (m_handle) {
-        d->handle()->set_data(nullptr, nullptr);
-        m_handle = nullptr;
-    }
+    d->gesture = nullptr;
+    if (d->seatHandle)
+        wlr_seat_destroy(d->seatHandle);
 }
 
 wl_global *WSeat::global() const
 {
     W_D(const WSeat);
-    return d->nativeHandle()->global;
+    return d->handle()->global;
 }
 
 QByteArrayView WSeat::interfaceName() const
@@ -1704,12 +1800,12 @@ bool WSeat::filterUnacceptedEvent(QWindow *targetWindow, QInputEvent *event)
     case QEvent::MouseMove:
         if (static_cast<QMouseEvent*>(event)->source() != Qt::MouseEventNotSynthesized)
             return false;
-        if (d->handle()->pointer_has_grab())
+        if (wlr_seat_pointer_has_grab(d->handle()))
             return sendEvent(nullptr, nullptr, nullptr, event);
         break;
     case QEvent::KeyPress: Q_FALLTHROUGH();
     case QEvent::KeyRelease:
-        if (d->handle()->keyboard_has_grab())
+        if (wlr_seat_keyboard_has_grab(d->handle()))
             return sendEvent(nullptr, nullptr, nullptr, event);
         break;
         // TODO: Must send the touch events to touch grabber, but the touch

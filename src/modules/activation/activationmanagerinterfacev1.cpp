@@ -10,7 +10,11 @@
 #include <wsurface.h>
 
 #include <qwdisplay.h>
-#include <qwseat.h>
+
+extern "C" {
+#include <wlr/types/wlr_compositor.h>
+#include <wlr/types/wlr_seat.h>
+}
 
 #include <QDeadlineTimer>
 #include <QPointer>
@@ -75,7 +79,7 @@ protected:
             return;
         }
 
-        auto *wseat = WSeat::fromHandle(qw_seat::from(seatClient->seat));
+        auto *wseat = WSeat::fromHandle(seatClient->seat);
         if (!wseat) {
             qCWarning(lcTlActivation) << "set_serial: no WSeat for seat resource, ignoring serial" << serial;
             m_serial.reset();
@@ -326,5 +330,3 @@ wl_global *ActivationManagerInterfaceV1::global() const
 {
     return d->globalHandle();
 }
-
-

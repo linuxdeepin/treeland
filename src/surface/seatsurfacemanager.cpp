@@ -20,7 +20,6 @@
 #include <qwoutput.h>
 #include <WInputMethodHelper>
 
-#include <qwseat.h>
 #include <qwxdgshell.h>
 #include <wlr/types/wlr_data_device.h>
 
@@ -36,13 +35,12 @@ SeatSurfaceManager::SeatSurfaceManager(WSeat *seat, RootSurfaceContainer *parent
     Q_ASSERT(seat);
     Q_ASSERT(parent);
 
-    auto *seatHandle = seat->handle();
-    connect(seatHandle,
-            &qw_seat::notify_keyboard_grab_begin,
+    connect(seat,
+            &WSeat::keyboardGrabBegin,
             this,
             &SeatSurfaceManager::onKeyboardGrabBegin);
-    connect(seatHandle,
-            &qw_seat::notify_keyboard_grab_end,
+    connect(seat,
+            &WSeat::keyboardGrabEnd,
             this,
             &SeatSurfaceManager::onKeyboardGrabEnd);
 }
@@ -97,7 +95,7 @@ void SeatSurfaceManager::setKeyboardFocusSurface(SurfaceWrapper *surface, Qt::Fo
 {
     if (m_keyboardFocusSurface == surface)
         return;
-    Q_ASSERT(m_seat && m_seat->nativeHandle());
+    Q_ASSERT(m_seat && m_seat->handle());
 
     auto *oldSurface = m_keyboardFocusSurface;
 
@@ -314,7 +312,7 @@ void SeatSurfaceManager::givePopupFocus(SurfaceWrapper *popupWrapper)
 
     // Only give focus to popups that belong to our seat's active popup grab.
     auto *wlrPopup = popupSurface->handle()->handle();
-    if (!wlrPopup || wlrPopup->seat != m_seat->nativeHandle())
+    if (!wlrPopup || wlrPopup->seat != m_seat->handle())
         return;
 
     // Move keyboard focus to the popup surface directly.
@@ -329,7 +327,7 @@ void SeatSurfaceManager::dismissPopups()
         return;
 
     qCDebug(lcTlPopupFocus) << "Dismissing popup grab";
-    m_seat->handle()->keyboard_end_grab();
+    wlr_seat_keyboard_end_grab(m_seat->handle());
 }
 
 void SeatSurfaceManager::onKeyboardGrabBegin()
@@ -339,7 +337,7 @@ void SeatSurfaceManager::onKeyboardGrabBegin()
         return;
     }
 
-    auto *seatNative = m_seat->nativeHandle();
+    auto *seatNative = m_seat->handle();
     auto *grab = seatNative->keyboard_state.grab;
     if (!grab) {
         qCWarning(lcTlPopupFocus) << "keyboard_state.grab is null";

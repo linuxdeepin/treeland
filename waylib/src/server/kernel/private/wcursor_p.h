@@ -6,33 +6,14 @@
 #include "wcursor.h"
 #include "private/wglobal_p.h"
 
-#include <qwcursor.h>
-
 #include <QCursor>
 #include <QPointer>
 
-QW_BEGIN_NAMESPACE
-class qw_pointer;
-class qw_surface;
-QW_END_NAMESPACE
-
-struct wlr_pointer_motion_event;
-struct wlr_pointer_motion_absolute_event;
-struct wlr_pointer_button_event;
-struct wlr_pointer_axis_event;
-struct wlr_pointer_swipe_begin_event;
-struct wlr_pointer_swipe_update_event;
-struct wlr_pointer_swipe_end_event;
-struct wlr_pointer_pinch_begin_event;
-struct wlr_pointer_pinch_update_event;
-struct wlr_pointer_pinch_end_event;
-struct wlr_pointer_hold_begin_event;
-struct wlr_pointer_hold_end_event;
-struct wlr_cursor;
-struct wlr_touch_down_event;
-struct wlr_touch_up_event;
-struct wlr_touch_motion_event;
-struct wlr_touch_cancel_event;
+extern "C" {
+#include <wlr/types/wlr_cursor.h>
+#include <wlr/types/wlr_pointer.h>
+#include <wlr/types/wlr_touch.h>
+}
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -41,8 +22,6 @@ class Q_DECL_HIDDEN WCursorPrivate : public WWrapObjectPrivate
 public:
     WCursorPrivate(WCursor *qq);
     ~WCursorPrivate();
-
-    WWRAP_HANDLE_FUNCTIONS(QW_NAMESPACE::qw_cursor, wlr_cursor)
 
     void instantRelease() override;
 
@@ -70,12 +49,41 @@ public:
     void on_touch_up(wlr_touch_up_event *event);
     // end slot function
 
-    void connect();
-    void processCursorMotion(QW_NAMESPACE::qw_pointer *device, uint32_t time);
+    void connectNativeEvents();
+    void processCursorMotion(wlr_input_device *device, uint32_t time);
+
+    struct NativeListener {
+        using Callback = void (*)(WCursorPrivate *, void *);
+
+        wl_listener listener;
+        WCursorPrivate *owner = nullptr;
+        Callback callback = nullptr;
+    };
+
+    void addListener(NativeListener &listener, wl_signal *signal, NativeListener::Callback callback);
+    static void handleNativeEvent(wl_listener *listener, void *data);
 
     W_DECLARE_PUBLIC(WCursor)
 
-    QW_NAMESPACE::qw_xcursor_manager *xcursor_manager = nullptr;
+    wlr_cursor *handle = nullptr;
+    NativeListener motion;
+    NativeListener motionAbsolute;
+    NativeListener buttonEvent;
+    NativeListener axis;
+    NativeListener frame;
+    NativeListener swipeBegin;
+    NativeListener swipeUpdate;
+    NativeListener swipeEnd;
+    NativeListener pinchBegin;
+    NativeListener pinchUpdate;
+    NativeListener pinchEnd;
+    NativeListener holdBegin;
+    NativeListener holdEnd;
+    NativeListener touchDown;
+    NativeListener touchMotion;
+    NativeListener touchFrame;
+    NativeListener touchCancel;
+    NativeListener touchUp;
     QCursor cursor;
     QCursor overrideCursor;
 

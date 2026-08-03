@@ -5,6 +5,8 @@
 #include <WBackend>
 #include <WInputDevice>
 #include <WOutput>
+#include <WCursor>
+#include <WSeat>
 #include <woutputlayout.h>
 
 #include <QTest>
@@ -21,9 +23,11 @@ extern "C" {
 
 struct wl_display;
 struct wlr_backend;
+struct wlr_cursor;
 struct wlr_input_device;
 struct wlr_output;
 struct wlr_output_layout;
+struct wlr_seat;
 struct wlr_session;
 
 WAYLIB_SERVER_USE_NAMESPACE
@@ -35,6 +39,8 @@ static_assert(std::is_same_v<decltype(std::declval<WInputDevice &>().handle()), 
 static_assert(std::is_constructible_v<WInputDevice, wlr_input_device *>);
 static_assert(std::is_same_v<decltype(std::declval<WOutput &>().handle()), wlr_output *>);
 static_assert(std::is_same_v<decltype(std::declval<WOutputLayout &>().handle()), wlr_output_layout *>);
+static_assert(std::is_same_v<decltype(std::declval<WCursor &>().handle()), wlr_cursor *>);
+static_assert(std::is_same_v<decltype(std::declval<WSeat &>().handle()), wlr_seat *>);
 
 class NativeHandlesTest : public QObject
 {
@@ -99,6 +105,36 @@ private Q_SLOTS:
         QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
         server.stop();
         qunsetenv("WLR_BACKENDS");
+    }
+
+    void cursorOwnsNativeHandle()
+    {
+        wlr_cursor *nativeCursor = nullptr;
+        {
+            QObject owner;
+            auto *cursor = new WCursor(&owner);
+            nativeCursor = cursor->handle();
+            QVERIFY(nativeCursor);
+            QCOMPARE(WCursor::fromHandle(nativeCursor), cursor);
+        }
+        QVERIFY(!WCursor::fromHandle(nativeCursor));
+    }
+
+    void seatTracksNativeLifetime()
+    {
+        qputenv("WAYLIB_DISABLE_GESTURE", "1");
+        WServer server;
+        QPointer<WSeat> seat = server.attach<WSeat>();
+        server.start();
+
+        auto *nativeSeat = seat->handle();
+        QVERIFY(nativeSeat);
+        QCOMPARE(WSeat::fromHandle(nativeSeat), seat.data());
+
+        server.stop();
+        QVERIFY(seat.isNull());
+        QVERIFY(!WSeat::fromHandle(nativeSeat));
+        qunsetenv("WAYLIB_DISABLE_GESTURE");
     }
 
     void outputAndLayoutTrackNativeLifetime()
