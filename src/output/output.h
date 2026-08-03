@@ -85,6 +85,7 @@ public:
     QRectF validGeometry() const;
     WOutputViewport *screenViewport() const;
     void updatePositionFromLayout();
+    void applyOutputColorConfig();
     QQuickItem *debugMenuBar() const;
 
     static double calcPreferredScale(double widthPx,
@@ -123,7 +124,6 @@ private:
     void arrangePopupSurface(SurfaceWrapper *surface);
     void arrangeNonLayerSurfaces(ArrangeReason reason);
     void arrangeAllSurfaces();
-    void applyOutputColorConfig();
     std::pair<WOutputViewport *, QQuickItem *> getOutputItemProperty();
     void placeUnderCursor(SurfaceWrapper *surface, quint32 yOffset);
     void placeClientRequstPos(SurfaceWrapper *surface, QPoint clientRequstPos);
