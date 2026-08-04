@@ -7,9 +7,9 @@
 #include <wtoplevelsurface.h>
 #include <WOutput>
 
+#include <wlr/types/wlr_xdg_shell.h>
+
 struct wlr_layer_surface_v1;
-struct wlr_surface;
-struct wlr_xdg_popup;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 

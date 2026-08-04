@@ -6,11 +6,11 @@
 #include <wglobal.h>
 #include <QImage>
 
-WAYLIB_SERVER_BEGIN_NAMESPACE
-
 extern "C" {
 #include <wlr/types/wlr_buffer.h>
 }
+
+WAYLIB_SERVER_BEGIN_NAMESPACE
 
 #include <cstddef>
 

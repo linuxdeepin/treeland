@@ -125,10 +125,10 @@ void WBackendPrivate::on_output_destroy(WOutput *output)
 
 void WBackendPrivate::connect()
 {
-    m_newOutputListener.connect(&handle()->events.new_output, [this] (wl_listener *listener, void *data) {
+    m_newOutputListener.connect(&handle()->events.new_output, [this] (wl_listener*, void *data) {
         on_new_output(static_cast<wlr_output*>(data));
     });
-    m_newInputListener.connect(&handle()->events.new_input, [this] (wl_listener *listener, void *data) {
+    m_newInputListener.connect(&handle()->events.new_input, [this] (wl_listener*, void *data) {
         on_new_input(static_cast<wlr_input_device*>(data));
     });
 }
