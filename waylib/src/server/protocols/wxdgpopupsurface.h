@@ -1,4 +1,4 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #ifndef WXDGPOPUPSURFACE_H
@@ -6,9 +6,8 @@
 
 #include "wxdgsurface.h"
 
-QW_BEGIN_NAMESPACE
-class qw_xdg_popup;
-QW_END_NAMESPACE
+struct wlr_xdg_popup;
+struct wlr_surface;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -21,16 +20,16 @@ class WAYLIB_SERVER_EXPORT WXdgPopupSurface : public WXdgSurface
     QML_UNCREATABLE("Only create in C++")
 
 public:
-    explicit WXdgPopupSurface(QW_NAMESPACE::qw_xdg_popup *handle, QObject *parent = nullptr);
+    explicit WXdgPopupSurface(wlr_xdg_popup *handle, QObject *parent = nullptr);
     ~WXdgPopupSurface();
 
     bool hasCapability(Capability cap) const override;
 
     WSurface *surface() const override;
-    QW_NAMESPACE::qw_xdg_popup *handle() const;
-    QW_NAMESPACE::qw_surface *inputTargetAt(QPointF &localPos) const;
+    wlr_xdg_popup *handle() const;
+    wlr_surface *inputTargetAt(QPointF &localPos) const override;
 
-    static WXdgPopupSurface *fromHandle(QW_NAMESPACE::qw_xdg_popup *handle);
+    static WXdgPopupSurface *fromHandle(wlr_xdg_popup *handle);
     static WXdgPopupSurface *fromSurface(WSurface *surface);
 
     WSurface *parentSurface() const override;

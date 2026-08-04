@@ -4,22 +4,20 @@
 #include "wxdgpopupsurface.h"
 #include "private/wtoplevelsurface_p.h"
 
-#include <qwxdgshell.h>
-#include <qwcompositor.h>
-#include <qwbox.h>
+#include <wlr/types/wlr_xdg_shell.h>
+#include <wlr/util/box.h>
 
-QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class Q_DECL_HIDDEN WXdgPopupSurfacePrivate : public WToplevelSurfacePrivate {
 public:
-    WXdgPopupSurfacePrivate(WXdgPopupSurface *qq, qw_xdg_popup *handle);
+    WXdgPopupSurfacePrivate(WXdgPopupSurface *qq, wlr_xdg_popup *handle);
     ~WXdgPopupSurfacePrivate();
 
-    WWRAP_HANDLE_FUNCTIONS(qw_xdg_popup, wlr_xdg_popup)
+    WWRAP_NATIVE_HANDLE_FUNCTIONS(wlr_xdg_popup)
 
     wl_client *waylandClient() const override {
-        return nativeHandle()->base->client->client;
+        return handle()->base->client->client;
     }
 
     void init();
@@ -31,12 +29,14 @@ public:
 
     WSurface *surface = nullptr;
     QPointF position;
+
+    WScopedListener m_repositionListener;
 };
 
-WXdgPopupSurfacePrivate::WXdgPopupSurfacePrivate(WXdgPopupSurface *qq, qw_xdg_popup *hh)
+WXdgPopupSurfacePrivate::WXdgPopupSurfacePrivate(WXdgPopupSurface *qq, wlr_xdg_popup *hh)
     : WToplevelSurfacePrivate(qq)
 {
-    initHandle(hh);
+    initNativeHandle(hh, &hh->events.destroy);
 }
 
 WXdgPopupSurfacePrivate::~WXdgPopupSurfacePrivate()
@@ -48,9 +48,7 @@ void WXdgPopupSurfacePrivate::instantRelease()
 {
     if (!surface)
         return;
-    W_Q(WXdgPopupSurface);
-    handle()->set_data(nullptr, nullptr);
-    handle()->disconnect(q);
+    m_repositionListener.remove();
     surface->safeDeleteLater();
     surface = nullptr;
 }
@@ -58,10 +56,9 @@ void WXdgPopupSurfacePrivate::instantRelease()
 void WXdgPopupSurfacePrivate::init()
 {
     W_Q(WXdgPopupSurface);
-    handle()->set_data(this, q);
 
     Q_ASSERT(!q->surface());
-    surface = new WSurface(nativeHandle()->base->surface, q);
+    surface = new WSurface(handle()->base->surface, q);
     surface->setAttachedData<WXdgPopupSurface>(q);
 
     connect();
@@ -71,10 +68,13 @@ void WXdgPopupSurfacePrivate::init()
 void WXdgPopupSurfacePrivate::connect()
 {
     W_Q(WXdgPopupSurface);
-    QObject::connect(handle(), &qw_xdg_popup::notify_reposition, q, &WXdgPopupSurface::reposition);
+    wlr_xdg_popup *popup = handle();
+    m_repositionListener.connect(&popup->events.reposition, [q](wl_listener *, void *) {
+        Q_EMIT q->reposition();
+    });
 }
 
-WXdgPopupSurface::WXdgPopupSurface(qw_xdg_popup *handle, QObject *parent)
+WXdgPopupSurface::WXdgPopupSurface(wlr_xdg_popup *handle, QObject *parent)
     : WXdgSurface(*new WXdgPopupSurfacePrivate(this, handle), parent)
 {
     d_func()->init();
@@ -108,24 +108,23 @@ WSurface *WXdgPopupSurface::surface() const
     return d->surface;
 }
 
-qw_xdg_popup *WXdgPopupSurface::handle() const
+wlr_xdg_popup *WXdgPopupSurface::handle() const
 {
     W_DC(WXdgPopupSurface);
     return d->handle();
 }
 
-qw_surface *WXdgPopupSurface::inputTargetAt(QPointF &localPos) const
+wlr_surface *WXdgPopupSurface::inputTargetAt(QPointF &localPos) const
 {
-    // find a wlr_suface object who can receive the events
+    // find a wlr_surface object who can receive the events
     const QPointF pos = localPos;
-    auto xdgSurface = qw_xdg_surface::from(handle()->handle()->base);
-    auto sur = xdgSurface->surface_at(pos.x(), pos.y(), &localPos.rx(), &localPos.ry());
-    return sur ? qw_surface::from(sur) : nullptr;
+    auto sur = wlr_xdg_surface_surface_at(d_func()->handle()->base, pos.x(), pos.y(), &localPos.rx(), &localPos.ry());
+    return sur;
 }
 
-WXdgPopupSurface *WXdgPopupSurface::fromHandle(qw_xdg_popup *handle)
+WXdgPopupSurface *WXdgPopupSurface::fromHandle(wlr_xdg_popup *handle)
 {
-    return handle->get_data<WXdgPopupSurface>();
+    return static_cast<WXdgPopupSurface*>(WWrapObjectPrivate::fromNativeHandle(handle));
 }
 
 WXdgPopupSurface *WXdgPopupSurface::fromSurface(WSurface *surface)
@@ -140,16 +139,14 @@ void WXdgPopupSurface::resize([[maybe_unused]] const QSize &size)
 
 void WXdgPopupSurface::close()
 {
-    // wlr_xdg_popup_destroy will send popup_done to the client
-    // can't use delete qw_xdg_popup, which is not owner of wlr_xdg_popup
-    handle()->destroy();
+    wlr_xdg_popup_destroy(d_func()->handle());
 }
 
 QRect WXdgPopupSurface::getContentGeometry() const
 {
-    auto xdgSurface = qw_xdg_surface::from(handle()->handle()->base);
-    qw_box tmp = qw_box(xdgSurface->handle()->geometry);
-    return tmp.toQRect();
+    auto xdgSurface = d_func()->handle()->base;
+    return QRect(xdgSurface->geometry.x, xdgSurface->geometry.y,
+                 xdgSurface->geometry.width, xdgSurface->geometry.height);
 }
 
 bool WXdgPopupSurface::checkNewSize(const QSize &size, [[maybe_unused]] QSize *clipedSize)
@@ -160,25 +157,24 @@ bool WXdgPopupSurface::checkNewSize(const QSize &size, [[maybe_unused]] QSize *c
 bool WXdgPopupSurface::isInitialized() const
 {
     W_DC(WXdgPopupSurface);
-    return d->nativeHandle()->base->initialized;
+    return d->handle()->base->initialized;
 }
 
 WSurface *WXdgPopupSurface::parentSurface() const
 {
     W_DC(WXdgPopupSurface);
-    auto parent = d->nativeHandle()->parent;
+    auto parent = d->handle()->parent;
     Q_ASSERT(parent);
     return WSurface::fromHandle(parent);
 }
 
 QPointF WXdgPopupSurface::getPopupPosition() const
 {
-    auto wpopup = handle()->handle();
+    auto wpopup = d_func()->handle();
     Q_ASSERT(wpopup);
-    if (wpopup->parent && qw_xdg_popup::try_from_wlr_surface(wpopup->parent)) {
-        auto popup = qw_xdg_popup::from(wpopup);
+    if (wpopup->parent && wlr_xdg_popup_try_from_wlr_surface(wpopup->parent)) {
         double popup_sx, popup_sy;
-        popup->get_position(&popup_sx, &popup_sy);
+        wlr_xdg_popup_get_position(wpopup, &popup_sx, &popup_sy);
         return QPointF(popup_sx, popup_sy);
     }
     return {static_cast<qreal>(wpopup->current.geometry.x),

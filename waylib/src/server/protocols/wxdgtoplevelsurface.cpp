@@ -7,34 +7,31 @@
 #include "wseat.h"
 #include "wtools.h"
 
-#include <qwbox.h>
-#include <qwcompositor.h>
-#include <qwseat.h>
-#include <qwxdgshell.h>
+#include <wlr/types/wlr_xdg_shell.h>
+#include <wlr/util/box.h>
 
 #include <climits>
 
-QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class Q_DECL_HIDDEN WXdgToplevelSurfacePrivate : public WToplevelSurfacePrivate {
 public:
-    WXdgToplevelSurfacePrivate(WXdgToplevelSurface *qq, qw_xdg_toplevel *handle);
+    WXdgToplevelSurfacePrivate(WXdgToplevelSurface *qq, wlr_xdg_toplevel *handle);
     ~WXdgToplevelSurfacePrivate();
 
-    WWRAP_HANDLE_FUNCTIONS(qw_xdg_toplevel, wlr_xdg_toplevel)
+    WWRAP_NATIVE_HANDLE_FUNCTIONS(wlr_xdg_toplevel)
 
     wl_client *waylandClient() const override {
-        return nativeHandle()->base->client->client;
+        return handle()->base->client->client;
     }
 
     // begin slot function
     void on_configure(wlr_xdg_surface_configure *event);
-    void on_ack_configure(wlr_xdg_surface_configure *event);
     // end slot function
 
     void init();
     void connect();
+    void removeAllListeners();
 
     void instantRelease() override;
     void updateSizeFromCommit();
@@ -53,9 +50,20 @@ public:
 
     QString tag;
     QString description;
+
+    WScopedListener m_configureListener;
+    WScopedListener m_requestMoveListener;
+    WScopedListener m_requestResizeListener;
+    WScopedListener m_requestMaximizeListener;
+    WScopedListener m_requestMinimizeListener;
+    WScopedListener m_requestFullscreenListener;
+    WScopedListener m_requestShowWindowMenuListener;
+    WScopedListener m_setParentListener;
+    WScopedListener m_setTitleListener;
+    WScopedListener m_setAppIdListener;
 };
 
-WXdgToplevelSurfacePrivate::WXdgToplevelSurfacePrivate(WXdgToplevelSurface *qq, qw_xdg_toplevel *hh)
+WXdgToplevelSurfacePrivate::WXdgToplevelSurfacePrivate(WXdgToplevelSurface *qq, wlr_xdg_toplevel *hh)
     : WToplevelSurfacePrivate(qq)
     , resizeing(false)
     , activated(false)
@@ -63,7 +71,7 @@ WXdgToplevelSurfacePrivate::WXdgToplevelSurfacePrivate(WXdgToplevelSurface *qq, 
     , minimized(false)
     , fullscreen(false)
 {
-    initHandle(hh);
+    initNativeHandle(hh, &hh->events.destroy);
 }
 
 WXdgToplevelSurfacePrivate::~WXdgToplevelSurfacePrivate()
@@ -71,16 +79,26 @@ WXdgToplevelSurfacePrivate::~WXdgToplevelSurfacePrivate()
 
 }
 
+void WXdgToplevelSurfacePrivate::removeAllListeners()
+{
+    m_configureListener.remove();
+    m_requestMoveListener.remove();
+    m_requestResizeListener.remove();
+    m_requestMaximizeListener.remove();
+    m_requestMinimizeListener.remove();
+    m_requestFullscreenListener.remove();
+    m_requestShowWindowMenuListener.remove();
+    m_setParentListener.remove();
+    m_setTitleListener.remove();
+    m_setAppIdListener.remove();
+}
+
 void WXdgToplevelSurfacePrivate::instantRelease()
 {
     if (!surface)
         return;
-    W_Q(WXdgToplevelSurface);
-    handle()->set_data(nullptr, nullptr);
 
-    auto xdgSurface = qw_xdg_surface::from(nativeHandle()->base);
-    xdgSurface->disconnect(q);
-    handle()->disconnect(q);
+    removeAllListeners();
     surface->safeDeleteLater();
     surface = nullptr;
 }
@@ -114,11 +132,11 @@ void WXdgToplevelSurfacePrivate::updateSizeFromCommit()
 {
     W_Q(WXdgToplevelSurface);
 
-    const QSize minimumSize(qMax(0, nativeHandle()->current.min_width),
-                            qMax(0, nativeHandle()->current.min_height));
+    const QSize minimumSize(qMax(0, handle()->current.min_width),
+                            qMax(0, handle()->current.min_height));
     const QSize maximumSize(
-        nativeHandle()->current.max_width > 0 ? nativeHandle()->current.max_width : INT_MAX,
-        nativeHandle()->current.max_height > 0 ? nativeHandle()->current.max_height : INT_MAX);
+        handle()->current.max_width > 0 ? handle()->current.max_width : INT_MAX,
+        handle()->current.max_height > 0 ? handle()->current.max_height : INT_MAX);
 
     if (this->minimumSize != minimumSize) {
         this->minimumSize = minimumSize;
@@ -134,10 +152,9 @@ void WXdgToplevelSurfacePrivate::updateSizeFromCommit()
 void WXdgToplevelSurfacePrivate::init()
 {
     W_Q(WXdgToplevelSurface);
-    handle()->set_data(this, q);
 
     Q_ASSERT(!q->surface());
-    surface = new WSurface(nativeHandle()->base->surface, q);
+    surface = new WSurface(handle()->base->surface, q);
     surface->setAttachedData<WXdgToplevelSurface>(q);
 
     connect();
@@ -146,88 +163,89 @@ void WXdgToplevelSurfacePrivate::init()
 void WXdgToplevelSurfacePrivate::connect()
 {
     W_Q(WXdgToplevelSurface);
+    wlr_xdg_toplevel *toplevel = handle();
+    wlr_xdg_surface *xdgSurface = toplevel->base;
 
-    auto surface = qw_xdg_surface::from(nativeHandle()->base);
     q->surface()->safeConnect(&WSurface::commit, q, [this] {
         updateSizeFromCommit();
     });
-    QObject::connect(surface, &qw_xdg_surface::notify_configure, q, [this] (wlr_xdg_surface_configure *event) {
-        on_configure(event);
+
+    m_configureListener.connect(&xdgSurface->events.configure, [](wl_listener *listener, void *data) {
+        auto *self = WScopedListener::owner<WXdgToplevelSurfacePrivate, &WXdgToplevelSurfacePrivate::m_configureListener>(listener);
+        self->on_configure(static_cast<wlr_xdg_surface_configure*>(data));
     });
 
-    // TODO: use safeConnect for toplevel
-    QObject::connect(handle(), &qw_xdg_toplevel::notify_request_move, q, [q] (wlr_xdg_toplevel_move_event *event) {
+    m_requestMoveListener.connect(&toplevel->events.request_move, [q](wl_listener *listener, void *data) {
+        auto *self = WScopedListener::owner<WXdgToplevelSurfacePrivate, &WXdgToplevelSurfacePrivate::m_requestMoveListener>(listener);
+        auto *event = static_cast<wlr_xdg_toplevel_move_event*>(data);
         auto seat = WSeat::fromHandle(event->seat->seat);
         Q_EMIT q->requestMove(seat, event->serial);
     });
-    QObject::connect(handle(), &qw_xdg_toplevel::notify_request_resize, q, [q] (wlr_xdg_toplevel_resize_event *event) {
+
+    m_requestResizeListener.connect(&toplevel->events.request_resize, [q](wl_listener *listener, void *data) {
+        auto *event = static_cast<wlr_xdg_toplevel_resize_event*>(data);
         auto seat = WSeat::fromHandle(event->seat->seat);
         Q_EMIT q->requestResize(seat, WTools::toQtEdge(event->edges), event->serial);
     });
-    QObject::connect(handle(), &qw_xdg_toplevel::notify_request_maximize, q, [q, this] () {
-        if ((*handle())->requested.maximized) {
+
+    m_requestMaximizeListener.connect(&toplevel->events.request_maximize, [q, this](wl_listener *listener, void *) {
+        if (handle()->requested.maximized) {
             Q_EMIT q->requestMaximize();
         } else {
             Q_EMIT q->requestCancelMaximize();
         }
     });
-    QObject::connect(handle(), &qw_xdg_toplevel::notify_request_minimize, q, [q, this] () {
-        // Wayland clients can't request unset minimization on this surface
-        if ((*handle())->requested.minimized) {
+
+    m_requestMinimizeListener.connect(&toplevel->events.request_minimize, [q, this](wl_listener *listener, void *) {
+        if (handle()->requested.minimized) {
             Q_EMIT q->requestMinimize();
         }
     });
-    QObject::connect(handle(), &qw_xdg_toplevel::notify_request_fullscreen, q, [q, this] () {
-        if ((*handle())->requested.fullscreen) {
-            Q_EMIT q->requestFullscreen();
+
+    m_requestFullscreenListener.connect(&toplevel->events.request_fullscreen, [q, this](wl_listener *listener, void *) {
+        if (handle()->requested.fullscreen) {
+            Q_EMIT q->requestFullScreen();
         } else {
-            Q_EMIT q->requestCancelFullscreen();
+            Q_EMIT q->requestCancelFullScreen();
         }
     });
-    QObject::connect(handle(), &qw_xdg_toplevel::notify_request_show_window_menu, q, [q] (wlr_xdg_toplevel_show_window_menu_event *event) {
+
+    m_requestShowWindowMenuListener.connect(&toplevel->events.request_show_window_menu, [q](wl_listener *listener, void *data) {
+        auto *event = static_cast<wlr_xdg_toplevel_show_window_menu_event*>(data);
         auto seat = WSeat::fromHandle(event->seat->seat);
-        Q_EMIT q->requestShowWindowMenu(seat, QPoint(event->x, event->y), event->serial);
+        Q_EMIT q->requestActivate(seat);
     });
 
-    QObject::connect(handle(), &qw_xdg_toplevel::notify_set_parent, q, &WXdgToplevelSurface::parentXdgSurfaceChanged);
-    QObject::connect(handle(), &qw_xdg_toplevel::notify_set_title, q, &WXdgToplevelSurface::titleChanged);
-    QObject::connect(handle(), &qw_xdg_toplevel::notify_set_app_id, q, &WXdgToplevelSurface::appIdChanged);
+    m_setParentListener.connect(&toplevel->events.set_parent, [q](wl_listener *listener, void *) {
+        Q_EMIT q->parentXdgSurfaceChanged();
+    });
+
+    m_setTitleListener.connect(&toplevel->events.set_title, [q](wl_listener *listener, void *) {
+        Q_EMIT q->titleChanged();
+    });
+
+    m_setAppIdListener.connect(&toplevel->events.set_app_id, [q](wl_listener *listener, void *) {
+        Q_EMIT q->appIdChanged();
+    });
 }
 
-WXdgToplevelSurface::WXdgToplevelSurface(qw_xdg_toplevel *handle, QObject *parent)
+WXdgToplevelSurface::WXdgToplevelSurface(wlr_xdg_toplevel *handle, QObject *parent)
     : WXdgSurface(*new WXdgToplevelSurfacePrivate(this, handle), parent)
 {
-    d_func()->init();
+    W_D(WXdgToplevelSurface);
+    d->init();
 }
 
 WXdgToplevelSurface::~WXdgToplevelSurface()
 {
-
 }
-
 
 bool WXdgToplevelSurface::hasCapability(Capability cap) const
 {
-    switch (cap) {
-        using enum Capability;
-    case Resize: {
-        const QSize min = minSize();
-        const QSize max = maxSize();
-        return min.width() < max.width() || min.height() < max.height();
-    }
-    case Maximized: {
-        const QSize min = minSize();
-        const QSize max = maxSize();
-        return min.width() < max.width() && min.height() < max.height();
-    }
-    case Focus:
-    case Activate:
-    case FullScreen:
-        return true;
-    default:
-        break;
-    }
-    Q_UNREACHABLE();
+    return cap == Capability::Keyboard || cap == Capability::Pointer
+        || cap == Capability::Touch || cap == Capability::Resize
+        || cap == Capability::Focus || cap == Capability::Maximize
+        || cap == Capability::Minimize || cap == Capability::FullScreen;
 }
 
 WSurface *WXdgToplevelSurface::surface() const
@@ -236,24 +254,23 @@ WSurface *WXdgToplevelSurface::surface() const
     return d->surface;
 }
 
-qw_xdg_toplevel *WXdgToplevelSurface::handle() const
+wlr_xdg_toplevel *WXdgToplevelSurface::handle() const
 {
     W_DC(WXdgToplevelSurface);
     return d->handle();
 }
 
-qw_surface *WXdgToplevelSurface::inputTargetAt(QPointF &localPos) const
+wlr_surface *WXdgToplevelSurface::inputTargetAt(QPointF &localPos) const
 {
-    // find a wlr_suface object who can receive the events
+    // find a wlr_surface object who can receive the events
     const QPointF pos = localPos;
-    auto xdgSurface = qw_xdg_surface::from(handle()->handle()->base);
-    auto sur = xdgSurface->surface_at(pos.x(), pos.y(), &localPos.rx(), &localPos.ry());
-    return sur ? qw_surface::from(sur) : nullptr;
+    auto sur = wlr_xdg_surface_surface_at(d_func()->handle()->base, pos.x(), pos.y(), &localPos.rx(), &localPos.ry());
+    return sur;
 }
 
-WXdgToplevelSurface *WXdgToplevelSurface::fromHandle(qw_xdg_toplevel *handle)
+WXdgToplevelSurface *WXdgToplevelSurface::fromHandle(wlr_xdg_toplevel *handle)
 {
-    return handle->get_data<WXdgToplevelSurface>();
+    return static_cast<WXdgToplevelSurface*>(WWrapObjectPrivate::fromNativeHandle(handle));
 }
 
 WXdgToplevelSurface *WXdgToplevelSurface::fromSurface(WSurface *surface)
@@ -263,12 +280,12 @@ WXdgToplevelSurface *WXdgToplevelSurface::fromSurface(WSurface *surface)
 
 void WXdgToplevelSurface::resize(const QSize &size)
 {
-    handle()->set_size(size.width(), size.height());
+    wlr_xdg_toplevel_set_size(d_func()->handle(), size.width(), size.height());
 }
 
 void WXdgToplevelSurface::close()
 {
-    handle()->send_close();
+    wlr_xdg_toplevel_send_close(d_func()->handle());
 }
 
 bool WXdgToplevelSurface::isResizeing() const
@@ -303,9 +320,9 @@ bool WXdgToplevelSurface::isFullScreen() const
 
 QRect WXdgToplevelSurface::getContentGeometry() const
 {
-    auto xdgSurface = qw_xdg_surface::from(handle()->handle()->base);
-    qw_box tmp = qw_box(xdgSurface->handle()->geometry);
-    return tmp.toQRect();
+    auto xdgSurface = d_func()->handle()->base;
+    return QRect(xdgSurface->geometry.x, xdgSurface->geometry.y,
+                 xdgSurface->geometry.width, xdgSurface->geometry.height);
 }
 
 QSize WXdgToplevelSurface::minSize() const
@@ -323,13 +340,13 @@ QSize WXdgToplevelSurface::maxSize() const
 QString WXdgToplevelSurface::title() const
 {
     W_DC(WXdgToplevelSurface);
-    return QString::fromUtf8(d->nativeHandle()->title);
+    return QString::fromUtf8(d->handle()->title);
 }
 
 QString WXdgToplevelSurface::appId() const
 {
     W_DC(WXdgToplevelSurface);
-    return QString::fromLocal8Bit(d->nativeHandle()->app_id);
+    return QString::fromLocal8Bit(d->handle()->app_id);
 }
 
 QString WXdgToplevelSurface::tag() const
@@ -347,20 +364,20 @@ QString WXdgToplevelSurface::description() const
 bool WXdgToplevelSurface::isInitialized() const
 {
     W_DC(WXdgToplevelSurface);
-    return d->nativeHandle()->base->initialized;
+    return d->handle()->base->initialized;
 }
 
 WXdgToplevelSurface *WXdgToplevelSurface::parentXdgSurface() const
 {
-    auto parent = handle()->handle()->parent;
+    auto parent = d_func()->handle()->parent;
     if (!parent)
         return nullptr;
-    return fromHandle(qw_xdg_toplevel::from(parent));
+    return fromHandle(parent);
 }
 
 WSurface *WXdgToplevelSurface::parentSurface() const
 {
-    auto parent = handle()->handle()->parent;
+    auto parent = d_func()->handle()->parent;
     if (!parent)
         return nullptr;
     return WSurface::fromHandle(parent->base->surface);
@@ -386,12 +403,12 @@ void WXdgToplevelSurface::setDescription(const QString &description)
 
 void WXdgToplevelSurface::setResizeing(bool resizeing)
 {
-    handle()->set_resizing(resizeing);
+    wlr_xdg_toplevel_set_resizing(d_func()->handle(), resizeing);
 }
 
 void WXdgToplevelSurface::setMaximize(bool on)
 {
-    handle()->set_maximized(on);
+    wlr_xdg_toplevel_set_maximized(d_func()->handle(), on);
 }
 
 void WXdgToplevelSurface::setMinimize(bool on)
@@ -406,12 +423,12 @@ void WXdgToplevelSurface::setMinimize(bool on)
 
 void WXdgToplevelSurface::setActivate(bool on)
 {
-    handle()->set_activated(on);
+    wlr_xdg_toplevel_set_activated(d_func()->handle(), on);
 }
 
 void WXdgToplevelSurface::setFullScreen(bool on)
 {
-    handle()->set_fullscreen(on);
+    wlr_xdg_toplevel_set_fullscreen(d_func()->handle(), on);
 }
 
 bool WXdgToplevelSurface::checkNewSize(const QSize &size, QSize *clipedSize)
@@ -421,7 +438,7 @@ bool WXdgToplevelSurface::checkNewSize(const QSize &size, QSize *clipedSize)
         *clipedSize = size;
 
     bool ok = true;
-    auto wtoplevel = d->nativeHandle();
+    auto wtoplevel = d->handle();
     if (size.width() > wtoplevel->current.max_width
         && wtoplevel->current.max_width > 0) {
         if (clipedSize)

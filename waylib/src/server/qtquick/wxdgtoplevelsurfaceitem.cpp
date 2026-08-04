@@ -7,9 +7,8 @@
 #include "wxdgshell.h"
 #include "wxdgtoplevelsurface.h"
 
-#include <qwxdgshell.h>
+#include <wlr/types/wlr_xdg_shell.h>
 
-QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class Q_DECL_HIDDEN WXdgToplevelSurfaceItemPrivate : public WSurfaceItemPrivate
@@ -60,7 +59,7 @@ void WXdgToplevelSurfaceItem::onSurfaceCommit()
 
     WSurfaceItem::onSurfaceCommit();
 
-    auto toplevel = toplevelSurface()->handle()->handle();
+    auto toplevel = toplevelSurface()->handle();
     const QSize minSize(getValidSize(toplevel->current.min_width, 0),
                         getValidSize(toplevel->current.min_height, 0));
     const QSize maxSize(getValidSize(toplevel->current.max_width, INT_MAX),
@@ -76,13 +75,13 @@ void WXdgToplevelSurfaceItem::onSurfaceCommit()
         Q_EMIT maximumSizeChanged();
     }
 
-    auto xdg_surface = toplevelSurface()->handle()->handle()->base;
+    auto xdg_surface = toplevelSurface()->handle()->base;
     if (xdg_surface->initial_commit) {
         /* When an xdg_surface performs an initial commit, the compositor must
          * reply with a configure so the client can map the surface.
          * configures the xdg_toplevel with 0,0 size to let the client pick the
          * dimensions itself. */
-        toplevelSurface()->handle()->set_size(0, 0);
+        wlr_xdg_toplevel_set_size(toplevelSurface()->handle(), 0, 0);
     }
 }
 
