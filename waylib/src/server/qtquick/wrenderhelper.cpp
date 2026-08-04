@@ -63,10 +63,6 @@ struct Q_DECL_HIDDEN BufferData {
     }
 
     qw_buffer *buffer = nullptr;
-#ifdef ENABLE_VULKAN_RENDER
-    // Non-owning; used to talk to wlroots' wlr_vk_render_buffer for this buffer.
-    wlr_renderer *renderer = nullptr;
-#endif
     // for software renderer
     WImageRenderTarget paintDevice;
     QQuickRenderTarget renderTarget;
@@ -655,7 +651,7 @@ WRenderHelper::RenderTarget WRenderHelper::acquireRenderTarget(QQuickRenderContr
         if (data->buffer == buffer) {
             if (needPreserve != data->colorPreserved) {
 #ifdef ENABLE_VULKAN_RENDER
-                if (data->renderer && wlr_renderer_is_vk(data->renderer)) {
+                if (wlr_renderer_is_vk(d->renderer->handle())) {
                     qCWarning(lcWlRenderHelper)
                         << "Recreating Vulkan render target for buffer" << buffer
                         << "to change color preserved from" << data->colorPreserved
@@ -685,9 +681,6 @@ WRenderHelper::RenderTarget WRenderHelper::acquireRenderTarget(QQuickRenderContr
     std::unique_ptr<BufferData> bufferData(new BufferData);
     bufferData->buffer = buffer;
     bufferData->colorPreserved = needPreserve;
-#ifdef ENABLE_VULKAN_RENDER
-    bufferData->renderer = d->renderer->handle();
-#endif
 
     QQuickRenderTarget rt;
 
@@ -772,10 +765,11 @@ WRenderHelper::RenderTarget WRenderHelper::lastRenderTarget() const
 #ifdef ENABLE_VULKAN_RENDER
 void WRenderHelper::prepareVulkanRenderTarget(QRhiCommandBuffer *cb, const RenderTarget &rt)
 {
+    W_D(WRenderHelper);
     if (!rt.d || !cb)
         return;
     auto data = rt.d->data.lock();
-    if (!data || !data->buffer || !data->renderer || !wlr_renderer_is_vk(data->renderer))
+    if (!data || !data->buffer || !d->renderer || !wlr_renderer_is_vk(d->renderer->handle()))
         return;
 
     cb->beginExternal();
@@ -787,7 +781,7 @@ void WRenderHelper::prepareVulkanRenderTarget(QRhiCommandBuffer *cb, const Rende
     }
 
     // FOREIGN_EXT -> graphics queue, same as wlroots pass.c / PR #1171.
-    if (!waylib_vk_renderer_record_render_buffer_acquire(data->renderer,
+    if (!waylib_vk_renderer_record_render_buffer_acquire(d->renderer->handle(),
                                                          data->buffer->handle(),
                                                          handles->commandBuffer)) {
         qCWarning(lcWlRenderHelper) << "Vulkan render buffer acquire failed for" << data->buffer;
@@ -797,10 +791,11 @@ void WRenderHelper::prepareVulkanRenderTarget(QRhiCommandBuffer *cb, const Rende
 
 void WRenderHelper::finishVulkanRenderTarget(QRhiCommandBuffer *cb, const RenderTarget &rt)
 {
+    W_D(WRenderHelper);
     if (!rt.d || !cb)
         return;
     auto data = rt.d->data.lock();
-    if (!data || !data->buffer || !data->renderer || !wlr_renderer_is_vk(data->renderer))
+    if (!data || !data->buffer || !d->renderer || !wlr_renderer_is_vk(d->renderer->handle()))
         return;
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
@@ -833,7 +828,7 @@ void WRenderHelper::finishVulkanRenderTarget(QRhiCommandBuffer *cb, const Render
     }
 
     // graphics queue -> FOREIGN_EXT + GENERAL for KMS, using Qt's real old layout.
-    if (!waylib_vk_renderer_record_render_buffer_release(data->renderer,
+    if (!waylib_vk_renderer_record_render_buffer_release(d->renderer->handle(),
                                                          data->buffer->handle(),
                                                          handles->commandBuffer,
                                                          oldLayout)) {

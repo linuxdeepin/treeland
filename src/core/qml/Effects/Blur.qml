@@ -23,6 +23,9 @@ RenderBufferBlitter {
     property real glassSpecular: Helper.config.glassSpecular
     property real glassTint: 0.0
     property bool glassEnabled: Helper.config.glassEnabled
+    property Item effectContent: contentLoader
+    property bool contentOffscreen: false
+    property bool effectEnabled: true
 
     z: parent.z ? parent.z - 1 : -1
     anchors.fill: parent
@@ -31,8 +34,10 @@ RenderBufferBlitter {
     // the active branch is instantiated.  Toggling the DConfig key unloads one
     // Component and loads the other.
     Loader {
+        id: contentLoader
         anchors.fill: parent
         sourceComponent: blitter.glassEnabled ? glassComponent : blurComponent
+        visible: blitter.effectEnabled && !blitter.contentOffscreen
     }
 
     Component {

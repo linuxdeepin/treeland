@@ -250,7 +250,7 @@ public:
 
     qw_buffer *renderLayer(LayerData *layer, bool *dontEndRenderAndReturnNeedsEndRender);
     WBufferRenderer *afterRender();
-    WBufferRenderer *compositeLayers(const QVector<LayerData*> layers, bool forceShadowRenderer);
+    WBufferRenderer *compositeLayers(const QList<LayerData*> layers, bool forceShadowRenderer);
     bool commit(WBufferRenderer *buffer);
     bool tryToHardwareCursor(const LayerData *layer);
 

@@ -15,6 +15,7 @@
 #include <QGuiApplication>
 #include <QMetaType>
 #include <QPalette>
+#include <QQuickStyle>
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 10, 0)
 #  include <private/qgenericunixtheme_p.h>
@@ -52,7 +53,7 @@ int main(int argc, char *argv[])
     WServer::initializeQPA({}, [](const QString &) {
         return static_cast<QPlatformTheme *>(new QDeepinTheme());
     });
-    //    QQuickStyle::setStyle("Material");
+    QQuickStyle::setStyle("Chameleon");
 
     QGuiApplication::setAttribute(Qt::AA_UseOpenGLES);
     QGuiApplication::setHighDpiScaleFactorRoundingPolicy(

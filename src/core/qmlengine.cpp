@@ -13,10 +13,28 @@
 #include <woutput.h>
 #include <woutputitem.h>
 
+#include <QQmlFileSelector>
 #include <QQuickItem>
+#include <QQuickWindow>
+
+namespace {
+
+QObject *installQmlFileSelector(QQmlEngine *engine)
+{
+    auto selector = new QQmlFileSelector(engine);
+    const auto api = QQuickWindow::graphicsApi();
+    selector->setExtraSelectors({
+        QStringLiteral("treeland"),
+        api == QSGRendererInterface::Vulkan ? QStringLiteral("vulkan") : QStringLiteral("gles"),
+    });
+    return selector;
+}
+
+} // namespace
 
 QmlEngine::QmlEngine(QObject *parent)
     : QQmlApplicationEngine(parent)
+    , dtkInWindowBlurFileSelector(installQmlFileSelector(this))
     , titleBarComponent(this, "Treeland", "TitleBar")
     , decorationComponent(this, "Treeland", "Decoration")
     , windowMenuComponent(this, "Treeland", "WindowMenu")
