@@ -72,7 +72,6 @@ Q_SIGNALS:
     void sizeChanged();
 
 private:
-    W_PRIVATE_SLOT(void onBufferDestroy())
 };
 
 WAYLIB_SERVER_END_NAMESPACE
