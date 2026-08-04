@@ -6,15 +6,12 @@
 #include "wcursor.h"
 #include "private/wglobal_p.h"
 
-#include <qwcursor.h>
-
 #include <QCursor>
 #include <QPointer>
 
-QW_BEGIN_NAMESPACE
-class qw_pointer;
-class qw_surface;
-QW_END_NAMESPACE
+struct wlr_pointer;
+struct wlr_touch;
+struct wlr_cursor;
 
 struct wlr_pointer_motion_event;
 struct wlr_pointer_motion_absolute_event;
@@ -28,7 +25,6 @@ struct wlr_pointer_pinch_update_event;
 struct wlr_pointer_pinch_end_event;
 struct wlr_pointer_hold_begin_event;
 struct wlr_pointer_hold_end_event;
-struct wlr_cursor;
 struct wlr_touch_down_event;
 struct wlr_touch_up_event;
 struct wlr_touch_motion_event;
@@ -42,7 +38,7 @@ public:
     WCursorPrivate(WCursor *qq);
     ~WCursorPrivate();
 
-    WWRAP_HANDLE_FUNCTIONS(QW_NAMESPACE::qw_cursor, wlr_cursor)
+    WWRAP_NATIVE_HANDLE_FUNCTIONS(wlr_cursor)
 
     void instantRelease() override;
 
@@ -71,11 +67,11 @@ public:
     // end slot function
 
     void connect();
-    void processCursorMotion(QW_NAMESPACE::qw_pointer *device, uint32_t time);
+    void removeAllListeners();
+    void processCursorMotion(wlr_pointer *device, uint32_t time);
 
     W_DECLARE_PUBLIC(WCursor)
 
-    QW_NAMESPACE::qw_xcursor_manager *xcursor_manager = nullptr;
     QCursor cursor;
     QCursor overrideCursor;
 
@@ -90,6 +86,25 @@ public:
     QPointF lastPressedOrTouchDownPosition;
     bool visible = true;
     double scrollFactor = 1.0;
+
+    WScopedListener m_motionListener;
+    WScopedListener m_motionAbsoluteListener;
+    WScopedListener m_buttonListener;
+    WScopedListener m_axisListener;
+    WScopedListener m_frameListener;
+    WScopedListener m_swipeBeginListener;
+    WScopedListener m_swipeUpdateListener;
+    WScopedListener m_swipeEndListener;
+    WScopedListener m_pinchBeginListener;
+    WScopedListener m_pinchUpdateListener;
+    WScopedListener m_pinchEndListener;
+    WScopedListener m_holdBeginListener;
+    WScopedListener m_holdEndListener;
+    WScopedListener m_touchDownListener;
+    WScopedListener m_touchMotionListener;
+    WScopedListener m_touchFrameListener;
+    WScopedListener m_touchCancelListener;
+    WScopedListener m_touchUpListener;
 };
 
 WAYLIB_SERVER_END_NAMESPACE
