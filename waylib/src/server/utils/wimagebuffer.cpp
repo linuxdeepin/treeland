@@ -9,12 +9,15 @@
 
 extern "C" {
 #include <wlr/types/wlr_buffer.h>
+#include <wlr/interfaces/wlr_buffer.h>
 }
 
 #include <cstddef>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 static bool wimagebuffer_begin_data_ptr_access(wlr_buffer *buffer, uint32_t flags, void **data, uint32_t *format, size_t *stride)
 {
     auto *self = reinterpret_cast<WImageBufferImpl *>(
@@ -37,10 +40,13 @@ static void wimagebuffer_destroy(wlr_buffer *buffer)
 }
 
 const struct wlr_buffer_impl WImageBufferImpl::impl = {
+    .destroy = wimagebuffer_destroy,
+    .get_dmabuf = nullptr,
+    .get_shm = nullptr,
     .begin_data_ptr_access = wimagebuffer_begin_data_ptr_access,
     .end_data_ptr_access = wimagebuffer_end_data_ptr_access,
-    .destroy = wimagebuffer_destroy,
 };
+#pragma GCC diagnostic pop
 
 
 WImageBufferImpl::WImageBufferImpl(const QImage &bufferImage)

@@ -47,6 +47,7 @@ extern "C" {
 #define static
 #include <wlr/render/gles2.h>
 #undef static
+#include <wlr/types/wlr_tablet_pad.h>
 }
 
 #endif // QT_NO_OPENGL

@@ -27,6 +27,7 @@ extern "C" {
 #include <wlr/backend.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/render/allocator.h>
+#include <wlr/render/swapchain.h>
 #include <wlr/render/wlr_texture.h>
 #include <wlr/types/wlr_buffer.h>
 #include <wlr/interfaces/wlr_buffer.h>
@@ -361,6 +362,8 @@ private:
     QSGTexture *m_texture;
 };
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 static bool gltexturebuffer_get_dmabuf(wlr_buffer *buf, wlr_dmabuf_attributes *attribs)
 {
     auto *self = reinterpret_cast<GLTextureBuffer *>(
@@ -378,6 +381,9 @@ static void gltexturebuffer_destroy(wlr_buffer *buf)
 const struct wlr_buffer_impl GLTextureBuffer::impl = {
     .destroy = gltexturebuffer_destroy,
     .get_dmabuf = gltexturebuffer_get_dmabuf,
+    .get_shm = nullptr,
+    .begin_data_ptr_access = nullptr,
+    .end_data_ptr_access = nullptr,
 };
 
 bool GLTextureBuffer::get_dmabuf(wlr_dmabuf_attributes *attribs)
@@ -464,6 +470,9 @@ static void vktexturebuffer_destroy(wlr_buffer *buf)
 const struct wlr_buffer_impl VkTextureBuffer::impl = {
     .destroy = vktexturebuffer_destroy,
     .get_dmabuf = vktexturebuffer_get_dmabuf,
+    .get_shm = nullptr,
+    .begin_data_ptr_access = nullptr,
+    .end_data_ptr_access = nullptr,
 };
 
 bool VkTextureBuffer::get_dmabuf([[maybe_unused]] wlr_dmabuf_attributes *attribs)
@@ -521,10 +530,12 @@ static void qimagebuffer_destroy(wlr_buffer *buf)
 
 const struct wlr_buffer_impl QImageBuffer::impl = {
     .destroy = qimagebuffer_destroy,
+    .get_dmabuf = nullptr,
     .get_shm = qimagebuffer_get_shm,
     .begin_data_ptr_access = qimagebuffer_begin_data_ptr_access,
     .end_data_ptr_access = qimagebuffer_end_data_ptr_access,
 };
+#pragma GCC diagnostic pop
 
 bool QImageBuffer::get_shm(wlr_shm_attributes *attribs)
 {

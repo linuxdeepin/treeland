@@ -149,7 +149,7 @@ function(wlroots_generate_protocols target)
     target_sources(${target} PRIVATE ${_wlr_proto_sources} ${_wlr_proto_headers})
     # BEFORE: parent projects (qwlroots) may inject older system wlr-protocols
     # headers via global include_directories(); those must not win.
-    target_include_directories(${target} BEFORE PRIVATE "${_wlr_proto_dir}")
+    target_include_directories(${target} BEFORE PUBLIC "$<BUILD_INTERFACE:${_wlr_proto_dir}>")
 
     set_source_files_properties(${_wlr_proto_sources} ${_wlr_proto_headers}
         PROPERTIES GENERATED TRUE

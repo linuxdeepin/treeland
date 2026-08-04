@@ -16,6 +16,10 @@
 #include <wlr/types/wlr_compositor.h>
 #include <cstddef>
 
+extern "C" {
+#include <wlr/render/allocator.h>
+}
+
 #include <memory>
 
 extern "C" {
@@ -34,10 +38,13 @@ struct WBufferUnlocker {
     void operator()(wlr_buffer *buf) const { if (buf) wlr_buffer_unlock(buf); }
 };
 
-static WExtImageCaptureSourceV1Impl *getImpl(wlr_ext_image_capture_source_v1 *source) {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
+WExtImageCaptureSourceV1Impl *WExtImageCaptureSourceV1Impl::getImpl(wlr_ext_image_capture_source_v1 *source) {
     return reinterpret_cast<WExtImageCaptureSourceV1Impl*>(
         reinterpret_cast<char*>(source) - offsetof(WExtImageCaptureSourceV1Impl, m_source));
 }
+#pragma GCC diagnostic pop
 
 void WExtImageCaptureSourceV1Impl::impl_start(wlr_ext_image_capture_source_v1 *source, bool with_cursors) {
     getImpl(source)->start(with_cursors);
@@ -58,7 +65,7 @@ void WExtImageCaptureSourceV1Impl::impl_copy_frame(wlr_ext_image_capture_source_
 }
 
 wlr_ext_image_capture_source_v1_cursor *WExtImageCaptureSourceV1Impl::impl_get_pointer_cursor(
-        wlr_ext_image_capture_source_v1 *source, wl_seat *seat) {
+        wlr_ext_image_capture_source_v1 *source, wlr_seat *seat) {
     return getImpl(source)->get_pointer_cursor(seat);
 }
 
