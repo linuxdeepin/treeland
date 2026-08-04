@@ -17,11 +17,8 @@
 #include <wxdgtoplevelsurface.h>
 #include <wxdgpopupsurface.h>
 
-#include <qwoutput.h>
 #include <WInputMethodHelper>
 
-#include <qwseat.h>
-#include <qwxdgshell.h>
 #include <wlr/types/wlr_data_device.h>
 
 #include <QDateTime>
@@ -37,14 +34,10 @@ SeatSurfaceManager::SeatSurfaceManager(WSeat *seat, RootSurfaceContainer *parent
     Q_ASSERT(parent);
 
     auto *seatHandle = seat->handle();
-    connect(seatHandle,
-            &qw_seat::notify_keyboard_grab_begin,
-            this,
-            &SeatSurfaceManager::onKeyboardGrabBegin);
-    connect(seatHandle,
-            &qw_seat::notify_keyboard_grab_end,
-            this,
-            &SeatSurfaceManager::onKeyboardGrabEnd);
+    m_keyboardGrabBeginListener.connect(&seatHandle->events.keyboard_grab_begin,
+        [this](wl_listener *, void *) { onKeyboardGrabBegin(); });
+    m_keyboardGrabEndListener.connect(&seatHandle->events.keyboard_grab_end,
+        [this](wl_listener *, void *) { onKeyboardGrabEnd(); });
 }
 
 SeatSurfaceManager::~SeatSurfaceManager()

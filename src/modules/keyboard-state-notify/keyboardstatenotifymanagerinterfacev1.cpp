@@ -8,13 +8,10 @@
 #include "common/treelandlogging.h"
 #include "treelandconfig.hpp"
 
-#include <qwdisplay.h>
-#include <qwkeyboard.h>
-#include <qwinputdevice.h>
-#include <qwseat.h>
 
 #include <wbackend.h>
 #include <winputdevice.h>
+#include <wscopedlistener.h>
 
 #include <xkbcommon/xkbcommon.h>
 
@@ -54,11 +51,11 @@ static std::optional<wlr_keyboard *> getSeatKeyboard(WSeat *seat)
     if (!seat || !seat->keyboardGroupKeyboard())
         return std::nullopt;
 
-    auto *keyboard = qobject_cast<qw_keyboard *>(seat->keyboardGroupKeyboard()->handle());
-    if (!keyboard || !keyboard->handle() || !keyboard->handle()->keymap)
+    auto *keyboard = wlr_keyboard_from_input_device(seat->keyboardGroupKeyboard()->handle());
+    if (!keyboard || !keyboard->keymap)
         return std::nullopt;
 
-    return keyboard->handle();
+    return keyboard;
 }
 
 static bool modifiersEqual(const wlr_keyboard_modifiers &a, const wlr_keyboard_modifiers &b)
@@ -98,7 +95,7 @@ static uint32_t changedLockStateBitfield(wlr_keyboard *keyboard,
 }
 
 struct KeyboardConnection {
-    QMetaObject::Connection modifiersConnection;
+    WScopedListener modifiersConnection;
 
     QPointer<WSeat> seat = nullptr;
 };
@@ -159,7 +156,7 @@ void TreelandKeyboardStateNotifyManagerInterfaceV1Private::connectKeyboardGroup(
 
     KeyboardConnection conn;
     conn.seat = seat;
-    conn.modifiersConnection = keyboardDevice->safeConnect(&qw_keyboard::notify_modifiers, q, [this, seat] () {
+    conn.modifiersConnection.connect(&keyboardDevice->handle()->events.modifiers, [this, seat](wl_listener *, void *) {
         onModifiersEvent(seat);
     });
     m_keyboardConnections.push_back(conn);
@@ -245,7 +242,7 @@ void TreelandKeyboardStateNotifyManagerInterfaceV1Private::handleSeatDestroy(WSe
 {
     for (int i = m_keyboardConnections.size() - 1; i >= 0; --i) {
         if (m_keyboardConnections[i].seat == seat) {
-            QObject::disconnect(m_keyboardConnections[i].modifiersConnection);
+            m_keyboardConnections[i].modifiersConnection.remove();
             m_keyboardConnections.removeAt(i);
         }
     }

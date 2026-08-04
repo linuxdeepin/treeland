@@ -40,9 +40,6 @@
 #include <wxwaylandsurface.h>
 #include <wxwaylandsurfaceitem.h>
 
-#include <qwbuffer.h>
-#include <qwcompositor.h>
-#include <qwxwaylandsurface.h>
 
 #include <QColor>
 #include <QPointer>
@@ -52,7 +49,6 @@
 #include <functional>
 #include <optional>
 
-QW_USE_NAMESPACE
 WAYLIB_SERVER_USE_NAMESPACE
 
 #define TREELAND_XDG_SHELL_VERSION 5
@@ -125,7 +121,7 @@ void ShellHandler::updateWrapperContainer(SurfaceWrapper *wrapper, WSurface *par
 // Prelaunch splash request: create a SurfaceWrapper that is not yet bound to a shellSurface
 void ShellHandler::handlePrelaunchSplashRequested(const QString &appId,
                                                   const QString &instanceId,
-                                                  QW_NAMESPACE::qw_buffer *iconBuffer)
+                                                  wlr_buffer *iconBuffer)
 {
     auto skipSplash = [this, appId, iconBuffer] {
         if (iconBuffer) {
@@ -169,7 +165,7 @@ void ShellHandler::handlePrelaunchSplashRequested(const QString &appId,
 
 void ShellHandler::createPrelaunchSplash(const QString &appId,
                                          const QString &instanceId,
-                                         QW_NAMESPACE::qw_buffer *iconBuffer,
+                                         wlr_buffer *iconBuffer,
                                          const QSize &lastSize,
                                          const QString &darkPalette,
                                          const QString &lightPalette,
@@ -368,7 +364,7 @@ void ShellHandler::init(WServer *server, WSeat *seat)
 
 WXWayland *ShellHandler::createXWayland(WServer *server,
                                         WSeat *seat,
-                                        qw_compositor *compositor,
+                                        wlr_compositor *compositor,
                                         [[maybe_unused]] bool lazy)
 {
     auto *xwayland = server->attach<WXWayland>(compositor, false);

@@ -6,14 +6,11 @@
 
 #include <winputdevice.h>
 
-#include <qwbackend.h>
-#include <qwinputdevice.h>
 
 #include <QInputDevice>
 #include <QLoggingCategory>
 #include <QPointer>
 
-QW_USE_NAMESPACE
 
 #define MIN_SWIPE_FINGERS 3
 
@@ -348,9 +345,9 @@ bool configDwtEnabled(libinput_device *device, enum libinput_config_dwt_state en
     return changed && ensureStatus(status);
 }
 
-libinput_device *libinput_device_handle(qw_input_device *handle)
+libinput_device *libinput_device_handle(wlr_input_device *handle)
 {
-    return qw_libinput_backend::get_device_handle(*handle);
+    return wlr_libinput_get_device_handle(handle);
 }
 
 InputDevice *InputDevice::m_instance = nullptr;

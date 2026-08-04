@@ -15,7 +15,6 @@
 
 #include <utility>
 
-#include <qwoutput.h>
 
 namespace {
 QString serializeOutputIds(const QStringList &outputs)

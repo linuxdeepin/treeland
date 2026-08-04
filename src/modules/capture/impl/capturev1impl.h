@@ -9,7 +9,6 @@
 #include <wsurface.h>
 #include <wwrappointer.h>
 
-#include <qwbuffer.h>
 
 #include <QObject>
 
@@ -75,7 +74,7 @@ public:
     void sendFailed();
 
 Q_SIGNALS:
-    void copy(QW_NAMESPACE::qw_buffer *buffer);
+    void copy(wlr_buffer *buffer);
     void beforeDestroy();
 };
 

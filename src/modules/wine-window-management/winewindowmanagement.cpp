@@ -11,13 +11,10 @@
 
 #include <wxdgtoplevelsurface.h>
 
-#include <qwdisplay.h>
-#include <qwxdgshell.h>
 
 #include <QList>
 
 WAYLIB_SERVER_USE_NAMESPACE
-QW_USE_NAMESPACE
 
 class WineWindowControl;
 
@@ -332,7 +329,7 @@ void WineWindowManagerPrivate::get_window_control(Resource *resource,
                                                   uint32_t id,
                                                   struct ::wl_resource *toplevelResource)
 {
-    auto *qXdgToplevel = qw_xdg_toplevel::from_resource(toplevelResource);
+    auto *qXdgToplevel = wlr_xdg_toplevel_from_resource(toplevelResource);
     if (!qXdgToplevel) {
         wl_resource_post_error(resource->handle,
                                TREELAND_WINE_WINDOW_MANAGER_V1_ERROR_DEFUNCT_TOPLEVEL,

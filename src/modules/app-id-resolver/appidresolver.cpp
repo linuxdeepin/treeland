@@ -8,7 +8,6 @@
 
 #include <wserver.h>
 
-#include <qwdisplay.h>
 
 #include <QHash>
 

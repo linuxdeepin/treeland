@@ -9,8 +9,6 @@
 #include <wseat.h>
 #include <wsurface.h>
 
-#include <qwdisplay.h>
-#include <qwseat.h>
 
 #include <QDeadlineTimer>
 #include <QPointer>

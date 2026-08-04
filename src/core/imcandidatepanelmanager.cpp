@@ -16,7 +16,6 @@
 #include <WXWaylandSurface>
 #include <wxdgtoplevelsurface.h>
 
-#include <qwxwaylandsurface.h>
 
 const QLatin1String IMCandidatePanelManager::IM_CANDIDATE_PANEL(
     "org.deepin.treeland.im-candidate-panel");

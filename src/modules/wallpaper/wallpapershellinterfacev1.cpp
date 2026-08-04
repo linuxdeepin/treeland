@@ -5,10 +5,6 @@
 #include "wallpapershellinterfacev1.h"
 #include "qwayland-server-treeland-wallpaper-shell-unstable-v1.h"
 
-#include <qwcompositor.h>
-#include <qwdisplay.h>
-#include <qwoutput.h>
-#include <qwseat.h>
 
 static QList<TreelandWallpaperSurfaceInterfaceV1 *> s_wallpaperSurfaces;
 

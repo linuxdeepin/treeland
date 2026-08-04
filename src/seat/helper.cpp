@@ -3,7 +3,6 @@
 
 #include "helper.h"
 
-#include "qwxdgshell.h"
 #include "seatsmanager.h"
 
 #include <QFile>
@@ -97,39 +96,6 @@
 #include <wxwayland.h>
 #include <wxwaylandsurface.h>
 
-#include <qwallocator.h>
-#include <qwalphamodifierv1.h>
-#include <qwbackend.h>
-#include <qwbuffer.h>
-#include <qwcompositor.h>
-#include <qwdatacontrolv1.h>
-#include <qwdatadevice.h>
-#include <qwdisplay.h>
-#include <qwdrm.h>
-#include <qwextdatacontrolv1.h>
-#include <qwextforeigntoplevelimagecapturesourcemanagerv1.h>
-#include <qwextforeigntoplevellistv1.h>
-#include <qwextimagecapturesourcev1.h>
-#include <qwextimagecopycapturev1.h>
-#include <qwfractionalscalemanagerv1.h>
-#include <qwgammacontorlv1.h>
-#include <qwidleinhibitv1.h>
-#include <qwidlenotifyv1.h>
-#include <qwinputdevice.h>
-#include <qwlayershellv1.h>
-#include <qwlogging.h>
-#include <qwoutput.h>
-#include <qwoutputlayout.h>
-#include <qwoutputpowermanagementv1.h>
-#include <qwrenderer.h>
-#include <qwscreencopyv1.h>
-#include <qwsession.h>
-#include <qwsubcompositor.h>
-#include <qwviewporter.h>
-#include <qwxdgforeignregistry.h>
-#include <qwxdgforeignv2.h>
-#include <qwxwayland.h>
-#include <qwxwaylandsurface.h>
 
 #include <DGuiApplicationHelper>
 
@@ -595,9 +561,9 @@ void Helper::onOutputAdded(WOutput *output)
     }
     const bool shouldDisableOutput = !scanned;
     if (shouldDisableOutput) {
-        qw_output_state disabledState;
+        wlr_output_state disabledState;
         disabledState.set_enabled(false);
-        if (!qw_output::from(output->handle())->commit_state(disabledState)) {
+        if (!wlr_output_commit_state(output->handle(), disabledState)) {
             qCCritical(lcTlCore) << "commit failed while disabling added output" << output->name();
         } else if (!scanned) {
             qCInfo(lcTlOutput) << "Temporarily disabled output during initial scan" << output->name();
@@ -640,9 +606,9 @@ void Helper::onOutputAdded(WOutput *output)
         if (!singleOutputId.isEmpty()
             && WallpaperManager::getOutputId(outputObject) != singleOutputId) {
             if (output->isEnabled()) {
-                qw_output_state disabledState;
+                wlr_output_state disabledState;
                 disabledState.set_enabled(false);
-                if (!qw_output::from(output->handle())->commit_state(disabledState)) {
+                if (!wlr_output_commit_state(output->handle(), disabledState)) {
                     qCCritical(lcTlOutput)
                         << "Failed to disable non-selected output while restoring single-output display"
                         << output->name();
@@ -693,7 +659,7 @@ void Helper::onOutputAdded(WOutput *output)
             return;
         }
 
-        qw_output_state newState;
+        wlr_output_state newState;
         newState.set_enabled(true);
 
         if (auto *layout = m_rootSurfaceContainer->outputLayout()) {
@@ -709,7 +675,7 @@ void Helper::onOutputAdded(WOutput *output)
         newState.set_adaptive_sync_enabled(config->adaptiveSyncEnabled());
         newState.set_transform(static_cast<wl_output_transform>(transform));
         newState.set_scale(scale);
-        if (!qw_output::from(output->handle())->commit_state(newState)) {
+        if (!wlr_output_commit_state(output->handle(), newState)) {
             qCCritical(lcTlCore) << "commit failed on output" << output->name();
             return;
         }
@@ -889,7 +855,7 @@ void Helper::onSurfaceModeChanged(WSurface *surface, WXdgDecorationManager::Deco
 
 void Helper::setGamma(struct wlr_gamma_control_manager_v1_set_gamma_event *event)
 {
-    auto *qwOutput = qw_output::from(event->output);
+    auto *qwOutput = event->output;
     size_t ramp_size = 0;
     uint16_t *r = nullptr, *g = nullptr, *b = nullptr;
     wlr_gamma_control_v1 *gamma_control = event->control;
@@ -899,13 +865,13 @@ void Helper::setGamma(struct wlr_gamma_control_manager_v1_set_gamma_event *event
         g = gamma_control->table + gamma_control->ramp_size;
         b = gamma_control->table + 2 * gamma_control->ramp_size;
     }
-    qw_output_state newState;
+    wlr_output_state newState;
     newState.set_gamma_lut(ramp_size, r, g, b);
     if (!qwOutput->commit_state(newState)) {
         qCCritical(lcTlCore, "commit failed on output  %s", qwOutput->handle()->name);
         qCWarning(lcTlCore) << "Failed to set gamma lut!";
         // TODO: use software impl it.
-        qw_gamma_control_v1::from(gamma_control)->send_failed_and_destroy();
+        wlr_gamma_control_v1_send_failed_and_destroy(gamma_control);
     }
 }
 
@@ -954,7 +920,7 @@ void Helper::handleCopyModeOutputDisable(Output *affectedOutput)
     }
 }
 
-void Helper::onOutputTestOrApply(qw_output_configuration_v1 *config, bool onlyTest)
+void Helper::onOutputTestOrApply(wlr_output_configuration_v1 *config, bool onlyTest)
 {
     QList<WOutputState> states = m_outputManager->stateListPending(config);
 
@@ -1034,7 +1000,7 @@ void Helper::onOutputTestOrApply(qw_output_configuration_v1 *config, bool onlyTe
                 ok = false;
                 continue;
             }
-            qw_output_state newState;
+            wlr_output_state newState;
             newState.set_enabled(state.enabled);
             if (state.enabled) {
                 if (state.mode)
@@ -1047,7 +1013,7 @@ void Helper::onOutputTestOrApply(qw_output_configuration_v1 *config, bool onlyTe
                 newState.set_transform(static_cast<wl_output_transform>(state.transform));
                 newState.set_scale(state.scale);
             }
-            ok &= qw_output::from(state.output->handle())->test_state(newState);
+            ok &= wlr_output_test_state(state.output->handle(), newState);
         }
 
         m_outputManager->sendResult(config, ok);
@@ -1256,7 +1222,7 @@ void Helper::onOutputTestOrApply(qw_output_configuration_v1 *config, bool onlyTe
     }
 }
 
-void Helper::onOutputCommitFinished(qw_output_configuration_v1 *config, bool success)
+void Helper::onOutputCommitFinished(wlr_output_configuration_v1 *config, bool success)
 {
     if (!config) {
         return;
@@ -1348,8 +1314,8 @@ void Helper::onOutputCommitFinished(qw_output_configuration_v1 *config, bool suc
 
 void Helper::onSetOutputPowerMode(wlr_output_power_v1_set_mode_event *event)
 {
-    auto output = qw_output::from(event->output);
-    qw_output_state newState;
+    auto output = event->output;
+    wlr_output_state newState;
 
     switch (event->mode) {
     case ZWLR_OUTPUT_POWER_V1_MODE_OFF:
@@ -1391,21 +1357,24 @@ void Helper::onNewIdleInhibitor(wlr_idle_inhibitor_v1 *wlr_inhibitor)
         return;
     }
 
-    auto inhibitor = qw_idle_inhibitor_v1::from(wlr_inhibitor);
+    auto *inhibitor = wlr_inhibitor;
     m_idleInhibitors.append(inhibitor);
 
-    connect(inhibitor, &qw_idle_inhibitor_v1::before_destroy, this, [this, inhibitor]() {
+    // Use a heap-allocated WScopedListener for the inhibitor destroy event
+    auto *destroyListener = new WScopedListener;
+    destroyListener->connect(&inhibitor->events.destroy, [this, inhibitor, destroyListener](wl_listener *, void *) {
         m_idleInhibitors.removeOne(inhibitor);
         updateIdleInhibitor();
+        delete destroyListener;
     });
 
-    connect(wsurface, &WSurface::mappedChanged, inhibitor, [this]() {
+    connect(wsurface, &WSurface::mappedChanged, this, [this]() {
         updateIdleInhibitor();
     });
 
     auto toplevel = WXdgToplevelSurface::fromSurface(wsurface);
     if (toplevel) {
-        connect(toplevel, &WXdgToplevelSurface::minimizeChanged, inhibitor, [this]() {
+        connect(toplevel, &WXdgToplevelSurface::minimizeChanged, this, [this]() {
             updateIdleInhibitor();
         });
     }
@@ -1416,7 +1385,7 @@ void Helper::onNewIdleInhibitor(wlr_idle_inhibitor_v1 *wlr_inhibitor)
 void Helper::updateIdleInhibitor()
 {
     if (m_screensaverInterfaceV1->isInhibited()) {
-        m_idleNotifier->set_inhibited(true);
+        wlr_idle_notifier_v1_set_inhibited(m_idleNotifier, true);
         return;
     }
     for (const auto &inhibitor : std::as_const(m_idleInhibitors)) {
@@ -1429,11 +1398,11 @@ void Helper::updateIdleInhibitor()
             visible &= !toplevel->isMinimized();
 
         if (visible) {
-            m_idleNotifier->set_inhibited(true);
+            wlr_idle_notifier_v1_set_inhibited(m_idleNotifier, true);
             return;
         }
     }
-    m_idleNotifier->set_inhibited(false);
+    wlr_idle_notifier_v1_set_inhibited(m_idleNotifier, false);
 }
 
 void Helper::onShowDesktop()
@@ -1962,27 +1931,30 @@ void Helper::init(Treeland::Treeland *treeland)
             m_wallpaperManager,
             &WallpaperManager::handleWallpaperSurfaceAdded);
 
-    m_renderer = WRenderHelper::createRenderer(qw_backend::from(m_backend->handle()));
+    m_renderer = WRenderHelper::createRenderer(m_backend->handle());
     if (!m_renderer) {
         qCFatal(lcTlCore) << "Failed to create renderer";
     }
 
-    m_allocator = qw_allocator::autocreate(m_backend->handle(), *m_renderer);
-    m_renderer->init_wl_display(*m_server->handle());
-    qw_drm::create(*m_server->handle(), *m_renderer);
+    m_allocator = wlr_allocator_autocreate(m_backend->handle(), m_renderer);
+    wlr_renderer_init_wl_display(m_renderer, m_server->handle());
+    wlr_drm_create(m_server->handle(), m_renderer);
 
     // free follow display
-    m_compositor = qw_compositor::create(*m_server->handle(), 6, *m_renderer);
-    qw_subcompositor::create(*m_server->handle());
-    qw_screencopy_manager_v1::create(*m_server->handle());
-    qw_ext_image_copy_capture_manager_v1::create(*m_server->handle(), 1);
-    qw_ext_output_image_capture_source_manager_v1::create(*m_server->handle(), 1);
-    m_foreignToplevelImageCaptureManager = qw_ext_foreign_toplevel_image_capture_source_manager_v1::create(*m_server->handle(), 1);
-    connect(m_foreignToplevelImageCaptureManager,
-            &qw_ext_foreign_toplevel_image_capture_source_manager_v1::notify_new_request,
-            this, &Helper::handleNewForeignToplevelCaptureRequest);
+    m_compositor = wlr_compositor_create(m_server->handle(), 6, m_renderer);
+    wlr_subcompositor_create(m_server->handle());
+    wlr_screencopy_manager_v1_create(m_server->handle());
+    wlr_ext_image_copy_capture_manager_v1_create(m_server->handle(), 1);
+    wlr_ext_output_image_capture_source_manager_v1_create(m_server->handle(), 1);
+    m_foreignToplevelImageCaptureManager = wlr_ext_foreign_toplevel_image_capture_source_manager_v1_create(m_server->handle(), 1);
+    m_foreignToplevelImageCaptureNewRequestListener.connect(
+        &m_foreignToplevelImageCaptureManager->events.new_request,
+        [this](wl_listener *, void *data) {
+            handleNewForeignToplevelCaptureRequest(
+                static_cast<wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request *>(data));
+        });
 
-    qw_viewporter::create(*m_server->handle());
+    wlr_viewporter_create(m_server->handle());
     m_renderWindow->init(m_renderer, m_allocator);
 
     m_xwaylandOutputManager =
@@ -2039,11 +2011,11 @@ void Helper::init(Treeland::Treeland *treeland)
 
     m_xdgToplevelTagManagerV1 = m_server->attach<WXdgToplevelTagManagerV1>();
 
-    auto gammaControlManager = qw_gamma_control_manager_v1::create(*m_server->handle());
-    connect(gammaControlManager,
-            &qw_gamma_control_manager_v1::notify_set_gamma,
-            this,
-            &Helper::setGamma);
+    auto gammaControlManager = wlr_gamma_control_manager_v1_create(m_server->handle());
+    m_gammaControlManagerSetGammaListener.connect(&gammaControlManager->events.set_gamma,
+        [this](wl_listener *, void *data) {
+            setGamma(static_cast<wlr_gamma_control_manager_v1_set_gamma_event *>(data));
+        });
 
     connect(m_outputManager,
             &WOutputManagerV1::requestTestOrApply,
@@ -2051,17 +2023,20 @@ void Helper::init(Treeland::Treeland *treeland)
             &Helper::onOutputTestOrApply);
 
     m_server->attach<WCursorShapeManagerV1>();
-    qw_fractional_scale_manager_v1::create(*m_server->handle(), WLR_FRACTIONAL_SCALE_V1_VERSION);
-    qw_data_control_manager_v1::create(*m_server->handle());
-    qw_ext_data_control_manager_v1::create(*m_server->handle(), EXT_DATA_CONTROL_MANAGER_V1_VERSION);
-    qw_alpha_modifier_v1::create(*m_server->handle());
-    auto *foreignRegistry = qw_xdg_foreign_registry::create(*m_server->handle());
-    qw_xdg_foreign_v2::create(*m_server->handle(), *foreignRegistry);
+    wlr_fractional_scale_manager_v1_create(m_server->handle(), WLR_FRACTIONAL_SCALE_V1_VERSION);
+    wlr_data_control_manager_v1_create(m_server->handle());
+    wlr_ext_data_control_manager_v1_create(m_server->handle(), EXT_DATA_CONTROL_MANAGER_V1_VERSION);
+    wlr_alpha_modifier_v1_create(m_server->handle());
+    auto foreignRegistry = wlr_xdg_foreign_registry_create(m_server->handle());
+    wlr_xdg_foreign_v2_create(m_server->handle(), foreignRegistry);
 
-    m_idleNotifier = qw_idle_notifier_v1::create(*m_server->handle());
+    m_idleNotifier = wlr_idle_notifier_v1_create(m_server->handle());
 
-    m_idleInhibitManager = qw_idle_inhibit_manager_v1::create(*m_server->handle());
-    connect(m_idleInhibitManager, &qw_idle_inhibit_manager_v1::notify_new_inhibitor, this, &Helper::onNewIdleInhibitor);
+    m_idleInhibitManager = wlr_idle_inhibit_manager_v1_create(m_server->handle());
+    m_idleInhibitManagerNewInhibitorListener.connect(&m_idleInhibitManager->events.new_inhibitor,
+        [this](wl_listener *, void *data) {
+            onNewIdleInhibitor(static_cast<wlr_idle_inhibitor_v1 *>(data));
+        });
 
     m_activationManagerV1 = m_server->attach<ActivationManagerInterfaceV1>(
         [this](WSurface *surface, WSeat *seat) -> bool {
@@ -2126,9 +2101,12 @@ void Helper::init(Treeland::Treeland *treeland)
 
     m_screensaverInterfaceV1 = m_server->attach<ScreensaverInterfaceV1>();
 
-    m_outputPowerManager = qw_output_power_manager_v1::create(*m_server->handle());
+    m_outputPowerManager = wlr_output_power_manager_v1_create(m_server->handle());
 
-    connect(m_outputPowerManager, &qw_output_power_manager_v1::notify_set_mode, this, &Helper::onSetOutputPowerMode);
+    m_outputPowerManagerSetModeListener.connect(&m_outputPowerManager->events.set_mode,
+        [this](wl_listener *, void *data) {
+            onSetOutputPowerMode(static_cast<wlr_output_power_v1_set_mode_event *>(data));
+        });
 #ifdef EXT_SESSION_LOCK_V1
     m_sessionLockManager = m_server->attach<WSessionLockManager>();
     if (!m_lockScreen) {
@@ -2333,16 +2311,16 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *targetWindow, QInputEvent 
     }
 
     if (event->isInputEvent()) {
-        m_idleNotifier->notify_activity(seat->nativeHandle());
+        wlr_idle_notifier_v1_notify_activity(m_idleNotifier, seat->nativeHandle());
 
         // Wake DPMS-off outputs on any input event
         // Only re-enable outputs disabled by output_power, not user-disabled outputs
         for (auto *out : std::as_const(m_outputList)) {
             auto *wlr_out = out->output()->nativeHandle();
             if (!wlr_out->enabled && wlr_out->current_mode && m_powerOffOutputs.contains(wlr_out)) {
-                qw_output_state state;
+                wlr_output_state state;
                 state.set_enabled(true);
-                if (!qw_output::from(out->output()->handle())->commit_state(state)) {
+                if (!wlr_output_commit_state(out->output()->handle(), state)) {
                     qCWarning(lcTlCore) << "Failed to wake output" << wlr_out->name;
                 } else {
                     m_powerOffOutputs.remove(wlr_out);
@@ -2914,14 +2892,19 @@ void Helper::handleRequestDrag([[maybe_unused]] WSurface *surface)
 
     struct wlr_drag *drag = m_primarySeat->nativeHandle()->drag;
     Q_ASSERT(drag);
-    QObject::connect(qw_drag::from(drag), &qw_drag::notify_drop, this, [this] {
+    struct DragListeners {
+        WScopedListener dropListener;
+        WScopedListener destroyListener;
+    };
+    auto *listeners = new DragListeners;
+    listeners->dropListener.connect(&drag->events.drop, [this](wl_listener *, void *) {
         if (m_ddeShellV1)
             DDEActiveInterface::sendDrop(m_primarySeat);
     });
-
-    QObject::connect(qw_drag::from(drag), &qw_drag::before_destroy, this, [this, drag] {
+    listeners->destroyListener.connect(&drag->events.destroy, [this, drag, listeners](wl_listener *, void *) {
         drag->data = NULL;
         m_primarySeat->setAlwaysUpdateHoverTarget(false);
+        delete listeners;
     });
 
     if (m_ddeShellV1)
@@ -2992,17 +2975,25 @@ void Helper::onExtSessionLock(WSessionLock *lock)
 
 void Helper::allowNonDrmOutputAutoChangeMode(WOutput *output)
 {
-    output->safeConnect(&qw_output::notify_request_state,
-                        this,
-                        [this](wlr_output_event_request_state *newState) {
-                            if (newState->state->committed & WLR_OUTPUT_STATE_MODE) {
-                                auto output = qobject_cast<qw_output *>(sender());
-                                if (!output->commit_state(newState->state)) {
-                                    qCCritical(lcTlCore, "commit failed on output %s",
-                                               output->handle()->name);
-                                }
-                            }
-                        });
+    auto *wlrOutput = output->handle();
+    struct RequestStateListeners {
+        WScopedListener requestStateListener;
+        WScopedListener destroyListener;
+    };
+    auto *listeners = new RequestStateListeners;
+    listeners->requestStateListener.connect(&wlrOutput->events.request_state,
+        [this, wlrOutput](wl_listener *, void *data) {
+            auto *newState = static_cast<wlr_output_event_request_state *>(data);
+            if (newState->state->committed & WLR_OUTPUT_STATE_MODE) {
+                if (!wlr_output_commit_state(wlrOutput, newState->state)) {
+                    qCCritical(lcTlCore, "commit failed on output %s", wlrOutput->name);
+                }
+            }
+        });
+    listeners->destroyListener.connect(&wlrOutput->events.destroy,
+        [listeners](wl_listener *, void *) {
+            delete listeners;
+        });
 }
 
 int Helper::indexOfOutput(WOutput *output) const
@@ -3045,16 +3036,15 @@ Output *Helper::findOutputById(const QString &id) const
 
 void Helper::addOutput()
 {
-    qobject_cast<qw_multi_backend *>(qw_backend::from(m_backend->handle()))
-        ->for_each_backend(
-            [](wlr_backend *backend, void *) {
-                if (auto x11 = qw_x11_backend::from(backend)) {
-                    qw_output::from(x11->output_create());
-                } else if (auto wayland = qw_wayland_backend::from(backend)) {
-                    qw_output::from(wayland->output_create());
-                }
-            },
-            nullptr);
+    wlr_multi_for_each_backend(m_backend->handle(),
+        [](wlr_backend *backend, void *) {
+            if (wlr_backend_is_x11(backend)) {
+                wlr_x11_output_create(backend);
+            } else if (wlr_backend_is_wl(backend)) {
+                wlr_wl_output_create(backend);
+            }
+        },
+        nullptr);
 }
 
 void Helper::setOutputMode(OutputMode mode)
@@ -3413,7 +3403,7 @@ void Helper::handleNewForeignToplevelCaptureRequest(wlr_ext_foreign_toplevel_ima
         return;
     }
 
-    auto *qw_handle = qw_ext_foreign_toplevel_handle_v1::from(request->toplevel_handle);
+    auto *qw_handle = request->toplevel_handle;
     WToplevelSurface *toplevelSurface = m_extForeignToplevelListV1->findSurfaceByHandle(qw_handle);
     if (!toplevelSurface) {
         qCWarning(lcTlCapture) << "Could not find toplevel surface for handle";
@@ -3451,8 +3441,8 @@ void Helper::handleNewForeignToplevelCaptureRequest(wlr_ext_foreign_toplevel_ima
 
     auto *imageCaptureSource = new WExtImageCaptureSourceV1Impl(surfaceContent, output);
 
-    bool success = qw_ext_foreign_toplevel_image_capture_source_manager_v1::request_accept(
-        request, *imageCaptureSource);
+    bool success = wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request_accept(
+        request, imageCaptureSource->handle());
 
     if (!success) {
         qCWarning(lcTlCapture) << "Failed to accept foreign toplevel image capture request";
@@ -3656,7 +3646,7 @@ void Helper::restoreExtensionModeFromConfig(bool preserveSingleOutputConfig)
                                             static_cast<int>(config->y())));
             }
 
-            qw_output_state state;
+            wlr_output_state state;
             state.set_enabled(true);
             if (auto *mode = closestOutputMode(output, width, height, refresh)) {
                 state.set_mode(mode);
@@ -3666,7 +3656,7 @@ void Helper::restoreExtensionModeFromConfig(bool preserveSingleOutputConfig)
             state.set_adaptive_sync_enabled(config->adaptiveSyncEnabled());
             state.set_transform(static_cast<wl_output_transform>(transform));
             state.set_scale(scale);
-            if (!qw_output::from(output->handle())->commit_state(state)) {
+            if (!wlr_output_commit_state(output->handle(), state)) {
                 qCCritical(lcTlOutput) << "Failed to restore extension state for"
                                        << output->name();
             }
@@ -3813,18 +3803,24 @@ void Helper::handleRequestDragForSeat(WSeat *seat, WSurface *)
     struct wlr_drag *drag = seat->nativeHandle()->drag;
     Q_ASSERT(drag);
 
-    auto *qwDrag = qw_drag::from(drag);
-    QObject::connect(qwDrag, &qw_drag::notify_drop, this, [this, seat] {
+    QPointer<WCursor> dragCursor = seat->cursor();
+    struct DragListeners {
+        WScopedListener dropListener;
+        WScopedListener destroyListener;
+        WScopedListener dndActionListener;
+        WScopedListener sourceDestroyListener;
+    };
+    auto *listeners = new DragListeners;
+    listeners->dropListener.connect(&drag->events.drop, [this, seat](wl_listener *, void *) {
         if (m_ddeShellV1)
             DDEActiveInterface::sendDrop(seat);
     });
-
-    QPointer<WCursor> dragCursor = seat->cursor();
-    QObject::connect(qwDrag, &qw_drag::before_destroy, this, [seat, drag, dragCursor] {
+    listeners->destroyListener.connect(&drag->events.destroy, [seat, drag, dragCursor, listeners](wl_listener *, void *) {
         if (dragCursor)
             dragCursor->setOverrideCursor(WCursor::toQCursor(WGlobal::CursorShape::Invalid));
         drag->data = NULL;
         seat->setAlwaysUpdateHoverTarget(false);
+        delete listeners;
     });
 
     // TODO: https://gitlab.freedesktop.org/wayland/wayland/-/work_items/444
@@ -3846,9 +3842,13 @@ void Helper::handleRequestDragForSeat(WSeat *seat, WSurface *)
     };
 
     if (drag->source) {
-        auto *qwSource = qw_data_source::from(drag->source);
-        QObject::connect(qwSource, &qw_data_source::notify_dnd_action,
-                         qwDrag, updateCursor);
+        auto *source = drag->source;
+        listeners->dndActionListener.connect(&source->events.dnd_action,
+            [updateCursor](wl_listener *, void *) { updateCursor(); });
+        listeners->sourceDestroyListener.connect(&source->events.destroy,
+            [listeners](wl_listener *, void *) {
+                listeners->dndActionListener.remove();
+            });
     }
     updateCursor();
 

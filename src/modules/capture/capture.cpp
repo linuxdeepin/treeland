@@ -21,9 +21,6 @@
 #include <wquicktextureproxy.h>
 #include <wtools.h>
 
-#include <qwcompositor.h>
-#include <qwdisplay.h>
-#include <qwlayershellv1.h>
 
 #include <QLoggingCategory>
 #include <QQueue>
@@ -162,7 +159,7 @@ void CaptureContextV1::onCapture(treeland_capture_frame_v1 *frame)
     Q_EMIT finishSelect();
 }
 
-void CaptureContextV1::handleFrameCopy(QW_NAMESPACE::qw_buffer *buffer)
+void CaptureContextV1::handleFrameCopy(wlr_buffer *buffer)
 {
     if (m_captureSource) {
         m_captureSource->copyBuffer(buffer);
@@ -765,13 +762,13 @@ CaptureSourceSurface::CaptureSourceSurface(WSurfaceItemContent *surfaceItemConte
 {
 }
 
-qw_buffer *CaptureSourceSurface::internalBuffer()
+wlr_buffer *CaptureSourceSurface::internalBuffer()
 {
     Q_ASSERT(m_sourceList.size() == 1);
     if (m_sourceList.first().first && m_surfaceItemContent->surface()
         && m_surfaceItemContent->surface()->buffer()) {
         if (auto clientBuffer = wlr_client_buffer_get(*m_surfaceItemContent->surface()->buffer())) {
-            return qw_buffer::from(clientBuffer->source);
+            return clientBuffer->source;
         } else {
             return m_surfaceItemContent->surface()->buffer();
         }
@@ -930,16 +927,17 @@ void CaptureSource::createImage()
     }
 }
 
-qw_buffer *CaptureSource::sourceDMABuffer()
+wlr_buffer *CaptureSource::sourceDMABuffer()
 {
     auto buffer = internalBuffer();
-    if (!m_bufferConn)
-        m_bufferConn =
-            connect(buffer, &qw_buffer::destroyed, this, &CaptureSource::bufferDestroyed);
+    if (!m_bufferConn.isConnected())
+        m_bufferConn.connect(&buffer->events.destroy, [this](wl_listener *, void *) {
+            bufferDestroyed();
+        });
     return buffer;
 }
 
-void CaptureSource::copyBuffer(qw_buffer *buffer)
+void CaptureSource::copyBuffer(wlr_buffer *buffer)
 {
     Q_ASSERT(imageValid());
     auto width = cropRect().width();
@@ -947,7 +945,7 @@ void CaptureSource::copyBuffer(qw_buffer *buffer)
     uint32_t format;
     size_t stride;
     void *data;
-    buffer->begin_data_ptr_access(WLR_BUFFER_DATA_PTR_ACCESS_WRITE, &data, &format, &stride);
+    wlr_buffer_begin_data_ptr_access(buffer, WLR_BUFFER_DATA_PTR_ACCESS_WRITE, &data, &format, &stride);
     Q_ASSERT(stride == static_cast<size_t>(width) * 4); // For QImage
     QImage img = image().copy(cropRect());
     auto bufFormat = WTools::toImageFormat(format);
@@ -955,7 +953,7 @@ void CaptureSource::copyBuffer(qw_buffer *buffer)
         img = image().convertToFormat(bufFormat);
     }
     memcpy(data, img.constBits(), stride * height);
-    buffer->end_data_ptr_access();
+    wlr_buffer_end_data_ptr_access(buffer);
 }
 
 CaptureSourceOutput::CaptureSourceOutput(WOutputViewport *viewport)
@@ -964,7 +962,7 @@ CaptureSourceOutput::CaptureSourceOutput(WOutputViewport *viewport)
 {
 }
 
-qw_buffer *CaptureSourceOutput::internalBuffer()
+wlr_buffer *CaptureSourceOutput::internalBuffer()
 {
     Q_ASSERT(m_sourceList.size() == 1);
     if (m_sourceList.first().first && m_outputViewport->wTextureProvider())
@@ -997,7 +995,7 @@ CaptureSourceRegion::CaptureSourceRegion(WOutputViewport *viewport, const QRect 
     m_viewportRegions.push_back({ viewport, region });
 }
 
-qw_buffer *CaptureSourceRegion::internalBuffer()
+wlr_buffer *CaptureSourceRegion::internalBuffer()
 {
     if (m_sourceList.size() == 1 && m_sourceList.first().first
         && m_sourceList.first().second->wTextureProvider()) {

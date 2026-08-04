@@ -13,7 +13,6 @@
 
 #include <libinput.h>
 
-#include <qwseat.h>
 
 extern "C" {
 #include <wlr/interfaces/wlr_keyboard.h>
@@ -193,11 +192,11 @@ bool InputManager::initializeKeyboardSettings(KeyboardSettingsInterfaceV1 *inter
         if (device->type() != WInputDevice::Type::Keyboard)
             continue;
 
-        auto *keyboard = qobject_cast<qw_keyboard *>(device->handle());
+        auto *keyboard = wlr_keyboard_from_input_device(device->handle());
         if (!keyboard)
             continue;
 
-        auto *wlrKeyboard = keyboard->handle();
+        auto *wlrKeyboard = keyboard;
         if (!wlrKeyboard || !wlrKeyboard->keymap)
             continue;
 
@@ -549,10 +548,10 @@ void InputManager::handleKeyboardSettingsApplied(KeyboardSettingsInterfaceV1::Ch
 
     auto *keyboardDevice = interface->wSeat()->keyboardGroupKeyboard();
     if (keyboardDevice) {
-        auto *keyboard = qobject_cast<qw_keyboard *>(keyboardDevice->handle());
+        auto *keyboard = wlr_keyboard_from_input_device(keyboardDevice->handle());
         if (keyboard) {
             if (changes.testFlag(KeyboardSettingsInterfaceV1::RepeatChanged)) {
-                keyboard->set_repeat_info(interface->repeatRate(), interface->repeatDelay());
+                wlr_keyboard_set_repeat_info(keyboard, interface->repeatRate(), interface->repeatDelay());
             }
         }
     }
@@ -595,7 +594,7 @@ void InputManager::setNumLockForDevice(WInputDevice *device, bool enabled)
     if (!device || device->type() != WInputDevice::Type::Keyboard)
         return;
 
-    auto *keyboard = qobject_cast<qw_keyboard *>(device->handle());
+    auto *keyboard = wlr_keyboard_from_input_device(device->handle());
     if (!keyboard)
         return;
     auto *wlrKeyboard = keyboard->handle();
@@ -636,8 +635,8 @@ void InputManager::onInputAdded(WInputDevice *input)
     bool leftHanded = (m_seatDConfig->pointerHandMode() == "Left");
 
     if (input->type() == WInputDevice::Type::Keyboard) {
-        if (auto *keyboard = qobject_cast<qw_keyboard *>(input->handle())) {
-            keyboard->set_repeat_info(m_seatDConfig->keyboardRate(), m_seatDConfig->keyboardDelay());
+        if (auto *keyboard = wlr_keyboard_from_input_device(input->handle())) {
+            wlr_keyboard_set_repeat_info(keyboard, m_seatDConfig->keyboardRate(), m_seatDConfig->keyboardDelay());
         }
         if (isTreelandConfigInitialized(Helper::instance()->globalConfig())) {
             if (auto *seat = input->seat())

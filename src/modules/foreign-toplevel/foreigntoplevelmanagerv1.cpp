@@ -12,6 +12,7 @@
 #include "qwayland-server-treeland-foreign-toplevel-manager-v1.h"
 
 #include <WOutput>
+#include <wscopedlistener.h>
 #include <WSeat>
 #include <WSurface>
 
@@ -20,16 +21,11 @@
 
 #include <wayland-server.h>
 #include <woutput.h>
-#include <qwseat.h>
 #include <wsocket.h>
 #include <wtoplevelsurface.h>
 #include <wxdgtoplevelsurface.h>
 #include <wxwaylandsurface.h>
 
-#include <qwcompositor.h>
-#include <qwdisplay.h>
-#include <qwoutput.h>
-#include <qwxdgshell.h>
 #include <QPointer>
 #include <QVariant>
 
@@ -72,6 +68,7 @@ public:
 struct foreign_toplevel_output {
     WOutput *output = nullptr;
     ForeignToplevelHandleV1 *toplevel = nullptr;
+    WScopedListener bindListener;
 };
 
 static DockPreviewContextV1 *dockPreviewContextForSurface(WSurface *relativeSurface)
@@ -895,7 +892,7 @@ void ForeignToplevelHandleV1::output_enter(WOutput *output)
         return;
     }
 
-    auto *qwOutput = qw_output::from(output->handle());
+    auto *qwOutput = output->handle();
     if (std::any_of(d->outputs.begin(),
                     d->outputs.end(),
                     [output](const foreign_toplevel_output &toplevel_output) {
@@ -906,7 +903,9 @@ void ForeignToplevelHandleV1::output_enter(WOutput *output)
     auto toplevel_output = foreign_toplevel_output{ .output = output, .toplevel = this };
     d->outputs.append(toplevel_output);
 
-    connect(qwOutput, &qw_output::notify_bind, this, [toplevel_output](wlr_output_event_bind *event) {
+    auto &toplevel_out = d->outputs.last();
+    toplevel_out.bindListener.connect(&qwOutput->events.bind, [toplevel_output](wl_listener *, void *data) {
+        auto *event = static_cast<wlr_output_event_bind *>(data);
         const wl_client *client = wl_resource_get_client(event->resource);
         if (wl_resource_get_client(toplevel_output.toplevel->resource()) == client) {
             toplevel_output.toplevel->send_output(toplevel_output.output, true);

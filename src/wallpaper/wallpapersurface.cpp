@@ -6,7 +6,6 @@
 #include "private/wtoplevelsurface_p.h"
 #include "private/wglobal_p.h"
 
-#include <qwcompositor.h>
 
 class Q_DECL_HIDDEN WallpaperSurfacePrivate : public WToplevelSurfacePrivate {
 public:

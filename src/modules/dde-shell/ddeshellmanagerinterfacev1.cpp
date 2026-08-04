@@ -9,10 +9,6 @@
 
 #include <woutput.h>
 
-#include <qwcompositor.h>
-#include <qwdisplay.h>
-#include <qwoutput.h>
-#include <qwseat.h>
 
 #include <wayland-server.h>
 
@@ -71,7 +67,7 @@ void DDEShellManagerInterfaceV1Private::set_xwindow_position_relative(Resource *
                                                                       wl_fixed_t dx,
                                                                       wl_fixed_t dy)
 {
-    WSurface *wsurface = WSurface::fromHandle(qw_surface::from_resource(anchor));
+    WSurface *wsurface = WSurface::fromHandle(wlr_surface_from_resource(anchor));
     uint32_t ok = (wsurface && Helper::instance()->setXWindowPositionRelative(wid, wsurface, dx, dy)) ? 0 : 1;
     wl_resource *cb = wl_resource_create(resource->client(), &wl_callback_interface, 1, callback);
     wl_callback_send_done(cb, ok);

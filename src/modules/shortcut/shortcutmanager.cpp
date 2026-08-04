@@ -15,8 +15,6 @@
 #include <wsocket.h>
 #include <wsurface.h>
 
-#include <qwdisplay.h>
-#include <qwseat.h>
 
 extern "C" {
 #include <wlr/types/wlr_compositor.h>

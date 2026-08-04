@@ -5,6 +5,7 @@
 
 #include "surface/surfacewrapper.h"
 #include <wseat.h>
+#include <wscopedlistener.h>
 #include <QQuickItem>
 #include <QMap>
 
@@ -71,4 +72,7 @@ private:
 
     // Popup grab state
     bool m_hasPopupGrab = false;
+
+    WScopedListener m_keyboardGrabBeginListener;
+    WScopedListener m_keyboardGrabEndListener;
 };

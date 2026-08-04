@@ -16,6 +16,7 @@
 
 #include <wextforeigntoplevellistv1.h>
 #include <wglobal.h>
+#include <wscopedlistener.h>
 #include <woutputmanagerv1.h>
 #include <wqmlcreator.h>
 #include <wseat.h>
@@ -86,20 +87,17 @@ WAYLIB_SERVER_END_NAMESPACE
 
 class SeatsManager;
 
-QW_BEGIN_NAMESPACE
-class qw_allocator;
-class qw_compositor;
-class qw_ext_foreign_toplevel_image_capture_source_manager_v1;
-class qw_idle_inhibit_manager_v1;
-class qw_idle_inhibitor_v1;
-class qw_idle_notifier_v1;
-class qw_output_configuration_v1;
-class qw_output_power_manager_v1;
-class qw_renderer;
-QW_END_NAMESPACE
+struct wlr_allocator;
+struct wlr_compositor;
+struct wlr_ext_foreign_toplevel_image_capture_source_manager_v1;
+struct wlr_idle_inhibit_manager_v1;
+struct wlr_idle_inhibitor_v1;
+struct wlr_idle_notifier_v1;
+struct wlr_output_configuration_v1;
+struct wlr_output_power_manager_v1;
+struct wlr_renderer;
 
 WAYLIB_SERVER_USE_NAMESPACE
-QW_USE_NAMESPACE
 
 class CaptureSourceSelector;
 class DDEShellManagerInterfaceV1;
@@ -327,7 +325,7 @@ private:
     void onOutputRemoved(WOutput *output);
     void onSurfaceModeChanged(WSurface *surface, WXdgDecorationManager::DecorationMode mode);
     void setGamma(struct wlr_gamma_control_manager_v1_set_gamma_event *event);
-    void onOutputTestOrApply(qw_output_configuration_v1 *config, bool onlyTest);
+    void onOutputTestOrApply(wlr_output_configuration_v1 *config, bool onlyTest);
     void onSetOutputPowerMode(wlr_output_power_v1_set_mode_event *event);
     void onNewIdleInhibitor(wlr_idle_inhibitor_v1 *inhibitor);
     void onSetCopyOutput(VirtualOutputInterfaceV1 *interface);
@@ -420,15 +418,15 @@ private:
     // wayland helper
     WSeat *m_primarySeat = nullptr;
     WBackend *m_backend = nullptr;
-    qw_renderer *m_renderer = nullptr;
-    qw_allocator *m_allocator = nullptr;
+    wlr_renderer m_renderer = nullptr;
+    wlr_allocator *m_allocator = nullptr;
 
     // protocols
-    qw_compositor *m_compositor = nullptr;
-    qw_idle_notifier_v1 *m_idleNotifier = nullptr;
-    qw_idle_inhibit_manager_v1 *m_idleInhibitManager = nullptr;
-    qw_output_power_manager_v1 *m_outputPowerManager = nullptr;
-    qw_ext_foreign_toplevel_image_capture_source_manager_v1 *m_foreignToplevelImageCaptureManager = nullptr;
+    wlr_compositor *m_compositor = nullptr;
+    wlr_idle_notifier_v1 *m_idleNotifier = nullptr;
+    wlr_idle_inhibit_manager_v1 *m_idleInhibitManager = nullptr;
+    wlr_output_power_manager_v1 *m_outputPowerManager = nullptr;
+    wlr_ext_foreign_toplevel_image_capture_source_manager_v1 *m_foreignToplevelImageCaptureManager = nullptr;
     ActivationManagerInterfaceV1 *m_activationManagerV1 = nullptr;
     ShellHandler *m_shellHandler = nullptr;
     WXdgDecorationManager *m_xdgDecorationManager = nullptr;
@@ -460,7 +458,12 @@ private:
     QSet<wlr_output *> m_powerOffOutputs;
     OutputManager *m_outputManagerHelper = nullptr;
     QPointer<QQuickItem> m_taskSwitch;
-    QList<qw_idle_inhibitor_v1 *> m_idleInhibitors;
+    QList<wlr_idle_inhibitor_v1 *> m_idleInhibitors;
+
+    WScopedListener m_gammaControlManagerSetGammaListener;
+    WScopedListener m_idleInhibitManagerNewInhibitorListener;
+    WScopedListener m_outputPowerManagerSetModeListener;
+    WScopedListener m_foreignToplevelImageCaptureNewRequestListener;
 
     LockScreen *m_lockScreen = nullptr;
     float m_animationSpeed = 1.0;
@@ -487,14 +490,14 @@ private:
     TreelandRemoteSource *m_treelandRemoteSource = nullptr;
 
     struct PendingOutputConfig {
-        qw_output_configuration_v1 *config = nullptr;
+        wlr_output_configuration_v1 *config = nullptr;
         QList<WOutputState> states;
         int pendingCommits = 0;
         bool allSuccess = true;
     };
     PendingOutputConfig m_pendingOutputConfig;
 
-    void onOutputCommitFinished(qw_output_configuration_v1 *config, bool success);
+    void onOutputCommitFinished(wlr_output_configuration_v1 *config, bool success);
 
     SeatsManager *m_seatManager = nullptr;
     InputManager *m_inputManager = nullptr;

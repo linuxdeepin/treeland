@@ -6,8 +6,6 @@
 
 #include <wrenderhelper.h>
 
-#include <qwbuffer.h>
-#include <qwlogging.h>
 
 #include <DGuiApplicationHelper>
 #include <DLog>
@@ -45,7 +43,7 @@ public:
 
 int main(int argc, char *argv[])
 {
-    qw_log::init();
+    wlr_log_init(WLR_INFO, NULL);
     DTK_GUI_NAMESPACE::DGuiApplicationHelper::setAttribute(
         DTK_GUI_NAMESPACE::DGuiApplicationHelper::DontSaveApplicationTheme,
         true);
@@ -80,7 +78,7 @@ int main(int argc, char *argv[])
     WRenderHelper::setupRendererBackend();
     if (CmdLine::ref().tryExec())
         return 0;
-    Q_ASSERT(qw_buffer::get_objects().isEmpty());
+    // qw_buffer tracking removed with qwlroots layer
 
     int quitCode = 0;
     {
@@ -89,7 +87,7 @@ int main(int argc, char *argv[])
         quitCode = app.exec();
     }
 
-    Q_ASSERT(qw_buffer::get_objects().isEmpty());
+    // qw_buffer tracking removed with qwlroots layer
 
     return quitCode;
 }

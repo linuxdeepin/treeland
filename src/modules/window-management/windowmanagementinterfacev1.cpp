@@ -6,7 +6,6 @@
 
 #include <wserver.h>
 
-#include <qwdisplay.h>
 
 #include <QDebug>
 #include <QQmlInfo>

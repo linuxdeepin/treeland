@@ -23,8 +23,6 @@
 #include <wxwaylandsurface.h>
 #include <wxwaylandsurfaceitem.h>
 
-#include <qwbuffer.h>
-#include <qwlayershellv1.h>
 
 #include <QColor>
 #include <QVariant>
@@ -122,7 +120,7 @@ SurfaceWrapper::SurfaceWrapper(SurfaceWrapper *original, QQuickItem *parent)
         m_prelaunchSplash =
             m_engine->createPrelaunchSplash(this,
                                             original->radius(),
-                                            iconVar.value<QW_NAMESPACE::qw_buffer *>(),
+                                            iconVar.value<wlr_buffer *>(),
                                             bgColor);
         setNoDecoration(false);
 
@@ -143,7 +141,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
                                QQuickItem *parent,
                                const QSize &initialSize,
                                const QString &appId,
-                               QW_NAMESPACE::qw_buffer *iconBuffer,
+                               wlr_buffer *iconBuffer,
                                const QColor &backgroundColor)
     : QQuickItem(parent)
     , m_engine(qmlEngine)

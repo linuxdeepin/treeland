@@ -11,7 +11,6 @@
 #include <wayland-server.h>
 #include <wayland-util.h>
 
-#include <qwdisplay.h>
 
 #include <QDebug>
 

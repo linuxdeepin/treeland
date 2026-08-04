@@ -7,13 +7,10 @@
 
 #include <wserver.h>
 
-#include <qwbuffer.h>
-#include <qwdisplay.h>
 
 #include <QByteArray>
 
 WAYLIB_SERVER_USE_NAMESPACE
-QW_USE_NAMESPACE
 
 class SplashResource : public QtWaylandServer::treeland_prelaunch_splash_v2
 {
@@ -107,7 +104,7 @@ protected:
         // SplashResource self-destructs via destroy_resource callback
         new SplashResource(q, splashResource, app_id, instance_id);
 
-        auto qb = icon_buffer ? QW_NAMESPACE::qw_buffer::try_from_resource(icon_buffer) : nullptr;
+        auto qb = icon_buffer ? wlr_buffer_from_resource(icon_buffer) : nullptr;
         Q_EMIT q->splashRequested(app_id, instance_id, qb);
     }
 
