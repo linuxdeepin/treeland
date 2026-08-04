@@ -5,7 +5,6 @@
 
 #include <wserver.h>
 #include <wglobal.h>
-#include <qwglobal.h>
 
 #include <QObject>
 #include <QQmlEngine>

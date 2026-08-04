@@ -11,13 +11,10 @@
 #include "wxwaylandsurface.h"
 #include "wayliblogging.h"
 
-#include <qwdisplay.h>
-#include <qwforeigntoplevelhandlev1.h>
-#include <qwxdgshell.h>
+#include <wlr/types/wlr_foreign_toplevel_management_v1.h>
 
 #include <map>
 
-QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class Q_DECL_HIDDEN WForeignToplevelPrivate : public WObjectPrivate
 {
@@ -27,41 +24,41 @@ public:
     {
     }
 
-    void initSurface(WToplevelSurface *surface)
+    void initSurface(WToplevelSurface *surface, HandleData *data)
     {
         W_Q(WForeignToplevel);
-        auto handle = surfaces.at(surface).get();
-        surface->safeConnect(&WToplevelSurface::titleChanged, handle, [handle, surface] {
+        auto *handle = data->handle.get();
+        surface->safeConnect(&WToplevelSurface::titleChanged, q, [handle, surface] {
             const auto title = surface->title().toUtf8();
-            handle->set_title(title);
+            wlr_foreign_toplevel_handle_v1_set_title(handle, title);
         });
 
-        surface->safeConnect(&WToplevelSurface::appIdChanged, handle, [handle, surface] {
+        surface->safeConnect(&WToplevelSurface::appIdChanged, q, [handle, surface] {
             const auto appId = surface->appId().toLatin1();
-            handle->set_app_id(appId);
+            wlr_foreign_toplevel_handle_v1_set_app_id(handle, appId);
         });
 
-        surface->safeConnect(&WToplevelSurface::minimizeChanged, handle, [handle, surface] {
-            handle->set_minimized(surface->isMinimized());
+        surface->safeConnect(&WToplevelSurface::minimizeChanged, q, [handle, surface] {
+            wlr_foreign_toplevel_handle_v1_set_minimized(handle, surface->isMinimized());
         });
 
-        surface->safeConnect(&WToplevelSurface::maximizeChanged, handle, [handle, surface] {
-            handle->set_maximized(surface->isMaximized());
+        surface->safeConnect(&WToplevelSurface::maximizeChanged, q, [handle, surface] {
+            wlr_foreign_toplevel_handle_v1_set_maximized(handle, surface->isMaximized());
         });
 
-        surface->safeConnect(&WToplevelSurface::fullscreenChanged, handle, [handle, surface] {
-            handle->set_fullscreen(surface->isFullScreen());
+        surface->safeConnect(&WToplevelSurface::fullscreenChanged, q, [handle, surface] {
+            wlr_foreign_toplevel_handle_v1_set_fullscreen(handle, surface->isFullScreen());
         });
 
-        surface->safeConnect(&WToplevelSurface::activateChanged, handle, [handle, surface] {
-            handle->set_activated(surface->isActivated());
+        surface->safeConnect(&WToplevelSurface::activateChanged, q, [handle, surface] {
+            wlr_foreign_toplevel_handle_v1_set_activated(handle, surface->isActivated());
         });
 
         if (auto *xdgSurface = qobject_cast<WXdgToplevelSurface *>(surface)) {
             auto updateSurfaceParent = [this, handle, xdgSurface] {
                 WToplevelSurface *p = xdgSurface->parentXdgSurface();
                 if (!p) {
-                    handle->set_parent(nullptr);
+                    wlr_foreign_toplevel_handle_v1_set_parent(handle, nullptr);
                     return;
                 }
                 if (!surfaces.contains(p)) {
@@ -71,17 +68,17 @@ public:
                            "not found!";
                     return;
                 }
-                handle->set_parent(*surfaces.at(p));
+                wlr_foreign_toplevel_handle_v1_set_parent(handle, surfaces.at(p)->handle.get());
             };
             xdgSurface->safeConnect(&WXdgToplevelSurface::parentXdgSurfaceChanged,
-                                    handle,
+                                    q,
                                     updateSurfaceParent);
             updateSurfaceParent();
         } else if (auto *xwaylandSurface = qobject_cast<WXWaylandSurface *>(surface)) {
             auto updateSurfaceParent = [this, handle, xwaylandSurface] {
                 WToplevelSurface *p = xwaylandSurface->parentXWaylandSurface();
                 if (!p) {
-                    handle->set_parent(nullptr);
+                    wlr_foreign_toplevel_handle_v1_set_parent(handle, nullptr);
                     return;
                 }
                 if (!surfaces.contains(p)) {
@@ -91,78 +88,62 @@ public:
                            "not found!";
                     return;
                 }
-                handle->set_parent(*surfaces.at(p));
+                wlr_foreign_toplevel_handle_v1_set_parent(handle, surfaces.at(p)->handle.get());
             };
             xwaylandSurface->safeConnect(&WXWaylandSurface::parentXWaylandSurfaceChanged,
-                                         handle,
+                                         q,
                                          updateSurfaceParent);
             updateSurfaceParent();
         }
 
         surface->surface()->safeConnect(&WSurface::outputEntered,
-                                        handle,
+                                        q,
                                         [handle](WOutput *output) {
-                                            handle->output_enter(output->nativeHandle());
+                                            wlr_foreign_toplevel_handle_v1_output_enter(handle, output->handle());
                                         });
 
         surface->surface()->safeConnect(&WSurface::outputLeave,
-                                        handle,
+                                        q,
                                         [handle](WOutput *output) {
-                                            handle->output_leave(output->nativeHandle());
+                                            wlr_foreign_toplevel_handle_v1_output_leave(handle, output->handle());
                                         });
 
-        QObject::connect(handle,
-                         &qw_foreign_toplevel_handle_v1::notify_request_activate,
-                         surface,
-                         [surface, q]([[maybe_unused]] wlr_foreign_toplevel_handle_v1_activated_event *event) {
-                             Q_EMIT q->requestActivate(surface);
-                         });
+        data->requestActivateListener.connect(&handle->events.request_activate, [q, surface](wl_listener *, void *) {
+            Q_EMIT q->requestActivate(surface);
+        });
 
-        QObject::connect(handle,
-                         &qw_foreign_toplevel_handle_v1::notify_request_maximize,
-                         surface,
-                         [surface, q](wlr_foreign_toplevel_handle_v1_maximized_event *event) {
-                             Q_EMIT q->requestMaximize(surface, event->maximized);
-                         });
+        data->requestMaximizeListener.connect(&handle->events.request_maximize, [q, surface](wl_listener *, void *data) {
+            auto *event = static_cast<wlr_foreign_toplevel_handle_v1_maximized_event*>(data);
+            Q_EMIT q->requestMaximize(surface, event->maximized);
+        });
 
-        QObject::connect(handle,
-                         &qw_foreign_toplevel_handle_v1::notify_request_minimize,
-                         surface,
-                         [surface, q](wlr_foreign_toplevel_handle_v1_minimized_event *event) {
-                             Q_EMIT q->requestMinimize(surface, event->minimized);
-                         });
+        data->requestMinimizeListener.connect(&handle->events.request_minimize, [q, surface](wl_listener *, void *data) {
+            auto *event = static_cast<wlr_foreign_toplevel_handle_v1_minimized_event*>(data);
+            Q_EMIT q->requestMinimize(surface, event->minimized);
+        });
 
-        QObject::connect(handle,
-                         &qw_foreign_toplevel_handle_v1::notify_request_fullscreen,
-                         surface,
-                         [surface, q](wlr_foreign_toplevel_handle_v1_fullscreen_event *event) {
-                             Q_EMIT q->requestFullscreen(surface, event->fullscreen);
-                         });
+        data->requestFullscreenListener.connect(&handle->events.request_fullscreen, [q, surface](wl_listener *, void *data) {
+            auto *event = static_cast<wlr_foreign_toplevel_handle_v1_fullscreen_event*>(data);
+            Q_EMIT q->requestFullscreen(surface, event->fullscreen);
+        });
 
-        QObject::connect(handle,
-                         &qw_foreign_toplevel_handle_v1::notify_request_close,
-                         surface,
-                         [surface, q] {
-                             Q_EMIT q->requestClose(surface);
-                         });
+        data->requestCloseListener.connect(&handle->events.request_close, [q, surface](wl_listener *, void *) {
+            Q_EMIT q->requestClose(surface);
+        });
 
-        QObject::connect(handle,
-                         &qw_foreign_toplevel_handle_v1::notify_set_rectangle,
-                         surface,
-                         [surface, q](wlr_foreign_toplevel_handle_v1_set_rectangle_event *event) {
-                             Q_EMIT q->rectangleChanged(
-                                 surface,
-                                 QRect{ event->x, event->y, event->width, event->height });
-                         });
+        data->setRectangleListener.connect(&handle->events.set_rectangle, [q, surface](wl_listener *, void *data) {
+            auto *event = static_cast<wlr_foreign_toplevel_handle_v1_set_rectangle_event*>(data);
+            Q_EMIT q->rectangleChanged(surface, QRect{ event->x, event->y, event->width, event->height });
+        });
 
         const auto title = surface->title().toUtf8();
         const auto appId = surface->appId().toLatin1();
-        handle->set_title(title);
-        handle->set_app_id(appId);
-        handle->set_minimized(surface->isMinimized());
-        handle->set_maximized(surface->isMaximized());
-        handle->set_fullscreen(surface->isFullScreen());
-        handle->set_activated(surface->isActivated());
+        wlr_foreign_toplevel_handle_v1_set_title(handle, title);
+        wlr_foreign_toplevel_handle_v1_set_app_id(handle, appId);
+        wlr_foreign_toplevel_handle_v1_set_minimized(handle, surface->isMinimized());
+        wlr_foreign_toplevel_handle_v1_set_maximized(handle, surface->isMaximized());
+        wlr_foreign_toplevel_handle_v1_set_fullscreen(handle, surface->isFullScreen());
+        wlr_foreign_toplevel_handle_v1_set_activated(handle, surface->isActivated());
     }
 
     void add(WToplevelSurface *surface)
@@ -175,10 +156,11 @@ public:
             return;
         }
 
-        auto handle = qw_foreign_toplevel_handle_v1::create(
-            *q->nativeInterface<qw_foreign_toplevel_manager_v1>());
-        surfaces.insert({ surface, std::unique_ptr<qw_foreign_toplevel_handle_v1>(handle) });
-        initSurface(surface);
+        auto *rawHandle = wlr_foreign_toplevel_handle_v1_create(q->handle());
+        auto data = std::make_unique<HandleData>();
+        data->handle.reset(rawHandle);
+        initSurface(surface, data.get());
+        surfaces.insert({ surface, std::move(data) });
     }
 
     void remove(WToplevelSurface *surface)
@@ -188,7 +170,19 @@ public:
 
     W_DECLARE_PUBLIC(WForeignToplevel)
 
-    std::map<WToplevelSurface *, std::unique_ptr<qw_foreign_toplevel_handle_v1>> surfaces;
+    struct HandleDeleter {
+        void operator()(wlr_foreign_toplevel_handle_v1 *p) const { if (p) wlr_foreign_toplevel_handle_v1_destroy(p); }
+    };
+    struct HandleData {
+        std::unique_ptr<wlr_foreign_toplevel_handle_v1, HandleDeleter> handle;
+        WScopedListener requestActivateListener;
+        WScopedListener requestMaximizeListener;
+        WScopedListener requestMinimizeListener;
+        WScopedListener requestFullscreenListener;
+        WScopedListener requestCloseListener;
+        WScopedListener setRectangleListener;
+    };
+    std::map<WToplevelSurface *, std::unique_ptr<HandleData>> surfaces;
 };
 
 WForeignToplevel::WForeignToplevel([[maybe_unused]] QObject *parent)
@@ -217,7 +211,7 @@ QByteArrayView WForeignToplevel::interfaceName() const
 
 void WForeignToplevel::create(WServer *server)
 {
-    m_handle = qw_foreign_toplevel_manager_v1::create(*server->handle());
+    m_handle = wlr_foreign_toplevel_manager_v1_create(server->handle());
 }
 
 void WForeignToplevel::destroy([[maybe_unused]] WServer *server)
@@ -226,7 +220,7 @@ void WForeignToplevel::destroy([[maybe_unused]] WServer *server)
 
 wl_global *WForeignToplevel::global() const
 {
-    return nativeInterface<qw_foreign_toplevel_manager_v1>()->handle()->global;
+    return static_cast<wlr_foreign_toplevel_manager_v1*>(m_handle)->global;
 }
 
 WAYLIB_SERVER_END_NAMESPACE

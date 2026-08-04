@@ -355,7 +355,6 @@ set(HEADERS
     protocols/wextforeigntoplevellistv1.h
     protocols/wxdgdialogmanagerv1.h
     protocols/ext_foreign_toplevel_image_capture_source_manager_v1.h #TODO: Remove after wlroots 0.20
-    protocols/qwextforeigntoplevelimagecapturesourcemanagerv1.h #TODO: Move to qwlroots after wlroots 0.20
     protocols/wsecuritycontextmanager.h
     protocols/wsessionlockmanager.h
     protocols/WSessionLockManager
