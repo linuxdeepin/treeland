@@ -501,8 +501,6 @@ bool VkTextureBuffer::getDmabuf([[maybe_unused]] wlr_buffer *buffer,
 wlr_buffer *WRenderHelper::toBuffer(wlr_renderer *renderer, QSGTexture *texture,
                                     QSGRendererInterface::GraphicsApi api)
 {
-    const QSize size = texture->textureSize();
-
     switch (api) {
     case QSGRendererInterface::OpenGL: {
         Q_ASSERT(wlr_renderer_is_gles2(renderer));
