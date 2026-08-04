@@ -291,6 +291,8 @@ set(HEADERS
     utils/wextimagecapturesourcev1impl.h
     utils/wbufferdumper.h
     utils/WBufferDumper
+    utils/wcontainerof.h
+    utils/WContainerOf
 
     protocols/wxdgshell.h
     protocols/WXdgShell
