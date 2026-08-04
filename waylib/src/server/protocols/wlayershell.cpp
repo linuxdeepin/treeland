@@ -8,7 +8,11 @@
 #include "private/wglobal_p.h"
 #include "wxdgshell.h"
 
+#define namespace wlr_ns
+extern "C" {
 #include <wlr/types/wlr_layer_shell_v1.h>
+}
+#undef namespace
 
 #include <QVector>
 

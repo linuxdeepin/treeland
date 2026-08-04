@@ -250,8 +250,7 @@ WXdgToplevelSurface::~WXdgToplevelSurface()
 
 bool WXdgToplevelSurface::hasCapability(Capability cap) const
 {
-    return cap == Capability::Keyboard || cap == Capability::Pointer
-        || cap == Capability::Resize || cap == Capability::Focus
+    return cap == Capability::Resize || cap == Capability::Focus
         || cap == Capability::Activate || cap == Capability::Maximized
         || cap == Capability::FullScreen;
 }

@@ -24,6 +24,20 @@ public:
     {
     }
 
+    struct HandleDeleter {
+        void operator()(wlr_foreign_toplevel_handle_v1 *p) const { if (p) wlr_foreign_toplevel_handle_v1_destroy(p); }
+    };
+    struct HandleData {
+        std::unique_ptr<wlr_foreign_toplevel_handle_v1, HandleDeleter> handle;
+        WScopedListener requestActivateListener;
+        WScopedListener requestMaximizeListener;
+        WScopedListener requestMinimizeListener;
+        WScopedListener requestFullscreenListener;
+        WScopedListener requestCloseListener;
+        WScopedListener setRectangleListener;
+    };
+
+
     void initSurface(WToplevelSurface *surface, HandleData *data)
     {
         W_Q(WForeignToplevel);
@@ -156,7 +170,7 @@ public:
             return;
         }
 
-        auto *rawHandle = wlr_foreign_toplevel_handle_v1_create(q->handle());
+        auto *rawHandle = wlr_foreign_toplevel_handle_v1_create(static_cast<wlr_foreign_toplevel_manager_v1*>(q->handle()));
         auto data = std::make_unique<HandleData>();
         data->handle.reset(rawHandle);
         initSurface(surface, data.get());
@@ -170,18 +184,6 @@ public:
 
     W_DECLARE_PUBLIC(WForeignToplevel)
 
-    struct HandleDeleter {
-        void operator()(wlr_foreign_toplevel_handle_v1 *p) const { if (p) wlr_foreign_toplevel_handle_v1_destroy(p); }
-    };
-    struct HandleData {
-        std::unique_ptr<wlr_foreign_toplevel_handle_v1, HandleDeleter> handle;
-        WScopedListener requestActivateListener;
-        WScopedListener requestMaximizeListener;
-        WScopedListener requestMinimizeListener;
-        WScopedListener requestFullscreenListener;
-        WScopedListener requestCloseListener;
-        WScopedListener setRectangleListener;
-    };
     std::map<WToplevelSurface *, std::unique_ptr<HandleData>> surfaces;
 };
 

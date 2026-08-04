@@ -226,7 +226,7 @@ void WXdgToplevelTagManagerV1::create([[maybe_unused]] WServer *wserver)
 {
     W_D(WXdgToplevelTagManagerV1);
 
-    d->manager = way_xdg_toplevel_tag_manager_v1_create(*server()->handle(), MANAGER_VERSION);
+    d->manager = way_xdg_toplevel_tag_manager_v1_create(server()->handle(), MANAGER_VERSION);
     m_handle = d->manager;
 
     if (d->manager) {

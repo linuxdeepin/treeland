@@ -11,9 +11,14 @@
 #include <xcb/xcb.h>
 #include <xcb/xcbext.h>
 
+#define class wlr_class
+extern "C" {
 #include <wlr/xwayland/xwayland.h>
 #include <wlr/xwayland/server.h>
+#include <wlr/xwayland/shell.h>
 #include <wlr/types/wlr_compositor.h>
+}
+#undef class
 
 #include <QCoreApplication>
 #include <QTimer>
@@ -39,7 +44,7 @@ public:
     void init();
 
     wl_client *waylandClient() const override {
-        return handle()->server->client;
+        return nativeHandle<wlr_xwayland>()->server->client;
     }
 
     // begin slot function
@@ -74,6 +79,10 @@ public:
     QList<WXWaylandSurface*> toplevelSurfaces;
 
     WSocket *socket = nullptr;
+
+    WScopedListener m_newSurfaceListener;
+    WScopedListener m_readyListener;
+    WScopedListener m_serverStartListener;
 
 protected:
     void instantRelease() override;
@@ -299,7 +308,7 @@ void WXWayland::setAtomSupported(xcb_atom_t atom, bool supported)
 void WXWayland::setSeat(WSeat *seat)
 {
     if (auto handle = this->handle())
-        wlr_xwayland_set_seat(handle(), seat->handle());
+        wlr_xwayland_set_seat(handle, seat->handle());
 }
 
 WSeat *WXWayland::seat() const
@@ -404,7 +413,7 @@ void WXWayland::create(WServer *server)
     // free follow display
 
     auto *handle = wlr_xwayland_create(server->handle(), d->compositor, d->lazy);
-    initNativeHandle(handle, &handle->events.destroy);
+    d->initNativeHandle(handle, &handle->events.destroy);
     m_handle = handle;
     d->socket->bind(handle->server->x_fd[1]);
 

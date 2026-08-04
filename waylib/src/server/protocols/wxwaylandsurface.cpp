@@ -12,8 +12,12 @@
 
 #include <climits>
 
+#define class wlr_class
+extern "C" {
 #include <wlr/xwayland/xwayland.h>
 #include <wlr/types/wlr_compositor.h>
+}
+#undef class
 
 #include <QPointer>
 

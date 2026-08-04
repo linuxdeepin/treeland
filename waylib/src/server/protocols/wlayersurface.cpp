@@ -8,8 +8,12 @@
 #include "wayliblogging.h"
 #include "private/wtoplevelsurface_p.h"
 
+#define namespace wlr_ns
+extern "C" {
 #include <wlr/types/wlr_layer_shell_v1.h>
 #include <wlr/types/wlr_xdg_shell.h>
+}
+#undef namespace
 
 #include <QDebug>
 
@@ -324,6 +328,7 @@ int WLayerSurface::keyboardFocusPriority() const
 
 bool WLayerSurface::isInitialized() const
 {
+    W_DC(WLayerSurface);
     return d->handle()->initialized;
 }
 
@@ -393,7 +398,7 @@ WLayerSurface::KeyboardInteractivity WLayerSurface::keyboardInteractivity() cons
 
 QString WLayerSurface::scope() const
 {
-    return QString::fromLocal8Bit(d_func()->handle()->scope);
+    return QString::fromLocal8Bit(d_func()->handle()->wlr_ns);
 }
 
 WOutput *WLayerSurface::output() const
