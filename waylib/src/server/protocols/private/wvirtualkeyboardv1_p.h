@@ -6,9 +6,8 @@
 #include <wglobal.h>
 #include <wserver.h>
 
-#include <qwglobal.h>
-
 struct wlr_virtual_keyboard_v1;
+struct wlr_virtual_keyboard_manager_v1;
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WVirtualKeyboardManagerV1Private;
 class WAYLIB_SERVER_EXPORT WVirtualKeyboardManagerV1 : public QObject, public WObject, public WServerInterface
@@ -18,6 +17,7 @@ class WAYLIB_SERVER_EXPORT WVirtualKeyboardManagerV1 : public QObject, public WO
 public:
     explicit WVirtualKeyboardManagerV1(QObject *parent = nullptr);
 
+    wlr_virtual_keyboard_manager_v1 *handle() const;
     QByteArrayView interfaceName() const override;
 
 Q_SIGNALS:
@@ -25,6 +25,7 @@ Q_SIGNALS:
 
 private:
     void create(WServer *server) override;
+    void destroy(WServer *server) override;
     wl_global *global() const override;
 };
 WAYLIB_SERVER_END_NAMESPACE

@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Yixue Wang <wangyixue@deepin.org>.
+// Copyright (C) 2024-2026 Yixue Wang <wangyixue@deepin.org>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "winputpopupsurface.h"
@@ -6,43 +6,69 @@
 #include "private/wtoplevelsurface_p.h"
 #include "wsurface.h"
 
-#include <qwcompositor.h>
-#include <qwinputmethodv2.h>
-#include <qwbox.h>
+#define delete delete_c
+extern "C" {
+#include <wlr/types/wlr_compositor.h>
+#include <wlr/types/wlr_input_method_v2.h>
+}
+#undef delete
 
-QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class Q_DECL_HIDDEN WInputPopupSurfacePrivate : public WToplevelSurfacePrivate
 {
 public:
-    W_DECLARE_PUBLIC(WInputPopupSurface)
-    explicit WInputPopupSurfacePrivate(qw_input_popup_surface_v2 *surface, WSurface *parentSurface, WInputPopupSurface *qq)
+    WInputPopupSurfacePrivate(wlr_input_popup_surface_v2 *surface, WSurface *parentSurface,
+                              WInputPopupSurface *qq)
         : WToplevelSurfacePrivate(qq)
+        , popupHandle(surface)
         , parent(parentSurface)
-        , cursorRect()
     {
-        initHandle(surface);
+        Q_ASSERT(popupHandle);
     }
 
-    WWRAP_HANDLE_FUNCTIONS(qw_input_popup_surface_v2, wlr_input_popup_surface_v2)
+    void init()
+    {
+        W_Q(WInputPopupSurface);
+        destroyListener.connect(&popupHandle->events.destroy, [q](void *) {
+            q->safeDeleteLater();
+        });
+    }
+
+    void instantRelease() override
+    {
+        destroyListener.disconnect();
+        popupHandle = nullptr;
+    }
 
     QSize size() const
     {
-        return {handle()->handle()->surface->current.width, handle()->handle()->surface->current.height};
+        if (!popupHandle || !popupHandle->surface)
+            return {};
+        return { popupHandle->surface->current.width, popupHandle->surface->current.height };
     }
 
-    wl_client *waylandClient() const override {
-        return nativeHandle()->resource->client;
+    wl_client *waylandClient() const override
+    {
+        return popupHandle ? wl_resource_get_client(popupHandle->resource) : nullptr;
     }
 
+    W_DECLARE_PUBLIC(WInputPopupSurface)
+
+    wlr_input_popup_surface_v2 *popupHandle = nullptr;
+    WNativeListener destroyListener;
     WSurface *const parent;
     QRect cursorRect;
 };
 
-WInputPopupSurface::WInputPopupSurface(qw_input_popup_surface_v2 *surface, WSurface *parentSurface, QObject *parent)
+WInputPopupSurface::WInputPopupSurface(wlr_input_popup_surface_v2 *surface, WSurface *parentSurface,
+                                       QObject *parent)
     : WToplevelSurface(*new WInputPopupSurfacePrivate(surface, parentSurface, this), parent)
-{ }
+{
+    d_func()->init();
+}
+
+WInputPopupSurface::~WInputPopupSurface() = default;
 
 bool WInputPopupSurface::hasCapability(Capability cap) const
 {
@@ -63,16 +89,17 @@ bool WInputPopupSurface::hasCapability(Capability cap) const
 
 WSurface *WInputPopupSurface::surface() const
 {
-    auto wSurface = WSurface::fromHandle(handle()->handle()->surface);
-    if (!wSurface) {
-        wSurface = new WSurface(handle()->handle()->surface);
-    }
-    return wSurface;
+    if (!handle())
+        return nullptr;
+    auto *surface = WSurface::fromHandle(handle()->surface);
+    if (!surface)
+        surface = new WSurface(handle()->surface);
+    return surface;
 }
 
-qw_input_popup_surface_v2 *WInputPopupSurface::handle() const
+wlr_input_popup_surface_v2 *WInputPopupSurface::handle() const
 {
-    return d_func()->handle();
+    return d_func()->popupHandle;
 }
 
 bool WInputPopupSurface::isActivated() const
@@ -82,7 +109,7 @@ bool WInputPopupSurface::isActivated() const
 
 QRect WInputPopupSurface::getContentGeometry() const
 {
-    return {0, 0, d_func()->size().width(), d_func()->size().height()};
+    return { QPoint(), d_func()->size() };
 }
 
 WSurface *WInputPopupSurface::parentSurface() const
@@ -103,11 +130,12 @@ QRect WInputPopupSurface::cursorRect() const
 void WInputPopupSurface::sendCursorRect(QRect rect)
 {
     W_D(WInputPopupSurface);
-    if (d->cursorRect == rect)
+    if (!d->popupHandle || d->cursorRect == rect)
         return;
     d->cursorRect = rect;
-    d->handle()->send_text_input_rectangle(qw_box(rect));
-
+    wlr_box box { rect.x(), rect.y(), rect.width(), rect.height() };
+    wlr_input_popup_surface_v2_send_text_input_rectangle(d->popupHandle, &box);
     Q_EMIT cursorRectChanged();
 }
+
 WAYLIB_SERVER_END_NAMESPACE

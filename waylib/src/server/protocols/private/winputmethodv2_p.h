@@ -7,20 +7,15 @@
 #include "wserver.h"
 #include "wtoplevelsurface.h"
 
-#include <qwglobal.h>
-#include <qwinputmethodv2.h>
-
 #include <QObject>
 #include <QQmlEngine>
 
-Q_MOC_INCLUDE(<qwinputmethodv2.h>)
 Q_MOC_INCLUDE("wsurface.h")
 
-QW_BEGIN_NAMESPACE
-class qw_input_method_v2;
-class QWInputPopupSurfaceV2;
-class QWInputMethodKeyboardGrabV2;
-QW_END_NAMESPACE
+struct wlr_input_method_keyboard_grab_v2;
+struct wlr_input_method_manager_v2;
+struct wlr_input_method_v2;
+struct wlr_input_popup_surface_v2;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WInputMethodV2Private;
@@ -31,7 +26,7 @@ class WAYLIB_SERVER_EXPORT WInputMethodV2 : public WWrapObject
     Q_OBJECT
     W_DECLARE_PRIVATE(WInputMethodV2)
 public:
-    explicit WInputMethodV2(QW_NAMESPACE::qw_input_method_v2 *handle, QObject *parent = nullptr);
+    explicit WInputMethodV2(wlr_input_method_v2 *handle, QObject *parent = nullptr);
     WSeat *seat() const;
     QString commitString() const;
     uint deleteSurroundingBeforeLength() const;
@@ -39,7 +34,7 @@ public:
     QString preeditString() const;
     int preeditCursorBegin() const;
     int preeditCursorEnd() const;
-    QW_NAMESPACE::qw_input_method_v2 *handle() const;
+    wlr_input_method_v2 *handle() const;
 
 public Q_SLOTS:
     void sendContentType(quint32 hint, quint32 purpose);
@@ -52,8 +47,8 @@ public Q_SLOTS:
 
 Q_SIGNALS:
     void committed();
-    void newPopupSurface(QW_NAMESPACE::qw_input_popup_surface_v2 *surface);
-    void newKeyboardGrab(QW_NAMESPACE::qw_input_method_keyboard_grab_v2 *keyboardGrab);
+    void newPopupSurface(wlr_input_popup_surface_v2 *surface);
+    void newKeyboardGrab(wlr_input_method_keyboard_grab_v2 *keyboardGrab);
 
 private:
     friend class WInputMethodManagerV2;
@@ -68,13 +63,15 @@ class WAYLIB_SERVER_EXPORT WInputMethodManagerV2 : public QObject, public WObjec
 public:
     explicit WInputMethodManagerV2(QObject *parent = nullptr);
 
+    wlr_input_method_manager_v2 *handle() const;
     QByteArrayView interfaceName() const override;
 
 Q_SIGNALS:
-    void newInputMethod(QW_NAMESPACE::qw_input_method_v2 *inputMethod);
+    void newInputMethod(wlr_input_method_v2 *inputMethod);
 
 private:
     void create(WServer *server) override;
+    void destroy(WServer *server) override;
     wl_global *global() const override;
 };
 

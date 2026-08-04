@@ -8,14 +8,11 @@
 #include "wseat.h"
 #include "wayliblogging.h"
 
-#include <qwcompositor.h>
-#include <qwdisplay.h>
-#include <qwseat.h>
-
 extern "C" {
 #include "text-input-unstable-v2-protocol.h"
+#include <wlr/types/wlr_compositor.h>
+#include <wlr/types/wlr_seat.h>
 }
-QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 using namespace tiv2;
 static struct zwp_text_input_manager_v2_interface manager_impl = {

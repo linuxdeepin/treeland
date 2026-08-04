@@ -27,7 +27,6 @@
 #include<qwidleinhibitv1.h>
 #include<qwidlenotifyv1.h>
 #include<qwinputdevice.h>
-#include<qwinputmethodv2.h>
 #include<qwinterface.h>
 #include<qwkeyboardgroup.h>
 #include<qwkeyboard.h>
@@ -70,11 +69,9 @@
 #include<qwtabletpadinterface.h>
 #include<qwtabletv2.h>
 #include<qwtearingcontrolv1.h>
-#include<qwtextinputv3.h>
 #include<qwtexture.h>
 #include<qwtouch.h>
 #include<qwviewporter.h>
-#include<qwvirtualkeyboardv1.h>
 #include<qwvirtualpointerv1.h>
 #include<qwxcursormanager.h>
 #include<qwxdgactivationv1.h>

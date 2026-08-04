@@ -5,9 +5,7 @@
 
 #include <wtoplevelsurface.h>
 
-QW_BEGIN_NAMESPACE
-class qw_input_popup_surface_v2;
-QW_END_NAMESPACE
+struct wlr_input_popup_surface_v2;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WSurface;
@@ -20,9 +18,10 @@ class WAYLIB_SERVER_EXPORT WInputPopupSurface : public WToplevelSurface
     QML_UNCREATABLE("Only created in C++")
 
 public:
-    WInputPopupSurface(QW_NAMESPACE::qw_input_popup_surface_v2 *surface, WSurface *parentSurface, QObject *parent = nullptr);
+    WInputPopupSurface(wlr_input_popup_surface_v2 *surface, WSurface *parentSurface, QObject *parent = nullptr);
+    ~WInputPopupSurface() override;
     WSurface *surface() const override;
-    QW_NAMESPACE::qw_input_popup_surface_v2 *handle() const;
+    wlr_input_popup_surface_v2 *handle() const;
     QRect getContentGeometry() const override;
     bool hasCapability(Capability cap) const override;
     bool isActivated() const override;
@@ -36,7 +35,5 @@ Q_SIGNALS:
 public Q_SLOTS:
     bool checkNewSize(const QSize &size, QSize *clipedSize = nullptr) override;
 
-protected:
-    ~WInputPopupSurface() override = default;
 };
 WAYLIB_SERVER_END_NAMESPACE

@@ -7,19 +7,13 @@
 #include "wserver.h"
 #include "wtextinput_p.h"
 
-#include <qwglobal.h>
-
 #include <QQmlEngine>
 #include <QRect>
 
 Q_MOC_INCLUDE("wsurface.h")
 Q_MOC_INCLUDE("wseat.h")
-Q_MOC_INCLUDE(<qwtextinputv3.h>)
-
-QW_BEGIN_NAMESPACE
-class qw_text_input_v3;
-class qw_text_input_manager_v3;
-QW_END_NAMESPACE
+struct wlr_text_input_manager_v3;
+struct wlr_text_input_v3;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WSurface;
@@ -84,7 +78,8 @@ public:
         Terminal
     };
     Q_ENUM(ContentPurpose)
-    WTextInputV3(QW_NAMESPACE::qw_text_input_v3 *handle, QObject *parent);
+    WTextInputV3(wlr_text_input_v3 *handle, QObject *parent);
+    ~WTextInputV3() override;
 
     WSeat *seat() const override;
     WSurface *focusedSurface() const override;
@@ -96,7 +91,7 @@ public:
     IME::ContentPurpose contentPurpose() const override;
     QRect cursorRect() const override;
     IME::Features features() const override;
-    QW_NAMESPACE::qw_text_input_v3 *handle() const;
+    wlr_text_input_v3 *handle() const;
 
 
 public Q_SLOTS:
@@ -106,9 +101,12 @@ public Q_SLOTS:
     void handleIMCommitted(WInputMethodV2 *im) override;
 
 private:
+    void release();
     void sendPreeditString(const QString &text, qint32 cursorBegin, qint32 cursorEnd);
     void sendCommitString(const QString &text);
     void sendDeleteSurroundingText(quint32 beforeLength, quint32 afterLength);
+
+    friend class WTextInputManagerV3;
 };
 
 class WAYLIB_SERVER_EXPORT WTextInputManagerV3 : public QObject, public WObject, public WServerInterface
@@ -118,6 +116,7 @@ class WAYLIB_SERVER_EXPORT WTextInputManagerV3 : public QObject, public WObject,
 public:
     explicit WTextInputManagerV3(QObject *parent = nullptr);
 
+    wlr_text_input_manager_v3 *handle() const;
     QByteArrayView interfaceName() const override;
 
 Q_SIGNALS:

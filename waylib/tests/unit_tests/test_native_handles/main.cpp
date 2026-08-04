@@ -18,7 +18,11 @@
 #include <wxdgdialogmanagerv1.h>
 #include <wxdgpopupsurface.h>
 #include <wxdgtoplevelsurface.h>
+#include <winputpopupsurface.h>
 #include <woutputlayout.h>
+#include <private/winputmethodv2_p.h>
+#include <private/wtextinputv3_p.h>
+#include <private/wvirtualkeyboardv1_p.h>
 
 #include <QTest>
 #include <QPointer>
@@ -27,6 +31,10 @@
 extern "C" {
 #include <interfaces/wlr_input_device.h>
 #include <wlr/backend/headless.h>
+#define delete delete_c
+#include <wlr/types/wlr_input_method_v2.h>
+#undef delete
+#include <wlr/types/wlr_text_input_v3.h>
 }
 
 #include <type_traits>
@@ -50,6 +58,12 @@ struct wlr_xdg_wm_dialog_v1;
 struct wlr_session_lock_manager_v1;
 struct wlr_session_lock_surface_v1;
 struct wlr_session_lock_v1;
+struct wlr_input_method_manager_v2;
+struct wlr_input_method_v2;
+struct wlr_input_popup_surface_v2;
+struct wlr_text_input_manager_v3;
+struct wlr_text_input_v3;
+struct wlr_virtual_keyboard_manager_v1;
 
 WAYLIB_SERVER_USE_NAMESPACE
 
@@ -78,6 +92,18 @@ static_assert(std::is_same_v<decltype(std::declval<WSessionLock &>().handle()),
                              wlr_session_lock_v1 *>);
 static_assert(std::is_same_v<decltype(std::declval<WSessionLockSurface &>().handle()),
                              wlr_session_lock_surface_v1 *>);
+static_assert(std::is_same_v<decltype(std::declval<WInputMethodManagerV2 &>().handle()),
+                             wlr_input_method_manager_v2 *>);
+static_assert(std::is_same_v<decltype(std::declval<WInputMethodV2 &>().handle()),
+                             wlr_input_method_v2 *>);
+static_assert(std::is_same_v<decltype(std::declval<WInputPopupSurface &>().handle()),
+                             wlr_input_popup_surface_v2 *>);
+static_assert(std::is_same_v<decltype(std::declval<WTextInputManagerV3 &>().handle()),
+                             wlr_text_input_manager_v3 *>);
+static_assert(std::is_same_v<decltype(std::declval<WTextInputV3 &>().handle()),
+                             wlr_text_input_v3 *>);
+static_assert(std::is_same_v<decltype(std::declval<WVirtualKeyboardManagerV1 &>().handle()),
+                             wlr_virtual_keyboard_manager_v1 *>);
 
 class NativeHandlesTest : public QObject
 {
@@ -119,6 +145,95 @@ private Q_SLOTS:
         QVERIFY(dialogManager->handle());
         QVERIFY(sessionLockManager->handle());
         server.stop();
+    }
+
+    void inputProtocolManagersExposeNativeHandles()
+    {
+        WServer server;
+        auto *inputMethodManager = server.attach<WInputMethodManagerV2>();
+        auto *textInputManager = server.attach<WTextInputManagerV3>();
+        auto *virtualKeyboardManager = server.attach<WVirtualKeyboardManagerV1>();
+
+        server.start();
+        QVERIFY(inputMethodManager->handle());
+        QVERIFY(textInputManager->handle());
+        QVERIFY(virtualKeyboardManager->handle());
+        server.stop();
+    }
+
+    void inputProtocolObjectsTrackNativeLifetime()
+    {
+        wlr_input_method_v2 nativeInputMethod {};
+        wl_signal_init(&nativeInputMethod.events.commit);
+        wl_signal_init(&nativeInputMethod.events.grab_keyboard);
+        wl_signal_init(&nativeInputMethod.events.new_popup_surface);
+        wl_signal_init(&nativeInputMethod.events.destroy);
+        QPointer<WInputMethodV2> inputMethod = new WInputMethodV2(&nativeInputMethod);
+        QSignalSpy inputMethodInvalidated(inputMethod, &WWrapObject::invalidated);
+
+        wl_signal_emit_mutable(&nativeInputMethod.events.destroy, &nativeInputMethod);
+
+        QCOMPARE(inputMethodInvalidated.count(), 1);
+        QVERIFY(!inputMethod->handle());
+
+        wlr_input_popup_surface_v2 nativePopup {};
+        wl_signal_init(&nativePopup.events.destroy);
+        QPointer<WInputPopupSurface> popup = new WInputPopupSurface(&nativePopup, nullptr);
+        QSignalSpy popupInvalidated(popup, &WWrapObject::invalidated);
+
+        wl_signal_emit_mutable(&nativePopup.events.destroy, &nativePopup);
+
+        QCOMPARE(popupInvalidated.count(), 1);
+        QVERIFY(!popup->handle());
+
+        wlr_text_input_v3 nativeTextInput {};
+        wl_signal_init(&nativeTextInput.events.enable);
+        wl_signal_init(&nativeTextInput.events.disable);
+        wl_signal_init(&nativeTextInput.events.commit);
+        wl_signal_init(&nativeTextInput.events.destroy);
+        QPointer<WTextInputV3> textInput = new WTextInputV3(&nativeTextInput, nullptr);
+        QSignalSpy textInputDestroyed(textInput, &WTextInput::entityAboutToDestroy);
+
+        wl_signal_emit_mutable(&nativeTextInput.events.destroy, &nativeTextInput);
+
+        QCOMPARE(textInputDestroyed.count(), 1);
+        QVERIFY(!textInput->handle());
+
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        QVERIFY(inputMethod.isNull());
+        QVERIFY(popup.isNull());
+        QVERIFY(textInput.isNull());
+    }
+
+    void inputProtocolObserversDetachBeforeNativeDestruction()
+    {
+        wlr_input_method_v2 nativeInputMethod {};
+        wl_signal_init(&nativeInputMethod.events.commit);
+        wl_signal_init(&nativeInputMethod.events.grab_keyboard);
+        wl_signal_init(&nativeInputMethod.events.new_popup_surface);
+        wl_signal_init(&nativeInputMethod.events.destroy);
+        {
+            QObject owner;
+            new WInputMethodV2(&nativeInputMethod, &owner);
+        }
+        wl_signal_emit_mutable(&nativeInputMethod.events.destroy, &nativeInputMethod);
+
+        wlr_input_popup_surface_v2 nativePopup {};
+        wl_signal_init(&nativePopup.events.destroy);
+        {
+            QObject owner;
+            new WInputPopupSurface(&nativePopup, nullptr, &owner);
+        }
+        wl_signal_emit_mutable(&nativePopup.events.destroy, &nativePopup);
+
+        wlr_text_input_v3 nativeTextInput {};
+        wl_signal_init(&nativeTextInput.events.enable);
+        wl_signal_init(&nativeTextInput.events.disable);
+        wl_signal_init(&nativeTextInput.events.commit);
+        wl_signal_init(&nativeTextInput.events.destroy);
+        auto *textInput = new WTextInputV3(&nativeTextInput, nullptr);
+        delete textInput;
+        wl_signal_emit_mutable(&nativeTextInput.events.destroy, &nativeTextInput);
     }
 
     void inputDeviceTracksNativeLifetime()
