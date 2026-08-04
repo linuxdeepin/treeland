@@ -431,9 +431,6 @@ set_target_properties(${TARGET}
 
 target_link_libraries(${TARGET}
     PRIVATE
-    Qt6::Core
-    Qt6::Gui
-    Qt6::Quick
     Qt6::GuiPrivate
     Qt6::QuickPrivate
     PkgConfig::LIBDRM
@@ -447,6 +444,9 @@ target_link_libraries(${TARGET}
 
 target_link_libraries(${TARGET}
     PUBLIC
+        Qt6::Core
+        Qt6::Gui
+        Qt6::Quick
         $<BUILD_INTERFACE:${WLROOTS_TARGET}>
         $<INSTALL_INTERFACE:PkgConfig::WLROOTS>
 )
