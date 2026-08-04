@@ -9,6 +9,7 @@ target_link_libraries(test_native_handles
         Qt::Qml
         Qt::Quick
         Qt::Test
+        PkgConfig::WAYLAND_SERVER
 )
 
 add_test(NAME test_native_handles COMMAND test_native_handles)

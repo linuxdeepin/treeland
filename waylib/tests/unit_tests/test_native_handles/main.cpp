@@ -35,8 +35,8 @@
 #include <QSignalSpy>
 
 extern "C" {
-#include <interfaces/wlr_input_device.h>
 #include <wlr/backend/headless.h>
+#include <wlr/types/wlr_input_device.h>
 #define delete delete_c
 #include <wlr/types/wlr_input_method_v2.h>
 #undef delete
@@ -44,6 +44,12 @@ extern "C" {
 #define class _class
 #include <wlr/xwayland/xwayland.h>
 #undef class
+
+// wlroots 0.19 exports these functions but only declares them in an
+// uninstalled internal header.
+void wlr_input_device_init(struct wlr_input_device *device,
+                           enum wlr_input_device_type type, const char *name);
+void wlr_input_device_finish(struct wlr_input_device *device);
 }
 
 #include <type_traits>

@@ -411,8 +411,9 @@ qt_add_qml_module(${TARGET}
 )
 
 target_compile_definitions(${TARGET}
-    PRIVATE
+    PUBLIC
     WLR_USE_UNSTABLE
+    PRIVATE
     LIBWAYLIB_SERVER_LIBRARY
     QT_NO_SIGNALS_SLOTS_KEYWORDS
 )

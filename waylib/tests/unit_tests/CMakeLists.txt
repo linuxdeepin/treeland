@@ -1,5 +1,7 @@
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_AUTOMOC ON)
+find_package(PkgConfig REQUIRED)
+pkg_search_module(WAYLAND_SERVER REQUIRED IMPORTED_TARGET wayland-server)
 add_subdirectory(test_wwrappointer)
 add_subdirectory(test_qsgrenderer_accessor)
 add_subdirectory(test_native_handles)

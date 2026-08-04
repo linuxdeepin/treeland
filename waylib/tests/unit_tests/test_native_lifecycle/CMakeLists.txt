@@ -10,6 +10,7 @@ target_link_libraries(test_native_lifecycle
         Qt::Gui
         Qt::Qml
         Qt::Test
+        PkgConfig::WAYLAND_SERVER
 )
 
 add_test(NAME test_native_lifecycle COMMAND test_native_lifecycle)

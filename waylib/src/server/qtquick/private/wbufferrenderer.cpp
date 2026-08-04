@@ -11,10 +11,14 @@
 #include "private/wprivateaccessor_p.h"
 
 extern "C" {
-#include <render/wlr_renderer.h>
 #include <wlr/render/swapchain.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/types/wlr_buffer.h>
+
+// wlroots 0.19 exports this function but only declares it in an uninstalled
+// internal header. Keep the direct C declaration here until it becomes public.
+const struct wlr_drm_format_set *wlr_renderer_get_render_formats(
+    struct wlr_renderer *renderer);
 }
 
 #include <QSGImageNode>
