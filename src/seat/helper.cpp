@@ -1962,12 +1962,12 @@ void Helper::init(Treeland::Treeland *treeland)
             m_wallpaperManager,
             &WallpaperManager::handleWallpaperSurfaceAdded);
 
-    m_renderer = WRenderHelper::createRenderer(m_backend->handle());
+    m_renderer = WRenderHelper::createRenderer(qw_backend::from(m_backend->handle()));
     if (!m_renderer) {
         qCFatal(lcTlCore) << "Failed to create renderer";
     }
 
-    m_allocator = qw_allocator::autocreate(*m_backend->handle(), *m_renderer);
+    m_allocator = qw_allocator::autocreate(m_backend->handle(), *m_renderer);
     m_renderer->init_wl_display(*m_server->handle());
     qw_drm::create(*m_server->handle(), *m_renderer);
 
@@ -2201,7 +2201,7 @@ void Helper::init(Treeland::Treeland *treeland)
 
     // start() synchronously reports the initially available outputs through
     // onOutputAdded(). Restore the stored topology only after that scan completes.
-    m_backend->handle()->start();
+    wlr_backend_start(m_backend->handle());
     scanned = true;
     restoreInitialOutputConfiguration();
 }
@@ -2367,7 +2367,7 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *targetWindow, QInputEvent 
                 }
 
                 qCWarning(lcTlCore) << "Ctrl+Alt+Fn VT shortcut requested" << vtnr;
-                m_backend->session()->change_vt(vtnr);
+                wlr_session_change_vt(m_backend->session(), vtnr);
                 return true;
             }
         }
@@ -3045,7 +3045,7 @@ Output *Helper::findOutputById(const QString &id) const
 
 void Helper::addOutput()
 {
-    qobject_cast<qw_multi_backend *>(m_backend->handle())
+    qobject_cast<qw_multi_backend *>(qw_backend::from(m_backend->handle()))
         ->for_each_backend(
             [](wlr_backend *backend, void *) {
                 if (auto x11 = qw_x11_backend::from(backend)) {

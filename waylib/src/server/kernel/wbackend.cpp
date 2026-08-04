@@ -11,9 +11,11 @@
 
 #include <qwbackend.h>
 #include <qwdisplay.h>
-#include <qwoutput.h>
-#include <qwinputdevice.h>
 #include <qwsession.h>
+
+#include <wlr/backend.h>
+#include <wlr/backend/multi.h>
+#include <wlr/backend/session.h>
 
 #include <QDebug>
 
@@ -42,7 +44,7 @@ public:
     void on_new_output(wlr_output *output);
     void on_new_input(wlr_input_device *device);
     void on_input_destroy(WInputDevice *data);
-    void on_output_destroy(qw_output *output);
+    void on_output_destroy(WOutput *output);
     // end slot function
 
     void connect();
@@ -70,14 +72,13 @@ private:
 void WBackendPrivate::on_new_output(wlr_output *output)
 {
     W_Q(WBackend);
-    auto qoutput = qw_output::from(output);
     auto woutput = new WOutput(output, q);
 
     outputList << woutput;
     QWlrootsIntegration::instance()->addScreen(woutput);
 
-    woutput->safeConnect(&qw_output::before_destroy, q, [this, qoutput] {
-        on_output_destroy(qoutput);
+    QObject::connect(woutput, &WWrapObject::aboutToBeInvalidated, q, [this, woutput] {
+        on_output_destroy(woutput);
     });
 
     Q_EMIT q->outputAdded(woutput);
@@ -109,10 +110,10 @@ void WBackendPrivate::on_input_destroy(WInputDevice *data)
     }
 }
 
-void WBackendPrivate::on_output_destroy(qw_output *output)
+void WBackendPrivate::on_output_destroy(WOutput *output)
 {
     for (int i = 0; i < outputList.count(); ++i) {
-        if (outputList.at(i)->handle() == output->handle()) {
+        if (outputList.at(i) == output) {
             auto woutput = outputList.takeAt(i);
 
             W_Q(WBackend);
@@ -140,15 +141,15 @@ WBackend::WBackend()
 
 }
 
-qw_backend *WBackend::handle() const
+wlr_backend *WBackend::handle() const
 {
-    return nativeInterface<qw_backend>();
+    return nativeInterface<qw_backend>()->handle();
 }
 
-qw_session *WBackend::session() const
+wlr_session *WBackend::session() const
 {
     W_DC(WBackend);
-    return d->session;
+    return d->session ? d->session->handle() : nullptr;
 }
 
 QList<WOutput*> WBackend::outputList() const
@@ -163,20 +164,20 @@ QList<WInputDevice *> WBackend::inputDeviceList() const
     return d->inputList;
 }
 
-template<class T>
-static bool hasBackend(qw_backend *handle)
+static bool backendHasType(wlr_backend *handle, bool (*isType)(wlr_backend *))
 {
-    if (qobject_cast<T*>(handle))
+    if (isType(handle))
         return true;
-    if (auto multiBackend = qobject_cast<qw_multi_backend*>(handle)) {
-        bool exists = false;
-        multiBackend->for_each_backend([] (wlr_backend *backend, void *userData) {
-            bool &exists = *reinterpret_cast<bool*>(userData);
-            if (T::from(backend))
-                exists = true;
-        }, &exists);
+    if (wlr_backend_is_multi(handle)) {
+        struct Ctx { bool (*isType)(wlr_backend *); bool exists; };
+        Ctx ctx{isType, false};
+        wlr_multi_for_each_backend(handle, [] (wlr_backend *backend, void *data) {
+            auto *ctx = static_cast<Ctx*>(data);
+            if (ctx->isType(backend))
+                ctx->exists = true;
+        }, &ctx);
 
-        return exists;
+        return ctx.exists;
     }
 
     return false;
@@ -184,17 +185,21 @@ static bool hasBackend(qw_backend *handle)
 
 bool WBackend::hasDrm() const
 {
-    return hasBackend<qw_drm_backend>(handle());
+    return backendHasType(handle(), wlr_backend_is_drm);
 }
 
 bool WBackend::hasX11() const
 {
-    return hasBackend<qw_x11_backend>(handle());
+#ifdef WLR_HAVE_X11_BACKEND
+    return backendHasType(handle(), wlr_backend_is_x11);
+#else
+    return false;
+#endif
 }
 
 bool WBackend::hasWayland() const
 {
-    return hasBackend<qw_wayland_backend>(handle());
+    return backendHasType(handle(), wlr_backend_is_wl);
 }
 
 bool WBackend::isSessionActive() const

@@ -321,12 +321,12 @@ void Helper::init()
     });
     m_server->start();
 
-    m_renderer = WRenderHelper::createRenderer(m_backend->handle());
+    m_renderer = WRenderHelper::createRenderer(qw_backend::from(m_backend->handle()));
     if (!m_renderer) {
         qFatal("Failed to create renderer");
     }
 
-    m_allocator = qw_allocator::autocreate(*m_backend->handle(), *m_renderer);
+    m_allocator = qw_allocator::autocreate(m_backend->handle(), *m_renderer);
     m_renderer->init_wl_display(*m_server->handle());
 
     // free follow display
@@ -516,7 +516,7 @@ void Helper::init()
     qw_ext_data_control_manager_v1::create(*m_server->handle(), EXT_DATA_CONTROL_MANAGER_V1_VERSION);
     qw_alpha_modifier_v1::create(*m_server->handle());
 
-    m_backend->handle()->start();
+    wlr_backend_start(m_backend->handle());
 
     qInfo() << "Listing on:" << m_socket->fullServerName();
     startDemoClient();
@@ -781,7 +781,7 @@ Output *Helper::getOutput(WOutput *output) const
 
 void Helper::addOutput()
 {
-    qobject_cast<qw_multi_backend*>(m_backend->handle())->for_each_backend([] (wlr_backend *backend, void *) {
+    qobject_cast<qw_multi_backend*>(qw_backend::from(m_backend->handle()))->for_each_backend([] (wlr_backend *backend, void *) {
         if (auto x11 = qw_x11_backend::from(backend)) {
             qw_output::from(x11->output_create());
         } else if (auto wayland = qw_wayland_backend::from(backend)) {

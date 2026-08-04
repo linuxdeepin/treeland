@@ -51,7 +51,7 @@ void Helper::initProtocols(WOutputRenderWindow *window, QQmlEngine *qmlEngine)
     m_backend = m_server->attach<WBackend>();
     m_server->start();
 
-    m_renderer = WRenderHelper::createRenderer(m_backend->handle());
+    m_renderer = WRenderHelper::createRenderer(qw_backend::from(m_backend->handle()));
 
     if (!m_renderer) {
         qFatal("Failed to create renderer");
@@ -78,7 +78,7 @@ void Helper::initProtocols(WOutputRenderWindow *window, QQmlEngine *qmlEngine)
         m_seat->detachInputDevice(device);
     });
 
-    m_allocator = qw_allocator::autocreate(*m_backend->handle(), *m_renderer);
+    m_allocator = qw_allocator::autocreate(m_backend->handle(), *m_renderer);
     m_renderer->init_wl_display(*m_server->handle());
 
     // free follow display
@@ -116,7 +116,7 @@ void Helper::initProtocols(WOutputRenderWindow *window, QQmlEngine *qmlEngine)
     });
     window->init(m_renderer, m_allocator);
 
-    m_backend->handle()->start();
+    wlr_backend_start(m_backend->handle());
 }
 
 int main(int argc, char *argv[]) {
