@@ -727,7 +727,7 @@ public:
         }
 
         wlr_dmabuf_attributes attribs;
-        if (!buffer->get_dmabuf(&attribs)) {
+        if (!wlr_buffer_get_dmabuf(buffer, &attribs)) {
             reset();
             return;
         }

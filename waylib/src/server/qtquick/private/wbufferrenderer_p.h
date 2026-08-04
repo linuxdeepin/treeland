@@ -27,6 +27,10 @@ struct pixman_region32;
 struct wlr_swapchain;
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
+struct WBufferUnlocker {
+    void operator()(wlr_buffer *buf) const { if (buf) wlr_buffer_unlock(buf); }
+};
+
 class WRenderHelper;
 class WSGTextureProvider;
 class WAYLIB_SERVER_EXPORT WBufferRenderer : public QQuickItem

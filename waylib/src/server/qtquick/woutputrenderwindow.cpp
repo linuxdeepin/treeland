@@ -23,6 +23,7 @@
 #include "platformplugin/types.h"
 
 #include <wlr/types/wlr_output.h>
+#include <wlr/interfaces/wlr_output.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/render/allocator.h>
 #include <wlr/types/wlr_buffer.h>
@@ -1089,7 +1090,7 @@ bool OutputHelper::tryToHardwareCursor(const LayerData *layer)
     do {
         auto set_cursor = qwoutput()->impl->set_cursor;
         auto buffer = layer && layer->renderer->lastBuffer()
-                          ? layer->renderer->lastBuffer()->handle()
+                          ? layer->renderer->lastBuffer()
                           : nullptr;
         if (!buffer) {
             if (!m_hardwareCursorRenderComplete)

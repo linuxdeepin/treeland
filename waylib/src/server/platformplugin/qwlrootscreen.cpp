@@ -13,6 +13,8 @@
 #include <private/qguiapplication_p.h>
 #include <private/qhighdpiscaling_p.h>
 
+#include <wlr/types/wlr_output.h>
+
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 QWlrootsScreen::QWlrootsScreen(WOutput *output)

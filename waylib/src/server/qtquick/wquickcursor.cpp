@@ -14,6 +14,7 @@
 
 #include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/types/wlr_buffer.h>
+#include <wlr/interfaces/wlr_buffer.h>
 #include <wlr/render/wlr_texture.h>
 
 #include <QSGImageNode>

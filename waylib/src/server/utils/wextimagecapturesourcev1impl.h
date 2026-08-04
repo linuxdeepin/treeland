@@ -9,7 +9,7 @@
 
 #include <wlr/interfaces/wlr_ext_image_capture_source_v1.h>
 
-struct wl_seat;
+struct wlr_seat;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -34,7 +34,7 @@ private:
     void schedule_frame();
     void copy_frame(wlr_ext_image_copy_capture_frame_v1 *dst_frame,
                     wlr_ext_image_capture_source_v1_frame_event *frame_event);
-    wlr_ext_image_capture_source_v1_cursor *get_pointer_cursor(wl_seat *seat);
+    wlr_ext_image_capture_source_v1_cursor *get_pointer_cursor(wlr_seat *seat);
 
     // Static C callback dispatchers
     static void impl_start(wlr_ext_image_capture_source_v1 *source, bool with_cursors);
@@ -44,7 +44,10 @@ private:
                                 wlr_ext_image_copy_capture_frame_v1 *dst_frame,
                                 wlr_ext_image_capture_source_v1_frame_event *frame_event);
     static wlr_ext_image_capture_source_v1_cursor *impl_get_pointer_cursor(
-        wlr_ext_image_capture_source_v1 *source, wl_seat *seat);
+        wlr_ext_image_capture_source_v1 *source, wlr_seat *seat);
+
+    static WExtImageCaptureSourceV1Impl *getImpl(wlr_ext_image_capture_source_v1 *source);
+    void handleRenderEnd();
 
     static const struct wlr_ext_image_capture_source_v1_interface s_impl;
 

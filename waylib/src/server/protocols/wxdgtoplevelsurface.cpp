@@ -176,19 +176,21 @@ void WXdgToplevelSurfacePrivate::connect()
     });
 
     m_requestMoveListener.connect(&toplevel->events.request_move, [q](wl_listener *listener, void *data) {
-        auto *self = WScopedListener::owner<WXdgToplevelSurfacePrivate, &WXdgToplevelSurfacePrivate::m_requestMoveListener>(listener);
+        (void)listener;
         auto *event = static_cast<wlr_xdg_toplevel_move_event*>(data);
         auto seat = WSeat::fromHandle(event->seat->seat);
         Q_EMIT q->requestMove(seat, event->serial);
     });
 
     m_requestResizeListener.connect(&toplevel->events.request_resize, [q](wl_listener *listener, void *data) {
+        (void)listener;
         auto *event = static_cast<wlr_xdg_toplevel_resize_event*>(data);
         auto seat = WSeat::fromHandle(event->seat->seat);
         Q_EMIT q->requestResize(seat, WTools::toQtEdge(event->edges), event->serial);
     });
 
     m_requestMaximizeListener.connect(&toplevel->events.request_maximize, [q, this](wl_listener *listener, void *) {
+        (void)listener;
         if (handle()->requested.maximized) {
             Q_EMIT q->requestMaximize();
         } else {
@@ -197,34 +199,40 @@ void WXdgToplevelSurfacePrivate::connect()
     });
 
     m_requestMinimizeListener.connect(&toplevel->events.request_minimize, [q, this](wl_listener *listener, void *) {
+        (void)listener;
         if (handle()->requested.minimized) {
             Q_EMIT q->requestMinimize();
         }
     });
 
     m_requestFullscreenListener.connect(&toplevel->events.request_fullscreen, [q, this](wl_listener *listener, void *) {
+        (void)listener;
         if (handle()->requested.fullscreen) {
-            Q_EMIT q->requestFullScreen();
+            Q_EMIT q->requestFullscreen();
         } else {
-            Q_EMIT q->requestCancelFullScreen();
+            Q_EMIT q->requestCancelFullscreen();
         }
     });
 
     m_requestShowWindowMenuListener.connect(&toplevel->events.request_show_window_menu, [q](wl_listener *listener, void *data) {
+        (void)listener;
         auto *event = static_cast<wlr_xdg_toplevel_show_window_menu_event*>(data);
         auto seat = WSeat::fromHandle(event->seat->seat);
-        Q_EMIT q->requestActivate(seat);
+        Q_EMIT q->requestShowWindowMenu(seat, QPoint(event->x, event->y), event->serial);
     });
 
     m_setParentListener.connect(&toplevel->events.set_parent, [q](wl_listener *listener, void *) {
+        (void)listener;
         Q_EMIT q->parentXdgSurfaceChanged();
     });
 
     m_setTitleListener.connect(&toplevel->events.set_title, [q](wl_listener *listener, void *) {
+        (void)listener;
         Q_EMIT q->titleChanged();
     });
 
     m_setAppIdListener.connect(&toplevel->events.set_app_id, [q](wl_listener *listener, void *) {
+        (void)listener;
         Q_EMIT q->appIdChanged();
     });
 }
@@ -243,9 +251,9 @@ WXdgToplevelSurface::~WXdgToplevelSurface()
 bool WXdgToplevelSurface::hasCapability(Capability cap) const
 {
     return cap == Capability::Keyboard || cap == Capability::Pointer
-        || cap == Capability::Touch || cap == Capability::Resize
-        || cap == Capability::Focus || cap == Capability::Maximize
-        || cap == Capability::Minimize || cap == Capability::FullScreen;
+        || cap == Capability::Resize || cap == Capability::Focus
+        || cap == Capability::Activate || cap == Capability::Maximized
+        || cap == Capability::FullScreen;
 }
 
 WSurface *WXdgToplevelSurface::surface() const

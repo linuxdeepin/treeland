@@ -12,6 +12,7 @@
 #include <wlr/types/wlr_buffer.h>
 #include <wlr/render/wlr_texture.h>
 #include <wlr/render/wlr_renderer.h>
+#include <wlr/render/interface.h>
 #include <wlr/render/swapchain.h>
 #include <wlr/render/allocator.h>
 
