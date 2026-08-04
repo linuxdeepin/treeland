@@ -18,6 +18,7 @@
 
 #include <wlr/types/wlr_data_device.h>
 #include <wlr/types/wlr_primary_selection.h>
+#include <wlr/types/wlr_primary_selection_v1.h>
 #include <wlr/xwayland/shell.h>
 #include <QEvent>
 #include <QCoreApplication>

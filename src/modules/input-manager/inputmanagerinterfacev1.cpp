@@ -11,6 +11,7 @@
 #include <winputdevice.h>
 
 #include <wayland-server-core.h>
+#include <wlr/backend/libinput.h>
 
 static QList<MouseSettingsInterfaceV1 *> s_mouseSettings;
 static QList<TouchpadSettingsInterfaceV1 *> s_touchpadSettings;
@@ -219,7 +220,7 @@ TreelandInputManagerInterfaceV1::DeviceTypes TreelandInputManagerInterfaceV1::in
 
 TreelandInputManagerInterfaceV1::DeviceTypes TreelandInputManagerInterfaceV1::inputDeviceType(WInputDevice *input) const
 {
-    if (!input->handle()->is_libinput()) {
+    if (!wlr_input_device_is_libinput(input->handle())) {
         return TreelandInputManagerInterfaceV1::DeviceType::Unknown;
     }
 

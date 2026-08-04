@@ -148,7 +148,7 @@ private:
     WSocket *m_socket = nullptr;
     WSeat *m_seat = nullptr;
     WBackend *m_backend = nullptr;
-    wlr_renderer m_renderer = nullptr;
+    wlr_renderer *m_renderer = nullptr;
     wlr_allocator *m_allocator = nullptr;
 
     // protocols

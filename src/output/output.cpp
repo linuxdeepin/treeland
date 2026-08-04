@@ -41,7 +41,7 @@
 Output *Output::create(WOutput *output, QQmlEngine *engine, QObject *parent)
 {
     auto isSoftwareCursor = [](WOutput *output) -> bool {
-        return wlr_output_is_x11(output->handle(), ) || Helper::instance()->globalConfig()->forceSoftwareCursor();
+        return wlr_output_is_x11(output->handle()) || Helper::instance()->globalConfig()->forceSoftwareCursor();
     };
     QQmlComponent delegate(engine, "Treeland", "PrimaryOutput");
     QObject *obj = delegate.beginCreate(engine->rootContext());
@@ -1146,7 +1146,7 @@ void Output::setOutputColor(qreal brightness,
         brightnessCorrection = brightness;
     }
 
-    const size_t gammaSize = wlr_output_get_gamma_size(output()->handle(), );
+    const size_t gammaSize = wlr_output_get_gamma_size(output()->handle());
     if (gammaSize == 0) {
         if (backlightApplied) {
             config()->setBrightness(brightness);

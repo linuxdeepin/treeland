@@ -6,6 +6,7 @@
 #include "wsurface.h"
 #include "private/wglobal_p.h"
 
+#include <wlr/types/wlr_buffer.h>
 
 #include <QObject>
 #include <QPointer>

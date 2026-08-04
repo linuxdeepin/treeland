@@ -82,7 +82,7 @@ void Helper::initProtocols(WOutputRenderWindow *window, QQmlEngine *qmlEngine)
     });
 
     m_allocator = wlr_allocator_autocreate(m_backend->handle(), m_renderer);
-    m_renderer->init_wl_display(m_server->handle());
+    wlr_renderer_init_wl_display(m_renderer, m_server->handle());
 
     // free follow display
     m_compositor = wlr_compositor_create(m_server->handle(), 6, m_renderer);
