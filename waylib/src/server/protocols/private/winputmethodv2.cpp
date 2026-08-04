@@ -9,17 +9,12 @@
 #include "private/wglobal_p.h"
 #include "wayliblogging.h"
 
-#include <qwcompositor.h>
-#include <qwinputmethodv2.h>
-#include <qwseat.h>
-#include <qwkeyboard.h>
-#include <qwvirtualkeyboardv1.h>
-#include <qwdisplay.h>
+#include <wlr/types/wlr_input_method_v2.h>
+#include <wlr/types/wlr_compositor.h>
 
 #include <QKeySequence>
 #include <QRect>
 
-QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class Q_DECL_HIDDEN WInputMethodManagerV2Private : public WObjectPrivate
 {
@@ -29,6 +24,7 @@ public:
     {}
     W_DECLARE_PUBLIC(WInputMethodManagerV2)
 
+    WScopedListener m_inputMethodListener;
     QList<WInputMethodV2 *> inputMethods;
 };
 
@@ -44,46 +40,54 @@ QByteArrayView WInputMethodManagerV2::interfaceName() const
 
 void WInputMethodManagerV2::create(WServer *server)
 {
-    auto handle = qw_input_method_manager_v2::create(*server->handle());
-    Q_ASSERT(handle);
-    m_handle = handle;
-    connect(handle, &qw_input_method_manager_v2::notify_input_method, this, [this](wlr_input_method_v2* im) {
-        Q_EMIT newInputMethod(qw_input_method_v2::from(im));
+    W_D(WInputMethodManagerV2);
+    m_handle = wlr_input_method_manager_v2_create(server->handle());
+    Q_ASSERT(m_handle);
+    auto *manager = static_cast<wlr_input_method_manager_v2*>(m_handle);
+    d->m_inputMethodListener.connect(&manager->events.input_method, [this](wl_listener *, void *data) {
+        Q_EMIT newInputMethod(static_cast<wlr_input_method_v2*>(data));
     });
 }
 
 wl_global *WInputMethodManagerV2::global() const
 {
-    return nativeInterface<qw_input_method_manager_v2>()->handle()->global;
+    return static_cast<wlr_input_method_manager_v2*>(m_handle)->global;
 }
 
 class Q_DECL_HIDDEN WInputMethodV2Private : public WWrapObjectPrivate
 {
 public:
-    WInputMethodV2Private(qw_input_method_v2 *h, WInputMethodV2 *qq)
+    WInputMethodV2Private(wlr_input_method_v2 *h, WInputMethodV2 *qq)
         : WWrapObjectPrivate(qq)
     {
-        initHandle(h);
+        initNativeHandle(h, &h->events.destroy);
     }
 
-    WWRAP_HANDLE_FUNCTIONS(qw_input_method_v2, wlr_input_method_v2)
+    WWRAP_NATIVE_HANDLE_FUNCTIONS(wlr_input_method_v2)
+
+    WScopedListener m_commitListener;
+    WScopedListener m_grabKeyboardListener;
+    WScopedListener m_newPopupSurfaceListener;
 
     W_DECLARE_PUBLIC(WInputMethodV2)
 };
 
-WInputMethodV2::WInputMethodV2(qw_input_method_v2 *h, QObject *parent) :
+WInputMethodV2::WInputMethodV2(wlr_input_method_v2 *h, QObject *parent) :
     WWrapObject(*new WInputMethodV2Private(h, this), parent)
 {
-    connect(handle(), &qw_input_method_v2::notify_commit, this, &WInputMethodV2::committed);
-    connect(handle(), &qw_input_method_v2::notify_grab_keyboard, this, [this](wlr_input_method_keyboard_grab_v2 *grab) {
-        Q_EMIT newKeyboardGrab(qw_input_method_keyboard_grab_v2::from(grab));
+    W_D(WInputMethodV2);
+    d->m_commitListener.connect(&h->events.commit, [this](wl_listener *, void *) {
+        Q_EMIT committed();
     });
-    connect(handle(), &qw_input_method_v2::notify_new_popup_surface, this, [this](wlr_input_popup_surface_v2 *surface) {
-        Q_EMIT newPopupSurface(qw_input_popup_surface_v2::from(surface));
+    d->m_grabKeyboardListener.connect(&h->events.grab_keyboard, [this](wl_listener *, void *data) {
+        Q_EMIT newKeyboardGrab(static_cast<wlr_input_method_keyboard_grab_v2*>(data));
+    });
+    d->m_newPopupSurfaceListener.connect(&h->events.new_popup_surface, [this](wl_listener *, void *data) {
+        Q_EMIT newPopupSurface(static_cast<wlr_input_popup_surface_v2*>(data));
     });
 }
 
-qw_input_method_v2 *WInputMethodV2::handle() const
+wlr_input_method_v2 *WInputMethodV2::handle() const
 {
     return d_func()->handle();
 }
@@ -91,78 +95,78 @@ qw_input_method_v2 *WInputMethodV2::handle() const
 WSeat *WInputMethodV2::seat() const
 {
     W_DC(WInputMethodV2);
-    return WSeat::fromHandle(d->nativeHandle()->seat);
+    return WSeat::fromHandle(d->handle()->seat);
 }
 
 void WInputMethodV2::sendContentType(quint32 hint, quint32 purpose)
 {
     W_D(WInputMethodV2);
-    d->handle()->send_content_type(hint, purpose);
+    wlr_input_method_v2_send_content_type(d->handle(), hint, purpose);
 }
 
 void WInputMethodV2::sendActivate()
 {
     W_D(WInputMethodV2);
-    d->handle()->send_activate();
+    wlr_input_method_v2_send_activate(d->handle());
 }
 
 void WInputMethodV2::sendDeactivate()
 {
     W_D(WInputMethodV2);
-    d->handle()->send_deactivate();
+    wlr_input_method_v2_send_deactivate(d->handle());
 }
 
 void WInputMethodV2::sendDone()
 {
     W_D(WInputMethodV2);
-    d->handle()->send_done();
+    wlr_input_method_v2_send_done(d->handle());
 }
 
 void WInputMethodV2::sendSurroundingText(const QString &text, quint32 cursor, quint32 anchor)
 {
     W_D(WInputMethodV2);
-    d->handle()->send_surrounding_text(qPrintable(text), cursor, anchor);
+    wlr_input_method_v2_send_surrounding_text(d->handle(), qPrintable(text), cursor, anchor);
 }
 
 void WInputMethodV2::sendTextChangeCause(quint32 cause)
 {
     W_D(WInputMethodV2);
-    d->handle()->send_text_change_cause(cause);
+    wlr_input_method_v2_send_text_change_cause(d->handle(), cause);
 }
 
 void WInputMethodV2::sendUnavailable()
 {
     W_D(WInputMethodV2);
-    d->handle()->send_unavailable();
+    wlr_input_method_v2_send_unavailable(d->handle());
 }
 
 QString WInputMethodV2::commitString() const
 {
-    return d_func()->nativeHandle()->current.commit_text;
+    return d_func()->handle()->current.commit_text;
 }
 
 uint WInputMethodV2::deleteSurroundingBeforeLength() const
 {
-    return d_func()->nativeHandle()->current.delete_c.before_length;
+    return d_func()->handle()->current.delete_c.before_length;
 }
 
 uint WInputMethodV2::deleteSurroundingAfterLength() const
 {
-    return d_func()->nativeHandle()->current.delete_c.after_length;
+    return d_func()->handle()->current.delete_c.after_length;
 }
 
 QString WInputMethodV2::preeditString() const
 {
-    return d_func()->nativeHandle()->current.preedit.text;
+    return d_func()->handle()->current.preedit.text;
 }
 
 int WInputMethodV2::preeditCursorBegin() const
 {
-    return d_func()->nativeHandle()->current.preedit.cursor_begin;
+    return d_func()->handle()->current.preedit.cursor_begin;
 }
 
 int WInputMethodV2::preeditCursorEnd() const
 {
-    return d_func()->nativeHandle()->current.preedit.cursor_end;
+    return d_func()->handle()->current.preedit.cursor_end;
 }
 WAYLIB_SERVER_END_NAMESPACE

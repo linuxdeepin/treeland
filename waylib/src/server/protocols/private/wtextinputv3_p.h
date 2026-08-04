@@ -7,19 +7,14 @@
 #include "wserver.h"
 #include "wtextinput_p.h"
 
-#include <qwglobal.h>
 
 #include <QQmlEngine>
 #include <QRect>
 
 Q_MOC_INCLUDE("wsurface.h")
 Q_MOC_INCLUDE("wseat.h")
-Q_MOC_INCLUDE(<qwtextinputv3.h>)
 
-QW_BEGIN_NAMESPACE
-class qw_text_input_v3;
-class qw_text_input_manager_v3;
-QW_END_NAMESPACE
+struct wlr_text_input_v3;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WSurface;
@@ -84,7 +79,7 @@ public:
         Terminal
     };
     Q_ENUM(ContentPurpose)
-    WTextInputV3(QW_NAMESPACE::qw_text_input_v3 *handle, QObject *parent);
+    WTextInputV3(wlr_text_input_v3 *handle, QObject *parent);
 
     WSeat *seat() const override;
     WSurface *focusedSurface() const override;
@@ -96,7 +91,7 @@ public:
     IME::ContentPurpose contentPurpose() const override;
     QRect cursorRect() const override;
     IME::Features features() const override;
-    QW_NAMESPACE::qw_text_input_v3 *handle() const;
+    wlr_text_input_v3 *handle() const;
 
 
 public Q_SLOTS:

@@ -6,7 +6,6 @@
 #include <wglobal.h>
 #include <wserver.h>
 
-#include <qwglobal.h>
 
 struct wlr_virtual_keyboard_v1;
 WAYLIB_SERVER_BEGIN_NAMESPACE

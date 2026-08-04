@@ -8,17 +8,13 @@
 #include "wsocket.h"
 #include "private/wglobal_p.h"
 
-#include <qwdisplay.h>
-#include <qwseat.h>
-#include <qwcompositor.h>
-#include <qwsignalconnector.h>
+#include <wlr/types/wlr_compositor.h>
 
 #include <QRect>
 
 extern "C" {
 #include "text-input-unstable-v1-protocol.h"
 }
-QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class Q_DECL_HIDDEN WTextInputV1Private : public WTextInputPrivate
 {

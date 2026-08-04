@@ -6,41 +6,39 @@
 #include "private/wtoplevelsurface_p.h"
 #include "wsurface.h"
 
-#include <qwcompositor.h>
-#include <qwinputmethodv2.h>
-#include <qwbox.h>
+#include <wlr/types/wlr_input_method_v2.h>
+#include <wlr/util/box.h>
 
-QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class Q_DECL_HIDDEN WInputPopupSurfacePrivate : public WToplevelSurfacePrivate
 {
 public:
     W_DECLARE_PUBLIC(WInputPopupSurface)
-    explicit WInputPopupSurfacePrivate(qw_input_popup_surface_v2 *surface, WSurface *parentSurface, WInputPopupSurface *qq)
+    explicit WInputPopupSurfacePrivate(wlr_input_popup_surface_v2 *surface, WSurface *parentSurface, WInputPopupSurface *qq)
         : WToplevelSurfacePrivate(qq)
         , parent(parentSurface)
         , cursorRect()
     {
-        initHandle(surface);
+        initNativeHandle(surface, &surface->events.destroy);
     }
 
-    WWRAP_HANDLE_FUNCTIONS(qw_input_popup_surface_v2, wlr_input_popup_surface_v2)
+    WWRAP_NATIVE_HANDLE_FUNCTIONS(wlr_input_popup_surface_v2)
 
     QSize size() const
     {
-        return {handle()->handle()->surface->current.width, handle()->handle()->surface->current.height};
+        return {handle()->surface->current.width, handle()->surface->current.height};
     }
 
     wl_client *waylandClient() const override {
-        return nativeHandle()->resource->client;
+        return handle()->resource->client;
     }
 
     WSurface *const parent;
     QRect cursorRect;
 };
 
-WInputPopupSurface::WInputPopupSurface(qw_input_popup_surface_v2 *surface, WSurface *parentSurface, QObject *parent)
+WInputPopupSurface::WInputPopupSurface(wlr_input_popup_surface_v2 *surface, WSurface *parentSurface, QObject *parent)
     : WToplevelSurface(*new WInputPopupSurfacePrivate(surface, parentSurface, this), parent)
 { }
 
@@ -63,15 +61,15 @@ bool WInputPopupSurface::hasCapability(Capability cap) const
 
 WSurface *WInputPopupSurface::surface() const
 {
-    auto wSurface = WSurface::fromHandle(handle()->handle()->surface);
+    auto wSurface = WSurface::fromHandle(d_func()->handle()->surface);
     if (!wSurface) {
-        wSurface = new WSurface(handle()->handle()->surface);
-        connect(handle(), &qw_surface::before_destroy, wSurface, &WSurface::safeDeleteLater);
+        wSurface = new WSurface(d_func()->handle()->surface);
+        QObject::connect(this, &WInputPopupSurface::aboutToBeInvalidated, wSurface, &WSurface::safeDeleteLater);
     }
     return wSurface;
 }
 
-qw_input_popup_surface_v2 *WInputPopupSurface::handle() const
+wlr_input_popup_surface_v2 *WInputPopupSurface::handle() const
 {
     return d_func()->handle();
 }
@@ -107,7 +105,8 @@ void WInputPopupSurface::sendCursorRect(QRect rect)
     if (d->cursorRect == rect)
         return;
     d->cursorRect = rect;
-    d->handle()->send_text_input_rectangle(qw_box(rect));
+    wlr_box box{rect.x(), rect.y(), rect.width(), rect.height()};
+    wlr_input_popup_surface_v2_send_text_input_rectangle(d->handle(), &box);
 
     Q_EMIT cursorRectChanged();
 }

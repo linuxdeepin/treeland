@@ -5,16 +5,13 @@
 
 #include <wserver.h>
 #include <wglobal.h>
-#include <qwglobal.h>
 
 #include <QObject>
 #include <QQmlEngine>
 
 Q_MOC_INCLUDE("wsurface.h")
 
-QW_BEGIN_NAMESPACE
-class qw_ext_foreign_toplevel_handle_v1;
-QW_END_NAMESPACE
+struct wlr_ext_foreign_toplevel_handle_v1;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -32,7 +29,7 @@ public:
     void removeSurface(WToplevelSurface *surface); // Must `removeSurface` manually before surface destroy
 
     // Reverse lookup: find WToplevelSurface from protocol handle
-    WToplevelSurface *findSurfaceByHandle(qw_ext_foreign_toplevel_handle_v1 *handle) const;
+    WToplevelSurface *findSurfaceByHandle(wlr_ext_foreign_toplevel_handle_v1 *handle) const;
 
     QByteArrayView interfaceName() const override;
 

@@ -5,10 +5,8 @@
 #include "private/wglobal_p.h"
 #include "wayliblogging.h"
 
-#include <qwvirtualkeyboardv1.h>
-#include <qwdisplay.h>
+#include <wlr/types/wlr_virtual_keyboard_v1.h>
 
-QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class Q_DECL_HIDDEN WVirtualKeyboardManagerV1Private : public WObjectPrivate
@@ -18,6 +16,7 @@ public:
     explicit WVirtualKeyboardManagerV1Private(WVirtualKeyboardManagerV1 *qq)
         : WObjectPrivate(qq)
     { }
+    WScopedListener m_newVirtualKeyboardListener;
 };
 
 WVirtualKeyboardManagerV1::WVirtualKeyboardManagerV1([[maybe_unused]] QObject *parent)
@@ -31,15 +30,18 @@ QByteArrayView WVirtualKeyboardManagerV1::interfaceName() const
 
 void WVirtualKeyboardManagerV1::create(WServer *server)
 {
-    auto manager = qw_virtual_keyboard_manager_v1::create(*server->handle());
-    Q_ASSERT(manager);
-    m_handle = manager;
-    connect(manager, &qw_virtual_keyboard_manager_v1::notify_new_virtual_keyboard, this, &WVirtualKeyboardManagerV1::newVirtualKeyboard);
+    W_D(WVirtualKeyboardManagerV1);
+    m_handle = wlr_virtual_keyboard_manager_v1_create(server->handle());
+    Q_ASSERT(m_handle);
+    auto *manager = static_cast<wlr_virtual_keyboard_manager_v1*>(m_handle);
+    d->m_newVirtualKeyboardListener.connect(&manager->events.new_virtual_keyboard, [this](wl_listener *, void *data) {
+        Q_EMIT newVirtualKeyboard(static_cast<wlr_virtual_keyboard_v1*>(data));
+    });
 }
 
 wl_global *WVirtualKeyboardManagerV1::global() const
 {
-    return nativeInterface<qw_virtual_keyboard_manager_v1>()->handle()->global;
+    return static_cast<wlr_virtual_keyboard_manager_v1*>(m_handle)->global;
 }
 
 WAYLIB_SERVER_END_NAMESPACE

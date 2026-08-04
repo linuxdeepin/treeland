@@ -7,7 +7,6 @@
 #include "wserver.h"
 #include "wtextinput_p.h"
 
-#include <qwglobal.h>
 
 #include <QObject>
 #include <QRect>
