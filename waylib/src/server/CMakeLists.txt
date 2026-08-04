@@ -70,6 +70,27 @@ ws_generate(
 ws_generate(
     server
     wayland-protocols
+    staging/cursor-shape/cursor-shape-v1.xml
+    cursor-shape-v1-protocol
+)
+
+ws_generate(
+    server
+    wlr-protocols
+    unstable/wlr-layer-shell-unstable-v1.xml
+    wlr-layer-shell-unstable-v1-protocol
+)
+
+ws_generate(
+    server
+    wlr-protocols
+    unstable/wlr-output-power-management-unstable-v1.xml
+    wlr-output-power-management-unstable-v1-protocol
+)
+
+ws_generate(
+    server
+    wayland-protocols
     staging/security-context/security-context-v1.xml
     security-context-v1-protocol
 )
@@ -96,6 +117,14 @@ ws_generate(
     wayland-protocols
     staging/ext-image-capture-source/ext-image-capture-source-v1.xml
     ext-image-capture-source-v1-protocol
+)
+
+#TODO: Remove after wlroots 0.20
+ws_generate(
+    server
+    wayland-protocols
+    staging/ext-image-copy-capture/ext-image-copy-capture-v1.xml
+    ext-image-copy-capture-v1-protocol
 )
 
 #TODO: Remove after wlroots 0.20
@@ -340,9 +369,13 @@ set(PRIVATE_HEADERS
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v1-protocol.h
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v2-protocol.h
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/xdg-output-unstable-v1-protocol.h
+    ${WAYLAND_PROTOCOLS_OUTPUTDIR}/cursor-shape-v1-protocol.h
+    ${WAYLAND_PROTOCOLS_OUTPUTDIR}/wlr-layer-shell-unstable-v1-protocol.h
+    ${WAYLAND_PROTOCOLS_OUTPUTDIR}/wlr-output-power-management-unstable-v1-protocol.h
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/xdg-toplevel-tag-v1-protocol.h #TODO: Remove after wlroots 0.20
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/xdg-shell-protocol.h #TODO: Remove after wlroots 0.20
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/ext-image-capture-source-v1-protocol.h #TODO: Remove after wlroots 0.20
+    ${WAYLAND_PROTOCOLS_OUTPUTDIR}/ext-image-copy-capture-v1-protocol.h #TODO: Remove after wlroots 0.20
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/ext-foreign-toplevel-list-v1-protocol.h #TODO: Remove after wlroots 0.20
 
     protocols/private/winputmethodv2_p.h
