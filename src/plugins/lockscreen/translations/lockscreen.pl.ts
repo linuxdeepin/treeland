@@ -71,17 +71,17 @@
     <message>
         <location filename="../qml/UserInput.qml" line="154"/>
         <source>Username</source>
-        <translation type="unfinished"/>
+        <translation>Nazwa użytkownika</translation>
     </message>
     <message>
         <location filename="../qml/UserInput.qml" line="341"/>
         <source>Enter username</source>
-        <translation type="unfinished"/>
+        <translation>Wprowadź nazwę użytkownika</translation>
     </message>
     <message>
         <location filename="../qml/UserInput.qml" line="354"/>
         <source>User not found.</source>
-        <translation type="unfinished"/>
+        <translation>Nie znaleziono użytkownika.</translation>
     </message>
     <message>
         <location filename="../qml/UserInput.qml" line="376"/>
@@ -94,7 +94,7 @@
     <message>
         <location filename="../qml/UserList.qml" line="236"/>
         <source>Other…</source>
-        <translation type="unfinished"/>
+        <translation>Inny…</translation>
     </message>
 </context>
 </TS>
