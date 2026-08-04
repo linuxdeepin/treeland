@@ -36,6 +36,13 @@ else()
     remove_definitions(-DQT_NO_CAST_FROM_ASCII)
     add_executable(qtwaylandscanner_treeland ${CMAKE_SOURCE_DIR}/src/modules/tools/qtwaylandscanner.cpp)
     target_link_libraries(qtwaylandscanner_treeland Qt::Core)
+    if(ADDRESS_SANITIZER)
+        # This executable runs during the build; only target binaries belong in
+        # the sanitizer process.  Instrumenting the host tool makes protocol
+        # generation depend on the build machine's ASan runtime and ASLR state.
+        target_compile_options(qtwaylandscanner_treeland PRIVATE -fno-sanitize=address)
+        target_link_options(qtwaylandscanner_treeland PRIVATE -fno-sanitize=address)
+    endif()
 endif()
 
 function(local_qtwayland_server_protocol_treeland target)

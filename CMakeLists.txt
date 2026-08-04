@@ -46,7 +46,9 @@ endif()
 
 if (ADDRESS_SANITIZER)
     add_compile_options(-fsanitize=address -fno-optimize-sibling-calls -fno-omit-frame-pointer)
-    add_link_options(-fsanitize=address)
+    # PIE can randomly collide with ASan's shadow-memory layout before main().
+    # Keep sanitizer executables at a stable address; shared libraries remain PIC.
+    add_link_options(-fsanitize=address -no-pie)
 endif()
 # NOTE: Qt keywords conflict with wlroots. but dtksystemsettings still uses it.
 # add_definitions("-DQT_NO_KEYWORDS")
