@@ -36,7 +36,7 @@ jobs:
           # Add deepin community repository to install wlr-protocols
           echo "deb [trusted=yes] http://mirrors.kernel.org/deepin/beige/ crimson main commercial community" > /etc/apt/sources.list.d/deepin-community.list
           apt-get update --allow-unauthenticated
-          apt-get install -y --allow-unauthenticated wlr-protocols libwlroots-0.19-dev
+          apt-get install -y --allow-unauthenticated wlr-protocols
           rm -f /etc/apt/sources.list.d/deepin-community.list
           apt-get update
 

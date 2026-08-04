@@ -39,6 +39,12 @@ include(CMakePackageConfigHelpers)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/")
 include(PackageVersionHelper)
 
+# In the treeland monorepo layout (waylib/ next to wlroots/), build the
+# vendored wlroots when no parent project provides the Wlroots::wlroots target.
+if(NOT TARGET Wlroots::wlroots AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../wlroots/CMakeLists.txt")
+    add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../wlroots" "${CMAKE_BINARY_DIR}/wlroots")
+endif()
+
 add_subdirectory(src)
 if(BUILD_EXAMPLES)
     add_subdirectory(examples)

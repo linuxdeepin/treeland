@@ -12,7 +12,6 @@ Build-Depends: cmake,
                qt6-base-dev-tools (>= 6.6.0),
                qt6-base-private-dev (>= 6.6.0),
                qt6-declarative-private-dev (>= 6.6.0),
-               libwlroots-0.19-dev,
                wayland-protocols (>= 1.41),
                wlr-protocols,
                libwayland-dev (>= 1.23.1),
@@ -64,7 +63,6 @@ Description: QtQuick-friendly compositor framework based on wlroots
 Package: libwaylib-dev
 Architecture: any
 Depends: libwaylib (=${binary:Version}),
-         libwlroots-0.19-dev,
          qt6-base-dev-tools (>= 6.6.0),
          qt6-base-private-dev (>= 6.6.0),
          qt6-declarative-private-dev (>= 6.6.0),
