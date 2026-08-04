@@ -16,6 +16,7 @@
 
 extern "C" {
 #include <wlr/interfaces/wlr_keyboard.h>
+#include <wlr/backend/libinput.h>
 }
 
 #include <wbackend.h>
@@ -185,7 +186,7 @@ bool InputManager::initializeKeyboardSettings(KeyboardSettingsInterfaceV1 *inter
     KeyboardSettingsInterfaceV1::FeatureFlags features;
     const auto inputDevices = Helper::instance()->backend()->inputDeviceList();
     for (WInputDevice *device : std::as_const(inputDevices)) {
-        if (!device->handle()->is_libinput()) {
+        if (!wlr_input_device_is_libinput(device->handle())) {
             continue;
         }
 
@@ -236,7 +237,7 @@ void InputManager::onMousePointerConfigCreated(PointerDeviceConfigurationV1 *con
 
     const auto inputDevices = Helper::instance()->backend()->inputDeviceList();
     for (WInputDevice *device : std::as_const(inputDevices)) {
-        if (!device->handle()->is_libinput()) {
+        if (!wlr_input_device_is_libinput(device->handle())) {
             continue;
         }
 
@@ -337,7 +338,7 @@ void InputManager::handleMousePointerConfigApplied(PointerDeviceConfigurationV1:
         || changes.testFlag(PointerDeviceConfigurationV1::HandedModeChanged)) {
         const auto devices = interface->wSeat()->deviceList();
         for (WInputDevice *device : devices) {
-            if (!device->handle()->is_libinput()) {
+            if (!wlr_input_device_is_libinput(device->handle())) {
                 continue;
             }
 
@@ -375,7 +376,7 @@ void InputManager::onTouchpadPointerConfigCreated(PointerDeviceConfigurationV1 *
 
     const auto inputDevices = Helper::instance()->backend()->inputDeviceList();
     for (WInputDevice *device : std::as_const(inputDevices)) {
-        if (!device->handle()->is_libinput()) {
+        if (!wlr_input_device_is_libinput(device->handle())) {
             continue;
         }
 
@@ -477,7 +478,7 @@ void InputManager::handleTouchpadPointerConfigApplied(PointerDeviceConfiguration
 
     const auto devices = interface->wSeat()->deviceList();
     for (WInputDevice *device : devices) {
-        if (!device->handle()->is_libinput())
+        if (!wlr_input_device_is_libinput(device->handle()))
             continue;
 
         if (device->type() != WInputDevice::Type::Pointer) {
@@ -626,7 +627,7 @@ void InputManager::onInputAdded(WInputDevice *input)
         return;
     }
 
-    if (!input->handle()->is_libinput()) {
+    if (!wlr_input_device_is_libinput(input->handle())) {
         return;
     }
 

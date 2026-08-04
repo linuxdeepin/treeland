@@ -10,6 +10,7 @@
 #include <wlr/types/wlr_subcompositor.h>
 #include <wlr/types/wlr_buffer.h>
 #include <wlr/types/wlr_fractional_scale_v1.h>
+#include <wlr/types/wlr_output.h>
 #include <QDebug>
 
 extern "C" {
@@ -127,15 +128,15 @@ void WSurfacePrivate::updateOutputs()
 void WSurfacePrivate::setBuffer(wlr_buffer *newBuffer)
 {
     if (buffer) {
-        if (auto clientBuffer = wlr_client_buffer_get(buffer)) {
-            Q_ASSERT(clientBuffer->handle()->n_ignore_locks > 0);
-            clientBuffer->handle()->n_ignore_locks--;
+        if (auto clientBuffer = wlr_client_buffer_get(buffer.get())) {
+            Q_ASSERT(clientBuffer->n_ignore_locks > 0);
+            clientBuffer->n_ignore_locks--;
         }
     }
 
     if (newBuffer) {
         if (auto clientBuffer = wlr_client_buffer_get(newBuffer)) {
-            clientBuffer->handle()->n_ignore_locks++;
+            clientBuffer->n_ignore_locks++;
         }
 
         wlr_buffer_lock(newBuffer);

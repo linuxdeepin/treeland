@@ -50,7 +50,7 @@ private:
     WServer *m_server = nullptr;
 
     WBackend *m_backend = nullptr;
-    wlr_renderer m_renderer = nullptr;
+    wlr_renderer *m_renderer = nullptr;
     wlr_allocator *m_allocator = nullptr;
     wlr_compositor *m_compositor = nullptr;
     WQuickOutputLayout *m_outputLayout = nullptr;
