@@ -313,7 +313,7 @@ public:
         W_Q(WSurfaceItemContent);
 
         const wlr_alpha_modifier_surface_v1_state *alphaModifierState =
-            qw_alpha_modifier_v1::get_surface_state(surface->handle()->handle());
+            qw_alpha_modifier_v1::get_surface_state(surface->handle());
         if (alphaModifierState)
             setAlphaModifier(alphaModifierState->multiplier);
 
@@ -1017,7 +1017,7 @@ void WSurfaceItem::releaseResources()
             d->subsurfaces.removeOne(item);
             item->releaseResources();
             auto surface = item->surface();
-            if (auto sub = surface ? qw_subsurface::try_from_wlr_surface(surface->handle()->handle()) : nullptr) {
+            if (auto sub = surface ? qw_subsurface::try_from_wlr_surface(surface->handle()) : nullptr) {
                 bool ok = QObject::disconnect(sub, &qw_subsurface::before_destroy, this, nullptr);
                 Q_ASSERT(ok);
             }
@@ -1069,9 +1069,9 @@ void WSurfaceItem::onSurfaceCommit()
     // Maybe the beforeRequestResizeSurfaceStateSeq is set by resizeSurfaceToItemSize,
     // the resizeSurfaceToItemSize wants to resize the wl_surface to current size of WSurfaceitem,
     // If change the WSurfaceItem's size at here, you will see the WSurfaceItem flash.
-    if (d->beforeRequestResizeSurfaceStateSeq < d->surface->handle()->handle()->current.seq) {
+    if (d->beforeRequestResizeSurfaceStateSeq < d->surface->handle()->current.seq) {
         if (d->beforeRequestResizeSurfaceStateSeq != 0) {
-            Q_ASSERT(d->beforeRequestResizeSurfaceStateSeq == d->surface->handle()->handle()->current.seq - 1);
+            Q_ASSERT(d->beforeRequestResizeSurfaceStateSeq == d->surface->handle()->current.seq - 1);
             d->beforeRequestResizeSurfaceStateSeq = 0;
         }
 
@@ -1293,7 +1293,7 @@ void WSurfaceItemPrivate::onHasSubsurfaceChanged()
 
 void WSurfaceItemPrivate::updateSubsurfaceItem()
 {
-    auto surface = this->surface->handle()->handle();
+    auto surface = this->surface->handle();
     Q_ASSERT(surface);
     Q_ASSERT(contentContainer);
     updateSubsurfaceContainers();
@@ -1444,26 +1444,26 @@ void WSurfaceItemPrivate::connectSubsurfaceContainerSignals(SubsurfaceContainer 
 void WSurfaceItemPrivate::updateSubsurfaceContainers()
 {
     Q_Q(WSurfaceItem);
-    if (wl_list_empty(&surface->handle()->handle()->current.subsurfaces_below) && belowSubsurfaceContainer) {
+    if (wl_list_empty(&surface->handle()->current.subsurfaces_below) && belowSubsurfaceContainer) {
         if (belowSubsurfaceContainer->isEmpty()) {
             delete belowSubsurfaceContainer;
         } else {
             belowSubsurfaceContainer->deleteAfterEmpty();
         }
-    } else if (!wl_list_empty(&surface->handle()->handle()->current.subsurfaces_below) && !belowSubsurfaceContainer) {
+    } else if (!wl_list_empty(&surface->handle()->current.subsurfaces_below) && !belowSubsurfaceContainer) {
         belowSubsurfaceContainer = new SubsurfaceContainer(q);
         belowSubsurfaceContainer->setZ(static_cast<qreal>(WSurfaceItem::ZOrder::BelowSubsurface));
         belowSubsurfaceContainer->setVisible(subsurfacesVisible);
         QQuickItemPrivate::get(belowSubsurfaceContainer)->anchors()->setFill(q);
         connectSubsurfaceContainerSignals(belowSubsurfaceContainer);
     }
-    if (wl_list_empty(&surface->handle()->handle()->current.subsurfaces_above) && aboveSubsurfaceContainer) {
+    if (wl_list_empty(&surface->handle()->current.subsurfaces_above) && aboveSubsurfaceContainer) {
         if (aboveSubsurfaceContainer->isEmpty()) {
             delete aboveSubsurfaceContainer;
         } else {
             aboveSubsurfaceContainer->deleteAfterEmpty();
         }
-    } else if (!wl_list_empty(&surface->handle()->handle()->current.subsurfaces_above)  && !aboveSubsurfaceContainer) {
+    } else if (!wl_list_empty(&surface->handle()->current.subsurfaces_above)  && !aboveSubsurfaceContainer) {
         aboveSubsurfaceContainer = new SubsurfaceContainer(q);
         aboveSubsurfaceContainer->setZ(static_cast<qreal>(WSurfaceItem::ZOrder::AboveSubsurface));
         aboveSubsurfaceContainer->setVisible(subsurfacesVisible);
@@ -1487,7 +1487,7 @@ void WSurfaceItemPrivate::resizeSurfaceToItemSize(const QSize &itemSize, const Q
 
     if (q->resizeSurface(itemSize)) {
         contentContainer->setSize(contentContainer->size() + sizeDiff);
-        beforeRequestResizeSurfaceStateSeq = surface->handle()->handle()->pending.seq;
+        beforeRequestResizeSurfaceStateSeq = surface->handle()->pending.seq;
         updateBoundingRect();
     }
 }

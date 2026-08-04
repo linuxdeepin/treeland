@@ -380,7 +380,7 @@ QPointer<SurfaceWrapper> CaptureManagerV1::maskSurfaceWrapper() const
 
 void CaptureManagerV1::create(WServer *server)
 {
-    m_manager = new treeland_capture_manager_v1(server->handle()->handle(), this);
+    m_manager = new treeland_capture_manager_v1(server->handle(), this);
     connect(m_manager,
             &treeland_capture_manager_v1::newCaptureContext,
             this,

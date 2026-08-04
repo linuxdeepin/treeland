@@ -231,7 +231,7 @@ OutputManagerV1::~OutputManagerV1()
 
 void OutputManagerV1::create(WServer *server)
 {
-    d->init(server->handle()->handle(), InterfaceVersion);
+    d->init(server->handle(), InterfaceVersion);
 }
 
 void OutputManagerV1::destroy([[maybe_unused]] WServer *server)

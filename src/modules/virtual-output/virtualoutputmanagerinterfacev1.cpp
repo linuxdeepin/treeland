@@ -263,7 +263,7 @@ VirtualOutputManagerInterfaceV1::~VirtualOutputManagerInterfaceV1() = default;
 
 void VirtualOutputManagerInterfaceV1::create(WServer *server)
 {
-    d->init(server->handle()->handle(), InterfaceVersion);
+    d->init(server->handle(), InterfaceVersion);
 }
 
 void VirtualOutputManagerInterfaceV1::destroy([[maybe_unused]] WServer *server) {

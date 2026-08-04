@@ -401,7 +401,7 @@ TreelandKeyboardStateNotifyManagerInterfaceV1::~TreelandKeyboardStateNotifyManag
 
 void TreelandKeyboardStateNotifyManagerInterfaceV1::create(WServer *server)
 {
-    d->init(server->handle()->handle(), InterfaceVersion);
+    d->init(server->handle(), InterfaceVersion);
     d->setupKeyboardConnections();
 }
 
@@ -453,7 +453,7 @@ WSeat *KeyboardStateWatcherV1::wSeat() const
     struct wlr_seat_client *seat_client =
         wlr_seat_client_from_resource(d->seat);
     Q_ASSERT_X(seat_client, __func__, "KeyboardStateWatcherV1 get wlr_seat_client failed.");
-    return WSeat::fromHandle(qw_seat::from(seat_client->seat));
+    return WSeat::fromHandle(seat_client->seat);
 }
 
 void KeyboardStateWatcherV1::sendStateChanged(uint32_t modifier, ModifierState state)

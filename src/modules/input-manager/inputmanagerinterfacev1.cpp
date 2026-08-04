@@ -196,7 +196,7 @@ TreelandInputManagerInterfaceV1::~TreelandInputManagerInterfaceV1() = default;
 
 void TreelandInputManagerInterfaceV1::create(WServer *server)
 {
-    d->init(server->handle()->handle(), InterfaceVersion);
+    d->init(server->handle(), InterfaceVersion);
 }
 
 void TreelandInputManagerInterfaceV1::destroy([[maybe_unused]] WServer *server)
@@ -634,7 +634,7 @@ WSeat *PointerDeviceConfigurationV1::wSeat() const
     struct wlr_seat_client *seat_client =
         wlr_seat_client_from_resource(seat());
     Q_ASSERT_X(seat_client, __func__, "PointerDeviceConfigurationV1 get wlr_seat_client failed.");
-    return WSeat::fromHandle(qw_seat::from(seat_client->seat));
+    return WSeat::fromHandle(seat_client->seat);
 }
 
 class MouseSettingsInterfaceV1Private : public QtWaylandServer::treeland_mouse_settings_v1
@@ -727,7 +727,7 @@ WSeat *MouseSettingsInterfaceV1::wSeat() const
     struct wlr_seat_client *seat_client =
         wlr_seat_client_from_resource(seat());
     Q_ASSERT_X(seat_client, __func__, "MouseSettingsInterfaceV1 get wlr_seat_client failed.");
-    return WSeat::fromHandle(qw_seat::from(seat_client->seat));
+    return WSeat::fromHandle(seat_client->seat);
 }
 
 class TouchpadSettingsInterfaceV1Private : public QtWaylandServer::treeland_touchpad_settings_v1
@@ -820,7 +820,7 @@ WSeat *TouchpadSettingsInterfaceV1::wSeat() const
     struct wlr_seat_client *seat_client =
         wlr_seat_client_from_resource(seat());
     Q_ASSERT_X(seat_client, __func__, "TouchpadSettingsInterfaceV1 get wlr_seat_client failed.");
-    return WSeat::fromHandle(qw_seat::from(seat_client->seat));
+    return WSeat::fromHandle(seat_client->seat);
 }
 
 class KeyboardSettingsInterfaceV1Private : public QtWaylandServer::treeland_keyboard_settings_v1
@@ -978,5 +978,5 @@ WSeat *KeyboardSettingsInterfaceV1::wSeat() const
     struct wlr_seat_client *seat_client =
         wlr_seat_client_from_resource(seat());
     Q_ASSERT_X(seat_client, __func__, "KeyboardSettingsInterfaceV1 get wlr_seat_client failed.");
-    return WSeat::fromHandle(qw_seat::from(seat_client->seat));
+    return WSeat::fromHandle(seat_client->seat);
 }

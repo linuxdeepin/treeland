@@ -124,7 +124,7 @@ TreelandWallpaperManagerInterfaceV1::~TreelandWallpaperManagerInterfaceV1() = de
 
 void TreelandWallpaperManagerInterfaceV1::create(WServer *server)
 {
-    d->init(server->handle()->handle(), InterfaceVersion);
+    d->init(server->handle(), InterfaceVersion);
 }
 
 void TreelandWallpaperManagerInterfaceV1::destroy([[maybe_unused]] WServer *server)
@@ -228,7 +228,7 @@ WSurface *TreelandWallpaperInterfaceV1::referenceWSurface() const
         return nullptr;
     }
 
-    return WSurface::fromHandle(qw_surface::from(wlr_surface_from_resource(d->refSurfaceResource)));
+    return WSurface::fromHandle(wlr_surface_from_resource(d->refSurfaceResource));
 }
 
 QString TreelandWallpaperInterfaceV1::userName() const

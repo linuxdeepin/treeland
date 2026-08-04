@@ -75,7 +75,7 @@ protected:
             return;
         }
 
-        auto *wseat = WSeat::fromHandle(qw_seat::from(seatClient->seat));
+        auto *wseat = WSeat::fromHandle(seatClient->seat);
         if (!wseat) {
             qCWarning(lcTlActivation) << "set_serial: no WSeat for seat resource, ignoring serial" << serial;
             m_serial.reset();
@@ -314,7 +314,7 @@ QByteArrayView ActivationManagerInterfaceV1::interfaceName() const
 
 void ActivationManagerInterfaceV1::create(WServer *server)
 {
-    d->init(*server->handle(), InterfaceVersion);
+    d->init(server->handle(), InterfaceVersion);
 }
 
 void ActivationManagerInterfaceV1::destroy([[maybe_unused]] WServer *server)

@@ -238,7 +238,7 @@ void DDEShellManagerInterfaceV1::checkRegionalConflict([[maybe_unused]] const QR
 
 void DDEShellManagerInterfaceV1::create(WServer *server)
 {
-    d->init(server->handle()->handle(), InterfaceVersion);
+    d->init(server->handle(), InterfaceVersion);
 }
 
 void DDEShellManagerInterfaceV1::destroy([[maybe_unused]] WServer *server)
@@ -415,7 +415,7 @@ DDEShellSurfaceInterface::~DDEShellSurfaceInterface() = default;
 
 WSurface *DDEShellSurfaceInterface::wSurface() const
 {
-    return WSurface::fromHandle(qw_surface::from(wlr_surface_from_resource(d->surfaceResource)));
+    return WSurface::fromHandle(wlr_surface_from_resource(d->surfaceResource));
 }
 
 bool DDEShellSurfaceInterface::ddeShellSurfaceIsMappedToWsurface(const WSurface *surface)
@@ -522,7 +522,7 @@ WSeat *DDEActiveInterface::seat() const
 {
     auto wlrSeat =
         static_cast<struct wlr_seat_client *>(wl_resource_get_user_data(d->seatResouce))->seat;
-    return WSeat::fromHandle(qw_seat::from(wlrSeat));
+    return WSeat::fromHandle(wlrSeat);
 }
 
 void DDEActiveInterface::sendActiveIn(uint32_t reason)

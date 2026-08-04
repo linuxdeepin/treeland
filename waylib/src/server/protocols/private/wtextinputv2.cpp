@@ -172,7 +172,7 @@ void handle_manager_get_text_input(wl_client *client,
     }
     text_input->d_func()->resource = text_input_resource;
     auto wClient = WClient::get(client);
-    auto wSeat = WSeat::fromHandle(qw_seat::from(seat_client->seat));
+    auto wSeat = WSeat::fromHandle(seat_client->seat);
     Q_ASSERT(wClient);
     Q_ASSERT(wSeat);
     text_input->d_func()->client = wClient;
@@ -313,7 +313,7 @@ QByteArrayView WTextInputManagerV2::interfaceName() const
 
 void WTextInputManagerV2::create(WServer *server)
 {
-    m_global = wl_global_create(server->handle()->handle(), &zwp_text_input_manager_v2_interface, 1, this, text_input_manager_bind);
+    m_global = wl_global_create(server->handle(), &zwp_text_input_manager_v2_interface, 1, this, text_input_manager_bind);
     Q_ASSERT(m_global);
     m_handle = this;
 }
@@ -384,7 +384,7 @@ void WTextInputV2::sendEnter(WSurface *surface)
     W_D(WTextInputV2);
     d->focusedSurface = surface;
     connect(d->focusedSurface, &WSurface::aboutToBeInvalidated, this, &WTextInputV2::sendLeave, Qt::UniqueConnection);
-    zwp_text_input_v2_send_enter(d->resource, 0, surface->handle()->handle()->resource);
+    zwp_text_input_v2_send_enter(d->resource, 0, surface->handle()->resource);
     if (d->enabledSurface == d->focusedSurface) {
         Q_EMIT enabled();
     }
@@ -397,7 +397,7 @@ void WTextInputV2::sendLeave()
         qCWarning(lcWlTextInput()) << "Send leave to a null focused surface.";
         return;
     }
-    zwp_text_input_v2_send_leave(d->resource, 0, d->focusedSurface->handle()->handle()->resource);
+    zwp_text_input_v2_send_leave(d->resource, 0, d->focusedSurface->handle()->resource);
     if (d->enabledSurface == d->focusedSurface) {
         Q_EMIT disabled();
     }

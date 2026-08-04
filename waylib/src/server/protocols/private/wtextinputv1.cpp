@@ -147,7 +147,7 @@ void WTextInputV1::sendEnter(WSurface *surface)
     // Note: For text input v1, activation and surface focus is managed by client.
     // Do not send focus to text input unless it's activated.
     if (d_func()->active)
-        zwp_text_input_v1_send_enter(d_func()->resource, surface->handle()->handle()->resource);
+        zwp_text_input_v1_send_enter(d_func()->resource, surface->handle()->resource);
     Q_EMIT this->enabled();
 }
 
@@ -232,7 +232,7 @@ void text_input_handle_activate([[maybe_unused]] wl_client *client,
                                 wl_resource *surface)
 {
     wlr_seat_client *seat_client =  wlr_seat_client_from_resource(seat);
-    WSeat *wSeat = WSeat::fromHandle(qw_seat::from(seat_client->seat));
+    WSeat *wSeat = WSeat::fromHandle(seat_client->seat);
     Q_ASSERT(wSeat);
     WTextInputV1 *text_input = text_input_from_resource(resource);
     auto d = text_input->d_func();
@@ -261,7 +261,7 @@ void text_input_handle_deactivate([[maybe_unused]] wl_client *client,
     WTextInputV1 *text_input = text_input_from_resource(resource);
     auto d = text_input->d_func();
     wlr_seat_client *seat_client = wlr_seat_client_from_resource(seat);
-    WSeat *wSeat = WSeat::fromHandle(qw_seat::from(seat_client->seat));
+    WSeat *wSeat = WSeat::fromHandle(seat_client->seat);
     if (!wSeat || wSeat != text_input->seat())
         return;
 
@@ -433,7 +433,7 @@ static void text_input_manager_bind(wl_client *wl_client, void *data, uint32_t v
 
 void WTextInputManagerV1::create(WServer *server)
 {
-    m_global = wl_global_create(server->handle()->handle(),
+    m_global = wl_global_create(server->handle(),
                                 &zwp_text_input_manager_v1_interface,
                                 1,
                                 this,

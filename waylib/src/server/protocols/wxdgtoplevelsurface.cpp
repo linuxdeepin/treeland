@@ -137,7 +137,7 @@ void WXdgToplevelSurfacePrivate::init()
     handle()->set_data(this, q);
 
     Q_ASSERT(!q->surface());
-    surface = new WSurface(qw_surface::from(nativeHandle()->base->surface), q);
+    surface = new WSurface(nativeHandle()->base->surface, q);
     surface->setAttachedData<WXdgToplevelSurface>(q);
 
     connect();
@@ -157,11 +157,11 @@ void WXdgToplevelSurfacePrivate::connect()
 
     // TODO: use safeConnect for toplevel
     QObject::connect(handle(), &qw_xdg_toplevel::notify_request_move, q, [q] (wlr_xdg_toplevel_move_event *event) {
-        auto seat = WSeat::fromHandle(qw_seat::from(event->seat->seat));
+        auto seat = WSeat::fromHandle(event->seat->seat);
         Q_EMIT q->requestMove(seat, event->serial);
     });
     QObject::connect(handle(), &qw_xdg_toplevel::notify_request_resize, q, [q] (wlr_xdg_toplevel_resize_event *event) {
-        auto seat = WSeat::fromHandle(qw_seat::from(event->seat->seat));
+        auto seat = WSeat::fromHandle(event->seat->seat);
         Q_EMIT q->requestResize(seat, WTools::toQtEdge(event->edges), event->serial);
     });
     QObject::connect(handle(), &qw_xdg_toplevel::notify_request_maximize, q, [q, this] () {
@@ -185,7 +185,7 @@ void WXdgToplevelSurfacePrivate::connect()
         }
     });
     QObject::connect(handle(), &qw_xdg_toplevel::notify_request_show_window_menu, q, [q] (wlr_xdg_toplevel_show_window_menu_event *event) {
-        auto seat = WSeat::fromHandle(qw_seat::from(event->seat->seat));
+        auto seat = WSeat::fromHandle(event->seat->seat);
         Q_EMIT q->requestShowWindowMenu(seat, QPoint(event->x, event->y), event->serial);
     });
 

@@ -392,7 +392,7 @@ WineWindowManager::~WineWindowManager() = default;
 
 void WineWindowManager::create(WServer *server)
 {
-    d->init(*server->handle(), InterfaceVersion);
+    d->init(server->handle(), InterfaceVersion);
 }
 
 void WineWindowManager::destroy(WServer * /*server*/)

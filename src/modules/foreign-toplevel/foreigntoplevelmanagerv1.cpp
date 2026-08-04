@@ -388,8 +388,8 @@ QByteArrayView ForeignToplevelManagerInterfaceV1::interfaceName() const
 
 void ForeignToplevelManagerInterfaceV1::create(WServer *server)
 {
-    d->init(server->handle()->handle(), InterfaceVersion);
-    d->event_loop = wl_display_get_event_loop(server->handle()->handle());
+    d->init(server->handle(), InterfaceVersion);
+    d->event_loop = wl_display_get_event_loop(server->handle());
 }
 
 void ForeignToplevelManagerInterfaceV1::destroy([[maybe_unused]] WServer *server)
@@ -798,7 +798,7 @@ void ForeignToplevelHandleV1Private::activate(Resource *resource, struct ::wl_re
         return;
     }
 
-    Q_EMIT q->requestActivate(WSeat::fromHandle(qw_seat::from(seat_client->seat)));
+    Q_EMIT q->requestActivate(WSeat::fromHandle(seat_client->seat));
 }
 
 void ForeignToplevelHandleV1Private::close([[maybe_unused]] Resource *resource)

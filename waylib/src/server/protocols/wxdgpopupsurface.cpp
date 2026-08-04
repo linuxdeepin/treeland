@@ -61,7 +61,7 @@ void WXdgPopupSurfacePrivate::init()
     handle()->set_data(this, q);
 
     Q_ASSERT(!q->surface());
-    surface = new WSurface(qw_surface::from(nativeHandle()->base->surface), q);
+    surface = new WSurface(nativeHandle()->base->surface, q);
     surface->setAttachedData<WXdgPopupSurface>(q);
 
     connect();
