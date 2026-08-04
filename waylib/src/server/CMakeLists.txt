@@ -23,26 +23,10 @@ endif()
 
 find_package(PkgConfig REQUIRED)
 pkg_search_module(LIBDRM REQUIRED IMPORTED_TARGET libdrm)
-set(WAYLIB_WLROOTS_INCLUDE_DIRS "")
-set(WAYLIB_WLROOTS_PUBLIC_TARGET "")
-if (QWLROOTS_USE_VENDORED_WLROOTS)
-    if (NOT TARGET Wlroots::wlroots)
-        find_library(WAYLIB_WLROOTS_LIBRARY REQUIRED NAMES waylib-wlroots)
-        add_library(Wlroots::wlroots SHARED IMPORTED)
-        set_target_properties(Wlroots::wlroots PROPERTIES IMPORTED_LOCATION "${WAYLIB_WLROOTS_LIBRARY}")
-    endif()
+if (TARGET Wlroots::wlroots)
     set(WLROOTS_TARGET Wlroots::wlroots)
-    set(WAYLIB_WLROOTS_PUBLIC_TARGET Wlroots::wlroots)
-    set(_waylib_wlroots_include "${CMAKE_SOURCE_DIR}/../3rdparty/wlroots/include")
-    if (NOT EXISTS "${_waylib_wlroots_include}/wlr")
-        message(FATAL_ERROR "QWlroots uses vendored wlroots, but headers were not found at ${_waylib_wlroots_include}")
-    endif()
-    list(APPEND WAYLIB_WLROOTS_INCLUDE_DIRS "$<BUILD_INTERFACE:${_waylib_wlroots_include}>")
-elseif(TARGET Wlroots::wlroots)
-    # Headers/link come via QWlroots::QWlroots public interface.
-    set(WLROOTS_TARGET "")
 else()
-    pkg_search_module(WLROOTS REQUIRED IMPORTED_TARGET wlroots-0.19)
+    pkg_search_module(WLROOTS REQUIRED IMPORTED_TARGET wlroots-0.19>=0.19.0)
     set(WLROOTS_TARGET PkgConfig::WLROOTS)
 endif()
 pkg_search_module(WAYLAND REQUIRED IMPORTED_TARGET wayland-server)
@@ -418,7 +402,6 @@ target_link_libraries(${TARGET}
     Qt6::Quick
     Qt6::GuiPrivate
     Qt6::QuickPrivate
-    ${WLROOTS_TARGET}
     PkgConfig::LIBDRM
     PkgConfig::WAYLAND
     PkgConfig::WAYLAND_PROTOCOLS
@@ -430,8 +413,8 @@ target_link_libraries(${TARGET}
 
 target_link_libraries(${TARGET}
     PUBLIC
-        QWlroots::QWlroots
-        ${WAYLIB_WLROOTS_PUBLIC_TARGET}
+        $<BUILD_INTERFACE:${WLROOTS_TARGET}>
+        $<INSTALL_INTERFACE:PkgConfig::WLROOTS>
 )
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
@@ -444,7 +427,6 @@ target_include_directories(${TARGET}
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/utils>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/protocols>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/protocols/private>
-        ${WAYLIB_WLROOTS_INCLUDE_DIRS}
         $<INSTALL_INTERFACE:${WAYLIB_INCLUDE_INSTALL_DIR}>
     PRIVATE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
@@ -517,5 +499,5 @@ install(
 
 include(${PROJECT_SOURCE_DIR}/cmake/Helpers.cmake)
 add_pkgconfig_module(${TARGET} ${TARGET} ${WAYLIB_INCLUDE_INSTALL_DIR}
-    "qwlroots, Qt6Gui, Qt6Quick"
+    "wlroots-0.19 >= 0.19.0, Qt6Gui, Qt6Quick"
 )

@@ -52,11 +52,10 @@ $ dpkg-buildpackage -uc -us -nc -b # build binary package(s)
 
 This project uses GitHub Actions for continuous integration. The following workflows are configured:
 
-- **qwlroots builds**: Triggered when `qwlroots/**` files are modified
-- **waylib builds**: Triggered when `waylib/**` or `qwlroots/**` files are modified (since waylib depends on qwlroots)
+- **waylib builds**: Triggered when `waylib/**`, `wlroots/**`, or `3rdparty/wlroots/**` files are modified
 - **treeland builds**: Main project builds
 
-The waylib workflows are configured to also trigger when qwlroots code changes, ensuring that waylib builds remain compatible with qwlroots modifications.
+The waylib workflows also cover bundled wlroots changes, ensuring that its direct wlroots C API integration remains compatible with the pinned version.
 
 ## Getting Involved
 

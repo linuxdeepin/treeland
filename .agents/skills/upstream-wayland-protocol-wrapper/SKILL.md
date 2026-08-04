@@ -26,7 +26,7 @@ If the task is about treeland-owned xml, `QtWaylandServer::*`, or a new private 
 ## Read First
 1. `waylib/src/server/protocols`
 2. `waylib/src/server/kernel`
-3. `qwlroots/src`
+3. the matching wlroots public header and implementation under `3rdparty/wlroots`
 4. `src/seat/helper.cpp`
 
 Search for an existing wrapper first. Do not assume treeland should reimplement a manager locally.
@@ -54,7 +54,12 @@ Typical creation:
 ```cpp
 void WFoo::create(WServer *server)
 {
-    m_handle = qw_foo_manager_v1::create(*server->handle(), FOO_MANAGER_V1_VERSION);
+    m_handle = wlr_foo_manager_v1_create(server->handle(), FOO_MANAGER_V1_VERSION);
+    if (!m_handle)
+        return;
+
+    m_destroyListener.notify = handle_destroy;
+    wl_signal_add(&m_handle->events.destroy, &m_destroyListener);
 }
 ```
 
@@ -63,26 +68,37 @@ Typical `global()`:
 ```cpp
 wl_global *WFoo::global() const
 {
-    return nativeInterface<qw_foo_manager_v1>()->handle()->global;
+    return m_handle ? m_handle->global : nullptr;
 }
 ```
+
+Do not introduce a generic QObject wrapper for `wlr_*` structs. Store the exact
+native pointer on the owning or observing Waylib object and embed one named
+`wl_listener` member for each native event the object consumes. Listener
+callbacks should recover their owner with `wl_container_of` and immediately
+cross into the relevant Qt/domain-object behavior.
 
 ## How To Judge Destruction
 Do not mechanically copy `globalRemove()` from treeland private protocols.
 
 Decide destruction based on native ownership:
 
-- if `qw_*::create(...)` returns an object owned by the wrapper or `WObject`, `destroy()` may stay empty
-- if wlroots or the native wrapper exposes an explicit destroy/reset/listener cleanup API, call it from `destroy()`
-- if destruction happens naturally through QObject/wrapper destruction, do not free it twice
+- if `wlr_*_create(...)` creates a display-owned global with no public destroy
+  function, `destroy()` may only unlink listeners and clear the pointer
+- if wlroots exposes an explicit `wlr_*_destroy()`/finish API, call it exactly
+  once from the native owner's teardown path
+- for non-owning resources, observe their destroy signal, unlink all remaining
+  listeners, clear the pointer, and invalidate/delete the Waylib domain object
 
 How to determine that:
 
 1. read nearby `W...` wrappers in the same directory
-2. read whether the corresponding `qw_*` type exposes explicit `destroy()` or similar APIs
-3. read whether wlroots native objects expose a destroy API
+2. read the matching wlroots public header for ownership and destroy/finish APIs
+3. inspect the wlroots implementation when ownership or display teardown order
+   is not explicit in the header
 
-Core rule: destruction must match native handle ownership.
+Core rule: destruction must match native handle ownership, and both owner-first
+and resource-first teardown must unlink every live `wl_listener` exactly once.
 
 ## Wiring Through `Helper::init`
 This still needs to connect back into `src/seat/helper.cpp`:

@@ -7,7 +7,7 @@
 , wrapQtAppsHook
 , qtbase
 , qtquick3d
-, qwlroots
+, wlroots_0_19
 , wayland
 , wayland-protocols
 , wlr-protocols
@@ -52,7 +52,7 @@ stdenv.mkDerivation (finalAttrs: {
   buildInputs = [
     qtbase
     qtquick3d
-    qwlroots
+    wlroots_0_19
     wayland
     wayland-protocols
     wlr-protocols
@@ -66,7 +66,6 @@ stdenv.mkDerivation (finalAttrs: {
   cmakeFlags = [
     (lib.cmakeBool "BUILD_EXAMPLES" false)
     (lib.cmakeBool "ADDRESS_SANITIZER" debug)
-    (lib.cmakeBool "WITH_SUBMODULE_QWLROOTS" false)
   ];
 
   strictDeps = true;
@@ -78,11 +77,10 @@ stdenv.mkDerivation (finalAttrs: {
   };
 
   meta = {
-    description = "A wrapper for wlroots based on Qt";
+    description = "A QtQuick-friendly compositor framework based on wlroots";
     homepage = "https://github.com/vioken/waylib";
     license = with lib.licenses; [ gpl3Only lgpl3Only asl20 ];
     platforms = lib.platforms.linux;
     maintainers = with lib.maintainers; [ rewine ];
   };
 })
-

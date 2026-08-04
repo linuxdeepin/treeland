@@ -1,9 +1,9 @@
 @PACKAGE_INIT@
 
 include(CMakeFindDependencyMacro)
-find_dependency(QWlroots)
+find_dependency(PkgConfig)
+pkg_search_module(WLROOTS REQUIRED IMPORTED_TARGET wlroots-0.19>=0.19.0)
 
 include(${CMAKE_CURRENT_LIST_DIR}/WaylibServerTargets.cmake)
 
 check_required_components(WaylibServer)
-

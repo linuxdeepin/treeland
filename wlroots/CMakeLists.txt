@@ -537,7 +537,7 @@ install(TARGETS waylib-wlroots
 )
 
 # ---------------------------------------------------------------------------
-# Export version / feature vars for qwlroots (lowercase true/false)
+# Export version / feature vars for parent-project consumers (lowercase true/false)
 # ---------------------------------------------------------------------------
 macro(wlr_export_bool _name _value01)
     if(${_value01})

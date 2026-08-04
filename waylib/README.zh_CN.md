@@ -2,7 +2,7 @@
 
 ## 简介
 
-waylib 是一个 Wayland 合成器开发库，基于 [qwlroots](https://github.com/vioken/qwlroots) 开发，提供 Qt 风格的开发接口。其设计目标是与 QtQuick 深度结合，利用 QtQuick 的 Scene Graphics 模型，以简化窗口管理的复杂度。在 waylib 中，一个 QQuickWindow 上可以被附加一个或多个 Wayland Output，一个 QQuickItem 上会附加一个对应的 Wanyland Surface，可将其与 QtQuick 的图形组件混合使用，并且支持 QRHI，只需要一份代码即可兼容 OpenGL 和 Vulkan。
+waylib 是一个直接基于 wlroots C API 的 Wayland 合成器开发库。它提供 Qt/QtQuick 领域对象，但不再用中间 QObject 层包装原生 wlroots 对象。其设计目标是与 QtQuick 深度结合，利用 QtQuick 的 Scene Graphics 模型，以简化窗口管理的复杂度。在 waylib 中，一个 QQuickWindow 上可以被附加一个或多个 Wayland Output，一个 QQuickItem 上会附加一个对应的 Wayland Surface，可将其与 QtQuick 的图形组件混合使用，并且支持 QRHI，只需要一份代码即可兼容 OpenGL 和 Vulkan。
 
 使用 waylib 可以简单并高效的创建一个 Wayland 合成器，其在 wlroots 之上，提供了：
 
@@ -26,15 +26,9 @@ waylib 是一个 Wayland 合成器开发库，基于 [qwlroots](https://github.c
 
 ## 构建
 
-步骤一：编译安装 wlroots 和 qwlroots
+步骤一：编译或安装 wlroots
 
-waylib 需要安装开发版本（0.19）的 wlroots, 需要[自行编译安装](https://gitlab.freedesktop.org/wlroots/wlroots#building)， Archlinux 用户可以安装 [wlroots-0.19](https://archlinux.org/packages/extra/x86_64/wlroots0.19/).。
-
-qwlroot 目前推荐使用 submodule 提供的版本，当然也可以[自行编译安装](https://github.com/vioken/qwlroots)。
-如果使用 submodule 的版本，注意以下 2 点：
-
-1. 下载源码时初始化子模块 `git clone git@github.com:vioken/waylib.git --recursive`
-2. 编译时使用添加一个 cmake 参数 "-DWITH_SUBMODULE_QWLROOTS=ON" 启用 submodule 的构建。
+单独构建 waylib 时需要 wlroots 0.19 的开发头文件和库，并能通过 pkg-config 的 `wlroots-0.19` 名称找到。Arch Linux 用户可以安装 [wlroots0.19](https://archlinux.org/packages/extra/x86_64/wlroots0.19/)。从 Treeland 顶层构建时会自动使用仓库内置的 wlroots 0.19.3 源码。
 
 步骤二：安装其他依赖
 
@@ -59,7 +53,7 @@ NixOS
 步骤三：运行以下命令
 
 ```bash
-cmake -B build -DWITH_SUBMODULE_QWLROOTS=ON
+cmake -B build
 cmake --build build
 ```
 

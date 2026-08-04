@@ -12,7 +12,7 @@ Build-Depends: cmake,
                qt6-base-dev-tools (>= 6.6.0),
                qt6-base-private-dev (>= 6.6.0),
                qt6-declarative-private-dev (>= 6.6.0),
-               qwlroots,
+               libwlroots-0.19-dev,
                wayland-protocols (>= 1.41),
                wlr-protocols,
                libwayland-dev (>= 1.23.1),
@@ -57,19 +57,20 @@ Package: libwaylib
 Architecture: any
 Depends: ${misc:Depends}, ${shlibs:Depends},
 Multi-Arch: same
-Description:  A wrapper for wlroots based on Qt
+Description: QtQuick-friendly compositor framework based on wlroots
  .
  This package contains the shared libraries.
 
 Package: libwaylib-dev
 Architecture: any
 Depends: libwaylib (=${binary:Version}),
+         libwlroots-0.19-dev,
          qt6-base-dev-tools (>= 6.6.0),
          qt6-base-private-dev (>= 6.6.0),
          qt6-declarative-private-dev (>= 6.6.0),
          wlr-protocols,
          ${misc:Depends},
          ${shlibs:Depends},
-Description: A devel package for libwaylib
+Description: Development package for libwaylib
  .
  This package contains the header files and static libraries of waylib.

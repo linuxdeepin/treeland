@@ -1,3 +1,8 @@
+# Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
+# SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+
+include_guard(GLOBAL)
+
 if(NOT DEFINED WAYLAND_PROTOCOLS_OUTPUTDIR)
     set(WAYLAND_PROTOCOLS_OUTPUTDIR ${CMAKE_BINARY_DIR}/protocols)
     file(MAKE_DIRECTORY ${WAYLAND_PROTOCOLS_OUTPUTDIR})

@@ -175,7 +175,7 @@
 
           devShells.default = pkgs.mkShell {
             packages = with pkgs; [
-              # For submodule waylib and qwlroots
+              # For the bundled waylib and wlroots sources
               wayland
               wayland-protocols
               wlr-protocols
@@ -194,7 +194,6 @@
               self.packages.${system}.treeland.override {
                   #It's submodule, prevent infinite loop calls
                   waylib = null;
-                  qwlroot = null;
               }
             ];
 

@@ -1,8 +1,8 @@
 name: Build treeland on Arch Linux
 
-# This workflow builds treeland with merged waylib and qwlroots code
+# This workflow builds treeland with bundled waylib and wlroots code
 # Dependencies are based on the official ArchLinux PKGBUILD plus
-# additional dependencies from the integrated waylib and qwlroots code
+# additional dependencies from the integrated waylib and wlroots code
 # treeland-protocols-git is installed from AUR
 
 on:
@@ -28,7 +28,7 @@ jobs:
 
       - name: Install Qt6 dependencies
         run: |
-          # Qt6 dependencies matching qwlroots and waylib builds
+          # Qt6 dependencies matching the waylib build
           pacman -S --noconfirm --noprogressbar qt6-base qt6-declarative qt6-wayland qt6-tools qt6-remoteobjects
 
       - name: Install graphics and wayland dependencies
@@ -44,7 +44,7 @@ jobs:
             xcb-util-errors xcb-util-renderutil xcb-util-wm \
             xorg-xwayland
 
-      - name: Install additional waylib/qwlroots dependencies
+      - name: Install additional waylib dependencies
         run: |
           pacman -S --noconfirm --noprogressbar libxdmcp
       - name: Install DTK dependencies
@@ -82,11 +82,11 @@ jobs:
       - name: Configure and Build treeland with ci preset
         run: |
           echo "Working directory:" $PWD
-          echo "Configuring treeland with merged waylib and qwlroots code..."
+          echo "Configuring treeland with bundled waylib and wlroots code..."
           rm -rf build
           cmake --preset ci
           cmake --build --preset ci
-          echo "✅ treeland built successfully with merged waylib and qwlroots code!"
+          echo "✅ treeland built successfully with bundled waylib and wlroots code!"
 
       - name: Run unit tests
         run: ctest --preset ci
@@ -116,7 +116,7 @@ jobs:
           Version: $(date +%Y%m%d-%H%M%S)
           Architecture: x86_64
           Built-on: Arch Linux
-          Built-with: merged waylib and qwlroots code
+          Built-with: bundled waylib and wlroots code
           CMake-Config: -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_INSTALL_LIBDIR=lib
 
           Installation Instructions:

@@ -26,7 +26,6 @@
   libxcrypt,
   libinput,
   nixos-artwork,
-  qwlroots,
   waylib,
 }:
 
@@ -87,7 +86,6 @@ stdenv.mkDerivation (finalAttrs: {
     pam
     libxcrypt
     libinput
-    qwlroots
     waylib
   ];
 
