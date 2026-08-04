@@ -6,16 +6,15 @@
 #include "wseat.h"
 #include "private/wglobal_p.h"
 
-#include <qwcursorshapev1.h>
-#include <qwseat.h>
-#include <qwdisplay.h>
+extern "C" {
+#include <wlr/types/wlr_cursor_shape_v1.h>
+#include <wlr/types/wlr_seat.h>
+}
 
 // TODO: set to 2 after wlroots 0.20
 #define CURSOR_SHAPE_MANAGER_V1_VERSION 1
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
-
-using QW_NAMESPACE::qw_cursor_shape_manager_v1;
 
 class Q_DECL_HIDDEN WCursorShapeManagerV1Private : public WObjectPrivate
 {
@@ -26,16 +25,9 @@ public:
 
     }
 
-    inline qw_cursor_shape_manager_v1 *handle() const {
-        return q_func()->nativeInterface<qw_cursor_shape_manager_v1>();
-    }
-
-    inline wlr_cursor_shape_manager_v1 *nativeHandle() const {
-        Q_ASSERT(handle());
-        return handle()->handle();
-    }
-
     W_DECLARE_PUBLIC(WCursorShapeManagerV1)
+
+    WNativeListener requestSetShapeListener;
 };
 
 static inline auto wpToWCursorShape(wp_cursor_shape_device_v1_shape shape) {
@@ -122,9 +114,9 @@ WCursorShapeManagerV1::WCursorShapeManagerV1()
 
 }
 
-qw_cursor_shape_manager_v1 *WCursorShapeManagerV1::handle() const
+wlr_cursor_shape_manager_v1 *WCursorShapeManagerV1::handle() const
 {
-    return nativeInterface<qw_cursor_shape_manager_v1>();
+    return nativeInterface<wlr_cursor_shape_manager_v1>();
 }
 
 QByteArrayView WCursorShapeManagerV1::interfaceName() const
@@ -134,10 +126,12 @@ QByteArrayView WCursorShapeManagerV1::interfaceName() const
 
 void WCursorShapeManagerV1::create(WServer *server)
 {
+    W_D(WCursorShapeManagerV1);
     if (!m_handle) {
-        m_handle = qw_cursor_shape_manager_v1::create(server->handle(), CURSOR_SHAPE_MANAGER_V1_VERSION);
-        QObject::connect(handle(), &qw_cursor_shape_manager_v1::notify_request_set_shape, this, []
-                         (wlr_cursor_shape_manager_v1_request_set_shape_event *event) {
+        m_handle = wlr_cursor_shape_manager_v1_create(server->handle(), CURSOR_SHAPE_MANAGER_V1_VERSION);
+        Q_ASSERT(m_handle);
+        d->requestSetShapeListener.connect(&handle()->events.request_set_shape, [](void *data) {
+            auto *event = static_cast<wlr_cursor_shape_manager_v1_request_set_shape_event *>(data);
             if (auto *seat = WSeat::fromHandle(event->seat_client->seat)) {
                 seat->setCursorShape(event->seat_client, wpToWCursorShape(event->shape));
             }
@@ -145,13 +139,16 @@ void WCursorShapeManagerV1::create(WServer *server)
     }
 }
 
+void WCursorShapeManagerV1::destroy([[maybe_unused]] WServer *server)
+{
+    W_D(WCursorShapeManagerV1);
+    d->requestSetShapeListener.disconnect();
+    m_handle = nullptr;
+}
+
 wl_global *WCursorShapeManagerV1::global() const
 {
-    W_D(const WCursorShapeManagerV1);
-    if (m_handle)
-        return d->nativeHandle()->global;
-
-    return nullptr;
+    return handle() ? handle()->global : nullptr;
 }
 
 WAYLIB_SERVER_END_NAMESPACE

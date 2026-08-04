@@ -4,10 +4,6 @@
 
 #include <WServerInterface>
 
-QW_BEGIN_NAMESPACE
-class qw_security_context_manager_v1;
-QW_END_NAMESPACE
-
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WSecurityContextManagerPrivate;
@@ -22,6 +18,7 @@ public:
 
 protected:
     void create(WServer *server) override;
+    void destroy(WServer *server) override;
     wl_global *global() const override;
 };
 

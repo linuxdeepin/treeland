@@ -93,10 +93,11 @@ class qw_ext_foreign_toplevel_image_capture_source_manager_v1;
 class qw_idle_inhibit_manager_v1;
 class qw_idle_inhibitor_v1;
 class qw_idle_notifier_v1;
-class qw_output_configuration_v1;
 class qw_output_power_manager_v1;
 class qw_renderer;
 QW_END_NAMESPACE
+
+struct wlr_output_configuration_v1;
 
 WAYLIB_SERVER_USE_NAMESPACE
 QW_USE_NAMESPACE
@@ -327,7 +328,7 @@ private:
     void onOutputRemoved(WOutput *output);
     void onSurfaceModeChanged(WSurface *surface, WXdgDecorationManager::DecorationMode mode);
     void setGamma(struct wlr_gamma_control_manager_v1_set_gamma_event *event);
-    void onOutputTestOrApply(qw_output_configuration_v1 *config, bool onlyTest);
+    void onOutputTestOrApply(wlr_output_configuration_v1 *config, bool onlyTest);
     void onSetOutputPowerMode(wlr_output_power_v1_set_mode_event *event);
     void onNewIdleInhibitor(wlr_idle_inhibitor_v1 *inhibitor);
     void onSetCopyOutput(VirtualOutputInterfaceV1 *interface);
@@ -487,14 +488,14 @@ private:
     TreelandRemoteSource *m_treelandRemoteSource = nullptr;
 
     struct PendingOutputConfig {
-        qw_output_configuration_v1 *config = nullptr;
+        wlr_output_configuration_v1 *config = nullptr;
         QList<WOutputState> states;
         int pendingCommits = 0;
         bool allSuccess = true;
     };
     PendingOutputConfig m_pendingOutputConfig;
 
-    void onOutputCommitFinished(qw_output_configuration_v1 *config, bool success);
+    void onOutputCommitFinished(wlr_output_configuration_v1 *config, bool success);
 
     SeatsManager *m_seatManager = nullptr;
     InputManager *m_inputManager = nullptr;

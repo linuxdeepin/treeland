@@ -5,214 +5,202 @@
 #include "woutputitem.h"
 #include "private/wglobal_p.h"
 
-#include <qwoutput.h>
-#include <qwoutputmanagementv1.h>
-#include <qwdisplay.h>
+extern "C" {
+#include <wlr/types/wlr_output_management_v1.h>
+}
 
 #include <QHash>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-using QW_NAMESPACE::qw_output_manager_v1;
-using QW_NAMESPACE::qw_output_configuration_v1;
-using QW_NAMESPACE::qw_output_configuration_head_v1;
-
 class Q_DECL_HIDDEN WOutputManagerV1Private : public WObjectPrivate
 {
 public:
-    WOutputManagerV1Private(WOutputManagerV1 *qq)
+    explicit WOutputManagerV1Private(WOutputManagerV1 *qq)
         : WObjectPrivate(qq)
     {
+    }
 
+    void outputMgrApplyOrTest(wlr_output_configuration_v1 *config, bool onlyTest)
+    {
+        W_Q(WOutputManagerV1);
+        QList<WOutputState> pendingStates;
+        wlr_output_configuration_head_v1 *configHead;
+        wl_list_for_each(configHead, &config->heads, link) {
+            const auto &state = configHead->state;
+            pendingStates.append(WOutputState {
+                .output = WOutput::fromHandle(state.output),
+                .enabled = state.enabled,
+                .mode = state.mode,
+                .x = state.x,
+                .y = state.y,
+                .customModeSize = { state.custom_mode.width, state.custom_mode.height },
+                .customModeRefresh = state.custom_mode.refresh,
+                .transform = static_cast<WOutput::Transform>(state.transform),
+                .scale = state.scale,
+                .adaptiveSyncEnabled = state.adaptive_sync_enabled,
+            });
+        }
+
+        currentPendingConfig = config;
+        pendingStateLists.insert(config, std::move(pendingStates));
+        Q_EMIT q->requestTestOrApply(config, onlyTest);
+    }
+
+    void releasePendingConfigurations()
+    {
+        const auto configurations = pendingStateLists.keys();
+        pendingStateLists.clear();
+        currentPendingConfig = nullptr;
+        for (auto *config : configurations) {
+            wlr_output_configuration_v1_send_failed(config);
+            wlr_output_configuration_v1_destroy(config);
+        }
     }
 
     W_DECLARE_PUBLIC(WOutputManagerV1)
 
-    void outputMgrApplyOrTest(qw_output_configuration_v1 *config, int test);
-    inline qw_output_manager_v1 *handle() const {
-        return q_func()->nativeInterface<qw_output_manager_v1>();
-    }
-
-    inline wlr_output_manager_v1 *nativeHandle() const {
-        Q_ASSERT(handle());
-        return handle()->handle();
-    }
-
-    qw_output_manager_v1 *manager { nullptr };
-    QPointer<WBackend> backend;
     QList<WOutputState> stateList;
-    QHash<qw_output_configuration_v1 *, QList<WOutputState>> pendingStateLists;
-    qw_output_configuration_v1 *currentPendingConfig { nullptr };
+    QHash<wlr_output_configuration_v1 *, QList<WOutputState>> pendingStateLists;
+    wlr_output_configuration_v1 *currentPendingConfig = nullptr;
+    WNativeListener testListener;
+    WNativeListener applyListener;
 };
 
 WOutputManagerV1::WOutputManagerV1()
     : WObject(*new WOutputManagerV1Private(this))
 {
-
 }
 
-void WOutputManagerV1Private::outputMgrApplyOrTest(qw_output_configuration_v1 *config, int onlyTest)
+QList<WOutputState> WOutputManagerV1::stateListPending(wlr_output_configuration_v1 *config) const
 {
-    W_Q(WOutputManagerV1);
-    wlr_output_configuration_head_v1 *config_head;
-
-    QList<WOutputState> pendingStates;
-
-    wl_list_for_each(config_head, &config->handle()->heads, link) {
-        auto *woutput = WOutput::fromHandle(config_head->state.output);
-
-        const auto &state = config_head->state;
-
-        pendingStates.append(WOutputState {
-            .output = woutput,
-            .enabled = state.enabled,
-            .mode = state.mode,
-            .x = state.x,
-            .y = state.y,
-            .customModeSize = { state.custom_mode.width, state.custom_mode.height },
-            .customModeRefresh = state.custom_mode.refresh,
-            .transform = static_cast<WOutput::Transform>(state.transform),
-            .scale = state.scale,
-            .adaptiveSyncEnabled = state.adaptive_sync_enabled
-        });
-    }
-
-    currentPendingConfig = config;
-    pendingStateLists.insert(config, std::move(pendingStates));
-    Q_EMIT q->requestTestOrApply(config, onlyTest);
-}
-
-QList<WOutputState> WOutputManagerV1::stateListPending(qw_output_configuration_v1 *config) const
-{
-    W_D(const WOutputManagerV1);
+    W_DC(WOutputManagerV1);
     return d->pendingStateLists.value(config ? config : d->currentPendingConfig);
 }
 
 void WOutputManagerV1::updateConfig()
 {
     W_D(WOutputManagerV1);
+    if (!handle())
+        return;
 
-    auto *config = qw_output_configuration_v1::create();
+    auto *config = wlr_output_configuration_v1_create();
+    Q_ASSERT(config);
     for (const WOutputState &state : std::as_const(d->stateList)) {
-        auto *wlr_output = state.output->handle();
-        auto *configHead = qw_output_configuration_head_v1::create(*config, wlr_output);
-        auto *handle = configHead->handle();
-
-        handle->state.enabled = state.enabled;
-        handle->state.x = state.x;
-        handle->state.y = state.y;
+        auto *configHead = wlr_output_configuration_head_v1_create(config, state.output->handle());
+        Q_ASSERT(configHead);
+        auto &headState = configHead->state;
+        headState.enabled = state.enabled;
+        headState.x = state.x;
+        headState.y = state.y;
 
         if (state.enabled) {
-            handle->state.mode = state.mode;
-            handle->state.scale = state.scale;
-            handle->state.transform = static_cast<wl_output_transform>(state.transform);
-            handle->state.adaptive_sync_enabled = state.adaptiveSyncEnabled;
-
+            headState.mode = state.mode;
+            headState.scale = state.scale;
+            headState.transform = static_cast<wl_output_transform>(state.transform);
+            headState.adaptive_sync_enabled = state.adaptiveSyncEnabled;
             if (state.customModeSize.width() > 0 && state.customModeSize.height() > 0) {
-                handle->state.custom_mode.width = state.customModeSize.width();
-                handle->state.custom_mode.height = state.customModeSize.height();
-                handle->state.custom_mode.refresh = state.customModeRefresh;
+                headState.custom_mode.width = state.customModeSize.width();
+                headState.custom_mode.height = state.customModeSize.height();
+                headState.custom_mode.refresh = state.customModeRefresh;
             }
         }
     }
 
-    d->manager->set_configuration(*config);
+    wlr_output_manager_v1_set_configuration(handle(), config);
 }
 
-void WOutputManagerV1::sendResult(qw_output_configuration_v1 *config, bool ok)
+void WOutputManagerV1::sendResult(wlr_output_configuration_v1 *config, bool ok)
 {
     W_D(WOutputManagerV1);
     sendResult(config, ok, d->pendingStateLists.value(config));
 }
 
-void WOutputManagerV1::sendResult(qw_output_configuration_v1 *config,
-                                  bool ok,
+void WOutputManagerV1::sendResult(wlr_output_configuration_v1 *config, bool ok,
                                   const QList<WOutputState> &appliedStates)
 {
     W_D(WOutputManagerV1);
-
     d->pendingStateLists.remove(config);
     if (d->currentPendingConfig == config)
         d->currentPendingConfig = nullptr;
 
     if (ok) {
-        config->send_succeeded();
+        wlr_output_configuration_v1_send_succeeded(config);
         d->stateList = appliedStates;
     } else {
-        config->send_failed();
+        wlr_output_configuration_v1_send_failed(config);
     }
+    wlr_output_configuration_v1_destroy(config);
 
-    delete config;
-
-    // Schedule updateConfig through the event loop to avoid recursion
     QMetaObject::invokeMethod(this, &WOutputManagerV1::updateConfig, Qt::QueuedConnection);
 }
 
 void WOutputManagerV1::newOutput(WOutput *output)
 {
     W_D(WOutputManagerV1);
-    const auto *wlr_output = output->handle();
+    const auto *nativeOutput = output->handle();
+    auto *outputItem = WOutputItem::getOutputItem(output);
 
-    auto outputItem = WOutputItem::getOutputItem(output);
-
-    WOutputState state {
+    d->stateList.append(WOutputState {
         .output = output,
-        .enabled = wlr_output->enabled,
-        .mode = wlr_output->current_mode,
+        .enabled = nativeOutput->enabled,
+        .mode = nativeOutput->current_mode,
         .x = outputItem ? static_cast<int32_t>(outputItem->x()) : 0,
         .y = outputItem ? static_cast<int32_t>(outputItem->y()) : 0,
-        .customModeSize = {  wlr_output->width,  wlr_output->height },
-        .customModeRefresh =  wlr_output->refresh,
-        .transform = static_cast<WOutput::Transform>(wlr_output->transform),
-        .scale = wlr_output->scale,
-        .adaptiveSyncEnabled = (wlr_output->adaptive_sync_status == WLR_OUTPUT_ADAPTIVE_SYNC_ENABLED)
-    };
-    d->stateList.append(state);
+        .customModeSize = { nativeOutput->width, nativeOutput->height },
+        .customModeRefresh = nativeOutput->refresh,
+        .transform = static_cast<WOutput::Transform>(nativeOutput->transform),
+        .scale = nativeOutput->scale,
+        .adaptiveSyncEnabled = nativeOutput->adaptive_sync_status == WLR_OUTPUT_ADAPTIVE_SYNC_ENABLED,
+    });
     updateConfig();
 }
 
 void WOutputManagerV1::removeOutput(WOutput *output)
 {
     W_D(WOutputManagerV1);
-    d->stateList.removeIf([output](const WOutputState &s) {
-        return s.output == output;
+    d->stateList.removeIf([output](const WOutputState &state) {
+        return state.output == output;
     });
-
     updateConfig();
 }
 
-qw_output_manager_v1 *WOutputManagerV1::handle() const
+wlr_output_manager_v1 *WOutputManagerV1::handle() const
 {
-    return nativeInterface<qw_output_manager_v1>();
+    return nativeInterface<wlr_output_manager_v1>();
 }
 
 QByteArrayView WOutputManagerV1::interfaceName() const
 {
-    return "zwlr_output_head_v1";
+    return "zwlr_output_manager_v1";
 }
 
 void WOutputManagerV1::create(WServer *server)
 {
     W_D(WOutputManagerV1);
-
-    d->manager = qw_output_manager_v1::create(server->handle());
-    connect(d->manager, &qw_output_manager_v1::notify_test, this, [d](wlr_output_configuration_v1 *config) {
-        d->outputMgrApplyOrTest(qw_output_configuration_v1::from(config), true);
+    auto *manager = wlr_output_manager_v1_create(server->handle());
+    Q_ASSERT(manager);
+    m_handle = manager;
+    d->testListener.connect(&manager->events.test, [d](void *data) {
+        d->outputMgrApplyOrTest(static_cast<wlr_output_configuration_v1 *>(data), true);
     });
-
-    connect(d->manager, &qw_output_manager_v1::notify_apply, this, [d](wlr_output_configuration_v1 *config) {
-        d->outputMgrApplyOrTest(qw_output_configuration_v1::from(config), false);
+    d->applyListener.connect(&manager->events.apply, [d](void *data) {
+        d->outputMgrApplyOrTest(static_cast<wlr_output_configuration_v1 *>(data), false);
     });
+}
+
+void WOutputManagerV1::destroy([[maybe_unused]] WServer *server)
+{
+    W_D(WOutputManagerV1);
+    d->testListener.disconnect();
+    d->applyListener.disconnect();
+    d->releasePendingConfigurations();
+    m_handle = nullptr;
 }
 
 wl_global *WOutputManagerV1::global() const
 {
-    W_D(const WOutputManagerV1);
-
-    if (m_handle)
-        return d->nativeHandle()->global;
-
-    return nullptr;
+    return handle() ? handle()->global : nullptr;
 }
 
 WAYLIB_SERVER_END_NAMESPACE

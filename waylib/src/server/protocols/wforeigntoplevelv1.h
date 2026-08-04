@@ -5,12 +5,12 @@
 
 #include <wserver.h>
 #include <wglobal.h>
-#include <qwglobal.h>
-
 #include <QObject>
 #include <QQmlEngine>
 
 Q_MOC_INCLUDE("wsurface.h")
+
+struct wlr_foreign_toplevel_manager_v1;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -27,6 +27,7 @@ public:
     void addSurface(WToplevelSurface *surface);
     void removeSurface(WToplevelSurface *surface); // Must `removeSurface` manually before surface destroy
 
+    wlr_foreign_toplevel_manager_v1 *handle() const;
     QByteArrayView interfaceName() const override;
 
 Q_SIGNALS:

@@ -973,7 +973,7 @@ void Helper::handleCopyModeOutputDisable(Output *affectedOutput)
     }
 }
 
-void Helper::onOutputTestOrApply(qw_output_configuration_v1 *config, bool onlyTest)
+void Helper::onOutputTestOrApply(wlr_output_configuration_v1 *config, bool onlyTest)
 {
     QList<WOutputState> states = m_outputManager->stateListPending(config);
 
@@ -1293,7 +1293,7 @@ void Helper::onOutputTestOrApply(qw_output_configuration_v1 *config, bool onlyTe
     }
 }
 
-void Helper::onOutputCommitFinished(qw_output_configuration_v1 *config, bool success)
+void Helper::onOutputCommitFinished(wlr_output_configuration_v1 *config, bool success)
 {
     if (!config) {
         return;
@@ -3448,8 +3448,8 @@ void Helper::handleNewForeignToplevelCaptureRequest(wlr_ext_foreign_toplevel_ima
         return;
     }
 
-    auto *qw_handle = qw_ext_foreign_toplevel_handle_v1::from(request->toplevel_handle);
-    WToplevelSurface *toplevelSurface = m_extForeignToplevelListV1->findSurfaceByHandle(qw_handle);
+    WToplevelSurface *toplevelSurface =
+        m_extForeignToplevelListV1->findSurfaceByHandle(request->toplevel_handle);
     if (!toplevelSurface) {
         qCWarning(lcTlCapture) << "Could not find toplevel surface for handle";
         return;

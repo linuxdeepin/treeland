@@ -6,8 +6,6 @@
 #include "private/wglobal_p.h"
 #include "security-context-v1-protocol.h"
 
-#include <qwdisplay.h>
-
 extern "C" {
 #include <wlr/util/log.h>
 }
@@ -539,7 +537,8 @@ public:
 
     }
 
-    inline wlr_security_context_manager_v1 *handle() const {
+    inline wlr_security_context_manager_v1 *handle() const
+    {
         return q_func()->nativeInterface<wlr_security_context_manager_v1>();
     }
 
@@ -565,11 +564,17 @@ WSecurityContextManager::WSecurityContextManager()
 void WSecurityContextManager::create(WServer *server)
 {
     m_handle = wlr_security_context_manager_v1_create(server->handle());
+    Q_ASSERT(m_handle);
+}
+
+void WSecurityContextManager::destroy([[maybe_unused]] WServer *server)
+{
+    m_handle = nullptr;
 }
 
 wl_global *WSecurityContextManager::global() const
 {
-    W_D(const WSecurityContextManager);
+    W_DC(WSecurityContextManager);
     return d->handle() ? d->handle()->global : nullptr;
 }
 

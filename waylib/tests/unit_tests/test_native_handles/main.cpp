@@ -5,7 +5,10 @@
 #include <WBackend>
 #include <WInputDevice>
 #include <WOutput>
+#include <WOutputManagerV1>
 #include <WCursor>
+#include <WCursorShapeManagerV1>
+#include <WForeignToplevel>
 #include <WSeat>
 #include <WSurface>
 #include <WXdgDecorationManager>
@@ -16,6 +19,7 @@
 #include <WSessionLockManager>
 #include <WSessionLockSurface>
 #include <wxdgdialogmanagerv1.h>
+#include <wextforeigntoplevellistv1.h>
 #include <wxdgpopupsurface.h>
 #include <wxdgtoplevelsurface.h>
 #include <winputpopupsurface.h>
@@ -43,8 +47,10 @@ extern "C" {
 struct wl_display;
 struct wlr_backend;
 struct wlr_cursor;
+struct wlr_cursor_shape_manager_v1;
 struct wlr_input_device;
 struct wlr_output;
+struct wlr_output_manager_v1;
 struct wlr_output_layout;
 struct wlr_seat;
 struct wlr_session;
@@ -64,6 +70,8 @@ struct wlr_input_popup_surface_v2;
 struct wlr_text_input_manager_v3;
 struct wlr_text_input_v3;
 struct wlr_virtual_keyboard_manager_v1;
+struct wlr_ext_foreign_toplevel_list_v1;
+struct wlr_foreign_toplevel_manager_v1;
 
 WAYLIB_SERVER_USE_NAMESPACE
 
@@ -73,8 +81,12 @@ static_assert(std::is_same_v<decltype(std::declval<WBackend &>().session()), wlr
 static_assert(std::is_same_v<decltype(std::declval<WInputDevice &>().handle()), wlr_input_device *>);
 static_assert(std::is_constructible_v<WInputDevice, wlr_input_device *>);
 static_assert(std::is_same_v<decltype(std::declval<WOutput &>().handle()), wlr_output *>);
+static_assert(std::is_same_v<decltype(std::declval<WOutputManagerV1 &>().handle()),
+                             wlr_output_manager_v1 *>);
 static_assert(std::is_same_v<decltype(std::declval<WOutputLayout &>().handle()), wlr_output_layout *>);
 static_assert(std::is_same_v<decltype(std::declval<WCursor &>().handle()), wlr_cursor *>);
+static_assert(std::is_same_v<decltype(std::declval<WCursorShapeManagerV1 &>().handle()),
+                             wlr_cursor_shape_manager_v1 *>);
 static_assert(std::is_same_v<decltype(std::declval<WSeat &>().handle()), wlr_seat *>);
 static_assert(std::is_same_v<decltype(std::declval<WSurface &>().handle()), wlr_surface *>);
 static_assert(std::is_same_v<decltype(std::declval<WXdgShell &>().handle()), wlr_xdg_shell *>);
@@ -104,6 +116,10 @@ static_assert(std::is_same_v<decltype(std::declval<WTextInputV3 &>().handle()),
                              wlr_text_input_v3 *>);
 static_assert(std::is_same_v<decltype(std::declval<WVirtualKeyboardManagerV1 &>().handle()),
                              wlr_virtual_keyboard_manager_v1 *>);
+static_assert(std::is_same_v<decltype(std::declval<WExtForeignToplevelListV1 &>().handle()),
+                             wlr_ext_foreign_toplevel_list_v1 *>);
+static_assert(std::is_same_v<decltype(std::declval<WForeignToplevel &>().handle()),
+                             wlr_foreign_toplevel_manager_v1 *>);
 
 class NativeHandlesTest : public QObject
 {
@@ -137,6 +153,9 @@ private Q_SLOTS:
         auto *decorationManager = server.attach<WXdgDecorationManager>();
         auto *dialogManager = server.attach<WXdgDialogManagerV1>();
         auto *sessionLockManager = server.attach<WSessionLockManager>();
+        auto *cursorShapeManager = server.attach<WCursorShapeManagerV1>();
+        auto *foreignToplevelManager = server.attach<WForeignToplevel>();
+        auto *extForeignToplevelList = server.attach<WExtForeignToplevelListV1>();
 
         server.start();
         QVERIFY(xdgShell->handle());
@@ -144,6 +163,9 @@ private Q_SLOTS:
         QVERIFY(decorationManager->handle());
         QVERIFY(dialogManager->handle());
         QVERIFY(sessionLockManager->handle());
+        QVERIFY(cursorShapeManager->handle());
+        QVERIFY(foreignToplevelManager->handle());
+        QVERIFY(extForeignToplevelList->handle());
         server.stop();
     }
 
@@ -153,11 +175,13 @@ private Q_SLOTS:
         auto *inputMethodManager = server.attach<WInputMethodManagerV2>();
         auto *textInputManager = server.attach<WTextInputManagerV3>();
         auto *virtualKeyboardManager = server.attach<WVirtualKeyboardManagerV1>();
+        auto *outputManager = server.attach<WOutputManagerV1>();
 
         server.start();
         QVERIFY(inputMethodManager->handle());
         QVERIFY(textInputManager->handle());
         QVERIFY(virtualKeyboardManager->handle());
+        QVERIFY(outputManager->handle());
         server.stop();
     }
 

@@ -275,7 +275,7 @@ void Helper::init()
 
     auto *sessionLockManager = m_server->attach<WSessionLockManager>();
     m_lockContainer->setVisible(false);
-    sessionLockManager->safeConnect(&WSessionLockManager::lockCreated, this, [this](WSessionLock *lock) {
+    connect(sessionLockManager, &WSessionLockManager::lockCreated, this, [this](WSessionLock *lock) {
         if (m_lockContainer->isVisible()) {
             qWarning() << "Only one session lock is allowed!";
             lock->finish();
@@ -474,7 +474,7 @@ void Helper::init()
     });
 
     connect(wOutputManager, &WOutputManagerV1::requestTestOrApply, this, [this, wOutputManager]
-            (qw_output_configuration_v1 *config, bool onlyTest) {
+            (wlr_output_configuration_v1 *config, bool onlyTest) {
         QList<WOutputState> states = wOutputManager->stateListPending();
         bool ok = true;
         for (auto state : std::as_const(states)) {

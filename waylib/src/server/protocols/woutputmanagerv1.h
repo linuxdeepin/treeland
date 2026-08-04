@@ -9,10 +9,8 @@
 
 #include <QObject>
 
-QW_BEGIN_NAMESPACE
-class qw_output_manager_v1;
-class qw_output_configuration_v1;
-QW_END_NAMESPACE
+struct wlr_output_configuration_v1;
+struct wlr_output_manager_v1;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -51,22 +49,23 @@ public:
     explicit WOutputManagerV1();
 
     QList<WOutputState> stateListPending(
-        QW_NAMESPACE::qw_output_configuration_v1 *config = nullptr) const;
+        wlr_output_configuration_v1 *config = nullptr) const;
 
-    void sendResult(QW_NAMESPACE::qw_output_configuration_v1 *config, bool ok);
-    void sendResult(QW_NAMESPACE::qw_output_configuration_v1 *config,
+    void sendResult(wlr_output_configuration_v1 *config, bool ok);
+    void sendResult(wlr_output_configuration_v1 *config,
                     bool ok,
                     const QList<WOutputState> &appliedStates);
     void newOutput(WOutput *output);
     void removeOutput(WOutput *output);
-    QW_NAMESPACE::qw_output_manager_v1 *handle() const;
+    wlr_output_manager_v1 *handle() const;
     QByteArrayView interfaceName() const override;
 
 Q_SIGNALS:
-    void requestTestOrApply(QW_NAMESPACE::qw_output_configuration_v1 *config, bool onlyTest);
+    void requestTestOrApply(wlr_output_configuration_v1 *config, bool onlyTest);
 
 protected:
     void create(WServer *server) override;
+    void destroy(WServer *server) override;
     wl_global *global() const override;
 
 private:
