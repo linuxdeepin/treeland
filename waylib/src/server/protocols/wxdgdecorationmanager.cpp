@@ -6,13 +6,9 @@
 #include "wayliblogging.h"
 #include "private/wglobal_p.h"
 
-#include <qwxdgdecorationmanagerv1.h>
-#include <qwdisplay.h>
+#include <wlr/types/wlr_xdg_decoration_v1.h>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
-using QW_NAMESPACE::qw_xdg_decoration_manager_v1;
-using QW_NAMESPACE::qw_xdg_toplevel_decoration_v1;
-
 static WXdgDecorationManager *XDG_DECORATION_MANAGER = nullptr;
 
 class Q_DECL_HIDDEN WXdgDecorationManagerPrivate : public WObjectPrivate
@@ -25,49 +21,64 @@ public:
     }
 
     // begin slot function
-    void onNewToplevelDecoration(qw_xdg_toplevel_decoration_v1 *decorat);
+    void onNewToplevelDecoration(wlr_xdg_toplevel_decoration_v1 *decorat);
     // end slot function
-    void updateDecorationMode(qw_xdg_toplevel_decoration_v1 *decorat);
+    void updateDecorationMode(wlr_xdg_toplevel_decoration_v1 *decorat);
+    void cleanupDecorations();
 
     WXdgDecorationManager::DecorationMode modeBySurface(WSurface *surface) const {
         return decorations.value(surface, WXdgDecorationManager::Undefined);
     }
 
-    inline qw_xdg_decoration_manager_v1 *handle() const {
-        return q_func()->nativeInterface<qw_xdg_decoration_manager_v1>();
-    }
-
-    inline wlr_xdg_decoration_manager_v1 *nativeHandle() const {
-        Q_ASSERT(handle());
-        return handle()->handle();
+    inline wlr_xdg_decoration_manager_v1 *handle() const {
+        return static_cast<wlr_xdg_decoration_manager_v1*>(q_func()->m_handle);
     }
 
     W_DECLARE_PUBLIC(WXdgDecorationManager)
+
+    WScopedListener m_newToplevelDecorationListener;
+
+    struct DecorationState {
+        wlr_xdg_toplevel_decoration_v1 *decoration;
+        WScopedListener requestModeListener;
+        WScopedListener destroyListener;
+    };
+    QList<DecorationState*> decorationStates;
 
     WXdgDecorationManager::DecorationMode preferredMode = WXdgDecorationManager::Server;
     QMap<WSurface*, WXdgDecorationManager::DecorationMode> decorations;
 };
 
-void WXdgDecorationManagerPrivate::onNewToplevelDecoration(qw_xdg_toplevel_decoration_v1 *decorat)
+void WXdgDecorationManagerPrivate::onNewToplevelDecoration(wlr_xdg_toplevel_decoration_v1 *decorat)
 {
-    W_Q(WXdgDecorationManager);
-    QObject::connect(decorat,
-                &qw_xdg_toplevel_decoration_v1::notify_request_mode,
-                q,
-                [decorat, this]() {
-                    this->updateDecorationMode(decorat);
-                });
+    auto *state = new DecorationState{decorat, {}, {}};
+    decorationStates.append(state);
+    state->requestModeListener.connect(&decorat->events.request_mode, [this, decorat](wl_listener *, void *) {
+        updateDecorationMode(decorat);
+    });
+    state->destroyListener.connect(&decorat->events.destroy, [this, state](wl_listener *, void *) {
+        decorationStates.removeOne(state);
+        delete state;
+    });
     /* For some reason, a lot of clients don't Q_EMIT the request_mode signal. */
     updateDecorationMode(decorat);
 }
 
-void WXdgDecorationManagerPrivate::updateDecorationMode(qw_xdg_toplevel_decoration_v1 *decorat)
+void WXdgDecorationManagerPrivate::cleanupDecorations()
+{
+    for (auto *state : std::as_const(decorationStates)) {
+        delete state;
+    }
+    decorationStates.clear();
+}
+
+void WXdgDecorationManagerPrivate::updateDecorationMode(wlr_xdg_toplevel_decoration_v1 *decorat)
 {
     W_Q(WXdgDecorationManager);
 
-    auto *surface = WSurface::fromHandle(decorat->handle()->toplevel->base->surface);
+    auto *surface = WSurface::fromHandle(decorat->toplevel->base->surface);
     WXdgDecorationManager::DecorationMode mode = WXdgDecorationManager::Undefined;
-    switch (decorat->handle()->requested_mode) {
+    switch (decorat->requested_mode) {
         case WLR_XDG_TOPLEVEL_DECORATION_V1_MODE_NONE:
             mode = WXdgDecorationManager::None;
             break;
@@ -84,12 +95,12 @@ void WXdgDecorationManagerPrivate::updateDecorationMode(qw_xdg_toplevel_decorati
         mode = preferredMode;
         switch (preferredMode) {
             case WXdgDecorationManager::Client:
-                if (decorat->handle()->toplevel->base->initialized)
-                    decorat->set_mode(WLR_XDG_TOPLEVEL_DECORATION_V1_MODE_CLIENT_SIDE);
+                if (decorat->toplevel->base->initialized)
+                    wlr_xdg_toplevel_decoration_v1_set_mode(decorat, WLR_XDG_TOPLEVEL_DECORATION_V1_MODE_CLIENT_SIDE);
                 break;
             case WXdgDecorationManager::Server:
-                if (decorat->handle()->toplevel->base->initialized)
-                    decorat->set_mode(WLR_XDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE);
+                if (decorat->toplevel->base->initialized)
+                    wlr_xdg_toplevel_decoration_v1_set_mode(decorat, WLR_XDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE);
                 break;
             default:
                 Q_UNREACHABLE();
@@ -114,14 +125,18 @@ void WXdgDecorationManager::create(WServer *server)
 {
     W_D(WXdgDecorationManager);
 
-    m_handle = qw_xdg_decoration_manager_v1::create(*server->handle());
-    connect(d->handle(), &qw_xdg_decoration_manager_v1::notify_new_toplevel_decoration, this, [d](wlr_xdg_toplevel_decoration_v1 *decorat) {
-        d->onNewToplevelDecoration(qw_xdg_toplevel_decoration_v1::from(decorat));
+    m_handle = wlr_xdg_decoration_manager_v1_create(server->handle());
+    auto *mgr = static_cast<wlr_xdg_decoration_manager_v1*>(m_handle);
+    d->m_newToplevelDecorationListener.connect(&mgr->events.new_toplevel_decoration, [d](wl_listener *, void *data) {
+        d->onNewToplevelDecoration(static_cast<wlr_xdg_toplevel_decoration_v1*>(data));
     });
 }
 
 void WXdgDecorationManager::destroy([[maybe_unused]] WServer *server)
 {
+    W_D(WXdgDecorationManager);
+    d->m_newToplevelDecorationListener.remove();
+    d->cleanupDecorations();
 }
 
 wl_global *WXdgDecorationManager::global() const
@@ -129,7 +144,7 @@ wl_global *WXdgDecorationManager::global() const
     W_D(const WXdgDecorationManager);
 
     if (m_handle)
-        return d->nativeHandle()->global;
+        return d->handle()->global;
 
     return nullptr;
 }
@@ -168,19 +183,18 @@ void WXdgDecorationManager::setModeBySurface(WSurface *surface, DecorationMode m
     }
 
     if (d->handle()) {
-        wlr_xdg_decoration_manager_v1 *wlr_manager = d->nativeHandle();
+        wlr_xdg_decoration_manager_v1 *wlr_manager = d->handle();
         wlr_xdg_toplevel_decoration_v1 *wlr_decorations;
         wl_list_for_each(wlr_decorations, &wlr_manager->decorations, link) {
             if (WSurface::fromHandle(wlr_decorations->toplevel->base->surface) == surface) {
-                auto * decorat = qw_xdg_toplevel_decoration_v1::from(wlr_decorations);
                 switch (mode) {
                     case WXdgDecorationManager::Client:
-                        if (decorat->handle()->toplevel->base->initialized)
-                            decorat->set_mode(WLR_XDG_TOPLEVEL_DECORATION_V1_MODE_CLIENT_SIDE);
+                        if (wlr_decorations->toplevel->base->initialized)
+                            wlr_xdg_toplevel_decoration_v1_set_mode(wlr_decorations, WLR_XDG_TOPLEVEL_DECORATION_V1_MODE_CLIENT_SIDE);
                         break;
                     case WXdgDecorationManager::Server:
-                        if (decorat->handle()->toplevel->base->initialized)
-                            decorat->set_mode(WLR_XDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE);
+                        if (wlr_decorations->toplevel->base->initialized)
+                            wlr_xdg_toplevel_decoration_v1_set_mode(wlr_decorations, WLR_XDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE);
                         break;
                     default:
                         Q_UNREACHABLE();

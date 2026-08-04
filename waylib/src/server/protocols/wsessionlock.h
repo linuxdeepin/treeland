@@ -8,9 +8,7 @@
 
 Q_MOC_INCLUDE("wsessionlocksurface.h")
 
-QW_BEGIN_NAMESPACE
-class qw_session_lock_v1;
-QW_END_NAMESPACE
+struct wlr_session_lock_v1;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -35,15 +33,15 @@ public:
         Abandoned,
         Canceled
     };
-    explicit WSessionLock(qw_session_lock_v1 *handle, QObject *parent = nullptr);
+    explicit WSessionLock(wlr_session_lock_v1 *handle, QObject *parent = nullptr);
     ~WSessionLock();
-    static WSessionLock *fromHandle(qw_session_lock_v1 *handle);
+    static WSessionLock *fromHandle(wlr_session_lock_v1 *handle);
 
     Q_INVOKABLE void lock();
     Q_INVOKABLE void finish();
     LockState lockState() const;
     bool isLocked() const;
-    qw_session_lock_v1 *handle() const;
+    wlr_session_lock_v1 *handle() const;
     
     QVector<WSessionLockSurface*> surfaceList() const;
 Q_SIGNALS:

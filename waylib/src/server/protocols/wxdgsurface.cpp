@@ -3,7 +3,6 @@
 
 #include "wxdgsurface.h"
 
-QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 WXdgSurface::WXdgSurface(WToplevelSurfacePrivate &d, QObject *parent)

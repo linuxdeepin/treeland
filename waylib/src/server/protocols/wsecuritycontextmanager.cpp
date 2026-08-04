@@ -6,8 +6,6 @@
 #include "private/wglobal_p.h"
 #include "security-context-v1-protocol.h"
 
-#include <qwdisplay.h>
-
 extern "C" {
 #include <wlr/util/log.h>
 }

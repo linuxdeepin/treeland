@@ -5,6 +5,9 @@
 
 #include <wayland-server-core.h>
 #include <cstddef>
+#include <functional>
+#include <type_traits>
+#include <utility>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -20,7 +23,26 @@ public:
     void connect(wl_signal *signal, wl_listener_notify_func_t notify)
     {
         remove();
+        m_callback = nullptr;
         m_listener.notify = notify;
+        wl_signal_add(signal, &m_listener);
+        m_connected = true;
+    }
+
+    // Overload for arbitrary callables (including capturing lambdas).
+    // The callable is stored in a std::function; the wl_listener.notify thunk
+    // recovers the WScopedListener and dispatches to it.
+    template<typename F>
+        requires (!std::is_convertible_v<F, wl_listener_notify_func_t>)
+    void connect(wl_signal *signal, F &&fn)
+    {
+        remove();
+        m_callback = std::forward<F>(fn);
+        m_listener.notify = +[](wl_listener *l, void *data) {
+            auto *self = reinterpret_cast<WScopedListener *>(
+                reinterpret_cast<char *>(l) - offsetof(WScopedListener, m_listener));
+            self->m_callback(l, data);
+        };
         wl_signal_add(signal, &m_listener);
         m_connected = true;
     }
@@ -31,6 +53,7 @@ public:
             wl_list_remove(&m_listener.link);
             m_connected = false;
         }
+        m_callback = nullptr;
     }
 
     bool isConnected() const { return m_connected; }
@@ -54,6 +77,7 @@ public:
 private:
     wl_listener m_listener;
     bool m_connected = false;
+    std::function<void(wl_listener*, void*)> m_callback;
 };
 
 WAYLIB_SERVER_END_NAMESPACE

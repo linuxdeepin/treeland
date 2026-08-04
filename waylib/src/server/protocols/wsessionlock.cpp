@@ -6,27 +6,30 @@
 #include "wsessionlocksurface.h"
 #include "private/wglobal_p.h"
 
-#include <qwsessionlockv1.h>
+#include <wlr/types/wlr_session_lock_v1.h>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class Q_DECL_HIDDEN WSessionLockPrivate : public WWrapObjectPrivate
 {
 public:
-    WWRAP_HANDLE_FUNCTIONS(qw_session_lock_v1, wlr_session_lock_v1)
+    WWRAP_NATIVE_HANDLE_FUNCTIONS(wlr_session_lock_v1)
 
-    WSessionLockPrivate(WSessionLock *qq, qw_session_lock_v1 *handle)
+    WSessionLockPrivate(WSessionLock *qq, wlr_session_lock_v1 *handle)
         : WWrapObjectPrivate(qq)
     {
-        initHandle(handle);
+        initNativeHandle(handle, &handle->events.destroy);
     }
     void instantRelease() override;
     void setStatus(WSessionLock::LockState status) {
         m_status = status;
     }
+    WScopedListener m_newSurfaceListener;
+    WScopedListener m_unlockListener;
+
     // begin slot function
-    void onNewSurface(qw_session_lock_surface_v1 *surface);
-    void onSurfaceDestroy(qw_session_lock_surface_v1 *surface);
+    void onNewSurface(wlr_session_lock_surface_v1 *surface);
+    void onSurfaceDestroy(wlr_session_lock_surface_v1 *surface);
     // end slot function
     
     void init();
@@ -50,14 +53,14 @@ void WSessionLockPrivate::instantRelease()
     }
 }
 
-void WSessionLockPrivate::onNewSurface(qw_session_lock_surface_v1 *surface)
+void WSessionLockPrivate::onNewSurface(wlr_session_lock_surface_v1 *surface)
 {
     W_Q(WSessionLock);
     WSessionLockSurface *lockSurface = new WSessionLockSurface(surface, q);
     lockSurface->setParent(q);
     Q_ASSERT(lockSurface->parent() == q);
     
-    lockSurface->safeConnect(&qw_session_lock_surface_v1::before_destroy, q, [this, surface] {
+    lockSurface->safeConnect(&WSessionLockSurface::aboutToBeInvalidated, q, [this, surface] {
         onSurfaceDestroy(surface);
     });
 
@@ -65,7 +68,7 @@ void WSessionLockPrivate::onNewSurface(qw_session_lock_surface_v1 *surface)
     Q_EMIT q->surfaceAdded(lockSurface);
 }
 
-void WSessionLockPrivate::onSurfaceDestroy(qw_session_lock_surface_v1 *surface)
+void WSessionLockPrivate::onSurfaceDestroy(wlr_session_lock_surface_v1 *surface)
 {
     W_Q(WSessionLock);
     WSessionLockSurface *lockSurface = WSessionLockSurface::fromHandle(surface);
@@ -81,15 +84,13 @@ void WSessionLockPrivate::onSurfaceDestroy(qw_session_lock_surface_v1 *surface)
 
 void WSessionLockPrivate::init()
 {
-    W_Q(WSessionLock);
-    handle()->set_data(this, q);
 }
 
 void WSessionLockPrivate::lock()
 {
     W_Q(WSessionLock);
     Q_ASSERT(m_status == WSessionLock::LockState::Created);
-    handle()->send_locked();
+    wlr_session_lock_v1_send_locked(handle());
     m_status = WSessionLock::LockState::Locked;
     Q_EMIT q->locked();
 }
@@ -98,25 +99,26 @@ void WSessionLockPrivate::finish()
 {
     W_Q(WSessionLock);
     Q_ASSERT(m_status == WSessionLock::LockState::Created);
-    handle()->destroy();
+    wlr_session_lock_v1_destroy(handle());
     m_status = WSessionLock::LockState::Finished;
     Q_EMIT q->finished();
 }
 
-WSessionLock::WSessionLock(qw_session_lock_v1 *handle, QObject *parent)
+WSessionLock::WSessionLock(wlr_session_lock_v1 *handle, QObject *parent)
     : WWrapObject(*new WSessionLockPrivate(this, handle), parent)
 {
     W_D(WSessionLock);
     d->init();
-    // connect new_surface and unlock signals in
-    connect(handle, &qw_session_lock_v1::notify_new_surface, this, [d](wlr_session_lock_surface_v1 *surface) {
-        d->onNewSurface(qw_session_lock_surface_v1::from(surface));
+    // connect new_surface and unlock signals
+    d->m_newSurfaceListener.connect(&handle->events.new_surface, [d](wl_listener *, void *data) {
+        d->onNewSurface(static_cast<wlr_session_lock_surface_v1*>(data));
     });
-    connect(handle, &qw_session_lock_v1::notify_unlock, this, [d, this]() {
-        Q_ASSERT(d->m_status == LockState::Locked);
+    d->m_unlockListener.connect(&handle->events.unlock, [this]() {
+        Q_ASSERT(d_func()->m_status == LockState::Locked);
         Q_EMIT unlocked();
     });
-    connect(handle, &qw_session_lock_v1::before_destroy, this, [d, this]() {
+    connect(this, &WSessionLock::aboutToBeInvalidated, this, [this]() {
+        W_D(WSessionLock);
         switch (lockState()) {
             case LockState::Created:
                 d->setStatus(LockState::Canceled);
@@ -141,12 +143,12 @@ WSessionLock::~WSessionLock()
 
 }
 
-WSessionLock *WSessionLock::fromHandle(qw_session_lock_v1 *handle)
+WSessionLock *WSessionLock::fromHandle(wlr_session_lock_v1 *handle)
 {
-    return handle->get_data<WSessionLock>();
+    return static_cast<WSessionLock*>(WWrapObjectPrivate::fromNativeHandle(handle));
 }
 
-qw_session_lock_v1 *WSessionLock::handle() const
+wlr_session_lock_v1 *WSessionLock::handle() const
 {
     W_DC(WSessionLock);
     return d->handle();

@@ -3,16 +3,11 @@
 
 #pragma once
 
-#include "qwglobal.h"
 #include "wglobal.h"
 #include "woutput.h"
 #include "wtoplevelsurface.h"
 
 struct wlr_session_lock_surface_v1;
-
-QW_BEGIN_NAMESPACE
-class qw_session_lock_surface_v1;
-QW_END_NAMESPACE
 
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -28,17 +23,16 @@ class WAYLIB_SERVER_EXPORT WSessionLockSurface : public WToplevelSurface
     QML_NAMED_ELEMENT(WSessionLockSurface)
     QML_UNCREATABLE("Only create in C++")
 public:
-    explicit WSessionLockSurface(qw_session_lock_surface_v1 *handle, QObject *parent = nullptr);
+    explicit WSessionLockSurface(wlr_session_lock_surface_v1 *handle, QObject *parent = nullptr);
     ~WSessionLockSurface();
 
     bool hasCapability(Capability cap) const override;
 
     WSurface *surface() const override;
 
-    qw_session_lock_surface_v1 *handle() const;
-    wlr_session_lock_surface_v1 *nativeHandle() const;
+    wlr_session_lock_surface_v1 *handle() const;
 
-    static WSessionLockSurface *fromHandle(qw_session_lock_surface_v1 *handle);
+    static WSessionLockSurface *fromHandle(wlr_session_lock_surface_v1 *handle);
     static WSessionLockSurface *fromSurface(WSurface *surface);
 
     QRect getContentGeometry() const override;

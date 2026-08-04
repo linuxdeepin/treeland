@@ -16,9 +16,8 @@
 
 #include <wayland-server-core.h>
 
-#include <qwdisplay.h>
-#include <qwxdgoutputv1.h>
-#include <qwoutputlayout.h>
+#include <wlr/types/wlr_output_layout.h>
+#include <wlr/types/wlr_output.h>
 #include <QQmlInfo>
 
 // Copy from wlroots
@@ -359,7 +358,6 @@ static struct way_xdg_output_manager_v1 *way_xdg_output_manager_v1_create(
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-using QW_NAMESPACE::qw_xdg_output_manager_v1;
 
 class Q_DECL_HIDDEN WXdgOutputManagerPrivate : public WObjectPrivate
 {

@@ -8,16 +8,11 @@
 #include "private/wglobal_p.h"
 #include "wxdgshell.h"
 
-#include <qwlayershellv1.h>
-#include <qwxdgshell.h>
-#include <qwdisplay.h>
+#include <wlr/types/wlr_layer_shell_v1.h>
 
 #include <QVector>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
-
-using QW_NAMESPACE::qw_layer_shell_v1;
-using QW_NAMESPACE::qw_layer_surface_v1;
 
 class Q_DECL_HIDDEN WLayerShellPrivate : public WWrapObjectPrivate
 {
@@ -29,17 +24,18 @@ public:
     }
 
     // begin slot function
-    void onNewSurface(qw_layer_surface_v1 *layerSurface);
-    void onSurfaceDestroy(qw_layer_surface_v1 *layerSurface);
+    void onNewSurface(wlr_layer_surface_v1 *layerSurface);
+    void onSurfaceDestroy(wlr_layer_surface_v1 *layerSurface);
     // end slot function
 
     W_DECLARE_PUBLIC(WLayerShell)
 
+    WScopedListener m_newSurfaceListener;
     QVector<WLayerSurface*> surfaceList;
     QPointer<WXdgShell> xdgShell;
 };
 
-void WLayerShellPrivate::onNewSurface(qw_layer_surface_v1 *layerSurface)
+void WLayerShellPrivate::onNewSurface(wlr_layer_surface_v1 *layerSurface)
 {
     W_Q(WLayerShell);
 
@@ -48,10 +44,10 @@ void WLayerShellPrivate::onNewSurface(qw_layer_surface_v1 *layerSurface)
     surface->setParent(server);
     Q_ASSERT(surface->parent() == server);
 
-    surface->safeConnect(&qw_layer_surface_v1::before_destroy, q, [this, layerSurface] {
+    surface->safeConnect(&WLayerSurface::aboutToBeInvalidated, q, [this, layerSurface] {
         onSurfaceDestroy(layerSurface);
     });
-    surface->safeConnect(&qw_layer_surface_v1::notify_new_popup, q, [this] (wlr_xdg_popup *popup) {
+    QObject::connect(surface, &WLayerSurface::newPopup, q, [this] (wlr_xdg_popup *popup) {
         if (xdgShell)
             xdgShell->initializeNewXdgPopupSurface(popup);
         else
@@ -62,7 +58,7 @@ void WLayerShellPrivate::onNewSurface(qw_layer_surface_v1 *layerSurface)
     Q_EMIT q->surfaceAdded(surface);
 }
 
-void WLayerShellPrivate::onSurfaceDestroy(qw_layer_surface_v1 *layerSurface)
+void WLayerShellPrivate::onSurfaceDestroy(wlr_layer_surface_v1 *layerSurface)
 {
     auto surface = WLayerSurface::fromHandle(layerSurface);
     Q_ASSERT(surface);
@@ -94,16 +90,17 @@ void WLayerShell::create(WServer *server)
 {
     W_D(WLayerShell);
 
-    auto *layer_shell = qw_layer_shell_v1::create(*server->handle(), 4);
-    connect(layer_shell, &qw_layer_shell_v1::notify_new_surface, this, [d](wlr_layer_surface_v1 *surface) {
-        d->onNewSurface(qw_layer_surface_v1::from(surface));
+    m_handle = wlr_layer_shell_v1_create(server->handle(), 4);
+    auto *layer_shell = static_cast<wlr_layer_shell_v1*>(m_handle);
+    d->m_newSurfaceListener.connect(&layer_shell->events.new_surface, [d](wl_listener *, void *data) {
+        d->onNewSurface(static_cast<wlr_layer_surface_v1*>(data));
     });
-    m_handle = layer_shell;
 }
 
 void WLayerShell::destroy([[maybe_unused]] WServer *server)
 {
     W_D(WLayerShell);
+    d->m_newSurfaceListener.remove();
 
     auto list = d->surfaceList;
     d->surfaceList.clear();
@@ -116,8 +113,7 @@ void WLayerShell::destroy([[maybe_unused]] WServer *server)
 
 wl_global *WLayerShell::global() const
 {
-    auto handle = nativeInterface<qw_layer_shell_v1>();
-    return handle->handle()->global;
+    return static_cast<wlr_layer_shell_v1*>(m_handle)->global;
 }
 
 WAYLIB_SERVER_END_NAMESPACE
