@@ -165,7 +165,7 @@ private Q_SLOTS:
 
         QPointer<WXdgToplevelSurface> surface = new WXdgToplevelSurface(&nativeToplevel);
         QCOMPARE(WXdgToplevelSurface::fromHandle(&nativeToplevel), surface.data());
-        QSignalSpy invalidated(surface, &WWrapObject::invalidated);
+        QSignalSpy invalidated(surface, &WToplevelSurface::invalidated);
 
         wl_signal_emit_mutable(&nativeToplevel.events.destroy, &nativeToplevel);
 

@@ -33,11 +33,11 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 using XWaylandRegistry = QHash<const wlr_xwayland *, WXWayland *>;
 Q_GLOBAL_STATIC(XWaylandRegistry, s_xwaylands)
 
-class Q_DECL_HIDDEN WXWaylandPrivate : public WWrapObjectPrivate
+class Q_DECL_HIDDEN WXWaylandPrivate : public WObjectPrivate
 {
 public:
     WXWaylandPrivate(WXWayland *qq, wlr_compositor *compositor, bool lazy)
-        : WWrapObjectPrivate(qq)
+        : WObjectPrivate(qq)
         , compositor(compositor)
         , lazy(lazy)
     {
@@ -205,7 +205,7 @@ void WXWaylandPrivate::on_new_surface(wlr_xwayland_surface *xwl_surface)
     auto *surface = new WXWaylandSurface(xwl_surface, q, server);
     surface->setParent(server);
     Q_ASSERT(surface->parent() == server);
-    QObject::connect(surface, &WWrapObject::aboutToBeInvalidated, q, [this, surface] {
+    QObject::connect(surface, &WToplevelSurface::aboutToBeInvalidated, q, [this, surface] {
         on_surface_destroy(surface);
     });
 
@@ -222,7 +222,8 @@ void WXWaylandPrivate::on_surface_destroy(WXWaylandSurface *surface)
 }
 
 WXWayland::WXWayland(wlr_compositor *compositor, bool lazy)
-    : WWrapObject(*new WXWaylandPrivate(this, compositor, lazy))
+    : QObject()
+    , WObject(*new WXWaylandPrivate(this, compositor, lazy))
 {
     W_D(WXWayland);
     // TODO: Add setFreezeClientWhenDisable in WSocket

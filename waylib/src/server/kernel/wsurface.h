@@ -19,7 +19,7 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 class WServer;
 class WOutput;
 class WSurfacePrivate;
-class WAYLIB_SERVER_EXPORT WSurface : public WWrapObject
+class WAYLIB_SERVER_EXPORT WSurface : public QObject, public WObject
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WSurface)
@@ -72,6 +72,8 @@ public Q_SLOTS:
     void unmap();
 
 Q_SIGNALS:
+    void aboutToBeInvalidated();
+    void invalidated();
     void mappedChanged();
     void bufferOffsetChanged();
     void hasSubsurfaceChanged();

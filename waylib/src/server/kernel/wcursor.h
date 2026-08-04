@@ -22,7 +22,7 @@ class WSeat;
 class WInputDevice;
 class WXCursorImage;
 class WCursorPrivate;
-class WAYLIB_SERVER_EXPORT WCursor : public WWrapObject
+class WAYLIB_SERVER_EXPORT WCursor : public QObject, public WObject
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WCursor)
@@ -82,6 +82,8 @@ public:
     void setScrollFactor(double factor);
 
 Q_SIGNALS:
+    void aboutToBeInvalidated();
+    void invalidated();
     void positionChanged();
     void seatChanged();
     void requestedCursorShapeChanged();

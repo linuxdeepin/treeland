@@ -15,7 +15,7 @@ struct wlr_subsurface;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class Q_DECL_HIDDEN WSurfacePrivate : public WWrapObjectPrivate {
+class Q_DECL_HIDDEN WSurfacePrivate : public WObjectPrivate {
 public:
     WSurfacePrivate(WSurface *qq, wlr_surface *handle);
     ~WSurfacePrivate();

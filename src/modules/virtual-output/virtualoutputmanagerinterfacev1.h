@@ -5,6 +5,10 @@
 
 #include <wserver.h>
 
+extern "C" {
+#include <wayland-util.h>
+}
+
 #include <QStringList>
 
 WAYLIB_SERVER_USE_NAMESPACE

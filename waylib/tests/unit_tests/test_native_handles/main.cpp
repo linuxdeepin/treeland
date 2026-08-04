@@ -230,7 +230,7 @@ private Q_SLOTS:
         wl_signal_init(&nativeInputMethod.events.new_popup_surface);
         wl_signal_init(&nativeInputMethod.events.destroy);
         QPointer<WInputMethodV2> inputMethod = new WInputMethodV2(&nativeInputMethod);
-        QSignalSpy inputMethodInvalidated(inputMethod, &WWrapObject::invalidated);
+        QSignalSpy inputMethodInvalidated(inputMethod, &WInputMethodV2::invalidated);
 
         wl_signal_emit_mutable(&nativeInputMethod.events.destroy, &nativeInputMethod);
 
@@ -240,7 +240,7 @@ private Q_SLOTS:
         wlr_input_popup_surface_v2 nativePopup {};
         wl_signal_init(&nativePopup.events.destroy);
         QPointer<WInputPopupSurface> popup = new WInputPopupSurface(&nativePopup, nullptr);
-        QSignalSpy popupInvalidated(popup, &WWrapObject::invalidated);
+        QSignalSpy popupInvalidated(popup, &WToplevelSurface::invalidated);
 
         wl_signal_emit_mutable(&nativePopup.events.destroy, &nativePopup);
 
@@ -303,7 +303,7 @@ private Q_SLOTS:
         initXWaylandSurface(&nativeSurface);
         QPointer<WXWaylandSurface> surface = new WXWaylandSurface(&nativeSurface, nullptr);
         QCOMPARE(WXWaylandSurface::fromHandle(&nativeSurface), surface.data());
-        QSignalSpy invalidated(surface, &WWrapObject::invalidated);
+        QSignalSpy invalidated(surface, &WToplevelSurface::invalidated);
 
         wl_signal_emit_mutable(&nativeSurface.events.destroy, &nativeSurface);
 

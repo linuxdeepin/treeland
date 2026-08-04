@@ -24,7 +24,6 @@ extern "C" {
 
 #include <libudev.h>
 
-QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 using InputDeviceRegistry = QHash<const wlr_input_device *, WInputDevice *>;
@@ -90,11 +89,11 @@ QString DeviceInfoParser::getPhysicalPath(const QString& deviceName)
     return m_deviceMap.value(deviceName).physPath;
 }
 
-class Q_DECL_HIDDEN WInputDevicePrivate : public WWrapObjectPrivate
+class Q_DECL_HIDDEN WInputDevicePrivate : public WObjectPrivate
 {
 public:
     WInputDevicePrivate(WInputDevice *qq, wlr_input_device *handle, bool _isVirtual)
-        : WWrapObjectPrivate(qq)
+        : WObjectPrivate(qq)
         , handle(handle)
         , isVirtual(_isVirtual)
     {
@@ -171,7 +170,8 @@ public:
 };
 
 WInputDevice::WInputDevice(wlr_input_device *handle, bool isVirtual)
-    : WWrapObject(*new WInputDevicePrivate(this, handle, isVirtual))
+    : QObject()
+    , WObject(*new WInputDevicePrivate(this, handle, isVirtual))
 {
 
 }

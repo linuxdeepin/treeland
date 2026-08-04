@@ -3,8 +3,6 @@
 #pragma once
 
 #include "wglobal.h"
-#include <qwobject.h>
-#include <QPointer>
 
 #include <functional>
 
@@ -23,6 +21,8 @@ public:
     virtual wl_client *waylandClient() const {
         return nullptr;
     }
+    void invalidate(QObject *object = nullptr);
+    bool isInvalidated() const { return invalidated; }
 
 protected:
     WObjectPrivate(WObject *qq);
@@ -36,6 +36,10 @@ protected:
 
     WObject *q_ptr;
     QList<std::pair<const void*, void*>> attachedDatas;
+    virtual void instantRelease() {}
+
+private:
+    bool invalidated = false;
 
     W_DECLARE_PUBLIC(WObject)
 };
@@ -92,37 +96,5 @@ private:
     wl_listener listener;
     std::function<void(void *)> callback;
 };
-
-class WAYLIB_SERVER_EXPORT WWrapObjectPrivate : public WObjectPrivate
-{
-public:
-    WWrapObjectPrivate(WWrapObject *q);
-    ~WWrapObjectPrivate();
-
-    template<typename Handle>
-    inline Handle *handle() const {
-        return qobject_cast<Handle*>(m_handle.get());
-    }
-
-protected:
-    W_DECLARE_PUBLIC(WWrapObject)
-
-    void initHandle(QW_NAMESPACE::qw_object_basic *handle);
-    void invalidate();
-    virtual void instantRelease() {}
-
-    QList<QMetaObject::Connection> connectionsWithHandle;
-    QPointer<QW_NAMESPACE::qw_object_basic> m_handle;
-    uint invalidated:1;
-};
-
-#define WWRAP_HANDLE_FUNCTIONS(QW, WLR) \
-inline QW *handle() const { \
-    return WWrapObjectPrivate::handle<QW>(); \
-} \
-\
-inline WLR *nativeHandle() const { \
-    return handle()->handle(); \
-}
 
 WAYLIB_SERVER_END_NAMESPACE

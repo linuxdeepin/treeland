@@ -56,7 +56,7 @@ void WLayerShellPrivate::onNewSurface(wlr_layer_surface_v1 *layerSurface)
     });
     popupListeners.emplace(surface, std::move(popupListener));
 
-    QObject::connect(surface, &WWrapObject::aboutToBeInvalidated, q, [this, surface] {
+    QObject::connect(surface, &WToplevelSurface::aboutToBeInvalidated, q, [this, surface] {
         if (!surfaceList.removeOne(surface))
             return;
         popupListeners.erase(surface);

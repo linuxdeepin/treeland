@@ -49,7 +49,7 @@ protected:
 
 class WCursor;
 class WSeatPrivate;
-class WAYLIB_SERVER_EXPORT WSeat : public WWrapObject, public WServerInterface
+class WAYLIB_SERVER_EXPORT WSeat : public QObject, public WObject, public WServerInterface
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WSeat)
@@ -107,6 +107,8 @@ public:
     QByteArrayView interfaceName() const override;
 
 Q_SIGNALS:
+    void aboutToBeInvalidated();
+    void invalidated();
     void keyboardChanged();
     void keyboardFocusSurfaceChanged();
     void pointerGrabBegin();

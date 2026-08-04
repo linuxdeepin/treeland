@@ -68,7 +68,7 @@ QList<std::pair<const void *, void *>> &WObject::attachedDatas()
 
 WObject::~WObject()
 {
-
+    w_d_ptr->invalidate();
 }
 
 WObjectPrivate *WObjectPrivate::get(WObject *qq)
@@ -83,173 +83,60 @@ WObjectPrivate::WObjectPrivate(WObject *qq)
 }
 WObjectPrivate::~WObjectPrivate()
 {
-
 }
 
-WWrapObject::WWrapObject(QObject *parent)
-    : WWrapObject(*new WWrapObjectPrivate(this), parent)
-{
-
-}
-
-WWrapObject::WWrapObject(WWrapObjectPrivate &d, QObject *parent)
-    : QObject(parent)
-    , WObject(d, nullptr)
-{
-
-}
-
-WWrapObject::~WWrapObject()
-{
-    W_D(WWrapObject);
-    d->invalidate();
-}
-
-WWrapObjectPrivate::WWrapObjectPrivate(WWrapObject *q)
-    : WObjectPrivate(q)
-    , invalidated(false)
-{
-
-}
-
-WWrapObjectPrivate::~WWrapObjectPrivate()
-{
-    // Must call invalidate before destroy WWrapObject
-    Q_ASSERT(invalidated);
-}
-
-void WWrapObjectPrivate::initHandle(QW_NAMESPACE::qw_object_basic *handle)
-{
-    Q_ASSERT(!m_handle);
-    Q_ASSERT(!invalidated);
-    m_handle = handle;
-}
-
-static inline QObjectPrivate::Connection *getConnectionDPtr(const QMetaObject::Connection *connection)
-{
-    static_assert(sizeof(connection) == sizeof(void*),
-                  "Please check how to use QMetaObject::Connection::d_ptr");
-    return *reinterpret_cast<QObjectPrivate::Connection**>(const_cast<QMetaObject::Connection*>(connection));
-}
-
-void WWrapObjectPrivate::invalidate()
+void WObjectPrivate::invalidate(QObject *object)
 {
     if (invalidated)
         return;
     invalidated = true;
 
-    W_Q(WWrapObject);
+    if (object) {
+        QMetaObject::invokeMethod(object, "aboutToBeInvalidated", Qt::DirectConnection);
 
-    Q_EMIT q->aboutToBeInvalidated();
-
-    auto d = QObjectPrivate::get(q);
-    if (!d->isDeletingChildren && d->declarativeData && QAbstractDeclarativeData::destroyed) {
-        QAbstractDeclarativeData::destroyed(d->declarativeData, q);
-        d->declarativeData = nullptr;
-    }
-
-    instantRelease();
-    for (const auto &connection : std::as_const(connectionsWithHandle)) {
-        QObject::disconnect(connection);
-    }
-    if (m_handle) {
-        m_handle->disconnect(q);
-        m_handle = nullptr;
-    }
-    connectionsWithHandle.clear();
-
-    Q_EMIT q->invalidated();
-}
-
-bool WWrapObject::safeDisconnect(const QObject *receiver)
-{
-    W_D(WWrapObject);
-
-    bool ok = false;
-    for (int i = d->connectionsWithHandle.size() - 1; i >= 0; --i) {
-        const QMetaObject::Connection &connection = d->connectionsWithHandle.at(i);
-        auto c_d = getConnectionDPtr(&connection);
-        if (c_d->receiver == receiver) {
-            if (QObject::disconnect(connection))
-                ok = true;
-
-            d->connectionsWithHandle.removeAt(i);
+        auto d = QObjectPrivate::get(object);
+        if (!d->isDeletingChildren && d->declarativeData && QAbstractDeclarativeData::destroyed) {
+            QAbstractDeclarativeData::destroyed(d->declarativeData, object);
+            d->declarativeData = nullptr;
         }
     }
 
-    if (disconnect(receiver))
-        ok = true;
+    instantRelease();
 
-    return ok;
+    if (object)
+        QMetaObject::invokeMethod(object, "invalidated", Qt::DirectConnection);
 }
 
-bool WWrapObject::safeDisconnect(const QMetaObject::Connection &connection)
+bool WObject::isInvalidated() const
 {
-    W_D(WWrapObject);
-    int index = d->connectionsWithHandle.indexOf(connection);
-    if (index < 0) {
-        auto c_d = getConnectionDPtr(&connection);
-        if (c_d->sender != this)
-            return false;
-        return disconnect(connection);
-    }
-    d->connectionsWithHandle.removeAt(index);
+    return w_d_ptr->isInvalidated();
+}
+
+bool WObject::safeDisconnect(const QObject *receiver)
+{
+    auto *object = dynamic_cast<QObject *>(this);
+    Q_ASSERT(object);
+    return QObject::disconnect(object, nullptr, receiver, nullptr);
+}
+
+bool WObject::safeDisconnect(const QMetaObject::Connection &connection)
+{
     return QObject::disconnect(connection);
 }
 
-void WWrapObject::safeDeleteLater()
+void WObject::safeDeleteLater()
 {
-    W_D(WWrapObject);
-    d->invalidate();
-    deleteLater();
+    auto *object = dynamic_cast<QObject *>(this);
+    Q_ASSERT(object);
+    w_d_ptr->invalidate(object);
+    object->deleteLater();
 }
 
-QW_NAMESPACE::qw_object_basic *WWrapObject::handle() const
+void WObject::invalidate()
 {
-    W_DC(WWrapObject);
-    return d->m_handle;
+    auto *object = dynamic_cast<QObject *>(this);
+    w_d_ptr->invalidate(object);
 }
-
-bool WWrapObject::isInvalidated() const
-{
-    W_DC(WWrapObject);
-    return d->invalidated;
-}
-
-void WWrapObject::invalidate()
-{
-    W_D(WWrapObject);
-    d->invalidate();
-}
-
-void WWrapObject::initHandle(QW_NAMESPACE::qw_object_basic *handle)
-{
-    W_D(WWrapObject);
-    d->initHandle(handle);
-}
-
-void WWrapObject::beginSafeConnect()
-{
-
-}
-
-void WWrapObject::endSafeConnect(const QMetaObject::Connection &connection)
-{
-    W_D(WWrapObject);
-    if (connection)
-        d->connectionsWithHandle.append(connection);
-}
-
-#ifdef QT_DEBUG
-bool WWrapObject::event(QEvent *event)
-{
-    if (event->type() == QEvent::DeferredDelete) {
-        Q_ASSERT(d_func()->invalidated);
-    }
-
-    return QObject::event(event);
-}
-#endif
 
 bool WGlobal::isInvalidCursor(const QCursor &c)
 {

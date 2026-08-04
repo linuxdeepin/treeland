@@ -27,7 +27,7 @@ public:
         auto *lock = new WSessionLock(nativeLock, q->server());
         Q_ASSERT(lock->parent() == q->server());
         lockList.append(lock);
-        QObject::connect(lock, &WWrapObject::aboutToBeInvalidated, q, [this, lock] {
+        QObject::connect(lock, &WSessionLock::aboutToBeInvalidated, q, [this, lock] {
             if (!lockList.removeOne(lock))
                 return;
             Q_EMIT q_func()->lockDestroyed(lock);

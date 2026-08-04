@@ -254,7 +254,7 @@ void WInputMethodHelper::setInputMethod(WInputMethodV2 *im)
         d->activeInputMethod->safeDisconnect(this);
     d->activeInputMethod = im;
     if (d->activeInputMethod)
-        connect(d->activeInputMethod, &WWrapObject::aboutToBeInvalidated,
+        connect(d->activeInputMethod, &WInputMethodV2::aboutToBeInvalidated,
                 this, &WInputMethodHelper::handleActiveIMDestroyed);
 }
 
@@ -337,7 +337,7 @@ void WInputMethodHelper::handleNewIPSV2(wlr_input_popup_surface_v2 *ipsv2)
         d->popupSurfaces.append(surface);
         updatePopupSurface(surface, cursorRect);
         Q_EMIT inputPopupSurfaceV2Added(surface);
-        connect(surface, &WWrapObject::aboutToBeInvalidated, this, [this, d, surface] {
+        connect(surface, &WToplevelSurface::aboutToBeInvalidated, this, [this, d, surface] {
             d->popupSurfaces.removeAll(surface);
             Q_EMIT inputPopupSurfaceV2Removed(surface);
         });

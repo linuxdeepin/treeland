@@ -91,7 +91,7 @@ void WXdgToplevelSurfaceItem::initSurface()
 {
     WSurfaceItem::initSurface();
     Q_ASSERT(toplevelSurface());
-    connect(toplevelSurface(), &WWrapObject::aboutToBeInvalidated,
+    connect(toplevelSurface(), &WToplevelSurface::aboutToBeInvalidated,
             this, &WXdgToplevelSurfaceItem::releaseResources);
 }
 

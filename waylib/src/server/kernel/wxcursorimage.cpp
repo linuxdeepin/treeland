@@ -4,7 +4,9 @@
 #include "wxcursorimage.h"
 #include "private/wglobal_p.h"
 
-#include <qwxcursormanager.h>
+extern "C" {
+#include <wlr/types/wlr_xcursor_manager.h>
+}
 
 #include <QImage>
 

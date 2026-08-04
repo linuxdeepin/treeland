@@ -36,7 +36,6 @@ extern "C" {
 #include <qpa/qplatformthemefactory_p.h>
 #include <qpa/qplatformtheme.h>
 
-QW_USE_NAMESPACE
 W_DECLARE_PRIVATE_STATIC_MEMBER(QHighDpiScaling_m_globalScalingActive_tag, QHighDpiScaling, m_globalScalingActive, bool);
 WAYLIB_SERVER_BEGIN_NAMESPACE
 

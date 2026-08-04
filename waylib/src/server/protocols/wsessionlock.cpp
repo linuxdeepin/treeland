@@ -17,11 +17,11 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 using SessionLockRegistry = QHash<const wlr_session_lock_v1 *, WSessionLock *>;
 Q_GLOBAL_STATIC(SessionLockRegistry, s_sessionLocks)
 
-class Q_DECL_HIDDEN WSessionLockPrivate : public WWrapObjectPrivate
+class Q_DECL_HIDDEN WSessionLockPrivate : public WObjectPrivate
 {
 public:
     WSessionLockPrivate(WSessionLock *qq, wlr_session_lock_v1 *handle)
-        : WWrapObjectPrivate(qq)
+        : WObjectPrivate(qq)
         , lockHandle(handle)
     {
         Q_ASSERT(lockHandle);
@@ -74,7 +74,7 @@ void WSessionLockPrivate::onNewSurface(wlr_session_lock_surface_v1 *nativeSurfac
     W_Q(WSessionLock);
     auto *surface = new WSessionLockSurface(nativeSurface, q);
     surfaceList.append(surface);
-    QObject::connect(surface, &WWrapObject::aboutToBeInvalidated, q, [this, surface] {
+    QObject::connect(surface, &WToplevelSurface::aboutToBeInvalidated, q, [this, surface] {
         if (!surfaceList.removeOne(surface))
             return;
         Q_EMIT q_func()->surfaceRemoved(surface);
@@ -139,7 +139,8 @@ void WSessionLockPrivate::finish()
 }
 
 WSessionLock::WSessionLock(wlr_session_lock_v1 *handle, QObject *parent)
-    : WWrapObject(*new WSessionLockPrivate(this, handle), parent)
+    : QObject(parent)
+    , WObject(*new WSessionLockPrivate(this, handle))
 {
     d_func()->connectNativeEvents();
 }

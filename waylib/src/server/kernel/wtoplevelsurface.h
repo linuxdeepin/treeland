@@ -4,13 +4,12 @@
 #pragma once
 
 #include <WSurface>
-#include <qwglobal.h>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WSeat;
 class WToplevelSurfacePrivate;
-class WAYLIB_SERVER_EXPORT WToplevelSurface : public WWrapObject
+class WAYLIB_SERVER_EXPORT WToplevelSurface : public QObject, public WObject
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WToplevelSurface)
@@ -104,6 +103,8 @@ public Q_SLOTS:
     }
 
 Q_SIGNALS:
+    void aboutToBeInvalidated();
+    void invalidated();
     void activateChanged();
     void maximizeChanged();
     void minimizeChanged();

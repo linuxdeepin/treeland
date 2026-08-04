@@ -25,7 +25,7 @@ class WSeat;
 class WXWaylandSurface;
 class WXWaylandPrivate;
 
-class WAYLIB_SERVER_EXPORT WXWayland : public WWrapObject, public WServerInterface
+class WAYLIB_SERVER_EXPORT WXWayland : public QObject, public WObject, public WServerInterface
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WXWayland)
@@ -77,6 +77,8 @@ public:
     QByteArrayView interfaceName() const override;
 
 Q_SIGNALS:
+    void aboutToBeInvalidated();
+    void invalidated();
     void ready();
     void surfaceAdded(WXWaylandSurface *surface);
     void surfaceRemoved(WXWaylandSurface *surface);

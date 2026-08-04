@@ -17,7 +17,7 @@ extern "C" {
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 WOutputLayoutPrivate::WOutputLayoutPrivate(WOutputLayout *qq)
-    : WWrapObjectPrivate(qq)
+    : WObjectPrivate(qq)
 {
     wl_list_init(&destroy.link);
     wl_list_init(&change.link);
@@ -103,7 +103,8 @@ void WOutputLayoutPrivate::updateImplicitSize()
 }
 
 WOutputLayout::WOutputLayout(WOutputLayoutPrivate &dd, WServer *server)
-    : WWrapObject(dd, server)
+    : QObject(server)
+    , WObject(dd)
 {
     dd.handle = wlr_output_layout_create(server->handle());
     Q_ASSERT(dd.handle);

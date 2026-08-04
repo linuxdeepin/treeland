@@ -20,7 +20,6 @@ extern "C" {
 #include <private/qquickitem_p.h>
 #include <private/qsgplaintexture_p.h>
 
-QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class Q_DECL_HIDDEN CursorTextureProvider : public WSGTextureProvider

@@ -3,7 +3,6 @@
 
 #pragma once
 
-#include <qwconfig.h>
 #include <qtguiglobal.h>
 #include <QtQmlIntegration>
 
@@ -48,8 +47,6 @@
 #endif
 #endif
 
-#include <qwglobal.h>
-#include <qwobject.h>
 #include <QScopedPointer>
 #include <QList>
 #include <QObject>
@@ -58,6 +55,11 @@
 #include <type_traits>
 
 struct wl_client;
+struct wl_display;
+struct wl_event_loop;
+struct wl_global;
+struct wl_resource;
+struct wl_array;
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WClient;
@@ -103,6 +105,24 @@ public:
     [[nodiscard]] virtual pid_t pid() const;
     [[nodiscard]] virtual int pidFD() const;
 
+    [[nodiscard]] bool isInvalidated() const;
+    bool safeDisconnect(const QObject *receiver);
+    bool safeDisconnect(const QMetaObject::Connection &connection);
+    void safeDeleteLater();
+
+    template<typename Func1, typename Func2>
+    requires std::is_base_of_v<QObject, typename QtPrivate::FunctionPointer<Func1>::Object>
+    QMetaObject::Connection safeConnect(Func1 signal,
+                                        const QObject *receiver,
+                                        Func2 slot,
+                                        Qt::ConnectionType type = Qt::AutoConnection)
+    {
+        using Sender = typename QtPrivate::FunctionPointer<Func1>::Object;
+        auto *sender = dynamic_cast<Sender *>(this);
+        Q_ASSERT(sender);
+        return QObject::connect(sender, signal, receiver, slot, type);
+    }
+
 protected:
     WObject(WObjectPrivate &dd, WObject *parent = nullptr);
 
@@ -111,79 +131,11 @@ protected:
     QList<std::pair<const void*, void*>> &attachedDatas();
 
     virtual ~WObject();
+    void invalidate();
     QScopedPointer<WObjectPrivate> w_d_ptr;
 
     Q_DISABLE_COPY(WObject)
     W_DECLARE_PRIVATE(WObject)
-};
-
-class WWrapObjectPrivate;
-// Wrap Object in QWlroots
-class WAYLIB_SERVER_EXPORT WWrapObject : public QObject,  public WObject
-{
-    Q_OBJECT
-
-public:
-    QW_NAMESPACE::qw_object_basic *handle() const;
-    bool isInvalidated() const;
-
-    bool safeDisconnect(const QObject *receiver);
-    bool safeDisconnect(const QMetaObject::Connection &connection);
-
-    void safeDeleteLater();
-
-Q_SIGNALS:
-    void aboutToBeInvalidated();
-    void invalidated();
-
-public:
-    template<typename Func1, typename Func2>
-    requires std::is_base_of_v<WWrapObject, typename QtPrivate::FunctionPointer<Func1>::Object>
-    QMetaObject::Connection safeConnect(Func1 signal, const QObject *receiver, Func2 slot, Qt::ConnectionType type = Qt::AutoConnection) {
-        return QObject::connect(qobject_cast<typename QtPrivate::FunctionPointer<Func1>::Object*>(this), signal, receiver, slot, type);
-    }
-
-    template<typename Func1, typename Func2>
-    requires std::is_base_of_v<QW_NAMESPACE::qw_object_basic, typename QtPrivate::FunctionPointer<Func1>::Object>
-    QMetaObject::Connection safeConnect(Func1 signal, const QObject *receiver, Func2 slot, Qt::ConnectionType type = Qt::AutoConnection) {
-        // Isn't thread safety
-        Q_ASSERT(QThread::currentThread() == thread());
-        Q_ASSERT_X(this != receiver, "safeConnect",
-                   "Not need to use safeConnect for the signal of self's handle object,"
-                   " Please use QObject::connect().");
-        auto h = qobject_cast<typename QtPrivate::FunctionPointer<Func1>::Object*>(handle());
-        Q_ASSERT(h);
-        if constexpr (std::is_same_v<Func1, decltype(&qw_object_basic::before_destroy)>) {
-            if (signal == &qw_object_basic::before_destroy) {
-                return QObject::connect(h, signal, receiver, slot, type);
-            }
-        }
-        beginSafeConnect();
-        auto connection = QObject::connect(h, signal, receiver, slot, type);
-        endSafeConnect(connection);
-
-        return connection;
-    }
-
-protected:
-    WWrapObject(QObject *parent = nullptr);
-    WWrapObject(WWrapObjectPrivate &dd, QObject *parent = nullptr);
-    virtual ~WWrapObject() override;
-    using QObject::connect;
-    using QObject::disconnect;
-    using QObject::deleteLater;
-
-    void invalidate();
-    void initHandle(QW_NAMESPACE::qw_object_basic *handle);
-
-    void beginSafeConnect();
-    void endSafeConnect(const QMetaObject::Connection &connection);
-
-#ifdef QT_DEBUG
-    bool event(QEvent *event) override;
-#endif
-
-    W_DECLARE_PRIVATE(WWrapObject)
 };
 
 class WAYLIB_SERVER_EXPORT WGlobal {

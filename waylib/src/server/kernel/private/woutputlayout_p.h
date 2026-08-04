@@ -8,7 +8,7 @@ struct wlr_output_layout;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class Q_DECL_HIDDEN WOutputLayoutPrivate : public WWrapObjectPrivate
+class Q_DECL_HIDDEN WOutputLayoutPrivate : public WObjectPrivate
 {
 public:
     WOutputLayoutPrivate(WOutputLayout *qq);

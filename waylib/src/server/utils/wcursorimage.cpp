@@ -15,7 +15,6 @@ extern "C" {
 
 #include <memory>
 
-QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 // This function copy form kwin 6.1.19 `src/cursor.cpp`

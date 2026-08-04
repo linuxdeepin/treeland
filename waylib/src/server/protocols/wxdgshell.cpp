@@ -42,7 +42,7 @@ public:
         });
         popupListeners.emplace(surface, std::move(popupListener));
 
-        QObject::connect(surface, &WWrapObject::aboutToBeInvalidated, q,
+        QObject::connect(surface, &WToplevelSurface::aboutToBeInvalidated, q,
                          [this, surface, surfaceList] {
             if (!surfaceList->removeOne(surface))
                 return;

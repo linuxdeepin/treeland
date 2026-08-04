@@ -65,11 +65,11 @@ wl_global *WInputMethodManagerV2::global() const
     return handle() ? handle()->global : nullptr;
 }
 
-class Q_DECL_HIDDEN WInputMethodV2Private : public WWrapObjectPrivate
+class Q_DECL_HIDDEN WInputMethodV2Private : public WObjectPrivate
 {
 public:
     WInputMethodV2Private(wlr_input_method_v2 *handle, WInputMethodV2 *qq)
-        : WWrapObjectPrivate(qq)
+        : WObjectPrivate(qq)
         , inputMethodHandle(handle)
     {
         Q_ASSERT(inputMethodHandle);
@@ -114,7 +114,8 @@ void WInputMethodV2Private::instantRelease()
 }
 
 WInputMethodV2::WInputMethodV2(wlr_input_method_v2 *handle, QObject *parent)
-    : WWrapObject(*new WInputMethodV2Private(handle, this), parent)
+    : QObject(parent)
+    , WObject(*new WInputMethodV2Private(handle, this))
 {
     d_func()->connectNativeEvents();
 }

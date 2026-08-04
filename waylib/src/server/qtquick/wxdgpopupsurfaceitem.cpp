@@ -60,7 +60,7 @@ void WXdgPopupSurfaceItem::initSurface()
 {
     WSurfaceItem::initSurface();
     Q_ASSERT(popupSurface());
-    connect(popupSurface(), &WWrapObject::aboutToBeInvalidated,
+    connect(popupSurface(), &WToplevelSurface::aboutToBeInvalidated,
             this, &WXdgPopupSurfaceItem::releaseResources);
 }
 

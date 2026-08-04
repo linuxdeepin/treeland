@@ -11,14 +11,11 @@
 #include "private/wglobal_p.h"
 #include "wayliblogging.h"
 
-#include <qwdatadevice.h>
-#include <qwdisplay.h>
-#include <qwprimaryselection.h>
-
 extern "C" {
 #include <wlr/types/wlr_data_device.h>
 #include <wlr/types/wlr_keyboard_group.h>
 #include <wlr/types/wlr_pointer_gestures_v1.h>
+#include <wlr/types/wlr_primary_selection.h>
 #include <wlr/types/wlr_seat.h>
 }
 
@@ -38,7 +35,6 @@ QT_BEGIN_NAMESPACE
 Q_GUI_EXPORT bool qt_sendShortcutOverrideEvent(QObject *o, ulong timestamp, int k, Qt::KeyboardModifiers mods, const QString &text = QString(), bool autorep = false, ushort count = 1);
 QT_END_NAMESPACE
 
-QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 using SeatRegistry = QHash<const wlr_seat *, WSeat *>;
@@ -75,11 +71,11 @@ protected:
 };
 #endif
 
-class Q_DECL_HIDDEN WSeatPrivate : public WWrapObjectPrivate
+class Q_DECL_HIDDEN WSeatPrivate : public WObjectPrivate
 {
 public:
     WSeatPrivate(WSeat *qq, const QString &name)
-        : WWrapObjectPrivate(qq)
+        : WObjectPrivate(qq)
         , name(name)
     {
         pendingEvents.reserve(2);
@@ -823,7 +819,8 @@ void WSeatPrivate::detachInputDevice(WInputDevice *device)
 }
 
 WSeat::WSeat(const QString &name)
-    : WWrapObject(*new WSeatPrivate(this, name))
+    : QObject()
+    , WObject(*new WSeatPrivate(this, name))
 {
 
 }

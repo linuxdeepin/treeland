@@ -45,7 +45,7 @@ private:
     QMap<QString, ProcDeviceInfo> m_deviceMap;
     QMutex m_mutex;
 };
-class WAYLIB_SERVER_EXPORT WInputDevice : public WWrapObject
+class WAYLIB_SERVER_EXPORT WInputDevice : public QObject, public WObject
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WInputDevice)
@@ -92,6 +92,8 @@ public:
     LibinputPointerType libinputPointerType() const;
 
 Q_SIGNALS:
+    void aboutToBeInvalidated();
+    void invalidated();
     void keyboardKey(wlr_keyboard_key_event *event);
     void keyboardModifiers();
 

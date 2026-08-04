@@ -21,7 +21,7 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 class WInputMethodV2Private;
 class WSeat;
 
-class WAYLIB_SERVER_EXPORT WInputMethodV2 : public WWrapObject
+class WAYLIB_SERVER_EXPORT WInputMethodV2 : public QObject, public WObject
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WInputMethodV2)
@@ -46,6 +46,8 @@ public Q_SLOTS:
     void sendUnavailable();
 
 Q_SIGNALS:
+    void aboutToBeInvalidated();
+    void invalidated();
     void committed();
     void newPopupSurface(wlr_input_popup_surface_v2 *surface);
     void newKeyboardGrab(wlr_input_method_keyboard_grab_v2 *keyboardGrab);

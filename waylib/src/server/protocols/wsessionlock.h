@@ -15,7 +15,7 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 class WSessionLockSurface;
 class WSessionLockPrivate;
 
-class WAYLIB_SERVER_EXPORT WSessionLock : public WWrapObject
+class WAYLIB_SERVER_EXPORT WSessionLock : public QObject, public WObject
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WSessionLock)
@@ -45,6 +45,8 @@ public:
     
     QVector<WSessionLockSurface*> surfaceList() const;
 Q_SIGNALS:
+    void aboutToBeInvalidated();
+    void invalidated();
     void surfaceAdded(WSessionLockSurface *surface);
     void surfaceRemoved(WSessionLockSurface *surface);
     void locked();

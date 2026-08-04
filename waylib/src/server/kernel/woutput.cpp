@@ -34,11 +34,11 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 using OutputRegistry = QHash<const wlr_output *, WOutput *>;
 Q_GLOBAL_STATIC(OutputRegistry, s_outputs)
 
-class Q_DECL_HIDDEN WOutputPrivate : public WWrapObjectPrivate
+class Q_DECL_HIDDEN WOutputPrivate : public WObjectPrivate
 {
 public:
     WOutputPrivate(WOutput *qq, wlr_output *handle)
-        : WWrapObjectPrivate(qq)
+        : WObjectPrivate(qq)
         , handle(handle)
     {
         Q_ASSERT(handle);
@@ -168,7 +168,8 @@ public:
 };
 
 WOutput::WOutput(wlr_output *handle, WBackend *backend)
-    : WWrapObject(*new WOutputPrivate(this, handle))
+    : QObject()
+    , WObject(*new WOutputPrivate(this, handle))
 {
     d_func()->backend = backend;
 }

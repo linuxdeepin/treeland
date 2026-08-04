@@ -37,7 +37,7 @@ class WCursor;
 class WBackend;
 class WServer;
 class WOutputPrivate;
-class WAYLIB_SERVER_EXPORT WOutput : public WWrapObject
+class WAYLIB_SERVER_EXPORT WOutput : public QObject, public WObject
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WOutput)
@@ -108,6 +108,8 @@ public:
     void scheduleFrame();
 
 Q_SIGNALS:
+    void aboutToBeInvalidated();
+    void invalidated();
     void enabledChanged();
     void positionChanged(const QPoint &pos);
     void modeChanged();

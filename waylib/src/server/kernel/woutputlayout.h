@@ -15,7 +15,7 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WOutput;
 class WOutputLayoutPrivate;
-class WAYLIB_SERVER_EXPORT WOutputLayout : public WWrapObject
+class WAYLIB_SERVER_EXPORT WOutputLayout : public QObject, public WObject
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WOutputLayout)
@@ -49,6 +49,8 @@ public:
     int implicitHeight() const;
 
 Q_SIGNALS:
+    void aboutToBeInvalidated();
+    void invalidated();
     void changed();
     void outputAdded(WAYLIB_SERVER_NAMESPACE::WOutput *output);
     void outputRemoved(WAYLIB_SERVER_NAMESPACE::WOutput *output);

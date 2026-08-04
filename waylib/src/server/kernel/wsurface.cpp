@@ -23,7 +23,7 @@ using SurfaceRegistry = QHash<const wlr_surface *, WSurface *>;
 Q_GLOBAL_STATIC(SurfaceRegistry, s_surfaces)
 
 WSurfacePrivate::WSurfacePrivate(WSurface *qq, wlr_surface *handle)
-    : WWrapObjectPrivate(qq)
+    : WObjectPrivate(qq)
     , surfaceHandle(handle)
 {
     Q_ASSERT(surfaceHandle);
@@ -257,7 +257,8 @@ WSurface::WSurface(wlr_surface *handle, QObject *parent)
 }
 
 WSurface::WSurface(WSurfacePrivate &dd, QObject *parent)
-    : WWrapObject(dd, parent)
+    : QObject(parent)
+    , WObject(dd)
 {
     dd.init();
 }

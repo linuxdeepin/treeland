@@ -17,7 +17,7 @@ extern "C" {
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class Q_DECL_HIDDEN WCursorPrivate : public WWrapObjectPrivate
+class Q_DECL_HIDDEN WCursorPrivate : public WObjectPrivate
 {
 public:
     WCursorPrivate(WCursor *qq);

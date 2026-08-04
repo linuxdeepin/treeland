@@ -35,7 +35,7 @@ void WLayerSurfaceItem::initSurface()
 {
     WSurfaceItem::initSurface();
     Q_ASSERT(layerSurface());
-    connect(layerSurface(), &WWrapObject::aboutToBeInvalidated,
+    connect(layerSurface(), &WToplevelSurface::aboutToBeInvalidated,
             this, &WLayerSurfaceItem::releaseResources);
 }
 

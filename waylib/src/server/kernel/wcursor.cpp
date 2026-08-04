@@ -36,7 +36,7 @@ using CursorRegistry = QHash<const wlr_cursor *, WCursor *>;
 Q_GLOBAL_STATIC(CursorRegistry, s_cursors)
 
 WCursorPrivate::WCursorPrivate(WCursor *qq)
-    : WWrapObjectPrivate(qq)
+    : WObjectPrivate(qq)
     , overrideCursor(WCursor::toQCursor(WGlobal::CursorShape::Invalid))
 {
     handle = wlr_cursor_create();
@@ -380,7 +380,8 @@ void WCursorPrivate::processCursorMotion(wlr_input_device *device, uint32_t time
 }
 
 WCursor::WCursor(WCursorPrivate &dd, QObject *parent)
-    : WWrapObject(dd, parent)
+    : QObject(parent)
+    , WObject(dd)
 {
 
 }
