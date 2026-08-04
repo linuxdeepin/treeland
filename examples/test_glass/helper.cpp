@@ -12,16 +12,16 @@
 #include <woutputrenderwindow.h>
 #include <woutputviewport.h>
 
-#include <qwbackend.h>
-#include <qwdisplay.h>
-#include <qwoutput.h>
-#include <qwlogging.h>
-#include <qwcompositor.h>
-#include <qwsubcompositor.h>
-#include <qwrenderer.h>
-#include <qwallocator.h>
+extern "C" {
+#include <wlr/backend.h>
+#include <wlr/render/allocator.h>
+#include <wlr/render/wlr_renderer.h>
+#include <wlr/types/wlr_compositor.h>
+#include <wlr/types/wlr_output.h>
+#include <wlr/types/wlr_subcompositor.h>
+}
 
-QW_USE_NAMESPACE
+
 
 GlassConfig::GlassConfig(QObject *parent)
     : QObject(parent)
@@ -86,12 +86,12 @@ void Helper::initProtocols(WOutputRenderWindow *window, QQmlEngine *qmlEngine)
         m_seat->detachInputDevice(device);
     });
 
-    m_allocator = qw_allocator::autocreate(m_backend->handle(), *m_renderer);
-    m_renderer->init_wl_display(m_server->handle());
+    m_allocator = wlr_allocator_autocreate(m_backend->handle(), m_renderer);
+    wlr_renderer_init_wl_display(m_renderer, m_server->handle());
 
     // free follow display
-    m_compositor = qw_compositor::create(m_server->handle(), 6, *m_renderer);
-    qw_subcompositor::create(m_server->handle());
+    m_compositor = wlr_compositor_create(m_server->handle(), 6, m_renderer);
+    wlr_subcompositor_create(m_server->handle());
 
     connect(window, &WOutputRenderWindow::outputViewportInitialized, this, [] (WOutputViewport *viewport) {
         // Trigger QWOutput::frame signal in order to ensure WOutputHelper::renderable

@@ -8,8 +8,10 @@
 #include <WOutput>
 #include <woutputrenderwindow.h>
 
-#include <qwbackend.h>
-#include <qwlogging.h>
+extern "C" {
+#include <wlr/util/log.h>
+}
+
 #include <QCommandLineOption>
 #include <QCommandLineParser>
 #include <QDir>
@@ -18,10 +20,9 @@
 #include <QQuickStyle>
 #include <QUrl>
 
-QW_USE_NAMESPACE
 
 int main(int argc, char *argv[]) {
-    qw_log::init();
+    wlr_log_init(WLR_INFO, nullptr);
     WServer::initializeQPA();
 //    QQuickStyle::setStyle("Material");
 

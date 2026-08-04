@@ -4,10 +4,9 @@
 #include <WServer>
 #include <WOutput>
 
-#include <qwbackend.h>
-#include <qwdisplay.h>
-#include <qwoutput.h>
-#include <qwlogging.h>
+extern "C" {
+#include <wlr/util/log.h>
+}
 
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
@@ -19,7 +18,6 @@
 #include <QProcess>
 
 WAYLIB_SERVER_USE_NAMESPACE
-QW_USE_NAMESPACE
 
 class Q_DECL_HIDDEN Helper : public QObject
 {
@@ -41,7 +39,7 @@ public:
 };
 
 int main(int argc, char *argv[]) {
-    qw_log::init();
+    wlr_log_init(WLR_INFO, nullptr);
     WServer::initializeQPA();
 //    QQuickStyle::setStyle("Material");
 
