@@ -227,7 +227,7 @@ void IMCandidatePanelManager::onXwaylandPropertyChanged(
     if (!m_xwayland)
         return;
 
-    auto windowId = surface->handle()->handle()->window_id;
+    auto windowId = surface->handle()->window_id;
     QVector<WAYLIB_SERVER_NAMESPACE::WXWayland::AsyncPropRequest> requests = {
         { m_imCandidatePanelAtom, XCB_ATOM_CARDINAL }
     };

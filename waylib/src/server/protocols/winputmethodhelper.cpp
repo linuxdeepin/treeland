@@ -33,7 +33,7 @@ void handleKey(struct wlr_seat_keyboard_grab *grab, uint32_t time_msec, uint32_t
 {
     auto arg = reinterpret_cast<GrabHandlerArg*>(grab->data);
     for (auto vk: arg->helper->virtualKeyboards()) {
-        if (wlr_keyboard_from_input_device(vk->handle()->handle()) == grab->seat->keyboard_state.keyboard) {
+        if (wlr_keyboard_from_input_device(vk->handle()) == grab->seat->keyboard_state.keyboard) {
             grab->seat->keyboard_state.default_grab->interface->key(grab, time_msec, key, state);
             return;
         }
@@ -50,7 +50,7 @@ void handleModifiers(struct wlr_seat_keyboard_grab *grab, const struct wlr_keybo
 {
     auto arg = reinterpret_cast<GrabHandlerArg*>(grab->data);
     for (auto vk: arg->helper->virtualKeyboards()) {
-        if (wlr_keyboard_from_input_device(vk->handle()->handle()) == grab->seat->keyboard_state.keyboard) {
+        if (wlr_keyboard_from_input_device(vk->handle()) == grab->seat->keyboard_state.keyboard) {
             grab->seat->keyboard_state.default_grab->interface->modifiers(grab, modifiers);
             return;
         }

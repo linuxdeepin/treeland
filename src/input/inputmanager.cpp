@@ -244,7 +244,7 @@ void InputManager::onMousePointerConfigCreated(PointerDeviceConfigurationV1 *con
             continue;
         }
 
-        struct libinput_device *inputDevice = wlr_libinput_get_device_handle(device->handle()->handle());
+        struct libinput_device *inputDevice = wlr_libinput_get_device_handle(device->handle());
         struct udev_device *udevDevice =
             libinput_device_get_udev_device(inputDevice);
         if (!udev_device_get_property_value(udevDevice, "ID_INPUT_MOUSE")) {
@@ -346,12 +346,12 @@ void InputManager::handleMousePointerConfigApplied(PointerDeviceConfigurationV1:
             }
 
             struct udev_device *udevDevice =
-                libinput_device_get_udev_device(wlr_libinput_get_device_handle(device->handle()->handle()));
+                libinput_device_get_udev_device(wlr_libinput_get_device_handle(device->handle()));
             if (!udev_device_get_property_value(udevDevice, "ID_INPUT_MOUSE")) {
                 continue;
             }
 
-            struct libinput_device *inputDevice = wlr_libinput_get_device_handle(device->handle()->handle());
+            struct libinput_device *inputDevice = wlr_libinput_get_device_handle(device->handle());
             if (changes.testFlag(PointerDeviceConfigurationV1::AccelSpeedChanged))
                 configAccelSpeed(inputDevice, interface->accelSpeed());
             if (changes.testFlag(PointerDeviceConfigurationV1::AccelerationProfileChanged))
@@ -383,7 +383,7 @@ void InputManager::onTouchpadPointerConfigCreated(PointerDeviceConfigurationV1 *
             continue;
         }
 
-        struct libinput_device *inputDevice = wlr_libinput_get_device_handle(device->handle()->handle());
+        struct libinput_device *inputDevice = wlr_libinput_get_device_handle(device->handle());
         struct udev_device *udevDevice =
             libinput_device_get_udev_device(inputDevice);
         if (!udev_device_get_property_value(udevDevice, "ID_INPUT_TOUCHPAD")) {
@@ -485,13 +485,13 @@ void InputManager::handleTouchpadPointerConfigApplied(PointerDeviceConfiguration
         }
 
         struct udev_device *udevDevice =
-            libinput_device_get_udev_device(wlr_libinput_get_device_handle(device->handle()->handle()));
+            libinput_device_get_udev_device(wlr_libinput_get_device_handle(device->handle()));
 
         if (!udev_device_get_property_value(udevDevice, "ID_INPUT_TOUCHPAD")) {
             continue;
         }
 
-        struct libinput_device *inputDevice = wlr_libinput_get_device_handle(device->handle()->handle());
+        struct libinput_device *inputDevice = wlr_libinput_get_device_handle(device->handle());
         if (changes.testFlag(PointerDeviceConfigurationV1::AccelSpeedChanged)) {
             configAccelSpeed(inputDevice, interface->accelSpeed());
         }
@@ -630,7 +630,7 @@ void InputManager::onInputAdded(WInputDevice *input)
         return;
     }
 
-    struct libinput_device *inputDevice = wlr_libinput_get_device_handle(input->handle()->handle());
+    struct libinput_device *inputDevice = wlr_libinput_get_device_handle(input->handle());
     struct udev_device *udevDevice = libinput_device_get_udev_device(inputDevice);
     bool leftHanded = (m_seatDConfig->pointerHandMode() == "Left");
 

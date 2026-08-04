@@ -229,7 +229,7 @@ TreelandInputManagerInterfaceV1::DeviceTypes TreelandInputManagerInterfaceV1::in
 
     TreelandInputManagerInterfaceV1::DeviceTypes types;
     struct udev_device *device =
-        libinput_device_get_udev_device(wlr_libinput_get_device_handle(input->handle()->handle()));
+        libinput_device_get_udev_device(wlr_libinput_get_device_handle(input->handle()));
     if (udev_device_get_property_value(device, "ID_INPUT_MOUSE")) {
         types |= TreelandInputManagerInterfaceV1::DeviceType::Mouse;
     }

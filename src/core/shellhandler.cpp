@@ -628,7 +628,7 @@ void ShellHandler::onXWaylandSurfaceAdded(WXWaylandSurface *surface)
         // Cancel pending async property fetch for this surface.
         auto *xwayland = surface->xwayland();
         if (xwayland) {
-            auto windowId = surface->handle()->handle()->window_id;
+            auto windowId = surface->handle()->window_id;
             xwayland->cancelAsyncProperties(windowId);
         }
 
@@ -664,7 +664,7 @@ void ShellHandler::fetchInitialProperties(WXWaylandSurface *surface, const QStri
         return;
     }
 
-    auto windowId = surface->handle()->handle()->window_id;
+    auto windowId = surface->handle()->window_id;
     QVector<WXWayland::AsyncPropRequest> requests;
     if (m_imCandidatePanelManager) {
         requests.append({ m_imCandidatePanelManager->imCandidatePanelAtom(), XCB_ATOM_CARDINAL });

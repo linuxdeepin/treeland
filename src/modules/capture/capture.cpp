@@ -573,7 +573,7 @@ CaptureSourceSelector::CaptureSourceSelector(QQuickItem *parent)
         } else if (auto surfaceItem = qobject_cast<WSurfaceItem *>(item)) {
             auto layerSurface = qobject_cast<WLayerSurface *>(surfaceItem->shellSurface());
             if (layerSurface) {
-                if (QString(layerSurface->handle()->handle()->scope) == "dde-shell/desktop") {
+                if (QString(layerSurface->handle()->scope) == "dde-shell/desktop") {
                     return false;
                 }
             }

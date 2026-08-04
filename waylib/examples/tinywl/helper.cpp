@@ -510,9 +510,9 @@ void Helper::init()
             }
 
             if (onlyTest)
-                ok &= output->handle()->test_state(newState);
+                ok &= wlr_output_test_state(output->handle(), &newState);
             else
-                ok &= output->handle()->commit_state(newState);
+                ok &= wlr_output_commit_state(output->handle(), &newState);
         }
         wOutputManager->sendResult(config, ok);
     });
@@ -758,7 +758,7 @@ void Helper::enableOutput(WOutput *output)
         wlr_output_state newState;
 
         if (!qwoutput->current_mode) {
-            auto mode = qwoutput->preferred_mode();
+            auto mode = wlr_output_preferred_mode(qwoutput);
             if (mode)
                 wlr_output_state_set_mode(&newState, mode);
         }

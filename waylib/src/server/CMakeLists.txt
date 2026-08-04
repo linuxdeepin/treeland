@@ -26,8 +26,15 @@ pkg_search_module(LIBDRM REQUIRED IMPORTED_TARGET libdrm)
 set(WAYLIB_WLROOTS_INCLUDE_DIRS "")
 set(WAYLIB_WLROOTS_PUBLIC_TARGET "")
 # Use the vendored wlroots target from wlroots/ subdirectory (added in root CMakeLists.txt)
-set(WLROOTS_TARGET Wlroots::wlroots)
-set(WAYLIB_WLROOTS_PUBLIC_TARGET Wlroots::wlroots)
+# when available; otherwise fall back to system wlroots via pkg-config.
+if(TARGET Wlroots::wlroots)
+    set(WLROOTS_TARGET Wlroots::wlroots)
+    set(WAYLIB_WLROOTS_PUBLIC_TARGET Wlroots::wlroots)
+else()
+    pkg_search_module(WLROOTS REQUIRED IMPORTED_TARGET wlroots-0.19)
+    set(WLROOTS_TARGET PkgConfig::WLROOTS)
+    set(WAYLIB_WLROOTS_PUBLIC_TARGET PkgConfig::WLROOTS)
+endif()
 pkg_search_module(WAYLAND REQUIRED IMPORTED_TARGET wayland-server)
 pkg_search_module(WAYLAND_PROTOCOLS REQUIRED IMPORTED_TARGET wayland-protocols)
 pkg_search_module(WLR_PROTOCOLS REQUIRED wlr-protocols)
@@ -417,7 +424,7 @@ target_compile_definitions(${TARGET}
 set_target_properties(${TARGET}
     PROPERTIES
         VERSION ${CMAKE_PROJECT_VERSION}
-        SOVERSION ${PROJECT_VERSION_MAJOR}
+        SOVERSION 1
         EXPORT_NAME WaylibServer
         PUBLIC_HEADER "${HEADERS}"
         # PRIVATE_HEADER "${PRIVATE_HEADERS}"

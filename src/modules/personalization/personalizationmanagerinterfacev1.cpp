@@ -337,7 +337,7 @@ PersonalizationWindowContextV1 *PersonalizationWindowContextV1::get(wl_resource 
 PersonalizationWindowContextV1 *PersonalizationWindowContextV1::getWindowContext(WSurface *surface)
 {
     for (auto *context : std::as_const(s_windowContexts)) {
-        if (context->surface() == surface->handle()->handle()) {
+        if (context->surface() == surface->handle()) {
             return context;
         }
     }

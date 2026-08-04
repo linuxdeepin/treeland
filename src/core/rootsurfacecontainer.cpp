@@ -775,7 +775,7 @@ void RootSurfaceContainer::givePopupFocus(SurfaceWrapper *popupWrapper)
     if (!popupSurface)
         return;
 
-    auto *wlrPopup = popupSurface->handle()->handle();
+    auto *wlrPopup = popupSurface->handle();
     if (!wlrPopup || !wlrPopup->seat)
         return;
 

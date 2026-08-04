@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "output.h"
+#include <wlr/types/wlr_output.h>
 
 #include "cmdline.h"
 #include "common/treelandlogging.h"
@@ -413,38 +414,42 @@ qreal Output::preferredScaleFactor(const QSize &pixelSize) const
 void Output::enable()
 {
     // Enable on default
-    auto qwoutput = output()->handle();
+    wlr_output *qwoutput = output()->handle();
     wlr_output_state newState;
+    wlr_output_state_init(&newState);
     // Don't care for WOutput::isEnabled, must do WOutput::commit here,
     // In order to ensure trigger QWOutput::frame signal, WOutputRenderWindow
     // needs this signal to render next frame. Because QWOutput::frame signal
     // maybe Q_EMIT before WOutputRenderWindow::attach, if no commit here,
     // WOutputRenderWindow will ignore this output on render.
-    const bool cachedEnabled = qwoutput->property("_Enabled").toBool();
-    const bool outputEnabled = qwoutput->handle()->enabled;
+    const bool cachedEnabled = output()->property("_Enabled").toBool();
+    const bool outputEnabled = qwoutput->enabled;
     if (!cachedEnabled || !outputEnabled) {
-        if (!qwoutput->handle()->current_mode) {
-            auto mode = qwoutput->preferred_mode();
+        if (!qwoutput->current_mode) {
+            auto mode = wlr_output_preferred_mode(qwoutput);
             if (mode) {
-                newState.set_mode(mode);
+                wlr_output_state_set_mode(&newState, mode);
 
                 // TODO: read user config
-                newState.set_scale(preferredScaleFactor({ mode->width, mode->height }));
+                wlr_output_state_set_scale(&newState, preferredScaleFactor({ mode->width, mode->height }));
             }
         } else {
             // TODO: read user config
-            newState.set_scale(preferredScaleFactor(output()->size()));
+            wlr_output_state_set_scale(&newState, preferredScaleFactor(output()->size()));
         }
-        newState.set_enabled(true);
-        if (!qwoutput->commit_state(newState)) {
-            qCCritical(lcTlCore, "commit failed on output %s", qwoutput->handle()->name);
+        wlr_output_state_set_enabled(&newState, true);
+        bool ok = wlr_output_commit_state(qwoutput, &newState);
+        if (!ok) {
+            wlr_output_state_finish(&newState);
+            qCCritical(lcTlCore, "commit failed on output %s", qwoutput->name);
             return;
         }
-        qwoutput->setProperty("_Enabled", true);
-        qCInfo(lcTlOutput) << "Enabled output" << qwoutput->handle()->name
+        output()->setProperty("_Enabled", true);
+        qCInfo(lcTlOutput) << "Enabled output" << qwoutput->name
                            << "cached:" << cachedEnabled
                            << "was enabled:" << outputEnabled;
     }
+    wlr_output_state_finish(&newState);
 }
 
 void Output::updateOutputHardwareLayers()
@@ -614,7 +619,7 @@ void Output::arrangeLayerSurface(SurfaceWrapper *surface)
 {
     WLayerSurface *layer = qobject_cast<WLayerSurface *>(surface->shellSurface());
     Q_ASSERT(layer);
-    if (!layer->handle()->handle()->initialized) {
+    if (!layer->handle()->initialized) {
         return;
     }
 

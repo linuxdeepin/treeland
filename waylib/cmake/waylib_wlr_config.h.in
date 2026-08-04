@@ -18,7 +18,7 @@
 #endif
 
 // Feature flags (mapped from vendored wlroots WLR_HAS_* / pkg-config)
-// Values match qwlroots qwconfig.h to avoid redefinition warnings
+// Values match upstream wlroots 0.19 feature detection
 #ifndef WLR_HAVE_DRM_BACKEND
 #cmakedefine WLR_HAVE_DRM_BACKEND @WLR_HAVE_DRM_BACKEND@
 #endif

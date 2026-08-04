@@ -1,7 +1,11 @@
 @PACKAGE_INIT@
 
 include(CMakeFindDependencyMacro)
-find_dependency(QWlroots)
+find_dependency(PkgConfig)
+pkg_check_modules(WLROOTS REQUIRED IMPORTED_TARGET wlroots-0.19)
+if(NOT TARGET Wlroots::wlroots)
+    add_library(Wlroots::wlroots ALIAS PkgConfig::WLROOTS)
+endif()
 
 # Provide ws_generate for downstream consumers (migrated from qwlroots to waylib)
 include(${CMAKE_CURRENT_LIST_DIR}/WaylandScannerHelpers.cmake)

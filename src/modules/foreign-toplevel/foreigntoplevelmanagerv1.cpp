@@ -507,7 +507,7 @@ void ForeignToplevelManagerInterfaceV1::initializeToplevelHandle(SurfaceWrapper 
             });
 
     if (auto *xdgSurface = qobject_cast<WXdgToplevelSurface *>(surface)) {
-        auto client = WClient::get(xdgSurface->handle()->handle()->resource->client);
+        auto client = WClient::get(xdgSurface->handle()->resource->client);
         handle->set_pid(client->credentials().get()->pid);
 
         auto updateSurfaceParent = [this, handle, xdgSurface] {
@@ -892,7 +892,6 @@ void ForeignToplevelHandleV1::output_enter(WOutput *output)
         return;
     }
 
-    auto *qwOutput = output->handle();
     if (std::any_of(d->outputs.begin(),
                     d->outputs.end(),
                     [output](const foreign_toplevel_output &toplevel_output) {
@@ -904,7 +903,7 @@ void ForeignToplevelHandleV1::output_enter(WOutput *output)
     d->outputs.append(toplevel_output);
 
     auto &toplevel_out = d->outputs.last();
-    toplevel_out.bindListener.connect(&qwOutput->events.bind, [toplevel_output](wl_listener *, void *data) {
+    toplevel_out.bindListener.connect(&output->handle()->events.bind, [toplevel_output](wl_listener *, void *data) {
         auto *event = static_cast<wlr_output_event_bind *>(data);
         const wl_client *client = wl_resource_get_client(event->resource);
         if (wl_resource_get_client(toplevel_output.toplevel->resource()) == client) {

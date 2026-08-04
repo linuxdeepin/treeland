@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "helper.h"
+#include <wlr/types/wlr_output.h>
 
 #include "seatsmanager.h"
 
@@ -395,6 +396,7 @@ void Helper::syncPaletteTypeWithWindowThemeType(int32_t themeType)
         guiHelper->setPaletteType(Dtk::Gui::DGuiApplicationHelper::LightType);
         break;
     }
+    wlr_output_state_finish(&newState);
 }
 
 void Helper::tryInitRemoteSource()
@@ -562,8 +564,11 @@ void Helper::onOutputAdded(WOutput *output)
     const bool shouldDisableOutput = !scanned;
     if (shouldDisableOutput) {
         wlr_output_state disabledState;
-        disabledState.set_enabled(false);
-        if (!wlr_output_commit_state(output->handle(), disabledState)) {
+        wlr_output_state_init(&disabledState);
+        wlr_output_state_set_enabled(&disabledState, false);
+        bool disabledOk = wlr_output_commit_state(output->handle(), &disabledState);
+        wlr_output_state_finish(&disabledState);
+        if (!disabledOk) {
             qCCritical(lcTlCore) << "commit failed while disabling added output" << output->name();
         } else if (!scanned) {
             qCInfo(lcTlOutput) << "Temporarily disabled output during initial scan" << output->name();
@@ -607,8 +612,11 @@ void Helper::onOutputAdded(WOutput *output)
             && WallpaperManager::getOutputId(outputObject) != singleOutputId) {
             if (output->isEnabled()) {
                 wlr_output_state disabledState;
-                disabledState.set_enabled(false);
-                if (!wlr_output_commit_state(output->handle(), disabledState)) {
+                wlr_output_state_init(&disabledState);
+                wlr_output_state_set_enabled(&disabledState, false);
+                bool disabledOk = wlr_output_commit_state(output->handle(), &disabledState);
+                wlr_output_state_finish(&disabledState);
+                if (!disabledOk) {
                     qCCritical(lcTlOutput)
                         << "Failed to disable non-selected output while restoring single-output display"
                         << output->name();
@@ -660,22 +668,25 @@ void Helper::onOutputAdded(WOutput *output)
         }
 
         wlr_output_state newState;
-        newState.set_enabled(true);
+        wlr_output_state_init(&newState);
+        wlr_output_state_set_enabled(&newState, true);
 
         if (auto *layout = m_rootSurfaceContainer->outputLayout()) {
             layout->move(output, QPoint(static_cast<int>(config->x()), static_cast<int>(config->y())));
         }
 
         if (auto *mode = closestOutputMode(output, width, height, refresh)) {
-            newState.set_mode(mode);
+            wlr_output_state_set_mode(&newState, mode);
         } else {
-            newState.set_custom_mode(width, height, refresh);
+            wlr_output_state_set_custom_mode(&newState, width, height, refresh);
         }
 
-        newState.set_adaptive_sync_enabled(config->adaptiveSyncEnabled());
-        newState.set_transform(static_cast<wl_output_transform>(transform));
-        newState.set_scale(scale);
-        if (!wlr_output_commit_state(output->handle(), newState)) {
+        wlr_output_state_set_adaptive_sync_enabled(&newState, config->adaptiveSyncEnabled());
+        wlr_output_state_set_transform(&newState, static_cast<wl_output_transform>(transform));
+        wlr_output_state_set_scale(&newState, scale);
+        bool committed = wlr_output_commit_state(output->handle(), &newState);
+        wlr_output_state_finish(&newState);
+        if (!committed) {
             qCCritical(lcTlCore) << "commit failed on output" << output->name();
             return;
         }
@@ -866,9 +877,12 @@ void Helper::setGamma(struct wlr_gamma_control_manager_v1_set_gamma_event *event
         b = gamma_control->table + 2 * gamma_control->ramp_size;
     }
     wlr_output_state newState;
-    newState.set_gamma_lut(ramp_size, r, g, b);
-    if (!qwOutput->commit_state(newState)) {
-        qCCritical(lcTlCore, "commit failed on output  %s", qwOutput->handle()->name);
+    wlr_output_state_init(&newState);
+    wlr_output_state_set_gamma_lut(&newState, ramp_size, r, g, b);
+    bool ok = wlr_output_commit_state(qwOutput, &newState);
+    wlr_output_state_finish(&newState);
+    if (!ok) {
+        qCCritical(lcTlCore, "commit failed on output  %s", qwOutput->name);
         qCWarning(lcTlCore) << "Failed to set gamma lut!";
         // TODO: use software impl it.
         wlr_gamma_control_v1_send_failed_and_destroy(gamma_control);
@@ -1001,19 +1015,22 @@ void Helper::onOutputTestOrApply(wlr_output_configuration_v1 *config, bool onlyT
                 continue;
             }
             wlr_output_state newState;
-            newState.set_enabled(state.enabled);
+            wlr_output_state_init(&newState);
+            wlr_output_state_set_enabled(&newState, state.enabled);
             if (state.enabled) {
                 if (state.mode)
-                    newState.set_mode(state.mode);
+                    wlr_output_state_set_mode(&newState, state.mode);
                 else
-                    newState.set_custom_mode(state.customModeSize.width(),
+                    wlr_output_state_set_custom_mode(&newState,
+                                             state.customModeSize.width(),
                                              state.customModeSize.height(),
                                              state.customModeRefresh);
-                newState.set_adaptive_sync_enabled(state.adaptiveSyncEnabled);
-                newState.set_transform(static_cast<wl_output_transform>(state.transform));
-                newState.set_scale(state.scale);
+                wlr_output_state_set_adaptive_sync_enabled(&newState, state.adaptiveSyncEnabled);
+                wlr_output_state_set_transform(&newState, static_cast<wl_output_transform>(state.transform));
+                wlr_output_state_set_scale(&newState, state.scale);
             }
-            ok &= wlr_output_test_state(state.output->handle(), newState);
+            ok &= wlr_output_test_state(state.output->handle(), &newState);
+            wlr_output_state_finish(&newState);
         }
 
         m_outputManager->sendResult(config, ok);
@@ -1316,6 +1333,7 @@ void Helper::onSetOutputPowerMode(wlr_output_power_v1_set_mode_event *event)
 {
     auto output = event->output;
     wlr_output_state newState;
+    wlr_output_state_init(&newState);
 
     switch (event->mode) {
     case ZWLR_OUTPUT_POWER_V1_MODE_OFF:
@@ -1323,8 +1341,9 @@ void Helper::onSetOutputPowerMode(wlr_output_power_v1_set_mode_event *event)
             return; // already disabled by output_power
         if (!output->handle()->enabled)
             return; // already disabled by output_management, not ours
-        newState.set_enabled(false);
-        if (!output->commit_state(newState)) {
+        wlr_output_state_set_enabled(&newState, false);
+        bool ok = wlr_output_commit_state(output->handle(), &newState);
+        if (!ok) {
             qCCritical(lcTlCore, "commit failed on output %s", output->handle()->name);
             return;
         }
@@ -1333,8 +1352,9 @@ void Helper::onSetOutputPowerMode(wlr_output_power_v1_set_mode_event *event)
     case ZWLR_OUTPUT_POWER_V1_MODE_ON:
         if (!m_powerOffOutputs.remove(event->output))
             return; // not disabled by output_power, nothing to do
-        newState.set_enabled(true);
-        if (!output->commit_state(newState)) {
+        wlr_output_state_set_enabled(&newState, true);
+        bool ok = wlr_output_commit_state(output->handle(), &newState);
+        if (!ok) {
             qCCritical(lcTlCore, "commit failed on output %s", output->handle()->name);
             m_powerOffOutputs.insert(event->output);
             return;
@@ -1599,7 +1619,7 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
             if (!xwaylandSurface->isBypassManager()) {
                 if (atom && connection
                     && !readWindowProperty(connection,
-                                           xwaylandSurface->handle()->handle()->window_id,
+                                           xwaylandSurface->handle()->window_id,
                                            atom,
                                            XCB_ATOM_CARDINAL)
                             .isEmpty()) {
@@ -2319,8 +2339,11 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *targetWindow, QInputEvent 
             auto *wlr_out = out->output()->nativeHandle();
             if (!wlr_out->enabled && wlr_out->current_mode && m_powerOffOutputs.contains(wlr_out)) {
                 wlr_output_state state;
-                state.set_enabled(true);
-                if (!wlr_output_commit_state(out->output()->handle(), state)) {
+                wlr_output_state_init(&state);
+                wlr_output_state_set_enabled(&state, true);
+                bool woke = wlr_output_commit_state(out->output()->handle(), &state);
+                wlr_output_state_finish(&state);
+                if (!woke) {
                     qCWarning(lcTlCore) << "Failed to wake output" << wlr_out->name;
                 } else {
                     m_powerOffOutputs.remove(wlr_out);
@@ -2856,7 +2879,7 @@ void Helper::requestKeyboardFocus(SurfaceWrapper *wrapper, Qt::FocusReason reaso
             auto *popupSurface = qobject_cast<WXdgPopupSurface *>(wrapper->shellSurface());
             if (!popupSurface)
                 break;
-            if (popupSurface->handle()->handle()->seat)
+            if (popupSurface->handle()->seat)
                 break;
             wrapper = wrapper->parentSurface();
         }
@@ -3156,7 +3179,7 @@ bool Helper::isLaunchpad(WLayerSurface *surface) const
         return false;
     }
 
-    auto scope = QString(surface->handle()->handle()->scope);
+    auto scope = QString(surface->handle()->scope);
 
     return scope == "dde-shell/launchpad";
 }
@@ -3647,16 +3670,19 @@ void Helper::restoreExtensionModeFromConfig(bool preserveSingleOutputConfig)
             }
 
             wlr_output_state state;
-            state.set_enabled(true);
+            wlr_output_state_init(&state);
+            wlr_output_state_set_enabled(&state, true);
             if (auto *mode = closestOutputMode(output, width, height, refresh)) {
-                state.set_mode(mode);
+                wlr_output_state_set_mode(&state, mode);
             } else {
-                state.set_custom_mode(width, height, refresh);
+                wlr_output_state_set_custom_mode(&state, width, height, refresh);
             }
-            state.set_adaptive_sync_enabled(config->adaptiveSyncEnabled());
-            state.set_transform(static_cast<wl_output_transform>(transform));
-            state.set_scale(scale);
-            if (!wlr_output_commit_state(output->handle(), state)) {
+            wlr_output_state_set_adaptive_sync_enabled(&state, config->adaptiveSyncEnabled());
+            wlr_output_state_set_transform(&state, static_cast<wl_output_transform>(transform));
+            wlr_output_state_set_scale(&state, scale);
+            bool restored = wlr_output_commit_state(output->handle(), &state);
+            wlr_output_state_finish(&state);
+            if (!restored) {
                 qCCritical(lcTlOutput) << "Failed to restore extension state for"
                                        << output->name();
             }
@@ -3759,7 +3785,7 @@ bool Helper::setXWindowPositionRelative(uint wid, WSurface *anchor, wl_fixed_t d
     for (SurfaceWrapper *wrapper : std::as_const(rootSurfaceContainer()->surfaces())) {
         if (wrapper->type() == SurfaceWrapper::Type::XWayland) {
             wlr_xwayland_surface *surface =
-                wlr_xwayland_surface_try_from_wlr_surface(wrapper->surface()->handle()->handle());
+                wlr_xwayland_surface_try_from_wlr_surface(wrapper->surface()->handle());
             if (surface && surface->window_id == static_cast<xcb_window_t>(wid)) {
                 target = wrapper;
                 break;
