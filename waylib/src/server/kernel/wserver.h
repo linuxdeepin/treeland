@@ -23,6 +23,7 @@ class qw_display;
 QW_END_NAMESPACE
 
 struct wl_global;
+struct wl_display;
 
 Q_MOC_INCLUDE("private/wserver_p.h")
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -92,6 +93,7 @@ public:
     ~WServer();
 
     QW_NAMESPACE::qw_display *handle() const;
+    [[nodiscard]] wl_display *nativeDisplay() const;
 
     void attach(WServerInterface *interface);
     template<typename Interface, typename... Args>

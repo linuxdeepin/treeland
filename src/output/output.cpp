@@ -194,7 +194,7 @@ void Output::updatePositionFromLayout()
 {
     WOutputLayout *layout = output()->layout();
     Q_ASSERT(layout);
-    auto *layoutOutput = layout->handle()->get(output()->nativeHandle());
+    auto *layoutOutput = wlr_output_layout_get(layout->handle(), output()->nativeHandle());
     QPointF pos(layoutOutput->x, layoutOutput->y);
     m_item->setPosition(pos);
 }

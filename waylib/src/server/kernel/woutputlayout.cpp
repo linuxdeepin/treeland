@@ -1,24 +1,32 @@
-// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 JiDe Zhang <zhangjide@deepin.org>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "woutputlayout.h"
 #include "private/woutputlayout_p.h"
 #include "woutput.h"
+#include "wserver.h"
 
-#include <qwoutput.h>
-#include <qwbox.h>
-#include <qwoutputlayout.h>
-#include <qwdisplay.h>
+#include <wlr/types/wlr_output_layout.h>
+#include <wlr/util/box.h>
 
 #include <QRect>
 
-QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 WOutputLayoutPrivate::WOutputLayoutPrivate(WOutputLayout *qq)
     : WWrapObjectPrivate(qq)
 {
 
+}
+
+void WOutputLayoutPrivate::init(wl_display *display)
+{
+    auto *layout = wlr_output_layout_create(display);
+    initNativeHandle(layout, &layout->events.destroy);
+    m_changeListener.connect(&layout->events.change, [](wl_listener *listener, void *) {
+        auto *self = WScopedListener::owner<WOutputLayoutPrivate, &WOutputLayoutPrivate::m_changeListener>(listener);
+        Q_EMIT self->q_func()->layoutChanged();
+    });
 }
 
 WOutputLayoutPrivate::~WOutputLayoutPrivate()
@@ -50,8 +58,8 @@ void WOutputLayoutPrivate::updateImplicitSize()
     W_Q(WOutputLayout);
 
     wlr_box tmp_box;
-    handle()->get_box(nullptr, &tmp_box);
-    auto newSize = qw_box(tmp_box).toQRect();
+    wlr_output_layout_get_box(handle(), nullptr, &tmp_box);
+    const QRect newSize(tmp_box.x, tmp_box.y, tmp_box.width, tmp_box.height);
 
     if (implicitWidth != newSize.x() + newSize.width()) {
         implicitWidth = newSize.x() + newSize.width();
@@ -66,10 +74,7 @@ void WOutputLayoutPrivate::updateImplicitSize()
 WOutputLayout::WOutputLayout(WOutputLayoutPrivate &dd, WServer *server)
     : WWrapObject(dd, server)
 {
-    auto h = new qw_output_layout(*server->handle());
-    initHandle(h);
-
-    handle()->set_data(this, this);
+    dd.init(server->nativeDisplay());
 }
 
 WOutputLayout::WOutputLayout(WServer *server)
@@ -78,7 +83,7 @@ WOutputLayout::WOutputLayout(WServer *server)
 
 }
 
-qw_output_layout *WOutputLayout::handle() const
+wlr_output_layout *WOutputLayout::handle() const
 {
     W_DC(WOutputLayout);
     return d->handle();
@@ -94,7 +99,7 @@ void WOutputLayout::add(WOutput *output, const QPoint &pos)
 {
     W_D(WOutputLayout);
     output->setLayout(this);
-    d->handle()->add(output->nativeHandle(), pos.x(), pos.y());
+    wlr_output_layout_add(d->handle(), output->nativeHandle(), pos.x(), pos.y());
     d->doAdd(output);
 }
 
@@ -102,7 +107,7 @@ void WOutputLayout::autoAdd(WOutput *output)
 {
     W_D(WOutputLayout);
     output->setLayout(this);
-    d->handle()->add_auto(output->nativeHandle());
+    wlr_output_layout_add_auto(d->handle(), output->nativeHandle());
     d->doAdd(output);
 }
 
@@ -115,7 +120,7 @@ void WOutputLayout::move(WOutput *output, const QPoint &pos)
     if (output->position() == pos)
         return;
 
-    d->handle()->add(output->nativeHandle(), pos.x(), pos.y());
+    wlr_output_layout_add(d->handle(), output->nativeHandle(), pos.x(), pos.y());
 
     d->updateImplicitSize();
 }
@@ -126,7 +131,7 @@ void WOutputLayout::remove(WOutput *output)
     Q_ASSERT(d->outputs.contains(output));
     d->outputs.removeOne(output);
 
-    d->handle()->remove(output->nativeHandle());
+    wlr_output_layout_remove(d->handle(), output->nativeHandle());
     output->setLayout(nullptr);
     output->safeDisconnect(this);
     d->updateImplicitSize();
@@ -143,8 +148,8 @@ QList<WOutput*> WOutputLayout::getIntersectedOutputs(const QRect &geometry) cons
 
     for (auto o : std::as_const(d->outputs)) {
         wlr_box tmp;
-        d->handle()->get_box(o->nativeHandle(), &tmp);
-        const QRect og = qw_box(tmp).toQRect();
+        wlr_output_layout_get_box(d->handle(), o->nativeHandle(), &tmp);
+        const QRect og(tmp.x, tmp.y, tmp.width, tmp.height);
         if (og.intersects(geometry))
             outputs << o;
     }

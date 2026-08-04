@@ -2768,7 +2768,7 @@ void Helper::saveCurrentOutputConfig(Output *output)
         outputConfig->setAdaptiveSyncEnabled(wlrOutput->adaptive_sync_status == WLR_OUTPUT_ADAPTIVE_SYNC_ENABLED);
 
         if (auto *layout = outputObject->output()->layout()) {
-            if (auto *layoutOutput = layout->handle()->get(wlrOutput)) {
+            if (auto *layoutOutput = wlr_output_layout_get(layout->handle(), wlrOutput)) {
                 outputConfig->setX(layoutOutput->x);
                 outputConfig->setY(layoutOutput->y);
             }

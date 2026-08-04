@@ -667,7 +667,7 @@ void WCursor::setLayout(WOutputLayout *layout)
         return;
 
     d->outputLayout = layout;
-    d->handle()->attach_output_layout(*d->outputLayout->handle());
+    d->handle()->attach_output_layout(d->outputLayout->handle());
 
     if (d->outputLayout) {
         for (auto o : d->outputLayout->outputs())

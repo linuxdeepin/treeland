@@ -488,7 +488,7 @@ QPoint WOutput::position() const
     if (Q_UNLIKELY(!d->layout))
         return p;
 
-    auto l_output = d->layout->handle()->get(d->nativeHandle());
+    auto l_output = wlr_output_layout_get(d->layout->handle(), d->nativeHandle());
 
     if (Q_UNLIKELY(!l_output))
         return p;

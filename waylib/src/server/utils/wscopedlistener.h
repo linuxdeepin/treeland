@@ -4,6 +4,7 @@
 #pragma once
 
 #include <wayland-server-core.h>
+#include <cstddef>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -37,10 +38,17 @@ public:
     wl_listener *listener() { return &m_listener; }
     const wl_listener *listener() const { return &m_listener; }
 
-    template<typename T, wl_listener T::*Member>
+    // Recover the owning object T from a wl_listener that is the m_listener of
+    // a WScopedListener member. Member is a pointer to that WScopedListener
+    // member of T. This works for non-standard-layout T (e.g. classes with a
+    // base), and is -Wpedantic clean.
+    template<typename T, WScopedListener T::*Member>
     static T *owner(wl_listener *l)
     {
-        return wl_container_of(l, T*, Member);
+        auto *wsl = reinterpret_cast<WScopedListener *>(
+            reinterpret_cast<char *>(l) - offsetof(WScopedListener, m_listener));
+        auto off = reinterpret_cast<ptrdiff_t>(&(static_cast<T *>(nullptr)->*Member));
+        return reinterpret_cast<T *>(reinterpret_cast<char *>(wsl) - off);
     }
 
 private:

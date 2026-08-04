@@ -342,6 +342,12 @@ qw_display *WServer::handle() const
     return d->display.get();
 }
 
+wl_display *WServer::nativeDisplay() const
+{
+    W_DC(WServer);
+    return d->display ? d->display->handle() : nullptr;
+}
+
 void WServer::stop()
 {
     W_D(WServer);
