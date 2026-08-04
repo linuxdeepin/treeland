@@ -6,11 +6,13 @@
 #include "wglobal.h"
 #include "wserver.h"
 
+struct wlr_session_lock_manager_v1;
+
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WSessionLock;
 class WSessionLockManagerPrivate;
-class WAYLIB_SERVER_EXPORT WSessionLockManager : public WWrapObject, public WServerInterface
+class WAYLIB_SERVER_EXPORT WSessionLockManager : public QObject, public WObject, public WServerInterface
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WSessionLockManager)
@@ -18,6 +20,7 @@ public:
     explicit WSessionLockManager(QObject *parent = nullptr);
     void *create();
 
+    wlr_session_lock_manager_v1 *handle() const;
     QByteArrayView interfaceName() const override;
     QVector<WSessionLock*> lockList() const;
 Q_SIGNALS:

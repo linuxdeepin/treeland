@@ -12,6 +12,9 @@
 #include <WXdgShell>
 #include <WLayerShell>
 #include <WLayerSurface>
+#include <WSessionLock>
+#include <WSessionLockManager>
+#include <WSessionLockSurface>
 #include <wxdgdialogmanagerv1.h>
 #include <wxdgpopupsurface.h>
 #include <wxdgtoplevelsurface.h>
@@ -44,6 +47,9 @@ struct wlr_xdg_popup;
 struct wlr_xdg_shell;
 struct wlr_xdg_toplevel;
 struct wlr_xdg_wm_dialog_v1;
+struct wlr_session_lock_manager_v1;
+struct wlr_session_lock_surface_v1;
+struct wlr_session_lock_v1;
 
 WAYLIB_SERVER_USE_NAMESPACE
 
@@ -66,6 +72,12 @@ static_assert(std::is_same_v<decltype(std::declval<WXdgDecorationManager &>().ha
                              wlr_xdg_decoration_manager_v1 *>);
 static_assert(std::is_same_v<decltype(std::declval<WXdgDialogManagerV1 &>().handle()),
                              wlr_xdg_wm_dialog_v1 *>);
+static_assert(std::is_same_v<decltype(std::declval<WSessionLockManager &>().handle()),
+                             wlr_session_lock_manager_v1 *>);
+static_assert(std::is_same_v<decltype(std::declval<WSessionLock &>().handle()),
+                             wlr_session_lock_v1 *>);
+static_assert(std::is_same_v<decltype(std::declval<WSessionLockSurface &>().handle()),
+                             wlr_session_lock_surface_v1 *>);
 
 class NativeHandlesTest : public QObject
 {
@@ -98,12 +110,14 @@ private Q_SLOTS:
         auto *layerShell = server.attach<WLayerShell>(xdgShell);
         auto *decorationManager = server.attach<WXdgDecorationManager>();
         auto *dialogManager = server.attach<WXdgDialogManagerV1>();
+        auto *sessionLockManager = server.attach<WSessionLockManager>();
 
         server.start();
         QVERIFY(xdgShell->handle());
         QVERIFY(layerShell->handle());
         QVERIFY(decorationManager->handle());
         QVERIFY(dialogManager->handle());
+        QVERIFY(sessionLockManager->handle());
         server.stop();
     }
 

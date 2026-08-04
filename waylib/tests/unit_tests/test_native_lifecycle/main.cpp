@@ -3,6 +3,8 @@
 
 #include <WSurface>
 #include <WLayerSurface>
+#include <WSessionLock>
+#include <WSessionLockSurface>
 #include <wxdgpopupsurface.h>
 #include <wxdgtoplevelsurface.h>
 
@@ -16,6 +18,7 @@ extern "C" {
 #include <wlr/types/wlr_layer_shell_v1.h>
 #undef namespace
 #include <wlr/types/wlr_xdg_shell.h>
+#include <wlr/types/wlr_session_lock_v1.h>
 }
 
 WAYLIB_SERVER_USE_NAMESPACE
@@ -178,6 +181,42 @@ private Q_SLOTS:
         wl_signal_emit_mutable(&nativeLayerSurface.events.destroy, &nativeLayerSurface);
 
         QVERIFY(!WLayerSurface::fromHandle(&nativeLayerSurface));
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        QVERIFY(surface.isNull());
+    }
+
+    void nativeSessionLockDestroyedFirst()
+    {
+        wlr_session_lock_v1 nativeLock = {};
+        wl_list_init(&nativeLock.surfaces);
+        wl_signal_init(&nativeLock.events.new_surface);
+        wl_signal_init(&nativeLock.events.unlock);
+        wl_signal_init(&nativeLock.events.destroy);
+
+        QPointer<WSessionLock> lock = new WSessionLock(&nativeLock);
+        QCOMPARE(WSessionLock::fromHandle(&nativeLock), lock.data());
+        QSignalSpy canceled(lock, &WSessionLock::canceled);
+        wl_signal_emit_mutable(&nativeLock.events.destroy, &nativeLock);
+
+        QCOMPARE(canceled.count(), 1);
+        QVERIFY(!WSessionLock::fromHandle(&nativeLock));
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        QVERIFY(lock.isNull());
+    }
+
+    void nativeSessionLockSurfaceDestroyedFirst()
+    {
+        wlr_surface nativeSurface;
+        initSurface(&nativeSurface);
+        wlr_session_lock_surface_v1 nativeLockSurface = {};
+        nativeLockSurface.surface = &nativeSurface;
+        wl_signal_init(&nativeLockSurface.events.destroy);
+
+        QPointer<WSessionLockSurface> surface = new WSessionLockSurface(&nativeLockSurface);
+        QCOMPARE(WSessionLockSurface::fromHandle(&nativeLockSurface), surface.data());
+        wl_signal_emit_mutable(&nativeLockSurface.events.destroy, &nativeLockSurface);
+
+        QVERIFY(!WSessionLockSurface::fromHandle(&nativeLockSurface));
         QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
         QVERIFY(surface.isNull());
     }
