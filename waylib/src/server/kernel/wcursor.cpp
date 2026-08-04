@@ -34,7 +34,7 @@ WCursorPrivate::WCursorPrivate(WCursor *qq)
     , overrideCursor(WCursor::toQCursor(WGlobal::CursorShape::Invalid))
 {
     auto *cursor = wlr_cursor_create();
-    initNativeHandle(cursor, &cursor->events.destroy);
+    initNativeHandle(cursor, nullptr);
 }
 
 WCursorPrivate::~WCursorPrivate()

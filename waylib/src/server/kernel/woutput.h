@@ -25,7 +25,7 @@ struct wlr_allocator;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-struct wlr_output;
+struct ::wlr_output;
 
 class QWlrootsScreen;
 class QWlrootsIntegration;

@@ -4,7 +4,6 @@ on:
   push:
     paths:
       - 'waylib/**'
-      - 'qwlroots/**'
       - 'wlroots/**'
       - '3rdparty/wlroots/**'
       - '.github/workflows/waylib-archlinux-build.yml'
@@ -12,7 +11,6 @@ on:
   pull_request:
     paths:
       - 'waylib/**'
-      - 'qwlroots/**'
       - 'wlroots/**'
       - '3rdparty/wlroots/**'
       - '.github/workflows/waylib-archlinux-build.yml'
@@ -44,19 +42,12 @@ jobs:
 
       - uses: actions/checkout@v4
 
-      - name: Create qwlroots symlink for waylib
-        run: |
-          cd waylib
-          ln -sf ../qwlroots qwlroots
-          echo "✅ Created symlink: waylib/qwlroots -> ../qwlroots"
-          ls -la qwlroots
-
       - name: Configure and Build waylib with ci preset
         working-directory: waylib
         run: |
           echo "Working directory:" $PWD
           rm -rf build
-          cmake --preset ci -DWITH_SUBMODULE_QWLROOTS=ON
+          cmake --preset ci
           cmake --build --preset ci
 
       - name: Run unit tests
@@ -89,8 +80,7 @@ jobs:
           Version: $(date +%Y%m%d-%H%M%S)
           Architecture: x86_64
           Built-on: Arch Linux
-          Built-with: qwlroots submodule enabled
-          CMake-Config: -DWITH_SUBMODULE_QWLROOTS=ON
+          Built-with: vendored wlroots
 
           Installation Instructions:
           1. Extract this package to /

@@ -24,16 +24,18 @@ endif()
 find_package(PkgConfig REQUIRED)
 pkg_search_module(LIBDRM REQUIRED IMPORTED_TARGET libdrm)
 set(WAYLIB_WLROOTS_INCLUDE_DIRS "")
-set(WAYLIB_WLROOTS_PUBLIC_TARGET "")
 # Use the vendored wlroots target from wlroots/ subdirectory (added in root CMakeLists.txt)
 # when available; otherwise fall back to system wlroots via pkg-config.
 if(TARGET Wlroots::wlroots)
     set(WLROOTS_TARGET Wlroots::wlroots)
-    set(WAYLIB_WLROOTS_PUBLIC_TARGET Wlroots::wlroots)
+    # wlroots headers for downstream consumers (build-time only; install-time
+    # consumers get them via WaylibServerConfig.cmake pkg_check_modules).
+    get_filename_component(_wlroots_src_root
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../../3rdparty/wlroots/include" ABSOLUTE)
+    list(APPEND WAYLIB_WLROOTS_INCLUDE_DIRS "$<BUILD_INTERFACE:${_wlroots_src_root}>")
 else()
     pkg_search_module(WLROOTS REQUIRED IMPORTED_TARGET wlroots-0.19)
     set(WLROOTS_TARGET PkgConfig::WLROOTS)
-    set(WAYLIB_WLROOTS_PUBLIC_TARGET PkgConfig::WLROOTS)
 endif()
 pkg_search_module(WAYLAND REQUIRED IMPORTED_TARGET wayland-server)
 pkg_search_module(WAYLAND_PROTOCOLS REQUIRED IMPORTED_TARGET wayland-protocols)
@@ -447,11 +449,6 @@ target_link_libraries(${TARGET}
     PkgConfig::XKBCOMMON
     PkgConfig::XCB
     PkgConfig::EGL
-)
-
-target_link_libraries(${TARGET}
-    PUBLIC
-        ${WAYLIB_WLROOTS_PUBLIC_TARGET}
 )
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)

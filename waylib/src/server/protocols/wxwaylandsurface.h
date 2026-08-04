@@ -77,7 +77,6 @@ public:
     ~WXWaylandSurface();
 
     static WXWaylandSurface *fromHandle(wlr_xwayland_surface *handle);
-    static WXWaylandSurface *fromHandle(wlr_xwayland_surface *handle);
     static WXWaylandSurface *fromSurface(WSurface *surface);
 
     WSurface *surface() const override;

@@ -20,7 +20,7 @@ public:
     WScopedListener(const WScopedListener &) = delete;
     WScopedListener &operator=(const WScopedListener &) = delete;
 
-    void connect(wl_signal *signal, wl_listener_notify_func_t notify)
+    void connect(wl_signal *signal, wl_notify_func_t notify)
     {
         remove();
         m_callback = nullptr;
@@ -33,14 +33,14 @@ public:
     // The callable is stored in a std::function; the wl_listener.notify thunk
     // recovers the WScopedListener and dispatches to it.
     template<typename F>
-        requires (!std::is_convertible_v<F, wl_listener_notify_func_t>)
+        requires (!std::is_convertible_v<F, wl_notify_func_t>)
     void connect(wl_signal *signal, F &&fn)
     {
         remove();
         m_callback = std::forward<F>(fn);
         m_listener.notify = +[](wl_listener *l, void *data) {
             auto *self = reinterpret_cast<WScopedListener *>(
-                reinterpret_cast<char *>(l) - offsetof(WScopedListener, m_listener));
+                reinterpret_cast<char *>(l) - reinterpret_cast<ptrdiff_t>(&(static_cast<WScopedListener *>(nullptr)->m_listener)));
             self->m_callback(l, data);
         };
         wl_signal_add(signal, &m_listener);
@@ -69,7 +69,7 @@ public:
     static T *owner(wl_listener *l)
     {
         auto *wsl = reinterpret_cast<WScopedListener *>(
-            reinterpret_cast<char *>(l) - offsetof(WScopedListener, m_listener));
+            reinterpret_cast<char *>(l) - reinterpret_cast<ptrdiff_t>(&(static_cast<WScopedListener *>(nullptr)->m_listener)));
         auto off = reinterpret_cast<ptrdiff_t>(&(static_cast<T *>(nullptr)->*Member));
         return reinterpret_cast<T *>(reinterpret_cast<char *>(wsl) - off);
     }

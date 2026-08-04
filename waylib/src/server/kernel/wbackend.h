@@ -12,8 +12,8 @@ Q_MOC_INCLUDE("winputdevice.h")
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-struct wlr_backend;
-struct wlr_session;
+struct ::wlr_backend;
+struct ::wlr_session;
 
 
 class WOutput;

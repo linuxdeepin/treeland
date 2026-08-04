@@ -530,7 +530,10 @@ set_target_properties(waylib-wlroots PROPERTIES
 # ---------------------------------------------------------------------------
 # Install library only (no headers, no .pc)
 # ---------------------------------------------------------------------------
+# waylib-wlroots is in the WaylibServerTargets export set so that
+# install(EXPORT) for waylibserver (which links to it) does not fail.
 install(TARGETS waylib-wlroots
+    EXPORT WaylibServerTargets
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}

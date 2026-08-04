@@ -4,6 +4,7 @@
 #pragma once
 
 #include <woutput.h>
+#include <wlr/types/wlr_output.h>
 
 #include <WServer>
 

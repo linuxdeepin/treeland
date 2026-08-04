@@ -8,8 +8,8 @@
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-struct wlr_xdg_toplevel;
-struct wlr_surface;
+struct ::wlr_xdg_toplevel;
+struct ::wlr_surface;
 
 class WXdgToplevelSurfacePrivate;
 

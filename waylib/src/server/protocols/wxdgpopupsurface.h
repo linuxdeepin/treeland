@@ -27,7 +27,7 @@ public:
 
     WSurface *surface() const override;
     wlr_xdg_popup *handle() const;
-    wlr_surface *inputTargetAt(QPointF &localPos) const override;
+    wlr_surface *inputTargetAt(QPointF &localPos) const;
 
     static WXdgPopupSurface *fromHandle(wlr_xdg_popup *handle);
     static WXdgPopupSurface *fromSurface(WSurface *surface);

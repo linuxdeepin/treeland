@@ -11,6 +11,9 @@
 #include "wayliblogging.h"
 
 #include <wlr/types/wlr_output.h>
+#include <pixman-1/pixman.h>
+#include <wlr/render/wlr_renderer.h>
+#include <wlr/render/allocator.h>
 #include <wlr/types/wlr_output_layout.h>
 #include "woutputlayout.h"
 #include <wlr/render/wlr_renderer.h>

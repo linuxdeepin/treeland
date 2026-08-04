@@ -37,6 +37,16 @@ include(CMakePackageConfigHelpers)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/")
 include(PackageVersionHelper)
 
+# When building waylib standalone (not from the treeland monorepo root),
+# include the vendored wlroots scaffold so Wlroots::wlroots target exists
+# before src/server/CMakeLists.txt is processed.
+if(NOT TARGET Wlroots::wlroots)
+    set(_vendored_wlroots_dir "${CMAKE_CURRENT_SOURCE_DIR}/../wlroots")
+    if(EXISTS "${_vendored_wlroots_dir}/CMakeLists.txt")
+        add_subdirectory("${_vendored_wlroots_dir}" "${CMAKE_CURRENT_BINARY_DIR}/wlroots")
+    endif()
+endif()
+
 add_subdirectory(src)
 if(BUILD_EXAMPLES)
     add_subdirectory(examples)

@@ -16,6 +16,7 @@
 #include <wlr/types/wlr_input_device.h>
 #include <wlr/types/wlr_pointer_gestures_v1.h>
 #include <wlr/types/wlr_data_device.h>
+#include <wlr/types/wlr_keyboard_group.h>
 #include <wlr/types/wlr_primary_selection.h>
 
 
@@ -637,6 +638,7 @@ void WSeatPrivate::on_keyboard_modifiers(WInputDevice *device)
 void WSeatPrivate::connect()
 {
     wlr_seat *seat = handle();
+    initNativeHandle(seat, &seat->events.destroy);
 
     m_requestSetCursorListener.connect(&seat->events.request_set_cursor, [](wl_listener *listener, void *data) {
         auto *self = WScopedListener::owner<WSeatPrivate, &WSeatPrivate::m_requestSetCursorListener>(listener);
@@ -1575,7 +1577,6 @@ void WSeat::create(WServer *server)
     // destroy follow display
     const auto name = d->name.toUtf8();
     m_handle = wlr_seat_create(server->nativeDisplay(), name.constData());
-    initNativeHandle(d->handle(), &d->handle()->events.destroy);
     d->connect();
 
     if (!d->group) {
