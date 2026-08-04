@@ -4,7 +4,6 @@
 #pragma once
 
 #include <WSurface>
-#include <qwglobal.h>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
