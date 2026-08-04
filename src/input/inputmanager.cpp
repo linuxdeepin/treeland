@@ -13,7 +13,6 @@
 
 #include <libinput.h>
 
-#include <qwseat.h>
 
 extern "C" {
 #include <wlr/backend/libinput.h>

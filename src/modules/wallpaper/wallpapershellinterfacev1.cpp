@@ -5,9 +5,6 @@
 #include "wallpapershellinterfacev1.h"
 #include "qwayland-server-treeland-wallpaper-shell-unstable-v1.h"
 
-#include <qwdisplay.h>
-#include <qwoutput.h>
-#include <qwseat.h>
 
 extern "C" {
 #include <wlr/types/wlr_compositor.h>

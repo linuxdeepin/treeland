@@ -8,7 +8,6 @@
 #include <wbackend.h>
 #include <wcursor.h>
 #include <woutputlayout.h>
-#include <qwinputdevice.h>
 
 #include <QFile>
 #include <QJsonDocument>

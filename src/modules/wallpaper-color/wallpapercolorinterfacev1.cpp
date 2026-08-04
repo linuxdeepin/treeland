@@ -8,7 +8,6 @@
 #include <woutput.h>
 #include <wserver.h>
 
-#include <qwdisplay.h>
 
 #include <QMap>
 #include <QDebug>

@@ -21,11 +21,14 @@
 #include <QQuickPaintedItem>
 #include <QRect>
 
+#include <memory>
+
 extern "C" {
 #include <wlr/types/wlr_buffer.h>
 }
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
+class WNativeListener;
 class WOutputRenderWindow;
 class WOutputViewport;
 class WToplevelSurface;
@@ -74,6 +77,8 @@ public:
                 &CaptureSource::targetResized);
     }
 
+    ~CaptureSource() override;
+
 Q_SIGNALS:
     void imageReady();
     void bufferDestroyed();
@@ -94,15 +99,15 @@ public:
      * 2. window - window's dma buffer
      * 3. region - output's dma buffer
      *
-     * @return QW_NAMESPACE::QWBuffer*
+     * @return the source's native wlroots buffer
      */
-    qw_buffer *sourceDMABuffer();
+    wlr_buffer *sourceDMABuffer();
 
     /**
      * @brief copyBuffer render captured contents to a buffer
      * @param buffer buffer prepared by client
      */
-    void copyBuffer(qw_buffer *buffer);
+    void copyBuffer(wlr_buffer *buffer);
 
     // Cropped area of source
     virtual QRect cropRect() const = 0;
@@ -113,7 +118,7 @@ public:
     virtual CaptureSourceType sourceType() = 0;
 
 protected:
-    virtual qw_buffer *internalBuffer() = 0;
+    virtual wlr_buffer *internalBuffer() = 0;
 
     template<IsCaptureSourceTarget T>
     void addTarget(T *target)
@@ -136,7 +141,8 @@ protected:
 
     friend QDebug operator<<(QDebug debug, CaptureSource &captureSource);
     QImage m_image;
-    QMetaObject::Connection m_bufferConn;
+    std::unique_ptr<WNativeListener> m_bufferDestroyListener;
+    wlr_buffer *m_observedBuffer = nullptr;
     QList<QPair<QPointer<QQuickItem>, WTextureProviderProvider *>> m_sourceList;
     qreal m_devicePixelRatio;
 };
@@ -237,7 +243,7 @@ private:
     void onSelectSource();
     void onCapture(treeland_capture_frame_v1 *frame);
     void onCreateSession(treeland_capture_session_v1 *session);
-    void handleFrameCopy(QW_NAMESPACE::qw_buffer *buffer);
+    void handleFrameCopy(wlr_buffer *buffer);
     void handleSessionStart();
     void handleFrameDone(uint32_t tvSecHi, uint32_t tvSecLo, uint32_t tvUsec);
     void handleRenderEnd();
@@ -319,7 +325,7 @@ class CaptureSourceSurface : public CaptureSource
     Q_OBJECT
 public:
     explicit CaptureSourceSurface(WSurfaceItemContent *surfaceItemContent, qreal devicePixelRatio);
-    qw_buffer *internalBuffer() override;
+    wlr_buffer *internalBuffer() override;
     CaptureSourceType sourceType() override;
     QRect cropRect() const override;
     QSize sourceSize() const override;
@@ -333,7 +339,7 @@ class CaptureSourceOutput : public CaptureSource
     Q_OBJECT
 public:
     explicit CaptureSourceOutput(WOutputViewport *viewport);
-    qw_buffer *internalBuffer() override;
+    wlr_buffer *internalBuffer() override;
     CaptureSourceType sourceType() override;
     QRect cropRect() const override;
     QSize sourceSize() const override;
@@ -347,7 +353,7 @@ class CaptureSourceRegion : public CaptureSource
     Q_OBJECT
 public:
     CaptureSourceRegion(WOutputViewport *viewport, const QRect &region);
-    qw_buffer *internalBuffer() override;
+    wlr_buffer *internalBuffer() override;
     CaptureSourceType sourceType() override;
     QRect cropRect() const override;
     QSize sourceSize() const override;

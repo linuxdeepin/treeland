@@ -14,9 +14,6 @@
 #include <woutput.h>
 #include <wsocket.h>
 
-#include <qwdisplay.h>
-#include <qwoutput.h>
-#include <qwseat.h>
 
 #include <QPointer>
 

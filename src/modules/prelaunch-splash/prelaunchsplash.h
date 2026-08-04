@@ -3,16 +3,16 @@
 
 #pragma once
 
-#include <wayland-server-core.h>
 #include <wserver.h>
 
-#include <qwbuffer.h>
+extern "C" {
+#include <wayland-server-core.h>
+#include <wlr/types/wlr_buffer.h>
+}
 
 #include <QObject>
 
 #include <memory>
-
-Q_MOC_INCLUDE(<qwbuffer.h>)
 
 class PrelaunchSplashPrivate;
 
@@ -30,7 +30,7 @@ public:
 Q_SIGNALS:
     void splashRequested(const QString &appId,
                          const QString &instanceId,
-                         QW_NAMESPACE::qw_buffer *iconBuffer);
+                         wlr_buffer *iconBuffer);
     void splashCloseRequested(const QString &appId, const QString &instanceId);
 
 protected: // WServerInterface
@@ -42,4 +42,4 @@ private:
     std::unique_ptr<PrelaunchSplashPrivate> d;
 };
 
-Q_DECLARE_OPAQUE_POINTER(QW_NAMESPACE::qw_buffer *)
+Q_DECLARE_OPAQUE_POINTER(wlr_buffer *)

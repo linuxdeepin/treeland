@@ -14,7 +14,6 @@
 class SurfaceWrapper;
 class PersonalizationManagerInterfaceV1;
 
-QW_USE_NAMESPACE
 WAYLIB_SERVER_USE_NAMESPACE
 
 struct Shadow

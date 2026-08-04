@@ -11,7 +11,6 @@
 
 #include <wxdgtoplevelsurface.h>
 
-#include <qwdisplay.h>
 extern "C" {
 #include <wlr/types/wlr_xdg_shell.h>
 }
@@ -22,7 +21,6 @@ extern "C" {
 #include <algorithm>
 
 WAYLIB_SERVER_USE_NAMESPACE
-QW_USE_NAMESPACE
 
 class WineWindowState;
 

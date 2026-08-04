@@ -15,7 +15,6 @@
 
 #include <utility>
 
-#include <qwoutput.h>
 #include <woutputlayout.h>
 
 namespace {

@@ -6,7 +6,6 @@
 #include "helper.h"
 #include "common/treelandlogging.h"
 
-#include <qwdisplay.h>
 
 #include <wbackend.h>
 #include <winputdevice.h>

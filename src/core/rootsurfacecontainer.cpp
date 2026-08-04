@@ -21,13 +21,13 @@
 #include <wseat.h>
 #include <winputdevice.h>
 
-#include <qwxdgshell.h>
 
 #include <QPointer>
 #include <QQuickWindow>
 
 extern "C" {
 #include <wlr/types/wlr_output_layout.h>
+#include <wlr/types/wlr_xdg_shell.h>
 }
 
 WAYLIB_SERVER_USE_NAMESPACE

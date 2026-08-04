@@ -9,8 +9,6 @@
 
 #include <wglobal.h>
 
-#include <qwglobal.h>
-
 #include <QHash>
 #include <QList>
 #include <QMap>
@@ -23,9 +21,7 @@ Q_MOC_INCLUDE(<wlayersurface.h>)
 Q_MOC_INCLUDE(<wxdgtoplevelsurface.h>)
 Q_MOC_INCLUDE(<wxwaylandsurface.h>)
 
-QW_BEGIN_NAMESPACE
-class qw_buffer;
-QW_END_NAMESPACE
+struct wlr_buffer;
 
 class Helper;
 class SurfaceWrapper;
@@ -146,11 +142,11 @@ private:
     // PrelaunchSplash::splashRequested
     void handlePrelaunchSplashRequested(const QString &appId,
                                         const QString &instanceId,
-                                        QW_NAMESPACE::qw_buffer *iconBuffer);
+                                        wlr_buffer *iconBuffer);
     void handlePrelaunchSplashClosed(const QString &appId, const QString &instanceId);
     void createPrelaunchSplash(const QString &appId,
                                const QString &instanceId,
-                               QW_NAMESPACE::qw_buffer *iconBuffer,
+                               wlr_buffer *iconBuffer,
                                const QSize &lastSize,
                                const QString &darkPalette,
                                const QString &lightPalette,

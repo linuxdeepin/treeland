@@ -3,8 +3,8 @@
 
 #include "helper.h"
 
-#include "qwxdgshell.h"
 #include "seatsmanager.h"
+#include "private/wglobal_p.h"
 
 #include <QFile>
 #include <QJsonArray>
@@ -97,38 +97,36 @@
 #include <wxwayland.h>
 #include <wxwaylandsurface.h>
 
-#include <qwallocator.h>
-#include <qwalphamodifierv1.h>
-#include <qwbackend.h>
-#include <qwbuffer.h>
-#include <qwcompositor.h>
-#include <qwdatacontrolv1.h>
-#include <qwdatadevice.h>
-#include <qwdisplay.h>
-#include <qwdrm.h>
-#include <qwextdatacontrolv1.h>
-#include <qwextforeigntoplevelimagecapturesourcemanagerv1.h>
-#include <qwextforeigntoplevellistv1.h>
-#include <qwextimagecapturesourcev1.h>
-#include <qwextimagecopycapturev1.h>
-#include <qwfractionalscalemanagerv1.h>
-#include <qwgammacontorlv1.h>
-#include <qwidleinhibitv1.h>
-#include <qwidlenotifyv1.h>
-#include <qwinputdevice.h>
-#include <qwlayershellv1.h>
-#include <qwlogging.h>
-#include <qwoutput.h>
-#include <qwoutputpowermanagementv1.h>
-#include <qwrenderer.h>
-#include <qwscreencopyv1.h>
-#include <qwsession.h>
-#include <qwsubcompositor.h>
-#include <qwviewporter.h>
-#include <qwxdgforeignregistry.h>
-#include <qwxdgforeignv2.h>
-
 extern "C" {
+#include "ext_foreign_toplevel_image_capture_source_manager_v1.h"
+#include <wlr/backend/multi.h>
+#include <wlr/backend/session.h>
+#include <wlr/backend/wayland.h>
+#include <wlr/backend/x11.h>
+#include <wlr/render/allocator.h>
+#include <wlr/render/wlr_renderer.h>
+#include <wlr/types/wlr_alpha_modifier_v1.h>
+#include <wlr/types/wlr_compositor.h>
+#include <wlr/types/wlr_data_control_v1.h>
+#include <wlr/types/wlr_data_device.h>
+#include <wlr/types/wlr_drm.h>
+#include <wlr/types/wlr_ext_data_control_v1.h>
+#include <wlr/types/wlr_ext_image_capture_source_v1.h>
+#include <wlr/types/wlr_ext_image_copy_capture_v1.h>
+#include <wlr/types/wlr_fractional_scale_v1.h>
+#include <wlr/types/wlr_gamma_control_v1.h>
+#include <wlr/types/wlr_idle_inhibit_v1.h>
+#include <wlr/types/wlr_idle_notify_v1.h>
+#define namespace scope
+#include <wlr/types/wlr_layer_shell_v1.h>
+#undef namespace
+#include <wlr/types/wlr_output_power_management_v1.h>
+#include <wlr/types/wlr_screencopy_v1.h>
+#include <wlr/types/wlr_subcompositor.h>
+#include <wlr/types/wlr_viewporter.h>
+#include <wlr/types/wlr_xdg_foreign_registry.h>
+#include <wlr/types/wlr_xdg_foreign_v2.h>
+#include <wlr/types/wlr_xdg_shell.h>
 #include <wlr/types/wlr_output_layout.h>
 #define class _class
 #include <wlr/xwayland/xwayland.h>
@@ -158,6 +156,60 @@ extern "C" {
 
 #define EXT_DATA_CONTROL_MANAGER_V1_VERSION 1
 #define WLR_FRACTIONAL_SCALE_V1_VERSION 1
+
+struct IdleInhibitorObserver
+{
+    explicit IdleInhibitorObserver(wlr_idle_inhibitor_v1 *inhibitor)
+        : handle(inhibitor)
+    {
+    }
+
+    ~IdleInhibitorObserver()
+    {
+        QObject::disconnect(surfaceConnection);
+        QObject::disconnect(toplevelConnection);
+    }
+
+    wlr_idle_inhibitor_v1 *handle;
+    WNativeListener destroyListener;
+    QMetaObject::Connection surfaceConnection;
+    QMetaObject::Connection toplevelConnection;
+};
+
+class NativeDragObserver
+{
+public:
+    NativeDragObserver(wlr_drag *drag,
+                       std::function<void()> onDrop,
+                       std::function<void()> onDestroy,
+                       std::function<void()> onAction)
+        : m_onDrop(std::move(onDrop))
+        , m_onDestroy(std::move(onDestroy))
+        , m_onAction(std::move(onAction))
+    {
+        m_drop.connect(&drag->events.drop, [this](void *) { m_onDrop(); });
+        m_destroy.connect(&drag->events.destroy, [this](void *) {
+            const auto onDestroy = m_onDestroy;
+            m_drop.disconnect();
+            m_action.disconnect();
+            m_destroy.disconnect();
+            onDestroy();
+            delete this;
+        });
+        if (drag->source) {
+            m_action.connect(&drag->source->events.dnd_action,
+                             [this](void *) { m_onAction(); });
+        }
+    }
+
+private:
+    WNativeListener m_drop;
+    WNativeListener m_destroy;
+    WNativeListener m_action;
+    std::function<void()> m_onDrop;
+    std::function<void()> m_onDestroy;
+    std::function<void()> m_onAction;
+};
 
 static QByteArray readWindowProperty(xcb_connection_t *connection,
                                      xcb_window_t win,
@@ -382,6 +434,13 @@ Helper::~Helper()
         m_backend->disconnect();
     }
 
+    m_foreignToplevelCaptureRequestListener.reset();
+    m_gammaControlListener.reset();
+    m_idleInhibitorListener.reset();
+    m_outputPowerModeListener.reset();
+    qDeleteAll(m_idleInhibitors);
+    m_idleInhibitors.clear();
+
     m_currentEventSeat = nullptr;
     // destroy before m_rootSurfaceContainer
     delete m_shellHandler;
@@ -391,6 +450,23 @@ Helper::~Helper()
                 c->removeSurface(s);
         }
         delete m_rootSurfaceContainer;
+        m_rootSurfaceContainer = nullptr;
+    }
+
+    delete m_renderWindow;
+    m_renderWindow = nullptr;
+
+    delete m_server;
+    m_server = nullptr;
+    m_backend = nullptr;
+
+    if (m_allocator) {
+        wlr_allocator_destroy(m_allocator);
+        m_allocator = nullptr;
+    }
+    if (m_renderer) {
+        wlr_renderer_destroy(m_renderer);
+        m_renderer = nullptr;
     }
 }
 
@@ -925,7 +1001,8 @@ void Helper::setGamma(struct wlr_gamma_control_manager_v1_set_gamma_event *event
         qCCritical(lcTlCore, "commit failed on output  %s", event->output->name);
         qCWarning(lcTlCore) << "Failed to set gamma lut!";
         // TODO: use software impl it.
-        qw_gamma_control_v1::from(gamma_control)->send_failed_and_destroy();
+        if (gamma_control)
+            wlr_gamma_control_v1_send_failed_and_destroy(gamma_control);
     }
 }
 
@@ -1430,21 +1507,24 @@ void Helper::onNewIdleInhibitor(wlr_idle_inhibitor_v1 *wlr_inhibitor)
         return;
     }
 
-    auto inhibitor = qw_idle_inhibitor_v1::from(wlr_inhibitor);
+    auto *inhibitor = new IdleInhibitorObserver(wlr_inhibitor);
     m_idleInhibitors.append(inhibitor);
 
-    connect(inhibitor, &qw_idle_inhibitor_v1::before_destroy, this, [this, inhibitor]() {
+    inhibitor->destroyListener.connect(&wlr_inhibitor->events.destroy, [this, inhibitor](void *) {
+        inhibitor->destroyListener.disconnect();
         m_idleInhibitors.removeOne(inhibitor);
+        delete inhibitor;
         updateIdleInhibitor();
     });
 
-    connect(wsurface, &WSurface::mappedChanged, inhibitor, [this]() {
+    inhibitor->surfaceConnection = connect(wsurface, &WSurface::mappedChanged, this, [this]() {
         updateIdleInhibitor();
     });
 
     auto toplevel = WXdgToplevelSurface::fromSurface(wsurface);
     if (toplevel) {
-        connect(toplevel, &WXdgToplevelSurface::minimizeChanged, inhibitor, [this]() {
+        inhibitor->toplevelConnection = connect(toplevel, &WXdgToplevelSurface::minimizeChanged,
+                                                this, [this]() {
             updateIdleInhibitor();
         });
     }
@@ -1455,11 +1535,11 @@ void Helper::onNewIdleInhibitor(wlr_idle_inhibitor_v1 *wlr_inhibitor)
 void Helper::updateIdleInhibitor()
 {
     if (m_screensaverInterfaceV1->isInhibited()) {
-        m_idleNotifier->set_inhibited(true);
+        wlr_idle_notifier_v1_set_inhibited(m_idleNotifier, true);
         return;
     }
     for (const auto &inhibitor : std::as_const(m_idleInhibitors)) {
-        auto wsurface = WSurface::fromHandle((*inhibitor)->surface);
+        auto wsurface = WSurface::fromHandle(inhibitor->handle->surface);
         if (!wsurface)
             continue;
         bool visible = wsurface->mapped();
@@ -1468,11 +1548,11 @@ void Helper::updateIdleInhibitor()
             visible &= !toplevel->isMinimized();
 
         if (visible) {
-            m_idleNotifier->set_inhibited(true);
+            wlr_idle_notifier_v1_set_inhibited(m_idleNotifier, true);
             return;
         }
     }
-    m_idleNotifier->set_inhibited(false);
+    wlr_idle_notifier_v1_set_inhibited(m_idleNotifier, false);
 }
 
 void Helper::onShowDesktop()
@@ -2006,22 +2086,28 @@ void Helper::init(Treeland::Treeland *treeland)
         qCFatal(lcTlCore) << "Failed to create renderer";
     }
 
-    m_allocator = qw_allocator::autocreate(m_backend->handle(), *m_renderer);
-    m_renderer->init_wl_display(m_server->handle());
-    qw_drm::create(m_server->handle(), *m_renderer);
+    m_allocator = wlr_allocator_autocreate(m_backend->handle(), m_renderer);
+    Q_ASSERT(m_allocator);
+    Q_ASSERT(wlr_renderer_init_wl_display(m_renderer, m_server->handle()));
+    wlr_drm_create(m_server->handle(), m_renderer);
 
     // free follow display
-    m_compositor = qw_compositor::create(m_server->handle(), 6, *m_renderer);
-    qw_subcompositor::create(m_server->handle());
-    qw_screencopy_manager_v1::create(m_server->handle());
-    qw_ext_image_copy_capture_manager_v1::create(m_server->handle(), 1);
-    qw_ext_output_image_capture_source_manager_v1::create(m_server->handle(), 1);
-    m_foreignToplevelImageCaptureManager = qw_ext_foreign_toplevel_image_capture_source_manager_v1::create(m_server->handle(), 1);
-    connect(m_foreignToplevelImageCaptureManager,
-            &qw_ext_foreign_toplevel_image_capture_source_manager_v1::notify_new_request,
-            this, &Helper::handleNewForeignToplevelCaptureRequest);
+    m_compositor = wlr_compositor_create(m_server->handle(), 6, m_renderer);
+    wlr_subcompositor_create(m_server->handle());
+    wlr_screencopy_manager_v1_create(m_server->handle());
+    wlr_ext_image_copy_capture_manager_v1_create(m_server->handle(), 1);
+    wlr_ext_output_image_capture_source_manager_v1_create(m_server->handle(), 1);
+    m_foreignToplevelImageCaptureManager =
+        wlr_ext_foreign_toplevel_image_capture_source_manager_v1_create(
+            m_server->handle(), 1);
+    m_foreignToplevelCaptureRequestListener = std::make_unique<WNativeListener>();
+    m_foreignToplevelCaptureRequestListener->connect(
+        &m_foreignToplevelImageCaptureManager->events.new_request, [this](void *data) {
+            handleNewForeignToplevelCaptureRequest(
+                static_cast<wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request *>(data));
+        });
 
-    qw_viewporter::create(m_server->handle());
+    wlr_viewporter_create(m_server->handle());
     m_renderWindow->init(m_renderer, m_allocator);
 
     m_xwaylandOutputManager =
@@ -2078,11 +2164,11 @@ void Helper::init(Treeland::Treeland *treeland)
 
     m_xdgToplevelTagManagerV1 = m_server->attach<WXdgToplevelTagManagerV1>();
 
-    auto gammaControlManager = qw_gamma_control_manager_v1::create(m_server->handle());
-    connect(gammaControlManager,
-            &qw_gamma_control_manager_v1::notify_set_gamma,
-            this,
-            &Helper::setGamma);
+    auto *gammaControlManager = wlr_gamma_control_manager_v1_create(m_server->handle());
+    m_gammaControlListener = std::make_unique<WNativeListener>();
+    m_gammaControlListener->connect(&gammaControlManager->events.set_gamma, [this](void *data) {
+        setGamma(static_cast<wlr_gamma_control_manager_v1_set_gamma_event *>(data));
+    });
 
     connect(m_outputManager,
             &WOutputManagerV1::requestTestOrApply,
@@ -2090,17 +2176,21 @@ void Helper::init(Treeland::Treeland *treeland)
             &Helper::onOutputTestOrApply);
 
     m_server->attach<WCursorShapeManagerV1>();
-    qw_fractional_scale_manager_v1::create(m_server->handle(), WLR_FRACTIONAL_SCALE_V1_VERSION);
-    qw_data_control_manager_v1::create(m_server->handle());
-    qw_ext_data_control_manager_v1::create(m_server->handle(), EXT_DATA_CONTROL_MANAGER_V1_VERSION);
-    qw_alpha_modifier_v1::create(m_server->handle());
-    auto *foreignRegistry = qw_xdg_foreign_registry::create(m_server->handle());
-    qw_xdg_foreign_v2::create(m_server->handle(), *foreignRegistry);
+    wlr_fractional_scale_manager_v1_create(m_server->handle(), WLR_FRACTIONAL_SCALE_V1_VERSION);
+    wlr_data_control_manager_v1_create(m_server->handle());
+    wlr_ext_data_control_manager_v1_create(m_server->handle(), EXT_DATA_CONTROL_MANAGER_V1_VERSION);
+    wlr_alpha_modifier_v1_create(m_server->handle());
+    auto *foreignRegistry = wlr_xdg_foreign_registry_create(m_server->handle());
+    wlr_xdg_foreign_v2_create(m_server->handle(), foreignRegistry);
 
-    m_idleNotifier = qw_idle_notifier_v1::create(m_server->handle());
+    m_idleNotifier = wlr_idle_notifier_v1_create(m_server->handle());
 
-    m_idleInhibitManager = qw_idle_inhibit_manager_v1::create(m_server->handle());
-    connect(m_idleInhibitManager, &qw_idle_inhibit_manager_v1::notify_new_inhibitor, this, &Helper::onNewIdleInhibitor);
+    m_idleInhibitManager = wlr_idle_inhibit_v1_create(m_server->handle());
+    m_idleInhibitorListener = std::make_unique<WNativeListener>();
+    m_idleInhibitorListener->connect(&m_idleInhibitManager->events.new_inhibitor,
+                                     [this](void *data) {
+        onNewIdleInhibitor(static_cast<wlr_idle_inhibitor_v1 *>(data));
+    });
 
     m_activationManagerV1 = m_server->attach<ActivationManagerInterfaceV1>(
         [this](WSurface *surface, WSeat *seat) -> bool {
@@ -2165,9 +2255,12 @@ void Helper::init(Treeland::Treeland *treeland)
 
     m_screensaverInterfaceV1 = m_server->attach<ScreensaverInterfaceV1>();
 
-    m_outputPowerManager = qw_output_power_manager_v1::create(m_server->handle());
-
-    connect(m_outputPowerManager, &qw_output_power_manager_v1::notify_set_mode, this, &Helper::onSetOutputPowerMode);
+    m_outputPowerManager = wlr_output_power_manager_v1_create(m_server->handle());
+    m_outputPowerModeListener = std::make_unique<WNativeListener>();
+    m_outputPowerModeListener->connect(&m_outputPowerManager->events.set_mode,
+                                       [this](void *data) {
+        onSetOutputPowerMode(static_cast<wlr_output_power_v1_set_mode_event *>(data));
+    });
 #ifdef EXT_SESSION_LOCK_V1
     m_sessionLockManager = m_server->attach<WSessionLockManager>();
     if (!m_lockScreen) {
@@ -2372,7 +2465,7 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *targetWindow, QInputEvent 
     }
 
     if (event->isInputEvent()) {
-        m_idleNotifier->notify_activity(seat->handle());
+        wlr_idle_notifier_v1_notify_activity(m_idleNotifier, seat->handle());
 
         // Wake DPMS-off outputs on any input event
         // Only re-enable outputs disabled by output_power, not user-disabled outputs
@@ -2949,26 +3042,6 @@ void Helper::setCursorPosition(const QPointF &position)
     m_primarySeat->setCursorPosition(position);
 }
 
-void Helper::handleRequestDrag([[maybe_unused]] WSurface *surface)
-{
-    m_primarySeat->setAlwaysUpdateHoverTarget(true);
-
-    struct wlr_drag *drag = m_primarySeat->handle()->drag;
-    Q_ASSERT(drag);
-    QObject::connect(qw_drag::from(drag), &qw_drag::notify_drop, this, [this] {
-        if (m_ddeShellV1)
-            DDEActiveInterface::sendDrop(m_primarySeat);
-    });
-
-    QObject::connect(qw_drag::from(drag), &qw_drag::before_destroy, this, [this, drag] {
-        drag->data = NULL;
-        m_primarySeat->setAlwaysUpdateHoverTarget(false);
-    });
-
-    if (m_ddeShellV1)
-        DDEActiveInterface::sendStartDrag(m_primarySeat);
-}
-
 void Helper::handleLockScreen(LockScreenInterface *lockScreen)
 {
     connect(lockScreen, &LockScreenInterface::shutdown, this, &Helper::showShutdownMenu);
@@ -3487,8 +3560,8 @@ void Helper::handleNewForeignToplevelCaptureRequest(wlr_ext_foreign_toplevel_ima
 
     auto *imageCaptureSource = new WExtImageCaptureSourceV1Impl(surfaceContent, output);
 
-    bool success = qw_ext_foreign_toplevel_image_capture_source_manager_v1::request_accept(
-        request, *imageCaptureSource);
+    bool success = wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request_accept(
+        request, imageCaptureSource->handle());
 
     if (!success) {
         qCWarning(lcTlCapture) << "Failed to accept foreign toplevel image capture request";
@@ -3847,7 +3920,7 @@ bool Helper::setXWindowPositionRelative(uint wid, WSurface *anchor, wl_fixed_t d
 
 WXWayland *Helper::createXWayland()
 {
-    return shellHandler()->createXWayland(m_server, m_primarySeat, m_compositor->handle(), false);
+    return shellHandler()->createXWayland(m_server, m_primarySeat, m_compositor, false);
 }
 
 WSeat *Helper::findSeatForSurface(SurfaceWrapper *wrapper) const
@@ -3864,19 +3937,7 @@ void Helper::handleRequestDragForSeat(WSeat *seat, WSurface *)
     struct wlr_drag *drag = seat->handle()->drag;
     Q_ASSERT(drag);
 
-    auto *qwDrag = qw_drag::from(drag);
-    QObject::connect(qwDrag, &qw_drag::notify_drop, this, [this, seat] {
-        if (m_ddeShellV1)
-            DDEActiveInterface::sendDrop(seat);
-    });
-
     QPointer<WCursor> dragCursor = seat->cursor();
-    QObject::connect(qwDrag, &qw_drag::before_destroy, this, [seat, drag, dragCursor] {
-        if (dragCursor)
-            dragCursor->setOverrideCursor(WCursor::toQCursor(WGlobal::CursorShape::Invalid));
-        drag->data = NULL;
-        seat->setAlwaysUpdateHoverTarget(false);
-    });
 
     // TODO: https://gitlab.freedesktop.org/wayland/wayland/-/work_items/444
     const auto updateCursor = [drag, dragCursor] {
@@ -3896,11 +3957,19 @@ void Helper::handleRequestDragForSeat(WSeat *seat, WSurface *)
         dragCursor->setOverrideCursor(WCursor::toQCursor(shape));
     };
 
-    if (drag->source) {
-        auto *qwSource = qw_data_source::from(drag->source);
-        QObject::connect(qwSource, &qw_data_source::notify_dnd_action,
-                         qwDrag, updateCursor);
-    }
+    new NativeDragObserver(
+        drag,
+        [this, seat] {
+            if (m_ddeShellV1)
+                DDEActiveInterface::sendDrop(seat);
+        },
+        [seat, dragCursor] {
+            if (dragCursor)
+                dragCursor->setOverrideCursor(
+                    WCursor::toQCursor(WGlobal::CursorShape::Invalid));
+            seat->setAlwaysUpdateHoverTarget(false);
+        },
+        updateCursor);
     updateCursor();
 
     if (m_ddeShellV1)

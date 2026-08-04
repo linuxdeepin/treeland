@@ -28,9 +28,6 @@ extern "C" {
 #include <wxdgtoplevelsurface.h>
 #include <wxwaylandsurface.h>
 
-#include <qwcompositor.h>
-#include <qwdisplay.h>
-#include <qwoutput.h>
 extern "C" {
 #include <wlr/types/wlr_xdg_shell.h>
 }

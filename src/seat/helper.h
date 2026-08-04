@@ -29,12 +29,11 @@
 #include <qevent.h>
 
 #include <optional>
+#include <memory>
 
 class QJsonObject;
 
 Q_MOC_INCLUDE(<QDBusObjectPath>)
-Q_MOC_INCLUDE(<qwgammacontorlv1.h>)
-Q_MOC_INCLUDE(<qwoutputmanagementv1.h>)
 Q_MOC_INCLUDE(<woutput.h>)
 Q_MOC_INCLUDE(<wlayersurface.h>)
 Q_MOC_INCLUDE(<wtoplevelsurface.h>)
@@ -75,6 +74,7 @@ class WToplevelSurface;
 class WXdgDecorationManager;
 class WXdgOutputManager;
 class WXWayland;
+class WNativeListener;
 
 class WForeignToplevel;
 class WExtForeignToplevelListV1;
@@ -85,22 +85,18 @@ class WSessionLock;
 WAYLIB_SERVER_END_NAMESPACE
 
 class SeatsManager;
+struct IdleInhibitorObserver;
 
-QW_BEGIN_NAMESPACE
-class qw_allocator;
-class qw_compositor;
-class qw_ext_foreign_toplevel_image_capture_source_manager_v1;
-class qw_idle_inhibit_manager_v1;
-class qw_idle_inhibitor_v1;
-class qw_idle_notifier_v1;
-class qw_output_power_manager_v1;
-class qw_renderer;
-QW_END_NAMESPACE
-
+struct wlr_allocator;
+struct wlr_compositor;
+struct wlr_ext_foreign_toplevel_image_capture_source_manager_v1;
+struct wlr_idle_inhibit_manager_v1;
+struct wlr_idle_notifier_v1;
 struct wlr_output_configuration_v1;
+struct wlr_output_power_manager_v1;
+struct wlr_renderer;
 
 WAYLIB_SERVER_USE_NAMESPACE
-QW_USE_NAMESPACE
 
 class CaptureSourceSelector;
 class DDEShellManagerInterfaceV1;
@@ -335,7 +331,6 @@ private:
     void onRestoreCopyOutput(VirtualOutputInterfaceV1 *interface);
     void onSurfaceWrapperAdded(SurfaceWrapper *wrapper);
     void onSurfaceWrapperAboutToRemove(SurfaceWrapper *wrapper);
-    void handleRequestDrag([[maybe_unused]] WSurface *surface);
     void handleLockScreen(LockScreenInterface *lockScreen);
     void handleNewForeignToplevelCaptureRequest(wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request *request);
     void onExtSessionLock(WSessionLock *lock);
@@ -421,15 +416,19 @@ private:
     // wayland helper
     WSeat *m_primarySeat = nullptr;
     WBackend *m_backend = nullptr;
-    qw_renderer *m_renderer = nullptr;
-    qw_allocator *m_allocator = nullptr;
+    wlr_renderer *m_renderer = nullptr;
+    wlr_allocator *m_allocator = nullptr;
 
     // protocols
-    qw_compositor *m_compositor = nullptr;
-    qw_idle_notifier_v1 *m_idleNotifier = nullptr;
-    qw_idle_inhibit_manager_v1 *m_idleInhibitManager = nullptr;
-    qw_output_power_manager_v1 *m_outputPowerManager = nullptr;
-    qw_ext_foreign_toplevel_image_capture_source_manager_v1 *m_foreignToplevelImageCaptureManager = nullptr;
+    wlr_compositor *m_compositor = nullptr;
+    wlr_idle_notifier_v1 *m_idleNotifier = nullptr;
+    wlr_idle_inhibit_manager_v1 *m_idleInhibitManager = nullptr;
+    wlr_output_power_manager_v1 *m_outputPowerManager = nullptr;
+    wlr_ext_foreign_toplevel_image_capture_source_manager_v1 *m_foreignToplevelImageCaptureManager = nullptr;
+    std::unique_ptr<WNativeListener> m_foreignToplevelCaptureRequestListener;
+    std::unique_ptr<WNativeListener> m_gammaControlListener;
+    std::unique_ptr<WNativeListener> m_idleInhibitorListener;
+    std::unique_ptr<WNativeListener> m_outputPowerModeListener;
     ActivationManagerInterfaceV1 *m_activationManagerV1 = nullptr;
     ShellHandler *m_shellHandler = nullptr;
     WXdgDecorationManager *m_xdgDecorationManager = nullptr;
@@ -461,7 +460,7 @@ private:
     QSet<wlr_output *> m_powerOffOutputs;
     OutputManager *m_outputManagerHelper = nullptr;
     QPointer<QQuickItem> m_taskSwitch;
-    QList<qw_idle_inhibitor_v1 *> m_idleInhibitors;
+    QList<IdleInhibitorObserver *> m_idleInhibitors;
 
     LockScreen *m_lockScreen = nullptr;
     float m_animationSpeed = 1.0;

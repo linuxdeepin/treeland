@@ -17,11 +17,12 @@
 #include <wxdgtoplevelsurface.h>
 #include <wxdgpopupsurface.h>
 
-#include <qwoutput.h>
 #include <WInputMethodHelper>
 
-#include <qwxdgshell.h>
+extern "C" {
 #include <wlr/types/wlr_data_device.h>
+#include <wlr/types/wlr_xdg_shell.h>
+}
 
 #include <QDateTime>
 

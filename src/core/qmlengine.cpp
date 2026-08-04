@@ -3,6 +3,8 @@
 
 #include "qmlengine.h"
 
+#include <wbufferitem.h>
+
 #include "common/treelandlogging.h"
 #include "core/rootsurfacecontainer.h"
 #include "modules/capture/capture.h"
@@ -257,7 +259,7 @@ QQuickItem *QmlEngine::createFpsDisplay(QQuickItem *parent)
 
 QQuickItem *QmlEngine::createPrelaunchSplash(QQuickItem *parent,
                                              qreal initialRadius,
-                                             QW_NAMESPACE::qw_buffer *iconBuffer,
+                                             wlr_buffer *iconBuffer,
                                              const QColor &backgroundColor)
 {
     return createComponent(prelaunchSplashComponent,

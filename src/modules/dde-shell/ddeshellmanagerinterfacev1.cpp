@@ -9,8 +9,6 @@
 
 #include <woutput.h>
 
-#include <qwdisplay.h>
-#include <qwoutput.h>
 
 #include <wayland-server.h>
 extern "C" {

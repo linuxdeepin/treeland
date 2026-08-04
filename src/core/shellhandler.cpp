@@ -46,7 +46,9 @@ extern "C" {
 #include <wxwaylandsurface.h>
 #include <wxwaylandsurfaceitem.h>
 
-#include <qwbuffer.h>
+extern "C" {
+#include <wlr/types/wlr_buffer.h>
+}
 
 #include <QColor>
 #include <QPointer>
@@ -56,7 +58,6 @@ extern "C" {
 #include <functional>
 #include <optional>
 
-QW_USE_NAMESPACE
 WAYLIB_SERVER_USE_NAMESPACE
 
 #define TREELAND_XDG_SHELL_VERSION 5
@@ -129,11 +130,11 @@ void ShellHandler::updateWrapperContainer(SurfaceWrapper *wrapper, WSurface *par
 // Prelaunch splash request: create a SurfaceWrapper that is not yet bound to a shellSurface
 void ShellHandler::handlePrelaunchSplashRequested(const QString &appId,
                                                   const QString &instanceId,
-                                                  QW_NAMESPACE::qw_buffer *iconBuffer)
+                                                  wlr_buffer *iconBuffer)
 {
     auto skipSplash = [this, appId, iconBuffer] {
         if (iconBuffer) {
-            iconBuffer->unlock();
+            wlr_buffer_unlock(iconBuffer);
         }
         m_pendingPrelaunchAppIds.remove(appId);
     };
@@ -173,7 +174,7 @@ void ShellHandler::handlePrelaunchSplashRequested(const QString &appId,
 
 void ShellHandler::createPrelaunchSplash(const QString &appId,
                                          const QString &instanceId,
-                                         QW_NAMESPACE::qw_buffer *iconBuffer,
+                                         wlr_buffer *iconBuffer,
                                          const QSize &lastSize,
                                          const QString &darkPalette,
                                          const QString &lightPalette,
@@ -183,7 +184,7 @@ void ShellHandler::createPrelaunchSplash(const QString &appId,
 
     if (!m_pendingPrelaunchAppIds.contains(appId)) {
         if (iconBuffer) {
-            iconBuffer->unlock();
+            wlr_buffer_unlock(iconBuffer);
         }
         return; // app window already created while waiting for dconfig
     }
@@ -200,7 +201,7 @@ void ShellHandler::createPrelaunchSplash(const QString &appId,
                                        iconBuffer,
                                        splashColor);
     if (iconBuffer) {
-        iconBuffer->unlock();
+        wlr_buffer_unlock(iconBuffer);
     }
     m_prelaunchWrappers.append(wrapper);
     m_workspace->addSurface(wrapper);

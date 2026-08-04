@@ -9,8 +9,6 @@
 #include <wsurface.h>
 #include <wwrappointer.h>
 
-#include <qwbuffer.h>
-
 #include <QObject>
 
 Q_MOC_INCLUDE(<wsurface.h>)
@@ -18,6 +16,8 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 class WSurface;
 class WClient;
 WAYLIB_SERVER_END_NAMESPACE
+
+struct wlr_buffer;
 
 void handle_treeland_capture_context_v1_destroy([[maybe_unused]] wl_client *client,
                                                 wl_resource *resource);
@@ -75,7 +75,7 @@ public:
     void sendFailed();
 
 Q_SIGNALS:
-    void copy(QW_NAMESPACE::qw_buffer *buffer);
+    void copy(wlr_buffer *buffer);
     void beforeDestroy();
 };
 

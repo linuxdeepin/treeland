@@ -21,6 +21,9 @@
 
 extern "C" {
 #include <wlr/backend/x11.h>
+#define namespace scope
+#include <wlr/types/wlr_layer_shell_v1.h>
+#undef namespace
 #include <wlr/types/wlr_output_layout.h>
 }
 

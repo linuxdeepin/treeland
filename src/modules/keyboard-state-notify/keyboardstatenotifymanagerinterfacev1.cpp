@@ -8,7 +8,6 @@
 #include "common/treelandlogging.h"
 #include "treelandconfig.hpp"
 
-#include <qwdisplay.h>
 
 #include <wbackend.h>
 #include <winputdevice.h>

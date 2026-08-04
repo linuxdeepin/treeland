@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "capture.h"
+#include "private/wglobal_p.h"
 
 #include "modules/capture/impl/capturev1impl.h"
 #include "modules/item-selector/itemselector.h"
@@ -21,8 +22,6 @@
 #include <wquicktextureproxy.h>
 #include <wtools.h>
 
-#include <qwcompositor.h>
-#include <qwdisplay.h>
 extern "C" {
 #define namespace scope
 #include <wlr/types/wlr_layer_shell_v1.h>
@@ -166,7 +165,7 @@ void CaptureContextV1::onCapture(treeland_capture_frame_v1 *frame)
     Q_EMIT finishSelect();
 }
 
-void CaptureContextV1::handleFrameCopy(QW_NAMESPACE::qw_buffer *buffer)
+void CaptureContextV1::handleFrameCopy(wlr_buffer *buffer)
 {
     if (m_captureSource) {
         m_captureSource->copyBuffer(buffer);
@@ -295,7 +294,7 @@ void CaptureContextV1::handleRenderEnd()
         return;
     }
     m_currentFrameData = {};
-    dmabuf->get_dmabuf(&m_currentFrameData.attribs);
+    wlr_buffer_get_dmabuf(dmabuf, &m_currentFrameData.attribs);
 
     union
     {
@@ -769,13 +768,13 @@ CaptureSourceSurface::CaptureSourceSurface(WSurfaceItemContent *surfaceItemConte
 {
 }
 
-qw_buffer *CaptureSourceSurface::internalBuffer()
+wlr_buffer *CaptureSourceSurface::internalBuffer()
 {
     Q_ASSERT(m_sourceList.size() == 1);
     if (m_sourceList.first().first && m_surfaceItemContent->surface()
         && m_surfaceItemContent->surface()->buffer()) {
-        if (auto clientBuffer = wlr_client_buffer_get(*m_surfaceItemContent->surface()->buffer())) {
-            return qw_buffer::from(clientBuffer->source);
+        if (auto *clientBuffer = wlr_client_buffer_get(m_surfaceItemContent->surface()->buffer())) {
+            return clientBuffer->source;
         } else {
             return m_surfaceItemContent->surface()->buffer();
         }
@@ -934,16 +933,28 @@ void CaptureSource::createImage()
     }
 }
 
-qw_buffer *CaptureSource::sourceDMABuffer()
+CaptureSource::~CaptureSource() = default;
+
+wlr_buffer *CaptureSource::sourceDMABuffer()
 {
-    auto buffer = internalBuffer();
-    if (!m_bufferConn)
-        m_bufferConn =
-            connect(buffer, &qw_buffer::destroyed, this, &CaptureSource::bufferDestroyed);
+    auto *buffer = internalBuffer();
+    if (buffer == m_observedBuffer)
+        return buffer;
+
+    m_bufferDestroyListener.reset();
+    m_observedBuffer = buffer;
+    if (buffer) {
+        m_bufferDestroyListener = std::make_unique<WNativeListener>();
+        m_bufferDestroyListener->connect(&buffer->events.destroy, [this](void *) {
+            m_bufferDestroyListener->disconnect();
+            m_observedBuffer = nullptr;
+            Q_EMIT bufferDestroyed();
+        });
+    }
     return buffer;
 }
 
-void CaptureSource::copyBuffer(qw_buffer *buffer)
+void CaptureSource::copyBuffer(wlr_buffer *buffer)
 {
     Q_ASSERT(imageValid());
     auto width = cropRect().width();
@@ -951,7 +962,9 @@ void CaptureSource::copyBuffer(qw_buffer *buffer)
     uint32_t format;
     size_t stride;
     void *data;
-    buffer->begin_data_ptr_access(WLR_BUFFER_DATA_PTR_ACCESS_WRITE, &data, &format, &stride);
+    const bool accessed = wlr_buffer_begin_data_ptr_access(
+        buffer, WLR_BUFFER_DATA_PTR_ACCESS_WRITE, &data, &format, &stride);
+    Q_ASSERT(accessed);
     Q_ASSERT(stride == static_cast<size_t>(width) * 4); // For QImage
     QImage img = image().copy(cropRect());
     auto bufFormat = WTools::toImageFormat(format);
@@ -959,7 +972,7 @@ void CaptureSource::copyBuffer(qw_buffer *buffer)
         img = image().convertToFormat(bufFormat);
     }
     memcpy(data, img.constBits(), stride * height);
-    buffer->end_data_ptr_access();
+    wlr_buffer_end_data_ptr_access(buffer);
 }
 
 CaptureSourceOutput::CaptureSourceOutput(WOutputViewport *viewport)
@@ -968,11 +981,11 @@ CaptureSourceOutput::CaptureSourceOutput(WOutputViewport *viewport)
 {
 }
 
-qw_buffer *CaptureSourceOutput::internalBuffer()
+wlr_buffer *CaptureSourceOutput::internalBuffer()
 {
     Q_ASSERT(m_sourceList.size() == 1);
     if (m_sourceList.first().first && m_outputViewport->wTextureProvider())
-        return m_outputViewport->wTextureProvider()->qwBuffer();
+        return m_outputViewport->wTextureProvider()->bufferHandle();
     else
         return nullptr;
 }
@@ -1001,11 +1014,11 @@ CaptureSourceRegion::CaptureSourceRegion(WOutputViewport *viewport, const QRect 
     m_viewportRegions.push_back({ viewport, region });
 }
 
-qw_buffer *CaptureSourceRegion::internalBuffer()
+wlr_buffer *CaptureSourceRegion::internalBuffer()
 {
     if (m_sourceList.size() == 1 && m_sourceList.first().first
         && m_sourceList.first().second->wTextureProvider()) {
-        return m_sourceList.first().second->wTextureProvider()->qwBuffer();
+        return m_sourceList.first().second->wTextureProvider()->bufferHandle();
     } else {
         return nullptr;
     }

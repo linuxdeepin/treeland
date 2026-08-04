@@ -15,11 +15,9 @@
 #include <wxdgshell.h>
 #include <wxdgsurface.h>
 
-#include <qwcompositor.h>
-#include <qwdisplay.h>
-#include <qwlayershellv1.h>
-#include <qwsignalconnector.h>
-#include <qwxdgshell.h>
+extern "C" {
+#include <wlr/types/wlr_compositor.h>
+}
 
 #include <QDebug>
 #include <QDir>
