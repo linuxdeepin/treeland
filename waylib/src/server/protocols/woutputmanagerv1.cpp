@@ -59,8 +59,7 @@ void WOutputManagerV1Private::outputMgrApplyOrTest(qw_output_configuration_v1 *c
     QList<WOutputState> pendingStates;
 
     wl_list_for_each(config_head, &config->handle()->heads, link) {
-        auto *output = QW_NAMESPACE::qw_output::from(config_head->state.output);
-        auto *woutput = WOutput::fromHandle(output);
+        auto *woutput = WOutput::fromHandle(config_head->state.output);
 
         const auto &state = config_head->state;
 

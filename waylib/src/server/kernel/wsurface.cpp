@@ -7,7 +7,6 @@
 #include "private/wsurface_p.h"
 #include "woutput.h"
 
-#include <qwoutput.h>
 #include <qwcompositor.h>
 #include <qwsubcompositor.h>
 #include <qwtexture.h>
@@ -104,10 +103,7 @@ void WSurfacePrivate::updateOutputs()
     framePacingOutput = nullptr;
     wlr_surface_output *output;
     wl_list_for_each(output, &nativeHandle()->current_outputs, link) {
-        auto qo = qw_output::from(output->output);
-        if (!qo)
-            continue;
-        auto o = WOutput::fromHandle(qo);
+        auto o = WOutput::fromHandle(output->output);
         if (!o)
             continue;
         outputs << o;

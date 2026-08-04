@@ -71,7 +71,7 @@ void WBackendPrivate::on_new_output(wlr_output *output)
 {
     W_Q(WBackend);
     auto qoutput = qw_output::from(output);
-    auto woutput = new WOutput(qoutput, q);
+    auto woutput = new WOutput(output, q);
 
     outputList << woutput;
     QWlrootsIntegration::instance()->addScreen(woutput);
@@ -112,7 +112,7 @@ void WBackendPrivate::on_input_destroy(WInputDevice *data)
 void WBackendPrivate::on_output_destroy(qw_output *output)
 {
     for (int i = 0; i < outputList.count(); ++i) {
-        if (outputList.at(i)->handle() == output) {
+        if (outputList.at(i)->handle() == output->handle()) {
             auto woutput = outputList.takeAt(i);
 
             W_Q(WBackend);

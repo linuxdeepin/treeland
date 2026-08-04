@@ -662,7 +662,7 @@ void WindowOverlapCheckerInterfacePrivate::update(Resource *resource,
     output = wlr_output_from_resource(o);
     size = QSize(width, height);
 
-    auto *wOutput = WOutput::fromHandle(qw_output::from(output));
+    auto *wOutput = WOutput::fromHandle(output);
     QSizeF wSize = wOutput->size() / wOutput->scale();
     QRegion region(0, 0, wOutput->size().width(), wOutput->size().height());
     QRect checkRect;

@@ -67,7 +67,7 @@ qreal Backlight::setBrightness(qreal brightness)
 Backlight* Backlight::createForOutput(WOutput* output)
 {
     // query backlight driver through drm connector id
-    if (output->handle()->is_drm()) {
+    if (qw_output::from(output->handle())->is_drm()) {
         QDirIterator backlightIter("/sys/class/backlight", QDir::Dirs | QDir::NoDot);
         uint connectorId = qw_drm_backend::connector_get_id(output->nativeHandle());
         QString dirname;

@@ -42,7 +42,7 @@
 Output *Output::create(WOutput *output, QQmlEngine *engine, QObject *parent)
 {
     auto isSoftwareCursor = [](WOutput *output) -> bool {
-        return output->handle()->is_x11() || Helper::instance()->globalConfig()->forceSoftwareCursor();
+        return qw_output::from(output->handle())->is_x11() || Helper::instance()->globalConfig()->forceSoftwareCursor();
     };
     QQmlComponent delegate(engine, "Treeland", "PrimaryOutput");
     QObject *obj = delegate.beginCreate(engine->rootContext());
@@ -408,14 +408,14 @@ double Output::calcPreferredScale(double widthPx, double heightPx, double widthM
 
 qreal Output::preferredScaleFactor(const QSize &pixelSize) const
 {
-    auto o = output()->handle()->handle();
+    auto o = output()->handle();
     return calcPreferredScale(pixelSize.width(), pixelSize.height(), o->phys_width, o->phys_height);
 }
 
 void Output::enable()
 {
     // Enable on default
-    auto qwoutput = output()->handle();
+    auto qwoutput = qw_output::from(output()->handle());
     qw_output_state newState;
     // Don't care for WOutput::isEnabled, must do WOutput::commit here,
     // In order to ensure trigger QWOutput::frame signal, WOutputRenderWindow
@@ -1143,7 +1143,7 @@ void Output::setOutputColor(qreal brightness,
         brightnessCorrection = brightness;
     }
 
-    const size_t gammaSize = output()->handle()->get_gamma_size();
+    const size_t gammaSize = qw_output::from(output()->handle())->get_gamma_size();
     if (gammaSize == 0) {
         if (backlightApplied) {
             config()->setBrightness(brightness);

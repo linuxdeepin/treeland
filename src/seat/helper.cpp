@@ -597,7 +597,7 @@ void Helper::onOutputAdded(WOutput *output)
     if (shouldDisableOutput) {
         qw_output_state disabledState;
         disabledState.set_enabled(false);
-        if (!output->handle()->commit_state(disabledState)) {
+        if (!qw_output::from(output->handle())->commit_state(disabledState)) {
             qCCritical(lcTlCore) << "commit failed while disabling added output" << output->name();
         } else if (!scanned) {
             qCInfo(lcTlOutput) << "Temporarily disabled output during initial scan" << output->name();
@@ -642,7 +642,7 @@ void Helper::onOutputAdded(WOutput *output)
             if (output->isEnabled()) {
                 qw_output_state disabledState;
                 disabledState.set_enabled(false);
-                if (!output->handle()->commit_state(disabledState)) {
+                if (!qw_output::from(output->handle())->commit_state(disabledState)) {
                     qCCritical(lcTlOutput)
                         << "Failed to disable non-selected output while restoring single-output display"
                         << output->name();
@@ -709,7 +709,7 @@ void Helper::onOutputAdded(WOutput *output)
         newState.set_adaptive_sync_enabled(config->adaptiveSyncEnabled());
         newState.set_transform(static_cast<wl_output_transform>(transform));
         newState.set_scale(scale);
-        if (!output->handle()->commit_state(newState)) {
+        if (!qw_output::from(output->handle())->commit_state(newState)) {
             qCCritical(lcTlCore) << "commit failed on output" << output->name();
             return;
         }
@@ -872,7 +872,7 @@ void Helper::onOutputRemoved(WOutput *output)
     }
 
     m_outputManager->removeOutput(output);
-    m_wallpaperManager->removeOutputWallpaper(output->handle()->handle());
+    m_wallpaperManager->removeOutputWallpaper(output->handle());
 
     m_powerOffOutputs.remove(output->nativeHandle());
 
@@ -1047,7 +1047,7 @@ void Helper::onOutputTestOrApply(qw_output_configuration_v1 *config, bool onlyTe
                 newState.set_transform(static_cast<wl_output_transform>(state.transform));
                 newState.set_scale(state.scale);
             }
-            ok &= state.output->handle()->test_state(newState);
+            ok &= qw_output::from(state.output->handle())->test_state(newState);
         }
 
         m_outputManager->sendResult(config, ok);
@@ -2342,7 +2342,7 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *targetWindow, QInputEvent 
             if (!wlr_out->enabled && wlr_out->current_mode && m_powerOffOutputs.contains(wlr_out)) {
                 qw_output_state state;
                 state.set_enabled(true);
-                if (!out->output()->handle()->commit_state(state)) {
+                if (!qw_output::from(out->output()->handle())->commit_state(state)) {
                     qCWarning(lcTlCore) << "Failed to wake output" << wlr_out->name;
                 } else {
                     m_powerOffOutputs.remove(wlr_out);
@@ -3666,7 +3666,7 @@ void Helper::restoreExtensionModeFromConfig(bool preserveSingleOutputConfig)
             state.set_adaptive_sync_enabled(config->adaptiveSyncEnabled());
             state.set_transform(static_cast<wl_output_transform>(transform));
             state.set_scale(scale);
-            if (!output->handle()->commit_state(state)) {
+            if (!qw_output::from(output->handle())->commit_state(state)) {
                 qCCritical(lcTlOutput) << "Failed to restore extension state for"
                                        << output->name();
             }

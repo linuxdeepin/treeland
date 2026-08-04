@@ -29,7 +29,7 @@ Output *Output::createPrimary(WOutput *output, QQmlEngine *engine, QObject *pare
     QQmlComponent delegate(engine, "Tinywl", "PrimaryOutput");
     QObject *obj = delegate.beginCreate(engine->rootContext());
     delegate.setInitialProperties(obj, {
-        {"forceSoftwareCursor", output->handle()->is_x11()}
+        {"forceSoftwareCursor", qw_output::from(output->handle())->is_x11()}
     });
     delegate.completeCreate();
     WOutputItem *outputItem = qobject_cast<WOutputItem *>(obj);

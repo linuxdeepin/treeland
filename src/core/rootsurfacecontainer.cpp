@@ -284,7 +284,7 @@ void RootSurfaceContainer::addBySubContainer(SurfaceContainer *sub, SurfaceWrapp
                         + xdgPopupSurface->getPopupPosition();
                     if (auto op = wlr_output_layout_output_at(m_outputLayout->handle(), pos.x(), pos.y()))
                         output =
-                            Helper::instance()->getOutput(WOutput::fromHandle(qw_output::from(op)));
+                            Helper::instance()->getOutput(WOutput::fromHandle(op));
                 }
             }
             surface->setOwnsOutput(output);
@@ -393,7 +393,7 @@ Output *RootSurfaceContainer::cursorOutput() const
     if (!o)
         return nullptr;
 
-    return Helper::instance()->getOutput(WOutput::fromHandle(qw_output::from(o)));
+    return Helper::instance()->getOutput(WOutput::fromHandle(o));
 }
 
 Output *RootSurfaceContainer::primaryOutput() const

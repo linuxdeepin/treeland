@@ -10,8 +10,9 @@
 #include "private/wglobal_p.h"
 #include "wayliblogging.h"
 
-#include <qwoutput.h>
-#include <qwoutputlayout.h>
+#include <wlr/types/wlr_output.h>
+#include <wlr/types/wlr_output_layout.h>
+#include "woutputlayout.h"
 #include <qwrenderer.h>
 #include <qwswapchain.h>
 #include <qwallocator.h>
@@ -31,20 +32,46 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 class Q_DECL_HIDDEN WOutputPrivate : public WWrapObjectPrivate
 {
 public:
-    WOutputPrivate(WOutput *qq, qw_output *handle)
+    WOutputPrivate(WOutput *qq, wlr_output *handle)
         : WWrapObjectPrivate(qq)
     {
-        initHandle(handle);
-        this->handle()->set_data(this, qq);
+        initNativeHandle(handle, &handle->events.destroy);
+        m_commitListener.connect(&handle->events.commit, [](wl_listener *listener, void *data) {
+            auto *self = WScopedListener::owner<WOutputPrivate, &WOutputPrivate::m_commitListener>(listener);
+            auto *event = static_cast<wlr_output_event_commit*>(data);
+            WOutput *q = self->q_func();
+            if (event->state->committed & WLR_OUTPUT_STATE_SCALE) {
+                Q_EMIT q->scaleChanged();
+                Q_EMIT q->effectiveSizeChanged();
+            }
+
+            if (event->state->committed & WLR_OUTPUT_STATE_MODE) {
+                Q_EMIT q->modeChanged();
+                Q_EMIT q->transformedSizeChanged();
+                Q_EMIT q->effectiveSizeChanged();
+            }
+
+            if (event->state->committed & WLR_OUTPUT_STATE_TRANSFORM) {
+                Q_EMIT q->orientationChanged();
+                Q_EMIT q->transformedSizeChanged();
+                Q_EMIT q->effectiveSizeChanged();
+            }
+
+            if (event->state->committed & WLR_OUTPUT_STATE_BUFFER)
+                Q_EMIT q->bufferCommitted();
+
+            if (event->state->committed & WLR_OUTPUT_STATE_ENABLED)
+                Q_EMIT q->enabledChanged();
+        });
     }
 
     void instantRelease() override {
-        handle()->set_data(nullptr, nullptr);
+        m_commitListener.remove();
         if (layout)
             layout->remove(q_func());
     }
 
-    WWRAP_HANDLE_FUNCTIONS(qw_output, wlr_output)
+    WWRAP_NATIVE_HANDLE_FUNCTIONS(wlr_output)
 
     inline QSize size() const {
         Q_ASSERT(handle());
@@ -63,37 +90,14 @@ public:
 
     WBackend *backend = nullptr;
     WOutputLayout *layout = nullptr;
+
+    WScopedListener m_commitListener;
 };
 
-WOutput::WOutput(qw_output *handle, WBackend *backend)
+WOutput::WOutput(wlr_output *handle, WBackend *backend)
     : WWrapObject(*new WOutputPrivate(this, handle))
 {
     d_func()->backend = backend;
-    connect(handle, qOverload<wlr_output_event_commit*>(&qw_output::notify_commit),
-            this, [this] (wlr_output_event_commit *event) {
-        if (event->state->committed & WLR_OUTPUT_STATE_SCALE) {
-            Q_EMIT this->scaleChanged();
-            Q_EMIT this->effectiveSizeChanged();
-        }
-
-        if (event->state->committed & WLR_OUTPUT_STATE_MODE) {
-            Q_EMIT this->modeChanged();
-            Q_EMIT this->transformedSizeChanged();
-            Q_EMIT this->effectiveSizeChanged();
-        }
-
-        if (event->state->committed & WLR_OUTPUT_STATE_TRANSFORM) {
-            Q_EMIT this->orientationChanged();
-            Q_EMIT this->transformedSizeChanged();
-            Q_EMIT this->effectiveSizeChanged();
-        }
-
-        if (event->state->committed & WLR_OUTPUT_STATE_BUFFER)
-            Q_EMIT this->bufferCommitted();
-
-        if (event->state->committed & WLR_OUTPUT_STATE_ENABLED)
-            Q_EMIT this->enabledChanged();
-    });
 }
 
 WOutput::~WOutput()
@@ -433,7 +437,7 @@ bool WOutput::configureCursorSwapchain(const QSize &size, uint32_t drmFormat, qw
     return true;
 }
 
-qw_output *WOutput::handle() const
+wlr_output *WOutput::handle() const
 {
     W_DC(WOutput);
     return d->handle();
@@ -445,9 +449,9 @@ wlr_output *WOutput::nativeHandle() const
     return d->nativeHandle();
 }
 
-WOutput *WOutput::fromHandle(const qw_output *handle)
+WOutput *WOutput::fromHandle(const wlr_output *handle)
 {
-    return handle->get_data<WOutput>();
+    return static_cast<WOutput*>(WWrapObjectPrivate::fromNativeHandle(handle));
 }
 
 WOutput *WOutput::fromScreen(const QScreen *screen)
@@ -507,7 +511,7 @@ QSize WOutput::transformedSize() const
 {
     W_DC(WOutput);
     int width, height;
-    d->handle()->transformed_resolution(&width, &height);
+    wlr_output_transformed_resolution(d->handle(), &width, &height);
     return QSize( width, height );
 }
 
@@ -516,7 +520,7 @@ QSize WOutput::effectiveSize() const
     W_DC(WOutput);
 
     int width, height;
-    d->handle()->effective_resolution(&width, &height);
+    wlr_output_effective_resolution(d->handle(), &width, &height);
     return QSize( width, height );
 }
 
@@ -594,14 +598,14 @@ void WOutput::setForceSoftwareCursor(bool on)
     if (d->forceSoftwareCursor == on)
         return;
     d->forceSoftwareCursor = on;
-    d->handle()->lock_software_cursors(on);
+    wlr_output_lock_software_cursors(d->handle(), on);
 
     Q_EMIT forceSoftwareCursorChanged();
 }
 
 void WOutput::scheduleFrame()
 {
-    return handle()->schedule_frame();
+    return wlr_output_schedule_frame(handle());
 }
 
 WAYLIB_SERVER_END_NAMESPACE

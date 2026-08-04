@@ -92,7 +92,7 @@ void Helper::initProtocols(WOutputRenderWindow *window, QQmlEngine *qmlEngine)
             WOutput *output = viewport->output();
 
             // Enable on default
-            auto qwoutput = output->handle();
+            auto qwoutput = qw_output::from(output->handle());
             // Don't care for WOutput::isEnabled, must do WOutput::commit here,
             // In order to ensure trigger QWOutput::frame signal, WOutputRenderWindow
             // needs this signal to render next frmae. Because QWOutput::frame signal

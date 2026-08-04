@@ -5,7 +5,6 @@
 
 #include <wglobal.h>
 #include <wtypes.h>
-#include <qwoutput.h>
 
 #include <QObject>
 #include <QSize>
@@ -27,6 +26,8 @@ class qw_allocator;
 QW_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
+
+struct wlr_output;
 
 class QWlrootsScreen;
 class QWlrootsIntegration;
@@ -62,7 +63,7 @@ public:
     };
     Q_ENUM(Transform)
 
-    explicit WOutput(QW_NAMESPACE::qw_output *handle, WBackend *backend);
+    explicit WOutput(wlr_output *handle, WBackend *backend);
     ~WOutput();
 
     WBackend *backend() const;
@@ -76,10 +77,10 @@ public:
     bool configureCursorSwapchain(const QSize &size, uint32_t format,
                                   QW_NAMESPACE::qw_swapchain **swapchain);
 
-    QW_NAMESPACE::qw_output *handle() const;
+    wlr_output *handle() const;
     wlr_output *nativeHandle() const;
 
-    static WOutput *fromHandle(const QW_NAMESPACE::qw_output *handle);
+    static WOutput *fromHandle(const wlr_output *handle);
 
     static WOutput *fromScreen(const QScreen *screen);
 

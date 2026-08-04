@@ -32,8 +32,7 @@ static WOutput *outputFromResource(wl_resource *resource)
     if (!nativeOutput)
         return nullptr;
 
-    auto *output = qw_output::from(nativeOutput);
-    return output ? WOutput::fromHandle(output) : nullptr;
+    return WOutput::fromHandle(nativeOutput);
 }
 
 static const char *usernameFromUid(uid_t uid)

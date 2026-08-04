@@ -830,7 +830,7 @@ void ForeignToplevelHandleV1Private::set_fullscreen(Resource *resource, struct :
             wl_resource_post_error(resource->handle, 0, "wlr_output_from_resource failed!");
             return;
         }
-        wrappedOutput = WOutput::fromHandle(qw_output::from(wlrOutput));
+        wrappedOutput = WOutput::fromHandle(wlrOutput);
     }
 
     Q_EMIT q->requestFullscreen(true, wrappedOutput);
@@ -895,7 +895,7 @@ void ForeignToplevelHandleV1::output_enter(WOutput *output)
         return;
     }
 
-    auto *qwOutput = output->handle();
+    auto *qwOutput = qw_output::from(output->handle());
     if (std::any_of(d->outputs.begin(),
                     d->outputs.end(),
                     [output](const foreign_toplevel_output &toplevel_output) {

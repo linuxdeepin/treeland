@@ -235,7 +235,7 @@ void QWlrootsScreen::initialize()
 
 wlr_output *QWlrootsScreen::handle() const
 {
-    return m_output->handle()->handle();
+    return m_output->handle();
 }
 
 WAYLIB_SERVER_END_NAMESPACE
