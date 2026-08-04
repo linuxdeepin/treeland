@@ -87,6 +87,7 @@
 #include <woutputviewport.h>
 #include <wqmlcreator.h>
 #include <wquickcursor.h>
+#include <wrelativepointermanagerv1.h>
 #include <wrenderhelper.h>
 #include <wremotesubsurfacemanagerv1.h>
 #include <wseat.h>
@@ -1821,6 +1822,14 @@ void Helper::init(Treeland::Treeland *treeland)
 
     m_foreignToplevel = m_server->attach<WForeignToplevel>();
     m_extForeignToplevelListV1 = m_server->attach<WExtForeignToplevelListV1>();
+    auto *relativePointerManager = m_server->attach<WRelativePointerManagerV1>();
+    QPointer<WRelativePointerManagerV1> relativePointerManagerGuard = relativePointerManager;
+    connect(m_seatManager,
+            &SeatsManager::seatAdded,
+            this,
+            [relativePointerManagerGuard](WSeat *seat) {
+                seat->setRelativePointerManager(relativePointerManagerGuard.data());
+            });
 
     connect(m_shellHandler,
             &ShellHandler::surfaceWrapperAdded,
@@ -1967,6 +1976,10 @@ void Helper::init(Treeland::Treeland *treeland)
     if (!m_primarySeat) {
         qCCritical(lcTlCore) << "Failed to initialize seats!";
         return;
+    }
+
+    for (auto *seat : m_seatManager->seats()) {
+        seat->setRelativePointerManager(relativePointerManagerGuard.data());
     }
 
     // Setup all seats (cursor, keyboard focus, event filter)

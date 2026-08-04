@@ -111,6 +111,7 @@ struct wlr_pointer_swipe_update_event;
 struct wlr_presentation;
 struct wlr_primary_selection_v1_device_manager;
 struct wlr_primary_selection_v1_source;
+struct wlr_relative_pointer_manager_v1;
 struct wlr_renderer;
 struct wlr_renderer_impl;
 struct wlr_scene;

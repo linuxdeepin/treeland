@@ -5,6 +5,7 @@
 #include "wcursor.h"
 #include "winputdevice.h"
 #include "woutput.h"
+#include "wrelativepointermanagerv1.h"
 #include "wsurface.h"
 #include "wscoplistener.h"
 #include "platformplugin/qwlrootsintegration.h"
@@ -371,6 +372,7 @@ public:
 
     QString name;
     WCursor *cursor = nullptr;
+    QPointer<WRelativePointerManagerV1> relativePointerManager;
     wlr_pointer_gestures_v1 *gesture = nullptr;
     QVector<WInputDevice*> deviceList;
     QVector<WInputDevice*> touchDeviceList;
@@ -816,6 +818,12 @@ WCursor *WSeat::cursor() const
     return d->cursor;
 }
 
+void WSeat::setRelativePointerManager(WRelativePointerManagerV1 *manager)
+{
+    W_D(WSeat);
+    d->relativePointerManager = manager;
+}
+
 void WSeat::setCursorPosition(const QPointF &pos)
 {
     W_D(WSeat);
@@ -1210,6 +1218,15 @@ void WSeat::setAlwaysUpdateHoverTarget(bool newIgnoreSurfacePointerEventExclusiv
     }
 
     Q_EMIT alwaysUpdateHoverTargetChanged();
+}
+
+void WSeat::notifyRelativeMotion(uint32_t timestamp, const QPointF &delta,
+                                 const QPointF &unacceleratedDelta)
+{
+    W_D(WSeat);
+
+    if (d->relativePointerManager)
+        d->relativePointerManager->sendRelativeMotion(this, timestamp, delta, unacceleratedDelta);
 }
 
 void WSeat::notifyMotion(WCursor *cursor, WInputDevice *device, uint32_t timestamp)
