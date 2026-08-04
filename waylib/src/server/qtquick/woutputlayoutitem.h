@@ -4,16 +4,12 @@
 #pragma once
 
 #include <wquickobserver.h>
-#include <qwglobal.h>
 
 #include <QQuickItem>
 
 Q_MOC_INCLUDE("woutput.h")
 Q_MOC_INCLUDE(<wquickoutputlayout.h>)
 
-QW_BEGIN_NAMESPACE
-class QWOutputLayout;
-QW_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 

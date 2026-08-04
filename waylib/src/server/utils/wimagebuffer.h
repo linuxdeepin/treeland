@@ -4,19 +4,28 @@
 #pragma once
 
 #include <wglobal.h>
-#include <qwbufferinterface.h>
 #include <QImage>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WAYLIB_SERVER_EXPORT WImageBufferImpl : public QW_NAMESPACE::qw_buffer_interface
+extern "C" {
+#include <wlr/types/wlr_buffer.h>
+}
+
+#include <cstddef>
+
+class WAYLIB_SERVER_EXPORT WImageBufferImpl
 {
 public:
-    WImageBufferImpl(const QImage &bufferImage);
+    explicit WImageBufferImpl(const QImage &bufferImage);
     ~WImageBufferImpl();
 
-    QW_INTERFACE(begin_data_ptr_access, bool, uint32_t flags, void **data, uint32_t *format, size_t *stride);
-    QW_INTERFACE(end_data_ptr_access, void);
+    struct wlr_buffer base;
+
+    bool begin_data_ptr_access(uint32_t flags, void **data, uint32_t *format, size_t *stride);
+    void end_data_ptr_access();
+
+    static const struct wlr_buffer_impl impl;
 
 private:
     QImage image;

@@ -14,9 +14,7 @@ Q_MOC_INCLUDE("woutput.h")
 
 struct wlr_surface;
 
-QW_BEGIN_NAMESPACE
-class qw_buffer;
-QW_END_NAMESPACE
+struct wlr_buffer;
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WServer;
@@ -49,7 +47,7 @@ public:
     WLR::Transform orientation() const;
     int bufferScale() const;
     QPoint bufferOffset() const;
-    QW_NAMESPACE::qw_buffer *buffer() const;
+    wlr_buffer *buffer() const;
 
     void notifyFrameDone();
 

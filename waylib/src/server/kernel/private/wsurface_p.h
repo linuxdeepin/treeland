@@ -15,11 +15,11 @@
 struct wlr_surface;
 struct wlr_subsurface;
 
-QW_BEGIN_NAMESPACE
-class qw_subsurface;
-QW_END_NAMESPACE
-
 WAYLIB_SERVER_BEGIN_NAMESPACE
+
+struct WBufferUnlocker {
+    void operator()(wlr_buffer *buf) const { if (buf) wlr_buffer_unlock(buf); }
+};
 
 class Q_DECL_HIDDEN WSurfacePrivate : public WWrapObjectPrivate {
 public:
@@ -39,7 +39,7 @@ public:
     void connect();
     void instantRelease() override;    // release qwobject etc.
     void updateOutputs();
-    void setBuffer(QW_NAMESPACE::qw_buffer *newBuffer);
+    void setBuffer(wlr_buffer *newBuffer);
     void updateBuffer();
     void updateBufferOffset();
     void updatePreferredBufferScale();
@@ -56,13 +56,13 @@ public:
     WScopedListener m_unmapListener;
     WScopedListener m_newSubsurfaceListener;
 
-    QPointer<QW_NAMESPACE::qw_subsurface> subsurface;
+    wlr_subsurface *subsurface = nullptr;
     bool hasSubsurface = false;
     uint32_t preferredBufferScale = 1;
     uint32_t explicitPreferredBufferScale = 0;
 
     bool needsFrame = false;
-    std::unique_ptr<QW_NAMESPACE::qw_buffer, QW_NAMESPACE::qw_buffer::unlocker> buffer;
+    std::unique_ptr<wlr_buffer, WBufferUnlocker> buffer;
     QList<WOutput*> outputs;
     WOutput *framePacingOutput = nullptr;
     QMetaObject::Connection frameDoneConnection;

@@ -15,13 +15,12 @@
 
 #include <private/qquickitem_p.h>
 
-#include <qwalphamodifierv1.h>
-#include <qwbox.h>
-#include <qwbuffer.h>
-#include <qwcompositor.h>
-#include <qwrenderer.h>
-#include <qwsubcompositor.h>
-#include <qwtexture.h>
+#include <wlr/render/wlr_texture.h>
+#include <wlr/types/wlr_buffer.h>
+#include <wlr/types/wlr_compositor.h>
+#include <wlr/types/wlr_subcompositor.h>
+#include <wlr/types/wlr_alpha_modifier_v1.h>
+#include <wlr/util/box.h>
 
 #include <QPointer>
 #include <QQueue>
@@ -29,7 +28,6 @@
 #include <QSGImageNode>
 #include <QSGRenderNode>
 
-QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class Q_DECL_HIDDEN SubsurfaceContainer : public QQuickItem
@@ -159,7 +157,7 @@ private:
     }
 };
 
-// Clean RAII wrapper for qw_buffer that automatically manages lock and n_ignore_locks.
+// Clean RAII wrapper for wlr_buffer that automatically manages lock and n_ignore_locks.
 struct Q_DECL_HIDDEN BufferRef
 {
     BufferRef() = default;
@@ -178,32 +176,32 @@ struct Q_DECL_HIDDEN BufferRef
     }
 
     // Reset to a new buffer (AddRef-before-Release to avoid transient 0 locks)
-    void reset(qw_buffer *newBuf = nullptr) {
+    void reset(wlr_buffer *newBuf = nullptr) {
         if (m_buffer == newBuf)
             return;
         if (newBuf) {
-            newBuf->lock();
-            if (auto cb = qw_client_buffer::get(*newBuf))
+            wlr_buffer_lock(newBuf);
+            if (auto cb = wlr_client_buffer_get(newBuf))
                 cb->handle()->n_ignore_locks++;
         }
         release();
         m_buffer = newBuf;
     }
 
-    qw_buffer *get() const { return m_buffer; }
+    wlr_buffer *get() const { return m_buffer; }
     explicit operator bool() const { return m_buffer != nullptr; }
 
 private:
     void release() {
         if (m_buffer) {
-            if (auto cb = qw_client_buffer::get(*m_buffer))
+            if (auto cb = wlr_client_buffer_get(m_buffer))
                 cb->handle()->n_ignore_locks--;
-            m_buffer->unlock();
+            wlr_buffer_unlock(m_buffer);
             m_buffer = nullptr;
         }
     }
 
-    qw_buffer *m_buffer = nullptr;
+    wlr_buffer *m_buffer = nullptr;
 };
 
 class Q_DECL_HIDDEN WSurfaceItemContentPrivate: public QQuickItemPrivate
@@ -241,7 +239,7 @@ public:
         surface->safeConnect(&WSurface::aboutToBeInvalidated, q, [this] {
             invalidate();
         });
-        surface->safeConnect(&qw_surface::notify_commit, q, [this] {
+        surface->safeConnect(&WSurface::commit, q, [this] {
             updateSurfaceState();
         });
 
@@ -305,15 +303,15 @@ public:
         if (!surface)
             return;
 
-        qw_fbox tmp;
-        surface->handle()->get_buffer_source_box(tmp);
-        auto newBufferSourceBox = tmp.toQRectF();
+        wlr_fbox tmp;
+        wlr_surface_get_buffer_source_box(surface->handle(), &tmp);
+        auto newBufferSourceBox = QRectF(tmp.x, tmp.y, tmp.width, tmp.height);
         std::swap(newBufferSourceBox, bufferSourceBox);
 
         W_Q(WSurfaceItemContent);
 
         const wlr_alpha_modifier_surface_v1_state *alphaModifierState =
-            qw_alpha_modifier_v1::get_surface_state(surface->handle());
+            wlr_alpha_modifier_v1_get_surface_state(surface->handle());
         if (alphaModifierState)
             setAlphaModifier(alphaModifierState->multiplier);
 
@@ -464,8 +462,8 @@ WSGTextureProvider *WSurfaceItemContent::wTextureProvider() const
                 d->textureProvider, &WSGTextureProvider::setSmooth);
 
         if (d->surface) {
-            if (auto texture = d->surface->handle()->get_texture()) {
-                d->textureProvider->setTexture(qw_texture::from(texture), d->buffer.get());
+            if (auto texture = d->surface ? wlr_surface_get_texture(d->surface->handle()) : nullptr) {
+                d->textureProvider->setTexture(texture, d->buffer.get());
             } else {
                 d->textureProvider->setBuffer(d->buffer.get());
             }
@@ -597,7 +595,7 @@ QSGNode *WSurfaceItemContent::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeD
     if (d->live || !tp->texture()) {
         auto texture = d->surface ? d->surface->handle()->get_texture() : nullptr;
         if (texture) {
-            tp->setTexture(qw_texture::from(texture), d->buffer.get());
+            tp->setTexture(texture, d->buffer.get());
         } else {
             tp->setBuffer(d->buffer.get());
         }
@@ -1017,9 +1015,8 @@ void WSurfaceItem::releaseResources()
             d->subsurfaces.removeOne(item);
             item->releaseResources();
             auto surface = item->surface();
-            if (auto sub = surface ? qw_subsurface::try_from_wlr_surface(surface->handle()) : nullptr) {
-                bool ok = QObject::disconnect(sub, &qw_subsurface::before_destroy, this, nullptr);
-                Q_ASSERT(ok);
+            if (surface && wlr_subsurface_try_from_wlr_surface(surface->handle())) {
+                WSurfaceItemPrivate::get(item)->m_subsurfaceDestroyListener.remove();
             }
         }
     } else {
@@ -1209,7 +1206,7 @@ void WSurfaceItemPrivate::initForSurface()
     surface->safeConnect(&WSurface::aboutToBeInvalidated, q,
                          &WSurfaceItem::releaseResources, Qt::DirectConnection);
     surface->safeConnect(&WSurface::hasSubsurfaceChanged, q, [this]{ onHasSubsurfaceChanged(); });
-    surface->safeConnect(&qw_surface::notify_commit, q, &WSurfaceItem::onSurfaceCommit);
+    surface->safeConnect(&WSurface::commit, q, &WSurfaceItem::onSurfaceCommit);
 
     onHasSubsurfaceChanged();
     updateEventItem(false);
@@ -1285,8 +1282,8 @@ void WSurfaceItemPrivate::initForDelegate()
 
 void WSurfaceItemPrivate::onHasSubsurfaceChanged()
 {
-    auto qw_surface = surface->handle();
-    Q_ASSERT(qw_surface);
+    auto wlr_surface = surface->handle();
+    Q_ASSERT(wlr_surface);
     if (surface->hasSubsurface())
         updateSubsurfaceItem();
 }
@@ -1301,11 +1298,10 @@ void WSurfaceItemPrivate::updateSubsurfaceItem()
         wlr_subsurface *subsurface;
         QQuickItem *prev = nullptr;
         wl_list_for_each(subsurface, subsurfaceList, current.link) {
-            auto qwSubsurface = qw_subsurface::from(subsurface);
-            WSurface *surface = WSurface::fromHandle(qwSubsurface->handle()->surface);
+            WSurface *surface = WSurface::fromHandle(subsurface->surface);
             if (!surface)
                 continue;
-            WSurfaceItem *item = ensureSubsurfaceItem(qwSubsurface, container);
+            WSurfaceItem *item = ensureSubsurfaceItem(subsurface, container);
             item->setSurfaceSizeRatio(surfaceSizeRatio);
             Q_ASSERT(item->parentItem() == container);
             if (prev) {
@@ -1343,12 +1339,12 @@ void WSurfaceItemPrivate::updateContentPosition()
     updateBoundingRect();
 }
 
-WSurfaceItem *WSurfaceItemPrivate::ensureSubsurfaceItem(qw_subsurface *subsurface, QQuickItem *parent)
+WSurfaceItem *WSurfaceItemPrivate::ensureSubsurfaceItem(wlr_subsurface *subsurface, QQuickItem *parent)
 {
     Q_Q(WSurfaceItem);
 
     Q_ASSERT(subsurface);
-    WSurface *subsurfaceSurface = WSurface::fromHandle(subsurface->handle()->surface);
+    WSurface *subsurfaceSurface = WSurface::fromHandle(subsurface->surface);
     Q_ASSERT(subsurfaceSurface);
 
     for (int i = 0; i < subsurfaces.count(); ++i) {
@@ -1379,11 +1375,9 @@ WSurfaceItem *WSurfaceItemPrivate::ensureSubsurfaceItem(qw_subsurface *subsurfac
     // parent WSurface last frame, the last frame contents should include its subsurfaces's
     // contents.
     QPointer<WSurfaceItem> surfaceItemGuard(surfaceItem);
-    QObject::connect(
-        subsurface,
-        &qw_subsurface::before_destroy,
-        q,
-        [this, surfaceItemGuard] {
+    WSurfaceItemPrivate::get(surfaceItem)->m_subsurfaceDestroyListener.connect(
+        &subsurface->events.destroy,
+        [this, surfaceItemGuard](wl_listener*, void*) {
             auto surfaceItem = surfaceItemGuard.data();
             if (!surfaceItem)
                 return;

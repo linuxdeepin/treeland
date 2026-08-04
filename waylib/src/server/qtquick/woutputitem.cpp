@@ -8,14 +8,11 @@
 #include "wquickcursor.h"
 #include "private/wglobal_p.h"
 
-#include <qwoutput.h>
-#include <qwoutputlayout.h>
 
 #include <private/qquickitem_p.h>
 
 #include <QPointer>
 
-QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 

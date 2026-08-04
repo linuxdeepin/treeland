@@ -7,7 +7,41 @@
 #include <QImage>
 #include <QColorSpace>
 
+extern "C" {
+#include <wlr/types/wlr_buffer.h>
+}
+
+#include <cstddef>
+
 WAYLIB_SERVER_BEGIN_NAMESPACE
+
+static bool wimagebuffer_begin_data_ptr_access(wlr_buffer *buffer, uint32_t flags, void **data, uint32_t *format, size_t *stride)
+{
+    auto *self = reinterpret_cast<WImageBufferImpl *>(
+        reinterpret_cast<char *>(buffer) - offsetof(WImageBufferImpl, base));
+    return self->begin_data_ptr_access(flags, data, format, stride);
+}
+
+static void wimagebuffer_end_data_ptr_access(wlr_buffer *buffer)
+{
+    auto *self = reinterpret_cast<WImageBufferImpl *>(
+        reinterpret_cast<char *>(buffer) - offsetof(WImageBufferImpl, base));
+    self->end_data_ptr_access();
+}
+
+static void wimagebuffer_destroy(wlr_buffer *buffer)
+{
+    auto *self = reinterpret_cast<WImageBufferImpl *>(
+        reinterpret_cast<char *>(buffer) - offsetof(WImageBufferImpl, base));
+    delete self;
+}
+
+const struct wlr_buffer_impl WImageBufferImpl::impl = {
+    .begin_data_ptr_access = wimagebuffer_begin_data_ptr_access,
+    .end_data_ptr_access = wimagebuffer_end_data_ptr_access,
+    .destroy = wimagebuffer_destroy,
+};
+
 
 WImageBufferImpl::WImageBufferImpl(const QImage &bufferImage)
 {

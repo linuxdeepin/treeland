@@ -6,7 +6,6 @@
 #include "wquickoutputlayout.h"
 #include "private/wglobal_p.h"
 
-QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class Q_DECL_HIDDEN WOutputLayoutItemPrivate : public WObjectPrivate

@@ -8,11 +8,10 @@
 #include "platformplugin/types.h"
 #include "private/wglobal_p.h"
 
-#include <qwoutput.h>
-#include <qwrenderer.h>
-#include <qwswapchain.h>
-#include <qwbuffer.h>
-#include <qwoutputlayer.h>
+#include <wlr/types/wlr_output.h>
+#include <wlr/render/wlr_renderer.h>
+#include <wlr/render/swapchain.h>
+#include <wlr/types/wlr_buffer.h>
 
 #include <platformplugin/qwlrootswindow.h>
 #include <platformplugin/qwlrootsintegration.h>
@@ -25,7 +24,6 @@
 #endif
 #include <private/qquickwindow_p.h>
 
-QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class Q_DECL_HIDDEN WOutputHelperPrivate : public WObjectPrivate
@@ -57,11 +55,11 @@ public:
         wlr_output_state_finish(&state);
     }
 
-    inline qw_output *qwoutput() const {
+    inline wlr_output *qwoutput() const {
         return output->handle();
     }
 
-    inline qw_renderer *renderer() const {
+    inline wlr_renderer *renderer() const {
         return output->renderer();
     }
 
@@ -71,11 +69,11 @@ public:
 
     void setContentIsDirty(bool newValue);
 
-    qw_buffer *acquireBuffer(wlr_swapchain **sc);
+    wlr_buffer *acquireBuffer(wlr_swapchain **sc);
 
     inline void update() {
         setContentIsDirty(true);
-        qwoutput()->schedule_frame();
+        wlr_output_schedule_frame(qwoutput());
     }
 
     W_DECLARE_PUBLIC(WOutputHelper)
@@ -105,13 +103,13 @@ void WOutputHelperPrivate::setContentIsDirty(bool newValue)
     Q_EMIT q_func()->contentIsDirtyChanged();
 }
 
-qw_buffer *WOutputHelperPrivate::acquireBuffer(wlr_swapchain **sc)
+wlr_buffer *WOutputHelperPrivate::acquireBuffer(wlr_swapchain **sc)
 {
-    bool ok = qwoutput()->configure_primary_swapchain(&state, sc);
+    bool ok = wlr_output_configure_primary_swapchain(qwoutput(), &state, sc);
     if (!ok)
         return nullptr;
-    auto newBuffer = qw_swapchain::from(*sc)->acquire();
-    return newBuffer ? qw_buffer::from(newBuffer) : nullptr;
+    auto newBuffer = wlr_swapchain_acquire(*sc);
+    return newBuffer;
 }
 
 WOutputHelper::WOutputHelper(WOutput *output, bool contentIsDirty, QObject *parent)
@@ -138,12 +136,12 @@ QWindow *WOutputHelper::outputWindow() const
     return d->outputWindow;
 }
 
-std::pair<qw_buffer *, QQuickRenderTarget> WOutputHelper::acquireRenderTarget(QQuickRenderControl *rc,
+std::pair<wlr_buffer *, QQuickRenderTarget> WOutputHelper::acquireRenderTarget(QQuickRenderControl *rc,
                                                                              wlr_swapchain **swapchain)
 {
     W_D(WOutputHelper);
 
-    qw_buffer *buffer = d->acquireBuffer(swapchain ? swapchain : &d->qwoutput()->handle()->swapchain);
+    wlr_buffer *buffer = d->acquireBuffer(swapchain ? swapchain : &d->qwoutput()->swapchain);
     if (!buffer)
         return {};
 
@@ -153,14 +151,14 @@ std::pair<qw_buffer *, QQuickRenderTarget> WOutputHelper::acquireRenderTarget(QQ
     }
     auto rt = d->renderHelper->acquireRenderTarget(rc, buffer);
     if (rt.isNull()) {
-        buffer->unlock();
+        wlr_buffer_unlock(buffer);
         return {};
     }
 
     return {buffer, rt};
 }
 
-std::pair<qw_buffer*, QQuickRenderTarget> WOutputHelper::lastRenderTarget()
+std::pair<wlr_buffer*, QQuickRenderTarget> WOutputHelper::lastRenderTarget()
 {
     W_DC(WOutputHelper);
     if (!d->renderHelper)
@@ -169,16 +167,16 @@ std::pair<qw_buffer*, QQuickRenderTarget> WOutputHelper::lastRenderTarget()
     return d->renderHelper->lastRenderTarget();
 }
 
-void WOutputHelper::setBuffer(qw_buffer *buffer)
+void WOutputHelper::setBuffer(wlr_buffer *buffer)
 {
     W_D(WOutputHelper);
-    wlr_output_state_set_buffer(&d->state, buffer->handle());
+    wlr_output_state_set_buffer(&d->state, buffer);
 }
 
-qw_buffer *WOutputHelper::buffer() const
+wlr_buffer *WOutputHelper::buffer() const
 {
     W_DC(WOutputHelper);
-    return d->state.buffer ? qw_buffer::from(d->state.buffer) : nullptr;
+    return d->state.buffer;
 }
 
 void WOutputHelper::setScale(float scale)
@@ -240,9 +238,9 @@ bool WOutputHelper::commit()
         wlr_output_state_copy(&state, d->extraState.get());
     }
 
-    bool ok = d->qwoutput()->commit_state(&state);
+    bool ok = wlr_output_commit_state(d->qwoutput(), &state);
     if (!ok) {
-        qCCritical(lcWlOutputHelper, "commit failed on output %s", d->qwoutput()->handle()->name);
+        qCCritical(lcWlOutputHelper, "commit failed on output %s", d->qwoutput()->name);
     }
     wlr_output_state_finish(&state);
     ExtraState committedExtraState = d->extraState;
@@ -313,23 +311,23 @@ WOutputHelper::ExtraState WOutputHelper::extraState() const
 bool WOutputHelper::testCommit()
 {
     W_D(WOutputHelper);
-    return d->qwoutput()->test_state(&d->state);
+    return wlr_output_test_state(d->qwoutput(), &d->state);
 }
 
-bool WOutputHelper::testCommit(qw_buffer *buffer, const wlr_output_layer_state_array &layers)
+bool WOutputHelper::testCommit(wlr_buffer *buffer, const wlr_output_layer_state_array &layers)
 {
     W_D(WOutputHelper);
     wlr_output_state state = d->state;
 
     if (buffer)
-        wlr_output_state_set_buffer(&state, buffer->handle());
+        wlr_output_state_set_buffer(&state, buffer);
     if (!layers.isEmpty())
         wlr_output_state_set_layers(&state, const_cast<wlr_output_layer_state*>(layers.data()), layers.length());
 
-    bool ok = d->qwoutput()->test_state(&state);
+    bool ok = wlr_output_test_state(d->qwoutput(), &state);
     if (state.committed & WLR_OUTPUT_STATE_BUFFER) {
         Q_ASSERT(buffer);
-        buffer->unlock();
+        wlr_buffer_unlock(buffer);
     }
 
     return ok;
@@ -382,7 +380,7 @@ void WOutputHelper::update()
 void WOutputHelper::scheduleFrame()
 {
     W_D(WOutputHelper);
-    d->qwoutput()->schedule_frame();
+    wlr_output_schedule_frame(d->qwoutput());
 }
 
 bool WOutputHelper::willBeEnabled() const

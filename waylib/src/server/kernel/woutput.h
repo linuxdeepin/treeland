@@ -19,11 +19,9 @@ class QScreen;
 class QQuickWindow;
 QT_END_NAMESPACE
 
-QW_BEGIN_NAMESPACE
-class qw_renderer;
-class qw_swapchain;
-class qw_allocator;
-QW_END_NAMESPACE
+struct wlr_renderer;
+struct wlr_swapchain;
+struct wlr_allocator;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -68,14 +66,14 @@ public:
 
     WBackend *backend() const;
     WServer *server() const;
-    QW_NAMESPACE::qw_renderer *renderer() const;
-    QW_NAMESPACE::qw_swapchain *swapchain() const;
-    QW_NAMESPACE::qw_allocator *allocator() const;
+    wlr_renderer *renderer() const;
+    wlr_swapchain *swapchain() const;
+    wlr_allocator *allocator() const;
     bool configurePrimarySwapchain(const QSize &size, uint32_t format,
-                                   QW_NAMESPACE::qw_swapchain **swapchain,
+                                   wlr_swapchain **swapchain,
                                    bool doTest = true);
     bool configureCursorSwapchain(const QSize &size, uint32_t format,
-                                  QW_NAMESPACE::qw_swapchain **swapchain);
+                                  wlr_swapchain **swapchain);
 
     wlr_output *handle() const;
     wlr_output *nativeHandle() const;

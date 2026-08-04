@@ -5,10 +5,8 @@
 #include "wsurfaceitem_p.h"
 #include "wxdgpopupsurface.h"
 
-#include <qwxdgshell.h>
-#include <qwseat.h>
+#include <wlr/types/wlr_xdg_shell.h>
 
-QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class Q_DECL_HIDDEN WXdgPopupSurfaceItemPrivate : public WSurfaceItemPrivate
@@ -50,9 +48,9 @@ void WXdgPopupSurfaceItem::onSurfaceCommit()
     WSurfaceItem::onSurfaceCommit();
     d->setImplicitPosition(popupSurface()->getPopupPosition());
 
-    auto xdg_surface = popupSurface()->handle()->handle()->base;
+    auto xdg_surface = popupSurface()->handle()->base;
     if (xdg_surface->initial_commit) {
-        qw_xdg_surface::from(xdg_surface)->schedule_configure();
+        wlr_xdg_surface_schedule_configure(xdg_surface);
     }
 }
 

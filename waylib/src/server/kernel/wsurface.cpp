@@ -6,19 +6,16 @@
 #include "private/wsurface_p.h"
 #include "woutput.h"
 
-#include <qwcompositor.h>
-#include <qwsubcompositor.h>
-#include <qwtexture.h>
-#include <qwbuffer.h>
-#include <qwfractionalscalemanagerv1.h>
 #include <wlr/types/wlr_compositor.h>
+#include <wlr/types/wlr_subcompositor.h>
+#include <wlr/types/wlr_buffer.h>
+#include <wlr/types/wlr_fractional_scale_v1.h>
 #include <QDebug>
 
 extern "C" {
 #include <wlr/util/edges.h>
 }
 
-QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 WSurfacePrivate::WSurfacePrivate(WSurface *qq, wlr_surface *handle)
@@ -51,7 +48,7 @@ void WSurfacePrivate::on_commit()
     if (nativeHandle()->current.committed & WLR_SURFACE_STATE_OFFSET)
         updateBufferOffset();
 
-    if (hasSubsurface) // Will make to true when qw_surface::newSubsurface
+    if (hasSubsurface) // Will make to true when wlr_surface new_subsurface signal
         updateHasSubsurface();
 
     Q_EMIT q->commit(nativeHandle()->current.committed);
@@ -127,21 +124,21 @@ void WSurfacePrivate::updateOutputs()
     updatePreferredBufferScale();
 }
 
-void WSurfacePrivate::setBuffer(qw_buffer *newBuffer)
+void WSurfacePrivate::setBuffer(wlr_buffer *newBuffer)
 {
     if (buffer) {
-        if (auto clientBuffer = qw_client_buffer::get(*buffer)) {
+        if (auto clientBuffer = wlr_client_buffer_get(buffer)) {
             Q_ASSERT(clientBuffer->handle()->n_ignore_locks > 0);
             clientBuffer->handle()->n_ignore_locks--;
         }
     }
 
     if (newBuffer) {
-        if (auto clientBuffer = qw_client_buffer::get(*newBuffer)) {
+        if (auto clientBuffer = wlr_client_buffer_get(newBuffer)) {
             clientBuffer->handle()->n_ignore_locks++;
         }
 
-        newBuffer->lock();
+        wlr_buffer_lock(newBuffer);
         buffer.reset(newBuffer);
     } else {
         buffer.reset(nullptr);
@@ -150,9 +147,9 @@ void WSurfacePrivate::setBuffer(qw_buffer *newBuffer)
 
 void WSurfacePrivate::updateBuffer()
 {
-    qw_buffer *buffer = nullptr;
+    wlr_buffer *buffer = nullptr;
     if (nativeHandle()->buffer)
-        buffer = qw_buffer::from(&nativeHandle()->buffer->base);
+        buffer = &nativeHandle()->buffer->base;
 
     setBuffer(buffer);
 }
@@ -176,7 +173,7 @@ void WSurfacePrivate::updatePreferredBufferScale()
     for (auto o : std::as_const(outputs))
         maxScale = std::max(o->scale(), maxScale);
     if (handle())
-        qw_fractional_scale_manager_v1::notify_scale(nativeHandle(), maxScale);
+        wlr_fractional_scale_v1_notify_scale(nativeHandle(), maxScale);
 
     preferredBufferScale = qCeil(maxScale);
     preferredBufferScaleChange();
@@ -280,7 +277,7 @@ QPoint WSurface::bufferOffset() const
     return d->bufferOffset;
 }
 
-qw_buffer *WSurface::buffer() const
+wlr_buffer *WSurface::buffer() const
 {
     W_DC(WSurface);
     return d->buffer.get();
@@ -364,7 +361,7 @@ WOutput *WSurface::framePacingOutput() const
 
 bool WSurface::isSubsurface() const
 {
-    return qw_subsurface::try_from_wlr_surface(handle()) != nullptr;
+    return wlr_subsurface_try_from_wlr_surface(handle()) != nullptr;
 }
 
 bool WSurface::hasSubsurface() const
@@ -436,8 +433,8 @@ void WSurfacePrivate::instantRelease()
     m_mapListener.remove();
     m_unmapListener.remove();
     m_newSubsurfaceListener.remove();
-    if (subsurface)
-        subsurface->disconnect(q);
+    // subsurface tracking removed: wlr_subsurface is a C struct,
+    // connections are managed via WScopedListener now
     for (auto o : std::as_const(outputs))
         o->safeDisconnect(q);
 }

@@ -4,7 +4,6 @@
 #pragma once
 
 #include <wglobal.h>
-#include <qwglobal.h>
 
 #include <QObject>
 #include <QQuickRenderTarget>
@@ -17,15 +16,11 @@ class QSGPlainTexture;
 class QRhi;
 QT_END_NAMESPACE
 
-QW_BEGIN_NAMESPACE
-class qw_renderer;
-class qw_allocator;
-class qw_backend;
-class qw_buffer;
-class qw_texture;
-QW_END_NAMESPACE
-
 struct wlr_buffer;
+struct wlr_texture;
+struct wlr_renderer;
+struct wlr_allocator;
+struct wlr_backend;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -37,7 +32,7 @@ class WAYLIB_SERVER_EXPORT WRenderHelper : public QObject, public WObject
     W_DECLARE_PRIVATE(WRenderHelper)
 
 public:
-    explicit WRenderHelper(QW_NAMESPACE::qw_renderer *renderer, QObject *parent = nullptr);
+    explicit WRenderHelper(wlr_renderer *renderer, QObject *parent = nullptr);
 
     QSize size() const;
     void setSize(const QSize &size);
@@ -45,33 +40,33 @@ public:
     static QSGRendererInterface::GraphicsApi getGraphicsApi(QQuickRenderControl *rc);
     static QSGRendererInterface::GraphicsApi getGraphicsApi();
 
-    static QW_NAMESPACE::qw_buffer *toBuffer(QW_NAMESPACE::qw_renderer *renderer, QSGTexture *texture, QSGRendererInterface::GraphicsApi api);
+    static wlr_buffer *toBuffer(wlr_renderer *renderer, QSGTexture *texture, QSGRendererInterface::GraphicsApi api);
 
-    QQuickRenderTarget acquireRenderTarget(QQuickRenderControl *rc, QW_NAMESPACE::qw_buffer *buffer);
-    std::pair<QW_NAMESPACE::qw_buffer*, QQuickRenderTarget> lastRenderTarget() const;
-    static QW_NAMESPACE::qw_renderer *createRenderer(QW_NAMESPACE::qw_backend *backend);
-    static QW_NAMESPACE::qw_renderer *createRenderer(QW_NAMESPACE::qw_backend *backend, QSGRendererInterface::GraphicsApi api);
+    QQuickRenderTarget acquireRenderTarget(QQuickRenderControl *rc, wlr_buffer *buffer);
+    std::pair<wlr_buffer*, QQuickRenderTarget> lastRenderTarget() const;
+    static wlr_renderer *createRenderer(wlr_backend *backend);
+    static wlr_renderer *createRenderer(wlr_backend *backend, QSGRendererInterface::GraphicsApi api);
 
-    static void setupRendererBackend(QW_NAMESPACE::qw_backend *testBackend = nullptr);
-    static QSGRendererInterface::GraphicsApi probe(QW_NAMESPACE::qw_backend *testBackend, const QList<QSGRendererInterface::GraphicsApi> &apiList);
+    static void setupRendererBackend(wlr_backend *testBackend = nullptr);
+    static QSGRendererInterface::GraphicsApi probe(wlr_backend *testBackend, const QList<QSGRendererInterface::GraphicsApi> &apiList);
 
-    static bool makeTexture(QRhi *rhi, QW_NAMESPACE::qw_texture *handle, QSGPlainTexture *texture);
+    static bool makeTexture(QRhi *rhi, wlr_texture *handle, QSGPlainTexture *texture);
 
     struct TextureEntry {
         wlr_buffer *buffer;
-        QW_NAMESPACE::qw_texture *texture;
+        wlr_texture *texture;
         QRhiTexture *rhiTexture;
     };
-    static TextureEntry newTexture(QW_NAMESPACE::qw_allocator *allocator,
-                                   QW_NAMESPACE::qw_renderer *renderer,
+    static TextureEntry newTexture(wlr_allocator *allocator,
+                                   wlr_renderer *renderer,
                                    uint32_t drmFormat, uint64_t drmModifier,
                                    QRhi *rhi, const QSize &size,
                                    int rhiFormat, int rhiFlags);
-    static TextureEntry newTextureLike(QW_NAMESPACE::qw_allocator *allocator,
-                                       QW_NAMESPACE::qw_renderer *renderer,
+    static TextureEntry newTextureLike(wlr_allocator *allocator,
+                                       wlr_renderer *renderer,
                                        QRhiTexture *texture, QRhi *rhi, int rhiFlags);
-    static QW_NAMESPACE::qw_buffer *lookupBuffer(const QRhiRenderTarget *rt);
-    static QW_NAMESPACE::qw_buffer *lookupBuffer(const QRhiTexture *texture);
+    static wlr_buffer *lookupBuffer(const QRhiRenderTarget *rt);
+    static wlr_buffer *lookupBuffer(const QRhiTexture *texture);
 
 Q_SIGNALS:
     void sizeChanged();

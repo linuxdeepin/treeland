@@ -11,7 +11,7 @@
 #include "platformplugin/types.h"
 #include "private/wprivateaccessor_p.h"
 
-#include <qwtexture.h>
+#include <wlr/render/wlr_texture.h>
 
 #include <QQuickItem>
 #include <QRunnable>
@@ -348,7 +348,7 @@ protected:
 
 struct WlrAndRhiTexture {
     struct wlr_buffer *buffer = nullptr;
-    qw_texture *wlrTexture = nullptr;
+    wlr_texture *wlrTexture = nullptr;
     QRhiTexture *rhiTexture = nullptr;
 };
 
@@ -387,7 +387,7 @@ class Q_DECL_HIDDEN RhiTextureManager : public DataManager<RhiTextureManager, Wl
 
     static void destroy(WlrAndRhiTexture *texture) {
         delete texture->rhiTexture;
-        delete texture->wlrTexture;
+        wlr_texture_destroy(texture->wlrTexture);
         if (texture->buffer)
             wlr_buffer_drop(texture->buffer);
         delete texture;

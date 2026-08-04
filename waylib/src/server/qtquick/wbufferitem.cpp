@@ -7,7 +7,7 @@
 #include "wsgtextureprovider.h"
 #include "wayliblogging.h"
 
-#include <qwbuffer.h>
+#include <wlr/types/wlr_buffer.h>
 
 #include <QQuickWindow>
 #include <QSGImageNode>
@@ -15,6 +15,10 @@
 #include <private/qquickitem_p.h>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
+
+struct WBufferUnlocker {
+    void operator()(wlr_buffer *buf) const { if (buf) wlr_buffer_unlock(buf); }
+};
 
 class Q_DECL_HIDDEN WBufferItemPrivate : public QQuickItemPrivate
 {
@@ -31,7 +35,7 @@ public:
 
     W_DECLARE_PUBLIC(WBufferItem)
     mutable WSGTextureProvider *textureProvider = nullptr;
-    std::unique_ptr<qw_buffer, qw_buffer::unlocker> buffer;
+    std::unique_ptr<wlr_buffer, WBufferUnlocker> buffer;
 };
 
 
@@ -87,13 +91,13 @@ WOutputRenderWindow *WBufferItem::outputRenderWindow() const
     return qobject_cast<WOutputRenderWindow*>(window());
 }
 
-QW_NAMESPACE::qw_buffer *WBufferItem::buffer() const
+wlr_buffer *WBufferItem::buffer() const
 {
     W_DC(WBufferItem);
     return d->buffer.get();
 }
 
-void WBufferItem::setBuffer(QW_NAMESPACE::qw_buffer *buffer)
+void WBufferItem::setBuffer(wlr_buffer *buffer)
 {
     W_D(WBufferItem);
 
@@ -102,17 +106,16 @@ void WBufferItem::setBuffer(QW_NAMESPACE::qw_buffer *buffer)
 
     // Validate buffer basic attributes before locking to avoid holding unusable buffers.
     if (buffer) {
-        auto *h = buffer->handle();
-        if (!h || h->width <= 0 || h->height <= 0) {
+        if (buffer->width <= 0 || buffer->height <= 0) {
             qCWarning(lcWlBufferItem) << "Reject buffer with invalid size or handle"
-                                        << buffer << "w" << (h ? h->width : -1)
-                                        << "h" << (h ? h->height : -1);
+                                        << buffer << "w" << buffer->width
+                                        << "h" << buffer->height;
             return;
         }
     }
 
     if (buffer)
-        buffer->lock();
+        wlr_buffer_lock(buffer);
 
     d->buffer.reset(buffer);
 
@@ -145,10 +148,8 @@ QSGNode *WBufferItem::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *)
         int bufW = -1;
         int bufH = -1;
         if (auto *buf = d->buffer.get()) {
-            if (auto *h = buf->handle()) {
-                bufW = h->width;
-                bufH = h->height;
-            }
+            bufW = buf->width;
+            bufH = buf->height;
         }
         qCWarning(lcWlBufferItem) << "texture missing or item size invalid"
                                     << "buffer" << d->buffer.get()

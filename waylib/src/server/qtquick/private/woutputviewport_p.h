@@ -7,13 +7,10 @@
 #include "woutputrenderwindow.h"
 #include "wbufferrenderer_p.h"
 
-#include <qwoutput.h>
-#include <qwtexture.h>
 
 #include <QQuickTextureFactory>
 #include <private/qquickitem_p.h>
 
-QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class OutputTextureProvider;

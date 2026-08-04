@@ -10,7 +10,9 @@
 #include <QSGImageNode>
 #include <QSGRenderNode>
 #include <private/qquickitem_p.h>
-#include <qwsubcompositor.h>
+#include <wlr/types/wlr_subcompositor.h>
+#include "utils/wscopedlistener.h"
+
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -37,7 +39,7 @@ public:
     void updateSubsurfaceItem();
     void onPaddingsChanged();
     void updateContentPosition();
-    WSurfaceItem *ensureSubsurfaceItem(QW_NAMESPACE::qw_subsurface *subsurface, QQuickItem *parent);
+    WSurfaceItem *ensureSubsurfaceItem(wlr_subsurface *subsurface, QQuickItem *parent);
     void updateSubsurfaceContainers();
     void connectSubsurfaceContainerSignals(SubsurfaceContainer *container);
 
@@ -65,6 +67,7 @@ public:
     }
 
     Q_DECLARE_PUBLIC(WSurfaceItem)
+    WScopedListener m_subsurfaceDestroyListener;
     QPointer<WSurface> surface;
     QPointer<WToplevelSurface> shellSurface;
     std::unique_ptr<SurfaceState> surfaceState;

@@ -12,17 +12,19 @@
 #include "wsurfaceitem.h"
 #include "wrenderhelper.h"
 
-#include <qwxcursormanager.h>
-#include <qwbuffer.h>
-#include <qwtexture.h>
-#include <qwcompositor.h>
+#include <wlr/types/wlr_xcursor_manager.h>
+#include <wlr/types/wlr_buffer.h>
+#include <wlr/render/wlr_texture.h>
 
 #include <QSGImageNode>
 #include <private/qquickitem_p.h>
 #include <private/qsgplaintexture_p.h>
 
-QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
+
+struct WBufferDropper {
+    void operator()(wlr_buffer *buf) const { if (buf) wlr_buffer_drop(buf); }
+};
 
 class Q_DECL_HIDDEN CursorTextureProvider : public WSGTextureProvider
 {
@@ -39,10 +41,10 @@ public:
             return;
         }
 
-        // WImageBufferImpl destroy following qw_buffer
-        auto buffer = qw_buffer::create(new WImageBufferImpl(image),
-                                       image.width(), image.height());
-        this->buffer.reset(buffer);
+        // WImageBufferImpl is destroyed via the wlr_buffer_impl::destroy callback
+        auto *bufImpl = new WImageBufferImpl(image);
+        wlr_buffer_init(&bufImpl->base, &WImageBufferImpl::impl, image.width(), image.height());
+        this->buffer.reset(&bufImpl->base);
         setBuffer(this->buffer.get());
     }
 
@@ -79,18 +81,18 @@ public:
             return proxy->texture();
         return WSGTextureProvider::texture();
     }
-    qw_texture *qwTexture() const override {
+    wlr_texture *qwTexture() const override {
         if (proxy)
             return proxy->qwTexture();
         return WSGTextureProvider::qwTexture();
     }
-    qw_buffer *qwBuffer() const override {
+    wlr_buffer *qwBuffer() const override {
         if (proxy)
             return proxy->qwBuffer();
         return WSGTextureProvider::qwBuffer();
     }
 
-    std::unique_ptr<qw_buffer, qw_buffer::droper> buffer;
+    std::unique_ptr<wlr_buffer, WBufferDropper> buffer;
     QPointer<WSGTextureProvider> proxy;
 };
 

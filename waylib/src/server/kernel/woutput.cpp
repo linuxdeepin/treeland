@@ -13,11 +13,8 @@
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_output_layout.h>
 #include "woutputlayout.h"
-#include <qwrenderer.h>
-#include <qwswapchain.h>
-#include <qwallocator.h>
-#include <qwrendererinterface.h>
-#include <qwoutputinterface.h>
+#include <wlr/render/wlr_renderer.h>
+#include <wlr/render/swapchain.h>
 
 #include <QCoreApplication>
 #include <QQuickWindow>
@@ -26,7 +23,6 @@
 #include <xf86drm.h>
 #include <drm_fourcc.h>
 
-QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class Q_DECL_HIDDEN WOutputPrivate : public WWrapObjectPrivate
@@ -117,22 +113,22 @@ WServer *WOutput::server() const
     return d->backend->server();
 }
 
-qw_renderer *WOutput::renderer() const
+wlr_renderer *WOutput::renderer() const
 {
     W_DC(WOutput);
-    return qw_renderer::from(d->nativeHandle()->renderer);
+    return d->nativeHandle()->renderer;
 }
 
-qw_swapchain *WOutput::swapchain() const
+wlr_swapchain *WOutput::swapchain() const
 {
     W_DC(WOutput);
-    return qw_swapchain::from(d->nativeHandle()->swapchain);
+    return d->nativeHandle()->swapchain;
 }
 
-qw_allocator *WOutput::allocator() const
+wlr_allocator *WOutput::allocator() const
 {
     W_DC(WOutput);
-    return qw_allocator::from(d->nativeHandle()->allocator);
+    return d->nativeHandle()->allocator;
 }
 
 // Copy from wlroots
@@ -401,31 +397,32 @@ static bool output_pick_cursor_format(struct wlr_output *output,
 // End
 
 bool WOutput::configurePrimarySwapchain(const QSize &size, uint32_t format,
-                                        qw_swapchain **swapchain, bool doTest)
+                                        wlr_swapchain **swapchain, bool doTest)
 {
     Q_ASSERT(!size.isEmpty());
-    wlr_swapchain *sc = (*swapchain)->handle();
+    wlr_swapchain *sc = *swapchain;
     bool ok = wlr_output_configure_primary_swapchain(nativeHandle(), size.width(), size.height(),
                                                      format, &sc, doTest);
     if (!ok)
         return false;
-    *swapchain = qw_swapchain::from(sc);
+    *swapchain = sc;
     return true;
 }
 
-bool WOutput::configureCursorSwapchain(const QSize &size, uint32_t drmFormat, qw_swapchain **swapchain)
+bool WOutput::configureCursorSwapchain(const QSize &size, uint32_t drmFormat, wlr_swapchain **swapchain)
 {
     Q_ASSERT(!size.isEmpty());
     auto sc = *swapchain;
-    if (!sc || sc->handle()->width != size.width() || sc->handle()->height != size.height()) {
+    if (!sc || sc->width != size.width() || sc->height != size.height()) {
         wlr_drm_format format = {};
         if (!output_pick_cursor_format(nativeHandle(), &format, drmFormat)) {
             qCDebug(lcWlOutputDrm) << "Failed to select compatible cursor format";
             return false;
         }
 
-        delete sc;
-        sc = qw_swapchain::create(*allocator(), size.width(), size.height(), &format);
+        if (sc)
+            wlr_swapchain_destroy(sc);
+        sc = wlr_swapchain_create(allocator(), size.width(), size.height(), &format);
         wlr_drm_format_finish(&format);
         if (!sc) {
             qCDebug(lcWlOutputBuffer) << "Failed to create cursor swapchain with selected format";

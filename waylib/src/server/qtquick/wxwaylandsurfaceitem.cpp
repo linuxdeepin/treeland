@@ -6,7 +6,6 @@
 #include "wxwaylandsurface.h"
 #include "wxwayland.h"
 
-QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class Q_DECL_HIDDEN WXWaylandSurfaceItemPrivate : public WSurfaceItemPrivate
