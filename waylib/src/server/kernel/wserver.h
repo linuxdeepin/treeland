@@ -19,7 +19,6 @@ class QProcess;
 QT_END_NAMESPACE
 
 QW_BEGIN_NAMESPACE
-class qw_display;
 QW_END_NAMESPACE
 
 struct wl_global;
@@ -92,7 +91,7 @@ public:
     explicit WServer(QObject *parent = nullptr);
     ~WServer();
 
-    QW_NAMESPACE::qw_display *handle() const;
+    wl_display *handle() const;
     [[nodiscard]] wl_display *nativeDisplay() const;
 
     void attach(WServerInterface *interface);

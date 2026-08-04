@@ -6,15 +6,12 @@
 #include "wserver.h"
 #include "wglobal_p.h"
 
+struct wl_display;
 struct wl_event_loop;
 
 QT_BEGIN_NAMESPACE
 class QSocketNotifier;
 QT_END_NAMESPACE
-
-QW_BEGIN_NAMESPACE
-class qw_display;
-QW_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -38,7 +35,7 @@ public:
     QVector<WServerInterface*> interfaceList;
     WServerInterface *pendingInterface = nullptr;
 
-    std::unique_ptr<QW_NAMESPACE::qw_display> display;
+    wl_display *display = nullptr;
     wl_event_loop *loop = nullptr;
 
     QList<WSocket*> sockets;

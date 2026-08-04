@@ -234,7 +234,7 @@ void WBackend::create(WServer *server)
 
     if (!m_handle) {
         wlr_session *session = nullptr;
-        m_handle = qw_backend::autocreate(server->handle()->get_event_loop(), &session);
+        m_handle = qw_backend::autocreate(wl_display_get_event_loop(server->handle()), &session);
         Q_ASSERT(m_handle);
         d->session = qw_session::from(session);
         Q_EMIT created();
