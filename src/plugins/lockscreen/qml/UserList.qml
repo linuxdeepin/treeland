@@ -7,7 +7,7 @@ import LockScreen
 import org.deepin.dtk 1.0 as D
 import QtQuick.Controls
 
-D.Popup {
+Popup {
     id: users
 
     property var count: UserModel.count
@@ -18,15 +18,12 @@ D.Popup {
 
     signal otherUserRequested()
 
+    objectName: "LoginScreenUserListPopup"
     focus: true
     padding: 6
     modal: true
     width: 232
     height: useScrollBar ? maxListHeight : listv.contentHeight + padding * 2
-
-    background: D.FloatingPanel {
-        radius: 12
-    }
 
     function selectCurrentUser(userName, index) {
         UserModel.currentUserName = userName

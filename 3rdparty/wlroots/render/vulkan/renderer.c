@@ -414,7 +414,9 @@ bool vulkan_submit_stage_wait(struct wlr_vk_renderer *renderer) {
 }
 
 bool waylib_vk_renderer_flush_stage(struct wlr_renderer *wlr_renderer) {
-	assert(wlr_renderer_is_vk(wlr_renderer));
+	if (wlr_renderer == NULL || !wlr_renderer_is_vk(wlr_renderer)) {
+		return false;
+	}
 	struct wlr_vk_renderer *renderer = vulkan_get_renderer(wlr_renderer);
 	if (renderer->stage.cb == NULL) {
 		return true;
@@ -984,7 +986,7 @@ bool waylib_vk_renderer_get_render_buffer_attribs(struct wlr_renderer *wlr_rende
 
 	struct wlr_dmabuf_attributes dmabuf = {0};
 	if (!wlr_buffer_get_dmabuf(wlr_buffer, &dmabuf)) {
-		wlr_log(WLR_ERROR, "wlr_buffer_get_dmabuf failed");
+		wlr_log(WLR_ERROR, "wlr_buffer_get_dmabuf() failed");
 		return false;
 	}
 

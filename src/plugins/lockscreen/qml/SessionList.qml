@@ -13,9 +13,7 @@ Popup {
     modal: true
     width: 220
     height: 280
-    background: RoundBlur {
-        radius: 12
-    }
+    objectName: "LoginScreenSessionListPopup"
 
     ListView {
         id: list
