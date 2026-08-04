@@ -23,7 +23,11 @@
 
 #include <qwcompositor.h>
 #include <qwdisplay.h>
-#include <qwlayershellv1.h>
+extern "C" {
+#define namespace scope
+#include <wlr/types/wlr_layer_shell_v1.h>
+#undef namespace
+}
 
 #include <QLoggingCategory>
 #include <QQueue>
@@ -576,7 +580,7 @@ CaptureSourceSelector::CaptureSourceSelector(QQuickItem *parent)
         } else if (auto surfaceItem = qobject_cast<WSurfaceItem *>(item)) {
             auto layerSurface = qobject_cast<WLayerSurface *>(surfaceItem->shellSurface());
             if (layerSurface) {
-                if (QString(layerSurface->handle()->handle()->scope) == "dde-shell/desktop") {
+                if (QString(layerSurface->handle()->scope) == "dde-shell/desktop") {
                     return false;
                 }
             }

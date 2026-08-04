@@ -8,25 +8,28 @@
 #include "wayliblogging.h"
 #include "private/wtoplevelsurface_p.h"
 
-#include <qwlayershellv1.h>
-#include <qwseat.h>
-#include <qwcompositor.h>
-#include <qwoutput.h>
-
 #include <QDebug>
 
-QW_USE_NAMESPACE
+extern "C" {
+#define namespace scope
+#include <wlr/types/wlr_layer_shell_v1.h>
+#undef namespace
+}
+
 WAYLIB_SERVER_BEGIN_NAMESPACE
+
+using LayerSurfaceRegistry = QHash<const wlr_layer_surface_v1 *, WLayerSurface *>;
+Q_GLOBAL_STATIC(LayerSurfaceRegistry, s_layerSurfaces)
 
 class Q_DECL_HIDDEN WLayerSurfacePrivate : public WToplevelSurfacePrivate {
 public:
-    WLayerSurfacePrivate(WLayerSurface *qq, qw_layer_surface_v1 *handle);
+    WLayerSurfacePrivate(WLayerSurface *qq, wlr_layer_surface_v1 *handle);
     ~WLayerSurfacePrivate();
 
-    WWRAP_HANDLE_FUNCTIONS(qw_layer_surface_v1, wlr_layer_surface_v1)
+    inline wlr_layer_surface_v1 *handle() const { return layerSurfaceHandle; }
 
     wl_client *waylandClient() const override {
-        return nativeHandle()->resource->client;
+        return layerSurfaceHandle ? layerSurfaceHandle->resource->client : nullptr;
     }
 
     // begin slot function
@@ -34,7 +37,8 @@ public:
     // end slot function
 
     void init();
-    void connect();
+    void connectNativeEvents();
+    void disconnectNativeEvents();
     void instantRelease() override;
 
     bool setDesiredSize(QSize newSize);
@@ -49,6 +53,8 @@ public:
 
     W_DECLARE_PUBLIC(WLayerSurface)
 
+    wlr_layer_surface_v1 *layerSurfaceHandle = nullptr;
+    WNativeListener destroyListener;
     WSurface *surface = nullptr;
     QSize desiredSize;
     WLayerSurface::LayerType layer = WLayerSurface::LayerType::Bottom;
@@ -60,10 +66,13 @@ public:
     WOutput *output = nullptr;
 };
 
-WLayerSurfacePrivate::WLayerSurfacePrivate(WLayerSurface *qq, qw_layer_surface_v1 *hh)
+WLayerSurfacePrivate::WLayerSurfacePrivate(WLayerSurface *qq, wlr_layer_surface_v1 *handle)
     : WToplevelSurfacePrivate(qq)
+    , layerSurfaceHandle(handle)
 {
-    initHandle(hh);
+    Q_ASSERT(layerSurfaceHandle);
+    Q_ASSERT(!s_layerSurfaces->contains(layerSurfaceHandle));
+    s_layerSurfaces->insert(layerSurfaceHandle, qq);
 }
 
 WLayerSurfacePrivate::~WLayerSurfacePrivate()
@@ -73,36 +82,44 @@ WLayerSurfacePrivate::~WLayerSurfacePrivate()
 
 void WLayerSurfacePrivate::instantRelease()
 {
-    W_Q(WLayerSurface);
-    handle()->set_data(nullptr, nullptr);
-    handle()->disconnect(q);
-    if (!surface)
-        return;
-    surface->safeDeleteLater();
-    surface = nullptr;
+    if (layerSurfaceHandle) {
+        disconnectNativeEvents();
+        s_layerSurfaces->remove(layerSurfaceHandle);
+        layerSurfaceHandle = nullptr;
+    }
+    if (surface) {
+        surface->safeDeleteLater();
+        surface = nullptr;
+    }
 }
 
 void WLayerSurfacePrivate::init()
 {
     W_Q(WLayerSurface);
-    handle()->set_data(this, q);
-
     Q_ASSERT(!q->surface());
-    surface = new WSurface((*handle())->surface, q);
+    surface = new WSurface(handle()->surface, q);
     surface->setAttachedData<WLayerSurface>(q);
     updateLayerProperty();
-    output = nativeHandle()->output ? WOutput::fromHandle(nativeHandle()->output) : nullptr;
+    output = handle()->output ? WOutput::fromHandle(handle()->output) : nullptr;
 
-    connect();
+    connectNativeEvents();
 }
 
-void WLayerSurfacePrivate::connect()
+void WLayerSurfacePrivate::connectNativeEvents()
 {
     W_Q(WLayerSurface);
 
     surface->safeConnect(&WSurface::commit, q, [this] () {
         updateLayerProperty();
     });
+    destroyListener.connect(&handle()->events.destroy, [q](void *) {
+        q->safeDeleteLater();
+    });
+}
+
+void WLayerSurfacePrivate::disconnectNativeEvents()
+{
+    destroyListener.disconnect();
 }
 
 [[maybe_unused]] static inline void debugOutput(wlr_layer_surface_v1_state s)
@@ -122,7 +139,7 @@ void WLayerSurfacePrivate::updateLayerProperty()
 {
     W_Q(WLayerSurface);
 
-    wlr_layer_surface_v1_state state = q->nativeHandle()->current;
+    wlr_layer_surface_v1_state state = q->handle()->current;
 
     int hasChange = false;
     hasChange |= setDesiredSize(QSize(state.desired_width, state.desired_height));
@@ -235,7 +252,7 @@ bool WLayerSurfacePrivate::setKeyboardInteractivity(WLayerSurface::KeyboardInter
 
 // end set property
 
-WLayerSurface::WLayerSurface(qw_layer_surface_v1 *handle, QObject *parent)
+WLayerSurface::WLayerSurface(wlr_layer_surface_v1 *handle, QObject *parent)
     : WToplevelSurface(*new WLayerSurfacePrivate(this, handle), parent)
 {
     d_func()->init();
@@ -271,16 +288,10 @@ WSurface *WLayerSurface::surface() const
     return d->surface;
 }
 
-qw_layer_surface_v1 *WLayerSurface::handle() const
+wlr_layer_surface_v1 *WLayerSurface::handle() const
 {
     W_DC(WLayerSurface);
     return d->handle();
-}
-
-wlr_layer_surface_v1 *WLayerSurface::nativeHandle() const
-{
-    W_D(const WLayerSurface);
-    return d->nativeHandle();
 }
 
 wlr_surface *WLayerSurface::inputTargetAt(QPointF &localPos) const
@@ -288,13 +299,13 @@ wlr_surface *WLayerSurface::inputTargetAt(QPointF &localPos) const
     W_DC(WLayerSurface);
     // find a wlr_suface object who can receive the events
     const QPointF pos = localPos;
-    return wlr_layer_surface_v1_surface_at(d->handle()->handle(), pos.x(), pos.y(),
+    return wlr_layer_surface_v1_surface_at(d->handle(), pos.x(), pos.y(),
                                            &localPos.rx(), &localPos.ry());
 }
 
-WLayerSurface *WLayerSurface::fromHandle(qw_layer_surface_v1 *handle)
+WLayerSurface *WLayerSurface::fromHandle(wlr_layer_surface_v1 *handle)
 {
-    return handle->get_data<WLayerSurface>();
+    return s_layerSurfaces->value(handle);
 }
 
 WLayerSurface *WLayerSurface::fromSurface(WSurface *surface)
@@ -305,7 +316,7 @@ WLayerSurface *WLayerSurface::fromSurface(WSurface *surface)
 QRect WLayerSurface::getContentGeometry() const
 {
     W_DC(WLayerSurface);
-    return QRect(0, 0, d->nativeHandle()->current.actual_width, d->nativeHandle()->current.actual_height);
+    return QRect(0, 0, d->handle()->current.actual_width, d->handle()->current.actual_height);
 }
 
 int WLayerSurface::keyboardFocusPriority() const
@@ -329,7 +340,7 @@ int WLayerSurface::keyboardFocusPriority() const
 
 bool WLayerSurface::isInitialized() const
 {
-    return handle()->handle()->initialized;
+    return handle()->initialized;
 }
 
 void WLayerSurface::resize(const QSize &size)
@@ -398,7 +409,7 @@ WLayerSurface::KeyboardInteractivity WLayerSurface::keyboardInteractivity() cons
 
 QString WLayerSurface::scope() const
 {
-    return QString::fromLocal8Bit((*handle())->scope);
+    return QString::fromLocal8Bit(handle()->scope);
 }
 
 WOutput *WLayerSurface::output() const
@@ -426,14 +437,14 @@ WLayerSurface::AnchorType WLayerSurface::getExclusiveZoneEdge() const
 
 uint32_t WLayerSurface::configureSize(const QSize &newSize)
 {
-    return handle()->configure(newSize.width(), newSize.height());
+    return wlr_layer_surface_v1_configure(handle(), newSize.width(), newSize.height());
 }
 
 void WLayerSurface::closed()
 {
     // 1. Notify the client that the surface has been closed
     // 2. Destroy the struct wlr_layer_surface_v1
-    wlr_layer_surface_v1_destroy(nativeHandle());
+    wlr_layer_surface_v1_destroy(handle());
 }
 
 bool WLayerSurface::checkNewSize(const QSize &size,  QSize *clipedSize)

@@ -631,7 +631,7 @@ void Output::arrangeLayerSurface(SurfaceWrapper *surface)
 {
     WLayerSurface *layer = qobject_cast<WLayerSurface *>(surface->shellSurface());
     Q_ASSERT(layer);
-    if (!layer->handle()->handle()->initialized) {
+    if (!layer->handle()->initialized) {
         return;
     }
 

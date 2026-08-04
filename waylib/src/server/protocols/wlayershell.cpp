@@ -3,83 +3,94 @@
 
 #include "wlayershell.h"
 #include "wlayersurface.h"
-#include "woutput.h"
 #include "wayliblogging.h"
 #include "private/wglobal_p.h"
 #include "wxdgshell.h"
 
-#include <qwlayershellv1.h>
-#include <qwxdgshell.h>
-#include <qwdisplay.h>
+#include <memory>
+#include <unordered_map>
+#include <utility>
 
-#include <QVector>
+extern "C" {
+#define namespace scope
+#include <wlr/types/wlr_layer_shell_v1.h>
+#undef namespace
+}
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-using QW_NAMESPACE::qw_layer_shell_v1;
-using QW_NAMESPACE::qw_layer_surface_v1;
-
-class Q_DECL_HIDDEN WLayerShellPrivate : public WWrapObjectPrivate
+class Q_DECL_HIDDEN WLayerShellPrivate : public WObjectPrivate
 {
 public:
     WLayerShellPrivate(WLayerShell *qq)
-        : WWrapObjectPrivate(qq)
+        : WObjectPrivate(qq)
     {
-
     }
 
-    // begin slot function
-    void onNewSurface(qw_layer_surface_v1 *layerSurface);
-    void onSurfaceDestroy(qw_layer_surface_v1 *layerSurface);
-    // end slot function
+    void onNewSurface(wlr_layer_surface_v1 *layerSurface);
+    void releaseSurfaces();
 
     W_DECLARE_PUBLIC(WLayerShell)
 
-    QVector<WLayerSurface*> surfaceList;
+    WNativeListener newSurfaceListener;
+    std::unordered_map<WLayerSurface *, std::unique_ptr<WNativeListener>> popupListeners;
+    QVector<WLayerSurface *> surfaceList;
     QPointer<WXdgShell> xdgShell;
 };
 
-void WLayerShellPrivate::onNewSurface(qw_layer_surface_v1 *layerSurface)
+void WLayerShellPrivate::onNewSurface(wlr_layer_surface_v1 *layerSurface)
 {
     W_Q(WLayerShell);
-
-    auto server = q->server();
-    auto surface = new WLayerSurface(layerSurface, server);
-    surface->setParent(server);
-    Q_ASSERT(surface->parent() == server);
-
-    surface->safeConnect(&qw_layer_surface_v1::before_destroy, q, [this, layerSurface] {
-        onSurfaceDestroy(layerSurface);
-    });
-    surface->safeConnect(&qw_layer_surface_v1::notify_new_popup, q, [this] (wlr_xdg_popup *popup) {
-        if (xdgShell)
-            xdgShell->initializeNewXdgPopupSurface(popup);
-        else
-            qCWarning(lcWlLayerShell) << "Xdg shell not set, will ignore the layer surface's popup request!";
-    });
-
+    auto *surface = new WLayerSurface(layerSurface, q->server());
+    Q_ASSERT(surface->parent() == q->server());
     surfaceList.append(surface);
+
+    auto popupListener = std::make_unique<WNativeListener>();
+    popupListener->connect(&layerSurface->events.new_popup, [this](void *data) {
+        if (xdgShell) {
+            xdgShell->initializeNewXdgPopupSurface(static_cast<wlr_xdg_popup *>(data));
+        } else {
+            qCWarning(lcWlLayerShell)
+                << "Ignoring layer-surface popup because no xdg-shell manager is attached";
+        }
+    });
+    popupListeners.emplace(surface, std::move(popupListener));
+
+    QObject::connect(surface, &WWrapObject::aboutToBeInvalidated, q, [this, surface] {
+        if (!surfaceList.removeOne(surface))
+            return;
+        popupListeners.erase(surface);
+        Q_EMIT q_func()->surfaceRemoved(surface);
+    });
+
     Q_EMIT q->surfaceAdded(surface);
 }
 
-void WLayerShellPrivate::onSurfaceDestroy(qw_layer_surface_v1 *layerSurface)
+void WLayerShellPrivate::releaseSurfaces()
 {
-    auto surface = WLayerSurface::fromHandle(layerSurface);
-    Q_ASSERT(surface);
-    bool ok = surfaceList.removeOne(surface);
-    Q_ASSERT(ok);
-    Q_EMIT q_func()->surfaceRemoved(surface);
-    surface->safeDeleteLater();
+    const auto surfaces = std::exchange(surfaceList, {});
+    popupListeners.clear();
+    W_Q(WLayerShell);
+    for (auto *surface : surfaces) {
+        Q_EMIT q->surfaceRemoved(surface);
+        surface->safeDeleteLater();
+    }
 }
 
-WLayerShell::WLayerShell(WXdgShell *xdgshell, [[maybe_unused]] QObject *parent):
-    WWrapObject(*new WLayerShellPrivate(this), nullptr)
+WLayerShell::WLayerShell(WXdgShell *xdgShell, QObject *parent)
+    : QObject(parent)
+    , WObject(*new WLayerShellPrivate(this))
 {
     W_D(WLayerShell);
-    d->xdgShell = xdgshell;
+    d->xdgShell = xdgShell;
 }
 
-QVector<WLayerSurface*> WLayerShell::surfaceList() const
+wlr_layer_shell_v1 *WLayerShell::handle() const
+{
+    return nativeInterface<wlr_layer_shell_v1>();
+}
+
+QVector<WLayerSurface *> WLayerShell::surfaceList() const
 {
     W_DC(WLayerShell);
     return d->surfaceList;
@@ -93,31 +104,25 @@ QByteArrayView WLayerShell::interfaceName() const
 void WLayerShell::create(WServer *server)
 {
     W_D(WLayerShell);
-
-    auto *layer_shell = qw_layer_shell_v1::create(server->handle(), 4);
-    connect(layer_shell, &qw_layer_shell_v1::notify_new_surface, this, [d](wlr_layer_surface_v1 *surface) {
-        d->onNewSurface(qw_layer_surface_v1::from(surface));
+    auto *layerShell = wlr_layer_shell_v1_create(server->handle(), 4);
+    Q_ASSERT(layerShell);
+    m_handle = layerShell;
+    d->newSurfaceListener.connect(&layerShell->events.new_surface, [d](void *data) {
+        d->onNewSurface(static_cast<wlr_layer_surface_v1 *>(data));
     });
-    m_handle = layer_shell;
 }
 
 void WLayerShell::destroy([[maybe_unused]] WServer *server)
 {
     W_D(WLayerShell);
-
-    auto list = d->surfaceList;
-    d->surfaceList.clear();
-
-    for (auto surface : std::as_const(list)) {
-        surfaceRemoved(surface);
-        surface->safeDeleteLater();
-    }
+    d->newSurfaceListener.disconnect();
+    d->releaseSurfaces();
+    m_handle = nullptr;
 }
 
 wl_global *WLayerShell::global() const
 {
-    auto handle = nativeInterface<qw_layer_shell_v1>();
-    return handle->handle()->global;
+    return handle() ? handle()->global : nullptr;
 }
 
 WAYLIB_SERVER_END_NAMESPACE

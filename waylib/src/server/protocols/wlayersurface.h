@@ -9,11 +9,6 @@
 
 struct wlr_layer_surface_v1;
 
-QW_BEGIN_NAMESPACE
-class qw_surface;
-class qw_layer_surface_v1;
-QW_END_NAMESPACE
-
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WSeat;
@@ -42,7 +37,7 @@ class WAYLIB_SERVER_EXPORT WLayerSurface : public WToplevelSurface
     Q_CLASSINFO("RegisterEnumClassesUnscoped", "false")
 
 public:
-    explicit WLayerSurface(QW_NAMESPACE::qw_layer_surface_v1 *handle, QObject *parent = nullptr);
+    explicit WLayerSurface(wlr_layer_surface_v1 *handle, QObject *parent = nullptr);
     ~WLayerSurface();
 
     enum class LayerType {
@@ -72,11 +67,10 @@ public:
 
     bool hasCapability(Capability cap) const override;
     WSurface *surface() const override;
-    QW_NAMESPACE::qw_layer_surface_v1 *handle() const;
-    wlr_layer_surface_v1 *nativeHandle() const;
+    wlr_layer_surface_v1 *handle() const;
     wlr_surface *inputTargetAt(QPointF &localPos) const;
 
-    static WLayerSurface *fromHandle(QW_NAMESPACE::qw_layer_surface_v1 *handle);
+    static WLayerSurface *fromHandle(wlr_layer_surface_v1 *handle);
     static WLayerSurface *fromSurface(WSurface *surface);
 
     QRect getContentGeometry() const override;

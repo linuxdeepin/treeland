@@ -7,92 +7,76 @@
 #include "wayliblogging.h"
 #include "wxdgtoplevelsurface.h"
 
-#include <qwdisplay.h>
-#include <qwxdgdialogv1.h>
-#include <qwxdgshell.h>
-
 #include <QPointer>
 
-QW_USE_NAMESPACE
+#include <memory>
+#include <unordered_map>
+
+extern "C" {
+#include <wlr/types/wlr_xdg_dialog_v1.h>
+#include <wlr/types/wlr_xdg_shell.h>
+}
+
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class Q_DECL_HIDDEN WXdgDialogManagerV1Private : public WObjectPrivate
 {
 public:
+    struct DialogListeners {
+        WNativeListener setModal;
+        WNativeListener destroy;
+    };
+
     WXdgDialogManagerV1Private(WXdgDialogManagerV1 *qq)
         : WObjectPrivate(qq)
     {
     }
 
-    inline qw_xdg_wm_dialog_v1 *handle() const
-    {
-        return q_func()->nativeInterface<qw_xdg_wm_dialog_v1>();
-    }
-
     void onNewDialog(wlr_xdg_dialog_v1 *dialog);
 
     W_DECLARE_PUBLIC(WXdgDialogManagerV1)
+
+    WNativeListener newDialogListener;
+    std::unordered_map<wlr_xdg_dialog_v1 *, std::unique_ptr<DialogListeners>> dialogListeners;
 };
 
-void WXdgDialogManagerV1Private::onNewDialog(wlr_xdg_dialog_v1 *nativeDialog)
+void WXdgDialogManagerV1Private::onNewDialog(wlr_xdg_dialog_v1 *dialog)
 {
     W_Q(WXdgDialogManagerV1);
 
-    auto *qwToplevel = qw_xdg_toplevel::get(nativeDialog->xdg_toplevel);
-    if (!qwToplevel) {
-        qCWarning(lcWlXdgDialog) << "Failed to get xdg_toplevel from dialog";
-        return;
-    }
-
-    auto *surface = WXdgToplevelSurface::fromHandle(qwToplevel);
+    auto *surface = WXdgToplevelSurface::fromHandle(dialog->xdg_toplevel);
     if (!surface) {
-        qCWarning(lcWlXdgDialog) << "Failed to get WXdgToplevelSurface from" << qwToplevel;
-        return;
-    }
-
-    auto *qwDialog = qw_xdg_dialog_v1::from(nativeDialog);
-    if (!qwDialog) {
-        qCWarning(lcWlXdgDialog) << "Failed to create qw_xdg_dialog_v1 wrapper";
+        qCWarning(lcWlXdgDialog)
+            << "Ignoring xdg dialog without a matching Waylib toplevel" << dialog->xdg_toplevel;
         return;
     }
 
     qCDebug(lcWlXdgDialog) << "New xdg_dialog_v1 for surface:" << surface
-                           << "initial modal:" << nativeDialog->modal;
+                           << "initial modal:" << dialog->modal;
 
-    // Wrap in QPointer to guard against toplevel being destroyed before the dialog.
-    // surface is a WXdgToplevelSurface* (QObject*), so QPointer safely nulls when destroyed.
     QPointer<WXdgToplevelSurface> surfaceGuard(surface);
+    if (dialog->modal)
+        Q_EMIT q->surfaceModalChanged(surface, true);
 
-    // Sync the initial modal state (client may have called set_modal before we connect)
-    if (nativeDialog->modal && surfaceGuard)
-        Q_EMIT q->surfaceModalChanged(surfaceGuard, true);
-
-    // Track future set_modal / unset_modal calls. Both requests fire notify_set_modal.
-    QObject::connect(qwDialog,
-                     &qw_xdg_dialog_v1::notify_set_modal,
-                     q,
-                     [q, nativeDialog, surfaceGuard]() {
-                         if (!surfaceGuard)
-                             return;
-                         qCDebug(lcWlXdgDialog) << "xdg_dialog_v1 modal changed:" << surfaceGuard
-                                                << "->" << nativeDialog->modal;
-                         Q_EMIT q->surfaceModalChanged(surfaceGuard, nativeDialog->modal);
-                     });
-
-    // When the dialog object is destroyed, reset modal if it was set.
-    // Protocol: "If this object is destroyed before the related xdg_toplevel,
-    // the compositor should unapply its effects."
-    QObject::connect(qwDialog,
-                     &qw_xdg_dialog_v1::before_destroy,
-                     q,
-                     [q, nativeDialog, surfaceGuard]() {
-                         if (nativeDialog->modal && surfaceGuard) {
-                             qCDebug(lcWlXdgDialog)
-                                 << "xdg_dialog_v1 destroyed while modal, resetting:"
-                                 << surfaceGuard;
-                             Q_EMIT q->surfaceModalChanged(surfaceGuard, false);
-                         }
-                     });
+    auto listeners = std::make_unique<DialogListeners>();
+    listeners->setModal.connect(&dialog->events.set_modal,
+                                [q, dialog, surfaceGuard](void *) {
+        if (!surfaceGuard)
+            return;
+        qCDebug(lcWlXdgDialog) << "xdg_dialog_v1 modal changed:" << surfaceGuard
+                               << "->" << dialog->modal;
+        Q_EMIT q->surfaceModalChanged(surfaceGuard, dialog->modal);
+    });
+    listeners->destroy.connect(&dialog->events.destroy,
+                               [this, q, dialog, surfaceGuard](void *) {
+        if (dialog->modal && surfaceGuard) {
+            qCDebug(lcWlXdgDialog) << "xdg_dialog_v1 destroyed while modal, resetting:"
+                                   << surfaceGuard;
+            Q_EMIT q->surfaceModalChanged(surfaceGuard, false);
+        }
+        dialogListeners.erase(dialog);
+    });
+    dialogListeners.emplace(dialog, std::move(listeners));
 }
 
 WXdgDialogManagerV1::WXdgDialogManagerV1(QObject *parent)
@@ -103,6 +87,11 @@ WXdgDialogManagerV1::WXdgDialogManagerV1(QObject *parent)
 
 WXdgDialogManagerV1::~WXdgDialogManagerV1() = default;
 
+wlr_xdg_wm_dialog_v1 *WXdgDialogManagerV1::handle() const
+{
+    return nativeInterface<wlr_xdg_wm_dialog_v1>();
+}
+
 QByteArrayView WXdgDialogManagerV1::interfaceName() const
 {
     return "xdg_wm_dialog_v1";
@@ -110,26 +99,26 @@ QByteArrayView WXdgDialogManagerV1::interfaceName() const
 
 void WXdgDialogManagerV1::create(WServer *server)
 {
-    auto *wm = qw_xdg_wm_dialog_v1::create(server->handle(), 1);
-    m_handle = wm;
-
-    connect(wm, &qw_xdg_wm_dialog_v1::notify_new_dialog, this, [this](wlr_xdg_dialog_v1 *dialog) {
-        W_D(WXdgDialogManagerV1);
-        d->onNewDialog(dialog);
+    W_D(WXdgDialogManagerV1);
+    auto *manager = wlr_xdg_wm_dialog_v1_create(server->handle(), 1);
+    Q_ASSERT(manager);
+    m_handle = manager;
+    d->newDialogListener.connect(&manager->events.new_dialog, [d](void *data) {
+        d->onNewDialog(static_cast<wlr_xdg_dialog_v1 *>(data));
     });
 }
 
 void WXdgDialogManagerV1::destroy([[maybe_unused]] WServer *server)
 {
-    // qw_xdg_wm_dialog_v1 is owned by the wl_display; no explicit cleanup needed.
+    W_D(WXdgDialogManagerV1);
+    d->newDialogListener.disconnect();
+    d->dialogListeners.clear();
+    m_handle = nullptr;
 }
 
 wl_global *WXdgDialogManagerV1::global() const
 {
-    W_DC(WXdgDialogManagerV1);
-    if (!d->handle())
-        return nullptr;
-    return d->handle()->handle()->global;
+    return handle() ? handle()->global : nullptr;
 }
 
 WAYLIB_SERVER_END_NAMESPACE

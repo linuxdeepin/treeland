@@ -8,6 +8,8 @@
 #include <QObject>
 #include <QQmlEngine>
 
+struct wlr_xdg_decoration_manager_v1;
+
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WSurface;
@@ -22,6 +24,8 @@ class WAYLIB_SERVER_EXPORT WXdgDecorationManager : public QObject, public WObjec
 
 public:
     explicit WXdgDecorationManager();
+
+    wlr_xdg_decoration_manager_v1 *handle() const;
 
     enum DecorationMode {
         Undefined,  // client not send any mode

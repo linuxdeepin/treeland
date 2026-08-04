@@ -5,7 +5,8 @@
 
 #include <WServer>
 
-class wlr_xdg_popup;
+struct wlr_xdg_popup;
+struct wlr_xdg_shell;
 
 Q_MOC_INCLUDE("wxdgtoplevelsurface.h")
 
@@ -21,6 +22,7 @@ class WAYLIB_SERVER_EXPORT WXdgShell : public QObject, public WObject, public WS
 public:
     WXdgShell(uint32_t version);
 
+    wlr_xdg_shell *handle() const;
     QVector<WXdgToplevelSurface*> toplevelSurfaceList() const;
     QByteArrayView interfaceName() const override;
 

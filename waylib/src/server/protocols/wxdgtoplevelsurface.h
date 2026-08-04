@@ -6,9 +6,7 @@
 
 #include "wxdgsurface.h"
 
-QW_BEGIN_NAMESPACE
-class qw_xdg_toplevel;
-QW_END_NAMESPACE
+struct wlr_xdg_toplevel;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -26,16 +24,16 @@ class WAYLIB_SERVER_EXPORT WXdgToplevelSurface : public WXdgSurface
     QML_UNCREATABLE("Only create in C++")
 
 public:
-    explicit WXdgToplevelSurface(QW_NAMESPACE::qw_xdg_toplevel *handle, QObject *parent = nullptr);
+    explicit WXdgToplevelSurface(wlr_xdg_toplevel *handle, QObject *parent = nullptr);
     ~WXdgToplevelSurface();
 
     bool hasCapability(Capability cap) const override;
 
     WSurface *surface() const override;
-    QW_NAMESPACE::qw_xdg_toplevel *handle() const;
+    wlr_xdg_toplevel *handle() const;
     wlr_surface *inputTargetAt(QPointF &localPos) const;
 
-    static WXdgToplevelSurface *fromHandle(QW_NAMESPACE::qw_xdg_toplevel *handle);
+    static WXdgToplevelSurface *fromHandle(wlr_xdg_toplevel *handle);
     static WXdgToplevelSurface *fromSurface(WSurface *surface);
 
     WXdgToplevelSurface *parentXdgSurface() const;

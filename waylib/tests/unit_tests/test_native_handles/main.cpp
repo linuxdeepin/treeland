@@ -8,6 +8,13 @@
 #include <WCursor>
 #include <WSeat>
 #include <WSurface>
+#include <WXdgDecorationManager>
+#include <WXdgShell>
+#include <WLayerShell>
+#include <WLayerSurface>
+#include <wxdgdialogmanagerv1.h>
+#include <wxdgpopupsurface.h>
+#include <wxdgtoplevelsurface.h>
 #include <woutputlayout.h>
 
 #include <QTest>
@@ -30,6 +37,13 @@ struct wlr_output;
 struct wlr_output_layout;
 struct wlr_seat;
 struct wlr_session;
+struct wlr_layer_shell_v1;
+struct wlr_layer_surface_v1;
+struct wlr_xdg_decoration_manager_v1;
+struct wlr_xdg_popup;
+struct wlr_xdg_shell;
+struct wlr_xdg_toplevel;
+struct wlr_xdg_wm_dialog_v1;
 
 WAYLIB_SERVER_USE_NAMESPACE
 
@@ -43,6 +57,15 @@ static_assert(std::is_same_v<decltype(std::declval<WOutputLayout &>().handle()),
 static_assert(std::is_same_v<decltype(std::declval<WCursor &>().handle()), wlr_cursor *>);
 static_assert(std::is_same_v<decltype(std::declval<WSeat &>().handle()), wlr_seat *>);
 static_assert(std::is_same_v<decltype(std::declval<WSurface &>().handle()), wlr_surface *>);
+static_assert(std::is_same_v<decltype(std::declval<WXdgShell &>().handle()), wlr_xdg_shell *>);
+static_assert(std::is_same_v<decltype(std::declval<WXdgToplevelSurface &>().handle()), wlr_xdg_toplevel *>);
+static_assert(std::is_same_v<decltype(std::declval<WXdgPopupSurface &>().handle()), wlr_xdg_popup *>);
+static_assert(std::is_same_v<decltype(std::declval<WLayerShell &>().handle()), wlr_layer_shell_v1 *>);
+static_assert(std::is_same_v<decltype(std::declval<WLayerSurface &>().handle()), wlr_layer_surface_v1 *>);
+static_assert(std::is_same_v<decltype(std::declval<WXdgDecorationManager &>().handle()),
+                             wlr_xdg_decoration_manager_v1 *>);
+static_assert(std::is_same_v<decltype(std::declval<WXdgDialogManagerV1 &>().handle()),
+                             wlr_xdg_wm_dialog_v1 *>);
 
 class NativeHandlesTest : public QObject
 {
@@ -66,6 +89,22 @@ private Q_SLOTS:
             server.stop();
         }
         qunsetenv("WLR_BACKENDS");
+    }
+
+    void shellManagersExposeNativeHandles()
+    {
+        WServer server;
+        auto *xdgShell = server.attach<WXdgShell>(6);
+        auto *layerShell = server.attach<WLayerShell>(xdgShell);
+        auto *decorationManager = server.attach<WXdgDecorationManager>();
+        auto *dialogManager = server.attach<WXdgDialogManagerV1>();
+
+        server.start();
+        QVERIFY(xdgShell->handle());
+        QVERIFY(layerShell->handle());
+        QVERIFY(decorationManager->handle());
+        QVERIFY(dialogManager->handle());
+        server.stop();
     }
 
     void inputDeviceTracksNativeLifetime()

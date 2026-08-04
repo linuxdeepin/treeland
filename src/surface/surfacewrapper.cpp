@@ -1346,7 +1346,6 @@ void SurfaceWrapper::createNewOrClose(uint direction)
         auto scope = QString(static_cast<WLayerSurfaceItem *>(m_surfaceItem)
                                  ->layerSurface()
                                  ->handle()
-                                 ->handle()
                                  ->scope);
         auto *surface = qobject_cast<WLayerSurface *>(m_shellSurface);
         auto anchor = surface->getExclusiveZoneEdge();

@@ -9,6 +9,8 @@
 
 Q_MOC_INCLUDE("wxdgtoplevelsurface.h")
 
+struct wlr_xdg_wm_dialog_v1;
+
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WXdgToplevelSurface;
@@ -26,6 +28,7 @@ public:
     explicit WXdgDialogManagerV1(QObject *parent = nullptr);
     ~WXdgDialogManagerV1() override;
 
+    wlr_xdg_wm_dialog_v1 *handle() const;
     QByteArrayView interfaceName() const override;
 
 Q_SIGNALS:

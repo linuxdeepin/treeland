@@ -2918,7 +2918,7 @@ void Helper::requestKeyboardFocus(SurfaceWrapper *wrapper, Qt::FocusReason reaso
             auto *popupSurface = qobject_cast<WXdgPopupSurface *>(wrapper->shellSurface());
             if (!popupSurface)
                 break;
-            if (popupSurface->handle()->handle()->seat)
+            if (popupSurface->handle()->seat)
                 break;
             wrapper = wrapper->parentSurface();
         }
@@ -3201,7 +3201,7 @@ bool Helper::isLaunchpad(WLayerSurface *surface) const
         return false;
     }
 
-    auto scope = QString(surface->handle()->handle()->scope);
+    auto scope = QString(surface->handle()->scope);
 
     return scope == "dde-shell/launchpad";
 }

@@ -31,7 +31,9 @@ extern "C" {
 #include <qwcompositor.h>
 #include <qwdisplay.h>
 #include <qwoutput.h>
-#include <qwxdgshell.h>
+extern "C" {
+#include <wlr/types/wlr_xdg_shell.h>
+}
 #include <QPointer>
 #include <QVariant>
 
@@ -512,7 +514,7 @@ void ForeignToplevelManagerInterfaceV1::initializeToplevelHandle(SurfaceWrapper 
             });
 
     if (auto *xdgSurface = qobject_cast<WXdgToplevelSurface *>(surface)) {
-        auto client = WClient::get(xdgSurface->handle()->handle()->resource->client);
+        auto client = WClient::get(xdgSurface->handle()->resource->client);
         handle->set_pid(client->credentials().get()->pid);
 
         auto updateSurfaceParent = [this, handle, xdgSurface] {

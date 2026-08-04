@@ -12,7 +12,9 @@
 #include <wxdgtoplevelsurface.h>
 
 #include <qwdisplay.h>
-#include <qwxdgshell.h>
+extern "C" {
+#include <wlr/types/wlr_xdg_shell.h>
+}
 
 #include <QList>
 
@@ -332,15 +334,15 @@ void WineWindowManagerPrivate::get_window_control(Resource *resource,
                                                   uint32_t id,
                                                   struct ::wl_resource *toplevelResource)
 {
-    auto *qXdgToplevel = qw_xdg_toplevel::from_resource(toplevelResource);
-    if (!qXdgToplevel) {
+    auto *nativeToplevel = wlr_xdg_toplevel_from_resource(toplevelResource);
+    if (!nativeToplevel) {
         wl_resource_post_error(resource->handle,
                                TREELAND_WINE_WINDOW_MANAGER_V1_ERROR_DEFUNCT_TOPLEVEL,
                                "invalid or defunct toplevel");
         return;
     }
 
-    auto *xdgToplevel = WXdgToplevelSurface::fromHandle(qXdgToplevel);
+    auto *xdgToplevel = WXdgToplevelSurface::fromHandle(nativeToplevel);
     auto *helper = Helper::instance();
     auto *root = helper ? helper->rootSurfaceContainer() : nullptr;
     auto *wrapper = (root && xdgToplevel) ? root->getSurface(xdgToplevel) : nullptr;

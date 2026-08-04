@@ -6,9 +6,7 @@
 
 #include "wxdgsurface.h"
 
-QW_BEGIN_NAMESPACE
-class qw_xdg_popup;
-QW_END_NAMESPACE
+struct wlr_xdg_popup;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -21,16 +19,16 @@ class WAYLIB_SERVER_EXPORT WXdgPopupSurface : public WXdgSurface
     QML_UNCREATABLE("Only create in C++")
 
 public:
-    explicit WXdgPopupSurface(QW_NAMESPACE::qw_xdg_popup *handle, QObject *parent = nullptr);
+    explicit WXdgPopupSurface(wlr_xdg_popup *handle, QObject *parent = nullptr);
     ~WXdgPopupSurface();
 
     bool hasCapability(Capability cap) const override;
 
     WSurface *surface() const override;
-    QW_NAMESPACE::qw_xdg_popup *handle() const;
+    wlr_xdg_popup *handle() const;
     wlr_surface *inputTargetAt(QPointF &localPos) const;
 
-    static WXdgPopupSurface *fromHandle(QW_NAMESPACE::qw_xdg_popup *handle);
+    static WXdgPopupSurface *fromHandle(wlr_xdg_popup *handle);
     static WXdgPopupSurface *fromSurface(WSurface *surface);
 
     WSurface *parentSurface() const override;

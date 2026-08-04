@@ -11,12 +11,14 @@
 
 Q_MOC_INCLUDE("wlayersurface.h")
 
+struct wlr_layer_shell_v1;
+
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WXdgShell;
 class WLayerSurface;
 class WLayerShellPrivate;
-class WAYLIB_SERVER_EXPORT WLayerShell: public WWrapObject, public WServerInterface
+class WAYLIB_SERVER_EXPORT WLayerShell : public QObject, public WObject, public WServerInterface
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WLayerShell)
@@ -25,6 +27,7 @@ public:
     explicit WLayerShell(WXdgShell *xdgShell, QObject *parent = nullptr);
     void *create();
 
+    wlr_layer_shell_v1 *handle() const;
     QVector<WLayerSurface*> surfaceList() const;
     QByteArrayView interfaceName() const override;
 

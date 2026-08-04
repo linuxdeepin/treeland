@@ -1,4 +1,4 @@
-find_package(Qt6 REQUIRED COMPONENTS Gui Qml Test)
+find_package(Qt6 REQUIRED COMPONENTS Gui Qml Quick Test)
 
 add_executable(test_native_handles main.cpp)
 
@@ -7,6 +7,7 @@ target_link_libraries(test_native_handles
         Waylib::WaylibServer
         Qt::Gui
         Qt::Qml
+        Qt::Quick
         Qt::Test
 )
 

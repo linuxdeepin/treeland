@@ -8,8 +8,9 @@
 #include "wxdgtoplevelsurface.h"
 #include <wayland-server-core.h>
 
-#include <qwdisplay.h>
-#include <qwxdgshell.h>
+extern "C" {
+#include <wlr/types/wlr_xdg_shell.h>
+}
 
 extern "C" {
 #include <assert.h>
@@ -69,11 +70,10 @@ static void manager_handle_set_tag([[maybe_unused]] struct wl_client *client,
                                    const char *tag)
 {
     struct way_xdg_toplevel_tag_manager_v1 *manager = manager_from_resource(manager_resource);
-    auto *qt_toplevel = QW_NAMESPACE::qw_xdg_toplevel::from_resource(toplevel_resource);
-    if (!qt_toplevel) {
+    auto *toplevel = wlr_xdg_toplevel_from_resource(toplevel_resource);
+    if (!toplevel) {
         return;
     }
-    struct wlr_xdg_toplevel *toplevel = qt_toplevel->handle();
 
     struct way_xdg_toplevel_tag_manager_v1_set_tag_event event = {
         .toplevel = toplevel,
@@ -88,11 +88,10 @@ static void manager_handle_set_description([[maybe_unused]] struct wl_client *cl
                                            const char *description)
 {
     struct way_xdg_toplevel_tag_manager_v1 *manager = manager_from_resource(manager_resource);
-    auto *qt_toplevel = QW_NAMESPACE::qw_xdg_toplevel::from_resource(toplevel_resource);
-    if (!qt_toplevel) {
+    auto *toplevel = wlr_xdg_toplevel_from_resource(toplevel_resource);
+    if (!toplevel) {
         return;
     }
-    struct wlr_xdg_toplevel *toplevel = qt_toplevel->handle();
 
     struct way_xdg_toplevel_tag_manager_v1_set_description_event event = {
         .toplevel = toplevel,

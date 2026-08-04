@@ -311,7 +311,7 @@ void SeatSurfaceManager::givePopupFocus(SurfaceWrapper *popupWrapper)
         return;
 
     // Only give focus to popups that belong to our seat's active popup grab.
-    auto *wlrPopup = popupSurface->handle()->handle();
+    auto *wlrPopup = popupSurface->handle();
     if (!wlrPopup || wlrPopup->seat != m_seat->handle())
         return;
 
