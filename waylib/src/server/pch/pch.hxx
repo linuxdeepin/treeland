@@ -81,10 +81,6 @@
 #include<qwxdgforeignv2.h>
 #include<qwxdgoutputv1.h>
 #include<qwxdgshell.h>
-#include<qwxwayland.h>
-#include<qwxwaylandserver.h>
-#include<qwxwaylandshellv1.h>
-#include<qwxwaylandsurface.h>
 #include<QQmlEngine>
 #include<QGuiApplication>
 #endif // __cplusplus

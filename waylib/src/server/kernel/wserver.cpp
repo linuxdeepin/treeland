@@ -12,11 +12,10 @@
 #include "wsocket.h"
 #include "platformplugin/qwlrootsintegration.h"
 
-#include <qwxwaylandshellv1.h>
-
 extern "C" {
 #include <wlr/types/wlr_data_device.h>
 #include <wlr/types/wlr_primary_selection_v1.h>
+#include <wlr/xwayland/shell.h>
 }
 
 #include <QVector>

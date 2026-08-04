@@ -130,9 +130,10 @@
 
 extern "C" {
 #include <wlr/types/wlr_output_layout.h>
+#define class _class
+#include <wlr/xwayland/xwayland.h>
+#undef class
 }
-#include <qwxwayland.h>
-#include <qwxwaylandsurface.h>
 
 #include <DGuiApplicationHelper>
 
@@ -1668,7 +1669,7 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
             if (!xwaylandSurface->isBypassManager()) {
                 if (atom && connection
                     && !readWindowProperty(connection,
-                                           xwaylandSurface->handle()->handle()->window_id,
+                                           xwaylandSurface->handle()->window_id,
                                            atom,
                                            XCB_ATOM_CARDINAL)
                             .isEmpty()) {
@@ -3846,7 +3847,7 @@ bool Helper::setXWindowPositionRelative(uint wid, WSurface *anchor, wl_fixed_t d
 
 WXWayland *Helper::createXWayland()
 {
-    return shellHandler()->createXWayland(m_server, m_primarySeat, m_compositor, false);
+    return shellHandler()->createXWayland(m_server, m_primarySeat, m_compositor->handle(), false);
 }
 
 WSeat *Helper::findSeatForSurface(SurfaceWrapper *wrapper) const

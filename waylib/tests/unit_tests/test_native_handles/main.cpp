@@ -18,6 +18,8 @@
 #include <WSessionLock>
 #include <WSessionLockManager>
 #include <WSessionLockSurface>
+#include <WXWayland>
+#include <WXWaylandSurface>
 #include <wxdgdialogmanagerv1.h>
 #include <wextforeigntoplevellistv1.h>
 #include <wxdgpopupsurface.h>
@@ -39,6 +41,9 @@ extern "C" {
 #include <wlr/types/wlr_input_method_v2.h>
 #undef delete
 #include <wlr/types/wlr_text_input_v3.h>
+#define class _class
+#include <wlr/xwayland/xwayland.h>
+#undef class
 }
 
 #include <type_traits>
@@ -61,6 +66,8 @@ struct wlr_xdg_popup;
 struct wlr_xdg_shell;
 struct wlr_xdg_toplevel;
 struct wlr_xdg_wm_dialog_v1;
+struct wlr_xwayland;
+struct wlr_xwayland_surface;
 struct wlr_session_lock_manager_v1;
 struct wlr_session_lock_surface_v1;
 struct wlr_session_lock_v1;
@@ -104,6 +111,9 @@ static_assert(std::is_same_v<decltype(std::declval<WSessionLock &>().handle()),
                              wlr_session_lock_v1 *>);
 static_assert(std::is_same_v<decltype(std::declval<WSessionLockSurface &>().handle()),
                              wlr_session_lock_surface_v1 *>);
+static_assert(std::is_same_v<decltype(std::declval<WXWayland &>().handle()), wlr_xwayland *>);
+static_assert(std::is_same_v<decltype(std::declval<WXWaylandSurface &>().handle()),
+                             wlr_xwayland_surface *>);
 static_assert(std::is_same_v<decltype(std::declval<WInputMethodManagerV2 &>().handle()),
                              wlr_input_method_manager_v2 *>);
 static_assert(std::is_same_v<decltype(std::declval<WInputMethodV2 &>().handle()),
@@ -124,6 +134,33 @@ static_assert(std::is_same_v<decltype(std::declval<WForeignToplevel &>().handle(
 class NativeHandlesTest : public QObject
 {
     Q_OBJECT
+
+    static void initXWaylandSurface(wlr_xwayland_surface *surface)
+    {
+        wl_list_init(&surface->children);
+        for (auto *signal : {
+                 &surface->events.destroy,
+                 &surface->events.associate,
+                 &surface->events.dissociate,
+                 &surface->events.set_parent,
+                 &surface->events.request_activate,
+                 &surface->events.request_configure,
+                 &surface->events.request_fullscreen,
+                 &surface->events.request_maximize,
+                 &surface->events.request_minimize,
+                 &surface->events.request_move,
+                 &surface->events.request_resize,
+                 &surface->events.set_override_redirect,
+                 &surface->events.set_geometry,
+                 &surface->events.set_hints,
+                 &surface->events.set_window_type,
+                 &surface->events.set_decorations,
+                 &surface->events.set_title,
+                 &surface->events.set_class,
+             }) {
+            wl_signal_init(signal);
+        }
+    }
 
 private Q_SLOTS:
     void serverExposesNativeDisplay()
@@ -258,6 +295,35 @@ private Q_SLOTS:
         auto *textInput = new WTextInputV3(&nativeTextInput, nullptr);
         delete textInput;
         wl_signal_emit_mutable(&nativeTextInput.events.destroy, &nativeTextInput);
+    }
+
+    void xwaylandSurfaceTracksNativeLifetime()
+    {
+        wlr_xwayland_surface nativeSurface {};
+        initXWaylandSurface(&nativeSurface);
+        QPointer<WXWaylandSurface> surface = new WXWaylandSurface(&nativeSurface, nullptr);
+        QCOMPARE(WXWaylandSurface::fromHandle(&nativeSurface), surface.data());
+        QSignalSpy invalidated(surface, &WWrapObject::invalidated);
+
+        wl_signal_emit_mutable(&nativeSurface.events.destroy, &nativeSurface);
+
+        QCOMPARE(invalidated.count(), 1);
+        QVERIFY(!surface->handle());
+        QVERIFY(!WXWaylandSurface::fromHandle(&nativeSurface));
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        QVERIFY(surface.isNull());
+    }
+
+    void xwaylandSurfaceObserverDetachesBeforeNativeDestruction()
+    {
+        wlr_xwayland_surface nativeSurface {};
+        initXWaylandSurface(&nativeSurface);
+        {
+            QObject owner;
+            new WXWaylandSurface(&nativeSurface, nullptr, &owner);
+        }
+        QVERIFY(!WXWaylandSurface::fromHandle(&nativeSurface));
+        wl_signal_emit_mutable(&nativeSurface.events.destroy, &nativeSurface);
     }
 
     void inputDeviceTracksNativeLifetime()

@@ -52,7 +52,6 @@
 #include <qwrenderer.h>
 #include <qwcompositor.h>
 #include <qwsubcompositor.h>
-#include <qwxwaylandsurface.h>
 #include <qwlayershellv1.h>
 #include <qwscreencopyv1.h>
 #include <qwfractionalscalemanagerv1.h>
@@ -341,7 +340,7 @@ void Helper::init()
     xwaylandOutputManager->setScaleOverride(1.0);
 
     auto xwayland_lazy = true;
-    m_xwayland = m_server->attach<WXWayland>(m_compositor, xwayland_lazy);
+    m_xwayland = m_server->attach<WXWayland>(m_compositor->handle(), xwayland_lazy);
     m_xwayland->setSeat(m_seat);
 
     xdgOutputManager->setFilter([this] (WClient *client) {
@@ -352,7 +351,7 @@ void Helper::init()
     });
 
     connect(m_xwayland, &WXWayland::surfaceAdded, this, [this] (WXWaylandSurface *surface) {
-        surface->safeConnect(&qw_xwayland_surface::notify_associate, this, [this, surface] {
+        connect(surface, &WXWaylandSurface::associated, this, [this, surface] {
             auto wrapper = new SurfaceWrapper(qmlEngine(), surface, SurfaceWrapper::Type::XWayland);
 
             // Setup title and decoration
@@ -409,7 +408,7 @@ void Helper::init()
             m_foreignToplevel->addSurface(surface);
             m_extForeignToplevelListV1->addSurface(surface);
         });
-        surface->safeConnect(&qw_xwayland_surface::notify_dissociate, this, [this, surface] {
+        connect(surface, &WXWaylandSurface::aboutToDissociate, this, [this, surface] {
             m_foreignToplevel->removeSurface(surface);
             m_extForeignToplevelListV1->removeSurface(surface);
             m_surfaceContainer->destroyForSurface(surface->surface());

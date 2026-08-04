@@ -11,45 +11,49 @@
 #include <xcb/xcb.h>
 #include <xcb/xcbext.h>
 
-#include <qwcompositor.h>
-#include <qwdisplay.h>
-#include <qwseat.h>
-#include <qwxwayland.h>
-#include <qwxwaylandserver.h>
-#include <qwxwaylandshellv1.h>
-#include <qwxwaylandsurface.h>
+extern "C" {
+#include <wlr/types/wlr_compositor.h>
+#include <wlr/xwayland/server.h>
+#include <wlr/xwayland/shell.h>
+#define class _class
+#include <wlr/xwayland/xwayland.h>
+#undef class
+}
 
 #include <QCoreApplication>
+#include <QHash>
 #include <QTimer>
 
+#include <memory>
 #include <utility>
+#include <vector>
 
-QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
+
+using XWaylandRegistry = QHash<const wlr_xwayland *, WXWayland *>;
+Q_GLOBAL_STATIC(XWaylandRegistry, s_xwaylands)
 
 class Q_DECL_HIDDEN WXWaylandPrivate : public WWrapObjectPrivate
 {
 public:
-    WXWaylandPrivate(WXWayland *qq, qw_compositor *compositor, bool lazy)
+    WXWaylandPrivate(WXWayland *qq, wlr_compositor *compositor, bool lazy)
         : WWrapObjectPrivate(qq)
         , compositor(compositor)
         , lazy(lazy)
     {
 
     }
-    ~WXWaylandPrivate() {
-
-    }
+    ~WXWaylandPrivate() = default;
 
     void init();
 
     wl_client *waylandClient() const override {
-        return q_func()->handle()->handle()->server->client;
+        return xwaylandHandle && xwaylandHandle->server ? xwaylandHandle->server->client : nullptr;
     }
 
     // begin slot function
     void on_new_surface(wlr_xwayland_surface *xwl_surface);
-    void on_surface_destroy(qw_xwayland_surface *xwl_surface);
+    void on_surface_destroy(WXWaylandSurface *surface);
     // end slot function
 
     // Async property reading
@@ -68,11 +72,21 @@ public:
     void xcbPollReplies();
     void xcbAsyncTimeoutForWindow(xcb_window_t windowId);
 
+    template<typename Callback>
+    void listen(wl_signal *signal, Callback &&callback)
+    {
+        auto listener = std::make_unique<WNativeListener>();
+        listener->connect(signal, std::forward<Callback>(callback));
+        nativeListeners.push_back(std::move(listener));
+    }
+
     W_DECLARE_PUBLIC(WXWayland)
 
     xcb_screen_t *screen = nullptr;
 
-    qw_compositor *compositor;
+    wlr_xwayland *xwaylandHandle = nullptr;
+    wlr_compositor *compositor;
+    std::vector<std::unique_ptr<WNativeListener>> nativeListeners;
     bool lazy = true;
     QVector<WXWaylandSurface*> surfaceList;
     QVector<xcb_atom_t> atoms;
@@ -130,7 +144,7 @@ bool xwayland_user_event_handler(wlr_xwayland *xwayland, xcb_generic_event_t *ev
         QPointer<WXWaylandSurface> sp(surface);
         if (!sp)
             continue;
-        if (sp->handle()->handle()->window_id == pe->window) {
+        if (sp->handle()->window_id == pe->window) {
             Q_EMIT self->windowPropertyChanged(sp, pe->atom);
             break;
         }
@@ -174,7 +188,13 @@ void WXWaylandPrivate::init()
 }
 
 void WXWaylandPrivate::instantRelease() {
-    delete handle<qw_xwayland>();
+    nativeListeners.clear();
+    if (!xwaylandHandle)
+        return;
+    xwaylandHandle->user_event_handler = nullptr;
+    s_xwaylands->remove(xwaylandHandle);
+    auto *native = std::exchange(xwaylandHandle, nullptr);
+    wlr_xwayland_destroy(native);
 }
 
 void WXWaylandPrivate::on_new_surface(wlr_xwayland_surface *xwl_surface)
@@ -182,32 +202,26 @@ void WXWaylandPrivate::on_new_surface(wlr_xwayland_surface *xwl_surface)
     W_Q(WXWayland);
 
     auto server = q->server();
-    qw_xwayland_surface *xwlSurface = qw_xwayland_surface::from(xwl_surface);
-    auto surface = new WXWaylandSurface(xwlSurface, q, server);
+    auto *surface = new WXWaylandSurface(xwl_surface, q, server);
     surface->setParent(server);
     Q_ASSERT(surface->parent() == server);
-    surface->safeConnect(&qw_xwayland_surface::before_destroy,
-                     q, [this, xwlSurface] {
-        on_surface_destroy(xwlSurface);
+    QObject::connect(surface, &WWrapObject::aboutToBeInvalidated, q, [this, surface] {
+        on_surface_destroy(surface);
     });
 
     surfaceList.append(surface);
     q->addSurface(surface);
 }
 
-void WXWaylandPrivate::on_surface_destroy(qw_xwayland_surface *xwl_surface)
+void WXWaylandPrivate::on_surface_destroy(WXWaylandSurface *surface)
 {
     W_Q(WXWayland);
-
-    auto surface = WXWaylandSurface::fromHandle(xwl_surface);
-    Q_ASSERT(surface);
-    bool ok = surfaceList.removeOne(surface);
-    Q_ASSERT(ok);
+    if (!surfaceList.removeOne(surface))
+        return;
     q->removeSurface(surface);
-    surface->safeDeleteLater();
 }
 
-WXWayland::WXWayland(qw_compositor *compositor, bool lazy)
+WXWayland::WXWayland(wlr_compositor *compositor, bool lazy)
     : WWrapObject(*new WXWaylandPrivate(this, compositor, lazy))
 {
     W_D(WXWayland);
@@ -217,7 +231,7 @@ WXWayland::WXWayland(qw_compositor *compositor, bool lazy)
 
 QByteArray WXWayland::displayName() const
 {
-    return isValid() ? QByteArray(std::as_const(handle()->handle()->display_name)) : QByteArray();
+    return handle() ? QByteArray(handle()->display_name) : QByteArray();
 }
 
 xcb_atom_t WXWayland::atom(XcbAtom type) const
@@ -303,22 +317,22 @@ void WXWayland::setAtomSupported(xcb_atom_t atom, bool supported)
 
 void WXWayland::setSeat(WSeat *seat)
 {
-    if (auto handle = this->handle())
-        handle->set_seat(seat->handle());
+    if (handle())
+        wlr_xwayland_set_seat(handle(), seat ? seat->handle() : nullptr);
 }
 
 WSeat *WXWayland::seat() const
 {
     if (!handle())
         return nullptr;
-    if (!handle()->handle()->seat)
+    if (!handle()->seat)
         return nullptr;
-    return WSeat::fromHandle(handle()->handle()->seat);
+    return WSeat::fromHandle(handle()->seat);
 }
 
 xcb_connection_t *WXWayland::xcbConnection() const
 {
-    return handle()->get_xwm_connection();
+    return handle() ? wlr_xwayland_get_xwm_connection(handle()) : nullptr;
 }
 
 xcb_screen_t *WXWayland::xcbScreen() const
@@ -329,10 +343,12 @@ xcb_screen_t *WXWayland::xcbScreen() const
 
 WXWayland *WXWayland::fromHandle(wlr_xwayland *handle)
 {
-    auto *qw = QW_NAMESPACE::qw_xwayland::from(handle);
-    if (!qw)
-        return nullptr;
-    return qw->get_data<WXWayland>();
+    return s_xwaylands->value(handle);
+}
+
+wlr_xwayland *WXWayland::handle() const
+{
+    return d_func()->xwaylandHandle;
 }
 
 QVector<WXWaylandSurface*> WXWayland::surfaceList() const
@@ -409,28 +425,32 @@ void WXWayland::onIsToplevelChanged()
 void WXWayland::create(WServer *server)
 {
     W_D(WXWayland);
-    // free follow display
+    auto *native = wlr_xwayland_create(server->handle(), d->compositor, d->lazy);
+    Q_ASSERT(native);
+    d->xwaylandHandle = native;
+    m_handle = native;
+    Q_ASSERT(!s_xwaylands->contains(native));
+    s_xwaylands->insert(native, this);
+    d->socket->bind(native->server->x_fd[1]);
 
-    auto handle = qw_xwayland::create(server->handle(), *d->compositor, d->lazy);
-    initHandle(handle);
-    m_handle = handle;
-    d->socket->bind(handle->handle()->server->x_fd[1]);
+    native->user_event_handler = xwayland_user_event_handler;
 
-    handle->set_data(this, this);
-    handle->handle()->user_event_handler = xwayland_user_event_handler;
-
-    QObject::connect(handle, &qw_xwayland::notify_new_surface, this, [d] (wlr_xwayland_surface *surface) {
-        d->on_new_surface(surface);
+    d->listen(&native->events.new_surface, [d](void *data) {
+        d->on_new_surface(static_cast<wlr_xwayland_surface *>(data));
     });
-
-    QObject::connect(handle, &qw_xwayland::notify_ready, this, [this, d] {
+    d->listen(&native->events.ready, [this, d](void *) {
         d->init();
         Q_EMIT ready();
     });
-
-    auto s = qw_xwayland_server::from(handle->handle()->server);
-    QObject::connect(s, &qw_xwayland_server::notify_start, this, [d] {
+    d->listen(&native->server->events.start, [d](void *) {
         d->socket->addClient(d->waylandClient(), false);
+    });
+    d->listen(&native->events.destroy, [this, d, native](void *) {
+        d->nativeListeners.clear();
+        s_xwaylands->remove(native);
+        d->xwaylandHandle = nullptr;
+        m_handle = nullptr;
+        safeDeleteLater();
     });
 }
 
@@ -438,27 +458,19 @@ void WXWayland::destroy([[maybe_unused]] WServer *server)
 {
     W_D(WXWayland);
 
-    if (auto handle = this->handle()) {
-        handle->set_data(nullptr, nullptr);
-        handle->handle()->user_event_handler = nullptr;
-    }
+    if (handle())
+        handle()->user_event_handler = nullptr;
 
-    auto list = d->surfaceList;
-    d->surfaceList.clear();
     d->screen = nullptr;
-
-    for (auto surface : std::as_const(list)) {
-        // disconnect from on_surface_destroy
-        disconnect(surface->handle(), &qw_xwayland_surface::before_destroy,
-                   this, nullptr);
-        removeSurface(surface);
+    const auto list = d->surfaceList;
+    for (auto *surface : list)
         surface->safeDeleteLater();
-    }
+    Q_ASSERT(d->surfaceList.isEmpty());
 }
 
 wl_global *WXWayland::global() const
 {
-    return handle()->handle()->shell_v1->global;
+    return handle() && handle()->shell_v1 ? handle()->shell_v1->global : nullptr;
 }
 
 void WXWayland::readAsyncProperties(

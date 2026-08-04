@@ -27,6 +27,12 @@
 
 #include <xcb/xcb.h>
 
+extern "C" {
+#define class _class
+#include <wlr/xwayland/xwayland.h>
+#undef class
+}
+
 #include <winputmethodhelper.h>
 #include <winputpopupsurface.h>
 #include <wlayershell.h>
@@ -41,8 +47,6 @@
 #include <wxwaylandsurfaceitem.h>
 
 #include <qwbuffer.h>
-#include <qwcompositor.h>
-#include <qwxwaylandsurface.h>
 
 #include <QColor>
 #include <QPointer>
@@ -368,7 +372,7 @@ void ShellHandler::init(WServer *server, WSeat *seat)
 
 WXWayland *ShellHandler::createXWayland(WServer *server,
                                         WSeat *seat,
-                                        qw_compositor *compositor,
+                                        wlr_compositor *compositor,
                                         [[maybe_unused]] bool lazy)
 {
     auto *xwayland = server->attach<WXWayland>(compositor, false);
@@ -632,7 +636,7 @@ void ShellHandler::onXWaylandSurfaceAdded(WXWaylandSurface *surface)
         // Cancel pending async property fetch for this surface.
         auto *xwayland = surface->xwayland();
         if (xwayland) {
-            auto windowId = surface->handle()->handle()->window_id;
+            auto windowId = surface->handle()->window_id;
             xwayland->cancelAsyncProperties(windowId);
         }
 
@@ -668,7 +672,7 @@ void ShellHandler::fetchInitialProperties(WXWaylandSurface *surface, const QStri
         return;
     }
 
-    auto windowId = surface->handle()->handle()->window_id;
+    auto windowId = surface->handle()->window_id;
     QVector<WXWayland::AsyncPropRequest> requests;
     if (m_imCandidatePanelManager) {
         requests.append({ m_imCandidatePanelManager->imCandidatePanelAtom(), XCB_ATOM_CARDINAL });

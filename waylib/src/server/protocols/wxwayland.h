@@ -15,11 +15,7 @@
 
 Q_MOC_INCLUDE("wxwaylandsurface.h")
 
-QW_BEGIN_NAMESPACE
-class qw_xwayland;
-class qw_compositor;
-QW_END_NAMESPACE
-
+struct wlr_compositor;
 struct wlr_xwayland;
 struct xcb_screen_t;
 
@@ -54,11 +50,9 @@ public:
 
     static WXWayland *fromHandle(wlr_xwayland *handle);
 
-    WXWayland(QW_NAMESPACE::qw_compositor *compositor, bool lazy = true);
+    WXWayland(wlr_compositor *compositor, bool lazy = true);
 
-    inline QW_NAMESPACE::qw_xwayland *handle() const {
-        return nativeInterface<QW_NAMESPACE::qw_xwayland>();
-    }
+    wlr_xwayland *handle() const;
 
     QByteArray displayName() const;
 

@@ -56,9 +56,7 @@ class WSurface;
 class WXWaylandSurface;
 WAYLIB_SERVER_END_NAMESPACE
 
-QW_BEGIN_NAMESPACE
-class qw_compositor;
-QW_END_NAMESPACE
+struct wlr_compositor;
 
 QT_BEGIN_NAMESPACE
 class QQuickItem;
@@ -88,7 +86,7 @@ public:
     [[nodiscard]] WAYLIB_SERVER_NAMESPACE::WXWayland *createXWayland(
         WAYLIB_SERVER_NAMESPACE::WServer *server,
         WAYLIB_SERVER_NAMESPACE::WSeat *seat,
-        QW_NAMESPACE::qw_compositor *compositor,
+        wlr_compositor *compositor,
         bool lazy);
     // FIXME: never call removeXWayland in treeland.cpp
     void removeXWayland(WAYLIB_SERVER_NAMESPACE::WXWayland *xwayland);
