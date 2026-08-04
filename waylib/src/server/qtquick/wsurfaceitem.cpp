@@ -182,7 +182,7 @@ struct Q_DECL_HIDDEN BufferRef
         if (newBuf) {
             wlr_buffer_lock(newBuf);
             if (auto cb = wlr_client_buffer_get(newBuf))
-                cb->handle()->n_ignore_locks++;
+                cb->n_ignore_locks++;
         }
         release();
         m_buffer = newBuf;
@@ -195,7 +195,7 @@ private:
     void release() {
         if (m_buffer) {
             if (auto cb = wlr_client_buffer_get(m_buffer))
-                cb->handle()->n_ignore_locks--;
+                cb->n_ignore_locks--;
             wlr_buffer_unlock(m_buffer);
             m_buffer = nullptr;
         }
@@ -593,7 +593,7 @@ QSGNode *WSurfaceItemContent::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeD
 
     auto tp = wTextureProvider();
     if (d->live || !tp->texture()) {
-        auto texture = d->surface ? d->surface->handle()->get_texture() : nullptr;
+        auto texture = d->surface ? wlr_surface_get_texture(d->surface->handle()) : nullptr;
         if (texture) {
             tp->setTexture(texture, d->buffer.get());
         } else {

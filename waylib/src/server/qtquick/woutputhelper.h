@@ -16,10 +16,12 @@ class QWindow;
 class QQuickRenderControl;
 QT_END_NAMESPACE
 
+#include <wlr/types/wlr_output.h>
+#include <wlr/types/wlr_output_layer.h>
+
 struct wlr_buffer;
 struct wlr_swapchain;
 struct pixman_region32;
-struct wlr_output_layer_state;
 typedef QVarLengthArray<wlr_output_layer_state> wlr_output_layer_state_array;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
