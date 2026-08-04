@@ -23,9 +23,9 @@ struct wlr_renderer;
 struct wlr_swapchain;
 struct wlr_allocator;
 
-WAYLIB_SERVER_BEGIN_NAMESPACE
+struct wlr_output;
 
-struct ::wlr_output;
+WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class QWlrootsScreen;
 class QWlrootsIntegration;
