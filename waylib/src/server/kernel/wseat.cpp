@@ -7,7 +7,7 @@
 #include "woutput.h"
 #include "wsurface.h"
 #include "wxdgsurface.h"
-#include "platformplugin/qwlrootsintegration.h"
+#include "platformplugin/waylibintegration.h"
 #include "private/wglobal_p.h"
 #include "wayliblogging.h"
 
@@ -748,7 +748,7 @@ void WSeatPrivate::attachInputDevice(WInputDevice *device)
 {
     W_Q(WSeat);
     device->setSeat(q);
-    if (auto *integration = QWlrootsIntegration::instance()) {
+    if (auto *integration = WaylibIntegration::instance()) {
         auto qtDevice = integration->addInputDevice(device, name);
         Q_ASSERT(qtDevice);
     }
@@ -816,7 +816,7 @@ void WSeatPrivate::detachInputDevice(WInputDevice *device)
             wlr_keyboard_group_remove_keyboard(group, keyboard);
         }
     }
-    if (auto *integration = QWlrootsIntegration::instance()) {
+    if (auto *integration = WaylibIntegration::instance()) {
         [[maybe_unused]] bool ok = integration->removeInputDevice(device);
         Q_ASSERT(ok);
     }

@@ -5,8 +5,8 @@
 #include "woutput.h"
 #include "wserver.h"
 #include "winputdevice.h"
-#include "platformplugin/qwlrootsintegration.h"
-#include "platformplugin/qwlrootscreen.h"
+#include "platformplugin/waylibintegration.h"
+#include "platformplugin/waylibscreen.h"
 #include "private/wglobal_p.h"
 
 extern "C" {
@@ -82,7 +82,7 @@ void WBackendPrivate::on_new_output(wlr_output *output)
     auto woutput = new WOutput(output, q);
 
     outputList << woutput;
-    QWlrootsIntegration::instance()->addScreen(woutput);
+    WaylibIntegration::instance()->addScreen(woutput);
 
     QObject::connect(woutput, &WOutput::aboutToBeInvalidated, q, [this, output] {
         on_output_destroy(output);
@@ -124,7 +124,7 @@ void WBackendPrivate::on_output_destroy(wlr_output *output)
 
             W_Q(WBackend);
             Q_EMIT q->outputRemoved(woutput);
-            QWlrootsIntegration::instance()->removeScreen(woutput);
+            WaylibIntegration::instance()->removeScreen(woutput);
             return;
         }
     }

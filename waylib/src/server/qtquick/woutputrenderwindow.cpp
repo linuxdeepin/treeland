@@ -17,23 +17,10 @@
 #include "wseat.h"
 #include "wayliblogging.h"
 
-#include "platformplugin/qwlrootsintegration.h"
-#include "platformplugin/qwlrootscreen.h"
-#include "platformplugin/qwlrootswindow.h"
+#include "platformplugin/waylibintegration.h"
+#include "platformplugin/waylibscreen.h"
+#include "platformplugin/waylibwindow.h"
 #include "platformplugin/types.h"
-
-#include <qwoutput.h>
-#include <qwrenderer.h>
-#include <qwbackend.h>
-#include <qwallocator.h>
-#include <qwcompositor.h>
-#include <qwdamagering.h>
-#include <qwbuffer.h>
-#include <qwtexture.h>
-#include <qwswapchain.h>
-#include <qwoutputlayer.h>
-#include <qwegl.h>
-#include <qwoutputinterface.h>
 
 #include <QOffscreenSurface>
 #include <QQuickRenderControl>
@@ -60,6 +47,14 @@
 #include <private/qquickrectangle_p.h>
 
 extern "C" {
+#include <wlr/interfaces/wlr_output.h>
+#include <wlr/render/allocator.h>
+#include <wlr/render/egl.h>
+#include <wlr/render/swapchain.h>
+#include <wlr/render/wlr_renderer.h>
+#include <wlr/render/wlr_texture.h>
+#include <wlr/types/wlr_buffer.h>
+#include <wlr/types/wlr_output_layer.h>
 #ifdef ENABLE_VULKAN_RENDER
 #include <wlr/render/vulkan.h>
 #endif
@@ -130,7 +125,7 @@ class Q_DECL_HIDDEN OutputHelper : public WOutputHelper
     friend class WOutputRenderWindowPrivate;
 public:
     struct Q_DECL_HIDDEN LayerData {
-        LayerData(OutputLayer *l, qw_output_layer *layer)
+        LayerData(OutputLayer *l, wlr_output_layer *layer)
             : layer(l)
             , wlrLayer(layer)
             , contentsIsDirty(true)
@@ -144,13 +139,13 @@ public:
             }
 
             if (wlrLayer) {
-                delete wlrLayer;
+                wlr_output_layer_destroy(wlrLayer);
                 wlrLayer = nullptr;
             }
         }
 
         OutputLayer *layer;
-        QPointer<qw_output_layer> wlrLayer;
+        wlr_output_layer *wlrLayer;
         QPointer<WBufferRenderer> renderer;
         QMetaObject::Connection rendererConnection;
 
@@ -189,8 +184,8 @@ public:
         output()->output()->safeConnect(&WOutput::scaleChanged, this, &OutputHelper::updateSceneDPR);
     }
 
-    inline qw_output *qwoutput() const {
-        return qw_output::from(output()->output()->handle());
+    inline wlr_output *wlrOutput() const {
+        return output()->output()->handle();
     }
 
     inline WOutputRenderWindow *renderWindow() const {
@@ -236,9 +231,9 @@ public:
     void cleanLayerCompositor();
     void cleanCursorRender();
 
-    inline qw_buffer *beginRender(WBufferRenderer *renderer,
-                                 const QSize &pixelSize, uint32_t format,
-                                 WBufferRenderer::RenderFlags flags);
+    inline wlr_buffer *beginRender(WBufferRenderer *renderer,
+                                   const QSize &pixelSize, uint32_t format,
+                                   WBufferRenderer::RenderFlags flags);
     inline void render(WBufferRenderer *renderer, int sourceIndex, const QMatrix4x4 &renderMatrix,
                        const QRectF &sourceRect, const QRectF &viewportRect, bool preserveColorContents);
 
@@ -247,7 +242,7 @@ public:
         return on;
     }
 
-    qw_buffer *renderLayer(LayerData *layer, bool *dontEndRenderAndReturnNeedsEndRender);
+    wlr_buffer *renderLayer(LayerData *layer, bool *dontEndRenderAndReturnNeedsEndRender);
     WBufferRenderer *afterRender();
     WBufferRenderer *compositeLayers(const QVector<LayerData*> layers, bool forceShadowRenderer);
     bool commit(WBufferRenderer *buffer);
@@ -428,7 +423,7 @@ public:
     }
 
     inline void setSceneDevicePixelRatio(qreal ratio) {
-        static_cast<QWlrootsRenderWindow*>(platformWindow)->setDevicePixelRatio(ratio);
+        static_cast<WaylibRenderWindow*>(platformWindow)->setDevicePixelRatio(ratio);
     }
 
     QSGRendererInterface::GraphicsApi graphicsApi() const;
@@ -439,9 +434,9 @@ public:
     void sortOutputs();
 
     QVector<std::pair<OutputHelper *, WBufferRenderer *>>
-    doRenderOutputs(qw_output *needsFrameOutput, const QList<OutputHelper *> &outputs,
+    doRenderOutputs(wlr_output *needsFrameOutput, const QList<OutputHelper *> &outputs,
                     bool forceRender);
-    void doRender(qw_output *needsFrameOutput, const QList<OutputHelper*> &outputs,
+    void doRender(wlr_output *needsFrameOutput, const QList<OutputHelper*> &outputs,
                   bool forceRender, bool doCommit);
 
     inline void pushRenderer(WBufferRenderer *renderer) {
@@ -456,7 +451,7 @@ public:
             return;
 
         for (auto o : std::as_const(outputs)) {
-            o->qwoutput()->schedule_frame();
+            wlr_output_schedule_frame(o->wlrOutput());
         }
     }
 
@@ -466,8 +461,8 @@ public:
     bool inRendering = false;
     bool renderEnabled = true;
 
-    QPointer<qw_renderer> m_renderer;
-    QPointer<qw_allocator> m_allocator;
+    wlr_renderer *m_renderer = nullptr;
+    wlr_allocator *m_allocator = nullptr;
 
     QList<OutputHelper*> outputs;
     QList<OutputLayer*> layers;
@@ -511,12 +506,11 @@ OutputHelper::LayerData *OutputHelper::getLayer(OutputLayer *layer) const
 bool OutputHelper::attachLayer(OutputLayer *layer)
 {
     Q_ASSERT(indexOfLayer(layer) < 0);
-    // qw_output will destory this layer on qw_output destroy
-    auto qwlayer = qw_output_layer::create(*qwoutput());
-    if (!qwlayer)
+    auto *wlrLayer = wlr_output_layer_create(wlrOutput());
+    if (!wlrLayer)
         return false;
 
-    m_layers.append(new LayerData(layer, qwlayer));
+    m_layers.append(new LayerData(layer, wlrLayer));
     connect(layer->layer, &WOutputLayer::zChanged, this, &OutputHelper::sortLayers);
     sortLayers();
 
@@ -588,9 +582,9 @@ void OutputHelper::cleanCursorRender()
     }
 }
 
-qw_buffer *OutputHelper::beginRender(WBufferRenderer *renderer,
-                                    const QSize &pixelSize, uint32_t format,
-                                    WBufferRenderer::RenderFlags flags)
+wlr_buffer *OutputHelper::beginRender(WBufferRenderer *renderer,
+                                      const QSize &pixelSize, uint32_t format,
+                                      WBufferRenderer::RenderFlags flags)
 {
     return renderer->beginRender(pixelSize, devicePixelRatio(), format, flags);
 }
@@ -618,7 +612,8 @@ static inline QRectF scaleRect(const QRectF &r, qreal xScale, qreal yScale) {
     return QRectF(r.x() * xScale, r.y() * yScale, r.width() * xScale, r.height() * yScale);
 }
 
-qw_buffer *OutputHelper::renderLayer(LayerData *layer, bool *dontEndRenderAndReturnNeedsEndRender)
+wlr_buffer *OutputHelper::renderLayer(LayerData *layer,
+                                      bool *dontEndRenderAndReturnNeedsEndRender)
 {
     auto source = layer->layer->layer->parent();
     if (!source->parentItem() || source->window() != renderWindow())
@@ -820,8 +815,8 @@ WBufferRenderer *OutputHelper::afterRender()
             continue;
 
         layers.append({
-            .layer = i->wlrLayer->handle(),
-            .buffer = buffer->handle(),
+            .layer = i->wlrLayer,
+            .buffer = buffer,
             .src_box = {},
             .dst_box = {
                 .x = i->mapToOutput.x(),
@@ -829,12 +824,12 @@ WBufferRenderer *OutputHelper::afterRender()
                 .width = i->mapToOutput.width(),
                 .height = i->mapToOutput.height(),
             },
-            .damage = &i->renderer->damageRing()->handle()->current,
+            .damage = &i->renderer->damageRing()->current,
             .accepted = false
         });
 
         if (needsEndBuffer) {
-            // after get damage(&i->renderer->damageRing()->handle()->current)
+            // after getting damage from the renderer's current damage ring
             i->renderer->endRender();
         }
 
@@ -873,7 +868,7 @@ WBufferRenderer *OutputHelper::afterRender()
             && !(ok && layers.last().accepted)
             && (topLayer->layer->layer->flags() & WOutputLayer::Cursor)) {
             if (tryToHardwareCursor(topLayer)) {
-                Q_ASSERT(topLayer->renderer->lastBuffer()->handle() == layers.last().buffer);
+                Q_ASSERT(topLayer->renderer->lastBuffer() == layers.last().buffer);
                 Q_ASSERT(!hasHardwareCursor);
                 hasHardwareCursor = true;
                 bool ok = topLayer->layer->accept(output(), true);
@@ -1038,7 +1033,7 @@ WBufferRenderer *OutputHelper::compositeLayers(const QList<LayerData*> layers, b
 
     if (usingShadowRenderer) {
         const bool ok = beginRender(bufferRenderer2(), m_output->output()->size(),
-                                    qwoutput()->handle()->render_format,
+                                    wlrOutput()->render_format,
                                     WBufferRenderer::RedirectOpenGLContextDefaultFrameBufferObject);
 
         if (ok) {
@@ -1076,8 +1071,8 @@ bool OutputHelper::commit(WBufferRenderer *buffer)
     setBuffer(buffer->currentBuffer());
 
     if (m_lastCommitBuffer == buffer) {
-        if (pixman_region32_not_empty(&buffer->damageRing()->handle()->current))
-            setDamage(&buffer->damageRing()->handle()->current);
+        if (pixman_region32_not_empty(&buffer->damageRing()->current))
+            setDamage(&buffer->damageRing()->current);
     }
 
     m_lastCommitBuffer = buffer;
@@ -1088,31 +1083,31 @@ bool OutputHelper::commit(WBufferRenderer *buffer)
 bool OutputHelper::tryToHardwareCursor(const LayerData *layer)
 {
     do {
-        auto set_cursor = qwoutput()->handle()->impl->set_cursor;
+        auto set_cursor = wlrOutput()->impl->set_cursor;
         auto buffer = layer && layer->renderer->lastBuffer()
-                          ? layer->renderer->lastBuffer()->handle()
+                          ? layer->renderer->lastBuffer()
                           : nullptr;
         if (!buffer) {
             if (!m_hardwareCursorRenderComplete)
                 return true;
 
             if (set_cursor)
-                set_cursor(qwoutput()->handle(), buffer, 0, 0);
+                set_cursor(wlrOutput(), buffer, 0, 0);
             m_hardwareCursorRenderComplete = false;
             return true;
         }
 
-        if (qwoutput()->handle()->software_cursor_locks > 0)
+        if (wlrOutput()->software_cursor_locks > 0)
             break;
 
-        auto move_cursor = qwoutput()->handle()->impl->move_cursor;
+        auto move_cursor = wlrOutput()->impl->move_cursor;
 
         if (!set_cursor || !move_cursor)
             break;
 
         QSize pixelSize = QSize(buffer->width, buffer->height);
-        auto get_cursor_sizes = qwoutput()->handle()->impl->get_cursor_sizes;
-        auto get_cursor_formsts = qwoutput()->handle()->impl->get_cursor_formats;
+        auto get_cursor_sizes = wlrOutput()->impl->get_cursor_sizes;
+        auto get_cursor_formsts = wlrOutput()->impl->get_cursor_formats;
         bool needsRepaintCursor = get_cursor_sizes && get_cursor_formsts;
 
         if (Q_UNLIKELY(lcWlRenderer().isDebugEnabled()))
@@ -1124,7 +1119,7 @@ bool OutputHelper::tryToHardwareCursor(const LayerData *layer)
 
             bool foundTargetSize = false;
             size_t sizes_len = 0;
-            const auto sizes = get_cursor_sizes(qwoutput()->handle(), &sizes_len);
+            const auto sizes = get_cursor_sizes(wlrOutput(), &sizes_len);
             for (size_t i = 0; i < sizes_len; ++i) {
                 if (Q_UNLIKELY(lcWlRenderer().isDebugEnabled()))
                      qCDebug(lcWlRenderer) << "    " << sizes[i].width << "x" << sizes[i].height;
@@ -1193,8 +1188,8 @@ bool OutputHelper::tryToHardwareCursor(const LayerData *layer)
             // and the part beyond the screen will not be included in the pixelSize. In this case,
             // the pixelSize is inconsistent with the newBuffer size, and it needs to be redrawn.
             if (m_cursorDirty || !newBuffer ||
-                (pixelSize.width() != newBuffer->handle()->width) ||
-                (pixelSize.height() != newBuffer->handle()->height)) {
+                (pixelSize.width() != newBuffer->width) ||
+                (pixelSize.height() != newBuffer->height)) {
                 newBuffer = m_cursorRenderer->beginRender(pixelSize, 1.0, DRM_FORMAT_ARGB8888,
                                                           WBufferRenderer::UseCursorFormats);
                 if (newBuffer) {
@@ -1206,9 +1201,9 @@ bool OutputHelper::tryToHardwareCursor(const LayerData *layer)
             }
 
             if (newBuffer) {
-                Q_ASSERT(pixelSize.width() == newBuffer->handle()->width);
-                Q_ASSERT(pixelSize.height() == newBuffer->handle()->height);
-                buffer = newBuffer->handle();
+                Q_ASSERT(pixelSize.width() == newBuffer->width);
+                Q_ASSERT(pixelSize.height() == newBuffer->height);
+                buffer = newBuffer;
             } else {
                 buffer = nullptr;
             }
@@ -1216,7 +1211,7 @@ bool OutputHelper::tryToHardwareCursor(const LayerData *layer)
 
         const auto hotSpot = layer->renderMatrix.map(layer->layer->layer->cursorHotSpot()
                                                      * devicePixelRatio()).toPoint();
-        if (!set_cursor(qwoutput()->handle(), buffer, hotSpot.x(), hotSpot.y())) {
+        if (!set_cursor(wlrOutput(), buffer, hotSpot.x(), hotSpot.y())) {
             break;
         } else {
             m_hardwareCursorRenderComplete = true;
@@ -1230,9 +1225,9 @@ bool OutputHelper::tryToHardwareCursor(const LayerData *layer)
         // wlroot's move_cursor also will transform the cursor's position.
         // so revert transform here.
         wlr_box_transform(&cleanTransform, &cleanTransform,
-                          qwoutput()->handle()->transform,
+                          wlrOutput()->transform,
                           outputSize.width(), outputSize.height());
-        if (!move_cursor(qwoutput()->handle(), cleanTransform.x, cleanTransform.y)) {
+        if (!move_cursor(wlrOutput(), cleanTransform.x, cleanTransform.y)) {
             break;
         }
 
@@ -1357,12 +1352,12 @@ bool WOutputRenderWindowPrivate::initRCWithRhi()
     if (rhiSupport->rhiBackend() == QRhi::Vulkan) {
         vkInstance.reset(new QVulkanInstance());
 
-        auto phdev = wlr_vk_renderer_get_physical_device(m_renderer->handle());
-        auto dev = wlr_vk_renderer_get_device(m_renderer->handle());
-        auto queue_family = wlr_vk_renderer_get_queue_family(m_renderer->handle());
+        auto phdev = wlr_vk_renderer_get_physical_device(m_renderer);
+        auto dev = wlr_vk_renderer_get_device(m_renderer);
+        auto queue_family = wlr_vk_renderer_get_queue_family(m_renderer);
 
 #if QT_VERSION > QT_VERSION_CHECK(6, 6, 0)
-        auto instance = wlr_vk_renderer_get_instance(m_renderer->handle());
+        auto instance = wlr_vk_renderer_get_instance(m_renderer);
         vkInstance->setVkInstance(instance);
 #endif
         //        vkInstance->setExtensions(fromCStyleList(vkRendererAttribs.extension_count, vkRendererAttribs.extensions));
@@ -1376,8 +1371,8 @@ bool WOutputRenderWindowPrivate::initRCWithRhi()
     } else
 #endif
     if (rhiSupport->rhiBackend() == QRhi::OpenGLES2) {
-        Q_ASSERT(wlr_renderer_is_gles2(m_renderer->handle()));
-        auto egl = wlr_gles2_renderer_get_egl(m_renderer->handle());
+        Q_ASSERT(wlr_renderer_is_gles2(m_renderer));
+        auto egl = wlr_gles2_renderer_get_egl(m_renderer);
         auto display = wlr_egl_get_display(egl);
         auto context = wlr_egl_get_context(egl);
 
@@ -1441,14 +1436,15 @@ void WOutputRenderWindowPrivate::sortOutputs()
 }
 
 QVector<std::pair<OutputHelper*, WBufferRenderer*>>
-WOutputRenderWindowPrivate::doRenderOutputs(qw_output *needsFrameOutput, const QList<OutputHelper*> &outputs,
+WOutputRenderWindowPrivate::doRenderOutputs(wlr_output *needsFrameOutput,
+                                            const QList<OutputHelper*> &outputs,
                                             bool forceRender)
 {
     QVector<OutputHelper*> renderResults;
     renderResults.reserve(outputs.size());
     for (OutputHelper *helper : std::as_const(outputs)) {
         if (Q_LIKELY(needsFrameOutput)) {
-            if (helper->qwoutput() != needsFrameOutput)
+            if (helper->wlrOutput() != needsFrameOutput)
                 continue;
             else
                 Q_ASSERT(!helper->framePending());
@@ -1477,15 +1473,16 @@ WOutputRenderWindowPrivate::doRenderOutputs(qw_output *needsFrameOutput, const Q
 
         Q_ASSERT(helper->output()->output()->scale() <= helper->output()->devicePixelRatio());
 
-        const auto &format = helper->qwoutput()->handle()->render_format;
+        const auto &format = helper->wlrOutput()->render_format;
         const auto renderMatrix = helper->output()->renderMatrix();
 
         // maybe using the other WOutputViewport's QSGTextureProvider
         if (!helper->output()->depends().isEmpty())
             updateDirtyNodes();
 
-        qw_buffer *buffer = helper->beginRender(helper->bufferRenderer(), helper->output()->output()->size(), format,
-                                                WBufferRenderer::RedirectOpenGLContextDefaultFrameBufferObject);
+        wlr_buffer *buffer = helper->beginRender(
+            helper->bufferRenderer(), helper->output()->output()->size(), format,
+            WBufferRenderer::RedirectOpenGLContextDefaultFrameBufferObject);
         Q_ASSERT(buffer == helper->bufferRenderer()->currentBuffer());
         if (buffer) {
             helper->render(helper->bufferRenderer(), 0, renderMatrix,
@@ -1527,7 +1524,7 @@ static void QQuickAnimatorController_advance(QQuickAnimatorController *ac)
         W_PRIVATE_MEMBER(*ac, QQuickAnimCtrl_m_window_tag{})->update();
 }
 
-void WOutputRenderWindowPrivate::doRender(qw_output *needsFrameOutput,
+void WOutputRenderWindowPrivate::doRender(wlr_output *needsFrameOutput,
                                           const QList<OutputHelper *> &outputs,
                                           bool forceRender, bool doCommit)
 {
@@ -1576,7 +1573,7 @@ void WOutputRenderWindowPrivate::doRender(qw_output *needsFrameOutput,
                     // Make sure the output is still valid after commit
                     auto output = i.first->output()->output();
                     if (Q_LIKELY(needsFrameOutput)) {
-                        Q_ASSERT(output->handle() == needsFrameOutput->handle());
+                        Q_ASSERT(output->handle() == needsFrameOutput);
                         if (committedOutputs.isEmpty())
                             committedOutputs.append(output);
                     } else if (!committedOutputs.contains(output)) {
@@ -1657,9 +1654,9 @@ void WOutputRenderWindow::attach(WOutputViewport *output)
     d->sortOutputs();
 
     if (d->m_renderer) {
-        auto qwoutput = newOutput->qwoutput();
-        if (qwoutput->handle()->renderer != d->m_renderer->handle())
-            qwoutput->init_render(d->m_allocator->handle(), d->m_renderer->handle());
+        auto *wlrOutput = newOutput->wlrOutput();
+        if (wlrOutput->renderer != d->m_renderer)
+            wlr_output_init_render(wlrOutput, d->m_allocator, d->m_renderer);
         Q_EMIT outputViewportInitialized(output);
     }
 
@@ -1856,7 +1853,7 @@ void WOutputRenderWindow::rotateOutput(WOutputViewport *output, WOutput::Transfo
     }
 }
 
-void WOutputRenderWindow::init(qw_renderer *renderer, qw_allocator *allocator)
+void WOutputRenderWindow::init(wlr_renderer *renderer, wlr_allocator *allocator)
 {
     Q_D(WOutputRenderWindow);
     Q_ASSERT(!d->m_renderer);
@@ -1868,9 +1865,9 @@ void WOutputRenderWindow::init(qw_renderer *renderer, qw_allocator *allocator)
     d->m_allocator = allocator;
 
     for (auto output : std::as_const(d->outputs)) {
-        auto qwoutput = output->qwoutput();
-        if (qwoutput->handle()->renderer != d->m_renderer->handle())
-            qwoutput->init_render(d->m_allocator->handle(), d->m_renderer->handle());
+        auto *wlrOutput = output->wlrOutput();
+        if (wlrOutput->renderer != d->m_renderer)
+            wlr_output_init_render(wlrOutput, d->m_allocator, d->m_renderer);
         Q_EMIT outputViewportInitialized(output->output());
     }
 
@@ -1879,13 +1876,13 @@ void WOutputRenderWindow::init(qw_renderer *renderer, qw_allocator *allocator)
     }
 }
 
-qw_renderer *WOutputRenderWindow::renderer() const
+wlr_renderer *WOutputRenderWindow::renderer() const
 {
     Q_D(const WOutputRenderWindow);
     return d->m_renderer;
 }
 
-qw_allocator *WOutputRenderWindow::allocator() const
+wlr_allocator *WOutputRenderWindow::allocator() const
 {
     Q_D(const WOutputRenderWindow);
     return d->m_allocator;
@@ -1947,7 +1944,8 @@ void WOutputRenderWindow::setDisableLayers(bool newDisableLayers)
 void WOutputRenderWindow::render()
 {
     Q_D(WOutputRenderWindow);
-    d->doRender(qobject_cast<qw_output*>(sender()), d->outputs, false, true);
+    auto *output = qobject_cast<WOutput *>(sender());
+    d->doRender(output ? output->handle() : nullptr, d->outputs, false, true);
 }
 
 void WOutputRenderWindow::render(WOutputViewport *output, bool doCommit)

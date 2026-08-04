@@ -1,14 +1,12 @@
 // Copyright (C) 2023 JiDe Zhang <zccrs@live.com>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
-#include "qwlrootscreen.h"
-#include "qwlrootscursor.h"
-#include "qwlrootsintegration.h"
+#include "waylibscreen.h"
+#include "waylibcursor.h"
+#include "waylibintegration.h"
 #include "woutput.h"
 #include "woutputlayout.h"
 #include "wtools.h"
-
-#include <qwoutput.h>
 
 #include <qpa/qwindowsysteminterface.h>
 #include <qpa/qwindowsysteminterface_p.h>
@@ -17,35 +15,35 @@
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-QWlrootsScreen::QWlrootsScreen(WOutput *output)
+WaylibScreen::WaylibScreen(WOutput *output)
     : m_output(output)
 {
 
 }
 
-WOutput *QWlrootsScreen::output() const
+WOutput *WaylibScreen::output() const
 {
     return m_output.get();
 }
 
-QRect QWlrootsScreen::geometry() const
+QRect WaylibScreen::geometry() const
 {
     return QRect(m_output->position(), m_output->transformedSize());
 }
 
-void QWlrootsScreen::move(const QPoint &pos)
+void WaylibScreen::move(const QPoint &pos)
 {
     auto layout = m_output->layout();
     if (layout)
         layout->move(m_output, pos);
 }
 
-int QWlrootsScreen::depth() const
+int WaylibScreen::depth() const
 {
     return QImage::toPixelFormat(format()).bitsPerPixel();
 }
 
-QImage::Format QWlrootsScreen::format() const
+QImage::Format WaylibScreen::format() const
 {
     auto format = WTools::toImageFormat(m_output->handle()->render_format);
     if (format != QImage::Format_Invalid)
@@ -54,40 +52,40 @@ QImage::Format QWlrootsScreen::format() const
     return QImage::Format_RGB32;
 }
 
-QSizeF QWlrootsScreen::physicalSize() const
+QSizeF WaylibScreen::physicalSize() const
 {
     return QSizeF(handle()->phys_width, handle()->phys_height);
 }
 
-qreal QWlrootsScreen::devicePixelRatio() const
+qreal WaylibScreen::devicePixelRatio() const
 {
     return 1.0;
 }
 
-qreal QWlrootsScreen::refreshRate() const
+qreal WaylibScreen::refreshRate() const
 {
     if (!handle()->current_mode)
         return 60;
     return handle()->current_mode->refresh / 1000.f;
 }
 
-QDpi QWlrootsScreen::logicalBaseDpi() const
+QDpi WaylibScreen::logicalBaseDpi() const
 {
     return QDpi(96, 96);
 }
 
-QDpi QWlrootsScreen::logicalDpi() const
+QDpi WaylibScreen::logicalDpi() const
 {
     return logicalBaseDpi();
 }
 
-Qt::ScreenOrientation QWlrootsScreen::nativeOrientation() const
+Qt::ScreenOrientation WaylibScreen::nativeOrientation() const
 {
     return handle()->phys_width > handle()->phys_height ?
                Qt::LandscapeOrientation : Qt::PortraitOrientation;
 }
 
-Qt::ScreenOrientation QWlrootsScreen::orientation() const
+Qt::ScreenOrientation WaylibScreen::orientation() const
 {
     bool isPortrait = nativeOrientation() == Qt::PortraitOrientation;
     switch (handle()->transform) {
@@ -106,15 +104,15 @@ Qt::ScreenOrientation QWlrootsScreen::orientation() const
     return Qt::PrimaryOrientation;
 }
 
-QWindow *QWlrootsScreen::topLevelAt(const QPoint &) const
+QWindow *WaylibScreen::topLevelAt(const QPoint &) const
 {
     return nullptr;
 }
 
-QList<QPlatformScreen *> QWlrootsScreen::virtualSiblings() const
+QList<QPlatformScreen *> WaylibScreen::virtualSiblings() const
 {
     QList<QPlatformScreen*> siblings;
-    for (auto s : std::as_const(QWlrootsIntegration::instance()->m_screens)) {
+    for (auto s : std::as_const(WaylibIntegration::instance()->m_screens)) {
         if (s != this)
             siblings.append(s);
     }
@@ -122,34 +120,34 @@ QList<QPlatformScreen *> QWlrootsScreen::virtualSiblings() const
     return siblings;
 }
 
-QString QWlrootsScreen::name() const
+QString WaylibScreen::name() const
 {
     return QString::fromUtf8(handle()->name);
 }
 
-QString QWlrootsScreen::manufacturer() const
+QString WaylibScreen::manufacturer() const
 {
     return QString::fromUtf8(handle()->make);
 }
 
-QString QWlrootsScreen::model() const
+QString WaylibScreen::model() const
 {
     return QString::fromUtf8(handle()->model);
 }
 
-QString QWlrootsScreen::serialNumber() const
+QString WaylibScreen::serialNumber() const
 {
     return QString::fromUtf8(handle()->serial);
 }
 
-QPlatformCursor *QWlrootsScreen::cursor() const
+QPlatformCursor *WaylibScreen::cursor() const
 {
     if (!m_cursor)
-        m_cursor.reset(new QWlrootsCursor());
+        m_cursor.reset(new WaylibCursor());
     return m_cursor.get();
 }
 
-QPlatformScreen::SubpixelAntialiasingType QWlrootsScreen::subpixelAntialiasingTypeHint() const
+QPlatformScreen::SubpixelAntialiasingType WaylibScreen::subpixelAntialiasingTypeHint() const
 {
     switch (handle()->subpixel) {
     case WL_OUTPUT_SUBPIXEL_HORIZONTAL_RGB:
@@ -167,17 +165,17 @@ QPlatformScreen::SubpixelAntialiasingType QWlrootsScreen::subpixelAntialiasingTy
     return Subpixel_None;
 }
 
-QPlatformScreen::PowerState QWlrootsScreen::powerState() const
+QPlatformScreen::PowerState WaylibScreen::powerState() const
 {
     return handle()->enabled ? PowerStateOn : PowerStateOff;
 }
 
-void QWlrootsScreen::setPowerState(PowerState)
+void WaylibScreen::setPowerState(PowerState)
 {
 
 }
 
-QVector<QPlatformScreen::Mode> QWlrootsScreen::modes() const
+QVector<QPlatformScreen::Mode> WaylibScreen::modes() const
 {
     QVector<Mode> modes;
     struct wlr_output_mode *mode;
@@ -188,7 +186,7 @@ QVector<QPlatformScreen::Mode> QWlrootsScreen::modes() const
     return modes;
 }
 
-int QWlrootsScreen::currentMode() const
+int WaylibScreen::currentMode() const
 {
     int index = 0;
     struct wlr_output_mode *current = handle()->current_mode;
@@ -202,7 +200,7 @@ int QWlrootsScreen::currentMode() const
     return 0;
 }
 
-int QWlrootsScreen::preferredMode() const
+int WaylibScreen::preferredMode() const
 {
     int index = 0;
     struct wlr_output_mode *mode;
@@ -215,7 +213,7 @@ int QWlrootsScreen::preferredMode() const
     return 0;
 }
 
-void QWlrootsScreen::initialize()
+void WaylibScreen::initialize()
 {
     auto updateGeometry = [this] {
         const QRect newGeo = geometry();
@@ -233,7 +231,7 @@ void QWlrootsScreen::initialize()
     updateDpi();
 }
 
-wlr_output *QWlrootsScreen::handle() const
+wlr_output *WaylibScreen::handle() const
 {
     return m_output->handle();
 }

@@ -4,37 +4,49 @@
 #pragma once
 
 #include <wglobal.h>
-#include <qwextimagecapturesourcev1interface.h>
 
 #include <QObject>
 
-QW_BEGIN_NAMESPACE
-class qw_buffer;
-QW_END_NAMESPACE
+extern "C" {
+#include <wlr/interfaces/wlr_ext_image_capture_source_v1.h>
+}
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WSurfaceItemContent;
 class WOutput;
 
-class WAYLIB_SERVER_EXPORT WExtImageCaptureSourceV1Impl : public QObject, public QW_NAMESPACE::qw_ext_image_capture_source_v1_interface
+class WAYLIB_SERVER_EXPORT WExtImageCaptureSourceV1Impl : public QObject
 {
     Q_OBJECT
 public:
     explicit WExtImageCaptureSourceV1Impl(WSurfaceItemContent *surfaceContent, WOutput *output);
     ~WExtImageCaptureSourceV1Impl();
 
-    QW_INTERFACE(start, void, bool with_cursors);
-    QW_INTERFACE(stop, void);
-    QW_INTERFACE(schedule_frame, void);
-    QW_INTERFACE(copy_frame, void, wlr_ext_image_copy_capture_frame_v1 *dst_frame,
-                 wlr_ext_image_capture_source_v1_frame_event *frame_event);
-    QW_INTERFACE(get_pointer_cursor, wlr_ext_image_capture_source_v1_cursor *, wlr_seat *seat);
+    wlr_ext_image_capture_source_v1 *handle();
+
+    void start(bool with_cursors);
+    void stop();
+    void scheduleFrame();
+    void copyFrame(wlr_ext_image_copy_capture_frame_v1 *dst_frame,
+                   wlr_ext_image_capture_source_v1_frame_event *frame_event);
+    wlr_ext_image_capture_source_v1_cursor *getPointerCursor(wlr_seat *seat);
 
 private Q_SLOTS:
     void handleRenderEnd();
 
 private:
+    static WExtImageCaptureSourceV1Impl *fromHandle(wlr_ext_image_capture_source_v1 *source);
+    static void startCallback(wlr_ext_image_capture_source_v1 *source, bool with_cursors);
+    static void stopCallback(wlr_ext_image_capture_source_v1 *source);
+    static void scheduleFrameCallback(wlr_ext_image_capture_source_v1 *source);
+    static void copyFrameCallback(wlr_ext_image_capture_source_v1 *source,
+                                  wlr_ext_image_copy_capture_frame_v1 *dst_frame,
+                                  wlr_ext_image_capture_source_v1_frame_event *frame_event);
+    static wlr_ext_image_capture_source_v1_cursor *getPointerCursorCallback(
+        wlr_ext_image_capture_source_v1 *source, wlr_seat *seat);
+
+    wlr_ext_image_capture_source_v1 m_handle;
     QPointer<WSurfaceItemContent> m_surfaceContent;
     WOutput *m_output;
     bool m_capturing;

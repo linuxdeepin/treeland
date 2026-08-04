@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "types.h"
-#include "platformplugin/qwlrootswindow.h"
+#include "platformplugin/waylibwindow.h"
 
 #include <QWindow>
 
@@ -12,7 +12,7 @@ namespace QW {
 
 bool RenderWindow::beforeDisposeEventFilter(QWindow *window, QEvent *event)
 {
-    if (auto qwRenderWindow = static_cast<QWlrootsRenderWindow*>(window->handle())) {
+    if (auto qwRenderWindow = static_cast<WaylibRenderWindow*>(window->handle())) {
         if (qwRenderWindow->beforeDisposeEventFilter(event))
             return true;
     }
@@ -21,7 +21,7 @@ bool RenderWindow::beforeDisposeEventFilter(QWindow *window, QEvent *event)
 
 bool RenderWindow::afterDisposeEventFilter(QWindow *window, QEvent *event)
 {
-    if (auto qwRenderWindow = static_cast<QWlrootsRenderWindow*>(window->handle())) {
+    if (auto qwRenderWindow = static_cast<WaylibRenderWindow*>(window->handle())) {
         if (qwRenderWindow->afterDisposeEventFilter(event))
             return true;
     }

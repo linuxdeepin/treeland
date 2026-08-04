@@ -125,7 +125,7 @@ protected:
     friend class WOutputPrivate;
     friend class WCursor;
     friend class WCursorPrivate;
-    friend class QWlrootsRenderWindow;
+    friend class WaylibRenderWindow;
     friend class WEventJunkman;
     friend class WCursorShapeManagerV1;
     friend class WOutputRenderWindow;

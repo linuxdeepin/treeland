@@ -6,7 +6,7 @@
 #include "wcursor.h"
 #include "wseat.h"
 #include "wtools.h"
-#include "platformplugin/qwlrootscreen.h"
+#include "platformplugin/waylibscreen.h"
 #include "private/wglobal_p.h"
 #include "wayliblogging.h"
 
@@ -153,7 +153,7 @@ public:
     W_DECLARE_PUBLIC(WOutput)
 
     bool forceSoftwareCursor = false;
-    QWlrootsScreen *screen = nullptr;
+    WaylibScreen *screen = nullptr;
     QQuickWindow *window = nullptr;
 
     WBackend *backend = nullptr;
@@ -519,16 +519,16 @@ WOutput *WOutput::fromHandle(const wlr_output *handle)
 
 WOutput *WOutput::fromScreen(const QScreen *screen)
 {
-    return static_cast<QWlrootsScreen*>(screen->handle())->output();
+    return static_cast<WaylibScreen*>(screen->handle())->output();
 }
 
-void WOutput::setScreen(QWlrootsScreen *screen)
+void WOutput::setScreen(WaylibScreen *screen)
 {
     W_D(WOutput);
     d->screen = screen;
 }
 
-QWlrootsScreen *WOutput::screen() const
+WaylibScreen *WOutput::screen() const
 {
     W_DC(WOutput);
     return d->screen;
@@ -632,21 +632,21 @@ WOutputLayout *WOutput::layout() const
 
 void WOutput::addCursor(WCursor *cursor)
 {
-    static_cast<QWlrootsCursor*>(screen()->cursor())->addCursor(cursor);
+    static_cast<WaylibCursor*>(screen()->cursor())->addCursor(cursor);
     Q_EMIT cursorAdded(cursor);
     Q_EMIT cursorListChanged();
 }
 
 void WOutput::removeCursor(WCursor *cursor)
 {
-    static_cast<QWlrootsCursor*>(screen()->cursor())->removeCursor(cursor);
+    static_cast<WaylibCursor*>(screen()->cursor())->removeCursor(cursor);
     Q_EMIT cursorRemoved(cursor);
     Q_EMIT cursorListChanged();
 }
 
 const QList<WCursor *> &WOutput::cursorList() const
 {
-    return static_cast<QWlrootsCursor*>(screen()->cursor())->cursors;
+    return static_cast<WaylibCursor*>(screen()->cursor())->cursors;
 }
 
 bool WOutput::forceSoftwareCursor() const

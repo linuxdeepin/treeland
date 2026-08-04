@@ -15,12 +15,8 @@
 
 #include <private/qquickitem_p.h>
 
-#include <qwbox.h>
-#include <qwbuffer.h>
-#include <qwrenderer.h>
-#include <qwtexture.h>
-
 extern "C" {
+#include <wlr/types/wlr_buffer.h>
 #include <wlr/types/wlr_alpha_modifier_v1.h>
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_subcompositor.h>
@@ -32,7 +28,6 @@ extern "C" {
 #include <QSGImageNode>
 #include <QSGRenderNode>
 
-QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class Q_DECL_HIDDEN SubsurfaceContainer : public QQuickItem
@@ -162,7 +157,7 @@ private:
     }
 };
 
-// Clean RAII wrapper for qw_buffer that automatically manages lock and n_ignore_locks.
+// Clean RAII wrapper for wlr_buffer that automatically manages lock and n_ignore_locks.
 struct Q_DECL_HIDDEN BufferRef
 {
     BufferRef() = default;
@@ -181,32 +176,32 @@ struct Q_DECL_HIDDEN BufferRef
     }
 
     // Reset to a new buffer (AddRef-before-Release to avoid transient 0 locks)
-    void reset(qw_buffer *newBuf = nullptr) {
+    void reset(wlr_buffer *newBuf = nullptr) {
         if (m_buffer == newBuf)
             return;
         if (newBuf) {
-            newBuf->lock();
-            if (auto cb = qw_client_buffer::get(*newBuf))
-                cb->handle()->n_ignore_locks++;
+            wlr_buffer_lock(newBuf);
+            if (auto *cb = wlr_client_buffer_get(newBuf))
+                cb->n_ignore_locks++;
         }
         release();
         m_buffer = newBuf;
     }
 
-    qw_buffer *get() const { return m_buffer; }
+    wlr_buffer *get() const { return m_buffer; }
     explicit operator bool() const { return m_buffer != nullptr; }
 
 private:
     void release() {
         if (m_buffer) {
-            if (auto cb = qw_client_buffer::get(*m_buffer))
-                cb->handle()->n_ignore_locks--;
-            m_buffer->unlock();
+            if (auto *cb = wlr_client_buffer_get(m_buffer))
+                cb->n_ignore_locks--;
+            wlr_buffer_unlock(m_buffer);
             m_buffer = nullptr;
         }
     }
 
-    qw_buffer *m_buffer = nullptr;
+    wlr_buffer *m_buffer = nullptr;
 };
 
 class Q_DECL_HIDDEN WSurfaceItemContentPrivate: public QQuickItemPrivate
@@ -468,7 +463,7 @@ WSGTextureProvider *WSurfaceItemContent::wTextureProvider() const
 
         if (d->surface) {
             if (auto texture = wlr_surface_get_texture(d->surface->handle())) {
-                d->textureProvider->setTexture(qw_texture::from(texture), d->buffer.get());
+                d->textureProvider->setTexture(texture, d->buffer.get());
             } else {
                 d->textureProvider->setBuffer(d->buffer.get());
             }
@@ -600,7 +595,7 @@ QSGNode *WSurfaceItemContent::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeD
     if (d->live || !tp->texture()) {
         auto texture = d->surface ? wlr_surface_get_texture(d->surface->handle()) : nullptr;
         if (texture) {
-            tp->setTexture(qw_texture::from(texture), d->buffer.get());
+            tp->setTexture(texture, d->buffer.get());
         } else {
             tp->setBuffer(d->buffer.get());
         }

@@ -4,27 +4,22 @@
 #pragma once
 
 #include "wglobal.h"
-#include <qwglobal.h>
 
 #include <QPointer>
 #include <qpa/qplatformwindow.h>
 
-QW_BEGIN_NAMESPACE
-class qw_buffer;
-QW_END_NAMESPACE
-
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class QWlrootsScreen;
-class Q_DECL_HIDDEN QWlrootsOutputWindow : public QPlatformWindow
+class WaylibScreen;
+class Q_DECL_HIDDEN WaylibOutputWindow : public QPlatformWindow
 {
 public:
-    QWlrootsOutputWindow(QWindow *window);
-    ~QWlrootsOutputWindow();
+    WaylibOutputWindow(QWindow *window);
+    ~WaylibOutputWindow();
 
     void initialize() override;
 
-    QWlrootsScreen *qwScreen() const;
+    WaylibScreen *waylibScreen() const;
     QPlatformScreen *screen() const override;
     void setGeometry(const QRect &rect) override;
     QRect geometry() const override;
@@ -38,11 +33,11 @@ private:
 };
 
 class WCursor;
-class Q_DECL_HIDDEN QWlrootsRenderWindow : public QPlatformWindow
+class Q_DECL_HIDDEN WaylibRenderWindow : public QPlatformWindow
 {
-    friend class QWlrootsCursor;
+    friend class WaylibCursor;
 public:
-    QWlrootsRenderWindow(QWindow *window);
+    WaylibRenderWindow(QWindow *window);
 
     void initialize() override;
     void setGeometry(const QRect &rect) override;

@@ -189,10 +189,10 @@ set(SOURCES
     utils/wextimagecapturesourcev1impl.cpp
     utils/wbufferdumper.cpp
 
-    platformplugin/qwlrootsintegration.cpp
-    platformplugin/qwlrootscreen.cpp
-    platformplugin/qwlrootswindow.cpp
-    platformplugin/qwlrootscursor.cpp
+    platformplugin/waylibintegration.cpp
+    platformplugin/waylibscreen.cpp
+    platformplugin/waylibwindow.cpp
+    platformplugin/waylibcursor.cpp
     platformplugin/types.cpp
 
     protocols/wxdgshell.cpp
@@ -335,10 +335,10 @@ set(HEADERS
 )
 
 set(PRIVATE_HEADERS
-    platformplugin/qwlrootsintegration.h
-    platformplugin/qwlrootscreen.h
-    platformplugin/qwlrootswindow.h
-    platformplugin/qwlrootscursor.h
+    platformplugin/waylibintegration.h
+    platformplugin/waylibscreen.h
+    platformplugin/waylibwindow.h
+    platformplugin/waylibcursor.h
     platformplugin/types.h
     kernel/private/wglobal_p.h
     kernel/private/wsurface_p.h

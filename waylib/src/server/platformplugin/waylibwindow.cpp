@@ -1,16 +1,13 @@
 // Copyright (C) 2023 JiDe Zhang <zccrs@live.com>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
-#include "qwlrootswindow.h"
-#include "qwlrootscreen.h"
-#include "qwlrootsintegration.h"
+#include "waylibwindow.h"
+#include "waylibscreen.h"
+#include "waylibintegration.h"
 #include "woutput.h"
 #include "winputdevice.h"
 #include "wseat.h"
 #include "wcursor.h"
-
-#include <qwrenderer.h>
-#include <qwoutput.h>
 
 #include <QCoreApplication>
 
@@ -18,16 +15,15 @@
 #include <qpa/qwindowsysteminterface_p.h>
 #include <private/qguiapplication_p.h>
 
-QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-QWlrootsOutputWindow::QWlrootsOutputWindow(QWindow *window)
+WaylibOutputWindow::WaylibOutputWindow(QWindow *window)
     : QPlatformWindow(window)
 {
 
 }
 
-QWlrootsOutputWindow::~QWlrootsOutputWindow()
+WaylibOutputWindow::~WaylibOutputWindow()
 {
     if (onScreenChangedConnection)
         QObject::disconnect(onScreenChangedConnection);
@@ -35,7 +31,7 @@ QWlrootsOutputWindow::~QWlrootsOutputWindow()
         QObject::disconnect(onScreenGeometryConnection);
 }
 
-void QWlrootsOutputWindow::initialize()
+void WaylibOutputWindow::initialize()
 {
     auto onGeometryChanged = [this] {
         const QRect newGeo = geometry();
@@ -52,50 +48,50 @@ void QWlrootsOutputWindow::initialize()
     QMetaObject::invokeMethod(window(), onGeometryChanged, Qt::QueuedConnection);
 }
 
-QWlrootsScreen *QWlrootsOutputWindow::qwScreen() const
+WaylibScreen *WaylibOutputWindow::waylibScreen() const
 {
-    return dynamic_cast<QWlrootsScreen*>(this->screen());
+    return dynamic_cast<WaylibScreen*>(this->screen());
 }
 
-QPlatformScreen *QWlrootsOutputWindow::screen() const
+QPlatformScreen *WaylibOutputWindow::screen() const
 {
     return QPlatformWindow::screen();
 }
 
-void QWlrootsOutputWindow::setGeometry(const QRect &rect)
+void WaylibOutputWindow::setGeometry(const QRect &rect)
 {
-    auto screen = qwScreen();
+    auto screen = waylibScreen();
     Q_ASSERT(screen);
     screen->move(rect.topLeft());
 }
 
-QRect QWlrootsOutputWindow::geometry() const
+QRect WaylibOutputWindow::geometry() const
 {
     return screen()->geometry();
 }
 
-WId QWlrootsOutputWindow::winId() const
+WId WaylibOutputWindow::winId() const
 {
     return reinterpret_cast<WId>(this);
 }
 
-qreal QWlrootsOutputWindow::devicePixelRatio() const
+qreal WaylibOutputWindow::devicePixelRatio() const
 {
     return 1.0;
 }
 
-QWlrootsRenderWindow::QWlrootsRenderWindow(QWindow *window)
+WaylibRenderWindow::WaylibRenderWindow(QWindow *window)
     : QPlatformWindow(window)
 {
 
 }
 
-void QWlrootsRenderWindow::initialize()
+void WaylibRenderWindow::initialize()
 {
 
 }
 
-void QWlrootsRenderWindow::setGeometry(const QRect &rect)
+void WaylibRenderWindow::setGeometry(const QRect &rect)
 {
     if (geometry() == rect)
         return;
@@ -103,17 +99,17 @@ void QWlrootsRenderWindow::setGeometry(const QRect &rect)
     QWindowSystemInterface::handleGeometryChange(window(), rect);
 }
 
-WId QWlrootsRenderWindow::winId() const
+WId WaylibRenderWindow::winId() const
 {
-    return reinterpret_cast<WId>(const_cast<QWlrootsRenderWindow*>(this));
+    return reinterpret_cast<WId>(const_cast<WaylibRenderWindow*>(this));
 }
 
-qreal QWlrootsRenderWindow::devicePixelRatio() const
+qreal WaylibRenderWindow::devicePixelRatio() const
 {
     return dpr;
 }
 
-void QWlrootsRenderWindow::setDevicePixelRatio(qreal dpr)
+void WaylibRenderWindow::setDevicePixelRatio(qreal dpr)
 {
     if (qFuzzyCompare(this->dpr, dpr))
         return;
@@ -128,7 +124,7 @@ void QWlrootsRenderWindow::setDevicePixelRatio(qreal dpr)
 #endif
 }
 
-bool QWlrootsRenderWindow::beforeDisposeEventFilter(QEvent *event)
+bool WaylibRenderWindow::beforeDisposeEventFilter(QEvent *event)
 {
     if (event->isInputEvent()) {
         auto ie = static_cast<QInputEvent*>(event);
@@ -141,7 +137,7 @@ bool QWlrootsRenderWindow::beforeDisposeEventFilter(QEvent *event)
     return false;
 }
 
-bool QWlrootsRenderWindow::afterDisposeEventFilter(QEvent *event)
+bool WaylibRenderWindow::afterDisposeEventFilter(QEvent *event)
 {
     if (event->isInputEvent()) {
         auto ie = static_cast<QInputEvent*>(event);

@@ -5,17 +5,14 @@
 
 #include <wglobal.h>
 #include <woutput.h>
-#include <qwglobal.h>
 
 #include <QQuickWindow>
 #include <QQmlParserStatus>
 
 Q_MOC_INCLUDE(<wquickoutputlayout.h>)
 
-QW_BEGIN_NAMESPACE
-class qw_allocator;
-class qw_renderer;
-QW_END_NAMESPACE
+struct wlr_allocator;
+struct wlr_renderer;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -55,9 +52,9 @@ public:
     void setOutputScale(WOutputViewport *output, float scale);
     void rotateOutput(WOutputViewport *output, WOutput::Transform t);
 
-    void init(QW_NAMESPACE::qw_renderer *renderer, QW_NAMESPACE::qw_allocator *allocator);
-    QW_NAMESPACE::qw_renderer *renderer() const;
-    QW_NAMESPACE::qw_allocator *allocator() const;
+    void init(wlr_renderer *renderer, wlr_allocator *allocator);
+    wlr_renderer *renderer() const;
+    wlr_allocator *allocator() const;
 
     qreal width() const;
     qreal height() const;

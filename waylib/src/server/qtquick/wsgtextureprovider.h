@@ -3,14 +3,11 @@
 #pragma once
 
 #include <wglobal.h>
-#include <qwglobal.h>
 
 #include <QSGTextureProvider>
 
-QW_BEGIN_NAMESPACE
-class qw_texture;
-class qw_buffer;
-QW_END_NAMESPACE
+struct wlr_buffer;
+struct wlr_texture;
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WOutputRenderWindow;
@@ -27,13 +24,13 @@ public:
 
     WOutputRenderWindow *window() const;
 
-    void setBuffer(QW_NAMESPACE::qw_buffer *buffer);
-    void setTexture(QW_NAMESPACE::qw_texture *texture, QW_NAMESPACE::qw_buffer *srcBuffer);
+    void setBuffer(wlr_buffer *buffer);
+    void setTexture(wlr_texture *texture, wlr_buffer *srcBuffer);
     void invalidate();
 
     QSGTexture *texture() const override;
-    virtual QW_NAMESPACE::qw_texture *qwTexture() const;
-    virtual QW_NAMESPACE::qw_buffer *qwBuffer() const;
+    virtual wlr_texture *textureHandle() const;
+    virtual wlr_buffer *bufferHandle() const;
 
     bool smooth() const;
     void setSmooth(bool newSmooth);

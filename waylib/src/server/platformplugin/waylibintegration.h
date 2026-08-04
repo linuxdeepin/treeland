@@ -5,18 +5,10 @@
 
 #include "wglobal.h"
 
-#include <qwglobal.h>
-
 #include <QPointer>
 #include <qpa/qplatformintegration.h>
 #include <qpa/qplatformvulkaninstance.h>
 #include <qpa/qplatformnativeinterface.h>
-
-QW_BEGIN_NAMESPACE
-class QWDisplay;
-QW_END_NAMESPACE
-
-QW_USE_NAMESPACE
 
 QT_BEGIN_NAMESPACE
 class QInputDevice;
@@ -26,19 +18,19 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WOutput;
 class WInputDevice;
-class QWlrootsScreen;
-class Q_DECL_HIDDEN QWlrootsIntegration : public QPlatformIntegration, public QPlatformNativeInterface
+class WaylibScreen;
+class Q_DECL_HIDDEN WaylibIntegration : public QPlatformIntegration, public QPlatformNativeInterface
 {
 public:
-    QWlrootsIntegration(const QStringList &parameters, std::function<void()> onInitialized);
-    ~QWlrootsIntegration();
+    WaylibIntegration(const QStringList &parameters, std::function<void()> onInitialized);
+    ~WaylibIntegration();
 
-    static QWlrootsIntegration *instance();
+    static WaylibIntegration *instance();
 
-    QWlrootsScreen *addScreen(WOutput *output);
+    WaylibScreen *addScreen(WOutput *output);
     void removeScreen(WOutput *output);
-    QWlrootsScreen *getScreenFrom(const WOutput *output);
-    inline const QList<QWlrootsScreen*> &screens() const {
+    WaylibScreen *getScreenFrom(const WOutput *output);
+    inline const QList<WaylibScreen*> &screens() const {
         return m_screens;
     }
 
@@ -112,15 +104,15 @@ public:
     void *nativeResourceForScreen(const QByteArray &resource, QScreen *screen) override;
 
 private:
-    friend class QWlrootsScreen;
+    friend class WaylibScreen;
 
     static CreatePlatformThemeCallback s_createPlatformThemeCallback;
     mutable std::unique_ptr<QPlatformFontDatabase> m_fontDb;
     std::unique_ptr<QPlatformServices> m_services;
     std::unique_ptr<QPlatformPlaceholderScreen> m_placeholderScreen;
 
-    QList<QWlrootsScreen*> m_screens;
-    static QWlrootsIntegration *m_instance;
+    QList<WaylibScreen*> m_screens;
+    static WaylibIntegration *m_instance;
     std::function<void()> m_onInitialized;
 };
 

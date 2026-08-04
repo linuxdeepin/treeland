@@ -4,25 +4,21 @@
 #pragma once
 
 #include "wglobal.h"
-#include "qwlrootscursor.h"
-
-#include <qwglobal.h>
+#include "waylibcursor.h"
 
 #include <QSurfaceFormat>
 #include <QPointer>
 #include <qpa/qplatformscreen.h>
-
-QW_USE_NAMESPACE
 
 struct wlr_output;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WOutput;
-class Q_DECL_HIDDEN QWlrootsScreen : public QPlatformScreen
+class Q_DECL_HIDDEN WaylibScreen : public QPlatformScreen
 {
 public:
-    QWlrootsScreen(WOutput *output);
+    WaylibScreen(WOutput *output);
 
     WOutput *output() const;
 
@@ -60,13 +56,13 @@ public:
     int preferredMode() const override;
 
 private:
-    friend class QWlrootsIntegration;
+    friend class WaylibIntegration;
 
     void initialize();
     inline wlr_output *handle() const;
 
     QPointer<WOutput> m_output;
-    mutable std::unique_ptr<QWlrootsCursor> m_cursor;
+    mutable std::unique_ptr<WaylibCursor> m_cursor;
 };
 
 WAYLIB_SERVER_END_NAMESPACE

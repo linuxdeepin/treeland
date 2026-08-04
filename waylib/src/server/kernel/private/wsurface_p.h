@@ -6,11 +6,10 @@
 #include "wsurface.h"
 #include "private/wglobal_p.h"
 
-#include <qwbuffer.h>
-
 #include <QObject>
 #include <QPointer>
 
+struct wlr_buffer;
 struct wlr_surface;
 struct wlr_subsurface;
 
@@ -45,7 +44,7 @@ public:
     void disconnectNativeEvents();
     void instantRelease() override;    // release qwobject etc.
     void updateOutputs();
-    void setBuffer(QW_NAMESPACE::qw_buffer *newBuffer);
+    void setBuffer(wlr_buffer *newBuffer);
     void updateBuffer();
     void updateBufferOffset();
     void updatePreferredBufferScale();
@@ -68,7 +67,10 @@ public:
     uint32_t explicitPreferredBufferScale = 0;
 
     bool needsFrame = false;
-    std::unique_ptr<QW_NAMESPACE::qw_buffer, QW_NAMESPACE::qw_buffer::unlocker> buffer;
+    struct BufferUnlocker {
+        void operator()(wlr_buffer *buffer) const;
+    };
+    std::unique_ptr<wlr_buffer, BufferUnlocker> buffer;
     QList<WOutput*> outputs;
     WOutput *framePacingOutput = nullptr;
     QMetaObject::Connection frameDoneConnection;

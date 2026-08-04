@@ -5,18 +5,16 @@
 
 #include "wglobal.h"
 
-#include <qwglobal.h>
-
 #include <QCursor>
 #include <qpa/qplatformcursor.h>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WCursor;
-class Q_DECL_HIDDEN QWlrootsCursor : public QPlatformCursor
+class Q_DECL_HIDDEN WaylibCursor : public QPlatformCursor
 {
 public:
-    explicit QWlrootsCursor();
+    explicit WaylibCursor();
 
 #ifndef QT_NO_CURSOR
     void changeCursor(QCursor *windowCursor, QWindow *window) override;

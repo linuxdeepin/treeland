@@ -6,16 +6,7 @@
 #include "wayliblogging.h"
 #include "private/wqmlhelper_p.h"
 #include "private/wglobal_p.h"
-
-#include <qwoutput.h>
-#include <qwrenderer.h>
-#include <qwswapchain.h>
-#include <qwbuffer.h>
-#include <qwtexture.h>
-#include <qwbufferinterface.h>
-#include <qwegl.h>
-#include <qwallocator.h>
-#include <qwrendererinterface.h>
+#include "wimagebuffer.h"
 
 #include <QSGTexture>
 #include <private/qquickrendercontrol_p.h>
@@ -28,6 +19,12 @@
 
 extern "C" {
 #include <wlr/backend.h>
+#include <wlr/interfaces/wlr_buffer.h>
+#include <wlr/render/allocator.h>
+#include <wlr/render/egl.h>
+#include <wlr/render/swapchain.h>
+#include <wlr/render/wlr_renderer.h>
+#include <wlr/render/wlr_texture.h>
 #define static
 #include <wlr/render/gles2.h>
 #undef static
@@ -36,16 +33,16 @@ extern "C" {
 #include <wlr/render/vulkan.h>
 #endif
 }
+#include <EGL/eglext.h>
 #include <drm_fourcc.h>
 #include <dlfcn.h>
 
-QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 struct Q_DECL_HIDDEN RhiRenderEntry {
     const QRhiRenderTarget *renderTarget;
     const QRhiTexture *texture;
-    QPointer<qw_buffer> buffer;
+    wlr_buffer *buffer;
 };
 
 Q_GLOBAL_STATIC(QVector<RhiRenderEntry>, s_rhiRenderBuffers)
@@ -59,7 +56,8 @@ struct Q_DECL_HIDDEN BufferData {
         resetWindowRenderTarget();
     }
 
-    qw_buffer *buffer = nullptr;
+    wlr_buffer *buffer = nullptr;
+    WNativeListener destroyListener;
     // for software renderer
     WImageRenderTarget paintDevice;
     QQuickRenderTarget renderTarget;
@@ -231,7 +229,7 @@ bool createRhiRenderTarget(QRhi *rhi, const QQuickRenderTarget &source, QQuickWi
 class Q_DECL_HIDDEN WRenderHelperPrivate : public WObjectPrivate
 {
 public:
-    WRenderHelperPrivate(WRenderHelper *qq, qw_renderer *renderer)
+    WRenderHelperPrivate(WRenderHelper *qq, wlr_renderer *renderer)
         : WObjectPrivate(qq)
         , renderer(renderer)
     {}
@@ -240,11 +238,11 @@ public:
     }
 
     void resetRenderBuffer();
-    void onBufferDestroy();
+    void onBufferDestroy(wlr_buffer *buffer);
     static bool ensureRhiRenderTarget(QQuickRenderControl *rc, BufferData *data);
 
     W_DECLARE_PUBLIC(WRenderHelper)
-    qw_renderer *renderer;
+    wlr_renderer *renderer;
     QList<BufferData*> buffers;
     BufferData *lastBuffer = nullptr;
 
@@ -258,10 +256,8 @@ void WRenderHelperPrivate::resetRenderBuffer()
     buffers.clear();
 }
 
-void WRenderHelperPrivate::onBufferDestroy()
+void WRenderHelperPrivate::onBufferDestroy(wlr_buffer *buffer)
 {
-    qw_buffer *buffer = qobject_cast<qw_buffer*>(q_func()->sender());
-
     for (int i = 0; i < buffers.count(); ++i) {
         auto data = buffers[i];
         if (data->buffer == buffer) {
@@ -296,7 +292,7 @@ bool WRenderHelperPrivate::ensureRhiRenderTarget(QQuickRenderControl *rc, Buffer
     return true;
 }
 
-WRenderHelper::WRenderHelper(qw_renderer *renderer, QObject *parent)
+WRenderHelper::WRenderHelper(wlr_renderer *renderer, QObject *parent)
     : QObject(parent)
     , WObject(*new WRenderHelperPrivate(this, renderer))
 {
@@ -338,14 +334,18 @@ QSGRendererInterface::GraphicsApi WRenderHelper::getGraphicsApi()
     return api;
 }
 
-class Q_DECL_HIDDEN GLTextureBuffer : public qw_buffer_interface
+class Q_DECL_HIDDEN GLTextureBuffer
 {
 public:
-    explicit GLTextureBuffer(wlr_egl *egl, QSGTexture *texture);
-
-    QW_INTERFACE(get_dmabuf, bool, wlr_dmabuf_attributes *attribs);
+    static wlr_buffer *create(wlr_egl *egl, QSGTexture *texture);
 
 private:
+    explicit GLTextureBuffer(wlr_egl *egl, QSGTexture *texture);
+    static GLTextureBuffer *fromBuffer(wlr_buffer *buffer);
+    static void destroy(wlr_buffer *buffer);
+    static bool getDmabuf(wlr_buffer *buffer, wlr_dmabuf_attributes *attribs);
+
+    wlr_buffer m_buffer;
     wlr_egl *m_egl;
     QSGTexture *m_texture;
 };
@@ -354,17 +354,42 @@ GLTextureBuffer::GLTextureBuffer(wlr_egl *egl, QSGTexture *texture)
     : m_egl(egl)
     , m_texture(texture)
 {
-
+    static const wlr_buffer_impl impl {
+        .destroy = destroy,
+        .get_dmabuf = getDmabuf,
+        .get_shm = nullptr,
+        .begin_data_ptr_access = nullptr,
+        .end_data_ptr_access = nullptr,
+    };
+    const QSize size = texture->textureSize();
+    wlr_buffer_init(&m_buffer, &impl, size.width(), size.height());
 }
 
-bool GLTextureBuffer::get_dmabuf(wlr_dmabuf_attributes *attribs)
+wlr_buffer *GLTextureBuffer::create(wlr_egl *egl, QSGTexture *texture)
 {
-    auto rhiTexture = m_texture->rhiTexture();
+    return &(new GLTextureBuffer(egl, texture))->m_buffer;
+}
+
+GLTextureBuffer *GLTextureBuffer::fromBuffer(wlr_buffer *buffer)
+{
+    return reinterpret_cast<GLTextureBuffer *>(buffer);
+}
+
+void GLTextureBuffer::destroy(wlr_buffer *buffer)
+{
+    wlr_buffer_finish(buffer);
+    delete fromBuffer(buffer);
+}
+
+bool GLTextureBuffer::getDmabuf(wlr_buffer *buffer, wlr_dmabuf_attributes *attribs)
+{
+    auto *self = fromBuffer(buffer);
+    auto *rhiTexture = self->m_texture->rhiTexture();
     if (!rhiTexture)
         return false;
 
-    auto display = wlr_egl_get_display(m_egl);
-    auto context = wlr_egl_get_context(m_egl);
+    auto display = wlr_egl_get_display(self->m_egl);
+    auto context = wlr_egl_get_context(self->m_egl);
 
     EGLImage image = eglCreateImage(display, context,
                                     EGL_GL_TEXTURE_2D,
@@ -398,21 +423,25 @@ bool GLTextureBuffer::get_dmabuf(wlr_dmabuf_attributes *attribs)
     if (!ok)
         return false;
 
-    attribs->width = handle()->width;
-    attribs->height = handle()->height;
+    attribs->width = buffer->width;
+    attribs->height = buffer->height;
 
     return true;
 }
 
 #ifdef ENABLE_VULKAN_RENDER
-class Q_DECL_HIDDEN VkTextureBuffer : public qw_buffer_interface
+class Q_DECL_HIDDEN VkTextureBuffer
 {
 public:
-    explicit VkTextureBuffer(VkInstance instance, VkDevice device, QSGTexture *texture);
-
-    QW_INTERFACE(get_dmabuf, bool ,wlr_dmabuf_attributes *attribs);
+    static wlr_buffer *create(VkInstance instance, VkDevice device, QSGTexture *texture);
 
 private:
+    explicit VkTextureBuffer(VkInstance instance, VkDevice device, QSGTexture *texture);
+    static VkTextureBuffer *fromBuffer(wlr_buffer *buffer);
+    static void destroy(wlr_buffer *buffer);
+    static bool getDmabuf(wlr_buffer *buffer, wlr_dmabuf_attributes *attribs);
+
+    wlr_buffer m_buffer;
     [[maybe_unused]] VkInstance m_instance;
     [[maybe_unused]] VkDevice m_device;
     [[maybe_unused]] QSGTexture *m_texture;
@@ -423,10 +452,35 @@ VkTextureBuffer::VkTextureBuffer(VkInstance instance, VkDevice device, QSGTextur
     , m_device(device)
     , m_texture(texture)
 {
-
+    static const wlr_buffer_impl impl {
+        .destroy = destroy,
+        .get_dmabuf = getDmabuf,
+        .get_shm = nullptr,
+        .begin_data_ptr_access = nullptr,
+        .end_data_ptr_access = nullptr,
+    };
+    const QSize size = texture->textureSize();
+    wlr_buffer_init(&m_buffer, &impl, size.width(), size.height());
 }
 
-bool VkTextureBuffer::get_dmabuf([[maybe_unused]] wlr_dmabuf_attributes *attribs)
+wlr_buffer *VkTextureBuffer::create(VkInstance instance, VkDevice device, QSGTexture *texture)
+{
+    return &(new VkTextureBuffer(instance, device, texture))->m_buffer;
+}
+
+VkTextureBuffer *VkTextureBuffer::fromBuffer(wlr_buffer *buffer)
+{
+    return reinterpret_cast<VkTextureBuffer *>(buffer);
+}
+
+void VkTextureBuffer::destroy(wlr_buffer *buffer)
+{
+    wlr_buffer_finish(buffer);
+    delete fromBuffer(buffer);
+}
+
+bool VkTextureBuffer::getDmabuf([[maybe_unused]] wlr_buffer *buffer,
+                                [[maybe_unused]] wlr_dmabuf_attributes *attribs)
 {
 //    static auto vkGetInstanceProcAddr =
 //        reinterpret_cast<PFN_vkGetInstanceProcAddr>(::dlsym(RTLD_DEFAULT, "vkGetInstanceProcAddr"));
@@ -444,67 +498,25 @@ bool VkTextureBuffer::get_dmabuf([[maybe_unused]] wlr_dmabuf_attributes *attribs
 }
 #endif
 
-class Q_DECL_HIDDEN QImageBuffer : public qw_buffer_interface
-{
-public:
-    explicit QImageBuffer(const QImage &image);
-
-    QW_INTERFACE(get_shm, bool, wlr_shm_attributes *attribs);
-    QW_INTERFACE(begin_data_ptr_access, bool, uint32_t flags, void **data, uint32_t *format, size_t *stride);
-    QW_INTERFACE(end_data_ptr_access, void);
-
-private:
-    QImage m_image;
-};
-
-QImageBuffer::QImageBuffer(const QImage &image)
-    : m_image(image)
-{
-
-}
-
-bool QImageBuffer::get_shm(wlr_shm_attributes *attribs)
-{
-    attribs->fd = 0;
-    attribs->format = WTools::toDrmFormat(m_image.format());
-    attribs->width = m_image.width();
-    attribs->height = m_image.height();
-    attribs->stride = m_image.bytesPerLine();
-    return true;
-}
-
-bool QImageBuffer::begin_data_ptr_access([[maybe_unused]] uint32_t flags, void **data, uint32_t *format, size_t *stride)
-{
-    *data = m_image.bits();
-    *format = WTools::toDrmFormat(m_image.format());
-    *stride = m_image.bytesPerLine();
-
-    return true;
-}
-
-void QImageBuffer::end_data_ptr_access()
-{
-
-}
-
-qw_buffer *WRenderHelper::toBuffer(qw_renderer *renderer, QSGTexture *texture, QSGRendererInterface::GraphicsApi api)
+wlr_buffer *WRenderHelper::toBuffer(wlr_renderer *renderer, QSGTexture *texture,
+                                    QSGRendererInterface::GraphicsApi api)
 {
     const QSize size = texture->textureSize();
 
     switch (api) {
     case QSGRendererInterface::OpenGL: {
-        Q_ASSERT(wlr_renderer_is_gles2(renderer->handle()));
-        auto egl = wlr_gles2_renderer_get_egl(renderer->handle());
+        Q_ASSERT(wlr_renderer_is_gles2(renderer));
+        auto *egl = wlr_gles2_renderer_get_egl(renderer);
 
-        return qw_buffer::create(new GLTextureBuffer(egl, texture), size.width(), size.height());
+        return GLTextureBuffer::create(egl, texture);
     }
 #ifdef ENABLE_VULKAN_RENDER
     case QSGRendererInterface::Vulkan: {
-        Q_ASSERT(wlr_renderer_is_vk(renderer->handle()));
-        auto instance = wlr_vk_renderer_get_instance(renderer->handle());
-        auto device = wlr_vk_renderer_get_device(renderer->handle());
+        Q_ASSERT(wlr_renderer_is_vk(renderer));
+        auto instance = wlr_vk_renderer_get_instance(renderer);
+        auto device = wlr_vk_renderer_get_device(renderer);
 
-        return qw_buffer::create(new VkTextureBuffer(instance, device, texture), size.width(), size.height());
+        return VkTextureBuffer::create(instance, device, texture);
     }
 #endif
     case QSGRendererInterface::Software: {
@@ -524,17 +536,17 @@ qw_buffer *WRenderHelper::toBuffer(qw_renderer *renderer, QSGTexture *texture, Q
         if (image.isNull())
             return nullptr;
 
-        return qw_buffer::create(new QImageBuffer(image), image.width(), image.height());
+        return WImageBufferImpl::create(image);
     }
     default:
-        qFatal("Can't get qw_buffer from QSGTexture, Not supported graphics API.");
+        qFatal("Can't get wlr_buffer from QSGTexture, unsupported graphics API.");
         break;
     }
 
     return nullptr;
 }
 
-QQuickRenderTarget WRenderHelper::acquireRenderTarget(QQuickRenderControl *rc, qw_buffer *buffer)
+QQuickRenderTarget WRenderHelper::acquireRenderTarget(QQuickRenderControl *rc, wlr_buffer *buffer)
 {
     W_D(WRenderHelper);
     Q_ASSERT(buffer);
@@ -552,12 +564,14 @@ QQuickRenderTarget WRenderHelper::acquireRenderTarget(QQuickRenderControl *rc, q
 
     std::unique_ptr<BufferData> bufferData(new BufferData);
     bufferData->buffer = buffer;
-    auto texture = qw_texture::from_buffer(*d->renderer, *buffer);
+    auto *texture = wlr_texture_from_buffer(d->renderer, buffer);
+    if (!texture)
+        return {};
 
     QQuickRenderTarget rt;
 
-    if (wlr_renderer_is_pixman(d->renderer->handle())) {
-        pixman_image_t *image = wlr_pixman_texture_get_image(texture->handle());
+    if (wlr_renderer_is_pixman(d->renderer)) {
+        pixman_image_t *image = wlr_pixman_texture_get_image(texture);
         void *data = pixman_image_get_data(image);
         if (bufferData->paintDevice.constBits() != data)
             bufferData->paintDevice = WTools::fromPixmanImage(image, data);
@@ -565,21 +579,21 @@ QQuickRenderTarget WRenderHelper::acquireRenderTarget(QQuickRenderControl *rc, q
         rt = QQuickRenderTarget::fromPaintDevice(&bufferData->paintDevice);
     }
 #ifdef ENABLE_VULKAN_RENDER
-    else if (wlr_renderer_is_vk(d->renderer->handle())) {
+    else if (wlr_renderer_is_vk(d->renderer)) {
         wlr_vk_image_attribs attribs;
-        wlr_vk_texture_get_image_attribs(texture->handle(), &attribs);
+        wlr_vk_texture_get_image_attribs(texture, &attribs);
         rt = QQuickRenderTarget::fromVulkanImage(attribs.image, attribs.layout, attribs.format, d->size);
     }
 #endif
-    else if (wlr_renderer_is_gles2(d->renderer->handle())) {
+    else if (wlr_renderer_is_gles2(d->renderer)) {
         wlr_gles2_texture_attribs attribs;
-        wlr_gles2_texture_get_attribs(texture->handle(), &attribs);
+        wlr_gles2_texture_get_attribs(texture, &attribs);
 
         rt = QQuickRenderTarget::fromOpenGLTexture(attribs.tex, d->size);
         rt.setMirrorVertically(true);
     }
 
-    delete texture;
+    wlr_texture_destroy(texture);
     bufferData->renderTarget = rt;
 
     if (QSGRendererInterface::isApiRhiBased(getGraphicsApi(rc))) {
@@ -598,8 +612,9 @@ QQuickRenderTarget WRenderHelper::acquireRenderTarget(QQuickRenderControl *rc, q
         }
     }
 
-    connect(buffer, SIGNAL(before_destroy()),
-            this, SLOT(onBufferDestroy()), Qt::UniqueConnection);
+    bufferData->destroyListener.connect(&buffer->events.destroy, [d, buffer](void *) {
+        d->onBufferDestroy(buffer);
+    });
 
     d->buffers.append(bufferData.release());
     d->lastBuffer = d->buffers.last();
@@ -607,7 +622,7 @@ QQuickRenderTarget WRenderHelper::acquireRenderTarget(QQuickRenderControl *rc, q
     return d->buffers.last()->renderTarget;
 }
 
-std::pair<qw_buffer *, QQuickRenderTarget> WRenderHelper::lastRenderTarget() const
+std::pair<wlr_buffer *, QQuickRenderTarget> WRenderHelper::lastRenderTarget() const
 {
     W_DC(WRenderHelper);
     if (!d->lastBuffer)
@@ -616,39 +631,39 @@ std::pair<qw_buffer *, QQuickRenderTarget> WRenderHelper::lastRenderTarget() con
     return {d->lastBuffer->buffer, d->lastBuffer->renderTarget};
 }
 
-static qw_renderer *createRendererWithType(const char *type, wlr_backend *backend)
+static wlr_renderer *createRendererWithType(const char *type, wlr_backend *backend)
 {
     qputenv("WLR_RENDERER", type);
-    auto render = qw_renderer::autocreate(backend);
+    auto *render = wlr_renderer_autocreate(backend);
     qunsetenv("WLR_RENDERER");
 
     return render;
 }
 
-qw_renderer *WRenderHelper::createRenderer(wlr_backend *backend)
+wlr_renderer *WRenderHelper::createRenderer(wlr_backend *backend)
 {
     auto api = getGraphicsApi();
     return createRenderer(backend, api);
 }
 
-qw_renderer *WRenderHelper::createRenderer(wlr_backend *backend, QSGRendererInterface::GraphicsApi api)
+wlr_renderer *WRenderHelper::createRenderer(wlr_backend *backend, QSGRendererInterface::GraphicsApi api)
 {
-    qw_renderer *renderer = nullptr;
+    wlr_renderer *renderer = nullptr;
     switch (api) {
     case QSGRendererInterface::OpenGL:
         renderer = createRendererWithType("gles2", backend);
-        Q_ASSERT(!renderer || wlr_renderer_is_gles2(renderer->handle()));
+        Q_ASSERT(!renderer || wlr_renderer_is_gles2(renderer));
         break;
 #ifdef ENABLE_VULKAN_RENDER
     case QSGRendererInterface::Vulkan: {
         renderer = createRendererWithType("vulkan", backend);
-        Q_ASSERT(!renderer || wlr_renderer_is_vk(renderer->handle()));
+        Q_ASSERT(!renderer || wlr_renderer_is_vk(renderer));
         break;
     }
 #endif
     case QSGRendererInterface::Software:
         renderer = createRendererWithType("pixman", backend);
-        Q_ASSERT(!renderer || wlr_renderer_is_pixman(renderer->handle()));
+        Q_ASSERT(!renderer || wlr_renderer_is_pixman(renderer));
         break;
     default:
         qFatal("Not supported graphics api: %s", qPrintable(QQuickWindow::sceneGraphBackend()));
@@ -721,14 +736,31 @@ QSGRendererInterface::GraphicsApi WRenderHelper::probe(wlr_backend *testBackend,
 {
     auto acceptApi = QSGRendererInterface::Unknown;
 
+    struct RendererDestroyer {
+        void operator()(wlr_renderer *renderer) const { wlr_renderer_destroy(renderer); }
+    };
+    struct AllocatorDestroyer {
+        void operator()(wlr_allocator *allocator) const { wlr_allocator_destroy(allocator); }
+    };
+    struct SwapchainDestroyer {
+        void operator()(wlr_swapchain *swapchain) const { wlr_swapchain_destroy(swapchain); }
+    };
+    struct BufferUnlocker {
+        void operator()(wlr_buffer *buffer) const { wlr_buffer_unlock(buffer); }
+    };
+    struct TextureDestroyer {
+        void operator()(wlr_texture *texture) const { wlr_texture_destroy(texture); }
+    };
+
     for (auto api : std::as_const(apiList)) {
-        std::unique_ptr<qw_renderer> renderer(createRenderer(testBackend, api));
+        std::unique_ptr<wlr_renderer, RendererDestroyer> renderer(createRenderer(testBackend, api));
         if (!renderer) {
             qCInfo(lcWlRenderHelper) << GraphicsApiName(api) << " api failed to create wlr_renderer";
             continue;
         }
 
-        const wlr_drm_format_set *formats = wlr_renderer_get_texture_formats(*renderer, WLR_BUFFER_CAP_DMABUF);
+        const wlr_drm_format_set *formats =
+            wlr_renderer_get_texture_formats(renderer.get(), WLR_BUFFER_CAP_DMABUF);
 
         if (formats && formats->len == 0) {
             qCInfo(lcWlRenderHelper) << GraphicsApiName(api) << " api don't support any format";
@@ -737,19 +769,27 @@ QSGRendererInterface::GraphicsApi WRenderHelper::probe(wlr_backend *testBackend,
 
         // TODO: how to test when formats gets NULL
         if (formats && formats->len) {
-            std::unique_ptr<qw_allocator> alloc(qw_allocator::autocreate(testBackend, *renderer.get()));
+            std::unique_ptr<wlr_allocator, AllocatorDestroyer> alloc(
+                wlr_allocator_autocreate(testBackend, renderer.get()));
+            if (!alloc)
+                continue;
 
             bool hasSupportedFormat = false;
             for (size_t formatId = 0; formatId < formats->len; formatId++) {
                 auto *format = &formats->formats[formatId];
 
-                std::unique_ptr<qw_swapchain> swapchain(qw_swapchain::create(*alloc.get(), 1000, 800, format));
-                auto wbuffer = swapchain->acquire();
+                std::unique_ptr<wlr_swapchain, SwapchainDestroyer> swapchain(
+                    wlr_swapchain_create(alloc.get(), 1000, 800, format));
+                if (!swapchain)
+                    continue;
+                auto *wbuffer = wlr_swapchain_acquire(swapchain.get());
                 if (!wbuffer) {
                     continue;
                 } else {
-                    std::unique_ptr<qw_buffer, qw_buffer::unlocker> buffer(qw_buffer::from(wbuffer));
-                    std::unique_ptr<qw_texture> texture { qw_texture::from_buffer(*renderer.get(), *buffer.get()) };
+                    std::unique_ptr<wlr_buffer, BufferUnlocker> buffer(wbuffer);
+                    std::unique_ptr<wlr_texture, TextureDestroyer> texture {
+                        wlr_texture_from_buffer(renderer.get(), buffer.get())
+                    };
                     if (!texture)
                         continue;
                     hasSupportedFormat = true;
@@ -770,10 +810,10 @@ QSGRendererInterface::GraphicsApi WRenderHelper::probe(wlr_backend *testBackend,
     return acceptApi;
 }
 
-static void updateGLTexture(QRhi *rhi, qw_texture *handle, QSGPlainTexture *texture) {
+static void updateGLTexture(QRhi *rhi, wlr_texture *handle, QSGPlainTexture *texture) {
     wlr_gles2_texture_attribs attribs;
-    wlr_gles2_texture_get_attribs(handle->handle(), &attribs);
-    QSize size(handle->handle()->width, handle->handle()->height);
+    wlr_gles2_texture_get_attribs(handle, &attribs);
+    QSize size(handle->width, handle->height);
 
 #define GL_TEXTURE_EXTERNAL_OES           0x8D65
     QQuickWindowPrivate::TextureFromNativeTextureFlags flags = attribs.target == GL_TEXTURE_EXTERNAL_OES
@@ -794,49 +834,49 @@ static inline quint64 vkimage_cast(void *image) {
 }
 
 #ifdef ENABLE_VULKAN_RENDER
-static void updateVKTexture(QRhi *rhi, qw_texture *handle, QSGPlainTexture *texture) {
+static void updateVKTexture(QRhi *rhi, wlr_texture *handle, QSGPlainTexture *texture) {
     wlr_vk_image_attribs attribs;
-    wlr_vk_texture_get_image_attribs(handle->handle(), &attribs);
-    QSize size(handle->handle()->width, handle->handle()->height);
+    wlr_vk_texture_get_image_attribs(handle, &attribs);
+    QSize size(handle->width, handle->height);
 
     texture->setTextureFromNativeTexture(rhi,
                                          vkimage_cast(attribs.image),
                                          attribs.layout, attribs.format, size,
                                          {}, {});
-    texture->setHasAlphaChannel(wlr_vk_texture_has_alpha(handle->handle()));
+    texture->setHasAlphaChannel(wlr_vk_texture_has_alpha(handle));
     texture->setTextureSize(size);
 }
 #endif
 
-static void updateImage(QRhi *, qw_texture *handle, QSGPlainTexture *texture) {
-    auto image = wlr_pixman_texture_get_image(handle->handle());
+static void updateImage(QRhi *, wlr_texture *handle, QSGPlainTexture *texture) {
+    auto image = wlr_pixman_texture_get_image(handle);
     texture->setImage(WTools::fromPixmanImage(image));
 }
 
-typedef void(*UpdateTextureFunction)(QRhi *, qw_texture *, QSGPlainTexture *);
+typedef void(*UpdateTextureFunction)(QRhi *, wlr_texture *, QSGPlainTexture *);
 
-static UpdateTextureFunction getUpdateTextFunction(qw_texture *handle)
+static UpdateTextureFunction getUpdateTextFunction(wlr_texture *handle)
 {
     const auto api = WRenderHelper::getGraphicsApi();
     if (api == QSGRendererInterface::OpenGL) {
-        Q_ASSERT(wlr_texture_is_gles2(handle->handle()));
+        Q_ASSERT(wlr_texture_is_gles2(handle));
         return updateGLTexture;
     }
 #ifdef ENABLE_VULKAN_RENDER
     else if (api == QSGRendererInterface::Vulkan) {
-        Q_ASSERT(wlr_texture_is_vk(handle->handle()));
+        Q_ASSERT(wlr_texture_is_vk(handle));
         return updateVKTexture;
     }
 #endif
     else if (api == QSGRendererInterface::Software) {
-        Q_ASSERT(wlr_texture_is_pixman(handle->handle()));
+        Q_ASSERT(wlr_texture_is_pixman(handle));
         return updateImage;
     }
 
     return nullptr;
 }
 
-bool WRenderHelper::makeTexture(QRhi *rhi, qw_texture *handle, QSGPlainTexture *texture)
+bool WRenderHelper::makeTexture(QRhi *rhi, wlr_texture *handle, QSGPlainTexture *texture)
 {
     auto updateTexture = getUpdateTextFunction(handle);
     if (Q_UNLIKELY(!updateTexture))
@@ -846,7 +886,7 @@ bool WRenderHelper::makeTexture(QRhi *rhi, qw_texture *handle, QSGPlainTexture *
 }
 
 WRenderHelper::TextureEntry
-WRenderHelper::newTexture(qw_allocator *allocator, qw_renderer *renderer,
+WRenderHelper::newTexture(wlr_allocator *allocator, wlr_renderer *renderer,
                           uint32_t drmFormat, uint64_t drmModifier,
                           QRhi *rhi, const QSize &size,
                           int rhiFormat, int rhiFlags)
@@ -859,15 +899,17 @@ WRenderHelper::newTexture(qw_allocator *allocator, qw_renderer *renderer,
         .modifiers = modifiers
     };
 
-    wlr_buffer *buffer = allocator->create_buffer(size.width(), size.height(), &format);
+    wlr_buffer *buffer = wlr_allocator_create_buffer(
+        allocator, size.width(), size.height(), &format);
     if (!buffer) {
-        qCCritical(lcWlRenderHelper) << "Failed to create qw_buffer from allocator";
+        qCCritical(lcWlRenderHelper) << "Failed to create wlr_buffer from allocator";
         return {};
     }
 
-    std::unique_ptr<qw_texture> texture(qw_texture::from_buffer(*renderer, buffer));
+    std::unique_ptr<wlr_texture, decltype(&wlr_texture_destroy)> texture(
+        wlr_texture_from_buffer(renderer, buffer), wlr_texture_destroy);
     if (!texture) {
-        qCCritical(lcWlRenderHelper) << "Failed to create qw_texture from buffer";
+        qCCritical(lcWlRenderHelper) << "Failed to create wlr_texture from buffer";
         wlr_buffer_drop(buffer);
         return {};
     }
@@ -876,13 +918,13 @@ WRenderHelper::newTexture(qw_allocator *allocator, qw_renderer *renderer,
     const auto qflags = QRhiTexture::Flags(rhiFlags);
     std::unique_ptr<QRhiTexture> rhiTexture(rhi->newTexture(qformat, size, 1, qflags));
 
-    if (wlr_texture_is_gles2(*texture.get())) {
+    if (wlr_texture_is_gles2(texture.get())) {
         if (rhi->backend() != QRhi::OpenGLES2) {
             qFatal("The current QRhi backend doesn't support creating texture from GLES2 texture");
         }
 
         wlr_gles2_texture_attribs attribs;
-        wlr_gles2_texture_get_attribs(*texture.get(), &attribs);
+        wlr_gles2_texture_get_attribs(texture.get(), &attribs);
 
         if (!rhiTexture->createFrom({attribs.tex, 0})) {
             qCCritical(lcWlRenderHelper, "Failed to create QRhiTexture from GLES2 texture");
@@ -891,13 +933,13 @@ WRenderHelper::newTexture(qw_allocator *allocator, qw_renderer *renderer,
         }
     }
 #ifdef ENABLE_VULKAN_RENDER
-    else if (wlr_texture_is_vk(*texture.get())) {
+    else if (wlr_texture_is_vk(texture.get())) {
         if (rhi->backend() != QRhi::Vulkan) {
             qFatal("The current QRhi backend doesn't support creating texture from Vulkan image");
         }
 
         wlr_vk_image_attribs attribs;
-        wlr_vk_texture_get_image_attribs(*texture.get(), &attribs);
+        wlr_vk_texture_get_image_attribs(texture.get(), &attribs);
 
         if (!rhiTexture->createFrom({vkimage_cast(attribs.image), attribs.layout})) {
             qCCritical(lcWlRenderHelper, "Failed to create QRhiTexture from Vulkan image");
@@ -906,7 +948,7 @@ WRenderHelper::newTexture(qw_allocator *allocator, qw_renderer *renderer,
         }
     }
 #endif
-    else if (wlr_texture_is_pixman(*texture.get())) {
+    else if (wlr_texture_is_pixman(texture.get())) {
         qFatal("Creating QRhiTexture from Pixman image is not supported");
     } else {
         qFatal("Unknown texture type");
@@ -918,8 +960,8 @@ WRenderHelper::newTexture(qw_allocator *allocator, qw_renderer *renderer,
 }
 
 WRenderHelper::TextureEntry
-WRenderHelper::newTextureLike(QW_NAMESPACE::qw_allocator *allocator,
-                              QW_NAMESPACE::qw_renderer *renderer,
+WRenderHelper::newTextureLike(wlr_allocator *allocator,
+                              wlr_renderer *renderer,
                               QRhiTexture *texture, QRhi *rhi,
                               int rhiFlags)
 {
@@ -928,14 +970,14 @@ WRenderHelper::newTextureLike(QW_NAMESPACE::qw_allocator *allocator,
         return {};
 
     wlr_dmabuf_attributes attribs;
-    if (!buffer->get_dmabuf(&attribs))
+    if (!wlr_buffer_get_dmabuf(buffer, &attribs))
         return {};
 
     return newTexture(allocator, renderer, attribs.format, attribs.modifier,
                       rhi, texture->pixelSize(), texture->format(), rhiFlags);
 }
 
-QW_NAMESPACE::qw_buffer *WRenderHelper::lookupBuffer(const QRhiRenderTarget *rt)
+wlr_buffer *WRenderHelper::lookupBuffer(const QRhiRenderTarget *rt)
 {
     for (const auto &entry : std::as_const(*s_rhiRenderBuffers)) {
         if (entry.renderTarget == rt)
@@ -945,7 +987,7 @@ QW_NAMESPACE::qw_buffer *WRenderHelper::lookupBuffer(const QRhiRenderTarget *rt)
     return nullptr;
 }
 
-QW_NAMESPACE::qw_buffer *WRenderHelper::lookupBuffer(const QRhiTexture *texture)
+wlr_buffer *WRenderHelper::lookupBuffer(const QRhiTexture *texture)
 {
     for (const auto &entry : std::as_const(*s_rhiRenderBuffers)) {
         if (entry.texture == texture)

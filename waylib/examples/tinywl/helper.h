@@ -15,6 +15,10 @@
 #include <QObject>
 #include <QQmlApplicationEngine>
 
+extern "C" {
+#include <wayland-server-core.h>
+}
+
 Q_MOC_INCLUDE(<wtoplevelsurface.h>)
 Q_MOC_INCLUDE("surfacewrapper.h")
 
@@ -42,14 +46,11 @@ class WSurfaceItem;
 class WForeignToplevel;
 WAYLIB_SERVER_END_NAMESPACE
 
-QW_BEGIN_NAMESPACE
-class qw_renderer;
-class qw_allocator;
-class qw_compositor;
-QW_END_NAMESPACE
+struct wlr_allocator;
+struct wlr_compositor;
+struct wlr_renderer;
 
 WAYLIB_SERVER_USE_NAMESPACE
-QW_USE_NAMESPACE
 
 class Output;
 class SurfaceWrapper;
@@ -143,6 +144,8 @@ private:
     bool afterHandleEvent(WSeat *seat, WSurface *watched, QObject *surfaceItem, QObject *, QInputEvent *event) override;
     bool unacceptedEvent(WSeat *, QWindow *, QInputEvent *event) override;
 
+    static void handleSetGamma(wl_listener *listener, void *data);
+
     static Helper *m_instance;
 
     // qtquick helper
@@ -154,11 +157,12 @@ private:
     WSocket *m_socket = nullptr;
     WSeat *m_seat = nullptr;
     WBackend *m_backend = nullptr;
-    qw_renderer *m_renderer = nullptr;
-    qw_allocator *m_allocator = nullptr;
+    wlr_renderer *m_renderer = nullptr;
+    wlr_allocator *m_allocator = nullptr;
 
     // protocols
-    qw_compositor *m_compositor = nullptr;
+    wlr_compositor *m_compositor = nullptr;
+    wl_listener m_setGammaListener;
     WXWayland *m_xwayland = nullptr;
     WInputMethodHelper *m_inputMethodHelper = nullptr;
     WXdgDecorationManager *m_xdgDecorationManager = nullptr;

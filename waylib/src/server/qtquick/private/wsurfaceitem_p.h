@@ -10,7 +10,8 @@
 #include <QSGImageNode>
 #include <QSGRenderNode>
 #include <private/qquickitem_p.h>
-#include <qwsubcompositor.h>
+
+struct wlr_subsurface;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 

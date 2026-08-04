@@ -12,10 +12,9 @@
 #include "wsurfaceitem.h"
 #include "wrenderhelper.h"
 
-#include <qwxcursormanager.h>
-#include <qwbuffer.h>
-#include <qwtexture.h>
-#include <qwcompositor.h>
+extern "C" {
+#include <wlr/types/wlr_buffer.h>
+}
 
 #include <QSGImageNode>
 #include <private/qquickitem_p.h>
@@ -39,9 +38,7 @@ public:
             return;
         }
 
-        // WImageBufferImpl destroy following qw_buffer
-        auto buffer = qw_buffer::create(new WImageBufferImpl(image),
-                                       image.width(), image.height());
+        auto *buffer = WImageBufferImpl::create(image);
         this->buffer.reset(buffer);
         setBuffer(this->buffer.get());
     }
@@ -79,18 +76,24 @@ public:
             return proxy->texture();
         return WSGTextureProvider::texture();
     }
-    qw_texture *qwTexture() const override {
+    wlr_texture *textureHandle() const override {
         if (proxy)
-            return proxy->qwTexture();
-        return WSGTextureProvider::qwTexture();
+            return proxy->textureHandle();
+        return WSGTextureProvider::textureHandle();
     }
-    qw_buffer *qwBuffer() const override {
+    wlr_buffer *bufferHandle() const override {
         if (proxy)
-            return proxy->qwBuffer();
-        return WSGTextureProvider::qwBuffer();
+            return proxy->bufferHandle();
+        return WSGTextureProvider::bufferHandle();
     }
 
-    std::unique_ptr<qw_buffer, qw_buffer::droper> buffer;
+    struct BufferDropper {
+        void operator()(wlr_buffer *buffer) const
+        {
+            wlr_buffer_drop(buffer);
+        }
+    };
+    std::unique_ptr<wlr_buffer, BufferDropper> buffer;
     QPointer<WSGTextureProvider> proxy;
 };
 
@@ -576,7 +579,7 @@ QSGNode *WQuickCursor::updatePaintNode(QSGNode *node, UpdatePaintNodeData *)
         tp->setImage(d->cursorImage->image());
     }
 
-    // Ignore the tp->proxy, Don't use tp->qwBuffer()
+    // Ignore the proxy buffer and render only the cursor image owned here.
     if (!tp->buffer) {
         delete node;
         return nullptr;

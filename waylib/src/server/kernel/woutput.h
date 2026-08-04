@@ -29,8 +29,8 @@ struct wlr_swapchain;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class QWlrootsScreen;
-class QWlrootsIntegration;
+class WaylibScreen;
+class WaylibIntegration;
 
 class WOutputLayout;
 class WCursor;
@@ -126,9 +126,9 @@ Q_SIGNALS:
     void bound(wlr_output_event_bind *event);
 
 private:
-    friend class QWlrootsIntegration;
-    void setScreen(QWlrootsScreen *screen);
-    QWlrootsScreen *screen() const;
+    friend class WaylibIntegration;
+    void setScreen(WaylibScreen *screen);
+    WaylibScreen *screen() const;
 
     friend class WServer;
     friend class WServerPrivate;

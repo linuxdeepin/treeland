@@ -96,7 +96,7 @@ Q_SIGNALS:
     void keyboardModifiers();
 
 private:
-    friend class QWlrootsIntegration;
+    friend class WaylibIntegration;
     friend class WSeat;
     friend class WSeatPrivate;
     void setQtDevice(QInputDevice *device);

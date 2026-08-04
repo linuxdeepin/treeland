@@ -4,18 +4,19 @@
 #include "helper.h"
 
 #include <wrenderhelper.h>
-#include <qwbuffer.h>
-#include <qwlogging.h>
+
+extern "C" {
+#include <wlr/util/log.h>
+}
 
 #include <QGuiApplication>
 
 WAYLIB_SERVER_USE_NAMESPACE
 
 int main(int argc, char *argv[]) {
-    qw_log::init();
+    wlr_log_init(WLR_INFO, nullptr);
 
     WRenderHelper::setupRendererBackend();
-    Q_ASSERT(qw_buffer::get_objects().isEmpty());
 
     WServer::initializeQPA();
     //    QQuickStyle::setStyle("Material");
@@ -48,7 +49,6 @@ int main(int argc, char *argv[]) {
     }
 
     Q_ASSERT(!helper);
-    Q_ASSERT(qw_buffer::get_objects().isEmpty());
 
     return quitCode;
 }

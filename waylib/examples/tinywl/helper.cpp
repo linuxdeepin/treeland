@@ -44,23 +44,23 @@
 #include <wextforeigntoplevellistv1.h>
 #include <wsessionlockmanager.h>
 
-#include <qwbackend.h>
-#include <qwdisplay.h>
-#include <qwoutput.h>
-#include <qwlogging.h>
-#include <qwallocator.h>
-#include <qwrenderer.h>
-#include <qwcompositor.h>
-#include <qwsubcompositor.h>
-#include <qwlayershellv1.h>
-#include <qwscreencopyv1.h>
-#include <qwfractionalscalemanagerv1.h>
-#include <qwgammacontorlv1.h>
-#include <qwbuffer.h>
-#include <qwdatacontrolv1.h>
-#include <qwextdatacontrolv1.h>
-#include <qwviewporter.h>
-#include <qwalphamodifierv1.h>
+extern "C" {
+#include <wlr/backend.h>
+#include <wlr/backend/multi.h>
+#include <wlr/backend/wayland.h>
+#include <wlr/backend/x11.h>
+#include <wlr/render/allocator.h>
+#include <wlr/render/wlr_renderer.h>
+#include <wlr/types/wlr_alpha_modifier_v1.h>
+#include <wlr/types/wlr_compositor.h>
+#include <wlr/types/wlr_data_control_v1.h>
+#include <wlr/types/wlr_ext_data_control_v1.h>
+#include <wlr/types/wlr_fractional_scale_v1.h>
+#include <wlr/types/wlr_gamma_control_v1.h>
+#include <wlr/types/wlr_screencopy_v1.h>
+#include <wlr/types/wlr_subcompositor.h>
+#include <wlr/types/wlr_viewporter.h>
+}
 
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
@@ -94,6 +94,9 @@ Helper::Helper(QObject *parent)
     , m_popupContainer(new SurfaceContainer(m_surfaceContainer))
     , m_lockContainer(new SurfaceContainer(m_surfaceContainer))
 {
+    m_setGammaListener.notify = handleSetGamma;
+    wl_list_init(&m_setGammaListener.link);
+
     setCurrentUserId(getuid());
 
     Q_ASSERT(!m_instance);
@@ -115,6 +118,11 @@ Helper::Helper(QObject *parent)
 
 Helper::~Helper()
 {
+    if (!wl_list_empty(&m_setGammaListener.link)) {
+        wl_list_remove(&m_setGammaListener.link);
+        wl_list_init(&m_setGammaListener.link);
+    }
+
     for (auto s : m_surfaceContainer->surfaces()) {
         if (auto c = s->container())
             c->removeSurface(s);
@@ -325,14 +333,15 @@ void Helper::init()
         qFatal("Failed to create renderer");
     }
 
-    m_allocator = qw_allocator::autocreate(m_backend->handle(), *m_renderer);
-    m_renderer->init_wl_display(m_server->handle());
+    m_allocator = wlr_allocator_autocreate(m_backend->handle(), m_renderer);
+    Q_ASSERT(m_allocator);
+    Q_ASSERT(wlr_renderer_init_wl_display(m_renderer, m_server->handle()));
 
     // free follow display
-    m_compositor = qw_compositor::create(m_server->handle(), 6, *m_renderer);
-    qw_subcompositor::create(m_server->handle());
-    qw_screencopy_manager_v1::create(m_server->handle());
-    qw_viewporter::create(m_server->handle());
+    m_compositor = wlr_compositor_create(m_server->handle(), 6, m_renderer);
+    wlr_subcompositor_create(m_server->handle());
+    wlr_screencopy_manager_v1_create(m_server->handle());
+    wlr_viewporter_create(m_server->handle());
     m_renderWindow->init(m_renderer, m_allocator);
 
     // for xwayland
@@ -340,7 +349,7 @@ void Helper::init()
     xwaylandOutputManager->setScaleOverride(1.0);
 
     auto xwayland_lazy = true;
-    m_xwayland = m_server->attach<WXWayland>(m_compositor->handle(), xwayland_lazy);
+    m_xwayland = m_server->attach<WXWayland>(m_compositor, xwayland_lazy);
     m_xwayland->setSeat(m_seat);
 
     xdgOutputManager->setFilter([this] (WClient *client) {
@@ -450,27 +459,8 @@ void Helper::init()
         return;
     }
 
-    auto gammaControlManager = qw_gamma_control_manager_v1::create(m_server->handle());
-    connect(gammaControlManager, &qw_gamma_control_manager_v1::notify_set_gamma, this, []
-            (wlr_gamma_control_manager_v1_set_gamma_event *event) {
-        size_t ramp_size = 0;
-        uint16_t *r = nullptr, *g = nullptr, *b = nullptr;
-        wlr_gamma_control_v1 *gamma_control = event->control;
-        if (gamma_control) {
-            ramp_size = gamma_control->ramp_size;
-            r = gamma_control->table;
-            g = gamma_control->table + gamma_control->ramp_size;
-            b = gamma_control->table + 2 * gamma_control->ramp_size;
-        }
-        wlr_output_state newState;
-        wlr_output_state_init(&newState);
-        wlr_output_state_set_gamma_lut(&newState, ramp_size, r, g, b);
-
-        if (!wlr_output_commit_state(event->output, &newState)) {
-            qw_gamma_control_v1::from(gamma_control)->send_failed_and_destroy();
-        }
-        wlr_output_state_finish(&newState);
-    });
+    auto *gammaControlManager = wlr_gamma_control_manager_v1_create(m_server->handle());
+    wl_signal_add(&gammaControlManager->events.set_gamma, &m_setGammaListener);
 
     connect(wOutputManager, &WOutputManagerV1::requestTestOrApply, this, [this, wOutputManager]
             (wlr_output_configuration_v1 *config, bool onlyTest) {
@@ -514,15 +504,38 @@ void Helper::init()
     });
 
     m_server->attach<WCursorShapeManagerV1>();
-    qw_fractional_scale_manager_v1::create(m_server->handle(), WLR_FRACTIONAL_SCALE_V1_VERSION);
-    qw_data_control_manager_v1::create(m_server->handle());
-    qw_ext_data_control_manager_v1::create(m_server->handle(), EXT_DATA_CONTROL_MANAGER_V1_VERSION);
-    qw_alpha_modifier_v1::create(m_server->handle());
+    wlr_fractional_scale_manager_v1_create(m_server->handle(), WLR_FRACTIONAL_SCALE_V1_VERSION);
+    wlr_data_control_manager_v1_create(m_server->handle());
+    wlr_ext_data_control_manager_v1_create(m_server->handle(), EXT_DATA_CONTROL_MANAGER_V1_VERSION);
+    wlr_alpha_modifier_v1_create(m_server->handle());
 
     wlr_backend_start(m_backend->handle());
 
     qInfo() << "Listing on:" << m_socket->fullServerName();
     startDemoClient();
+}
+
+void Helper::handleSetGamma(wl_listener *, void *data)
+{
+    auto *event = static_cast<wlr_gamma_control_manager_v1_set_gamma_event *>(data);
+    size_t rampSize = 0;
+    uint16_t *red = nullptr;
+    uint16_t *green = nullptr;
+    uint16_t *blue = nullptr;
+    auto *gammaControl = event->control;
+    if (gammaControl) {
+        rampSize = gammaControl->ramp_size;
+        red = gammaControl->table;
+        green = gammaControl->table + gammaControl->ramp_size;
+        blue = gammaControl->table + 2 * gammaControl->ramp_size;
+    }
+
+    wlr_output_state newState;
+    wlr_output_state_init(&newState);
+    wlr_output_state_set_gamma_lut(&newState, rampSize, red, green, blue);
+    if (!wlr_output_commit_state(event->output, &newState) && gammaControl)
+        wlr_gamma_control_v1_send_failed_and_destroy(gammaControl);
+    wlr_output_state_finish(&newState);
 }
 
 bool Helper::socketEnabled() const

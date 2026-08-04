@@ -8,15 +8,15 @@
 #include "platformplugin/types.h"
 #include "private/wglobal_p.h"
 
-#include <qwoutput.h>
-#include <qwrenderer.h>
-#include <qwswapchain.h>
-#include <qwbuffer.h>
-#include <qwoutputlayer.h>
+extern "C" {
+#include <wlr/render/swapchain.h>
+#include <wlr/render/wlr_renderer.h>
+#include <wlr/types/wlr_buffer.h>
+}
 
-#include <platformplugin/qwlrootswindow.h>
-#include <platformplugin/qwlrootsintegration.h>
-#include <platformplugin/qwlrootscreen.h>
+#include <platformplugin/waylibwindow.h>
+#include <platformplugin/waylibintegration.h>
+#include <platformplugin/waylibscreen.h>
 
 #include <QWindow>
 #include <QQuickWindow>
@@ -25,7 +25,6 @@
 #endif
 #include <private/qquickwindow_p.h>
 
-QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class Q_DECL_HIDDEN WOutputHelperPrivate : public WObjectPrivate
@@ -40,7 +39,7 @@ public:
         wlr_output_state_init(&state);
 
         outputWindow->QObject::setParent(qq);
-        outputWindow->setScreen(QWlrootsIntegration::instance()->getScreenFrom(output)->screen());
+        outputWindow->setScreen(WaylibIntegration::instance()->getScreenFrom(output)->screen());
         outputWindow->create();
 
         // In wlroots, damage is triggered after a cursor move.
@@ -60,17 +59,17 @@ public:
         return output->handle();
     }
 
-    inline qw_renderer *renderer() const {
-        return qw_renderer::from(output->renderer());
+    inline wlr_renderer *renderer() const {
+        return output->renderer();
     }
 
-    inline QWlrootsOutputWindow *qpaWindow() const {
-        return static_cast<QWlrootsOutputWindow*>(outputWindow->handle());
+    inline WaylibOutputWindow *qpaWindow() const {
+        return static_cast<WaylibOutputWindow*>(outputWindow->handle());
     }
 
     void setContentIsDirty(bool newValue);
 
-    qw_buffer *acquireBuffer(wlr_swapchain **sc);
+    wlr_buffer *acquireBuffer(wlr_swapchain **sc);
 
     inline void update() {
         setContentIsDirty(true);
@@ -104,13 +103,12 @@ void WOutputHelperPrivate::setContentIsDirty(bool newValue)
     Q_EMIT q_func()->contentIsDirtyChanged();
 }
 
-qw_buffer *WOutputHelperPrivate::acquireBuffer(wlr_swapchain **sc)
+wlr_buffer *WOutputHelperPrivate::acquireBuffer(wlr_swapchain **sc)
 {
     bool ok = wlr_output_configure_primary_swapchain(wlrOutput(), &state, sc);
     if (!ok)
         return nullptr;
-    auto newBuffer = qw_swapchain::from(*sc)->acquire();
-    return newBuffer ? qw_buffer::from(newBuffer) : nullptr;
+    return wlr_swapchain_acquire(*sc);
 }
 
 WOutputHelper::WOutputHelper(WOutput *output, bool contentIsDirty, QObject *parent)
@@ -137,12 +135,12 @@ QWindow *WOutputHelper::outputWindow() const
     return d->outputWindow;
 }
 
-std::pair<qw_buffer *, QQuickRenderTarget> WOutputHelper::acquireRenderTarget(QQuickRenderControl *rc,
-                                                                             wlr_swapchain **swapchain)
+std::pair<wlr_buffer *, QQuickRenderTarget> WOutputHelper::acquireRenderTarget(
+    QQuickRenderControl *rc, wlr_swapchain **swapchain)
 {
     W_D(WOutputHelper);
 
-    qw_buffer *buffer = d->acquireBuffer(swapchain ? swapchain : &d->wlrOutput()->swapchain);
+    wlr_buffer *buffer = d->acquireBuffer(swapchain ? swapchain : &d->wlrOutput()->swapchain);
     if (!buffer)
         return {};
 
@@ -152,14 +150,14 @@ std::pair<qw_buffer *, QQuickRenderTarget> WOutputHelper::acquireRenderTarget(QQ
     }
     auto rt = d->renderHelper->acquireRenderTarget(rc, buffer);
     if (rt.isNull()) {
-        buffer->unlock();
+        wlr_buffer_unlock(buffer);
         return {};
     }
 
     return {buffer, rt};
 }
 
-std::pair<qw_buffer*, QQuickRenderTarget> WOutputHelper::lastRenderTarget()
+std::pair<wlr_buffer *, QQuickRenderTarget> WOutputHelper::lastRenderTarget()
 {
     W_DC(WOutputHelper);
     if (!d->renderHelper)
@@ -168,16 +166,16 @@ std::pair<qw_buffer*, QQuickRenderTarget> WOutputHelper::lastRenderTarget()
     return d->renderHelper->lastRenderTarget();
 }
 
-void WOutputHelper::setBuffer(qw_buffer *buffer)
+void WOutputHelper::setBuffer(wlr_buffer *buffer)
 {
     W_D(WOutputHelper);
-    wlr_output_state_set_buffer(&d->state, buffer->handle());
+    wlr_output_state_set_buffer(&d->state, buffer);
 }
 
-qw_buffer *WOutputHelper::buffer() const
+wlr_buffer *WOutputHelper::buffer() const
 {
     W_DC(WOutputHelper);
-    return d->state.buffer ? qw_buffer::from(d->state.buffer) : nullptr;
+    return d->state.buffer;
 }
 
 void WOutputHelper::setScale(float scale)
@@ -315,20 +313,20 @@ bool WOutputHelper::testCommit()
     return wlr_output_test_state(d->wlrOutput(), &d->state);
 }
 
-bool WOutputHelper::testCommit(qw_buffer *buffer, const wlr_output_layer_state_array &layers)
+bool WOutputHelper::testCommit(wlr_buffer *buffer, const wlr_output_layer_state_array &layers)
 {
     W_D(WOutputHelper);
     wlr_output_state state = d->state;
 
     if (buffer)
-        wlr_output_state_set_buffer(&state, buffer->handle());
+        wlr_output_state_set_buffer(&state, buffer);
     if (!layers.isEmpty())
         wlr_output_state_set_layers(&state, const_cast<wlr_output_layer_state*>(layers.data()), layers.length());
 
     bool ok = wlr_output_test_state(d->wlrOutput(), &state);
     if (state.committed & WLR_OUTPUT_STATE_BUFFER) {
         Q_ASSERT(buffer);
-        buffer->unlock();
+        wlr_buffer_unlock(buffer);
     }
 
     return ok;

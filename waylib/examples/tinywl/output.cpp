@@ -17,8 +17,6 @@
 #include <wquicktextureproxy.h>
 #include <wxdgpopupsurfaceitem.h>
 
-#include <qwlayershellv1.h>
-
 #include <QQmlEngine>
 
 extern "C" {

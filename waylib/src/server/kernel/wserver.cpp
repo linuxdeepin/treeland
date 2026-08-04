@@ -10,7 +10,7 @@
 #include "private/wserver_p.h"
 #include "wsurface.h"
 #include "wsocket.h"
-#include "platformplugin/qwlrootsintegration.h"
+#include "platformplugin/waylibintegration.h"
 
 extern "C" {
 #include <wlr/types/wlr_data_device.h>
@@ -460,10 +460,10 @@ static bool initializeQtPlatform(const QStringList &parameters, std::function<vo
 
     QHighDpiScaling::initHighDpiScaling();
     W_PRIVATE_STATIC_MEMBER(QHighDpiScaling_m_globalScalingActive_tag{}) = true; // force enable hidpi
-    QGuiApplicationPrivate::platform_integration = new QWlrootsIntegration(parameters, onInitialized);
+    QGuiApplicationPrivate::platform_integration = new WaylibIntegration(parameters, onInitialized);
 
     // for platform theme
-    QStringList themeNames = QWlrootsIntegration::instance()->themeNames();
+    QStringList themeNames = WaylibIntegration::instance()->themeNames();
 
     if (!QGuiApplicationPrivate::platform_theme) {
         for (const QString &themeName : std::as_const(themeNames)) {
@@ -476,7 +476,7 @@ static bool initializeQtPlatform(const QStringList &parameters, std::function<vo
 
     if (!QGuiApplicationPrivate::platform_theme) {
         for (const QString &themeName : std::as_const(themeNames)) {
-            QGuiApplicationPrivate::platform_theme = QWlrootsIntegration::instance()->createPlatformTheme(themeName);
+            QGuiApplicationPrivate::platform_theme = WaylibIntegration::instance()->createPlatformTheme(themeName);
             if (QGuiApplicationPrivate::platform_theme) {
                 break;
             }
@@ -484,7 +484,7 @@ static bool initializeQtPlatform(const QStringList &parameters, std::function<vo
     }
 
     if (!QGuiApplicationPrivate::platform_theme) {
-        QGuiApplicationPrivate::platform_theme = QWlrootsIntegration::instance()->createPlatformTheme({});
+        QGuiApplicationPrivate::platform_theme = WaylibIntegration::instance()->createPlatformTheme({});
     }
 
     // fallback
@@ -506,7 +506,7 @@ void WServer::initializeQPA(const QStringList &parameters,
                             std::function<QPlatformTheme *(const QString &)> createPlatformTheme)
 {
     if (createPlatformTheme) {
-        QWlrootsIntegration::setCreatePlatformThemeCallback(std::move(createPlatformTheme));
+        WaylibIntegration::setCreatePlatformThemeCallback(std::move(createPlatformTheme));
     }
 
     if (!initializeQtPlatform(parameters, nullptr)) {

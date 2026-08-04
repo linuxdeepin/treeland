@@ -5,10 +5,12 @@
 #include <WLayerSurface>
 #include <WSessionLock>
 #include <WSessionLockSurface>
+#include <wimagebuffer.h>
 #include <wxdgpopupsurface.h>
 #include <wxdgtoplevelsurface.h>
 
 #include <QPointer>
+#include <QImage>
 #include <QSignalSpy>
 #include <QTest>
 
@@ -19,11 +21,32 @@ extern "C" {
 #undef namespace
 #include <wlr/types/wlr_xdg_shell.h>
 #include <wlr/types/wlr_session_lock_v1.h>
+#include <wlr/types/wlr_buffer.h>
 }
 
 WAYLIB_SERVER_USE_NAMESPACE
 
 namespace {
+struct BufferDestroyProbe {
+    wl_listener listener;
+    bool destroyed = false;
+
+    BufferDestroyProbe()
+    {
+        listener.notify = notify;
+        wl_list_init(&listener.link);
+    }
+
+    static void notify(wl_listener *listener, void *)
+    {
+        BufferDestroyProbe *probe;
+        probe = wl_container_of(listener, probe, listener);
+        probe->destroyed = true;
+        wl_list_remove(&probe->listener.link);
+        wl_list_init(&probe->listener.link);
+    }
+};
+
 void initSurface(wlr_surface *surface)
 {
     *surface = {};
@@ -71,6 +94,30 @@ class NativeLifecycleTest : public QObject
     Q_OBJECT
 
 private Q_SLOTS:
+    void imageBufferHonorsNativeLockLifetime()
+    {
+        QImage image(16, 12, QImage::Format_ARGB32_Premultiplied);
+        image.fill(Qt::red);
+        auto *buffer = WImageBufferImpl::create(image);
+        QVERIFY(buffer);
+        QCOMPARE(buffer->width, image.width());
+        QCOMPARE(buffer->height, image.height());
+
+        wlr_shm_attributes attributes {};
+        QVERIFY(wlr_buffer_get_shm(buffer, &attributes));
+        QCOMPARE(attributes.width, image.width());
+        QCOMPARE(attributes.height, image.height());
+        QCOMPARE(attributes.stride, image.bytesPerLine());
+
+        BufferDestroyProbe probe;
+        wl_signal_add(&buffer->events.destroy, &probe.listener);
+        QCOMPARE(wlr_buffer_lock(buffer), buffer);
+        wlr_buffer_drop(buffer);
+        QVERIFY(!probe.destroyed);
+        wlr_buffer_unlock(buffer);
+        QVERIFY(probe.destroyed);
+    }
+
     void nativeSurfaceDestroyedFirst()
     {
         wlr_surface nativeSurface;

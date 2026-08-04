@@ -3,10 +3,10 @@
 
 #include "wtools.h"
 
-#include <qwbox.h>
-
 extern "C" {
+#include <wayland-server-protocol.h>
 #include <wlr/util/edges.h>
+#include <wlr/util/box.h>
 }
 
 #include <qcolorspace.h>
@@ -229,7 +229,7 @@ wl_shm_format_t WTools::drmToShmFormat(uint32_t drmFmt)
     case DRM_FORMAT_ARGB8888:
         return WL_SHM_FORMAT_ARGB8888;
     default:
-        return static_cast<wl_shm_format>(drmFmt);
+        return static_cast<wl_shm_format_t>(drmFmt);
     }
 }
 

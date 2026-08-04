@@ -5,11 +5,14 @@
 
 #include <wglobal.h>
 #include <woutput.h>
-#include <qwglobal.h>
 
 #include <QObject>
 #include <QQuickRenderTarget>
 #include <QSGRendererInterface>
+
+extern "C" {
+#include <wlr/types/wlr_output_layer.h>
+}
 
 QT_BEGIN_NAMESPACE
 class QOpenGLContext;
@@ -17,15 +20,9 @@ class QWindow;
 class QQuickRenderControl;
 QT_END_NAMESPACE
 
-QW_BEGIN_NAMESPACE
-class QWRenderer;
-class QWBackend;
-class qw_buffer;
-QW_END_NAMESPACE
-
+struct wlr_buffer;
 struct wlr_swapchain;
 struct pixman_region32;
-struct wlr_output_layer_state;
 typedef QVarLengthArray<wlr_output_layer_state> wlr_output_layer_state_array;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -44,12 +41,12 @@ public:
     WOutput *output() const;
     QWindow *outputWindow() const;
 
-    std::pair<QW_NAMESPACE::qw_buffer*, QQuickRenderTarget> acquireRenderTarget(QQuickRenderControl *rc,
-                                                                               wlr_swapchain **swapchain = nullptr);
-    std::pair<QW_NAMESPACE::qw_buffer*, QQuickRenderTarget> lastRenderTarget();
+    std::pair<wlr_buffer *, QQuickRenderTarget> acquireRenderTarget(QQuickRenderControl *rc,
+                                                                    wlr_swapchain **swapchain = nullptr);
+    std::pair<wlr_buffer *, QQuickRenderTarget> lastRenderTarget();
 
-    void setBuffer(QW_NAMESPACE::qw_buffer *buffer);
-    QW_NAMESPACE::qw_buffer *buffer() const;
+    void setBuffer(wlr_buffer *buffer);
+    wlr_buffer *buffer() const;
 
     // TODO: Deprecate these methods in favor of setExtraState() for atomic operations
     // These modify internal state directly and are kept for simple QML use cases
@@ -61,7 +58,7 @@ public:
     void setLayers(const wlr_output_layer_state_array &layers);
     bool commit();
     bool testCommit();
-    bool testCommit(QW_NAMESPACE::qw_buffer *buffer, const wlr_output_layer_state_array &layers);
+    bool testCommit(wlr_buffer *buffer, const wlr_output_layer_state_array &layers);
 
     enum CommitStage {
         BeforeCommitStage,

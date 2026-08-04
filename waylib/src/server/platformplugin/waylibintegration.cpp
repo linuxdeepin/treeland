@@ -1,17 +1,13 @@
 // Copyright (C) 2023 - 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
-#include "qwlrootsintegration.h"
-#include "qwlrootscreen.h"
-#include "qwlrootswindow.h"
+#include "waylibintegration.h"
+#include "waylibscreen.h"
+#include "waylibwindow.h"
 #include "wayliblogging.h"
 #include "woutput.h"
 #include "winputdevice.h"
 #include "types.h"
-
-#include <qwoutput.h>
-#include <qwrenderer.h>
-#include <qwinputdevice.h>
 
 #include <QOffscreenSurface>
 #include <QGuiApplication>
@@ -35,6 +31,12 @@
 #include <qpa/qplatformsurface.h>
 #include <qpa/qwindowsysteminterface.h>
 #include <qpa/qplatformoffscreensurface.h>
+
+extern "C" {
+#include <wlr/types/wlr_input_device.h>
+#include <wlr/types/wlr_tablet_pad.h>
+}
+
 #if QT_VERSION >= QT_VERSION_CHECK(6, 10, 0)
 #include <private/qgenericunixtheme_p.h>
 #else
@@ -72,28 +74,28 @@ public:
     }
 };
 
-QWlrootsIntegration *QWlrootsIntegration::m_instance = nullptr;
-QWlrootsIntegration::QWlrootsIntegration([[maybe_unused]] const QStringList &parameters, std::function<void ()> onInitialized)
+WaylibIntegration *WaylibIntegration::m_instance = nullptr;
+WaylibIntegration::WaylibIntegration([[maybe_unused]] const QStringList &parameters, std::function<void ()> onInitialized)
     : m_onInitialized(onInitialized)
 {
     Q_ASSERT(!m_instance);
     m_instance = this;
 }
 
-QWlrootsIntegration::~QWlrootsIntegration()
+WaylibIntegration::~WaylibIntegration()
 {
     if (m_instance == this)
         m_instance = nullptr;
 }
 
-QWlrootsIntegration *QWlrootsIntegration::instance()
+WaylibIntegration *WaylibIntegration::instance()
 {
     return m_instance;
 }
 
-QWlrootsScreen *QWlrootsIntegration::addScreen(WOutput *output)
+WaylibScreen *WaylibIntegration::addScreen(WOutput *output)
 {
-    m_screens << new QWlrootsScreen(output);
+    m_screens << new WaylibScreen(output);
 
     QWindowSystemInterface::handleScreenAdded(m_screens.last());
 
@@ -107,7 +109,7 @@ QWlrootsScreen *QWlrootsIntegration::addScreen(WOutput *output)
     return m_screens.last();
 }
 
-void QWlrootsIntegration::removeScreen(WOutput *output)
+void WaylibIntegration::removeScreen(WOutput *output)
 {
     if (auto screen = output->screen()) {
         output->setScreen(nullptr);
@@ -122,12 +124,12 @@ void QWlrootsIntegration::removeScreen(WOutput *output)
     }
 }
 
-QWlrootsScreen *QWlrootsIntegration::getScreenFrom(const WOutput *output)
+WaylibScreen *WaylibIntegration::getScreenFrom(const WOutput *output)
 {
     return output->screen();
 }
 
-QPointer<QInputDevice> QWlrootsIntegration::addInputDevice(WInputDevice *device, const QString &seatName)
+QPointer<QInputDevice> WaylibIntegration::addInputDevice(WInputDevice *device, const QString &seatName)
 {
     QPointer<QInputDevice> qtdev;
     auto *nativeDevice = device->handle();
@@ -199,7 +201,7 @@ QPointer<QInputDevice> QWlrootsIntegration::addInputDevice(WInputDevice *device,
     return qtdev;
 }
 
-bool QWlrootsIntegration::removeInputDevice(WInputDevice *device)
+bool WaylibIntegration::removeInputDevice(WInputDevice *device)
 {
     if (auto qdevice = getInputDeviceFrom(device)) {
         delete qdevice;
@@ -209,12 +211,12 @@ bool QWlrootsIntegration::removeInputDevice(WInputDevice *device)
     return false;
 }
 
-QInputDevice *QWlrootsIntegration::getInputDeviceFrom(WInputDevice *device)
+QInputDevice *WaylibIntegration::getInputDeviceFrom(WInputDevice *device)
 {
     return device->qtDevice();
 }
 
-void QWlrootsIntegration::initialize()
+void WaylibIntegration::initialize()
 {
 #if QT_VERSION >= QT_VERSION_CHECK(6, 9, 0)
     m_services.reset(new QDesktopUnixServices);
@@ -236,13 +238,13 @@ void QWlrootsIntegration::initialize()
     QGuiApplication::styleHints();
 }
 
-void QWlrootsIntegration::destroy()
+void WaylibIntegration::destroy()
 {
     if (m_placeholderScreen)
         QWindowSystemInterface::handleScreenRemoved(m_placeholderScreen.release());
 }
 
-bool QWlrootsIntegration::hasCapability(Capability cap) const
+bool WaylibIntegration::hasCapability(Capability cap) const
 {
     switch (cap) {
     case OpenGL:
@@ -273,27 +275,27 @@ bool QWlrootsIntegration::hasCapability(Capability cap) const
     }
 }
 
-QPlatformFontDatabase *QWlrootsIntegration::fontDatabase() const
+QPlatformFontDatabase *WaylibIntegration::fontDatabase() const
 {
     if (!m_fontDb)
         m_fontDb.reset(new QGenericUnixFontDatabase);
     return m_fontDb.get();
 }
 
-QPlatformWindow *QWlrootsIntegration::createPlatformWindow(QWindow *window) const
+QPlatformWindow *WaylibIntegration::createPlatformWindow(QWindow *window) const
 {
     if (QW::Window::check(window)) {
         Q_ASSERT(window->screen() && (window->screen()->handle() == m_placeholderScreen.get()
-                                      || dynamic_cast<QWlrootsScreen*>(window->screen()->handle())));
-        return new QWlrootsOutputWindow(window);
+                                      || dynamic_cast<WaylibScreen*>(window->screen()->handle())));
+        return new WaylibOutputWindow(window);
     } else if (QW::RenderWindow::check(window)) {
-        return new QWlrootsRenderWindow(window);
+        return new WaylibRenderWindow(window);
     }
 
     return nullptr;
 }
 
-QPlatformBackingStore *QWlrootsIntegration::createPlatformBackingStore([[maybe_unused]] QWindow *window) const
+QPlatformBackingStore *WaylibIntegration::createPlatformBackingStore([[maybe_unused]] QWindow *window) const
 {
     return nullptr;
 }
@@ -358,7 +360,7 @@ private:
     QSurfaceFormat m_format;
 };
 
-QPlatformOpenGLContext *QWlrootsIntegration::createPlatformOpenGLContext(QOpenGLContext *context) const
+QPlatformOpenGLContext *WaylibIntegration::createPlatformOpenGLContext(QOpenGLContext *context) const
 {
     if (QW::OpenGLContext::check(context))
         return new OpenGLContext(context);
@@ -366,96 +368,96 @@ QPlatformOpenGLContext *QWlrootsIntegration::createPlatformOpenGLContext(QOpenGL
     return QPlatformIntegration::createPlatformOpenGLContext(context);
 }
 
-QOpenGLContext::OpenGLModuleType QWlrootsIntegration::openGLModuleType()
+QOpenGLContext::OpenGLModuleType WaylibIntegration::openGLModuleType()
 {
     return QOpenGLContext::LibGLES;
 }
 #endif
 
-QAbstractEventDispatcher *QWlrootsIntegration::createEventDispatcher() const
+QAbstractEventDispatcher *WaylibIntegration::createEventDispatcher() const
 {
     return createUnixEventDispatcher();
 }
 
-QPlatformNativeInterface *QWlrootsIntegration::nativeInterface() const
+QPlatformNativeInterface *WaylibIntegration::nativeInterface() const
 {
-    return const_cast<QWlrootsIntegration*>(this);
+    return const_cast<WaylibIntegration*>(this);
 }
 
-QPlatformPixmap *QWlrootsIntegration::createPlatformPixmap(QPlatformPixmap::PixelType type) const
+QPlatformPixmap *WaylibIntegration::createPlatformPixmap(QPlatformPixmap::PixelType type) const
 {
     return QPlatformIntegration::createPlatformPixmap(type);
 }
 
-QPlatformWindow *QWlrootsIntegration::createForeignWindow(QWindow *window, WId id) const
+QPlatformWindow *WaylibIntegration::createForeignWindow(QWindow *window, WId id) const
 {
     return QPlatformIntegration::createForeignWindow(window, id);
 }
 
-QPlatformSharedGraphicsCache *QWlrootsIntegration::createPlatformSharedGraphicsCache(const char *cacheId) const
+QPlatformSharedGraphicsCache *WaylibIntegration::createPlatformSharedGraphicsCache(const char *cacheId) const
 {
     return QPlatformIntegration::createPlatformSharedGraphicsCache(cacheId);
 }
 
-QPaintEngine *QWlrootsIntegration::createImagePaintEngine(QPaintDevice *paintDevice) const
+QPaintEngine *WaylibIntegration::createImagePaintEngine(QPaintDevice *paintDevice) const
 {
     return QPlatformIntegration::createImagePaintEngine(paintDevice);
 }
 
 #ifndef QT_NO_CLIPBOARD
-QPlatformClipboard *QWlrootsIntegration::clipboard() const
+QPlatformClipboard *WaylibIntegration::clipboard() const
 {
     return QPlatformIntegration::clipboard();
 }
 #endif
 
 #if QT_CONFIG(draganddrop)
-QPlatformDrag *QWlrootsIntegration::drag() const
+QPlatformDrag *WaylibIntegration::drag() const
 {
     return QPlatformIntegration::drag();
 }
 #endif
 
-QPlatformInputContext *QWlrootsIntegration::inputContext() const
+QPlatformInputContext *WaylibIntegration::inputContext() const
 {
     return QPlatformIntegration::inputContext();
 }
 
 #if QT_CONFIG(accessibility)
-QPlatformAccessibility *QWlrootsIntegration::accessibility() const
+QPlatformAccessibility *WaylibIntegration::accessibility() const
 {
     return nullptr;
 }
 #endif
 
-QPlatformServices *QWlrootsIntegration::services() const
+QPlatformServices *WaylibIntegration::services() const
 {
     return m_services.get();
 }
 
-QVariant QWlrootsIntegration::styleHint(StyleHint hint) const
+QVariant WaylibIntegration::styleHint(StyleHint hint) const
 {
     return QPlatformIntegration::styleHint(hint);
 }
 
-Qt::WindowState QWlrootsIntegration::defaultWindowState(Qt::WindowFlags flags) const
+Qt::WindowState WaylibIntegration::defaultWindowState(Qt::WindowFlags flags) const
 {
     return QPlatformIntegration::defaultWindowState(flags);
 }
 
-QStringList QWlrootsIntegration::themeNames() const
+QStringList WaylibIntegration::themeNames() const
 {
     return QPlatformIntegration::themeNames();
 }
 
-QWlrootsIntegration::CreatePlatformThemeCallback QWlrootsIntegration::s_createPlatformThemeCallback;
+WaylibIntegration::CreatePlatformThemeCallback WaylibIntegration::s_createPlatformThemeCallback;
 
-void QWlrootsIntegration::setCreatePlatformThemeCallback(CreatePlatformThemeCallback callback)
+void WaylibIntegration::setCreatePlatformThemeCallback(CreatePlatformThemeCallback callback)
 {
     s_createPlatformThemeCallback = std::move(callback);
 }
 
-QPlatformTheme *QWlrootsIntegration::createPlatformTheme([[maybe_unused]] const QString &name) const
+QPlatformTheme *WaylibIntegration::createPlatformTheme([[maybe_unused]] const QString &name) const
 {
     if (s_createPlatformThemeCallback) {
         return s_createPlatformThemeCallback(name);
@@ -463,7 +465,7 @@ QPlatformTheme *QWlrootsIntegration::createPlatformTheme([[maybe_unused]] const 
     return new QGenericUnixTheme();
 }
 
-QPlatformOffscreenSurface *QWlrootsIntegration::createPlatformOffscreenSurface(QOffscreenSurface *surface) const
+QPlatformOffscreenSurface *WaylibIntegration::createPlatformOffscreenSurface(QOffscreenSurface *surface) const
 {
     if (QW::OffscreenSurface::check(surface))
         return new PlatformOffscreenSurface(surface);
@@ -472,40 +474,40 @@ QPlatformOffscreenSurface *QWlrootsIntegration::createPlatformOffscreenSurface(Q
 }
 
 #ifndef QT_NO_SESSIONMANAGER
-QPlatformSessionManager *QWlrootsIntegration::createPlatformSessionManager(const QString &id, const QString &key) const
+QPlatformSessionManager *WaylibIntegration::createPlatformSessionManager(const QString &id, const QString &key) const
 {
     return QPlatformIntegration::createPlatformSessionManager(id, key);
 }
 #endif
 
-void QWlrootsIntegration::sync()
+void WaylibIntegration::sync()
 {
     QPlatformIntegration::sync();
 }
 
-void QWlrootsIntegration::setApplicationIcon(const QIcon &icon) const
+void WaylibIntegration::setApplicationIcon(const QIcon &icon) const
 {
     QPlatformIntegration::setApplicationIcon(icon);
 }
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
-void QWlrootsIntegration::setApplicationBadge(qint64 number)
+void WaylibIntegration::setApplicationBadge(qint64 number)
 {
     QPlatformIntegration::setApplicationBadge(number);
 }
 #endif
 
-void QWlrootsIntegration::beep() const
+void WaylibIntegration::beep() const
 {
     QPlatformIntegration::beep();
 }
 
-void QWlrootsIntegration::quit() const
+void WaylibIntegration::quit() const
 {
     QPlatformIntegration::quit();
 }
 
-void *QWlrootsIntegration::nativeResourceForScreen(const QByteArray &resource, QScreen *screen)
+void *WaylibIntegration::nativeResourceForScreen(const QByteArray &resource, QScreen *screen)
 {
     if (resource == QByteArrayView("antialiasingEnabled")) {
         return reinterpret_cast<void*>(0x1);
@@ -532,7 +534,7 @@ private:
     QVulkanInstance *m_instance;
 };
 
-QPlatformVulkanInstance *QWlrootsIntegration::createPlatformVulkanInstance(QVulkanInstance *instance) const
+QPlatformVulkanInstance *WaylibIntegration::createPlatformVulkanInstance(QVulkanInstance *instance) const
 {
     return new VulkanInstance(instance);
 }

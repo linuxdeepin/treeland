@@ -7,13 +7,9 @@
 #include "wsgtextureprovider.h"
 #include "wbufferrenderer_p.h"
 
-#include <qwbuffer.h>
-#include <qwswapchain.h>
-
 #include <QDebug>
 #include <private/qquickitem_p.h>
 
-QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 void WOutputViewportPrivate::init()

@@ -6,13 +6,13 @@
 #include <wglobal.h>
 #include <woutputrenderwindow.h>
 
-#include <qwglobal.h>
-#include <qwdamagering.h>
-#include <qwbuffer.h>
-
 #include <QQuickItem>
 #include <QQuickRenderTarget>
 #include <private/qsgrenderer_p.h>
+
+extern "C" {
+#include <wlr/types/wlr_damage_ring.h>
+}
 
 Q_MOC_INCLUDE(<private/qsgplaintexture_p.h>)
 
@@ -24,16 +24,14 @@ class Renderer;
 }
 QT_END_NAMESPACE
 
-QW_BEGIN_NAMESPACE
-class qw_swapchain;
-QW_END_NAMESPACE
-
 struct pixman_region32;
+struct wlr_buffer;
 struct wlr_swapchain;
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WRenderHelper;
 class WSGTextureProvider;
+class WNativeListener;
 class WAYLIB_SERVER_EXPORT WBufferRenderer : public QQuickItem
 {
     friend class WOutputRenderWindow;
@@ -73,11 +71,11 @@ public:
     QSGBatchRenderer::Renderer *currentBatchRenderer() const;
     qreal currentDevicePixelRatio() const;
     const QMatrix4x4 &currentWorldTransform() const;
-    QW_NAMESPACE::qw_buffer *currentBuffer() const;
-    QW_NAMESPACE::qw_buffer *lastBuffer() const;
+    wlr_buffer *currentBuffer() const;
+    wlr_buffer *lastBuffer() const;
     QRhiTexture *currentRenderTarget() const;
-    const QW_NAMESPACE::qw_damage_ring *damageRing() const;
-    QW_NAMESPACE::qw_damage_ring *damageRing();
+    const wlr_damage_ring *damageRing() const;
+    wlr_damage_ring *damageRing();
 
     bool isTextureProvider() const override;
     QSGTextureProvider *textureProvider() const override;
@@ -94,8 +92,8 @@ Q_SIGNALS:
     void afterRendering();
 
 protected:
-    QW_NAMESPACE::qw_buffer *beginRender(const QSize &pixelSize, qreal devicePixelRatio,
-                                        uint32_t format, RenderFlags flags = {});
+    wlr_buffer *beginRender(const QSize &pixelSize, qreal devicePixelRatio,
+                            uint32_t format, RenderFlags flags = {});
     void render(int sourceIndex, const QMatrix4x4 &renderMatrix,
                 const QRectF &sourceRect = {}, const QRectF &targetRect = {},
                 bool preserveColorContents = false);
@@ -127,9 +125,10 @@ private:
     int indexOfSource(QQuickItem *item);
     QSGRenderer *ensureRenderer(int sourceIndex, QSGRenderContext *rc);
 
-    QW_NAMESPACE::qw_swapchain *m_swapchain = nullptr;
+    wlr_swapchain *m_swapchain = nullptr;
     WRenderHelper *m_renderHelper = nullptr;
-    QPointer<QW_NAMESPACE::qw_buffer> m_lastBuffer;
+    wlr_buffer *m_lastBuffer = nullptr;
+    std::unique_ptr<WNativeListener> m_lastBufferDestroyListener;
 
     struct RenderState {
         RenderFlags flags;
@@ -139,7 +138,10 @@ private:
         QMatrix4x4 worldTransform;
         QSize pixelSize;
         qreal devicePixelRatio;
-        std::unique_ptr<QW_NAMESPACE::qw_buffer, QW_NAMESPACE::qw_buffer::unlocker> buffer;
+        struct BufferUnlocker {
+            void operator()(wlr_buffer *buffer) const;
+        };
+        std::unique_ptr<wlr_buffer, BufferUnlocker> buffer;
         QQuickRenderTarget renderTarget;
         QSGRenderTarget sgRenderTarget;
         QRegion dirty;
@@ -153,7 +155,7 @@ private:
     };
 
     QList<Data> m_sourceList;
-    QW_NAMESPACE::qw_damage_ring m_damageRing;
+    wlr_damage_ring m_damageRing;
     mutable std::unique_ptr<WSGTextureProvider> m_textureProvider;
     QColor m_clearColor = Qt::transparent;
     QList<QObject*> m_cacheBufferLocker;

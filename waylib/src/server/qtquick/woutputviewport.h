@@ -6,7 +6,6 @@
 #include <wglobal.h>
 #include <woutput.h>
 #include <wtextureproviderprovider.h>
-#include <qwglobal.h>
 
 #include <QQuickItem>
 

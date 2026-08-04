@@ -6,18 +6,17 @@
 #include "private/wsurface_p.h"
 #include "woutput.h"
 
-#include <qwbuffer.h>
 #include <QDebug>
 #include <QHash>
 
 extern "C" {
+#include <wlr/types/wlr_buffer.h>
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_fractional_scale_v1.h>
 #include <wlr/types/wlr_subcompositor.h>
 #include <wlr/util/edges.h>
 }
 
-QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 using SurfaceRegistry = QHash<const wlr_surface *, WSurface *>;
@@ -161,22 +160,26 @@ void WSurfacePrivate::updateOutputs()
     updatePreferredBufferScale();
 }
 
-void WSurfacePrivate::setBuffer(qw_buffer *newBuffer)
+void WSurfacePrivate::BufferUnlocker::operator()(wlr_buffer *buffer) const
+{
+    wlr_buffer_unlock(buffer);
+}
+
+void WSurfacePrivate::setBuffer(wlr_buffer *newBuffer)
 {
     if (buffer) {
-        if (auto clientBuffer = qw_client_buffer::get(*buffer)) {
-            Q_ASSERT(clientBuffer->handle()->n_ignore_locks > 0);
-            clientBuffer->handle()->n_ignore_locks--;
+        if (auto *clientBuffer = wlr_client_buffer_get(buffer.get())) {
+            Q_ASSERT(clientBuffer->n_ignore_locks > 0);
+            clientBuffer->n_ignore_locks--;
         }
     }
 
     if (newBuffer) {
-        if (auto clientBuffer = qw_client_buffer::get(*newBuffer)) {
-            clientBuffer->handle()->n_ignore_locks++;
+        if (auto *clientBuffer = wlr_client_buffer_get(newBuffer)) {
+            clientBuffer->n_ignore_locks++;
         }
 
-        newBuffer->lock();
-        buffer.reset(newBuffer);
+        buffer.reset(wlr_buffer_lock(newBuffer));
     } else {
         buffer.reset(nullptr);
     }
@@ -184,9 +187,9 @@ void WSurfacePrivate::setBuffer(qw_buffer *newBuffer)
 
 void WSurfacePrivate::updateBuffer()
 {
-    qw_buffer *buffer = nullptr;
+    wlr_buffer *buffer = nullptr;
     if (surfaceHandle->buffer)
-        buffer = qw_buffer::from(&surfaceHandle->buffer->base);
+        buffer = &surfaceHandle->buffer->base;
 
     setBuffer(buffer);
 }
@@ -313,7 +316,7 @@ QPoint WSurface::bufferOffset() const
     return d->bufferOffset;
 }
 
-qw_buffer *WSurface::buffer() const
+wlr_buffer *WSurface::buffer() const
 {
     W_DC(WSurface);
     return d->buffer.get();
