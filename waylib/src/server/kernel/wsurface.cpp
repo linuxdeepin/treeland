@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wsurface.h"
-#include "qwglobal.h"
 #include "wseat.h"
 #include "private/wsurface_p.h"
 #include "woutput.h"
@@ -12,6 +11,7 @@
 #include <qwtexture.h>
 #include <qwbuffer.h>
 #include <qwfractionalscalemanagerv1.h>
+#include <wlr/types/wlr_compositor.h>
 #include <QDebug>
 
 extern "C" {
@@ -21,10 +21,10 @@ extern "C" {
 QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-WSurfacePrivate::WSurfacePrivate(WSurface *qq, qw_surface *handle)
+WSurfacePrivate::WSurfacePrivate(WSurface *qq, wlr_surface *handle)
     : WWrapObjectPrivate(qq)
 {
-    initHandle(handle);
+    initNativeHandle(handle, &handle->events.destroy);
 }
 
 WSurfacePrivate::~WSurfacePrivate()
@@ -60,7 +60,6 @@ void WSurfacePrivate::on_commit()
 void WSurfacePrivate::init()
 {
     W_Q(WSurface);
-    handle()->set_data(this, q);
 
     connect();
     updateBuffer();
@@ -80,19 +79,29 @@ void WSurfacePrivate::init()
 void WSurfacePrivate::connect()
 {
     W_Q(WSurface);
+    wlr_surface *surface = nativeHandle();
 
-    QObject::connect(handle(), &qw_surface::notify_commit, q, [this] {
-        on_commit();
+    m_commitListener.connect(&surface->events.commit, [](wl_listener *listener, void *) {
+        auto *self = WScopedListener::owner<WSurfacePrivate, &WSurfacePrivate::m_commitListener>(listener);
+        self->on_commit();
     });
-    QObject::connect(handle(), &qw_surface::notify_map, q, &WSurface::mappedChanged);
-    QObject::connect(handle(), &qw_surface::notify_unmap, q, &WSurface::mappedChanged);
-    QObject::connect(handle(), &qw_surface::notify_new_subsurface, q, [q, this] (wlr_subsurface *sub) {
-        setHasSubsurface(true);
+    m_mapListener.connect(&surface->events.map, [](wl_listener *listener, void *) {
+        auto *self = WScopedListener::owner<WSurfacePrivate, &WSurfacePrivate::m_mapListener>(listener);
+        Q_EMIT self->q_func()->mappedChanged();
+    });
+    m_unmapListener.connect(&surface->events.unmap, [](wl_listener *listener, void *) {
+        auto *self = WScopedListener::owner<WSurfacePrivate, &WSurfacePrivate::m_unmapListener>(listener);
+        Q_EMIT self->q_func()->mappedChanged();
+    });
+    m_newSubsurfaceListener.connect(&surface->events.new_subsurface, [](wl_listener *listener, void *data) {
+        auto *self = WScopedListener::owner<WSurfacePrivate, &WSurfacePrivate::m_newSubsurfaceListener>(listener);
+        auto *sub = static_cast<wlr_subsurface*>(data);
+        self->setHasSubsurface(true);
 
-        auto surface = ensureSubsurface(sub);
-        Q_EMIT q->newSubsurface(surface);
+        auto surface = self->ensureSubsurface(sub);
+        Q_EMIT self->q_func()->newSubsurface(surface);
 
-        for (auto output : std::as_const(outputs))
+        for (auto output : std::as_const(self->outputs))
             surface->enterOutput(output);
     });
 }
@@ -110,7 +119,7 @@ void WSurfacePrivate::updateOutputs()
 
         if (!framePacingOutput
             || framePacingOutput->nativeHandle()->refresh
-                < qo->handle()->refresh) {
+                < o->handle()->refresh) {
             framePacingOutput = o;
         }
     }
@@ -177,7 +186,7 @@ void WSurfacePrivate::preferredBufferScaleChange()
 {
     W_Q(WSurface);
     if (handle())
-        handle()->set_preferred_buffer_scale(q->preferredBufferScale());
+        wlr_surface_set_preferred_buffer_scale(handle(), q->preferredBufferScale());
     Q_EMIT q->preferredBufferScaleChanged();
 }
 
@@ -186,10 +195,7 @@ WSurface *WSurfacePrivate::ensureSubsurface(wlr_subsurface *subsurface)
     if (auto surface = WSurface::fromHandle(subsurface->surface))
         return surface;
 
-    auto qw_surface = qw_surface::from(subsurface->surface);
-    auto surface = new WSurface(qw_surface, q_func());
-    QObject::connect(surface->handle(), &qw_surface::before_destroy, surface, &WSurface::safeDeleteLater);
-
+    auto surface = new WSurface(subsurface->surface, q_func());
     return surface;
 }
 
@@ -208,7 +214,7 @@ void WSurfacePrivate::updateHasSubsurface()
                                 || !wl_list_empty(&nativeHandle()->current.subsurfaces_below)));
 }
 
-WSurface::WSurface(qw_surface *handle, QObject *parent)
+WSurface::WSurface(wlr_surface *handle, QObject *parent)
     : WSurface(*new WSurfacePrivate(this, handle), parent)
 {
 
@@ -220,28 +226,21 @@ WSurface::WSurface(WSurfacePrivate &dd, QObject *parent)
     dd.init();
 }
 
-qw_surface *WSurface::handle() const
+wlr_surface *WSurface::handle() const
 {
     W_DC(WSurface);
     return d->handle();
 }
 
-WSurface *WSurface::fromHandle(qw_surface *handle)
-{
-    return handle->get_data<WSurface>();
-}
-
 WSurface *WSurface::fromHandle(wlr_surface *handle)
 {
-    if (auto surface = qw_surface::get(handle))
-        return fromHandle(surface);
-    return nullptr;
+    return static_cast<WSurface*>(WWrapObjectPrivate::fromNativeHandle(handle));
 }
 
 bool WSurface::inputRegionContains(const QPointF &localPos) const
 {
     W_DC(WSurface);
-    return d->handle()->point_accepts_input(localPos.x(), localPos.y());
+    return wlr_surface_point_accepts_input(d->handle(), localPos.x(), localPos.y());
 }
 
 bool WSurface::mapped() const
@@ -302,7 +301,7 @@ void WSurface::enterOutput(WOutput *output)
     W_D(WSurface);
     if (d->outputs.contains(output))
         return;
-    wlr_surface_send_enter(d->nativeHandle(), output->handle()->handle());
+    wlr_surface_send_enter(d->nativeHandle(), output->handle());
 
     connect(output, &WOutput::aboutToBeInvalidated, this, [this, output] {
         leaveOutput(output);
@@ -332,7 +331,7 @@ void WSurface::leaveOutput(WOutput *output)
     W_D(WSurface);
     if (!d->outputs.contains(output))
         return;
-    wlr_surface_send_leave(d->nativeHandle(), output->handle()->handle());
+    wlr_surface_send_leave(d->nativeHandle(), output->handle());
 
     output->safeDisconnect(this);
     d->updateOutputs();
@@ -365,7 +364,7 @@ WOutput *WSurface::framePacingOutput() const
 
 bool WSurface::isSubsurface() const
 {
-    return qw_subsurface::try_from_wlr_surface(handle()->handle()) != nullptr;
+    return qw_subsurface::try_from_wlr_surface(handle()) != nullptr;
 }
 
 bool WSurface::hasSubsurface() const
@@ -433,14 +432,14 @@ void WSurface::unmap()
 void WSurfacePrivate::instantRelease()
 {
     W_Q(WSurface);
-    if (handle()) {
-        handle()->set_data(nullptr, nullptr);
-        handle()->disconnect(q);
-        if (subsurface)
-            subsurface->disconnect(q);
-        for (auto o : std::as_const(outputs))
-            o->safeDisconnect(q);
-    }
+    m_commitListener.remove();
+    m_mapListener.remove();
+    m_unmapListener.remove();
+    m_newSubsurfaceListener.remove();
+    if (subsurface)
+        subsurface->disconnect(q);
+    for (auto o : std::as_const(outputs))
+        o->safeDisconnect(q);
 }
 
 bool WSurface::needsFrame() const
@@ -454,7 +453,7 @@ bool WSurface::scheduleFrameIfNeeded()
     W_D(WSurface);
     if (needsFrame() && d->framePacingOutput) {
         d->needsFrame = false;
-        d->framePacingOutput->handle()->schedule_frame();
+        wlr_output_schedule_frame(d->framePacingOutput->handle());
         return true;
     }
     return false;

@@ -23,10 +23,10 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class Q_DECL_HIDDEN WSurfacePrivate : public WWrapObjectPrivate {
 public:
-    WSurfacePrivate(WSurface *qq, QW_NAMESPACE::qw_surface *handle);
+    WSurfacePrivate(WSurface *qq, wlr_surface *handle);
     ~WSurfacePrivate();
 
-    WWRAP_HANDLE_FUNCTIONS(QW_NAMESPACE::qw_surface, wlr_surface)
+    WWRAP_NATIVE_HANDLE_FUNCTIONS(wlr_surface)
 
     wl_client *waylandClient() const override;
 
@@ -50,6 +50,11 @@ public:
     void updateHasSubsurface();
 
     W_DECLARE_PUBLIC(WSurface)
+
+    WScopedListener m_commitListener;
+    WScopedListener m_mapListener;
+    WScopedListener m_unmapListener;
+    WScopedListener m_newSubsurfaceListener;
 
     QPointer<QW_NAMESPACE::qw_subsurface> subsurface;
     bool hasSubsurface = false;
