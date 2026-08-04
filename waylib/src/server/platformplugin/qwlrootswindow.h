@@ -4,14 +4,8 @@
 #pragma once
 
 #include "wglobal.h"
-#include <qwglobal.h>
-
 #include <QPointer>
 #include <qpa/qplatformwindow.h>
-
-QW_BEGIN_NAMESPACE
-class qw_buffer;
-QW_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 

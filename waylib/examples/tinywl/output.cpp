@@ -17,8 +17,6 @@
 #include <wquicktextureproxy.h>
 #include <wxdgpopupsurfaceitem.h>
 
-#include <qwoutputlayout.h>
-#include <qwlayershellv1.h>
 
 #include <QQmlEngine>
 
@@ -29,7 +27,7 @@ Output *Output::createPrimary(WOutput *output, QQmlEngine *engine, QObject *pare
     QQmlComponent delegate(engine, "Tinywl", "PrimaryOutput");
     QObject *obj = delegate.beginCreate(engine->rootContext());
     delegate.setInitialProperties(obj, {
-        {"forceSoftwareCursor", qw_output::from(output->handle())->is_x11()}
+        {"forceSoftwareCursor", wlr_output_is_x11(output->handle())}
     });
     delegate.completeCreate();
     WOutputItem *outputItem = qobject_cast<WOutputItem *>(obj);
@@ -250,7 +248,7 @@ void Output::layoutLayerSurface(SurfaceWrapper *surface)
 {
     WLayerSurface* layer = qobject_cast<WLayerSurface*>(surface->shellSurface());
     Q_ASSERT(layer);
-    if (!layer->handle()->handle()->initialized) {
+    if (!layer->handle()->initialized) {
         return;
     }
 

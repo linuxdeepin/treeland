@@ -9,16 +9,12 @@
 #include "wseat.h"
 #include "wcursor.h"
 
-#include <qwrenderer.h>
-#include <qwoutput.h>
-
 #include <QCoreApplication>
 
 #include <qpa/qwindowsysteminterface.h>
 #include <qpa/qwindowsysteminterface_p.h>
 #include <private/qguiapplication_p.h>
 
-QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 QWlrootsOutputWindow::QWlrootsOutputWindow(QWindow *window)

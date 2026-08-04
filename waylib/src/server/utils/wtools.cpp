@@ -3,7 +3,7 @@
 
 #include "wtools.h"
 
-#include <qwbox.h>
+#include <wlr/util/box.h>
 
 extern "C" {
 #include <wlr/util/edges.h>

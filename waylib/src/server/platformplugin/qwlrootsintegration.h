@@ -5,18 +5,10 @@
 
 #include "wglobal.h"
 
-#include <qwglobal.h>
-
 #include <QPointer>
 #include <qpa/qplatformintegration.h>
 #include <qpa/qplatformvulkaninstance.h>
 #include <qpa/qplatformnativeinterface.h>
-
-QW_BEGIN_NAMESPACE
-class QWDisplay;
-QW_END_NAMESPACE
-
-QW_USE_NAMESPACE
 
 QT_BEGIN_NAMESPACE
 class QInputDevice;

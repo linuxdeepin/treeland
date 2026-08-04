@@ -42,14 +42,8 @@ class WSurfaceItem;
 class WForeignToplevel;
 WAYLIB_SERVER_END_NAMESPACE
 
-QW_BEGIN_NAMESPACE
-class qw_renderer;
-class qw_allocator;
-class qw_compositor;
-QW_END_NAMESPACE
 
 WAYLIB_SERVER_USE_NAMESPACE
-QW_USE_NAMESPACE
 
 class Output;
 class SurfaceWrapper;
@@ -154,11 +148,11 @@ private:
     WSocket *m_socket = nullptr;
     WSeat *m_seat = nullptr;
     WBackend *m_backend = nullptr;
-    qw_renderer *m_renderer = nullptr;
-    qw_allocator *m_allocator = nullptr;
+    wlr_renderer m_renderer = nullptr;
+    wlr_allocator *m_allocator = nullptr;
 
     // protocols
-    qw_compositor *m_compositor = nullptr;
+    wlr_compositor *m_compositor = nullptr;
     WXWayland *m_xwayland = nullptr;
     WInputMethodHelper *m_inputMethodHelper = nullptr;
     WXdgDecorationManager *m_xdgDecorationManager = nullptr;

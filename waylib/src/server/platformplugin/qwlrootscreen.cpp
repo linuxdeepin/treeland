@@ -8,8 +8,6 @@
 #include "woutputlayout.h"
 #include "wtools.h"
 
-#include <qwoutput.h>
-
 #include <qpa/qwindowsysteminterface.h>
 #include <qpa/qwindowsysteminterface_p.h>
 #include <private/qguiapplication_p.h>

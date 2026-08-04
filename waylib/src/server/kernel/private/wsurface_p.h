@@ -6,8 +6,6 @@
 #include "wsurface.h"
 #include "private/wglobal_p.h"
 
-#include <qwcompositor.h>
-#include <qwbuffer.h>
 
 #include <QObject>
 #include <QPointer>

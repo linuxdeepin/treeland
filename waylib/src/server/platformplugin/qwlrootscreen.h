@@ -6,13 +6,9 @@
 #include "wglobal.h"
 #include "qwlrootscursor.h"
 
-#include <qwglobal.h>
-
 #include <QSurfaceFormat>
 #include <QPointer>
 #include <qpa/qplatformscreen.h>
-
-QW_USE_NAMESPACE
 
 struct wlr_output;
 

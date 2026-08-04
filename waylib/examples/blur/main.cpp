@@ -13,15 +13,6 @@
 #include <woutputrenderwindow.h>
 #include <woutputviewport.h>
 
-#include <qwbackend.h>
-#include <qwdisplay.h>
-#include <qwoutput.h>
-#include <qwlogging.h>
-#include <qwcompositor.h>
-#include <qwsubcompositor.h>
-#include <qwcompositor.h>
-#include <qwrenderer.h>
-#include <qwallocator.h>
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
@@ -30,8 +21,20 @@
 #include <QMouseEvent>
 #include <QQuickItem>
 #include <QQuickWindow>
+#include <wlr/backend.h>
+#include <wlr/backend/multi.h>
+#include <wlr/backend/x11.h>
+#include <wlr/backend/wayland.h>
+#include <wlr/render/wlr_renderer.h>
+#include <wlr/render/allocator.h>
+#include <wlr/types/wlr_compositor.h>
+#include <wlr/types/wlr_subcompositor.h>
+#include <wlr/types/wlr_output.h>
+#include <wlr/types/wlr_screencopy_v1.h>
+#include <wlr/types/wlr_viewporter.h>
+#include <wlr/types/wlr_fractional_scale_v1.h>
+#include <wlr/util/log.h>
 
-QW_USE_NAMESPACE
 
 Helper::Helper(QObject *parent)
     : QObject(parent)
@@ -50,7 +53,7 @@ void Helper::initProtocols(WOutputRenderWindow *window, QQmlEngine *qmlEngine)
     m_backend = m_server->attach<WBackend>();
     m_server->start();
 
-    m_renderer = WRenderHelper::createRenderer(qw_backend::from(m_backend->handle()));
+    m_renderer = WRenderHelper::createRenderer(m_backend->handle());
 
     if (!m_renderer) {
         qFatal("Failed to create renderer");
@@ -77,12 +80,12 @@ void Helper::initProtocols(WOutputRenderWindow *window, QQmlEngine *qmlEngine)
         m_seat->detachInputDevice(device);
     });
 
-    m_allocator = qw_allocator::autocreate(m_backend->handle(), *m_renderer);
-    m_renderer->init_wl_display(*m_server->handle());
+    m_allocator = wlr_allocator_autocreate(m_backend->handle(), m_renderer);
+    m_renderer->init_wl_display(m_server->handle());
 
     // free follow display
-    m_compositor = qw_compositor::create(*m_server->handle(), 6, *m_renderer);
-    qw_subcompositor::create(*m_server->handle());
+    m_compositor = wlr_compositor_create(m_server->handle(), 6, m_renderer);
+    wlr_subcompositor_create(m_server->handle());
 
     connect(window, &WOutputRenderWindow::outputViewportInitialized, this, [] (WOutputViewport *viewport) {
         // Trigger QWOutput::frame signal in order to ensure WOutputHelper::renderable
@@ -91,24 +94,30 @@ void Helper::initProtocols(WOutputRenderWindow *window, QQmlEngine *qmlEngine)
             WOutput *output = viewport->output();
 
             // Enable on default
-            auto qwoutput = qw_output::from(output->handle());
+            auto qwoutput = output->handle();
             // Don't care for WOutput::isEnabled, must do WOutput::commit here,
             // In order to ensure trigger QWOutput::frame signal, WOutputRenderWindow
             // needs this signal to render next frmae. Because QWOutput::frame signal
             // maybe Q_EMIT before WOutputRenderWindow::attach, if no commit here,
             // WOutputRenderWindow will ignore this ouptut on render.
-            if (!qwoutput->property("_Enabled").toBool()) {
-                qwoutput->setProperty("_Enabled", true);
-                qw_output_state newState;
+            if (!output->property("_Enabled").toBool()) {
+                output->setProperty("_Enabled", true);
+                wlr_output_state newState;
+                wlr_output_state_init(&newState);
 
-                if (!qwoutput->handle()->current_mode) {
-                    auto mode = qwoutput->preferred_mode();
-                    if (mode)
-                        newState.set_mode(mode);
+                if (!qwoutput->current_mode) {
+                    wlr_output_mode *mode, *preferred = nullptr;
+                    wl_list_for_each(mode, &qwoutput->modes, link) {
+                        if (mode->preferred) { preferred = mode; break; }
+                    }
+                    if (preferred)
+                        wlr_output_state_set_mode(&newState, preferred);
                 }
-                newState.set_enabled(true);
-                if (!qwoutput->commit_state(newState)) {
-                    qCritical("commit failed on output %s", qwoutput->handle()->name);
+                wlr_output_state_set_enabled(&newState, true);
+                bool ok = wlr_output_commit_state(qwoutput, &newState);
+                wlr_output_state_finish(&newState);
+                if (!ok) {
+                    qCritical("commit failed on output %s", qwoutput->name);
                 }
             }
         }
@@ -119,7 +128,7 @@ void Helper::initProtocols(WOutputRenderWindow *window, QQmlEngine *qmlEngine)
 }
 
 int main(int argc, char *argv[]) {
-    qw_log::init();
+    wlr_log_init(WLR_INFO, nullptr);
     WServer::initializeQPA();
 //    QQuickStyle::setStyle("Material");
 
@@ -140,9 +149,9 @@ int main(int argc, char *argv[]) {
     helper->initProtocols(window, &waylandEngine);
 
     // multi output
-    qobject_cast<qw_multi_backend*>(qw_backend::from(helper->backend()->handle()))->for_each_backend([] (wlr_backend *backend, void *) {
-        if (auto x11 = qw_x11_backend::from(backend)) {
-            x11->output_create();
+    wlr_multi_for_each_backend(helper->backend()->handle(), [] (wlr_backend *backend, void *) {
+        if (wlr_backend_is_x11(backend)) {
+            wlr_x11_output_create(backend);
         }
     }, nullptr);
 

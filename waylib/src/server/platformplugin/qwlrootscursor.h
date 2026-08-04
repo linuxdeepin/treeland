@@ -5,8 +5,6 @@
 
 #include "wglobal.h"
 
-#include <qwglobal.h>
-
 #include <QCursor>
 #include <qpa/qplatformcursor.h>
 

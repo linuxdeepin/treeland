@@ -13,7 +13,6 @@
 #include <wxdgsurface.h>
 #include <wxdgpopupsurface.h>
 
-#include <qwoutputlayout.h>
 
 #include <QQuickWindow>
 

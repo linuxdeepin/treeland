@@ -48,14 +48,16 @@
 #endif
 #endif
 
-#include <qwglobal.h>
-#include <qwobject.h>
 #include <QScopedPointer>
 #include <QList>
 #include <QObject>
 #include <QThread>
 
 #include <type_traits>
+
+#ifndef WLR_USE_UNSTABLE
+#define WLR_USE_UNSTABLE
+#endif
 
 struct wl_client;
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -124,7 +126,6 @@ class WAYLIB_SERVER_EXPORT WWrapObject : public QObject,  public WObject
     Q_OBJECT
 
 public:
-    QW_NAMESPACE::qw_object_basic *handle() const;
     bool isInvalidated() const;
 
     bool safeDisconnect(const QObject *receiver);
@@ -143,28 +144,6 @@ public:
         return QObject::connect(qobject_cast<typename QtPrivate::FunctionPointer<Func1>::Object*>(this), signal, receiver, slot, type);
     }
 
-    template<typename Func1, typename Func2>
-    requires std::is_base_of_v<QW_NAMESPACE::qw_object_basic, typename QtPrivate::FunctionPointer<Func1>::Object>
-    QMetaObject::Connection safeConnect(Func1 signal, const QObject *receiver, Func2 slot, Qt::ConnectionType type = Qt::AutoConnection) {
-        // Isn't thread safety
-        Q_ASSERT(QThread::currentThread() == thread());
-        Q_ASSERT_X(this != receiver, "safeConnect",
-                   "Not need to use safeConnect for the signal of self's handle object,"
-                   " Please use QObject::connect().");
-        auto h = qobject_cast<typename QtPrivate::FunctionPointer<Func1>::Object*>(handle());
-        Q_ASSERT(h);
-        if constexpr (std::is_same_v<Func1, decltype(&qw_object_basic::before_destroy)>) {
-            if (signal == &qw_object_basic::before_destroy) {
-                return QObject::connect(h, signal, receiver, slot, type);
-            }
-        }
-        beginSafeConnect();
-        auto connection = QObject::connect(h, signal, receiver, slot, type);
-        endSafeConnect(connection);
-
-        return connection;
-    }
-
 protected:
     WWrapObject(QObject *parent = nullptr);
     WWrapObject(WWrapObjectPrivate &dd, QObject *parent = nullptr);
@@ -174,10 +153,6 @@ protected:
     using QObject::deleteLater;
 
     void invalidate();
-    void initHandle(QW_NAMESPACE::qw_object_basic *handle);
-
-    void beginSafeConnect();
-    void endSafeConnect(const QMetaObject::Connection &connection);
 
 #ifdef QT_DEBUG
     bool event(QEvent *event) override;

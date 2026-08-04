@@ -44,24 +44,6 @@
 #include <wextforeigntoplevellistv1.h>
 #include <wsessionlockmanager.h>
 
-#include <qwbackend.h>
-#include <qwdisplay.h>
-#include <qwoutput.h>
-#include <qwlogging.h>
-#include <qwallocator.h>
-#include <qwrenderer.h>
-#include <qwcompositor.h>
-#include <qwsubcompositor.h>
-#include <qwxwaylandsurface.h>
-#include <qwlayershellv1.h>
-#include <qwscreencopyv1.h>
-#include <qwfractionalscalemanagerv1.h>
-#include <qwgammacontorlv1.h>
-#include <qwbuffer.h>
-#include <qwdatacontrolv1.h>
-#include <qwextdatacontrolv1.h>
-#include <qwviewporter.h>
-#include <qwalphamodifierv1.h>
 
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
@@ -77,6 +59,24 @@
 #include <QVariant>
 
 #include <unistd.h>
+#include <wlr/backend.h>
+#include <wlr/backend/multi.h>
+#include <wlr/backend/x11.h>
+#include <wlr/backend/wayland.h>
+#include <wlr/render/wlr_renderer.h>
+#include <wlr/render/allocator.h>
+#include <wlr/types/wlr_compositor.h>
+#include <wlr/types/wlr_subcompositor.h>
+#include <wlr/types/wlr_output.h>
+#include <wlr/types/wlr_screencopy_v1.h>
+#include <wlr/types/wlr_viewporter.h>
+#include <wlr/types/wlr_fractional_scale_v1.h>
+#include <wlr/util/log.h>
+#include <wlr/types/wlr_gamma_control_v1.h>
+#include <wlr/types/wlr_data_control_v1.h>
+#include <wlr/types/wlr_ext_data_control_v1.h>
+#include <wlr/types/wlr_alpha_modifier_v1.h>
+#include "private/wglobal_p.h"
 
 #define WLR_FRACTIONAL_SCALE_V1_VERSION 1
 #define EXT_DATA_CONTROL_MANAGER_V1_VERSION 1
@@ -321,19 +321,19 @@ void Helper::init()
     });
     m_server->start();
 
-    m_renderer = WRenderHelper::createRenderer(qw_backend::from(m_backend->handle()));
+    m_renderer = WRenderHelper::createRenderer(m_backend->handle());
     if (!m_renderer) {
         qFatal("Failed to create renderer");
     }
 
-    m_allocator = qw_allocator::autocreate(m_backend->handle(), *m_renderer);
-    m_renderer->init_wl_display(*m_server->handle());
+    m_allocator = wlr_allocator_autocreate(m_backend->handle(), m_renderer);
+    m_renderer->init_wl_display(m_server->handle());
 
     // free follow display
-    m_compositor = qw_compositor::create(*m_server->handle(), 6, *m_renderer);
-    qw_subcompositor::create(*m_server->handle());
-    qw_screencopy_manager_v1::create(*m_server->handle());
-    qw_viewporter::create(*m_server->handle());
+    m_compositor = wlr_compositor_create(m_server->handle(), 6, m_renderer);
+    wlr_subcompositor_create(m_server->handle());
+    wlr_screencopy_manager_v1_create(m_server->handle());
+    wlr_viewporter_create(m_server->handle());
     m_renderWindow->init(m_renderer, m_allocator);
 
     // for xwayland
@@ -352,7 +352,7 @@ void Helper::init()
     });
 
     connect(m_xwayland, &WXWayland::surfaceAdded, this, [this] (WXWaylandSurface *surface) {
-        surface->safeConnect(&qw_xwayland_surface::notify_associate, this, [this, surface] {
+        auto *assocListener = new WScopedListener; assocListener->connect(&surface->handle()->events.associate, [this, surface, assocListener] (wl_listener *l, void *data) {
             auto wrapper = new SurfaceWrapper(qmlEngine(), surface, SurfaceWrapper::Type::XWayland);
 
             // Setup title and decoration
@@ -409,7 +409,7 @@ void Helper::init()
             m_foreignToplevel->addSurface(surface);
             m_extForeignToplevelListV1->addSurface(surface);
         });
-        surface->safeConnect(&qw_xwayland_surface::notify_dissociate, this, [this, surface] {
+        auto *dissocListener = new WScopedListener; dissocListener->connect(&surface->handle()->events.dissociate, [this, surface, dissocListener] (wl_listener *l, void *data) {
             m_foreignToplevel->removeSurface(surface);
             m_extForeignToplevelListV1->removeSurface(surface);
             m_surfaceContainer->destroyForSurface(surface->surface());
@@ -451,10 +451,12 @@ void Helper::init()
         return;
     }
 
-    auto gammaControlManager = qw_gamma_control_manager_v1::create(*m_server->handle());
-    connect(gammaControlManager, &qw_gamma_control_manager_v1::notify_set_gamma, this, []
-            (wlr_gamma_control_manager_v1_set_gamma_event *event) {
-        auto *qwOutput = qw_output::from(event->output);
+    auto gammaControlManager = wlr_gamma_control_manager_v1_create(m_server->handle());
+    auto *gammaSetGammaListener = new WScopedListener;
+    gammaSetGammaListener->connect(&gammaControlManager->events.set_gamma,
+        [gammaSetGammaListener] (wl_listener *l, void *data) {
+        auto *event = static_cast<wlr_gamma_control_manager_v1_set_gamma_event*>(data);
+        auto *qwOutput = event->output;
         size_t ramp_size = 0;
         uint16_t *r = nullptr, *g = nullptr, *b = nullptr;
         wlr_gamma_control_v1 *gamma_control = event->control;
@@ -464,35 +466,40 @@ void Helper::init()
             g = gamma_control->table + gamma_control->ramp_size;
             b = gamma_control->table + 2 * gamma_control->ramp_size;
         }
-        qw_output_state newState;
-        newState.set_gamma_lut(ramp_size, r, g, b);
+        wlr_output_state newState;
+        wlr_output_state_init(&newState);
+        wlr_output_state_set_gamma_lut(&newState, ramp_size, r, g, b);
 
-        if (!qwOutput->commit_state(newState)) {
-            qw_gamma_control_v1::from(gamma_control)->send_failed_and_destroy();
+        bool committed = wlr_output_commit_state(qwOutput, &newState);
+        wlr_output_state_finish(&newState);
+        if (!committed) {
+            wlr_gamma_control_v1_send_failed_and_destroy(gamma_control);
         }
     });
 
     connect(wOutputManager, &WOutputManagerV1::requestTestOrApply, this, [this, wOutputManager]
-            (qw_output_configuration_v1 *config, bool onlyTest) {
+            (wlr_output_configuration_v1 *config, bool onlyTest) {
         QList<WOutputState> states = wOutputManager->stateListPending();
         bool ok = true;
         for (auto state : std::as_const(states)) {
             WOutput *output = state.output;
-            qw_output_state newState;
+            wlr_output_state newState;
+            wlr_output_state_init(&newState);
 
-            newState.set_enabled(state.enabled);
+            wlr_output_state_set_enabled(&newState, state.enabled);
             if (state.enabled) {
                 if (state.mode)
-                    newState.set_mode(state.mode);
+                    wlr_output_state_set_mode(&newState, state.mode);
                 else
-                    newState.set_custom_mode(state.customModeSize.width(),
+                    wlr_output_state_set_custom_mode(&newState,
+                                             state.customModeSize.width(),
                                              state.customModeSize.height(),
                                              state.customModeRefresh);
 
-                newState.set_adaptive_sync_enabled(state.adaptiveSyncEnabled);
+                wlr_output_state_set_adaptive_sync_enabled(&newState, state.adaptiveSyncEnabled);
                 if (!onlyTest) {
-                    newState.set_transform(static_cast<wl_output_transform>(state.transform));
-                    newState.set_scale(state.scale);
+                    wlr_output_state_set_transform(&newState, static_cast<wl_output_transform>(state.transform));
+                    wlr_output_state_set_scale(&newState, state.scale);
 
                     WOutputViewport *viewport = getOutput(output)->screenViewport();
                     if (viewport) {
@@ -503,18 +510,18 @@ void Helper::init()
             }
 
             if (onlyTest)
-                ok &= qw_output::from(output->handle())->test_state(newState);
+                ok &= output->handle()->test_state(newState);
             else
-                ok &= qw_output::from(output->handle())->commit_state(newState);
+                ok &= output->handle()->commit_state(newState);
         }
         wOutputManager->sendResult(config, ok);
     });
 
     m_server->attach<WCursorShapeManagerV1>();
-    qw_fractional_scale_manager_v1::create(*m_server->handle(), WLR_FRACTIONAL_SCALE_V1_VERSION);
-    qw_data_control_manager_v1::create(*m_server->handle());
-    qw_ext_data_control_manager_v1::create(*m_server->handle(), EXT_DATA_CONTROL_MANAGER_V1_VERSION);
-    qw_alpha_modifier_v1::create(*m_server->handle());
+    wlr_fractional_scale_manager_v1_create(m_server->handle(), WLR_FRACTIONAL_SCALE_V1_VERSION);
+    wlr_data_control_manager_v1_create(m_server->handle());
+    wlr_ext_data_control_manager_v1_create(m_server->handle(), EXT_DATA_CONTROL_MANAGER_V1_VERSION);
+    wlr_alpha_modifier_v1_create(m_server->handle());
 
     wlr_backend_start(m_backend->handle());
 
@@ -727,11 +734,12 @@ void Helper::setCursorPosition(const QPointF &position)
 
 void Helper::allowNonDrmOutputAutoChangeMode(WOutput *output)
 {
-    output->safeConnect(&qw_output::notify_request_state,
-        this, [this] (wlr_output_event_request_state *newState) {
-        if (newState->state->committed & WLR_OUTPUT_STATE_MODE) {
-            auto output = qobject_cast<qw_output*>(sender());
-            output->commit_state(newState->state);
+    auto *listener = new WScopedListener;
+    listener->connect(&output->handle()->events.request_state,
+        [this, output, listener] (wl_listener *l, void *data) {
+        auto *event = static_cast<wlr_output_event_request_state*>(data);
+        if (event->state->committed & WLR_OUTPUT_STATE_MODE) {
+            wlr_output_commit_state(output->handle(), event->state);
         }
     });
 }
@@ -739,24 +747,24 @@ void Helper::allowNonDrmOutputAutoChangeMode(WOutput *output)
 void Helper::enableOutput(WOutput *output)
 {
     // Enable on default
-    auto qwoutput = qw_output::from(output->handle());
+    auto qwoutput = output->handle();
     // Don't care for WOutput::isEnabled, must do WOutput::commit here,
     // In order to ensure trigger QWOutput::frame signal, WOutputRenderWindow
     // needs this signal to render next frmae. Because QWOutput::frame signal
     // maybe Q_EMIT before WOutputRenderWindow::attach, if no commit here,
     // WOutputRenderWindow will ignore this ouptut on render.
-    if (!qwoutput->property("_Enabled").toBool()) {
-        qwoutput->setProperty("_Enabled", true);
-        qw_output_state newState;
+    if (!output->property("_Enabled").toBool()) {
+        output->setProperty("_Enabled", true);
+        wlr_output_state newState;
 
-        if (!qwoutput->handle()->current_mode) {
+        if (!qwoutput->current_mode) {
             auto mode = qwoutput->preferred_mode();
             if (mode)
-                newState.set_mode(mode);
+                wlr_output_state_set_mode(&newState, mode);
         }
-        newState.set_enabled(true);
-        if (!qwoutput->commit_state(newState)) {
-            qCritical("commit failed on output %s", qwoutput->handle()->name);
+        wlr_output_state_set_enabled(&newState, true);
+        if (!wlr_output_commit_state(qwoutput, &newState)) {
+            qCritical("commit failed on output %s", qwoutput->name);
         }
     }
 }
@@ -781,11 +789,11 @@ Output *Helper::getOutput(WOutput *output) const
 
 void Helper::addOutput()
 {
-    qobject_cast<qw_multi_backend*>(qw_backend::from(m_backend->handle()))->for_each_backend([] (wlr_backend *backend, void *) {
-        if (auto x11 = qw_x11_backend::from(backend)) {
-            qw_output::from(x11->output_create());
-        } else if (auto wayland = qw_wayland_backend::from(backend)) {
-            qw_output::from(wayland->output_create());
+    wlr_multi_for_each_backend(m_backend->handle(), [] (wlr_backend *backend, void *) {
+        if (wlr_backend_is_x11(backend)) {
+            wlr_x11_output_create(backend);
+        } else if (wlr_backend_is_wl(backend)) {
+            wlr_wl_output_create(backend);
         }
     }, nullptr);
 }

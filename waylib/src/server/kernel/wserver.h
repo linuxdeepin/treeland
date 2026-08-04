@@ -5,8 +5,6 @@
 
 #include <wglobal.h>
 
-#include <qwglobal.h>
-
 #include <QDeadlineTimer>
 #include <QFuture>
 #include <QObject>
@@ -18,8 +16,6 @@ class QPlatformTheme;
 class QProcess;
 QT_END_NAMESPACE
 
-QW_BEGIN_NAMESPACE
-QW_END_NAMESPACE
 
 struct wl_global;
 struct wl_display;

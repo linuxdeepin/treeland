@@ -4,10 +4,6 @@
 #include <WServer>
 #include <WOutput>
 
-#include <qwbackend.h>
-#include <qwdisplay.h>
-#include <qwoutput.h>
-#include <qwlogging.h>
 
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
@@ -17,9 +13,21 @@
 #include <QQuickItem>
 #include <QQuickWindow>
 #include <QProcess>
+#include <wlr/backend.h>
+#include <wlr/backend/multi.h>
+#include <wlr/backend/x11.h>
+#include <wlr/backend/wayland.h>
+#include <wlr/render/wlr_renderer.h>
+#include <wlr/render/allocator.h>
+#include <wlr/types/wlr_compositor.h>
+#include <wlr/types/wlr_subcompositor.h>
+#include <wlr/types/wlr_output.h>
+#include <wlr/types/wlr_screencopy_v1.h>
+#include <wlr/types/wlr_viewporter.h>
+#include <wlr/types/wlr_fractional_scale_v1.h>
+#include <wlr/util/log.h>
 
 WAYLIB_SERVER_USE_NAMESPACE
-QW_USE_NAMESPACE
 
 class Q_DECL_HIDDEN Helper : public QObject
 {
@@ -41,7 +49,7 @@ public:
 };
 
 int main(int argc, char *argv[]) {
-    qw_log::init();
+    wlr_log_init(WLR_INFO, nullptr);
     WServer::initializeQPA();
 //    QQuickStyle::setStyle("Material");
 

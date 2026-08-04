@@ -119,13 +119,6 @@ WWrapObjectPrivate::~WWrapObjectPrivate()
     Q_ASSERT(invalidated);
 }
 
-void WWrapObjectPrivate::initHandle(QW_NAMESPACE::qw_object_basic *handle)
-{
-    Q_ASSERT(!m_handle);
-    Q_ASSERT(!invalidated);
-    m_handle = handle;
-}
-
 QHash<void*, WWrapObject*> &WWrapObjectPrivate::nativeHandleMap()
 {
     static QHash<void*, WWrapObject*> map;
@@ -189,14 +182,7 @@ void WWrapObjectPrivate::invalidate()
     }
 
     instantRelease();
-    for (const auto &connection : std::as_const(connectionsWithHandle)) {
-        QObject::disconnect(connection);
-    }
-    if (m_handle) {
-        m_handle->disconnect(q);
-        m_handle = nullptr;
-    }
-    connectionsWithHandle.clear();
+
     if (m_nativeHandle) {
         nativeHandleMap().remove(m_nativeHandle);
         m_nativeHandle = nullptr;
@@ -209,37 +195,16 @@ void WWrapObjectPrivate::invalidate()
 bool WWrapObject::safeDisconnect(const QObject *receiver)
 {
     W_D(WWrapObject);
-
-    bool ok = false;
-    for (int i = d->connectionsWithHandle.size() - 1; i >= 0; --i) {
-        const QMetaObject::Connection &connection = d->connectionsWithHandle.at(i);
-        auto c_d = getConnectionDPtr(&connection);
-        if (c_d->receiver == receiver) {
-            if (QObject::disconnect(connection))
-                ok = true;
-
-            d->connectionsWithHandle.removeAt(i);
-        }
-    }
-
-    if (disconnect(receiver))
-        ok = true;
-
-    return ok;
+    return disconnect(receiver);
 }
 
 bool WWrapObject::safeDisconnect(const QMetaObject::Connection &connection)
 {
     W_D(WWrapObject);
-    int index = d->connectionsWithHandle.indexOf(connection);
-    if (index < 0) {
-        auto c_d = getConnectionDPtr(&connection);
-        if (c_d->sender != this)
-            return false;
-        return disconnect(connection);
-    }
-    d->connectionsWithHandle.removeAt(index);
-    return QObject::disconnect(connection);
+    auto c_d = getConnectionDPtr(&connection);
+    if (c_d->sender != this)
+        return false;
+    return disconnect(connection);
 }
 
 void WWrapObject::safeDeleteLater()
@@ -247,12 +212,6 @@ void WWrapObject::safeDeleteLater()
     W_D(WWrapObject);
     d->invalidate();
     deleteLater();
-}
-
-QW_NAMESPACE::qw_object_basic *WWrapObject::handle() const
-{
-    W_DC(WWrapObject);
-    return d->m_handle;
 }
 
 bool WWrapObject::isInvalidated() const
@@ -265,24 +224,6 @@ void WWrapObject::invalidate()
 {
     W_D(WWrapObject);
     d->invalidate();
-}
-
-void WWrapObject::initHandle(QW_NAMESPACE::qw_object_basic *handle)
-{
-    W_D(WWrapObject);
-    d->initHandle(handle);
-}
-
-void WWrapObject::beginSafeConnect()
-{
-
-}
-
-void WWrapObject::endSafeConnect(const QMetaObject::Connection &connection)
-{
-    W_D(WWrapObject);
-    if (connection)
-        d->connectionsWithHandle.append(connection);
 }
 
 #ifdef QT_DEBUG

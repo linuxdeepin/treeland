@@ -12,12 +12,13 @@
 #include "wsocket.h"
 #include "platformplugin/qwlrootsintegration.h"
 
-#include <qwdatadevice.h>
-#include <qwprimaryselectionv1.h>
-#include <qwxwaylandshellv1.h>
 
 #include <QVector>
 #include <QThread>
+
+#include <wlr/types/wlr_data_device.h>
+#include <wlr/types/wlr_primary_selection.h>
+#include <wlr/xwayland/shell.h>
 #include <QEvent>
 #include <QCoreApplication>
 #include <QAbstractEventDispatcher>

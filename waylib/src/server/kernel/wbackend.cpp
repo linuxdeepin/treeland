@@ -9,17 +9,12 @@
 #include "platformplugin/qwlrootscreen.h"
 #include "private/wglobal_p.h"
 
-#include <qwbackend.h>
-#include <qwdisplay.h>
-#include <qwsession.h>
-
 #include <wlr/backend.h>
 #include <wlr/backend/multi.h>
 #include <wlr/backend/session.h>
 
 #include <QDebug>
 
-QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class Q_DECL_HIDDEN WBackendPrivate : public WObjectPrivate
@@ -31,13 +26,8 @@ public:
 
     }
 
-    inline qw_backend *handle() const {
-        return q_func()->nativeInterface<qw_backend>();
-    }
-
-    inline wlr_backend *nativeHandle() const {
-        Q_ASSERT(handle());
-        return handle()->handle();
+    inline wlr_backend *handle() const {
+        return q_func()->nativeInterface<wlr_backend>();
     }
 
     // begin slot function
@@ -54,6 +44,9 @@ public:
     QList<WOutput*> outputList;
     QList<WInputDevice*> inputList;
 
+    WScopedListener m_newOutputListener;
+    WScopedListener m_newInputListener;
+
     struct Keyboard {
         Keyboard(WBackendPrivate *self, wlr_input_device *d)
             : self(self), device(d) {}
@@ -66,7 +59,7 @@ public:
     };
 
 private:
-    qw_session *session = nullptr;
+    wlr_session *session = nullptr;
 };
 
 void WBackendPrivate::on_new_output(wlr_output *output)
@@ -127,11 +120,11 @@ void WBackendPrivate::on_output_destroy(WOutput *output)
 
 void WBackendPrivate::connect()
 {
-    QObject::connect(handle(), &qw_backend::notify_new_output, q_func(), [this] (wlr_output *output) {
-        on_new_output(output);
+    m_newOutputListener.connect(&handle()->events.new_output, [this] (wl_listener *listener, void *data) {
+        on_new_output(static_cast<wlr_output*>(data));
     });
-    QObject::connect(handle(), &qw_backend::notify_new_input, q_func(), [this] (wlr_input_device *device) {
-        on_new_input(device);
+    m_newInputListener.connect(&handle()->events.new_input, [this] (wl_listener *listener, void *data) {
+        on_new_input(static_cast<wlr_input_device*>(data));
     });
 }
 
@@ -143,13 +136,13 @@ WBackend::WBackend()
 
 wlr_backend *WBackend::handle() const
 {
-    return nativeInterface<qw_backend>()->handle();
+    return nativeInterface<wlr_backend>();
 }
 
 wlr_session *WBackend::session() const
 {
     W_DC(WBackend);
-    return d->session ? d->session->handle() : nullptr;
+    return d->session;
 }
 
 QList<WOutput*> WBackend::outputList() const
@@ -205,16 +198,15 @@ bool WBackend::hasWayland() const
 bool WBackend::isSessionActive() const
 {
     W_D(const WBackend);
-    return d->session && d->session->handle()->active;
+    return d->session && d->session->active;
 }
 
 void WBackend::activateSession()
 {
     W_D(WBackend);
     if (d->session) {
-        struct wlr_session *session = d->session->handle();
-        session->active = true;
-        wl_signal_emit_mutable(&session->events.active, nullptr);
+        d->session->active = true;
+        wl_signal_emit_mutable(&d->session->events.active, nullptr);
     }
 }
 
@@ -222,9 +214,8 @@ void WBackend::deactivateSession()
 {
     W_D(WBackend);
     if (d->session) {
-        struct wlr_session *session = d->session->handle();
-        session->active = false;
-        wl_signal_emit_mutable(&session->events.active, nullptr);
+        d->session->active = false;
+        wl_signal_emit_mutable(&d->session->events.active, nullptr);
     }
 }
 
@@ -234,9 +225,9 @@ void WBackend::create(WServer *server)
 
     if (!m_handle) {
         wlr_session *session = nullptr;
-        m_handle = qw_backend::autocreate(wl_display_get_event_loop(server->handle()), &session);
+        m_handle = wlr_backend_autocreate(wl_display_get_event_loop(server->handle()), &session);
         Q_ASSERT(m_handle);
-        d->session = qw_session::from(session);
+        d->session = session;
         Q_EMIT created();
     }
 

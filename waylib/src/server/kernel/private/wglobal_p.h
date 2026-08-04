@@ -3,7 +3,6 @@
 
 #include "wglobal.h"
 #include "utils/wscopedlistener.h"
-#include <qwobject.h>
 #include <QHash>
 #include <QPointer>
 
@@ -41,11 +40,6 @@ public:
     WWrapObjectPrivate(WWrapObject *q);
     ~WWrapObjectPrivate();
 
-    template<typename Handle>
-    inline Handle *handle() const {
-        return qobject_cast<Handle*>(m_handle.get());
-    }
-
     template<typename Wlr>
     inline Wlr *nativeHandle() const {
         return static_cast<Wlr*>(m_nativeHandle);
@@ -56,13 +50,10 @@ public:
 protected:
     W_DECLARE_PUBLIC(WWrapObject)
 
-    void initHandle(QW_NAMESPACE::qw_object_basic *handle);
     void initNativeHandle(void *handle, wl_signal *destroySignal);
     void invalidate();
     virtual void instantRelease() {}
 
-    QList<QMetaObject::Connection> connectionsWithHandle;
-    QPointer<QW_NAMESPACE::qw_object_basic> m_handle;
     void *m_nativeHandle = nullptr;
     WScopedListener m_destroyListener;
     uint invalidated:1;

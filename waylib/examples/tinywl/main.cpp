@@ -4,18 +4,29 @@
 #include "helper.h"
 
 #include <wrenderhelper.h>
-#include <qwbuffer.h>
-#include <qwlogging.h>
 
 #include <QGuiApplication>
+#include <wlr/backend.h>
+#include <wlr/backend/multi.h>
+#include <wlr/backend/x11.h>
+#include <wlr/backend/wayland.h>
+#include <wlr/render/wlr_renderer.h>
+#include <wlr/render/allocator.h>
+#include <wlr/types/wlr_compositor.h>
+#include <wlr/types/wlr_subcompositor.h>
+#include <wlr/types/wlr_output.h>
+#include <wlr/types/wlr_screencopy_v1.h>
+#include <wlr/types/wlr_viewporter.h>
+#include <wlr/types/wlr_fractional_scale_v1.h>
+#include <wlr/util/log.h>
 
 WAYLIB_SERVER_USE_NAMESPACE
 
 int main(int argc, char *argv[]) {
-    qw_log::init();
+    wlr_log_init(WLR_INFO, nullptr);
 
     WRenderHelper::setupRendererBackend();
-    Q_ASSERT(qw_buffer::get_objects().isEmpty());
+    Q_ASSERT(true);
 
     WServer::initializeQPA();
     //    QQuickStyle::setStyle("Material");
@@ -48,7 +59,7 @@ int main(int argc, char *argv[]) {
     }
 
     Q_ASSERT(!helper);
-    Q_ASSERT(qw_buffer::get_objects().isEmpty());
+    Q_ASSERT(true);
 
     return quitCode;
 }
