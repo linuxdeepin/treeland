@@ -253,6 +253,7 @@ qt_add_qml_module(libtreeland
         core/qml/Animations/LaunchpadAnimation.qml
         core/qml/Animations/LayerShellAnimation.qml
         core/qml/Effects/Blur.qml
+        core/qml/Effects/+vulkan/Blur.qml
         core/qml/Effects/GlassEffect.qml
         core/qml/Effects/LaunchpadCover.qml
         core/qml/TaskSwitcher.qml
@@ -305,6 +306,16 @@ qt_add_shaders(libtreeland "treeland_liquidglass_shaders"
     FILES
         ${PROJECT_RESOURCES_DIR}/shaders/liquidglass.vert
         ${PROJECT_RESOURCES_DIR}/shaders/liquidglass.frag
+)
+
+set_source_files_properties(core/qml/overridable/InWindowBlur.qml
+    PROPERTIES
+        QT_RESOURCE_ALIAS "+treeland/InWindowBlur.qml"
+)
+qt_add_resources(libtreeland "override_dtkdeclarative_qml"
+    PREFIX "/dtk/declarative/qml/overridable"
+    FILES
+        core/qml/overridable/InWindowBlur.qml
 )
 
 qt_add_resources(libtreeland "treeland_assets"
@@ -402,6 +413,7 @@ target_include_directories(${BIN_NAME} PRIVATE
 target_link_libraries(${BIN_NAME} PRIVATE
     libtreeland
     Qt6::GuiPrivate
+    Qt6::QuickControls2
 )
 
 install(TARGETS ${BIN_NAME} RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
