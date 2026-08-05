@@ -9,6 +9,7 @@
 #include "private/wglobal_p.h"
 
 #include <wlr/types/wlr_compositor.h>
+#include <wlr/types/wlr_seat.h>
 
 #include <QRect>
 

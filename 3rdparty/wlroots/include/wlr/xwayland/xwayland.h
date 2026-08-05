@@ -9,6 +9,10 @@
 #ifndef WLR_XWAYLAND_XWAYLAND_H
 #define WLR_XWAYLAND_XWAYLAND_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdbool.h>
 #include <wayland-server-core.h>
 #include <xcb/xcb.h>
@@ -413,4 +417,7 @@ void wlr_xwayland_set_workareas(struct wlr_xwayland *wlr_xwayland,
 xcb_connection_t *wlr_xwayland_get_xwm_connection(
 	struct wlr_xwayland *wlr_xwayland);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

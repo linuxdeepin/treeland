@@ -21,6 +21,8 @@
 #include <wseat.h>
 #include <winputdevice.h>
 
+#include <wlr/types/wlr_output_layout.h>
+#include <wlr/types/wlr_xdg_shell.h>
 
 #include <QPointer>
 #include <QQuickWindow>

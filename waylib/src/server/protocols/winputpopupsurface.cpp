@@ -6,7 +6,10 @@
 #include "private/wtoplevelsurface_p.h"
 #include "wsurface.h"
 
+#define delete wlr_delete
 #include <wlr/types/wlr_input_method_v2.h>
+#undef delete
+#include <wlr/types/wlr_compositor.h>
 #include <wlr/util/box.h>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE

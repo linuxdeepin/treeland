@@ -9,6 +9,10 @@
 #ifndef WLR_RENDER_GLES2_H
 #define WLR_RENDER_GLES2_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <GLES2/gl2.h>
 
 #include <wlr/render/wlr_renderer.h>
@@ -48,4 +52,7 @@ bool wlr_texture_is_gles2(struct wlr_texture *texture);
 void wlr_gles2_texture_get_attribs(struct wlr_texture *texture,
 	struct wlr_gles2_texture_attribs *attribs);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

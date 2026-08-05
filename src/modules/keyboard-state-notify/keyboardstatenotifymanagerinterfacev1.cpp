@@ -12,6 +12,7 @@
 #include <wbackend.h>
 #include <winputdevice.h>
 #include <wscopedlistener.h>
+#include <wlr/types/wlr_seat.h>
 
 #include <xkbcommon/xkbcommon.h>
 

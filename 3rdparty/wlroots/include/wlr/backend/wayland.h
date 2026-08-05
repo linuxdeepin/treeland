@@ -1,6 +1,10 @@
 #ifndef WLR_BACKEND_WAYLAND_H
 #define WLR_BACKEND_WAYLAND_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdbool.h>
 #include <wayland-client-protocol.h>
 #include <wayland-server-core.h>
@@ -73,4 +77,7 @@ void wlr_wl_output_set_app_id(struct wlr_output *output, const char *app_id);
  */
 struct wl_surface *wlr_wl_output_get_surface(struct wlr_output *output);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

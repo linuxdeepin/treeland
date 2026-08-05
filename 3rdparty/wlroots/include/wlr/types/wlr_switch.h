@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_SWITCH_H
 #define WLR_TYPES_WLR_SWITCH_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdint.h>
 #include <wayland-server-core.h>
 #include <wlr/types/wlr_input_device.h>
@@ -58,4 +62,7 @@ struct wlr_switch_toggle_event {
 struct wlr_switch *wlr_switch_from_input_device(
 	struct wlr_input_device *input_device);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

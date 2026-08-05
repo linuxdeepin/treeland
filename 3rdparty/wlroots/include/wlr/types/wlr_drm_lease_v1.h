@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_DRM_LEASE_V1_H
 #define WLR_TYPES_WLR_DRM_LEASE_V1_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <wayland-server-core.h>
 
 struct wlr_backend;
@@ -149,4 +153,7 @@ void wlr_drm_lease_request_v1_reject(struct wlr_drm_lease_request_v1 *request);
  */
 void wlr_drm_lease_v1_revoke(struct wlr_drm_lease_v1 *lease);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

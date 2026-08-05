@@ -9,6 +9,10 @@
 #ifndef WLR_RENDER_INTERFACE_H
 #define WLR_RENDER_INTERFACE_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdbool.h>
 #include <wayland-server-core.h>
 #include <wlr/render/wlr_renderer.h>
@@ -87,4 +91,7 @@ void wlr_texture_read_pixels_options_get_src_box(
 void *wlr_texture_read_pixel_options_get_data(
 	const struct wlr_texture_read_pixels_options *options);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

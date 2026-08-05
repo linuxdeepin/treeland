@@ -197,11 +197,10 @@ bool InputManager::initializeKeyboardSettings(KeyboardSettingsInterfaceV1 *inter
         if (!keyboard)
             continue;
 
-        auto *wlrKeyboard = keyboard;
-        if (!wlrKeyboard || !wlrKeyboard->keymap)
+        if (!keyboard->keymap)
             continue;
 
-        if (xkb_map_mod_get_index(wlrKeyboard->keymap, XKB_MOD_NAME_NUM) != XKB_MOD_INVALID) {
+        if (xkb_map_mod_get_index(keyboard->keymap, XKB_MOD_NAME_NUM) != XKB_MOD_INVALID) {
             features.setFlag(KeyboardSettingsInterfaceV1::NumLock);
             break;
         }
@@ -598,24 +597,23 @@ void InputManager::setNumLockForDevice(WInputDevice *device, bool enabled)
     auto *keyboard = wlr_keyboard_from_input_device(device->handle());
     if (!keyboard)
         return;
-    auto *wlrKeyboard = keyboard->handle();
-    if (!wlrKeyboard || !wlrKeyboard->keymap || !wlrKeyboard->xkb_state)
+    if (!keyboard->keymap || !keyboard->xkb_state)
         return;
 
-    xkb_mod_index_t numlock = xkb_keymap_mod_get_index(wlrKeyboard->keymap, XKB_MOD_NAME_NUM);
+    xkb_mod_index_t numlock = xkb_keymap_mod_get_index(keyboard->keymap, XKB_MOD_NAME_NUM);
     if (numlock == XKB_MOD_INVALID)
         return;
 
-    xkb_mod_mask_t locked = xkb_state_serialize_mods(wlrKeyboard->xkb_state, XKB_STATE_MODS_LOCKED);
+    xkb_mod_mask_t locked = xkb_state_serialize_mods(keyboard->xkb_state, XKB_STATE_MODS_LOCKED);
     if (enabled) {
         locked |= (1u << numlock);
     } else {
         locked &= ~(1u << numlock);
     }
-    const auto depressed = xkb_state_serialize_mods(wlrKeyboard->xkb_state, XKB_STATE_MODS_DEPRESSED);
-    const auto latched = xkb_state_serialize_mods(wlrKeyboard->xkb_state, XKB_STATE_MODS_LATCHED);
-    const auto group = xkb_state_serialize_layout(wlrKeyboard->xkb_state, XKB_STATE_LAYOUT_EFFECTIVE);
-    wlr_keyboard_notify_modifiers(wlrKeyboard, depressed, latched, locked, group);
+    const auto depressed = xkb_state_serialize_mods(keyboard->xkb_state, XKB_STATE_MODS_DEPRESSED);
+    const auto latched = xkb_state_serialize_mods(keyboard->xkb_state, XKB_STATE_MODS_LATCHED);
+    const auto group = xkb_state_serialize_layout(keyboard->xkb_state, XKB_STATE_LAYOUT_EFFECTIVE);
+    wlr_keyboard_notify_modifiers(keyboard, depressed, latched, locked, group);
 }
 
 void InputManager::onInputAdded(WInputDevice *input)

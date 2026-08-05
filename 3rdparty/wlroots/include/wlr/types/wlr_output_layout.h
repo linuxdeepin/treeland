@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_OUTPUT_LAYOUT_H
 #define WLR_TYPES_WLR_OUTPUT_LAYOUT_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdbool.h>
 #include <wayland-util.h>
 #include <wlr/types/wlr_output.h>
@@ -163,4 +167,7 @@ struct wlr_output *wlr_output_layout_farthest_output(
 	struct wlr_output_layout *layout, enum wlr_direction direction,
 	struct wlr_output *reference, double ref_lx, double ref_ly);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

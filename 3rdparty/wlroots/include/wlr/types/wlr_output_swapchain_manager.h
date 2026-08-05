@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_OUTPUT_SWAPCHAIN_MANAGER_H
 #define WLR_TYPES_WLR_OUTPUT_SWAPCHAIN_MANAGER_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <wayland-server-core.h>
 
 struct wlr_backend;
@@ -88,4 +92,7 @@ void wlr_output_swapchain_manager_apply(struct wlr_output_swapchain_manager *man
  */
 void wlr_output_swapchain_manager_finish(struct wlr_output_swapchain_manager *manager);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

@@ -9,6 +9,10 @@
 #ifndef WLR_INTERFACES_WLR_KEYBOARD_H
 #define WLR_INTERFACES_WLR_KEYBOARD_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdint.h>
 #include <wlr/types/wlr_keyboard.h>
 
@@ -31,4 +35,7 @@ void wlr_keyboard_notify_modifiers(struct wlr_keyboard *keyboard,
 		uint32_t mods_depressed, uint32_t mods_latched, uint32_t mods_locked,
 		uint32_t group);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

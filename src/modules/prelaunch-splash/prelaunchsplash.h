@@ -11,7 +11,7 @@
 
 #include <memory>
 
-Q_MOC_INCLUDE(<qwbuffer.h>)
+Q_MOC_INCLUDE(<wlr/types/wlr_buffer.h>)
 
 class PrelaunchSplashPrivate;
 

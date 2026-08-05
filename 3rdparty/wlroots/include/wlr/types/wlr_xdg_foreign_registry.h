@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_XDG_FOREIGN_REGISTRY_H
 #define WLR_TYPES_WLR_XDG_FOREIGN_REGISTRY_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <wayland-server-core.h>
 
 #define WLR_XDG_FOREIGN_HANDLE_SIZE 37
@@ -75,4 +79,7 @@ struct wlr_xdg_foreign_exported *wlr_xdg_foreign_registry_find_by_handle(
  */
 void wlr_xdg_foreign_exported_finish(struct wlr_xdg_foreign_exported *surface);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

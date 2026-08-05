@@ -3,6 +3,11 @@
 
 #include "output.h"
 #include <wlr/types/wlr_output.h>
+#include <wlr/backend/x11.h>
+#include <wlr/types/wlr_output_layout.h>
+#define namespace wlr_ns
+#include <wlr/types/wlr_layer_shell_v1.h>
+#undef namespace
 
 #include "cmdline.h"
 #include "common/treelandlogging.h"

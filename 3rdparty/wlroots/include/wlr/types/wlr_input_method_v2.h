@@ -8,6 +8,10 @@
 
 #ifndef WLR_TYPES_WLR_INPUT_METHOD_V2_H
 #define WLR_TYPES_WLR_INPUT_METHOD_V2_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 #include <stdint.h>
 #include <wayland-server-core.h>
 #include <wlr/types/wlr_seat.h>
@@ -146,4 +150,7 @@ void wlr_input_method_keyboard_grab_v2_set_keyboard(
 void wlr_input_method_keyboard_grab_v2_destroy(
 	struct wlr_input_method_keyboard_grab_v2 *keyboard_grab);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

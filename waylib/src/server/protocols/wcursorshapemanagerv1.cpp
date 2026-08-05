@@ -7,6 +7,7 @@
 #include "private/wglobal_p.h"
 
 #include <wlr/types/wlr_cursor_shape_v1.h>
+#include <wlr/types/wlr_seat.h>
 
 // TODO: set to 2 after wlroots 0.20
 #define CURSOR_SHAPE_MANAGER_V1_VERSION 1

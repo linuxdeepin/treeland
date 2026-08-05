@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_INPUT_DEVICE_H
 #define WLR_TYPES_WLR_INPUT_DEVICE_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <wayland-server-core.h>
 
 enum wlr_button_state {
@@ -48,4 +52,7 @@ struct wlr_input_device {
 	void *data;
 };
 
+#ifdef __cplusplus
+}
+#endif
 #endif

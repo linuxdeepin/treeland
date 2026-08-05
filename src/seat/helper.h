@@ -34,8 +34,8 @@
 class QJsonObject;
 
 Q_MOC_INCLUDE(<QDBusObjectPath>)
-Q_MOC_INCLUDE(<qwgammacontorlv1.h>)
-Q_MOC_INCLUDE(<qwoutputmanagementv1.h>)
+Q_MOC_INCLUDE(<wlr/types/wlr_gamma_control_v1.h>)
+Q_MOC_INCLUDE(<wlr/types/wlr_output_management_v1.h>)
 Q_MOC_INCLUDE(<woutput.h>)
 Q_MOC_INCLUDE(<wlayersurface.h>)
 Q_MOC_INCLUDE(<wtoplevelsurface.h>)

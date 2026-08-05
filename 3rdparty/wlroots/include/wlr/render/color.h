@@ -9,6 +9,10 @@
 #ifndef WLR_RENDER_COLOR_H
 #define WLR_RENDER_COLOR_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdbool.h>
 #include <sys/types.h>
 
@@ -89,4 +93,7 @@ struct wlr_color_transform *wlr_color_transform_ref(struct wlr_color_transform *
  */
 void wlr_color_transform_unref(struct wlr_color_transform *tr);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

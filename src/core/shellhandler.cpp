@@ -38,8 +38,12 @@
 #include <wxdgtoplevelsurface.h>
 #include <wxwayland.h>
 #include <wxwaylandsurface.h>
+#define class wlr_class
+#include <wlr/xwayland/xwayland.h>
+#undef class
 #include <wxwaylandsurfaceitem.h>
 
+#include <wlr/types/wlr_buffer.h>
 
 #include <QColor>
 #include <QPointer>
@@ -125,7 +129,7 @@ void ShellHandler::handlePrelaunchSplashRequested(const QString &appId,
 {
     auto skipSplash = [this, appId, iconBuffer] {
         if (iconBuffer) {
-            iconBuffer->unlock();
+            wlr_buffer_unlock(iconBuffer);
         }
         m_pendingPrelaunchAppIds.remove(appId);
     };
@@ -175,7 +179,7 @@ void ShellHandler::createPrelaunchSplash(const QString &appId,
 
     if (!m_pendingPrelaunchAppIds.contains(appId)) {
         if (iconBuffer) {
-            iconBuffer->unlock();
+            wlr_buffer_unlock(iconBuffer);
         }
         return; // app window already created while waiting for dconfig
     }
@@ -192,7 +196,7 @@ void ShellHandler::createPrelaunchSplash(const QString &appId,
                                        iconBuffer,
                                        splashColor);
     if (iconBuffer) {
-        iconBuffer->unlock();
+        wlr_buffer_unlock(iconBuffer);
     }
     m_prelaunchWrappers.append(wrapper);
     m_workspace->addSurface(wrapper);

@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_DAMAGE_RING_H
 #define WLR_TYPES_WLR_DAMAGE_RING_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -76,4 +80,7 @@ void wlr_damage_ring_add_whole(struct wlr_damage_ring *ring);
 void wlr_damage_ring_rotate_buffer(struct wlr_damage_ring *ring,
 	struct wlr_buffer *buffer, pixman_region32_t *damage);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

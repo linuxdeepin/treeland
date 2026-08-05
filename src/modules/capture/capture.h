@@ -12,6 +12,7 @@
 #include <wserver.h>
 #include <wwrappointer.h>
 #include <wxdgsurface.h>
+#include <wscopedlistener.h>
 
 #include <QAbstractListModel>
 #include <QMetaObject>

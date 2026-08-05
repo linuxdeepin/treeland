@@ -9,6 +9,7 @@
 #include "wayliblogging.h"
 
 #include <wlr/types/wlr_compositor.h>
+#include <wlr/types/wlr_seat.h>
 
 extern "C" {
 #include "text-input-unstable-v2-protocol.h"

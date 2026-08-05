@@ -39,6 +39,7 @@ target_link_libraries(surface-delegate
     Qt6::QuickControls2
     waylibserver
     PkgConfig::PIXMAN
+    Wlroots::wlroots
 )
 
 if (INSTALL_TINYWL)

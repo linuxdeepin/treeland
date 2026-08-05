@@ -1,6 +1,10 @@
 #ifndef WLR_TYPES_WLR_OUTPUT_POWER_MANAGEMENT_V1_H
 #define WLR_TYPES_WLR_OUTPUT_POWER_MANAGEMENT_V1_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <wayland-server-core.h>
 #include "wlr-output-power-management-unstable-v1-protocol.h"
 
@@ -42,4 +46,7 @@ struct wlr_output_power_v1_set_mode_event {
 struct wlr_output_power_manager_v1 *wlr_output_power_manager_v1_create(
 	struct wl_display *display);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

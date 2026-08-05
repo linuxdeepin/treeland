@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_PRIMARY_SELECTION_H
 #define WLR_TYPES_WLR_PRIMARY_SELECTION_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <wayland-server-core.h>
 #include <wlr/types/wlr_seat.h>
 
@@ -65,4 +69,7 @@ void wlr_seat_request_set_primary_selection(struct wlr_seat *seat,
 void wlr_seat_set_primary_selection(struct wlr_seat *seat,
 	struct wlr_primary_selection_source *source, uint32_t serial);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

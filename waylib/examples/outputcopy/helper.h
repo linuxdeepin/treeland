@@ -13,6 +13,10 @@ QT_BEGIN_NAMESPACE
 class QQuickItem;
 QT_END_NAMESPACE
 
+struct wlr_renderer;
+struct wlr_allocator;
+struct wlr_compositor;
+
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WServer;
 class WOutputRenderWindow;

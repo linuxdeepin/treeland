@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_TABLET_PAD_H
 #define WLR_TYPES_WLR_TABLET_PAD_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdint.h>
 #include <wayland-server-core.h>
 #include <wlr/types/wlr_input_device.h>
@@ -100,4 +104,7 @@ struct wlr_tablet_pad_strip_event {
 struct wlr_tablet_pad *wlr_tablet_pad_from_input_device(
 	struct wlr_input_device *);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

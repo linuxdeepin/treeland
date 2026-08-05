@@ -16,6 +16,10 @@
 #ifndef WLR_UTIL_REGION_H
 #define WLR_UTIL_REGION_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdbool.h>
 #include <pixman.h>
 #include <wayland-server-protocol.h>
@@ -74,4 +78,7 @@ void wlr_region_rotated_bounds(pixman_region32_t *dst, const pixman_region32_t *
 bool wlr_region_confine(const pixman_region32_t *region, double x1, double y1, double x2,
 	double y2, double *x2_out, double *y2_out);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

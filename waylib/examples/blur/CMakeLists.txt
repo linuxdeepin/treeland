@@ -43,6 +43,7 @@ target_link_libraries(blur
     waylibserver
     PkgConfig::PIXMAN
     PkgConfig::WAYLAND
+    Wlroots::wlroots
 )
 
 if (INSTALL_TINYWL)

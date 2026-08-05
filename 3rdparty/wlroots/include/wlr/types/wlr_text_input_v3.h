@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_TEXT_INPUT_V3_H
 #define WLR_TYPES_WLR_TEXT_INPUT_V3_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <wayland-server-core.h>
 #include <wlr/types/wlr_seat.h>
 #include <wlr/util/box.h>
@@ -100,4 +104,7 @@ void wlr_text_input_v3_send_delete_surrounding_text(
 	uint32_t after_length);
 void wlr_text_input_v3_send_done(struct wlr_text_input_v3 *text_input);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_FOREIGN_TOPLEVEL_LIST_V1_H
 #define WLR_TYPES_WLR_FOREIGN_TOPLEVEL_LIST_V1_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <wayland-server-core.h>
 
 struct wlr_ext_foreign_toplevel_list_v1 {
@@ -69,4 +73,7 @@ void wlr_ext_foreign_toplevel_handle_v1_update_state(
 struct wlr_ext_foreign_toplevel_handle_v1 *wlr_ext_foreign_toplevel_handle_v1_from_resource(
 	struct wl_resource *resource);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

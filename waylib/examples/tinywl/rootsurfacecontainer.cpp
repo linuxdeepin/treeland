@@ -13,6 +13,9 @@
 #include <wxdgsurface.h>
 #include <wxdgpopupsurface.h>
 
+extern "C" {
+#include <wlr/types/wlr_output_layout.h>
+}
 
 #include <QQuickWindow>
 

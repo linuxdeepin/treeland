@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_CURSOR_H
 #define WLR_TYPES_WLR_CURSOR_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <wayland-server-core.h>
 #include <wlr/types/wlr_output_layout.h>
 
@@ -215,4 +219,7 @@ void wlr_cursor_map_to_region(struct wlr_cursor *cur, const struct wlr_box *box)
 void wlr_cursor_map_input_to_region(struct wlr_cursor *cur,
 	struct wlr_input_device *dev, const struct wlr_box *box);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

@@ -9,6 +9,10 @@
 #ifndef WLR_RENDER_WLR_RENDERER_H
 #define WLR_RENDER_WLR_RENDERER_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdint.h>
 #include <wayland-server-core.h>
 #include <wlr/render/pass.h>
@@ -122,4 +126,7 @@ int wlr_render_timer_get_duration_ns(struct wlr_render_timer *timer);
  */
 void wlr_render_timer_destroy(struct wlr_render_timer *timer);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

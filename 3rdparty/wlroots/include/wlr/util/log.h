@@ -16,6 +16,10 @@
 #ifndef WLR_UTIL_LOG_H
 #define WLR_UTIL_LOG_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdbool.h>
 #include <stdarg.h>
 #include <string.h>
@@ -83,4 +87,7 @@ void _wlr_vlog(enum wlr_log_importance verbosity, const char *format, va_list ar
 
 #endif
 
+#ifdef __cplusplus
+}
+#endif
 #endif

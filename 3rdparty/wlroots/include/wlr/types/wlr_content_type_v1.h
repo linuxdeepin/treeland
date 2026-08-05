@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_CONTENT_TYPE_V1_H
 #define WLR_TYPES_WLR_CONTENT_TYPE_V1_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <wayland-server-core.h>
 #include "content-type-v1-protocol.h"
 
@@ -33,4 +37,7 @@ struct wlr_content_type_manager_v1 *wlr_content_type_manager_v1_create(
 enum wp_content_type_v1_type wlr_surface_get_content_type_v1(
 	struct wlr_content_type_manager_v1 *manager, struct wlr_surface *surface);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

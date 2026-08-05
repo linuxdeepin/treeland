@@ -1,6 +1,10 @@
 #ifndef WLR_TYPES_WLR_GAMMA_CONTROL_V1_H
 #define WLR_TYPES_WLR_GAMMA_CONTROL_V1_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <wayland-server-core.h>
 
 struct wlr_output;
@@ -51,4 +55,7 @@ bool wlr_gamma_control_v1_apply(struct wlr_gamma_control_v1 *gamma_control,
 	struct wlr_output_state *output_state);
 void wlr_gamma_control_v1_send_failed_and_destroy(struct wlr_gamma_control_v1 *gamma_control);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

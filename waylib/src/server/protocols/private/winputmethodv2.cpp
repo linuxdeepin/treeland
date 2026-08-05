@@ -9,7 +9,9 @@
 #include "private/wglobal_p.h"
 #include "wayliblogging.h"
 
+#define delete wlr_delete
 #include <wlr/types/wlr_input_method_v2.h>
+#undef delete
 #include <wlr/types/wlr_compositor.h>
 
 #include <QKeySequence>
@@ -147,12 +149,12 @@ QString WInputMethodV2::commitString() const
 
 uint WInputMethodV2::deleteSurroundingBeforeLength() const
 {
-    return d_func()->handle()->current.delete_c.before_length;
+    return d_func()->handle()->current.wlr_delete.before_length;
 }
 
 uint WInputMethodV2::deleteSurroundingAfterLength() const
 {
-    return d_func()->handle()->current.delete_c.after_length;
+    return d_func()->handle()->current.wlr_delete.after_length;
 }
 
 QString WInputMethodV2::preeditString() const

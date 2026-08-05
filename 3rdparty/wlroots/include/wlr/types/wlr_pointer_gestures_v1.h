@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_POINTER_GESTURES_V1_H
 #define WLR_TYPES_WLR_POINTER_GESTURES_V1_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <wayland-server-core.h>
 #include <wlr/types/wlr_seat.h>
 
@@ -81,4 +85,7 @@ void wlr_pointer_gestures_v1_send_hold_end(
 	uint32_t time_msec,
 	bool cancelled);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

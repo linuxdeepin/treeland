@@ -9,6 +9,10 @@
 #ifndef WLR_RENDER_PASS_H
 #define WLR_RENDER_PASS_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <pixman.h>
 #include <stdint.h>
 #include <wayland-server-core.h>
@@ -145,4 +149,7 @@ struct wlr_render_rect_options {
 void wlr_render_pass_add_rect(struct wlr_render_pass *render_pass,
 	const struct wlr_render_rect_options *options);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

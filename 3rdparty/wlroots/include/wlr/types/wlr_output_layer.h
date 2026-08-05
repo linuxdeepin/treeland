@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_OUTPUT_LAYER_H
 #define WLR_TYPES_WLR_OUTPUT_LAYER_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <wlr/render/drm_format_set.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/util/box.h>
@@ -100,4 +104,7 @@ struct wlr_output_layer *wlr_output_layer_create(struct wlr_output *output);
  */
 void wlr_output_layer_destroy(struct wlr_output_layer *layer);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

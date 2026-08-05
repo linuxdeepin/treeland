@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_VIEWPORTER_H
 #define WLR_TYPES_WLR_VIEWPORTER_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <wayland-server-core.h>
 
 /**
@@ -36,4 +40,7 @@ struct wlr_viewporter {
 
 struct wlr_viewporter *wlr_viewporter_create(struct wl_display *display);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

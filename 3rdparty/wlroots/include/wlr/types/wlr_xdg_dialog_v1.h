@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_XDG_DIALOG_V1_H
 #define WLR_TYPES_WLR_XDG_DIALOG_V1_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <wayland-server-core.h>
 #include <wlr/util/addon.h>
 
@@ -55,4 +59,7 @@ struct wlr_xdg_wm_dialog_v1 *wlr_xdg_wm_dialog_v1_create(struct wl_display *disp
 struct wlr_xdg_dialog_v1 *wlr_xdg_dialog_v1_try_from_wlr_xdg_toplevel(
 		struct wlr_xdg_toplevel *xdg_toplevel);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

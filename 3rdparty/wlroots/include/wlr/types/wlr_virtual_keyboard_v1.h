@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_VIRTUAL_KEYBOARD_V1_H
 #define WLR_TYPES_WLR_VIRTUAL_KEYBOARD_V1_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <wayland-server-core.h>
 #include <wlr/types/wlr_keyboard.h>
 
@@ -41,4 +45,7 @@ struct wlr_virtual_keyboard_manager_v1* wlr_virtual_keyboard_manager_v1_create(
 struct wlr_virtual_keyboard_v1 *wlr_input_device_get_virtual_keyboard(
 	struct wlr_input_device *wlr_dev);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

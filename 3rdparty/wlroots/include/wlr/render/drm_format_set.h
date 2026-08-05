@@ -9,6 +9,10 @@
 #ifndef WLR_RENDER_DRM_FORMAT_SET_H
 #define WLR_RENDER_DRM_FORMAT_SET_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -97,4 +101,7 @@ bool wlr_drm_format_set_intersect(struct wlr_drm_format_set *dst,
  */
 bool wlr_drm_format_set_union(struct wlr_drm_format_set *dst,
 	const struct wlr_drm_format_set *a, const struct wlr_drm_format_set *b);
+#ifdef __cplusplus
+}
+#endif
 #endif

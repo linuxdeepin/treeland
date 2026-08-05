@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_EXT_IMAGE_CAPTURE_SOURCE_V1_H
 #define WLR_TYPES_WLR_EXT_IMAGE_CAPTURE_SOURCE_V1_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <pixman.h>
 #include <wayland-server-core.h>
 #include <wlr/render/drm_format_set.h>
@@ -91,4 +95,7 @@ struct wlr_ext_image_capture_source_v1 *wlr_ext_image_capture_source_v1_from_res
 struct wlr_ext_output_image_capture_source_manager_v1 *wlr_ext_output_image_capture_source_manager_v1_create(
 	struct wl_display *display, uint32_t version);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

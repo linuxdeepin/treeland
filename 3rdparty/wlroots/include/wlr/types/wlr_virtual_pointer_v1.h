@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_VIRTUAL_POINTER_V1_H
 #define WLR_TYPES_WLR_VIRTUAL_POINTER_V1_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <wayland-server-core.h>
 #include <wayland-server-protocol.h>
 #include <wlr/interfaces/wlr_pointer.h>
@@ -49,4 +53,7 @@ struct wlr_virtual_pointer_v1_new_pointer_event {
 struct wlr_virtual_pointer_manager_v1* wlr_virtual_pointer_manager_v1_create(
 	struct wl_display *display);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

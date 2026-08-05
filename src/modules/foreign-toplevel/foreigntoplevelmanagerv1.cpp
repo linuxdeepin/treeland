@@ -15,6 +15,7 @@
 #include <wscopedlistener.h>
 #include <WSeat>
 #include <WSurface>
+#include <wlr/types/wlr_seat.h>
 
 #include <algorithm>
 #include <map>

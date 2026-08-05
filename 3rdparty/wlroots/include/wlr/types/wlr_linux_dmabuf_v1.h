@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_LINUX_DMABUF_V1_H
 #define WLR_TYPES_WLR_LINUX_DMABUF_V1_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdint.h>
 #include <sys/stat.h>
 #include <wayland-server-core.h>
@@ -134,4 +138,7 @@ struct wlr_linux_dmabuf_feedback_v1_init_options {
 bool wlr_linux_dmabuf_feedback_v1_init_with_options(struct wlr_linux_dmabuf_feedback_v1 *feedback,
 	const struct wlr_linux_dmabuf_feedback_v1_init_options *options);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

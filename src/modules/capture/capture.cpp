@@ -21,6 +21,12 @@
 #include <wquicktextureproxy.h>
 #include <wtools.h>
 
+#define namespace wlr_ns
+extern "C" {
+#include <wlr/types/wlr_layer_shell_v1.h>
+}
+#undef namespace
+
 
 #include <QLoggingCategory>
 #include <QQueue>
@@ -288,7 +294,7 @@ void CaptureContextV1::handleRenderEnd()
         return;
     }
     m_currentFrameData = {};
-    dmabuf->get_dmabuf(&m_currentFrameData.attribs);
+    wlr_buffer_get_dmabuf(dmabuf, &m_currentFrameData.attribs);
 
     union
     {
@@ -573,7 +579,7 @@ CaptureSourceSelector::CaptureSourceSelector(QQuickItem *parent)
         } else if (auto surfaceItem = qobject_cast<WSurfaceItem *>(item)) {
             auto layerSurface = qobject_cast<WLayerSurface *>(surfaceItem->shellSurface());
             if (layerSurface) {
-                if (QString(layerSurface->handle()->scope) == "dde-shell/desktop") {
+                if (QString(layerSurface->handle()->wlr_ns) == "dde-shell/desktop") {
                     return false;
                 }
             }
@@ -767,7 +773,7 @@ wlr_buffer *CaptureSourceSurface::internalBuffer()
     Q_ASSERT(m_sourceList.size() == 1);
     if (m_sourceList.first().first && m_surfaceItemContent->surface()
         && m_surfaceItemContent->surface()->buffer()) {
-        if (auto clientBuffer = wlr_client_buffer_get(*m_surfaceItemContent->surface()->buffer())) {
+        if (auto clientBuffer = wlr_client_buffer_get(m_surfaceItemContent->surface()->buffer())) {
             return clientBuffer->source;
         } else {
             return m_surfaceItemContent->surface()->buffer();

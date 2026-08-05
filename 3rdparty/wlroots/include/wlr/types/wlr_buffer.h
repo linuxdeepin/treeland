@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_BUFFER_H
 #define WLR_TYPES_WLR_BUFFER_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <pixman.h>
 #include <wayland-server-core.h>
 #include <wlr/render/dmabuf.h>
@@ -206,4 +210,7 @@ struct wlr_single_pixel_buffer_v1 {
 struct wlr_single_pixel_buffer_v1 *wlr_single_pixel_buffer_v1_try_from_buffer(
 	struct wlr_buffer *buffer);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

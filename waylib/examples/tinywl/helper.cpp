@@ -59,6 +59,7 @@
 #include <QVariant>
 
 #include <unistd.h>
+extern "C" {
 #include <wlr/backend.h>
 #include <wlr/backend/multi.h>
 #include <wlr/backend/x11.h>
@@ -76,6 +77,13 @@
 #include <wlr/types/wlr_data_control_v1.h>
 #include <wlr/types/wlr_ext_data_control_v1.h>
 #include <wlr/types/wlr_alpha_modifier_v1.h>
+}
+
+#define class wlr_class
+extern "C" {
+#include <wlr/xwayland/xwayland.h>
+}
+#undef class
 #include "private/wglobal_p.h"
 
 #define WLR_FRACTIONAL_SCALE_V1_VERSION 1
@@ -352,7 +360,7 @@ void Helper::init()
     });
 
     connect(m_xwayland, &WXWayland::surfaceAdded, this, [this] (WXWaylandSurface *surface) {
-        auto *assocListener = new WScopedListener; assocListener->connect(&surface->handle()->events.associate, [this, surface, assocListener] (wl_listener *l, void *data) {
+        auto *assocListener = new WScopedListener; assocListener->connect(&surface->handle()->events.associate, [this, surface, assocListener] (wl_listener *, void *) {
             auto wrapper = new SurfaceWrapper(qmlEngine(), surface, SurfaceWrapper::Type::XWayland);
 
             // Setup title and decoration
@@ -409,7 +417,7 @@ void Helper::init()
             m_foreignToplevel->addSurface(surface);
             m_extForeignToplevelListV1->addSurface(surface);
         });
-        auto *dissocListener = new WScopedListener; dissocListener->connect(&surface->handle()->events.dissociate, [this, surface, dissocListener] (wl_listener *l, void *data) {
+        auto *dissocListener = new WScopedListener; dissocListener->connect(&surface->handle()->events.dissociate, [this, surface, dissocListener] (wl_listener *, void *) {
             m_foreignToplevel->removeSurface(surface);
             m_extForeignToplevelListV1->removeSurface(surface);
             m_surfaceContainer->destroyForSurface(surface->surface());
@@ -454,7 +462,7 @@ void Helper::init()
     auto gammaControlManager = wlr_gamma_control_manager_v1_create(m_server->handle());
     auto *gammaSetGammaListener = new WScopedListener;
     gammaSetGammaListener->connect(&gammaControlManager->events.set_gamma,
-        [gammaSetGammaListener] (wl_listener *l, void *data) {
+        [gammaSetGammaListener] (wl_listener *, void *data) {
         auto *event = static_cast<wlr_gamma_control_manager_v1_set_gamma_event*>(data);
         auto *qwOutput = event->output;
         size_t ramp_size = 0;
@@ -736,7 +744,7 @@ void Helper::allowNonDrmOutputAutoChangeMode(WOutput *output)
 {
     auto *listener = new WScopedListener;
     listener->connect(&output->handle()->events.request_state,
-        [this, output, listener] (wl_listener *l, void *data) {
+        [this, output, listener] (wl_listener *, void *data) {
         auto *event = static_cast<wlr_output_event_request_state*>(data);
         if (event->state->committed & WLR_OUTPUT_STATE_MODE) {
             wlr_output_commit_state(output->handle(), event->state);

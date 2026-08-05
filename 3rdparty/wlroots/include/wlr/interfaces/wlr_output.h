@@ -9,6 +9,10 @@
 #ifndef WLR_INTERFACES_WLR_OUTPUT_H
 #define WLR_INTERFACES_WLR_OUTPUT_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdbool.h>
 #include <wlr/backend.h>
 #include <wlr/types/wlr_output.h>
@@ -136,4 +140,7 @@ void wlr_output_send_present(struct wlr_output *output,
 void wlr_output_send_request_state(struct wlr_output *output,
 	const struct wlr_output_state *state);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

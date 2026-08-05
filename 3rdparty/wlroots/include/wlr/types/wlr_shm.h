@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_SHM_H
 #define WLR_TYPES_WLR_SHM_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <wayland-server-core.h>
 
 struct wlr_renderer;
@@ -50,4 +54,7 @@ struct wlr_shm *wlr_shm_create(struct wl_display *display, uint32_t version,
 struct wlr_shm *wlr_shm_create_with_renderer(struct wl_display *display,
 	uint32_t version, struct wlr_renderer *renderer);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

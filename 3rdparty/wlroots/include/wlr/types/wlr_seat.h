@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_SEAT_H
 #define WLR_TYPES_WLR_SEAT_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <time.h>
 #include <wayland-server-core.h>
 #include <wlr/types/wlr_input_device.h>
@@ -762,4 +766,7 @@ struct wlr_seat_client *wlr_seat_client_from_pointer_resource(
  */
 bool wlr_surface_accepts_touch(struct wlr_surface *surface, struct wlr_seat *wlr_seat);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

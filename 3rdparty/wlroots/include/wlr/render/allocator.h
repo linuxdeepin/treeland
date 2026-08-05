@@ -9,6 +9,10 @@
 #ifndef WLR_ALLOCATOR_H
 #define WLR_ALLOCATOR_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <wayland-server-core.h>
 
 struct wlr_allocator;
@@ -77,4 +81,7 @@ void wlr_allocator_destroy(struct wlr_allocator *alloc);
 struct wlr_buffer *wlr_allocator_create_buffer(struct wlr_allocator *alloc,
 	int width, int height, const struct wlr_drm_format *format);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

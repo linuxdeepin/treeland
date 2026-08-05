@@ -8,6 +8,10 @@
 
 #ifndef WLR_TYPES_WLR_XDG_OUTPUT_V1_H
 #define WLR_TYPES_WLR_XDG_OUTPUT_V1_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 #include <wayland-server-core.h>
 #include <wlr/types/wlr_output_layout.h>
 
@@ -48,4 +52,7 @@ struct wlr_xdg_output_manager_v1 {
 struct wlr_xdg_output_manager_v1 *wlr_xdg_output_manager_v1_create(
 	struct wl_display *display, struct wlr_output_layout *layout);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

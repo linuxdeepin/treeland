@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_XDG_ACTIVATION_V1
 #define WLR_TYPES_WLR_XDG_ACTIVATION_V1
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <wayland-server-core.h>
 
 struct wlr_xdg_activation_token_v1 {
@@ -85,4 +89,7 @@ const char *wlr_xdg_activation_token_v1_get_name(
 struct wlr_xdg_activation_token_v1 *wlr_xdg_activation_v1_add_token(
 		struct wlr_xdg_activation_v1 *activation, const char *token_str);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_TOUCH_H
 #define WLR_TYPES_WLR_TOUCH_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdint.h>
 #include <wlr/types/wlr_input_device.h>
 #include <wayland-server-core.h>
@@ -70,4 +74,7 @@ struct wlr_touch_cancel_event {
 struct wlr_touch *wlr_touch_from_input_device(
 	struct wlr_input_device *input_device);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

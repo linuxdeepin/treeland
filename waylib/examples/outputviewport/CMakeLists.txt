@@ -43,4 +43,5 @@ target_link_libraries(outputviewport
     waylibserver
     PkgConfig::PIXMAN
     PkgConfig::WAYLAND
+    Wlroots::wlroots
 )

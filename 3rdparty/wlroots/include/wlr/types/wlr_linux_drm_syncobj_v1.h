@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_LINUX_DRM_SYNCOBJ_V1_H
 #define WLR_TYPES_WLR_LINUX_DRM_SYNCOBJ_V1_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <wayland-server-core.h>
 #include <wlr/util/addon.h>
 
@@ -55,4 +59,7 @@ struct wlr_linux_drm_syncobj_surface_v1_state *wlr_linux_drm_syncobj_v1_get_surf
 bool wlr_linux_drm_syncobj_v1_state_signal_release_with_buffer(
 	struct wlr_linux_drm_syncobj_surface_v1_state *state, struct wlr_buffer *buffer);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

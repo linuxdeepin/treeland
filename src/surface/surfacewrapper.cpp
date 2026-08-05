@@ -23,6 +23,7 @@
 #include <wxwaylandsurface.h>
 #include <wxwaylandsurfaceitem.h>
 
+#include <wlr/types/wlr_layer_shell_v1.h>
 
 #include <QColor>
 #include <QVariant>
@@ -1341,11 +1342,12 @@ void SurfaceWrapper::createNewOrClose(uint direction)
         m_windowAnimation->setProperty("enableBlur", m_blur);
     } break;
     case Type::Layer: {
+#define namespace wlr_ns
         auto scope = QString(static_cast<WLayerSurfaceItem *>(m_surfaceItem)
                                  ->layerSurface()
                                  ->handle()
-                                 ->handle()
-                                 ->scope);
+                                 ->namespace);
+#undef namespace
         auto *surface = qobject_cast<WLayerSurface *>(m_shellSurface);
         auto anchor = surface->getExclusiveZoneEdge();
         if (scope == "dde-shell/launchpad") {

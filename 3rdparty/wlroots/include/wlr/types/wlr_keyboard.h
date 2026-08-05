@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_KEYBOARD_H
 #define WLR_TYPES_WLR_KEYBOARD_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdbool.h>
 #include <stdint.h>
 #include <wayland-server-core.h>
@@ -156,4 +160,7 @@ void wlr_keyboard_led_update(struct wlr_keyboard *keyboard, uint32_t leds);
  */
 uint32_t wlr_keyboard_get_modifiers(struct wlr_keyboard *keyboard);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

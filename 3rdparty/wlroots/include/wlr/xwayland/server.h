@@ -9,6 +9,10 @@
 #ifndef WLR_XWAYLAND_SERVER_H
 #define WLR_XWAYLAND_SERVER_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdbool.h>
 #include <sys/types.h>
 #include <time.h>
@@ -65,4 +69,7 @@ struct wlr_xwayland_server *wlr_xwayland_server_create(
 	struct wl_display *display, struct wlr_xwayland_server_options *options);
 void wlr_xwayland_server_destroy(struct wlr_xwayland_server *server);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

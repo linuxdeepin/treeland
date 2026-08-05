@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_SINGLE_PIXEL_BUFFER_V1_H
 #define WLR_TYPES_WLR_SINGLE_PIXEL_BUFFER_V1_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <wayland-server-core.h>
 
 struct wlr_single_pixel_buffer_manager_v1 {
@@ -23,4 +27,7 @@ struct wlr_single_pixel_buffer_manager_v1 {
 struct wlr_single_pixel_buffer_manager_v1 *wlr_single_pixel_buffer_manager_v1_create(
 	struct wl_display *display);
 
+#ifdef __cplusplus
+}
+#endif
 #endif
