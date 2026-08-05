@@ -5,6 +5,7 @@
 #include "common/treelandlogging.h"
 
 #include <winputdevice.h>
+#include <wlr/backend/libinput.h>
 
 
 #include <QInputDevice>

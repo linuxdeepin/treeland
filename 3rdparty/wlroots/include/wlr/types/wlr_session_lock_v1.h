@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_SESSION_LOCK_H
 #define WLR_TYPES_WLR_SESSION_LOCK_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdbool.h>
 #include <stdint.h>
 #include <wayland-server-core.h>
@@ -105,4 +109,7 @@ uint32_t wlr_session_lock_surface_v1_configure(
 struct wlr_session_lock_surface_v1 *wlr_session_lock_surface_v1_try_from_wlr_surface(
 	struct wlr_surface *surface);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

@@ -8,6 +8,13 @@
 
 #ifndef WLR_TYPES_WLR_TRANSIENT_SEAT_V1_H
 #define WLR_TYPES_WLR_TRANSIENT_SEAT_V1_H
+#ifdef __cplusplus
+}
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #include <wayland-server-core.h>
 

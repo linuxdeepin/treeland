@@ -13,6 +13,7 @@
 #include <QQuickItem>
 #include <QQuickWindow>
 #include <QProcess>
+extern "C" {
 #include <wlr/backend.h>
 #include <wlr/backend/multi.h>
 #include <wlr/backend/x11.h>
@@ -26,6 +27,7 @@
 #include <wlr/types/wlr_viewporter.h>
 #include <wlr/types/wlr_fractional_scale_v1.h>
 #include <wlr/util/log.h>
+}
 
 WAYLIB_SERVER_USE_NAMESPACE
 

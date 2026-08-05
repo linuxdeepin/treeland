@@ -9,6 +9,10 @@
 #ifndef WLR_XWAYLAND_SHELL_H
 #define WLR_XWAYLAND_SHELL_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdbool.h>
 #include <wayland-server-core.h>
 
@@ -77,4 +81,7 @@ void wlr_xwayland_shell_v1_set_client(struct wlr_xwayland_shell_v1 *shell,
 struct wlr_surface *wlr_xwayland_shell_v1_surface_from_serial(
 	struct wlr_xwayland_shell_v1 *shell, uint64_t serial);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

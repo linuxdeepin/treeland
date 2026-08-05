@@ -14,7 +14,9 @@
 #include "private/wglobal_p.h"
 #include "wayliblogging.h"
 
+#define delete wlr_delete
 #include <wlr/types/wlr_input_method_v2.h>
+#undef delete
 #include <wlr/types/wlr_seat.h>
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_virtual_keyboard_v1.h>
@@ -43,7 +45,7 @@ void handleKey(struct wlr_seat_keyboard_grab *grab, uint32_t time_msec, uint32_t
                                   << "key" << key << "state" << state;
         return;
     }
-    arg->grab->send_key(time_msec, Qt::Key(key), state);
+    wlr_input_method_keyboard_grab_v2_send_key(arg->grab, time_msec, Qt::Key(key), state);
 }
 
 void handleModifiers(struct wlr_seat_keyboard_grab *grab, const struct wlr_keyboard_modifiers *modifiers)
@@ -59,7 +61,7 @@ void handleModifiers(struct wlr_seat_keyboard_grab *grab, const struct wlr_keybo
         qCCritical(lcWlInputMethod) << "Ignore modifiers for destroyed input method keyboard grab";
         return;
     }
-    arg->grab->send_modifiers(const_cast<struct wlr_keyboard_modifiers *>(modifiers));
+    wlr_input_method_keyboard_grab_v2_send_modifiers(arg->grab, const_cast<struct wlr_keyboard_modifiers *>(modifiers));
 }
 
 class Q_DECL_HIDDEN WInputMethodHelperPrivate : public WObjectPrivate
@@ -140,9 +142,9 @@ public:
                     == wl_resource_get_client(kgHandle->resource)) {
                 return;
             }
-            kgv2->set_keyboard(wlr_keyboard_from_input_device(keyboard->handle()));
+            wlr_input_method_keyboard_grab_v2_set_keyboard(kgv2, wlr_keyboard_from_input_device(keyboard->handle()));
         } else {
-            kgv2->set_keyboard(nullptr);
+            wlr_input_method_keyboard_grab_v2_set_keyboard(kgv2, nullptr);
         }
     }
 

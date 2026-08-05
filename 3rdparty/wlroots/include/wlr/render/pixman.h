@@ -9,6 +9,10 @@
 #ifndef WLR_RENDER_PIXMAN_H
 #define WLR_RENDER_PIXMAN_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <pixman.h>
 #include <wlr/render/wlr_renderer.h>
 
@@ -21,4 +25,7 @@ pixman_image_t *wlr_pixman_renderer_get_buffer_image(
     struct wlr_renderer *wlr_renderer, struct wlr_buffer *wlr_buffer);
 pixman_image_t *wlr_pixman_texture_get_image(struct wlr_texture *wlr_texture);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

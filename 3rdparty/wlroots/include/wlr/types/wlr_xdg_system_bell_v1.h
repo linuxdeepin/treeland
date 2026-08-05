@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_XDG_SYSTEM_BELL_V1_H
 #define WLR_TYPES_WLR_XDG_SYSTEM_BELL_V1_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <wayland-server-core.h>
 
 struct wlr_xdg_system_bell_v1 {
@@ -32,4 +36,7 @@ struct wlr_xdg_system_bell_v1_ring_event {
 struct wlr_xdg_system_bell_v1 *wlr_xdg_system_bell_v1_create(struct wl_display *display,
 		uint32_t version);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_SECURITY_CONTEXT_V1_H
 #define WLR_TYPES_WLR_SECURITY_CONTEXT_V1_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <wayland-server-core.h>
 
 /**
@@ -52,4 +56,7 @@ struct wlr_security_context_manager_v1 *wlr_security_context_manager_v1_create(
 const struct wlr_security_context_v1_state *wlr_security_context_manager_v1_lookup_client(
 	struct wlr_security_context_manager_v1 *manager, const struct wl_client *client);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

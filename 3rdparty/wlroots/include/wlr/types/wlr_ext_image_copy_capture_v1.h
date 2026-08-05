@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_EXT_IMAGE_COPY_CAPTURE_V1_H
 #define WLR_TYPES_WLR_EXT_IMAGE_COPY_CAPTURE_V1_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <pixman.h>
 #include <wayland-server.h>
 #include <time.h>
@@ -62,4 +66,7 @@ void wlr_ext_image_copy_capture_frame_v1_fail(struct wlr_ext_image_copy_capture_
 bool wlr_ext_image_copy_capture_frame_v1_copy_buffer(struct wlr_ext_image_copy_capture_frame_v1 *frame,
 	struct wlr_buffer *src, struct wlr_renderer *renderer);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

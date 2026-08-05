@@ -8,6 +8,7 @@
 #include <wserver.h>
 #include <wseat.h>
 #include <wsurface.h>
+#include <wlr/types/wlr_seat.h>
 
 
 #include <QDeadlineTimer>

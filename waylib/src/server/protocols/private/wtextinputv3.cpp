@@ -41,7 +41,6 @@ QByteArrayView WTextInputManagerV3::interfaceName() const
 void WTextInputManagerV3::create(WServer *server)
 {
     W_D(WTextInputManagerV3);
-    W_D(WTextInputManagerV3);
     m_handle = wlr_text_input_manager_v3_create(server->handle());
     Q_ASSERT(m_handle);
     auto *manager = static_cast<wlr_text_input_manager_v3*>(m_handle);
@@ -177,36 +176,36 @@ void WTextInputV3::sendEnter(WSurface *surface)
         return;
 
     if (focusedSurface)
-        wlr_text_input_v3_send_leave(d_func()->handle());
+        wlr_text_input_v3_send_leave(d_func()->handle);
 
-    wlr_text_input_v3_send_enter(d_func()->handle(), targetSurface);
+    wlr_text_input_v3_send_enter(d_func()->handle, targetSurface);
 }
 
 void WTextInputV3::sendLeave()
 {
     if (handle()->focused_surface) {
-        wlr_text_input_v3_send_leave(d_func()->handle());
+        wlr_text_input_v3_send_leave(d_func()->handle);
     }
 }
 
 void WTextInputV3::sendPreeditString(const QString &text, qint32 cursor_begin, qint32 cursor_end)
 {
-    wlr_text_input_v3_send_preedit_string(d_func()->handle(), qPrintable(text), cursor_begin, cursor_end);
+    wlr_text_input_v3_send_preedit_string(d_func()->handle, qPrintable(text), cursor_begin, cursor_end);
 }
 
 void WTextInputV3::sendCommitString(const QString &text)
 {
-    wlr_text_input_v3_send_commit_string(d_func()->handle(), qPrintable(text));
+    wlr_text_input_v3_send_commit_string(d_func()->handle, qPrintable(text));
 }
 
 void WTextInputV3::sendDeleteSurroundingText(quint32 before_length, quint32 after_length)
 {
-    wlr_text_input_v3_send_delete_surrounding_text(d_func()->handle(), before_length, after_length);
+    wlr_text_input_v3_send_delete_surrounding_text(d_func()->handle, before_length, after_length);
 }
 
 void WTextInputV3::sendDone()
 {
-    wlr_text_input_v3_send_done(d_func()->handle());
+    wlr_text_input_v3_send_done(d_func()->handle);
 }
 
 void WTextInputV3::handleIMCommitted(WInputMethodV2 *im)

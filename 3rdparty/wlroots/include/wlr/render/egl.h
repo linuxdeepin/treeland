@@ -9,6 +9,10 @@
 #ifndef WLR_RENDER_EGL_H
 #define WLR_RENDER_EGL_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef EGL_NO_X11
 #define EGL_NO_X11
 #endif
@@ -53,4 +57,7 @@ EGLDisplay wlr_egl_get_display(struct wlr_egl *egl);
  */
 EGLContext wlr_egl_get_context(struct wlr_egl *egl);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

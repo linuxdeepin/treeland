@@ -9,6 +9,10 @@
 #ifndef WLR_BACKEND_DRM_H
 #define WLR_BACKEND_DRM_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <wayland-server-core.h>
 #include <wlr/backend.h>
 #include <wlr/backend/session.h>
@@ -100,4 +104,7 @@ const drmModeModeInfo *wlr_drm_mode_get_info(struct wlr_output_mode *mode);
 enum wl_output_transform wlr_drm_connector_get_panel_orientation(
 	struct wlr_output *output);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

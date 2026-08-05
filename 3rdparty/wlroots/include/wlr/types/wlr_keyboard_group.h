@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_KEYBOARD_GROUP_H
 #define WLR_TYPES_WLR_KEYBOARD_GROUP_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <wayland-server-core.h>
 #include <wlr/types/wlr_keyboard.h>
 
@@ -56,4 +60,7 @@ void wlr_keyboard_group_remove_keyboard(struct wlr_keyboard_group *group,
 
 void wlr_keyboard_group_destroy(struct wlr_keyboard_group *group);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

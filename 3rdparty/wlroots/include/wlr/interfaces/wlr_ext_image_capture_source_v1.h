@@ -9,6 +9,10 @@
 #ifndef WLR_INTERFACES_WLR_EXT_IMAGE_CAPTURE_SOURCE_V1_H
 #define WLR_INTERFACES_WLR_EXT_IMAGE_CAPTURE_SOURCE_V1_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <wayland-server-core.h>
 #include <wlr/types/wlr_ext_image_capture_source_v1.h>
 
@@ -42,4 +46,7 @@ void wlr_ext_image_capture_source_v1_cursor_init(struct wlr_ext_image_capture_so
 		const struct wlr_ext_image_capture_source_v1_interface *impl);
 void wlr_ext_image_capture_source_v1_cursor_finish(struct wlr_ext_image_capture_source_v1_cursor *source_cursor);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

@@ -17,6 +17,17 @@
 #include <wquicktextureproxy.h>
 #include <wxdgpopupsurfaceitem.h>
 
+extern "C" {
+#include <wlr/backend/x11.h>
+}
+#define namespace wlr_ns
+extern "C" {
+#include <wlr/types/wlr_layer_shell_v1.h>
+}
+#undef namespace
+extern "C" {
+#include <wlr/types/wlr_output_layout.h>
+}
 
 #include <QQmlEngine>
 

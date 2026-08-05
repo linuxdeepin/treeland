@@ -113,7 +113,7 @@ WSessionLock::WSessionLock(wlr_session_lock_v1 *handle, QObject *parent)
     d->m_newSurfaceListener.connect(&handle->events.new_surface, [d](wl_listener *, void *data) {
         d->onNewSurface(static_cast<wlr_session_lock_surface_v1*>(data));
     });
-    d->m_unlockListener.connect(&handle->events.unlock, [this]() {
+    d->m_unlockListener.connect(&handle->events.unlock, [this](wl_listener *, void *) {
         Q_ASSERT(d_func()->m_status == LockState::Locked);
         Q_EMIT unlocked();
     });

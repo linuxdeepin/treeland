@@ -1,6 +1,10 @@
 #ifndef WLR_BACKEND_SESSION_H
 #define WLR_BACKEND_SESSION_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdbool.h>
 #include <sys/types.h>
 #include <wayland-server-core.h>
@@ -143,4 +147,7 @@ bool wlr_session_change_vt(struct wlr_session *session, unsigned vt);
 ssize_t wlr_session_find_gpus(struct wlr_session *session,
 	size_t ret_len, struct wlr_device **ret);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

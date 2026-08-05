@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_EXPORT_DMABUF_V1_H
 #define WLR_TYPES_WLR_EXPORT_DMABUF_V1_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdbool.h>
 #include <wayland-server-core.h>
 #include <wlr/render/dmabuf.h>
@@ -44,4 +48,7 @@ struct wlr_export_dmabuf_frame_v1 {
 struct wlr_export_dmabuf_manager_v1 *wlr_export_dmabuf_manager_v1_create(
 	struct wl_display *display);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

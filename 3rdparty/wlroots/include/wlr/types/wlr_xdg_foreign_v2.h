@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_XDG_FOREIGN_V2_H
 #define WLR_TYPES_WLR_XDG_FOREIGN_V2_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <wayland-server-core.h>
 #include <wlr/types/wlr_xdg_foreign_registry.h>
 
@@ -70,4 +74,7 @@ struct wlr_xdg_imported_child_v2 {
 struct wlr_xdg_foreign_v2 *wlr_xdg_foreign_v2_create(
 		struct wl_display *display, struct wlr_xdg_foreign_registry *registry);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

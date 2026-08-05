@@ -3,7 +3,7 @@
 #pragma once
 
 #include "wglobal.h"
-#include "utils/wscopedlistener.h"
+#include "wscopedlistener.h"
 #include <QHash>
 #include <QPointer>
 

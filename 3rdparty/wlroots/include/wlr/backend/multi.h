@@ -9,6 +9,10 @@
 #ifndef WLR_BACKEND_MULTI_H
 #define WLR_BACKEND_MULTI_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <wlr/backend.h>
 
 /**
@@ -32,4 +36,7 @@ bool wlr_multi_is_empty(struct wlr_backend *backend);
 void wlr_multi_for_each_backend(struct wlr_backend *backend,
 		void (*callback)(struct wlr_backend *backend, void *data), void *data);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

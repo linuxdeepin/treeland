@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_TABLET_TOOL_H
 #define WLR_TYPES_TABLET_TOOL_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdint.h>
 #include <wayland-server-core.h>
 #include <wlr/types/wlr_input_device.h>
@@ -152,4 +156,7 @@ struct wlr_tablet_tool_button_event {
 struct wlr_tablet *wlr_tablet_from_input_device(
 	struct wlr_input_device *input_device);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

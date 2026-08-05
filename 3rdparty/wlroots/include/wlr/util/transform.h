@@ -9,6 +9,10 @@
 #ifndef WLR_UTIL_TRANSFORM_H
 #define WLR_UTIL_TRANSFORM_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <wayland-server-protocol.h>
 
 /**
@@ -30,4 +34,7 @@ enum wl_output_transform wlr_output_transform_compose(
  */
 void wlr_output_transform_coords(enum wl_output_transform tr, int *x, int *y);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_SCENE_H
 #define WLR_TYPES_WLR_SCENE_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * The scene-graph API provides a declarative way to display surfaces. The
  * compositor creates a scene, adds surfaces, then renders the scene on
@@ -689,4 +693,7 @@ void wlr_scene_layer_surface_v1_configure(
 struct wlr_scene_tree *wlr_scene_drag_icon_create(
 	struct wlr_scene_tree *parent, struct wlr_drag_icon *drag_icon);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

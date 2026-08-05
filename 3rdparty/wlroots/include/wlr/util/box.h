@@ -15,6 +15,10 @@
 #ifndef WLR_UTIL_BOX_H
 #define WLR_UTIL_BOX_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdbool.h>
 #include <wayland-server-protocol.h>
 
@@ -119,4 +123,7 @@ bool wlr_fbox_equal(const struct wlr_fbox *a, const struct wlr_fbox *b);
 
 #endif
 
+#ifdef __cplusplus
+}
+#endif
 #endif

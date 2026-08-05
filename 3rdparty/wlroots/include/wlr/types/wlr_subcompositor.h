@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_SUBCOMPOSITOR_H
 #define WLR_TYPES_WLR_SUBCOMPOSITOR_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdbool.h>
 #include <stdint.h>
 #include <wayland-server-core.h>
@@ -78,4 +82,7 @@ struct wlr_subsurface *wlr_subsurface_try_from_wlr_surface(
 
 struct wlr_subcompositor *wlr_subcompositor_create(struct wl_display *display);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

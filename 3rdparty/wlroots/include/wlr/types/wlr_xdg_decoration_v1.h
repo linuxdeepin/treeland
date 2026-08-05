@@ -1,6 +1,10 @@
 #ifndef WLR_TYPES_WLR_XDG_DECORATION_V1
 #define WLR_TYPES_WLR_XDG_DECORATION_V1
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <wayland-server-core.h>
 #include <wlr/types/wlr_xdg_shell.h>
 
@@ -72,4 +76,7 @@ uint32_t wlr_xdg_toplevel_decoration_v1_set_mode(
 	struct wlr_xdg_toplevel_decoration_v1 *decoration,
 	enum wlr_xdg_toplevel_decoration_v1_mode mode);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

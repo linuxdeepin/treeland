@@ -10,6 +10,7 @@
 
 struct wl_display;
 struct wl_client;
+struct wl_resource;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 

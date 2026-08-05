@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_DATA_DEVICE_H
 #define WLR_TYPES_WLR_DATA_DEVICE_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <wayland-server-core.h>
 #include <wlr/types/wlr_seat.h>
 
@@ -262,4 +266,7 @@ void wlr_data_source_dnd_finish(struct wlr_data_source *source);
 void wlr_data_source_dnd_action(struct wlr_data_source *source,
 	enum wl_data_device_manager_dnd_action action);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

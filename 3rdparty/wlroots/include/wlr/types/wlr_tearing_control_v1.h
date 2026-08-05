@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_TEARING_CONTROL_MANAGER_V1_H
 #define WLR_TYPES_WLR_TEARING_CONTROL_MANAGER_V1_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdint.h>
 #include <wayland-server-core.h>
 #include <wayland-server-protocol.h>
@@ -67,4 +71,7 @@ wlr_tearing_control_manager_v1_surface_hint_from_surface(
 	struct wlr_tearing_control_manager_v1 *manager,
 	struct wlr_surface *surface);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

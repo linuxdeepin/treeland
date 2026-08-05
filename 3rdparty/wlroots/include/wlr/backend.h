@@ -9,6 +9,10 @@
 #ifndef WLR_BACKEND_H
 #define WLR_BACKEND_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <wayland-server-core.h>
 #include <wlr/types/wlr_output.h>
 
@@ -100,4 +104,7 @@ bool wlr_backend_test(struct wlr_backend *backend,
 bool wlr_backend_commit(struct wlr_backend *backend,
 	const struct wlr_backend_output_state *states, size_t states_len);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

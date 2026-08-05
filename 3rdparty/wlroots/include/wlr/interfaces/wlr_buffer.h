@@ -9,6 +9,10 @@
 #ifndef WLR_INTERFACES_WLR_BUFFER_H
 #define WLR_INTERFACES_WLR_BUFFER_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <wlr/types/wlr_buffer.h>
 
 struct wlr_buffer_impl {
@@ -50,4 +54,7 @@ void wlr_buffer_finish(struct wlr_buffer *buffer);
 void wlr_buffer_register_resource_interface(
 	const struct wlr_buffer_resource_interface *iface);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

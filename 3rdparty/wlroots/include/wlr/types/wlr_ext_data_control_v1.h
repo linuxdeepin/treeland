@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_EXT_DATA_CONTROL_V1_H
 #define WLR_TYPES_WLR_EXT_DATA_CONTROL_V1_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <wayland-server-core.h>
 #include <wlr/types/wlr_seat.h>
 
@@ -44,4 +48,7 @@ struct wlr_ext_data_control_manager_v1 *wlr_ext_data_control_manager_v1_create(
 void wlr_ext_data_control_device_v1_destroy(
 	struct wlr_ext_data_control_device_v1 *device);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

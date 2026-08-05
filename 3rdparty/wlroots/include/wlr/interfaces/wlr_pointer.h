@@ -9,6 +9,10 @@
 #ifndef WLR_INTERFACES_WLR_POINTER_H
 #define WLR_INTERFACES_WLR_POINTER_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <wlr/types/wlr_pointer.h>
 
 struct wlr_pointer_impl {
@@ -22,4 +26,7 @@ void wlr_pointer_finish(struct wlr_pointer *pointer);
 void wlr_pointer_notify_button(struct wlr_pointer *pointer,
 		struct wlr_pointer_button_event *event);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

@@ -41,6 +41,10 @@
 #ifndef WLR_XCURSOR_H
 #define WLR_XCURSOR_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdint.h>
 #include <wlr/util/edges.h>
 
@@ -124,4 +128,7 @@ int wlr_xcursor_frame(struct wlr_xcursor *cursor, uint32_t time);
  */
 const char *wlr_xcursor_get_resize_name(enum wlr_edges edges);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

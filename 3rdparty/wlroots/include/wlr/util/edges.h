@@ -16,6 +16,10 @@
 #ifndef WLR_UTIL_EDGES_H
 #define WLR_UTIL_EDGES_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 enum wlr_edges {
 	WLR_EDGE_NONE = 0,
 	WLR_EDGE_TOP = 1 << 0,
@@ -24,4 +28,7 @@ enum wlr_edges {
 	WLR_EDGE_RIGHT = 1 << 3,
 };
 
+#ifdef __cplusplus
+}
+#endif
 #endif

@@ -20,6 +20,8 @@
 #include <WInputMethodHelper>
 
 #include <wlr/types/wlr_data_device.h>
+#include <wlr/types/wlr_xdg_shell.h>
+#include <wlr/types/wlr_seat.h>
 
 #include <QDateTime>
 
@@ -322,7 +324,7 @@ void SeatSurfaceManager::dismissPopups()
         return;
 
     qCDebug(lcTlPopupFocus) << "Dismissing popup grab";
-    m_seat->handle()->keyboard_end_grab();
+    wlr_seat_keyboard_end_grab(m_seat->handle());
 }
 
 void SeatSurfaceManager::onKeyboardGrabBegin()

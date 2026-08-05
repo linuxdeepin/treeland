@@ -15,6 +15,9 @@
 #include <WXWayland>
 #include <WXWaylandSurface>
 #include <wxdgtoplevelsurface.h>
+#define class wlr_class
+#include <wlr/xwayland/xwayland.h>
+#undef class
 
 
 const QLatin1String IMCandidatePanelManager::IM_CANDIDATE_PANEL(

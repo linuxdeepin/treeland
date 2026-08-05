@@ -9,6 +9,10 @@
 #ifndef WLR_BACKEND_LIBINPUT_H
 #define WLR_BACKEND_LIBINPUT_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <libinput.h>
 #include <wayland-server-core.h>
 #include <wlr/backend.h>
@@ -26,4 +30,7 @@ struct libinput_device *wlr_libinput_get_device_handle(
 bool wlr_backend_is_libinput(struct wlr_backend *backend);
 bool wlr_input_device_is_libinput(struct wlr_input_device *device);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

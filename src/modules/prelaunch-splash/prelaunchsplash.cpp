@@ -7,6 +7,10 @@
 
 #include <wserver.h>
 
+extern "C" {
+#include <wlr/types/wlr_buffer.h>
+}
+
 
 #include <QByteArray>
 
@@ -104,7 +108,7 @@ protected:
         // SplashResource self-destructs via destroy_resource callback
         new SplashResource(q, splashResource, app_id, instance_id);
 
-        auto qb = icon_buffer ? wlr_buffer_from_resource(icon_buffer) : nullptr;
+        auto qb = icon_buffer ? wlr_buffer_try_from_resource(icon_buffer) : nullptr;
         Q_EMIT q->splashRequested(app_id, instance_id, qb);
     }
 

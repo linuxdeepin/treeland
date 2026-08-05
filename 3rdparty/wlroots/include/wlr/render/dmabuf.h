@@ -9,6 +9,10 @@
 #ifndef WLR_RENDER_DMABUF_H
 #define WLR_RENDER_DMABUF_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -52,4 +56,7 @@ void wlr_dmabuf_attributes_finish(struct wlr_dmabuf_attributes *attribs);
 bool wlr_dmabuf_attributes_copy(struct wlr_dmabuf_attributes *dst,
 	const struct wlr_dmabuf_attributes *src);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

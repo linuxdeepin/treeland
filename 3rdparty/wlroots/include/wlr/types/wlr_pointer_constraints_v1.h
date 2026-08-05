@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_POINTER_CONSTRAINTS_V1_H
 #define WLR_TYPES_WLR_POINTER_CONSTRAINTS_V1_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdint.h>
 #include <wayland-server-core.h>
 #include <pixman.h>
@@ -105,4 +109,7 @@ void wlr_pointer_constraint_v1_send_activated(
 void wlr_pointer_constraint_v1_send_deactivated(
 	struct wlr_pointer_constraint_v1 *constraint);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

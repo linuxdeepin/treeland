@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_POINTER_H
 #define WLR_TYPES_WLR_POINTER_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdint.h>
 #include <wayland-server-core.h>
 #include <wayland-server-protocol.h>
@@ -149,4 +153,7 @@ struct wlr_pointer_hold_end_event {
 struct wlr_pointer *wlr_pointer_from_input_device(
 	struct wlr_input_device *input_device);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

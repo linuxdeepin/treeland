@@ -14,6 +14,10 @@
 #ifndef WLR_TYPES_WLR_SERVER_DECORATION_H
 #define WLR_TYPES_WLR_SERVER_DECORATION_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <wayland-server-core.h>
 
 /**
@@ -85,4 +89,7 @@ struct wlr_server_decoration_manager *wlr_server_decoration_manager_create(
 void wlr_server_decoration_manager_set_default_mode(
 	struct wlr_server_decoration_manager *manager, uint32_t default_mode);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

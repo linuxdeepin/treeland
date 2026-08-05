@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_CURSOR_SHAPE_V1_H
 #define WLR_TYPES_WLR_CURSOR_SHAPE_V1_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <wayland-server-core.h>
 #include "cursor-shape-v1-protocol.h"
 
@@ -57,4 +61,7 @@ struct wlr_cursor_shape_manager_v1 *wlr_cursor_shape_manager_v1_create(
  */
 const char *wlr_cursor_shape_v1_name(enum wp_cursor_shape_device_v1_shape shape);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

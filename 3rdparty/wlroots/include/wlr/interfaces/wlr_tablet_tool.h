@@ -9,6 +9,10 @@
 #ifndef WLR_INTERFACES_WLR_TABLET_TOOL_H
 #define WLR_INTERFACES_WLR_TABLET_TOOL_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <wlr/types/wlr_tablet_tool.h>
 
 struct wlr_tablet_impl {
@@ -19,4 +23,7 @@ void wlr_tablet_init(struct wlr_tablet *tablet,
 	const struct wlr_tablet_impl *impl, const char *name);
 void wlr_tablet_finish(struct wlr_tablet *tablet);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

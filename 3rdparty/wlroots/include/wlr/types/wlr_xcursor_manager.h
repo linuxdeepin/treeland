@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_XCURSOR_MANAGER_H
 #define WLR_TYPES_WLR_XCURSOR_MANAGER_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <wayland-server-core.h>
 #include <wlr/xcursor.h>
 
@@ -56,4 +60,7 @@ bool wlr_xcursor_manager_load(struct wlr_xcursor_manager *manager,
 struct wlr_xcursor *wlr_xcursor_manager_get_xcursor(
 	struct wlr_xcursor_manager *manager, const char *name, float scale);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

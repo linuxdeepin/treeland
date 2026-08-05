@@ -9,6 +9,10 @@
 #ifndef WLR_BACKEND_HEADLESS_H
 #define WLR_BACKEND_HEADLESS_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <wlr/backend.h>
 #include <wlr/types/wlr_output.h>
 
@@ -28,4 +32,7 @@ struct wlr_output *wlr_headless_add_output(struct wlr_backend *backend,
 bool wlr_backend_is_headless(struct wlr_backend *backend);
 bool wlr_output_is_headless(struct wlr_output *output);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

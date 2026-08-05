@@ -8,6 +8,7 @@
 
 
 #include <wbackend.h>
+#include <wlr/types/wlr_seat.h>
 #include <winputdevice.h>
 
 #include <wayland-server-core.h>
@@ -51,7 +52,7 @@ void TreelandInputManagerInterfaceV1Private::destroy(Resource *resource)
 void TreelandInputManagerInterfaceV1Private::bind_resource(Resource *resource)
 {
     TreelandInputManagerInterfaceV1::DeviceTypes types = q->inputDeviceListTypes();
-    struct wlr_seat_client *seatClient = Helper::instance()->seat()->handle()->client_for_wl_client(resource->client());
+    struct wlr_seat_client *seatClient = wlr_seat_client_for_wl_client(Helper::instance()->seat()->handle(), resource->client());
     struct wl_resource *clientResource;
     wl_resource_for_each(clientResource, &seatClient->resources) {
         send_capability_available(resource->handle, types.toInt(), clientResource);
@@ -170,7 +171,7 @@ void TreelandInputManagerInterfaceV1::sendCapabilityAvailable(TreelandInputManag
 {
     for (const auto &resource : d->resourceMap()) {
         struct wlr_seat_client *seatClient =
-            Helper::instance()->seat()->handle()->client_for_wl_client(resource->client());
+            wlr_seat_client_for_wl_client(Helper::instance()->seat()->handle(), resource->client());
         struct wl_resource *clientResource;
         wl_resource_for_each(clientResource, &seatClient->resources) {
             d->send_capability_available(resource->handle, types.toInt(), clientResource);
@@ -182,7 +183,7 @@ void TreelandInputManagerInterfaceV1::sendCapabilityUnavailable(TreelandInputMan
 {
     for (const auto &resource : d->resourceMap()) {
         struct wlr_seat_client *seatClient =
-            Helper::instance()->seat()->handle()->client_for_wl_client(resource->client());
+            wlr_seat_client_for_wl_client(Helper::instance()->seat()->handle(), resource->client());
         struct wl_resource *clientResource;
         wl_resource_for_each(clientResource, &seatClient->resources) {
             d->send_capability_unavailable(resource->handle, types.toInt(), clientResource);
@@ -264,7 +265,7 @@ void TreelandInputManagerInterfaceV1::onInputAdded(WInputDevice *input)
     if (!types.testAnyFlags(type)) {
         for (const auto &resource : d->resourceMap()) {
             struct wlr_seat_client *seatClient =
-                Helper::instance()->seat()->handle()->client_for_wl_client(resource->client());
+                wlr_seat_client_for_wl_client(Helper::instance()->seat()->handle(), resource->client());
             struct wl_resource *clientResource;
             wl_resource_for_each(clientResource, &seatClient->resources) {
                 d->send_capability_available(resource->handle, type.toInt(), clientResource);
@@ -289,7 +290,7 @@ void TreelandInputManagerInterfaceV1::onInputRemoved(WInputDevice *input)
     if (!types.testAnyFlags(type)) {
         for (const auto &resource : d->resourceMap()) {
             struct wlr_seat_client *seatClient =
-                Helper::instance()->seat()->handle()->client_for_wl_client(resource->client());
+                wlr_seat_client_for_wl_client(Helper::instance()->seat()->handle(), resource->client());
             struct wl_resource *clientResource;
             wl_resource_for_each(clientResource, &seatClient->resources) {
                 d->send_capability_unavailable(resource->handle, type.toInt(), clientResource);

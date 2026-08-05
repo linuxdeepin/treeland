@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_RELATIVE_POINTER_V1_H
 #define WLR_TYPES_WLR_RELATIVE_POINTER_V1_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <wayland-server-core.h>
 
 /**
@@ -79,4 +83,7 @@ void wlr_relative_pointer_manager_v1_send_relative_motion(
 struct wlr_relative_pointer_v1 *wlr_relative_pointer_v1_from_resource(
 	struct wl_resource *resource);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

@@ -2,7 +2,40 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "helper.h"
+
+#include <wlr/backend.h>
+#include <wlr/backend/multi.h>
+#include <wlr/backend/wayland.h>
+#include <wlr/backend/x11.h>
+#include <wlr/backend/session.h>
+#include <wlr/render/allocator.h>
+#include <wlr/render/wlr_renderer.h>
+#include <wlr/types/wlr_alpha_modifier_v1.h>
+#include <wlr/types/wlr_compositor.h>
+#include <wlr/types/wlr_data_control_v1.h>
+#include <wlr/types/wlr_data_device.h>
+#include <wlr/types/wlr_drm.h>
+#include <wlr/types/wlr_ext_data_control_v1.h>
+#include <wlr/types/wlr_ext_image_capture_source_v1.h>
+#include <wlr/types/wlr_ext_image_copy_capture_v1.h>
+extern "C" {
+#include <ext_foreign_toplevel_image_capture_source_manager_v1.h>
+}
+#include <wlr/types/wlr_fractional_scale_v1.h>
+#include <wlr/types/wlr_gamma_control_v1.h>
+#include <wlr/types/wlr_idle_inhibit_v1.h>
+#include <wlr/types/wlr_idle_notifier_v1.h>
 #include <wlr/types/wlr_output.h>
+#include <wlr/types/wlr_output_layout.h>
+#include <wlr/types/wlr_output_power_management_v1.h>
+#include <wlr/types/wlr_screencopy_v1.h>
+#include <wlr/types/wlr_subcompositor.h>
+#include <wlr/types/wlr_viewporter.h>
+#include <wlr/types/wlr_xdg_foreign_registry.h>
+#include <wlr/types/wlr_xdg_foreign_v2.h>
+#define class wlr_class
+#include <wlr/xwayland/xwayland.h>
+#undef class
 
 #include "seatsmanager.h"
 
@@ -396,7 +429,6 @@ void Helper::syncPaletteTypeWithWindowThemeType(int32_t themeType)
         guiHelper->setPaletteType(Dtk::Gui::DGuiApplicationHelper::LightType);
         break;
     }
-    wlr_output_state_finish(&newState);
 }
 
 void Helper::tryInitRemoteSource()
@@ -1331,36 +1363,39 @@ void Helper::onOutputCommitFinished(wlr_output_configuration_v1 *config, bool su
 
 void Helper::onSetOutputPowerMode(wlr_output_power_v1_set_mode_event *event)
 {
-    auto output = event->output;
+    wlr_output *output = event->output;
     wlr_output_state newState;
     wlr_output_state_init(&newState);
 
     switch (event->mode) {
-    case ZWLR_OUTPUT_POWER_V1_MODE_OFF:
+    case ZWLR_OUTPUT_POWER_V1_MODE_OFF: {
         if (m_powerOffOutputs.contains(event->output))
-            return; // already disabled by output_power
-        if (!output->handle()->enabled)
-            return; // already disabled by output_management, not ours
+            break; // already disabled by output_power
+        if (!output->enabled)
+            break; // already disabled by output_management, not ours
         wlr_output_state_set_enabled(&newState, false);
-        bool ok = wlr_output_commit_state(output->handle(), &newState);
+        bool ok = wlr_output_commit_state(output, &newState);
         if (!ok) {
-            qCCritical(lcTlCore, "commit failed on output %s", output->handle()->name);
-            return;
+            qCCritical(lcTlCore, "commit failed on output %s", output->name);
+            break;
         }
         m_powerOffOutputs.insert(event->output);
         break;
-    case ZWLR_OUTPUT_POWER_V1_MODE_ON:
+    }
+    case ZWLR_OUTPUT_POWER_V1_MODE_ON: {
         if (!m_powerOffOutputs.remove(event->output))
-            return; // not disabled by output_power, nothing to do
+            break; // not disabled by output_power, nothing to do
         wlr_output_state_set_enabled(&newState, true);
-        bool ok = wlr_output_commit_state(output->handle(), &newState);
+        bool ok = wlr_output_commit_state(output, &newState);
         if (!ok) {
-            qCCritical(lcTlCore, "commit failed on output %s", output->handle()->name);
+            qCCritical(lcTlCore, "commit failed on output %s", output->name);
             m_powerOffOutputs.insert(event->output);
-            return;
+            break;
         }
         break;
     }
+    }
+    wlr_output_state_finish(&newState);
 }
 
 void Helper::onNewIdleInhibitor(wlr_idle_inhibitor_v1 *wlr_inhibitor)

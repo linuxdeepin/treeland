@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_DRM_H
 #define WLR_TYPES_WLR_DRM_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <wayland-server-protocol.h>
 #include <wlr/render/drm_format_set.h>
 #include <wlr/types/wlr_buffer.h>
@@ -56,4 +60,7 @@ struct wlr_drm_buffer *wlr_drm_buffer_try_from_resource(
 struct wlr_drm *wlr_drm_create(struct wl_display *display,
 	struct wlr_renderer *renderer);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

@@ -9,6 +9,10 @@
 #ifndef WLR_RENDER_VULKAN_H
 #define WLR_RENDER_VULKAN_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <vulkan/vulkan_core.h>
 #include <wlr/render/wlr_renderer.h>
 
@@ -32,5 +36,8 @@ void wlr_vk_texture_get_image_attribs(struct wlr_texture *texture,
 	struct wlr_vk_image_attribs *attribs);
 bool wlr_vk_texture_has_alpha(struct wlr_texture *texture);
 
+#ifdef __cplusplus
+}
+#endif
 #endif
 

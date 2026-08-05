@@ -9,6 +9,10 @@
 #ifndef WLR_UTIL_ADDON_H
 #define WLR_UTIL_ADDON_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <wayland-server-core.h>
 
 struct wlr_addon_set {
@@ -44,4 +48,7 @@ void wlr_addon_finish(struct wlr_addon *addon);
 struct wlr_addon *wlr_addon_find(struct wlr_addon_set *set, const void *owner,
 	const struct wlr_addon_interface *impl);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

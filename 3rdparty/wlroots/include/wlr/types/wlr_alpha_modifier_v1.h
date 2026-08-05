@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_ALPHA_MODIFIER_V1_H
 #define WLR_TYPES_WLR_ALPHA_MODIFIER_V1_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <wayland-server-core.h>
 
 struct wlr_surface;
@@ -30,4 +34,7 @@ struct wlr_alpha_modifier_v1 *wlr_alpha_modifier_v1_create(struct wl_display *di
 const struct wlr_alpha_modifier_surface_v1_state *wlr_alpha_modifier_v1_get_surface_state(
 	struct wlr_surface *surface);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_LAYER_SHELL_V1_H
 #define WLR_TYPES_WLR_LAYER_SHELL_V1_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdbool.h>
 #include <stdint.h>
 #include <wayland-server-core.h>
@@ -197,4 +201,7 @@ struct wlr_layer_surface_v1 *wlr_layer_surface_v1_from_resource(
  */
 enum wlr_edges wlr_layer_surface_v1_get_exclusive_edge(struct wlr_layer_surface_v1 *surface);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

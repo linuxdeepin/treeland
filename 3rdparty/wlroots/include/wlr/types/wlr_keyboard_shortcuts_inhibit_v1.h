@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_KEYBOARD_SHORTCUTS_INHIBIT_V1_H
 #define WLR_TYPES_WLR_KEYBOARD_SHORTCUTS_INHIBIT_V1_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <wayland-server-core.h>
 #include <wlr/types/wlr_seat.h>
 
@@ -86,4 +90,7 @@ void wlr_keyboard_shortcuts_inhibitor_v1_activate(
 void wlr_keyboard_shortcuts_inhibitor_v1_deactivate(
 	struct wlr_keyboard_shortcuts_inhibitor_v1 *inhibitor);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

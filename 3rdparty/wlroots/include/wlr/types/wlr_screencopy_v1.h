@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_SCREENCOPY_V1_H
 #define WLR_TYPES_WLR_SCREENCOPY_V1_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdbool.h>
 #include <wayland-server-core.h>
 #include <wlr/types/wlr_buffer.h>
@@ -64,4 +68,7 @@ struct wlr_screencopy_frame_v1 {
 struct wlr_screencopy_manager_v1 *wlr_screencopy_manager_v1_create(
 	struct wl_display *display);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

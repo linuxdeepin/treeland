@@ -9,6 +9,10 @@
 #ifndef WLR_BACKEND_INTERFACE_H
 #define WLR_BACKEND_INTERFACE_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdbool.h>
 #include <wlr/backend.h>
 
@@ -35,4 +39,7 @@ void wlr_backend_init(struct wlr_backend *backend,
  */
 void wlr_backend_finish(struct wlr_backend *backend);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

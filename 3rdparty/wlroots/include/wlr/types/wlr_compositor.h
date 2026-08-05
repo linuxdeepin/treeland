@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_COMPOSITOR_H
 #define WLR_TYPES_WLR_COMPOSITOR_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <pixman.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -576,4 +580,7 @@ struct wlr_compositor *wlr_compositor_create(struct wl_display *display,
 void wlr_compositor_set_renderer(struct wlr_compositor *compositor,
 	struct wlr_renderer *renderer);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

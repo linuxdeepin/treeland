@@ -8,6 +8,7 @@
 #include "helper.h"
 
 #include <woutput.h>
+#include <wlr/types/wlr_seat.h>
 
 
 #include <wayland-server.h>

@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_OUTPUT_MANAGEMENT_V1_H
 #define WLR_TYPES_WLR_OUTPUT_MANAGEMENT_V1_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdbool.h>
 #include <wayland-server-core.h>
 #include <wlr/types/wlr_output.h>
@@ -172,4 +176,7 @@ void wlr_output_head_v1_state_apply(
 struct wlr_backend_output_state *wlr_output_configuration_v1_build_state(
 	const struct wlr_output_configuration_v1 *config, size_t *states_len);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

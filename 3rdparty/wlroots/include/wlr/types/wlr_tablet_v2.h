@@ -8,6 +8,13 @@
 
 #ifndef WLR_TYPES_WLR_TABLET_V2_H
 #define WLR_TYPES_WLR_TABLET_V2_H
+#ifdef __cplusplus
+}
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #include <wayland-server-core.h>
 #include <wlr/types/wlr_seat.h>

@@ -5,6 +5,7 @@
 
 #include <wserver.h>
 #include <wsurface.h>
+#include <wayland-server-core.h>
 
 #include <QPoint>
 #include <QObject>

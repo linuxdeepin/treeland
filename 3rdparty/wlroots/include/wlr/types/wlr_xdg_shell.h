@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_XDG_SHELL_H
 #define WLR_TYPES_WLR_XDG_SHELL_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <wayland-server-core.h>
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_seat.h>
@@ -580,4 +584,7 @@ void wlr_xdg_surface_for_each_popup_surface(struct wlr_xdg_surface *surface,
  */
 uint32_t wlr_xdg_surface_schedule_configure(struct wlr_xdg_surface *surface);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

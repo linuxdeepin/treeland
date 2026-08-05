@@ -23,6 +23,9 @@
 #include <wxwaylandsurface.h>
 #include <wxwaylandsurfaceitem.h>
 
+#define namespace wlr_ns
+#include <wlr/types/wlr_layer_shell_v1.h>
+#undef namespace
 
 #include <QColor>
 #include <QVariant>
@@ -1344,8 +1347,7 @@ void SurfaceWrapper::createNewOrClose(uint direction)
         auto scope = QString(static_cast<WLayerSurfaceItem *>(m_surfaceItem)
                                  ->layerSurface()
                                  ->handle()
-                                 ->handle()
-                                 ->scope);
+                                 ->wlr_ns);
         auto *surface = qobject_cast<WLayerSurface *>(m_shellSurface);
         auto anchor = surface->getExclusiveZoneEdge();
         if (scope == "dde-shell/launchpad") {

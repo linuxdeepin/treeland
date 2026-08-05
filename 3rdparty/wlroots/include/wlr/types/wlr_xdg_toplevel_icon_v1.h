@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_XDG_TOPLEVEL_ICON_V1_H
 #define WLR_TYPES_WLR_XDG_TOPLEVEL_ICON_V1_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <wayland-server-core.h>
 
 #include <wlr/util/addon.h>
@@ -77,4 +81,7 @@ struct wlr_xdg_toplevel_icon_v1 *wlr_xdg_toplevel_icon_v1_ref(
  */
 void wlr_xdg_toplevel_icon_v1_unref(struct wlr_xdg_toplevel_icon_v1 *icon);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

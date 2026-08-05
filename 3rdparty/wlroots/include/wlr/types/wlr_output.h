@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_OUTPUT_H
 #define WLR_TYPES_WLR_OUTPUT_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <pixman.h>
 #include <stdbool.h>
 #include <time.h>
@@ -630,4 +634,7 @@ bool wlr_output_configure_primary_swapchain(struct wlr_output *output,
 struct wlr_render_pass *wlr_output_begin_render_pass(struct wlr_output *output,
 	struct wlr_output_state *state, struct wlr_buffer_pass_options *render_options);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

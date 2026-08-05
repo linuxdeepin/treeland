@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_IDLE_INHIBIT_V1_H
 #define WLR_TYPES_WLR_IDLE_INHIBIT_V1_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <wayland-server-core.h>
 
 /* This interface permits clients to inhibit the idle behavior such as
@@ -58,4 +62,7 @@ struct wlr_idle_inhibitor_v1 {
 
 struct wlr_idle_inhibit_manager_v1 *wlr_idle_inhibit_v1_create(struct wl_display *display);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

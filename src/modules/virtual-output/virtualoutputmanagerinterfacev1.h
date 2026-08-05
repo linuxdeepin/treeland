@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <wayland-server-core.h>
 #include <wserver.h>
 
 #include <QStringList>

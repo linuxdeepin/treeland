@@ -9,6 +9,10 @@
 #ifndef WLR_RENDER_WLR_TEXTURE_H
 #define WLR_RENDER_WLR_TEXTURE_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <pixman.h>
 #include <stdint.h>
 #include <wayland-server-core.h>
@@ -82,4 +86,7 @@ void wlr_texture_destroy(struct wlr_texture *texture);
 struct wlr_texture *wlr_texture_from_buffer(struct wlr_renderer *renderer,
 	struct wlr_buffer *buffer);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_FOREIGN_TOPLEVEL_MANAGEMENT_V1_H
 #define WLR_TYPES_WLR_FOREIGN_TOPLEVEL_MANAGEMENT_V1_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <wayland-server-core.h>
 #include <wlr/types/wlr_output.h>
 
@@ -152,4 +156,7 @@ void wlr_foreign_toplevel_handle_v1_set_parent(
 	struct wlr_foreign_toplevel_handle_v1 *parent);
 
 
+#ifdef __cplusplus
+}
+#endif
 #endif

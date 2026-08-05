@@ -40,13 +40,13 @@ public:
             .app_id = appId.constData(),
         };
         auto handle = wlr_ext_foreign_toplevel_handle_v1_create(
-            q->handle(), &state);
+            static_cast<wlr_ext_foreign_toplevel_list_v1*>(q->handle()), &state);
 
-        surface->safeConnect(&WToplevelSurface::titleChanged, handle, [this, handle, surface] {
+        surface->safeConnect(&WToplevelSurface::titleChanged, surface, [this, handle, surface] {
             updateState(surface, handle);
         });
 
-        surface->safeConnect(&WToplevelSurface::appIdChanged, handle, [this, handle, surface] {
+        surface->safeConnect(&WToplevelSurface::appIdChanged, surface, [this, handle, surface] {
             updateState(surface, handle);
         });
         
@@ -77,7 +77,7 @@ private:
             .title = title.constData(),
             .app_id = appId.constData(),
         };
-        handle->update_state(&state);
+        wlr_ext_foreign_toplevel_handle_v1_update_state(handle, &state);
     }
 
     W_DECLARE_PUBLIC(WExtForeignToplevelListV1)

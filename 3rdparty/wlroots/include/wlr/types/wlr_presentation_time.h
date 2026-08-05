@@ -9,6 +9,10 @@
 #ifndef WLR_TYPES_WLR_PRESENTATION_TIME_H
 #define WLR_TYPES_WLR_PRESENTATION_TIME_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdbool.h>
 #include <stddef.h>
 #include <wayland-server-core.h>
@@ -106,4 +110,7 @@ void wlr_presentation_surface_textured_on_output(struct wlr_surface *surface,
 void wlr_presentation_surface_scanned_out_on_output(struct wlr_surface *surface,
 	struct wlr_output *output);
 
+#ifdef __cplusplus
+}
+#endif
 #endif
