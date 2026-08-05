@@ -137,6 +137,8 @@ qt_add_qml_module(libtreeland
         core/imcandidatepanelmanager.h
         core/shellhandler.cpp
         core/shellhandler.h
+        core/systemdconfigmanager.cpp
+        core/systemdconfigmanager.h
         core/treeland.cpp
         core/treeland.h
         core/windowpicker.cpp

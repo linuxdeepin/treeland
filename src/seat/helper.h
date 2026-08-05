@@ -399,8 +399,8 @@ private:
     WSeat *m_currentEventSeat = nullptr;
 
     static Helper *m_instance;
-    std::unique_ptr<TreelandUserConfig> m_config;
-    std::unique_ptr<TreelandConfig> m_globalConfig;
+    TreelandUserConfig *m_config = nullptr;
+    TreelandConfig *m_globalConfig = nullptr;
     Treeland::Treeland *m_treeland = nullptr;
     FpsDisplayManager *m_fpsManager = nullptr;
     SessionManager *m_sessionManager = nullptr;

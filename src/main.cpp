@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "core/treeland.h"
+#include "core/systemdconfigmanager.h"
+#include "common/treelandlogging.h"
 #include "utils/cmdline.h"
 
 #include <wrenderhelper.h>
@@ -15,6 +17,8 @@
 #include <QGuiApplication>
 #include <QMetaType>
 #include <QPalette>
+
+#include <memory>
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 10, 0)
 #  include <private/qgenericunixtheme_p.h>
@@ -84,9 +88,39 @@ int main(int argc, char *argv[])
 
     int quitCode = 0;
     {
-        Treeland::Treeland treeland;
+        SystemDConfigManager systemDConfigManager(&app);
+        std::unique_ptr<Treeland::Treeland> treeland;
 
-        quitCode = app.exec();
+        auto startTreeland = [&treeland] {
+            if (!treeland) {
+                treeland = std::make_unique<Treeland::Treeland>();
+            }
+        };
+
+        QObject::connect(&systemDConfigManager,
+                         &SystemDConfigManager::InitializeSucceed,
+                         &app,
+                         startTreeland);
+        QObject::connect(&systemDConfigManager,
+                         &SystemDConfigManager::InitializeFailed,
+                         &app,
+                         [&app] {
+                             qCCritical(lcTlCore)
+                                 << "Global DConfig initialization failed; aborting Treeland startup.";
+                             app.exit(1);
+                         });
+
+        if (systemDConfigManager.isInitializeFailed()) {
+            qCCritical(lcTlCore)
+                << "Global DConfig initialization failed before the event loop started.";
+            quitCode = 1;
+        } else {
+            if (systemDConfigManager.isInitializeSucceeded()) {
+                startTreeland();
+            }
+
+            quitCode = app.exec();
+        }
     }
 
     Q_ASSERT(qw_buffer::get_objects().isEmpty());

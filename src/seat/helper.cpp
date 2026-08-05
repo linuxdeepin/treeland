@@ -27,6 +27,7 @@
 #include "core/qmlengine.h"
 #include "core/rootsurfacecontainer.h"
 #include "core/shellhandler.h"
+#include "core/systemdconfigmanager.h"
 #include "core/treeland.h"
 #include "core/windowpicker.h"
 #include "greeter/greeterproxy.h"
@@ -148,6 +149,7 @@
 #include <algorithm>
 #include <functional>
 #include <limits>
+#include <memory>
 #include <pwd.h>
 #include <unistd.h>
 #include <utility>
@@ -299,12 +301,13 @@ Helper::Helper(QObject *parent)
     Q_ASSERT(!m_instance);
     m_instance = this;
 
-    Q_ASSERT(!m_config);
-    m_config.reset(TreelandUserConfig::createByName("org.deepin.dde.treeland.user",
-                                              "org.deepin.dde.treeland",
-                                              "/dde")); // will update user path in Helper::init
-    m_globalConfig.reset(TreelandConfig::create("org.deepin.dde.treeland",
-                                                      QString()));
+    if (auto *configManager = SystemDConfigManager::instance()) {
+        m_config = configManager->initialUserConfig();
+        m_globalConfig = configManager->globalConfig();
+    }
+
+    Q_ASSERT(m_config);
+    Q_ASSERT(m_globalConfig);
 
     m_renderWindow->setColor(Qt::black);
     m_rootSurfaceContainer->setFlag(QQuickItem::ItemIsFocusScope, true);
@@ -319,7 +322,7 @@ Helper::Helper(QObject *parent)
             &WallpaperManager::syncAddWorkspace);
     tryInitRemoteSource();
 
-    m_outputManagerHelper = new OutputManager(m_rootSurfaceContainer, m_globalConfig.get(), this);
+    m_outputManagerHelper = new OutputManager(m_rootSurfaceContainer, m_globalConfig, this);
     connect(m_outputManagerHelper,
             &OutputManager::copyOutputConfigurationChanged,
             this,
@@ -397,12 +400,12 @@ Helper *Helper::instance()
 
 TreelandUserConfig *Helper::config()
 {
-    return m_config.get();
+    return m_config;
 }
 
 TreelandConfig *Helper::globalConfig()
 {
-    return m_globalConfig.get();
+    return m_globalConfig;
 }
 
 void Helper::syncPaletteTypeWithWindowThemeType(int32_t themeType)
@@ -563,7 +566,7 @@ void Helper::onOutputAdded(WOutput *output)
     }
     if (scanned && m_mode == OutputMode::Extension) {
         const QString addedOutputId = WallpaperManager::getOutputId(o);
-        runWhenTreelandConfigInitialized(m_globalConfig.get(), this, [this, addedOutputId] {
+        runWhenTreelandConfigInitialized(m_globalConfig, this, [this, addedOutputId] {
             QMetaObject::invokeMethod(this, [this, addedOutputId] {
                 if (m_mode != OutputMode::Extension || !m_globalConfig->createCopyOutput()) {
                     return;
@@ -743,7 +746,7 @@ void Helper::onOutputAdded(WOutput *output)
                                        [this,
                                         restoreOutputConfig = std::move(restoreOutputConfig),
                                         outputObject = QPointer<Output>(o)]() mutable {
-                                           runWhenTreelandConfigInitialized(m_globalConfig.get(),
+                                           runWhenTreelandConfigInitialized(m_globalConfig,
                                                                            outputObject,
                                                                            std::move(restoreOutputConfig));
                                        });
@@ -1840,29 +1843,55 @@ void Helper::init(Treeland::Treeland *treeland)
     m_personalizationInterfaceV1 = m_server->attach<PersonalizationManagerInterfaceV1>();
 
     auto updateCurrentUser = [this] {
-        m_config.reset(TreelandUserConfig::createByName("org.deepin.dde.treeland.user",
-                                                  "org.deepin.dde.treeland",
-                                                  "/" + m_userModel->currentUserName()));
+        const auto userName = m_userModel->currentUserName();
+        auto *config = SystemDConfigManager::instance()
+            ? SystemDConfigManager::instance()->userConfig(userName)
+            : nullptr;
+        if (!config) {
+            config = m_config;
+        }
+
+        const bool configPointerChanged = config != m_config;
+        if (configPointerChanged) {
+            if (m_config) {
+                disconnect(m_config,
+                           &TreelandUserConfig::cursorThemeNameChanged,
+                           m_sessionManager,
+                           &SessionManager::syncActiveSessionCursorSettings);
+                disconnect(m_config,
+                           &TreelandUserConfig::cursorSizeChanged,
+                           m_sessionManager,
+                           &SessionManager::syncActiveSessionCursorSettings);
+            }
+            m_config = config;
+        }
         // Notify QML that the config pointer has changed so bindings (e.g. sourceSize
         // on WQuickCursor) reconnect their notifiers to the new TreelandUserConfig object.
-        Q_EMIT configChanged();
-        connect(m_config.get(),
+        if (configPointerChanged) {
+            Q_EMIT configChanged();
+        }
+        connect(m_config,
                 &TreelandUserConfig::cursorThemeNameChanged,
                 m_sessionManager,
-                &SessionManager::syncActiveSessionCursorSettings);
-        connect(m_config.get(),
+                &SessionManager::syncActiveSessionCursorSettings,
+                Qt::UniqueConnection);
+        connect(m_config,
                 &TreelandUserConfig::cursorSizeChanged,
                 m_sessionManager,
-                &SessionManager::syncActiveSessionCursorSettings);
+                &SessionManager::syncActiveSessionCursorSettings,
+                Qt::UniqueConnection);
         auto user = m_userModel->currentUser();
         m_personalizationInterfaceV1->setUserId(user ? user->UID() : getuid());
         // TODO(YaoBing Xiao): remove "dde"
-        if (m_userModel->currentUserName() == "dde") {
+        if (userName == "dde") {
             return;
         }
 
-        m_inputManager->setupSeatUserConfig(m_userModel->currentUserName());
-        auto onConfigInitialized = [this] {
+        m_inputManager->setupSeatUserConfig(userName);
+        auto onConfigInitialized = [this, config = m_config] {
+            if (m_config != config) {
+                return;
+            }
             m_sessionManager->syncActiveSessionCursorSettings();
             syncPaletteTypeWithWindowThemeType(m_config->windowThemeType());
             m_wallpaperManager->updateWallpaperConfig();
@@ -1879,7 +1908,7 @@ void Helper::init(Treeland::Treeland *treeland)
 #endif
             onConfigInitialized();
         } else {
-            connect(m_config.get(),
+            connect(m_config,
                     &TreelandUserConfig::configInitializeSucceed,
                     this,
                     onConfigInitialized);
@@ -3735,7 +3764,7 @@ void Helper::restoreExtensionModeFromConfig(bool preserveSingleOutputConfig)
 
 void Helper::restoreInitialOutputConfiguration()
 {
-    runWhenTreelandConfigInitialized(m_globalConfig.get(), this, [this] {
+    runWhenTreelandConfigInitialized(m_globalConfig, this, [this] {
         const QString singleOutputId = m_globalConfig->singleOutputId();
         if (!singleOutputId.isEmpty()) {
             if (findOutputById(singleOutputId)) {

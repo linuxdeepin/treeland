@@ -4,11 +4,14 @@
 #include "treeland.h"
 
 #include "core/qmlengine.h"
+#include "core/systemdconfigmanager.h"
 #include "greeter/usermodel.h"
 #include "interfaces/multitaskviewinterface.h"
 #include "interfaces/plugininterface.h"
 #include "seat/helper.h"
+#include "seatuserconfig.hpp"
 #include "session/session.h"
+#include "treelanduserconfig.hpp"
 #include "utils/cmdline.h"
 #include "common/treelandlogging.h"
 #include "common/constants.h"
@@ -33,6 +36,7 @@
 #include <QMetaMethod>
 #include <QTranslator>
 
+#include <functional>
 #include <memory>
 #include <pwd.h>
 #include <sys/socket.h>
@@ -56,7 +60,7 @@ public:
     {
     }
 
-    void init()
+    void init(std::function<void()> onInitialized)
     {
         qmlEngine = new QmlEngine(this);
         qmlEngine->addImportPath(QString("%1/qt/qml").arg(QCoreApplication::applicationDirPath()));
@@ -70,23 +74,97 @@ public:
         // assert(wlroots: assert(wl_list_empty(&cur->events.button.listener_list)))
         // failed during quit(If the quit call is from the cursor's button press/release event)
         connect(qmlEngine, &QQmlEngine::quit, q, &Treeland::quit, Qt::QueuedConnection);
-        helper = qmlEngine->singletonInstance<Helper *>("Treeland", "Helper");
-        connect(helper, &Helper::requestQuit, q, &Treeland::quit, Qt::QueuedConnection);
-
-        qputenv("WLR_XWAYLAND", QByteArray(LIBEXEC_DIR) + "/treeland-xwayland");
-        helper->init(q);
 
 #ifndef DISABLE_DDM
         auto userModel = qmlEngine->singletonInstance<UserModel *>("Treeland", "UserModel");
+        const QString initialUserName = userModel ? userModel->currentUserName()
+                                                   : QStringLiteral("dde");
+#else
+        const QString initialUserName = QStringLiteral("dde");
+#endif
+        auto initializeTreeland = [this, q, onInitialized = std::move(onInitialized)
+#ifndef DISABLE_DDM
+                                   , userModel
+#endif
+        ] {
+            helper = qmlEngine->singletonInstance<Helper *>("Treeland", "Helper");
+            connect(helper, &Helper::requestQuit, q, &Treeland::quit, Qt::QueuedConnection);
 
-        auto updateUser = [this, userModel] {
-            auto user = userModel->currentUser();
-            onCurrentChanged(user ? user->UID() : getuid());
+            qputenv("WLR_XWAYLAND", QByteArray(LIBEXEC_DIR) + "/treeland-xwayland");
+            helper->init(q);
+
+#ifndef DISABLE_DDM
+            auto updateUser = [this, userModel] {
+                auto user = userModel->currentUser();
+                onCurrentChanged(user ? user->UID() : getuid());
+            };
+
+            connect(userModel, &UserModel::currentUserNameChanged, this, updateUser);
+            updateUser();
+#endif
+            onInitialized();
         };
 
-        connect(userModel, &UserModel::currentUserNameChanged, this, updateUser);
-        updateUser();
-#endif
+        auto *configManager = SystemDConfigManager::instance();
+        if (!configManager || configManager->initializeUserConfigs(initialUserName)) {
+            initializeTreeland();
+            return;
+        }
+
+        auto *userConfig = configManager->initialUserConfig();
+        auto *seatConfig = configManager->seatUserConfig(initialUserName);
+        auto initialized = std::make_shared<bool>(false);
+        auto initializeWhenReady = [initializeTreeland,
+                                    userConfig,
+                                    seatConfig,
+                                    initialized] {
+            if (*initialized) {
+                return;
+            }
+
+            const bool userSucceeded = userConfig && userConfig->isInitializeSucceeded();
+            const bool seatSucceeded = seatConfig && seatConfig->isInitializeSucceeded();
+            const bool userFinished = !userConfig || userSucceeded
+                || userConfig->isInitializeFailed();
+            const bool seatFinished = !seatConfig || seatSucceeded
+                || seatConfig->isInitializeFailed();
+            if (!userFinished || !seatFinished) {
+                return;
+            }
+
+            *initialized = true;
+            if (!userSucceeded || !seatSucceeded) {
+                qCWarning(lcTlCore)
+                    << "Initial user DConfig initialization failed; Treeland will continue with generated defaults.";
+            }
+            initializeTreeland();
+        };
+
+        if (userConfig) {
+            connect(userConfig,
+                    &TreelandUserConfig::configInitializeSucceed,
+                    this,
+                    initializeWhenReady,
+                    Qt::SingleShotConnection);
+            connect(userConfig,
+                    &TreelandUserConfig::configInitializeFailed,
+                    this,
+                    initializeWhenReady,
+                    Qt::SingleShotConnection);
+        }
+        if (seatConfig) {
+            connect(seatConfig,
+                    &SeatUserDConfig::configInitializeSucceed,
+                    this,
+                    initializeWhenReady,
+                    Qt::SingleShotConnection);
+            connect(seatConfig,
+                    &SeatUserDConfig::configInitializeFailed,
+                    this,
+                    initializeWhenReady,
+                    Qt::SingleShotConnection);
+        }
+        initializeWhenReady();
     }
 
     ~TreelandPrivate()
@@ -311,7 +389,12 @@ Treeland::Treeland()
 
     qmlRegisterModule("Treeland.Protocols", 1, 0);
 
-    d->init();
+    d->init([this] { initialize(); });
+}
+
+void Treeland::initialize()
+{
+    Q_D(Treeland);
 
     auto globalSession = d->helper->sessionManager()->globalSession();
     Q_ASSERT(globalSession);
