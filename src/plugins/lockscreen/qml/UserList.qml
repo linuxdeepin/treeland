@@ -56,7 +56,7 @@ Popup {
             normal: D.DTK.makeColor(D.Color.Highlight)
         }
 
-        delegate: D.CheckDelegate {
+        delegate: CheckDelegate {
             id: singleUser
             height: 44
             width: 220
@@ -202,7 +202,7 @@ Popup {
             checked: UserModel.currentUserName === model.name
         }
 
-        footer: D.CheckDelegate {
+        footer: CheckDelegate {
             id: otherUserItem
             height: Helper.globalConfig.showOtherUserOption ? 44 : 0
             width: 220

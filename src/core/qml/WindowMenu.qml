@@ -3,9 +3,9 @@
 
 import Waylib.Server
 import Treeland
-import org.deepin.dtk 1.0 as D
+import QtQuick.Controls
 
-D.Menu {
+Menu {
     id: menu
     modal: true
 
@@ -29,34 +29,34 @@ D.Menu {
         menu.popup(pos)
     }
 
-    D.MenuItem {
+    MenuItem {
         text: qsTr("Minimize")
         onTriggered: surface.minimize()
     }
 
-    D.MenuItem {
+    MenuItem {
         text: surface?.surfaceState === SurfaceWrapper.State.Maximized ? qsTr("Unmaximize") : qsTr("Maximize")
         enabled: menu.canToggleMaximize
         onTriggered: surface.toggleMaximized()
     }
 
-    D.MenuItem {
+    MenuItem {
         text: qsTr("Move")
         onTriggered: surface.moveRequested()
     }
 
-    D.MenuItem {
+    MenuItem {
         text: qsTr("Resize")
         onTriggered: Helper.fakePressSurfaceBottomRightToReszie(surface)
     }
 
-    D.MenuItem {
+    MenuItem {
         checked: surface ? surface.alwaysOnTop : false
         text: qsTr("Always on Top")
         onTriggered: surface.alwaysOnTop = !surface.alwaysOnTop;
     }
 
-    D.MenuItem {
+    MenuItem {
         checked: surface ? surface.showOnAllWorkspace : false
         text: qsTr("Always on Visible Workspace")
         onTriggered: {
@@ -70,7 +70,7 @@ D.Menu {
         }
     }
 
-    D.MenuItem {
+    MenuItem {
         property int leftWorkspaceId: surface ? Helper.workspace.getLeftWorkspaceId(surface.workspaceId) : -1
         text: qsTr("Move to Left Work Space")
         enabled: leftWorkspaceId >= 0
@@ -80,7 +80,7 @@ D.Menu {
         }
     }
 
-    D.MenuItem {
+    MenuItem {
         property int rightWorkspaceId: surface ? Helper.workspace.getRightWorkspaceId(surface.workspaceId) : -1
         text: qsTr("Move to Right Work Space")
         enabled: rightWorkspaceId >= 0
@@ -90,7 +90,7 @@ D.Menu {
         }
     }
 
-    D.MenuItem {
+    MenuItem {
         text: qsTr("Close")
         onTriggered: surface.shellSurface.close()
     }

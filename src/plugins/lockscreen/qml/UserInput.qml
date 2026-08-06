@@ -266,7 +266,7 @@ Item {
         }
         height: passwordField.height
 
-        D.RoundButton {
+        RoundButton {
             id: langBtn
             text: 'L' // TODO: replace with icon
             visible: false
@@ -284,7 +284,7 @@ Item {
             }
         }
 
-        D.RoundButton {
+        RoundButton {
             id: hintBtn
             icon {
                 name: "login_hint"

@@ -7,7 +7,7 @@ import org.deepin.dtk as D
 import QtQuick.Controls
 import QtQuick.Layouts
 
-D.Button {
+Button {
     id: root
     visible: enabled
 
