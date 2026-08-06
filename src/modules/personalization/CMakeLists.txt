@@ -1,6 +1,6 @@
 find_package(TreelandProtocols REQUIRED)
 
-local_qtwayland_server_protocol_treeland(libtreeland
+waylib_generate_qtwayland_server_protocol(libtreeland
     PROTOCOL ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-personalization-manager-v1.xml
     BASENAME treeland-personalization-manager-v1
 )
@@ -13,7 +13,6 @@ set(PUBLIC_HEADERS
 
 set(SRCS
     ${CMAKE_SOURCE_DIR}/src/modules/personalization/personalizationmanagerinterfacev1.cpp
-    ${CMAKE_BINARY_DIR}/src/modules/personalization/wayland-treeland-personalization-manager-v1-server-protocol.c
 )
 
 impl_treeland(

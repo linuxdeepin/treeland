@@ -45,6 +45,7 @@ include(CMakePackageConfigHelpers)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/")
 include(PackageVersionHelper)
 
+add_subdirectory(tools)
 add_subdirectory(src)
 if(BUILD_EXAMPLES)
     add_subdirectory(examples)

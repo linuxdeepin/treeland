@@ -24,7 +24,6 @@ link_libraries(
 # ws_generate); compiling it again here would duplicate global symbols
 # (xdg_*_interface) across the two shared libraries.
 
-add_subdirectory(tools)
 add_subdirectory(foreign-toplevel)
 add_subdirectory(output-manager)
 add_subdirectory(personalization)

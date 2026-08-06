@@ -28,7 +28,7 @@ Complete these four things correctly:
 
 ## Read First
 1. The target module `CMakeLists.txt`
-2. `src/modules/tools/CMakeLists.txt`
+2. `waylib/tools/CMakeLists.txt`
 3. Generated files in the build directory
 4. `src/seat/helper.cpp`
 
@@ -354,7 +354,7 @@ For new private protocols, prefer `appidresolver`, `prelaunch-splash`, or `scree
 - `src/modules/app-id-resolver/appidresolver.cpp`
 - `src/modules/prelaunch-splash/prelaunchsplash.cpp`
 - `src/modules/screensaver/screensaverinterfacev1.cpp`
-- `src/modules/tools/CMakeLists.txt`
+- `waylib/tools/CMakeLists.txt`
 - `src/seat/helper.cpp`
 
 ## Output Requirements

@@ -1,6 +1,6 @@
 find_package(TreelandProtocols REQUIRED)
 
-local_qtwayland_server_protocol_treeland(libtreeland
+waylib_generate_qtwayland_server_protocol(libtreeland
     PROTOCOL ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-virtual-output-manager-v1.xml
     BASENAME treeland-virtual-output-manager-v1
 )
@@ -11,7 +11,6 @@ impl_treeland(
     SOURCE
         ${CMAKE_SOURCE_DIR}/src/modules/virtual-output/virtualoutputmanagerinterfacev1.h
         ${CMAKE_SOURCE_DIR}/src/modules/virtual-output/virtualoutputmanagerinterfacev1.cpp
-        ${CMAKE_BINARY_DIR}/src/modules/virtual-output/wayland-treeland-virtual-output-manager-v1-server-protocol.c
     LINK
         Wlroots::wlroots
         Waylib::WaylibServer
