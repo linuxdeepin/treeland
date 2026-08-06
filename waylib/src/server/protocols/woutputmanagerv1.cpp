@@ -189,7 +189,7 @@ qw_output_manager_v1 *WOutputManagerV1::handle() const
 
 QByteArrayView WOutputManagerV1::interfaceName() const
 {
-    return "zwlr_output_head_v1";
+    return "zwlr_output_manager_v1";
 }
 
 void WOutputManagerV1::create(WServer *server)
