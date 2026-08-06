@@ -20,6 +20,7 @@
 #include <woutputviewport.h>
 #include <wquickcursor.h>
 #include <wquicktextureproxy.h>
+#include <wsubsurface.h>
 #include <wtools.h>
 
 #include <QLoggingCategory>
@@ -27,6 +28,7 @@
 #include <QQuickItemGrabResult>
 #include <QSGTextureProvider>
 
+#include <algorithm>
 #include <utility>
 
 static inline QRectF scaledRect(const QRectF &rect, qreal devicePixelRatio)
@@ -445,6 +447,17 @@ void CaptureManagerV1::freezeAllCapturedSurface(bool freeze, WSurface *mask)
 {
     // Exclude cursor surface item and the mask
     Q_ASSERT(m_outputRenderWindow);
+    const auto isMaskOrSubsurface = [mask](WSurface *surface) {
+        if (!mask)
+            return false;
+        if (surface == mask)
+            return true;
+        const auto subsurfaces = mask->subsurfaces();
+        return std::any_of(subsurfaces.cbegin(), subsurfaces.cend(), [surface](WSubsurface *subsurface) {
+            return subsurface->surface() == surface;
+        });
+    };
+
     QQueue<QQuickItem *> nodes;
     nodes.enqueue(m_outputRenderWindow->contentItem());
     while (!nodes.isEmpty()) {
@@ -453,9 +466,7 @@ void CaptureManagerV1::freezeAllCapturedSurface(bool freeze, WSurface *mask)
             if (auto cursor = qobject_cast<WQuickCursor *>(node->parentItem())) {
                 if (freeze)
                     m_frozenCursorPos = cursor->position(); // Just store position for cursor
-            } else if (!mask
-                       || (content->surface() != mask
-                           && !mask->subsurfaces().contains(content->surface()))) {
+            } else if (!isMaskOrSubsurface(content->surface())) {
                 content->setLive(!freeze);
             } else if (content->surface() == mask) {
                 auto surfaceItem = closestSurfaceItem(content);
