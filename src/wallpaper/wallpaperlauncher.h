@@ -17,6 +17,7 @@ class WallpaperLauncher : public QObject
 public:
     explicit WallpaperLauncher(QPointer<WSocket> socket);
     ~WallpaperLauncher() override;
+    static QString wallpaperProgram();
 
     void setDisplayName(const QString &displayName);
     void start();
