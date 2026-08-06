@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "inputmanager.h"
+#include "core/systemdconfigmanager.h"
 #include "seatuserconfig.hpp"
 #include "treelandconfig.hpp"
 #include "helper.h"
@@ -59,20 +60,17 @@ InputManager::InputManager(QObject *parent)
 
 InputManager::~InputManager()
 {
-    if (m_seatDConfig) {
-        delete m_seatDConfig;
-    }
 }
 
 void InputManager::setupSeatUserConfig(const QString &userName)
 {
-    if (m_seatDConfig) {
-        delete m_seatDConfig;
-    }
+    auto *configManager = SystemDConfigManager::instance();
+    Q_ASSERT(configManager);
 
-    m_seatDConfig = SeatUserDConfig::createByName("org.deepin.dde.treeland.user.seat",
-                                                   "org.deepin.dde.treeland",
-                                                   "/" + userName);
+    auto *config = configManager->seatUserConfig(userName);
+    Q_ASSERT(config);
+
+    m_seatDConfig = config;
 
     if (isSeatDConfigInitialized(m_seatDConfig)) {
         onConfigInitializeSucceed();
@@ -80,7 +78,11 @@ void InputManager::setupSeatUserConfig(const QString &userName)
         connect(m_seatDConfig,
                 &SeatUserDConfig::configInitializeSucceed,
                 this,
-                &InputManager::onConfigInitializeSucceed,
+                [this, config] {
+                    if (m_seatDConfig == config) {
+                        onConfigInitializeSucceed();
+                    }
+                },
                 Qt::SingleShotConnection);
     }
 }
@@ -102,7 +104,8 @@ void InputManager::onConfigInitializeSucceed()
     connect(backend,
             &WBackend::inputAdded,
             this,
-            &InputManager::onInputAdded);
+            &InputManager::onInputAdded,
+            Qt::UniqueConnection);
     const auto inputDevices = backend->inputDeviceList();
     for (WInputDevice *device : inputDevices) {
         onInputAdded(device);

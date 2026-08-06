@@ -3,6 +3,7 @@
 
 #include "core/windowconfigstore.h"
 
+#include "core/systemdconfigmanager.h"
 #include "appconfig.hpp"
 #include "common/treelandlogging.h"
 
@@ -19,15 +20,9 @@ AppConfig *WindowConfigStore::configForApp(const QString &appId) const
         return nullptr;
     }
 
-    if (auto *config = m_appConfigs.value(appId)) {
-        return config;
-    }
-
-    auto *config = AppConfig::create(QStringLiteral("org.deepin.dde.treeland"),
-                                     "/" + appId,
-                                     const_cast<WindowConfigStore *>(this));
-    m_appConfigs.insert(appId, config);
-    return config;
+    auto *configManager = SystemDConfigManager::instance();
+    Q_ASSERT(configManager);
+    return configManager->appConfig(appId);
 }
 
 void WindowConfigStore::saveLastSize(const QString &appId, const QSize &size)

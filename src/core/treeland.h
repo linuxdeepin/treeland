@@ -50,6 +50,7 @@ public Q_SLOTS:
     void XWaylandName();
 
 private:
+    void initialize();
     void quit();
 
     std::unique_ptr<TreelandPrivate> d_ptr;
