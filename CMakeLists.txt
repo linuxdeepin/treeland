@@ -108,6 +108,7 @@ add_compile_definitions("QT_FORCE_ASSERTS")
 
 add_compile_definitions("TREELAND_PLUGINS_INSTALL_PATH=\"${TREELAND_FULL_PLUGINS_INSTALL_PATH}\"")
 add_compile_definitions("TREELAND_PLUGINS_OUTPUT_PATH=\"${TREELAND_PLUGINS_OUTPUT_PATH}\"")
+add_compile_definitions("TREELAND_WALLPAPER_FACTORY_OUTPUT_PATH=\"${CMAKE_BINARY_DIR}/wallpaper-factory/treeland-wallpaper-factory\"")
 
 add_compile_definitions("TREELAND_COMPONENTS_TRANSLATION_DIR=\"${TREELAND_FULL_COMPONENTS_TRANSLATION_DIR}\"")
 
