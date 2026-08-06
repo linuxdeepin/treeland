@@ -6,6 +6,8 @@
 #include "wseat.h"
 #include "private/wsurface_p.h"
 #include "woutput.h"
+#include "wsubsurface.h"
+#include "wayliblogging.h"
 
 #include <wlr_all.h>
 
@@ -45,8 +47,7 @@ void WSurfacePrivate::on_commit()
     if (m_handle->current.committed & WLR_SURFACE_STATE_OFFSET)
         updateBufferOffset();
 
-    if (hasSubsurface) // Will make to true when wlr_surface::new_subsurface
-        updateHasSubsurface();
+    updateStandardSubsurfaces();
 
     Q_EMIT q->commit(m_handle->current.committed);
 }
@@ -56,16 +57,7 @@ void WSurfacePrivate::init()
     W_Q(WSurface);
     connect();
     updateBuffer();
-    updateHasSubsurface();
-
-    wlr_surface *surface = m_handle;
-    wlr_subsurface *subsurface;
-    wl_list_for_each(subsurface, &surface->current.subsurfaces_below, current.link) {
-        Q_EMIT q->newSubsurface(ensureSubsurface(subsurface));
-    }
-    wl_list_for_each(subsurface, &surface->current.subsurfaces_above, current.link) {
-        Q_EMIT q->newSubsurface(ensureSubsurface(subsurface));
-    }
+    updateStandardSubsurfaces();
 }
 
 void WSurfacePrivate::connect()
@@ -76,11 +68,11 @@ void WSurfacePrivate::connect()
     q->listeners()->add(&m_handle->events.unmap, q, &WSurface::mappedChanged);
     q->listeners()->add(&m_handle->events.new_subsurface, q,
         [q, this] (wlr_subsurface *sub) {
-        setHasSubsurface(true);
-        auto surface = ensureSubsurface(sub);
-        Q_EMIT q->newSubsurface(surface);
-        for (auto output : std::as_const(outputs))
-            surface->enterOutput(output);
+        auto *subsurface = ensureSubsurface(sub);
+        updateStandardSubsurfaces();
+
+        for (auto *output : std::as_const(outputs))
+            subsurface->surface()->enterOutput(output);
     });
 }
 
@@ -168,24 +160,172 @@ void WSurfacePrivate::preferredBufferScaleChange()
     Q_EMIT q->preferredBufferScaleChanged();
 }
 
-WSurface *WSurfacePrivate::ensureSubsurface(wlr_subsurface *subsurface)
+WSubsurface *WSurfacePrivate::ensureSubsurface(wlr_subsurface *subsurfaceHandle)
 {
-    if (auto surface = WSurface::fromHandle(subsurface->surface))
-        return surface;
+    W_Q(WSurface);
 
-    auto surface = new WSurface(subsurface->surface);
-    // The parent surface created this wrapper, so it releases it when the
-    // native subsurface is destroyed (owner rule; no self-deletion in
-    // WSurface). Register on the child's listeners list so the callback is
-    // detached automatically when the WSurface is destroyed.
-    surface->listeners(q_ptr)->add(&subsurface->surface->events.destroy, this,
-        [this, surface](void *) {
-            subSurfaces.removeOne(surface);
-            delete surface;
+    for (auto *subsurface : std::as_const(subsurfaces)) {
+        if (subsurface->surface()->handle() == subsurfaceHandle->surface) {
+            return subsurface;
+        }
+    }
+
+    auto *childSurface = new WSurface(subsurfaceHandle->surface);
+    auto *subsurface = new WSubsurface(WSubsurface::Type::Standard, q, childSurface);
+    WSubsurface::Place place = WSubsurface::Place::Above;
+    wlr_subsurface *current;
+    wl_list_for_each(current, &m_handle->current.subsurfaces_below, current.link) {
+        if (current == subsurfaceHandle) {
+            place = WSubsurface::Place::Below;
+            break;
+        }
+    }
+    subsurface->setPlace(place);
+    subsurface->setPosition(QPointF(subsurfaceHandle->current.x, subsurfaceHandle->current.y));
+    subsurfaces.append(subsurface);
+    childSurface->d_func()->subsurface = subsurface;
+
+    // Own this destroy listener on the child wrapper so deleting that wrapper
+    // during the callback also detaches the listener before wlroots asserts
+    // the signal list is empty at the end of native teardown.
+    childSurface->listeners()->add(&subsurfaceHandle->events.destroy,
+        [this, subsurface](void *) {
+            releaseSubsurface(subsurface);
         });
-    subSurfaces.append(surface);
+    QObject::connect(childSurface, &WSurface::mappedChanged, subsurface, [subsurface] {
+        if (auto *child = subsurface->surface())
+            subsurface->setMapped(child->mapped());
+    });
 
-    return surface;
+    setHasSubsurface(true);
+    Q_EMIT q->subsurfaceAdded(subsurface);
+    return subsurface;
+}
+
+WSubsurface *WSurfacePrivate::addRemoteSubsurface(wlr_surface *childHandle)
+{
+    W_Q(WSurface);
+    Q_ASSERT(childHandle);
+    auto *childSurface = new WSurface(childHandle);
+
+    auto *subsurface = new WSubsurface(WSubsurface::Type::Remote, q, childSurface);
+    remoteAbove.append(subsurface);
+    childSurface->d_func()->subsurface = subsurface;
+    // A remote subsurface has no native wlr_subsurface destroy event. Its
+    // wl_surface may be destroyed directly when the child client disconnects,
+    // so release the wrapper before wlroots asserts that surface listeners are
+    // gone.
+    childSurface->listeners()->add(&childHandle->events.destroy,
+        [this, subsurface](void *) {
+            releaseSubsurface(subsurface);
+        });
+    rebuildTotalSubsurfaces();
+    Q_EMIT q->subsurfaceAdded(subsurface);
+    return subsurface;
+}
+
+void WSurfacePrivate::removeSubsurface(WSubsurface *subsurface)
+{
+    W_Q(WSurface);
+    if (!subsurface)
+        return;
+
+    auto &targetList = (subsurface->type() == WSubsurface::Type::Remote)
+        ? (subsurface->place() == WSubsurface::Place::Below ? remoteBelow : remoteAbove)
+        : (subsurface->place() == WSubsurface::Place::Below ? standardBelow : standardAbove);
+
+    if (!targetList.removeOne(subsurface)) {
+        qCCritical(lcWlSurface) << "Failed to remove subsurface from target list:" << subsurface;
+        return;
+    }
+
+    if (auto *child = subsurface->surface()) {
+        child->d_func()->subsurface = nullptr;
+    }
+    rebuildTotalSubsurfaces();
+    Q_EMIT q->subsurfaceRemoved(subsurface);
+}
+
+void WSurfacePrivate::releaseSubsurface(WSubsurface *subsurface)
+{
+    if (!subsurface)
+        return;
+
+    auto *childSurface = subsurface->surface();
+
+    removeSubsurface(subsurface);
+    delete subsurface;
+
+    delete childSurface;
+}
+
+void WSurfacePrivate::updateStandardSubsurfaces()
+{
+    if (subsurfaces.isEmpty()
+        && wl_list_empty(&m_handle->current.subsurfaces_below)
+        && wl_list_empty(&m_handle->current.subsurfaces_above)) {
+        return;
+    }
+
+    setSubsurfaceOrder(this->remoteBelow, this->remoteAbove);
+}
+
+void WSurfacePrivate::setSubsurfaceOrder(const QList<WSubsurface *> &newRemoteBelow,
+                                         const QList<WSubsurface *> &newRemoteAbove)
+{
+    W_Q(WSurface);
+
+    // 1. Process Remote subsurfaces
+    auto filterRemote = [q](const QList<WSubsurface *> &list, WSubsurface::Place place) {
+        QList<WSubsurface *> result;
+        for (auto *sub : list) {
+            if (!sub || sub->parentSurface() != q || sub->type() != WSubsurface::Type::Remote)
+                continue;
+            sub->setPlace(place);
+            result.append(sub);
+        }
+        return result;
+    };
+
+    this->remoteBelow = filterRemote(newRemoteBelow, WSubsurface::Place::Below);
+    this->remoteAbove = filterRemote(newRemoteAbove, WSubsurface::Place::Above);
+
+    // 2. Snapshot and process native Standard subsurfaces
+    QList<QPair<WSubsurface *, QPointF>> positionUpdates;
+    auto processStandard = [this, &positionUpdates](wl_list *head, WSubsurface::Place place, QList<WSubsurface *> &outList) {
+        outList.clear();
+        QList<wlr_subsurface *> nativeList;
+        wlr_subsurface *nativeSubsurface;
+        wl_list_for_each(nativeSubsurface, head, current.link) {
+            nativeList.append(nativeSubsurface);
+        }
+        for (auto *native : std::as_const(nativeList)) {
+            auto *subsurface = ensureSubsurface(native);
+            subsurface->setPlace(place);
+            positionUpdates.append({subsurface, QPointF(native->current.x, native->current.y)});
+            outList.append(subsurface);
+        }
+    };
+
+    processStandard(&m_handle->current.subsurfaces_below, WSubsurface::Place::Below, this->standardBelow);
+    processStandard(&m_handle->current.subsurfaces_above, WSubsurface::Place::Above, this->standardAbove);
+
+    rebuildTotalSubsurfaces();
+
+    for (const auto &[subsurface, position] : std::as_const(positionUpdates))
+        subsurface->setPosition(position);
+}
+
+void WSurfacePrivate::rebuildTotalSubsurfaces()
+{
+    const QList<WSubsurface *> ordered = standardBelow + remoteBelow + standardAbove + remoteAbove;
+    const bool orderChanged = (subsurfaces != ordered);
+    if (orderChanged)
+        subsurfaces = ordered;
+
+    setHasSubsurface(!subsurfaces.isEmpty());
+    if (orderChanged)
+        Q_EMIT q_func()->subsurfaceOrderChanged();
 }
 
 void WSurfacePrivate::setHasSubsurface(bool newHasSubsurface)
@@ -195,12 +335,6 @@ void WSurfacePrivate::setHasSubsurface(bool newHasSubsurface)
     hasSubsurface = newHasSubsurface;
 
     Q_EMIT q_func()->hasSubsurfaceChanged();
-}
-
-void WSurfacePrivate::updateHasSubsurface()
-{
-    setHasSubsurface(handle() && (!wl_list_empty(&m_handle->current.subsurfaces_above)
-                                || !wl_list_empty(&m_handle->current.subsurfaces_below)));
 }
 
 WSurface::WSurface(wlr_surface *handle)
@@ -236,12 +370,11 @@ WSurface::~WSurface()
     for (auto *o : outs)
         leaveOutput(o);
 
-    // Subsurfaces are created by this surface, so release them here (owner
-    // rule; no self-deletion in WSurface).
-    QList<WSurface*> subs;
-    subs.swap(d->subSurfaces);
-    for (auto *sub : std::as_const(subs))
-        delete sub;
+    // Release all remaining subsurfaces. Their dedicated child wrappers are
+    // reclaimed in releaseSubsurface().
+    const auto subs = d->subsurfaces;
+    for (auto *sub : subs)
+        d->releaseSubsurface(sub);
 }
 
 wlr_surface *WSurface::handle() const
@@ -336,11 +469,11 @@ void WSurface::enterOutput(WOutput *output)
     auto surface = d->handle();
     wlr_subsurface *subsurface;
     wl_list_for_each(subsurface, &surface->current.subsurfaces_below, current.link) {
-        d->ensureSubsurface(subsurface)->enterOutput(output);
+        d->ensureSubsurface(subsurface)->surface()->enterOutput(output);
     }
 
     wl_list_for_each(subsurface, &surface->current.subsurfaces_above, current.link) {
-        d->ensureSubsurface(subsurface)->enterOutput(output);
+        d->ensureSubsurface(subsurface)->surface()->enterOutput(output);
     }
 
     Q_EMIT outputEntered(output);
@@ -360,11 +493,11 @@ void WSurface::leaveOutput(WOutput *output)
     auto surface = d->handle();
     wlr_subsurface *subsurface;
     wl_list_for_each(subsurface, &surface->current.subsurfaces_below, current.link) {
-        d->ensureSubsurface(subsurface)->leaveOutput(output);
+        d->ensureSubsurface(subsurface)->surface()->leaveOutput(output);
     }
 
     wl_list_for_each(subsurface, &surface->current.subsurfaces_above, current.link) {
-        d->ensureSubsurface(subsurface)->leaveOutput(output);
+        d->ensureSubsurface(subsurface)->surface()->leaveOutput(output);
     }
 
     Q_EMIT outputLeave(output);
@@ -384,7 +517,8 @@ WOutput *WSurface::framePacingOutput() const
 
 bool WSurface::isSubsurface() const
 {
-    return wlr_subsurface_try_from_wlr_surface(handle()) != nullptr;
+    W_DC(WSurface);
+    return d->subsurface != nullptr;
 }
 
 bool WSurface::hasSubsurface() const
@@ -393,22 +527,32 @@ bool WSurface::hasSubsurface() const
     return d->hasSubsurface;
 }
 
-QList<WSurface*> WSurface::subsurfaces() const
+const QList<WSubsurface *> &WSurface::subsurfaces() const
 {
-    auto d = const_cast<WSurface*>(this)->d_func();
-    QList<WSurface*> subsurfaeList;
+    W_DC(WSurface);
+    return d->subsurfaces;
+}
 
-    auto surface = d->handle();
-    wlr_subsurface *subsurface;
-    wl_list_for_each(subsurface, &surface->current.subsurfaces_below, current.link) {
-        subsurfaeList.append(d->ensureSubsurface(subsurface));
+QList<WSubsurface *> WSurface::subsurfacesBelow() const
+{
+    QList<WSubsurface *> result;
+    const auto &subsurfaces = this->subsurfaces();
+    for (auto *subsurface : subsurfaces) {
+        if (subsurface->place() == WSubsurface::Place::Below)
+            result.append(subsurface);
     }
+    return result;
+}
 
-    wl_list_for_each(subsurface, &surface->current.subsurfaces_above, current.link) {
-        subsurfaeList.append(d->ensureSubsurface(subsurface));
+QList<WSubsurface *> WSurface::subsurfacesAbove() const
+{
+    QList<WSubsurface *> result;
+    const auto &subsurfaces = this->subsurfaces();
+    for (auto *subsurface : subsurfaces) {
+        if (subsurface->place() == WSubsurface::Place::Above)
+            result.append(subsurface);
     }
-
-    return subsurfaeList;
+    return result;
 }
 
 uint32_t WSurface::preferredBufferScale() const
@@ -448,6 +592,26 @@ void WSurface::unmap()
     W_D(WSurface);
     wlr_surface_unmap(d->handle());
 }
+
+WSubsurface *WSurface::addRemoteSubsurface(wlr_surface *childHandle)
+{
+    W_D(WSurface);
+    return d->addRemoteSubsurface(childHandle);
+}
+
+void WSurface::removeSubsurface(WSubsurface *subsurface)
+{
+    W_D(WSurface);
+    d->releaseSubsurface(subsurface);
+}
+
+void WSurface::setRemoteSubsurfaceOrder(const QList<WSubsurface *> &below,
+                                        const QList<WSubsurface *> &above)
+{
+    W_D(WSurface);
+    d->setSubsurfaceOrder(below, above);
+}
+
 
 bool WSurface::needsFrame() const
 {
