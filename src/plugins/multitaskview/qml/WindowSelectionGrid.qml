@@ -297,7 +297,7 @@ Item {
                                            }
                                        }
                     }
-                    D.RoundButton {
+                    RoundButton {
                         id: surfaceCloseBtn
                         icon.name: "multitaskview_close"
                         icon.width: 26

@@ -23,7 +23,7 @@ RowLayout {
     /**************/
 
     // TODO: Design the interface of session selection
-    D.Button {
+    Button {
         id: sessionItem
         Layout.alignment: Qt.AlignHCenter
         visible: !GreeterProxy.hasActiveSession
@@ -77,7 +77,7 @@ RowLayout {
             powerList.close()
         }
 
-        D.ToolTip {
+        ToolTip {
             enabled: true
             visible: powerItem.hovered
             text: qsTr("Power")
@@ -111,7 +111,7 @@ RowLayout {
         signal clicked()
         implicitWidth: bottomGroup.buttonSize + 6
         implicitHeight: bottomGroup.buttonSize + 6
-        D.RoundButton {
+        RoundButton {
             id: button
             icon {
                 width: 16
