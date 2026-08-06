@@ -27,6 +27,14 @@ WallpaperLauncher::~WallpaperLauncher()
         m_launcherThread->deleteLater();
     }
 }
+QString WallpaperLauncher::wallpaperProgram()
+{
+#ifdef QT_DEBUG
+    return QStringLiteral(TREELAND_WALLPAPER_FACTORY_OUTPUT_PATH);
+#else
+    return QStringLiteral("treeland-wallpaper-factory");
+#endif
+}
 
 void WallpaperLauncher::setDisplayName(const QString &displayName)
 {
@@ -68,7 +76,7 @@ void WallpaperLauncher::onStartRequested()
 
     m_crashCount = 0;
     m_wallpaperProcess = new QProcess(this);
-    m_wallpaperProcess->setProgram(QStringLiteral("treeland-wallpaper-factory"));
+    m_wallpaperProcess->setProgram(wallpaperProgram());
     m_wallpaperProcess->setProcessChannelMode(QProcess::MergedChannels);
     QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
     env.insert("WAYLAND_DISPLAY", m_socket->fullServerName());
