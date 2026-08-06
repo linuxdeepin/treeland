@@ -521,6 +521,13 @@ void GreeterProxy::readyRead()
             // This will happen after a crash recovery of treeland
             qCInfo(lcTlGreeter) << "User " << user << " is already logged in";
             auto userPtr = userModel()->getUser(user);
+
+            // TODO: persist users entered via "Other" so they survive in UserModel; then remove
+            // this fallback
+            if (!userPtr && userModel()->tryAddNssUser(user)) {
+                userPtr = userModel()->getUser(user);
+            }
+
             if (userPtr) {
                 userModel()->updateUserLoginState(user, true);
                 Q_EMIT userModel()->userLoggedIn(user, sessionId);
