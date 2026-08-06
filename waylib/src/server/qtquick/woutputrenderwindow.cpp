@@ -37,6 +37,7 @@
 
 #include <QOffscreenSurface>
 #include <QQuickRenderControl>
+#include <qqml.h>
 #include <QOpenGLFunctions>
 #include <QRunnable>
 #include <memory>
@@ -437,6 +438,7 @@ public:
     bool initRCWithRhi();
     void updateSceneDPR();
     void sortOutputs();
+    bool isCursorOnlySceneChange() const;
 
     QVector<std::pair<OutputHelper *, WBufferRenderer *>>
     doRenderOutputs(qw_output *needsFrameOutput, const QList<OutputHelper *> &outputs,
@@ -1310,6 +1312,12 @@ void WOutputRenderWindowPrivate::init()
                      q, [q, this] {
         if (inRendering)
             return;
+
+        if (isCursorOnlySceneChange()) {
+            scheduleDoRender();
+            return;
+        }
+
         q->update();
     });
 
@@ -1438,6 +1446,30 @@ void WOutputRenderWindowPrivate::sortOutputs()
                      [] (const OutputHelper *o1, const OutputHelper *o2) {
         return o2->output()->depends().contains(o1->output());
     });
+}
+
+bool WOutputRenderWindowPrivate::isCursorOnlySceneChange() const
+{
+    const auto dirtyItems = QQuickWindowPrivate::get(q_func())->dirtyItemList;
+    if (!dirtyItems)
+        return false;
+
+    for (auto item = dirtyItems; item; item = QQuickItemPrivate::get(item)->nextDirtyItem) {
+        bool isCursorItem = false;
+        for (auto parent = item; parent; parent = parent->parentItem()) {
+            auto *layer = qobject_cast<WOutputLayer *>(
+                qmlAttachedPropertiesObject<WOutputLayer>(parent, false));
+            if (layer && layer->flags().testFlag(WOutputLayer::Cursor)) {
+                isCursorItem = true;
+                break;
+            }
+        }
+
+        if (!isCursorItem)
+            return false;
+    }
+
+    return true;
 }
 
 QVector<std::pair<OutputHelper*, WBufferRenderer*>>
