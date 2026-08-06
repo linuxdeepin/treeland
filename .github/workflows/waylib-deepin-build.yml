@@ -36,6 +36,19 @@ jobs:
           # Install wlr-protocols package directly (ignore auth for this one operation)
           apt-get install -y --allow-unauthenticated wlr-protocols || true
 
+          # Build and install treeland-protocols locally (required build dependency)
+          echo "🔧 Building treeland-protocols from source"
+          WAYLIB_DIR="$PWD"
+          cd /tmp
+          if [ ! -d treeland-protocols ]; then
+            git clone --depth=1 --branch master --single-branch https://github.com/linuxdeepin/treeland-protocols.git
+          fi
+          cd treeland-protocols
+          mk-build-deps --install --remove --tool='apt-get -o Debug::pkgProblemResolver=yes --no-install-recommends --yes' debian/control
+          dpkg-buildpackage -uc -us -b
+          apt-get install -y ../*.deb || dpkg -i ../*.deb || apt-get -f install -y
+          cd "$WAYLIB_DIR"
+
           mk-build-deps --install --remove --tool='apt-get -o Debug::pkgProblemResolver=yes --no-install-recommends --yes' debian/control
 
       - name: Build waylib deb package

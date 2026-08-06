@@ -178,6 +178,7 @@ path = [
     "waylib/src/server/kernel/WServerInterface",
     "waylib/src/server/kernel/WSurface",
     "waylib/src/server/kernel/WSurfaceLayout",
+    "waylib/src/server/kernel/WSubsurface",
     "waylib/src/server/kernel/WTexture",
     "waylib/src/server/kernel/WXdgShell",
     "waylib/src/server/kernel/WXdgSurface",

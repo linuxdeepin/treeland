@@ -40,6 +40,18 @@ jobs:
             xorg-xwayland
           pacman -S --noconfirm --noprogressbar fakeroot meson sudo
 
+      - name: Build and Install treeland-protocols
+        run: |
+          echo "Building treeland-protocols from source..."
+          git clone https://github.com/linuxdeepin/treeland-protocols.git --depth 1
+          cd treeland-protocols
+          cmake -B build \
+            -DCMAKE_INSTALL_PREFIX=/usr \
+            -DCMAKE_BUILD_TYPE=Release
+          cmake --build build
+          cmake --install build
+          echo "✅ treeland-protocols built and installed from source"
+
       - uses: actions/checkout@v4
 
       - name: Configure and Build waylib with ci preset

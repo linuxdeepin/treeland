@@ -12,9 +12,6 @@ if(CMAKE_CROSSCOMPILING AND QTWAYLANDSCANNER_EXECUTABLE)
 elseif(CMAKE_CROSSCOMPILING)
     # search native tooling prefix
     set(NATIVE_PREFIX "" CACHE STRING "CMAKE_PREFIX_PATH for native Qt libraries")
-    if (NOT NATIVE_PREFIX)
-        string(SUBSTRING ${idx} NATIVE_PREFIX)
-    endif()
 
     message(STATUS "Building qtwaylandscanner_waylib against ${NATIVE_PREFIX}")
 

@@ -12,11 +12,13 @@
 #include <QQmlEngine>
 
 Q_MOC_INCLUDE("woutput.h")
+Q_MOC_INCLUDE("wsubsurface.h")
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WServer;
 class WOutput;
+class WSubsurface;
 class WSurfacePrivate;
 class WAYLIB_SERVER_EXPORT WSurface : public QObject, public WWaylandResource
 {
@@ -26,7 +28,7 @@ class WAYLIB_SERVER_EXPORT WSurface : public QObject, public WWaylandResource
     Q_PROPERTY(bool isSubsurface READ isSubsurface)
     Q_PROPERTY(bool hasSubsurface READ hasSubsurface NOTIFY hasSubsurfaceChanged)
     Q_PROPERTY(bool needsFrame READ needsFrame)
-    Q_PROPERTY(QList<WSurface*> subsurfaces READ subsurfaces NOTIFY newSubsurface)
+    Q_PROPERTY(QList<WSubsurface *> subsurfaces READ subsurfaces NOTIFY subsurfaceOrderChanged)
     Q_PROPERTY(uint32_t preferredBufferScale READ preferredBufferScale WRITE setPreferredBufferScale RESET resetPreferredBufferScale NOTIFY preferredBufferScaleChanged FINAL)
     QML_NAMED_ELEMENT(WaylandSurface)
     QML_UNCREATABLE("Only create in C++")
@@ -52,7 +54,9 @@ public:
 
     bool isSubsurface() const;
     bool hasSubsurface() const;
-    QList<WSurface*> subsurfaces() const;
+    const QList<WSubsurface *> &subsurfaces() const;
+    QList<WSubsurface *> subsurfacesBelow() const;
+    QList<WSubsurface *> subsurfacesAbove() const;
 
     uint32_t preferredBufferScale() const;
     void setPreferredBufferScale(uint32_t newPreferredBufferScale);
@@ -75,7 +79,9 @@ Q_SIGNALS:
     void mappedChanged();
     void bufferOffsetChanged();
     void hasSubsurfaceChanged();
-    void newSubsurface(WSurface *subsurface);
+    void subsurfaceAdded(WSubsurface *subsurface);
+    void subsurfaceRemoved(WSubsurface *subsurface);
+    void subsurfaceOrderChanged();
     // Emitted from the destructor while the object is still usable.
     void beforeDestroy();
     void preferredBufferScaleChanged();
@@ -89,6 +95,14 @@ protected:
     // Owned by the creator (seat/shell/...): released with `delete` from
     // the native destroy callback, never with deleteLater().
     using QObject::deleteLater;
+
+private:
+    WSubsurface *addRemoteSubsurface(wlr_surface *childHandle);
+    void removeSubsurface(WSubsurface *subsurface);
+    void setRemoteSubsurfaceOrder(const QList<WSubsurface *> &below,
+                                  const QList<WSubsurface *> &above);
+
+    friend class WRemoteSubsurfaceManagerV1Private;
 };
 
 WAYLIB_SERVER_END_NAMESPACE
