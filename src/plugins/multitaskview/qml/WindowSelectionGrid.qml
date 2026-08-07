@@ -245,7 +245,11 @@ Item {
                     }
 
                     property bool hovered: hvhdlr.hovered || surfaceCloseBtn.hovered
+                    // During animation/exit, hover is driven by geometry changes;
+                    // skip focus handling to avoid interfering with normal focus restoration.
                     onHoveredChanged: {
+                        if (root.exited || root.inProgress)
+                            return;
                         if (hovered) {
                             surfaceItemDelegate.forceActiveFocus()
                         } else {
@@ -266,7 +270,7 @@ Item {
                     }
                     HoverHandler {
                         id: hvhdlr
-                        enabled: !drg.active
+                        enabled: !drg.active // Disable during drag to avoid conflict with hover
                         blocking: true
                     }
                     TapHandler {
