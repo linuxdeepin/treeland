@@ -125,7 +125,8 @@ void XResource::apply()
     QByteArray text;
     for (auto it = m_resources.constBegin(); it != m_resources.constEnd(); ++it) {
         text.append(it.key());
-        text.append(": ");
+        text.append(':');
+        text.append('\t');
         text.append(it.value().toString().toUtf8());
         text.append('\n');
     }
