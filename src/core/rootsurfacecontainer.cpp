@@ -10,7 +10,6 @@
 #include "surface/surfacewrapper.h"
 #include "treelandconfig.hpp"
 #include "treelanduserconfig.hpp"
-#include "wallpaper/wallpapermanager.h"
 #include "workspace/workspace.h"
 
 #include <wcursor.h>
@@ -40,8 +39,7 @@ void setPrimaryOutputConfig(Output *output)
 
     auto *config = helper->globalConfig();
     auto setConfig = [config, output = QPointer<Output>(output)] {
-        const QString outputId = output ? WallpaperManager::getOutputId(output) : QString();
-        config->setPrimaryOutputId(outputId);
+        config->setPrimaryOutputId(output->getOutputId());
     };
 
     if (config->isInitializeSucceeded()) {

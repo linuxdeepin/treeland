@@ -75,7 +75,6 @@ private:
     void markScreenAsPrimaryIntent(Output *output);
     void restoreScreenAsPrimary(Output *output);
     void switchPrimaryOutput(Output *from, Output *to, const QList<SurfaceWrapper *> &surfaces);
-    QString outputId(Output *output) const;
     Output *findOutputById(const QString &id) const;
     void runWhenConfigInitialized(std::function<void()> callback);
 

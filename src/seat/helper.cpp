@@ -276,7 +276,7 @@ static wlr_output_mode *closestOutputMode(WOutput *output,
 static bool outputMatchesId(Output *output, const QString &outputId)
 {
     return output && output->output() && output->output()->isEnabled()
-        && WallpaperManager::getOutputId(output) == outputId;
+        && output->getOutputId() == outputId;
 }
 
 static bool currentPrimaryMatchesId(RootSurfaceContainer *rootContainer, const QString &outputId)
@@ -522,7 +522,7 @@ void Helper::onOutputAdded(WOutput *output)
     Output *o = nullptr;
     const bool isInitialOutput = !scanned;
     qCInfo(lcTlOutput) << "Output added" << output->name()
-                       << "id:" << WallpaperManager::getOutputId(output->nativeHandle())
+                       << "id:" << Output::getOutputId(output->nativeHandle())
                        << "scan complete:" << scanned
                        << "mode:" << static_cast<int>(m_mode);
 
@@ -555,14 +555,14 @@ void Helper::onOutputAdded(WOutput *output)
 
     if (scanned && m_mode == OutputMode::Copy) {
         QStringList copyOutputs = m_outputManagerHelper->copyOutputIds();
-        const QString addedOutputId = WallpaperManager::getOutputId(o);
+        const QString addedOutputId = o->getOutputId();
         if (!copyOutputs.contains(addedOutputId)) {
             copyOutputs.append(addedOutputId);
             m_outputManagerHelper->storeCopyOutputConfig(true, {}, copyOutputs);
         }
     }
     if (scanned && m_mode == OutputMode::Extension) {
-        const QString addedOutputId = WallpaperManager::getOutputId(o);
+        const QString addedOutputId = o->getOutputId();
         runWhenTreelandConfigInitialized(m_globalConfig.get(), this, [this, addedOutputId] {
             QMetaObject::invokeMethod(this, [this, addedOutputId] {
                 if (m_mode != OutputMode::Extension || !m_globalConfig->createCopyOutput()) {
@@ -637,7 +637,7 @@ void Helper::onOutputAdded(WOutput *output)
 
         const QString singleOutputId = m_globalConfig->singleOutputId();
         if (!singleOutputId.isEmpty()
-            && WallpaperManager::getOutputId(outputObject) != singleOutputId) {
+            && outputObject->getOutputId() != singleOutputId) {
             if (output->isEnabled()) {
                 qw_output_state disabledState;
                 disabledState.set_enabled(false);
@@ -665,7 +665,7 @@ void Helper::onOutputAdded(WOutput *output)
         });
 
         auto *config = outputObject->config();
-        const QString outputId = WallpaperManager::getOutputId(outputObject);
+        const QString outputId = outputObject->getOutputId();
         const QString primaryOutputId = m_globalConfig->primaryOutputId();
         if (primaryOutputId == outputId) {
             m_rootSurfaceContainer->setPrimaryOutput(outputObject);
@@ -758,10 +758,10 @@ void Helper::onOutputRemoved(WOutput *output)
 
     const auto &surfaces = getWorkspaceSurfaces(o);
     const QStringList copyOutputs = m_outputManagerHelper->copyOutputIds();
-    const bool removedCopyOutput = copyOutputs.contains(WallpaperManager::getOutputId(o));
+    const bool removedCopyOutput = copyOutputs.contains(o->getOutputId());
     if (m_mode == OutputMode::Copy && removedCopyOutput) {
         const bool removedCopySource = !copyOutputs.isEmpty()
-            && copyOutputs.constFirst() == WallpaperManager::getOutputId(o);
+            && copyOutputs.constFirst() == o->getOutputId();
 
         if (removedCopySource && !m_outputList.isEmpty()) {
             Output *newCopySource = nullptr;
@@ -775,7 +775,7 @@ void Helper::onOutputRemoved(WOutput *output)
                 newCopySource = m_outputList.constFirst();
             }
 
-            const auto newCopySourceId = WallpaperManager::getOutputId(newCopySource);
+            const auto newCopySourceId = newCopySource->getOutputId();
             QStringList updatedCopyOutputs{ newCopySourceId };
             for (const auto &outputId : std::as_const(copyOutputs)) {
                 if (outputId != newCopySourceId && findOutputById(outputId)) {
@@ -793,7 +793,7 @@ void Helper::onOutputRemoved(WOutput *output)
             for (int i = 0; i < m_outputList.size(); ++i) {
                 Output *copyOutput = m_outputList.at(i);
                 if (copyOutput == normalCopySource
-                    || !copyOutputs.contains(WallpaperManager::getOutputId(copyOutput))) {
+                    || !copyOutputs.contains(copyOutput->getOutputId())) {
                     continue;
                 }
 
@@ -1090,7 +1090,7 @@ void Helper::onOutputTestOrApply(qw_output_configuration_v1 *config, bool onlyTe
         for (const auto &state : std::as_const(states)) {
             if (state.enabled && !state.output->isEnabled()) {
                 Output *output = getOutput(state.output);
-                if (output && WallpaperManager::getOutputId(output) != singleOutputId) {
+                if (output && output->getOutputId() != singleOutputId) {
                     m_outputManagerHelper->clearSingleOutputConfig();
                     enableAllOutput();
                     break;
@@ -1531,7 +1531,7 @@ void Helper::onSetCopyOutput(VirtualOutputInterfaceV1 *interface)
     requestedOutputIds.reserve(requestedOutputs.size());
     for (const auto &outputName : std::as_const(requestedOutputs)) {
         if (auto *output = findOutputByName(outputName)) {
-            requestedOutputIds.append(WallpaperManager::getOutputId(output));
+            requestedOutputIds.append(output->getOutputId());
         }
     }
     m_outputManagerHelper->storeCopyOutputConfig(true, interface->name(), requestedOutputIds);
@@ -3062,7 +3062,7 @@ Output *Helper::findOutputByName(const QString &name) const
 Output *Helper::findOutputById(const QString &id) const
 {
     for (auto *output : std::as_const(m_outputList)) {
-        if (output && output->output() && WallpaperManager::getOutputId(output) == id) {
+        if (output && output->output() && output->getOutputId() == id) {
             return output;
         }
     }
@@ -3582,7 +3582,7 @@ void Helper::applyCopyModeToOutputs(Output *primaryOutput,
         if (existingOutput == primaryOutput) {
             continue;
         }
-        if (!outputIds.isEmpty() && !outputIds.contains(WallpaperManager::getOutputId(existingOutput))) {
+        if (!outputIds.isEmpty() && !outputIds.contains(existingOutput->getOutputId())) {
             continue;
         }
 

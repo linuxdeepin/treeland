@@ -12,7 +12,6 @@
 #include "treelandconfig.hpp"
 #include "treelanduserconfig.hpp"
 #include "workspace/workspace.h"
-#include "wallpapermanager.h"
 
 #include <wcursor.h>
 #include <winputpopupsurface.h>
@@ -38,6 +37,22 @@
 #define SAME_APP_OFFSET_FACTOR 1.0
 #define DIFF_APP_OFFSET_FACTOR 2.0
 #define POPUP_EDGE_MARGIN 10
+
+QString Output::getOutputId(wlr_output *output)
+{
+    const QString model = QString::fromUtf8(output->model);
+    const QString serial = QString::fromUtf8(output->serial);
+    if (!model.isEmpty() && !serial.isEmpty()) {
+        return model + serial;
+    }
+
+    return QString::fromUtf8(output->name);
+}
+
+QString Output::getOutputId()
+{
+    return getOutputId(output()->nativeHandle());
+}
 
 Output *Output::create(WOutput *output, QQmlEngine *engine, QObject *parent)
 {
@@ -151,7 +166,7 @@ Output::Output(WOutputItem *output, QObject *parent)
 {
     m_outputViewport = output->property("screenViewport").value<WOutputViewport *>();
 
-    QString outputName = WallpaperManager::getOutputId(output->output()->nativeHandle());
+    QString outputName = Output::getOutputId(output->output()->nativeHandle());
     m_config = OutputConfig::createByName("org.deepin.dde.treeland.output",
                                     "org.deepin.dde.treeland",
                                     "/" + outputName, this);
