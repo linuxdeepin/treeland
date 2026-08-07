@@ -26,6 +26,13 @@ add_feature_info(ASanSupport ADDRESS_SANITIZER "https://github.com/google/saniti
 option(BUILD_TREELAND_EXAMPLES "Build clients demo to test treeland" OFF)
 add_feature_info(DemoClents BUILD_TEST_CLIENTS "clients demo for testing")
 
+option(USE_BUILD_TREE_WALLPAPER_FACTORY
+       "Use the wallpaper factory executable from the build tree"
+       OFF)
+add_feature_info(build_tree_wallpaper_factory
+                 USE_BUILD_TREE_WALLPAPER_FACTORY
+                 "Use the wallpaper factory executable from the build tree")
+
 option(DISABLE_DDM "Disable DDM and greeter" OFF)
 
 if (DISABLE_DDM)
@@ -108,7 +115,6 @@ add_compile_definitions("QT_FORCE_ASSERTS")
 
 add_compile_definitions("TREELAND_PLUGINS_INSTALL_PATH=\"${TREELAND_FULL_PLUGINS_INSTALL_PATH}\"")
 add_compile_definitions("TREELAND_PLUGINS_OUTPUT_PATH=\"${TREELAND_PLUGINS_OUTPUT_PATH}\"")
-add_compile_definitions("TREELAND_WALLPAPER_FACTORY_OUTPUT_PATH=\"${CMAKE_BINARY_DIR}/wallpaper-factory/treeland-wallpaper-factory\"")
 
 add_compile_definitions("TREELAND_COMPONENTS_TRANSLATION_DIR=\"${TREELAND_FULL_COMPONENTS_TRANSLATION_DIR}\"")
 

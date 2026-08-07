@@ -29,7 +29,7 @@ WallpaperLauncher::~WallpaperLauncher()
 }
 QString WallpaperLauncher::wallpaperProgram()
 {
-#ifdef QT_DEBUG
+#ifdef TREELAND_USE_BUILD_TREE_WALLPAPER_FACTORY
     return QStringLiteral(TREELAND_WALLPAPER_FACTORY_OUTPUT_PATH);
 #else
     return QStringLiteral("treeland-wallpaper-factory");
