@@ -282,6 +282,14 @@ target_compile_definitions(libtreeland
     WLR_USE_UNSTABLE
 )
 
+if (USE_BUILD_TREE_WALLPAPER_FACTORY)
+    target_compile_definitions(libtreeland
+        PRIVATE
+        TREELAND_USE_BUILD_TREE_WALLPAPER_FACTORY
+        "TREELAND_WALLPAPER_FACTORY_OUTPUT_PATH=\"${CMAKE_BINARY_DIR}/wallpaper-factory/treeland-wallpaper-factory\""
+    )
+endif()
+
 qt_add_shaders(libtreeland "treeland_shaders_ng"
     BATCHABLE
     PRECOMPILE
