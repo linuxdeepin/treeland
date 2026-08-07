@@ -48,30 +48,14 @@ WallpaperManager::~WallpaperManager()
 
 }
 
-QString WallpaperManager::getOutputId(wlr_output *output)
-{
-    const QString model = QString::fromUtf8(output->model);
-    const QString serial = QString::fromUtf8(output->serial);
-    if (!model.isEmpty() && !serial.isEmpty()) {
-        return model + serial;
-    }
-
-    return QString::fromUtf8(output->name);
-}
-
-QString WallpaperManager::getOutputId(Output *output)
-{
-    return getOutputId(output->output()->nativeHandle());
-}
-
 WallpaperOutputConfig WallpaperManager::getOutputConfig(Output *output)
 {
-    return getOutputConfig(getOutputId(output));
+    return getOutputConfig(output->getOutputId());
 }
 
 WallpaperOutputConfig WallpaperManager::getOutputConfig(wlr_output *output)
 {
-    return getOutputConfig(getOutputId(output));
+    return getOutputConfig(Output::getOutputId(output));
 }
 
 WallpaperOutputConfig WallpaperManager::getOutputConfig(const QString &id)
@@ -112,7 +96,7 @@ void WallpaperManager::defaultWallpaperConfig()
     for (Output *output : std::as_const(Helper::instance()->m_outputList)) {
         WallpaperOutputConfig outputConfig;
         outputConfig.lockscreenWallpaper = Helper::instance()->m_config->defaultBackground();
-        outputConfig.outputName = WallpaperManager::getOutputId(output);
+        outputConfig.outputName = output->getOutputId();
         WallpaperType type = detectWallpaperType(outputConfig.lockscreenWallpaper);
         if (type == WallpaperType::Unknown) {
             outputConfig.lockscreenWallpaper = DEFAULT_WALLPAPER;
@@ -157,7 +141,7 @@ void WallpaperManager::ensureWallpaperConfigForOutput(Output *output)
         WallpaperOutputConfig outputConfig;
         outputConfig.lockscreenWallpaper = refConfig.lockscreenWallpaper;
         outputConfig.lockScreenWallpapertype = refConfig.lockScreenWallpapertype;
-        outputConfig.outputName = getOutputId(output);
+        outputConfig.outputName = output->getOutputId();
         for (int i = 0; i < workspace->count(); i++) {
             WallpaperWorkspaceConfig workspaceConfig;
             workspaceConfig.desktopWallpaper = refWorkspaceConfig.desktopWallpaper;
@@ -168,7 +152,7 @@ void WallpaperManager::ensureWallpaperConfigForOutput(Output *output)
         m_wallpaperConfig.append(outputConfig);
         update = true;
     } else {
-        QString outputId = getOutputId(output);
+        QString outputId = output->getOutputId();
         Workspace *workspace = Helper::instance()->workspace();
         Q_ASSERT(workspace);
 
@@ -214,7 +198,7 @@ bool WallpaperManager::configContainsOutput(Output *output)
         return false;
     }
 
-    QString outputId = getOutputId(output);
+    QString outputId = output->getOutputId();
     for (const WallpaperOutputConfig& output : std::as_const(m_wallpaperConfig)) {
         if (output.outputName == outputId) {
             return true;
@@ -240,7 +224,7 @@ void WallpaperManager::setOutputWallpaper(wlr_output *output, [[maybe_unused]] i
 {
     bool update = false;
     for (WallpaperOutputConfig &outputConfig : m_wallpaperConfig) {
-        if (outputConfig.outputName == getOutputId(output)) {
+        if (outputConfig.outputName == Output::getOutputId(output)) {
             if (roles.testFlag(TreelandWallpaperInterfaceV1::Lockscreen)) {
                 if (outputConfig.lockscreenWallpaper != fileSource) {
                     update = true;
@@ -274,13 +258,13 @@ QMap<QString, TreelandWallpaperInterfaceV1::WallpaperType> WallpaperManager::glo
     for (const WallpaperOutputConfig& output : std::as_const(m_wallpaperConfig)) {
         bool outputConnected = false;
         for (Output *connectedOutput : std::as_const(Helper::instance()->m_outputList)) {
-            if (output.outputName == getOutputId(connectedOutput)) {
+            if (output.outputName == connectedOutput->getOutputId()) {
                 outputConnected = true;
                 break;
             }
         }
         if (!outputConnected ||
-            (excludedOutput && output.outputName == getOutputId(excludedOutput))) {
+            (excludedOutput && output.outputName == Output::getOutputId(excludedOutput))) {
             continue;
         }
 
@@ -335,7 +319,7 @@ void WallpaperManager::syncAddWorkspace()
 void WallpaperManager::removeOutputWallpaper(wlr_output *output)
 {
     for (int i = 0; i < m_wallpaperConfig.size(); ++i) {
-        if (m_wallpaperConfig[i].outputName == getOutputId(output)) {
+        if (m_wallpaperConfig[i].outputName == Output::getOutputId(output)) {
             WallpaperOutputConfig &outputConfig = m_wallpaperConfig[i];
             QMap<QString, TreelandWallpaperInterfaceV1::WallpaperType> globalWallpapers = globalValidWallpaper(output);
             if (!globalWallpapers.contains(outputConfig.lockscreenWallpaper)) {
@@ -356,7 +340,7 @@ QString WallpaperManager::currentWorkspaceWallpaper(WOutput *output)
     Workspace *workspace = Helper::instance()->workspace();
     Q_ASSERT(workspace);
     for (int i = 0; i < m_wallpaperConfig.size(); ++i) {
-        if (m_wallpaperConfig[i].outputName == getOutputId(output->nativeHandle())) {
+        if (m_wallpaperConfig[i].outputName == Output::getOutputId(output->nativeHandle())) {
             return m_wallpaperConfig[i].workspaces[workspace->currentIndex()].desktopWallpaper;
         }
     }
@@ -367,7 +351,7 @@ QString WallpaperManager::currentWorkspaceWallpaper(WOutput *output)
 QString WallpaperManager::currentLockScreenWallpaper(WOutput *output)
 {
     for (int i = 0; i < m_wallpaperConfig.size(); ++i) {
-        if (m_wallpaperConfig[i].outputName == getOutputId(output->nativeHandle())) {
+        if (m_wallpaperConfig[i].outputName == Output::getOutputId(output->nativeHandle())) {
             return m_wallpaperConfig[i].lockscreenWallpaper;
         }
     }
@@ -402,7 +386,7 @@ void WallpaperManager::onWallpaperAdded(TreelandWallpaperInterfaceV1 *interface)
     Workspace *workspace = Helper::instance()->workspace();
     Q_ASSERT(workspace);
     for (int i = 0; i < m_wallpaperConfig.size(); ++i) {
-        if (m_wallpaperConfig[i].outputName == getOutputId(output->nativeHandle())) {
+        if (m_wallpaperConfig[i].outputName == Output::getOutputId(output->nativeHandle())) {
             WallpaperOutputConfig outputConfig = m_wallpaperConfig[i];
             interface->sendChanged(TreelandWallpaperInterfaceV1::Lockscreen, outputConfig.lockScreenWallpapertype, outputConfig.lockscreenWallpaper);
             for (WallpaperWorkspaceConfig workspaceConfig : std::as_const(outputConfig.workspaces)) {
