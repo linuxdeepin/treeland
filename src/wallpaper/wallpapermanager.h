@@ -23,8 +23,6 @@ public:
 
     explicit WallpaperManager(QObject *parent = nullptr);
     ~WallpaperManager() override;
-    static QString getOutputId(wlr_output *output);
-    static QString getOutputId(Output *output);
     WallpaperOutputConfig getOutputConfig(Output *output);
     WallpaperOutputConfig getOutputConfig(wlr_output *output);
     WallpaperOutputConfig getOutputConfig(const QString &id);

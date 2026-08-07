@@ -8,7 +8,6 @@
 #include "output.h"
 #include "surface/surfacewrapper.h"
 #include "treelandconfig.hpp"
-#include "wallpaper/wallpapermanager.h"
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QPointer>
@@ -166,14 +165,14 @@ QStringList OutputManager::currentOutputIds(Output *primaryOutput) const
 {
     QStringList ids;
     if (primaryOutput) {
-        ids.append(outputId(primaryOutput));
+        ids.append(primaryOutput->getOutputId());
     }
     if (!m_rootContainer) {
         return ids;
     }
     for (auto *output : std::as_const(m_rootContainer->outputs())) {
         if (output && output != primaryOutput) {
-            ids.append(outputId(output));
+            ids.append(output->getOutputId());
         }
     }
     ids.removeAll(QString());
@@ -212,7 +211,7 @@ void OutputManager::storeSingleOutputConfig()
 
             enabledOutputCount++;
             if (enabledOutputCount == 1) {
-                singleOutputId = outputId(output);
+                singleOutputId = output->getOutputId();
             } else {
                 singleOutputId.clear();
                 break;
@@ -292,18 +291,13 @@ Output *OutputManager::findFirstAvailableOutput(Output *excludeOutput) const
     return nullptr;
 }
 
-QString OutputManager::outputId(Output *output) const
-{
-    return output ? WallpaperManager::getOutputId(output) : QString();
-}
-
 Output *OutputManager::findOutputById(const QString &id) const
 {
     if (!m_rootContainer) {
         return nullptr;
     }
     for (auto *output : std::as_const(m_rootContainer->outputs())) {
-        if (outputId(output) == id) {
+        if (output && output->getOutputId() == id) {
             return output;
         }
     }
@@ -331,7 +325,7 @@ void OutputManager::runWhenConfigInitialized(std::function<void()> callback)
 
 void OutputManager::markScreenAsPrimaryIntent(Output *output)
 {
-    const QString id = outputId(output);
+    const QString id = output->getOutputId();
     if (!id.isEmpty()) {
         m_primaryRestoreIntents[id] = true;
     }
@@ -364,7 +358,7 @@ void OutputManager::onScreenAdded(Output *output, const QList<SurfaceWrapper *> 
         return;
     }
 
-    const QString id = outputId(output);
+    const QString id = output->getOutputId();
     const bool wasPrimary = m_primaryRestoreIntents.value(id);
     const bool hasPrimaryOutput = m_rootContainer->primaryOutput() != nullptr;
 
@@ -389,9 +383,9 @@ bool OutputManager::onScreenRemoved(Output *output,
     }
 
     const bool isCurrentPrimary = (m_rootContainer->primaryOutput() == output);
-    const bool wasPrimaryBeforeRemoval = m_primaryRestoreIntents.value(outputId(output));
+    const bool wasPrimaryBeforeRemoval = m_primaryRestoreIntents.value(output->getOutputId());
 
-    if (m_config && outputId(output) == m_config->singleOutputId()) {
+    if (m_config && output->getOutputId() == m_config->singleOutputId()) {
         return true;
     }
 
@@ -439,7 +433,7 @@ void OutputManager::onScreenEnabled(Output *output)
         return;
     }
 
-    const QString id = outputId(output);
+    const QString id = output->getOutputId();
     const bool wasPrimary = m_primaryRestoreIntents.value(id);
     if (wasPrimary && m_mode == Mode::Extension && m_rootContainer->primaryOutput()) {
         restoreScreenAsPrimary(output);
