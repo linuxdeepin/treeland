@@ -1,10 +1,10 @@
-<?xml version="1.0" ?><!DOCTYPE TS><TS version="2.1" language="fi">
+<?xml version="1.0" ?><!DOCTYPE TS><TS version="2.1" language="pt">
 <context>
     <name>ControlAction</name>
     <message>
         <location filename="../qml/ControlAction.qml" line="83"/>
         <source>Power</source>
-        <translation>Virta</translation>
+        <translation>Energia</translation>
     </message>
 </context>
 <context>
@@ -12,7 +12,7 @@
     <message>
         <location filename="../qml/HintLabel.qml" line="26"/>
         <source>Password Hint</source>
-        <translation>Salasanavihje</translation>
+        <translation>Dica da Palavra-passe</translation>
     </message>
 </context>
 <context>
@@ -20,22 +20,22 @@
     <message>
         <location filename="../qml/PowerList.qml" line="58"/>
         <source>Hibernate</source>
-        <translation>Horrostila</translation>
+        <translation>Hibernar</translation>
     </message>
     <message>
         <location filename="../qml/PowerList.qml" line="49"/>
         <source>Suspend</source>
-        <translation>Lepotila</translation>
+        <translation>Suspender</translation>
     </message>
     <message>
         <location filename="../qml/PowerList.qml" line="42"/>
         <source>Reboot</source>
-        <translation>Käynnistä</translation>
+        <translation>Reiniciar</translation>
     </message>
     <message>
         <location filename="../qml/PowerList.qml" line="35"/>
         <source>Shut Down</source>
-        <translation>Sammuta</translation>
+        <translation>Encerrar</translation>
     </message>
 </context>
 <context>
@@ -43,17 +43,17 @@
     <message>
         <location filename="../qml/ShutdownView.qml" line="31"/>
         <source>lock</source>
-        <translation>Lukitse</translation>
+        <translation>trancar</translation>
     </message>
     <message>
         <location filename="../qml/ShutdownView.qml" line="37"/>
         <source>switch user</source>
-        <translation>Vaihda käyttäjää</translation>
+        <translation>trocar utilizador</translation>
     </message>
     <message>
         <location filename="../qml/ShutdownView.qml" line="44"/>
         <source>Logout</source>
-        <translation>Kirjaudu ulos</translation>
+        <translation>Sair da sessão</translation>
     </message>
 </context>
 <context>
@@ -61,32 +61,32 @@
     <message>
         <location filename="../qml/UserInput.qml" line="15"/>
         <source>Please enter password</source>
-        <translation>Anna salasana</translation>
+        <translation>Por favor digite a palavra-passe</translation>
     </message>
     <message>
         <location filename="../qml/UserInput.qml" line="154"/>
         <source>Password</source>
-        <translation>Salasana</translation>
+        <translation>Palavra-passe</translation>
     </message>
     <message>
         <location filename="../qml/UserInput.qml" line="154"/>
         <source>Username</source>
-        <translation>Käyttäjätunnus</translation>
+        <translation>Nome de utilizador</translation>
     </message>
     <message>
         <location filename="../qml/UserInput.qml" line="341"/>
         <source>Enter username</source>
-        <translation>Anna käyttäjätunnus</translation>
+        <translation>Digite o nome de utilizador</translation>
     </message>
     <message>
         <location filename="../qml/UserInput.qml" line="354"/>
         <source>User not found.</source>
-        <translation>Käyttäjää ei löytynyt.</translation>
+        <translation>Utilizador não encontrado.</translation>
     </message>
     <message>
         <location filename="../qml/UserInput.qml" line="376"/>
         <source>Password is incorrect.</source>
-        <translation>Salasana on väärä.</translation>
+        <translation>A palavra-passe está incorreta.</translation>
     </message>
 </context>
 <context>
@@ -94,7 +94,7 @@
     <message>
         <location filename="../qml/UserList.qml" line="236"/>
         <source>Other…</source>
-        <translation>Muu…</translation>
+        <translation>Outro...</translation>
     </message>
 </context>
 </TS>
