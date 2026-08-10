@@ -1,7 +1,7 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
-#ifndef DDE_SHELL_TEST_H
-#define DDE_SHELL_TEST_H
+#ifndef FOREIGN_TOPLEVEL_MANAGER_TEST_H
+#define FOREIGN_TOPLEVEL_MANAGER_TEST_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -13,21 +13,25 @@ int protocol_test_run(const char *socket_name);
 
 #define TEST_MSG_MAX 256
 
-struct dde_shell_surface_state {
-    int position_x;
-    int position_y;
-    int role_overlay;
-    int auto_placement;
-    int skip_switcher;
-    int skip_dock_preview;
-    int skip_multitask_view;
-    int accept_keyboard_focus;
-};
-
 struct test_result {
     const char *name;
     int         failed;
     char        message[TEST_MSG_MAX];
+};
+
+
+struct ftm_server_state {
+    int      preview_fired;
+    int      preview_x;
+    int      preview_y;
+    uint32_t preview_direction;
+    int      preview_surface_count;
+    int      tooltip_fired;
+    char     tooltip[64];
+    int      tooltip_x;
+    int      tooltip_y;
+    uint32_t tooltip_direction;
+    int      close_fired;
 };
 
 struct test_ctx {
@@ -36,28 +40,19 @@ struct test_ctx {
 
 
     struct wl_compositor *compositor;
-    struct wl_seat       *seat;
-    struct wl_output     *output;
+    struct wl_xdg_wm_base *xdg_wm_base;
 
 
-    struct treeland_dde_shell_manager_v1  *manager;
-    struct treeland_window_overlap_checker *checker;
-    struct treeland_dde_shell_surface_v1  *shell_surface;
-    struct treeland_dde_active_v1         *active;
-    struct treeland_multitaskview_v1      *multitaskview;
-    struct treeland_window_picker_v1      *picker;
-    struct treeland_lockscreen_v1         *lockscreen;
-    struct wl_surface                     *test_surface;
+    struct treeland_foreign_toplevel_manager_v1  *manager;
+    struct treeland_dock_preview_context_v1      *context;
+    struct wl_surface                            *test_surface;
+    struct xdg_surface                           *xdg_surface;
+    struct xdg_toplevel                          *xdg_toplevel;
 
 
-    int checker_enter_received;
-    int checker_leave_received;
-    int active_in_received;
-    int active_out_received;
-    int start_drag_received;
-    int drop_received;
-    int picker_window_received;
-    int picker_pid;
+    int context_enter_received;
+    int context_leave_received;
+    int manager_finished_received;
 
 
     struct test_result *results;

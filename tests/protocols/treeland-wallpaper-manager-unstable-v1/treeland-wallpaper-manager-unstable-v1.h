@@ -1,7 +1,7 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
-#ifndef DDE_SHELL_TEST_H
-#define DDE_SHELL_TEST_H
+#ifndef WALLPAPER_MANAGER_TEST_H
+#define WALLPAPER_MANAGER_TEST_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -12,16 +12,14 @@ int protocol_test_run(const char *socket_name);
 #include "protocol-test-client.h"
 
 #define TEST_MSG_MAX 256
+#define WM_TEST_SOURCE "/usr/share/wallpapers/deepin-wallpapers/test-wallpaper.jpg"
 
-struct dde_shell_surface_state {
-    int position_x;
-    int position_y;
-    int role_overlay;
-    int auto_placement;
-    int skip_switcher;
-    int skip_dock_preview;
-    int skip_multitask_view;
-    int accept_keyboard_focus;
+
+struct wm_server_state {
+    int wallpaper_created;
+    int second_created;
+    int output_valid;
+    int has_username;
 };
 
 struct test_result {
@@ -36,28 +34,22 @@ struct test_ctx {
 
 
     struct wl_compositor *compositor;
-    struct wl_seat       *seat;
     struct wl_output     *output;
 
 
-    struct treeland_dde_shell_manager_v1  *manager;
-    struct treeland_window_overlap_checker *checker;
-    struct treeland_dde_shell_surface_v1  *shell_surface;
-    struct treeland_dde_active_v1         *active;
-    struct treeland_multitaskview_v1      *multitaskview;
-    struct treeland_window_picker_v1      *picker;
-    struct treeland_lockscreen_v1         *lockscreen;
-    struct wl_surface                     *test_surface;
+    struct treeland_wallpaper_manager_v1 *manager;
+    struct treeland_wallpaper_v1         *wallpaper;
+    struct treeland_wallpaper_v1         *wallpaper2;
+    struct wl_surface                    *test_surface;
 
 
-    int checker_enter_received;
-    int checker_leave_received;
-    int active_in_received;
-    int active_out_received;
-    int start_drag_received;
-    int drop_received;
-    int picker_window_received;
-    int picker_pid;
+    int  failed_received;
+    int  failed_error;
+    char failed_source[TEST_MSG_MAX];
+    int  changed_received;
+    int  changed_role;
+    int  changed_type;
+    char changed_source[TEST_MSG_MAX];
 
 
     struct test_result *results;

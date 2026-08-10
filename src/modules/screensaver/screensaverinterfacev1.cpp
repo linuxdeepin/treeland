@@ -1,6 +1,5 @@
-// Copyright (C) 2025-2026 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
-
 #include "screensaverinterfacev1.h"
 #include "qwayland-server-treeland-screensaver-v1.h"
 #include "helper.h"
@@ -51,7 +50,8 @@ void ScreensaverInterfaceV1Private::inhibit(Resource *resource, const QString &a
     }
 
     inhibits.insert(res, std::make_tuple(application_name, reason_for_inhibit));
-    Helper::instance()->updateIdleInhibitor();
+    if (auto *helper = Helper::instance())
+        helper->updateIdleInhibitor();
 }
 
 void ScreensaverInterfaceV1Private::uninhibit(Resource *resource)
@@ -64,7 +64,8 @@ void ScreensaverInterfaceV1Private::uninhibit(Resource *resource)
     }
 
     inhibits.remove(res);
-    Helper::instance()->updateIdleInhibitor();
+    if (auto *helper = Helper::instance())
+        helper->updateIdleInhibitor();
 }
 
 ScreensaverInterfaceV1::ScreensaverInterfaceV1(QObject *parent)

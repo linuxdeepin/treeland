@@ -1,7 +1,7 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
-#ifndef DDE_SHELL_TEST_H
-#define DDE_SHELL_TEST_H
+#ifndef WALLPAPER_SHELL_TEST_H
+#define WALLPAPER_SHELL_TEST_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -12,17 +12,6 @@ int protocol_test_run(const char *socket_name);
 #include "protocol-test-client.h"
 
 #define TEST_MSG_MAX 256
-
-struct dde_shell_surface_state {
-    int position_x;
-    int position_y;
-    int role_overlay;
-    int auto_placement;
-    int skip_switcher;
-    int skip_dock_preview;
-    int skip_multitask_view;
-    int accept_keyboard_focus;
-};
 
 struct test_result {
     const char *name;
@@ -36,28 +25,23 @@ struct test_ctx {
 
 
     struct wl_compositor *compositor;
-    struct wl_seat       *seat;
-    struct wl_output     *output;
+    struct treeland_wallpaper_notifier_v1 *notifier;
 
 
-    struct treeland_dde_shell_manager_v1  *manager;
-    struct treeland_window_overlap_checker *checker;
-    struct treeland_dde_shell_surface_v1  *shell_surface;
-    struct treeland_dde_active_v1         *active;
-    struct treeland_multitaskview_v1      *multitaskview;
-    struct treeland_window_picker_v1      *picker;
-    struct treeland_lockscreen_v1         *lockscreen;
-    struct wl_surface                     *test_surface;
+    struct treeland_wallpaper_shell_v1   *shell;
+    struct treeland_wallpaper_surface_v1 *wallpaper_surface;
+    struct wl_surface                    *test_surface;
 
 
-    int checker_enter_received;
-    int checker_leave_received;
-    int active_in_received;
-    int active_out_received;
-    int start_drag_received;
-    int drop_received;
-    int picker_window_received;
-    int picker_pid;
+    int      play_received;
+    int      pause_received;
+    int      slow_down_received;
+    uint32_t slow_down_duration;
+    int      notifier_add_received;
+    int      notifier_remove_received;
+    uint32_t notifier_add_type;
+    char     notifier_add_source[TEST_MSG_MAX];
+    char     notifier_remove_source[TEST_MSG_MAX];
 
 
     struct test_result *results;

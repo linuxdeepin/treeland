@@ -1,7 +1,7 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
-#ifndef DDE_SHELL_TEST_H
-#define DDE_SHELL_TEST_H
+#ifndef TREELAND_SHORTCUT_MANAGER_V2_TEST_H
+#define TREELAND_SHORTCUT_MANAGER_V2_TEST_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -12,17 +12,6 @@ int protocol_test_run(const char *socket_name);
 #include "protocol-test-client.h"
 
 #define TEST_MSG_MAX 256
-
-struct dde_shell_surface_state {
-    int position_x;
-    int position_y;
-    int role_overlay;
-    int auto_placement;
-    int skip_switcher;
-    int skip_dock_preview;
-    int skip_multitask_view;
-    int accept_keyboard_focus;
-};
 
 struct test_result {
     const char *name;
@@ -36,28 +25,21 @@ struct test_ctx {
 
 
     struct wl_compositor *compositor;
-    struct wl_seat       *seat;
-    struct wl_output     *output;
 
 
-    struct treeland_dde_shell_manager_v1  *manager;
-    struct treeland_window_overlap_checker *checker;
-    struct treeland_dde_shell_surface_v1  *shell_surface;
-    struct treeland_dde_active_v1         *active;
-    struct treeland_multitaskview_v1      *multitaskview;
-    struct treeland_window_picker_v1      *picker;
-    struct treeland_lockscreen_v1         *lockscreen;
-    struct wl_surface                     *test_surface;
+    struct treeland_shortcut_manager_v2 *manager;
+    struct treeland_shortcut_capture_v1 *capture;
+    struct wl_surface                   *test_surface;
 
 
-    int checker_enter_received;
-    int checker_leave_received;
-    int active_in_received;
-    int active_out_received;
-    int start_drag_received;
-    int drop_received;
-    int picker_window_received;
-    int picker_pid;
+    int      commit_success_received;
+    int      commit_failure_received;
+    char     commit_failure_name[64];
+    uint32_t commit_failure_error;
+    int      capture_captured_received;
+    char     capture_captured_key[64];
+    int      capture_failed_received;
+    uint32_t capture_failed_reason;
 
 
     struct test_result *results;
