@@ -122,11 +122,11 @@ private:
         // Don't insert events before MouseButtonPress
         case MouseButtonPress: Q_FALLTHROUGH();
         case MouseButtonRelease: Q_FALLTHROUGH();
-        case MouseMove: Q_FALLTHROUGH();
-        case HoverMove:
+        case MouseMove:
             if (static_cast<QMouseEvent*>(event)->source() != Qt::MouseEventNotSynthesized)
                 return true; // The non-native events don't send to WSeat
             Q_FALLTHROUGH();
+        case HoverMove: Q_FALLTHROUGH();
         case HoverEnter: Q_FALLTHROUGH();
         case HoverLeave: Q_FALLTHROUGH();
         case KeyPress: Q_FALLTHROUGH();
