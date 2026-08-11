@@ -18,6 +18,8 @@ extern void wallpaper_query_failed_count(void *data);
 extern void wallpaper_query_ready_count(void *data);
 extern void wallpaper_query_wallpaper_ready(void *data);
 extern void wallpaper_query_produced(void *data);
+extern void wallpaper_notifier_emit_add(void *data);
+extern void wallpaper_notifier_emit_remove(void *data);
 
 struct test_case {
     const char *name;
@@ -105,6 +107,30 @@ static const struct treeland_wallpaper_surface_v1_listener wallpaper_surface_lis
     .slow_down = surface_slow_down,
 };
 
+static void notifier_add(void *data, struct treeland_wallpaper_notifier_v1 *notifier,
+                         uint32_t source_type, const char *file_source)
+{
+    (void)notifier;
+    struct test_ctx *ctx = data;
+    ctx->notifier_add_received = 1;
+    ctx->notifier_add_type = source_type;
+    snprintf(ctx->notifier_add_source, sizeof(ctx->notifier_add_source), "%s", file_source);
+}
+
+static void notifier_remove(void *data, struct treeland_wallpaper_notifier_v1 *notifier,
+                            const char *file_source)
+{
+    (void)notifier;
+    struct test_ctx *ctx = data;
+    ctx->notifier_remove_received = 1;
+    snprintf(ctx->notifier_remove_source, sizeof(ctx->notifier_remove_source), "%s", file_source);
+}
+
+static const struct treeland_wallpaper_notifier_v1_listener notifier_listener = {
+    .add = notifier_add,
+    .remove = notifier_remove,
+};
+
 static int connect_client(struct test_ctx *ctx, const char *socket_name)
 {
     if (!protocol_test_connect(&ctx->connection, socket_name))
@@ -115,7 +141,11 @@ static int connect_client(struct test_ctx *ctx, const char *socket_name)
      * treeland_wallpaper_surface_v1.ready request (since 2) is dispatched. */
     ctx->shell = protocol_test_bind(&ctx->connection, "treeland_wallpaper_shell_v1",
                                     &treeland_wallpaper_shell_v1_interface, 2);
-    return ctx->shell != NULL;
+    ctx->notifier = protocol_test_bind(&ctx->connection, "treeland_wallpaper_notifier_v1",
+                                       &treeland_wallpaper_notifier_v1_interface, 1);
+    if (ctx->notifier)
+        treeland_wallpaper_notifier_v1_add_listener(ctx->notifier, &notifier_listener, ctx);
+    return ctx->shell != NULL && ctx->notifier != NULL;
 }
 
 static int shell_bound_version(struct test_ctx *ctx)
@@ -185,6 +215,19 @@ static int emit_slow_down(struct test_ctx *ctx) { (void)ctx; return protocol_tes
 static int play_received(struct test_ctx *ctx) { return ctx->play_received; }
 static int pause_received(struct test_ctx *ctx) { return ctx->pause_received; }
 static int slow_down_received(struct test_ctx *ctx) { return ctx->slow_down_received && ctx->slow_down_duration == 500; }
+static int emit_notifier_add(struct test_ctx *ctx) { (void)ctx; return protocol_test_invoke_server(wallpaper_notifier_emit_add, NULL); }
+static int notifier_add_received(struct test_ctx *ctx)
+{
+    return ctx->notifier_add_received
+        && ctx->notifier_add_type == TREELAND_WALLPAPER_NOTIFIER_V1_WALLPAPER_SOURCE_TYPE_IMAGE
+        && strcmp(ctx->notifier_add_source, "/tmp/test-image.jpg") == 0;
+}
+static int emit_notifier_remove(struct test_ctx *ctx) { (void)ctx; return protocol_test_invoke_server(wallpaper_notifier_emit_remove, NULL); }
+static int notifier_remove_received(struct test_ctx *ctx)
+{
+    return ctx->notifier_remove_received
+        && strcmp(ctx->notifier_remove_source, "/tmp/test-image.jpg") == 0;
+}
 
 static int destroy_wallpaper_surface(struct test_ctx *ctx)
 {
@@ -214,6 +257,10 @@ static const struct test_case cases[] = {
     { "surface.event.pause", pause_received },
     { "server.emit_slow_down", emit_slow_down },
     { "surface.event.slow_down", slow_down_received },
+    { "server.emit_notifier_add", emit_notifier_add },
+    { "notifier.event.add", notifier_add_received },
+    { "server.emit_notifier_remove", emit_notifier_remove },
+    { "notifier.event.remove", notifier_remove_received },
     { "surface.destroy", destroy_wallpaper_surface },
     { "shell.produced_after_destroy", produced_count_is_zero },
 };
@@ -221,6 +268,7 @@ static const struct test_case cases[] = {
 void test_cleanup(struct test_ctx *ctx)
 {
     if (ctx->wallpaper_surface) treeland_wallpaper_surface_v1_destroy(ctx->wallpaper_surface);
+    if (ctx->notifier) treeland_wallpaper_notifier_v1_destroy(ctx->notifier);
     if (ctx->shell) treeland_wallpaper_shell_v1_destroy(ctx->shell);
     protocol_test_disconnect(&ctx->connection);
 }

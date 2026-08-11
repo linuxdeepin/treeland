@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "modules/wallpaper/wallpapershellinterfacev1.h"
+#include "modules/wallpaper/wallpapernotifierinterfacev1.h"
 
 #include <wserver.h>
 
@@ -9,6 +10,7 @@ WAYLIB_SERVER_USE_NAMESPACE
 namespace {
 TreelandWallpaperShellInterfaceV1 *g_shell = nullptr;
 TreelandWallpaperSurfaceInterfaceV1 *g_wallpaperSurface = nullptr;
+TreelandWallpaperNotifierInterfaceV1 *g_notifier = nullptr;
 uint32_t g_failedError = 0;
 int g_failedCount = 0;
 int g_readyCount = 0;
@@ -17,6 +19,7 @@ int g_readyCount = 0;
 void protocol_test_setup(WServer *server)
 {
     g_shell = server->attach<TreelandWallpaperShellInterfaceV1>();
+    g_notifier = server->attach<TreelandWallpaperNotifierInterfaceV1>();
     QObject::connect(g_shell, &TreelandWallpaperShellInterfaceV1::wallpaperSurfaceAdded,
                      [](TreelandWallpaperSurfaceInterfaceV1 *surface) {
                          g_wallpaperSurface = surface;
@@ -61,6 +64,18 @@ void wallpaper_emit_slow_down(void *data)
         g_wallpaperSurface->slowDown(500);
     if (data)
         *static_cast<int *>(data) = 1;
+}
+
+void wallpaper_notifier_emit_add(void *)
+{
+    if (g_notifier)
+        g_notifier->sendAdd(TreelandWallpaperInterfaceV1::Image, QStringLiteral("/tmp/test-image.jpg"));
+}
+
+void wallpaper_notifier_emit_remove(void *)
+{
+    if (g_notifier)
+        g_notifier->sendRemove(QStringLiteral("/tmp/test-image.jpg"));
 }
 
 void wallpaper_query_failed(void *data)

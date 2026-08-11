@@ -16,6 +16,17 @@ int protocol_test_run(const char *socket_name);
 
 #define TEST_MSG_MAX 256
 
+struct dde_shell_surface_state {
+    int position_x;
+    int position_y;
+    int role_overlay;
+    int auto_placement;
+    int skip_switcher;
+    int skip_dock_preview;
+    int skip_multitask_view;
+    int accept_keyboard_focus;
+};
+
 struct test_result {
     const char *name;
     int         failed;

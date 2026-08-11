@@ -131,6 +131,8 @@ static const struct treeland_window_picker_v1_listener picker_listener = {
     .window = picker_window,
 };
 
+extern void dde_shell_query_surface_state(void *data);
+
 static int connect_client(struct test_ctx *ctx, const char *socket_name)
 {
     if (!protocol_test_connect(&ctx->connection, socket_name))
@@ -194,7 +196,7 @@ static int create_lockscreen(struct test_ctx *ctx)
 static int update_checker(struct test_ctx *ctx)
 {
     if (!ctx->output)
-        return 1;
+        return 0;
     treeland_window_overlap_checker_update(ctx->checker, 100, 100,
                                            TREELAND_WINDOW_OVERLAP_CHECKER_ANCHOR_TOP, ctx->output);
     return 1;
@@ -202,8 +204,20 @@ static int update_checker(struct test_ctx *ctx)
 
 static int set_surface_position(struct test_ctx *ctx) { treeland_dde_shell_surface_v1_set_surface_position(ctx->shell_surface, 42, 24); return 1; }
 static int set_surface_role(struct test_ctx *ctx) { treeland_dde_shell_surface_v1_set_role(ctx->shell_surface, TREELAND_DDE_SHELL_SURFACE_V1_ROLE_OVERLAY); return 1; }
+static int set_auto_placement(struct test_ctx *ctx) { treeland_dde_shell_surface_v1_set_auto_placement(ctx->shell_surface, 37); return 1; }
 static int set_skip_switcher(struct test_ctx *ctx) { treeland_dde_shell_surface_v1_set_skip_switcher(ctx->shell_surface, 1); return 1; }
+static int set_skip_dock_preview(struct test_ctx *ctx) { treeland_dde_shell_surface_v1_set_skip_dock_preview(ctx->shell_surface, 1); return 1; }
+static int set_skip_multitask_view(struct test_ctx *ctx) { treeland_dde_shell_surface_v1_set_skip_muti_task_view(ctx->shell_surface, 1); return 1; }
 static int set_keyboard_focus(struct test_ctx *ctx) { treeland_dde_shell_surface_v1_set_accept_keyboard_focus(ctx->shell_surface, 0); return 1; }
+static int shell_surface_state(struct test_ctx *ctx)
+{
+    (void)ctx;
+    struct dde_shell_surface_state state;
+    return protocol_test_invoke_server(dde_shell_query_surface_state, &state)
+        && state.position_x == 42 && state.position_y == 24 && state.role_overlay
+        && state.auto_placement == 37 && state.skip_switcher && state.skip_dock_preview
+        && state.skip_multitask_view && !state.accept_keyboard_focus;
+}
 static int toggle_multitaskview(struct test_ctx *ctx) { treeland_multitaskview_v1_toggle(ctx->multitaskview); return 1; }
 static int lock(struct test_ctx *ctx) { treeland_lockscreen_v1_lock(ctx->lockscreen); return 1; }
 static int shutdown(struct test_ctx *ctx) { treeland_lockscreen_v1_shutdown(ctx->lockscreen); return 1; }
@@ -228,8 +242,12 @@ static const struct test_case cases[] = {
     { "checker.update", update_checker },
     { "shell_surface.set_surface_position", set_surface_position },
     { "shell_surface.set_role", set_surface_role },
+    { "shell_surface.set_auto_placement", set_auto_placement },
     { "shell_surface.set_skip_switcher", set_skip_switcher },
+    { "shell_surface.set_skip_dock_preview", set_skip_dock_preview },
+    { "shell_surface.set_skip_multitask_view", set_skip_multitask_view },
     { "shell_surface.set_accept_keyboard_focus", set_keyboard_focus },
+    { "server.shell_surface_state", shell_surface_state },
     { "multitaskview.toggle", toggle_multitaskview },
     { "lockscreen.lock", lock },
     { "lockscreen.shutdown", shutdown },

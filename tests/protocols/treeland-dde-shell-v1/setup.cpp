@@ -1,20 +1,57 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "modules/dde-shell/ddeshellmanagerinterfacev1.h"
+#include "treeland-dde-shell-v1.h"
 
 #include <wseat.h>
+#include <wbackend.h>
 #include <wserver.h>
 
+#include <qwbackend.h>
+#include <qwdisplay.h>
+
+#include <wlr/backend.h>
+#include <wlr/types/wlr_output.h>
+
 WAYLIB_SERVER_USE_NAMESPACE
+QW_USE_NAMESPACE
 
 namespace {
 WindowOverlapCheckerInterface *g_checker = nullptr;
 DDEActiveInterface *g_active = nullptr;
 WindowPickerInterface *g_picker = nullptr;
+DDEShellSurfaceInterface *g_shellSurface = nullptr;
+
+void createTestOutput(WServer *server)
+{
+    auto *backend = server->findInterface<WBackend>();
+    if (!backend)
+        return;
+
+    backend->handle()->start();
+
+    auto *multi = qw_multi_backend::from(backend->handle()->handle());
+    if (!multi)
+        return;
+
+    wlr_backend *headlessHandle = nullptr;
+    multi->for_each_backend([](wlr_backend *backend, void *data) {
+        if (wlr_backend_is_headless(backend))
+            *static_cast<wlr_backend **>(data) = backend;
+    }, &headlessHandle);
+    if (!headlessHandle)
+        return;
+
+    auto *headless = qw_headless_backend::from(headlessHandle);
+    auto *output = headless->add_output(1920, 1080);
+    if (output)
+        wlr_output_create_global(output, server->handle()->handle());
+}
 }
 
 void protocol_test_setup(WServer *server)
 {
+    createTestOutput(server);
     server->attach<WSeat>();
     auto *manager = server->attach<DDEShellManagerInterfaceV1>();
     QObject::connect(manager, &DDEShellManagerInterfaceV1::windowOverlapCheckerCreated,
@@ -23,6 +60,28 @@ void protocol_test_setup(WServer *server)
                      [](DDEActiveInterface *active) { g_active = active; });
     QObject::connect(manager, &DDEShellManagerInterfaceV1::PickerCreated,
                      [](WindowPickerInterface *picker) { g_picker = picker; });
+    QObject::connect(manager, &DDEShellManagerInterfaceV1::surfaceCreated,
+                     [](DDEShellSurfaceInterface *surface) { g_shellSurface = surface; });
+}
+
+extern "C" void dde_shell_query_surface_state(void *data)
+{
+    auto *state = static_cast<dde_shell_surface_state *>(data);
+    *state = {};
+    if (!g_shellSurface)
+        return;
+
+    if (const auto position = g_shellSurface->surfacePos()) {
+        state->position_x = position->x();
+        state->position_y = position->y();
+    }
+    state->role_overlay = g_shellSurface->role()
+                          == DDEShellSurfaceInterface::Role::OVERLAY;
+    state->auto_placement = g_shellSurface->yOffset().value_or(0);
+    state->skip_switcher = g_shellSurface->skipSwitcher().value_or(false);
+    state->skip_dock_preview = g_shellSurface->skipDockPreView().value_or(false);
+    state->skip_multitask_view = g_shellSurface->skipMutiTaskView().value_or(false);
+    state->accept_keyboard_focus = g_shellSurface->acceptKeyboardFocus();
 }
 
 extern "C" void dde_shell_emit_test_events(void *)

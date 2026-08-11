@@ -28,6 +28,7 @@ struct test_ctx {
 
     /* bound globals */
     struct wl_compositor *compositor;
+    struct treeland_wallpaper_notifier_v1 *notifier;
 
     /* protocol objects */
     struct treeland_wallpaper_shell_v1   *shell;
@@ -39,6 +40,11 @@ struct test_ctx {
     int      pause_received;
     int      slow_down_received;
     uint32_t slow_down_duration;
+    int      notifier_add_received;
+    int      notifier_remove_received;
+    uint32_t notifier_add_type;
+    char     notifier_add_source[TEST_MSG_MAX];
+    char     notifier_remove_source[TEST_MSG_MAX];
 
     /* results */
     struct test_result *results;
