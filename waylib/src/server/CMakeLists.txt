@@ -217,6 +217,8 @@ set(SOURCES
     protocols/private/wvirtualkeyboardv1.cpp
     protocols/ext_foreign_toplevel_image_capture_source.c #TODO: Remove after wlroots 0.20
     protocols/wcursorshapemanagerv1.cpp
+    protocols/wpointerconstraintsv1.cpp
+    protocols/wrelativepointerv1.cpp
     protocols/woutputmanagerv1.cpp
     protocols/wextforeigntoplevellistv1.cpp
     protocols/wxdgdialogmanagerv1.cpp
@@ -314,6 +316,8 @@ set(HEADERS
     protocols/winputpopupsurface.h
     protocols/WInputPopupSurface
     protocols/wcursorshapemanagerv1.h
+    protocols/wpointerconstraintsv1.h
+    protocols/wrelativepointerv1.h
     protocols/WCursorShapeManagerV1
     protocols/woutputmanagerv1.h
     protocols/WOutputManagerV1

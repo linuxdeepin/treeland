@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "helper.h"
+#include "pointerconstraintsmanager.h"
 
 #include "qwxdgshell.h"
 #include "seatsmanager.h"
@@ -75,6 +76,8 @@
 #include <WXdgOutput>
 #include <wayland-util.h>
 #include <wcursorshapemanagerv1.h>
+#include <wpointerconstraintsv1.h>
+#include <wrelativepointerv1.h>
 #include <wextimagecapturesourcev1impl.h>
 #include <wlayersurface.h>
 #include <woutputhelper.h>
@@ -2074,6 +2077,9 @@ void Helper::init(Treeland::Treeland *treeland)
             &Helper::onOutputTestOrApply);
 
     m_server->attach<WCursorShapeManagerV1>();
+    m_pointerConstraintsV1 = m_server->attach<WPointerConstraintsV1>();
+    m_relativePointerManagerV1 = m_server->attach<WRelativePointerManagerV1>();
+    m_pointerConstraintsManager = new PointerConstraintsManager(m_pointerConstraintsV1, this, this);
     qw_fractional_scale_manager_v1::create(*m_server->handle(), WLR_FRACTIONAL_SCALE_V1_VERSION);
     qw_data_control_manager_v1::create(*m_server->handle());
     qw_ext_data_control_manager_v1::create(*m_server->handle(), EXT_DATA_CONTROL_MANAGER_V1_VERSION);
@@ -3309,7 +3315,19 @@ void Helper::setCurrentMode(CurrentMode mode)
 
     m_currentMode = mode;
 
+    if (m_currentMode != CurrentMode::Normal && m_pointerConstraintsManager)
+        m_pointerConstraintsManager->deactivateAll();
+
     Q_EMIT currentModeChanged();
+}
+
+bool Helper::isInMoveResize(WAYLIB_SERVER_NAMESPACE::WSeat *seat) const
+{
+    if (!m_rootSurfaceContainer || !seat)
+        return false;
+
+    auto *container = m_rootSurfaceContainer->getSeatContainer(seat);
+    return container && container->moveResizeState().surface;
 }
 
 void Helper::prepareLockScreenTransition()

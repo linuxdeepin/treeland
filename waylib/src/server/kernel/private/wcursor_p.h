@@ -29,6 +29,7 @@ struct wlr_pointer_pinch_end_event;
 struct wlr_pointer_hold_begin_event;
 struct wlr_pointer_hold_end_event;
 struct wlr_cursor;
+struct wlr_pointer_constraint_v1;
 struct wlr_touch_down_event;
 struct wlr_touch_up_event;
 struct wlr_touch_motion_event;
@@ -72,6 +73,9 @@ public:
 
     void connect();
     void processCursorMotion(QW_NAMESPACE::qw_pointer *device, uint32_t time);
+    bool applyPointerConstraint(QW_NAMESPACE::qw_pointer *device, uint32_t timeMsec,
+                                 double dx, double dy, double dxUnaccel, double dyUnaccel,
+                                 const QPointF &oldPos);
 
     W_DECLARE_PUBLIC(WCursor)
 
@@ -89,6 +93,9 @@ public:
     Qt::MouseButton button = Qt::NoButton;
     QPointF lastPressedOrTouchDownPosition;
     bool visible = true;
+    wlr_pointer_constraint_v1 *activeConstraint = nullptr;
+    QPointF lockedWarpTarget;
+    bool cursorVisibleBeforeLock = true;
     double scrollFactor = 1.0;
 };
 

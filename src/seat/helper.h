@@ -75,6 +75,8 @@ class WToplevelSurface;
 class WXdgDecorationManager;
 class WXdgOutputManager;
 class WXWayland;
+class WPointerConstraintsV1;
+class WRelativePointerManagerV1;
 
 class WForeignToplevel;
 class WExtForeignToplevelListV1;
@@ -139,6 +141,7 @@ class WallpaperManager;
 class WallpaperItem;
 class TreelandInputManagerInterfaceV1;
 class InputManager;
+class PointerConstraintsManager;
 
 struct wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request;
 struct wlr_idle_inhibitor_v1;
@@ -238,6 +241,8 @@ public:
     }
 
     void setCurrentMode(CurrentMode mode);
+
+    bool isInMoveResize(WAYLIB_SERVER_NAMESPACE::WSeat *seat) const;
 
     bool isNormalOrMultitaskview() const
     {
@@ -499,4 +504,8 @@ private:
     SeatsManager *m_seatManager = nullptr;
     InputManager *m_inputManager = nullptr;
     TreelandInputManagerInterfaceV1 *m_inputManagerInterfaceV1 = nullptr;
+
+    WPointerConstraintsV1 *m_pointerConstraintsV1 = nullptr;
+    WRelativePointerManagerV1 *m_relativePointerManagerV1 = nullptr;
+    PointerConstraintsManager *m_pointerConstraintsManager = nullptr;
 };

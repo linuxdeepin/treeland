@@ -22,6 +22,7 @@ class qw_output_cursor;
 class qw_surface;
 QW_END_NAMESPACE
 
+struct wlr_pointer_constraint_v1;
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WSeat;
@@ -80,6 +81,8 @@ public:
 
     bool isVisible() const;
     void setVisible(bool visible);
+    void setActivePointerConstraint(wlr_pointer_constraint_v1 *constraint);
+    wlr_pointer_constraint_v1 *activePointerConstraint() const;
 
     QPointF position() const;
     QPointF lastPressedOrTouchDownPosition() const;
