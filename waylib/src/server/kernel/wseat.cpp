@@ -953,8 +953,8 @@ bool WSeat::sendEvent(WSurface *target, QObject *shellObject, QObject *eventObje
     }
     case QEvent::HoverMove: Q_FALLTHROUGH();
     case QEvent::MouseMove: {
-        auto e = static_cast<QMouseEvent*>(event);
-        Q_ASSERT(e->source() == Qt::MouseEventNotSynthesized);
+        auto e = static_cast<QSinglePointEvent*>(event);
+        Q_ASSERT(event->type() != QEvent::MouseMove || static_cast<QMouseEvent*>(event)->source() == Qt::MouseEventNotSynthesized);
         // When begin drag, the wlroots will grab pointer event for drag, and the pointer focus is nullptr.
         if (d->pointerFocusEventObject) {
             // received HoverEnter event of next eventObject before HoverLeave event of last eventObject,
@@ -1700,10 +1700,11 @@ bool WSeat::filterUnacceptedEvent(QWindow *targetWindow, QInputEvent *event)
     // Maybe this seat has grabbed in wlroots, should send these events to graber.
     case QEvent::MouseButtonPress: Q_FALLTHROUGH();
     case QEvent::MouseButtonRelease: Q_FALLTHROUGH();
-    case QEvent::HoverMove: Q_FALLTHROUGH();
     case QEvent::MouseMove:
         if (static_cast<QMouseEvent*>(event)->source() != Qt::MouseEventNotSynthesized)
             return false;
+        Q_FALLTHROUGH();
+    case QEvent::HoverMove:
         if (d->handle()->pointer_has_grab())
             return sendEvent(nullptr, nullptr, nullptr, event);
         break;
