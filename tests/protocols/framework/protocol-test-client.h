@@ -13,16 +13,19 @@ extern "C" {
 
 typedef void (*protocol_test_server_callback)(void *data);
 
+enum { PROTOCOL_TEST_MAX_GLOBALS = 256 };
+enum { PROTOCOL_TEST_MAX_INTERFACE_NAME = 128 };
+
 struct protocol_test_global {
     uint32_t name;
     uint32_t version;
-    const char *interface;
+    char interface[PROTOCOL_TEST_MAX_INTERFACE_NAME];
 };
 
 struct protocol_test_connection {
     struct wl_display *display;
     struct wl_registry *registry;
-    struct protocol_test_global globals[64];
+    struct protocol_test_global globals[PROTOCOL_TEST_MAX_GLOBALS];
     uint32_t global_count;
 };
 

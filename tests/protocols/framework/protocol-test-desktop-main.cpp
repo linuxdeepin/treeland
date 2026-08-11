@@ -2,17 +2,20 @@
 
 #include "core/treeland.h"
 #include "core/treelandinit.h"
+#include "core/rootsurfacecontainer.h"
 #include "protocol-test-client.h"
 #include "seat/helper.h"
 #include "session/session.h"
 
 #include <QGuiApplication>
+#include <QElapsedTimer>
 #include <QMetaObject>
 #include <QSemaphore>
 #include <QTimer>
 #include <wsocket.h>
 
 #include <atomic>
+#include <cstdio>
 #include <cstdlib>
 #include <pthread.h>
 
@@ -78,8 +81,7 @@ int main(int argc, char *argv[])
     ClientThreadContext context { .socketName = socketName.constData() };
 
     pthread_t thread;
-    if (pthread_create(&thread, nullptr, runClient, &context) != 0)
-        return 1;
+    bool clientStarted = false;
 
     QTimer timer;
     QObject::connect(&timer, &QTimer::timeout, [&] {
@@ -87,8 +89,36 @@ int main(int argc, char *argv[])
             app.quit();
     });
     timer.start(10);
+    // Helper starts the headless backend during construction.  Output setup
+    // also waits for DConfig and QML work, so start the client only once the
+    // production root container has accepted an output.
+    QElapsedTimer outputDeadline;
+    outputDeadline.start();
+    QTimer outputReadyTimer;
+    QObject::connect(&outputReadyTimer, &QTimer::timeout, [&] {
+        if (clientStarted)
+            return;
+        if (helper->rootSurfaceContainer()->outputs().isEmpty()) {
+            if (outputDeadline.elapsed() < 5000)
+                return;
+            fprintf(stderr, "desktop protocol fixture timed out waiting for a root output\n");
+            context.result = 1;
+            context.done = true;
+            outputReadyTimer.stop();
+            return;
+        }
+        if (pthread_create(&thread, nullptr, runClient, &context) != 0) {
+            context.result = 1;
+            context.done = true;
+            return;
+        }
+        clientStarted = true;
+        outputReadyTimer.stop();
+    });
+    outputReadyTimer.start(10);
     app.exec();
-    pthread_join(thread, nullptr);
+    if (clientStarted)
+        pthread_join(thread, nullptr);
     g_runner = nullptr;
 
     // Treeland owns process-lifetime QML singletons whose shutdown ordering is
@@ -97,5 +127,6 @@ int main(int argc, char *argv[])
     // reaches an invalid SeatsManager during that production-only shutdown.
     // The protocol client has already completed and been joined, so terminate
     // without running the unrelated compositor shutdown sequence.
+    std::fflush(nullptr);
     std::_Exit(context.result);
 }

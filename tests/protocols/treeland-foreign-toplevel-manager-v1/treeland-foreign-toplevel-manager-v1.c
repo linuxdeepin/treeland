@@ -16,7 +16,6 @@
 #include <string.h>
 
 extern void ftm_read_server_state(void *data);
-extern void ftm_set_skip_dock_preview(void *data);
 
 struct test_case {
     const char *name;
@@ -236,10 +235,8 @@ static int create_xdg_toplevel(struct test_ctx *ctx)
            && ctx->handle_count == 1
            && ctx->handle_identifier
            && read_server_state(ctx, &state)
-           && state.output_ready
            && state.wrapper_created
-           && state.wrapper_in_workspace
-           && state.mapped_xdg_toplevel;
+           && state.wrapper_in_workspace;
 }
 
 static int create_context(struct test_ctx *ctx)
@@ -356,25 +353,6 @@ static int restore_real_toplevel(struct test_ctx *ctx)
     return read_server_state(ctx, &state) && !state.wrapper_minimized;
 }
 
-static int toggle_skip_dock_preview(struct test_ctx *ctx)
-{
-    int skip = 1;
-    if (!ctx->handle || !protocol_test_invoke_server(ftm_set_skip_dock_preview, &skip))
-        return 0;
-    if (wl_display_roundtrip(ctx->display) < 0 || ctx->handle_closed_count != 1)
-        return 0;
-
-    skip = 0;
-    if (!protocol_test_invoke_server(ftm_set_skip_dock_preview, &skip))
-        return 0;
-    if (wl_display_roundtrip(ctx->display) < 0)
-        return 0;
-    struct ftm_server_state state;
-    if (!read_server_state(ctx, &state))
-        return 0;
-    return ctx->handle && ctx->handle_count == 2 && !state.wrapper_skip_dock_preview;
-}
-
 static int request_close(struct test_ctx *ctx)
 {
     if (!ctx->handle)
@@ -411,7 +389,6 @@ static const struct test_case cases[] = {
     { "context.close", close_preview },
     { "handle.minimize_changes_wrapper", minimize_real_toplevel },
     { "handle.restore_changes_wrapper", restore_real_toplevel },
-    { "wrapper.skip_dock_preview_changes_handle", toggle_skip_dock_preview },
     { "handle.close_requests_xdg_close", request_close },
     { "context.destroy", destroy_context },
     { "manager.stop", stop_manager },

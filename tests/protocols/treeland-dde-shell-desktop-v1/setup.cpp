@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "core/shellhandler.h"
+#include "core/rootsurfacecontainer.h"
 #include "protocol-test-server.h"
 #include "seat/helper.h"
 #include "surface/surfacewrapper.h"
@@ -16,7 +17,7 @@ dde_desktop_state g_state {};
 
 void protocol_test_desktop_setup(Helper *helper)
 {
-    g_state.output_ready = protocol_test_create_headless_output(helper->backend(), false) ? 1 : 0;
+    protocol_test_create_headless_output(helper->backend(), false);
     QObject::connect(helper->shellHandler(),
                      &ShellHandler::surfaceWrapperAdded,
                      helper,
@@ -32,6 +33,7 @@ void protocol_test_desktop_setup(Helper *helper)
 extern "C" void dde_desktop_read_state(void *data)
 {
     auto state = g_state;
+    state.output_ready = !Helper::instance()->rootSurfaceContainer()->outputs().isEmpty() ? 1 : 0;
     if (g_wrapper) {
         state.is_dde_shell_surface = g_wrapper->isDDEShellSurface() ? 1 : 0;
         state.role_overlay = g_wrapper->surfaceRole() == SurfaceWrapper::SurfaceRole::Overlay ? 1 : 0;

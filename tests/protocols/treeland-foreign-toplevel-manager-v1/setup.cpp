@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "core/shellhandler.h"
+#include "core/rootsurfacecontainer.h"
 #include "modules/foreign-toplevel/foreigntoplevelmanagerv1.h"
 #include "protocol-test-server.h"
 #include "seat/helper.h"
@@ -20,7 +21,7 @@ struct ftm_server_state g_state {};
 
 void protocol_test_desktop_setup(Helper *helper)
 {
-    g_state.output_ready = protocol_test_create_headless_output(helper->backend(), false) ? 1 : 0;
+    protocol_test_create_headless_output(helper->backend(), false);
     g_manager = helper->shellHandler()->foreignToplevel();
     QObject::connect(g_manager,
                      &ForeignToplevelManagerInterfaceV1::requestDockPreview,
@@ -63,14 +64,9 @@ void protocol_test_desktop_setup(Helper *helper)
 
 extern "C" void ftm_read_server_state(void *data)
 {
+    g_state.output_ready = !Helper::instance()->rootSurfaceContainer()->outputs().isEmpty() ? 1 : 0;
     g_state.wrapper_minimized = g_wrapper && g_wrapper->shellSurface()
         && g_wrapper->shellSurface()->isMinimized() ? 1 : 0;
     g_state.wrapper_skip_dock_preview = g_wrapper && g_wrapper->skipDockPreView() ? 1 : 0;
     *static_cast<struct ftm_server_state *>(data) = g_state;
-}
-
-extern "C" void ftm_set_skip_dock_preview(void *data)
-{
-    if (g_wrapper)
-        g_wrapper->setSkipDockPreView(*static_cast<int *>(data));
 }

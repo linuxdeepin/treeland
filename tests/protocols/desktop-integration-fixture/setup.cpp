@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "desktop-integration-fixture.h"
+#include "core/rootsurfacecontainer.h"
 #include "protocol-test-server.h"
 #include "seat/helper.h"
 #include "core/shellhandler.h"
@@ -15,7 +16,7 @@ desktop_fixture_state g_state {};
 
 void protocol_test_desktop_setup(Helper *helper)
 {
-    g_state.output_ready = protocol_test_create_headless_output(helper->backend(), false) ? 1 : 0;
+    protocol_test_create_headless_output(helper->backend(), false);
     QObject::connect(helper->shellHandler(), &ShellHandler::surfaceWrapperAdded, helper,
                      [helper](SurfaceWrapper *wrapper) {
                          g_state.wrapper_created = 1;
@@ -25,5 +26,7 @@ void protocol_test_desktop_setup(Helper *helper)
 
 extern "C" void desktop_fixture_read_state(void *data)
 {
-    *static_cast<desktop_fixture_state *>(data) = g_state;
+    auto state = g_state;
+    state.output_ready = !Helper::instance()->rootSurfaceContainer()->outputs().isEmpty() ? 1 : 0;
+    *static_cast<desktop_fixture_state *>(data) = state;
 }

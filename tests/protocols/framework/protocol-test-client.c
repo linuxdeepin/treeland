@@ -11,13 +11,13 @@ static void registry_global(void *data, struct wl_registry *registry, uint32_t n
 {
     (void)registry;
     struct protocol_test_connection *connection = data;
-    if (connection->global_count == 64)
+    if (connection->global_count == PROTOCOL_TEST_MAX_GLOBALS)
         return;
-    connection->globals[connection->global_count++] = (struct protocol_test_global) {
-        .name = name,
-        .version = version,
-        .interface = interface,
-    };
+    struct protocol_test_global *global = &connection->globals[connection->global_count++];
+    global->name = name;
+    global->version = version;
+    strncpy(global->interface, interface, sizeof(global->interface) - 1);
+    global->interface[sizeof(global->interface) - 1] = '\0';
 }
 
 static void registry_global_remove(void *data, struct wl_registry *registry, uint32_t name)
