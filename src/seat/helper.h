@@ -184,6 +184,7 @@ public:
     WOutputRenderWindow *window() const;
     ShellHandler *shellHandler() const;
     Workspace *workspace() const;
+    WXdgOutputManager *xwaylandOutputManager() const;
 
     void init(Treeland::Treeland *treeland);
 
@@ -296,6 +297,7 @@ Q_SIGNALS:
 
     void launchpadMappedChanged(WOutput *output, bool mapped);
     void showDesktopRequested(WOutput *output);
+    void showDesktopStateChanged();
     void startLockscreened(WOutput *output, bool showAnimation);
     void modifierKeyReleased(QKeyEvent *event);
 
