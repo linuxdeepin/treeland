@@ -27,8 +27,6 @@ protected:
     void bind_resource(Resource *resource) override;
     void switch_to_greeter(Resource *resource) override;
     void switch_to_user(Resource *resource, const QString &username) override;
-    void activate_session(Resource *resource) override;
-    void deactivate_session(Resource *resource) override;
     void enable_render(Resource *resource) override;
     void disable_render(Resource *resource, uint32_t callback) override;
 };
@@ -70,18 +68,6 @@ void DDMInterfaceV1Private::switch_to_user([[maybe_unused]] Resource *resource, 
         helper->userModel()->setCurrentUserName(username);
         helper->showLockScreen(false);
     }
-}
-
-void DDMInterfaceV1Private::activate_session([[maybe_unused]] Resource *resource)
-{
-    qCWarning(lcTlCore) << "DDM protocol: activate_session";
-    Helper::instance()->activateSession();
-}
-
-void DDMInterfaceV1Private::deactivate_session([[maybe_unused]] Resource *resource)
-{
-    qCWarning(lcTlCore) << "DDM protocol: deactivate_session";
-    Helper::instance()->deactivateSession();
 }
 
 void DDMInterfaceV1Private::enable_render([[maybe_unused]] Resource *resource)

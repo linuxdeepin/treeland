@@ -3490,11 +3490,6 @@ DDMInterfaceV1 *Helper::ddmInterfaceV1() const {
     return m_ddmInterfaceV1;
 }
 
-void Helper::activateSession() {
-    if (!m_backend->isSessionActive())
-        m_backend->activateSession();
-}
-
 bool Helper::activateUserSession(const QString &username, int sessionId)
 {
     if (!m_userModel->getUser(username))
@@ -3507,11 +3502,6 @@ bool Helper::activateUserSession(const QString &username, int sessionId)
     m_userModel->setCurrentUserName(username);
     m_sessionManager->commitActiveUserSession(update);
     return true;
-}
-
-void Helper::deactivateSession() {
-    if (m_backend->isSessionActive())
-        m_backend->deactivateSession();
 }
 
 void Helper::enableRender() {
