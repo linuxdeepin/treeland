@@ -2189,6 +2189,7 @@ void Helper::init(Treeland::Treeland *treeland)
             &Treeland::Treeland::SessionChanged,
             m_shortcutManager,
             &ShortcutManagerV2::onSessionChanged);
+    m_shortcutManager->onSessionChanged();
     auto shortcutControl = m_shortcutManager->controller();
     auto *shortcutRunner = new ShortcutRunner(shortcutControl);
     connect(shortcutControl,

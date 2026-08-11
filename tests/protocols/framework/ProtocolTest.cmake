@@ -97,7 +97,8 @@ endfunction()
 
 function(treeland_add_desktop_integration_test)
     set(oneValueArgs NAME XML SETUP CLIENT)
-    cmake_parse_arguments(ARGS "" "${oneValueArgs}" "" ${ARGN})
+    set(multiValueArgs EXTRA_XMLS EXTRA_LIBRARIES)
+    cmake_parse_arguments(ARGS "" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
     foreach(required NAME SETUP CLIENT)
         if(NOT ARGS_${required})
             message(FATAL_ERROR "treeland_add_desktop_integration_test requires ${required}")
@@ -142,6 +143,24 @@ function(treeland_add_desktop_integration_test)
         )
         list(APPEND protocol_client_sources "${protocol_header}" "${protocol_code}")
     endif()
+    foreach(extra_xml IN LISTS ARGS_EXTRA_XMLS)
+        get_filename_component(extra_protocol_basename "${extra_xml}" NAME_WE)
+        set(extra_protocol_header "${CMAKE_CURRENT_BINARY_DIR}/${extra_protocol_basename}-client-protocol.h")
+        set(extra_protocol_code "${CMAKE_CURRENT_BINARY_DIR}/${extra_protocol_basename}-client-protocol.c")
+        add_custom_command(
+            OUTPUT "${extra_protocol_header}"
+            COMMAND wayland-scanner client-header "${extra_xml}" "${extra_protocol_header}"
+            DEPENDS "${extra_xml}"
+            VERBATIM
+        )
+        add_custom_command(
+            OUTPUT "${extra_protocol_code}"
+            COMMAND wayland-scanner private-code "${extra_xml}" "${extra_protocol_code}"
+            DEPENDS "${extra_xml}" "${extra_protocol_header}"
+            VERBATIM
+        )
+        list(APPEND protocol_client_sources "${extra_protocol_header}" "${extra_protocol_code}")
+    endforeach()
     add_executable(${target}
         "${TREELAND_PROTOCOL_TEST_FRAMEWORK_DIR}/protocol-test-desktop-main.cpp"
         "${TREELAND_PROTOCOL_TEST_FRAMEWORK_DIR}/protocol-test-client.c"
@@ -163,7 +182,13 @@ function(treeland_add_desktop_integration_test)
         "${CMAKE_SOURCE_DIR}/waylib/src/server/kernel"
         "${CMAKE_SOURCE_DIR}/waylib/src/server/utils"
     )
-    target_link_libraries(${target} PRIVATE libtreeland PkgConfig::WAYLAND_CLIENT Qt6::Core Qt6::Gui)
+    target_link_libraries(${target} PRIVATE
+        libtreeland
+        PkgConfig::WAYLAND_CLIENT
+        Qt6::Core
+        Qt6::Gui
+        ${ARGS_EXTRA_LIBRARIES}
+    )
     set_target_properties(${target} PROPERTIES C_STANDARD 11)
     add_test(NAME ${target} COMMAND ${target})
     set_tests_properties(${target} PROPERTIES
