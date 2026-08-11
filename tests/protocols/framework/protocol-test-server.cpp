@@ -16,10 +16,12 @@ WAYLIB_SERVER_USE_NAMESPACE
 bool protocol_test_create_headless_output(WServer *server, int width, int height)
 {
     auto *backend = server->findInterface<WBackend>();
-    if (!backend)
-        return false;
+    return protocol_test_create_headless_output(backend, true, width, height);
+}
 
-    if (!backend->handle()->start())
+bool protocol_test_create_headless_output(WBackend *backend, bool startBackend, int width, int height)
+{
+    if (!backend || (startBackend && !wlr_backend_start(backend->handle())))
         return false;
 
     auto *multi = backend->handle();
@@ -38,8 +40,11 @@ bool protocol_test_create_headless_output(WServer *server, int width, int height
     if (!output)
         return false;
 
-    wlr_output_create_global(output, server->handle());
-    return WOutput::fromHandle(output) != nullptr;
+    auto *woutput = WOutput::fromHandle(output);
+    if (!woutput)
+        return false;
+    wlr_output_create_global(output, woutput->server()->handle());
+    return true;
 }
 
 bool protocol_test_enable_shm(WServer *server)

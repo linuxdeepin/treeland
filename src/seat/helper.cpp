@@ -1,6 +1,5 @@
-// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
-
 #include <wscopedvalue.h>
 #include "helper.h"
 
@@ -2248,6 +2247,7 @@ void Helper::init(Treeland::Treeland *treeland)
             &Treeland::Treeland::SessionChanged,
             m_shortcutManager,
             &ShortcutManagerV2::onSessionChanged);
+    m_shortcutManager->onSessionChanged();
     auto shortcutControl = m_shortcutManager->controller();
     auto *shortcutRunner = new ShortcutRunner(shortcutControl);
     connect(shortcutControl,
@@ -3244,12 +3244,7 @@ Helper::OutputMode Helper::outputMode() const
     return m_mode;
 }
 
-/**
- * Add a WSocket to the Wayland server.
- * This function is used by Treeland::ActivateWayland.
- *
- * @param socket WSocket to add
- */
+
 void Helper::addSocket(WSocket *socket)
 {
     m_server->addSocket(socket);
@@ -3889,15 +3884,7 @@ void Helper::restoreCopyMode()
     applyCopyModeToOutputs(primaryOutput, allSurfaces, copyOutputs, false);
 }
 
-/**
- * Move a XWayland window's surface corresponding to wid, to a
- * position relative to a WSurface. Top-left point is always used.
- *
- * @param wid X Window ID for the XWayland surface
- * @param anchor The anchor WSurface to be relative to
- * @param dx Horizontal distance between the top-left point of anchor and the destination
- * @param dy Vertical distance between the top-left point of anchor and the destination
- */
+
 bool Helper::setXWindowPositionRelative(uint wid, WSurface *anchor, wl_fixed_t dx, wl_fixed_t dy) const
 {
     SurfaceWrapper *ach = m_rootSurfaceContainer->getSurface(anchor);

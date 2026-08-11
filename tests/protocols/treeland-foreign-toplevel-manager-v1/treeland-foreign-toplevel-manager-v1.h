@@ -22,7 +22,12 @@ struct test_result {
 
 
 struct ftm_server_state {
+    int      output_ready;
+    int      wrapper_created;
+    int      wrapper_in_workspace;
     int      mapped_xdg_toplevel;
+    int      wrapper_minimized;
+    int      wrapper_skip_dock_preview;
     int      preview_fired;
     int      preview_x;
     int      preview_y;
@@ -43,12 +48,16 @@ struct test_ctx {
 
     struct treeland_foreign_toplevel_manager_v1  *manager;
     struct treeland_dock_preview_context_v1      *context;
+    struct treeland_foreign_toplevel_handle_v1   *handle;
     struct protocol_test_xdg_toplevel             xdg_toplevel;
 
 
     int context_enter_received;
     int context_leave_received;
     int manager_finished_received;
+    int handle_count;
+    int handle_closed_count;
+    uint32_t handle_identifier;
 
 
     struct test_result *results;
