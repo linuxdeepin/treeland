@@ -1,0 +1,32 @@
+// Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
+// SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+
+#pragma once
+
+#include "protocol-test-client.h"
+#include "xdg-shell-client-protocol.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+struct protocol_test_xdg_toplevel {
+    struct wl_compositor *compositor;
+    struct xdg_wm_base *wm_base;
+    struct wl_surface *surface;
+    struct xdg_surface *xdg_surface;
+    struct xdg_toplevel *toplevel;
+    struct wl_shm *shm;
+    struct wl_buffer *buffer;
+    uint32_t configure_serial;
+    int configured;
+};
+
+
+int protocol_test_xdg_toplevel_create(struct protocol_test_connection *connection,
+                                      struct protocol_test_xdg_toplevel *toplevel);
+void protocol_test_xdg_toplevel_destroy(struct protocol_test_xdg_toplevel *toplevel);
+
+#ifdef __cplusplus
+}
+#endif

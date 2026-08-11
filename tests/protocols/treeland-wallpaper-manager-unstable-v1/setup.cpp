@@ -1,54 +1,22 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "modules/wallpaper/wallpapermanagerinterfacev1.h"
+#include "protocol-test-server.h"
 #include "treeland-wallpaper-manager-unstable-v1.h"
 
-#include <wbackend.h>
 #include <wserver.h>
 
-#include <qwbackend.h>
-#include <qwdisplay.h>
-
 WAYLIB_SERVER_USE_NAMESPACE
-QW_USE_NAMESPACE
 
 namespace {
 TreelandWallpaperInterfaceV1 *g_wallpaper = nullptr;
 TreelandWallpaperInterfaceV1 *g_wallpaper2 = nullptr;
 
-
-void createTestOutput(WServer *server)
-{
-    auto *backend = server->findInterface<WBackend>();
-    if (!backend)
-        return;
-
-
-    backend->handle()->start();
-
-    auto *multi = qw_multi_backend::from(backend->handle()->handle());
-    if (!multi)
-        return;
-    wlr_backend *headlessHandle = nullptr;
-    multi->for_each_backend([](wlr_backend *b, void *data) {
-        if (wlr_backend_is_headless(b))
-            *static_cast<wlr_backend **>(data) = b;
-    }, &headlessHandle);
-    if (!headlessHandle)
-        return;
-    auto *headless = qw_headless_backend::from(headlessHandle);
-    auto *output = headless->add_output(1920, 1080);
-    if (!output)
-        return;
-
-
-    wlr_output_create_global(output, server->handle()->handle());
-}
 }
 
 void protocol_test_setup(WServer *server)
 {
-    createTestOutput(server);
+    protocol_test_create_headless_output(server);
 
     auto *manager = server->attach<TreelandWallpaperManagerInterfaceV1>();
     QObject::connect(manager, &TreelandWallpaperManagerInterfaceV1::wallpaperCreated,
