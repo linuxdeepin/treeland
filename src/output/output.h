@@ -97,6 +97,9 @@ public:
                                      double heightPx,
                                      double widthMm,
                                      double heightMm);
+    static QPointF constrainToValidArea(const QPointF &pos,
+                                        const QSizeF &windowSize,
+                                        const QRectF &validGeo);
     qreal preferredScaleFactor(const QSize &pixelSize) const;
 
     OutputConfig* config() const;
@@ -142,9 +145,6 @@ private:
                                      const QRectF &normalGeo,
                                      const QRectF &validGeo,
                                      const QSizeF &offset);
-    QPointF constrainToValidArea(const QPointF &pos,
-                                 const QSizeF &windowSize,
-                                 const QRectF &validGeo);
     // Move surface to pos and then clamp it so that its titlebar remains
     // visible within this output's validGeometry.  Always prefer this helper
     // over calling surface->moveNormalGeometryInOutput() directly when the

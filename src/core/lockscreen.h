@@ -44,6 +44,7 @@ public:
     void shutdown();
     void switchUser();
     void setPrimaryOutputName(const QString &primaryOutputName);
+    QString primaryOutputName() const { return m_primaryOutputName; }
 
 Q_SIGNALS:
     void unlock();

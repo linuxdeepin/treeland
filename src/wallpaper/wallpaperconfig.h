@@ -11,9 +11,9 @@
 
 class WallpaperWorkspaceConfig {
 public:
-    int workspaceId;
+    int workspaceId = 0;
     QString desktopWallpaper;
-    TreelandWallpaperInterfaceV1::WallpaperType desktopWallpapertype;
+    TreelandWallpaperInterfaceV1::WallpaperType desktopWallpapertype = TreelandWallpaperInterfaceV1::Image;
 
     QJsonObject toJson() const;
 
@@ -25,7 +25,7 @@ public:
     QString outputName;
     QString lockscreenWallpaper;
     QList<WallpaperWorkspaceConfig> workspaces;
-    TreelandWallpaperInterfaceV1::WallpaperType lockScreenWallpapertype;
+    TreelandWallpaperInterfaceV1::WallpaperType lockScreenWallpapertype = TreelandWallpaperInterfaceV1::Image;
 
     QJsonObject toJson() const;
     bool containsWorkspace(int id) const;

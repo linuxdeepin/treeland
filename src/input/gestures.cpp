@@ -192,6 +192,11 @@ void GestureRecognizer::unregisterSwipeGesture(SwipeGesture *gesture)
     if (m_activeSwipeGestures.removeOne(gesture)) {
         Q_EMIT gesture->cancelled();
     }
+}
+
+void GestureRecognizer::removeSwipeGesture(SwipeGesture *gesture)
+{
+    unregisterSwipeGesture(gesture);
     gesture->deleteLater();
 }
 
@@ -449,6 +454,11 @@ void GestureRecognizer::unregisterHoldGesture(HoldGesture *gesture)
     if (m_activeHoldGestures.removeOne(gesture)) {
         Q_EMIT gesture->cancelled();
     }
+}
+
+void GestureRecognizer::removeHoldGesture(HoldGesture *gesture)
+{
+    unregisterHoldGesture(gesture);
     gesture->deleteLater();
 }
 

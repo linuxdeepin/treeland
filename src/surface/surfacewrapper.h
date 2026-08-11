@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #pragma once
 
+// TODO(unit-test): SurfaceWrapper inherits QQuickItem and requires the Qt Scene Graph
+// rendering pipeline. Ref: WM-29. Solution: Separate business logic from rendering.
+
 #include <wsurfaceitem.h>
 #include <wtoplevelsurface.h>
 #include <qwglobal.h>

@@ -76,7 +76,8 @@
                 "outputOnFailure": true
             },
             "execution": {
-                "noTestsAction": "error"
+                "noTestsAction": "error",
+                "excludeLabel": "manual"
             }
         }
     ]
