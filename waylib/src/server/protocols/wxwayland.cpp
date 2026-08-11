@@ -15,9 +15,13 @@
 
 #include <wlr_all.h>
 
+#include <wlr/util/box.h>
+#include <wlr/xwayland/xwayland.h>
+
 #include <QCoreApplication>
 #include <QTimer>
 
+#include <array>
 #include <utility>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -284,6 +288,7 @@ QVarLengthArray<xcb_atom_t> WXWayland::supportedAtoms() const
 
     QVarLengthArray<xcb_atom_t> atomList;
     atomList.append(atoms, atoms_len);
+    free(reply);
 
     return atomList;
 }
@@ -313,6 +318,109 @@ void WXWayland::setAtomSupported(xcb_atom_t atom, bool supported)
         atoms.removeOne(atom);
         setSupportedAtoms(atoms);
     }
+}
+
+void WXWayland::setWorkareas(const QVector<QRect> &workareas)
+{
+    QVector<wlr_box> boxes;
+    boxes.reserve(workareas.size());
+    for (const QRect &workarea : workareas) {
+        boxes.append({ workarea.x(), workarea.y(), workarea.width(), workarea.height() });
+    }
+
+    wlr_xwayland_set_workareas(handle()->handle(), boxes.constData(), boxes.size());
+}
+
+void WXWayland::setDesktopProperties(uint32_t count,
+                                     const QSize &geometry,
+                                     uint32_t current,
+                                     const QStringList &names,
+                                     const QVector<QPoint> &viewports,
+                                     const QVector<QRect> &workareas,
+                                     bool showingDesktop)
+{
+    auto *connection = xcbConnection();
+    if (!xcbScreen()) {
+        return;
+    }
+    const xcb_window_t root = xcbScreen()->root;
+    const auto cardinal = XCB_ATOM_CARDINAL;
+    const auto setCardinals = [this, connection, root, cardinal](const QByteArray &name,
+                                                                 const uint32_t *data,
+                                                                 size_t size) {
+        xcb_change_property(connection,
+                            XCB_PROP_MODE_REPLACE,
+                            root,
+                            atom(name),
+                            cardinal,
+                            32,
+                            size,
+                            data);
+    };
+
+    const QByteArray numberOfDesktops("_NET_NUMBER_OF_DESKTOPS");
+    const QByteArray desktopGeometry("_NET_DESKTOP_GEOMETRY");
+    const QByteArray currentDesktop("_NET_CURRENT_DESKTOP");
+    const QByteArray desktopNames("_NET_DESKTOP_NAMES");
+    const QByteArray desktopViewport("_NET_DESKTOP_VIEWPORT");
+    const QByteArray desktopLayout("_NET_DESKTOP_LAYOUT");
+    const QByteArray workarea("_NET_WORKAREA");
+    const QByteArray showingDesktopProperty("_NET_SHOWING_DESKTOP");
+    const QByteArray utf8String("UTF8_STRING");
+
+    const std::array<QByteArray, 8> supportedNames {
+        numberOfDesktops,
+        desktopGeometry,
+        currentDesktop,
+        desktopNames,
+        desktopViewport,
+        desktopLayout,
+        workarea,
+        showingDesktopProperty,
+    };
+    auto supported = supportedAtoms();
+    for (const auto &name : supportedNames) {
+        const xcb_atom_t propertyAtom = atom(name);
+        if (!supported.contains(propertyAtom))
+            supported.append(propertyAtom);
+    }
+    setSupportedAtoms(supported);
+
+    setCardinals(numberOfDesktops, &count, 1);
+    const uint32_t geometryData[] = { uint32_t(geometry.width()), uint32_t(geometry.height()) };
+    setCardinals(desktopGeometry, geometryData, std::size(geometryData));
+    setCardinals(currentDesktop, &current, 1);
+
+    QByteArray encodedNames;
+    for (const QString &name : names) {
+        encodedNames.append(name.toUtf8());
+        encodedNames.append('\0');
+    }
+    xcb_change_property(connection,
+                        XCB_PROP_MODE_REPLACE,
+                        root,
+                        atom(desktopNames),
+                        atom(utf8String),
+                        8,
+                        encodedNames.size(),
+                        encodedNames.constData());
+
+    QVector<uint32_t> viewportData;
+    viewportData.reserve(viewports.size() * 2);
+    for (const QPoint &viewport : viewports) {
+        viewportData.append(uint32_t(viewport.x()));
+        viewportData.append(uint32_t(viewport.y()));
+    }
+    setCardinals(desktopViewport, viewportData.constData(), viewportData.size());
+
+    // Horizontal, count columns, one row, starting at the top-left corner.
+    const uint32_t layoutData[] = { 0, count, 1, 0 };
+    setCardinals(desktopLayout, layoutData, std::size(layoutData));
+    const uint32_t showingDesktopData = showingDesktop;
+    setCardinals(showingDesktopProperty, &showingDesktopData, 1);
+
+    setWorkareas(workareas);
+    xcb_flush(connection);
 }
 
 void WXWayland::setSeat(WSeat *seat)

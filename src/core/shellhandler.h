@@ -26,6 +26,7 @@ class Helper;
 class SurfaceWrapper;
 class RootSurfaceContainer;
 class LayerSurfaceContainer;
+class Output;
 class Workspace;
 class SurfaceContainer;
 class IMCandidatePanelManager;
@@ -135,6 +136,9 @@ private:
                                     SurfaceWrapper *wrapper);
     void setResourceManagerAtom(WAYLIB_SERVER_NAMESPACE::WXWayland *xwayland,
                                 const QByteArray &value);
+    void updateXWaylandDesktopProperties();
+    void watchXWaylandDesktopOutput(Output *output);
+    void watchXWaylandWorkspaceNames();
     // Prelaunch splash related: creates a prelaunch SurfaceWrapper when
     // PrelaunchSplash::splashRequested
     void handlePrelaunchSplashRequested(const QString &appId,

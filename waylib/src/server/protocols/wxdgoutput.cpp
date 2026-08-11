@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wxdgoutput.h"
+#include "woutput.h"
 #include "woutputlayout.h"
 #include "wsocket.h"
 #include "wayliblogging.h"
@@ -409,6 +410,22 @@ qreal WXdgOutputManager::scaleOverride() const
 void WXdgOutputManager::resetScaleOverride()
 {
     setScaleOverride(0.0);
+}
+
+QRect WXdgOutputManager::outputGeometry(WOutput *output) const
+{
+    W_DC(WXdgOutputManager);
+    auto *layoutOutput = wlr_output_layout_get(d->layout->handle()->handle(), output->nativeHandle());
+
+    int width = 0;
+    int height = 0;
+    wlr_output_effective_resolution(layoutOutput->output, &width, &height);
+
+    const qreal scale = d->scaleOverride > 0.0 ? d->scaleOverride : 1.0;
+    return QRect(qFloor(layoutOutput->x * scale),
+                 qFloor(layoutOutput->y * scale),
+                 qCeil(width * scale),
+                 qCeil(height * scale));
 }
 
 QByteArrayView WXdgOutputManager::interfaceName() const

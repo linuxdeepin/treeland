@@ -5,9 +5,12 @@
 
 #include <wserver.h>
 
+#include <QRect>
+
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WOutputLayout;
+class WOutput;
 class WXdgOutputManagerPrivate;
 class WAYLIB_SERVER_EXPORT WXdgOutputManager : public QObject, public WObject, public WServerInterface
 {
@@ -22,6 +25,7 @@ public:
     void setScaleOverride(qreal scaleOverride);
     qreal scaleOverride() const;
     void resetScaleOverride();
+    QRect outputGeometry(WOutput *output) const;
 
     QByteArrayView interfaceName() const override;
 
