@@ -48,8 +48,8 @@ static void xdg_toplevel_configure(void *data, struct xdg_toplevel *toplevel,
 
 static void xdg_toplevel_close(void *data, struct xdg_toplevel *toplevel)
 {
-    (void)data;
     (void)toplevel;
+    ((struct protocol_test_xdg_toplevel *)data)->close_received = 1;
 }
 
 static void xdg_toplevel_configure_bounds(void *data, struct xdg_toplevel *toplevel,
@@ -111,8 +111,11 @@ static int map_toplevel(struct protocol_test_connection *connection,
     return wl_display_roundtrip(connection->display) >= 0;
 }
 
-int protocol_test_xdg_toplevel_create(struct protocol_test_connection *connection,
-                                      struct protocol_test_xdg_toplevel *toplevel)
+int protocol_test_xdg_toplevel_create_with_surface_setup(
+    struct protocol_test_connection *connection,
+    struct protocol_test_xdg_toplevel *toplevel,
+    protocol_test_xdg_surface_setup setup,
+    void *data)
 {
     memset(toplevel, 0, sizeof(*toplevel));
     toplevel->compositor = protocol_test_bind(connection, "wl_compositor", &wl_compositor_interface, 1);
@@ -124,6 +127,8 @@ int protocol_test_xdg_toplevel_create(struct protocol_test_connection *connectio
     xdg_wm_base_add_listener(toplevel->wm_base, &wm_base_listener, toplevel);
     toplevel->surface = wl_compositor_create_surface(toplevel->compositor);
     if (!toplevel->surface)
+        goto failed;
+    if (setup && !setup(toplevel->surface, data))
         goto failed;
     toplevel->xdg_surface = xdg_wm_base_get_xdg_surface(toplevel->wm_base, toplevel->surface);
     if (!toplevel->xdg_surface)
@@ -143,6 +148,12 @@ int protocol_test_xdg_toplevel_create(struct protocol_test_connection *connectio
 failed:
     protocol_test_xdg_toplevel_destroy(toplevel);
     return 0;
+}
+
+int protocol_test_xdg_toplevel_create(struct protocol_test_connection *connection,
+                                      struct protocol_test_xdg_toplevel *toplevel)
+{
+    return protocol_test_xdg_toplevel_create_with_surface_setup(connection, toplevel, NULL, NULL);
 }
 
 void protocol_test_xdg_toplevel_destroy(struct protocol_test_xdg_toplevel *toplevel)

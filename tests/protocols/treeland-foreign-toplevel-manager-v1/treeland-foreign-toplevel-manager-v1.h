@@ -27,7 +27,12 @@ struct test_result {
  * back by the client through protocol_test_invoke_server(). POD, shared by the
  * C client and the C++ fixture. */
 struct ftm_server_state {
+    int      output_ready;
+    int      wrapper_created;
+    int      wrapper_in_workspace;
     int      mapped_xdg_toplevel;
+    int      wrapper_minimized;
+    int      wrapper_skip_dock_preview;
     int      preview_fired;
     int      preview_x;
     int      preview_y;
@@ -48,12 +53,16 @@ struct test_ctx {
     /* protocol objects */
     struct treeland_foreign_toplevel_manager_v1  *manager;
     struct treeland_dock_preview_context_v1      *context;
+    struct treeland_foreign_toplevel_handle_v1   *handle;
     struct protocol_test_xdg_toplevel             xdg_toplevel;
 
     /* event verification */
     int context_enter_received;
     int context_leave_received;
     int manager_finished_received;
+    int handle_count;
+    int handle_closed_count;
+    uint32_t handle_identifier;
 
     /* results */
     struct test_result *results;

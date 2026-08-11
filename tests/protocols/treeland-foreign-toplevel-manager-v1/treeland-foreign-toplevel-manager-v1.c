@@ -2,21 +2,10 @@
  * SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
  * Pure-C Wayland client for the treeland-foreign-toplevel-manager-v1 protocol test.
  *
- * The manager never lets a client create a treeland_foreign_toplevel_handle_v1
- * by request: handles are pushed through the toplevel event, and only for
- * surfaces the compositor has wrapped server-side (SurfaceWrapper, which needs
- * a QmlEngine + WToplevelSurface), so the handle requests and the toplevel
- * event are out of reach here. What is honestly observable from a bare client:
- *   - the client creates an xdg_toplevel so its surface carries a waylib
- *     WSurface wrapper, which the dock preview context resolves;
- *   - get_dock_preview_context(surface) and its show / show_tooltip / close
- *     requests, whose server-side effect is the manager's requestDockPreview /
- *     requestDockPreviewTooltip / requestDockClose signals (captured by
- *     setup.cpp and read back via protocol_test_invoke_server);
- *   - the dock_preview_context enter/leave events, emitted by the server when
- *     the compositor drives enterDockPreview/leaveDockPreview (deliberate
- *     server-side stimuli, no client request exists for them);
- *   - the manager stop request, answered by the finished event.
+ * This runs against the production Helper/ShellHandler fixture.  The client
+ * maps an xdg_toplevel; ShellHandler must create its SurfaceWrapper, add it to
+ * the workspace, and register it with the production foreign-toplevel manager.
+ * The resulting handle requests are then checked against that real wrapper.
  */
 #include "treeland-foreign-toplevel-manager-v1.h"
 #include "treeland-foreign-toplevel-manager-v1-client-protocol.h"
@@ -27,8 +16,7 @@
 #include <string.h>
 
 extern void ftm_read_server_state(void *data);
-extern void ftm_enter_dock_preview(void *data);
-extern void ftm_leave_dock_preview(void *data);
+extern void ftm_set_skip_dock_preview(void *data);
 
 struct test_case {
     const char *name;
@@ -89,15 +77,105 @@ int test_print_results(struct test_ctx *ctx)
     return failed == 0;
 }
 
+static void handle_pid(void *data, struct treeland_foreign_toplevel_handle_v1 *handle,
+                       uint32_t pid)
+{
+    (void)data;
+    (void)handle;
+    (void)pid;
+}
+
+static void handle_title(void *data, struct treeland_foreign_toplevel_handle_v1 *handle,
+                         const char *title)
+{
+    (void)data;
+    (void)handle;
+    (void)title;
+}
+
+static void handle_app_id(void *data, struct treeland_foreign_toplevel_handle_v1 *handle,
+                          const char *app_id)
+{
+    (void)data;
+    (void)handle;
+    (void)app_id;
+}
+
+static void handle_identifier(void *data, struct treeland_foreign_toplevel_handle_v1 *handle,
+                              uint32_t identifier)
+{
+    (void)handle;
+    ((struct test_ctx *)data)->handle_identifier = identifier;
+}
+
+static void handle_output_enter(void *data, struct treeland_foreign_toplevel_handle_v1 *handle,
+                                struct wl_output *output)
+{
+    (void)data;
+    (void)handle;
+    (void)output;
+}
+
+static void handle_output_leave(void *data, struct treeland_foreign_toplevel_handle_v1 *handle,
+                                struct wl_output *output)
+{
+    (void)data;
+    (void)handle;
+    (void)output;
+}
+
+static void handle_state(void *data, struct treeland_foreign_toplevel_handle_v1 *handle,
+                         struct wl_array *state)
+{
+    (void)data;
+    (void)handle;
+    (void)state;
+}
+
+static void handle_done(void *data, struct treeland_foreign_toplevel_handle_v1 *handle)
+{
+    (void)data;
+    (void)handle;
+}
+
+static void handle_closed(void *data, struct treeland_foreign_toplevel_handle_v1 *handle)
+{
+    struct test_ctx *ctx = data;
+    if (ctx->handle == handle)
+        ctx->handle = NULL;
+    ++ctx->handle_closed_count;
+    treeland_foreign_toplevel_handle_v1_destroy(handle);
+}
+
+static void handle_parent(void *data, struct treeland_foreign_toplevel_handle_v1 *handle,
+                          struct treeland_foreign_toplevel_handle_v1 *parent)
+{
+    (void)data;
+    (void)handle;
+    (void)parent;
+}
+
+static const struct treeland_foreign_toplevel_handle_v1_listener handle_listener = {
+    .pid = handle_pid,
+    .title = handle_title,
+    .app_id = handle_app_id,
+    .identifier = handle_identifier,
+    .output_enter = handle_output_enter,
+    .output_leave = handle_output_leave,
+    .state = handle_state,
+    .done = handle_done,
+    .closed = handle_closed,
+    .parent = handle_parent,
+};
+
 static void manager_toplevel(void *data, struct treeland_foreign_toplevel_manager_v1 *manager,
                              struct treeland_foreign_toplevel_handle_v1 *toplevel)
 {
-    /* A bare client surface can never become a server-side toplevel, so this
-     * event is not produced by any case; registered so a future compositor
-     * change cannot silently drop the event. */
-    (void)data;
     (void)manager;
-    (void)toplevel;
+    struct test_ctx *ctx = data;
+    ctx->handle = toplevel;
+    ++ctx->handle_count;
+    treeland_foreign_toplevel_handle_v1_add_listener(toplevel, &handle_listener, ctx);
 }
 
 static void manager_finished(void *data, struct treeland_foreign_toplevel_manager_v1 *manager)
@@ -152,7 +230,15 @@ static int create_xdg_toplevel(struct test_ctx *ctx)
     if (!protocol_test_xdg_toplevel_create(&ctx->connection, &ctx->xdg_toplevel))
         return 0;
     struct ftm_server_state state;
-    return ctx->xdg_toplevel.configured && read_server_state(ctx, &state)
+    return wl_display_roundtrip(ctx->display) >= 0
+           && ctx->xdg_toplevel.configured
+           && ctx->handle
+           && ctx->handle_count == 1
+           && ctx->handle_identifier
+           && read_server_state(ctx, &state)
+           && state.output_ready
+           && state.wrapper_created
+           && state.wrapper_in_workspace
            && state.mapped_xdg_toplevel;
 }
 
@@ -169,12 +255,16 @@ static int create_context(struct test_ctx *ctx)
 
 static int show_preview(struct test_ctx *ctx)
 {
-    if (!ctx->context)
+    if (!ctx->context || !ctx->handle_identifier)
         return 0;
     struct wl_array surfaces;
     wl_array_init(&surfaces);
-    /* Empty identifier list: the request must still be accepted and the server
-     * must emit requestDockPreview with no resolved toplevels. */
+    uint32_t *slot = wl_array_add(&surfaces, sizeof(uint32_t));
+    if (!slot) {
+        wl_array_release(&surfaces);
+        return 0;
+    }
+    *slot = ctx->handle_identifier;
     treeland_dock_preview_context_v1_show(ctx->context, &surfaces, 10, 20,
                                           TREELAND_DOCK_PREVIEW_CONTEXT_V1_DIRECTION_BOTTOM);
     wl_array_release(&surfaces);
@@ -187,7 +277,7 @@ static int show_preview(struct test_ctx *ctx)
            && state.preview_x == 10
            && state.preview_y == 20
            && state.preview_direction == TREELAND_DOCK_PREVIEW_CONTEXT_V1_DIRECTION_BOTTOM
-           && state.preview_surface_count == 0;
+           && state.preview_surface_count == 1;
 }
 
 static int show_unknown_identifier(struct test_ctx *ctx)
@@ -244,22 +334,53 @@ static int close_preview(struct test_ctx *ctx)
     return state.close_fired;
 }
 
-static int enter_dock_preview(struct test_ctx *ctx)
+static int minimize_real_toplevel(struct test_ctx *ctx)
 {
-    if (!protocol_test_invoke_server(ftm_enter_dock_preview, NULL))
+    if (!ctx->handle)
         return 0;
+    treeland_foreign_toplevel_handle_v1_set_minimized(ctx->handle);
     if (wl_display_roundtrip(ctx->display) < 0)
         return 0;
-    return ctx->context_enter_received;
+    struct ftm_server_state state;
+    return read_server_state(ctx, &state) && state.wrapper_minimized;
 }
 
-static int leave_dock_preview(struct test_ctx *ctx)
+static int restore_real_toplevel(struct test_ctx *ctx)
 {
-    if (!protocol_test_invoke_server(ftm_leave_dock_preview, NULL))
+    if (!ctx->handle)
+        return 0;
+    treeland_foreign_toplevel_handle_v1_unset_minimized(ctx->handle);
+    if (wl_display_roundtrip(ctx->display) < 0)
+        return 0;
+    struct ftm_server_state state;
+    return read_server_state(ctx, &state) && !state.wrapper_minimized;
+}
+
+static int toggle_skip_dock_preview(struct test_ctx *ctx)
+{
+    int skip = 1;
+    if (!ctx->handle || !protocol_test_invoke_server(ftm_set_skip_dock_preview, &skip))
+        return 0;
+    if (wl_display_roundtrip(ctx->display) < 0 || ctx->handle_closed_count != 1)
+        return 0;
+
+    skip = 0;
+    if (!protocol_test_invoke_server(ftm_set_skip_dock_preview, &skip))
         return 0;
     if (wl_display_roundtrip(ctx->display) < 0)
         return 0;
-    return ctx->context_leave_received;
+    struct ftm_server_state state;
+    if (!read_server_state(ctx, &state))
+        return 0;
+    return ctx->handle && ctx->handle_count == 2 && !state.wrapper_skip_dock_preview;
+}
+
+static int request_close(struct test_ctx *ctx)
+{
+    if (!ctx->handle)
+        return 0;
+    treeland_foreign_toplevel_handle_v1_close(ctx->handle);
+    return wl_display_roundtrip(ctx->display) >= 0 && ctx->xdg_toplevel.close_received;
 }
 
 static int destroy_context(struct test_ctx *ctx)
@@ -288,8 +409,10 @@ static const struct test_case cases[] = {
     { "context.show_unknown_identifier", show_unknown_identifier },
     { "context.show_tooltip", show_tooltip },
     { "context.close", close_preview },
-    { "server.enter_dock_preview", enter_dock_preview },
-    { "server.leave_dock_preview", leave_dock_preview },
+    { "handle.minimize_changes_wrapper", minimize_real_toplevel },
+    { "handle.restore_changes_wrapper", restore_real_toplevel },
+    { "wrapper.skip_dock_preview_changes_handle", toggle_skip_dock_preview },
+    { "handle.close_requests_xdg_close", request_close },
     { "context.destroy", destroy_context },
     { "manager.stop", stop_manager },
 };
@@ -298,6 +421,7 @@ void test_cleanup(struct test_ctx *ctx)
 {
     if (ctx->context) treeland_dock_preview_context_v1_destroy(ctx->context);
     protocol_test_xdg_toplevel_destroy(&ctx->xdg_toplevel);
+    if (ctx->handle) treeland_foreign_toplevel_handle_v1_destroy(ctx->handle);
     if (ctx->manager) treeland_foreign_toplevel_manager_v1_destroy(ctx->manager);
     protocol_test_disconnect(&ctx->connection);
 }

@@ -4,9 +4,11 @@ pkg_check_modules(WAYLAND_CLIENT REQUIRED IMPORTED_TARGET wayland-client)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/framework/ProtocolTest.cmake)
 
+add_subdirectory(desktop-integration-fixture)
 add_subdirectory(treeland-app-id-resolver-v1)
 add_subdirectory(treeland-capture-unstable-v1)
 add_subdirectory(treeland-dde-shell-v1)
+add_subdirectory(treeland-dde-shell-desktop-v1)
 add_subdirectory(treeland-ddm-v1)
 add_subdirectory(treeland-foreign-toplevel-manager-v1)
 add_subdirectory(treeland-output-manager-v1)

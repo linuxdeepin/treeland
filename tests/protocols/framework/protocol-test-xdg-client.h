@@ -21,12 +21,23 @@ struct protocol_test_xdg_toplevel {
     struct wl_buffer *buffer;
     uint32_t configure_serial;
     int configured;
+    int close_received;
 };
+
+typedef int (*protocol_test_xdg_surface_setup)(struct wl_surface *surface, void *data);
 
 /* Creates a configured xdg_toplevel and maps it by attaching a 1x1 wl_shm
  * buffer. The fixture must advertise wl_shm before the client connects. */
 int protocol_test_xdg_toplevel_create(struct protocol_test_connection *connection,
                                       struct protocol_test_xdg_toplevel *toplevel);
+/* Invokes setup after wl_surface creation but before assigning the xdg role.
+ * Protocols such as DDE shell use this point to associate metadata that
+ * ShellHandler consumes while constructing the SurfaceWrapper. */
+int protocol_test_xdg_toplevel_create_with_surface_setup(
+    struct protocol_test_connection *connection,
+    struct protocol_test_xdg_toplevel *toplevel,
+    protocol_test_xdg_surface_setup setup,
+    void *data);
 void protocol_test_xdg_toplevel_destroy(struct protocol_test_xdg_toplevel *toplevel);
 
 #ifdef __cplusplus
