@@ -3,6 +3,8 @@
 
 #include "wqmlhelper_p.h"
 
+#include "wrenderhelper.h"
+
 #include <QSGNode>
 #include <QQuickItem>
 #include <QCursor>
@@ -56,6 +58,11 @@ WQmlHelper::WQmlHelper(QObject *parent)
     : QObject{parent}
 {
 
+}
+
+bool WQmlHelper::isVulkanBackend() const
+{
+    return WRenderHelper::getGraphicsApi() == QSGRendererInterface::Vulkan;
 }
 
 bool WQmlHelper::hasXWayland() const

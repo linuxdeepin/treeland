@@ -31,6 +31,9 @@ pkg_search_module(PIXMAN REQUIRED IMPORTED_TARGET pixman-1)
 pkg_search_module(XKBCOMMON REQUIRED IMPORTED_TARGET xkbcommon)
 pkg_search_module(XCB REQUIRED IMPORTED_TARGET xcb)
 pkg_search_module(EGL REQUIRED IMPORTED_TARGET egl)
+# Optional: wvulkandmabufimport.cpp calls Vulkan loader functions directly.
+# Only linked when present; the code is compiled out without ENABLE_VULKAN_RENDER.
+pkg_search_module(VULKAN IMPORTED_TARGET vulkan)
 
 add_compile_definitions(WLR_PRIVATE=)
 
@@ -151,6 +154,7 @@ set(SOURCES
     qtquick/private/wqmlhelper.cpp
     qtquick/private/wbufferrenderer.cpp
     qtquick/private/wrenderbuffernode.cpp
+    qtquick/private/wvulkandmabufimport.cpp
 
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v1-protocol.c
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v2-protocol.c
@@ -332,6 +336,7 @@ set(PRIVATE_HEADERS
     qtquick/private/wbufferrenderer_p.h
     qtquick/private/wrenderbuffernode_p.h
     qtquick/private/wsurfaceitem_p.h
+    qtquick/private/wvulkandmabufimport_p.h
 
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v1-protocol.h
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v2-protocol.h
@@ -407,6 +412,9 @@ target_link_libraries(${TARGET}
     PkgConfig::XCB
     PkgConfig::EGL
 )
+if(TARGET PkgConfig::VULKAN)
+    target_link_libraries(${TARGET} PRIVATE PkgConfig::VULKAN)
+endif()
 
 target_link_libraries(${TARGET}
     PUBLIC
