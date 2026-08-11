@@ -6,7 +6,8 @@ set(TREELAND_PROTOCOL_TEST_FRAMEWORK_DIR "${CMAKE_CURRENT_LIST_DIR}")
 
 function(treeland_add_protocol_test)
     set(oneValueArgs NAME XML SETUP CLIENT)
-    cmake_parse_arguments(ARGS "" "${oneValueArgs}" "" ${ARGN})
+    set(options XDG_SHELL)
+    cmake_parse_arguments(ARGS "${options}" "${oneValueArgs}" "" ${ARGN})
 
     foreach(required NAME XML SETUP CLIENT)
         if(NOT ARGS_${required})
@@ -33,14 +34,42 @@ function(treeland_add_protocol_test)
         VERBATIM
     )
 
-    add_executable(${target}
+    set(protocol_test_sources
         "${TREELAND_PROTOCOL_TEST_FRAMEWORK_DIR}/protocol-test-main.cpp"
         "${TREELAND_PROTOCOL_TEST_FRAMEWORK_DIR}/protocol-test-client.c"
+        "${TREELAND_PROTOCOL_TEST_FRAMEWORK_DIR}/protocol-test-server.cpp"
         "${ARGS_SETUP}"
         "${ARGS_CLIENT}"
         "${client_header}"
         "${client_code}"
     )
+
+    if(ARGS_XDG_SHELL)
+        pkg_get_variable(WAYLAND_PROTOCOLS_DATADIR wayland-protocols pkgdatadir)
+        set(xdg_shell_xml "${WAYLAND_PROTOCOLS_DATADIR}/stable/xdg-shell/xdg-shell.xml")
+        set(xdg_shell_header "${CMAKE_CURRENT_BINARY_DIR}/xdg-shell-client-protocol.h")
+        set(xdg_shell_code "${CMAKE_CURRENT_BINARY_DIR}/xdg-shell-client-protocol.c")
+        add_custom_command(
+            OUTPUT "${xdg_shell_header}"
+            COMMAND wayland-scanner client-header "${xdg_shell_xml}" "${xdg_shell_header}"
+            DEPENDS "${xdg_shell_xml}"
+            VERBATIM
+        )
+        add_custom_command(
+            OUTPUT "${xdg_shell_code}"
+            COMMAND wayland-scanner private-code "${xdg_shell_xml}" "${xdg_shell_code}"
+            DEPENDS "${xdg_shell_xml}" "${xdg_shell_header}"
+            VERBATIM
+        )
+        list(APPEND protocol_test_sources
+            "${TREELAND_PROTOCOL_TEST_FRAMEWORK_DIR}/protocol-test-xdg-client.c"
+            "${TREELAND_PROTOCOL_TEST_FRAMEWORK_DIR}/protocol-test-xdg-client.h"
+            "${xdg_shell_header}"
+            "${xdg_shell_code}"
+        )
+    endif()
+
+    add_executable(${target} ${protocol_test_sources})
 
     target_include_directories(${target} PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}"

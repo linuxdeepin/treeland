@@ -13,6 +13,7 @@ extern "C" {
 int protocol_test_run(const char *socket_name);
 
 #include "protocol-test-client.h"
+#include "protocol-test-xdg-client.h"
 
 #define TEST_MSG_MAX 256
 
@@ -26,6 +27,7 @@ struct test_result {
  * back by the client through protocol_test_invoke_server(). POD, shared by the
  * C client and the C++ fixture. */
 struct ftm_server_state {
+    int      mapped_xdg_toplevel;
     int      preview_fired;
     int      preview_x;
     int      preview_y;
@@ -43,16 +45,10 @@ struct test_ctx {
     struct protocol_test_connection connection;
     struct wl_display    *display;
 
-    /* bound globals */
-    struct wl_compositor *compositor;
-    struct wl_xdg_wm_base *xdg_wm_base;
-
     /* protocol objects */
     struct treeland_foreign_toplevel_manager_v1  *manager;
     struct treeland_dock_preview_context_v1      *context;
-    struct wl_surface                            *test_surface;
-    struct xdg_surface                           *xdg_surface;
-    struct xdg_toplevel                          *xdg_toplevel;
+    struct protocol_test_xdg_toplevel             xdg_toplevel;
 
     /* event verification */
     int context_enter_received;

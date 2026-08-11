@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "modules/foreign-toplevel/foreigntoplevelmanagerv1.h"
+#include "protocol-test-server.h"
 #include "treeland-foreign-toplevel-manager-v1.h"
 
+#include <qwxdgshell.h>
 #include <wserver.h>
 #include <wsurface.h>
 #include <wxdgshell.h>
+#include <wxdgtoplevelsurface.h>
 
 #include <cstring>
 
@@ -24,7 +27,25 @@ void protocol_test_setup(WServer *server)
     /* The client creates an xdg_toplevel so its surface carries a waylib
      * WSurface wrapper; without it the dock preview context cannot resolve the
      * relative surface and every show/enter/leave is a silent no-op. */
-    server->attach<WXdgShell>(5);
+    protocol_test_create_headless_output(server);
+    protocol_test_enable_shm(server);
+
+    auto *xdgShell = server->attach<WXdgShell>(5);
+    QObject::connect(xdgShell, &WXdgShell::toplevelSurfaceAdded, xdgShell,
+                     [](WXdgToplevelSurface *toplevel) {
+                         auto *surface = toplevel->surface();
+                         QObject::connect(surface, &WSurface::mappedChanged, surface, [surface] {
+                             if (surface->mapped())
+                                 g_state.mapped_xdg_toplevel = 1;
+                         });
+                         auto *connection = new QMetaObject::Connection;
+                         *connection = QObject::connect(surface, &WSurface::commit, surface,
+                                                        [toplevel, connection] {
+                             qw_xdg_surface::from(toplevel->handle()->handle()->base)->schedule_configure();
+                             QObject::disconnect(*connection);
+                             delete connection;
+                         });
+                     });
 
     g_manager = server->attach<ForeignToplevelManagerInterfaceV1>();
     QObject::connect(g_manager, &ForeignToplevelManagerInterfaceV1::requestDockPreview,

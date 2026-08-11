@@ -20,7 +20,6 @@
  */
 #include "treeland-foreign-toplevel-manager-v1.h"
 #include "treeland-foreign-toplevel-manager-v1-client-protocol.h"
-#include "xdg-shell-client-protocol.h"
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -134,13 +133,11 @@ static int connect_client(struct test_ctx *ctx, const char *socket_name)
     if (!protocol_test_connect(&ctx->connection, socket_name))
         return 0;
     ctx->display = ctx->connection.display;
-    ctx->compositor = protocol_test_bind(&ctx->connection, "wl_compositor", &wl_compositor_interface, 1);
-    ctx->xdg_wm_base = protocol_test_bind(&ctx->connection, "xdg_wm_base", &xdg_wm_base_interface, 1);
     ctx->manager = protocol_test_bind(&ctx->connection, "treeland_foreign_toplevel_manager_v1",
                                       &treeland_foreign_toplevel_manager_v1_interface, 1);
     if (ctx->manager)
         treeland_foreign_toplevel_manager_v1_add_listener(ctx->manager, &manager_listener, ctx);
-    return ctx->manager != NULL && ctx->xdg_wm_base != NULL;
+    return ctx->manager != NULL;
 }
 
 static int read_server_state(struct test_ctx *ctx, struct ftm_server_state *state)
@@ -152,21 +149,19 @@ static int read_server_state(struct test_ctx *ctx, struct ftm_server_state *stat
 
 static int create_xdg_toplevel(struct test_ctx *ctx)
 {
-    if (!ctx->compositor || !ctx->xdg_wm_base)
+    if (!protocol_test_xdg_toplevel_create(&ctx->connection, &ctx->xdg_toplevel))
         return 0;
-    ctx->test_surface = wl_compositor_create_surface(ctx->compositor);
-    ctx->xdg_surface = xdg_wm_base_get_xdg_surface(ctx->xdg_wm_base, ctx->test_surface);
-    ctx->xdg_toplevel = xdg_surface_get_toplevel(ctx->xdg_surface);
-    wl_surface_commit(ctx->test_surface);
-    return ctx->test_surface && ctx->xdg_surface && ctx->xdg_toplevel;
+    struct ftm_server_state state;
+    return ctx->xdg_toplevel.configured && read_server_state(ctx, &state)
+           && state.mapped_xdg_toplevel;
 }
 
 static int create_context(struct test_ctx *ctx)
 {
-    if (!ctx->test_surface)
+    if (!ctx->xdg_toplevel.surface)
         return 0;
     ctx->context = treeland_foreign_toplevel_manager_v1_get_dock_preview_context(
-        ctx->manager, ctx->test_surface);
+        ctx->manager, ctx->xdg_toplevel.surface);
     if (ctx->context)
         treeland_dock_preview_context_v1_add_listener(ctx->context, &context_listener, ctx);
     return ctx->context != NULL;
@@ -302,10 +297,8 @@ static const struct test_case cases[] = {
 void test_cleanup(struct test_ctx *ctx)
 {
     if (ctx->context) treeland_dock_preview_context_v1_destroy(ctx->context);
-    if (ctx->xdg_toplevel) xdg_toplevel_destroy(ctx->xdg_toplevel);
-    if (ctx->xdg_surface) xdg_surface_destroy(ctx->xdg_surface);
+    protocol_test_xdg_toplevel_destroy(&ctx->xdg_toplevel);
     if (ctx->manager) treeland_foreign_toplevel_manager_v1_destroy(ctx->manager);
-    if (ctx->xdg_wm_base) xdg_wm_base_destroy(ctx->xdg_wm_base);
     protocol_test_disconnect(&ctx->connection);
 }
 
