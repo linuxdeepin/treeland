@@ -39,6 +39,8 @@ $ cmake -Bbuild -DWITH_SUBMODULE_WAYLIB=ON
 $ cmake --build build
 ```
 
+> Tip: `build` is a generated output directory created by cmake; there is no need to create it manually and it should not be committed.
+
 ## Packaging
 
 A `debian` folder is provided to build the package under the *deepin* linux desktop distribution. To build the package, use the following command:

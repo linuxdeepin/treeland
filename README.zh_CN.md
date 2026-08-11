@@ -38,6 +38,8 @@ $ cmake -Bbuild -DWITH_SUBMODULE_WAYLIB=ON
 $ cmake --build build
 ```
 
+> 提示：`build` 为构建产物目录，由 cmake 生成，无需手动创建，也不应纳入版本控制。
+
 ## 打包
 
 在 *deepin* 桌面发行版进行此软件包的构建，我们还提供了一个 `debian` 目录。若要构建软件包，可参照下面的命令进行构建：
