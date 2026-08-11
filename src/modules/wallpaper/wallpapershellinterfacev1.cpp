@@ -162,13 +162,23 @@ void TreelandWallpaperSurfaceInterfaceV1Private::ready([[maybe_unused]] Resource
         return;
     }
 
-    if (q->wSurface()->mapped()) {
+    const auto markReady = [this] {
+        auto *surface = q->wSurface();
+        // A wallpaper surface has no wlroots shell role, so wlroots does not
+        // map it automatically after a buffer commit.  Map it here only once
+        // a committed buffer gives the surface a valid size.
+        if (!surface->mapped() && !surface->bufferSize().isEmpty()) {
+            surface->map();
+        }
         wallpaperReady = true;
         Q_EMIT q->ready();
+    };
+
+    if (q->wSurface()->mapped() || !q->wSurface()->bufferSize().isEmpty()) {
+        markReady();
     } else {
-        QObject::connect(q->wSurface(), &WSurface::commit, q, [this](quint32) {
-            wallpaperReady = true;
-            Q_EMIT q->ready();
+        QObject::connect(q->wSurface(), &WSurface::commit, q, [markReady](quint32) {
+            markReady();
         }, Qt::SingleShotConnection);
     }
 }

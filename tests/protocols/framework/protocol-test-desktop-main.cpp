@@ -6,9 +6,10 @@
 #include "protocol-test-client.h"
 #include "seat/helper.h"
 #include "session/session.h"
+#include "treelandconfig.hpp"
 
 #include <QGuiApplication>
-#include <QElapsedTimer>
+#include <QAbstractItemModel>
 #include <QMetaObject>
 #include <QSemaphore>
 #include <QTimer>
@@ -20,6 +21,7 @@
 #include <pthread.h>
 
 void protocol_test_desktop_setup(Helper *helper);
+extern "C" bool protocol_test_desktop_ready(Helper *helper) __attribute__((weak));
 
 namespace {
 class ProtocolTestRunner : public QObject
@@ -83,39 +85,41 @@ int main(int argc, char *argv[])
     pthread_t thread;
     bool clientStarted = false;
 
-    QTimer timer;
-    QObject::connect(&timer, &QTimer::timeout, [&] {
-        if (context.done)
-            app.quit();
-    });
-    timer.start(10);
-    // Helper starts the headless backend during construction.  Output setup
-    // also waits for DConfig and QML work, so start the client only once the
-    // production root container has accepted an output.
-    QElapsedTimer outputDeadline;
-    outputDeadline.start();
-    QTimer outputReadyTimer;
-    QObject::connect(&outputReadyTimer, &QTimer::timeout, [&] {
-        if (clientStarted)
+    const auto fixtureReady = [helper] {
+        if (helper->rootSurfaceContainer()->outputs().isEmpty())
+            return false;
+        return !protocol_test_desktop_ready || protocol_test_desktop_ready(helper);
+    };
+    const auto startClient = [&] {
+        if (clientStarted || !fixtureReady())
             return;
-        if (helper->rootSurfaceContainer()->outputs().isEmpty()) {
-            if (outputDeadline.elapsed() < 5000)
-                return;
-            fprintf(stderr, "desktop protocol fixture timed out waiting for a root output\n");
-            context.result = 1;
-            context.done = true;
-            outputReadyTimer.stop();
-            return;
-        }
         if (pthread_create(&thread, nullptr, runClient, &context) != 0) {
             context.result = 1;
             context.done = true;
             return;
         }
         clientStarted = true;
-        outputReadyTimer.stop();
+    };
+
+    QTimer timer;
+    QObject::connect(&timer, &QTimer::timeout, [&] {
+        if (context.done)
+            app.quit();
     });
-    outputReadyTimer.start(10);
+    timer.start(10);
+    // Fixture readiness is a production state, so it is driven by the output
+    // model's insertion signal rather than a timeout/polling guess.  Most
+    // fixtures use the default (at least one output); specialized fixtures
+    // may provide protocol_test_desktop_ready().
+    QObject::connect(helper->rootSurfaceContainer()->outputModel(),
+                     &QAbstractItemModel::rowsInserted,
+                     &app,
+                     [startClient](const QModelIndex &, int, int) { startClient(); });
+    QObject::connect(helper->globalConfig(),
+                     &TreelandConfig::configInitializeSucceed,
+                     &app,
+                     [startClient](auto *) { startClient(); });
+    startClient();
     app.exec();
     if (clientStarted)
         pthread_join(thread, nullptr);
