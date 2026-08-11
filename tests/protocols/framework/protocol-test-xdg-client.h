@@ -26,6 +26,19 @@ struct protocol_test_xdg_toplevel {
 
 typedef int (*protocol_test_xdg_surface_setup)(struct wl_surface *surface, void *data);
 
+/* Creates an xdg_toplevel and commits its initial empty state. It deliberately
+ * does not wait for xdg_surface.configure: protocols such as app-id-resolver
+ * may defer wrapper creation, and therefore configure, until a separate
+ * protocol response arrives. */
+int protocol_test_xdg_toplevel_create_pending(
+    struct protocol_test_connection *connection,
+    struct protocol_test_xdg_toplevel *toplevel);
+/* Waits for the configure emitted after a pending toplevel becomes eligible
+ * for mapping, acknowledges it, then attaches a 1x1 wl_shm buffer. */
+int protocol_test_xdg_toplevel_complete_map(
+    struct protocol_test_connection *connection,
+    struct protocol_test_xdg_toplevel *toplevel);
+
 /* Creates a configured xdg_toplevel and maps it by attaching a 1x1 wl_shm
  * buffer. The fixture must advertise wl_shm before the client connects. */
 int protocol_test_xdg_toplevel_create(struct protocol_test_connection *connection,

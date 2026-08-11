@@ -161,6 +161,47 @@ failed:
     return 0;
 }
 
+int protocol_test_xdg_toplevel_create_pending(
+    struct protocol_test_connection *connection,
+    struct protocol_test_xdg_toplevel *toplevel)
+{
+    memset(toplevel, 0, sizeof(*toplevel));
+    toplevel->compositor = protocol_test_bind(connection, "wl_compositor", &wl_compositor_interface, 1);
+    toplevel->wm_base = protocol_test_bind(connection, "xdg_wm_base", &xdg_wm_base_interface, 1);
+    toplevel->shm = protocol_test_bind(connection, "wl_shm", &wl_shm_interface, 1);
+    if (!toplevel->compositor || !toplevel->wm_base || !toplevel->shm)
+        goto failed;
+
+    xdg_wm_base_add_listener(toplevel->wm_base, &wm_base_listener, toplevel);
+    toplevel->surface = wl_compositor_create_surface(toplevel->compositor);
+    if (!toplevel->surface)
+        goto failed;
+    toplevel->xdg_surface = xdg_wm_base_get_xdg_surface(toplevel->wm_base, toplevel->surface);
+    if (!toplevel->xdg_surface)
+        goto failed;
+    xdg_surface_add_listener(toplevel->xdg_surface, &xdg_surface_listener, toplevel);
+    toplevel->toplevel = xdg_surface_get_toplevel(toplevel->xdg_surface);
+    if (!toplevel->toplevel)
+        goto failed;
+    xdg_toplevel_add_listener(toplevel->toplevel, &xdg_toplevel_listener, toplevel);
+    wl_surface_commit(toplevel->surface);
+    return 1;
+
+failed:
+    protocol_test_xdg_toplevel_destroy(toplevel);
+    return 0;
+}
+
+int protocol_test_xdg_toplevel_complete_map(
+    struct protocol_test_connection *connection,
+    struct protocol_test_xdg_toplevel *toplevel)
+{
+    if (!toplevel->xdg_surface || wl_display_roundtrip(connection->display) < 0 || !toplevel->configured)
+        return 0;
+    xdg_surface_ack_configure(toplevel->xdg_surface, toplevel->configure_serial);
+    return map_toplevel(connection, toplevel, 1, 1, 0xffffffffu);
+}
+
 int protocol_test_xdg_toplevel_create_with_surface_setup(
     struct protocol_test_connection *connection,
     struct protocol_test_xdg_toplevel *toplevel,

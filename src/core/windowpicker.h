@@ -26,6 +26,7 @@ public:
     void setHint(const QString &hint);
     QQuickItem *hoveredItem() const;
     QRectF selectionRegion() const;
+    void selectWindow(WAYLIB_SERVER_NAMESPACE::WSurfaceItem *window);
 
 Q_SIGNALS:
     void windowPicked(WAYLIB_SERVER_NAMESPACE::WSurfaceItem *window);

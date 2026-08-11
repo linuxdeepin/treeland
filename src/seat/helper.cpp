@@ -1774,7 +1774,7 @@ void Helper::init(Treeland::Treeland *treeland)
         }
     });
     connect(m_ddeShellV1,
-            &DDEShellManagerInterfaceV1::requestPickWindow,
+            &DDEShellManagerInterfaceV1::PickerCreated,
             this,
             &Helper::handleWindowPicker);
     connect(m_ddeShellV1,
