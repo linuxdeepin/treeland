@@ -1468,6 +1468,7 @@ void Helper::onShowDesktop()
         return;
 
     m_showDesktop = s;
+    Q_EMIT showDesktopStateChanged();
     const auto &surfaces = getWorkspaceSurfaces();
     for (auto &surface : surfaces) {
         if (surface->isMinimized()) {
@@ -3184,6 +3185,11 @@ bool Helper::toggleDebugMenuBar()
 WindowManagementInterfaceV1::DesktopState Helper::showDesktopState() const
 {
     return m_showDesktop;
+}
+
+WXdgOutputManager *Helper::xwaylandOutputManager() const
+{
+    return m_xwaylandOutputManager;
 }
 
 bool Helper::isLaunchpad(WLayerSurface *surface) const

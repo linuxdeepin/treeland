@@ -9,6 +9,10 @@
 
 #include <QByteArray>
 #include <QMap>
+#include <QPoint>
+#include <QRect>
+#include <QSize>
+#include <QStringList>
 #include <QVector>
 
 #include <functional>
@@ -68,6 +72,14 @@ public:
     QVarLengthArray<xcb_atom_t> supportedAtoms() const;
     void setSupportedAtoms(const QVarLengthArray<xcb_atom_t> &atoms);
     void setAtomSupported(xcb_atom_t atom, bool supported);
+    void setWorkareas(const QVector<QRect> &workareas);
+    void setDesktopProperties(uint32_t count,
+                              const QSize &geometry,
+                              uint32_t current,
+                              const QStringList &names,
+                              const QVector<QPoint> &viewports,
+                              const QVector<QRect> &workareas,
+                              bool showingDesktop);
 
     void setSeat(WSeat *seat);
     WSeat *seat() const;

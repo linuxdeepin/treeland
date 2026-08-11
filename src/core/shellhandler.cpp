@@ -12,8 +12,10 @@
 #include "modules/dde-shell/ddeshellmanagerinterfacev1.h"
 #include "modules/foreign-toplevel/foreigntoplevelmanagerv1.h"
 #include "modules/prelaunch-splash/prelaunchsplash.h"
+#include "modules/window-management/windowmanagementinterfacev1.h"
 #include "modules/wine-window-management/winewindowmanagement.h"
 #include "modules/wine-window-state/winewindowstate.h"
+#include "output/output.h"
 #include "rootsurfacecontainer.h"
 #include "seat/helper.h"
 #include "seat/seatsmanager.h"
@@ -24,6 +26,7 @@
 #include "treelanduserconfig.hpp"
 #include "wallpapershellinterfacev1.h"
 #include "workspace/workspace.h"
+#include "workspace/workspacemodel.h"
 
 #include <xcb/xcb.h>
 
@@ -32,7 +35,10 @@
 #include <wlayershell.h>
 #include <wlayersurface.h>
 #include <woutputrenderwindow.h>
+#include <woutputitem.h>
+#include <woutputlayout.h>
 #include <wserver.h>
+#include <wxdgoutput.h>
 #include <wxdgpopupsurface.h>
 #include <wxdgshell.h>
 #include <wxdgtoplevelsurface.h>
@@ -89,6 +95,122 @@ ShellHandler::ShellHandler(RootSurfaceContainer *rootContainer, WServer *server)
     m_overlayContainer->setObjectName(QStringLiteral("OverlayContainer"));
     m_popupContainer->setZ(RootSurfaceContainer::PopupZOrder);
     m_popupContainer->setObjectName(QStringLiteral("PopupContainer"));
+
+    connect(m_rootSurfaceContainer->outputModel(),
+            &QAbstractItemModel::rowsInserted,
+            this,
+            [this] {
+                for (auto *output : m_rootSurfaceContainer->outputs()) {
+                    watchXWaylandDesktopOutput(output);
+                }
+                updateXWaylandDesktopProperties();
+            });
+    connect(m_rootSurfaceContainer->outputModel(),
+            &QAbstractItemModel::rowsRemoved,
+            this,
+            &ShellHandler::updateXWaylandDesktopProperties);
+    connect(m_workspace, &Workspace::currentIndexChanged,
+            this, &ShellHandler::updateXWaylandDesktopProperties);
+    connect(Helper::instance(), &Helper::showDesktopStateChanged,
+            this, &ShellHandler::updateXWaylandDesktopProperties);
+    connect(m_workspace, &Workspace::countChanged, this, [this] {
+        watchXWaylandWorkspaceNames();
+        updateXWaylandDesktopProperties();
+    });
+    watchXWaylandWorkspaceNames();
+}
+
+void ShellHandler::watchXWaylandDesktopOutput(Output *output)
+{
+    connect(output,
+            &Output::exclusiveZoneChanged,
+            this,
+            &ShellHandler::updateXWaylandDesktopProperties,
+            Qt::UniqueConnection);
+    connect(output->outputItem(),
+            &WOutputItem::geometryChanged,
+            this,
+            &ShellHandler::updateXWaylandDesktopProperties,
+            Qt::UniqueConnection);
+    connect(output->output(),
+            &WOutput::enabledChanged,
+            this,
+            &ShellHandler::updateXWaylandDesktopProperties,
+            Qt::UniqueConnection);
+}
+
+void ShellHandler::watchXWaylandWorkspaceNames()
+{
+    for (int i = 0; i < m_workspace->count(); ++i) {
+        connect(m_workspace->modelAt(i),
+                &WorkspaceModel::nameChanged,
+                this,
+                &ShellHandler::updateXWaylandDesktopProperties,
+                Qt::UniqueConnection);
+    }
+}
+
+void ShellHandler::updateXWaylandDesktopProperties()
+{
+    auto *outputManager = Helper::instance()->xwaylandOutputManager();
+    connect(outputManager,
+            &WXdgOutputManager::scaleOverrideChanged,
+            this,
+            &ShellHandler::updateXWaylandDesktopProperties,
+            Qt::UniqueConnection);
+    connect(outputManager->layout(),
+            &WOutputLayout::outputsChanged,
+            this,
+            &ShellHandler::updateXWaylandDesktopProperties,
+            Qt::UniqueConnection);
+
+    QRect geometry;
+    QRect workarea;
+    for (auto *xwaylandOutput : outputManager->layout()->outputs()) {
+        if (!xwaylandOutput->isEnabled())
+            continue;
+
+        auto *output = Helper::instance()->getOutput(xwaylandOutput);
+        if (!output)
+            continue;
+
+        const QRect outputGeometry = outputManager->outputGeometry(xwaylandOutput);
+        if (outputGeometry.isEmpty())
+            continue;
+
+        const QRectF treelandGeometry = output->geometry();
+        const qreal xScale = outputGeometry.width() / treelandGeometry.width();
+        const qreal yScale = outputGeometry.height() / treelandGeometry.height();
+        const QMargins exclusiveZone = output->exclusiveZone();
+        const QMargins xwaylandExclusiveZone(qCeil(exclusiveZone.left() * xScale),
+                                             qCeil(exclusiveZone.top() * yScale),
+                                             qCeil(exclusiveZone.right() * xScale),
+                                             qCeil(exclusiveZone.bottom() * yScale));
+        geometry = geometry.united(outputGeometry);
+        workarea = workarea.united(outputGeometry.marginsRemoved(xwaylandExclusiveZone));
+    }
+
+    if (geometry.isEmpty() || workarea.isEmpty())
+        return;
+
+    const int count = m_workspace->count();
+    QStringList names;
+    names.reserve(count);
+    for (int i = 0; i < count; ++i)
+        names.append(m_workspace->modelAt(i)->name());
+
+    const QVector<QPoint> viewports(count, QPoint(0, 0));
+    const QVector<QRect> workareas(count, workarea);
+    for (auto *xwayland : std::as_const(m_xwaylands)) {
+        xwayland->setDesktopProperties(count,
+                                       geometry.size(),
+                                       m_workspace->currentIndex(),
+                                       names,
+                                       viewports,
+                                       workareas,
+                                       Helper::instance()->showDesktopState()
+                                           == WindowManagementInterfaceV1::DesktopState::Show);
+    }
 }
 
 void ShellHandler::updateWrapperContainer(SurfaceWrapper *wrapper, WSurface *parentSurface)
@@ -380,6 +502,11 @@ WXWayland *ShellHandler::createXWayland(WServer *server,
         xwayland->setAtomSupported(atomPid, true);
         auto atomNoTitlebar = xwayland->atom("_DEEPIN_NO_TITLEBAR");
         xwayland->setAtomSupported(atomNoTitlebar, true);
+
+        for (auto *output : m_rootSurfaceContainer->outputs()) {
+            watchXWaylandDesktopOutput(output);
+        }
+        updateXWaylandDesktopProperties();
 
         if (m_imCandidatePanelManager)
             m_imCandidatePanelManager->setupXWayland(xwayland);
