@@ -74,6 +74,21 @@ static const struct xdg_toplevel_listener xdg_toplevel_listener = {
     .wm_capabilities = xdg_toplevel_wm_capabilities,
 };
 
+int protocol_test_xdg_toplevel_ack_latest_configure(
+    struct protocol_test_connection *connection,
+    struct protocol_test_xdg_toplevel *toplevel)
+{
+    if (!connection || !connection->display || !toplevel || !toplevel->xdg_surface)
+        return 0;
+    if (!toplevel->configure_serial || toplevel->configure_serial == toplevel->acknowledged_configure_serial)
+        return 1;
+
+    xdg_surface_ack_configure(toplevel->xdg_surface, toplevel->configure_serial);
+    toplevel->acknowledged_configure_serial = toplevel->configure_serial;
+    wl_surface_commit(toplevel->surface);
+    return wl_display_roundtrip(connection->display) >= 0;
+}
+
 static int map_toplevel(struct protocol_test_connection *connection,
                         struct protocol_test_xdg_toplevel *toplevel,
                         int width,
@@ -151,12 +166,55 @@ static int protocol_test_xdg_toplevel_create_internal(
     wl_surface_commit(toplevel->surface);
     if (wl_display_roundtrip(connection->display) < 0 || !toplevel->configured)
         goto failed;
-    xdg_surface_ack_configure(toplevel->xdg_surface, toplevel->configure_serial);
+    if (!protocol_test_xdg_toplevel_ack_latest_configure(connection, toplevel))
+        goto failed;
     return map_toplevel(connection, toplevel, buffer_width, buffer_height, buffer_argb);
 
 failed:
     protocol_test_xdg_toplevel_destroy(toplevel);
     return 0;
+}
+
+int protocol_test_xdg_toplevel_create_pending(
+    struct protocol_test_connection *connection,
+    struct protocol_test_xdg_toplevel *toplevel)
+{
+    memset(toplevel, 0, sizeof(*toplevel));
+    toplevel->compositor = protocol_test_bind(connection, "wl_compositor", &wl_compositor_interface, 1);
+    toplevel->wm_base = protocol_test_bind(connection, "xdg_wm_base", &xdg_wm_base_interface, 1);
+    toplevel->shm = protocol_test_bind(connection, "wl_shm", &wl_shm_interface, 1);
+    if (!toplevel->compositor || !toplevel->wm_base || !toplevel->shm)
+        goto failed;
+
+    xdg_wm_base_add_listener(toplevel->wm_base, &wm_base_listener, toplevel);
+    toplevel->surface = wl_compositor_create_surface(toplevel->compositor);
+    if (!toplevel->surface)
+        goto failed;
+    toplevel->xdg_surface = xdg_wm_base_get_xdg_surface(toplevel->wm_base, toplevel->surface);
+    if (!toplevel->xdg_surface)
+        goto failed;
+    xdg_surface_add_listener(toplevel->xdg_surface, &xdg_surface_listener, toplevel);
+    toplevel->toplevel = xdg_surface_get_toplevel(toplevel->xdg_surface);
+    if (!toplevel->toplevel)
+        goto failed;
+    xdg_toplevel_add_listener(toplevel->toplevel, &xdg_toplevel_listener, toplevel);
+    wl_surface_commit(toplevel->surface);
+    return 1;
+
+failed:
+    protocol_test_xdg_toplevel_destroy(toplevel);
+    return 0;
+}
+
+int protocol_test_xdg_toplevel_complete_map(
+    struct protocol_test_connection *connection,
+    struct protocol_test_xdg_toplevel *toplevel)
+{
+    if (!toplevel->xdg_surface || wl_display_roundtrip(connection->display) < 0 || !toplevel->configured)
+        return 0;
+    if (!protocol_test_xdg_toplevel_ack_latest_configure(connection, toplevel))
+        return 0;
+    return map_toplevel(connection, toplevel, 1, 1, 0xffffffffu);
 }
 
 int protocol_test_xdg_toplevel_create_with_surface_setup(

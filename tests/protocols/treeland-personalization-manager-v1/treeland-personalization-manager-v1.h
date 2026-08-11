@@ -32,6 +32,8 @@ struct window_context_state {
 
 
 void personalization_window_state(void *data);
+void personalization_snapshot_config(void *data);
+void personalization_restore_config(void *data);
 
 #include "protocol-test-client.h"
 

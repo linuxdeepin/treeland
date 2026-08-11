@@ -245,7 +245,7 @@ static const struct test_case cases[] = {
     { "shell.produced_wallpapers", produced_count_is_one },
     { "surface.source_failed", source_failed },
     { "surface.failed_signal", failed_signal_received },
-    { "surface.ready", surface_ready },
+    { "surface.ready_after_commit", surface_ready },
     { "surface.ready_signal", ready_signal_received },
     { "server.emit_play", emit_play },
     { "surface.event.play", play_received },

@@ -59,7 +59,10 @@ extern "C" int protocol_test_invoke_server(protocol_test_server_callback callbac
 
 int main(int argc, char *argv[])
 {
-    Treeland::preInit(Treeland::InitOptions{ .headless = true });
+    Treeland::preInit(Treeland::InitOptions{
+        .headless = true,
+        .createPlatformTheme = {},
+    });
     QGuiApplication app(argc, argv);
 
     WServer server;

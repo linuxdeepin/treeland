@@ -109,6 +109,7 @@ static void set_color_callback(void *data)
 
 static int set_color(struct test_ctx *ctx, const char *output, int is_dark)
 {
+    (void)ctx;
     struct wallpaper_color_update_args args = { .output = output, .is_dark = is_dark };
     return protocol_test_invoke_server(set_color_callback, &args);
 }

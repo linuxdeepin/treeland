@@ -1,4 +1,4 @@
-treeland_add_protocol_test(
+treeland_add_desktop_integration_test(
     NAME treeland_screensaver_v1
     XML "${TREELAND_PROTOCOLS_DATA_DIR}/treeland-screensaver-v1.xml"
     SETUP "${CMAKE_CURRENT_SOURCE_DIR}/setup.cpp"

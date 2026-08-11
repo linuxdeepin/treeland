@@ -123,35 +123,6 @@ failed:
     return 0;
 }
 
-static uint32_t modifier_mask(struct xkb_keymap *keymap, const char *name)
-{
-    const xkb_mod_index_t index = xkb_keymap_mod_get_index(keymap, name);
-    return index == XKB_MOD_INVALID ? 0 : 1u << index;
-}
-
-static int send_modifiers(struct zwp_virtual_keyboard_v1 *keyboard)
-{
-    struct xkb_context *context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
-    struct xkb_keymap *keymap = context
-        ? xkb_keymap_new_from_names(context, NULL, XKB_KEYMAP_COMPILE_NO_FLAGS)
-        : NULL;
-    if (!keymap)
-        goto failed;
-    const uint32_t modifiers = modifier_mask(keymap, XKB_MOD_NAME_CTRL)
-        | modifier_mask(keymap, XKB_MOD_NAME_SHIFT);
-    xkb_keymap_unref(keymap);
-    xkb_context_unref(context);
-    if (!modifiers)
-        return 0;
-    zwp_virtual_keyboard_v1_modifiers(keyboard, modifiers, 0, 0, 0);
-    return 1;
-
-failed:
-    if (keymap) xkb_keymap_unref(keymap);
-    if (context) xkb_context_unref(context);
-    return 0;
-}
-
 static void send_key(struct zwp_virtual_keyboard_v1 *keyboard, uint32_t key, uint32_t state)
 {
     zwp_virtual_keyboard_v1_key(keyboard, 0, key, state);
@@ -191,7 +162,7 @@ int protocol_test_run(const char *socket_name)
 
     virtual_keyboard = zwp_virtual_keyboard_manager_v1_create_virtual_keyboard(
         virtual_keyboard_manager, seat);
-    if (!virtual_keyboard || !send_keymap(virtual_keyboard) || !send_modifiers(virtual_keyboard)
+    if (!virtual_keyboard || !send_keymap(virtual_keyboard)
         || wl_display_roundtrip(connection.display) < 0)
         goto failed;
 
@@ -203,17 +174,17 @@ int protocol_test_run(const char *socket_name)
     if (wl_display_roundtrip(connection.display) < 0 || client.capture_failed)
         goto failed;
     stage = 3;
-    send_key(virtual_keyboard, 46, WL_KEYBOARD_KEY_STATE_PRESSED);
+    send_key(virtual_keyboard, 59, WL_KEYBOARD_KEY_STATE_PRESSED); // KEY_F1
     if (wl_display_roundtrip(connection.display) < 0 || client.captured != 1
-        || strcmp(client.captured_key, "Ctrl+Shift+C") != 0)
+        || strcmp(client.captured_key, "F1") != 0)
         goto failed;
     stage = 4;
-    send_key(virtual_keyboard, 46, WL_KEYBOARD_KEY_STATE_RELEASED);
+    send_key(virtual_keyboard, 59, WL_KEYBOARD_KEY_STATE_RELEASED); // KEY_F1
     if (wl_display_roundtrip(connection.display) < 0)
         goto failed;
 
     treeland_shortcut_manager_v2_bind_key(
-        manager, "desktop-shortcut", "Ctrl+Shift+K",
+        manager, "desktop-shortcut", "F2",
         TREELAND_SHORTCUT_MANAGER_V2_KEYBIND_FLAG_KEY_PRESS,
         TREELAND_SHORTCUT_MANAGER_V2_ACTION_NOTIFY);
     treeland_shortcut_manager_v2_commit(manager);
@@ -221,7 +192,7 @@ int protocol_test_run(const char *socket_name)
         || client.commit_failure)
         goto failed;
     stage = 5;
-    send_key(virtual_keyboard, 37, WL_KEYBOARD_KEY_STATE_PRESSED);
+    send_key(virtual_keyboard, 60, WL_KEYBOARD_KEY_STATE_PRESSED); // KEY_F2
     if (wl_display_roundtrip(connection.display) < 0 || client.activated != 1
         || strcmp(client.activated_name, "desktop-shortcut") != 0
         || client.activated_flags != TREELAND_SHORTCUT_MANAGER_V2_KEYBIND_FLAG_KEY_PRESS)

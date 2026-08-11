@@ -90,7 +90,8 @@ function(treeland_add_protocol_test)
 
     add_test(NAME ${target} COMMAND ${target})
     set_tests_properties(${target} PROPERTIES
-        ENVIRONMENT "WLR_BACKENDS=headless;WLR_RENDERER=pixman"
+        ENVIRONMENT "WLR_BACKENDS=headless;WLR_RENDERER=pixman;DSG_DATA_DIRS=${TREELAND_PROTOCOL_TEST_DSG_DATA_DIRS}"
+        LABELS "protocols"
         TIMEOUT 30
     )
 endfunction()
@@ -186,13 +187,16 @@ function(treeland_add_desktop_integration_test)
         libtreeland
         PkgConfig::WAYLAND_CLIENT
         Qt6::Core
+        Qt6::DBus
         Qt6::Gui
         ${ARGS_EXTRA_LIBRARIES}
     )
     set_target_properties(${target} PROPERTIES C_STANDARD 11)
+    add_dependencies(${target} lockscreen multitaskview)
     add_test(NAME ${target} COMMAND ${target})
     set_tests_properties(${target} PROPERTIES
-        ENVIRONMENT "WLR_BACKENDS=headless;WLR_RENDERER=pixman"
+        ENVIRONMENT "WLR_BACKENDS=headless;WLR_RENDERER=pixman;DSG_DATA_DIRS=${TREELAND_PROTOCOL_TEST_DSG_DATA_DIRS};TREELAND_PROTOCOL_TEST_DSG_DIR=${TREELAND_PROTOCOL_TEST_DSG_DATA_DIR}"
+        LABELS "protocols"
         TIMEOUT 30
     )
 endfunction()
