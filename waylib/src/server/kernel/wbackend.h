@@ -41,8 +41,6 @@ public:
     bool hasWayland() const;
 
     bool isSessionActive() const;
-    void activateSession();
-    void deactivateSession();
 
     QByteArrayView interfaceName() const override;
 

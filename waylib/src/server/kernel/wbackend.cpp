@@ -204,26 +204,6 @@ bool WBackend::isSessionActive() const
     return d->session && d->session->handle()->active;
 }
 
-void WBackend::activateSession()
-{
-    W_D(WBackend);
-    if (d->session) {
-        struct wlr_session *session = d->session->handle();
-        session->active = true;
-        wl_signal_emit_mutable(&session->events.active, nullptr);
-    }
-}
-
-void WBackend::deactivateSession()
-{
-    W_D(WBackend);
-    if (d->session) {
-        struct wlr_session *session = d->session->handle();
-        session->active = false;
-        wl_signal_emit_mutable(&session->events.active, nullptr);
-    }
-}
-
 void WBackend::create(WServer *server)
 {
     W_D(WBackend);
