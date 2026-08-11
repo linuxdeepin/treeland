@@ -6,6 +6,7 @@ pkg_check_modules(XKBCOMMON REQUIRED IMPORTED_TARGET xkbcommon)
 include(${CMAKE_CURRENT_SOURCE_DIR}/framework/ProtocolTest.cmake)
 
 add_subdirectory(desktop-integration-fixture)
+add_subdirectory(rendered-output-fixture)
 add_subdirectory(treeland-app-id-resolver-v1)
 add_subdirectory(treeland-capture-unstable-v1)
 add_subdirectory(treeland-dde-shell-v1)
