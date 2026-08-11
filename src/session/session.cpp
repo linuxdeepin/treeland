@@ -18,6 +18,7 @@
 #include <wxwayland.h>
 
 #include <pwd.h>
+#include <unistd.h>
 #include <xcb/randr.h>
 
 #define _DEEPIN_NO_TITLEBAR "_DEEPIN_NO_TITLEBAR"
@@ -381,8 +382,13 @@ std::shared_ptr<Session> SessionManager::ensureSession(int id, QString username)
     // Session does not exist, create new session with deleter
     auto passwd = getpwnam(username.toLocal8Bit().data());
     if (!passwd) {
-        qCWarning(lcTlCore) << "Failed to get passwd entry for user:" << username;
-        return nullptr;
+        qCWarning(lcTlCore) << "Failed to get passwd entry for user:" << username
+                            << ", falling back to current user uid";
+        passwd = getpwuid(getuid());
+        if (!passwd) {
+            qCCritical(lcTlCore) << "Failed to get passwd entry for current user";
+            return nullptr;
+        }
     }
     auto session = std::make_shared<Session>();
     session->m_id = id;

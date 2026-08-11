@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Dingyuan Zhang <lxz@mkacg.com>.
+// Copyright (C) 2023-2026 Dingyuan Zhang <lxz@mkacg.com>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "treeland.h"
@@ -314,7 +314,10 @@ Treeland::Treeland()
     d->init();
 
     auto globalSession = d->helper->sessionManager()->globalSession();
-    Q_ASSERT(globalSession);
+    if (!globalSession) {
+        qCCritical(lcTlCore) << "Global session is null, skipping initialization";
+        return;
+    }
 
     if (CmdLine::ref().run().has_value()) {
         auto exec = [runCmd = CmdLine::ref().run().value(), d, globalSession] {
