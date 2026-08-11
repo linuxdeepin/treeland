@@ -29,6 +29,13 @@ typedef int (*protocol_test_xdg_surface_setup)(struct wl_surface *surface, void 
 int protocol_test_xdg_toplevel_create(struct protocol_test_connection *connection,
                                       struct protocol_test_xdg_toplevel *toplevel);
 
+int protocol_test_xdg_toplevel_create_with_solid_buffer(
+    struct protocol_test_connection *connection,
+    struct protocol_test_xdg_toplevel *toplevel,
+    int width,
+    int height,
+    uint32_t argb);
+
 int protocol_test_xdg_toplevel_create_with_surface_setup(
     struct protocol_test_connection *connection,
     struct protocol_test_xdg_toplevel *toplevel,
