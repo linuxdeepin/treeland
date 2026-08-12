@@ -1,8 +1,8 @@
-// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
-
 #include <wlogging.h>
 #include "core/treeland.h"
+#include "core/treelandinit.h"
 #include "utils/cmdline.h"
 
 #include <wrenderhelper.h>
@@ -11,9 +11,7 @@
 
 #include <DGuiApplicationHelper>
 #include <DLog>
-
 #include <QGuiApplication>
-#include <QMetaType>
 #include <QPalette>
 #include <QQuickStyle>
 
@@ -46,39 +44,29 @@ public:
 
 int main(int argc, char *argv[])
 {
-    WLog::init();
-    DTK_GUI_NAMESPACE::DGuiApplicationHelper::setAttribute(
-        DTK_GUI_NAMESPACE::DGuiApplicationHelper::DontSaveApplicationTheme,
-        true);
-    WServer::initializeQPA({}, [](const QString &) {
-        return static_cast<QPlatformTheme *>(new QDeepinTheme());
+    Treeland::preInit(Treeland::InitOptions{
+        .createPlatformTheme = [](const QString &) {
+            return static_cast<QPlatformTheme *>(new QDeepinTheme());
+        },
     });
     QQuickStyle::setStyle("Chameleon");
 
-    QGuiApplication::setAttribute(Qt::AA_UseOpenGLES);
-    QGuiApplication::setHighDpiScaleFactorRoundingPolicy(
-        Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
-    QGuiApplication::setQuitOnLastWindowClosed(false);
-
     QGuiApplication app(argc, argv);
-
     app.setOrganizationName("deepin");
     app.setApplicationName("treeland");
 
 #ifdef QT_DEBUG
     DLogManager::registerConsoleAppender();
 #endif
-
-    // Enable console logging in non-debug builds via --console-log flag
     CmdLine::ref();
 #ifndef QT_DEBUG
-    if (CmdLine::ref().consoleLog()) {
+    if (CmdLine::ref().consoleLog())
         DLogManager::registerConsoleAppender();
-    }
 #endif
     DLogManager::registerJournalAppender();
 
-    WRenderHelper::setupRendererBackend();
+    Treeland::postInit();
+
     if (CmdLine::ref().tryExec())
         return 0;
     Q_ASSERT(waylib_buffer_get_count() == 0);
