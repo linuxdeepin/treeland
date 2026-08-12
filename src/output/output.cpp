@@ -1066,14 +1066,23 @@ QRectF Output::tileGeometry(SurfaceWrapper::TileMode mode) const
         return QRectF();
 
     const QRectF area = validGeometry();
+    const QSizeF half(area.width() / 2, area.height());
+    const QSizeF quad(area.width() / 2, area.height() / 2);
     switch (mode) {
     case SurfaceWrapper::TileMode::Left:
-        return QRectF(area.topLeft(), QSizeF(area.width() / 2, area.height()));
+        return QRectF(area.topLeft(), half);
     case SurfaceWrapper::TileMode::Right:
-        return QRectF(QPointF(area.left() + area.width() / 2, area.top()),
-                      QSizeF(area.width() / 2, area.height()));
+        return QRectF(QPointF(area.left() + area.width() / 2, area.top()), half);
     case SurfaceWrapper::TileMode::Maximize:
         return area;
+    case SurfaceWrapper::TileMode::TopLeft:
+        return QRectF(area.topLeft(), quad);
+    case SurfaceWrapper::TileMode::TopRight:
+        return QRectF(QPointF(area.left() + area.width() / 2, area.top()), quad);
+    case SurfaceWrapper::TileMode::BottomLeft:
+        return QRectF(QPointF(area.left(), area.top() + area.height() / 2), quad);
+    case SurfaceWrapper::TileMode::BottomRight:
+        return QRectF(QPointF(area.left() + area.width() / 2, area.top() + area.height() / 2), quad);
     case SurfaceWrapper::TileMode::None:
         break;
     }
