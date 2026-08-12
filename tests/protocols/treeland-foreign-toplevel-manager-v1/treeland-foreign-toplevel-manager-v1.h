@@ -32,7 +32,17 @@ struct ftm_server_state {
     int      wrapper_in_workspace;
     int      mapped_xdg_toplevel;
     int      wrapper_minimized;
+    int      wrapper_maximized;
+    int      wrapper_fullscreen;
+    int      wrapper_activated;
+    int      wrapper_focused;
     int      wrapper_skip_dock_preview;
+    int      wrapper_x;
+    int      wrapper_y;
+    int      icon_x;
+    int      icon_y;
+    int      icon_width;
+    int      icon_height;
     int      preview_fired;
     int      preview_x;
     int      preview_y;
@@ -54,6 +64,7 @@ struct test_ctx {
     struct treeland_foreign_toplevel_manager_v1  *manager;
     struct treeland_dock_preview_context_v1      *context;
     struct treeland_foreign_toplevel_handle_v1   *handle;
+    struct wl_seat                                *seat;
     struct protocol_test_xdg_toplevel             xdg_toplevel;
 
     /* event verification */

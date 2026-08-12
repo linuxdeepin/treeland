@@ -468,6 +468,28 @@ static int font_set_monospace_font(struct test_ctx *ctx)
     return 1;
 }
 
+static int font_get_font(struct test_ctx *ctx)
+{
+    treeland_personalization_font_context_v1_get_font(ctx->font_context);
+    return 1;
+}
+
+static int font_echo_received(struct test_ctx *ctx)
+{
+    return ctx->font_count >= 3 && strcmp(ctx->font, "TestFont") == 0;
+}
+
+static int font_get_monospace_font(struct test_ctx *ctx)
+{
+    treeland_personalization_font_context_v1_get_monospace_font(ctx->font_context);
+    return 1;
+}
+
+static int monospace_font_echo_received(struct test_ctx *ctx)
+{
+    return ctx->monospace_font_count >= 3 && strcmp(ctx->monospace_font, "TestMonoFont") == 0;
+}
+
 static int monospace_font_received(struct test_ctx *ctx)
 {
     return ctx->monospace_font_count >= 2 && strcmp(ctx->monospace_font, "TestMonoFont") == 0;
@@ -554,6 +576,62 @@ static int appearance_radius_echo_received(struct test_ctx *ctx)
     return ctx->round_corner_radius_count >= 3 && ctx->round_corner_radius == 8;
 }
 
+static int appearance_get_icon_theme(struct test_ctx *ctx)
+{
+    treeland_personalization_appearance_context_v1_get_icon_theme(ctx->appearance_context);
+    return 1;
+}
+
+static int appearance_icon_theme_echo_received(struct test_ctx *ctx)
+{
+    return ctx->icon_theme_count >= 3 && strcmp(ctx->icon_theme, "test-icons") == 0;
+}
+
+static int appearance_get_active_color(struct test_ctx *ctx)
+{
+    treeland_personalization_appearance_context_v1_get_active_color(ctx->appearance_context);
+    return 1;
+}
+
+static int appearance_active_color_echo_received(struct test_ctx *ctx)
+{
+    return ctx->active_color_count >= 3 && strcmp(ctx->active_color, "#112233") == 0;
+}
+
+static int appearance_get_opacity(struct test_ctx *ctx)
+{
+    treeland_personalization_appearance_context_v1_get_window_opacity(ctx->appearance_context);
+    return 1;
+}
+
+static int appearance_opacity_echo_received(struct test_ctx *ctx)
+{
+    return ctx->window_opacity_count >= 3 && ctx->window_opacity == 150;
+}
+
+static int appearance_get_theme_type(struct test_ctx *ctx)
+{
+    treeland_personalization_appearance_context_v1_get_window_theme_type(ctx->appearance_context);
+    return 1;
+}
+
+static int appearance_theme_type_echo_received(struct test_ctx *ctx)
+{
+    return ctx->window_theme_type_count >= 3
+        && ctx->window_theme_type == TREELAND_PERSONALIZATION_APPEARANCE_CONTEXT_V1_THEME_TYPE_DARK;
+}
+
+static int appearance_get_titlebar_height(struct test_ctx *ctx)
+{
+    treeland_personalization_appearance_context_v1_get_window_titlebar_height(ctx->appearance_context);
+    return 1;
+}
+
+static int appearance_titlebar_height_echo_received(struct test_ctx *ctx)
+{
+    return ctx->window_titlebar_height_count >= 3 && ctx->window_titlebar_height == 36;
+}
+
 /* ---------- cases ---------- */
 
 static const struct test_case cases[] = {
@@ -584,8 +662,12 @@ static const struct test_case cases[] = {
     { "font.event.font_size", font_size_received },
     { "font.set_font", font_set_font },
     { "font.event.font", font_received },
+    { "font.get_font", font_get_font },
+    { "font.event.font_echo", font_echo_received },
     { "font.set_monospace_font", font_set_monospace_font },
     { "font.event.monospace_font", monospace_font_received },
+    { "font.get_monospace_font", font_get_monospace_font },
+    { "font.event.monospace_font_echo", monospace_font_echo_received },
     { "font.get_font_size", font_get_size },
     { "font.event.font_size_echo", font_size_echo_received },
     { "manager.get_appearance_context", create_appearance_context },
@@ -603,6 +685,16 @@ static const struct test_case cases[] = {
     { "appearance.event.window_titlebar_height", appearance_titlebar_height_received },
     { "appearance.get_round_corner_radius", appearance_get_radius },
     { "appearance.event.round_corner_radius_echo", appearance_radius_echo_received },
+    { "appearance.get_icon_theme", appearance_get_icon_theme },
+    { "appearance.event.icon_theme_echo", appearance_icon_theme_echo_received },
+    { "appearance.get_active_color", appearance_get_active_color },
+    { "appearance.event.active_color_echo", appearance_active_color_echo_received },
+    { "appearance.get_window_opacity", appearance_get_opacity },
+    { "appearance.event.window_opacity_echo", appearance_opacity_echo_received },
+    { "appearance.get_window_theme_type", appearance_get_theme_type },
+    { "appearance.event.window_theme_type_echo", appearance_theme_type_echo_received },
+    { "appearance.get_window_titlebar_height", appearance_get_titlebar_height },
+    { "appearance.event.window_titlebar_height_echo", appearance_titlebar_height_echo_received },
     { "manager.get_cursor_context.invalid", create_invalid_cursor_context },
     { "cursor_invalid.commit", invalid_cursor_commit },
     { "cursor_invalid.event.verfity_fail", invalid_cursor_verfity_received },
@@ -610,6 +702,13 @@ static const struct test_case cases[] = {
 
 void test_cleanup(struct test_ctx *ctx)
 {
+    if (ctx->display) {
+        protocol_test_invoke_server(personalization_restore_config, NULL);
+        /* Keep the compositor event loop alive through a roundtrip after the
+         * restore request, so DConfig-backed production setters are processed
+         * before this isolated test process exits. */
+        wl_display_roundtrip(ctx->display);
+    }
     if (ctx->window_context) treeland_personalization_window_context_v1_destroy(ctx->window_context);
     if (ctx->cursor_context) treeland_personalization_cursor_context_v1_destroy(ctx->cursor_context);
     if (ctx->invalid_cursor_context) treeland_personalization_cursor_context_v1_destroy(ctx->invalid_cursor_context);
@@ -626,6 +725,15 @@ int protocol_test_run(const char *socket_name)
     test_init(&ctx);
     if (!connect_client(&ctx, socket_name)) {
         fprintf(stderr, "failed to connect to or bind treeland_personalization_manager_v1\n");
+        test_cleanup(&ctx);
+        test_destroy(&ctx);
+        return 1;
+    }
+
+    int snapshot_valid = 0;
+    if (!protocol_test_invoke_server(personalization_snapshot_config, &snapshot_valid)
+        || !snapshot_valid) {
+        fprintf(stderr, "failed to snapshot personalization configuration\n");
         test_cleanup(&ctx);
         test_destroy(&ctx);
         return 1;

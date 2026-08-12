@@ -3,6 +3,9 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(WAYLAND_CLIENT REQUIRED IMPORTED_TARGET wayland-client)
 pkg_check_modules(XKBCOMMON REQUIRED IMPORTED_TARGET xkbcommon)
 
+option(TREELAND_ENABLE_UINPUT_PROTOCOL_TESTS
+    "Build optional /dev/uinput protocol integration tests" OFF)
+
 include(${CMAKE_CURRENT_SOURCE_DIR}/framework/ProtocolTest.cmake)
 
 add_subdirectory(desktop-integration-fixture)
@@ -19,6 +22,9 @@ add_subdirectory(treeland-dde-shell-picker-desktop-v1)
 add_subdirectory(treeland-ddm-v1)
 add_subdirectory(treeland-foreign-toplevel-manager-v1)
 add_subdirectory(treeland-input-manager-unstable-v1)
+if(TREELAND_ENABLE_UINPUT_PROTOCOL_TESTS AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    add_subdirectory(treeland-input-manager-uinput-v1)
+endif()
 add_subdirectory(treeland-keyboard-state-notify-unstable-v1)
 add_subdirectory(treeland-output-manager-v1)
 add_subdirectory(treeland-personalization-manager-v1)

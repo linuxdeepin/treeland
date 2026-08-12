@@ -22,6 +22,8 @@
 
 void protocol_test_desktop_setup(Helper *helper);
 extern "C" bool protocol_test_desktop_ready(Helper *helper) __attribute__((weak));
+extern "C" bool protocol_test_desktop_preflight() __attribute__((weak));
+extern "C" bool protocol_test_desktop_skip() __attribute__((weak));
 
 namespace {
 class ProtocolTestRunner : public QObject
@@ -64,6 +66,10 @@ extern "C" int protocol_test_invoke_server(protocol_test_server_callback callbac
 
 int main(int argc, char *argv[])
 {
+    if (protocol_test_desktop_preflight && !protocol_test_desktop_preflight()) {
+        std::fflush(nullptr);
+        std::_Exit(77);
+    }
     Treeland::preInit(Treeland::InitOptions{ .headless = true });
     QGuiApplication app(argc, argv);
 
@@ -72,6 +78,10 @@ int main(int argc, char *argv[])
     if (!helper)
         return 1;
     protocol_test_desktop_setup(helper);
+    if (protocol_test_desktop_skip && protocol_test_desktop_skip()) {
+        std::fflush(nullptr);
+        std::_Exit(77);
+    }
 
     const auto session = helper->sessionManager()->globalSession();
     if (!session || !session->socket() || !session->socket()->isValid())

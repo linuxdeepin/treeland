@@ -40,6 +40,8 @@ struct window_context_state {
 
 /* Implemented in setup.cpp: copies PersonalizationWindowContextV1 state into data. */
 void personalization_window_state(void *data);
+void personalization_snapshot_config(void *data);
+void personalization_restore_config(void *data);
 
 #include "protocol-test-client.h"
 

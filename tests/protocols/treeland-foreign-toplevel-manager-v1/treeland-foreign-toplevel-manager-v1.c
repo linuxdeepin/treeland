@@ -210,11 +210,12 @@ static int connect_client(struct test_ctx *ctx, const char *socket_name)
     if (!protocol_test_connect(&ctx->connection, socket_name))
         return 0;
     ctx->display = ctx->connection.display;
+    ctx->seat = protocol_test_bind(&ctx->connection, "wl_seat", &wl_seat_interface, 1);
     ctx->manager = protocol_test_bind(&ctx->connection, "treeland_foreign_toplevel_manager_v1",
                                       &treeland_foreign_toplevel_manager_v1_interface, 1);
     if (ctx->manager)
         treeland_foreign_toplevel_manager_v1_add_listener(ctx->manager, &manager_listener, ctx);
-    return ctx->manager != NULL;
+    return ctx->seat != NULL && ctx->manager != NULL;
 }
 
 static int read_server_state(struct test_ctx *ctx, struct ftm_server_state *state)
@@ -353,6 +354,76 @@ static int restore_real_toplevel(struct test_ctx *ctx)
     return read_server_state(ctx, &state) && !state.wrapper_minimized;
 }
 
+static int maximize_real_toplevel(struct test_ctx *ctx)
+{
+    if (!ctx->handle)
+        return 0;
+    treeland_foreign_toplevel_handle_v1_set_maximized(ctx->handle);
+    if (wl_display_roundtrip(ctx->display) < 0)
+        return 0;
+    struct ftm_server_state state;
+    return read_server_state(ctx, &state) && state.wrapper_maximized;
+}
+
+static int unmaximize_real_toplevel(struct test_ctx *ctx)
+{
+    if (!ctx->handle)
+        return 0;
+    treeland_foreign_toplevel_handle_v1_unset_maximized(ctx->handle);
+    if (wl_display_roundtrip(ctx->display) < 0)
+        return 0;
+    struct ftm_server_state state;
+    return read_server_state(ctx, &state) && !state.wrapper_maximized;
+}
+
+static int fullscreen_real_toplevel(struct test_ctx *ctx)
+{
+    if (!ctx->handle)
+        return 0;
+    treeland_foreign_toplevel_handle_v1_set_fullscreen(ctx->handle, NULL);
+    if (wl_display_roundtrip(ctx->display) < 0)
+        return 0;
+    struct ftm_server_state state;
+    return read_server_state(ctx, &state) && state.wrapper_fullscreen;
+}
+
+static int unfullscreen_real_toplevel(struct test_ctx *ctx)
+{
+    if (!ctx->handle)
+        return 0;
+    treeland_foreign_toplevel_handle_v1_unset_fullscreen(ctx->handle);
+    if (wl_display_roundtrip(ctx->display) < 0)
+        return 0;
+    struct ftm_server_state state;
+    return read_server_state(ctx, &state) && !state.wrapper_fullscreen;
+}
+
+static int activate_real_toplevel(struct test_ctx *ctx)
+{
+    if (!ctx->handle || !ctx->seat)
+        return 0;
+    treeland_foreign_toplevel_handle_v1_activate(ctx->handle, ctx->seat);
+    if (wl_display_roundtrip(ctx->display) < 0)
+        return 0;
+    struct ftm_server_state state;
+    return read_server_state(ctx, &state) && state.wrapper_activated && state.wrapper_focused;
+}
+
+static int set_rectangle_changes_icon_geometry(struct test_ctx *ctx)
+{
+    if (!ctx->handle || !ctx->xdg_toplevel.surface)
+        return 0;
+    treeland_foreign_toplevel_handle_v1_set_rectangle(ctx->handle,
+                                                       ctx->xdg_toplevel.surface,
+                                                       11, 12, 130, 140);
+    if (wl_display_roundtrip(ctx->display) < 0)
+        return 0;
+    struct ftm_server_state state;
+    return read_server_state(ctx, &state)
+           && state.icon_x == state.wrapper_x + 11 && state.icon_y == state.wrapper_y + 12
+           && state.icon_width == 130 && state.icon_height == 140;
+}
+
 static int request_close(struct test_ctx *ctx)
 {
     if (!ctx->handle)
@@ -389,6 +460,12 @@ static const struct test_case cases[] = {
     { "context.close", close_preview },
     { "handle.minimize_changes_wrapper", minimize_real_toplevel },
     { "handle.restore_changes_wrapper", restore_real_toplevel },
+    { "handle.maximize_changes_wrapper", maximize_real_toplevel },
+    { "handle.unmaximize_changes_wrapper", unmaximize_real_toplevel },
+    { "handle.fullscreen_changes_wrapper", fullscreen_real_toplevel },
+    { "handle.unfullscreen_changes_wrapper", unfullscreen_real_toplevel },
+    { "handle.activate_focuses_wrapper", activate_real_toplevel },
+    { "handle.set_rectangle_changes_icon_geometry", set_rectangle_changes_icon_geometry },
     { "handle.close_requests_xdg_close", request_close },
     { "context.destroy", destroy_context },
     { "manager.stop", stop_manager },
@@ -400,6 +477,7 @@ void test_cleanup(struct test_ctx *ctx)
     protocol_test_xdg_toplevel_destroy(&ctx->xdg_toplevel);
     if (ctx->handle) treeland_foreign_toplevel_handle_v1_destroy(ctx->handle);
     if (ctx->manager) treeland_foreign_toplevel_manager_v1_destroy(ctx->manager);
+    if (ctx->seat) wl_seat_destroy(ctx->seat);
     protocol_test_disconnect(&ctx->connection);
 }
 
