@@ -14,14 +14,23 @@ QRectF geometry(Mode mode, Output *output)
         return QRectF();
 
     const QRectF area = output->validGeometry();
+    const QSizeF half(area.width() / 2, area.height());
+    const QSizeF quad(area.width() / 2, area.height() / 2);
     switch (mode) {
     case Mode::Left:
-        return QRectF(area.topLeft(), QSizeF(area.width() / 2, area.height()));
+        return QRectF(area.topLeft(), half);
     case Mode::Right:
-        return QRectF(QPointF(area.left() + area.width() / 2, area.top()),
-                      QSizeF(area.width() / 2, area.height()));
+        return QRectF(QPointF(area.left() + area.width() / 2, area.top()), half);
     case Mode::Maximize:
         return area;
+    case Mode::TopLeft:
+        return QRectF(area.topLeft(), quad);
+    case Mode::TopRight:
+        return QRectF(QPointF(area.left() + area.width() / 2, area.top()), quad);
+    case Mode::BottomLeft:
+        return QRectF(QPointF(area.left(), area.top() + area.height() / 2), quad);
+    case Mode::BottomRight:
+        return QRectF(QPointF(area.left() + area.width() / 2, area.top() + area.height() / 2), quad);
     case Mode::None:
         break;
     }
