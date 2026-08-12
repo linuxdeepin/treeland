@@ -903,6 +903,7 @@ void RootSurfaceContainer::detectEdgeTilingForSeat(WSeat *seat)
     auto *cfg = Helper::instance()->config();
     const qreal sideTrigger = cfg ? qreal(cfg->edgeSideTriggerDistance()) : 20.0;
     const qreal topTrigger = cfg ? qreal(cfg->edgeTopTriggerDistance()) : 5.0;
+    const qreal quadRatio = cfg ? qreal(cfg->edgeQuadrantZoneRatio()) : 0.25;
     auto &mrState = container->moveResizeState();
     SurfaceWrapper::TileMode mode = SurfaceWrapper::TileMode::None;
     Output *out = nullptr;
@@ -915,11 +916,27 @@ void RootSurfaceContainer::detectEdgeTilingForSeat(WSeat *seat)
         out = outputAt(pos);
         if (out) {
             const QRectF area = out->validGeometry();
+            const qreal quadTop = area.top() + area.height() * quadRatio;
+            const qreal quadBottom = area.bottom() - area.height() * quadRatio;
             if (pos.x() <= area.left() + sideTrigger) {
-                mode = SurfaceWrapper::TileMode::Left;
+                // Left edge: the top/bottom quadrant zones tile to the corner.
+                if (pos.y() <= quadTop)
+                    mode = SurfaceWrapper::TileMode::TopLeft;
+                else if (pos.y() >= quadBottom)
+                    mode = SurfaceWrapper::TileMode::BottomLeft;
+                else
+                    mode = SurfaceWrapper::TileMode::Left;
             } else if (pos.x() >= area.right() - sideTrigger) {
-                mode = SurfaceWrapper::TileMode::Right;
+                // Right edge: the top/bottom quadrant zones tile to the corner.
+                if (pos.y() <= quadTop)
+                    mode = SurfaceWrapper::TileMode::TopRight;
+                else if (pos.y() >= quadBottom)
+                    mode = SurfaceWrapper::TileMode::BottomRight;
+                else
+                    mode = SurfaceWrapper::TileMode::Right;
             } else if (pos.y() <= area.top() + topTrigger) {
+                // Top edge: maximize only; quadrant zones are exclusive to
+                // the left/right edges.
                 mode = SurfaceWrapper::TileMode::Maximize;
             }
 
@@ -933,9 +950,15 @@ void RootSurfaceContainer::detectEdgeTilingForSeat(WSeat *seat)
                     samplePt = QPointF(pos.x(), area.top() - 1.0);
                     break;
                 case SurfaceWrapper::TileMode::Left:
+                case SurfaceWrapper::TileMode::TopLeft:
+                case SurfaceWrapper::TileMode::BottomLeft:
                     samplePt = QPointF(area.left() - 1.0, pos.y());
                     break;
                 case SurfaceWrapper::TileMode::Right:
+                case SurfaceWrapper::TileMode::TopRight:
+                case SurfaceWrapper::TileMode::BottomRight:
+                    samplePt = QPointF(area.right(), pos.y());
+                    break;
                     samplePt = QPointF(area.right(), pos.y());
                     break;
                 case SurfaceWrapper::TileMode::None:
