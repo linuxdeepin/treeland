@@ -1,11 +1,10 @@
-// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
 
+#include <wlr_fwd.h>
 #include <WServer>
-
-class wlr_xdg_popup;
 
 Q_MOC_INCLUDE("wxdgtoplevelsurface.h")
 
@@ -23,6 +22,7 @@ public:
 
     QVector<WXdgToplevelSurface*> toplevelSurfaceList() const;
     QByteArrayView interfaceName() const override;
+    wlr_xdg_shell *handle() const;
 
 Q_SIGNALS:
     void toplevelSurfaceAdded(WXdgToplevelSurface *surface);

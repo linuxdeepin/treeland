@@ -1,4 +1,4 @@
-// Copyright (C) 2023 rewine <luhongxu@deepin.org>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
@@ -38,6 +38,7 @@ public:
     Q_INVOKABLE DecorationMode modeBySurface(WAYLIB_SERVER_NAMESPACE::WSurface* surface) const;
 
     QByteArrayView interfaceName() const override;
+    wlr_xdg_decoration_manager_v1 *handle() const;
 
 Q_SIGNALS:
     void surfaceModeChanged(WAYLIB_SERVER_NAMESPACE::WSurface *surface, DecorationMode mode);

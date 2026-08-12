@@ -4,11 +4,8 @@
 #include "backlight.h"
 
 #include "woutput.h"
-#include "qwbackend.h"
 
 #include "common/treelandlogging.h"
-
-QW_USE_NAMESPACE
 
 Backlight::Backlight(const QString &name)
     : m_name(name)
@@ -67,9 +64,9 @@ qreal Backlight::setBrightness(qreal brightness)
 Backlight* Backlight::createForOutput(WOutput* output)
 {
     // query backlight driver through drm connector id
-    if (output->handle()->is_drm()) {
+    if (wlr_output_is_drm(output->handle())) {
         QDirIterator backlightIter("/sys/class/backlight", QDir::Dirs | QDir::NoDot);
-        uint connectorId = qw_drm_backend::connector_get_id(output->nativeHandle());
+        uint connectorId = wlr_drm_connector_get_id(output->handle());
         QString dirname;
         uint backlightCount = 0;
         while (backlightIter.hasNext()) {

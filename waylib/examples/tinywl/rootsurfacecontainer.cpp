@@ -1,7 +1,8 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "rootsurfacecontainer.h"
+#include <wscoplistener.h>
 #include "helper.h"
 #include "surfacewrapper.h"
 #include "output.h"
@@ -12,8 +13,6 @@
 #include <woutput.h>
 #include <wxdgsurface.h>
 #include <wxdgpopupsurface.h>
-
-#include <qwoutputlayout.h>
 
 #include <QQuickWindow>
 
@@ -50,11 +49,12 @@ void RootSurfaceContainer::init(WServer *server)
         setHeight(height);
     });
 
-    m_outputLayout->safeConnect(&qw_output_layout::notify_change, this, [this] {
+    m_outputLayoutListenerOwner = std::make_unique<WListenerOwner>();
+    m_outputLayout->listeners(m_outputLayoutListenerOwner.get())->add(
+        &m_outputLayout->handle()->events.change, this, [this] {
         for (auto output : std::as_const(outputs())) {
             output->updatePositionFromLayout();
         }
-
         ensureCursorVisible();
 
         // for (auto s : m_surfaceContainer->surfaces()) {
@@ -67,11 +67,11 @@ void RootSurfaceContainer::init(WServer *server)
     m_dragSurfaceItem->setZ(static_cast<std::underlying_type_t<WOutputLayout::Layer>>(WOutputLayout::Layer::Cursor) - 1);
     m_dragSurfaceItem->setFlags(WSurfaceItem::DontCacheLastBuffer);
 
-    m_cursor->safeConnect(&WCursor::positionChanged, this, [this] {
+    QObject::connect(m_cursor, &WCursor::positionChanged, this, [this] {
         m_dragSurfaceItem->setPosition(m_cursor->position());
     });
 
-    m_cursor->safeConnect(&WCursor::requestedDragSurfaceChanged, this, [this] {
+    QObject::connect(m_cursor, &WCursor::requestedDragSurfaceChanged, this, [this] {
         m_dragSurfaceItem->setSurface(m_cursor->requestedDragSurface());
     });
 }
@@ -273,8 +273,8 @@ void RootSurfaceContainer::addBySubContainer(SurfaceContainer *sub, SurfaceWrapp
         if (auto xdgPopupSurface = qobject_cast<WXdgPopupSurface*>(surface->shellSurface())) {
             if (parentSurface->type() != SurfaceWrapper::Type::Layer) {
                 auto pos = parentSurface->position() + parentSurface->surfaceItem()->position() + xdgPopupSurface->getPopupPosition();
-                if (auto op = m_outputLayout->handle()->output_at(pos.x(), pos.y()))
-                    output = Helper::instance()->getOutput(WOutput::fromHandle(qw_output::from(op)));
+                if (auto op = wlr_output_layout_output_at(m_outputLayout->handle(), pos.x(), pos.y()))
+                    output = Helper::instance()->getOutput(WOutput::fromHandle(op));
             }
         }
         surface->setOwnsOutput(output);
@@ -347,11 +347,11 @@ Output *RootSurfaceContainer::cursorOutput() const
 {
     Q_ASSERT(m_cursor->layout() == m_outputLayout);
     const auto &pos = m_cursor->position();
-    auto o = m_outputLayout->handle()->output_at(pos.x(), pos.y());
+    auto o = wlr_output_layout_output_at(m_outputLayout->handle(), pos.x(), pos.y());
     if (!o)
         return nullptr;
 
-    return Helper::instance()->getOutput(WOutput::fromHandle(qw_output::from(o)));
+    return Helper::instance()->getOutput(WOutput::fromHandle(o));
 }
 
 Output *RootSurfaceContainer::primaryOutput() const
@@ -375,7 +375,7 @@ const QList<Output*> &RootSurfaceContainer::outputs() const
 void RootSurfaceContainer::ensureCursorVisible()
 {
     const auto cursorPos = m_cursor->position();
-    if (m_outputLayout->handle()->output_at(cursorPos.x(), cursorPos.y()))
+    if (wlr_output_layout_output_at(m_outputLayout->handle(), cursorPos.x(), cursorPos.y()))
         return;
 
     if (m_primaryOutput) {

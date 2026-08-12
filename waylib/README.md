@@ -2,7 +2,7 @@
 
 ## Introduction
 
-waylib is a Wayland compositor development library, based on [qwlroots](https://github.com/vioken/qwlroots), provides a Qt-style development interface. It is designed to be deeply integrated with QtQuick, taking advantage of QtQuick's Scene Graphics model to simplify the complexity of window management. In waylib, it is possible to attach one or multiple Wayland Outputs to a QQuickWindow, and a corresponding Wayland Surface can be attached to a QQuickItem, allowing it to be mixed with QtQuick's graphics components and supporting QRHI for OpenGL and Vulkan compatibility in a single piece of code.
+waylib is a Wayland compositor development library, built directly on [wlroots](https://gitlab.freedesktop.org/wlroots/wlroots), providing a Qt-style development interface. It is designed to be deeply integrated with QtQuick, taking advantage of QtQuick's Scene Graphics model to simplify the complexity of window management. In waylib, it is possible to attach one or multiple Wayland Outputs to a QQuickWindow, and a corresponding Wayland Surface can be attached to a QQuickItem, allowing it to be mixed with QtQuick's graphics components and supporting QRHI for OpenGL and Vulkan compatibility in a single piece of code.
 
 Creating a Wayland compositor using waylib can be simple and efficient, which, on top of wlroots, provides:
 
@@ -26,16 +26,11 @@ Based on the above features, compositor developers need only focus on the busine
 
 ## Building
 
-Step 1: Compiling and Installing wlroots and qwlroots
+Step 1: Compiling and Installing wlroots
 
 waylib requires the development version (0.19) of wlroots, which needs to be [compiled and installed manually](https://gitlab.freedesktop.org/wlroots/wlroots#building). Arch Linux users can install [wlroots-0.19](https://archlinux.org/packages/extra/x86_64/wlroots0.19/).
 
-For qwlroots, it is currently recommended to use the version provided as a submodule. However, you can also [compile and install](https://github.com/vioken/qwlroots) it by yourself. 
-
-If using the submodule version, please note the following two points:
-
-1. Initialize the submodules when you clone the source code: `git clone git@github.com:vioken/waylib.git --recursive`
-2. Before the final compilation, add the cmake parameter "-DWITH_SUBMODULE_QWLROOTS=ON" to enable the building of the submodule.
+In this repository the wlroots source tree is vendored under `wlroots/` (upstream sources under `3rdparty/wlroots`) and built via CMake together with waylib, so no separate wlroots installation is required.
 
 Step 2: Installing other dependencies
 

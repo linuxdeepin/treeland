@@ -14,11 +14,6 @@
 #include <woutput.h>
 #include <wsocket.h>
 
-#include <qwcompositor.h>
-#include <qwdisplay.h>
-#include <qwoutput.h>
-#include <qwseat.h>
-
 #include <QPointer>
 
 static QList<TreelandWallpaperInterfaceV1 *> s_wallpapers;
@@ -32,7 +27,7 @@ static WOutput *outputFromResource(wl_resource *resource)
     if (!nativeOutput)
         return nullptr;
 
-    auto *output = qw_output::from(nativeOutput);
+    auto *output = nativeOutput;
     return output ? WOutput::fromHandle(output) : nullptr;
 }
 
@@ -125,7 +120,7 @@ TreelandWallpaperManagerInterfaceV1::~TreelandWallpaperManagerInterfaceV1() = de
 
 void TreelandWallpaperManagerInterfaceV1::create(WServer *server)
 {
-    d->init(server->handle()->handle(), InterfaceVersion);
+    d->init(server->handle(), InterfaceVersion);
 }
 
 void TreelandWallpaperManagerInterfaceV1::destroy([[maybe_unused]] WServer *server)
@@ -229,7 +224,7 @@ WSurface *TreelandWallpaperInterfaceV1::referenceWSurface() const
         return nullptr;
     }
 
-    return WSurface::fromHandle(qw_surface::from(wlr_surface_from_resource(d->refSurfaceResource)));
+    return WSurface::fromHandle(wlr_surface_from_resource(d->refSurfaceResource));
 }
 
 QString TreelandWallpaperInterfaceV1::userName() const
@@ -239,7 +234,8 @@ QString TreelandWallpaperInterfaceV1::userName() const
 
 WOutput *TreelandWallpaperInterfaceV1::wOutput() const
 {
-    return d->wOutput && !d->wOutput->isInvalidated() ? d->wOutput.get() : nullptr;
+    auto *output = d->wOutput.data();
+    return output && output->handle() ? output : nullptr;
 }
 
 void TreelandWallpaperInterfaceV1::sendError(const QString &source, Error error)

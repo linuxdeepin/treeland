@@ -49,38 +49,11 @@
         "type": "github"
       }
     },
-    "qwlroots": {
-      "inputs": {
-        "flake-utils": [
-          "flake-utils"
-        ],
-        "nix-filter": [
-          "nix-filter"
-        ],
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1752200508,
-        "narHash": "sha256-10z8yIGHuTEucUNSU/fz+d7hCvFE08MI1WR0+qbvz9c=",
-        "owner": "vioken",
-        "repo": "qwlroots",
-        "rev": "00b09f9047ac0eaf26757e8af3d31f35d22bbce3",
-        "type": "github"
-      },
-      "original": {
-        "owner": "vioken",
-        "repo": "qwlroots",
-        "type": "github"
-      }
-    },
     "root": {
       "inputs": {
         "flake-utils": "flake-utils",
         "nix-filter": "nix-filter",
-        "nixpkgs": "nixpkgs",
-        "qwlroots": "qwlroots"
+        "nixpkgs": "nixpkgs"
       }
     },
     "systems": {

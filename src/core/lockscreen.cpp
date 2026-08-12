@@ -279,11 +279,11 @@ void LockScreen::onExternalLock(WSessionLock *lock)
 
     m_sessionLock = lock;
 
-    lock->safeConnect(&WSessionLock::surfaceAdded, this, &LockScreen::onLockSurfaceAdded);
-    lock->safeConnect(&WSessionLock::surfaceRemoved, this, &LockScreen::onLockSurfaceRemoved);
-    lock->safeConnect(&WSessionLock::unlocked, this, &LockScreen::onExternalUnlock);
-    lock->safeConnect(&WSessionLock::canceled, this, &LockScreen::onExternalUnlock);
-    lock->safeConnect(&WSessionLock::abandoned, this, &LockScreen::onExternalLockAbandoned);
+    QObject::connect(lock, &WSessionLock::surfaceAdded, this, &LockScreen::onLockSurfaceAdded);
+    QObject::connect(lock, &WSessionLock::surfaceRemoved, this, &LockScreen::onLockSurfaceRemoved);
+    QObject::connect(lock, &WSessionLock::unlocked, this, &LockScreen::onExternalUnlock);
+    QObject::connect(lock, &WSessionLock::canceled, this, &LockScreen::onExternalUnlock);
+    QObject::connect(lock, &WSessionLock::abandoned, this, &LockScreen::onExternalLockAbandoned);
 
     setVisible(true);
 }

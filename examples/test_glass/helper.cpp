@@ -12,16 +12,7 @@
 #include <woutputrenderwindow.h>
 #include <woutputviewport.h>
 
-#include <qwbackend.h>
-#include <qwdisplay.h>
-#include <qwoutput.h>
-#include <qwlogging.h>
-#include <qwcompositor.h>
-#include <qwsubcompositor.h>
-#include <qwrenderer.h>
-#include <qwallocator.h>
-
-QW_USE_NAMESPACE
+#include <wlr_all.h>
 
 GlassConfig::GlassConfig(QObject *parent)
     : QObject(parent)
@@ -86,12 +77,12 @@ void Helper::initProtocols(WOutputRenderWindow *window, QQmlEngine *qmlEngine)
         m_seat->detachInputDevice(device);
     });
 
-    m_allocator = qw_allocator::autocreate(*m_backend->handle(), *m_renderer);
-    m_renderer->init_wl_display(*m_server->handle());
+    m_allocator = wlr_allocator_autocreate(m_backend->handle(), m_renderer);
+    wlr_renderer_init_wl_display(m_renderer, m_server->handle());
 
     // free follow display
-    m_compositor = qw_compositor::create(*m_server->handle(), 6, *m_renderer);
-    qw_subcompositor::create(*m_server->handle());
+    m_compositor = wlr_compositor_create(m_server->handle(), 6, m_renderer);
+    wlr_subcompositor_create(m_server->handle());
 
     connect(window, &WOutputRenderWindow::outputViewportInitialized, this, [] (WOutputViewport *viewport) {
         // Trigger QWOutput::frame signal in order to ensure WOutputHelper::renderable
@@ -100,29 +91,32 @@ void Helper::initProtocols(WOutputRenderWindow *window, QQmlEngine *qmlEngine)
             WOutput *output = viewport->output();
 
             // Enable on default
-            auto qwoutput = output->handle();
             // Don't care for WOutput::isEnabled, must do WOutput::commit here,
-            // In order to ensure trigger QWOutput::frame signal, WOutputRenderWindow
-            // needs this signal to render next frmae. Because QWOutput::frame signal
-            // maybe Q_EMIT before WOutputRenderWindow::attach, if no commit here,
-            // WOutputRenderWindow will ignore this ouptut on render.
-            if (!qwoutput->property("_Enabled").toBool()) {
-                qwoutput->setProperty("_Enabled", true);
-                qw_output_state newState;
+            // In order to ensure the frame signal fires so WOutputRenderWindow
+            // renders this output in the next frame.
+            // Keep the "already enabled" marker on the WOutput object itself:
+            // it is released with the output, so a recycled wlr_output address
+            // is never mistaken for an already-enabled output.
+            if (!output->property("_Enabled").toBool()) {
+                output->setProperty("_Enabled", true);
+                auto *wlrOutput = output->handle();
+                wlr_output_state newState;
+                wlr_output_state_init(&newState);
 
-                if (!qwoutput->handle()->current_mode) {
-                    auto mode = qwoutput->preferred_mode();
+                if (!wlrOutput->current_mode) {
+                    auto mode = wlr_output_preferred_mode(wlrOutput);
                     if (mode)
-                        newState.set_mode(mode);
+                        wlr_output_state_set_mode(&newState, mode);
                 }
-                newState.set_enabled(true);
-                if (!qwoutput->commit_state(newState)) {
-                    qCritical("commit failed on output %s", qwoutput->handle()->name);
+                wlr_output_state_set_enabled(&newState, true);
+                if (!wlr_output_commit_state(wlrOutput, &newState)) {
+                    qCritical("commit failed on output %s", wlrOutput->name);
                 }
+                wlr_output_state_finish(&newState);
             }
         }
     });
     window->init(m_renderer, m_allocator);
 
-    m_backend->handle()->start();
+    wlr_backend_start(m_backend->handle());
 }

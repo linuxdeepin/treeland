@@ -4,7 +4,6 @@
 #include "wserver.h"
 
 WAYLIB_SERVER_USE_NAMESPACE
-QW_USE_NAMESPACE
 
 class DDMInterfaceV1Private;
 class DDMInterfaceV1 : public QObject , public WServerInterface

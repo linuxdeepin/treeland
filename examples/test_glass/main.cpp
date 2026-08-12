@@ -7,9 +7,9 @@
 #include <WBackend>
 #include <WOutput>
 #include <woutputrenderwindow.h>
+#include <wlogging.h>
 
-#include <qwbackend.h>
-#include <qwlogging.h>
+#include <wlr_all.h>
 #include <QCommandLineOption>
 #include <QCommandLineParser>
 #include <QDir>
@@ -18,10 +18,10 @@
 #include <QQuickStyle>
 #include <QUrl>
 
-QW_USE_NAMESPACE
+WAYLIB_SERVER_USE_NAMESPACE
 
 int main(int argc, char *argv[]) {
-    qw_log::init();
+    WLog::init();
     WServer::initializeQPA();
 //    QQuickStyle::setStyle("Material");
 

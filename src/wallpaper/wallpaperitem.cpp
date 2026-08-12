@@ -167,7 +167,7 @@ void WallpaperItem::updateSurface()
     }
 
     WallpaperOutputConfig config =
-        Helper::instance()->m_wallpaperManager->getOutputConfig(output()->nativeHandle());
+        Helper::instance()->m_wallpaperManager->getOutputConfig(output()->handle());
     if (wallpaperRole() == Lockscreen) {
         if (config.lockscreenWallpaper != m_source) {
                 TreelandWallpaperSurfaceInterfaceV1 *interface =

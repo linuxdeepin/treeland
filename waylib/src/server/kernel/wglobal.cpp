@@ -1,13 +1,16 @@
-// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wglobal.h"
 #include "wsocket.h"
+#include "wscoplistener.h"
 #include "private/wglobal_p.h"
+#include "wayliblogging.h"
 
 #include <private/qobject_p_p.h>
 #include <QCursor>
 #include <QLoggingCategory>
+#include <utility>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -42,10 +45,14 @@ int WObject::pidFD() const
     return client->pidFD();
 }
 
+WObject::WObject()
+    : w_d_ptr(new WObjectPrivate(this))
+{
+}
+
 WObject::WObject(WObjectPrivate &dd, WObject *)
     : w_d_ptr(&dd)
 {
-
 }
 
 int WObject::indexOfAttachedData(const void *owner) const
@@ -66,9 +73,91 @@ QList<std::pair<const void *, void *>> &WObject::attachedDatas()
     return d->attachedDatas;
 }
 
+void WObject::teardown()
+{
+    W_D(WObject);
+    const auto targets = d->attachedListenerTargets;
+    d->attachedListenerTargets.clear();
+
+    for (WObject *target : targets) {
+        if (target)
+            WObjectPrivate::get(target)->removeListenersInternal(this);
+    }
+
+    for (auto it = d->attachedListenerLists.begin(); it != d->attachedListenerLists.end(); ) {
+        if (it->first != this)
+            WObjectPrivate::get(it->first)->unregisterListenerTarget(this);
+        delete it->second;
+        it = d->attachedListenerLists.erase(it);
+    }
+}
+
 WObject::~WObject()
 {
+    W_D(WObject);
+    // Force derived classes / WListenerOwner to call teardown() before the
+    // base destructor runs. Leaving listeners attached here is a use-after-
+    // free risk once native wlroots objects are gone.
+    if (!d->attachedListenerLists.isEmpty() || !d->attachedListenerTargets.isEmpty()) {
+        qFatal("WObject %p destroyed with pending listeners "
+               "(lists=%d, cross-object targets=%d). "
+               "Call teardown() in the most-derived destructor "
+               "(or before tearing down native handles).",
+               static_cast<void *>(this),
+               int(d->attachedListenerLists.size()),
+               int(d->attachedListenerTargets.size()));
+    }
+}
 
+WScopedListenerList *WObject::listeners()
+{
+    W_D(WObject);
+    for (const auto &entry : std::as_const(d->attachedListenerLists)) {
+        if (entry.first == this)
+            return entry.second;
+    }
+    auto *list = new WScopedListenerList;
+    d->attachedListenerLists.append({this, list});
+    return list;
+}
+
+WScopedListenerList *WObject::listeners(WObject *owner)
+{
+    Q_ASSERT(owner);
+    // Self-owned listeners must go through listeners(). Passing `this` here
+    // is almost always a mistake that conflates the two APIs.
+    Q_ASSERT_X(owner != this, "WObject::listeners",
+               "Use listeners() for this object's own listener list; "
+               "listeners(owner) is only for cross-object registration");
+    W_D(WObject);
+    WObjectPrivate::get(owner)->registerListenerTarget(this);
+    for (const auto &entry : std::as_const(d->attachedListenerLists)) {
+        if (entry.first == owner)
+            return entry.second;
+    }
+    auto *list = new WScopedListenerList;
+    d->attachedListenerLists.append({owner, list});
+    return list;
+}
+
+void WObject::removeListeners(WObject *owner)
+{
+    Q_ASSERT(owner);
+    W_D(WObject);
+    if (d->removeListenersInternal(owner)) {
+        WObjectPrivate::get(owner)->unregisterListenerTarget(this);
+        return;
+    }
+
+    QStringList registeredOwners;
+    registeredOwners.reserve(d->attachedListenerLists.size());
+    for (const auto &entry : std::as_const(d->attachedListenerLists))
+        registeredOwners.append(QString::asprintf("%p", entry.first));
+
+    qCInfo(lcWlObject) << "removeListeners: no listener group for owner"
+                       << QString::asprintf("%p", owner)
+                       << "on object" << QString::asprintf("%p", this)
+                       << "- registered owners:" << registeredOwners;
 }
 
 WObjectPrivate *WObjectPrivate::get(WObject *qq)
@@ -81,175 +170,40 @@ WObjectPrivate::WObjectPrivate(WObject *qq)
 {
 
 }
+
 WObjectPrivate::~WObjectPrivate()
 {
 
 }
 
-WWrapObject::WWrapObject(QObject *parent)
-    : WWrapObject(*new WWrapObjectPrivate(this), parent)
+void WObjectPrivate::registerListenerTarget(WObject *target)
 {
-
-}
-
-WWrapObject::WWrapObject(WWrapObjectPrivate &d, QObject *parent)
-    : QObject(parent)
-    , WObject(d, nullptr)
-{
-
-}
-
-WWrapObject::~WWrapObject()
-{
-    W_D(WWrapObject);
-    d->invalidate();
-}
-
-WWrapObjectPrivate::WWrapObjectPrivate(WWrapObject *q)
-    : WObjectPrivate(q)
-    , invalidated(false)
-{
-
-}
-
-WWrapObjectPrivate::~WWrapObjectPrivate()
-{
-    // Must call invalidate before destroy WWrapObject
-    Q_ASSERT(invalidated);
-}
-
-void WWrapObjectPrivate::initHandle(QW_NAMESPACE::qw_object_basic *handle)
-{
-    Q_ASSERT(!m_handle);
-    Q_ASSERT(!invalidated);
-    m_handle = handle;
-}
-
-static inline QObjectPrivate::Connection *getConnectionDPtr(const QMetaObject::Connection *connection)
-{
-    static_assert(sizeof(connection) == sizeof(void*),
-                  "Please check how to use QMetaObject::Connection::d_ptr");
-    return *reinterpret_cast<QObjectPrivate::Connection**>(const_cast<QMetaObject::Connection*>(connection));
-}
-
-void WWrapObjectPrivate::invalidate()
-{
-    if (invalidated)
+    if (!target || target == q_ptr)
         return;
-    invalidated = true;
-
-    W_Q(WWrapObject);
-
-    Q_EMIT q->aboutToBeInvalidated();
-
-    auto d = QObjectPrivate::get(q);
-    if (!d->isDeletingChildren && d->declarativeData && QAbstractDeclarativeData::destroyed) {
-        QAbstractDeclarativeData::destroyed(d->declarativeData, q);
-        d->declarativeData = nullptr;
+    for (WObject *existing : std::as_const(attachedListenerTargets)) {
+        if (existing == target)
+            return;
     }
-
-    instantRelease();
-    for (const auto &connection : std::as_const(connectionsWithHandle)) {
-        QObject::disconnect(connection);
-    }
-    if (m_handle) {
-        m_handle->disconnect(q);
-        m_handle = nullptr;
-    }
-    connectionsWithHandle.clear();
-
-    Q_EMIT q->invalidated();
+    attachedListenerTargets.append(target);
 }
 
-bool WWrapObject::safeDisconnect(const QObject *receiver)
+void WObjectPrivate::unregisterListenerTarget(WObject *target)
 {
-    W_D(WWrapObject);
+    attachedListenerTargets.removeAll(target);
+}
 
-    bool ok = false;
-    for (int i = d->connectionsWithHandle.size() - 1; i >= 0; --i) {
-        const QMetaObject::Connection &connection = d->connectionsWithHandle.at(i);
-        auto c_d = getConnectionDPtr(&connection);
-        if (c_d->receiver == receiver) {
-            if (QObject::disconnect(connection))
-                ok = true;
-
-            d->connectionsWithHandle.removeAt(i);
+bool WObjectPrivate::removeListenersInternal(WObject *owner)
+{
+    Q_ASSERT(owner);
+    for (auto it = attachedListenerLists.begin(); it != attachedListenerLists.end(); ++it) {
+        if (it->first == owner) {
+            delete it->second;
+            attachedListenerLists.erase(it);
+            return true;
         }
     }
-
-    if (disconnect(receiver))
-        ok = true;
-
-    return ok;
+    return false;
 }
-
-bool WWrapObject::safeDisconnect(const QMetaObject::Connection &connection)
-{
-    W_D(WWrapObject);
-    int index = d->connectionsWithHandle.indexOf(connection);
-    if (index < 0) {
-        auto c_d = getConnectionDPtr(&connection);
-        if (c_d->sender != this)
-            return false;
-        return disconnect(connection);
-    }
-    d->connectionsWithHandle.removeAt(index);
-    return QObject::disconnect(connection);
-}
-
-void WWrapObject::safeDeleteLater()
-{
-    W_D(WWrapObject);
-    d->invalidate();
-    deleteLater();
-}
-
-QW_NAMESPACE::qw_object_basic *WWrapObject::handle() const
-{
-    W_DC(WWrapObject);
-    return d->m_handle;
-}
-
-bool WWrapObject::isInvalidated() const
-{
-    W_DC(WWrapObject);
-    return d->invalidated;
-}
-
-void WWrapObject::invalidate()
-{
-    W_D(WWrapObject);
-    d->invalidate();
-}
-
-void WWrapObject::initHandle(QW_NAMESPACE::qw_object_basic *handle)
-{
-    W_D(WWrapObject);
-    d->initHandle(handle);
-}
-
-void WWrapObject::beginSafeConnect()
-{
-
-}
-
-void WWrapObject::endSafeConnect(const QMetaObject::Connection &connection)
-{
-    W_D(WWrapObject);
-    if (connection)
-        d->connectionsWithHandle.append(connection);
-}
-
-#ifdef QT_DEBUG
-bool WWrapObject::event(QEvent *event)
-{
-    if (event->type() == QEvent::DeferredDelete) {
-        Q_ASSERT(d_func()->invalidated);
-    }
-
-    return QObject::event(event);
-}
-#endif
 
 bool WGlobal::isInvalidCursor(const QCursor &c)
 {

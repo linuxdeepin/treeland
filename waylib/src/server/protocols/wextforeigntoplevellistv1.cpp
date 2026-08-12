@@ -4,18 +4,16 @@
 #include "wextforeigntoplevellistv1.h"
 
 #include "private/wglobal_p.h"
-#include "wglobal.h"
+#include "wpointer.h"
 #include "wtoplevelsurface.h"
 #include "wayliblogging.h"
 
-#include <qwdisplay.h>
-#include <qwextforeigntoplevellistv1.h>
+#include <wlr_all.h>
 
 #include <map>
 
 #define EXT_FOREIGN_TOPLEVEL_LIST_V1_VERSION 1
 
-QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class Q_DECL_HIDDEN WExtForeignToplevelListV1Private : public WObjectPrivate
 {
@@ -23,6 +21,17 @@ public:
     WExtForeignToplevelListV1Private(WExtForeignToplevelListV1 *qq)
         : WObjectPrivate(qq)
     {
+    }
+
+    ~WExtForeignToplevelListV1Private() {
+        // The Qt connections live on the surfaces (receiver) while the
+        // lambdas capture this private and the raw handles; the manager may
+        // be destroyed before the surfaces, so disconnect them all here
+        // (mirrors remove()).
+        for (const auto &conns : std::as_const(surfaceConnections)) {
+            for (const auto &c : conns)
+                QObject::disconnect(c);
+        }
     }
 
     void add(WToplevelSurface *surface)
@@ -41,26 +50,34 @@ public:
             .title = title.constData(),
             .app_id = appId.constData(),
         };
-        auto handle = qw_ext_foreign_toplevel_handle_v1::create(
-            *q->nativeInterface<qw_ext_foreign_toplevel_list_v1>(), &state);
+        auto handle = wlr_ext_foreign_toplevel_handle_v1_create(
+            reinterpret_cast<wlr_ext_foreign_toplevel_list_v1*>(q->m_handle), &state);
 
-        surface->safeConnect(&WToplevelSurface::titleChanged, handle, [this, handle, surface] {
+        QList<QMetaObject::Connection> conns;
+        conns.append(QObject::connect(surface, &WToplevelSurface::titleChanged, surface, [this, handle, surface] {
             updateState(surface, handle);
-        });
+        }));
 
-        surface->safeConnect(&WToplevelSurface::appIdChanged, handle, [this, handle, surface] {
+        conns.append(QObject::connect(surface, &WToplevelSurface::appIdChanged, surface, [this, handle, surface] {
             updateState(surface, handle);
-        });
-        
-        surfaces.insert({ surface, std::unique_ptr<qw_ext_foreign_toplevel_handle_v1>(handle) });
+        }));
+        surfaceConnections.insert(surface, conns);
+        surfaces.insert({ surface, WUniquePointer<wlr_ext_foreign_toplevel_handle_v1>(handle) });
+
     }
 
     void remove(WToplevelSurface *surface)
     {
+        // The Qt connections live on the surface (receiver) while the lambdas
+        // capture the raw wlr handle; disconnect before the handle is freed
+        // (mirrors master where the qw_* handle QObject teardown did it).
+        const auto conns = surfaceConnections.take(surface);
+        for (const auto &c : conns)
+            QObject::disconnect(c);
         surfaces.erase(surface);
     }
 
-    WToplevelSurface *findSurfaceByHandle(qw_ext_foreign_toplevel_handle_v1 *handle) const
+    WToplevelSurface *findSurfaceByHandle(wlr_ext_foreign_toplevel_handle_v1 *handle) const
     {
         for (const auto &pair : surfaces) {
             if (pair.second.get() == handle) {
@@ -71,7 +88,7 @@ public:
     }
 
 private:
-    void updateState(WToplevelSurface *surface, qw_ext_foreign_toplevel_handle_v1 *handle)
+    void updateState(WToplevelSurface *surface, wlr_ext_foreign_toplevel_handle_v1 *handle)
     {
         const auto title = surface->title().toUtf8();
         const auto appId = surface->appId().toLatin1();
@@ -79,12 +96,13 @@ private:
             .title = title.constData(),
             .app_id = appId.constData(),
         };
-        handle->update_state(&state);
+        wlr_ext_foreign_toplevel_handle_v1_update_state(handle, &state);
     }
 
     W_DECLARE_PUBLIC(WExtForeignToplevelListV1)
 
-    std::map<WToplevelSurface *, std::unique_ptr<qw_ext_foreign_toplevel_handle_v1>> surfaces;
+    std::map<WToplevelSurface *, WUniquePointer<wlr_ext_foreign_toplevel_handle_v1>> surfaces;
+    QHash<WToplevelSurface *, QList<QMetaObject::Connection>> surfaceConnections;
 };
 
 WExtForeignToplevelListV1::WExtForeignToplevelListV1([[maybe_unused]] QObject *parent)
@@ -106,7 +124,7 @@ void WExtForeignToplevelListV1::removeSurface(WToplevelSurface *surface)
     d->remove(surface);
 }
 
-WToplevelSurface *WExtForeignToplevelListV1::findSurfaceByHandle(qw_ext_foreign_toplevel_handle_v1 *handle) const
+WToplevelSurface *WExtForeignToplevelListV1::findSurfaceByHandle(wlr_ext_foreign_toplevel_handle_v1 *handle) const
 {
     W_D(const WExtForeignToplevelListV1);
 
@@ -118,9 +136,14 @@ QByteArrayView WExtForeignToplevelListV1::interfaceName() const
     return "ext_foreign_toplevel_list_v1";
 }
 
+wlr_ext_foreign_toplevel_list_v1 *WExtForeignToplevelListV1::handle() const
+{
+    return reinterpret_cast<wlr_ext_foreign_toplevel_list_v1*>(m_handle);
+}
+
 void WExtForeignToplevelListV1::create(WServer *server)
 {
-    m_handle = qw_ext_foreign_toplevel_list_v1::create(*server->handle(), EXT_FOREIGN_TOPLEVEL_LIST_V1_VERSION);
+    m_handle = wlr_ext_foreign_toplevel_list_v1_create(server->handle(), EXT_FOREIGN_TOPLEVEL_LIST_V1_VERSION);
 }
 
 void WExtForeignToplevelListV1::destroy([[maybe_unused]] WServer *server)
@@ -129,7 +152,7 @@ void WExtForeignToplevelListV1::destroy([[maybe_unused]] WServer *server)
 
 wl_global *WExtForeignToplevelListV1::global() const
 {
-    return nativeInterface<qw_ext_foreign_toplevel_list_v1>()->handle()->global;
+    return reinterpret_cast<wlr_ext_foreign_toplevel_list_v1*>(m_handle)->global;
 }
 
 WAYLIB_SERVER_END_NAMESPACE

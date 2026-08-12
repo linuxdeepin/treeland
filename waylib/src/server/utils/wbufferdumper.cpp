@@ -7,10 +7,7 @@
 
 #include <QImage>
 
-extern "C" {
-#include <wlr/types/wlr_buffer.h>
-#include <wlr/render/wlr_renderer.h>
-}
+#include <wlr_all.h>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 

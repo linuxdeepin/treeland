@@ -8,16 +8,13 @@
 #include "wquickcursor.h"
 #include "private/wglobal_p.h"
 
-#include <qwoutput.h>
-#include <qwoutputlayout.h>
+#include <wlr_all.h>
 
 #include <private/qquickitem_p.h>
 
 #include <QPointer>
 
-QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
-
 
 #define DATA_OF_WOUPTUT "_WOutputItem"
 class Q_DECL_HIDDEN WOutputItemPrivate : public WObjectPrivate
@@ -78,11 +75,11 @@ void WOutputItemPrivate::initForOutput()
     if (layout)
         layout->add(q);
 
-    output->safeConnect(&WOutput::transformedSizeChanged, q, [this] {
+    QObject::connect(output, &WOutput::transformedSizeChanged, q, [this] {
         updateImplicitSize();
     });
 
-    output->safeConnect(&WOutput::aboutToBeInvalidated, q, [this, q] {
+    QObject::connect(output, &WOutput::beforeDestroy, q, [this, q] {
         if (layout) {
             layout->remove(q);
             layout = nullptr;

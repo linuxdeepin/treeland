@@ -1,23 +1,22 @@
-// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wbackend.h"
 #include "woutput.h"
 #include "wserver.h"
 #include "winputdevice.h"
+#include "wseat.h"
+#include "wscoplistener.h"
 #include "platformplugin/qwlrootsintegration.h"
 #include "platformplugin/qwlrootscreen.h"
 #include "private/wglobal_p.h"
 
-#include <qwbackend.h>
-#include <qwdisplay.h>
-#include <qwoutput.h>
-#include <qwinputdevice.h>
-#include <qwsession.h>
+#include <wlr_all.h>
+
+#include <wayland-server-core.h>
 
 #include <QDebug>
 
-QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class Q_DECL_HIDDEN WBackendPrivate : public WObjectPrivate
@@ -29,20 +28,16 @@ public:
 
     }
 
-    inline qw_backend *handle() const {
-        return q_func()->nativeInterface<qw_backend>();
-    }
-
-    inline wlr_backend *nativeHandle() const {
-        Q_ASSERT(handle());
-        return handle()->handle();
+    inline wlr_backend *handle() const {
+        return reinterpret_cast<wlr_backend*>(q_func()->m_handle);
     }
 
     // begin slot function
     void on_new_output(wlr_output *output);
     void on_new_input(wlr_input_device *device);
-    void on_input_destroy(qw_input_device *data);
-    void on_output_destroy(qw_output *output);
+    void on_input_destroy(wlr_input_device *device);
+    void on_output_destroy(wlr_output *output);
+    void on_destroy();
     // end slot function
 
     void connect();
@@ -52,32 +47,22 @@ public:
     QList<WOutput*> outputList;
     QList<WInputDevice*> inputList;
 
-    struct Keyboard {
-        Keyboard(WBackendPrivate *self, wlr_input_device *d)
-            : self(self), device(d) {}
-
-        WBackendPrivate *self;
-        wlr_input_device *device;
-
-        wl_listener modifiers;
-        wl_listener key;
-    };
-
 private:
-    qw_session *session = nullptr;
+    wlr_session *session = nullptr;
 };
 
 void WBackendPrivate::on_new_output(wlr_output *output)
 {
     W_Q(WBackend);
-    auto qoutput = qw_output::from(output);
-    auto woutput = new WOutput(qoutput, q);
+    auto woutput = new WOutput(output, q);
 
     outputList << woutput;
     QWlrootsIntegration::instance()->addScreen(woutput);
 
-    woutput->safeConnect(&qw_output::before_destroy, q, [this, qoutput] {
-        on_output_destroy(qoutput);
+    auto *listeners = woutput->listeners(q_ptr);
+    listeners->add(&output->events.destroy, this,
+        [this, output] (void *) {
+        on_output_destroy(output);
     });
 
     Q_EMIT q->outputAdded(woutput);
@@ -86,53 +71,74 @@ void WBackendPrivate::on_new_output(wlr_output *output)
 void WBackendPrivate::on_new_input(wlr_input_device *device)
 {
     W_Q(WBackend);
-    auto qinput_device = qw_input_device::from(device);
-    auto winput_device = new WInputDevice(qinput_device);
+    auto winput_device = new WInputDevice(device);
     inputList << winput_device;
-    winput_device->safeConnect(&qw_input_device::before_destroy, q, [this, qinput_device] {
-        on_input_destroy(qinput_device);
+    auto *listeners = winput_device->listeners(q_ptr);
+    listeners->add(&device->events.destroy, this,
+        [this, device] (void *) {
+        on_input_destroy(device);
     });
 
     Q_EMIT q->inputAdded(winput_device);
 }
 
-void WBackendPrivate::on_input_destroy(qw_input_device *data)
+void WBackendPrivate::on_input_destroy(wlr_input_device *device)
 {
     for (int i = 0; i < inputList.count(); ++i) {
-        if (inputList.at(i)->handle() == data) {
-            auto device = inputList.takeAt(i);
+        if (inputList.at(i)->handle() != device)
+            continue;
+        auto winput_device = inputList.takeAt(i);
 
-            W_Q(WBackend);
-            Q_EMIT q->inputRemoved(device);
-            device->safeDeleteLater();
-            return;
-        }
+        W_Q(WBackend);
+        Q_EMIT q->inputRemoved(winput_device);
+        // Safe to destroy the wrapper from inside its own destroy callback:
+        // the listener closure is reference-counted and outlives the
+        // emission, and ~WInputDevice clears the reverse mapping while the
+        // native handle is still valid.
+        delete winput_device;
+        return;
     }
 }
 
-void WBackendPrivate::on_output_destroy(qw_output *output)
+void WBackendPrivate::on_output_destroy(wlr_output *output)
 {
     for (int i = 0; i < outputList.count(); ++i) {
-        if (outputList.at(i)->handle() == output) {
-            auto woutput = outputList.takeAt(i);
+        if (outputList.at(i)->handle() != output)
+            continue;
+        auto woutput = outputList.takeAt(i);
 
-            W_Q(WBackend);
-            Q_EMIT q->outputRemoved(woutput);
-            QWlrootsIntegration::instance()->removeScreen(woutput);
-            woutput->safeDeleteLater();
-            return;
-        }
+        W_Q(WBackend);
+        Q_EMIT q->outputRemoved(woutput);
+        QWlrootsIntegration::instance()->removeScreen(woutput);
+        // Safe to destroy the wrapper from inside its own destroy callback
+        // (see on_input_destroy).
+        delete woutput;
+        return;
     }
+}
+
+void WBackendPrivate::on_destroy()
+{
+    W_Q(WBackend);
+    // The backend is being destroyed by wlroots itself (e.g. the primary
+    // DRM backend was removed, which tears down the multi-backend).
+    // wlr_backend_finish() asserts that every listener list is empty, so
+    // detach ours before the native signal storage is freed, and drop the
+    // dangling handle: handle()/hasDrm()/hasX11()/hasWayland() must not
+    // dereference a backend that is going away. The wrapper objects for
+    // outputs/inputs clean themselves up when the sub-backends destroy
+    // their devices right after this emission.
+    q_ptr->removeListeners(q_ptr);
+    q->m_handle = nullptr;
+    session = nullptr;
 }
 
 void WBackendPrivate::connect()
 {
-    QObject::connect(handle(), &qw_backend::notify_new_output, q_func(), [this] (wlr_output *output) {
-        on_new_output(output);
-    });
-    QObject::connect(handle(), &qw_backend::notify_new_input, q_func(), [this] (wlr_input_device *device) {
-        on_new_input(device);
-    });
+    W_Q(WBackend);
+    q->listeners()->add(&handle()->events.new_output, this, &WBackendPrivate::on_new_output);
+    q->listeners()->add(&handle()->events.new_input, this, &WBackendPrivate::on_new_input);
+    q->listeners()->add(&handle()->events.destroy, this, &WBackendPrivate::on_destroy);
 }
 
 WBackend::WBackend()
@@ -141,12 +147,12 @@ WBackend::WBackend()
 
 }
 
-qw_backend *WBackend::handle() const
+wlr_backend *WBackend::handle() const
 {
-    return nativeInterface<qw_backend>();
+    return reinterpret_cast<wlr_backend*>(m_handle);
 }
 
-qw_session *WBackend::session() const
+wlr_session *WBackend::session() const
 {
     W_DC(WBackend);
     return d->session;
@@ -164,44 +170,51 @@ QList<WInputDevice *> WBackend::inputDeviceList() const
     return d->inputList;
 }
 
-template<class T>
-static bool hasBackend(qw_backend *handle)
+static bool hasBackend(wlr_backend *handle, bool (*isType)(struct wlr_backend *))
 {
-    if (qobject_cast<T*>(handle))
+    // The backend may not exist yet (before start) or anymore (after
+    // destroy / wlroots-side teardown): treat it as absent instead of
+    // dereferencing a null handle.
+    if (!handle)
+        return false;
+    if (isType(handle))
         return true;
-    if (auto multiBackend = qobject_cast<qw_multi_backend*>(handle)) {
+    if (!wlr_backend_is_multi(handle))
+        return false;
+
+    struct BackendTypeChecker {
+        bool (*isType)(struct wlr_backend *);
         bool exists = false;
-        multiBackend->for_each_backend([] (wlr_backend *backend, void *userData) {
-            bool &exists = *reinterpret_cast<bool*>(userData);
-            if (T::from(backend))
-                exists = true;
-        }, &exists);
+    } checker { isType };
 
-        return exists;
-    }
+    wlr_multi_for_each_backend(handle, [] (struct wlr_backend *backend, void *data) {
+        auto *checker = static_cast<BackendTypeChecker*>(data);
+        if (checker->isType(backend))
+            checker->exists = true;
+    }, &checker);
 
-    return false;
+    return checker.exists;
 }
 
 bool WBackend::hasDrm() const
 {
-    return hasBackend<qw_drm_backend>(handle());
+    return hasBackend(handle(), &wlr_backend_is_drm);
 }
 
 bool WBackend::hasX11() const
 {
-    return hasBackend<qw_x11_backend>(handle());
+    return hasBackend(handle(), &wlr_backend_is_x11);
 }
 
 bool WBackend::hasWayland() const
 {
-    return hasBackend<qw_wayland_backend>(handle());
+    return hasBackend(handle(), &wlr_backend_is_wl);
 }
 
 bool WBackend::isSessionActive() const
 {
-    W_D(const WBackend);
-    return d->session && d->session->handle()->active;
+    W_DC(WBackend);
+    return d->session && d->session->active;
 }
 
 void WBackend::create(WServer *server)
@@ -210,9 +223,9 @@ void WBackend::create(WServer *server)
 
     if (!m_handle) {
         wlr_session *session = nullptr;
-        m_handle = qw_backend::autocreate(server->handle()->get_event_loop(), &session);
+        m_handle = wlr_backend_autocreate(wl_display_get_event_loop(server->handle()), &session);
         Q_ASSERT(m_handle);
-        d->session = qw_session::from(session);
+        d->session = session;
         Q_EMIT created();
     }
 
@@ -223,11 +236,21 @@ void WBackend::destroy([[maybe_unused]] WServer *server)
 {
     W_D(WBackend);
 
-    qDeleteAll(d->inputList);
-    qDeleteAll(d->outputList);
-    d->inputList.clear();
-    d->outputList.clear();
+    QList<WInputDevice*> inputList;
+    inputList.swap(d->inputList);
+    QList<WOutput*> outputList;
+    outputList.swap(d->outputList);
+    for (auto *device : std::as_const(inputList))
+        delete device;
+    for (auto *output : std::as_const(outputList))
+        delete output;
+
+    removeListeners(this);
+    auto *backend = reinterpret_cast<wlr_backend*>(m_handle);
     m_handle = nullptr;
+    d->session = nullptr;
+    if (backend)
+        wlr_backend_destroy(backend);
 }
 
 wl_global *WBackend::global() const

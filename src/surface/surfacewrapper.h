@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #pragma once
 
+#include <wlr_fwd.h>
 #include <wsurfaceitem.h>
 #include <wtoplevelsurface.h>
-#include <qwglobal.h>
 
 #include <QList>
 #include <QPointer>
@@ -20,10 +20,6 @@ WAYLIB_SERVER_USE_NAMESPACE
 class QmlEngine;
 class Output;
 class SurfaceContainer;
-QW_BEGIN_NAMESPACE
-class qw_buffer;
-QW_END_NAMESPACE
-
 class SurfaceWrapper : public QQuickItem
 {
     friend class Helper;
@@ -154,7 +150,7 @@ public:
                             QQuickItem *parent,
                             const QSize &initialSize,
                             const QString &appId,
-                            QW_NAMESPACE::qw_buffer *iconBuffer = nullptr,
+                            wlr_buffer *iconBuffer = nullptr,
                             const QColor &backgroundColor = QColor("#ffffff"));
 
     void setFocus(bool focus, Qt::FocusReason reason);

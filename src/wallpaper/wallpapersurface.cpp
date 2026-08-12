@@ -5,8 +5,7 @@
 #include "wallpapershellinterfacev1.h"
 #include "private/wtoplevelsurface_p.h"
 #include "private/wglobal_p.h"
-
-#include <qwcompositor.h>
+#include <wscoplistener.h>
 
 class Q_DECL_HIDDEN WallpaperSurfacePrivate : public WToplevelSurfacePrivate {
 public:
@@ -14,8 +13,6 @@ public:
 
     wl_client *waylandClient() const override {
         return interface->client();
-    }
-    void instantRelease() override {
     }
 
     WSurface *surface = nullptr;
@@ -28,13 +25,18 @@ WallpaperSurfacePrivate::WallpaperSurfacePrivate(WallpaperSurface *qq, TreelandW
 {
 }
 
-WallpaperSurface::WallpaperSurface(TreelandWallpaperSurfaceInterfaceV1 *handle, QObject *parent)
-    : WToplevelSurface(*new WallpaperSurfacePrivate(this, handle), parent)
+WallpaperSurface::WallpaperSurface(TreelandWallpaperSurfaceInterfaceV1 *handle)
+    : WToplevelSurface(*new WallpaperSurfacePrivate(this, handle))
 {
     init();
 }
 
-WallpaperSurface::~WallpaperSurface() = default;
+WallpaperSurface::~WallpaperSurface()
+{
+    // Owner rule: this object created the WSurface wrapper, release it.
+    W_D(WallpaperSurface);
+    delete d->surface;
+}
 
 WSurface *WallpaperSurface::surface() const
 {
@@ -68,6 +70,25 @@ void WallpaperSurface::init()
 {
     W_D(WallpaperSurface);
 
-    d->surface = new WSurface(qw_surface::from(wlr_surface_from_resource(d->interface->surfaceResource())), this);
+    auto *wlrSurface = wlr_surface_from_resource(d->interface->surfaceResource());
+    if (!wlrSurface) {
+        wl_resource_post_error(d->interface->surfaceResource(),
+                               WL_DISPLAY_ERROR_INVALID_OBJECT,
+                               "invalid wl_surface");
+        return;
+    }
+
+    d->surface = new WSurface(wlrSurface);
     d->surface->setAttachedData<WallpaperSurface>(this);
+
+    // The client may destroy the wl_surface while the protocol object is
+    // still alive. Release the WSurface wrapper as soon as the native
+    // surface is gone so nothing keeps a dangling handle; wlr_surface_destroy
+    // asserts the destroy listener list is empty, so detach first.
+    d->surface->listeners(this)->add(&wlrSurface->events.destroy, this, [this, d]() {
+        d->surface->removeListeners(this);
+        delete d->surface;
+        d->surface = nullptr;
+        Q_EMIT surfaceChanged();
+    });
 }

@@ -1,17 +1,13 @@
-// Copyright (C) 2023-2026 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
 
+#include <wlr_fwd.h>
 #include <wglobal.h>
 #include <QObject>
-#include <qwglobal.h>
 #include <QMap>
 #include <QMutex>
-
-QW_BEGIN_NAMESPACE
-class qw_input_device;
-QW_END_NAMESPACE
 
 QT_BEGIN_NAMESPACE
 class QInputDevice;
@@ -22,6 +18,8 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WSeat;
 class WInputDevicePrivate;
+class WBackendPrivate;
+class WInputMethodHelper;
 
 // Internal helper for parsing /proc/bus/input/devices
 struct ProcDeviceInfo {
@@ -47,7 +45,7 @@ private:
     QMap<QString, ProcDeviceInfo> m_deviceMap;
     QMutex m_mutex;
 };
-class WAYLIB_SERVER_EXPORT WInputDevice : public WWrapObject
+class WAYLIB_SERVER_EXPORT WInputDevice : public QObject, public WObject
 {
     W_DECLARE_PRIVATE(WInputDevice)
 public:
@@ -69,11 +67,12 @@ public:
     };
     Q_ENUM(LibinputPointerType)
 
-    WInputDevice(QW_NAMESPACE::qw_input_device *handle, bool isVirtual = false);
+    WInputDevice(wlr_input_device *handle, bool isVirtual = false);
+    ~WInputDevice() override;
 
-    QW_NAMESPACE::qw_input_device *handle() const;
+    wlr_input_device *handle() const;
 
-    static WInputDevice *fromHandle(const QW_NAMESPACE::qw_input_device *handle);
+    static WInputDevice *fromHandle(wlr_input_device *handle);
 
     template<class QInputDevice>
     inline QInputDevice *qtDevice() const {
@@ -91,18 +90,22 @@ public:
     bool isVirtual() const;
 
     LibinputPointerType libinputPointerType() const;
-
 private:
     friend class QWlrootsIntegration;
     friend class WSeat;
     friend class WSeatPrivate;
+    friend class WBackendPrivate;
+    friend class WInputMethodHelper;
     void setQtDevice(QInputDevice *device);
-
-    void setExclusiveGrabber(QObject *grabber);
     QObject *exclusiveGrabber() const;
+    void setExclusiveGrabber(QObject *grabber);
 
     QObject *hoverTarget() const;
     void setHoverTarget(QObject *object);
+
+    // Owned by the backend/seat: released with `delete` from the native
+    // destroy callback, never with deleteLater().
+    using QObject::deleteLater;
 };
 
 WAYLIB_SERVER_END_NAMESPACE

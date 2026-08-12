@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wbufferitem.h"
+#include <wpointer.h>
 
 #include "woutputrenderwindow.h"
 #include "wsgtextureprovider.h"
 #include "wayliblogging.h"
 
-#include <qwbuffer.h>
+#include <wlr_all.h>
 
 #include <QQuickWindow>
 #include <QSGImageNode>
@@ -31,9 +32,8 @@ public:
 
     W_DECLARE_PUBLIC(WBufferItem)
     mutable WSGTextureProvider *textureProvider = nullptr;
-    std::unique_ptr<qw_buffer, qw_buffer::unlocker> buffer;
+    WBufferUnlockPtr buffer;
 };
-
 
 WBufferItem::WBufferItem(QQuickItem *parent)
     : QQuickItem(*new WBufferItemPrivate(this), parent)
@@ -87,13 +87,13 @@ WOutputRenderWindow *WBufferItem::outputRenderWindow() const
     return qobject_cast<WOutputRenderWindow*>(window());
 }
 
-QW_NAMESPACE::qw_buffer *WBufferItem::buffer() const
+wlr_buffer *WBufferItem::buffer() const
 {
     W_DC(WBufferItem);
     return d->buffer.get();
 }
 
-void WBufferItem::setBuffer(QW_NAMESPACE::qw_buffer *buffer)
+void WBufferItem::setBuffer(wlr_buffer *buffer)
 {
     W_D(WBufferItem);
 
@@ -102,7 +102,7 @@ void WBufferItem::setBuffer(QW_NAMESPACE::qw_buffer *buffer)
 
     // Validate buffer basic attributes before locking to avoid holding unusable buffers.
     if (buffer) {
-        auto *h = buffer->handle();
+        auto *h = buffer;
         if (!h || h->width <= 0 || h->height <= 0) {
             qCWarning(lcWlBufferItem) << "Reject buffer with invalid size or handle"
                                         << buffer << "w" << (h ? h->width : -1)
@@ -112,7 +112,7 @@ void WBufferItem::setBuffer(QW_NAMESPACE::qw_buffer *buffer)
     }
 
     if (buffer)
-        buffer->lock();
+        wlr_buffer_lock(buffer);
 
     d->buffer.reset(buffer);
 
@@ -145,7 +145,7 @@ QSGNode *WBufferItem::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *)
         int bufW = -1;
         int bufH = -1;
         if (auto *buf = d->buffer.get()) {
-            if (auto *h = buf->handle()) {
+            if (auto *h = buf) {
                 bufW = h->width;
                 bufH = h->height;
             }

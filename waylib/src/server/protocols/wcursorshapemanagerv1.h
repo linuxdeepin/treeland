@@ -1,15 +1,12 @@
-// Copyright (C) 2023 rewine <luhongxu@deepin.org>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
 
+#include <wlr_fwd.h>
 #include <WServer>
 
 #include <QObject>
-
-QW_BEGIN_NAMESPACE
-class qw_cursor_shape_manager_v1;
-QW_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -24,7 +21,7 @@ class WAYLIB_SERVER_EXPORT WCursorShapeManagerV1 : public QObject, public WObjec
 public:
     explicit WCursorShapeManagerV1();
 
-    QW_NAMESPACE::qw_cursor_shape_manager_v1 *handle() const;
+    wlr_cursor_shape_manager_v1 *handle() const;
 
     QByteArrayView interfaceName() const override;
 

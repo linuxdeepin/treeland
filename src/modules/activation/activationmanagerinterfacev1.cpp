@@ -9,9 +9,6 @@
 #include <wseat.h>
 #include <wsurface.h>
 
-#include <qwdisplay.h>
-#include <qwseat.h>
-
 #include <QDeadlineTimer>
 #include <QPointer>
 #include <QUuid>
@@ -75,7 +72,7 @@ protected:
             return;
         }
 
-        auto *wseat = WSeat::fromHandle(qw_seat::from(seatClient->seat));
+        auto *wseat = WSeat::fromHandle(seatClient->seat);
         if (!wseat) {
             qCWarning(lcTlActivation) << "set_serial: no WSeat for seat resource, ignoring serial" << serial;
             m_serial.reset();
@@ -314,7 +311,7 @@ QByteArrayView ActivationManagerInterfaceV1::interfaceName() const
 
 void ActivationManagerInterfaceV1::create(WServer *server)
 {
-    d->init(*server->handle(), InterfaceVersion);
+    d->init(server->handle(), InterfaceVersion);
 }
 
 void ActivationManagerInterfaceV1::destroy([[maybe_unused]] WServer *server)
@@ -326,6 +323,4 @@ wl_global *ActivationManagerInterfaceV1::global() const
 {
     return d->globalHandle();
 }
-
-
 

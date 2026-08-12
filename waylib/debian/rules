@@ -18,6 +18,7 @@ export QT_SELECT = qt6
 	dh $@ --parallel
 
 override_dh_auto_configure:
+	test -f ../wlroots/CMakeLists.txt || (echo "Build libwaylib from the treeland monorepo root (sibling wlroots/ required)" && exit 1)
 	dh_auto_configure -- -GNinja -DCMAKE_INSTALL_PREFIX=/usr
 
 #override_dh_auto_test:

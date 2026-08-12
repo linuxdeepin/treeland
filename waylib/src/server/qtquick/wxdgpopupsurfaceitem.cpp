@@ -1,14 +1,12 @@
-// Copyright (C) 2023-2024 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wxdgpopupsurfaceitem.h"
 #include "wsurfaceitem_p.h"
 #include "wxdgpopupsurface.h"
 
-#include <qwxdgshell.h>
-#include <qwseat.h>
+#include <wlr_all.h>
 
-QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class Q_DECL_HIDDEN WXdgPopupSurfaceItemPrivate : public WSurfaceItemPrivate
@@ -50,9 +48,9 @@ void WXdgPopupSurfaceItem::onSurfaceCommit()
     WSurfaceItem::onSurfaceCommit();
     d->setImplicitPosition(popupSurface()->getPopupPosition());
 
-    auto xdg_surface = popupSurface()->handle()->handle()->base;
+    auto xdg_surface = popupSurface()->handle()->base;
     if (xdg_surface->initial_commit) {
-        qw_xdg_surface::from(xdg_surface)->schedule_configure();
+        wlr_xdg_surface_schedule_configure(xdg_surface);
     }
 }
 
@@ -60,7 +58,7 @@ void WXdgPopupSurfaceItem::initSurface()
 {
     WSurfaceItem::initSurface();
     Q_ASSERT(popupSurface());
-    connect(popupSurface(), &WWrapObject::aboutToBeInvalidated,
+    connect(popupSurface(), &WToplevelSurface::beforeDestroy,
             this, &WXdgPopupSurfaceItem::releaseResources);
 }
 

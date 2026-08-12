@@ -7,7 +7,6 @@
 
 #include <QStringList>
 
-QW_USE_NAMESPACE
 WAYLIB_SERVER_USE_NAMESPACE
 
 class VirtualOutputInterfaceV1;

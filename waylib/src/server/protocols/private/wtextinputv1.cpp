@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2026 Yixue Wang <wangyixue@deepin.org>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wtextinputv1_p.h"
@@ -8,17 +8,14 @@
 #include "wsocket.h"
 #include "private/wglobal_p.h"
 
-#include <qwdisplay.h>
-#include <qwseat.h>
-#include <qwcompositor.h>
-#include <qwsignalconnector.h>
+#include <wlr_all.h>
+#include <wayland-server-core.h>
 
 #include <QRect>
 
 extern "C" {
 #include "text-input-unstable-v1-protocol.h"
 }
-QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class Q_DECL_HIDDEN WTextInputV1Private : public WTextInputPrivate
 {
@@ -58,7 +55,6 @@ public:
 
     QList<WTextInputV1*> textInputs;
 };
-
 
 WSeat *WTextInputV1::seat() const
 {
@@ -141,13 +137,12 @@ IME::Features WTextInputV1::features() const
     return IME::Features(IME::F_SurroundingText | IME::F_ContentType | IME::F_CursorRect);
 }
 
-
 void WTextInputV1::sendEnter(WSurface *surface)
 {
     // Note: For text input v1, activation and surface focus is managed by client.
     // Do not send focus to text input unless it's activated.
     if (d_func()->active)
-        zwp_text_input_v1_send_enter(d_func()->resource, surface->handle()->handle()->resource);
+        zwp_text_input_v1_send_enter(d_func()->resource, surface->handle()->resource);
     Q_EMIT this->enabled();
 }
 
@@ -178,7 +173,6 @@ void WTextInputV1::handleIMCommitted(WInputMethodV2 *im)
         sendPreeditString(im->preeditString(), im->commitString());
     }
 }
-
 
 void WTextInputV1::sendPreeditString(QString text, QString commit)
 {
@@ -232,7 +226,7 @@ void text_input_handle_activate([[maybe_unused]] wl_client *client,
                                 wl_resource *surface)
 {
     wlr_seat_client *seat_client =  wlr_seat_client_from_resource(seat);
-    WSeat *wSeat = WSeat::fromHandle(qw_seat::from(seat_client->seat));
+    WSeat *wSeat = WSeat::fromHandle(seat_client->seat);
     Q_ASSERT(wSeat);
     WTextInputV1 *text_input = text_input_from_resource(resource);
     auto d = text_input->d_func();
@@ -246,9 +240,10 @@ void text_input_handle_activate([[maybe_unused]] wl_client *client,
     }
     if (focus_changed) {
         if (text_input->focusedSurface())
-            text_input->focusedSurface()->safeDisconnect(text_input);
+            text_input->focusedSurface()->disconnect(text_input);
         d->focusedSurface = wSurface;
-        wSurface->safeConnect(&WSurface::aboutToBeInvalidated, text_input, &WTextInputV1::sendLeave);
+        QObject::connect(wSurface, &WSurface::beforeDestroy,
+                         text_input, &WTextInputV1::sendLeave);
     }
     d->active = true;
     Q_EMIT text_input->activate();
@@ -261,7 +256,7 @@ void text_input_handle_deactivate([[maybe_unused]] wl_client *client,
     WTextInputV1 *text_input = text_input_from_resource(resource);
     auto d = text_input->d_func();
     wlr_seat_client *seat_client = wlr_seat_client_from_resource(seat);
-    WSeat *wSeat = WSeat::fromHandle(qw_seat::from(seat_client->seat));
+    WSeat *wSeat = WSeat::fromHandle(seat_client->seat);
     if (!wSeat || wSeat != text_input->seat())
         return;
 
@@ -433,7 +428,7 @@ static void text_input_manager_bind(wl_client *wl_client, void *data, uint32_t v
 
 void WTextInputManagerV1::create(WServer *server)
 {
-    m_global = wl_global_create(server->handle()->handle(),
+    m_global = wl_global_create(server->handle(),
                                 &zwp_text_input_manager_v1_interface,
                                 1,
                                 this,

@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2026 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "woutputlayoutitem.h"
@@ -6,7 +6,6 @@
 #include "wquickoutputlayout.h"
 #include "private/wglobal_p.h"
 
-QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class Q_DECL_HIDDEN WOutputLayoutItemPrivate : public WObjectPrivate
@@ -76,7 +75,7 @@ void WOutputLayoutItem::setLayout(WQuickOutputLayout *newLayout)
         return;
 
     if (d->layout)
-        d->layout->safeDisconnect(this);
+        d->layout->disconnect(this);
 
     d->layout = newLayout;
 

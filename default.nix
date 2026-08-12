@@ -5,13 +5,8 @@
   treeland-protocols,
 }:
 rec {
-  qwlroots = pkgs.qt6Packages.callPackage ./qwlroots/nix {
-    inherit nix-filter;
-    wlroots = pkgs.wlroots_0_19;
-  };
-
   waylib = pkgs.qt6Packages.callPackage ./waylib/nix {
-    inherit nix-filter qwlroots;
+    inherit nix-filter;
     makeTest = import (pkgs.path + "/nixos/tests/make-test-python.nix");
   };
 
@@ -20,7 +15,6 @@ rec {
       nix-filter
       ddm
       treeland-protocols
-      qwlroots
       waylib
       ;
   };

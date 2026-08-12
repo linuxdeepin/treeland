@@ -21,14 +21,14 @@
 
 #include <woutputrenderwindow.h>
 #include <woutputviewport.h>
-#include <qwlogging.h>
+#include <wlr_all.h>
 #include <wserver.h>
 #include <wrenderhelper.h>
+#include <wlogging.h>
 
 #include "TestHelper.h"
 
 WAYLIB_SERVER_USE_NAMESPACE
-QW_USE_NAMESPACE
 
 /// Liquid Glass effect test using waylib's headless backend for OpenGL.
 ///
@@ -262,9 +262,6 @@ private Q_SLOTS:
     {
         QCOMPARE(m_glass->property("innerShadow").toReal(), 0.0);
     }
-
-
-
 
     void specularAndTintAreOnlyMaterialControls()
     {
@@ -564,8 +561,6 @@ private Q_SLOTS:
                                 .arg(changed)
                                 .arg(innerTopRim.width())));
     }
-
-
 
     void radiusProducesTransparentCorners()
     {
@@ -911,7 +906,7 @@ int main(int argc, char *argv[])
     // Headless wlroots backend — no display server needed.
     qputenv("WLR_BACKENDS", "headless");
 
-    qw_log::init();
+    WLog::init();
     WServer::initializeQPA();
 
     // Probe the graphics API that can create a wlroots renderer in this

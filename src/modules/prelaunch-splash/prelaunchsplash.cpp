@@ -5,15 +5,13 @@
 #include "common/treelandlogging.h"
 #include "qwayland-server-treeland-prelaunch-splash-v2.h"
 
-#include <wserver.h>
+#include <wlr/types/wlr_buffer.h>
 
-#include <qwbuffer.h>
-#include <qwdisplay.h>
+#include <wserver.h>
 
 #include <QByteArray>
 
 WAYLIB_SERVER_USE_NAMESPACE
-QW_USE_NAMESPACE
 
 class SplashResource : public QtWaylandServer::treeland_prelaunch_splash_v2
 {
@@ -107,7 +105,7 @@ protected:
         // SplashResource self-destructs via destroy_resource callback
         new SplashResource(q, splashResource, app_id, instance_id);
 
-        auto qb = icon_buffer ? QW_NAMESPACE::qw_buffer::try_from_resource(icon_buffer) : nullptr;
+        auto qb = icon_buffer ? wlr_buffer_try_from_resource(icon_buffer) : nullptr;
         Q_EMIT q->splashRequested(app_id, instance_id, qb);
     }
 
@@ -125,7 +123,7 @@ PrelaunchSplash::~PrelaunchSplash() = default;
 
 void PrelaunchSplash::create(WAYLIB_SERVER_NAMESPACE::WServer *server)
 {
-    d->init(*server->handle(), InterfaceVersion);
+    d->init(server->handle(), InterfaceVersion);
     qCDebug(lcTlPrelaunchSplash) << "PrelaunchSplash v2 global created";
 }
 

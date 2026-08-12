@@ -90,6 +90,8 @@ Depends: qml6-module-qtquick-layouts,
          treeland-wallpaper-factory,
          ${misc:Depends},
          ${shlibs:Depends},
+# The former qwlroots binary package owned the same libwaylib-wlroots
+# install paths; keep the transition guards until it is safely superseded.
 Conflicts: libwaylib, qwlroots
 Replaces: libwaylib, qwlroots
 Recommends: ddm (>> 0.3.4),

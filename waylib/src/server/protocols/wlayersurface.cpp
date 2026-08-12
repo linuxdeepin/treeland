@@ -1,32 +1,31 @@
-// Copyright (C) 2023 rewine <luhongxu@deepin.org>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wlayersurface.h"
 #include "wseat.h"
 #include "wsurface.h"
 #include "woutput.h"
+#include "wscoplistener.h"
 #include "wayliblogging.h"
 #include "private/wtoplevelsurface_p.h"
 
-#include <qwlayershellv1.h>
-#include <qwseat.h>
-#include <qwcompositor.h>
-#include <qwoutput.h>
+#include <wlr_all.h>
 
 #include <QDebug>
 
-QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class Q_DECL_HIDDEN WLayerSurfacePrivate : public WToplevelSurfacePrivate {
 public:
-    WLayerSurfacePrivate(WLayerSurface *qq, qw_layer_surface_v1 *handle);
+    WLayerSurfacePrivate(WLayerSurface *qq, wlr_layer_surface_v1 *handle);
     ~WLayerSurfacePrivate();
 
-    WWRAP_HANDLE_FUNCTIONS(qw_layer_surface_v1, wlr_layer_surface_v1)
+    inline wlr_layer_surface_v1 *handle() const {
+        return m_handle;
+    }
 
     wl_client *waylandClient() const override {
-        return nativeHandle()->resource->client;
+        return handle()->resource->client;
     }
 
     // begin slot function
@@ -35,7 +34,6 @@ public:
 
     void init();
     void connect();
-    void instantRelease() override;
 
     bool setDesiredSize(QSize newSize);
     bool setLayer(WLayerSurface::LayerType layer);
@@ -58,12 +56,19 @@ public:
     int32_t exclusiveZone = 0;
     WLayerSurface::KeyboardInteractivity keyboardInteractivity = WLayerSurface::KeyboardInteractivity::None;
     WOutput *output = nullptr;
+
+private:
+    // The layer-shell owner destroys this handle after notifying the
+    // wrapper. Keep the address stable through that callback.
+    wlr_layer_surface_v1 *m_handle = nullptr;
 };
 
-WLayerSurfacePrivate::WLayerSurfacePrivate(WLayerSurface *qq, qw_layer_surface_v1 *hh)
+WLayerSurfacePrivate::WLayerSurfacePrivate(WLayerSurface *qq, wlr_layer_surface_v1 *hh)
     : WToplevelSurfacePrivate(qq)
 {
-    initHandle(hh);
+    Q_ASSERT(hh);
+    hh->data = qq;
+    m_handle = hh;
 }
 
 WLayerSurfacePrivate::~WLayerSurfacePrivate()
@@ -71,31 +76,14 @@ WLayerSurfacePrivate::~WLayerSurfacePrivate()
 
 }
 
-void WLayerSurfacePrivate::instantRelease()
-{
-    W_Q(WLayerSurface);
-    handle()->set_data(nullptr, nullptr);
-    handle()->disconnect(q);
-    auto qsurface = qw_surface::from((*handle())->surface);
-    qsurface->disconnect(q);
-
-    if (!surface)
-        return;
-    surface->safeDeleteLater();
-    surface = nullptr;
-}
-
 void WLayerSurfacePrivate::init()
 {
     W_Q(WLayerSurface);
-    handle()->set_data(this, q);
-
     Q_ASSERT(!q->surface());
-    auto qsurface = qw_surface::from((*handle())->surface);
-    surface = new WSurface(qsurface, q);
+    surface = new WSurface(m_handle->surface);
     surface->setAttachedData<WLayerSurface>(q);
     updateLayerProperty();
-    output = nativeHandle()->output ? WOutput::fromHandle(qw_output::from(nativeHandle()->output)) : nullptr;
+    output = handle()->output ? WOutput::fromHandle(handle()->output) : nullptr;
 
     connect();
 }
@@ -103,10 +91,8 @@ void WLayerSurfacePrivate::init()
 void WLayerSurfacePrivate::connect()
 {
     W_Q(WLayerSurface);
-
-    surface->safeConnect(&qw_surface::notify_commit, q, [this] () {
-        updateLayerProperty();
-    });
+    q->listeners()->add(&m_handle->surface->events.commit, this,
+                        &WLayerSurfacePrivate::updateLayerProperty);
 }
 
 [[maybe_unused]] static inline void debugOutput(wlr_layer_surface_v1_state s)
@@ -126,7 +112,7 @@ void WLayerSurfacePrivate::updateLayerProperty()
 {
     W_Q(WLayerSurface);
 
-    wlr_layer_surface_v1_state state = q->nativeHandle()->current;
+    wlr_layer_surface_v1_state state = q->handle()->current;
 
     int hasChange = false;
     hasChange |= setDesiredSize(QSize(state.desired_width, state.desired_height));
@@ -155,7 +141,6 @@ bool WLayerSurfacePrivate::setDesiredSize(QSize newSize)
     Q_EMIT q->desiredSizeChanged();
     return true;
 }
-
 
 bool WLayerSurfacePrivate::setLayer(WLayerSurface::LayerType layer)
 {
@@ -239,15 +224,26 @@ bool WLayerSurfacePrivate::setKeyboardInteractivity(WLayerSurface::KeyboardInter
 
 // end set property
 
-WLayerSurface::WLayerSurface(qw_layer_surface_v1 *handle, QObject *parent)
-    : WToplevelSurface(*new WLayerSurfacePrivate(this, handle), parent)
+WLayerSurface::WLayerSurface(wlr_layer_surface_v1 *handle)
+    : WToplevelSurface(*new WLayerSurfacePrivate(this, handle))
 {
     d_func()->init();
 }
 
 WLayerSurface::~WLayerSurface()
 {
-
+    teardown();
+    // Notify listeners while the object is still usable (its members are
+    // alive during the destructor body).
+    Q_EMIT beforeDestroy();
+    // Owner rule: this object created the WSurface wrapper, release it.
+    W_D(WLayerSurface);
+    // Clear the reverse fromHandle() mapping. The shell destroys this
+    // wrapper from the layer surface's destroy callback (or while the
+    // native handle is still alive), so the handle is valid here.
+    if (d->m_handle && d->m_handle->data == this)
+        d->m_handle->data = nullptr;
+    delete d->surface;
 }
 
 bool WLayerSurface::hasCapability(Capability cap) const
@@ -275,30 +271,24 @@ WSurface *WLayerSurface::surface() const
     return d->surface;
 }
 
-qw_layer_surface_v1 *WLayerSurface::handle() const
+wlr_layer_surface_v1 *WLayerSurface::handle() const
 {
     W_DC(WLayerSurface);
     return d->handle();
 }
 
-wlr_layer_surface_v1 *WLayerSurface::nativeHandle() const
-{
-    W_D(const WLayerSurface);
-    return d->nativeHandle();
-}
-
-qw_surface *WLayerSurface::inputTargetAt(QPointF &localPos) const
+wlr_surface *WLayerSurface::inputTargetAt(QPointF &localPos) const
 {
     W_DC(WLayerSurface);
     // find a wlr_suface object who can receive the events
     const QPointF pos = localPos;
-    auto sur = d->handle()->surface_at(pos.x(), pos.y(), &localPos.rx(), &localPos.ry());
-    return sur ? qw_surface::from(sur) : nullptr;
+    auto sur = wlr_layer_surface_v1_surface_at(d->handle(), pos.x(), pos.y(), &localPos.rx(), &localPos.ry());
+    return sur;
 }
 
-WLayerSurface *WLayerSurface::fromHandle(qw_layer_surface_v1 *handle)
+WLayerSurface *WLayerSurface::fromHandle(wlr_layer_surface_v1 *handle)
 {
-    return handle->get_data<WLayerSurface>();
+    return static_cast<WLayerSurface*>(handle->data);
 }
 
 WLayerSurface *WLayerSurface::fromSurface(WSurface *surface)
@@ -309,7 +299,7 @@ WLayerSurface *WLayerSurface::fromSurface(WSurface *surface)
 QRect WLayerSurface::getContentGeometry() const
 {
     W_DC(WLayerSurface);
-    return QRect(0, 0, d->nativeHandle()->current.actual_width, d->nativeHandle()->current.actual_height);
+    return QRect(0, 0, d->handle()->current.actual_width, d->handle()->current.actual_height);
 }
 
 int WLayerSurface::keyboardFocusPriority() const
@@ -333,7 +323,7 @@ int WLayerSurface::keyboardFocusPriority() const
 
 bool WLayerSurface::isInitialized() const
 {
-    return handle()->handle()->initialized;
+    return handle()->initialized;
 }
 
 void WLayerSurface::resize(const QSize &size)
@@ -402,7 +392,7 @@ WLayerSurface::KeyboardInteractivity WLayerSurface::keyboardInteractivity() cons
 
 QString WLayerSurface::scope() const
 {
-    return QString::fromLocal8Bit((*handle())->scope);
+    return QString::fromLocal8Bit(handle()->scope);
 }
 
 WOutput *WLayerSurface::output() const
@@ -430,14 +420,14 @@ WLayerSurface::AnchorType WLayerSurface::getExclusiveZoneEdge() const
 
 uint32_t WLayerSurface::configureSize(const QSize &newSize)
 {
-    return handle()->configure(newSize.width(), newSize.height());
+    return wlr_layer_surface_v1_configure(handle(), newSize.width(), newSize.height());
 }
 
 void WLayerSurface::closed()
 {
     // 1. Notify the client that the surface has been closed
     // 2. Destroy the struct wlr_layer_surface_v1
-    wlr_layer_surface_v1_destroy(nativeHandle());
+    wlr_layer_surface_v1_destroy(handle());
 }
 
 bool WLayerSurface::checkNewSize(const QSize &size,  QSize *clipedSize)

@@ -15,13 +15,7 @@
 #include <wsocket.h>
 #include <wsurface.h>
 
-#include <qwdisplay.h>
-#include <qwseat.h>
-
-extern "C" {
-#include <wlr/types/wlr_compositor.h>
-#include <wlr/types/wlr_seat.h>
-}
+#include <wlr_all.h>
 
 #include <QKeyEvent>
 #include <QKeySequence>
@@ -517,7 +511,7 @@ void ShortcutManagerV2Private::capture_next_shortcut(Resource *resource,
         // Client specified a seat: resolve it directly.
         auto *wlrSeatClient = wlr_seat_client_from_resource(seat_resource);
         if (wlrSeatClient)
-            requestedSeat = WSeat::fromHandle(qw_seat::from(wlrSeatClient->seat));
+            requestedSeat = WSeat::fromHandle(wlrSeatClient->seat);
     } else if (auto *helper = Helper::instance()) {
         // No seat specified: find whichever seat currently has keyboard focus on this surface.
         const auto &seats = helper->seatManager()->seats();
@@ -675,7 +669,7 @@ ShortcutManagerV2::~ShortcutManagerV2() = default;
 
 void ShortcutManagerV2::create(WServer *server)
 {
-    d->init(server->handle()->handle(), InterfaceVersion);
+    d->init(server->handle(), InterfaceVersion);
 }
 
 void ShortcutManagerV2::destroy(WServer *server)

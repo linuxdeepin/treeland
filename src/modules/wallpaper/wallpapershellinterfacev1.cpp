@@ -5,11 +5,6 @@
 #include "wallpapershellinterfacev1.h"
 #include "qwayland-server-treeland-wallpaper-shell-unstable-v1.h"
 
-#include <qwcompositor.h>
-#include <qwdisplay.h>
-#include <qwoutput.h>
-#include <qwseat.h>
-
 static QList<TreelandWallpaperSurfaceInterfaceV1 *> s_wallpaperSurfaces;
 
 class TreelandWallpaperShellInterfaceV1Private : public QtWaylandServer::treeland_wallpaper_shell_v1
@@ -91,7 +86,7 @@ TreelandWallpaperShellInterfaceV1::~TreelandWallpaperShellInterfaceV1() = defaul
 
 void TreelandWallpaperShellInterfaceV1::create(WServer *server)
 {
-    d->init(server->handle()->handle(), InterfaceVersion);
+    d->init(server->handle(), InterfaceVersion);
 }
 
 void TreelandWallpaperShellInterfaceV1::destroy([[maybe_unused]] WServer *server)
@@ -178,11 +173,16 @@ void TreelandWallpaperSurfaceInterfaceV1Private::ready([[maybe_unused]] Resource
     }
 }
 
-TreelandWallpaperSurfaceInterfaceV1::~TreelandWallpaperSurfaceInterfaceV1() = default;
+TreelandWallpaperSurfaceInterfaceV1::~TreelandWallpaperSurfaceInterfaceV1()
+{
+    // Owner rule: this object created the WallpaperSurface, release it (no
+    // QObject parent anymore).
+    delete d->surface;
+}
 
 WSurface *TreelandWallpaperSurfaceInterfaceV1::wSurface() const
 {
-    return WSurface::fromHandle(qw_surface::from(wlr_surface_from_resource(d->surfaceResource)));
+    return WSurface::fromHandle(wlr_surface_from_resource(d->surfaceResource));
 }
 
 QString TreelandWallpaperSurfaceInterfaceV1::source() const
@@ -246,5 +246,5 @@ TreelandWallpaperSurfaceInterfaceV1::TreelandWallpaperSurfaceInterfaceV1(wl_reso
                                                                          wl_resource *resource)
     : d(new TreelandWallpaperSurfaceInterfaceV1Private(this, source, surface, resource))
 {
-    d->surface = new WallpaperSurface(this, this);
+    d->surface = new WallpaperSurface(this);
 }

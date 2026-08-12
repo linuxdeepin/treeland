@@ -11,8 +11,6 @@
 #include <wayland-server.h>
 #include <wayland-util.h>
 
-#include <qwdisplay.h>
-
 #include <QDebug>
 
 class DDMInterfaceV1Private : public QtWaylandServer::treeland_ddm_v1
@@ -106,7 +104,7 @@ bool DDMInterfaceV1::isConnected() const
 
 void DDMInterfaceV1::create(WServer *server)
 {
-    d->init(server->handle()->handle(), InterfaceVersion);
+    d->init(server->handle(), InterfaceVersion);
 }
 
 void DDMInterfaceV1::destroy([[maybe_unused]] WServer *server)

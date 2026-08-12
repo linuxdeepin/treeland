@@ -1,4 +1,4 @@
-// Copyright (C) 2025 misaka18931 <miruku2937@gmail.com>.
+// Copyright (C) 2025-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
@@ -10,15 +10,16 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WSessionLock;
 class WSessionLockManagerPrivate;
-class WAYLIB_SERVER_EXPORT WSessionLockManager : public WWrapObject, public WServerInterface
+class WAYLIB_SERVER_EXPORT WSessionLockManager : public QObject, public WObject, public WServerInterface
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WSessionLockManager)
 public:
-    explicit WSessionLockManager(QObject *parent = nullptr);
+    explicit WSessionLockManager();
     void *create();
 
     QByteArrayView interfaceName() const override;
+    wlr_session_lock_manager_v1 *handle() const;
     QVector<WSessionLock*> lockList() const;
 Q_SIGNALS:
     void lockCreated(WSessionLock *lock);

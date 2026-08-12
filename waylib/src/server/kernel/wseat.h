@@ -1,8 +1,9 @@
-// Copyright (C) 2023-2026 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
 
+#include <wlr_fwd.h>
 #include <WEvent>
 #include <WServer>
 #include <WInputDevice>
@@ -11,11 +12,6 @@
 #include <QSharedData>
 
 Q_MOC_INCLUDE(<wsurface.h>)
-
-QW_BEGIN_NAMESPACE
-class qw_seat;
-class qw_surface;
-QW_END_NAMESPACE
 
 QT_BEGIN_NAMESPACE
 class QInputEvent;
@@ -27,9 +23,6 @@ QT_END_NAMESPACE
 typedef uint wl_pointer_axis_source_t;
 typedef uint wl_pointer_axis_relative_direction_t;
 typedef uint wl_pointer_button_state_t;
-struct wlr_seat;
-struct wlr_seat_client;
-
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WSurface;
@@ -54,7 +47,7 @@ protected:
 
 class WCursor;
 class WSeatPrivate;
-class WAYLIB_SERVER_EXPORT WSeat : public WWrapObject, public WServerInterface
+class WAYLIB_SERVER_EXPORT WSeat : public QObject, public WObject, public WServerInterface
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WSeat)
@@ -64,11 +57,11 @@ class WAYLIB_SERVER_EXPORT WSeat : public WWrapObject, public WServerInterface
 
 public:
     WSeat(const QString &name = QStringLiteral("seat0"));
+    ~WSeat() override;
 
-    static WSeat *fromHandle(const QW_NAMESPACE::qw_seat *handle);
+    static WSeat *fromHandle(wlr_seat *handle);
     static WSeat *fromInputEvent(QInputEvent *event);
-    QW_NAMESPACE::qw_seat *handle() const;
-    wlr_seat *nativeHandle() const;
+    wlr_seat *handle() const;
 
     QString name() const;
 

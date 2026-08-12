@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2026 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wsocket.h"
@@ -11,6 +11,7 @@
 #include <QPointer>
 
 #include <wayland-server-core.h>
+#include <wcontainerof.h>
 
 #include <sys/fcntl.h>
 #include <sys/stat.h>
@@ -204,7 +205,7 @@ WlClientDestroyListener *WlClientDestroyListener::get(const wl_client *client)
         return nullptr;
     }
 
-    WlClientDestroyListener *tmp = wl_container_of(listener, tmp, destroy);
+    WlClientDestroyListener *tmp = W_CONTAINER_OF(listener, WlClientDestroyListener, destroy);
     return tmp;
 }
 
@@ -216,7 +217,7 @@ WlClientDestroyListener *WlClientDestroyListener::get_late(const wl_client *clie
         return nullptr;
     }
 
-    WlClientDestroyListener *tmp = wl_container_of(listener, tmp, destroy_late);
+    WlClientDestroyListener *tmp = W_CONTAINER_OF(listener, WlClientDestroyListener, destroy_late);
     return tmp;
 }
 
@@ -304,7 +305,7 @@ public:
 
 void WlClientDestroyListener::handle_destroy(wl_listener *listener, void *data)
 {
-    WlClientDestroyListener *self = wl_container_of(listener, self, destroy);
+    WlClientDestroyListener *self = W_CONTAINER_OF(listener, WlClientDestroyListener, destroy);
     if (self->client && self->client->handle()) {
         Q_ASSERT(reinterpret_cast<wl_client*>(data) == self->client->handle());
         auto client = self->client.data();
@@ -320,7 +321,7 @@ void WlClientDestroyListener::handle_destroy(wl_listener *listener, void *data)
 
 void WlClientDestroyListener::handle_destroy_late(wl_listener *listener, [[maybe_unused]] void *data)
 {
-    WlClientDestroyListener *self = wl_container_of(listener, self, destroy_late);
+    WlClientDestroyListener *self = W_CONTAINER_OF(listener, WlClientDestroyListener, destroy_late);
     if (self->client) {
         delete self->client.data();
     }

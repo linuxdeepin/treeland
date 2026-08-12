@@ -1,6 +1,7 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
+#include <wscopedvalue.h>
 #include "outputmanager.h"
 
 #include "common/treelandlogging.h"
@@ -14,7 +15,6 @@
 
 #include <utility>
 
-#include <qwoutput.h>
 #include <woutputlayout.h>
 
 namespace {
@@ -100,11 +100,9 @@ bool OutputManager::restoreConfiguredSingleOutput(const QList<SurfaceWrapper *> 
             continue;
         }
         if (output->output()->isEnabled()) {
-            struct wlr_output_state state;
-            wlr_output_state_init(&state);
-            wlr_output_state_set_enabled(&state, false);
-            const bool committed = wlr_output_commit_state(output->output()->nativeHandle(), &state);
-            wlr_output_state_finish(&state);
+            WOutputStateGuard state;
+            wlr_output_state_set_enabled(state.get(), false);
+            const bool committed = wlr_output_commit_state(output->output()->handle(), state.get());
             if (!committed) {
                 qCWarning(lcTlOutput) << "Failed to disable non-selected output while restoring single-output display"
                                       << output->output()->name();

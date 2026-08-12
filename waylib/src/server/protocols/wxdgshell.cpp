@@ -1,18 +1,16 @@
-// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wxdgshell.h"
 #include "wxdgtoplevelsurface.h"
 #include "wxdgpopupsurface.h"
+#include "wscoplistener.h"
 #include "private/wglobal_p.h"
 
-#include <qwxdgshell.h>
-#include <qwcompositor.h>
-#include <qwdisplay.h>
+#include <wlr_all.h>
 
 #include <QPointer>
 
-QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class Q_DECL_HIDDEN WXdgShellPrivate : public WObjectPrivate
@@ -25,69 +23,77 @@ public:
     }
 
     // begin slot function
-    void onNewXdgToplevelSurface(qw_xdg_toplevel *toplevel);
-    void onToplevelSurfaceDestroy(qw_xdg_toplevel *toplevel);
-    void onNewXdgPopupSurface(qw_xdg_popup *popup);
-    void onPopupSurfaceDestroy(qw_xdg_popup *popup);
+    void onNewXdgToplevelSurface(wlr_xdg_toplevel *toplevel);
+    void onToplevelSurfaceDestroy(WXdgToplevelSurface *surface);
+    void onNewXdgPopupSurface(wlr_xdg_popup *popup);
+    void onPopupSurfaceDestroy(WXdgPopupSurface *surface);
     // end slot function
 
     W_DECLARE_PUBLIC(WXdgShell)
 
     QVector<WXdgToplevelSurface*> toplevelSurfaceList;
     QVector<WXdgPopupSurface*> popupSurfaceList;
-    uint32_t version;
+    uint32_t version = 0;
 };
 
-void WXdgShellPrivate::onNewXdgToplevelSurface(qw_xdg_toplevel *toplevel)
+void WXdgShellPrivate::onNewXdgToplevelSurface(wlr_xdg_toplevel *toplevel)
 {
     W_Q(WXdgShell);
-    auto server = q_func()->server();
-    auto surface = new WXdgToplevelSurface(toplevel, server);
-    surface->setParent(server);
-    Q_ASSERT(surface->parent() == server);
-    surface->safeConnect(&qw_xdg_surface::before_destroy, q, [this, toplevel] {
-       onToplevelSurfaceDestroy(toplevel);
+    auto surface = new WXdgToplevelSurface(toplevel);
+    auto *xdgSurface = toplevel->base;
+    // Register the destroy/new_popup listeners on the surface wrapper
+    // (owner = this shell): released automatically by ~WObject when the
+    // wrapper is deleted.
+    surface->listeners(q_ptr)->add(&toplevel->events.destroy, this,
+        [this, surface] (void *) {
+        // Detach our own listener group: safe from inside a callback of
+        // this list (the closure outlives the emission).
+        surface->removeListeners(q_ptr);
+        onToplevelSurfaceDestroy(surface);
     });
-    auto xdgSurface = qw_xdg_surface::from((*toplevel)->base);
-    QObject::connect(xdgSurface, &qw_xdg_surface::notify_new_popup, q, &WXdgShell::initializeNewXdgPopupSurface);
+    surface->listeners(q_ptr)->add(&xdgSurface->events.new_popup, this,
+        &WXdgShellPrivate::onNewXdgPopupSurface);
     toplevelSurfaceList.append(surface);
-    Q_EMIT q_func()->toplevelSurfaceAdded(surface);
+    Q_EMIT q->toplevelSurfaceAdded(surface);
 }
 
-void WXdgShellPrivate::onToplevelSurfaceDestroy(qw_xdg_toplevel *toplevel)
+void WXdgShellPrivate::onToplevelSurfaceDestroy(WXdgToplevelSurface *surface)
 {
-    auto surface = WXdgToplevelSurface::fromHandle(toplevel);
     Q_ASSERT(surface);
     bool ok = toplevelSurfaceList.removeOne(surface);
     Q_ASSERT(ok);
     Q_EMIT q_func()->toplevelSurfaceRemoved(surface);
-    surface->safeDeleteLater();
+    delete surface;
 }
 
-void WXdgShellPrivate::onNewXdgPopupSurface(qw_xdg_popup *popup)
+void WXdgShellPrivate::onNewXdgPopupSurface(wlr_xdg_popup *popup)
 {
     W_Q(WXdgShell);
-    auto server = q_func()->server();
-    auto surface = new WXdgPopupSurface(popup, server);
-    surface->setParent(server);
-    Q_ASSERT(surface->parent() == server);
-    surface->safeConnect(&qw_xdg_popup::before_destroy, q, [this, popup] {
-        onPopupSurfaceDestroy(popup);
+    auto surface = new WXdgPopupSurface(popup);
+    auto *xdgSurface = popup->base;
+    // Register the destroy/new_popup listeners on the surface wrapper
+    // (owner = this shell): released automatically by ~WObject when the
+    // wrapper is deleted.
+    surface->listeners(q_ptr)->add(&popup->events.destroy, this,
+        [this, surface] (void *) {
+        // Detach our own listener group: safe from inside a callback of
+        // this list (the closure outlives the emission).
+        surface->removeListeners(q_ptr);
+        onPopupSurfaceDestroy(surface);
     });
-    auto xdgSurface = qw_xdg_surface::from((*popup)->base);
-    QObject::connect(xdgSurface, &qw_xdg_surface::notify_new_popup, q, &WXdgShell::initializeNewXdgPopupSurface);
+    surface->listeners(q_ptr)->add(&xdgSurface->events.new_popup, this,
+        &WXdgShellPrivate::onNewXdgPopupSurface);
     popupSurfaceList.append(surface);
-    Q_EMIT q_func()->popupSurfaceAdded(surface);
+    Q_EMIT q->popupSurfaceAdded(surface);
 }
 
-void WXdgShellPrivate::onPopupSurfaceDestroy(qw_xdg_popup *popup)
+void WXdgShellPrivate::onPopupSurfaceDestroy(WXdgPopupSurface *surface)
 {
-    auto surface = WXdgPopupSurface::fromHandle(popup);
     Q_ASSERT(surface);
     bool ok = popupSurfaceList.removeOne(surface);
     Q_ASSERT(ok);
     Q_EMIT q_func()->popupSurfaceRemoved(surface);
-    surface->safeDeleteLater();
+    delete surface;
 }
 
 WXdgShell::WXdgShell(uint32_t version)
@@ -108,28 +114,33 @@ QByteArrayView WXdgShell::interfaceName() const
     return "xdg_wm_base";
 }
 
+wlr_xdg_shell *WXdgShell::handle() const
+{
+    return reinterpret_cast<wlr_xdg_shell*>(m_handle);
+}
+
 void WXdgShell::initializeNewXdgPopupSurface(wlr_xdg_popup *popup)
 {
     W_D(WXdgShell);
-    d->onNewXdgPopupSurface(qw_xdg_popup::from(popup));
+    d->onNewXdgPopupSurface(popup);
 }
 
 void WXdgShell::create(WServer *server)
 {
     W_D(WXdgShell);
     // free follow display
-    auto xdg_shell = qw_xdg_shell::create(*server->handle(), d->version);
-    QObject::connect(xdg_shell, &qw_xdg_shell::notify_new_toplevel, this, [this] (wlr_xdg_toplevel *toplevel_surface) {
-        d_func()->onNewXdgToplevelSurface(qw_xdg_toplevel::from(toplevel_surface));
-    });
+    auto xdg_shell = wlr_xdg_shell_create(server->handle(), d->version);
+    Q_ASSERT(xdg_shell);
+    listeners()->add(&xdg_shell->events.new_toplevel, d,
+        &WXdgShellPrivate::onNewXdgToplevelSurface);
 
     // When layer_surface is an xdg_popup's parent, the popup should created via xdg_surface::get_popup with the parent set to NULL,
     // and invoke 'zwlr_layer_surface_v1::get_popup' to set parent before committing the popup's initial state.
 
-    // We should use parent's `notify_new_popup` to avoid get a popup with NULL parent
-    // QObject::connect(xdg_shell, &qw_xdg_shell::notify_new_popup, this, [this] (wlr_xdg_popup *xdg_popup) {
-    //     d_func()->onNewXdgPopupSurface(qw_xdg_popup::from(xdg_popup));
-    // });
+    // Popups are delivered through each xdg_surface's `new_popup` event (see
+    // onNewXdgToplevelSurface/onNewXdgPopupSurface). Do NOT also listen on
+    // xdg_shell->events.new_popup: wlroots emits it for every popup, so every
+    // popup would be wrapped twice.
     m_handle = xdg_shell;
 }
 
@@ -139,24 +150,24 @@ void WXdgShell::destroy([[maybe_unused]] WServer *server)
 
     QVector<WXdgToplevelSurface*> toplevelList;
     QVector<WXdgPopupSurface*> popupList;
-
     d->toplevelSurfaceList.swap(toplevelList);
     d->popupSurfaceList.swap(popupList);
 
     for (auto surface : std::as_const(toplevelList)) {
-        toplevelSurfaceRemoved(surface);
-        surface->safeDeleteLater();
+        Q_EMIT toplevelSurfaceRemoved(surface);
+        delete surface;
     }
     for (auto surface : std::as_const(popupList)) {
-        popupSurfaceRemoved(surface);
-        surface->safeDeleteLater();
+        Q_EMIT popupSurfaceRemoved(surface);
+        delete surface;
     }
+
 }
 
 wl_global *WXdgShell::global() const
 {
-    auto handle = nativeInterface<qw_xdg_shell>();
-    return handle->handle()->global;
+    auto handle = reinterpret_cast<wlr_xdg_shell*>(m_handle);
+    return handle->global;
 }
 
 WAYLIB_SERVER_END_NAMESPACE

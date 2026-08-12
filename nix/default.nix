@@ -19,20 +19,18 @@
   wayland,
   wayland-protocols,
   wlr-protocols,
-  wlroots_0_19,
   treeland-protocols,
   pixman,
   pam,
   libxcrypt,
   libinput,
   nixos-artwork,
-  qwlroots,
   waylib,
 }:
 
 stdenv.mkDerivation (finalAttrs: {
   pname = "treeland";
-  version = "0.5-unstable";
+  version = "0.8.17";
 
   src = nix-filter.lib.filter {
     root = ./..;
@@ -82,12 +80,10 @@ stdenv.mkDerivation (finalAttrs: {
     wayland-protocols
     wlr-protocols
     treeland-protocols
-    wlroots_0_19
     pixman
     pam
     libxcrypt
     libinput
-    qwlroots
     waylib
   ];
 

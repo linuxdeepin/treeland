@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2026 Yixue Wang <wangyixue@deepin.org>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "winputmethodhelper.h"
@@ -12,30 +12,26 @@
 #include "wseat.h"
 #include "wsurface.h"
 #include "private/wglobal_p.h"
+#include "wscoplistener.h"
 #include "wayliblogging.h"
 
-#include <qwcompositor.h>
-#include <qwinputmethodv2.h>
-#include <qwtextinputv3.h>
-#include <qwvirtualkeyboardv1.h>
-#include <qwinputdevice.h>
-#include <qwseat.h>
-#include <qwbox.h>
+#include <wlr_all.h>
+
+#include <memory>
 
 #include <QQmlInfo>
 
-QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 struct Q_DECL_HIDDEN GrabHandlerArg {
     const WInputMethodHelper *const helper;
-    qw_input_method_keyboard_grab_v2 *grab;
+    wlr_input_method_keyboard_grab_v2 *grab;
 };
 
 void handleKey(struct wlr_seat_keyboard_grab *grab, uint32_t time_msec, uint32_t key, uint32_t state)
 {
     auto arg = reinterpret_cast<GrabHandlerArg*>(grab->data);
     for (auto vk: arg->helper->virtualKeyboards()) {
-        if (wlr_keyboard_from_input_device(vk->handle()->handle()) == grab->seat->keyboard_state.keyboard) {
+        if (wlr_keyboard_from_input_device(vk->handle()) == grab->seat->keyboard_state.keyboard) {
             grab->seat->keyboard_state.default_grab->interface->key(grab, time_msec, key, state);
             return;
         }
@@ -45,14 +41,14 @@ void handleKey(struct wlr_seat_keyboard_grab *grab, uint32_t time_msec, uint32_t
                                   << "key" << key << "state" << state;
         return;
     }
-    arg->grab->send_key(time_msec, Qt::Key(key), state);
+    wlr_input_method_keyboard_grab_v2_send_key(arg->grab, time_msec, key, state);
 }
 
 void handleModifiers(struct wlr_seat_keyboard_grab *grab, const struct wlr_keyboard_modifiers *modifiers)
 {
     auto arg = reinterpret_cast<GrabHandlerArg*>(grab->data);
     for (auto vk: arg->helper->virtualKeyboards()) {
-        if (wlr_keyboard_from_input_device(vk->handle()->handle()) == grab->seat->keyboard_state.keyboard) {
+        if (wlr_keyboard_from_input_device(vk->handle()) == grab->seat->keyboard_state.keyboard) {
             grab->seat->keyboard_state.default_grab->interface->modifiers(grab, modifiers);
             return;
         }
@@ -61,7 +57,7 @@ void handleModifiers(struct wlr_seat_keyboard_grab *grab, const struct wlr_keybo
         qCCritical(lcWlInputMethod) << "Ignore modifiers for destroyed input method keyboard grab";
         return;
     }
-    arg->grab->send_modifiers(const_cast<struct wlr_keyboard_modifiers *>(modifiers));
+    wlr_input_method_keyboard_grab_v2_send_modifiers(arg->grab, const_cast<struct wlr_keyboard_modifiers *>(modifiers));
 }
 
 class Q_DECL_HIDDEN WInputMethodHelperPrivate : public WObjectPrivate
@@ -92,7 +88,7 @@ public:
         Q_ASSERT(textInputManagerV3);
     }
 
-    void endGrab(qw_input_method_keyboard_grab_v2 *kgv2)
+    void endGrab(wlr_input_method_keyboard_grab_v2 *kgv2)
     {
         if (!seat) {
             qCCritical(lcWlInputMethod) << "Failed to end input method keyboard grab - seat is already destroyed"
@@ -100,7 +96,7 @@ public:
             return;
         }
 
-        auto *kgHandle = kgv2 ? kgv2->handle() : nullptr;
+        auto *kgHandle = kgv2;
         if (!kgHandle) {
             qCCritical(lcWlInputMethod) << "Failed to end input method keyboard grab - grab handle is invalid"
                                       << kgv2;
@@ -108,23 +104,23 @@ public:
         }
 
         if (kgHandle->keyboard) {
-            seat->handle()->keyboard_send_modifiers(&kgHandle->keyboard->modifiers);
+            wlr_seat_keyboard_send_modifiers(seat->handle(), &kgHandle->keyboard->modifiers);
         }
         // Only end the grab if our grab is still the active one on the seat.
         // A popup grab may have silently replaced us (wlr_seat_keyboard_start_grab
         // unconditionally overwrites keyboard_state.grab).
-        auto isStillActive = seat->nativeHandle()->keyboard_state.grab == &keyboardGrab;
+        auto isStillActive = seat->handle()->keyboard_state.grab == &keyboardGrab;
         qCDebug(lcWlInputMethod) << "endGrab: isStillActive" << isStillActive << "grab ptr"
-                                 << seat->nativeHandle()->keyboard_state.grab << "&keyboardGrab"
+                                 << seat->handle()->keyboard_state.grab << "&keyboardGrab"
                                  << &keyboardGrab;
         if (isStillActive) {
-            seat->handle()->keyboard_end_grab();
+            wlr_seat_keyboard_end_grab(seat->handle());
         }
     }
 
-    void setKeyboard(qw_input_method_keyboard_grab_v2 *kgv2, WInputDevice *keyboard)
+    void setKeyboard(wlr_input_method_keyboard_grab_v2 *kgv2, WInputDevice *keyboard)
     {
-        auto *kgHandle = kgv2 ? kgv2->handle() : nullptr;
+        auto *kgHandle = kgv2;
         if (!kgHandle) {
             qCCritical(lcWlInputMethod) << "Failed to set keyboard for input method grab - grab handle is invalid"
                                       << kgv2 << "keyboard" << keyboard;
@@ -132,7 +128,7 @@ public:
         }
 
         if (keyboard) {
-            auto *virtualKeyboard = wlr_input_device_get_virtual_keyboard(*keyboard->handle());
+            auto *virtualKeyboard = wlr_input_device_get_virtual_keyboard(keyboard->handle());
             // refer to:
             // https://github.com/swaywm/sway/blob/master/sway/input/keyboard.c#L391
             if (virtualKeyboard
@@ -142,9 +138,9 @@ public:
                     == wl_resource_get_client(kgHandle->resource)) {
                 return;
             }
-            kgv2->set_keyboard(wlr_keyboard_from_input_device(*keyboard->handle()));
+            wlr_input_method_keyboard_grab_v2_set_keyboard(kgv2, wlr_keyboard_from_input_device(keyboard->handle()));
         } else {
-            kgv2->set_keyboard(nullptr);
+            wlr_input_method_keyboard_grab_v2_set_keyboard(kgv2, nullptr);
         }
     }
 
@@ -157,16 +153,17 @@ public:
     const QPointer<WVirtualKeyboardManagerV1> virtualKeyboardManagerV1;
     WTextInput *enabledTextInput { nullptr };
     WInputMethodV2 *activeInputMethod { nullptr };
-    qw_input_method_keyboard_grab_v2 *activeKeyboardGrab {nullptr};
+    wlr_input_method_keyboard_grab_v2 *activeKeyboardGrab {nullptr};
 
     wlr_seat_keyboard_grab keyboardGrab;
     wlr_keyboard_grab_interface grabInterface;
     GrabHandlerArg handlerArg;
-    QMetaObject::Connection activeKeyboardGrabDestroyConnection;
+    std::unique_ptr<WListenerOwner> keyboardGrabListenerOwner;
 
     QList<WTextInput *> textInputs;
     QList<WInputDevice *> virtualKeyboards;
     QList<WInputPopupSurface *> popupSurfaces;
+
 };
 
 WInputMethodHelper::WInputMethodHelper(WServer *server, WSeat *seat)
@@ -174,12 +171,13 @@ WInputMethodHelper::WInputMethodHelper(WServer *server, WSeat *seat)
     , WObject(*new WInputMethodHelperPrivate(server, seat, this))
 {
     W_D(WInputMethodHelper);
-    d->seat->safeConnect(&WSeat::keyboardFocusSurfaceChanged, this, &WInputMethodHelper::resendKeyboardFocus);
-    d->seat->safeConnect(&WSeat::keyboardChanged, this, [d] {
+    QObject::connect(d->seat, &WSeat::keyboardFocusSurfaceChanged, this, &WInputMethodHelper::resendKeyboardFocus);
+    QObject::connect(d->seat, &WSeat::keyboardChanged, this, [d] {
         if (auto *activeKG = d->activeKeyboardGrab)
             d->setKeyboard(activeKG, d->seat->keyboard());
     });
-    connect(d->seat->handle(), &QW_NAMESPACE::qw_seat::notify_keyboard_grab_begin, this, &WInputMethodHelper::handleKeyboardGrabBegin);
+    d->seat->listeners(this)->add(&d->seat->handle()->events.keyboard_grab_begin, this,
+        &WInputMethodHelper::handleKeyboardGrabBegin);
     connect(d->inputMethodManagerV2, &WInputMethodManagerV2::newInputMethod, this, &WInputMethodHelper::handleNewIMV2);
     connect(d->textInputManagerV3, &WTextInputManagerV3::newTextInput, this, &WInputMethodHelper::handleNewTI);
     connect(d->virtualKeyboardManagerV1, &WVirtualKeyboardManagerV1::newVirtualKeyboard, this, &WInputMethodHelper::handleNewVKV1);
@@ -189,8 +187,45 @@ WInputMethodHelper::WInputMethodHelper(WServer *server, WSeat *seat)
 
 WInputMethodHelper::~WInputMethodHelper()
 {
+    teardown();
     W_D(WInputMethodHelper);
-    if (d->seat) d->seat->safeDisconnect(this);
+    // The wrappers tracked below have no QObject parent and their destroy
+    // callbacks capture this private; the native objects may outlive the
+    // helper (which is deleted before the WServer), so release them here
+    // while the helper is still alive to prevent callbacks from running
+    // against freed state.
+
+    // Active input method wrapper: normally destroyed from the native
+    // destroy callback; detach that callback and release it explicitly.
+    if (d->activeInputMethod)
+        d->activeInputMethod->removeListeners(this);
+    if (d->activeInputMethod) {
+        delete d->activeInputMethod;
+        d->activeInputMethod = nullptr;
+    }
+
+    // Input popup surface wrappers.
+    const auto popupSurfaces = d->popupSurfaces;
+    d->popupSurfaces.clear();
+    for (auto *popup : popupSurfaces) {
+        popup->removeListeners(this);
+        delete popup;
+    }
+
+    // Virtual keyboard device wrappers (also detach them from the seat).
+    const auto virtualKeyboards = d->virtualKeyboards;
+    d->virtualKeyboards.clear();
+    for (auto *keyboard : virtualKeyboards) {
+        keyboard->removeListeners(this);
+        if (d->seat) {
+            if (d->seat->keyboard() == keyboard && d->seat->keyboardGroupKeyboard())
+                d->seat->setKeyboard(d->seat->keyboardGroupKeyboard());
+            d->seat->detachInputDevice(keyboard);
+        }
+        delete keyboard;
+    }
+
+    if (d->seat) d->seat->disconnect(this);
     if (d->inputMethodManagerV2) d->inputMethodManagerV2->disconnect(this);
     if (d->textInputManagerV1) d->textInputManagerV1->disconnect(this);
     if (d->textInputManagerV2) d->textInputManagerV2->disconnect(this);
@@ -246,32 +281,31 @@ QRect WInputMethodHelper::textInputCursorRect() const
     return ti ? ti->cursorRect() : QRect();
 }
 
-
 void WInputMethodHelper::setInputMethod(WInputMethodV2 *im)
 {
     W_D(WInputMethodHelper);
     if (d->activeInputMethod == im)
         return;
     if (d->activeInputMethod)
-        d->activeInputMethod->safeDisconnect(this);
+        d->activeInputMethod->removeListeners(this);
     d->activeInputMethod = im;
     if (d->activeInputMethod)
-        d->activeInputMethod->safeConnect(&qw_input_method_v2::before_destroy, this, &WInputMethodHelper::handleActiveIMDestroyed);
+        d->activeInputMethod->listeners(this)->add(&im->handle()->events.destroy, this,
+            &WInputMethodHelper::handleActiveIMDestroyed);
 }
 
-qw_input_method_keyboard_grab_v2 *WInputMethodHelper::activeKeyboardGrab() const
+wlr_input_method_keyboard_grab_v2 *WInputMethodHelper::activeKeyboardGrab() const
 {
     W_DC(WInputMethodHelper);
     return d->activeKeyboardGrab;
 }
-
 
 bool WInputMethodHelper::isActiveKeyboardGrabOwner() const
 {
     W_DC(WInputMethodHelper);
     if (!d->activeKeyboardGrab)
         return false;
-    return d->seat->nativeHandle()->keyboard_state.grab == &d->keyboardGrab;
+    return d->seat->handle()->keyboard_state.grab == &d->keyboardGrab;
 }
 
 const QList<WInputDevice *> &WInputMethodHelper::virtualKeyboards() const
@@ -280,17 +314,25 @@ const QList<WInputDevice *> &WInputMethodHelper::virtualKeyboards() const
     return d->virtualKeyboards;
 }
 
-void WInputMethodHelper::handleNewIMV2(qw_input_method_v2 *imv2)
+void WInputMethodHelper::handleNewIMV2(wlr_input_method_v2 *imv2)
 {
     W_D(WInputMethodHelper);
-    auto wimv2 = new WInputMethodV2(imv2, this);
-    if (d->seat->name() != wimv2->seat()->name())
+    // Reject input methods from other seats before wrapping: the wrapper
+    // attaches native listeners in its constructor, so an early return
+    // afterwards would leak it (the listeners stay registered on the native
+    // handle and assert on its destroy).
+    auto *imSeat = WSeat::fromHandle(imv2->seat);
+    if (!imSeat || d->seat->name() != imSeat->name())
         return;
     if (inputMethod()) {
         qCWarning(lcWlInputMethod) << "Ignore second creation of input on the same seat.";
-        wimv2->sendUnavailable();
+        // sendUnavailable() destroys the native input method synchronously
+        // (asserting its listener lists are empty afterwards); call it
+        // before creating the wrapper so nothing is left attached.
+        wlr_input_method_v2_send_unavailable(imv2);
         return;
     }
+    auto wimv2 = new WInputMethodV2(imv2);
     setInputMethod(wimv2);
     connect(wimv2, &WInputMethodV2::committed, this, &WInputMethodHelper::handleIMCommitted);
     connect(wimv2, &WInputMethodV2::newKeyboardGrab, this, &WInputMethodHelper::handleNewKGV2);
@@ -300,51 +342,56 @@ void WInputMethodHelper::handleNewIMV2(qw_input_method_v2 *imv2)
     // For text input v1, when after sendEnter, enabled signal will be emitted
 }
 
-void WInputMethodHelper::handleNewKGV2(qw_input_method_keyboard_grab_v2 *kgv2)
+void WInputMethodHelper::handleNewKGV2(wlr_input_method_keyboard_grab_v2 *kgv2)
 {
     W_D(WInputMethodHelper);
     Q_ASSERT(d->seat);
     if (auto activeKG = activeKeyboardGrab()) {
-        disconnect(d->activeKeyboardGrabDestroyConnection);
-        d->activeKeyboardGrabDestroyConnection = {};
         d->endGrab(activeKG);
     }
     d->activeKeyboardGrab = kgv2;
     d->setKeyboard(kgv2, d->seat->keyboard());
-    d->grabInterface = *d->seat->nativeHandle()->keyboard_state.grab->interface;
+    d->grabInterface = *d->seat->handle()->keyboard_state.grab->interface;
     d->grabInterface.key = handleKey;
     d->grabInterface.modifiers = handleModifiers;
-    d->keyboardGrab.seat = d->seat->nativeHandle();
+    d->keyboardGrab.seat = d->seat->handle();
     d->handlerArg.grab = kgv2;
     d->keyboardGrab.data = &d->handlerArg;
     d->keyboardGrab.interface = &d->grabInterface;
-    d->seat->handle()->keyboard_start_grab(&d->keyboardGrab);
+    wlr_seat_keyboard_start_grab(d->seat->handle(), &d->keyboardGrab);
     qCDebug(lcWlInputMethod) << "IME keyboard grab installed";
-    d->activeKeyboardGrabDestroyConnection =
-        connect(kgv2, &qw_input_method_keyboard_grab_v2::before_destroy, this, [this, d] {
+    d->keyboardGrabListenerOwner = std::make_unique<WListenerOwner>();
+    auto *grabOwner = d->keyboardGrabListenerOwner.get();
+    d->seat->listeners(grabOwner)->add(&kgv2->events.destroy, this, [this, d, kgv2, grabOwner] {
             qCDebug(lcWlInputMethod) << "IME keyboard grab before_destroy";
-            auto *kgv2 = qobject_cast<qw_input_method_keyboard_grab_v2 *>(sender());
             Q_ASSERT(activeKeyboardGrab() == kgv2);
             d->endGrab(kgv2);
             d->activeKeyboardGrab = nullptr;
             d->handlerArg.grab = nullptr;
-            d->activeKeyboardGrabDestroyConnection = {};
+            d->seat->removeListeners(grabOwner);
+            d->keyboardGrabListenerOwner.reset();
         });
 }
 
-void WInputMethodHelper::handleNewIPSV2(qw_input_popup_surface_v2 *ipsv2)
+void WInputMethodHelper::handleNewIPSV2(wlr_input_popup_surface_v2 *ipsv2)
 {
     W_D(WInputMethodHelper);
 
-    auto createPopupSurface = [this, d] (WSurface *focus, QRect cursorRect, qw_input_popup_surface_v2 *popupSurface){
-        auto surface = new WInputPopupSurface(popupSurface, focus, this);
+    auto createPopupSurface = [this, d] (WSurface *focus, QRect cursorRect, wlr_input_popup_surface_v2 *popupSurface){
+        auto surface = new WInputPopupSurface(popupSurface, focus);
         d->popupSurfaces.append(surface);
         updatePopupSurface(surface, cursorRect);
         Q_EMIT inputPopupSurfaceV2Added(surface);
-        surface->safeConnect(&qw_input_popup_surface_v2::before_destroy, this, [this, d, surface](){
+        auto *listeners = surface->listeners(this);
+        listeners->add(&popupSurface->events.destroy, this,
+            [this, d, surface] (void *) {
             d->popupSurfaces.removeAll(surface);
             Q_EMIT inputPopupSurfaceV2Removed(surface);
-            surface->safeDeleteLater();
+            // Safe to destroy the wrapper from inside its own destroy
+            // callback: the listener closure is reference-counted, and
+            // ~WInputPopupSurface clears the reverse mapping while the
+            // native popup storage is still valid.
+            delete surface;
         });
     };
     auto ti = enabledTextInput();
@@ -356,10 +403,12 @@ void WInputMethodHelper::handleNewIPSV2(qw_input_popup_surface_v2 *ipsv2)
 void WInputMethodHelper::handleNewVKV1(wlr_virtual_keyboard_v1 *vkv1)
 {
     W_D(WInputMethodHelper);
-    WInputDevice *keyboard = new WInputDevice(qw_input_device::from(&vkv1->keyboard.base), true);
+    auto *keyboard = new WInputDevice(&vkv1->keyboard.base, true);
     d->virtualKeyboards.append(keyboard);
     d->seat->attachInputDevice(keyboard);
-    keyboard->safeConnect(&qw_input_device::before_destroy, this, [d, keyboard] () {
+    auto *listeners = keyboard->listeners(this);
+    listeners->add(&vkv1->keyboard.base.events.destroy, this,
+        [this, d, keyboard] (void *) {
         if (d->seat) {
             // Switch seat keyboard to group before the virtual keyboard's
             // wlr_keyboard is destroyed. This removes handle_keyboard_destroy
@@ -370,7 +419,11 @@ void WInputMethodHelper::handleNewVKV1(wlr_virtual_keyboard_v1 *vkv1)
             d->seat->detachInputDevice(keyboard);
         }
         d->virtualKeyboards.removeOne(keyboard);
-        keyboard->safeDeleteLater();
+        // Safe to destroy the wrapper from inside its own destroy callback:
+        // the listener closure is reference-counted and outlives the
+        // emission, and ~WInputDevice clears the reverse mapping while the
+        // native handle is still valid.
+        delete keyboard;
     });
 }
 
@@ -382,7 +435,7 @@ void WInputMethodHelper::handleKeyboardGrabBegin()
     // Our grab v2 object is still alive (endGrab only runs on before_destroy),
     // so activeKeyboardGrab is non-null, but seat->keyboard_state.grab no longer
     // points to our keyboardGrab.
-    if (d->activeKeyboardGrab && d->seat->nativeHandle()->keyboard_state.grab != &d->keyboardGrab) {
+    if (d->activeKeyboardGrab && d->seat->handle()->keyboard_state.grab != &d->keyboardGrab) {
         qCDebug(lcWlInputMethod) << "IME keyboard grab silently replaced, notifying leave";
         notifyLeave();
     }
@@ -407,7 +460,6 @@ void WInputMethodHelper::resendKeyboardFocus()
         }
     }
 }
-
 
 void WInputMethodHelper::connectToTI(WTextInput *ti)
 {
@@ -539,7 +591,7 @@ void WInputMethodHelper::handleActiveIMDestroyed()
     auto im = inputMethod();
     Q_ASSERT(im);
     setInputMethod(nullptr);
-    im->safeDeleteLater();
+    delete im;
     notifyLeave();
 }
 

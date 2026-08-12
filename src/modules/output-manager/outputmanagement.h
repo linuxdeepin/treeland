@@ -7,7 +7,6 @@
 
 struct treeland_output_manager_v1;
 struct treeland_output_color_control_v1;
-QW_USE_NAMESPACE
 WAYLIB_SERVER_USE_NAMESPACE
 
 class Output;

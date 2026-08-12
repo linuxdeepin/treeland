@@ -5,16 +5,15 @@
 
 #include <wserver.h>
 #include <wxdgsurface.h>
-#include <WWrapPointer>
 
 #include <QObject>
+#include <QPointer>
 #include <QQmlEngine>
 #include <QQuickItem>
 
 class SurfaceWrapper;
 class PersonalizationManagerInterfaceV1;
 
-QW_USE_NAMESPACE
 WAYLIB_SERVER_USE_NAMESPACE
 
 struct Shadow
@@ -254,7 +253,7 @@ private:
     void setWindowStates(PersonalizationWindowContextV1::WindowStates states);
 
 private:
-    WWrapPointer<WToplevelSurface> m_target;
+    QPointer<WToplevelSurface> m_target;
     PersonalizationManagerInterfaceV1 *m_manager = nullptr;
     BackgroundType m_backgroundType = BackgroundType::Normal;
     int32_t m_cornerRadius = 0;

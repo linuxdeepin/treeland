@@ -1,21 +1,18 @@
-// Copyright (C) 2023 rewine <luhongxu@deepin.org>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wcursorshapemanagerv1.h"
 #include "wcursor.h"
 #include "wseat.h"
+#include "wscoplistener.h"
 #include "private/wglobal_p.h"
 
-#include <qwcursorshapev1.h>
-#include <qwseat.h>
-#include <qwdisplay.h>
+#include <wlr_all.h>
 
 // TODO: set to 2 after wlroots 0.20
 #define CURSOR_SHAPE_MANAGER_V1_VERSION 1
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
-
-using QW_NAMESPACE::qw_cursor_shape_manager_v1;
 
 class Q_DECL_HIDDEN WCursorShapeManagerV1Private : public WObjectPrivate
 {
@@ -26,13 +23,8 @@ public:
 
     }
 
-    inline qw_cursor_shape_manager_v1 *handle() const {
-        return q_func()->nativeInterface<qw_cursor_shape_manager_v1>();
-    }
-
-    inline wlr_cursor_shape_manager_v1 *nativeHandle() const {
-        Q_ASSERT(handle());
-        return handle()->handle();
+    inline wlr_cursor_shape_manager_v1 *handle() const {
+        return reinterpret_cast<wlr_cursor_shape_manager_v1*>(q_func()->m_handle);
     }
 
     W_DECLARE_PUBLIC(WCursorShapeManagerV1)
@@ -122,9 +114,9 @@ WCursorShapeManagerV1::WCursorShapeManagerV1()
 
 }
 
-qw_cursor_shape_manager_v1 *WCursorShapeManagerV1::handle() const
+wlr_cursor_shape_manager_v1 *WCursorShapeManagerV1::handle() const
 {
-    return nativeInterface<qw_cursor_shape_manager_v1>();
+    return reinterpret_cast<wlr_cursor_shape_manager_v1*>(m_handle);
 }
 
 QByteArrayView WCursorShapeManagerV1::interfaceName() const
@@ -134,11 +126,12 @@ QByteArrayView WCursorShapeManagerV1::interfaceName() const
 
 void WCursorShapeManagerV1::create(WServer *server)
 {
+    W_D(WCursorShapeManagerV1);
     if (!m_handle) {
-        m_handle = qw_cursor_shape_manager_v1::create(*server->handle(), CURSOR_SHAPE_MANAGER_V1_VERSION);
-        QObject::connect(handle(), &qw_cursor_shape_manager_v1::notify_request_set_shape, this, []
+        m_handle = wlr_cursor_shape_manager_v1_create(server->handle(), CURSOR_SHAPE_MANAGER_V1_VERSION);
+        listeners()->add(&handle()->events.request_set_shape, this, []
                          (wlr_cursor_shape_manager_v1_request_set_shape_event *event) {
-            if (auto *seat = WSeat::fromHandle(QW_NAMESPACE::qw_seat::from(event->seat_client->seat))) {
+            if (auto *seat = WSeat::fromHandle(event->seat_client->seat)) {
                 seat->setCursorShape(event->seat_client, wpToWCursorShape(event->shape));
             }
         });
@@ -149,7 +142,7 @@ wl_global *WCursorShapeManagerV1::global() const
 {
     W_D(const WCursorShapeManagerV1);
     if (m_handle)
-        return d->nativeHandle()->global;
+        return d->handle()->global;
 
     return nullptr;
 }

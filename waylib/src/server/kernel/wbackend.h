@@ -1,20 +1,15 @@
-// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
 
+#include <wlr_fwd.h>
 #include <WServer>
-
-#include <qwbackend.h>
 
 #include <QObject>
 
 Q_MOC_INCLUDE("woutput.h")
 Q_MOC_INCLUDE("winputdevice.h")
-
-QW_BEGIN_NAMESPACE
-class qw_session;
-QW_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -30,8 +25,8 @@ class WAYLIB_SERVER_EXPORT WBackend : public QObject, public WObject,  public WS
 public:
     explicit WBackend();
 
-    QW_NAMESPACE::qw_backend *handle() const;
-    QW_NAMESPACE::qw_session *session() const;
+    wlr_backend *handle() const;
+    wlr_session *session() const;
 
     QList<WOutput*> outputList() const;
     QList<WInputDevice*> inputDeviceList() const;

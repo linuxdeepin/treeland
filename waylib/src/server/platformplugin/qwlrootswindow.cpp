@@ -1,4 +1,4 @@
-// Copyright (C) 2023 JiDe Zhang <zccrs@live.com>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "qwlrootswindow.h"
@@ -9,8 +9,7 @@
 #include "wseat.h"
 #include "wcursor.h"
 
-#include <qwrenderer.h>
-#include <qwoutput.h>
+#include <wlr_all.h>
 
 #include <QCoreApplication>
 
@@ -18,7 +17,6 @@
 #include <qpa/qwindowsysteminterface_p.h>
 #include <private/qguiapplication_p.h>
 
-QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 QWlrootsOutputWindow::QWlrootsOutputWindow(QWindow *window)

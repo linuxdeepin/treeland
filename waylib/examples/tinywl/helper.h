@@ -1,4 +1,4 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
@@ -8,6 +8,7 @@
 #include "wsessionlock.h"
 
 #include <wglobal.h>
+#include <memory>
 #include <wqmlcreator.h>
 #include <wseat.h>
 #include <wextforeigntoplevellistv1.h>
@@ -42,21 +43,18 @@ class WSurfaceItem;
 class WForeignToplevel;
 WAYLIB_SERVER_END_NAMESPACE
 
-QW_BEGIN_NAMESPACE
-class qw_renderer;
-class qw_allocator;
-class qw_compositor;
-QW_END_NAMESPACE
+struct wlr_renderer;
+struct wlr_allocator;
+struct wlr_compositor;
 
 WAYLIB_SERVER_USE_NAMESPACE
-QW_USE_NAMESPACE
 
 class Output;
 class SurfaceWrapper;
 class Workspace;
 class RootSurfaceContainer;
 class LayerSurfaceContainer;
-class Helper : public WSeatEventFilter
+class Helper : public WSeatEventFilter, public WAYLIB_SERVER_NAMESPACE::WObject
 {
     friend class RootSurfaceContainer;
     Q_OBJECT
@@ -154,11 +152,11 @@ private:
     WSocket *m_socket = nullptr;
     WSeat *m_seat = nullptr;
     WBackend *m_backend = nullptr;
-    qw_renderer *m_renderer = nullptr;
-    qw_allocator *m_allocator = nullptr;
+    wlr_renderer *m_renderer = nullptr;
+    wlr_allocator *m_allocator = nullptr;
 
     // protocols
-    qw_compositor *m_compositor = nullptr;
+    wlr_compositor *m_compositor = nullptr;
     WXWayland *m_xwayland = nullptr;
     WInputMethodHelper *m_inputMethodHelper = nullptr;
     WXdgDecorationManager *m_xdgDecorationManager = nullptr;

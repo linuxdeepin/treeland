@@ -1,11 +1,9 @@
-// Copyright (C) 2023-2026 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
 
 #include <wglobal.h>
-
-#include <qwglobal.h>
 
 #include <QDeadlineTimer>
 #include <QFuture>
@@ -18,10 +16,7 @@ class QPlatformTheme;
 class QProcess;
 QT_END_NAMESPACE
 
-QW_BEGIN_NAMESPACE
-class qw_display;
-QW_END_NAMESPACE
-
+struct wl_display;
 struct wl_global;
 
 Q_MOC_INCLUDE("private/wserver_p.h")
@@ -91,7 +86,7 @@ public:
     explicit WServer(QObject *parent = nullptr);
     ~WServer();
 
-    QW_NAMESPACE::qw_display *handle() const;
+    wl_display *handle() const;
 
     void attach(WServerInterface *interface);
     template<typename Interface, typename... Args>

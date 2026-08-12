@@ -7,16 +7,13 @@
 #include "wsurface.h"
 #include "wxdgtoplevelsurface.h"
 #include <wayland-server-core.h>
+#include <wcontainerof.h>
 
-#include <qwdisplay.h>
-#include <qwxdgshell.h>
+#include <wlr_all.h>
 
-extern "C" {
 #include <assert.h>
 #include <stdlib.h>
 #include "xdg-toplevel-tag-v1-protocol.h"
-#include <wlr/types/wlr_xdg_shell.h>
-}
 
 // Copy from wlroots
 struct Q_DECL_HIDDEN way_xdg_toplevel_tag_manager_v1
@@ -69,11 +66,10 @@ static void manager_handle_set_tag([[maybe_unused]] struct wl_client *client,
                                    const char *tag)
 {
     struct way_xdg_toplevel_tag_manager_v1 *manager = manager_from_resource(manager_resource);
-    auto *qt_toplevel = QW_NAMESPACE::qw_xdg_toplevel::from_resource(toplevel_resource);
-    if (!qt_toplevel) {
+    auto *toplevel = wlr_xdg_toplevel_from_resource(toplevel_resource);
+    if (!toplevel) {
         return;
     }
-    struct wlr_xdg_toplevel *toplevel = qt_toplevel->handle();
 
     struct way_xdg_toplevel_tag_manager_v1_set_tag_event event = {
         .toplevel = toplevel,
@@ -88,11 +84,10 @@ static void manager_handle_set_description([[maybe_unused]] struct wl_client *cl
                                            const char *description)
 {
     struct way_xdg_toplevel_tag_manager_v1 *manager = manager_from_resource(manager_resource);
-    auto *qt_toplevel = QW_NAMESPACE::qw_xdg_toplevel::from_resource(toplevel_resource);
-    if (!qt_toplevel) {
+    auto *toplevel = wlr_xdg_toplevel_from_resource(toplevel_resource);
+    if (!toplevel) {
         return;
     }
-    struct wlr_xdg_toplevel *toplevel = qt_toplevel->handle();
 
     struct way_xdg_toplevel_tag_manager_v1_set_description_event event = {
         .toplevel = toplevel,
@@ -129,7 +124,7 @@ static void manager_bind(struct wl_client *client, void *data, uint32_t version,
 static void manager_handle_display_destroy(struct wl_listener *listener, [[maybe_unused]] void *data)
 {
     struct way_xdg_toplevel_tag_manager_v1 *manager =
-        wl_container_of(listener, manager, display_destroy);
+        W_CONTAINER_OF(listener, way_xdg_toplevel_tag_manager_v1, display_destroy);
 
     wl_signal_emit_mutable(&manager->events.destroy, NULL);
 
@@ -229,7 +224,7 @@ void WXdgToplevelTagManagerV1::create([[maybe_unused]] WServer *wserver)
 {
     W_D(WXdgToplevelTagManagerV1);
 
-    d->manager = way_xdg_toplevel_tag_manager_v1_create(*server()->handle(), MANAGER_VERSION);
+    d->manager = way_xdg_toplevel_tag_manager_v1_create(server()->handle(), MANAGER_VERSION);
     m_handle = d->manager;
 
     if (d->manager) {

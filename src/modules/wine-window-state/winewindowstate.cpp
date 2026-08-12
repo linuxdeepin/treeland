@@ -11,16 +11,12 @@
 
 #include <wxdgtoplevelsurface.h>
 
-#include <qwdisplay.h>
-#include <qwxdgshell.h>
-
 #include <QList>
 #include <QTimer>
 
 #include <algorithm>
 
 WAYLIB_SERVER_USE_NAMESPACE
-QW_USE_NAMESPACE
 
 class WineWindowState;
 
@@ -91,7 +87,7 @@ public:
                    Q_FUNC_INFO,
                    "wrapper->shellSurface() must not be null");
 
-        m_wrapper->shellSurface()->safeConnect(&WToplevelSurface::minimizeChanged, this, [this] {
+        QObject::connect(m_wrapper->shellSurface(), &WToplevelSurface::minimizeChanged, this, [this] {
             sendStateChanged();
         });
         connect(m_wrapper, &SurfaceWrapper::attentionChanged, this, [this] {
@@ -216,7 +212,7 @@ void WineWindowStateManagerPrivate::get_window_state(Resource *resource,
                                                      uint32_t id,
                                                      struct ::wl_resource *toplevelResource)
 {
-    auto *qXdgToplevel = qw_xdg_toplevel::from_resource(toplevelResource);
+    auto *qXdgToplevel = wlr_xdg_toplevel_from_resource(toplevelResource);
     if (!qXdgToplevel) {
         wl_resource_post_error(resource->handle,
                                TREELAND_WINE_WINDOW_STATE_MANAGER_V1_ERROR_DEFUNCT_TOPLEVEL,
@@ -264,7 +260,7 @@ WineWindowStateManager::~WineWindowStateManager() = default;
 
 void WineWindowStateManager::create(WServer *server)
 {
-    d->init(*server->handle(), InterfaceVersion);
+    d->init(server->handle(), InterfaceVersion);
 }
 
 void WineWindowStateManager::destroy([[maybe_unused]] WServer *server)

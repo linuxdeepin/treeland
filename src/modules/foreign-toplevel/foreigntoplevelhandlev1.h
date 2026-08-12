@@ -25,7 +25,7 @@ class WSeat;
 class WSurface;
 WAYLIB_SERVER_END_NAMESPACE
 
-class ForeignToplevelHandleV1 : public QObject
+class ForeignToplevelHandleV1 : public QObject, public WAYLIB_SERVER_NAMESPACE::WObject
 {
     Q_OBJECT
 public:

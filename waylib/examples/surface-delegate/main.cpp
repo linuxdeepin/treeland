@@ -1,13 +1,11 @@
-// Copyright (C) 2024 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
+#include <wlogging.h>
 #include <WServer>
 #include <WOutput>
 
-#include <qwbackend.h>
-#include <qwdisplay.h>
-#include <qwoutput.h>
-#include <qwlogging.h>
+#include <wlr_all.h>
 
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
@@ -19,7 +17,6 @@
 #include <QProcess>
 
 WAYLIB_SERVER_USE_NAMESPACE
-QW_USE_NAMESPACE
 
 class Q_DECL_HIDDEN Helper : public QObject
 {
@@ -41,7 +38,7 @@ public:
 };
 
 int main(int argc, char *argv[]) {
-    qw_log::init();
+    WLog::init();
     WServer::initializeQPA();
 //    QQuickStyle::setStyle("Material");
 

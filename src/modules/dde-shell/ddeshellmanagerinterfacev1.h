@@ -10,7 +10,6 @@
 #include <QObject>
 
 WAYLIB_SERVER_USE_NAMESPACE
-QW_USE_NAMESPACE
 
 class DDEShellManagerInterfaceV1Private;
 class DDEShellSurfaceInterface;

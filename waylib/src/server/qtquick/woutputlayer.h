@@ -3,7 +3,6 @@
 
 #pragma once
 
-#include <qwglobal.h>
 #include <wglobal.h>
 #include <QQuickItem>
 

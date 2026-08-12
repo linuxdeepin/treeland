@@ -14,15 +14,13 @@
 
 #include <wcursor.h>
 #include <woutput.h>
+#include <wscoplistener.h>
 #include <woutputitem.h>
 #include <woutputlayout.h>
 #include <wxdgpopupsurface.h>
 #include <wxdgtoplevelsurface.h>
 #include <wseat.h>
 #include <winputdevice.h>
-
-#include <qwoutputlayout.h>
-#include <qwxdgshell.h>
 
 #include <QPointer>
 #include <QQuickWindow>
@@ -91,7 +89,12 @@ void RootSurfaceContainer::init(WServer *server)
         setHeight(height);
     });
 
-    m_outputLayout->safeConnect(&qw_output_layout::notify_change, this, [this] {
+    // Listen on the native wlr_output_layout change signal (fires on add,
+    // remove, reposition and commit-triggered reconfiguration), matching the
+    // baseline qw_output_layout::notify_change wiring.
+    m_outputLayoutListenerOwner = std::make_unique<WListenerOwner>();
+    m_outputLayout->listeners(m_outputLayoutListenerOwner.get())->add(
+        &m_outputLayout->handle()->events.change, this, [this] {
         for (auto output : std::as_const(outputs())) {
             output->updatePositionFromLayout();
         }
@@ -109,11 +112,11 @@ void RootSurfaceContainer::init(WServer *server)
         - 1);
     m_dragSurfaceItem->setFlags(WSurfaceItem::DontCacheLastBuffer);
 
-    m_cursor->safeConnect(&WCursor::positionChanged, this, [this] {
+    QObject::connect(m_cursor, &WCursor::positionChanged, this, [this] {
         m_dragSurfaceItem->setPosition(m_cursor->position());
     });
 
-    m_cursor->safeConnect(&WCursor::requestedDragSurfaceChanged, this, [this] {
+    QObject::connect(m_cursor, &WCursor::requestedDragSurfaceChanged, this, [this] {
         m_dragSurfaceItem->setSurface(m_cursor->requestedDragSurface());
     });
 
@@ -281,9 +284,9 @@ void RootSurfaceContainer::addBySubContainer(SurfaceContainer *sub, SurfaceWrapp
                     // If parentSurface is Layer surface, follow parentSurface->ownsOutput
                     auto pos = parentSurface->position() + parentSurface->surfaceItem()->position()
                         + xdgPopupSurface->getPopupPosition();
-                    if (auto op = m_outputLayout->handle()->output_at(pos.x(), pos.y()))
+                    if (auto op = wlr_output_layout_output_at(m_outputLayout->handle(), pos.x(), pos.y()))
                         output =
-                            Helper::instance()->getOutput(WOutput::fromHandle(qw_output::from(op)));
+                            Helper::instance()->getOutput(WOutput::fromHandle(op));
                 }
             }
             surface->setOwnsOutput(output);
@@ -392,11 +395,11 @@ Output *RootSurfaceContainer::cursorOutput() const
 
 Output *RootSurfaceContainer::outputAt(const QPointF &pos) const
 {
-    auto o = m_outputLayout->handle()->output_at(pos.x(), pos.y());
+    auto o = wlr_output_layout_output_at(m_outputLayout->handle(), pos.x(), pos.y());
     if (!o)
         return nullptr;
 
-    return Helper::instance()->getOutput(WOutput::fromHandle(qw_output::from(o)));
+    return Helper::instance()->getOutput(WOutput::fromHandle(o));
 }
 
 Output *RootSurfaceContainer::primaryOutput() const
@@ -423,7 +426,7 @@ const QList<Output *> &RootSurfaceContainer::outputs() const
 void RootSurfaceContainer::ensureCursorVisible()
 {
     const auto cursorPos = m_cursor->position();
-    if (m_outputLayout->handle()->output_at(cursorPos.x(), cursorPos.y()))
+    if (wlr_output_layout_output_at(m_outputLayout->handle(), cursorPos.x(), cursorPos.y()))
         return;
 
     if (m_primaryOutput) {
@@ -780,12 +783,12 @@ void RootSurfaceContainer::givePopupFocus(SurfaceWrapper *popupWrapper)
     if (!popupSurface)
         return;
 
-    auto *wlrPopup = popupSurface->handle()->handle();
+    auto *wlrPopup = popupSurface->handle();
     if (!wlrPopup || !wlrPopup->seat)
         return;
 
     for (auto it = m_seatContainers.constBegin(); it != m_seatContainers.constEnd(); ++it) {
-        if (it.key()->nativeHandle() == wlrPopup->seat) {
+        if (it.key()->handle() == wlrPopup->seat) {
             it.value()->givePopupFocus(popupWrapper);
             return;
         }

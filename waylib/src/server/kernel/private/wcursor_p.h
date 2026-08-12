@@ -1,50 +1,30 @@
-// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
 
+#include <wlr_fwd.h>
 #include "wcursor.h"
 #include "private/wglobal_p.h"
+#include "wpointer.h"
+#include "wscoplistener.h"
 
-#include <qwcursor.h>
+#include <wlr_all.h>
 
 #include <QCursor>
 #include <QPointer>
 
-QW_BEGIN_NAMESPACE
-class qw_pointer;
-class qw_surface;
-QW_END_NAMESPACE
-
-struct wlr_pointer_motion_event;
-struct wlr_pointer_motion_absolute_event;
-struct wlr_pointer_button_event;
-struct wlr_pointer_axis_event;
-struct wlr_pointer_swipe_begin_event;
-struct wlr_pointer_swipe_update_event;
-struct wlr_pointer_swipe_end_event;
-struct wlr_pointer_pinch_begin_event;
-struct wlr_pointer_pinch_update_event;
-struct wlr_pointer_pinch_end_event;
-struct wlr_pointer_hold_begin_event;
-struct wlr_pointer_hold_end_event;
-struct wlr_cursor;
-struct wlr_touch_down_event;
-struct wlr_touch_up_event;
-struct wlr_touch_motion_event;
-struct wlr_touch_cancel_event;
-
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class Q_DECL_HIDDEN WCursorPrivate : public WWrapObjectPrivate
+class Q_DECL_HIDDEN WCursorPrivate : public WObjectPrivate
 {
 public:
     WCursorPrivate(WCursor *qq);
     ~WCursorPrivate();
 
-    WWRAP_HANDLE_FUNCTIONS(QW_NAMESPACE::qw_cursor, wlr_cursor)
-
-    void instantRelease() override;
+    inline wlr_cursor *handle() const {
+        return m_handle.get();
+    }
 
     void sendEnterEvent(WInputDevice *device);
     void sendLeaveEvent(WInputDevice *device);
@@ -71,11 +51,10 @@ public:
     // end slot function
 
     void connect();
-    void processCursorMotion(QW_NAMESPACE::qw_pointer *device, uint32_t time);
+    void processCursorMotion(wlr_input_device *device, uint32_t time);
 
     W_DECLARE_PUBLIC(WCursor)
 
-    QW_NAMESPACE::qw_xcursor_manager *xcursor_manager = nullptr;
     QCursor cursor;
     QCursor overrideCursor;
 
@@ -90,6 +69,12 @@ public:
     QPointF lastPressedOrTouchDownPosition;
     bool visible = true;
     double scrollFactor = 1.0;
+
+private:
+    // Owning handle: the cursor is created here and released via
+    // wlr_cursor_destroy() in ~WCursorPrivate; WUniquePointer additionally
+    // auto-nulls on native destroy, preventing a double-free.
+    WUniquePointer<wlr_cursor> m_handle;
 };
 
 WAYLIB_SERVER_END_NAMESPACE

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wquickcursor.h"
+#include <wpointer.h>
 #include "wayliblogging.h"
 #include "woutputrenderwindow.h"
 #include "woutputitem.h"
@@ -12,16 +13,12 @@
 #include "wsurfaceitem.h"
 #include "wrenderhelper.h"
 
-#include <qwxcursormanager.h>
-#include <qwbuffer.h>
-#include <qwtexture.h>
-#include <qwcompositor.h>
+#include <wlr_all.h>
 
 #include <QSGImageNode>
 #include <private/qquickitem_p.h>
 #include <private/qsgplaintexture_p.h>
 
-QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class Q_DECL_HIDDEN CursorTextureProvider : public WSGTextureProvider
@@ -39,9 +36,8 @@ public:
             return;
         }
 
-        // WImageBufferImpl destroy following qw_buffer
-        auto buffer = qw_buffer::create(new WImageBufferImpl(image),
-                                       image.width(), image.height());
+        // WImageBufferImpl owns the wlr_buffer; drop it with the provider.
+        auto *buffer = (new WImageBufferImpl(image))->handle();
         this->buffer.reset(buffer);
         setBuffer(this->buffer.get());
     }
@@ -79,18 +75,18 @@ public:
             return proxy->texture();
         return WSGTextureProvider::texture();
     }
-    qw_texture *qwTexture() const override {
+    wlr_texture *qwTexture() const override {
         if (proxy)
             return proxy->qwTexture();
         return WSGTextureProvider::qwTexture();
     }
-    qw_buffer *qwBuffer() const override {
+    wlr_buffer *qwBuffer() const override {
         if (proxy)
             return proxy->qwBuffer();
         return WSGTextureProvider::qwBuffer();
     }
 
-    std::unique_ptr<qw_buffer, qw_buffer::droper> buffer;
+    WBufferDropPtr buffer;
     QPointer<WSGTextureProvider> proxy;
 };
 

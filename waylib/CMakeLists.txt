@@ -8,7 +8,6 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-option(WITH_SUBMODULE_QWLROOTS "Use the QWlroots from git submodule" ON)
 option(BUILD_EXAMPLES "A minimum viable product Wayland compositor based on waylib and other examples" ON)
 option(BUILD_TESTS "Build test demos" ON)
 option(DISABLE_XWAYLAND "Disable the xwayland support" OFF)
@@ -21,13 +20,14 @@ find_package(Qt6 COMPONENTS Core Gui Quick REQUIRED)
 if(Qt6_VERSION VERSION_GREATER_EQUAL 6.10)
     find_package(Qt6 REQUIRED COMPONENTS GuiPrivate QuickPrivate)
 endif()
-if(WITH_SUBMODULE_QWLROOTS)
-    # Use qwlroots from project root directory
-    include(${CMAKE_SOURCE_DIR}/qwlroots/cmake/WaylandScannerHelpers.cmake)
-    add_subdirectory(${CMAKE_SOURCE_DIR}/qwlroots qwlroots)
-    message("Using QWlroots from submodule")
-else()
-    find_package(QWlroots REQUIRED)
+include(${CMAKE_CURRENT_LIST_DIR}/cmake/WaylandScannerHelpers.cmake)
+
+# Standalone build (e.g. waylib CI packaging): the vendored wlroots tree
+# lives next to waylib in the monorepo. Pull it in so the Wlroots::wlroots
+# target exists instead of requiring an installed libwaylib-wlroots.
+if(NOT TARGET Wlroots::wlroots AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../wlroots/CMakeLists.txt")
+    add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../wlroots"
+                     "${CMAKE_CURRENT_BINARY_DIR}/_wlroots")
 endif()
 
 if(DISABLE_XWAYLAND)

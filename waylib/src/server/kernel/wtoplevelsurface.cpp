@@ -6,8 +6,9 @@
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-WToplevelSurface::WToplevelSurface(WToplevelSurfacePrivate &d, QObject *parent)
-    : WWrapObject(d, parent)
+WToplevelSurface::WToplevelSurface(WToplevelSurfacePrivate &d)
+    : QObject(nullptr)
+    , WObject(d, nullptr)
 {
 
 }

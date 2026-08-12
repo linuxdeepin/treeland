@@ -5,12 +5,16 @@
 
 #include "wsurfaceitem.h"
 #include "wsurface.h"
+#include "wglobal.h"
+#include "wscoplistener.h"
 
 #include <QQuickWindow>
 #include <QSGImageNode>
+#include <memory>
+#include <vector>
 #include <QSGRenderNode>
 #include <private/qquickitem_p.h>
-#include <qwsubcompositor.h>
+#include <wlr_all.h>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -37,7 +41,17 @@ public:
     void updateSubsurfaceItem();
     void onPaddingsChanged();
     void updateContentPosition();
-    WSurfaceItem *ensureSubsurfaceItem(QW_NAMESPACE::qw_subsurface *subsurface, QQuickItem *parent);
+    WSurfaceItem *ensureSubsurfaceItem(wlr_subsurface *subsurface, QQuickItem *parent);
+
+    struct SubsurfaceDestroyListener {
+        wlr_subsurface *subsurface = nullptr;
+        WScopedListener listener;
+    };
+
+    std::unique_ptr<WListenerOwner> surfaceListenerOwner;
+    // Subsurface destroy listeners, keyed by the native subsurface; there is
+    // no WObject wrapper for wlr_subsurface to attach them to.
+    std::vector<SubsurfaceDestroyListener> subsurfaceDestroyListeners;
     void updateSubsurfaceContainers();
     void connectSubsurfaceContainerSignals(SubsurfaceContainer *container);
 

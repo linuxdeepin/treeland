@@ -8,8 +8,6 @@ Q_MOC_INCLUDE("seatuserconfig.hpp")
 
 #include <wayland-server-core.h>
 
-#include <qwinputdevice.h>
-
 #include <wseat.h>
 
 #include <QObject>

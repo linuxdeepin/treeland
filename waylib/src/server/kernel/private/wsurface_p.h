@@ -3,43 +3,37 @@
 
 #pragma once
 
+#include <wlr_fwd.h>
 #include "wsurface.h"
 #include "private/wglobal_p.h"
+#include "wpointer.h"
+#include "wscoplistener.h"
 
-#include <qwcompositor.h>
-#include <qwbuffer.h>
+#include <wlr_all.h>
 
 #include <QObject>
 #include <QPointer>
 
-struct wlr_surface;
-struct wlr_subsurface;
-
-QW_BEGIN_NAMESPACE
-class qw_subsurface;
-QW_END_NAMESPACE
-
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class Q_DECL_HIDDEN WSurfacePrivate : public WWrapObjectPrivate {
+class Q_DECL_HIDDEN WSurfacePrivate : public WObjectPrivate {
 public:
-    WSurfacePrivate(WSurface *qq, QW_NAMESPACE::qw_surface *handle);
+    WSurfacePrivate(WSurface *qq, wlr_surface *handle);
     ~WSurfacePrivate();
 
-    WWRAP_HANDLE_FUNCTIONS(QW_NAMESPACE::qw_surface, wlr_surface)
+    inline wlr_surface *handle() const {
+        return m_handle;
+    }
 
     wl_client *waylandClient() const override;
 
     // begin slot function
     void on_commit();
     void on_client_commit();
-    // end slot function
-
     void init();
     void connect();
-    void instantRelease() override;    // release qwobject etc.
     void updateOutputs();
-    void setBuffer(QW_NAMESPACE::qw_buffer *newBuffer);
+    void setBuffer(wlr_buffer *newBuffer);
     void updateBuffer();
     void updateBufferOffset();
     void updatePreferredBufferScale();
@@ -51,17 +45,22 @@ public:
 
     W_DECLARE_PUBLIC(WSurface)
 
-    QPointer<QW_NAMESPACE::qw_subsurface> subsurface;
     bool hasSubsurface = false;
     uint32_t preferredBufferScale = 1;
     uint32_t explicitPreferredBufferScale = 0;
 
     bool needsFrame = false;
-    std::unique_ptr<QW_NAMESPACE::qw_buffer, QW_NAMESPACE::qw_buffer::unlocker> buffer;
+    WBufferUnlockPtr buffer;
     QList<WOutput*> outputs;
+    QList<WSurface*> subSurfaces;
     WOutput *framePacingOutput = nullptr;
     QMetaObject::Connection frameDoneConnection;
     QPoint bufferOffset;
+
+private:
+    // The surface owner destroys this handle after notifying the wrapper.
+    // Keep the address stable through owner callbacks.
+    wlr_surface *m_handle = nullptr;
 };
 
 WAYLIB_SERVER_END_NAMESPACE
