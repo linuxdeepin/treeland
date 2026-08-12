@@ -1,8 +1,9 @@
-// Copyright (C) 2023-2026 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
 
+#include <wlr_fwd.h>
 #include <xcb/xcb.h>
 
 #include <WServer>
@@ -15,12 +16,6 @@
 
 Q_MOC_INCLUDE("wxwaylandsurface.h")
 
-QW_BEGIN_NAMESPACE
-class qw_xwayland;
-class qw_compositor;
-QW_END_NAMESPACE
-
-struct wlr_xwayland;
 struct xcb_screen_t;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -29,7 +24,7 @@ class WSeat;
 class WXWaylandSurface;
 class WXWaylandPrivate;
 
-class WAYLIB_SERVER_EXPORT WXWayland : public WWrapObject, public WServerInterface
+class WAYLIB_SERVER_EXPORT WXWayland : public QObject, public WObject, public WServerInterface
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WXWayland)
@@ -54,10 +49,11 @@ public:
 
     static WXWayland *fromHandle(wlr_xwayland *handle);
 
-    WXWayland(QW_NAMESPACE::qw_compositor *compositor, bool lazy = true);
+    WXWayland(wlr_compositor *compositor, bool lazy = true);
+    ~WXWayland() override;
 
-    inline QW_NAMESPACE::qw_xwayland *handle() const {
-        return nativeInterface<QW_NAMESPACE::qw_xwayland>();
+    inline wlr_xwayland *handle() const {
+        return reinterpret_cast<wlr_xwayland*>(m_handle);
     }
 
     QByteArray displayName() const;

@@ -3,9 +3,9 @@
 
 #pragma once
 
+#include <wlr_fwd.h>
 #include <wglobal.h>
 #include <wtypes.h>
-#include <qwglobal.h>
 
 #include <QObject>
 #include <QRect>
@@ -13,19 +13,12 @@
 
 Q_MOC_INCLUDE("woutput.h")
 
-struct wlr_surface;
-
-QW_BEGIN_NAMESPACE
-class qw_texture;
-class qw_surface;
-class qw_buffer;
-QW_END_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WServer;
 class WOutput;
 class WSurfacePrivate;
-class WAYLIB_SERVER_EXPORT WSurface : public WWrapObject
+class WAYLIB_SERVER_EXPORT WSurface : public QObject, public WObject
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WSurface)
@@ -39,11 +32,11 @@ class WAYLIB_SERVER_EXPORT WSurface : public WWrapObject
     QML_UNCREATABLE("Only create in C++")
 
 public:
-    explicit WSurface(QW_NAMESPACE::qw_surface *handle, QObject *parent = nullptr);
+    explicit WSurface(wlr_surface *handle);
+    ~WSurface() override;
 
-    QW_NAMESPACE::qw_surface *handle() const;
+    wlr_surface *handle() const;
 
-    static WSurface *fromHandle(QW_NAMESPACE::qw_surface *handle);
     static WSurface *fromHandle(wlr_surface *handle);
 
     // for current state
@@ -53,7 +46,7 @@ public:
     WLR::Transform orientation() const;
     int bufferScale() const;
     QPoint bufferOffset() const;
-    QW_NAMESPACE::qw_buffer *buffer() const;
+    wlr_buffer *buffer() const;
 
     void notifyFrameDone();
 
@@ -83,13 +76,19 @@ Q_SIGNALS:
     void bufferOffsetChanged();
     void hasSubsurfaceChanged();
     void newSubsurface(WSurface *subsurface);
+    // Emitted from the destructor while the object is still usable.
+    void beforeDestroy();
     void preferredBufferScaleChanged();
     void outputEntered(WOutput *output);
     void outputLeave(WOutput *output);
     void commit(quint32 committedState /*wlr_surface_state_field*/);
 
 protected:
-    WSurface(WSurfacePrivate &dd, QObject *parent);
+    WSurface(WSurfacePrivate &dd);
+
+    // Owned by the creator (seat/shell/...): released with `delete` from
+    // the native destroy callback, never with deleteLater().
+    using QObject::deleteLater;
 };
 
 WAYLIB_SERVER_END_NAMESPACE

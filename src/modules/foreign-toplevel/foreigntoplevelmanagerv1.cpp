@@ -8,6 +8,7 @@
 #include "core/rootsurfacecontainer.h"
 #include "seat/helper.h"
 #include "surface/surfacewrapper.h"
+#include <wscoplistener.h>
 
 #include "qwayland-server-treeland-foreign-toplevel-manager-v1.h"
 
@@ -20,16 +21,11 @@
 
 #include <wayland-server.h>
 #include <woutput.h>
-#include <qwseat.h>
 #include <wsocket.h>
 #include <wtoplevelsurface.h>
 #include <wxdgtoplevelsurface.h>
 #include <wxwaylandsurface.h>
 
-#include <qwcompositor.h>
-#include <qwdisplay.h>
-#include <qwoutput.h>
-#include <qwxdgshell.h>
 #include <QPointer>
 #include <QVariant>
 
@@ -388,8 +384,8 @@ QByteArrayView ForeignToplevelManagerInterfaceV1::interfaceName() const
 
 void ForeignToplevelManagerInterfaceV1::create(WServer *server)
 {
-    d->init(server->handle()->handle(), InterfaceVersion);
-    d->event_loop = wl_display_get_event_loop(server->handle()->handle());
+    d->init(server->handle(), InterfaceVersion);
+    d->event_loop = wl_display_get_event_loop(server->handle());
 }
 
 void ForeignToplevelManagerInterfaceV1::destroy([[maybe_unused]] WServer *server)
@@ -419,23 +415,23 @@ void ForeignToplevelManagerInterfaceV1::initializeToplevelHandle(SurfaceWrapper 
     handle->set_activated(surface->isActivated());
     handle->set_attention(wrapper->attention());
 
-    surface->safeConnect(&WToplevelSurface::titleChanged, handle, [handle, surface] {
+    QObject::connect(surface, &WToplevelSurface::titleChanged, handle, [handle, surface] {
         handle->set_title(surface->title());
     });
 
-    surface->safeConnect(&WToplevelSurface::minimizeChanged, handle, [handle, surface] {
+    QObject::connect(surface, &WToplevelSurface::minimizeChanged, handle, [handle, surface] {
         handle->set_minimized(surface->isMinimized());
     });
 
-    surface->safeConnect(&WToplevelSurface::maximizeChanged, handle, [handle, surface] {
+    QObject::connect(surface, &WToplevelSurface::maximizeChanged, handle, [handle, surface] {
         handle->set_maximized(surface->isMaximized());
     });
 
-    surface->safeConnect(&WToplevelSurface::fullscreenChanged, handle, [handle, surface] {
+    QObject::connect(surface, &WToplevelSurface::fullscreenChanged, handle, [handle, surface] {
         handle->set_fullscreen(surface->isFullScreen());
     });
 
-    surface->safeConnect(&WToplevelSurface::activateChanged, handle, [handle, surface] {
+    QObject::connect(surface, &WToplevelSurface::activateChanged, handle, [handle, surface] {
         handle->set_activated(surface->isActivated());
     });
 
@@ -443,15 +439,15 @@ void ForeignToplevelManagerInterfaceV1::initializeToplevelHandle(SurfaceWrapper 
         handle->set_attention(wrapper->attention());
     });
 
-    surface->safeConnect(&WToplevelSurface::appIdChanged, handle, [handle, wrapper] {
+    QObject::connect(surface, &WToplevelSurface::appIdChanged, handle, [handle, wrapper] {
         handle->set_app_id(wrapper->appId());
     });
 
-    surface->surface()->safeConnect(&WSurface::outputEntered, handle, [handle](WOutput *output) {
+    QObject::connect(surface->surface(), &WSurface::outputEntered, handle, [handle](WOutput *output) {
         handle->output_enter(output);
     });
 
-    surface->surface()->safeConnect(&WSurface::outputLeave, handle, [handle](WOutput *output) {
+    QObject::connect(surface->surface(), &WSurface::outputLeave, handle, [handle](WOutput *output) {
         handle->output_leave(output);
     });
 
@@ -510,7 +506,7 @@ void ForeignToplevelManagerInterfaceV1::initializeToplevelHandle(SurfaceWrapper 
             });
 
     if (auto *xdgSurface = qobject_cast<WXdgToplevelSurface *>(surface)) {
-        auto client = WClient::get(xdgSurface->handle()->handle()->resource->client);
+        auto client = WClient::get(xdgSurface->handle()->resource->client);
         handle->set_pid(client->credentials().get()->pid);
 
         auto updateSurfaceParent = [this, handle, xdgSurface] {
@@ -535,7 +531,7 @@ void ForeignToplevelManagerInterfaceV1::initializeToplevelHandle(SurfaceWrapper 
                    "parent surface not "
                    "found!";
         };
-        xdgSurface->safeConnect(&WXdgToplevelSurface::parentXdgSurfaceChanged,
+        QObject::connect(xdgSurface, &WXdgToplevelSurface::parentXdgSurfaceChanged,
                                 handle,
                                 updateSurfaceParent);
         updateSurfaceParent();
@@ -564,7 +560,7 @@ void ForeignToplevelManagerInterfaceV1::initializeToplevelHandle(SurfaceWrapper 
                    "parent surface not "
                    "found!";
         };
-        xwaylandSurface->safeConnect(&WXWaylandSurface::parentXWaylandSurfaceChanged,
+        QObject::connect(xwaylandSurface, &WXWaylandSurface::parentXWaylandSurfaceChanged,
                                      handle,
                                      updateSurfaceParent);
         updateSurfaceParent();
@@ -798,7 +794,7 @@ void ForeignToplevelHandleV1Private::activate(Resource *resource, struct ::wl_re
         return;
     }
 
-    Q_EMIT q->requestActivate(WSeat::fromHandle(qw_seat::from(seat_client->seat)));
+    Q_EMIT q->requestActivate(WSeat::fromHandle(seat_client->seat));
 }
 
 void ForeignToplevelHandleV1Private::close([[maybe_unused]] Resource *resource)
@@ -830,7 +826,7 @@ void ForeignToplevelHandleV1Private::set_fullscreen(Resource *resource, struct :
             wl_resource_post_error(resource->handle, 0, "wlr_output_from_resource failed!");
             return;
         }
-        wrappedOutput = WOutput::fromHandle(qw_output::from(wlrOutput));
+        wrappedOutput = WOutput::fromHandle(wlrOutput);
     }
 
     Q_EMIT q->requestFullscreen(true, wrappedOutput);
@@ -841,7 +837,11 @@ void ForeignToplevelHandleV1Private::unset_fullscreen([[maybe_unused]] Resource 
     Q_EMIT q->requestFullscreen(false, nullptr);
 }
 
-ForeignToplevelHandleV1::~ForeignToplevelHandleV1() = default;
+ForeignToplevelHandleV1::~ForeignToplevelHandleV1()
+{
+    // Detaches bind listeners registered via output->listeners(this).
+    teardown();
+}
 
 wl_resource *ForeignToplevelHandleV1::resource() const
 {
@@ -895,7 +895,7 @@ void ForeignToplevelHandleV1::output_enter(WOutput *output)
         return;
     }
 
-    auto *qwOutput = output->handle();
+    auto *wlrOutput = output->handle();
     if (std::any_of(d->outputs.begin(),
                     d->outputs.end(),
                     [output](const foreign_toplevel_output &toplevel_output) {
@@ -906,7 +906,8 @@ void ForeignToplevelHandleV1::output_enter(WOutput *output)
     auto toplevel_output = foreign_toplevel_output{ .output = output, .toplevel = this };
     d->outputs.append(toplevel_output);
 
-    connect(qwOutput, &qw_output::notify_bind, this, [toplevel_output](wlr_output_event_bind *event) {
+    output->listeners(this)->add(&wlrOutput->events.bind, this,
+        [toplevel_output] (wlr_output_event_bind *event) {
         const wl_client *client = wl_resource_get_client(event->resource);
         if (wl_resource_get_client(toplevel_output.toplevel->resource()) == client) {
             toplevel_output.toplevel->send_output(toplevel_output.output, true);
@@ -922,6 +923,8 @@ void ForeignToplevelHandleV1::output_leave(WOutput *output)
         return;
     }
 
+    // Detach the bind listener registered via output->listeners(this).
+    output->removeListeners(this);
     d->outputs.removeIf([output](const foreign_toplevel_output &handle_output) {
         return handle_output.output == output;
     });
@@ -1011,7 +1014,7 @@ void ForeignToplevelHandleV1::send_output(WOutput *output, bool enter)
     const wl_client *client = wl_resource_get_client(resource());
     struct wl_resource *output_resource;
 
-    wl_resource_for_each(output_resource, &output->nativeHandle()->resources)
+    wl_resource_for_each(output_resource, &output->handle()->resources)
     {
         if (wl_resource_get_client(output_resource) == client) {
             if (enter) {
@@ -1039,6 +1042,7 @@ ForeignToplevelHandleV1::ForeignToplevelHandleV1(ForeignToplevelManagerInterface
                                                   wl_resource *resource,
                                                   SurfaceEntry *entry)
     : QObject(nullptr)
+    , WObject()
     , d(new ForeignToplevelHandleV1Private(this, manager, resource, entry))
 {
 }

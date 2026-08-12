@@ -1,4 +1,4 @@
-// Copyright (C) 2024 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "output.h"
@@ -17,9 +17,6 @@
 #include <wquicktextureproxy.h>
 #include <wxdgpopupsurfaceitem.h>
 
-#include <qwoutputlayout.h>
-#include <qwlayershellv1.h>
-
 #include <QQmlEngine>
 
 Q_LOGGING_CATEGORY(qLcLayerShell, "tinywl.shell.layer", QtWarningMsg)
@@ -29,7 +26,7 @@ Output *Output::createPrimary(WOutput *output, QQmlEngine *engine, QObject *pare
     QQmlComponent delegate(engine, "Tinywl", "PrimaryOutput");
     QObject *obj = delegate.beginCreate(engine->rootContext());
     delegate.setInitialProperties(obj, {
-        {"forceSoftwareCursor", output->handle()->is_x11()}
+        {QStringLiteral("forceSoftwareCursor"), wlr_output_is_x11(output->handle())}
     });
     delegate.completeCreate();
     WOutputItem *outputItem = qobject_cast<WOutputItem *>(obj);
@@ -134,7 +131,7 @@ void Output::addSurface(SurfaceWrapper *surface)
 
     if (surface->type() == SurfaceWrapper::Type::Layer) {
         auto layer = qobject_cast<WLayerSurface*>(surface->shellSurface());
-        layer->safeConnect(&WLayerSurface::layerPropertiesChanged, this, &Output::layoutLayerSurfaces);
+        QObject::connect(layer, &WLayerSurface::layerPropertiesChanged, this, &Output::layoutLayerSurfaces);
 
         layoutLayerSurfaces();
     } else {
@@ -163,7 +160,7 @@ void Output::removeSurface(SurfaceWrapper *surface)
 
     if (surface->type() == SurfaceWrapper::Type::Layer) {
         if (auto ss = surface->shellSurface()) {
-            ss->safeDisconnect(this);
+            ss->disconnect(this);
             removeExclusiveZone(ss);
         }
         layoutLayerSurfaces();
@@ -250,7 +247,7 @@ void Output::layoutLayerSurface(SurfaceWrapper *surface)
 {
     WLayerSurface* layer = qobject_cast<WLayerSurface*>(surface->shellSurface());
     Q_ASSERT(layer);
-    if (!layer->handle()->handle()->initialized) {
+    if (!layer->handle()->initialized) {
         return;
     }
 
@@ -446,7 +443,7 @@ void Output::updatePositionFromLayout()
     WOutputLayout * layout = output()->layout();
     Q_ASSERT(layout);
 
-    auto *layoutOutput = layout->handle()->get(output()->nativeHandle());
+    auto *layoutOutput = wlr_output_layout_get(layout->handle(), output()->handle());
     QPointF pos(layoutOutput->x, layoutOutput->y);
     m_item->setPosition(pos);
 }

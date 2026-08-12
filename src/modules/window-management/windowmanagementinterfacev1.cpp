@@ -6,8 +6,6 @@
 
 #include <wserver.h>
 
-#include <qwdisplay.h>
-
 #include <QDebug>
 #include <QQmlInfo>
 
@@ -84,7 +82,7 @@ void WindowManagementInterfaceV1::setDesktopState(DesktopState state)
 
 void WindowManagementInterfaceV1::create(WServer *server)
 {
-    d->init(server->handle()->handle(), InterfaceVersion);
+    d->init(server->handle(), InterfaceVersion);
 }
 
 void WindowManagementInterfaceV1::destroy([[maybe_unused]] WServer *server) {

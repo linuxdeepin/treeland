@@ -1,22 +1,37 @@
-// Copyright (C) 2024 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #pragma once
 
 #include "wglobal.h"
-#include <qwobject.h>
-#include <QPointer>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
+
+class WScopedListenerList;
 
 class WAYLIB_SERVER_EXPORT WObjectPrivate
 {
 public:
     static WObjectPrivate *get(WObject *qq);
 
+    // Cross-object listener bookkeeping used by WObject::listeners(owner),
+    // removeListeners(), and teardown(). Kept here so WObject's public
+    // surface does not expose the internal graph edges.
+    void registerListenerTarget(WObject *target);
+    void unregisterListenerTarget(WObject *target);
+    bool removeListenersInternal(WObject *owner);
+
     virtual ~WObjectPrivate();
     virtual wl_client *waylandClient() const {
         return nullptr;
     }
+
+    // Live listener graph; public so unit tests can assert ownership edges
+    // without friending WObjectPrivate.
+    // WScopedListenerList instances created by listeners()/listeners(owner);
+    // released by teardown() or removeListeners(). ~WObject requires empty.
+    QList<std::pair<WObject *, WScopedListenerList *>> attachedListenerLists;
+    // Targets this WObject registered on via other->listeners(this).
+    QList<WObject *> attachedListenerTargets;
 
 protected:
     WObjectPrivate(WObject *qq);
@@ -32,38 +47,7 @@ protected:
     QList<std::pair<const void*, void*>> attachedDatas;
 
     W_DECLARE_PUBLIC(WObject)
+
 };
-
-class WAYLIB_SERVER_EXPORT WWrapObjectPrivate : public WObjectPrivate
-{
-public:
-    WWrapObjectPrivate(WWrapObject *q);
-    ~WWrapObjectPrivate();
-
-    template<typename Handle>
-    inline Handle *handle() const {
-        return qobject_cast<Handle*>(m_handle.get());
-    }
-
-protected:
-    W_DECLARE_PUBLIC(WWrapObject)
-
-    void initHandle(QW_NAMESPACE::qw_object_basic *handle);
-    void invalidate();
-    virtual void instantRelease() {}
-
-    QList<QMetaObject::Connection> connectionsWithHandle;
-    QPointer<QW_NAMESPACE::qw_object_basic> m_handle;
-    uint invalidated:1;
-};
-
-#define WWRAP_HANDLE_FUNCTIONS(QW, WLR) \
-inline QW *handle() const { \
-    return WWrapObjectPrivate::handle<QW>(); \
-} \
-\
-inline WLR *nativeHandle() const { \
-    return handle()->handle(); \
-}
 
 WAYLIB_SERVER_END_NAMESPACE

@@ -1,6 +1,8 @@
 // Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
+#include <wscopedvalue.h>
+#include <wpointer.h>
 #include "wbufferrenderer_p.h"
 #include "wayliblogging.h"
 #include "wrenderhelper.h"
@@ -9,13 +11,7 @@
 #include "wsgtextureprovider.h"
 #include "private/wprivateaccessor_p.h"
 
-#include <qwbuffer.h>
-#include <qwtexture.h>
-#include <qwrenderer.h>
-#include <qwswapchain.h>
-#include <qwoutput.h>
-#include <qwallocator.h>
-#include <qwrendererinterface.h>
+#include <wlr_all.h>
 
 #include <QSGImageNode>
 #include <QSGSimpleRectNode>
@@ -45,7 +41,6 @@ W_DECLARE_PRIVATE_MEMBER(QSGAbsSoftRenderer_m_dirtyRegion_tag, QSGAbstractSoftwa
 W_DECLARE_PRIVATE_MEMBER(QSGSoftRenderableNode_m_hasClipRegion_tag, QSGSoftwareRenderableNode, m_hasClipRegion, bool);
 W_DECLARE_PRIVATE_MEMBER(QSGSoftRenderableNode_m_opacity_tag, QSGSoftwareRenderableNode, m_opacity, float);
 
-QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 inline static WImageRenderTarget *getImageFrom(const QQuickRenderTarget &rt)
@@ -55,9 +50,9 @@ inline static WImageRenderTarget *getImageFrom(const QQuickRenderTarget &rt)
     return static_cast<WImageRenderTarget*>(d->u.paintDevice);
 }
 
-static const wlr_drm_format *pickFormat(qw_renderer *renderer, uint32_t format)
+static const wlr_drm_format *pickFormat(wlr_renderer *renderer, uint32_t format)
 {
-    auto r = renderer->handle();
+    auto r = renderer;
     if (!r->impl->get_render_formats) {
         return nullptr;
     }
@@ -109,7 +104,6 @@ WBufferRenderer::~WBufferRenderer()
     resetSources();
 
     delete m_renderHelper;
-    delete m_swapchain;
 }
 
 WOutput *WBufferRenderer::output() const
@@ -246,12 +240,12 @@ const QMatrix4x4 &WBufferRenderer::currentWorldTransform() const
     return state.worldTransform;
 }
 
-qw_buffer *WBufferRenderer::currentBuffer() const
+wlr_buffer *WBufferRenderer::currentBuffer() const
 {
     return state.buffer.get();
 }
 
-qw_buffer *WBufferRenderer::lastBuffer() const
+wlr_buffer *WBufferRenderer::lastBuffer() const
 {
     return m_lastBuffer;
 }
@@ -272,14 +266,14 @@ bool WBufferRenderer::isColorPreserved() const
     return state.renderTarget.colorPreserved();
 }
 
-const qw_damage_ring *WBufferRenderer::damageRing() const
+const wlr_damage_ring *WBufferRenderer::damageRing() const
 {
-    return &m_damageRing;
+    return m_damageRing.get();
 }
 
-qw_damage_ring *WBufferRenderer::damageRing()
+wlr_damage_ring *WBufferRenderer::damageRing()
 {
-    return &m_damageRing;
+    return m_damageRing.get();
 }
 
 bool WBufferRenderer::isTextureProvider() const
@@ -335,7 +329,7 @@ QTransform WBufferRenderer::inputMapToOutput(const QRectF &sourceRect, const QRe
     return t;
 }
 
-qw_buffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePixelRatio,
+wlr_buffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePixelRatio,
                                         uint32_t format, RenderFlags flags,
                                         WGlobal::ColorContentsMode mode)
 {
@@ -355,28 +349,37 @@ qw_buffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePixe
             return nullptr;
         }
 
-        if (!m_swapchain || QSize(m_swapchain->handle()->width, m_swapchain->handle()->height) != pixelSize
-            || m_swapchain->handle()->format.format != renderFormat->format) {
-            if (m_swapchain)
-                delete m_swapchain;
-            m_swapchain = qw_swapchain::create(m_output->allocator()->handle(), pixelSize.width(), pixelSize.height(), renderFormat);
+        if (!m_swapchain || QSize(m_swapchain->width, m_swapchain->height) != pixelSize
+            || m_swapchain->format.format != renderFormat->format) {
+            m_swapchain.reset(wlr_swapchain_create(m_output->allocator(), pixelSize.width(), pixelSize.height(), renderFormat));
+            if (!m_swapchain)
+                return nullptr;
         }
     } else if (flags.testFlag(RenderFlag::UseCursorFormats)) {
-        bool ok = m_output->configureCursorSwapchain(pixelSize, format, &m_swapchain);
-        if (!ok)
+        // The configure helpers take a wlr_swapchain**; hand ownership out
+        // temporarily and take it back (possibly a new swapchain) afterwards.
+        wlr_swapchain *sc = m_swapchain.release();
+        bool ok = m_output->configureCursorSwapchain(pixelSize, format, &sc);
+        if (!ok) {
+            m_swapchain.reset(sc);
             return nullptr;
+        }
+        m_swapchain.reset(sc);
     } else {
-        bool ok = m_output->configurePrimarySwapchain(pixelSize, format, &m_swapchain,
+        wlr_swapchain *sc = m_swapchain.release();
+        bool ok = m_output->configurePrimarySwapchain(pixelSize, format, &sc,
                                                       !flags.testFlag(DontTestSwapchain));
-        if (!ok)
+        if (!ok) {
+            m_swapchain.reset(sc);
             return nullptr;
+        }
+        m_swapchain.reset(sc);
     }
 
     // TODO: Support scanout buffer of wlr_surface(from WSurfaceItem)
-    auto wbuffer = m_swapchain->acquire();
-    if (!wbuffer)
+    auto buffer = wlr_swapchain_acquire(m_swapchain.get());
+    if (!buffer)
         return nullptr;
-    auto buffer = qw_buffer::from(wbuffer);
 
     if (!m_renderHelper)
         m_renderHelper = new WRenderHelper(m_output->renderer());
@@ -386,13 +389,13 @@ qw_buffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePixe
     Q_ASSERT(wd->renderControl);
     auto rt = m_renderHelper->acquireRenderTarget(wd->renderControl, buffer, mode);
     if (rt.isNull()) {
-        buffer->unlock();
+        wlr_buffer_unlock(buffer);
         return nullptr;
     }
 
     // For software renderer, update the dirty parts relative to the last paint device.
     WPixmanRegion damage;
-    m_damageRing.rotate_buffer(wbuffer, damage);
+    wlr_damage_ring_rotate_buffer(m_damageRing.get(), buffer, damage);
     state.dirty = WTools::fromPixmanRegion(damage);
 
     auto rtValue = rt.rt();
@@ -586,7 +589,7 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
     { // after render
         if (!softwareRenderer) {
             // TODO: get damage area from QRhi renderer
-            m_damageRing.add_whole();
+            wlr_damage_ring_add_whole(m_damageRing.get());
             // ###: maybe Qt bug? Before executing QRhi::endOffscreenFrame, we may
             // use the same QSGRenderer for multiple drawings. This can lead to
             // rendering the same content for different QSGRhiRenderTarget instances
@@ -627,7 +630,7 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
 
             if (!isRootItem(source.source))
                 applyTransform(softwareRenderer, state.worldTransform.inverted().toTransform());
-            m_damageRing.add(scaledFlushDamage);
+            wlr_damage_ring_add(m_damageRing.get(), scaledFlushDamage);
         }
     }
 
@@ -644,7 +647,7 @@ void WBufferRenderer::endRender()
 {
     Q_ASSERT(state.buffer.get());
     {
-        std::unique_ptr<qw_buffer, qw_buffer::unlocker> buffer;
+        WBufferUnlockPtr buffer;
         buffer.swap(state.buffer);
         state.renderer = nullptr;
         state.batchRenderer = nullptr;

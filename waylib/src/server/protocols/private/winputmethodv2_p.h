@@ -1,37 +1,29 @@
-// Copyright (C) 2023 Yixue Wang <wangyixue@deepin.org>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
 
+#include <wlr_fwd.h>
 #include "wglobal.h"
 #include "wserver.h"
 #include "wtoplevelsurface.h"
 
-#include <qwglobal.h>
-#include <qwinputmethodv2.h>
-
 #include <QObject>
 #include <QQmlEngine>
 
-Q_MOC_INCLUDE(<qwinputmethodv2.h>)
 Q_MOC_INCLUDE("wsurface.h")
-
-QW_BEGIN_NAMESPACE
-class qw_input_method_v2;
-class QWInputPopupSurfaceV2;
-class QWInputMethodKeyboardGrabV2;
-QW_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WInputMethodV2Private;
 class WSeat;
 
-class WAYLIB_SERVER_EXPORT WInputMethodV2 : public WWrapObject
+class WAYLIB_SERVER_EXPORT WInputMethodV2 : public QObject, public WObject
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WInputMethodV2)
 public:
-    explicit WInputMethodV2(QW_NAMESPACE::qw_input_method_v2 *handle, QObject *parent = nullptr);
+    explicit WInputMethodV2(wlr_input_method_v2 *handle);
+    ~WInputMethodV2();
     WSeat *seat() const;
     QString commitString() const;
     uint deleteSurroundingBeforeLength() const;
@@ -39,7 +31,7 @@ public:
     QString preeditString() const;
     int preeditCursorBegin() const;
     int preeditCursorEnd() const;
-    QW_NAMESPACE::qw_input_method_v2 *handle() const;
+    wlr_input_method_v2 *handle() const;
 
 public Q_SLOTS:
     void sendContentType(quint32 hint, quint32 purpose);
@@ -52,8 +44,8 @@ public Q_SLOTS:
 
 Q_SIGNALS:
     void committed();
-    void newPopupSurface(QW_NAMESPACE::qw_input_popup_surface_v2 *surface);
-    void newKeyboardGrab(QW_NAMESPACE::qw_input_method_keyboard_grab_v2 *keyboardGrab);
+    void newPopupSurface(wlr_input_popup_surface_v2 *surface);
+    void newKeyboardGrab(wlr_input_method_keyboard_grab_v2 *keyboardGrab);
 
 private:
     friend class WInputMethodManagerV2;
@@ -69,9 +61,10 @@ public:
     explicit WInputMethodManagerV2(QObject *parent = nullptr);
 
     QByteArrayView interfaceName() const override;
+    wlr_input_method_manager_v2 *handle() const;
 
 Q_SIGNALS:
-    void newInputMethod(QW_NAMESPACE::qw_input_method_v2 *inputMethod);
+    void newInputMethod(wlr_input_method_v2 *inputMethod);
 
 private:
     void create(WServer *server) override;

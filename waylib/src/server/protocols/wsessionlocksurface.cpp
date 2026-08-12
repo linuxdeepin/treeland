@@ -1,45 +1,54 @@
-// Copyright (C) 2025 misaka18931 <miruku2937@gmail.com>.
+// Copyright (C) 2025-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wsessionlocksurface.h"
 #include "private/wtoplevelsurface_p.h"
 #include "woutput.h"
+#include "wscoplistener.h"
 #include "wsurface.h"
 #include "wtoplevelsurface.h"
 
-#include <qwcompositor.h>
-#include <qwsessionlockv1.h>
+#include <wlr_all.h>
+
 #include <limits>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class Q_DECL_HIDDEN WSessionLockSurfacePrivate : public WToplevelSurfacePrivate {
 public:
-    WSessionLockSurfacePrivate(WSessionLockSurface *qq, qw_session_lock_surface_v1 *handle);
+    WSessionLockSurfacePrivate(WSessionLockSurface *qq, wlr_session_lock_surface_v1 *handle);
     ~WSessionLockSurfacePrivate();
 
-    WWRAP_HANDLE_FUNCTIONS(qw_session_lock_surface_v1, wlr_session_lock_surface_v1)
+    inline wlr_session_lock_surface_v1 *handle() const {
+        return m_handle;
+    }
 
     wl_client *waylandClient() const override {
-        return nativeHandle()->resource->client;
+        return handle()->resource->client;
     }
 
     // begin slot function
     // end slot function
 
     void init();
-    void instantRelease() override;
 
     W_DECLARE_PUBLIC(WSessionLockSurface)
 
     WSurface *surface = nullptr;
     WOutput *output = nullptr;
+
+private:
+    // The session-lock owner destroys this handle after notifying the
+    // wrapper. Keep the address stable through that callback.
+    wlr_session_lock_surface_v1 *m_handle = nullptr;
 };
 
-WSessionLockSurfacePrivate::WSessionLockSurfacePrivate(WSessionLockSurface *qq, qw_session_lock_surface_v1 *handle)
+WSessionLockSurfacePrivate::WSessionLockSurfacePrivate(WSessionLockSurface *qq, wlr_session_lock_surface_v1 *handle)
     : WToplevelSurfacePrivate(qq)
 {
-    initHandle(handle);
+    Q_ASSERT(handle);
+    handle->data = qq;
+    m_handle = handle;
 }
 
 WSessionLockSurfacePrivate::~WSessionLockSurfacePrivate()
@@ -49,38 +58,33 @@ WSessionLockSurfacePrivate::~WSessionLockSurfacePrivate()
 
 void WSessionLockSurfacePrivate::init() {
     W_Q(WSessionLockSurface);
-    handle()->set_data(this, q);
-
     Q_ASSERT(!q->surface());
-    auto qsurface = qw_surface::from((*handle())->surface);
-    surface = new WSurface(qsurface, q);
+    surface = new WSurface(m_handle->surface);
     surface->setAttachedData<WSessionLockSurface>(q);
 
-    output = nativeHandle()->output ? WOutput::fromHandle(qw_output::from(nativeHandle()->output)) : nullptr;
+    output = handle()->output ? WOutput::fromHandle(handle()->output) : nullptr;
 }
 
-void WSessionLockSurfacePrivate::instantRelease()
-{
-    W_Q(WSessionLockSurface);
-    
-    handle()->set_data(nullptr, nullptr);
-    auto qsurface = qw_surface::from((*handle())->surface);
-    qsurface->disconnect(q);
-    if (!surface)
-        return;
-    surface->safeDeleteLater();
-    surface = nullptr;
-}
-
-WSessionLockSurface::WSessionLockSurface(qw_session_lock_surface_v1 *handle, QObject *parent)
-    : WToplevelSurface(*new WSessionLockSurfacePrivate(this, handle), parent)
+WSessionLockSurface::WSessionLockSurface(wlr_session_lock_surface_v1 *handle)
+    : WToplevelSurface(*new WSessionLockSurfacePrivate(this, handle))
 {
     d_func()->init();
 }
 
 WSessionLockSurface::~WSessionLockSurface()
- {
-    
+{
+    teardown();
+    // Notify listeners while the object is still usable (its members are
+    // alive during the destructor body).
+    Q_EMIT beforeDestroy();
+    // Owner rule: this object created the WSurface wrapper, release it.
+    W_D(WSessionLockSurface);
+    // Clear the reverse fromHandle() mapping. The lock destroys this wrapper
+    // from the lock surface's destroy callback (or while the native handle
+    // is still alive), so the handle is valid here.
+    if (d->m_handle && d->m_handle->data == this)
+        d->m_handle->data = nullptr;
+    delete d->surface;
 }
 
 bool WSessionLockSurface::hasCapability(Capability cap) const
@@ -100,21 +104,17 @@ bool WSessionLockSurface::hasCapability(Capability cap) const
     Q_UNREACHABLE();
 }
 
-qw_session_lock_surface_v1 *WSessionLockSurface::handle() const
+wlr_session_lock_surface_v1 *WSessionLockSurface::handle() const
 {
     W_DC(WSessionLockSurface);
     return d->handle();
 }
 
-wlr_session_lock_surface_v1 *WSessionLockSurface::nativeHandle() const
+WSessionLockSurface *WSessionLockSurface::fromHandle(wlr_session_lock_surface_v1 *handle)
 {
-    W_DC(WSessionLockSurface);
-    return d->nativeHandle();
-}
-
-WSessionLockSurface *WSessionLockSurface::fromHandle(qw_session_lock_surface_v1 *handle)
-{
-    return handle->get_data<WSessionLockSurface>();
+    if (!handle)
+        return nullptr;
+    return static_cast<WSessionLockSurface*>(handle->data);
 }
 
 WSessionLockSurface *WSessionLockSurface::fromSurface(WSurface *surface)
@@ -141,7 +141,7 @@ int WSessionLockSurface::keyboardFocusPriority() const
 
 uint32_t WSessionLockSurface::configureSize(const QSize &newSize)
 {
-    return handle()->configure(newSize.width(), newSize.height());
+    return wlr_session_lock_surface_v1_configure(handle(), newSize.width(), newSize.height());
 }
 
 void WSessionLockSurface::resize(const QSize &size)
@@ -160,7 +160,7 @@ bool WSessionLockSurface::checkNewSize(const QSize &size, QSize *clippedSize)
 QRect WSessionLockSurface::getContentGeometry() const
 {
     W_DC(WSessionLockSurface);
-    return QRect(0, 0, d->nativeHandle()->current.width, d->nativeHandle()->current.height);
+    return QRect(0, 0, d->handle()->current.width, d->handle()->current.height);
 }
 
 WAYLIB_SERVER_END_NAMESPACE

@@ -66,7 +66,7 @@ qt_add_shaders(treeland_stub "treeland_stub_liquidglass_shaders"
 target_compile_definitions(treeland_stub PRIVATE WLR_USE_UNSTABLE)
 target_link_libraries(treeland_stub PUBLIC
     Qt6::Quick
-    waylibserver
+    Waylib::WaylibServer
     PkgConfig::PIXMAN
     PkgConfig::WAYLAND
 )

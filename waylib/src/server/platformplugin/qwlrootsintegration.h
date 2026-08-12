@@ -1,22 +1,14 @@
-// Copyright (C) 2023-2026 JiDe Zhang <zccrs@live.com>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
 
 #include "wglobal.h"
 
-#include <qwglobal.h>
-
 #include <QPointer>
 #include <qpa/qplatformintegration.h>
 #include <qpa/qplatformvulkaninstance.h>
 #include <qpa/qplatformnativeinterface.h>
-
-QW_BEGIN_NAMESPACE
-class QWDisplay;
-QW_END_NAMESPACE
-
-QW_USE_NAMESPACE
 
 QT_BEGIN_NAMESPACE
 class QInputDevice;

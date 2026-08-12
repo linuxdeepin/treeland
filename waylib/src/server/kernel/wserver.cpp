@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2026 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include <QObject>
@@ -12,10 +12,8 @@
 #include "wsocket.h"
 #include "platformplugin/qwlrootsintegration.h"
 
-#include <qwdisplay.h>
-#include <qwdatadevice.h>
-#include <qwprimaryselectionv1.h>
-#include <qwxwaylandshellv1.h>
+#include <wayland-server-core.h>
+#include <wlr_all.h>
 
 #include <QVector>
 #include <QThread>
@@ -35,7 +33,6 @@
 #include <qpa/qplatformthemefactory_p.h>
 #include <qpa/qplatformtheme.h>
 
-QW_USE_NAMESPACE
 W_DECLARE_PRIVATE_STATIC_MEMBER(QHighDpiScaling_m_globalScalingActive_tag, QHighDpiScaling, m_globalScalingActive, bool);
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -77,8 +74,9 @@ static bool globalFilter(const wl_client *client,
 WServerPrivate::WServerPrivate(WServer *qq)
     : WObjectPrivate(qq)
 {
-    display.reset(new qw_display());
-    wl_display_set_global_filter(display->handle(), globalFilter, this);
+    display.reset(wl_display_create());
+    Q_ASSERT(display);
+    wl_display_set_global_filter(display.get(), globalFilter, this);
 }
 
 WServerPrivate::~WServerPrivate()
@@ -91,8 +89,8 @@ void WServerPrivate::init()
     Q_ASSERT(display);
 
     // free follow display
-    [[maybe_unused]] auto ddm = qw_data_device_manager::create(*display);
-    [[maybe_unused]] auto psm = qw_primary_selection_v1_device_manager::create(*display);
+    [[maybe_unused]] auto ddm = wlr_data_device_manager_create(display.get());
+    [[maybe_unused]] auto psm = wlr_primary_selection_v1_device_manager_create(display.get());
 
     W_Q(WServer);
 
@@ -102,7 +100,7 @@ void WServerPrivate::init()
             Q_ASSERT(wl_global_get_interface(global)->name == i->interfaceName());
     }
 
-    loop = wl_display_get_event_loop(display->handle());
+    loop = wl_display_get_event_loop(display.get());
     int fd = wl_event_loop_get_fd(loop);
 
     sockNot.reset(new QSocketNotifier(fd, QSocketNotifier::Read));
@@ -134,12 +132,14 @@ void WServerPrivate::stop()
         QObject::disconnect(dispatcher, nullptr, q, nullptr);
 
     if (display)
-        wl_display_destroy_clients(*display);
+        wl_display_destroy_clients(display.get());
 
     auto list = interfaceList;
     interfaceList.clear();
     auto i = list.crbegin();
     for (; i != list.crend(); ++i) {
+        if (auto *wobj = dynamic_cast<WObject*>(*i))
+            wobj->teardown();
         (*i)->destroy(q);
         delete *i;
     }
@@ -149,7 +149,7 @@ void WServerPrivate::stop()
 // when destroy-signal cascades make the pre-saved next node self-linked.
 void WServerPrivate::safeFlushClients()
 {
-    struct wl_list *head = wl_display_get_client_list(display->handle());
+    struct wl_list *head = wl_display_get_client_list(display.get());
     struct wl_list *node = head->next;
     while (node != head) {
         // Self-linked node: already destroyed, stop to avoid infinite loop.
@@ -163,7 +163,7 @@ void WServerPrivate::safeFlushClients()
 
 void WServerPrivate::initSocket(WSocket *socketServer)
 {
-    bool ok = socketServer->listen(display->handle());
+    bool ok = socketServer->listen(display.get());
     Q_ASSERT(ok);
 }
 
@@ -336,7 +336,7 @@ WServer::WServer(WServerPrivate &dd, QObject *parent)
 {
 }
 
-qw_display *WServer::handle() const
+wl_display *WServer::handle() const
 {
     W_DC(WServer);
     return d->display.get();
@@ -389,6 +389,11 @@ bool WServer::detach(WServerInterface *interface)
     if (!isRunning())
         return false;
 
+    // Match stop(): drop wl_signal listeners before destroy() so native
+    // objects that assert empty listener lists (and ~WObject) stay safe
+    // when callers detach an interface without going through stop().
+    if (auto *wobj = dynamic_cast<WObject*>(interface))
+        wobj->teardown();
     interface->destroy(this);
     return true;
 }

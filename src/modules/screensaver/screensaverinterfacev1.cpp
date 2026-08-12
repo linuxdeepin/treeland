@@ -8,8 +8,6 @@
 #include <wayland-server.h>
 #include <wayland-util.h>
 
-#include <qwdisplay.h>
-
 #include <QDebug>
 
 class ScreensaverInterfaceV1Private : public QtWaylandServer::treeland_screensaver_v1
@@ -90,7 +88,7 @@ bool ScreensaverInterfaceV1::isInhibited() const
 
 void ScreensaverInterfaceV1::create(WServer *server)
 {
-    d->init(server->handle()->handle(), InterfaceVersion);
+    d->init(server->handle(), InterfaceVersion);
 }
 
 void ScreensaverInterfaceV1::destroy([[maybe_unused]] WServer *server)

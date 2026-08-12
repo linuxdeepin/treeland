@@ -1,11 +1,11 @@
-// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
 
+#include <wlr_fwd.h>
 #include <wglobal.h>
 #include <wtypes.h>
-#include <qwoutput.h>
 
 #include <QObject>
 #include <QSize>
@@ -20,12 +20,6 @@ class QScreen;
 class QQuickWindow;
 QT_END_NAMESPACE
 
-QW_BEGIN_NAMESPACE
-class qw_renderer;
-class qw_swapchain;
-class qw_allocator;
-QW_END_NAMESPACE
-
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class QWlrootsScreen;
@@ -36,7 +30,8 @@ class WCursor;
 class WBackend;
 class WServer;
 class WOutputPrivate;
-class WAYLIB_SERVER_EXPORT WOutput : public WWrapObject
+class WBackendPrivate;
+class WAYLIB_SERVER_EXPORT WOutput : public QObject, public WObject
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WOutput)
@@ -62,24 +57,23 @@ public:
     };
     Q_ENUM(Transform)
 
-    explicit WOutput(QW_NAMESPACE::qw_output *handle, WBackend *backend);
+    explicit WOutput(wlr_output *handle, WBackend *backend);
     ~WOutput();
 
     WBackend *backend() const;
     WServer *server() const;
-    QW_NAMESPACE::qw_renderer *renderer() const;
-    QW_NAMESPACE::qw_swapchain *swapchain() const;
-    QW_NAMESPACE::qw_allocator *allocator() const;
+    wlr_renderer *renderer() const;
+    wlr_swapchain *swapchain() const;
+    wlr_allocator *allocator() const;
     bool configurePrimarySwapchain(const QSize &size, uint32_t format,
-                                   QW_NAMESPACE::qw_swapchain **swapchain,
+                                   wlr_swapchain **swapchain,
                                    bool doTest = true);
     bool configureCursorSwapchain(const QSize &size, uint32_t format,
-                                  QW_NAMESPACE::qw_swapchain **swapchain);
+                                  wlr_swapchain **swapchain);
 
-    QW_NAMESPACE::qw_output *handle() const;
-    wlr_output *nativeHandle() const;
+    wlr_output *handle() const;
 
-    static WOutput *fromHandle(const QW_NAMESPACE::qw_output *handle);
+    static WOutput *fromHandle(wlr_output *handle);
 
     static WOutput *fromScreen(const QScreen *screen);
 
@@ -112,6 +106,8 @@ Q_SIGNALS:
     void positionChanged(const QPoint &pos);
     void modeChanged();
     void transformedSizeChanged();
+    // Emitted from the destructor while the object is still usable.
+    void beforeDestroy();
     void effectiveSizeChanged();
     void orientationChanged();
     void scaleChanged();
@@ -126,8 +122,12 @@ private:
     void setScreen(QWlrootsScreen *screen);
     QWlrootsScreen *screen() const;
 
-    friend class WServer;
     friend class WServerPrivate;
+    friend class WBackendPrivate;
+
+    // Owned by the backend: released with `delete` from the native destroy
+    // callback, never with deleteLater().
+    using QObject::deleteLater;
 };
 
 WAYLIB_SERVER_END_NAMESPACE

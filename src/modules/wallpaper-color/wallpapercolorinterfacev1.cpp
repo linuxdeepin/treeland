@@ -8,8 +8,6 @@
 #include <woutput.h>
 #include <wserver.h>
 
-#include <qwdisplay.h>
-
 #include <QMap>
 #include <QDebug>
 #include <QQmlInfo>
@@ -84,7 +82,7 @@ WallpaperColorInterfaceV1::~WallpaperColorInterfaceV1() = default;
 
 void WallpaperColorInterfaceV1::create(WServer *server)
 {
-    d->init(server->handle()->handle(), InterfaceVersion);
+    d->init(server->handle(), InterfaceVersion);
 }
 
 void WallpaperColorInterfaceV1::destroy([[maybe_unused]] WServer *server) {

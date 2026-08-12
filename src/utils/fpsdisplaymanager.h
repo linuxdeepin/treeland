@@ -1,4 +1,4 @@
-// Copyright (C) 2025 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2025-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
@@ -43,7 +43,7 @@ public:
     int maximumFps() const { return qRound(m_maximumFps); }
     int displayRefreshRate() const { return m_displayRefreshRate; }
 
-signals:
+Q_SIGNALS:
     void currentFpsChanged();
     void maximumFpsChanged();
     void refreshRateChanged();

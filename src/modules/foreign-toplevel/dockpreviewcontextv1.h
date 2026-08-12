@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <wlr_fwd.h>
 #include "modules/foreign-toplevel/foreigntoplevelmanagerv1.h"
 
 #include <QObject>
@@ -18,8 +19,6 @@ class ForeignToplevelManagerInterfaceV1;
 class DockPreviewContextV1Private;
 
 struct wl_resource;
-struct wlr_surface;
-
 class DockPreviewContextV1 : public QObject
 {
     Q_OBJECT

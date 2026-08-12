@@ -13,7 +13,6 @@
 #include <QObject>
 
 WAYLIB_SERVER_USE_NAMESPACE
-QW_USE_NAMESPACE
 
 class TreelandWallpaperNotifierInterfaceV1Private;
 class TreelandWallpaperNotifierInterfaceV1 : public QObject , public WServerInterface

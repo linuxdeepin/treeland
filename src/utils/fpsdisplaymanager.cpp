@@ -1,4 +1,4 @@
-// Copyright (C) 2025 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2025-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "fpsdisplaymanager.h"
@@ -167,7 +167,7 @@ void FpsDisplayManager::detectDisplayRefreshRate()
     if (m_targetWindow) {
         if (auto output = getOutputForWindow()) {
             if (auto qwoutput = output->handle()) {
-                if (auto mode = qwoutput->preferred_mode()) {
+                if (auto mode = wlr_output_preferred_mode(qwoutput)) {
                     int32_t refresh = mode->refresh;
                     if (refresh > 0) {
                         m_displayRefreshRate = qRound(refresh / 1000.0);
@@ -277,7 +277,7 @@ WOutput *FpsDisplayManager::findBestOutput(const QVector<WOutput*> &outputs) con
         if (!output) continue;
 
         if (auto qwoutput = output->handle()) {
-            if (auto mode = qwoutput->preferred_mode()) {
+            if (auto mode = wlr_output_preferred_mode(qwoutput)) {
                 int refreshRate = qRound(mode->refresh / 1000.0);
                 if (refreshRate > maxRefreshRate) {
                     maxRefreshRate = refreshRate;

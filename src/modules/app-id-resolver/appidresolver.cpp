@@ -8,8 +8,6 @@
 
 #include <wserver.h>
 
-#include <qwdisplay.h>
-
 #include <QHash>
 
 #include <fcntl.h>
@@ -178,7 +176,7 @@ bool AppIdResolverManager::resolvePidfd(int pidfd, std::function<void(const QStr
 
 void AppIdResolverManager::create(WServer *server)
 {
-    d->init(*server->handle(), InterfaceVersion);
+    d->init(server->handle(), InterfaceVersion);
     qCDebug(lcTlAppIdResolver) << "AppIdResolverManager global created";
 }
 

@@ -11,6 +11,7 @@
 #include "workspace/workspace.h"
 #include "common/treelandlogging.h"
 
+#include <wscoplistener.h>
 #include <private/qquickitem_p.h>
 
 #include <wlayersurface.h>
@@ -20,10 +21,6 @@
 #include <wquickcursor.h>
 #include <wquicktextureproxy.h>
 #include <wtools.h>
-
-#include <qwcompositor.h>
-#include <qwdisplay.h>
-#include <qwlayershellv1.h>
 
 #include <QLoggingCategory>
 #include <QQueue>
@@ -162,7 +159,7 @@ void CaptureContextV1::onCapture(treeland_capture_frame_v1 *frame)
     Q_EMIT finishSelect();
 }
 
-void CaptureContextV1::handleFrameCopy(QW_NAMESPACE::qw_buffer *buffer)
+void CaptureContextV1::handleFrameCopy(wlr_buffer *buffer)
 {
     if (m_captureSource) {
         m_captureSource->copyBuffer(buffer);
@@ -291,7 +288,7 @@ void CaptureContextV1::handleRenderEnd()
         return;
     }
     m_currentFrameData = {};
-    dmabuf->get_dmabuf(&m_currentFrameData.attribs);
+    wlr_buffer_get_dmabuf(dmabuf, &m_currentFrameData.attribs);
 
     union
     {
@@ -380,7 +377,7 @@ QPointer<SurfaceWrapper> CaptureManagerV1::maskSurfaceWrapper() const
 
 void CaptureManagerV1::create(WServer *server)
 {
-    m_manager = new treeland_capture_manager_v1(server->handle()->handle(), this);
+    m_manager = new treeland_capture_manager_v1(server->handle(), this);
     connect(m_manager,
             &treeland_capture_manager_v1::newCaptureContext,
             this,
@@ -576,7 +573,7 @@ CaptureSourceSelector::CaptureSourceSelector(QQuickItem *parent)
         } else if (auto surfaceItem = qobject_cast<WSurfaceItem *>(item)) {
             auto layerSurface = qobject_cast<WLayerSurface *>(surfaceItem->shellSurface());
             if (layerSurface) {
-                if (QString(layerSurface->handle()->handle()->scope) == "dde-shell/desktop") {
+                if (QString(layerSurface->handle()->scope) == "dde-shell/desktop") {
                     return false;
                 }
             }
@@ -765,20 +762,29 @@ CaptureSourceSurface::CaptureSourceSurface(WSurfaceItemContent *surfaceItemConte
 {
 }
 
-qw_buffer *CaptureSourceSurface::internalBuffer()
+wlr_buffer *CaptureSourceSurface::internalBuffer()
 {
     Q_ASSERT(m_sourceList.size() == 1);
-    if (m_sourceList.first().first && m_surfaceItemContent->surface()
-        && m_surfaceItemContent->surface()->buffer()) {
-        if (auto clientBuffer = wlr_client_buffer_get(*m_surfaceItemContent->surface()->buffer())) {
-            return qw_buffer::from(clientBuffer->source);
-        } else {
-            return m_surfaceItemContent->surface()->buffer();
-        }
-    } else {
-        qCWarning(lcTlCapture) << "The first source has been invalidated";
+    if (!m_surfaceItemContent) {
+        // The captured window was destroyed while the capture session is
+        // still active; treat the source as invalidated.
+        qCWarning(lcTlCapture)
+            << "CaptureSourceSurface: surface item content destroyed while session is active";
         return nullptr;
     }
+    auto *surface = m_surfaceItemContent->surface();
+    auto *buffer = surface ? surface->buffer() : nullptr;
+    if (m_sourceList.first().first && surface && buffer) {
+        if (auto clientBuffer = wlr_client_buffer_get(buffer))
+            return clientBuffer->source;
+        return buffer;
+    }
+    qCWarning(lcTlCapture)
+        << "CaptureSourceSurface: no usable buffer"
+        << "(sourceValid=" << bool(m_sourceList.first().first)
+        << ", surface=" << surface
+        << ", buffer=" << buffer << ")";
+    return nullptr;
 }
 
 CaptureSource::CaptureSourceType CaptureSourceSurface::sourceType()
@@ -827,6 +833,13 @@ void CaptureSourceSelector::componentComplete()
     // Notify mask size now
     if (captureManager()->maskShellSurface() && captureManager()->maskSurfaceWrapper()) {
         m_canvas = captureManager()->maskSurfaceWrapper();
+        // QPointer only clears when the wrapper QObject is destroyed; the
+        // wrapper can be invalidated (native surface gone) earlier. Forget it
+        // at aboutToBeInvalidated so an invalidated canvas is never
+        // re-enqueued into m_savedContainer by releaseMaskSurface().
+        connect(m_canvas, &SurfaceWrapper::aboutToBeInvalidated, this, [this]() {
+            m_canvas = nullptr;
+        });
         m_captureManager->maskShellSurface()->resize(size().toSize());
         if (m_captureManager->maskSurfaceWrapper()->container()) {
             m_savedContainer = m_captureManager->maskSurfaceWrapper()->container();
@@ -930,16 +943,28 @@ void CaptureSource::createImage()
     }
 }
 
-qw_buffer *CaptureSource::sourceDMABuffer()
+wlr_buffer *CaptureSource::sourceDMABuffer()
 {
     auto buffer = internalBuffer();
-    if (!m_bufferConn)
-        m_bufferConn =
-            connect(buffer, &qw_buffer::destroyed, this, &CaptureSource::bufferDestroyed);
+    // Re-bind the destroy listener whenever the buffer identity changes;
+    // a stale binding would stop bufferDestroyed -> sendProduceMoreCancel
+    // from firing and leave the capture session stuck.
+    if (buffer != m_sourceBuffer) {
+        m_bufferDestroyListener.disconnect();
+        m_sourceBuffer = nullptr;
+        if (buffer) {
+            m_sourceBuffer = buffer;
+            m_bufferDestroyListener.init(&buffer->events.destroy, [this] {
+                m_sourceBuffer = nullptr;
+                m_bufferDestroyListener.disconnect();
+                Q_EMIT bufferDestroyed();
+            });
+        }
+    }
     return buffer;
 }
 
-void CaptureSource::copyBuffer(qw_buffer *buffer)
+void CaptureSource::copyBuffer(wlr_buffer *buffer)
 {
     Q_ASSERT(imageValid());
     auto width = cropRect().width();
@@ -947,7 +972,7 @@ void CaptureSource::copyBuffer(qw_buffer *buffer)
     uint32_t format;
     size_t stride;
     void *data;
-    buffer->begin_data_ptr_access(WLR_BUFFER_DATA_PTR_ACCESS_WRITE, &data, &format, &stride);
+    wlr_buffer_begin_data_ptr_access(buffer, WLR_BUFFER_DATA_PTR_ACCESS_WRITE, &data, &format, &stride);
     Q_ASSERT(stride == static_cast<size_t>(width) * 4); // For QImage
     QImage img = image().copy(cropRect());
     auto bufFormat = WTools::toImageFormat(format);
@@ -955,7 +980,7 @@ void CaptureSource::copyBuffer(qw_buffer *buffer)
         img = image().convertToFormat(bufFormat);
     }
     memcpy(data, img.constBits(), stride * height);
-    buffer->end_data_ptr_access();
+    wlr_buffer_end_data_ptr_access(buffer);
 }
 
 CaptureSourceOutput::CaptureSourceOutput(WOutputViewport *viewport)
@@ -964,7 +989,7 @@ CaptureSourceOutput::CaptureSourceOutput(WOutputViewport *viewport)
 {
 }
 
-qw_buffer *CaptureSourceOutput::internalBuffer()
+wlr_buffer *CaptureSourceOutput::internalBuffer()
 {
     Q_ASSERT(m_sourceList.size() == 1);
     if (m_sourceList.first().first && m_outputViewport->wTextureProvider())
@@ -997,7 +1022,7 @@ CaptureSourceRegion::CaptureSourceRegion(WOutputViewport *viewport, const QRect 
     m_viewportRegions.push_back({ viewport, region });
 }
 
-qw_buffer *CaptureSourceRegion::internalBuffer()
+wlr_buffer *CaptureSourceRegion::internalBuffer()
 {
     if (m_sourceList.size() == 1 && m_sourceList.first().first
         && m_sourceList.first().second->wTextureProvider()) {
@@ -1220,7 +1245,7 @@ void CaptureSourceSelector::releaseMaskSurface()
                this,
                &CaptureSourceSelector::releaseMaskSurface);
     if (m_savedContainer) {
-        QQueue<WWrapPointer<SurfaceWrapper>> q;
+        QQueue<QPointer<SurfaceWrapper>> q;
         q.enqueue(m_canvas);
         while (!q.isEmpty()) {
             auto node = q.dequeue();

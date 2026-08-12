@@ -13,11 +13,7 @@
 
 #include <libinput.h>
 
-#include <qwseat.h>
-
-extern "C" {
-#include <wlr/interfaces/wlr_keyboard.h>
-}
+#include <wlr_all.h>
 
 #include <wbackend.h>
 #include <wcursor.h>
@@ -186,18 +182,17 @@ bool InputManager::initializeKeyboardSettings(KeyboardSettingsInterfaceV1 *inter
     KeyboardSettingsInterfaceV1::FeatureFlags features;
     const auto inputDevices = Helper::instance()->backend()->inputDeviceList();
     for (WInputDevice *device : std::as_const(inputDevices)) {
-        if (!device->handle()->is_libinput()) {
+        if (!wlr_input_device_is_libinput(device->handle())) {
             continue;
         }
 
         if (device->type() != WInputDevice::Type::Keyboard)
             continue;
 
-        auto *keyboard = qobject_cast<qw_keyboard *>(device->handle());
-        if (!keyboard)
+        if (device->handle()->type != WLR_INPUT_DEVICE_KEYBOARD)
             continue;
 
-        auto *wlrKeyboard = keyboard->handle();
+        auto *wlrKeyboard = wlr_keyboard_from_input_device(device->handle());
         if (!wlrKeyboard || !wlrKeyboard->keymap)
             continue;
 
@@ -237,7 +232,7 @@ void InputManager::onMousePointerConfigCreated(PointerDeviceConfigurationV1 *con
 
     const auto inputDevices = Helper::instance()->backend()->inputDeviceList();
     for (WInputDevice *device : std::as_const(inputDevices)) {
-        if (!device->handle()->is_libinput()) {
+        if (!wlr_input_device_is_libinput(device->handle())) {
             continue;
         }
 
@@ -245,7 +240,7 @@ void InputManager::onMousePointerConfigCreated(PointerDeviceConfigurationV1 *con
             continue;
         }
 
-        struct libinput_device *inputDevice = wlr_libinput_get_device_handle(device->handle()->handle());
+        struct libinput_device *inputDevice = wlr_libinput_get_device_handle(device->handle());
         struct udev_device *udevDevice =
             libinput_device_get_udev_device(inputDevice);
         if (!udev_device_get_property_value(udevDevice, "ID_INPUT_MOUSE")) {
@@ -338,7 +333,7 @@ void InputManager::handleMousePointerConfigApplied(PointerDeviceConfigurationV1:
         || changes.testFlag(PointerDeviceConfigurationV1::HandedModeChanged)) {
         const auto devices = interface->wSeat()->deviceList();
         for (WInputDevice *device : devices) {
-            if (!device->handle()->is_libinput()) {
+            if (!wlr_input_device_is_libinput(device->handle())) {
                 continue;
             }
 
@@ -347,12 +342,12 @@ void InputManager::handleMousePointerConfigApplied(PointerDeviceConfigurationV1:
             }
 
             struct udev_device *udevDevice =
-                libinput_device_get_udev_device(wlr_libinput_get_device_handle(device->handle()->handle()));
+                libinput_device_get_udev_device(wlr_libinput_get_device_handle(device->handle()));
             if (!udev_device_get_property_value(udevDevice, "ID_INPUT_MOUSE")) {
                 continue;
             }
 
-            struct libinput_device *inputDevice = wlr_libinput_get_device_handle(device->handle()->handle());
+            struct libinput_device *inputDevice = wlr_libinput_get_device_handle(device->handle());
             if (changes.testFlag(PointerDeviceConfigurationV1::AccelSpeedChanged))
                 configAccelSpeed(inputDevice, interface->accelSpeed());
             if (changes.testFlag(PointerDeviceConfigurationV1::AccelerationProfileChanged))
@@ -376,7 +371,7 @@ void InputManager::onTouchpadPointerConfigCreated(PointerDeviceConfigurationV1 *
 
     const auto inputDevices = Helper::instance()->backend()->inputDeviceList();
     for (WInputDevice *device : std::as_const(inputDevices)) {
-        if (!device->handle()->is_libinput()) {
+        if (!wlr_input_device_is_libinput(device->handle())) {
             continue;
         }
 
@@ -384,7 +379,7 @@ void InputManager::onTouchpadPointerConfigCreated(PointerDeviceConfigurationV1 *
             continue;
         }
 
-        struct libinput_device *inputDevice = wlr_libinput_get_device_handle(device->handle()->handle());
+        struct libinput_device *inputDevice = wlr_libinput_get_device_handle(device->handle());
         struct udev_device *udevDevice =
             libinput_device_get_udev_device(inputDevice);
         if (!udev_device_get_property_value(udevDevice, "ID_INPUT_TOUCHPAD")) {
@@ -478,7 +473,7 @@ void InputManager::handleTouchpadPointerConfigApplied(PointerDeviceConfiguration
 
     const auto devices = interface->wSeat()->deviceList();
     for (WInputDevice *device : devices) {
-        if (!device->handle()->is_libinput())
+        if (!wlr_input_device_is_libinput(device->handle()))
             continue;
 
         if (device->type() != WInputDevice::Type::Pointer) {
@@ -486,13 +481,13 @@ void InputManager::handleTouchpadPointerConfigApplied(PointerDeviceConfiguration
         }
 
         struct udev_device *udevDevice =
-            libinput_device_get_udev_device(wlr_libinput_get_device_handle(device->handle()->handle()));
+            libinput_device_get_udev_device(wlr_libinput_get_device_handle(device->handle()));
 
         if (!udev_device_get_property_value(udevDevice, "ID_INPUT_TOUCHPAD")) {
             continue;
         }
 
-        struct libinput_device *inputDevice = wlr_libinput_get_device_handle(device->handle()->handle());
+        struct libinput_device *inputDevice = wlr_libinput_get_device_handle(device->handle());
         if (changes.testFlag(PointerDeviceConfigurationV1::AccelSpeedChanged)) {
             configAccelSpeed(inputDevice, interface->accelSpeed());
         }
@@ -549,10 +544,10 @@ void InputManager::handleKeyboardSettingsApplied(KeyboardSettingsInterfaceV1::Ch
 
     auto *keyboardDevice = interface->wSeat()->keyboardGroupKeyboard();
     if (keyboardDevice) {
-        auto *keyboard = qobject_cast<qw_keyboard *>(keyboardDevice->handle());
-        if (keyboard) {
+        if (keyboardDevice->handle()->type == WLR_INPUT_DEVICE_KEYBOARD) {
+            auto *keyboard = wlr_keyboard_from_input_device(keyboardDevice->handle());
             if (changes.testFlag(KeyboardSettingsInterfaceV1::RepeatChanged)) {
-                keyboard->set_repeat_info(interface->repeatRate(), interface->repeatDelay());
+                wlr_keyboard_set_repeat_info(keyboard, interface->repeatRate(), interface->repeatDelay());
             }
         }
     }
@@ -595,10 +590,9 @@ void InputManager::setNumLockForDevice(WInputDevice *device, bool enabled)
     if (!device || device->type() != WInputDevice::Type::Keyboard)
         return;
 
-    auto *keyboard = qobject_cast<qw_keyboard *>(device->handle());
-    if (!keyboard)
+    if (device->handle()->type != WLR_INPUT_DEVICE_KEYBOARD)
         return;
-    auto *wlrKeyboard = keyboard->handle();
+    auto *wlrKeyboard = wlr_keyboard_from_input_device(device->handle());
     if (!wlrKeyboard || !wlrKeyboard->keymap || !wlrKeyboard->xkb_state)
         return;
 
@@ -627,17 +621,18 @@ void InputManager::onInputAdded(WInputDevice *input)
         return;
     }
 
-    if (!input->handle()->is_libinput()) {
+    if (!wlr_input_device_is_libinput(input->handle())) {
         return;
     }
 
-    struct libinput_device *inputDevice = wlr_libinput_get_device_handle(input->handle()->handle());
+    struct libinput_device *inputDevice = wlr_libinput_get_device_handle(input->handle());
     struct udev_device *udevDevice = libinput_device_get_udev_device(inputDevice);
     bool leftHanded = (m_seatDConfig->pointerHandMode() == "Left");
 
     if (input->type() == WInputDevice::Type::Keyboard) {
-        if (auto *keyboard = qobject_cast<qw_keyboard *>(input->handle())) {
-            keyboard->set_repeat_info(m_seatDConfig->keyboardRate(), m_seatDConfig->keyboardDelay());
+        if (input->handle()->type == WLR_INPUT_DEVICE_KEYBOARD) {
+            auto *keyboard = wlr_keyboard_from_input_device(input->handle());
+            wlr_keyboard_set_repeat_info(keyboard, m_seatDConfig->keyboardRate(), m_seatDConfig->keyboardDelay());
         }
         if (isTreelandConfigInitialized(Helper::instance()->globalConfig())) {
             if (auto *seat = input->seat())

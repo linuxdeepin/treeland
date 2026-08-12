@@ -1,23 +1,20 @@
-// Copyright (C) 2025 misaka18931 <miruku2937@gmail.com>.
+// Copyright (C) 2025-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
 
+#include <wlr_fwd.h>
 #include <wserver.h>
 #include "wglobal.h"
 
 Q_MOC_INCLUDE("wsessionlocksurface.h")
-
-QW_BEGIN_NAMESPACE
-class qw_session_lock_v1;
-QW_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WSessionLockSurface;
 class WSessionLockPrivate;
 
-class WAYLIB_SERVER_EXPORT WSessionLock : public WWrapObject
+class WAYLIB_SERVER_EXPORT WSessionLock : public QObject, public WObject
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WSessionLock)
@@ -35,15 +32,15 @@ public:
         Abandoned,
         Canceled
     };
-    explicit WSessionLock(qw_session_lock_v1 *handle, QObject *parent = nullptr);
+    explicit WSessionLock(wlr_session_lock_v1 *handle);
     ~WSessionLock();
-    static WSessionLock *fromHandle(qw_session_lock_v1 *handle);
+    static WSessionLock *fromHandle(wlr_session_lock_v1 *handle);
 
     Q_INVOKABLE void lock();
     Q_INVOKABLE void finish();
     LockState lockState() const;
     bool isLocked() const;
-    qw_session_lock_v1 *handle() const;
+    wlr_session_lock_v1 *handle() const;
     
     QVector<WSessionLockSurface*> surfaceList() const;
 Q_SIGNALS:

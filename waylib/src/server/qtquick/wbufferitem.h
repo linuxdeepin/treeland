@@ -1,14 +1,11 @@
-// Copyright (C) 2025 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2025-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
 
 #include <wglobal.h>
 #include <wtextureproviderprovider.h>
-#include <qwglobal.h>
-#include <qwbuffer.h>
-
-Q_MOC_INCLUDE(<qwbuffer.h>)
+#include <wlr_all.h>
 
 #include <QQuickItem>
 #include <QVariant>
@@ -23,20 +20,20 @@ class WBufferItemPrivate;
 class WSGTextureProvider;
 class WOutputRenderWindow;
 
-// Minimal buffer-backed item: accepts a qw_buffer and renders it; always keeps the last buffer.
+// Minimal buffer-backed item: accepts a wlr_buffer and renders it; always keeps the last buffer.
 class WAYLIB_SERVER_EXPORT WBufferItem : public QQuickItem, public virtual WTextureProviderProvider
 {
     Q_OBJECT
     Q_DECLARE_PRIVATE(WBufferItem)
-    Q_PROPERTY(QW_NAMESPACE::qw_buffer* buffer READ buffer WRITE setBuffer NOTIFY bufferChanged FINAL)
+    Q_PROPERTY(wlr_buffer* buffer READ buffer WRITE setBuffer NOTIFY bufferChanged FINAL)
     QML_NAMED_ELEMENT(BufferItem)
 
 public:
     explicit WBufferItem(QQuickItem *parent = nullptr);
     ~WBufferItem() override;
 
-    QW_NAMESPACE::qw_buffer *buffer() const;
-    void setBuffer(QW_NAMESPACE::qw_buffer *buffer);
+    wlr_buffer *buffer() const;
+    void setBuffer(wlr_buffer *buffer);
 
     bool isTextureProvider() const override;
     QSGTextureProvider *textureProvider() const override;
@@ -58,4 +55,4 @@ private:
 WAYLIB_SERVER_END_NAMESPACE
 
 Q_DECLARE_METATYPE(WAYLIB_SERVER_NAMESPACE::WBufferItem*)
-Q_DECLARE_OPAQUE_POINTER(QW_NAMESPACE::qw_buffer*)
+Q_DECLARE_OPAQUE_POINTER(wlr_buffer*)

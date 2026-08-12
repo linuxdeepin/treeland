@@ -3,13 +3,12 @@
 
 #pragma once
 
+#include <wlr_fwd.h>
 #include "modules/foreign-toplevel/foreigntoplevelmanagerv1.h"
 
 #include <xcb/xcb.h>
 
 #include <wglobal.h>
-
-#include <qwglobal.h>
 
 #include <QHash>
 #include <QList>
@@ -22,10 +21,6 @@ Q_MOC_INCLUDE("workspace/workspace.h")
 Q_MOC_INCLUDE(<wlayersurface.h>)
 Q_MOC_INCLUDE(<wxdgtoplevelsurface.h>)
 Q_MOC_INCLUDE(<wxwaylandsurface.h>)
-
-QW_BEGIN_NAMESPACE
-class qw_buffer;
-QW_END_NAMESPACE
 
 class Helper;
 class SurfaceWrapper;
@@ -56,10 +51,6 @@ class WSurface;
 class WXWaylandSurface;
 WAYLIB_SERVER_END_NAMESPACE
 
-QW_BEGIN_NAMESPACE
-class qw_compositor;
-QW_END_NAMESPACE
-
 QT_BEGIN_NAMESPACE
 class QQuickItem;
 class QQuickWindow;
@@ -88,7 +79,7 @@ public:
     [[nodiscard]] WAYLIB_SERVER_NAMESPACE::WXWayland *createXWayland(
         WAYLIB_SERVER_NAMESPACE::WServer *server,
         WAYLIB_SERVER_NAMESPACE::WSeat *seat,
-        QW_NAMESPACE::qw_compositor *compositor,
+        wlr_compositor *compositor,
         bool lazy);
     // FIXME: never call removeXWayland in treeland.cpp
     void removeXWayland(WAYLIB_SERVER_NAMESPACE::WXWayland *xwayland);
@@ -148,11 +139,11 @@ private:
     // PrelaunchSplash::splashRequested
     void handlePrelaunchSplashRequested(const QString &appId,
                                         const QString &instanceId,
-                                        QW_NAMESPACE::qw_buffer *iconBuffer);
+                                        wlr_buffer *iconBuffer);
     void handlePrelaunchSplashClosed(const QString &appId, const QString &instanceId);
     void createPrelaunchSplash(const QString &appId,
                                const QString &instanceId,
-                               QW_NAMESPACE::qw_buffer *iconBuffer,
+                               wlr_buffer *iconBuffer,
                                const QSize &lastSize,
                                const QString &darkPalette,
                                const QString &lightPalette,

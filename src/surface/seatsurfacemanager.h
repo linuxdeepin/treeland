@@ -6,6 +6,7 @@
 #include "surface/surfacewrapper.h"
 #include "surface/quicktile.h"
 #include <wseat.h>
+#include <wscoplistener.h>
 #include <QQuickItem>
 #include <QMap>
 
@@ -83,4 +84,10 @@ private:
     // Popup grab state
     bool m_hasPopupGrab = false;
     QTimer *m_edgeTileDelayTimer = nullptr;
+
+    // Equivalent to the old QObject::connect on qw_seat; disconnect in the
+    // destructor so wlr_seat_destroy does not assert on leftover listeners
+    // when the seat is deleted before this object's deleteLater runs.
+    WAYLIB_SERVER_NAMESPACE::WScopedListener keyboardGrabBeginListener;
+    WAYLIB_SERVER_NAMESPACE::WScopedListener keyboardGrabEndListener;
 };

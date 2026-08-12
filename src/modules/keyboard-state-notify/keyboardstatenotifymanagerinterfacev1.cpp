@@ -8,13 +8,10 @@
 #include "common/treelandlogging.h"
 #include "treelandconfig.hpp"
 
-#include <qwdisplay.h>
-#include <qwkeyboard.h>
-#include <qwinputdevice.h>
-#include <qwseat.h>
-
-#include <wbackend.h>
 #include <winputdevice.h>
+#include <wscoplistener.h>
+
+#include <QSharedPointer>
 
 #include <xkbcommon/xkbcommon.h>
 
@@ -54,11 +51,14 @@ static std::optional<wlr_keyboard *> getSeatKeyboard(WSeat *seat)
     if (!seat || !seat->keyboardGroupKeyboard())
         return std::nullopt;
 
-    auto *keyboard = qobject_cast<qw_keyboard *>(seat->keyboardGroupKeyboard()->handle());
-    if (!keyboard || !keyboard->handle() || !keyboard->handle()->keymap)
+    auto *wlrDevice = seat->keyboardGroupKeyboard()->handle();
+    if (wlrDevice->type != WLR_INPUT_DEVICE_KEYBOARD)
+        return std::nullopt;
+    auto *keyboard = wlr_keyboard_from_input_device(wlrDevice);
+    if (!keyboard || !keyboard->keymap)
         return std::nullopt;
 
-    return keyboard->handle();
+    return keyboard;
 }
 
 static bool modifiersEqual(const wlr_keyboard_modifiers &a, const wlr_keyboard_modifiers &b)
@@ -98,8 +98,7 @@ static uint32_t changedLockStateBitfield(wlr_keyboard *keyboard,
 }
 
 struct KeyboardConnection {
-    QMetaObject::Connection modifiersConnection;
-
+    WScopedListener modifiersListener;
     QPointer<WSeat> seat = nullptr;
 };
 
@@ -127,7 +126,7 @@ private:
     void handleSeatDestroy(WSeat *seat);
     void connectKeyboardGroup(WSeat *seat, WInputDevice *keyboardDevice);
 
-    QList<KeyboardConnection> m_keyboardConnections;
+    QList<QSharedPointer<KeyboardConnection>> m_keyboardConnections;
     bool m_keyboardConnectionsSetup = false;
 };
 
@@ -150,19 +149,23 @@ void TreelandKeyboardStateNotifyManagerInterfaceV1Private::bind_resource([[maybe
 void TreelandKeyboardStateNotifyManagerInterfaceV1Private::connectKeyboardGroup(WSeat *seat, WInputDevice *keyboardDevice)
 {
     for (const auto &conn : std::as_const(m_keyboardConnections)) {
-        if (conn.seat == seat)
+        if (conn->seat == seat)
             return;
     }
 
     if (const auto keyboard = getSeatKeyboard(seat))
         s_lastModifiers[seat] = (*keyboard)->modifiers;
 
-    KeyboardConnection conn;
-    conn.seat = seat;
-    conn.modifiersConnection = keyboardDevice->safeConnect(&qw_keyboard::notify_modifiers, q, [this, seat] () {
-        onModifiersEvent(seat);
-    });
-    m_keyboardConnections.push_back(conn);
+    auto conn = QSharedPointer<KeyboardConnection>::create();
+    conn->seat = seat;
+    auto *wlrDevice = keyboardDevice->handle();
+    if (wlrDevice->type == WLR_INPUT_DEVICE_KEYBOARD) {
+        auto *keyboard = wlr_keyboard_from_input_device(wlrDevice);
+        conn->modifiersListener.init(&keyboard->events.modifiers, q, [this, seat] (void *) {
+            onModifiersEvent(seat);
+        });
+    }
+    m_keyboardConnections.push_back(std::move(conn));
 }
 
 void TreelandKeyboardStateNotifyManagerInterfaceV1Private::setupKeyboardConnections()
@@ -243,12 +246,9 @@ void TreelandKeyboardStateNotifyManagerInterfaceV1Private::onModifiersEvent(WSea
 
 void TreelandKeyboardStateNotifyManagerInterfaceV1Private::handleSeatDestroy(WSeat *seat)
 {
-    for (int i = m_keyboardConnections.size() - 1; i >= 0; --i) {
-        if (m_keyboardConnections[i].seat == seat) {
-            QObject::disconnect(m_keyboardConnections[i].modifiersConnection);
-            m_keyboardConnections.removeAt(i);
-        }
-    }
+    m_keyboardConnections.removeIf([seat](const QSharedPointer<KeyboardConnection> &conn) {
+        return conn->seat == seat;
+    });
     s_lastModifiers.remove(seat);
 }
 
@@ -401,7 +401,7 @@ TreelandKeyboardStateNotifyManagerInterfaceV1::~TreelandKeyboardStateNotifyManag
 
 void TreelandKeyboardStateNotifyManagerInterfaceV1::create(WServer *server)
 {
-    d->init(server->handle()->handle(), InterfaceVersion);
+    d->init(server->handle(), InterfaceVersion);
     d->setupKeyboardConnections();
 }
 
@@ -453,7 +453,7 @@ WSeat *KeyboardStateWatcherV1::wSeat() const
     struct wlr_seat_client *seat_client =
         wlr_seat_client_from_resource(d->seat);
     Q_ASSERT_X(seat_client, __func__, "KeyboardStateWatcherV1 get wlr_seat_client failed.");
-    return WSeat::fromHandle(qw_seat::from(seat_client->seat));
+    return WSeat::fromHandle(seat_client->seat);
 }
 
 void KeyboardStateWatcherV1::sendStateChanged(uint32_t modifier, ModifierState state)

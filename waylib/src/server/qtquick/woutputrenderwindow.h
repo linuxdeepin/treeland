@@ -1,11 +1,10 @@
-// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
 
 #include <wglobal.h>
 #include <woutput.h>
-#include <qwglobal.h>
 
 #include <QQuickWindow>
 #include <QQmlParserStatus>
@@ -50,9 +49,9 @@ public:
     void setOutputScale(WOutputViewport *output, float scale);
     void rotateOutput(WOutputViewport *output, WOutput::Transform t);
 
-    void init(QW_NAMESPACE::qw_renderer *renderer, QW_NAMESPACE::qw_allocator *allocator);
-    QW_NAMESPACE::qw_renderer *renderer() const;
-    QW_NAMESPACE::qw_allocator *allocator() const;
+    void init(wlr_renderer *renderer, wlr_allocator *allocator);
+    wlr_renderer *renderer() const;
+    wlr_allocator *allocator() const;
 
     qreal width() const;
     qreal height() const;

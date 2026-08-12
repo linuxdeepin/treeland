@@ -3,14 +3,9 @@
 
 #pragma once
 
+#include <wlr_fwd.h>
 #include <WSurface>
 #include <wtoplevelsurface.h>
-
-QW_BEGIN_NAMESPACE
-class qw_xwayland_surface;
-QW_END_NAMESPACE
-
-struct wlr_xwayland_surface;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -77,15 +72,14 @@ public:
     Q_ENUM(DecorationsFlag)
     Q_DECLARE_FLAGS(DecorationsFlags, DecorationsFlag)
 
-    explicit WXWaylandSurface(QW_NAMESPACE::qw_xwayland_surface *handle, WXWayland *xwayland, QObject *parent = nullptr);
+    explicit WXWaylandSurface(wlr_xwayland_surface *handle, WXWayland *xwayland);
     ~WXWaylandSurface();
 
-    static WXWaylandSurface *fromHandle(QW_NAMESPACE::qw_xwayland_surface *handle);
     static WXWaylandSurface *fromHandle(wlr_xwayland_surface *handle);
     static WXWaylandSurface *fromSurface(WSurface *surface);
 
     WSurface *surface() const override;
-    QW_NAMESPACE::qw_xwayland_surface *handle() const;
+    wlr_xwayland_surface *handle() const;
     WXWaylandSurface *parentXWaylandSurface() const;
     WXWayland *xwayland() const;
 

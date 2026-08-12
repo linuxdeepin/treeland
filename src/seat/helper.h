@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <wlr_fwd.h>
 #include "core/qmlengine.h"
 #include "modules/activation/activationmanagerinterfacev1.h"
 #include "modules/shortcut/shortcutmanager.h"
@@ -16,6 +17,9 @@
 
 #include <wextforeigntoplevellistv1.h>
 #include <wglobal.h>
+#include <wscoplistener.h>
+#include <memory>
+#include <wpointer.h>
 #include <woutputmanagerv1.h>
 #include <wqmlcreator.h>
 #include <wseat.h>
@@ -25,6 +29,7 @@
 
 #include <QSet>
 #include <QList>
+#include <vector>
 #include <QMap>
 #include <qevent.h>
 
@@ -33,8 +38,6 @@
 class QJsonObject;
 
 Q_MOC_INCLUDE(<QDBusObjectPath>)
-Q_MOC_INCLUDE(<qwgammacontorlv1.h>)
-Q_MOC_INCLUDE(<qwoutputmanagementv1.h>)
 Q_MOC_INCLUDE(<woutput.h>)
 Q_MOC_INCLUDE(<wlayersurface.h>)
 Q_MOC_INCLUDE(<wtoplevelsurface.h>)
@@ -86,20 +89,7 @@ WAYLIB_SERVER_END_NAMESPACE
 
 class SeatsManager;
 
-QW_BEGIN_NAMESPACE
-class qw_allocator;
-class qw_compositor;
-class qw_ext_foreign_toplevel_image_capture_source_manager_v1;
-class qw_idle_inhibit_manager_v1;
-class qw_idle_inhibitor_v1;
-class qw_idle_notifier_v1;
-class qw_output_configuration_v1;
-class qw_output_power_manager_v1;
-class qw_renderer;
-QW_END_NAMESPACE
-
 WAYLIB_SERVER_USE_NAMESPACE
-QW_USE_NAMESPACE
 
 class CaptureSourceSelector;
 class DDEShellManagerInterfaceV1;
@@ -140,15 +130,11 @@ class WallpaperItem;
 class TreelandInputManagerInterfaceV1;
 class InputManager;
 
-struct wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request;
-struct wlr_idle_inhibitor_v1;
-struct wlr_output;
-struct wlr_output_power_v1_set_mode_event;
 namespace Treeland {
 class Treeland;
 }
 
-class Helper : public WSeatEventFilter
+class Helper : public WSeatEventFilter, public WAYLIB_SERVER_NAMESPACE::WObject
 {
     friend class RootSurfaceContainer;
     friend class ShellHandler;
@@ -325,7 +311,7 @@ private:
     void onOutputRemoved(WOutput *output);
     void onSurfaceModeChanged(WSurface *surface, WXdgDecorationManager::DecorationMode mode);
     void setGamma(struct wlr_gamma_control_manager_v1_set_gamma_event *event);
-    void onOutputTestOrApply(qw_output_configuration_v1 *config, bool onlyTest);
+    void onOutputTestOrApply(wlr_output_configuration_v1 *config, bool onlyTest);
     void onSetOutputPowerMode(wlr_output_power_v1_set_mode_event *event);
     void onNewIdleInhibitor(wlr_idle_inhibitor_v1 *inhibitor);
     void onSetCopyOutput(VirtualOutputInterfaceV1 *interface);
@@ -418,15 +404,44 @@ private:
     // wayland helper
     WSeat *m_primarySeat = nullptr;
     WBackend *m_backend = nullptr;
-    qw_renderer *m_renderer = nullptr;
-    qw_allocator *m_allocator = nullptr;
+    // These wlr objects are owned by the display/backend (created via
+    // wlr_*_create(display, ...) or wlr_renderer_autocreate(backend)); wrap
+    // them in observing pointers so they never dangle once the display or
+    // backend tears them down. Types without an events.destroy signal
+    // (wlr_idle_notifier_v1) and types only forward-declared in this header
+    // (wlr_ext_foreign_toplevel_image_capture_source_manager_v1) are kept as
+    // raw pointers — the helper lives as long as the server, so they cannot
+    // outlive the display.
+    WPointer<wlr_renderer> m_renderer;
+    WPointer<wlr_allocator> m_allocator;
 
     // protocols
-    qw_compositor *m_compositor = nullptr;
-    qw_idle_notifier_v1 *m_idleNotifier = nullptr;
-    qw_idle_inhibit_manager_v1 *m_idleInhibitManager = nullptr;
-    qw_output_power_manager_v1 *m_outputPowerManager = nullptr;
-    qw_ext_foreign_toplevel_image_capture_source_manager_v1 *m_foreignToplevelImageCaptureManager = nullptr;
+    WPointer<wlr_compositor> m_compositor;
+    wlr_idle_notifier_v1 *m_idleNotifier = nullptr;
+    WPointer<wlr_idle_inhibit_manager_v1> m_idleInhibitManager;
+    WPointer<wlr_output_power_manager_v1> m_outputPowerManager;
+    wlr_ext_foreign_toplevel_image_capture_source_manager_v1 *m_foreignToplevelImageCaptureManager = nullptr;
+
+    // Per-output request_state listeners are managed via output->listeners(this):
+    // ~WOutput detaches them automatically. onOutputRemoved calls removeListeners(this).
+
+    struct IdleInhibitorEntry {
+        wlr_idle_inhibitor_v1 *inhibitor = nullptr;
+        WAYLIB_SERVER_NAMESPACE::WScopedListener destroyListener;
+        QList<QMetaObject::Connection> connections {};
+    };
+    std::vector<IdleInhibitorEntry> idleInhibitorEntries;
+
+    // Primary-seat drag path (handleRequestDrag): equivalent to the old
+    // QObject::connect on qw_drag; re-init replaces any previous connection.
+    WAYLIB_SERVER_NAMESPACE::WScopedListener dragDropListener;
+    WAYLIB_SERVER_NAMESPACE::WScopedListener dragDestroyListener;
+
+    struct SeatDragEntry {
+        wlr_drag *drag = nullptr;
+        std::unique_ptr<WAYLIB_SERVER_NAMESPACE::WListenerOwner> owner;
+    };
+    std::vector<SeatDragEntry> seatDragEntries;
     ActivationManagerInterfaceV1 *m_activationManagerV1 = nullptr;
     ShellHandler *m_shellHandler = nullptr;
     WXdgDecorationManager *m_xdgDecorationManager = nullptr;
@@ -458,7 +473,7 @@ private:
     QSet<wlr_output *> m_powerOffOutputs;
     OutputManager *m_outputManagerHelper = nullptr;
     QPointer<QQuickItem> m_taskSwitch;
-    QList<qw_idle_inhibitor_v1 *> m_idleInhibitors;
+    QList<wlr_idle_inhibitor_v1 *> m_idleInhibitors;
 
     LockScreen *m_lockScreen = nullptr;
     float m_animationSpeed = 1.0;
@@ -485,14 +500,14 @@ private:
     TreelandRemoteSource *m_treelandRemoteSource = nullptr;
 
     struct PendingOutputConfig {
-        qw_output_configuration_v1 *config = nullptr;
+        wlr_output_configuration_v1 *config = nullptr;
         QList<WOutputState> states;
         int pendingCommits = 0;
         bool allSuccess = true;
     };
     PendingOutputConfig m_pendingOutputConfig;
 
-    void onOutputCommitFinished(qw_output_configuration_v1 *config, bool success);
+    void onOutputCommitFinished(wlr_output_configuration_v1 *config, bool success);
 
     SeatsManager *m_seatManager = nullptr;
     InputManager *m_inputManager = nullptr;

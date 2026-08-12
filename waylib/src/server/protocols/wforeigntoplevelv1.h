@@ -1,11 +1,10 @@
-// Copyright (C) 2023 Dingyuan Zhang <zhangdingyuan@uniontech.com>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
 
 #include <wserver.h>
 #include <wglobal.h>
-#include <qwglobal.h>
 
 #include <QObject>
 #include <QQmlEngine>
@@ -28,6 +27,7 @@ public:
     void removeSurface(WToplevelSurface *surface); // Must `removeSurface` manually before surface destroy
 
     QByteArrayView interfaceName() const override;
+    wlr_foreign_toplevel_manager_v1 *handle() const;
 
 Q_SIGNALS:
     void requestMaximize(WToplevelSurface *surface, bool isMaximized);

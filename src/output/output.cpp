@@ -1,6 +1,7 @@
 // Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
+#include <wscopedvalue.h>
 #include "output.h"
 
 #include "cmdline.h"
@@ -12,6 +13,7 @@
 #include "treelandconfig.hpp"
 #include "treelanduserconfig.hpp"
 #include "workspace/workspace.h"
+#include "wallpapermanager.h"
 
 #include <wcursor.h>
 #include <winputpopupsurface.h>
@@ -25,9 +27,6 @@
 #include <wsurfaceitem.h>
 #include <wxdgpopupsurface.h>
 #include <wxdgpopupsurfaceitem.h>
-
-#include <qwlayershellv1.h>
-#include <qwoutputlayout.h>
 
 #include <QQmlEngine>
 
@@ -51,13 +50,13 @@ QString Output::getOutputId(wlr_output *output)
 
 QString Output::getOutputId()
 {
-    return getOutputId(output()->nativeHandle());
+    return getOutputId(output()->handle());
 }
 
 Output *Output::create(WOutput *output, QQmlEngine *engine, QObject *parent)
 {
     auto isSoftwareCursor = [](WOutput *output) -> bool {
-        return output->handle()->is_x11() || Helper::instance()->globalConfig()->forceSoftwareCursor();
+        return wlr_output_is_x11(output->handle()) || Helper::instance()->globalConfig()->forceSoftwareCursor();
     };
     QQmlComponent delegate(engine, "Treeland", "PrimaryOutput");
     QObject *obj = delegate.beginCreate(engine->rootContext());
@@ -166,7 +165,7 @@ Output::Output(WOutputItem *output, QObject *parent)
 {
     m_outputViewport = output->property("screenViewport").value<WOutputViewport *>();
 
-    QString outputName = Output::getOutputId(output->output()->nativeHandle());
+    QString outputName = Output::getOutputId(output->output()->handle());
     m_config = OutputConfig::createByName("org.deepin.dde.treeland.output",
                                     "org.deepin.dde.treeland",
                                     "/" + outputName, this);
@@ -212,7 +211,7 @@ void Output::updatePositionFromLayout()
         return;
     }
 
-    auto *layoutOutput = layout->handle()->get(output()->nativeHandle());
+    auto *layoutOutput = wlr_output_layout_get(layout->handle(), output()->handle());
     if (!layoutOutput) {
         return;
     }
@@ -430,42 +429,43 @@ double Output::calcPreferredScale(double widthPx, double heightPx, double widthM
 
 qreal Output::preferredScaleFactor(const QSize &pixelSize) const
 {
-    auto o = output()->handle()->handle();
+    auto o = output()->handle();
     return calcPreferredScale(pixelSize.width(), pixelSize.height(), o->phys_width, o->phys_height);
 }
 
 void Output::enable()
 {
     // Enable on default
-    auto qwoutput = output()->handle();
-    qw_output_state newState;
+    auto wlrOutput = output()->handle();
+    WOutputStateGuard newState;
     // Don't care for WOutput::isEnabled, must do WOutput::commit here,
-    // In order to ensure trigger QWOutput::frame signal, WOutputRenderWindow
-    // needs this signal to render next frame. Because QWOutput::frame signal
-    // maybe Q_EMIT before WOutputRenderWindow::attach, if no commit here,
+    // In order to ensure trigger wlr_output frame signal, WOutputRenderWindow
+    // needs this signal to render next frame. Because the frame signal
+    // may be emitted before WOutputRenderWindow::attach, if no commit here,
     // WOutputRenderWindow will ignore this output on render.
-    const bool cachedEnabled = qwoutput->property("_Enabled").toBool();
-    const bool outputEnabled = qwoutput->handle()->enabled;
+    const bool cachedEnabled = output()->property("_Enabled").toBool();
+    const bool outputEnabled = wlrOutput->enabled;
     if (!cachedEnabled || !outputEnabled) {
-        if (!qwoutput->handle()->current_mode) {
-            auto mode = qwoutput->preferred_mode();
+        if (!wlrOutput->current_mode) {
+            auto mode = wlr_output_preferred_mode(wlrOutput);
             if (mode) {
-                newState.set_mode(mode);
+                wlr_output_state_set_mode(newState.get(), mode);
 
                 // TODO: read user config
-                newState.set_scale(preferredScaleFactor({ mode->width, mode->height }));
+                wlr_output_state_set_scale(newState.get(), preferredScaleFactor({ mode->width, mode->height }));
             }
         } else {
             // TODO: read user config
-            newState.set_scale(preferredScaleFactor(output()->size()));
+            wlr_output_state_set_scale(newState.get(), preferredScaleFactor(output()->size()));
         }
-        newState.set_enabled(true);
-        if (!qwoutput->commit_state(newState)) {
-            qCCritical(lcTlCore, "commit failed on output %s", qwoutput->handle()->name);
+        wlr_output_state_set_enabled(newState.get(), true);
+        const bool commitOk = wlr_output_commit_state(wlrOutput, newState.get());
+        if (!commitOk) {
+            qCCritical(lcTlCore, "commit failed on output %s", wlrOutput->name);
             return;
         }
-        qwoutput->setProperty("_Enabled", true);
-        qCInfo(lcTlOutput) << "Enabled output" << qwoutput->handle()->name
+        output()->setProperty("_Enabled", true);
+        qCInfo(lcTlOutput) << "Enabled output" << wlrOutput->name
                            << "cached:" << cachedEnabled
                            << "was enabled:" << outputEnabled;
     }
@@ -497,7 +497,7 @@ void Output::addSurface(SurfaceWrapper *surface)
 
     if (surface->type() == SurfaceWrapper::Type::Layer) {
         auto layer = qobject_cast<WLayerSurface *>(surface->shellSurface());
-        layer->safeConnect(&WLayerSurface::layerPropertiesChanged,
+        QObject::connect(layer, &WLayerSurface::layerPropertiesChanged,
                            this,
                            &Output::arrangeLayerSurfaces);
 
@@ -548,7 +548,7 @@ void Output::removeSurface(SurfaceWrapper *surface)
     if (surface->type() == SurfaceWrapper::Type::Layer) {
         bool exclusiveZoneRemoved = false;
         if (auto ss = surface->shellSurface()) {
-            ss->safeDisconnect(this);
+            ss->disconnect(this);
             exclusiveZoneRemoved = removeExclusiveZone(ss);
         }
         arrangeLayerSurfaces();
@@ -638,7 +638,7 @@ void Output::arrangeLayerSurface(SurfaceWrapper *surface)
 {
     WLayerSurface *layer = qobject_cast<WLayerSurface *>(surface->shellSurface());
     Q_ASSERT(layer);
-    if (!layer->handle()->handle()->initialized) {
+    if (!layer->handle()->initialized) {
         return;
     }
 
@@ -1165,7 +1165,7 @@ void Output::setOutputColor(qreal brightness,
         brightnessCorrection = brightness;
     }
 
-    const size_t gammaSize = output()->handle()->get_gamma_size();
+    const size_t gammaSize = wlr_output_get_gamma_size(output()->handle());
     if (gammaSize == 0) {
         if (backlightApplied) {
             config()->setBrightness(brightness);

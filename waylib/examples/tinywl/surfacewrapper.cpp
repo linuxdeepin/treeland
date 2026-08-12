@@ -1,4 +1,4 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "surfacewrapper.h"
@@ -63,20 +63,20 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine, WToplevelSurface *shellSurf
     m_surfaceItem->setResizeMode(WSurfaceItem::ManualResize);
     m_surfaceItem->setShellSurface(shellSurface);
 
-    shellSurface->safeConnect(&WToplevelSurface::requestMinimize, this, &SurfaceWrapper::requestMinimize);
-    shellSurface->safeConnect(&WToplevelSurface::requestCancelMinimize, this, &SurfaceWrapper::requestCancelMinimize);
-    shellSurface->safeConnect(&WToplevelSurface::requestMaximize, this, &SurfaceWrapper::requestMaximize);
-    shellSurface->safeConnect(&WToplevelSurface::requestCancelMaximize, this, &SurfaceWrapper::requestCancelMaximize);
-    shellSurface->safeConnect(&WToplevelSurface::requestMove, this, [this](WSeat *, quint32) {
+    QObject::connect(shellSurface, &WToplevelSurface::requestMinimize, this, &SurfaceWrapper::requestMinimize);
+    QObject::connect(shellSurface, &WToplevelSurface::requestCancelMinimize, this, &SurfaceWrapper::requestCancelMinimize);
+    QObject::connect(shellSurface, &WToplevelSurface::requestMaximize, this, &SurfaceWrapper::requestMaximize);
+    QObject::connect(shellSurface, &WToplevelSurface::requestCancelMaximize, this, &SurfaceWrapper::requestCancelMaximize);
+    QObject::connect(shellSurface, &WToplevelSurface::requestMove, this, [this](WSeat *, quint32) {
         Q_EMIT requestMove();
     });
-    shellSurface->safeConnect(&WToplevelSurface::requestResize, this, [this](WSeat *, Qt::Edges edge, quint32) {
+    QObject::connect(shellSurface, &WToplevelSurface::requestResize, this, [this](WSeat *, Qt::Edges edge, quint32) {
         Q_EMIT requestResize(edge);
     });
-    shellSurface->safeConnect(&WToplevelSurface::requestFullscreen, this, &SurfaceWrapper::requestFullscreen);
-    shellSurface->safeConnect(&WToplevelSurface::requestCancelFullscreen, this, &SurfaceWrapper::requestCancelFullscreen);
+    QObject::connect(shellSurface, &WToplevelSurface::requestFullscreen, this, &SurfaceWrapper::requestFullscreen);
+    QObject::connect(shellSurface, &WToplevelSurface::requestCancelFullscreen, this, &SurfaceWrapper::requestCancelFullscreen);
     if (type == Type::XdgToplevel) {
-        shellSurface->safeConnect(&WToplevelSurface::requestShowWindowMenu, this, [this](WSeat *, QPoint pos, quint32) {
+        QObject::connect(shellSurface, &WToplevelSurface::requestShowWindowMenu, this, [this](WSeat *, QPoint pos, quint32) {
             Q_EMIT requestShowWindowMenu(pos);
         });
     }

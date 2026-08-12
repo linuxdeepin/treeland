@@ -1,23 +1,20 @@
-// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
 
+#include <wlr_fwd.h>
 #include <wglobal.h>
 #include <WServer>
 #include <limits.h>
 
 Q_MOC_INCLUDE("woutput.h")
 
-QW_BEGIN_NAMESPACE
-class qw_output_layout;
-QW_END_NAMESPACE
-
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WOutput;
 class WOutputLayoutPrivate;
-class WAYLIB_SERVER_EXPORT WOutputLayout : public WWrapObject
+class WAYLIB_SERVER_EXPORT WOutputLayout : public QObject, public WObject
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WOutputLayout)
@@ -36,7 +33,7 @@ public:
 
     explicit WOutputLayout(WServer *server);
 
-    qw_output_layout *handle() const;
+    wlr_output_layout *handle() const;
 
     const QList<WOutput *> &outputs() const;
 
@@ -59,7 +56,6 @@ Q_SIGNALS:
 
 protected:
     WOutputLayout(WOutputLayoutPrivate &dd, WServer *server);
-    ~WOutputLayout() override = default;
 };
 
 WAYLIB_SERVER_END_NAMESPACE

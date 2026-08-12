@@ -1,13 +1,13 @@
-// Copyright (C) 2024 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
+#include <wlogging.h>
 #include "core/treeland.h"
 #include "utils/cmdline.h"
 
 #include <wrenderhelper.h>
 
-#include <qwbuffer.h>
-#include <qwlogging.h>
+#include <wlr_all.h>
 
 #include <DGuiApplicationHelper>
 #include <DLog>
@@ -46,7 +46,7 @@ public:
 
 int main(int argc, char *argv[])
 {
-    qw_log::init();
+    WLog::init();
     DTK_GUI_NAMESPACE::DGuiApplicationHelper::setAttribute(
         DTK_GUI_NAMESPACE::DGuiApplicationHelper::DontSaveApplicationTheme,
         true);
@@ -81,7 +81,7 @@ int main(int argc, char *argv[])
     WRenderHelper::setupRendererBackend();
     if (CmdLine::ref().tryExec())
         return 0;
-    Q_ASSERT(qw_buffer::get_objects().isEmpty());
+    Q_ASSERT(waylib_buffer_get_count() == 0);
 
     int quitCode = 0;
     {
@@ -89,8 +89,7 @@ int main(int argc, char *argv[])
 
         quitCode = app.exec();
     }
-
-    Q_ASSERT(qw_buffer::get_objects().isEmpty());
+    Q_ASSERT(waylib_buffer_get_count() == 0);
 
     return quitCode;
 }

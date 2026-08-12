@@ -54,3 +54,12 @@ obj-*-linux-gnu/
 # ai
 .cursor
 .specstory
+
+# git worktrees
+.worktrees/
+
+# CTest run state
+Testing/Temporary/
+
+# codegraph index
+.codegraph/

@@ -12,7 +12,6 @@
 #include <QInputDevice>
 
 WAYLIB_SERVER_USE_NAMESPACE
-QW_USE_NAMESPACE
 
 class PointerDeviceConfigurationV1;
 class MouseSettingsInterfaceV1;

@@ -1,4 +1,4 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
@@ -25,14 +25,11 @@ class WOutputViewport;
 class WOutputLayer;
 WAYLIB_SERVER_END_NAMESPACE
 
-QW_BEGIN_NAMESPACE
-class qw_renderer;
-class qw_allocator;
-class qw_compositor;
-QW_END_NAMESPACE
+struct wlr_renderer;
+struct wlr_allocator;
+struct wlr_compositor;
 
 WAYLIB_SERVER_USE_NAMESPACE
-QW_USE_NAMESPACE
 
 class Q_DECL_HIDDEN Helper : public QObject
 {
@@ -56,9 +53,9 @@ private:
     WServer *m_server = nullptr;
 
     WBackend *m_backend = nullptr;
-    qw_renderer *m_renderer = nullptr;
-    qw_allocator *m_allocator = nullptr;
-    qw_compositor *m_compositor = nullptr;
+    wlr_renderer *m_renderer = nullptr;
+    wlr_allocator *m_allocator = nullptr;
+    wlr_compositor *m_compositor = nullptr;
     WQuickOutputLayout *m_outputLayout = nullptr;
     WCursor *m_cursor = nullptr;
     QPointer<WSeat> m_seat;

@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2026 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include <QDebug>
@@ -7,11 +7,13 @@
 #include "wayliblogging.h"
 #include "wrenderbuffernode_p.h"
 #include "wbufferrenderer_p.h"
+#include "wglobal.h"
+#include "wpointer.h"
 #include "wqmlhelper_p.h"
 #include "platformplugin/types.h"
 #include "private/wprivateaccessor_p.h"
 
-#include <qwtexture.h>
+#include <wlr_all.h>
 
 #include <QQuickItem>
 #include <QRunnable>
@@ -347,8 +349,10 @@ protected:
 };
 
 struct WlrAndRhiTexture {
+    // Raw pointers: the resources must be released in a specific order
+    // (rhi texture, then wlr texture, then buffer), see RhiTextureManager::destroy.
     struct wlr_buffer *buffer = nullptr;
-    qw_texture *wlrTexture = nullptr;
+    wlr_texture *wlrTexture = nullptr;
     QRhiTexture *rhiTexture = nullptr;
 };
 
@@ -364,7 +368,7 @@ class Q_DECL_HIDDEN RhiTextureManager : public DataManager<RhiTextureManager, Wl
     }
 
     static bool check(WlrAndRhiTexture *texture, QRhiTexture::Format, uint32_t drmFormat, uint64_t drmModifier, const QSize &size) {
-        auto buffer = texture->buffer;
+        auto *buffer = texture->buffer;
         wlr_dmabuf_attributes attribs;
         if (!wlr_buffer_get_dmabuf(buffer, &attribs)) {
                 qCWarning(lcWlRenderBuffer) << "Failed to get dmabuf attributes for texture" << texture << "with buffer" << buffer
@@ -387,7 +391,8 @@ class Q_DECL_HIDDEN RhiTextureManager : public DataManager<RhiTextureManager, Wl
 
     static void destroy(WlrAndRhiTexture *texture) {
         delete texture->rhiTexture;
-        delete texture->wlrTexture;
+        if (texture->wlrTexture)
+            wlr_texture_destroy(texture->wlrTexture);
         if (texture->buffer)
             wlr_buffer_drop(texture->buffer);
         delete texture;
@@ -727,7 +732,7 @@ public:
         }
 
         wlr_dmabuf_attributes attribs;
-        if (!buffer->get_dmabuf(&attribs)) {
+        if (!wlr_buffer_get_dmabuf(buffer, &attribs)) {
             reset();
             return;
         }

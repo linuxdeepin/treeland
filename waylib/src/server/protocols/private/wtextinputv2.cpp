@@ -1,4 +1,4 @@
-// Copyright (C) 2024-2026 Yixue Wang <wangyixue@deepin.org>.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wtextinputv2_p.h"
@@ -8,14 +8,9 @@
 #include "wseat.h"
 #include "wayliblogging.h"
 
-#include <qwcompositor.h>
-#include <qwdisplay.h>
-#include <qwseat.h>
-
-extern "C" {
 #include "text-input-unstable-v2-protocol.h"
-}
-QW_USE_NAMESPACE
+#include <wlr_all.h>
+#include <wayland-server-core.h>
 WAYLIB_SERVER_BEGIN_NAMESPACE
 using namespace tiv2;
 static struct zwp_text_input_manager_v2_interface manager_impl = {
@@ -57,6 +52,10 @@ public:
     WClient *client;
     WSurface *enabledSurface;
     WSurface *focusedSurface;
+    // Tracks the beforeDestroy connection of the focused surface. Qt 6 does
+    // not support Qt::UniqueConnection with a functor target (it asserts in
+    // debug builds), so the connection is managed explicitly.
+    QMetaObject::Connection focusedSurfaceDestroyConnection;
     QString surroundingText;
     int32_t surroundingCursor;
     int32_t surroundingAnchor;
@@ -172,7 +171,7 @@ void handle_manager_get_text_input(wl_client *client,
     }
     text_input->d_func()->resource = text_input_resource;
     auto wClient = WClient::get(client);
-    auto wSeat = WSeat::fromHandle(qw_seat::from(seat_client->seat));
+    auto wSeat = WSeat::fromHandle(seat_client->seat);
     Q_ASSERT(wClient);
     Q_ASSERT(wSeat);
     text_input->d_func()->client = wClient;
@@ -212,7 +211,8 @@ void handle_text_input_enable([[maybe_unused]] wl_client *client, wl_resource *r
         text_input->clearEnabledSurface();
     }
     d->enabledSurface = wSurface;
-    QObject::connect(d->enabledSurface, &WSurface::aboutToBeInvalidated, text_input, &WTextInputV2::clearEnabledSurface);
+    QObject::connect(wSurface, &WSurface::beforeDestroy,
+                     text_input, &WTextInputV2::clearEnabledSurface);
     Q_EMIT text_input->enableOnSurface(wSurface);
 }
 
@@ -313,7 +313,7 @@ QByteArrayView WTextInputManagerV2::interfaceName() const
 
 void WTextInputManagerV2::create(WServer *server)
 {
-    m_global = wl_global_create(server->handle()->handle(), &zwp_text_input_manager_v2_interface, 1, this, text_input_manager_bind);
+    m_global = wl_global_create(server->handle(), &zwp_text_input_manager_v2_interface, 1, this, text_input_manager_bind);
     Q_ASSERT(m_global);
     m_handle = this;
 }
@@ -383,8 +383,19 @@ void WTextInputV2::sendEnter(WSurface *surface)
 {
     W_D(WTextInputV2);
     d->focusedSurface = surface;
-    connect(d->focusedSurface, &WSurface::aboutToBeInvalidated, this, &WTextInputV2::sendLeave, Qt::UniqueConnection);
-    zwp_text_input_v2_send_enter(d->resource, 0, surface->handle()->handle()->resource);
+    // Qt::UniqueConnection is only supported for member function targets and
+    // asserts with a functor, so replace the previous focus-destroy
+    // connection explicitly before connecting the new one.
+    if (d->focusedSurfaceDestroyConnection) {
+        QObject::disconnect(d->focusedSurfaceDestroyConnection);
+        d->focusedSurfaceDestroyConnection = {};
+    }
+    d->focusedSurfaceDestroyConnection = QObject::connect(surface, &WSurface::beforeDestroy, this,
+        [this, d, surface] {
+        if (d->focusedSurface == surface)
+            sendLeave();
+    });
+    zwp_text_input_v2_send_enter(d->resource, 0, surface->handle()->resource);
     if (d->enabledSurface == d->focusedSurface) {
         Q_EMIT enabled();
     }
@@ -397,11 +408,16 @@ void WTextInputV2::sendLeave()
         qCWarning(lcWlTextInput()) << "Send leave to a null focused surface.";
         return;
     }
-    zwp_text_input_v2_send_leave(d->resource, 0, d->focusedSurface->handle()->handle()->resource);
+    zwp_text_input_v2_send_leave(d->resource, 0, d->focusedSurface->handle()->resource);
     if (d->enabledSurface == d->focusedSurface) {
         Q_EMIT disabled();
     }
     d->focusedSurface = nullptr;
+    // The focused surface no longer needs its destroy notification.
+    if (d->focusedSurfaceDestroyConnection) {
+        QObject::disconnect(d->focusedSurfaceDestroyConnection);
+        d->focusedSurfaceDestroyConnection = {};
+    }
 }
 
 void WTextInputV2::sendDone()
@@ -467,7 +483,7 @@ void WTextInputV2::clearEnabledSurface()
     W_D(WTextInputV2);
     Q_ASSERT(d->enabledSurface);
     Q_EMIT disableOnSurface(d->enabledSurface);
-    d->enabledSurface->safeDisconnect(this);
+    d->enabledSurface->disconnect(this);
     d->enabledSurface = nullptr;
 }
 WAYLIB_SERVER_END_NAMESPACE
