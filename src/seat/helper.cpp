@@ -2856,7 +2856,9 @@ void Helper::setActivatedSurface(SurfaceWrapper *newActivateSurface, WSeat *seat
         oldPrimarySurface->setActivate(false);
 
     if (newActivateSurface) {
-        Q_ASSERT(newActivateSurface->showOnWorkspace(workspace()->current()->id()));
+        Q_ASSERT(newActivateSurface->showOnWorkspace(workspace()->current()->id())
+                 || newActivateSurface->surfaceRole()
+                     == SurfaceWrapper::SurfaceRole::PrivilegedOverlay);
         newActivateSurface->stackToLast();
         if (newActivateSurface->type() == SurfaceWrapper::Type::XWayland) {
             auto xwaylandSurface =

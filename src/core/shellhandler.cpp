@@ -51,6 +51,7 @@
 WAYLIB_SERVER_USE_NAMESPACE
 
 #define TREELAND_XDG_SHELL_VERSION 5
+const QLatin1String PRIVILEGED_OVERLAY_TAG("org.deepin.treeland.privileged-overlay");
 
 ShellHandler::ShellHandler(RootSurfaceContainer *rootContainer, WServer *server)
     : m_rootSurfaceContainer(rootContainer)
@@ -60,6 +61,7 @@ ShellHandler::ShellHandler(RootSurfaceContainer *rootContainer, WServer *server)
     , m_topContainer(new LayerSurfaceContainer(rootContainer))
     , m_overlayContainer(new LayerSurfaceContainer(rootContainer))
     , m_popupContainer(new SurfaceContainer(rootContainer))
+    , m_privilegedOverlayContainer(new SurfaceContainer(rootContainer))
     , m_windowConfigStore(new WindowConfigStore(this))
 {
     m_treelandForeignToplevel = server->attach<ForeignToplevelManagerInterfaceV1>();
@@ -84,10 +86,16 @@ ShellHandler::ShellHandler(RootSurfaceContainer *rootContainer, WServer *server)
     m_overlayContainer->setObjectName(QStringLiteral("OverlayContainer"));
     m_popupContainer->setZ(RootSurfaceContainer::PopupZOrder);
     m_popupContainer->setObjectName(QStringLiteral("PopupContainer"));
+    m_privilegedOverlayContainer->setZ(RootSurfaceContainer::PrivilegedOverlayZOrder);
+    m_privilegedOverlayContainer->setObjectName(QStringLiteral("PrivilegedOverlayContainer"));
 }
 
 void ShellHandler::updateWrapperContainer(SurfaceWrapper *wrapper, WSurface *parentSurface)
 {
+    // Privileged overlays live in their own container; parent changes of the
+    // underlying xdg-toplevel must not move them back into the workspace.
+    if (wrapper->surfaceRole() == SurfaceWrapper::SurfaceRole::PrivilegedOverlay)
+        return;
     if (wrapper->parentSurface())
         wrapper->parentSurface()->removeSubSurface(wrapper);
 
@@ -283,6 +291,11 @@ RootSurfaceContainer *ShellHandler::rootSurfaceContainer() const
 ForeignToplevelManagerInterfaceV1 *ShellHandler::foreignToplevel() const
 {
     return m_treelandForeignToplevel;
+}
+
+SurfaceContainer *ShellHandler::privilegedOverlayContainer() const
+{
+    return m_privilegedOverlayContainer;
 }
 
 void ShellHandler::createComponent(QmlEngine *engine, QQuickItem *parentItem)
@@ -490,14 +503,45 @@ void ShellHandler::ensureXdgWrapper(WXdgToplevelSurface *surface, const QString 
     }
     Q_EMIT surfaceWrapperAdded(wrapper);
 
-    // IM candidate panel detection via xdg-toplevel-tag
-    if (m_imCandidatePanelManager) {
-        QPointer<SurfaceWrapper> wrapperPtr(wrapper);
-        QObject::connect(surface, &WXdgToplevelSurface::tagChanged, this, [this, surface, wrapperPtr]() {
-            if (wrapperPtr)
-                m_imCandidatePanelManager->checkAndApplyIMCandidatePanel(wrapperPtr, surface);
-        });
-    }
+    QPointer<SurfaceWrapper> wrapperPtr(wrapper);
+    QObject::connect(surface, &WXdgToplevelSurface::tagChanged, this, [this, wrapperPtr]() {
+        if (wrapperPtr){
+            m_imCandidatePanelManager->checkAndApplyIMCandidatePanel(wrapperPtr);
+            checkAndApplyPrivilegedOverlay(wrapperPtr);
+        } 
+    });
+}
+
+bool ShellHandler::checkAndApplyPrivilegedOverlay(SurfaceWrapper *wrapper)
+{
+    auto *xdgSurface = static_cast<WXdgToplevelSurface *>(wrapper->shellSurface());
+    if (xdgSurface->tag() != PRIVILEGED_OVERLAY_TAG)
+        return false;
+    if (wrapper->surfaceRole() == SurfaceWrapper::SurfaceRole::PrivilegedOverlay)
+        return false;
+    applyPrivilegedOverlay(wrapper);
+    return true;
+}
+
+void ShellHandler::applyPrivilegedOverlay(SurfaceWrapper *wrapper)
+{
+    qCInfo(lcTlPrivilegedSurface) << "Privileged overlay promoted (tag)"
+                                  << "wrapper =" << wrapper << "appId =" << wrapper->appId();
+    wrapper->setSurfaceRole(SurfaceWrapper::SurfaceRole::PrivilegedOverlay);
+    // If a geometry animation (e.g. fullscreen transition) is in progress, abort it
+    // and apply the pending state immediately. The animation is bound to the old
+    // container's scene graph and cannot complete after the container change below.
+    wrapper->flushPendingGeometryAnimation();
+
+    // Move from the original container to the privileged overlay container
+    if (auto *oldContainer = wrapper->container())
+        oldContainer->removeSurface(wrapper);
+    m_privilegedOverlayContainer->addSurface(wrapper);
+
+    wrapper->setPositionAutomatic(false);
+    wrapper->setHasInitializeContainer(true);
+    wrapper->setSkipDockPreView(true);
+    wrapper->setSkipMutiTaskView(true);
 }
 
 void ShellHandler::onXdgToplevelSurfaceRemoved(WXdgToplevelSurface *surface)
@@ -741,7 +785,7 @@ void ShellHandler::ensureXwaylandWrapper(WXWaylandSurface *surface, const QStrin
 
     // IM candidate panel detection via XWayland xprop
     if (m_imCandidatePanelManager
-        && m_imCandidatePanelManager->checkAndApplyIMCandidatePanel(wrapper, surface)) {
+        && m_imCandidatePanelManager->checkAndApplyIMCandidatePanel(wrapper)) {
         Q_EMIT surfaceWrapperAdded(wrapper);
         return;
     }
@@ -840,7 +884,8 @@ void ShellHandler::onDockPreviewTooltip(
 void ShellHandler::onSurfaceInactivationRequested(SurfaceWrapper *wrapper)
 {
     Q_ASSERT(wrapper);
-    if (wrapper->type() != SurfaceWrapper::Type::Layer)
+    if (wrapper->type() != SurfaceWrapper::Type::Layer
+        && wrapper->surfaceRole() != SurfaceWrapper::SurfaceRole::PrivilegedOverlay)
         m_workspace->removeActivedSurface(wrapper);
 
     auto *helper = Helper::instance();

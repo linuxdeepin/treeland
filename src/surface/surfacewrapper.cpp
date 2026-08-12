@@ -1093,6 +1093,26 @@ void SurfaceWrapper::abortGeometryAnimation()
     }
 }
 
+void SurfaceWrapper::flushPendingGeometryAnimation()
+{
+    if (!m_geometryAnimation)
+        return;
+
+    const State targetState = m_pendingState;
+    const QRectF targetGeometry = m_pendingGeometry;
+
+    abortGeometryAnimation();
+
+    if (m_surfaceState == targetState)
+        return;
+
+    if (targetGeometry.isValid()) {
+        applySurfaceStateGeometry(targetState, targetGeometry);
+    } else {
+        doSetSurfaceState(targetState);
+    }
+}
+
 QBindable<SurfaceWrapper::State> SurfaceWrapper::bindableSurfaceState()
 {
     return &m_surfaceState;

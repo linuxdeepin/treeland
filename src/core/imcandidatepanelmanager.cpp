@@ -78,27 +78,22 @@ xcb_atom_t IMCandidatePanelManager::imCandidatePanelAtom() const
 {
     return m_imCandidatePanelAtom;
 }
-
-bool IMCandidatePanelManager::checkAndApplyIMCandidatePanel(
-    SurfaceWrapper *wrapper,
-    WAYLIB_SERVER_NAMESPACE::WXdgToplevelSurface *surface)
+bool IMCandidatePanelManager::checkAndApplyIMCandidatePanel(SurfaceWrapper *wrapper)
 {
-    if (surface->tag() != IM_CANDIDATE_PANEL)
+    auto *shellSurface = wrapper->shellSurface();
+    if (auto *xdgSurface = qobject_cast<WAYLIB_SERVER_NAMESPACE::WXdgToplevelSurface *>(shellSurface)) {
+        if (xdgSurface->tag() != IM_CANDIDATE_PANEL)
+            return false;
+    } else if (auto *xwaylandSurface = qobject_cast<WAYLIB_SERVER_NAMESPACE::WXWaylandSurface *>(shellSurface)) {
+        if (!isIMCandidatePanel(xwaylandSurface))
+            return false;
+    } else {
         return false;
+    }
+
     if (wrapper->isIMCandidatePanel())
         return false;
-    applyIMCandidatePanel(wrapper);
-    return true;
-}
 
-bool IMCandidatePanelManager::checkAndApplyIMCandidatePanel(
-    SurfaceWrapper *wrapper,
-    WAYLIB_SERVER_NAMESPACE::WXWaylandSurface *surface)
-{
-    if (!isIMCandidatePanel(surface))
-        return false;
-    if (wrapper->isIMCandidatePanel())
-        return false;
     applyIMCandidatePanel(wrapper);
     return true;
 }
@@ -244,7 +239,7 @@ void IMCandidatePanelManager::onXwaylandPropertyChanged(
             bool value = IMCandidatePanelManager::parseIMCandidatePanelProperty(result, atom);
             s->setProperty("imCandidatePanel", value);
             if (wrapper) {
-                self->checkAndApplyIMCandidatePanel(wrapper, s);
+                self->checkAndApplyIMCandidatePanel(wrapper);
             }
         });
 }

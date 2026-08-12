@@ -131,6 +131,7 @@ public:
     {
         Normal,
         Overlay,
+        PrivilegedOverlay, // Privileged overlay, exempt from lock-screen hiding
     };
     Q_ENUM(SurfaceRole)
 
@@ -196,6 +197,7 @@ public:
     void resetWidth();
     void resetHeight();
 
+    void flushPendingGeometryAnimation();
     State previousSurfaceState() const;
     State surfaceState() const;
     void setSurfaceState(State newSurfaceState);

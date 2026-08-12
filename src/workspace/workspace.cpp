@@ -403,6 +403,8 @@ void Workspace::pushActivedSurface(SurfaceWrapper *surface)
         qCWarning(lcTlWorkspace) << "XdgPopup can't participate in focus fallback!";
         return;
     }
+    if (surface->surfaceRole() == SurfaceWrapper::SurfaceRole::PrivilegedOverlay)
+        return;
     if (surface->showOnAllWorkspace()) [[unlikely]] {
         for (auto wpModel : std::as_const(m_models->objects()))
             wpModel->pushActivedSurface(surface);

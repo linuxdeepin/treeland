@@ -90,5 +90,7 @@ Q_DECLARE_LOGGING_CATEGORY(lcTlDdm)
 
 // Popup focus management
 Q_DECLARE_LOGGING_CATEGORY(lcTlPopupFocus)
+// Privileged surface
+Q_DECLARE_LOGGING_CATEGORY(lcTlPrivilegedSurface)
 
 #endif // TREELAND_LOGGING_H

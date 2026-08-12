@@ -71,6 +71,7 @@ public:
                           WAYLIB_SERVER_NAMESPACE::WServer *server);
     [[nodiscard]] Workspace *workspace() const;
     [[nodiscard]] SurfaceContainer *popupContainer() const;
+    [[nodiscard]] SurfaceContainer *privilegedOverlayContainer() const;
     [[nodiscard]] RootSurfaceContainer *rootSurfaceContainer() const;
     [[nodiscard]] ForeignToplevelManagerInterfaceV1 *foreignToplevel() const;
 
@@ -165,6 +166,10 @@ private:
     void onInitialPropertiesReady(WAYLIB_SERVER_NAMESPACE::WXWaylandSurface *surface,
                                   const QString &appId,
                                   const QMap<xcb_atom_t, QByteArray> &result);
+    // Privileged overlay demo: promote a wrapper whose xdg_toplevel carries the
+    // privileged-overlay tag (see PRIVILEGED_OVERLAY_TAG).
+    void applyPrivilegedOverlay(SurfaceWrapper *wrapper);
+    bool checkAndApplyPrivilegedOverlay(SurfaceWrapper *wrapper);
 
     WAYLIB_SERVER_NAMESPACE::WXdgShell *m_xdgShell = nullptr;
     WAYLIB_SERVER_NAMESPACE::WLayerShell *m_layerShell = nullptr;
@@ -183,6 +188,7 @@ private:
     LayerSurfaceContainer *m_topContainer = nullptr;
     LayerSurfaceContainer *m_overlayContainer = nullptr;
     SurfaceContainer *m_popupContainer = nullptr;
+    SurfaceContainer *m_privilegedOverlayContainer = nullptr;
     IMCandidatePanelManager *m_imCandidatePanelManager = nullptr;
     QObject *m_windowMenu = nullptr;
     // Prelaunch wrappers created before binding to a real shell surface
