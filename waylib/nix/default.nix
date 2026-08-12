@@ -7,13 +7,29 @@
 , wrapQtAppsHook
 , qtbase
 , qtquick3d
-, qwlroots
 , wayland
 , wayland-protocols
 , wlr-protocols
 , pixman
 , libdrm
 , libinput
+, xkbcommon
+, libseat
+, libdisplay-info
+, hwdata
+, systemdLibs
+, libxcb
+, xcbutilwm
+, xcbutil-errors
+, libglvnd
+, mesa
+, vulkan-headers
+, vulkan-loader
+, glslang
+, lcms2
+, libliftoff
+, xwayland
+, linuxHeaders
 , nixos-artwork
 
 # only for test
@@ -25,7 +41,7 @@
 
 stdenv.mkDerivation (finalAttrs: {
   pname = "waylib";
-  version = "0.1.1";
+  version = "0.6.13";
 
   src = nix-filter.lib.filter {
     root = ./..;
@@ -52,13 +68,29 @@ stdenv.mkDerivation (finalAttrs: {
   buildInputs = [
     qtbase
     qtquick3d
-    qwlroots
     wayland
     wayland-protocols
     wlr-protocols
     pixman
     libdrm
     libinput
+    xkbcommon
+    libseat
+    libdisplay-info
+    hwdata
+    systemdLibs
+    libxcb
+    xcbutilwm
+    xcbutil-errors
+    libglvnd
+    mesa.dev
+    vulkan-headers
+    vulkan-loader
+    glslang
+    lcms2
+    libliftoff
+    xwayland
+    linuxHeaders
   ];
 
   cmakeBuildType = if debug then "Debug" else "Release";
@@ -66,7 +98,6 @@ stdenv.mkDerivation (finalAttrs: {
   cmakeFlags = [
     (lib.cmakeBool "BUILD_EXAMPLES" false)
     (lib.cmakeBool "ADDRESS_SANITIZER" debug)
-    (lib.cmakeBool "WITH_SUBMODULE_QWLROOTS" false)
   ];
 
   strictDeps = true;

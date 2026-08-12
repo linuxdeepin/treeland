@@ -1,16 +1,15 @@
-// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
 
 #include <WSurface>
-#include <qwglobal.h>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WSeat;
 class WToplevelSurfacePrivate;
-class WAYLIB_SERVER_EXPORT WToplevelSurface : public WWrapObject
+class WAYLIB_SERVER_EXPORT WToplevelSurface : public QObject, public WObject
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WToplevelSurface)
@@ -111,6 +110,9 @@ Q_SIGNALS:
     void parentSurfaceChanged();
     void fullscreenChanged();
     void titleChanged();
+    // Emitted while the object is still alive, right before the native
+    // handle is destroyed (from the derived Private's instantRelease).
+    void beforeDestroy();
     void appIdChanged();
     void minimumSizeChanged(const QSize &size);
     void maximumSizeChanged(const QSize &size);
@@ -126,7 +128,7 @@ Q_SIGNALS:
     void requestShowWindowMenu(WSeat *seat, QPoint pos, quint32 serial);
 
 protected:
-    explicit WToplevelSurface(WToplevelSurfacePrivate &d, QObject *parent = nullptr);
+    explicit WToplevelSurface(WToplevelSurfacePrivate &d);
 
     ~WToplevelSurface() override = default;
 };

@@ -8,15 +8,10 @@
 
 #include <QDebug>
 
-extern "C" {
-#define static
-#include "wlr/types/wlr_compositor.h"
-#undef static
-}
+#include <wlr_all.h>
 
 WAYLIB_SERVER_USE_NAMESPACE
 
-QW_USE_NAMESPACE
 static const struct treeland_capture_session_v1_interface session_impl = {
     .destroy = handle_treeland_capture_session_v1_destroy,
     .start = handle_treeland_capture_session_v1_start,
@@ -306,7 +301,7 @@ void handle_treeland_capture_frame_v1_copy(wl_client *client,
 {
     treeland_capture_frame_v1 *frame = capture_frame_from_resource(resource);
     Q_ASSERT(frame);
-    qw_buffer *qwBuffer = qw_buffer::try_from_resource(buffer);
+    wlr_buffer *qwBuffer = wlr_buffer_try_from_resource(buffer);
     if (!qwBuffer) {
         wl_client_post_implementation_error(client, "Buffer not created!");
         return;

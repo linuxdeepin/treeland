@@ -4,8 +4,6 @@
 #include "wallpapernotifierinterfacev1.h"
 #include "qwayland-server-treeland-wallpaper-shell-unstable-v1.h"
 
-#include <qwdisplay.h>
-
 class TreelandWallpaperNotifierInterfaceV1Private : public QtWaylandServer::treeland_wallpaper_notifier_v1
 {
 public:
@@ -64,7 +62,7 @@ TreelandWallpaperNotifierInterfaceV1::~TreelandWallpaperNotifierInterfaceV1() = 
 
 void TreelandWallpaperNotifierInterfaceV1::create(WServer *server)
 {
-    d->init(server->handle()->handle(), InterfaceVersion);
+    d->init(server->handle(), InterfaceVersion);
 }
 
 void TreelandWallpaperNotifierInterfaceV1::destroy([[maybe_unused]] WServer *server)

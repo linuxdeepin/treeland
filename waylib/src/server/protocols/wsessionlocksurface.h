@@ -1,19 +1,12 @@
-// Copyright (C) 2025 misaka18931 <miruku2937@gmail.com>.
+// Copyright (C) 2025-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
 
-#include "qwglobal.h"
+#include <wlr_fwd.h>
 #include "wglobal.h"
 #include "woutput.h"
 #include "wtoplevelsurface.h"
-
-struct wlr_session_lock_surface_v1;
-
-QW_BEGIN_NAMESPACE
-class qw_session_lock_surface_v1;
-QW_END_NAMESPACE
-
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -28,17 +21,16 @@ class WAYLIB_SERVER_EXPORT WSessionLockSurface : public WToplevelSurface
     QML_NAMED_ELEMENT(WSessionLockSurface)
     QML_UNCREATABLE("Only create in C++")
 public:
-    explicit WSessionLockSurface(qw_session_lock_surface_v1 *handle, QObject *parent = nullptr);
+    explicit WSessionLockSurface(wlr_session_lock_surface_v1 *handle);
     ~WSessionLockSurface();
 
     bool hasCapability(Capability cap) const override;
 
     WSurface *surface() const override;
 
-    qw_session_lock_surface_v1 *handle() const;
-    wlr_session_lock_surface_v1 *nativeHandle() const;
+    wlr_session_lock_surface_v1 *handle() const;
 
-    static WSessionLockSurface *fromHandle(qw_session_lock_surface_v1 *handle);
+    static WSessionLockSurface *fromHandle(wlr_session_lock_surface_v1 *handle);
     static WSessionLockSurface *fromSurface(WSurface *surface);
 
     QRect getContentGeometry() const override;

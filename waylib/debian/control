@@ -12,7 +12,6 @@ Build-Depends: cmake,
                qt6-base-dev-tools (>= 6.6.0),
                qt6-base-private-dev (>= 6.6.0),
                qt6-declarative-private-dev (>= 6.6.0),
-               qwlroots,
                wayland-protocols (>= 1.41),
                wlr-protocols,
                libwayland-dev (>= 1.23.1),
@@ -55,7 +54,9 @@ Standards-Version: 3.9.8
 
 Package: libwaylib
 Architecture: any
-Depends: ${misc:Depends}, ${shlibs:Depends},
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Conflicts: qwlroots
+Replaces: qwlroots
 Multi-Arch: same
 Description:  A wrapper for wlroots based on Qt
  .
@@ -69,7 +70,9 @@ Depends: libwaylib (=${binary:Version}),
          qt6-declarative-private-dev (>= 6.6.0),
          wlr-protocols,
          ${misc:Depends},
-         ${shlibs:Depends},
+         ${shlibs:Depends}
+Conflicts: qwlroots
+Replaces: qwlroots
 Description: A devel package for libwaylib
  .
  This package contains the header files and static libraries of waylib.

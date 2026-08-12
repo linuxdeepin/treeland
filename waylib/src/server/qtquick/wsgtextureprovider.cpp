@@ -7,18 +7,10 @@
 #include "private/wglobal_p.h"
 #include "wayliblogging.h"
 
-#include <qwtexture.h>
-#include <qwbuffer.h>
-#include <qwrenderer.h>
+#include <wlr_all.h>
 
 #include <rhi/qrhi.h>
 #include <private/qsgplaintexture_p.h>
-
-extern "C" {
-#ifdef ENABLE_VULKAN_RENDER
-#include <wlr/render/vulkan.h>
-#endif
-}
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -63,7 +55,7 @@ public:
         }
 
         if (ownsTexture && texture)
-            delete texture;
+            wlr_texture_destroy(texture);
         texture = nullptr;
     }
 
@@ -71,7 +63,7 @@ public:
 #ifdef ENABLE_VULKAN_RENDER
         if (!window || !window->renderer())
             return;
-        auto *renderer = window->renderer()->handle();
+        auto *renderer = window->renderer();
         if (!wlr_renderer_is_vk(renderer))
             return;
         // SHM uploads are recorded on wlroots' stage CB and only submitted by
@@ -87,8 +79,8 @@ public:
         bool ok = WRenderHelper::makeTexture(window->rhi(), texture, &qtTexture);
         if (Q_UNLIKELY(!ok)) {
             qCWarning(lcWlQtQuickTexture) << "Failed to make texture:" << texture
-                                        << ", width height:" << texture->handle()->width
-                                        << texture->handle()->height;
+                                        << ", width height:" << texture->width
+                                        << texture->height;
             return;
         }
 
@@ -100,9 +92,9 @@ public:
     QPointer<WOutputRenderWindow> window;
 
     // wlroots resources
-    qw_texture *texture = nullptr;
+    wlr_texture *texture = nullptr;
     bool ownsTexture = false;
-    qw_buffer *buffer = nullptr;
+    wlr_buffer *buffer = nullptr;
 
     // qt resources
     QSGPlainTexture qtTexture;
@@ -121,7 +113,7 @@ WOutputRenderWindow *WSGTextureProvider::window() const
     return d->window;
 }
 
-void WSGTextureProvider::setBuffer(qw_buffer *buffer)
+void WSGTextureProvider::setBuffer(wlr_buffer *buffer)
 {
     W_D(WSGTextureProvider);
     if (buffer == d->buffer) {
@@ -139,22 +131,22 @@ void WSGTextureProvider::setBuffer(qw_buffer *buffer)
 
     if (buffer) {
         Q_ASSERT(d->window);
-        if (auto clientBuffer = qw_client_buffer::get(*buffer)) {
+        if (auto clientBuffer = wlr_client_buffer_get(buffer)) {
             // Acquire texture from client buffer. wlroots already generate texture for us if this is a client buffer.
             // By the way, there is something wrong with getting texture from a client buffer using wlr_texture_from_buffer,
             // See: https://gitlab.freedesktop.org/wlroots/wlroots/-/issues/3897
             // Possible patch:  https://gitlab.freedesktop.org/wlroots/wlroots/-/merge_requests/4889
-            d->texture = qw_texture::from(clientBuffer->handle()->texture);
+            d->texture = clientBuffer->texture;
             d->ownsTexture = false;
         } else {
-            d->texture = qw_texture::from_buffer(*d->window->renderer(), *buffer);
+            d->texture = wlr_texture_from_buffer(d->window->renderer(), buffer);
             d->ownsTexture = true;
         }
         if (Q_UNLIKELY(!d->texture)) {
             qCWarning(lcWlQtQuickTexture) << "Failed to update texture from buffer:" << buffer
-                                        << ", width height:" << buffer->handle()->width
-                                        << buffer->handle()->height
-                                        << ", n_locks:" << buffer->handle()->n_locks;
+                                        << ", width height:" << buffer->width
+                                        << buffer->height
+                                        << ", n_locks:" << buffer->n_locks;
         } else {
             d->updateRhiTexture();
         }
@@ -163,7 +155,7 @@ void WSGTextureProvider::setBuffer(qw_buffer *buffer)
     Q_EMIT textureChanged();
 }
 
-void WSGTextureProvider::setTexture(qw_texture *texture, qw_buffer *srcBuffer)
+void WSGTextureProvider::setTexture(wlr_texture *texture, wlr_buffer *srcBuffer)
 {
     W_D(WSGTextureProvider);
     d->cleanTexture();
@@ -191,13 +183,13 @@ QSGTexture *WSGTextureProvider::texture() const
     return d->texture ? const_cast<QSGPlainTexture*>(&d->qtTexture) : nullptr;
 }
 
-qw_texture *WSGTextureProvider::qwTexture() const
+wlr_texture *WSGTextureProvider::qwTexture() const
 {
     W_DC(WSGTextureProvider);
     return d->texture;
 }
 
-qw_buffer *WSGTextureProvider::qwBuffer() const
+wlr_buffer *WSGTextureProvider::qwBuffer() const
 {
     W_DC(WSGTextureProvider);
     return d->buffer;

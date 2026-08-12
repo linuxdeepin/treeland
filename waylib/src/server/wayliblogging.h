@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2026 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #ifndef WAYLIB_LOGGING_H
@@ -11,6 +11,7 @@
 // String ID convention: waylib.<module>[.<submodule>] or waylib.protocols.<name> or waylib.qtquick.<name> or waylib.utils.<name>
 
 // Kernel - Core
+Q_DECLARE_LOGGING_CATEGORY(lcWlObject)
 Q_DECLARE_LOGGING_CATEGORY(lcWlSocket)
 Q_DECLARE_LOGGING_CATEGORY(lcWlSeat)
 Q_DECLARE_LOGGING_CATEGORY(lcWlOutput)
@@ -62,6 +63,9 @@ Q_DECLARE_LOGGING_CATEGORY(lcWlOutputHelper)
 // QtQuick extras
 Q_DECLARE_LOGGING_CATEGORY(lcWlQmlCreator)
 Q_DECLARE_LOGGING_CATEGORY(lcWlQuickCursor)
+
+// wlroots C library messages forwarded through WLog
+Q_DECLARE_LOGGING_CATEGORY(lcWlroots)
 
 // Platform & Rendering
 Q_DECLARE_LOGGING_CATEGORY(lcWlPlatform)

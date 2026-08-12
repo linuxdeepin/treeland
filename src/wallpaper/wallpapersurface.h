@@ -7,7 +7,6 @@
 #include <wtoplevelsurface.h>
 
 WAYLIB_SERVER_USE_NAMESPACE
-QW_USE_NAMESPACE
 
 class TreelandWallpaperSurfaceInterfaceV1;
 class WallpaperSurfacePrivate;
@@ -21,8 +20,7 @@ class WAYLIB_SERVER_EXPORT WallpaperSurface : public WToplevelSurface
     QML_UNCREATABLE("Only create in C++")
 
 public:
-    explicit WallpaperSurface(TreelandWallpaperSurfaceInterfaceV1 *handle,
-                              QObject *parent = nullptr);
+    explicit WallpaperSurface(TreelandWallpaperSurfaceInterfaceV1 *handle);
     ~WallpaperSurface();
 
     WSurface *surface() const override;

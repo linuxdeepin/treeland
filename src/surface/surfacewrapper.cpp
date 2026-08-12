@@ -23,9 +23,6 @@
 #include <wxwaylandsurface.h>
 #include <wxwaylandsurfaceitem.h>
 
-#include <qwbuffer.h>
-#include <qwlayershellv1.h>
-
 #include <QColor>
 #include <QVariant>
 
@@ -122,7 +119,7 @@ SurfaceWrapper::SurfaceWrapper(SurfaceWrapper *original, QQuickItem *parent)
         m_prelaunchSplash =
             m_engine->createPrelaunchSplash(this,
                                             original->radius(),
-                                            iconVar.value<QW_NAMESPACE::qw_buffer *>(),
+                                            iconVar.value<wlr_buffer *>(),
                                             bgColor);
         setNoDecoration(false);
 
@@ -143,7 +140,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
                                QQuickItem *parent,
                                const QSize &initialSize,
                                const QString &appId,
-                               QW_NAMESPACE::qw_buffer *iconBuffer,
+                               wlr_buffer *iconBuffer,
                                const QColor &backgroundColor)
     : QQuickItem(parent)
     , m_engine(qmlEngine)
@@ -310,35 +307,35 @@ void SurfaceWrapper::setup()
     m_surfaceItem->setFocusPolicy(hasFocusCapability() ? Qt::StrongFocus : Qt::NoFocus);
 
     if (!m_isProxy) {
-        m_shellSurface->safeConnect(&WToplevelSurface::requestMinimize, this, [this]() {
+        QObject::connect(m_shellSurface, &WToplevelSurface::requestMinimize, this, [this]() {
             minimize();
         });
-        m_shellSurface->safeConnect(&WToplevelSurface::requestCancelMinimize, this, [this]() {
+        QObject::connect(m_shellSurface, &WToplevelSurface::requestCancelMinimize, this, [this]() {
             restoreFromMinimized();
         });
-        m_shellSurface->safeConnect(&WToplevelSurface::requestMaximize,
+        QObject::connect(m_shellSurface, &WToplevelSurface::requestMaximize,
                                     this,
                                     &SurfaceWrapper::maximize);
-        m_shellSurface->safeConnect(&WToplevelSurface::requestCancelMaximize,
+        QObject::connect(m_shellSurface, &WToplevelSurface::requestCancelMaximize,
                                     this,
                                     &SurfaceWrapper::unmaximize);
-        m_shellSurface->safeConnect(&WToplevelSurface::requestMove, this, [this]() {
+        QObject::connect(m_shellSurface, &WToplevelSurface::requestMove, this, [this]() {
             Q_EMIT moveRequested();
         });
-        m_shellSurface->safeConnect(&WToplevelSurface::requestResize,
+        QObject::connect(m_shellSurface, &WToplevelSurface::requestResize,
                                     this,
                                     [this](WSeat *, Qt::Edges edge, quint32) {
                                         Q_EMIT resizeRequested(edge);
                                     });
-        m_shellSurface->safeConnect(&WToplevelSurface::requestFullscreen,
+        QObject::connect(m_shellSurface, &WToplevelSurface::requestFullscreen,
                                     this,
                                     &SurfaceWrapper::enterFullscreen);
-        m_shellSurface->safeConnect(&WToplevelSurface::requestCancelFullscreen,
+        QObject::connect(m_shellSurface, &WToplevelSurface::requestCancelFullscreen,
                                     this,
                                     &SurfaceWrapper::leaveFullscreen);
 
         if (m_type == Type::XdgToplevel) {
-            m_shellSurface->safeConnect(&WToplevelSurface::requestShowWindowMenu,
+            QObject::connect(m_shellSurface, &WToplevelSurface::requestShowWindowMenu,
                                         this,
                                         [this](WSeat *, QPoint pos, quint32) {
                                             Q_EMIT windowMenuRequested(
@@ -346,7 +343,7 @@ void SurfaceWrapper::setup()
                                         });
         }
     }
-    m_shellSurface->surface()->safeConnect(&WSurface::mappedChanged,
+    QObject::connect(m_shellSurface->surface(), &WSurface::mappedChanged,
                                            this,
                                            &SurfaceWrapper::onMappedChanged);
 
@@ -354,16 +351,16 @@ void SurfaceWrapper::setup()
 
     // Forward WToplevelSurface appId changes when using fallback mode
     if (m_appId.isEmpty()) {
-        m_shellSurface->safeConnect(&WToplevelSurface::appIdChanged, this, [this]() {
+        QObject::connect(m_shellSurface, &WToplevelSurface::appIdChanged, this, [this]() {
             Q_EMIT appIdChanged();
         });
     }
 
     if (m_type == Type::XdgToplevel || m_type == Type::XWayland) {
-        m_shellSurface->safeConnect(&WToplevelSurface::minimumSizeChanged,
+        QObject::connect(m_shellSurface, &WToplevelSurface::minimumSizeChanged,
                                     this,
                                     &SurfaceWrapper::updateSizeCapabilities);
-        m_shellSurface->safeConnect(&WToplevelSurface::maximumSizeChanged,
+        QObject::connect(m_shellSurface, &WToplevelSurface::maximumSizeChanged,
                                     this,
                                     &SurfaceWrapper::updateSizeCapabilities);
     }
@@ -1390,7 +1387,6 @@ void SurfaceWrapper::createNewOrClose(uint direction)
     case Type::Layer: {
         auto scope = QString(static_cast<WLayerSurfaceItem *>(m_surfaceItem)
                                  ->layerSurface()
-                                 ->handle()
                                  ->handle()
                                  ->scope);
         auto *surface = qobject_cast<WLayerSurface *>(m_shellSurface);

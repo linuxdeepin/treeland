@@ -64,17 +64,28 @@ add_definitions("-DQT_MESSAGELOGCONTEXT")
 set(LOCAL_QML_IMPORT_PATH "${PROJECT_BINARY_DIR}/qt/qml")
 
 if(WITH_SUBMODULE_WAYLIB)
-    set(WITH_SUBMODULE_QWLROOTS ON)
-    include(${CMAKE_CURRENT_SOURCE_DIR}/qwlroots/cmake/WaylandScannerHelpers.cmake)
-    # Vendored wlroots must be available before waylib/qwlroots consumers.
+    include(${CMAKE_CURRENT_SOURCE_DIR}/waylib/cmake/WaylandScannerHelpers.cmake)
+    # Vendored wlroots must be available before waylib consumers.
     # Scaffold in wlroots/; upstream sources under 3rdparty/wlroots.
     add_subdirectory(wlroots)
     add_subdirectory(waylib)
     list(APPEND LOCAL_QML_IMPORT_PATH "${PROJECT_BINARY_DIR}/waylib/src/server")
 else()
-    # Still vendor wlroots for treeland modules that link Wlroots::wlroots.
-    add_subdirectory(wlroots)
+    # Consume the wlroots library exported by the installed Waylib package
+    # instead of building a second vendored copy (dual-link/ODR risk).
     find_package(Waylib REQUIRED Server)
+    if(NOT TARGET Wlroots::wlroots)
+        if(TARGET Waylib::waylib-wlroots)
+            add_library(Wlroots::wlroots ALIAS Waylib::waylib-wlroots)
+        else()
+            pkg_check_modules(WLR_INSTALLED REQUIRED IMPORTED_TARGET waylib-wlroots)
+            add_library(Wlroots::wlroots ALIAS PkgConfig::WLR_INSTALLED)
+        endif()
+    endif()
+    # The capture module generates protocol code with ws_generate(); load
+    # the vendored helpers so external builds do not depend on the scanner
+    # helpers being exported by the installed Waylib package.
+    include(${CMAKE_CURRENT_SOURCE_DIR}/waylib/cmake/WaylandScannerHelpers.cmake)
 endif()
 
 set(QML_IMPORT_PATH "${LOCAL_QML_IMPORT_PATH}" CACHE STRING "For LSP" FORCE)

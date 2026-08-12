@@ -15,10 +15,9 @@
 #include <stdio.h>
 
 #include <wayland-server-core.h>
+#include <wcontainerof.h>
 
-#include <qwdisplay.h>
-#include <qwxdgoutputv1.h>
-#include <qwoutputlayout.h>
+#include <wlr_all.h>
 #include <QQmlInfo>
 
 // Copy from wlroots
@@ -225,7 +224,7 @@ static void output_manager_bind(struct wl_client *wl_client, void *data,
 
 static void handle_output_destroy(struct wl_listener *listener, void *data) {
     UNUSED(data);
-    struct way_xdg_output_v1 *output = wl_container_of(listener, output, destroy);
+    struct way_xdg_output_v1 *output = W_CONTAINER_OF(listener, way_xdg_output_v1, destroy);
     output_destroy(output);
 }
 
@@ -233,7 +232,7 @@ static void handle_output_description(struct wl_listener *listener,
                                       void *data) {
     UNUSED(data);
     struct way_xdg_output_v1 *xdg_output =
-        wl_container_of(listener, xdg_output, description);
+        W_CONTAINER_OF(listener, way_xdg_output_v1, description);
     struct wlr_output *output = xdg_output->layout_output->output;
 
     if (output->description == NULL) {
@@ -278,7 +277,7 @@ static void output_manager_send_details(
 
 static void handle_layout_add(struct wl_listener *listener, void *data) {
     struct way_xdg_output_manager_v1 *manager =
-        wl_container_of(listener, manager, layout_add);
+        W_CONTAINER_OF(listener, way_xdg_output_manager_v1, layout_add);
     struct wlr_output_layout_output *layout_output =
         static_cast<wlr_output_layout_output *>(data);
     add_output(manager, layout_output);
@@ -287,7 +286,7 @@ static void handle_layout_add(struct wl_listener *listener, void *data) {
 static void handle_layout_change(struct wl_listener *listener, void *data) {
     UNUSED(data);
     struct way_xdg_output_manager_v1 *manager =
-        wl_container_of(listener, manager, layout_change);
+        W_CONTAINER_OF(listener, way_xdg_output_manager_v1, layout_change);
     output_manager_send_details(manager);
 }
 
@@ -307,14 +306,14 @@ static void manager_destroy(struct way_xdg_output_manager_v1 *manager) {
 static void handle_layout_destroy(struct wl_listener *listener, void *data) {
     UNUSED(data);
     struct way_xdg_output_manager_v1 *manager =
-        wl_container_of(listener, manager, layout_destroy);
+        W_CONTAINER_OF(listener, way_xdg_output_manager_v1, layout_destroy);
     manager_destroy(manager);
 }
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
     UNUSED(data);
     struct way_xdg_output_manager_v1 *manager =
-        wl_container_of(listener, manager, display_destroy);
+        W_CONTAINER_OF(listener, way_xdg_output_manager_v1, display_destroy);
     manager_destroy(manager);
 }
 
@@ -358,8 +357,6 @@ static struct way_xdg_output_manager_v1 *way_xdg_output_manager_v1_create(
 // Copy end from wlroots
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
-
-using QW_NAMESPACE::qw_xdg_output_manager_v1;
 
 class Q_DECL_HIDDEN WXdgOutputManagerPrivate : public WObjectPrivate
 {
@@ -443,8 +440,8 @@ void WXdgOutputManager::create([[maybe_unused]] WServer *wserver)
 {
     W_D(WXdgOutputManager);
     if (d->layout) {
-        d->manager = way_xdg_output_manager_v1_create(*server()->handle(),
-                                                      *d->layout->handle(),
+        d->manager = way_xdg_output_manager_v1_create(server()->handle(),
+                                                      d->layout->handle(),
                                                       d->scaleOverride);
         m_handle = d->manager;
     } else {

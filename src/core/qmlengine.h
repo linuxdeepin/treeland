@@ -3,9 +3,8 @@
 
 #pragma once
 
+#include <wlr_fwd.h>
 #include <wglobal.h>
-
-#include <qwglobal.h>
 
 #include <QColor>
 #include <QQmlApplicationEngine>
@@ -26,10 +25,6 @@ class Output;
 class Workspace;
 class WorkspaceModel;
 class CaptureManagerV1;
-QW_BEGIN_NAMESPACE
-class qw_buffer;
-QW_END_NAMESPACE
-
 class QmlEngine : public QQmlApplicationEngine
 {
     Q_OBJECT
@@ -75,7 +70,7 @@ public:
     QQuickItem *createFpsDisplay(QQuickItem *parent);
     QQuickItem *createPrelaunchSplash(QQuickItem *parent,
                                       qreal initialRadius,
-                                      QW_NAMESPACE::qw_buffer *iconBuffer,
+                                      wlr_buffer *iconBuffer,
                                       const QColor &backgroundColor);
 
     QQmlComponent *surfaceContentComponent()

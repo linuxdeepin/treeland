@@ -1,13 +1,16 @@
-// Copyright (C) 2023-2026 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wayliblogging.h"
+
+#include <wlogging.h>
 
 // Waylib logging category definitions
 // Naming convention: lcWl + PascalCase module name
 // String ID convention: waylib.<module>[.<submodule>] or waylib.protocols.<name> or waylib.qtquick.<name> or waylib.utils.<name>
 
 // Kernel - Core
+Q_LOGGING_CATEGORY(lcWlObject, "waylib.object", QtInfoMsg)          // WObject listener ownership
 Q_LOGGING_CATEGORY(lcWlSocket, "waylib.socket", QtInfoMsg)             // Wayland socket lifecycle
 Q_LOGGING_CATEGORY(lcWlSeat, "waylib.seat", QtInfoMsg)                 // Seat management (keyboard focus, capability)
 Q_LOGGING_CATEGORY(lcWlOutput, "waylib.output", QtInfoMsg)             // Output lifecycle and configuration
@@ -68,8 +71,34 @@ Q_LOGGING_CATEGORY(lcWlOutputHelper, "waylib.output.helper", QtWarningMsg) // Ou
 Q_LOGGING_CATEGORY(lcWlQmlCreator, "waylib.qml.creator", QtWarningMsg)     // QML component creation
 Q_LOGGING_CATEGORY(lcWlQuickCursor, "waylib.cursor.quick", QtWarningMsg)   // QtQuick cursor texture provider
 
+// wlroots C library messages forwarded through WLog
+Q_LOGGING_CATEGORY(lcWlroots, "wlroots", QtInfoMsg)
+
 // Platform & Rendering
 Q_LOGGING_CATEGORY(lcWlPlatform, "waylib.platform", QtWarningMsg)          // QPA integration
 Q_LOGGING_CATEGORY(lcWlRenderHelper, "waylib.render.helper", QtWarningMsg) // Render target creation and buffer import
 Q_LOGGING_CATEGORY(lcWlRenderBuffer, "waylib.render.buffer", QtWarningMsg) // Render buffer node DMA-BUF
 Q_LOGGING_CATEGORY(lcWlBufferRenderer, "waylib.render.bufferrenderer", QtWarningMsg) // Buffer renderer texture provider
+
+// Forward wlroots C log messages into the Qt logging system so they honor
+// QT_LOGGING_RULES and Qt's message pattern instead of raw stderr output.
+WAYLIB_SERVER_BEGIN_NAMESPACE
+void WLog::defaultLogCallback(wlr_log_importance verbosity, const char *fmt, va_list args)
+{
+    const QString message = QString::vasprintf(fmt, args);
+    switch (verbosity) {
+    case WLR_ERROR:
+        qCCritical(lcWlroots) << qPrintable(message);
+        break;
+    case WLR_INFO:
+        qCInfo(lcWlroots) << qPrintable(message);
+        break;
+    case WLR_DEBUG:
+        qCDebug(lcWlroots) << qPrintable(message);
+        break;
+    default:
+        break;
+    }
+}
+
+WAYLIB_SERVER_END_NAMESPACE

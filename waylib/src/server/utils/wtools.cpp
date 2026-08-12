@@ -1,13 +1,9 @@
-// Copyright (C) 2023 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wtools.h"
 
-#include <qwbox.h>
-
-extern "C" {
-#include <wlr/util/edges.h>
-}
+#include <wlr_all.h>
 
 #include <qcolorspace.h>
 #include <QDebug>

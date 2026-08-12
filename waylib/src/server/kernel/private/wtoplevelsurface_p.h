@@ -7,11 +7,11 @@
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WAYLIB_SERVER_EXPORT WToplevelSurfacePrivate : public WWrapObjectPrivate
+class WAYLIB_SERVER_EXPORT WToplevelSurfacePrivate : public WObjectPrivate
 {
 public:
     inline WToplevelSurfacePrivate(WToplevelSurface *q)
-        : WWrapObjectPrivate(q) {}
+        : WObjectPrivate(q) {}
 };
 
 WAYLIB_SERVER_END_NAMESPACE

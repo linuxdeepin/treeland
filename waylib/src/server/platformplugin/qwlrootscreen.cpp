@@ -1,4 +1,4 @@
-// Copyright (C) 2023 JiDe Zhang <zccrs@live.com>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "qwlrootscreen.h"
@@ -8,7 +8,7 @@
 #include "woutputlayout.h"
 #include "wtools.h"
 
-#include <qwoutput.h>
+#include <wlr_all.h>
 
 #include <qpa/qwindowsysteminterface.h>
 #include <qpa/qwindowsysteminterface_p.h>
@@ -47,7 +47,7 @@ int QWlrootsScreen::depth() const
 
 QImage::Format QWlrootsScreen::format() const
 {
-    auto format = WTools::toImageFormat(m_output->nativeHandle()->render_format);
+    auto format = WTools::toImageFormat(m_output->handle()->render_format);
     if (format != QImage::Format_Invalid)
         return format;
 
@@ -222,20 +222,20 @@ void QWlrootsScreen::initialize()
         QWindowSystemInterface::handleScreenGeometryChange(screen(), newGeo, newGeo);
     };
 
-    m_output->safeConnect(&WOutput::transformedSizeChanged, screen(), updateGeometry);
+    QObject::connect(m_output, &WOutput::transformedSizeChanged, screen(), updateGeometry);
 
     auto updateDpi = [this] {
         const auto dpi = logicalDpi();
         QWindowSystemInterface::handleScreenLogicalDotsPerInchChange(screen(), dpi.first, dpi.second);
     };
 
-    m_output->safeConnect(&WOutput::scaleChanged, screen(), updateDpi);
+    QObject::connect(m_output, &WOutput::scaleChanged, screen(), updateDpi);
     updateDpi();
 }
 
 wlr_output *QWlrootsScreen::handle() const
 {
-    return m_output->handle()->handle();
+    return m_output->handle();
 }
 
 WAYLIB_SERVER_END_NAMESPACE

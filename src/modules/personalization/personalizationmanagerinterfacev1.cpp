@@ -15,12 +15,6 @@
 #include <wxdgshell.h>
 #include <wxdgsurface.h>
 
-#include <qwcompositor.h>
-#include <qwdisplay.h>
-#include <qwlayershellv1.h>
-#include <qwsignalconnector.h>
-#include <qwxdgshell.h>
-
 #include <QDebug>
 #include <QDir>
 #include <QGuiApplication>
@@ -342,7 +336,7 @@ PersonalizationWindowContextV1 *PersonalizationWindowContextV1::get(wl_resource 
 PersonalizationWindowContextV1 *PersonalizationWindowContextV1::getWindowContext(WSurface *surface)
 {
     for (auto *context : std::as_const(s_windowContexts)) {
-        if (context->surface() == surface->handle()->handle()) {
+        if (context->surface() == surface->handle()) {
             return context;
         }
     }
@@ -1018,14 +1012,14 @@ Personalization::Personalization(WToplevelSurface *target,
     , m_target(target)
     , m_manager(manager)
 {
-    connect(target, &WToplevelSurface::aboutToBeInvalidated, this, [this] {
+    connect(target, &WToplevelSurface::beforeDestroy, this, [this] {
         disconnect(m_manager, &PersonalizationManagerInterfaceV1::windowContextCreated, this, nullptr);
     });
 
     auto update = [this](PersonalizationWindowContextV1 *context) {
         assert(context);
 
-        if (WSurface::fromHandle(context->surface()) != m_target->surface()) {
+        if (context->surface() != m_target->surface()->handle()) {
             return;
         }
 
@@ -1141,7 +1135,7 @@ void Personalization::setWindowStates(PersonalizationWindowContextV1::WindowStat
 
 void PersonalizationManagerInterfaceV1::create(WServer *server)
 {
-    d->init(server->handle()->handle(), InterfaceVersion);
+    d->init(server->handle(), InterfaceVersion);
 }
 
 void PersonalizationManagerInterfaceV1::destroy([[maybe_unused]] WServer *server)

@@ -442,6 +442,8 @@ target_include_directories(waylib-wlroots
     SYSTEM PUBLIC
         $<BUILD_INTERFACE:${WLROOTS_SOURCE_DIR}/include>
         $<BUILD_INTERFACE:${WLR_GENERATED_INCLUDE_DIR}>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/protocol>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
     PRIVATE
         ${WLROOTS_SOURCE_DIR}/include
         ${CMAKE_CURRENT_BINARY_DIR}
@@ -531,10 +533,48 @@ set_target_properties(waylib-wlroots PROPERTIES
 # Install library only (no headers, no .pc)
 # ---------------------------------------------------------------------------
 install(TARGETS waylib-wlroots
+    EXPORT WaylibServerTargets
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
+
+# Install the wlroots headers so consumers of the exported
+# Waylib::waylib-wlroots target can compile against them.
+install(DIRECTORY ${WLROOTS_SOURCE_DIR}/include/wlr
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+install(DIRECTORY ${WLR_GENERATED_INCLUDE_DIR}/wlr
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+# Flat protocol headers (e.g. cursor-shape-v1-protocol.h) are included
+# without a directory prefix.
+install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/protocol/
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+        FILES_MATCHING PATTERN "*.h")
+# wlroots' own private protocol headers (drm-client-protocol.h etc.)
+install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/protocol/
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/wlr
+        FILES_MATCHING PATTERN "*.h")
+
+# ---------------------------------------------------------------------------
+# pkg-config metadata for installed-library consumers (e.g. a standalone
+# Waylib build). Carries version and feature flags as pkg-config variables
+# so the consumer can regenerate its wconfig.h without running this scaffold.
+# ---------------------------------------------------------------------------
+set(WAYLIB_WLROOTS_PC_REQUIRES "wayland-server libdrm xkbcommon pixman-1")
+set(WAYLIB_WLROOTS_PC_FEATURES "")
+foreach(_feature IN ITEMS DRM_BACKEND X11_BACKEND LIBINPUT_BACKEND XWAYLAND
+                        GLES2_RENDERER VULKAN_RENDERER GBM_ALLOCATOR SESSION
+                        COLOR_MANAGEMENT UDMABUF_ALLOCATOR)
+    if(WLR_HAS_${_feature})
+        list(APPEND WAYLIB_WLROOTS_PC_FEATURES "${_feature}")
+    endif()
+endforeach()
+string(REPLACE ";" " " WAYLIB_WLROOTS_PC_FEATURES "${WAYLIB_WLROOTS_PC_FEATURES}")
+set(WAYLIB_WLROOTS_PC_VERSION ${WLROOTS_VERSION})
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/waylib-wlroots.pc.in
+               ${CMAKE_CURRENT_BINARY_DIR}/waylib-wlroots.pc @ONLY)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/waylib-wlroots.pc
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
 
 # ---------------------------------------------------------------------------
 # Export version / feature vars for qwlroots (lowercase true/false)

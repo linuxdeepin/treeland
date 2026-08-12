@@ -14,7 +14,7 @@ class WAYLIB_SERVER_EXPORT WXdgSurface : public WToplevelSurface
     QML_UNCREATABLE("Cannot create WaylandXdgSurface from QML")
 
 protected:
-    explicit WXdgSurface(WToplevelSurfacePrivate &d, QObject *parent = nullptr);
+    explicit WXdgSurface(WToplevelSurfacePrivate &d);
     ~WXdgSurface();
 
 public:

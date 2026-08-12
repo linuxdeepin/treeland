@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Yixue Wang <wangyixue@deepin.org>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
@@ -6,8 +6,6 @@
 #include "wglobal.h"
 #include "wserver.h"
 #include "wtextinput_p.h"
-
-#include <qwglobal.h>
 
 #include <QObject>
 #include <QRect>

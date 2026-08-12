@@ -6,14 +6,15 @@
 #include "helper.h"
 #include "common/treelandlogging.h"
 
-#include <qwdisplay.h>
-#include <qwinputdevice.h>
-#include <qwseat.h>
-
 #include <wbackend.h>
 #include <winputdevice.h>
 
 #include <wayland-server-core.h>
+
+#ifndef WL_DISPLAY_ERROR_NO_OBJECT
+// wl_display.error no_object — added in wayland-server 1.23
+#define WL_DISPLAY_ERROR_NO_OBJECT 4
+#endif
 
 static QList<MouseSettingsInterfaceV1 *> s_mouseSettings;
 static QList<TouchpadSettingsInterfaceV1 *> s_touchpadSettings;
@@ -53,7 +54,12 @@ void TreelandInputManagerInterfaceV1Private::destroy(Resource *resource)
 void TreelandInputManagerInterfaceV1Private::bind_resource(Resource *resource)
 {
     TreelandInputManagerInterfaceV1::DeviceTypes types = q->inputDeviceListTypes();
-    struct wlr_seat_client *seatClient = Helper::instance()->seat()->handle()->client_for_wl_client(resource->client());
+    struct wlr_seat_client *seatClient = wlr_seat_client_for_wl_client(Helper::instance()->seat()->handle(), resource->client());
+    if (!seatClient) {
+        wl_resource_post_error(resource->handle, WL_DISPLAY_ERROR_NO_OBJECT,
+                               "client is not bound to the default seat");
+        return;
+    }
     struct wl_resource *clientResource;
     wl_resource_for_each(clientResource, &seatClient->resources) {
         send_capability_available(resource->handle, types.toInt(), clientResource);
@@ -172,7 +178,9 @@ void TreelandInputManagerInterfaceV1::sendCapabilityAvailable(TreelandInputManag
 {
     for (const auto &resource : d->resourceMap()) {
         struct wlr_seat_client *seatClient =
-            Helper::instance()->seat()->handle()->client_for_wl_client(resource->client());
+            wlr_seat_client_for_wl_client(Helper::instance()->seat()->handle(), resource->client());
+        if (!seatClient)
+            continue;
         struct wl_resource *clientResource;
         wl_resource_for_each(clientResource, &seatClient->resources) {
             d->send_capability_available(resource->handle, types.toInt(), clientResource);
@@ -184,7 +192,9 @@ void TreelandInputManagerInterfaceV1::sendCapabilityUnavailable(TreelandInputMan
 {
     for (const auto &resource : d->resourceMap()) {
         struct wlr_seat_client *seatClient =
-            Helper::instance()->seat()->handle()->client_for_wl_client(resource->client());
+            wlr_seat_client_for_wl_client(Helper::instance()->seat()->handle(), resource->client());
+        if (!seatClient)
+            continue;
         struct wl_resource *clientResource;
         wl_resource_for_each(clientResource, &seatClient->resources) {
             d->send_capability_unavailable(resource->handle, types.toInt(), clientResource);
@@ -196,7 +206,7 @@ TreelandInputManagerInterfaceV1::~TreelandInputManagerInterfaceV1() = default;
 
 void TreelandInputManagerInterfaceV1::create(WServer *server)
 {
-    d->init(server->handle()->handle(), InterfaceVersion);
+    d->init(server->handle(), InterfaceVersion);
 }
 
 void TreelandInputManagerInterfaceV1::destroy([[maybe_unused]] WServer *server)
@@ -222,7 +232,7 @@ TreelandInputManagerInterfaceV1::DeviceTypes TreelandInputManagerInterfaceV1::in
 
 TreelandInputManagerInterfaceV1::DeviceTypes TreelandInputManagerInterfaceV1::inputDeviceType(WInputDevice *input) const
 {
-    if (!input->handle()->is_libinput()) {
+    if (!wlr_input_device_is_libinput(input->handle())) {
         return TreelandInputManagerInterfaceV1::DeviceType::Unknown;
     }
 
@@ -232,7 +242,7 @@ TreelandInputManagerInterfaceV1::DeviceTypes TreelandInputManagerInterfaceV1::in
 
     TreelandInputManagerInterfaceV1::DeviceTypes types;
     struct udev_device *device =
-        libinput_device_get_udev_device(wlr_libinput_get_device_handle(input->handle()->handle()));
+        libinput_device_get_udev_device(wlr_libinput_get_device_handle(input->handle()));
     if (udev_device_get_property_value(device, "ID_INPUT_MOUSE")) {
         types |= TreelandInputManagerInterfaceV1::DeviceType::Mouse;
     }
@@ -266,7 +276,9 @@ void TreelandInputManagerInterfaceV1::onInputAdded(WInputDevice *input)
     if (!types.testAnyFlags(type)) {
         for (const auto &resource : d->resourceMap()) {
             struct wlr_seat_client *seatClient =
-                Helper::instance()->seat()->handle()->client_for_wl_client(resource->client());
+                wlr_seat_client_for_wl_client(Helper::instance()->seat()->handle(), resource->client());
+            if (!seatClient)
+                continue;
             struct wl_resource *clientResource;
             wl_resource_for_each(clientResource, &seatClient->resources) {
                 d->send_capability_available(resource->handle, type.toInt(), clientResource);
@@ -291,7 +303,9 @@ void TreelandInputManagerInterfaceV1::onInputRemoved(WInputDevice *input)
     if (!types.testAnyFlags(type)) {
         for (const auto &resource : d->resourceMap()) {
             struct wlr_seat_client *seatClient =
-                Helper::instance()->seat()->handle()->client_for_wl_client(resource->client());
+                wlr_seat_client_for_wl_client(Helper::instance()->seat()->handle(), resource->client());
+            if (!seatClient)
+                continue;
             struct wl_resource *clientResource;
             wl_resource_for_each(clientResource, &seatClient->resources) {
                 d->send_capability_unavailable(resource->handle, type.toInt(), clientResource);
@@ -634,7 +648,7 @@ WSeat *PointerDeviceConfigurationV1::wSeat() const
     struct wlr_seat_client *seat_client =
         wlr_seat_client_from_resource(seat());
     Q_ASSERT_X(seat_client, __func__, "PointerDeviceConfigurationV1 get wlr_seat_client failed.");
-    return WSeat::fromHandle(qw_seat::from(seat_client->seat));
+    return WSeat::fromHandle(seat_client->seat);
 }
 
 class MouseSettingsInterfaceV1Private : public QtWaylandServer::treeland_mouse_settings_v1
@@ -727,7 +741,7 @@ WSeat *MouseSettingsInterfaceV1::wSeat() const
     struct wlr_seat_client *seat_client =
         wlr_seat_client_from_resource(seat());
     Q_ASSERT_X(seat_client, __func__, "MouseSettingsInterfaceV1 get wlr_seat_client failed.");
-    return WSeat::fromHandle(qw_seat::from(seat_client->seat));
+    return WSeat::fromHandle(seat_client->seat);
 }
 
 class TouchpadSettingsInterfaceV1Private : public QtWaylandServer::treeland_touchpad_settings_v1
@@ -820,7 +834,7 @@ WSeat *TouchpadSettingsInterfaceV1::wSeat() const
     struct wlr_seat_client *seat_client =
         wlr_seat_client_from_resource(seat());
     Q_ASSERT_X(seat_client, __func__, "TouchpadSettingsInterfaceV1 get wlr_seat_client failed.");
-    return WSeat::fromHandle(qw_seat::from(seat_client->seat));
+    return WSeat::fromHandle(seat_client->seat);
 }
 
 class KeyboardSettingsInterfaceV1Private : public QtWaylandServer::treeland_keyboard_settings_v1
@@ -978,5 +992,5 @@ WSeat *KeyboardSettingsInterfaceV1::wSeat() const
     struct wlr_seat_client *seat_client =
         wlr_seat_client_from_resource(seat());
     Q_ASSERT_X(seat_client, __func__, "KeyboardSettingsInterfaceV1 get wlr_seat_client failed.");
-    return WSeat::fromHandle(qw_seat::from(seat_client->seat));
+    return WSeat::fromHandle(seat_client->seat);
 }

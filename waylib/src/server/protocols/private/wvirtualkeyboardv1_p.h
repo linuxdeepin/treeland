@@ -1,14 +1,12 @@
-// Copyright (C) 2023 Yixue Wang <wangyixue@deepin.org>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
 
+#include <wlr_fwd.h>
 #include <wglobal.h>
 #include <wserver.h>
 
-#include <qwglobal.h>
-
-struct wlr_virtual_keyboard_v1;
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WVirtualKeyboardManagerV1Private;
 class WAYLIB_SERVER_EXPORT WVirtualKeyboardManagerV1 : public QObject, public WObject, public WServerInterface
@@ -19,6 +17,7 @@ public:
     explicit WVirtualKeyboardManagerV1(QObject *parent = nullptr);
 
     QByteArrayView interfaceName() const override;
+    wlr_virtual_keyboard_manager_v1 *handle() const;
 
 Q_SIGNALS:
     void newVirtualKeyboard(wlr_virtual_keyboard_v1 *virtualKeyboard);

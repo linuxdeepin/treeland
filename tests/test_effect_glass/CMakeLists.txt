@@ -70,7 +70,7 @@ target_link_libraries(test_effect_glass
         Qt::Quick
         Qt::QuickControls2
         Qt::Test
-        waylibserver
+        Waylib::WaylibServer
         PkgConfig::PIXMAN
         PkgConfig::WAYLAND
 )

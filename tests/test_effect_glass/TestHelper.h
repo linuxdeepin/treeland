@@ -19,14 +19,11 @@ class WSeat;
 class WBackend;
 WAYLIB_SERVER_END_NAMESPACE
 
-QW_BEGIN_NAMESPACE
-class qw_renderer;
-class qw_allocator;
-class qw_compositor;
-QW_END_NAMESPACE
+struct wlr_renderer;
+struct wlr_allocator;
+struct wlr_compositor;
 
 WAYLIB_SERVER_USE_NAMESPACE
-QW_USE_NAMESPACE
 
 /// Sets up a minimal wayland server with a headless wlroots backend so the
 /// test gets a real OpenGL context via Mesa llvmpipe — no display required.
@@ -47,9 +44,9 @@ private:
     WServer *m_server = nullptr;
     WQmlCreator *m_outputCreator = nullptr;
     WBackend *m_backend = nullptr;
-    qw_renderer *m_renderer = nullptr;
-    qw_allocator *m_allocator = nullptr;
-    qw_compositor *m_compositor = nullptr;
+    wlr_renderer *m_renderer = nullptr;
+    wlr_allocator *m_allocator = nullptr;
+    wlr_compositor *m_compositor = nullptr;
     WQuickOutputLayout *m_outputLayout = nullptr;
     WCursor *m_cursor = nullptr;
     QPointer<WSeat> m_seat;

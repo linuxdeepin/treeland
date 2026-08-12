@@ -13,20 +13,8 @@
 #include <woutputrenderwindow.h>
 #include <woutputviewport.h>
 
-#include <qwbackend.h>
-#include <qwdisplay.h>
-#include <qwoutput.h>
-#include <qwcompositor.h>
-#include <qwsubcompositor.h>
-#include <qwrenderer.h>
-#include <qwallocator.h>
+#include <wlr_all.h>
 
-
-extern "C" {
-#define static
-#include <wlr/render/pixman.h>
-#undef static
-}
 TestHelper::TestHelper(QObject *parent)
     : QObject(parent)
     , m_server(new WServer(this))
@@ -68,33 +56,39 @@ void TestHelper::initProtocols(WOutputRenderWindow *window, QQmlEngine *qmlEngin
         m_seat->detachInputDevice(device);
     });
 
-    m_allocator = qw_allocator::autocreate(*m_backend->handle(), *m_renderer);
-    m_renderer->init_wl_display(*m_server->handle());
+    m_allocator = wlr_allocator_autocreate(m_backend->handle(), m_renderer);
+    wlr_renderer_init_wl_display(m_renderer, m_server->handle());
 
-    m_compositor = qw_compositor::create(*m_server->handle(), 6, *m_renderer);
-    qw_subcompositor::create(*m_server->handle());
+    m_compositor = wlr_compositor_create(m_server->handle(), 6, m_renderer);
+    wlr_subcompositor_create(m_server->handle());
 
     connect(window, &WOutputRenderWindow::outputViewportInitialized, this, [](WOutputViewport *viewport) {
-        auto qwoutput = viewport->output()->handle();
-        if (!qwoutput->property("_Enabled").toBool()) {
-            qwoutput->setProperty("_Enabled", true);
-            qw_output_state newState;
-            if (!qwoutput->handle()->current_mode) {
-                auto mode = qwoutput->preferred_mode();
+        auto *output = viewport->output();
+        // Keep the "already enabled" marker on the WOutput object itself:
+        // it is released with the output, so a recycled wlr_output address
+        // is never mistaken for an already-enabled output.
+        if (!output->property("_Enabled").toBool()) {
+            output->setProperty("_Enabled", true);
+            auto *wlrOutput = output->handle();
+            wlr_output_state newState;
+            wlr_output_state_init(&newState);
+            if (!wlrOutput->current_mode) {
+                auto mode = wlr_output_preferred_mode(wlrOutput);
                 if (mode)
-                    newState.set_mode(mode);
+                    wlr_output_state_set_mode(&newState, mode);
             }
-            newState.set_enabled(true);
-            if (!qwoutput->commit_state(newState))
-                qCritical("commit failed on output %s", qwoutput->handle()->name);
+            wlr_output_state_set_enabled(&newState, true);
+            if (!wlr_output_commit_state(wlrOutput, &newState))
+                qCritical("commit failed on output %s", wlrOutput->name);
+            wlr_output_state_finish(&newState);
         }
     });
 
     window->init(m_renderer, m_allocator);
-    m_backend->handle()->start();
+    wlr_backend_start(m_backend->handle());
 }
 
 bool TestHelper::usesSoftwareRenderer() const
 {
-    return m_renderer && wlr_renderer_is_pixman(m_renderer->handle());
+    return m_renderer && wlr_renderer_is_pixman(m_renderer);
 }

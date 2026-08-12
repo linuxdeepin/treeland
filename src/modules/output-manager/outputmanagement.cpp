@@ -9,8 +9,6 @@
 #include "helper.h"
 #include "output.h"
 
-#include <qwdisplay.h>
-
 #include <WOutput>
 
 WAYLIB_SERVER_USE_NAMESPACE
@@ -198,7 +196,7 @@ void OutputManagerV1Private::get_color_control(Resource *resource,
                                "Invalid output resource");
         return;
     }
-    auto *o = Helper::instance()->getOutput(WOutput::fromHandle(qw_output::from(wlr_output)));
+    auto *o = Helper::instance()->getOutput(WOutput::fromHandle(wlr_output));
     if (!o) {
         wl_resource_post_error(resource->handle,
                                WL_DISPLAY_ERROR_INVALID_OBJECT,
@@ -231,7 +229,7 @@ OutputManagerV1::~OutputManagerV1()
 
 void OutputManagerV1::create(WServer *server)
 {
-    d->init(server->handle()->handle(), InterfaceVersion);
+    d->init(server->handle(), InterfaceVersion);
 }
 
 void OutputManagerV1::destroy([[maybe_unused]] WServer *server)

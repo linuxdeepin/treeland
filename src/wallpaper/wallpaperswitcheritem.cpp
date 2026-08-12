@@ -143,7 +143,7 @@ void WallpaperSwitcherItem::handleWallpaperUpdate()
     if (!m_output || !m_currentSlot)
         return;
 
-    auto config = Helper::instance()->m_wallpaperManager->getOutputConfig(m_output->nativeHandle());
+    auto config = Helper::instance()->m_wallpaperManager->getOutputConfig(m_output->handle());
     QString newSource;
 
     if (m_workspace) {

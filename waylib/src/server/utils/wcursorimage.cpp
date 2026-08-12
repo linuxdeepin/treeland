@@ -5,7 +5,7 @@
 #include "wcursor.h"
 #include "wayliblogging.h"
 
-#include <qwxcursormanager.h>
+#include <wlr_all.h>
 
 #include <QDebug>
 #include <QTimer>
@@ -13,7 +13,6 @@
 
 #include <memory>
 
-QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 // This function copy form kwin 6.1.19 `src/cursor.cpp`
@@ -314,19 +313,19 @@ static QList<QByteArray> alternativesCursorShape(const QByteArray &name)
     return QList<QByteArray>();
 }
 
-static inline wlr_xcursor *getXCursorWithFallback(qw_xcursor_manager *xcursor_manager, const char *name, float scale)
+static inline wlr_xcursor *getXCursorWithFallback(wlr_xcursor_manager *xcursor_manager, const char *name, float scale)
 {
     if (!xcursor_manager)
         return nullptr;
 
-    if (wlr_xcursor *cursor = xcursor_manager->get_xcursor(name, scale)) {
+    if (wlr_xcursor *cursor = wlr_xcursor_manager_get_xcursor(xcursor_manager, name, scale)) {
         return cursor;
     }
 
     const auto alterNameList = alternativesCursorShape(name);
 
     for (const auto &alterName : alterNameList) {
-        if (auto cursor = xcursor_manager->get_xcursor(alterName, scale))
+        if (auto cursor = wlr_xcursor_manager_get_xcursor(xcursor_manager, alterName, scale))
             return cursor;
     }
 
@@ -501,7 +500,7 @@ public:
     QPoint hotSpot;
 
     QCursor cursor;
-    std::shared_ptr<qw_xcursor_manager> manager;
+    std::shared_ptr<wlr_xcursor_manager> manager;
     float scale = 1.0;
 
     wlr_xcursor *xcursor = nullptr;
@@ -639,15 +638,15 @@ void WCursorImage::setScale(float newScale)
         return;
     d->scale = newScale;
     if (d->manager)
-        d->manager->load(d->scale);
+        wlr_xcursor_manager_load(d->manager.get(), d->scale);
 
     d->updateCursorImage();
     Q_EMIT scaleChanged();
 }
 
-static inline bool matchCursorTheme(const qw_xcursor_manager *manager,
+static inline bool matchCursorTheme(const wlr_xcursor_manager *manager,
                                     const QByteArray &name, uint32_t size) {
-    return manager && manager->handle()->name == name && manager->handle()->size == size;
+    return manager && manager->name == name && manager->size == size;
 }
 
 void WCursorImage::setCursorTheme(const QByteArray &name, uint32_t size)
@@ -669,9 +668,11 @@ void WCursorImage::setCursorTheme(const QByteArray &name, uint32_t size)
         }
     }
     if (!d->manager)
-        d->manager.reset(qw_xcursor_manager::create(name.constData(), size));
+        d->manager = std::shared_ptr<wlr_xcursor_manager>(
+            wlr_xcursor_manager_create(name.constData(), size),
+            wlr_xcursor_manager_destroy);
 
-    bool theme_loaded = d->manager->load(d->scale);
+    bool theme_loaded = wlr_xcursor_manager_load(d->manager.get(), d->scale);
     if (!theme_loaded)
         qCCritical(lcWlCursorImage) << "Can't load cursor theme:" << name << ", size:" << size;
 

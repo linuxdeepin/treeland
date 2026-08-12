@@ -1,4 +1,4 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
@@ -7,11 +7,9 @@
 
 #include <wglobal.h>
 #include <wsurface.h>
-#include <wwrappointer.h>
-
-#include <qwbuffer.h>
 
 #include <QObject>
+#include <QPointer>
 
 Q_MOC_INCLUDE(<wsurface.h>)
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -43,7 +41,7 @@ public:
     bool withCursor{ false };
     bool freeze{ false };
     uint32_t sourceHint{ 0 };
-    WWrapPointer<WAYLIB_SERVER_NAMESPACE::WSurface> mask{ nullptr };
+    QPointer<WAYLIB_SERVER_NAMESPACE::WSurface> mask{ nullptr };
     // mask should be created so there must exist a wsurface
 
     void sendSourceFailed(uint32_t reason);
@@ -75,7 +73,7 @@ public:
     void sendFailed();
 
 Q_SIGNALS:
-    void copy(QW_NAMESPACE::qw_buffer *buffer);
+    void copy(wlr_buffer *buffer);
     void beforeDestroy();
 };
 

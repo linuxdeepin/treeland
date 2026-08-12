@@ -1,16 +1,11 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: MIT
 
 #include "wsecuritycontextmanager.h"
+#include <wcontainerof.h>
 #include "wsocket.h"
 #include "private/wglobal_p.h"
 #include "security-context-v1-protocol.h"
-
-#include <qwdisplay.h>
-
-extern "C" {
-#include <wlr/util/log.h>
-}
 
 #include <assert.h>
 #include <stdlib.h>
@@ -192,7 +187,7 @@ static void security_context_client_destroy(
 static void security_context_client_handle_destroy(struct wl_listener *listener,
                                                    void *data) {
     struct wlr_security_context_v1_client *security_context_client =
-        wl_container_of(listener, security_context_client, destroy);
+        W_CONTAINER_OF(listener, wlr_security_context_v1_client, destroy);
     security_context_client_destroy(security_context_client);
 }
 
@@ -472,7 +467,7 @@ static void manager_bind(struct wl_client *client, void *data,
 
 static void handle_display_destroy(struct wl_listener *listener, void *data) {
     struct wlr_security_context_manager_v1 *manager =
-        wl_container_of(listener, manager, display_destroy);
+        W_CONTAINER_OF(listener, wlr_security_context_manager_v1, display_destroy);
     wl_signal_emit_mutable(&manager->events.destroy, manager);
 
     assert(wl_list_empty(&manager->events.destroy.listener_list));
@@ -524,7 +519,7 @@ const struct wlr_security_context_v1_state *wlr_security_context_manager_v1_look
     }
 
     struct wlr_security_context_v1_client *security_context_client =
-        wl_container_of(listener, security_context_client, destroy);
+        W_CONTAINER_OF(listener, wlr_security_context_v1_client, destroy);
     return &security_context_client->state;
 }
 // End copy from wlroots
@@ -564,7 +559,7 @@ WSecurityContextManager::WSecurityContextManager()
 
 void WSecurityContextManager::create(WServer *server)
 {
-    m_handle = wlr_security_context_manager_v1_create(*server->handle());
+    m_handle = wlr_security_context_manager_v1_create(server->handle());
 }
 
 wl_global *WSecurityContextManager::global() const

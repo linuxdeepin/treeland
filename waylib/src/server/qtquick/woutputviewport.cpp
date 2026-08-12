@@ -7,13 +7,11 @@
 #include "wsgtextureprovider.h"
 #include "wbufferrenderer_p.h"
 
-#include <qwbuffer.h>
-#include <qwswapchain.h>
+#include <wlr_all.h>
 
 #include <QDebug>
 #include <private/qquickitem_p.h>
 
-QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 void WOutputViewportPrivate::init()
@@ -42,7 +40,7 @@ void WOutputViewportPrivate::initForOutput()
         attached = true;
     }
 
-    output->safeConnect(&WOutput::modeChanged, q, [this] {
+    QObject::connect(output, &WOutput::modeChanged, q, [this] {
         updateImplicitSize();
     });
 

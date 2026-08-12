@@ -175,7 +175,7 @@
 
           devShells.default = pkgs.mkShell {
             packages = with pkgs; [
-              # For submodule waylib and qwlroots
+              # For submodule waylib and vendored wlroots
               wayland
               wayland-protocols
               wlr-protocols
@@ -183,7 +183,6 @@
               xorg.libXdmcp
               xorg.xcbutilerrors
               seatd
-              wlroots_0_19
               mesa
               libdrm
               vulkan-loader

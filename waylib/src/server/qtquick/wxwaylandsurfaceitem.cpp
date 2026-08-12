@@ -1,4 +1,4 @@
-// Copyright (C) 2023-2024 JiDe Zhang <zhangjide@deepin.org>.
+// Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wxwaylandsurfaceitem.h"
@@ -6,7 +6,6 @@
 #include "wxwaylandsurface.h"
 #include "wxwayland.h"
 
-QW_USE_NAMESPACE
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class Q_DECL_HIDDEN WXWaylandSurfaceItemPrivate : public WSurfaceItemPrivate
@@ -91,7 +90,7 @@ bool WXWaylandSurfaceItem::setShellSurface(WToplevelSurface *surface)
 
     if (surface) {
         Q_ASSERT(surface->surface());
-        surface->safeConnect(&WXWaylandSurface::surfaceChanged, this, [this] {
+        QObject::connect(surface, &WXWaylandSurface::surfaceChanged, this, [this] {
             WSurfaceItem::setSurface(xwaylandSurface()->surface());
         });
 
@@ -108,13 +107,13 @@ bool WXWaylandSurfaceItem::setShellSurface(WToplevelSurface *surface)
                 resize(rm);
             }
         };
-        xwaylandSurface()->safeConnect(&WXWaylandSurface::requestConfigure, this, [this] {
+        QObject::connect(xwaylandSurface(), &WXWaylandSurface::requestConfigure, this, [this] {
             if (xwaylandSurface()->requestConfigureFlags().testAnyFlags(
                     WXWaylandSurface::ConfigureFlag::XCB_CONFIG_WINDOW_POSITION)) {
                 Q_EMIT implicitPositionChanged();
             }
         });
-        xwaylandSurface()->safeConnect(&WXWaylandSurface::geometryChanged, this, updateGeometry);
+        QObject::connect(xwaylandSurface(), &WXWaylandSurface::geometryChanged, this, updateGeometry);
         connect(this, &WXWaylandSurfaceItem::topPaddingChanged,
                this, &WXWaylandSurfaceItem::updatePosition, Qt::UniqueConnection);
         connect(this, &WXWaylandSurfaceItem::leftPaddingChanged,
@@ -185,7 +184,6 @@ QPointF WXWaylandSurfaceItem::implicitPosition() const
     return QPointF(epos) / ssr - QPointF(leftPadding(), topPadding());
 }
 
-
 void WXWaylandSurfaceItem::onSurfaceCommit()
 {
     Q_D(WXWaylandSurfaceItem);
@@ -214,7 +212,7 @@ void WXWaylandSurfaceItem::initSurface()
 {
     WSurfaceItem::initSurface();
     Q_ASSERT(xwaylandSurface());
-    connect(xwaylandSurface(), &WWrapObject::aboutToBeInvalidated,
+    connect(xwaylandSurface(), &WToplevelSurface::beforeDestroy,
             this, &WXWaylandSurfaceItem::releaseResources);
 }
 

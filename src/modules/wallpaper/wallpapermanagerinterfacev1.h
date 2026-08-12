@@ -11,7 +11,6 @@
 #include <QObject>
 
 WAYLIB_SERVER_USE_NAMESPACE
-QW_USE_NAMESPACE
 
 class TreelandWallpaperInterfaceV1;
 class TreelandWallpaperManagerInterfaceV1Private;

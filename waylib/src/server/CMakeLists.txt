@@ -25,26 +25,36 @@ find_package(PkgConfig REQUIRED)
 pkg_search_module(LIBDRM REQUIRED IMPORTED_TARGET libdrm)
 set(WAYLIB_WLROOTS_INCLUDE_DIRS "")
 set(WAYLIB_WLROOTS_PUBLIC_TARGET "")
-if (QWLROOTS_USE_VENDORED_WLROOTS)
-    if (NOT TARGET Wlroots::wlroots)
-        find_library(WAYLIB_WLROOTS_LIBRARY REQUIRED NAMES waylib-wlroots)
-        add_library(Wlroots::wlroots SHARED IMPORTED)
-        set_target_properties(Wlroots::wlroots PROPERTIES IMPORTED_LOCATION "${WAYLIB_WLROOTS_LIBRARY}")
-    endif()
-    set(WLROOTS_TARGET Wlroots::wlroots)
+if (NOT TARGET Wlroots::wlroots)
+    # Standalone Waylib build against an installed waylib-wlroots (built by
+    # the wlroots CMake scaffold, which also installs its headers and
+    # waylib-wlroots.pc). Resolve the library, its public dependencies and
+    # the wconfig.h version/feature metadata from that pkg-config file, so
+    # no monorepo layout is assumed.
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(WLR_INSTALLED REQUIRED IMPORTED_TARGET waylib-wlroots)
+    add_library(Wlroots::wlroots ALIAS PkgConfig::WLR_INSTALLED)
+    set(WAYLIB_WLROOTS_PUBLIC_TARGET PkgConfig::WLR_INSTALLED)
+    foreach(_dir IN LISTS WLR_INSTALLED_INCLUDE_DIRS)
+        list(APPEND WAYLIB_WLROOTS_INCLUDE_DIRS "$<BUILD_INTERFACE:${_dir}>")
+    endforeach()
+    pkg_get_variable(WLROOTS_VERSION waylib-wlroots wlroots_version)
+    pkg_get_variable(WLR_VERSION_MAJOR waylib-wlroots wlroots_version_major)
+    pkg_get_variable(WLR_VERSION_MINOR waylib-wlroots wlroots_version_minor)
+    pkg_get_variable(WLR_VERSION_PATCH waylib-wlroots wlroots_version_patch)
+    pkg_get_variable(_waylib_wlroots_features waylib-wlroots wlroots_features)
+    foreach(_feature IN LISTS _waylib_wlroots_features)
+        set(WLR_HAVE_${_feature} 1)
+    endforeach()
+else()
     set(WAYLIB_WLROOTS_PUBLIC_TARGET Wlroots::wlroots)
-    set(_waylib_wlroots_include "${CMAKE_SOURCE_DIR}/../3rdparty/wlroots/include")
+    set(_waylib_wlroots_include "${CMAKE_CURRENT_SOURCE_DIR}/../../../3rdparty/wlroots/include")
     if (NOT EXISTS "${_waylib_wlroots_include}/wlr")
-        message(FATAL_ERROR "QWlroots uses vendored wlroots, but headers were not found at ${_waylib_wlroots_include}")
+        message(FATAL_ERROR "waylib uses vendored wlroots, but headers were not found at ${_waylib_wlroots_include}")
     endif()
     list(APPEND WAYLIB_WLROOTS_INCLUDE_DIRS "$<BUILD_INTERFACE:${_waylib_wlroots_include}>")
-elseif(TARGET Wlroots::wlroots)
-    # Headers/link come via QWlroots::QWlroots public interface.
-    set(WLROOTS_TARGET "")
-else()
-    pkg_search_module(WLROOTS REQUIRED IMPORTED_TARGET wlroots-0.19)
-    set(WLROOTS_TARGET PkgConfig::WLROOTS)
 endif()
+set(WLROOTS_TARGET Wlroots::wlroots)
 pkg_search_module(WAYLAND REQUIRED IMPORTED_TARGET wayland-server)
 pkg_search_module(WAYLAND_PROTOCOLS REQUIRED IMPORTED_TARGET wayland-protocols)
 pkg_search_module(WLR_PROTOCOLS REQUIRED wlr-protocols)
@@ -141,6 +151,7 @@ set(SOURCES
     kernel/woutputlayout.cpp
     kernel/wxcursorimage.cpp
     kernel/wglobal.cpp
+    utils/wscoplistener.cpp
     kernel/wsocket.cpp
 
     qtquick/wsurfaceitem.cpp
@@ -230,6 +241,12 @@ set(HEADERS
     wayliblogging.h
 
     kernel/wglobal.h
+    kernel/wlr_all.h
+    kernel/wlr_fwd.h
+    kernel/wpointer.h
+    utils/wscoplistener.h
+    utils/wscopedvalue.h
+    utils/wlogging.h
     kernel/wbackend.h
     kernel/wcursor.h
     kernel/winputdevice.h
@@ -286,8 +303,6 @@ set(HEADERS
     utils/wimagebuffer.h
     utils/wcursorimage.h
     utils/WCursorImage
-    utils/wwrappointer.h
-    utils/WWrapPointer
     utils/wextimagecapturesourcev1impl.h
     utils/wbufferdumper.h
     utils/WBufferDumper
@@ -326,7 +341,6 @@ set(HEADERS
     protocols/wextforeigntoplevellistv1.h
     protocols/wxdgdialogmanagerv1.h
     protocols/ext_foreign_toplevel_image_capture_source_manager_v1.h #TODO: Remove after wlroots 0.20
-    protocols/qwextforeigntoplevelimagecapturesourcemanagerv1.h #TODO: Move to qwlroots after wlroots 0.20
     protocols/wsecuritycontextmanager.h
     protocols/wsessionlockmanager.h
     protocols/WSessionLockManager
@@ -414,26 +428,37 @@ set_target_properties(${TARGET}
         POSITION_INDEPENDENT_CODE ON
 )
 
+# Replace qwlroots' qwconfig.h: forward wlroots feature/version vars
+# exported by the wlroots CMake build.
+if(NOT DEFINED WLROOTS_VERSION)
+    message(FATAL_ERROR "WLROOTS_VERSION not set; wlroots CMake export missing")
+endif()
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/wconfig.h.in ${CMAKE_CURRENT_BINARY_DIR}/wconfig.h @ONLY)
+target_include_directories(${TARGET} PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+target_include_directories(${TARGET} INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
+
+# Public headers (wglobal.h etc.) include Qt types, so the Qt targets must
+# propagate to consumers via the exported Waylib::WaylibServer target.
 target_link_libraries(${TARGET}
+    PUBLIC
+        Qt6::Core
+        Qt6::Gui
+        Qt6::Quick
     PRIVATE
-    Qt6::Core
-    Qt6::Gui
-    Qt6::Quick
-    Qt6::GuiPrivate
-    Qt6::QuickPrivate
-    ${WLROOTS_TARGET}
-    PkgConfig::LIBDRM
-    PkgConfig::WAYLAND
-    PkgConfig::WAYLAND_PROTOCOLS
-    PkgConfig::PIXMAN
-    PkgConfig::XKBCOMMON
-    PkgConfig::XCB
-    PkgConfig::EGL
+        Qt6::GuiPrivate
+        Qt6::QuickPrivate
+        ${WLROOTS_TARGET}
+        PkgConfig::LIBDRM
+        PkgConfig::WAYLAND
+        PkgConfig::WAYLAND_PROTOCOLS
+        PkgConfig::PIXMAN
+        PkgConfig::XKBCOMMON
+        PkgConfig::XCB
+        PkgConfig::EGL
 )
 
 target_link_libraries(${TARGET}
     PUBLIC
-        QWlroots::QWlroots
         ${WAYLIB_WLROOTS_PUBLIC_TARGET}
 )
 
@@ -463,12 +488,6 @@ target_link_directories(${TARGET}
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_LIBDIR}>
 )
 
-if (WAYLIB_USE_PERCOMPILE_HEADERS)
-    target_precompile_headers(${TARGET}
-        PRIVATE
-        "$<$<COMPILE_LANGUAGE:CXX>:pch/pch.hxx>"
-    )
-endif()
 
 install(TARGETS ${TARGET}
     EXPORT
@@ -479,6 +498,20 @@ install(TARGETS ${TARGET}
         COMPONENT Development
         DESTINATION ${WAYLIB_INCLUDE_INSTALL_DIR}
 )
+
+# Generated config header (wconfig.h) is part of the public API surface
+# (included by wglobal.h) and must ship with the installed headers.
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/wconfig.h
+        DESTINATION ${WAYLIB_INCLUDE_INSTALL_DIR}
+)
+
+# Public headers use Q_MOC_INCLUDE/Q_PRIVATE_SLOT referencing kernel
+# private headers (e.g. wserver.h -> private/wserver_p.h), and Treeland
+# consumes kernel private API (e.g. WToplevelSurfacePrivate); install the
+# whole private directory so installed consumers can compile and moc.
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/kernel/private
+        DESTINATION ${WAYLIB_INCLUDE_INSTALL_DIR}
+        FILES_MATCHING PATTERN "*.h")
 
 # Install QML module generated targets separately to avoid dependency issues
 # This works around the Qt CMake QML module export issue
@@ -501,7 +534,7 @@ configure_package_config_file(
 
 write_basic_package_version_file(
     "${CMAKE_CURRENT_BINARY_DIR}/WaylibServerConfigVersion.cmake"
-    VERSION ${DTK_VERSION}
+    VERSION ${PROJECT_VERSION}
     COMPATIBILITY SameMinorVersion
 )
 
@@ -520,5 +553,5 @@ install(
 
 include(${PROJECT_SOURCE_DIR}/cmake/Helpers.cmake)
 add_pkgconfig_module(${TARGET} ${TARGET} ${WAYLIB_INCLUDE_INSTALL_DIR}
-    "qwlroots, Qt6Gui, Qt6Quick"
+    "waylib-wlroots, Qt6Gui, Qt6Quick"
 )
