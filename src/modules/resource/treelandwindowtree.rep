@@ -6,6 +6,7 @@
 #include <QtCore/QPointF>
 
 POD WindowInfo(
+    qint64 id,
     QString appId,
     QString title,
     QString output,
@@ -42,7 +43,33 @@ POD TreelandInfo(
     QList<LayerInfo> layers
 )
 
+// A connected Wayland client (pid 0 when not available) together with the
+// toplevel windows it owns. Used by the ``treeland-debug top`` / ``clients``
+// commands to present an adb-style overview of the compositor state.
+POD ClientInfo(
+    qint64 id,
+    int pid,
+    QString executable,
+    QList<WindowInfo> windows
+)
+
 class WindowTreeRemote {
     SLOT(TreelandInfo getTreelandInfo());
+    SLOT(QList<WindowInfo> getWindows());
+    SLOT(QList<ClientInfo> getClients());
+    SLOT(bool activateWindow(qint64 id));
+    SLOT(bool closeWindow(qint64 id));
+    SLOT(bool minimizeWindow(qint64 id));
+    SLOT(bool toggleMaximized(qint64 id));
+    SLOT(bool toggleFullscreen(qint64 id));
+    SLOT(bool moveWindow(qint64 id, int x, int y));
+    SLOT(bool resizeWindow(qint64 id, int w, int h));
+    SLOT(bool setWindowWorkspace(qint64 id, int workspaceId));
+    SLOT(bool moveCursor(QPointF pos));
+    SLOT(bool sendPointerButton(int button, bool pressed));
+    SLOT(bool sendKey(int keycode, bool pressed));
+    SLOT(QString captureOutput(QString outputName, QString filePath));
+    SLOT(QString captureWindow(qint64 id, QString filePath));
+    SLOT(QString captureScreen(QString filePath));
     PROP(QPointF cursorPosition READONLY)
 };

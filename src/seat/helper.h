@@ -190,6 +190,7 @@ public:
     void init(Treeland::Treeland *treeland);
 
     RootSurfaceContainer *rootSurfaceContainer() const;
+    WServer *server() const;
     Output *getOutput(WOutput *output) const;
 
     float animationSpeed() const;
