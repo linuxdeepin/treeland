@@ -191,9 +191,10 @@ function(treeland_add_desktop_integration_test)
         ${ARGS_EXTRA_LIBRARIES}
     )
     set_target_properties(${target} PROPERTIES C_STANDARD 11)
+    add_dependencies(${target} lockscreen multitaskview)
     add_test(NAME ${target} COMMAND ${target})
     set_tests_properties(${target} PROPERTIES
-        ENVIRONMENT "WLR_BACKENDS=headless;WLR_RENDERER=pixman"
+        ENVIRONMENT "WLR_BACKENDS=headless;WLR_RENDERER=pixman;TREELAND_TEST_PLUGINS_PATH=${TREELAND_PLUGINS_OUTPUT_PATH}"
         LABELS "protocols"
         TIMEOUT 30
     )

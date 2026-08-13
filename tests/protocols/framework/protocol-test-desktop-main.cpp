@@ -4,13 +4,20 @@
 #include "core/treelandinit.h"
 #include "core/rootsurfacecontainer.h"
 #include "protocol-test-client.h"
+#include "interfaces/lockscreeninterface.h"
+#include "interfaces/multitaskviewinterface.h"
+#include "interfaces/plugininterface.h"
+#include "interfaces/proxyinterface.h"
 #include "seat/helper.h"
 #include "session/session.h"
 #include "treelandconfig.hpp"
+#include "treelanduserconfig.hpp"
 
 #include <QGuiApplication>
 #include <QAbstractItemModel>
+#include <QDir>
 #include <QMetaObject>
+#include <QPluginLoader>
 #include <QSemaphore>
 #include <QTimer>
 #include <wsocket.h>
@@ -19,6 +26,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include <pthread.h>
+#include <memory>
+#include <vector>
 
 void protocol_test_desktop_setup(Helper *helper);
 extern "C" bool protocol_test_desktop_ready(Helper *helper) __attribute__((weak));
@@ -43,6 +52,45 @@ public:
 };
 
 ProtocolTestRunner *g_runner = nullptr;
+
+class TestTreelandProxy final : public TreelandProxyInterface
+{
+public:
+    explicit TestTreelandProxy(Treeland::Treeland *treeland)
+        : m_treeland(treeland)
+    {
+    }
+
+    QmlEngine *qmlEngine() const override { return m_treeland->qmlEngine(); }
+    Workspace *workspace() const override { return m_treeland->workspace(); }
+    RootSurfaceContainer *rootSurfaceContainer() const override
+    {
+        return m_treeland->rootSurfaceContainer();
+    }
+
+private:
+    Treeland::Treeland *m_treeland = nullptr;
+};
+
+void loadTestPlugins(TreelandProxyInterface *proxy, Helper *helper)
+{
+    static std::vector<std::unique_ptr<QPluginLoader>> loaders;
+    const QDir pluginsDir(qEnvironmentVariable("TREELAND_TEST_PLUGINS_PATH"));
+    for (const auto &pluginFile : pluginsDir.entryList(QDir::Files | QDir::NoDotAndDotDot)) {
+        auto loader = std::make_unique<QPluginLoader>(pluginsDir.absoluteFilePath(pluginFile));
+        auto *instance = loader->instance();
+        auto *plugin = qobject_cast<PluginInterface *>(instance);
+        if (!plugin)
+            continue;
+
+        plugin->initialize(proxy);
+        if (auto *multitask = qobject_cast<IMultitaskView *>(instance))
+            helper->setMultitaskViewImpl(multitask);
+        if (auto *lockscreen = qobject_cast<ILockScreen *>(instance))
+            helper->setLockScreenImpl(lockscreen);
+        loaders.push_back(std::move(loader));
+    }
+}
 
 struct ClientThreadContext {
     const char *socketName = nullptr;
@@ -69,8 +117,8 @@ int main(int argc, char *argv[])
     // QML resources use stable qrc URLs, so a stale user disk cache can be
     // reused after rebuilding a plugin and make protocol tests run old QML.
     qputenv("QML_DISABLE_DISK_CACHE", "1");
-    // Desktop protocol tests use the production compositor core and do not
-    // require host-installed UI plugins, which may not match this build.
+    // The fixture loads the CMake-provided build-plugin path after Treeland is
+    // constructed, instead of resolving Release plugins from the install prefix.
     qputenv("TREELAND_TEST_SKIP_PLUGINS", "1");
     if (protocol_test_desktop_preflight && !protocol_test_desktop_preflight()) {
         std::fflush(nullptr);
@@ -86,6 +134,8 @@ int main(int argc, char *argv[])
     auto *helper = Helper::instance();
     if (!helper)
         return 1;
+    TestTreelandProxy testProxy(&treeland);
+    loadTestPlugins(&testProxy, helper);
     protocol_test_desktop_setup(helper);
     if (protocol_test_desktop_skip && protocol_test_desktop_skip()) {
         std::fflush(nullptr);
@@ -136,6 +186,10 @@ int main(int argc, char *argv[])
                      [startClient](const QModelIndex &, int, int) { startClient(); });
     QObject::connect(helper->globalConfig(),
                      &TreelandConfig::configInitializeSucceed,
+                     &app,
+                     [startClient](auto *) { startClient(); });
+    QObject::connect(helper->config(),
+                     &TreelandUserConfig::configInitializeSucceed,
                      &app,
                      [startClient](auto *) { startClient(); });
     startClient();

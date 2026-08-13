@@ -12,7 +12,9 @@
 3. 每个 desktop 测试的 `protocol_test_desktop_setup()` 调用
    `protocol_test_create_headless_output(helper->backend(), false)`。backend 已启动，
    新 output 的生产回调创建 root output/container 条目；主循环确认
-   `rootSurfaceContainer()->outputs()` 非空后，才启动客户端线程。
+   `rootSurfaceContainer()->outputs()` 非空、且 target 的可选
+   `protocol_test_desktop_ready()` 返回 true 后，才启动客户端线程。runner 会在 global
+   或 user DConfig 初始化完成时重新检查该条件。
 4. 客户端使用 `protocol_test_xdg_toplevel_create()`：创建 `wl_surface`、
    `xdg_surface`、`xdg_toplevel`，等待 configure，提交并 map。
 5. 生产 `ShellHandler::surfaceWrapperAdded` 发出时，fixture 保存该

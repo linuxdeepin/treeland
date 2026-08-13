@@ -12,6 +12,11 @@
 
 ## 输入与顺序
 
+测试先等待真实 `TreelandUserConfig` 初始化完成。该生产信号先驱动
+`WallpaperManager::updateWallpaperConfig()`，为现有 output 建立 workspace wallpaper
+配置；随后 desktop runner 才启动 client。这样 `set_image_source(DESKTOP)` 进入
+`WallpaperManager::setOutputWallpaper()` 时必有可更新的 output 配置，而不是依赖任意延时。
+
 客户端只创建一个无 role 的 `wl_surface`，并按以下严格顺序使用它：
 
 1. 绑定实际存在的 `wl_output`、`treeland_wallpaper_manager_v1` 和 version 2 的

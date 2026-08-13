@@ -125,6 +125,14 @@ ready、request 完成或业务结果的判定条件。协议测试自身不能�
 例如 screensaver 的 ext-idle inhibit 用例。若没有可观察的生产 signal/event，应先补出合适的
 可观察边界，而不是加 timeout。
 
+`treeland_add_desktop_integration_test()` 通过 CTest 环境变量
+`TREELAND_TEST_PLUGINS_PATH=${TREELAND_PLUGINS_OUTPUT_PATH}` 将当前 build 的 plugin output
+目录传给 runner，并确保 `lockscreen`、`multitaskview` target 先完成构建。runner 在构造
+`Treeland` 后加载这些生产插件并调用其 `initialize()`，再将已实现的 `IMultitaskView` /
+`ILockScreen` 注册到 `Helper`。测试进程因此不会依赖 Release build 的安装目录；正常合成器
+的插件发现路径不受影响。
+
+
 ## 代码组织
 
 ```text
