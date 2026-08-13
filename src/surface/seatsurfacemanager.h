@@ -64,7 +64,7 @@ public:
     // Popup keyboard grab management
     void givePopupFocus(SurfaceWrapper *popupWrapper);
     void dismissPopups();
-    bool hasPopupGrab() const { return m_hasPopupGrab; }
+    bool hasPopupGrab() const { return m_popupKeyboardGrab != nullptr; }
 
 Q_SIGNALS:
     void activatedSurfaceChanged(SurfaceWrapper *surface);
@@ -72,8 +72,10 @@ Q_SIGNALS:
 
 private:
     void onActivatedSurfaceFocusCapabilityChanged();
-    void onKeyboardGrabBegin();
-    void onKeyboardGrabEnd();
+    void onKeyboardGrabBegin(wlr_seat_keyboard_grab *grab);
+    void onKeyboardGrabEnd(wlr_seat_keyboard_grab *grab);
+    SurfaceWrapper *popupParentFocusTarget(SurfaceWrapper *popup, bool skipPopupParents) const;
+    bool isTrackedPopup(SurfaceWrapper *surface) const;
 
     WSeat *m_seat = nullptr;
     RootSurfaceContainer *m_rootContainer = nullptr;
@@ -85,7 +87,10 @@ private:
     bool m_metaKeyPressed = false;
 
     // Popup grab state
-    bool m_hasPopupGrab = false;
+    wlr_seat_keyboard_grab *m_popupKeyboardGrab = nullptr;
+    QPointer<SurfaceWrapper> m_prePopupFocusSurface;
+    QList<QPointer<SurfaceWrapper>> m_popupFocusStack;
+    quint64 m_popupTransitionSerial = 0;
     QTimer *m_edgeTileDelayTimer = nullptr;
 
     // Equivalent to the old QObject::connect on qw_seat; disconnect in the

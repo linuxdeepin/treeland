@@ -71,12 +71,20 @@ public:
         pendingEvents.reserve(2);
 
         m_repeatTimer.callOnTimeout([&](){
-            if (!focusWindow) {
+            if (!focusWindow || !m_repeatKey) {
+                m_repeatTimer.stop();
+                m_repeatKey.reset();
                 return;
             }
-            auto rawdevice = WInputDevice::from(m_repeatKey->device())->handle();
-            auto wlrKeyboard = rawdevice->type == WLR_INPUT_DEVICE_KEYBOARD
+            auto inputDevice = WInputDevice::from(m_repeatKey->device());
+            auto rawdevice = inputDevice ? inputDevice->handle() : nullptr;
+            auto wlrKeyboard = rawdevice && rawdevice->type == WLR_INPUT_DEVICE_KEYBOARD
                 ? wlr_keyboard_from_input_device(rawdevice) : nullptr;
+            if (!wlrKeyboard || wlrKeyboard->repeat_info.rate <= 0) {
+                m_repeatTimer.stop();
+                m_repeatKey.reset();
+                return;
+            }
             m_repeatTimer.setInterval(1000 / wlrKeyboard->repeat_info.rate);
             auto evPress = QKeyEvent(QEvent::KeyPress, m_repeatKey->key(), m_repeatKey->modifiers(),
                 m_repeatKey->nativeScanCode(), m_repeatKey->nativeVirtualKey(), m_repeatKey->nativeModifiers(),
@@ -307,8 +315,12 @@ public:
 
     // for keyboard event
     inline bool doNotifyKey(WInputDevice *device, uint32_t keycode, uint32_t state, uint32_t timestamp) {
-        q_func()->setKeyboard(device);
+        if (keyboardFocusSurface() && keyboardFilter
+            && keyboardFilter->filterKey(q_func(), device, keycode, state, timestamp)) {
+            return true;
+        }
 
+        q_func()->setKeyboard(device);
         if (!keyboardFocusSurface())
             return false;
 
@@ -318,6 +330,11 @@ public:
     }
     inline bool doNotifyModifiers(WInputDevice *device) {
         auto keyboard = wlr_keyboard_from_input_device(device->handle());
+
+        if (keyboardFocusSurface() && keyboardFilter
+            && keyboardFilter->filterModifiers(q_func(), device, &keyboard->modifiers)) {
+            return true;
+        }
 
         // wlr_seat_set_keyboard() already sends modifiers when the keyboard
         // changes, so skip the explicit send to avoid a duplicate.
@@ -376,6 +393,7 @@ public:
     QVector<WInputDevice*> deviceList;
     QVector<WInputDevice*> touchDeviceList;
     QPointer<WSeatEventFilter> eventFilter;
+    WSeatKeyboardFilter *keyboardFilter = nullptr;
     QPointer<QWindow> focusWindow;
     QPointer<QObject> pointerFocusEventObject;
     QPointer<WSurface> m_keyboardFocusSurface;
@@ -571,6 +589,14 @@ void WSeatPrivate::on_keyboard_key(wlr_keyboard_key_event *event, WInputDevice *
 {
     auto keyboard = wlr_keyboard_from_input_device(device->handle());
 
+    if (focusWindow && keyboardFocusSurface() && keyboardFilter
+        && keyboardFilter->filterKey(q_func(), device, event->keycode, event->state,
+                                     event->time_msec)) {
+        m_repeatTimer.stop();
+        m_repeatKey.reset();
+        return;
+    }
+
     auto code = event->keycode + 8; // map to wl_keyboard::keymap_format::keymap_format_xkb_v1
     auto et = event->state == WL_KEYBOARD_KEY_STATE_PRESSED ? QEvent::KeyPress : QEvent::KeyRelease;
     xkb_keysym_t sym = xkb_state_key_get_one_sym(keyboard->xkb_state, code);
@@ -601,7 +627,8 @@ void WSeatPrivate::on_keyboard_key(wlr_keyboard_key_event *event, WInputDevice *
 
     if (focusWindow) {
         handleKeyEvent(e);
-        if (et == QEvent::KeyPress && xkb_keymap_key_repeats(keyboard->keymap, code)) {
+        if (et == QEvent::KeyPress && keyboard->repeat_info.rate > 0
+            && xkb_keymap_key_repeats(keyboard->keymap, code)) {
             if (m_repeatKey) {
                 m_repeatTimer.stop();
             }
@@ -1126,6 +1153,8 @@ void WSeat::setKeyboardFocusSurface(WSurface *surface)
         setKeyboard(d->groupkeyboardDevice);
     }
 
+    d->m_repeatTimer.stop();
+    d->m_repeatKey.reset();
     d->m_keyboardFocusSurface = surface;
     if (isValid())
         d->doSetKeyboardFocus(surface ? surface->handle() : nullptr);
@@ -1142,12 +1171,18 @@ WSurface *WSeat::keyboardFocusSurface() const
 void WSeat::clearKeyboardFocusSurface()
 {
     W_D(WSeat);
+    d->m_repeatTimer.stop();
+    d->m_repeatKey.reset();
     d->doSetKeyboardFocus(nullptr);
 }
 
 void WSeat::setKeyboardFocusWindow(QWindow *window)
 {
     W_D(WSeat);
+    if (d->focusWindow == window)
+        return;
+    d->m_repeatTimer.stop();
+    d->m_repeatKey.reset();
     d->focusWindow = window;
 }
 
@@ -1160,6 +1195,8 @@ QWindow *WSeat::keyboardFocusWindow() const
 void WSeat::clearKeyboardFocusWindow()
 {
     W_D(WSeat);
+    d->m_repeatTimer.stop();
+    d->m_repeatKey.reset();
     d->focusWindow = nullptr;
 }
 
@@ -1560,6 +1597,19 @@ void WSeat::setEventFilter(WSeatEventFilter *filter)
     d->eventFilter = filter;
 }
 
+WSeatKeyboardFilter *WSeat::keyboardFilter() const
+{
+    W_DC(WSeat);
+    return d->keyboardFilter;
+}
+
+void WSeat::setKeyboardFilter(WSeatKeyboardFilter *filter)
+{
+    W_D(WSeat);
+    Q_ASSERT(!filter || !d->keyboardFilter || d->keyboardFilter == filter);
+    d->keyboardFilter = filter;
+}
+
 void WSeat::create(WServer *server)
 {
     W_D(WSeat);
@@ -1608,6 +1658,7 @@ void WSeat::destroy(WServer *)
         i->setSeat(nullptr);
 
     d->deviceList.clear();
+    d->keyboardFilter = nullptr;
 
     // Need not call the DCursor::detachInputDevice on destroy WSeat, so do
     // call the detachCursor at clear the deviceList after.
