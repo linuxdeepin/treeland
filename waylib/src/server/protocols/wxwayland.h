@@ -7,6 +7,7 @@
 #include <xcb/xcb.h>
 
 #include <WServer>
+#include <wwaylandresource.h>
 
 #include <QByteArray>
 #include <QMap>
@@ -28,7 +29,7 @@ class WSeat;
 class WXWaylandSurface;
 class WXWaylandPrivate;
 
-class WAYLIB_SERVER_EXPORT WXWayland : public QObject, public WObject, public WServerInterface
+class WAYLIB_SERVER_EXPORT WXWayland : public QObject, public WWaylandResource, public WServerInterface
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WXWayland)

@@ -144,6 +144,7 @@ set(SOURCES
     kernel/wserver.cpp
     kernel/wsurface.cpp
     kernel/wtoplevelsurface.cpp
+    kernel/wwaylandresource.cpp
 
 
     kernel/wtypes.cpp
@@ -241,6 +242,7 @@ set(HEADERS
     wayliblogging.h
 
     kernel/wglobal.h
+    kernel/wwaylandresource.h
     kernel/wlr_all.h
     kernel/wlr_fwd.h
     kernel/wpointer.h
@@ -357,6 +359,7 @@ set(PRIVATE_HEADERS
     platformplugin/qwlrootscursor.h
     platformplugin/types.h
     kernel/private/wglobal_p.h
+    kernel/private/wwaylandresource_p.h
     kernel/private/wsurface_p.h
     kernel/private/wprivateaccessor_p.h
     qtquick/private/woutputviewport_p.h

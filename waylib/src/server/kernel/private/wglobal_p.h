@@ -21,9 +21,6 @@ public:
     bool removeListenersInternal(WObject *owner);
 
     virtual ~WObjectPrivate();
-    virtual wl_client *waylandClient() const {
-        return nullptr;
-    }
 
     // Live listener graph; public so unit tests can assert ownership edges
     // without friending WObjectPrivate.

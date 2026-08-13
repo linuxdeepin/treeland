@@ -4,7 +4,7 @@
 #pragma once
 
 #include <wlr_fwd.h>
-#include <wglobal.h>
+#include <wwaylandresource.h>
 #include <wtypes.h>
 
 #include <QObject>
@@ -18,7 +18,7 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 class WServer;
 class WOutput;
 class WSurfacePrivate;
-class WAYLIB_SERVER_EXPORT WSurface : public QObject, public WObject
+class WAYLIB_SERVER_EXPORT WSurface : public QObject, public WWaylandResource
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WSurface)

@@ -4,12 +4,13 @@
 #pragma once
 
 #include <WSurface>
+#include <wwaylandresource.h>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WSeat;
 class WToplevelSurfacePrivate;
-class WAYLIB_SERVER_EXPORT WToplevelSurface : public QObject, public WObject
+class WAYLIB_SERVER_EXPORT WToplevelSurface : public QObject, public WWaylandResource
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WToplevelSurface)

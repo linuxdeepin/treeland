@@ -3,15 +3,15 @@
 #pragma once
 
 #include "wtoplevelsurface.h"
-#include "wglobal_p.h"
+#include "private/wwaylandresource_p.h"
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WAYLIB_SERVER_EXPORT WToplevelSurfacePrivate : public WObjectPrivate
+class WAYLIB_SERVER_EXPORT WToplevelSurfacePrivate : public WWaylandResourcePrivate
 {
 public:
     inline WToplevelSurfacePrivate(WToplevelSurface *q)
-        : WObjectPrivate(q) {}
+        : WWaylandResourcePrivate(q) {}
 };
 
 WAYLIB_SERVER_END_NAMESPACE

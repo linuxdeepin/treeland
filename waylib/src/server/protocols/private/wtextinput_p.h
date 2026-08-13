@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include "wglobal.h"
-#include "private/wglobal_p.h"
+#include "wwaylandresource.h"
+#include "private/wwaylandresource_p.h"
 
 #include <QObject>
 #include <QQmlEngine>
@@ -83,7 +83,7 @@ class WSeat;
 class WSurface;
 class WInputMethodV2;
 class WTextInputPrivate;
-class WAYLIB_SERVER_EXPORT WTextInput : public QObject, public WObject
+class WAYLIB_SERVER_EXPORT WTextInput : public QObject, public WWaylandResource
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WTextInput)
@@ -116,11 +116,11 @@ public Q_SLOTS:
     virtual void handleIMCommitted(WInputMethodV2 *im) = 0;
 };
 
-class Q_DECL_HIDDEN WTextInputPrivate : public WObjectPrivate {
+class Q_DECL_HIDDEN WTextInputPrivate : public WWaylandResourcePrivate {
 public:
     W_DECLARE_PUBLIC(WTextInput)
     explicit WTextInputPrivate(WTextInput *qq)
-        : WObjectPrivate(qq)
+        : WWaylandResourcePrivate(qq)
     {}
 };
 
@@ -130,6 +130,6 @@ WTextInput::WTextInput(QObject *parent)
 
 inline WTextInput::WTextInput(WTextInputPrivate &d, QObject *parent)
     : QObject(parent)
-    , WObject(d)
+    , WWaylandResource(d)
 { }
 WAYLIB_SERVER_END_NAMESPACE

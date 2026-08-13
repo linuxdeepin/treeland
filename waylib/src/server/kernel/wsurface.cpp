@@ -14,7 +14,7 @@
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 WSurfacePrivate::WSurfacePrivate(WSurface *qq, wlr_surface *handle)
-    : WObjectPrivate(qq)
+    : WWaylandResourcePrivate(qq)
 {
     Q_ASSERT(handle);
     handle->data = qq;
@@ -210,7 +210,7 @@ WSurface::WSurface(wlr_surface *handle)
 
 WSurface::WSurface(WSurfacePrivate &dd)
     : QObject(nullptr)
-    , WObject(dd, nullptr)
+    , WWaylandResource(dd, nullptr)
 {
     dd.init();
 }
