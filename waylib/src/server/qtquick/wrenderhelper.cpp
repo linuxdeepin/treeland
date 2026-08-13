@@ -2425,6 +2425,17 @@ void WRenderHelper::abortTextureBarrierBatch(wlr_renderer *renderer)
 #endif
 }
 
+void WRenderHelper::setStageAsyncEnabled(wlr_renderer *renderer, bool enabled)
+{
+#ifdef ENABLE_VULKAN_RENDER
+    if (renderer && wlr_renderer_is_vk(renderer))
+        wlr_vk_renderer_set_stage_async_enabled(renderer, enabled);
+#else
+    Q_UNUSED(renderer);
+    Q_UNUSED(enabled);
+#endif
+}
+
 bool WRenderHelper::prepareTextureForSampling(QQuickRenderControl *rc,
                                               wlr_renderer *renderer,
                                               wlr_texture *texture,

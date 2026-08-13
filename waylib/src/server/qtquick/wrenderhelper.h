@@ -100,6 +100,8 @@ public:
                                          wlr_renderer *renderer,
                                          const char *purpose);
     static void abortTextureBarrierBatch(wlr_renderer *renderer);
+    static void setStageAsyncEnabled(wlr_renderer *renderer,
+                                     bool enabled);
 
     struct TextureEntry {
         wlr_buffer *buffer;
