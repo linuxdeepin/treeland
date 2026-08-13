@@ -665,6 +665,113 @@ static QRhiTextureRenderTarget::Flags rhiRenderTargetFlags(WGlobal::ColorContent
         : QRhiTextureRenderTarget::Flags{};
 }
 
+static std::unique_ptr<QRhiRenderPassDescriptor> newCompatibleRenderPassDescriptor(
+    QRhiTextureRenderTarget *renderTarget, const QByteArray &targetName)
+{
+#if defined(ENABLE_VULKAN_RENDER) && QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+    std::unique_ptr<QRhiRenderPassDescriptor> descriptor(
+        renderTarget->newCompatibleRenderPassDescriptor());
+    if (!descriptor || !renderTarget->rhi()
+        || renderTarget->rhi()->backend() != QRhi::Vulkan) {
+        return descriptor;
+    }
+
+    const auto flags = renderTarget->flags();
+    const bool preserveColor = flags.testFlag(
+        QRhiTextureRenderTarget::PreserveColorContents);
+    const bool preserveDepthStencil = flags.testFlag(
+        QRhiTextureRenderTarget::PreserveDepthStencilContents);
+
+    // Qt's offscreen Vulkan render passes leave subpassDeps empty, and Qt does
+    // not include them in its render-pass compatibility or pipeline-cache
+    // key. Vulkan, however, requires otherwise compatible render passes to
+    // have identical dependencies. Use the same conservative dependency for
+    // every Waylib-managed target with a given attachment topology, regardless
+    // of its load/store flags. Besides keeping reused pipelines compatible,
+    // this makes LOAD operations depend on the preceding attachment writes and
+    // layout transitions instead of Qt's write-only resource transition.
+    VkPipelineStageFlags attachmentStages =
+        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    VkAccessFlags sourceAccess = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    VkAccessFlags destinationAccess = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT
+        | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    const auto &description = renderTarget->description();
+    if (description.depthTexture() || description.depthStencilBuffer()) {
+        attachmentStages |= VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT
+            | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+        sourceAccess |= VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+        destinationAccess |= VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT
+            | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+    }
+
+    auto *vulkanDescriptor = static_cast<QVkRenderPassDescriptor *>(
+        descriptor.get());
+    VkSubpassDependency dependency = {};
+    dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+    dependency.dstSubpass = 0;
+    dependency.srcStageMask = attachmentStages;
+    dependency.dstStageMask = attachmentStages;
+    dependency.srcAccessMask = sourceAccess;
+    dependency.dstAccessMask = destinationAccess;
+    dependency.dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+
+    const auto dependencyMatches = [&dependency] (
+                                       const VkSubpassDependency &candidate) {
+        return candidate.srcSubpass == dependency.srcSubpass
+            && candidate.dstSubpass == dependency.dstSubpass
+            && candidate.srcStageMask == dependency.srcStageMask
+            && candidate.dstStageMask == dependency.dstStageMask
+            && candidate.srcAccessMask == dependency.srcAccessMask
+            && candidate.dstAccessMask == dependency.dstAccessMask
+            && candidate.dependencyFlags == dependency.dependencyFlags;
+    };
+    if (vulkanDescriptor->subpassDeps.size() == 1
+        && dependencyMatches(vulkanDescriptor->subpassDeps[0])) {
+        return descriptor;
+    }
+    if (!vulkanDescriptor->subpassDeps.isEmpty()) {
+        qCWarning(lcWlRenderHelper)
+            << "Cannot normalize Vulkan render-pass dependencies"
+            << "target" << targetName
+            << "existingDependencyCount"
+            << vulkanDescriptor->subpassDeps.size();
+        return {};
+    }
+    vulkanDescriptor->subpassDeps.append(dependency);
+
+    // The descriptor returned above already owns a native VkRenderPass.
+    // Clone it after extending the private Vulkan description so the clone's
+    // native render pass is created with the dependency. Destroying the
+    // temporary descriptor queues its native render pass for QRhi's normal
+    // deferred destruction.
+    std::unique_ptr<QRhiRenderPassDescriptor> synchronizedDescriptor(
+        vulkanDescriptor->newCompatibleRenderPassDescriptor());
+    if (!synchronizedDescriptor) {
+        qCWarning(lcWlRenderHelper)
+            << "Failed to create synchronized Vulkan render pass"
+            << "target" << targetName
+            << "flags" << flags.toInt();
+        return {};
+    }
+
+    if (WVulkanTrace::enabled()) {
+        qCDebug(lcWlRenderHelper).noquote()
+            << QStringLiteral("VKTRACE event=render-pass-dependency target=%1 colorLoad=%2 depthStencilLoad=%3 stages=0x%4 sourceAccess=0x%5 destinationAccess=0x%6")
+                   .arg(QString::fromUtf8(targetName))
+                   .arg(preserveColor)
+                   .arg(preserveDepthStencil)
+                   .arg(quint32(attachmentStages), 0, 16)
+                   .arg(quint32(sourceAccess), 0, 16)
+                   .arg(quint32(destinationAccess), 0, 16);
+    }
+    return synchronizedDescriptor;
+#else
+    Q_UNUSED(targetName);
+    return std::unique_ptr<QRhiRenderPassDescriptor>(
+        renderTarget->newCompatibleRenderPassDescriptor());
+#endif
+}
+
 static bool recreateRhiRenderTarget(BufferData *data, QRhiTextureRenderTarget::Flags flags)
 {
 #if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
@@ -680,11 +787,21 @@ static bool recreateRhiRenderTarget(BufferData *data, QRhiTextureRenderTarget::F
     renderTarget->destroy();
     renderTarget->setFlags(flags);
 
-    auto newRpDesc = renderTarget->newCompatibleRenderPassDescriptor();
+    std::unique_ptr<QRhiRenderPassDescriptor> newRpDesc;
+#if defined(ENABLE_VULKAN_RENDER) && QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+    if (renderTarget->rhi() && renderTarget->rhi()->backend() == QRhi::Vulkan) {
+        newRpDesc = newCompatibleRenderPassDescriptor(
+            renderTarget, renderTarget->name());
+    } else
+#endif
+    {
+        // Keep non-Vulkan backends on QRhi's unmodified render-pass path.
+        newRpDesc.reset(renderTarget->newCompatibleRenderPassDescriptor());
+    }
     if (!newRpDesc)
         return false;
     delete rpDesc;
-    rpDesc = newRpDesc;
+    rpDesc = newRpDesc.release();
     renderTarget->setRenderPassDescriptor(rpDesc);
     return renderTarget->create();
 }
@@ -707,7 +824,23 @@ static bool createRhiRenderTarget(const QRhiColorAttachment &colorAttachment,
     QRhiTextureRenderTargetDescription rtDesc(colorAttachment);
     rtDesc.setDepthStencilBuffer(depthStencil.get());
     std::unique_ptr<QRhiTextureRenderTarget> rt(rhi->newTextureRenderTarget(rtDesc, flags));
-    std::unique_ptr<QRhiRenderPassDescriptor> rp(rt->newCompatibleRenderPassDescriptor());
+    std::unique_ptr<QRhiRenderPassDescriptor> rp;
+#if defined(ENABLE_VULKAN_RENDER) && QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+    if (rhi->backend() == QRhi::Vulkan) {
+        rp = newCompatibleRenderPassDescriptor(
+            rt.get(), QByteArrayLiteral("WaylibTextureRenderTarget"));
+        if (!rp) {
+            qCWarning(lcWlRenderHelper,
+                      "Failed to build Vulkan render pass for QQuickRenderTarget");
+            return false;
+        }
+    } else
+#endif
+    {
+        // Preserve the non-Vulkan render-target path exactly as provided by
+        // QRhi; in particular, do not change GLES2 render-pass behavior.
+        rp.reset(rt->newCompatibleRenderPassDescriptor());
+    }
     rt->setRenderPassDescriptor(rp.get());
 
     if (!rt->create()) {
@@ -749,7 +882,16 @@ static bool createRhiRenderTargetWithDepthTexture(
     std::unique_ptr<QRhiTextureRenderTarget> rt(
         rhi->newTextureRenderTarget(rtDesc, flags));
     std::unique_ptr<QRhiRenderPassDescriptor> rp(
-        rt->newCompatibleRenderPassDescriptor());
+        newCompatibleRenderPassDescriptor(rt.get(), QByteArray(name)));
+    if (!rp) {
+        qCWarning(lcWlRenderHelper)
+            << "Failed to build Vulkan backdrop render pass"
+            << "name" << name
+            << "pixelSize" << pixelSize
+            << "sampleCount" << sampleCount
+            << "flags" << flags.toInt();
+        return false;
+    }
     rt->setRenderPassDescriptor(rp.get());
     rt->setName(QByteArray(name));
     if (!rt->create()) {
