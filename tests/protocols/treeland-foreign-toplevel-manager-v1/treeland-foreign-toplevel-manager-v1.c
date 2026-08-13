@@ -16,6 +16,7 @@
 #include <string.h>
 
 extern void ftm_read_server_state(void *data);
+extern void ftm_render_and_settle(void *data);
 
 struct test_case {
     const char *name;
@@ -225,6 +226,12 @@ static int read_server_state(struct test_ctx *ctx, struct ftm_server_state *stat
     return protocol_test_invoke_server(ftm_read_server_state, state);
 }
 
+static int settle_geometry_animation(struct test_ctx *ctx)
+{
+    (void)ctx;
+    return protocol_test_invoke_server(ftm_render_and_settle, NULL);
+}
+
 static int create_xdg_toplevel(struct test_ctx *ctx)
 {
     if (!protocol_test_xdg_toplevel_create(&ctx->connection, &ctx->xdg_toplevel))
@@ -235,6 +242,7 @@ static int create_xdg_toplevel(struct test_ctx *ctx)
            && ctx->handle
            && ctx->handle_count == 1
            && ctx->handle_identifier
+           && settle_geometry_animation(ctx)
            && read_server_state(ctx, &state)
            && state.wrapper_created
            && state.wrapper_in_workspace;
@@ -354,6 +362,14 @@ static int restore_real_toplevel(struct test_ctx *ctx)
     return read_server_state(ctx, &state) && !state.wrapper_minimized;
 }
 
+static int render_ack_and_read_server_state(struct test_ctx *ctx, struct ftm_server_state *state)
+{
+    return settle_geometry_animation(ctx)
+           && protocol_test_xdg_toplevel_ack_latest_configure(&ctx->connection, &ctx->xdg_toplevel)
+           && settle_geometry_animation(ctx)
+           && read_server_state(ctx, state);
+}
+
 static int maximize_real_toplevel(struct test_ctx *ctx)
 {
     if (!ctx->handle)
@@ -362,7 +378,7 @@ static int maximize_real_toplevel(struct test_ctx *ctx)
     if (wl_display_roundtrip(ctx->display) < 0)
         return 0;
     struct ftm_server_state state;
-    return read_server_state(ctx, &state) && state.wrapper_maximized;
+    return render_ack_and_read_server_state(ctx, &state) && state.wrapper_maximized;
 }
 
 static int unmaximize_real_toplevel(struct test_ctx *ctx)
@@ -373,7 +389,7 @@ static int unmaximize_real_toplevel(struct test_ctx *ctx)
     if (wl_display_roundtrip(ctx->display) < 0)
         return 0;
     struct ftm_server_state state;
-    return read_server_state(ctx, &state) && !state.wrapper_maximized;
+    return render_ack_and_read_server_state(ctx, &state) && !state.wrapper_maximized;
 }
 
 static int fullscreen_real_toplevel(struct test_ctx *ctx)
@@ -384,7 +400,7 @@ static int fullscreen_real_toplevel(struct test_ctx *ctx)
     if (wl_display_roundtrip(ctx->display) < 0)
         return 0;
     struct ftm_server_state state;
-    return read_server_state(ctx, &state) && state.wrapper_fullscreen;
+    return render_ack_and_read_server_state(ctx, &state) && state.wrapper_fullscreen;
 }
 
 static int unfullscreen_real_toplevel(struct test_ctx *ctx)
@@ -395,7 +411,7 @@ static int unfullscreen_real_toplevel(struct test_ctx *ctx)
     if (wl_display_roundtrip(ctx->display) < 0)
         return 0;
     struct ftm_server_state state;
-    return read_server_state(ctx, &state) && !state.wrapper_fullscreen;
+    return render_ack_and_read_server_state(ctx, &state) && !state.wrapper_fullscreen;
 }
 
 static int activate_real_toplevel(struct test_ctx *ctx)

@@ -66,11 +66,20 @@ extern "C" int protocol_test_invoke_server(protocol_test_server_callback callbac
 
 int main(int argc, char *argv[])
 {
+    // QML resources use stable qrc URLs, so a stale user disk cache can be
+    // reused after rebuilding a plugin and make protocol tests run old QML.
+    qputenv("QML_DISABLE_DISK_CACHE", "1");
+    // Desktop protocol tests use the production compositor core and do not
+    // require host-installed UI plugins, which may not match this build.
+    qputenv("TREELAND_TEST_SKIP_PLUGINS", "1");
     if (protocol_test_desktop_preflight && !protocol_test_desktop_preflight()) {
         std::fflush(nullptr);
         std::_Exit(77);
     }
-    Treeland::preInit(Treeland::InitOptions{ .headless = true });
+    Treeland::preInit(Treeland::InitOptions{
+        .headless = true,
+        .createPlatformTheme = {},
+    });
     QGuiApplication app(argc, argv);
 
     Treeland::Treeland treeland;

@@ -20,6 +20,7 @@ struct protocol_test_xdg_toplevel {
     struct wl_shm *shm;
     struct wl_buffer *buffer;
     uint32_t configure_serial;
+    uint32_t acknowledged_configure_serial;
     int configured;
     int close_received;
 };
@@ -60,6 +61,10 @@ int protocol_test_xdg_toplevel_create_with_surface_setup(
     struct protocol_test_xdg_toplevel *toplevel,
     protocol_test_xdg_surface_setup setup,
     void *data);
+/* Acknowledge the latest configure received by the toplevel, if any. */
+int protocol_test_xdg_toplevel_ack_latest_configure(
+    struct protocol_test_connection *connection,
+    struct protocol_test_xdg_toplevel *toplevel);
 void protocol_test_xdg_toplevel_destroy(struct protocol_test_xdg_toplevel *toplevel);
 
 #ifdef __cplusplus

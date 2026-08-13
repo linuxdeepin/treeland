@@ -19,12 +19,6 @@ void protocol_test_desktop_setup(Helper *helper)
     auto *manager = helper->backend()->server()->findInterface<TreelandInputManagerInterfaceV1>();
     Q_ASSERT(manager);
 
-    TreelandInputManagerInterfaceV1::DeviceTypes types;
-    types.setFlag(TreelandInputManagerInterfaceV1::DeviceType::Mouse);
-    types.setFlag(TreelandInputManagerInterfaceV1::DeviceType::TouchPad);
-    types.setFlag(TreelandInputManagerInterfaceV1::DeviceType::Keyboard);
-    manager->setDeviceTypesProviderForTesting([types] { return types; });
-
     QObject::connect(manager,
                      &TreelandInputManagerInterfaceV1::touchpadSettingsCreated,
                      helper,

@@ -261,7 +261,7 @@ int protocol_test_run(const char *socket_name)
 done:
     if (result != 0) {
         fprintf(stderr,
-                "capture desktop failed: content=(paint=%d visible=%d %dx%d) selector=(%d,%d,%d) source=(%d,%d,%dx%d) "
+                "capture desktop failed: content=(paint=%d visible=%d %dx%d) selector=(%d,%d,%d) source=(surface=%d %dx%d) "
                 "event=(ready=%d failed=%d type=%u %ux%u) buffer=(%d done=%d fmt=0x%x %ux%u stride=%u)\n",
                 selection.content_in_paint_order,
                 selection.content_visible,

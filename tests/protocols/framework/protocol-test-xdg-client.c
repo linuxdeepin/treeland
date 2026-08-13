@@ -76,6 +76,21 @@ static const struct xdg_toplevel_listener xdg_toplevel_listener = {
     .wm_capabilities = xdg_toplevel_wm_capabilities,
 };
 
+int protocol_test_xdg_toplevel_ack_latest_configure(
+    struct protocol_test_connection *connection,
+    struct protocol_test_xdg_toplevel *toplevel)
+{
+    if (!connection || !connection->display || !toplevel || !toplevel->xdg_surface)
+        return 0;
+    if (!toplevel->configure_serial || toplevel->configure_serial == toplevel->acknowledged_configure_serial)
+        return 1;
+
+    xdg_surface_ack_configure(toplevel->xdg_surface, toplevel->configure_serial);
+    toplevel->acknowledged_configure_serial = toplevel->configure_serial;
+    wl_surface_commit(toplevel->surface);
+    return wl_display_roundtrip(connection->display) >= 0;
+}
+
 static int map_toplevel(struct protocol_test_connection *connection,
                         struct protocol_test_xdg_toplevel *toplevel,
                         int width,
@@ -153,7 +168,8 @@ static int protocol_test_xdg_toplevel_create_internal(
     wl_surface_commit(toplevel->surface);
     if (wl_display_roundtrip(connection->display) < 0 || !toplevel->configured)
         goto failed;
-    xdg_surface_ack_configure(toplevel->xdg_surface, toplevel->configure_serial);
+    if (!protocol_test_xdg_toplevel_ack_latest_configure(connection, toplevel))
+        goto failed;
     return map_toplevel(connection, toplevel, buffer_width, buffer_height, buffer_argb);
 
 failed:
@@ -198,7 +214,8 @@ int protocol_test_xdg_toplevel_complete_map(
 {
     if (!toplevel->xdg_surface || wl_display_roundtrip(connection->display) < 0 || !toplevel->configured)
         return 0;
-    xdg_surface_ack_configure(toplevel->xdg_surface, toplevel->configure_serial);
+    if (!protocol_test_xdg_toplevel_ack_latest_configure(connection, toplevel))
+        return 0;
     return map_toplevel(connection, toplevel, 1, 1, 0xffffffffu);
 }
 

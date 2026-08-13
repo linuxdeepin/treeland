@@ -3,7 +3,6 @@
 #include "core/rootsurfacecontainer.h"
 #include "core/shellhandler.h"
 #include "modules/capture/capture.h"
-#include "modules/item-selector/itemselector.h"
 #include "protocol-test-server.h"
 #include "seat/helper.h"
 #include "surface/surfacewrapper.h"
@@ -13,16 +12,6 @@
 #include <wbackend.h>
 #include <woutputrenderwindow.h>
 #include <wsurfaceitem.h>
-
-class CaptureSourceSelectorProtocolTestAccess
-{
-public:
-    static void selectSurface(CaptureSourceSelector *selector, WSurfaceItemContent *content)
-    {
-        const QRect region = content->mapRectToItem(selector, content->boundingRect()).toRect();
-        selector->setSelectedSource(new CaptureSourceSurface(content, content->devicePixelRatio()), region);
-    }
-};
 
 namespace {
 SurfaceWrapper *g_wrapper = nullptr;
@@ -81,10 +70,10 @@ extern "C" void capture_desktop_select_mapped_surface(void *data)
     }
     g_state.selector_ready = 1;
 
-    // The selector is created after the window was mapped. Render the
-    // production scene before committing the verified visible source.
+    // Select the verified mapped production surface through the selector's
+    // production selection entry point.
     helper->window()->render();
-    CaptureSourceSelectorProtocolTestAccess::selectSurface(selector, content);
+    selector->selectSurface(content);
     g_state.hovered_mapped_content = 1;
 
     auto *context = selector->captureManager()->contextInSelection();

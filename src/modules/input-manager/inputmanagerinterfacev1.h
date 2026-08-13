@@ -11,9 +11,6 @@
 #include <QObject>
 #include <QInputDevice>
 
-#include <functional>
-#include <utility>
-
 WAYLIB_SERVER_USE_NAMESPACE
 
 class PointerDeviceConfigurationV1;
@@ -37,13 +34,6 @@ public:
 
     explicit TreelandInputManagerInterfaceV1(QObject *parent = nullptr);
     ~TreelandInputManagerInterfaceV1() override;
-
-    using DeviceTypesProvider = std::function<DeviceTypes()>;
-
-    // Test fixtures can provide deterministic capabilities without fabricating
-    // wlroots/libinput devices. Production leaves this unset and reads WBackend.
-    void setDeviceTypesProviderForTesting(DeviceTypesProvider provider);
-    void clearDeviceTypesProviderForTesting();
 
     void sendCapabilityAvailable(TreelandInputManagerInterfaceV1::DeviceTypes types);
     void sendCapabilityUnavailable(TreelandInputManagerInterfaceV1::DeviceTypes types);
@@ -71,7 +61,6 @@ private:
     TreelandInputManagerInterfaceV1::DeviceTypes inputDeviceType(WInputDevice *input) const;
 
 private:
-    DeviceTypesProvider m_deviceTypesProviderForTesting;
     friend class TreelandInputManagerInterfaceV1Private;
     std::unique_ptr<TreelandInputManagerInterfaceV1Private> d;
 };

@@ -1605,16 +1605,6 @@ bool SurfaceWrapper::startStateChangeAnimation(State targetState, const QRectF &
     if (m_geometryAnimation) // animation running
         return false;
 
-    if (Helper::instance()->noAnimation()) {
-        if (!resize(targetGeometry.size(), true))
-            return false;
-
-        setPosition(alignToPixelGrid(targetGeometry.topLeft()));
-        doSetSurfaceState(targetState);
-        resize(targetGeometry.size());
-        return true;
-    }
-
     m_geometryAnimation =
         m_engine->createGeometryAnimation(this, geometry(), targetGeometry, container());
     m_geometryAnimation->setProperty("enableBlur", m_blur);

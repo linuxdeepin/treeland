@@ -8,4 +8,5 @@
 void protocol_test_desktop_setup(Helper *helper)
 {
     protocol_test_create_headless_output(helper->backend(), false);
+
 }

@@ -91,6 +91,7 @@ function(treeland_add_protocol_test)
     add_test(NAME ${target} COMMAND ${target})
     set_tests_properties(${target} PROPERTIES
         ENVIRONMENT "WLR_BACKENDS=headless;WLR_RENDERER=pixman"
+        LABELS "protocols"
         TIMEOUT 30
     )
 endfunction()
@@ -193,6 +194,7 @@ function(treeland_add_desktop_integration_test)
     add_test(NAME ${target} COMMAND ${target})
     set_tests_properties(${target} PROPERTIES
         ENVIRONMENT "WLR_BACKENDS=headless;WLR_RENDERER=pixman"
+        LABELS "protocols"
         TIMEOUT 30
     )
 endfunction()

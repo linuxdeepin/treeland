@@ -202,13 +202,64 @@ static int update_checker(struct test_ctx *ctx)
     return 1;
 }
 
-static int set_surface_position(struct test_ctx *ctx) { treeland_dde_shell_surface_v1_set_surface_position(ctx->shell_surface, 42, 24); return 1; }
-static int set_surface_role(struct test_ctx *ctx) { treeland_dde_shell_surface_v1_set_role(ctx->shell_surface, TREELAND_DDE_SHELL_SURFACE_V1_ROLE_OVERLAY); return 1; }
-static int set_auto_placement(struct test_ctx *ctx) { treeland_dde_shell_surface_v1_set_auto_placement(ctx->shell_surface, 37); return 1; }
-static int set_skip_switcher(struct test_ctx *ctx) { treeland_dde_shell_surface_v1_set_skip_switcher(ctx->shell_surface, 1); return 1; }
-static int set_skip_dock_preview(struct test_ctx *ctx) { treeland_dde_shell_surface_v1_set_skip_dock_preview(ctx->shell_surface, 1); return 1; }
-static int set_skip_multitask_view(struct test_ctx *ctx) { treeland_dde_shell_surface_v1_set_skip_muti_task_view(ctx->shell_surface, 1); return 1; }
-static int set_keyboard_focus(struct test_ctx *ctx) { treeland_dde_shell_surface_v1_set_accept_keyboard_focus(ctx->shell_surface, 0); return 1; }
+static int read_shell_surface_state(struct test_ctx *ctx, struct dde_shell_surface_state *state)
+{
+    if (wl_display_roundtrip(ctx->display) < 0)
+        return 0;
+    memset(state, 0, sizeof(*state));
+    return protocol_test_invoke_server(dde_shell_query_surface_state, state);
+}
+
+static int set_surface_position(struct test_ctx *ctx)
+{
+    struct dde_shell_surface_state state;
+    treeland_dde_shell_surface_v1_set_surface_position(ctx->shell_surface, 42, 24);
+    return read_shell_surface_state(ctx, &state)
+           && state.position_x == 42 && state.position_y == 24;
+}
+
+static int set_surface_role(struct test_ctx *ctx)
+{
+    struct dde_shell_surface_state state;
+    treeland_dde_shell_surface_v1_set_role(ctx->shell_surface,
+                                            TREELAND_DDE_SHELL_SURFACE_V1_ROLE_OVERLAY);
+    return read_shell_surface_state(ctx, &state) && state.role_overlay;
+}
+
+static int set_auto_placement(struct test_ctx *ctx)
+{
+    struct dde_shell_surface_state state;
+    treeland_dde_shell_surface_v1_set_auto_placement(ctx->shell_surface, 37);
+    return read_shell_surface_state(ctx, &state) && state.auto_placement == 37;
+}
+
+static int set_skip_switcher(struct test_ctx *ctx)
+{
+    struct dde_shell_surface_state state;
+    treeland_dde_shell_surface_v1_set_skip_switcher(ctx->shell_surface, 1);
+    return read_shell_surface_state(ctx, &state) && state.skip_switcher;
+}
+
+static int set_skip_dock_preview(struct test_ctx *ctx)
+{
+    struct dde_shell_surface_state state;
+    treeland_dde_shell_surface_v1_set_skip_dock_preview(ctx->shell_surface, 1);
+    return read_shell_surface_state(ctx, &state) && state.skip_dock_preview;
+}
+
+static int set_skip_multitask_view(struct test_ctx *ctx)
+{
+    struct dde_shell_surface_state state;
+    treeland_dde_shell_surface_v1_set_skip_muti_task_view(ctx->shell_surface, 1);
+    return read_shell_surface_state(ctx, &state) && state.skip_multitask_view;
+}
+
+static int set_keyboard_focus(struct test_ctx *ctx)
+{
+    struct dde_shell_surface_state state;
+    treeland_dde_shell_surface_v1_set_accept_keyboard_focus(ctx->shell_surface, 0);
+    return read_shell_surface_state(ctx, &state) && !state.accept_keyboard_focus;
+}
 static int shell_surface_state(struct test_ctx *ctx)
 {
     (void)ctx;
@@ -218,11 +269,35 @@ static int shell_surface_state(struct test_ctx *ctx)
         && state.auto_placement == 37 && state.skip_switcher && state.skip_dock_preview
         && state.skip_multitask_view && !state.accept_keyboard_focus;
 }
-static int toggle_multitaskview(struct test_ctx *ctx) { treeland_multitaskview_v1_toggle(ctx->multitaskview); return 1; }
-static int lock(struct test_ctx *ctx) { treeland_lockscreen_v1_lock(ctx->lockscreen); return 1; }
-static int shutdown(struct test_ctx *ctx) { treeland_lockscreen_v1_shutdown(ctx->lockscreen); return 1; }
-static int switch_user(struct test_ctx *ctx) { treeland_lockscreen_v1_switch_user(ctx->lockscreen); return 1; }
-static int pick(struct test_ctx *ctx) { treeland_window_picker_v1_pick(ctx->picker, "test-hint"); return 1; }
+static int toggle_multitaskview(struct test_ctx *ctx)
+{
+    treeland_multitaskview_v1_toggle(ctx->multitaskview);
+    return wl_display_roundtrip(ctx->display) >= 0;
+}
+
+static int lock(struct test_ctx *ctx)
+{
+    treeland_lockscreen_v1_lock(ctx->lockscreen);
+    return wl_display_roundtrip(ctx->display) >= 0;
+}
+
+static int shutdown(struct test_ctx *ctx)
+{
+    treeland_lockscreen_v1_shutdown(ctx->lockscreen);
+    return wl_display_roundtrip(ctx->display) >= 0;
+}
+
+static int switch_user(struct test_ctx *ctx)
+{
+    treeland_lockscreen_v1_switch_user(ctx->lockscreen);
+    return wl_display_roundtrip(ctx->display) >= 0;
+}
+
+static int pick(struct test_ctx *ctx)
+{
+    treeland_window_picker_v1_pick(ctx->picker, "test-hint");
+    return wl_display_roundtrip(ctx->display) >= 0;
+}
 static int emit_events(struct test_ctx *ctx) { (void)ctx; return protocol_test_invoke_server(dde_shell_emit_test_events, NULL); }
 static int checker_enter_received(struct test_ctx *ctx) { return ctx->checker_enter_received; }
 static int checker_leave_received(struct test_ctx *ctx) { return ctx->checker_leave_received; }
@@ -248,11 +323,11 @@ static const struct test_case cases[] = {
     { "shell_surface.set_skip_multitask_view", set_skip_multitask_view },
     { "shell_surface.set_accept_keyboard_focus", set_keyboard_focus },
     { "server.shell_surface_state", shell_surface_state },
-    { "multitaskview.toggle", toggle_multitaskview },
-    { "lockscreen.lock", lock },
-    { "lockscreen.shutdown", shutdown },
-    { "lockscreen.switch_user", switch_user },
-    { "picker.pick", pick },
+    { "request.multitaskview.toggle_dispatch", toggle_multitaskview },
+    { "request.lockscreen.lock_dispatch", lock },
+    { "request.lockscreen.shutdown_dispatch", shutdown },
+    { "request.lockscreen.switch_user_dispatch", switch_user },
+    { "request.picker.pick_dispatch", pick },
     { "server.emit_events", emit_events },
     { "checker.event.enter", checker_enter_received },
     { "checker.event.leave", checker_leave_received },

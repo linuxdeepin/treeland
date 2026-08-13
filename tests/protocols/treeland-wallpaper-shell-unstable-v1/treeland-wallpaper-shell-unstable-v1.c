@@ -193,8 +193,7 @@ static int failed_signal_received(struct test_ctx *ctx)
 static int surface_ready(struct test_ctx *ctx)
 {
     treeland_wallpaper_surface_v1_ready(ctx->wallpaper_surface);
-    /* The surface has no buffer yet, so the compositor defers the ready
-     * transition to the first wl_surface.commit; an empty commit triggers it. */
+    /* With no buffer, ready waits for the next commit. */
     wl_surface_commit(ctx->test_surface);
     return 1;
 }
@@ -249,7 +248,7 @@ static const struct test_case cases[] = {
     { "shell.produced_wallpapers", produced_count_is_one },
     { "surface.source_failed", source_failed },
     { "surface.failed_signal", failed_signal_received },
-    { "surface.ready", surface_ready },
+    { "surface.ready_after_commit", surface_ready },
     { "surface.ready_signal", ready_signal_received },
     { "server.emit_play", emit_play },
     { "surface.event.play", play_received },

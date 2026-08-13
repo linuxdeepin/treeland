@@ -87,9 +87,10 @@ int protocol_test_run(const char *socket_name);
 `protocol_test_disconnect()` 管理 registry 和连接。client 代码只能使用 C、
 `wayland-client` 和 scanner 生成的 C API，不能 include Qt 或 Treeland C++ API。
 
-每个测试以具名函数组织；每个 case 在发 request 后完成 roundtrip，并明确断言服务端状态
-或 client listener 收到的 event。禁止使用 `case 0`、`static step` 一类跨 case
-状态机。`protocol_test_invoke_server()` 只用于在 compositor 线程读取生产状态或触发没有
+每个测试以具名函数组织；每个语义 case 在发 request 后完成 roundtrip，并明确断言服务端状态
+或 client listener 收到的 event。仅验证请求可被派发的 case 必须在名称中标明 `dispatch`，
+且不能作为业务语义覆盖统计。禁止使用 `case 0`、`static step` 一类跨 case 状态机。
+`protocol_test_invoke_server()` 只用于在 compositor 线程读取生产状态或触发没有
 client request 对应的刻意刺激，不能用它伪造某个 request 的业务结果。
 
 公共/upstream 协议也使用这套 client 框架，但其 server wrapper 应遵循
@@ -118,10 +119,10 @@ ctest --test-dir build --output-on-failure \
 ctest --test-dir build -V -R '^test_treeland_keyboard_state_notify_unstable_v1$'
 ```
 
-运行所有本目录注册的协议测试：
+运行所有本目录注册的协议测试（包括公共 desktop 与 rendered-output fixture）：
 
 ```bash
-ctest --test-dir build --output-on-failure -R '^test_treeland_'
+ctest --test-dir build --output-on-failure -L protocols
 ```
 
 优先通过 CTest 运行。CTest 会注入 headless backend、renderer 和超时设置；直接执行
