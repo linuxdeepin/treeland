@@ -20,6 +20,7 @@
 #include "winputdevice.h"
 #include "wseat.h"
 #include "wayliblogging.h"
+#include "wsgcontext_p.h"
 
 #include "platformplugin/qwlrootsintegration.h"
 #include "platformplugin/qwlrootscreen.h"
@@ -52,7 +53,6 @@
 #include <private/qsgabstractrenderer_p.h>
 #include <private/qsgrenderer_p.h>
 #include <private/qpainter_p.h>
-#include <private/qsgdefaultrendercontext_p.h>
 #include <private/qquickitem_p.h>
 #include <private/qquickrectangle_p.h>
 
@@ -1657,9 +1657,15 @@ void WOutputRenderWindowPrivate::doRender(wlr_output *needsFrameOutput,
     Q_EMIT q->renderEnd(committedOutputs);
 }
 
+static QQuickRenderControl *createOutputRenderControl()
+{
+    WSGContext::ensureInstalled();
+    return new RenderControl();
+}
+
 // TODO: Support QWindow::setCursor
 WOutputRenderWindow::WOutputRenderWindow(QObject *parent)
-    : QQuickWindow(*new WOutputRenderWindowPrivate(this), new RenderControl())
+    : QQuickWindow(*new WOutputRenderWindowPrivate(this), createOutputRenderControl())
 {
     setObjectName(QW::RenderWindow::id());
 
