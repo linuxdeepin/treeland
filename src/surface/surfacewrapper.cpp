@@ -592,6 +592,22 @@ void SurfaceWrapper::syncPrelaunchMappedState()
         m_prelaunchOutputs.clear();
     }
 
+    if (auto *xwaylandSurface = qobject_cast<WXWaylandSurface *>(m_shellSurface.data())) {
+        if (xwaylandSurface->handle()->fullscreen) {
+            setSurfaceStateDirectly(State::Fullscreen);
+        } else if ((xwaylandSurface->handle()->maximized_horz && xwaylandSurface->handle()->maximized_vert) &&
+                   isMaximizable()) {
+            setSurfaceStateDirectly(State::Maximized);
+        }
+
+        const QRectF stateGeometry = targetGeometryForState(m_surfaceState);
+        if ((m_surfaceState == State::Maximized || m_surfaceState == State::Fullscreen)
+            && stateGeometry.isValid()) {
+            setPosition(alignToPixelGrid(stateGeometry.topLeft()));
+            setSize(stateGeometry.size());
+        }
+    }
+
     updateActiveState();
 }
 
@@ -624,8 +640,13 @@ void SurfaceWrapper::startPrelaunchSplashHideSequence()
 
     // Use surfaceItem's scene-space implicit size: for XWayland, surf->size() is
     // buffer-space and differs from scene-space after DPR scaling via surfaceSizeRatio.
-    const QSizeF targetImplicitSize(m_surfaceItem->implicitWidth(),
-                                    m_surfaceItem->implicitHeight());
+    const QRectF stateGeometry = targetGeometryForState(m_surfaceState);
+    const bool useStateGeometry = (m_surfaceState == State::Maximized
+                                   || m_surfaceState == State::Fullscreen)
+        && stateGeometry.isValid();
+    const QSizeF targetImplicitSize = useStateGeometry
+        ? stateGeometry.size()
+        : QSizeF(m_surfaceItem->implicitWidth(), m_surfaceItem->implicitHeight());
     const bool hasValidTargetImplicitSize =
         targetImplicitSize.width() > 0 && targetImplicitSize.height() > 0;
     if (!hasValidTargetImplicitSize) {
@@ -712,6 +733,22 @@ void SurfaceWrapper::completeSplashTransition(const QSizeF &targetImplicitSize, 
     }
 
     m_surfaceItem->setVisible(true);
+    if (m_type == Type::XWayland
+        && (m_surfaceState == State::Maximized || m_surfaceState == State::Fullscreen)) {
+        QMetaObject::invokeMethod(
+            this,
+            [this] {
+                if (m_wrapperAboutToRemove || !m_surfaceItem)
+                    return;
+                updateSurfaceSizeRatio();
+                const QRectF stateGeometry = targetGeometryForState(m_surfaceState);
+                if (stateGeometry.isValid()) {
+                    setPosition(alignToPixelGrid(stateGeometry.topLeft()));
+                    resize(stateGeometry.size());
+                }
+            },
+            Qt::QueuedConnection);
+    }
     Q_ASSERT(m_prelaunchSplash);
     m_prelaunchSplash->setVisible(false);
     m_prelaunchSplash->deleteLater();
