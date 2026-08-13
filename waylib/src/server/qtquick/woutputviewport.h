@@ -4,6 +4,7 @@
 #pragma once
 
 #include <wglobal.h>
+#include <wlr_fwd.h>
 #include <woutput.h>
 #include <wtextureproviderprovider.h>
 
@@ -46,6 +47,7 @@ public:
     QSGTextureProvider *textureProvider() const override;
     WSGTextureProvider *wTextureProvider() const override;
     WOutputRenderWindow *outputRenderWindow() const override;
+    wlr_buffer *lastBuffer() const;
 
     QQuickItem *input() const;
     void setInput(QQuickItem *item);

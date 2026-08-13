@@ -5,9 +5,10 @@
 #include "wtools.h"
 #include "wayliblogging.h"
 
-#include <QImage>
-
+#include <wpointer.h>
 #include <wlr_all.h>
+
+#include <QImage>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -20,21 +21,32 @@ WBufferDumper::DumpResult WBufferDumper::dumpBufferToImage(wlr_buffer *buffer,
         return DumpResult::InvalidBuffer;
     }
 
-    wlr_texture *texture = wlr_texture_from_buffer(renderer, buffer);
+    WUniquePointer<wlr_texture> texture(wlr_texture_from_buffer(renderer, buffer));
     if (!texture) {
-        qCWarning(lcWlBufferDumper) << "Failed to create texture from buffer";
+        qCWarning(lcWlBufferDumper) << "Failed to create texture from buffer"
+                                    << "buffer" << buffer
+                                    << "renderer" << renderer;
         return DumpResult::TextureCreationFailed;
     }
 
-    uint32_t format = wlr_texture_preferred_read_format(texture);
+    uint32_t format = wlr_texture_preferred_read_format(texture.get());
 
     QImage::Format qImageFormat = WTools::toImageFormat(format);
     if (qImageFormat == QImage::Format_Invalid) {
-        wlr_texture_destroy(texture);
+        qCWarning(lcWlBufferDumper) << "Unsupported read format for buffer dump"
+                                    << "format" << format
+                                    << "buffer" << buffer;
         return DumpResult::UnsupportedFormat;
     }
 
     outputImage = QImage(texture->width, texture->height, qImageFormat);
+    if (outputImage.isNull()) {
+        qCWarning(lcWlBufferDumper) << "Failed to allocate image for buffer dump"
+                                    << "size" << QSize(texture->width, texture->height)
+                                    << "format" << qImageFormat;
+        return DumpResult::TextureReadFailed;
+    }
+
     uint32_t stride = outputImage.bytesPerLine();
 
     wlr_texture_read_pixels_options options = {};
@@ -42,13 +54,14 @@ WBufferDumper::DumpResult WBufferDumper::dumpBufferToImage(wlr_buffer *buffer,
     options.format = format;
     options.stride = stride;
 
-    if (!wlr_texture_read_pixels(texture, &options)) {
-        qCWarning(lcWlBufferDumper) << "Failed to read pixels from texture";
-        wlr_texture_destroy(texture);
+    if (!wlr_texture_read_pixels(texture.get(), &options)) {
+        qCWarning(lcWlBufferDumper) << "Failed to read pixels from texture"
+                                    << "texture" << texture.get()
+                                    << "buffer" << buffer
+                                    << "format" << format
+                                    << "stride" << stride;
         return DumpResult::TextureReadFailed;
     }
-
-    wlr_texture_destroy(texture);
 
     return DumpResult::Success;
 }
@@ -59,7 +72,7 @@ WBufferDumper::DumpResult WBufferDumper::dumpBufferToFile(wlr_buffer *buffer,
 {
     QImage image;
     DumpResult result = dumpBufferToImage(buffer, renderer, image);
-
+    
     if (result != DumpResult::Success) {
         return result;
     }
