@@ -4,6 +4,7 @@
 #include "wxwayland.h"
 
 #include "private/wglobal_p.h"
+#include "private/wwaylandresource_p.h"
 #include "private/wxwaylandsurface_p.h"
 #include "wseat.h"
 #include "wscoplistener.h"
@@ -26,11 +27,11 @@
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class Q_DECL_HIDDEN WXWaylandPrivate : public WObjectPrivate
+class Q_DECL_HIDDEN WXWaylandPrivate : public WWaylandResourcePrivate
 {
 public:
     WXWaylandPrivate(WXWayland *qq, wlr_compositor *compositor, bool lazy)
-        : WObjectPrivate(qq)
+        : WWaylandResourcePrivate(qq)
         , compositor(compositor)
         , lazy(lazy)
     {
@@ -215,7 +216,7 @@ void WXWaylandPrivate::on_surface_destroy(WXWaylandSurface *surface)
 
 WXWayland::WXWayland(wlr_compositor *compositor, bool lazy)
     : QObject(nullptr)
-    , WObject(*new WXWaylandPrivate(this, compositor, lazy))
+    , WWaylandResource(*new WXWaylandPrivate(this, compositor, lazy))
 {
     W_D(WXWayland);
     // TODO: Add setFreezeClientWhenDisable in WSocket

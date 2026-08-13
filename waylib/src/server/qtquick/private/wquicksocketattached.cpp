@@ -3,6 +3,7 @@
 
 #include "wquicksocketattached_p.h"
 #include "wsocket.h"
+#include <wwaylandresource.h>
 
 #include <QQmlInfo>
 
@@ -26,7 +27,7 @@ WSocket *WQuickSocketAttached::rootSocket() const
 
 WQuickSocketAttached *WQuickSocketAttached::qmlAttachedProperties(QObject *target)
 {
-    if (auto wobject = dynamic_cast<WObject*>(target)) {
+    if (auto wobject = dynamic_cast<WWaylandResource*>(target)) {
         auto client = wobject->waylandClient();
         if (client) {
             auto socket = client->socket();

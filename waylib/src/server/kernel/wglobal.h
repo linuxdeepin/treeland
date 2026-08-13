@@ -102,10 +102,6 @@ public:
         removeAttachedData<T>(owner);
     }
 
-    [[nodiscard]] WClient *waylandClient() const;
-    [[nodiscard]] virtual pid_t pid() const;
-    [[nodiscard]] virtual int pidFD() const;
-
     // Default construction for mixin use (e.g. QObject + WObject) without a
     // dedicated *Private subclass.
     WObject();
