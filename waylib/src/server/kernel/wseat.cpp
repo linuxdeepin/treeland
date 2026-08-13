@@ -96,13 +96,25 @@ public:
         for (auto device : std::as_const(deviceList))
             detachInputDevice(device);
 
+        destroyKeyboardGroup();
+    }
+
+    // Release the keyboard group and its WInputDevice wrapper. Shared by
+    // ~WSeatPrivate and WSeat::destroy() so create() rebuilds the group on
+    // the next start() (its `if (!d->group)` guard). Must run while the
+    // native seat is still alive: detachInputDevice() touches the Qt input
+    // integration, and wlr_keyboard_group_destroy() fires the keyboard
+    // destroy signal which clears the seat's keyboard reference.
+    void destroyKeyboardGroup() {
         if (groupkeyboardDevice) {
             detachInputDevice(groupkeyboardDevice);
             delete groupkeyboardDevice;
+            groupkeyboardDevice = nullptr;
         }
 
         if (group) {
             wlr_keyboard_group_destroy(group);
+            group = nullptr;
         }
     }
 
@@ -1588,17 +1600,29 @@ void WSeat::destroy(WServer *)
     if (d->cursor)
         setCursor(nullptr);
 
+    // Tear down the keyboard group before destroying the seat. The group
+    // keyboard is the seat's active keyboard; wlr_keyboard_group_destroy()
+    // fires the keyboard destroy signal which makes the seat drop its
+    // reference, so wlr_seat_destroy() below sees no dangling keyboard.
+    // This also lets create() rebuild the group on restart.
+    d->destroyKeyboardGroup();
+
     // Clear the reverse fromHandle() mapping while the native seat is still
-    // alive (the display destroys it after this callback).
+    // alive, then destroy it explicitly. wlr_seat_destroy() removes the
+    // display_destroy listener, so the later display.reset() won't touch it.
     if (d->handle() && d->handle()->data == this)
         d->handle()->data = nullptr;
+
+    wlr_seat_destroy(d->handle());
     m_handle = nullptr;
 }
 
 wl_global *WSeat::global() const
 {
     W_D(const WSeat);
-    return d->handle()->global;
+    if (m_handle)
+        return d->handle()->global;
+    return nullptr;
 }
 
 QByteArrayView WSeat::interfaceName() const

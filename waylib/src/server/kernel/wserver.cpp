@@ -86,7 +86,13 @@ WServerPrivate::~WServerPrivate()
 
 void WServerPrivate::init()
 {
-    Q_ASSERT(display);
+    // The display is destroyed in stop() so it can be rebuilt here on a
+    // restart. On the first start() it was already created in the ctor.
+    if (!display) {
+        display.reset(wl_display_create());
+        Q_ASSERT(display);
+        wl_display_set_global_filter(display.get(), globalFilter, this);
+    }
 
     // free follow display
     [[maybe_unused]] auto ddm = wlr_data_device_manager_create(display.get());
@@ -125,24 +131,45 @@ void WServerPrivate::stop()
 {
     W_Q(WServer);
 
-    // Disconnect event handlers BEFORE destroying clients to prevent
+    // ① Disconnect event handlers BEFORE destroying clients to prevent
     // callbacks from firing during client destruction.
     sockNot.reset();
     if (auto *dispatcher = QThread::currentThread()->eventDispatcher())
         QObject::disconnect(dispatcher, nullptr, q, nullptr);
 
+    // ② Stop accepting new connections on every socket, but keep the fd so
+    // the socket can be re-listened on the fresh display after a restart.
+    for (auto socket : std::as_const(sockets))
+        socket->stopListen();
+
     if (display)
         wl_display_destroy_clients(display.get());
 
+    // ④ Drop native handles in reverse attach order. The interface objects
+    // themselves are kept alive so start() can recreate them on a new
+    // display. Listeners are detached first (teardown()) because several
+    // wlr_*_destroy() helpers assert empty listener lists.
+    //
+    // Iterate a snapshot of interfaceList so an interface attached during
+    // teardown/destroy() (via WServer::attach) doesn't invalidate our
+    // iterators. The newly attached interface stays in interfaceList and is
+    // created on the next start() — it is intentionally NOT destroyed here.
     auto list = interfaceList;
-    interfaceList.clear();
     auto i = list.crbegin();
     for (; i != list.crend(); ++i) {
         if (auto *wobj = dynamic_cast<WObject*>(*i))
             wobj->teardown();
         (*i)->destroy(q);
-        delete *i;
     }
+
+    // ⑤ Destroy the display to reclaim every wlr object that has no public
+    // destroy() function ("free follow display"). This is the only release
+    // path for ~18 protocol managers, so it must not be removed even though
+    // WSeat/WXWayland/WBackend now destroy their own handles in destroy().
+    display.reset();
+
+    // ⑥ The event loop was owned by the display; it is gone now.
+    loop = nullptr;
 }
 
 // Replace wl_display_flush_clients: its wl_list_for_each_safe loop deadlocks
@@ -328,6 +355,12 @@ WServer::~WServer()
 {
     if (isRunning())
         stop();
+
+    W_D(WServer);
+    // stop() keeps interface objects alive so start() can recreate them;
+    // nothing recreates them in the destructor, so delete the wrappers now.
+    qDeleteAll(d->interfaceList);
+    d->interfaceList.clear();
 }
 
 WServer::WServer(WServerPrivate &dd, QObject *parent)
@@ -346,7 +379,10 @@ void WServer::stop()
 {
     W_D(WServer);
 
-    Q_ASSERT(d->display);
+    // A no-op when not running instead of asserting, so stop()/start() can
+    // be called defensively and stop() is safe after a previous stop().
+    if (!isRunning())
+        return;
     d->stop();
 }
 
@@ -499,6 +535,9 @@ void WServer::start()
 {
     W_D(WServer);
 
+    // Reentry guard: a running server is already initialized.
+    if (isRunning())
+        return;
     d->init();
 }
 

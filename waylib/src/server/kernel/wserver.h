@@ -133,6 +133,17 @@ public:
 
     static WServer *from(WServerInterface *interface);
 
+    // Restart invariants (WM-194):
+    //  * stop() destroys the wl_display (and thus every wlr object that has
+    //    no public destroy() function — "free follow display"), but keeps
+    //    the WServerInterface wrapper objects alive. start() rebuilds the
+    //    display and calls create() again on every interface.
+    //  * Between stop() and the next start(), handle() is null and the wlr
+    //    handles behind interface->handle()/interface->global() have been
+    //    freed — do not dereference them. The interface objects themselves
+    //    remain valid and can be iterated/attached/detached.
+    //  * start() is a no-op when already running; stop() is a no-op when not
+    //    running, so stop()/start() may be cycled and called defensively.
     void start();
     void stop();
     static void initializeQPA(

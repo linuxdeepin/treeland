@@ -745,6 +745,22 @@ bool WSocket::listen(wl_display *display)
     return true;
 }
 
+void WSocket::stopListen()
+{
+    W_D(WSocket);
+
+    // Mirror the event-source teardown done at the top of close(), but stop
+    // there: keep the fd and the client list so the socket can be listened
+    // again on a rebuilt display after WServer::stop().
+    if (d->eventSource) {
+        wl_event_source_remove(d->eventSource);
+        d->eventSource = nullptr;
+        d->display = nullptr;
+        Q_EMIT listeningChanged();
+    }
+    Q_ASSERT(!d->display);
+}
+
 WClient *WSocket::addClient(int fd)
 {
     W_D(WSocket);

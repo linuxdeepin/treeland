@@ -562,6 +562,14 @@ void WSecurityContextManager::create(WServer *server)
     m_handle = wlr_security_context_manager_v1_create(server->handle());
 }
 
+void WSecurityContextManager::destroy([[maybe_unused]] WServer *server)
+{
+    // The wlr_security_context_manager_v1 is reclaimed by display.reset() in
+    // WServer::stop(); null m_handle so handle()/global() return null instead
+    // of a dangling pointer (global() already guards on handle()).
+    m_handle = nullptr;
+}
+
 wl_global *WSecurityContextManager::global() const
 {
     W_D(const WSecurityContextManager);

@@ -138,6 +138,15 @@ void WCursorShapeManagerV1::create(WServer *server)
     }
 }
 
+void WCursorShapeManagerV1::destroy(WServer *)
+{
+    // create() is guarded by `if (!m_handle)`, so the handle must be cleared
+    // here — otherwise restart would skip recreating the global. The native
+    // object itself has no public destroy() function and is reclaimed when
+    // the display is destroyed in WServer::stop().
+    m_handle = nullptr;
+}
+
 wl_global *WCursorShapeManagerV1::global() const
 {
     W_D(const WCursorShapeManagerV1);

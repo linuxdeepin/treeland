@@ -51,8 +51,19 @@ void WInputMethodManagerV2::create(WServer *server)
                                    &WInputMethodManagerV2::newInputMethod);
 }
 
+void WInputMethodManagerV2::destroy([[maybe_unused]] WServer *server)
+{
+    // The wlr_input_method_manager_v2 is reclaimed by display.reset() in
+    // WServer::stop(); null m_handle so handle()/global() return null instead
+    // of a dangling pointer. Manager-owned listeners were already dropped by
+    // WServer teardown().
+    m_handle = nullptr;
+}
+
 wl_global *WInputMethodManagerV2::global() const
 {
+    if (!m_handle)
+        return nullptr;
     return reinterpret_cast<wlr_input_method_manager_v2*>(m_handle)->global;
 }
 

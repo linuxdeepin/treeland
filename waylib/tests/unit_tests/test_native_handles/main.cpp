@@ -450,7 +450,11 @@ private Q_SLOTS:
         QCOMPARE(WSeat::fromHandle(nativeSeat), seat.data());
 
         server.stop();
-        QVERIFY(seat.isNull());
+        // WM-194: WServer::stop() no longer deletes interfaces — the wrapper
+        // survives for restart. Only the native handle is destroyed and the
+        // reverse fromHandle() mapping is cleared before wlr_seat_destroy().
+        QVERIFY(!seat.isNull());              // wrapper object survives stop()
+        QVERIFY(!seat->handle());             // native wlr_seat destroyed
         QVERIFY(!WSeat::fromHandle(nativeSeat));
         qunsetenv("WAYLIB_DISABLE_GESTURE");
     }
