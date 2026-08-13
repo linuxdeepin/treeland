@@ -162,6 +162,9 @@ set(SOURCES
     qtquick/private/wqmlhelper.cpp
     qtquick/private/wbufferrenderer.cpp
     qtquick/private/wrenderbuffernode.cpp
+    qtquick/scenegraph/wsgbatchrenderer.cpp
+    qtquick/scenegraph/wsgrhivisualizer.cpp
+    qtquick/scenegraph/wsgcontext.cpp
 
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v1-protocol.c
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v2-protocol.c
@@ -356,6 +359,9 @@ set(PRIVATE_HEADERS
     qtquick/private/wbufferrenderer_p.h
     qtquick/private/wrenderbuffernode_p.h
     qtquick/private/wsurfaceitem_p.h
+    qtquick/scenegraph/wsgbatchrenderer_p.h
+    qtquick/scenegraph/wsgrhivisualizer_p.h
+    qtquick/scenegraph/wsgcontext_p.h
 
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v1-protocol.h
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v2-protocol.h
@@ -465,6 +471,7 @@ target_include_directories(${TARGET}
         $<INSTALL_INTERFACE:${WAYLIB_INCLUDE_INSTALL_DIR}>
     PRIVATE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/qtquick/scenegraph>
         ${Qt6Gui_PRIVATE_INCLUDE_DIRS}
         ${Qt6Quick_PRIVATE_INCLUDE_DIRS}
         ${Qt6EglSupport_PRIVATE_INCLUDE_DIRS}
