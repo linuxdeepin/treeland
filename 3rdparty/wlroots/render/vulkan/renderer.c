@@ -2414,7 +2414,8 @@ static struct wlr_vk_render_format_setup *find_or_create_render_setup(
 					VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
 				.dstSubpass = 0,
 				.dstStageMask = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
-				.dstAccessMask = VK_ACCESS_UNIFORM_READ_BIT |
+				.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT |
+					VK_ACCESS_UNIFORM_READ_BIT |
 					VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT |
 					VK_ACCESS_INDIRECT_COMMAND_READ_BIT |
 					VK_ACCESS_SHADER_READ_BIT,
@@ -2505,7 +2506,8 @@ static struct wlr_vk_render_format_setup *find_or_create_render_setup(
 					VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
 				.dstSubpass = 0,
 				.dstStageMask = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
-				.dstAccessMask = VK_ACCESS_UNIFORM_READ_BIT |
+				.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT |
+					VK_ACCESS_UNIFORM_READ_BIT |
 					VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT |
 					VK_ACCESS_INDIRECT_COMMAND_READ_BIT |
 					VK_ACCESS_SHADER_READ_BIT,
