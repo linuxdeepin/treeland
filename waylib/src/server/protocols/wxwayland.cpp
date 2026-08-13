@@ -329,7 +329,7 @@ void WXWayland::setWorkareas(const QVector<QRect> &workareas)
         boxes.append({ workarea.x(), workarea.y(), workarea.width(), workarea.height() });
     }
 
-    wlr_xwayland_set_workareas(handle()->handle(), boxes.constData(), boxes.size());
+    wlr_xwayland_set_workareas(handle(), boxes.constData(), boxes.size());
 }
 
 void WXWayland::setDesktopProperties(uint32_t count,
