@@ -446,13 +446,13 @@ bool vulkan_submit_stage_async(struct wlr_vk_renderer *renderer) {
 	}
 
 	renderer->stage.last_timeline_point = timeline_point;
+	renderer->stage_async_needs_bridge = true;
 
 	// Hide the staging buffers used by this submission from the allocator.
 	// release_command_buffer_resources() returns them (with their allocations
 	// reset) once this command buffer's timeline point is reached, so the CPU
-	// never reuses a span the GPU is still reading. Sampling of the uploaded
-	// content happens in a later submission on the same queue, so queue
-	// submission ordering guarantees the upload completes first.
+	// never reuses a span the GPU is still reading. The texture-sync bridge
+	// inserts the dependency required before a later Qt sampling submission.
 	size_t hidden = 0;
 	struct wlr_vk_shared_buffer *buf, *tmp;
 	wl_list_for_each_safe(buf, tmp, &renderer->stage.buffers, link) {

@@ -308,8 +308,8 @@ struct wlr_vk_renderer {
 
 	// Frame-batched waiting on foreign texture DMA-BUF sync_files (Qt/QRhi
 	// path). Unsignaled sync_files are imported into binary semaphores and
-	// waited on by a command-buffer-free submission. The semaphore wait scope
-	// covers the later Qt submission on the same queue.
+	// waited on by a bridge command buffer. Its pipeline barrier extends the
+	// wait dependency to the later Qt submission on the same queue.
 	VkSemaphore texture_sync_timeline_semaphore;
 	uint64_t texture_sync_timeline_point;
 	struct wl_array texture_sync_semaphores; // struct wlr_vk_texture_sync_sem
@@ -332,9 +332,12 @@ struct wlr_vk_renderer {
 	bool stage_force_block;
 	// Enable the GPU-side asynchronous staging-upload path. Must only be set
 	// once the consumer (Qt/QRhi) is confirmed to submit to the same VkQueue,
-	// since the path relies on queue submission ordering for the upload to
-	// complete before the uploaded texture is sampled.
+	// since the path relies on the same-queue texture-sync bridge to order the
+	// upload before the uploaded texture is sampled.
 	bool stage_async_enabled;
+	// A stage upload was submitted asynchronously and needs the texture-sync
+	// bridge barrier before the consumer submits its command buffer.
+	bool stage_async_needs_bridge;
 
 	size_t last_pool_size;
 	struct wl_list descriptor_pools; // wlr_vk_descriptor_pool.link
@@ -413,9 +416,8 @@ bool vulkan_submit_stage_wait(struct wlr_vk_renderer *renderer);
 // Submits the current stage command buffer without blocking the CPU. The
 // staging buffers it used are hidden in the command buffer's stage_buffers
 // list and reclaimed once its timeline point is reached. Callers that sample
-// the uploaded content must submit their own command buffer to the same queue
-// afterwards so queue submission ordering guarantees the upload finishes
-// first.
+// the uploaded content must flush the texture-sync bridge and then submit
+// their own command buffer to the same queue.
 bool vulkan_submit_stage_async(struct wlr_vk_renderer *renderer);
 
 struct wlr_vk_render_pass_texture {

@@ -49,8 +49,9 @@ bool wlr_vk_renderer_finish_texture_sampling(struct wlr_renderer *renderer,
 	struct wlr_texture *texture, VkCommandBuffer cb);
 
 // Collect foreign-texture sync_files while a compositor frame is recorded,
-// then submit one semaphore-only wait before the compositor command buffer is
-// submitted to the same queue. The abort function is idempotent.
+// then submit one semaphore wait with a bridge barrier before the compositor
+// command buffer is submitted to the same queue. The barrier extends the wait
+// dependency to that later submission. The abort function is idempotent.
 bool wlr_vk_renderer_begin_texture_sync_batch(struct wlr_renderer *renderer);
 bool wlr_vk_renderer_flush_texture_sync_batch(struct wlr_renderer *renderer);
 void wlr_vk_renderer_abort_texture_sync_batch(struct wlr_renderer *renderer);
@@ -73,10 +74,11 @@ void wlr_vk_renderer_abort_texture_barrier_batch(struct wlr_renderer *renderer);
 
 // Enable the GPU-side asynchronous staging-upload path used for shared-memory
 // (CPU-rendered) client buffers. It submits the staging copy without blocking
-// the caller and relies on queue submission ordering to finish the upload
-// before the texture is sampled, so it must only be enabled when the consumer
-// (e.g. Qt/QRhi) submits its command buffers to the same VkQueue as the
-// renderer. When disabled (the default) staging uploads use a blocking wait.
+// the caller and chains the upload through the texture-sync bridge before the
+// texture is sampled, so it must only be enabled when the consumer (e.g.
+// Qt/QRhi) submits its command buffers to the same VkQueue as the renderer and
+// flushes that bridge before submission. When disabled (the default), staging
+// uploads use a blocking wait.
 void wlr_vk_renderer_set_stage_async_enabled(struct wlr_renderer *renderer,
 	bool enabled);
 
