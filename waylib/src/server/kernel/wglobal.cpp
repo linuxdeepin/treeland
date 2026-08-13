@@ -76,6 +76,23 @@ QList<std::pair<const void *, void *>> &WObject::attachedDatas()
 void WObject::teardown()
 {
     W_D(WObject);
+
+    // Clean up the QML engine's declarativeData before detaching listeners.
+    // If the QML engine has already freed QQmlData without zeroing the
+    // declarativeData pointer, any later Qt signal emission (doActivate)
+    // reads a stale pointer and crashes inside QQmlData::signalHasEndpoint().
+    // teardown() runs from the most-derived destructor, i.e. before ~QObject,
+    // so clearing the pointer here prevents the stale read when ~QObject
+    // emits destroyed(). WObject is a non-QObject mixin, so only act when this
+    // object is also a QObject (the common case for wayland wrappers).
+    if (auto *obj = dynamic_cast<QObject *>(this)) {
+        auto *od = QObjectPrivate::get(obj);
+        if (!od->isDeletingChildren && od->declarativeData && QAbstractDeclarativeData::destroyed) {
+            QAbstractDeclarativeData::destroyed(od->declarativeData, obj);
+            od->declarativeData = nullptr;
+        }
+    }
+
     const auto targets = d->attachedListenerTargets;
     d->attachedListenerTargets.clear();
 
