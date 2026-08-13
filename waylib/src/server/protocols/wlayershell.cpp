@@ -115,10 +115,16 @@ void WLayerShell::destroy([[maybe_unused]] WServer *server)
         Q_EMIT surfaceRemoved(surface);
         delete surface;
     }
+    // Clear the dangling handle now: the wlr_layer_shell_v1 is reclaimed by
+    // display.reset() in WServer::stop(), but nulling m_handle immediately
+    // makes handle()/global() return null instead of a dangling pointer.
+    m_handle = nullptr;
 }
 
 wl_global *WLayerShell::global() const
 {
+    if (!m_handle)
+        return nullptr;
     auto handle = reinterpret_cast<wlr_layer_shell_v1*>(m_handle);
     return handle->global;
 }

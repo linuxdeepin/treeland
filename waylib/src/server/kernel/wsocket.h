@@ -94,6 +94,11 @@ public:
     bool isListening() const;
     bool listen(struct wl_display *display);
 
+    // Remove the wayland event source for this socket but keep the fd and
+    // existing clients, so the socket can be re-listened on a new display
+    // after WServer::stop()/start(). Inverse of listen().
+    void stopListen();
+
     WClient *addClient(int fd);
     WClient *addClient(wl_client *client, bool isWlClientOwned = true);
     bool removeClient(wl_client *client);

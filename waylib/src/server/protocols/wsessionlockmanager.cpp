@@ -100,10 +100,16 @@ void WSessionLockManager::destroy([[maybe_unused]] WServer *server)
         Q_EMIT lockDestroyed(lock);
         delete lock;
     }
+    // Clear the dangling handle now: the wlr_session_lock_manager_v1 is
+    // reclaimed by display.reset() in WServer::stop(), but nulling m_handle
+    // immediately makes handle()/global() return null instead of dangling.
+    m_handle = nullptr;
 }
 
 wl_global *WSessionLockManager::global() const
 {
+    if (!m_handle)
+        return nullptr;
     auto handle = reinterpret_cast<wlr_session_lock_manager_v1*>(m_handle);
     return handle->global;
 }
