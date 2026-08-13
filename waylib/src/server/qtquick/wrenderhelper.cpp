@@ -8,6 +8,7 @@
 #include "wayliblogging.h"
 #include "private/wqmlhelper_p.h"
 #include "private/wglobal_p.h"
+#include "wsgcontext_p.h"
 #include <memory>
 
 #include <wlr_all.h>
@@ -412,7 +413,9 @@ QSGRendererInterface::GraphicsApi WRenderHelper::getGraphicsApi(QQuickRenderCont
 QSGRendererInterface::GraphicsApi WRenderHelper::getGraphicsApi()
 {
     auto getApi = [] () {
-        // Only for get GraphicsApi
+        // Only for get GraphicsApi. Install first so this temporary
+        // QQuickRenderControl does not create Qt's default sg.
+        WSGContext::ensureInstalled();
         QQuickRenderControl rc;
         return getGraphicsApi(&rc);
     };

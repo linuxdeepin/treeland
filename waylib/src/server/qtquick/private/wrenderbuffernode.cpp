@@ -23,7 +23,7 @@
 #include <private/qrhi_p.h>
 #include <private/qrhivulkan_p.h>
 #include <private/qsgrenderer_p.h>
-#include <private/qsgbatchrenderer_p.h>
+#include "wsgbatchrenderer_p.h"
 #include <private/qsgdefaultrendercontext_p.h>
 #include <private/qsgrhisupport_p.h>
 #include <private/qquickrendercontrol_p.h>
@@ -69,20 +69,11 @@ static_assert(sizeof(QSGRenderer) == 432,
     "QSGRenderer size changed — review qsgrenderer_p.h and update the bit-field accessor");
 #endif
 
-// QSGBatchRenderer::Renderer::m_shaderManager is a private data member.
-// QSGBatchRenderer::Renderer::useDepthBuffer() is a private const method.
-// Access them via the explicit-instantiation template trick.
-W_DECLARE_PRIVATE_MEMBER(QSGBatchRenderer_m_shaderManager_tag,
-                         QSGBatchRenderer::Renderer, m_shaderManager,
-                         QSGBatchRenderer::ShaderManager*);
-W_DECLARE_PRIVATE_CONST_METHOD(QSGBatchRenderer_useDepthBuffer_tag,
-                                QSGBatchRenderer::Renderer, useDepthBuffer, bool);
-
-static inline QSGBatchRenderer::ShaderManager *&rendererShaderManager(QSGBatchRenderer::Renderer *r) {
-    return W_PRIVATE_MEMBER(*r, QSGBatchRenderer_m_shaderManager_tag{});
+static inline WSGBatchRenderer::ShaderManager *rendererShaderManager(WSGBatchRenderer::Renderer *r) {
+    return r ? r->shaderManager() : nullptr;
 }
-static inline bool rendererUseDepthBuffer(const QSGBatchRenderer::Renderer *r) {
-    return W_PRIVATE_CALL(*r, QSGBatchRenderer_useDepthBuffer_tag{});
+static inline bool rendererUseDepthBuffer(const WSGBatchRenderer::Renderer *r) {
+    return r && r->usesDepthBuffer();
 }
 static inline void rendererPreprocess(QSGRenderer *r) {
     W_PRIVATE_CALL(*r, QSGRenderer_preprocess_tag{});
@@ -484,7 +475,7 @@ public:
 
         do {
             if (forceDepthTest && Q_LIKELY(isBatchRenderer)) {
-                auto batchRenderer = static_cast<QSGBatchRenderer::Renderer*>(renderer);
+                auto batchRenderer = static_cast<WSGBatchRenderer::Renderer*>(renderer);
                 if (auto sm = rendererShaderManager(batchRenderer)) {
                     if (Q_LIKELY(!sm->pipelineCache.isEmpty())) {
                         QVector<std::pair<QRhiGraphicsPipeline*, bool>> tmp;
@@ -548,7 +539,7 @@ private:
         // renderer is using depth test, and the other QSGRenderer is not finished render.
         // For an example: RhiNode to render its content nodes on an exists renderTarget.
         renderer = context->createRenderer(QSGRendererInterface::RenderMode2DNoDepthBuffer);
-        isBatchRenderer = dynamic_cast<QSGBatchRenderer::Renderer*>(renderer);
+        isBatchRenderer = dynamic_cast<WSGBatchRenderer::Renderer*>(renderer);
     }
 
     ~RhiManager() override {
