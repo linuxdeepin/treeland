@@ -161,6 +161,11 @@ void WXdgDecorationManager::destroy([[maybe_unused]] WServer *server)
     // tokens (their dtors teardown surface-scoped groups).
     d->decorationListeners.clear();
     d->decorations.clear();
+    // Clear the dangling handle now: the wlr_xdg_decoration_manager_v1 is
+    // reclaimed by display.reset() in WServer::stop(), but nulling m_handle
+    // immediately makes handle()/global() return null instead of dangling
+    // (global() already guards on m_handle).
+    m_handle = nullptr;
 }
 
 wl_global *WXdgDecorationManager::global() const

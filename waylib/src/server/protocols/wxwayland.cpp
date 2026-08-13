@@ -462,11 +462,22 @@ void WXWayland::destroy([[maybe_unused]] WServer *server)
         removeSurface(surface);
         delete surface;
     }
+
+    // Destroy the native xwayland explicitly so it is reclaimed before the
+    // display is torn down. teardown() (called by WServer::stop() before
+    // this) already detached our new_surface/ready/start listeners, which
+    // wlr_xwayland_destroy asserts to be empty. ~WXWayland() guards on
+    // handle() being null, so it won't double-destroy.
+    if (auto handle = this->handle())
+        wlr_xwayland_destroy(handle);
+    m_handle = nullptr;
 }
 
 wl_global *WXWayland::global() const
 {
-    return handle()->shell_v1->global;
+    if (auto *h = handle())
+        return h->shell_v1 ? h->shell_v1->global : nullptr;
+    return nullptr;
 }
 
 void WXWayland::readAsyncProperties(
