@@ -5,7 +5,7 @@
 
 #include <wlr_fwd.h>
 #include "wsurface.h"
-#include "private/wglobal_p.h"
+#include "private/wwaylandresource_p.h"
 #include "wpointer.h"
 #include "wscoplistener.h"
 
@@ -16,7 +16,7 @@
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class Q_DECL_HIDDEN WSurfacePrivate : public WObjectPrivate {
+class Q_DECL_HIDDEN WSurfacePrivate : public WWaylandResourcePrivate {
 public:
     WSurfacePrivate(WSurface *qq, wlr_surface *handle);
     ~WSurfacePrivate();
