@@ -38,6 +38,20 @@ static WallpaperType detectWallpaperType(const QString &path)
     return WallpaperType::Unknown;
 }
 
+static void applyDefaultWallpaper(const QString &defaultBackground,
+                                  QString &path,
+                                  TreelandWallpaperInterfaceV1::WallpaperType &type)
+{
+    path = defaultBackground;
+    const WallpaperType detectedType = detectWallpaperType(path);
+    if (detectedType == WallpaperType::Unknown) {
+        path = DEFAULT_WALLPAPER;
+        type = TreelandWallpaperInterfaceV1::Image;
+    } else {
+        type = static_cast<TreelandWallpaperInterfaceV1::WallpaperType>(detectedType);
+    }
+}
+
 WallpaperManager::WallpaperManager(QObject *parent)
     : QObject(parent)
 {
@@ -93,29 +107,20 @@ void WallpaperManager::defaultWallpaperConfig()
 {
     Workspace *workspace = Helper::instance()->workspace();
     Q_ASSERT(workspace);
+    const QString defaultBackground = Helper::instance()->m_config->defaultBackground();
     for (Output *output : std::as_const(Helper::instance()->m_outputList)) {
         WallpaperOutputConfig outputConfig;
-        outputConfig.lockscreenWallpaper = Helper::instance()->m_config->defaultBackground();
+        applyDefaultWallpaper(defaultBackground,
+                              outputConfig.lockscreenWallpaper,
+                              outputConfig.lockScreenWallpapertype);
         outputConfig.outputName = output->getOutputId();
-        WallpaperType type = detectWallpaperType(outputConfig.lockscreenWallpaper);
-        if (type == WallpaperType::Unknown) {
-            outputConfig.lockscreenWallpaper = DEFAULT_WALLPAPER;
-            outputConfig.lockScreenWallpapertype = TreelandWallpaperInterfaceV1::Image;
-        } else {
-            outputConfig.lockScreenWallpapertype = static_cast<TreelandWallpaperInterfaceV1::WallpaperType>(type);
-        }
 
         for (int i = 0; i < workspace->count(); i++) {
             WallpaperWorkspaceConfig workspaceConfig;
-            workspaceConfig.desktopWallpaper = Helper::instance()->m_config->defaultBackground();
+            applyDefaultWallpaper(defaultBackground,
+                                  workspaceConfig.desktopWallpaper,
+                                  workspaceConfig.desktopWallpapertype);
             workspaceConfig.workspaceId = i;
-            WallpaperType type = detectWallpaperType(workspaceConfig.desktopWallpaper);
-            if (type == WallpaperType::Unknown) {
-                workspaceConfig.desktopWallpaper = DEFAULT_WALLPAPER;
-                workspaceConfig.desktopWallpapertype = TreelandWallpaperInterfaceV1::Image;
-            } else {
-                workspaceConfig.desktopWallpapertype = static_cast<TreelandWallpaperInterfaceV1::WallpaperType>(type);
-            }
             outputConfig.workspaces.append(workspaceConfig);
         }
         m_wallpaperConfig.append(outputConfig);
@@ -133,19 +138,34 @@ void WallpaperManager::ensureWallpaperConfigForOutput(Output *output)
 
     bool update = false;
     if (!configContainsOutput(output)) {
-        WallpaperOutputConfig refConfig = m_wallpaperConfig.last();
-        WallpaperWorkspaceConfig refWorkspaceConfig = refConfig.workspaces.first();
         Workspace *workspace = Helper::instance()->workspace();
         Q_ASSERT(workspace);
+        const QString defaultBackground = Helper::instance()->m_config->defaultBackground();
 
         WallpaperOutputConfig outputConfig;
-        outputConfig.lockscreenWallpaper = refConfig.lockscreenWallpaper;
-        outputConfig.lockScreenWallpapertype = refConfig.lockScreenWallpapertype;
+        const bool hasReferenceConfig = !m_wallpaperConfig.isEmpty()
+            && !m_wallpaperConfig.constLast().workspaces.isEmpty();
+        if (hasReferenceConfig) {
+            const WallpaperOutputConfig &refConfig = m_wallpaperConfig.constLast();
+            outputConfig.lockscreenWallpaper = refConfig.lockscreenWallpaper;
+            outputConfig.lockScreenWallpapertype = refConfig.lockScreenWallpapertype;
+        } else {
+            applyDefaultWallpaper(defaultBackground,
+                                  outputConfig.lockscreenWallpaper,
+                                  outputConfig.lockScreenWallpapertype);
+        }
         outputConfig.outputName = output->getOutputId();
         for (int i = 0; i < workspace->count(); i++) {
             WallpaperWorkspaceConfig workspaceConfig;
-            workspaceConfig.desktopWallpaper = refWorkspaceConfig.desktopWallpaper;
-            workspaceConfig.desktopWallpapertype = refWorkspaceConfig.desktopWallpapertype;
+            if (hasReferenceConfig) {
+                const WallpaperWorkspaceConfig &refWorkspaceConfig = m_wallpaperConfig.constLast().workspaces.constFirst();
+                workspaceConfig.desktopWallpaper = refWorkspaceConfig.desktopWallpaper;
+                workspaceConfig.desktopWallpapertype = refWorkspaceConfig.desktopWallpapertype;
+            } else {
+                applyDefaultWallpaper(defaultBackground,
+                                      workspaceConfig.desktopWallpaper,
+                                      workspaceConfig.desktopWallpapertype);
+            }
             workspaceConfig.workspaceId = i;
             outputConfig.workspaces.append(workspaceConfig);
         }
