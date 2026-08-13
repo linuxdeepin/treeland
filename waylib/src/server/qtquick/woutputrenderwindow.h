@@ -20,6 +20,8 @@ class WOutputLayer;
 class WBufferRenderer;
 class WOutputHelper;
 class WSGTextureProvider;
+class WPresentation;
+class WSurface;
 class WOutputRenderWindowPrivate;
 
 class WAYLIB_SERVER_EXPORT WOutputRenderWindow : public QQuickWindow, public QQmlParserStatus
@@ -56,6 +58,8 @@ public:
     void init(wlr_renderer *renderer, wlr_allocator *allocator);
     wlr_renderer *renderer() const;
     wlr_allocator *allocator() const;
+    void setPresentation(WPresentation *presentation);
+    void markSurfaceTexturedForPresentation(WSurface *surface);
 
     bool prepareTextureSamplingForRenderPass(wlr_buffer *currentBuffer,
                                              const QVector<WSGTextureProvider *> &activeProviders,

@@ -667,6 +667,7 @@ protected:
         if (auto *renderWindow = m_owner->outputRenderWindow()) {
             WVulkanTrace::surfaceFootprint(renderWindow, provider, texture,
                                            ownerPrivate->surface);
+            renderWindow->markSurfaceTexturedForPresentation(ownerPrivate->surface);
         }
     }
 

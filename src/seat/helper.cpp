@@ -72,6 +72,7 @@
 #include <WForeignToplevel>
 #include <WLinuxDmabufV1>
 #include <WOutput>
+#include <WPresentation>
 #include <WServer>
 #include <WSurfaceItem>
 #include <WXdgOutput>
@@ -1992,6 +1993,8 @@ void Helper::init(Treeland::Treeland *treeland)
             qCFatal(lcTlCore) << "Failed to initialize wl_shm for Vulkan renderer";
 
         m_server->attach<WLinuxDmabufV1>(m_renderer);
+        auto *presentation = m_server->attach<WPresentation>(m_backend->handle());
+        m_renderWindow->setPresentation(presentation);
 
     } else {
         if (!wlr_renderer_init_wl_display(m_renderer, m_server->handle()))
