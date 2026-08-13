@@ -415,7 +415,7 @@ void WXdgOutputManager::resetScaleOverride()
 QRect WXdgOutputManager::outputGeometry(WOutput *output) const
 {
     W_DC(WXdgOutputManager);
-    auto *layoutOutput = wlr_output_layout_get(d->layout->handle()->handle(), output->nativeHandle());
+    auto *layoutOutput = wlr_output_layout_get(d->layout->handle(), output->handle());
 
     int width = 0;
     int height = 0;
