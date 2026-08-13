@@ -13,6 +13,7 @@
 #include "wscoplistener.h"
 #include "wsurfaceitem_p.h"
 #include "wayliblogging.h"
+#include "utils/private/wvulkantrace_p.h"
 
 #include <private/qquickitem_p.h>
 
@@ -25,8 +26,18 @@
 #include <QQuickWindow>
 #include <QSGImageNode>
 #include <QSGRenderNode>
+#include <rhi/qrhi.h>
+
+#include <utility>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
+
+static bool usesVulkanRhi(WOutputRenderWindow *window)
+{
+    if (window && window->rhi())
+        return window->rhi()->backend() == QRhi::Vulkan;
+    return QQuickWindow::graphicsApi() == QSGRendererInterface::Vulkan;
+}
 
 class Q_DECL_HIDDEN SubsurfaceContainer : public QQuickItem
 {
@@ -165,7 +176,7 @@ struct Q_DECL_HIDDEN BufferRef
     BufferRef &operator=(const BufferRef &) = delete;
 
     BufferRef(BufferRef &&other) noexcept {
-        std::swap(m_buffer, other.m_buffer);
+        m_buffer = std::exchange(other.m_buffer, nullptr);
     }
 
     BufferRef &operator=(BufferRef &&other) noexcept {
@@ -188,6 +199,14 @@ struct Q_DECL_HIDDEN BufferRef
 
     wlr_buffer *get() const { return m_buffer; }
     explicit operator bool() const { return m_buffer != nullptr; }
+
+    void take(BufferRef &other) {
+        if (this == &other)
+            return;
+
+        release();
+        m_buffer = std::exchange(other.m_buffer, nullptr);
+    }
 
 private:
     void release() {
@@ -233,6 +252,11 @@ public:
 
         Q_ASSERT(!updateTextureConnection);
 
+        if (usesVulkanRhi(q->outputRenderWindow())) {
+            pendingBuffer.reset();
+            pendingBufferValid = false;
+        }
+
         if (dontCacheLastBuffer) {
             buffer.reset();
             cleanTextureProvider();
@@ -262,8 +286,14 @@ public:
                 if (!live) {
                     // Non-live mode: defer to pendingBuffer
                     pendingBuffer.reset(newBuffer);
+                    if (usesVulkanRhi(q->outputRenderWindow()))
+                        pendingBufferValid = true;
                 } else {
                     // Live mode: update buffer immediately
+                    if (usesVulkanRhi(q->outputRenderWindow())) {
+                        pendingBuffer.reset();
+                        pendingBufferValid = false;
+                    }
                     buffer.reset(newBuffer);
                     q->update();
                 }
@@ -272,6 +302,17 @@ public:
             if (Q_LIKELY((q->isVisible() || lastRendered) && live))
                 surface->scheduleFrameIfNeeded();
         });
+
+        if (usesVulkanRhi(q->outputRenderWindow())) {
+            // The SurfaceItem can be created after the client has already
+            // committed its first buffer (notably for prelaunched XWayland
+            // surfaces). Seed the visible buffer instead of waiting for a
+            // future commit that may never arrive.
+            pendingBuffer.reset();
+            pendingBufferValid = false;
+            buffer.reset(surface->buffer());
+            q->update();
+        }
 
         updateFrameDoneConnection();
         updateSurfaceState();
@@ -337,8 +378,18 @@ public:
     }
 
     inline void swapBufferIfNeeded() {
-        if (pendingBuffer)
-            buffer = std::move(pendingBuffer);
+        W_Q(WSurfaceItemContent);
+        if (!usesVulkanRhi(q->outputRenderWindow())) {
+            if (pendingBuffer)
+                buffer = std::move(pendingBuffer);
+            return;
+        }
+
+        if (!pendingBufferValid)
+            return;
+
+        buffer.take(pendingBuffer);
+        pendingBufferValid = false;
     }
 
     inline void setDevicePixelRatio(qreal dpr) {
@@ -371,6 +422,7 @@ public:
     mutable WSGTextureProvider *textureProvider = nullptr;
     BufferRef buffer;
     BufferRef pendingBuffer;
+    bool pendingBufferValid = false;
     mutable QMetaObject::Connection updateTextureConnection;
     bool dontCacheLastBuffer = false;
     bool live = true;
@@ -467,7 +519,13 @@ WSGTextureProvider *WSurfaceItemContent::wTextureProvider() const
         connect(this, &WSurfaceItemContent::smoothChanged,
                 d->textureProvider, &WSGTextureProvider::setSmooth);
 
-        if (d->surface) {
+        if (usesVulkanRhi(w)) {
+            // Keep the visible buffer and its wlroots texture as one
+            // inseparable ownership tuple. This also preserves NonLive's
+            // frozen buffer instead of pairing it with the latest surface
+            // texture.
+            d->textureProvider->setBuffer(d->buffer.get());
+        } else if (d->surface) {
             if (auto texture = wlr_surface_get_texture(d->surface->handle())) {
                 d->textureProvider->setTexture(texture, d->buffer.get());
             } else {
@@ -495,6 +553,16 @@ void WSurfaceItemContent::setCacheLastBuffer(bool newCacheLastBuffer)
     if (d->dontCacheLastBuffer == !newCacheLastBuffer)
         return;
     d->dontCacheLastBuffer = !newCacheLastBuffer;
+
+    if (usesVulkanRhi(outputRenderWindow())
+        && d->dontCacheLastBuffer && !d->surface) {
+        d->pendingBuffer.reset();
+        d->pendingBufferValid = false;
+        d->buffer.reset();
+        d->cleanTextureProvider();
+        update();
+    }
+
     Q_EMIT cacheLastBufferChanged();
 }
 
@@ -589,7 +657,46 @@ public:
         return NoExternalRendering | BoundedRectRendering | DepthAwareRendering | OpaqueRendering;
     }
 
+protected:
+    void traceVulkanBinding(const void *provider, wlr_texture *texture)
+    {
+        if (!m_owner)
+            return;
+
+        auto *ownerPrivate = m_owner->d_func();
+        if (auto *renderWindow = m_owner->outputRenderWindow()) {
+            WVulkanTrace::surfaceFootprint(renderWindow, provider, texture,
+                                           ownerPrivate->surface);
+        }
+    }
+
+public:
     QPointer<WSurfaceItemContent> m_owner;
+};
+
+class Q_DECL_HIDDEN WSGVulkanRenderFootprintNode final : public WSGRenderFootprintNode
+{
+public:
+    explicit WSGVulkanRenderFootprintNode(WSurfaceItemContent *owner)
+        : WSGRenderFootprintNode(owner)
+    {
+    }
+
+    void setBinding(const void *provider, wlr_texture *texture)
+    {
+        m_provider = provider;
+        m_texture = texture;
+    }
+
+    void render(const RenderState *state) override
+    {
+        WSGRenderFootprintNode::render(state);
+        traceVulkanBinding(m_provider, m_texture);
+    }
+
+private:
+    const void *m_provider = nullptr;
+    wlr_texture *m_texture = nullptr;
 };
 
 QSGNode *WSurfaceItemContent::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *)
@@ -597,13 +704,43 @@ QSGNode *WSurfaceItemContent::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeD
     W_D(WSurfaceItemContent);
 
     auto tp = wTextureProvider();
-    if (d->live || !tp->texture()) {
-        auto texture = d->surface ? wlr_surface_get_texture(d->surface->handle()) : nullptr;
-        if (texture) {
-            tp->setTexture(texture, d->buffer.get());
-        } else {
-            tp->setBuffer(d->buffer.get());
+    const bool vulkanRhi = usesVulkanRhi(tp->window());
+    if (!vulkanRhi) {
+        if (d->live || !tp->texture()) {
+            auto texture = d->surface ? wlr_surface_get_texture(d->surface->handle()) : nullptr;
+            if (texture) {
+                tp->setTexture(texture, d->buffer.get());
+            } else {
+                tp->setBuffer(d->buffer.get());
+            }
         }
+
+        if (!tp->texture() || width() <= 0 || height() <= 0) {
+            delete oldNode;
+            return nullptr;
+        }
+
+        auto node = static_cast<QSGImageNode*>(oldNode);
+        if (Q_UNLIKELY(!node)) {
+            node = window()->createImageNode();
+            node->setOwnsTexture(false);
+            QSGNode *fpnode = new WSGRenderFootprintNode(this);
+            node->appendChildNode(fpnode);
+        }
+
+        auto texture = tp->texture();
+        node->setTexture(texture);
+        const QRectF textureGeometry = d->bufferSourceBox;
+        node->setSourceRect(textureGeometry);
+        const QRectF targetGeometry(d->ignoreBufferOffset ? QPointF() : d->bufferOffset, size());
+        node->setRect(targetGeometry);
+        node->setFiltering(smooth() ? QSGTexture::Linear : QSGTexture::Nearest);
+
+        return node;
+    }
+
+    if (d->live || !tp->texture()) {
+        tp->setBuffer(d->buffer.get());
     }
 
     if (!tp->texture() || width() <= 0 || height() <= 0) {
@@ -612,15 +749,21 @@ QSGNode *WSurfaceItemContent::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeD
     }
 
     auto node = static_cast<QSGImageNode*>(oldNode);
+    WSGVulkanRenderFootprintNode *vulkanFootprintNode = nullptr;
     if (Q_UNLIKELY(!node)) {
         node = window()->createImageNode();
         node->setOwnsTexture(false);
-        QSGNode *fpnode = new WSGRenderFootprintNode(this);
-        node->appendChildNode(fpnode);
+        vulkanFootprintNode = new WSGVulkanRenderFootprintNode(this);
+        node->appendChildNode(vulkanFootprintNode);
+    } else {
+        vulkanFootprintNode =
+            static_cast<WSGVulkanRenderFootprintNode *>(node->firstChild());
     }
 
     auto texture = tp->texture();
     node->setTexture(texture);
+    Q_ASSERT(vulkanFootprintNode);
+    vulkanFootprintNode->setBinding(tp, tp->qwTexture());
     const QRectF textureGeometry = d->bufferSourceBox;
     node->setSourceRect(textureGeometry);
     const QRectF targetGeometry(d->ignoreBufferOffset ? QPointF() : d->bufferOffset, size());
@@ -1642,13 +1785,21 @@ void WSurfaceItemContentPrivate::cleanTextureProvider()
             public:
                 WSurfaceItemContentCleanupJob(QObject *object) : m_object(object) { }
                 void run() override {
-                    delete m_object;
+                    delete m_object.data();
                 }
-                QObject *m_object;
+                QPointer<QObject> m_object;
             };
 
-                   // Delay clean the textures on the next render after.
-            window->scheduleRenderJob(new WSurfaceItemContentCleanupJob(textureProvider),
+            auto *provider = textureProvider;
+            // If scene graph teardown wins the race with the scheduled job,
+            // delete the provider while QRhi is still alive. The job's
+            // QPointer then becomes null and is harmless when discarded.
+            QObject::connect(window, &QQuickWindow::sceneGraphInvalidated,
+                             provider, [provider] { delete provider; },
+                             Qt::DirectConnection);
+
+            // Delay clean the textures until rendering has finished.
+            window->scheduleRenderJob(new WSurfaceItemContentCleanupJob(provider),
                                       QQuickWindow::AfterRenderingStage);
         } else {
             delete textureProvider;

@@ -11,8 +11,8 @@
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-WBufferDumper::DumpResult WBufferDumper::dumpBufferToImage(wlr_buffer *buffer, 
-                                                           wlr_renderer *renderer, 
+WBufferDumper::DumpResult WBufferDumper::dumpBufferToImage(wlr_buffer *buffer,
+                                                           wlr_renderer *renderer,
                                                            QImage &outputImage)
 {
     if (!buffer || !renderer) {
@@ -27,7 +27,7 @@ WBufferDumper::DumpResult WBufferDumper::dumpBufferToImage(wlr_buffer *buffer,
     }
 
     uint32_t format = wlr_texture_preferred_read_format(texture);
-    
+
     QImage::Format qImageFormat = WTools::toImageFormat(format);
     if (qImageFormat == QImage::Format_Invalid) {
         wlr_texture_destroy(texture);
@@ -53,13 +53,13 @@ WBufferDumper::DumpResult WBufferDumper::dumpBufferToImage(wlr_buffer *buffer,
     return DumpResult::Success;
 }
 
-WBufferDumper::DumpResult WBufferDumper::dumpBufferToFile(wlr_buffer *buffer, 
+WBufferDumper::DumpResult WBufferDumper::dumpBufferToFile(wlr_buffer *buffer,
                                                           wlr_renderer *renderer,
                                                           const QString &filePath)
 {
     QImage image;
     DumpResult result = dumpBufferToImage(buffer, renderer, image);
-    
+
     if (result != DumpResult::Success) {
         return result;
     }
