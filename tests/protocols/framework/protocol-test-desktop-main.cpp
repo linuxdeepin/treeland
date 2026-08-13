@@ -1,3 +1,4 @@
+// Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "core/treeland.h"
@@ -117,9 +118,6 @@ int main(int argc, char *argv[])
     // QML resources use stable qrc URLs, so a stale user disk cache can be
     // reused after rebuilding a plugin and make protocol tests run old QML.
     qputenv("QML_DISABLE_DISK_CACHE", "1");
-    // The fixture loads the CMake-provided build-plugin path after Treeland is
-    // constructed, instead of resolving Release plugins from the install prefix.
-    qputenv("TREELAND_TEST_SKIP_PLUGINS", "1");
     if (protocol_test_desktop_preflight && !protocol_test_desktop_preflight()) {
         std::fflush(nullptr);
         std::_Exit(77);
