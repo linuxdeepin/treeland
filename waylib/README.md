@@ -55,7 +55,7 @@ You can also packaging by using the command "nix build -v -L".
 Step 3: Execute the following commands
 
 ```bash
-cmake -B build -DWITH_SUBMODULE_QWLROOTS=ON
+cmake -B build
 cmake --build build
 ```
 
