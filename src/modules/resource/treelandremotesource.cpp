@@ -60,6 +60,16 @@ QString processNameForPid(int pid)
 // (spinning a local event loop with a timeout) until the GPU read-back
 // completes. Returns false on timeout or failure; never throws past the
 // boundary.
+//
+// NOTE: unlike capture.cpp's asynchronous WTextureCapturer usage, this spins a
+// nested QEventLoop on the compositor main thread so the RPC can return the
+// image synchronously. While loop.exec() runs the main thread keeps pumping
+// events (render frames, other IPC calls, window management), which can
+// re-enter this code path or mutate the scene graph. The 5s timeout bounds the
+// worst case, and on the common path (not currently rendering) doGrabToImage
+// runs synchronously and the loop exits immediately. This blocking behaviour
+// is acceptable ONLY because the debug Remote Object source is opt-in
+// (debugSource DConfig) and not present in normal operation.
 bool grabToImage(WTextureProviderProvider *provider, QImage *out)
 {
     if (!provider || !out)
@@ -90,11 +100,8 @@ QString saveImage(const QImage &image, QString filePath)
         return {};
     if (filePath.isEmpty())
         filePath = QStringLiteral("/tmp/treeland-debug-%1.png").arg(QDateTime::currentMSecsSinceEpoch());
-    if (!QFileInfo(filePath).suffix().isEmpty()) {
-        // keep the user supplied suffix (must be a format QImage can write)
-    } else {
+    if (QFileInfo(filePath).suffix().isEmpty())
         filePath += QStringLiteral(".png");
-    }
     const QByteArray format = QFileInfo(filePath).suffix().toLower().toUtf8();
     if (!image.save(filePath, format.isEmpty() ? "png" : format.constData()))
         return {};
@@ -504,16 +511,28 @@ bool TreelandRemoteSource::setWindowWorkspace(qint64 id, int workspaceId)
     auto *surface = findSurfaceById(id);
     if (!surface)
         return false;
-    surface->setWorkspaceId(workspaceId);
+    auto *workspace = Helper::instance()->workspace();
+    if (!workspace || !workspace->modelFromId(workspaceId))
+        return false;
+    // moveSurfaceTo() Q_ASSERTs that the surface already belongs to a workspace
+    // model (workspaceId() != -1); layer-shell surfaces (workspaceId == -1)
+    // live outside workspaces and must not be moved this way, so reject them
+    // up front. ShowOnAllWorkspaceId (-2) is fully supported by moveSurfaceTo.
+    if (surface->workspaceId() == -1)
+        return false;
+    workspace->moveSurfaceTo(surface, workspaceId);
     return true;
 }
 
 bool TreelandRemoteSource::moveCursor(QPointF pos)
 {
-    auto *seat = Helper::instance()->seat();
-    if (!seat)
+    auto *helper = Helper::instance();
+    if (!helper)
         return false;
-    seat->setCursorPosition(pos);
+    // Use the high-level Helper API: it ends any in-progress interactive
+    // move/resize for every seat before moving the cursor, so injected motion
+    // is never accidentally fed into an active move/resize transaction.
+    helper->setCursorPosition(pos);
     return true;
 }
 

@@ -205,6 +205,11 @@ public:
 
     WSeat *seat() const;
 
+    // Moves the primary seat cursor to @p position, first ending any
+    // in-progress interactive move/resize for every seat so the motion is
+    // not fed into an active transaction. Exposed for the debug control API.
+    void setCursorPosition(const QPointF &position);
+
     bool toggleDebugMenuBar();
 
     WindowManagementInterfaceV1::DesktopState showDesktopState() const;
@@ -341,8 +346,6 @@ private:
     SurfaceWrapper *keyboardFocusSurface() const;
     SurfaceWrapper *activatedSurface() const;
     void setActivatedSurface(SurfaceWrapper *newActivateSurface, WSeat *seat = nullptr);
-
-    void setCursorPosition(const QPointF &position);
 
     bool beforeDisposeEvent(WSeat *seat, QWindow *window, QInputEvent *event) override;
     bool afterHandleEvent(WSeat *seat, WSurface *watched, QObject *shellObject,

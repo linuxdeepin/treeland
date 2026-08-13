@@ -408,6 +408,7 @@ int main(int argc, char *argv[])
     QString url = QStringLiteral("local:org.deepin.dde.treeland.debug");
     QString name = QStringLiteral("WindowTree");
     int timeoutMs = 30000;
+    bool timeoutOk = true;
     bool json = false;
     bool compatTree = false;
     bool compatCursor = false;
@@ -428,10 +429,17 @@ int main(int argc, char *argv[])
             name = next();
         else if (arg.startsWith(QLatin1String("--name=")))
             name = arg.mid(7);
-        else if (arg == QLatin1String("--timeout-ms"))
-            timeoutMs = next().toInt();
-        else if (arg.startsWith(QLatin1String("--timeout-ms=")))
-            timeoutMs = arg.mid(13).toInt();
+        else if (arg == QLatin1String("--timeout-ms")) {
+            bool ok = false;
+            timeoutMs = next().toInt(&ok);
+            if (!ok)
+                timeoutOk = false;
+        } else if (arg.startsWith(QLatin1String("--timeout-ms="))) {
+            bool ok = false;
+            timeoutMs = arg.mid(13).toInt(&ok);
+            if (!ok)
+                timeoutOk = false;
+        }
         else if (arg == QLatin1String("--json"))
             json = true;
         else if (arg == QLatin1String("--tree"))
@@ -449,8 +457,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    bool timeoutValid = (timeoutMs >= 0);
-    if (!timeoutValid)
+    if (!timeoutOk || timeoutMs < 0)
         return fail("--timeout-ms must be a non-negative integer");
 
     registerNamedMetatypes();
@@ -772,10 +779,7 @@ static int runShell(Session &session, int timeoutMs, bool json)
             continue;
         }
 
-        QStringList parts;
-        const auto tokens = trimmed.split(' ', Qt::SkipEmptyParts);
-        for (const auto &t : tokens)
-            parts.append(t);
+        QStringList parts = trimmed.split(' ', Qt::SkipEmptyParts);
         if (parts.isEmpty())
             continue;
 
