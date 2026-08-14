@@ -1,3 +1,26 @@
+treeland (0.8.18) unstable; urgency=medium
+
+  * fix(output): skip configuration callbacks on initialization failure
+  * fix(xwayland): synchronize EWMH desktop properties
+  * fix(xwayland): displayed incorrectly when maximized during
+    initialization
+  * feat: remove qwlroots dependency, use wlroots C API directly
+  * fix: remove WBackend::activateSession/deactivateSession hack
+  * fix(xsettings): format XResources with tab separators
+  * refactor(output): centralize output ID generation
+  * fix(multitaskview): skip hover-driven focus during animation and
+    exit
+  * fix(lockscreen): add Vulkan-specific Blur placeholder
+  * fix(waylib): fix Vulkan scanout RT via wlroots render_buffer
+  * fix(greeter): fall back to NSS when logged-in user missing from
+    UserModel
+  * feat: add containerOf utility for struct member offset calculation
+  * feat(shortcut): add TileLeft/TileRight shortcuts
+  * fix(tile): reposition window under cursor when de-tiling on move
+    begin
+
+ -- rewine <luhongxu@deepin.org>  Fri, 14 Aug 2026 15:07:39 +0800
+
 treeland (0.8.17) unstable; urgency=medium
 
   * fix(seat): restore group keyboard when virtual keyboard is destroyed
