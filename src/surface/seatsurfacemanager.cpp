@@ -180,6 +180,8 @@ void SeatSurfaceManager::restoreShowDesktopFocus()
 
 void SeatSurfaceManager::beginMoveResize(SurfaceWrapper *surface, Qt::Edges edges)
 {
+    if (!surface || surface->isCaptureMask())
+        return;
     if (m_moveResizeState.surface)
         endMoveResize();
     // Move of a tiled/maximized window: instantly de-tile to Normal BEFORE
