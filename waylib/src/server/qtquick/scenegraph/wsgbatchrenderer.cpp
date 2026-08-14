@@ -16,6 +16,9 @@
 #include <private/qsgmaterialshader_p.h>
 
 #include "wsgrhivisualizer_p.h"
+#include "wsgdamagetracker_p.h"
+#include "wsgdamagedebug_p.h"
+#include "wrenderbuffernode_p.h"
 
 #include <algorithm>
 
@@ -62,6 +65,8 @@ QSGSamplerDescription QSGSamplerDescription::fromTexture(QSGTexture *t)
     return s;
 }
 
+QT_END_NAMESPACE
+
 static int qt_sg_envInt(const char *name, int defaultValue)
 {
     if (Q_LIKELY(!qEnvironmentVariableIsSet(name)))
@@ -70,6 +75,8 @@ static int qt_sg_envInt(const char *name, int defaultValue)
     const int value = qEnvironmentVariableIntValue(name, &ok);
     return ok ? value : defaultValue;
 }
+
+WAYLIB_SERVER_BEGIN_NAMESPACE
 
 namespace WSGBatchRenderer
 {
@@ -904,6 +911,8 @@ Renderer::Renderer(QSGDefaultRenderContext *ctx, QSGRendererInterface::RenderMod
     , m_partialRebuild(false)
     , m_partialRebuildRoot(nullptr)
     , m_forceNoDepthBuffer(false)
+    , m_damageTracker(std::make_unique<WSGDamageTracker>())
+    , m_damageDebug(std::make_unique<WSGDamageDebug>())
     , m_opaqueBatches(16)
     , m_alphaBatches(16)
     , m_batchPool(16)
@@ -1040,6 +1049,7 @@ void Renderer::destroyGraphicsResources()
     m_stencilClipCommon.reset();
     delete m_dummyTexture;
     m_visualizer->releaseResources();
+    m_damageDebug->releaseResources();
 }
 
 void Renderer::releaseCachedResources()
@@ -1412,8 +1422,130 @@ void Renderer::turnNodeIntoBatchRoot(Node *node)
 }
 
 
+QRegion Renderer::flushRegion() const
+{
+    return m_damageTracker->flushRegion();
+}
+
+bool Renderer::flushRegionIsFull() const
+{
+    return m_damageTracker->flushRegionIsFull();
+}
+
+QRegion Renderer::pendingRegion() const
+{
+    return m_damageTracker->pendingRegion();
+}
+
+bool Renderer::pendingIsFull() const
+{
+    return m_damageTracker->pendingIsFull();
+}
+
+void Renderer::addPendingRegion(const QRegion &region)
+{
+    m_damageTracker->addRegion(region);
+}
+
+void Renderer::commitPendingDamage()
+{
+    commitFlushRegion();
+}
+
+void Renderer::markFullDamage()
+{
+    m_damageTracker->markFull();
+}
+
+void Renderer::skipDamageScissorOnce()
+{
+    m_skipDamageScissorOnce = true;
+}
+
+void Renderer::setDamageScissorTarget(QRhiRenderTarget *rt)
+{
+    m_damageScissorTarget = rt;
+}
+
+void Renderer::expandDamageScissor(const QRegion &sceneRegion)
+{
+    m_extraDamageScissor += sceneRegion;
+}
+
+void Renderer::setDamageDebugEnabled(bool enabled)
+{
+    m_damageDebugEnabled = enabled;
+}
+
+bool Renderer::damageDebugNeedsFrame() const
+{
+    return m_damageDebugEnabled && m_damageDebug && m_damageDebug->needsAnotherFrame();
+}
+
+static bool textureRenderTargetPreservesColor(QRhiRenderTarget *rt)
+{
+    if (!rt || rt->resourceType() != QRhiResource::TextureRenderTarget)
+        return false;
+    return static_cast<QRhiTextureRenderTarget *>(rt)->flags()
+            .testFlag(QRhiTextureRenderTarget::PreserveColorContents);
+}
+
+QRect Renderer::sceneRectToNativeScissor(const QRectF &bbox, bool pad) const
+{
+    if (bbox.isEmpty())
+        return {};
+
+    const QMatrix4x4 m = projectionMatrixWithNativeNDC(0);
+    // Same mapping as updateClipState(): only axis-aligned (or 90°) orthographic.
+    if (!qFuzzyIsNull(m(3, 0)) || !qFuzzyIsNull(m(3, 1)))
+        return {};
+
+    const bool noRotate = qFuzzyIsNull(m(0, 1)) && qFuzzyIsNull(m(1, 0));
+    const bool isRotate90 = qFuzzyIsNull(m(0, 0)) && qFuzzyIsNull(m(1, 1));
+    if (!noRotate && !isRotate90)
+        return {};
+
+    const qreal invW = qFuzzyIsNull(m(3, 3)) ? 1.0 : 1.0 / m(3, 3);
+    qreal fx1, fy1, fx2, fy2;
+    if (noRotate) {
+        fx1 = (bbox.left() * m(0, 0) + m(0, 3)) * invW;
+        fy1 = (bbox.bottom() * m(1, 1) + m(1, 3)) * invW;
+        fx2 = (bbox.right() * m(0, 0) + m(0, 3)) * invW;
+        fy2 = (bbox.top() * m(1, 1) + m(1, 3)) * invW;
+    } else {
+        fx1 = (bbox.bottom() * m(0, 1) + m(0, 3)) * invW;
+        fy1 = (bbox.left() * m(1, 0) + m(1, 3)) * invW;
+        fx2 = (bbox.top() * m(0, 1) + m(0, 3)) * invW;
+        fy2 = (bbox.right() * m(1, 0) + m(1, 3)) * invW;
+    }
+
+    if (fx1 > fx2)
+        qSwap(fx1, fx2);
+    if (fy1 > fy2)
+        qSwap(fy1, fy2);
+
+    const QRect deviceRect = this->deviceRect();
+    const qint32 ix1 = qRound((fx1 + 1) * deviceRect.width() * qreal(0.5));
+    const qint32 iy1 = qRound((fy1 + 1) * deviceRect.height() * qreal(0.5));
+    const qint32 ix2 = qRound((fx2 + 1) * deviceRect.width() * qreal(0.5));
+    const qint32 iy2 = qRound((fy2 + 1) * deviceRect.height() * qreal(0.5));
+    QRect native(ix1, iy1, ix2 - ix1, iy2 - iy1);
+    if (pad)
+        native = native.adjusted(-1, -1, 1, 1);
+    return native.intersected(deviceRect);
+}
+
+// Same cap as wlr_damage_ring: too many rects collapse to extents.
+static constexpr int kMaxDamageScissorRects = 20;
+
+void Renderer::commitFlushRegion()
+{
+    m_damageTracker->commit();
+}
+
 void Renderer::nodeChanged(QSGNode *node, QSGNode::DirtyState state)
 {
+    m_damageTracker->nodeChanged(node, state);
 #ifndef QT_NO_DEBUG_OUTPUT
     if (Q_UNLIKELY(debug_change())) {
         QDebug debug = qDebug();
@@ -2402,7 +2534,8 @@ void Renderer::uploadBatch(Batch *b)
 
 void Renderer::applyClipStateToGraphicsState()
 {
-    m_gstate.usesScissor = (m_currentClipState.type & ClipState::ScissorClip);
+    m_gstate.usesScissor = m_damageScissorEnabled
+            || (m_currentClipState.type & ClipState::ScissorClip);
     m_gstate.stencilTest = (m_currentClipState.type & ClipState::StencilClip);
 }
 
@@ -3426,17 +3559,19 @@ void Renderer::renderMergedBatch(PreparedRenderBatch *renderBatch, bool depthPos
     QRhiCommandBuffer *cb = renderTarget().cb;
     setGraphicsPipeline(cb, batch, e, depthPostPass);
 
-    for (int i = 0, ie = batch->drawSets.size(); i != ie; ++i) {
-        const DrawSet &draw = batch->drawSets.at(i);
-        const QRhiCommandBuffer::VertexInput vbufBindings[] = {
-            { batch->vbo.buf, quint32(draw.vertices) },
-            { batch->vbo.buf, quint32(draw.zorders) }
-        };
-        cb->setVertexInput(VERTEX_BUFFER_BINDING, useDepthBuffer() ? 2 : 1, vbufBindings,
-                           batch->ibo.buf, draw.indices,
-                           m_uint32IndexForRhi ? QRhiCommandBuffer::IndexUInt32 : QRhiCommandBuffer::IndexUInt16);
-        cb->drawIndexed(draw.indexCount);
-    }
+    drawWithDamageScissors(cb, batch, [&] {
+        for (int i = 0, ie = batch->drawSets.size(); i != ie; ++i) {
+            const DrawSet &draw = batch->drawSets.at(i);
+            const QRhiCommandBuffer::VertexInput vbufBindings[] = {
+                { batch->vbo.buf, quint32(draw.vertices) },
+                { batch->vbo.buf, quint32(draw.zorders) }
+            };
+            cb->setVertexInput(VERTEX_BUFFER_BINDING, useDepthBuffer() ? 2 : 1, vbufBindings,
+                               batch->ibo.buf, draw.indices,
+                               m_uint32IndexForRhi ? QRhiCommandBuffer::IndexUInt32 : QRhiCommandBuffer::IndexUInt16);
+            cb->drawIndexed(draw.indexCount);
+        }
+    });
 }
 
 bool Renderer::prepareRenderUnmergedBatch(Batch *batch, PreparedRenderBatch *renderBatch)
@@ -3642,18 +3777,20 @@ void Renderer::renderUnmergedBatch(PreparedRenderBatch *renderBatch, bool depthP
         setGraphicsPipeline(cb, batch, e, depthPostPass);
 
         const QRhiCommandBuffer::VertexInput vbufBinding(batch->vbo.buf, vOffset);
-        if (g->indexCount()) {
-            if (batch->ibo.buf) {
-                cb->setVertexInput(VERTEX_BUFFER_BINDING, 1, &vbufBinding,
-                                   batch->ibo.buf, iOffset,
-                                   effectiveIndexSize == sizeof(quint32) ? QRhiCommandBuffer::IndexUInt32
-                                                                         : QRhiCommandBuffer::IndexUInt16);
-                cb->drawIndexed(g->indexCount());
+        drawWithDamageScissors(cb, batch, [&] {
+            if (g->indexCount()) {
+                if (batch->ibo.buf) {
+                    cb->setVertexInput(VERTEX_BUFFER_BINDING, 1, &vbufBinding,
+                                       batch->ibo.buf, iOffset,
+                                       effectiveIndexSize == sizeof(quint32) ? QRhiCommandBuffer::IndexUInt32
+                                                                             : QRhiCommandBuffer::IndexUInt16);
+                    cb->drawIndexed(g->indexCount());
+                }
+            } else {
+                cb->setVertexInput(VERTEX_BUFFER_BINDING, 1, &vbufBinding);
+                cb->draw(g->vertexCount());
             }
-        } else {
-            cb->setVertexInput(VERTEX_BUFFER_BINDING, 1, &vbufBinding);
-            cb->draw(g->vertexCount());
-        }
+        });
 
         vOffset += g->sizeOfVertex() * g->vertexCount();
         iOffset += g->indexCount() * effectiveIndexSize;
@@ -3668,27 +3805,86 @@ void Renderer::setViewportAndScissors(QRhiCommandBuffer *cb, const Batch *batch)
         m_pstate.viewportSet = true;
         cb->setViewport(m_pstate.viewport);
     }
-    if (batch->clipState.type & ClipState::ScissorClip) {
-        m_pstate.scissorSet = true;
-        cb->setScissor(batch->clipState.scissor);
-    } else {
-        // Regardless of the ps not using scissor, the scissor may need to be
-        // reset, depending on the backend. So set the viewport again, which in
-        // turn also sets the scissor on backends where a scissor rect is
-        // always-on (Vulkan).
+
+    const QVector<QRect> rects = scissorRectsForBatch(batch);
+    const bool needScissor = m_damageScissorEnabled
+            || (batch->clipState.type & ClipState::ScissorClip);
+    if (!needScissor) {
         if (m_pstate.scissorSet) {
             m_pstate.scissorSet = false;
             cb->setViewport(m_pstate.viewport);
         }
+        return;
     }
+
+    QRect cover;
+    for (const QRect &r : rects)
+        cover = cover.united(r);
+    if (cover.width() <= 0 || cover.height() <= 0)
+        cover = this->deviceRect();
+    m_pstate.scissorSet = true;
+    cb->setScissor(QRhiScissor(cover.x(), cover.y(), cover.width(), cover.height()));
 }
 
+QVector<QRect> Renderer::scissorRectsForBatch(const Batch *batch) const
+{
+    QRect clipRect;
+    const bool hasClip = batch && (batch->clipState.type & ClipState::ScissorClip);
+    if (hasClip) {
+        const auto s = batch->clipState.scissor.scissor();
+        clipRect = QRect(s[0], s[1], s[2], s[3]);
+    }
+
+    QVector<QRect> out;
+    if (m_damageScissorEnabled && !m_damageNativeScissors.isEmpty()) {
+        out.reserve(qMin(m_damageNativeScissors.size(), kMaxDamageScissorRects));
+        for (const QRect &r : m_damageNativeScissors) {
+            const QRect s = hasClip ? r.intersected(clipRect) : r;
+            if (s.width() > 0 && s.height() > 0)
+                out.append(s);
+        }
+        return out;
+    }
+    if (hasClip && clipRect.width() > 0 && clipRect.height() > 0)
+        out.append(clipRect);
+    return out;
+}
+
+template<typename DrawFn>
+void Renderer::drawWithDamageScissors(QRhiCommandBuffer *cb, const Batch *batch, DrawFn &&draw)
+{
+    if (!m_pstate.viewportSet) {
+        m_pstate.viewportSet = true;
+        cb->setViewport(m_pstate.viewport);
+    }
+
+    const bool needScissor = m_damageScissorEnabled
+            || (batch->clipState.type & ClipState::ScissorClip);
+    if (!needScissor) {
+        if (m_pstate.scissorSet) {
+            m_pstate.scissorSet = false;
+            cb->setViewport(m_pstate.viewport);
+        }
+        draw();
+        return;
+    }
+
+    const QVector<QRect> rects = scissorRectsForBatch(batch);
+    for (const QRect &r : rects) {
+        m_pstate.scissorSet = true;
+        cb->setScissor(QRhiScissor(r.x(), r.y(), r.width(), r.height()));
+        draw();
+    }
+}
 
 void Renderer::setGraphicsPipeline(QRhiCommandBuffer *cb, const Batch *batch, Element *e, bool depthPostPass)
 {
     cb->setGraphicsPipeline(depthPostPass ? e->depthPostPassPs : e->ps);
 
-    setViewportAndScissors(cb, batch);
+    if (!m_pstate.viewportSet) {
+        m_pstate.viewportSet = true;
+        cb->setViewport(m_pstate.viewport);
+    }
 
     if (batch->clipState.type & ClipState::StencilClip) {
         Q_ASSERT(e->ps->flags().testFlag(QRhiGraphicsPipeline::UsesStencilRef));
@@ -3746,10 +3942,18 @@ void Renderer::render()
 {
     // Gracefully handle the lack of a render target - some autotests may rely
     // on this in odd cases.
-    if (!renderTarget().rt)
+    if (!renderTarget().rt) {
+        commitFlushRegion();
         return;
+    }
 
     prepareRenderPass(&m_mainRenderPassContext);
+    if (m_damageScissorEnabled && m_damageNativeScissors.isEmpty()) {
+        m_mainRenderPassContext.valid = false;
+        m_damageTracker->clearNodeDamage();
+        return;
+    }
+
     beginRenderPass(&m_mainRenderPassContext);
     recordRenderPass(&m_mainRenderPassContext);
     endRenderPass(&m_mainRenderPassContext);
@@ -3946,7 +4150,21 @@ void Renderer::prepareRenderPass(RenderPassContext *ctx)
             | QRhiGraphicsPipeline::G
             | QRhiGraphicsPipeline::B
             | QRhiGraphicsPipeline::A;
-    m_gstate.usesScissor = false;
+    // Scissor is only valid when the RT kept previous color. A cleared buffer
+    // with a small scissor leaves the rest of the screen as clearColor (flash).
+    if (m_damageDebugEnabled)
+        m_damageDebug->applyToTracker(m_damageTracker.get());
+    const bool isOutputPass = m_damageScissorTarget
+            && renderTarget().rt == m_damageScissorTarget;
+    m_damageScissorEnabled = isOutputPass
+            && !m_skipDamageScissorOnce
+            && !m_damageTracker->pendingIsFull()
+            && textureRenderTargetPreservesColor(renderTarget().rt);
+    // Nested layer/effect renders share this Renderer. Only consume the skip
+    // flag on the output pass they were meant for.
+    if (isOutputPass)
+        m_skipDamageScissorOnce = false;
+    m_gstate.usesScissor = m_damageScissorEnabled;
     m_gstate.stencilTest = false;
 
     m_gstate.sampleCount = renderTarget().rt->sampleCount();
@@ -4008,9 +4226,45 @@ void Renderer::prepareRenderPass(RenderPassContext *ctx)
 
     if (m_visualizer->mode() != Visualizer::VisualizeNothing)
         m_visualizer->prepareVisualize();
+    if (m_damageDebugEnabled)
+        m_damageDebug->prepareOverlay(this, m_rhi, m_resourceUpdates);
 
     renderTarget().cb->resourceUpdate(m_resourceUpdates);
     m_resourceUpdates = nullptr;
+
+    commitFlushRegion();
+
+    const QRegion extraScissor = m_extraDamageScissor;
+    m_extraDamageScissor = {};
+    m_damageNativeScissors.clear();
+    if (m_damageScissorEnabled) {
+        QRegion scene = flushRegion();
+        if (!extraScissor.isEmpty())
+            scene += extraScissor;
+        if (!scene.isEmpty()) {
+            if (scene.rectCount() > kMaxDamageScissorRects)
+                scene = QRegion(scene.boundingRect());
+            QRegion native;
+            for (const QRect &r : scene) {
+                const QRect s = sceneRectToNativeScissor(r);
+                if (s.width() > 0 && s.height() > 0)
+                    native += s;
+            }
+            if (native.isEmpty()) {
+                // Mapping failed; pipelines already have UsesScissor.
+                QRect fallback = viewportRect();
+                if (fallback.width() <= 0 || fallback.height() <= 0)
+                    fallback = this->deviceRect();
+                if (fallback.width() > 0 && fallback.height() > 0)
+                    m_damageNativeScissors.append(fallback);
+            } else {
+                if (native.rectCount() > kMaxDamageScissorRects)
+                    native = QRegion(native.boundingRect());
+                for (const QRect &r : native)
+                    m_damageNativeScissors.append(r);
+            }
+        }
+    }
 }
 
 void Renderer::beginRenderPass(RenderPassContext *)
@@ -4068,12 +4322,13 @@ void Renderer::recordRenderPass(RenderPassContext *ctx)
                 cb->debugMarkMsg(QByteArrayLiteral("Qt Quick alpha batches"));
         }
         PreparedRenderBatch *renderBatch = &ctx->alphaRenderBatches[i];
-        if (renderBatch->batch->merged)
+        if (renderBatch->batch->merged) {
             renderMergedBatch(renderBatch);
-        else if (renderBatch->batch->isRenderNode)
+        } else if (renderBatch->batch->isRenderNode) {
             renderRhiRenderNode(renderBatch->batch);
-        else
+        } else {
             renderUnmergedBatch(renderBatch);
+        }
     }
 
     if (m_renderMode == QSGRendererInterface::RenderMode3D) {
@@ -4096,6 +4351,11 @@ void Renderer::recordRenderPass(RenderPassContext *ctx)
 
     if (m_currentShader)
         setActiveRhiShader(nullptr, nullptr);
+
+    if (m_damageDebugEnabled)
+        m_damageDebug->renderOverlay(this, cb);
+
+    m_damageTracker->clearNodeDamage();
 
     cb->debugMarkEnd();
 
@@ -4236,7 +4496,23 @@ void Renderer::renderRhiRenderNode(const Batch *batch)
     const QSGRenderNode::StateFlags changes = e->renderNode->changedStates();
 
     QRhiCommandBuffer *cb = renderTarget().cb;
-    setViewportAndScissors(cb, batch);
+    const bool needScissor = m_damageScissorEnabled
+            || (batch->clipState.type & ClipState::ScissorClip);
+    if (needScissor && scissorRectsForBatch(batch).isEmpty())
+        return;
+    if (needScissor && dynamic_cast<WRenderBufferNode *>(e->renderNode)) {
+        // Frosted-glass copy reads the output RT. A damage hole would clip
+        // GLES blit/copy to that hole and smear the blur kernel.
+        if (!m_pstate.viewportSet) {
+            m_pstate.viewportSet = true;
+            cb->setViewport(m_pstate.viewport);
+        }
+        const QRect device = this->deviceRect();
+        m_pstate.scissorSet = true;
+        cb->setScissor(QRhiScissor(device.x(), device.y(), device.width(), device.height()));
+    } else {
+        setViewportAndScissors(cb, batch);
+    }
     const bool needsExternal = !e->renderNode->flags().testFlag(QSGRenderNode::NoExternalRendering);
     if (needsExternal)
         cb->beginExternal();
@@ -4391,6 +4667,6 @@ void Visualizer::visualizeChangesPrepare(Node *n, uint parentChanges)
 
 } // namespace WSGBatchRenderer
 
-QT_END_NAMESPACE
+WAYLIB_SERVER_END_NAMESPACE
 
 #include "moc_wsgbatchrenderer_p.cpp"
