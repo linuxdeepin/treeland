@@ -263,7 +263,14 @@ bool WTools::toPixmanRegion(const QRegion &region, pixman_region32 *pixmanRegion
         box.y2 = r.bottom() + 1;
     }
     bool ok = pixman_region32_init_rects(pixmanRegion, rects.constData(), rects.count());
-    Q_ASSERT(!ok || pixman_region32_n_rects(pixmanRegion) == rects.count());
+    // NOTE: Do not assert pixman_region32_n_rects(pixmanRegion) == rects.count().
+    // pixman_region32_init_rects always normalizes the input boxes (merges
+    // horizontally adjacent rects, splits interleaving bands), while the
+    // QRegion's rect list (e.g. built via QTransform::map -> setRects) is not
+    // guaranteed to be in pixman canonical form, so the final rect count may
+    // legitimately differ from the input count.
+    // Note: The counterpart assertion in fromPixmanRegion() is safe because
+    // pixman's output rectangles are always in canonical form.
     return ok;
 }
 
