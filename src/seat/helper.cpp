@@ -182,7 +182,7 @@ static void runWhenTreelandConfigInitialized(TreelandConfig *config,
         return;
     }
 
-    if (config->isInitializeSucceeded() || config->isInitializeFailed()) {
+    if (config->isInitializeSucceeded()) {
         callback();
         return;
     }
@@ -190,10 +190,6 @@ static void runWhenTreelandConfigInitialized(TreelandConfig *config,
     auto sharedCallback = std::make_shared<std::function<void()>>(std::move(callback));
     QObject::connect(config,
                      &TreelandConfig::configInitializeSucceed,
-                     context,
-                     [sharedCallback] { (*sharedCallback)(); });
-    QObject::connect(config,
-                     &TreelandConfig::configInitializeFailed,
                      context,
                      [sharedCallback] { (*sharedCallback)(); });
 }
@@ -707,17 +703,14 @@ void Helper::onOutputAdded(WOutput *output)
     if (outputConfig->isInitializeFailed()) {
         publishOutput();
     } else {
-        if (!outputConfig->isInitializeSucceeded()) {
-            connect(outputConfig, &OutputConfig::configInitializeFailed, o, publishOutput);
-        }
         runWhenOutputConfigInitialized(outputConfig,
                                        o,
                                        [this,
                                         restoreOutputConfig = std::move(restoreOutputConfig),
                                         outputObject = QPointer<Output>(o)]() mutable {
                                            runWhenTreelandConfigInitialized(m_globalConfig.get(),
-                                                                           outputObject,
-                                                                           std::move(restoreOutputConfig));
+                                                                            outputObject,
+                                                                            std::move(restoreOutputConfig));
                                        });
     }
 }
