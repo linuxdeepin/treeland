@@ -1,4 +1,4 @@
-set(BIN_NAME test_data_control_manager)
+set(BIN_NAME test-data-control-manager)
 
 find_package(Qt6 REQUIRED COMPONENTS Core Gui WaylandClient)
 find_package(PkgConfig REQUIRED)
