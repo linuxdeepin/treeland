@@ -10,6 +10,7 @@
 #include "treelanduserconfig.hpp"
 #include "workspace/workspace.h"
 #include "wtoplevelsurface.h"
+#include "wxdgtoplevelsurface.h"
 
 #include <winputpopupsurfaceitem.h>
 #include <wlayersurface.h>
@@ -346,6 +347,23 @@ void SurfaceWrapper::setup()
     QObject::connect(m_shellSurface->surface(), &WSurface::mappedChanged,
                                            this,
                                            &SurfaceWrapper::onMappedChanged);
+    if (m_type == Type::XdgToplevel) {
+        QObject::connect(m_shellSurface->surface(), &WSurface::commit, this, [this] {
+            if (!surface() || surface()->mapped())
+                return;
+
+            auto *xdgSurface = qobject_cast<WXdgToplevelSurface *>(m_shellSurface.data());
+            if (!xdgSurface || !xdgSurface->isInitialized())
+                return;
+            if (xdgSurface->handle()->requested.fullscreen) {
+                setSurfaceStateDirectly(State::Fullscreen);
+            } else if (xdgSurface->handle()->requested.maximized && isMaximizable()) {
+                setSurfaceStateDirectly(State::Maximized);
+            } else if (m_surfaceState == State::Maximized || m_surfaceState == State::Fullscreen) {
+                setSurfaceStateDirectly(State::Normal);
+            }
+        });
+    }
 
     Q_EMIT surfaceItemCreated();
 
@@ -592,11 +610,25 @@ void SurfaceWrapper::syncPrelaunchMappedState()
         m_prelaunchOutputs.clear();
     }
 
-    if (auto *xwaylandSurface = qobject_cast<WXWaylandSurface *>(m_shellSurface.data())) {
-        if (xwaylandSurface->handle()->fullscreen) {
+    const bool fullscreenRequested = [this] {
+        if (auto *surface = qobject_cast<WXWaylandSurface *>(m_shellSurface.data()))
+            return surface->handle()->fullscreen;
+        if (auto *surface = qobject_cast<WXdgToplevelSurface *>(m_shellSurface.data()))
+            return surface->handle()->requested.fullscreen;
+        return false;
+    }();
+    const bool maximizeRequested = [this] {
+        if (auto *surface = qobject_cast<WXWaylandSurface *>(m_shellSurface.data()))
+            return surface->handle()->maximized_horz && surface->handle()->maximized_vert;
+        if (auto *surface = qobject_cast<WXdgToplevelSurface *>(m_shellSurface.data()))
+            return surface->handle()->requested.maximized;
+        return false;
+    }();
+
+    if (m_type == Type::XWayland || m_type == Type::XdgToplevel) {
+        if (fullscreenRequested) {
             setSurfaceStateDirectly(State::Fullscreen);
-        } else if ((xwaylandSurface->handle()->maximized_horz && xwaylandSurface->handle()->maximized_vert) &&
-                   isMaximizable()) {
+        } else if (maximizeRequested && isMaximizable()) {
             setSurfaceStateDirectly(State::Maximized);
         }
 
@@ -1827,6 +1859,13 @@ void SurfaceWrapper::restoreFromMinimized(bool onAnimation)
 
 void SurfaceWrapper::maximize()
 {
+    if (m_type == Type::XdgToplevel && surface() && !surface()->mapped()) {
+        auto *xdgSurface = qobject_cast<WXdgToplevelSurface *>(m_shellSurface.data());
+        if (xdgSurface->isInitialized())
+            setSurfaceStateDirectly(State::Maximized);
+        return;
+    }
+
     if (m_surfaceState == State::Minimized || m_surfaceState == State::Fullscreen
         || !isMaximizable())
         return;
@@ -1836,6 +1875,13 @@ void SurfaceWrapper::maximize()
 
 void SurfaceWrapper::unmaximize()
 {
+    if (m_type == Type::XdgToplevel && surface() && !surface()->mapped()) {
+        auto *xdgSurface = qobject_cast<WXdgToplevelSurface *>(m_shellSurface.data());
+        if (xdgSurface->isInitialized())
+            setSurfaceStateDirectly(State::Normal);
+        return;
+    }
+
     if (m_surfaceState != State::Maximized)
         return;
 
@@ -1852,6 +1898,13 @@ void SurfaceWrapper::toggleMaximized()
 
 void SurfaceWrapper::enterFullscreen()
 {
+    if (m_type == Type::XdgToplevel && surface() && !surface()->mapped()) {
+        auto *xdgSurface = qobject_cast<WXdgToplevelSurface *>(m_shellSurface.data());
+        if (xdgSurface->isInitialized())
+            setSurfaceStateDirectly(State::Fullscreen);
+        return;
+    }
+
     if (m_surfaceState == State::Minimized)
         return;
 
@@ -1860,6 +1913,13 @@ void SurfaceWrapper::enterFullscreen()
 
 void SurfaceWrapper::leaveFullscreen()
 {
+    if (m_type == Type::XdgToplevel && surface() && !surface()->mapped()) {
+        auto *xdgSurface = qobject_cast<WXdgToplevelSurface *>(m_shellSurface.data());
+        if (xdgSurface->isInitialized())
+            setSurfaceStateDirectly(m_previousSurfaceState);
+        return;
+    }
+
     if (m_surfaceState != State::Fullscreen)
         return;
 
