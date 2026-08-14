@@ -467,6 +467,7 @@ private:
     QPointer<QQuickItem> m_windowAnimation;
     QPointer<QQuickItem> m_minimizeAnimation;
     QPointer<QQuickItem> m_showDesktopAnimation;
+    QMetaObject::Connection m_xdgToplevelCommitConnection;
     Q_OBJECT_BINDABLE_PROPERTY_WITH_ARGS(SurfaceWrapper,
                                          SurfaceWrapper::State,
                                          m_previousSurfaceState,
