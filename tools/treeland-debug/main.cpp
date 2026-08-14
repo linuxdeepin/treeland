@@ -3,10 +3,12 @@
 
 #include <QCoreApplication>
 #include <QDateTime>
+#include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QPointF>
+#include <QProcessEnvironment>
 #include <QRemoteObjectNode>
 #include <QTextStream>
 #include <QTimer>
@@ -332,6 +334,114 @@ void printClientsTable(const QList<ClientInfo> &clients)
     }
 }
 
+void printTree(const TreelandInfo &info)
+{
+    QTextStream out(stdout);
+    out << "Mode: " << info.currentMode() << "\n";
+    const auto layers = info.layers();
+    for (int li = 0; li < layers.size(); ++li) {
+        const auto &layer = layers[li];
+        const QString branch = (li == layers.size() - 1) ? QStringLiteral("└─ ") : QStringLiteral("├─ ");
+        out << branch << "Layer: " << layer.name() << " (" << layer.layer() << ")\n";
+        // Print standalone windows on this layer (not in any workspace).
+        bool hasWorkspaces = !layer.workspaces().isEmpty();
+        if (hasWorkspaces) {
+            const auto workspaces = layer.workspaces();
+            for (int wi = 0; wi < workspaces.size(); ++wi) {
+                const auto &ws = workspaces[wi];
+                const QString wsBranch = (li == layers.size() - 1) ? QStringLiteral("   ") : QStringLiteral("│  ");
+                const QString wsConn = (wi == workspaces.size() - 1) ? QStringLiteral("└─ ") : QStringLiteral("├─ ");
+                out << wsBranch << wsConn << "Workspace " << ws.id()
+                    << (ws.isActive() ? " (active)" : "") << "\n";
+                const auto windows = ws.windows();
+                if (windows.isEmpty()) {
+                    out << wsBranch << "   └─  (no windows)\n";
+                } else {
+                    for (int i = 0; i < windows.size(); ++i) {
+                        const auto &w = windows[i];
+                        const auto g = w.geometry();
+                        const QString conn = (i == windows.size() - 1) ? QStringLiteral("└─ ") : QStringLiteral("├─ ");
+                        out << wsBranch << "   " << conn
+                            << (w.active() ? QStringLiteral("* ") : QStringLiteral("  "))
+                            << w.appId() << "  id=" << w.id() << "  "
+                            << stateName(w.state()) << "  "
+                            << static_cast<int>(g.x()) << "," << static_cast<int>(g.y()) << " "
+                            << static_cast<int>(g.width()) << "x" << static_cast<int>(g.height())
+                            << "  [" << w.output() << "]"
+                            << (w.title().isEmpty() ? "" : "  " + w.title()) << "\n";
+                    }
+                }
+            }
+        }
+        // Print standalone windows on this layer (no workspace grouping).
+        const auto windows = layer.windows();
+        for (int i = 0; i < windows.size(); ++i) {
+            const auto &w = windows[i];
+            const auto g = w.geometry();
+            const QString branch2 = (li == layers.size() - 1) ? QStringLiteral("   ") : QStringLiteral("│  ");
+            const QString conn = (i == windows.size() - 1) ? QStringLiteral("└─ ") : QStringLiteral("├─ ");
+            out << branch2 << conn
+                << (w.active() ? QStringLiteral("* ") : QStringLiteral("  "))
+                << w.appId() << "  id=" << w.id() << "  "
+                << stateName(w.state()) << "  "
+                << static_cast<int>(g.x()) << "," << static_cast<int>(g.y()) << " "
+                << static_cast<int>(g.width()) << "x" << static_cast<int>(g.height())
+                << "  [" << w.output() << "]"
+                << (w.title().isEmpty() ? "" : "  " + w.title()) << "\n";
+        }
+    }
+}
+
+// Emit a terminal inline image preview using the kitty graphics or iTerm2 OSC
+// 1337 protocol. force=true always emits (best-effort iTerm2 fallback for
+// unknown terminals); force=false only emits when the terminal is detected.
+bool previewImage(const QString &path, bool force)
+{
+    QFile f(path);
+    if (!f.open(QIODevice::ReadOnly))
+        return false;
+    const QByteArray data = f.readAll();
+    f.close();
+    if (data.isEmpty())
+        return false;
+
+    const QByteArray b64 = data.toBase64();
+    QTextStream out(stdout);
+
+    const QByteArray term = qgetenv("TERM");
+    const QByteArray prog = qgetenv("TERM_PROGRAM");
+    const bool isKitty = term.contains("kitty");
+    const bool isItermStyle = prog == "iTerm.app" || prog == "WezTerm"
+        || prog == "ghostty" || prog == "konsole" || force;
+
+    if (isKitty) {
+        // kitty graphics protocol — chunked transmission.
+        // ponytail: 4K chunk size; single-chunk is fine for most screenshots.
+        const int chunkSize = 4096;
+        for (int offset = 0; offset < b64.size(); offset += chunkSize) {
+            const QByteArray chunk = b64.mid(offset, chunkSize);
+            const bool first = (offset == 0);
+            const bool last = (offset + chunkSize >= b64.size());
+            if (first)
+                out << QStringLiteral("\033_Ga=T,f=100,m=%1;").arg(last ? 0 : 1);
+            else
+                out << QStringLiteral("\033_Gm=%1;").arg(last ? 0 : 1);
+            out << QString::fromLatin1(chunk) << QStringLiteral("\033\\");
+        }
+        out << "\n";
+        return true;
+    }
+
+    if (isItermStyle) {
+        // iTerm2 inline image protocol (OSC 1337).
+        out << QStringLiteral("\033]1337;File=inline=1;preserveAspectRatio=1:")
+            << QString::fromLatin1(b64) << "\a\n";
+        return true;
+    }
+
+    return false;
+}
+
 QString helpText()
 {
     return QStringLiteral(
@@ -345,13 +455,13 @@ QString helpText()
         "  --url <url>          Remote object host URL (default: local:org.deepin.dde.treeland.debug)\n"
         "  --name <name>        Remote object name (default: WindowTree)\n"
         "  --timeout-ms <n>     Request timeout in milliseconds (default: 30000)\n"
-        "  --json               Emit machine-readable JSON for `windows`/`clients`\n"
-        "  -h, --help           Show this help\n"
-        "  -v, --version        Show version\n"
+        "  --json               Emit machine-readable JSON for `tree`/`cursor`/`windows`/`clients`\n"
+        "  --preview            Force inline image preview in terminal (auto-detected by default)\n"
+        "  --no-preview         Disable inline image preview\n"
         "\n"
         "Inspection:\n"
-        "  tree                       Print the complete window tree (default)\n"
-        "  cursor                     Print the cursor position\n"
+        "  tree                       Print the complete window tree (human-readable, use --json for JSON)\n"
+        "  cursor                     Print the cursor position (human-readable, use --json for JSON)\n"
         "  windows                    List all toplevel windows (use --json for JSON)\n"
         "  clients                    List connected Wayland clients and their windows\n"
         "  top [interval-ms]          Live, top-like refreshing view (default 1000ms)\n"
@@ -390,15 +500,14 @@ QString helpText()
 } // namespace
 
 // Executes a single one-shot command. Returns a process exit code.
-static int runCommand(Session &session, int timeoutMs, bool json,
+static int runCommand(Session &session, int timeoutMs, bool json, int previewOpt,
                       const QString &command, const QStringList &args);
 
 // `top` runs its own event loop.
 static int runTop(Session &session, int timeoutMs, int intervalMs);
 
 // `shell` reads commands from stdin.
-static int runShell(Session &session, int timeoutMs, bool json);
-
+static int runShell(Session &session, int timeoutMs, bool json, int previewOpt);
 int main(int argc, char *argv[])
 {
     QCoreApplication application(argc, argv);
@@ -410,6 +519,7 @@ int main(int argc, char *argv[])
     int timeoutMs = 30000;
     bool timeoutOk = true;
     bool json = false;
+    bool previewOpt = 0; // 0=auto-detect, 1=force on, 2=force off
     bool compatTree = false;
     bool compatCursor = false;
     QStringList rest;
@@ -440,6 +550,10 @@ int main(int argc, char *argv[])
             if (!ok)
                 timeoutOk = false;
         }
+        else if (arg == QLatin1String("--preview"))
+            previewOpt = 1;
+        else if (arg == QLatin1String("--no-preview"))
+            previewOpt = 2;
         else if (arg == QLatin1String("--json"))
             json = true;
         else if (arg == QLatin1String("--tree"))
@@ -485,7 +599,7 @@ int main(int argc, char *argv[])
         return fail(QStringLiteral("failed to connect to remote object node: %1").arg(url));
 
     if (command == QLatin1String("shell"))
-        return runShell(session, timeoutMs, json);
+        return runShell(session, timeoutMs, json, previewOpt);
     if (command == QLatin1String("top")) {
         int intervalMs = 1000;
         if (!commandArgs.isEmpty())
@@ -495,10 +609,10 @@ int main(int argc, char *argv[])
         return runTop(session, timeoutMs, intervalMs);
     }
 
-    return runCommand(session, timeoutMs, json, command, commandArgs);
+    return runCommand(session, timeoutMs, json, previewOpt, command, commandArgs);
 }
 
-static int runCommand(Session &session, int timeoutMs, bool json,
+static int runCommand(Session &session, int timeoutMs, bool json, int previewOpt,
                       const QString &command, const QStringList &args)
 {
     auto *replica = session.replica;
@@ -507,16 +621,23 @@ static int runCommand(Session &session, int timeoutMs, bool json,
         TreelandInfo info;
         if (!waitSlot(replica->getTreelandInfo(), timeoutMs, &info))
             return fail("getTreelandInfo() failed");
-        printJson(QJsonDocument(treelandInfoToJson(info)));
+        if (json)
+            printJson(QJsonDocument(treelandInfoToJson(info)));
+        else
+            printTree(info);
         return EXIT_SUCCESS;
     }
 
     if (command == QLatin1String("cursor")) {
         QPointF pos = replica->cursorPosition();
-        printJson(QJsonDocument(pointToJson(pos)));
+        if (json)
+            printJson(QJsonDocument(pointToJson(pos)));
+        else
+        QTextStream(stdout) << "x=" << pos.x() << " y=" << pos.y() << Qt::endl;
         return EXIT_SUCCESS;
     }
 
+    // ---- windows ----
     if (command == QLatin1String("windows")) {
         QList<WindowInfo> windows;
         if (!waitSlot(replica->getWindows(), timeoutMs, &windows))
@@ -686,6 +807,8 @@ static int runCommand(Session &session, int timeoutMs, bool json,
             if (result.isEmpty())
                 return fail("captureOutput: no image produced (output not found or grab failed)");
             QTextStream(stdout) << result << Qt::endl;
+            if (previewOpt != 2)
+                previewImage(result, previewOpt == 1);
             return EXIT_SUCCESS;
         }
         if (sub == QLatin1String("window")) {
@@ -703,6 +826,8 @@ static int runCommand(Session &session, int timeoutMs, bool json,
             if (result.isEmpty())
                 return fail("captureWindow: no image produced (grab failed)");
             QTextStream(stdout) << result << Qt::endl;
+            if (previewOpt != 2)
+                previewImage(result, previewOpt == 1);
             return EXIT_SUCCESS;
         }
         if (sub == QLatin1String("screen")) {
@@ -714,6 +839,8 @@ static int runCommand(Session &session, int timeoutMs, bool json,
             if (result.isEmpty())
                 return fail("captureScreen: no image produced (grab failed)");
             QTextStream(stdout) << result << Qt::endl;
+            if (previewOpt != 2)
+                previewImage(result, previewOpt == 1);
             return EXIT_SUCCESS;
         }
         return fail(QStringLiteral("screenshot: unknown target '%1'").arg(sub));
@@ -758,7 +885,7 @@ static int runTop(Session &session, int timeoutMs, int intervalMs)
     return rc;
 }
 
-static int runShell(Session &session, int timeoutMs, bool json)
+static int runShell(Session &session, int timeoutMs, bool json, int previewOpt)
 {
     QTextStream out(stdout);
     out << "treeland-debug shell — type 'help' for commands, 'exit' to quit\n";
@@ -784,7 +911,7 @@ static int runShell(Session &session, int timeoutMs, bool json)
             continue;
 
         const QString command = parts.takeFirst();
-        runCommand(session, timeoutMs, json, command, parts);
+        runCommand(session, timeoutMs, json, previewOpt, command, parts);
     }
     return EXIT_SUCCESS;
 }

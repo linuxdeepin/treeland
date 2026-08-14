@@ -92,7 +92,9 @@ All commands below are run as the `dde` user, e.g.
 | `--url <url>` | `local:org.deepin.dde.treeland.debug` | Remote object host URL. |
 | `--name <name>` | `WindowTree` | Remote object name. |
 | `--timeout-ms <n>` | `30000` | Request timeout in ms (non-negative integer). |
-| `--json` | off | Emit machine-readable JSON for `windows`/`clients`. |
+| `--json` | off | Emit machine-readable JSON for `tree`/`cursor`/`windows`/`clients`. |
+| `--preview` | auto | Force inline image preview in terminal (auto-detected by default). |
+| `--no-preview` | off | Disable inline image preview. |
 | `-h, --help` | — | Show help. |
 | `-v, --version` | — | Show version. |
 | `--tree` / `--cursor` | — | Backward-compatible aliases for the `tree` / `cursor` commands. |
@@ -107,8 +109,8 @@ used).
 
 | Command | Arguments | Output |
 | --- | --- | --- |
-| `tree` | _(none, default)_ | JSON — the complete layout tree. |
-| `cursor` | _(none)_ | JSON `{"x","y"}` — cursor position. |
+| `tree` | _(none, default)_ | Layout tree (human-readable; `--json` for JSON). |
+| `cursor` | _(none)_ | Cursor position `x=… y=…` (`--json` for `{"x","y"}`). |
 | `windows` | _(none)_ | Window table; `--json` for a JSON array. |
 | `clients` | _(none)_ | Client + window table; `--json` for a JSON array. |
 | `top` | `[interval-ms]` (default 1000) | Live, `top`-like refreshing client view (Ctrl+C to quit). |
@@ -163,9 +165,9 @@ printed. If `file` is omitted a path under `/tmp` is generated.
 
 ### Output formats
 
-`tree` and `cursor` always print JSON. `windows` and `clients` print a
-human-readable table by default and a JSON array with `--json`.
-
+`tree` and `cursor` print a human-readable format by default; pass `--json` for
+machine-readable JSON. `windows` and `clients` also default to human-readable
+tables and use `--json` for JSON.
 Window JSON object (`WindowInfo`):
 
 | Field | Type | Notes |
@@ -199,6 +201,73 @@ The `tree` JSON is
 `0` on success; `1` on connection failure, RPC failure, an unknown command, or a
 control command that returns `failed`.
 
+### Usage examples
+
+All commands run as the `dde` user:
+
+```bash
+# Inspect the window tree (human-readable, default command)
+sudo -u dde -- treeland-debug tree
+
+# Cursor position
+sudo -u dde -- treeland-debug cursor
+# → x=960 y=540
+
+# List windows
+sudo -u dde -- treeland-debug windows
+
+# List clients and their windows
+sudo -u dde -- treeland-debug clients
+
+# Live refreshing top view (1 s interval)
+sudo -u dde -- treeland-debug top
+# (Ctrl+C to quit)
+
+# Activate a window by id
+sudo -u dde -- treeland-debug activate 1407374883553280
+
+# Activate a window by appId
+sudo -u dde -- treeland-debug activate dde-file-manager
+
+# Move a window
+sudo -u dde -- treeland-debug move 1407374883553280 100 200
+
+# Resize a window
+sudo -u dde -- treeland-debug resize 1407374883553280 800 600
+
+# Move a window to workspace 2
+sudo -u dde -- treeland-debug workspace 1407374883553280 2
+
+# Move cursor
+sudo -u dde -- treeland-debug move-cursor 960 540
+
+# Send a pointer click
+sudo -u dde -- treeland-debug event button left click
+
+# Send a key tap
+sudo -u dde -- treeland-debug event key enter tap
+
+# Screenshot the primary output to a file
+sudo -u dde -- treeland-debug screenshot screen /tmp/ss.png
+
+# Screenshot a window (with terminal preview if supported)
+sudo -u dde -- treeland-debug screenshot window 1407374883553280
+
+# Interactive shell mode
+sudo -u dde -- treeland-debug shell
+treeland> help
+treeland> windows
+treeland> exit
+
+# Machine-readable JSON output
+sudo -u dde -- treeland-debug --json windows
+sudo -u dde -- treeland-debug --json cursor
+```
+
+The `top` view refreshes every `interval-ms` (default 1000 ms) using a QTimer.
+Each cycle calls `getClients()` via Qt Remote Objects, clears the terminal
+(`\033[2J\033[H`), and re-prints a header with the current timestamp and
+client count, followed by the client + window table. Press Ctrl+C to stop.
 ## GitHub Actions / CI
 
 This project uses GitHub Actions for continuous integration. The following workflows are configured:

@@ -87,7 +87,9 @@ sudo -u dde -- dde-dconfig set \
 | `--url <url>` | `local:org.deepin.dde.treeland.debug` | Remote object host URL。 |
 | `--name <name>` | `WindowTree` | Remote object 名称。 |
 | `--timeout-ms <n>` | `30000` | 请求超时（毫秒，非负整数）。 |
-| `--json` | 关 | 为 `windows`/`clients` 输出机器可读 JSON。 |
+| `--json` | 关 | 为 `tree`/`cursor`/`windows`/`clients` 输出机器可读 JSON。 |
+| `--preview` | 自动 | 强制在终端内联显示截图预览（默认自动检测终端）。 |
+| `--no-preview` | 关 | 关闭终端内联截图预览。 |
 | `-h, --help` | — | 显示帮助。 |
 | `-v, --version` | — | 显示版本。 |
 | `--tree` / `--cursor` | — | `tree` / `cursor` 命令的向后兼容别名。 |
@@ -101,8 +103,8 @@ sudo -u dde -- dde-dconfig set \
 
 | 命令 | 参数 | 输出 |
 | --- | --- | --- |
-| `tree` | _（无，默认）_ | JSON —— 完整布局树。 |
-| `cursor` | _（无）_ | JSON `{"x","y"}` —— 光标位置。 |
+| `tree` | _（无，默认）_ | 布局树（人读格式；`--json` 输出 JSON）。 |
+| `cursor` | _（无）_ | 光标位置 `x=… y=…`（`--json` 输出 `{"x","y"}`）。 |
 | `windows` | _（无）_ | 窗口表格；`--json` 输出 JSON 数组。 |
 | `clients` | _（无）_ | 客户端 + 窗口表格；`--json` 输出 JSON 数组。 |
 | `top` | `[interval-ms]`（默认 1000） | 实时刷新的 top 式客户端视图（Ctrl+C 退出）。 |
@@ -154,8 +156,8 @@ sudo -u dde -- dde-dconfig set \
 
 ### 输出格式
 
-`tree` 和 `cursor` 始终输出 JSON。`windows` 和 `clients` 默认输出人读表格，加 `--json`
-输出 JSON 数组。
+`tree` 和 `cursor` 默认输出人读格式；传 `--json` 输出机器可读 JSON。`windows` 和
+`clients` 同样默认输出人读表格，加 `--json` 输出 JSON 数组。
 
 窗口 JSON 对象（`WindowInfo`）：
 
@@ -189,6 +191,72 @@ sudo -u dde -- dde-dconfig set \
 
 成功返回 `0`；连接失败、RPC 失败、未知命令或控制命令返回 `failed` 时返回 `1`。
 
+### 使用示例
+
+以下命令均以 `dde` 用户运行：
+
+```bash
+# 查看窗口树（人读格式，默认命令）
+sudo -u dde -- treeland-debug tree
+
+# 光标位置
+sudo -u dde -- treeland-debug cursor
+# → x=960 y=540
+
+# 列出窗口
+sudo -u dde -- treeland-debug windows
+
+# 列出客户端及其窗口
+sudo -u dde -- treeland-debug clients
+
+# 实时刷新的 top 视图（1 秒间隔）
+sudo -u dde -- treeland-debug top
+# （Ctrl+C 退出）
+
+# 按 id 激活窗口
+sudo -u dde -- treeland-debug activate 1407374883553280
+
+# 按 appId 激活窗口
+sudo -u dde -- treeland-debug activate dde-file-manager
+
+# 移动窗口
+sudo -u dde -- treeland-debug move 1407374883553280 100 200
+
+# 调整窗口大小
+sudo -u dde -- treeland-debug resize 1407374883553280 800 600
+
+# 移动窗口到工作区 2
+sudo -u dde -- treeland-debug workspace 1407374883553280 2
+
+# 移动光标
+sudo -u dde -- treeland-debug move-cursor 960 540
+
+# 发送一次指针点击
+sudo -u dde -- treeland-debug event button left click
+
+# 发送一次按键
+sudo -u dde -- treeland-debug event key enter tap
+
+# 截图主输出到文件
+sudo -u dde -- treeland-debug screenshot screen /tmp/ss.png
+
+# 截取窗口（终端支持时内联预览）
+sudo -u dde -- treeland-debug screenshot window 1407374883553280
+
+# 交互式 shell 模式
+sudo -u dde -- treeland-debug shell
+treeland> help
+treeland> windows
+treeland> exit
+
+# 机器可读 JSON 输出
+sudo -u dde -- treeland-debug --json windows
+sudo -u dde -- treeland-debug --json cursor
+```
+
+`top` 视图使用 QTimer 按 `interval-ms`（默认 1000 毫秒）周期刷新。每个周期通过
+Qt Remote Objects 调用 `getClients()`，清屏（`\033[2J\033[H`）后重新打印带当前
+时间戳与客户端数量的表头，随后是客户端 + 窗口表格。按 Ctrl+C 退出。
 ## GitHub Actions / 持续集成
 
 本项目使用 GitHub Actions 进行持续集成。配置了以下工作流：
