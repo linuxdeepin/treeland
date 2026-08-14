@@ -26,6 +26,8 @@ ExecStartPost=-/usr/bin/systemctl --user set-environment QT_IM_MODULE=fcitx
 ExecStartPost=-/usr/bin/systemctl --user set-environment QT_IM_MODULES=wayland;fcitx
 ExecStartPost=-/usr/bin/systemctl --user set-environment SDL_IM_MODULE=fcitx
 ExecStartPost=-/usr/bin/systemctl --user set-environment XMODIFIERS=@im=fcitx
+ExecStartPost=-/usr/bin/systemctl --user set-environment GTK_IM_MODULE=fcitx
+ExecStop=-/usr/bin/systemctl --user unset-environment GTK_IM_MODULE
 ExecStop=-/usr/bin/systemctl --user unset-environment XMODIFIERS
 ExecStop=-/usr/bin/systemctl --user unset-environment SDL_IM_MODULE
 ExecStop=-/usr/bin/systemctl --user unset-environment QT_IM_MODULES
