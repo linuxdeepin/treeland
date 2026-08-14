@@ -374,6 +374,7 @@ private:
     bool isNvidiaCardPresent();
     void setWorkspaceVisible(bool visible);
     void restoreFromShowDesktop(SurfaceWrapper *activeSurface = nullptr);
+    void restoreShowDesktopFocus();
     void setNoAnimation(bool noAnimation);
 
     void updateSurfaceSeatInteraction(SurfaceWrapper *surface, WSeat *seat);
