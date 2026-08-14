@@ -1,7 +1,7 @@
 find_package(Qt6 REQUIRED COMPONENTS WaylandClient)
 find_package(TreelandProtocols REQUIRED)
 
-set(BIN_NAME test-monitor-active_event)
+set(BIN_NAME test-monitor-active-event)
 
 qt_add_executable(${BIN_NAME}
     main.cpp
