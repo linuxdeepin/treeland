@@ -9,6 +9,7 @@
 #include "core/windowconfigstore.h"
 #include "layersurfacecontainer.h"
 #include "modules/app-id-resolver/appidresolver.h"
+#include "modules/snap-target/snaphandler.h"
 #include "modules/dde-shell/ddeshellmanagerinterfacev1.h"
 #include "modules/foreign-toplevel/foreigntoplevelmanagerv2.h"
 #include "modules/layer-shell-extension/layershellextensionmanagerinterfacev1.h"
@@ -70,6 +71,7 @@ ShellHandler::ShellHandler(RootSurfaceContainer *rootContainer, WServer *server)
     , m_overlayContainer(new LayerSurfaceContainer(rootContainer))
     , m_popupContainer(new SurfaceContainer(rootContainer))
     , m_privilegedOverlayContainer(new SurfaceContainer(rootContainer))
+    , m_snapMaskContainer(new SurfaceContainer(rootContainer))
     , m_windowConfigStore(new WindowConfigStore(this))
 {
     m_treelandForeignToplevel = server->attach<ForeignToplevelManagerInterfaceV2>();
@@ -211,6 +213,8 @@ void ShellHandler::updateXWaylandDesktopProperties()
                                        Helper::instance()->showDesktopState()
                                            == ShowDesktopInterfaceV1::State::Show);
     }
+    m_snapMaskContainer->setZ(RootSurfaceContainer::SnapMaskLayerZOrder);
+    m_snapMaskContainer->setObjectName(QStringLiteral("SnapMaskContainer"));
 }
 
 void ShellHandler::updateWrapperContainer(SurfaceWrapper *wrapper, WSurface *parentSurface)
@@ -403,6 +407,11 @@ Workspace *ShellHandler::workspace() const
 SurfaceContainer *ShellHandler::popupContainer() const
 {
     return m_popupContainer;
+}
+
+SurfaceContainer *ShellHandler::snapMaskContainer() const
+{
+    return m_snapMaskContainer;
 }
 
 RootSurfaceContainer *ShellHandler::rootSurfaceContainer() const
@@ -660,15 +669,23 @@ void ShellHandler::ensureXdgWrapper(WXdgToplevelSurface *surface, const QString 
     }
     Q_EMIT surfaceWrapperAdded(wrapper);
 
+    // Privileged overlay, IM candidate panel, and capture mask detection via xdg-toplevel-tag
     QPointer<SurfaceWrapper> wrapperPtr(wrapper);
-    QObject::connect(surface, &WXdgToplevelSurface::tagChanged, this, [this, wrapperPtr]() {
-        if (wrapperPtr) {
-            if (checkAndApplyPrivilegedOverlay(wrapperPtr))
-                return;
-            if (m_imCandidatePanelManager->checkAndApplyIMCandidatePanel(wrapperPtr))
-                return;
+    auto applyIfTaggedSurface = [this, surface, wrapperPtr]() {
+        if (!wrapperPtr)
+            return;
+        if (checkAndApplyPrivilegedOverlay(wrapperPtr))
+            return;
+        if (m_imCandidatePanelManager->checkAndApplyIMCandidatePanel(wrapperPtr))
+            return;
+        if (m_snapTarget
+            && surface->tag() == QLatin1String("org.deepin.treeland.snap-mask")
+            && !wrapperPtr->isSnapMask()) {
+            applySnapMask(wrapperPtr);
         }
-    });
+    };
+    QObject::connect(surface, &WXdgToplevelSurface::tagChanged, this, applyIfTaggedSurface);
+    applyIfTaggedSurface();
 }
 
 bool ShellHandler::checkAndApplyPrivilegedOverlay(SurfaceWrapper *wrapper)
@@ -1014,6 +1031,49 @@ void ShellHandler::registerSurfaceToForeignToplevel(SurfaceWrapper *wrapper)
             m_treelandForeignToplevel->addSurface(wrapper);
         }
     });
+}
+
+void ShellHandler::setSnapTarget(SnapTargetV1 *snap)
+{
+    m_snapTarget = snap;
+}
+
+void ShellHandler::applySnapMask(SurfaceWrapper *wrapper)
+{
+    wrapper->setSkipSwitcher(true);
+    wrapper->setSkipDockPreView(true);
+    wrapper->setSkipMutiTaskView(true);
+    wrapper->setNoTitleBar(true);
+    wrapper->setNoCornerRadius(true);
+    wrapper->setNoDecoration(true);
+    wrapper->disableWindowAnimation();
+    wrapper->setPositionAutomatic(false);
+
+    if (auto *oldContainer = wrapper->container())
+        oldContainer->removeSurface(wrapper);
+    m_snapMaskContainer->addSurface(wrapper);
+
+    wrapper->setHasInitializeContainer(true);
+    wrapper->setZ(RootSurfaceContainer::SnapMaskLayerZOrder);
+    wrapper->setSnapMask(true);
+
+    // Position mask to cover the entire virtual desktop (all outputs)
+    QRectF desktopRect;
+    for (auto *out : m_rootSurfaceContainer->outputs()) {
+        desktopRect = desktopRect.united(out->geometry());
+    }
+
+    if (!desktopRect.isEmpty()) {
+        wrapper->setNormalGeometry(desktopRect);
+        wrapper->setPosition(desktopRect.topLeft());
+        wrapper->resize(desktopRect.size());
+    } else {
+        qCWarning(lcTlCapture) << "Failed to position capture mask"
+                               << wrapper << "- no output geometry available";
+    }
+
+    if (m_snapTarget)
+        m_snapTarget->setSnapMaskSurface(wrapper->surface());
 }
 
 void ShellHandler::setupDockPreview()
