@@ -15,10 +15,11 @@
 #include <wcursor.h>
 #include <winputdevice.h>
 #include <woutput.h>
+#include <wsurface.h>
+#include <wsurfaceitem.h>
 #include <woutputrenderwindow.h>
 #include <wseat.h>
 #include <wserver.h>
-#include <wsurfaceitem.h>
 #include <wtextureproviderprovider.h>
 
 #include <wlr_all.h>
@@ -108,6 +109,39 @@ QString saveImage(const QImage &image, QString filePath)
     return filePath;
 }
 
+// Helpers to resolve a WSurface* to a stable SurfaceWrapper* id.
+static qint64 idForSurface(WSurface *ws)
+{
+    auto *helper = Helper::instance();
+    if (!helper) return 0;
+    auto *root = helper->rootSurfaceContainer();
+    if (!root || !ws || !ws->handle()) return 0;
+    const auto wlrHandle = ws->handle();
+    // Walk all toplevel surfaces.
+    for (auto *container : root->subContainers()) {
+        if (!container) continue;
+        if (auto *workspace = qobject_cast<Workspace *>(container)) {
+            if (auto *models = workspace->models()) {
+                for (auto *model : models->objects()) {
+                    if (!model) continue;
+                    for (auto *s : model->surfaces()) {
+                        if (s && !s->parentSurface()
+                            && s->surface() && s->surface()->handle() == wlrHandle)
+                            return reinterpret_cast<qint64>(s);
+                    }
+                }
+            }
+        } else {
+            for (auto *s : container->surfaces()) {
+                if (s && !s->parentSurface()
+                    && s->surface() && s->surface()->handle() == wlrHandle)
+                    return reinterpret_cast<qint64>(s);
+            }
+        }
+    }
+    return 0;
+}
+
 } // namespace
 
 TreelandRemoteSource::TreelandRemoteSource(QObject *parent)
@@ -117,6 +151,23 @@ TreelandRemoteSource::TreelandRemoteSource(QObject *parent)
     QRemoteObjectHost::setLocalServerOptions(QLocalServer::UserAccessOption);
     host->setHostUrl(QUrl(QStringLiteral("local:org.deepin.dde.treeland.debug")));
     host->enableRemoting(this, QStringLiteral("WindowTree"));
+    // Capture input events for the real-time event stream. The Helper emits
+    // from its WSeatEventFilter::afterHandleEvent, so `target` is the surface
+    // that actually received the event.
+    if (auto *helper = Helper::instance()) {
+        connect(helper, &Helper::debugInputEvent, this,
+                [this](WSurface *target, int eventType, const QString &detail) {
+            DebugEvent e;
+            e.setSeq(m_nextEventSeq++);
+            e.setType(eventType);
+            e.setTarget(idForSurface(target));
+            e.setDetail(detail);
+            e.setTimestampMs(static_cast<quint64>(QDateTime::currentMSecsSinceEpoch()));
+            m_events.append(e);
+            if (m_events.size() > MAX_EVENTS)
+                m_events.removeFirst();
+        });
+    }
 
     if (auto *root = Helper::instance()->rootSurfaceContainer(); root && root->cursor()) {
         updateCursor(root->cursor()->position());
@@ -194,6 +245,18 @@ WindowInfo TreelandRemoteSource::buildWindowInfo(SurfaceWrapper *surface,
         title = shellSurface->property("title").toString();
     }
     info.setTitle(title);
+
+    // Frame/damage statistics from the underlying wlr_surface.
+    if (auto *w = surface->surface()) {
+        if (auto *wlr = w->handle()) {
+            info.setFrames(static_cast<qint64>(wlr->current.seq));
+            const auto *extents = pixman_region32_extents(&wlr->current.buffer_damage);
+            if (extents)
+                info.setDamage(QRectF(extents->x1, extents->y1,
+                                      extents->x2 - extents->x1,
+                                      extents->y2 - extents->y1));
+        }
+    }
     return info;
 }
 
@@ -630,4 +693,31 @@ QString TreelandRemoteSource::captureWindow(qint64 id, QString filePath)
     if (!grabToImage(content, &image))
         return {};
     return saveImage(image, filePath);
+}
+QList<DebugEvent> TreelandRemoteSource::getEvents(quint64 afterSeq)
+{
+    QList<DebugEvent> result;
+    for (const auto &e : m_events) {
+        if (e.seq() > afterSeq)
+            result.append(e);
+    }
+    return result;
+}
+
+qint64 TreelandRemoteSource::focusedWindowId()
+{
+    auto *seat = Helper::instance()->seat();
+    if (!seat) return 0;
+    auto *focus = seat->keyboardFocusSurface();
+    if (!focus) return 0;
+    return idForSurface(focus);
+}
+
+qint64 TreelandRemoteSource::windowUnderCursor()
+{
+    auto *seat = Helper::instance()->seat();
+    if (!seat) return 0;
+    auto *focus = seat->pointerFocusSurface();
+    if (!focus) return 0;
+    return idForSurface(focus);
 }

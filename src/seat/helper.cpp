@@ -2641,6 +2641,8 @@ bool Helper::afterHandleEvent([[maybe_unused]] WSeat *seat,
     if (!m_instance || !m_renderWindow || !m_backend)
         return false;
 
+    emitInputDebugEvent(watched, event);
+
     if (event->isSinglePointEvent() && static_cast<QSinglePointEvent *>(event)->isBeginEvent()) {
         // surfaceItem is qml type: XdgSurfaceItem or LayerSurfaceItem
         auto toplevelSurface = qobject_cast<WSurfaceItem *>(surfaceItem)->shellSurface();
@@ -2658,6 +2660,53 @@ bool Helper::afterHandleEvent([[maybe_unused]] WSeat *seat,
     }
 
     return false;
+}
+
+void Helper::emitInputDebugEvent(WSurface *target, QInputEvent *event)
+{
+    if (!m_treelandRemoteSource)
+        return;
+    int eventType = 0;
+    QString detail;
+    switch (event->type()) {
+    case QEvent::MouseMove:
+        eventType = 1;
+        {
+            auto *me = static_cast<QMouseEvent *>(event);
+            detail = QStringLiteral("motion %1,%2").arg(me->position().x()).arg(me->position().y());
+        }
+        break;
+    case QEvent::MouseButtonPress:
+    case QEvent::MouseButtonRelease:
+        eventType = 2;
+        {
+            auto *me = static_cast<QMouseEvent *>(event);
+            detail = QStringLiteral("button %1 %2 @%3,%4")
+                .arg(me->button())
+                .arg(me->type() == QEvent::MouseButtonPress ? "press" : "release")
+                .arg(me->position().x()).arg(me->position().y());
+        }
+        break;
+    case QEvent::KeyPress:
+    case QEvent::KeyRelease:
+        eventType = 3;
+        {
+            auto *ke = static_cast<QKeyEvent *>(event);
+            detail = QStringLiteral("key %1 %2")
+                .arg(ke->key())
+                .arg(ke->type() == QEvent::KeyPress ? "press" : "release");
+        }
+        break;
+    case QEvent::Enter:
+        eventType = 4;
+        detail = QStringLiteral("pointer enter");
+        break;
+    default:
+        // Unhandled event types (Wheel, Touch, Gesture, etc.) are omitted
+        // but can be added as needed.
+        return;
+    }
+    Q_EMIT debugInputEvent(target, eventType, detail);
 }
 
 bool Helper::unacceptedEvent(WSeat *, QWindow *, QInputEvent *event)

@@ -22,7 +22,9 @@ POD WindowInfo(
     QRectF titlebarGeometry,
     QRectF boundingRect,
     QRectF iconGeometry,
-    QPointF position
+    QPointF position,
+    qint64 frames,
+    QRectF damage
 )
 
 POD WorkspaceInfo(
@@ -53,6 +55,16 @@ POD ClientInfo(
     QList<WindowInfo> windows
 )
 
+// Real-time debug event: input events, window state changes, etc.
+// type: 1=pointerMotion 2=pointerButton 3=keyboardKey 4=focusChanged 5=cursorWindowChanged
+POD DebugEvent(
+    quint64 seq,
+    int type,
+    qint64 target,     // target window id, 0 = desktop / no target
+    QString detail,    // human-readable description
+    quint64 timestampMs
+)
+
 class WindowTreeRemote {
     SLOT(TreelandInfo getTreelandInfo());
     SLOT(QList<WindowInfo> getWindows());
@@ -71,5 +83,8 @@ class WindowTreeRemote {
     SLOT(QString captureOutput(QString outputName, QString filePath));
     SLOT(QString captureWindow(qint64 id, QString filePath));
     SLOT(QString captureScreen(QString filePath));
+    SLOT(QList<DebugEvent> getEvents(quint64 afterSeq));
+    SLOT(qint64 focusedWindowId());
+    SLOT(qint64 windowUnderCursor());
     PROP(QPointF cursorPosition READONLY)
 };

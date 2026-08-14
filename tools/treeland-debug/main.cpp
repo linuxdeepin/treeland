@@ -465,7 +465,8 @@ QString helpText()
         "  windows                    List all toplevel windows (use --json for JSON)\n"
         "  clients                    List connected Wayland clients and their windows\n"
         "  top [interval-ms]          Live, top-like refreshing view (default 1000ms)\n"
-        "\n"
+        "  events [interval-ms]      Real-time input event stream (default 50ms)\n"
+        "  watch <id> [interval-ms]  Monitor a window's changes (default 250ms)\n"
         "Window control (target by numeric id or appId):\n"
         "  activate <id>              Activate (focus) a window\n"
         "  close <id>                 Close a window\n"
@@ -506,6 +507,11 @@ static int runCommand(Session &session, int timeoutMs, bool json, int previewOpt
 // `top` runs its own event loop.
 static int runTop(Session &session, int timeoutMs, int intervalMs);
 
+// `events` streams the compositor's real-time event stream.
+static int runEvents(Session &session, int timeoutMs, int intervalMs);
+
+// `watch` monitors a single window's changes.
+static int runWatch(Session &session, int timeoutMs, qint64 id, int intervalMs);
 // `shell` reads commands from stdin.
 static int runShell(Session &session, int timeoutMs, bool json, int previewOpt);
 int main(int argc, char *argv[])
@@ -600,13 +606,35 @@ int main(int argc, char *argv[])
 
     if (command == QLatin1String("shell"))
         return runShell(session, timeoutMs, json, previewOpt);
-    if (command == QLatin1String("top")) {
+if (command == QLatin1String("top")) {
         int intervalMs = 1000;
         if (!commandArgs.isEmpty())
             intervalMs = commandArgs.first().toInt();
         if (intervalMs <= 0)
             intervalMs = 1000;
         return runTop(session, timeoutMs, intervalMs);
+    }
+    if (command == QLatin1String("events")) {
+        int intervalMs = 50;
+        if (!commandArgs.isEmpty())
+            intervalMs = commandArgs.first().toInt();
+        if (intervalMs <= 0)
+            intervalMs = 50;
+        return runEvents(session, timeoutMs, intervalMs);
+    }
+    if (command == QLatin1String("watch")) {
+        if (commandArgs.isEmpty())
+            return fail("watch: usage: watch <id> [interval-ms]");
+        bool ok = false;
+        const qint64 id = resolveTarget(session, timeoutMs, commandArgs.first(), &ok);
+        if (!ok)
+            return fail(QStringLiteral("no window matches '%1'").arg(commandArgs.first()));
+        int intervalMs = 250;
+        if (commandArgs.size() >= 2)
+            intervalMs = commandArgs[1].toInt();
+        if (intervalMs <= 0)
+            intervalMs = 250;
+        return runWatch(session, timeoutMs, id, intervalMs);
     }
 
     return runCommand(session, timeoutMs, json, previewOpt, command, commandArgs);
@@ -633,7 +661,7 @@ static int runCommand(Session &session, int timeoutMs, bool json, int previewOpt
         if (json)
             printJson(QJsonDocument(pointToJson(pos)));
         else
-        QTextStream(stdout) << "x=" << pos.x() << " y=" << pos.y() << Qt::endl;
+            QTextStream(stdout) << "x=" << pos.x() << " y=" << pos.y() << Qt::endl;
         return EXIT_SUCCESS;
     }
 
@@ -854,6 +882,8 @@ static int runTop(Session &session, int timeoutMs, int intervalMs)
     QTextStream out(stdout);
     out << "treeland-debug top — refreshing every " << intervalMs << "ms (Ctrl+C to quit)\n";
     out.flush();
+    // Keep previous frames to compute per-interval deltas for sorting.
+    QHash<qint64, qint64> prevFrames;
 
     int rc = EXIT_SUCCESS;
     QObject context;
@@ -861,6 +891,7 @@ static int runTop(Session &session, int timeoutMs, int intervalMs)
     timer.setInterval(intervalMs);
 
     auto refresh = [&]() {
+        // Fetch current status.
         QList<ClientInfo> clients;
         if (!waitSlot(session.replica->getClients(), timeoutMs, &clients)) {
             QTextStream(stderr) << "treeland-debug: getClients() failed\n";
@@ -868,12 +899,59 @@ static int runTop(Session &session, int timeoutMs, int intervalMs)
             QCoreApplication::quit();
             return;
         }
-        // Clear the terminal and move the cursor home.
+        qint64 focusId = 0, cursorId = 0;
+        waitSlot(session.replica->focusedWindowId(), timeoutMs, &focusId);
+        waitSlot(session.replica->windowUnderCursor(), timeoutMs, &cursorId);
+
+        // Collect all windows with their frame deltas.
+        struct WinRow {
+            qint64 id; QString appId; QString title; QString output;
+            int state; QRectF geo; bool active;
+            qint64 frames; QRectF damage;
+            int64_t framesDelta;
+        };
+        QList<WinRow> rows;
+        for (const auto &cl : clients) {
+            for (const auto &w : cl.windows()) {
+                WinRow r;
+                r.id = w.id(); r.appId = w.appId(); r.title = w.title();
+                r.output = w.output(); r.state = w.state(); r.active = w.active();
+                r.geo = w.geometry(); r.frames = w.frames(); r.damage = w.damage();
+                const auto prev = prevFrames.value(w.id());
+                r.framesDelta = (prev > 0) ? (w.frames() - prev) : 0;
+                rows.append(r);
+            }
+        }
+        // Update prevFrames for next cycle.
+        for (const auto &r : rows)
+            prevFrames[r.id] = r.frames;
+
+        // Sort by framesDelta descending (most active first).
+        std::sort(rows.begin(), rows.end(),
+                  [](const WinRow &a, const WinRow &b) { return a.framesDelta > b.framesDelta; });
+
+        // Clear and print.
         out << QStringLiteral("\033[2J\033[H");
         out << "treeland-debug top — "
             << QDateTime::currentDateTime().toString(Qt::ISODate)
-            << "  (clients: " << clients.size() << ")\n";
-        printClientsTable(clients);
+            << "  (clients: " << clients.size() << "  windows: " << rows.size() << ")\n"
+            << "  ID              APP-ID                STATE       FRAMES  GEO          MARKER\n";
+        for (const auto &r : rows) {
+            QString marker;
+            if (r.id == focusId) marker = QStringLiteral("F");
+            else if (r.id == cursorId) marker = QStringLiteral("C");
+            else marker = QStringLiteral(" ");
+            out << QStringLiteral("  %1  %2  %3  %4  %5,%6 %7x%8  %9\n")
+                .arg(QString::number(r.id).leftJustified(16))
+                .arg(r.appId.leftJustified(22))
+                .arg(stateName(r.state).leftJustified(12))
+                .arg(r.framesDelta, 5)
+                .arg(static_cast<int>(r.geo.x()))
+                .arg(static_cast<int>(r.geo.y()))
+                .arg(static_cast<int>(r.geo.width()))
+                .arg(static_cast<int>(r.geo.height()))
+                .arg(marker);
+        }
         out.flush();
     };
 
@@ -914,4 +992,128 @@ static int runShell(Session &session, int timeoutMs, bool json, int previewOpt)
         runCommand(session, timeoutMs, json, previewOpt, command, parts);
     }
     return EXIT_SUCCESS;
+}
+
+static int runEvents(Session &session, int timeoutMs, int intervalMs)
+{
+    QTextStream out(stdout);
+    out << "treeland-debug events — streaming every " << intervalMs << "ms (Ctrl+C to quit)\n\n";
+    out.flush();
+
+    int rc = EXIT_SUCCESS;
+    quint64 lastSeq = 0;
+    QObject context;
+    QTimer timer;
+    timer.setInterval(intervalMs);
+
+    auto refresh = [&]() {
+        QList<DebugEvent> events;
+        if (!waitSlot(session.replica->getEvents(lastSeq), timeoutMs, &events)) {
+            QTextStream(stderr) << "treeland-debug: getEvents() failed\n";
+            rc = EXIT_FAILURE;
+            QCoreApplication::quit();
+            return;
+        }
+        for (const auto &e : events) {
+            lastSeq = std::max(lastSeq, e.seq());
+            const QString time = QDateTime::fromMSecsSinceEpoch(e.timestampMs()).toString("HH:mm:ss.zzz");
+            QString targetName;
+            if (e.target() != 0)
+                targetName = QStringLiteral(" -> %1").arg(e.target());
+            out << time << "  " << e.detail() << targetName << "\n";
+        }
+        out.flush();
+    };
+
+    QObject::connect(&timer, &QTimer::timeout, &context, refresh);
+    refresh();
+    timer.start();
+
+    QCoreApplication::exec();
+    return rc;
+}
+
+static int runWatch(Session &session, int timeoutMs, qint64 id, int intervalMs)
+{
+    QTextStream out(stdout);
+    out << "treeland-debug watch " << id << " — every " << intervalMs << "ms (Ctrl+C to quit)\n\n";
+    out.flush();
+
+    int rc = EXIT_SUCCESS;
+    WindowInfo prev;
+    bool havePrev = false;
+    qint64 prevFrames = 0;
+    QObject context;
+    QTimer timer;
+    timer.setInterval(intervalMs);
+
+    auto refresh = [&]() {
+        QList<WindowInfo> windows;
+        if (!waitSlot(session.replica->getWindows(), timeoutMs, &windows)) {
+            QTextStream(stderr) << "treeland-debug: getWindows() failed\n";
+            rc = EXIT_FAILURE;
+            QCoreApplication::quit();
+            return;
+        }
+        WindowInfo cur;
+        bool found = false;
+        for (const auto &w : windows) {
+            if (w.id() == id) { cur = w; found = true; break; }
+        }
+        if (!found) {
+            QTextStream(stderr) << "treeland-debug: window " << id << " no longer exists\n";
+            rc = EXIT_FAILURE;
+            QCoreApplication::quit();
+            return;
+        }
+
+        // Print a header with markers, then one event-style line per change.
+        if (!havePrev) {
+            out << "Window " << id << " " << cur.appId()
+                << (cur.title().isEmpty() ? QString() : QStringLiteral(" (%1)").arg(cur.title()))
+                << "\n";
+            havePrev = true;
+        }
+        QStringList changes;
+        if (!havePrev) {
+        } else {
+            if (cur.geometry() != prev.geometry())
+                changes << QStringLiteral("geometry %1,%2 %3x%4")
+                    .arg(cur.geometry().x()).arg(cur.geometry().y())
+                    .arg(cur.geometry().width()).arg(cur.geometry().height());
+            if (cur.workspace() != prev.workspace())
+                changes << QStringLiteral("workspace %1").arg(cur.workspace());
+            if (cur.state() != prev.state())
+                changes << QStringLiteral("state %1 -> %2")
+                    .arg(stateName(prev.state())).arg(stateName(cur.state()));
+            if (cur.active() != prev.active())
+                changes << (cur.active() ? QStringLiteral("activated") : QStringLiteral("deactivated"));
+        }
+        const qint64 frames = cur.frames();
+        if (frames != prevFrames)
+            changes << QStringLiteral("frames %1 (+%2)").arg(frames).arg(frames - prevFrames);
+        if (!cur.damage().isEmpty())
+            changes << QStringLiteral("damage %1,%2 %3x%4")
+                .arg(cur.damage().x()).arg(cur.damage().y())
+                .arg(cur.damage().width()).arg(cur.damage().height());
+        prevFrames = frames;
+
+        // Always print one line per refresh (like `top`); changes are prefixed
+        // with `*` when they differ from the previous snapshot.
+        const QString time = QDateTime::currentDateTime().toString("HH:mm:ss");
+        out << time << "  ";
+        if (changes.isEmpty())
+            out << "(no change)\n";
+        else
+            out << "  * " << changes.join("; ") << "\n";
+        prev = cur;
+        out.flush();
+    };
+
+    QObject::connect(&timer, &QTimer::timeout, &context, refresh);
+    refresh();
+    timer.start();
+
+    QCoreApplication::exec();
+    return rc;
 }

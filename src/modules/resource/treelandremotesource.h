@@ -46,6 +46,10 @@ public:
     QString captureWindow(qint64 id, QString filePath) override;
     QString captureScreen(QString filePath) override;
 
+    // ---- real-time monitoring ----
+    QList<DebugEvent> getEvents(quint64 afterSeq) override;
+    qint64 focusedWindowId() override;
+    qint64 windowUnderCursor() override;
 private:
     void collectSurfaceInfos(QList<WindowInfo> &infos,
                              SurfaceWrapper *surface,
@@ -78,4 +82,9 @@ private:
 
     QPointF m_cursorPosition;
     bool m_cursorTracking = false;
+
+    // Event ring buffer for real-time monitoring.
+    QList<DebugEvent> m_events;
+    quint64 m_nextEventSeq = 1;
+    static constexpr int MAX_EVENTS = 2000;
 };
