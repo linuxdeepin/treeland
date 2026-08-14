@@ -5,7 +5,7 @@ endif()
 
 find_package(TreelandProtocols REQUIRED)
 
-set(BIN_NAME test_input_manager)
+set(BIN_NAME test-input-manager)
 
 qt_add_executable(${BIN_NAME}
     main.cpp

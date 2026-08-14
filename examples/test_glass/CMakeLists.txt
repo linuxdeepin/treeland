@@ -71,11 +71,11 @@ target_link_libraries(treeland_stub PUBLIC
     PkgConfig::WAYLAND
 )
 
-# ── test_glass executable ────────────────────────────────────────────────
-add_executable(test_glass
+# ── test-glass executable ────────────────────────────────────────────────
+add_executable(test-glass
     main.cpp
 )
-qt_add_qml_module(test_glass
+qt_add_qml_module(test-glass
     URI GlassExample
     VERSION "1.0"
     QML_FILES
@@ -83,13 +83,13 @@ qt_add_qml_module(test_glass
     RESOURCES
         assets/default-glass-background.jpg
 )
-target_compile_definitions(test_glass
+target_compile_definitions(test-glass
     PRIVATE
     SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
     $<$<BOOL:${START_DEMO}>:START_DEMO>
     WLR_USE_UNSTABLE
 )
-target_link_libraries(test_glass
+target_link_libraries(test-glass
     PRIVATE
     Qt6::Quick
     Qt6::QuickControls2
@@ -97,4 +97,4 @@ target_link_libraries(test_glass
     PkgConfig::PIXMAN
     PkgConfig::WAYLAND
 )
-install(TARGETS test_glass DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(TARGETS test-glass DESTINATION ${CMAKE_INSTALL_BINDIR})

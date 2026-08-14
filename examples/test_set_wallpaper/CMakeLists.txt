@@ -5,7 +5,7 @@ endif()
 
 find_package(TreelandProtocols REQUIRED)
 
-set(BIN_NAME test_set_wallpaper)
+set(BIN_NAME test-set-wallpaper)
 
 qt_add_executable(${BIN_NAME}
     main.cpp
