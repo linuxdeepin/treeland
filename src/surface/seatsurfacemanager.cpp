@@ -91,6 +91,12 @@ void SeatSurfaceManager::onActivatedSurfaceFocusCapabilityChanged()
     if (!helper)
         return;
 
+    // While showing the desktop, keyboard focus is on the desktop layer, not on the
+    // (hidden) activated surface; a focus-capability change of the activated
+    // surface must not yank keyboard focus back to the window.
+    if (helper->showDesktopState() == WindowManagementInterfaceV1::DesktopState::Show)
+        return;
+
     if (m_activatedSurface->hasFocusCapability()) {
         helper->requestKeyboardFocus(m_activatedSurface, Qt::ActiveWindowFocusReason, m_seat);
     } else {
@@ -157,6 +163,19 @@ void SeatSurfaceManager::setKeyboardFocusSurface(SurfaceWrapper *surface, Qt::Fo
         surface->setProperty("lastInteractingSeat", QVariant::fromValue(m_seat));
         surface->setProperty("lastInteractionTime", QDateTime::currentMSecsSinceEpoch());
     }
+}
+
+void SeatSurfaceManager::restoreShowDesktopFocus()
+{
+    if (!m_activatedSurface || !m_activatedSurface->hasFocusCapability())
+        return;
+
+    // The seat may still be in transition (hotplug): without a container the
+    // subsequent keyboard focus request would assert.
+    if (!m_rootContainer || !m_rootContainer->getSeatContainer(m_seat))
+        return;
+
+    setKeyboardFocusSurface(m_activatedSurface, Qt::OtherFocusReason);
 }
 
 void SeatSurfaceManager::beginMoveResize(SurfaceWrapper *surface, Qt::Edges edges)
@@ -453,6 +472,13 @@ void SeatSurfaceManager::onKeyboardGrabEnd()
 
     qCDebug(lcTlPopupFocus) << "Popup keyboard grab ended, restoring focus to:"
                             << m_activatedSurface;
+
+    // While showing the desktop, keyboard focus is on the desktop layer, not on the
+    // (hidden) activated surface; do not yank it back to the window.
+    if (auto *helper = Helper::instance()) {
+        if (helper->showDesktopState() == WindowManagementInterfaceV1::DesktopState::Show)
+            return;
+    }
 
     if (m_activatedSurface && m_activatedSurface->hasFocusCapability()) {
         setKeyboardFocusSurface(m_activatedSurface, Qt::ActiveWindowFocusReason);
