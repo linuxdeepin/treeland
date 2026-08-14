@@ -2457,6 +2457,27 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *targetWindow, QInputEvent 
     m_currentEventSeat = targetSeat;
     [[maybe_unused]] auto clearEventSeat = qScopeGuard([this] { m_currentEventSeat = nullptr; });
 
+    // Dismiss the popup grab when the user presses a button outside the popup
+    // (e.g. on the desktop or another client). wlroots' xdg popup keyboard grab
+    // redirects keyboard focus back to the popup, so it must be ended explicitly.
+    if (event->type() == QEvent::MouseButtonPress) {
+        if (auto *seatContainer = m_rootSurfaceContainer->getSeatContainer(targetSeat)) {
+            if (seatContainer->hasPopupGrab()) {
+                auto *focused = targetSeat->handle()->pointer_state.focused_surface;
+                bool clickOnPopup = false;
+                if (focused) {
+                    if (auto *wSurface = WSurface::fromHandle(focused)) {
+                        if (auto *wrapper = m_rootSurfaceContainer->getSurface(wSurface))
+                            clickOnPopup = (wrapper->type() == SurfaceWrapper::Type::XdgPopup);
+                    }
+                }
+                // seat->drag is non-null during an active DnD drag, which also
+                // installs a keyboard grab; never end that grab here.
+                if (!clickOnPopup && !targetSeat->handle()->drag)
+                    seatContainer->dismissPopups();
+            }
+        }
+    }
     if (seat == m_primarySeat) {
         if (event->type() == QEvent::KeyPress) {
             auto kevent = static_cast<QKeyEvent *>(event);

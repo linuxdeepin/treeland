@@ -64,6 +64,7 @@ public:
     // Popup keyboard grab management
     void givePopupFocus(SurfaceWrapper *popupWrapper);
     void dismissPopups();
+    bool hasPopupGrab() const { return m_hasPopupGrab; }
 
 Q_SIGNALS:
     void activatedSurfaceChanged(SurfaceWrapper *surface);

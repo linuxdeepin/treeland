@@ -444,21 +444,6 @@ void SeatSurfaceManager::onKeyboardGrabBegin()
         }
     }
 
-    // Detect DnD drag keyboard grab:
-    // In wlr_seat_start_drag(), drag->keyboard_grab.data = drag is set before
-    // wlr_seat_keyboard_start_grab() is called (which emits keyboard_grab_begin),
-    // but seat->drag = drag is set AFTER the grab begins. So seat->drag is still
-    // nullptr when this signal handler runs. Instead, cast grab->data to a
-    // wlr_drag pointer and validate via grab_type (enum values 0-2 are safe;
-    // an xdg_popup_grab's client pointer will never equal those small integers).
-    if (grab->data) {
-        auto *possibleDrag = static_cast<struct wlr_drag *>(grab->data);
-        if (possibleDrag->grab_type <= WLR_DRAG_GRAB_KEYBOARD_TOUCH) {
-            qCDebug(lcTlPopupFocus) << "Drag keyboard grab started (not popup)";
-            return;
-        }
-    }
-
     m_hasPopupGrab = true;
     qCDebug(lcTlPopupFocus) << "Popup keyboard grab started";
 }
