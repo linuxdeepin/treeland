@@ -9,6 +9,7 @@
 #include "core/windowconfigstore.h"
 #include "layersurfacecontainer.h"
 #include "modules/app-id-resolver/appidresolver.h"
+#include "modules/snap-target/snaphandler.h"
 #include "modules/dde-shell/ddeshellmanagerinterfacev1.h"
 #include "modules/foreign-toplevel/foreigntoplevelmanagerv2.h"
 #include "modules/layer-shell-extension/layershellextensionmanagerinterfacev1.h"
@@ -70,6 +71,7 @@ ShellHandler::ShellHandler(RootSurfaceContainer *rootContainer, WServer *server)
     , m_overlayContainer(new LayerSurfaceContainer(rootContainer))
     , m_popupContainer(new SurfaceContainer(rootContainer))
     , m_privilegedOverlayContainer(new SurfaceContainer(rootContainer))
+    , m_snapMaskContainer(new SurfaceContainer(rootContainer))
     , m_windowConfigStore(new WindowConfigStore(this))
 {
     m_treelandForeignToplevel = server->attach<ForeignToplevelManagerInterfaceV2>();
@@ -211,6 +213,8 @@ void ShellHandler::updateXWaylandDesktopProperties()
                                        Helper::instance()->showDesktopState()
                                            == ShowDesktopInterfaceV1::State::Show);
     }
+    m_snapMaskContainer->setZ(RootSurfaceContainer::SnapMaskLayerZOrder);
+    m_snapMaskContainer->setObjectName(QStringLiteral("SnapMaskContainer"));
 }
 
 void ShellHandler::updateWrapperContainer(SurfaceWrapper *wrapper, WSurface *parentSurface)
@@ -406,6 +410,11 @@ Workspace *ShellHandler::workspace() const
 SurfaceContainer *ShellHandler::popupContainer() const
 {
     return m_popupContainer;
+}
+
+SurfaceContainer *ShellHandler::snapMaskContainer() const
+{
+    return m_snapMaskContainer;
 }
 
 RootSurfaceContainer *ShellHandler::rootSurfaceContainer() const
@@ -663,15 +672,23 @@ void ShellHandler::ensureXdgWrapper(WXdgToplevelSurface *surface, const QString 
     }
     Q_EMIT surfaceWrapperAdded(wrapper);
 
+    // Privileged overlay, IM candidate panel, and capture mask detection via xdg-toplevel-tag
     QPointer<SurfaceWrapper> wrapperPtr(wrapper);
-    QObject::connect(surface, &WXdgToplevelSurface::tagChanged, this, [this, wrapperPtr]() {
-        if (wrapperPtr) {
-            if (checkAndApplyPrivilegedOverlay(wrapperPtr))
-                return;
-            if (m_imCandidatePanelManager->checkAndApplyIMCandidatePanel(wrapperPtr))
-                return;
+    auto applyIfTaggedSurface = [this, surface, wrapperPtr]() {
+        if (!wrapperPtr)
+            return;
+        if (checkAndApplyPrivilegedOverlay(wrapperPtr))
+            return;
+        if (m_imCandidatePanelManager->checkAndApplyIMCandidatePanel(wrapperPtr))
+            return;
+        if (m_snapTarget
+            && surface->tag() == QLatin1String("org.deepin.treeland.snap-mask")
+            && !wrapperPtr->isSnapMask()) {
+            applySnapMask(wrapperPtr);
         }
-    });
+    };
+    QObject::connect(surface, &WXdgToplevelSurface::tagChanged, this, applyIfTaggedSurface);
+    applyIfTaggedSurface();
 }
 
 bool ShellHandler::checkAndApplyPrivilegedOverlay(SurfaceWrapper *wrapper)
@@ -745,6 +762,9 @@ void ShellHandler::onXdgToplevelSurfaceRemoved(WXdgToplevelSurface *surface)
             m_windowConfigStore->saveLastSize(wrapper->appId(), s);
         }
     }
+    if (wrapper->isSnapMask() && m_snapTarget)
+        m_snapTarget->removeSnapMaskSurface(wrapper->surface());
+
     Q_EMIT surfaceWrapperAboutToRemove(wrapper);
     m_rootSurfaceContainer->destroyForSurface(wrapper);
 }
@@ -1017,6 +1037,69 @@ void ShellHandler::registerSurfaceToForeignToplevel(SurfaceWrapper *wrapper)
             m_treelandForeignToplevel->addSurface(wrapper);
         }
     });
+}
+
+void ShellHandler::setSnapTarget(SnapTargetV1 *snap)
+{
+    m_snapTarget = snap;
+}
+
+void ShellHandler::applySnapMask(SurfaceWrapper *wrapper)
+{
+    wrapper->setSkipSwitcher(true);
+    wrapper->setSkipDockPreView(true);
+    wrapper->setSkipMutiTaskView(true);
+    wrapper->setNoTitleBar(true);
+    wrapper->setNoCornerRadius(true);
+    wrapper->setNoDecoration(true);
+    wrapper->disableWindowAnimation();
+    wrapper->setPositionAutomatic(false);
+
+    if (auto *oldContainer = wrapper->container())
+        oldContainer->removeSurface(wrapper);
+    m_snapMaskContainer->addSurface(wrapper);
+
+    wrapper->setHasInitializeContainer(true);
+    wrapper->setZ(RootSurfaceContainer::SnapMaskLayerZOrder);
+    wrapper->setSnapMask(true);
+
+    // The client may set the tag before or after its fullscreen request, so
+    // keep the mask aligned with whatever output it ends up on.
+    QPointer<SurfaceWrapper> wrapperPtr(wrapper);
+    connect(wrapper, &SurfaceWrapper::ownsOutputChanged, this, [this, wrapperPtr]() {
+        if (wrapperPtr)
+            updateSnapMaskPlacement(wrapperPtr);
+    });
+
+    // Place the mask on the output it is bound to. A client typically
+    // creates one tagged surface per output and fullscreens it on that
+    // output; the fullscreen request (handled in SurfaceWrapper) retargets
+    // ownsOutput before this runs, or afterwards in which case the fullscreen
+    // geometry is applied there.
+    updateSnapMaskPlacement(wrapper);
+
+    if (m_snapTarget)
+        m_snapTarget->addSnapMaskSurface(wrapper->surface());
+}
+
+void ShellHandler::updateSnapMaskPlacement(SurfaceWrapper *wrapper)
+{
+    if (!wrapper || !wrapper->isSnapMask())
+        return;
+
+    auto *target = wrapper->ownsOutput();
+    if (!target)
+        target = m_rootSurfaceContainer->primaryOutput();
+    if (!target) {
+        qCWarning(lcTlCapture) << "Failed to position capture mask" << wrapper
+                               << "- no output available";
+        return;
+    }
+
+    const QRectF outputGeometry = target->geometry();
+    wrapper->setNormalGeometry(outputGeometry);
+    wrapper->setPosition(outputGeometry.topLeft());
+    wrapper->resize(outputGeometry.size());
 }
 
 void ShellHandler::setupDockPreview()
