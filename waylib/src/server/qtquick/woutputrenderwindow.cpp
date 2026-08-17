@@ -1477,7 +1477,11 @@ WOutputRenderWindowPrivate::doRenderOutputs(wlr_output *needsFrameOutput, const 
             if (!(helper->needsFrame() || helper->contentIsDirty()))
                 continue;
 
-            if (!helper->contentIsDirty()) {
+            // Capture sessions (ext-image-copy-capture etc.) lock the output
+            // via wlr_output_lock_attach_render() and need a buffer commit to
+            // complete, even if the content didn't change.
+            bool captureLocked = helper->qwoutput()->attach_render_locks > 0;
+            if (!helper->contentIsDirty() && !captureLocked) {
                 renderResults.append(helper);
                 continue;
             }
