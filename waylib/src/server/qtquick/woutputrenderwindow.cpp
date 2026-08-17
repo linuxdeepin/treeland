@@ -175,11 +175,11 @@ public:
 
     inline void init() {
         // TODO: pre update scale after WOutputHelper::setScale
-        QObject::connect(output()->output(), &WOutput::scaleChanged, this, &OutputHelper::updateSceneDPR);
+        QObject::connect(outputViewport()->output(), &WOutput::scaleChanged, this, &OutputHelper::updateSceneDPR);
     }
 
-    inline wlr_output *qwoutput() const {
-        return output()->output()->handle();
+    inline wlr_output *output() const {
+        return outputViewport()->output()->handle();
     }
 
     inline WOutputRenderWindow *renderWindow() const {
@@ -187,7 +187,7 @@ public:
     }
     inline WOutputRenderWindowPrivate *renderWindowD() const;
 
-    inline WOutputViewport *output() const {
+    inline WOutputViewport *outputViewport() const {
         return m_output;
     }
 
@@ -405,7 +405,7 @@ public:
     }
     inline bool containsOutput(WOutput *o) const {
         for (auto output : std::as_const(outputs)) {
-            if (output->output()->output() == o)
+            if (output->outputViewport()->output() == o)
                 return true;
         }
         return false;
@@ -448,7 +448,7 @@ public:
             return;
 
         for (auto o : std::as_const(outputs)) {
-            wlr_output_schedule_frame(o->qwoutput());
+            wlr_output_schedule_frame(o->output());
         }
     }
 
@@ -509,7 +509,7 @@ bool OutputHelper::attachLayer(OutputLayer *layer)
 {
     Q_ASSERT(indexOfLayer(layer) < 0);
     // wlr_output will destory this layer on wlr_output destroy
-    auto qwlayer = wlr_output_layer_create(qwoutput());
+    auto qwlayer = wlr_output_layer_create(output());
     if (!qwlayer)
         return false;
 
@@ -635,7 +635,7 @@ wlr_buffer *OutputHelper::renderLayer(LayerData *layer, bool *dontEndRenderAndRe
         }
 
         layer->renderer->setSourceList(sourceList, false);
-        layer->renderer->setOutput(output()->output());
+        layer->renderer->setOutput(outputViewport()->output());
 
         // for the new WBufferRenderer and createVisualRectangle
         renderWindowD()->updateDirtyNodes();
@@ -656,9 +656,9 @@ wlr_buffer *OutputHelper::renderLayer(LayerData *layer, bool *dontEndRenderAndRe
         const bool sizeSensitive = layerFlags & WOutputLayer::SizeSensitive;
         const bool isRef = layer->mapFrom && layer->mapTo;
         if (isRef) {
-            viewportMatrix = output()->mapToViewport(layer->mapTo);
-            const auto xScale = layer->mapTo->width() / layer->mapFrom->output()->width();
-            const auto yScale = layer->mapTo->height() / layer->mapFrom->output()->height();
+            viewportMatrix = outputViewport()->mapToViewport(layer->mapTo);
+            const auto xScale = layer->mapTo->width() / layer->mapFrom->outputViewport()->width();
+            const auto yScale = layer->mapTo->height() / layer->mapFrom->outputViewport()->height();
 
             // geometry relative the other output buffer
             noClipMapRect = scaleRect(layer->mapFromLayer->noClipMapRect, xScale, yScale);
@@ -668,7 +668,7 @@ wlr_buffer *OutputHelper::renderLayer(LayerData *layer, bool *dontEndRenderAndRe
                 mapRect = noClipMapRect;
             }
         } else {
-            viewportMatrix = output()->mapToViewport(source->parentItem());
+            viewportMatrix = outputViewport()->mapToViewport(source->parentItem());
 
             // geometry relative source's parent
             noClipMapRect = QRectF(source->position(), source->size());
@@ -676,7 +676,7 @@ wlr_buffer *OutputHelper::renderLayer(LayerData *layer, bool *dontEndRenderAndRe
         }
 
         // matrix function: map source to output buffer
-        const auto outputMatrix = viewportMatrix * output()->sourceRectToTargetRectTransfrom();
+        const auto outputMatrix = viewportMatrix * outputViewport()->sourceRectToTargetRectTransfrom();
         noClipMapRect = outputMatrix.mapRect(noClipMapRect);
         mapRect = outputMatrix.mapRect(mapRect);
 
@@ -698,7 +698,7 @@ wlr_buffer *OutputHelper::renderLayer(LayerData *layer, bool *dontEndRenderAndRe
         }
 
         // clip to WOutputViewport
-        mapRect = mapRect & QRectF(QPointF(0, 0), output()->size());
+        mapRect = mapRect & QRectF(QPointF(0, 0), outputViewport()->size());
 
         QSize pixelSize;
         const auto tmpSize = mapRect.size() * dpr;
@@ -860,7 +860,7 @@ WBufferRenderer *OutputHelper::afterRender()
         return bufferRenderer();
     }
 
-    if (output()->offscreen()) {
+    if (outputViewport()->offscreen()) {
         cleanLayerCompositor();
         return bufferRenderer();
     }
@@ -875,14 +875,14 @@ WBufferRenderer *OutputHelper::afterRender()
     {
         // try fallback to cursor plane for the top layer
         auto topLayer = needsCompositeLayers.last();
-        if ((!output()->disableHardwareLayers() || topLayer->layer->forceLayer())
+        if ((!outputViewport()->disableHardwareLayers() || topLayer->layer->forceLayer())
             && !(ok && layers.last().accepted)
             && (topLayer->layer->layer->flags() & WOutputLayer::Cursor)) {
             if (tryToHardwareCursor(topLayer)) {
                 Q_ASSERT(topLayer->renderer->lastBuffer() == layers.last().buffer);
                 Q_ASSERT(!hasHardwareCursor);
                 hasHardwareCursor = true;
-                bool ok = topLayer->layer->accept(output(), true);
+                bool ok = topLayer->layer->accept(outputViewport(), true);
                 Q_ASSERT(ok);
                 needsCompositeLayers.removeLast();
                 layers.removeLast();
@@ -900,14 +900,14 @@ WBufferRenderer *OutputHelper::afterRender()
         // and this layer doesn't want force layer, should fallback
         // to software composite.
         if (needsSoftwareCompositeEndIndex == -1
-            && output()->disableHardwareLayers()
+            && outputViewport()->disableHardwareLayers()
             && !layer->forceLayer()) {
             needsSoftwareCompositeEndIndex = i;
         }
 
         if (needsSoftwareCompositeEndIndex == -1) {
             if (ok && state.accepted) {
-                bool ok = layer->accept(output(), true);
+                bool ok = layer->accept(outputViewport(), true);
                 Q_ASSERT(ok);
                 continue;
             } else {
@@ -920,13 +920,13 @@ WBufferRenderer *OutputHelper::afterRender()
             // requset force composite.
             || i >= firstCantRejectLayerIndex) {
             Q_ASSERT(layer->needsComposite());
-            bool ok = layer->accept(output(), false);
+            bool ok = layer->accept(outputViewport(), false);
             Q_ASSERT(ok);
             if (layer->forceLayer())
                 forceShadowRender = true;
             needsSoftwareCompositeBeginIndex = i;
-        } else if (!output()->ignoreSoftwareLayers()) {
-            bool ok = layer->reject(output());
+        } else if (!outputViewport()->ignoreSoftwareLayers()) {
+            bool ok = layer->reject(outputViewport());
             Q_ASSERT(ok);
         }
     }
@@ -957,7 +957,7 @@ WBufferRenderer *OutputHelper::afterRender()
 
     if (needsCompositeLayers.isEmpty()
         // Don't do anyting if this output viewport wants ignore software layers
-        || output()->ignoreSoftwareLayers()) {
+        || outputViewport()->ignoreSoftwareLayers()) {
         Q_ASSERT(!forceShadowRender);
         cleanLayerCompositor();
         return bufferRenderer();
@@ -1045,7 +1045,7 @@ WBufferRenderer *OutputHelper::compositeLayers(const QList<LayerData*> layers, b
 
     if (usingShadowRenderer) {
         const bool ok = beginRender(bufferRenderer2(), m_output->output()->size(),
-                                    qwoutput()->render_format,
+                                    this->output()->render_format,
                                     WBufferRenderer::RedirectOpenGLContextDefaultFrameBufferObject,
                                     WGlobal::ColorContentsMode::Preserve);
 
@@ -1073,7 +1073,7 @@ WBufferRenderer *OutputHelper::compositeLayers(const QList<LayerData*> layers, b
 
 bool OutputHelper::commit(WBufferRenderer *buffer)
 {
-    if (output()->offscreen())
+    if (outputViewport()->offscreen())
         return true;
 
     if (!buffer || !buffer->currentBuffer()) {
@@ -1096,7 +1096,7 @@ bool OutputHelper::commit(WBufferRenderer *buffer)
 bool OutputHelper::tryToHardwareCursor(const LayerData *layer)
 {
     do {
-        auto set_cursor = qwoutput()->impl->set_cursor;
+        auto set_cursor = output()->impl->set_cursor;
         auto buffer = layer && layer->renderer->lastBuffer()
                           ? layer->renderer->lastBuffer()
                           : nullptr;
@@ -1105,22 +1105,22 @@ bool OutputHelper::tryToHardwareCursor(const LayerData *layer)
                 return true;
 
             if (set_cursor)
-                set_cursor(qwoutput(), buffer, 0, 0);
+                set_cursor(output(), buffer, 0, 0);
             m_hardwareCursorRenderComplete = false;
             return true;
         }
 
-        if (qwoutput()->software_cursor_locks > 0)
+        if (output()->software_cursor_locks > 0)
             break;
 
-        auto move_cursor = qwoutput()->impl->move_cursor;
+        auto move_cursor = output()->impl->move_cursor;
 
         if (!set_cursor || !move_cursor)
             break;
 
         QSize pixelSize = QSize(buffer->width, buffer->height);
-        auto get_cursor_sizes = qwoutput()->impl->get_cursor_sizes;
-        auto get_cursor_formsts = qwoutput()->impl->get_cursor_formats;
+        auto get_cursor_sizes = output()->impl->get_cursor_sizes;
+        auto get_cursor_formsts = output()->impl->get_cursor_formats;
         bool needsRepaintCursor = get_cursor_sizes && get_cursor_formsts;
 
         if (Q_UNLIKELY(lcWlRenderer().isDebugEnabled()))
@@ -1128,11 +1128,11 @@ bool OutputHelper::tryToHardwareCursor(const LayerData *layer)
 
         if (get_cursor_sizes) {
             if (Q_UNLIKELY(lcWlRenderer().isDebugEnabled()))
-                qCDebug(lcWlRenderer) << "Supported cursor sizes for output" << output() << ":";
+                qCDebug(lcWlRenderer) << "Supported cursor sizes for output" << outputViewport() << ":";
 
             bool foundTargetSize = false;
             size_t sizes_len = 0;
-            const auto sizes = get_cursor_sizes(qwoutput(), &sizes_len);
+            const auto sizes = get_cursor_sizes(output(), &sizes_len);
             for (size_t i = 0; i < sizes_len; ++i) {
                 if (Q_UNLIKELY(lcWlRenderer().isDebugEnabled()))
                      qCDebug(lcWlRenderer) << "    " << sizes[i].width << "x" << sizes[i].height;
@@ -1224,7 +1224,7 @@ bool OutputHelper::tryToHardwareCursor(const LayerData *layer)
 
         const auto hotSpot = layer->renderMatrix.map(layer->layer->layer->cursorHotSpot()
                                                      * devicePixelRatio()).toPoint();
-        if (!set_cursor(qwoutput(), buffer, hotSpot.x(), hotSpot.y())) {
+        if (!set_cursor(output(), buffer, hotSpot.x(), hotSpot.y())) {
             break;
         } else {
             m_hardwareCursorRenderComplete = true;
@@ -1233,14 +1233,14 @@ bool OutputHelper::tryToHardwareCursor(const LayerData *layer)
 
         const auto pos = layer->mapToOutput.topLeft() + hotSpot;
         wlr_box cleanTransform {.x = pos.x(), .y = pos.y(), .width = 0, .height = 0};
-        const auto outputSize = output()->output()->size();
+        const auto outputSize = outputViewport()->output()->size();
         // the layer->mapRect has been transform in renderLayer, but
         // wlroot's move_cursor also will transform the cursor's position.
         // so revert transform here.
         wlr_box_transform(&cleanTransform, &cleanTransform,
-                          qwoutput()->transform,
+                          output()->transform,
                           outputSize.width(), outputSize.height());
-        if (!move_cursor(qwoutput(), cleanTransform.x, cleanTransform.y)) {
+        if (!move_cursor(output(), cleanTransform.x, cleanTransform.y)) {
             break;
         }
 
@@ -1255,7 +1255,7 @@ bool OutputHelper::tryToHardwareCursor(const LayerData *layer)
 int WOutputRenderWindowPrivate::indexOfOutputHelper(const WOutputViewport *output) const
 {
     for (int i = 0; i < outputs.size(); ++i) {
-        if (outputs.at(i)->output() == output) {
+        if (outputs.at(i)->outputViewport() == output) {
             return i;
         }
     }
@@ -1333,12 +1333,12 @@ void WOutputRenderWindowPrivate::init(OutputHelper *helper)
 {
     QMetaObject::invokeMethod(helper, &WOutputHelper::scheduleFrame, Qt::QueuedConnection);
     helper->init();
-    QObject::connect(helper->output(), &WOutputViewport::dependsChanged, helper, [this] {
+    QObject::connect(helper->outputViewport(), &WOutputViewport::dependsChanged, helper, [this] {
         sortOutputs();
     });
 
     for (auto layer : std::as_const(layers)) {
-        if (layer->outputs().contains(helper->output())) {
+        if (layer->outputs().contains(helper->outputViewport())) {
             helper->attachLayer(layer);
         }
     }
@@ -1432,8 +1432,8 @@ void WOutputRenderWindowPrivate::updateSceneDPR()
     qreal maxDPR = 0.0;
 
     for (auto o : std::as_const(outputs)) {
-        if (o->output()->output()->scale() > maxDPR)
-            maxDPR = o->output()->output()->scale();
+        if (o->outputViewport()->output()->scale() > maxDPR)
+            maxDPR = o->outputViewport()->output()->scale();
     }
 
     setSceneDevicePixelRatio(maxDPR);
@@ -1444,7 +1444,7 @@ void WOutputRenderWindowPrivate::sortOutputs()
 {
     std::stable_sort(outputs.begin(), outputs.end(),
                      [] (const OutputHelper *o1, const OutputHelper *o2) {
-        return o2->output()->depends().contains(o1->output());
+        return o2->outputViewport()->depends().contains(o1->outputViewport());
     });
 }
 
@@ -1456,7 +1456,7 @@ WOutputRenderWindowPrivate::doRenderOutputs(wlr_output *needsFrameOutput, const 
     renderResults.reserve(outputs.size());
     for (OutputHelper *helper : std::as_const(outputs)) {
         if (Q_LIKELY(needsFrameOutput)) {
-            if (helper->qwoutput() != needsFrameOutput)
+            if (helper->output() != needsFrameOutput)
                 continue;
             else
                 Q_ASSERT(!helper->framePending());
@@ -1470,7 +1470,7 @@ WOutputRenderWindowPrivate::doRenderOutputs(wlr_output *needsFrameOutput, const 
             // Note: Even when disabling, we need to render once to commit the disabled state
             // (extraState will contain the ENABLED=false change)
             bool shouldRender = helper->willBeEnabled() || helper->extraState();
-            if (Q_UNLIKELY(!WOutputViewportPrivate::get(helper->output())->renderable())
+            if (Q_UNLIKELY(!WOutputViewportPrivate::get(helper->outputViewport())->renderable())
                 || !shouldRender)
                 continue;
 
@@ -1480,30 +1480,30 @@ WOutputRenderWindowPrivate::doRenderOutputs(wlr_output *needsFrameOutput, const 
             // Capture sessions (ext-image-copy-capture etc.) lock the output
             // via wlr_output_lock_attach_render() and need a buffer commit to
             // complete, even if the content didn't change.
-            bool captureLocked = helper->qwoutput()->attach_render_locks > 0;
+            bool captureLocked = helper->output()->attach_render_locks > 0;
             if (!helper->contentIsDirty() && !captureLocked) {
                 renderResults.append(helper);
                 continue;
             }
         }
 
-        Q_ASSERT(helper->output()->output()->scale() <= helper->output()->devicePixelRatio());
+        Q_ASSERT(helper->outputViewport()->output()->scale() <= helper->outputViewport()->devicePixelRatio());
 
-        const auto &format = helper->qwoutput()->render_format;
-        const auto renderMatrix = helper->output()->renderMatrix();
+        const auto &format = helper->output()->render_format;
+        const auto renderMatrix = helper->outputViewport()->renderMatrix();
 
         // maybe using the other WOutputViewport's QSGTextureProvider
-        if (!helper->output()->depends().isEmpty())
+        if (!helper->outputViewport()->depends().isEmpty())
             updateDirtyNodes();
 
-        wlr_buffer *buffer = helper->beginRender(helper->bufferRenderer(), helper->output()->output()->size(), format,
+        wlr_buffer *buffer = helper->beginRender(helper->bufferRenderer(), helper->outputViewport()->output()->size(), format,
                                                 WBufferRenderer::RedirectOpenGLContextDefaultFrameBufferObject,
-                                                helper->output()->colorContentsMode());
+                                                helper->outputViewport()->colorContentsMode());
         Q_ASSERT(buffer == helper->bufferRenderer()->currentBuffer());
         if (buffer) {
             helper->render(helper->bufferRenderer(), 0, renderMatrix,
-                           helper->output()->effectiveSourceRect(),
-                           helper->output()->targetRect());
+                           helper->outputViewport()->effectiveSourceRect(),
+                           helper->outputViewport()->targetRect());
         }
         renderResults.append(helper);
     }
@@ -1586,7 +1586,7 @@ void WOutputRenderWindowPrivate::doRender(wlr_output *needsFrameOutput,
             if (Q_UNLIKELY(!i.first->framePending())) {
                 if (Q_LIKELY(i.first->commit(i.second))) {
                     // Make sure the output is still valid after commit
-                    auto output = i.first->output()->output();
+                    auto output = i.first->outputViewport()->output();
                     if (Q_LIKELY(needsFrameOutput)) {
                         Q_ASSERT(output->handle() == needsFrameOutput);
                         if (committedOutputs.isEmpty())
@@ -1674,14 +1674,14 @@ void WOutputRenderWindow::attach(WOutputViewport *output)
     d->sortOutputs();
 
     if (d->m_renderer) {
-        auto qwoutput = newOutput->qwoutput();
-        if (qwoutput->renderer != d->m_renderer)
-            wlr_output_init_render(qwoutput, d->m_allocator, d->m_renderer);
+        auto wlrOut = newOutput->output();
+        if (wlrOut->renderer != d->m_renderer)
+            wlr_output_init_render(wlrOut, d->m_allocator, d->m_renderer);
         Q_EMIT outputViewportInitialized(output);
     }
 
     if (!containsOutput) {
-        auto *wlrOut = newOutput->qwoutput();
+        auto *wlrOut = newOutput->output();
         auto *woutput = output->output();
         auto *owner = d->listenerOwner.get();
         // On hot-unplug WBackend deletes WOutput from the native destroy
@@ -1893,10 +1893,10 @@ void WOutputRenderWindow::init(wlr_renderer *renderer, wlr_allocator *allocator)
     d->m_allocator = allocator;
 
     for (auto output : std::as_const(d->outputs)) {
-        auto qwoutput = output->qwoutput();
-        if (qwoutput->renderer != d->m_renderer)
-            wlr_output_init_render(qwoutput, d->m_allocator, d->m_renderer);
-        Q_EMIT outputViewportInitialized(output->output());
+        auto wlrOut = output->output();
+        if (wlrOut->renderer != d->m_renderer)
+            wlr_output_init_render(wlrOut, d->m_allocator, d->m_renderer);
+        Q_EMIT outputViewportInitialized(output->outputViewport());
     }
 
     if (d->componentCompleted) {
