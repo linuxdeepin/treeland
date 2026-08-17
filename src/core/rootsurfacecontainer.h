@@ -91,7 +91,7 @@ public:
 
     Output *cursorOutput() const;
     Output *outputAt(const QPointF &pos) const;
-    void updateEdgeTilePreview(SurfaceWrapper::TileMode mode, Output *out);
+    void updateEdgeTilePreview(SurfaceWrapper::TileMode mode, Output *out, WSeat *seat = nullptr);
     Output *primaryOutput() const;
     void setPrimaryOutput(Output *newPrimaryOutput, bool updateDconfig = false);
     const QList<Output *> &outputs() const;

@@ -329,7 +329,7 @@ void SeatSurfaceManager::startEdgeTileDelay()
                 if (m_rootContainer && m_seat && m_seat->cursor())
                     out = m_rootContainer->outputAt(m_seat->cursor()->position());
                 if (m_rootContainer)
-                    m_rootContainer->updateEdgeTilePreview(mr.detectedTileMode, out);
+                    m_rootContainer->updateEdgeTilePreview(mr.detectedTileMode, out, m_seat);
             }
         });
     }
