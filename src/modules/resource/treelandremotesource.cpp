@@ -20,15 +20,16 @@
 #include <woutputrenderwindow.h>
 #include <wseat.h>
 #include <wserver.h>
+#include <wsocket.h>
 #include <wtextureproviderprovider.h>
 
 #include <wlr_all.h>
 #include <wayland-server-core.h>
 
+#include <QBuffer>
 #include <QDateTime>
 #include <QEventLoop>
 #include <QFile>
-#include <QFileInfo>
 #include <QFutureWatcher>
 #include <QImage>
 #include <QLocalServer>
@@ -41,11 +42,6 @@
 WAYLIB_SERVER_USE_NAMESPACE
 
 namespace {
-
-uint32_t currentTimeMs()
-{
-    return static_cast<uint32_t>(QDateTime::currentMSecsSinceEpoch() & 0xFFFFFFFF);
-}
 
 QString processNameForPid(int pid)
 {
@@ -87,59 +83,37 @@ bool grabToImage(WTextureProviderProvider *provider, QImage *out)
     loop.exec();
     if (!watcher.isFinished())
         return false;
-    try {
-        *out = watcher.result();
-    } catch (...) {
-        return false;
-    }
+    *out = watcher.result();
     return !out->isNull();
 }
 
-QString saveImage(const QImage &image, QString filePath)
+// Encodes a grabbed frame as PNG bytes. The compositor never writes to disk;
+// the treeland-debug client owns the file. Returns an empty array on failure.
+QByteArray encodeImage(const QImage &image)
 {
     if (image.isNull())
         return {};
-    if (filePath.isEmpty())
-        filePath = QStringLiteral("/tmp/treeland-debug-%1.png").arg(QDateTime::currentMSecsSinceEpoch());
-    if (QFileInfo(filePath).suffix().isEmpty())
-        filePath += QStringLiteral(".png");
-    const QByteArray format = QFileInfo(filePath).suffix().toLower().toUtf8();
-    if (!image.save(filePath, format.isEmpty() ? "png" : format.constData()))
+    QByteArray bytes;
+    QBuffer buffer(&bytes);
+    if (!buffer.open(QIODevice::WriteOnly))
         return {};
-    return filePath;
+    if (!image.save(&buffer, "png"))
+        return {};
+    return bytes;
 }
 
-// Helpers to resolve a WSurface* to a stable SurfaceWrapper* id.
-static qint64 idForSurface(WSurface *ws)
+// Stable window id: the wl_resource id of the surface's underlying wl_surface.
+// This is the Wayland-protocol identity of the surface (rather than an
+// internal C++ pointer) and is what treeland-debug exposes to the user.
+// Note: wl_resource ids are unique per client, so two windows from different
+// clients can in principle share an id; findSurfaceById() matches the first
+// occurrence, which is acceptable for a debug tool whose output is grouped
+// by client.
+qint64 surfaceId(WSurface *ws)
 {
-    auto *helper = Helper::instance();
-    if (!helper) return 0;
-    auto *root = helper->rootSurfaceContainer();
-    if (!root || !ws || !ws->handle()) return 0;
-    const auto wlrHandle = ws->handle();
-    // Walk all toplevel surfaces.
-    for (auto *container : root->subContainers()) {
-        if (!container) continue;
-        if (auto *workspace = qobject_cast<Workspace *>(container)) {
-            if (auto *models = workspace->models()) {
-                for (auto *model : models->objects()) {
-                    if (!model) continue;
-                    for (auto *s : model->surfaces()) {
-                        if (s && !s->parentSurface()
-                            && s->surface() && s->surface()->handle() == wlrHandle)
-                            return reinterpret_cast<qint64>(s);
-                    }
-                }
-            }
-        } else {
-            for (auto *s : container->surfaces()) {
-                if (s && !s->parentSurface()
-                    && s->surface() && s->surface()->handle() == wlrHandle)
-                    return reinterpret_cast<qint64>(s);
-            }
-        }
-    }
-    return 0;
+    if (!ws || !ws->handle() || !ws->handle()->resource)
+        return 0;
+    return static_cast<qint64>(wl_resource_get_id(ws->handle()->resource));
 }
 
 } // namespace
@@ -151,45 +125,23 @@ TreelandRemoteSource::TreelandRemoteSource(QObject *parent)
     QRemoteObjectHost::setLocalServerOptions(QLocalServer::UserAccessOption);
     host->setHostUrl(QUrl(QStringLiteral("local:org.deepin.dde.treeland.debug")));
     host->enableRemoting(this, QStringLiteral("WindowTree"));
-    // Capture input events for the real-time event stream. The Helper emits
-    // from its WSeatEventFilter::afterHandleEvent, so `target` is the surface
-    // that actually received the event.
-    if (auto *helper = Helper::instance()) {
-        connect(helper, &Helper::debugInputEvent, this,
-                [this](WSurface *target, int eventType, const QString &detail) {
-            DebugEvent e;
-            e.setSeq(m_nextEventSeq++);
-            e.setType(eventType);
-            e.setTarget(idForSurface(target));
-            e.setDetail(detail);
-            e.setTimestampMs(static_cast<quint64>(QDateTime::currentMSecsSinceEpoch()));
-            m_events.append(e);
-            if (m_events.size() > MAX_EVENTS)
-                m_events.removeFirst();
-        });
-    }
-
-    if (auto *root = Helper::instance()->rootSurfaceContainer(); root && root->cursor()) {
-        updateCursor(root->cursor()->position());
-    }
 }
 
-TreelandRemoteSource::~TreelandRemoteSource() = default;
+TreelandRemoteSource::~TreelandRemoteSource()
+{
+    stopEventCapture();
+}
 
 QPointF TreelandRemoteSource::cursorPosition() const
 {
-    auto *self = const_cast<TreelandRemoteSource *>(this);
-    if (!self->m_cursorTracking) {
-        if (auto *root = Helper::instance()->rootSurfaceContainer(); root && root->cursor()) {
-            self->m_cursorTracking = true;
-            connect(root->cursor(), &WCursor::positionChanged, self, [self, root] {
-                if (root->cursor())
-                    self->updateCursor(root->cursor()->position());
-            });
-            self->updateCursor(root->cursor()->position());
-        }
-    }
-    return m_cursorPosition;
+    // Read the live cursor position on demand. We deliberately do NOT keep a
+    // WCursor::positionChanged connection alive between requests, so there is
+    // zero per-pointer-motion overhead when no treeland-debug client is
+    // connected. The READONLY property is only ever read on replica connect,
+    // which is exactly when a client asked for it.
+    if (auto *root = Helper::instance()->rootSurfaceContainer(); root && root->cursor())
+        return root->cursor()->position();
+    return {};
 }
 
 TreelandInfo TreelandRemoteSource::getTreelandInfo()
@@ -218,7 +170,7 @@ WindowInfo TreelandRemoteSource::buildWindowInfo(SurfaceWrapper *surface,
                                                  int z) const
 {
     WindowInfo info;
-    info.setId(reinterpret_cast<qint64>(surface));
+    info.setId(surfaceId(surface->surface()));
     info.setAppId(surface->appId());
     info.setWorkspace(surface->workspaceId());
     info.setLayer(layer);
@@ -362,14 +314,6 @@ LayerInfo TreelandRemoteSource::buildLayerInfo(SurfaceContainer *container) cons
     return layerInfo;
 }
 
-void TreelandRemoteSource::updateCursor(const QPointF &newPosition)
-{
-    if (newPosition != m_cursorPosition) {
-        m_cursorPosition = newPosition;
-        Q_EMIT cursorPositionChanged(m_cursorPosition);
-    }
-}
-
 void TreelandRemoteSource::collectAllToplevelSurfaces(QList<SurfaceWrapper *> &out) const
 {
     auto *root = Helper::instance()->rootSurfaceContainer();
@@ -408,7 +352,7 @@ SurfaceWrapper *TreelandRemoteSource::findSurfaceById(qint64 id) const
     QList<SurfaceWrapper *> surfaces;
     collectAllToplevelSurfaces(surfaces);
     for (auto *surface : surfaces) {
-        if (reinterpret_cast<qint64>(surface) == id)
+        if (surfaceId(surface->surface()) == id)
             return surface;
     }
     return nullptr;
@@ -439,6 +383,7 @@ QList<ClientInfo> TreelandRemoteSource::getClients()
 
     struct ClientEntry {
         qint64 id = 0;
+        QString appId;
         int pid = 0;
         QString executable;
         QList<WindowInfo> windows;
@@ -454,12 +399,16 @@ QList<ClientInfo> TreelandRemoteSource::getClients()
             return it.value();
         ClientEntry entry;
         entry.id = reinterpret_cast<qint64>(client);
-        pid_t pid = 0;
-        uid_t uid = 0;
-        gid_t gid = 0;
-        wl_client_get_credentials(client, &pid, &uid, &gid);
-        entry.pid = pid;
-        entry.executable = processNameForPid(pid);
+        // Use WClient's own credential/appId accessors instead of reaching
+        // into libwayland directly.
+        if (auto *wclient = WClient::get(client)) {
+            if (auto creds = wclient->credentials())
+                entry.pid = creds->pid;
+            entry.appId = QString::fromUtf8(wclient->appId());
+        } else if (auto creds = WClient::getCredentials(client)) {
+            entry.pid = creds->pid;
+        }
+        entry.executable = processNameForPid(entry.pid);
         indexByClient.insert(client, entries.size());
         entries.append(entry);
         return entries.size() - 1;
@@ -496,6 +445,7 @@ QList<ClientInfo> TreelandRemoteSource::getClients()
     for (const auto &entry : std::as_const(entries)) {
         ClientInfo info;
         info.setId(entry.id);
+        info.setAppId(entry.appId);
         info.setPid(entry.pid);
         info.setExecutable(entry.executable);
         info.setWindows(entry.windows);
@@ -604,7 +554,7 @@ bool TreelandRemoteSource::sendPointerButton(int button, bool pressed)
     auto *seat = Helper::instance()->seat();
     if (!seat || !seat->handle())
         return false;
-    wlr_seat_pointer_notify_button(seat->handle(), currentTimeMs(),
+    wlr_seat_pointer_notify_button(seat->handle(), QDateTime::currentMSecsSinceEpoch(),
                                    static_cast<uint32_t>(button),
                                    pressed ? WL_POINTER_BUTTON_STATE_PRESSED
                                            : WL_POINTER_BUTTON_STATE_RELEASED);
@@ -625,13 +575,13 @@ bool TreelandRemoteSource::sendKey(int keycode, bool pressed)
                 wlr_seat_set_keyboard(seat->handle(), keyboard);
         }
     }
-    wlr_seat_keyboard_notify_key(seat->handle(), currentTimeMs(),
+    wlr_seat_keyboard_notify_key(seat->handle(), QDateTime::currentMSecsSinceEpoch(),
                                  static_cast<uint32_t>(keycode),
                                  pressed ? 1u : 0u);
     return true;
 }
 
-QString TreelandRemoteSource::captureOutput(QString outputName, QString filePath)
+QByteArray TreelandRemoteSource::captureOutput(QString outputName)
 {
     auto *root = Helper::instance()->rootSurfaceContainer();
     if (!root)
@@ -667,21 +617,21 @@ QString TreelandRemoteSource::captureOutput(QString outputName, QString filePath
     QImage image;
     if (!grabToImage(viewport, &image))
         return {};
-    return saveImage(image, filePath);
+    return encodeImage(image);
 }
 
-QString TreelandRemoteSource::captureScreen(QString filePath)
+QByteArray TreelandRemoteSource::captureScreen()
 {
     auto *root = Helper::instance()->rootSurfaceContainer();
     if (!root)
         return {};
     auto *primary = root->primaryOutput();
     if (!primary)
-        return captureOutput({}, filePath);
-    return captureOutput(primary->getOutputId(), filePath);
+        return captureOutput({});
+    return captureOutput(primary->getOutputId());
 }
 
-QString TreelandRemoteSource::captureWindow(qint64 id, QString filePath)
+QByteArray TreelandRemoteSource::captureWindow(qint64 id)
 {
     auto *surface = findSurfaceById(id);
     if (!surface || !surface->surfaceItem())
@@ -692,10 +642,23 @@ QString TreelandRemoteSource::captureWindow(qint64 id, QString filePath)
     QImage image;
     if (!grabToImage(content, &image))
         return {};
-    return saveImage(image, filePath);
+    return encodeImage(image);
 }
+
 QList<DebugEvent> TreelandRemoteSource::getEvents(quint64 afterSeq)
 {
+    // A live poller keeps the event filter installed; if no poller calls
+    // within the idle window the filter is removed and the ring buffer freed,
+    // so there is zero per-event overhead when nobody is monitoring.
+    startEventCapture();
+    if (!m_eventIdleTimer) {
+        m_eventIdleTimer = new QTimer(this);
+        m_eventIdleTimer->setSingleShot(true);
+        connect(m_eventIdleTimer, &QTimer::timeout, this, [this] { stopEventCapture(); });
+    }
+    constexpr int EventCaptureIdleMs = 5000;
+    m_eventIdleTimer->start(EventCaptureIdleMs);
+
     QList<DebugEvent> result;
     for (const auto &e : m_events) {
         if (e.seq() > afterSeq)
@@ -708,16 +671,86 @@ qint64 TreelandRemoteSource::focusedWindowId()
 {
     auto *seat = Helper::instance()->seat();
     if (!seat) return 0;
-    auto *focus = seat->keyboardFocusSurface();
-    if (!focus) return 0;
-    return idForSurface(focus);
+    return surfaceId(seat->keyboardFocusSurface());
 }
 
 qint64 TreelandRemoteSource::windowUnderCursor()
 {
     auto *seat = Helper::instance()->seat();
     if (!seat) return 0;
-    auto *focus = seat->pointerFocusSurface();
-    if (!focus) return 0;
-    return idForSurface(focus);
+    return surfaceId(seat->pointerFocusSurface());
+}
+
+void TreelandRemoteSource::startEventCapture()
+{
+    if (m_eventCaptureActive)
+        return;
+    auto *window = Helper::instance() ? Helper::instance()->window() : nullptr;
+    if (!window)
+        return;
+    window->installEventFilter(this);
+    m_eventCaptureActive = true;
+}
+
+void TreelandRemoteSource::stopEventCapture()
+{
+    if (!m_eventCaptureActive)
+        return;
+    if (auto *window = Helper::instance() ? Helper::instance()->window() : nullptr)
+        window->removeEventFilter(this);
+    m_eventCaptureActive = false;
+    m_events.clear(); // release the ring buffer while idle
+}
+
+void TreelandRemoteSource::appendEvent(int type, qint64 target, const QString &detail)
+{
+    DebugEvent e;
+    e.setSeq(m_nextEventSeq++);
+    e.setType(type);
+    e.setTarget(target);
+    e.setDetail(detail);
+    e.setTimestampMs(static_cast<quint64>(QDateTime::currentMSecsSinceEpoch()));
+    m_events.append(e);
+    if (m_events.size() > MAX_EVENTS)
+        m_events.removeFirst();
+}
+
+bool TreelandRemoteSource::eventFilter(QObject *watched, QEvent *event)
+{
+    Q_UNUSED(watched)
+    // The filter is installed only while a treeland-debug client is actively
+    // polling getEvents(). The target surface is read from the seat's current
+    // focus, so on a focus transition it may reflect the previous event —
+    // acceptable for a debug stream.
+    auto *seat = Helper::instance() ? Helper::instance()->seat() : nullptr;
+    switch (event->type()) {
+    case QEvent::MouseMove: {
+        auto *me = static_cast<QMouseEvent *>(event);
+        appendEvent(1, surfaceId(seat ? seat->pointerFocusSurface() : nullptr),
+                    QStringLiteral("motion %1,%2").arg(me->position().x()).arg(me->position().y()));
+        break;
+    }
+    case QEvent::MouseButtonPress:
+    case QEvent::MouseButtonRelease: {
+        auto *me = static_cast<QMouseEvent *>(event);
+        appendEvent(2, surfaceId(seat ? seat->pointerFocusSurface() : nullptr),
+                    QStringLiteral("button %1 %2 @%3,%4")
+                        .arg(me->button())
+                        .arg(event->type() == QEvent::MouseButtonPress ? "press" : "release")
+                        .arg(me->position().x()).arg(me->position().y()));
+        break;
+    }
+    case QEvent::KeyPress:
+    case QEvent::KeyRelease: {
+        auto *ke = static_cast<QKeyEvent *>(event);
+        appendEvent(3, surfaceId(seat ? seat->keyboardFocusSurface() : nullptr),
+                    QStringLiteral("key %1 %2")
+                        .arg(ke->key())
+                        .arg(event->type() == QEvent::KeyPress ? "press" : "release"));
+        break;
+    }
+    default:
+        break;
+    }
+    return false; // never consume — only observe
 }

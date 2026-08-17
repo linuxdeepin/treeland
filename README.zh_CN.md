@@ -139,7 +139,7 @@ sudo -u dde -- dde-dconfig set \
 
 #### 图像抓取
 
-截图在服务端渲染并写入 PNG 文件，打印文件路径。省略 `file` 时在 `/tmp` 下自动生成路径。
+截图在服务端渲染后以 PNG 字节返回给 `treeland-debug` 客户端，由客户端写入文件并打印路径；合成器本身不碰文件系统。省略 `file` 时在 `/tmp` 下自动生成路径。
 
 | 命令 | 参数 | 输出 |
 | --- | --- | --- |
@@ -163,7 +163,7 @@ sudo -u dde -- dde-dconfig set \
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| `id` | integer | 稳定窗口 id，可被控制命令使用。 |
+| `id` | integer | 稳定窗口 id（wl_surface 的 wl_resource id），可被控制命令使用。 |
 | `appId` | string | 应用 id。 |
 | `title` | string | 窗口标题。 |
 | `output` | string | 输出名。 |
@@ -180,8 +180,10 @@ sudo -u dde -- dde-dconfig set \
 | `boundingRect` | object | 同上结构。 |
 | `iconGeometry` | object | 同上结构。 |
 | `position` | object | `{"x","y"}`。 |
+| `frames` | integer | 已提交帧数（取自 `wlr_surface`）。 |
+| `damage` | object | 上次提交的缓冲区刷新区域 `{"x","y","width","height"}`。 |
 
-客户端 JSON 对象（`ClientInfo`）：`id`（integer）、`pid`（integer，不可用时为 `0`）、
+客户端 JSON 对象（`ClientInfo`）：`id`（integer）、`appId`（string）、`pid`（integer，不可用时为 `0`）、
 `executable`（string）、`windows`（`WindowInfo` 数组）。
 
 `tree` JSON 结构为

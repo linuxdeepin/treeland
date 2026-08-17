@@ -50,6 +50,7 @@ POD TreelandInfo(
 // commands to present an adb-style overview of the compositor state.
 POD ClientInfo(
     qint64 id,
+    QString appId,
     int pid,
     QString executable,
     QList<WindowInfo> windows
@@ -80,9 +81,9 @@ class WindowTreeRemote {
     SLOT(bool moveCursor(QPointF pos));
     SLOT(bool sendPointerButton(int button, bool pressed));
     SLOT(bool sendKey(int keycode, bool pressed));
-    SLOT(QString captureOutput(QString outputName, QString filePath));
-    SLOT(QString captureWindow(qint64 id, QString filePath));
-    SLOT(QString captureScreen(QString filePath));
+    SLOT(QByteArray captureOutput(QString outputName));
+    SLOT(QByteArray captureWindow(qint64 id));
+    SLOT(QByteArray captureScreen());
     SLOT(QList<DebugEvent> getEvents(quint64 afterSeq));
     SLOT(qint64 focusedWindowId());
     SLOT(qint64 windowUnderCursor());

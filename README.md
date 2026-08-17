@@ -147,8 +147,10 @@ the cursor.
 
 #### Image capture
 
-Screenshots are rendered server-side and written to a PNG; the file path is
-printed. If `file` is omitted a path under `/tmp` is generated.
+Screenshots are rendered server-side and returned to the `treeland-debug`
+client as PNG bytes; the client writes them to a file and prints the path.
+The compositor itself never touches the filesystem. If `file` is omitted a
+path under `/tmp` is generated.
 
 | Command | Arguments | Output |
 | --- | --- | --- |
@@ -172,7 +174,7 @@ Window JSON object (`WindowInfo`):
 
 | Field | Type | Notes |
 | --- | --- | --- |
-| `id` | integer | Stable window id; accepted by control commands. |
+| `id` | integer | Stable window id (the wl_surface wl_resource id); accepted by control commands. |
 | `appId` | string | Application id. |
 | `title` | string | Window title. |
 | `output` | string | Output name. |
@@ -189,9 +191,12 @@ Window JSON object (`WindowInfo`):
 | `boundingRect` | object | Same shape. |
 | `iconGeometry` | object | Same shape. |
 | `position` | object | `{"x","y"}`. |
+| `frames` | integer | Number of committed frames (from `wlr_surface`). |
+| `damage` | object | Last committed buffer-damage rectangle `{"x","y","width","height"}`. |
 
-Client JSON object (`ClientInfo`): `id` (integer), `pid` (integer, `0` when
-unavailable), `executable` (string), `windows` (array of `WindowInfo`).
+Client JSON object (`ClientInfo`): `id` (integer), `appId` (string), `pid`
+(integer, `0` when unavailable), `executable` (string), `windows` (array of
+`WindowInfo`).
 
 The `tree` JSON is
 `{"currentMode": str, "layers": [{"name", "layer", "windows": [WindowInfo], "workspaces": [{"id", "isActive", "windows": [WindowInfo]}]}]}`.

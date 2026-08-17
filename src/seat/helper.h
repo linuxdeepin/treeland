@@ -299,6 +299,7 @@ Q_SIGNALS:
 
     void currentModeChanged();
     void noAnimationChanged();
+
     void blockActivateSurfaceChanged();
     void requestQuit();
 
@@ -308,10 +309,6 @@ Q_SIGNALS:
     void startLockscreened(WOutput *output, bool showAnimation);
     void modifierKeyReleased(QKeyEvent *event);
 
-    // Debug/treeland-debug: emitted for every input event with its target.
-    // target is null when no surface received the event.
-    // eventType: 1=pointerMotion 2=pointerButton 3=keyboardKey 4=pointerEnter 5=keyboardEnter
-    void debugInputEvent(WSurface *target, int eventType, const QString &detail);
 private Q_SLOTS:
     void onShowDesktop();
     void deleteTaskSwitch();
@@ -509,7 +506,7 @@ private:
     bool m_isDDMDisplay{ false };
     bool scanned{ false };
     void tryInitRemoteSource();
-    void emitInputDebugEvent(WSurface *target, QInputEvent *event);
+
     TreelandRemoteSource *m_treelandRemoteSource = nullptr;
 
     struct PendingOutputConfig {

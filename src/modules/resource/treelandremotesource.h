@@ -6,6 +6,7 @@
 #include "rep_treelandwindowtree_source.h"
 
 #include <QPointF>
+#include <QTimer>
 
 class SurfaceWrapper;
 class SurfaceContainer;
@@ -42,14 +43,23 @@ public:
     bool sendKey(int keycode, bool pressed) override;
 
     // ---- image capture ----
-    QString captureOutput(QString outputName, QString filePath) override;
-    QString captureWindow(qint64 id, QString filePath) override;
-    QString captureScreen(QString filePath) override;
+    // Returns raw PNG bytes; the treeland-debug client is responsible for
+    // writing them to disk. The compositor never touches the filesystem.
+    QByteArray captureOutput(QString outputName) override;
+    QByteArray captureWindow(qint64 id) override;
+    QByteArray captureScreen() override;
 
     // ---- real-time monitoring ----
     QList<DebugEvent> getEvents(quint64 afterSeq) override;
     qint64 focusedWindowId() override;
     qint64 windowUnderCursor() override;
+
+protected:
+    // Observes input events delivered to the render window. Installed lazily
+    // only while a treeland-debug client is actively polling getEvents(), so
+    // there is zero per-event overhead when nobody is monitoring.
+    bool eventFilter(QObject *watched, QEvent *event) override;
+
 private:
     void collectSurfaceInfos(QList<WindowInfo> &infos,
                              SurfaceWrapper *surface,
@@ -69,22 +79,29 @@ private:
                                const QString &containerName,
                                int z) const;
     LayerInfo buildLayerInfo(SurfaceContainer *container) const;
-    void updateCursor(const QPointF &newPosition);
 
     // Collects every toplevel SurfaceWrapper (no parent surface) reachable from
     // the root container, in a stable display order. Used by the flat window
     // list, the client grouping and the id -> surface lookup.
     void collectAllToplevelSurfaces(QList<SurfaceWrapper *> &out) const;
 
-    // Resolves a stable surface id (the SurfaceWrapper pointer) to a live
+    // Resolves a surface id (the wl_surface wl_resource id) to a live
     // SurfaceWrapper, or nullptr if no current surface matches.
     SurfaceWrapper *findSurfaceById(qint64 id) const;
 
-    QPointF m_cursorPosition;
-    bool m_cursorTracking = false;
+    // Starts/stops capturing input events into m_events. Capturing is gated on
+    // a live treeland-debug poller: it is armed on every getEvents() call and
+    // torn down after a short idle interval, guaranteeing no overhead when no
+    // client is connected.
+    void startEventCapture();
+    void stopEventCapture();
+    void appendEvent(int type, qint64 target, const QString &detail);
 
-    // Event ring buffer for real-time monitoring.
+    // Event ring buffer for real-time monitoring; populated only while a client
+    // is actively polling getEvents().
     QList<DebugEvent> m_events;
     quint64 m_nextEventSeq = 1;
     static constexpr int MAX_EVENTS = 2000;
+    bool m_eventCaptureActive = false;
+    QTimer *m_eventIdleTimer = nullptr;
 };

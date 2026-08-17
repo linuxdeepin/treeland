@@ -4,6 +4,7 @@
 #include <QCoreApplication>
 #include <QDateTime>
 #include <QFile>
+#include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -126,6 +127,7 @@ QJsonObject clientToJson(const ClientInfo &client)
 {
     return {
         {"id", client.id()},
+        {"appId", client.appId()},
         {"pid", client.pid()},
         {"executable", client.executable()},
         {"windows", windowsToJson(client.windows())},
@@ -312,9 +314,10 @@ void printClientsTable(const QList<ClientInfo> &clients)
 {
     QTextStream out(stdout);
     for (const auto &client : clients) {
-        out << QStringLiteral("client pid=%1 id=0x%2 %3  (windows: %4)\n")
+        out << QStringLiteral("client pid=%1 id=0x%2 %3%4  (windows: %5)\n")
                 .arg(client.pid())
                 .arg(client.id(), 0, 16)
+                .arg(client.appId().isEmpty() ? QString() : QStringLiteral("%1 ").arg(client.appId()))
                 .arg(client.executable())
                 .arg(client.windows().size());
         for (const auto &window : client.windows()) {
@@ -392,16 +395,33 @@ void printTree(const TreelandInfo &info)
     }
 }
 
+// Writes captured image bytes to @p userPath (or a generated /tmp path when
+// empty), ensuring a .png suffix. Returns the path written, or empty on
+// failure. The compositor never touches the filesystem; saving is the
+// treeland-debug client's responsibility.
+QString saveCapture(const QByteArray &data, const QString &userPath)
+{
+    if (data.isEmpty())
+        return {};
+    QString path = userPath;
+    if (path.isEmpty())
+        path = QStringLiteral("/tmp/treeland-debug-%1.png").arg(QDateTime::currentMSecsSinceEpoch());
+    if (QFileInfo(path).suffix().isEmpty())
+        path += QStringLiteral(".png");
+    QFile f(path);
+    if (!f.open(QIODevice::WriteOnly))
+        return {};
+    if (f.write(data) != data.size())
+        return {};
+    f.close();
+    return path;
+}
+
 // Emit a terminal inline image preview using the kitty graphics or iTerm2 OSC
 // 1337 protocol. force=true always emits (best-effort iTerm2 fallback for
 // unknown terminals); force=false only emits when the terminal is detected.
-bool previewImage(const QString &path, bool force)
+bool previewImage(const QByteArray &data, bool force)
 {
-    QFile f(path);
-    if (!f.open(QIODevice::ReadOnly))
-        return false;
-    const QByteArray data = f.readAll();
-    f.close();
     if (data.isEmpty())
         return false;
 
@@ -829,14 +849,17 @@ static int runCommand(Session &session, int timeoutMs, bool json, int previewOpt
                 outputName = args[1];
             if (args.size() >= 3)
                 path = args[2];
-            QString result;
-            if (!waitSlot(replica->captureOutput(outputName, path), timeoutMs, &result))
+            QByteArray data;
+            if (!waitSlot(replica->captureOutput(outputName), timeoutMs, &data))
                 return fail("captureOutput() failed");
-            if (result.isEmpty())
+            if (data.isEmpty())
                 return fail("captureOutput: no image produced (output not found or grab failed)");
-            QTextStream(stdout) << result << Qt::endl;
+            const QString saved = saveCapture(data, path);
+            if (saved.isEmpty())
+                return fail("captureOutput: failed to save image");
+            QTextStream(stdout) << saved << Qt::endl;
             if (previewOpt != 2)
-                previewImage(result, previewOpt == 1);
+                previewImage(data, previewOpt == 1);
             return EXIT_SUCCESS;
         }
         if (sub == QLatin1String("window")) {
@@ -848,27 +871,33 @@ static int runCommand(Session &session, int timeoutMs, bool json, int previewOpt
                 return fail(QStringLiteral("no window matches '%1'").arg(args[1]));
             if (args.size() >= 3)
                 path = args[2];
-            QString result;
-            if (!waitSlot(replica->captureWindow(id, path), timeoutMs, &result))
+            QByteArray data;
+            if (!waitSlot(replica->captureWindow(id), timeoutMs, &data))
                 return fail("captureWindow() failed");
-            if (result.isEmpty())
+            if (data.isEmpty())
                 return fail("captureWindow: no image produced (grab failed)");
-            QTextStream(stdout) << result << Qt::endl;
+            const QString saved = saveCapture(data, path);
+            if (saved.isEmpty())
+                return fail("captureWindow: failed to save image");
+            QTextStream(stdout) << saved << Qt::endl;
             if (previewOpt != 2)
-                previewImage(result, previewOpt == 1);
+                previewImage(data, previewOpt == 1);
             return EXIT_SUCCESS;
         }
         if (sub == QLatin1String("screen")) {
             if (args.size() >= 2)
                 path = args[1];
-            QString result;
-            if (!waitSlot(replica->captureScreen(path), timeoutMs, &result))
+            QByteArray data;
+            if (!waitSlot(replica->captureScreen(), timeoutMs, &data))
                 return fail("captureScreen() failed");
-            if (result.isEmpty())
+            if (data.isEmpty())
                 return fail("captureScreen: no image produced (grab failed)");
-            QTextStream(stdout) << result << Qt::endl;
+            const QString saved = saveCapture(data, path);
+            if (saved.isEmpty())
+                return fail("captureScreen: failed to save image");
+            QTextStream(stdout) << saved << Qt::endl;
             if (previewOpt != 2)
-                previewImage(result, previewOpt == 1);
+                previewImage(data, previewOpt == 1);
             return EXIT_SUCCESS;
         }
         return fail(QStringLiteral("screenshot: unknown target '%1'").arg(sub));

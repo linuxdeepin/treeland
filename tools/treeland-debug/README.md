@@ -122,7 +122,9 @@ sudo -u dde -- treeland-debug event button left click
 ### Image capture
 
 Screenshots are rendered server-side (via the same GPU texture read-back the
-screenshot protocol uses) and written to a PNG file; the file path is printed.
+screenshot protocol uses) and returned to the `treeland-debug` client as PNG
+bytes; the client writes them to a file and prints the path. The compositor
+itself never touches the filesystem.
 
 | Command | Description |
 | --- | --- |
