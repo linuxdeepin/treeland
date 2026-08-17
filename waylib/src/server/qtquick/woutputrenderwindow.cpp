@@ -1719,9 +1719,13 @@ void WOutputRenderWindow::detach(WOutputViewport *output)
     auto outputHelper = d->outputs.takeAt(index);
     const auto hasLayer = !outputHelper->layers().isEmpty();
 
-    if (auto *woutput = output->output(); woutput && !d->containsOutput(woutput)) {
-        if (auto *owner = d->listenerOwner.get())
-            woutput->removeListeners(owner);
+    // During destruction, ~WOutputRenderWindow() already reset
+    // listenerOwner — teardown() removed all listener groups from every
+    // WOutput. Calling removeListeners here is redundant and triggers
+    // "no listener group" warnings (or Q_ASSERT on null owner).
+    if (!d->inDestructor) {
+        if (auto *woutput = output->output(); woutput && !d->containsOutput(woutput))
+            woutput->removeListeners(d->listenerOwner.get());
     }
 
     outputHelper->invalidate();
