@@ -16,19 +16,39 @@ Item {
     required property bool showDesktop
     property int duration: 500 * Helper.animationSpeed //500: Initial design requirements
 
+    // The real Decoration (XdgShadow + Border) is a child of `target` laid out at
+    // the shadow's bounding rect, which extends beyond the target's
+    // [0,0,width,height] by the shadow blur margin. ShaderEffectSource only
+    // captures the target's own rect, so the shadow is clipped out of the
+    // texture, and `hideSource` simultaneously hides the original shadow. Without
+    // a replacement the shadow would pop in/out only after the fade animation
+    // finishes instead of following it. Mirror MinimizeAnimation/GeometryAnimation
+    // and render a shadow that fades together with the captured content.
+    readonly property bool showShadow: target.visibleDecoration && !target.noDecoration
+
     function start() {
         animation.start();
     }
 
-    ShaderEffectSource {
+    Item {
         id: effect
-        live: false
-        hideSource: true
-        sourceItem: root.target
         x: root.target.x
         y: root.target.y
         width: root.target.width
         height: root.target.height
+
+        XdgShadow {
+            anchors.fill: parent
+            visible: root.showShadow
+            cornerRadius: root.target.radius
+        }
+
+        ShaderEffectSource {
+            anchors.fill: parent
+            live: false
+            hideSource: true
+            sourceItem: root.target
+        }
     }
 
     ParallelAnimation {
