@@ -865,7 +865,7 @@ QQuickItem *RootSurfaceContainer::ensureEdgeTilePreview()
     return m_edgeTilePreview;
 }
 
-void RootSurfaceContainer::updateEdgeTilePreview(QuickTile::Mode mode, Output *out)
+void RootSurfaceContainer::updateEdgeTilePreview(QuickTile::Mode mode, Output *out, WSeat *seat)
 {
     auto *preview = ensureEdgeTilePreview();
     if (!preview)
@@ -882,10 +882,16 @@ void RootSurfaceContainer::updateEdgeTilePreview(QuickTile::Mode mode, Output *o
         return;
     }
 
-    preview->setX(geo.x());
-    preview->setY(geo.y());
-    preview->setWidth(geo.width());
-    preview->setHeight(geo.height());
+    // Use the dragged surface's current geometry as the animation starting
+    // point, so the preview grows from the window (mirrors KWin's outline).
+    QRectF sourceGeo;
+    if (auto *container = getSeatContainerOrDefault(seat)) {
+        if (SurfaceWrapper *surface = container->moveResizeSurface())
+            sourceGeo = surface->geometry();
+    }
+
+    preview->setProperty("sourceGeometry", QVariant::fromValue(sourceGeo));
+    preview->setProperty("targetGeometry", QVariant::fromValue(geo));
     preview->setVisible(true);
 }
 
@@ -989,7 +995,7 @@ void RootSurfaceContainer::detectEdgeTilingForSeat(WSeat *seat)
         } else {
             container->stopEdgeTileDelay();
             mrState.edgeTilePreviewActive = true;
-            updateEdgeTilePreview(mode, out);
+            updateEdgeTilePreview(mode, out, seat);
         }
     }
 }
