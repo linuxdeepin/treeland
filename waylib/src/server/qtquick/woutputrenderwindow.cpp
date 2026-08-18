@@ -1903,7 +1903,11 @@ WOutputRenderWindowPrivate::doRenderOutputs(wlr_output *needsFrameOutput, const 
             if (!(helper->needsFrame() || helper->contentIsDirty()))
                 continue;
 
-            if (!helper->contentIsDirty()) {
+            // Capture sessions (ext-image-copy-capture etc.) lock the output
+            // via wlr_output_lock_attach_render() and need a buffer commit to
+            // complete, even if the content didn't change.
+            bool captureLocked = helper->qwoutput()->attach_render_locks > 0;
+            if (!helper->contentIsDirty() && !captureLocked) {
                 renderResults.append(helper);
                 continue;
             }
@@ -2709,8 +2713,14 @@ void WOutputRenderWindow::detach(WOutputViewport *output)
     auto outputHelper = d->outputs.takeAt(index);
     const auto hasLayer = !outputHelper->layers().isEmpty();
 
-    if (auto *woutput = output->output(); woutput && !d->containsOutput(woutput))
-        woutput->removeListeners(d->listenerOwner.get());
+    // During destruction, ~WOutputRenderWindow() already reset
+    // listenerOwner — teardown() removed all listener groups from every
+    // WOutput. Calling removeListeners here is redundant and triggers
+    // "no listener group" warnings (or Q_ASSERT on null owner).
+    if (!d->inDestructor) {
+        if (auto *woutput = output->output(); woutput && !d->containsOutput(woutput))
+            woutput->removeListeners(d->listenerOwner.get());
+    }
 
     outputHelper->invalidate();
     outputHelper->deleteLater();

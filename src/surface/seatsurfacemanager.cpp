@@ -91,6 +91,12 @@ void SeatSurfaceManager::onActivatedSurfaceFocusCapabilityChanged()
     if (!helper)
         return;
 
+    // While showing the desktop, keyboard focus is on the desktop layer, not on the
+    // (hidden) activated surface; a focus-capability change of the activated
+    // surface must not yank keyboard focus back to the window.
+    if (helper->showDesktopState() == WindowManagementInterfaceV1::DesktopState::Show)
+        return;
+
     if (m_activatedSurface->hasFocusCapability()) {
         helper->requestKeyboardFocus(m_activatedSurface, Qt::ActiveWindowFocusReason, m_seat);
     } else {
@@ -157,6 +163,19 @@ void SeatSurfaceManager::setKeyboardFocusSurface(SurfaceWrapper *surface, Qt::Fo
         surface->setProperty("lastInteractingSeat", QVariant::fromValue(m_seat));
         surface->setProperty("lastInteractionTime", QDateTime::currentMSecsSinceEpoch());
     }
+}
+
+void SeatSurfaceManager::restoreShowDesktopFocus()
+{
+    if (!m_activatedSurface || !m_activatedSurface->hasFocusCapability())
+        return;
+
+    // The seat may still be in transition (hotplug): without a container the
+    // subsequent keyboard focus request would assert.
+    if (!m_rootContainer || !m_rootContainer->getSeatContainer(m_seat))
+        return;
+
+    setKeyboardFocusSurface(m_activatedSurface, Qt::OtherFocusReason);
 }
 
 void SeatSurfaceManager::beginMoveResize(SurfaceWrapper *surface, Qt::Edges edges)
@@ -425,21 +444,6 @@ void SeatSurfaceManager::onKeyboardGrabBegin()
         }
     }
 
-    // Detect DnD drag keyboard grab:
-    // In wlr_seat_start_drag(), drag->keyboard_grab.data = drag is set before
-    // wlr_seat_keyboard_start_grab() is called (which emits keyboard_grab_begin),
-    // but seat->drag = drag is set AFTER the grab begins. So seat->drag is still
-    // nullptr when this signal handler runs. Instead, cast grab->data to a
-    // wlr_drag pointer and validate via grab_type (enum values 0-2 are safe;
-    // an xdg_popup_grab's client pointer will never equal those small integers).
-    if (grab->data) {
-        auto *possibleDrag = static_cast<struct wlr_drag *>(grab->data);
-        if (possibleDrag->grab_type <= WLR_DRAG_GRAB_KEYBOARD_TOUCH) {
-            qCDebug(lcTlPopupFocus) << "Drag keyboard grab started (not popup)";
-            return;
-        }
-    }
-
     m_hasPopupGrab = true;
     qCDebug(lcTlPopupFocus) << "Popup keyboard grab started";
 }
@@ -453,6 +457,13 @@ void SeatSurfaceManager::onKeyboardGrabEnd()
 
     qCDebug(lcTlPopupFocus) << "Popup keyboard grab ended, restoring focus to:"
                             << m_activatedSurface;
+
+    // While showing the desktop, keyboard focus is on the desktop layer, not on the
+    // (hidden) activated surface; do not yank it back to the window.
+    if (auto *helper = Helper::instance()) {
+        if (helper->showDesktopState() == WindowManagementInterfaceV1::DesktopState::Show)
+            return;
+    }
 
     if (m_activatedSurface && m_activatedSurface->hasFocusCapability()) {
         setKeyboardFocusSurface(m_activatedSurface, Qt::ActiveWindowFocusReason);

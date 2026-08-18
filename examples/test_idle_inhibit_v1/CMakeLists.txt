@@ -1,4 +1,4 @@
-set(BIN_NAME test_idle_inhibit_v1)
+set(BIN_NAME test-idle-inhibit-v1)
 
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets WaylandClient)
 if(Qt6_VERSION VERSION_GREATER_EQUAL 6.10)

@@ -4,17 +4,13 @@
 #pragma once
 
 #include "wsurfaceitem.h"
+#include "wsubsurface.h"
 #include "wsurface.h"
-#include "wglobal.h"
-#include "wscoplistener.h"
 
 #include <QQuickWindow>
 #include <QSGImageNode>
-#include <memory>
-#include <vector>
 #include <QSGRenderNode>
 #include <private/qquickitem_p.h>
-#include <wlr_all.h>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -37,23 +33,18 @@ public:
     void initForSurface();
     void initForDelegate();
 
-    void onHasSubsurfaceChanged();
     void updateSubsurfaceItem();
     void onPaddingsChanged();
     void updateContentPosition();
-    WSurfaceItem *ensureSubsurfaceItem(wlr_subsurface *subsurface, QQuickItem *parent);
-
-    struct SubsurfaceDestroyListener {
-        wlr_subsurface *subsurface = nullptr;
-        WScopedListener listener;
-    };
-
-    std::unique_ptr<WListenerOwner> surfaceListenerOwner;
-    // Subsurface destroy listeners, keyed by the native subsurface; there is
-    // no WObject wrapper for wlr_subsurface to attach them to.
-    std::vector<SubsurfaceDestroyListener> subsurfaceDestroyListeners;
+    WSurfaceItem *ensureSubsurfaceItem(WSubsurface *subsurface);
+    void removeSubsurfaceItem(WSubsurface *subsurface);
     void updateSubsurfaceContainers();
-    void connectSubsurfaceContainerSignals(SubsurfaceContainer *container);
+    void updateSubsurfaceContainer(WSubsurface::Place place,
+                                   const QList<WSubsurface *> &subsurfaces,
+                                   QPointer<SubsurfaceContainer> &container);
+    void cleanupSubsurfaceContainers();
+    void reorderSubsurfaceItems();
+    void updateSubsurfacePositions();
 
     void resizeSurfaceToItemSize(const QSize &itemSize, const QSize &sizeDiff);
     void updateEventItem(bool forceDestroy);
@@ -86,12 +77,11 @@ public:
     QQmlComponent *delegate = nullptr;
     bool delegateIsDirty = false;
     QQuickItem *eventItem = nullptr;
-    QPointer<SubsurfaceContainer> belowSubsurfaceContainer = nullptr;
-    QPointer<SubsurfaceContainer> aboveSubsurfaceContainer = nullptr;
+    QPointer<SubsurfaceContainer> belowSubsurfaceContainer;
+    QPointer<SubsurfaceContainer> aboveSubsurfaceContainer;
     WSurfaceItem::ResizeMode resizeMode = WSurfaceItem::SizeFromSurface;
     WSurfaceItem::Flags surfaceFlags;
     QMarginsF paddings;
-    QList<WSurfaceItem*> subsurfaces;
     qreal surfaceSizeRatio = 1.0;
     bool live = true;
     bool subsurfacesVisible = true;

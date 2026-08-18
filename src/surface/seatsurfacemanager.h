@@ -31,6 +31,8 @@ public:
     SurfaceWrapper *keyboardFocusSurface() const { return m_keyboardFocusSurface; }
     void setKeyboardFocusSurface(SurfaceWrapper *surface, Qt::FocusReason reason = Qt::OtherFocusReason);
 
+    void restoreShowDesktopFocus();
+
     struct MoveResizeState {
         SurfaceWrapper *surface = nullptr;  ///< The surface being moved/resized
         Qt::Edges edges = Qt::Edges();      ///< Resize edges (empty for move)
@@ -62,6 +64,7 @@ public:
     // Popup keyboard grab management
     void givePopupFocus(SurfaceWrapper *popupWrapper);
     void dismissPopups();
+    bool hasPopupGrab() const { return m_hasPopupGrab; }
 
 Q_SIGNALS:
     void activatedSurfaceChanged(SurfaceWrapper *surface);

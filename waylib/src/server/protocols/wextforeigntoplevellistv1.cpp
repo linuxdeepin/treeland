@@ -148,10 +148,17 @@ void WExtForeignToplevelListV1::create(WServer *server)
 
 void WExtForeignToplevelListV1::destroy([[maybe_unused]] WServer *server)
 {
+    // The wlr_ext_foreign_toplevel_list_v1 is reclaimed by display.reset() in
+    // WServer::stop(); null m_handle so handle()/global() return null instead
+    // of a dangling pointer (kept as an explicit override rather than the
+    // inherited empty base for this hardening).
+    m_handle = nullptr;
 }
 
 wl_global *WExtForeignToplevelListV1::global() const
 {
+    if (!m_handle)
+        return nullptr;
     return reinterpret_cast<wlr_ext_foreign_toplevel_list_v1*>(m_handle)->global;
 }
 

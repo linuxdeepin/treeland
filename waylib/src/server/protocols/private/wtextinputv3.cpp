@@ -78,10 +78,16 @@ void WTextInputManagerV3::destroy([[maybe_unused]] WServer *server)
     }
     d->textInputs.clear();
     // Manager-owned listeners were already dropped by WServer teardown.
+    // Clear the dangling handle now: the wlr_text_input_manager_v3 is
+    // reclaimed by display.reset() in WServer::stop(), but nulling m_handle
+    // immediately makes handle()/global() return null instead of dangling.
+    m_handle = nullptr;
 }
 
 wl_global *WTextInputManagerV3::global() const
 {
+    if (!m_handle)
+        return nullptr;
     return reinterpret_cast<wlr_text_input_manager_v3*>(m_handle)->global;
 }
 

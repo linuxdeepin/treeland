@@ -39,12 +39,27 @@ public:
     void updatePreferredBufferScale();
     void preferredBufferScaleChange();
 
-    WSurface *ensureSubsurface(wlr_subsurface *subsurface);
+    WSubsurface *ensureSubsurface(wlr_subsurface *subsurface);
+    WSubsurface *addRemoteSubsurface(wlr_surface *childHandle);
+    void removeSubsurface(WSubsurface *subsurface);
+    void releaseSubsurface(WSubsurface *subsurface);
+    void updateStandardSubsurfaces();
+    void setSubsurfaceOrder(const QList<WSubsurface *> &remoteBelow,
+                            const QList<WSubsurface *> &remoteAbove);
+    void rebuildTotalSubsurfaces();
     void setHasSubsurface(bool newHasSubsurface);
-    void updateHasSubsurface();
 
     W_DECLARE_PUBLIC(WSurface)
 
+    friend class WRemoteSubsurfaceManagerV1Private;
+
+    // Logical subsurface relations (standard + remote) exposed via WSurface API.
+    QList<WSubsurface *> standardBelow;
+    QList<WSubsurface *> standardAbove;
+    QList<WSubsurface *> remoteBelow;
+    QList<WSubsurface *> remoteAbove;
+    QList<WSubsurface *> subsurfaces;
+    QPointer<WSubsurface> subsurface;
     bool hasSubsurface = false;
     uint32_t preferredBufferScale = 1;
     uint32_t explicitPreferredBufferScale = 0;
@@ -52,7 +67,6 @@ public:
     bool needsFrame = false;
     WBufferUnlockPtr buffer;
     QList<WOutput*> outputs;
-    QList<WSurface*> subSurfaces;
     WOutput *framePacingOutput = nullptr;
     QMetaObject::Connection frameDoneConnection;
     QPoint bufferOffset;

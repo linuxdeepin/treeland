@@ -55,6 +55,7 @@ Q_LOGGING_CATEGORY(lcWlExtForeignToplevel, "waylib.protocols.extforeigntoplevel"
 Q_LOGGING_CATEGORY(lcWlTextInput, "waylib.protocols.textinput", QtInfoMsg) // Text input v1/v2/v3 protocol
 Q_LOGGING_CATEGORY(lcWlLinuxDmabuf, "waylib.protocols.linuxdmabuf", QtInfoMsg) // Renderer-backed linux-dmabuf global
 Q_LOGGING_CATEGORY(lcWlPresentation, "waylib.protocols.presentation", QtInfoMsg) // Presentation-time feedback
+Q_LOGGING_CATEGORY(lcWlRemoteSubsurface, "waylib.protocols.remotesubsurface", QtWarningMsg) // treeland-remote-subsurface-unstable-v1
 
 // Layer shell
 Q_LOGGING_CATEGORY(lcWlLayerShell, "waylib.layer.shell", QtWarningMsg) // wlr-layer-shell surface requests

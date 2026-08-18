@@ -91,6 +91,7 @@
 #include <wqmlcreator.h>
 #include <wquickcursor.h>
 #include <wrenderhelper.h>
+#include <wremotesubsurfacemanagerv1.h>
 #include <wseat.h>
 #include <wsecuritycontextmanager.h>
 #include <wsocket.h>
@@ -185,7 +186,7 @@ static void runWhenTreelandConfigInitialized(TreelandConfig *config,
         return;
     }
 
-    if (config->isInitializeSucceeded() || config->isInitializeFailed()) {
+    if (config->isInitializeSucceeded()) {
         callback();
         return;
     }
@@ -193,10 +194,6 @@ static void runWhenTreelandConfigInitialized(TreelandConfig *config,
     auto sharedCallback = std::make_shared<std::function<void()>>(std::move(callback));
     QObject::connect(config,
                      &TreelandConfig::configInitializeSucceed,
-                     context,
-                     [sharedCallback] { (*sharedCallback)(); });
-    QObject::connect(config,
-                     &TreelandConfig::configInitializeFailed,
                      context,
                      [sharedCallback] { (*sharedCallback)(); });
 }
@@ -728,17 +725,14 @@ void Helper::onOutputAdded(WOutput *output)
     if (outputConfig->isInitializeFailed()) {
         publishOutput();
     } else {
-        if (!outputConfig->isInitializeSucceeded()) {
-            connect(outputConfig, &OutputConfig::configInitializeFailed, o, publishOutput);
-        }
         runWhenOutputConfigInitialized(outputConfig,
                                        o,
                                        [this,
                                         restoreOutputConfig = std::move(restoreOutputConfig),
                                         outputObject = QPointer<Output>(o)]() mutable {
                                            runWhenTreelandConfigInitialized(m_globalConfig.get(),
-                                                                           outputObject,
-                                                                           std::move(restoreOutputConfig));
+                                                                            outputObject,
+                                                                            std::move(restoreOutputConfig));
                                        });
     }
 }
@@ -1490,6 +1484,48 @@ void Helper::onShowDesktop()
             surface->startShowDesktopAnimation(false);
         }
     }
+
+    if (s == WindowManagementInterfaceV1::DesktopState::Show) {
+        // Find the desktop background surface first
+        SurfaceWrapper *desktopSurface = nullptr;
+        const auto &backgroundSurfaces = m_shellHandler->m_backgroundContainer->surfaces();
+        for (SurfaceWrapper *w : backgroundSurfaces) {
+            auto *layer = qobject_cast<WLayerSurface *>(w->shellSurface());
+            if (layer && layer->scope() == QStringLiteral("dde-shell/desktop")) {
+                desktopSurface = w;
+                break;
+            }
+        }
+
+        const auto &seats = m_seatManager->seats();
+        for (auto *seat : seats) {
+            auto *seatContainer = m_rootSurfaceContainer->getSeatContainer(seat);
+            // Seat may be in transition (hotplug); requestKeyboardFocus asserts
+            // on a missing seat container.
+            if (!seatContainer)
+                continue;
+
+            // Dismiss any popup keyboard grab: the grab would redirect keyboard
+            // focus back to the popup and defeat the desktop-surface transfer.
+            seatContainer->dismissPopups();
+            // Move keyboard focus to the desktop surface (or drop it when the
+            // desktop surface is unavailable) so layer-shell windows that close
+            // on focus loss exit.
+            requestKeyboardFocus(desktopSurface, Qt::OtherFocusReason, seat);
+        }
+    } else if (s == WindowManagementInterfaceV1::DesktopState::Normal) {
+        // m_showDesktop already set to s above; the protocol state is already Normal.
+        restoreShowDesktopFocus();
+    }
+}
+
+void Helper::restoreShowDesktopFocus()
+{
+    const auto &seats = m_seatManager->seats();
+    for (auto *seat : seats) {
+        if (auto *seatContainer = m_rootSurfaceContainer->getSeatContainer(seat))
+            seatContainer->restoreShowDesktopFocus();
+    }
 }
 
 void Helper::onSetCopyOutput(VirtualOutputInterfaceV1 *interface)
@@ -2119,6 +2155,7 @@ void Helper::init(Treeland::Treeland *treeland)
             this,
             &Helper::onOutputTestOrApply);
 
+    m_server->attach<WRemoteSubsurfaceManagerV1>();
     m_server->attach<WCursorShapeManagerV1>();
     wlr_fractional_scale_manager_v1_create(m_server->handle(), WLR_FRACTIONAL_SCALE_V1_VERSION);
     wlr_data_control_manager_v1_create(m_server->handle());
@@ -2462,6 +2499,27 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *targetWindow, QInputEvent 
     m_currentEventSeat = targetSeat;
     [[maybe_unused]] auto clearEventSeat = qScopeGuard([this] { m_currentEventSeat = nullptr; });
 
+    // Dismiss the popup grab when the user presses a button outside the popup
+    // (e.g. on the desktop or another client). wlroots' xdg popup keyboard grab
+    // redirects keyboard focus back to the popup, so it must be ended explicitly.
+    if (event->type() == QEvent::MouseButtonPress) {
+        if (auto *seatContainer = m_rootSurfaceContainer->getSeatContainer(targetSeat)) {
+            if (seatContainer->hasPopupGrab()) {
+                auto *focused = targetSeat->handle()->pointer_state.focused_surface;
+                bool clickOnPopup = false;
+                if (focused) {
+                    if (auto *wSurface = WSurface::fromHandle(focused)) {
+                        if (auto *wrapper = m_rootSurfaceContainer->getSurface(wSurface))
+                            clickOnPopup = (wrapper->type() == SurfaceWrapper::Type::XdgPopup);
+                    }
+                }
+                // seat->drag is non-null during an active DnD drag, which also
+                // installs a keyboard grab; never end that grab here.
+                if (!clickOnPopup && !targetSeat->handle()->drag)
+                    seatContainer->dismissPopups();
+            }
+        }
+    }
     if (seat == m_primarySeat) {
         if (event->type() == QEvent::KeyPress) {
             auto kevent = static_cast<QKeyEvent *>(event);
@@ -2896,6 +2954,8 @@ void Helper::setActivatedSurface(SurfaceWrapper *newActivateSurface, WSeat *seat
     if (oldPrimarySurface)
         oldPrimarySurface->setActivate(false);
 
+    bool wasShowingDesktop = false;
+
     if (newActivateSurface) {
         Q_ASSERT(newActivateSurface->showOnWorkspace(workspace()->current()->id()));
         newActivateSurface->stackToLast();
@@ -2912,6 +2972,7 @@ void Helper::setActivatedSurface(SurfaceWrapper *newActivateSurface, WSeat *seat
             m_showDesktop = WindowManagementInterfaceV1::DesktopState::Normal;
             m_windowManagementInterfaceV1->setDesktopState(WindowManagementInterfaceV1::DesktopState::Normal);
             newActivateSurface->setHideByShowDesk(true);
+            wasShowingDesktop = true;
         }
 
         Q_ASSERT(newActivateSurface->hasActiveCapability());
@@ -2921,6 +2982,11 @@ void Helper::setActivatedSurface(SurfaceWrapper *newActivateSurface, WSeat *seat
     // SeatSurfaceManager emits activatedSurfaceChanged, and RootSurfaceContainer forwards
     // it for the primary seat. Do not emit Helper::activatedSurfaceChanged again here.
     seatContainer->setActivatedSurface(newActivateSurface, Qt::OtherFocusReason);
+
+    // This also restores keyboard focus on the other seats; the caller's subsequent
+    // requestKeyboardFocus() only covers the target seat.
+    if (wasShowingDesktop)
+        restoreShowDesktopFocus();
 
     if (isPrimarySeat && newActivateSurface) {
         Q_ASSERT(newActivateSurface->hasActiveCapability());
@@ -3471,6 +3537,7 @@ void Helper::restoreFromShowDesktop(SurfaceWrapper *activeSurface)
                 surface->setSurfaceState(SurfaceWrapper::State::Minimized);
             }
         }
+        restoreShowDesktopFocus();
     }
 }
 

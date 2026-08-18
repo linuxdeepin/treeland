@@ -68,6 +68,7 @@ Q_SIGNALS:
 
 private:
     void create(WServer *server) override;
+    void destroy(WServer *server) override;
     wl_global *global() const override;
 };
 
