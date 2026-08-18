@@ -211,6 +211,7 @@ public:
     Q_INVOKABLE bool isLaunchpad(WLayerSurface *surface) const;
     Q_INVOKABLE void setLaunchpadMapped(WOutput *output, bool mapped);
     Q_INVOKABLE void showDesktop(WOutput *output);
+    Q_INVOKABLE void cancelShowDesktop(SurfaceWrapper *excludeSurface = nullptr);
     Q_INVOKABLE void startLockscreen(WOutput *output, bool showAnimation);
     Q_INVOKABLE QString currentWorkspaceWallpaper(WOutput *output);
     Q_INVOKABLE QString currentLockScreenWallpaper(WOutput *output);

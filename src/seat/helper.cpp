@@ -2942,8 +2942,7 @@ void Helper::setActivatedSurface(SurfaceWrapper *newActivateSurface, WSeat *seat
 
     if (newActivateSurface) {
         if (m_showDesktop == WindowManagementInterfaceV1::DesktopState::Show) {
-            m_showDesktop = WindowManagementInterfaceV1::DesktopState::Normal;
-            m_windowManagementInterfaceV1->setDesktopState(WindowManagementInterfaceV1::DesktopState::Normal);
+            cancelShowDesktop(newActivateSurface);
             newActivateSurface->setHideByShowDesk(true);
             wasShowingDesktop = true;
         }
@@ -3495,23 +3494,32 @@ void Helper::handleWhellValueChanged(const QInputEvent *event)
     }
 }
 
+void Helper::cancelShowDesktop(SurfaceWrapper *excludeSurface)
+{
+    if (m_showDesktop != WindowManagementInterfaceV1::DesktopState::Show)
+        return;
+    m_showDesktop = WindowManagementInterfaceV1::DesktopState::Normal;
+    m_windowManagementInterfaceV1->setDesktopState(WindowManagementInterfaceV1::DesktopState::Normal);
+    const auto &surfaces = getWorkspaceSurfaces();
+    for (auto &surface : surfaces) {
+        if (surface == excludeSurface)
+            continue;
+        if (!surface->isMinimized() && !surface->isVisible()) {
+            surface->setHideByShowDesk(true);
+            surface->minimize(/*onAnimation=*/ false);
+        }
+    }
+}
+
 void Helper::restoreFromShowDesktop(SurfaceWrapper *activeSurface)
 {
-    if (m_showDesktop == WindowManagementInterfaceV1::DesktopState::Show) {
-        m_showDesktop = WindowManagementInterfaceV1::DesktopState::Normal;
-        m_windowManagementInterfaceV1->setDesktopState(WindowManagementInterfaceV1::DesktopState::Normal);
-        if (activeSurface) {
-            activeSurface->restoreFromMinimized();
-        }
-        const auto &surfaces = getWorkspaceSurfaces();
-        for (auto &surface : surfaces) {
-            if (!surface->isMinimized() && !surface->isVisible()) {
-                surface->setHideByShowDesk(true);
-                surface->setSurfaceState(SurfaceWrapper::State::Minimized);
-            }
-        }
-        restoreShowDesktopFocus();
+    if (m_showDesktop != WindowManagementInterfaceV1::DesktopState::Show)
+        return;
+    cancelShowDesktop(activeSurface);
+    if (activeSurface) {
+        activeSurface->restoreFromMinimized();
     }
+    restoreShowDesktopFocus();
 }
 
 Output *Helper::getOutputAtCursor() const
