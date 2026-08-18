@@ -26,7 +26,7 @@ If the task is about treeland-owned xml, `QtWaylandServer::*`, or a new private 
 ## Read First
 1. `waylib/src/server/protocols`
 2. `waylib/src/server/kernel`
-3. `qwlroots/src`
+3. `3rdparty/wlroots/include/wlr` (raw wlroots C API headers — read for native `wlr_*` types and `wl_signal` events; include via `<wlr_all.h>`)
 4. `src/seat/helper.cpp`
 
 Search for an existing wrapper first. Do not assume treeland should reimplement a manager locally.
@@ -52,9 +52,11 @@ Provide a `WServerInterface` subclass that implements at least:
 Typical creation:
 
 ```cpp
+// WServer::handle() returns the raw wl_display*. Use the wlroots C
+// constructor directly; the returned pointer is stored in m_handle (void*).
 void WFoo::create(WServer *server)
 {
-    m_handle = qw_foo_manager_v1::create(*server->handle(), FOO_MANAGER_V1_VERSION);
+    m_handle = wlr_foo_manager_v1_create(server->handle(), FOO_MANAGER_V1_VERSION);
 }
 ```
 
@@ -63,24 +65,27 @@ Typical `global()`:
 ```cpp
 wl_global *WFoo::global() const
 {
-    return nativeInterface<qw_foo_manager_v1>()->handle()->global;
+    // nativeInterface<T>() reinterpret_casts m_handle (void*) to T*.
+    // The raw wlroots C struct exposes `global` directly.
+    return nativeInterface<wlr_foo_manager_v1>()->global;
+    // equivalently: return reinterpret_cast<wlr_foo_manager_v1*>(m_handle)->global;
 }
 ```
 
 ## How To Judge Destruction
 Do not mechanically copy `globalRemove()` from treeland private protocols.
 
-Decide destruction based on native ownership:
+The native handle is a raw wlroots C pointer stored in `m_handle` (a `void*`). Decide destruction based on native ownership:
 
-- if `qw_*::create(...)` returns an object owned by the wrapper or `WObject`, `destroy()` may stay empty
-- if wlroots or the native wrapper exposes an explicit destroy/reset/listener cleanup API, call it from `destroy()`
-- if destruction happens naturally through QObject/wrapper destruction, do not free it twice
+- if `wlr_*_create(...)` returns an object with no public destroy function, `destroy()` typically just clears `m_handle = nullptr` — the native object is reclaimed when the `wl_display` is destroyed in `WServer::stop()`
+- if the wlroots type exposes an explicit `wlr_*_destroy(...)` / reset / listener-cleanup API, call it from `destroy()`
+- waylib's `WObject` scoped listener lists (`listeners()->add(...)`) are detached automatically by `WServer::stop()`/`teardown()` before `destroy()` runs; do not free native state that the display teardown already owns
 
 How to determine that:
 
 1. read nearby `W...` wrappers in the same directory
-2. read whether the corresponding `qw_*` type exposes explicit `destroy()` or similar APIs
-3. read whether wlroots native objects expose a destroy API
+2. read whether the corresponding `wlr_*` type exposes explicit `destroy()` or similar APIs in `3rdparty/wlroots/include/wlr`
+3. confirm whether `create()` is guarded by `if (!m_handle)`; if so, `destroy()` must clear `m_handle` so a restart can recreate the global
 
 Core rule: destruction must match native handle ownership.
 

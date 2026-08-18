@@ -2,8 +2,8 @@
 
 ## Big Picture
 - `treeland` is a Wayland compositor built on `wlroots` + Qt6/QtQuick (Scene Graph rendering).
-- `qwlroots/` provides Qt-style C++ bindings for `wlroots`.
-- `waylib/` builds on `wlroots`/`qwlroots` to provide a QtQuick-friendly compositor framework (outputs <-> `QQuickWindow`, surfaces <-> `QQuickItem`).
+- `wlroots` is vendored in-tree: upstream sources under `3rdparty/wlroots`, built as a CMake module by `wlroots/CMakeLists.txt` (CMake target `Wlroots::wlroots`). waylib talks to wlroots through its raw C API directly — include `<wlr_all.h>`, not individual `<wlr/...>` headers — and supplies the Qt/C++ object/lifetime layer (`WObject`/`WServerInterface`, `WPointer`, scoped `wl_signal` listeners).
+- `waylib/` builds on `wlroots` to provide a QtQuick-friendly compositor framework (outputs <-> `QQuickWindow`, surfaces <-> `QQuickItem`).
 - Treeland-specific policies live in `src/` (workspace/seat/input/output, effects/plugins, XWayland integration).
 
 ## Where to Look

@@ -444,7 +444,7 @@ set_target_properties(${TARGET}
         POSITION_INDEPENDENT_CODE ON
 )
 
-# Replace qwlroots' qwconfig.h: forward wlroots feature/version vars
+# Forward wlroots feature/version vars
 # exported by the wlroots CMake build.
 if(NOT DEFINED WLROOTS_VERSION)
     message(FATAL_ERROR "WLROOTS_VERSION not set; wlroots CMake export missing")
