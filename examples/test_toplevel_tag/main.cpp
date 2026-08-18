@@ -11,6 +11,7 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QMainWindow>
+#include <QComboBox>
 #include <QPushButton>
 #include <QTimer>
 #include <QVBoxLayout>
@@ -46,12 +47,23 @@ int main(int argc, char **argv)
     descEdit->setPlaceholderText("Enter description...");
     auto *setTagBtn = new QPushButton("Set Tag", central);
     auto *setDescBtn = new QPushButton("Set Description", central);
+    auto *fullscreenBtn = new QPushButton("Fullscreen", central);
+    auto *restoreBtn = new QPushButton("Restore", central);
+    auto *tagLabel = new QLabel("Supported Tags:", central);
+    auto *tagCombo = new QComboBox(central);
+    tagCombo->addItem("test:invalid tag");
+    tagCombo->addItem("org.deepin.treeland.im-candidate-panel");
+    tagCombo->addItem("org.deepin.treeland.privileged-overlay");
     auto *statusLabel = new QLabel(central);
 
     layout->addWidget(tagEdit);
     layout->addWidget(descEdit);
+    layout->addWidget(tagLabel);
+    layout->addWidget(tagCombo);
     layout->addWidget(setTagBtn);
     layout->addWidget(setDescBtn);
+    layout->addWidget(fullscreenBtn);
+    layout->addWidget(restoreBtn);
     layout->addWidget(statusLabel);
     window.setCentralWidget(central);
 
@@ -105,6 +117,22 @@ int main(int argc, char **argv)
                              if (!desc.isEmpty()) {
                                  manager.set_toplevel_description(raw, desc);
                                  statusLabel->setText(QString("Description set: %1").arg(desc));
+                             }
+                         });
+
+        QObject::connect(fullscreenBtn, &QPushButton::clicked,
+                         &window, &QWidget::showFullScreen);
+
+        QObject::connect(restoreBtn, &QPushButton::clicked,
+                         &window, &QWidget::showNormal);
+
+        QObject::connect(tagCombo,
+                         &QComboBox::currentIndexChanged,
+                         &window,
+                         [tagCombo, tagEdit](int index) {
+                             const QString text = tagCombo->itemText(index);
+                             if (!text.isEmpty()) {
+                                 tagEdit->setText(text);
                              }
                          });
 
