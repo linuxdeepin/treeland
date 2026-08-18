@@ -51,7 +51,7 @@
 #include <private/qsgabstractrenderer_p.h>
 #include <private/qsgrenderer_p.h>
 #include <private/qpainter_p.h>
-#include <private/qsgdefaultrendercontext_p.h>
+#include "wsgcontext_p.h"
 #include <private/qquickitem_p.h>
 #include <private/qquickrectangle_p.h>
 
@@ -198,6 +198,16 @@ public:
     inline WBufferRenderer *bufferRenderer2() const {
         Q_ASSERT(m_output2);
         return WOutputViewportPrivate::get(m_output2)->bufferRenderer;
+    }
+
+    inline bool damageDebugNeedsFrame() const {
+        if (bufferRenderer() && bufferRenderer()->damageDebugNeedsFrame())
+            return true;
+        if (m_output2) {
+            if (auto *br = WOutputViewportPrivate::get(m_output2)->bufferRenderer)
+                return br->damageDebugNeedsFrame();
+        }
+        return false;
     }
 
     inline const QList<LayerData*> &layers() const {
@@ -1474,14 +1484,15 @@ WOutputRenderWindowPrivate::doRenderOutputs(wlr_output *needsFrameOutput, const 
                 || !shouldRender)
                 continue;
 
-            if (!(helper->needsFrame() || helper->contentIsDirty()))
+            if (!(helper->needsFrame() || helper->contentIsDirty()
+                  || helper->damageDebugNeedsFrame()))
                 continue;
 
             // Capture sessions (ext-image-copy-capture etc.) lock the output
             // via wlr_output_lock_attach_render() and need a buffer commit to
             // complete, even if the content didn't change.
             bool captureLocked = helper->qwoutput()->attach_render_locks > 0;
-            if (!helper->contentIsDirty() && !captureLocked) {
+            if (!helper->contentIsDirty() && !helper->damageDebugNeedsFrame() && !captureLocked) {
                 renderResults.append(helper);
                 continue;
             }
@@ -1619,9 +1630,15 @@ void WOutputRenderWindowPrivate::doRender(wlr_output *needsFrameOutput,
     Q_EMIT q->renderEnd(committedOutputs);
 }
 
+static QQuickRenderControl *createOutputRenderControl()
+{
+    WSGContext::ensureInstalled();
+    return new RenderControl();
+}
+
 // TODO: Support QWindow::setCursor
 WOutputRenderWindow::WOutputRenderWindow(QObject *parent)
-    : QQuickWindow(*new WOutputRenderWindowPrivate(this), new RenderControl())
+    : QQuickWindow(*new WOutputRenderWindowPrivate(this), createOutputRenderControl())
 {
     setObjectName(QW::RenderWindow::id());
 

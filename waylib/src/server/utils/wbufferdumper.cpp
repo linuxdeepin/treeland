@@ -27,7 +27,7 @@ WBufferDumper::DumpResult WBufferDumper::dumpBufferToImage(wlr_buffer *buffer,
     }
 
     uint32_t format = wlr_texture_preferred_read_format(texture);
-    
+
     QImage::Format qImageFormat = WTools::toImageFormat(format);
     if (qImageFormat == QImage::Format_Invalid) {
         wlr_texture_destroy(texture);
