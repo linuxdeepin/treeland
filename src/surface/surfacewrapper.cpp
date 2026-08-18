@@ -2206,7 +2206,8 @@ void SurfaceWrapper::setAlwaysOnTop(bool alwaysOnTop)
 
 bool SurfaceWrapper::showOnAllWorkspace() const
 {
-    if (m_type == Type::Layer || m_type == Type::XdgPopup || isInputPopupLike()) [[unlikely]]
+    if (m_type == Type::Layer || m_type == Type::XdgPopup || isInputPopupLike()
+        || surfaceRole() == SurfaceWrapper::SurfaceRole::PrivilegedOverlay) [[unlikely]]
         return true;
     return m_workspaceId == Workspace::ShowOnAllWorkspaceId;
 }

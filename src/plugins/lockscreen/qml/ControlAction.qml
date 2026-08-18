@@ -73,33 +73,38 @@ RowLayout {
         Layout.alignment: Qt.AlignHCenter
         iconName: "login_power"
 
-        function closePopup() {
-            powerList.close()
-        }
-
         ToolTip {
             enabled: true
             visible: powerItem.hovered
             text: qsTr("Power")
         }
 
-        Popup {
+        Item {
             id: powerList
-            width: rootItem.width
-            height: 140
             parent: rootItem
+            visible: powerItem.expand
+            width: rootItem.width
+            height: rootItem.height
             x: 0
-            y: rootItem.height / 5 * 2
-            modal: true
-            contentItem: PowerList { }
-            background: MouseArea {
-                onClicked: powerItem.closePopup()
+            y: 0
+
+            // Click outside the PowerList to close
+            MouseArea {
+                anchors.fill: parent
+                onClicked: {
+                    powerItem.expand = false
+                }
             }
-            onClosed: powerItem.expand = false
+
+            PowerList {
+                width: rootItem.width
+                height: 140
+                x: 0
+                y: rootItem.height / 5 * 2
+            }
         }
         onClicked: {
             powerItem.expand = true
-            powerList.open()
         }
     }
 
