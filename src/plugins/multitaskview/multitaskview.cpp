@@ -92,6 +92,7 @@ void Multitaskview::exit(SurfaceWrapper *surface, bool immediately)
 
 void Multitaskview::enter(ActiveReason reason)
 {
+    Helper::instance()->cancelShowDesktop();
     Helper::instance()->activateSurface(nullptr);
     if (reason == ActiveReason::ShortcutKey)
         Helper::instance()->setCurrentMode(Helper::CurrentMode::Multitaskview);
