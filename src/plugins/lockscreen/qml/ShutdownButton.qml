@@ -55,6 +55,13 @@ Button {
                     radius: width / 2
                     color: Qt.rgba(1.0, 1.0, 1.0, 0.3)
                 }
+                D.FocusBoxBorder {
+                    visible: root.activeFocus
+                    anchors.fill: parent
+                    borderWidth: 2
+                    radius: width / 2
+                    color: Qt.rgba(1.0, 1.0, 1.0, 0.6)
+                }
             }
         }
 
@@ -73,7 +80,7 @@ Button {
             color: root.D.ColorSelector.textColor
 
             background: Item {
-                visible: root.pressed || root.hovered
+                visible: root.pressed || root.hovered || root.activeFocus
                 RoundBlur {
                     anchors.fill: parent
                     radius: 6
@@ -85,6 +92,13 @@ Button {
                     borderWidth: 2
                     radius: 6
                     color: Qt.rgba(1.0, 1.0, 1.0, 0.3)
+                }
+                D.FocusBoxBorder {
+                    visible: root.activeFocus
+                    anchors.fill: parent
+                    borderWidth: 2
+                    radius: 6
+                    color: Qt.rgba(1.0, 1.0, 1.0, 0.6)
                 }
             }
         }
