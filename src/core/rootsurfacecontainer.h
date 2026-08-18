@@ -58,6 +58,8 @@ public:
         PopupZOrder = 5,
         CaptureLayerZOrder = 6,
         LockScreenZOrder = 7,
+        GlobalOverlayZOrder = 100,
+        PrivilegedOverlayZOrder = 200, // Privileged overlay, above lock screen & lock screen popups
     };
 
     void init(WServer *server);

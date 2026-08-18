@@ -49,6 +49,7 @@
 #include <QColor>
 #include <QPointer>
 #include <QTimer>
+#include <private/qquickoverlay_p.h>
 
 #include <algorithm>
 #include <functional>
@@ -57,6 +58,7 @@
 WAYLIB_SERVER_USE_NAMESPACE
 
 #define TREELAND_XDG_SHELL_VERSION 5
+const QLatin1String PRIVILEGED_OVERLAY_TAG("org.deepin.treeland.privileged-overlay");
 
 ShellHandler::ShellHandler(RootSurfaceContainer *rootContainer, WServer *server)
     : m_rootSurfaceContainer(rootContainer)
@@ -66,6 +68,7 @@ ShellHandler::ShellHandler(RootSurfaceContainer *rootContainer, WServer *server)
     , m_topContainer(new LayerSurfaceContainer(rootContainer))
     , m_overlayContainer(new LayerSurfaceContainer(rootContainer))
     , m_popupContainer(new SurfaceContainer(rootContainer))
+    , m_privilegedOverlayContainer(new SurfaceContainer(rootContainer))
     , m_windowConfigStore(new WindowConfigStore(this))
 {
     m_treelandForeignToplevel = server->attach<ForeignToplevelManagerInterfaceV1>();
@@ -90,7 +93,8 @@ ShellHandler::ShellHandler(RootSurfaceContainer *rootContainer, WServer *server)
     m_overlayContainer->setObjectName(QStringLiteral("OverlayContainer"));
     m_popupContainer->setZ(RootSurfaceContainer::PopupZOrder);
     m_popupContainer->setObjectName(QStringLiteral("PopupContainer"));
-
+    m_privilegedOverlayContainer->setZ(RootSurfaceContainer::PrivilegedOverlayZOrder);
+    m_privilegedOverlayContainer->setObjectName(QStringLiteral("PrivilegedOverlayContainer"));
     connect(m_rootSurfaceContainer->outputModel(),
             &QAbstractItemModel::rowsInserted,
             this,
@@ -407,6 +411,11 @@ ForeignToplevelManagerInterfaceV1 *ShellHandler::foreignToplevel() const
     return m_treelandForeignToplevel;
 }
 
+SurfaceContainer *ShellHandler::privilegedOverlayContainer() const
+{
+    return m_privilegedOverlayContainer;
+}
+
 void ShellHandler::createComponent(QmlEngine *engine, QQuickItem *parentItem)
 {
     m_windowMenu = engine->createWindowMenu(Helper::instance());
@@ -481,6 +490,10 @@ void ShellHandler::init(WServer *server, WSeat *seat)
             &WInputMethodHelper::inputPopupSurfaceV2Removed,
             this,
             &ShellHandler::onInputPopupSurfaceV2Removed);
+
+    auto *overlay = QQuickOverlay::overlay(m_rootSurfaceContainer->window());
+    overlay->setZ(RootSurfaceContainer::GlobalOverlayZOrder);
+    overlay->setParentItem(m_rootSurfaceContainer);
 }
 
 WXWayland *ShellHandler::createXWayland(WServer *server,
@@ -600,6 +613,8 @@ void ShellHandler::ensureXdgWrapper(WXdgToplevelSurface *surface, const QString 
         handleDdeShellSurfaceAdded(surface->surface(), wrapper);
     }
     auto updateSurfaceWithParentContainer = [this, wrapper, surface] {
+        if (wrapper->surfaceRole() == SurfaceWrapper::SurfaceRole::PrivilegedOverlay)
+            return;
         updateWrapperContainer(wrapper, surface->parentSurface());
     };
 
@@ -617,14 +632,59 @@ void ShellHandler::ensureXdgWrapper(WXdgToplevelSurface *surface, const QString 
     }
     Q_EMIT surfaceWrapperAdded(wrapper);
 
-    // IM candidate panel detection via xdg-toplevel-tag
-    if (m_imCandidatePanelManager) {
-        QPointer<SurfaceWrapper> wrapperPtr(wrapper);
-        QObject::connect(surface, &WXdgToplevelSurface::tagChanged, this, [this, surface, wrapperPtr]() {
-            if (wrapperPtr)
-                m_imCandidatePanelManager->checkAndApplyIMCandidatePanel(wrapperPtr, surface);
-        });
+    QPointer<SurfaceWrapper> wrapperPtr(wrapper);
+    QObject::connect(surface, &WXdgToplevelSurface::tagChanged, this, [this, wrapperPtr]() {
+        if (wrapperPtr) {
+            if (checkAndApplyPrivilegedOverlay(wrapperPtr))
+                return;
+            if (m_imCandidatePanelManager->checkAndApplyIMCandidatePanel(wrapperPtr))
+                return;
+        }
+    });
+}
+
+bool ShellHandler::checkAndApplyPrivilegedOverlay(SurfaceWrapper *wrapper)
+{
+    auto *xdgSurface = qobject_cast<WXdgToplevelSurface *>(wrapper->shellSurface());
+    if (!xdgSurface) return false;
+    if (xdgSurface->tag() != PRIVILEGED_OVERLAY_TAG) {
+        if (wrapper->surfaceRole() == SurfaceWrapper::SurfaceRole::PrivilegedOverlay)
+            revokePrivilegedOverlay(wrapper);
+        return false;
     }
+    applyPrivilegedOverlay(wrapper);
+    return true;
+}
+
+void ShellHandler::applyPrivilegedOverlay(SurfaceWrapper *wrapper)
+{
+    qCInfo(lcTlShellXdg) << "Privileged overlay promoted (tag)"
+                                  << "wrapper =" << wrapper << "appId =" << wrapper->appId();
+    // Move from the original container to the privileged overlay container
+    if (auto *oldContainer = wrapper->container())
+        oldContainer->removeSurface(wrapper);
+    m_privilegedOverlayContainer->addSurface(wrapper);
+    wrapper->disableWindowAnimation();
+    wrapper->setSurfaceRole(SurfaceWrapper::SurfaceRole::PrivilegedOverlay);
+    wrapper->setPositionAutomatic(false);
+    wrapper->setHasInitializeContainer(true);
+    wrapper->setSkipDockPreView(true);
+    wrapper->setSkipMutiTaskView(true);
+}
+
+void ShellHandler::revokePrivilegedOverlay(SurfaceWrapper *wrapper)
+{
+    qCInfo(lcTlShellXdg) << "Privileged overlay revoked (tag removed)"
+                                  << "wrapper =" << wrapper << "appId =" << wrapper->appId();
+    // Move from the privileged overlay container back to the workspace
+    if (auto *oldContainer = wrapper->container())
+        oldContainer->removeSurface(wrapper);
+    wrapper->setSurfaceRole(SurfaceWrapper::SurfaceRole::Normal);
+    wrapper->setPositionAutomatic(true);
+    wrapper->disableWindowAnimation(false);
+    wrapper->setSkipDockPreView(false);
+    wrapper->setSkipMutiTaskView(false);
+    m_workspace->addSurface(wrapper);
 }
 
 void ShellHandler::onXdgToplevelSurfaceRemoved(WXdgToplevelSurface *surface)
@@ -868,7 +928,7 @@ void ShellHandler::ensureXwaylandWrapper(WXWaylandSurface *surface, const QStrin
 
     // IM candidate panel detection via XWayland xprop
     if (m_imCandidatePanelManager
-        && m_imCandidatePanelManager->checkAndApplyIMCandidatePanel(wrapper, surface)) {
+        && m_imCandidatePanelManager->checkAndApplyIMCandidatePanel(wrapper)) {
         Q_EMIT surfaceWrapperAdded(wrapper);
         return;
     }

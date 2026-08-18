@@ -17,7 +17,6 @@ class Output;
 
 namespace WAYLIB_SERVER_NAMESPACE {
 class WInputMethodHelper;
-class WXdgToplevelSurface;
 class WXWayland;
 class WXWaylandSurface;
 } // namespace WAYLIB_SERVER_NAMESPACE
@@ -35,10 +34,7 @@ public:
 
     bool isIMCandidatePanel(SurfaceWrapper *wrapper) const;
     bool isIMCandidatePanel(WAYLIB_SERVER_NAMESPACE::WXWaylandSurface *surface) const;
-    bool checkAndApplyIMCandidatePanel(SurfaceWrapper *wrapper,
-                                       WAYLIB_SERVER_NAMESPACE::WXdgToplevelSurface *surface);
-    bool checkAndApplyIMCandidatePanel(SurfaceWrapper *wrapper,
-                                       WAYLIB_SERVER_NAMESPACE::WXWaylandSurface *surface);
+    bool checkAndApplyIMCandidatePanel(SurfaceWrapper *wrapper);
     xcb_atom_t imCandidatePanelAtom() const;
 
     // Parse IM candidate panel property from async result map

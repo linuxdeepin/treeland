@@ -18,7 +18,7 @@ find_package(QT NAMES Qt6 COMPONENTS Core REQUIRED)
 find_package(Qt6 CONFIG REQUIRED ShaderTools Concurrent RemoteObjects Network)
 find_package(Qt6 COMPONENTS Quick QuickControls2 REQUIRED)
 if(Qt6_VERSION VERSION_GREATER_EQUAL 6.10)
-    find_package(Qt6 REQUIRED COMPONENTS QuickPrivate)
+    find_package(Qt6 REQUIRED COMPONENTS QuickPrivate QuickTemplates2Private)
 endif()
 pkg_search_module(PIXMAN REQUIRED IMPORTED_TARGET pixman-1)
 pkg_search_module(WAYLAND REQUIRED IMPORTED_TARGET wayland-server)
@@ -389,6 +389,7 @@ target_link_libraries(libtreeland
         Qt6::Quick
         Qt6::QuickControls2
         Qt6::QuickPrivate
+        Qt6::QuickTemplates2Private
         Qt6::DBus
         Qt6::Concurrent
         Qt6::RemoteObjects

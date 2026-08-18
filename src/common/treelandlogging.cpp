@@ -87,3 +87,5 @@ Q_LOGGING_CATEGORY(lcTlDdm, "treeland.ddm")
 
 // Popup focus management
 Q_LOGGING_CATEGORY(lcTlPopupFocus, "treeland.popup.focus")
+// XDG shell
+Q_LOGGING_CATEGORY(lcTlShellXdg, "treeland.shell.xdg", QtInfoMsg)
