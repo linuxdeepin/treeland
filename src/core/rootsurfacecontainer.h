@@ -78,6 +78,7 @@ public:
     void endMoveResizeForSeat(WSeat *seat);
     void cancelMoveResizeForSeat(WSeat *seat);
     SurfaceWrapper *getMoveResizeSurfaceForSeat(WSeat *seat) const;
+    bool isInMoveResizeForSeat(WSeat *seat) const;
     void setActivatedSurfaceForSeat(WSeat *seat, SurfaceWrapper *surface,
                                     Qt::FocusReason reason);
     SurfaceWrapper *getActivatedSurfaceForSeat(WSeat *seat) const;
@@ -104,6 +105,7 @@ public:
     void doMoveResize(const QPointF &incrementPos);
     void endMoveResize();
     SurfaceWrapper *moveResizeSurface() const;
+    bool isInMoveResize() const;
 
     OutputListModel *outputModel() const;
     void moveSurfacesToOutput(const QList<SurfaceWrapper *> &surfaces,

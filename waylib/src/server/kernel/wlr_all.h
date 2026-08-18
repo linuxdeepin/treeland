@@ -103,6 +103,7 @@ extern "C" {
 #include <wlr/types/wlr_output_management_v1.h>
 #include <wlr/types/wlr_output_power_management_v1.h>
 #include <wlr/types/wlr_pointer.h>
+#include <wlr/types/wlr_pointer_constraints_v1.h>
 #include <wlr/types/wlr_pointer_gestures_v1.h>
 #include <wlr/types/wlr_primary_selection.h>
 #include <wlr/types/wlr_primary_selection_v1.h>
@@ -125,6 +126,7 @@ extern "C" {
 #include <wlr/util/box.h>
 #include <wlr/util/edges.h>
 #include <wlr/util/log.h>
+#include <wlr/util/region.h>
 #include <wlr/xcursor.h>
 
 // "namespace" is a C++ keyword; wlr_layer_surface_v1 uses it as a field name.

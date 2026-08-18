@@ -78,6 +78,7 @@ class WToplevelSurface;
 class WXdgDecorationManager;
 class WXdgOutputManager;
 class WXWayland;
+class WPointerConstraintsV1;
 
 class WForeignToplevel;
 class WExtForeignToplevelListV1;
@@ -89,6 +90,7 @@ class WSessionLock;
 WAYLIB_SERVER_END_NAMESPACE
 
 class SeatsManager;
+class PointerConstraintsManager;
 
 WAYLIB_SERVER_USE_NAMESPACE
 
@@ -327,6 +329,7 @@ private:
     void handleNewForeignToplevelCaptureRequest(wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request *request);
     void onExtSessionLock(WSessionLock *lock);
 private:
+    friend class PointerConstraintsManager;
     friend class SessionManager;
     friend class WallpaperManager;
     friend class WallpaperItem;
@@ -455,6 +458,8 @@ private:
     WForeignToplevel *m_foreignToplevel = nullptr;
     WExtForeignToplevelListV1 *m_extForeignToplevelListV1 = nullptr;
     WRelativePointerManagerV1 *m_relativePointerManager = nullptr;
+    WPointerConstraintsV1 *m_pointerConstraintsV1 = nullptr;
+    PointerConstraintsManager *m_pointerConstraintsManager = nullptr;
     ShortcutManagerV2 *m_shortcutManager = nullptr;
     PersonalizationManagerInterfaceV1 *m_personalizationInterfaceV1 = nullptr;
     WallpaperColorInterfaceV1 *m_wallpaperColorV1 = nullptr;

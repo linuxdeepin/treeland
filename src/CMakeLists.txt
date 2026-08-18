@@ -181,6 +181,8 @@ qt_add_qml_module(libtreeland
         output/outputmanager.h
         seat/helper.cpp
         seat/helper.h
+        seat/pointerconstraintsmanager.cpp
+        seat/pointerconstraintsmanager.h
         seat/seatsmanager.cpp
         seat/seatsmanager.h
         session/session.cpp
