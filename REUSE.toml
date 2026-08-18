@@ -209,7 +209,8 @@ path = [
     "waylib/src/server/protocols/WXdgDecorationManager",
     "waylib/src/server/protocols/WSessionLock",
     "waylib/src/server/protocols/WSessionLockManager",
-    "waylib/src/server/protocols/WSessionLockSurface"
+    "waylib/src/server/protocols/WSessionLockSurface",
+    "waylib/src/server/protocols/WPointerConstraintsV1",
 ]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "UnionTech Software Technology Co., Ltd."

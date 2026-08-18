@@ -74,6 +74,15 @@ public:
     bool isVisible() const;
     void setVisible(bool visible);
 
+    // Active pointer constraint (locked/confined) enforced on this cursor, or
+    // Pointer constraint enforcement — used by treeland
+    // PointerConstraintsManager (the compositor policy layer).
+    void setActivePointerConstraint(wlr_pointer_constraint_v1 *constraint);
+    wlr_pointer_constraint_v1 *activePointerConstraint() const;
+    // Warp to the constraint's cursor_hint before clearing it.
+    // Internal: must be called before setActivePointerConstraint(nullptr).
+    void warpToActiveConstraintHint();
+
     QPointF position() const;
     QPointF lastPressedOrTouchDownPosition() const;
 

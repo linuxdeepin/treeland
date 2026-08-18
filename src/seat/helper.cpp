@@ -3,7 +3,7 @@
 
 #include <wscopedvalue.h>
 #include "helper.h"
-
+#include "pointerconstraintsmanager.h"
 #include "seatsmanager.h"
 
 #include <QFile>
@@ -75,6 +75,7 @@
 #include <WXdgOutput>
 #include <wayland-util.h>
 #include <wcursorshapemanagerv1.h>
+#include <wpointerconstraintsv1.h>
 #include <wextimagecapturesourcev1impl.h>
 #include <wlayersurface.h>
 #include <woutputhelper.h>
@@ -2136,6 +2137,8 @@ void Helper::init(Treeland::Treeland *treeland)
 
     m_server->attach<WRemoteSubsurfaceManagerV1>();
     m_server->attach<WCursorShapeManagerV1>();
+    m_pointerConstraintsV1 = m_server->attach<WPointerConstraintsV1>();
+    m_pointerConstraintsManager = new PointerConstraintsManager(m_pointerConstraintsV1, this);
     wlr_fractional_scale_manager_v1_create(m_server->handle(), WLR_FRACTIONAL_SCALE_V1_VERSION);
     wlr_data_control_manager_v1_create(m_server->handle());
     wlr_ext_data_control_manager_v1_create(m_server->handle(), EXT_DATA_CONTROL_MANAGER_V1_VERSION);
@@ -3407,6 +3410,10 @@ void Helper::setCurrentMode(CurrentMode mode)
     setBlockActivateSurface(mode != CurrentMode::Normal);
 
     m_currentMode = mode;
+
+    // Deactivate pointer constraints when leaving Normal mode (modal shell state).
+    if (m_currentMode != CurrentMode::Normal && m_pointerConstraintsManager)
+        m_pointerConstraintsManager->deactivateAll();
 
     Q_EMIT currentModeChanged();
 }
