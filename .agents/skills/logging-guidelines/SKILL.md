@@ -1,6 +1,6 @@
 ---
 name: logging-guidelines
-description: Use this skill whenever a task adds, changes, reviews, or removes logging in treeland, waylib, or qwlroots code. Trigger on logging categories, Q_LOGGING_CATEGORY, Q_DECLARE_LOGGING_CATEGORY, qCDebug, qCInfo, qCWarning, qCCritical, log level selection, category naming, or requests to clean up log messages. For treeland code, prefer centralized categories in src/common/treelandlogging.h/.cpp. For waylib code, prefer centralized categories in waylib/src/server/wayliblogging.h/.cpp.
+description: Use this skill whenever a task adds, changes, reviews, or removes logging in treeland or waylib code. Trigger on logging categories, Q_LOGGING_CATEGORY, Q_DECLARE_LOGGING_CATEGORY, qCDebug, qCInfo, qCWarning, qCCritical, log level selection, category naming, or requests to clean up log messages. For treeland code, prefer centralized categories in src/common/treelandlogging.h/.cpp. For waylib code, prefer centralized categories in waylib/src/server/wayliblogging.h/.cpp.
 ---
 
 # Logging Guidelines

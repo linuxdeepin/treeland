@@ -1,6 +1,6 @@
 ---
 name: treeland-private-wayland-protocol
-description: Use this skill for treeland private Wayland server-side protocol integration. Trigger whenever the task involves treeland-owned xml, `treeland_*` interfaces, `src/modules/*`, QtWayland scanner output, `QtWaylandServer::*`, `local_qtwayland_server_protocol_treeland(...)`, `globalRemove()`, `destroy_resource(...)`, or wiring a private compositor protocol into `Helper::init`. Do not use it for upstream wlroots/waylib protocol wrappers.
+description: Use this skill for treeland private Wayland server-side protocol integration. Trigger whenever the task involves treeland-owned xml, `treeland_*` interfaces, `src/modules/*`, QtWayland scanner output, `QtWaylandServer::*`, `waylib_generate_qtwayland_server_protocol(...)`, `globalRemove()`, `destroy_resource(...)`, or wiring a private compositor protocol into `Helper::init`. Do not use it for upstream wlroots/waylib protocol wrappers.
 ---
 
 # Treeland Private Protocol Integration
@@ -13,7 +13,7 @@ Use this skill when any of these are true:
 - the protocol xml is maintained by treeland
 - the interface name is typically `treeland_*`
 - the code lives under `src/modules/*`
-- CMake uses `local_qtwayland_server_protocol_treeland(...)`
+- CMake uses `waylib_generate_qtwayland_server_protocol(...)`
 - the generated type is `QtWaylandServer::*`
 
 If the protocol is a standard/ext/unstable/wlr upstream protocol, stop and use the upstream protocol skill instead.
@@ -57,9 +57,11 @@ These details affect implementation boundaries:
 - if the manager interface in xml has no destructor request, generated code will not provide `handle_destroy(...)` or `virtual void destroy(Resource *resource)` for that manager; do not assume you can override manager destroy in that case
 
 ## Build Path
-Prefer the existing helper:
+Prefer the existing helper (defined in `waylib/tools/CMakeLists.txt`):
 
-`local_qtwayland_server_protocol_treeland(...)`
+`waylib_generate_qtwayland_server_protocol(<target> PROTOCOL <xml> BASENAME <basename> [PREFIX <prefix>])`
+
+The first argument is the CMake target that owns the generated sources (usually `libtreeland`); `PROTOCOL` is the xml path and `BASENAME` derives the generated filenames. The optional `PREFIX` sets the generated C++ type/namespace prefix (e.g. `PREFIX "/"` in `src/modules/personalization/`); omit it for the default empty prefix.
 
 Typical outputs:
 
@@ -139,12 +141,11 @@ The public class usually implements:
 Recommended pattern:
 
 ```cpp
-// Required: #include <qwdisplay.h>
-// operator* on QWDisplay returns the underlying wl_display&,
-// which is equivalent to server->handle()->handle() but preferred.
+// WServer::handle() returns the raw wl_display*. Pass it directly to the
+// generated manager's init().
 void Manager::create(WServer *server)
 {
-    d->init(*server->handle(), InterfaceVersion);
+    d->init(server->handle(), InterfaceVersion);
 }
 
 void Manager::destroy(WServer *server)
@@ -344,9 +345,9 @@ That still counts as a protocol registration entry point. The real criteria are:
 If a protocol is neither registered directly from `Helper::init` nor initialized through a higher-level object such as `ShellHandler`, it is usually still not fully integrated.
 
 ## Samples To Avoid
-`capture` uses `ws_generate_local` (raw wayland-scanner) instead of the preferred `local_qtwayland_server_protocol_treeland(...)` path, and does not use `QtWaylandServer::*` at all. Do not use it as a template.
+`capture` uses `ws_generate_local` (raw wayland-scanner) instead of the preferred `waylib_generate_qtwayland_server_protocol(...)` path, and does not use `QtWaylandServer::*` at all. Do not use it as a template.
 
-`foreign-toplevel` has been fully migrated to the `QtWaylandServer::*` plus `local_qtwayland_server_protocol_treeland(...)` path. It is a valid reference for protocols that need public child wrappers (`ForeignToplevelHandleV1`, `DockPreviewContextV1`), but is too large and complex to be a starting point for simple new protocols.
+`foreign-toplevel` has been fully migrated to the `QtWaylandServer::*` plus `waylib_generate_qtwayland_server_protocol(...)` path. It is a valid reference for protocols that need public child wrappers (`ForeignToplevelHandleV1`, `DockPreviewContextV1`), but is too large and complex to be a starting point for simple new protocols.
 
 For new private protocols, prefer `appidresolver`, `prelaunch-splash`, or `screensaver` as templates.
 

@@ -34,13 +34,13 @@
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-// RAII deleter for wlr_buffer references (replaces qwlroots' qw_buffer::unlocker).
+// RAII deleter for wlr_buffer references.
 struct WBufferUnlocker {
     static inline void cleanup(wlr_buffer *buffer) { if (buffer) wlr_buffer_unlock(buffer); }
     void operator()(wlr_buffer *buffer) const { cleanup(buffer); }
 };
 
-// RAII deleter that drops a wlr_buffer reference (replaces qwlroots' qw_buffer::droper).
+// RAII deleter that drops a wlr_buffer reference.
 struct WBufferDroper {
     static inline void cleanup(wlr_buffer *buffer) { if (buffer) wlr_buffer_drop(buffer); }
     void operator()(wlr_buffer *buffer) const { cleanup(buffer); }
