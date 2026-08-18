@@ -93,10 +93,12 @@ RowLayout {
                 anchors.fill: parent
                 onClicked: {
                     powerItem.expand = false
+                    innerPowerList.loopInside = false
                 }
             }
 
             PowerList {
+                id: innerPowerList
                 width: rootItem.width
                 height: 140
                 x: 0
@@ -105,6 +107,8 @@ RowLayout {
         }
         onClicked: {
             powerItem.expand = true
+            innerPowerList.focusPowerOff()
+            innerPowerList.enableLoopInside()
         }
     }
 
