@@ -1,10 +1,10 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
-// Routes wlroots' C logging into the Qt logging system (successor of the
-// qwlroots qw_log wrapper). Instead of letting wlroots write to stderr, every
-// wlr_log call is forwarded to the "wlroots" QLoggingCategory so it honors
-// QT_LOGGING_RULES filtering and Qt's message pattern.
+// Routes wlroots' C logging into the Qt logging system. Instead of letting
+// wlroots write to stderr, every wlr_log call is forwarded to the "wlroots"
+// QLoggingCategory so it honors QT_LOGGING_RULES filtering and Qt's message
+// pattern.
 
 #pragma once
 

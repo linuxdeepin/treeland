@@ -147,7 +147,7 @@ function(wlroots_generate_protocols target)
     endforeach()
 
     target_sources(${target} PRIVATE ${_wlr_proto_sources} ${_wlr_proto_headers})
-    # BEFORE: parent projects (qwlroots) may inject older system wlr-protocols
+    # BEFORE: parent projects may inject older system wlr-protocols
     # headers via global include_directories(); those must not win.
     target_include_directories(${target} BEFORE PRIVATE "${_wlr_proto_dir}")
 
