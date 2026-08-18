@@ -13,6 +13,8 @@
 #include "wseat.h"
 #include "woutput.h"
 #include "woutputlayout.h"
+#include "wrelativepointerv1.h"
+#include "wserver.h"
 #include "wayliblogging.h"
 
 #include <wlr_all.h>
@@ -76,15 +78,22 @@ void WCursorPrivate::sendLeaveEvent(WInputDevice *device)
 void WCursorPrivate::on_motion(wlr_pointer_motion_event *event)
 {
     auto *device = &event->pointer->base;
+    const QPointF oldPos = q_func()->position();
     q_func()->move(device, QPointF(event->delta_x, event->delta_y));
-    processCursorMotion(device, event->time_msec);
+    if (!applyPointerConstraint(device, event->time_msec, event->delta_x, event->delta_y,
+                                event->unaccel_dx, event->unaccel_dy, oldPos))
+        processCursorMotion(device, event->time_msec);
 }
 
 void WCursorPrivate::on_motion_absolute(wlr_pointer_motion_absolute_event *event)
 {
     auto *device = &event->pointer->base;
+    const QPointF oldPos = q_func()->position();
     q_func()->setScalePosition(device, QPointF(event->x, event->y));
-    processCursorMotion(device, event->time_msec);
+    const QPointF delta = q_func()->position() - oldPos;
+    if (!applyPointerConstraint(device, event->time_msec, delta.x(), delta.y(),
+                                delta.x(), delta.y(), oldPos))
+        processCursorMotion(device, event->time_msec);
 }
 
 void WCursorPrivate::on_button(wlr_pointer_button_event *event)
@@ -298,6 +307,59 @@ void WCursorPrivate::processCursorMotion(wlr_input_device *device, uint32_t time
             deviceSeat->notifyMotion(q, inputDevice, time);
         }
     }
+}
+
+bool WCursorPrivate::applyPointerConstraint(wlr_input_device *device, uint32_t timeMsec,
+                                           double dx, double dy,
+                                           double dxUnaccel, double dyUnaccel,
+                                           const QPointF &oldPos)
+{
+    W_Q(WCursor);
+    if (!activeConstraint)
+        return false;
+
+    wlr_seat *wlrSeat = seat ? seat->handle() : nullptr;
+    if (!wlrSeat)
+        return false;
+
+    if (activeConstraint->type == WLR_POINTER_CONSTRAINT_V1_LOCKED) {
+        // Locked pointer: the client receives relative motion deltas instead
+        // of absolute coordinates. Time is in microseconds (wl_pointer uses
+        // milliseconds), so multiply time_msec by 1000.
+        if (auto *server = seat->server()) {
+            if (auto *relative = server->findInterface<WRelativePointerManagerV1>()) {
+                relative->sendRelativeMotion(wlrSeat, static_cast<uint64_t>(timeMsec) * 1000,
+                                             dx, dy, dxUnaccel, dyUnaccel);
+            }
+        }
+        // Warp back to the anchor on every motion so physical movement does
+        // not accumulate and cause a jump when the constraint deactivates.
+        q->setPosition(device, lockedWarpTarget);
+        return true;
+    }
+
+    if (activeConstraint->type == WLR_POINTER_CONSTRAINT_V1_CONFINED) {
+        // Confined pointer: the cursor stays visible and the client still
+        // receives absolute coordinates, but clamped to constraint->region.
+        // The region and the seat's last surface-local position (sx, sy) are
+        // both in logical surface-local coordinates, so the output-layout
+        // delta maps directly; clamped back to the surface-local delta and
+        // re-applied on top of the pre-motion global position.
+        const double sx = wlrSeat->pointer_state.sx;
+        const double sy = wlrSeat->pointer_state.sy;
+        double confinedSx = sx + dx;
+        double confinedSy = sy + dy;
+        if (wlr_region_confine(&activeConstraint->region, sx, sy,
+                               confinedSx, confinedSy, &confinedSx, &confinedSy)) {
+            q->setPosition(device, oldPos + QPointF(confinedSx - sx, confinedSy - sy));
+        } else {
+            // Old position was outside the region: do not move the cursor.
+            q->setPosition(device, oldPos);
+        }
+        return false;
+    }
+
+    return false;
 }
 
 WCursor::WCursor(WCursorPrivate &dd, QObject *parent)
@@ -676,6 +738,44 @@ void WCursor::setVisible(bool visible)
         return;
     d->visible = visible;
     Q_EMIT visibleChanged();
+}
+
+void WCursor::setActivePointerConstraint(wlr_pointer_constraint_v1 *constraint)
+{
+    W_D(WCursor);
+    if (d->activeConstraint == constraint)
+        return;
+
+    // Restore cursor visibility when leaving a locked constraint.
+    if (d->activeConstraint
+            && d->activeConstraint->type == WLR_POINTER_CONSTRAINT_V1_LOCKED)
+        setVisible(d->cursorVisibleBeforeLock);
+
+    d->activeConstraint = constraint;
+
+    if (!constraint)
+        return;
+
+    if (constraint->type == WLR_POINTER_CONSTRAINT_V1_LOCKED) {
+        d->cursorVisibleBeforeLock = isVisible();
+        setVisible(false);
+        wlr_seat *wlrSeat = d->seat ? d->seat->handle() : nullptr;
+        if (wlrSeat && constraint->current.cursor_hint.enabled) {
+            const double sx = wlrSeat->pointer_state.sx;
+            const double sy = wlrSeat->pointer_state.sy;
+            d->lockedWarpTarget = position()
+                + QPointF(constraint->current.cursor_hint.x - sx,
+                          constraint->current.cursor_hint.y - sy);
+        } else {
+            d->lockedWarpTarget = position();
+        }
+    }
+}
+
+wlr_pointer_constraint_v1 *WCursor::activePointerConstraint() const
+{
+    W_DC(WCursor);
+    return d->activeConstraint;
 }
 
 QPointF WCursor::position() const

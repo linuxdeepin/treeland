@@ -78,6 +78,8 @@ class WToplevelSurface;
 class WXdgDecorationManager;
 class WXdgOutputManager;
 class WXWayland;
+class WPointerConstraintsV1;
+class WRelativePointerManagerV1;
 
 class WForeignToplevel;
 class WExtForeignToplevelListV1;
@@ -88,6 +90,7 @@ class WSessionLock;
 WAYLIB_SERVER_END_NAMESPACE
 
 class SeatsManager;
+class PointerConstraintsManager;
 
 WAYLIB_SERVER_USE_NAMESPACE
 
@@ -225,6 +228,11 @@ public:
     }
 
     void setCurrentMode(CurrentMode mode);
+
+    // True if the given seat is currently driving a Qt-level window
+    // move/resize (which does not raise a wlroots seat grab and therefore
+    // must be excluded from pointer-constraint activation explicitly).
+    bool isInMoveResize(WAYLIB_SERVER_NAMESPACE::WSeat *seat) const;
 
     bool isNormalOrMultitaskview() const
     {
@@ -515,4 +523,8 @@ private:
     SeatsManager *m_seatManager = nullptr;
     InputManager *m_inputManager = nullptr;
     TreelandInputManagerInterfaceV1 *m_inputManagerInterfaceV1 = nullptr;
+
+    WAYLIB_SERVER_NAMESPACE::WPointerConstraintsV1 *m_pointerConstraintsV1 = nullptr;
+    WAYLIB_SERVER_NAMESPACE::WRelativePointerManagerV1 *m_relativePointerManagerV1 = nullptr;
+    PointerConstraintsManager *m_pointerConstraintsManager = nullptr;
 };

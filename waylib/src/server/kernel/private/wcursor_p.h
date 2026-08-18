@@ -53,6 +53,14 @@ public:
     void connect();
     void processCursorMotion(wlr_input_device *device, uint32_t time);
 
+    // Enforce the active pointer constraint (if any) on a pointer motion.
+    // Returns true if the regular processCursorMotion dispatch should be
+    // skipped (locked pointer: client receives only relative motion).
+    bool applyPointerConstraint(wlr_input_device *device, uint32_t timeMsec,
+                               double dx, double dy,
+                               double dxUnaccel, double dyUnaccel,
+                               const QPointF &oldPos);
+
     W_DECLARE_PUBLIC(WCursor)
 
     QCursor cursor;
@@ -68,6 +76,14 @@ public:
     Qt::MouseButton button = Qt::NoButton;
     QPointF lastPressedOrTouchDownPosition;
     bool visible = true;
+    // Active constraint enforced on this cursor; set via
+    // WCursor::setActivePointerConstraint(). nullptr when unconstrained.
+    wlr_pointer_constraint_v1 *activeConstraint = nullptr;
+    // Anchor the cursor is warped back to on every motion while a locked
+    // constraint is active, preventing physical movement from accumulating.
+    QPointF lockedWarpTarget;
+    // Saved cursor visibility, restored when a locked constraint deactivates.
+    bool cursorVisibleBeforeLock = true;
     double scrollFactor = 1.0;
 
 private:

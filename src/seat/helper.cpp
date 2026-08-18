@@ -4,6 +4,7 @@
 #include <wscopedvalue.h>
 #include "helper.h"
 #include "ext_foreign_toplevel_image_capture_source_manager_v1.h"
+#include "pointerconstraintsmanager.h"
 
 #include "seatsmanager.h"
 
@@ -76,6 +77,8 @@
 #include <WXdgOutput>
 #include <wayland-util.h>
 #include <wcursorshapemanagerv1.h>
+#include <wpointerconstraintsv1.h>
+#include <wrelativepointerv1.h>
 #include <wextimagecapturesourcev1impl.h>
 #include <wlayersurface.h>
 #include <woutputhelper.h>
@@ -2117,6 +2120,9 @@ void Helper::init(Treeland::Treeland *treeland)
 
     m_server->attach<WRemoteSubsurfaceManagerV1>();
     m_server->attach<WCursorShapeManagerV1>();
+    m_pointerConstraintsV1 = m_server->attach<WPointerConstraintsV1>();
+    m_relativePointerManagerV1 = m_server->attach<WRelativePointerManagerV1>();
+    m_pointerConstraintsManager = new PointerConstraintsManager(m_pointerConstraintsV1, this, this);
     wlr_fractional_scale_manager_v1_create(m_server->handle(), WLR_FRACTIONAL_SCALE_V1_VERSION);
     wlr_data_control_manager_v1_create(m_server->handle());
     wlr_ext_data_control_manager_v1_create(m_server->handle(), EXT_DATA_CONTROL_MANAGER_V1_VERSION);
@@ -3390,7 +3396,22 @@ void Helper::setCurrentMode(CurrentMode mode)
 
     m_currentMode = mode;
 
+    // Leaving Normal mode (lock screen / multitask view / window switch) must
+    // drop every active pointer constraint so background surfaces cannot keep
+    // the pointer locked/confined while the user is in a modal shell state.
+    if (m_currentMode != CurrentMode::Normal && m_pointerConstraintsManager)
+        m_pointerConstraintsManager->deactivateAll();
+
     Q_EMIT currentModeChanged();
+}
+
+bool Helper::isInMoveResize(WAYLIB_SERVER_NAMESPACE::WSeat *seat) const
+{
+    if (!m_rootSurfaceContainer || !seat)
+        return false;
+
+    auto *container = m_rootSurfaceContainer->getSeatContainer(seat);
+    return container && container->moveResizeState().surface;
 }
 
 void Helper::prepareLockScreenTransition()
