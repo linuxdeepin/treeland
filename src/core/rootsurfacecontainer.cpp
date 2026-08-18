@@ -240,6 +240,11 @@ SurfaceWrapper *RootSurfaceContainer::moveResizeSurface() const
     return getMoveResizeSurfaceForSeat(nullptr);
 }
 
+bool RootSurfaceContainer::isInMoveResize() const
+{
+    return isInMoveResizeForSeat(nullptr);
+}
+
 void RootSurfaceContainer::startMove(SurfaceWrapper *surface)
 {
     beginMoveResizeForSeat(nullptr, surface, Qt::Edges{});
@@ -995,6 +1000,12 @@ SurfaceWrapper *RootSurfaceContainer::getMoveResizeSurfaceForSeat(WSeat *seat) c
 {
     auto *container = getSeatContainerOrDefault(seat);
     return container ? container->moveResizeSurface() : nullptr;
+}
+
+bool RootSurfaceContainer::isInMoveResizeForSeat(WSeat *seat) const
+{
+    auto *container = getSeatContainer(seat);
+    return container && container->moveResizeState().surface;
 }
 
 void RootSurfaceContainer::setActivatedSurfaceForSeat(WSeat *seat, SurfaceWrapper *surface,

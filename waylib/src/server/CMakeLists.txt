@@ -222,6 +222,7 @@ set(SOURCES
     protocols/private/wtextinputv3.cpp
     protocols/private/wvirtualkeyboardv1.cpp
     protocols/wcursorshapemanagerv1.cpp
+    protocols/wpointerconstraintsv1.cpp
     protocols/wrelativepointermanagerv1.cpp
     protocols/woutputmanagerv1.cpp
     protocols/wextforeigntoplevellistv1.cpp
@@ -329,6 +330,8 @@ set(HEADERS
     protocols/WInputPopupSurface
     protocols/wcursorshapemanagerv1.h
     protocols/WCursorShapeManagerV1
+    protocols/wpointerconstraintsv1.h
+    protocols/WPointerConstraintsV1
     protocols/wremotesubsurfacemanagerv1.h
     protocols/wrelativepointermanagerv1.h
     protocols/WRelativePointerManagerV1
