@@ -3,49 +3,100 @@
 
 #include <QCoreApplication>
 #include <QDateTime>
-#include <QFile>
-#include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QPointF>
 #include <QProcessEnvironment>
 #include <QRemoteObjectNode>
+#include <QSocketNotifier>
 #include <QTextStream>
 #include <QTimer>
 #include <QUrl>
+
+#include <csignal>
+#include <unistd.h>
+
+#include "debughelpers.h"
 
 #include "rep_treeland_windowtree_replica.h"
 
 namespace {
 
-QJsonObject pointToJson(const QPointF &point)
+// Write-end of a self-pipe used by the SIGINT handler; the handler writes a
+// byte here so the Qt event loop (via QSocketNotifier) can react safely.
+int g_sigintWriteFd = -1;
+
+void sigintHandler(int)
 {
-    return {
-        {"x", point.x()},
-        {"y", point.y()},
-    };
+    if (g_sigintWriteFd >= 0) {
+        char c = 0;
+        const ssize_t r = ::write(g_sigintWriteFd, &c, 1);
+        (void)r;
+    }
 }
 
-QJsonObject rectToJson(const QRectF &rect)
+// RAII guard that, while alive, routes SIGINT (Ctrl+C) to
+// QCoreApplication::quit() instead of terminating the process. Used in the
+// shell so live commands (top/events/watch) can be interrupted back to the
+// REPL. Uses the self-pipe trick so the signal handler stays async-signal-safe.
+class SigIntInterrupt
 {
-    return {
-        {"x", rect.x()},
-        {"y", rect.y()},
-        {"width", rect.width()},
-        {"height", rect.height()},
-    };
+    SigIntInterrupt(const SigIntInterrupt &) = delete;
+    SigIntInterrupt &operator=(const SigIntInterrupt &) = delete;
+
+public:
+    SigIntInterrupt() = default;
+    ~SigIntInterrupt() { restore(); }
+
+    bool install();
+    void restore();
+
+private:
+    int m_pipe[2] = {-1, -1};
+    QSocketNotifier *m_notifier = nullptr;
+    struct sigaction m_oldAction {};
+    bool m_installed = false;
+    QObject m_context;
+};
+
+bool SigIntInterrupt::install()
+{
+    if (::pipe(m_pipe) != 0)
+        return false;
+    g_sigintWriteFd = m_pipe[1];
+
+    m_notifier = new QSocketNotifier(m_pipe[0], QSocketNotifier::Read, &m_context);
+    QObject::connect(m_notifier, &QSocketNotifier::activated, &m_context, [this]() {
+        char buf[16];
+        while (::read(m_pipe[0], buf, sizeof(buf)) > 0) { }
+        QCoreApplication::quit();
+    });
+
+    struct sigaction sa {};
+    sa.sa_handler = &sigintHandler;
+    sa.sa_flags = SA_RESTART;
+    sigemptyset(&sa.sa_mask);
+    m_installed = (::sigaction(SIGINT, &sa, &m_oldAction) == 0);
+    return m_installed;
 }
 
-QString stateName(int state)
+void SigIntInterrupt::restore()
 {
-    switch (state) {
-    case 0: return QStringLiteral("Normal");
-    case 1: return QStringLiteral("Maximized");
-    case 2: return QStringLiteral("Minimized");
-    case 3: return QStringLiteral("Fullscreen");
-    case 4: return QStringLiteral("Tiling");
-    default: return QStringLiteral("Unknown(%1)").arg(state);
+    if (m_installed) {
+        ::sigaction(SIGINT, &m_oldAction, nullptr);
+        m_installed = false;
+    }
+    g_sigintWriteFd = -1;
+    if (m_notifier)
+        m_notifier->setEnabled(false);
+    if (m_pipe[0] >= 0) {
+        ::close(m_pipe[0]);
+        m_pipe[0] = -1;
+    }
+    if (m_pipe[1] >= 0) {
+        ::close(m_pipe[1]);
+        m_pipe[1] = -1;
     }
 }
 
@@ -218,77 +269,6 @@ qint64 resolveTarget(Session &session, int timeoutMs, const QString &token, bool
     return 0;
 }
 
-// Maps a friendly button name to a Linux input button code.
-int buttonCode(const QString &name, bool *ok)
-{
-    *ok = true;
-    const QString lower = name.toLower();
-    if (lower == QLatin1String("left"))
-        return 0x110; // BTN_LEFT
-    if (lower == QLatin1String("right"))
-        return 0x111; // BTN_RIGHT
-    if (lower == QLatin1String("middle"))
-        return 0x112; // BTN_MIDDLE
-    bool parsed = false;
-    const int code = name.toInt(&parsed);
-    if (parsed)
-        return code;
-    *ok = false;
-    return 0;
-}
-
-// Maps a friendly key name to a Linux evdev keycode; raw codes pass through.
-int keyCode(const QString &name, bool *ok)
-{
-    *ok = true;
-    bool parsed = false;
-    const int code = name.toInt(&parsed);
-    if (parsed)
-        return code;
-
-    static const QHash<QString, int> table = {
-        {QStringLiteral("esc"), 1},     {QStringLiteral("1"), 2},
-        {QStringLiteral("2"), 3},       {QStringLiteral("3"), 4},
-        {QStringLiteral("4"), 5},       {QStringLiteral("5"), 6},
-        {QStringLiteral("6"), 7},       {QStringLiteral("7"), 8},
-        {QStringLiteral("8"), 9},       {QStringLiteral("9"), 10},
-        {QStringLiteral("0"), 11},      {QStringLiteral("minus"), 12},
-        {QStringLiteral("equal"), 13},  {QStringLiteral("backspace"), 14},
-        {QStringLiteral("tab"), 15},    {QStringLiteral("q"), 16},
-        {QStringLiteral("w"), 17},      {QStringLiteral("e"), 18},
-        {QStringLiteral("r"), 19},      {QStringLiteral("t"), 20},
-        {QStringLiteral("y"), 21},      {QStringLiteral("u"), 22},
-        {QStringLiteral("i"), 23},      {QStringLiteral("o"), 24},
-        {QStringLiteral("p"), 25},      {QStringLiteral("enter"), 28},
-        {QStringLiteral("leftctrl"), 29}, {QStringLiteral("a"), 30},
-        {QStringLiteral("s"), 31},      {QStringLiteral("d"), 32},
-        {QStringLiteral("f"), 33},      {QStringLiteral("g"), 34},
-        {QStringLiteral("h"), 35},      {QStringLiteral("j"), 36},
-        {QStringLiteral("k"), 37},      {QStringLiteral("l"), 38},
-        {QStringLiteral("space"), 57},  {QStringLiteral("leftshift"), 42},
-        {QStringLiteral("leftalt"), 56},{QStringLiteral("z"), 44},
-        {QStringLiteral("x"), 45},      {QStringLiteral("c"), 46},
-        {QStringLiteral("v"), 47},      {QStringLiteral("b"), 48},
-        {QStringLiteral("n"), 49},      {QStringLiteral("m"), 50},
-        {QStringLiteral("left"), 105},  {QStringLiteral("right"), 106},
-        {QStringLiteral("up"), 103},    {QStringLiteral("down"), 108},
-        {QStringLiteral("f1"), 59},     {QStringLiteral("f2"), 60},
-        {QStringLiteral("f3"), 61},     {QStringLiteral("f4"), 62},
-        {QStringLiteral("f5"), 63},     {QStringLiteral("f6"), 64},
-        {QStringLiteral("f7"), 65},     {QStringLiteral("f8"), 66},
-        {QStringLiteral("f9"), 67},     {QStringLiteral("f10"), 68},
-        {QStringLiteral("f11"), 87},    {QStringLiteral("f12"), 88},
-        {QStringLiteral("del"), 111},   {QStringLiteral("insert"), 110},
-        {QStringLiteral("home"), 102},  {QStringLiteral("end"), 107},
-        {QStringLiteral("pageup"), 104},{QStringLiteral("pagedown"), 109},
-    };
-    const auto it = table.constFind(name.toLower());
-    if (it != table.constEnd())
-        return it.value();
-    *ok = false;
-    return 0;
-}
-
 void printWindowsTable(const QList<WindowInfo> &windows)
 {
     QTextStream out(stdout);
@@ -395,28 +375,6 @@ void printTree(const TreelandInfo &info)
     }
 }
 
-// Writes captured image bytes to @p userPath (or a generated /tmp path when
-// empty), ensuring a .png suffix. Returns the path written, or empty on
-// failure. The compositor never touches the filesystem; saving is the
-// treeland-debug client's responsibility.
-QString saveCapture(const QByteArray &data, const QString &userPath)
-{
-    if (data.isEmpty())
-        return {};
-    QString path = userPath;
-    if (path.isEmpty())
-        path = QStringLiteral("/tmp/treeland-debug-%1.png").arg(QDateTime::currentMSecsSinceEpoch());
-    if (QFileInfo(path).suffix().isEmpty())
-        path += QStringLiteral(".png");
-    QFile f(path);
-    if (!f.open(QIODevice::WriteOnly))
-        return {};
-    if (f.write(data) != data.size())
-        return {};
-    f.close();
-    return path;
-}
-
 // Emit a terminal inline image preview using the kitty graphics or iTerm2 OSC
 // 1337 protocol. force=true always emits (best-effort iTerm2 fallback for
 // unknown terminals); force=false only emits when the terminal is detected.
@@ -512,6 +470,9 @@ QString helpText()
         "\n"
         "Interactive:\n"
         "  shell                      Start an interactive REPL (shell mode)\n"
+        "                             All commands above (including top/events/watch)\n"
+        "                             work inside the REPL; Ctrl+C interrupts a live\n"
+        "                             view and returns to the prompt.\n"
         "  help                       Show this help\n"
         "\n"
         "Backward compatibility: `--tree` and `--cursor` are accepted as aliases for\n"
@@ -534,6 +495,13 @@ static int runEvents(Session &session, int timeoutMs, int intervalMs);
 static int runWatch(Session &session, int timeoutMs, qint64 id, int intervalMs);
 // `shell` reads commands from stdin.
 static int runShell(Session &session, int timeoutMs, bool json, int previewOpt);
+// Dispatches the live/refreshing commands (top, events, watch). Returns true
+// if @p command was recognized and run (in which case *rc holds the exit
+// code); returns false otherwise.
+static bool dispatchLiveCommand(Session &session, int timeoutMs,
+                                const QString &command, const QStringList &commandArgs,
+                                int *rc);
+
 int main(int argc, char *argv[])
 {
     QCoreApplication application(argc, argv);
@@ -626,35 +594,10 @@ int main(int argc, char *argv[])
 
     if (command == QLatin1String("shell"))
         return runShell(session, timeoutMs, json, previewOpt);
-if (command == QLatin1String("top")) {
-        int intervalMs = 1000;
-        if (!commandArgs.isEmpty())
-            intervalMs = commandArgs.first().toInt();
-        if (intervalMs <= 0)
-            intervalMs = 1000;
-        return runTop(session, timeoutMs, intervalMs);
-    }
-    if (command == QLatin1String("events")) {
-        int intervalMs = 50;
-        if (!commandArgs.isEmpty())
-            intervalMs = commandArgs.first().toInt();
-        if (intervalMs <= 0)
-            intervalMs = 50;
-        return runEvents(session, timeoutMs, intervalMs);
-    }
-    if (command == QLatin1String("watch")) {
-        if (commandArgs.isEmpty())
-            return fail("watch: usage: watch <id> [interval-ms]");
-        bool ok = false;
-        const qint64 id = resolveTarget(session, timeoutMs, commandArgs.first(), &ok);
-        if (!ok)
-            return fail(QStringLiteral("no window matches '%1'").arg(commandArgs.first()));
-        int intervalMs = 250;
-        if (commandArgs.size() >= 2)
-            intervalMs = commandArgs[1].toInt();
-        if (intervalMs <= 0)
-            intervalMs = 250;
-        return runWatch(session, timeoutMs, id, intervalMs);
+    {
+        int liveRc = 0;
+        if (dispatchLiveCommand(session, timeoutMs, command, commandArgs, &liveRc))
+            return liveRc;
     }
 
     return runCommand(session, timeoutMs, json, previewOpt, command, commandArgs);
@@ -992,6 +935,50 @@ static int runTop(Session &session, int timeoutMs, int intervalMs)
     return rc;
 }
 
+static bool dispatchLiveCommand(Session &session, int timeoutMs,
+                                const QString &command, const QStringList &commandArgs,
+                                int *rc)
+{
+    if (command == QLatin1String("top")) {
+        int intervalMs = 1000;
+        if (!commandArgs.isEmpty())
+            intervalMs = commandArgs.first().toInt();
+        if (intervalMs <= 0)
+            intervalMs = 1000;
+        *rc = runTop(session, timeoutMs, intervalMs);
+        return true;
+    }
+    if (command == QLatin1String("events")) {
+        int intervalMs = 50;
+        if (!commandArgs.isEmpty())
+            intervalMs = commandArgs.first().toInt();
+        if (intervalMs <= 0)
+            intervalMs = 50;
+        *rc = runEvents(session, timeoutMs, intervalMs);
+        return true;
+    }
+    if (command == QLatin1String("watch")) {
+        if (commandArgs.isEmpty()) {
+            *rc = fail("watch: usage: watch <id> [interval-ms]");
+            return true;
+        }
+        bool ok = false;
+        const qint64 id = resolveTarget(session, timeoutMs, commandArgs.first(), &ok);
+        if (!ok) {
+            *rc = fail(QStringLiteral("no window matches '%1'").arg(commandArgs.first()));
+            return true;
+        }
+        int intervalMs = 250;
+        if (commandArgs.size() >= 2)
+            intervalMs = commandArgs[1].toInt();
+        if (intervalMs <= 0)
+            intervalMs = 250;
+        *rc = runWatch(session, timeoutMs, id, intervalMs);
+        return true;
+    }
+    return false;
+}
+
 static int runShell(Session &session, int timeoutMs, bool json, int previewOpt)
 {
     QTextStream out(stdout);
@@ -1018,6 +1005,19 @@ static int runShell(Session &session, int timeoutMs, bool json, int previewOpt)
             continue;
 
         const QString command = parts.takeFirst();
+        // Live commands (top/events/watch) run their own event loop. Install a
+        // SIGINT guard so Ctrl+C interrupts the live view and returns to the
+        // REPL instead of killing the process. For non-live commands the guard
+        // is installed only briefly (dispatchLiveCommand returns immediately).
+        {
+            SigIntInterrupt guard;
+            guard.install();
+            int liveRc = 0;
+            if (dispatchLiveCommand(session, timeoutMs, command, parts, &liveRc)) {
+                out << "\n"; // newline after the interrupted live view
+                continue;
+            }
+        }
         runCommand(session, timeoutMs, json, previewOpt, command, parts);
     }
     return EXIT_SUCCESS;

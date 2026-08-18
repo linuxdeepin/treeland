@@ -31,6 +31,7 @@ add_custom_command(
 
 qt_add_executable(treeland-debug
     main.cpp
+    debughelpers.cpp
     "${windowtree_replica_header}"
 )
 
