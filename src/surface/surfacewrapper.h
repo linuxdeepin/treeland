@@ -131,6 +131,7 @@ public:
     {
         Normal,
         Overlay,
+        PrivilegedOverlay, // Privileged overlay, exempt from lock-screen hiding
     };
     Q_ENUM(SurfaceRole)
 

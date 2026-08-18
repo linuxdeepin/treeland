@@ -90,5 +90,7 @@ Q_DECLARE_LOGGING_CATEGORY(lcTlDdm)
 
 // Popup focus management
 Q_DECLARE_LOGGING_CATEGORY(lcTlPopupFocus)
+// XDG shell
+Q_DECLARE_LOGGING_CATEGORY(lcTlShellXdg)
 
 #endif // TREELAND_LOGGING_H
