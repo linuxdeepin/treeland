@@ -150,3 +150,7 @@ bool CmdLine::useLockScreen() const
 {
     return m_parser->isSet(*m_lockScreen.get());
 }
+
+// moc_cmdline.cpp is intentionally kept as a separate translation unit instead of
+// being #included here: cmdline.h has no include guard, so the moc's own
+// #include "cmdline.h" would redefine the class. See WM-292.

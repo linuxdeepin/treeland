@@ -1794,3 +1794,8 @@ QList<WInputDevice*> WSeat::deviceList() const
 }
 
 WAYLIB_SERVER_END_NAMESPACE
+
+// moc_wseat.cpp is intentionally kept as a separate translation unit (compiled
+// via mocs_compilation.cpp) instead of being #included here: moc_wtoplevelsurface.cpp
+// (also separate) relies on moc_wseat.cpp being compiled earlier so WSeat is
+// complete when wtoplevelsurface's signal metatypes are instantiated. See WM-292.

@@ -116,3 +116,7 @@ wl_global *DDMInterfaceV1::global() const
 {
     return d->global();
 }
+
+// moc_ddminterfacev1.cpp is intentionally kept as a separate translation unit
+// instead of being #included here: ddminterfacev1.h has no include guard, so the
+// moc's own #include "ddminterfacev1.h" would redefine the class. See WM-292.

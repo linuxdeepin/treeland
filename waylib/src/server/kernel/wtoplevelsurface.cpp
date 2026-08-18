@@ -15,3 +15,9 @@ WToplevelSurface::WToplevelSurface(WToplevelSurfacePrivate &d)
 }
 
 WAYLIB_SERVER_END_NAMESPACE
+
+// moc_wtoplevelsurface.cpp is intentionally kept as a separate translation
+// unit (compiled via mocs_compilation.cpp) instead of being #included here:
+// wtoplevelsurface.h only forward-declares WSeat, which is used in signals, so
+// the moc needs a complete WSeat definition supplied by moc_wseat.cpp (also kept
+// separate) being compiled earlier in mocs_compilation.cpp. See WM-292.

@@ -100,3 +100,7 @@ wl_global *ScreensaverInterfaceV1::global() const
 {
     return d->global();
 }
+
+// moc_screensaverinterfacev1.cpp is intentionally kept as a separate translation
+// unit instead of being #included here: screensaverinterfacev1.h has no include
+// guard, so the moc's own #include would redefine the class. See WM-292.
