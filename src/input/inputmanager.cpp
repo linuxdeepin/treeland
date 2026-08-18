@@ -661,3 +661,5 @@ void InputManager::onInputAdded(WInputDevice *input)
                                          : LIBINPUT_CONFIG_TAP_DISABLED);
     }
 }
+
+#include "moc_inputmanager.cpp"

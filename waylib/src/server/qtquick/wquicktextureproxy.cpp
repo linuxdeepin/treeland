@@ -310,3 +310,5 @@ void WQuickTextureProxy::itemChange(ItemChange change, const ItemChangeData &dat
 WAYLIB_SERVER_END_NAMESPACE
 
 #include "wquicktextureproxy.moc"
+
+#include "moc_wquicktextureproxy.cpp"

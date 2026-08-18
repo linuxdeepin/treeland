@@ -566,3 +566,5 @@ bool XSettings::manageScreen(int screen, xcb_window_t win, xcb_timestamp_t times
 
     return true;
 }
+
+#include "moc_xsettings.cpp"

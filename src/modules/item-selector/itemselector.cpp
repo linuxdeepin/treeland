@@ -174,3 +174,5 @@ void ItemSelector::itemChange(ItemChange change, const ItemChangeData &data)
     }
     QQuickItem::itemChange(change, data);
 }
+
+#include "moc_itemselector.cpp"

@@ -226,3 +226,5 @@ void WallpaperSwitcherItem::onAnimationFinished()
         m_oldSlot = nullptr;
     }
 }
+
+#include "moc_wallpaperswitcheritem.cpp"

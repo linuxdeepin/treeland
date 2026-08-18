@@ -497,3 +497,5 @@ SwipeGesture::Direction SwipeGesture::opposite(SwipeGesture::Direction direction
     }
     return SwipeGesture::Invalid;
 }
+
+#include "moc_gestures.cpp"

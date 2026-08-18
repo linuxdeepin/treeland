@@ -248,3 +248,5 @@ TreelandWallpaperSurfaceInterfaceV1::TreelandWallpaperSurfaceInterfaceV1(wl_reso
 {
     d->surface = new WallpaperSurface(this);
 }
+
+#include "moc_wallpapershellinterfacev1.cpp"

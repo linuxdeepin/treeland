@@ -465,3 +465,5 @@ void ShortcutRunner::onModifierReleased(QKeyEvent *event)
         }
     }
 }
+
+#include "moc_shortcutrunner.cpp"

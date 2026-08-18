@@ -153,3 +153,5 @@ QSGNode *&WQmlHelper::QSGNode_parent(QSGNode *node)
 }
 
 WAYLIB_SERVER_END_NAMESPACE
+
+#include "moc_wqmlhelper_p.cpp"

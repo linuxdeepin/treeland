@@ -224,3 +224,5 @@ void WorkspaceAnimationController::setViewportPos(qreal newViewportPos)
     m_viewportPos = newViewportPos;
     Q_EMIT viewportPosChanged();
 }
+
+#include "moc_workspaceanimationcontroller.cpp"

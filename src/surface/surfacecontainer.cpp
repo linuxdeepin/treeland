@@ -293,3 +293,5 @@ bool SurfaceContainer::filterSurfaceStateChange(SurfaceWrapper *surface,
         return p->filterSurfaceStateChange(surface, newState, oldState);
     return false;
 }
+
+#include "moc_surfacecontainer.cpp"

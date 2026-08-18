@@ -469,3 +469,5 @@ void SeatSurfaceManager::onKeyboardGrabEnd()
         setKeyboardFocusSurface(m_activatedSurface, Qt::ActiveWindowFocusReason);
     }
 }
+
+#include "moc_seatsurfacemanager.cpp"

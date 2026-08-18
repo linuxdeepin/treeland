@@ -52,3 +52,5 @@ void WindowPicker::mousePressEvent([[maybe_unused]] QMouseEvent *event)
     auto window = qobject_cast<WSurfaceItem *>(m_itemSelector->hoveredItem());
     Q_EMIT windowPicked(window);
 }
+
+#include "moc_windowpicker.cpp"

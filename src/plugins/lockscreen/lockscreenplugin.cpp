@@ -28,3 +28,5 @@ QQuickItem *LockScreenPlugin::createLockScreen(Output *output, QQuickItem *paren
         { { "output", QVariant::fromValue(output->output()) },
           { "outputItem", QVariant::fromValue(output->outputItem()) } });
 }
+
+#include "moc_lockscreenplugin.cpp"

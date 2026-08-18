@@ -277,3 +277,5 @@ QByteArrayView WineWindowStateManager::interfaceName() const
 {
     return QtWaylandServer::treeland_wine_window_state_manager_v1::interfaceName();
 }
+
+#include "moc_winewindowstate.cpp"

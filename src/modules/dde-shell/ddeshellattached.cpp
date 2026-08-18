@@ -68,3 +68,5 @@ DDEShellAttached *DDEShellHelper::qmlAttachedProperties(QObject *target)
 
     return nullptr;
 }
+
+#include "moc_ddeshellattached.cpp"

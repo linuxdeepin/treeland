@@ -187,3 +187,5 @@ int WInputMethodV2::preeditCursorEnd() const
     return d_func()->handle()->current.preedit.cursor_end;
 }
 WAYLIB_SERVER_END_NAMESPACE
+
+#include "moc_winputmethodv2_p.cpp"

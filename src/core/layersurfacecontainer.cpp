@@ -145,3 +145,5 @@ void LayerSurfaceContainer::updateSurfacesContainer()
             addSurfaceToContainer(surface);
     }
 }
+
+#include "moc_layersurfacecontainer.cpp"

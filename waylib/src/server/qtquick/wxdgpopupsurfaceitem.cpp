@@ -78,3 +78,5 @@ void WXdgPopupSurfaceItemPrivate::setImplicitPosition(const QPointF &newImplicit
 }
 
 WAYLIB_SERVER_END_NAMESPACE
+
+#include "moc_wxdgpopupsurfaceitem.cpp"

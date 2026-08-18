@@ -126,3 +126,5 @@ void SettingManager::apply()
     m_resource->apply();
     m_settings->apply();
 }
+
+#include "moc_settingmanager.cpp"

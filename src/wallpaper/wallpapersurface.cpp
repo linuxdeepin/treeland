@@ -92,3 +92,5 @@ void WallpaperSurface::init()
         Q_EMIT surfaceChanged();
     });
 }
+
+#include "moc_wallpapersurface.cpp"

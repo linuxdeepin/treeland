@@ -84,3 +84,5 @@ void TreelandWallpaperNotifierInterfaceV1::sendAddForResource(wl_resource *resou
 {
     d->send_add(resource, type, fileSource);
 }
+
+#include "moc_wallpapernotifierinterfacev1.cpp"

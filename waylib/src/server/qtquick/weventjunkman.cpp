@@ -42,3 +42,5 @@ bool WEventJunkman::event(QEvent *event)
 }
 
 WAYLIB_SERVER_END_NAMESPACE
+
+#include "moc_weventjunkman.cpp"

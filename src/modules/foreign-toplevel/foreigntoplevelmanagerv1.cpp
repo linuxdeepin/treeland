@@ -1062,3 +1062,7 @@ void ForeignToplevelHandleV1Private::scheduleDone()
 
     idle_source = wl_event_loop_add_idle(manager->eventLoop(), idleSendDone, this);
 }
+
+#include "moc_foreigntoplevelmanagerv1.cpp"
+#include "moc_dockpreviewcontextv1.cpp"
+#include "moc_foreigntoplevelhandlev1.cpp"

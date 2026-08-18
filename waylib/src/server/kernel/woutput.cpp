@@ -610,3 +610,5 @@ void WOutput::scheduleFrame()
 }
 
 WAYLIB_SERVER_END_NAMESPACE
+
+#include "moc_woutput.cpp"

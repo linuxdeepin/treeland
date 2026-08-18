@@ -569,3 +569,5 @@ void SessionManager::commitActiveUserSession(const ActiveSessionUpdate &update)
     qCInfo(lcTlCore) << "Listening on:" << update.session->m_socket->fullServerName();
     syncActiveSessionCursorSettings();
 }
+
+#include "moc_session.cpp"

@@ -501,3 +501,5 @@ void Treeland::quit()
 } // namespace Treeland
 
 #include "treeland.moc"
+
+#include "moc_treeland.cpp"

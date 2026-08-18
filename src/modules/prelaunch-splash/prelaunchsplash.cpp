@@ -142,3 +142,5 @@ QByteArrayView PrelaunchSplash::interfaceName() const
 {
     return QtWaylandServer::treeland_prelaunch_splash_manager_v2::interfaceName();
 }
+
+#include "moc_prelaunchsplash.cpp"

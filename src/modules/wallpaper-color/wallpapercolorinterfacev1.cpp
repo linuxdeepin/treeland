@@ -116,3 +116,5 @@ QByteArrayView WallpaperColorInterfaceV1::interfaceName() const
 {
     return d->interfaceName();
 }
+
+#include "moc_wallpapercolorinterfacev1.cpp"

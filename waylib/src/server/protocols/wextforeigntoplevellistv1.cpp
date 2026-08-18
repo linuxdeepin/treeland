@@ -163,3 +163,5 @@ wl_global *WExtForeignToplevelListV1::global() const
 }
 
 WAYLIB_SERVER_END_NAMESPACE
+
+#include "moc_wextforeigntoplevellistv1.cpp"

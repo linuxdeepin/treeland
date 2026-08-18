@@ -336,3 +336,5 @@ void VirtualOutputInterfaceV1::sendError(uint32_t code, const QString &message)
 {
     d->send_error(code, message);
 }
+
+#include "moc_virtualoutputmanagerinterfacev1.cpp"

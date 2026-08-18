@@ -487,3 +487,5 @@ void WTextInputV2::clearEnabledSurface()
     d->enabledSurface = nullptr;
 }
 WAYLIB_SERVER_END_NAMESPACE
+
+#include "moc_wtextinputv2_p.cpp"

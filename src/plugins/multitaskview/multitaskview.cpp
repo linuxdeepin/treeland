@@ -815,3 +815,5 @@ uint MultitaskviewSurfaceModel::count() const
 {
     return rowCount();
 }
+
+#include "moc_multitaskview.cpp"

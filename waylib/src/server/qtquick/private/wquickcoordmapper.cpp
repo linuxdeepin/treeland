@@ -113,3 +113,5 @@ WQuickCoordMapperAttached *WQuickCoordMapper::qmlAttachedProperties(QObject *tar
 }
 
 WAYLIB_SERVER_END_NAMESPACE
+
+#include "moc_wquickcoordmapper_p.cpp"

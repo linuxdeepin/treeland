@@ -329,3 +329,5 @@ WOutput *FpsDisplayManager::getOutputForWindow() const
     m_cacheTimestamp = currentTime;
     return bestOutput;
 }
+
+#include "moc_fpsdisplaymanager.cpp"

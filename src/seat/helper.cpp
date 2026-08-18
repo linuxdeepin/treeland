@@ -4033,3 +4033,5 @@ void Helper::switchWorkspaceForSeat(WSeat *seat, int index)
         return;
     workspace()->switchTo(index);
 }
+
+#include "moc_helper.cpp"

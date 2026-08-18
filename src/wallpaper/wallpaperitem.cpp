@@ -235,3 +235,5 @@ void WallpaperItem::handleWallpaperSurfaceAdded(TreelandWallpaperSurfaceInterfac
                 Qt::SingleShotConnection);
     }
 }
+
+#include "moc_wallpaperitem.cpp"

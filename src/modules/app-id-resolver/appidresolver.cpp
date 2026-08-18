@@ -195,3 +195,5 @@ QByteArrayView AppIdResolverManager::interfaceName() const
 {
     return QtWaylandServer::treeland_app_id_resolver_manager_v1::interfaceName();
 }
+
+#include "moc_appidresolver.cpp"

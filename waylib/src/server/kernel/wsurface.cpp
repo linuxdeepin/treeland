@@ -631,3 +631,5 @@ bool WSurface::scheduleFrameIfNeeded()
 }
 
 WAYLIB_SERVER_END_NAMESPACE
+
+#include "moc_wsurface.cpp"

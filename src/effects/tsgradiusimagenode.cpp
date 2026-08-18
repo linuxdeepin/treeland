@@ -737,3 +737,5 @@ void TSGRadiusImageNode::updateTexturedRadiusGeometry(const QRectF &rect, [[mayb
         Q_ASSERT(innerAATail <= indexCount);
     }
 }
+
+#include "moc_tsgradiusimagenode.cpp"

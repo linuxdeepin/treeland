@@ -167,3 +167,5 @@ QString User::toString(AccountTypes type) noexcept
 
     return {};
 }
+
+#include "moc_user.cpp"

@@ -1152,3 +1152,5 @@ QByteArrayView PersonalizationManagerInterfaceV1::interfaceName() const
 {
     return d->interfaceName();
 }
+
+#include "moc_personalizationmanagerinterfacev1.cpp"

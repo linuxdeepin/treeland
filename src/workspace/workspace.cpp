@@ -535,3 +535,5 @@ bool WorkspaceListModel::moveRows(const QModelIndex &sourceParent,
     endMoveRows();
     return true;
 }
+
+#include "moc_workspace.cpp"

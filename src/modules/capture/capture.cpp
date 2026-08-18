@@ -1270,3 +1270,5 @@ void CaptureSourceSelector::releaseMaskSurface()
         }
     }
 }
+
+#include "moc_capture.cpp"

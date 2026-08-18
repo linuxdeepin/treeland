@@ -151,3 +151,5 @@ qreal WQuickObserver::getImplicitHeight() const
 }
 
 WAYLIB_SERVER_END_NAMESPACE
+
+#include "moc_wquickobserver.cpp"

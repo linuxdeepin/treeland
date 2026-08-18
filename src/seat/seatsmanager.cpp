@@ -756,3 +756,5 @@ void SeatsManager::clearDeviceCache(WInputDevice *device)
 {
     m_deviceCache.remove(device);
 }
+
+#include "moc_seatsmanager.cpp"

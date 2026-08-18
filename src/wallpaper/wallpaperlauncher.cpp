@@ -158,3 +158,5 @@ void WallpaperLauncher::handleWallpaperError(QProcess::ProcessError error)
 
     Q_EMIT errorOccurred();
 }
+
+#include "moc_wallpaperlauncher.cpp"

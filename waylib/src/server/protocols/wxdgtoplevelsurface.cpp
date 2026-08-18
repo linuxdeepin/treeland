@@ -457,3 +457,5 @@ bool WXdgToplevelSurface::checkNewSize(const QSize &size, QSize *clipedSize)
 }
 
 WAYLIB_SERVER_END_NAMESPACE
+
+#include "moc_wxdgtoplevelsurface.cpp"

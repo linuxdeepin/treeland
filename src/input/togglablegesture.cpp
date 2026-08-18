@@ -197,3 +197,5 @@ void TogglableGesture::addTouchpadHoldGesture(uint finger)
 
     InputDevice::instance()->registerTouchpadHold(HoldFeedBack{ finger, trigger, pressed });
 }
+
+#include "moc_togglablegesture.cpp"

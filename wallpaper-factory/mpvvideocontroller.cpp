@@ -398,3 +398,5 @@ QVariant MpvVideoController::nodeToVariant(const mpv_node *node)
         return QVariant();
     }
 }
+
+#include "moc_mpvvideocontroller.cpp"

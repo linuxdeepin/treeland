@@ -115,3 +115,5 @@ wl_global *WSessionLockManager::global() const
 }
 
 WAYLIB_SERVER_END_NAMESPACE
+
+#include "moc_wsessionlockmanager.cpp"

@@ -467,3 +467,5 @@ void WXdgOutputManager::create([[maybe_unused]] WServer *wserver)
 }
 
 WAYLIB_SERVER_END_NAMESPACE
+
+#include "moc_wxdgoutput.cpp"

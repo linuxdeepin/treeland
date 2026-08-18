@@ -254,3 +254,5 @@ void WXWaylandSurfaceItem::updatePosition()
 }
 
 WAYLIB_SERVER_END_NAMESPACE
+
+#include "moc_wxwaylandsurfaceitem.cpp"

@@ -292,3 +292,5 @@ QQuickItem *QmlEngine::createPrelaunchSplash(QQuickItem *parent,
                                { "backgroundColor", QVariant::fromValue(backgroundColor) },
                            });
 }
+
+#include "moc_qmlengine.cpp"

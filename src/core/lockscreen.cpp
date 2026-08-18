@@ -345,3 +345,5 @@ void LockScreen::createFallbackItem(WOutputItem *outputItem)
         });
 }
 #endif
+
+#include "moc_lockscreen.cpp"

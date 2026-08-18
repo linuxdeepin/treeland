@@ -994,3 +994,5 @@ WSeat *KeyboardSettingsInterfaceV1::wSeat() const
     Q_ASSERT_X(seat_client, __func__, "KeyboardSettingsInterfaceV1 get wlr_seat_client failed.");
     return WSeat::fromHandle(seat_client->seat);
 }
+
+#include "moc_inputmanagerinterfacev1.cpp"

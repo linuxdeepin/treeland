@@ -237,3 +237,5 @@ void WTextInputV3::handleIMCommitted(WInputMethodV2 *im)
     sendDone();
 }
 WAYLIB_SERVER_END_NAMESPACE
+
+#include "moc_wtextinputv3_p.cpp"

@@ -618,3 +618,5 @@ QQuickFramebufferObject::Renderer *MpvVideoItem::createRenderer() const
 {
     return new MpvRenderer(const_cast<MpvVideoItem *>(this));
 }
+
+#include "moc_mpvvideoitem.cpp"

@@ -442,3 +442,5 @@ bool WLayerSurface::checkNewSize(const QSize &size,  QSize *clipedSize)
 }
 
 WAYLIB_SERVER_END_NAMESPACE
+
+#include "moc_wlayersurface.cpp"

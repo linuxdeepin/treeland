@@ -245,3 +245,5 @@ void TreelandWallpaperNotifierClientV1::onSlowDownChanged(uint32_t duration)
         }
     }
 }
+
+#include "moc_treelandwallpapernotifierclient.cpp"

@@ -252,3 +252,5 @@ wlr_xdg_decoration_manager_v1 *WXdgDecorationManager::handle() const
 }
 
 WAYLIB_SERVER_END_NAMESPACE
+
+#include "moc_wxdgdecorationmanager.cpp"

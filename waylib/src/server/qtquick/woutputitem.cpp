@@ -392,3 +392,5 @@ qreal WOutputItem::getImplicitHeight() const
 WAYLIB_SERVER_END_NAMESPACE
 
 #include "moc_woutputitem.cpp"
+
+#include "moc_woutputitem_p.cpp"

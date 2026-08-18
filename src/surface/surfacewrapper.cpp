@@ -2589,3 +2589,5 @@ qreal SurfaceWrapper::getOutputDevicePixelRatio(const QPointF &pos) const
 
     return window() ? window()->effectiveDevicePixelRatio() : 1.0;
 }
+
+#include "moc_surfacewrapper.cpp"

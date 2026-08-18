@@ -361,3 +361,5 @@ bool ShortcutController::isValidShortcutCombination(QKeyCombination combination)
 
     return false;
 }
+
+#include "moc_shortcutcontroller.cpp"

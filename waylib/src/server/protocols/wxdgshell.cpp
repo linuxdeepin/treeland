@@ -177,3 +177,5 @@ wl_global *WXdgShell::global() const
 }
 
 WAYLIB_SERVER_END_NAMESPACE
+
+#include "moc_wxdgshell.cpp"

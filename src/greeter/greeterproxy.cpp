@@ -589,3 +589,5 @@ void GreeterProxy::updateAuthSocket()
         });
     });
 }
+
+#include "moc_greeterproxy.cpp"

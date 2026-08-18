@@ -324,3 +324,4 @@ wl_global *ActivationManagerInterfaceV1::global() const
     return d->globalHandle();
 }
 
+#include "moc_activationmanagerinterfacev1.cpp"

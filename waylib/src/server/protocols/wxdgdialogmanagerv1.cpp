@@ -161,3 +161,5 @@ wl_global *WXdgDialogManagerV1::global() const
 }
 
 WAYLIB_SERVER_END_NAMESPACE
+
+#include "moc_wxdgdialogmanagerv1.cpp"

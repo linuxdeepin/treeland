@@ -1711,3 +1711,5 @@ WSurfaceItemContent *WSurfaceItem::findItemContent() const
 WAYLIB_SERVER_END_NAMESPACE
 
 #include "wsurfaceitem.moc"
+
+#include "moc_wsurfaceitem.cpp"

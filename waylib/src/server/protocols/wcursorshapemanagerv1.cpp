@@ -157,3 +157,5 @@ wl_global *WCursorShapeManagerV1::global() const
 }
 
 WAYLIB_SERVER_END_NAMESPACE
+
+#include "moc_wcursorshapemanagerv1.cpp"

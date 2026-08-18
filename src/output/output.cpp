@@ -1218,3 +1218,5 @@ void Output::setOutputColor(qreal brightness,
     }, WOutputHelper::AfterCommitStage);
     renderWindow->update(viewport);
 }
+
+#include "moc_output.cpp"

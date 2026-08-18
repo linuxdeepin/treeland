@@ -401,3 +401,5 @@ TQuickRadiusEffect::TQuickRadiusEffect(TQuickRadiusEffectPrivate &dd, QQuickItem
     : QQuickItem(dd, parent)
 {
 }
+
+#include "moc_tquickradiuseffect.cpp"

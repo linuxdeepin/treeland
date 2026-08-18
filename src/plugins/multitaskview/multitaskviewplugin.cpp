@@ -104,3 +104,5 @@ void MultitaskViewPlugin::immediatelyExit()
         m_multitaskview->exit(nullptr, true);
     }
 }
+
+#include "moc_multitaskviewplugin.cpp"

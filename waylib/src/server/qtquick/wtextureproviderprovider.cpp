@@ -89,3 +89,5 @@ void WTextureCapturer::doGrabToImage()
 }
 
 WAYLIB_SERVER_END_NAMESPACE
+
+#include "moc_wtextureproviderprovider.cpp"

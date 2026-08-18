@@ -214,3 +214,5 @@ void WSessionLock::finish()
 }
 
 WAYLIB_SERVER_END_NAMESPACE
+
+#include "moc_wsessionlock.cpp"

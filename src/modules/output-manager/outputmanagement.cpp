@@ -257,3 +257,5 @@ void OutputManagerV1::onPrimaryOutputChanged()
         d->send_primary_output(resource->handle, primaryOutputName);
     }
 }
+
+#include "moc_outputmanagement.cpp"

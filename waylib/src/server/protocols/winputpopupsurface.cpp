@@ -142,3 +142,5 @@ void WInputPopupSurface::sendCursorRect(QRect rect)
     Q_EMIT cursorRectChanged();
 }
 WAYLIB_SERVER_END_NAMESPACE
+
+#include "moc_winputpopupsurface.cpp"

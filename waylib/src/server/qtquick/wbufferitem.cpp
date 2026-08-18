@@ -196,3 +196,5 @@ void WBufferItem::invalidateSceneGraph()
 }
 
 WAYLIB_SERVER_END_NAMESPACE
+
+#include "moc_wbufferitem.cpp"

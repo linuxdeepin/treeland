@@ -769,3 +769,5 @@ QByteArrayView WRemoteSubsurfaceManagerV1::interfaceName() const
 WAYLIB_SERVER_END_NAMESPACE
 
 #include "wremotesubsurfacemanagerv1.moc"
+
+#include "moc_wremotesubsurfacemanagerv1.cpp"

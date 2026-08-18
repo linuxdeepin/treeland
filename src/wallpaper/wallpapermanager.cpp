@@ -492,3 +492,5 @@ void WallpaperManager::handleWallpaperSurfaceAdded([[maybe_unused]] TreelandWall
         }
     }
 }
+
+#include "moc_wallpapermanager.cpp"

@@ -98,3 +98,5 @@ QByteArrayView WindowManagementInterfaceV1::interfaceName() const
 {
     return d->interfaceName();
 }
+
+#include "moc_windowmanagementinterfacev1.cpp"

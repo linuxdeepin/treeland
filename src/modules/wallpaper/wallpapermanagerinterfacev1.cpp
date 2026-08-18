@@ -257,3 +257,5 @@ TreelandWallpaperInterfaceV1 *TreelandWallpaperInterfaceV1::getReferenceWallpape
 
     return nullptr;
 }
+
+#include "moc_wallpapermanagerinterfacev1.cpp"

@@ -94,3 +94,5 @@ void WSubsurface::setMapped(bool mapped)
 }
 
 WAYLIB_SERVER_END_NAMESPACE
+
+#include "moc_wsubsurface.cpp"

@@ -465,3 +465,5 @@ void KeyboardStateWatcherV1::sendCurrentState(uint32_t modifier, ModifierState s
 {
     d->send_current_state(modifier, state);
 }
+
+#include "moc_keyboardstatenotifymanagerinterfacev1.cpp"

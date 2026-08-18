@@ -360,3 +360,5 @@ void handle_treeland_capture_session_v1_frame_done(wl_client *,
     Q_ASSERT(session);
     Q_EMIT session->frameDone(tv_sec_hi, tv_sec_lo, tv_usec);
 }
+
+#include "moc_capturev1impl.cpp"

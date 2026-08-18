@@ -754,3 +754,5 @@ void ShortcutManagerV2::onSessionChanged()
         }
     }
 }
+
+#include "moc_shortcutmanager.cpp"

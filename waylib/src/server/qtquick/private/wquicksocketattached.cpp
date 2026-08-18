@@ -45,3 +45,5 @@ WQuickSocketAttached *WQuickSocketAttached::qmlAttachedProperties(QObject *targe
 }
 
 WAYLIB_SERVER_END_NAMESPACE
+
+#include "moc_wquicksocketattached_p.cpp"

@@ -1014,3 +1014,5 @@ SurfaceWrapper *RootSurfaceContainer::getActivatedSurfaceForSeat(WSeat *seat) co
     }
     return nullptr;
 }
+
+#include "moc_rootsurfacecontainer.cpp"

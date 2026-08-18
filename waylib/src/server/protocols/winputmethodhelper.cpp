@@ -618,3 +618,5 @@ void WInputMethodHelper::updatePopupSurface(WInputPopupSurface *popup, QRect cur
 }
 
 WAYLIB_SERVER_END_NAMESPACE
+
+#include "moc_winputmethodhelper.cpp"

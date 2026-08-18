@@ -26,3 +26,5 @@ QRect WInputPopupSurfaceItem::referenceRect() const
 }
 
 WAYLIB_SERVER_END_NAMESPACE
+
+#include "moc_winputpopupsurfaceitem.cpp"

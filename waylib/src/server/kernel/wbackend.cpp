@@ -264,3 +264,5 @@ QByteArrayView WBackend::interfaceName() const
 }
 
 WAYLIB_SERVER_END_NAMESPACE
+
+#include "moc_wbackend.cpp"

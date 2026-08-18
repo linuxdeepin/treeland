@@ -468,3 +468,5 @@ wlr_ext_image_capture_source_v1_cursor *WExtImageCaptureSourceV1Impl::get_pointe
 }
 
 WAYLIB_SERVER_END_NAMESPACE
+
+#include "moc_wextimagecapturesourcev1impl.cpp"

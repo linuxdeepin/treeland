@@ -184,3 +184,5 @@ void SessionModel::populate(DDM::Session::Type type, const QStringList &dirPaths
             }
         }
 }
+
+#include "moc_sessionmodel.cpp"

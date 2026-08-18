@@ -606,3 +606,5 @@ void WXWaylandSurface::restack(WXWaylandSurface *sibling, StackMode mode)
 }
 
 WAYLIB_SERVER_END_NAMESPACE
+
+#include "moc_wxwaylandsurface.cpp"

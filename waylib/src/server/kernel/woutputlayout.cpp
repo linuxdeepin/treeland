@@ -162,3 +162,5 @@ int WOutputLayout::implicitHeight() const
 }
 
 WAYLIB_SERVER_END_NAMESPACE
+
+#include "moc_woutputlayout.cpp"

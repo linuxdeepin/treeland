@@ -31,3 +31,5 @@ bool RenderWindow::afterDisposeEventFilter(QWindow *window, QEvent *event)
 }
 
 WAYLIB_SERVER_END_NAMESPACE
+
+#include "moc_types.cpp"

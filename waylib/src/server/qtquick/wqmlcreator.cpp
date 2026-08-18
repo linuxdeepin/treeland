@@ -607,3 +607,6 @@ void WQmlCreator::removeDelegate(WAbstractCreatorComponent *delegate)
 }
 
 WAYLIB_SERVER_END_NAMESPACE
+
+#include "moc_wqmlcreator.cpp"
+#include "moc_wqmlcreator_p.cpp"

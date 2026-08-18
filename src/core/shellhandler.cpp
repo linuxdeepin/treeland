@@ -1260,3 +1260,5 @@ void ShellHandler::setResourceManagerAtom(WAYLIB_SERVER_NAMESPACE::WXWayland *xw
                         value.constData());
     xcb_flush(xcb_conn);
 }
+
+#include "moc_shellhandler.cpp"

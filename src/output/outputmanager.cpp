@@ -439,3 +439,5 @@ void OutputManager::onScreenEnabled(Output *output)
 
     m_primaryRestoreIntents.remove(id);
 }
+
+#include "moc_outputmanager.cpp"

@@ -254,3 +254,5 @@ wl_global *WForeignToplevel::global() const
 }
 
 WAYLIB_SERVER_END_NAMESPACE
+
+#include "moc_wforeigntoplevelv1.cpp"

@@ -12,3 +12,5 @@ AbstractSettings::AbstractSettings(xcb_connection_t *connection, QObject *parent
 AbstractSettings::~AbstractSettings()
 {
 }
+
+#include "moc_abstractsettings.cpp"

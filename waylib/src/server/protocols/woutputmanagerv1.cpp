@@ -217,3 +217,5 @@ wl_global *WOutputManagerV1::global() const
 }
 
 WAYLIB_SERVER_END_NAMESPACE
+
+#include "moc_woutputmanagerv1.cpp"

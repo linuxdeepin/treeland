@@ -133,3 +133,5 @@ void WindowConfigStore::withSplashConfigFor(const QString &appId,
         },
         Qt::SingleShotConnection);
 }
+
+#include "moc_windowconfigstore.cpp"

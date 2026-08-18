@@ -218,3 +218,5 @@ void TreelandRemoteSource::updateCursor(const QPointF &newPosition)
         Q_EMIT cursorPositionChanged(m_cursorPosition);
     }
 }
+
+#include "moc_treelandremotesource.cpp"

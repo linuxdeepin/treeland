@@ -307,3 +307,5 @@ void SurfaceProxy::setFullProxy(bool newFullProxy)
 
     Q_EMIT fullProxyChanged();
 }
+
+#include "moc_surfaceproxy.cpp"

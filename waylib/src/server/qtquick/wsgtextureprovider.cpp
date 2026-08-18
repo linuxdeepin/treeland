@@ -214,3 +214,5 @@ void WSGTextureProvider::setSmooth(bool newSmooth)
 }
 
 WAYLIB_SERVER_END_NAMESPACE
+
+#include "moc_wsgtextureprovider.cpp"

@@ -248,3 +248,5 @@ void IMCandidatePanelManager::onXwaylandPropertyChanged(
             }
         });
 }
+
+#include "moc_imcandidatepanelmanager.cpp"

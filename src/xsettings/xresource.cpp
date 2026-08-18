@@ -171,3 +171,5 @@ void XResource::reload()
             m_resources[key] = QString::fromUtf8(value);
     }
 }
+
+#include "moc_xresource.cpp"

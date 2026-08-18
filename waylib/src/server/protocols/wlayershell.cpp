@@ -130,3 +130,5 @@ wl_global *WLayerShell::global() const
 }
 
 WAYLIB_SERVER_END_NAMESPACE
+
+#include "moc_wlayershell.cpp"

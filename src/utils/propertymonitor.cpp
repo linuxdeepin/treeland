@@ -73,3 +73,5 @@ void PropertyMonitor::connectToTarget()
         }
     }
 }
+
+#include "moc_propertymonitor.cpp"

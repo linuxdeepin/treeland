@@ -369,3 +369,5 @@ bool UserModel::tryAddNssUser(const QString &userName)
     Q_EMIT countChanged();
     return true;
 }
+
+#include "moc_usermodel.cpp"

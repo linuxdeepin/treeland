@@ -582,3 +582,5 @@ void WServer::setGlobalFilter(GlobalFilterFunc filter, void *data)
 }
 
 WAYLIB_SERVER_END_NAMESPACE
+
+#include "moc_wserver.cpp"

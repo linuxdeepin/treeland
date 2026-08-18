@@ -835,3 +835,5 @@ LockScreenInterface::LockScreenInterface(wl_resource *resource)
     : d(new LockScreenInterfacePrivate(this, resource))
 {
 }
+
+#include "moc_ddeshellmanagerinterfacev1.cpp"

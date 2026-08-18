@@ -138,3 +138,5 @@ WallpaperWindow::WallpaperWindow(QWindow *window)
         initializeShellIntegration();
     }
 }
+
+#include "moc_wallpaperwindow.cpp"

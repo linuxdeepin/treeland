@@ -99,3 +99,5 @@ QRectF WXdgToplevelSurfaceItem::getContentGeometry() const
 }
 
 WAYLIB_SERVER_END_NAMESPACE
+
+#include "moc_wxdgtoplevelsurfaceitem.cpp"

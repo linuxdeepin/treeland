@@ -60,3 +60,5 @@ wl_global *WVirtualKeyboardManagerV1::global() const
 }
 
 WAYLIB_SERVER_END_NAMESPACE
+
+#include "moc_wvirtualkeyboardv1_p.cpp"

@@ -59,3 +59,5 @@ void QWaylandWallpaperSurface::onFileLoaded()
 
     ready();
 }
+
+#include "moc_qwaylandwallpapersurface_p.cpp"

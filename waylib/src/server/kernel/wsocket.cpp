@@ -875,3 +875,5 @@ void WSocket::setParentSocket(WSocket *parentSocket)
 }
 
 WAYLIB_SERVER_END_NAMESPACE
+
+#include "moc_wsocket.cpp"

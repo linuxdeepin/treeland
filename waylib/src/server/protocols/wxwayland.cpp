@@ -755,3 +755,5 @@ bool WXWayland::event(QEvent *ev)
 }
 
 WAYLIB_SERVER_END_NAMESPACE
+
+#include "moc_wxwayland.cpp"

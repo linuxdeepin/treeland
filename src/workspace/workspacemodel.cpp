@@ -143,3 +143,5 @@ bool WorkspaceModel::laterActiveThan(SurfaceWrapper *a, SurfaceWrapper *b)
 {
     return activeHistoryIndex(a) < activeHistoryIndex(b);
 }
+
+#include "moc_workspacemodel.cpp"
