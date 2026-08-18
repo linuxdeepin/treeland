@@ -64,10 +64,10 @@ add_definitions("-DQT_MESSAGELOGCONTEXT")
 set(LOCAL_QML_IMPORT_PATH "${PROJECT_BINARY_DIR}/qt/qml")
 
 if(WITH_SUBMODULE_WAYLIB)
-    include(${CMAKE_CURRENT_SOURCE_DIR}/waylib/cmake/WaylandScannerHelpers.cmake)
     # Vendored wlroots must be available before waylib consumers.
     # Scaffold in wlroots/; upstream sources under 3rdparty/wlroots.
     add_subdirectory(wlroots)
+    include(${CMAKE_CURRENT_SOURCE_DIR}/waylib/cmake/WaylandScannerHelpers.cmake)
     add_subdirectory(waylib)
     list(APPEND LOCAL_QML_IMPORT_PATH "${PROJECT_BINARY_DIR}/waylib/src/server")
 else()

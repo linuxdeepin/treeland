@@ -55,7 +55,7 @@ NixOS
 步骤三：运行以下命令
 
 ```bash
-cmake -B build -DWITH_SUBMODULE_QWLROOTS=ON
+cmake -B build
 cmake --build build
 ```
 

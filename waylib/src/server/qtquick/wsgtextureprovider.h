@@ -28,6 +28,7 @@ public:
     void invalidate();
 
     QSGTexture *texture() const override;
+    bool hasTexture() const;
     virtual wlr_texture *qwTexture() const;
     virtual wlr_buffer *qwBuffer() const;
 

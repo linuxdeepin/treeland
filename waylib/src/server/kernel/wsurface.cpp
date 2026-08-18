@@ -5,6 +5,7 @@
 #include "wscoplistener.h"
 #include "wseat.h"
 #include "private/wsurface_p.h"
+#include "utils/private/wvulkantrace_p.h"
 #include "woutput.h"
 #include "wsubsurface.h"
 #include "wayliblogging.h"
@@ -64,6 +65,13 @@ void WSurfacePrivate::connect()
 {
     W_Q(WSurface);
     q->listeners()->add(&m_handle->events.commit, this, &WSurfacePrivate::on_commit);
+    if (WVulkanTrace::enabled()) {
+        q->listeners()->add(&m_handle->events.commit, q, [q, this] (void *) {
+            WVulkanTrace::surfaceCommit(q, q->pid(), m_handle->current.seq,
+                                        m_handle->current.committed,
+                                        q->buffer());
+        });
+    }
     q->listeners()->add(&m_handle->events.map, q, &WSurface::mappedChanged);
     q->listeners()->add(&m_handle->events.unmap, q, &WSurface::mappedChanged);
     q->listeners()->add(&m_handle->events.new_subsurface, q,

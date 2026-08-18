@@ -546,15 +546,40 @@ struct wlr_vk_device *vulkan_device_create(struct wlr_vk_instance *ini,
 	VkPhysicalDeviceSamplerYcbcrConversionFeatures phdev_sampler_ycbcr_features = {
 		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SAMPLER_YCBCR_CONVERSION_FEATURES,
 	};
+	VkPhysicalDeviceSeparateDepthStencilLayoutsFeaturesKHR
+		phdev_separate_depth_stencil_layouts_features = {
+		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SEPARATE_DEPTH_STENCIL_LAYOUTS_FEATURES_KHR,
+		.pNext = &phdev_sampler_ycbcr_features,
+	};
+	// VK_KHR_separate_depth_stencil_layouts depends on
+	// VK_KHR_create_renderpass2 when the instance targets Vulkan 1.1.
+	bool has_create_renderpass2 = check_extension(avail_ext_props, avail_extc,
+		VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME);
+	bool has_separate_depth_stencil_layouts = has_create_renderpass2 &&
+		check_extension(avail_ext_props, avail_extc,
+			VK_KHR_SEPARATE_DEPTH_STENCIL_LAYOUTS_EXTENSION_NAME);
 	VkPhysicalDeviceFeatures2 phdev_features = {
 		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
 		.pNext = &phdev_sampler_ycbcr_features,
 	};
+	if (has_separate_depth_stencil_layouts) {
+		phdev_features.pNext = &phdev_separate_depth_stencil_layouts_features;
+	}
 	vkGetPhysicalDeviceFeatures2(phdev, &phdev_features);
 
 	dev->sampler_ycbcr_conversion = phdev_sampler_ycbcr_features.samplerYcbcrConversion;
 	wlr_log(WLR_DEBUG, "Sampler YCbCr conversion %s",
 		dev->sampler_ycbcr_conversion ? "supported" : "not supported");
+	dev->separate_depth_stencil_layouts = has_separate_depth_stencil_layouts &&
+		phdev_separate_depth_stencil_layouts_features.separateDepthStencilLayouts;
+	if (dev->separate_depth_stencil_layouts) {
+		extensions[extensions_len++] =
+			VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME;
+		extensions[extensions_len++] =
+			VK_KHR_SEPARATE_DEPTH_STENCIL_LAYOUTS_EXTENSION_NAME;
+	}
+	wlr_log(WLR_DEBUG, "Separate depth/stencil layouts %s",
+		dev->separate_depth_stencil_layouts ? "enabled" : "disabled");
 
 	const float prio = 1.f;
 	VkDeviceQueueCreateInfo qinfo = {
@@ -585,11 +610,20 @@ struct wlr_vk_device *vulkan_device_create(struct wlr_vk_instance *ini,
 		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SAMPLER_YCBCR_CONVERSION_FEATURES,
 		.samplerYcbcrConversion = dev->sampler_ycbcr_conversion,
 	};
+	VkPhysicalDeviceSeparateDepthStencilLayoutsFeaturesKHR
+		separate_depth_stencil_layouts_features = {
+		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SEPARATE_DEPTH_STENCIL_LAYOUTS_FEATURES_KHR,
+		.pNext = &sampler_ycbcr_features,
+		.separateDepthStencilLayouts = dev->separate_depth_stencil_layouts,
+	};
 	VkPhysicalDeviceSynchronization2FeaturesKHR sync2_features = {
 		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES_KHR,
 		.pNext = &sampler_ycbcr_features,
 		.synchronization2 = VK_TRUE,
 	};
+	if (dev->separate_depth_stencil_layouts) {
+		sync2_features.pNext = &separate_depth_stencil_layouts_features;
+	}
 	VkPhysicalDeviceTimelineSemaphoreFeaturesKHR timeline_features = {
 		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TIMELINE_SEMAPHORE_FEATURES_KHR,
 		.pNext = &sync2_features,

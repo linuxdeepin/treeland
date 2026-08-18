@@ -3,6 +3,7 @@
 
 #include <wlogging.h>
 #include "core/treeland.h"
+#include "common/treelandlogging.h"
 #include "utils/cmdline.h"
 
 #include <wrenderhelper.h>
@@ -12,9 +13,11 @@
 #include <DGuiApplicationHelper>
 #include <DLog>
 
+#include <QByteArray>
 #include <QGuiApplication>
 #include <QMetaType>
 #include <QPalette>
+#include <QQuickWindow>
 #include <QQuickStyle>
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 10, 0)
@@ -47,6 +50,8 @@ public:
 int main(int argc, char *argv[])
 {
     WLog::init();
+    const QByteArray wlrRenderer = qgetenv("WLR_RENDERER");
+    const bool explicitVulkanRenderer = wlrRenderer == "vulkan";
     DTK_GUI_NAMESPACE::DGuiApplicationHelper::setAttribute(
         DTK_GUI_NAMESPACE::DGuiApplicationHelper::DontSaveApplicationTheme,
         true);
@@ -55,7 +60,11 @@ int main(int argc, char *argv[])
     });
     QQuickStyle::setStyle("Chameleon");
 
-    QGuiApplication::setAttribute(Qt::AA_UseOpenGLES);
+    if (explicitVulkanRenderer)
+        QQuickWindow::setGraphicsApi(QSGRendererInterface::Vulkan);
+    else
+        QGuiApplication::setAttribute(Qt::AA_UseOpenGLES);
+
     QGuiApplication::setHighDpiScaleFactorRoundingPolicy(
         Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
     QGuiApplication::setQuitOnLastWindowClosed(false);
@@ -77,6 +86,9 @@ int main(int argc, char *argv[])
     }
 #endif
     DLogManager::registerJournalAppender();
+    if (explicitVulkanRenderer) {
+        qCInfo(lcTlCore) << "Explicit Vulkan renderer requested; Qt::AA_UseOpenGLES was not set";
+    }
 
     WRenderHelper::setupRendererBackend();
     if (CmdLine::ref().tryExec())

@@ -65,12 +65,15 @@
 #include "workspace/workspace.h"
 
 #include <rhi/qrhi.h>
+#include <drm_fourcc.h>
 #include <xcb/xcb.h>
 #include <xcb/xproto.h>
 
 #include <WBackend>
 #include <WForeignToplevel>
+#include <WLinuxDmabufV1>
 #include <WOutput>
+#include <WPresentation>
 #include <WServer>
 #include <WSurfaceItem>
 #include <WXdgOutput>
@@ -247,6 +250,24 @@ static bool outputMatchesId(Output *output, const QString &outputId)
 static bool currentPrimaryMatchesId(RootSurfaceContainer *rootContainer, const QString &outputId)
 {
     return rootContainer && outputMatchesId(rootContainer->primaryOutput(), outputId);
+}
+
+static bool rendererSupportsImplicitDmabufFormats(wlr_renderer *renderer)
+{
+    const auto *formats = renderer
+        ? wlr_renderer_get_texture_formats(renderer, WLR_BUFFER_CAP_DMABUF)
+        : nullptr;
+    if (!formats)
+        return false;
+
+    for (size_t i = 0; i < formats->len; ++i) {
+        const auto &format = formats->formats[i];
+        for (size_t j = 0; j < format.len; ++j) {
+            if (format.modifiers[j] == DRM_FORMAT_MOD_INVALID)
+                return true;
+        }
+    }
+    return false;
 }
 
 Helper *Helper::m_instance = nullptr;
@@ -2017,14 +2038,33 @@ void Helper::init(Treeland::Treeland *treeland)
     }
 
     m_allocator = wlr_allocator_autocreate(m_backend->handle(), m_renderer);
-    if (!m_allocator) {
+    if (!m_allocator)
         qCFatal(lcTlCore) << "Failed to create allocator";
-    }
-    if (!wlr_renderer_init_wl_display(m_renderer, m_server->handle())) {
-        qCFatal(lcTlCore) << "Failed to initialize renderer wl_display";
-    }
-    if (!wlr_drm_create(m_server->handle(), m_renderer)) {
-        qCCritical(lcTlCore) << "Failed to create DRM lease manager";
+
+    const bool vulkanRenderer =
+        WRenderHelper::getGraphicsApi() == QSGRendererInterface::Vulkan;
+    if (vulkanRenderer) {
+        if (!wlr_renderer_init_wl_shm(m_renderer, m_server->handle()))
+            qCFatal(lcTlCore) << "Failed to initialize wl_shm for Vulkan renderer";
+
+        m_server->attach<WLinuxDmabufV1>(m_renderer);
+        auto *presentation = m_server->attach<WPresentation>(m_backend->handle());
+        m_renderWindow->setPresentation(presentation);
+
+        if (rendererSupportsImplicitDmabufFormats(m_renderer)) {
+            if (!wlr_drm_create(m_server->handle(), m_renderer)) {
+                qCWarning(lcTlCore)
+                    << "Failed to create legacy wl_drm global despite implicit DMA-BUF support";
+            }
+        } else {
+            qCInfo(lcTlCore)
+                << "Skipping legacy wl_drm global: Vulkan renderer does not support implicit DMA-BUF modifiers";
+        }
+    } else {
+        if (!wlr_renderer_init_wl_display(m_renderer, m_server->handle()))
+            qCFatal(lcTlCore) << "Failed to initialize renderer wl_display";
+        if (!wlr_drm_create(m_server->handle(), m_renderer))
+            qCCritical(lcTlCore) << "Failed to create legacy wl_drm global";
     }
 
     // free follow display

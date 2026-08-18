@@ -62,6 +62,11 @@ pkg_search_module(PIXMAN REQUIRED IMPORTED_TARGET pixman-1)
 pkg_search_module(XKBCOMMON REQUIRED IMPORTED_TARGET xkbcommon)
 pkg_search_module(XCB REQUIRED IMPORTED_TARGET xcb)
 pkg_search_module(EGL REQUIRED IMPORTED_TARGET egl)
+pkg_get_variable(WAYLIB_WLR_HAVE_VULKAN_RENDERER wlroots-0.19 have_vulkan_renderer)
+
+if(WAYLIB_WLR_HAVE_VULKAN_RENDERER)
+    find_package(Vulkan REQUIRED)
+endif()
 
 find_package(TreelandProtocols REQUIRED)
 
@@ -198,6 +203,7 @@ set(SOURCES
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/ext-foreign-toplevel-list-v1-protocol.c #TODO Remove after wlroots 0.20
 
     utils/wtools.cpp
+    utils/wvulkantrace.cpp
     utils/wthreadutils.cpp
     utils/wimagebuffer.cpp
     utils/wcursorimage.cpp
@@ -233,6 +239,8 @@ set(SOURCES
     protocols/ext_foreign_toplevel_image_capture_source.c #TODO: Remove after wlroots 0.20
     protocols/wcursorshapemanagerv1.cpp
     protocols/woutputmanagerv1.cpp
+    protocols/wlinuxdmabufv1.cpp
+    protocols/wpresentation.cpp
     protocols/wextforeigntoplevellistv1.cpp
     protocols/wxdgdialogmanagerv1.cpp
     protocols/wsecuritycontextmanager.cpp
@@ -341,6 +349,10 @@ set(HEADERS
     protocols/wremotesubsurfacemanagerv1.h
     protocols/woutputmanagerv1.h
     protocols/WOutputManagerV1
+    protocols/wlinuxdmabufv1.h
+    protocols/WLinuxDmabufV1
+    protocols/wpresentation.h
+    protocols/WPresentation
     protocols/wlayershell.h
     protocols/WLayerShell
     protocols/wxwayland.h
@@ -395,6 +407,7 @@ set(PRIVATE_HEADERS
     protocols/private/wtextinputv2_p.h
     protocols/private/wtextinputv3_p.h
     protocols/private/wvirtualkeyboardv1_p.h
+    utils/private/wvulkantrace_p.h
 )
 
 if(NOT DISABLE_XWAYLAND)
@@ -472,6 +485,13 @@ target_link_libraries(${TARGET}
         PkgConfig::XCB
         PkgConfig::EGL
 )
+
+if(TARGET Vulkan::Vulkan)
+    target_link_libraries(${TARGET}
+        PRIVATE
+        Vulkan::Vulkan
+    )
+endif()
 
 target_link_libraries(${TARGET}
     PUBLIC
