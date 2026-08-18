@@ -302,7 +302,7 @@ Item {
                         id: control
                         property D.Palette textColor: DS.Style.button.text
                     }
-                    textColor: control.textColor
+                    palette.buttonText: control.textColor
                     background: Rectangle {
                         anchors.fill: parent
                         color: "transparent"

@@ -6,6 +6,12 @@ pkg_check_modules(XKBCOMMON REQUIRED IMPORTED_TARGET xkbcommon)
 option(TREELAND_ENABLE_UINPUT_PROTOCOL_TESTS
     "Build optional /dev/uinput protocol integration tests" OFF)
 
+set(TREELAND_PROTOCOL_TEST_DSG_DATA_DIR "${CMAKE_CURRENT_BINARY_DIR}/dsg")
+file(COPY "${PROJECT_SOURCE_DIR}/misc/dconfig/"
+    DESTINATION "${TREELAND_PROTOCOL_TEST_DSG_DATA_DIR}/configs/org.deepin.dde.treeland")
+set(TREELAND_PROTOCOL_TEST_DSG_DATA_DIRS
+    "${TREELAND_PROTOCOL_TEST_DSG_DATA_DIR}:/usr/share/dsg")
+
 include(${CMAKE_CURRENT_SOURCE_DIR}/framework/ProtocolTest.cmake)
 
 add_subdirectory(desktop-integration-fixture)

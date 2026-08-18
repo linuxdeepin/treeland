@@ -70,7 +70,6 @@ int protocol_test_run(const char *socket_name)
     struct treeland_wine_window_control_v1 *control = NULL;
     struct wine_wm_state state = {0};
     int stage = 0;
-    int initial_x = 0, initial_y = 0;
 
     /* 1. Connect, create xdg_toplevel, wait for wrapper */
     if (!protocol_test_connect(&connection, socket_name))
@@ -82,10 +81,6 @@ int protocol_test_run(const char *socket_name)
     /* Wait for wrapper creation on server side */
     if (!read_state(&state) || !state.wrapper_created)
         goto failed;
-
-    /* Capture initial position (set by output auto-placement, non-negative) */
-    initial_x = state.x;
-    initial_y = state.y;
 
     /* 2. Bind wine_window_manager_v1 */
     manager = protocol_test_bind(&connection,

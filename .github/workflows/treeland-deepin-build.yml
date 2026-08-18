@@ -21,7 +21,12 @@ jobs:
           rm -rf /etc/apt/sources.list.d
 
           apt-get update
-          apt-get install -y devscripts equivs git
+          apt-get install -y dde-dconfig-daemon libdtkdata qml6-module-qtquick-window qml6-module-qt5compat-graphicaleffects devscripts equivs git
+
+          # The full desktop fixture follows Treeland's normal global-session
+          # path, whose compositor-owned session is the system user "dde".
+          # The minimal CI image does not create it as part of its packages.
+          id -u dde >/dev/null 2>&1 || useradd --system --create-home --home-dir /var/lib/dde --shell /usr/sbin/nologin dde
 
           # Save the treeland workspace directory
           TREELAND_DIR="$PWD"

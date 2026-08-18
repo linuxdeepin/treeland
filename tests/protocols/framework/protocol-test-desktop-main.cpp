@@ -16,6 +16,9 @@
 
 #include <QGuiApplication>
 #include <QAbstractItemModel>
+#include <QDBusConnection>
+#include <QDBusConnectionInterface>
+#include <QDBusObjectPath>
 #include <QDir>
 #include <QMetaObject>
 #include <QPluginLoader>
@@ -26,8 +29,11 @@
 #include <atomic>
 #include <cstdio>
 #include <cstdlib>
+#include <csignal>
 #include <pthread.h>
 #include <memory>
+#include <sys/wait.h>
+#include <unistd.h>
 #include <vector>
 
 void protocol_test_desktop_setup(Helper *helper);
@@ -36,6 +42,184 @@ extern "C" bool protocol_test_desktop_preflight() __attribute__((weak));
 extern "C" bool protocol_test_desktop_skip() __attribute__((weak));
 
 namespace {
+constexpr auto accountsService = "org.freedesktop.Accounts";
+constexpr auto accountsPath = "/org/freedesktop/Accounts";
+constexpr auto accountsUserPath = "/org/freedesktop/Accounts/User1000";
+constexpr auto dconfigService = "org.desktopspec.ConfigManager";
+
+class ProtocolTestAccountsManager : public QObject
+{
+    Q_OBJECT
+    Q_CLASSINFO("D-Bus Interface", "org.freedesktop.Accounts")
+    Q_PROPERTY(QStringList UserList READ userList)
+
+public:
+    QStringList userList() const { return { QString::fromLatin1(accountsUserPath) }; }
+
+public slots:
+    QList<QDBusObjectPath> ListCachedUsers() const
+    {
+        return { QDBusObjectPath(QString::fromLatin1(accountsUserPath)) };
+    }
+
+    QDBusObjectPath FindUserById(qint64) const
+    {
+        return QDBusObjectPath(QString::fromLatin1(accountsUserPath));
+    }
+    QDBusObjectPath FindUserByName(const QString &) const
+    {
+        return QDBusObjectPath(QString::fromLatin1(accountsUserPath));
+    }
+};
+
+class ProtocolTestAccountsUser : public QObject
+{
+    Q_OBJECT
+    Q_CLASSINFO("D-Bus Interface", "org.freedesktop.Accounts.User")
+    Q_PROPERTY(int AccountType MEMBER accountType)
+    Q_PROPERTY(bool NoPasswdLogin MEMBER noPasswdLogin)
+    Q_PROPERTY(qulonglong Uid MEMBER uid)
+    Q_PROPERTY(qulonglong Gid MEMBER gid)
+    Q_PROPERTY(QString UserName MEMBER userName)
+    Q_PROPERTY(QString FullName MEMBER fullName)
+    Q_PROPERTY(QString HomeDir MEMBER homeDir)
+    Q_PROPERTY(QString IconFile MEMBER iconFile)
+    Q_PROPERTY(QString PasswordHint MEMBER passwordHint)
+    Q_PROPERTY(QString Locale MEMBER locale)
+
+public:
+    int accountType = 0;
+    bool noPasswdLogin = false;
+    qulonglong uid = 1000;
+    qulonglong gid = 1000;
+    QString userName = QStringLiteral("protocol-test");
+    QString fullName = QStringLiteral("Protocol Test");
+    QString homeDir = QStringLiteral("/tmp");
+    QString iconFile;
+    QString passwordHint;
+    QString locale = QStringLiteral("C");
+};
+
+class ProtocolTestAccountsService
+{
+public:
+    bool start()
+    {
+        int addressPipe[2];
+        if (pipe(addressPipe) != 0)
+            return false;
+
+        m_busPid = fork();
+        if (m_busPid == 0) {
+            close(addressPipe[0]);
+            dup2(addressPipe[1], STDOUT_FILENO);
+            close(addressPipe[1]);
+            execlp("dbus-daemon",
+                   "dbus-daemon",
+                   "--session",
+                   "--nofork",
+                   "--print-address=1",
+                   "--nopidfile",
+                   nullptr);
+            _exit(127);
+        }
+        close(addressPipe[1]);
+        if (m_busPid < 0) {
+            close(addressPipe[0]);
+            return false;
+        }
+
+        QByteArray address;
+        char character;
+        while (address.size() < 4096 && read(addressPipe[0], &character, 1) == 1) {
+            if (character == '\n')
+                break;
+            address.append(character);
+        }
+        close(addressPipe[0]);
+        if (address.isEmpty()) {
+            stop();
+            return false;
+        }
+        qputenv("DBUS_SYSTEM_BUS_ADDRESS", address);
+        qputenv("DBUS_SESSION_BUS_ADDRESS", address);
+        return startDConfigService();
+    }
+
+    bool registerObjects()
+    {
+        auto connection = QDBusConnection::systemBus();
+        constexpr auto exportOptions = QDBusConnection::ExportAllSlots
+            | QDBusConnection::ExportAllProperties;
+        return connection.isConnected() && waitForService(connection, dconfigService)
+            && connection.registerService(QString::fromLatin1(accountsService))
+            && connection.registerObject(QString::fromLatin1(accountsPath), &m_manager, exportOptions)
+            && connection.registerObject(QString::fromLatin1(accountsUserPath), &m_user, exportOptions);
+    }
+
+    void stop()
+    {
+        if (m_dconfigPid > 0) {
+            kill(m_dconfigPid, SIGTERM);
+            waitpid(m_dconfigPid, nullptr, 0);
+            m_dconfigPid = -1;
+        }
+        if (m_busPid > 0) {
+            kill(m_busPid, SIGTERM);
+            waitpid(m_busPid, nullptr, 0);
+            m_busPid = -1;
+        }
+        if (!m_dconfigPrefix.isEmpty())
+            QDir(m_dconfigPrefix).removeRecursively();
+    }
+
+private:
+    bool startDConfigService()
+    {
+        char prefix[] = "/tmp/treeland-protocol-dconfig-XXXXXX";
+        if (!mkdtemp(prefix))
+            return false;
+        m_dconfigPrefix = QString::fromLocal8Bit(prefix);
+        const QByteArray dsgDir = qgetenv("TREELAND_PROTOCOL_TEST_DSG_DIR");
+        if (dsgDir.isEmpty() || !QDir().mkpath(m_dconfigPrefix + "/usr/share"))
+            return false;
+        const QByteArray dsgLink = (m_dconfigPrefix + "/usr/share/dsg").toLocal8Bit();
+        if (symlink(dsgDir.constData(), dsgLink.constData()) != 0)
+            return false;
+
+        m_dconfigPid = fork();
+        if (m_dconfigPid == 0) {
+            execlp("dde-dconfig-daemon",
+                   "dde-dconfig-daemon",
+                   "-p",
+                   prefix,
+                   nullptr);
+            _exit(127);
+        }
+        return m_dconfigPid > 0;
+    }
+
+    static bool waitForService(const QDBusConnection &connection, const QString &service)
+    {
+        auto *interface = connection.interface();
+        if (!interface)
+            return false;
+        for (int attempt = 0; attempt != 100; ++attempt) {
+            const auto registered = interface->isServiceRegistered(service);
+            if (registered.isValid() && registered.value())
+                return true;
+            usleep(10'000);
+        }
+        return false;
+    }
+
+    pid_t m_busPid = -1;
+    pid_t m_dconfigPid = -1;
+    QString m_dconfigPrefix;
+    ProtocolTestAccountsManager m_manager;
+    ProtocolTestAccountsUser m_user;
+};
+
 class ProtocolTestRunner : public QObject
 {
 public:
@@ -122,11 +306,21 @@ int main(int argc, char *argv[])
         std::fflush(nullptr);
         std::_Exit(77);
     }
+    ProtocolTestAccountsService accountsService;
+    if (!accountsService.start()) {
+        accountsService.stop();
+        return 1;
+    }
     Treeland::preInit(Treeland::InitOptions{
         .headless = true,
         .createPlatformTheme = {},
     });
     QGuiApplication app(argc, argv);
+    Treeland::postInit();
+    if (!accountsService.registerObjects()) {
+        accountsService.stop();
+        return 1;
+    }
 
     Treeland::Treeland treeland;
     auto *helper = Helper::instance();
@@ -151,6 +345,7 @@ int main(int argc, char *argv[])
 
     pthread_t thread;
     bool clientStarted = false;
+    int fixtureWaitReports = 0;
 
     const auto fixtureReady = [helper] {
         if (helper->rootSurfaceContainer()->outputs().isEmpty())
@@ -158,8 +353,23 @@ int main(int argc, char *argv[])
         return !protocol_test_desktop_ready || protocol_test_desktop_ready(helper);
     };
     const auto startClient = [&] {
-        if (clientStarted || !fixtureReady())
+        if (clientStarted)
             return;
+        if (!fixtureReady()) {
+            if (fixtureWaitReports++ < 3) {
+                const auto *root = helper->rootSurfaceContainer();
+                std::fprintf(stderr,
+                             "desktop runner waiting: outputs=%d model-rows=%d global=(ready=%d failed=%d) "
+                             "user=(ready=%d failed=%d)\n",
+                             static_cast<int>(root->outputs().size()),
+                             root->outputModel()->rowCount(),
+                             helper->globalConfig()->isInitializeSucceeded(),
+                             helper->globalConfig()->isInitializeFailed(),
+                             helper->config()->isInitializeSucceeded(),
+                             helper->config()->isInitializeFailed());
+            }
+            return;
+        }
         if (pthread_create(&thread, nullptr, runClient, &context) != 0) {
             context.result = 1;
             context.done = true;
@@ -202,6 +412,9 @@ int main(int argc, char *argv[])
     // reaches an invalid SeatsManager during that production-only shutdown.
     // The protocol client has already completed and been joined, so terminate
     // without running the unrelated compositor shutdown sequence.
+    accountsService.stop();
     std::fflush(nullptr);
     std::_Exit(context.result);
 }
+
+#include "protocol-test-desktop-main.moc"
