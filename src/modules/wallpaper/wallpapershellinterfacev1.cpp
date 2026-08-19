@@ -1,6 +1,5 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
-
 #include "wallpapersurface.h"
 #include "wallpapershellinterfacev1.h"
 #include "qwayland-server-treeland-wallpaper-shell-unstable-v1.h"
@@ -162,13 +161,16 @@ void TreelandWallpaperSurfaceInterfaceV1Private::ready([[maybe_unused]] Resource
         return;
     }
 
-    if (q->wSurface()->mapped()) {
+    const auto markReady = [this] {
         wallpaperReady = true;
         Q_EMIT q->ready();
+    };
+
+    if (q->wSurface()->mapped() || !q->wSurface()->bufferSize().isEmpty()) {
+        markReady();
     } else {
-        QObject::connect(q->wSurface(), &WSurface::commit, q, [this](quint32) {
-            wallpaperReady = true;
-            Q_EMIT q->ready();
+        QObject::connect(q->wSurface(), &WSurface::commit, q, [markReady](quint32) {
+            markReady();
         }, Qt::SingleShotConnection);
     }
 }

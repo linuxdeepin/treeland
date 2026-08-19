@@ -1,6 +1,5 @@
-// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
-
 #include "capture.h"
 
 #include "modules/capture/impl/capturev1impl.h"
@@ -821,6 +820,19 @@ CaptureSource *CaptureSourceSelector::selectedSource() const
     return m_selectedSource;
 }
 
+void CaptureSourceSelector::selectSurface(WSurfaceItemContent *surfaceItemContent)
+{
+    if (!surfaceItemContent)
+        return;
+
+    const QRect region = surfaceItemContent
+        ->mapRectToItem(this, surfaceItemContent->boundingRect())
+        .toRect();
+    setSelectedSource(new CaptureSourceSurface(surfaceItemContent,
+                                                surfaceItemContent->devicePixelRatio()),
+                      region);
+}
+
 void CaptureSourceSelector::setSelectedSource(CaptureSource *newSelectedSource, const QRect &region)
 {
     if (m_selectedSource == newSelectedSource)
@@ -890,10 +902,7 @@ void CaptureSourceSelector::mouseReleaseEvent([[maybe_unused]] QMouseEvent *even
     }
     case SelectionMode::SelectWindow: {
         if (auto surfaceItemContent = qobject_cast<WSurfaceItemContent *>(hoveredItem())) {
-            setSelectedSource(
-                new CaptureSourceSurface(surfaceItemContent,
-                                         m_itemSelector->outputItem()->devicePixelRatio()),
-                selectionRegion().toRect());
+            selectSurface(surfaceItemContent);
         }
         break;
     }
