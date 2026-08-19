@@ -370,7 +370,6 @@ Treeland::Treeland()
     qCInfo(lcTlHooks) << "Disabling rendering before prestart scripts";
     d->helper->disableRender();
 
-#ifdef QT_DEBUG
     QDir dir(QStringLiteral(TREELAND_PLUGINS_OUTPUT_PATH));
     if (dir.exists() && dir.isReadable()) {
         d->loadPlugin(QStringLiteral(TREELAND_PLUGINS_OUTPUT_PATH));
@@ -379,9 +378,6 @@ Treeland::Treeland()
                                    "falling back to the installation directory";
         d->loadPlugin(QStringLiteral(TREELAND_PLUGINS_INSTALL_PATH));
     }
-#else
-    d->loadPlugin(QStringLiteral(TREELAND_PLUGINS_INSTALL_PATH));
-#endif
     auto *runner = new ScriptRunner(globalSession->socket()->fullServerName(), d);
     d->m_scriptRunner = runner;
     const auto dataDirs = QStandardPaths::standardLocations(QStandardPaths::AppDataLocation);
