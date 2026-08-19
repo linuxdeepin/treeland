@@ -144,23 +144,17 @@ Item {
             echoMode: loginGroup.enteringOtherUser ? TextInput.Normal
                       : (showPasswordBtn.hiddenPWD ? TextInput.Password : TextInput.Normal)
             rightPadding: 22
-            leftPadding: 22
+            leftPadding: {
+                var remaining = loginGroup.width - contentWidth - rightPadding
+                if (capsIndicator.visible)
+                    return rightPadding
+                return Math.max(8, remaining > rightPadding ? rightPadding : remaining)
+            }
             maximumLength: 510
             placeholderText: loginGroup.enteringOtherUser ? qsTr("Username") : qsTr("Password")
             placeholderTextColor: Qt.rgba(1.0, 1.0, 1.0, 0.6)
             color: palette.windowText
             font: D.DTK.fontManager.t8
-            onContentWidthChanged: updateLeftPadding()
-            onWidthChanged: updateLeftPadding()
-            Component.onCompleted: updateLeftPadding()
-
-            function updateLeftPadding() {
-                var remaining = width - contentWidth - rightPadding
-                if (capsIndicator.visible)
-                    leftPadding = rightPadding
-                else
-                    leftPadding = Math.max(8, remaining > rightPadding ? rightPadding : remaining)
-            }
             Keys.onPressed: function (event) {
                 if (event.key === Qt.Key_CapsLock) {
                     capsIndicatorVisible = !capsIndicatorVisible
@@ -183,7 +177,6 @@ Item {
                     verticalCenter: parent.verticalCenter
                 }
                 visible: passwordField.capsIndicatorVisible && !loginGroup.enteringOtherUser
-                onVisibleChanged: passwordField.updateLeftPadding()
                 palette.windowText: undefined
                 icon {
                     name: "login_capslock"
