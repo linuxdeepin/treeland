@@ -83,7 +83,6 @@ class WindowTreeRemote {
     SLOT(bool sendKey(int keycode, bool pressed));
     SLOT(QByteArray captureOutput(QString outputName));
     SLOT(QByteArray captureWindow(qint64 id));
-    SLOT(QByteArray captureScreen());
     SLOT(QList<DebugEvent> getEvents(quint64 afterSeq));
     SLOT(qint64 focusedWindowId());
     SLOT(qint64 windowUnderCursor());

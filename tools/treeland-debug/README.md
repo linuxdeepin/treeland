@@ -130,12 +130,10 @@ itself never touches the filesystem.
 | --- | --- |
 | `screenshot output [name] [file]` | Grab an output (by id/name; primary if omitted). |
 | `screenshot window <id> [file]` | Grab a single window. |
-| `screenshot screen [file]` | Grab the primary output. |
 
 If `file` is omitted a path under `/tmp` is generated.
 
 ```bash
-sudo -u dde -- treeland-debug screenshot screen /tmp/screen.png
 sudo -u dde -- treeland-debug screenshot window 93824992268800
 ```
 

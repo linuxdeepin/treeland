@@ -47,7 +47,6 @@ public:
     // writing them to disk. The compositor never touches the filesystem.
     QByteArray captureOutput(QString outputName) override;
     QByteArray captureWindow(qint64 id) override;
-    QByteArray captureScreen() override;
 
     // ---- real-time monitoring ----
     QList<DebugEvent> getEvents(quint64 afterSeq) override;

@@ -156,7 +156,6 @@ path under `/tmp` is generated.
 | --- | --- | --- |
 | `screenshot output` | `[name] [file]` | PNG file path (stdout). |
 | `screenshot window` | `<id> [file]` | PNG file path (stdout). |
-| `screenshot screen` | `[file]` | PNG file path (stdout). |
 
 #### Interactive
 
@@ -174,7 +173,7 @@ Window JSON object (`WindowInfo`):
 
 | Field | Type | Notes |
 | --- | --- | --- |
-| `id` | integer | Stable window id (the wl_surface wl_resource id); accepted by control commands. |
+| `id` | integer | Stable window id (the wl_surface wl_resource pointer); globally unique, accepted by control commands. |
 | `appId` | string | Application id. |
 | `title` | string | Window title. |
 | `output` | string | Output name. |
@@ -253,7 +252,7 @@ sudo -u dde -- treeland-debug event button left click
 sudo -u dde -- treeland-debug event key enter tap
 
 # Screenshot the primary output to a file
-sudo -u dde -- treeland-debug screenshot screen /tmp/ss.png
+sudo -u dde -- treeland-debug screenshot output /tmp/ss.png
 
 # Screenshot a window (with terminal preview if supported)
 sudo -u dde -- treeland-debug screenshot window 1407374883553280

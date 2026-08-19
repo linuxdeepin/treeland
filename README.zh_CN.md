@@ -145,7 +145,6 @@ sudo -u dde -- dde-dconfig set \
 | --- | --- | --- |
 | `screenshot output` | `[name] [file]` | PNG 文件路径（stdout）。 |
 | `screenshot window` | `<id> [file]` | PNG 文件路径（stdout）。 |
-| `screenshot screen` | `[file]` | PNG 文件路径（stdout）。 |
 
 #### 交互
 
@@ -163,7 +162,7 @@ sudo -u dde -- dde-dconfig set \
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| `id` | integer | 稳定窗口 id（wl_surface 的 wl_resource id），可被控制命令使用。 |
+| `id` | integer | 稳定窗口 id（wl_surface 的 wl_resource 指针），全局唯一，可被控制命令使用。 |
 | `appId` | string | 应用 id。 |
 | `title` | string | 窗口标题。 |
 | `output` | string | 输出名。 |
@@ -240,7 +239,7 @@ sudo -u dde -- treeland-debug event button left click
 sudo -u dde -- treeland-debug event key enter tap
 
 # 截图主输出到文件
-sudo -u dde -- treeland-debug screenshot screen /tmp/ss.png
+sudo -u dde -- treeland-debug screenshot output /tmp/ss.png
 
 # 截取窗口（终端支持时内联预览）
 sudo -u dde -- treeland-debug screenshot window 1407374883553280

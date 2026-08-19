@@ -120,6 +120,8 @@ QJsonObject windowToJson(const WindowInfo &window)
         {"boundingRect", rectToJson(window.boundingRect())},
         {"iconGeometry", rectToJson(window.iconGeometry())},
         {"position", pointToJson(window.position())},
+        {"frames", window.frames()},
+        {"damage", rectToJson(window.damage())},
     };
 }
 
@@ -466,7 +468,6 @@ QString helpText()
         "Image capture:\n"
         "  screenshot output [name] [file]   Grab an output (name optional, primary by default)\n"
         "  screenshot window <id> [file]     Grab a single window\n"
-        "  screenshot screen [file]          Grab the primary output\n"
         "\n"
         "Interactive:\n"
         "  shell                      Start an interactive REPL (shell mode)\n"
@@ -782,7 +783,7 @@ static int runCommand(Session &session, int timeoutMs, bool json, int previewOpt
     // ---- image capture ----
     if (command == QLatin1String("screenshot")) {
         if (args.isEmpty())
-            return fail("screenshot: usage: screenshot output|window|screen ...");
+            return fail("screenshot: usage: screenshot output|window ...");
         const QString sub = args[0];
         QString path;
         if (sub == QLatin1String("output")) {
@@ -822,22 +823,6 @@ static int runCommand(Session &session, int timeoutMs, bool json, int previewOpt
             const QString saved = saveCapture(data, path);
             if (saved.isEmpty())
                 return fail("captureWindow: failed to save image");
-            QTextStream(stdout) << saved << Qt::endl;
-            if (previewOpt != 2)
-                previewImage(data, previewOpt == 1);
-            return EXIT_SUCCESS;
-        }
-        if (sub == QLatin1String("screen")) {
-            if (args.size() >= 2)
-                path = args[1];
-            QByteArray data;
-            if (!waitSlot(replica->captureScreen(), timeoutMs, &data))
-                return fail("captureScreen() failed");
-            if (data.isEmpty())
-                return fail("captureScreen: no image produced (grab failed)");
-            const QString saved = saveCapture(data, path);
-            if (saved.isEmpty())
-                return fail("captureScreen: failed to save image");
             QTextStream(stdout) << saved << Qt::endl;
             if (previewOpt != 2)
                 previewImage(data, previewOpt == 1);
@@ -1096,16 +1081,17 @@ static int runWatch(Session &session, int timeoutMs, qint64 id, int intervalMs)
             return;
         }
 
-        // Print a header with markers, then one event-style line per change.
-        if (!havePrev) {
+        // Print a header on the first sample, then one event-style line per
+        // change on subsequent samples.
+        const bool firstSample = !havePrev;
+        if (firstSample) {
             out << "Window " << id << " " << cur.appId()
                 << (cur.title().isEmpty() ? QString() : QStringLiteral(" (%1)").arg(cur.title()))
                 << "\n";
             havePrev = true;
         }
         QStringList changes;
-        if (!havePrev) {
-        } else {
+        if (!firstSample) {
             if (cur.geometry() != prev.geometry())
                 changes << QStringLiteral("geometry %1,%2 %3x%4")
                     .arg(cur.geometry().x()).arg(cur.geometry().y())

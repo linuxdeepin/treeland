@@ -102,18 +102,17 @@ QByteArray encodeImage(const QImage &image)
     return bytes;
 }
 
-// Stable window id: the wl_resource id of the surface's underlying wl_surface.
-// This is the Wayland-protocol identity of the surface (rather than an
-// internal C++ pointer) and is what treeland-debug exposes to the user.
-// Note: wl_resource ids are unique per client, so two windows from different
-// clients can in principle share an id; findSurfaceById() matches the first
-// occurrence, which is acceptable for a debug tool whose output is grouped
-// by client.
+// Stable window id: the wl_resource pointer of the surface's underlying
+// wl_surface. The wl_resource *id* is only unique per wl_client, so two
+// windows from different clients can share an id — unsafe for write
+// operations (close/move/...) that could target the wrong window. The
+// pointer value is unique across the whole compositor for the lifetime of
+// the surface, which is good enough for a single-machine debug tool.
 qint64 surfaceId(WSurface *ws)
 {
     if (!ws || !ws->handle() || !ws->handle()->resource)
         return 0;
-    return static_cast<qint64>(wl_resource_get_id(ws->handle()->resource));
+    return reinterpret_cast<qint64>(ws->handle()->resource);
 }
 
 } // namespace
@@ -618,17 +617,6 @@ QByteArray TreelandRemoteSource::captureOutput(QString outputName)
     if (!grabToImage(viewport, &image))
         return {};
     return encodeImage(image);
-}
-
-QByteArray TreelandRemoteSource::captureScreen()
-{
-    auto *root = Helper::instance()->rootSurfaceContainer();
-    if (!root)
-        return {};
-    auto *primary = root->primaryOutput();
-    if (!primary)
-        return captureOutput({});
-    return captureOutput(primary->getOutputId());
 }
 
 QByteArray TreelandRemoteSource::captureWindow(qint64 id)
