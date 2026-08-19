@@ -27,7 +27,6 @@ WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WSurface;
 class WSeat;
-class WRelativePointerManagerV1;
 class WAYLIB_SERVER_EXPORT WSeatEventFilter : public QObject
 {
     friend class WSeat;
@@ -68,7 +67,6 @@ public:
 
     void setCursor(WCursor *cursor);
     WCursor *cursor() const;
-    void setRelativePointerManager(WRelativePointerManagerV1 *manager);
     void setCursorPosition(const QPointF &pos);
     bool setCursorPositionWithChecker(const QPointF &pos);
     WGlobal::CursorShape requestedCursorShape() const;
@@ -114,6 +112,8 @@ Q_SIGNALS:
     void requestCursorSurface(WAYLIB_SERVER_NAMESPACE::WSurface *surface, const QPoint &hotspot);
     void requestDrag(WAYLIB_SERVER_NAMESPACE::WSurface *surface);
     void alwaysUpdateHoverTargetChanged();
+    void relativePointerMotion(uint32_t timestamp, const QPointF &delta,
+                                const QPointF &unacceleratedDelta);
 
 protected:
     using QObject::eventFilter;
@@ -136,8 +136,6 @@ protected:
     bool filterUnacceptedEvent(QWindow *targetWindow, QInputEvent *event);
 
     // pointer
-    void notifyRelativeMotion(uint32_t timestamp, const QPointF &delta,
-                              const QPointF &unacceleratedDelta);
     void notifyMotion(WCursor *cursor, WInputDevice *device, uint32_t timestamp);
     void notifyButton(WCursor *cursor, WInputDevice *device,
                       Qt::MouseButton button, wl_pointer_button_state_t state,

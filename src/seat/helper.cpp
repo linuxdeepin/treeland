@@ -1822,14 +1822,14 @@ void Helper::init(Treeland::Treeland *treeland)
 
     m_foreignToplevel = m_server->attach<WForeignToplevel>();
     m_extForeignToplevelListV1 = m_server->attach<WExtForeignToplevelListV1>();
-    auto *relativePointerManager = m_server->attach<WRelativePointerManagerV1>();
-    QPointer<WRelativePointerManagerV1> relativePointerManagerGuard = relativePointerManager;
-    connect(m_seatManager,
-            &SeatsManager::seatAdded,
-            this,
-            [relativePointerManagerGuard](WSeat *seat) {
-                seat->setRelativePointerManager(relativePointerManagerGuard.data());
-            });
+    m_relativePointerManager = m_server->attach<WRelativePointerManagerV1>();
+    auto connectSeat = [this](WSeat *seat) {
+        connect(seat, &WSeat::relativePointerMotion,
+                this, [this, seat](uint32_t ts, QPointF d, QPointF u) {
+                    m_relativePointerManager->sendRelativeMotion(seat, ts, d, u);
+                });
+    };
+    connect(m_seatManager, &SeatsManager::seatAdded, this, connectSeat);
 
     connect(m_shellHandler,
             &ShellHandler::surfaceWrapperAdded,
@@ -1979,7 +1979,7 @@ void Helper::init(Treeland::Treeland *treeland)
     }
 
     for (auto *seat : m_seatManager->seats()) {
-        seat->setRelativePointerManager(relativePointerManagerGuard.data());
+        connectSeat(seat);
     }
 
     // Setup all seats (cursor, keyboard focus, event filter)

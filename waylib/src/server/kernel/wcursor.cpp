@@ -80,27 +80,22 @@ void WCursorPrivate::on_motion(wlr_pointer_motion_event *event)
     processCursorMotion(device, event->time_msec);
 
     if (Q_LIKELY(seat)) {
-        seat->notifyRelativeMotion(event->time_msec,
-                                   QPointF(event->delta_x, event->delta_y),
-                                   QPointF(event->unaccel_dx, event->unaccel_dy));
+        Q_EMIT seat->relativePointerMotion(event->time_msec,
+                                           QPointF(event->delta_x, event->delta_y),
+                                           QPointF(event->unaccel_dx, event->unaccel_dy));
     }
 }
 
 void WCursorPrivate::on_motion_absolute(wlr_pointer_motion_absolute_event *event)
 {
     auto *device = &event->pointer->base;
-    const QPointF oldPosition = q_func()->position();
-    double layoutX = oldPosition.x();
-    double layoutY = oldPosition.y();
-    wlr_cursor_absolute_to_layout_coords(handle(), device, event->x, event->y,
-                                         &layoutX, &layoutY);
-    const QPointF delta = QPointF(layoutX, layoutY) - oldPosition;
-
+    const QPointF oldPos = q_func()->position();
     q_func()->setScalePosition(device, QPointF(event->x, event->y));
+    const QPointF delta = q_func()->position() - oldPos;
     processCursorMotion(device, event->time_msec);
 
     if (Q_LIKELY(seat)) {
-        seat->notifyRelativeMotion(event->time_msec, delta, delta);
+        Q_EMIT seat->relativePointerMotion(event->time_msec, delta, delta);
     }
 }
 
