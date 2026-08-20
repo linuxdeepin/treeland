@@ -165,6 +165,9 @@ set(SOURCES
     qtquick/scenegraph/wsgbatchrenderer.cpp
     qtquick/scenegraph/wsgrhivisualizer.cpp
     qtquick/scenegraph/wsgcontext.cpp
+    qtquick/scenegraph/wsgimagenode.cpp
+    qtquick/scenegraph/wsgdamagetracker.cpp
+    qtquick/scenegraph/wsgdamagedebug.cpp
 
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v1-protocol.c
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v2-protocol.c
@@ -362,6 +365,9 @@ set(PRIVATE_HEADERS
     qtquick/scenegraph/wsgbatchrenderer_p.h
     qtquick/scenegraph/wsgrhivisualizer_p.h
     qtquick/scenegraph/wsgcontext_p.h
+    qtquick/scenegraph/wsgimagenode_p.h
+    qtquick/scenegraph/wsgdamagetracker_p.h
+    qtquick/scenegraph/wsgdamagedebug_p.h
 
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v1-protocol.h
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v2-protocol.h

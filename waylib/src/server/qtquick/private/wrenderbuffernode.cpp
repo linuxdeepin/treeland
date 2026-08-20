@@ -69,10 +69,11 @@ static_assert(sizeof(QSGRenderer) == 432,
     "QSGRenderer size changed — review qsgrenderer_p.h and update the bit-field accessor");
 #endif
 
-static inline WSGBatchRenderer::ShaderManager *rendererShaderManager(WSGBatchRenderer::Renderer *r) {
+static inline WAYLIB_SERVER_NAMESPACE::WSGBatchRenderer::ShaderManager *
+rendererShaderManager(WAYLIB_SERVER_NAMESPACE::WSGBatchRenderer::Renderer *r) {
     return r ? r->shaderManager() : nullptr;
 }
-static inline bool rendererUseDepthBuffer(const WSGBatchRenderer::Renderer *r) {
+static inline bool rendererUseDepthBuffer(const WAYLIB_SERVER_NAMESPACE::WSGBatchRenderer::Renderer *r) {
     return r && r->usesDepthBuffer();
 }
 static inline void rendererPreprocess(QSGRenderer *r) {

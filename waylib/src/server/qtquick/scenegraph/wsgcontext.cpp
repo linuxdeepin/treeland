@@ -3,6 +3,7 @@
 
 #include "wsgcontext_p.h"
 #include "wsgbatchrenderer_p.h"
+#include "wsgimagenode_p.h"
 #include "wayliblogging.h"
 
 #include <private/qquickrendercontrol_p.h>
@@ -30,6 +31,11 @@ public:
     QSGRenderContext *createRenderContext() override
     {
         return new WSGRenderContext(this);
+    }
+
+    QSGImageNode *createImageNode() override
+    {
+        return new WSGImageNode;
     }
 };
 

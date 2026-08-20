@@ -1,4 +1,4 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 import QtQuick
@@ -128,6 +128,32 @@ Item {
             Label {
                 text: Helper.workspace.currentIndex
                 color: "red"
+            }
+
+            ToolButton {
+                text: "Damage"
+                onClicked: damageMenu.popup()
+
+                Menu {
+                    id: damageMenu
+
+                    MenuItem {
+                        text: "Off"
+                        onClicked: Helper.setDamageDebugMode("none")
+                    }
+                    MenuItem {
+                        text: "Highlight"
+                        onClicked: Helper.setDamageDebugMode("highlight")
+                    }
+                    MenuItem {
+                        text: "Log"
+                        onClicked: Helper.setDamageDebugMode("log")
+                    }
+                    MenuItem {
+                        text: "Rerender"
+                        onClicked: Helper.setDamageDebugMode("rerender")
+                    }
+                }
             }
 
             ToolButton {
