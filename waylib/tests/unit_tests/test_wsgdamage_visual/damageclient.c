@@ -19,7 +19,8 @@
 
 enum {
     CMD_DAMAGE = 1,
-    CMD_STOP = 2,
+    CMD_DAMAGE_ONLY = 2,
+    CMD_STOP = 3,
     kBufferCount = 2
 };
 
@@ -63,6 +64,7 @@ struct DamageClient {
     struct xdg_surface *xdg_surface;
     struct xdg_toplevel *xdg_toplevel;
     struct ShmBuffer buffers[kBufferCount];
+    struct ShmBuffer *current_buffer;
 };
 
 static void set_error(struct DamageClient *c, const char *msg)
@@ -324,17 +326,22 @@ static void destroy_wayland(struct DamageClient *c)
     }
 }
 
-static int commit_damage(struct DamageClient *c, int x, int y, int w, int h)
+static int commit_damage(struct DamageClient *c, int x, int y, int w, int h, int attach_buffer)
 {
     if (x < 0 || y < 0 || w <= 0 || h <= 0 || x + w > c->width || y + h > c->height)
         return -1;
 
-    struct ShmBuffer *buf = pick_buffer(c);
+    struct ShmBuffer *buf = attach_buffer ? pick_buffer(c) : c->current_buffer;
+    if (!buf)
+        return -1;
     for (int i = 0; i < c->width * c->height; ++i)
         buf->pixels[i] = (uint32_t)kBasePixel;
     fill_rect(buf, c->width, x, y, w, h, (uint32_t)kDamagePixel);
-    buf->busy = 1;
-    wl_surface_attach(c->surface, buf->wl, 0, 0);
+    if (attach_buffer) {
+        buf->busy = 1;
+        c->current_buffer = buf;
+        wl_surface_attach(c->surface, buf->wl, 0, 0);
+    }
     wl_surface_damage(c->surface, x, y, w, h);
     wl_surface_commit(c->surface);
     return wl_display_flush(c->display) < 0 ? -1 : 0;
@@ -428,6 +435,7 @@ void damage_client_run(struct DamageClient *c)
 
     struct ShmBuffer *buf = pick_buffer(c);
     buf->busy = 1;
+    c->current_buffer = buf;
     wl_surface_attach(c->surface, buf->wl, 0, 0);
     wl_surface_damage(c->surface, 0, 0, c->width, c->height);
     wl_surface_commit(c->surface);
@@ -443,8 +451,9 @@ void damage_client_run(struct DamageClient *c)
             break;
         if (cmd.op == CMD_STOP)
             break;
-        if (cmd.op == CMD_DAMAGE) {
-            int status = commit_damage(c, cmd.x, cmd.y, cmd.w, cmd.h);
+        if (cmd.op == CMD_DAMAGE || cmd.op == CMD_DAMAGE_ONLY) {
+            int status = commit_damage(c, cmd.x, cmd.y, cmd.w, cmd.h,
+                                       cmd.op == CMD_DAMAGE);
             write_full(c->ack_wr, &status, sizeof(status));
             wl_display_dispatch_pending(c->display);
         }
@@ -468,13 +477,14 @@ const char *damage_client_error(const struct DamageClient *client)
     return client->error[0] ? client->error : "";
 }
 
-int damage_client_commit_damage(struct DamageClient *client, int x, int y, int w, int h)
+static int commit_damage_command(struct DamageClient *client, int op,
+                                 int x, int y, int w, int h)
 {
     if (!client || !atomic_load(&client->mapped))
         return -1;
 
     struct DamageCmd cmd = {
-        .op = CMD_DAMAGE,
+        .op = op,
         .x = x,
         .y = y,
         .w = w,
@@ -487,6 +497,16 @@ int damage_client_commit_damage(struct DamageClient *client, int x, int y, int w
     if (read_full(client->ack_rd, &status, sizeof(status)) < 0)
         return -1;
     return status;
+}
+
+int damage_client_commit_damage(struct DamageClient *client, int x, int y, int w, int h)
+{
+    return commit_damage_command(client, CMD_DAMAGE, x, y, w, h);
+}
+
+int damage_client_commit_damage_only(struct DamageClient *client, int x, int y, int w, int h)
+{
+    return commit_damage_command(client, CMD_DAMAGE_ONLY, x, y, w, h);
 }
 
 void damage_client_stop(struct DamageClient *client)

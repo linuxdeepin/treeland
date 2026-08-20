@@ -480,6 +480,25 @@ inline static QRect scaleToRect(const QRectF &s, qreal scale) {
                  (s.size() * scale).toSize());
 }
 
+static QTransform sceneToBufferTransform(const QMatrix4x4 &worldTransform,
+                                          const QRectF &sourceRect,
+                                          const QRectF &targetRect,
+                                          const QSize &pixelSize,
+                                          qreal devicePixelRatio,
+                                          bool mirrorVertically)
+{
+    QTransform transform = QTransform::fromScale(devicePixelRatio, devicePixelRatio)
+        * WBufferRenderer::inputMapToOutput(sourceRect, targetRect, pixelSize, devicePixelRatio)
+        * worldTransform.toTransform();
+    if (mirrorVertically) {
+        QTransform mirror;
+        mirror.translate(0, pixelSize.height());
+        mirror.scale(1, -1);
+        transform = mirror * transform;
+    }
+    return transform;
+}
+
 void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
                              const QRectF &sourceRect, const QRectF &targetRect)
 {
@@ -658,8 +677,9 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
             state.batchRenderer->skipDamageScissorOnce();
         } else {
             bool invertible = false;
-            const QTransform toBuffer = QTransform::fromScale(devicePixelRatio, devicePixelRatio)
-                * state.worldTransform.toTransform();
+            const QTransform toBuffer = sceneToBufferTransform(
+                state.worldTransform, sourceRect, targetRect, state.pixelSize,
+                devicePixelRatio, state.renderTarget.rt().mirrorVertically());
             const QTransform fromBuffer = toBuffer.inverted(&invertible);
             if (!invertible)
                 state.batchRenderer->skipDamageScissorOnce();
@@ -685,8 +705,9 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
                 m_lastFlushIsFull = true;
             }
             if (state.batchRenderer && !state.batchRenderer->flushRegionIsFull()) {
-                const QTransform toBuffer = QTransform::fromScale(devicePixelRatio, devicePixelRatio)
-                    * state.worldTransform.toTransform();
+                const QTransform toBuffer = sceneToBufferTransform(
+                    state.worldTransform, sourceRect, targetRect, state.pixelSize,
+                    devicePixelRatio, state.renderTarget.rt().mirrorVertically());
                 const QRegion scaledFlushRegion = toBuffer.map(state.batchRenderer->flushRegion());
                 QRegion bufferDamage = scaledFlushRegion;
                 if (viewportRect.isValid())

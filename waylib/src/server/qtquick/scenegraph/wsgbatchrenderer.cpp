@@ -4226,7 +4226,7 @@ void Renderer::prepareRenderPass(RenderPassContext *ctx)
 
     if (m_visualizer->mode() != Visualizer::VisualizeNothing)
         m_visualizer->prepareVisualize();
-    if (m_damageDebugEnabled)
+    if (m_damageDebugEnabled && isOutputPass)
         m_damageDebug->prepareOverlay(this, m_rhi, m_resourceUpdates);
 
     renderTarget().cb->resourceUpdate(m_resourceUpdates);
@@ -4352,7 +4352,8 @@ void Renderer::recordRenderPass(RenderPassContext *ctx)
     if (m_currentShader)
         setActiveRhiShader(nullptr, nullptr);
 
-    if (m_damageDebugEnabled)
+    if (m_damageDebugEnabled && m_damageScissorTarget
+        && renderTarget().rt == m_damageScissorTarget)
         m_damageDebug->renderOverlay(this, cb);
 
     m_damageTracker->clearNodeDamage();

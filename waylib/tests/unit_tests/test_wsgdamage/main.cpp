@@ -68,6 +68,7 @@ private Q_SLOTS:
     void transformAddedEmpty_thenChild_thenMove();
     void transformAddedEmpty_thenMatrixWithChild_isNotFull();
     void nestedSubtreeAdded_thenChildMove();
+    void childResize_thenParentMove_usesUpdatedBounds();
     void opacityChange_withoutCachedBounds_usesSubtree();
     void materialOnTransform_usesSubtree();
     void addRegion_unionsPending();
@@ -474,6 +475,29 @@ void WSGDamageTrackerTest::nestedSubtreeAdded_thenChildMove()
     QRegion expected;
     expected += inflated(QRectF(0, 0, 30, 40));
     expected += inflated(QRectF(80, 90, 30, 40));
+    QCOMPARE(takeFlush(tracker), expected);
+}
+
+void WSGDamageTrackerTest::childResize_thenParentMove_usesUpdatedBounds()
+{
+    WSGDamageTracker tracker;
+    QSGTransformNode parent;
+    QSGSimpleRectNode child(QRectF(0, 0, 20, 20), Qt::red);
+    parent.appendChildNode(&child);
+
+    tracker.nodeChanged(&parent, QSGNode::DirtyNodeAdded);
+    tracker.commit();
+
+    child.setRect(QRectF(0, 0, 40, 20));
+    tracker.nodeChanged(&child, QSGNode::DirtyGeometry);
+    tracker.commit();
+
+    parent.setMatrix(QTransform::fromTranslate(100, 0));
+    tracker.nodeChanged(&parent, QSGNode::DirtyMatrix);
+
+    QRegion expected;
+    expected += inflated(QRectF(0, 0, 40, 20));
+    expected += inflated(QRectF(100, 0, 40, 20));
     QCOMPARE(takeFlush(tracker), expected);
 }
 

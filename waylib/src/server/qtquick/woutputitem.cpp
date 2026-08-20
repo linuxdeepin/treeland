@@ -151,13 +151,13 @@ void WOutputItemPrivate::updateCursors()
             oc->item->setZ(qreal(WOutputLayout::Layer::Cursor));
             cursorsChanged = true;
             QPointer<WOutputCursor> safeOc = oc;
-            QObject::connect(cursor, &WCursor::positionChanged, q, [this, safeOc] {
-                if (!safeOc) {
+            const auto updateVisible = [this, safeOc] {
+                if (!safeOc)
                     return;
-                }
-
                 updateCursorVisible(safeOc.data());
-            });
+            };
+            QObject::connect(cursor, &WCursor::positionChanged, q, updateVisible);
+            QObject::connect(cursor, &WCursor::visibleChanged, q, updateVisible);
         }
 
         tmpCursors.append(std::make_pair(cursor, oc));
