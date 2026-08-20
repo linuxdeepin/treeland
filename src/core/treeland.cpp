@@ -10,6 +10,7 @@
 #include "seat/helper.h"
 #include "session/session.h"
 #include "utils/cmdline.h"
+#include "utils/scriptrunner.h"
 #include "common/treelandlogging.h"
 #include "common/constants.h"
 
@@ -20,6 +21,7 @@
 #endif
 
 #include <wsocket.h>
+#include <woutputrenderwindow.h>
 #include <wxwayland.h>
 
 #include <QCoreApplication>
@@ -32,6 +34,8 @@
 #include <QLoggingCategory>
 #include <QMetaMethod>
 #include <QTranslator>
+#include <QDir>
+#include <QStandardPaths>
 
 #include <memory>
 #include <pwd.h>
@@ -255,6 +259,7 @@ private:
     QLocalSocket *helperSocket{ nullptr };
     Helper *helper{ nullptr };
     QMap<QString, std::shared_ptr<QDBusUnixFileDescriptor>> userDisplayFds;
+    ScriptRunner *m_scriptRunner{ nullptr };
     std::vector<QAction *> shortcuts;
     std::map<PluginInterface *, QTranslator *> pluginTs;
 };
@@ -361,6 +366,9 @@ Treeland::Treeland()
 
     QDBusConnection::sessionBus().registerService("org.deepin.Compositor1");
     QDBusConnection::sessionBus().registerObject("/org/deepin/Compositor1", this);
+    // Disable rendering before running prestart scripts
+    qCInfo(lcTlHooks) << "Disabling rendering before prestart scripts";
+    d->helper->disableRender();
 
 #ifdef QT_DEBUG
     QDir dir(QStringLiteral(TREELAND_PLUGINS_OUTPUT_PATH));
@@ -374,6 +382,21 @@ Treeland::Treeland()
 #else
     d->loadPlugin(QStringLiteral(TREELAND_PLUGINS_INSTALL_PATH));
 #endif
+    auto *runner = new ScriptRunner(globalSession->socket()->fullServerName(), d);
+    d->m_scriptRunner = runner;
+    const auto dataDirs = QStandardPaths::standardLocations(QStandardPaths::AppDataLocation);
+    for (const auto &dataDir : dataDirs) {
+        runner->append(QDir(dataDir).filePath(QStringLiteral("prestart.d/blocking")), ScriptRunner::Blocking);
+        runner->append(QDir(dataDir).filePath(QStringLiteral("prestart.d/non-blocking")), ScriptRunner::NonBlocking);
+    }
+
+    connect(runner, &ScriptRunner::blockingFinished, d, [d, runner]() {
+        qCInfo(lcTlHooks) << "Blocking scripts finished, re-enabling rendering";
+        runner->startNonBlocking();
+        d->helper->enableRender();
+        d->helper->window()->update();
+    });
+    runner->start();
 }
 
 Treeland::~Treeland()
