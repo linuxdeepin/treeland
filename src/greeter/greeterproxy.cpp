@@ -37,6 +37,8 @@
 #include <systemd/sd-login.h>
 #include <pwd.h>
 
+#include <QTimer>
+
 using namespace DDM;
 
 /////////////////////
@@ -120,6 +122,19 @@ GreeterProxy::GreeterProxy(QObject *parent)
     connect(m_socket, &QLocalSocket::readyRead, this, &GreeterProxy::readyRead);
     connect(m_socket, &QLocalSocket::errorOccurred, this, &GreeterProxy::error);
 
+    // Fallback: if DDM never decides (ShowGreeter / UserActivateMessage), show
+    // the greeter after a grace period instead of staying on the wallpaper.
+    m_undecidedTimer = new QTimer(this);
+    m_undecidedTimer->setSingleShot(true);
+    m_undecidedTimer->setInterval(5000);
+    connect(m_undecidedTimer, &QTimer::timeout, this, [this] {
+        if (m_undecided) {
+            qCWarning(lcTlGreeter) << "DDM did not decide in time, showing greeter by fallback";
+            lock();
+        }
+    });
+    m_undecidedTimer->start();
+
     conn.connect(Logind::serviceName(),
                  Logind::managerPath(),
                  Logind::managerIfaceName(),
@@ -159,6 +174,11 @@ void GreeterProxy::setLock(bool isLocked)
 {
     if (isLocked && !m_isLocked) {
         m_isLocked = true;
+        if (m_undecided) {
+            m_undecided = false;
+            m_undecidedTimer->stop();
+            Q_EMIT undecidedChanged(false);
+        }
         if (m_lockScreen && !m_lockScreen->isVisible())
             m_lockScreen->lock();
         Q_EMIT lockChanged(true);
@@ -290,7 +310,7 @@ void GreeterProxy::onSessionNew(const QString &id, [[maybe_unused]] const QDBusO
         return;
     }
 
-    if (strcmp(service, "ddm") == 0) {
+    if (strncmp(service, "ddm", 3) == 0) {
         QString user = QString::fromLocal8Bit(username);
         qCInfo(lcTlGreeter) << "New session added: id=" << id << ", user=" << user;
         userModel()->updateUserLoginState(user, true);
@@ -496,6 +516,12 @@ void GreeterProxy::readyRead()
             qCInfo(lcTlGreeter) << "switch to greeter";
             lock();
         } break;
+        case DaemonMessages::ShowGreeter: {
+            qCInfo(lcTlGreeter) << "show greeter";
+            // Full lock screen transition (LockScreen mode, hidden workspace),
+            // matching the previous startup behavior of showLockScreen().
+            Helper::instance()->showLockScreen(false);
+        } break;
         case DaemonMessages::UserActivateMessage: {
             QString user;
             int sessionId;
@@ -512,6 +538,23 @@ void GreeterProxy::readyRead()
                 break;
 
             qCInfo(lcTlGreeter) << "activate successfully: " << user << ", XDG_SESSION_ID: " << sessionId;
+
+            // DDM drives the direct login (autologin / unlock), so the greeter
+            // must hide unconditionally. onSessionNew's setLock(false) may never
+            // fire (currentUserName mismatch / session service not "ddm"). When
+            // still in the undecided state, the lock screen surface is visible
+            // (wallpaper) but not locked, so setLock(false) alone would no-op:
+            // restore the desktop mode and hide the surface explicitly.
+            if (m_undecided) {
+                m_undecided = false;
+                m_undecidedTimer->stop();
+                Q_EMIT undecidedChanged(false);
+            }
+            if (m_lockScreen && m_lockScreen->isVisible()) {
+                Q_EMIT m_lockScreen->unlock();
+                m_lockScreen->setVisible(false);
+            }
+            setLock(false);
         } break;
         case DaemonMessages::UserLoggedIn: {
             QString user;
