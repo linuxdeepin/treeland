@@ -38,9 +38,15 @@
 #undef signals
 #endif
 
+// C99 allows 'static' as an array-size hint in parameter declarations (e.g.
+// float matrix[static 9]), but this is not valid C++ syntax.  Under
+// extern "C" the C++ compiler still parses the declaration, so we must
+// hide the keyword for the duration of the wlroots includes.
+#define static
 #ifdef __cplusplus
 extern "C" {
 #endif
+
 
 #include <wlr/backend.h>
 #include <wlr/backend/drm.h>
@@ -160,6 +166,8 @@ size_t waylib_buffer_get_count(void);
 #ifdef __cplusplus
 }
 #endif
+#undef static
+
 
 #ifdef WLRINC_HAD_SLOTS_MACRO
 #define slots Q_SLOTS
