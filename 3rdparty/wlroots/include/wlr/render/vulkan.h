@@ -2,6 +2,7 @@
  * This an unstable interface of wlroots. No guarantees are made regarding the
  * future consistency of this API.
  */
+
 #ifndef WLR_USE_UNSTABLE
 #error "Add -DWLR_USE_UNSTABLE to enable unstable wlroots features"
 #endif
@@ -9,8 +10,13 @@
 #ifndef WLR_RENDER_VULKAN_H
 #define WLR_RENDER_VULKAN_H
 
+#include <stdbool.h>
+#include <stdint.h>
+
 #include <vulkan/vulkan_core.h>
 #include <wlr/render/wlr_renderer.h>
+
+struct wlr_buffer;
 
 struct wlr_vk_image_attribs {
 	VkImage image;
@@ -32,5 +38,15 @@ void wlr_vk_texture_get_image_attribs(struct wlr_texture *texture,
 	struct wlr_vk_image_attribs *attribs);
 bool wlr_vk_texture_has_alpha(struct wlr_texture *texture);
 
-#endif
+/* waylib extensions (not upstream): Qt Quick RHI bridge helpers.
+ * Reuse wlroots' own wlr_vk_render_buffer (same path as tinywl/scene),
+ * instead of creating a parallel VkImage import of the scanout dmabuf. */
+bool waylib_vk_renderer_get_render_buffer_attribs(struct wlr_renderer *renderer,
+	struct wlr_buffer *buffer, struct wlr_vk_image_attribs *attribs);
+bool waylib_vk_renderer_record_render_buffer_acquire(struct wlr_renderer *renderer,
+	struct wlr_buffer *buffer, VkCommandBuffer cb);
+bool waylib_vk_renderer_record_render_buffer_release(struct wlr_renderer *renderer,
+	struct wlr_buffer *buffer, VkCommandBuffer cb, VkImageLayout old_layout);
+bool waylib_vk_renderer_flush_stage(struct wlr_renderer *renderer);
 
+#endif

@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#include <wlr/types/wlr_data_device.h>
 #include "types/wlr_xdg_shell.h"
 
 void handle_xdg_popup_ack_configure(
@@ -52,6 +53,18 @@ static void xdg_popup_grab_end(struct wlr_xdg_popup_grab *popup_grab) {
 static void xdg_pointer_grab_enter(struct wlr_seat_pointer_grab *grab,
 		struct wlr_surface *surface, double sx, double sy) {
 	struct wlr_xdg_popup_grab *popup_grab = grab->data;
+	struct wlr_seat *seat = grab->seat;
+
+    // Forward to drag grab if active
+    if (seat->drag && seat->drag->pointer_grab.interface &&
+        seat->drag->pointer_grab.interface->enter) {
+        if (grab != &seat->drag->pointer_grab) {
+            seat->drag->pointer_grab.interface->enter(&seat->drag->pointer_grab,
+                surface, sx, sy);
+        }
+        return;
+    }
+
 	if (wl_resource_get_client(surface->resource) == popup_grab->client) {
 		wlr_seat_pointer_enter(grab->seat, surface, sx, sy);
 	} else {
@@ -65,13 +78,33 @@ static void xdg_pointer_grab_clear_focus(struct wlr_seat_pointer_grab *grab) {
 
 static void xdg_pointer_grab_motion(struct wlr_seat_pointer_grab *grab,
 		uint32_t time, double sx, double sy) {
+	struct wlr_seat *seat = grab->seat;
+
+	if (seat->drag && seat->drag->pointer_grab.interface &&
+		seat->drag->pointer_grab.interface->motion) {
+		if (grab != &seat->drag->pointer_grab) {
+			seat->drag->pointer_grab.interface->motion(&seat->drag->pointer_grab,
+				time, sx, sy);
+		}
+		return;
+	}
+
 	wlr_seat_pointer_send_motion(grab->seat, time, sx, sy);
 }
 
 static uint32_t xdg_pointer_grab_button(struct wlr_seat_pointer_grab *grab,
 		uint32_t time, uint32_t button, uint32_t state) {
-	uint32_t serial =
-		wlr_seat_pointer_send_button(grab->seat, time, button, state);
+	struct wlr_seat *seat = grab->seat;
+
+	if (seat->drag && seat->drag->pointer_grab.interface &&
+		seat->drag->pointer_grab.interface->button) {
+		if (grab != &seat->drag->pointer_grab) {
+			return seat->drag->pointer_grab.interface->button(&seat->drag->pointer_grab,
+				time, button, state);
+		}
+	}
+
+	uint32_t serial = wlr_seat_pointer_send_button(grab->seat, time, button, state);
 	if (serial) {
 		return serial;
 	} else {
@@ -84,11 +117,32 @@ static void xdg_pointer_grab_axis(struct wlr_seat_pointer_grab *grab,
 		uint32_t time, enum wl_pointer_axis orientation, double value,
 		int32_t value_discrete, enum wl_pointer_axis_source source,
 		enum wl_pointer_axis_relative_direction relative_direction) {
+	struct wlr_seat *seat = grab->seat;
+
+	if (seat->drag && seat->drag->pointer_grab.interface &&
+		seat->drag->pointer_grab.interface->axis) {
+		if (grab != &seat->drag->pointer_grab) {
+			seat->drag->pointer_grab.interface->axis(&seat->drag->pointer_grab,
+				time, orientation, value, value_discrete, source, relative_direction);
+		}
+		return;
+	}
+
 	wlr_seat_pointer_send_axis(grab->seat, time, orientation, value,
 		value_discrete, source, relative_direction);
 }
 
 static void xdg_pointer_grab_frame(struct wlr_seat_pointer_grab *grab) {
+	struct wlr_seat *seat = grab->seat;
+
+	if (seat->drag && seat->drag->pointer_grab.interface &&
+		seat->drag->pointer_grab.interface->frame) {
+		if (grab != &seat->drag->pointer_grab) {
+			seat->drag->pointer_grab.interface->frame(&seat->drag->pointer_grab);
+		}
+		return;
+	}
+
 	wlr_seat_pointer_send_frame(grab->seat);
 }
 
@@ -110,6 +164,11 @@ static void xdg_keyboard_grab_enter(struct wlr_seat_keyboard_grab *grab,
 		struct wlr_surface *surface, const uint32_t keycodes[], size_t num_keycodes,
 		const struct wlr_keyboard_modifiers *modifiers) {
 	// keyboard focus should remain on the popup
+	if (grab->seat->drag) {
+		return;
+	}
+
+	wlr_seat_keyboard_enter(grab->seat, surface, keycodes, num_keycodes, modifiers);
 }
 
 static void xdg_keyboard_grab_clear_focus(struct wlr_seat_keyboard_grab *grab) {
