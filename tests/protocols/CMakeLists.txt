@@ -5,6 +5,8 @@ pkg_check_modules(XKBCOMMON REQUIRED IMPORTED_TARGET xkbcommon)
 
 option(TREELAND_ENABLE_UINPUT_PROTOCOL_TESTS
     "Build optional /dev/uinput protocol integration tests" OFF)
+option(TREELAND_ENABLE_GPU_PROTOCOL_TESTS
+    "Build protocol integration tests that require a GPU DMA-BUF renderer" OFF)
 
 set(TREELAND_PROTOCOL_TEST_DSG_DATA_DIR "${CMAKE_CURRENT_BINARY_DIR}/dsg")
 file(COPY "${PROJECT_SOURCE_DIR}/misc/dconfig/"
@@ -14,6 +16,17 @@ set(TREELAND_PROTOCOL_TEST_DSG_DATA_DIRS
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/framework/ProtocolTest.cmake)
 
+add_subdirectory(drm)
+add_subdirectory(input-method-unstable-v2)
+add_subdirectory(virtual-keyboard-unstable-v1)
+add_subdirectory(wlr-data-control-unstable-v1)
+add_subdirectory(wlr-export-dmabuf-unstable-v1)
+add_subdirectory(wlr-foreign-toplevel-management-unstable-v1)
+add_subdirectory(wlr-gamma-control-unstable-v1)
+add_subdirectory(wlr-layer-shell-unstable-v1)
+add_subdirectory(wlr-output-management-unstable-v1)
+add_subdirectory(wlr-output-power-management-unstable-v1)
+add_subdirectory(wlr-screencopy-unstable-v1)
 add_subdirectory(treeland-app-id-resolver-v1)
 add_subdirectory(treeland-app-id-resolver-desktop-v1)
 add_subdirectory(treeland-capture-unstable-v1)
