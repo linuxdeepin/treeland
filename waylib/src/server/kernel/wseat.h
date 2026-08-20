@@ -112,6 +112,8 @@ Q_SIGNALS:
     void requestCursorSurface(WAYLIB_SERVER_NAMESPACE::WSurface *surface, const QPoint &hotspot);
     void requestDrag(WAYLIB_SERVER_NAMESPACE::WSurface *surface);
     void alwaysUpdateHoverTargetChanged();
+    void relativePointerMotion(uint32_t timestamp, const QPointF &delta,
+                                const QPointF &unacceleratedDelta);
 
 protected:
     using QObject::eventFilter;

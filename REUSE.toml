@@ -198,6 +198,7 @@ path = [
     "waylib/src/server/protocols/WInputMethodHelper",
     "waylib/src/server/protocols/WLayerSurface",
     "waylib/src/server/protocols/WOutputManagerV1",
+    "waylib/src/server/protocols/WRelativePointerManagerV1",
     "waylib/src/server/protocols/WXdgOutput",
     "waylib/src/server/protocols/WXdgShell",
     "waylib/src/server/protocols/WXdgSurface",
