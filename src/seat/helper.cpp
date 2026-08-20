@@ -403,6 +403,13 @@ void Helper::tryInitRemoteSource()
 {
     if (m_treelandRemoteSource)
         return;
+#ifdef TREELAND_DEBUG_BUILD
+    // Remote debug is on by default in Debug builds so treeland-debug works out
+    // of the box. The source has zero cost until a client connects, so enabling
+    // it unconditionally here is safe even with no debug client attached.
+    m_treelandRemoteSource = new TreelandRemoteSource(this);
+    return;
+#endif
     if (m_globalConfig->debugSource()) {
         m_treelandRemoteSource = new TreelandRemoteSource(this);
     }
