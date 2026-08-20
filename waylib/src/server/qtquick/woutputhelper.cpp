@@ -281,7 +281,7 @@ bool WOutputHelper::setExtraState(ExtraState state)
                                   WLR_OUTPUT_STATE_TRANSFORM |
                                   WLR_OUTPUT_STATE_ENABLED |
                                   WLR_OUTPUT_STATE_ADAPTIVE_SYNC_ENABLED |
-                                  WLR_OUTPUT_STATE_GAMMA_LUT;
+                                  WLR_OUTPUT_STATE_COLOR_TRANSFORM;
 
     if (state->committed & ~allowedFlags) {
         qCWarning(lcWlOutputHelper) << "WOutputHelper::setExtraState: contains unsupported flags:"
@@ -366,8 +366,10 @@ void WOutputHelper::resetState()
     d->state.layers = nullptr;
     d->layersCache.clear();
 
-    free(d->state.gamma_lut);
-    d->state.gamma_lut = nullptr;
+    wlr_color_transform_unref(d->state.color_transform);
+    d->state.color_transform = nullptr;
+    free(d->state.image_description);
+    d->state.image_description = nullptr;
     pixman_region32_clear(&d->state.damage);
     d->state.committed = 0;
 }

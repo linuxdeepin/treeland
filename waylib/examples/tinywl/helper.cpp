@@ -457,7 +457,17 @@ void Helper::init()
         }
         wlr_output_state newState;
         wlr_output_state_init(&newState);
-        wlr_output_state_set_gamma_lut(&newState, ramp_size, r, g, b);
+        wlr_color_transform *colorTransform = nullptr;
+        if (gamma_control) {
+            colorTransform = wlr_color_transform_init_lut_3x1d(ramp_size, r, g, b);
+            if (!colorTransform) {
+                wlr_gamma_control_v1_send_failed_and_destroy(gamma_control);
+                wlr_output_state_finish(&newState);
+                return;
+            }
+        }
+        wlr_output_state_set_color_transform(&newState, colorTransform);
+        wlr_color_transform_unref(colorTransform);
 
         if (!wlr_output_commit_state(output, &newState)) {
             wlr_gamma_control_v1_send_failed_and_destroy(gamma_control);

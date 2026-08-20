@@ -122,14 +122,6 @@ ws_generate(
 ws_generate(
     server
     wayland-protocols
-    staging/ext-image-capture-source/ext-image-capture-source-v1.xml
-    ext-image-capture-source-v1-protocol
-)
-
-#TODO: Remove after wlroots 0.20
-ws_generate(
-    server
-    wayland-protocols
     staging/ext-foreign-toplevel-list/ext-foreign-toplevel-list-v1.xml
     ext-foreign-toplevel-list-v1-protocol
 )
@@ -194,7 +186,6 @@ set(SOURCES
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/security-context-v1-protocol.c
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/xdg-toplevel-tag-v1-protocol.c #TODO: Remove after wlroots 0.20
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/xdg-shell-protocol.c #TODO: Remove after wlroots 0.20
-    ${WAYLAND_PROTOCOLS_OUTPUTDIR}/ext-image-capture-source-v1-protocol.c #TODO: Remove after wlroots 0.20
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/ext-foreign-toplevel-list-v1-protocol.c #TODO Remove after wlroots 0.20
 
     utils/wtools.cpp
@@ -230,7 +221,6 @@ set(SOURCES
     protocols/private/wtextinputv2.cpp
     protocols/private/wtextinputv3.cpp
     protocols/private/wvirtualkeyboardv1.cpp
-    protocols/ext_foreign_toplevel_image_capture_source.c #TODO: Remove after wlroots 0.20
     protocols/wcursorshapemanagerv1.cpp
     protocols/wrelativepointermanagerv1.cpp
     protocols/woutputmanagerv1.cpp
@@ -352,7 +342,6 @@ set(HEADERS
     protocols/WXWaylandSurface
     protocols/wextforeigntoplevellistv1.h
     protocols/wxdgdialogmanagerv1.h
-    protocols/ext_foreign_toplevel_image_capture_source_manager_v1.h #TODO: Remove after wlroots 0.20
     protocols/wsecuritycontextmanager.h
     protocols/wsessionlockmanager.h
     protocols/WSessionLockManager
@@ -389,7 +378,6 @@ set(PRIVATE_HEADERS
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/xdg-output-unstable-v1-protocol.h
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/xdg-toplevel-tag-v1-protocol.h #TODO: Remove after wlroots 0.20
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/xdg-shell-protocol.h #TODO: Remove after wlroots 0.20
-    ${WAYLAND_PROTOCOLS_OUTPUTDIR}/ext-image-capture-source-v1-protocol.h #TODO: Remove after wlroots 0.20
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/ext-foreign-toplevel-list-v1-protocol.h #TODO: Remove after wlroots 0.20
 
     protocols/private/winputmethodv2_p.h

@@ -47,7 +47,7 @@ void WInputMethodManagerV2::create(WServer *server)
     Q_ASSERT(handle);
     m_handle = handle;
     W_D(WInputMethodManagerV2);
-    listeners()->add(&handle->events.input_method, this,
+    listeners()->add(&handle->events.new_input_method, this,
                                    &WInputMethodManagerV2::newInputMethod);
 }
 

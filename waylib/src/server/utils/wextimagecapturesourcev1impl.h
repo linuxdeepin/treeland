@@ -27,13 +27,13 @@ private:
     static const struct wlr_ext_image_capture_source_v1_interface impl;
     void start(bool with_cursors);
     void stop();
-    void schedule_frame();
+    void schedule_frame(bool schedule_frame);
     void copy_frame(wlr_ext_image_copy_capture_frame_v1 *dst_frame,
                     wlr_ext_image_capture_source_v1_frame_event *frame_event);
     wlr_ext_image_capture_source_v1_cursor *get_pointer_cursor(wlr_seat *seat);
     static void start(struct wlr_ext_image_capture_source_v1 *source, bool with_cursors);
     static void stop(struct wlr_ext_image_capture_source_v1 *source);
-    static void schedule_frame(struct wlr_ext_image_capture_source_v1 *source);
+    static void request_frame(struct wlr_ext_image_capture_source_v1 *source, bool schedule_frame);
     static void copy_frame(struct wlr_ext_image_capture_source_v1 *source,
                            wlr_ext_image_copy_capture_frame_v1 *dst_frame,
                            wlr_ext_image_capture_source_v1_frame_event *frame_event);
