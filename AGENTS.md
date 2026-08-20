@@ -16,12 +16,12 @@
 
 ## Build & Test
 ```bash
-cmake --preset default
-cmake --build --preset default
-ctest --test-dir build --output-on-failure
+cmake --preset ci
+cmake --build --preset ci
+ctest --preset ci
 ```
 
-- Presets in `CMakePresets.json`: `default`, `clang`, `ci`, `ci-clang`.
+- For daily development prefer the `ci` preset: it mirrors CI's `-Wall -Wextra -Werror` flags, so warnings that would fail CI are caught locally before push. Other presets in `CMakePresets.json`: `default`, `clang`, `ci-clang`.
 - `WITH_SUBMODULE_WAYLIB=ON|OFF` selects submodule vs system waylib. Default preference is `ON`.
 
 ## Project Rules
