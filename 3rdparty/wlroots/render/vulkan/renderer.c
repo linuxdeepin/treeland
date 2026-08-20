@@ -418,9 +418,7 @@ bool vulkan_submit_stage_wait(struct wlr_vk_renderer *renderer) {
 }
 
 bool waylib_vk_renderer_flush_stage(struct wlr_renderer *wlr_renderer) {
-	if (wlr_renderer == NULL || !wlr_renderer_is_vk(wlr_renderer)) {
-		return false;
-	}
+	assert(wlr_renderer_is_vk(wlr_renderer));
 	struct wlr_vk_renderer *renderer = vulkan_get_renderer(wlr_renderer);
 	if (renderer->stage.cb == NULL) {
 		return true;
@@ -1007,7 +1005,7 @@ bool waylib_vk_renderer_get_render_buffer_attribs(struct wlr_renderer *wlr_rende
 
 	struct wlr_dmabuf_attributes dmabuf = {0};
 	if (!wlr_buffer_get_dmabuf(wlr_buffer, &dmabuf)) {
-		wlr_log(WLR_ERROR, "wlr_buffer_get_dmabuf() failed");
+		wlr_log(WLR_ERROR, "wlr_buffer_get_dmabuf failed");
 		return false;
 	}
 
@@ -1043,13 +1041,16 @@ bool waylib_vk_renderer_record_render_buffer_acquire(struct wlr_renderer *wlr_re
 	/* Match wlroots pass.c / tinywl: foreign ownership transfer into the
 	 * graphics queue before writing the scanout image. */
 	VkImageLayout src_layout = VK_IMAGE_LAYOUT_GENERAL;
-	if (!render_buffer->srgb.transitioned && !render_buffer->plain.transitioned) {
+	if (!render_buffer->linear.out.transitioned &&
+			!render_buffer->srgb.out.transitioned &&
+			!render_buffer->two_pass.out.transitioned) {
 		src_layout = VK_IMAGE_LAYOUT_PREINITIALIZED;
 	}
-	// The sRGB and plain pathways share the imported VkImage. Once this
-	// acquire barrier runs, both pathways observe GENERAL on subsequent use.
-	render_buffer->srgb.transitioned = true;
-	render_buffer->plain.transitioned = true;
+	// All output pathways share the imported VkImage. Once this acquire
+	// barrier runs, each pathway observes GENERAL on subsequent use.
+	render_buffer->linear.out.transitioned = true;
+	render_buffer->srgb.out.transitioned = true;
+	render_buffer->two_pass.out.transitioned = true;
 
 	VkImageMemoryBarrier barrier = {
 		.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,

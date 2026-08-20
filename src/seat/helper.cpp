@@ -3,7 +3,6 @@
 
 #include <wscopedvalue.h>
 #include "helper.h"
-#include "ext_foreign_toplevel_image_capture_source_manager_v1.h"
 
 #include "seatsmanager.h"
 
@@ -879,7 +878,17 @@ void Helper::setGamma(struct wlr_gamma_control_manager_v1_set_gamma_event *event
     }
     WOutputStateGuard newState;
 
-    wlr_output_state_set_gamma_lut(newState.get(), ramp_size, r, g, b);
+    wlr_color_transform *colorTransform = nullptr;
+    if (gamma_control) {
+        colorTransform = wlr_color_transform_init_lut_3x1d(ramp_size, r, g, b);
+        if (!colorTransform) {
+            qCWarning(lcTlCore) << "Failed to create color transform for gamma LUT!";
+            wlr_gamma_control_v1_send_failed_and_destroy(gamma_control);
+            return;
+        }
+    }
+    wlr_output_state_set_color_transform(newState.get(), colorTransform);
+    wlr_color_transform_unref(colorTransform);
     const bool commitOk = wlr_output_commit_state(qwOutput, newState.get());
     if (!commitOk) {
         qCCritical(lcTlCore, "commit failed on output  %s", qwOutput->name);

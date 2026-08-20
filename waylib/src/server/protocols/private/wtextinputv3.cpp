@@ -46,7 +46,7 @@ void WTextInputManagerV3::create(WServer *server)
     auto manager = wlr_text_input_manager_v3_create(server->handle());
     Q_ASSERT(manager);
     m_handle = manager;
-    listeners()->add(&manager->events.text_input, this,
+    listeners()->add(&manager->events.new_text_input, this,
         [this, d] (wlr_text_input_v3 *w_text_input_v3) {
         auto ti = new WTextInputV3(w_text_input_v3, this);
         d->textInputs.append(ti);

@@ -1191,10 +1191,18 @@ void Output::setOutputColor(qreal brightness,
     WOutputHelper::ExtraState newState;
     auto *viewport = screenViewport();
     auto *renderWindow = screenViewport()->outputRenderWindow();
-    wlr_output_state_set_gamma_lut(newState.get(), gammaSize,
-                                   r.constData(),
-                                   g.constData(),
-                                   b.constData());
+    auto *tr = wlr_color_transform_init_lut_3x1d(gammaSize,
+                                                   r.constData(),
+                                                   g.constData(),
+                                                   b.constData());
+    if (!tr) {
+        qCWarning(lcTlOutput) << "Failed to create color transform for lut_3x1d on output" << output()->name();
+        if (resultCallback)
+            resultCallback(false);
+        return;
+    }
+    wlr_output_state_set_color_transform(newState.get(), tr);
+    wlr_color_transform_unref(tr);
 
     auto *outputHelper = renderWindow->getOutputHelper(viewport);
     outputHelper->setExtraState(newState);
