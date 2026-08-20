@@ -2,20 +2,28 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #pragma once
 
+#include <wpointer.h>
 #include <wlr_fwd.h>
 #include <wsurfaceitem.h>
 #include <wtoplevelsurface.h>
 
+#include <QColor>
+#include <QImage>
 #include <QList>
 #include <QPointer>
 #include <QQuickItem>
 #include <QString>
-#include <QColor>
+
+#include <optional>
 
 Q_MOC_INCLUDE(<woutput.h>)
 Q_MOC_INCLUDE(<output / output.h>)
 
 WAYLIB_SERVER_USE_NAMESPACE
+
+WAYLIB_SERVER_BEGIN_NAMESPACE
+class WSeat;
+WAYLIB_SERVER_END_NAMESPACE
 
 class QmlEngine;
 class Output;
@@ -310,6 +318,13 @@ public:
     bool hasInitializeContainer() const;
     void setHasInitializeContainer(bool value);
     void disableWindowAnimation(bool disable = true);
+    void setWindowTransitionRect(const QRectF &localRect, SurfaceWrapper *originWrapper);
+    void updateWindowTransitionRect(const QRectF &localRect);
+    void clearWindowTransitionSource();
+    bool hasWindowTransitionRect() const;
+    bool windowTransitionRectActive() const;
+    std::optional<QRectF> computeGlobalWindowTransitionRect() const;
+    void setWindowTransitionSourceImage(const QImage &image);
     void setHideByShowDesk(bool show);
     void setHideByLockScreen(bool hide);
 
@@ -328,6 +343,9 @@ public:
 
     bool attention() const;
     bool setAttention(bool attention);
+
+    void setPendingActivation(WSeat *seat);
+    bool takePendingActivation(WSeat *&seat);
 
 public Q_SLOTS:
     void minimize(bool onAnimation = true);
@@ -430,6 +448,10 @@ private:
     void updateClipRect();
     void geometryChange(const QRectF &newGeo, const QRectF &oldGeometry) override;
     void createNewOrClose(uint direction);
+    void startWindowTransition();
+    void finishWindowTransitionOpen();
+    void startWindowCloseTransition();
+    void tryFlushPendingActivation();
     void itemChange(ItemChange change, const ItemChangeData &data) override;
 
     QRectF targetGeometryForState(State state) const;
@@ -553,6 +575,21 @@ private:
 
     bool m_socketEnabled{ false };
     bool m_windowAnimationEnabled{ true };
+
+    uint m_pendingActivation : 1 = 0; // activation requested before the surface mapped
+    uint m_windowTransitionPending : 1 = 0;
+
+    // Source window the open/close transition animates from/to.
+    struct WindowTransitionSource
+    {
+        QRectF localRect;
+        QPointer<SurfaceWrapper> originWrapper;
+        QImage image;
+        WBufferDropPtr buffer;
+    };
+
+    QPointer<WSeat> m_pendingActivationSeat;
+    std::optional<WindowTransitionSource> m_windowTransitionSource;
     const QString m_appId;
 };
 
