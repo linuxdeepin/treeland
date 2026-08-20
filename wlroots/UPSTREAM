@@ -14,6 +14,6 @@
 # VERSION     - project version string from upstream meson.build
 
 SOURCE_URL=https://gitlab.freedesktop.org/wlroots/wlroots.git
-REF=0.19.3
-COMMIT=88a869855742281c98c22cab9641b317b8d065ef
-VERSION=0.19.3
+REF=0.20.2
+COMMIT=d783533489e1f75d6886c2ab5c5960090ef268f8
+VERSION=0.20.2

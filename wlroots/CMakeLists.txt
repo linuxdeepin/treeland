@@ -1,7 +1,7 @@
 # Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 # SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
-# CMake build for vendored wlroots 0.19.3.
+# CMake build for vendored wlroots 0.20.2.
 # Scaffold in wlroots/; sources under 3rdparty/wlroots (non-squash subtree so
 # git blame keeps upstream authors). Update via update-from-upstream.sh.
 # Do not call project() here.
@@ -17,10 +17,10 @@ if(NOT EXISTS "${WLROOTS_SOURCE_DIR}/include/wlr")
         "Expected vendored sources under 3rdparty/wlroots.")
 endif()
 
-set(WLROOTS_VERSION 0.19.3)
+set(WLROOTS_VERSION 0.20.2)
 set(WLROOTS_VERSION_MAJOR 0)
-set(WLROOTS_VERSION_MINOR 19)
-set(WLROOTS_VERSION_PATCH 3)
+set(WLROOTS_VERSION_MINOR 20)
+set(WLROOTS_VERSION_PATCH 2)
 
 # ---------------------------------------------------------------------------
 # Feature options (defaults ON; soft options may auto-disable)
@@ -57,12 +57,12 @@ include(CheckSymbolExists)
 include(CheckCSourceCompiles)
 include(TestBigEndian)
 
-pkg_check_modules(WAYLAND_SERVER REQUIRED IMPORTED_TARGET wayland-server>=1.23.1)
-pkg_check_modules(LIBDRM REQUIRED IMPORTED_TARGET libdrm>=2.4.122)
+pkg_check_modules(WAYLAND_SERVER REQUIRED IMPORTED_TARGET wayland-server>=1.26.0)
+pkg_check_modules(LIBDRM REQUIRED IMPORTED_TARGET libdrm>=2.4.134)
 pkg_check_modules(XKBCOMMON REQUIRED IMPORTED_TARGET xkbcommon)
-pkg_check_modules(PIXMAN REQUIRED IMPORTED_TARGET pixman-1>=0.43.0)
-pkg_check_modules(WAYLAND_PROTOCOLS REQUIRED wayland-protocols>=1.41)
-pkg_check_modules(WAYLAND_CLIENT REQUIRED IMPORTED_TARGET wayland-client>=1.23.1)
+pkg_check_modules(PIXMAN REQUIRED IMPORTED_TARGET pixman-1>=0.46.4)
+pkg_check_modules(WAYLAND_PROTOCOLS REQUIRED wayland-protocols>=1.49)
+pkg_check_modules(WAYLAND_CLIENT REQUIRED IMPORTED_TARGET wayland-client>=1.26.0)
 pkg_check_modules(WAYLAND_SCANNER_PC REQUIRED wayland-scanner)
 
 pkg_get_variable(WAYLAND_PROTOCOLS_DATADIR wayland-protocols pkgdatadir)
