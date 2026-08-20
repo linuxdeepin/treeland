@@ -21,15 +21,18 @@ Q_MOC_INCLUDE(<private/qsgplaintexture_p.h>)
 QT_BEGIN_NAMESPACE
 class QSGPlainTexture;
 class QSGRenderContext;
-namespace WSGBatchRenderer {
-class Renderer;
-}
 QT_END_NAMESPACE
 
 struct pixman_region32;
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
+namespace WSGBatchRenderer {
+class Renderer;
+}
+class WSGDamageDebug;
+
 class WSGTextureProvider;
+class WSGDamageDebug;
 class WAYLIB_SERVER_EXPORT WBufferRenderer : public QQuickItem
 {
     friend class WOutputRenderWindow;
@@ -71,6 +74,10 @@ public:
     const QMatrix4x4 &currentWorldTransform() const;
     wlr_buffer *currentBuffer() const;
     wlr_buffer *lastBuffer() const;
+    QRegion lastFlushRegion() const { return m_lastFlushRegion; }
+    bool lastFlushIsFull() const { return m_lastFlushIsFull; }
+    const WSGDamageDebug *damageDebugOverlay() const;
+    bool damageDebugNeedsFrame() const;
     QRhiTexture *currentRenderTarget() const;
     bool isColorPreserved() const;
     const wlr_damage_ring *damageRing() const;
@@ -153,11 +160,14 @@ private:
     QList<Data> m_sourceList;
     WDamageRing m_damageRing;
     mutable std::unique_ptr<WSGTextureProvider> m_textureProvider;
+    std::unique_ptr<WSGDamageDebug> m_softwareDamageDebug;
     QColor m_clearColor = Qt::transparent;
     QList<QObject*> m_cacheBufferLocker;
 
     uint m_cacheBuffer:1;
     uint m_hideSource:1;
+    uint m_lastFlushIsFull:1;
+    QRegion m_lastFlushRegion;
 };
 
 WAYLIB_SERVER_END_NAMESPACE

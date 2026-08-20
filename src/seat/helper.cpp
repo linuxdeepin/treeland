@@ -3277,6 +3277,16 @@ bool Helper::toggleDebugMenuBar()
     return ok;
 }
 
+QString Helper::damageDebugMode() const
+{
+    return WRenderHelper::damageDebugMode();
+}
+
+bool Helper::setDamageDebugMode(const QString &mode)
+{
+    return WRenderHelper::setDamageDebugMode(mode);
+}
+
 WindowManagementInterfaceV1::DesktopState Helper::showDesktopState() const
 {
     return m_showDesktop;

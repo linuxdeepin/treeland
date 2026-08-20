@@ -207,6 +207,8 @@ public:
     WSeat *seat() const;
 
     bool toggleDebugMenuBar();
+    Q_INVOKABLE QString damageDebugMode() const;
+    Q_INVOKABLE bool setDamageDebugMode(const QString &mode);
 
     WindowManagementInterfaceV1::DesktopState showDesktopState() const;
 

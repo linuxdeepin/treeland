@@ -200,6 +200,16 @@ public:
         return WOutputViewportPrivate::get(m_output2)->bufferRenderer;
     }
 
+    inline bool damageDebugNeedsFrame() const {
+        if (bufferRenderer() && bufferRenderer()->damageDebugNeedsFrame())
+            return true;
+        if (m_output2) {
+            if (auto *br = WOutputViewportPrivate::get(m_output2)->bufferRenderer)
+                return br->damageDebugNeedsFrame();
+        }
+        return false;
+    }
+
     inline const QList<LayerData*> &layers() const {
         return m_layers;
     }
@@ -1472,14 +1482,15 @@ WOutputRenderWindowPrivate::doRenderOutputs(wlr_output *needsFrameOutput, const 
                 || !shouldRender)
                 continue;
 
-            if (!(helper->needsFrame() || helper->contentIsDirty()))
+            if (!(helper->needsFrame() || helper->contentIsDirty()
+                  || helper->damageDebugNeedsFrame()))
                 continue;
 
             // Capture sessions (ext-image-copy-capture etc.) lock the output
             // via wlr_output_lock_attach_render() and need a buffer commit to
             // complete, even if the content didn't change.
             bool captureLocked = helper->output()->attach_render_locks > 0;
-            if (!helper->contentIsDirty() && !captureLocked) {
+            if (!helper->contentIsDirty() && !helper->damageDebugNeedsFrame() && !captureLocked) {
                 renderResults.append(helper);
                 continue;
             }

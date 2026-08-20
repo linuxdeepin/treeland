@@ -11,6 +11,8 @@
 #include "wsgtextureprovider.h"
 #include "wsurface.h"
 #include "wsurfaceitem_p.h"
+#include "wsgimagenode_p.h"
+#include "wtools.h"
 #include "wayliblogging.h"
 
 #include <private/qquickitem_p.h>
@@ -24,6 +26,7 @@
 #include <QQuickWindow>
 #include <QSGImageNode>
 #include <QSGRenderNode>
+#include <QTransform>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -582,6 +585,28 @@ public:
     QPointer<WSurfaceItemContent> m_owner;
 };
 
+static QRegion surfaceDamageInItem(WSurface *surface, const QRectF &targetGeometry)
+{
+    if (!surface)
+        return {};
+
+    WPixmanRegion pixDamage;
+    wlr_surface_get_effective_damage(surface->handle(), pixDamage);
+    const QRegion surfaceDamage = WTools::fromPixmanRegion(pixDamage);
+    if (surfaceDamage.isEmpty())
+        return {};
+
+    const QSizeF surfaceSize = surface->size();
+    QTransform xf;
+    xf.translate(targetGeometry.x(), targetGeometry.y());
+    if (surfaceSize.width() > 0 && surfaceSize.height() > 0
+        && targetGeometry.width() > 0 && targetGeometry.height() > 0) {
+        xf.scale(targetGeometry.width() / surfaceSize.width(),
+                 targetGeometry.height() / surfaceSize.height());
+    }
+    return xf.map(surfaceDamage);
+}
+
 QSGNode *WSurfaceItemContent::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *)
 {
     W_D(WSurfaceItemContent);
@@ -601,19 +626,23 @@ QSGNode *WSurfaceItemContent::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeD
         return nullptr;
     }
 
-    auto node = static_cast<QSGImageNode*>(oldNode);
+    auto *node = static_cast<QSGImageNode *>(oldNode);
     if (Q_UNLIKELY(!node)) {
         node = window()->createImageNode();
         node->setOwnsTexture(false);
-        QSGNode *fpnode = new WSGRenderFootprintNode(this);
-        node->appendChildNode(fpnode);
+        node->appendChildNode(new WSGRenderFootprintNode(this));
     }
+
+    const QRectF targetGeometry(d->ignoreBufferOffset ? QPointF() : d->bufferOffset, size());
+    // Set explicit damage before touching the texture so DirtyMaterial uses
+    // the surface damage instead of the full quad.
+    if (auto *image = dynamic_cast<WSGImageNode *>(node))
+        image->setDamageRegion(surfaceDamageInItem(d->surface, targetGeometry));
 
     auto texture = tp->texture();
     node->setTexture(texture);
     const QRectF textureGeometry = d->bufferSourceBox;
     node->setSourceRect(textureGeometry);
-    const QRectF targetGeometry(d->ignoreBufferOffset ? QPointF() : d->bufferOffset, size());
     node->setRect(targetGeometry);
     node->setFiltering(smooth() ? QSGTexture::Linear : QSGTexture::Nearest);
 

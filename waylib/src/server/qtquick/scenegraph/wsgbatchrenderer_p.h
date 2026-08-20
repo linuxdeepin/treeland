@@ -29,11 +29,19 @@
 
 #include <QtCore/QBitArray>
 #include <QtCore/QElapsedTimer>
+#include <QtCore/QHash>
 #include <QtCore/QStack>
+#include <QtCore/QVector>
+#include <QtGui/QRegion>
+#include <memory>
 
 #include <rhi/qrhi.h>
+#include <wglobal.h>
 
-QT_BEGIN_NAMESPACE
+WAYLIB_SERVER_BEGIN_NAMESPACE
+
+class WSGDamageTracker;
+class WSGDamageDebug;
 
 namespace WSGBatchRenderer
 {
@@ -775,6 +783,23 @@ public:
     bool usesDepthBuffer() const { return useDepthBuffer(); }
     ShaderManager *shaderManager() const { return m_shaderManager; }
 
+    QRegion flushRegion() const;
+    bool flushRegionIsFull() const;
+    QRegion pendingRegion() const;
+    bool pendingIsFull() const;
+    void addPendingRegion(const QRegion &region);
+    void commitPendingDamage();
+    void markFullDamage();
+    void skipDamageScissorOnce();
+    // Restrict damage scissors to this RT. Nested QSGLayer/MultiEffect
+    // renders reuse this Renderer with a different RT; they must not inherit
+    // the output's scene-space scissors.
+    void setDamageScissorTarget(QRhiRenderTarget *rt);
+    void expandDamageScissor(const QRegion &sceneRegion);
+    void setDamageDebugEnabled(bool enabled);
+    bool damageDebugNeedsFrame() const;
+    const WSGDamageDebug *damageDebug() const { return m_damageDebug.get(); }
+
 protected:
     void nodeChanged(QSGNode *node, QSGNode::DirtyState state) override;
     void render() override;
@@ -821,6 +846,7 @@ private:
 
     friend class Updater;
     friend class RhiVisualizer;
+    friend class WAYLIB_SERVER_NAMESPACE::WSGDamageDebug;
 
     void destroyGraphicsResources();
     void map(Buffer *buffer, quint32 byteSize, bool isIndexBuf = false);
@@ -854,6 +880,9 @@ private:
     bool prepareRenderUnmergedBatch(Batch *batch, PreparedRenderBatch *renderBatch);
     void renderUnmergedBatch(PreparedRenderBatch *renderBatch, bool depthPostPass = false);
     void setViewportAndScissors(QRhiCommandBuffer *cb, const Batch *batch);
+    QVector<QRect> scissorRectsForBatch(const Batch *batch) const;
+    template<typename DrawFn>
+    void drawWithDamageScissors(QRhiCommandBuffer *cb, const Batch *batch, DrawFn &&draw);
     void setGraphicsPipeline(QRhiCommandBuffer *cb, const Batch *batch, Element *e, bool depthPostPass = false);
     ClipState::ClipType updateStencilClip(const QSGClipNode *clip);
     void updateClip(const QSGClipNode *clipList, const Batch *batch);
@@ -886,6 +915,9 @@ private:
     void setVisualizationMode(const QByteArray &mode) override;
     bool hasVisualizationModeWithContinuousUpdate() const override;
 
+    void commitFlushRegion();
+    QRect sceneRectToNativeScissor(const QRectF &bbox, bool pad = true) const;
+
     QSGDefaultRenderContext *m_context;
     QSGRendererInterface::RenderMode m_renderMode;
     QSet<Node *> m_taggedRoots;
@@ -895,6 +927,14 @@ private:
     bool m_partialRebuild;
     QSGNode *m_partialRebuildRoot;
     bool m_forceNoDepthBuffer;
+    std::unique_ptr<WSGDamageTracker> m_damageTracker;
+    std::unique_ptr<WSGDamageDebug> m_damageDebug;
+    bool m_damageDebugEnabled = false;
+    bool m_damageScissorEnabled = false;
+    bool m_skipDamageScissorOnce = false;
+    QRhiRenderTarget *m_damageScissorTarget = nullptr;
+    QRegion m_extraDamageScissor;
+    QVector<QRect> m_damageNativeScissors;
 
     QHash<QSGRenderNode *, RenderNodeElement *> m_renderNodeElements;
     QDataBuffer<Batch *> m_opaqueBatches;
@@ -1045,13 +1085,15 @@ void StencilClipState::reset()
     drawCalls.reset();
 }
 
-}
+} // namespace WSGBatchRenderer
 
-Q_DECLARE_TYPEINFO(WSGBatchRenderer::GraphicsState, Q_RELOCATABLE_TYPE);
-Q_DECLARE_TYPEINFO(WSGBatchRenderer::GraphicsPipelineStateKey, Q_RELOCATABLE_TYPE);
-Q_DECLARE_TYPEINFO(WSGBatchRenderer::RenderPassState, Q_RELOCATABLE_TYPE);
-Q_DECLARE_TYPEINFO(WSGBatchRenderer::DrawSet, Q_PRIMITIVE_TYPE);
+WAYLIB_SERVER_END_NAMESPACE
 
+QT_BEGIN_NAMESPACE
+Q_DECLARE_TYPEINFO(WAYLIB_SERVER_NAMESPACE::WSGBatchRenderer::GraphicsState, Q_RELOCATABLE_TYPE);
+Q_DECLARE_TYPEINFO(WAYLIB_SERVER_NAMESPACE::WSGBatchRenderer::GraphicsPipelineStateKey, Q_RELOCATABLE_TYPE);
+Q_DECLARE_TYPEINFO(WAYLIB_SERVER_NAMESPACE::WSGBatchRenderer::RenderPassState, Q_RELOCATABLE_TYPE);
+Q_DECLARE_TYPEINFO(WAYLIB_SERVER_NAMESPACE::WSGBatchRenderer::DrawSet, Q_PRIMITIVE_TYPE);
 QT_END_NAMESPACE
 
 #endif // WSGBATCHRENDERER_P_H
