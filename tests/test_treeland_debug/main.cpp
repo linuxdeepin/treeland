@@ -12,13 +12,16 @@
 #include <QTest>
 
 // Unit tests for the pure-logic helpers shared by the treeland-debug tool
-// (stateName, buttonCode, keyCode, saveCapture, pointToJson, rectToJson).
-// These do not require a running compositor or a Wayland connection.
+// (stateName, buttonCode, keyCode, saveCapture, pointToJson, rectToJson)
+// plus exhaustive coverage of parseCommand() — the command recognition and
+// parameter validation layer that every subcommand flows through.  These do
+// not require a running compositor or a Wayland connection.
 class TreelandDebugTest : public QObject
 {
     Q_OBJECT
 
 private Q_SLOTS:
+    // --- pure helpers ---
     void testStateNameKnownStates();
     void testStateNameUnknown();
     void testButtonCodeNamed();
@@ -34,7 +37,91 @@ private Q_SLOTS:
     void testSaveCaptureAutoPath();
     void testPointToJson();
     void testRectToJson();
+
+    // --- parseCommand: no-argument commands ---
+    void testParseTree();
+    void testParseCursor();
+    void testParseWindows();
+    void testParseClients();
+    void testParseHelp();
+    void testParseShell();
+
+    // --- parseCommand: window control ---
+    void testParseActivateMissingTarget();
+    void testParseActivate();
+    void testParseCloseMissingTarget();
+    void testParseClose();
+    void testParseMinimizeMissingTarget();
+    void testParseMinimize();
+    void testParseMaximizeMissingTarget();
+    void testParseMaximize();
+    void testParseFullscreenMissingTarget();
+    void testParseFullscreen();
+
+    // --- parseCommand: move / resize / workspace ---
+    void testParseMoveMissingTarget();
+    void testParseMoveTooFewArgs();
+    void testParseMove();
+    void testParseResizeMissingTarget();
+    void testParseResizeTooFewArgs();
+    void testParseResize();
+    void testParseWorkspaceMissingTarget();
+    void testParseWorkspaceTooFewArgs();
+    void testParseWorkspace();
+
+    // --- parseCommand: move-cursor ---
+    void testParseMoveCursorTooFewArgs();
+    void testParseMoveCursor();
+    void testParseMoveCursorNegative();
+
+    // --- parseCommand: event ---
+    void testParseEventNoSub();
+    void testParseEventUnknownSub();
+    void testParseEventMotionTooFewArgs();
+    void testParseEventMotion();
+    void testParseEventButtonTooFewArgs();
+    void testParseEventButtonUnknown();
+    void testParseEventButtonNamed();
+    void testParseEventButtonRaw();
+    void testParseEventButtonWithAction();
+    void testParseEventButtonDefaultAction();
+    void testParseEventKeyTooFewArgs();
+    void testParseEventKeyUnknown();
+    void testParseEventKeyNamed();
+    void testParseEventKeyRaw();
+    void testParseEventKeyWithAction();
+    void testParseEventKeyDefaultAction();
+
+    // --- parseCommand: screenshot ---
+    void testParseScreenshotNoSub();
+    void testParseScreenshotUnknownTarget();
+    void testParseScreenshotOutputNoArgs();
+    void testParseScreenshotOutputWithName();
+    void testParseScreenshotOutputWithNameAndFile();
+    void testParseScreenshotOutputEmptyName();
+    void testParseScreenshotWindowTooFewArgs();
+    void testParseScreenshotWindow();
+    void testParseScreenshotWindowWithFile();
+
+    // --- parseCommand: live commands (top/events/watch) ---
+    void testParseTopDefault();
+    void testParseTopCustomInterval();
+    void testParseTopInvalidInterval();
+    void testParseEventsDefault();
+    void testParseEventsCustomInterval();
+    void testParseEventsInvalidInterval();
+    void testParseWatchMissingId();
+    void testParseWatch();
+    void testParseWatchWithInterval();
+    void testParseWatchInvalidInterval();
+
+    // --- parseCommand: unknown command ---
+    void testParseUnknownCommand();
 };
+
+// ---------------------------------------------------------------------------
+// Pure-helper tests (unchanged from original coverage)
+// ---------------------------------------------------------------------------
 
 void TreelandDebugTest::testStateNameKnownStates()
 {
@@ -180,6 +267,580 @@ void TreelandDebugTest::testRectToJson()
     QCOMPARE(obj.value("y").toDouble(), 20.0);
     QCOMPARE(obj.value("width").toDouble(), 300.0);
     QCOMPARE(obj.value("height").toDouble(), 400.0);
+}
+
+// ---------------------------------------------------------------------------
+// parseCommand: no-argument commands
+// ---------------------------------------------------------------------------
+
+void TreelandDebugTest::testParseTree()
+{
+    const auto r = parseCommand(QStringLiteral("tree"), {});
+    QVERIFY(r.ok);
+    QCOMPARE(r.command, DebugCommand::Tree);
+    QVERIFY(r.error.isEmpty());
+}
+
+void TreelandDebugTest::testParseCursor()
+{
+    const auto r = parseCommand(QStringLiteral("cursor"), {});
+    QVERIFY(r.ok);
+    QCOMPARE(r.command, DebugCommand::Cursor);
+}
+
+void TreelandDebugTest::testParseWindows()
+{
+    const auto r = parseCommand(QStringLiteral("windows"), {});
+    QVERIFY(r.ok);
+    QCOMPARE(r.command, DebugCommand::Windows);
+}
+
+void TreelandDebugTest::testParseClients()
+{
+    const auto r = parseCommand(QStringLiteral("clients"), {});
+    QVERIFY(r.ok);
+    QCOMPARE(r.command, DebugCommand::Clients);
+}
+
+void TreelandDebugTest::testParseHelp()
+{
+    const auto r = parseCommand(QStringLiteral("help"), {});
+    QVERIFY(r.ok);
+    QCOMPARE(r.command, DebugCommand::Help);
+}
+
+void TreelandDebugTest::testParseShell()
+{
+    const auto r = parseCommand(QStringLiteral("shell"), {});
+    QVERIFY(r.ok);
+    QCOMPARE(r.command, DebugCommand::Shell);
+}
+
+// ---------------------------------------------------------------------------
+// parseCommand: window control (activate/close/minimize/maximize/fullscreen)
+// ---------------------------------------------------------------------------
+
+void TreelandDebugTest::testParseActivateMissingTarget()
+{
+    const auto r = parseCommand(QStringLiteral("activate"), {});
+    QVERIFY(!r.ok);
+    QCOMPARE(r.error, QStringLiteral("activate: missing window target (id or appId)"));
+    QCOMPARE(r.command, DebugCommand::Unknown);
+}
+
+void TreelandDebugTest::testParseActivate()
+{
+    const auto r = parseCommand(QStringLiteral("activate"), { QStringLiteral("42") });
+    QVERIFY(r.ok);
+    QCOMPARE(r.command, DebugCommand::Activate);
+    QCOMPARE(r.target, QStringLiteral("42"));
+}
+
+void TreelandDebugTest::testParseCloseMissingTarget()
+{
+    const auto r = parseCommand(QStringLiteral("close"), {});
+    QVERIFY(!r.ok);
+    QCOMPARE(r.error, QStringLiteral("close: missing window target (id or appId)"));
+}
+
+void TreelandDebugTest::testParseClose()
+{
+    const auto r = parseCommand(QStringLiteral("close"), { QStringLiteral("org.foo.bar") });
+    QVERIFY(r.ok);
+    QCOMPARE(r.command, DebugCommand::Close);
+    QCOMPARE(r.target, QStringLiteral("org.foo.bar"));
+}
+
+void TreelandDebugTest::testParseMinimizeMissingTarget()
+{
+    const auto r = parseCommand(QStringLiteral("minimize"), {});
+    QVERIFY(!r.ok);
+    QCOMPARE(r.error, QStringLiteral("minimize: missing window target (id or appId)"));
+}
+
+void TreelandDebugTest::testParseMinimize()
+{
+    const auto r = parseCommand(QStringLiteral("minimize"), { QStringLiteral("100") });
+    QVERIFY(r.ok);
+    QCOMPARE(r.command, DebugCommand::Minimize);
+    QCOMPARE(r.target, QStringLiteral("100"));
+}
+
+void TreelandDebugTest::testParseMaximizeMissingTarget()
+{
+    const auto r = parseCommand(QStringLiteral("maximize"), {});
+    QVERIFY(!r.ok);
+    QCOMPARE(r.error, QStringLiteral("maximize: missing window target (id or appId)"));
+}
+
+void TreelandDebugTest::testParseMaximize()
+{
+    const auto r = parseCommand(QStringLiteral("maximize"), { QStringLiteral("7") });
+    QVERIFY(r.ok);
+    QCOMPARE(r.command, DebugCommand::Maximize);
+    QCOMPARE(r.target, QStringLiteral("7"));
+}
+
+void TreelandDebugTest::testParseFullscreenMissingTarget()
+{
+    const auto r = parseCommand(QStringLiteral("fullscreen"), {});
+    QVERIFY(!r.ok);
+    QCOMPARE(r.error, QStringLiteral("fullscreen: missing window target (id or appId)"));
+}
+
+void TreelandDebugTest::testParseFullscreen()
+{
+    const auto r = parseCommand(QStringLiteral("fullscreen"), { QStringLiteral("55") });
+    QVERIFY(r.ok);
+    QCOMPARE(r.command, DebugCommand::Fullscreen);
+    QCOMPARE(r.target, QStringLiteral("55"));
+}
+
+// ---------------------------------------------------------------------------
+// parseCommand: move / resize / workspace
+// ---------------------------------------------------------------------------
+
+void TreelandDebugTest::testParseMoveMissingTarget()
+{
+    const auto r = parseCommand(QStringLiteral("move"), {});
+    QVERIFY(!r.ok);
+    QCOMPARE(r.error, QStringLiteral("move: missing window target (id or appId)"));
+}
+
+void TreelandDebugTest::testParseMoveTooFewArgs()
+{
+    const auto r = parseCommand(QStringLiteral("move"), { QStringLiteral("42") });
+    QVERIFY(!r.ok);
+    QCOMPARE(r.error, QStringLiteral("move: usage: move <id> <x> <y>"));
+}
+
+void TreelandDebugTest::testParseMove()
+{
+    const auto r = parseCommand(QStringLiteral("move"),
+                                { QStringLiteral("42"), QStringLiteral("100"), QStringLiteral("-200") });
+    QVERIFY(r.ok);
+    QCOMPARE(r.command, DebugCommand::Move);
+    QCOMPARE(r.target, QStringLiteral("42"));
+    QCOMPARE(r.x, 100);
+    QCOMPARE(r.y, -200);
+}
+
+void TreelandDebugTest::testParseResizeMissingTarget()
+{
+    const auto r = parseCommand(QStringLiteral("resize"), {});
+    QVERIFY(!r.ok);
+    QCOMPARE(r.error, QStringLiteral("resize: missing window target (id or appId)"));
+}
+
+void TreelandDebugTest::testParseResizeTooFewArgs()
+{
+    const auto r = parseCommand(QStringLiteral("resize"), { QStringLiteral("42") });
+    QVERIFY(!r.ok);
+    QCOMPARE(r.error, QStringLiteral("resize: usage: resize <id> <w> <h>"));
+}
+
+void TreelandDebugTest::testParseResize()
+{
+    const auto r = parseCommand(QStringLiteral("resize"),
+                                { QStringLiteral("42"), QStringLiteral("800"), QStringLiteral("600") });
+    QVERIFY(r.ok);
+    QCOMPARE(r.command, DebugCommand::Resize);
+    QCOMPARE(r.target, QStringLiteral("42"));
+    QCOMPARE(r.width, 800);
+    QCOMPARE(r.height, 600);
+}
+
+void TreelandDebugTest::testParseWorkspaceMissingTarget()
+{
+    const auto r = parseCommand(QStringLiteral("workspace"), {});
+    QVERIFY(!r.ok);
+    QCOMPARE(r.error, QStringLiteral("workspace: missing window target (id or appId)"));
+}
+
+void TreelandDebugTest::testParseWorkspaceTooFewArgs()
+{
+    const auto r = parseCommand(QStringLiteral("workspace"), { QStringLiteral("42") });
+    QVERIFY(!r.ok);
+    QCOMPARE(r.error, QStringLiteral("workspace: usage: workspace <id> <workspace-id>"));
+}
+
+void TreelandDebugTest::testParseWorkspace()
+{
+    const auto r = parseCommand(QStringLiteral("workspace"),
+                                { QStringLiteral("42"), QStringLiteral("3") });
+    QVERIFY(r.ok);
+    QCOMPARE(r.command, DebugCommand::Workspace);
+    QCOMPARE(r.target, QStringLiteral("42"));
+    QCOMPARE(r.workspaceId, 3);
+}
+
+// ---------------------------------------------------------------------------
+// parseCommand: move-cursor
+// ---------------------------------------------------------------------------
+
+void TreelandDebugTest::testParseMoveCursorTooFewArgs()
+{
+    const auto r = parseCommand(QStringLiteral("move-cursor"), { QStringLiteral("10") });
+    QVERIFY(!r.ok);
+    QCOMPARE(r.error, QStringLiteral("move-cursor: usage: move-cursor <x> <y>"));
+}
+
+void TreelandDebugTest::testParseMoveCursor()
+{
+    const auto r = parseCommand(QStringLiteral("move-cursor"),
+                                { QStringLiteral("12.5"), QStringLiteral("-7.0") });
+    QVERIFY(r.ok);
+    QCOMPARE(r.command, DebugCommand::MoveCursor);
+    QCOMPARE(r.dx, 12.5);
+    QCOMPARE(r.dy, -7.0);
+}
+
+void TreelandDebugTest::testParseMoveCursorNegative()
+{
+    const auto r = parseCommand(QStringLiteral("move-cursor"),
+                                { QStringLiteral("-100"), QStringLiteral("-200") });
+    QVERIFY(r.ok);
+    QCOMPARE(r.dx, -100.0);
+    QCOMPARE(r.dy, -200.0);
+}
+
+// ---------------------------------------------------------------------------
+// parseCommand: event motion|button|key
+// ---------------------------------------------------------------------------
+
+void TreelandDebugTest::testParseEventNoSub()
+{
+    const auto r = parseCommand(QStringLiteral("event"), {});
+    QVERIFY(!r.ok);
+    QCOMPARE(r.error, QStringLiteral("event: usage: event motion|button|key ..."));
+}
+
+void TreelandDebugTest::testParseEventUnknownSub()
+{
+    const auto r = parseCommand(QStringLiteral("event"), { QStringLiteral("foobar") });
+    QVERIFY(!r.ok);
+    QCOMPARE(r.error, QStringLiteral("event: unknown subcommand 'foobar'"));
+}
+
+void TreelandDebugTest::testParseEventMotionTooFewArgs()
+{
+    const auto r = parseCommand(QStringLiteral("event"), { QStringLiteral("motion"), QStringLiteral("5") });
+    QVERIFY(!r.ok);
+    QCOMPARE(r.error, QStringLiteral("event motion: usage: event motion <x> <y>"));
+}
+
+void TreelandDebugTest::testParseEventMotion()
+{
+    const auto r = parseCommand(QStringLiteral("event"),
+                                { QStringLiteral("motion"), QStringLiteral("3.5"), QStringLiteral("9.0") });
+    QVERIFY(r.ok);
+    QCOMPARE(r.command, DebugCommand::EventMotion);
+    QCOMPARE(r.dx, 3.5);
+    QCOMPARE(r.dy, 9.0);
+}
+
+void TreelandDebugTest::testParseEventButtonTooFewArgs()
+{
+    const auto r = parseCommand(QStringLiteral("event"), { QStringLiteral("button") });
+    QVERIFY(!r.ok);
+    QCOMPARE(r.error,
+             QStringLiteral("event button: usage: event button <left|right|middle|code> [press|release|click]"));
+}
+
+void TreelandDebugTest::testParseEventButtonUnknown()
+{
+    const auto r = parseCommand(QStringLiteral("event"),
+                                { QStringLiteral("button"), QStringLiteral("foobar") });
+    QVERIFY(!r.ok);
+    QCOMPARE(r.error, QStringLiteral("unknown button 'foobar'"));
+}
+
+void TreelandDebugTest::testParseEventButtonNamed()
+{
+    const auto r = parseCommand(QStringLiteral("event"),
+                                { QStringLiteral("button"), QStringLiteral("left") });
+    QVERIFY(r.ok);
+    QCOMPARE(r.command, DebugCommand::EventButton);
+    QCOMPARE(r.code, 0x110);
+    QCOMPARE(r.action, QStringLiteral("click")); // default action
+}
+
+void TreelandDebugTest::testParseEventButtonRaw()
+{
+    const auto r = parseCommand(QStringLiteral("event"),
+                                { QStringLiteral("button"), QStringLiteral("275") });
+    QVERIFY(r.ok);
+    QCOMPARE(r.command, DebugCommand::EventButton);
+    QCOMPARE(r.code, 275);
+    QCOMPARE(r.action, QStringLiteral("click"));
+}
+
+void TreelandDebugTest::testParseEventButtonWithAction()
+{
+    const auto r = parseCommand(QStringLiteral("event"),
+                                { QStringLiteral("button"), QStringLiteral("right"), QStringLiteral("press") });
+    QVERIFY(r.ok);
+    QCOMPARE(r.command, DebugCommand::EventButton);
+    QCOMPARE(r.code, 0x111);
+    QCOMPARE(r.action, QStringLiteral("press"));
+}
+
+void TreelandDebugTest::testParseEventButtonDefaultAction()
+{
+    const auto r = parseCommand(QStringLiteral("event"),
+                                { QStringLiteral("button"), QStringLiteral("middle") });
+    QVERIFY(r.ok);
+    QCOMPARE(r.action, QStringLiteral("click"));
+}
+
+void TreelandDebugTest::testParseEventKeyTooFewArgs()
+{
+    const auto r = parseCommand(QStringLiteral("event"), { QStringLiteral("key") });
+    QVERIFY(!r.ok);
+    QCOMPARE(r.error, QStringLiteral("event key: usage: event key <name|code> [press|release|tap]"));
+}
+
+void TreelandDebugTest::testParseEventKeyUnknown()
+{
+    const auto r = parseCommand(QStringLiteral("event"),
+                                { QStringLiteral("key"), QStringLiteral("nonexistent") });
+    QVERIFY(!r.ok);
+    QCOMPARE(r.error, QStringLiteral("unknown key 'nonexistent'"));
+}
+
+void TreelandDebugTest::testParseEventKeyNamed()
+{
+    const auto r = parseCommand(QStringLiteral("event"),
+                                { QStringLiteral("key"), QStringLiteral("enter") });
+    QVERIFY(r.ok);
+    QCOMPARE(r.command, DebugCommand::EventKey);
+    QCOMPARE(r.code, 28);
+    QCOMPARE(r.action, QStringLiteral("tap")); // default action
+}
+
+void TreelandDebugTest::testParseEventKeyRaw()
+{
+    const auto r = parseCommand(QStringLiteral("event"),
+                                { QStringLiteral("key"), QStringLiteral("200") });
+    QVERIFY(r.ok);
+    QCOMPARE(r.command, DebugCommand::EventKey);
+    QCOMPARE(r.code, 200);
+    QCOMPARE(r.action, QStringLiteral("tap"));
+}
+
+void TreelandDebugTest::testParseEventKeyWithAction()
+{
+    const auto r = parseCommand(QStringLiteral("event"),
+                                { QStringLiteral("key"), QStringLiteral("space"), QStringLiteral("release") });
+    QVERIFY(r.ok);
+    QCOMPARE(r.command, DebugCommand::EventKey);
+    QCOMPARE(r.code, 57);
+    QCOMPARE(r.action, QStringLiteral("release"));
+}
+
+void TreelandDebugTest::testParseEventKeyDefaultAction()
+{
+    const auto r = parseCommand(QStringLiteral("event"),
+                                { QStringLiteral("key"), QStringLiteral("esc") });
+    QVERIFY(r.ok);
+    QCOMPARE(r.action, QStringLiteral("tap"));
+}
+
+// ---------------------------------------------------------------------------
+// parseCommand: screenshot output|window
+// ---------------------------------------------------------------------------
+
+void TreelandDebugTest::testParseScreenshotNoSub()
+{
+    const auto r = parseCommand(QStringLiteral("screenshot"), {});
+    QVERIFY(!r.ok);
+    QCOMPARE(r.error, QStringLiteral("screenshot: usage: screenshot output|window ..."));
+}
+
+void TreelandDebugTest::testParseScreenshotUnknownTarget()
+{
+    const auto r = parseCommand(QStringLiteral("screenshot"), { QStringLiteral("screen") });
+    QVERIFY(!r.ok);
+    QCOMPARE(r.error, QStringLiteral("screenshot: unknown target 'screen'"));
+}
+
+void TreelandDebugTest::testParseScreenshotOutputNoArgs()
+{
+    const auto r = parseCommand(QStringLiteral("screenshot"), { QStringLiteral("output") });
+    QVERIFY(r.ok);
+    QCOMPARE(r.command, DebugCommand::ScreenshotOutput);
+    QVERIFY(r.outputName.isEmpty());
+    QVERIFY(r.filePath.isEmpty());
+}
+
+void TreelandDebugTest::testParseScreenshotOutputWithName()
+{
+    const auto r = parseCommand(QStringLiteral("screenshot"),
+                                { QStringLiteral("output"), QStringLiteral("eDP-1") });
+    QVERIFY(r.ok);
+    QCOMPARE(r.command, DebugCommand::ScreenshotOutput);
+    QCOMPARE(r.outputName, QStringLiteral("eDP-1"));
+    QVERIFY(r.filePath.isEmpty());
+}
+
+void TreelandDebugTest::testParseScreenshotOutputWithNameAndFile()
+{
+    const auto r = parseCommand(QStringLiteral("screenshot"),
+                                { QStringLiteral("output"), QStringLiteral("eDP-1"),
+                                  QStringLiteral("/tmp/cap.png") });
+    QVERIFY(r.ok);
+    QCOMPARE(r.command, DebugCommand::ScreenshotOutput);
+    QCOMPARE(r.outputName, QStringLiteral("eDP-1"));
+    QCOMPARE(r.filePath, QStringLiteral("/tmp/cap.png"));
+}
+
+void TreelandDebugTest::testParseScreenshotOutputEmptyName()
+{
+    // An explicit empty output name is treated the same as omitting it.
+    const auto r = parseCommand(QStringLiteral("screenshot"),
+                                { QStringLiteral("output"), QStringLiteral("") });
+    QVERIFY(r.ok);
+    QCOMPARE(r.command, DebugCommand::ScreenshotOutput);
+    QVERIFY(r.outputName.isEmpty());
+}
+
+void TreelandDebugTest::testParseScreenshotWindowTooFewArgs()
+{
+    const auto r = parseCommand(QStringLiteral("screenshot"), { QStringLiteral("window") });
+    QVERIFY(!r.ok);
+    QCOMPARE(r.error, QStringLiteral("screenshot window: usage: screenshot window <id> [file]"));
+}
+
+void TreelandDebugTest::testParseScreenshotWindow()
+{
+    const auto r = parseCommand(QStringLiteral("screenshot"),
+                                { QStringLiteral("window"), QStringLiteral("42") });
+    QVERIFY(r.ok);
+    QCOMPARE(r.command, DebugCommand::ScreenshotWindow);
+    QCOMPARE(r.target, QStringLiteral("42"));
+    QVERIFY(r.filePath.isEmpty());
+}
+
+void TreelandDebugTest::testParseScreenshotWindowWithFile()
+{
+    const auto r = parseCommand(QStringLiteral("screenshot"),
+                                { QStringLiteral("window"), QStringLiteral("42"),
+                                  QStringLiteral("/tmp/win.png") });
+    QVERIFY(r.ok);
+    QCOMPARE(r.command, DebugCommand::ScreenshotWindow);
+    QCOMPARE(r.target, QStringLiteral("42"));
+    QCOMPARE(r.filePath, QStringLiteral("/tmp/win.png"));
+}
+
+// ---------------------------------------------------------------------------
+// parseCommand: live commands (top/events/watch)
+// ---------------------------------------------------------------------------
+
+void TreelandDebugTest::testParseTopDefault()
+{
+    const auto r = parseCommand(QStringLiteral("top"), {});
+    QVERIFY(r.ok);
+    QCOMPARE(r.command, DebugCommand::Top);
+    QCOMPARE(r.intervalMs, 1000);
+}
+
+void TreelandDebugTest::testParseTopCustomInterval()
+{
+    const auto r = parseCommand(QStringLiteral("top"), { QStringLiteral("500") });
+    QVERIFY(r.ok);
+    QCOMPARE(r.command, DebugCommand::Top);
+    QCOMPARE(r.intervalMs, 500);
+}
+
+void TreelandDebugTest::testParseTopInvalidInterval()
+{
+    // A non-positive interval falls back to the default 1000 ms.
+    const auto r0 = parseCommand(QStringLiteral("top"), { QStringLiteral("0") });
+    QVERIFY(r0.ok);
+    QCOMPARE(r0.intervalMs, 1000);
+
+    const auto rNeg = parseCommand(QStringLiteral("top"), { QStringLiteral("-5") });
+    QVERIFY(rNeg.ok);
+    QCOMPARE(rNeg.intervalMs, 1000);
+}
+
+void TreelandDebugTest::testParseEventsDefault()
+{
+    const auto r = parseCommand(QStringLiteral("events"), {});
+    QVERIFY(r.ok);
+    QCOMPARE(r.command, DebugCommand::Events);
+    QCOMPARE(r.intervalMs, 50);
+}
+
+void TreelandDebugTest::testParseEventsCustomInterval()
+{
+    const auto r = parseCommand(QStringLiteral("events"), { QStringLiteral("25") });
+    QVERIFY(r.ok);
+    QCOMPARE(r.command, DebugCommand::Events);
+    QCOMPARE(r.intervalMs, 25);
+}
+
+void TreelandDebugTest::testParseEventsInvalidInterval()
+{
+    const auto r0 = parseCommand(QStringLiteral("events"), { QStringLiteral("0") });
+    QVERIFY(r0.ok);
+    QCOMPARE(r0.intervalMs, 50);
+
+    const auto rNeg = parseCommand(QStringLiteral("events"), { QStringLiteral("-1") });
+    QVERIFY(rNeg.ok);
+    QCOMPARE(rNeg.intervalMs, 50);
+}
+
+void TreelandDebugTest::testParseWatchMissingId()
+{
+    const auto r = parseCommand(QStringLiteral("watch"), {});
+    QVERIFY(!r.ok);
+    QCOMPARE(r.error, QStringLiteral("watch: usage: watch <id> [interval-ms]"));
+}
+
+void TreelandDebugTest::testParseWatch()
+{
+    const auto r = parseCommand(QStringLiteral("watch"), { QStringLiteral("42") });
+    QVERIFY(r.ok);
+    QCOMPARE(r.command, DebugCommand::Watch);
+    QCOMPARE(r.target, QStringLiteral("42"));
+    QCOMPARE(r.intervalMs, 250); // default
+}
+
+void TreelandDebugTest::testParseWatchWithInterval()
+{
+    const auto r = parseCommand(QStringLiteral("watch"),
+                                { QStringLiteral("42"), QStringLiteral("500") });
+    QVERIFY(r.ok);
+    QCOMPARE(r.command, DebugCommand::Watch);
+    QCOMPARE(r.target, QStringLiteral("42"));
+    QCOMPARE(r.intervalMs, 500);
+}
+
+void TreelandDebugTest::testParseWatchInvalidInterval()
+{
+    const auto r = parseCommand(QStringLiteral("watch"),
+                                { QStringLiteral("42"), QStringLiteral("0") });
+    QVERIFY(r.ok);
+    QCOMPARE(r.target, QStringLiteral("42"));
+    QCOMPARE(r.intervalMs, 250); // falls back to default
+
+    const auto rNeg = parseCommand(QStringLiteral("watch"),
+                                   { QStringLiteral("42"), QStringLiteral("-100") });
+    QVERIFY(rNeg.ok);
+    QCOMPARE(rNeg.intervalMs, 250);
+}
+
+// ---------------------------------------------------------------------------
+// parseCommand: unknown command
+// ---------------------------------------------------------------------------
+
+void TreelandDebugTest::testParseUnknownCommand()
+{
+    const auto r = parseCommand(QStringLiteral("foobar"), {});
+    QVERIFY(!r.ok);
+    QCOMPARE(r.error, QStringLiteral("unknown command 'foobar' (try --help)"));
+    QCOMPARE(r.command, DebugCommand::Unknown);
 }
 
 QTEST_MAIN(TreelandDebugTest)

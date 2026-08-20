@@ -607,9 +607,14 @@ int main(int argc, char *argv[])
 static int runCommand(Session &session, int timeoutMs, bool json, int previewOpt,
                       const QString &command, const QStringList &args)
 {
+    const ParseResult parsed = parseCommand(command, args);
+    if (!parsed.ok)
+        return fail(parsed.error);
+
     auto *replica = session.replica;
 
-    if (command == QLatin1String("tree")) {
+    switch (parsed.command) {
+    case DebugCommand::Tree: {
         TreelandInfo info;
         if (!waitSlot(replica->getTreelandInfo(), timeoutMs, &info))
             return fail("getTreelandInfo() failed");
@@ -619,8 +624,7 @@ static int runCommand(Session &session, int timeoutMs, bool json, int previewOpt
             printTree(info);
         return EXIT_SUCCESS;
     }
-
-    if (command == QLatin1String("cursor")) {
+    case DebugCommand::Cursor: {
         QPointF pos = replica->cursorPosition();
         if (json)
             printJson(QJsonDocument(pointToJson(pos)));
@@ -628,9 +632,7 @@ static int runCommand(Session &session, int timeoutMs, bool json, int previewOpt
             QTextStream(stdout) << "x=" << pos.x() << " y=" << pos.y() << Qt::endl;
         return EXIT_SUCCESS;
     }
-
-    // ---- windows ----
-    if (command == QLatin1String("windows")) {
+    case DebugCommand::Windows: {
         QList<WindowInfo> windows;
         if (!waitSlot(replica->getWindows(), timeoutMs, &windows))
             return fail("getWindows() failed");
@@ -640,8 +642,7 @@ static int runCommand(Session &session, int timeoutMs, bool json, int previewOpt
             printWindowsTable(windows);
         return EXIT_SUCCESS;
     }
-
-    if (command == QLatin1String("clients")) {
+    case DebugCommand::Clients: {
         QList<ClientInfo> clients;
         if (!waitSlot(replica->getClients(), timeoutMs, &clients))
             return fail("getClients() failed");
@@ -651,187 +652,154 @@ static int runCommand(Session &session, int timeoutMs, bool json, int previewOpt
             printClientsTable(clients);
         return EXIT_SUCCESS;
     }
-
     // ---- window control ----
-    if (command == QLatin1String("activate") || command == QLatin1String("close")
-        || command == QLatin1String("minimize") || command == QLatin1String("maximize")
-        || command == QLatin1String("fullscreen") || command == QLatin1String("move")
-        || command == QLatin1String("resize") || command == QLatin1String("workspace")) {
-        if (args.isEmpty())
-            return fail(QStringLiteral("%1: missing window target (id or appId)").arg(command));
+    case DebugCommand::Activate:
+    case DebugCommand::Close:
+    case DebugCommand::Minimize:
+    case DebugCommand::Maximize:
+    case DebugCommand::Fullscreen:
+    case DebugCommand::Move:
+    case DebugCommand::Resize:
+    case DebugCommand::Workspace: {
         bool ok = false;
-        const qint64 id = resolveTarget(session, timeoutMs, args.first(), &ok);
+        const qint64 id = resolveTarget(session, timeoutMs, parsed.target, &ok);
         if (!ok)
-            return fail(QStringLiteral("no window matches '%1'").arg(args.first()));
+            return fail(QStringLiteral("no window matches '%1'").arg(parsed.target));
 
         bool result = false;
-        if (command == QLatin1String("activate")) {
+        switch (parsed.command) {
+        case DebugCommand::Activate:
             if (!waitSlot(replica->activateWindow(id), timeoutMs, &result))
                 return fail("activateWindow() failed");
-        } else if (command == QLatin1String("close")) {
+            break;
+        case DebugCommand::Close:
             if (!waitSlot(replica->closeWindow(id), timeoutMs, &result))
                 return fail("closeWindow() failed");
-        } else if (command == QLatin1String("minimize")) {
+            break;
+        case DebugCommand::Minimize:
             if (!waitSlot(replica->minimizeWindow(id), timeoutMs, &result))
                 return fail("minimizeWindow() failed");
-        } else if (command == QLatin1String("maximize")) {
+            break;
+        case DebugCommand::Maximize:
             if (!waitSlot(replica->toggleMaximized(id), timeoutMs, &result))
                 return fail("toggleMaximized() failed");
-        } else if (command == QLatin1String("fullscreen")) {
+            break;
+        case DebugCommand::Fullscreen:
             if (!waitSlot(replica->toggleFullscreen(id), timeoutMs, &result))
                 return fail("toggleFullscreen() failed");
-        } else if (command == QLatin1String("move")) {
-            if (args.size() < 3)
-                return fail("move: usage: move <id> <x> <y>");
-            const int x = args[1].toInt();
-            const int y = args[2].toInt();
-            if (!waitSlot(replica->moveWindow(id, x, y), timeoutMs, &result))
+            break;
+        case DebugCommand::Move:
+            if (!waitSlot(replica->moveWindow(id, parsed.x, parsed.y), timeoutMs, &result))
                 return fail("moveWindow() failed");
-        } else if (command == QLatin1String("resize")) {
-            if (args.size() < 3)
-                return fail("resize: usage: resize <id> <w> <h>");
-            const int w = args[1].toInt();
-            const int h = args[2].toInt();
-            if (!waitSlot(replica->resizeWindow(id, w, h), timeoutMs, &result))
+            break;
+        case DebugCommand::Resize:
+            if (!waitSlot(replica->resizeWindow(id, parsed.width, parsed.height), timeoutMs, &result))
                 return fail("resizeWindow() failed");
-        } else { // workspace
-            if (args.size() < 2)
-                return fail("workspace: usage: workspace <id> <workspace-id>");
-            const int ws = args[1].toInt();
-            if (!waitSlot(replica->setWindowWorkspace(id, ws), timeoutMs, &result))
+            break;
+        case DebugCommand::Workspace:
+            if (!waitSlot(replica->setWindowWorkspace(id, parsed.workspaceId), timeoutMs, &result))
                 return fail("setWindowWorkspace() failed");
+            break;
+        default:
+            break;
         }
         QTextStream(stdout) << (result ? "ok" : "failed") << Qt::endl;
         return result ? EXIT_SUCCESS : EXIT_FAILURE;
     }
-
     // ---- cursor move ----
-    if (command == QLatin1String("move-cursor")) {
-        if (args.size() < 2)
-            return fail("move-cursor: usage: move-cursor <x> <y>");
+    case DebugCommand::MoveCursor: {
         bool result = false;
-        if (!waitSlot(replica->moveCursor(QPointF(args[0].toDouble(), args[1].toDouble())),
-                      timeoutMs, &result))
+        if (!waitSlot(replica->moveCursor(QPointF(parsed.dx, parsed.dy)), timeoutMs, &result))
             return fail("moveCursor() failed");
         QTextStream(stdout) << (result ? "ok" : "failed") << Qt::endl;
         return result ? EXIT_SUCCESS : EXIT_FAILURE;
     }
-
     // ---- event injection ----
-    if (command == QLatin1String("event")) {
-        if (args.isEmpty())
-            return fail("event: usage: event motion|button|key ...");
-        const QString sub = args[0];
+    case DebugCommand::EventMotion: {
         bool result = false;
-        if (sub == QLatin1String("motion")) {
-            if (args.size() < 3)
-                return fail("event motion: usage: event motion <x> <y>");
-            if (!waitSlot(replica->moveCursor(QPointF(args[1].toDouble(), args[2].toDouble())),
-                          timeoutMs, &result))
-                return fail("moveCursor() failed");
-        } else if (sub == QLatin1String("button")) {
-            if (args.size() < 2)
-                return fail("event button: usage: event button <left|right|middle|code> [press|release|click]");
-            bool codeOk = false;
-            const int code = buttonCode(args[1], &codeOk);
-            if (!codeOk)
-                return fail(QStringLiteral("unknown button '%1'").arg(args[1]));
-            const QString act = args.size() > 2 ? args[2] : QStringLiteral("click");
-            if (act == QLatin1String("press")) {
-                if (!waitSlot(replica->sendPointerButton(code, true), timeoutMs, &result))
-                    return fail("sendPointerButton() failed");
-            } else if (act == QLatin1String("release")) {
-                if (!waitSlot(replica->sendPointerButton(code, false), timeoutMs, &result))
-                    return fail("sendPointerButton() failed");
-            } else { // click
-                bool r1 = false, r2 = false;
-                if (!waitSlot(replica->sendPointerButton(code, true), timeoutMs, &r1))
-                    return fail("sendPointerButton() failed");
-                if (!waitSlot(replica->sendPointerButton(code, false), timeoutMs, &r2))
-                    return fail("sendPointerButton() failed");
-                result = r1 && r2;
-            }
-        } else if (sub == QLatin1String("key")) {
-            if (args.size() < 2)
-                return fail("event key: usage: event key <name|code> [press|release|tap]");
-            bool keyOk = false;
-            const int code = keyCode(args[1], &keyOk);
-            if (!keyOk)
-                return fail(QStringLiteral("unknown key '%1'").arg(args[1]));
-            const QString act = args.size() > 2 ? args[2] : QStringLiteral("tap");
-            if (act == QLatin1String("press")) {
-                if (!waitSlot(replica->sendKey(code, true), timeoutMs, &result))
-                    return fail("sendKey() failed");
-            } else if (act == QLatin1String("release")) {
-                if (!waitSlot(replica->sendKey(code, false), timeoutMs, &result))
-                    return fail("sendKey() failed");
-            } else { // tap
-                bool r1 = false, r2 = false;
-                if (!waitSlot(replica->sendKey(code, true), timeoutMs, &r1))
-                    return fail("sendKey() failed");
-                if (!waitSlot(replica->sendKey(code, false), timeoutMs, &r2))
-                    return fail("sendKey() failed");
-                result = r1 && r2;
-            }
-        } else {
-            return fail(QStringLiteral("event: unknown subcommand '%1'").arg(sub));
+        if (!waitSlot(replica->moveCursor(QPointF(parsed.dx, parsed.dy)), timeoutMs, &result))
+            return fail("moveCursor() failed");
+        QTextStream(stdout) << (result ? "ok" : "failed") << Qt::endl;
+        return result ? EXIT_SUCCESS : EXIT_FAILURE;
+    }
+    case DebugCommand::EventButton: {
+        bool result = false;
+        const int code = parsed.code;
+        const QString act = parsed.action;
+        if (act == QLatin1String("press")) {
+            if (!waitSlot(replica->sendPointerButton(code, true), timeoutMs, &result))
+                return fail("sendPointerButton() failed");
+        } else if (act == QLatin1String("release")) {
+            if (!waitSlot(replica->sendPointerButton(code, false), timeoutMs, &result))
+                return fail("sendPointerButton() failed");
+        } else { // click
+            bool r1 = false, r2 = false;
+            if (!waitSlot(replica->sendPointerButton(code, true), timeoutMs, &r1))
+                return fail("sendPointerButton() failed");
+            if (!waitSlot(replica->sendPointerButton(code, false), timeoutMs, &r2))
+                return fail("sendPointerButton() failed");
+            result = r1 && r2;
         }
         QTextStream(stdout) << (result ? "ok" : "failed") << Qt::endl;
         return result ? EXIT_SUCCESS : EXIT_FAILURE;
     }
-
-    // ---- image capture ----
-    if (command == QLatin1String("screenshot")) {
-        if (args.isEmpty())
-            return fail("screenshot: usage: screenshot output|window ...");
-        const QString sub = args[0];
-        QString path;
-        if (sub == QLatin1String("output")) {
-            // screenshot output [name] [file]
-            QString outputName;
-            if (args.size() >= 2 && !args[1].isEmpty())
-                outputName = args[1];
-            if (args.size() >= 3)
-                path = args[2];
-            QByteArray data;
-            if (!waitSlot(replica->captureOutput(outputName), timeoutMs, &data))
-                return fail("captureOutput() failed");
-            if (data.isEmpty())
-                return fail("captureOutput: no image produced (output not found or grab failed)");
-            const QString saved = saveCapture(data, path);
-            if (saved.isEmpty())
-                return fail("captureOutput: failed to save image");
-            QTextStream(stdout) << saved << Qt::endl;
-            if (previewOpt != 2)
-                previewImage(data, previewOpt == 1);
-            return EXIT_SUCCESS;
+    case DebugCommand::EventKey: {
+        bool result = false;
+        const int code = parsed.code;
+        const QString act = parsed.action;
+        if (act == QLatin1String("press")) {
+            if (!waitSlot(replica->sendKey(code, true), timeoutMs, &result))
+                return fail("sendKey() failed");
+        } else if (act == QLatin1String("release")) {
+            if (!waitSlot(replica->sendKey(code, false), timeoutMs, &result))
+                return fail("sendKey() failed");
+        } else { // tap
+            bool r1 = false, r2 = false;
+            if (!waitSlot(replica->sendKey(code, true), timeoutMs, &r1))
+                return fail("sendKey() failed");
+            if (!waitSlot(replica->sendKey(code, false), timeoutMs, &r2))
+                return fail("sendKey() failed");
+            result = r1 && r2;
         }
-        if (sub == QLatin1String("window")) {
-            if (args.size() < 2)
-                return fail("screenshot window: usage: screenshot window <id> [file]");
-            bool ok = false;
-            const qint64 id = resolveTarget(session, timeoutMs, args[1], &ok);
-            if (!ok)
-                return fail(QStringLiteral("no window matches '%1'").arg(args[1]));
-            if (args.size() >= 3)
-                path = args[2];
-            QByteArray data;
-            if (!waitSlot(replica->captureWindow(id), timeoutMs, &data))
-                return fail("captureWindow() failed");
-            if (data.isEmpty())
-                return fail("captureWindow: no image produced (grab failed)");
-            const QString saved = saveCapture(data, path);
-            if (saved.isEmpty())
-                return fail("captureWindow: failed to save image");
-            QTextStream(stdout) << saved << Qt::endl;
-            if (previewOpt != 2)
-                previewImage(data, previewOpt == 1);
-            return EXIT_SUCCESS;
-        }
-        return fail(QStringLiteral("screenshot: unknown target '%1'").arg(sub));
+        QTextStream(stdout) << (result ? "ok" : "failed") << Qt::endl;
+        return result ? EXIT_SUCCESS : EXIT_FAILURE;
     }
-
-    return fail(QStringLiteral("unknown command '%1' (try --help)").arg(command));
+    // ---- image capture ----
+    case DebugCommand::ScreenshotOutput: {
+        QByteArray data;
+        if (!waitSlot(replica->captureOutput(parsed.outputName), timeoutMs, &data))
+            return fail("captureOutput() failed");
+        if (data.isEmpty())
+            return fail("captureOutput: no image produced (output not found or grab failed)");
+        const QString saved = saveCapture(data, parsed.filePath);
+        if (saved.isEmpty())
+            return fail("captureOutput: failed to save image");
+        QTextStream(stdout) << saved << Qt::endl;
+        if (previewOpt != 2)
+            previewImage(data, previewOpt == 1);
+        return EXIT_SUCCESS;
+    }
+    case DebugCommand::ScreenshotWindow: {
+        bool ok = false;
+        const qint64 id = resolveTarget(session, timeoutMs, parsed.target, &ok);
+        if (!ok)
+            return fail(QStringLiteral("no window matches '%1'").arg(parsed.target));
+        QByteArray data;
+        if (!waitSlot(replica->captureWindow(id), timeoutMs, &data))
+            return fail("captureWindow() failed");
+        if (data.isEmpty())
+            return fail("captureWindow: no image produced (grab failed)");
+        const QString saved = saveCapture(data, parsed.filePath);
+        if (saved.isEmpty())
+            return fail("captureWindow: failed to save image");
+        QTextStream(stdout) << saved << Qt::endl;
+        if (previewOpt != 2)
+            previewImage(data, previewOpt == 1);
+        return EXIT_SUCCESS;
+    }
+    default:
+        return fail(QStringLiteral("unknown command '%1' (try --help)").arg(command));
+    }
 }
 
 static int runTop(Session &session, int timeoutMs, int intervalMs)
@@ -924,44 +892,40 @@ static bool dispatchLiveCommand(Session &session, int timeoutMs,
                                 const QString &command, const QStringList &commandArgs,
                                 int *rc)
 {
-    if (command == QLatin1String("top")) {
-        int intervalMs = 1000;
-        if (!commandArgs.isEmpty())
-            intervalMs = commandArgs.first().toInt();
-        if (intervalMs <= 0)
-            intervalMs = 1000;
-        *rc = runTop(session, timeoutMs, intervalMs);
+    const ParseResult parsed = parseCommand(command, commandArgs);
+
+    // Only the live commands (top/events/watch) are handled here; everything
+    // else falls through to runCommand().
+    if (parsed.command != DebugCommand::Top && parsed.command != DebugCommand::Events
+        && parsed.command != DebugCommand::Watch) {
+        return false;
+    }
+
+    if (!parsed.ok) {
+        *rc = fail(parsed.error);
         return true;
     }
-    if (command == QLatin1String("events")) {
-        int intervalMs = 50;
-        if (!commandArgs.isEmpty())
-            intervalMs = commandArgs.first().toInt();
-        if (intervalMs <= 0)
-            intervalMs = 50;
-        *rc = runEvents(session, timeoutMs, intervalMs);
+
+    switch (parsed.command) {
+    case DebugCommand::Top:
+        *rc = runTop(session, timeoutMs, parsed.intervalMs);
         return true;
-    }
-    if (command == QLatin1String("watch")) {
-        if (commandArgs.isEmpty()) {
-            *rc = fail("watch: usage: watch <id> [interval-ms]");
-            return true;
-        }
+    case DebugCommand::Events:
+        *rc = runEvents(session, timeoutMs, parsed.intervalMs);
+        return true;
+    case DebugCommand::Watch: {
         bool ok = false;
-        const qint64 id = resolveTarget(session, timeoutMs, commandArgs.first(), &ok);
+        const qint64 id = resolveTarget(session, timeoutMs, parsed.target, &ok);
         if (!ok) {
-            *rc = fail(QStringLiteral("no window matches '%1'").arg(commandArgs.first()));
+            *rc = fail(QStringLiteral("no window matches '%1'").arg(parsed.target));
             return true;
         }
-        int intervalMs = 250;
-        if (commandArgs.size() >= 2)
-            intervalMs = commandArgs[1].toInt();
-        if (intervalMs <= 0)
-            intervalMs = 250;
-        *rc = runWatch(session, timeoutMs, id, intervalMs);
+        *rc = runWatch(session, timeoutMs, id, parsed.intervalMs);
         return true;
     }
-    return false;
+    default:
+        return false;
+    }
 }
 
 static int runShell(Session &session, int timeoutMs, bool json, int previewOpt)
