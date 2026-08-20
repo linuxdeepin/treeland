@@ -147,6 +147,70 @@ Starts a REPL (`treeland>`) that accepts any of the commands above, plus `help`
 and `exit`. This is the *shell* mode; running a single command on the command
 line is the *non-shell* mode.
 
+### HTTP / WebSocket server mode
+
+```bash
+sudo -u dde -- treeland-debug listen [--port <port>] [--host <addr>]
+```
+
+Starts an HTTP + WebSocket server (default `0.0.0.0:8080`) that exposes every
+CLI capability over the network — intended as the backend for a browser-based
+graphical debugger. All data is returned through the API: screenshots come back
+as `image/png` response bytes, not files on disk.
+
+Each HTTP request (and each WebSocket one-shot command) creates its own
+short-lived session that connects to the compositor, performs the operation,
+then disconnects — the server consumes **zero compositor-side resources while
+idle**. Live WebSocket subscriptions (`top`, `events`, `watch`) hold a session
+open only for the lifetime of the subscription.
+
+CORS headers (`Access-Control-Allow-Origin: *`) are set on every response and
+OPTIONS preflight is handled, so a browser frontend can call the API directly.
+
+#### HTTP REST API
+
+| Method | Path | Body / Query | Description |
+| --- | --- | --- | --- |
+| GET | `/api/tree` | — | Layout tree JSON |
+| GET | `/api/cursor` | — | Cursor position JSON |
+| GET | `/api/windows` | — | All windows JSON |
+| GET | `/api/clients` | — | All clients JSON |
+| GET | `/api/focused` | — | Focused window id |
+| GET | `/api/cursor-window` | — | Window under cursor id |
+| GET | `/api/events` | `?since=N` | Debug events after seq N |
+| GET | `/api/screenshot/output` | `?name=...` | PNG bytes (`image/png`) |
+| GET | `/api/screenshot/window` | `?target=...` | PNG bytes (`image/png`) |
+| POST | `/api/activate` | `{"target":"..."}` | Activate window |
+| POST | `/api/close` | `{"target":"..."}` | Close window |
+| POST | `/api/minimize` | `{"target":"..."}` | Minimize window |
+| POST | `/api/maximize` | `{"target":"..."}` | Toggle maximized |
+| POST | `/api/fullscreen` | `{"target":"..."}` | Toggle fullscreen |
+| POST | `/api/move` | `{"target":"...","x":N,"y":N}` | Move window |
+| POST | `/api/resize` | `{"target":"...","width":N,"height":N}` | Resize window |
+| POST | `/api/workspace` | `{"target":"...","workspaceId":N}` | Move to workspace |
+| POST | `/api/move-cursor` | `{"x":N,"y":N}` | Move cursor |
+| POST | `/api/event/motion` | `{"x":N,"y":N}` | Pointer motion |
+| POST | `/api/event/button` | `{"button":"...","action":"..."}` | Pointer button |
+| POST | `/api/event/key` | `{"key":"...","action":"..."}` | Key event |
+
+`target` may be a numeric window id or an `appId` (first match is used).
+Responses are JSON: `{"ok":true,"data":...}` or `{"ok":false,"error":"..."}`.
+
+#### WebSocket API
+
+Connect to `ws://<host>:<port>/ws` and send JSON messages. One-shot commands
+mirror the HTTP API (`{"command":"tree"}`, `{"command":"activate","target":"..."}`
+etc.). Screenshots are returned as a binary frame followed by a JSON ack.
+
+Live subscriptions:
+
+| Action | Message | Description |
+| --- | --- | --- |
+| Subscribe | `{"command":"subscribe","type":"top","id":"...","intervalMs":1000}` | Live window/client list |
+| Subscribe | `{"command":"subscribe","type":"events","id":"...","intervalMs":1000}` | Live event stream |
+| Subscribe | `{"command":"subscribe","type":"watch","target":"...","id":"...","intervalMs":250}` | Live watch on a window |
+| Unsubscribe | `{"command":"unsubscribe","id":"..."}` | Stop a subscription |
+
 ## JSON output
 
 `tree` and `cursor` always print JSON. `windows` and `clients` print a

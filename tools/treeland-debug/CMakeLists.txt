@@ -7,7 +7,7 @@ if (NOT BUILD_TREELAND_DEBUG)
     return()
 endif()
 
-find_package(Qt6 REQUIRED COMPONENTS Core RemoteObjects)
+find_package(Qt6 REQUIRED COMPONENTS Core RemoteObjects HttpServer WebSockets Network)
 
 set(windowtree_rep_file
     "${PROJECT_SOURCE_DIR}/src/modules/resource/treelandwindowtree.rep"
@@ -32,6 +32,8 @@ add_custom_command(
 qt_add_executable(treeland-debug
     main.cpp
     debughelpers.cpp
+    debugsession.cpp
+    debugserver.cpp
     "${windowtree_replica_header}"
 )
 
@@ -46,6 +48,9 @@ target_include_directories(treeland-debug PRIVATE
 target_link_libraries(treeland-debug PRIVATE
     Qt6::Core
     Qt6::RemoteObjects
+    Qt6::HttpServer
+    Qt6::WebSockets
+    Qt6::Network
 )
 
 install(TARGETS treeland-debug

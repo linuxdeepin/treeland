@@ -117,6 +117,16 @@ private Q_SLOTS:
 
     // --- parseCommand: unknown command ---
     void testParseUnknownCommand();
+
+    // --- parseCommand: listen (HTTP/WebSocket server) ---
+    void testParseListenDefault();
+    void testParseListenCustomPort();
+    void testParseListenCustomHost();
+    void testParseListenCustomBoth();
+    void testParseListenInvalidPortLow();
+    void testParseListenInvalidPortHigh();
+    void testParseListenUnknownArg();
+    void testParseListenPortNoValue();
 };
 
 // ---------------------------------------------------------------------------
@@ -841,6 +851,74 @@ void TreelandDebugTest::testParseUnknownCommand()
     QVERIFY(!r.ok);
     QCOMPARE(r.error, QStringLiteral("unknown command 'foobar' (try --help)"));
     QCOMPARE(r.command, DebugCommand::Unknown);
+}
+
+// --- parseCommand: listen ---
+
+void TreelandDebugTest::testParseListenDefault()
+{
+    const auto r = parseCommand(QStringLiteral("listen"), {});
+    QVERIFY(r.ok);
+    QCOMPARE(r.command, DebugCommand::Listen);
+    QCOMPARE(r.port, 8080);
+    QCOMPARE(r.host, QStringLiteral("0.0.0.0"));
+}
+
+void TreelandDebugTest::testParseListenCustomPort()
+{
+    const auto r = parseCommand(QStringLiteral("listen"), {QStringLiteral("--port"), QStringLiteral("9090")});
+    QVERIFY(r.ok);
+    QCOMPARE(r.command, DebugCommand::Listen);
+    QCOMPARE(r.port, 9090);
+    QCOMPARE(r.host, QStringLiteral("0.0.0.0"));
+}
+
+void TreelandDebugTest::testParseListenCustomHost()
+{
+    const auto r = parseCommand(QStringLiteral("listen"), {QStringLiteral("--host"), QStringLiteral("127.0.0.1")});
+    QVERIFY(r.ok);
+    QCOMPARE(r.command, DebugCommand::Listen);
+    QCOMPARE(r.port, 8080);
+    QCOMPARE(r.host, QStringLiteral("127.0.0.1"));
+}
+
+void TreelandDebugTest::testParseListenCustomBoth()
+{
+    const auto r = parseCommand(QStringLiteral("listen"),
+                                {QStringLiteral("--port"), QStringLiteral("3000"),
+                                 QStringLiteral("--host"), QStringLiteral("localhost")});
+    QVERIFY(r.ok);
+    QCOMPARE(r.command, DebugCommand::Listen);
+    QCOMPARE(r.port, 3000);
+    QCOMPARE(r.host, QStringLiteral("localhost"));
+}
+
+void TreelandDebugTest::testParseListenInvalidPortLow()
+{
+    const auto r = parseCommand(QStringLiteral("listen"), {QStringLiteral("--port"), QStringLiteral("0")});
+    QVERIFY(!r.ok);
+    QVERIFY(r.error.contains(QStringLiteral("port")));
+}
+
+void TreelandDebugTest::testParseListenInvalidPortHigh()
+{
+    const auto r = parseCommand(QStringLiteral("listen"), {QStringLiteral("--port"), QStringLiteral("70000")});
+    QVERIFY(!r.ok);
+    QVERIFY(r.error.contains(QStringLiteral("port")));
+}
+
+void TreelandDebugTest::testParseListenUnknownArg()
+{
+    const auto r = parseCommand(QStringLiteral("listen"), {QStringLiteral("--foo")});
+    QVERIFY(!r.ok);
+    QVERIFY(r.error.contains(QStringLiteral("usage")));
+}
+
+void TreelandDebugTest::testParseListenPortNoValue()
+{
+    const auto r = parseCommand(QStringLiteral("listen"), {QStringLiteral("--port")});
+    QVERIFY(!r.ok);
+    QVERIFY(r.error.contains(QStringLiteral("usage")));
 }
 
 QTEST_MAIN(TreelandDebugTest)

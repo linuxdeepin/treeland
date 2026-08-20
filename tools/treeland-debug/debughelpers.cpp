@@ -375,6 +375,29 @@ ParseResult parseCommand(const QString &command, const QStringList &args)
         return r;
     }
 
+    // ---- listen (HTTP/WebSocket server) ----
+    if (command == QLatin1String("listen")) {
+        r.ok = true;
+        r.command = DebugCommand::Listen;
+        for (int i = 0; i < args.size(); ++i) {
+            if (args[i] == QLatin1String("--port") && i + 1 < args.size()) {
+                r.port = args[++i].toInt();
+            } else if (args[i] == QLatin1String("--host") && i + 1 < args.size()) {
+                r.host = args[++i];
+            } else {
+                r.ok = false;
+                r.error = QStringLiteral("listen: usage: listen [--port <port>] [--host <addr>]");
+                return r;
+            }
+        }
+        if (r.port <= 0 || r.port > 65535) {
+            r.ok = false;
+            r.error = QStringLiteral("listen: port must be in range 1-65535");
+            return r;
+        }
+        return r;
+    }
+
     r.error = QStringLiteral("unknown command '%1' (try --help)").arg(command);
     return r;
 }

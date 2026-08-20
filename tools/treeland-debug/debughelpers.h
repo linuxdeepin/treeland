@@ -56,6 +56,7 @@ enum class DebugCommand {
     Top,
     Events,
     Watch,
+    Listen,
     Unknown,
 };
 
@@ -95,6 +96,10 @@ struct ParseResult
 
     // Live commands: polling interval in milliseconds.
     int intervalMs = 0;
+
+    // Listen command: HTTP/WebSocket server bind address.
+    int port = 8080;
+    QString host = QStringLiteral("0.0.0.0");
 };
 
 // Parses a command verb and its argument list into a ParseResult.  Performs

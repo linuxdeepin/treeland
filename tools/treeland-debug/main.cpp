@@ -19,6 +19,9 @@
 
 #include "debughelpers.h"
 
+#include "debugsession.h"
+#include "debugserver.h"
+
 #include "rep_treeland_windowtree_replica.h"
 
 namespace {
@@ -100,115 +103,6 @@ void SigIntInterrupt::restore()
     }
 }
 
-QJsonObject windowToJson(const WindowInfo &window)
-{
-    return {
-        {"id", window.id()},
-        {"appId", window.appId()},
-        {"title", window.title()},
-        {"output", window.output()},
-        {"container", window.container()},
-        {"workspace", window.workspace()},
-        {"layer", window.layer()},
-        {"z", window.z()},
-        {"type", window.type()},
-        {"state", window.state()},
-        {"visible", window.visible()},
-        {"active", window.active()},
-        {"geometry", rectToJson(window.geometry())},
-        {"titlebarGeometry", rectToJson(window.titlebarGeometry())},
-        {"boundingRect", rectToJson(window.boundingRect())},
-        {"iconGeometry", rectToJson(window.iconGeometry())},
-        {"position", pointToJson(window.position())},
-        {"frames", window.frames()},
-        {"damage", rectToJson(window.damage())},
-    };
-}
-
-QJsonArray windowsToJson(const QList<WindowInfo> &windows)
-{
-    QJsonArray result;
-    for (const auto &window : windows)
-        result.append(windowToJson(window));
-    return result;
-}
-
-QJsonObject workspaceToJson(const WorkspaceInfo &workspace)
-{
-    return {
-        {"id", workspace.id()},
-        {"isActive", workspace.isActive()},
-        {"windows", windowsToJson(workspace.windows())},
-    };
-}
-
-QJsonArray workspacesToJson(const QList<WorkspaceInfo> &workspaces)
-{
-    QJsonArray result;
-    for (const auto &workspace : workspaces)
-        result.append(workspaceToJson(workspace));
-    return result;
-}
-
-QJsonObject layerToJson(const LayerInfo &layer)
-{
-    return {
-        {"name", layer.name()},
-        {"layer", layer.layer()},
-        {"windows", windowsToJson(layer.windows())},
-        {"workspaces", workspacesToJson(layer.workspaces())},
-    };
-}
-
-QJsonArray layersToJson(const QList<LayerInfo> &layers)
-{
-    QJsonArray result;
-    for (const auto &layer : layers)
-        result.append(layerToJson(layer));
-    return result;
-}
-
-QJsonObject treelandInfoToJson(const TreelandInfo &info)
-{
-    return {
-        {"currentMode", info.currentMode()},
-        {"layers", layersToJson(info.layers())},
-    };
-}
-
-QJsonObject clientToJson(const ClientInfo &client)
-{
-    return {
-        {"id", client.id()},
-        {"appId", client.appId()},
-        {"pid", client.pid()},
-        {"executable", client.executable()},
-        {"windows", windowsToJson(client.windows())},
-    };
-}
-
-QJsonArray clientsToJson(const QList<ClientInfo> &clients)
-{
-    QJsonArray result;
-    for (const auto &client : clients)
-        result.append(clientToJson(client));
-    return result;
-}
-
-void registerNamedMetatypes()
-{
-    WindowTreeRemoteReplica::registerMetatypes();
-    qRegisterMetaType<WindowInfo>("WindowInfo");
-    qRegisterMetaType<QList<WindowInfo>>("QList<WindowInfo>");
-    qRegisterMetaType<WorkspaceInfo>("WorkspaceInfo");
-    qRegisterMetaType<QList<WorkspaceInfo>>("QList<WorkspaceInfo>");
-    qRegisterMetaType<LayerInfo>("LayerInfo");
-    qRegisterMetaType<QList<LayerInfo>>("QList<LayerInfo>");
-    qRegisterMetaType<TreelandInfo>("TreelandInfo");
-    qRegisterMetaType<ClientInfo>("ClientInfo");
-    qRegisterMetaType<QList<ClientInfo>>("QList<ClientInfo>");
-}
-
 int fail(const QString &message)
 {
     QTextStream(stderr) << "treeland-debug: " << message << Qt::endl;
@@ -218,57 +112,6 @@ int fail(const QString &message)
 void printJson(const QJsonDocument &document)
 {
     QTextStream(stdout) << QString::fromUtf8(document.toJson(QJsonDocument::Indented));
-}
-
-// A connection to the running Treeland debug Remote Object.
-struct Session
-{
-    QRemoteObjectNode node;
-    WindowTreeRemoteReplica *replica = nullptr;
-};
-
-bool connectSession(Session &session, const QString &url, const QString &name, int timeoutMs)
-{
-    if (!session.node.connectToNode(QUrl(url)))
-        return false;
-    session.replica = session.node.acquire<WindowTreeRemoteReplica>(name);
-    return session.replica->waitForSource(timeoutMs);
-}
-
-// Waits for a typed replica slot call and stores its return value.
-template <typename T>
-bool waitSlot(QRemoteObjectPendingReply<T> call, int timeoutMs, T *out)
-{
-    if (!call.waitForFinished(timeoutMs))
-        return false;
-    if (call.error() != QRemoteObjectPendingCall::NoError)
-        return false;
-    if (out)
-        *out = call.returnValue();
-    return true;
-}
-
-// Resolves a window target: a numeric id is used as-is, any other token is
-// matched against the first window whose appId equals it.
-qint64 resolveTarget(Session &session, int timeoutMs, const QString &token, bool *ok)
-{
-    *ok = true;
-    bool parsed = false;
-    const qint64 id = token.toLongLong(&parsed);
-    if (parsed)
-        return id;
-
-    QList<WindowInfo> windows;
-    if (!waitSlot(session.replica->getWindows(), timeoutMs, &windows)) {
-        *ok = false;
-        return 0;
-    }
-    for (const auto &window : windows) {
-        if (window.appId() == token)
-            return window.id();
-    }
-    *ok = false;
-    return 0;
 }
 
 void printWindowsTable(const QList<WindowInfo> &windows)
@@ -469,6 +312,11 @@ QString helpText()
         "  screenshot output [name] [file]   Grab an output (name optional, primary by default)\n"
         "  screenshot window <id> [file]     Grab a single window\n"
         "\n"
+"Server:\n"
+"  listen [--port <port>] [--host <addr>]   Start HTTP/WebSocket server (default 0.0.0.0:8080)\n"
+"                             All CLI commands available via HTTP and WebSocket.\n"
+"                             Screenshots return raw bytes instead of saving to disk.\n"
+"\n"
         "Interactive:\n"
         "  shell                      Start an interactive REPL (shell mode)\n"
         "                             All commands above (including top/events/watch)\n"
@@ -587,6 +435,17 @@ int main(int argc, char *argv[])
     if (command == QLatin1String("help")) {
         QTextStream(stdout) << helpText();
         return EXIT_SUCCESS;
+    }
+
+    if (command == QLatin1String("listen")) {
+        const ParseResult parsed = parseCommand(command, commandArgs);
+        if (!parsed.ok)
+            return fail(parsed.error);
+        DebugServer server(url, name, timeoutMs);
+        if (!server.listen(parsed.host, parsed.port))
+            return fail(QStringLiteral("listen: failed to bind to %1:%2").arg(parsed.host).arg(parsed.port));
+        QTextStream(stdout) << "treeland-debug listening on " << parsed.host << ":" << parsed.port << "\n";
+        return QCoreApplication::exec();
     }
 
     Session session;
