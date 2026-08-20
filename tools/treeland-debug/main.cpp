@@ -20,7 +20,9 @@
 #include "debughelpers.h"
 
 #include "debugsession.h"
+#ifdef TREELAND_DEBUG_LISTEN
 #include "debugserver.h"
+#endif
 
 #include "rep_treeland_windowtree_replica.h"
 
@@ -312,11 +314,13 @@ QString helpText()
         "  screenshot output [name] [file]   Grab an output (name optional, primary by default)\n"
         "  screenshot window <id> [file]     Grab a single window\n"
         "\n"
-"Server:\n"
-"  listen [--port <port>] [--host <addr>]   Start HTTP/WebSocket server (default 0.0.0.0:8080)\n"
-"                             All CLI commands available via HTTP and WebSocket.\n"
-"                             Screenshots return raw bytes instead of saving to disk.\n"
-"\n"
+#ifdef TREELAND_DEBUG_LISTEN
+        "Server:\n"
+        "  listen [--port <port>] [--host <addr>]   Start HTTP/WebSocket server (default 0.0.0.0:8080)\n"
+        "                             All CLI commands available via HTTP and WebSocket.\n"
+        "                             Screenshots return raw bytes instead of saving to disk.\n"
+        "\n"
+#endif
         "Interactive:\n"
         "  shell                      Start an interactive REPL (shell mode)\n"
         "                             All commands above (including top/events/watch)\n"
@@ -437,6 +441,7 @@ int main(int argc, char *argv[])
         return EXIT_SUCCESS;
     }
 
+#ifdef TREELAND_DEBUG_LISTEN
     if (command == QLatin1String("listen")) {
         const ParseResult parsed = parseCommand(command, commandArgs);
         if (!parsed.ok)
@@ -447,6 +452,7 @@ int main(int argc, char *argv[])
         QTextStream(stdout) << "treeland-debug listening on " << parsed.host << ":" << parsed.port << "\n";
         return QCoreApplication::exec();
     }
+#endif
 
     Session session;
     if (!connectSession(session, url, name, timeoutMs))
