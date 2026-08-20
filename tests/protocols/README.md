@@ -125,6 +125,29 @@ ctest --test-dir build -V -R '^test_treeland_keyboard_state_notify_unstable_v1$'
 ctest --test-dir build --output-on-failure -L protocols
 ```
 
+### 可选 `/dev/uinput` 输入集成测试
+
+`treeland-input-manager-uinput-v1` 默认不注册。它会创建一个 `BUS_VIRTUAL` uinput
+键盘，验证该设备经 udev/libinput/wlroots 进入 `WBackend::inputAdded` 和
+`inputRemoved` 后，input-manager 向 Wayland client 发送 Keyboard capability 的
+available/unavailable 事件；测试不会写入按键事件。
+
+仅在 Linux 且当前用户可写 `/dev/uinput` 时启用：
+
+```bash
+cmake --preset default -DTREELAND_ENABLE_UINPUT_PROTOCOL_TESTS=ON
+cmake --build --preset default --target test_treeland_input_manager_uinput_v1
+ctest --test-dir build --output-on-failure \
+  -R '^test_treeland_input_manager_uinput_v1$'
+```
+
+没有 `/dev/uinput` 写权限时，runner 在启动前以退出码 `77` 将该用例标记为
+**Skipped**；这不是通过。启用开关后执行全量协议测试时，该可选 target 也会被包含：
+
+```bash
+ctest --test-dir build --output-on-failure -L protocols
+```
+
 优先通过 CTest 运行。CTest 会注入 headless backend、renderer 和超时设置；直接执行
 `build/tests/protocols/.../test_*` 会遗漏这些环境设置，输出的 `(EE) could not connect to
 wayland server` 也可能只是收尾阶段的 Xwayland 噪声。判断测试是否通过应以 CTest 的退出码
