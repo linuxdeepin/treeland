@@ -1928,6 +1928,35 @@ bool WOutputRenderWindow::inRendering() const
     return d->inRendering;
 }
 
+wlr_buffer *WOutputRenderWindow::renderItemToBuffer(WBufferRenderer *renderer,
+                                                    QQuickItem *item,
+                                                    const QSize &pixelSize,
+                                                    qreal dpr,
+                                                    uint32_t format)
+{
+    Q_D(WOutputRenderWindow);
+    Q_ASSERT(renderer);
+
+    auto buffer = renderer->beginRender(
+        pixelSize,
+        dpr,
+        format,
+        WBufferRenderer::RenderFlags(
+            WBufferRenderer::DontConfigureSwapchain
+            | WBufferRenderer::RedirectOpenGLContextDefaultFrameBufferObject));
+    if (!buffer)
+        return nullptr;
+
+    d->pushRenderer(renderer);
+    renderer->renderTransientItem(item);
+    if (!d->rendererList.isEmpty())
+        d->rendererList.pop();
+
+    renderer->endRender();
+
+    return renderer->lastBuffer();
+}
+
 void WOutputRenderWindow::setRenderEnabled(bool enabled) {
     Q_D(WOutputRenderWindow);
     d->renderEnabled = enabled;
