@@ -93,4 +93,7 @@ Q_DECLARE_LOGGING_CATEGORY(lcTlPopupFocus)
 // XDG shell
 Q_DECLARE_LOGGING_CATEGORY(lcTlShellXdg)
 
+// Hook scripts runner
+Q_DECLARE_LOGGING_CATEGORY(lcTlHooks)
+
 #endif // TREELAND_LOGGING_H
