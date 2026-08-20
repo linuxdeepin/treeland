@@ -136,8 +136,12 @@ void SessionManager::syncActiveSessionXWaylandPrimaryOutput()
     if (!primaryOutput)
         return;
 
+    auto session = m_activeSession.lock();
+    if (!session)
+        return;
+
     const QString primaryOutputName = primaryOutput->output()->name();
-    auto *xwayland = activeSession().lock()->xwayland();
+    auto *xwayland = session->xwayland();
     auto *connection = xwayland ? xwayland->xcbConnection() : nullptr;
     auto *screen = xwayland ? xwayland->xcbScreen() : nullptr;
     if (!connection || !screen)
