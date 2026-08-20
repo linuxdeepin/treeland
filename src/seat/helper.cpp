@@ -2129,6 +2129,8 @@ void Helper::init(Treeland::Treeland *treeland)
     m_idleInhibitManager = wlr_idle_inhibit_v1_create(m_server->handle());
     listeners()->add(&m_idleInhibitManager->events.new_inhibitor, this, &Helper::onNewIdleInhibitor);
 
+    m_windowAnimationManagerV1 = m_server->attach<WindowAnimationManagerInterfaceV1>();
+
     m_activationManagerV1 = m_server->attach<ActivationManagerInterfaceV1>(
         [this](WSurface *surface, WSeat *seat) -> bool {
             // Determine whether the surface can transfer activation for the same seat
@@ -2156,26 +2158,82 @@ void Helper::init(Treeland::Treeland *treeland)
 
             return false;
         });
+    m_activationManagerV1->setLaunchRectProvider(
+        [this](wl_resource *tokenResource) -> std::optional<QRectF> {
+            if (!m_windowAnimationManagerV1)
+                return std::nullopt;
+            return m_windowAnimationManagerV1->takeCommittedRect(tokenResource);
+        });
     connect(m_activationManagerV1,
             &ActivationManagerInterfaceV1::activateRequested,
             this,
-            [this](ActivationManagerInterfaceV1::TokenDisposition disposition, WSurface *wsurface, WSeat *seat) {
+            [this](ActivationManagerInterfaceV1::TokenDisposition disposition,
+                   WSurface *wsurface,
+                   WSeat *seat,
+                   WSurface *originatingSurface,
+                   QRectF launchRect) {
                 auto wrapper = m_rootSurfaceContainer->getSurface(wsurface);
                 if (!wrapper) {
                     qCWarning(lcTlCore) << "Activation request for unknown surface!";
                     return;
                 }
-                // Don't use hasActiveCapability() here — it also checks UnMinimized,
-                // but minimized windows should be allowed to activate (which unminimizes them).
+                // Associate the window animation rect (if still alive) with the
+                // target wrapper. The rect is only stored when the target surface
+                // is not yet mapped; if it is already mapped, the activation
+                // arrived after first map (a client timing violation) and the
+                // compositor discards the rect without playing any animation.
+                // Activation/focus itself is unaffected.
+                if (launchRect.isValid() && originatingSurface) {
+                    if (wsurface->mapped()) {
+                        qCWarning(lcTlCore) << "Window animation rect discarded: target surface"
+                                            << "is already mapped (client activation arrived too late)";
+                        // Discard the pending rect object if any.
+                        if (m_windowAnimationManagerV1)
+                            m_windowAnimationManagerV1->associatePendingRect(nullptr, nullptr);
+                    } else {
+                        auto *originWrapper = m_rootSurfaceContainer->getSurface(originatingSurface);
+                        if (originWrapper) {
+                            // Associate the rect object with the target wrapper.
+                            // The wrapper stores the local rect (relative to the
+                            // originating surface) and the originating wrapper,
+                            // and computes the global rect dynamically at
+                            // animation time. If the rect object was destroyed
+                            // between token commit and activation, the association
+                            // fails and the default open/close animation is used.
+                            bool associated = m_windowAnimationManagerV1
+                                ? m_windowAnimationManagerV1->associatePendingRect(wrapper, originWrapper)
+                                : false;
+                            if (!associated) {
+                                qCWarning(lcTlCore) << "Window animation rect was destroyed"
+                                                    << "before activation, using default animation";
+                            }
+                        } else {
+                            qCWarning(lcTlCore) << "Window animation: originating surface wrapper"
+                                                << "not found, skipping";
+                            // Discard the pending rect object.
+                            if (m_windowAnimationManagerV1)
+                                m_windowAnimationManagerV1->associatePendingRect(nullptr, nullptr);
+                        }
+                    }
+                }
+
                 if (!wsurface->mapped()) {
-                    qCWarning(lcTlCore) << "Activation request for unmapped surface!";
+                    // Surface not yet mapped; the window animation rect (if any)
+                    // was associated with the wrapper and will be used when the
+                    // surface maps. Defer activation.
+                    if (disposition == ActivationManagerInterfaceV1::TokenDisposition::Attention)
+                        wrapper->setAttention(true);
                     return;
                 }
+
+                // Don't use hasActiveCapability() here — it also checks UnMinimized,
+                // but minimized windows should be allowed to activate (which unminimizes them).
                 if (!wrapper->hasInitializeContainer()) {
                     qCWarning(lcTlCore) << "Activation request for surface without initialized container:"
                                        << "container =" << wrapper->container();
                     return;
                 }
+
                 switch (disposition) {
                 case ActivationManagerInterfaceV1::TokenDisposition::Active:
                     forceActivateSurface(wrapper, Qt::OtherFocusReason, seat);

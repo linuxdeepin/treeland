@@ -45,6 +45,10 @@ public:
                                         const QRectF &startGeo,
                                         const QRectF &endGeo,
                                         QQuickItem *parent);
+    QQuickItem *createWindowAnimation(SurfaceWrapper *surface,
+                                      const QRectF &startGeo,
+                                      const QRectF &endGeo,
+                                      QQuickItem *parent);
     QQuickItem *createMenuBar(WOutputItem *output, QQuickItem *parent);
     QQuickItem *createWorkspaceSwitcher(Workspace *parent);
     QQuickItem *createNewAnimation(SurfaceWrapper *surface, QQuickItem *parent, uint direction);
@@ -89,6 +93,7 @@ private:
     QQmlComponent xdgShadowComponent;
     QQmlComponent taskSwitchComponent;
     QQmlComponent geometryAnimationComponent;
+    QQmlComponent windowAnimationComponent;
     QQmlComponent menuBarComponent;
     QQmlComponent workspaceSwitcher;
     QQmlComponent newAnimationComponent;

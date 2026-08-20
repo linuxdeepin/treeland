@@ -43,6 +43,7 @@ QmlEngine::QmlEngine(QObject *parent)
     , xdgShadowComponent(this, "Treeland", "XdgShadow")
     , taskSwitchComponent(this, "Treeland", "TaskSwitcher")
     , geometryAnimationComponent(this, "Treeland", "GeometryAnimation")
+    , windowAnimationComponent(this, "Treeland", "WindowAnimation")
     , menuBarComponent(this, "Treeland", "OutputMenuBar")
     , workspaceSwitcher(this, "Treeland", "WorkspaceSwitcher")
     , newAnimationComponent(this, "Treeland", "NewAnimation")
@@ -142,6 +143,20 @@ QQuickItem *QmlEngine::createGeometryAnimation(SurfaceWrapper *surface,
                                                QQuickItem *parent)
 {
     return createComponent(geometryAnimationComponent,
+                           parent,
+                           {
+                               { "surface", QVariant::fromValue(surface) },
+                               { "fromGeometry", QVariant::fromValue(startGeo) },
+                               { "toGeometry", QVariant::fromValue(endGeo) },
+                          });
+}
+
+QQuickItem *QmlEngine::createWindowAnimation(SurfaceWrapper *surface,
+                                              const QRectF &startGeo,
+                                              const QRectF &endGeo,
+                                              QQuickItem *parent)
+{
+    return createComponent(windowAnimationComponent,
                            parent,
                            {
                                { "surface", QVariant::fromValue(surface) },

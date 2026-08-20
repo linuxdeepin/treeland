@@ -46,6 +46,8 @@ public:
     {
     }
 
+    struct ::wl_resource *tokenResourceHandle() const { return resource()->handle; }
+
 protected:
     void destroy(Resource *resource) override
     {
@@ -118,6 +120,8 @@ struct TokenInfo
     bool fromTrustedSurface = false; // set_surface called and surface was active at commit time
     QDeadlineTimer expiry;           // invalidated 60 s after registration
     QPointer<WSeat> seat;            // seat associated with the token via set_serial
+    QPointer<WSurface> originatingSurface; // surface set via set_surface
+    QRectF launchRect;                     // local rect relative to originatingSurface (invalid if none)
 };
 
 class ActivationManagerInterfaceV1Private
@@ -145,14 +149,18 @@ public:
                           wl_client *client,
                           std::optional<uint32_t> serial,
                           bool fromTrustedSurface,
-                          WSeat *seat)
+                          WSeat *seat,
+                          WSurface *originatingSurface,
+                          const QRectF &launchRect)
     {
         const QString token = QUuid::createUuid().toString(QUuid::WithoutBraces);
         m_tokens.append(TokenInfo{ token, appId, client, serial, fromTrustedSurface,
-                                   QDeadlineTimer(TokenLifetimeMs), seat });
+                                   QDeadlineTimer(TokenLifetimeMs),
+                                   seat, originatingSurface, launchRect });
         qCDebug(lcTlActivation) << "Registered activation token" << token.left(8) + u"..."_s
                                << "for app" << appId
-                               << (fromTrustedSurface ? "" : "(inactive-surface-token-request)");
+                               << (fromTrustedSurface ? "" : "(inactive-surface-token-request)")
+                               << (launchRect.isValid() ? "with launch rect" : "");
         return token;
     }
 
@@ -162,6 +170,8 @@ public:
             return m_trustedSurfaceChecker(surface, seat);
         return false; // conservative: no checker → treat as inactive
     }
+
+    ActivationManagerInterfaceV1::LaunchRectProvider launchRectProvider;
 
 protected:
     void destroy_global() override
@@ -178,7 +188,7 @@ protected:
     {
         auto *tokenResource = wl_resource_create(resource->client(),
                                                   &xdg_activation_token_v1_interface,
-                                                  wl_resource_get_version(resource->handle),
+                                                  resource->version(),
                                                   id);
         if (!tokenResource) {
             wl_resource_post_no_memory(resource->handle);
@@ -206,41 +216,63 @@ protected:
             return;
         }
 
-        auto disposition = dispositionForToken(token);
-        // Retrieve the seat associated with the token before consuming it.
+        // Single lookup: resolve disposition, seat, originating surface and
+        // launch rect from the same token iterator (avoids a second linear scan).
+        ActivationManagerInterfaceV1::TokenDisposition disposition =
+            ActivationManagerInterfaceV1::TokenDisposition::Invalid;
         WSeat *tokenSeat = nullptr;
+        WSurface *originatingSurface = nullptr;
+        QRectF launchRect;
+
         auto it = std::find_if(m_tokens.begin(), m_tokens.end(),
                                [&token](const TokenInfo &t) { return t.token == token; });
         if (it != m_tokens.end()) {
             tokenSeat = it->seat.data();
-            m_tokens.erase(it);
+            originatingSurface = it->originatingSurface;
+            if (!it->expiry.hasExpired()) {
+                // Only carry forward the launch rect for non-expired tokens.
+                // An expired token's rect is stale and must not trigger an
+                // animation on a surface that maps later.
+                launchRect = it->launchRect;
+                // inactive-surface-token-request: set_surface not called or surface was not active
+                // → treat as Attention
+                disposition = it->fromTrustedSurface
+                                  ? (it->serial.has_value()
+                                         ? ActivationManagerInterfaceV1::TokenDisposition::Active
+                                         : ActivationManagerInterfaceV1::TokenDisposition::Attention)
+                                  : ActivationManagerInterfaceV1::TokenDisposition::Attention;
+            }
+        }
+
+        // If the token has no originating surface, the launch rect cannot be
+        // mapped to global coordinates — clear it to prevent an orphan rect
+        // from being forwarded downstream.
+        if (!originatingSurface)
+            launchRect = QRectF();
+
+        // Allow activation of unmapped surfaces when a launch rect is present;
+        // the compositor will play the animation when the surface maps.
+        if (!wsurface->mapped() && !launchRect.isValid()) {
+            qCWarning(lcTlActivation) << "activate: unmapped surface without launch rect";
+            // Keep token one-shot semantics: consume the token even on early return
+            if (it != m_tokens.end())
+                m_tokens.erase(it);
+            return;
         }
 
         qCInfo(lcTlActivation) << "activate: emitting activateRequested for token" << token.left(8) + u"..."_s
-                             << "with disposition" << disposition;
-        Q_EMIT q->activateRequested(disposition, wsurface, tokenSeat);
+                             << "with disposition" << disposition
+                             << (launchRect.isValid() ? "with launch rect" : "");
+
+        // Keep token one-shot semantics
+        if (it != m_tokens.end()) {
+            m_tokens.erase(it);
+        }
+
+        Q_EMIT q->activateRequested(disposition, wsurface, tokenSeat, originatingSurface, launchRect);
     }
 
 private:
-    ActivationManagerInterfaceV1::TokenDisposition dispositionForToken(const QString &token) const
-    {
-        auto it = std::find_if(m_tokens.cbegin(), m_tokens.cend(),
-                               [&token](const TokenInfo &t) { return t.token == token; });
-        if (it == m_tokens.cend()) {
-            return ActivationManagerInterfaceV1::TokenDisposition::Invalid;
-        }
-        if (it->expiry.hasExpired()) {
-            return ActivationManagerInterfaceV1::TokenDisposition::Invalid;
-        }
-        // inactive-surface-token-request: set_surface not called or surface was not active
-        // → treat as Attention
-        if (!it->fromTrustedSurface) {
-            return ActivationManagerInterfaceV1::TokenDisposition::Attention;
-        }
-        return it->serial.has_value() ? ActivationManagerInterfaceV1::TokenDisposition::Active
-                                      : ActivationManagerInterfaceV1::TokenDisposition::Attention;
-    }
-
     void sweepExpiredTokens()
     {
         auto it = m_tokens.begin();
@@ -285,7 +317,19 @@ void TokenContext::commit(Resource *resource)
 
     // fromTrustedSurface: set_surface was called, surface still alive, and currently active
     const bool fromTrustedSurface = m_surface && m_manager->isTrustedSurface(m_surface, m_seat);
-    const QString token = m_manager->registerToken(m_appId, resource->client(), m_serial, fromTrustedSurface, m_seat);
+
+    // Query the window animation manager for a committed rect on this token resource.
+    // Only attach a launch rect when an originating surface exists; a rect without
+    // an origin cannot be converted to global coordinates and would be an orphan.
+    QRectF launchRect;
+    if (m_surface && m_manager->launchRectProvider) {
+        auto rectOpt = m_manager->launchRectProvider(tokenResourceHandle());
+        if (rectOpt)
+            launchRect = *rectOpt;
+    }
+
+    const QString token = m_manager->registerToken(m_appId, resource->client(), m_serial,
+                                                   fromTrustedSurface, m_seat, m_surface, launchRect);
     send_done(token);
 }
 
@@ -309,6 +353,11 @@ QByteArrayView ActivationManagerInterfaceV1::interfaceName() const
     return d->interfaceName();
 }
 
+void ActivationManagerInterfaceV1::setLaunchRectProvider(LaunchRectProvider provider)
+{
+    d->launchRectProvider = std::move(provider);
+}
+
 void ActivationManagerInterfaceV1::create(WServer *server)
 {
     d->init(server->handle(), InterfaceVersion);
@@ -323,4 +372,3 @@ wl_global *ActivationManagerInterfaceV1::global() const
 {
     return d->globalHandle();
 }
-

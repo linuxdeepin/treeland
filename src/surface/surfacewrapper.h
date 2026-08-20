@@ -11,6 +11,7 @@
 #include <QQuickItem>
 #include <QString>
 #include <QColor>
+#include <optional>
 
 Q_MOC_INCLUDE(<woutput.h>)
 Q_MOC_INCLUDE(<output / output.h>)
@@ -291,6 +292,11 @@ public:
     bool hasInitializeContainer() const;
     void setHasInitializeContainer(bool value);
     void disableWindowAnimation(bool disable = true);
+    void setWindowAnimationRect(const QRectF &localRect, SurfaceWrapper *originWrapper);
+    void updateWindowAnimationLocalRect(const QRectF &localRect);
+    void clearWindowAnimationRect();
+    bool hasWindowAnimationRect() const;
+    std::optional<QRectF> computeGlobalWindowAnimationRect() const;
     void setHideByShowDesk(bool show);
     void setHideByLockScreen(bool hide);
 
@@ -406,6 +412,8 @@ private:
     void updateClipRect();
     void geometryChange(const QRectF &newGeo, const QRectF &oldGeometry) override;
     void createNewOrClose(uint direction);
+    void startWindowAnimation();
+    void startWindowCloseAnimation();
     void itemChange(ItemChange change, const ItemChangeData &data) override;
 
     QRectF targetGeometryForState(State state) const;
@@ -518,6 +526,10 @@ private:
 
     bool m_socketEnabled{ false };
     bool m_windowAnimationEnabled{ true };
+    bool m_launchAnimationPending{ false }; // true while waiting for surfaceItem ready before window animation
+    QRectF m_windowAnimationLocalRect; // local-space rect relative to the originating surface
+    QPointer<SurfaceWrapper> m_windowAnimationOriginWrapper; // the originating surface wrapper (A's window)
+    bool m_hasWindowAnimationRect{ false }; // true when a window animation rect is associated and alive
     const QString m_appId;
 };
 

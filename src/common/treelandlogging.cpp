@@ -73,6 +73,9 @@ Q_LOGGING_CATEGORY(lcTlXsettings, "treeland.xsettings")
 // Activation module
 Q_LOGGING_CATEGORY(lcTlActivation, "treeland.activation")
 
+// Window animation module
+Q_LOGGING_CATEGORY(lcTlWindowAnimation, "treeland.window.animation")
+
 // App ID resolver
 Q_LOGGING_CATEGORY(lcTlAppIdResolver, "treeland.appid.resolver", QtInfoMsg)
 
