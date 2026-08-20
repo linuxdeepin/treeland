@@ -76,6 +76,9 @@ Q_DECLARE_LOGGING_CATEGORY(lcTlXsettings)
 // Activation module
 Q_DECLARE_LOGGING_CATEGORY(lcTlActivation)
 
+// Launch animation module
+Q_DECLARE_LOGGING_CATEGORY(lcTlLaunchAnimation)
+
 // App ID resolver
 Q_DECLARE_LOGGING_CATEGORY(lcTlAppIdResolver)
 

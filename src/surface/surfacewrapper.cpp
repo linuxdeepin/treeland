@@ -24,6 +24,7 @@
 #include <wxwaylandsurfaceitem.h>
 
 #include <QColor>
+#include <QTimer>
 #include <QVariant>
 
 #define OPEN_ANIMATION 1
@@ -194,6 +195,11 @@ void SurfaceWrapper::invalidate()
     Q_ASSERT_X(!m_wrapperAboutToRemove, Q_FUNC_INFO, "Can't call `invalidate` twice!");
     m_wrapperAboutToRemove = true;
     Q_EMIT aboutToBeInvalidated();
+
+    // Drop any pending launch animation rect so it cannot be consumed later by
+    // a stale mapping path on this wrapper.
+    m_launchAnimationRect = QRectF();
+    m_launchAnimationPending = false;
 
     if (!m_skipDockPreView)
         setSkipDockPreView(true);
@@ -1401,16 +1407,85 @@ void SurfaceWrapper::geometryChange(const QRectF &newGeo, const QRectF &oldGeome
     updateClipRect();
 }
 
+void SurfaceWrapper::startLaunchAnimation()
+{
+    Q_ASSERT(m_launchAnimationRect.isValid());
+    m_launchAnimationPending = true;
+
+    // At first map time the wlr "map" event fires before the first "commit",
+    // so the surface item has not yet computed a valid implicit size and the
+    // output has not yet arranged the window's position.  Wait until the
+    // surface item reports ready before computing the target geometry.
+    if (!m_surfaceItem->isReady()) {
+        connect(m_surfaceItem,
+                &WSurfaceItem::readyChanged,
+                this,
+                &SurfaceWrapper::startLaunchAnimation,
+                Qt::SingleShotConnection);
+        return;
+    }
+
+    const QRectF fromGeometry = m_launchAnimationRect;
+
+    // Defer to the next event-loop iteration so that the implicit-size
+    // propagation (widthChanged/heightChanged -> Output::layoutSurface ->
+    // arrangeNonLayerSurface) has finished setting the window's final
+    // position and size before we sample them.
+    QTimer::singleShot(0, this, [this, fromGeometry]() {
+        m_launchAnimationPending = false;
+        m_launchAnimationRect = QRectF();
+
+        // The surface may have unmapped while we were waiting.  In that case
+        // there is nothing to animate; let the close path handle removal.
+        if (m_wrapperAboutToRemove || !surface() || !surface()->mapped())
+            return;
+
+        // For maximized/fullscreen the target is the output-area geometry.
+        // For the normal state position() and size() are now valid after the
+        // layout pass that ran synchronously when readyChanged was emitted.
+        const QRectF stateGeometry = targetGeometryForState(m_surfaceState);
+        const bool useStateGeometry = (m_surfaceState == State::Maximized
+                                       || m_surfaceState == State::Fullscreen)
+            && stateGeometry.isValid();
+        const QRectF toGeometry = useStateGeometry
+            ? stateGeometry
+            : QRectF(position(), size());
+
+        m_windowAnimation = m_engine->createLaunchAnimation(this, fromGeometry, toGeometry, container());
+        m_windowAnimation->setProperty("enableBlur", m_blur);
+
+        if (Helper::instance()->noAnimation()) {
+            onShowAnimationFinished();
+            return;
+        }
+        bool ok = connect(m_windowAnimation,
+                          SIGNAL(finished()),
+                          this,
+                          SLOT(onLaunchAnimationFinished()));
+        Q_ASSERT(ok);
+        ok = QMetaObject::invokeMethod(m_windowAnimation, "start");
+        Q_ASSERT(ok);
+        Q_EMIT windowAnimationRunningChanged();
+    });
+}
+
 void SurfaceWrapper::createNewOrClose(uint direction)
 {
     if (!m_windowAnimationEnabled)
         return;
 
-    if (m_windowAnimation)
+    if (m_windowAnimation || m_launchAnimationPending)
         return;
 
     if (m_container.isNull())
         return;
+
+    // Launch animation: defer until the surface item is ready and layout has
+    // settled, so that position()/size() reflect the window's final geometry.
+    if (direction == OPEN_ANIMATION && m_launchAnimationRect.isValid()) {
+        startLaunchAnimation();
+        return;
+    }
 
     switch (m_type) {
     case Type::SplashScreen:
@@ -1671,6 +1746,11 @@ void SurfaceWrapper::onMappedChanged()
             if (!m_prelaunchSplash) {
                 createNewOrClose(OPEN_ANIMATION);
             } else {
+                // The prelaunch-splash branch plays its own transition instead
+                // of createNewOrClose(OPEN_ANIMATION), so the launch animation
+                // rect is never consumed here.  Discard it to prevent a stale
+                // rect from being replayed by a later, unrelated animation.
+                m_launchAnimationRect = QRectF();
                 syncPrelaunchMappedState();
                 startPrelaunchSplashHideSequence();
             }
@@ -2342,6 +2422,23 @@ void SurfaceWrapper::setHasInitializeContainer(bool value)
 void SurfaceWrapper::disableWindowAnimation(bool disable)
 {
     m_windowAnimationEnabled = !disable;
+}
+
+void SurfaceWrapper::setLaunchAnimationRect(const QRectF &rect)
+{
+    // The launch rect is honored only when the surface is not yet mapped. If
+    // the surface is already mapped, the activation arrived after first map (a
+    // client timing violation): discard the rect and do not replay or
+    // substitute any animation — the compositor does not compensate.
+    if (surface() && surface()->mapped())
+        return;
+
+    m_launchAnimationRect = rect;
+}
+
+void SurfaceWrapper::onLaunchAnimationFinished()
+{
+    onShowAnimationFinished();
 }
 
 void SurfaceWrapper::updateExplicitAlwaysOnTop()
