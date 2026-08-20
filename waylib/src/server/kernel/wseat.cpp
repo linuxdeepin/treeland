@@ -7,6 +7,7 @@
 #include "woutput.h"
 #include "wsurface.h"
 #include "wscoplistener.h"
+#include "wpointer.h"
 #include "platformplugin/qwlrootsintegration.h"
 #include "private/wglobal_p.h"
 #include "wayliblogging.h"
@@ -446,7 +447,7 @@ public:
     // for cursor data
     // TODO: make to QWSeatClient in wlroots
     // Don't access its member, maybe is a invalid pointer
-    wlr_seat_client *cursorClient = nullptr;
+    WPointer<wlr_seat_client> cursorClient;
     QPointer<WSurface> cursorSurface;
     QPoint cursorSurfaceHotspot;
     WGlobal::CursorShape cursorShape = WGlobal::CursorShape::Invalid;
@@ -467,13 +468,26 @@ void WSeatPrivate::on_request_set_cursor(wlr_seat_pointer_request_set_cursor_eve
          * on the output that it's currently on and continue to do so as the
          * cursor moves between outputs. */
         auto *surface = event->surface;
-        cursorClient = event->seat_client;
         cursorShape = WGlobal::CursorShape::Invalid;
+
+        W_Q(WSeat);
+
+        if (cursorClient == event->seat_client && cursorSurface
+            && cursorSurface->handle() == surface) {
+            if (cursorSurfaceHotspot.x() != event->hotspot_x
+                || cursorSurfaceHotspot.y() != event->hotspot_y) {
+                cursorSurfaceHotspot.rx() = event->hotspot_x;
+                cursorSurfaceHotspot.ry() = event->hotspot_y;
+                Q_EMIT q->requestCursorSurface(cursorSurface, cursorSurfaceHotspot);
+            }
+            return;
+        }
+
+        cursorClient = event->seat_client;
 
         if (cursorSurface)
             delete cursorSurface;
 
-        W_Q(WSeat);
         if (surface) {
             cursorSurface = new WSurface(surface);
             // The seat created the surface, so it releases it when the
