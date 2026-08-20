@@ -3395,7 +3395,10 @@ void Helper::setLockScreenImpl(ILockScreen *impl)
         return;
     }
     if (CmdLine::ref().useLockScreen()) {
-        showLockScreen(false);
+        // Start in the undecided state: make the lock screen surface (wallpaper)
+        // visible but keep the login UI hidden until DDM decides (ShowGreeter /
+        // UserActivateMessage) or the fallback timeout in GreeterProxy fires.
+        m_lockScreen->setVisible(true);
     }
 #else
     Q_UNUSED(impl)
@@ -3429,7 +3432,10 @@ void Helper::showLockScreen(bool switchToGreeter)
     if (!isLockScreenAvailable()) {
         return;
     }
-    if (m_lockScreen->isLocked()) {
+    // LockScreen::isLocked() is isVisible(), which is also true in the
+    // undecided state (surface shown, not yet locked), so check the real
+    // lock state instead.
+    if (m_greeterProxy->isLocked()) {
         return;
     }
 
