@@ -1987,9 +1987,6 @@ void Helper::init(Treeland::Treeland *treeland)
         return;
     }
 
-    for (auto *seat : m_seatManager->seats()) {
-        connectSeat(seat);
-    }
 
     // Setup all seats (cursor, keyboard focus, event filter)
     m_seatManager->setupAllSeats(m_renderWindow,
