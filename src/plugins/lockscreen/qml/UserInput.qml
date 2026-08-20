@@ -15,6 +15,7 @@ Item {
     property string normalHint: qsTr("Please enter password")
     property bool enteringOtherUser: false
     property bool showUserNotFoundError: false
+    property bool noPasswdLogin: false
 
     /**************/
     /* Components */
@@ -101,132 +102,159 @@ Item {
             anchors.horizontalCenter: parent.horizontalCenter
         }
 
-        TextField {
-            id: passwordField
-
-            property bool capsIndicatorVisible: false
-
-            cursorDelegate: Rectangle {
-                id: cursor
-
-                width: 1
-                height: 18
-                color: palette.windowText
-
-                visible: parent.activeFocus && !parent.readOnly && parent.selectionStart === parent.selectionEnd
-
-                Connections {
-                    target: cursor.parent
-                    function onCursorPositionChanged() {
-                        // keep a moving cursor visible
-                        cursor.opacity = 1
-                        cursorTimer.restart()
-                    }
-                }
-
-                Timer {
-                    id: cursorTimer
-                    running: cursor.parent.activeFocus && !cursor.parent.readOnly && interval != 0
-                    repeat: true
-                    // TODO: Application.styleHints.cursorFlashTime / 2, waylib is not supports
-                    // Application.styleHints now.
-                    interval: 600
-                    onTriggered: cursor.opacity = !cursor.opacity ? 1 : 0
-                    // force the cursor visible when gaining focus
-                    onRunningChanged: cursor.opacity = 1
-                }
-            }
-
+        Item {
+            id: passwordSlot
             width: loginGroup.width
             height: 30
             anchors.horizontalCenter: parent.horizontalCenter
-            horizontalAlignment: TextInput.AlignHCenter
-            echoMode: loginGroup.enteringOtherUser ? TextInput.Normal
-                      : (showPasswordBtn.hiddenPWD ? TextInput.Password : TextInput.Normal)
-            rightPadding: 22
-            leftPadding: {
-                var remaining = loginGroup.width - contentWidth - rightPadding
-                if (capsIndicator.visible)
-                    return rightPadding
-                return Math.max(8, remaining > rightPadding ? rightPadding : remaining)
-            }
-            maximumLength: 510
-            placeholderText: loginGroup.enteringOtherUser ? qsTr("Username") : qsTr("Password")
-            placeholderTextColor: Qt.rgba(1.0, 1.0, 1.0, 0.6)
-            color: palette.windowText
-            font: D.DTK.fontManager.t8
-            Keys.onPressed: function (event) {
-                if (event.key === Qt.Key_CapsLock) {
-                    capsIndicatorVisible = !capsIndicatorVisible
-                    event.accepted = true
-                } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
-                    if (loginGroup.enteringOtherUser)
-                        confirmOtherUser()
-                    else
-                        userLogin()
-                    event.accepted = true
+
+            TextField {
+                id: passwordField
+
+                property bool capsIndicatorVisible: false
+
+                visible: !loginGroup.noPasswdLogin
+
+                anchors.fill: parent
+
+                cursorDelegate: Rectangle {
+                    id: cursor
+
+                    width: 1
+                    height: 18
+                    color: palette.windowText
+
+                    visible: parent.activeFocus && !parent.readOnly && parent.selectionStart === parent.selectionEnd
+
+                    Connections {
+                        target: cursor.parent
+                        function onCursorPositionChanged() {
+                            // keep a moving cursor visible
+                            cursor.opacity = 1
+                            cursorTimer.restart()
+                        }
+                    }
+
+                    Timer {
+                        id: cursorTimer
+                        running: cursor.parent.activeFocus && !cursor.parent.readOnly && interval != 0
+                        repeat: true
+                        // TODO: Application.styleHints.cursorFlashTime / 2, waylib is not supports
+                        // Application.styleHints now.
+                        interval: 600
+                        onTriggered: cursor.opacity = !cursor.opacity ? 1 : 0
+                        // force the cursor visible when gaining focus
+                        onRunningChanged: cursor.opacity = 1
+                    }
+                }
+
+                horizontalAlignment: TextInput.AlignHCenter
+                echoMode: loginGroup.enteringOtherUser ? TextInput.Normal
+                          : (showPasswordBtn.hiddenPWD ? TextInput.Password : TextInput.Normal)
+                rightPadding: 22
+                leftPadding: {
+                    var remaining = loginGroup.width - contentWidth - rightPadding
+                    if (capsIndicator.visible)
+                        return rightPadding
+                    return Math.max(8, remaining > rightPadding ? rightPadding : remaining)
+                }
+                maximumLength: 510
+                placeholderText: loginGroup.enteringOtherUser ? qsTr("Username") : qsTr("Password")
+                placeholderTextColor: Qt.rgba(1.0, 1.0, 1.0, 0.6)
+                color: palette.windowText
+                font: D.DTK.fontManager.t8
+                Keys.onPressed: function (event) {
+                    if (event.key === Qt.Key_CapsLock) {
+                        capsIndicatorVisible = !capsIndicatorVisible
+                        event.accepted = true
+                    } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                        if (loginGroup.enteringOtherUser)
+                            confirmOtherUser()
+                        else
+                            userLogin()
+                        event.accepted = true
+                    }
+                }
+
+                D.ActionButton {
+                    id: capsIndicator
+                    height: parent.height
+                    anchors {
+                        left: parent.left
+                        leftMargin: 3
+                        verticalCenter: parent.verticalCenter
+                    }
+                    visible: passwordField.capsIndicatorVisible && !loginGroup.enteringOtherUser
+                    palette.windowText: undefined
+                    icon {
+                        name: "login_capslock"
+                        height: 10
+                        width: 10
+                    }
+                    Layout.alignment: Qt.AlignHCenter
+                    implicitWidth: 16
+                    implicitHeight: 16
+                }
+
+                D.ActionButton {
+                    id: showPasswordBtn
+                    anchors {
+                        right: parent.right
+                        rightMargin: 3
+                        verticalCenter: parent.verticalCenter
+                    }
+                    property bool hiddenPWD: true
+                    visible: !loginGroup.enteringOtherUser
+                    icon {
+                        name: hiddenPWD ? "login_display_password" : "login_hidden_password"
+                        height: 10
+                        width: 10
+                    }
+                    Layout.alignment: Qt.AlignHCenter
+                    implicitWidth: 16
+                    implicitHeight: 16
+                    hoverEnabled: true
+
+                    background: Rectangle {
+                        anchors.fill: parent
+                        radius: 4
+                        color: showPasswordBtn.hovered ? Qt.rgba(
+                                                            0, 0, 0,
+                                                            0.1) : "transparent"
+                    }
+
+                    onClicked: hiddenPWD = !hiddenPWD
+                }
+
+                background: RoundBlur {
+                    color: Qt.rgba(1, 1, 1, 0.4)
+                    radius: 6
                 }
             }
 
             D.ActionButton {
-                id: capsIndicator
-                height: parent.height
-                anchors {
-                    left: parent.left
-                    leftMargin: 3
-                    verticalCenter: parent.verticalCenter
-                }
-                visible: passwordField.capsIndicatorVisible && !loginGroup.enteringOtherUser
-                palette.windowText: undefined
+                id: noPwdLoginBtn
+                visible: loginGroup.noPasswdLogin
+                anchors.fill: parent
                 icon {
-                    name: "login_capslock"
-                    height: 10
-                    width: 10
+                    name: "login_open"
+                    width: 16
+                    height: 16
                 }
-                Layout.alignment: Qt.AlignHCenter
-                implicitWidth: 16
-                implicitHeight: 16
-            }
-
-            D.ActionButton {
-                id: showPasswordBtn
-                anchors {
-                    right: parent.right
-                    rightMargin: 3
-                    verticalCenter: parent.verticalCenter
-                }
-                property bool hiddenPWD: true
-                visible: !loginGroup.enteringOtherUser
-                icon {
-                    name: hiddenPWD ? "login_display_password" : "login_hidden_password"
-                    height: 10
-                    width: 10
-                }
-                Layout.alignment: Qt.AlignHCenter
-                implicitWidth: 16
-                implicitHeight: 16
-                hoverEnabled: true
-
-                background: Rectangle {
+                background: RoundBlur {
                     anchors.fill: parent
-                    radius: 4
-                    color: showPasswordBtn.hovered ? Qt.rgba(
-                                                        0, 0, 0,
-                                                        0.1) : "transparent"
+                    color: Qt.rgba(1.0, 1.0, 1.0, 0.4)
+                    radius: parent.height / 2
                 }
 
-                onClicked: hiddenPWD = !hiddenPWD
-            }
-        
-            background: RoundBlur {
-                color: Qt.rgba(1, 1, 1, 0.4)
-                radius: 6
+                onClicked: userLogin()
             }
         }
     }
 
     D.ActionButton {
         id: loginBtn
+        visible: !loginGroup.noPasswdLogin
         icon {
             name: "login_open"
             width: 16
@@ -325,6 +353,10 @@ Item {
     /* Functions and Connections */
     /*****************************/
 
+    function resetHint() {
+        hintText.text = loginGroup.noPasswdLogin ? "" : normalHint
+    }
+
     function updateUser() {
         loginGroup.enteringOtherUser = false
         loginGroup.showUserNotFoundError = false
@@ -332,11 +364,15 @@ Item {
         username.text = currentUser.realName.length === 0 ? currentUser.name : currentUser.realName
         passwordField.text = ''
         avatar.fallbackSource = currentUser.icon
-        hintText.text = normalHint
+        loginGroup.noPasswdLogin = currentUser.noPassword === true
+        resetHint()
+        if (loginGroup.noPasswdLogin)
+            noPwdLoginBtn.forceActiveFocus()
     }
 
     function startOtherUserMode() {
         loginGroup.enteringOtherUser = true
+        loginGroup.noPasswdLogin = false
         loginGroup.showUserNotFoundError = false
         username.text = qsTr("Enter username")
         passwordField.text = ""
@@ -359,10 +395,11 @@ Item {
 
     function userLogin() {
         let user = UserModel.get(UserModel.currentUserName)
+        let pwd = loginGroup.noPasswdLogin ? "" : passwordField.text
         if (user.loggedIn)
-            GreeterProxy.unlock(user.name, passwordField.text)
+            GreeterProxy.unlock(user.name, pwd)
         else
-            GreeterProxy.login(user.name, passwordField.text, SessionModel.currentIndex)
+            GreeterProxy.login(user.name, pwd, SessionModel.currentIndex)
     }
 
     Connections {
@@ -376,7 +413,7 @@ Item {
                 hintText.text = qsTr("Password is incorrect.")
             } else {
                 passwordField.text = ""
-                hintText.text = normalHint
+                resetHint()
             }
         }
     }

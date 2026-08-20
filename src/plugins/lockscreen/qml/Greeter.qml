@@ -39,7 +39,7 @@ FocusScope {
         color: 'black'
         opacity: 0.0
         transformOrigin: Item.Center
-        state: (GreeterProxy.isLocked || GreeterProxy.showShutdownView) ? "Show" : "Hide"
+        state: (GreeterProxy.isLocked || GreeterProxy.undecided || GreeterProxy.showShutdownView) ? "Show" : "Hide"
         states: [
             State {
                 name: "Show"

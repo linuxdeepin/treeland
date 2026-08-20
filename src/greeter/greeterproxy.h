@@ -9,6 +9,7 @@
 #include <QQmlEngine>
 
 class QLocalSocket;
+class QTimer;
 
 class LockScreen;
 
@@ -34,6 +35,7 @@ class GreeterProxy
     Q_PROPERTY(bool    canHybridSleep   READ canHybridSleep   NOTIFY canHybridSleepChanged)
 
     Q_PROPERTY(bool    isLocked         READ isLocked         NOTIFY lockChanged)
+    Q_PROPERTY(bool    undecided        READ undecided        NOTIFY undecidedChanged)
     Q_PROPERTY(int     failedAttempts   READ failedAttempts   NOTIFY failedAttemptsChanged)
     Q_PROPERTY(bool    showShutdownView READ showShutdownView WRITE  setShowShutdownView NOTIFY showShutdownViewChanged)
     Q_PROPERTY(bool    showAnimation    READ showAnimation    NOTIFY showAnimationChanged)
@@ -90,6 +92,16 @@ public:
      * @return true if is locked
      */
     inline bool isLocked()         const { return m_isLocked;         };
+
+    /**
+     * @brief Get whether DDM has not decided yet whether to show the greeter
+     * or to log in directly. The greeter surface (wallpaper) is shown but the
+     * login UI stays hidden until DDM sends ShowGreeter / UserActivateMessage,
+     * or the fallback timer fires.
+     *
+     * @return true if DDM has not decided yet
+     */
+    inline bool undecided()        const { return m_undecided;        };
 
     /**
      * @brief Get the number of failed login attempts (password incorrect)
@@ -275,6 +287,9 @@ Q_SIGNALS:
     /** @brief Emitted when lock state changes. See isLocked() */
     void lockChanged             (bool isLocked);
 
+    /** @brief Emitted when undecided state changes. See undecided() */
+    void undecidedChanged        (bool undecided);
+
     /** @brief Emitted when failed attempts changes. See failedAttempts() */
     void failedAttemptsChanged   (int failedAttempts);
 
@@ -324,6 +339,8 @@ private:
     bool m_canHybridSleep   { false };
 
     bool m_isLocked         { false };
+    bool m_undecided        { true  };
+    QTimer *m_undecidedTimer{ nullptr };
     int  m_failedAttempts   { 0     };
     bool m_showShutdownView { false };
     bool m_showAnimation    { true  };

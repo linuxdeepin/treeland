@@ -138,6 +138,15 @@ int UserModel::rowCount(const QModelIndex &parent) const
 
 void UserModel::updateUserLoginState(const QString &username, bool loggedIn)
 {
+    // TODO: May remove once UserModel is guaranteed to resolve every loggable
+    // user (consider whether users not manually added can still log in directly).
+    if (loggedIn && !getUser(username)) {
+        if (!tryAddNssUser(username)) {
+            qCWarning(lcTlGreeter) << "User" << username << "not found when updating login state";
+            return;
+        }
+    }
+
     auto user = std::find_if(d->users.begin(), d->users.end(), [&username](const UserPtr &user) {
         return user->userName() == username;
     });
