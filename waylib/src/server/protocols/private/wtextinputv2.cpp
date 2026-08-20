@@ -364,12 +364,19 @@ int WTextInputV2::surroundingAnchor() const
 
 IME::ContentHints WTextInputV2::contentHints() const
 {
-    return IME::ContentHints();
+    W_DC(WTextInputV2);
+    // set_content_type stores the client state in d. WInputMethodHelper reads
+    // this getter when it sends the active text-input snapshot to an input
+    // method, so returning the default value here silently loses that payload.
+    return IME::ContentHints(d->contentHint);
 }
 
 IME::ContentPurpose WTextInputV2::contentPurpose() const
 {
-    return IME::ContentPurpose();
+    W_DC(WTextInputV2);
+    // Keep this paired with contentHints(): both values originate from the
+    // same set_content_type request and must reach the input method together.
+    return static_cast<IME::ContentPurpose>(d->contentPurpose);
 }
 
 QRect WTextInputV2::cursorRect() const

@@ -44,6 +44,18 @@ Wayland 线上请求与事件；本文档规定发出请求后，测试必须观
 | [window-management-v1](treeland-window-management-v1/README.md) | E / P | show-desktop 隐藏并恢复真实窗口 |
 | [wine-window-management-unstable-v1](treeland-wine-window-management-unstable-v1/README.md) | P / E | 真实 wrapper 的位置与置顶层同步 |
 | [wine-window-state-unstable-v1](treeland-wine-window-state-unstable-v1/README.md) | P / E | 真实 wrapper 的最小化、attention 与可见性同步 |
+| [drm (`wl_drm`)](drm/README.md) | P / V（GPU 条件） | wlroots native global、GBM DMA-BUF 与真实纹理 readback |
+| [input-method-unstable-v2](input-method-unstable-v2/README.md) | P / E | focused text-input 与 input method 的生产状态和编辑回传 |
+| [virtual-keyboard-unstable-v1](virtual-keyboard-unstable-v1/README.md) | P / E | 有效 keymap 的真实 seat 与 shortcut 链路 |
+| [wlr-data-control-unstable-v1](wlr-data-control-unstable-v1/README.md) | P / E | 两个真实 client 间的 seat selection、offer 与 pipe 传输 |
+| [wlr-export-dmabuf-unstable-v1](wlr-export-dmabuf-unstable-v1/README.md) | P / V（GPU 条件） | pixman temporary-cancel；GPU DMA-BUF export/readback |
+| [wlr-foreign-toplevel-management-unstable-v1](wlr-foreign-toplevel-management-unstable-v1/README.md) | P / E | 标准 foreign manager 的 toplevel 枚举、状态与焦点 |
+| [wlr-gamma-control-unstable-v1](wlr-gamma-control-unstable-v1/README.md) | P / I（DRM 条件） | headless failed 边界及可选 hardware LUT 路径 |
+| [wlr-layer-shell-unstable-v1](wlr-layer-shell-unstable-v1/README.md) | P / E | layer surface 的状态、container 与焦点 |
+| [wlr-output-management-unstable-v1](wlr-output-management-unstable-v1/README.md) | P / E | 真实 output configuration、位置、transform、scale |
+| [wlr-output-power-management-unstable-v1](wlr-output-power-management-unstable-v1/README.md) | P / E | output enable/disable 的生产状态回读 |
+| [wlr-screencopy-unstable-v1](wlr-screencopy-unstable-v1/README.md) | P / V | headless output 的 SHM screencopy readback |
+| [wlr-virtual-pointer-unstable-v1](wlr-virtual-pointer-unstable-v1/README.md) | 接入完成；client 待补 | native virtual pointer 的生产 seat 接入 |
 
 ## XML request / event / 业务链路盘点
 

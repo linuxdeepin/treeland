@@ -29,7 +29,7 @@ public:
     QVector<WLayerSurface*> surfaceList() const;
     QByteArrayView interfaceName() const override;
 
-    static constexpr int InterfaceVersion = 4;
+    static constexpr int InterfaceVersion = 5;
 Q_SIGNALS:
     void surfaceAdded(WLayerSurface *surface);
     void surfaceRemoved(WLayerSurface *surface);

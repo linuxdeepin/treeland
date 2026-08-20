@@ -29,6 +29,77 @@ struct shortcut_client {
     int capture_failed;
 };
 
+struct seat_keyboard_events {
+    int modifiers;
+    uint32_t depressed;
+    uint32_t latched;
+    uint32_t locked;
+    uint32_t group;
+};
+
+struct seat_events {
+    uint32_t capabilities;
+};
+
+static void seat_capabilities(void *data, struct wl_seat *seat, uint32_t capabilities)
+{
+    (void)seat;
+    ((struct seat_events *)data)->capabilities = capabilities;
+}
+
+static void seat_name(void *data, struct wl_seat *seat, const char *name)
+{ (void)data; (void)seat; (void)name; }
+
+static const struct wl_seat_listener seat_listener = {
+    .capabilities = seat_capabilities,
+    .name = seat_name,
+};
+
+static void seat_keyboard_keymap(void *data, struct wl_keyboard *keyboard,
+                                 uint32_t format, int32_t fd, uint32_t size)
+{
+    (void)data;
+    (void)keyboard;
+    (void)format;
+    (void)size;
+    close(fd);
+}
+
+static void seat_keyboard_enter(void *data, struct wl_keyboard *keyboard,
+                                uint32_t serial, struct wl_surface *surface, struct wl_array *keys)
+{ (void)data; (void)keyboard; (void)serial; (void)surface; (void)keys; }
+static void seat_keyboard_leave(void *data, struct wl_keyboard *keyboard,
+                                uint32_t serial, struct wl_surface *surface)
+{ (void)data; (void)keyboard; (void)serial; (void)surface; }
+static void seat_keyboard_key(void *data, struct wl_keyboard *keyboard, uint32_t serial,
+                              uint32_t time, uint32_t key, uint32_t state)
+{ (void)data; (void)keyboard; (void)serial; (void)time; (void)key; (void)state; }
+
+static void seat_keyboard_modifiers(void *data, struct wl_keyboard *keyboard, uint32_t serial,
+                                    uint32_t depressed, uint32_t latched, uint32_t locked, uint32_t group)
+{
+    (void)keyboard;
+    (void)serial;
+    struct seat_keyboard_events *events = data;
+    ++events->modifiers;
+    events->depressed = depressed;
+    events->latched = latched;
+    events->locked = locked;
+    events->group = group;
+}
+
+static void seat_keyboard_repeat_info(void *data, struct wl_keyboard *keyboard, int32_t rate, int32_t delay)
+{ (void)data; (void)keyboard; (void)rate; (void)delay; }
+
+static const struct wl_keyboard_listener seat_keyboard_listener = {
+    .keymap = seat_keyboard_keymap,
+    .enter = seat_keyboard_enter,
+    .leave = seat_keyboard_leave,
+    .key = seat_keyboard_key,
+    .modifiers = seat_keyboard_modifiers,
+    .repeat_info = seat_keyboard_repeat_info,
+};
+
 static void manager_activated(void *data,
                               struct treeland_shortcut_manager_v2 *manager,
                               const char *name,
@@ -138,8 +209,11 @@ int protocol_test_run(const char *socket_name)
     struct zwp_virtual_keyboard_manager_v1 *virtual_keyboard_manager = NULL;
     struct zwp_virtual_keyboard_v1 *virtual_keyboard = NULL;
     struct wl_seat *seat = NULL;
+    struct wl_keyboard *seat_keyboard = NULL;
     struct shortcut_desktop_state state = { 0 };
     struct shortcut_client client = { 0 };
+    struct seat_keyboard_events keyboard_events = { 0 };
+    struct seat_events seat_events = { 0 };
     int stage = 0;
 
     if (!client_connect(&connection, socket_name))
@@ -151,6 +225,7 @@ int protocol_test_run(const char *socket_name)
                                                    &zwp_virtual_keyboard_manager_v1_interface, 1);
     if (!manager || !seat || !virtual_keyboard_manager)
         goto failed;
+    wl_seat_add_listener(seat, &seat_listener, &seat_events);
     treeland_shortcut_manager_v2_add_listener(manager, &manager_listener, &client);
     stage = 1;
     if (!xdg_toplevel_client_create(&connection, &toplevel))
@@ -164,7 +239,22 @@ int protocol_test_run(const char *socket_name)
     virtual_keyboard = zwp_virtual_keyboard_manager_v1_create_virtual_keyboard(
         virtual_keyboard_manager, seat);
     if (!virtual_keyboard || !send_keymap(virtual_keyboard)
-        || wl_display_roundtrip(connection.display) < 0)
+        || wl_display_roundtrip(connection.display) < 0
+        || !(seat_events.capabilities & WL_SEAT_CAPABILITY_KEYBOARD))
+        goto failed;
+    seat_keyboard = wl_seat_get_keyboard(seat);
+    if (!seat_keyboard)
+        goto failed;
+    wl_keyboard_add_listener(seat_keyboard, &seat_keyboard_listener, &keyboard_events);
+    zwp_virtual_keyboard_v1_modifiers(virtual_keyboard, 1, 0, 0, 0);
+    if (wl_display_roundtrip(connection.display) < 0 || keyboard_events.modifiers < 1
+        || keyboard_events.depressed != 1 || keyboard_events.latched || keyboard_events.locked
+        || keyboard_events.group)
+        goto failed;
+    zwp_virtual_keyboard_v1_modifiers(virtual_keyboard, 0, 0, 0, 0);
+    if (wl_display_roundtrip(connection.display) < 0
+        || keyboard_events.depressed || keyboard_events.latched || keyboard_events.locked
+        || keyboard_events.group)
         goto failed;
 
     treeland_shortcut_manager_v2_acquire(manager);
@@ -202,6 +292,7 @@ int protocol_test_run(const char *socket_name)
 
     treeland_shortcut_capture_v1_destroy(capture);
     zwp_virtual_keyboard_v1_destroy(virtual_keyboard);
+    wl_keyboard_destroy(seat_keyboard);
     treeland_shortcut_manager_v2_destroy(manager);
     wl_seat_destroy(seat);
     xdg_toplevel_client_destroy(&toplevel);
@@ -218,6 +309,7 @@ failed:
             client.activated_flags);
     if (capture) treeland_shortcut_capture_v1_destroy(capture);
     if (virtual_keyboard) zwp_virtual_keyboard_v1_destroy(virtual_keyboard);
+    if (seat_keyboard) wl_keyboard_destroy(seat_keyboard);
     if (manager) treeland_shortcut_manager_v2_destroy(manager);
     if (seat) wl_seat_destroy(seat);
     xdg_toplevel_client_destroy(&toplevel);
