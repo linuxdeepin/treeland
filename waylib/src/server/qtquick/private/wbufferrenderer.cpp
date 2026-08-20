@@ -28,7 +28,7 @@
 #include <private/qrhigles2_p.h>
 #include <private/qopenglcontext_p.h>
 #endif
-#include <private/qsgbatchrenderer_p.h>
+#include "wsgbatchrenderer_p.h"
 
 #include <pixman.h>
 #include <drm_fourcc.h>
@@ -224,7 +224,7 @@ QSGRenderer *WBufferRenderer::currentRenderer() const
     return state.renderer;
 }
 
-QSGBatchRenderer::Renderer *WBufferRenderer::currentBatchRenderer() const
+WSGBatchRenderer::Renderer *WBufferRenderer::currentBatchRenderer() const
 {
     Q_ASSERT(state.renderer == state.batchRenderer);
     return state.batchRenderer;
@@ -456,7 +456,7 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
 
     const qreal devicePixelRatio = state.devicePixelRatio;
     state.renderer = renderer;
-    state.batchRenderer = dynamic_cast<QSGBatchRenderer::Renderer*>(renderer);
+    state.batchRenderer = dynamic_cast<WSGBatchRenderer::Renderer*>(renderer);
     state.worldTransform = renderMatrix;
     // The renderer should always receive the window's DPR (Device Pixel Ratio)
     // because, regardless of the DPR used for rendering, all resources within
