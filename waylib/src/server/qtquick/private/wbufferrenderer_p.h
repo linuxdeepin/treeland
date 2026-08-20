@@ -32,7 +32,6 @@ class Renderer;
 class WSGDamageDebug;
 
 class WSGTextureProvider;
-class WSGDamageDebug;
 class WAYLIB_SERVER_EXPORT WBufferRenderer : public QQuickItem
 {
     friend class WOutputRenderWindow;

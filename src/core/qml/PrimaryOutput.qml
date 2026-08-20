@@ -9,7 +9,6 @@ import Treeland
 OutputItem {
     id: rootOutputItem
     readonly property OutputViewport screenViewport: outputViewport
-    property bool forceSoftwareCursor: false
 
     devicePixelRatio: output?.scale ?? devicePixelRatio
 
@@ -35,12 +34,6 @@ OutputItem {
         x: position.x - hotSpot.x
         y: position.y - hotSpot.y
         visible: valid && outputCursor.visible
-        OutputLayer.enabled: !outputCursor.output.forceSoftwareCursor
-        OutputLayer.keepLayer: true
-        OutputLayer.outputs: [screenViewport]
-        OutputLayer.flags: OutputLayer.Cursor
-        OutputLayer.cursorHotSpot: hotSpot
-
         themeName: Helper.config.cursorThemeName
         sourceSize: Qt.size(Helper.config.cursorSize, Helper.config.cursorSize)
     }

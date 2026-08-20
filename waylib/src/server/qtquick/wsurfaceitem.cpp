@@ -247,6 +247,8 @@ public:
         updateTextureConnection = QObject::connect(surface, &WSurface::commit,
                                                    q, [q, this] (quint32 committedState) {
             const bool bufferChanged = committedState & WLR_SURFACE_STATE_BUFFER;
+            const bool damageChanged = committedState
+                & (WLR_SURFACE_STATE_SURFACE_DAMAGE | WLR_SURFACE_STATE_BUFFER_DAMAGE);
 
             if (bufferChanged) {
                 // Get the new buffer pointer from surface
@@ -258,9 +260,11 @@ public:
                 } else {
                     // Live mode: update buffer immediately
                     buffer.reset(newBuffer);
-                    q->update();
                 }
             }
+
+            if (live && (bufferChanged || damageChanged))
+                q->update();
 
             if (Q_LIKELY((q->isVisible() || lastRendered) && live))
                 surface->scheduleFrameIfNeeded();

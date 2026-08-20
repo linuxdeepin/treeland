@@ -321,8 +321,15 @@ void WSGDamageTracker::nodeChanged(QSGNode *node, QSGNode::DirtyState state)
         now = liveBounds(node);
 
     const QRect prev = m_lastItemBounds.value(node);
-    if (state & QSGNode::DirtyNodeAdded) {
+    if (state & QSGNode::DirtyNodeAdded)
         cacheSubtreeBounds(node);
+    else if (!now.isEmpty())
+        m_lastItemBounds.insert(node, now.boundingRect());
+
+    const bool boundsChanged = state & (QSGNode::DirtyGeometry
+                                         | QSGNode::DirtyNodeAdded
+                                         | QSGNode::DirtySubtreeBlocked);
+    if (boundsChanged) {
         for (QSGNode *ancestor = node->parent(); ancestor; ancestor = ancestor->parent()) {
             if (ancestor->type() != QSGNode::TransformNodeType
                 && ancestor->type() != QSGNode::OpacityNodeType
@@ -332,8 +339,6 @@ void WSGDamageTracker::nodeChanged(QSGNode *node, QSGNode::DirtyState state)
             const QRegion ancestorBounds = subtreeItemBounds(ancestor);
             m_lastItemBounds.insert(ancestor, ancestorBounds.boundingRect());
         }
-    } else if (!now.isEmpty()) {
-        m_lastItemBounds.insert(node, now.boundingRect());
     }
     // First frame often marks the root full before children are Added.
     // Keep AABBs anyway so the next move can erase old pixels.

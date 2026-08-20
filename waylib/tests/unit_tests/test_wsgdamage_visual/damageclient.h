@@ -21,6 +21,7 @@ void damage_client_run(struct DamageClient *client);
 int damage_client_is_mapped(const struct DamageClient *client);
 const char *damage_client_error(const struct DamageClient *client);
 int damage_client_commit_damage(struct DamageClient *client, int x, int y, int w, int h);
+int damage_client_commit_damage_only(struct DamageClient *client, int x, int y, int w, int h);
 void damage_client_stop(struct DamageClient *client);
 void damage_client_destroy(struct DamageClient *client);
 

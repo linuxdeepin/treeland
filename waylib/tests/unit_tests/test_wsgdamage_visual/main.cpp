@@ -1176,6 +1176,31 @@ void WSGDamageDebugVisualTest::client_commitDamageRegion()
     QVERIFY(expectRegionAvoids(snap, sceneRect(named("sentinel")), "client damage sentinel"));
     QVERIFY(expectRegionAvoids(snap, sceneRect(named("target")), "client damage target"));
     QVERIFY(expectRegionNotFullscreen(snap, "client damage"));
+
+    const QRect damageOnly(32, 18, 12, 14);
+    committed = false;
+    const QMetaObject::Connection damageOnlyConn = connect(
+        shellItem->surface(), &WSurface::commit, this,
+        [&] { committed = true; }, Qt::DirectConnection);
+    if (damage_client_commit_damage_only(client, damageOnly.x(), damageOnly.y(),
+                                         damageOnly.width(), damageOnly.height()) != 0) {
+        disconnect(damageOnlyConn);
+        QFAIL("client failed to commit damage without attaching a buffer");
+    }
+
+    flushTimer.restart();
+    while (!committed && flushTimer.elapsed() < 2000)
+        pumpServer();
+    disconnect(damageOnlyConn);
+    QVERIFY2(committed, "no scene-graph frame after the damage-only commit");
+
+    m_viewport->render(true);
+    snap.full = br->lastFlushIsFull();
+    snap.region = br->lastFlushRegion();
+    const QRect mappedDamageOnly = content->mapRectToScene(QRectF(damageOnly)).toAlignedRect();
+    QVERIFY(expectRegionCovers(snap, mappedDamageOnly, "damage-only client damage"));
+    QVERIFY(expectRegionAvoids(snap, sceneRect(named("sentinel")), "damage-only sentinel"));
+    QVERIFY(expectRegionNotFullscreen(snap, "damage-only client damage"));
 }
 
 void WSGDamageDebugVisualTest::rerender_hasNoOverlay()
