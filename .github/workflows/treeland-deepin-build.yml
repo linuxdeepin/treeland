@@ -18,6 +18,10 @@ jobs:
 
           echo "deb [trusted=yes] http://mirrors.kernel.org/deepin/beige/ crimson main commercial community" > /etc/apt/sources.list
           echo "deb-src [trusted=yes] http://mirrors.kernel.org/deepin/beige/ crimson main commercial community" >> /etc/apt/sources.list
+          echo "deb [trusted=yes] https://ci.deepin.com/repo/deepin/deepin-community/stable/ crimson main commercial community" >> /etc/apt/sources.list
+          echo "deb-src [trusted=yes] https://ci.deepin.com/repo/deepin/deepin-community/stable/ crimson main commercial community" >> /etc/apt/sources.list
+          echo "deb [trusted=yes] https://ci.deepin.com/repo/deepin/deepin-community/testing/ unstable/crimson main commercial community" >> /etc/apt/sources.list
+          echo "deb-src [trusted=yes] https://ci.deepin.com/repo/deepin/deepin-community/testing/ unstable/crimson main commercial community" >> /etc/apt/sources.list
           rm -rf /etc/apt/sources.list.d
 
           apt-get update
