@@ -11,6 +11,7 @@
 #include "modules/wallpaper/wallpapermanagerinterfacev1.h"
 #include "modules/wallpaper/wallpapernotifierinterfacev1.h"
 #include "modules/show-desktop/showdesktopinterfacev1.h"
+#include "modules/window-transition/windowtransitionmanagerinterfacev1.h"
 #include "utils/fpsdisplaymanager.h"
 
 #include <xcb/xproto.h>
@@ -459,6 +460,7 @@ private:
     };
     std::vector<SeatDragEntry> seatDragEntries;
     ActivationManagerInterfaceV1 *m_activationManagerV1 = nullptr;
+    WindowTransitionManagerInterfaceV1 *m_windowTransitionManagerV1 = nullptr;
     ShellHandler *m_shellHandler = nullptr;
     WXdgDecorationManager *m_xdgDecorationManager = nullptr;
     WXdgDialogManagerV1 *m_xdgDialogManagerV1 = nullptr;
