@@ -1850,10 +1850,24 @@ void SurfaceWrapper::toggleMaximized()
         maximize();
 }
 
-void SurfaceWrapper::enterFullscreen()
+void SurfaceWrapper::enterFullscreen(WOutput *targetOutput)
 {
     if (m_surfaceState == State::Minimized)
         return;
+
+    if (targetOutput) {
+        auto *helper = Helper::instance();
+        auto *target = helper ? helper->getOutput(targetOutput) : nullptr;
+        if (target && target != m_ownsOutput
+            && target->isPrimary()
+            && targetOutput->isEnabled()) {
+            Output *oldOutput = m_ownsOutput;
+            setOwnsOutput(target);
+            m_fullscreenGeometry = target->geometry();
+            if (oldOutput)
+                oldOutput->arrangeAllSurfaces();
+        }
+    }
 
     setSurfaceState(State::Fullscreen);
 }
