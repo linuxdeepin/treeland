@@ -9,6 +9,7 @@
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WSeat;
+class WOutput;
 class WToplevelSurfacePrivate;
 class WAYLIB_SERVER_EXPORT WToplevelSurface : public QObject, public WWaylandResource
 {
@@ -124,7 +125,7 @@ Q_SIGNALS:
     void requestCancelMaximize();
     void requestMinimize();
     void requestCancelMinimize(); // Only for XWaylandSurface
-    void requestFullscreen();
+    void requestFullscreen(WOutput *output);
     void requestCancelFullscreen();
     void requestShowWindowMenu(WSeat *seat, QPoint pos, quint32 serial);
 

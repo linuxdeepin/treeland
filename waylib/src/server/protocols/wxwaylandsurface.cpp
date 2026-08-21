@@ -78,7 +78,7 @@ void WXWaylandSurfacePrivate::init()
     });
     q->listeners()->add(&m_handle->events.request_fullscreen, this, [this, q] (void *) {
         if (handle()->fullscreen) {
-            Q_EMIT q->requestFullscreen();
+            Q_EMIT q->requestFullscreen(nullptr);
         } else {
             Q_EMIT q->requestCancelFullscreen();
         }
