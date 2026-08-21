@@ -485,9 +485,8 @@ void ForeignToplevelManagerInterfaceV1::initializeToplevelHandle(SurfaceWrapper 
             &ForeignToplevelHandleV1::requestFullscreen,
             wrapper,
             [wrapper](bool fullscreen, WOutput *output) {
-                Q_UNUSED(output);
                 if (fullscreen)
-                    wrapper->enterFullscreen();
+                    wrapper->enterFullscreen(output);
                 else
                     wrapper->leaveFullscreen();
             });
