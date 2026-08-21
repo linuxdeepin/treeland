@@ -496,69 +496,81 @@ target_link_directories(${TARGET}
 )
 
 
+# Install the runtime library (versioned .so.*) only; the .so dev
+# symlink, exported targets, headers and pkg-config file are installed
+# separately when TREELAND_INSTALL_DEV is ON.
 install(TARGETS ${TARGET}
-    EXPORT
-        WaylibServerTargets
     LIBRARY
         DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    PUBLIC_HEADER
-        COMPONENT Development
-        DESTINATION ${WAYLIB_INCLUDE_INSTALL_DIR}
+        NAMELINK_SKIP
 )
 
-# Generated config header (wconfig.h) is part of the public API surface
-# (included by wglobal.h) and must ship with the installed headers.
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/wconfig.h
-        DESTINATION ${WAYLIB_INCLUDE_INSTALL_DIR}
-)
+if(TREELAND_INSTALL_DEV)
+    install(TARGETS ${TARGET}
+        EXPORT
+            WaylibServerTargets
+        LIBRARY
+            DESTINATION ${CMAKE_INSTALL_LIBDIR}
+            NAMELINK_ONLY
+        PUBLIC_HEADER
+            COMPONENT Development
+            DESTINATION ${WAYLIB_INCLUDE_INSTALL_DIR}
+    )
 
-# Public headers use Q_MOC_INCLUDE/Q_PRIVATE_SLOT referencing kernel
-# private headers (e.g. wserver.h -> private/wserver_p.h), and Treeland
-# consumes kernel private API (e.g. WToplevelSurfacePrivate); install the
-# whole private directory so installed consumers can compile and moc.
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/kernel/private
-        DESTINATION ${WAYLIB_INCLUDE_INSTALL_DIR}
-        FILES_MATCHING PATTERN "*.h")
+    # Generated config header (wconfig.h) is part of the public API surface
+    # (included by wglobal.h) and must ship with the installed headers.
+    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/wconfig.h
+            DESTINATION ${WAYLIB_INCLUDE_INSTALL_DIR}
+    )
 
-# Install QML module generated targets separately to avoid dependency issues
-# This works around the Qt CMake QML module export issue
-get_directory_property(all_targets BUILDSYSTEM_TARGETS)
-foreach(target_name ${all_targets})
-    if(target_name MATCHES "^${TARGET}_resources_")
-        install(TARGETS ${target_name}
-            EXPORT WaylibServerTargets
-            ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-            RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-        )
-    endif()
-endforeach()
+    # Public headers use Q_MOC_INCLUDE/Q_PRIVATE_SLOT referencing kernel
+    # private headers (e.g. wserver.h -> private/wserver_p.h), and Treeland
+    # consumes kernel private API (e.g. WToplevelSurfacePrivate); install the
+    # whole private directory so installed consumers can compile and moc.
+    install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/kernel/private
+            DESTINATION ${WAYLIB_INCLUDE_INSTALL_DIR}
+            FILES_MATCHING PATTERN "*.h")
 
-configure_package_config_file(
-    "${CMAKE_CURRENT_SOURCE_DIR}/../cmake/WaylibServerConfig.cmake.in"
-    "${CMAKE_CURRENT_BINARY_DIR}/WaylibServerConfig.cmake"
-    INSTALL_DESTINATION ${WAYLIB_CMAKE_INSTALL_DIR}
-)
+    # Install QML module generated targets separately to avoid dependency issues
+    # This works around the Qt CMake QML module export issue
+    get_directory_property(all_targets BUILDSYSTEM_TARGETS)
+    foreach(target_name ${all_targets})
+        if(target_name MATCHES "^${TARGET}_resources_")
+            install(TARGETS ${target_name}
+                EXPORT WaylibServerTargets
+                ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+                RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+            )
+        endif()
+    endforeach()
 
-write_basic_package_version_file(
-    "${CMAKE_CURRENT_BINARY_DIR}/WaylibServerConfigVersion.cmake"
-    VERSION ${PROJECT_VERSION}
-    COMPATIBILITY SameMinorVersion
-)
+    configure_package_config_file(
+        "${CMAKE_CURRENT_SOURCE_DIR}/../cmake/WaylibServerConfig.cmake.in"
+        "${CMAKE_CURRENT_BINARY_DIR}/WaylibServerConfig.cmake"
+        INSTALL_DESTINATION ${WAYLIB_CMAKE_INSTALL_DIR}
+    )
 
-install(FILES
-    ${CMAKE_CURRENT_BINARY_DIR}/WaylibServerConfig.cmake
-    ${CMAKE_CURRENT_BINARY_DIR}/WaylibServerConfigVersion.cmake
-    DESTINATION ${WAYLIB_CMAKE_INSTALL_DIR}
-)
+    write_basic_package_version_file(
+        "${CMAKE_CURRENT_BINARY_DIR}/WaylibServerConfigVersion.cmake"
+        VERSION ${PROJECT_VERSION}
+        COMPATIBILITY SameMinorVersion
+    )
 
-install(
-    EXPORT WaylibServerTargets
-    FILE WaylibServerTargets.cmake
-    DESTINATION ${WAYLIB_CMAKE_INSTALL_DIR}
-    NAMESPACE Waylib::
-)
+    install(FILES
+        ${CMAKE_CURRENT_BINARY_DIR}/WaylibServerConfig.cmake
+        ${CMAKE_CURRENT_BINARY_DIR}/WaylibServerConfigVersion.cmake
+        DESTINATION ${WAYLIB_CMAKE_INSTALL_DIR}
+    )
 
-include(${PROJECT_SOURCE_DIR}/cmake/Helpers.cmake)
-add_pkgconfig_module(${TARGET} ${TARGET} ${WAYLIB_INCLUDE_INSTALL_DIR}
-    "waylib-wlroots, Qt6Gui, Qt6Quick"
-)
+    install(
+        EXPORT WaylibServerTargets
+        FILE WaylibServerTargets.cmake
+        DESTINATION ${WAYLIB_CMAKE_INSTALL_DIR}
+        NAMESPACE Waylib::
+    )
+
+    include(${PROJECT_SOURCE_DIR}/cmake/Helpers.cmake)
+    add_pkgconfig_module(${TARGET} ${TARGET} ${WAYLIB_INCLUDE_INSTALL_DIR}
+        "waylib-wlroots, Qt6Gui, Qt6Quick"
+    )
+endif()

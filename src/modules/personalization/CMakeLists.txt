@@ -31,4 +31,6 @@ qt_add_resources(libtreeland "default_background"
         desktop.webp
 )
 
-install(FILES ${PUBLIC_HEADERS} DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/treeland/modules/personalization")
+if(TREELAND_INSTALL_DEV)
+    install(FILES ${PUBLIC_HEADERS} DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/treeland/modules/personalization")
+endif()

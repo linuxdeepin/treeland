@@ -16,6 +16,13 @@ option(INSTALL_TINYWL "A minimum viable product Wayland compositor based on wayl
 option(ADDRESS_SANITIZER "Enable address sanitize" OFF)
 option(WAYLIB_USE_PERCOMPILE_HEADERS "Use precompile headers to build waylib" OFF)
 
+# When waylib is built standalone (its own top-level project) it should keep
+# installing development files by default. When built as a submodule of
+# Treeland the parent project already defines TREELAND_INSTALL_DEV=OFF, and
+# option() is a no-op for an already-cached variable, so the parent default
+# wins. See the Treeland top-level CMakeLists.txt.
+option(TREELAND_INSTALL_DEV "Install development files (headers, CMake config, pkg-config, .so symlinks)" ON)
+
 find_package(Qt6 COMPONENTS Core Gui Quick REQUIRED)
 if(Qt6_VERSION VERSION_GREATER_EQUAL 6.10)
     find_package(Qt6 REQUIRED COMPONENTS GuiPrivate QuickPrivate)

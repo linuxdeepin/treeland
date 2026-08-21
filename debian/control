@@ -97,16 +97,6 @@ Replaces: libwaylib, qwlroots
 Recommends: ddm (>> 0.3.4),
 Description: a Wayland compositor based on wlroots and QML, designed with an attractive and elegant appearance.
 
-Package: treeland-dev
-Section: libdevel
-Architecture: any
-Multi-Arch: same
-Depends: ${misc:Depends},
-         treeland (= ${source:Version}),
-Conflicts: libwaylib-dev, qwlroots
-Replaces: libwaylib-dev, qwlroots
-Description: a Wayland compositor based on wlroots and QML, designed with an attractive and elegant appearance.
-
 Package: treeland-examples
 Section: dde
 Architecture: any
