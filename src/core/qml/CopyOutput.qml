@@ -41,8 +41,6 @@ OutputItem {
         return rotatedSize;
     }
 
-    devicePixelRatio: output?.scale ?? devicePixelRatio
-
     Rectangle {
         id: content
         anchors.fill: parent

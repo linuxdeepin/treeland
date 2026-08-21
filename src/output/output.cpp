@@ -70,6 +70,16 @@ Output *Output::create(WOutput *output, QQmlEngine *engine, QObject *parent)
     outputItem->setParentItem(contentItem);
     outputItem->setOutput(output);
 
+    // Keep the item devicePixelRatio in sync with the output scale synchronously.
+    // The old QML binding (devicePixelRatio: output?.scale) was evaluated lazily,
+    // so after the scale is committed the render window's effectiveDevicePixelRatio
+    // (updated in C++ on scaleChanged) already reflected the new scale while the
+    // output item was still at the old size. That transient mismatch made the
+    // greeter/lock screen render at the wrong size at startup.
+    QObject::connect(output, &WOutput::scaleChanged, outputItem, [outputItem, output] {
+        outputItem->setDevicePixelRatio(output->scale());
+    });
+    outputItem->setDevicePixelRatio(output->scale());
     connect(Helper::instance()->globalConfig(),
             &TreelandConfig::forceSoftwareCursorChanged,
             obj,
@@ -143,6 +153,12 @@ Output *Output::createCopy(WOutput *output, Output *proxy, QQmlEngine *engine, Q
     outputItem->setParentItem(contentItem);
     outputItem->setOutput(output);
 
+    // Keep the item devicePixelRatio in sync with the output scale synchronously
+    // (same as the PrimaryOutput path in Output::create).
+    QObject::connect(output, &WOutput::scaleChanged, outputItem, [outputItem, output] {
+        outputItem->setDevicePixelRatio(output->scale());
+    });
+    outputItem->setDevicePixelRatio(output->scale());
     auto o = new Output(outputItem, parent);
     o->m_type = Type::Proxy;
     o->m_proxy = proxy;
