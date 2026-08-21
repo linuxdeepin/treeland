@@ -133,6 +133,17 @@
             "description[zh_CN]": "复制模式输出 ID 的 JSON 字符串数组。第一个元素是被复制屏，后续元素镜像它。",
             "permissions": "readwrite",
             "visibility": "public"
+        },
+        "prelaunchSplashMaxMismatchCount": {
+            "value": 4,
+            "serial": 0,
+            "flags": [],
+            "name": "Prelaunch Splash Max Mismatch Count",
+            "name[zh_CN]": "预启动闪屏最大不匹配次数",
+            "description": "Maximum consecutive splash match failures before disabling splash for an app. 0 means never auto-disable.",
+            "description[zh_CN]": "连续闪屏匹配失败达到此次数后禁用该应用的闪屏功能。0 表示永不自动禁用。",
+            "permissions": "readwrite",
+            "visibility": "public"
         }
     }
 }
