@@ -1,5 +1,6 @@
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_AUTOMOC ON)
+add_subdirectory(protocols)
 
 add_subdirectory(test_protocol_personalization)
 add_subdirectory(test_protocol_primary-output)

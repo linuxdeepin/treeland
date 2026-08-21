@@ -137,6 +137,7 @@ qt_add_qml_module(libtreeland
         core/imcandidatepanelmanager.h
         core/shellhandler.cpp
         core/shellhandler.h
+        core/treelandinit.cpp
         core/treeland.cpp
         core/treeland.h
         core/windowpicker.cpp
@@ -390,6 +391,7 @@ target_link_libraries(libtreeland
         Dtk6::SystemSettings
         Waylib::WaylibServer
     PRIVATE
+        Qt6::GuiPrivate
         Qt6::Quick
         Qt6::QuickControls2
         Qt6::QuickPrivate

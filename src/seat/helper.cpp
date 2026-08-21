@@ -1819,7 +1819,7 @@ void Helper::init(Treeland::Treeland *treeland)
         }
     });
     connect(m_ddeShellV1,
-            &DDEShellManagerInterfaceV1::requestPickWindow,
+            &DDEShellManagerInterfaceV1::PickerCreated,
             this,
             &Helper::handleWindowPicker);
     connect(m_ddeShellV1,
@@ -2246,6 +2246,7 @@ void Helper::init(Treeland::Treeland *treeland)
             &Treeland::Treeland::SessionChanged,
             m_shortcutManager,
             &ShortcutManagerV2::onSessionChanged);
+    m_shortcutManager->onSessionChanged();
     auto shortcutControl = m_shortcutManager->controller();
     auto *shortcutRunner = new ShortcutRunner(shortcutControl);
     connect(shortcutControl,

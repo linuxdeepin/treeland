@@ -320,7 +320,7 @@ Item {
                             id: surfaceCloseBtnControl
                             property D.Palette textColor: DS.Style.button.text
                         }
-                        textColor: surfaceCloseBtnControl.textColor
+                        palette.buttonText: surfaceCloseBtnControl.textColor
                         background: Rectangle {
                             anchors.fill: parent
                             color: "transparent"
