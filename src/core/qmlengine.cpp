@@ -5,7 +5,6 @@
 
 #include "common/treelandlogging.h"
 #include "core/rootsurfacecontainer.h"
-#include "modules/capture/capture.h"
 #include "output/output.h"
 #include "surface/surfacewrapper.h"
 #include "workspace/workspace.h"
@@ -52,7 +51,6 @@ QmlEngine::QmlEngine(QObject *parent)
     , dockPreviewComponent(this, "Treeland", "DockPreview")
     , minimizeAnimationComponent(this, "Treeland", "MinimizeAnimation")
     , showDesktopAnimatioComponentn(this, "Treeland", "ShowDesktopAnimation")
-    , captureSelectorComponent(this, "Treeland", "CaptureSelectorLayer")
     , windowPickerComponent(this, "Treeland", "WindowPickerLayer")
     , edgeTilePreviewComponent(this, "Treeland", "EdgeTilePreview")
     , launchpadAnimationComponent(this, "Treeland", "LaunchpadAnimation")
@@ -248,15 +246,6 @@ QQuickItem *QmlEngine::createShowDesktopAnimation(SurfaceWrapper *surface,
                                { "target", QVariant::fromValue(surface) },
                                { "showDesktop", QVariant::fromValue(show) },
                            });
-}
-
-QQuickItem *QmlEngine::createCaptureSelector(QQuickItem *parent, CaptureManagerV1 *captureManager)
-{
-    return createComponent(
-        captureSelectorComponent,
-        parent,
-        { { "captureManager", QVariant::fromValue(captureManager) },
-          { "z", QVariant::fromValue(RootSurfaceContainer::CaptureLayerZOrder) } });
 }
 
 QQuickItem *QmlEngine::createWindowPicker(QQuickItem *parent)

@@ -43,7 +43,6 @@ Q_MOC_INCLUDE(<wlayersurface.h>)
 Q_MOC_INCLUDE(<wtoplevelsurface.h>)
 Q_MOC_INCLUDE(<wxdgsurface.h>)
 Q_MOC_INCLUDE("core/rootsurfacecontainer.h")
-Q_MOC_INCLUDE("modules/capture/capture.h")
 Q_MOC_INCLUDE("surface/surfacewrapper.h")
 Q_MOC_INCLUDE("workspace/workspace.h")
 Q_MOC_INCLUDE("treelandconfig.hpp")
@@ -92,9 +91,7 @@ class SeatsManager;
 
 WAYLIB_SERVER_USE_NAMESPACE
 
-class CaptureSourceSelector;
-class DDEShellManagerInterfaceV1;
-class DDMInterfaceV1;
+class DDEShellManagerInterfaceV1;class DDMInterfaceV1;
 class ForeignToplevelManagerInterfaceV1;
 class FpsDisplayManager;
 class GreeterProxy;
@@ -485,8 +482,6 @@ private:
     float m_animationSpeed = 1.0;
     OutputMode m_mode = OutputMode::Extension;
     std::optional<QPointF> m_fakelastPressedPosition;
-
-    QPointer<CaptureSourceSelector> m_captureSelector;
 
     QPropertyAnimation *m_workspaceScaleAnimation{ nullptr };
     QPropertyAnimation *m_workspaceOpacityAnimation{ nullptr };

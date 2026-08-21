@@ -35,7 +35,7 @@
 #include "input/inputdevice.h"
 #include "inputmanager.h"
 #include "interfaces/multitaskviewinterface.h"
-#include "modules/capture/capture.h"
+#include "modules/capture-snap/snaphandler.h"
 #include "modules/dde-shell/ddeshellattached.h"
 #include "modules/dde-shell/ddeshellmanagerinterfacev1.h"
 #include "modules/ddm/ddminterfacev1.h"
@@ -1866,21 +1866,9 @@ void Helper::init(Treeland::Treeland *treeland)
     m_windowManagementInterfaceV1 = m_server->attach<WindowManagementInterfaceV1>();
     m_virtualOutputInterfaceV1 = m_server->attach<VirtualOutputManagerInterfaceV1>();
 
-    auto captureManagerV1 = m_server->attach<CaptureManagerV1>();
-    captureManagerV1->setOutputRenderWindow(m_renderWindow);
-
-    connect(
-        captureManagerV1,
-        &CaptureManagerV1::contextInSelectionChanged,
-        this,
-        [this, captureManagerV1] {
-            if (captureManagerV1->contextInSelection()) {
-                m_captureSelector = qobject_cast<CaptureSourceSelector *>(
-                    qmlEngine()->createCaptureSelector(m_rootSurfaceContainer, captureManagerV1));
-            } else if (m_captureSelector) {
-                m_captureSelector->deleteLater();
-            }
-        });
+    auto captureSnapV1 = m_server->attach<CaptureSnapV1>();
+    captureSnapV1->setOutputRenderWindow(m_renderWindow);
+    m_shellHandler->setCaptureSnap(captureSnapV1);
     m_personalizationInterfaceV1 = m_server->attach<PersonalizationManagerInterfaceV1>();
 
     auto updateCurrentUser = [this] {
@@ -1967,14 +1955,6 @@ void Helper::init(Treeland::Treeland *treeland)
                                                0,
                                                "DDEShellHelper",
                                                "Only for attached");
-    qmlRegisterUncreatableType<CaptureSource>("Treeland.Protocols",
-                                              1,
-                                              0,
-                                              "CaptureSource",
-                                              "An abstract class");
-    qmlRegisterType<CaptureContextV1>("Treeland.Protocols", 1, 0, "CaptureContextV1");
-    qmlRegisterType<CaptureSourceSelector>("Treeland.Protocols", 1, 0, "CaptureSourceSelector");
-
     m_server->attach<WSecurityContextManager>();
 
     m_server->start();
@@ -1996,6 +1976,10 @@ void Helper::init(Treeland::Treeland *treeland)
                                  m_rootSurfaceContainer->outputLayout(),
                                  this,
                                  m_rootSurfaceContainer->cursor());
+
+    // Set seat on capture snap session now that primary seat is available
+    if (auto *snap = m_shellHandler->captureSnap())
+        snap->setSeat(m_primarySeat);
 
     // Connect device signals and handle device lifecycle
     m_seatManager->connectBackendSignals(m_backend);
@@ -2520,9 +2504,9 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *targetWindow, QInputEvent 
         }
 
         if (event->type() == QEvent::KeyPress) {
+#ifndef QT_NO_DEBUG
             auto kevent = static_cast<QKeyEvent *>(event);
 
-#ifndef QT_NO_DEBUG
             if (QKeySequence(kevent->keyCombination()) ==
                 QKeySequence(Qt::MetaModifier | Qt::Key_F12)) {
                 std::terminate();
@@ -2535,13 +2519,9 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *targetWindow, QInputEvent 
             }
 #endif
 
-            if (m_captureSelector) {
-                if (event->modifiers() == Qt::NoModifier && kevent->key() == Qt::Key_Escape)
-                    m_captureSelector->cancelSelection();
-            }
         }
 
-        if (event->type() == QEvent::KeyRelease && !m_captureSelector) {
+        if (event->type() == QEvent::KeyRelease) {
             auto kevent = static_cast<QKeyEvent *>(event);
             const int key = kevent->key();
             if (key == Qt::Key_Alt || key == Qt::Key_Control || key == Qt::Key_Shift
@@ -2604,7 +2584,7 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *targetWindow, QInputEvent 
     if (m_shortcutManager->isCaptureActive() && m_shortcutManager->tryHandleCaptureEvent(seat, event))
         return true;
 
-    if (seat == m_primarySeat && !m_captureSelector && m_currentMode != CurrentMode::LockScreen
+    if (seat == m_primarySeat && m_currentMode != CurrentMode::LockScreen
         && (event->type() == QEvent::KeyPress || event->type() == QEvent::KeyRelease)) {
         auto kevent = static_cast<QKeyEvent *>(event);
         auto *seatContainer = m_rootSurfaceContainer->getSeatContainer(seat);

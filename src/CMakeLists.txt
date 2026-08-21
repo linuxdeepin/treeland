@@ -264,7 +264,6 @@ qt_add_qml_module(libtreeland
         core/qml/SwitchViewHighlightDelegate.qml
         core/qml/DockPreview.qml
         core/qml/FadeBehavior.qml
-        core/qml/CaptureSelectorLayer.qml
         core/qml/WindowPickerLayer.qml
         core/qml/EdgeTilePreview.qml
         core/qml/LockScreenFallback.qml

@@ -82,7 +82,7 @@ else()
             add_library(Wlroots::wlroots ALIAS PkgConfig::WLR_INSTALLED)
         endif()
     endif()
-    # The capture module generates protocol code with ws_generate(); load
+    # The capture-snap module generates protocol code with ws_generate(); load
     # the vendored helpers so external builds do not depend on the scanner
     # helpers being exported by the installed Waylib package.
     include(${CMAKE_CURRENT_SOURCE_DIR}/waylib/cmake/WaylandScannerHelpers.cmake)
