@@ -11,6 +11,7 @@
 #include <QtCore/QtNumeric>
 
 #include <QtGui/QGuiApplication>
+#include <QStringList>
 
 #include <private/qnumeric_p.h>
 #include <private/qsgmaterialshader_p.h>
@@ -23,6 +24,7 @@
 #include <algorithm>
 
 #include "private/wprivateaccessor_p.h"
+#include "wayliblogging.h"
 
 // QSGNode friends QSGBatchRenderer::Renderer, not this fork.
 W_DECLARE_PRIVATE_MEMBER(WSG_QSGNode_m_subtreeRenderableCount, QSGNode, m_subtreeRenderableCount, int);
@@ -1472,6 +1474,11 @@ void Renderer::expandDamageScissor(const QRegion &sceneRegion)
     m_extraDamageScissor += sceneRegion;
 }
 
+void Renderer::expandDamageScissorNative(const QRegion &nativeRegion)
+{
+    m_extraDamageNativeScissor += nativeRegion;
+}
+
 void Renderer::setDamageDebugEnabled(bool enabled)
 {
     m_damageDebugEnabled = enabled;
@@ -1525,10 +1532,19 @@ QRect Renderer::sceneRectToNativeScissor(const QRectF &bbox, bool pad) const
         qSwap(fy1, fy2);
 
     const QRect deviceRect = this->deviceRect();
-    const qint32 ix1 = qRound((fx1 + 1) * deviceRect.width() * qreal(0.5));
-    const qint32 iy1 = qRound((fy1 + 1) * deviceRect.height() * qreal(0.5));
-    const qint32 ix2 = qRound((fx2 + 1) * deviceRect.width() * qreal(0.5));
-    const qint32 iy2 = qRound((fy2 + 1) * deviceRect.height() * qreal(0.5));
+    const qreal sx = deviceRect.width() * qreal(0.5);
+    const qreal sy = deviceRect.height() * qreal(0.5);
+    const bool fractional = qAbs(devicePixelRatio() - qRound(devicePixelRatio())) > 0.0001;
+    const auto roundStart = [fractional](qreal value) {
+        return fractional ? qFloor(value) : qRound(value);
+    };
+    const auto roundEnd = [fractional](qreal value) {
+        return fractional ? qCeil(value) : qRound(value);
+    };
+    const qint32 ix1 = roundStart((fx1 + 1) * sx);
+    const qint32 iy1 = roundStart((fy1 + 1) * sy);
+    const qint32 ix2 = roundEnd((fx2 + 1) * sx);
+    const qint32 iy2 = roundEnd((fy2 + 1) * sy);
     QRect native(ix1, iy1, ix2 - ix1, iy2 - iy1);
     if (pad)
         native = native.adjusted(-1, -1, 1, 1);
@@ -4235,7 +4251,12 @@ void Renderer::prepareRenderPass(RenderPassContext *ctx)
     commitFlushRegion();
 
     const QRegion extraScissor = m_extraDamageScissor;
+    const QRegion extraNativeScissor = isOutputPass
+        ? m_extraDamageNativeScissor
+        : QRegion();
     m_extraDamageScissor = {};
+    if (isOutputPass)
+        m_extraDamageNativeScissor = {};
     m_damageNativeScissors.clear();
     if (m_damageScissorEnabled) {
         QRegion scene = flushRegion();
@@ -4264,6 +4285,37 @@ void Renderer::prepareRenderPass(RenderPassContext *ctx)
                     m_damageNativeScissors.append(r);
             }
         }
+    }
+
+    if (m_damageScissorEnabled && !extraNativeScissor.isEmpty()) {
+        QRegion native;
+        for (const QRect &rect : std::as_const(m_damageNativeScissors))
+            native += rect;
+        native += extraNativeScissor.intersected(deviceRect());
+        if (native.rectCount() > kMaxDamageScissorRects)
+            native = QRegion(native.boundingRect());
+        m_damageNativeScissors.clear();
+        for (const QRect &rect : native)
+            m_damageNativeScissors.append(rect);
+    }
+
+    if (lcWlBufferRenderer().isDebugEnabled()) {
+        QStringList nativeRects;
+        for (const QRect &rect : std::as_const(m_damageNativeScissors))
+            nativeRects << QStringLiteral("%1x%2+%3+%4")
+                              .arg(rect.width()).arg(rect.height())
+                              .arg(rect.x()).arg(rect.y());
+        qCDebug(lcWlBufferRenderer)
+            << "render-damage scissor"
+            << "renderer" << this
+            << "target" << m_damageScissorTarget
+            << "outputPass" << isOutputPass
+            << "preserve" << textureRenderTargetPreservesColor(renderTarget().rt)
+            << "pendingFull" << m_damageTracker->pendingIsFull()
+            << "flushFull" << m_damageTracker->flushRegionIsFull()
+            << "flush" << WSGDamageDebug::describe(flushRegion(), false)
+            << "extra" << WSGDamageDebug::describe(extraScissor, false)
+            << "native" << nativeRects.join(QLatin1Char(','));
     }
 }
 

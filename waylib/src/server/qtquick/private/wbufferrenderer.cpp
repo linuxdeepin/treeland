@@ -434,6 +434,17 @@ wlr_buffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePix
     wlr_damage_ring_rotate_buffer(m_damageRing.get(), buffer, damage);
     state.dirty = WTools::fromPixmanRegion(damage);
 
+    if (lcWlBufferRenderer().isDebugEnabled()) {
+        qCDebug(lcWlBufferRenderer)
+            << "render-damage begin"
+            << "output" << m_output->name()
+            << "buffer" << buffer
+            << "pixelSize" << pixelSize
+            << "devicePixelRatio" << devicePixelRatio
+            << "outputScale" << m_output->scale()
+            << "ringDamage" << WSGDamageDebug::describe(state.dirty, false);
+    }
+
     auto rtValue = rt.rt();
     auto rtd = QQuickRenderTargetPrivate::get(&rtValue);
     QSGRenderTarget sgRT;
@@ -471,13 +482,39 @@ wlr_buffer *WBufferRenderer::beginRender(const QSize &pixelSize, qreal devicePix
     state.buffer.reset(buffer);
     state.renderTarget = rt;
     state.sgRenderTarget = sgRT;
+    state.bufferDamage = QRegion();
+    m_lastFrameDamage = QRegion();
 
     return buffer;
 }
 
 inline static QRect scaleToRect(const QRectF &s, qreal scale) {
-    return QRect((s.topLeft() * scale).toPoint(),
-                 (s.size() * scale).toSize());
+    return QRectF(s.x() * scale, s.y() * scale,
+                  s.width() * scale, s.height() * scale).toAlignedRect();
+}
+
+static QRegion mapRegionOutward(const QRegion &region, const QTransform &transform)
+{
+    QRegion mapped;
+    for (const QRect &rect : region) {
+        const QRectF mappedRect = transform.mapRect(QRectF(rect));
+        if (!mappedRect.isEmpty())
+            mapped += mappedRect.toAlignedRect();
+    }
+    return mapped;
+}
+
+static QRegion mapBufferToRhiScissor(const QRegion &region, const QSize &pixelSize)
+{
+    QRegion mapped;
+    for (const QRect &rect : region) {
+        const QRect clipped = rect.intersected(QRect(QPoint(0, 0), pixelSize));
+        if (!clipped.isEmpty()) {
+            mapped += QRect(clipped.x(), pixelSize.height() - clipped.y() - clipped.height(),
+                            clipped.width(), clipped.height());
+        }
+    }
+    return mapped;
 }
 
 static QTransform sceneToBufferTransform(const QMatrix4x4 &worldTransform,
@@ -509,6 +546,7 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
     auto wd = QQuickWindowPrivate::get(window());
 
     const qreal devicePixelRatio = state.devicePixelRatio;
+    const bool fractionalDevicePixelRatio = qAbs(devicePixelRatio - qRound(devicePixelRatio)) > 0.0001;
     state.renderer = renderer;
     state.batchRenderer = dynamic_cast<WSGBatchRenderer::Renderer*>(renderer);
     if (state.batchRenderer) {
@@ -665,6 +703,42 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
     if (m_renderHelper)
         m_renderHelper->prepareVulkanRenderTarget(state.sgRenderTarget.cb, state.renderTarget);
 #endif
+    if (lcWlBufferRenderer().isDebugEnabled()) {
+        qCDebug(lcWlBufferRenderer)
+            << "render-damage setup"
+            << "output" << m_output->name()
+            << "buffer" << state.buffer.get()
+            << "sourceIndex" << sourceIndex
+            << "pixelSize" << state.pixelSize
+            << "devicePixelRatio" << devicePixelRatio
+            << "windowDpr" << window()->effectiveDevicePixelRatio()
+            << "fractional" << fractionalDevicePixelRatio
+            << "preserve" << state.renderTarget.colorPreserved()
+            << "viewport" << viewportRect
+            << "ringDamage" << WSGDamageDebug::describe(state.dirty, false)
+            << "renderTarget" << state.sgRenderTarget.rt;
+    }
+
+    if (lcWlBufferRenderer().isDebugEnabled() && state.batchRenderer) {
+        QRegion staleScene;
+        if (!state.dirty.isEmpty()) {
+            bool invertible = false;
+            const QTransform toBuffer = sceneToBufferTransform(
+                state.worldTransform, sourceRect, targetRect, state.pixelSize,
+                devicePixelRatio, state.renderTarget.rt().mirrorVertically());
+            const QTransform fromBuffer = toBuffer.inverted(&invertible);
+            if (invertible)
+                staleScene = mapRegionOutward(state.dirty, fromBuffer);
+        }
+        qCDebug(lcWlBufferRenderer)
+            << "render-damage stale-scissor-input"
+            << "output" << m_output->name()
+            << "buffer" << state.buffer.get()
+            << "ringDamageBuffer" << WSGDamageDebug::describe(state.dirty, false)
+            << "ringDamageScene" << WSGDamageDebug::describe(staleScene, false)
+            << "scissorEligible" << state.renderTarget.colorPreserved();
+    }
+
     if (state.batchRenderer)
         state.batchRenderer->setDamageScissorTarget(state.sgRenderTarget.rt);
     if (!softwareRenderer && state.renderTarget.colorPreserved()
@@ -681,10 +755,35 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
                 state.worldTransform, sourceRect, targetRect, state.pixelSize,
                 devicePixelRatio, state.renderTarget.rt().mirrorVertically());
             const QTransform fromBuffer = toBuffer.inverted(&invertible);
-            if (!invertible)
+            if (!invertible) {
                 state.batchRenderer->skipDamageScissorOnce();
-            else
-                state.batchRenderer->expandDamageScissor(fromBuffer.map(state.dirty));
+                state.batchRenderer->markFullDamage();
+            } else if (fractionalDevicePixelRatio) {
+                const QRegion staleScene = mapRegionOutward(state.dirty, fromBuffer);
+                QRegion plannedDamage = state.dirty;
+                if (!state.batchRenderer->pendingIsFull()) {
+                    plannedDamage += mapRegionOutward(
+                        state.batchRenderer->pendingRegion(), toBuffer);
+                    if (!staleScene.isEmpty())
+                        state.batchRenderer->addPendingRegion(staleScene);
+                }
+                plannedDamage &= QRect(QPoint(0, 0), state.pixelSize);
+                if (plannedDamage.isEmpty()) {
+                    state.batchRenderer->skipDamageScissorOnce();
+                    state.batchRenderer->markFullDamage();
+                } else {
+                    state.batchRenderer->expandDamageScissorNative(
+                        mapBufferToRhiScissor(plannedDamage, state.pixelSize));
+                }
+            } else {
+                const QRegion staleScene = mapRegionOutward(state.dirty, fromBuffer);
+                if (staleScene.isEmpty()) {
+                    state.batchRenderer->skipDamageScissorOnce();
+                    state.batchRenderer->markFullDamage();
+                } else {
+                    state.batchRenderer->expandDamageScissor(staleScene);
+                }
+            }
         }
     }
     state.context->renderNextFrame(renderer);
@@ -708,24 +807,52 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
                 const QTransform toBuffer = sceneToBufferTransform(
                     state.worldTransform, sourceRect, targetRect, state.pixelSize,
                     devicePixelRatio, state.renderTarget.rt().mirrorVertically());
-                const QRegion scaledFlushRegion = toBuffer.map(state.batchRenderer->flushRegion());
-                QRegion bufferDamage = scaledFlushRegion;
+                const QRegion scaledFlushRegion = mapRegionOutward(
+                    state.batchRenderer->flushRegion(), toBuffer);
+                QRegion flushDamage = scaledFlushRegion;
                 if (viewportRect.isValid())
-                    bufferDamage &= viewportRect;
-                bufferDamage &= QRect(QPoint(0, 0), state.pixelSize);
+                    flushDamage &= viewportRect;
+                flushDamage &= QRect(QPoint(0, 0), state.pixelSize);
 
-                if (bufferDamage.isEmpty()) {
+                QRegion bufferDamage = flushDamage;
+                bufferDamage += state.dirty;
+                bool mappedDamageFailed = !state.batchRenderer->flushRegion().isEmpty()
+                    && flushDamage.isEmpty();
+                if (mappedDamageFailed) {
+                    bufferDamage = QRegion(QRect(QPoint(0, 0), state.pixelSize));
+                    m_lastFrameDamage += bufferDamage;
+                    wlr_damage_ring_add_whole(m_damageRing.get());
+                } else {
+                    m_lastFrameDamage += bufferDamage;
+                }
+
+                if (flushDamage.isEmpty()) {
                     if (!state.batchRenderer->flushRegion().isEmpty())
                         wlr_damage_ring_add_whole(m_damageRing.get());
                 } else {
                     WPixmanRegion scaledFlushDamage;
-                    const bool ok = WTools::toPixmanRegion(bufferDamage, scaledFlushDamage);
+                    const bool ok = WTools::toPixmanRegion(flushDamage, scaledFlushDamage);
                     Q_ASSERT(ok);
                     wlr_damage_ring_add(m_damageRing.get(), scaledFlushDamage);
                 }
                 qCDebug(lcWlBufferRenderer) << "RHI flushRegion"
                                             << state.batchRenderer->flushRegion()
                                             << "buffer damage" << bufferDamage;
+                if (lcWlBufferRenderer().isDebugEnabled()) {
+                    qCDebug(lcWlBufferRenderer)
+                        << "render-damage flush"
+                        << "output" << m_output->name()
+                        << "buffer" << state.buffer.get()
+                        << "pixelSize" << state.pixelSize
+                        << "devicePixelRatio" << devicePixelRatio
+                        << "fractional" << fractionalDevicePixelRatio
+                        << "preserve" << state.renderTarget.colorPreserved()
+                        << "flushFull" << state.batchRenderer->flushRegionIsFull()
+                        << "flush" << WSGDamageDebug::describe(
+                               state.batchRenderer->flushRegion(), false)
+                        << "mappedBuffer" << WSGDamageDebug::describe(bufferDamage, false)
+                        << "viewport" << viewportRect;
+                }
                 if (WSGDamageDebug::mode() == WSGDamageDebug::Mode::Log) {
                     qCInfo(lcWlBufferRenderer) << "damage"
                                                << WSGDamageDebug::describe(
@@ -733,14 +860,38 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
                                                       false);
                 }
             } else {
-                wlr_damage_ring_add_whole(m_damageRing.get());
+                const bool flushFull = !state.batchRenderer
+                    || state.batchRenderer->flushRegionIsFull();
+                const QRegion flushRegion = state.batchRenderer
+                    ? state.batchRenderer->flushRegion()
+                    : QRegion();
+                if (flushFull) {
+                    m_lastFrameDamage += QRegion(QRect(QPoint(0, 0), state.pixelSize));
+                    wlr_damage_ring_add_whole(m_damageRing.get());
+                } else {
+                    m_lastFrameDamage += state.dirty;
+                }
+                if (lcWlBufferRenderer().isDebugEnabled()) {
+                    qCDebug(lcWlBufferRenderer)
+                        << "render-damage flush-whole"
+                        << "output" << m_output->name()
+                        << "buffer" << state.buffer.get()
+                        << "pixelSize" << state.pixelSize
+                        << "devicePixelRatio" << devicePixelRatio
+                        << "fractional" << fractionalDevicePixelRatio
+                        << "preserve" << state.renderTarget.colorPreserved()
+                        << "hasBatchRenderer" << (state.batchRenderer != nullptr)
+                        << "flushFull" << (state.batchRenderer
+                                               ? state.batchRenderer->flushRegionIsFull()
+                                               : true)
+                        << "flush" << WSGDamageDebug::describe(flushRegion, false)
+                        << "reason" << (state.batchRenderer
+                                            ? "full-flush-or-no-mapped-damage"
+                                            : "non-batch-renderer");
+                }
                 if (WSGDamageDebug::mode() == WSGDamageDebug::Mode::Log) {
                     qCInfo(lcWlBufferRenderer) << "damage"
-                                               << WSGDamageDebug::describe(
-                                                      state.batchRenderer
-                                                          ? state.batchRenderer->flushRegion()
-                                                          : QRegion(),
-                                                      true);
+                                               << WSGDamageDebug::describe(flushRegion, true);
                 }
             }
             // ###: maybe Qt bug? Before executing QRhi::endOffscreenFrame, we may
@@ -770,6 +921,7 @@ void WBufferRenderer::render(int sourceIndex, const QMatrix4x4 &renderMatrix,
             WPixmanRegion scaledFlushDamage;
             bool ok = WTools::toPixmanRegion(scaledFlushRegion, scaledFlushDamage);
             Q_ASSERT(ok);
+            m_lastFrameDamage += scaledFlushRegion;
 
             {
                 if (viewportRect.isValid()) {

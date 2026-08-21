@@ -75,6 +75,7 @@ public:
     wlr_buffer *lastBuffer() const;
     QRegion lastFlushRegion() const { return m_lastFlushRegion; }
     bool lastFlushIsFull() const { return m_lastFlushIsFull; }
+    QRegion lastFrameDamage() const { return m_lastFrameDamage; }
     const WSGDamageDebug *damageDebugOverlay() const;
     bool damageDebugNeedsFrame() const;
     QRhiTexture *currentRenderTarget() const;
@@ -147,6 +148,7 @@ private:
         WRenderHelper::RenderTarget renderTarget;
         QSGRenderTarget sgRenderTarget;
         QRegion dirty;
+        QRegion bufferDamage;
     } state;
 
     QPointer<WOutput> m_output;
@@ -167,6 +169,7 @@ private:
     uint m_hideSource:1;
     uint m_lastFlushIsFull:1;
     QRegion m_lastFlushRegion;
+    QRegion m_lastFrameDamage;
 };
 
 WAYLIB_SERVER_END_NAMESPACE

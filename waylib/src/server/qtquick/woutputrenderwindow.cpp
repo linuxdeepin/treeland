@@ -13,7 +13,9 @@
 #include "wqmlhelper_p.h"
 #include "woutputlayer.h"
 #include "wbufferrenderer_p.h"
+#include "wsgdamagedebug_p.h"
 #include "wquicktextureproxy.h"
+#include "wtools.h"
 #include "wpointer.h"
 #include "wscoplistener.h"
 #include "weventjunkman.h"
@@ -1093,9 +1095,28 @@ bool OutputHelper::commit(WBufferRenderer *buffer)
 
     setBuffer(buffer->currentBuffer());
 
-    if (m_lastCommitBuffer == buffer) {
-        if (pixman_region32_not_empty(&buffer->damageRing()->current))
-            setDamage(&buffer->damageRing()->current);
+    const bool sameBufferRenderer = m_lastCommitBuffer == buffer;
+    const QRegion frameDamage = buffer->lastFrameDamage();
+    WPixmanRegion frameDamagePixman;
+    if (!frameDamage.isEmpty()) {
+        const bool converted = WTools::toPixmanRegion(frameDamage, frameDamagePixman);
+        Q_ASSERT(converted);
+        setDamage(frameDamagePixman.get());
+    } else if (sameBufferRenderer
+               && pixman_region32_not_empty(&buffer->damageRing()->current)) {
+        setDamage(&buffer->damageRing()->current);
+    }
+
+    if (lcWlBufferRenderer().isDebugEnabled()) {
+        const QRegion currentDamage = WTools::fromPixmanRegion(&buffer->damageRing()->current);
+        qCDebug(lcWlBufferRenderer)
+            << "render-damage commit"
+            << "output" << outputViewport()->output()->name()
+            << "buffer" << buffer->currentBuffer()
+            << "sameBufferRenderer" << sameBufferRenderer
+            << "frameDamage" << WSGDamageDebug::describe(frameDamage, false)
+            << "ringCurrent" << WSGDamageDebug::describe(currentDamage, false)
+            << "preserve" << buffer->isColorPreserved();
     }
 
     m_lastCommitBuffer = buffer;
