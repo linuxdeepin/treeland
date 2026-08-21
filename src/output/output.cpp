@@ -10,7 +10,6 @@
 #include "outputconfig.hpp"
 #include "seat/helper.h"
 #include "surface/surfacewrapper.h"
-#include "treelandconfig.hpp"
 #include "treelanduserconfig.hpp"
 #include "workspace/workspace.h"
 #include "wallpapermanager.h"
@@ -55,12 +54,10 @@ QString Output::getOutputId()
 
 Output *Output::create(WOutput *output, QQmlEngine *engine, QObject *parent)
 {
-    auto isSoftwareCursor = [](WOutput *output) -> bool {
-        return wlr_output_is_x11(output->handle()) || Helper::instance()->globalConfig()->forceSoftwareCursor();
-    };
+    output->setForceSoftwareCursor(true);
+
     QQmlComponent delegate(engine, "Treeland", "PrimaryOutput");
     QObject *obj = delegate.beginCreate(engine->rootContext());
-    delegate.setInitialProperties(obj, { { "forceSoftwareCursor", isSoftwareCursor(output) } });
     delegate.completeCreate();
     WOutputItem *outputItem = qobject_cast<WOutputItem *>(obj);
     Q_ASSERT(outputItem);
@@ -69,15 +66,6 @@ Output *Output::create(WOutput *output, QQmlEngine *engine, QObject *parent)
     auto contentItem = Helper::instance()->window()->contentItem();
     outputItem->setParentItem(contentItem);
     outputItem->setOutput(output);
-
-    connect(Helper::instance()->globalConfig(),
-            &TreelandConfig::forceSoftwareCursorChanged,
-            obj,
-            [obj, output, isSoftwareCursor]() {
-                auto forceSoftwareCursor = isSoftwareCursor(output);
-                qCInfo(lcTlOutput) << "forceSoftwareCursor changed to" << forceSoftwareCursor;
-                obj->setProperty("forceSoftwareCursor", forceSoftwareCursor);
-            });
 
     auto o = new Output(outputItem, parent);
     o->m_type = Type::Primary;

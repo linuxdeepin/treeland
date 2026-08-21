@@ -13,7 +13,9 @@
 #include "wqmlhelper_p.h"
 #include "woutputlayer.h"
 #include "wbufferrenderer_p.h"
+#include "wsgdamagedebug_p.h"
 #include "wquicktextureproxy.h"
+#include "wtools.h"
 #include "wpointer.h"
 #include "wscoplistener.h"
 #include "weventjunkman.h"
@@ -51,7 +53,7 @@
 #include <private/qsgabstractrenderer_p.h>
 #include <private/qsgrenderer_p.h>
 #include <private/qpainter_p.h>
-#include <private/qsgdefaultrendercontext_p.h>
+#include "wsgcontext_p.h"
 #include <private/qquickitem_p.h>
 #include <private/qquickrectangle_p.h>
 
@@ -198,6 +200,16 @@ public:
     inline WBufferRenderer *bufferRenderer2() const {
         Q_ASSERT(m_output2);
         return WOutputViewportPrivate::get(m_output2)->bufferRenderer;
+    }
+
+    inline bool damageDebugNeedsFrame() const {
+        if (bufferRenderer() && bufferRenderer()->damageDebugNeedsFrame())
+            return true;
+        if (m_output2) {
+            if (auto *br = WOutputViewportPrivate::get(m_output2)->bufferRenderer)
+                return br->damageDebugNeedsFrame();
+        }
+        return false;
     }
 
     inline const QList<LayerData*> &layers() const {
@@ -1083,9 +1095,28 @@ bool OutputHelper::commit(WBufferRenderer *buffer)
 
     setBuffer(buffer->currentBuffer());
 
-    if (m_lastCommitBuffer == buffer) {
-        if (pixman_region32_not_empty(&buffer->damageRing()->current))
-            setDamage(&buffer->damageRing()->current);
+    const bool sameBufferRenderer = m_lastCommitBuffer == buffer;
+    const QRegion frameDamage = buffer->lastFrameDamage();
+    WPixmanRegion frameDamagePixman;
+    if (!frameDamage.isEmpty()) {
+        const bool converted = WTools::toPixmanRegion(frameDamage, frameDamagePixman);
+        Q_ASSERT(converted);
+        setDamage(frameDamagePixman.get());
+    } else if (sameBufferRenderer
+               && pixman_region32_not_empty(&buffer->damageRing()->current)) {
+        setDamage(&buffer->damageRing()->current);
+    }
+
+    if (lcWlBufferRenderer().isDebugEnabled()) {
+        const QRegion currentDamage = WTools::fromPixmanRegion(&buffer->damageRing()->current);
+        qCDebug(lcWlBufferRenderer)
+            << "render-damage commit"
+            << "output" << outputViewport()->output()->name()
+            << "buffer" << buffer->currentBuffer()
+            << "sameBufferRenderer" << sameBufferRenderer
+            << "frameDamage" << WSGDamageDebug::describe(frameDamage, false)
+            << "ringCurrent" << WSGDamageDebug::describe(currentDamage, false)
+            << "preserve" << buffer->isColorPreserved();
     }
 
     m_lastCommitBuffer = buffer;
@@ -1472,14 +1503,15 @@ WOutputRenderWindowPrivate::doRenderOutputs(wlr_output *needsFrameOutput, const 
                 || !shouldRender)
                 continue;
 
-            if (!(helper->needsFrame() || helper->contentIsDirty()))
+            if (!(helper->needsFrame() || helper->contentIsDirty()
+                  || helper->damageDebugNeedsFrame()))
                 continue;
 
             // Capture sessions (ext-image-copy-capture etc.) lock the output
             // via wlr_output_lock_attach_render() and need a buffer commit to
             // complete, even if the content didn't change.
             bool captureLocked = helper->output()->attach_render_locks > 0;
-            if (!helper->contentIsDirty() && !captureLocked) {
+            if (!helper->contentIsDirty() && !helper->damageDebugNeedsFrame() && !captureLocked) {
                 renderResults.append(helper);
                 continue;
             }
@@ -1617,9 +1649,15 @@ void WOutputRenderWindowPrivate::doRender(wlr_output *needsFrameOutput,
     Q_EMIT q->renderEnd(committedOutputs);
 }
 
+static QQuickRenderControl *createOutputRenderControl()
+{
+    WSGContext::ensureInstalled();
+    return new RenderControl();
+}
+
 // TODO: Support QWindow::setCursor
 WOutputRenderWindow::WOutputRenderWindow(QObject *parent)
-    : QQuickWindow(*new WOutputRenderWindowPrivate(this), new RenderControl())
+    : QQuickWindow(*new WOutputRenderWindowPrivate(this), createOutputRenderControl())
 {
     setObjectName(QW::RenderWindow::id());
 

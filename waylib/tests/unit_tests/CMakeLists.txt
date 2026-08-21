@@ -1,5 +1,7 @@
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_AUTOMOC ON)
+add_subdirectory(test_wsgdamage)
+add_subdirectory(test_wsgdamage_visual)
 add_subdirectory(test_qsgrenderer_accessor)
 add_subdirectory(test_native_handles)
 add_subdirectory(test_native_lifecycle)

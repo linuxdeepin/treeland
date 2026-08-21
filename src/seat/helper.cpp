@@ -2706,9 +2706,6 @@ bool Helper::doGesture(QInputEvent *event)
 Output *Helper::createNormalOutput(WOutput *output)
 {
     Output *o = Output::create(output, qmlEngine(), this);
-    if (isNvidiaCardPresent()) {
-        o->outputItem()->setProperty("forceSoftwareCursor", true);
-    }
     o->outputItem()->stackBefore(m_rootSurfaceContainer);
     removeOutputFromRootContainer(output);
     m_rootSurfaceContainer->addOutput(o);
@@ -3275,6 +3272,16 @@ bool Helper::toggleDebugMenuBar()
     }
 
     return ok;
+}
+
+QString Helper::damageDebugMode() const
+{
+    return WRenderHelper::damageDebugMode();
+}
+
+bool Helper::setDamageDebugMode(const QString &mode)
+{
+    return WRenderHelper::setDamageDebugMode(mode);
 }
 
 WindowManagementInterfaceV1::DesktopState Helper::showDesktopState() const

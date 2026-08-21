@@ -21,13 +21,15 @@ Q_MOC_INCLUDE(<private/qsgplaintexture_p.h>)
 QT_BEGIN_NAMESPACE
 class QSGPlainTexture;
 class QSGRenderContext;
-namespace QSGBatchRenderer {
-class Renderer;
-}
 QT_END_NAMESPACE
 
 struct pixman_region32;
 WAYLIB_SERVER_BEGIN_NAMESPACE
+
+namespace WSGBatchRenderer {
+class Renderer;
+}
+class WSGDamageDebug;
 
 class WSGTextureProvider;
 class WAYLIB_SERVER_EXPORT WBufferRenderer : public QQuickItem
@@ -66,11 +68,16 @@ public:
     void setClearColor(const QColor &clearColor);
 
     QSGRenderer *currentRenderer() const;
-    QSGBatchRenderer::Renderer *currentBatchRenderer() const;
+    WSGBatchRenderer::Renderer *currentBatchRenderer() const;
     qreal currentDevicePixelRatio() const;
     const QMatrix4x4 &currentWorldTransform() const;
     wlr_buffer *currentBuffer() const;
     wlr_buffer *lastBuffer() const;
+    QRegion lastFlushRegion() const { return m_lastFlushRegion; }
+    bool lastFlushIsFull() const { return m_lastFlushIsFull; }
+    QRegion lastFrameDamage() const { return m_lastFrameDamage; }
+    const WSGDamageDebug *damageDebugOverlay() const;
+    bool damageDebugNeedsFrame() const;
     QRhiTexture *currentRenderTarget() const;
     bool isColorPreserved() const;
     const wlr_damage_ring *damageRing() const;
@@ -133,7 +140,7 @@ private:
         WGlobal::ColorContentsMode colorContentsMode = WGlobal::ColorContentsMode::DontCare;
         QSGRenderContext *context;
         QSGRenderer *renderer;
-        QSGBatchRenderer::Renderer *batchRenderer;
+        WSGBatchRenderer::Renderer *batchRenderer;
         QMatrix4x4 worldTransform;
         QSize pixelSize;
         qreal devicePixelRatio;
@@ -141,6 +148,7 @@ private:
         WRenderHelper::RenderTarget renderTarget;
         QSGRenderTarget sgRenderTarget;
         QRegion dirty;
+        QRegion bufferDamage;
     } state;
 
     QPointer<WOutput> m_output;
@@ -153,11 +161,15 @@ private:
     QList<Data> m_sourceList;
     WDamageRing m_damageRing;
     mutable std::unique_ptr<WSGTextureProvider> m_textureProvider;
+    std::unique_ptr<WSGDamageDebug> m_softwareDamageDebug;
     QColor m_clearColor = Qt::transparent;
     QList<QObject*> m_cacheBufferLocker;
 
     uint m_cacheBuffer:1;
     uint m_hideSource:1;
+    uint m_lastFlushIsFull:1;
+    QRegion m_lastFlushRegion;
+    QRegion m_lastFrameDamage;
 };
 
 WAYLIB_SERVER_END_NAMESPACE

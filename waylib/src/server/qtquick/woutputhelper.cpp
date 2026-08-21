@@ -224,17 +224,20 @@ bool WOutputHelper::commit()
         entry.jobWithState(true, d->extraState);
     }
 
-    wlr_output_state state = d->state;
+    wlr_output_state state;
+    wlr_output_state_init(&state);
+    const bool stateCopied = d->extraState
+        ? wlr_output_state_copy(&state, d->extraState.get())
+        : wlr_output_state_copy(&state, &d->state);
+    wlr_output_state_finish(&d->state);
     wlr_output_state_init(&d->state);
 
-    if (Q_UNLIKELY(d->extraState)) {
-        // State-only commit: Use only extraState (no buffer/damage from internal state)
-        // Finish the internal state as we're not using it
-        wlr_output_state_finish(&state);
-        wlr_output_state_copy(&state, d->extraState.get());
+    if (!stateCopied) {
+        qCCritical(lcWlOutputHelper, "Failed to copy output state for %s", d->qwoutput()->name);
+        wlr_output_state_init(&state);
     }
 
-    bool ok = wlr_output_commit_state(d->qwoutput(), &state);
+    bool ok = stateCopied && wlr_output_commit_state(d->qwoutput(), &state);
     if (!ok) {
         qCCritical(lcWlOutputHelper, "commit failed on output %s", d->qwoutput()->name);
     }

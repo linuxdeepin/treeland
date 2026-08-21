@@ -9,12 +9,14 @@
 #include <QObject>
 #include <QQuickRenderTarget>
 #include <QSGRendererInterface>
+#include <QString>
 
 QT_BEGIN_NAMESPACE
 class QQuickRenderControl;
 class QSGTexture;
 class QSGPlainTexture;
 class QRhi;
+class QRhiTexture;
 class QRhiCommandBuffer;
 QT_END_NAMESPACE
 
@@ -90,6 +92,10 @@ public:
                                        QRhiTexture *texture, QRhi *rhi, int rhiFlags);
     static wlr_buffer *lookupBuffer(const QRhiRenderTarget *rt);
     static wlr_buffer *lookupBuffer(const QRhiTexture *texture);
+
+    // Runtime control for WAYLIB_DEBUG_DAMAGE: none / rerender / highlight / log.
+    static QString damageDebugMode();
+    static bool setDamageDebugMode(const QString &mode);
 
 Q_SIGNALS:
     void sizeChanged();
