@@ -16,6 +16,10 @@ enum class Mode
     Left,
     Right,
     Maximize,
+    TopLeft,
+    TopRight,
+    BottomLeft,
+    BottomRight,
 };
 
 QRectF geometry(Mode mode, Output *output);

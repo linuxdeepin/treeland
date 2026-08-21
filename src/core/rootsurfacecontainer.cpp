@@ -870,7 +870,7 @@ QQuickItem *RootSurfaceContainer::ensureEdgeTilePreview()
     return m_edgeTilePreview;
 }
 
-void RootSurfaceContainer::updateEdgeTilePreview(QuickTile::Mode mode, Output *out)
+void RootSurfaceContainer::updateEdgeTilePreview(QuickTile::Mode mode, Output *out, WSeat *seat)
 {
     auto *preview = ensureEdgeTilePreview();
     if (!preview)
@@ -887,10 +887,16 @@ void RootSurfaceContainer::updateEdgeTilePreview(QuickTile::Mode mode, Output *o
         return;
     }
 
-    preview->setX(geo.x());
-    preview->setY(geo.y());
-    preview->setWidth(geo.width());
-    preview->setHeight(geo.height());
+    // Use the dragged surface's current geometry as the animation starting
+    // point, so the preview grows from the window (mirrors KWin's outline).
+    QRectF sourceGeo;
+    if (auto *container = getSeatContainerOrDefault(seat)) {
+        if (SurfaceWrapper *surface = container->moveResizeSurface())
+            sourceGeo = surface->geometry();
+    }
+
+    preview->setProperty("sourceGeometry", QVariant::fromValue(sourceGeo));
+    preview->setProperty("targetGeometry", QVariant::fromValue(geo));
     preview->setVisible(true);
 }
 
@@ -903,6 +909,7 @@ void RootSurfaceContainer::detectEdgeTilingForSeat(WSeat *seat)
     auto *cfg = Helper::instance()->config();
     const qreal sideTrigger = cfg ? qreal(cfg->edgeSideTriggerDistance()) : 20.0;
     const qreal topTrigger = cfg ? qreal(cfg->edgeTopTriggerDistance()) : 5.0;
+    const qreal quadRatio = cfg ? qreal(cfg->edgeQuadrantZoneRatio()) : 0.25;
     auto &mrState = container->moveResizeState();
     QuickTile::Mode mode = QuickTile::Mode::None;
     Output *out = nullptr;
@@ -915,11 +922,27 @@ void RootSurfaceContainer::detectEdgeTilingForSeat(WSeat *seat)
         out = outputAt(pos);
         if (out) {
             const QRectF area = out->validGeometry();
+            const qreal quadTop = area.top() + area.height() * quadRatio;
+            const qreal quadBottom = area.bottom() - area.height() * quadRatio;
             if (pos.x() <= area.left() + sideTrigger) {
-                mode = QuickTile::Mode::Left;
+                // Left edge: the top/bottom quadrant zones tile to the corner.
+                if (pos.y() <= quadTop)
+                    mode = QuickTile::Mode::TopLeft;
+                else if (pos.y() >= quadBottom)
+                    mode = QuickTile::Mode::BottomLeft;
+                else
+                    mode = QuickTile::Mode::Left;
             } else if (pos.x() >= area.right() - sideTrigger) {
-                mode = QuickTile::Mode::Right;
+                // Right edge: the top/bottom quadrant zones tile to the corner.
+                if (pos.y() <= quadTop)
+                    mode = QuickTile::Mode::TopRight;
+                else if (pos.y() >= quadBottom)
+                    mode = QuickTile::Mode::BottomRight;
+                else
+                    mode = QuickTile::Mode::Right;
             } else if (pos.y() <= area.top() + topTrigger) {
+                // Top edge: maximize only; quadrant zones are exclusive to
+                // the left/right edges.
                 mode = QuickTile::Mode::Maximize;
             }
 
@@ -933,9 +956,13 @@ void RootSurfaceContainer::detectEdgeTilingForSeat(WSeat *seat)
                     samplePt = QPointF(pos.x(), area.top() - 1.0);
                     break;
                 case QuickTile::Mode::Left:
+                case QuickTile::Mode::TopLeft:
+                case QuickTile::Mode::BottomLeft:
                     samplePt = QPointF(area.left() - 1.0, pos.y());
                     break;
                 case QuickTile::Mode::Right:
+                case QuickTile::Mode::TopRight:
+                case QuickTile::Mode::BottomRight:
                     samplePt = QPointF(area.right(), pos.y());
                     break;
                 case QuickTile::Mode::None:
@@ -973,7 +1000,7 @@ void RootSurfaceContainer::detectEdgeTilingForSeat(WSeat *seat)
         } else {
             container->stopEdgeTileDelay();
             mrState.edgeTilePreviewActive = true;
-            updateEdgeTilePreview(mode, out);
+            updateEdgeTilePreview(mode, out, seat);
         }
     }
 }

@@ -574,6 +574,17 @@
             "permissions": "readwrite",
             "visibility": "public"
         },
+        "edgeQuadrantZoneRatio": {
+            "value": 0.25,
+            "serial": 0,
+            "flags": [],
+            "name": "Edge Quadrant Zone Ratio",
+            "name[zh_CN]": "四分之一屏触发区域比例",
+            "description": "Ratio of the edge length forming the corner (quadrant) tiling zone. Cursor within this ratio of the top/bottom of a side edge tiles to the corner quadrant, the middle zone keeps half-screen tiling",
+            "description[zh_CN]": "边缘长度中形成四分之一屏（角落）平铺区域的比值。光标位于左右边缘的上/下该比例范围内时平铺到对应角落象限，中间区域保持半屏平铺",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
         "edgeInnerDelayMs": {
             "value": 250,
             "serial": 0,
