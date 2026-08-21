@@ -168,11 +168,7 @@ QByteArray XSettings::depopulateSettings()
         const QByteArray &key = i.key();
         quint16 key_size = key.size();
 
-#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
         switch (value.value.typeId()) {
-#else
-        switch (value.value.type()) {
-#endif
         case QMetaType::QColor:
             type = XSettingsTypeColor;
             break;
