@@ -52,6 +52,7 @@ public:
     WClient *client;
     WSurface *enabledSurface;
     WSurface *focusedSurface;
+    QMetaObject::Connection enabledSurfaceDestroyConnection;
     // Tracks the beforeDestroy connection of the focused surface. Qt 6 does
     // not support Qt::UniqueConnection with a functor target (it asserts in
     // debug builds), so the connection is managed explicitly.
@@ -211,8 +212,9 @@ void handle_text_input_enable([[maybe_unused]] wl_client *client, wl_resource *r
         text_input->clearEnabledSurface();
     }
     d->enabledSurface = wSurface;
-    QObject::connect(wSurface, &WSurface::beforeDestroy,
-                     text_input, &WTextInputV2::clearEnabledSurface);
+    d->enabledSurfaceDestroyConnection = QObject::connect(
+        wSurface, &WSurface::beforeDestroy,
+        text_input, &WTextInputV2::clearEnabledSurface);
     Q_EMIT text_input->enableOnSurface(wSurface);
 }
 
@@ -382,6 +384,13 @@ IME::Features WTextInputV2::features() const
 void WTextInputV2::sendEnter(WSurface *surface)
 {
     W_D(WTextInputV2);
+    Q_ASSERT(surface);
+    if (!surface || d->focusedSurface == surface)
+        return;
+
+    if (d->focusedSurface)
+        sendLeave();
+
     d->focusedSurface = surface;
     // Qt::UniqueConnection is only supported for member function targets and
     // asserts with a functor, so replace the previous focus-destroy
@@ -392,10 +401,14 @@ void WTextInputV2::sendEnter(WSurface *surface)
     }
     d->focusedSurfaceDestroyConnection = QObject::connect(surface, &WSurface::beforeDestroy, this,
         [this, d, surface] {
-        if (d->focusedSurface == surface)
-            sendLeave();
-    });
+            if (d->focusedSurface == surface)
+                sendLeave();
+        });
     zwp_text_input_v2_send_enter(d->resource, 0, surface->handle()->resource);
+    qCDebug(lcWlTextInput) << "Text input v2 focus entered"
+                           << "textInput" << this
+                           << "surface" << surface
+                           << "enabledSurface" << d->enabledSurface;
     if (d->enabledSurface == d->focusedSurface) {
         Q_EMIT enabled();
     }
@@ -405,19 +418,26 @@ void WTextInputV2::sendLeave()
 {
     W_D(WTextInputV2);
     if (!d->focusedSurface) {
-        qCWarning(lcWlTextInput()) << "Send leave to a null focused surface.";
+        qCDebug(lcWlTextInput) << "Ignoring duplicate text input v2 leave"
+                               << "textInput" << this;
         return;
     }
-    zwp_text_input_v2_send_leave(d->resource, 0, d->focusedSurface->handle()->resource);
-    if (d->enabledSurface == d->focusedSurface) {
-        Q_EMIT disabled();
-    }
-    d->focusedSurface = nullptr;
+
+    auto *oldSurface = d->focusedSurface;
+    const bool wasEnabled = d->enabledSurface == oldSurface;
     // The focused surface no longer needs its destroy notification.
     if (d->focusedSurfaceDestroyConnection) {
         QObject::disconnect(d->focusedSurfaceDestroyConnection);
         d->focusedSurfaceDestroyConnection = {};
     }
+    d->focusedSurface = nullptr;
+    zwp_text_input_v2_send_leave(d->resource, 0, oldSurface->handle()->resource);
+    qCDebug(lcWlTextInput) << "Text input v2 focus left"
+                           << "textInput" << this
+                           << "surface" << oldSurface
+                           << "wasEnabled" << wasEnabled;
+    if (wasEnabled)
+        Q_EMIT disabled();
 }
 
 void WTextInputV2::sendDone()
@@ -443,13 +463,13 @@ void WTextInputV2::handleIMCommitted(WInputMethodV2 *im)
 WTextInputV2::WTextInputV2(QObject *parent)
     : WTextInput(*new WTextInputV2Private(this), parent)
 {
-    connect(this, &WTextInputV2::enableOnSurface, this, [this] {
-        if (focusedSurface()) {
+    connect(this, &WTextInputV2::enableOnSurface, this, [this](WSurface *surface) {
+        if (focusedSurface() == surface) {
             Q_EMIT enabled();
         }
     });
-    connect(this, &WTextInputV2::disableOnSurface, this, [this] {
-        if (!focusedSurface()) {
+    connect(this, &WTextInputV2::disableOnSurface, this, [this](WSurface *surface) {
+        if (focusedSurface() == surface) {
             Q_EMIT disabled();
         }
     });
@@ -483,7 +503,10 @@ void WTextInputV2::clearEnabledSurface()
     W_D(WTextInputV2);
     Q_ASSERT(d->enabledSurface);
     Q_EMIT disableOnSurface(d->enabledSurface);
-    d->enabledSurface->disconnect(this);
+    if (d->enabledSurfaceDestroyConnection) {
+        QObject::disconnect(d->enabledSurfaceDestroyConnection);
+        d->enabledSurfaceDestroyConnection = {};
+    }
     d->enabledSurface = nullptr;
 }
 WAYLIB_SERVER_END_NAMESPACE
