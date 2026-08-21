@@ -4,6 +4,7 @@
 #include "wxdgtoplevelsurface.h"
 
 #include "private/wtoplevelsurface_p.h"
+#include "woutput.h"
 #include "wseat.h"
 #include "wscoplistener.h"
 #include "wtools.h"
@@ -175,7 +176,10 @@ void WXdgToplevelSurfacePrivate::connect()
     q->listeners()->add(&m_handle->events.request_fullscreen, q,
         [q, this] (void *) {
         if (m_handle->requested.fullscreen) {
-            Q_EMIT q->requestFullscreen();
+            WOutput *output = m_handle->requested.fullscreen_output
+                ? WOutput::fromHandle(m_handle->requested.fullscreen_output)
+                : nullptr;
+            Q_EMIT q->requestFullscreen(output);
         } else {
             Q_EMIT q->requestCancelFullscreen();
         }

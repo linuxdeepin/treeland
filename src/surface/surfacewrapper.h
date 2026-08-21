@@ -313,7 +313,7 @@ public Q_SLOTS:
     void maximize();
     void unmaximize();
     void toggleMaximized();
-    void enterFullscreen();
+    void enterFullscreen(WOutput *targetOutput = nullptr);
     void leaveFullscreen();
     void closeSurface();
     void onMappedChanged();
