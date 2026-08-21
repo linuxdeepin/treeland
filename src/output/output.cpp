@@ -70,6 +70,16 @@ Output *Output::create(WOutput *output, QQmlEngine *engine, QObject *parent)
     outputItem->setParentItem(contentItem);
     outputItem->setOutput(output);
 
+    // Keep the item devicePixelRatio in sync with the output scale synchronously.
+    // The old QML binding (devicePixelRatio: output?.scale) was evaluated lazily,
+    // so after the scale is committed the render window's effectiveDevicePixelRatio
+    // (updated in C++ on scaleChanged) already reflected the new scale while the
+    // output item was still at the old size. That transient mismatch made the
+    // greeter/lock screen render at the wrong size at startup.
+    QObject::connect(output, &WOutput::scaleChanged, outputItem, [outputItem, output] {
+        outputItem->setDevicePixelRatio(output->scale());
+    });
+    outputItem->setDevicePixelRatio(output->scale());
     connect(Helper::instance()->globalConfig(),
             &TreelandConfig::forceSoftwareCursorChanged,
             obj,
@@ -82,6 +92,20 @@ Output *Output::create(WOutput *output, QQmlEngine *engine, QObject *parent)
     auto o = new Output(outputItem, parent);
     o->m_type = Type::Primary;
     obj->setParent(o);
+
+    // Keep the OutputViewport's devicePixelRatio in sync with the output scale
+    // synchronously, for the same reason as the output item above. The viewport's
+    // implicit size is output->size() / DPR, so a stale (too-small) DPR makes the
+    // viewport larger than its parent OutputItem. With anchors.centerIn the viewport
+    // is then offset, and renderMatrix() maps content to the wrong screen position —
+    // the greeter/lock screen flashes from the bottom-right toward center at startup
+    // under fractional scales (e.g. 1.25).
+    if (auto *viewport = o->screenViewport()) {
+        QObject::connect(output, &WOutput::scaleChanged, viewport, [viewport, output] {
+            viewport->setDevicePixelRatio(output->scale());
+        });
+        viewport->setDevicePixelRatio(output->scale());
+    }
 
     o->minimizedSurfaces->setFilter([](SurfaceWrapper *s) {
         return s->isMinimized();
@@ -143,10 +167,24 @@ Output *Output::createCopy(WOutput *output, Output *proxy, QQmlEngine *engine, Q
     outputItem->setParentItem(contentItem);
     outputItem->setOutput(output);
 
+    // Keep the item devicePixelRatio in sync with the output scale synchronously
+    // (same as the PrimaryOutput path in Output::create).
+    QObject::connect(output, &WOutput::scaleChanged, outputItem, [outputItem, output] {
+        outputItem->setDevicePixelRatio(output->scale());
+    });
+    outputItem->setDevicePixelRatio(output->scale());
     auto o = new Output(outputItem, parent);
     o->m_type = Type::Proxy;
     o->m_proxy = proxy;
     obj->setParent(o);
+
+    // Same synchronous DPR sync for the copy output's viewport (see Output::create).
+    if (auto *viewport = o->screenViewport()) {
+        QObject::connect(output, &WOutput::scaleChanged, viewport, [viewport, output] {
+            viewport->setDevicePixelRatio(output->scale());
+        });
+        viewport->setDevicePixelRatio(output->scale());
+    }
 
     o->updateOutputHardwareLayers();
     connect(proxy->screenViewport(),
