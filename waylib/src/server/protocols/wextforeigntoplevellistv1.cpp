@@ -12,8 +12,6 @@
 
 #include <map>
 
-#define EXT_FOREIGN_TOPLEVEL_LIST_V1_VERSION 1
-
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class Q_DECL_HIDDEN WExtForeignToplevelListV1Private : public WObjectPrivate
 {
@@ -143,7 +141,7 @@ wlr_ext_foreign_toplevel_list_v1 *WExtForeignToplevelListV1::handle() const
 
 void WExtForeignToplevelListV1::create(WServer *server)
 {
-    m_handle = wlr_ext_foreign_toplevel_list_v1_create(server->handle(), EXT_FOREIGN_TOPLEVEL_LIST_V1_VERSION);
+    m_handle = wlr_ext_foreign_toplevel_list_v1_create(server->handle(), InterfaceVersion);
 }
 
 void WExtForeignToplevelListV1::destroy([[maybe_unused]] WServer *server)

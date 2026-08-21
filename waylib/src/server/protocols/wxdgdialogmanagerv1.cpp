@@ -129,7 +129,7 @@ wlr_xdg_wm_dialog_v1 *WXdgDialogManagerV1::handle() const
 
 void WXdgDialogManagerV1::create(WServer *server)
 {
-    auto *wm = wlr_xdg_wm_dialog_v1_create(server->handle(), 1);
+    auto *wm = wlr_xdg_wm_dialog_v1_create(server->handle(), InterfaceVersion);
     m_handle = wm;
 
     W_D(WXdgDialogManagerV1);

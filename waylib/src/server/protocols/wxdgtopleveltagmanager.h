@@ -24,6 +24,7 @@ public:
     explicit WXdgToplevelTagManagerV1();
     QByteArrayView interfaceName() const override;
 
+    static constexpr int InterfaceVersion = 1;
 protected:
     void create(WServer *wserver) override;
     void destroy(WServer *server) override;
