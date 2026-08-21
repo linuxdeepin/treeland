@@ -427,7 +427,16 @@ target_link_libraries(${BIN_NAME} PRIVATE
 
 install(TARGETS ${BIN_NAME} RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
 install(PROGRAMS treeland.sh DESTINATION "${CMAKE_INSTALL_BINDIR}")
-install(TARGETS libtreeland LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}")
+install(TARGETS libtreeland
+    LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+    NAMELINK_SKIP
+)
+if(TREELAND_INSTALL_DEV)
+    install(TARGETS libtreeland
+        LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+        NAMELINK_ONLY
+    )
+endif()
 
 ## systemd socket
 
