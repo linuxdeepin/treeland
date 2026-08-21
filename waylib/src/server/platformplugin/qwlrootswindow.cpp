@@ -118,12 +118,7 @@ void QWlrootsRenderWindow::setDevicePixelRatio(qreal dpr)
 
     this->dpr = dpr;
 
-#if QT_VERSION < QT_VERSION_CHECK(6, 6, 0)
-    QEvent event(QEvent::ScreenChangeInternal);
-    QCoreApplication::sendEvent(window(), &event);
-#else
     QWindowSystemInterface::handleWindowDevicePixelRatioChanged<QWindowSystemInterface::SynchronousDelivery>(window());
-#endif
 }
 
 bool QWlrootsRenderWindow::beforeDisposeEventFilter(QEvent *event)

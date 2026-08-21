@@ -91,9 +91,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine, WToplevelSurface *shellSurf
     setImplicitSize(m_surfaceItem->implicitWidth(), m_surfaceItem->implicitHeight());
 
     if (!shellSurface->hasCapability(WToplevelSurface::Capability::Focus)) {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
         m_surfaceItem->setFocusPolicy(Qt::NoFocus);
-#endif
     }
 
     if (type == Type::XWayland) {

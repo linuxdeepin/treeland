@@ -1369,10 +1369,8 @@ bool WOutputRenderWindowPrivate::initRCWithRhi()
         auto dev = wlr_vk_renderer_get_device(m_renderer);
         auto queue_family = wlr_vk_renderer_get_queue_family(m_renderer);
 
-#if QT_VERSION > QT_VERSION_CHECK(6, 6, 0)
         auto instance = wlr_vk_renderer_get_instance(m_renderer);
         vkInstance->setVkInstance(instance);
-#endif
         //        vkInstance->setExtensions(fromCStyleList(vkRendererAttribs.extension_count, vkRendererAttribs.extensions));
         //        vkInstance->setLayers(fromCStyleList(vkRendererAttribs.layer_count, vkRendererAttribs.layers));
         vkInstance->setApiVersion({1, 1, 0});

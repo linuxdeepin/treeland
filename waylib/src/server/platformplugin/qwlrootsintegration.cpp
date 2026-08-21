@@ -479,12 +479,10 @@ void QWlrootsIntegration::setApplicationIcon(const QIcon &icon) const
     QPlatformIntegration::setApplicationIcon(icon);
 }
 
-#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
 void QWlrootsIntegration::setApplicationBadge(qint64 number)
 {
     QPlatformIntegration::setApplicationBadge(number);
 }
-#endif
 
 void QWlrootsIntegration::beep() const
 {

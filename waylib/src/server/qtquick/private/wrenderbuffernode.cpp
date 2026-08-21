@@ -425,11 +425,7 @@ public:
             // If have a base QSGRenderer, we should inherit the depth test from
             // baseProjectionMatrix.
             renderer->setProjectionMatrix(baseProjectionMatrix);
-#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
             renderer->setProjectionMatrixWithNativeNDC(base->projectionMatrixWithNativeNDC(0));
-#else
-            renderer->setProjectionMatrixWithNativeNDC(base->projectionMatrixWithNativeNDC());
-#endif
         } else {
             renderer->setDevicePixelRatio(1.0);
             renderer->setDeviceRect(QRect(QPoint(0, 0), pixelSize));
@@ -443,13 +439,8 @@ public:
         }
 
         if (Q_UNLIKELY(!matrix.isIdentity())) {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
             renderer->setProjectionMatrix(renderer->projectionMatrix(0) * matrix);
             renderer->setProjectionMatrixWithNativeNDC(renderer->projectionMatrixWithNativeNDC(0) * matrix);
-#else
-            renderer->setProjectionMatrix(renderer->projectionMatrix() * matrix);
-            renderer->setProjectionMatrixWithNativeNDC(renderer->projectionMatrixWithNativeNDC() * matrix);
-#endif
         }
 
         renderer->setRootNode(rootNode);
