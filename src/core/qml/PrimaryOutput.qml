@@ -47,7 +47,6 @@ OutputItem {
         id: outputViewport
 
         output: rootOutputItem.output
-        devicePixelRatio: parent.devicePixelRatio
         anchors.centerIn: parent
 
         RotationAnimation {

@@ -97,7 +97,6 @@ OutputItem {
 
         anchors.centerIn: parent
         depends: [primaryScreenViewport]
-        devicePixelRatio: outputItem.devicePixelRatio
         input: content
         output: outputItem.output
 
