@@ -36,10 +36,9 @@ LockScreen::LockScreen(ILockScreen *impl, SurfaceContainer *parent, GreeterProxy
 
 void LockScreen::lock()
 {
-    if (isVisible()) {
-        return;
-    }
-
+    // Do not early-return on isVisible(): the greeter may start in the
+    // undecided state (surface visible, not yet locked), so lock() must
+    // still flip the lock state afterwards.
     setVisible(true);
 
     if (!m_greeterProxy->isLocked())
