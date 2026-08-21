@@ -64,7 +64,7 @@ void WXdgToplevelTagManagerV1::create([[maybe_unused]] WServer *wserver)
 {
     W_D(WXdgToplevelTagManagerV1);
 
-    d->manager = wlr_xdg_toplevel_tag_manager_v1_create(server()->handle(), 1);
+    d->manager = wlr_xdg_toplevel_tag_manager_v1_create(server()->handle(), InterfaceVersion);
     m_handle = d->manager;
 
     if (d->manager) {

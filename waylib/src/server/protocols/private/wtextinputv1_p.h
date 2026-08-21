@@ -150,6 +150,7 @@ public:
 
     QByteArrayView interfaceName() const override;
 
+    static constexpr int InterfaceVersion = 1;
 Q_SIGNALS:
     void newTextInput(WTextInputV1 *textInput);
 

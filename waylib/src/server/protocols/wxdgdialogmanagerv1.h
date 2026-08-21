@@ -29,6 +29,7 @@ public:
     QByteArrayView interfaceName() const override;
     wlr_xdg_wm_dialog_v1 *handle() const;
 
+    static constexpr int InterfaceVersion = 1;
 Q_SIGNALS:
     void surfaceModalChanged(WAYLIB_SERVER_NAMESPACE::WXdgToplevelSurface *surface, bool modal);
 

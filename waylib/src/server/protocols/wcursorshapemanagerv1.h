@@ -24,6 +24,7 @@ public:
     wlr_cursor_shape_manager_v1 *handle() const;
 
     QByteArrayView interfaceName() const override;
+    static constexpr int InterfaceVersion = 2;
 
 protected:
     void create(WServer *server) override;
