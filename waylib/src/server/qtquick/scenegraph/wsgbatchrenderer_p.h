@@ -796,6 +796,7 @@ public:
     // the output's scene-space scissors.
     void setDamageScissorTarget(QRhiRenderTarget *rt);
     void expandDamageScissor(const QRegion &sceneRegion);
+    void expandDamageScissorNative(const QRegion &nativeRegion);
     void setDamageDebugEnabled(bool enabled);
     bool damageDebugNeedsFrame() const;
     const WSGDamageDebug *damageDebug() const { return m_damageDebug.get(); }
@@ -934,6 +935,7 @@ private:
     bool m_skipDamageScissorOnce = false;
     QRhiRenderTarget *m_damageScissorTarget = nullptr;
     QRegion m_extraDamageScissor;
+    QRegion m_extraDamageNativeScissor;
     QVector<QRect> m_damageNativeScissors;
 
     QHash<QSGRenderNode *, RenderNodeElement *> m_renderNodeElements;

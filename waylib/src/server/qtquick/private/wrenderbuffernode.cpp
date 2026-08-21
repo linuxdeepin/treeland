@@ -24,6 +24,7 @@
 #include <private/qrhivulkan_p.h>
 #include <private/qsgrenderer_p.h>
 #include "wsgbatchrenderer_p.h"
+#include "wayliblogging.h"
 #include <private/qsgdefaultrendercontext_p.h>
 #include <private/qsgrhisupport_p.h>
 #include <private/qquickrendercontrol_p.h>
@@ -785,6 +786,19 @@ public:
         }
         auto texture = this->texture.lock();
         Q_ASSERT(texture->data);
+
+        if (lcWlRenderBuffer().isDebugEnabled()) {
+            qCDebug(lcWlRenderBuffer)
+                << "render-damage offscreen"
+                << "item" << this
+                << "rect" << m_rect
+                << "matrix" << renderMatrix
+                << "effectiveDpr" << devicePixelRatio
+                << "currentTarget" << ct->pixelSize()
+                << "offscreenTexture" << texture->data->rhiTexture->pixelSize()
+                << "rotation" << hasRotation
+                << "content" << contentNode;
+        }
 
         if (renderData) {
             if (!renderData->rt || sgTexture()->rhiTexture() != texture->data->rhiTexture) {

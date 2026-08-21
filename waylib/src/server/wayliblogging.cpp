@@ -78,8 +78,8 @@ Q_LOGGING_CATEGORY(lcWlroots, "wlroots", QtInfoMsg)
 // Platform & Rendering
 Q_LOGGING_CATEGORY(lcWlPlatform, "waylib.platform", QtWarningMsg)          // QPA integration
 Q_LOGGING_CATEGORY(lcWlRenderHelper, "waylib.render.helper", QtWarningMsg) // Render target creation and buffer import
-Q_LOGGING_CATEGORY(lcWlRenderBuffer, "waylib.render.buffer", QtWarningMsg) // Render buffer node DMA-BUF
-Q_LOGGING_CATEGORY(lcWlBufferRenderer, "waylib.render.bufferrenderer", QtWarningMsg) // Buffer renderer texture provider
+Q_LOGGING_CATEGORY(lcWlRenderBuffer, "waylib.render.buffer", QtDebugMsg) // Render buffer node DMA-BUF
+Q_LOGGING_CATEGORY(lcWlBufferRenderer, "waylib.render.bufferrenderer", QtDebugMsg) // Buffer renderer texture provider
 
 // Forward wlroots C log messages into the Qt logging system so they honor
 // QT_LOGGING_RULES and Qt's message pattern instead of raw stderr output.
