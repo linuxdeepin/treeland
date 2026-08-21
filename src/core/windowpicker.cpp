@@ -1,4 +1,4 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "windowpicker.h"
 
@@ -47,8 +47,12 @@ QRectF WindowPicker::selectionRegion() const
     return m_itemSelector->selectionRegion();
 }
 
+void WindowPicker::selectWindow(WSurfaceItem *window)
+{
+    Q_EMIT windowPicked(window);
+}
+
 void WindowPicker::mousePressEvent([[maybe_unused]] QMouseEvent *event)
 {
-    auto window = qobject_cast<WSurfaceItem *>(m_itemSelector->hoveredItem());
-    Q_EMIT windowPicked(window);
+    selectWindow(qobject_cast<WSurfaceItem *>(m_itemSelector->hoveredItem()));
 }

@@ -821,6 +821,19 @@ CaptureSource *CaptureSourceSelector::selectedSource() const
     return m_selectedSource;
 }
 
+void CaptureSourceSelector::selectSurface(WSurfaceItemContent *surfaceItemContent)
+{
+    if (!surfaceItemContent)
+        return;
+
+    const QRect region = surfaceItemContent
+        ->mapRectToItem(this, surfaceItemContent->boundingRect())
+        .toRect();
+    setSelectedSource(new CaptureSourceSurface(surfaceItemContent,
+                                                surfaceItemContent->devicePixelRatio()),
+                      region);
+}
+
 void CaptureSourceSelector::setSelectedSource(CaptureSource *newSelectedSource, const QRect &region)
 {
     if (m_selectedSource == newSelectedSource)
@@ -890,10 +903,7 @@ void CaptureSourceSelector::mouseReleaseEvent([[maybe_unused]] QMouseEvent *even
     }
     case SelectionMode::SelectWindow: {
         if (auto surfaceItemContent = qobject_cast<WSurfaceItemContent *>(hoveredItem())) {
-            setSelectedSource(
-                new CaptureSourceSurface(surfaceItemContent,
-                                         m_itemSelector->outputItem()->devicePixelRatio()),
-                selectionRegion().toRect());
+            selectSurface(surfaceItemContent);
         }
         break;
     }

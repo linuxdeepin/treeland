@@ -401,6 +401,7 @@ public:
     ToolBarModel *toolBarModel() const;
     void doneSelection();
     void cancelSelection();
+    void selectSurface(WSurfaceItemContent *surfaceItemContent);
 
 Q_SIGNALS:
     void hoveredItemChanged();

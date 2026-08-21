@@ -1,4 +1,4 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #pragma once
 
@@ -26,6 +26,7 @@ public:
     void setHint(const QString &hint);
     QQuickItem *hoveredItem() const;
     QRectF selectionRegion() const;
+    void selectWindow(WAYLIB_SERVER_NAMESPACE::WSurfaceItem *window);
 
 Q_SIGNALS:
     void windowPicked(WAYLIB_SERVER_NAMESPACE::WSurfaceItem *window);

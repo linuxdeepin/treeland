@@ -16,11 +16,12 @@ Button {
         hovered: Qt.rgba(1.0, 1.0, 1.0, 0.5)
         pressed: Qt.rgba(1.0, 1.0, 1.0, 0.1)
     }
-    textColor: D.Palette {
+    property D.Palette textColor: D.Palette {
         normal: Qt.rgba(1.0, 1.0, 1.0, 1.0)
         hovered: Qt.rgba(0.0, 0.0, 0.0, 0.7)
         pressed: Qt.rgba(0.0, 0.0, 0.0, 0.7)
     }
+    palette.buttonText: root.D.ColorSelector.textColor
 
     icon {
         width: 40

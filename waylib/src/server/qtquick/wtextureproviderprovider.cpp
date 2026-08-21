@@ -7,6 +7,7 @@
 #include "wayliblogging.h"
 
 #include <rhi/qrhi.h>
+#include <private/qsgplaintexture_p.h>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class Q_DECL_HIDDEN WTextureCapturerPrivate : public WObjectPrivate
@@ -59,16 +60,17 @@ void WTextureCapturer::doGrabToImage()
                &WTextureCapturer::doGrabToImage);
     d->imgPromise.start();
     WSGTextureProvider *textureProvider = d->provider->wTextureProvider();
-    if (textureProvider && textureProvider->texture() && textureProvider->texture()->rhiTexture()) {
+    auto *texture = textureProvider ? textureProvider->texture() : nullptr;
+    if (texture && texture->rhiTexture()) {
         // Perform rhi texture read back
-        auto texture = textureProvider->texture()->rhiTexture();
-        qCInfo(lcWlTextureProvider) << "Perform rhi texture read back for texture" << texture;
+        auto *rhiTexture = texture->rhiTexture();
+        qCInfo(lcWlTextureProvider) << "Perform rhi texture read back for texture" << rhiTexture;
         QRhiReadbackResult *rbResult = new QRhiReadbackResult;
         QRhiCommandBuffer *cb;
         d->renderWindow->rhi()->beginOffscreenFrame(&cb);
         auto ub = d->renderWindow->rhi()->nextResourceUpdateBatch();
         cb->beginComputePass(ub);
-        QRhiReadbackDescription rbd(texture);
+        QRhiReadbackDescription rbd(rhiTexture);
         ub->readBackTexture(rbd, rbResult);
         cb->endComputePass(ub);
         auto frameOpResult = d->renderWindow->rhi()->endOffscreenFrame();
@@ -82,6 +84,14 @@ void WTextureCapturer::doGrabToImage()
         } else {
             d->imgPromise.setException(std::make_exception_ptr(std::runtime_error("Offscreen frame operation failed.")));
         }
+    } else if (auto *plainTexture = qobject_cast<QSGPlainTexture *>(texture)) {
+        // The pixman renderer selects Qt Quick's Software backend, which has
+        // no QRhiTexture but stores the current pixels in QSGPlainTexture.
+        const QImage image = plainTexture->image();
+        if (image.isNull())
+            d->imgPromise.setException(std::make_exception_ptr(std::runtime_error("Texture image is not valid.")));
+        else
+            d->imgPromise.addResult(image.copy());
     } else {
         d->imgPromise.setException(std::make_exception_ptr(std::runtime_error("Texture provider is not valid.")));
     }
