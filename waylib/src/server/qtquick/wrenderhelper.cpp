@@ -54,7 +54,6 @@ struct Q_DECL_HIDDEN BufferData {
     bool colorPreserved = false;
 
     inline void resetWindowRenderTarget() {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
         {
             auto it = s_rhiRenderBuffers->begin();
             while (it != s_rhiRenderBuffers->end()) {
@@ -86,35 +85,6 @@ struct Q_DECL_HIDDEN BufferData {
             delete windowRenderTarget.sw.paintDevice;
 
         windowRenderTarget.sw = {};
-#else
-        {
-            auto it = s_rhiRenderBuffers->begin();
-            while (it != s_rhiRenderBuffers->end()) {
-                if (windowRenderTarget.renderTarget == it->renderTarget) {
-                    it = s_rhiRenderBuffers->erase(it);
-                    break;
-                }
-                ++it;
-            }
-        }
-
-        if (windowRenderTarget.owns) {
-            delete windowRenderTarget.renderTarget;
-            delete windowRenderTarget.rpDesc;
-            delete windowRenderTarget.texture;
-            delete windowRenderTarget.renderBuffer;
-            delete windowRenderTarget.depthStencil;
-            delete windowRenderTarget.paintDevice;
-        }
-
-        windowRenderTarget.renderTarget = nullptr;
-        windowRenderTarget.rpDesc = nullptr;
-        windowRenderTarget.texture = nullptr;
-        windowRenderTarget.renderBuffer = nullptr;
-        windowRenderTarget.depthStencil = nullptr;
-        windowRenderTarget.paintDevice = nullptr;
-        windowRenderTarget.owns = false;
-#endif
     }
 };
 
@@ -185,15 +155,9 @@ static QRhiTextureRenderTarget::Flags rhiRenderTargetFlags(WGlobal::ColorContent
 
 static bool recreateRhiRenderTarget(BufferData *data, QRhiTextureRenderTarget::Flags flags)
 {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
     auto renderTarget = static_cast<QRhiTextureRenderTarget *>(
         data->windowRenderTarget.rt.renderTarget);
     auto &rpDesc = data->windowRenderTarget.res.rpDesc;
-#else
-    auto renderTarget = static_cast<QRhiTextureRenderTarget *>(
-        data->windowRenderTarget.renderTarget);
-    auto &rpDesc = data->windowRenderTarget.rpDesc;
-#endif
     Q_ASSERT(renderTarget);
     renderTarget->destroy();
     renderTarget->setFlags(flags);
@@ -233,17 +197,10 @@ static bool createRhiRenderTarget(const QRhiColorAttachment &colorAttachment,
     }
 
     rt->setName(QByteArrayLiteral("WaylibTextureRenderTarget"));
-#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
     dst.rt.renderTarget = rt.release();
     dst.res.rpDesc = rp.release();
     dst.implicitBuffers.depthStencil = depthStencil.release();
     dst.rt.owns = true; // ownership of the native resource itself is not transferred but the QRhi objects are on us now
-#else
-    dst.renderTarget = rt.release();
-    dst.rpDesc = rp.release();
-    dst.depthStencil = depthStencil.release();
-    dst.owns = true; // ownership of the native resource itself is not transferred but the QRhi objects are on us now
-#endif
     return true;
 }
 
@@ -257,28 +214,16 @@ bool createRhiRenderTarget(QRhi *rhi, const QQuickRenderTarget &source, QQuickWi
         const auto format = rtd->u.nativeTexture.rhiFormat == QRhiTexture::UnknownFormat ? QRhiTexture::RGBA8
                                                                                          : QRhiTexture::Format(rtd->u.nativeTexture.rhiFormat);
         const auto textureFlags = QRhiTexture::RenderTarget | QRhiTexture::Flags(
-#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
                                rtd->u.nativeTexture.rhiFormatFlags
-#else
-                               rtd->u.nativeTexture.rhiFlags
-#endif
                                                                           );
         std::unique_ptr<QRhiTexture> texture(rhi->newTexture(format, rtd->pixelSize, rtd->sampleCount, textureFlags));
         texture->setName(QByteArrayLiteral("WaylibTexture"));
-#if QT_VERSION < QT_VERSION_CHECK(6, 6, 0)
-        if (!texture->createFrom({ rtd->u.nativeTexture.object, rtd->u.nativeTexture.layout }))
-#else
         if (!texture->createFrom({ rtd->u.nativeTexture.object, rtd->u.nativeTexture.layoutOrState }))
-#endif
             return false;
         QRhiColorAttachment att(texture.get());
         if (!createRhiRenderTarget(att, rtd->pixelSize, rtd->sampleCount, rhi, dst, flags))
             return false;
-#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
         dst.res.texture = texture.release();
-#else
-        dst.texture = texture.release();
-#endif
         return true;
     }
     case QQuickRenderTargetPrivate::Type::NativeRenderbuffer: {
@@ -291,11 +236,7 @@ bool createRhiRenderTarget(QRhi *rhi, const QQuickRenderTarget &source, QQuickWi
         if (!createRhiRenderTarget(att, rtd->pixelSize, rtd->sampleCount, rhi, dst, flags))
             return false;
         renderbuffer->setName(QByteArrayLiteral("WaylibRenderBuffer"));
-#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
         dst.res.renderBuffer = renderbuffer.release();
-#else
-        dst.renderBuffer = renderbuffer.release();
-#endif
         return true;
     }
 
@@ -359,20 +300,12 @@ bool WRenderHelperPrivate::ensureRhiRenderTarget(QQuickRenderControl *rc, Buffer
                                                  QRhiTextureRenderTarget::Flags flags)
 {
     data->resetWindowRenderTarget();
-#if QT_VERSION < QT_VERSION_CHECK(6, 6, 0)
-    auto rhi = QQuickRenderControlPrivate::get(rc)->rhi;
-#else
     auto rhi = rc->rhi();
-#endif
     auto tmp = data->renderTarget;
     bool ok = createRhiRenderTarget(rhi, tmp, data->windowRenderTarget, flags);
     if (!ok)
         return false;
-#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
     data->renderTarget = QQuickRenderTarget::fromRhiRenderTarget(data->windowRenderTarget.rt.renderTarget);
-#else
-    data->renderTarget = QQuickRenderTarget::fromRhiRenderTarget(data->windowRenderTarget.renderTarget);
-#endif
     data->renderTarget.setDevicePixelRatio(tmp.devicePixelRatio());
     data->renderTarget.setMirrorVertically(tmp.mirrorVertically());
 
@@ -753,11 +686,7 @@ WRenderHelper::RenderTarget WRenderHelper::acquireRenderTarget(QQuickRenderContr
                 } else
 #endif
                 {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
                     auto renderTarget = data->windowRenderTarget.rt.renderTarget;
-#else
-                    auto renderTarget = data->windowRenderTarget.renderTarget;
-#endif
                     if (renderTarget)
                         static_cast<QRhiTextureRenderTarget *>(renderTarget)->setFlags(flags);
                 }
@@ -895,22 +824,14 @@ void WRenderHelper::finishVulkanRenderTarget(QRhiCommandBuffer *cb, const Render
     if (!data || !data->buffer || !d->renderer || !wlr_renderer_is_vk(d->renderer))
         return;
 
-#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
     QRhiTexture *qtTexture = data->windowRenderTarget.res.texture;
-#else
-    QRhiTexture *qtTexture = data->windowRenderTarget.texture;
-#endif
     if (!qtTexture) {
         qCWarning(lcWlRenderHelper, "Vulkan render buffer release: missing Qt QRhiTexture");
         return;
     }
 
     const auto native = qtTexture->nativeTexture();
-#if QT_VERSION < QT_VERSION_CHECK(6, 6, 0)
     const auto oldLayout = VkImageLayout(native.layout);
-#else
-    const auto oldLayout = VkImageLayout(native.layout);
-#endif
     if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED) {
         qCWarning(lcWlRenderHelper, "Vulkan render buffer release: Qt texture layout is UNDEFINED");
         return;

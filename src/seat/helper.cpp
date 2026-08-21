@@ -275,9 +275,7 @@ Helper::Helper(QObject *parent)
 
     m_renderWindow->setColor(Qt::black);
     m_rootSurfaceContainer->setFlag(QQuickItem::ItemIsFocusScope, true);
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
     m_rootSurfaceContainer->setFocusPolicy(Qt::StrongFocus);
-#endif
 
     m_shellHandler = new ShellHandler(m_rootSurfaceContainer, m_server);
     connect(m_shellHandler->workspace(),
