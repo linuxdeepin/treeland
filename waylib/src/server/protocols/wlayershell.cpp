@@ -98,7 +98,7 @@ void WLayerShell::create(WServer *server)
 {
     W_D(WLayerShell);
 
-    auto *layer_shell = wlr_layer_shell_v1_create(server->handle(), 4);
+    auto *layer_shell = wlr_layer_shell_v1_create(server->handle(), InterfaceVersion);
     Q_ASSERT(layer_shell);
     listeners()->add(&layer_shell->events.new_surface, d,
         &WLayerShellPrivate::onNewSurface);

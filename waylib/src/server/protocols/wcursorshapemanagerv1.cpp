@@ -9,9 +9,6 @@
 
 #include <wlr_all.h>
 
-// TODO: set to 2 after wlroots 0.20
-#define CURSOR_SHAPE_MANAGER_V1_VERSION 1
-
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class Q_DECL_HIDDEN WCursorShapeManagerV1Private : public WObjectPrivate
@@ -128,7 +125,7 @@ void WCursorShapeManagerV1::create(WServer *server)
 {
     W_D(WCursorShapeManagerV1);
     if (!m_handle) {
-        m_handle = wlr_cursor_shape_manager_v1_create(server->handle(), CURSOR_SHAPE_MANAGER_V1_VERSION);
+        m_handle = wlr_cursor_shape_manager_v1_create(server->handle(), InterfaceVersion);
         listeners()->add(&handle()->events.request_set_shape, this, []
                          (wlr_cursor_shape_manager_v1_request_set_shape_event *event) {
             if (auto *seat = WSeat::fromHandle(event->seat_client->seat)) {

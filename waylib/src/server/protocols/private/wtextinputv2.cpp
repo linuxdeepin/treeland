@@ -313,7 +313,11 @@ QByteArrayView WTextInputManagerV2::interfaceName() const
 
 void WTextInputManagerV2::create(WServer *server)
 {
-    m_global = wl_global_create(server->handle(), &zwp_text_input_manager_v2_interface, 1, this, text_input_manager_bind);
+    m_global = wl_global_create(server->handle(),
+                                &zwp_text_input_manager_v2_interface,
+                                InterfaceVersion,
+                                this,
+                                text_input_manager_bind);
     Q_ASSERT(m_global);
     m_handle = this;
 }

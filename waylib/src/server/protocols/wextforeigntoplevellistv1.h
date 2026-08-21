@@ -33,6 +33,7 @@ public:
     QByteArrayView interfaceName() const override;
     wlr_ext_foreign_toplevel_list_v1 *handle() const;
 
+    static constexpr int InterfaceVersion = 1;
 private:
     void create(WServer *server) override;
     void destroy(WServer *server) override;
