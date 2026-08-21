@@ -35,7 +35,7 @@ void personalization_window_state(void *data);
 void personalization_snapshot_config(void *data);
 void personalization_restore_config(void *data);
 
-#include "protocol-test-client.h"
+#include "client-connection.h"
 
 #define TEST_MSG_MAX 256
 
@@ -46,7 +46,7 @@ struct test_result {
 };
 
 struct test_ctx {
-    struct protocol_test_connection connection;
+    struct client_connection connection;
     struct wl_display    *display;
 
 

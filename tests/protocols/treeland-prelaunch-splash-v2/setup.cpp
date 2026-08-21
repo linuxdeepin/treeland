@@ -1,6 +1,7 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "modules/prelaunch-splash/prelaunchsplash.h"
+#include "server-bridge.h"
 #include "treeland-prelaunch-splash-v2.h"
 
 #include <QString>
@@ -34,9 +35,10 @@ static void recordRequest(const QString &appId, const QString &instanceId, bool 
     ++g_state.request_count;
 }
 
-void protocol_test_setup(WServer *server)
+void protocol_test_setup(Helper *helper)
 {
-    auto *splash = server->attach<PrelaunchSplash>();
+    auto *splash = find_server_interface<PrelaunchSplash>(helper);
+    Q_ASSERT(splash);
     QObject::connect(splash, &PrelaunchSplash::splashRequested,
                      [](const QString &appId, const QString &instanceId, wlr_buffer *iconBuffer) {
                          recordRequest(appId, instanceId, iconBuffer != nullptr);
@@ -50,10 +52,6 @@ void protocol_test_setup(WServer *server)
                                   "%s", qPrintable(instanceId));
                      });
 
-    // wl_shm lets the client hand a real buffer as the optional icon argument.
-    static const uint32_t shmFormats[] = { DRM_FORMAT_ARGB8888, DRM_FORMAT_XRGB8888 };
-    static wlr_shm *shm = wlr_shm_create(server->handle(), 1, shmFormats, 2);
-    Q_UNUSED(shm);
 }
 
 extern "C" void splash_query_state(void *data)

@@ -1,6 +1,7 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "treeland-dde-shell-v1.h"
+#include "server-bridge-api.h"
 #include "treeland-dde-shell-v1-client-protocol.h"
 
 #include <stdarg.h>
@@ -133,13 +134,13 @@ extern void dde_shell_query_surface_state(void *data);
 
 static int connect_client(struct test_ctx *ctx, const char *socket_name)
 {
-    if (!protocol_test_connect(&ctx->connection, socket_name))
+    if (!client_connect(&ctx->connection, socket_name))
         return 0;
     ctx->display = ctx->connection.display;
-    ctx->compositor = protocol_test_bind(&ctx->connection, "wl_compositor", &wl_compositor_interface, 1);
-    ctx->seat = protocol_test_bind(&ctx->connection, "wl_seat", &wl_seat_interface, 1);
-    ctx->output = protocol_test_bind(&ctx->connection, "wl_output", &wl_output_interface, 1);
-    ctx->manager = protocol_test_bind(&ctx->connection, "treeland_dde_shell_manager_v1",
+    ctx->compositor = client_bind(&ctx->connection, "wl_compositor", &wl_compositor_interface, 1);
+    ctx->seat = client_bind(&ctx->connection, "wl_seat", &wl_seat_interface, 1);
+    ctx->output = client_bind(&ctx->connection, "wl_output", &wl_output_interface, 1);
+    ctx->manager = client_bind(&ctx->connection, "treeland_dde_shell_manager_v1",
                                       &treeland_dde_shell_manager_v1_interface, 1);
     return ctx->manager != NULL;
 }
@@ -205,7 +206,7 @@ static int read_shell_surface_state(struct test_ctx *ctx, struct dde_shell_surfa
     if (wl_display_roundtrip(ctx->display) < 0)
         return 0;
     memset(state, 0, sizeof(*state));
-    return protocol_test_invoke_server(dde_shell_query_surface_state, state);
+    return invoke_on_server_thread(dde_shell_query_surface_state, state);
 }
 
 static int set_surface_position(struct test_ctx *ctx)
@@ -262,7 +263,7 @@ static int shell_surface_state(struct test_ctx *ctx)
 {
     (void)ctx;
     struct dde_shell_surface_state state;
-    return protocol_test_invoke_server(dde_shell_query_surface_state, &state)
+    return invoke_on_server_thread(dde_shell_query_surface_state, &state)
         && state.position_x == 42 && state.position_y == 24 && state.role_overlay
         && state.auto_placement == 37 && state.skip_switcher && state.skip_dock_preview
         && state.skip_multitask_view && !state.accept_keyboard_focus;
@@ -296,7 +297,7 @@ static int pick(struct test_ctx *ctx)
     treeland_window_picker_v1_pick(ctx->picker, "test-hint");
     return wl_display_roundtrip(ctx->display) >= 0;
 }
-static int emit_events(struct test_ctx *ctx) { (void)ctx; return protocol_test_invoke_server(dde_shell_emit_test_events, NULL); }
+static int emit_events(struct test_ctx *ctx) { (void)ctx; return invoke_on_server_thread(dde_shell_emit_test_events, NULL); }
 static int checker_enter_received(struct test_ctx *ctx) { return ctx->checker_enter_received; }
 static int checker_leave_received(struct test_ctx *ctx) { return ctx->checker_leave_received; }
 static int active_in_received(struct test_ctx *ctx) { return ctx->active_in_received == 0; }
@@ -345,7 +346,7 @@ void test_cleanup(struct test_ctx *ctx)
     if (ctx->lockscreen) treeland_lockscreen_v1_destroy(ctx->lockscreen);
     if (ctx->active) treeland_dde_active_v1_destroy(ctx->active);
     if (ctx->manager) treeland_dde_shell_manager_v1_destroy(ctx->manager);
-    protocol_test_disconnect(&ctx->connection);
+    client_disconnect(&ctx->connection);
 }
 
 int protocol_test_run(const char *socket_name)

@@ -1,6 +1,7 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "modules/app-id-resolver/appidresolver.h"
+#include "server-bridge.h"
 
 #include <wserver.h>
 
@@ -57,7 +58,7 @@ void server_snapshot_state(void *)
 
 } // extern "C"
 
-void protocol_test_setup(WServer *server)
+void protocol_test_setup(Helper *helper)
 {
-    g_manager = server->attach<AppIdResolverManager>();
+    g_manager = find_server_interface<AppIdResolverManager>(helper);
 }

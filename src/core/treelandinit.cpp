@@ -1,11 +1,24 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "treelandinit.h"
+
 #include <DGuiApplicationHelper>
 #include <QGuiApplication>
+#include <QPalette>
+#include <QQuickStyle>
+#include <memory>
 #include <wrenderhelper.h>
+#include <wlogging.h>
 #include <wbackend.h>
 #include <wserver.h>
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 10, 0)
+#  include <private/qgenericunixtheme_p.h>
+#else
+#  include <private/qgenericunixthemes_p.h>
+#endif
+
+#include <qpa/qplatformtheme.h>
 
 #include <wlr_all.h>
 
@@ -14,18 +27,39 @@ DCORE_USE_NAMESPACE
 
 namespace Treeland {
 
-void preInit(const InitOptions &opts)
+namespace {
+std::unique_ptr<QGuiApplication> application;
+
+class QDeepinTheme : public QGenericUnixTheme
 {
-    if (opts.headless) {
-        const auto testBackends = qgetenv("TREELAND_TEST_WLR_BACKENDS");
-        qputenv("WLR_BACKENDS", testBackends.isEmpty() ? "headless" : testBackends);
+public:
+    const QPalette *palette(QPlatformTheme::Palette type) const override
+    {
+        if (type != QPlatformTheme::SystemPalette)
+            return QGenericUnixTheme::palette(type);
+        static QPalette palette;
+        palette = Dtk::Gui::DGuiApplicationHelper::instance()->applicationPalette();
+        return &palette;
     }
+};
+}
+
+void preInit(int &argc, char *argv[])
+{
+    WLog::init();
     DTK_GUI_NAMESPACE::DGuiApplicationHelper::setAttribute(
         DTK_GUI_NAMESPACE::DGuiApplicationHelper::DontSaveApplicationTheme, true);
-    WServer::initializeQPA({}, opts.createPlatformTheme);
+    WServer::initializeQPA({}, [](const QString &) {
+        return static_cast<QPlatformTheme *>(new QDeepinTheme());
+    });
     QGuiApplication::setAttribute(Qt::AA_UseOpenGLES);
     QGuiApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
     QGuiApplication::setQuitOnLastWindowClosed(false);
+    QQuickStyle::setStyle("Chameleon");
+
+    application = std::make_unique<QGuiApplication>(argc, argv);
+    application->setOrganizationName("deepin");
+    application->setApplicationName("treeland");
 }
 
 void initTestServer(WServer *server)

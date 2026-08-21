@@ -3,20 +3,13 @@
 
 #pragma once
 #include <wglobal.h>
-#include <functional>
-#include <QString>
-class QPlatformTheme;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WServer;
 WAYLIB_SERVER_END_NAMESPACE
 
 namespace Treeland {
-struct InitOptions {
-    bool headless = false;
-    std::function<QPlatformTheme *(const QString &)> createPlatformTheme;
-};
-void preInit(const InitOptions &opts = {});
+void preInit(int &argc, char *argv[]);
 void postInit();
 void initTestServer(WAYLIB_SERVER_NAMESPACE::WServer *server);
 }

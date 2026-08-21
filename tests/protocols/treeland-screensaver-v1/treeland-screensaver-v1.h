@@ -9,7 +9,7 @@ extern "C" {
 
 int protocol_test_run(const char *socket_name);
 
-#include "protocol-test-client.h"
+#include "client-connection.h"
 
 #define TEST_MSG_MAX 256
 
@@ -20,8 +20,8 @@ struct test_result {
 };
 
 struct test_ctx {
-    struct protocol_test_connection connection;
-    struct protocol_test_connection error_connection;
+    struct client_connection connection;
+    struct client_connection error_connection;
     struct wl_display    *display;
     char                  socket_name[256];
 

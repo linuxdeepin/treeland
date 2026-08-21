@@ -1,6 +1,7 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
-#include "protocol-test-client.h"
+#include "client-connection.h"
+#include "server-bridge-api.h"
 #include "treeland-dde-shell-lockscreen-desktop-v1.h"
 #include "treeland-dde-shell-v1-client-protocol.h"
 
@@ -23,20 +24,20 @@ static int locked_state_matches(const struct dde_lockscreen_desktop_state *state
 
 int protocol_test_run(const char *socket_name)
 {
-    struct protocol_test_connection connection;
+    struct client_connection connection;
     struct dde_lockscreen_desktop_state state = { 0 };
     struct treeland_dde_shell_manager_v1 *manager = NULL;
     struct treeland_lockscreen_v1 *lockscreen = NULL;
     int result = 1;
 
-    if (!protocol_test_connect(&connection, socket_name))
+    if (!client_connect(&connection, socket_name))
         goto done;
-    manager = protocol_test_bind(&connection,
+    manager = client_bind(&connection,
                                  "treeland_dde_shell_manager_v1",
                                  &treeland_dde_shell_manager_v1_interface,
                                  1);
     if (!manager
-        || !protocol_test_invoke_server(dde_lockscreen_desktop_read_state, &state)
+        || !invoke_on_server_thread(dde_lockscreen_desktop_read_state, &state)
         || !initial_state_matches(&state))
         goto done;
 
@@ -45,7 +46,7 @@ int protocol_test_run(const char *socket_name)
         goto done;
     treeland_lockscreen_v1_lock(lockscreen);
     if (wl_display_roundtrip(connection.display) < 0
-        || !protocol_test_invoke_server(dde_lockscreen_desktop_read_state, &state)
+        || !invoke_on_server_thread(dde_lockscreen_desktop_read_state, &state)
         || !locked_state_matches(&state))
         goto done;
 
@@ -65,6 +66,6 @@ done:
         treeland_lockscreen_v1_destroy(lockscreen);
     if (manager)
         treeland_dde_shell_manager_v1_destroy(manager);
-    protocol_test_disconnect(&connection);
+    client_disconnect(&connection);
     return result;
 }

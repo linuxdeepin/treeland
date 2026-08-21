@@ -1,6 +1,7 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "treeland-screensaver-v1.h"
+#include "server-bridge-api.h"
 #include "treeland-screensaver-v1-client-protocol.h"
 
 #include <errno.h>
@@ -74,10 +75,10 @@ static int connect_client(struct test_ctx *ctx, const char *socket_name)
 {
     strncpy(ctx->socket_name, socket_name, sizeof(ctx->socket_name) - 1);
     ctx->socket_name[sizeof(ctx->socket_name) - 1] = '\0';
-    if (!protocol_test_connect(&ctx->connection, socket_name))
+    if (!client_connect(&ctx->connection, socket_name))
         return 0;
     ctx->display = ctx->connection.display;
-    ctx->screensaver = protocol_test_bind(&ctx->connection, "treeland_screensaver_v1",
+    ctx->screensaver = client_bind(&ctx->connection, "treeland_screensaver_v1",
                                           &treeland_screensaver_v1_interface, 2);
     return ctx->screensaver != NULL;
 }
@@ -98,7 +99,7 @@ static int server_inhibited_after_inhibit(struct test_ctx *ctx)
 {
     (void)ctx;
     int inhibited = 0;
-    if (!protocol_test_invoke_server(screensaver_query_inhibited, &inhibited))
+    if (!invoke_on_server_thread(screensaver_query_inhibited, &inhibited))
         return 0;
     return inhibited == 1;
 }
@@ -113,7 +114,7 @@ static int server_inhibited_after_uninhibit(struct test_ctx *ctx)
 {
     (void)ctx;
     int inhibited = 1;
-    if (!protocol_test_invoke_server(screensaver_query_inhibited, &inhibited))
+    if (!invoke_on_server_thread(screensaver_query_inhibited, &inhibited))
         return 0;
     return inhibited == 0;
 }
@@ -144,9 +145,9 @@ static int uninhibit_without_inhibit(struct test_ctx *ctx)
 static int inhibit_twice(struct test_ctx *ctx)
 {
 
-    if (!protocol_test_connect(&ctx->error_connection, ctx->socket_name))
+    if (!client_connect(&ctx->error_connection, ctx->socket_name))
         return 0;
-    ctx->error_screensaver = protocol_test_bind(&ctx->error_connection, "treeland_screensaver_v1",
+    ctx->error_screensaver = client_bind(&ctx->error_connection, "treeland_screensaver_v1",
                                                 &treeland_screensaver_v1_interface, 2);
     if (!ctx->error_screensaver)
         return 0;
@@ -169,8 +170,8 @@ static const struct test_case cases[] = {
 void test_cleanup(struct test_ctx *ctx)
 {
 
-    protocol_test_disconnect(&ctx->error_connection);
-    protocol_test_disconnect(&ctx->connection);
+    client_disconnect(&ctx->error_connection);
+    client_disconnect(&ctx->connection);
 }
 
 int protocol_test_run(const char *socket_name)

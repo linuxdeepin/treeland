@@ -1,6 +1,7 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "modules/window-management/windowmanagementinterfacev1.h"
+#include "server-bridge.h"
 
 #include <wserver.h>
 
@@ -12,9 +13,9 @@ namespace {
 WindowManagementInterfaceV1 *g_windowManagement = nullptr;
 }
 
-void protocol_test_setup(WServer *server)
+void protocol_test_setup(Helper *helper)
 {
-    g_windowManagement = server->attach<WindowManagementInterfaceV1>();
+    g_windowManagement = find_server_interface<WindowManagementInterfaceV1>(helper);
 }
 
 

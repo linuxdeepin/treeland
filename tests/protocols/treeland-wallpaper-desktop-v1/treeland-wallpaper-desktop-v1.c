@@ -4,7 +4,8 @@
 #define _POSIX_C_SOURCE 200809L
 #endif
 
-#include "protocol-test-client.h"
+#include "client-connection.h"
+#include "server-bridge-api.h"
 #include "treeland-wallpaper-desktop-v1.h"
 #include "treeland-wallpaper-manager-unstable-v1-client-protocol.h"
 #include "treeland-wallpaper-shell-unstable-v1-client-protocol.h"
@@ -21,7 +22,7 @@ extern void wallpaper_desktop_read_state(void *data);
 static const char wallpaper_source[] = "/tmp/treeland-protocol-wallpaper-red";
 
 struct wallpaper_client {
-    struct protocol_test_connection connection;
+    struct client_connection connection;
     struct wl_compositor *compositor;
     struct wl_shm *shm;
     struct wl_output *output;
@@ -87,7 +88,7 @@ static void cleanup(struct wallpaper_client *client)
         wl_surface_destroy(client->surface);
     if (client->buffer_data)
         munmap(client->buffer_data, client->buffer_size);
-    protocol_test_disconnect(&client->connection);
+    client_disconnect(&client->connection);
 }
 
 int protocol_test_run(const char *socket_name)
@@ -97,16 +98,16 @@ int protocol_test_run(const char *socket_name)
     int result = 1;
     const char *stage = "connect";
 
-    if (!protocol_test_connect(&client.connection, socket_name))
+    if (!client_connect(&client.connection, socket_name))
         goto done;
     stage = "bind";
-    client.compositor = protocol_test_bind(&client.connection, "wl_compositor",
+    client.compositor = client_bind(&client.connection, "wl_compositor",
                                            &wl_compositor_interface, 1);
-    client.shm = protocol_test_bind(&client.connection, "wl_shm", &wl_shm_interface, 1);
-    client.output = protocol_test_bind(&client.connection, "wl_output", &wl_output_interface, 1);
-    client.manager = protocol_test_bind(&client.connection, "treeland_wallpaper_manager_v1",
+    client.shm = client_bind(&client.connection, "wl_shm", &wl_shm_interface, 1);
+    client.output = client_bind(&client.connection, "wl_output", &wl_output_interface, 1);
+    client.manager = client_bind(&client.connection, "treeland_wallpaper_manager_v1",
                                         &treeland_wallpaper_manager_v1_interface, 1);
-    client.shell = protocol_test_bind(&client.connection, "treeland_wallpaper_shell_v1",
+    client.shell = client_bind(&client.connection, "treeland_wallpaper_shell_v1",
                                       &treeland_wallpaper_shell_v1_interface, 2);
     if (!client.compositor || !client.shm || !client.output || !client.manager || !client.shell)
         goto done;
@@ -141,7 +142,7 @@ int protocol_test_run(const char *socket_name)
     // production wallpaper owner, not this role-less client surface.
     stage = "roundtrip-or-server-state";
     if (wl_display_roundtrip(client.connection.display) < 0
-        || !protocol_test_invoke_server(wallpaper_desktop_read_state, &state))
+        || !invoke_on_server_thread(wallpaper_desktop_read_state, &state))
         goto done;
 
     stage = "production-wallpaper-result";

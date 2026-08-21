@@ -1,6 +1,7 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "treeland-personalization-desktop-v1.h"
+#include "server-bridge-api.h"
 #include "treeland-personalization-manager-v1-client-protocol.h"
 
 #include <stdio.h>
@@ -34,23 +35,23 @@ static int state_matches(const struct personalization_desktop_state *state)
 
 int protocol_test_run(const char *socket_name)
 {
-    struct protocol_test_connection connection;
-    struct protocol_test_xdg_toplevel toplevel = { 0 };
+    struct client_connection connection;
+    struct xdg_toplevel_client toplevel = { 0 };
     struct treeland_personalization_manager_v1 *manager = NULL;
     struct treeland_personalization_window_context_v1 *context = NULL;
     struct personalization_desktop_state state = { 0 };
     int stage = 0;
-    if (!protocol_test_connect(&connection, socket_name))
+    if (!client_connect(&connection, socket_name))
         return 1;
     stage = 1;
-    manager = protocol_test_bind(&connection,
+    manager = client_bind(&connection,
                                  "treeland_personalization_manager_v1",
                                  &treeland_personalization_manager_v1_interface,
                                  1);
     if (!manager)
         goto failed;
     stage = 2;
-    if (!protocol_test_xdg_toplevel_create(&connection, &toplevel))
+    if (!xdg_toplevel_client_create(&connection, &toplevel))
         goto failed;
     stage = 3;
 
@@ -70,16 +71,16 @@ int protocol_test_run(const char *socket_name)
     stage = 5;
 
     memset(&state, 0, sizeof(state));
-    if (!protocol_test_invoke_server(personalization_desktop_read_state, &state))
+    if (!invoke_on_server_thread(personalization_desktop_read_state, &state))
         goto failed;
     stage = 6;
     if (!state_matches(&state))
         goto failed;
 
     treeland_personalization_window_context_v1_destroy(context);
-    protocol_test_xdg_toplevel_destroy(&toplevel);
+    xdg_toplevel_client_destroy(&toplevel);
     treeland_personalization_manager_v1_destroy(manager);
-    protocol_test_disconnect(&connection);
+    client_disconnect(&connection);
     return 0;
 
 failed:
@@ -94,8 +95,8 @@ failed:
             state.shadow_alpha, state.border_width, state.border_red, state.border_green,
             state.border_blue, state.border_alpha);
     if (context) treeland_personalization_window_context_v1_destroy(context);
-    protocol_test_xdg_toplevel_destroy(&toplevel);
+    xdg_toplevel_client_destroy(&toplevel);
     if (manager) treeland_personalization_manager_v1_destroy(manager);
-    protocol_test_disconnect(&connection);
+    client_disconnect(&connection);
     return 1;
 }

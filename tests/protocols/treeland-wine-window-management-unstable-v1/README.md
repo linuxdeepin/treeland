@@ -4,7 +4,7 @@
 
 - XML / interface：`treeland_wine_window_manager_v1` / `treeland_wine_window_control_v1`
 - 测试源码：`tests/protocols/treeland-wine-window-management-unstable-v1/`
-- Fixture：desktop integration fixture（`protocol_test_desktop_setup` 创建 headless output，
+- Fixture：desktop integration fixture（`protocol_test_setup` 创建 headless output，
   `ShellHandler` 为 xdg_toplevel 创建真实 `SurfaceWrapper`）
 - 覆盖等级：**P / E**
 
@@ -39,7 +39,7 @@ serial=0；round-trip 后标志复位，后续 `xChanged`/`yChanged` 信号正�
 
 ## E 级观察：QQuickItem 几何与 Z 值
 
-E 级测试通过 `protocol_test_invoke_server(wine_wm_read_state, &state)` 直接读取
+E 级测试通过 `invoke_on_server_thread(wine_wm_read_state, &state)` 直接读取
 `SurfaceWrapper` 的 QQuickItem 属性，验证协议事件与渲染树状态一致：
 
 | 阶段 | `state.x` | `state.y` | `state.z` | `state.effective_always_on_top` | `state.parent_item_count` |

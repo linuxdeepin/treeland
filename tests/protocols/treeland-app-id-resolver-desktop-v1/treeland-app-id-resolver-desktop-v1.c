@@ -1,7 +1,8 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
-#include "protocol-test-client.h"
-#include "protocol-test-xdg-client.h"
+#include "client-connection.h"
+#include "server-bridge-api.h"
+#include "xdg-toplevel-client.h"
 #include "treeland-app-id-resolver-desktop-v1.h"
 #include "treeland-app-id-resolver-v1-client-protocol.h"
 #include "treeland-prelaunch-splash-v2-client-protocol.h"
@@ -47,8 +48,8 @@ static int state_matches(const struct app_id_resolver_desktop_state *state)
 
 int protocol_test_run(const char *socket_name)
 {
-    struct protocol_test_connection connection;
-    struct protocol_test_xdg_toplevel toplevel = { 0 };
+    struct client_connection connection;
+    struct xdg_toplevel_client toplevel = { 0 };
     struct resolver_client_state resolver_state = { .pidfd = -1 };
     struct app_id_resolver_desktop_state state = { 0 };
     struct treeland_app_id_resolver_manager_v1 *resolver_manager = NULL;
@@ -58,13 +59,13 @@ int protocol_test_run(const char *socket_name)
     int splash_created = 0;
     int result = 1;
 
-    if (!protocol_test_connect(&connection, socket_name))
+    if (!client_connect(&connection, socket_name))
         goto done;
-    resolver_manager = protocol_test_bind(&connection,
+    resolver_manager = client_bind(&connection,
                                           "treeland_app_id_resolver_manager_v1",
                                           &treeland_app_id_resolver_manager_v1_interface,
                                           1);
-    splash_manager = protocol_test_bind(&connection,
+    splash_manager = client_bind(&connection,
                                         "treeland_prelaunch_splash_manager_v2",
                                         &treeland_prelaunch_splash_manager_v2_interface,
                                         2);
@@ -79,11 +80,11 @@ int protocol_test_run(const char *socket_name)
     splash = treeland_prelaunch_splash_manager_v2_create_splash(
         splash_manager, test_app_id, "resolver-instance", "org.deepin.Sandbox", NULL);
     if (!splash || wl_display_roundtrip(connection.display) < 0
-        || !protocol_test_invoke_server(app_id_resolver_desktop_wait_for_splash, &splash_created)
+        || !invoke_on_server_thread(app_id_resolver_desktop_wait_for_splash, &splash_created)
         || !splash_created)
         goto done;
 
-    if (!protocol_test_xdg_toplevel_create_pending(&connection, &toplevel)
+    if (!xdg_toplevel_client_create_pending(&connection, &toplevel)
         || wl_display_roundtrip(connection.display) < 0
         || !resolver_state.identify_received || resolver_state.request_id == 0
         || resolver_state.pidfd < 0)
@@ -93,8 +94,8 @@ int protocol_test_run(const char *socket_name)
                                         resolver_state.request_id,
                                         test_app_id,
                                         "org.deepin.Sandbox");
-    if (!protocol_test_xdg_toplevel_complete_map(&connection, &toplevel)
-        || !protocol_test_invoke_server(app_id_resolver_desktop_read_state, &state)
+    if (!xdg_toplevel_client_complete_map(&connection, &toplevel)
+        || !invoke_on_server_thread(app_id_resolver_desktop_read_state, &state)
         || !state_matches(&state))
         goto done;
 
@@ -116,7 +117,7 @@ done:
     }
     if (resolver_state.pidfd >= 0)
         close(resolver_state.pidfd);
-    protocol_test_xdg_toplevel_destroy(&toplevel);
+    xdg_toplevel_client_destroy(&toplevel);
     if (splash)
         treeland_prelaunch_splash_v2_destroy(splash);
     if (resolver)
@@ -125,6 +126,6 @@ done:
         treeland_prelaunch_splash_manager_v2_destroy(splash_manager);
     if (resolver_manager)
         treeland_app_id_resolver_manager_v1_destroy(resolver_manager);
-    protocol_test_disconnect(&connection);
+    client_disconnect(&connection);
     return result;
 }

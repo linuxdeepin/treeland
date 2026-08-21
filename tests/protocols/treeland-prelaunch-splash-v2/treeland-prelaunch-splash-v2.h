@@ -10,7 +10,7 @@ extern "C" {
 int protocol_test_run(const char *socket_name);
 void splash_query_state(void *data);
 
-#include "protocol-test-client.h"
+#include "client-connection.h"
 
 #define TEST_MSG_MAX 256
 #define SPLASH_TEST_MAX_REQUESTS 8
@@ -35,7 +35,7 @@ struct splash_server_state {
 };
 
 struct test_ctx {
-    struct protocol_test_connection connection;
+    struct client_connection connection;
     struct wl_display *display;
 
 

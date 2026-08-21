@@ -1,6 +1,7 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "treeland-foreign-toplevel-manager-v1.h"
+#include "server-bridge-api.h"
 #include "treeland-foreign-toplevel-manager-v1-client-protocol.h"
 
 #include <stdarg.h>
@@ -201,11 +202,11 @@ static const struct treeland_dock_preview_context_v1_listener context_listener =
 
 static int connect_client(struct test_ctx *ctx, const char *socket_name)
 {
-    if (!protocol_test_connect(&ctx->connection, socket_name))
+    if (!client_connect(&ctx->connection, socket_name))
         return 0;
     ctx->display = ctx->connection.display;
-    ctx->seat = protocol_test_bind(&ctx->connection, "wl_seat", &wl_seat_interface, 1);
-    ctx->manager = protocol_test_bind(&ctx->connection, "treeland_foreign_toplevel_manager_v1",
+    ctx->seat = client_bind(&ctx->connection, "wl_seat", &wl_seat_interface, 1);
+    ctx->manager = client_bind(&ctx->connection, "treeland_foreign_toplevel_manager_v1",
                                       &treeland_foreign_toplevel_manager_v1_interface, 1);
     if (ctx->manager)
         treeland_foreign_toplevel_manager_v1_add_listener(ctx->manager, &manager_listener, ctx);
@@ -216,18 +217,18 @@ static int read_server_state(struct test_ctx *ctx, struct ftm_server_state *stat
 {
     (void)ctx;
     memset(state, 0, sizeof(*state));
-    return protocol_test_invoke_server(ftm_read_server_state, state);
+    return invoke_on_server_thread(ftm_read_server_state, state);
 }
 
 static int settle_geometry_animation(struct test_ctx *ctx)
 {
     (void)ctx;
-    return protocol_test_invoke_server(ftm_render_and_settle, NULL);
+    return invoke_on_server_thread(ftm_render_and_settle, NULL);
 }
 
 static int create_xdg_toplevel(struct test_ctx *ctx)
 {
-    if (!protocol_test_xdg_toplevel_create(&ctx->connection, &ctx->xdg_toplevel))
+    if (!xdg_toplevel_client_create(&ctx->connection, &ctx->xdg_toplevel))
         return 0;
     struct ftm_server_state state;
     return wl_display_roundtrip(ctx->display) >= 0
@@ -357,7 +358,7 @@ static int restore_real_toplevel(struct test_ctx *ctx)
 static int render_ack_and_read_server_state(struct test_ctx *ctx, struct ftm_server_state *state)
 {
     return settle_geometry_animation(ctx)
-           && protocol_test_xdg_toplevel_ack_latest_configure(&ctx->connection, &ctx->xdg_toplevel)
+           && xdg_toplevel_client_ack_latest_configure(&ctx->connection, &ctx->xdg_toplevel)
            && settle_geometry_animation(ctx)
            && read_server_state(ctx, state);
 }
@@ -482,11 +483,11 @@ static const struct test_case cases[] = {
 void test_cleanup(struct test_ctx *ctx)
 {
     if (ctx->context) treeland_dock_preview_context_v1_destroy(ctx->context);
-    protocol_test_xdg_toplevel_destroy(&ctx->xdg_toplevel);
+    xdg_toplevel_client_destroy(&ctx->xdg_toplevel);
     if (ctx->handle) treeland_foreign_toplevel_handle_v1_destroy(ctx->handle);
     if (ctx->manager) treeland_foreign_toplevel_manager_v1_destroy(ctx->manager);
     if (ctx->seat) wl_seat_destroy(ctx->seat);
-    protocol_test_disconnect(&ctx->connection);
+    client_disconnect(&ctx->connection);
 }
 
 int protocol_test_run(const char *socket_name)

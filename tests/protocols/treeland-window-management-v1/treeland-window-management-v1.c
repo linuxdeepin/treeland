@@ -1,6 +1,7 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "treeland-window-management-v1.h"
+#include "server-bridge-api.h"
 #include "treeland-window-management-v1-client-protocol.h"
 
 #include <stdarg.h>
@@ -86,10 +87,10 @@ static const struct treeland_window_management_v1_listener manager_listener = {
 
 static int connect_client(struct test_ctx *ctx, const char *socket_name)
 {
-    if (!protocol_test_connect(&ctx->connection, socket_name))
+    if (!client_connect(&ctx->connection, socket_name))
         return 0;
     ctx->display = ctx->connection.display;
-    ctx->manager = protocol_test_bind(&ctx->connection, "treeland_window_management_v1",
+    ctx->manager = client_bind(&ctx->connection, "treeland_window_management_v1",
                                       &treeland_window_management_v1_interface, 1);
     if (ctx->manager)
         treeland_window_management_v1_add_listener(ctx->manager, &manager_listener, ctx);
@@ -126,7 +127,7 @@ static int set_desktop_preview(struct test_ctx *ctx)
 static int desktop_state_is(struct test_ctx *ctx, uint32_t expected)
 {
     uint32_t server_state = UINT32_MAX;
-    if (!protocol_test_invoke_server(window_management_get_desktop_state, &server_state))
+    if (!invoke_on_server_thread(window_management_get_desktop_state, &server_state))
         return 0;
     return server_state == expected && ctx->show_desktop_last_state == expected;
 }
@@ -151,7 +152,7 @@ static int server_set_desktop_state(struct test_ctx *ctx)
 {
     (void)ctx;
     uint32_t state = TREELAND_WINDOW_MANAGEMENT_V1_DESKTOP_STATE_SHOW;
-    return protocol_test_invoke_server(window_management_set_desktop_state, &state);
+    return invoke_on_server_thread(window_management_set_desktop_state, &state);
 }
 
 static int server_event_received(struct test_ctx *ctx)
@@ -187,7 +188,7 @@ static const struct test_case cases[] = {
 void test_cleanup(struct test_ctx *ctx)
 {
     if (ctx->manager) treeland_window_management_v1_destroy(ctx->manager);
-    protocol_test_disconnect(&ctx->connection);
+    client_disconnect(&ctx->connection);
 }
 
 int protocol_test_run(const char *socket_name)

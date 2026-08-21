@@ -1,7 +1,8 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "modules/dde-shell/ddeshellmanagerinterfacev1.h"
-#include "protocol-test-server.h"
+#include "server-bridge.h"
+#include "seat/helper.h"
 #include "treeland-dde-shell-v1.h"
 
 #include <wseat.h>
@@ -17,11 +18,11 @@ DDEShellSurfaceInterface *g_shellSurface = nullptr;
 
 }
 
-void protocol_test_setup(WServer *server)
+void protocol_test_setup(Helper *helper)
 {
-    protocol_test_create_headless_output(server);
-    server->attach<WSeat>();
-    auto *manager = server->attach<DDEShellManagerInterfaceV1>();
+    add_headless_output(helper->backend(), false);
+    auto *manager = find_server_interface<DDEShellManagerInterfaceV1>(helper);
+    Q_ASSERT(manager);
     QObject::connect(manager, &DDEShellManagerInterfaceV1::windowOverlapCheckerCreated,
                      [](WindowOverlapCheckerInterface *checker) { g_checker = checker; });
     QObject::connect(manager, &DDEShellManagerInterfaceV1::activeCreated,

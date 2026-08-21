@@ -4,7 +4,7 @@
 #include "core/shellhandler.h"
 #include "core/windowpicker.h"
 #include "modules/dde-shell/ddeshellmanagerinterfacev1.h"
-#include "protocol-test-server.h"
+#include "server-bridge.h"
 #include "seat/helper.h"
 #include "surface/surfacewrapper.h"
 #include "treeland-dde-shell-picker-desktop-v1.h"
@@ -43,9 +43,9 @@ QQuickItem *findWindowPicker(QObject *object, int *objectCount)
 }
 }
 
-void protocol_test_desktop_setup(Helper *helper)
+void protocol_test_setup(Helper *helper)
 {
-    protocol_test_create_headless_output(helper->backend(), false);
+    add_headless_output(helper->backend(), false);
     auto *manager = helper->backend()->server()->findInterface<DDEShellManagerInterfaceV1>();
     g_state.manager_found = manager ? 1 : 0;
     if (manager) {

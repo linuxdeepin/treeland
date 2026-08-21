@@ -1,6 +1,6 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
-#include "protocol-test-server.h"
+#include "server-bridge.h"
 #include "seat/helper.h"
 #include "treeland-input-manager-uinput-v1.h"
 
@@ -70,14 +70,14 @@ void destroyKeyboard()
 }
 }
 
-extern "C" bool protocol_test_desktop_preflight()
+extern "C" bool protocol_test_preflight()
 {
     return access("/dev/uinput", W_OK) == 0;
 }
 
-void protocol_test_desktop_setup(Helper *helper)
+void protocol_test_setup(Helper *helper)
 {
-    protocol_test_create_headless_output(helper->backend(), false);
+    add_headless_output(helper->backend(), false);
 
     QObject::connect(helper->backend(), &WBackend::inputAdded, helper, [](WInputDevice *device) {
         if (isTestKeyboard(device))
@@ -92,7 +92,7 @@ void protocol_test_desktop_setup(Helper *helper)
         g_skip = true;
 }
 
-extern "C" bool protocol_test_desktop_skip()
+extern "C" bool protocol_test_skip()
 {
     return g_skip;
 }

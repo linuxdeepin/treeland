@@ -1,6 +1,6 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
-#include "protocol-test-client.h"
+#include "client-connection.h"
 #include "treeland-keyboard-state-notify-unstable-v1-client-protocol.h"
 
 #include <stdio.h>
@@ -53,15 +53,15 @@ static const struct treeland_keyboard_state_watcher_v1_listener watcher_listener
 
 int protocol_test_run(const char *socket_name)
 {
-    struct protocol_test_connection connection;
-    if (!protocol_test_connect(&connection, socket_name))
+    struct client_connection connection;
+    if (!client_connect(&connection, socket_name))
         return 1;
 
 
-    struct wl_seat *seat = protocol_test_bind(&connection, "wl_seat",
+    struct wl_seat *seat = client_bind(&connection, "wl_seat",
                                                &wl_seat_interface, 1);
     struct treeland_keyboard_state_notify_manager_v1 *manager =
-        protocol_test_bind(&connection, "treeland_keyboard_state_notify_manager_v1",
+        client_bind(&connection, "treeland_keyboard_state_notify_manager_v1",
                            &treeland_keyboard_state_notify_manager_v1_interface, 1);
     if (!seat || !manager) {
         fprintf(stderr, "keyboard-state-notify: failed to bind globals\n");
@@ -155,10 +155,10 @@ int protocol_test_run(const char *socket_name)
 
     treeland_keyboard_state_notify_manager_v1_destroy(manager);
     wl_seat_destroy(seat);
-    protocol_test_disconnect(&connection);
+    client_disconnect(&connection);
     return 0;
 
 failed:
-    protocol_test_disconnect(&connection);
+    client_disconnect(&connection);
     return 1;
 }

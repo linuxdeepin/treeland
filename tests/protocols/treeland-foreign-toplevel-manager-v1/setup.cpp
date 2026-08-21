@@ -3,7 +3,7 @@
 #include "core/shellhandler.h"
 #include "core/rootsurfacecontainer.h"
 #include "modules/foreign-toplevel/foreigntoplevelmanagerv1.h"
-#include "protocol-test-server.h"
+#include "server-bridge.h"
 #include "seat/helper.h"
 #include "surface/surfacewrapper.h"
 #include "treeland-foreign-toplevel-manager-v1.h"
@@ -23,13 +23,13 @@ SurfaceWrapper *g_wrapper = nullptr;
 struct ftm_server_state g_state {};
 }
 
-void protocol_test_desktop_setup(Helper *helper)
+void protocol_test_setup(Helper *helper)
 {
     // Zero duration races GeometryAnimation::finished with the frame snapshot
     // that emits ready(). A short real animation preserves the production
     // lifecycle while the test waits for its finished signal below.
     helper->setAnimationSpeed(0.1f);
-    protocol_test_create_headless_output(helper->backend(), false);
+    add_headless_output(helper->backend(), false);
     g_manager = helper->shellHandler()->foreignToplevel();
     QObject::connect(g_manager,
                      &ForeignToplevelManagerInterfaceV1::requestDockPreview,

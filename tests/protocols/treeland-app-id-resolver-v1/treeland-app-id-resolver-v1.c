@@ -1,6 +1,7 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "treeland-app-id-resolver-v1.h"
+#include "server-bridge-api.h"
 #include "treeland-app-id-resolver-v1-client-protocol.h"
 
 #include <errno.h>
@@ -101,10 +102,10 @@ static const struct treeland_app_id_resolver_v1_listener resolver_listener = {
 
 static int connect_client(struct test_ctx *ctx, const char *socket_name)
 {
-    if (!protocol_test_connect(&ctx->connection, socket_name))
+    if (!client_connect(&ctx->connection, socket_name))
         return 0;
     ctx->display = ctx->connection.display;
-    ctx->manager = protocol_test_bind(&ctx->connection, "treeland_app_id_resolver_manager_v1",
+    ctx->manager = client_bind(&ctx->connection, "treeland_app_id_resolver_manager_v1",
                                       &treeland_app_id_resolver_manager_v1_interface, 1);
     return ctx->manager != NULL;
 }
@@ -131,9 +132,9 @@ static int pidfd_refers_to_self(int pidfd)
 static int resolve_without_resolver_fails(struct test_ctx *ctx)
 {
     (void)ctx;
-    if (!protocol_test_invoke_server(server_start_resolve, NULL))
+    if (!invoke_on_server_thread(server_start_resolve, NULL))
         return 0;
-    if (!protocol_test_invoke_server(server_snapshot_state, NULL))
+    if (!invoke_on_server_thread(server_snapshot_state, NULL))
         return 0;
     return g_app_id_resolver_snapshot.resolve_started == 0;
 }
@@ -152,7 +153,7 @@ static int resolve_roundtrip(struct test_ctx *ctx)
 {
     ctx->identify_received = 0;
     ctx->identify_pidfd = -1;
-    if (!protocol_test_invoke_server(server_start_resolve, NULL))
+    if (!invoke_on_server_thread(server_start_resolve, NULL))
         return 0;
     if (wl_display_roundtrip(ctx->display) < 0)
         return 0;
@@ -173,7 +174,7 @@ static int resolve_roundtrip(struct test_ctx *ctx)
                                         EXPECTED_APP_ID, EXPECTED_SANDBOX);
     if (wl_display_roundtrip(ctx->display) < 0)
         return 0;
-    if (!protocol_test_invoke_server(server_snapshot_state, NULL))
+    if (!invoke_on_server_thread(server_snapshot_state, NULL))
         return 0;
     return g_app_id_resolver_snapshot.resolve_started == 1
         && g_app_id_resolver_snapshot.resolve_matched == 1;
@@ -184,7 +185,7 @@ static int second_resolve_empty_response(struct test_ctx *ctx)
 {
     ctx->identify_received = 0;
     ctx->identify_pidfd = -1;
-    if (!protocol_test_invoke_server(server_start_resolve, NULL))
+    if (!invoke_on_server_thread(server_start_resolve, NULL))
         return 0;
     if (wl_display_roundtrip(ctx->display) < 0)
         return 0;
@@ -204,7 +205,7 @@ static int second_resolve_empty_response(struct test_ctx *ctx)
                                         EXPECTED_SANDBOX);
     if (wl_display_roundtrip(ctx->display) < 0)
         return 0;
-    if (!protocol_test_invoke_server(server_snapshot_state, NULL))
+    if (!invoke_on_server_thread(server_snapshot_state, NULL))
         return 0;
     return g_app_id_resolver_snapshot.resolve_started == 1
         && g_app_id_resolver_snapshot.resolve_empty == 1;
@@ -250,7 +251,7 @@ void test_cleanup(struct test_ctx *ctx)
         treeland_app_id_resolver_v1_destroy(ctx->resolver);
     if (ctx->manager)
         treeland_app_id_resolver_manager_v1_destroy(ctx->manager);
-    protocol_test_disconnect(&ctx->connection);
+    client_disconnect(&ctx->connection);
 }
 
 int protocol_test_run(const char *socket_name)

@@ -4,7 +4,7 @@
 
 - XML / interface：`treeland_wine_window_state_manager_v1` / `treeland_wine_window_state_v1`
 - 测试源码：`tests/protocols/treeland-wine-window-state-unstable-v1/`
-- Fixture：desktop integration fixture（`protocol_test_desktop_setup` 创建 headless output，
+- Fixture：desktop integration fixture（`protocol_test_setup` 创建 headless output，
   `ShellHandler` 为 xdg_toplevel 创建真实 `SurfaceWrapper`）
 - 覆盖等级：**P / E**
 
@@ -44,7 +44,7 @@ minimize 使窗口失活，确保 `setAttention(true)` 可正常执行。`attent
 
 ## E 级观察：QQuickItem 可见性
 
-E 级测试通过 `protocol_test_invoke_server(wine_ws_read_state, &state)` 直接读取
+E 级测试通过 `invoke_on_server_thread(wine_ws_read_state, &state)` 直接读取
 `SurfaceWrapper` 的 QQuickItem 属性，验证协议事件与渲染树状态一致：
 
 | 阶段 | `state.minimized` | `state.visible` | 含义 |

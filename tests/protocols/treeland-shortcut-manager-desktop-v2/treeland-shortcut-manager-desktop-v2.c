@@ -1,7 +1,8 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "treeland-shortcut-manager-desktop-v2.h"
-#include "protocol-test-xdg-client.h"
+#include "server-bridge-api.h"
+#include "xdg-toplevel-client.h"
 #include "treeland-shortcut-manager-v2-client-protocol.h"
 #include "virtual-keyboard-unstable-v1-client-protocol.h"
 
@@ -130,8 +131,8 @@ static void send_key(struct zwp_virtual_keyboard_v1 *keyboard, uint32_t key, uin
 
 int protocol_test_run(const char *socket_name)
 {
-    struct protocol_test_connection connection;
-    struct protocol_test_xdg_toplevel toplevel = { 0 };
+    struct client_connection connection;
+    struct xdg_toplevel_client toplevel = { 0 };
     struct treeland_shortcut_manager_v2 *manager = NULL;
     struct treeland_shortcut_capture_v1 *capture = NULL;
     struct zwp_virtual_keyboard_manager_v1 *virtual_keyboard_manager = NULL;
@@ -141,21 +142,21 @@ int protocol_test_run(const char *socket_name)
     struct shortcut_client client = { 0 };
     int stage = 0;
 
-    if (!protocol_test_connect(&connection, socket_name))
+    if (!client_connect(&connection, socket_name))
         return 1;
-    manager = protocol_test_bind(&connection, "treeland_shortcut_manager_v2",
+    manager = client_bind(&connection, "treeland_shortcut_manager_v2",
                                  &treeland_shortcut_manager_v2_interface, 2);
-    seat = protocol_test_bind(&connection, "wl_seat", &wl_seat_interface, 1);
-    virtual_keyboard_manager = protocol_test_bind(&connection, "zwp_virtual_keyboard_manager_v1",
+    seat = client_bind(&connection, "wl_seat", &wl_seat_interface, 1);
+    virtual_keyboard_manager = client_bind(&connection, "zwp_virtual_keyboard_manager_v1",
                                                    &zwp_virtual_keyboard_manager_v1_interface, 1);
     if (!manager || !seat || !virtual_keyboard_manager)
         goto failed;
     treeland_shortcut_manager_v2_add_listener(manager, &manager_listener, &client);
     stage = 1;
-    if (!protocol_test_xdg_toplevel_create(&connection, &toplevel))
+    if (!xdg_toplevel_client_create(&connection, &toplevel))
         goto failed;
     stage = 2;
-    if (!protocol_test_invoke_server(shortcut_desktop_focus_window, &state)
+    if (!invoke_on_server_thread(shortcut_desktop_focus_window, &state)
         || !state.wrapper_created || !state.wrapper_in_workspace || !state.wrapper_visible
         || !state.keyboard_focused)
         goto failed;
@@ -203,8 +204,8 @@ int protocol_test_run(const char *socket_name)
     zwp_virtual_keyboard_v1_destroy(virtual_keyboard);
     treeland_shortcut_manager_v2_destroy(manager);
     wl_seat_destroy(seat);
-    protocol_test_xdg_toplevel_destroy(&toplevel);
-    protocol_test_disconnect(&connection);
+    xdg_toplevel_client_destroy(&toplevel);
+    client_disconnect(&connection);
     return 0;
 
 failed:
@@ -219,7 +220,7 @@ failed:
     if (virtual_keyboard) zwp_virtual_keyboard_v1_destroy(virtual_keyboard);
     if (manager) treeland_shortcut_manager_v2_destroy(manager);
     if (seat) wl_seat_destroy(seat);
-    protocol_test_xdg_toplevel_destroy(&toplevel);
-    protocol_test_disconnect(&connection);
+    xdg_toplevel_client_destroy(&toplevel);
+    client_disconnect(&connection);
     return 1;
 }

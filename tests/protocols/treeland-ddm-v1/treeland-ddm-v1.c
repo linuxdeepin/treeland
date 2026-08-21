@@ -1,6 +1,7 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "treeland-ddm-v1.h"
+#include "server-bridge-api.h"
 #include "treeland-ddm-v1-client-protocol.h"
 
 #include <stdarg.h>
@@ -90,7 +91,7 @@ static const struct treeland_ddm_v1_listener ddm_listener = {
 
 static int connect_client(struct test_ctx *ctx, const char *socket_name)
 {
-    if (!protocol_test_connect(&ctx->connection, socket_name))
+    if (!client_connect(&ctx->connection, socket_name))
         return 0;
     ctx->display = ctx->connection.display;
     ctx->socket_name = socket_name;
@@ -118,7 +119,7 @@ static int registry_advertises_version_1(struct test_ctx *ctx)
 static int bind_requesting_v2_clamps_to_v1(struct test_ctx *ctx)
 {
 
-    struct treeland_ddm_v1 *ddm = protocol_test_bind(&ctx->connection, "treeland_ddm_v1",
+    struct treeland_ddm_v1 *ddm = client_bind(&ctx->connection, "treeland_ddm_v1",
                                                      &treeland_ddm_v1_interface, 2);
     if (!ddm)
         return 0;
@@ -129,7 +130,7 @@ static int bind_requesting_v2_clamps_to_v1(struct test_ctx *ctx)
 
 static int bind_at_advertised_v1(struct test_ctx *ctx)
 {
-    ctx->ddm = protocol_test_bind(&ctx->connection, "treeland_ddm_v1",
+    ctx->ddm = client_bind(&ctx->connection, "treeland_ddm_v1",
                                   &treeland_ddm_v1_interface, 1);
     if (!ctx->ddm)
         return 0;
@@ -142,7 +143,7 @@ static int check_is_connected(struct test_ctx *ctx)
 {
     (void)ctx;
     int connected = 0;
-    if (!protocol_test_invoke_server(ddm_check_is_connected, &connected))
+    if (!invoke_on_server_thread(ddm_check_is_connected, &connected))
         return 0;
     return connected;
 }
@@ -154,9 +155,9 @@ static int is_connected_with_one_client(struct test_ctx *ctx)
 
 static int second_client_keeps_connected(struct test_ctx *ctx)
 {
-    if (!protocol_test_connect(&ctx->aux, ctx->socket_name))
+    if (!client_connect(&ctx->aux, ctx->socket_name))
         return 0;
-    struct treeland_ddm_v1 *aux_ddm = protocol_test_bind(&ctx->aux, "treeland_ddm_v1",
+    struct treeland_ddm_v1 *aux_ddm = client_bind(&ctx->aux, "treeland_ddm_v1",
                                                          &treeland_ddm_v1_interface, 1);
     if (!aux_ddm)
         return 0;
@@ -178,15 +179,15 @@ static int is_connected_false_after_all_clients_gone(struct test_ctx *ctx)
         wl_proxy_destroy((struct wl_proxy *)ctx->ddm);
         ctx->ddm = NULL;
     }
-    protocol_test_disconnect(&ctx->connection);
+    client_disconnect(&ctx->connection);
     ctx->display = NULL;
-    protocol_test_disconnect(&ctx->aux);
+    client_disconnect(&ctx->aux);
 
 
-    if (!protocol_test_connect(&ctx->checker, ctx->socket_name))
+    if (!client_connect(&ctx->checker, ctx->socket_name))
         return 0;
     const int connected = check_is_connected(ctx);
-    protocol_test_disconnect(&ctx->checker);
+    client_disconnect(&ctx->checker);
     return !connected;
 }
 
@@ -206,9 +207,9 @@ void test_cleanup(struct test_ctx *ctx)
 
     if (ctx->ddm)
         wl_proxy_destroy((struct wl_proxy *)ctx->ddm);
-    protocol_test_disconnect(&ctx->checker);
-    protocol_test_disconnect(&ctx->aux);
-    protocol_test_disconnect(&ctx->connection);
+    client_disconnect(&ctx->checker);
+    client_disconnect(&ctx->aux);
+    client_disconnect(&ctx->connection);
 }
 
 int protocol_test_run(const char *socket_name)

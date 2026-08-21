@@ -1,6 +1,7 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "modules/ddm/ddminterfacev1.h"
+#include "server-bridge.h"
 
 #include <wserver.h>
 
@@ -10,14 +11,9 @@ namespace {
 DDMInterfaceV1 *g_ddm = nullptr;
 }
 
-void protocol_test_setup(WServer *server)
+void protocol_test_setup(Helper *helper)
 {
-    // The treeland_ddm_v1 global needs no other globals (wl_compositor and
-    // friends are already provided by Treeland::initTestServer). Its request
-    // handlers call Helper::instance(), but Helper only exists in the full
-    // treeland QML boot, so the client tests only observe the module's own
-    // public state (isConnected()) instead of sending requests.
-    g_ddm = server->attach<DDMInterfaceV1>();
+    g_ddm = find_server_interface<DDMInterfaceV1>(helper);
 }
 
 extern "C" void ddm_check_is_connected(void *data)

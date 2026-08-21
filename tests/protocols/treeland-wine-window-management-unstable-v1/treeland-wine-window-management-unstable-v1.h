@@ -7,8 +7,8 @@
 extern "C" {
 #endif
 
-#include "protocol-test-client.h"
-#include "protocol-test-xdg-client.h"
+#include "client-connection.h"
+#include "xdg-toplevel-client.h"
 
 
 struct wine_wm_state {

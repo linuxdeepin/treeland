@@ -1,7 +1,7 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "core/rootsurfacecontainer.h"
-#include "protocol-test-server.h"
+#include "server-bridge.h"
 #include "seat/helper.h"
 #include "treeland-dde-shell-multitask-desktop-v1.h"
 #include "workspace/workspace.h"
@@ -32,9 +32,9 @@ QQuickItem *multitaskItem(Helper *helper)
 }
 }
 
-void protocol_test_desktop_setup(Helper *helper)
+void protocol_test_setup(Helper *helper)
 {
-    protocol_test_create_headless_output(helper->backend(), false);
+    add_headless_output(helper->backend(), false);
 }
 
 extern "C" void dde_multitask_desktop_read_state(void *data)

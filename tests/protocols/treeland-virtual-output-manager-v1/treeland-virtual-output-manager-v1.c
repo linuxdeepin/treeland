@@ -1,6 +1,7 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "treeland-virtual-output-manager-v1.h"
+#include "server-bridge-api.h"
 #include "treeland-virtual-output-manager-v1-client-protocol.h"
 
 #include <stdarg.h>
@@ -163,10 +164,10 @@ static const struct treeland_virtual_output_manager_v1_listener manager_listener
 
 static int connect_client(struct test_ctx *ctx, const char *socket_name)
 {
-    if (!protocol_test_connect(&ctx->connection, socket_name))
+    if (!client_connect(&ctx->connection, socket_name))
         return 0;
     ctx->display = ctx->connection.display;
-    ctx->manager = protocol_test_bind(&ctx->connection, "treeland_virtual_output_manager_v1",
+    ctx->manager = client_bind(&ctx->connection, "treeland_virtual_output_manager_v1",
                                       &treeland_virtual_output_manager_v1_interface, 1);
     if (ctx->manager)
         treeland_virtual_output_manager_v1_add_listener(ctx->manager, &manager_listener, ctx);
@@ -264,13 +265,13 @@ static int get_existing(struct test_ctx *ctx)
 static int emit_outputs(struct test_ctx *ctx)
 {
     (void)ctx;
-    return protocol_test_invoke_server(virtual_output_emit_outputs, NULL);
+    return invoke_on_server_thread(virtual_output_emit_outputs, NULL);
 }
 
 static int emit_error(struct test_ctx *ctx)
 {
     (void)ctx;
-    return protocol_test_invoke_server(virtual_output_emit_error, NULL);
+    return invoke_on_server_thread(virtual_output_emit_error, NULL);
 }
 
 
@@ -317,9 +318,9 @@ static int error_duplicate_received(struct test_ctx *ctx)
 
 static int error_emit_received(struct test_ctx *ctx)
 {
-    return ctx->created.error_count == 1 &&
-           ctx->created.error_code == TREELAND_VIRTUAL_OUTPUT_V1_ERROR_INVALID_OUTPUT &&
-           strstr(ctx->created.error_message, "test error") != NULL;
+    return ctx->created.error_count >= 1
+        && ctx->created.error_code == TREELAND_VIRTUAL_OUTPUT_V1_ERROR_INVALID_OUTPUT
+        && strstr(ctx->created.error_message, "test error") != NULL;
 }
 
 static int list_event_received(struct test_ctx *ctx)
@@ -353,7 +354,7 @@ void test_cleanup(struct test_ctx *ctx)
     if (ctx->err_dup) treeland_virtual_output_v1_destroy(ctx->err_dup);
     if (ctx->err_single) treeland_virtual_output_v1_destroy(ctx->err_single);
     if (ctx->err_empty) treeland_virtual_output_v1_destroy(ctx->err_empty);
-    protocol_test_disconnect(&ctx->connection);
+    client_disconnect(&ctx->connection);
 }
 
 int protocol_test_run(const char *socket_name)

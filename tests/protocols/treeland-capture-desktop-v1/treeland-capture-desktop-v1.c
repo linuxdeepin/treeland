@@ -4,7 +4,8 @@
 #define _POSIX_C_SOURCE 200809L
 #endif
 
-#include "protocol-test-xdg-client.h"
+#include "xdg-toplevel-client.h"
+#include "server-bridge-api.h"
 #include "treeland-capture-desktop-v1.h"
 #include "treeland-capture-unstable-v1-client-protocol.h"
 
@@ -18,8 +19,8 @@ extern void capture_desktop_select_mapped_surface(void *data);
 extern void capture_desktop_render_selected_source(void *data);
 
 struct capture_client {
-    struct protocol_test_connection connection;
-    struct protocol_test_xdg_toplevel toplevel;
+    struct client_connection connection;
+    struct xdg_toplevel_client toplevel;
     struct treeland_capture_manager_v1 *manager;
     struct treeland_capture_context_v1 *context;
     struct treeland_capture_frame_v1 *frame;
@@ -194,8 +195,8 @@ static void cleanup(struct capture_client *client)
         wl_buffer_destroy(client->target_buffer);
     if (client->target_data)
         munmap(client->target_data, client->target_size);
-    protocol_test_xdg_toplevel_destroy(&client->toplevel);
-    protocol_test_disconnect(&client->connection);
+    xdg_toplevel_client_destroy(&client->toplevel);
+    client_disconnect(&client->connection);
 }
 
 int protocol_test_run(const char *socket_name)
@@ -205,11 +206,11 @@ int protocol_test_run(const char *socket_name)
     struct capture_desktop_selection_state render = { 0 };
     int result = 1;
 
-    if (!protocol_test_connect(&client.connection, socket_name)
-        || !protocol_test_xdg_toplevel_create_with_solid_buffer(
+    if (!client_connect(&client.connection, socket_name)
+        || !xdg_toplevel_client_create_with_solid_buffer(
             &client.connection, &client.toplevel, 64, 64, 0xffff0000u))
         goto done;
-    client.manager = protocol_test_bind(&client.connection,
+    client.manager = client_bind(&client.connection,
                                         "treeland_capture_manager_v1",
                                         &treeland_capture_manager_v1_interface,
                                         1);
@@ -226,7 +227,7 @@ int protocol_test_run(const char *socket_name)
                                                0,
                                                NULL);
     if (wl_display_roundtrip(client.connection.display) < 0
-        || !protocol_test_invoke_server(capture_desktop_select_mapped_surface, &selection)
+        || !invoke_on_server_thread(capture_desktop_select_mapped_surface, &selection)
         || wl_display_roundtrip(client.connection.display) < 0
         || !selection.output_ready || !selection.wrapper_ready || !selection.surface_content_ready
         || !selection.content_in_paint_order || !selection.content_visible
@@ -248,7 +249,7 @@ int protocol_test_run(const char *socket_name)
     // CaptureSourceSelector::doneSelection() have run before we request the
     // real output render that produces the source image.
     if (wl_display_roundtrip(client.connection.display) < 0
-        || !protocol_test_invoke_server(capture_desktop_render_selected_source, &render)
+        || !invoke_on_server_thread(capture_desktop_render_selected_source, &render)
         || !render.render_requested)
         goto done;
 

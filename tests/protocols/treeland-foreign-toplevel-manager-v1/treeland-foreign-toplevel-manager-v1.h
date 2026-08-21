@@ -9,8 +9,8 @@ extern "C" {
 
 int protocol_test_run(const char *socket_name);
 
-#include "protocol-test-client.h"
-#include "protocol-test-xdg-client.h"
+#include "client-connection.h"
+#include "xdg-toplevel-client.h"
 
 #define TEST_MSG_MAX 256
 
@@ -52,7 +52,7 @@ struct ftm_server_state {
 };
 
 struct test_ctx {
-    struct protocol_test_connection connection;
+    struct client_connection connection;
     struct wl_display    *display;
 
 
@@ -60,7 +60,7 @@ struct test_ctx {
     struct treeland_dock_preview_context_v1      *context;
     struct treeland_foreign_toplevel_handle_v1   *handle;
     struct wl_seat                                *seat;
-    struct protocol_test_xdg_toplevel             xdg_toplevel;
+    struct xdg_toplevel_client             xdg_toplevel;
 
 
     int context_enter_received;

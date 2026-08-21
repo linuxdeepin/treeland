@@ -7,7 +7,7 @@
 - 测试源码：
   - 默认：`tests/protocols/treeland-input-manager-unstable-v1/`
   - 可选系统集成：`tests/protocols/treeland-input-manager-uinput-v1/`
-- Fixture：desktop integration fixture（`protocol_test_desktop_setup` 创建 headless output）
+- Fixture：desktop integration fixture（`protocol_test_setup` 创建 headless output）
 - 覆盖等级：**I / E（可选）**（默认测试不依赖输入设备；uinput 测试为真实后端 E）
 
 ## 必须观察到的结果

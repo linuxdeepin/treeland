@@ -1,6 +1,7 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "treeland-wallpaper-shell-unstable-v1.h"
+#include "server-bridge-api.h"
 #include "treeland-wallpaper-shell-unstable-v1-client-protocol.h"
 
 #include <stdarg.h>
@@ -131,14 +132,14 @@ static const struct treeland_wallpaper_notifier_v1_listener notifier_listener = 
 
 static int connect_client(struct test_ctx *ctx, const char *socket_name)
 {
-    if (!protocol_test_connect(&ctx->connection, socket_name))
+    if (!client_connect(&ctx->connection, socket_name))
         return 0;
     ctx->display = ctx->connection.display;
-    ctx->compositor = protocol_test_bind(&ctx->connection, "wl_compositor", &wl_compositor_interface, 1);
+    ctx->compositor = client_bind(&ctx->connection, "wl_compositor", &wl_compositor_interface, 1);
 
-    ctx->shell = protocol_test_bind(&ctx->connection, "treeland_wallpaper_shell_v1",
+    ctx->shell = client_bind(&ctx->connection, "treeland_wallpaper_shell_v1",
                                     &treeland_wallpaper_shell_v1_interface, 2);
-    ctx->notifier = protocol_test_bind(&ctx->connection, "treeland_wallpaper_notifier_v1",
+    ctx->notifier = client_bind(&ctx->connection, "treeland_wallpaper_notifier_v1",
                                        &treeland_wallpaper_notifier_v1_interface, 1);
     if (ctx->notifier)
         treeland_wallpaper_notifier_v1_add_listener(ctx->notifier, &notifier_listener, ctx);
@@ -167,7 +168,7 @@ static int produced_count_is_one(struct test_ctx *ctx)
 {
     (void)ctx;
     int count = -1;
-    return protocol_test_invoke_server(wallpaper_query_produced, &count) && count == 1;
+    return invoke_on_server_thread(wallpaper_query_produced, &count) && count == 1;
 }
 
 static int source_failed(struct test_ctx *ctx)
@@ -182,8 +183,8 @@ static int failed_signal_received(struct test_ctx *ctx)
     (void)ctx;
     int error = -1;
     int count = 0;
-    return protocol_test_invoke_server(wallpaper_query_failed, &error)
-        && protocol_test_invoke_server(wallpaper_query_failed_count, &count)
+    return invoke_on_server_thread(wallpaper_query_failed, &error)
+        && invoke_on_server_thread(wallpaper_query_failed_count, &count)
         && count == 1 && error == TREELAND_WALLPAPER_SURFACE_V1_ERROR_INVALID_SOURCE;
 }
 
@@ -200,25 +201,25 @@ static int ready_signal_received(struct test_ctx *ctx)
     (void)ctx;
     int count = 0;
     int ready = 0;
-    return protocol_test_invoke_server(wallpaper_query_ready_count, &count)
-        && protocol_test_invoke_server(wallpaper_query_wallpaper_ready, &ready)
+    return invoke_on_server_thread(wallpaper_query_ready_count, &count)
+        && invoke_on_server_thread(wallpaper_query_wallpaper_ready, &ready)
         && count == 1 && ready == 1;
 }
 
-static int emit_play(struct test_ctx *ctx) { (void)ctx; return protocol_test_invoke_server(wallpaper_emit_play, NULL); }
-static int emit_pause(struct test_ctx *ctx) { (void)ctx; return protocol_test_invoke_server(wallpaper_emit_pause, NULL); }
-static int emit_slow_down(struct test_ctx *ctx) { (void)ctx; return protocol_test_invoke_server(wallpaper_emit_slow_down, NULL); }
+static int emit_play(struct test_ctx *ctx) { (void)ctx; return invoke_on_server_thread(wallpaper_emit_play, NULL); }
+static int emit_pause(struct test_ctx *ctx) { (void)ctx; return invoke_on_server_thread(wallpaper_emit_pause, NULL); }
+static int emit_slow_down(struct test_ctx *ctx) { (void)ctx; return invoke_on_server_thread(wallpaper_emit_slow_down, NULL); }
 static int play_received(struct test_ctx *ctx) { return ctx->play_received; }
 static int pause_received(struct test_ctx *ctx) { return ctx->pause_received; }
 static int slow_down_received(struct test_ctx *ctx) { return ctx->slow_down_received && ctx->slow_down_duration == 500; }
-static int emit_notifier_add(struct test_ctx *ctx) { (void)ctx; return protocol_test_invoke_server(wallpaper_notifier_emit_add, NULL); }
+static int emit_notifier_add(struct test_ctx *ctx) { (void)ctx; return invoke_on_server_thread(wallpaper_notifier_emit_add, NULL); }
 static int notifier_add_received(struct test_ctx *ctx)
 {
     return ctx->notifier_add_received
         && ctx->notifier_add_type == TREELAND_WALLPAPER_NOTIFIER_V1_WALLPAPER_SOURCE_TYPE_IMAGE
         && strcmp(ctx->notifier_add_source, "/tmp/test-image.jpg") == 0;
 }
-static int emit_notifier_remove(struct test_ctx *ctx) { (void)ctx; return protocol_test_invoke_server(wallpaper_notifier_emit_remove, NULL); }
+static int emit_notifier_remove(struct test_ctx *ctx) { (void)ctx; return invoke_on_server_thread(wallpaper_notifier_emit_remove, NULL); }
 static int notifier_remove_received(struct test_ctx *ctx)
 {
     return ctx->notifier_remove_received
@@ -236,7 +237,7 @@ static int produced_count_is_zero(struct test_ctx *ctx)
 {
     (void)ctx;
     int count = -1;
-    return protocol_test_invoke_server(wallpaper_query_produced, &count) && count == 0;
+    return invoke_on_server_thread(wallpaper_query_produced, &count) && count == 0;
 }
 
 static const struct test_case cases[] = {
@@ -266,7 +267,7 @@ void test_cleanup(struct test_ctx *ctx)
     if (ctx->wallpaper_surface) treeland_wallpaper_surface_v1_destroy(ctx->wallpaper_surface);
     if (ctx->notifier) treeland_wallpaper_notifier_v1_destroy(ctx->notifier);
     if (ctx->shell) treeland_wallpaper_shell_v1_destroy(ctx->shell);
-    protocol_test_disconnect(&ctx->connection);
+    client_disconnect(&ctx->connection);
 }
 
 int protocol_test_run(const char *socket_name)

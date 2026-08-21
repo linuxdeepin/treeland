@@ -5,14 +5,15 @@
 生成的 client API 连接测试 server。不要让多个协议共用一个测试 server，也不要用
 C++ client 替代协议端的 C 测试。
 
-测试分为两类：
+每个可执行文件由 QTest 的 `protocol()` 用例组织；CTest 负责启动独立进程、注入 headless
+环境、设置超时并将退出码 `77` 记为 Skip。QTest 不替代 C client：协议 request/event 的实际
+驱动与断言仍在 `client_test.c` 中。
 
-- `treeland_add_protocol_test()`：启动最小的独立 headless `WServer`，适合协议资源、
-  错误和生命周期断言。
-- `treeland_add_desktop_integration_test()`：启动真实 `Treeland`、`Helper`、seat、
-  workspace 和 headless output，适合验证协议请求是否产生真实业务结果。
+所有测试均由 `treeland_add_protocol_test()` 启动完整的 `Treeland`、`Helper`、seat、
+workspace 和 headless backend。协议对象由生产启动路径创建；测试只取得现有对象并观察其
+行为，不重复注册 global。
 
-桌面测试不应因为 headless 环境缺少物理输入或像素结果而把“无崩溃”当作成功；应通过
+测试不应因为 headless 环境缺少物理输入或像素结果而把“无崩溃”当作成功；应通过
 虚拟键盘、真实 mapped surface、生产信号或协议事件构造并观察确定性结果。
 
 ## 新增一个协议测试
@@ -27,7 +28,7 @@ C++ client 替代协议端的 C 测试。
 ```
 
 在本目录的 `CMakeLists.txt` 中加入 `add_subdirectory(<protocol-name>)`，然后在
-协议目录写。资源级测试使用：
+协议目录写：
 
 ```cmake
 treeland_add_protocol_test(
@@ -38,44 +39,25 @@ treeland_add_protocol_test(
 )
 ```
 
-生产桌面链路测试使用：
-
-```cmake
-treeland_add_desktop_integration_test(
-    NAME example_desktop_v1
-    XML "${TREELAND_PROTOCOLS_DATA_DIR}/example-v1.xml"
-    SETUP "${CMAKE_CURRENT_SOURCE_DIR}/setup.cpp"
-    CLIENT "${CMAKE_CURRENT_SOURCE_DIR}/example-desktop-v1.c"
-)
-```
-
 `NAME` 用下划线，供 CMake target 使用；scanner 输出文件名由 `XML` 自动推导，
 client 中应 include `<xml-basename>-client-protocol.h`。不要自行猜测或复制其他
 协议的生成文件名。
 
 ## 服务端与客户端契约
 
-资源级测试的 `setup.cpp` 必须实现：
+每个 `setup.cpp` 必须实现：
 
 ```cpp
-void protocol_test_setup(WServer *server)
+void protocol_test_setup(Helper *helper)
 {
-    server->attach<MyProtocolInterface>();
+    auto *protocol = find_server_interface<MyProtocolInterface>(helper);
+    Q_ASSERT(protocol);
+    add_headless_output(helper->backend(), false);
 }
 ```
 
-桌面测试则必须实现：
-
-```cpp
-void protocol_test_desktop_setup(Helper *helper)
-{
-    protocol_test_create_headless_output(helper->backend(), false);
-}
-```
-
-只挂载该协议实际依赖的 globals，例如 `WSeat`、output 或 compositor；若测试
-请求要求 `wl_output`，fixture 必须创建可被 client bind 的 output，不能在没有
-output 时把该 case 标记为通过。
+不得在测试中 `attach` 已由生产启动路径提供的协议 global。若请求要求 `wl_output`，fixture
+必须创建可被 client bind 的 output，不能在没有 output 时把该 case 标记为通过。
 
 `client_test.c` 必须实现：
 
@@ -83,15 +65,23 @@ output 时把该 case 标记为通过。
 int protocol_test_run(const char *socket_name);
 ```
 
-使用 `protocol_test_connect()`、`protocol_test_bind()` 与
-`protocol_test_disconnect()` 管理 registry 和连接。client 代码只能使用 C、
+`protocol_test_setup()` 由 QTest 的 `initTestCase()` 调用；`protocol_test_run()` 则由
+`protocol()` slot 在 client pthread 中调用。后者返回 `0` 表示通过，其他返回值会使该 QTest
+用例失败。
+
+使用 `client_connect()`、`client_bind()` 与
+`client_disconnect()` 管理 registry 和连接。client 代码只能使用 C、
 `wayland-client` 和 scanner 生成的 C API，不能 include Qt 或 Treeland C++ API。
 
 每个测试以具名函数组织；每个语义 case 在发 request 后完成 roundtrip，并明确断言服务端状态
 或 client listener 收到的 event。仅验证请求可被派发的 case 必须在名称中标明 `dispatch`，
 且不能作为业务语义覆盖统计。禁止使用 `case 0`、`static step` 一类跨 case 状态机。
-`protocol_test_invoke_server()` 只用于在 compositor 线程读取生产状态或触发没有
+`invoke_on_server_thread()` 只用于在 compositor 线程读取生产状态或触发没有
 client request 对应的刻意刺激，不能用它伪造某个 request 的业务结果。
+
+一个 `protocol()` QTest 用例可以包含同一协议场景的多个有序 C 步骤。例如先创建 resource、
+再发送配置 request、最后断言 event 的步骤共享同一 Wayland 连接与资源，不能为了显示成多个
+QTest data row 而拆开。只有彼此独立、可从全新 client 连接运行的场景才应拆为独立 target。
 
 公共/upstream 协议也使用这套 client 框架，但其 server wrapper 应遵循
 `upstream-wayland-protocol-wrapper` 规范；Treeland 自有 `treeland_*` 协议遵循
@@ -119,7 +109,7 @@ ctest --test-dir build --output-on-failure \
 ctest --test-dir build -V -R '^test_treeland_keyboard_state_notify_unstable_v1$'
 ```
 
-运行所有本目录注册的协议测试（包括公共 desktop 与 rendered-output fixture）：
+运行所有本目录注册的协议测试：
 
 ```bash
 ctest --test-dir build --output-on-failure -L protocols

@@ -9,7 +9,7 @@ extern "C" {
 
 int protocol_test_run(const char *socket_name);
 
-#include "protocol-test-client.h"
+#include "client-connection.h"
 
 #define TEST_MSG_MAX 256
 
@@ -20,17 +20,17 @@ struct test_result {
 };
 
 struct test_ctx {
-    struct protocol_test_connection connection;
+    struct client_connection connection;
     struct wl_display    *display;
 
 
     const char *socket_name;
 
 
-    struct protocol_test_connection aux;
+    struct client_connection aux;
 
 
-    struct protocol_test_connection checker;
+    struct client_connection checker;
 
 
     struct treeland_ddm_v1 *ddm;

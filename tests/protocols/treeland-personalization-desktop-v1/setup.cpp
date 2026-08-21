@@ -3,7 +3,7 @@
 #include "core/shellhandler.h"
 #include "core/rootsurfacecontainer.h"
 #include "modules/personalization/personalizationmanagerinterfacev1.h"
-#include "protocol-test-server.h"
+#include "server-bridge.h"
 #include "seat/helper.h"
 #include "surface/surfacewrapper.h"
 #include "treeland-personalization-desktop-v1.h"
@@ -16,12 +16,12 @@ SurfaceWrapper *g_wrapper = nullptr;
 personalization_desktop_state g_state {};
 }
 
-void protocol_test_desktop_setup(Helper *helper)
+void protocol_test_setup(Helper *helper)
 {
     // Helper has finished its initial backend scan.  add_output() notifies the
     // production WBackend path asynchronously, so readiness is checked by the
     // desktop main loop rather than from this immediate return value.
-    protocol_test_create_headless_output(helper->backend(), false);
+    add_headless_output(helper->backend(), false);
     QObject::connect(helper->shellHandler(),
                      &ShellHandler::surfaceWrapperAdded,
                      helper,

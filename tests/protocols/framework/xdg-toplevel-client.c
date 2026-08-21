@@ -4,7 +4,7 @@
 #define _POSIX_C_SOURCE 200809L
 #endif
 
-#include "protocol-test-xdg-client.h"
+#include "xdg-toplevel-client.h"
 
 #include <fcntl.h>
 #include <stdio.h>
@@ -25,7 +25,7 @@ static const struct xdg_wm_base_listener wm_base_listener = {
 static void xdg_surface_configure(void *data, struct xdg_surface *surface, uint32_t serial)
 {
     (void)surface;
-    struct protocol_test_xdg_toplevel *toplevel = data;
+    struct xdg_toplevel_client *toplevel = data;
     toplevel->configure_serial = serial;
     toplevel->configured = 1;
 }
@@ -47,7 +47,7 @@ static void xdg_toplevel_configure(void *data, struct xdg_toplevel *toplevel,
 static void xdg_toplevel_close(void *data, struct xdg_toplevel *toplevel)
 {
     (void)toplevel;
-    ((struct protocol_test_xdg_toplevel *)data)->close_received = 1;
+    ((struct xdg_toplevel_client *)data)->close_received = 1;
 }
 
 static void xdg_toplevel_configure_bounds(void *data, struct xdg_toplevel *toplevel,
@@ -74,9 +74,9 @@ static const struct xdg_toplevel_listener xdg_toplevel_listener = {
     .wm_capabilities = xdg_toplevel_wm_capabilities,
 };
 
-int protocol_test_xdg_toplevel_ack_latest_configure(
-    struct protocol_test_connection *connection,
-    struct protocol_test_xdg_toplevel *toplevel)
+int xdg_toplevel_client_ack_latest_configure(
+    struct client_connection *connection,
+    struct xdg_toplevel_client *toplevel)
 {
     if (!connection || !connection->display || !toplevel || !toplevel->xdg_surface)
         return 0;
@@ -89,8 +89,8 @@ int protocol_test_xdg_toplevel_ack_latest_configure(
     return wl_display_roundtrip(connection->display) >= 0;
 }
 
-static int map_toplevel(struct protocol_test_connection *connection,
-                        struct protocol_test_xdg_toplevel *toplevel,
+static int map_toplevel(struct client_connection *connection,
+                        struct xdg_toplevel_client *toplevel,
                         int width,
                         int height,
                         uint32_t argb)
@@ -122,7 +122,7 @@ static int map_toplevel(struct protocol_test_connection *connection,
                                                          WL_SHM_FORMAT_ARGB8888) : NULL;
     if (pool)
         wl_shm_pool_destroy(pool);
-    munmap(data, stride);
+    munmap(data, size);
     close(fd);
     if (!toplevel->buffer)
         return 0;
@@ -132,19 +132,19 @@ static int map_toplevel(struct protocol_test_connection *connection,
     return wl_display_roundtrip(connection->display) >= 0;
 }
 
-static int protocol_test_xdg_toplevel_create_internal(
-    struct protocol_test_connection *connection,
-    struct protocol_test_xdg_toplevel *toplevel,
-    protocol_test_xdg_surface_setup setup,
+static int xdg_toplevel_client_create_internal(
+    struct client_connection *connection,
+    struct xdg_toplevel_client *toplevel,
+    xdg_surface_setup_callback setup,
     void *data,
     int buffer_width,
     int buffer_height,
     uint32_t buffer_argb)
 {
     memset(toplevel, 0, sizeof(*toplevel));
-    toplevel->compositor = protocol_test_bind(connection, "wl_compositor", &wl_compositor_interface, 1);
-    toplevel->wm_base = protocol_test_bind(connection, "xdg_wm_base", &xdg_wm_base_interface, 1);
-    toplevel->shm = protocol_test_bind(connection, "wl_shm", &wl_shm_interface, 1);
+    toplevel->compositor = client_bind(connection, "wl_compositor", &wl_compositor_interface, 1);
+    toplevel->wm_base = client_bind(connection, "xdg_wm_base", &xdg_wm_base_interface, 1);
+    toplevel->shm = client_bind(connection, "wl_shm", &wl_shm_interface, 1);
     if (!toplevel->compositor || !toplevel->wm_base || !toplevel->shm)
         goto failed;
 
@@ -166,23 +166,23 @@ static int protocol_test_xdg_toplevel_create_internal(
     wl_surface_commit(toplevel->surface);
     if (wl_display_roundtrip(connection->display) < 0 || !toplevel->configured)
         goto failed;
-    if (!protocol_test_xdg_toplevel_ack_latest_configure(connection, toplevel))
+    if (!xdg_toplevel_client_ack_latest_configure(connection, toplevel))
         goto failed;
     return map_toplevel(connection, toplevel, buffer_width, buffer_height, buffer_argb);
 
 failed:
-    protocol_test_xdg_toplevel_destroy(toplevel);
+    xdg_toplevel_client_destroy(toplevel);
     return 0;
 }
 
-int protocol_test_xdg_toplevel_create_pending(
-    struct protocol_test_connection *connection,
-    struct protocol_test_xdg_toplevel *toplevel)
+int xdg_toplevel_client_create_pending(
+    struct client_connection *connection,
+    struct xdg_toplevel_client *toplevel)
 {
     memset(toplevel, 0, sizeof(*toplevel));
-    toplevel->compositor = protocol_test_bind(connection, "wl_compositor", &wl_compositor_interface, 1);
-    toplevel->wm_base = protocol_test_bind(connection, "xdg_wm_base", &xdg_wm_base_interface, 1);
-    toplevel->shm = protocol_test_bind(connection, "wl_shm", &wl_shm_interface, 1);
+    toplevel->compositor = client_bind(connection, "wl_compositor", &wl_compositor_interface, 1);
+    toplevel->wm_base = client_bind(connection, "xdg_wm_base", &xdg_wm_base_interface, 1);
+    toplevel->shm = client_bind(connection, "wl_shm", &wl_shm_interface, 1);
     if (!toplevel->compositor || !toplevel->wm_base || !toplevel->shm)
         goto failed;
 
@@ -202,49 +202,49 @@ int protocol_test_xdg_toplevel_create_pending(
     return 1;
 
 failed:
-    protocol_test_xdg_toplevel_destroy(toplevel);
+    xdg_toplevel_client_destroy(toplevel);
     return 0;
 }
 
-int protocol_test_xdg_toplevel_complete_map(
-    struct protocol_test_connection *connection,
-    struct protocol_test_xdg_toplevel *toplevel)
+int xdg_toplevel_client_complete_map(
+    struct client_connection *connection,
+    struct xdg_toplevel_client *toplevel)
 {
     if (!toplevel->xdg_surface || wl_display_roundtrip(connection->display) < 0 || !toplevel->configured)
         return 0;
-    if (!protocol_test_xdg_toplevel_ack_latest_configure(connection, toplevel))
+    if (!xdg_toplevel_client_ack_latest_configure(connection, toplevel))
         return 0;
     return map_toplevel(connection, toplevel, 1, 1, 0xffffffffu);
 }
 
-int protocol_test_xdg_toplevel_create_with_surface_setup(
-    struct protocol_test_connection *connection,
-    struct protocol_test_xdg_toplevel *toplevel,
-    protocol_test_xdg_surface_setup setup,
+int xdg_toplevel_client_create_with_surface_setup(
+    struct client_connection *connection,
+    struct xdg_toplevel_client *toplevel,
+    xdg_surface_setup_callback setup,
     void *data)
 {
-    return protocol_test_xdg_toplevel_create_internal(
+    return xdg_toplevel_client_create_internal(
         connection, toplevel, setup, data, 1, 1, 0xffffffffu);
 }
 
-int protocol_test_xdg_toplevel_create(struct protocol_test_connection *connection,
-                                      struct protocol_test_xdg_toplevel *toplevel)
+int xdg_toplevel_client_create(struct client_connection *connection,
+                                      struct xdg_toplevel_client *toplevel)
 {
-    return protocol_test_xdg_toplevel_create_with_surface_setup(connection, toplevel, NULL, NULL);
+    return xdg_toplevel_client_create_with_surface_setup(connection, toplevel, NULL, NULL);
 }
 
-int protocol_test_xdg_toplevel_create_with_solid_buffer(
-    struct protocol_test_connection *connection,
-    struct protocol_test_xdg_toplevel *toplevel,
+int xdg_toplevel_client_create_with_solid_buffer(
+    struct client_connection *connection,
+    struct xdg_toplevel_client *toplevel,
     int width,
     int height,
     uint32_t argb)
 {
-    return protocol_test_xdg_toplevel_create_internal(
+    return xdg_toplevel_client_create_internal(
         connection, toplevel, NULL, NULL, width, height, argb);
 }
 
-void protocol_test_xdg_toplevel_destroy(struct protocol_test_xdg_toplevel *toplevel)
+void xdg_toplevel_client_destroy(struct xdg_toplevel_client *toplevel)
 {
     if (toplevel->toplevel)
         xdg_toplevel_destroy(toplevel->toplevel);

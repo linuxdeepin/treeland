@@ -9,7 +9,7 @@ extern "C" {
 
 int protocol_test_run(const char *socket_name);
 
-#include "protocol-test-client.h"
+#include "client-connection.h"
 
 #define TEST_MSG_MAX 256
 #define WM_TEST_SOURCE "/usr/share/wallpapers/deepin-wallpapers/test-wallpaper.jpg"
@@ -29,7 +29,7 @@ struct test_result {
 };
 
 struct test_ctx {
-    struct protocol_test_connection connection;
+    struct client_connection connection;
     struct wl_display    *display;
 
 

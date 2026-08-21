@@ -1,25 +1,29 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
-#include "protocol-test-server.h"
+#include "server-bridge.h"
+
+#include "seat/helper.h"
 
 #include <wbackend.h>
 #include <woutput.h>
 #include <wserver.h>
 
-#include <drm/drm_fourcc.h>
 #include <wlr_all.h>
-
-#include <iterator>
 
 WAYLIB_SERVER_USE_NAMESPACE
 
-bool protocol_test_create_headless_output(WServer *server, int width, int height)
+WServer *server_for_helper(Helper *helper)
 {
-    auto *backend = server->findInterface<WBackend>();
-    return protocol_test_create_headless_output(backend, true, width, height);
+    return helper ? helper->findChild<WServer *>() : nullptr;
 }
 
-bool protocol_test_create_headless_output(WBackend *backend, bool startBackend, int width, int height)
+bool add_headless_output(WServer *server, int width, int height)
+{
+    auto *backend = server->findInterface<WBackend>();
+    return add_headless_output(backend, true, width, height);
+}
+
+bool add_headless_output(WBackend *backend, bool startBackend, int width, int height)
 {
     if (!backend || (startBackend && !wlr_backend_start(backend->handle())))
         return false;
@@ -45,13 +49,4 @@ bool protocol_test_create_headless_output(WBackend *backend, bool startBackend, 
         return false;
     wlr_output_create_global(output, woutput->server()->handle());
     return true;
-}
-
-bool protocol_test_enable_shm(WServer *server)
-{
-    static constexpr uint32_t formats[] = {
-        DRM_FORMAT_ARGB8888,
-        DRM_FORMAT_XRGB8888,
-    };
-    return wlr_shm_create(server->handle(), 1, formats, std::size(formats)) != nullptr;
 }

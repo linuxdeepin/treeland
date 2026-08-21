@@ -1,6 +1,7 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "treeland-wallpaper-color-v1.h"
+#include "server-bridge-api.h"
 #include "treeland-wallpaper-color-v1-client-protocol.h"
 
 #include <stdarg.h>
@@ -90,10 +91,10 @@ static const struct treeland_wallpaper_color_manager_v1_listener manager_listene
 
 static int connect_client(struct test_ctx *ctx, const char *socket_name)
 {
-    if (!protocol_test_connect(&ctx->connection, socket_name))
+    if (!client_connect(&ctx->connection, socket_name))
         return 0;
     ctx->display = ctx->connection.display;
-    ctx->manager = protocol_test_bind(&ctx->connection, "treeland_wallpaper_color_manager_v1",
+    ctx->manager = client_bind(&ctx->connection, "treeland_wallpaper_color_manager_v1",
                                       &treeland_wallpaper_color_manager_v1_interface, 1);
     if (!ctx->manager)
         return 0;
@@ -111,7 +112,7 @@ static int set_color(struct test_ctx *ctx, const char *output, int is_dark)
 {
     (void)ctx;
     struct wallpaper_color_update_args args = { .output = output, .is_dark = is_dark };
-    return protocol_test_invoke_server(set_color_callback, &args);
+    return invoke_on_server_thread(set_color_callback, &args);
 }
 
 static int set_color_dark(struct test_ctx *ctx) { return set_color(ctx, "test-output", 1); }
@@ -164,7 +165,7 @@ void test_cleanup(struct test_ctx *ctx)
 {
     if (ctx->manager)
         treeland_wallpaper_color_manager_v1_destroy(ctx->manager);
-    protocol_test_disconnect(&ctx->connection);
+    client_disconnect(&ctx->connection);
 }
 
 int protocol_test_run(const char *socket_name)

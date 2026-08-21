@@ -1,6 +1,7 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "treeland-personalization-manager-v1.h"
+#include "server-bridge-api.h"
 #include "treeland-personalization-manager-v1-client-protocol.h"
 
 #include <stdarg.h>
@@ -216,12 +217,12 @@ static const struct treeland_personalization_appearance_context_v1_listener appe
 
 static int connect_client(struct test_ctx *ctx, const char *socket_name)
 {
-    if (!protocol_test_connect(&ctx->connection, socket_name))
+    if (!client_connect(&ctx->connection, socket_name))
         return 0;
     ctx->display = ctx->connection.display;
-    ctx->compositor = protocol_test_bind(&ctx->connection, "wl_compositor", &wl_compositor_interface, 1);
+    ctx->compositor = client_bind(&ctx->connection, "wl_compositor", &wl_compositor_interface, 1);
 
-    ctx->manager = protocol_test_bind(&ctx->connection, "treeland_personalization_manager_v1",
+    ctx->manager = client_bind(&ctx->connection, "treeland_personalization_manager_v1",
                                       &treeland_personalization_manager_v1_interface, 1);
     return ctx->manager != NULL;
 }
@@ -312,7 +313,7 @@ static int verify_blend_mode(struct test_ctx *ctx)
 {
     (void)ctx;
     struct window_context_state state;
-    if (!protocol_test_invoke_server(personalization_window_state, &state))
+    if (!invoke_on_server_thread(personalization_window_state, &state))
         return 0;
     return state.background_type == TREELAND_PERSONALIZATION_WINDOW_CONTEXT_V1_BLEND_MODE_WALLPAPER;
 }
@@ -321,7 +322,7 @@ static int verify_corner_radius(struct test_ctx *ctx)
 {
     (void)ctx;
     struct window_context_state state;
-    if (!protocol_test_invoke_server(personalization_window_state, &state))
+    if (!invoke_on_server_thread(personalization_window_state, &state))
         return 0;
     return state.corner_radius == 12;
 }
@@ -330,7 +331,7 @@ static int verify_shadow(struct test_ctx *ctx)
 {
     (void)ctx;
     struct window_context_state state;
-    if (!protocol_test_invoke_server(personalization_window_state, &state))
+    if (!invoke_on_server_thread(personalization_window_state, &state))
         return 0;
     return state.shadow_radius == 8 && state.shadow_offset_x == 2 && state.shadow_offset_y == 3
         && state.shadow_red == 10 && state.shadow_green == 20 && state.shadow_blue == 30
@@ -341,7 +342,7 @@ static int verify_border(struct test_ctx *ctx)
 {
     (void)ctx;
     struct window_context_state state;
-    if (!protocol_test_invoke_server(personalization_window_state, &state))
+    if (!invoke_on_server_thread(personalization_window_state, &state))
         return 0;
     return state.border_width == 2 && state.border_red == 100 && state.border_green == 150
         && state.border_blue == 200 && state.border_alpha == 255;
@@ -351,7 +352,7 @@ static int verify_no_titlebar(struct test_ctx *ctx)
 {
     (void)ctx;
     struct window_context_state state;
-    if (!protocol_test_invoke_server(personalization_window_state, &state))
+    if (!invoke_on_server_thread(personalization_window_state, &state))
         return 0;
     return state.no_titlebar == 1;
 }
@@ -360,7 +361,7 @@ static int verify_titlebar_enabled(struct test_ctx *ctx)
 {
     (void)ctx;
     struct window_context_state state;
-    if (!protocol_test_invoke_server(personalization_window_state, &state))
+    if (!invoke_on_server_thread(personalization_window_state, &state))
         return 0;
     return state.no_titlebar == 0;
 }
@@ -701,7 +702,7 @@ static const struct test_case cases[] = {
 void test_cleanup(struct test_ctx *ctx)
 {
     if (ctx->display) {
-        protocol_test_invoke_server(personalization_restore_config, NULL);
+        invoke_on_server_thread(personalization_restore_config, NULL);
 
         wl_display_roundtrip(ctx->display);
     }
@@ -712,7 +713,7 @@ void test_cleanup(struct test_ctx *ctx)
     if (ctx->appearance_context) treeland_personalization_appearance_context_v1_destroy(ctx->appearance_context);
     if (ctx->surface) wl_surface_destroy(ctx->surface);
 
-    protocol_test_disconnect(&ctx->connection);
+    client_disconnect(&ctx->connection);
 }
 
 int protocol_test_run(const char *socket_name)
@@ -727,7 +728,7 @@ int protocol_test_run(const char *socket_name)
     }
 
     int snapshot_valid = 0;
-    if (!protocol_test_invoke_server(personalization_snapshot_config, &snapshot_valid)
+    if (!invoke_on_server_thread(personalization_snapshot_config, &snapshot_valid)
         || !snapshot_valid) {
         fprintf(stderr, "failed to snapshot personalization configuration\n");
         test_cleanup(&ctx);

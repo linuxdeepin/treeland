@@ -123,10 +123,10 @@ static const struct treeland_capture_context_v1_listener context_listener_c = {
 
 static int connect_client(struct test_ctx *ctx, const char *socket_name)
 {
-    if (!protocol_test_connect(&ctx->connection, socket_name))
+    if (!client_connect(&ctx->connection, socket_name))
         return 0;
     ctx->display = ctx->connection.display;
-    ctx->manager = protocol_test_bind(&ctx->connection, "treeland_capture_manager_v1",
+    ctx->manager = client_bind(&ctx->connection, "treeland_capture_manager_v1",
                                       &treeland_capture_manager_v1_interface, 1);
     return ctx->manager != NULL;
 }
@@ -198,18 +198,18 @@ static int no_source_failed_after_clear(struct test_ctx *ctx)
 }
 
 static struct treeland_capture_manager_v1 *connect_fresh_manager(
-    const char *socket_name, struct protocol_test_connection *connection)
+    const char *socket_name, struct client_connection *connection)
 {
-    if (!protocol_test_connect(connection, socket_name))
+    if (!client_connect(connection, socket_name))
         return NULL;
-    return protocol_test_bind(connection, "treeland_capture_manager_v1",
+    return client_bind(connection, "treeland_capture_manager_v1",
                               &treeland_capture_manager_v1_interface, 1);
 }
 
 static int capture_without_source_errors(struct test_ctx *ctx)
 {
 
-    struct protocol_test_connection connection;
+    struct client_connection connection;
     struct treeland_capture_manager_v1 *manager =
         connect_fresh_manager(ctx->socket_name, &connection);
     if (!manager)
@@ -221,14 +221,14 @@ static int capture_without_source_errors(struct test_ctx *ctx)
     const int errored = wl_display_roundtrip(connection.display) < 0
                         && wl_display_get_protocol_error(connection.display, &iface, &code)
                                == WL_DISPLAY_ERROR_IMPLEMENTATION;
-    protocol_test_disconnect(&connection);
+    client_disconnect(&connection);
     return errored;
 }
 
 static int create_session_without_source_errors(struct test_ctx *ctx)
 {
 
-    struct protocol_test_connection connection;
+    struct client_connection connection;
     struct treeland_capture_manager_v1 *manager =
         connect_fresh_manager(ctx->socket_name, &connection);
     if (!manager)
@@ -240,7 +240,7 @@ static int create_session_without_source_errors(struct test_ctx *ctx)
     const int errored = wl_display_roundtrip(connection.display) < 0
                         && wl_display_get_protocol_error(connection.display, &iface, &code)
                                == WL_DISPLAY_ERROR_IMPLEMENTATION;
-    protocol_test_disconnect(&connection);
+    client_disconnect(&connection);
     return errored;
 }
 
@@ -263,7 +263,7 @@ void test_cleanup(struct test_ctx *ctx)
     if (ctx->context_b) treeland_capture_context_v1_destroy(ctx->context_b);
     if (ctx->context_a) treeland_capture_context_v1_destroy(ctx->context_a);
     if (ctx->manager) treeland_capture_manager_v1_destroy(ctx->manager);
-    protocol_test_disconnect(&ctx->connection);
+    client_disconnect(&ctx->connection);
 }
 
 int protocol_test_run(const char *socket_name)

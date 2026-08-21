@@ -10,7 +10,7 @@
 
 | 场景 | 客户端发送 | 生产业务逻辑与断言 |
 | --- | --- | --- |
-| 基础提交 | `acquire`、`bind_key`、`commit` | manager 发送 `commit_success`，并遵守 inactive session 的暂存规则 |
+| 基础提交 | `acquire`、`bind_key`、`commit` | 活动 session 的 manager 发送 `commit_success` |
 | 捕获快捷键 | 对已聚焦 mapped 窗口调用 `capture_next_shortcut`，虚拟键盘保持 Ctrl+Shift 并发送 evdev `KEY_C` press/release | 生产 capture filter 返回 `captured("Ctrl+Shift+C")` |
 | 激活快捷键 | 注册 Ctrl+Shift+K 的 Notify action，虚拟键盘发送 evdev `KEY_K` press | `ShortcutRunner` 发送 `activated("desktop-shortcut", key-press)` |
 
@@ -39,3 +39,6 @@ ShortcutController` 路径，`ShortcutRunner` 执行 `NOTIFY` 并由 manager 向
 
 这是虚拟输入的语义覆盖，不是物理键盘驱动覆盖。desktop 用例必须在本地通过后，
 才能把上述结果标为该提交的执行证据。
+
+当前基础 fixture 的客户端连接活动 session socket，因此只覆盖即时提交。inactive
+session 的暂存与切换后应用，需要第二个 session socket 的专用 fixture。

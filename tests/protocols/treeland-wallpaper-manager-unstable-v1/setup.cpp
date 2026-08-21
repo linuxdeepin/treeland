@@ -1,7 +1,8 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "modules/wallpaper/wallpapermanagerinterfacev1.h"
-#include "protocol-test-server.h"
+#include "server-bridge.h"
+#include "seat/helper.h"
 #include "treeland-wallpaper-manager-unstable-v1.h"
 
 #include <wserver.h>
@@ -14,11 +15,12 @@ TreelandWallpaperInterfaceV1 *g_wallpaper2 = nullptr;
 
 }
 
-void protocol_test_setup(WServer *server)
+void protocol_test_setup(Helper *helper)
 {
-    protocol_test_create_headless_output(server);
+    add_headless_output(helper->backend(), false);
 
-    auto *manager = server->attach<TreelandWallpaperManagerInterfaceV1>();
+    auto *manager = find_server_interface<TreelandWallpaperManagerInterfaceV1>(helper);
+    Q_ASSERT(manager);
     QObject::connect(manager, &TreelandWallpaperManagerInterfaceV1::wallpaperCreated,
                      [](TreelandWallpaperInterfaceV1 *wallpaper) {
                          if (!g_wallpaper)

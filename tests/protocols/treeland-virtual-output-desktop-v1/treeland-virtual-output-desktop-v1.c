@@ -1,6 +1,7 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
-#include "protocol-test-client.h"
+#include "client-connection.h"
+#include "server-bridge-api.h"
 #include "treeland-virtual-output-desktop-v1.h"
 #include "treeland-virtual-output-manager-v1-client-protocol.h"
 
@@ -10,7 +11,7 @@
 extern void virtual_output_desktop_read_state(void *data);
 
 struct virtual_output_client {
-    struct protocol_test_connection connection;
+    struct client_connection connection;
     struct treeland_virtual_output_manager_v1 *manager;
     struct treeland_virtual_output_v1 *group;
     int outputs_received;
@@ -82,7 +83,7 @@ static void cleanup(struct virtual_output_client *client)
         treeland_virtual_output_v1_destroy(client->group);
     if (client->manager)
         treeland_virtual_output_manager_v1_destroy(client->manager);
-    protocol_test_disconnect(&client->connection);
+    client_disconnect(&client->connection);
 }
 
 int protocol_test_run(const char *socket_name)
@@ -93,14 +94,14 @@ int protocol_test_run(const char *socket_name)
     struct virtual_output_desktop_state restored = { 0 };
     int result = 1;
 
-    if (!protocol_test_connect(&client.connection, socket_name))
+    if (!client_connect(&client.connection, socket_name))
         goto done;
-    client.manager = protocol_test_bind(&client.connection,
+    client.manager = client_bind(&client.connection,
                                         "treeland_virtual_output_manager_v1",
                                         &treeland_virtual_output_manager_v1_interface,
                                         2);
     if (!client.manager
-        || !protocol_test_invoke_server(virtual_output_desktop_read_state, &before)
+        || !invoke_on_server_thread(virtual_output_desktop_read_state, &before)
         || !before.first_present || !before.second_present
         || before.root_output_count != 2 || !before.first_is_normal || !before.second_is_normal)
         goto done;
@@ -118,7 +119,7 @@ int protocol_test_run(const char *socket_name)
     // The roundtrip orders the create request, Helper::onSetCopyOutput(), and
     // the production outputs event without using a timing delay.
     if (wl_display_roundtrip(client.connection.display) < 0
-        || !protocol_test_invoke_server(virtual_output_desktop_read_state, &copied))
+        || !invoke_on_server_thread(virtual_output_desktop_read_state, &copied))
         goto done;
     if (client.outputs_received < 1 || strcmp(client.group_name, "protocol-copy-group") != 0
         || strcmp(client.outputs, "HEADLESS-1 HEADLESS-2") != 0
@@ -129,7 +130,7 @@ int protocol_test_run(const char *socket_name)
     treeland_virtual_output_v1_destroy(client.group);
     client.group = NULL;
     if (wl_display_roundtrip(client.connection.display) < 0
-        || !protocol_test_invoke_server(virtual_output_desktop_read_state, &restored))
+        || !invoke_on_server_thread(virtual_output_desktop_read_state, &restored))
         goto done;
     if (!restored.first_present || !restored.second_present || restored.root_output_count != 2
         || !restored.primary_is_first || !restored.first_is_normal || !restored.second_is_normal)

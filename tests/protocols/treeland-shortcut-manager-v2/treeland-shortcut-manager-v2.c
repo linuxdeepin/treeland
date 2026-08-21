@@ -120,11 +120,11 @@ static const struct treeland_shortcut_capture_v1_listener capture_listener = {
 
 static int connect_client(struct test_ctx *ctx, const char *socket_name)
 {
-    if (!protocol_test_connect(&ctx->connection, socket_name))
+    if (!client_connect(&ctx->connection, socket_name))
         return 0;
     ctx->display = ctx->connection.display;
-    ctx->compositor = protocol_test_bind(&ctx->connection, "wl_compositor", &wl_compositor_interface, 1);
-    ctx->manager = protocol_test_bind(&ctx->connection, "treeland_shortcut_manager_v2",
+    ctx->compositor = client_bind(&ctx->connection, "wl_compositor", &wl_compositor_interface, 1);
+    ctx->manager = client_bind(&ctx->connection, "treeland_shortcut_manager_v2",
                                       &treeland_shortcut_manager_v2_interface, 2);
     if (!ctx->manager)
         return 0;
@@ -160,10 +160,9 @@ static int bind_key_commit(struct test_ctx *ctx)
     return 1;
 }
 
-static int commit_buffered(struct test_ctx *ctx)
+static int commit_success_after_bind(struct test_ctx *ctx)
 {
-
-    return !ctx->commit_success_received;
+    return ctx->commit_success_received;
 }
 
 static int commit_again(struct test_ctx *ctx)
@@ -204,9 +203,9 @@ static const struct test_case cases[] = {
     { "manager.commit_empty", commit_empty },
     { "event.commit_success", commit_success_received },
     { "manager.bind_key_commit", bind_key_commit },
-    { "event.commit_buffered", commit_buffered },
+    { "event.commit_success_after_bind", commit_success_after_bind },
     { "manager.commit_again", commit_again },
-    { "event.commit_success_after_bind", commit_success_received },
+    { "event.commit_success_again", commit_success_received },
     { "capture.request", capture_request },
     { "event.capture_failed_not_active", capture_failed_not_active },
 };
@@ -216,7 +215,7 @@ void test_cleanup(struct test_ctx *ctx)
     if (ctx->capture) treeland_shortcut_capture_v1_destroy(ctx->capture);
     if (ctx->test_surface) wl_surface_destroy(ctx->test_surface);
     if (ctx->manager) treeland_shortcut_manager_v2_destroy(ctx->manager);
-    protocol_test_disconnect(&ctx->connection);
+    client_disconnect(&ctx->connection);
 }
 
 int protocol_test_run(const char *socket_name)

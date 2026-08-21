@@ -1,6 +1,7 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "modules/personalization/personalizationmanagerinterfacev1.h"
+#include "server-bridge.h"
 #include "seat/helper.h"
 #include "treeland-personalization-manager-v1.h"
 #include "treelanduserconfig.hpp"
@@ -32,17 +33,10 @@ ConfigSnapshot g_configSnapshot;
 bool g_configSnapshotValid = false;
 }
 
-void protocol_test_setup(WServer *server)
+void protocol_test_setup(Helper *helper)
 {
-    // PersonalizationManagerInterfaceV1 serves cursor/font/appearance contexts from
-    // Helper::instance()->config() (a TreelandUserConfig): creating any of those
-    // contexts dereferences the Helper singleton, so a Helper must exist before a
-    // client can use them.
-    if (!Helper::instance()) {
-        new Helper(server);
-    }
-
-    auto *manager = server->attach<PersonalizationManagerInterfaceV1>();
+    auto *manager = find_server_interface<PersonalizationManagerInterfaceV1>(helper);
+    Q_ASSERT(manager);
     QObject::connect(manager, &PersonalizationManagerInterfaceV1::windowContextCreated,
                      [](PersonalizationWindowContextV1 *context) { g_windowContext = context; });
 }

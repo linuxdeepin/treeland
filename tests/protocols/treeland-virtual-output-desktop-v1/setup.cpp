@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "core/rootsurfacecontainer.h"
 #include "output/output.h"
-#include "protocol-test-server.h"
+#include "server-bridge.h"
 #include "seat/helper.h"
 #include "treeland-virtual-output-desktop-v1.h"
 
@@ -50,12 +50,12 @@ void normalizeInitialOutputConfig(Helper *helper)
 }
 }
 
-void protocol_test_desktop_setup(Helper *helper)
+void protocol_test_setup(Helper *helper)
 {
     // The desktop fixture starts with HEADLESS-1.  A second real backend
     // output is necessary because this protocol creates a copy group, not a
     // new backend output.
-    protocol_test_create_headless_output(helper->backend(), false);
+    add_headless_output(helper->backend(), false);
 
     auto *config = helper->globalConfig();
     if (config->isInitializeSucceeded()) {
@@ -68,7 +68,7 @@ void protocol_test_desktop_setup(Helper *helper)
     }
 }
 
-extern "C" bool protocol_test_desktop_ready(Helper *helper)
+extern "C" bool protocol_test_ready(Helper *helper)
 {
     return g_configNormalized
         && findRootOutputByName(helper, QStringLiteral("HEADLESS-1"))

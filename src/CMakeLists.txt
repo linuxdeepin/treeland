@@ -389,6 +389,7 @@ target_link_libraries(libtreeland
         Dtk6::SystemSettings
         Waylib::WaylibServer
     PRIVATE
+        Qt6::GuiPrivate
         Qt6::Quick
         Qt6::QuickControls2
         Qt6::QuickPrivate

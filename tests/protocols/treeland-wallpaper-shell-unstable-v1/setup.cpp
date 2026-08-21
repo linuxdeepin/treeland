@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "modules/wallpaper/wallpapershellinterfacev1.h"
 #include "modules/wallpaper/wallpapernotifierinterfacev1.h"
+#include "server-bridge.h"
 
 #include <wserver.h>
 
@@ -16,10 +17,11 @@ int g_failedCount = 0;
 int g_readyCount = 0;
 }
 
-void protocol_test_setup(WServer *server)
+void protocol_test_setup(Helper *helper)
 {
-    g_shell = server->attach<TreelandWallpaperShellInterfaceV1>();
-    g_notifier = server->attach<TreelandWallpaperNotifierInterfaceV1>();
+    g_shell = find_server_interface<TreelandWallpaperShellInterfaceV1>(helper);
+    g_notifier = find_server_interface<TreelandWallpaperNotifierInterfaceV1>(helper);
+    Q_ASSERT(g_shell && g_notifier);
     QObject::connect(g_shell, &TreelandWallpaperShellInterfaceV1::wallpaperSurfaceAdded,
                      [](TreelandWallpaperSurfaceInterfaceV1 *surface) {
                          g_wallpaperSurface = surface;

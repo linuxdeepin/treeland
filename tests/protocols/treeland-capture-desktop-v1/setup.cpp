@@ -3,7 +3,7 @@
 #include "core/rootsurfacecontainer.h"
 #include "core/shellhandler.h"
 #include "modules/capture/capture.h"
-#include "protocol-test-server.h"
+#include "server-bridge.h"
 #include "seat/helper.h"
 #include "surface/surfacewrapper.h"
 #include "treeland-capture-desktop-v1.h"
@@ -23,9 +23,9 @@ void copyState(void *data)
 }
 }
 
-void protocol_test_desktop_setup(Helper *helper)
+void protocol_test_setup(Helper *helper)
 {
-    protocol_test_create_headless_output(helper->backend(), false);
+    add_headless_output(helper->backend(), false);
     QObject::connect(helper->shellHandler(),
                      &ShellHandler::surfaceWrapperAdded,
                      helper,

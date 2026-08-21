@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include "protocol-test-client.h"
-#include "protocol-test-xdg-client.h"
+#include "client-connection.h"
+#include "xdg-toplevel-client.h"
 
 struct dde_desktop_state {
     int output_ready;

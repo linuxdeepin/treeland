@@ -1,4 +1,4 @@
-// Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
@@ -87,10 +87,20 @@ public:
 
     void createImage();
 
-
+    /**
+     * @brief DMA buffer of source, there are three cases
+     * 1. output - output's dma buffer
+     * 2. window - window's dma buffer
+     * 3. region - output's dma buffer
+     *
+     * @return wlr_buffer*
+     */
     wlr_buffer *sourceDMABuffer();
 
-
+    /**
+     * @brief copyBuffer render captured contents to a buffer
+     * @param buffer buffer prepared by client
+     */
     void copyBuffer(wlr_buffer *buffer);
 
     // Cropped area of source

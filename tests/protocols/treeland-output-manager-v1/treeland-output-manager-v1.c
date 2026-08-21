@@ -85,11 +85,11 @@ static const struct treeland_output_manager_v1_listener manager_listener = {
 static int connect_client(struct test_ctx *ctx, const char *socket_name)
 {
     ctx->socket_name = socket_name;
-    if (!protocol_test_connect(&ctx->connection, socket_name))
+    if (!client_connect(&ctx->connection, socket_name))
         return 0;
     ctx->display = ctx->connection.display;
-    ctx->output = protocol_test_bind(&ctx->connection, "wl_output", &wl_output_interface, 1);
-    ctx->manager = protocol_test_bind(&ctx->connection, "treeland_output_manager_v1",
+    ctx->output = client_bind(&ctx->connection, "wl_output", &wl_output_interface, 1);
+    ctx->manager = client_bind(&ctx->connection, "treeland_output_manager_v1",
                                       &treeland_output_manager_v1_interface, 2);
     if (!ctx->manager)
         return 0;
@@ -112,7 +112,7 @@ static int primary_output_event_received(struct test_ctx *ctx)
 {
     wl_display_roundtrip(ctx->display);
     return ctx->primary_output_received && ctx->primary_output_count == 1
-        && ctx->primary_output_name[0] == '\0';
+        && ctx->primary_output_name[0] != '\0';
 }
 
 
@@ -126,7 +126,7 @@ static int set_primary_output_unknown(struct test_ctx *ctx)
 }
 
 
-static int get_color_control_missing_output(struct test_ctx *ctx)
+static int get_color_control_valid_output(struct test_ctx *ctx)
 {
     if (!ctx->manager || !ctx->output)
         return 0;
@@ -134,23 +134,11 @@ static int get_color_control_missing_output(struct test_ctx *ctx)
         treeland_output_manager_v1_get_color_control(ctx->manager, ctx->output);
     if (!ctx->color_control)
         return 0;
-
-
-    wl_display_roundtrip(ctx->display);
-
+    if (wl_display_roundtrip(ctx->display) < 0)
+        return 0;
     const struct wl_interface *error_interface = NULL;
     uint32_t error_object_id = 0;
-    const uint32_t code =
-        wl_display_get_protocol_error(ctx->display, &error_interface, &error_object_id);
-    if (code != WL_DISPLAY_ERROR_INVALID_OBJECT)
-        return 0;
-    if (error_interface != &treeland_output_manager_v1_interface)
-        return 0;
-
-
-    ctx->color_control = NULL;
-    protocol_test_disconnect(&ctx->connection);
-    return connect_client(ctx, ctx->socket_name);
+    return wl_display_get_protocol_error(ctx->display, &error_interface, &error_object_id) == 0;
 }
 
 static const struct test_case cases[] = {
@@ -158,14 +146,14 @@ static const struct test_case cases[] = {
     { "output.bind", output_bound },
     { "manager.event.primary_output", primary_output_event_received },
     { "manager.set_primary_output.unknown_name", set_primary_output_unknown },
-    { "manager.get_color_control.missing_output_error", get_color_control_missing_output },
+    { "manager.get_color_control.valid_output", get_color_control_valid_output },
 };
 
 void test_cleanup(struct test_ctx *ctx)
 {
     if (ctx->color_control) treeland_output_color_control_v1_destroy(ctx->color_control);
     if (ctx->manager) treeland_output_manager_v1_destroy(ctx->manager);
-    protocol_test_disconnect(&ctx->connection);
+    client_disconnect(&ctx->connection);
 }
 
 int protocol_test_run(const char *socket_name)

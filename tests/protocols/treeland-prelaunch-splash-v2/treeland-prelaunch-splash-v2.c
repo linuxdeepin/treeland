@@ -4,6 +4,7 @@
 #define _POSIX_C_SOURCE 200809L
 #endif
 #include "treeland-prelaunch-splash-v2.h"
+#include "server-bridge-api.h"
 #include "treeland-prelaunch-splash-v2-client-protocol.h"
 
 #include <fcntl.h>
@@ -75,12 +76,12 @@ int test_print_results(struct test_ctx *ctx)
 
 static int connect_client(struct test_ctx *ctx, const char *socket_name)
 {
-    if (!protocol_test_connect(&ctx->connection, socket_name))
+    if (!client_connect(&ctx->connection, socket_name))
         return 0;
     ctx->display = ctx->connection.display;
-    ctx->manager = protocol_test_bind(&ctx->connection, "treeland_prelaunch_splash_manager_v2",
+    ctx->manager = client_bind(&ctx->connection, "treeland_prelaunch_splash_manager_v2",
                                       &treeland_prelaunch_splash_manager_v2_interface, 1);
-    ctx->shm = protocol_test_bind(&ctx->connection, "wl_shm", &wl_shm_interface, 1);
+    ctx->shm = client_bind(&ctx->connection, "wl_shm", &wl_shm_interface, 1);
     return ctx->manager != NULL;
 }
 
@@ -140,7 +141,7 @@ static int create_splash_same_app(struct test_ctx *ctx)
 
 static int query_server(struct test_ctx *ctx)
 {
-    return protocol_test_invoke_server(splash_query_state, &ctx->server);
+    return invoke_on_server_thread(splash_query_state, &ctx->server);
 }
 
 static int splash_requested_null_icon(struct test_ctx *ctx)
@@ -217,7 +218,7 @@ void test_cleanup(struct test_ctx *ctx)
     if (ctx->splash1) treeland_prelaunch_splash_v2_destroy(ctx->splash1);
     if (ctx->icon_buffer) wl_buffer_destroy(ctx->icon_buffer);
     if (ctx->manager) treeland_prelaunch_splash_manager_v2_destroy(ctx->manager);
-    protocol_test_disconnect(&ctx->connection);
+    client_disconnect(&ctx->connection);
 }
 
 int protocol_test_run(const char *socket_name)

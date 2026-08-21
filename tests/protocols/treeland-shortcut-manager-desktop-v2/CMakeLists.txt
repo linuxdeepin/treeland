@@ -1,5 +1,5 @@
 
-treeland_add_desktop_integration_test(
+treeland_add_protocol_test(
     NAME treeland_shortcut_manager_desktop_v2
     XML "${TREELAND_PROTOCOLS_DATA_DIR}/treeland-shortcut-manager-v2.xml"
     EXTRA_XMLS "${CMAKE_SOURCE_DIR}/3rdparty/wlroots/protocol/virtual-keyboard-unstable-v1.xml"

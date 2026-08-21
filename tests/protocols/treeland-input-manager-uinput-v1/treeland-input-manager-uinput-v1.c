@@ -1,6 +1,7 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
-#include "protocol-test-client.h"
+#include "client-connection.h"
+#include "server-bridge-api.h"
 #include "treeland-input-manager-uinput-v1.h"
 #include "treeland-input-manager-unstable-v1-client-protocol.h"
 
@@ -47,17 +48,17 @@ static const struct treeland_input_manager_v1_listener manager_listener = {
 
 static int read_state(struct input_manager_uinput_state *state)
 {
-    return protocol_test_invoke_server(input_manager_uinput_read_state, state);
+    return invoke_on_server_thread(input_manager_uinput_read_state, state);
 }
 
 int protocol_test_run(const char *socket_name)
 {
-    struct protocol_test_connection connection;
-    if (!protocol_test_connect(&connection, socket_name))
+    struct client_connection connection;
+    if (!client_connect(&connection, socket_name))
         return 1;
 
-    struct wl_seat *seat = protocol_test_bind(&connection, "wl_seat", &wl_seat_interface, 1);
-    struct treeland_input_manager_v1 *manager = protocol_test_bind(
+    struct wl_seat *seat = client_bind(&connection, "wl_seat", &wl_seat_interface, 1);
+    struct treeland_input_manager_v1 *manager = client_bind(
         &connection, "treeland_input_manager_v1", &treeland_input_manager_v1_interface, 1);
     if (!seat || !manager)
         goto failed;
@@ -74,7 +75,7 @@ int protocol_test_run(const char *socket_name)
         goto failed;
     }
 
-    if (!protocol_test_invoke_server(input_manager_uinput_destroy, NULL)
+    if (!invoke_on_server_thread(input_manager_uinput_destroy, NULL)
         || wl_display_roundtrip(connection.display) < 0)
         goto failed;
 
@@ -86,10 +87,10 @@ int protocol_test_run(const char *socket_name)
 
     treeland_input_manager_v1_destroy(manager);
     wl_seat_destroy(seat);
-    protocol_test_disconnect(&connection);
+    client_disconnect(&connection);
     return 0;
 
 failed:
-    protocol_test_disconnect(&connection);
+    client_disconnect(&connection);
     return 1;
 }

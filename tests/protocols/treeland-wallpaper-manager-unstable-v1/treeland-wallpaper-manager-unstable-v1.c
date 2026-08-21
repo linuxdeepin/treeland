@@ -1,6 +1,7 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "treeland-wallpaper-manager-unstable-v1.h"
+#include "server-bridge-api.h"
 #include "treeland-wallpaper-manager-unstable-v1-client-protocol.h"
 
 #include <stdarg.h>
@@ -100,12 +101,12 @@ static const struct treeland_wallpaper_v1_listener wallpaper_listener = {
 
 static int connect_client(struct test_ctx *ctx, const char *socket_name)
 {
-    if (!protocol_test_connect(&ctx->connection, socket_name))
+    if (!client_connect(&ctx->connection, socket_name))
         return 0;
     ctx->display = ctx->connection.display;
-    ctx->compositor = protocol_test_bind(&ctx->connection, "wl_compositor", &wl_compositor_interface, 1);
-    ctx->output = protocol_test_bind(&ctx->connection, "wl_output", &wl_output_interface, 1);
-    ctx->manager = protocol_test_bind(&ctx->connection, "treeland_wallpaper_manager_v1",
+    ctx->compositor = client_bind(&ctx->connection, "wl_compositor", &wl_compositor_interface, 1);
+    ctx->output = client_bind(&ctx->connection, "wl_output", &wl_output_interface, 1);
+    ctx->manager = client_bind(&ctx->connection, "treeland_wallpaper_manager_v1",
                                       &treeland_wallpaper_manager_v1_interface, 1);
     return ctx->manager != NULL && ctx->output != NULL && ctx->compositor != NULL;
 }
@@ -142,13 +143,13 @@ static int server_state_ok(struct test_ctx *ctx)
     (void)ctx;
     struct wm_server_state state;
     memset(&state, 0, sizeof(state));
-    if (!protocol_test_invoke_server(wm_query_server_state, &state))
+    if (!invoke_on_server_thread(wm_query_server_state, &state))
         return 0;
     return state.wallpaper_created && state.second_created
         && state.output_valid && state.has_username;
 }
 
-static int emit_failed(struct test_ctx *ctx) { (void)ctx; return protocol_test_invoke_server(wm_emit_failed, NULL); }
+static int emit_failed(struct test_ctx *ctx) { (void)ctx; return invoke_on_server_thread(wm_emit_failed, NULL); }
 static int failed_event_ok(struct test_ctx *ctx)
 {
     return ctx->failed_received
@@ -156,7 +157,7 @@ static int failed_event_ok(struct test_ctx *ctx)
         && strcmp(ctx->failed_source, WM_TEST_SOURCE) == 0;
 }
 
-static int emit_changed(struct test_ctx *ctx) { (void)ctx; return protocol_test_invoke_server(wm_emit_changed, NULL); }
+static int emit_changed(struct test_ctx *ctx) { (void)ctx; return invoke_on_server_thread(wm_emit_changed, NULL); }
 static int changed_event_ok(struct test_ctx *ctx)
 {
     return ctx->changed_received
@@ -182,7 +183,7 @@ void test_cleanup(struct test_ctx *ctx)
     if (ctx->wallpaper) treeland_wallpaper_v1_destroy(ctx->wallpaper);
     if (ctx->test_surface) wl_surface_destroy(ctx->test_surface);
     if (ctx->manager) treeland_wallpaper_manager_v1_destroy(ctx->manager);
-    protocol_test_disconnect(&ctx->connection);
+    client_disconnect(&ctx->connection);
 }
 
 int protocol_test_run(const char *socket_name)

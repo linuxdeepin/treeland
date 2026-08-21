@@ -3,9 +3,10 @@
 #define _POSIX_C_SOURCE 200809L
 
 #include "treeland-screensaver-desktop-v1.h"
+#include "server-bridge-api.h"
 #include "ext-idle-notify-v1-client-protocol.h"
-#include "protocol-test-client.h"
-#include "protocol-test-xdg-client.h"
+#include "client-connection.h"
+#include "xdg-toplevel-client.h"
 #include "treeland-screensaver-v1-client-protocol.h"
 
 #include <poll.h>
@@ -66,13 +67,13 @@ static int dispatch_for(struct wl_display *display, int milliseconds)
 static int read_state(struct screensaver_desktop_state *state)
 {
     memset(state, 0, sizeof(*state));
-    return protocol_test_invoke_server(screensaver_desktop_read_state, state);
+    return invoke_on_server_thread(screensaver_desktop_read_state, state);
 }
 
 int protocol_test_run(const char *socket_name)
 {
-    struct protocol_test_connection connection;
-    struct protocol_test_xdg_toplevel toplevel = { 0 };
+    struct client_connection connection;
+    struct xdg_toplevel_client toplevel = { 0 };
     struct treeland_screensaver_v1 *screensaver = NULL;
     struct ext_idle_notifier_v1 *idle_notifier = NULL;
     struct ext_idle_notification_v1 *notification = NULL;
@@ -81,17 +82,17 @@ int protocol_test_run(const char *socket_name)
     struct screensaver_desktop_state state = { 0 };
     int stage = 0;
 
-    if (!protocol_test_connect(&connection, socket_name))
+    if (!client_connect(&connection, socket_name))
         return 1;
-    screensaver = protocol_test_bind(&connection, "treeland_screensaver_v1",
+    screensaver = client_bind(&connection, "treeland_screensaver_v1",
                                      &treeland_screensaver_v1_interface, 1);
-    idle_notifier = protocol_test_bind(&connection, "ext_idle_notifier_v1",
+    idle_notifier = client_bind(&connection, "ext_idle_notifier_v1",
                                        &ext_idle_notifier_v1_interface, 1);
-    seat = protocol_test_bind(&connection, "wl_seat", &wl_seat_interface, 1);
+    seat = client_bind(&connection, "wl_seat", &wl_seat_interface, 1);
     if (!screensaver || !idle_notifier || !seat)
         goto failed;
     stage = 1;
-    if (!protocol_test_xdg_toplevel_create(&connection, &toplevel))
+    if (!xdg_toplevel_client_create(&connection, &toplevel))
         goto failed;
     stage = 2;
     if (!read_state(&state) || !state.wrapper_created || !state.wrapper_in_workspace
@@ -120,8 +121,8 @@ int protocol_test_run(const char *socket_name)
     ext_idle_notification_v1_destroy(notification);
     ext_idle_notifier_v1_destroy(idle_notifier);
     wl_seat_destroy(seat);
-    protocol_test_xdg_toplevel_destroy(&toplevel);
-    protocol_test_disconnect(&connection);
+    xdg_toplevel_client_destroy(&toplevel);
+    client_disconnect(&connection);
     return 0;
 
 failed:
@@ -132,7 +133,7 @@ failed:
     if (notification) ext_idle_notification_v1_destroy(notification);
     if (idle_notifier) ext_idle_notifier_v1_destroy(idle_notifier);
     if (seat) wl_seat_destroy(seat);
-    protocol_test_xdg_toplevel_destroy(&toplevel);
-    protocol_test_disconnect(&connection);
+    xdg_toplevel_client_destroy(&toplevel);
+    client_disconnect(&connection);
     return 1;
 }

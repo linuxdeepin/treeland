@@ -1,6 +1,7 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
-#include "protocol-test-client.h"
+#include "client-connection.h"
+#include "server-bridge-api.h"
 #include "treeland-prelaunch-splash-desktop-v2.h"
 #include "treeland-prelaunch-splash-v2-client-protocol.h"
 
@@ -23,7 +24,7 @@ static int state_has_production_splash(const struct prelaunch_splash_desktop_sta
 
 int protocol_test_run(const char *socket_name)
 {
-    struct protocol_test_connection connection;
+    struct client_connection connection;
     struct prelaunch_splash_desktop_state state = { 0 };
     struct treeland_prelaunch_splash_manager_v2 *manager = NULL;
     struct treeland_prelaunch_splash_v2 *splash = NULL;
@@ -31,9 +32,9 @@ int protocol_test_run(const char *socket_name)
     int destruction_observed = 0;
     int result = 1;
 
-    if (!protocol_test_connect(&connection, socket_name))
+    if (!client_connect(&connection, socket_name))
         goto done;
-    manager = protocol_test_bind(&connection,
+    manager = client_bind(&connection,
                                  "treeland_prelaunch_splash_manager_v2",
                                  &treeland_prelaunch_splash_manager_v2_interface,
                                  2);
@@ -43,10 +44,10 @@ int protocol_test_run(const char *socket_name)
     splash = treeland_prelaunch_splash_manager_v2_create_splash(
         manager, splash_app_id, "protocol-instance", "org.deepin.Sandbox", NULL);
     if (!splash || wl_display_roundtrip(connection.display) < 0
-        || !protocol_test_invoke_server(prelaunch_splash_desktop_wait_for_creation,
+        || !invoke_on_server_thread(prelaunch_splash_desktop_wait_for_creation,
                                         &creation_observed)
         || !creation_observed
-        || !protocol_test_invoke_server(prelaunch_splash_desktop_read_state, &state)
+        || !invoke_on_server_thread(prelaunch_splash_desktop_read_state, &state)
         || !state_has_production_splash(&state)) {
         goto done;
     }
@@ -54,10 +55,10 @@ int protocol_test_run(const char *socket_name)
     treeland_prelaunch_splash_v2_destroy(splash);
     splash = NULL;
     if (wl_display_roundtrip(connection.display) < 0
-        || !protocol_test_invoke_server(prelaunch_splash_desktop_wait_for_destruction,
+        || !invoke_on_server_thread(prelaunch_splash_desktop_wait_for_destruction,
                                         &destruction_observed)
         || !destruction_observed
-        || !protocol_test_invoke_server(prelaunch_splash_desktop_read_state, &state)
+        || !invoke_on_server_thread(prelaunch_splash_desktop_read_state, &state)
         || !state.wrapper_destroyed || state.wrapper_in_workspace) {
         goto done;
     }
@@ -82,6 +83,6 @@ done:
         treeland_prelaunch_splash_v2_destroy(splash);
     if (manager)
         treeland_prelaunch_splash_manager_v2_destroy(manager);
-    protocol_test_disconnect(&connection);
+    client_disconnect(&connection);
     return result;
 }

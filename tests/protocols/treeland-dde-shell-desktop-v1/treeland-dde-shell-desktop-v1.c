@@ -1,6 +1,7 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "treeland-dde-shell-desktop-v1.h"
+#include "server-bridge-api.h"
 #include "treeland-dde-shell-v1-client-protocol.h"
 
 #include <stdio.h>
@@ -48,25 +49,25 @@ static int state_matches(struct dde_desktop_state *state, int expected_skip_dock
 
 int protocol_test_run(const char *socket_name)
 {
-    struct protocol_test_connection connection;
-    struct protocol_test_xdg_toplevel toplevel = { 0 };
+    struct client_connection connection;
+    struct xdg_toplevel_client toplevel = { 0 };
     struct dde_desktop_client client = { 0 };
     struct dde_desktop_state state;
-    if (!protocol_test_connect(&connection, socket_name))
+    if (!client_connect(&connection, socket_name))
         return 1;
-    client.manager = protocol_test_bind(&connection,
+    client.manager = client_bind(&connection,
                                         "treeland_dde_shell_manager_v1",
                                         &treeland_dde_shell_manager_v1_interface,
                                         1);
     if (!client.manager
-        || !protocol_test_xdg_toplevel_create_with_surface_setup(&connection,
+        || !xdg_toplevel_client_create_with_surface_setup(&connection,
                                                                   &toplevel,
                                                                   setup_dde_surface,
                                                                   &client))
         goto failed;
 
     memset(&state, 0, sizeof(state));
-    if (!protocol_test_invoke_server(dde_desktop_read_state, &state)
+    if (!invoke_on_server_thread(dde_desktop_read_state, &state)
         || !state_matches(&state, 1))
         goto failed;
 
@@ -74,21 +75,21 @@ int protocol_test_run(const char *socket_name)
     if (wl_display_roundtrip(connection.display) < 0)
         goto failed;
     memset(&state, 0, sizeof(state));
-    if (!protocol_test_invoke_server(dde_desktop_read_state, &state)
+    if (!invoke_on_server_thread(dde_desktop_read_state, &state)
         || !state_matches(&state, 0))
         goto failed;
 
-    protocol_test_xdg_toplevel_destroy(&toplevel);
+    xdg_toplevel_client_destroy(&toplevel);
     treeland_dde_shell_surface_v1_destroy(client.shell_surface);
     treeland_dde_shell_manager_v1_destroy(client.manager);
-    protocol_test_disconnect(&connection);
+    client_disconnect(&connection);
     return 0;
 
 failed:
     fprintf(stderr, "DDE shell requests did not reach the production SurfaceWrapper\n");
-    protocol_test_xdg_toplevel_destroy(&toplevel);
+    xdg_toplevel_client_destroy(&toplevel);
     if (client.shell_surface) treeland_dde_shell_surface_v1_destroy(client.shell_surface);
     if (client.manager) treeland_dde_shell_manager_v1_destroy(client.manager);
-    protocol_test_disconnect(&connection);
+    client_disconnect(&connection);
     return 1;
 }

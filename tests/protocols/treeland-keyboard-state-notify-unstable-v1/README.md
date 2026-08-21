@@ -4,7 +4,7 @@
 
 - XML / interface：`treeland_keyboard_state_notify_manager_v1` / `treeland_keyboard_state_watcher_v1`
 - 测试源码：`tests/protocols/treeland-keyboard-state-notify-unstable-v1/`
-- Fixture：desktop integration fixture（`protocol_test_desktop_setup` 创建 headless output）
+- Fixture：desktop integration fixture（`protocol_test_setup` 创建 headless output）
 - 覆盖等级：**P**。
 
 ## 必须观察到的结果
