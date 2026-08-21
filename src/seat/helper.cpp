@@ -2149,6 +2149,8 @@ void Helper::init(Treeland::Treeland *treeland)
     m_idleInhibitManager = wlr_idle_inhibit_v1_create(m_server->handle());
     listeners()->add(&m_idleInhibitManager->events.new_inhibitor, this, &Helper::onNewIdleInhibitor);
 
+    m_launchAnimationManagerV1 = m_server->attach<LaunchAnimationManagerInterfaceV1>();
+
     m_activationManagerV1 = m_server->attach<ActivationManagerInterfaceV1>(
         [this](WSurface *surface, WSeat *seat) -> bool {
             // Determine whether the surface can transfer activation for the same seat
@@ -2176,26 +2178,75 @@ void Helper::init(Treeland::Treeland *treeland)
 
             return false;
         });
+    m_activationManagerV1->setLaunchRectProvider(
+        [this](wl_resource *tokenResource) -> std::optional<QRectF> {
+            if (!m_launchAnimationManagerV1)
+                return std::nullopt;
+            return m_launchAnimationManagerV1->takeCommittedRect(tokenResource);
+        });
     connect(m_activationManagerV1,
             &ActivationManagerInterfaceV1::activateRequested,
             this,
-            [this](ActivationManagerInterfaceV1::TokenDisposition disposition, WSurface *wsurface, WSeat *seat) {
+            [this](ActivationManagerInterfaceV1::TokenDisposition disposition,
+                   WSurface *wsurface,
+                   WSeat *seat,
+                   WSurface *originatingSurface,
+                   QRectF launchRect) {
                 auto wrapper = m_rootSurfaceContainer->getSurface(wsurface);
                 if (!wrapper) {
                     qCWarning(lcTlCore) << "Activation request for unknown surface!";
                     return;
                 }
-                // Don't use hasActiveCapability() here — it also checks UnMinimized,
-                // but minimized windows should be allowed to activate (which unminimizes them).
+                // Compute the global launch rect from the originating surface position.
+                // The rect is only stored when the target surface is not yet mapped; if it
+                // is already mapped, the activation arrived after first map (a client
+                // timing violation) and the compositor discards the rect without playing
+                // any launch animation. Activation/focus itself is unaffected.
+                if (launchRect.isValid() && originatingSurface) {
+                    if (wsurface->mapped()) {
+                        qCWarning(lcTlCore) << "Launch animation rect discarded: target surface"
+                                            << "is already mapped (client activation arrived too late)";
+                    } else {
+                        auto *originWrapper = m_rootSurfaceContainer->getSurface(originatingSurface);
+                        if (originWrapper) {
+                            // launchRect is in surface-local coordinates (relative to the
+                            // originating WSurface content), but originWrapper->position() is
+                            // the outer wrapper position. The surface content is offset within
+                            // the wrapper by the title bar / decoration padding, so map the
+                            // rect through the surface item before converting to global space.
+                            WSurfaceItem *surfItem = originWrapper->surfaceItem();
+                            if (!surfItem) {
+                                qCWarning(lcTlCore) << "Launch animation: originating surface has no"
+                                                    << "surface item, skipping rect mapping";
+                            } else {
+                                const QPointF mappedTopLeft = surfItem->mapFromSurface(launchRect.topLeft());
+                                const QRectF globalRect(originWrapper->position() + mappedTopLeft,
+                                                        launchRect.size());
+                                wrapper->setLaunchAnimationRect(globalRect);
+                            }
+                        } else {
+                            qCWarning(lcTlCore) << "Launch animation: originating surface wrapper"
+                                                << "not found, skipping";
+                        }
+                    }
+                }
+
                 if (!wsurface->mapped()) {
-                    qCWarning(lcTlCore) << "Activation request for unmapped surface!";
+                    // Surface not yet mapped; the launch rect (if any) was stored on the
+                    // wrapper and will be used when the surface maps. Defer activation.
+                    if (disposition == ActivationManagerInterfaceV1::TokenDisposition::Attention)
+                        wrapper->setAttention(true);
                     return;
                 }
+
+                // Don't use hasActiveCapability() here — it also checks UnMinimized,
+                // but minimized windows should be allowed to activate (which unminimizes them).
                 if (!wrapper->hasInitializeContainer()) {
                     qCWarning(lcTlCore) << "Activation request for surface without initialized container:"
                                        << "container =" << wrapper->container();
                     return;
                 }
+
                 switch (disposition) {
                 case ActivationManagerInterfaceV1::TokenDisposition::Active:
                     forceActivateSurface(wrapper, Qt::OtherFocusReason, seat);

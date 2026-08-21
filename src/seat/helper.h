@@ -6,6 +6,7 @@
 #include <wlr_fwd.h>
 #include "core/qmlengine.h"
 #include "modules/activation/activationmanagerinterfacev1.h"
+#include "modules/launch-animation/launchanimationmanagerinterfacev1.h"
 #include "modules/shortcut/shortcutmanager.h"
 #include "modules/virtual-output/virtualoutputmanagerinterfacev1.h"
 #include "modules/wallpaper/wallpapermanagerinterfacev1.h"
@@ -451,6 +452,7 @@ private:
     };
     std::vector<SeatDragEntry> seatDragEntries;
     ActivationManagerInterfaceV1 *m_activationManagerV1 = nullptr;
+    LaunchAnimationManagerInterfaceV1 *m_launchAnimationManagerV1 = nullptr;
     ShellHandler *m_shellHandler = nullptr;
     WXdgDecorationManager *m_xdgDecorationManager = nullptr;
     WXdgDialogManagerV1 *m_xdgDialogManagerV1 = nullptr;

@@ -1,0 +1,109 @@
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
+// SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+
+import QtQuick
+import Treeland
+import Waylib.Server
+import QtQuick.Effects
+
+Item {
+    id: root
+
+    required property SurfaceWrapper surface
+    required property rect fromGeometry
+    required property rect toGeometry
+    property int duration: 200 * Helper.animationSpeed
+    property var enableBlur: false
+
+    signal ready
+    signal finished
+
+    x: fromGeometry.x
+    y: fromGeometry.y
+    width: fromGeometry.width
+    height: fromGeometry.height
+
+    function start() {
+        animation.start();
+    }
+
+    XdgShadow {
+        anchors.fill: parent
+        visible: surface.visibleDecoration && !surface.noDecoration
+        cornerRadius: surface.radius
+    }
+
+    Loader {
+        active: root.enableBlur
+        anchors.fill: parent
+        sourceComponent: Blur {
+            anchors.fill: parent
+            radius: surface.radius
+        }
+    }
+
+    ShaderEffectSource {
+        id: backgroundEffect
+
+        readonly property real xScale: root.width / surface.width
+        readonly property real yScale: root.height / surface.height
+
+        live: true
+        sourceItem: surface
+        hideSource: true
+        sourceRect: surface.boundingRect
+        width: sourceRect.width * xScale
+        height: sourceRect.height * yScale
+        x: sourceRect.x * xScale
+        y: sourceRect.y * yScale
+    }
+
+    ParallelAnimation {
+        id: animation
+
+        XAnimator {
+            target: root
+            duration: root.duration
+            easing.type: Easing.OutCubic
+            from: root.fromGeometry.x
+            to: root.toGeometry.x
+        }
+
+        YAnimator {
+            target: root
+            duration: root.duration
+            easing.type: Easing.OutCubic
+            from: root.fromGeometry.y
+            to: root.toGeometry.y
+        }
+
+        PropertyAnimation {
+            target: root
+            property: "width"
+            duration: root.duration
+            easing.type: Easing.OutCubic
+            from: root.fromGeometry.width
+            to: root.toGeometry.width
+        }
+
+        PropertyAnimation {
+            target: root
+            property: "height"
+            duration: root.duration
+            easing.type: Easing.OutCubic
+            from: root.fromGeometry.height
+            to: root.toGeometry.height
+        }
+
+        onFinished: {
+            // Defer the signal emission to avoid deleting animation objects in the same callback stack.
+            Qt.callLater(function() {
+                root.finished();
+            })
+        }
+    }
+
+    Component.onCompleted: {
+        root.ready();
+    }
+}

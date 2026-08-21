@@ -251,6 +251,7 @@ qt_add_qml_module(libtreeland
         core/qml/WorkspaceProxy.qml
         core/qml/FpsDisplay.qml
         core/qml/Animations/GeometryAnimation.qml
+        core/qml/Animations/LaunchAnimation.qml
         core/qml/Animations/NewAnimation.qml
         core/qml/Animations/MinimizeAnimation.qml
         core/qml/Animations/ShowDesktopAnimation.qml

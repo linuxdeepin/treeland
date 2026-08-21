@@ -291,6 +291,7 @@ public:
     bool hasInitializeContainer() const;
     void setHasInitializeContainer(bool value);
     void disableWindowAnimation(bool disable = true);
+    void setLaunchAnimationRect(const QRectF &rect);
     void setHideByShowDesk(bool show);
     void setHideByLockScreen(bool hide);
 
@@ -406,6 +407,7 @@ private:
     void updateClipRect();
     void geometryChange(const QRectF &newGeo, const QRectF &oldGeometry) override;
     void createNewOrClose(uint direction);
+    void startLaunchAnimation();
     void itemChange(ItemChange change, const ItemChangeData &data) override;
 
     QRectF targetGeometryForState(State state) const;
@@ -423,6 +425,7 @@ private:
     void onWindowAnimationFinished();
     Q_SLOT void onShowAnimationFinished();
     Q_SLOT void onHideAnimationFinished();
+    Q_SLOT void onLaunchAnimationFinished();
     void updateExplicitAlwaysOnTop();
     void updateSizeCapabilities();
     void setModal(bool modal);
@@ -518,6 +521,8 @@ private:
 
     bool m_socketEnabled{ false };
     bool m_windowAnimationEnabled{ true };
+    QRectF m_launchAnimationRect; // global-space source rect for launch animation
+    bool m_launchAnimationPending{ false }; // true while waiting for surfaceItem ready before launch animation
     const QString m_appId;
 };
 
