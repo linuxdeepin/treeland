@@ -67,6 +67,17 @@
             "description[zh_CN]": "闪屏使用亮色主题时的背景色",
             "permissions": "readwrite",
             "visibility": "public"
+        },
+        "prelaunchSplashMismatchCount": {
+            "value": 0,
+            "serial": 0,
+            "flags": [],
+            "name": "Prelaunch Splash Mismatch Count",
+            "name[zh_CN]": "预启动闪屏不匹配次数",
+            "description": "Consecutive splash match failure count for this app, persisted across restarts; reset to 0 on a successful match, and also reset to 0 when the count reaches the threshold and splash is auto-disabled. 0 means no failure recorded.",
+            "description[zh_CN]": "该应用连续闪屏匹配失败次数，持久化保存（重启后保留）；匹配成功时重置为0，达到阈值自动禁用闪屏时同样重置为0。0 表示无失败记录。",
+            "permissions": "readwrite",
+            "visibility": "private"
         }
     }
 }

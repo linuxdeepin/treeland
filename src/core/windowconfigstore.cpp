@@ -5,6 +5,7 @@
 
 #include "dconfig/dconfigmanager.h"
 #include "appconfig.hpp"
+#include "treelandconfig.hpp"
 #include "common/treelandlogging.h"
 
 #include <QPointer>
@@ -127,4 +128,58 @@ void WindowConfigStore::withSplashConfigFor(const QString &appId,
             skipCallback();
         },
         Qt::SingleShotConnection);
+}
+
+void WindowConfigStore::recordSplashMismatch(const QString &appId)
+{
+    if (appId.isEmpty()) {
+        return;
+    }
+
+    auto *globalConfig = DConfigManager::instance()->globalConfig();
+    Q_ASSERT(globalConfig);
+    const int maxMismatchCount =
+        static_cast<int>(globalConfig->prelaunchSplashMaxMismatchCount());
+    if (maxMismatchCount <= 0) {
+        return;
+    }
+
+    auto *config = configForApp(appId);
+    if (!config || !config->isInitializeSucceeded()) {
+        qCWarning(lcTlCore) << "WindowConfigStore: recordSplashMismatch skipped, config "
+                               "unavailable or not initialized for"
+                            << appId;
+        return;
+    }
+
+    int count = static_cast<int>(config->prelaunchSplashMismatchCount()) + 1;
+    config->setPrelaunchSplashMismatchCount(count);
+    qCInfo(lcTlCore) << "WindowConfigStore: splash mismatch count for" << appId << "is now"
+                     << count;
+    if (count >= maxMismatchCount) {
+        config->setEnablePrelaunchSplash(false);
+        config->setPrelaunchSplashMismatchCount(0);
+        qCWarning(lcTlCore) << "WindowConfigStore: auto-disabled prelaunch splash for" << appId
+                            << "after" << count << "consecutive mismatches";
+    }
+}
+
+void WindowConfigStore::resetSplashMismatchCount(const QString &appId)
+{
+    if (appId.isEmpty()) {
+        return;
+    }
+
+    auto *config = configForApp(appId);
+    if (!config || !config->isInitializeSucceeded()) {
+        qCWarning(lcTlCore) << "WindowConfigStore: resetSplashMismatchCount skipped, config "
+                               "unavailable or not initialized for"
+                            << appId;
+        return;
+    }
+
+    if (config->prelaunchSplashMismatchCount() != 0) {
+        config->setPrelaunchSplashMismatchCount(0);
+        qCDebug(lcTlCore) << "WindowConfigStore: reset splash mismatch count for" << appId;
+    }
 }
