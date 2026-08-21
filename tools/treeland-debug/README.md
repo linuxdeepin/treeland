@@ -101,7 +101,6 @@ sudo -u dde -- treeland-debug maximize 93824992268800
 | Command | Description |
 | --- | --- |
 | `move-cursor <x> <y>` | Move the cursor to `(x, y)`. |
-| `event motion <x> <y>` | Move the cursor to `(x, y)`. |
 | `event button <btn> [press\|release\|click]` | Send a pointer button; `btn` = `left\|right\|middle\|<code>` (default `click`). |
 | `event key <key> [press\|release\|tap]` | Send a keyboard event; `key` = name or raw Linux evdev keycode (default `tap`). |
 
@@ -189,7 +188,6 @@ OPTIONS preflight is handled, so a browser frontend can call the API directly.
 | POST | `/api/resize` | `{"target":"...","width":N,"height":N}` | Resize window |
 | POST | `/api/workspace` | `{"target":"...","workspaceId":N}` | Move to workspace |
 | POST | `/api/move-cursor` | `{"x":N,"y":N}` | Move cursor |
-| POST | `/api/event/motion` | `{"x":N,"y":N}` | Pointer motion |
 | POST | `/api/event/button` | `{"button":"...","action":"..."}` | Pointer button |
 | POST | `/api/event/key` | `{"key":"...","action":"..."}` | Key event |
 

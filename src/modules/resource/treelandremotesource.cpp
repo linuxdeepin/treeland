@@ -83,7 +83,15 @@ bool grabToImage(WTextureProviderProvider *provider, QImage *out)
     loop.exec();
     if (!watcher.isFinished())
         return false;
-    *out = watcher.result();
+    // QFutureWatcher::result() rethrows any exception stored by the future
+    // (WTextureCapturer::doGrabToImage sets std::runtime_error on GPU failure).
+    // Without this guard the exception propagates on the compositor main thread
+    // and crashes Treeland. See PR #1280 review (2026-08-18).
+    try {
+        *out = watcher.result();
+    } catch (...) {
+        return false;
+    }
     return !out->isNull();
 }
 

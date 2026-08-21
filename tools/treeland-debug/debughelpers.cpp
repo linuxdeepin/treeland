@@ -249,24 +249,13 @@ ParseResult parseCommand(const QString &command, const QStringList &args)
         return r;
     }
 
-    // ---- event motion|button|key ... ----
+    // ---- event button|key ... ----
     if (command == QLatin1String("event")) {
         if (args.isEmpty()) {
-            r.error = QStringLiteral("event: usage: event motion|button|key ...");
+            r.error = QStringLiteral("event: usage: event button|key ...");
             return r;
         }
         const QString sub = args[0];
-        if (sub == QLatin1String("motion")) {
-            if (args.size() < 3) {
-                r.error = QStringLiteral("event motion: usage: event motion <x> <y>");
-                return r;
-            }
-            r.ok = true;
-            r.command = DebugCommand::EventMotion;
-            r.dx = args[1].toDouble();
-            r.dy = args[2].toDouble();
-            return r;
-        }
         if (sub == QLatin1String("button")) {
             if (args.size() < 2) {
                 r.error = QStringLiteral(

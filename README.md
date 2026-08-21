@@ -133,7 +133,6 @@ used).
 | Command | Arguments | Output |
 | --- | --- | --- |
 | `move-cursor` | `<x> <y>` | `ok` / `failed`. |
-| `event motion` | `<x> <y>` | `ok` / `failed`. |
 | `event button` | `<left\|right\|middle\|code> [press\|release\|click]` | `ok` / `failed` (default `click`). |
 | `event key` | `<name\|evdev-code> [press\|release\|tap]` | `ok` / `failed` (default `tap`). |
 

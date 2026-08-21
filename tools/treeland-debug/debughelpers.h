@@ -48,7 +48,6 @@ enum class DebugCommand {
     Resize,
     Workspace,
     MoveCursor,
-    EventMotion,
     EventButton,
     EventKey,
     ScreenshotOutput,
@@ -82,7 +81,7 @@ struct ParseResult
     int height = 0;
     int workspaceId = 0;
 
-    // Floating-point coordinates for move-cursor / event motion.
+    // Floating-point coordinates for move-cursor.
     double dx = 0.0;
     double dy = 0.0;
 

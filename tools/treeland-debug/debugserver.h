@@ -59,7 +59,6 @@ private:
 
     // --- HTTP route handlers (input / events) ---
     QJsonObject handleMoveCursor(const QHttpServerRequest &request);
-    QJsonObject handleEventMotion(const QHttpServerRequest &request);
     QJsonObject handleEventButton(const QHttpServerRequest &request);
     QJsonObject handleEventKey(const QHttpServerRequest &request);
     QJsonObject handleEvents(const QHttpServerRequest &request);

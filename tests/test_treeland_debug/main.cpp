@@ -77,8 +77,6 @@ private Q_SLOTS:
     // --- parseCommand: event ---
     void testParseEventNoSub();
     void testParseEventUnknownSub();
-    void testParseEventMotionTooFewArgs();
-    void testParseEventMotion();
     void testParseEventButtonTooFewArgs();
     void testParseEventButtonUnknown();
     void testParseEventButtonNamed();
@@ -515,14 +513,14 @@ void TreelandDebugTest::testParseMoveCursorNegative()
 }
 
 // ---------------------------------------------------------------------------
-// parseCommand: event motion|button|key
+// parseCommand: event button|key
 // ---------------------------------------------------------------------------
 
 void TreelandDebugTest::testParseEventNoSub()
 {
     const auto r = parseCommand(QStringLiteral("event"), {});
     QVERIFY(!r.ok);
-    QCOMPARE(r.error, QStringLiteral("event: usage: event motion|button|key ..."));
+    QCOMPARE(r.error, QStringLiteral("event: usage: event button|key ..."));
 }
 
 void TreelandDebugTest::testParseEventUnknownSub()
@@ -530,23 +528,6 @@ void TreelandDebugTest::testParseEventUnknownSub()
     const auto r = parseCommand(QStringLiteral("event"), { QStringLiteral("foobar") });
     QVERIFY(!r.ok);
     QCOMPARE(r.error, QStringLiteral("event: unknown subcommand 'foobar'"));
-}
-
-void TreelandDebugTest::testParseEventMotionTooFewArgs()
-{
-    const auto r = parseCommand(QStringLiteral("event"), { QStringLiteral("motion"), QStringLiteral("5") });
-    QVERIFY(!r.ok);
-    QCOMPARE(r.error, QStringLiteral("event motion: usage: event motion <x> <y>"));
-}
-
-void TreelandDebugTest::testParseEventMotion()
-{
-    const auto r = parseCommand(QStringLiteral("event"),
-                                { QStringLiteral("motion"), QStringLiteral("3.5"), QStringLiteral("9.0") });
-    QVERIFY(r.ok);
-    QCOMPARE(r.command, DebugCommand::EventMotion);
-    QCOMPARE(r.dx, 3.5);
-    QCOMPARE(r.dy, 9.0);
 }
 
 void TreelandDebugTest::testParseEventButtonTooFewArgs()

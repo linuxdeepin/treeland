@@ -127,7 +127,6 @@ sudo -u dde -- dde-dconfig set \
 | 命令 | 参数 | 输出 |
 | --- | --- | --- |
 | `move-cursor` | `<x> <y>` | `ok` / `failed`。 |
-| `event motion` | `<x> <y>` | `ok` / `failed`。 |
 | `event button` | `<left\|right\|middle\|code> [press\|release\|click]` | `ok` / `failed`（默认 `click`）。 |
 | `event key` | `<name\|evdev-code> [press\|release\|tap]` | `ok` / `failed`（默认 `tap`）。 |
 

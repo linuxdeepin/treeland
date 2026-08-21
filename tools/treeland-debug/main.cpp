@@ -304,7 +304,6 @@ QString helpText()
         "\n"
         "Input / event injection:\n"
         "  move-cursor <x> <y>        Move the cursor to (x, y)\n"
-        "  event motion <x> <y>       Move the cursor to (x, y)\n"
         "  event button <btn> [act]   Send a pointer button; btn = left|right|middle|<code>,\n"
         "                             act = press|release|click (default click)\n"
         "  event key <key> [act]      Send a keyboard event; key = name|<evdev-code>,\n"
@@ -580,13 +579,6 @@ static int runCommand(Session &session, int timeoutMs, bool json, int previewOpt
         return result ? EXIT_SUCCESS : EXIT_FAILURE;
     }
     // ---- event injection ----
-    case DebugCommand::EventMotion: {
-        bool result = false;
-        if (!waitSlot(replica->moveCursor(QPointF(parsed.dx, parsed.dy)), timeoutMs, &result))
-            return fail("moveCursor() failed");
-        QTextStream(stdout) << (result ? "ok" : "failed") << Qt::endl;
-        return result ? EXIT_SUCCESS : EXIT_FAILURE;
-    }
     case DebugCommand::EventButton: {
         bool result = false;
         const int code = parsed.code;

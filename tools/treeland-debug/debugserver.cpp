@@ -139,10 +139,6 @@ bool DebugServer::listen(const QString &host, int port)
                        [this](const QHttpServerRequest &request) {
         return jsonCorsResponse(handleMoveCursor(request));
     });
-    m_httpServer.route("/api/event/motion", QHttpServerRequest::Method::Post,
-                       [this](const QHttpServerRequest &request) {
-        return jsonCorsResponse(handleEventMotion(request));
-    });
     m_httpServer.route("/api/event/button", QHttpServerRequest::Method::Post,
                        [this](const QHttpServerRequest &request) {
         return jsonCorsResponse(handleEventButton(request));
@@ -385,21 +381,6 @@ QJsonObject DebugServer::handleWorkspace(const QHttpServerRequest &request)
 // --- Input / event handlers ---
 
 QJsonObject DebugServer::handleMoveCursor(const QHttpServerRequest &request)
-{
-    const auto body = QJsonDocument::fromJson(request.body()).object();
-    if (!body.contains("x") || !body.contains("y"))
-        return {{"ok", false}, {"error", "missing 'x' or 'y'"}};
-    const double x = body.value("x").toDouble();
-    const double y = body.value("y").toDouble();
-    return sessionRequest([this, x, y](Session &session) {
-        bool result = false;
-        if (!waitSlot(session.replica->moveCursor(QPointF(x, y)), m_timeoutMs, &result))
-            return QJsonObject{{"ok", false}, {"error", "moveCursor() failed"}};
-        return QJsonObject{{"ok", true}, {"data", result}};
-    });
-}
-
-QJsonObject DebugServer::handleEventMotion(const QHttpServerRequest &request)
 {
     const auto body = QJsonDocument::fromJson(request.body()).object();
     if (!body.contains("x") || !body.contains("y"))
@@ -676,7 +657,7 @@ void DebugServer::handleWebSocketMessage(QWebSocket *socket, const QString &mess
             }
             return QJsonObject{{"ok", true}, {"data", res}};
         });
-    } else if (command == "move-cursor" || command == "event-motion") {
+    } else if (command == "move-cursor") {
         const double x = obj.value("x").toDouble();
         const double y = obj.value("y").toDouble();
         result = sessionRequest([this, x, y](Session &session) {
