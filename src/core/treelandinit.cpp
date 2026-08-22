@@ -6,7 +6,6 @@
 #include <QGuiApplication>
 #include <QPalette>
 #include <QQuickStyle>
-#include <memory>
 #include <wrenderhelper.h>
 #include <wlogging.h>
 #include <wbackend.h>
@@ -28,8 +27,6 @@ DCORE_USE_NAMESPACE
 namespace Treeland {
 
 namespace {
-std::unique_ptr<QGuiApplication> application;
-
 class QDeepinTheme : public QGenericUnixTheme
 {
 public:
@@ -44,7 +41,7 @@ public:
 };
 }
 
-void preInit(int &argc, char *argv[])
+std::unique_ptr<QGuiApplication> preInit(int &argc, char *argv[])
 {
     WLog::init();
     DTK_GUI_NAMESPACE::DGuiApplicationHelper::setAttribute(
@@ -57,9 +54,10 @@ void preInit(int &argc, char *argv[])
     QGuiApplication::setQuitOnLastWindowClosed(false);
     QQuickStyle::setStyle("Chameleon");
 
-    application = std::make_unique<QGuiApplication>(argc, argv);
+    auto application = std::make_unique<QGuiApplication>(argc, argv);
     application->setOrganizationName("deepin");
     application->setApplicationName("treeland");
+    return application;
 }
 
 void initTestServer(WServer *server)
