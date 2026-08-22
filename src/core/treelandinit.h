@@ -4,12 +4,16 @@
 #pragma once
 #include <wglobal.h>
 
+#include <memory>
+
+class QGuiApplication;
+
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WServer;
 WAYLIB_SERVER_END_NAMESPACE
 
 namespace Treeland {
-void preInit(int &argc, char *argv[]);
+std::unique_ptr<QGuiApplication> preInit(int &argc, char *argv[]);
 void postInit();
 void initTestServer(WAYLIB_SERVER_NAMESPACE::WServer *server);
 }

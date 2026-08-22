@@ -163,7 +163,7 @@ int main(int argc, char *argv[])
         dconfigService.stop();
         return 1;
     }
-    Treeland::preInit(argc, argv);
+    auto application = Treeland::preInit(argc, argv);
     Treeland::postInit();
     if (!dconfigService.waitForService()) {
         dconfigService.stop();

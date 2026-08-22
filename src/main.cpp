@@ -14,7 +14,7 @@
 
 int main(int argc, char *argv[])
 {
-    Treeland::preInit(argc, argv);
+    auto application = Treeland::preInit(argc, argv);
 
 #ifdef QT_DEBUG
     DLogManager::registerConsoleAppender();
