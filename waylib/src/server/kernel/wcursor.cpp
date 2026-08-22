@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include <QDebug>
+
 #include "wscoplistener.h"
 #include <QCursor>
 #include <memory>
+#include <cmath>
 #include "private/wprivateaccessor_p.h"
 
 #include "wcursor.h"
@@ -799,7 +801,7 @@ void WCursor::warpToActiveConstraintHint()
         return;
 
     wlr_seat *wlrSeat = d->seat ? d->seat->handle() : nullptr;
-    if (!wlrSeat)
+    if (!wlrSeat || wlrSeat->pointer_state.focused_surface != constraint->surface)
         return;
 
     if (!constraint->current.cursor_hint.enabled)
@@ -807,14 +809,20 @@ void WCursor::warpToActiveConstraintHint()
 
     // Convert the surface-local cursor_hint to global coordinates by
     // computing the offset from the current surface-local pointer position
-    // and applying it on top of the current cursor position. This matches
-    // the same geometry used in updateLockedWarpTarget() and follows
+    // and applying it on top of the current cursor position. This matches the
+    // same geometry used in updateLockedWarpTarget() and follows
     // Sway's warp_to_constraint_cursor_hint().
     const double sx = wlrSeat->pointer_state.sx;
     const double sy = wlrSeat->pointer_state.sy;
-    const QPointF globalPos = position()
-        + QPointF(constraint->current.cursor_hint.x - sx,
-                  constraint->current.cursor_hint.y - sy);
+    const double hintX = constraint->current.cursor_hint.x;
+    const double hintY = constraint->current.cursor_hint.y;
+    if (!std::isfinite(sx) || !std::isfinite(sy) || !std::isfinite(hintX) || !std::isfinite(hintY))
+        return;
+
+    const QPointF globalPos = position() + QPointF(hintX - sx, hintY - sy);
+    if (!std::isfinite(globalPos.x()) || !std::isfinite(globalPos.y()))
+        return;
+
     setPosition(nullptr, globalPos);
     wlr_seat_pointer_warp(wlrSeat,
                           constraint->current.cursor_hint.x,
