@@ -799,7 +799,9 @@ void WCursor::warpToActiveConstraintHint()
         return;
 
     wlr_seat *wlrSeat = d->seat ? d->seat->handle() : nullptr;
-    if (!wlrSeat)
+    // Focus already left this surface (cleared or moved elsewhere) —
+    // the surface-local -> global conversion is meaningless.
+    if (!wlrSeat || wlrSeat->pointer_state.focused_surface != constraint->surface)
         return;
 
     if (!constraint->current.cursor_hint.enabled)
@@ -815,6 +817,11 @@ void WCursor::warpToActiveConstraintHint()
     const QPointF globalPos = position()
         + QPointF(constraint->current.cursor_hint.x - sx,
                   constraint->current.cursor_hint.y - sy);
+    if (!qIsFinite(globalPos.x()) || !qIsFinite(globalPos.y())) {
+        qCWarning(lcWlCursor) << "warpToActiveConstraintHint: computed position is"
+                             << "not finite (" << globalPos << "), skipping warp";
+        return;
+    }
     setPosition(nullptr, globalPos);
     wlr_seat_pointer_warp(wlrSeat,
                           constraint->current.cursor_hint.x,
