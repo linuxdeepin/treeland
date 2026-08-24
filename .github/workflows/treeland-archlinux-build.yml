@@ -29,7 +29,9 @@ jobs:
       - name: Install Qt6 dependencies
         run: |
           # Qt6 dependencies matching waylib builds
-          pacman -S --noconfirm --noprogressbar qt6-base qt6-declarative qt6-wayland qt6-tools qt6-remoteobjects
+          # qt6-httpserver & qt6-websockets are required by treeland-debug's
+          # `listen` HTTP/WebSocket server (hard build-time dependency)
+          pacman -S --noconfirm --noprogressbar qt6-base qt6-declarative qt6-wayland qt6-tools qt6-remoteobjects qt6-httpserver qt6-websockets
 
       - name: Install graphics and wayland dependencies
         run: |
