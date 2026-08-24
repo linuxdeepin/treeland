@@ -41,6 +41,7 @@
 #include "modules/ddm/ddminterfacev1.h"
 #include "modules/input-manager/inputmanagerinterfacev1.h"
 #include "modules/keyboard-state-notify/keyboardstatenotifymanagerinterfacev1.h"
+#include "modules/keyboard-shortcuts-inhibit/keyboardshortcutsinhibitmanager.h"
 #include "modules/output-manager/outputmanagement.h"
 #include "modules/personalization/personalizationmanagerinterfacev1.h"
 #include "modules/resource/treelandremotesource.h"
@@ -2277,6 +2278,7 @@ void Helper::init(Treeland::Treeland *treeland)
             &InputManager::onKeyboardSettingsCreated);
 
     m_keyboardStateNotifyManagerInterfaceV1 = m_server->attach<TreelandKeyboardStateNotifyManagerInterfaceV1>();
+    m_keyboardShortcutsInhibitManagerV1 = m_server->attach<KeyboardShortcutsInhibitManagerV1>();
 
 #if TREELANDCONFIG_DCONFIG_FILE_VERSION_MINOR > 0
     if (m_globalConfig->isInitializeSucceeded()) {
@@ -2457,6 +2459,8 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *targetWindow, QInputEvent 
 
                 qCWarning(lcTlCore) << "Ctrl+Alt+Fn VT shortcut requested" << vtnr;
                 wlr_session_change_vt(m_backend->session(), vtnr);
+                if (m_keyboardShortcutsInhibitManagerV1)
+                    m_keyboardShortcutsInhibitManagerV1->deactivateActiveInhibitor(seat->handle());
                 return true;
             }
         }
@@ -2597,6 +2601,13 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *targetWindow, QInputEvent 
                    || event->type() == QEvent::TouchEnd) {
             m_rootSurfaceContainer->endMoveResizeForSeat(seat);
         }
+    }
+
+    // Suppress compositor shortcuts when a keyboard shortcuts inhibitor is active
+    if (m_keyboardShortcutsInhibitManagerV1) {
+        auto *focusSurface = seat->keyboardFocusSurface();
+        if (focusSurface && m_keyboardShortcutsInhibitManagerV1->isInhibited(seat->handle(), focusSurface->handle()))
+            return false;
     }
 
     // Capture mode: intercept key events before dispatchKeyEvent

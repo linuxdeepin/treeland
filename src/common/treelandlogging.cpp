@@ -19,6 +19,7 @@ Q_LOGGING_CATEGORY(lcTlInput, "treeland.input")
 Q_LOGGING_CATEGORY(lcTlInputManager, "treeland.input.manager")
 Q_LOGGING_CATEGORY(lcTlGestures, "treeland.input.gestures")
 Q_LOGGING_CATEGORY(lcTlKeyboardNotify, "treeland.input.keyboard.state.notify")
+Q_LOGGING_CATEGORY(lcTlKeyboardShortcutsInhibit, "treeland.input.keyboard.shortcuts.inhibit")
 
 // Seat management
 Q_LOGGING_CATEGORY(lcTlSeat, "treeland.seat")
