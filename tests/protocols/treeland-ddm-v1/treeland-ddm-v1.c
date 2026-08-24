@@ -183,7 +183,6 @@ static int is_connected_false_after_all_clients_gone(struct test_ctx *ctx)
     ctx->display = NULL;
     client_disconnect(&ctx->aux);
 
-
     if (!client_connect(&ctx->checker, ctx->socket_name))
         return 0;
     const int connected = check_is_connected(ctx);

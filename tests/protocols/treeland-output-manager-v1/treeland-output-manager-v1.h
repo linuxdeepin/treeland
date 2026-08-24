@@ -23,21 +23,16 @@ struct test_ctx {
     struct client_connection connection;
     struct wl_display    *display;
 
-
     struct wl_output *output;
-
 
     struct treeland_output_manager_v1        *manager;
     struct treeland_output_color_control_v1  *color_control;
 
-
     const char *socket_name;
-
 
     int         primary_output_received;
     int         primary_output_count;
     char        primary_output_name[128];
-
 
     struct test_result *results;
     int                 result_count;

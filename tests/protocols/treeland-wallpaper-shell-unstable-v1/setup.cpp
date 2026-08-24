@@ -41,7 +41,6 @@ void protocol_test_setup(Helper *helper)
                      });
 }
 
-
 extern "C" {
 
 void wallpaper_emit_play(void *)

@@ -119,7 +119,6 @@ static int server_inhibited_after_uninhibit(struct test_ctx *ctx)
     return inhibited == 0;
 }
 
-
 static int expect_protocol_error(struct test_ctx *ctx, struct wl_display *display,
                                  uint32_t expected_code)
 {

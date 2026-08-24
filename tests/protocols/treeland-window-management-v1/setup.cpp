@@ -18,9 +18,6 @@ void protocol_test_setup(Helper *helper)
     g_windowManagement = find_server_interface<WindowManagementInterfaceV1>(helper);
 }
 
-
-
-
 extern "C" void window_management_get_desktop_state(void *data)
 {
     uint32_t *out = static_cast<uint32_t *>(data);
@@ -28,7 +25,6 @@ extern "C" void window_management_get_desktop_state(void *data)
                ? static_cast<uint32_t>(g_windowManagement->desktopState())
                : UINT32_MAX;
 }
-
 
 extern "C" void window_management_set_desktop_state(void *data)
 {

@@ -107,14 +107,12 @@ static int output_bound(struct test_ctx *ctx)
     return ctx->output != NULL;
 }
 
-
 static int primary_output_event_received(struct test_ctx *ctx)
 {
     wl_display_roundtrip(ctx->display);
     return ctx->primary_output_received && ctx->primary_output_count == 1
         && ctx->primary_output_name[0] != '\0';
 }
-
 
 static int set_primary_output_unknown(struct test_ctx *ctx)
 {
@@ -124,7 +122,6 @@ static int set_primary_output_unknown(struct test_ctx *ctx)
         return 0;
     return ctx->primary_output_count == before;
 }
-
 
 static int get_color_control_valid_output(struct test_ctx *ctx)
 {

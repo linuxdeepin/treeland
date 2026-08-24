@@ -21,7 +21,6 @@ struct test_result {
     char        message[TEST_MSG_MAX];
 };
 
-
 struct splash_server_state {
     int request_count;
     int close_count;
@@ -38,19 +37,15 @@ struct test_ctx {
     struct client_connection connection;
     struct wl_display *display;
 
-
     struct treeland_prelaunch_splash_manager_v2 *manager;
     struct wl_shm *shm;
-
 
     struct treeland_prelaunch_splash_v2 *splash1;
     struct treeland_prelaunch_splash_v2 *splash2;
     struct treeland_prelaunch_splash_v2 *splash3;
     struct wl_buffer *icon_buffer;
 
-
     struct splash_server_state server;
-
 
     struct test_result *results;
     int                 result_count;

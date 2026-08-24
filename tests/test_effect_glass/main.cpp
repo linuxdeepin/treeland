@@ -357,7 +357,6 @@ private Q_SLOTS:
         QCOMPARE(m_glass->property("multiEffectEnabled").toBool(), true);
     }
 
-
     void materialKnobsAreRuntimeQmlProperties()
     {
         auto *shader = m_glass->findChild<QObject *>("glassShader");
@@ -638,7 +637,6 @@ private Q_SLOTS:
                                 .arg(seamStep)));
     }
 
-
     void largeBezelWithSmallRadiusKeepsStraightEdgeRefraction()
     {
         setSmallRadiusLargeBezel();
@@ -661,7 +659,6 @@ private Q_SLOTS:
                                 .arg(changed)
                                 .arg(samples)));
     }
-
 
     void contentEdgePullChangesSilhouetteRefraction()
     {
@@ -718,7 +715,6 @@ private Q_SLOTS:
                                 .arg(changed)
                                 .arg(rightEdgeBand.width() * rightEdgeBand.height())));
     }
-
 
     void radiusLargerThanBezelDoesNotIntroduceCornerDiagonalSeam()
     {

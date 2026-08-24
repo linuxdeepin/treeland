@@ -20,13 +20,11 @@ void protocol_test_setup(Helper *helper)
                      [](VirtualOutputInterfaceV1 *interface) { g_virtual_output = interface; });
 }
 
-
 extern "C" void virtual_output_emit_outputs(void *)
 {
     if (g_virtual_output)
         g_virtual_output->sendOutputs(QStringLiteral("group1"), QByteArray("DP-1\0VGA-1", 10));
 }
-
 
 extern "C" void virtual_output_emit_error(void *)
 {

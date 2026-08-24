@@ -71,8 +71,6 @@ int test_print_results(struct test_ctx *ctx)
     return failed == 0;
 }
 
-
-
 static struct virtual_output_state *state_for_object(struct test_ctx *ctx,
                                                      struct treeland_virtual_output_v1 *obj)
 {
@@ -160,8 +158,6 @@ static const struct treeland_virtual_output_manager_v1_listener manager_listener
     .virtual_output_list = manager_list_event,
 };
 
-
-
 static int connect_client(struct test_ctx *ctx, const char *socket_name)
 {
     if (!client_connect(&ctx->connection, socket_name))
@@ -188,8 +184,6 @@ static int fill_string_array(struct wl_array *array, const char *const *strings,
     }
     return 1;
 }
-
-
 
 static int create_valid(struct test_ctx *ctx)
 {
@@ -260,8 +254,6 @@ static int get_existing(struct test_ctx *ctx)
     return ctx->fetched != NULL;
 }
 
-
-
 static int emit_outputs(struct test_ctx *ctx)
 {
     (void)ctx;
@@ -273,8 +265,6 @@ static int emit_error(struct test_ctx *ctx)
     (void)ctx;
     return invoke_on_server_thread(virtual_output_emit_error, NULL);
 }
-
-
 
 static int outputs_created_received(struct test_ctx *ctx)
 {

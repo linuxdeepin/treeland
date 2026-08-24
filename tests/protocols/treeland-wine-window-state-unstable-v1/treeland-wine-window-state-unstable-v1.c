@@ -58,7 +58,6 @@ int protocol_test_run(const char *socket_name)
     struct wine_ws_state state = { 0 };
     int stage = 0;
 
-
     if (!client_connect(&connection, socket_name))
         return 1;
     stage = 1;
@@ -73,7 +72,6 @@ int protocol_test_run(const char *socket_name)
         goto failed;
     stage = 3;
 
-
     manager = client_bind(&connection,
                                  "treeland_wine_window_state_manager_v1",
                                  &treeland_wine_window_state_manager_v1_interface,
@@ -81,7 +79,6 @@ int protocol_test_run(const char *socket_name)
     if (!manager)
         goto failed;
     stage = 4;
-
 
     client.state_events = 0;
     client.last_state = 0;
@@ -92,11 +89,9 @@ int protocol_test_run(const char *socket_name)
     if (client.state_events < 1 || client.last_state != 0)
         goto failed;
 
-
     if (!read_state(&state) || !state.visible)
         goto failed;
     stage = 5;
-
 
     client.state_events = 0;
     client.last_state = 0;
@@ -111,7 +106,6 @@ int protocol_test_run(const char *socket_name)
         goto failed;
     stage = 6;
 
-
     client.state_events = 0;
     client.last_state = 0;
     treeland_wine_window_state_v1_set_attention(ws, 0, 0);
@@ -125,7 +119,6 @@ int protocol_test_run(const char *socket_name)
         goto failed;
     stage = 7;
 
-
     client.state_events = 0;
     client.last_state = 0;
     treeland_wine_window_state_v1_clear_attention(ws);
@@ -138,7 +131,6 @@ int protocol_test_run(const char *socket_name)
         goto failed;
     stage = 8;
 
-
     client.state_events = 0;
     client.last_state = 0;
     treeland_wine_window_state_v1_unminimize(ws);
@@ -150,7 +142,6 @@ int protocol_test_run(const char *socket_name)
 
     if (!read_state(&state) || state.minimized != 0 || state.visible != 1)
         goto failed;
-
 
     treeland_wine_window_state_v1_destroy(ws);
     treeland_wine_window_state_manager_v1_destroy(manager);

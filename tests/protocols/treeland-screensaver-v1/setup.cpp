@@ -20,7 +20,6 @@ void protocol_test_setup(Helper *helper)
     Q_ASSERT(g_screensaver);
 }
 
-
 extern "C" void screensaver_query_inhibited(void *data)
 {
     int *inhibited = static_cast<int *>(data);
