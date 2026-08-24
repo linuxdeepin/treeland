@@ -7,8 +7,7 @@ if (NOT BUILD_TREELAND_DEBUG)
     return()
 endif()
 
-find_package(Qt6 REQUIRED COMPONENTS Core RemoteObjects)
-
+find_package(Qt6 REQUIRED COMPONENTS Core RemoteObjects Network HttpServer WebSockets)
 set(windowtree_rep_file
     "${PROJECT_SOURCE_DIR}/src/modules/resource/treelandwindowtree.rep"
 )
@@ -29,9 +28,17 @@ add_custom_command(
     VERBATIM
 )
 
-qt_add_executable(treeland-debug
+set(treeland_debug_sources
     main.cpp
+    debughelpers.cpp
+    debugsession.cpp
     "${windowtree_replica_header}"
+)
+
+list(APPEND treeland_debug_sources debugserver.cpp)
+
+qt_add_executable(treeland-debug
+    ${treeland_debug_sources}
 )
 
 set_target_properties(treeland-debug PROPERTIES
@@ -45,6 +52,15 @@ target_include_directories(treeland-debug PRIVATE
 target_link_libraries(treeland-debug PRIVATE
     Qt6::Core
     Qt6::RemoteObjects
+    Qt6::Network
+)
+
+# Qt6::HttpServer and Qt6::WebSockets are required dependencies (see
+# find_package above), so the `listen` HTTP/WebSocket server is always built.
+target_compile_definitions(treeland-debug PRIVATE TREELAND_DEBUG_LISTEN)
+target_link_libraries(treeland-debug PRIVATE
+    Qt6::HttpServer
+    Qt6::WebSockets
 )
 
 install(TARGETS treeland-debug

@@ -60,6 +60,12 @@ if (ADDRESS_SANITIZER)
     add_compile_options(-fsanitize=address -fno-optimize-sibling-calls -fno-omit-frame-pointer)
     add_link_options(-fsanitize=address)
 endif()
+
+# Enable the treeland-debug remote source by default in Debug builds so the
+# adb-style debug tool works out of the box without toggling the DConfig key.
+# It still costs nothing until a client connects (see TreelandRemoteSource).
+add_compile_definitions($<$<CONFIG:Debug>:TREELAND_DEBUG_BUILD>)
+
 # NOTE: Qt keywords conflict with wlroots. but dtksystemsettings still uses it.
 # add_definitions("-DQT_NO_KEYWORDS")
 
