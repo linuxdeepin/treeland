@@ -11,8 +11,6 @@ OutputItem {
     readonly property OutputViewport screenViewport: outputViewport
     property bool forceSoftwareCursor: false
 
-    devicePixelRatio: output?.scale ?? devicePixelRatio
-
     cursorDelegate: Cursor {
         id: cursorItem
 
@@ -49,7 +47,6 @@ OutputItem {
         id: outputViewport
 
         output: rootOutputItem.output
-        devicePixelRatio: parent.devicePixelRatio
         anchors.centerIn: parent
 
         RotationAnimation {
