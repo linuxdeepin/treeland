@@ -51,7 +51,8 @@ IOSchedulingPriority=0
 #
 # MemoryDenyWriteExecute=true
 
-PrivateIPC=true
+PrivateIPC=false
+AmbientCapabilities=CAP_IPC_OWNER
 ProtectSystem=full
 ProtectHome=true
 ProtectClock=true
