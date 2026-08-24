@@ -103,7 +103,7 @@ int protocol_test_run(const char *socket_name)
     if (!client.manager
         || !invoke_on_server_thread(virtual_output_desktop_read_state, &before)
         || !before.first_present || !before.second_present
-        || before.root_output_count != 2 || !before.first_is_normal || !before.second_is_normal)
+        || before.root_output_count != 2 || !before.first_is_source || !before.second_is_source)
         goto done;
 
     struct wl_array outputs;
@@ -124,7 +124,7 @@ int protocol_test_run(const char *socket_name)
     if (client.outputs_received < 1 || strcmp(client.group_name, "protocol-copy-group") != 0
         || strcmp(client.outputs, "HEADLESS-1 HEADLESS-2") != 0
         || !copied.first_present || !copied.second_present || copied.root_output_count != 2
-        || !copied.primary_is_first || !copied.first_is_normal || !copied.second_is_copy)
+        || !copied.primary_is_first || !copied.first_is_source || !copied.second_is_copy)
         goto done;
 
     treeland_virtual_output_v1_destroy(client.group);
@@ -133,23 +133,23 @@ int protocol_test_run(const char *socket_name)
         || !invoke_on_server_thread(virtual_output_desktop_read_state, &restored))
         goto done;
     if (!restored.first_present || !restored.second_present || restored.root_output_count != 2
-        || !restored.primary_is_first || !restored.first_is_normal || !restored.second_is_normal)
+        || !restored.primary_is_first || !restored.first_is_source || !restored.second_is_source)
         goto done;
 
     result = 0;
 done:
     if (result != 0) {
         fprintf(stderr,
-                "virtual output desktop failed: before=(%d,%d root=%d normal=%d,%d) "
-                "copied=(%d,%d root=%d primary=%d normal=%d copy=%d event=%d) "
-                "restored=(%d,%d root=%d normal=%d,%d)\n",
+                "virtual output desktop failed: before=(%d,%d root=%d source=%d,%d) "
+                "copied=(%d,%d root=%d primary=%d source=%d mirror=%d event=%d) "
+                "restored=(%d,%d root=%d source=%d,%d)\n",
                 before.first_present, before.second_present, before.root_output_count,
-                before.first_is_normal, before.second_is_normal,
+                before.first_is_source, before.second_is_source,
                 copied.first_present, copied.second_present, copied.root_output_count,
-                copied.primary_is_first, copied.first_is_normal, copied.second_is_copy,
+                copied.primary_is_first, copied.first_is_source, copied.second_is_copy,
                 client.outputs_received,
                 restored.first_present, restored.second_present, restored.root_output_count,
-                restored.first_is_normal, restored.second_is_normal);
+                restored.first_is_source, restored.second_is_source);
     }
     cleanup(&client);
     return result;

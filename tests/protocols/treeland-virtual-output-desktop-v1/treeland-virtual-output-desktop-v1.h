@@ -12,8 +12,8 @@ struct virtual_output_desktop_state {
     int second_present;
     int root_output_count;
     int primary_is_first;
-    int first_is_normal;
-    int second_is_normal;
+    int first_is_source;
+    int second_is_source;
     int second_is_copy;
 };
 

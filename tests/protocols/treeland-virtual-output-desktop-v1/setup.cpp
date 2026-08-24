@@ -31,9 +31,9 @@ virtual_output_desktop_state readState(Helper *helper)
     state.second_present = second ? 1 : 0;
     state.root_output_count = helper->rootSurfaceContainer()->outputs().size();
     state.primary_is_first = helper->rootSurfaceContainer()->primaryOutput() == first ? 1 : 0;
-    state.first_is_normal = first && first->isPrimary() ? 1 : 0;
-    state.second_is_normal = second && second->isPrimary() ? 1 : 0;
-    state.second_is_copy = second && !second->isPrimary() ? 1 : 0;
+    state.first_is_source = first && first->isSource() ? 1 : 0;
+    state.second_is_source = second && second->isSource() ? 1 : 0;
+    state.second_is_copy = second && !second->isSource() ? 1 : 0;
     return state;
 }
 
