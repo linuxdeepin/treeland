@@ -137,7 +137,7 @@ struct wlr_session_lock_v1;
 struct wlr_shm;
 struct wlr_shm_attributes;
 struct wlr_single_pixel_buffer_v1;
-struct wlr_single_pixel_buffer_v1_manager;
+struct wlr_single_pixel_buffer_manager_v1;
 struct wlr_subcompositor;
 struct wlr_subsurface;
 struct wlr_surface;
