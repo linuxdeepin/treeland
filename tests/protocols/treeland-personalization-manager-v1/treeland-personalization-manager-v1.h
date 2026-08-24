@@ -11,7 +11,6 @@ extern "C" {
 
 int protocol_test_run(const char *socket_name);
 
-
 struct window_context_state {
     int32_t background_type;
     int32_t corner_radius;
@@ -29,7 +28,6 @@ struct window_context_state {
     int32_t border_alpha;
     int32_t no_titlebar;
 };
-
 
 void personalization_window_state(void *data);
 void personalization_snapshot_config(void *data);
@@ -49,9 +47,7 @@ struct test_ctx {
     struct client_connection connection;
     struct wl_display    *display;
 
-
     struct wl_compositor *compositor;
-
 
     struct treeland_personalization_manager_v1 *manager;
     struct treeland_personalization_window_context_v1 *window_context;
@@ -60,7 +56,6 @@ struct test_ctx {
     struct treeland_personalization_font_context_v1 *font_context;
     struct treeland_personalization_appearance_context_v1 *appearance_context;
     struct wl_surface *surface;
-
 
     char     cursor_theme[128];
     int      cursor_theme_count;
@@ -72,14 +67,12 @@ struct test_ctx {
     int32_t invalid_cursor_verfity_first;
     int     invalid_cursor_verfity_count;
 
-
     char     font[128];
     int      font_count;
     char     monospace_font[128];
     int      monospace_font_count;
     uint32_t font_size;
     int      font_size_count;
-
 
     int32_t  round_corner_radius;
     int      round_corner_radius_count;
@@ -93,7 +86,6 @@ struct test_ctx {
     int      window_theme_type_count;
     uint32_t window_titlebar_height;
     int      window_titlebar_height_count;
-
 
     struct test_result *results;
     int                 result_count;

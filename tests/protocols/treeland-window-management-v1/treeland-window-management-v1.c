@@ -147,7 +147,6 @@ static int desktop_state_preview(struct test_ctx *ctx)
     return desktop_state_is(ctx, TREELAND_WINDOW_MANAGEMENT_V1_DESKTOP_STATE_PREVIEW_SHOW);
 }
 
-
 static int server_set_desktop_state(struct test_ctx *ctx)
 {
     (void)ctx;
