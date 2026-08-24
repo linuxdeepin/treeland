@@ -1,4 +1,4 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 import QtQuick
@@ -7,35 +7,35 @@ import Waylib.Server
 OutputItem {
     id: outputItem
 
-    required property PrimaryOutput targetOutputItem
+    required property SourceOutput targetOutputItem
     property OutputViewport screenViewport: viewport
 
-    property OutputViewport primaryScreenViewport: targetOutputItem.screenViewport
+    property OutputViewport sourceScreenViewport: targetOutputItem.screenViewport
 
     // Constants for fallback and precision thresholds
     readonly property int fallbackSize: 100
     readonly property real sizeMatchTolerance: 0.1
     readonly property real scaleEpsilon: 0.001
 
-    // Helper property: primary screen pixel size (physical size in pixels)
+    // Helper property: source screen pixel size (physical size in pixels)
     // Formula: pixelSize = effectiveSize * scale
     // - output.size returns effectiveSize (logical size)
     // - scale is the devicePixelRatio
     // - pixelSize is the actual framebuffer size in pixels
-    // Fallback is used during component initialization or if primary output is not ready
-    readonly property size primaryPixelSize: {
-        if (!primaryScreenViewport || !primaryScreenViewport.output) {
-            console.warn("CopyOutput: Primary viewport not ready, using fallback size");
+    // Fallback is used during component initialization or if source output is not ready
+    readonly property size sourcePixelSize: {
+        if (!sourceScreenViewport || !sourceScreenViewport.output) {
+            console.warn("MirrorOutput: Source viewport not ready, using fallback size");
             return Qt.size(fallbackSize, fallbackSize);
         }
-        const effectiveSize = primaryScreenViewport.output.size;
-        const scale = primaryScreenViewport.output.scale;
+        const effectiveSize = sourceScreenViewport.output.size;
+        const scale = sourceScreenViewport.output.scale;
         const rotatedSize = Qt.size(effectiveSize.width * scale, effectiveSize.height * scale);
 
-        const primaryRotation = primaryScreenViewport.rotation;
-        const isPrimaryRotated90or270 = (Math.abs(primaryRotation % 180) === 90);
+        const sourceRotation = sourceScreenViewport.rotation;
+        const isSourceRotated90or270 = (Math.abs(sourceRotation % 180) === 90);
 
-        if (isPrimaryRotated90or270) {
+        if (isSourceRotated90or270) {
             return Qt.size(rotatedSize.height, rotatedSize.width);
         }
         return rotatedSize;
@@ -50,28 +50,27 @@ OutputItem {
 
         TextureProxy {
             id: proxy
-            sourceItem: primaryScreenViewport
+            sourceItem: sourceScreenViewport
             anchors.centerIn: parent
-            rotation: targetOutputItem.keepAllOutputRotation ? 0 : primaryScreenViewport.rotation
+            rotation: targetOutputItem.keepAllOutputRotation ? 0 : sourceScreenViewport.rotation
 
-            width: primaryPixelSize.width
-            height: primaryPixelSize.height
-            sourceRect: Qt.rect(0, 0, primaryPixelSize.width, primaryPixelSize.height)
+            width: sourcePixelSize.width
+            height: sourcePixelSize.height
+            sourceRect: Qt.rect(0, 0, sourcePixelSize.width, sourcePixelSize.height)
 
             smooth: true
             transformOrigin: Item.Center
 
             scale: {
-                if (!primaryScreenViewport || !primaryScreenViewport.output) {
+                if (!sourceScreenViewport || !sourceScreenViewport.output) {
                     return 1.0;
                 }
                 if (!content.width || !content.height) {
                     return 1.0;
                 }
-
-                // Wait for TextureProxy size to sync with primary pixel size
-                if (Math.abs(width - primaryPixelSize.width) > sizeMatchTolerance ||
-                    Math.abs(height - primaryPixelSize.height) > sizeMatchTolerance) {
+                // Wait for TextureProxy size to sync with source pixel size
+                if (Math.abs(width - sourcePixelSize.width) > sizeMatchTolerance ||
+                    Math.abs(height - sourcePixelSize.height) > sizeMatchTolerance) {
                     return 1.0;
                 }
 
@@ -98,7 +97,7 @@ OutputItem {
         id: viewport
 
         anchors.centerIn: parent
-        depends: [primaryScreenViewport]
+        depends: [sourceScreenViewport]
         devicePixelRatio: outputItem.devicePixelRatio
         input: content
         output: outputItem.output
