@@ -81,6 +81,11 @@ Q_SIGNALS:
     void initialized();
     void disableLayersChanged();
     void renderEnd(QList<QPointer<WOutput>> committedOutputs);
+    // Emitted synchronously right before each output's state is committed in
+    // doRender(). Compositors can use this to perform last-minute per-output
+    // work that must happen before wlr_output_commit_state(), e.g. sampling
+    // wp_presentation_time feedback via wlr_presentation_surface_textured_on_output().
+    void outputAboutToCommit(WAYLIB_SERVER_NAMESPACE::WOutput *output);
     void effectiveDevicePixelRatioChanged(qreal scale);
 
 private:

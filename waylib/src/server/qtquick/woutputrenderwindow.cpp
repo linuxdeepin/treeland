@@ -1588,9 +1588,12 @@ void WOutputRenderWindowPrivate::doRender(wlr_output *needsFrameOutput,
             // transactions. It must not be suppressed merely because the
             // transaction itself scheduled the next frame.
             if (forceRender || Q_UNLIKELY(!i.first->framePending())) {
+                auto output = i.first->outputViewport()->output();
+                // Let consumers sample wp_presentation_time feedback (and other
+                // last-minute per-output work) before the output state is committed.
+                Q_EMIT q->outputAboutToCommit(output);
                 if (Q_LIKELY(i.first->commit(i.second))) {
                     // Make sure the output is still valid after commit
-                    auto output = i.first->outputViewport()->output();
                     if (Q_LIKELY(needsFrameOutput)) {
                         Q_ASSERT(output->handle() == needsFrameOutput);
                         if (committedOutputs.isEmpty())
