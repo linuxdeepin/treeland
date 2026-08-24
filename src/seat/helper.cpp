@@ -2069,6 +2069,8 @@ void Helper::init(Treeland::Treeland *treeland)
 
     if (!wlr_viewporter_create(m_server->handle()))
         qCCritical(lcTlCore) << "Failed to create viewporter";
+    if (!wlr_single_pixel_buffer_manager_v1_create(m_server->handle()))
+        qCCritical(lcTlCore) << "Failed to create single pixel buffer manager";
     m_renderWindow->init(m_renderer, m_allocator);
 
     m_xwaylandOutputManager =
