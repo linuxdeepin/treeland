@@ -15,7 +15,6 @@
 #define EXPECTED_APP_ID "org.deepin.dde.test-app"
 #define EXPECTED_SANDBOX "test-sandbox"
 
-
 struct app_id_resolver_test_state {
     int resolve_started;
     int resolve_matched;
@@ -110,7 +109,6 @@ static int connect_client(struct test_ctx *ctx, const char *socket_name)
     return ctx->manager != NULL;
 }
 
-
 static int pidfd_refers_to_self(int pidfd)
 {
     char path[64];
@@ -128,7 +126,6 @@ static int pidfd_refers_to_self(int pidfd)
     return target_pid == (int)getpid();
 }
 
-
 static int resolve_without_resolver_fails(struct test_ctx *ctx)
 {
     (void)ctx;
@@ -139,7 +136,6 @@ static int resolve_without_resolver_fails(struct test_ctx *ctx)
     return g_app_id_resolver_snapshot.resolve_started == 0;
 }
 
-
 static int get_resolver_creates_object(struct test_ctx *ctx)
 {
     ctx->resolver = treeland_app_id_resolver_manager_v1_get_resolver(ctx->manager);
@@ -147,7 +143,6 @@ static int get_resolver_creates_object(struct test_ctx *ctx)
         return 0;
     return treeland_app_id_resolver_v1_add_listener(ctx->resolver, &resolver_listener, ctx) == 0;
 }
-
 
 static int resolve_roundtrip(struct test_ctx *ctx)
 {
@@ -180,7 +175,6 @@ static int resolve_roundtrip(struct test_ctx *ctx)
         && g_app_id_resolver_snapshot.resolve_matched == 1;
 }
 
-
 static int second_resolve_empty_response(struct test_ctx *ctx)
 {
     ctx->identify_received = 0;
@@ -211,14 +205,12 @@ static int second_resolve_empty_response(struct test_ctx *ctx)
         && g_app_id_resolver_snapshot.resolve_empty == 1;
 }
 
-
 static int duplicate_get_resolver_errors(struct test_ctx *ctx)
 {
 
     ctx->display_errored = 1;
 
     (void)treeland_app_id_resolver_manager_v1_get_resolver(ctx->manager);
-
 
     if (wl_display_roundtrip(ctx->display) >= 0)
         return 0;

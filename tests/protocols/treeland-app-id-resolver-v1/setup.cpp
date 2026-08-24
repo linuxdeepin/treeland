@@ -18,7 +18,6 @@ AppIdResolverManager *g_manager = nullptr;
 
 extern "C" {
 
-
 struct app_id_resolver_test_state {
     int resolve_started;
     int resolve_matched;
@@ -27,7 +26,6 @@ struct app_id_resolver_test_state {
 
 struct app_id_resolver_test_state g_app_id_resolver_state;
 struct app_id_resolver_test_state g_app_id_resolver_snapshot;
-
 
 void server_start_resolve(void *)
 {

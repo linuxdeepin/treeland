@@ -23,14 +23,11 @@ struct test_ctx {
     struct client_connection connection;
     struct wl_display    *display;
 
-
     struct wl_compositor *compositor;
-
 
     struct treeland_shortcut_manager_v2 *manager;
     struct treeland_shortcut_capture_v1 *capture;
     struct wl_surface                   *test_surface;
-
 
     int      commit_success_received;
     int      commit_failure_received;
@@ -40,7 +37,6 @@ struct test_ctx {
     char     capture_captured_key[64];
     int      capture_failed_received;
     uint32_t capture_failed_reason;
-
 
     struct test_result *results;
     int                 result_count;

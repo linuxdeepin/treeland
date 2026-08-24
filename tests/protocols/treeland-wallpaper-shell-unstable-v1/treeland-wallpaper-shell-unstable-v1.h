@@ -23,15 +23,12 @@ struct test_ctx {
     struct client_connection connection;
     struct wl_display    *display;
 
-
     struct wl_compositor *compositor;
     struct treeland_wallpaper_notifier_v1 *notifier;
-
 
     struct treeland_wallpaper_shell_v1   *shell;
     struct treeland_wallpaper_surface_v1 *wallpaper_surface;
     struct wl_surface                    *test_surface;
-
 
     int      play_received;
     int      pause_received;
@@ -42,7 +39,6 @@ struct test_ctx {
     uint32_t notifier_add_type;
     char     notifier_add_source[TEST_MSG_MAX];
     char     notifier_remove_source[TEST_MSG_MAX];
-
 
     struct test_result *results;
     int                 result_count;

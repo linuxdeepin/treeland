@@ -5,8 +5,6 @@
 
 #include <stdio.h>
 
-
-
 struct watcher_state {
     int current_state_count;
     int state_changed_count;
@@ -49,14 +47,11 @@ static const struct treeland_keyboard_state_watcher_v1_listener watcher_listener
     .state_changed = handle_state_changed,
 };
 
-
-
 int protocol_test_run(const char *socket_name)
 {
     struct client_connection connection;
     if (!client_connect(&connection, socket_name))
         return 1;
-
 
     struct wl_seat *seat = client_bind(&connection, "wl_seat",
                                                &wl_seat_interface, 1);
@@ -67,7 +62,6 @@ int protocol_test_run(const char *socket_name)
         fprintf(stderr, "keyboard-state-notify: failed to bind globals\n");
         goto failed;
     }
-
 
     {
         struct watcher_state ws = {0};
@@ -81,7 +75,6 @@ int protocol_test_run(const char *socket_name)
 
         treeland_keyboard_state_watcher_v1_add_listener(watcher, &watcher_listener, &ws);
 
-
         treeland_keyboard_state_watcher_v1_set_modifiers(watcher,
             TREELAND_KEYBOARD_STATE_WATCHER_V1_MODIFIER_CAPS_LOCK);
         treeland_keyboard_state_watcher_v1_set_flags(watcher,
@@ -89,7 +82,6 @@ int protocol_test_run(const char *socket_name)
             TREELAND_KEYBOARD_STATE_WATCHER_V1_WATCH_FLAG_UNLOCKED);
         treeland_keyboard_state_watcher_v1_apply(watcher);
         wl_display_roundtrip(connection.display);
-
 
         if (ws.current_state_count > 0) {
 
@@ -123,7 +115,6 @@ int protocol_test_run(const char *socket_name)
         treeland_keyboard_state_watcher_v1_destroy(watcher);
     }
 
-
     {
         struct watcher_state ws = {0};
 
@@ -135,7 +126,6 @@ int protocol_test_run(const char *socket_name)
         }
 
         treeland_keyboard_state_watcher_v1_add_listener(watcher, &watcher_listener, &ws);
-
 
         treeland_keyboard_state_watcher_v1_apply(watcher);
         wl_display_roundtrip(connection.display);
@@ -151,7 +141,6 @@ int protocol_test_run(const char *socket_name)
 
         treeland_keyboard_state_watcher_v1_destroy(watcher);
     }
-
 
     treeland_keyboard_state_notify_manager_v1_destroy(manager);
     wl_seat_destroy(seat);
