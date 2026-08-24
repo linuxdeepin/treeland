@@ -24,20 +24,16 @@ struct test_ctx {
     struct wl_display    *display;
     const char           *socket_name;
 
-
     struct treeland_capture_manager_v1 *manager;
-
 
     struct treeland_capture_context_v1 *context_a;
     struct treeland_capture_context_v1 *context_b;
     struct treeland_capture_context_v1 *context_c;
 
-
     int      a_source_failed_received;
     int      b_source_failed_received;
     uint32_t b_source_failed_reason;
     int      c_source_failed_received;
-
 
     struct test_result *results;
     int                 result_count;

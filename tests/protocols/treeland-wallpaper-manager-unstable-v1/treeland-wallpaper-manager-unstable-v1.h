@@ -14,7 +14,6 @@ int protocol_test_run(const char *socket_name);
 #define TEST_MSG_MAX 256
 #define WM_TEST_SOURCE "/usr/share/wallpapers/deepin-wallpapers/test-wallpaper.jpg"
 
-
 struct wm_server_state {
     int wallpaper_created;
     int second_created;
@@ -32,16 +31,13 @@ struct test_ctx {
     struct client_connection connection;
     struct wl_display    *display;
 
-
     struct wl_compositor *compositor;
     struct wl_output     *output;
-
 
     struct treeland_wallpaper_manager_v1 *manager;
     struct treeland_wallpaper_v1         *wallpaper;
     struct treeland_wallpaper_v1         *wallpaper2;
     struct wl_surface                    *test_surface;
-
 
     int  failed_received;
     int  failed_error;
@@ -50,7 +46,6 @@ struct test_ctx {
     int  changed_role;
     int  changed_type;
     char changed_source[TEST_MSG_MAX];
-
 
     struct test_result *results;
     int                 result_count;

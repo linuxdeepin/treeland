@@ -68,8 +68,6 @@ int test_print_results(struct test_ctx *ctx)
     return failed == 0;
 }
 
-
-
 static void cursor_verfity(void *data, struct treeland_personalization_cursor_context_v1 *cursor,
                            int32_t success)
 {
@@ -109,8 +107,6 @@ static const struct treeland_personalization_cursor_context_v1_listener cursor_l
     .size = cursor_size,
 };
 
-
-
 static void font_event(void *data, struct treeland_personalization_font_context_v1 *font,
                        const char *font_name)
 {
@@ -145,8 +141,6 @@ static const struct treeland_personalization_font_context_v1_listener font_liste
     .monospace_font = monospace_font_event,
     .font_size = font_size_event,
 };
-
-
 
 static void round_corner_radius_event(void *data, struct treeland_personalization_appearance_context_v1 *appearance,
                                       int32_t radius)
@@ -213,8 +207,6 @@ static const struct treeland_personalization_appearance_context_v1_listener appe
     .window_titlebar_height = window_titlebar_height_event,
 };
 
-
-
 static int connect_client(struct test_ctx *ctx, const char *socket_name)
 {
     if (!client_connect(&ctx->connection, socket_name))
@@ -267,8 +259,6 @@ static int create_appearance_context(struct test_ctx *ctx)
         treeland_personalization_appearance_context_v1_add_listener(ctx->appearance_context, &appearance_listener, ctx);
     return ctx->appearance_context != NULL;
 }
-
-
 
 static int set_blend_mode(struct test_ctx *ctx)
 {
@@ -366,8 +356,6 @@ static int verify_titlebar_enabled(struct test_ctx *ctx)
     return state.no_titlebar == 0;
 }
 
-
-
 static int cursor_set_theme(struct test_ctx *ctx)
 {
     treeland_personalization_cursor_context_v1_set_theme(ctx->cursor_context, "test-theme");
@@ -413,7 +401,6 @@ static int cursor_verfity_received(struct test_ctx *ctx)
     return ctx->cursor_verfity_count == 1 && ctx->cursor_verfity == 1;
 }
 
-
 static int invalid_cursor_commit(struct test_ctx *ctx)
 {
     treeland_personalization_cursor_context_v1_set_theme(ctx->invalid_cursor_context, "");
@@ -425,8 +412,6 @@ static int invalid_cursor_verfity_received(struct test_ctx *ctx)
 {
     return ctx->invalid_cursor_verfity_count >= 1 && ctx->invalid_cursor_verfity_first == 0;
 }
-
-
 
 static int font_set_size(struct test_ctx *ctx)
 {
@@ -493,8 +478,6 @@ static int monospace_font_received(struct test_ctx *ctx)
 {
     return ctx->monospace_font_count >= 2 && strcmp(ctx->monospace_font, "TestMonoFont") == 0;
 }
-
-
 
 static int appearance_set_radius(struct test_ctx *ctx)
 {
@@ -630,8 +613,6 @@ static int appearance_titlebar_height_echo_received(struct test_ctx *ctx)
 {
     return ctx->window_titlebar_height_count >= 3 && ctx->window_titlebar_height == 36;
 }
-
-
 
 static const struct test_case cases[] = {
     { "manager.get_window_context", create_window_context },
