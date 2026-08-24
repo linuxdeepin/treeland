@@ -220,6 +220,8 @@ public:
 
         if (frameDoneConnection)
             QObject::disconnect(frameDoneConnection);
+        if (presentationConnection)
+            QObject::disconnect(presentationConnection);
 
         Q_ASSERT(!updateTextureConnection);
 
@@ -274,6 +276,8 @@ public:
 
         if (frameDoneConnection)
             QObject::disconnect(frameDoneConnection);
+        if (presentationConnection)
+            QObject::disconnect(presentationConnection);
         if (!q->window()) // maybe null due to item not fully initialized
             return;
 
@@ -290,6 +294,19 @@ public:
                                                            rendered = false;
                                                        }
                                                    }); // if signal is emitted from seperated rendering thread, default QueuedConnection is used
+
+            // Unlike frameDoneConnection (which tolerates a queued delivery), this
+            // connection MUST be synchronous: the feedback has to be sampled before
+            // wlr_output_commit_state() runs, so use Qt::DirectConnection explicitly.
+            presentationConnection = QObject::connect(rw, &WOutputRenderWindow::outputAboutToCommit,
+                                                       q, [this, q] (WOutput *output) {
+                                                           if (Q_LIKELY((rendered || q->isVisible()) && live)
+                                                               && surface &&
+                                                               output == surface->framePacingOutput()) {
+                                                               wlr_presentation_surface_textured_on_output(
+                                                                   surface->handle(), output->handle());
+                                                           }
+                                                       }, Qt::DirectConnection);
         } else {
             qCFatal(lcWlSurface) << "Needs a WOutputRenderWindow to render the WSurfaceItemContent, "
                                       "but the current window is:" << q->window();
@@ -358,6 +375,7 @@ public:
     qreal alphaModifier = 1.0;
 
     QMetaObject::Connection frameDoneConnection;
+    QMetaObject::Connection presentationConnection;
     mutable WSGTextureProvider *textureProvider = nullptr;
     BufferRef buffer;
     BufferRef pendingBuffer;
@@ -385,6 +403,8 @@ WSurfaceItemContent::~WSurfaceItemContent()
 
     if (d->frameDoneConnection)
         QObject::disconnect(d->frameDoneConnection);
+    if (d->presentationConnection)
+        QObject::disconnect(d->presentationConnection);
 
     //`d->window` will become nullptr in ~QQuickItem
     // Don't move this to private class

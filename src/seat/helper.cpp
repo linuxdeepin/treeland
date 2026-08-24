@@ -2052,6 +2052,8 @@ void Helper::init(Treeland::Treeland *treeland)
     }
     if (!wlr_subcompositor_create(m_server->handle()))
         qCCritical(lcTlCore) << "Failed to create subcompositor";
+    if (!wlr_presentation_create(m_server->handle(), m_backend->handle(), 2))
+        qCCritical(lcTlCore) << "Failed to create presentation-time manager";
     if (!wlr_screencopy_manager_v1_create(m_server->handle()))
         qCCritical(lcTlCore) << "Failed to create screencopy manager";
     if (!wlr_ext_image_copy_capture_manager_v1_create(m_server->handle(), 1))
