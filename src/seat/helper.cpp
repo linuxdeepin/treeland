@@ -791,14 +791,14 @@ void Helper::onOutputRemoved(WOutput *output)
             QList<Output *> oldOutputsToDelete;
 
             bool removedWasPrimary = (output == m_rootSurfaceContainer->primaryOutput()->output());
-            Output *primaryCandidate = nullptr;
+            Output *sourceCandidate = nullptr;
 
             for (int i = 0; i < m_outputList.size(); i++) {
                 Output *copyOutput = m_outputList.at(i);
 
-                if (copyOutput->isPrimary()) {
-                    if (!primaryCandidate)
-                        primaryCandidate = copyOutput;
+                if (copyOutput->isSource()) {
+                    if (!sourceCandidate)
+                        sourceCandidate = copyOutput;
                     continue;
                 }
 
@@ -812,15 +812,15 @@ void Helper::onOutputRemoved(WOutput *output)
 
                 m_outputList.replace(i, normalOutput);
 
-                if (!primaryCandidate) {
-                    primaryCandidate = normalOutput;
+                if (!sourceCandidate) {
+                    sourceCandidate = normalOutput;
                 }
             }
 
-            if (removedWasPrimary && primaryCandidate) {
-                m_rootSurfaceContainer->setPrimaryOutput(primaryCandidate);
+            if (removedWasPrimary && sourceCandidate) {
+                m_rootSurfaceContainer->setPrimaryOutput(sourceCandidate);
                 if (!surfaces.isEmpty()) {
-                    moveSurfacesToOutput(surfaces, primaryCandidate, o);
+                    moveSurfacesToOutput(surfaces, sourceCandidate, o);
                 }
             }
 
@@ -1084,7 +1084,7 @@ void Helper::onOutputTestOrApply(wlr_output_configuration_v1 *config, bool onlyT
         // binding cannot keep them overlapping the copy source at (0, 0).
         for (int i = 0; i < m_outputList.size(); ++i) {
             Output *copyOutput = m_outputList.at(i);
-            if (copyOutput->isPrimary()) {
+            if (copyOutput->isSource()) {
                 continue;
             }
 
@@ -1535,7 +1535,7 @@ void Helper::onSetCopyOutput(VirtualOutputInterfaceV1 *interface)
             return;
         }
 
-        if (!output->isPrimary()) {
+        if (!output->isSource()) {
             QString screen =
                 output->output()->name() + " is already a copy screen, invalid setting!";
             interface->sendError(VirtualOutputInterfaceV1::INVALID_OUTPUT, screen);
