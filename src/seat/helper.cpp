@@ -1949,6 +1949,7 @@ void Helper::init(Treeland::Treeland *treeland)
                 m_captureSelector = qobject_cast<CaptureSourceSelector *>(
                     qmlEngine()->createCaptureSelector(m_rootSurfaceContainer, captureManagerV1));
             } else if (m_captureSelector) {
+                m_captureSelector->releaseMaskSurface();
                 m_captureSelector->deleteLater();
             }
         });

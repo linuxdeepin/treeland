@@ -402,6 +402,7 @@ public:
     void doneSelection();
     void cancelSelection();
     void selectSurface(WSurfaceItemContent *surfaceItemContent);
+    void releaseMaskSurface();
 
 Q_SIGNALS:
     void hoveredItemChanged();
@@ -429,7 +430,6 @@ private:
     void handleItemSelectorSelectionRegionChanged();
     WOutputRenderWindow *renderWindow() const;
     void createImage();
-    void releaseMaskSurface();
 
     void updateItemSelectorItemTypes();
     void updateCursorShape();
