@@ -34,11 +34,9 @@ struct test_ctx {
     struct client_connection connection;
     struct wl_display    *display;
 
-
     struct wl_compositor *compositor;
     struct wl_seat       *seat;
     struct wl_output     *output;
-
 
     struct treeland_dde_shell_manager_v1  *manager;
     struct treeland_window_overlap_checker *checker;
@@ -49,7 +47,6 @@ struct test_ctx {
     struct treeland_lockscreen_v1         *lockscreen;
     struct wl_surface                     *test_surface;
 
-
     int checker_enter_received;
     int checker_leave_received;
     int active_in_received;
@@ -58,7 +55,6 @@ struct test_ctx {
     int drop_received;
     int picker_window_received;
     int picker_pid;
-
 
     struct test_result *results;
     int                 result_count;

@@ -129,7 +129,6 @@ screensaver 的 ext-idle inhibit 用例。若没有可观察的生产 signal/eve
 完全复用 `Treeland` 的正常插件发现和初始化流程：plugin output 目录可访问时使用该目录，
 否则回退安装目录。测试框架不再维护独立的插件加载路径或代理实现。
 
-
 ## 代码组织
 
 ```text

@@ -71,17 +71,14 @@ int protocol_test_run(const char *socket_name)
     struct wine_wm_state state = {0};
     int stage = 0;
 
-
     if (!client_connect(&connection, socket_name))
         return 1;
     if (!xdg_toplevel_client_create(&connection, &toplevel))
         goto failed;
     stage = 1;
 
-
     if (!read_state(&state) || !state.wrapper_created)
         goto failed;
-
 
     manager = client_bind(&connection,
                                  "treeland_wine_window_manager_v1",
@@ -90,7 +87,6 @@ int protocol_test_run(const char *socket_name)
     if (!manager)
         goto failed;
     stage = 2;
-
 
     control = treeland_wine_window_manager_v1_get_window_control(manager, toplevel.toplevel);
     treeland_wine_window_control_v1_add_listener(control, &control_listener, NULL);
@@ -104,7 +100,6 @@ int protocol_test_run(const char *socket_name)
     if (configure_stacking_count < 1 || last_topmost != 0)
         goto failed;
 
-
     if (!read_state(&state) || !state.wrapper_created)
         goto failed;
     if (state.z != 0 || state.effective_always_on_top != 0)
@@ -112,7 +107,6 @@ int protocol_test_run(const char *socket_name)
     if (state.parent_item_count < 1)
         goto failed;
     stage = 4;
-
 
     treeland_wine_window_control_v1_set_position(control, 100, 200, 1);
     if (wl_display_roundtrip(connection.display) < 0)
@@ -124,7 +118,6 @@ int protocol_test_run(const char *socket_name)
     if (!read_state(&state) || state.x != 100 || state.y != 200)
         goto failed;
     stage = 5;
-
 
     treeland_wine_window_control_v1_set_z_order(control,
                                                   TREELAND_WINE_WINDOW_CONTROL_V1_Z_ORDER_OP_HWND_TOPMOST,
@@ -139,7 +132,6 @@ int protocol_test_run(const char *socket_name)
         goto failed;
     stage = 6;
 
-
     treeland_wine_window_control_v1_set_z_order(control,
                                                   TREELAND_WINE_WINDOW_CONTROL_V1_Z_ORDER_OP_HWND_NOTOPMOST,
                                                   0);
@@ -151,7 +143,6 @@ int protocol_test_run(const char *socket_name)
 
     if (!read_state(&state) || state.z != 0 || state.effective_always_on_top != 0)
         goto failed;
-
 
     treeland_wine_window_control_v1_destroy(control);
     treeland_wine_window_manager_v1_destroy(manager);

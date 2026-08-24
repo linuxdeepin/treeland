@@ -10,7 +10,6 @@ extern "C" {
 #include "client-connection.h"
 #include "xdg-toplevel-client.h"
 
-
 struct wine_wm_state {
     int wrapper_created;
     int x;

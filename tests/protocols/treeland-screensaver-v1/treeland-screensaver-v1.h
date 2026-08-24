@@ -25,13 +25,10 @@ struct test_ctx {
     struct wl_display    *display;
     char                  socket_name[256];
 
-
     struct treeland_screensaver_v1 *screensaver;
     struct treeland_screensaver_v1 *error_screensaver;
 
-
     int roundtripped;
-
 
     struct test_result *results;
     int                 result_count;

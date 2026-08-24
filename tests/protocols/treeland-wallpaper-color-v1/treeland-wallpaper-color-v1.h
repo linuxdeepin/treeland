@@ -23,14 +23,11 @@ struct test_ctx {
     struct client_connection connection;
     struct wl_display    *display;
 
-
     struct treeland_wallpaper_color_manager_v1 *manager;
-
 
     int  output_color_count;
     int  output_color_isdark;
     char output_color_name[128];
-
 
     struct test_result *results;
     int                 result_count;

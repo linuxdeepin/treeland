@@ -18,7 +18,6 @@ void protocol_test_setup(Helper *helper)
     g_manager = find_server_interface<WallpaperColorInterfaceV1>(helper);
 }
 
-
 extern "C" void wallpaper_color_set_color(const char *output, int is_dark)
 {
     if (!g_manager)

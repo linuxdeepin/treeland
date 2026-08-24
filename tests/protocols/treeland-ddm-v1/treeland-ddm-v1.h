@@ -23,23 +23,17 @@ struct test_ctx {
     struct client_connection connection;
     struct wl_display    *display;
 
-
     const char *socket_name;
-
 
     struct client_connection aux;
 
-
     struct client_connection checker;
-
 
     struct treeland_ddm_v1 *ddm;
     int bound_version;
 
-
     int switch_to_vt_received;
     int acquire_vt_received;
-
 
     struct test_result *results;
     int                 result_count;

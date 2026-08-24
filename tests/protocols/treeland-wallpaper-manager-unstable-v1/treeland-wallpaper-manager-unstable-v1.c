@@ -9,7 +9,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-
 extern void wm_query_server_state(void *data);
 extern void wm_emit_failed(void *data);
 extern void wm_emit_changed(void *data);

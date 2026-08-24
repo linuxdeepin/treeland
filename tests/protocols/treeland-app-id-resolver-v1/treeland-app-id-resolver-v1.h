@@ -23,20 +23,15 @@ struct test_ctx {
     struct client_connection connection;
     struct wl_display    *display;
 
-
     struct treeland_app_id_resolver_manager_v1 *manager;
 
-
     struct treeland_app_id_resolver_v1 *resolver;
-
 
     int identify_received;
     uint32_t identify_request_id;
     int identify_pidfd;
 
-
     int display_errored;
-
 
     struct test_result *results;
     int                 result_count;
