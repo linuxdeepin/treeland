@@ -25,7 +25,7 @@ jobs:
           rm -rf /etc/apt/sources.list.d
 
           apt-get update
-          apt-get install -y dde-dconfig-daemon libdtkdata qml6-module-qtquick-window qml6-module-qt5compat-graphicaleffects devscripts equivs git
+          apt-get install -y dde-dconfig-daemon libdtkdata qml6-module-qtquick-window qml6-module-qtquick-controls2-styles-chameleon qml6-module-qt5compat-graphicaleffects devscripts equivs git
 
           # The full desktop fixture follows Treeland's normal global-session
           # path, whose compositor-owned session is the system user "dde".
