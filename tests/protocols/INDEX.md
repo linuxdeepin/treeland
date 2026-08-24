@@ -45,6 +45,39 @@ Wayland 线上请求与事件；本文档规定发出请求后，测试必须观
 | [wine-window-management-unstable-v1](treeland-wine-window-management-unstable-v1/README.md) | P / E | 真实 wrapper 的位置与置顶层同步 |
 | [wine-window-state-unstable-v1](treeland-wine-window-state-unstable-v1/README.md) | P / E | 真实 wrapper 的最小化、attention 与可见性同步 |
 
+### wayland-protocols 标准协议
+
+以下 25 个测试覆盖 treeland 实际注册的全部 wayland-protocols 标准全局接口
+（wayland-protocols 1.49）。每个测试使用同一框架的 headless fixture。
+
+| 协议 | 覆盖等级 | 主要生产结果 |
+| --- | --- | --- |
+| [viewporter](viewporter/) | P | 设置 viewport source/destination；重复创建 viewport 触发协议错误 |
+| [alpha-modifier-v1](alpha-modifier-v1/) | P | 设置 multiplier；重复创建 modifier 触发协议错误 |
+| [idle-inhibit-unstable-v1](idle-inhibit-unstable-v1/) | P | 创建/销毁 inhibitor 生命周期；roundtrip 无错误 |
+| [xdg-output-unstable-v1](xdg-output-unstable-v1/) | I | 断言 `logical_position` / `logical_size` 事件负载匹配 headless 输出 |
+| [xdg-dialog-v1](xdg-dialog-v1/) | P | 设置 modal/non-modal；已构造 surface 重复请求触发协议错误 |
+| [xdg-activation-v1](xdg-activation-v1/) | I | `done` 事件回传 token；重复使用已消耗 token 触发 `already_used` 错误 |
+| [xdg-toplevel-tag-v1](xdg-toplevel-tag-v1/) | P | 设置 tag/description；roundtrip 无错误 |
+| [xdg-decoration-unstable-v1](xdg-decoration-unstable-v1/) | I | `configure` 事件回传 decoration mode；已构造 decoration 重复请求触发 `already_constructed` 错误 |
+| [xdg-foreign-unstable-v2](xdg-foreign-unstable-v2/) | E | export→handle→import→destroy 全链路；`destroyed` 事件确认导出对象销毁 |
+| [ext-data-control-v1](ext-data-control-v1/) | I | `data_offer` + `selection` 事件确认选区设置成功（特权协议无 serial 校验） |
+| [primary-selection-unstable-v1](primary-selection-unstable-v1/) | P | 创建/销毁 device 生命周期；serial=0 被静默拒绝（无错误无事件） |
+| [text-input-unstable-v3](text-input-unstable-v3/) | P | enable + commit + disable 生命周期；roundtrip 无错误 |
+| [text-input-unstable-v1](text-input-unstable-v1/) | P | activate + commit_state + deactivate 生命周期；roundtrip 无错误 |
+| [xdg-shell](xdg-shell/) | P | configure 事件断言；未配置 buffer 提交触发 `unconfigured_buffer` 协议错误 |
+| [fractional-scale-v1](fractional-scale-v1/) | I | `preferred_scale` 事件回传缩放因子 |
+| [ext-idle-notify-v1](ext-idle-notify-v1/) | I | 1 ms 超时后断言 `idled` 事件到达（服务器 Qt 定时器驱动） |
+| [ext-foreign-toplevel-list-v1](ext-foreign-toplevel-list-v1/) | I | `toplevel` + `done` 事件确认列表到达 |
+| [security-context-v1](security-context-v1/) | P | create_listener + set_app_id + commit；roundtrip 无错误 |
+| [ext-session-lock-v1](ext-session-lock-v1/) | I | 300 ms grace 后断言 `locked` 事件；`unlock_and_destroy` 清理无错误 |
+| [ext-image-capture-source-v1](ext-image-capture-source-v1/) | P | create_source + roundtrip；roundtrip 无错误 |
+| [ext-image-copy-capture-v1](ext-image-copy-capture-v1/) | I | `buffer_size` + `done` 事件确认 capture session 就绪 |
+| [cursor-shape-v1](cursor-shape-v1/) | P | get_pointer + set_shape(DEFAULT)；roundtrip 无错误 |
+| [pointer-gestures-unstable-v1](pointer-gestures-unstable-v1/) | P | get_swipe + get_pinch + get_hold + release；roundtrip 无错误 |
+| [relative-pointer-unstable-v1](relative-pointer-unstable-v1/) | P | get_relative_pointer + listener 注册；roundtrip 无错误 |
+| [pointer-constraints-unstable-v1](pointer-constraints-unstable-v1/) | P | lock_pointer(PERSISTENT) 创建；roundtrip 无错误 |
+
 ## XML request / event / 业务链路盘点
 
 本节是对当前工作树的源码审计，不是某一次 CTest 的通过率。审计读取已安装的
