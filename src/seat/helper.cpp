@@ -1079,26 +1079,42 @@ void Helper::onOutputTestOrApply(wlr_output_configuration_v1 *config, bool onlyT
     }
 
     if (m_mode == OutputMode::Copy) {
-        // Output-management positions describe independent outputs. Convert copy
-        // proxies before applying the requested layout so their target-output
-        // binding cannot keep them overlapping the copy source at (0, 0).
-        for (int i = 0; i < m_outputList.size(); ++i) {
-            Output *copyOutput = m_outputList.at(i);
-            if (copyOutput->isSource()) {
-                continue;
+        // A refresh-rate / mode switch is a display-parameter change, not a
+        // topology change. Keep copy mode unless an output is enabled/disabled.
+        bool topologyChanged = false;
+        for (const auto &state : std::as_const(states)) {
+            if (state.enabled != state.output->isEnabled()) {
+                topologyChanged = true;
+                break;
+            }
+        }
+
+        if (topologyChanged) {
+            // Output-management positions describe independent outputs. Convert copy
+            // proxies before applying the requested layout so their target-output
+            // binding cannot keep them overlapping the copy source at (0, 0).
+            for (int i = 0; i < m_outputList.size(); ++i) {
+                Output *copyOutput = m_outputList.at(i);
+                if (copyOutput->isSource()) {
+                    continue;
+                }
+
+                removeOutputFromRootContainer(copyOutput);
+                Output *normalOutput = createNormalOutput(copyOutput->output());
+                copyOutput->deleteLater();
+                m_outputList.replace(i, normalOutput);
             }
 
-            removeOutputFromRootContainer(copyOutput);
-            Output *normalOutput = createNormalOutput(copyOutput->output());
-            copyOutput->deleteLater();
-            m_outputList.replace(i, normalOutput);
+            if (m_mode != OutputMode::Extension) {
+                m_mode = OutputMode::Extension;
+                Q_EMIT outputModeChanged();
+            }
         }
-    }
-
-    if (m_mode != OutputMode::Extension) {
+    } else if (m_mode != OutputMode::Extension) {
         m_mode = OutputMode::Extension;
         Q_EMIT outputModeChanged();
     }
+
     if (m_outputManagerHelper) {
         m_outputManagerHelper->clearCopyModeRestoreIntent();
     }
@@ -1278,9 +1294,11 @@ void Helper::onOutputCommitFinished(wlr_output_configuration_v1 *config, bool su
         bool ok = m_pendingOutputConfig.allSuccess;
         if (ok) {
             m_outputManagerHelper->storeSingleOutputConfig();
-            // An output-management enable/disable transaction describes an
-            // extension/single-output topology, never a copy topology.
-            m_outputManagerHelper->storeCopyOutputConfig(false);
+            // Only clear the persisted copy configuration when copy mode was
+            // actually left; a pure refresh-rate switch keeps it.
+            if (m_mode != OutputMode::Copy) {
+                m_outputManagerHelper->storeCopyOutputConfig(false);
+            }
 
             const auto enabledOutputCount = std::count_if(
                 m_pendingOutputConfig.states.cbegin(),
