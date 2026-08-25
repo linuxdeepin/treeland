@@ -1105,18 +1105,19 @@ SurfaceWrapper::State SurfaceWrapper::surfaceState() const
     return m_surfaceState;
 }
 
-bool SurfaceWrapper::checkSetSurfaceState(State newSurfaceState)
+bool SurfaceWrapper::checkSetSurfaceState(State newSurfaceState, bool allowRetarget)
 {
     if (m_wrapperAboutToRemove)
         return false;
 
-    if (m_geometryAnimation)
+    if (m_geometryAnimation && !allowRetarget)
         return false;
 
-    if (m_surfaceState == newSurfaceState)
+    const State currentState = m_geometryAnimation ? m_pendingState : m_surfaceState;
+    if (currentState == newSurfaceState)
         return false;
 
-    if (container()->filterSurfaceStateChange(this, newSurfaceState, m_surfaceState))
+    if (container()->filterSurfaceStateChange(this, newSurfaceState, currentState))
         return false;
 
     return true;
@@ -1124,8 +1125,14 @@ bool SurfaceWrapper::checkSetSurfaceState(State newSurfaceState)
 
 void SurfaceWrapper::setSurfaceState(State newSurfaceState)
 {
-    if (!checkSetSurfaceState(newSurfaceState))
+    if (!checkSetSurfaceState(newSurfaceState, true))
         return;
+
+    // A client can request the next state after the shell state has been
+    // acknowledged, while the corresponding geometry animation is still
+    // running. Retarget the transition instead of silently dropping the
+    // request until the visual animation finishes.
+    abortGeometryAnimation();
 
     const QRectF targetGeometry = targetGeometryForState(newSurfaceState);
 
