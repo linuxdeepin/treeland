@@ -111,6 +111,7 @@ Q_SIGNALS:
     void effectiveSizeChanged();
     void orientationChanged();
     void scaleChanged();
+    void adaptiveSyncEnabledChanged();
     void forceSoftwareCursorChanged();
     void bufferCommitted();
     void cursorAdded(WAYLIB_SERVER_NAMESPACE::WCursor *cursor);

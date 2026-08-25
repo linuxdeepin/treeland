@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "woutputmanagerv1.h"
-#include "woutputitem.h"
 #include "wscoplistener.h"
 #include "private/wglobal_p.h"
 
@@ -11,6 +10,30 @@
 #include <QHash>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
+
+namespace {
+
+WOutputState outputState(WOutput *output)
+{
+    const auto *wlrOutput = output->handle();
+    const QPoint position = output->position();
+
+    return {
+        .output = output,
+        .enabled = wlrOutput->enabled,
+        .mode = wlrOutput->current_mode,
+        .x = position.x(),
+        .y = position.y(),
+        .customModeSize = { wlrOutput->width, wlrOutput->height },
+        .customModeRefresh = wlrOutput->refresh,
+        .transform = static_cast<WOutput::Transform>(wlrOutput->transform),
+        .scale = wlrOutput->scale,
+        .adaptiveSyncEnabled =
+            wlrOutput->adaptive_sync_status == WLR_OUTPUT_ADAPTIVE_SYNC_ENABLED
+    };
+}
+
+}
 
 class Q_DECL_HIDDEN WOutputManagerV1Private : public WObjectPrivate
 {
@@ -142,23 +165,28 @@ void WOutputManagerV1::sendResult(wlr_output_configuration_v1 *config,
 void WOutputManagerV1::newOutput(WOutput *output)
 {
     W_D(WOutputManagerV1);
-    const auto *wlr_output = output->handle();
+    d->stateList.append(outputState(output));
+    connect(output, &WOutput::enabledChanged,
+            this, &WOutputManagerV1::syncOutputStates);
+    connect(output, &WOutput::positionChanged,
+            this, &WOutputManagerV1::syncOutputStates);
+    connect(output, &WOutput::modeChanged,
+            this, &WOutputManagerV1::syncOutputStates);
+    connect(output, &WOutput::orientationChanged,
+            this, &WOutputManagerV1::syncOutputStates);
+    connect(output, &WOutput::scaleChanged,
+            this, &WOutputManagerV1::syncOutputStates);
+    connect(output, &WOutput::adaptiveSyncEnabledChanged,
+            this, &WOutputManagerV1::syncOutputStates);
+    updateConfig();
+}
 
-    auto outputItem = WOutputItem::getOutputItem(output);
+void WOutputManagerV1::syncOutputStates()
+{
+    W_D(WOutputManagerV1);
+    for (auto &state : d->stateList)
+        state = outputState(state.output);
 
-    WOutputState state {
-        .output = output,
-        .enabled = wlr_output->enabled,
-        .mode = wlr_output->current_mode,
-        .x = outputItem ? static_cast<int32_t>(outputItem->x()) : 0,
-        .y = outputItem ? static_cast<int32_t>(outputItem->y()) : 0,
-        .customModeSize = {  wlr_output->width,  wlr_output->height },
-        .customModeRefresh =  wlr_output->refresh,
-        .transform = static_cast<WOutput::Transform>(wlr_output->transform),
-        .scale = wlr_output->scale,
-        .adaptiveSyncEnabled = (wlr_output->adaptive_sync_status == WLR_OUTPUT_ADAPTIVE_SYNC_ENABLED)
-    };
-    d->stateList.append(state);
     updateConfig();
 }
 
