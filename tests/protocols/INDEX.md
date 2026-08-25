@@ -45,6 +45,38 @@ Wayland 线上请求与事件；本文档规定发出请求后，测试必须观
 | [wine-window-management-unstable-v1](treeland-wine-window-management-unstable-v1/README.md) | P / E | 真实 wrapper 的位置与置顶层同步 |
 | [wine-window-state-unstable-v1](treeland-wine-window-state-unstable-v1/README.md) | P / E | 真实 wrapper 的最小化、attention 与可见性同步 |
 
+### 标准 wayland-protocols（1.49）由 Treeland 提供的协议
+
+以下 24 个测试覆盖 Treeland 在运行时通过 wlroots 实际提供的标准 wayland-protocols（wayland-protocols 1.49.0-1）。
+xdg-shell 由共享 xdg-toplevel 夹具覆盖（多个 toplevel 测试复用）。input-method-v2 不在 wayland-protocols 包内，故排除。
+
+| 协议 | 覆盖等级 | 主要生产结果 |
+| --- | --- | --- |
+| [wayland-alpha-modifier-v1](wayland-alpha-modifier-v1/README.md) | P | 绑定 `wp_alpha_modifier_v1`；surface 附加修饰器 + `set_multiplier`，无协议错误 |
+| [wayland-cursor-shape-v1](wayland-cursor-shape-v1/README.md) | P | 真实 `wl_pointer` 上创建 cursor-shape 设备并 `set_shape`，游标形状路径接入 seat |
+| [wayland-ext-data-control-v1](wayland-ext-data-control-v1/README.md) | P | 设备创建时收到 `selection(NULL)` 初始事件 |
+| [wayland-ext-foreign-toplevel-list-v1](wayland-ext-foreign-toplevel-list-v1/README.md) | P | `stop` 请求后收到 `finished` 事件 |
+| [wayland-ext-idle-notify-v1](wayland-ext-idle-notify-v1/README.md) | P | 1ms 超时后收到 `idled` 事件 |
+| [wayland-ext-image-copy-capture-v1](wayland-ext-image-copy-capture-v1/README.md) | P | 绑定 `ext_image_copy_capture_manager_v1` + `ext_output_image_capture_source_manager_v1`，验证全局存在 |
+| [wayland-ext-session-lock-v1](wayland-ext-session-lock-v1/README.md) | P | `lock`→`locked`（300ms grace timer 后）；或 `finished`（拒绝锁定） |
+| [wayland-fractional-scale-v1](wayland-fractional-scale-v1/README.md) | P | 已映射 surface 收到 `preferred_scale` 事件（scale>0） |
+| [wayland-idle-inhibit-unstable-v1](wayland-idle-inhibit-unstable-v1/README.md) | P | 已映射 surface 上 `create_inhibitor` 返回有效资源并存活 |
+| [wayland-pointer-constraints-unstable-v1](wayland-pointer-constraints-unstable-v1/README.md) | P | 真实 `wl_pointer` 上创建 locked pointer 约束，无协议错误 |
+| [wayland-pointer-gestures-unstable-v1](wayland-pointer-gestures-unstable-v1/README.md) | P | 真实 `wl_pointer` 上创建 swipe/pinch 手势资源 |
+| [wayland-primary-selection-unstable-v1](wayland-primary-selection-unstable-v1/README.md) | P | 从 `wl_seat` 创建 primary-selection 设备，无协议错误 |
+| [wayland-relative-pointer-unstable-v1](wayland-relative-pointer-unstable-v1/README.md) | P | 真实 `wl_pointer` 上创建 relative-pointer 资源 |
+| [wayland-security-context-v1](wayland-security-context-v1/README.md) | P | 抽象监听套接字 + commit；第二连接经该套接字建立并枚举全局 |
+| [wayland-single-pixel-buffer-v1](wayland-single-pixel-buffer-v1/README.md) | P | 创建单像素缓冲并附加到 surface，无协议错误 |
+| [wayland-text-input-unstable-v1](wayland-text-input-unstable-v1/README.md) | P | 创建 text_input v1 + activate/deactivate，无协议错误 |
+| [wayland-text-input-unstable-v3](wayland-text-input-unstable-v3/README.md) | P | 创建 text_input v3 + enable/commit，无协议错误 |
+| [wayland-viewporter](wayland-viewporter/README.md) | P | 创建 viewport + set_source/set_destination，无协议错误 |
+| [wayland-xdg-activation-v1](wayland-xdg-activation-v1/README.md) | P | `get_activation_token` 收到 `done` + 非空 token |
+| [wayland-xdg-decoration-unstable-v1](wayland-xdg-decoration-unstable-v1/README.md) | P | toplevel 装饰 `configure` 事件（含 mode） |
+| [wayland-xdg-dialog-v1](wayland-xdg-dialog-v1/README.md) | P | 真实 toplevel 上 `get_xdg_dialog` + `set_modal` 被接受 |
+| [wayland-xdg-foreign-unstable-v2](wayland-xdg-foreign-unstable-v2/README.md) | P | `export_toplevel` 收到非空 `handle`；`import_toplevel` 返回 imported |
+| [wayland-xdg-output-unstable-v1](wayland-xdg-output-unstable-v1/README.md) | P | 收到 `logical_position`/`logical_size`/`done` 事件 |
+| [wayland-xdg-toplevel-tag-v1](wayland-xdg-toplevel-tag-v1/README.md) | P | 真实 toplevel 上 `set_toplevel_tag`/`set_toplevel_description` 被接受 |
+
 ## XML request / event / 业务链路盘点
 
 本节是对当前工作树的源码审计，不是某一次 CTest 的通过率。审计读取已安装的
@@ -97,6 +129,31 @@ request stub 算作 request 覆盖；生成的 client-protocol 文件本身不�
 | `treeland-prelaunch-splash-v1` | 2 / 0 | 已由 v2 取代；未验证 v1 compatibility global 或迁移策略 |
 | `treeland-shortcut-manager-v1` | 3 / 1 | 已由 v2 取代；未验证 v1 compatibility global、`shortcut` event |
 | `treeland-remote-subsurface-unstable-v1` | 8 / 3 | 无测试目录；export token、remote subsurface 创建、位置/堆叠、错误 event 与真实 scene 结果均未覆盖 |
+
+### 标准 wayland-protocols 覆盖
+
+以下 24 个标准 wayland-protocols（wayland-protocols 1.49.0-1）测试均为 **P 级**，覆盖范围
+为绑定全局、创建资源、发送请求并断言事件/版本/错误。它们不纳入上方 treeland-protocols 的
+185 条 request 分母。按断言强度分为两类：
+
+- **事件断言型（10 个）**——验证真实事件负载到达：
+  `xdg-output-unstable-v1`（logical_position/size/done）、`xdg-activation-v1`（done+token）、
+  `ext-foreign-toplevel-list-v1`（finished after stop）、`xdg-foreign-unstable-v2`（handle 事件）、
+  `ext-data-control-v1`（selection）、
+  `ext-idle-notify-v1`（idled）、`xdg-decoration-unstable-v1`
+  （configure）、`fractional-scale-v1`（preferred_scale）、`ext-session-lock-v1`（locked/finished）、
+  `security-context-v1`（第二连接枚举全局）。
+- **资源创建型（14 个）**——验证真实生产资源创建与请求被接受（含接口本身无事件的情况）：
+  `viewporter`、`alpha-modifier-v1`、`single-pixel-buffer-v1`、`cursor-shape-v1`、
+  `relative-pointer-unstable-v1`、`pointer-gestures-unstable-v1`、`pointer-constraints-unstable-v1`、
+  `idle-inhibit-unstable-v1`、
+  `text-input-unstable-v1`、`text-input-unstable-v3`、`xdg-dialog-v1`、`xdg-toplevel-tag-v1`、
+  `ext-image-copy-capture-v1`、`primary-selection-unstable-v1`。
+
+`cursor-shape`/`relative-pointer`/`pointer-gestures`/`pointer-constraints` 四个测试需要 seat 指针能力，
+在 setup 中通过创建真实 `wlr_pointer` 设备（`wlr_pointer_init` + `WInputDevice` + `seat->attachInputDevice`）注入。
+`ext-session-lock` 测试允许 300ms grace timer 后收到 `locked` 或立即收到 `finished`（当锁屏已可见时）。
+这些测试的下一项增强（I/V 级）在各 README 的“已知边界”中列出。
 
 ### 如何解读业务覆盖
 
