@@ -18,17 +18,30 @@ struct test_case {
     int (*run)(struct test_ctx *ctx);
 };
 
-void test_init(struct test_ctx *ctx)
+struct test_ctx *test_ctx_create(void)
 {
-    memset(ctx, 0, sizeof(*ctx));
+    struct test_ctx *ctx = calloc(1, sizeof(*ctx));
+    if (ctx == NULL) {
+        fprintf(stderr, "failed to allocate memory for test context\n");
+        return NULL;
+    }
     ctx->result_cap = 32;
     ctx->results = calloc(ctx->result_cap, sizeof(*ctx->results));
+    if (ctx->results == NULL) {
+        fprintf(stderr, "failed to allocate memory for test results\n");
+        free(ctx);
+        return NULL;
+    }
+    return ctx;
 }
 
 void test_destroy(struct test_ctx *ctx)
 {
+    if (ctx == NULL) {
+        return;
+    }
     free(ctx->results);
-    memset(ctx, 0, sizeof(*ctx));
+    free(ctx);
 }
 
 int test_add(struct test_ctx *ctx, const char *name)
@@ -192,25 +205,27 @@ void test_cleanup(struct test_ctx *ctx)
 
 int protocol_test_run(const char *socket_name)
 {
-    struct test_ctx ctx;
-    test_init(&ctx);
-    if (!connect_client(&ctx, socket_name)) {
+    struct test_ctx *ctx = test_ctx_create();
+    if (ctx == NULL) {
+        return 1;
+    }
+    if (!connect_client(ctx, socket_name)) {
         fprintf(stderr, "failed to connect to or bind treeland_window_management_v1\n");
-        test_cleanup(&ctx);
-        test_destroy(&ctx);
+        test_cleanup(ctx);
+        test_destroy(ctx);
         return 1;
     }
 
     for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i) {
-        const int result = test_add(&ctx, cases[i].name);
-        if (!cases[i].run(&ctx))
-            test_fail(&ctx, result, "assertion failed");
-        if (wl_display_roundtrip(ctx.display) < 0)
-            test_fail(&ctx, result, "Wayland connection failed");
+        const int result = test_add(ctx, cases[i].name);
+        if (!cases[i].run(ctx))
+            test_fail(ctx, result, "assertion failed");
+        if (wl_display_roundtrip(ctx->display) < 0)
+            test_fail(ctx, result, "Wayland connection failed");
     }
 
-    test_cleanup(&ctx);
-    const int success = test_print_results(&ctx);
-    test_destroy(&ctx);
+    test_cleanup(ctx);
+    const int success = test_print_results(ctx);
+    test_destroy(ctx);
     return success ? 0 : 1;
 }
