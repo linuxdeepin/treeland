@@ -40,6 +40,7 @@
 #include "modules/dde-shell/ddeshellmanagerinterfacev1.h"
 #include "modules/ddm/ddminterfacev1.h"
 #include "modules/input-manager/inputmanagerinterfacev1.h"
+#include "modules/keyboard-shortcuts-inhibit/keyboardshortcutsinhibitmanager.h"
 #include "modules/keyboard-state-notify/keyboardstatenotifymanagerinterfacev1.h"
 #include "modules/output-manager/outputmanagement.h"
 #include "modules/personalization/personalizationmanagerinterfacev1.h"
@@ -75,21 +76,21 @@
 #include <WXdgOutput>
 #include <wayland-util.h>
 #include <wcursorshapemanagerv1.h>
-#include <wpointerconstraintsv1.h>
 #include <wextimagecapturesourcev1impl.h>
 #include <wlayersurface.h>
 #include <woutputhelper.h>
-#include <wscoplistener.h>
 #include <woutputitem.h>
 #include <woutputlayout.h>
 #include <woutputmanagerv1.h>
 #include <woutputrenderwindow.h>
 #include <woutputviewport.h>
+#include <wpointerconstraintsv1.h>
 #include <wqmlcreator.h>
 #include <wquickcursor.h>
 #include <wrelativepointermanagerv1.h>
-#include <wrenderhelper.h>
 #include <wremotesubsurfacemanagerv1.h>
+#include <wrenderhelper.h>
+#include <wscoplistener.h>
 #include <wseat.h>
 #include <wsecuritycontextmanager.h>
 #include <wsocket.h>
@@ -2277,6 +2278,7 @@ void Helper::init(Treeland::Treeland *treeland)
             &InputManager::onKeyboardSettingsCreated);
 
     m_keyboardStateNotifyManagerInterfaceV1 = m_server->attach<TreelandKeyboardStateNotifyManagerInterfaceV1>();
+    m_keyboardShortcutsInhibitManagerV1 = m_server->attach<KeyboardShortcutsInhibitManagerV1>();
 
 #if TREELANDCONFIG_DCONFIG_FILE_VERSION_MINOR > 0
     if (m_globalConfig->isInitializeSucceeded()) {
@@ -2597,6 +2599,15 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *targetWindow, QInputEvent 
                    || event->type() == QEvent::TouchEnd) {
             m_rootSurfaceContainer->endMoveResizeForSeat(seat);
         }
+    }
+
+    // Suppress compositor shortcuts when a keyboard shortcuts inhibitor is active
+    if (m_currentMode == CurrentMode::Normal) {
+        auto *focusSurface = seat->keyboardFocusSurface();
+        if (focusSurface
+            && m_keyboardShortcutsInhibitManagerV1->isInhibited(seat->handle(),
+                                                                focusSurface->handle()))
+            return false;
     }
 
     // Capture mode: intercept key events before dispatchKeyEvent
