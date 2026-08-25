@@ -199,7 +199,7 @@ void SeatSurfaceManager::beginMoveResize(SurfaceWrapper *surface, Qt::Edges edge
     m_moveResizeState.edges = edges;
     m_moveResizeState.startGeometry = surface->geometry();
     m_moveResizeState.settingPositionFlag = false;
-    m_moveResizeState.detectedTileMode = QuickTile::Mode::None;
+    m_moveResizeState.detectedTileMode = SurfaceWrapper::TileMode::None;
     m_moveResizeState.edgeTilePreviewActive = false;
     m_moveResizeState.edgeTileInnerBorder = false;
     m_moveResizeState.detectedTileOutput = nullptr;
@@ -247,13 +247,13 @@ void SeatSurfaceManager::endMoveResize()
     const bool previewActive = m_moveResizeState.edgeTilePreviewActive;
 
     // Clear state first so filterSurfaceStateChange won't intercept the
-    // subsequent setSurfaceState(Tiling) issued by QuickTile::apply.
+    // subsequent setSurfaceState(Tiling) issued by SurfaceWrapper::applyTileMode.
     m_moveResizeState.surface = nullptr;
     m_moveResizeState.edges = Qt::Edges();
     m_moveResizeState.startGeometry = QRectF();
     m_moveResizeState.initialPosition = QPointF();
     m_moveResizeState.settingPositionFlag = false;
-    m_moveResizeState.detectedTileMode = QuickTile::Mode::None;
+    m_moveResizeState.detectedTileMode = SurfaceWrapper::TileMode::None;
     m_moveResizeState.edgeTilePreviewActive = false;
     m_moveResizeState.edgeTileInnerBorder = false;
     m_moveResizeState.detectedTileOutput = nullptr;
@@ -264,7 +264,7 @@ void SeatSurfaceManager::endMoveResize()
         surface->shellSurface()->setResizeing(false);
         surface->setXwaylandPositionFromSurface(true);
     }
-    if (!previewActive || detectedMode == QuickTile::Mode::None) {
+    if (!previewActive || detectedMode == SurfaceWrapper::TileMode::None) {
         // Ensure window is still visible on screen after a plain move/resize.
         if (m_rootContainer)
             m_rootContainer->ensureSurfaceNormalPositionValid(surface);
@@ -272,7 +272,7 @@ void SeatSurfaceManager::endMoveResize()
         Output *out = nullptr;
         if (m_rootContainer && m_seat && m_seat->cursor())
             out = m_rootContainer->outputAt(m_seat->cursor()->position());
-        QuickTile::apply(surface, detectedMode, out);
+        surface->applyTileMode(detectedMode, out);
     }
 
     Q_EMIT moveResizeChanged();
@@ -292,7 +292,7 @@ void SeatSurfaceManager::cancelMoveResize()
     auto startGeo = m_moveResizeState.startGeometry;
     // Cancel discards any edge-tiling detected during the move: restore the
     // original (normal) geometry captured at beginMoveResize.
-    m_moveResizeState.detectedTileMode = QuickTile::Mode::None;
+    m_moveResizeState.detectedTileMode = SurfaceWrapper::TileMode::None;
     m_moveResizeState.detectedTileOutput = nullptr;
     m_moveResizeState.edgeTilePreviewActive = false;
     m_moveResizeState.edgeTileInnerBorder = false;
@@ -323,7 +323,7 @@ void SeatSurfaceManager::startEdgeTileDelay()
         connect(m_edgeTileDelayTimer, &QTimer::timeout, this, [this]() {
             auto &mr = m_moveResizeState;
             if (mr.surface && mr.edges == Qt::Edges()
-                && mr.detectedTileMode != QuickTile::Mode::None) {
+                && mr.detectedTileMode != SurfaceWrapper::TileMode::None) {
                 mr.edgeTilePreviewActive = true;
                 Output *out = nullptr;
                 if (m_rootContainer && m_seat && m_seat->cursor())

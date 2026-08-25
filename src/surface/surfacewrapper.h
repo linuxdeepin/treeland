@@ -105,6 +105,16 @@ public:
     };
     Q_ENUM(State)
 
+    // Quick-tile direction; None means "no tiling" (i.e. Normal state).
+    enum class TileMode
+    {
+        None,
+        Left,
+        Right,
+        Maximize,
+    };
+    Q_ENUM(TileMode)
+
     enum class ActiveControlState : quint16
     {
         MappedOrSplash = 1 << 0,
@@ -208,6 +218,10 @@ public:
     bool isTiling() const;
     bool isAnimationRunning() const;
     bool isWindowAnimationRunning() const;
+
+    void applyTileMode(TileMode mode, Output *output);
+    // Instantly restore `this` to Normal
+    void cancelTileMode();
 
     qreal radius() const;
     void setRadius(qreal newRadius);

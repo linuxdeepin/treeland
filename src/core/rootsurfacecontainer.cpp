@@ -870,18 +870,18 @@ QQuickItem *RootSurfaceContainer::ensureEdgeTilePreview()
     return m_edgeTilePreview;
 }
 
-void RootSurfaceContainer::updateEdgeTilePreview(QuickTile::Mode mode, Output *out)
+void RootSurfaceContainer::updateEdgeTilePreview(SurfaceWrapper::TileMode mode, Output *out)
 {
     auto *preview = ensureEdgeTilePreview();
     if (!preview)
         return;
 
-    if (mode == QuickTile::Mode::None || !out) {
+    if (mode == SurfaceWrapper::TileMode::None || !out) {
         preview->setVisible(false);
         return;
     }
 
-    const QRectF geo = QuickTile::geometry(mode, out);
+    const QRectF geo = out->tileGeometry(mode);
     if (!geo.isValid()) {
         preview->setVisible(false);
         return;
@@ -904,7 +904,7 @@ void RootSurfaceContainer::detectEdgeTilingForSeat(WSeat *seat)
     const qreal sideTrigger = cfg ? qreal(cfg->edgeSideTriggerDistance()) : 20.0;
     const qreal topTrigger = cfg ? qreal(cfg->edgeTopTriggerDistance()) : 5.0;
     auto &mrState = container->moveResizeState();
-    QuickTile::Mode mode = QuickTile::Mode::None;
+    SurfaceWrapper::TileMode mode = SurfaceWrapper::TileMode::None;
     Output *out = nullptr;
     bool innerBorder = false;
 
@@ -916,29 +916,29 @@ void RootSurfaceContainer::detectEdgeTilingForSeat(WSeat *seat)
         if (out) {
             const QRectF area = out->validGeometry();
             if (pos.x() <= area.left() + sideTrigger) {
-                mode = QuickTile::Mode::Left;
+                mode = SurfaceWrapper::TileMode::Left;
             } else if (pos.x() >= area.right() - sideTrigger) {
-                mode = QuickTile::Mode::Right;
+                mode = SurfaceWrapper::TileMode::Right;
             } else if (pos.y() <= area.top() + topTrigger) {
-                mode = QuickTile::Mode::Maximize;
+                mode = SurfaceWrapper::TileMode::Maximize;
             }
 
             // Multi-screen inner-edge detection:
             // Sample 1px outside the edge; if another output covers that
             // point, this is an inner edge
-            if (mode != QuickTile::Mode::None) {
+            if (mode != SurfaceWrapper::TileMode::None) {
                 QPointF samplePt;
                 switch (mode) {
-                case QuickTile::Mode::Maximize:
+                case SurfaceWrapper::TileMode::Maximize:
                     samplePt = QPointF(pos.x(), area.top() - 1.0);
                     break;
-                case QuickTile::Mode::Left:
+                case SurfaceWrapper::TileMode::Left:
                     samplePt = QPointF(area.left() - 1.0, pos.y());
                     break;
-                case QuickTile::Mode::Right:
+                case SurfaceWrapper::TileMode::Right:
                     samplePt = QPointF(area.right(), pos.y());
                     break;
-                case QuickTile::Mode::None:
+                case SurfaceWrapper::TileMode::None:
                     break;
                 }
                 for (Output *o : outputs()) {
@@ -961,14 +961,14 @@ void RootSurfaceContainer::detectEdgeTilingForSeat(WSeat *seat)
         mrState.edgeTileInnerBorder = innerBorder;
         mrState.detectedTileOutput = out;
 
-        if (mode == QuickTile::Mode::None) {
+        if (mode == SurfaceWrapper::TileMode::None) {
             container->stopEdgeTileDelay();
             mrState.edgeTilePreviewActive = false;
-            updateEdgeTilePreview(QuickTile::Mode::None, nullptr);
+            updateEdgeTilePreview(SurfaceWrapper::TileMode::None, nullptr);
         } else if (innerBorder) {
             container->stopEdgeTileDelay();
             mrState.edgeTilePreviewActive = false;
-            updateEdgeTilePreview(QuickTile::Mode::None, nullptr);
+            updateEdgeTilePreview(SurfaceWrapper::TileMode::None, nullptr);
             container->startEdgeTileDelay();
         } else {
             container->stopEdgeTileDelay();
@@ -984,7 +984,7 @@ void RootSurfaceContainer::endMoveResizeForSeat(WSeat *seat)
     if (container) {
         container->endMoveResize();
     }
-    updateEdgeTilePreview(QuickTile::Mode::None, nullptr);
+    updateEdgeTilePreview(SurfaceWrapper::TileMode::None, nullptr);
 }
 
 void RootSurfaceContainer::cancelMoveResizeForSeat(WSeat *seat)
@@ -993,7 +993,7 @@ void RootSurfaceContainer::cancelMoveResizeForSeat(WSeat *seat)
     if (container) {
         container->cancelMoveResize();
     }
-    updateEdgeTilePreview(QuickTile::Mode::None, nullptr);
+    updateEdgeTilePreview(SurfaceWrapper::TileMode::None, nullptr);
 }
 
 SurfaceWrapper *RootSurfaceContainer::getMoveResizeSurfaceForSeat(WSeat *seat) const

@@ -4,7 +4,6 @@
 #pragma once
 
 #include "surface/surfacewrapper.h"
-#include "surface/quicktile.h"
 #include <wseat.h>
 #include <wscoplistener.h>
 #include <QQuickItem>
@@ -39,8 +38,8 @@ public:
         QRectF startGeometry;               ///< Geometry at start of move/resize
         QPointF initialPosition;            ///< Initial cursor position
         bool settingPositionFlag = false;   ///< Flag to prevent recursive updates
-        QuickTile::Mode detectedTileMode =
-            QuickTile::Mode::None;          ///< Edge-tiling mode detected during move
+        SurfaceWrapper::TileMode detectedTileMode =
+            SurfaceWrapper::TileMode::None; ///< Edge-tiling mode detected during move
         bool edgeTilePreviewActive = false; ///< Whether the edge-tiling preview is activated
         bool edgeTileInnerBorder = false;   ///< Whether the detected edge is shared with an adjacent output (inner edge)
         Output *detectedTileOutput = nullptr;  ///< The output on which the edge was detected (for cross-screen preview updates)
