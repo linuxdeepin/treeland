@@ -114,6 +114,7 @@ void WOutputLayout::move(WOutput *output, const QPoint &pos)
 
     wlr_output_layout_add(d->handle(), output->handle(), pos.x(), pos.y());
 
+    Q_EMIT output->positionChanged(pos);
     d->updateImplicitSize();
 }
 

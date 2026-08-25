@@ -1510,7 +1510,10 @@ WOutputRenderWindowPrivate::doRenderOutputs(wlr_output *needsFrameOutput, const 
     needsCommit.reserve(renderResults.size());
     for (auto helper : std::as_const(renderResults)) {
         auto bufferRenderer = helper->afterRender();
-        if (bufferRenderer)
+        // A forced render may not acquire a new buffer, while an external
+        // output state transaction is still pending. WOutputHelper::commit()
+        // handles a null renderer by committing that state-only update.
+        if (bufferRenderer || helper->extraState())
             needsCommit.append({helper, bufferRenderer});
     }
 
@@ -1581,7 +1584,10 @@ void WOutputRenderWindowPrivate::doRender(wlr_output *needsFrameOutput,
     if (doCommit) {
         committedOutputs.reserve(needsCommit.size());
         for (auto i : std::as_const(needsCommit)) {
-            if (Q_UNLIKELY(!i.first->framePending())) {
+            // Explicit render(viewport, true) is used for state-only output
+            // transactions. It must not be suppressed merely because the
+            // transaction itself scheduled the next frame.
+            if (forceRender || Q_UNLIKELY(!i.first->framePending())) {
                 if (Q_LIKELY(i.first->commit(i.second))) {
                     // Make sure the output is still valid after commit
                     auto output = i.first->outputViewport()->output();
