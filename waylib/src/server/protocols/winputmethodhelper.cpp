@@ -30,16 +30,21 @@ struct Q_DECL_HIDDEN GrabHandlerArg {
 void handleKey(struct wlr_seat_keyboard_grab *grab, uint32_t time_msec, uint32_t key, uint32_t state)
 {
     auto arg = reinterpret_cast<GrabHandlerArg*>(grab->data);
-    for (auto vk: arg->helper->virtualKeyboards()) {
-        if (wlr_keyboard_from_input_device(vk->handle()) == grab->seat->keyboard_state.keyboard) {
-            grab->seat->keyboard_state.default_grab->interface->key(grab, time_msec, key, state);
-            return;
-        }
-    }
     if (!arg->grab) {
         qCCritical(lcWlInputMethod) << "Ignore key event for destroyed input method keyboard grab"
                                   << "key" << key << "state" << state;
         return;
+    }
+    for (auto vk: arg->helper->virtualKeyboards()) {
+        if (wlr_keyboard_from_input_device(vk->handle()) == grab->seat->keyboard_state.keyboard) {
+            auto *virtualKeyboard = wlr_input_device_get_virtual_keyboard(vk->handle());
+            if (virtualKeyboard && virtualKeyboard->resource && arg->grab->resource
+                && wl_resource_get_client(virtualKeyboard->resource)
+                    == wl_resource_get_client(arg->grab->resource)) {
+                grab->seat->keyboard_state.default_grab->interface->key(grab, time_msec, key, state);
+                return;
+            }
+        }
     }
     wlr_input_method_keyboard_grab_v2_send_key(arg->grab, time_msec, key, state);
 }
@@ -47,15 +52,20 @@ void handleKey(struct wlr_seat_keyboard_grab *grab, uint32_t time_msec, uint32_t
 void handleModifiers(struct wlr_seat_keyboard_grab *grab, const struct wlr_keyboard_modifiers *modifiers)
 {
     auto arg = reinterpret_cast<GrabHandlerArg*>(grab->data);
-    for (auto vk: arg->helper->virtualKeyboards()) {
-        if (wlr_keyboard_from_input_device(vk->handle()) == grab->seat->keyboard_state.keyboard) {
-            grab->seat->keyboard_state.default_grab->interface->modifiers(grab, modifiers);
-            return;
-        }
-    }
     if (!arg->grab) {
         qCCritical(lcWlInputMethod) << "Ignore modifiers for destroyed input method keyboard grab";
         return;
+    }
+    for (auto vk: arg->helper->virtualKeyboards()) {
+        if (wlr_keyboard_from_input_device(vk->handle()) == grab->seat->keyboard_state.keyboard) {
+            auto *virtualKeyboard = wlr_input_device_get_virtual_keyboard(vk->handle());
+            if (virtualKeyboard && virtualKeyboard->resource && arg->grab->resource
+                && wl_resource_get_client(virtualKeyboard->resource)
+                    == wl_resource_get_client(arg->grab->resource)) {
+                grab->seat->keyboard_state.default_grab->interface->modifiers(grab, modifiers);
+                return;
+            }
+        }
     }
     wlr_input_method_keyboard_grab_v2_send_modifiers(arg->grab, const_cast<struct wlr_keyboard_modifiers *>(modifiers));
 }
@@ -445,16 +455,17 @@ void WInputMethodHelper::resendKeyboardFocus()
 {
     W_D(WInputMethodHelper);
     qCInfo(lcWlInputMethod()) << "resend keyboard focus";
-    notifyLeave();
     auto focus = d->seat->keyboardFocusSurface();
-    if (!focus)
-        return;
-    qCDebug(lcWlInputMethod) << "focus" << focus << "from client" << focus->waylandClient();
     for (auto textInput : std::as_const(d->textInputs)) {
+        if (textInput->focusedSurface() && textInput->focusedSurface() != focus)
+            textInput->sendLeave();
+        if (!focus)
+            continue;
         qCDebug(lcWlInputMethod()) << "trying to send focus to" << textInput << "from client" << textInput->waylandClient();
         if (focus->waylandClient() == textInput->waylandClient()) {
             qCDebug(lcWlInputMethod) << "focus sent to" << textInput;
-            if (!textInput->seat() || textInput->seat() == d->seat) {
+            if ((!textInput->seat() || textInput->seat() == d->seat)
+                && textInput->focusedSurface() != focus) {
                 textInput->sendEnter(focus);
             }
         }
@@ -509,6 +520,10 @@ void WInputMethodHelper::handleNewTI(WTextInput *ti)
     });
     if (ti->seat() && d->seat->name() == ti->seat()->name()) {
         connectToTI(ti);
+        if (auto *surface = d->seat->keyboardFocusSurface(); surface
+            && surface->waylandClient() == ti->waylandClient()) {
+            ti->sendEnter(surface);
+        }
     }
 }
 
