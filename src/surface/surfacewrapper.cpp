@@ -1663,6 +1663,11 @@ void SurfaceWrapper::onAnimationFinished()
 {
     setXwaylandPositionFromSurface(true);
     Q_ASSERT(m_geometryAnimation);
+    // The ready signal is driven by ShaderEffectSource's scheduled update.
+    // Software renderers may complete the geometry animation without issuing
+    // that update, so commit the pending state here as an idempotent fallback.
+    if (m_surfaceState != m_pendingState)
+        applySurfaceStateGeometry(m_pendingState, m_pendingGeometry);
     abortGeometryAnimation();
 }
 
