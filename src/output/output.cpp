@@ -1060,6 +1060,26 @@ QRectF Output::validGeometry() const
     return geometry().marginsRemoved(m_exclusiveZone);
 }
 
+QRectF Output::tileGeometry(SurfaceWrapper::TileMode mode) const
+{
+    if (mode == SurfaceWrapper::TileMode::None)
+        return QRectF();
+
+    const QRectF area = validGeometry();
+    switch (mode) {
+    case SurfaceWrapper::TileMode::Left:
+        return QRectF(area.topLeft(), QSizeF(area.width() / 2, area.height()));
+    case SurfaceWrapper::TileMode::Right:
+        return QRectF(QPointF(area.left() + area.width() / 2, area.top()),
+                      QSizeF(area.width() / 2, area.height()));
+    case SurfaceWrapper::TileMode::Maximize:
+        return area;
+    case SurfaceWrapper::TileMode::None:
+        break;
+    }
+    return QRectF();
+}
+
 // do not use config()->setBrightness or config()->setColorTemperature to set color temperature or brightness
 // as doing so will have no effect.
 // use Output::setOutputColor instead
