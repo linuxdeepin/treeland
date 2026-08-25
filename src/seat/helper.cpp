@@ -1860,6 +1860,47 @@ void Helper::init(Treeland::Treeland *treeland)
     m_shellHandler->createComponent(engine, m_renderWindow->contentItem());
 
     m_foreignToplevel = m_server->attach<WForeignToplevel>();
+    connect(m_foreignToplevel, &WForeignToplevel::requestActivate, this,
+            [this](WToplevelSurface *surface) {
+                if (auto *wrapper = m_rootSurfaceContainer->getSurface(surface))
+                    forceActivateSurface(wrapper, Qt::OtherFocusReason);
+            });
+    connect(m_foreignToplevel, &WForeignToplevel::requestMaximize, this,
+            [this](WToplevelSurface *surface, bool maximized) {
+                if (auto *wrapper = m_rootSurfaceContainer->getSurface(surface)) {
+                    if (maximized)
+                        wrapper->maximize();
+                    else
+                        wrapper->unmaximize();
+                }
+            });
+    connect(m_foreignToplevel, &WForeignToplevel::requestMinimize, this,
+            [this](WToplevelSurface *surface, bool minimized) {
+                auto *wrapper = m_rootSurfaceContainer->getSurface(surface);
+                if (!wrapper)
+                    return;
+                if (showDesktopState() == WindowManagementInterfaceV1::DesktopState::Show) {
+                    forceActivateSurface(wrapper);
+                } else if (minimized) {
+                    wrapper->minimize();
+                } else {
+                    wrapper->restoreFromMinimized();
+                }
+            });
+    connect(m_foreignToplevel, &WForeignToplevel::requestFullscreen, this,
+            [this](WToplevelSurface *surface, bool fullscreen) {
+                if (auto *wrapper = m_rootSurfaceContainer->getSurface(surface)) {
+                    if (fullscreen)
+                        wrapper->enterFullscreen();
+                    else
+                        wrapper->leaveFullscreen();
+                }
+            });
+    connect(m_foreignToplevel, &WForeignToplevel::requestClose, this,
+            [this](WToplevelSurface *surface) {
+                if (auto *wrapper = m_rootSurfaceContainer->getSurface(surface))
+                    wrapper->close();
+            });
     m_extForeignToplevelListV1 = m_server->attach<WExtForeignToplevelListV1>();
     m_relativePointerManager = m_server->attach<WRelativePointerManagerV1>();
     auto connectSeat = [this](WSeat *seat) {
