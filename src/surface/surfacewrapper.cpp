@@ -1904,6 +1904,37 @@ void SurfaceWrapper::toggleMaximized()
         maximize();
 }
 
+void SurfaceWrapper::applyTileMode(TileMode mode, Output *output)
+{
+    if (mode == TileMode::None) {
+        cancelTileMode();
+        return;
+    }
+
+    if (mode == TileMode::Maximize) {
+        // Use the cursor's output geometry, not the surface's current output,
+        // so maximize lands on the screen the user dragged to (matches preview).
+        if (output)
+            setMaximizedGeometry(output->validGeometry());
+        maximize();
+        return;
+    }
+
+    const QRectF geo = output ? output->tileGeometry(mode) : QRectF();
+    if (!geo.isValid())
+        return;
+
+    // Order matters: setTilingGeometry first so that a subsequent
+    // setSurfaceState(Tiling) reads the new m_tilingGeometry as its target.
+    setTilingGeometry(geo);
+    setSurfaceState(State::Tiling);
+}
+
+void SurfaceWrapper::cancelTileMode()
+{
+    setSurfaceStateDirectly(State::Normal);
+}
+
 void SurfaceWrapper::enterFullscreen(WOutput *targetOutput)
 {
     if (m_type == Type::XdgToplevel && surface() && !surface()->mapped()) {
