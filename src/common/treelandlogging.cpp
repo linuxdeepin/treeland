@@ -60,6 +60,7 @@ Q_LOGGING_CATEGORY(lcTlPropertyMonitor, "treeland.property.monitor")
 
 // Shortcut system
 Q_LOGGING_CATEGORY(lcTlShortcut, "treeland.shortcut")
+Q_LOGGING_CATEGORY(lcTlKeyboardShortcutsInhibit, "treeland.shortcut.inhibit")
 
 // Greeter module
 Q_LOGGING_CATEGORY(lcTlGreeter, "treeland.greeter")

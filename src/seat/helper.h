@@ -128,6 +128,7 @@ class WallpaperColorInterfaceV1;
 class WindowManagementInterfaceV1;
 class WindowPickerInterface;
 class TreelandKeyboardStateNotifyManagerInterfaceV1;
+class KeyboardShortcutsInhibitManagerV1;
 class WallpaperManager;
 class WallpaperItem;
 class TreelandInputManagerInterfaceV1;
@@ -475,6 +476,7 @@ private:
     TreelandWallpaperManagerInterfaceV1 *m_wallpaperManagerInterfaceV1 = nullptr;
     TreelandWallpaperNotifierInterfaceV1 *m_wallpaperNotifierInterfaceV1 = nullptr;
     TreelandKeyboardStateNotifyManagerInterfaceV1 *m_keyboardStateNotifyManagerInterfaceV1 = nullptr;
+    KeyboardShortcutsInhibitManagerV1 *m_keyboardShortcutsInhibitManagerV1 = nullptr;
 #ifdef EXT_SESSION_LOCK_V1
     WSessionLockManager *m_sessionLockManager = nullptr;
     QTimer *m_lockScreenGraceTimer = nullptr;

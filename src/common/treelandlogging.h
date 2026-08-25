@@ -63,6 +63,7 @@ Q_DECLARE_LOGGING_CATEGORY(lcTlPropertyMonitor)
 
 // Shortcut system
 Q_DECLARE_LOGGING_CATEGORY(lcTlShortcut)
+Q_DECLARE_LOGGING_CATEGORY(lcTlKeyboardShortcutsInhibit)
 
 // Greeter module
 Q_DECLARE_LOGGING_CATEGORY(lcTlGreeter)
