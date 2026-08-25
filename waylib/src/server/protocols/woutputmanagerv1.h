@@ -68,6 +68,7 @@ protected:
     wl_global *global() const override;
 
 private:
+    void syncOutputStates();
     void updateConfig();
 };
 

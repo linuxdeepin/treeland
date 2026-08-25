@@ -93,6 +93,9 @@ WOutput::WOutput(wlr_output *handle, WBackend *backend)
 
         if (event->state->committed & WLR_OUTPUT_STATE_ENABLED)
             Q_EMIT enabledChanged();
+
+        if (event->state->committed & WLR_OUTPUT_STATE_ADAPTIVE_SYNC_ENABLED)
+            Q_EMIT adaptiveSyncEnabledChanged();
     });
 }
 
