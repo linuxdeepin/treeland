@@ -438,6 +438,25 @@ void SurfaceWrapper::setup()
                         moveNormalGeometryInOutput(xwaylandSurfaceItem->implicitPosition());
                 });
 
+        connect(xwaylandSurface,
+                &WXWaylandSurface::requestConfigure,
+                this,
+                [this, xwaylandSurface, xwaylandSurfaceItem]() {
+                    const auto flags = xwaylandSurface->requestConfigureFlags();
+                    if (!flags.testAnyFlags(WXWaylandSurface::XCB_CONFIG_WINDOW_SIZE))
+                        return;
+
+                    const qreal ratio = xwaylandSurfaceItem->surfaceSizeRatio();
+                    const QSizeF paddings(xwaylandSurfaceItem->leftPadding()
+                                              + xwaylandSurfaceItem->rightPadding(),
+                                          xwaylandSurfaceItem->topPadding()
+                                              + xwaylandSurfaceItem->bottomPadding());
+                    const QSizeF requestedSize = QSizeF(xwaylandSurface->requestConfigureGeometry().size())
+                        / ratio + paddings;
+
+                    setSize(alignGeometryToPixelGrid(QRectF(position(), requestedSize)).size());
+                });
+
         connect(this, &QQuickItem::xChanged, xwaylandSurface, [this, xwaylandSurfaceItem]() {
             xwaylandSurfaceItem->moveTo(position(), !m_xwaylandPositionFromSurface);
         });
