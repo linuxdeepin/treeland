@@ -165,7 +165,7 @@ class NativeHandlesTest : public QObject
                  &surface->events.request_resize,
                  &surface->events.set_override_redirect,
                  &surface->events.set_geometry,
-                 &surface->events.set_hints,
+                 &surface->events.set_size_hints,
                  &surface->events.set_window_type,
                  &surface->events.set_decorations,
                  &surface->events.set_title,
