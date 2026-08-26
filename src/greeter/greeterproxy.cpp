@@ -516,12 +516,14 @@ void GreeterProxy::readyRead()
             qCInfo(lcTlGreeter) << "switch to greeter";
             lock();
         } break;
+#ifndef DDM_VERSION_LT_0_3_8
         case DaemonMessages::ShowGreeter: {
             qCInfo(lcTlGreeter) << "show greeter";
             // Full lock screen transition (LockScreen mode, hidden workspace),
             // matching the previous startup behavior of showLockScreen().
             Helper::instance()->showLockScreen(false);
         } break;
+#endif
         case DaemonMessages::UserActivateMessage: {
             QString user;
             int sessionId;
