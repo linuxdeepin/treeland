@@ -107,7 +107,7 @@ void WXWaylandSurfacePrivate::init()
     });
     q->listeners()->add(&m_handle->events.set_override_redirect, q, &WXWaylandSurface::bypassManagerChanged);
     q->listeners()->add(&m_handle->events.set_geometry, q, &WXWaylandSurface::geometryChanged);
-    q->listeners()->add(&m_handle->events.set_hints, this, &WXWaylandSurfacePrivate::updateSizeHints);
+    q->listeners()->add(&m_handle->events.set_size_hints, this, &WXWaylandSurfacePrivate::updateSizeHints);
     q->listeners()->add(&m_handle->events.set_window_type, this, &WXWaylandSurfacePrivate::updateWindowTypes);
     q->listeners()->add(&m_handle->events.set_decorations, q, &WXWaylandSurface::decorationsFlagsChanged);
     q->listeners()->add(&m_handle->events.set_title, q, &WXWaylandSurface::titleChanged);
