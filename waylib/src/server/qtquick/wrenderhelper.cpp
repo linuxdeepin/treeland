@@ -137,13 +137,13 @@ bool WRenderHelper::RenderTarget::colorPreserved() const
 }
 
 static constexpr WGlobal::ColorContentsMode resolveColorContentsMode(
-    WGlobal::ColorContentsMode requested, bool softwareRenderer) noexcept
+    WGlobal::ColorContentsMode requested) noexcept
 {
     if (requested != WGlobal::ColorContentsMode::DontCare)
         return requested;
-    // Software clear is expensive; default to preserve.
-    return softwareRenderer ? WGlobal::ColorContentsMode::Preserve
-                            : WGlobal::ColorContentsMode::Clear;
+    // Recycled swapchain images keep last-use pixels (wlroots LOAD). An
+    // explicit Clear is the only path that discards them.
+    return WGlobal::ColorContentsMode::Preserve;
 }
 
 static QRhiTextureRenderTarget::Flags rhiRenderTargetFlags(WGlobal::ColorContentsMode mode)
@@ -670,7 +670,7 @@ WRenderHelper::RenderTarget WRenderHelper::acquireRenderTarget(QQuickRenderContr
         return {};
 
     const bool isSoftware = wlr_renderer_is_pixman(d->renderer);
-    const auto resolvedMode = resolveColorContentsMode(mode, isSoftware);
+    const auto resolvedMode = resolveColorContentsMode(mode);
     const bool needPreserve = resolvedMode == WGlobal::ColorContentsMode::Preserve;
     const auto flags = rhiRenderTargetFlags(resolvedMode);
 
@@ -680,7 +680,7 @@ WRenderHelper::RenderTarget WRenderHelper::acquireRenderTarget(QQuickRenderContr
             if (needPreserve != data->colorPreserved) {
 #ifdef ENABLE_VULKAN_RENDER
                 if (wlr_renderer_is_vk(d->renderer)) {
-                    qCWarning(lcWlRenderHelper)
+                    qCDebug(lcWlRenderHelper)
                         << "Recreating Vulkan render target for buffer" << buffer
                         << "to change color preserved from" << data->colorPreserved
                         << "to" << needPreserve;

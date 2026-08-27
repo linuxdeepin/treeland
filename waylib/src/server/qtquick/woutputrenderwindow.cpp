@@ -21,6 +21,12 @@
 #include "wseat.h"
 #include "wayliblogging.h"
 #include "wsgcontext_p.h"
+#include "wregionhighlightitem.h"
+#include "wsgdamagenode_p.h"
+#include "wsgdamagetracker_p.h"
+#include "wrenderbuffernode_p.h"
+#include "wsgbatchrenderer_p.h"
+#include "private/wprivateaccessor_p.h"
 
 #include "platformplugin/qwlrootsintegration.h"
 #include "platformplugin/qwlrootscreen.h"
@@ -41,18 +47,14 @@
 #include <private/qsgrenderer_p.h>
 #include <private/qsgsoftwarerenderer_p.h>
 #include <private/qquickanimatorcontroller_p.h>
-#include "private/wprivateaccessor_p.h"
 #include <private/qquickwindow_p.h>
 #include <private/qquickrendercontrol_p.h>
-#include <private/qquickwindow_p.h>
 #include <private/qrhi_p.h>
 #include <private/qsgrhisupport_p.h>
 #include <private/qquicktranslate_p.h>
 #include <private/qquickitem_p.h>
 #include <private/qsgabstractrenderer_p.h>
-#include <private/qsgrenderer_p.h>
 #include <private/qpainter_p.h>
-#include <private/qquickitem_p.h>
 #include <private/qquickrectangle_p.h>
 
 #include <drm_fourcc.h>
@@ -152,6 +154,7 @@ public:
         QRect mapToOutput;
         QSize pixelSize;
         QMatrix4x4 renderMatrix;
+        WSGViewport viewport;
 
         // for proxy
         LayerData *mapFromLayer = nullptr; // check mapFrom before use
@@ -200,11 +203,24 @@ public:
         return WOutputViewportPrivate::get(m_output2)->bufferRenderer;
     }
 
+    inline bool damageDebugNeedsFrame() const {
+        return m_highlight && m_highlight->overlay()
+            && m_highlight->overlay()->needsAnotherFrame();
+    }
+
     inline const QList<LayerData*> &layers() const {
         return m_layers;
     }
 
     inline void invalidate() {
+        delete m_highlight;
+        m_highlight = nullptr;
+        // This output leaves the window's damage tree: drop the recopy slot
+        // of the primary renderer and of every layer renderer. Re-attach
+        // would re-seed from the shared seed via pendingRecopy().
+        releaseRecopySlot(bufferRenderer());
+        for (LayerData *l : std::as_const(m_layers))
+            releaseRecopySlot(l->renderer);
         m_output = nullptr;
         cleanLayerCompositor();
         cleanCursorRender();
@@ -224,14 +240,23 @@ public:
     void sortLayers();
     void cleanLayerCompositor();
     void cleanCursorRender();
+    void ensureHighlight();
 
     inline wlr_buffer *beginRender(WBufferRenderer *renderer,
                                  const QSize &pixelSize, uint32_t format,
                                  WBufferRenderer::RenderFlags flags,
                                  WGlobal::ColorContentsMode mode = WGlobal::ColorContentsMode::DontCare);
-    inline void render(WBufferRenderer *renderer, int sourceIndex, const QMatrix4x4 &renderMatrix,
-                       const QRectF &sourceRect, const QRectF &viewportRect);
-
+    inline void render(WBufferRenderer *renderer, int sourceIndex, WSGViewport &viewport);
+    // Feeds the settled cycle flush to the damage highlight overlay. Call
+    // after the output renderer's endRender().
+    inline void addHighlightFrame(WBufferRenderer *renderer) {
+        if (m_highlight)
+            m_highlight->addFrame(renderer->lastRenderRegion());
+    }
+    // Drops one renderer's per-output recopy debt from every backdrop node.
+    // Slots are keyed by the driving WBufferRenderer*; a renderer that will
+    // never draw again must release its slot or the map keeps stale debt.
+    void releaseRecopySlot(WBufferRenderer *renderer);
     static bool visualizeLayers() {
         static bool on = qEnvironmentVariableIsSet("WAYLIB_VISUALIZE_LAYERS");
         return on;
@@ -243,8 +268,16 @@ public:
     bool commit(WBufferRenderer *buffer);
     bool tryToHardwareCursor(const LayerData *layer);
 
-private:
     WOutputViewport *m_output = nullptr;
+    QPointer<WRegionHighlightItem> m_highlight;
+    WSGViewport m_viewport;
+    // In-place software layer composition renders source 1 with an identity
+    // matrix into the same buffer as source 0. It gets its own viewport:
+    // sharing m_viewport would retoggle the render matrix every frame and
+    // force full damage through viewport dirtiness.
+    WSGViewport m_compositeViewport;
+    WSGViewport m_viewport2;
+    WSGViewport m_cursorViewport;
     QList<LayerData*> m_layers;
     WBufferRenderer *m_lastCommitBuffer = nullptr;
     // only for render cursor
@@ -349,8 +382,7 @@ private:
         Rejected,
     };
 
-    State state;
-
+    State state = Normal;
     QList<WOutputViewport*> m_outputs;
 };
 
@@ -464,6 +496,7 @@ public:
     QList<OutputHelper*> outputs;
     QList<OutputLayer*> layers;
     bool disableLayers = false;
+    WOutputRenderWindow::DamageVisual damageVisual = WOutputRenderWindow::DamageVisual::Off;
 
     QOpenGLContext *glContext = nullptr;
 #ifdef ENABLE_VULKAN_RENDER
@@ -486,6 +519,27 @@ WOutputRenderWindowPrivate *OutputHelper::renderWindowD() const
 void OutputHelper::updateSceneDPR()
 {
     WOutputRenderWindowPrivate::get(renderWindow())->updateSceneDPR();
+}
+
+void OutputHelper::ensureHighlight()
+{
+    if (!m_output)
+        return;
+    if (renderWindow()->damageVisual() != WOutputRenderWindow::DamageVisual::Highlight)
+        return;
+    if (m_output->objectName() == QLatin1String("__private_WOutputViewport"))
+        return;
+    if (WOutputViewportPrivate::get(m_output)->offscreen)
+        return;
+    QQuickItem *host = m_output->parentItem();
+    if (!host)
+        return;
+    if (m_highlight) {
+        if (m_highlight->parentItem() != host)
+            m_highlight->setParentItem(host);
+        return;
+    }
+    m_highlight = new WRegionHighlightItem(m_output, host);
 }
 
 int OutputHelper::indexOfLayer(OutputLayer *layer) const
@@ -532,6 +586,7 @@ void OutputHelper::detachLayer(OutputLayer *layer)
         cleanCursorRender();
     }
 
+    releaseRecopySlot(l->renderer);
     delete l;
 }
 
@@ -560,6 +615,8 @@ void OutputHelper::cleanLayerCompositor()
     }
 
     if (m_output2) {
+        // The shadow renderer dies with its viewport: drop its recopy slot.
+        releaseRecopySlot(bufferRenderer2());
         m_output2->deleteLater();
         m_output2 = nullptr;
     }
@@ -590,16 +647,40 @@ wlr_buffer *OutputHelper::beginRender(WBufferRenderer *renderer,
                                     WBufferRenderer::RenderFlags flags,
                                     WGlobal::ColorContentsMode mode)
 {
-    return renderer->beginRender(pixelSize, devicePixelRatio(), format, flags, mode);
+    return renderer->beginRender(pixelSize, format, flags, mode);
 }
 
-void OutputHelper::render(WBufferRenderer *renderer, int sourceIndex, const QMatrix4x4 &renderMatrix,
-                          const QRectF &sourceRect, const QRectF &targetRect)
+void OutputHelper::render(WBufferRenderer *renderer, int sourceIndex, WSGViewport &viewport)
 {
     renderWindowD()->pushRenderer(renderer);
-    renderer->render(sourceIndex, renderMatrix, sourceRect, targetRect);
+    renderer->render(sourceIndex, viewport);
 }
 
+void OutputHelper::releaseRecopySlot(WBufferRenderer *renderer)
+{
+    if (!renderer)
+        return;
+    // The damage tree lives on the window's batch renderer; recopy slots
+    // are keyed by the driving WBufferRenderer* (currentRenderer()).
+    auto *batch = dynamic_cast<WSGBatchRenderer::Renderer*>(
+        QQuickWindowPrivate::get(renderWindow())->renderer);
+    if (!batch)
+        return;
+    auto *tracker = batch->damageTracker();
+    WSGDamageNode *root = tracker ? tracker->root() : nullptr;
+    if (!root)
+        return;
+    const void *key = renderer;
+    QStack<WSGDamageNode*> stack;
+    stack.push(root);
+    while (!stack.isEmpty()) {
+        WSGDamageNode *node = stack.pop();
+        if (auto *backdrop = node->toBackdrop())
+            backdrop->releaseRecopy(key);
+        for (WSGDamageNode *child = node->firstChild(); child; child = child->nextSibling())
+            stack.push(child);
+    }
+}
 static QQuickItem *createVisualRectangle(QQuickItem *target, const QColor &color) {
     auto rectangle = new QQuickRectangle(target);
     rectangle->border()->setColor(color);
@@ -760,7 +841,7 @@ wlr_buffer *OutputHelper::renderLayer(LayerData *layer, bool *dontEndRenderAndRe
             mode = WGlobal::ColorContentsMode::Preserve;
         }
         // Don't use OutputHelper::beginRender, because the dpr maybe is from LayerData::mapFrom
-        buffer = layer->renderer->beginRender(layer->pixelSize, dpr,
+        buffer = layer->renderer->beginRender(layer->pixelSize,
                                               // TODO: Allows control format by WOutputLayer
                                               alpha ? DRM_FORMAT_ARGB8888 : DRM_FORMAT_XRGB8888,
                                               WBufferRenderer::DontConfigureSwapchain,
@@ -768,16 +849,18 @@ wlr_buffer *OutputHelper::renderLayer(LayerData *layer, bool *dontEndRenderAndRe
         if (buffer) {
             const QRectF sr = QRectF(layer->mapRect.topLeft() - layer->noClipMapRect.topLeft(), layer->mapRect.size());
             const QRectF tr(QPointF(0, 0), layer->mapRect.size());
-
-            render(layer->renderer, 0, layer->renderMatrix, sr, tr);
+            layer->viewport.setRenderParameters(layer->renderMatrix, sr, tr);
+            layer->viewport.setDevicePixelRatio(dpr);
+            render(layer->renderer, 0, layer->viewport);
 
             if (visualizeLayers())
-                render(layer->renderer, 1, layer->renderMatrix, sr, tr);
+                render(layer->renderer, 1, layer->viewport);
 
             if (dontEndRenderAndReturnNeedsEndRender) {
                 *dontEndRenderAndReturnNeedsEndRender = true;
             } else {
                 layer->renderer->endRender();
+                layer->viewport.finishFrame();
             }
         } else if (dontEndRenderAndReturnNeedsEndRender) {
             *dontEndRenderAndReturnNeedsEndRender = false;
@@ -800,6 +883,9 @@ typedef QScopedPointer<wl_array, QScopedPointerWlArrayDeleter> wl_array_pointer;
 
 WBufferRenderer *OutputHelper::afterRender()
 {
+    ensureHighlight();
+    if (m_highlight)
+        m_highlight->sync();
     if (m_layers.isEmpty()) {
         cleanLayerCompositor();
         return bufferRenderer();
@@ -842,6 +928,7 @@ WBufferRenderer *OutputHelper::afterRender()
         if (needsEndBuffer) {
             // after get damage(&i->renderer->damageRing()->current)
             i->renderer->endRender();
+            i->viewport.finishFrame();
         }
 
         Q_ASSERT(!i->renderer->currentBuffer());
@@ -1053,13 +1140,19 @@ WBufferRenderer *OutputHelper::compositeLayers(const QList<LayerData*> layers, b
             // stop primary render
             if (bufferRenderer()->currentBuffer())
                 bufferRenderer()->endRender();
-            render(bufferRenderer2(), 0, {}, m_output->effectiveSourceRect(), m_output->targetRect());
+            m_viewport2.setRenderParameters({}, m_output->effectiveSourceRect(),
+                                                  m_output->targetRect());
+            m_viewport2.setDevicePixelRatio(m_output->devicePixelRatio());
+            render(bufferRenderer2(), 0, m_viewport2);
 
             return bufferRenderer2();
         }
     } else {
-        if (bufferRenderer()->currentBuffer()) {
-            render(bufferRenderer(), 1, {}, m_output->effectiveSourceRect(), m_output->targetRect());
+        if (auto *buffer = bufferRenderer()->currentBuffer()) {
+            m_compositeViewport.setRenderParameters({}, m_output->effectiveSourceRect(),
+                                                    m_output->targetRect());
+            m_compositeViewport.setDevicePixelRatio(m_output->devicePixelRatio());
+            render(bufferRenderer(), 1, m_compositeViewport);
         } else {
             // ###(zccrs): Maybe because contents is not dirty, so not do render
             // in WOutputRenderWindowPrivate::doRenderOutputs, force mark the
@@ -1090,7 +1183,18 @@ bool OutputHelper::commit(WBufferRenderer *buffer)
 
     m_lastCommitBuffer = buffer;
 
-    return WOutputHelper::commit();
+    const bool ok = WOutputHelper::commit();
+    if (ok) {
+        // The presented buffer carries everything accumulated so far; slower
+        // outputs sharing the scene kept their own copy in their viewport.
+        if (m_output2 && buffer == bufferRenderer2())
+            m_viewport2.finishFrame();
+        else {
+            m_viewport.finishFrame();
+            m_compositeViewport.finishFrame();
+        }
+    }
+    return ok;
 }
 
 bool OutputHelper::tryToHardwareCursor(const LayerData *layer)
@@ -1203,11 +1307,14 @@ bool OutputHelper::tryToHardwareCursor(const LayerData *layer)
             if (m_cursorDirty || !newBuffer ||
                 (pixelSize.width() != newBuffer->width) ||
                 (pixelSize.height() != newBuffer->height)) {
-                newBuffer = m_cursorRenderer->beginRender(pixelSize, 1.0, DRM_FORMAT_ARGB8888,
+                newBuffer = m_cursorRenderer->beginRender(pixelSize, DRM_FORMAT_ARGB8888,
                                                           WBufferRenderer::UseCursorFormats);
                 if (newBuffer) {
-                    m_cursorRenderer->render(0, {});
+                    m_cursorViewport.setRenderParameters({});
+                    m_cursorViewport.setDevicePixelRatio(1.0);
+                    m_cursorRenderer->render(0, m_cursorViewport);
                     m_cursorRenderer->endRender();
+                    m_cursorViewport.finishFrame();
                 }
 
                 m_cursorDirty = false;
@@ -1452,7 +1559,36 @@ WOutputRenderWindowPrivate::doRenderOutputs(wlr_output *needsFrameOutput, const 
 {
     QVector<OutputHelper*> renderResults;
     renderResults.reserve(outputs.size());
+
+    auto *batch = dynamic_cast<WSGBatchRenderer::Renderer*>(renderer);
+    auto *tracker = batch && batch->damageMode() != WSGBatchRenderer::Renderer::DamageMode::Off
+        ? batch->damageTracker() : nullptr;
+    if (tracker) {
+        // Every viewport sharing the scene must retain this round's damage,
+        // even if it is outside outputs or still waiting for its frame.
+        for (OutputHelper *helper : std::as_const(this->outputs)) {
+            if (!helper || helper->outputViewport()->input())
+                continue;
+            auto *vp = helper->outputViewport();
+            auto &viewport = helper->m_viewport;
+            const QSize outSize = vp->output()->size();
+            viewport.setRenderParameters(vp->renderMatrix(), vp->effectiveSourceRect(),
+                                         vp->targetRect());
+            viewport.setDevicePixelRatio(vp->devicePixelRatio());
+            if (auto *last = helper->bufferRenderer()->lastBuffer();
+                !last || QSize(last->width, last->height) != outSize)
+                helper->bufferRenderer()->markFullDamage();
+            if (helper->bufferRenderer()->m_pendingFullDamage)
+                viewport.markFull();
+            tracker->commit(viewport);
+        }
+    }
+
     for (OutputHelper *helper : std::as_const(outputs)) {
+        const bool sharedDamage = tracker && !helper->outputViewport()->input();
+        const bool sceneDirty = sharedDamage
+            ? helper->m_viewport.affectsBuffer(helper->outputViewport()->output()->size())
+            : helper->contentIsDirty();
         if (Q_LIKELY(needsFrameOutput)) {
             if (helper->output() != needsFrameOutput)
                 continue;
@@ -1472,14 +1608,19 @@ WOutputRenderWindowPrivate::doRenderOutputs(wlr_output *needsFrameOutput, const 
                 || !shouldRender)
                 continue;
 
-            if (!(helper->needsFrame() || helper->contentIsDirty()))
+            if (!(helper->needsFrame() || helper->contentIsDirty() || sceneDirty
+                  || helper->damageDebugNeedsFrame() || helper->extraState()))
                 continue;
 
             // Capture sessions (ext-image-copy-capture etc.) lock the output
             // via wlr_output_lock_attach_render() and need a buffer commit to
             // complete, even if the content didn't change.
             bool captureLocked = helper->output()->attach_render_locks > 0;
-            if (!helper->contentIsDirty() && !captureLocked) {
+            // Layer composition may still need a primary buffer even when
+            // the shared scene is unchanged. Otherwise only redraw the
+            // primary scene for its own damage or a capture request.
+            const bool layersDirty = helper->contentIsDirty() && !helper->m_layers.isEmpty();
+            if (!sceneDirty && !captureLocked && !layersDirty) {
                 renderResults.append(helper);
                 continue;
             }
@@ -1488,7 +1629,6 @@ WOutputRenderWindowPrivate::doRenderOutputs(wlr_output *needsFrameOutput, const 
         Q_ASSERT(helper->outputViewport()->output()->scale() <= helper->outputViewport()->devicePixelRatio());
 
         const auto &format = helper->output()->render_format;
-        const auto renderMatrix = helper->outputViewport()->renderMatrix();
 
         // maybe using the other WOutputViewport's QSGTextureProvider
         if (!helper->outputViewport()->depends().isEmpty())
@@ -1498,11 +1638,8 @@ WOutputRenderWindowPrivate::doRenderOutputs(wlr_output *needsFrameOutput, const 
                                                 WBufferRenderer::RedirectOpenGLContextDefaultFrameBufferObject,
                                                 helper->outputViewport()->colorContentsMode());
         Q_ASSERT(buffer == helper->bufferRenderer()->currentBuffer());
-        if (buffer) {
-            helper->render(helper->bufferRenderer(), 0, renderMatrix,
-                           helper->outputViewport()->effectiveSourceRect(),
-                           helper->outputViewport()->targetRect());
-        }
+        if (buffer)
+            helper->render(helper->bufferRenderer(), 0, helper->m_viewport);
         renderResults.append(helper);
     }
 
@@ -1573,6 +1710,10 @@ void WOutputRenderWindowPrivate::doRender(wlr_output *needsFrameOutput,
 
     if (QSGRendererInterface::isApiRhiBased(WRenderHelper::getGraphicsApi()))
         rc()->endFrame();
+    if (auto *batch = dynamic_cast<WSGBatchRenderer::Renderer*>(renderer)) {
+        if (auto *tracker = batch->damageTracker())
+            tracker->finishFrame();
+    }
 
     // prevent gles2-render exception in wlroots.
     // wlroots may have render operations after commit, so do
@@ -1601,8 +1742,20 @@ void WOutputRenderWindowPrivate::doRender(wlr_output *needsFrameOutput,
                 }
             }
 
-            if (i.second->currentBuffer()) {
+            // Only cycles that acquired a new primary buffer produced new
+            // pixels. Fade-only frames (no beginRender) must not re-feed the
+            // stale lastRenderRegion(), or the overlay entries would never
+            // expire and the highlight would never stop.
+            const bool didRender = i.second->currentBuffer() != nullptr;
+            if (didRender) {
                 i.second->endRender();
+            }
+            // The cycle's flush is settled after endRender(); feed the
+            // damage highlight once per output (layer/cursor renderers are
+            // sized to their layers, not the viewport).
+            if (didRender
+                && q->damageVisual() == WOutputRenderWindow::DamageVisual::Highlight) {
+                i.first->addHighlightFrame(i.second);
             }
 
             i.first->resetState();
@@ -1647,6 +1800,16 @@ WOutputRenderWindow::WOutputRenderWindow(QObject *parent)
     contentItem()->setFlag(QQuickItem::ItemIsFocusScope);
     contentItem()->setFocus(true);
 
+    {
+        const QByteArray raw = qgetenv("WAYLIB_DEBUG_DAMAGE").trimmed().toLower();
+        DamageVisual visual = DamageVisual::Off;
+        if (raw == "highlight" || raw == "1" || raw == "true" || raw == "on")
+            visual = DamageVisual::Highlight;
+        if (visual != DamageVisual::Off)
+            qCInfo(lcWlRenderer) << "WAYLIB_DEBUG_DAMAGE=" << raw.constData();
+        d_func()->damageVisual = visual;
+    }
+
     qGuiApp->installEventFilter(this);
 }
 
@@ -1661,6 +1824,11 @@ WOutputRenderWindow::~WOutputRenderWindow()
 
     renderControl()->disconnect(this);
     renderControl()->invalidate();
+    // Blit RHI managers are QObject children of this window and import the
+    // RenderControl-owned GL context. Destroy them here, before
+    // delete renderControl() frees that context. Otherwise QRhi::~QRhi()
+    // makeCurrent() SIGSEGVs during QObject::deleteChildren().
+    WRenderBufferNode::destroyWindowDataManagers(this);
     delete renderControl();
 }
 
@@ -1978,6 +2146,22 @@ void WOutputRenderWindow::setDisableLayers(bool newDisableLayers)
     d->disableLayers = newDisableLayers;
     d->scheduleDoRender();
     Q_EMIT disableLayersChanged();
+}
+
+WOutputRenderWindow::DamageVisual WOutputRenderWindow::damageVisual() const
+{
+    Q_D(const WOutputRenderWindow);
+    return d->damageVisual;
+}
+
+void WOutputRenderWindow::setDamageVisual(DamageVisual visual)
+{
+    Q_D(WOutputRenderWindow);
+    if (d->damageVisual == visual)
+        return;
+    d->damageVisual = visual;
+    d->scheduleDoRender();
+    Q_EMIT damageVisualChanged();
 }
 
 void WOutputRenderWindow::render()

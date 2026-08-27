@@ -40,6 +40,7 @@ RowLayout {
         }
 
         background: RoundBlur {
+            objectName: "sessionItemBlur"
             radius: parent.width / 2
             color: Qt.rgba(1.0, 1.0, 1.0, 0.3)
         }
@@ -143,6 +144,7 @@ RowLayout {
             anchors.centerIn: parent
 
             background: RoundBlur {
+                objectName: actionItem.iconName + "Blur"
                 radius: parent.width / 2
                 color: Qt.rgba(1.0, 1.0, 1.0, 0.3)
             }

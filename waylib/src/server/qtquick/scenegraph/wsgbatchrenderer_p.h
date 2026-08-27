@@ -27,13 +27,28 @@
 #include <private/qsgnode_p.h>
 #endif
 
-#include <QtCore/QBitArray>
-#include <QtCore/QElapsedTimer>
-#include <QtCore/QStack>
-
 #include <rhi/qrhi.h>
 
-QT_BEGIN_NAMESPACE
+#include <wglobal.h>
+#include <wpixmanregion.h>
+
+#include <QtCore/QBitArray>
+#include <QtCore/QElapsedTimer>
+#include <QtCore/QHash>
+#include <QtCore/QRectF>
+#include <QtCore/QStack>
+#include <QtCore/QStringList>
+#include <QtCore/QVarLengthArray>
+#include <QtCore/QVector>
+#include <QtGui/QRegion>
+
+#include <memory>
+
+WAYLIB_SERVER_BEGIN_NAMESPACE
+
+class WSGDamageNode;
+class WSGDamageGeometryNode;
+class WSGDamageTracker;
 
 namespace WSGBatchRenderer
 {
@@ -307,6 +322,7 @@ struct Element {
     void computeBounds();
 
     QSGGeometryNode *node = nullptr;
+    WSGDamageNode *damage = nullptr;
     Batch *batch = nullptr;
     Element *nextInBatch = nullptr;
     Node *root = nullptr;
@@ -478,8 +494,13 @@ struct Batch
 // NOTE: Node is zero-initialized by the Allocator.
 struct Node
 {
+    using LocalRectFn = QRectF (*)(QSGNode *);
+
     QSGNode *sgNode;
     void *data;
+    WSGDamageNode *damage;
+    WSGDamageGeometryNode *aggregateDamage;
+    LocalRectFn localRectFn;
 
     Node *m_parent;
     Node *m_child;
@@ -775,6 +796,43 @@ public:
     bool usesDepthBuffer() const { return useDepthBuffer(); }
     ShaderManager *shaderManager() const { return m_shaderManager; }
 
+    // GPU redraw region (including buffer age). Used for QRhiScissor.
+    const WDamageRegion &lastRenderRegion() const;
+
+    // Content dirty region (scene graph damage only). Used for wlr_damage_ring.
+    const WDamageRegion &lastFlushRegion() const;
+
+    WSGDamageTracker *damageTracker() const;
+    // Non-drawing background input for a managed source. Update its content
+    // damage before commit(); bounds and damage are in this scene.
+    WSGDamageGeometryNode *backgroundDamageNode();
+    void setDamage(const WDamageRegion &flush, const WDamageRegion &render, const QRect &sceneOutputRect = {});
+    // Restrict damage scissors to this RT. Nested QSGLayer/MultiEffect
+    // renders reuse this Renderer with a different RT; they must not inherit
+    // the output's scene-space scissors.
+    void setDamageScissorTarget(QRhiRenderTarget *rt);
+
+    // Replaces subtreeRoot's detailed damage graph with one conservative
+    // geometry proxy. localBounds is in subtreeRoot coordinates and must cover
+    // every pixel the subtree can render. Backdrop subtrees are rejected; a
+    // backdrop added later automatically restores exact damage tracking.
+    bool setDamageSubtreeAggregation(QSGNode *subtreeRoot,
+                                     bool enabled,
+                                     const QRectF &localBounds = { });
+
+    enum class DamageMode
+    {
+        Off,    // No tracker. Draw and present like pre-damage QSGBatchRenderer.
+        Commit, // Track and report flush to the output. Draw is still fullscreen.
+        Full,   // Track, scissor, cull, and recopy blitters by damage.
+    };
+    static DamageMode defaultDamageMode();
+    void setDamageMode(DamageMode mode);
+    DamageMode damageMode() const
+    {
+        return m_damageMode;
+    }
+
 protected:
     void nodeChanged(QSGNode *node, QSGNode::DirtyState state) override;
     void render() override;
@@ -854,6 +912,10 @@ private:
     bool prepareRenderUnmergedBatch(Batch *batch, PreparedRenderBatch *renderBatch);
     void renderUnmergedBatch(PreparedRenderBatch *renderBatch, bool depthPostPass = false);
     void setViewportAndScissors(QRhiCommandBuffer *cb, const Batch *batch);
+    void collectScissorRectsForBatch(const Batch *batch, QVarLengthArray<QRect, 20> *out) const;
+    bool batchIntersectsDamage(const Batch *batch) const;
+    template<typename DrawFn>
+    void drawWithDamageScissors(QRhiCommandBuffer *cb, const Batch *batch, DrawFn &&draw);
     void setGraphicsPipeline(QRhiCommandBuffer *cb, const Batch *batch, Element *e, bool depthPostPass = false);
     ClipState::ClipType updateStencilClip(const QSGClipNode *clip);
     void updateClip(const QSGClipNode *clipList, const Batch *batch);
@@ -886,6 +948,20 @@ private:
     void setVisualizationMode(const QByteArray &mode) override;
     bool hasVisualizationModeWithContinuousUpdate() const override;
 
+    bool tracksDamage() const
+    {
+        return m_damageMode != DamageMode::Off;
+    }
+    bool clipsDrawToDamage() const
+    {
+        return m_damageMode == DamageMode::Full;
+    }
+    void commitFlushRegion();
+    void expandDamageScissor(const WPixmanRegion &sceneRegion);
+    void finishDamagePassLogs(bool recorded);
+    bool isCompositorOutputPass() const;
+    QRect sceneRectToNativeScissor(const QRectF &bbox, bool pad = true) const;
+
     QSGDefaultRenderContext *m_context;
     QSGRendererInterface::RenderMode m_renderMode;
     QSet<Node *> m_taggedRoots;
@@ -895,6 +971,25 @@ private:
     bool m_partialRebuild;
     QSGNode *m_partialRebuildRoot;
     bool m_forceNoDepthBuffer;
+    struct DamageTree;
+    std::unique_ptr<DamageTree> m_damageTree;
+    QSGNode *m_damageTrackedRoot = nullptr;
+    DamageMode m_damageMode = DamageMode::Full;
+    // One-shot full damage after switching into a tracking damage mode.
+    // Owned per-Renderer (one WBufferRenderer drives several sources/layers),
+    // consumed by setDamage() so a switch between commit() and setDamage()
+    // cannot be overwritten unseen. Never fed back from lastRenderRegion.
+    bool m_modeSwitchFull = false;
+    bool m_damageCommitValid = false;
+    bool m_damageScissorEnabled = false;
+    QRhiRenderTarget *m_damageScissorTarget = nullptr;
+    WPixmanRegion m_extraDamageScissor;
+    WPixmanRegion m_blitterPending;
+    bool m_blitterPendingFull = false;
+    QVector<QRect> m_damageNativeScissors;
+    WPixmanRegion m_damageSceneScissors;
+    QStringList m_damageIdleBlitters;
+    QStringList m_damageNestedSkipBlitters;
 
     QHash<QSGRenderNode *, RenderNodeElement *> m_renderNodeElements;
     QDataBuffer<Batch *> m_opaqueBatches;
@@ -1045,13 +1140,16 @@ void StencilClipState::reset()
     drawCalls.reset();
 }
 
-}
+} // namespace WSGBatchRenderer
 
-Q_DECLARE_TYPEINFO(WSGBatchRenderer::GraphicsState, Q_RELOCATABLE_TYPE);
-Q_DECLARE_TYPEINFO(WSGBatchRenderer::GraphicsPipelineStateKey, Q_RELOCATABLE_TYPE);
-Q_DECLARE_TYPEINFO(WSGBatchRenderer::RenderPassState, Q_RELOCATABLE_TYPE);
-Q_DECLARE_TYPEINFO(WSGBatchRenderer::DrawSet, Q_PRIMITIVE_TYPE);
+WAYLIB_SERVER_END_NAMESPACE
 
+QT_BEGIN_NAMESPACE
+Q_DECLARE_TYPEINFO(WAYLIB_SERVER_NAMESPACE::WSGBatchRenderer::GraphicsState, Q_RELOCATABLE_TYPE);
+Q_DECLARE_TYPEINFO(WAYLIB_SERVER_NAMESPACE::WSGBatchRenderer::GraphicsPipelineStateKey,
+                   Q_RELOCATABLE_TYPE);
+Q_DECLARE_TYPEINFO(WAYLIB_SERVER_NAMESPACE::WSGBatchRenderer::RenderPassState, Q_RELOCATABLE_TYPE);
+Q_DECLARE_TYPEINFO(WAYLIB_SERVER_NAMESPACE::WSGBatchRenderer::DrawSet, Q_PRIMITIVE_TYPE);
 QT_END_NAMESPACE
 
 #endif // WSGBATCHRENDERER_P_H

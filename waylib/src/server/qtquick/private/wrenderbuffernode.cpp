@@ -13,12 +13,18 @@
 #include "platformplugin/types.h"
 #include "private/wprivateaccessor_p.h"
 #include "wsgbatchrenderer_p.h"
+#include "wsgdamagelog_p.h"
 
 #include <wlr_all.h>
 
 #include <QQuickItem>
 #include <QRunnable>
 #include <QSGImageNode>
+#include <QQmlContext>
+#include <QRegularExpression>
+#include <QSGTransformNode>
+#include <QtQml/qqml.h>
+
 #include <private/qquickitem_p.h>
 #include <private/qsgplaintexture_p.h>
 #include <private/qrhi_p.h>
@@ -30,6 +36,7 @@
 #include <qobjectdefs.h>
 
 #include <algorithm>
+#include <memory>
 
 // QSGRenderer: access protected methods preprocess()/render() and private
 // bit-field members m_changed_emitted/m_is_rendering.
@@ -69,10 +76,11 @@ static_assert(sizeof(QSGRenderer) == 432,
     "QSGRenderer size changed — review qsgrenderer_p.h and update the bit-field accessor");
 #endif
 
-static inline WSGBatchRenderer::ShaderManager *rendererShaderManager(WSGBatchRenderer::Renderer *r) {
+static inline WAYLIB_SERVER_NAMESPACE::WSGBatchRenderer::ShaderManager *
+rendererShaderManager(WAYLIB_SERVER_NAMESPACE::WSGBatchRenderer::Renderer *r) {
     return r ? r->shaderManager() : nullptr;
 }
-static inline bool rendererUseDepthBuffer(const WSGBatchRenderer::Renderer *r) {
+static inline bool rendererUseDepthBuffer(const WAYLIB_SERVER_NAMESPACE::WSGBatchRenderer::Renderer *r) {
     return r && r->usesDepthBuffer();
 }
 static inline void rendererPreprocess(QSGRenderer *r) {
@@ -239,7 +247,10 @@ public:
             }
         }
 
+        // Recycle only idle entries so an in-use resource is not aliased.
         for (auto data : std::as_const(dataList)) {
+            if (data->released == 0)
+                continue;
             if (get()->check(data->data, std::forward<DataKeys>(keys)...)) {
                 data->released = 0;
                 return data;
@@ -350,6 +361,24 @@ struct WlrAndRhiTexture {
 class Q_DECL_HIDDEN RhiTextureManager : public DataManager<RhiTextureManager, WlrAndRhiTexture, QRhiTexture::Format, uint32_t, uint64_t, const QSize&>
 {
     Q_OBJECT
+public:
+    WlrAndRhiTexture *ensurePersistent(WlrAndRhiTexture *current, QRhiTexture::Format format,
+                                       uint32_t drmFormat, uint64_t drmModifier, const QSize &size)
+    {
+        if (current && check(current, format, drmFormat, drmModifier, size))
+            return current;
+        if (current)
+            destroy(current);
+        return create(format, drmFormat, drmModifier, size);
+    }
+
+    static void destroyPersistent(WlrAndRhiTexture *texture)
+    {
+        if (texture)
+            destroy(texture);
+    }
+
+private:
 
     friend class DataManager;
 
@@ -530,7 +559,12 @@ private:
         // renderer is using depth test, and the other QSGRenderer is not finished render.
         // For an example: RhiNode to render its content nodes on an exists renderTarget.
         renderer = context->createRenderer(QSGRendererInterface::RenderMode2DNoDepthBuffer);
-        isBatchRenderer = dynamic_cast<WSGBatchRenderer::Renderer*>(renderer);
+        auto *batch = dynamic_cast<WSGBatchRenderer::Renderer*>(renderer);
+        isBatchRenderer = batch;
+        // This renderer only draws a small content/rotate tree into a known
+        // target. Compositor damage belongs on the output pass.
+        if (batch)
+            batch->setDamageMode(WSGBatchRenderer::Renderer::DamageMode::Off);
     }
 
     ~RhiManager() override {
@@ -601,6 +635,18 @@ static QSizeF mapSize(const QRectF &source, const QMatrix4x4 &matrix)
     return size;
 }
 
+// updateClip() in the batch renderer only turns a rectangular clip into a
+// scissor for axis-aligned or 90-degree transforms; anything else falls back
+// to stencil, which a color-preserving capture target cannot provide.
+ static bool isScissorSafeTransform(const QMatrix4x4 &m)
+ {
+     if (!qFuzzyIsNull(m(3, 0)) || !qFuzzyIsNull(m(3, 1)))
+         return false;
+     const bool aligned = qFuzzyIsNull(m(0, 1)) && qFuzzyIsNull(m(1, 0));
+     const bool quarterTurn = qFuzzyIsNull(m(0, 0)) && qFuzzyIsNull(m(1, 1));
+     return aligned || quarterTurn;
+ }
+
 inline static void restoreChildNodesTo(QSGNode *node, QSGNode *realParent) {
     Q_ASSERT(realParent->firstChild() == node->firstChild());
     Q_ASSERT(realParent->lastChild() == node->lastChild());
@@ -632,6 +678,12 @@ inline static void overrideChildNodesTo(QSGNode *node, QSGNode *newParent) {
 }
 
 class Q_DECL_HIDDEN RhiNode : public WRenderBufferNode {
+    struct ViewportCapture {
+        QPointer<WBufferRenderer> renderer;
+        WlrAndRhiTexture *texture = nullptr;
+        bool copiedFromCompositor = false;
+    };
+
 public:
     RhiNode(QQuickItem *item)
         : WRenderBufferNode(item, new Texture)
@@ -666,6 +718,14 @@ public:
             return BoundedRectRendering | DepthAwareRendering;
 
         return DepthAwareRendering;
+    }
+
+    bool hasCompositorCaptureImpl() const override {
+        const ViewportCapture *cap = captureFor(currentOutputRenderer());
+        if (!cap || !cap->copiedFromCompositor)
+            return false;
+        const auto tex = cap->texture;
+        return tex && tex->rhiTexture;
     }
 
     void releaseResources() override {
@@ -703,41 +763,58 @@ public:
         auto window = renderWindow();
         auto ct = currentRenderTexture();
         if (!ct) {
-            reset();
+            // Nested QSGLayer / window FBO has no compositor texture.
+            // Drop the active capture so render() does not assert on a
+            // leftover texture pointer.
+            texture = nullptr;
+            if (!hasAnyCopiedCapture())
+                reset();
             return;
         }
 
         auto buffer = WRenderHelper::lookupBuffer(ct);
         if (!buffer) {
-            reset();
+            if (!hasAnyCopiedCapture())
+                reset();
             return;
         }
 
         wlr_dmabuf_attributes attribs;
         if (!wlr_buffer_get_dmabuf(buffer, &attribs)) {
-            reset();
+            if (!hasAnyCopiedCapture())
+                reset();
             return;
         }
 
         const auto currentRenderer = maybeBufferRenderer();
+        WBufferRenderer *output = currentOutputRenderer();
         // TODO: Apple viewport to matrix, needs get QSGRenderer
         renderMatrix = currentRenderer
-                           ? currentRenderer->currentWorldTransform() * (*this->matrix())
-                           : *this->matrix();
+                           ? currentRenderer->currentWorldTransform() * m_sceneMatrix
+                           : m_sceneMatrix;
         devicePixelRatio = effectiveDevicePixelRatio();
         const auto oldManager = manager;
         manager = RhiTextureManager::resolveByOwner(manager, window);
 
         if (oldManager != manager) {
             sgTexture()->setTexture(nullptr);
-            if (oldManager)
-                oldManager->release(texture);
-            texture.reset();
+            for (auto &c : captures) {
+                if (c.texture && oldManager)
+                    oldManager->destroyPersistent(c.texture);
+                c.texture = nullptr;
+                c.copiedFromCompositor = false;
+            }
+            texture = nullptr;
         }
 
         Q_ASSERT(ct->rhi() == window->rhi());
         rhi = rhi->resolveByOwner(rhi, window);
         Q_ASSERT(rhi);
+
+        ViewportCapture *cap = ensureCapture(output);
+        if (!cap)
+            return;
+        texture = cap->texture;
 
         const bool hasRotation = renderMatrix.flags().testAnyFlags(QMatrix4x4::Rotation2D | QMatrix4x4::Rotation);
         QSize pixelSize;
@@ -745,7 +822,7 @@ public:
         if (hasRotation) {
             const QSizeF size = mapSize(m_rect, renderMatrix) * devicePixelRatio;
             if (size.isEmpty()) {
-                reset();
+                dropCurrentCapture();
                 return;
             }
 
@@ -754,19 +831,23 @@ public:
             if (!renderData) {
                 renderData.reset(new RenderData);
 
+                renderData->clipNode = new QSGClipNode();
+                renderData->clipNode->setFlag(QSGNode::OwnedByParent);
+                renderData->clipNode->setIsRectangular(true);
                 renderData->imageNode = window->createImageNode();
                 renderData->imageNode->setFlag(QSGNode::OwnedByParent);
                 renderData->imageNode->setOwnsTexture(false);
                 renderData->texture.setOwnsTexture(false);
                 renderData->imageNode->setTexture(&renderData->texture);
-                renderData->rootNode.appendChildNode(renderData->imageNode);
+                renderData->clipNode->appendChildNode(renderData->imageNode);
+                renderData->rootNode.appendChildNode(renderData->clipNode);
             }
         } else {
             renderData.reset();
 
             QSizeF size = renderMatrix.mapRect(m_rect).size() * devicePixelRatio;
             if (!size.isValid()) {
-                reset();
+                dropCurrentCapture();
                 return;
             }
 
@@ -776,18 +857,35 @@ public:
         {
             auto format = attribs.format;
             auto modifier = attribs.modifier;
-            texture = manager->resolve(texture, ct->format(), std::move(format), std::move(modifier), pixelSize);
+            WlrAndRhiTexture *previous = texture;
+            texture = manager->ensurePersistent(texture, ct->format(), std::move(format),
+                                                std::move(modifier), pixelSize);
+            if (cap) {
+                cap->texture = texture;
+                if (previous != texture)
+                    cap->copiedFromCompositor = false;
+            }
         }
-        if (Q_UNLIKELY(texture.expired())) {
-            reset();
+        if (Q_UNLIKELY(!texture)) {
+            dropCurrentCapture();
             return;
         }
-        auto texture = this->texture.lock();
-        Q_ASSERT(texture->data);
+
+        if (sgTexture()->rhiTexture() != texture->rhiTexture) {
+            sgTexture()->setTexture(texture->rhiTexture);
+            doNotifyTextureChanged();
+        }
 
         if (renderData) {
-            if (!renderData->rt || sgTexture()->rhiTexture() != texture->data->rhiTexture) {
-                QRhiTextureRenderTargetDescription rtDesc(texture->data->rhiTexture);
+            QRhiTexture *need = texture->rhiTexture;
+            QRhiTexture *have = nullptr;
+            if (renderData->rt) {
+                const auto desc = renderData->rt->description();
+                if (desc.colorAttachmentCount() > 0)
+                    have = desc.colorAttachmentAt(0)->texture();
+            }
+            if (!renderData->rt || have != need) {
+                QRhiTextureRenderTargetDescription rtDesc(need);
                 const auto flags = QRhiTextureRenderTarget::PreserveColorContents
                     | QRhiTextureRenderTarget::PreserveDepthStencilContents;
                 auto newRT = rhi->rhi()->newTextureRenderTarget(rtDesc, flags);
@@ -810,54 +908,113 @@ public:
     }
 
     void render([[maybe_unused]] const RenderState *state) override {
-        auto texture = this->texture.lock();
+        auto *texture = this->texture;
         if (Q_UNLIKELY(!texture))
             return;
-        auto rhiTexture = texture->data->rhiTexture;
+        auto rhiTexture = texture->rhiTexture;
 
         auto ct = currentRenderTexture();
         Q_ASSERT(ct);
 
-        if (renderData) {
-            renderData->texture.setTexture(ct);
-            renderData->texture.setTextureSize(ct->pixelSize());
+        // Recapture only when behind-tree damage hit this quad, or we still
+        // have no compositor texture. Pending overlapping the blitter is a
+        // punch: composite the last capture, do not copy a hole.
+        const bool copySource = needsSourceCopy() || !hasCompositorCapture();
+        if (Q_UNLIKELY(lcWlDamage().isDebugEnabled())) {
+            const QString how = copySource
+                    ? QStringLiteral("draw: recapture compositor pixels under this blitter into the offscreen texture")
+                    : QStringLiteral("draw: reuse last capture; pending punches this blitter, do not copy a hole");
+            qCDebug(lcWlDamage) << WSGDamageLog::frameTag() << "blitter" << debugLabel()
+                                << "on-screen" << WSGDamageLog::describe(QRegion(mappedQuad()), false)
+                                << how
+                                << "recapture-rect" << WSGDamageLog::describe(m_damageRegion, false)
+                                << (hasCompositorCapture()
+                                            ? "already has compositor capture"
+                                            : "no compositor capture yet");
+        }
+        if (copySource) {
+            // Refreshing: drop validity BEFORE copying so every failure path
+            // below retries next frame instead of reusing a stale cache whose
+            // recopy debt was already consumed. Success marks it current.
+            invalidateCurrentCopy();
+            qCDebug(lcWlRenderBuffer) << "extra-QRhi"
+                                      << (renderData ? "rotate-blit" : "copyTexture")
+                                      << rhiTexture->pixelSize()
+                                      << "blitter" << debugLabel()
+                                      << "on-screen" << mappedQuad();
+            if (renderData) {
+                const QPointF sourcePos = renderMatrix.map(m_rect.topLeft());
+                renderData->imageNode->setRect(QRectF(-(devicePixelRatio - 1) * sourcePos, ct->pixelSize()));
 
-            const QPointF sourcePos = renderMatrix.map(m_rect.topLeft());
-            renderData->imageNode->setRect(QRectF(-(devicePixelRatio - 1) * sourcePos, ct->pixelSize()));
+                // Bound the rotate-blit to the damaged compositor area; the
+                // capture target preserves color so clipped pixels keep the
+                // last capture. Full render when unmappable or not scissor-safe.
+                QRect clipRect(QPoint(0, 0), ct->pixelSize());
+                if (isScissorSafeTransform(renderMatrix)) {
+                    const QRect dirty = damageSourceRect().intersected(clipRect);
+                    if (!dirty.isEmpty())
+                        clipRect = dirty;
+                }
+                renderData->clipNode->setClipRect(QRectF(clipRect));
+                renderData->clipNode->markDirty(QSGNode::DirtyGeometry);
 
-            rhi->sync(rhiTexture->pixelSize(), &renderData->rootNode, renderMatrix.inverted(), {}, nullptr,
-                      {rhiTexture->pixelSize().width() / float(m_rect.width() * devicePixelRatio),
-                       rhiTexture->pixelSize().height() / float(m_rect.height() * devicePixelRatio)});
-            rhi->render(renderData->rt.get());
-        } else {
-            const QPoint sourcePos = (renderMatrix.map(m_rect.topLeft()) * devicePixelRatio).toPoint();
-            const QRect sourceTextureRect(sourcePos, rhiTexture->pixelSize());
-            const QRect renderTargetRect(QPoint(0, 0), ct->pixelSize());
-            const QRect copySourceRect = sourceTextureRect.intersected(renderTargetRect);
-            if (copySourceRect.isEmpty())
-                return;
+                rhi->sync(rhiTexture->pixelSize(), &renderData->rootNode, renderMatrix.inverted(), {}, nullptr,
+                          {rhiTexture->pixelSize().width() / float(m_rect.width() * devicePixelRatio),
+                           rhiTexture->pixelSize().height() / float(m_rect.height() * devicePixelRatio)});
+                if (!rhi->render(renderData->rt.get())) {
+                    qCDebug(lcWlRenderBuffer) << "extra-QRhi rotate-blit failed"
+                                              << rhiTexture->pixelSize();
+                    return;
+                }
+                markCurrentCopied();
+            } else {
+                const QPoint sourcePos = (renderMatrix.map(m_rect.topLeft()) * devicePixelRatio).toPoint();
+                const QRect sourceTextureRect(sourcePos, rhiTexture->pixelSize());
+                const QRect renderTargetRect(QPoint(0, 0), ct->pixelSize());
+                QRect copySourceRect = sourceTextureRect.intersected(renderTargetRect);
+                // A tiny backdrop change must not re-upload the whole quad:
+                // bound the copy to the damaged scene area (buffer pixels).
+                // Unmappable or inconsistent damage keeps the full rect.
+                const QRect dirtySource = damageSourceRect().intersected(copySourceRect);
+                if (!dirtySource.isEmpty())
+                    copySourceRect = dirtySource;
+                if (copySourceRect.isEmpty()) {
+                    qCDebug(lcWlRenderBuffer) << "extra-QRhi copy skipped, empty source"
+                                              << sourceTextureRect << "rt" << renderTargetRect;
+                    return;
+                }
 
-            auto rhi = this->rhi->rhi();
-            auto rub = rhi->nextResourceUpdateBatch();
-            QRhiTextureCopyDescription desc;
-            desc.setPixelSize(copySourceRect.size());
-            desc.setSourceTopLeft(copySourceRect.topLeft());
-            desc.setDestinationTopLeft(copySourceRect.topLeft() - sourcePos);
-            rub->copyTexture(rhiTexture, ct, desc);
+                auto rhi = this->rhi->rhi();
+                auto rub = rhi->nextResourceUpdateBatch();
+                QRhiTextureCopyDescription desc;
+                desc.setPixelSize(copySourceRect.size());
+                desc.setSourceTopLeft(copySourceRect.topLeft());
+                desc.setDestinationTopLeft(copySourceRect.topLeft() - sourcePos);
+                rub->copyTexture(rhiTexture, ct, desc);
 
-            QRhiCommandBuffer *cb = nullptr;
-            if (rhi->beginOffscreenFrame(&cb) != QRhi::FrameOpSuccess)
-                return;
-            Q_ASSERT(cb);
+                QRhiCommandBuffer *cb = nullptr;
+                if (rhi->beginOffscreenFrame(&cb) != QRhi::FrameOpSuccess) {
+                    qCDebug(lcWlRenderBuffer) << "extra-QRhi beginOffscreenFrame failed"
+                                              << rhiTexture->pixelSize();
+                    return;
+                }
+                Q_ASSERT(cb);
 
-            // TODO: needs vkCmdPipelineBarrier?
-            cb->resourceUpdate(rub);
-            rhi->endOffscreenFrame();
+                // TODO: needs vkCmdPipelineBarrier?
+                cb->resourceUpdate(rub);
+                if (rhi->endOffscreenFrame() != QRhi::FrameOpSuccess) {
+                    qCDebug(lcWlRenderBuffer) << "extra-QRhi endOffscreenFrame failed"
+                                              << rhiTexture->pixelSize();
+                    return;
+                }
+                markCurrentCopied();
+            }
+
+            if (sgTexture()->rhiTexture() != rhiTexture)
+                sgTexture()->setTexture(rhiTexture);
+            doNotifyTextureChanged();
         }
 
-        if (sgTexture()->rhiTexture() != rhiTexture)
-            sgTexture()->setTexture(rhiTexture);
-        doNotifyTextureChanged();
 
         if (contentNode) {
             Q_ASSERT(renderTarget()->resourceType() == QRhiResource::TextureRenderTarget);
@@ -932,16 +1089,111 @@ public:
     }
 
 private:
+    WBufferRenderer *currentOutputRenderer() const {
+        auto *window = renderWindow();
+        return window ? window->currentRenderer() : nullptr;
+    }
+
+    const ViewportCapture *captureFor(const WBufferRenderer *renderer) const {
+        if (!renderer)
+            return nullptr;
+        for (const auto &c : std::as_const(captures)) {
+            if (c.renderer == renderer)
+                return &c;
+        }
+        return nullptr;
+    }
+
+    ViewportCapture *ensureCapture(WBufferRenderer *renderer) {
+        pruneCaptures();
+        if (!renderer)
+            return nullptr;
+        for (auto &c : captures) {
+            if (c.renderer == renderer)
+                return &c;
+        }
+        ViewportCapture c;
+        c.renderer = renderer;
+        captures.append(c);
+        return &captures.last();
+    }
+
+    void pruneCaptures() {
+        for (int i = captures.size() - 1; i >= 0; --i) {
+            if (captures.at(i).renderer)
+                continue;
+            releaseCapture(captures[i]);
+            captures.removeAt(i);
+        }
+    }
+
+    void releaseCapture(ViewportCapture &cap) {
+        cap.copiedFromCompositor = false;
+        if (cap.texture) {
+            RhiTextureManager::destroyPersistent(cap.texture);
+            if (texture == cap.texture)
+                texture = nullptr;
+        }
+        cap.texture = nullptr;
+    }
+
+    void dropCurrentCapture() {
+        if (auto *cap = ensureCapture(currentOutputRenderer()))
+            releaseCapture(*cap);
+        texture = nullptr;
+        sgTexture()->setTexture(nullptr);
+    }
+
+    void markCurrentCopied() {
+        if (auto *cap = ensureCapture(currentOutputRenderer()))
+            cap->copiedFromCompositor = true;
+    }
+
+    void invalidateCurrentCopy() {
+        if (auto *cap = ensureCapture(currentOutputRenderer()))
+            cap->copiedFromCompositor = false;
+    }
+
+    // Scene-space m_damageRegion in compositor-buffer pixels (outer cover).
+    // Empty when there is no damage or it cannot be mapped: the caller then
+    // keeps the full rect (conservative).
+    QRect damageSourceRect() const {
+        if (m_damageRegion.isEmpty())
+            return { };
+        bool invertible = false;
+        // renderMatrix maps blitter-local to output-logical, m_sceneMatrix
+        // maps blitter-local to scene; both are fresh (prepare() runs after
+        // applyFrame() in the same pass), so this maps scene to output.
+        const QMatrix4x4 toOutput = renderMatrix * m_sceneMatrix.inverted(&invertible);
+        if (!invertible)
+            return { };
+        const WPixmanRegion dirtyOutput = m_damageRegion.mappedOuter(toOutput);
+        if (dirtyOutput.isEmpty())
+            return { };
+        const WPixmanRegion dirtyBuffer = dirtyOutput.mappedOuter(
+            QTransform::fromScale(devicePixelRatio, devicePixelRatio));
+        return dirtyBuffer.boundingRect();
+    }
+
+    bool hasAnyCopiedCapture() const {
+        for (const auto &c : std::as_const(captures)) {
+            if (c.copiedFromCompositor && c.renderer)
+                return true;
+        }
+        return false;
+    }
+
     void reset(bool notifyTexture = true) {
         if (renderData)
             renderData->rt.reset();
 
+        for (auto &c : captures)
+            releaseCapture(c);
+        captures.clear();
         if (!sgTexture()->rhiTexture() && notifyTexture)
             doNotifyTextureChanged();
         sgTexture()->setTexture(nullptr);
-        if (!texture.expired() && manager)
-            manager->release(texture.lock());
-        texture.reset();
+        texture = nullptr;
     }
 
     void destroy() {
@@ -949,11 +1201,12 @@ private:
         renderData.reset();
         node.reset();
         manager = nullptr;
-        texture.reset();
+        texture = nullptr;
     }
 
     DataManagerPointer<RhiTextureManager> manager;
-    std::weak_ptr<RhiTextureManager::Data> texture;
+    WlrAndRhiTexture *texture = nullptr;
+    QList<ViewportCapture> captures;
     DataManagerPointer<RhiManager> rhi;
     QMatrix4x4 renderMatrix;
     qreal devicePixelRatio;
@@ -989,7 +1242,8 @@ private:
 
         std::unique_ptr<QRhiTextureRenderTarget, QRhiTextureRenderTargetDeleter> rt;
         QSGRootNode rootNode;
-        QSGImageNode *imageNode;
+        QSGClipNode *clipNode = nullptr;
+        QSGImageNode *imageNode = nullptr;
         QSGPlainTexture texture;
     };
 
@@ -1049,30 +1303,6 @@ WRenderBufferNode *WRenderBufferNode::createRhiNode(QQuickItem *item)
     return node;
 }
 
-class Q_DECL_HIDDEN QImageManager : public DataManager<QImageManager, QImage, QImage::Format, const QSize&>
-{
-    Q_OBJECT
-
-    friend class DataManager;
-
-    QImageManager(QQuickWindow *owner)
-        : DataManager<QImageManager, QImage, QImage::Format, const QSize&>(owner) {
-        Q_ASSERT(owner->findChildren<QImageManager*>(Qt::FindDirectChildrenOnly).size() == 1);
-    }
-
-    static bool check(QImage *image, QImage::Format format, const QSize &size) {
-        return image->format() == format && image->size() == size;
-    }
-
-    QImage *create(QImage::Format format, const QSize &size) {
-        return new QImage(size, format);
-    }
-
-    static void destroy(QImage *image) {
-        delete image;
-    }
-};
-
 class Q_DECL_HIDDEN SoftwareNode : public WRenderBufferNode {
 public:
     SoftwareNode(QQuickItem *item)
@@ -1093,7 +1323,7 @@ public:
 
     QImage toImage() const override
     {
-        return image.expired() ? QImage() : *image.lock()->data;
+        return image ? *image : QImage();
     }
 
     void render([[maybe_unused]] const RenderState *state) override {
@@ -1105,19 +1335,12 @@ public:
                                                                QSGRendererInterface::PainterResource));
         Q_ASSERT(p);
 
-        // const auto currentRenderer = window->currentRenderer();
-        // const auto sgRenderer = currentRenderer ? currentRenderer->currentRenderer() : nullptr;
-        const auto matrix = /*(sgRenderer && sgRenderer->renderTarget().paintDevice == p->device())
-            ? currentRenderer->currentWorldTransform() * (*this->matrix()) :*/ *this->matrix();
-        const auto oldManager = manager;
-        manager = QImageManager::resolveByOwner(manager, window);
-
-        if (oldManager != manager) {
-            texture()->setTexture(nullptr);
-            if (oldManager)
-                oldManager->release(image);
-            image.reset();
-        }
+        // Software never runs the batch-renderer applyFrame() path that
+        // writes m_sceneMatrix. QSGRenderNode::matrix() is the live
+        // item-to-root transform for this render().
+        if (const QMatrix4x4 *nodeMatrix = matrix())
+            m_sceneMatrix = *nodeMatrix;
+        const auto matrix = m_sceneMatrix;
 
         const bool hasRotation = matrix.flags().testAnyFlags(QMatrix4x4::Rotation2D | QMatrix4x4::Rotation);
         QSizeF size;
@@ -1152,14 +1375,13 @@ public:
             return;
         }
 
-        if (Q_UNLIKELY(sourceImage.isNull())) {
-            image = manager->resolve(image, QImage::Format_RGB30, pixelSize);
-        } else {
-            image = manager->resolve(image, sourceImage.format(), pixelSize);
-        }
+        const QImage::Format format = sourceImage.isNull()
+            ? QImage::Format_RGB30
+            : sourceImage.format();
+        if (!image || image->size() != pixelSize || image->format() != format)
+            image = std::make_unique<QImage>(pixelSize, format);
 
-        auto image = this->image.lock();
-        painter.begin(image->data);
+        painter.begin(image.get());
         painter.setRenderHint(QPainter::SmoothPixmapTransform);
         painter.setCompositionMode(QPainter::CompositionMode_Source);
         auto transform = matrix.toTransform().inverted();
@@ -1177,7 +1399,7 @@ public:
 
         painter.end();
 
-        texture()->setImage(*image->data);
+        texture()->setImage(*image);
         // Ensuse always render on software renderer
         texture()->setHasAlphaChannel(true);
         doNotifyTextureChanged();
@@ -1192,19 +1414,15 @@ private:
         if (!texture()->image().isNull() && notifyTexture)
             doNotifyTextureChanged();
         texture()->setTexture(nullptr);
-        if (manager)
-            manager->release(image);
         image.reset();
     }
 
     void destroy() {
         reset(false);
-        manager = nullptr;
     }
 
     friend class WRenderBufferNode;
-    DataManagerPointer<QImageManager> manager;
-    std::weak_ptr<QImageManager::Data> image;
+    std::unique_ptr<QImage> image;
     QPainter painter;
 };
 
@@ -1230,6 +1448,29 @@ void WRenderBufferNode::resize(const QSizeF &size)
         return;
     m_size = size;
     m_rect = QRectF(QPointF(0, 0), m_size);
+}
+
+void WRenderBufferNode::setDamageExpansion(const QMargins &margins)
+{
+    const QMargins clamped(qMax(0, margins.left()), qMax(0, margins.top()),
+                           qMax(0, margins.right()), qMax(0, margins.bottom()));
+    if (m_damageExpansion == clamped)
+        return;
+    m_damageExpansion = clamped;
+    markDirty(DirtyGeometry);
+}
+
+void WRenderBufferNode::setDamageExpansion(int px)
+{
+    setDamageExpansion(QMargins(px, px, px, px));
+}
+
+void WRenderBufferNode::setClipDamageExpansion(bool clip)
+{
+    if (m_clipDamageExpansion == clip)
+        return;
+    m_clipDamageExpansion = clip;
+    markDirty(DirtyGeometry);
 }
 
 void WRenderBufferNode::setContentItem(QQuickItem *item)
@@ -1265,6 +1506,93 @@ qreal WRenderBufferNode::effectiveDevicePixelRatio() const
         return window->effectiveDevicePixelRatio();
 
     return renderer->currentDevicePixelRatio();
+}
+
+QString WRenderBufferNode::debugLabel() const
+{
+    if (!m_item)
+        return QStringLiteral("(no item)");
+
+    static const QSet<QString> kGeneric{
+        QStringLiteral("blitter"),
+        QStringLiteral("root"),
+        QStringLiteral("content"),
+        QStringLiteral("contentLoader"),
+        QStringLiteral("background"),
+        QStringLiteral("parent"),
+    };
+
+    QStringList names;
+    for (QQuickItem *it = m_item; it; it = it->parentItem()) {
+        if (QQmlContext *ctx = qmlContext(it)) {
+            const QString id = ctx->nameForObject(it);
+            if (!id.isEmpty() && !kGeneric.contains(id) && !names.contains(id))
+                names.append(id);
+        }
+        const QString objName = it->objectName();
+        if (!objName.isEmpty() && !kGeneric.contains(objName) && !names.contains(objName))
+            names.append(objName);
+        if (names.size() >= 4)
+            break;
+    }
+
+    QString type = QString::fromUtf8(m_item->metaObject()->className());
+    const int qmlType = type.indexOf(QLatin1String("_QMLTYPE_"));
+    if (qmlType > 0)
+        type.truncate(qmlType);
+    const int qmlId = type.indexOf(QLatin1String("_QML_"));
+    if (qmlId > 0)
+        type.truncate(qmlId);
+
+    const QString size = QStringLiteral("%1x%2")
+                                 .arg(qRound(m_item->width()))
+                                 .arg(qRound(m_item->height()));
+    if (names.isEmpty())
+        return type + QLatin1Char(' ') + size;
+    return names.join(QLatin1Char('/')) + QLatin1Char(' ') + type + QLatin1Char(' ') + size;
+}
+
+void WRenderBufferNode::applyFrame(const WPixmanRegion &recapture, const QRect &mapped,
+                                   const QMatrix4x4 &sceneMatrix)
+{
+    m_sceneMatrix = sceneMatrix;
+    m_mappedRect = mapped;
+    m_damageRegion = mapped.isValid() ? recapture : WPixmanRegion();
+}
+
+void WRenderBufferNode::destroyWindowDataManagers(QQuickWindow *window)
+{
+    if (!window)
+        return;
+
+    // DataManagerBase has no Q_OBJECT. Copy the list: delete mutates children().
+    const QObjectList children = window->children();
+    for (QObject *child : children) {
+        if (dynamic_cast<DataManagerBase*>(child))
+            delete child;
+    }
+}
+
+
+bool WRenderBufferNode::needsRender(const WPixmanRegion &pending, bool full) const
+{
+    if (!hasCompositorCapture())
+        return true;
+    if (!m_damageRegion.isEmpty())
+        return true;
+    if (!m_mappedRect.isValid())
+        return false;
+    QRect sample = m_mappedRect;
+    if (!m_clipDamageExpansion && !m_damageExpansion.isNull()) {
+        const qreal sx = m_rect.width() > 0 ? m_mappedRect.width() / m_rect.width() : 1;
+        const qreal sy = m_rect.height() > 0 ? m_mappedRect.height() / m_rect.height() : 1;
+        const QMargins mapped(qCeil(m_damageExpansion.left() * sx),
+                              qCeil(m_damageExpansion.top() * sy),
+                              qCeil(m_damageExpansion.right() * sx),
+                              qCeil(m_damageExpansion.bottom() * sy));
+        sample = sample.marginsAdded(mapped);
+    }
+    return full || pending.intersects(sample);
 }
 
 WRenderBufferNode::WRenderBufferNode(QQuickItem *item, QSGTexture *texture)

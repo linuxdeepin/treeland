@@ -8,6 +8,7 @@
 #include <private/qquickrendercontrol_p.h>
 #include <private/qsgdefaultcontext_p.h>
 #include <private/qsgdefaultrendercontext_p.h>
+#include "wsgimagenode_p.h"
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -30,6 +31,11 @@ public:
     QSGRenderContext *createRenderContext() override
     {
         return new WSGRenderContext(this);
+    }
+
+    QSGImageNode *createImageNode() override
+    {
+        return new WSGImageNode;
     }
 };
 
