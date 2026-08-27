@@ -76,28 +76,8 @@ void WOutputViewportPrivate::updateImplicitSize()
 
 void WOutputViewportPrivate::updateRenderBufferSource()
 {
-    QList<QQuickItem*> sources;
-
-    if (input) {
-        sources.append(input);
-    } else {
-        // the "nullptr" is on behalf of the window's contentItem
-        sources.append(nullptr);
-    }
-
-    if (extraRenderSource)
-        sources.append(extraRenderSource);
-
+    bufferRenderer->setViewport(viewport, input, true);
     forceRender = true;
-    bufferRenderer->setSourceList(sources, true);
-}
-
-void WOutputViewportPrivate::setExtraRenderSource(QQuickItem *source)
-{
-    if (extraRenderSource == source)
-        return;
-    extraRenderSource = source;
-    updateRenderBufferSource();
 }
 
 WOutputViewport::WOutputViewport(QQuickItem *parent)
