@@ -42,6 +42,7 @@
 #include <QSet>
 #include <QTimer>
 #include <QUrl>
+#include <private/qxkbcommon_p.h>
 
 WAYLIB_SERVER_USE_NAMESPACE
 
@@ -153,42 +154,17 @@ qint64 surfaceId(WSurface *ws)
 
 // Converts a Qt::Key value to a Linux evdev keycode using the keyboard's
 // current xkb keymap. Returns 0 if no keycode produces this key.
-// This keeps the evdev conversion on the server side (where wlr_seat needs
-// evdev codes) and lets the client communicate with portable Qt::Key values.
+// The evdev/keysym conversion lives on the server side (where wlr_seat needs
+// the code) while the client talks in portable Qt::Key values.
 int qtKeyToEvdev(int qtKey, wlr_keyboard *keyboard)
 {
     if (!keyboard || !keyboard->xkb_state)
         return 0;
 
-    static const QMetaEnum meta = QMetaEnum::fromType<Qt::Key>();
-    const char *keyName = meta.valueToKey(qtKey);
-    if (!keyName)
-        return 0;
-    if (strncmp(keyName, "Key_", 4) == 0)
-        keyName += 4;
-
-    // Bridge Qt::Key names to xkbcommon keysym names where they differ.
-    static const QHash<QString, QByteArray> aliases = {
-        {QStringLiteral("PageUp"),    QByteArrayLiteral("Prior")},
-        {QStringLiteral("PageDown"),  QByteArrayLiteral("Next")},
-        {QStringLiteral("Backspace"), QByteArrayLiteral("BackSpace")},
-        {QStringLiteral("CapsLock"),  QByteArrayLiteral("Caps_Lock")},
-        {QStringLiteral("NumLock"),   QByteArrayLiteral("Num_Lock")},
-        {QStringLiteral("ScrollLock"), QByteArrayLiteral("Scroll_Lock")},
-        {QStringLiteral("Print"),     QByteArrayLiteral("Print")},
-        {QStringLiteral("Insert"),    QByteArrayLiteral("Insert")},
-        {QStringLiteral("Pause"),     QByteArrayLiteral("Pause")},
-        {QStringLiteral("Menu"),      QByteArrayLiteral("Menu")},
-        {QStringLiteral("Help"),      QByteArrayLiteral("Help")},
-    };
-    const QString nameStr = QString::fromUtf8(keyName);
-    const QByteArray lookupName = aliases.value(nameStr, nameStr.toUtf8());
-
-    xkb_keysym_t keysym = xkb_keysym_from_name(lookupName.constData(),
-                                               XKB_KEYSYM_CASE_INSENSITIVE);
-    if (keysym == XKB_KEY_NoSymbol)
-        return 0;
-
+    // Walk the live keymap and return the first keycode whose level-0 symbol
+    // Qt maps back to the requested Qt::Key value, via Qt's own
+    // QXkbCommon::keysymToQtKey (the same table used by XWayland), so we never
+    // need a hand-maintained Qt::Key name -> keysym alias table.
     xkb_keymap *keymap = xkb_state_get_keymap(keyboard->xkb_state);
     const xkb_keycode_t min_kc = xkb_keymap_min_keycode(keymap);
     const xkb_keycode_t max_kc = xkb_keymap_max_keycode(keymap);
@@ -196,7 +172,7 @@ int qtKeyToEvdev(int qtKey, wlr_keyboard *keyboard)
         const xkb_keysym_t *syms = nullptr;
         const int count = xkb_keymap_key_get_syms_by_level(keymap, kc, 0, 0, &syms);
         for (int i = 0; i < count; ++i) {
-            if (syms[i] == keysym)
+            if (QXkbCommon::keysymToQtKey(syms[i], Qt::NoModifier, keyboard->xkb_state, kc) == qtKey)
                 return kc;
         }
     }
