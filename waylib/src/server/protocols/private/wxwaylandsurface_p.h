@@ -58,6 +58,7 @@ public:
 
     QList<WXWaylandSurface*> children;
     QPointer<WXWaylandSurface> parent;
+    QMetaObject::Connection parentSurfaceConnection;
     QRect lastRequestConfigureGeometry;
     WXWaylandSurface::ConfigureFlags lastRequestConfigureFlags = {0};
     WXWaylandSurface::WindowTypes windowTypes = {0};
