@@ -30,8 +30,8 @@ public:
         : WObjectPrivate(qq)
         , output(output)
         , outputWindow(new QW::Window)
-        , contentIsDirty(c)
     {
+        Q_UNUSED(c);
         wlr_output_state_init(&state);
 
         outputWindow->QObject::setParent(qq);
@@ -64,14 +64,7 @@ public:
         return static_cast<QWlrootsOutputWindow*>(outputWindow->handle());
     }
 
-    void setContentIsDirty(bool newValue);
-
     wlr_buffer *acquireBuffer(wlr_swapchain **sc);
-
-    inline void update() {
-        setContentIsDirty(true);
-        wlr_output_schedule_frame(qwoutput());
-    }
 
     W_DECLARE_PUBLIC(WOutputHelper)
     WOutput *output;
@@ -79,8 +72,6 @@ public:
     wlr_output_layer_state_array layersCache;
     QWindow *outputWindow;
     WRenderHelper *renderHelper = nullptr;
-
-    uint contentIsDirty:1;
 
     struct CommitJobEntry {
         std::function<void(bool, WOutputHelper::ExtraState)> jobWithState;
@@ -91,14 +82,6 @@ public:
     // External state (mode/scale/transform/enabled) separate from internal (buffer/damage)
     WOutputHelper::ExtraState extraState;
 };
-
-void WOutputHelperPrivate::setContentIsDirty(bool newValue)
-{
-    if (contentIsDirty == newValue)
-        return;
-    contentIsDirty = newValue;
-    Q_EMIT q_func()->contentIsDirtyChanged();
-}
 
 wlr_buffer *WOutputHelperPrivate::acquireBuffer(wlr_swapchain **sc)
 {
@@ -174,6 +157,7 @@ wlr_buffer *WOutputHelper::buffer() const
     W_DC(WOutputHelper);
     return d->state.buffer;
 }
+
 
 void WOutputHelper::setDamage(const pixman_region32 *damage)
 {
@@ -322,12 +306,6 @@ bool WOutputHelper::testCommit(wlr_buffer *buffer, const wlr_output_layer_state_
     return ok;
 }
 
-bool WOutputHelper::contentIsDirty() const
-{
-    W_DC(WOutputHelper);
-    return d->contentIsDirty;
-}
-
 bool WOutputHelper::needsFrame() const
 {
     W_DC(WOutputHelper);
@@ -343,7 +321,6 @@ bool WOutputHelper::framePending() const
 void WOutputHelper::resetState()
 {
     W_D(WOutputHelper);
-    d->setContentIsDirty(false);
 
     // reset output state
     if (d->state.committed & WLR_OUTPUT_STATE_BUFFER) {
@@ -363,12 +340,6 @@ void WOutputHelper::resetState()
 }
 
 void WOutputHelper::update()
-{
-    W_D(WOutputHelper);
-    d->update();
-}
-
-void WOutputHelper::scheduleFrame()
 {
     W_D(WOutputHelper);
     wlr_output_schedule_frame(d->qwoutput());

@@ -33,6 +33,9 @@ private Q_SLOTS:
     void listMultipleListenersAndClear();
     void listMovePreservesCallbacks();
     void emitOrderFollowsRegistration();
+    void ownerIsRecorded();
+    void disconnectForRemovesOnlyThatOwner();
+    void disconnectForUnknownOwnerKeepsListeners();
 };
 
 void TestWScopedListener::moveConstructConnected()
@@ -360,6 +363,77 @@ void TestWScopedListener::emitOrderFollowsRegistration()
 
     wl_signal_emit_mutable(&sig, nullptr);
     QCOMPARE(order, QList<int>({1, 2, 3}));
+}
+
+void TestWScopedListener::ownerIsRecorded()
+{
+    wl_signal sig;
+    wl_signal_init(&sig);
+
+    struct Owner { } a;
+    int count = 0;
+
+    WScopedListener lambdaOwner;
+    lambdaOwner.init(&sig, &a, [&count](void *) { count++; });
+    QCOMPARE(lambdaOwner.object(), static_cast<void *>(&a));
+
+    struct Receiver {
+        int *counter;
+        void onSignal(void *) { ++(*counter); }
+    } receiver { &count };
+
+    WScopedListener member;
+    member.init(&sig, &receiver, &Receiver::onSignal);
+    QCOMPARE(member.object(), static_cast<void *>(&receiver));
+
+    // The two-argument form has no owner.
+    WScopedListener anonymous;
+    anonymous.init(&sig, [&count](void *) { count++; });
+    QVERIFY(!anonymous.object());
+
+    wl_signal_emit_mutable(&sig, nullptr);
+    QCOMPARE(count, 3);
+}
+
+void TestWScopedListener::disconnectForRemovesOnlyThatOwner()
+{
+    wl_signal sig;
+    wl_signal_init(&sig);
+    struct Owner { } keep, drop;
+    int kept = 0, dropped = 0;
+
+    WScopedListenerList list;
+    list.add(&sig, &keep, [&kept](void *) { kept++; });
+    list.add(&sig, &drop, [&dropped](void *) { dropped++; });
+
+    wl_signal_emit_mutable(&sig, nullptr);
+    QCOMPARE(kept, 1);
+    QCOMPARE(dropped, 1);
+
+    list.disconnectFor(&drop);
+    wl_signal_emit_mutable(&sig, nullptr);
+    QCOMPARE(kept, 2);
+    QCOMPARE(dropped, 1); // only the dropped owner's listener is gone
+
+    list.disconnectFor(&keep);
+    wl_signal_emit_mutable(&sig, nullptr);
+    QCOMPARE(kept, 2);
+    QCOMPARE(dropped, 1);
+}
+
+void TestWScopedListener::disconnectForUnknownOwnerKeepsListeners()
+{
+    wl_signal sig;
+    wl_signal_init(&sig);
+    struct Owner { } owner, other;
+    int count = 0;
+
+    WScopedListenerList list;
+    list.add(&sig, &owner, [&count](void *) { count++; });
+
+    list.disconnectFor(&other);
+    wl_signal_emit_mutable(&sig, nullptr);
+    QCOMPARE(count, 1);
 }
 
 QTEST_GUILESS_MAIN(TestWScopedListener)

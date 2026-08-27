@@ -29,7 +29,6 @@ class WAYLIB_SERVER_EXPORT WOutputHelper : public QObject, public WObject
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WOutputHelper)
-    Q_PROPERTY(bool contentIsDirty READ contentIsDirty NOTIFY contentIsDirtyChanged)
     Q_PROPERTY(bool needsFrame READ needsFrame FINAL)
 
 public:
@@ -44,7 +43,6 @@ public:
 
     void setBuffer(wlr_buffer *buffer);
     wlr_buffer *buffer() const;
-
 
     void setDamage(const pixman_region32 *damage);
     const pixman_region32 *damage() const;
@@ -83,20 +81,15 @@ public:
     bool setExtraState(ExtraState state);
     ExtraState extraState() const;
 
-    bool contentIsDirty() const;
     bool needsFrame() const;
     bool framePending() const;
     bool willBeEnabled() const;
 
     void resetState();
     void update();
-    void scheduleFrame();
 
 protected:
     WOutputHelper(WOutput *output, bool contentIsDirty, QObject *parent = nullptr);
-
-Q_SIGNALS:
-    void contentIsDirtyChanged();
 };
 
 WAYLIB_SERVER_END_NAMESPACE

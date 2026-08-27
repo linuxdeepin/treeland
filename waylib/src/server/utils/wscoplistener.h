@@ -76,12 +76,14 @@ public:
     // Member function callback: void (T::*)(Event*); T may be a base class of obj.
     template<typename Base, typename Derived, typename Event, typename R>
     void init(wl_signal *signal, Derived *obj, R (Base::*func)(Event *)) {
+        m_obj = obj;
         initLambda(signal, [obj, func](void *data) {
             (obj->*func)(static_cast<Event *>(data));
         });
     }
     template<typename Base, typename Derived, typename Event, typename R>
     void init(wl_signal *signal, Derived *obj, R (Base::*func)(Event *) const) {
+        m_obj = obj;
         initLambda(signal, [obj, func](void *data) {
             (obj->*func)(static_cast<Event *>(data));
         });
@@ -89,12 +91,14 @@ public:
     // Member function callback without arguments: void (T::*)()
     template<typename Base, typename Derived, typename R>
     void init(wl_signal *signal, Derived *obj, R (Base::*func)()) {
+        m_obj = obj;
         initLambda(signal, [obj, func](void * /*data*/) {
             (obj->*func)();
         });
     }
     template<typename Base, typename Derived, typename R>
     void init(wl_signal *signal, Derived *obj, R (Base::*func)() const) {
+        m_obj = obj;
         initLambda(signal, [obj, func](void * /*data*/) {
             (obj->*func)();
         });
@@ -105,7 +109,8 @@ public:
     // raw void* data is converted to it at invoke time.
     template<typename Callable>
     requires (!std::is_member_function_pointer_v<std::remove_reference_t<Callable>>)
-    void init(wl_signal *signal, void * /*obj*/, Callable &&callback) {
+    void init(wl_signal *signal, void *obj, Callable &&callback) {
+        m_obj = obj;
         initLambda(signal, std::forward<Callable>(callback));
     }
     // 2-arg form for plain callbacks without an object.
@@ -117,6 +122,8 @@ public:
 
     void disconnect();
     [[nodiscard]] bool isConnected() const { return m_connected; }
+    // Owner passed to init(); lets a group drop the listeners of one object.
+    [[nodiscard]] void *object() const { return m_obj; }
     wl_listener *listener() { return &m_listener; }
 
 private:
@@ -180,6 +187,7 @@ private:
     void (*m_callback)(void *, void *) = nullptr;
     void (*m_deleter)(void *) = nullptr;
     void *m_context = nullptr;
+    void *m_obj = nullptr;
     bool m_connected = false;
 };
 
@@ -214,6 +222,18 @@ public:
     void disconnect() {
         for (auto &listener : m_listeners)
             listener.disconnect();
+    }
+
+    // Detach and drop the listeners registered with this owner object.
+    void disconnectFor(void *obj) {
+        for (auto it = m_listeners.begin(); it != m_listeners.end(); ) {
+            if (it->object() == obj) {
+                it->disconnect();
+                it = m_listeners.erase(it);
+            } else {
+                ++it;
+            }
+        }
     }
 
     // Detach and drop every registered listener. Safe from inside a
