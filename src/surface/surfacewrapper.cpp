@@ -287,7 +287,6 @@ void SurfaceWrapper::setup()
                 &WSurfaceItem::bufferScaleChanged,
                 this,
                 &SurfaceWrapper::updateSurfaceSizeRatio);
-        updateSurfaceSizeRatio();
         break;
     }
     case Type::InputPopup:
@@ -303,9 +302,11 @@ void SurfaceWrapper::setup()
     }
 
     QQmlEngine::setContextForObject(m_surfaceItem, m_engine->rootContext());
-    m_surfaceItem->setDelegate(m_engine->surfaceContentComponent());
     m_surfaceItem->setResizeMode(WSurfaceItem::ManualResize);
+    // Must set the shell surface before instantiating the QML delegate.
     m_surfaceItem->setShellSurface(m_shellSurface);
+    updateSurfaceSizeRatio();
+    m_surfaceItem->setDelegate(m_engine->surfaceContentComponent());
     // Initialize focus policy even if focus capability state never toggles later.
     m_surfaceItem->setFocusPolicy(hasFocusCapability() ? Qt::StrongFocus : Qt::NoFocus);
 
@@ -1237,6 +1238,11 @@ void SurfaceWrapper::destroy()
     if (!isWindowAnimationRunning())
         deleteLater();
     // else delete this in Animation(for window close animation) finish
+}
+
+bool SurfaceWrapper::isAboutToRemove() const
+{
+    return m_wrapperAboutToRemove;
 }
 
 bool SurfaceWrapper::acceptKeyboardFocus() const
@@ -2440,6 +2446,7 @@ bool SurfaceWrapper::socketEnabled() const
 void SurfaceWrapper::updateSurfaceSizeRatio()
 {
     if (m_type == Type::XWayland && m_surfaceItem && window()) {
+        Q_ASSERT(shellSurface());
         const qreal targetScale = window()->effectiveDevicePixelRatio();
         if (m_surfaceItem->bufferScale() < targetScale)
             m_surfaceItem->setSurfaceSizeRatio(targetScale / m_surfaceItem->bufferScale());
