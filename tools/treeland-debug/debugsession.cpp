@@ -3,12 +3,50 @@
 
 #include "debugsession.h"
 
+#include <QEventLoop>
+#include <QTimer>
+
 bool connectSession(Session &session, const QString &url, const QString &name, int timeoutMs)
 {
     if (!session.node.connectToNode(QUrl(url)))
         return false;
     session.replica = session.node.acquire<WindowTreeRemoteReplica>(name);
     return session.replica->waitForSource(timeoutMs);
+}
+
+bool waitCaptureResult(WindowTreeRemoteReplica *replica, int timeoutMs, QByteArray *out)
+{
+    QEventLoop loop;
+    bool gotResult = false;
+    QByteArray result;
+
+    auto conn = QObject::connect(replica, &WindowTreeRemoteReplica::captureResult,
+        [&loop, &result, &gotResult](const QByteArray &data) {
+            result = data;
+            gotResult = true;
+            loop.quit();
+        });
+
+    // Overall timeout.
+    QTimer::singleShot(timeoutMs, &loop, &QEventLoop::quit);
+
+    // Periodic interrupt check for live mode (Ctrl+C sets g_debugInterrupted).
+    QTimer interruptTimer;
+    interruptTimer.setSingleShot(false);
+    QObject::connect(&interruptTimer, &QTimer::timeout, &loop, [&loop]() {
+        if (g_debugInterrupted)
+            loop.quit();
+    });
+    interruptTimer.start(100);
+
+    loop.exec();
+    QObject::disconnect(conn);
+
+    if (!gotResult)
+        return false;
+    if (out)
+        *out = result;
+    return true;
 }
 
 qint64 resolveTarget(Session &session, int timeoutMs, const QString &token, bool *ok)

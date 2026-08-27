@@ -1,8 +1,7 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
-#ifndef TREELAND_DEBUG_SESSION_H
-#define TREELAND_DEBUG_SESSION_H
+#pragma once
 
 #include "debughelpers.h"
 
@@ -56,6 +55,11 @@ bool waitSlot(QRemoteObjectPendingReply<T> call, int timeoutMs, T *out)
     return true;
 }
 
+// Waits for the async captureResult signal after calling captureOutput() or
+// captureWindow(). Returns true if the signal was received within @p timeoutMs
+// (or interrupted by Ctrl+C in live mode), storing the payload in @p out.
+bool waitCaptureResult(WindowTreeRemoteReplica *replica, int timeoutMs, QByteArray *out);
+
 // Resolves a window target: a numeric id is used as-is, any other token is
 // matched against the first window whose appId equals it. Sets *ok=false on
 // failure.
@@ -78,4 +82,3 @@ QJsonArray clientsToJson(const QList<ClientInfo> &clients);
 QJsonObject debugEventToJson(const DebugEvent &event);
 QJsonArray debugEventsToJson(const QList<DebugEvent> &events);
 
-#endif // TREELAND_DEBUG_SESSION_H

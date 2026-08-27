@@ -183,15 +183,16 @@ void TreelandDebugTest::testButtonCodeUnknown()
 void TreelandDebugTest::testKeyCodeNamed()
 {
     bool ok = false;
-    QCOMPARE(keyCode(QStringLiteral("esc"), &ok), 1);
+    // keyCode() now returns Qt::Key enum values resolved via QMetaEnum.
+    QCOMPARE(keyCode(QStringLiteral("Escape"), &ok), static_cast<int>(Qt::Key_Escape));
     QVERIFY(ok);
-    QCOMPARE(keyCode(QStringLiteral("enter"), &ok), 28);
+    QCOMPARE(keyCode(QStringLiteral("Return"), &ok), static_cast<int>(Qt::Key_Return));
     QVERIFY(ok);
-    QCOMPARE(keyCode(QStringLiteral("space"), &ok), 57);
+    QCOMPARE(keyCode(QStringLiteral("Space"), &ok), static_cast<int>(Qt::Key_Space));
     QVERIFY(ok);
-    QCOMPARE(keyCode(QStringLiteral("up"), &ok), 103);
+    QCOMPARE(keyCode(QStringLiteral("Up"), &ok), static_cast<int>(Qt::Key_Up));
     QVERIFY(ok);
-    QCOMPARE(keyCode(QStringLiteral("f12"), &ok), 88);
+    QCOMPARE(keyCode(QStringLiteral("F12"), &ok), static_cast<int>(Qt::Key_F12));
     QVERIFY(ok);
 }
 
@@ -212,9 +213,10 @@ void TreelandDebugTest::testKeyCodeUnknown()
 void TreelandDebugTest::testKeyCodeCaseInsensitive()
 {
     bool ok = false;
-    QCOMPARE(keyCode(QStringLiteral("ESC"), &ok), 1);
+    // Case-insensitive matching: "ESCAPE" and "enter" should also work.
+    QCOMPARE(keyCode(QStringLiteral("ESCAPE"), &ok), static_cast<int>(Qt::Key_Escape));
     QVERIFY(ok);
-    QCOMPARE(keyCode(QStringLiteral("Enter"), &ok), 28);
+    QCOMPARE(keyCode(QStringLiteral("enter"), &ok), static_cast<int>(Qt::Key_Enter));
     QVERIFY(ok);
 }
 
@@ -624,7 +626,7 @@ void TreelandDebugTest::testParseEventKeyNamed()
                                 { QStringLiteral("key"), QStringLiteral("enter") });
     QVERIFY(r.ok);
     QCOMPARE(r.command, DebugCommand::EventKey);
-    QCOMPARE(r.code, 28);
+    QCOMPARE(r.code, static_cast<int>(Qt::Key_Enter));
     QCOMPARE(r.action, QStringLiteral("tap")); // default action
 }
 
@@ -637,21 +639,20 @@ void TreelandDebugTest::testParseEventKeyRaw()
     QCOMPARE(r.code, 200);
     QCOMPARE(r.action, QStringLiteral("tap"));
 }
-
 void TreelandDebugTest::testParseEventKeyWithAction()
 {
     const auto r = parseCommand(QStringLiteral("event"),
-                                { QStringLiteral("key"), QStringLiteral("space"), QStringLiteral("release") });
+                                { QStringLiteral("key"), QStringLiteral("Space"), QStringLiteral("release") });
     QVERIFY(r.ok);
     QCOMPARE(r.command, DebugCommand::EventKey);
-    QCOMPARE(r.code, 57);
+    QCOMPARE(r.code, static_cast<int>(Qt::Key_Space));
     QCOMPARE(r.action, QStringLiteral("release"));
 }
 
 void TreelandDebugTest::testParseEventKeyDefaultAction()
 {
     const auto r = parseCommand(QStringLiteral("event"),
-                                { QStringLiteral("key"), QStringLiteral("esc") });
+                                { QStringLiteral("key"), QStringLiteral("Escape") });
     QVERIFY(r.ok);
     QCOMPARE(r.action, QStringLiteral("tap"));
 }
