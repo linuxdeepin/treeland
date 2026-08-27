@@ -309,6 +309,7 @@ public:
     void setHideByLockScreen(bool hide);
 
     void destroy();
+    bool isAboutToRemove() const;
 
     bool acceptKeyboardFocus() const; // set by treeland-dde-shell
     void setAcceptKeyboardFocus(bool accept);

@@ -184,6 +184,7 @@ QPointF WXWaylandSurfaceItem::implicitPosition() const
     const Q_D(WXWaylandSurfaceItem);
 
     auto xwaylandSurface = qobject_cast<WXWaylandSurface *>(d->shellSurface);
+    Q_ASSERT(xwaylandSurface);
 
     const QPoint epos = xwaylandSurface->requestConfigureGeometry().topLeft();
     const qreal ssr = d->surfaceSizeRatio;
@@ -246,6 +247,7 @@ void WXWaylandSurfaceItem::surfaceSizeRatioChange()
 
     W_DC(WXWaylandSurfaceItem);
 
+    Q_ASSERT(d->shellSurface);
     if (d->positionConfigured) {
         updatePosition();
     } else {
