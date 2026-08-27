@@ -1919,14 +1919,8 @@ void SurfaceWrapper::enterFullscreen(WOutput *targetOutput)
     if (targetOutput) {
         auto *helper = Helper::instance();
         auto *target = helper ? helper->getOutput(targetOutput) : nullptr;
-        if (target && target != m_ownsOutput
-            && target->isSource()) {
-            Output *oldOutput = m_ownsOutput;
+        if (target && target != m_ownsOutput && target->isSource()) 
             setOwnsOutput(target);
-            m_fullscreenGeometry = target->geometry();
-            if (oldOutput)
-                oldOutput->arrangeAllSurfaces();
-        }
     }
 
     setSurfaceState(State::Fullscreen);
