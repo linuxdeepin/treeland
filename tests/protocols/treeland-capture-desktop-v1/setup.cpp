@@ -8,10 +8,12 @@
 #include "surface/surfacewrapper.h"
 #include "treeland-capture-desktop-v1.h"
 #include "workspace/workspace.h"
+#include "output/output.h"
 
 #include <wbackend.h>
 #include <woutputrenderwindow.h>
 #include <wsurfaceitem.h>
+#include <woutputviewport.h>
 
 namespace {
 SurfaceWrapper *g_wrapper = nullptr;
@@ -72,7 +74,10 @@ extern "C" void capture_desktop_select_mapped_surface(void *data)
 
     // Select the verified mapped production surface through the selector's
     // production selection entry point.
-    helper->window()->render();
+    for (auto *output : helper->rootSurfaceContainer()->outputs()) {
+        if (auto *vp = output->screenViewport())
+            vp->render(true);
+    }
     selector->selectSurface(content);
     g_state.hovered_mapped_content = 1;
 
@@ -91,7 +96,10 @@ extern "C" void capture_desktop_select_mapped_surface(void *data)
 extern "C" void capture_desktop_render_selected_source(void *data)
 {
     auto *helper = Helper::instance();
-    helper->window()->render();
+    for (auto *output : helper->rootSurfaceContainer()->outputs()) {
+        if (auto *vp = output->screenViewport())
+            vp->render(true);
+    }
     g_state.render_requested = 1;
     copyState(data);
 }

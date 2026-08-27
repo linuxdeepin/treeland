@@ -8,9 +8,11 @@
 #include "surface/surfacewrapper.h"
 #include "treeland-foreign-toplevel-manager-v2.h"
 #include "workspace/workspace.h"
+#include "output/output.h"
 
 #include <wbackend.h>
 #include <woutputrenderwindow.h>
+#include <woutputviewport.h>
 
 #include <QEventLoop>
 #include <QQuickItem>
@@ -107,7 +109,10 @@ extern "C" void ftm_render_and_settle(void *)
     // The protocol request can be queued until the next scene-graph frame.
     // Render first, then inspect the wrapper so we do not miss an animation
     // created while processing that frame.
-    helper->window()->render();
+    for (auto *output : helper->rootSurfaceContainer()->outputs()) {
+        if (auto *vp = output->screenViewport())
+            vp->render(true);
+    }
     if (!g_wrapper->isAnimationRunning())
         return;
 

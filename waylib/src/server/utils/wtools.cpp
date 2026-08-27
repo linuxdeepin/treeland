@@ -115,9 +115,9 @@ QImage::Format WTools::toImageFormat(uint32_t drmFormat)
     case DRM_FORMAT_RGB565:
         return QImage::Format_RGB16;
     case DRM_FORMAT_RGB888:
-        return QImage::Format_RGB888;
-    case DRM_FORMAT_BGR888:
         return QImage::Format_BGR888;
+    case DRM_FORMAT_BGR888:
+        return QImage::Format_RGB888;
     case DRM_FORMAT_XRGB8888:
         return QImage::Format_RGB32;
     case DRM_FORMAT_RGBX8888:
@@ -128,6 +128,8 @@ QImage::Format WTools::toImageFormat(uint32_t drmFormat)
         return QImage::Format_RGBA8888;
     case DRM_FORMAT_ABGR8888:
         return QImage::Format_RGBA8888_Premultiplied;
+    case DRM_FORMAT_XBGR8888:
+        return QImage::Format_RGBX8888;
     case DRM_FORMAT_XRGB2101010:
         return QImage::Format_RGB30;
     case DRM_FORMAT_BGRX1010102:
@@ -158,9 +160,9 @@ uint32_t WTools::toDrmFormat(QImage::Format format)
     case QImage::Format_RGB16:
         return DRM_FORMAT_RGB565;
     case QImage::Format_RGB888:
-        return DRM_FORMAT_RGB888;
-    case QImage::Format_BGR888:
         return DRM_FORMAT_BGR888;
+    case QImage::Format_BGR888:
+        return DRM_FORMAT_RGB888;
     case QImage::Format_RGB32:
         return DRM_FORMAT_XRGB8888;
     case QImage::Format_RGBX8888:
@@ -310,19 +312,6 @@ Qt::Edges WTools::toQtEdge(uint32_t edges)
     }
 
     return qedges;
-}
-
-// WPixmanRegion implementation
-WPixmanRegion::WPixmanRegion() {
-    pixman_region32_init(&r);
-}
-
-WPixmanRegion::WPixmanRegion(int x, int y, int w, int h) {
-    pixman_region32_init_rect(&r, x, y, w, h);
-}
-
-WPixmanRegion::~WPixmanRegion() {
-    pixman_region32_fini(&r);
 }
 
 WAYLIB_SERVER_END_NAMESPACE
