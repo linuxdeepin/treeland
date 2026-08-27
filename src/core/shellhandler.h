@@ -108,6 +108,7 @@ private Q_SLOTS:
     void onXdgPopupSurfaceRemoved(WAYLIB_SERVER_NAMESPACE::WXdgPopupSurface *surface);
 
     void onXWaylandSurfaceAdded(WAYLIB_SERVER_NAMESPACE::WXWaylandSurface *surface);
+    void onXWaylandSurfaceRemoved(WAYLIB_SERVER_NAMESPACE::WXWaylandSurface *surface);
 
     void onLayerSurfaceAdded(WAYLIB_SERVER_NAMESPACE::WLayerSurface *surface);
     void onLayerSurfaceRemoved(WAYLIB_SERVER_NAMESPACE::WLayerSurface *surface);
