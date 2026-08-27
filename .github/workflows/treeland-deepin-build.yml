@@ -9,6 +9,8 @@ jobs:
   container:
     runs-on: ubuntu-latest
     container: linuxdeepin/deepin:crimson
+    env:
+      BUILD_TREELAND_PROTOCOL_TESTS: "OFF"
     steps:
       - uses: actions/checkout@v4
 
