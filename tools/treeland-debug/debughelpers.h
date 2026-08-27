@@ -1,8 +1,7 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
-#ifndef TREELAND_DEBUG_HELPERS_H
-#define TREELAND_DEBUG_HELPERS_H
+#pragma once
 
 #include <QByteArray>
 #include <QJsonObject>
@@ -18,8 +17,10 @@ QString stateName(int state);
 // through. Sets *ok=false for unknown names.
 int buttonCode(const QString &name, bool *ok);
 
-// Maps a friendly key name to a Linux evdev keycode; raw codes pass through.
-// Sets *ok=false for unknown names.
+// Maps a key name to a Qt::Key enum value using Qt's meta-object system.
+// Accepts the enum name with or without the "Key_" prefix, case-insensitively
+// (e.g. "Escape", "escape", "Key_Escape" all resolve to Qt::Key_Escape).
+// Raw integer values pass through unchanged. Sets *ok=false for unknown names.
 int keyCode(const QString &name, bool *ok);
 
 // Writes captured image bytes to @p userPath (or a generated /tmp path when
@@ -110,4 +111,3 @@ struct ParseResult
 // success result.ok is true and the struct fields are populated.
 ParseResult parseCommand(const QString &command, const QStringList &args);
 
-#endif // TREELAND_DEBUG_HELPERS_H

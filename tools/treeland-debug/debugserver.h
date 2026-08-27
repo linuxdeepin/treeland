@@ -1,8 +1,7 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
-#ifndef TREELAND_DEBUG_SERVER_H
-#define TREELAND_DEBUG_SERVER_H
+#pragma once
 
 #include "debugsession.h"
 
@@ -82,4 +81,3 @@ private:
     QHttpServer m_httpServer;
 };
 
-#endif // TREELAND_DEBUG_SERVER_H

@@ -40,13 +40,13 @@ public:
     // ---- input / event injection ----
     bool moveCursor(QPointF pos) override;
     bool sendPointerButton(int button, bool pressed) override;
-    bool sendKey(int keycode, bool pressed) override;
+    bool sendKey(int qtKey, bool pressed) override;
 
-    // ---- image capture ----
-    // Returns raw PNG bytes; the treeland-debug client is responsible for
-    // writing them to disk. The compositor never touches the filesystem.
-    QByteArray captureOutput(QString outputName) override;
-    QByteArray captureWindow(qint64 id) override;
+    // ---- image capture (asynchronous) ----
+    // Starts an async grab; the encoded PNG bytes are delivered via the
+    // captureResult signal. The compositor main thread is never blocked.
+    void captureOutput(QString outputName) override;
+    void captureWindow(qint64 id) override;
 
     // ---- real-time monitoring ----
     QList<DebugEvent> getEvents(quint64 afterSeq) override;

@@ -81,9 +81,14 @@ class WindowTreeRemote {
     SLOT(bool setWindowWorkspace(qint64 id, int workspaceId));
     SLOT(bool moveCursor(QPointF pos));
     SLOT(bool sendPointerButton(int button, bool pressed));
-    SLOT(bool sendKey(int keycode, bool pressed));
-    SLOT(QByteArray captureOutput(QString outputName));
-    SLOT(QByteArray captureWindow(qint64 id));
+    SLOT(bool sendKey(int qtKey, bool pressed));  // qtKey = Qt::Key enum value; server converts to evdev
+    // Image capture is asynchronous: the compositor starts the grab and
+    // returns immediately; the encoded PNG bytes are delivered via the
+    // captureResult signal. This avoids blocking the compositor main thread
+    // on GPU read-back.
+    SLOT(void captureOutput(QString outputName));
+    SLOT(void captureWindow(qint64 id));
+    SIGNAL(captureResult(QByteArray data));
     SLOT(QList<DebugEvent> getEvents(quint64 afterSeq));
     SLOT(qint64 focusedWindowId());
     SLOT(qint64 windowUnderCursor());

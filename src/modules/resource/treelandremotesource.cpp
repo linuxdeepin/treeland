@@ -25,10 +25,11 @@
 
 #include <wlr_all.h>
 #include <wayland-server-core.h>
+#include <xkbcommon/xkbcommon.h>
+#include <cstring>
 
 #include <QBuffer>
 #include <QDateTime>
-#include <QEventLoop>
 #include <QFile>
 #include <QFileInfo>
 #include <QFutureWatcher>
@@ -75,40 +76,6 @@ QString commandForPid(int pid)
     return parts.join(' ');
 }
 
-// Grabs a texture-backed item into a QImage, blocking the current thread
-// (spinning a local event loop with a timeout) until the GPU read-back
-// completes. Returns false on timeout or failure; never throws past the
-// boundary.
-//
-// NOTE: unlike capture.cpp's asynchronous WTextureCapturer usage, this spins a
-// nested QEventLoop on the compositor main thread so the RPC can return the
-// image synchronously. While loop.exec() runs the main thread keeps pumping
-// events (render frames, other IPC calls, window management), which can
-// re-enter this code path or mutate the scene graph. The 5s timeout bounds the
-// worst case, and on the common path (not currently rendering) doGrabToImage
-// runs synchronously and the loop exits immediately. This blocking behaviour
-// is acceptable ONLY because the debug Remote Object source is opt-in
-// (debugSource DConfig) and not present in normal operation.
-bool grabToImage(WTextureProviderProvider *provider, QImage *out)
-{
-    if (!provider || !out)
-        return false;
-
-    WTextureCapturer capturer(provider);
-    QFuture<QImage> future = capturer.grabToImage();
-    QFutureWatcher<QImage> watcher;
-    QEventLoop loop;
-    QObject::connect(&watcher, &QFutureWatcher<QImage>::finished, &loop, &QEventLoop::quit);
-    watcher.setFuture(future);
-    // Bound the wait so a stuck render pipeline cannot hang the compositor.
-    QTimer::singleShot(5000, &loop, &QEventLoop::quit);
-    loop.exec();
-    if (!watcher.isFinished())
-        return false;
-    *out = watcher.result();
-    return !out->isNull();
-}
-
 // Encodes a grabbed frame as PNG bytes. The compositor never writes to disk;
 // the treeland-debug client owns the file. Returns an empty array on failure.
 QByteArray encodeImage(const QImage &image)
@@ -142,25 +109,6 @@ WSurfaceItemContent *findContentInSubtree(QQuickItem *item)
     return nullptr;
 }
 
-// Fallback image capture for items that are not WTextureProviderProvider-
-// backed: asks QtQuick to rasterise the item (and its subtree) into an
-// offscreen texture. Like grabToImage() it spins a nested QEventLoop on the
-// compositor main thread with a 5s timeout, so it must only be used from the
-// opt-in debug RPC path.
-bool grabQuickItemToImage(QQuickItem *item, QImage *out)
-{
-    if (!item || !out)
-        return false;
-    QSharedPointer<QQuickItemGrabResult> grab = item->grabToImage();
-    if (!grab)
-        return false; // item has no window / is not in a scene
-    QEventLoop loop;
-    QObject::connect(grab.data(), &QQuickItemGrabResult::ready, &loop, &QEventLoop::quit);
-    QTimer::singleShot(5000, &loop, &QEventLoop::quit);
-    loop.exec();
-    *out = grab->image();
-    return !out->isNull();
-}
 
 // Appends one line per QQuickItem in the subtree rooted at @p item, indented
 // by depth, describing the item's type/objectName/geometry/visibility. Used
@@ -201,6 +149,58 @@ qint64 surfaceId(WSurface *ws)
     if (!ws || !ws->handle() || !ws->handle()->resource)
         return 0;
     return reinterpret_cast<qint64>(ws->handle()->resource);
+}
+
+// Converts a Qt::Key value to a Linux evdev keycode using the keyboard's
+// current xkb keymap. Returns 0 if no keycode produces this key.
+// This keeps the evdev conversion on the server side (where wlr_seat needs
+// evdev codes) and lets the client communicate with portable Qt::Key values.
+int qtKeyToEvdev(int qtKey, wlr_keyboard *keyboard)
+{
+    if (!keyboard || !keyboard->xkb_state)
+        return 0;
+
+    static const QMetaEnum meta = QMetaEnum::fromType<Qt::Key>();
+    const char *keyName = meta.valueToKey(qtKey);
+    if (!keyName)
+        return 0;
+    if (strncmp(keyName, "Key_", 4) == 0)
+        keyName += 4;
+
+    // Bridge Qt::Key names to xkbcommon keysym names where they differ.
+    static const QHash<QString, QByteArray> aliases = {
+        {QStringLiteral("PageUp"),    QByteArrayLiteral("Prior")},
+        {QStringLiteral("PageDown"),  QByteArrayLiteral("Next")},
+        {QStringLiteral("Backspace"), QByteArrayLiteral("BackSpace")},
+        {QStringLiteral("CapsLock"),  QByteArrayLiteral("Caps_Lock")},
+        {QStringLiteral("NumLock"),   QByteArrayLiteral("Num_Lock")},
+        {QStringLiteral("ScrollLock"), QByteArrayLiteral("Scroll_Lock")},
+        {QStringLiteral("Print"),     QByteArrayLiteral("Print")},
+        {QStringLiteral("Insert"),    QByteArrayLiteral("Insert")},
+        {QStringLiteral("Pause"),     QByteArrayLiteral("Pause")},
+        {QStringLiteral("Menu"),      QByteArrayLiteral("Menu")},
+        {QStringLiteral("Help"),      QByteArrayLiteral("Help")},
+    };
+    const QString nameStr = QString::fromUtf8(keyName);
+    const QByteArray lookupName = aliases.value(nameStr, nameStr.toUtf8());
+
+    xkb_keysym_t keysym = xkb_keysym_from_name(lookupName.constData(),
+                                               XKB_KEYSYM_CASE_INSENSITIVE);
+    if (keysym == XKB_KEY_NoSymbol)
+        return 0;
+
+    xkb_keymap *keymap = xkb_state_get_keymap(keyboard->xkb_state);
+    const xkb_keycode_t min_kc = xkb_keymap_min_keycode(keymap);
+    const xkb_keycode_t max_kc = xkb_keymap_max_keycode(keymap);
+    for (xkb_keycode_t kc = min_kc; kc <= max_kc; ++kc) {
+        const xkb_keysym_t *syms = nullptr;
+        const int count = xkb_keymap_key_get_syms_by_level(keymap, kc, 0, 0, &syms);
+        for (int i = 0; i < count; ++i) {
+            if (syms[i] == keysym)
+                return kc;
+        }
+    }
+    return 0;
 }
 
 } // namespace
@@ -652,30 +652,41 @@ bool TreelandRemoteSource::sendPointerButton(int button, bool pressed)
     return true;
 }
 
-bool TreelandRemoteSource::sendKey(int keycode, bool pressed)
+bool TreelandRemoteSource::sendKey(int qtKey, bool pressed)
 {
     auto *seat = Helper::instance()->seat();
     if (!seat || !seat->handle())
         return false;
     // Make sure the seat has a keyboard bound so the key event is delivered.
+    wlr_keyboard *keyboard = nullptr;
     if (auto *kbdDevice = seat->keyboardGroupKeyboard()) {
         if (kbdDevice->handle()
             && kbdDevice->handle()->type == WLR_INPUT_DEVICE_KEYBOARD) {
-            if (auto *keyboard = wlr_keyboard_from_input_device(kbdDevice->handle()))
+            keyboard = wlr_keyboard_from_input_device(kbdDevice->handle());
+            if (keyboard)
                 wlr_seat_set_keyboard(seat->handle(), keyboard);
         }
     }
+    // Convert the portable Qt::Key value to a Linux evdev keycode using the
+    // keyboard's current xkb keymap. The client sends Qt::Key values (resolved
+    // from names like "Escape" via QMetaEnum); the evdev conversion lives here
+    // on the server side where wlr_seat expects evdev codes.
+    const int evdevCode = qtKeyToEvdev(qtKey, keyboard);
+    if (evdevCode == 0)
+        return false;
     wlr_seat_keyboard_notify_key(seat->handle(), QDateTime::currentMSecsSinceEpoch(),
-                                 static_cast<uint32_t>(keycode),
+                                 static_cast<uint32_t>(evdevCode),
                                  pressed ? 1u : 0u);
     return true;
 }
 
-QByteArray TreelandRemoteSource::captureOutput(QString outputName)
+void TreelandRemoteSource::captureOutput(QString outputName)
 {
     auto *root = Helper::instance()->rootSurfaceContainer();
-    if (!root)
-        return {};
+    if (!root) {
+        emit captureResult({});
+        return;
+    }
 
     WOutputViewport *viewport = nullptr;
     if (outputName.isEmpty()) {
@@ -701,20 +712,32 @@ QByteArray TreelandRemoteSource::captureOutput(QString outputName)
             }
         }
     }
-    if (!viewport)
-        return {};
+    if (!viewport) {
+        emit captureResult({});
+        return;
+    }
 
-    QImage image;
-    if (!grabToImage(viewport, &image))
-        return {};
-    return encodeImage(image);
+    // Async texture grab: start the GPU read-back and return immediately.
+    // The compositor main thread is never blocked; the encoded PNG bytes are
+    // delivered via the captureResult signal when the future completes.
+    auto *capturer = new WTextureCapturer(viewport);
+    auto *watcher = new QFutureWatcher<QImage>(this);
+    connect(watcher, &QFutureWatcher<QImage>::finished, this, [this, watcher, capturer]() {
+        const QByteArray bytes = encodeImage(watcher->result());
+        capturer->deleteLater();
+        watcher->deleteLater();
+        emit captureResult(bytes);
+    });
+    watcher->setFuture(capturer->grabToImage());
 }
 
-QByteArray TreelandRemoteSource::captureWindow(qint64 id)
+void TreelandRemoteSource::captureWindow(qint64 id)
 {
     auto *surface = findSurfaceById(id);
-    if (!surface || !surface->surfaceItem())
-        return {};
+    if (!surface || !surface->surfaceItem()) {
+        emit captureResult({});
+        return;
+    }
     auto *surfaceItem = surface->surfaceItem();
     // Prefer the surface's own texture-backed content. Some surfaces
     // (menus/popups) do not expose a content item via findItemContent(), so
@@ -723,17 +746,31 @@ QByteArray TreelandRemoteSource::captureWindow(qint64 id)
     if (!content)
         content = findContentInSubtree(surfaceItem);
 
-    QImage image;
     if (content) {
-        if (!grabToImage(content, &image))
-            return {};
+        // Async texture grab — same pattern as captureOutput.
+        auto *capturer = new WTextureCapturer(content);
+        auto *watcher = new QFutureWatcher<QImage>(this);
+        connect(watcher, &QFutureWatcher<QImage>::finished, this, [this, watcher, capturer]() {
+            const QByteArray bytes = encodeImage(watcher->result());
+            capturer->deleteLater();
+            watcher->deleteLater();
+            emit captureResult(bytes);
+        });
+        watcher->setFuture(capturer->grabToImage());
     } else {
-        // Last resort: let QtQuick rasterise the whole item subtree. Works
-        // for items that are not WTextureProviderProvider-backed.
-        if (!grabQuickItemToImage(surfaceItem, &image))
-            return {};
+        // Fallback: ask QtQuick to rasterise the whole item subtree into an
+        // offscreen texture. This is also async — the ready signal fires
+        // when the render is done. The QSharedPointer keeps the grab result
+        // alive until the lambda completes.
+        QSharedPointer<QQuickItemGrabResult> grab = surfaceItem->grabToImage();
+        if (!grab) {
+            emit captureResult({});
+            return;
+        }
+        connect(grab.data(), &QQuickItemGrabResult::ready, this, [this, grab]() {
+            emit captureResult(encodeImage(grab->image()));
+        });
     }
-    return encodeImage(image);
 }
 
 QList<DebugEvent> TreelandRemoteSource::getEvents(quint64 afterSeq)
