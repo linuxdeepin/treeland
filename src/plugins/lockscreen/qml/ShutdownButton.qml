@@ -45,6 +45,7 @@ Button {
 
             background: Item {
                 RoundBlur {
+                    objectName: "shutdownBtnBlur"
                     anchors.fill: parent
                     radius: btn.width / 2
                     color: root.D.ColorSelector.backgroundColor
@@ -83,6 +84,7 @@ Button {
             background: Item {
                 visible: root.pressed || root.hovered || root.activeFocus
                 RoundBlur {
+                    objectName: "shutdownLabelBlur"
                     anchors.fill: parent
                     radius: 6
                     color: root.D.ColorSelector.backgroundColor

@@ -7,7 +7,7 @@
 #include <qmath.h>
 #include <private/qsgmaterialshader_p.h>
 
-QT_BEGIN_NAMESPACE
+WAYLIB_SERVER_BEGIN_NAMESPACE
 
 namespace WSGBatchRenderer
 {
@@ -885,6 +885,6 @@ void RhiVisualizer::OverdrawVis::render(QRhiCommandBuffer *cb)
     visualizer->recordDrawCalls(drawCalls, cb, srb, true);
 }
 
-}
+} // namespace WSGBatchRenderer
 
-QT_END_NAMESPACE
+WAYLIB_SERVER_END_NAMESPACE

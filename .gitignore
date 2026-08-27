@@ -63,3 +63,6 @@ Testing/Temporary/
 
 # codegraph index
 .codegraph/
+
+# generated damage playground dumps
+waylib/tests/manual/damage/reports/

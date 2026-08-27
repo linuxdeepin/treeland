@@ -8,6 +8,7 @@
 #include "seat/helper.h"
 #include "surface/surfacewrapper.h"
 #include "workspace/workspace.h"
+#include "output/output.h"
 
 #include <QEventLoop>
 #include <QFutureWatcher>
@@ -17,6 +18,7 @@
 #include <woutputrenderwindow.h>
 #include <wsurfaceitem.h>
 #include <wtextureproviderprovider.h>
+#include <woutputviewport.h>
 
 namespace {
 SurfaceWrapper *g_wrapper = nullptr;
@@ -58,7 +60,10 @@ extern "C" void drm_read_render_state(void *data)
         return;
     }
 
-    renderWindow->render();
+    for (auto *output : Helper::instance()->rootSurfaceContainer()->outputs()) {
+        if (auto *vp = output->screenViewport())
+            vp->render(true);
+    }
     WTextureCapturer capturer(content);
     QFutureWatcher<QImage> watcher;
     QEventLoop loop;
