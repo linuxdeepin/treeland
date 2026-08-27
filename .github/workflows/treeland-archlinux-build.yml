@@ -84,7 +84,7 @@ jobs:
           echo "Working directory:" $PWD
           echo "Configuring treeland with merged waylib code..."
           rm -rf build
-          cmake --preset ci
+          cmake --preset ci -DBUILD_TREELAND_PROTOCOL_TESTS=ON
           cmake --build --preset ci
           echo "✅ treeland built successfully with merged waylib code!"
 

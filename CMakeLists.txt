@@ -26,6 +26,8 @@ add_feature_info(ASanSupport ADDRESS_SANITIZER "https://github.com/google/saniti
 option(BUILD_TREELAND_EXAMPLES "Build clients demo to test treeland" OFF)
 add_feature_info(DemoClents BUILD_TEST_CLIENTS "clients demo for testing")
 
+option(BUILD_TREELAND_PROTOCOL_TESTS "Build Treeland Wayland protocol tests" ON)
+
 option(USE_BUILD_TREE_WALLPAPER_FACTORY
        "Use the wallpaper factory executable from the build tree"
        OFF)

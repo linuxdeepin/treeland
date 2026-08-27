@@ -1,5 +1,8 @@
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_AUTOMOC ON)
+if(BUILD_TREELAND_PROTOCOL_TESTS)
+    add_subdirectory(protocols)
+endif()
 
 add_subdirectory(test_protocol_personalization)
 add_subdirectory(test_protocol_primary-output)
