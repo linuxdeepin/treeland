@@ -9,11 +9,16 @@
 #include <wpointer.h>
 #include <woutputrenderwindow.h>
 #include <wrenderhelper.h>
+#include <wpixmanregion.h>
+#include <wsgviewport_p.h>
+
+#include <memory>
 
 #include <wlr_all.h>
 
 #include <QQuickItem>
 #include <QQuickRenderTarget>
+#include <QTransform>
 #include <private/qsgrenderer_p.h>
 
 Q_MOC_INCLUDE(<private/qsgplaintexture_p.h>)
@@ -21,13 +26,14 @@ Q_MOC_INCLUDE(<private/qsgplaintexture_p.h>)
 QT_BEGIN_NAMESPACE
 class QSGPlainTexture;
 class QSGRenderContext;
-namespace WSGBatchRenderer {
-class Renderer;
-}
 QT_END_NAMESPACE
 
 struct pixman_region32;
 WAYLIB_SERVER_BEGIN_NAMESPACE
+
+namespace WSGBatchRenderer {
+class Renderer;
+}
 
 class WSGTextureProvider;
 class WAYLIB_SERVER_EXPORT WBufferRenderer : public QQuickItem
@@ -43,6 +49,7 @@ public:
         DontTestSwapchain = 2,
         RedirectOpenGLContextDefaultFrameBufferObject = 4,
         UseCursorFormats = 8,
+        ForceRender = 16,
     };
     Q_DECLARE_FLAGS(RenderFlags, RenderFlag)
 
@@ -52,9 +59,17 @@ public:
     WOutput *output() const;
     void setOutput(WOutput *output);
 
-    int sourceCount() const;
-    QList<QQuickItem*> sourceList() const;
-    void setSourceList(QList<QQuickItem *> sources, bool hideSource);
+    std::weak_ptr<WSGViewport> viewport() const;
+    QQuickItem *source() const;
+    void setViewport(std::weak_ptr<WSGViewport> viewport, QQuickItem *source = nullptr, bool hideSource = false);
+
+    void setPixelSize(const QSize &pixelSize);
+    QSize pixelSize() const { return m_pixelSize; }
+
+    void setDevicePixelRatio(qreal devicePixelRatio);
+
+    QTransform inputMapToOutput() const;
+    QMatrix4x4 sceneToBufferTransform() const;
 
     bool cacheBuffer() const;
     void setCacheBuffer(bool newCacheBuffer);
@@ -67,10 +82,23 @@ public:
 
     QSGRenderer *currentRenderer() const;
     WSGBatchRenderer::Renderer *currentBatchRenderer() const;
-    qreal currentDevicePixelRatio() const;
+    qreal devicePixelRatio() const { return m_devicePixelRatio; }
     const QMatrix4x4 &currentWorldTransform() const;
     wlr_buffer *currentBuffer() const;
     wlr_buffer *lastBuffer() const;
+
+    // Scene-logical diagnostics retained for highlight consumers.
+    // Reset by beginRender().
+    const WDamageRegion &lastFlushRegion() const
+    {
+        return m_lastFlushRegion;
+    }
+
+    const WDamageRegion &lastRenderRegion() const
+    {
+        return m_lastRenderRegion;
+    }
+
     QRhiTexture *currentRenderTarget() const;
     bool isColorPreserved() const;
     const wlr_damage_ring *damageRing() const;
@@ -81,7 +109,12 @@ public:
     WSGTextureProvider *wTextureProvider() const;
 
     static QTransform inputMapToOutput(const QRectF &sourceRect, const QRectF &targetRect,
-                                       const QSize &pixelSize, const qreal devicePixelRatio);
+                                       const QSize &pixelSize, qreal devicePixelRatio);
+    static QMatrix4x4 sceneToBufferTransform(const QMatrix4x4 &renderMatrix,
+                                             const QRectF &sourceRect,
+                                             const QRectF &targetRect,
+                                             const QSize &pixelSize,
+                                             qreal devicePixelRatio);
 
 Q_SIGNALS:
     void sceneGraphChanged();
@@ -91,12 +124,10 @@ Q_SIGNALS:
     void afterRendering();
 
 protected:
-    wlr_buffer *beginRender(const QSize &pixelSize, qreal devicePixelRatio,
-                            uint32_t format, RenderFlags flags = {},
+    wlr_buffer *beginRender(uint32_t format, RenderFlags flags = {},
                             WGlobal::ColorContentsMode mode = WGlobal::ColorContentsMode::DontCare);
-    void render(int sourceIndex, const QMatrix4x4 &renderMatrix,
-                const QRectF &sourceRect = {}, const QRectF &targetRect = {});
-    void endRender();
+    void render();
+    WDamageRegion endRender();
     void componentComplete() override;
 
 private:
@@ -119,10 +150,9 @@ private:
         return nullptr == source;
     }
 
-    void resetSources();
-    void destroySource(int index);
-    int indexOfSource(QQuickItem *item);
-    QSGRenderer *ensureRenderer(int sourceIndex, QSGRenderContext *rc);
+    void markFullDamage();
+    void resetViewport();
+    void ensureRenderer(QSGRenderContext *rc);
 
     WUniquePointer<wlr_swapchain> m_swapchain;
     WRenderHelper *m_renderHelper = nullptr;
@@ -132,32 +162,32 @@ private:
         RenderFlags flags;
         WGlobal::ColorContentsMode colorContentsMode = WGlobal::ColorContentsMode::DontCare;
         QSGRenderContext *context;
-        QSGRenderer *renderer;
-        WSGBatchRenderer::Renderer *batchRenderer;
         QMatrix4x4 worldTransform;
-        QSize pixelSize;
-        qreal devicePixelRatio;
         WBufferUnlockPtr buffer;
         WRenderHelper::RenderTarget renderTarget;
         QSGRenderTarget sgRenderTarget;
-        QRegion dirty;
+        WPixmanRegion dirty;
     } state;
 
     QPointer<WOutput> m_output;
-
-    struct Data {
-        QQuickItem *source = nullptr; // Don't using QPointer, See isRootItem
-        QSGRenderer *renderer = nullptr;
-    };
-
-    QList<Data> m_sourceList;
+    QSize m_pixelSize;
+    qreal m_devicePixelRatio = 1.0;
+    std::weak_ptr<WSGViewport> m_viewport;
+    QPointer<QQuickItem> m_source;
+    QSGRenderer *m_renderer = nullptr;
+    WSGBatchRenderer::Renderer *m_batchRenderer = nullptr;
+    QMetaObject::Connection m_sourceDestroyed;
     WDamageRing m_damageRing;
+    WDamageRegion m_lastFlushRegion;
+    WDamageRegion m_lastRenderRegion;
     mutable std::unique_ptr<WSGTextureProvider> m_textureProvider;
     QColor m_clearColor = Qt::transparent;
     QList<QObject*> m_cacheBufferLocker;
 
     uint m_cacheBuffer:1;
     uint m_hideSource:1;
+    uint m_selfManagedRenderer:1;
+    uint m_rendered:1;
 };
 
 WAYLIB_SERVER_END_NAMESPACE
