@@ -1981,7 +1981,7 @@ void Helper::init(Treeland::Treeland *treeland)
 
     // Initialize seats from configuration
     m_primarySeat =
-        m_seatManager->initializeFromConfig("/etc/deepin/treeland/seats.json", m_server);
+        m_seatManager->initializeFromConfig(QStringLiteral(TREELAND_SYSCONFDIR "/seats.json"), m_server);
     if (!m_primarySeat) {
         qCCritical(lcTlCore) << "Failed to initialize seats!";
         return;

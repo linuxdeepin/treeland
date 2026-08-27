@@ -123,6 +123,8 @@ GNUInstallDirs_get_absolute_install_dir(
     DATADIR
 )
 
+set(TREELAND_SYSCONFDIR "${CMAKE_INSTALL_FULL_SYSCONFDIR}/treeland" CACHE PATH "treeland system config directory")
+
 add_compile_definitions("TREELAND_DATA_DIR=\"${TREELAND_FULL_DATA_DIR}\"")
 # NOTE:: remove force assert before stable version
 add_compile_definitions("QT_FORCE_ASSERTS")
