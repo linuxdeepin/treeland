@@ -283,6 +283,7 @@ qt_add_repc_sources(libtreeland
 target_compile_definitions(libtreeland
     PRIVATE
     WLR_USE_UNSTABLE
+    "TREELAND_SYSCONFDIR=\"${TREELAND_SYSCONFDIR}\""
 )
 
 if (USE_BUILD_TREE_WALLPAPER_FACTORY)
