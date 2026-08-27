@@ -28,9 +28,7 @@ PointerConstraintsManager::PointerConstraintsManager(WPointerConstraintsV1 *cons
             &PointerConstraintsManager::onNewConstraint);
 
     // active-window change triggers constraint re-evaluation.
-    connect(Helper::instance(), &Helper::activatedSurfaceChanged, this, [this]() {
-        onActiveWindowChanged();
-    });
+    connect(Helper::instance(), &Helper::activatedSurfaceChanged, this, &PointerConstraintsManager::onActiveWindowChanged);
 
     auto *helper = Helper::instance();
     auto *seatManager = helper->seatManager();
@@ -56,35 +54,7 @@ void PointerConstraintsManager::onNewConstraint(wlr_pointer_constraint_v1 *const
     auto *constraintOwner = new WListenerOwner();
     constraint->data = constraintOwner;
     constraintOwner->listeners()->add(&constraint->events.set_region, this, [this, constraint]() {
-        if (!m_active.contains(constraint)) {
-            // Not yet active: try to activate now that
-            // wlroots has updated the effective region.
-            tryActivateConstraint(constraint);
-            return;
-        }
-
-        // LOCKED: region changes do not affect a frozen cursor.
-        if (constraint->type == WLR_POINTER_CONSTRAINT_V1_LOCKED)
-            return;
-
-        // CONFINED: unconfine if the pointer leaves the new region.
-        wlr_seat *wlrSeat = constraint->seat;
-        if (!wlrSeat)
-            return;
-        const double sx = wlrSeat->pointer_state.sx;
-        const double sy = wlrSeat->pointer_state.sy;
-        if (pixman_region32_contains_point(&constraint->region, floor(sx), floor(sy), NULL))
-            return;
-        // Deferred: synchronous send_deactivated inside
-        // wlr_signal_emit_mutable would assert-fail on the
-        // still-iterated listener.
-        QMetaObject::invokeMethod(
-            this,
-            [this, constraint]() {
-                if (m_constraints.contains(constraint))
-                    deactivateConstraint(constraint);
-            },
-            Qt::QueuedConnection);
+        onConstraintRegionChanged(constraint);
     });
     constraintOwner->listeners()->add(&constraint->events.destroy, this, [this, constraint]() {
         onConstraintDestroyed(constraint);
@@ -175,6 +145,39 @@ void PointerConstraintsManager::deactivateConstraint(wlr_pointer_constraint_v1 *
     // not touch the constraint object after this call (the destroy listener
     // above will fire and clean up the owner).
     wlr_pointer_constraint_v1_send_deactivated(constraint);
+}
+
+void PointerConstraintsManager::onConstraintRegionChanged(wlr_pointer_constraint_v1 *constraint)
+{
+    if (!m_active.contains(constraint)) {
+        // Not yet active: try to activate now that
+        // wlroots has updated the effective region.
+        tryActivateConstraint(constraint);
+        return;
+    }
+
+    // LOCKED: region changes do not affect a frozen cursor.
+    if (constraint->type == WLR_POINTER_CONSTRAINT_V1_LOCKED)
+        return;
+
+    // CONFINED: unconfine if the pointer leaves the new region.
+    wlr_seat *wlrSeat = constraint->seat;
+    if (!wlrSeat)
+        return;
+    const double sx = wlrSeat->pointer_state.sx;
+    const double sy = wlrSeat->pointer_state.sy;
+    if (pixman_region32_contains_point(&constraint->region, floor(sx), floor(sy), NULL))
+        return;
+    // Deferred: synchronous send_deactivated inside
+    // wlr_signal_emit_mutable would assert-fail on the
+    // still-iterated listener.
+    QMetaObject::invokeMethod(
+        this,
+        [this, constraint]() {
+            if (m_constraints.contains(constraint))
+                deactivateConstraint(constraint);
+        },
+        Qt::QueuedConnection);
 }
 
 void PointerConstraintsManager::onConstraintDestroyed(wlr_pointer_constraint_v1 *constraint)
