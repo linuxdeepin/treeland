@@ -220,6 +220,9 @@ void ShellHandler::updateWrapperContainer(SurfaceWrapper *wrapper, WSurface *par
     auto oldContainer = wrapper->container();
     if (parentSurface) {
         auto parentWrapper = m_rootSurfaceContainer->getSurface(parentSurface);
+        if (!parentWrapper)
+            return;
+
         auto parentContainer = qobject_cast<SurfaceContainer *>(parentWrapper->container());
         parentWrapper->addSubSurface(wrapper);
         if (oldContainer != parentContainer) {
@@ -942,12 +945,19 @@ void ShellHandler::ensureXwaylandWrapper(WXWaylandSurface *surface, const QStrin
     }
 
     // Initialize wrapper
-    auto updateSurfaceWithParentContainer = [this, wrapper, surface] {
-        updateWrapperContainer(wrapper, surface->parentSurface());
+    wrapper->setModal(surface->isModal());
+    auto surfaceGuard = QPointer<WXWaylandSurface>(surface);
+    auto wrapperGuard = QPointer<SurfaceWrapper>(wrapper);
+    auto updateSurfaceWithParentContainer = [this, surfaceGuard, wrapperGuard] {
+        if (!surfaceGuard || !wrapperGuard || wrapperGuard->shellSurface() != surfaceGuard)
+            return;
+
+        updateWrapperContainer(wrapperGuard, surfaceGuard->parentSurface());
     };
-    QObject::connect(surface, &WXWaylandSurface::parentSurfaceChanged,
-                         this,
-                         updateSurfaceWithParentContainer);
+    QObject::connect(surface,
+                     &WXWaylandSurface::parentSurfaceChanged,
+                     wrapper,
+                     updateSurfaceWithParentContainer);
     updateSurfaceWithParentContainer();
     Q_ASSERT(wrapper->parentItem());
     const auto initialState = surface->handle()->fullscreen

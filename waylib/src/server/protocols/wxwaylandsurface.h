@@ -79,6 +79,7 @@ public:
     static WXWaylandSurface *fromSurface(WSurface *surface);
 
     WSurface *surface() const override;
+    WSurface *parentSurface() const override;
     wlr_xwayland_surface *handle() const;
     WXWaylandSurface *parentXWaylandSurface() const;
     WXWayland *xwayland() const;
@@ -108,6 +109,7 @@ public:
     ConfigureFlags requestConfigureFlags() const;
 
     bool isBypassManager() const;
+    bool isModal() const;
     WindowTypes windowTypes() const;
     DecorationsFlags decorationsFlags() const;
 
