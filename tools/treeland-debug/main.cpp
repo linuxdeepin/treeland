@@ -334,7 +334,8 @@ QString helpText()
         "  event motion <x> <y>       Move the cursor to (x, y)\n"
         "  event button <btn> [act]   Send a pointer button; btn = left|right|middle|<code>,\n"
         "                             act = press|release|click (default click)\n"
-        "  event key <key> [act]      Send a keyboard event; key = name|<evdev-code>,\n"
+        "  event key <key> [act]      Send a keyboard event; key = name|<code>,\n"
+        "                             name = Qt::Key enum (Escape, Return, Space, ...),\n"
         "                             act = press|release|tap (default tap)\n"
         "\n"
         "Image capture:\n"
@@ -665,7 +666,8 @@ static int runCommand(Session &session, int timeoutMs, bool json, int previewOpt
     // ---- image capture ----
     case DebugCommand::ScreenshotOutput: {
         QByteArray data;
-        if (!waitSlot(replica->captureOutput(parsed.outputName), timeoutMs, &data))
+        replica->captureOutput(parsed.outputName);
+        if (!waitCaptureResult(replica, timeoutMs, &data))
             return fail("captureOutput() failed");
         if (data.isEmpty())
             return fail("captureOutput: no image produced (output not found or grab failed)");
@@ -683,7 +685,8 @@ static int runCommand(Session &session, int timeoutMs, bool json, int previewOpt
         if (!ok)
             return fail(QStringLiteral("no window matches '%1'").arg(parsed.target));
         QByteArray data;
-        if (!waitSlot(replica->captureWindow(id), timeoutMs, &data))
+        replica->captureWindow(id);
+        if (!waitCaptureResult(replica, timeoutMs, &data))
             return fail("captureWindow() failed");
         if (data.isEmpty())
             return fail("captureWindow: no image produced (window not found, has no scene item, or grab failed)");

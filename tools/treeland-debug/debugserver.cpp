@@ -523,7 +523,8 @@ QHttpServerResponse DebugServer::handleScreenshotOutput(const QHttpServerRequest
             QHttpServerResponse::StatusCode::ServiceUnavailable);
 
     QByteArray data;
-    if (!waitSlot(session.replica->captureOutput(outputName), m_timeoutMs, &data) || data.isEmpty())
+    session.replica->captureOutput(outputName);
+    if (!waitCaptureResult(session.replica, m_timeoutMs, &data) || data.isEmpty())
         return QHttpServerResponse(
             QJsonObject{{"ok", false}, {"error", "captureOutput: no image produced"}},
             QHttpServerResponse::StatusCode::NotFound);
@@ -554,7 +555,8 @@ QHttpServerResponse DebugServer::handleScreenshotWindow(const QHttpServerRequest
             QHttpServerResponse::StatusCode::NotFound);
 
     QByteArray data;
-    if (!waitSlot(session.replica->captureWindow(id), m_timeoutMs, &data) || data.isEmpty())
+    session.replica->captureWindow(id);
+    if (!waitCaptureResult(session.replica, m_timeoutMs, &data) || data.isEmpty())
         return QHttpServerResponse(
             QJsonObject{{"ok", false}, {"error", "captureWindow: no image produced (window not found, has no scene item, or grab failed)"}},
             QHttpServerResponse::StatusCode::NotFound);
@@ -791,7 +793,8 @@ void DebugServer::handleWebSocketMessage(QWebSocket *socket, const QString &mess
             result = {{"ok", false}, {"error", "failed to connect"}};
         } else {
             QByteArray data;
-            if (!waitSlot(session.replica->captureOutput(outputName), m_timeoutMs, &data) || data.isEmpty()) {
+            session.replica->captureOutput(outputName);
+            if (!waitCaptureResult(session.replica, m_timeoutMs, &data) || data.isEmpty()) {
                 result = {{"ok", false}, {"error", "captureOutput: no image produced"}};
             } else {
                 // Send as binary message, then a small JSON ack so the client
@@ -815,7 +818,8 @@ void DebugServer::handleWebSocketMessage(QWebSocket *socket, const QString &mess
                     result = {{"ok", false}, {"error", QStringLiteral("no window matches '%1'").arg(target)}};
                 } else {
                     QByteArray data;
-                    if (!waitSlot(session.replica->captureWindow(winId), m_timeoutMs, &data) || data.isEmpty()) {
+                    session.replica->captureWindow(winId);
+                    if (!waitCaptureResult(session.replica, m_timeoutMs, &data) || data.isEmpty()) {
                         result = {{"ok", false}, {"error", "captureWindow: no image produced (window not found, has no scene item, or grab failed)"}};
                     } else {
                         socket->sendBinaryMessage(data);
