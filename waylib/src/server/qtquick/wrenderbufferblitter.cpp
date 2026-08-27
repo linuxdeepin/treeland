@@ -9,6 +9,7 @@
 #include <QSGTextureProvider>
 #include <private/qsgplaintexture_p.h>
 #include <private/qquickitem_p.h>
+#include "wayliblogging.h"
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -95,6 +96,8 @@ public:
     Content *content = nullptr;
     QQuickItem *container = nullptr;
     mutable BlitTextureProvider *tp = nullptr;
+    int damageExpansion = 0;
+    bool clipDamageExpansion = true;
 };
 
 class Q_DECL_HIDDEN Content : public QQuickItem
@@ -242,6 +245,39 @@ void WRenderBufferBlitter::setOffscreen(bool newOffscreen)
         Q_EMIT offscreenChanged();
 }
 
+int WRenderBufferBlitter::damageExpansion() const
+{
+    W_DC(WRenderBufferBlitter);
+    return d->damageExpansion;
+}
+
+void WRenderBufferBlitter::setDamageExpansion(int px)
+{
+    W_D(WRenderBufferBlitter);
+    px = qMax(0, px);
+    if (d->damageExpansion == px)
+        return;
+    d->damageExpansion = px;
+    update();
+    Q_EMIT damageExpansionChanged();
+}
+
+bool WRenderBufferBlitter::clipDamageExpansion() const
+{
+    W_DC(WRenderBufferBlitter);
+    return d->clipDamageExpansion;
+}
+
+void WRenderBufferBlitter::setClipDamageExpansion(bool clip)
+{
+    W_D(WRenderBufferBlitter);
+    if (d->clipDamageExpansion == clip)
+        return;
+    d->clipDamageExpansion = clip;
+    update();
+    Q_EMIT clipDamageExpansionChanged();
+}
+
 void WRenderBufferBlitter::invalidateSceneGraph()
 {
     W_D(WRenderBufferBlitter);
@@ -260,14 +296,17 @@ static void onTextureChanged(WRenderBufferNode *node, void *data) {
 
 QSGNode *WRenderBufferBlitter::updatePaintNode(QSGNode *oldNode, [[maybe_unused]] QQuickItem::UpdatePaintNodeData *oldData)
 {
-
+    W_D(WRenderBufferBlitter);
     auto node = static_cast<WRenderBufferNode*>(oldNode);
+    qCDebug(lcWlRenderBuffer) << "updatePaintNode" << objectName() << size()
+                              << "visible" << isVisible() << "existing" << bool(node);
     if (Q_LIKELY(node)) {
         node->resize(size());
+        node->setDamageExpansion(d->damageExpansion);
+        node->setClipDamageExpansion(d->clipDamageExpansion);
         return node;
     }
 
-    W_D(WRenderBufferBlitter);
     if (window()->graphicsApi() == QSGRendererInterface::Software) {
         node = WRenderBufferNode::createSoftwareNode(this);
     } else {
@@ -277,6 +316,8 @@ QSGNode *WRenderBufferBlitter::updatePaintNode(QSGNode *oldNode, [[maybe_unused]
     node->setContentItem(d->container);
     node->setTextureChangedCallback(onTextureChanged, d);
     node->resize(size());
+    node->setDamageExpansion(d->damageExpansion);
+    node->setClipDamageExpansion(d->clipDamageExpansion);
     onTextureChanged(node, d);
 
     return node;

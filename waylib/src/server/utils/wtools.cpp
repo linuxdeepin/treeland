@@ -128,6 +128,8 @@ QImage::Format WTools::toImageFormat(uint32_t drmFormat)
         return QImage::Format_RGBA8888;
     case DRM_FORMAT_ABGR8888:
         return QImage::Format_RGBA8888_Premultiplied;
+    case DRM_FORMAT_XBGR8888:
+        return QImage::Format_RGBX8888;
     case DRM_FORMAT_XRGB2101010:
         return QImage::Format_RGB30;
     case DRM_FORMAT_BGRX1010102:
@@ -310,19 +312,6 @@ Qt::Edges WTools::toQtEdge(uint32_t edges)
     }
 
     return qedges;
-}
-
-// WPixmanRegion implementation
-WPixmanRegion::WPixmanRegion() {
-    pixman_region32_init(&r);
-}
-
-WPixmanRegion::WPixmanRegion(int x, int y, int w, int h) {
-    pixman_region32_init_rect(&r, x, y, w, h);
-}
-
-WPixmanRegion::~WPixmanRegion() {
-    pixman_region32_fini(&r);
 }
 
 WAYLIB_SERVER_END_NAMESPACE

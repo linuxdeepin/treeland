@@ -3366,6 +3366,35 @@ bool Helper::toggleDebugMenuBar()
     return ok;
 }
 
+QString Helper::damageVisual() const
+{
+    if (!m_renderWindow)
+        return QStringLiteral("off");
+    switch (m_renderWindow->damageVisual()) {
+    case WOutputRenderWindow::DamageVisual::Highlight:
+        return QStringLiteral("highlight");
+    case WOutputRenderWindow::DamageVisual::Off:
+        break;
+    }
+    return QStringLiteral("off");
+}
+
+bool Helper::setDamageVisual(const QString &mode)
+{
+    if (!m_renderWindow)
+        return false;
+    const QString v = mode.trimmed().toLower();
+    WOutputRenderWindow::DamageVisual visual = WOutputRenderWindow::DamageVisual::Off;
+    if (v == QLatin1String("highlight") || v == QLatin1String("1")
+        || v == QLatin1String("true") || v == QLatin1String("on"))
+        visual = WOutputRenderWindow::DamageVisual::Highlight;
+    else if (v != QLatin1String("off") && v != QLatin1String("none")
+             && v != QLatin1String("0") && v != QLatin1String("false"))
+        return false;
+    m_renderWindow->setDamageVisual(visual);
+    return true;
+}
+
 WindowManagementInterfaceV1::DesktopState Helper::showDesktopState() const
 {
     return m_showDesktop;

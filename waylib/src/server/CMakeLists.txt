@@ -165,6 +165,11 @@ set(SOURCES
     qtquick/scenegraph/wsgbatchrenderer.cpp
     qtquick/scenegraph/wsgrhivisualizer.cpp
     qtquick/scenegraph/wsgcontext.cpp
+    qtquick/scenegraph/wsgimagenode.cpp
+    qtquick/scenegraph/wsgdamagetracker.cpp
+    qtquick/scenegraph/wsgdamagenode.cpp
+    qtquick/scenegraph/wsgdamagelog.cpp
+    qtquick/wregionhighlightitem.cpp
 
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v1-protocol.c
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v2-protocol.c
@@ -173,6 +178,7 @@ set(SOURCES
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/xdg-shell-protocol.c
 
     utils/wtools.cpp
+    utils/wpixmanregion.cpp
     utils/wthreadutils.cpp
     utils/wimagebuffer.cpp
     utils/wcursorimage.cpp
@@ -280,6 +286,9 @@ set(HEADERS
     qtquick/wsgtextureprovider.h
     qtquick/wtextureproviderprovider.h
     qtquick/wbufferitem.h
+    qtquick/scenegraph/wsgdamagenode.h
+    qtquick/scenegraph/wsgdamagetracker.h
+    utils/wpixmanregion.h
 
     utils/wtools.h
     utils/wthreadutils.h
@@ -362,6 +371,8 @@ set(PRIVATE_HEADERS
     qtquick/scenegraph/wsgbatchrenderer_p.h
     qtquick/scenegraph/wsgrhivisualizer_p.h
     qtquick/scenegraph/wsgcontext_p.h
+    qtquick/scenegraph/wsgimagenode_p.h
+    qtquick/scenegraph/wsgdamagelog_p.h
 
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v1-protocol.h
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v2-protocol.h
@@ -464,6 +475,7 @@ target_include_directories(${TARGET}
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/kernel>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/qtquick>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/qtquick/private>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/qtquick/scenegraph>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/utils>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/protocols>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/protocols/private>

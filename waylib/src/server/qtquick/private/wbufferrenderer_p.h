@@ -15,21 +15,25 @@
 #include <QQuickItem>
 #include <QQuickRenderTarget>
 #include <private/qsgrenderer_p.h>
+#include <wpixmanregion.h>
 
-Q_MOC_INCLUDE(<private/qsgplaintexture_p.h>)
+Q_MOC_INCLUDE(<private / qsgplaintexture_p.h>)
 
 QT_BEGIN_NAMESPACE
 class QSGPlainTexture;
 class QSGRenderContext;
-namespace WSGBatchRenderer {
-class Renderer;
-}
 QT_END_NAMESPACE
 
 struct pixman_region32;
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
+namespace WSGBatchRenderer {
+class Renderer;
+}
+
 class WSGTextureProvider;
+class WSGViewport;
+
 class WAYLIB_SERVER_EXPORT WBufferRenderer : public QQuickItem
 {
     friend class WOutputRenderWindow;
@@ -53,7 +57,7 @@ public:
     void setOutput(WOutput *output);
 
     int sourceCount() const;
-    QList<QQuickItem*> sourceList() const;
+    QList<QQuickItem *> sourceList() const;
     void setSourceList(QList<QQuickItem *> sources, bool hideSource);
 
     bool cacheBuffer() const;
@@ -71,6 +75,26 @@ public:
     const QMatrix4x4 &currentWorldTransform() const;
     wlr_buffer *currentBuffer() const;
     wlr_buffer *lastBuffer() const;
+
+    // Buffer-relative flush of the current beginRender..endRender cycle.
+    // Union of every render() call in the cycle; reset by beginRender().
+    QRegion lastFlushRegion() const
+    {
+        return m_lastFlushRegion;
+    }
+
+    bool lastFlushIsFull() const
+    {
+        return m_lastFlushIsFull;
+    }
+
+    struct FlushResult
+    {
+        QRegion region; // Buffer-relative
+        bool isFull = false;
+    };
+
+    void markFullDamage();
     QRhiTexture *currentRenderTarget() const;
     bool isColorPreserved() const;
     const wlr_damage_ring *damageRing() const;
@@ -94,14 +118,13 @@ protected:
     wlr_buffer *beginRender(const QSize &pixelSize, qreal devicePixelRatio,
                             uint32_t format, RenderFlags flags = {},
                             WGlobal::ColorContentsMode mode = WGlobal::ColorContentsMode::DontCare);
-    void render(int sourceIndex, const QMatrix4x4 &renderMatrix,
-                const QRectF &sourceRect = {}, const QRectF &targetRect = {});
-    void endRender();
+    void render(int sourceIndex, WSGViewport &viewport);
+    FlushResult endRender();
     void componentComplete() override;
 
 private:
     inline WOutputRenderWindow *renderWindow() const {
-        return qobject_cast<WOutputRenderWindow*>(window());
+        return qobject_cast<WOutputRenderWindow *>(window());
     }
 
     inline bool shouldCacheBuffer() const {
@@ -132,15 +155,15 @@ private:
         RenderFlags flags;
         WGlobal::ColorContentsMode colorContentsMode = WGlobal::ColorContentsMode::DontCare;
         QSGRenderContext *context;
-        QSGRenderer *renderer;
-        WSGBatchRenderer::Renderer *batchRenderer;
+        QSGRenderer *renderer = nullptr;
+        WSGBatchRenderer::Renderer *batchRenderer = nullptr;
         QMatrix4x4 worldTransform;
         QSize pixelSize;
         qreal devicePixelRatio;
         WBufferUnlockPtr buffer;
         WRenderHelper::RenderTarget renderTarget;
         QSGRenderTarget sgRenderTarget;
-        QRegion dirty;
+        WPixmanRegion dirty;
     } state;
 
     QPointer<WOutput> m_output;
@@ -154,10 +177,13 @@ private:
     WDamageRing m_damageRing;
     mutable std::unique_ptr<WSGTextureProvider> m_textureProvider;
     QColor m_clearColor = Qt::transparent;
-    QList<QObject*> m_cacheBufferLocker;
+    QList<QObject *> m_cacheBufferLocker;
 
-    uint m_cacheBuffer:1;
-    uint m_hideSource:1;
+    uint m_cacheBuffer : 1;
+    uint m_hideSource : 1;
+    uint m_lastFlushIsFull : 1;
+    uint m_pendingFullDamage : 1;
+    QRegion m_lastFlushRegion;
 };
 
 WAYLIB_SERVER_END_NAMESPACE

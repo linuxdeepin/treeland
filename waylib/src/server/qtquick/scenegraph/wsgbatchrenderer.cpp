@@ -20,9 +20,79 @@
 #include <algorithm>
 
 #include "private/wprivateaccessor_p.h"
+#include "wayliblogging.h"
+#include "wbufferdumper.h"
+#include "wpixmanregion.h"
+#include "wrenderbuffernode_p.h"
+#include "wrenderhelper.h"
+#include "wsgdamagelog_p.h"
+#include "wsgdamagenode.h"
+#include "wsgdamagetracker.h"
+#include "wsgimagenode_p.h"
+#include <private/qquickclipnode_p.h>
+#include <private/qsgbasicinternalimagenode_p.h>
+#include <private/qsgbasicinternalrectanglenode_p.h>
+#include <private/qsgdefaultninepatchnode_p.h>
+#include <private/qsgdefaultpainternode_p.h>
+#include <QSGClipNode>
+#include <QSGGeometry>
+#include <QSGGeometryNode>
+#include <QSGImageNode>
+#include <QSGOpacityNode>
+#include <QSGRectangleNode>
+#include <QSGRenderNode>
+#include <QSGSimpleRectNode>
+#include <QSGSimpleTextureNode>
+#include <QSGTransformNode>
+#include <QVector>
+#include <cfloat>
+#include <functional>
 
 // QSGNode friends QSGBatchRenderer::Renderer, not this fork.
-W_DECLARE_PRIVATE_MEMBER(WSG_QSGNode_m_subtreeRenderableCount, QSGNode, m_subtreeRenderableCount, int);
+W_DECLARE_PRIVATE_MEMBER(WSG_QSGNode_m_subtreeRenderableCount,
+                         QSGNode,
+                         m_subtreeRenderableCount,
+                         int);
+W_DECLARE_PRIVATE_MEMBER(WSG_QSGBasicInternalRect_m_rect,
+                         QSGBasicInternalRectangleNode,
+                         m_rect,
+                         QRectF);
+W_DECLARE_PRIVATE_MEMBER(WSG_QSGBasicInternalRect_m_color,
+                         QSGBasicInternalRectangleNode,
+                         m_color,
+                         QColor);
+W_DECLARE_PRIVATE_MEMBER(WSG_QSGBasicInternalRect_m_radius,
+                         QSGBasicInternalRectangleNode,
+                         m_radius,
+                         float);
+W_DECLARE_PRIVATE_MEMBER(WSG_QSGBasicInternalRect_m_topLeftRadius,
+                         QSGBasicInternalRectangleNode,
+                         m_topLeftRadius,
+                         float);
+W_DECLARE_PRIVATE_MEMBER(WSG_QSGBasicInternalRect_m_topRightRadius,
+                         QSGBasicInternalRectangleNode,
+                         m_topRightRadius,
+                         float);
+W_DECLARE_PRIVATE_MEMBER(WSG_QSGBasicInternalRect_m_bottomLeftRadius,
+                         QSGBasicInternalRectangleNode,
+                         m_bottomLeftRadius,
+                         float);
+W_DECLARE_PRIVATE_MEMBER(WSG_QSGBasicInternalRect_m_bottomRightRadius,
+                         QSGBasicInternalRectangleNode,
+                         m_bottomRightRadius,
+                         float);
+W_DECLARE_PRIVATE_MEMBER(WSG_QSGBasicInternalRect_m_gradient_stops,
+                         QSGBasicInternalRectangleNode,
+                         m_gradient_stops,
+                         QGradientStops);
+W_DECLARE_PRIVATE_MEMBER(WSG_QSGBasicInternalImage_m_targetRect,
+                         QSGBasicInternalImageNode,
+                         m_targetRect,
+                         QRectF);
+W_DECLARE_PRIVATE_MEMBER(WSG_QSGDefaultNinePatch_m_bounds,
+                         QSGDefaultNinePatchNode,
+                         m_bounds,
+                         QRectF);
 
 QT_BEGIN_NAMESPACE
 
@@ -34,7 +104,7 @@ bool operator==(const QSGSamplerDescription &a, const QSGSamplerDescription &b) 
             && a.mipmapFiltering == b.mipmapFiltering
             && a.horizontalWrap == b.horizontalWrap
             && a.verticalWrap == b.verticalWrap
-            && a.anisotropylevel == b.anisotropylevel;
+        && a.anisotropylevel == b.anisotropylevel;
 }
 
 bool operator!=(const QSGSamplerDescription &a, const QSGSamplerDescription &b) noexcept
@@ -62,6 +132,8 @@ QSGSamplerDescription QSGSamplerDescription::fromTexture(QSGTexture *t)
     return s;
 }
 
+QT_END_NAMESPACE
+
 static int qt_sg_envInt(const char *name, int defaultValue)
 {
     if (Q_LIKELY(!qEnvironmentVariableIsSet(name)))
@@ -71,12 +143,16 @@ static int qt_sg_envInt(const char *name, int defaultValue)
     return ok ? value : defaultValue;
 }
 
-namespace WSGBatchRenderer
-{
+WAYLIB_SERVER_BEGIN_NAMESPACE
 
-#define DECLARE_DEBUG_VAR(variable) \
-    static bool debug_ ## variable() \
-    { static bool value = qgetenv("QSG_RENDERER_DEBUG").contains(QT_STRINGIFY(variable)); return value; }
+namespace WSGBatchRenderer {
+
+#define DECLARE_DEBUG_VAR(variable)                                                         \
+    static bool debug_##variable()                                                          \
+    {                                                                                       \
+        static bool value = qgetenv("QSG_RENDERER_DEBUG").contains(QT_STRINGIFY(variable)); \
+        return value;                                                                       \
+    }
 DECLARE_DEBUG_VAR(render)
 DECLARE_DEBUG_VAR(build)
 DECLARE_DEBUG_VAR(change)
@@ -89,40 +165,70 @@ DECLARE_DEBUG_VAR(noopaque)
 DECLARE_DEBUG_VAR(noclip)
 #undef DECLARE_DEBUG_VAR
 
-#define QSGNODE_TRAVERSE(NODE) for (QSGNode *child = NODE->firstChild(); child; child = child->nextSibling())
-#define SHADOWNODE_TRAVERSE(NODE) for (Node *child = NODE->firstChild(); child; child = child->sibling())
+#define QSGNODE_TRAVERSE(NODE) \
+    for (QSGNode *child = NODE->firstChild(); child; child = child->nextSibling())
+#define SHADOWNODE_TRAVERSE(NODE) \
+    for (Node *child = NODE->firstChild(); child; child = child->sibling())
 
 static inline int size_of_type(int type)
 {
     static int sizes[] = {
         sizeof(char),
-        sizeof(unsigned char),
-        sizeof(short),
-        sizeof(unsigned short),
-        sizeof(int),
-        sizeof(unsigned int),
-        sizeof(float),
-        2,
-        3,
-        4,
+                           sizeof(unsigned char),
+                           sizeof(short),
+                           sizeof(unsigned short),
+                           sizeof(int),
+                           sizeof(unsigned int),
+                           sizeof(float),
+                           2,
+                           3,
+                           4,
         sizeof(double)
     };
     Q_ASSERT(type >= QSGGeometry::ByteType && type <= QSGGeometry::DoubleType);
     return sizes[type - QSGGeometry::ByteType];
 }
 
-bool qsg_sort_element_increasing_order(Element *a, Element *b) { return a->order < b->order; }
-bool qsg_sort_element_decreasing_order(Element *a, Element *b) { return a->order > b->order; }
-bool qsg_sort_batch_increasing_order(Batch *a, Batch *b) { return a->first->order < b->first->order; }
-bool qsg_sort_batch_decreasing_order(Batch *a, Batch *b) { return a->first->order > b->first->order; }
+bool qsg_sort_element_increasing_order(Element *a, Element *b)
+{
+    return a->order < b->order;
+}
 
-QSGMaterial::Flag QSGMaterial_FullMatrix = (QSGMaterial::Flag) (QSGMaterial::RequiresFullMatrix & ~QSGMaterial::RequiresFullMatrixExceptTranslate);
+bool qsg_sort_element_decreasing_order(Element *a, Element *b)
+{
+    return a->order > b->order;
+}
 
-static bool isTranslate(const QMatrix4x4 &m) { return m.flags() <= QMatrix4x4::Translation; }
-static bool isScale(const QMatrix4x4 &m) { return m.flags() <= QMatrix4x4::Scale; }
-static bool is2DSafe(const QMatrix4x4 &m) { return m.flags() < QMatrix4x4::Rotation; }
+bool qsg_sort_batch_increasing_order(Batch *a, Batch *b)
+{
+    return a->first->order < b->first->order;
+}
 
-const float OPAQUE_LIMIT                = 0.999f;
+bool qsg_sort_batch_decreasing_order(Batch *a, Batch *b)
+{
+    return a->first->order > b->first->order;
+}
+
+QSGMaterial::Flag QSGMaterial_FullMatrix =
+    (QSGMaterial::Flag)(QSGMaterial::RequiresFullMatrix
+                        & ~QSGMaterial::RequiresFullMatrixExceptTranslate);
+
+static bool isTranslate(const QMatrix4x4 &m)
+{
+    return m.flags() <= QMatrix4x4::Translation;
+}
+
+static bool isScale(const QMatrix4x4 &m)
+{
+    return m.flags() <= QMatrix4x4::Scale;
+}
+
+static bool is2DSafe(const QMatrix4x4 &m)
+{
+    return m.flags() < QMatrix4x4::Rotation;
+}
+
+const float OPAQUE_LIMIT = 0.999f;
 
 const uint DYNAMIC_VERTEX_INDEX_BUFFER_THRESHOLD = 4;
 const int VERTEX_BUFFER_BINDING = 0;
@@ -133,7 +239,7 @@ const float VIEWPORT_MAX_DEPTH = 1.0f;
 
 const quint32 DEFAULT_BUFFER_POOL_SIZE_LIMIT = 2 * 1024 * 1024; // 2 MB for m_vboPool and m_iboPool each
 
-template <class Int>
+template<class Int>
 inline Int aligned(Int v, Int byteAlign)
 {
     return (v + byteAlign - 1) & ~(byteAlign - 1);
@@ -299,9 +405,9 @@ ShaderManager::Shader *ShaderManager::prepareMaterial(QSGMaterial *material,
 }
 
 ShaderManager::Shader *ShaderManager::prepareMaterialNoRewrite(QSGMaterial *material,
-                                                               const QSGGeometry *geometry,
-                                                               QSGRendererInterface::RenderMode renderMode,
-                                                               int multiViewCount)
+    const QSGGeometry *geometry,
+    QSGRendererInterface::RenderMode renderMode,
+    int multiViewCount)
 {
     qsg_setMultiViewFlagsOnMaterial(material, multiViewCount);
 
@@ -401,7 +507,7 @@ void qsg_dumpShadowRoots(Node *n)
     }
 
     SHADOWNODE_TRAVERSE(n)
-            qsg_dumpShadowRoots(child);
+    qsg_dumpShadowRoots(child);
 
     --indent;
 #else
@@ -480,7 +586,7 @@ void Updater::visitNode(Node *n)
     case QSGNode::RenderNodeType:
         if (m_added)
             n->renderNodeElement()->root = m_roots.last();
-        Q_FALLTHROUGH();    // to visit children
+        Q_FALLTHROUGH(); // to visit children
     default:
         SHADOWNODE_TRAVERSE(n) visitNode(child);
         break;
@@ -488,7 +594,7 @@ void Updater::visitNode(Node *n)
 
     m_added = count;
     m_force_update = force;
-    n->dirtyState = {};
+    n->dirtyState = { };
 }
 
 void Updater::visitClipNode(Node *n)
@@ -675,7 +781,7 @@ void Updater::updateRootTransforms(Node *node, Node *root, const QMatrix4x4 &com
 int qsg_positionAttribute(QSGGeometry *g)
 {
     int vaOffset = 0;
-    for (int a=0; a<g->attributeCount(); ++a) {
+    for (int a = 0; a < g->attributeCount(); ++a) {
         const QSGGeometry::Attribute &attr = g->attributes()[a];
         if (attr.isVertexCoordinate && attr.tupleSize == 2 && attr.type == QSGGeometry::FloatType) {
             return vaOffset;
@@ -731,9 +837,9 @@ void Element::computeBounds()
     }
 
     bounds.set(FLT_MAX, FLT_MAX, -FLT_MAX, -FLT_MAX);
-    char *vd = (char *) g->vertexData() + offset;
-    for (int i=0; i<g->vertexCount(); ++i) {
-        bounds |= *(Pt *) vd;
+    char *vd = (char *)g->vertexData() + offset;
+    for (int i = 0; i < g->vertexCount(); ++i) {
+        bounds |= *(Pt *)vd;
         vd += g->sizeOfVertex();
     }
     bounds.map(*node->matrix());
@@ -768,8 +874,8 @@ BatchCompatibility Batch::isMaterialCompatible(Element *e) const
     QSGMaterial *m = e->node->activeMaterial();
     QSGMaterial *nm = n->node->activeMaterial();
     return (nm->type() == m->type() && nm->viewCount() == m->viewCount() && nm->compare(m) == 0)
-            ? BatchIsCompatible
-            : BatchBreaksOnCompare;
+        ? BatchIsCompatible
+        : BatchBreaksOnCompare;
 }
 
 /*
@@ -809,8 +915,8 @@ void Batch::cleanupRemovedElements()
             if (e->nextInBatch->removed)
                 e->nextInBatch = e->nextInBatch->nextInBatch;
             else
-                e = e->nextInBatch;
 
+                e = e->nextInBatch;
         }
     }
 
@@ -888,11 +994,1031 @@ static int qsg_countNodesInBatch(const Batch *batch)
 static int qsg_countNodesInBatches(const QDataBuffer<Batch *> &batches)
 {
     int sum = 0;
-    for (int i=0; i<batches.size(); ++i) {
+    for (int i = 0; i < batches.size(); ++i) {
         sum += qsg_countNodesInBatch(batches.at(i));
     }
     return sum;
 }
+
+static QRectF localRectFromImageNode(QSGNode *sg)
+{
+    if (auto *image = WSGImageNode::enclosingNode(sg))
+        return image->rect();
+    return { };
+}
+
+static QRectF localRectFromQSGImageNode(QSGNode *sg)
+{
+    return static_cast<QSGImageNode *>(sg)->rect();
+}
+
+static QRectF localRectFromRectangleNode(QSGNode *sg)
+{
+    return static_cast<QSGRectangleNode *>(sg)->rect();
+}
+
+static QRectF localRectFromSimpleRectNode(QSGNode *sg)
+{
+    return static_cast<QSGSimpleRectNode *>(sg)->rect();
+}
+
+static QRectF localRectFromSimpleTextureNode(QSGNode *sg)
+{
+    return static_cast<QSGSimpleTextureNode *>(sg)->rect();
+}
+
+static QRectF localRectFromInternalRectangleNode(QSGNode *sg)
+{
+    return W_PRIVATE_MEMBER(*static_cast<QSGBasicInternalRectangleNode *>(sg),
+                            WSG_QSGBasicInternalRect_m_rect{ });
+}
+
+static QRectF localRectFromInternalImageNode(QSGNode *sg)
+{
+    return W_PRIVATE_MEMBER(*static_cast<QSGBasicInternalImageNode *>(sg),
+                            WSG_QSGBasicInternalImage_m_targetRect{ });
+}
+
+static QRectF localRectFromNinePatchNode(QSGNode *sg)
+{
+    return W_PRIVATE_MEMBER(*static_cast<QSGDefaultNinePatchNode *>(sg),
+                            WSG_QSGDefaultNinePatch_m_bounds{ });
+}
+
+static QRectF localRectFromGlyphNode(QSGNode *sg)
+{
+    return static_cast<QSGGlyphNode *>(sg)->boundingRect();
+}
+
+static QRectF localRectFromPainterNode(QSGNode *sg)
+{
+    return QRectF(QPointF(), QSizeF(static_cast<QSGDefaultPainterNode *>(sg)->size()));
+}
+
+static QRectF localRectFromClipNode(QSGNode *sg)
+{
+    return static_cast<QSGClipNode *>(sg)->clipRect();
+}
+
+static QRectF localRectFromRenderNode(QSGNode *sg)
+{
+    return static_cast<QSGRenderNode *>(sg)->rect();
+}
+
+static Node::LocalRectFn localRectFnFor(QSGNode *sg)
+{
+    if (!sg)
+        return nullptr;
+    if (sg->type() == QSGNode::GeometryNodeType && WSGImageNode::enclosingNode(sg))
+        return localRectFromImageNode;
+    if (dynamic_cast<QSGImageNode *>(sg))
+        return localRectFromQSGImageNode;
+    if (dynamic_cast<QSGRectangleNode *>(sg))
+        return localRectFromRectangleNode;
+    if (dynamic_cast<QSGSimpleRectNode *>(sg))
+        return localRectFromSimpleRectNode;
+    if (dynamic_cast<QSGSimpleTextureNode *>(sg))
+        return localRectFromSimpleTextureNode;
+    if (dynamic_cast<QSGBasicInternalRectangleNode *>(sg))
+        return localRectFromInternalRectangleNode;
+    if (dynamic_cast<QSGBasicInternalImageNode *>(sg))
+        return localRectFromInternalImageNode;
+    if (dynamic_cast<QSGDefaultNinePatchNode *>(sg))
+        return localRectFromNinePatchNode;
+    if (dynamic_cast<QSGGlyphNode *>(sg))
+        return localRectFromGlyphNode;
+    if (dynamic_cast<QSGDefaultPainterNode *>(sg))
+        return localRectFromPainterNode;
+    if (sg->type() == QSGNode::ClipNodeType)
+        return localRectFromClipNode;
+    if (sg->type() == QSGNode::RenderNodeType)
+        return localRectFromRenderNode;
+    return nullptr;
+}
+
+struct Renderer::DamageTree
+{
+    QSGNode *trackedRoot = nullptr;
+    std::unique_ptr<WSGDamageNode> root;
+    WSGDamageTracker tracker;
+    WSGViewport fallbackViewport;
+    WSGViewport *viewport = nullptr;
+    QHash<QSGNode *, Node *> *nodes = nullptr;
+
+    struct AggregatedSubtree
+    {
+        Node *shadowRoot = nullptr;
+        WSGDamageGeometryNode *proxy = nullptr;
+    };
+
+    QHash<QSGNode *, AggregatedSubtree> aggregatedSubtrees;
+    QHash<WSGDamageGeometryNode *, QSGNode *> aggregateOwners;
+
+    WSGViewport &activeViewport()
+    {
+        return viewport ? *viewport : fallbackViewport;
+    }
+
+    const WSGViewport &activeViewport() const
+    {
+        return viewport ? *viewport : fallbackViewport;
+    }
+
+    WPixmanRegion crossSourceDamage;
+    WPixmanRegion flush;
+    WPixmanRegion extra;
+    WPixmanRegion viewportDamage;
+    WPixmanRegion sceneFlush;
+    bool pendingFull = false;
+    bool committedFull = false;
+    bool sceneCommittedFull = false;
+
+    static bool regionCoversRect(const WPixmanRegion &region, const QRect &rect)
+    {
+        if (rect.isEmpty() || region.isEmpty())
+            return false;
+        if (!region.boundingRect().contains(rect))
+            return false;
+        if (region.rectCount() == 1)
+            return true;
+        return (WPixmanRegion(rect) - region).isEmpty();
+    }
+
+    static QRect contentLocalFull(const QRectF &br)
+    {
+        return QRect(0,
+                     0,
+                     qMax(0, int(std::ceil(br.width()))),
+                     qMax(0, int(std::ceil(br.height()))));
+    }
+
+    static WPixmanRegion toContentLocal(const QRectF &br, const WPixmanRegion &local)
+    {
+        return local.translated(-int(std::floor(br.x())), -int(std::floor(br.y())));
+    }
+
+    static QRectF vertexLocalRect(const QSGBasicGeometryNode *gn)
+    {
+        if (!gn)
+            return { };
+        const QSGGeometry *g = gn->geometry();
+        if (!g || g->vertexCount() <= 0)
+            return { };
+        int offset = 0;
+        int posOffset = -1;
+        for (int a = 0; a < g->attributeCount(); ++a) {
+            const QSGGeometry::Attribute &attr = g->attributes()[a];
+            if (attr.isVertexCoordinate && attr.tupleSize == 2
+                && attr.type == QSGGeometry::FloatType) {
+                posOffset = offset;
+                break;
+            }
+            const int typeSize = attr.type == QSGGeometry::FloatType ? 4
+                : attr.type == QSGGeometry::DoubleType               ? 8
+                : attr.type == QSGGeometry::UnsignedByteType || attr.type == QSGGeometry::ByteType
+                ? 1
+                : attr.type == QSGGeometry::UnsignedShortType || attr.type == QSGGeometry::ShortType
+                    || attr.type == QSGGeometry::Bytes2Type
+                ? 2
+                : attr.type == QSGGeometry::Bytes3Type ? 3
+                : attr.type == QSGGeometry::Bytes4Type ? 4
+                                                       : 4;
+            offset += attr.tupleSize * typeSize;
+        }
+        if (posOffset < 0)
+            return { };
+        qreal minX = FLT_MAX, minY = FLT_MAX, maxX = -FLT_MAX, maxY = -FLT_MAX;
+        const char *vd = static_cast<const char *>(g->vertexData()) + posOffset;
+        for (int i = 0; i < g->vertexCount(); ++i) {
+            const float *pt = reinterpret_cast<const float *>(vd);
+            minX = qMin(minX, qreal(pt[0]));
+            minY = qMin(minY, qreal(pt[1]));
+            maxX = qMax(maxX, qreal(pt[0]));
+            maxY = qMax(maxY, qreal(pt[1]));
+            vd += g->sizeOfVertex();
+        }
+        return QRectF(QPointF(minX, minY), QPointF(maxX, maxY)).normalized();
+    }
+
+    static QRectF typedLocalRect(QSGNode *sg, Node *shadow)
+    {
+        if (shadow && shadow->localRectFn)
+            return shadow->localRectFn(sg);
+        return { };
+    }
+
+    QRectF localGeometryRect(QSGNode *sg) const
+    {
+        Node *shadow = nodes ? nodes->value(sg) : nullptr;
+        const QRectF typed = typedLocalRect(sg, shadow);
+        if (!typed.isEmpty())
+            return typed;
+        if (auto *basic = dynamic_cast<QSGBasicGeometryNode *>(sg))
+            return vertexLocalRect(basic);
+        return { };
+    }
+
+    bool isInTrackedTree(const QSGNode *node) const
+    {
+        if (!trackedRoot)
+            return true;
+        for (const QSGNode *n = node; n; n = n->parent()) {
+            if (n == trackedRoot)
+                return true;
+        }
+        return false;
+    }
+
+    static bool qsgGeometryIsOpaque(const QSGNode *sg)
+    {
+        if (!sg || sg->type() != QSGNode::GeometryNodeType)
+            return false;
+        auto *gn = static_cast<const QSGGeometryNode *>(sg);
+        if (!gn->activeMaterial())
+            return false;
+        return gn->inheritedOpacity() > OPAQUE_LIMIT
+            && !(gn->activeMaterial()->flags() & QSGMaterial::Blending);
+    }
+
+    WSGDamageNode *damageOf(const QSGNode *sg) const
+    {
+        if (!sg || !nodes)
+            return nullptr;
+        Node *n = nodes->value(const_cast<QSGNode *>(sg));
+        return n ? n->damage : nullptr;
+    }
+
+    static void bindElementDamage(Node *n)
+    {
+        if (!n || !n->data)
+            return;
+        WSGDamageNode *damage = n->aggregateDamage ? n->aggregateDamage : n->damage;
+        if (n->type() == QSGNode::GeometryNodeType)
+            n->element()->damage = damage;
+        else if (n->type() == QSGNode::RenderNodeType)
+            n->renderNodeElement()->damage = damage;
+    }
+
+    void clearDamagePointers(WSGDamageNode *g)
+    {
+        if (!g || !nodes)
+            return;
+        for (auto it = nodes->cbegin(); it != nodes->cend(); ++it) {
+            Node *n = it.value();
+            if (n->damage != g)
+                continue;
+            n->damage = nullptr;
+            bindElementDamage(n);
+        }
+        for (WSGDamageNode *c = g->firstChild(); c; c = c->nextSibling())
+            clearDamagePointers(c);
+    }
+
+    static void markAggregateDirty(WSGDamageGeometryNode *proxy)
+    {
+        if (!proxy)
+            return;
+        const QRectF bounds = proxy->boundingRect();
+        if (!bounds.isEmpty())
+            proxy->markContentDirty(contentLocalFull(bounds));
+    }
+
+    static bool subtreeContainsBackdrop(const QSGNode *node)
+    {
+        if (!node)
+            return false;
+        if (dynamic_cast<const WRenderBufferNode *>(node))
+            return true;
+        for (const QSGNode *child = node->firstChild(); child; child = child->nextSibling()) {
+            if (subtreeContainsBackdrop(child))
+                return true;
+        }
+        return false;
+    }
+
+    static bool subtreeHasAggregate(const Node *node)
+    {
+        if (!node)
+            return false;
+        if (node->aggregateDamage)
+            return true;
+        for (const Node *child = node->firstChild(); child; child = child->sibling()) {
+            if (subtreeHasAggregate(child))
+                return true;
+        }
+        return false;
+    }
+
+    static void bindAggregateRecursive(Node *node,
+                                       WSGDamageGeometryNode *proxy,
+                                       const Node *structuralRoot)
+    {
+        if (!node)
+            return;
+        node->aggregateDamage = proxy;
+        if (node != structuralRoot)
+            node->damage = nullptr;
+        bindElementDamage(node);
+        for (Node *child = node->firstChild(); child; child = child->sibling())
+            bindAggregateRecursive(child, proxy, structuralRoot);
+    }
+
+    static void clearAggregateRecursive(Node *node)
+    {
+        if (!node)
+            return;
+        node->aggregateDamage = nullptr;
+        bindElementDamage(node);
+        for (Node *child = node->firstChild(); child; child = child->sibling())
+            clearAggregateRecursive(child);
+    }
+
+    static void deleteDamageChildren(WSGDamageNode *node)
+    {
+        while (node && node->firstChild()) {
+            WSGDamageNode *child = node->firstChild();
+            node->removeChild(child);
+            delete child;
+        }
+    }
+
+    static qreal internalRectangleRadius(const QSGBasicInternalRectangleNode &n)
+    {
+        qreal r = W_PRIVATE_MEMBER(n, WSG_QSGBasicInternalRect_m_radius{ });
+        r = std::max(r, qreal(W_PRIVATE_MEMBER(n, WSG_QSGBasicInternalRect_m_topLeftRadius{ })));
+        r = std::max(r, qreal(W_PRIVATE_MEMBER(n, WSG_QSGBasicInternalRect_m_topRightRadius{ })));
+        r = std::max(r, qreal(W_PRIVATE_MEMBER(n, WSG_QSGBasicInternalRect_m_bottomLeftRadius{ })));
+        r = std::max(r,
+                     qreal(W_PRIVATE_MEMBER(n, WSG_QSGBasicInternalRect_m_bottomRightRadius{ })));
+        return r;
+    }
+
+    static bool gradientStopsOpaque(const QGradientStops &stops)
+    {
+        for (const QGradientStop &stop : stops) {
+            if (stop.second.alpha() < 255)
+                return false;
+        }
+        return true;
+    }
+
+    bool syncTypedOpaque(QSGNode *sg, WSGDamageGeometryNode *geo) const
+    {
+        auto *gn = static_cast<QSGGeometryNode *>(sg);
+        if (gn->inheritedOpacity() <= OPAQUE_LIMIT)
+            return false;
+        if (auto *image = WSGImageNode::enclosingNode(sg); image && image->hasExplicitOpaque()) {
+            const QRectF br = geo->boundingRect();
+            const WPixmanRegion local = toContentLocal(br, image->opaqueRegion());
+            const WPixmanRegion content(contentLocalFull(br));
+            if (!content.isEmpty() && (content - local).isEmpty())
+                geo->setFullyOpaque(true);
+            else
+                geo->setOpaqueRegion(local);
+            return true;
+        }
+        if (auto *rect = dynamic_cast<QSGBasicInternalRectangleNode *>(sg)) {
+            const QColor color = W_PRIVATE_MEMBER(*rect, WSG_QSGBasicInternalRect_m_color{ });
+            if (color.alpha() < 255)
+                return false;
+            if (!gradientStopsOpaque(
+                    W_PRIVATE_MEMBER(*rect, WSG_QSGBasicInternalRect_m_gradient_stops{ })))
+                return false;
+            const qreal rad = internalRectangleRadius(*rect);
+            const QRectF box = geo->boundingRect();
+            const QRectF local(0, 0, box.width(), box.height());
+            if (rad <= 0)
+                geo->setFullyOpaque(true);
+            else
+                geo->setOpaqueRegion(roundedRectInnerRegion(local, rad));
+            return true;
+        }
+        if (auto *n = dynamic_cast<QSGRectangleNode *>(sg)) {
+            if (n->color().alpha() < 255)
+                return false;
+            geo->setFullyOpaque(true);
+            return true;
+        }
+        return false;
+    }
+
+    void syncGeometryOpaque(QSGNode *sg, WSGDamageNode *g) const
+    {
+        auto *geo = g ? g->toGeometry() : nullptr;
+        if (!geo)
+            return;
+        if (sg->type() == QSGNode::GeometryNodeType) {
+            if (!syncTypedOpaque(sg, geo))
+                geo->setFullyOpaque(qsgGeometryIsOpaque(sg));
+            return;
+        }
+        if (sg->type() == QSGNode::RenderNodeType)
+            geo->setFullyOpaque(false);
+    }
+
+    void syncClipFromQsg(QSGNode *sg, WSGDamageClipNode *clip) const
+    {
+        auto *cn = static_cast<QSGClipNode *>(sg);
+        if (auto *def = dynamic_cast<QQuickDefaultClipNode *>(sg)) {
+            clip->setRadius(def->radius());
+            clip->setIsRectangular(def->isRectangular());
+            const QRectF r = def->rect();
+            clip->setClipRect(r.isEmpty() ? localGeometryRect(sg) : r);
+            return;
+        }
+        clip->setRadius(0);
+        clip->setIsRectangular(cn->isRectangular());
+        clip->setClipRect(localGeometryRect(sg));
+    }
+
+    void syncGeometryBounds(QSGNode *sg, WSGDamageNode *g) const
+    {
+        auto *geo = g ? g->toGeometry() : nullptr;
+        if (!geo)
+            return;
+        if (sg->type() == QSGNode::GeometryNodeType) {
+            const QRectF local = localGeometryRect(sg);
+            geo->setBoundingRect(local);
+            geo->setHasContent(!local.isEmpty());
+            return;
+        }
+        if (sg->type() == QSGNode::RenderNodeType) {
+            QRectF local;
+            if (auto *blit = dynamic_cast<WRenderBufferNode *>(sg))
+                local = blit->rect();
+            else
+                local = localGeometryRect(sg);
+            geo->setBoundingRect(local);
+            geo->setHasContent(!local.isEmpty());
+        }
+    }
+
+    void syncGeometryContent(QSGNode *sg, WSGDamageNode *g) const
+    {
+        syncGeometryBounds(sg, g);
+        syncGeometryOpaque(sg, g);
+    }
+
+    void resyncOpaqueDescendants(QSGNode *sg)
+    {
+        Node *shadow = nodes ? nodes->value(sg) : nullptr;
+        if (shadow && shadow->aggregateDamage) {
+            markAggregateDirty(shadow->aggregateDamage);
+            return;
+        }
+        if (WSGDamageNode *g = damageOf(sg))
+            syncGeometryOpaque(sg, g);
+        for (QSGNode *child = sg->firstChild(); child; child = child->nextSibling())
+            resyncOpaqueDescendants(child);
+    }
+
+    bool isCulled(const WSGDamageNode *g) const
+    {
+        if (!g)
+            return false;
+        if (g->hasContent() && !pixman_region32_not_empty(g->worldValidRegion()))
+            return true;
+        const QRect out = activeViewport().outputRect();
+        if (!out.isEmpty() && !g->worldBounds().intersects(out))
+            return true;
+        return false;
+    }
+
+    bool isCulled(const Element *el) const
+    {
+        return el && isCulled(el->damage);
+    }
+
+    bool isCulled(const QSGNode *sg) const
+    {
+        Node *shadow = nodes ? nodes->value(const_cast<QSGNode *>(sg)) : nullptr;
+        return isCulled(shadow && shadow->aggregateDamage ? shadow->aggregateDamage : damageOf(sg));
+    }
+
+    WSGDamageNode *createFor(QSGNode *sg)
+    {
+        WSGDamageNode *g = nullptr;
+        switch (sg->type()) {
+        case QSGNode::TransformNodeType: {
+            auto *t = new WSGDamageTransformNode;
+            t->setMatrix(static_cast<QSGTransformNode *>(sg)->matrix());
+            g = t;
+            break;
+        }
+        case QSGNode::GeometryNodeType: {
+            g = new WSGDamageGeometryNode;
+            syncGeometryContent(sg, g);
+            break;
+        }
+        case QSGNode::RenderNodeType: {
+            auto *backdrop = new WSGDamageBackdropNode;
+            syncGeometryContent(sg, backdrop);
+            if (auto *blit = dynamic_cast<WRenderBufferNode *>(sg)) {
+                backdrop->setRecopyExpansion(blit->damageExpansion());
+                backdrop->setName(blit->debugLabel());
+            }
+            g = backdrop;
+            break;
+        }
+        case QSGNode::OpacityNodeType: {
+            g = new WSGDamageNode(WSGDamageNode::Type::Basic);
+            g->setVisible(static_cast<QSGOpacityNode *>(sg)->opacity() > 0);
+            g->setName(QStringLiteral("opacity"));
+            return g;
+        }
+        case QSGNode::ClipNodeType: {
+            auto *clip = new WSGDamageClipNode;
+            syncClipFromQsg(sg, clip);
+            clip->setName(QStringLiteral("clip"));
+            return clip;
+        }
+        default:
+            g = new WSGDamageNode(WSGDamageNode::Type::Basic);
+            break;
+        }
+        if (g && g->name().isEmpty())
+            g->setName(QStringLiteral("qsg%1").arg(int(sg->type())));
+        return g;
+    }
+
+    void attachMatchingParent(Node *snode)
+    {
+        QSGNode *sg = snode->sgNode;
+        QSGNode *sgParent = sg->parent();
+        if (!sgParent)
+            return;
+        WSGDamageNode *gParent = damageOf(sgParent);
+        if (!gParent)
+            return;
+        WSGDamageNode *before = nullptr;
+        for (QSGNode *sibling = sg->nextSibling(); sibling; sibling = sibling->nextSibling()) {
+            if (WSGDamageNode *mapped = damageOf(sibling)) {
+                before = mapped;
+                break;
+            }
+        }
+        if (before)
+            gParent->insertChildBefore(snode->damage, before);
+        else
+            gParent->appendChild(snode->damage);
+    }
+
+    void syncNode(QSGNode *sg, WSGDamageNode *g, QSGNode::DirtyState state)
+    {
+        if (state & QSGNode::DirtyMatrix) {
+            if (auto *t = g->toTransform()) {
+                const QTransform next = static_cast<QSGTransformNode *>(sg)->matrix().toTransform();
+                if (t->matrix() != next)
+                    t->setMatrix(next);
+            }
+        }
+        if (state & QSGNode::DirtyGeometry) {
+            if (auto *clip = g->toClip())
+                syncClipFromQsg(sg, clip);
+            syncGeometryContent(sg, g);
+            if (auto *geo = g->toGeometry()) {
+                const QRectF local = geo->boundingRect();
+                if (!local.isEmpty()) {
+                    geo->markContentDirty(contentLocalFull(local));
+                    if (traceDamage() && local.width() * local.height() > 20000)
+                        qCWarning(lcWlDamage) << "TRACE MARK Geometry"
+                                              << "qsgType" << int(sg->type()) << "id" << g->id()
+                                              << "name" << g->name() << "local"
+                                              << local.toAlignedRect() << "state" << int(state);
+                }
+            }
+        }
+        if (auto *blit = dynamic_cast<WRenderBufferNode *>(sg)) {
+            if (auto *backdrop = g->toBackdrop())
+                backdrop->setRecopyExpansion(blit->damageExpansion());
+        }
+        if (state & QSGNode::DirtyOpacity) {
+            if (sg->type() == QSGNode::OpacityNodeType)
+                g->setVisible(static_cast<QSGOpacityNode *>(sg)->opacity() > 0);
+            resyncOpaqueDescendants(sg);
+            revealSubtree(sg);
+        }
+        if ((state & QSGNode::DirtyMaterial) && g->toGeometry()) {
+            syncGeometryOpaque(sg, g);
+            if (WSGImageNode *image = WSGImageNode::enclosingNode(sg);
+                image && image->hasExplicitDamage()) {
+                const WPixmanRegion &region = image->damageRegion();
+                if (!region.isEmpty()) {
+                    const QRectF br = g->toGeometry()->boundingRect();
+                    const WPixmanRegion local = toContentLocal(br, region);
+                    g->toGeometry()->markContentDirty(local.native());
+                }
+            } else {
+                const QRectF local = g->toGeometry()->boundingRect();
+                if (!local.isEmpty()) {
+                    g->toGeometry()->markContentDirty(contentLocalFull(local));
+                    if (traceDamage() && local.width() * local.height() > 20000)
+                        qCWarning(lcWlDamage) << "TRACE MARK Material"
+                                              << "qsgType" << int(sg->type()) << "id" << g->id()
+                                              << "name" << g->name() << "local"
+                                              << local.toAlignedRect() << "state" << int(state);
+                }
+            }
+        }
+        if ((state & QSGNode::DirtyForceUpdate) && g->toGeometry()) {
+            const QRectF local = g->toGeometry()->boundingRect();
+            if (!local.isEmpty())
+                g->toGeometry()->markContentDirty(contentLocalFull(local));
+        }
+    }
+
+    void syncAggregatedRoot(Node *snode, QSGNode::DirtyState state)
+    {
+        QSGNode *sg = snode->sgNode;
+        WSGDamageNode *damage = snode->damage;
+        if ((state & QSGNode::DirtyMatrix) && damage->toTransform()) {
+            const QTransform next = static_cast<QSGTransformNode *>(sg)->matrix().toTransform();
+            if (damage->toTransform()->matrix() != next)
+                damage->toTransform()->setMatrix(next);
+        }
+        if ((state & QSGNode::DirtyGeometry) && damage->toClip())
+            syncClipFromQsg(sg, damage->toClip());
+        if ((state & QSGNode::DirtyOpacity) && sg->type() == QSGNode::OpacityNodeType)
+            damage->setVisible(static_cast<QSGOpacityNode *>(sg)->opacity() > 0);
+        markAggregateDirty(snode->aggregateDamage);
+    }
+
+    void rebuildExactDescendants(Node *parent)
+    {
+        for (Node *child = parent->firstChild(); child; child = child->sibling()) {
+            child->damage = createFor(child->sgNode);
+            bindElementDamage(child);
+            attachMatchingParent(child);
+            rebuildExactDescendants(child);
+        }
+    }
+
+    bool destroySubtreeAggregation(QSGNode *subtreeRoot, bool rebuild)
+    {
+        auto it = aggregatedSubtrees.find(subtreeRoot);
+        if (it == aggregatedSubtrees.end())
+            return false;
+
+        const AggregatedSubtree aggregate = it.value();
+        WSGDamageNode *structuralRoot = aggregate.shadowRoot->damage;
+        clearAggregateRecursive(aggregate.shadowRoot);
+        aggregateOwners.remove(aggregate.proxy);
+        aggregatedSubtrees.erase(it);
+
+        if (aggregate.proxy->parent())
+            aggregate.proxy->parent()->removeChild(aggregate.proxy);
+        delete aggregate.proxy;
+
+        if (!rebuild)
+            return true;
+
+        if (structuralRoot->toGeometry())
+            syncGeometryContent(subtreeRoot, structuralRoot);
+        bindElementDamage(aggregate.shadowRoot);
+        rebuildExactDescendants(aggregate.shadowRoot);
+        return true;
+    }
+
+    bool setSubtreeAggregation(QSGNode *subtreeRoot, bool enabled, const QRectF &localBounds)
+    {
+        if (!enabled)
+            return destroySubtreeAggregation(subtreeRoot, true);
+        if (!subtreeRoot || !nodes)
+            return false;
+
+        const QRectF bounds = localBounds.width() > 0 && localBounds.height() > 0
+            ? localBounds.normalized()
+            : QRectF();
+        if (bounds.isEmpty())
+            return false;
+
+        auto existing = aggregatedSubtrees.find(subtreeRoot);
+        if (existing != aggregatedSubtrees.end()) {
+            existing->proxy->setBoundingRect(bounds);
+            markAggregateDirty(existing->proxy);
+            return true;
+        }
+
+        Node *shadow = nodes->value(subtreeRoot);
+        if (!shadow || !shadow->damage || subtreeHasAggregate(shadow)
+            || subtreeContainsBackdrop(subtreeRoot)) {
+            return false;
+        }
+
+        auto *proxy = new WSGDamageGeometryNode;
+        proxy->setName(QStringLiteral("subtree-aggregate"));
+        proxy->setBoundingRect(bounds);
+
+        bindAggregateRecursive(shadow, proxy, shadow);
+        deleteDamageChildren(shadow->damage);
+        if (shadow->damage->toGeometry())
+            shadow->damage->setHasContent(false);
+        shadow->damage->appendChild(proxy);
+
+        aggregatedSubtrees.insert(subtreeRoot, { shadow, proxy });
+        aggregateOwners.insert(proxy, subtreeRoot);
+        return true;
+    }
+
+    void nodeWasAdded(Node *snode)
+    {
+        if (!snode || !snode->sgNode || snode->damage || !isInTrackedTree(snode->sgNode))
+            return;
+
+        if (Node *parent = snode->parent(); parent && parent->aggregateDamage) {
+            WSGDamageGeometryNode *proxy = parent->aggregateDamage;
+            if (dynamic_cast<WRenderBufferNode *>(snode->sgNode)) {
+                destroySubtreeAggregation(aggregateOwners.value(proxy), true);
+                return;
+            }
+            bindAggregateRecursive(snode, proxy, nullptr);
+            markAggregateDirty(proxy);
+            return;
+        }
+
+        QSGNode *node = snode->sgNode;
+        WSGDamageNode *g = createFor(node);
+        snode->damage = g;
+        bindElementDamage(snode);
+        const bool isRoot = !node->parent() || node == trackedRoot;
+        if (isRoot && !root) {
+            root.reset(g);
+            tracker.setRoot(g);
+            if (!trackedRoot)
+                trackedRoot = node;
+            return;
+        }
+        attachMatchingParent(snode);
+    }
+
+    void nodeWasRemoved(Node *snode)
+    {
+        if (!snode)
+            return;
+
+        if (aggregatedSubtrees.contains(snode->sgNode)) {
+            destroySubtreeAggregation(snode->sgNode, false);
+        } else if (snode->aggregateDamage) {
+            WSGDamageGeometryNode *proxy = snode->aggregateDamage;
+            markAggregateDirty(proxy);
+            clearAggregateRecursive(snode);
+            return;
+        }
+
+        WSGDamageNode *g = snode->damage;
+        if (!g)
+            return;
+
+        if (g == root.get()) {
+            tracker.setRoot(nullptr);
+            if (g->firstChild())
+                clearDamagePointers(g);
+            else {
+                snode->damage = nullptr;
+                bindElementDamage(snode);
+            }
+            root.release();
+            if (g->parent())
+                g->parent()->removeChild(g);
+            delete g;
+            return;
+        }
+
+        snode->damage = nullptr;
+        bindElementDamage(snode);
+        if (g->parent())
+            g->parent()->removeChild(g);
+        delete g;
+    }
+
+    void nodeChanged(Node *snode, QSGNode::DirtyState state)
+    {
+        if (!snode || !snode->sgNode || !isInTrackedTree(snode->sgNode))
+            return;
+        if (snode->aggregateDamage) {
+            if (aggregatedSubtrees.contains(snode->sgNode))
+                syncAggregatedRoot(snode, state);
+            else
+                markAggregateDirty(snode->aggregateDamage);
+            return;
+        }
+        if (snode->damage)
+            syncNode(snode->sgNode, snode->damage, state);
+    }
+
+    void revealSubtree(QSGNode *node)
+    {
+        if (!node || !isInTrackedTree(node))
+            return;
+        Node *shadow = nodes ? nodes->value(node) : nullptr;
+        if (shadow && shadow->aggregateDamage) {
+            markAggregateDirty(shadow->aggregateDamage);
+            return;
+        }
+        WSGDamageNode *g = damageOf(node);
+        if (!g)
+            return;
+        if (auto *geo = g->toGeometry()) {
+            const QRectF local = geo->boundingRect();
+            if (!local.isEmpty())
+                geo->markContentDirty(contentLocalFull(local));
+        }
+        for (QSGNode *child = node->firstChild(); child; child = child->nextSibling())
+            revealSubtree(child);
+    }
+
+    void markFull()
+    {
+        pendingFull = true;
+        committedFull = true;
+        sceneCommittedFull = true;
+        flush = { };
+        extra = { };
+        viewportDamage = { };
+        sceneFlush = { };
+    }
+
+    // Overlay extra for this frame's draw only. Must not touch sceneFlush:
+    // writing highlight/full back to wlr_damage_ring makes the next
+    // swapchain slot whole-buffer dirty and coversOutput forever.
+    void setFlushFull()
+    {
+        committedFull = true;
+        flush = { };
+    }
+
+    void addRegion(const QRegion &region)
+    {
+        if (committedFull || region.isEmpty())
+            return;
+        const WPixmanRegion pixman = WPixmanRegion::fromQRegion(region);
+        extra += pixman;
+        flush += pixman;
+        sceneFlush += pixman;
+    }
+
+    static bool traceDamage()
+    {
+        static const bool on = qEnvironmentVariableIntValue("WAYLIB_TRACE_DAMAGE") != 0;
+        return on;
+    }
+
+    static void collectOwnDamageAll(const WSGDamageNode *n, QVector<QString> *parts)
+    {
+        if (!n)
+            return;
+        const WPixmanRegion own(WSGDamageNodeTestAccess::ownDamage(n));
+        if (!own.isEmpty()) {
+            const QRect b = own.boundingRect();
+            const int area = b.width() * b.height();
+            parts->append(QStringLiteral("area=%1 id=%2 t=%3 name=%4 own=%5x%6+%7+%8 dirty=%9")
+                              .arg(area)
+                              .arg(n->id())
+                              .arg(int(n->type()))
+                              .arg(n->name().isEmpty() ? QStringLiteral("-") : n->name())
+                              .arg(b.width())
+                              .arg(b.height())
+                              .arg(b.x())
+                              .arg(b.y())
+                              .arg(int(n->dirty())));
+        }
+        for (const WSGDamageNode *c = n->firstChild(); c; c = c->nextSibling())
+            collectOwnDamageAll(c, parts);
+    }
+
+    static void dumpOwnDamage(const WSGDamageNode *root,
+                              const char *why,
+                              const QRect &outputRect,
+                              const WPixmanRegion &damage)
+    {
+        QVector<QString> parts;
+        collectOwnDamageAll(root, &parts);
+        std::sort(parts.begin(), parts.end(), [](const QString &a, const QString &b) {
+            return a > b; // area= is prefix, lexicographic works for equal-width if we pad...
+        });
+        // Sort by numeric area: parse after "area="
+        std::sort(parts.begin(), parts.end(), [](const QString &a, const QString &b) {
+            return a.mid(5, a.indexOf(QLatin1Char(' ')) - 5).toInt()
+                > b.mid(5, b.indexOf(QLatin1Char(' ')) - 5).toInt();
+        });
+        if (parts.size() > 12)
+            parts.resize(12);
+        qCWarning(lcWlDamage) << "TRACE" << why << "output" << outputRect << "damage"
+                              << WSGDamageLog::describe(damage.toQRegion(), false) << "topOwn"
+                              << parts;
+    }
+
+    void commit(const QRect &outputRect)
+    {
+        const bool forceFull = pendingFull;
+        pendingFull = false;
+
+        WSGViewport &vp = activeViewport();
+        vp.setOutputRect(outputRect);
+
+        // Sibling renderers already flushed these pixels into the same buffer
+        // earlier this cycle; backdrop caches must treat them as fresh.
+        WPixmanRegion scene(crossSourceDamage);
+        const WPixmanRegion external = crossSourceDamage;
+        crossSourceDamage = { };
+        if (root) {
+            tracker.commit(vp);
+
+            const bool needWalk = !tracker.lastCommitIdle() || !external.isEmpty();
+            if (needWalk && !tracker.frameAccumulated())
+                tracker.accumulateFrame(external);
+            if (tracker.frameAccumulated())
+                scene += tracker.frameFlush();
+            if (!outputRect.isEmpty())
+                scene &= outputRect;
+            if (vp.isDirty())
+                scene += vp.outputDamageRegion();
+
+            vp.finishFrame();
+        }
+
+        if (!forceFull)
+            scene += extra;
+        extra = { };
+
+        const WPixmanRegion gpu = scene + viewportDamage;
+        viewportDamage = { };
+
+        // QRegion::contains(QRect) means overlaps, not covers. A 24x24
+        // caret inside 1024x768 would otherwise be treated as a full update.
+        const bool coversOutput = regionCoversRect(gpu, outputRect);
+        const bool sceneCoversOutput = regionCoversRect(scene, outputRect);
+        if (forceFull || coversOutput) {
+            committedFull = true;
+            flush = { };
+            if (traceDamage() && root)
+                dumpOwnDamage(root.get(),
+                              forceFull ? "FULL forceFull" : "FULL coversOutput",
+                              outputRect,
+                              gpu);
+            if (Q_UNLIKELY(lcWlDamage().isDebugEnabled())) {
+                const QRegion gpuRegion = gpu.toQRegion();
+                const QRegion sceneRegion = scene.toQRegion();
+                qCDebug(lcWlDamage)
+                    << WSGDamageLog::frameTag() << "commit FULL"
+                    << (forceFull ? "forceFull" : "coversOutput") << "output" << outputRect << "gpu"
+                    << WSGDamageLog::describe(gpuRegion, false) << "flush"
+                    << WSGDamageLog::describe(sceneRegion, false);
+            }
+        } else {
+            committedFull = false;
+            flush = gpu;
+            if (traceDamage() && root && !outputRect.isEmpty()) {
+                const int outArea = outputRect.width() * outputRect.height();
+                const QRect db = gpu.boundingRect();
+                if (outArea > 0 && db.width() * db.height() * 2 > outArea)
+                    dumpOwnDamage(root.get(), "LARGE", outputRect, gpu);
+            }
+        }
+        if (forceFull || sceneCoversOutput) {
+            sceneCommittedFull = true;
+            sceneFlush = { };
+        } else {
+            sceneCommittedFull = false;
+            sceneFlush = scene;
+        }
+    }
+
+    void setTrackedRoot(QSGNode *r)
+    {
+        trackedRoot = r;
+    }
+
+    const WPixmanRegion &flushRegion() const
+    {
+        return flush;
+    }
+
+    bool flushRegionIsFull() const
+    {
+        return committedFull;
+    }
+
+    const WPixmanRegion &sceneFlushRegion() const
+    {
+        return sceneFlush;
+    }
+
+    bool sceneFlushRegionIsFull() const
+    {
+        return sceneCommittedFull;
+    }
+
+    const WPixmanRegion &pendingRegion() const
+    {
+        return flush;
+    }
+
+    bool pendingIsFull() const
+    {
+        return committedFull;
+    }
+};
 
 Renderer::Renderer(QSGDefaultRenderContext *ctx, QSGRendererInterface::RenderMode renderMode)
     : QSGRenderer(ctx)
@@ -904,6 +2030,7 @@ Renderer::Renderer(QSGDefaultRenderContext *ctx, QSGRendererInterface::RenderMod
     , m_partialRebuild(false)
     , m_partialRebuildRoot(nullptr)
     , m_forceNoDepthBuffer(false)
+    , m_damageTree(std::make_unique<DamageTree>())
     , m_opaqueBatches(16)
     , m_alphaBatches(16)
     , m_batchPool(16)
@@ -931,7 +2058,8 @@ Renderer::Renderer(QSGDefaultRenderContext *ctx, QSGRendererInterface::RenderMod
 
     m_ubufAlignment = m_rhi->ubufAlignment();
 
-    m_uint32IndexForRhi = !m_rhi->isFeatureSupported(QRhi::NonFourAlignedEffectiveIndexBufferOffset);
+    m_uint32IndexForRhi =
+        !m_rhi->isFeatureSupported(QRhi::NonFourAlignedEffectiveIndexBufferOffset);
     if (qEnvironmentVariableIntValue("QSG_RHI_UINT32_INDEX"))
         m_uint32IndexForRhi = true;
 
@@ -952,18 +2080,29 @@ Renderer::Renderer(QSGDefaultRenderContext *ctx, QSGRendererInterface::RenderMod
         m_shaderManager = new ShaderManager(ctx);
         m_shaderManager->setObjectName(QStringLiteral("__qt_ShaderManager"));
         m_shaderManager->setParent(ctx);
-        QObject::connect(ctx, SIGNAL(invalidated()), m_shaderManager, SLOT(invalidated()), Qt::DirectConnection);
+        QObject::connect(ctx,
+                         SIGNAL(invalidated()),
+                         m_shaderManager,
+                         SLOT(invalidated()),
+                         Qt::DirectConnection);
     }
 
     m_batchNodeThreshold = qt_sg_envInt("QSG_RENDERER_BATCH_NODE_THRESHOLD", 64);
     m_batchVertexThreshold = qt_sg_envInt("QSG_RENDERER_BATCH_VERTEX_THRESHOLD", 1024);
     m_srbPoolThreshold = qt_sg_envInt("QSG_RENDERER_SRB_POOL_THRESHOLD", 1024);
-    m_bufferPoolSizeLimit = qt_sg_envInt("QSG_RENDERER_BUFFER_POOL_LIMIT", DEFAULT_BUFFER_POOL_SIZE_LIMIT);
+    m_bufferPoolSizeLimit =
+        qt_sg_envInt("QSG_RENDERER_BUFFER_POOL_LIMIT", DEFAULT_BUFFER_POOL_SIZE_LIMIT);
 
     if (Q_UNLIKELY(debug_build() || debug_render() || debug_pools())) {
         qDebug("Batch thresholds: nodes: %d vertices: %d srb pool: %d buffer pool: %d",
-               m_batchNodeThreshold, m_batchVertexThreshold, m_srbPoolThreshold, m_bufferPoolSizeLimit);
+               m_batchNodeThreshold,
+               m_batchVertexThreshold,
+               m_srbPoolThreshold,
+               m_bufferPoolSizeLimit);
     }
+
+    m_damageMode = defaultDamageMode();
+    m_damageTree->nodes = &m_nodes;
 }
 
 static void qsg_wipeBuffer(Buffer *buffer)
@@ -1020,7 +2159,7 @@ Renderer::~Renderer()
     }
 
     // Remaining elements...
-    for (int i=0; i<m_elementsToDelete.size(); ++i)
+    for (int i = 0; i < m_elementsToDelete.size(); ++i)
         releaseElement(m_elementsToDelete.at(i), true);
 
     destroyGraphicsResources();
@@ -1071,13 +2210,15 @@ void Renderer::releaseCachedResources()
 
 void Renderer::invalidateAndRecycleBatch(Batch *b)
 {
-    if (b->vbo.buf != nullptr && m_vboPoolCost + b->vbo.buf->size() <= quint32(m_bufferPoolSizeLimit)) {
+    if (b->vbo.buf != nullptr
+        && m_vboPoolCost + b->vbo.buf->size() <= quint32(m_bufferPoolSizeLimit)) {
         m_vboPool.add(b->vbo.buf);
         m_vboPoolCost += b->vbo.buf->size();
     } else {
         delete b->vbo.buf;
     }
-    if (b->ibo.buf != nullptr && m_iboPoolCost + b->ibo.buf->size() <= quint32(m_bufferPoolSizeLimit)) {
+    if (b->ibo.buf != nullptr
+        && m_iboPoolCost + b->ibo.buf->size() <= quint32(m_bufferPoolSizeLimit)) {
         m_iboPool.add(b->ibo.buf);
         m_iboPoolCost += b->ibo.buf->size();
     } else {
@@ -1086,7 +2227,7 @@ void Renderer::invalidateAndRecycleBatch(Batch *b)
     b->vbo.buf = nullptr;
     b->ibo.buf = nullptr;
     b->invalidate();
-    for (int i=0; i<m_batchPool.size(); ++i)
+    for (int i = 0; i < m_batchPool.size(); ++i)
         if (b == m_batchPool.at(i))
             return;
     m_batchPool.add(b);
@@ -1103,7 +2244,7 @@ void Renderer::map(Buffer *buffer, quint32 byteSize, bool isIndexBuf)
         buffer->data = pool.data();
     } else if (buffer->size != byteSize) {
         free(buffer->data);
-        buffer->data = (char *) malloc(byteSize);
+        buffer->data = (char *)malloc(byteSize);
         Q_CHECK_PTR(buffer->data);
     }
     buffer->size = byteSize;
@@ -1116,9 +2257,10 @@ void Renderer::unmap(Buffer *buffer, bool isIndexBuf)
     // when there are no buffers to recycle.
     QDataBuffer<QRhiBuffer *> *bufferPool = isIndexBuf ? &m_iboPool : &m_vboPool;
     if (!buffer->buf && bufferPool->isEmpty()) {
-        buffer->buf = m_rhi->newBuffer(QRhiBuffer::Immutable,
-                                       isIndexBuf ? QRhiBuffer::IndexBuffer : QRhiBuffer::VertexBuffer,
-                                       buffer->size);
+        buffer->buf =
+            m_rhi->newBuffer(QRhiBuffer::Immutable,
+                             isIndexBuf ? QRhiBuffer::IndexBuffer : QRhiBuffer::VertexBuffer,
+                             buffer->size);
         if (!buffer->buf->create()) {
             qWarning("Failed to build vertex/index buffer of size %u", buffer->size);
             delete buffer->buf;
@@ -1263,7 +2405,7 @@ void Renderer::nodeChangedBatchRoot(Node *node, Node *root)
     }
 
     SHADOWNODE_TRAVERSE(node)
-            nodeChangedBatchRoot(child, root);
+    nodeChangedBatchRoot(child, root);
 }
 
 void Renderer::nodeWasTransformed(Node *node, int *vertexCount)
@@ -1271,7 +2413,7 @@ void Renderer::nodeWasTransformed(Node *node, int *vertexCount)
     if (node->type() == QSGNode::GeometryNodeType) {
         QSGGeometryNode *gn = static_cast<QSGGeometryNode *>(node->sgNode);
         *vertexCount += gn->geometry()->vertexCount();
-        Element *e  = node->element();
+        Element *e = node->element();
         if (e) {
             e->boundsComputed = false;
             if (e->batch) {
@@ -1285,7 +2427,7 @@ void Renderer::nodeWasTransformed(Node *node, int *vertexCount)
     }
 
     SHADOWNODE_TRAVERSE(node)
-        nodeWasTransformed(child, vertexCount);
+    nodeWasTransformed(child, vertexCount);
 }
 
 void Renderer::nodeWasAdded(QSGNode *node, Node *shadowParent)
@@ -1296,13 +2438,17 @@ void Renderer::nodeWasAdded(QSGNode *node, Node *shadowParent)
 
     Node *snode = m_nodeAllocator.allocate();
     snode->sgNode = node;
+    snode->localRectFn = localRectFnFor(node);
     m_nodes.insert(node, snode);
     if (shadowParent)
         shadowParent->append(snode);
 
+    m_damageTree->nodeWasAdded(snode);
+
     if (node->type() == QSGNode::GeometryNodeType) {
         snode->data = m_elementAllocator.allocate();
         snode->element()->setNode(static_cast<QSGGeometryNode *>(node));
+        snode->element()->damage = snode->aggregateDamage ? snode->aggregateDamage : snode->damage;
 
     } else if (node->type() == QSGNode::ClipNodeType) {
         snode->data = new ClipBatchRootInfo;
@@ -1312,6 +2458,7 @@ void Renderer::nodeWasAdded(QSGNode *node, Node *shadowParent)
         QSGRenderNode *rn = static_cast<QSGRenderNode *>(node);
         RenderNodeElement *e = new RenderNodeElement(rn);
         snode->data = e;
+        e->damage = snode->aggregateDamage ? snode->aggregateDamage : snode->damage;
         Q_ASSERT(!m_renderNodeElements.contains(rn));
         m_renderNodeElements.insert(e->renderNode, e);
         if (!rn->flags().testFlag(QSGRenderNode::DepthAwareRendering))
@@ -1320,7 +2467,7 @@ void Renderer::nodeWasAdded(QSGNode *node, Node *shadowParent)
     }
 
     QSGNODE_TRAVERSE(node)
-            nodeWasAdded(child, snode);
+    nodeWasAdded(child, snode);
 }
 
 void Renderer::nodeWasRemoved(Node *node)
@@ -1339,6 +2486,8 @@ void Renderer::nodeWasRemoved(Node *node)
         }
     }
 
+    m_damageTree->nodeWasRemoved(node);
+
     if (node->type() == QSGNode::GeometryNodeType) {
         Element *e = node->element();
         if (e) {
@@ -1353,7 +2502,6 @@ void Renderer::nodeWasRemoved(Node *node)
                 e->batch->needsUpload = true;
                 e->batch->needsPurge = true;
             }
-
         }
 
     } else if (node->type() == QSGNode::ClipNodeType) {
@@ -1369,7 +2517,8 @@ void Renderer::nodeWasRemoved(Node *node)
         m_taggedRoots.remove(node);
 
     } else if (node->type() == QSGNode::RenderNodeType) {
-        RenderNodeElement *e = m_renderNodeElements.take(static_cast<QSGRenderNode *>(node->sgNode));
+        RenderNodeElement *e =
+            m_renderNodeElements.take(static_cast<QSGRenderNode *>(node->sgNode));
         if (e) {
             e->removed = true;
             m_elementsToDelete.add(e);
@@ -1393,7 +2542,8 @@ void Renderer::nodeWasRemoved(Node *node)
 
 void Renderer::turnNodeIntoBatchRoot(Node *node)
 {
-    if (Q_UNLIKELY(debug_change())) qDebug(" - new batch root");
+    if (Q_UNLIKELY(debug_change()))
+        qDebug(" - new batch root");
     m_rebuild |= FullRebuild;
     node->isBatchRoot = true;
     node->becameBatchRoot = true;
@@ -1408,12 +2558,267 @@ void Renderer::turnNodeIntoBatchRoot(Node *node)
     }
 
     SHADOWNODE_TRAVERSE(node)
-            nodeChangedBatchRoot(child, node);
+    nodeChangedBatchRoot(child, node);
+}
+
+QRegion Renderer::flushRegion() const
+{
+    return m_damageTree->flushRegion().toQRegion();
+}
+
+bool Renderer::flushRegionIsFull() const
+{
+    return !tracksDamage() || m_damageTree->flushRegionIsFull();
+}
+
+QRegion Renderer::sceneFlushRegion() const
+{
+    return m_damageTree->sceneFlushRegion().toQRegion();
+}
+
+const WPixmanRegion &Renderer::sceneFlushDamage() const
+{
+    return m_damageTree->sceneFlushRegion();
+}
+
+bool Renderer::sceneFlushRegionIsFull() const
+{
+    return !tracksDamage() || m_damageTree->sceneFlushRegionIsFull();
+}
+
+QRegion Renderer::pendingRegion() const
+{
+    return m_damageTree->pendingRegion().toQRegion();
+}
+
+bool Renderer::pendingIsFull() const
+{
+    return !tracksDamage() || m_damageTree->pendingIsFull();
+}
+
+void Renderer::addPendingRegion(const QRegion &region)
+{
+    m_damageTree->addRegion(region);
+    m_damageCommitValid = false;
+}
+
+void Renderer::commitPendingDamage()
+{
+    m_damageTree->commit(deviceRect());
+    m_damageCommitValid = true;
+}
+
+void Renderer::setViewport(WSGViewport *viewport)
+{
+    m_damageTree->viewport = viewport;
+}
+
+void Renderer::prepareDamageFrame()
+{
+    m_damageTree->tracker.prepareFrame();
+}
+
+void Renderer::finishDamageFrame()
+{
+    m_damageTree->tracker.finishFrame();
+}
+
+bool Renderer::setDamageSubtreeAggregation(QSGNode *subtreeRoot,
+                                           bool enabled,
+                                           const QRectF &localBounds)
+{
+    if (!m_damageTree->setSubtreeAggregation(subtreeRoot, enabled, localBounds))
+        return false;
+    m_damageCommitValid = false;
+    return true;
+}
+
+void Renderer::markFullDamage()
+{
+    m_damageTree->markFull();
+    m_damageCommitValid = false;
+}
+
+void Renderer::setDamageScissorTarget(QRhiRenderTarget *rt)
+{
+    m_damageScissorTarget = rt;
+}
+
+bool Renderer::isCompositorOutputPass() const
+{
+    return m_damageScissorTarget && renderTarget().rt == m_damageScissorTarget;
+}
+
+void Renderer::expandDamageScissor(const QRegion &sceneRegion)
+{
+    if (sceneRegion.isEmpty())
+        return;
+    m_extraDamageScissor += sceneRegion;
+    if (!m_damageTree)
+        return;
+    if (m_damageTree->sceneCommittedFull)
+        return;
+    m_damageTree->sceneFlush += WPixmanRegion::fromQRegion(sceneRegion);
+}
+
+void Renderer::setViewportDamage(const QRegion &damage)
+{
+    setViewportDamage(WPixmanRegion::fromQRegion(damage));
+}
+
+void Renderer::setViewportDamage(const WPixmanRegion &damage)
+{
+    if (damage.isEmpty())
+        return;
+    m_damageTree->viewportDamage += damage;
+    m_damageCommitValid = false;
+}
+
+void Renderer::setCrossSourceDamage(const QRegion &damage)
+{
+    if (!tracksDamage() || damage.isEmpty())
+        return;
+    m_damageTree->crossSourceDamage += WPixmanRegion::fromQRegion(damage);
+    m_damageCommitValid = false;
+}
+
+Renderer::DamageMode Renderer::defaultDamageMode()
+{
+    static const DamageMode parsed = []() {
+        const QByteArray raw = qgetenv("WAYLIB_DAMAGE");
+        if (raw.isEmpty())
+            return DamageMode::Full;
+        const QByteArray v = raw.trimmed().toLower();
+        if (v == "0" || v == "off" || v == "false" || v == "no" || v == "none") {
+            qCInfo(lcWlRenderer) << "WAYLIB_DAMAGE=" << raw.constData()
+                                 << "(off: no tracker, present whole buffer)";
+            return DamageMode::Off;
+        }
+        if (v == "commit" || v == "output" || v == "present" || v == "report") {
+            qCInfo(lcWlRenderer) << "WAYLIB_DAMAGE=" << raw.constData()
+                                 << "(commit: track and report, draw fullscreen)";
+            return DamageMode::Commit;
+        }
+        if (v == "1" || v == "on" || v == "true" || v == "yes" || v == "full" || v == "manage")
+            return DamageMode::Full;
+        qCWarning(lcWlRenderer) << "Unknown WAYLIB_DAMAGE=" << raw.constData() << ", using full";
+        return DamageMode::Full;
+    }();
+    return parsed;
+}
+
+void Renderer::setDamageMode(DamageMode mode)
+{
+    if (m_damageMode == mode)
+        return;
+    m_damageMode = mode;
+    if (tracksDamage())
+        m_damageTree->markFull();
+    qCDebug(lcWlRenderer) << "damage mode"
+                          << (mode == DamageMode::Off          ? "off"
+                                  : mode == DamageMode::Commit ? "commit"
+                                                               : "full")
+                          << "for renderer" << this;
+}
+
+void Renderer::setDamageTrackingEnabled(bool enabled)
+{
+    setDamageMode(enabled ? defaultDamageMode() : DamageMode::Off);
+}
+
+static bool textureRenderTargetPreservesColor(QRhiRenderTarget *rt)
+{
+    if (!rt || rt->resourceType() != QRhiResource::TextureRenderTarget)
+        return false;
+    return static_cast<QRhiTextureRenderTarget *>(rt)->flags().testFlag(
+        QRhiTextureRenderTarget::PreserveColorContents);
+}
+
+QRect Renderer::sceneRectToNativeScissor(const QRectF &bbox, bool pad) const
+{
+    if (bbox.isEmpty())
+        return { };
+
+    const QMatrix4x4 m = projectionMatrixWithNativeNDC(0);
+    // Same mapping as updateClipState(): only axis-aligned (or 90°) orthographic.
+    if (!qFuzzyIsNull(m(3, 0)) || !qFuzzyIsNull(m(3, 1)))
+        return { };
+
+    const bool noRotate = qFuzzyIsNull(m(0, 1)) && qFuzzyIsNull(m(1, 0));
+    const bool isRotate90 = qFuzzyIsNull(m(0, 0)) && qFuzzyIsNull(m(1, 1));
+    if (!noRotate && !isRotate90)
+        return { };
+
+    const qreal invW = qFuzzyIsNull(m(3, 3)) ? 1.0 : 1.0 / m(3, 3);
+    qreal fx1, fy1, fx2, fy2;
+    if (noRotate) {
+        fx1 = (bbox.left() * m(0, 0) + m(0, 3)) * invW;
+        fy1 = (bbox.bottom() * m(1, 1) + m(1, 3)) * invW;
+        fx2 = (bbox.right() * m(0, 0) + m(0, 3)) * invW;
+        fy2 = (bbox.top() * m(1, 1) + m(1, 3)) * invW;
+    } else {
+        fx1 = (bbox.bottom() * m(0, 1) + m(0, 3)) * invW;
+        fy1 = (bbox.left() * m(1, 0) + m(1, 3)) * invW;
+        fx2 = (bbox.top() * m(0, 1) + m(0, 3)) * invW;
+        fy2 = (bbox.right() * m(1, 0) + m(1, 3)) * invW;
+    }
+
+    if (fx1 > fx2)
+        qSwap(fx1, fx2);
+    if (fy1 > fy2)
+        qSwap(fy1, fy2);
+
+    const QRect deviceRect = this->deviceRect();
+    const qint32 ix1 = qRound((fx1 + 1) * deviceRect.width() * qreal(0.5));
+    const qint32 iy1 = qRound((fy1 + 1) * deviceRect.height() * qreal(0.5));
+    const qint32 ix2 = qRound((fx2 + 1) * deviceRect.width() * qreal(0.5));
+    const qint32 iy2 = qRound((fy2 + 1) * deviceRect.height() * qreal(0.5));
+    QRect native(ix1, iy1, ix2 - ix1, iy2 - iy1);
+    if (pad)
+        native = native.adjusted(-1, -1, 1, 1);
+    return native.intersected(deviceRect);
+}
+
+// Same cap as wlr_damage_ring: too many rects collapse to extents.
+static constexpr int kMaxDamageScissorRects = 20;
+
+void Renderer::commitFlushRegion()
+{
+    // Nested QSGLayer / extra-QRhi content that reuses this Renderer must
+    // not commit() an empty pending over the output flush.
+    if (m_damageScissorTarget && renderTarget().rt != m_damageScissorTarget)
+        return;
+    if (Q_UNLIKELY(lcWlDamage().isDebugEnabled())) {
+        const QString region = WSGDamageLog::describe(flushRegion(), flushRegionIsFull());
+        if (!tracksDamage()) {
+            qCDebug(lcWlDamage) << WSGDamageLog::frameTag() << "inner extra-QRhi commit" << region
+                                << "(not the compositor output flush)";
+        } else {
+            qCDebug(lcWlDamage) << WSGDamageLog::frameTag()
+                                << "flush compositor dirty to damage ring:" << region;
+        }
+    }
 }
 
 
 void Renderer::nodeChanged(QSGNode *node, QSGNode::DirtyState state)
 {
+    // Pin the output scene root. Nested QSGLayer / blitter content
+    // setRootNode() on a reused renderer must not retarget the tracker to
+    // an offscreen WRenderBufferNode tree.
+    if (QSGNode *root = rootNode()) {
+        if (!m_damageTrackedRoot)
+            m_damageTrackedRoot = root;
+        m_damageTree->setTrackedRoot(m_damageTrackedRoot);
+    }
+    if (tracksDamage()) {
+        m_damageCommitValid = false;
+        if (m_damageScissorTarget)
+            WSGDamageLog::beginOutputFrame("scene graph dirty (sync)");
+    } else {
+        WSGDamageLog::beginInnerPass();
+        m_damageCommitValid = false;
+    }
 #ifndef QT_NO_DEBUG_OUTPUT
     if (Q_UNLIKELY(debug_change())) {
         QDebug debug = qDebug();
@@ -1438,7 +2843,7 @@ void Renderer::nodeChanged(QSGNode *node, QSGNode::DirtyState state)
         // when removed, some parts of the node could already have been destroyed
         // so don't debug it out.
         if (state & QSGNode::DirtyNodeRemoved)
-            debug << (void *) node << node->type();
+            debug << (void *)node << node->type();
         else
             debug << node;
     }
@@ -1458,6 +2863,10 @@ void Renderer::nodeChanged(QSGNode *node, QSGNode::DirtyState state)
             Q_ASSERT(m_nodes.value(node) == 0);
         } else if (!blocked && !sn) {
             nodeChanged(node, QSGNode::DirtyNodeAdded);
+        } else if (!blocked && sn && tracksDamage()) {
+            // hideSource unhide: already in the shadow tree, so Added did
+            // not run. Recopy descendant blitters.
+            m_damageTree->revealSubtree(node);
         }
         return;
     }
@@ -1473,8 +2882,11 @@ void Renderer::nodeChanged(QSGNode *node, QSGNode::DirtyState state)
             nodeWasAdded(node, m_nodes.value(node->parent()));
     }
 
-    // Mark this node dirty in the shadow tree.
     Node *shadowNode = m_nodes.value(node);
+    if (!(state & QSGNode::DirtyNodeRemoved) && shadowNode)
+        m_damageTree->nodeChanged(shadowNode, state);
+
+    // Mark this node dirty in the shadow tree.
 
     // Blocked subtrees won't have shadow nodes, so we can safely abort
     // here..
@@ -1608,12 +3020,12 @@ void Renderer::buildRenderLists(QSGNode *node)
         if (node == m_partialRebuildRoot) {
             m_nextRenderOrder = info->firstOrder;
             QSGNODE_TRAVERSE(node)
-                    buildRenderLists(child);
+            buildRenderLists(child);
             m_nextRenderOrder = info->lastOrder + 1;
         } else {
             int currentOrder = m_nextRenderOrder;
             QSGNODE_TRAVERSE(node)
-                buildRenderLists(child);
+            buildRenderLists(child);
             int padding = qMax((m_nextRenderOrder - currentOrder) >> 2, m_minimumOrderPadding);
             info->firstOrder = currentOrder;
             info->availableOrders = padding;
@@ -1629,7 +3041,7 @@ void Renderer::buildRenderLists(QSGNode *node)
     }
 
     QSGNODE_TRAVERSE(node)
-        buildRenderLists(child);
+    buildRenderLists(child);
 }
 
 void Renderer::tagSubRoots(Node *node)
@@ -1645,7 +3057,7 @@ void Renderer::tagSubRoots(Node *node)
 static void qsg_addOrphanedElements(QDataBuffer<Element *> &orphans, const QDataBuffer<Element *> &renderList)
 {
     orphans.reset();
-    for (int i=0; i<renderList.size(); ++i) {
+    for (int i = 0; i < renderList.size(); ++i) {
         Element *e = renderList.at(i);
         if (e && !e->removed) {
             e->orphaned = true;
@@ -1656,7 +3068,7 @@ static void qsg_addOrphanedElements(QDataBuffer<Element *> &orphans, const QData
 
 static void qsg_addBackOrphanedElements(QDataBuffer<Element *> &orphans, QDataBuffer<Element *> &renderList)
 {
-    for (int i=0; i<orphans.size(); ++i) {
+    for (int i = 0; i < orphans.size(); ++i) {
         Element *e = orphans.at(i);
         if (e->orphaned)
             renderList.add(e);
@@ -1698,13 +3110,13 @@ void Renderer::buildRenderListsForTaggedRoots()
         tagSubRoots(*it);
     }
 
-    for (int i=0; i<m_opaqueBatches.size(); ++i) {
+    for (int i = 0; i < m_opaqueBatches.size(); ++i) {
         Batch *b = m_opaqueBatches.at(i);
         if (m_taggedRoots.contains(b->root))
-            invalidateAndRecycleBatch(b);
 
+            invalidateAndRecycleBatch(b);
     }
-    for (int i=0; i<m_alphaBatches.size(); ++i) {
+    for (int i = 0; i < m_alphaBatches.size(); ++i) {
         Batch *b = m_alphaBatches.at(i);
         if (m_taggedRoots.contains(b->root))
             invalidateAndRecycleBatch(b);
@@ -1720,7 +3132,7 @@ void Renderer::buildRenderListsForTaggedRoots()
         Node *root = *it;
         BatchRootInfo *i = batchRootInfo(root);
         if ((!i->parentRoot || !m_taggedRoots.contains(i->parentRoot))
-             && !nodeUpdater()->isNodeBlocked(root->sgNode, rootNode())) {
+            && !nodeUpdater()->isNodeBlocked(root->sgNode, rootNode())) {
             m_nextRenderOrder = i->firstOrder;
             m_partialRebuildRoot = root->sgNode;
             buildRenderLists(root->sgNode);
@@ -1747,9 +3159,9 @@ void Renderer::buildRenderListsFromScratch()
     m_opaqueRenderList.reset();
     m_alphaRenderList.reset();
 
-    for (int i=0; i<m_opaqueBatches.size(); ++i)
+    for (int i = 0; i < m_opaqueBatches.size(); ++i)
         invalidateAndRecycleBatch(m_opaqueBatches.at(i));
-    for (int i=0; i<m_alphaBatches.size(); ++i)
+    for (int i = 0; i < m_alphaBatches.size(); ++i)
         invalidateAndRecycleBatch(m_alphaBatches.at(i));
     m_opaqueBatches.reset();
     m_alphaBatches.reset();
@@ -1779,7 +3191,7 @@ void Renderer::invalidateBatchAndOverlappingRenderOrders(Batch *batch)
 
     batch->invalidate();
 
-    for (int i=0; i<m_alphaBatches.size(); ++i) {
+    for (int i = 0; i < m_alphaBatches.size(); ++i) {
         Batch *b = m_alphaBatches.at(i);
         if (b->first) {
             int bf = b->first->order;
@@ -1813,7 +3225,7 @@ void Renderer::cleanupBatches(QDataBuffer<Batch *> *batches) {
 
 void Renderer::prepareOpaqueBatches()
 {
-    for (int i=m_opaqueRenderList.size() - 1; i >= 0; --i) {
+    for (int i = m_opaqueRenderList.size() - 1; i >= 0; --i) {
         Element *ei = m_opaqueRenderList.at(i);
         if (!ei || ei->batch || ei->node->geometry()->vertexCount() == 0)
             continue;
@@ -1847,16 +3259,16 @@ void Renderer::prepareOpaqueBatches()
             const QSGGeometry *gnjGeometry = gnj->geometry();
             const QSGMaterial *gnjMaterial = gnj->activeMaterial();
             if (gni->clipList() == gnj->clipList()
-                    && gniGeometry->drawingMode() == gnjGeometry->drawingMode()
-                    && (gniGeometry->lineWidth() == gnjGeometry->lineWidth()
-                        || (gniGeometry->drawingMode() != QSGGeometry::DrawLines
-                            && gniGeometry->drawingMode() != QSGGeometry::DrawLineStrip))
-                    && gniGeometry->attributes() == gnjGeometry->attributes()
-                    && gniGeometry->indexType() == gnjGeometry->indexType()
-                    && gni->inheritedOpacity() == gnj->inheritedOpacity()
-                    && gniMaterial->type() == gnjMaterial->type()
-                    && gniMaterial->viewCount() == gnjMaterial->viewCount()
-                    && gniMaterial->compare(gnjMaterial) == 0
+                && gniGeometry->drawingMode() == gnjGeometry->drawingMode()
+                && (gniGeometry->lineWidth() == gnjGeometry->lineWidth()
+                    || (gniGeometry->drawingMode() != QSGGeometry::DrawLines
+                        && gniGeometry->drawingMode() != QSGGeometry::DrawLineStrip))
+                && gniGeometry->attributes() == gnjGeometry->attributes()
+                && gniGeometry->indexType() == gnjGeometry->indexType()
+                && gni->inheritedOpacity() == gnj->inheritedOpacity()
+                && gniMaterial->type() == gnjMaterial->type()
+                && gniMaterial->viewCount() == gnjMaterial->viewCount()
+                && gniMaterial->compare(gnjMaterial) == 0
                     && ei->mutabilityGroup == ej->mutabilityGroup)
             {
                 ej->batch = batch;
@@ -1871,7 +3283,7 @@ void Renderer::prepareOpaqueBatches()
 
 bool Renderer::checkOverlap(int first, int last, const Rect &bounds)
 {
-    for (int i=first; i<=last; ++i) {
+    for (int i = first; i <= last; ++i) {
         Element *e = m_alphaRenderList.at(i);
 #if defined(QSGBATCHRENDERER_INVALIDATE_WEDGED_NODES)
         if (!e || e->batch)
@@ -1899,7 +3311,7 @@ bool Renderer::checkOverlap(int first, int last, const Rect &bounds)
 
 void Renderer::prepareAlphaBatches()
 {
-    for (int i=0; i<m_alphaRenderList.size(); ++i) {
+    for (int i = 0; i < m_alphaRenderList.size(); ++i) {
         Element *e = m_alphaRenderList.at(i);
         if (!e || e->isRenderNode)
             continue;
@@ -1907,7 +3319,7 @@ void Renderer::prepareAlphaBatches()
         e->ensureBoundsValid();
     }
 
-    for (int i=0; i<m_alphaRenderList.size(); ++i) {
+    for (int i = 0; i < m_alphaRenderList.size(); ++i) {
         Element *ei = m_alphaRenderList.at(i);
         if (!ei || ei->batch)
             continue;
@@ -1964,18 +3376,18 @@ void Renderer::prepareAlphaBatches()
             const QSGGeometry *gnjGeometry = gnj->geometry();
             const QSGMaterial *gnjMaterial = gnj->activeMaterial();
             if (gni->clipList() == gnj->clipList()
-                    && gniGeometry->drawingMode() == gnjGeometry->drawingMode()
-                    && (gniGeometry->drawingMode() != QSGGeometry::DrawLines
-                        || (gniGeometry->lineWidth() == gnjGeometry->lineWidth()
-                            // Must not do overlap checks when the line width is not 1,
-                            // we have no knowledge how such lines are rasterized.
-                            && gniGeometry->lineWidth() == 1.0f))
-                    && gniGeometry->attributes() == gnjGeometry->attributes()
-                    && gniGeometry->indexType() == gnjGeometry->indexType()
-                    && gni->inheritedOpacity() == gnj->inheritedOpacity()
-                    && gniMaterial->type() == gnjMaterial->type()
-                    && gniMaterial->viewCount() == gnjMaterial->viewCount()
-                    && gniMaterial->compare(gnjMaterial) == 0
+                && gniGeometry->drawingMode() == gnjGeometry->drawingMode()
+                && (gniGeometry->drawingMode() != QSGGeometry::DrawLines
+                    || (gniGeometry->lineWidth() == gnjGeometry->lineWidth()
+                        // Must not do overlap checks when the line width is not 1,
+                        // we have no knowledge how such lines are rasterized.
+                        && gniGeometry->lineWidth() == 1.0f))
+                && gniGeometry->attributes() == gnjGeometry->attributes()
+                && gniGeometry->indexType() == gnjGeometry->indexType()
+                && gni->inheritedOpacity() == gnj->inheritedOpacity()
+                && gniMaterial->type() == gnjMaterial->type()
+                && gniMaterial->viewCount() == gnjMaterial->viewCount()
+                && gniMaterial->compare(gnjMaterial) == 0
                     && ei->mutabilityGroup == ej->mutabilityGroup)
             {
                 if (!overlapBounds.intersects(ej->bounds) || !checkOverlap(i+1, j - 1, ej->bounds)) {
@@ -1996,9 +3408,9 @@ void Renderer::prepareAlphaBatches()
         }
 
         batch->lastOrderInBatch = next->order;
+
+
     }
-
-
 }
 
 static inline int qsg_fixIndexCount(int iCount, int drawMode)
@@ -2057,23 +3469,23 @@ void Renderer::uploadMergedElement(Element *e, int vaOffset, char **vertexData, 
     // apply vertex transform..
     char *vdata = *vertexData + vaOffset;
     if (localx.flags() == QMatrix4x4::Translation) {
-        for (int i=0; i<vCount; ++i) {
-            Pt *p = (Pt *) vdata;
+        for (int i = 0; i < vCount; ++i) {
+            Pt *p = (Pt *)vdata;
             p->x += localxdata[12];
             p->y += localxdata[13];
             vdata += vSize;
         }
     } else if (localx.flags() > QMatrix4x4::Translation) {
-        for (int i=0; i<vCount; ++i) {
-            ((Pt *) vdata)->map(localx);
+        for (int i = 0; i < vCount; ++i) {
+            ((Pt *)vdata)->map(localx);
             vdata += vSize;
         }
     }
 
     if (useDepthBuffer()) {
-        float *vzorder = (float *) *zData;
+        float *vzorder = (float *)*zData;
         float zorder = calculateElementZOrder(e, m_zRange);
-        for (int i=0; i<vCount; ++i)
+        for (int i = 0; i < vCount; ++i)
             vzorder[i] = zorder;
         *zData += vCount * sizeof(float);
     }
@@ -2081,8 +3493,8 @@ void Renderer::uploadMergedElement(Element *e, int vaOffset, char **vertexData, 
     int iCount = g->indexCount();
     if (m_uint32IndexForRhi) {
         // can only happen when using the rhi
-        quint32 *iBase = (quint32 *) iBasePtr;
-        quint32 *indices = (quint32 *) *indexData;
+        quint32 *iBase = (quint32 *)iBasePtr;
+        quint32 *indices = (quint32 *)*indexData;
         if (iCount == 0) {
             iCount = vCount;
             if (g->drawingMode() == QSGGeometry::DrawTriangleStrip)
@@ -2090,7 +3502,7 @@ void Renderer::uploadMergedElement(Element *e, int vaOffset, char **vertexData, 
             else
                 iCount = qsg_fixIndexCount(iCount, g->drawingMode());
 
-            for (int i=0; i<iCount; ++i)
+            for (int i = 0; i < iCount; ++i)
                 indices[i] = *iBase + i;
         } else {
             // source index data in QSGGeometry is always ushort (we would not merge otherwise)
@@ -2100,7 +3512,7 @@ void Renderer::uploadMergedElement(Element *e, int vaOffset, char **vertexData, 
             else
                 iCount = qsg_fixIndexCount(iCount, g->drawingMode());
 
-            for (int i=0; i<iCount; ++i)
+            for (int i = 0; i < iCount; ++i)
                 indices[i] = *iBase + srcIndices[i];
         }
         if (g->drawingMode() == QSGGeometry::DrawTriangleStrip) {
@@ -2110,8 +3522,8 @@ void Renderer::uploadMergedElement(Element *e, int vaOffset, char **vertexData, 
         *iBase += vCount;
     } else {
         // normally batching is only done for ushort index data
-        quint16 *iBase = (quint16 *) iBasePtr;
-        quint16 *indices = (quint16 *) *indexData;
+        quint16 *iBase = (quint16 *)iBasePtr;
+        quint16 *indices = (quint16 *)*indexData;
         if (iCount == 0) {
             iCount = vCount;
             if (g->drawingMode() == QSGGeometry::DrawTriangleStrip)
@@ -2119,7 +3531,7 @@ void Renderer::uploadMergedElement(Element *e, int vaOffset, char **vertexData, 
             else
                 iCount = qsg_fixIndexCount(iCount, g->drawingMode());
 
-            for (int i=0; i<iCount; ++i)
+            for (int i = 0; i < iCount; ++i)
                 indices[i] = *iBase + i;
         } else {
             const quint16 *srcIndices = g->indexDataAsUShort();
@@ -2128,7 +3540,7 @@ void Renderer::uploadMergedElement(Element *e, int vaOffset, char **vertexData, 
             else
                 iCount = qsg_fixIndexCount(iCount, g->drawingMode());
 
-            for (int i=0; i<iCount; ++i)
+            for (int i = 0; i < iCount; ++i)
                 indices[i] = *iBase + srcIndices[i];
         }
         if (g->drawingMode() == QSGGeometry::DrawTriangleStrip) {
@@ -2175,15 +3587,15 @@ void Renderer::uploadBatch(Batch *b)
     Q_ASSERT(b->first->node);
 
     QSGGeometryNode *gn = b->first->node;
-    QSGGeometry *g =  gn->geometry();
+    QSGGeometry *g = gn->geometry();
     QSGMaterial::Flags flags = gn->activeMaterial()->flags();
     bool canMerge = (g->drawingMode() == QSGGeometry::DrawTriangles || g->drawingMode() == QSGGeometry::DrawTriangleStrip ||
                      g->drawingMode() == QSGGeometry::DrawLines || g->drawingMode() == QSGGeometry::DrawPoints)
             && b->positionAttribute >= 0
             && g->indexType() == QSGGeometry::UnsignedShortType
-            && (flags & (QSGMaterial::NoBatching | QSGMaterial_FullMatrix)) == 0
+        && (flags & (QSGMaterial::NoBatching | QSGMaterial_FullMatrix)) == 0
             && ((flags & QSGMaterial::RequiresFullMatrixExceptTranslate) == 0 || b->isTranslateOnlyToRoot())
-            && b->isSafeToBatch();
+        && b->isSafeToBatch();
 
     b->merged = canMerge;
 
@@ -2228,7 +3640,7 @@ void Renderer::uploadBatch(Batch *b)
               primitive. These are unsigned shorts for merged and arbitrary for
               non-merged.
          */
-    int bufferSize =  b->vertexCount * g->sizeOfVertex();
+    int bufferSize = b->vertexCount * g->sizeOfVertex();
     int ibufferSize = 0;
     if (b->merged) {
         ibufferSize = b->indexCount * mergedIndexElemSize();
@@ -2243,7 +3655,7 @@ void Renderer::uploadBatch(Batch *b)
 
     if (Q_UNLIKELY(debug_upload())) qDebug() << " - batch" << b << " first:" << b->first << " root:"
                                              << b->root << " merged:" << b->merged << " positionAttribute" << b->positionAttribute
-                                             << " vbo:" << b->vbo.buf << ":" << b->vbo.size;
+                 << " vbo:" << b->vbo.buf << ":" << b->vbo.size;
 
     if (b->merged) {
         char *vertexData = b->vbo.data;
@@ -2311,7 +3723,7 @@ void Renderer::uploadBatch(Batch *b)
                 } else {
                     if (g->sizeOfIndex() == sizeof(quint16) && effectiveIndexSize == sizeof(quint32)) {
                         quint16 *src = g->indexDataAsUShort();
-                        quint32 *dst = (quint32 *) iboData;
+                        quint32 *dst = (quint32 *)iboData;
                         for (int i = 0; i < indexCount; ++i)
                             dst[i] = src[i];
                     } else {
@@ -2327,29 +3739,29 @@ void Renderer::uploadBatch(Batch *b)
     if (Q_UNLIKELY(debug_upload())) {
         const char *vd = b->vbo.data;
         qDebug() << "  -- Vertex Data, count:" << b->vertexCount << " - " << g->sizeOfVertex() << "bytes/vertex";
-        for (int i=0; i<b->vertexCount; ++i) {
+        for (int i = 0; i < b->vertexCount; ++i) {
             QDebug dump = qDebug().nospace();
             dump << "  --- " << i << ": ";
             int offset = 0;
-            for (int a=0; a<g->attributeCount(); ++a) {
+            for (int a = 0; a < g->attributeCount(); ++a) {
                 const QSGGeometry::Attribute &attr = g->attributes()[a];
                 dump << attr.position << ":(" << attr.tupleSize << ",";
                 if (attr.type == QSGGeometry::FloatType) {
                     dump << "float ";
                     if (attr.isVertexCoordinate)
                         dump << "* ";
-                    for (int t=0; t<attr.tupleSize; ++t)
+                    for (int t = 0; t < attr.tupleSize; ++t)
                         dump << *(const float *)(vd + offset + t * sizeof(float)) << " ";
                 } else if (attr.type == QSGGeometry::UnsignedByteType) {
                     dump << "ubyte ";
-                    for (int t=0; t<attr.tupleSize; ++t)
+                    for (int t = 0; t < attr.tupleSize; ++t)
                         dump << *(const unsigned char *)(vd + offset + t * sizeof(unsigned char)) << " ";
                 }
                 dump << ") ";
                 offset += attr.tupleSize * size_of_type(attr.type);
             }
             if (b->merged && useDepthBuffer()) {
-                float zorder = ((float*)(b->vbo.data + b->vertexCount * g->sizeOfVertex()))[i];
+                float zorder = ((float *)(b->vbo.data + b->vertexCount * g->sizeOfVertex()))[i];
                 dump << " Z:(" << zorder << ")";
             }
             vd += g->sizeOfVertex();
@@ -2357,22 +3769,22 @@ void Renderer::uploadBatch(Batch *b)
 
         if (!b->drawSets.isEmpty()) {
             if (m_uint32IndexForRhi) {
-                const quint32 *id = (const quint32 *) b->ibo.data;
+                const quint32 *id = (const quint32 *)b->ibo.data;
                 {
                     QDebug iDump = qDebug();
                     iDump << "  -- Index Data, count:" << b->indexCount;
-                    for (int i=0; i<b->indexCount; ++i) {
+                    for (int i = 0; i < b->indexCount; ++i) {
                         if ((i % 24) == 0)
                             iDump << Qt::endl << "  --- ";
                         iDump << id[i];
                     }
                 }
             } else {
-                const quint16 *id = (const quint16 *) b->ibo.data;
+                const quint16 *id = (const quint16 *)b->ibo.data;
                 {
                     QDebug iDump = qDebug();
                     iDump << "  -- Index Data, count:" << b->indexCount;
-                    for (int i=0; i<b->indexCount; ++i) {
+                    for (int i = 0; i < b->indexCount; ++i) {
                         if ((i % 24) == 0)
                             iDump << Qt::endl << "  --- ";
                         iDump << id[i];
@@ -2380,7 +3792,7 @@ void Renderer::uploadBatch(Batch *b)
                 }
             }
 
-            for (int i=0; i<b->drawSets.size(); ++i) {
+            for (int i = 0; i < b->drawSets.size(); ++i) {
                 const DrawSet &s = b->drawSets.at(i);
                 qDebug() << "  -- DrawSet: indexCount:" << s.indexCount << " vertices:" << s.vertices << " z:" << s.zorders << " indices:" << s.indices;
             }
@@ -2402,7 +3814,8 @@ void Renderer::uploadBatch(Batch *b)
 
 void Renderer::applyClipStateToGraphicsState()
 {
-    m_gstate.usesScissor = (m_currentClipState.type & ClipState::ScissorClip);
+    m_gstate.usesScissor =
+        m_damageScissorEnabled || (m_currentClipState.type & ClipState::ScissorClip);
     m_gstate.stencilTest = (m_currentClipState.type & ClipState::StencilClip);
 }
 
@@ -2411,7 +3824,7 @@ QRhiGraphicsPipeline *Renderer::buildStencilPipeline(const Batch *batch, bool fi
     QRhiGraphicsPipeline *ps = m_rhi->newGraphicsPipeline();
     ps->setFlags(QRhiGraphicsPipeline::UsesStencilRef);
     QRhiGraphicsPipeline::TargetBlend blend;
-    blend.colorWrite = {};
+    blend.colorWrite = { };
     ps->setTargetBlends({ blend });
     ps->setSampleCount(renderTarget().rt->sampleCount());
     ps->setStencilTest(true);
@@ -2633,9 +4046,12 @@ void Renderer::updateClipState(const QSGClipNode *clipList, Batch *batch)
 #ifndef QT_NO_DEBUG
             else {
                 if (qsg_topology(g->drawingMode(), m_rhi) != m_stencilClipCommon.topology)
-                    qWarning("updateClipState: Clip list entries have different primitive topologies, this is not currently supported.");
-                if (qsg_vertexInputFormat(*a) != m_stencilClipCommon.inputLayout.cbeginAttributes()->format())
-                    qWarning("updateClipState: Clip list entries have different vertex input layouts, this is must not happen.");
+                    qWarning("updateClipState: Clip list entries have different primitive "
+                             "topologies, this is not currently supported.");
+                if (qsg_vertexInputFormat(*a)
+                    != m_stencilClipCommon.inputLayout.cbeginAttributes()->format())
+                    qWarning("updateClipState: Clip list entries have different vertex input "
+                             "layouts, this is must not happen.");
             }
 #endif
 
@@ -2747,9 +4163,9 @@ void Renderer::setActiveRhiShader(QSGMaterialShader *program, ShaderManager::Sha
 static inline bool needsBlendConstant(QRhiGraphicsPipeline::BlendFactor f)
 {
     return f == QRhiGraphicsPipeline::ConstantColor
-            || f == QRhiGraphicsPipeline::OneMinusConstantColor
-            || f == QRhiGraphicsPipeline::ConstantAlpha
-            || f == QRhiGraphicsPipeline::OneMinusConstantAlpha;
+        || f == QRhiGraphicsPipeline::OneMinusConstantColor
+        || f == QRhiGraphicsPipeline::ConstantAlpha
+        || f == QRhiGraphicsPipeline::OneMinusConstantAlpha;
 }
 
 // With QRhi renderBatches() is split to two steps: prepare and render.
@@ -3131,7 +4547,7 @@ void Renderer::updateMaterialDynamicData(ShaderManager::Shader *sms,
                 QRhiSampler *sampler = pd->samplerBindingTable[binding].at(i);
 
                 textureSamplers.append(
-                        QRhiShaderResourceBinding::TextureAndSampler { texture, sampler });
+                    QRhiShaderResourceBinding::TextureAndSampler{ texture, sampler });
             }
 
             if (!textureSamplers.isEmpty())
@@ -3169,9 +4585,12 @@ void Renderer::updateMaterialDynamicData(ShaderManager::Shader *sms,
     }
 
     // If the Element had an existing srb, investigate:
-    //   - It may be used as-is (when nothing changed in the scene regarding this node compared to the previous frame).
-    //   - Otherwise it may be able to go with a lightweight update (replace resources, binding list layout is the same).
-    //   - If all else fails rebake the full thing, meaning we reuse the memory allocation but will recreate everything underneath.
+    //   - It may be used as-is (when nothing changed in the scene regarding this node compared to
+    //   the previous frame).
+    //   - Otherwise it may be able to go with a lightweight update (replace resources, binding list
+    //   layout is the same).
+    //   - If all else fails rebake the full thing, meaning we reuse the memory allocation but will
+    //   recreate everything underneath.
     if (srbAction == SrbAction::Unknown && e->srb) {
         if (std::equal(e->srb->cbeginBindings(), e->srb->cendBindings(), bindings.cbegin(), bindings.cend())) {
             srbAction = SrbAction::DoNothing;
@@ -3254,6 +4673,18 @@ bool Renderer::prepareRenderMergedBatch(Batch *batch, PreparedRenderBatch *rende
     if (batch->vertexCount == 0 || batch->indexCount == 0)
         return false;
 
+    if (isCompositorOutputPass() && clipsDrawToDamage()) {
+        bool anyVisible = false;
+        for (Element *el = batch->first; el; el = el->nextInBatch) {
+            if (el->node && !m_damageTree->isCulled(el)) {
+                anyVisible = true;
+                break;
+            }
+        }
+        if (!anyVisible)
+            return false;
+    }
+
     Element *e = batch->first;
     Q_ASSERT(e);
 
@@ -3263,13 +4694,13 @@ bool Renderer::prepareRenderMergedBatch(Batch *batch, PreparedRenderBatch *rende
         debug << " -"
               << batch
               << (batch->uploadedThisFrame ? "[  upload]" : "[retained]")
-              << (e->node->clipList() ? "[  clip]" : "[noclip]")
+            << (e->node->clipList() ? "[  clip]" : "[noclip]")
               << (batch->isOpaque ? "[opaque]" : "[ alpha]")
               << "[  merged]"
               << " Nodes:" << QString::fromLatin1("%1").arg(qsg_countNodesInBatch(batch), 4).toLatin1().constData()
               << " Vertices:" << QString::fromLatin1("%1").arg(batch->vertexCount, 5).toLatin1().constData()
               << " Indices:" << QString::fromLatin1("%1").arg(batch->indexCount, 5).toLatin1().constData()
-              << " root:" << batch->root;
+            << " root:" << batch->root;
         if (batch->drawSets.size() > 1)
             debug << "sets:" << batch->drawSets.size();
         if (!batch->isOpaque)
@@ -3304,7 +4735,7 @@ bool Renderer::prepareRenderMergedBatch(Batch *batch, PreparedRenderBatch *rende
     const QSGGeometry *g = gn->geometry();
     const int multiViewCount = renderTarget().multiViewCount;
     ShaderManager::Shader *sms = useDepthBuffer() ? m_shaderManager->prepareMaterial(material, g, m_renderMode, multiViewCount)
-                                                  : m_shaderManager->prepareMaterialNoRewrite(material, g, m_renderMode, multiViewCount);
+        : m_shaderManager->prepareMaterialNoRewrite(material, g, m_renderMode, multiViewCount);
     if (!sms)
         return false;
 
@@ -3414,6 +4845,8 @@ void Renderer::renderMergedBatch(PreparedRenderBatch *renderBatch, bool depthPos
     const Batch *batch = renderBatch->batch;
     if (!batch->vbo.buf || !batch->ibo.buf)
         return;
+    if (!batchIntersectsDamage(batch))
+        return;
 
     Element *e = batch->first;
     QSGGeometryNode *gn = e->node;
@@ -3432,10 +4865,16 @@ void Renderer::renderMergedBatch(PreparedRenderBatch *renderBatch, bool depthPos
             { batch->vbo.buf, quint32(draw.vertices) },
             { batch->vbo.buf, quint32(draw.zorders) }
         };
-        cb->setVertexInput(VERTEX_BUFFER_BINDING, useDepthBuffer() ? 2 : 1, vbufBindings,
-                           batch->ibo.buf, draw.indices,
-                           m_uint32IndexForRhi ? QRhiCommandBuffer::IndexUInt32 : QRhiCommandBuffer::IndexUInt16);
-        cb->drawIndexed(draw.indexCount);
+        cb->setVertexInput(VERTEX_BUFFER_BINDING,
+                           useDepthBuffer() ? 2 : 1,
+                           vbufBindings,
+                           batch->ibo.buf,
+                           draw.indices,
+                           m_uint32IndexForRhi ? QRhiCommandBuffer::IndexUInt32
+                                               : QRhiCommandBuffer::IndexUInt16);
+        drawWithDamageScissors(cb, batch, [&] {
+            cb->drawIndexed(draw.indexCount);
+        });
     }
 }
 
@@ -3444,6 +4883,18 @@ bool Renderer::prepareRenderUnmergedBatch(Batch *batch, PreparedRenderBatch *ren
     if (batch->vertexCount == 0)
         return false;
 
+    if (isCompositorOutputPass() && clipsDrawToDamage()) {
+        bool anyVisible = false;
+        for (Element *el = batch->first; el; el = el->nextInBatch) {
+            if (el->node && !m_damageTree->isCulled(el)) {
+                anyVisible = true;
+                break;
+            }
+        }
+        if (!anyVisible)
+            return false;
+    }
+
     Element *e = batch->first;
     Q_ASSERT(e);
 
@@ -3451,13 +4902,13 @@ bool Renderer::prepareRenderUnmergedBatch(Batch *batch, PreparedRenderBatch *ren
         qDebug() << " -"
                  << batch
                  << (batch->uploadedThisFrame ? "[  upload]" : "[retained]")
-                 << (e->node->clipList() ? "[  clip]" : "[noclip]")
+            << (e->node->clipList() ? "[  clip]" : "[noclip]")
                  << (batch->isOpaque ? "[opaque]" : "[ alpha]")
                  << "[unmerged]"
                  << " Nodes:" << QString::fromLatin1("%1").arg(qsg_countNodesInBatch(batch), 4).toLatin1().constData()
                  << " Vertices:" << QString::fromLatin1("%1").arg(batch->vertexCount, 5).toLatin1().constData()
                  << " Indices:" << QString::fromLatin1("%1").arg(batch->indexCount, 5).toLatin1().constData()
-                 << " root:" << batch->root;
+            << " root:" << batch->root;
 
         batch->uploadedThisFrame = false;
     }
@@ -3624,6 +5075,8 @@ void Renderer::renderUnmergedBatch(PreparedRenderBatch *renderBatch, bool depthP
     const Batch *batch = renderBatch->batch;
     if (!batch->vbo.buf)
         return;
+    if (!batchIntersectsDamage(batch))
+        return;
 
     Element *e = batch->first;
 
@@ -3642,18 +5095,20 @@ void Renderer::renderUnmergedBatch(PreparedRenderBatch *renderBatch, bool depthP
         setGraphicsPipeline(cb, batch, e, depthPostPass);
 
         const QRhiCommandBuffer::VertexInput vbufBinding(batch->vbo.buf, vOffset);
-        if (g->indexCount()) {
-            if (batch->ibo.buf) {
+        drawWithDamageScissors(cb, batch, [&] {
+            if (g->indexCount()) {
+                if (batch->ibo.buf) {
                 cb->setVertexInput(VERTEX_BUFFER_BINDING, 1, &vbufBinding,
                                    batch->ibo.buf, iOffset,
                                    effectiveIndexSize == sizeof(quint32) ? QRhiCommandBuffer::IndexUInt32
-                                                                         : QRhiCommandBuffer::IndexUInt16);
-                cb->drawIndexed(g->indexCount());
+                                           : QRhiCommandBuffer::IndexUInt16);
+                    cb->drawIndexed(g->indexCount());
+                }
+            } else {
+                cb->setVertexInput(VERTEX_BUFFER_BINDING, 1, &vbufBinding);
+                cb->draw(g->vertexCount());
             }
-        } else {
-            cb->setVertexInput(VERTEX_BUFFER_BINDING, 1, &vbufBinding);
-            cb->draw(g->vertexCount());
-        }
+        });
 
         vOffset += g->sizeOfVertex() * g->vertexCount();
         iOffset += g->indexCount() * effectiveIndexSize;
@@ -3668,27 +5123,102 @@ void Renderer::setViewportAndScissors(QRhiCommandBuffer *cb, const Batch *batch)
         m_pstate.viewportSet = true;
         cb->setViewport(m_pstate.viewport);
     }
-    if (batch->clipState.type & ClipState::ScissorClip) {
-        m_pstate.scissorSet = true;
-        cb->setScissor(batch->clipState.scissor);
-    } else {
-        // Regardless of the ps not using scissor, the scissor may need to be
-        // reset, depending on the backend. So set the viewport again, which in
-        // turn also sets the scissor on backends where a scissor rect is
-        // always-on (Vulkan).
+
+    const bool needScissor =
+        m_damageScissorEnabled || (batch->clipState.type & ClipState::ScissorClip);
+    if (!needScissor) {
         if (m_pstate.scissorSet) {
             m_pstate.scissorSet = false;
             cb->setViewport(m_pstate.viewport);
         }
+        return;
     }
+
+    QVarLengthArray<QRect, kMaxDamageScissorRects> rects;
+    collectScissorRectsForBatch(batch, &rects);
+    QRect cover;
+    for (const QRect &r : rects)
+        cover = cover.united(r);
+    if (cover.width() <= 0 || cover.height() <= 0)
+        cover = this->deviceRect();
+    m_pstate.scissorSet = true;
+    cb->setScissor(QRhiScissor(cover.x(), cover.y(), cover.width(), cover.height()));
 }
 
+void Renderer::collectScissorRectsForBatch(const Batch *batch,
+                                           QVarLengthArray<QRect, 20> *out) const
+{
+    out->clear();
+    QRect clipRect;
+    const bool hasClip = batch && (batch->clipState.type & ClipState::ScissorClip);
+    if (hasClip) {
+        const auto s = batch->clipState.scissor.scissor();
+        clipRect = QRect(s[0], s[1], s[2], s[3]);
+    }
+
+    if (m_damageScissorEnabled && !m_damageNativeScissors.isEmpty()) {
+        for (const QRect &r : m_damageNativeScissors) {
+            const QRect s = hasClip ? r.intersected(clipRect) : r;
+            if (s.width() > 0 && s.height() > 0)
+                out->append(s);
+        }
+        return;
+    }
+    if (hasClip && clipRect.width() > 0 && clipRect.height() > 0)
+        out->append(clipRect);
+}
+
+bool Renderer::batchIntersectsDamage(const Batch *batch) const
+{
+    if (!m_damageScissorEnabled)
+        return true;
+    if (m_damageSceneScissors.isEmpty())
+        return false;
+    for (Element *el = batch->first; el; el = el->nextInBatch) {
+        if (!el->damage)
+            return true;
+        if (m_damageSceneScissors.intersects(el->damage->worldBounds()))
+            return true;
+    }
+    return false;
+}
+
+template<typename DrawFn>
+void Renderer::drawWithDamageScissors(QRhiCommandBuffer *cb, const Batch *batch, DrawFn &&draw)
+{
+    if (!m_pstate.viewportSet) {
+        m_pstate.viewportSet = true;
+        cb->setViewport(m_pstate.viewport);
+    }
+
+    const bool needScissor =
+        m_damageScissorEnabled || (batch->clipState.type & ClipState::ScissorClip);
+    if (!needScissor) {
+        if (m_pstate.scissorSet) {
+            m_pstate.scissorSet = false;
+            cb->setViewport(m_pstate.viewport);
+        }
+        draw();
+        return;
+    }
+
+    QVarLengthArray<QRect, kMaxDamageScissorRects> rects;
+    collectScissorRectsForBatch(batch, &rects);
+    for (const QRect &r : rects) {
+        m_pstate.scissorSet = true;
+        cb->setScissor(QRhiScissor(r.x(), r.y(), r.width(), r.height()));
+        draw();
+    }
+}
 
 void Renderer::setGraphicsPipeline(QRhiCommandBuffer *cb, const Batch *batch, Element *e, bool depthPostPass)
 {
     cb->setGraphicsPipeline(depthPostPass ? e->depthPostPassPs : e->ps);
 
-    setViewportAndScissors(cb, batch);
+    if (!m_pstate.viewportSet) {
+        m_pstate.viewportSet = true;
+        cb->setViewport(m_pstate.viewport);
+    }
 
     if (batch->clipState.type & ClipState::StencilClip) {
         Q_ASSERT(e->ps->flags().testFlag(QRhiGraphicsPipeline::UsesStencilRef));
@@ -3723,41 +5253,65 @@ void Renderer::releaseElement(Element *e, bool inDestructor)
 void Renderer::deleteRemovedElements()
 {
     if (!m_elementsToDelete.size())
-        return;
 
-    for (int i=0; i<m_opaqueRenderList.size(); ++i) {
+        return;
+    for (int i = 0; i < m_opaqueRenderList.size(); ++i) {
         Element **e = m_opaqueRenderList.data() + i;
         if (*e && (*e)->removed)
             *e = nullptr;
     }
-    for (int i=0; i<m_alphaRenderList.size(); ++i) {
+    for (int i = 0; i < m_alphaRenderList.size(); ++i) {
         Element **e = m_alphaRenderList.data() + i;
         if (*e && (*e)->removed)
             *e = nullptr;
     }
 
-    for (int i=0; i<m_elementsToDelete.size(); ++i)
+    for (int i = 0; i < m_elementsToDelete.size(); ++i)
         releaseElement(m_elementsToDelete.at(i));
 
     m_elementsToDelete.reset();
+}
+
+void Renderer::finishDamagePassLogs(bool recorded)
+{
+    if (!tracksDamage()) {
+        WSGDamageLog::endInnerPass();
+        return;
+    }
+    if (isCompositorOutputPass() || (!renderTarget().rt && m_damageScissorTarget)) {
+        WSGDamageLog::endOutputFrame(recorded ? "draw recorded" : "prepare only, nothing to draw");
+        return;
+    }
+    if (m_damageScissorTarget)
+        WSGDamageLog::endNestedPass();
 }
 
 void Renderer::render()
 {
     // Gracefully handle the lack of a render target - some autotests may rely
     // on this in odd cases.
-    if (!renderTarget().rt)
+    if (!renderTarget().rt) {
+        commitFlushRegion();
+        finishDamagePassLogs(false);
         return;
+    }
 
     prepareRenderPass(&m_mainRenderPassContext);
+    if (m_damageScissorEnabled && m_damageNativeScissors.isEmpty()) {
+        m_mainRenderPassContext.valid = false;
+        finishDamagePassLogs(false);
+        return;
+    }
+
     beginRenderPass(&m_mainRenderPassContext);
     recordRenderPass(&m_mainRenderPassContext);
     endRenderPass(&m_mainRenderPassContext);
+    finishDamagePassLogs(true);
 }
 
 // An alternative to render() is to call prepareInline() and renderInline() at
 // the appropriate times (i.e. outside of a QRhi::beginPass() and then inside,
-// respectively) These allow rendering within a render pass that is started by
+// respectively). These allow rendering within a render pass that is started by
 // another component. In contrast, render() records a full render pass on its
 // own.
 
@@ -3777,6 +5331,16 @@ void Renderer::prepareRenderPass(RenderPassContext *ctx)
         qWarning("prepareRenderPass() called with an already prepared render pass context");
 
     ctx->valid = true;
+    if (!tracksDamage()) {
+        WSGDamageLog::beginInnerPass();
+    } else if (isCompositorOutputPass()) {
+        m_damageIdleBlitters.clear();
+        m_damageNestedSkipBlitters.clear();
+        WSGDamageLog::beginOutputPrepare();
+    } else {
+        m_damageNestedSkipBlitters.clear();
+        WSGDamageLog::beginNestedPass();
+    }
 
     if (Q_UNLIKELY(debug_dump())) {
         qDebug("\n");
@@ -3821,12 +5385,12 @@ void Renderer::prepareRenderPass(RenderPassContext *ctx)
 
         if (Q_UNLIKELY(debug_build())) {
             qDebug("Opaque render lists %s:", (complete ? "(complete)" : "(partial)"));
-            for (int i=0; i<m_opaqueRenderList.size(); ++i) {
+            for (int i = 0; i < m_opaqueRenderList.size(); ++i) {
                 Element *e = m_opaqueRenderList.at(i);
                 qDebug() << " - element:" << e << " batch:" << e->batch << " node:" << e->node << " order:" << e->order;
             }
             qDebug("Alpha render list %s:", complete ? "(complete)" : "(partial)");
-            for (int i=0; i<m_alphaRenderList.size(); ++i) {
+            for (int i = 0; i < m_alphaRenderList.size(); ++i) {
                 Element *e = m_alphaRenderList.at(i);
                 qDebug() << " - element:" << e << " batch:" << e->batch << " node:" << e->node << " order:" << e->order;
             }
@@ -3834,9 +5398,9 @@ void Renderer::prepareRenderPass(RenderPassContext *ctx)
     }
     if (Q_UNLIKELY(debug_render())) ctx->timeRenderLists = ctx->timer.restart();
 
-    for (int i=0; i<m_opaqueBatches.size(); ++i)
+    for (int i = 0; i < m_opaqueBatches.size(); ++i)
         m_opaqueBatches.at(i)->cleanupRemovedElements();
-    for (int i=0; i<m_alphaBatches.size(); ++i)
+    for (int i = 0; i < m_alphaBatches.size(); ++i)
         m_alphaBatches.at(i)->cleanupRemovedElements();
     deleteRemovedElements();
 
@@ -3851,7 +5415,7 @@ void Renderer::prepareRenderPass(RenderPassContext *ctx)
 
         if (Q_UNLIKELY(debug_build())) {
             qDebug("Opaque Batches:");
-            for (int i=0; i<m_opaqueBatches.size(); ++i) {
+            for (int i = 0; i < m_opaqueBatches.size(); ++i) {
                 Batch *b = m_opaqueBatches.at(i);
                 qDebug() << " - Batch " << i << b << (b->needsUpload ? "upload" : "") << " root:" << b->root;
                 for (Element *e = b->first; e; e = e->nextInBatch) {
@@ -3859,7 +5423,7 @@ void Renderer::prepareRenderPass(RenderPassContext *ctx)
                 }
             }
             qDebug("Alpha Batches:");
-            for (int i=0; i<m_alphaBatches.size(); ++i) {
+            for (int i = 0; i < m_alphaBatches.size(); ++i) {
                 Batch *b = m_alphaBatches.at(i);
                 qDebug() << " - Batch " << i << b << (b->needsUpload ? "upload" : "") << " root:" << b->root;
                 for (Element *e = b->first; e; e = e->nextInBatch) {
@@ -3897,14 +5461,14 @@ void Renderer::prepareRenderPass(RenderPassContext *ctx)
     m_indexUploadPool.reset();
 
     if (Q_UNLIKELY(debug_upload())) qDebug("Uploading Opaque Batches:");
-    for (int i=0; i<m_opaqueBatches.size(); ++i) {
+    for (int i = 0; i < m_opaqueBatches.size(); ++i) {
         Batch *b = m_opaqueBatches.at(i);
         uploadBatch(b);
     }
     if (Q_UNLIKELY(debug_render())) ctx->timeUploadOpaque = ctx->timer.restart();
 
     if (Q_UNLIKELY(debug_upload())) qDebug("Uploading Alpha Batches:");
-    for (int i=0; i<m_alphaBatches.size(); ++i) {
+    for (int i = 0; i < m_alphaBatches.size(); ++i) {
         Batch *b = m_alphaBatches.at(i);
         uploadBatch(b);
     }
@@ -3942,11 +5506,19 @@ void Renderer::prepareRenderPass(RenderPassContext *ctx)
 
     m_gstate.cullMode = QRhiGraphicsPipeline::None;
     m_gstate.polygonMode = QRhiGraphicsPipeline::Fill;
-    m_gstate.colorWrite = QRhiGraphicsPipeline::R
-            | QRhiGraphicsPipeline::G
-            | QRhiGraphicsPipeline::B
-            | QRhiGraphicsPipeline::A;
-    m_gstate.usesScissor = false;
+    m_gstate.colorWrite = QRhiGraphicsPipeline::R | QRhiGraphicsPipeline::G
+        | QRhiGraphicsPipeline::B | QRhiGraphicsPipeline::A;
+    const bool isOutputPass = isCompositorOutputPass();
+    if (isOutputPass && tracksDamage()) {
+        if (!m_damageCommitValid)
+            m_damageTree->commit(deviceRect());
+        m_damageCommitValid = false;
+    }
+    m_blitterPendingFull = !clipsDrawToDamage() || pendingIsFull();
+    m_blitterPending = m_blitterPendingFull ? QRegion() : m_damageTree->pendingRegion().toQRegion();
+    m_damageScissorEnabled = isOutputPass && clipsDrawToDamage() && !m_damageTree->pendingIsFull()
+        && textureRenderTargetPreservesColor(renderTarget().rt);
+    m_gstate.usesScissor = m_damageScissorEnabled;
     m_gstate.stencilTest = false;
 
     m_gstate.sampleCount = renderTarget().rt->sampleCount();
@@ -4011,6 +5583,58 @@ void Renderer::prepareRenderPass(RenderPassContext *ctx)
 
     renderTarget().cb->resourceUpdate(m_resourceUpdates);
     m_resourceUpdates = nullptr;
+
+    commitFlushRegion();
+    if (Q_UNLIKELY(lcWlDamage().isDebugEnabled())) {
+        if (isCompositorOutputPass() && !m_damageIdleBlitters.isEmpty()) {
+            qCDebug(lcWlDamage)
+                << WSGDamageLog::frameTag()
+                << "skip drawing idle blitters (keep last capture; pending does not punch):"
+                << m_damageIdleBlitters.join(QLatin1String("; "));
+        } else if (!isCompositorOutputPass() && clipsDrawToDamage()
+                   && !m_damageNestedSkipBlitters.isEmpty()) {
+            qCDebug(lcWlDamage) << WSGDamageLog::frameTag() << "nested pass skipped blitter draw:"
+                                << m_damageNestedSkipBlitters.join(QLatin1String("; "));
+        }
+        if (isCompositorOutputPass()) {
+            WSGDamageLog::endOutputPrepare(
+                WSGDamageLog::describe(flushRegion(), flushRegionIsFull()));
+        }
+    }
+
+    const QRegion extraScissor = m_extraDamageScissor;
+    m_extraDamageScissor = { };
+    m_damageNativeScissors.clear();
+    m_damageSceneScissors = { };
+    if (m_damageScissorEnabled) {
+        QRegion scene = flushRegion();
+        if (!extraScissor.isEmpty())
+            scene += extraScissor;
+        m_damageSceneScissors = scene;
+        if (!scene.isEmpty()) {
+            if (scene.rectCount() > kMaxDamageScissorRects)
+                scene = QRegion(scene.boundingRect());
+            QRegion native;
+            for (const QRect &r : scene) {
+                const QRect s = sceneRectToNativeScissor(r);
+                if (s.width() > 0 && s.height() > 0)
+                    native += s;
+            }
+            if (native.isEmpty()) {
+                // Mapping failed; pipelines already have UsesScissor.
+                QRect fallback = viewportRect();
+                if (fallback.width() <= 0 || fallback.height() <= 0)
+                    fallback = this->deviceRect();
+                if (fallback.width() > 0 && fallback.height() > 0)
+                    m_damageNativeScissors.append(fallback);
+            } else {
+                if (native.rectCount() > kMaxDamageScissorRects)
+                    native = QRegion(native.boundingRect());
+                for (const QRect &r : native)
+                    m_damageNativeScissors.append(r);
+            }
+        }
+    }
 }
 
 void Renderer::beginRenderPass(RenderPassContext *)
@@ -4024,9 +5648,9 @@ void Renderer::beginRenderPass(RenderPassContext *)
                      // (thus triggering using secondary command
                      // buffers with Vulkan)
                      QRhiCommandBuffer::ExternalContent
-                     // We do not use GPU compute at all at the moment, this means we can
-                     // get a small performance gain with OpenGL by declaring this.
-                     | QRhiCommandBuffer::DoNotTrackResourcesForCompute);
+                         // We do not use GPU compute at all at the moment, this means we can
+                         // get a small performance gain with OpenGL by declaring this.
+                         | QRhiCommandBuffer::DoNotTrackResourcesForCompute);
 
     if (m_renderPassRecordingCallbacks.start)
         m_renderPassRecordingCallbacks.start(m_renderPassRecordingCallbacks.userData);
@@ -4046,6 +5670,9 @@ void Renderer::recordRenderPass(RenderPassContext *ctx)
         qWarning("recordRenderPass() called without a prepared render pass context");
 
     ctx->valid = false;
+
+    if (isCompositorOutputPass())
+        WSGDamageLog::beginOutputDraw();
 
     QRhiCommandBuffer *cb = renderTarget().cb;
     cb->debugMarkBegin(QByteArrayLiteral("Qt Quick scene render"));
@@ -4068,12 +5695,13 @@ void Renderer::recordRenderPass(RenderPassContext *ctx)
                 cb->debugMarkMsg(QByteArrayLiteral("Qt Quick alpha batches"));
         }
         PreparedRenderBatch *renderBatch = &ctx->alphaRenderBatches[i];
-        if (renderBatch->batch->merged)
+        if (renderBatch->batch->merged) {
             renderMergedBatch(renderBatch);
-        else if (renderBatch->batch->isRenderNode)
+        } else if (renderBatch->batch->isRenderNode) {
             renderRhiRenderNode(renderBatch->batch);
-        else
+        } else {
             renderUnmergedBatch(renderBatch);
+        }
     }
 
     if (m_renderMode == QSGRendererInterface::RenderMode3D) {
@@ -4100,12 +5728,13 @@ void Renderer::recordRenderPass(RenderPassContext *ctx)
     cb->debugMarkEnd();
 
     if (Q_UNLIKELY(debug_render())) {
-        qDebug(" -> times: build: %d, prepare(opaque/alpha): %d/%d, sorting: %d, upload(opaque/alpha): %d/%d, record rendering: %d",
-               (int) ctx->timeRenderLists,
+        qDebug(" -> times: build: %d, prepare(opaque/alpha): %d/%d, sorting: %d, "
+               "upload(opaque/alpha): %d/%d, record rendering: %d",
+               (int)ctx->timeRenderLists,
                (int) ctx->timePrepareOpaque, (int) ctx->timePrepareAlpha,
-               (int) ctx->timeSorting,
+               (int)ctx->timeSorting,
                (int) ctx->timeUploadOpaque, (int) ctx->timeUploadAlpha,
-               (int) ctx->timer.elapsed());
+               (int)ctx->timer.elapsed());
     }
 }
 
@@ -4151,6 +5780,84 @@ bool Renderer::prepareRhiRenderNode(Batch *batch, PreparedRenderBatch *renderBat
 
     Q_ASSERT(batch->first->isRenderNode);
     RenderNodeElement *e = static_cast<RenderNodeElement *>(batch->first);
+    if (auto *blit = dynamic_cast<WRenderBufferNode *>(e->renderNode)) {
+        // Nested QSGLayer / MultiEffect reuses this Renderer with a Qt RT.
+        // RhiNode::prepare() reset()s when lookupBuffer() is null. Before
+        // damage tracking the output pass recopied every frame; idle skip
+        // cannot. Only blit while the compositor output RT is current.
+        if (!isCompositorOutputPass()) {
+            if (Q_UNLIKELY(lcWlDamage().isDebugEnabled()))
+                m_damageNestedSkipBlitters.append(blit->debugLabel());
+            return false;
+        }
+        if (clipsDrawToDamage() && m_damageTree->isCulled(e)) {
+            if (Q_UNLIKELY(lcWlDamage().isDebugEnabled()))
+                m_damageIdleBlitters.append(blit->debugLabel());
+            return false;
+        }
+        QRegion pending = m_blitterPending;
+        if (!m_blitterPendingFull)
+            pending += m_extraDamageScissor;
+        QRect mapped;
+        QMatrix4x4 sceneMatrix;
+        QRegion recapture;
+        if (e->damage) {
+            mapped = e->damage->worldBounds();
+            sceneMatrix = QMatrix4x4(e->damage->worldTransform());
+            // The node's own pendingRecopy (scene space, viewport-independent)
+            // drives the cache refresh; unconsumed damage persists to later
+            // frames when this blit stays culled or idle.
+            if (auto *backdrop = e->damage->toBackdrop()) {
+                recapture = backdrop->pendingRecopy().toQRegion();
+                if (!recapture.isEmpty()) {
+                    const QMargins expansion = backdrop->recopyExpansion();
+                    recapture = WPixman::dilateRegion(recapture, expansion);
+                    recapture &= blit->clipDamageExpansion() ? mapped
+                                                             : mapped.marginsAdded(expansion);
+                    expandDamageScissor(recapture);
+                }
+            }
+        } else {
+            mapped = blit->rect().toAlignedRect();
+        }
+        if (m_blitterPendingFull || !blit->hasCompositorCapture())
+            recapture = QRegion(mapped);
+        blit->applyFrame(recapture, mapped, sceneMatrix);
+        const bool willDraw = blit->needsRender(pending, m_blitterPendingFull);
+        if (WBufferDumper::sessionEnabled()) {
+            WBufferDumper::logLine(
+                QStringLiteral("{\"frame\":%1,\"stage\":\"blitter-decide\",\"label\":\"%2\","
+                               "\"mapped\":%3,\"recapture\":%4,\"copy\":%5,\"draw\":%6,"
+                               "\"pending\":%7,\"full\":%8,\"scissor\":%9}")
+                    .arg(WBufferDumper::sessionFrame())
+                    .arg(WBufferDumper::escapeJson(blit->debugLabel()))
+                    .arg(WBufferDumper::describeRegion(QRegion(mapped)))
+                    .arg(WBufferDumper::describeRegion(recapture))
+                    .arg(blit->needsSourceCopy() || !blit->hasCompositorCapture()
+                             ? QStringLiteral("true")
+                             : QStringLiteral("false"))
+                    .arg(willDraw ? QStringLiteral("true") : QStringLiteral("false"))
+                    .arg(WBufferDumper::describeRegion(pending))
+                    .arg(m_blitterPendingFull ? QStringLiteral("true") : QStringLiteral("false"))
+                    .arg(m_damageScissorEnabled ? QStringLiteral("true")
+                                                : QStringLiteral("false")));
+        }
+        if (Q_UNLIKELY(lcWlDamage().isDebugEnabled())) {
+            const QString decision = blit->needsSourceCopy() || !blit->hasCompositorCapture()
+                ? QStringLiteral("will recapture compositor pixels under this blitter")
+                : QStringLiteral("keep last capture; copy source is empty");
+            qCDebug(lcWlDamage) << WSGDamageLog::frameTag() << "blitter" << blit->debugLabel()
+                                << "on-screen" << WSGDamageLog::describe(QRegion(mapped), false)
+                                << "copy" << WSGDamageLog::describe(recapture, false) << decision;
+        }
+        if (!willDraw) {
+            if (Q_UNLIKELY(lcWlDamage().isDebugEnabled()))
+                m_damageIdleBlitters.append(blit->debugLabel());
+            return false;
+        }
+        if (auto *backdrop = e->damage ? e->damage->toBackdrop() : nullptr)
+            backdrop->consumeRecopy(recapture);
+    }
 
     setActiveRhiShader(nullptr, nullptr);
 
@@ -4168,21 +5875,25 @@ bool Renderer::prepareRhiRenderNode(Batch *batch, PreparedRenderBatch *renderBat
         updateClipState(rd->m_clip_list, batch);
     }
 
-    QSGNode *xform = e->renderNode->parent();
-    QMatrix4x4 matrix;
-    QSGNode *root = rootNode();
-    if (e->root) {
-        matrix = qsg_matrixForRoot(e->root);
-        root = e->root->sgNode;
-    }
-    while (xform != root) {
-        if (xform->type() == QSGNode::TransformNodeType) {
-            matrix = matrix * static_cast<QSGTransformNode *>(xform)->combinedMatrix();
-            break;
+    if (auto *blit = dynamic_cast<WRenderBufferNode *>(e->renderNode)) {
+        rd->m_localMatrix = blit->sceneMatrix();
+    } else {
+        QSGNode *xform = e->renderNode->parent();
+        QMatrix4x4 matrix;
+        QSGNode *root = rootNode();
+        if (e->root) {
+            matrix = qsg_matrixForRoot(e->root);
+            root = e->root->sgNode;
         }
-        xform = xform->parent();
+        while (xform != root) {
+            if (xform->type() == QSGNode::TransformNodeType) {
+                matrix = matrix * static_cast<QSGTransformNode *>(xform)->combinedMatrix();
+                break;
+            }
+            xform = xform->parent();
+        }
+        rd->m_localMatrix = matrix;
     }
-    rd->m_localMatrix = matrix;
     rd->m_matrix = &rd->m_localMatrix;
 
     QSGNode *opacity = e->renderNode->parent();
@@ -4217,6 +5928,8 @@ bool Renderer::prepareRhiRenderNode(Batch *batch, PreparedRenderBatch *renderBat
 
 void Renderer::renderRhiRenderNode(const Batch *batch)
 {
+    if (!batchIntersectsDamage(batch))
+        return;
     if (batch->clipState.type & ClipState::StencilClip)
         enqueueStencilDraw(batch);
 
@@ -4236,6 +5949,14 @@ void Renderer::renderRhiRenderNode(const Batch *batch)
     const QSGRenderNode::StateFlags changes = e->renderNode->changedStates();
 
     QRhiCommandBuffer *cb = renderTarget().cb;
+    const bool needScissor =
+        m_damageScissorEnabled || (batch->clipState.type & ClipState::ScissorClip);
+    if (needScissor) {
+        QVarLengthArray<QRect, kMaxDamageScissorRects> rects;
+        collectScissorRectsForBatch(batch, &rects);
+        if (rects.isEmpty())
+            return;
+    }
     setViewportAndScissors(cb, batch);
     const bool needsExternal = !e->renderNode->flags().testFlag(QSGRenderNode::NoExternalRendering);
     if (needsExternal)
@@ -4322,15 +6043,15 @@ size_t qHash(const GraphicsState &s, size_t seed) noexcept
             + s.usesScissor
             + s.stencilTest
             + s.sampleCount
-            + s.multiViewCount;
+        + s.multiViewCount;
 }
 
 bool operator==(const GraphicsPipelineStateKey &a, const GraphicsPipelineStateKey &b) noexcept
 {
     return a.state == b.state
             && a.sms->materialShader == b.sms->materialShader
-            && a.renderTargetDescription == b.renderTargetDescription
-            && a.srbLayoutDescription == b.srbLayoutDescription;
+        && a.renderTargetDescription == b.renderTargetDescription
+        && a.srbLayoutDescription == b.srbLayoutDescription;
 }
 
 bool operator!=(const GraphicsPipelineStateKey &a, const GraphicsPipelineStateKey &b) noexcept
@@ -4373,10 +6094,9 @@ Visualizer::~Visualizer()
 {
 }
 
-#define QSGNODE_DIRTY_PARENT (QSGNode::DirtyNodeAdded \
-                              | QSGNode::DirtyOpacity \
-                              | QSGNode::DirtyMatrix \
-                              | QSGNode::DirtyNodeRemoved)
+#define QSGNODE_DIRTY_PARENT                                                \
+    (QSGNode::DirtyNodeAdded | QSGNode::DirtyOpacity | QSGNode::DirtyMatrix \
+     | QSGNode::DirtyNodeRemoved)
 
 void Visualizer::visualizeChangesPrepare(Node *n, uint parentChanges)
 {
@@ -4391,6 +6111,6 @@ void Visualizer::visualizeChangesPrepare(Node *n, uint parentChanges)
 
 } // namespace WSGBatchRenderer
 
-QT_END_NAMESPACE
+WAYLIB_SERVER_END_NAMESPACE
 
 #include "moc_wsgbatchrenderer_p.cpp"

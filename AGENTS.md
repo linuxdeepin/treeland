@@ -30,7 +30,10 @@ ctest --preset ci
 - Avoid complex lambdas; if a lambda body grows beyond a few lines, extract it into a named member function.
 - Keep diffs minimal: touch only task-related files and symbols.
 - Avoid broad refactors, unrelated renames, and unrelated reformatting.
-- New source files must include an SPDX line consistent with this repo, typically `SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only`.
+- New source files must include an SPDX line consistent with this repo, typically:
+  <!-- REUSE-IgnoreStart -->
+  `SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only`.
+  <!-- REUSE-IgnoreEnd -->
 - Logging changes must use `.agents/skills/logging-guidelines/SKILL.md`.
 - If real task work shows that a repo-local skill is wrong, outdated, or incomplete, update the skill proactively instead of preserving known-bad guidance.
 

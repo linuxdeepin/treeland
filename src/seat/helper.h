@@ -214,6 +214,8 @@ public:
     void setCursorPosition(const QPointF &position);
 
     bool toggleDebugMenuBar();
+    Q_INVOKABLE QString damageVisual() const;
+    Q_INVOKABLE bool setDamageVisual(const QString &mode);
 
     WindowManagementInterfaceV1::DesktopState showDesktopState() const;
 
