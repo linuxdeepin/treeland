@@ -8,11 +8,23 @@
 #include <QDir>
 
 #include <csignal>
+#include <cerrno>
 #include <sys/wait.h>
 #include <unistd.h>
 
 namespace {
 constexpr auto dconfigService = "org.desktopspec.ConfigManager";
+
+void stopProcess(pid_t &pid)
+{
+    if (pid <= 0)
+        return;
+
+    kill(pid, SIGKILL);
+    while (waitpid(pid, nullptr, 0) < 0 && errno == EINTR) {
+    }
+    pid = -1;
+}
 }
 
 bool TestDConfigService::start()
@@ -66,16 +78,8 @@ bool TestDConfigService::waitForService()
 
 void TestDConfigService::stop()
 {
-    if (m_dconfigPid > 0) {
-        kill(m_dconfigPid, SIGTERM);
-        waitpid(m_dconfigPid, nullptr, 0);
-        m_dconfigPid = -1;
-    }
-    if (m_busPid > 0) {
-        kill(m_busPid, SIGTERM);
-        waitpid(m_busPid, nullptr, 0);
-        m_busPid = -1;
-    }
+    stopProcess(m_dconfigPid);
+    stopProcess(m_busPid);
     if (!m_dconfigPrefix.isEmpty())
         QDir(m_dconfigPrefix).removeRecursively();
 }
