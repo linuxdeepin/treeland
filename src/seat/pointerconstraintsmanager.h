@@ -39,6 +39,7 @@ private:
     bool canActivate(wlr_pointer_constraint_v1 *constraint) const;
     void tryActivateConstraint(wlr_pointer_constraint_v1 *constraint);
     void deactivateConstraint(wlr_pointer_constraint_v1 *constraint);
+    void onConstraintRegionChanged(wlr_pointer_constraint_v1 *constraint);
     void onConstraintDestroyed(wlr_pointer_constraint_v1 *constraint);
     void releaseConstraintCursor(wlr_pointer_constraint_v1 *constraint);
     void onActiveWindowChanged();
