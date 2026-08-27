@@ -172,20 +172,27 @@ void WXWaylandSurfacePrivate::updateChildren()
 
 void WXWaylandSurfacePrivate::updateParent()
 {
+    W_Q(WXWaylandSurface);
+
     auto newParent = WXWaylandSurface::fromHandle(handle()->parent);
     if (parent == newParent)
         return;
 
     const bool hasParentChanged = (parent == nullptr) != (newParent == nullptr);
+    QObject::disconnect(parentSurfaceConnection);
     if (parent)
         parent->d_func()->updateChildren();
     parent = newParent;
-    if (parent)
+    if (parent) {
         parent->d_func()->updateChildren();
-
-    W_Q(WXWaylandSurface);
+        parentSurfaceConnection = QObject::connect(parent,
+                                                   &WToplevelSurface::surfaceChanged,
+                                                   q,
+                                                   &WToplevelSurface::parentSurfaceChanged);
+    }
 
     Q_EMIT q->parentXWaylandSurfaceChanged();
+    Q_EMIT q->parentSurfaceChanged();
 
     if (hasParentChanged)
         Q_EMIT q->isToplevelChanged();
@@ -285,6 +292,12 @@ WSurface *WXWaylandSurface::surface() const
     return d->surface;
 }
 
+WSurface *WXWaylandSurface::parentSurface() const
+{
+    W_DC(WXWaylandSurface);
+    return d->parent ? d->parent->surface() : nullptr;
+}
+
 wlr_xwayland_surface *WXWaylandSurface::handle() const
 {
     W_DC(WXWaylandSurface);
@@ -314,8 +327,10 @@ void WXWaylandSurfacePrivate::handleParentDestroyed(WXWaylandSurface *parent)
     // Mirrors what updateParent() would do once the native set_parent event
     // arrives (native parent is already NULL): the wrapper of the dying
     // parent is still alive here, so the QPointer comparison can proceed.
+    QObject::disconnect(parentSurfaceConnection);
     this->parent = nullptr;
     Q_EMIT q->parentXWaylandSurfaceChanged();
+    Q_EMIT q->parentSurfaceChanged();
     Q_EMIT q->isToplevelChanged();
 }
 
@@ -484,6 +499,12 @@ bool WXWaylandSurface::isBypassManager() const
 {
     W_DC(WXWaylandSurface);
     return d->handle()->override_redirect;
+}
+
+bool WXWaylandSurface::isModal() const
+{
+    W_DC(WXWaylandSurface);
+    return d->handle()->modal;
 }
 
 WXWaylandSurface::WindowTypes WXWaylandSurface::windowTypes() const
