@@ -62,6 +62,7 @@ waylib
 │   ├── waylib.qtquick.surface      lcWlSurface
 │   ├── waylib.qtquick.texture      lcWlQtQuickTexture
 │   ├── waylib.renderer             lcWlRenderer
+│   ├── waylib.renderer.damage       lcWlDamage
 │   └── waylib.qtquick.bufferitem   lcWlBufferItem
 ├── 工具
 │   ├── waylib.utils.imagecapture   lcWlImageCapture
