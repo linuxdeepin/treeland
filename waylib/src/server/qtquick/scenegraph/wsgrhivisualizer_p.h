@@ -21,7 +21,7 @@
 
 #include <QtCore/qrandom.h>
 
-QT_BEGIN_NAMESPACE
+WAYLIB_SERVER_BEGIN_NAMESPACE
 
 namespace WSGBatchRenderer
 {
@@ -196,6 +196,6 @@ private:
 
 } // namespace WSGBatchRenderer
 
-QT_END_NAMESPACE
+WAYLIB_SERVER_END_NAMESPACE
 
 #endif // WSGRHIVISUALIZER_P_H

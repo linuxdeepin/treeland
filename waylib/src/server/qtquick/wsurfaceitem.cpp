@@ -24,6 +24,10 @@
 #include <QQuickWindow>
 #include <QSGImageNode>
 #include <QSGRenderNode>
+#include "wpixmanregion.h"
+#include "wsgimagenode_p.h"
+#include "wtools.h"
+#include <QTransform>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -223,6 +227,10 @@ public:
 
         Q_ASSERT(!updateTextureConnection);
 
+        // Surface-local; drop it on detach so a later setSurface() cannot
+        // map the previous client's damage onto a different buffer.
+        pendingDamage = { };
+
         if (dontCacheLastBuffer) {
             buffer.reset();
             cleanTextureProvider();
@@ -244,6 +252,12 @@ public:
         updateTextureConnection = QObject::connect(surface, &WSurface::commit,
                                                    q, [q, this] (quint32 committedState) {
             const bool bufferChanged = committedState & WLR_SURFACE_STATE_BUFFER;
+            const bool opaqueChanged = committedState & WLR_SURFACE_STATE_OPAQUE_REGION;
+            if (surface && surface->handle()) {
+                WPixmanRegion pixDamage;
+                wlr_surface_get_effective_damage(surface->handle(), pixDamage);
+                pendingDamage += pixDamage;
+            }
 
             if (bufferChanged) {
                 // Get the new buffer pointer from surface
@@ -257,6 +271,8 @@ public:
                     buffer.reset(newBuffer);
                     q->update();
                 }
+            } else if (live && (!pendingDamage.isEmpty() || opaqueChanged)) {
+                q->update();
             }
 
             if (Q_LIKELY((q->isVisible() || lastRendered) && live))
@@ -367,6 +383,7 @@ public:
     bool ignoreBufferOffset = false;
     bool lastRendered = false;
     QAtomicInteger<bool> rendered = false;
+    WPixmanRegion pendingDamage;
 };
 
 WSurfaceItemContent::WSurfaceItemContent(QQuickItem *parent)
@@ -405,6 +422,7 @@ void WSurfaceItemContent::setSurface(WSurface *surface)
     if (surface && d->surface == surface)
         return;
 
+    d->pendingDamage = { };
     auto oldSurface = d->surface;
     d->surface = surface;
     if (isComponentComplete()) {
@@ -582,6 +600,63 @@ public:
     QPointer<WSurfaceItemContent> m_owner;
 };
 
+static WPixmanRegion mapSurfaceDamageToItem(const WPixmanRegion &surfaceDamage,
+                                            const QSizeF &surfaceSize,
+                                            const QRectF &targetGeometry)
+{
+    if (surfaceDamage.isEmpty())
+        return { };
+    QTransform xf;
+    xf.translate(targetGeometry.x(), targetGeometry.y());
+    if (surfaceSize.width() > 0 && surfaceSize.height() > 0 && targetGeometry.width() > 0
+        && targetGeometry.height() > 0) {
+        xf.scale(targetGeometry.width() / surfaceSize.width(),
+                 targetGeometry.height() / surfaceSize.height());
+    }
+    return surfaceDamage.mappedOuter(xf);
+}
+
+static WPixmanRegion mapSurfaceOpaqueToItem(const pixman_region32_t *opaque,
+                                            const QSizeF &surfaceSize,
+                                            const QRectF &targetGeometry)
+{
+    if (!opaque)
+        return { };
+    WPixmanRegion local(opaque);
+    if (local.isEmpty())
+        return { };
+    QTransform xf;
+    xf.translate(targetGeometry.x(), targetGeometry.y());
+    if (surfaceSize.width() > 0 && surfaceSize.height() > 0 && targetGeometry.width() > 0
+        && targetGeometry.height() > 0) {
+        xf.scale(targetGeometry.width() / surfaceSize.width(),
+                 targetGeometry.height() / surfaceSize.height());
+    }
+    WPixmanRegion mapped = local.mappedInner(xf);
+    mapped &= innerAligned(targetGeometry);
+    return mapped;
+}
+
+static WPixmanRegion surfaceDamageInItem(WSurface *surface, const QRectF &targetGeometry)
+{
+    if (!surface)
+        return { };
+    WPixmanRegion damage;
+    wlr_surface_get_effective_damage(surface->handle(), damage);
+    return mapSurfaceDamageToItem(damage, surface->size(), targetGeometry);
+}
+
+static WPixmanRegion surfaceOpaqueInItem(WSurface *surface,
+                                         const QRectF &targetGeometry,
+                                         qreal alphaModifier)
+{
+    if (!surface || !surface->handle() || alphaModifier <= 0.999)
+        return { };
+    return mapSurfaceOpaqueToItem(&surface->handle()->opaque_region,
+                                  surface->size(),
+                                  targetGeometry);
+}
+
 QSGNode *WSurfaceItemContent::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *)
 {
     W_D(WSurfaceItemContent);
@@ -609,11 +684,28 @@ QSGNode *WSurfaceItemContent::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeD
         node->appendChildNode(fpnode);
     }
 
+    const QRectF targetGeometry(d->ignoreBufferOffset ? QPointF() : d->bufferOffset, size());
+    // Set explicit damage before touching the texture so DirtyMaterial uses
+    // the surface damage instead of the full quad.
+    WPixmanRegion mapped = d->pendingDamage.isEmpty()
+        ? surfaceDamageInItem(d->surface, targetGeometry)
+        : mapSurfaceDamageToItem(d->pendingDamage,
+                                 d->surface ? d->surface->size() : QSizeF(),
+                                 targetGeometry);
+    d->pendingDamage.clear();
+    if (smooth())
+        mapped = dilateRegion(mapped, QMargins(1, 1, 1, 1));
+    if (auto *image = dynamic_cast<WSGImageNode*>(node)) {
+        image->setDamageRegion(mapped);
+        if (d->surface)
+            image->setOpaqueRegion(
+                surfaceOpaqueInItem(d->surface, targetGeometry, d->alphaModifier));
+    }
+
     auto texture = tp->texture();
     node->setTexture(texture);
     const QRectF textureGeometry = d->bufferSourceBox;
     node->setSourceRect(textureGeometry);
-    const QRectF targetGeometry(d->ignoreBufferOffset ? QPointF() : d->bufferOffset, size());
     node->setRect(targetGeometry);
     node->setFiltering(smooth() ? QSGTexture::Linear : QSGTexture::Nearest);
 
