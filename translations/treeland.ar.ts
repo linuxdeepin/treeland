@@ -4,7 +4,7 @@
     <message>
         <location filename="../src/core/qml/PrelaunchSplash.qml" line="65"/>
         <source>Loading application...</source>
-        <translation type="unfinished"/>
+        <translation>جارٍ تحميل التطبيق...</translation>
     </message>
 </context>
 <context>
@@ -47,12 +47,12 @@
     <message>
         <location filename="../src/core/qml/WindowMenu.qml" line="70"/>
         <source>Move to Left Work Space</source>
-        <translation type="unfinished"/>
+        <translation>الانتقال إلى مساحة العمل اليسرى</translation>
     </message>
     <message>
         <location filename="../src/core/qml/WindowMenu.qml" line="77"/>
         <source>Move to Right Work Space</source>
-        <translation type="unfinished"/>
+        <translation>الانتقال إلى مساحة العمل اليمنى</translation>
     </message>
     <message>
         <location filename="../src/core/qml/WindowMenu.qml" line="83"/>
