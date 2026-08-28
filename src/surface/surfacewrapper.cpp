@@ -905,7 +905,7 @@ void SurfaceWrapper::setMaximizedGeometry(const QRectF &newMaximizedGeometry)
     // to avoid incorrect sizing of Xwayland windows.
     updateSurfaceSizeRatio();
 
-    if (m_surfaceState == State::Maximized) {
+    if (m_surfaceState == State::Maximized && !m_geometryAnimation) {
         setPosition(newMaximizedGeometry.topLeft());
         resize(newMaximizedGeometry.size());
     } else if (m_pendingState == State::Maximized && m_geometryAnimation) {
@@ -932,7 +932,7 @@ void SurfaceWrapper::setFullscreenGeometry(const QRectF &newFullscreenGeometry)
     // to avoid incorrect sizing of Xwayland windows.
     updateSurfaceSizeRatio();
 
-    if (m_surfaceState == State::Fullscreen) {
+    if (m_surfaceState == State::Fullscreen && !m_geometryAnimation) {
         setPosition(newFullscreenGeometry.topLeft());
         resize(newFullscreenGeometry.size());
     } else if (m_pendingState == State::Fullscreen && m_geometryAnimation) {
