@@ -9,6 +9,7 @@
 #include "seat/helper.h"
 #include "session/session.h"
 #include "common/treelandlogging.h"
+#include "utils/cmdline.h"
 #include "core/lockscreen.h"
 
 // DDM
@@ -133,7 +134,10 @@ GreeterProxy::GreeterProxy(QObject *parent)
             lock();
         }
     });
-    m_undecidedTimer->start();
+    m_undecided = CmdLine::ref().useLockScreen();
+    if (m_undecided) {
+        m_undecidedTimer->start();
+    }
 
     conn.connect(Logind::serviceName(),
                  Logind::managerPath(),
