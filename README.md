@@ -85,11 +85,28 @@ sudo -u dde -- dde-dconfig set \
 All commands below are run as the `dde` user, e.g.
 `sudo -u dde -- treeland-debug windows`.
 
+### Socket naming and connection
+
+Treeland publishes the debug source on a local socket whose default name is
+`org.deepin.dde.treeland.debug`. When that name is already taken by another
+running treeland (nested/dev instances), a numeric suffix is appended
+(`org.deepin.dde.treeland.debug-1`, `-2`, …), so multiple instances never
+steal each other's socket. Debug builds use a distinct default
+(`org.deepin.dde.treeland.debug-dev`) so a debug-compiled treeland and a
+release-compiled one can run side by side, and a debug-built treeland-debug
+client connects to the debug instance by default.
+
+At session start (treeland-sd.service) the actual socket URL is published as
+the **`TREELAND_DEBUG_URL`** environment variable, so `treeland-debug` run
+inside the session connects to the right instance without any flags. It falls
+back to the default socket URL when the variable is unset, and an explicit
+`--url` always wins.
+
 ### Global options
 
 | Option | Default | Description |
 | --- | --- | --- |
-| `--url <url>` | `local:org.deepin.dde.treeland.debug` | Remote object host URL. |
+| `--url <url>` | `$TREELAND_DEBUG_URL` if set, else `local:org.deepin.dde.treeland.debug` | Remote object host URL. |
 | `--name <name>` | `WindowTree` | Remote object name. |
 | `--timeout-ms <n>` | `30000` | Request timeout in ms (non-negative integer). |
 | `--json` | off | Emit machine-readable JSON for `tree`/`cursor`/`windows`/`clients`. |

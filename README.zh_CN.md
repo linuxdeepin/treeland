@@ -80,11 +80,23 @@ sudo -u dde -- dde-dconfig set \
 
 下文所有命令均以 `dde` 用户运行，例如 `sudo -u dde -- treeland-debug windows`。
 
+### socket 命名与连接
+
+Treeland 在本地 socket 上发布调试源，默认名为 `org.deepin.dde.treeland.debug`。
+当该名称已被另一个正在运行的 treeland（嵌套/开发实例）占用时，会自动追加数字后缀
+（`org.deepin.dde.treeland.debug-1`、`-2`…），避免多个实例互相抢占 socket。
+Debug 构建使用不同的默认名（`org.deepin.dde.treeland.debug-dev`），因此调试版与正式版
+treeland 可同时运行，且 Debug 构建的 treeland-debug 客户端默认连接到调试实例。
+
+会话启动时（treeland-sd.service）会将实际 socket URL 导出为环境变量
+**`TREELAND_DEBUG_URL`**，因此在会话内直接运行 `treeland-debug` 无需任何参数即可
+连接到正确实例。未设置该变量时回退到默认 socket URL，显式传入 `--url` 始终优先。
+
 ### 全局选项
 
 | 选项 | 默认值 | 说明 |
 | --- | --- | --- |
-| `--url <url>` | `local:org.deepin.dde.treeland.debug` | Remote object host URL。 |
+| `--url <url>` | `$TREELAND_DEBUG_URL`（已设置时），否则 `local:org.deepin.dde.treeland.debug` | Remote object host URL。 |
 | `--name <name>` | `WindowTree` | Remote object 名称。 |
 | `--timeout-ms <n>` | `30000` | 请求超时（毫秒，非负整数）。 |
 | `--json` | 关 | 为 `tree`/`cursor`/`windows`/`clients` 输出机器可读 JSON。 |

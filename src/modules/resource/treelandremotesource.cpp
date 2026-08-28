@@ -36,6 +36,9 @@
 #include <QImage>
 #include <QLocalServer>
 #include <QMetaEnum>
+#include <QProcess>
+
+#include "treelanddebugsocket.h"
 #include <QQuickItem>
 #include <QQuickItemGrabResult>
 #include <QRemoteObjectHost>
@@ -184,10 +187,26 @@ int qtKeyToEvdev(int qtKey, wlr_keyboard *keyboard)
 TreelandRemoteSource::TreelandRemoteSource(QObject *parent)
     : WindowTreeRemoteSource(parent)
 {
+    // Wayland-style conflict avoidance: default socket name, numeric suffix
+    // when another treeland already owns it (see treelanddebugsocket.h).
+    const QString socketName = treelandDebugPickFreeSocketName();
     auto *host = new QRemoteObjectHost(this);
     QRemoteObjectHost::setLocalServerOptions(QLocalServer::UserAccessOption);
-    host->setHostUrl(QUrl(QStringLiteral("local:org.deepin.dde.treeland.debug")));
+    host->setHostUrl(QUrl(QStringLiteral("local:%1").arg(socketName)));
     host->enableRemoting(this, QStringLiteral("WindowTree"));
+
+    // Publish the actually-bound socket URL to the session so treeland-debug
+    // clients find it. The treeland-sd session unit already exports the default
+    // URL at session start (even when the source stays off); re-exporting here
+    // with the real name keeps the env var correct when a second treeland took
+    // a suffixed socket. Deferred so it lands after the unit's ExecStartPost.
+    const QString url = QStringLiteral("local:%1").arg(socketName);
+    qputenv("TREELAND_DEBUG_URL", url.toUtf8());
+    QTimer::singleShot(0, this, [url] {
+        QProcess::startDetached(QStringLiteral("systemctl"),
+                                {QStringLiteral("--user"), QStringLiteral("set-environment"),
+                                 QStringLiteral("TREELAND_DEBUG_URL=%1").arg(url)});
+    });
 }
 
 TreelandRemoteSource::~TreelandRemoteSource()

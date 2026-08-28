@@ -3,6 +3,8 @@
 
 #include "debughelpers.h"
 
+#include "treelanddebugsocket.h"
+
 #include <QDir>
 #include <QFile>
 #include <QJsonObject>
@@ -10,6 +12,7 @@
 #include <QRectF>
 #include <QTemporaryDir>
 #include <QTest>
+#include <QLocalServer>
 
 // Unit tests for the pure-logic helpers shared by the treeland-debug tool
 // (stateName, buttonCode, keyCode, saveCapture, pointToJson, rectToJson)
@@ -37,6 +40,10 @@ private Q_SLOTS:
     void testSaveCaptureAutoPath();
     void testPointToJson();
     void testRectToJson();
+
+    // --- treeland-debug socket naming / conflict avoidance ---
+    void testSocketDefaultName();
+    void testSocketPickFreeName();
 
     // --- parseCommand: no-argument commands ---
     void testParseTree();
@@ -284,6 +291,36 @@ void TreelandDebugTest::testRectToJson()
 // ---------------------------------------------------------------------------
 // parseCommand: no-argument commands
 // ---------------------------------------------------------------------------
+
+void TreelandDebugTest::testSocketDefaultName()
+{
+    // The default socket URL must be a valid local: URL derived from the
+    // socket name, so treeland and treeland-debug agree on where to connect.
+    const QString name = treelandDebugDefaultSocketName();
+    QVERIFY(!name.isEmpty());
+    QCOMPARE(treelandDebugDefaultSocketUrl(), QStringLiteral("local:%1").arg(name));
+}
+
+void TreelandDebugTest::testSocketPickFreeName()
+{
+    // Use a dedicated base so the test never races a live treeland.
+    const QString base = QStringLiteral("test.treeland.debug.socket");
+    QLocalServer::removeServer(base);
+    QLocalServer::removeServer(base + QStringLiteral("-1"));
+
+    // Free base -> returned as-is.
+    QCOMPARE(treelandDebugPickFreeSocketName(base), base);
+
+    // Occupied base -> numeric suffix, next free name below stays untouched.
+    QLocalServer holder;
+    QVERIFY(holder.listen(base));
+    QCOMPARE(treelandDebugPickFreeSocketName(base), base + QStringLiteral("-1"));
+
+    holder.close();
+    QLocalServer::removeServer(base);
+    QLocalServer::removeServer(base + QStringLiteral("-1"));
+    QCOMPARE(treelandDebugPickFreeSocketName(base), base);
+}
 
 void TreelandDebugTest::testParseTree()
 {

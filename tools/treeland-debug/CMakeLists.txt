@@ -47,6 +47,7 @@ set_target_properties(treeland-debug PROPERTIES
 
 target_include_directories(treeland-debug PRIVATE
     "${windowtree_generated_dir}"
+    "${PROJECT_SOURCE_DIR}/src/modules/resource"
 )
 
 target_link_libraries(treeland-debug PRIVATE
