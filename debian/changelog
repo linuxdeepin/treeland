@@ -1,3 +1,30 @@
+treeland (0.9.1) unstable; urgency=medium
+
+  * feat(greeter): support undecided state waiting for DDM decision
+  * test(protocols): forcibly reap test service helpers
+  * refactor: replace hardcoded etc path with CMake variable
+  * fix(xwayland): honor client resize configure requests
+  * refactor: extract set_region lambda to member function
+  * refactor(surface): drop redundant fullscreen re-arrangement
+  * feat(keyboard-shortcuts-inhibit): implement
+    zwp_keyboard_shortcuts_inhibit_v1 server
+  * refactor(surface): move quick tile logic into SurfaceWrapper
+  * fix(xwayland): handle size hint updates
+  * fix(tests): remove unused protocols subdirectory build
+  * fix(protocol): correct output manager protocol path
+  * fix(xwayland): acknowledge client configure requests
+  * refactor(multi-output): rename primary/copy outputs to source/mirror
+  * feat: support wp_single_pixel_buffer_manager_v1 protocol
+  * fix: avoid invalid pointer constraint warp
+  * fix(surface): set maximized on initial surface commit
+  * feat(multi-output): forward client fullscreen output to surface
+    handler
+  * fix: extract protocol interface versions into static constexpr
+    InterfaceVersion
+  * fix: avoid QGuiApplication static destruction crash
+
+ -- rewine <luhongxu@deepin.org>  Fri, 28 Aug 2026 10:48:49 +0800
+
 treeland (0.9.0) unstable; urgency=medium
 
   * feat: support pointer-constraints protocol
