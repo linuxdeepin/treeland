@@ -238,9 +238,10 @@ public:
 
     inline qw_buffer *beginRender(WBufferRenderer *renderer,
                                  const QSize &pixelSize, uint32_t format,
-                                 WBufferRenderer::RenderFlags flags);
+                                 WBufferRenderer::RenderFlags flags,
+                                 WGlobal::ColorContentsMode mode = WGlobal::ColorContentsMode::DontCare);
     inline void render(WBufferRenderer *renderer, int sourceIndex, const QMatrix4x4 &renderMatrix,
-                       const QRectF &sourceRect, const QRectF &viewportRect, bool preserveColorContents);
+                       const QRectF &sourceRect, const QRectF &viewportRect);
 
     static bool visualizeLayers() {
         static bool on = qEnvironmentVariableIsSet("WAYLIB_VISUALIZE_LAYERS");
@@ -590,16 +591,17 @@ void OutputHelper::cleanCursorRender()
 
 qw_buffer *OutputHelper::beginRender(WBufferRenderer *renderer,
                                     const QSize &pixelSize, uint32_t format,
-                                    WBufferRenderer::RenderFlags flags)
+                                    WBufferRenderer::RenderFlags flags,
+                                    WGlobal::ColorContentsMode mode)
 {
-    return renderer->beginRender(pixelSize, devicePixelRatio(), format, flags);
+    return renderer->beginRender(pixelSize, devicePixelRatio(), format, flags, mode);
 }
 
 void OutputHelper::render(WBufferRenderer *renderer, int sourceIndex, const QMatrix4x4 &renderMatrix,
-                          const QRectF &sourceRect, const QRectF &targetRect, bool preserveColorContents)
+                          const QRectF &sourceRect, const QRectF &targetRect)
 {
     renderWindowD()->pushRenderer(renderer);
-    renderer->render(sourceIndex, renderMatrix, sourceRect, targetRect, preserveColorContents);
+    renderer->render(sourceIndex, renderMatrix, sourceRect, targetRect);
 }
 
 static QQuickItem *createVisualRectangle(QQuickItem *target, const QColor &color) {
@@ -753,20 +755,28 @@ qw_buffer *OutputHelper::renderLayer(LayerData *layer, bool *dontEndRenderAndRet
         layer->renderer->setSize(layer->pixelSize / dpr);
 
         const bool alpha = !layer->layer->layer->flags().testFlag(WOutputLayer::NoAlpha);
+        auto mode = layer->layer->layer->colorContentsMode();
+        if (visualizeLayers()) {
+            if (mode == WGlobal::ColorContentsMode::Clear) {
+                qCWarning(lcWlRenderer) << "Layer" << layer->layer->layer
+                    << "requires Clear but visualizeLayers forces Preserve";
+            }
+            mode = WGlobal::ColorContentsMode::Preserve;
+        }
         // Don't use OutputHelper::beginRender, because the dpr maybe is from LayerData::mapFrom
         buffer = layer->renderer->beginRender(layer->pixelSize, dpr,
                                               // TODO: Allows control format by WOutputLayer
                                               alpha ? DRM_FORMAT_ARGB8888 : DRM_FORMAT_XRGB8888,
-                                              WBufferRenderer::DontConfigureSwapchain);
+                                              WBufferRenderer::DontConfigureSwapchain,
+                                              mode);
         if (buffer) {
             const QRectF sr = QRectF(layer->mapRect.topLeft() - layer->noClipMapRect.topLeft(), layer->mapRect.size());
             const QRectF tr(QPointF(0, 0), layer->mapRect.size());
 
-            render(layer->renderer, 0, layer->renderMatrix, sr, tr,
-                   layer->layer->layer->flags().testFlag(WOutputLayer::PreserveColorContents));
+            render(layer->renderer, 0, layer->renderMatrix, sr, tr);
 
             if (visualizeLayers())
-                render(layer->renderer, 1, layer->renderMatrix, sr, tr, true);
+                render(layer->renderer, 1, layer->renderMatrix, sr, tr);
 
             if (dontEndRenderAndReturnNeedsEndRender) {
                 *dontEndRenderAndReturnNeedsEndRender = true;
@@ -965,7 +975,8 @@ WBufferRenderer *OutputHelper::compositeLayers(const QList<LayerData*> layers, b
 {
     Q_ASSERT(!layers.isEmpty());
 
-    const bool usingShadowRenderer = forceShadowRenderer;
+    const bool usingShadowRenderer = forceShadowRenderer
+                                     || !bufferRenderer()->isColorPreserved();
 
     if (!m_layerPorxyContainer) {
         m_layerPorxyContainer = new QQuickItem(renderWindow()->contentItem());
@@ -1039,19 +1050,20 @@ WBufferRenderer *OutputHelper::compositeLayers(const QList<LayerData*> layers, b
     if (usingShadowRenderer) {
         const bool ok = beginRender(bufferRenderer2(), m_output->output()->size(),
                                     qwoutput()->handle()->render_format,
-                                    WBufferRenderer::RedirectOpenGLContextDefaultFrameBufferObject);
+                                    WBufferRenderer::RedirectOpenGLContextDefaultFrameBufferObject,
+                                    WGlobal::ColorContentsMode::Preserve);
 
         if (ok) {
             // stop primary render
             if (bufferRenderer()->currentBuffer())
                 bufferRenderer()->endRender();
-            render(bufferRenderer2(), 0, {}, m_output->effectiveSourceRect(), m_output->targetRect(), true);
+            render(bufferRenderer2(), 0, {}, m_output->effectiveSourceRect(), m_output->targetRect());
 
             return bufferRenderer2();
         }
     } else {
         if (bufferRenderer()->currentBuffer()) {
-            render(bufferRenderer(), 1, {}, m_output->effectiveSourceRect(), m_output->targetRect(), true);
+            render(bufferRenderer(), 1, {}, m_output->effectiveSourceRect(), m_output->targetRect());
         } else {
             // ###(zccrs): Maybe because contents is not dirty, so not do render
             // in WOutputRenderWindowPrivate::doRenderOutputs, force mark the
@@ -1479,19 +1491,18 @@ WOutputRenderWindowPrivate::doRenderOutputs(qw_output *needsFrameOutput, const Q
 
         const auto &format = helper->qwoutput()->handle()->render_format;
         const auto renderMatrix = helper->output()->renderMatrix();
-
         // maybe using the other WOutputViewport's QSGTextureProvider
         if (!helper->output()->depends().isEmpty())
             updateDirtyNodes();
 
         qw_buffer *buffer = helper->beginRender(helper->bufferRenderer(), helper->output()->output()->size(), format,
-                                                WBufferRenderer::RedirectOpenGLContextDefaultFrameBufferObject);
+                                                WBufferRenderer::RedirectOpenGLContextDefaultFrameBufferObject,
+                                                helper->output()->colorContentsMode());
         Q_ASSERT(buffer == helper->bufferRenderer()->currentBuffer());
         if (buffer) {
             helper->render(helper->bufferRenderer(), 0, renderMatrix,
                            helper->output()->effectiveSourceRect(),
-                           helper->output()->targetRect(),
-                           helper->output()->preserveColorContents());
+                           helper->output()->targetRect());
         }
         renderResults.append(helper);
     }
@@ -1738,6 +1749,8 @@ void WOutputRenderWindow::attach(WOutputLayer *layer, WOutputViewport *output)
         outputHelper->scheduleFrame();
 
     connect(layer, &WOutputLayer::flagsChanged,
+            outputHelper, &WOutputHelper::scheduleFrame);
+    connect(layer, &WOutputLayer::colorContentsModeChanged,
             outputHelper, &WOutputHelper::scheduleFrame);
     connect(layer, &WOutputLayer::zChanged,
             outputHelper, &WOutputHelper::scheduleFrame);

@@ -41,6 +41,7 @@ public:
     uint actualEnabled:1;
     uint refItem:1;
     WOutputLayer::Flags flags = {0};
+    WGlobal::ColorContentsMode colorContentsMode = WGlobal::ColorContentsMode::DontCare;
     int z = 0;
     QPointF cursorHotSpot;
     QList<WOutputViewport*> outputs;
@@ -175,6 +176,21 @@ void WOutputLayer::setFlags(const Flags &newFlags)
         return;
     d->flags = newFlags;
     Q_EMIT flagsChanged();
+}
+
+WGlobal::ColorContentsMode WOutputLayer::colorContentsMode() const
+{
+    W_DC(WOutputLayer);
+    return d->colorContentsMode;
+}
+
+void WOutputLayer::setColorContentsMode(WGlobal::ColorContentsMode mode)
+{
+    W_D(WOutputLayer);
+    if (d->colorContentsMode == mode)
+        return;
+    d->colorContentsMode = mode;
+    Q_EMIT colorContentsModeChanged();
 }
 
 const QList<WOutputViewport *> &WOutputLayer::outputs() const

@@ -192,6 +192,13 @@ class WAYLIB_SERVER_EXPORT WGlobal {
     QML_UNCREATABLE("Use for enums")
 
 public:
+    enum class ColorContentsMode {
+        DontCare,
+        Clear,
+        Preserve,
+    };
+    Q_ENUM(ColorContentsMode)
+
     enum class CursorShape {
         Default = Qt::CustomCursor + 1,
         Invalid,
@@ -248,6 +255,13 @@ public:
 
     static bool isInvalidCursor(const QCursor &c);
     static bool isClientResourceCursor(const QCursor &c);
+};
+
+struct Q_DECL_HIDDEN WColorContentsModeQMLProxy {
+    Q_GADGET
+    QML_NAMED_ELEMENT(ColorContentsMode)
+    QML_FOREIGN_NAMESPACE(WAYLIB_SERVER_NAMESPACE::WGlobal)
+    QML_UNCREATABLE("Use for enums")
 };
 
 struct Q_DECL_HIDDEN WCursorShapeQMLProxy {

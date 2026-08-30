@@ -63,11 +63,13 @@ class WAYLIB_SERVER_EXPORT WQmlHelper : public QObject
     Q_OBJECT
     QML_NAMED_ELEMENT(WaylibHelper)
     Q_PROPERTY(bool hasXWayland READ hasXWayland CONSTANT)
+    Q_PROPERTY(bool isVulkanBackend READ isVulkanBackend CONSTANT)
     QML_SINGLETON
 
 public:
     explicit WQmlHelper(QObject *parent = nullptr);
 
+    bool isVulkanBackend() const;
     bool hasXWayland() const;
 
     static QSGRootNode *getRootNode(QQuickItem *item);
