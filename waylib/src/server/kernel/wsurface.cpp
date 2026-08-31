@@ -219,6 +219,10 @@ WSubsurface *WSurfacePrivate::addRemoteSubsurface(wlr_surface *childHandle)
         [this, subsurface](void *) {
             releaseSubsurface(subsurface);
         });
+    // Propagate parent outputs to the remote child surface so that
+    // framePacingOutput is set and frame-done callbacks are delivered.
+    for (auto *output : std::as_const(outputs))
+        childSurface->enterOutput(output);
     rebuildTotalSubsurfaces();
     Q_EMIT q->subsurfaceAdded(subsurface);
     return subsurface;
@@ -476,6 +480,16 @@ void WSurface::enterOutput(WOutput *output)
         d->ensureSubsurface(subsurface)->surface()->enterOutput(output);
     }
 
+    // for remote subsurfaces
+    for (auto *sub : std::as_const(d->remoteBelow)) {
+        if (auto *childSurface = sub->surface())
+            childSurface->enterOutput(output);
+    }
+    for (auto *sub : std::as_const(d->remoteAbove)) {
+        if (auto *childSurface = sub->surface())
+            childSurface->enterOutput(output);
+    }
+
     Q_EMIT outputEntered(output);
 }
 
@@ -498,6 +512,16 @@ void WSurface::leaveOutput(WOutput *output)
 
     wl_list_for_each(subsurface, &surface->current.subsurfaces_above, current.link) {
         d->ensureSubsurface(subsurface)->surface()->leaveOutput(output);
+    }
+
+    // for remote subsurfaces
+    for (auto *sub : std::as_const(d->remoteBelow)) {
+        if (auto *childSurface = sub->surface())
+            childSurface->leaveOutput(output);
+    }
+    for (auto *sub : std::as_const(d->remoteAbove)) {
+        if (auto *childSurface = sub->surface())
+            childSurface->leaveOutput(output);
     }
 
     Q_EMIT outputLeave(output);
