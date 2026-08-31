@@ -85,11 +85,31 @@ sudo -u dde -- dde-dconfig set \
 All commands below are run as the `dde` user, e.g.
 `sudo -u dde -- treeland-debug windows`.
 
+### Socket naming and connection
+
+Treeland publishes the debug source on a local socket whose default name is
+`org.deepin.dde.treeland.debug` (placed in `QDir::tempPath()` — typically
+`/tmp`, but respects `$TMPDIR` — by Qt, so a client running under any
+`XDG_RUNTIME_DIR` can discover it). When that name is already taken
+by another running treeland (global service, session service, local build),
+a numeric suffix is appended (`org.deepin.dde.treeland.debug-1`, `-2`, …),
+selected with a non-blocking advisory lock (the same approach libwayland uses
+for Wayland sockets). A stale socket file left by a crashed instance is
+reclaimed, and a live old-build instance (one without a lock file) is probed
+and left alone.
+
+Debug builds use a distinct base name (`org.deepin.dde.treeland.debug-dev`)
+so a debug-compiled treeland can run alongside a release one. A debug-built
+treeland-debug client automatically prefers the debug instance and falls back
+to the release instance when the debug one is unreachable; a release-built
+client uses the release instance. An explicit `--url` always overrides this
+with no implicit processing.
+
 ### Global options
 
 | Option | Default | Description |
 | --- | --- | --- |
-| `--url <url>` | `local:org.deepin.dde.treeland.debug` | Remote object host URL. |
+| `--url <url>` | auto: debug socket (debug build) with release fallback, else release socket | Remote object host URL. |
 | `--name <name>` | `WindowTree` | Remote object name. |
 | `--timeout-ms <n>` | `30000` | Request timeout in ms (non-negative integer). |
 | `--json` | off | Emit machine-readable JSON for `tree`/`cursor`/`windows`/`clients`. |

@@ -24,6 +24,8 @@
 #include "debugserver.h"
 #endif
 
+#include "treelanddebugsocket.h"
+
 #include "rep_treeland_windowtree_replica.h"
 
 namespace {
@@ -303,7 +305,7 @@ QString helpText()
         "interactive REPL.\n"
         "\n"
         "Global options:\n"
-        "  --url <url>          Remote object host URL (default: local:org.deepin.dde.treeland.debug)\n"
+        "  --url <url>          Remote object host URL (default: build-specific socket, auto)\n"
         "  --name <name>        Remote object name (default: WindowTree)\n"
         "  --timeout-ms <n>     Request timeout in milliseconds (default: 30000)\n"
         "  --json               Emit machine-readable JSON for `tree`/`cursor`/`windows`/`clients`\n"
@@ -395,7 +397,12 @@ int main(int argc, char *argv[])
     QCoreApplication::setApplicationName(QStringLiteral("treeland-debug"));
     QCoreApplication::setApplicationVersion(QStringLiteral("1.0"));
 
-    QString url = QStringLiteral("local:org.deepin.dde.treeland.debug");
+    // URL resolution: an explicit --url is used verbatim with no implicit
+    // processing.  When --url is absent, a debug build prefers the debug
+    // socket and falls back to the release socket; a release build uses the
+    // release socket directly.  See treelandDebugCandidateSocketUrls().
+    QString url;
+    bool urlExplicit = false;
     QString name = QStringLiteral("WindowTree");
     int timeoutMs = 30000;
     bool timeoutOk = true;
@@ -412,11 +419,13 @@ int main(int argc, char *argv[])
                 return QString::fromUtf8(argv[++i]);
             return {};
         };
-        if (arg == QLatin1String("--url"))
+        if (arg == QLatin1String("--url")) {
             url = next();
-        else if (arg.startsWith(QLatin1String("--url=")))
+            urlExplicit = true;
+        } else if (arg.startsWith(QLatin1String("--url="))) {
             url = arg.mid(6);
-        else if (arg == QLatin1String("--name"))
+            urlExplicit = true;
+        } else if (arg == QLatin1String("--name"))
             name = next();
         else if (arg.startsWith(QLatin1String("--name=")))
             name = arg.mid(7);
@@ -455,6 +464,9 @@ int main(int argc, char *argv[])
     if (!timeoutOk || timeoutMs < 0)
         return fail("--timeout-ms must be a non-negative integer");
 
+    if (urlExplicit && url.isEmpty())
+        return fail("--url requires a non-empty value");
+
     registerNamedMetatypes();
 
     QString command;
@@ -480,7 +492,8 @@ int main(int argc, char *argv[])
         const ParseResult parsed = parseCommand(command, commandArgs);
         if (!parsed.ok)
             return fail(parsed.error);
-        DebugServer server(url, name, timeoutMs);
+        DebugServer server(urlExplicit ? QStringList{url} : treelandDebugCandidateSocketUrls(),
+                            name, timeoutMs);
         if (!server.listen(parsed.host, parsed.port))
             return fail(QStringLiteral("listen: failed to bind to %1:%2").arg(parsed.host).arg(parsed.port));
         QTextStream(stdout) << "treeland-debug listening on " << parsed.host << ":" << parsed.port << "\n";
@@ -488,9 +501,24 @@ int main(int argc, char *argv[])
     }
 #endif
 
+    // Resolve the URL to connect to.  An explicit --url is used verbatim;
+    // otherwise the build-default candidate list (debug → release fallback in
+    // debug builds) is tried in order.
+    const QStringList candidateUrls = urlExplicit
+        ? QStringList{url}
+        : treelandDebugCandidateSocketUrls();
+
     Session session;
-    if (!connectSession(session, url, name, timeoutMs))
-        return fail(QStringLiteral("failed to connect to remote object node: %1").arg(url));
+    QString connectedUrl;
+    if (!connectSession(session, candidateUrls, name, timeoutMs, &connectedUrl))
+        return fail(QStringLiteral("failed to connect to remote object node (tried: %1)")
+                        .arg(candidateUrls.join(" or ")));
+
+    // Log only when a fallback actually happened (preferred candidate was
+    // unreachable), not on every debug build, to avoid polluting --json output.
+    if (candidateUrls.size() > 1 && connectedUrl != candidateUrls.first())
+        QTextStream(stderr) << "treeland-debug: connected to " << connectedUrl
+                            << " (fallback from " << candidateUrls.first() << ")\n";
 
     if (command == QLatin1String("shell"))
         return runShell(session, timeoutMs, json, previewOpt);

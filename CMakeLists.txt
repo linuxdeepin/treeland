@@ -71,6 +71,22 @@ if (TREELAND_DEBUG_SOURCE)
     add_compile_definitions(TREELAND_DEBUG_BUILD)
 endif()
 
+# Socket base names for the treeland-debug remote-object channel.
+# Debug builds use a distinct name so a debug-compiled treeland can run
+# alongside a release one in the same runtime directory.  A debug-built
+# treeland-debug client prefers the debug instance and falls back to the
+# release instance when the debug one is unreachable.
+set(TREELAND_DEBUG_SOCKET_RELEASE "org.deepin.dde.treeland.debug")
+set(TREELAND_DEBUG_SOCKET_DEV "org.deepin.dde.treeland.debug-dev")
+# Use generator expressions so multi-config generators (Ninja Multi-Config,
+# Visual Studio) also select the debug socket for Debug configurations.
+add_compile_definitions(
+    "TREELAND_DEBUG_SOCKET_RELEASE=\"${TREELAND_DEBUG_SOCKET_RELEASE}\""
+    "$<$<CONFIG:Debug>:TREELAND_DEBUG_DEV_BUILD>"
+    "$<$<CONFIG:Debug>:TREELAND_DEBUG_SOCKET=\"${TREELAND_DEBUG_SOCKET_DEV}\">"
+    "$<$<NOT:$<CONFIG:Debug>>:TREELAND_DEBUG_SOCKET=\"${TREELAND_DEBUG_SOCKET_RELEASE}\">"
+)
+
 # NOTE: Qt keywords conflict with wlroots. but dtksystemsettings still uses it.
 # add_definitions("-DQT_NO_KEYWORDS")
 
