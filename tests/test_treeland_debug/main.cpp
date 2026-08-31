@@ -305,21 +305,31 @@ void TreelandDebugTest::testSocketPickFreeName()
 {
     // Use a dedicated base so the test never races a live treeland.
     const QString base = QStringLiteral("test.treeland.debug.socket");
-    QLocalServer::removeServer(base);
-    QLocalServer::removeServer(base + QStringLiteral("-1"));
 
-    // Free base -> returned as-is.
-    QCOMPARE(treelandDebugPickFreeSocketName(base), base);
+    // Free base -> returned as-is, lock held by the caller.
+    {
+        TreelandDebugSocketLock lock;
+        QCOMPARE(treelandDebugPickFreeSocketName(lock, base), base);
+        QVERIFY(lock.isHeld());
+    } // lock released here
 
-    // Occupied base -> numeric suffix, next free name below stays untouched.
-    QLocalServer holder;
-    QVERIFY(holder.listen(base));
-    QCOMPARE(treelandDebugPickFreeSocketName(base), base + QStringLiteral("-1"));
+    // Occupied base -> numeric suffix. The holder claims the base name with
+    // its own lock, so the picker must skip to "<base>-1".
+    {
+        TreelandDebugSocketLock holder;
+        QVERIFY(holder.tryAcquire(base));
 
-    holder.close();
-    QLocalServer::removeServer(base);
-    QLocalServer::removeServer(base + QStringLiteral("-1"));
-    QCOMPARE(treelandDebugPickFreeSocketName(base), base);
+        TreelandDebugSocketLock lock;
+        QCOMPARE(treelandDebugPickFreeSocketName(lock, base),
+                 base + QStringLiteral("-1"));
+        QVERIFY(lock.isHeld());
+    }
+
+    // After the holder releases, the base name is free again.
+    {
+        TreelandDebugSocketLock lock;
+        QCOMPARE(treelandDebugPickFreeSocketName(lock, base), base);
+    }
 }
 
 void TreelandDebugTest::testParseTree()

@@ -187,9 +187,10 @@ int qtKeyToEvdev(int qtKey, wlr_keyboard *keyboard)
 TreelandRemoteSource::TreelandRemoteSource(QObject *parent)
     : WindowTreeRemoteSource(parent)
 {
-    // Wayland-style conflict avoidance: default socket name, numeric suffix
-    // when another treeland already owns it (see treelanddebugsocket.h).
-    const QString socketName = treelandDebugPickFreeSocketName();
+    // Wayland-style conflict avoidance: claim a socket name via a flock lock
+    // file (see treelanddebugsocket.h), then listen on it. The lock is held
+    // for this object's lifetime so no other treeland can steal the name.
+    const QString socketName = treelandDebugPickFreeSocketName(m_debugSocketLock);
     auto *host = new QRemoteObjectHost(this);
     QRemoteObjectHost::setLocalServerOptions(QLocalServer::UserAccessOption);
     host->setHostUrl(QUrl(QStringLiteral("local:%1").arg(socketName)));

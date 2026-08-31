@@ -4,6 +4,7 @@
 #pragma once
 
 #include "rep_treelandwindowtree_source.h"
+#include "treelanddebugsocket.h"
 
 #include <QPointF>
 #include <QTimer>
@@ -107,4 +108,9 @@ private:
     static constexpr int MAX_EVENTS = 2000;
     bool m_eventCaptureActive = false;
     QTimer *m_eventIdleTimer = nullptr;
+
+    // Held for the lifetime of the QRemoteObjectHost so the socket name
+    // claimed in the constructor stays ours (Wayland-style flock lock file,
+    // see TreelandDebugSocketLock).
+    TreelandDebugSocketLock m_debugSocketLock;
 };
