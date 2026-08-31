@@ -285,11 +285,11 @@ Helper::Helper(QObject *parent)
             &WallpaperManager::syncAddWorkspace);
     tryInitRemoteSource();
 #ifndef ALWAYS_ENABLE_TREELAND_DEBUG
-    // Release builds: react to runtime changes of the debugSource DConfig key,
+    // Release builds: react to runtime changes of the remoteDebug DConfig key,
     // creating or destroying the remote source on the fly instead of only at
     // startup.
     connect(m_globalConfig.get(),
-            &TreelandConfig::debugSourceChanged,
+            &TreelandConfig::remoteDebugChanged,
             this,
             &Helper::tryInitRemoteSource);
 #endif
@@ -419,15 +419,15 @@ void Helper::tryInitRemoteSource()
     m_treelandRemoteSource = new TreelandRemoteSource(this);
     return;
 #else
-    // Release builds: follow the debugSource DConfig key (default false) and
+    // Release builds: follow the remoteDebug DConfig key (default false) and
     // react to its runtime changes -- toggling the key creates or destroys the
     // remote source without restarting the compositor.
     if (m_treelandRemoteSource) {
-        if (!m_globalConfig->debugSource()) {
+        if (!m_globalConfig->remoteDebug()) {
             delete m_treelandRemoteSource;
             m_treelandRemoteSource = nullptr;
         }
-    } else if (m_globalConfig->debugSource()) {
+    } else if (m_globalConfig->remoteDebug()) {
         m_treelandRemoteSource = new TreelandRemoteSource(this);
     }
 #endif
