@@ -42,6 +42,9 @@
 #include <QSet>
 #include <QTimer>
 #include <QUrl>
+
+#include "treelanddebugsocket.h"
+#include "common/treelandlogging.h"
 #include <private/qxkbcommon_p.h>
 
 WAYLIB_SERVER_USE_NAMESPACE
@@ -184,15 +187,39 @@ int qtKeyToEvdev(int qtKey, wlr_keyboard *keyboard)
 TreelandRemoteSource::TreelandRemoteSource(QObject *parent)
     : WindowTreeRemoteSource(parent)
 {
+    // Pick a conflict-free socket name.  A bare name (no path) lets Qt place
+    // the socket in /tmp so a treeland-debug client running under a different
+    // XDG_RUNTIME_DIR can still discover it.  A concurrent instance takes a
+    // numeric suffix, selected with a non-blocking advisory lock.
+    const QString socketName = treelandDebugPickFreeSocketName(m_debugSocketLock);
+    if (socketName.isEmpty()) {
+        // All 100 candidate names are already locked — extremely unlikely
+        // for a debug channel, but don't bind an invalid URL; leave the debug
+        // source unpublished.
+        qCWarning(lcTlDebug) << "No free debug socket name available; "
+                                "debug remote source disabled";
+        return;
+    }
+
     auto *host = new QRemoteObjectHost(this);
     QRemoteObjectHost::setLocalServerOptions(QLocalServer::UserAccessOption);
-    host->setHostUrl(QUrl(QStringLiteral("local:org.deepin.dde.treeland.debug")));
+    if (!host->setHostUrl(QUrl(QStringLiteral("local:%1").arg(socketName)))) {
+        qCWarning(lcTlDebug) << "Failed to listen on debug socket" << socketName
+                             << "; debug remote source disabled";
+        m_debugSocketLock.release();
+        return;
+    }
     host->enableRemoting(this, QStringLiteral("WindowTree"));
 }
 
 TreelandRemoteSource::~TreelandRemoteSource()
 {
     stopEventCapture();
+    // Destroy the host (parent-owned child) before the socket lock member
+    // releases, so the socket stops listening while we still hold the lock.
+    // Otherwise a concurrent instance could acquire the lock and remove the
+    // socket path while the old host is still alive.
+    delete findChild<QRemoteObjectHost *>();
 }
 
 QPointF TreelandRemoteSource::cursorPosition() const

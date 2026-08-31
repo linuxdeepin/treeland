@@ -24,6 +24,14 @@ struct Session
 // given @p name. Returns true on success.
 bool connectSession(Session &session, const QString &url, const QString &name, int timeoutMs);
 
+// Tries each URL in @p urls in order, connecting to the first whose source is
+// reachable. Earlier (higher-preference) URLs get a short probe timeout; the
+// last URL gets the full remaining timeout. If @p connectedUrl is non-null it
+// receives the URL that succeeded. An empty list returns false.
+bool connectSession(Session &session, const QStringList &urls,
+                     const QString &name, int timeoutMs,
+                     QString *connectedUrl = nullptr);
+
 // Set to 1 by the SIGINT handler during interactive ("live") commands so the
 // blocking waitSlot() below can break out promptly instead of being stuck in
 // a single waitForFinished() until the RPC timeout. It is async-signal-safe

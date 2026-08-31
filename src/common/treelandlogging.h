@@ -97,4 +97,7 @@ Q_DECLARE_LOGGING_CATEGORY(lcTlShellXdg)
 // Hook scripts runner
 Q_DECLARE_LOGGING_CATEGORY(lcTlHooks)
 
+// Debug remote source
+Q_DECLARE_LOGGING_CATEGORY(lcTlDebug)
+
 #endif // TREELAND_LOGGING_H

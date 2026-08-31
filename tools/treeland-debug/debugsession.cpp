@@ -14,6 +14,61 @@ bool connectSession(Session &session, const QString &url, const QString &name, i
     return session.replica->waitForSource(timeoutMs);
 }
 
+bool connectSession(Session &session, const QStringList &urls,
+                     const QString &name, int timeoutMs,
+                     QString *connectedUrl)
+{
+    if (urls.isEmpty())
+        return false;
+
+    // Try each URL with an independent QRemoteObjectNode so a previously-
+    // failed connection cannot cause a false success on a later candidate
+    // (the replica watches *all* connected nodes — a shared node would
+    // let a late-becoming-reachable earlier URL succeed while we think we
+    // are probing a later one).  A live local socket responds in
+    // milliseconds; give earlier (preferred) candidates a short probe and
+    // the last one the remaining timeout, so the total never exceeds
+    // timeoutMs.
+    constexpr int probeTimeout = 3000;
+    int remaining = timeoutMs;
+
+    for (int i = 0; i < urls.size(); ++i) {
+        const int t = (i < urls.size() - 1) ? qMin(remaining, probeTimeout) : remaining;
+        if (t < 0)
+            return false;   // budget exhausted
+
+        QRemoteObjectNode probeNode;
+        if (!probeNode.connectToNode(QUrl(urls[i])))
+            continue;   // malformed URL
+
+        auto *replica = probeNode.acquire<WindowTreeRemoteReplica>(name);
+        if (replica->waitForSource(t)) {
+            if (connectedUrl)
+                *connectedUrl = urls[i];
+            // Probe succeeded.  Reconnect the session's own node and acquire
+            // a fresh replica, waiting for it to initialize before returning so
+            // callers see a ready replica.  Use the remaining budget after the
+            // probe so the total never exceeds timeoutMs.  The server is
+            // known-live so this completes quickly.
+            remaining -= t;
+            session.node.connectToNode(QUrl(urls[i]));
+            delete session.replica;
+            session.replica = session.node.acquire<WindowTreeRemoteReplica>(name);
+            const int sessionTimeout = qMin(remaining, probeTimeout);
+            if (sessionTimeout < 0 || !session.replica->waitForSource(sessionTimeout)) {
+                // Extremely unlikely — the source was just live.  Treat as
+                // failure so we don't return an uninitialized replica.
+                delete session.replica;
+                session.replica = nullptr;
+                return false;
+            }
+            return true;
+        }
+        remaining -= t;
+    }
+    return false;
+}
+
 bool waitCaptureResult(WindowTreeRemoteReplica *replica, int timeoutMs, QByteArray *out)
 {
     QEventLoop loop;

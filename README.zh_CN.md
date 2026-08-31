@@ -82,11 +82,26 @@ sudo -u dde -- dde-dconfig set \
 
 下文所有命令均以 `dde` 用户运行，例如 `sudo -u dde -- treeland-debug windows`。
 
+### socket 命名与连接
+
+Treeland 在本地 socket 上发布调试源，默认名为 `org.deepin.dde.treeland.debug`
+（Qt 将其放在 `QDir::tempPath()`——通常是 `/tmp`，但受 `$TMPDIR` 影响——因此任何
+`XDG_RUNTIME_DIR` 下的客户端都能发现）。当该名称
+已被另一个正在运行的 treeland（全局服务、会话服务、本地构建）占用时，会自动追加数字
+后缀（`org.deepin.dde.treeland.debug-1`、`-2`…），通过非阻塞 advisory lock 选择
+（与 libwayland 选择 Wayland socket 的方式一致）。崩溃实例残留的 socket 文件会被
+回收，而无锁文件的旧版本实例会被探测并跳过。
+
+Debug 构建使用不同的默认名（`org.deepin.dde.treeland.debug-dev`），因此调试版与正式版
+treeland 可同时运行。Debug 构建的 treeland-debug 客户端自动优先连接调试实例，连不上时
+回退到正式版实例；Release 构建的客户端连接正式版实例。显式传入 `--url` 始终优先，不做
+任何隐式处理。
+
 ### 全局选项
 
 | 选项 | 默认值 | 说明 |
 | --- | --- | --- |
-| `--url <url>` | `local:org.deepin.dde.treeland.debug` | Remote object host URL。 |
+| `--url <url>` | 自动：Debug 构建优先调试 socket 并回退到正式版 socket，否则正式版 socket | Remote object host URL。 |
 | `--name <name>` | `WindowTree` | Remote object 名称。 |
 | `--timeout-ms <n>` | `30000` | 请求超时（毫秒，非负整数）。 |
 | `--json` | 关 | 为 `tree`/`cursor`/`windows`/`clients` 输出机器可读 JSON。 |

@@ -21,7 +21,7 @@ class DebugServer : public QObject
     Q_OBJECT
 
 public:
-    explicit DebugServer(const QString &url, const QString &name, int timeoutMs,
+    explicit DebugServer(const QStringList &urls, const QString &name, int timeoutMs,
                          QObject *parent = nullptr);
 
     // Binds the HTTP and WebSocket listener to @p host:@p port.  Returns true
@@ -74,8 +74,7 @@ private:
     void startLiveSubscription(QWebSocket *socket, const QString &id,
                                DebugCommand command, int intervalMs);
     void stopLiveSubscription(QWebSocket *socket, const QString &id);
-
-    QString m_url;
+    QStringList m_urls;
     QString m_name;
     int m_timeoutMs;
     QHttpServer m_httpServer;

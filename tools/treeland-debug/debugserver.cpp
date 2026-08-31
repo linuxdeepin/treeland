@@ -18,10 +18,10 @@
 #include <functional>
 #include <algorithm>
 
-DebugServer::DebugServer(const QString &url, const QString &name, int timeoutMs,
+DebugServer::DebugServer(const QStringList &urls, const QString &name, int timeoutMs,
                          QObject *parent)
     : QObject(parent)
-    , m_url(url)
+    , m_urls(urls)
     , m_name(name)
     , m_timeoutMs(timeoutMs)
 {
@@ -29,14 +29,14 @@ DebugServer::DebugServer(const QString &url, const QString &name, int timeoutMs,
 
 bool DebugServer::createSession(Session &session)
 {
-    return connectSession(session, m_url, m_name, m_timeoutMs);
+    return connectSession(session, m_urls, m_name, m_timeoutMs);
 }
 
 QJsonObject DebugServer::sessionRequest(const std::function<QJsonObject(Session &)> &work)
 {
     Session session;
     if (!createSession(session))
-        return {{"ok", false}, {"error", QStringLiteral("failed to connect to remote object node: %1").arg(m_url)}};
+        return {{"ok", false}, {"error", QStringLiteral("failed to connect to remote object node")}};
 
     return work(session);
 }
