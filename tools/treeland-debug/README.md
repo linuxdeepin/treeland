@@ -215,6 +215,77 @@ Live subscriptions:
 | Subscribe | `{"command":"subscribe","type":"watch","target":"...","id":"...","intervalMs":250}` | Live watch on a window |
 | Unsubscribe | `{"command":"unsubscribe","id":"..."}` | Stop a subscription |
 
+#### MCP (Model Context Protocol) server
+
+The HTTP server also exposes a single MCP endpoint at `POST /mcp` that speaks
+JSON-RPC 2.0 over the [Streamable HTTP](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports)
+transport. This lets any MCP-compatible AI client — Claude Desktop, Cursor,
+VS Code Copilot, etc. — directly inspect and control the Treeland compositor
+without a separate bridge process.
+
+**Endpoint:** `http://<host>:<port>/mcp`  
+**Protocol version:** `2025-06-18`  
+**Capabilities:** tools (no resources, no prompts, no subscriptions)
+
+The server is stateless: every `tools/call` creates a fresh session to the
+compositor, performs the operation, and disconnects. No `Mcp-Session-Id` is
+returned, so clients need not send `DELETE` to terminate.
+
+Supported JSON-RPC methods:
+
+| Method | Description |
+| --- | --- |
+| `initialize` | Protocol handshake; returns server info and capabilities |
+| `notifications/initialized` | Notification (no response body; HTTP 202) |
+| `tools/list` | Returns the full tool catalog |
+| `tools/call` | Invokes a tool by name with arguments |
+| `ping` | Health check |
+
+The 22 available tools mirror the HTTP REST API and CLI commands:
+
+| Tool | Args | Description |
+| --- | --- | --- |
+| `tree` | — | Layout tree JSON |
+| `cursor` | — | Cursor position |
+| `windows` | — | All windows |
+| `clients` | — | All clients |
+| `focused` | — | Focused window id |
+| `cursor_window` | — | Window under cursor id |
+| `scene` | `target?` | QtQuick scene tree of a window (or whole scene) |
+| `events` | `since?` | Debug events after seq N |
+| `activate` | `target` | Activate window |
+| `close` | `target` | Close window |
+| `minimize` | `target` | Minimize window |
+| `maximize` | `target` | Toggle maximized |
+| `fullscreen` | `target` | Toggle fullscreen |
+| `move` | `target, x, y` | Move window |
+| `resize` | `target, width, height` | Resize window |
+| `workspace` | `target, workspaceId` | Move to workspace |
+| `move_cursor` | `x, y` | Move cursor |
+| `event_motion` | `x, y` | Pointer motion |
+| `event_button` | `button, action?` | Pointer button (left/right/middle) |
+| `event_key` | `key, action?` | Key event (Qt key name or code) |
+| `screenshot_output` | `name?` | Screenshot of an output (PNG image) |
+| `screenshot_window` | `target` | Screenshot of a window (PNG image) |
+
+`target` accepts a numeric window id or an `appId` string. Screenshots are
+returned as MCP `image` content blocks with base64-encoded PNG data.
+
+**Claude Desktop configuration** (`claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "treeland-debug": {
+      "url": "http://localhost:8080/mcp"
+    }
+  }
+}
+```
+
+For other MCP clients, use the same URL as the server endpoint. No headers or
+authentication are required.
+
 ## JSON output
 
 `tree` and `cursor` always print JSON. `windows` and `clients` print a
