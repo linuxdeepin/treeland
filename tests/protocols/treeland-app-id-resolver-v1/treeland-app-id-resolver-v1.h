@@ -38,7 +38,7 @@ struct test_ctx {
     int                 result_cap;
 };
 
-void test_init(struct test_ctx *ctx);
+struct test_ctx *test_ctx_create(void);
 void test_destroy(struct test_ctx *ctx);
 int  test_add(struct test_ctx *ctx, const char *name);
 void test_fail(struct test_ctx *ctx, int idx, const char *fmt, ...);
