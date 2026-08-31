@@ -16,7 +16,6 @@ class WAYLIB_SERVER_EXPORT WXdgToplevelSurface : public WXdgSurface
     Q_OBJECT
     W_DECLARE_PRIVATE(WXdgToplevelSurface)
     Q_PROPERTY(bool isResizeing READ isResizeing NOTIFY resizeingChanged FINAL)
-    Q_PROPERTY(WXdgSurface* parentXdgSurface READ parentXdgSurface NOTIFY parentXdgSurfaceChanged FINAL)
     Q_PROPERTY(QString tag READ tag NOTIFY tagChanged FINAL)
     Q_PROPERTY(QString description READ description NOTIFY descriptionChanged FINAL)
     QML_NAMED_ELEMENT(WaylandXdgToplevelSurface)
@@ -71,7 +70,6 @@ public Q_SLOTS:
     void close() override;
 
 Q_SIGNALS:
-    void parentXdgSurfaceChanged();
     void resizeingChanged();
     void tagChanged();
     void descriptionChanged();
