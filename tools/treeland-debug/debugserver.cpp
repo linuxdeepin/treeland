@@ -41,6 +41,19 @@ QJsonObject DebugServer::sessionRequest(const std::function<QJsonObject(Session 
     return work(session);
 }
 
+// Converts a QJsonValue that may be a string or a number into a target
+// token string. MCP clients may send a numeric window id as a JSON number;
+// QJsonValue::toString() returns an empty string for numbers, so we handle
+// both types here.
+static QString targetToString(const QJsonValue &val)
+{
+    if (val.isString())
+        return val.toString();
+    if (val.isDouble())
+        return QString::number(val.toInteger());
+    return {};
+}
+
 // Adds CORS headers to a response so a browser-based frontend can call the
 // API directly.
 static QHttpServerResponse addCorsHeaders(QHttpServerResponse response)
@@ -166,6 +179,13 @@ bool DebugServer::listen(const QString &host, int port)
         return addCorsHeaders(handleScreenshotWindow(request));
     });
 
+    // --- MCP (Model Context Protocol) Streamable HTTP endpoint ---
+    // POST /mcp handles JSON-RPC initialize / tools/list / tools/call.
+    m_httpServer.route("/mcp", QHttpServerRequest::Method::Post,
+                       [this](const QHttpServerRequest &request) {
+        return handleMcpPost(request);
+    });
+
     // --- CORS preflight handler ---
     // Any OPTIONS request returns 204 with CORS headers so browsers can
     // pre-flight before actual API calls.  Other unmatched paths return a
@@ -244,10 +264,8 @@ QJsonObject DebugServer::handleCursorWindow()
     });
 }
 
-QJsonObject DebugServer::handleScene(const QHttpServerRequest &request)
+QJsonObject DebugServer::handleScene(const QString &target)
 {
-    const auto query = request.query();
-    const QString target = query.queryItemValue("target");
     return sessionRequest([this, target](Session &session) {
         qint64 id = 0;
         if (!target.isEmpty()) {
@@ -261,6 +279,12 @@ QJsonObject DebugServer::handleScene(const QHttpServerRequest &request)
             return QJsonObject{{"ok", false}, {"error", "getSceneTree() failed"}};
         return QJsonObject{{"ok", true}, {"data", tree}};
     });
+}
+
+QJsonObject DebugServer::handleScene(const QHttpServerRequest &request)
+{
+    const auto query = request.query();
+    return handleScene(query.queryItemValue("target"));
 }
 
 // --- Window control handlers ---
@@ -279,10 +303,9 @@ static QJsonObject resolveAndControl(Session &session, int timeoutMs,
     return {{"ok", true}, {"data", result}};
 }
 
-QJsonObject DebugServer::handleActivate(const QHttpServerRequest &request)
+QJsonObject DebugServer::handleActivate(const QJsonObject &body)
 {
-    const auto body = QJsonDocument::fromJson(request.body()).object();
-    const QString target = body.value("target").toString();
+    const QString target = targetToString(body.value("target"));
     if (target.isEmpty())
         return {{"ok", false}, {"error", "missing 'target'"}};
     return sessionRequest([this, target](Session &session) {
@@ -294,10 +317,14 @@ QJsonObject DebugServer::handleActivate(const QHttpServerRequest &request)
     });
 }
 
-QJsonObject DebugServer::handleClose(const QHttpServerRequest &request)
+QJsonObject DebugServer::handleActivate(const QHttpServerRequest &request)
 {
-    const auto body = QJsonDocument::fromJson(request.body()).object();
-    const QString target = body.value("target").toString();
+    return handleActivate(QJsonDocument::fromJson(request.body()).object());
+}
+
+QJsonObject DebugServer::handleClose(const QJsonObject &body)
+{
+    const QString target = targetToString(body.value("target"));
     if (target.isEmpty())
         return {{"ok", false}, {"error", "missing 'target'"}};
     return sessionRequest([this, target](Session &session) {
@@ -309,10 +336,14 @@ QJsonObject DebugServer::handleClose(const QHttpServerRequest &request)
     });
 }
 
-QJsonObject DebugServer::handleMinimize(const QHttpServerRequest &request)
+QJsonObject DebugServer::handleClose(const QHttpServerRequest &request)
 {
-    const auto body = QJsonDocument::fromJson(request.body()).object();
-    const QString target = body.value("target").toString();
+    return handleClose(QJsonDocument::fromJson(request.body()).object());
+}
+
+QJsonObject DebugServer::handleMinimize(const QJsonObject &body)
+{
+    const QString target = targetToString(body.value("target"));
     if (target.isEmpty())
         return {{"ok", false}, {"error", "missing 'target'"}};
     return sessionRequest([this, target](Session &session) {
@@ -324,10 +355,14 @@ QJsonObject DebugServer::handleMinimize(const QHttpServerRequest &request)
     });
 }
 
-QJsonObject DebugServer::handleMaximize(const QHttpServerRequest &request)
+QJsonObject DebugServer::handleMinimize(const QHttpServerRequest &request)
 {
-    const auto body = QJsonDocument::fromJson(request.body()).object();
-    const QString target = body.value("target").toString();
+    return handleMinimize(QJsonDocument::fromJson(request.body()).object());
+}
+
+QJsonObject DebugServer::handleMaximize(const QJsonObject &body)
+{
+    const QString target = targetToString(body.value("target"));
     if (target.isEmpty())
         return {{"ok", false}, {"error", "missing 'target'"}};
     return sessionRequest([this, target](Session &session) {
@@ -339,10 +374,14 @@ QJsonObject DebugServer::handleMaximize(const QHttpServerRequest &request)
     });
 }
 
-QJsonObject DebugServer::handleFullscreen(const QHttpServerRequest &request)
+QJsonObject DebugServer::handleMaximize(const QHttpServerRequest &request)
 {
-    const auto body = QJsonDocument::fromJson(request.body()).object();
-    const QString target = body.value("target").toString();
+    return handleMaximize(QJsonDocument::fromJson(request.body()).object());
+}
+
+QJsonObject DebugServer::handleFullscreen(const QJsonObject &body)
+{
+    const QString target = targetToString(body.value("target"));
     if (target.isEmpty())
         return {{"ok", false}, {"error", "missing 'target'"}};
     return sessionRequest([this, target](Session &session) {
@@ -354,10 +393,14 @@ QJsonObject DebugServer::handleFullscreen(const QHttpServerRequest &request)
     });
 }
 
-QJsonObject DebugServer::handleMove(const QHttpServerRequest &request)
+QJsonObject DebugServer::handleFullscreen(const QHttpServerRequest &request)
 {
-    const auto body = QJsonDocument::fromJson(request.body()).object();
-    const QString target = body.value("target").toString();
+    return handleFullscreen(QJsonDocument::fromJson(request.body()).object());
+}
+
+QJsonObject DebugServer::handleMove(const QJsonObject &body)
+{
+    const QString target = targetToString(body.value("target"));
     if (target.isEmpty())
         return {{"ok", false}, {"error", "missing 'target'"}};
     const int x = body.value("x").toInt();
@@ -371,10 +414,14 @@ QJsonObject DebugServer::handleMove(const QHttpServerRequest &request)
     });
 }
 
-QJsonObject DebugServer::handleResize(const QHttpServerRequest &request)
+QJsonObject DebugServer::handleMove(const QHttpServerRequest &request)
 {
-    const auto body = QJsonDocument::fromJson(request.body()).object();
-    const QString target = body.value("target").toString();
+    return handleMove(QJsonDocument::fromJson(request.body()).object());
+}
+
+QJsonObject DebugServer::handleResize(const QJsonObject &body)
+{
+    const QString target = targetToString(body.value("target"));
     if (target.isEmpty())
         return {{"ok", false}, {"error", "missing 'target'"}};
     const int width = body.value("width").toInt();
@@ -388,10 +435,14 @@ QJsonObject DebugServer::handleResize(const QHttpServerRequest &request)
     });
 }
 
-QJsonObject DebugServer::handleWorkspace(const QHttpServerRequest &request)
+QJsonObject DebugServer::handleResize(const QHttpServerRequest &request)
 {
-    const auto body = QJsonDocument::fromJson(request.body()).object();
-    const QString target = body.value("target").toString();
+    return handleResize(QJsonDocument::fromJson(request.body()).object());
+}
+
+QJsonObject DebugServer::handleWorkspace(const QJsonObject &body)
+{
+    const QString target = targetToString(body.value("target"));
     if (target.isEmpty())
         return {{"ok", false}, {"error", "missing 'target'"}};
     const int workspaceId = body.value("workspaceId").toInt();
@@ -404,11 +455,34 @@ QJsonObject DebugServer::handleWorkspace(const QHttpServerRequest &request)
     });
 }
 
+QJsonObject DebugServer::handleWorkspace(const QHttpServerRequest &request)
+{
+    return handleWorkspace(QJsonDocument::fromJson(request.body()).object());
+}
+
 // --- Input / event handlers ---
+
+QJsonObject DebugServer::handleMoveCursor(const QJsonObject &body)
+{
+    if (!body.contains("x") || !body.contains("y"))
+        return {{"ok", false}, {"error", "missing 'x' or 'y'"}};
+    const double x = body.value("x").toDouble();
+    const double y = body.value("y").toDouble();
+    return sessionRequest([this, x, y](Session &session) {
+        bool result = false;
+        if (!waitSlot(session.replica->moveCursor(QPointF(x, y)), m_timeoutMs, &result))
+            return QJsonObject{{"ok", false}, {"error", "moveCursor() failed"}};
+        return QJsonObject{{"ok", true}, {"data", result}};
+    });
+}
 
 QJsonObject DebugServer::handleMoveCursor(const QHttpServerRequest &request)
 {
-    const auto body = QJsonDocument::fromJson(request.body()).object();
+    return handleMoveCursor(QJsonDocument::fromJson(request.body()).object());
+}
+
+QJsonObject DebugServer::handleEventMotion(const QJsonObject &body)
+{
     if (!body.contains("x") || !body.contains("y"))
         return {{"ok", false}, {"error", "missing 'x' or 'y'"}};
     const double x = body.value("x").toDouble();
@@ -423,22 +497,11 @@ QJsonObject DebugServer::handleMoveCursor(const QHttpServerRequest &request)
 
 QJsonObject DebugServer::handleEventMotion(const QHttpServerRequest &request)
 {
-    const auto body = QJsonDocument::fromJson(request.body()).object();
-    if (!body.contains("x") || !body.contains("y"))
-        return {{"ok", false}, {"error", "missing 'x' or 'y'"}};
-    const double x = body.value("x").toDouble();
-    const double y = body.value("y").toDouble();
-    return sessionRequest([this, x, y](Session &session) {
-        bool result = false;
-        if (!waitSlot(session.replica->moveCursor(QPointF(x, y)), m_timeoutMs, &result))
-            return QJsonObject{{"ok", false}, {"error", "moveCursor() failed"}};
-        return QJsonObject{{"ok", true}, {"data", result}};
-    });
+    return handleEventMotion(QJsonDocument::fromJson(request.body()).object());
 }
 
-QJsonObject DebugServer::handleEventButton(const QHttpServerRequest &request)
+QJsonObject DebugServer::handleEventButton(const QJsonObject &body)
 {
-    const auto body = QJsonDocument::fromJson(request.body()).object();
     const QString buttonName = body.value("button").toString();
     if (buttonName.isEmpty())
         return {{"ok", false}, {"error", "missing 'button'"}};
@@ -467,9 +530,13 @@ QJsonObject DebugServer::handleEventButton(const QHttpServerRequest &request)
     });
 }
 
-QJsonObject DebugServer::handleEventKey(const QHttpServerRequest &request)
+QJsonObject DebugServer::handleEventButton(const QHttpServerRequest &request)
 {
-    const auto body = QJsonDocument::fromJson(request.body()).object();
+    return handleEventButton(QJsonDocument::fromJson(request.body()).object());
+}
+
+QJsonObject DebugServer::handleEventKey(const QJsonObject &body)
+{
     const QString keyName = body.value("key").toString();
     if (keyName.isEmpty())
         return {{"ok", false}, {"error", "missing 'key'"}};
@@ -498,10 +565,13 @@ QJsonObject DebugServer::handleEventKey(const QHttpServerRequest &request)
     });
 }
 
-QJsonObject DebugServer::handleEvents(const QHttpServerRequest &request)
+QJsonObject DebugServer::handleEventKey(const QHttpServerRequest &request)
 {
-    const auto query = request.query();
-    quint64 since = query.queryItemValue("since").toULongLong();
+    return handleEventKey(QJsonDocument::fromJson(request.body()).object());
+}
+
+QJsonObject DebugServer::handleEvents(quint64 since)
+{
     return sessionRequest([this, since](Session &session) {
         QList<DebugEvent> events;
         if (!waitSlot(session.replica->getEvents(since), m_timeoutMs, &events))
@@ -510,26 +580,76 @@ QJsonObject DebugServer::handleEvents(const QHttpServerRequest &request)
     });
 }
 
+QJsonObject DebugServer::handleEvents(const QHttpServerRequest &request)
+{
+    const auto query = request.query();
+    return handleEvents(query.queryItemValue("since").toULongLong());
+}
+
+// --- Screenshot byte helpers ---
+
+DebugServer::ScreenshotBytes DebugServer::captureOutputBytes(const QString &outputName)
+{
+    ScreenshotBytes result;
+    Session session;
+    if (!createSession(session)) {
+        result.error = QStringLiteral("failed to connect to compositor: %1").arg(m_url);
+        return result;
+    }
+    QByteArray data;
+    session.replica->captureOutput(outputName);
+    if (!waitCaptureResult(session.replica, m_timeoutMs, &data) || data.isEmpty()) {
+        result.error = QStringLiteral("captureOutput: no image produced (output not found or grab failed)");
+        return result;
+    }
+    result.ok = true;
+    result.data = data;
+    return result;
+}
+
+DebugServer::ScreenshotBytes DebugServer::captureWindowBytes(const QString &target)
+{
+    ScreenshotBytes result;
+    if (target.isEmpty()) {
+        result.error = QStringLiteral("missing 'target'");
+        return result;
+    }
+    Session session;
+    if (!createSession(session)) {
+        result.error = QStringLiteral("failed to connect to compositor: %1").arg(m_url);
+        return result;
+    }
+    bool ok = false;
+    const qint64 id = resolveTarget(session, m_timeoutMs, target, &ok);
+    if (!ok) {
+        result.error = QStringLiteral("no window matches '%1'").arg(target);
+        return result;
+    }
+    QByteArray data;
+    session.replica->captureWindow(id);
+    if (!waitCaptureResult(session.replica, m_timeoutMs, &data) || data.isEmpty()) {
+        result.error = QStringLiteral("captureWindow: no image produced (window not found, has no scene item, or grab failed)");
+        return result;
+    }
+    result.ok = true;
+    result.data = data;
+    return result;
+}
+
 // --- Image capture handlers ---
 
 QHttpServerResponse DebugServer::handleScreenshotOutput(const QHttpServerRequest &request)
 {
     const auto query = request.query();
-    const QString outputName = query.queryItemValue("name");
-    Session session;
-    if (!createSession(session))
+    const auto result = captureOutputBytes(query.queryItemValue("name"));
+    if (!result.ok) {
+        const auto status = result.error.startsWith("failed to connect")
+            ? QHttpServerResponse::StatusCode::ServiceUnavailable
+            : QHttpServerResponse::StatusCode::NotFound;
         return QHttpServerResponse(
-            QJsonObject{{"ok", false}, {"error", "failed to connect"}},
-            QHttpServerResponse::StatusCode::ServiceUnavailable);
-
-    QByteArray data;
-    session.replica->captureOutput(outputName);
-    if (!waitCaptureResult(session.replica, m_timeoutMs, &data) || data.isEmpty())
-        return QHttpServerResponse(
-            QJsonObject{{"ok", false}, {"error", "captureOutput: no image produced"}},
-            QHttpServerResponse::StatusCode::NotFound);
-
-    return QHttpServerResponse("image/png", data);
+            QJsonObject{{"ok", false}, {"error", result.error}}, status);
+    }
+    return QHttpServerResponse("image/png", result.data);
 }
 
 QHttpServerResponse DebugServer::handleScreenshotWindow(const QHttpServerRequest &request)
@@ -541,27 +661,462 @@ QHttpServerResponse DebugServer::handleScreenshotWindow(const QHttpServerRequest
             QJsonObject{{"ok", false}, {"error", "missing 'target' query parameter"}},
             QHttpServerResponse::StatusCode::BadRequest);
 
-    Session session;
-    if (!createSession(session))
+    const auto result = captureWindowBytes(target);
+    if (!result.ok) {
+        const auto status = result.error.startsWith("failed to connect")
+            ? QHttpServerResponse::StatusCode::ServiceUnavailable
+            : QHttpServerResponse::StatusCode::NotFound;
         return QHttpServerResponse(
-            QJsonObject{{"ok", false}, {"error", "failed to connect"}},
-            QHttpServerResponse::StatusCode::ServiceUnavailable);
+            QJsonObject{{"ok", false}, {"error", result.error}}, status);
+    }
+    return QHttpServerResponse("image/png", result.data);
+}
 
-    bool ok = false;
-    const qint64 id = resolveTarget(session, m_timeoutMs, target, &ok);
-    if (!ok)
-        return QHttpServerResponse(
-            QJsonObject{{"ok", false}, {"error", QStringLiteral("no window matches '%1'").arg(target)}},
-            QHttpServerResponse::StatusCode::NotFound);
+// --- MCP (Model Context Protocol) handlers ---
 
-    QByteArray data;
-    session.replica->captureWindow(id);
-    if (!waitCaptureResult(session.replica, m_timeoutMs, &data) || data.isEmpty())
-        return QHttpServerResponse(
-            QJsonObject{{"ok", false}, {"error", "captureWindow: no image produced (window not found, has no scene item, or grab failed)"}},
-            QHttpServerResponse::StatusCode::NotFound);
+// Builds a JSON-RPC error object.
+static QJsonObject mcpJsonRpcError(const QJsonValue &id, int code, const QString &message)
+{
+    return {
+        {"jsonrpc", "2.0"},
+        {"id", id},
+        {"error", QJsonObject{{"code", code}, {"message", message}}}
+    };
+}
 
-    return QHttpServerResponse("image/png", data);
+// Builds a JSON-RPC success object.
+static QJsonObject mcpJsonRpcResult(const QJsonValue &id, const QJsonObject &result)
+{
+    return {
+        {"jsonrpc", "2.0"},
+        {"id", id},
+        {"result", result}
+    };
+}
+
+QHttpServerResponse DebugServer::handleMcpPost(const QHttpServerRequest &request)
+{
+    // --- Accept negotiation (MCP Streamable HTTP) ---
+    // The client must accept either application/json or text/event-stream.
+    const QByteArray accept = request.headers().combinedValue(
+        QHttpHeaders::WellKnownHeader::Accept);
+    const bool acceptsJson = accept.isEmpty() || accept.contains("application/json");
+    const bool acceptsSse = accept.isEmpty() || accept.contains("text/event-stream");
+    if (!acceptsJson && !acceptsSse)
+        return addCorsHeaders(QHttpServerResponse(QHttpServerResponse::StatusCode::NotAcceptable));
+
+    // Respond with SSE only when the client does not accept plain JSON.
+    const bool useSse = !acceptsJson && acceptsSse;
+
+    auto makeResponse = [useSse](const QJsonObject &obj) -> QHttpServerResponse {
+        const QByteArray body = QJsonDocument(obj).toJson(QJsonDocument::Compact);
+        if (useSse) {
+            QByteArray sse = "event: message\ndata: ";
+            sse += body;
+            sse += "\n\n";
+            return addCorsHeaders(QHttpServerResponse("text/event-stream", sse));
+        }
+        return addCorsHeaders(QHttpServerResponse("application/json", body));
+    };
+
+    // --- Parse JSON-RPC message ---
+    const auto doc = QJsonDocument::fromJson(request.body());
+    if (!doc.isObject())
+        return makeResponse(mcpJsonRpcError(QJsonValue::Null, -32700, "Parse error"));
+
+    const auto msg = doc.object();
+    const QString method = msg.value("method").toString();
+    const QJsonValue id = msg.value("id");
+    const QJsonObject params = msg.value("params").toObject();
+
+    // Notification (no id) — acknowledge with 202 Accepted, no body.
+    if (id.isNull() || id.isUndefined())
+        return addCorsHeaders(QHttpServerResponse(QHttpServerResponse::StatusCode::Accepted));
+
+    // Request (has id) — dispatch.
+    QJsonObject result;
+    if (method == "initialize") {
+        result = mcpInitialize(params);
+    } else if (method == "tools/list") {
+        result = mcpToolsList();
+    } else if (method == "tools/call") {
+        result = mcpToolsCall(params);
+    } else if (method == "ping") {
+        result = QJsonObject{};
+    } else {
+        return makeResponse(mcpJsonRpcError(id, -32601,
+            QStringLiteral("Method not found: %1").arg(method)));
+    }
+
+    return makeResponse(mcpJsonRpcResult(id, result));
+}
+
+QJsonObject DebugServer::mcpInitialize(const QJsonObject &params)
+{
+    (void)params; // client info available in params; not currently used.
+    return {
+        {"protocolVersion", "2025-06-18"},
+        {"capabilities", QJsonObject{
+            {"tools", QJsonObject{{"listChanged", false}}}
+        }},
+        {"serverInfo", QJsonObject{
+            {"name", "treeland-debug"},
+            {"version", "1.0"}
+        }}
+    };
+}
+
+// Helper: builds a JSON Schema for a property that accepts string or number
+// (used for window target tokens: numeric id or appId string).
+static QJsonObject targetSchema(const QString &description)
+{
+    return QJsonObject{
+        {"type", QJsonArray{"string", "number"}},
+        {"description", description}
+    };
+}
+
+QJsonObject DebugServer::mcpToolsList() const
+{
+    const QJsonObject noArgs = QJsonObject{
+        {"type", "object"},
+        {"properties", QJsonObject{}},
+        {"additionalProperties", false}
+    };
+
+    return QJsonObject{
+        {"tools", QJsonArray{
+            // --- Inspection ---
+            QJsonObject{
+                {"name", "tree"},
+                {"description", "Get the complete Treeland window layout tree: layers, workspaces, and all windows with their geometry, state, and output."},
+                {"inputSchema", noArgs}
+            },
+            QJsonObject{
+                {"name", "cursor"},
+                {"description", "Get the current cursor position {x, y}."},
+                {"inputSchema", noArgs}
+            },
+            QJsonObject{
+                {"name", "windows"},
+                {"description", "List all toplevel windows with their id, appId, title, geometry, state, and output."},
+                {"inputSchema", noArgs}
+            },
+            QJsonObject{
+                {"name", "clients"},
+                {"description", "List all connected Wayland clients and the windows each owns (pid, executable, command line)."},
+                {"inputSchema", noArgs}
+            },
+            QJsonObject{
+                {"name", "focused"},
+                {"description", "Get the id of the currently focused window."},
+                {"inputSchema", noArgs}
+            },
+            QJsonObject{
+                {"name", "cursor_window"},
+                {"description", "Get the id of the window currently under the cursor."},
+                {"inputSchema", noArgs}
+            },
+            QJsonObject{
+                {"name", "scene"},
+                {"description", "Dump the QtQuick scene tree of a specific window (by id or appId), or the whole render scene if no target is given. Useful for inspecting menus, popups and decorations."},
+                {"inputSchema", QJsonObject{
+                    {"type", "object"},
+                    {"properties", QJsonObject{
+                        {"target", targetSchema("Window id (number) or appId (string). Omit for the whole scene.")}
+                    }},
+                    {"additionalProperties", false}
+                }}
+            },
+            QJsonObject{
+                {"name", "events"},
+                {"description", "Get debug events (input, window lifecycle, etc.) since a given sequence number."},
+                {"inputSchema", QJsonObject{
+                    {"type", "object"},
+                    {"properties", QJsonObject{
+                        {"since", QJsonObject{{"type", "integer"}, {"description", "Return events after this sequence number. Use 0 for all recent events."}, {"default", 0}}}
+                    }},
+                    {"additionalProperties", false}
+                }}
+            },
+            // --- Window control ---
+            QJsonObject{
+                {"name", "activate"},
+                {"description", "Activate (focus) a window."},
+                {"inputSchema", QJsonObject{
+                    {"type", "object"},
+                    {"properties", QJsonObject{{"target", targetSchema("Window id or appId.")}}},
+                    {"required", QJsonArray{"target"}},
+                    {"additionalProperties", false}
+                }}
+            },
+            QJsonObject{
+                {"name", "close"},
+                {"description", "Close a window."},
+                {"inputSchema", QJsonObject{
+                    {"type", "object"},
+                    {"properties", QJsonObject{{"target", targetSchema("Window id or appId.")}}},
+                    {"required", QJsonArray{"target"}},
+                    {"additionalProperties", false}
+                }}
+            },
+            QJsonObject{
+                {"name", "minimize"},
+                {"description", "Minimize a window."},
+                {"inputSchema", QJsonObject{
+                    {"type", "object"},
+                    {"properties", QJsonObject{{"target", targetSchema("Window id or appId.")}}},
+                    {"required", QJsonArray{"target"}},
+                    {"additionalProperties", false}
+                }}
+            },
+            QJsonObject{
+                {"name", "maximize"},
+                {"description", "Toggle the maximized state of a window."},
+                {"inputSchema", QJsonObject{
+                    {"type", "object"},
+                    {"properties", QJsonObject{{"target", targetSchema("Window id or appId.")}}},
+                    {"required", QJsonArray{"target"}},
+                    {"additionalProperties", false}
+                }}
+            },
+            QJsonObject{
+                {"name", "fullscreen"},
+                {"description", "Toggle the fullscreen state of a window."},
+                {"inputSchema", QJsonObject{
+                    {"type", "object"},
+                    {"properties", QJsonObject{{"target", targetSchema("Window id or appId.")}}},
+                    {"required", QJsonArray{"target"}},
+                    {"additionalProperties", false}
+                }}
+            },
+            QJsonObject{
+                {"name", "move"},
+                {"description", "Move a window to (x, y)."},
+                {"inputSchema", QJsonObject{
+                    {"type", "object"},
+                    {"properties", QJsonObject{
+                        {"target", targetSchema("Window id or appId.")},
+                        {"x", QJsonObject{{"type", "integer"}, {"description", "X coordinate."}}},
+                        {"y", QJsonObject{{"type", "integer"}, {"description", "Y coordinate."}}}
+                    }},
+                    {"required", QJsonArray{"target", "x", "y"}},
+                    {"additionalProperties", false}
+                }}
+            },
+            QJsonObject{
+                {"name", "resize"},
+                {"description", "Resize a window to width × height."},
+                {"inputSchema", QJsonObject{
+                    {"type", "object"},
+                    {"properties", QJsonObject{
+                        {"target", targetSchema("Window id or appId.")},
+                        {"width", QJsonObject{{"type", "integer"}, {"description", "New width in pixels."}}},
+                        {"height", QJsonObject{{"type", "integer"}, {"description", "New height in pixels."}}}
+                    }},
+                    {"required", QJsonArray{"target", "width", "height"}},
+                    {"additionalProperties", false}
+                }}
+            },
+            QJsonObject{
+                {"name", "workspace"},
+                {"description", "Move a window to a different workspace."},
+                {"inputSchema", QJsonObject{
+                    {"type", "object"},
+                    {"properties", QJsonObject{
+                        {"target", targetSchema("Window id or appId.")},
+                        {"workspaceId", QJsonObject{{"type", "integer"}, {"description", "Destination workspace id."}}}
+                    }},
+                    {"required", QJsonArray{"target", "workspaceId"}},
+                    {"additionalProperties", false}
+                }}
+            },
+            // --- Input / event injection ---
+            QJsonObject{
+                {"name", "move_cursor"},
+                {"description", "Move the cursor to (x, y)."},
+                {"inputSchema", QJsonObject{
+                    {"type", "object"},
+                    {"properties", QJsonObject{
+                        {"x", QJsonObject{{"type", "number"}, {"description", "X coordinate."}}},
+                        {"y", QJsonObject{{"type", "number"}, {"description", "Y coordinate."}}}
+                    }},
+                    {"required", QJsonArray{"x", "y"}},
+                    {"additionalProperties", false}
+                }}
+            },
+            QJsonObject{
+                {"name", "event_motion"},
+                {"description", "Send a pointer motion event (move cursor to x, y)."},
+                {"inputSchema", QJsonObject{
+                    {"type", "object"},
+                    {"properties", QJsonObject{
+                        {"x", QJsonObject{{"type", "number"}, {"description", "X coordinate."}}},
+                        {"y", QJsonObject{{"type", "number"}, {"description", "Y coordinate."}}}
+                    }},
+                    {"required", QJsonArray{"x", "y"}},
+                    {"additionalProperties", false}
+                }}
+            },
+            QJsonObject{
+                {"name", "event_button"},
+                {"description", "Send a pointer button event. Button can be 'left', 'right', 'middle' or a raw Linux input code."},
+                {"inputSchema", QJsonObject{
+                    {"type", "object"},
+                    {"properties", QJsonObject{
+                        {"button", QJsonObject{{"type", "string"}, {"description", "left | right | middle | <code>"}}},
+                        {"action", QJsonObject{{"type", "string"}, {"enum", QJsonArray{"press", "release", "click"}}, {"default", "click"}}}
+                    }},
+                    {"required", QJsonArray{"button"}},
+                    {"additionalProperties", false}
+                }}
+            },
+            QJsonObject{
+                {"name", "event_key"},
+                {"description", "Send a keyboard event. Key can be a Qt::Key name (e.g. 'Escape', 'Return', 'Space', 'a') or a raw code."},
+                {"inputSchema", QJsonObject{
+                    {"type", "object"},
+                    {"properties", QJsonObject{
+                        {"key", QJsonObject{{"type", "string"}, {"description", "Qt::Key name (Escape, Return, Space, ...) or raw code"}}},
+                        {"action", QJsonObject{{"type", "string"}, {"enum", QJsonArray{"press", "release", "tap"}}, {"default", "tap"}}}
+                    }},
+                    {"required", QJsonArray{"key"}},
+                    {"additionalProperties", false}
+                }}
+            },
+            // --- Screenshots ---
+            QJsonObject{
+                {"name", "screenshot_output"},
+                {"description", "Capture a screenshot of an output (screen). Returns a PNG image."},
+                {"inputSchema", QJsonObject{
+                    {"type", "object"},
+                    {"properties", QJsonObject{
+                        {"name", QJsonObject{{"type", "string"}, {"description", "Output name. Omit for the primary output."}}}
+                    }},
+                    {"additionalProperties", false}
+                }}
+            },
+            QJsonObject{
+                {"name", "screenshot_window"},
+                {"description", "Capture a screenshot of a single window. Returns a PNG image."},
+                {"inputSchema", QJsonObject{
+                    {"type", "object"},
+                    {"properties", QJsonObject{
+                        {"target", targetSchema("Window id or appId.")}
+                    }},
+                    {"required", QJsonArray{"target"}},
+                    {"additionalProperties", false}
+                }}
+            }
+        }}
+    };
+}
+
+QJsonObject DebugServer::mcpToolsCall(const QJsonObject &params)
+{
+    const QString name = params.value("name").toString();
+    const QJsonObject args = params.value("arguments").toObject();
+    bool isError = false;
+    QJsonArray content = mcpDispatchTool(name, args, &isError);
+    return QJsonObject{
+        {"content", content},
+        {"isError", isError}
+    };
+}
+
+QJsonArray DebugServer::mcpDispatchTool(const QString &name, const QJsonObject &args,
+                                       bool *isError)
+{
+    *isError = false;
+
+    // Wraps a handler's {ok, data/error} JSON result as MCP text content.
+    auto formatJson = [isError](const QJsonObject &result) -> QJsonArray {
+        if (result.value("ok").toBool() == false)
+            *isError = true;
+        return QJsonArray{QJsonObject{
+            {"type", "text"},
+            {"text", QString::fromUtf8(QJsonDocument(result).toJson(QJsonDocument::Compact))}
+        }};
+    };
+
+    // --- Inspection ---
+    if (name == "tree")
+        return formatJson(handleTree());
+    if (name == "cursor")
+        return formatJson(handleCursor());
+    if (name == "windows")
+        return formatJson(handleWindows());
+    if (name == "clients")
+        return formatJson(handleClients());
+    if (name == "focused")
+        return formatJson(handleFocused());
+    if (name == "cursor_window")
+        return formatJson(handleCursorWindow());
+    if (name == "scene")
+        return formatJson(handleScene(targetToString(args.value("target"))));
+    if (name == "events")
+        return formatJson(handleEvents(static_cast<quint64>(args.value("since").toInteger())));
+
+    // --- Window control ---
+    if (name == "activate")
+        return formatJson(handleActivate(args));
+    if (name == "close")
+        return formatJson(handleClose(args));
+    if (name == "minimize")
+        return formatJson(handleMinimize(args));
+    if (name == "maximize")
+        return formatJson(handleMaximize(args));
+    if (name == "fullscreen")
+        return formatJson(handleFullscreen(args));
+    if (name == "move")
+        return formatJson(handleMove(args));
+    if (name == "resize")
+        return formatJson(handleResize(args));
+    if (name == "workspace")
+        return formatJson(handleWorkspace(args));
+
+    // --- Input ---
+    if (name == "move_cursor")
+        return formatJson(handleMoveCursor(args));
+    if (name == "event_motion")
+        return formatJson(handleEventMotion(args));
+    if (name == "event_button")
+        return formatJson(handleEventButton(args));
+    if (name == "event_key")
+        return formatJson(handleEventKey(args));
+
+    // --- Screenshots (return image content blocks) ---
+    if (name == "screenshot_output") {
+        const auto result = captureOutputBytes(args.value("name").toString());
+        if (!result.ok) {
+            *isError = true;
+            return QJsonArray{QJsonObject{{"type", "text"}, {"text", result.error}}};
+        }
+        return QJsonArray{QJsonObject{
+            {"type", "image"},
+            {"data", QString::fromLatin1(result.data.toBase64())},
+            {"mimeType", "image/png"}
+        }};
+    }
+    if (name == "screenshot_window") {
+        const auto result = captureWindowBytes(targetToString(args.value("target")));
+        if (!result.ok) {
+            *isError = true;
+            return QJsonArray{QJsonObject{{"type", "text"}, {"text", result.error}}};
+        }
+        return QJsonArray{QJsonObject{
+            {"type", "image"},
+            {"data", QString::fromLatin1(result.data.toBase64())},
+            {"mimeType", "image/png"}
+        }};
+    }
+
+    // Unknown tool
+    *isError = true;
+    return QJsonArray{QJsonObject{
+        {"type", "text"},
+        {"text", QStringLiteral("Unknown tool: %1").arg(name)}
+    }};
 }
 
 // --- WebSocket handling ---
