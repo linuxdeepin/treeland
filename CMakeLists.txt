@@ -83,6 +83,7 @@ endif()
 # debug-built treeland-debug client connects to the debug instance by default.
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     set(TREELAND_DEBUG_SOCKET "org.deepin.dde.treeland.debug-dev")
+    add_compile_definitions(TREELAND_DEBUG_DEV)
 else()
     set(TREELAND_DEBUG_SOCKET "org.deepin.dde.treeland.debug")
 endif()

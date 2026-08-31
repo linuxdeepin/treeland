@@ -100,7 +100,9 @@ At session start (treeland-sd.service) the actual socket URL is published as
 the **`TREELAND_DEBUG_URL`** environment variable, so `treeland-debug` run
 inside the session connects to the right instance without any flags. It falls
 back to the default socket URL when the variable is unset, and an explicit
-`--url` always wins.
+`--url` always wins. Debug-built `treeland-debug` ignores the environment
+variable and always targets the debug socket, so it connects to a debug
+instance even when the session env var points to a release socket.
 
 ### Global options
 

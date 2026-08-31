@@ -305,7 +305,7 @@ QString helpText()
         "interactive REPL.\n"
         "\n"
         "Global options:\n"
-        "  --url <url>          Remote object host URL (default: TREELAND_DEBUG_URL env, else the socket default)\n"
+        "  --url <url>          Remote object host URL (default: TREELAND_DEBUG_URL env, else the build-specific socket default; debug builds always use the debug socket)\n"
         "  --name <name>        Remote object name (default: WindowTree)\n"
         "  --timeout-ms <n>     Request timeout in milliseconds (default: 30000)\n"
         "  --json               Emit machine-readable JSON for `tree`/`cursor`/`windows`/`clients`\n"
@@ -397,9 +397,15 @@ int main(int argc, char *argv[])
     QCoreApplication::setApplicationName(QStringLiteral("treeland-debug"));
     QCoreApplication::setApplicationVersion(QStringLiteral("1.0"));
 
+#ifdef TREELAND_DEBUG_DEV
+    // Debug builds target the debug socket directly — the session env var
+    // (if set by a release treeland-sd) would point to the release socket.
+    QString url = treelandDebugDefaultSocketUrl();
+#else
     QString url = QString::fromUtf8(qgetenv("TREELAND_DEBUG_URL"));
     if (url.isEmpty())
         url = treelandDebugDefaultSocketUrl();
+#endif
     QString name = QStringLiteral("WindowTree");
     int timeoutMs = 30000;
     bool timeoutOk = true;

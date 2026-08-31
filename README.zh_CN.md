@@ -91,6 +91,8 @@ treeland 可同时运行，且 Debug 构建的 treeland-debug 客户端默认连
 会话启动时（treeland-sd.service）会将实际 socket URL 导出为环境变量
 **`TREELAND_DEBUG_URL`**，因此在会话内直接运行 `treeland-debug` 无需任何参数即可
 连接到正确实例。未设置该变量时回退到默认 socket URL，显式传入 `--url` 始终优先。
+Debug 编译的 `treeland-debug` 会忽略环境变量，始终连接到调试 socket，因此即使会话
+环境变量指向正式版 socket，也能连接到调试实例。
 
 ### 全局选项
 
