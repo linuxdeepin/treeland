@@ -3,6 +3,8 @@
 
 #include "debughelpers.h"
 
+#include "treelanddebugsocket.h"
+
 #include <QDir>
 #include <QFile>
 #include <QJsonObject>
@@ -10,6 +12,12 @@
 #include <QRectF>
 #include <QTemporaryDir>
 #include <QTest>
+#include <QLocalServer>
+#include <QLocalSocket>
+
+#include <fcntl.h>
+#include <sys/file.h>
+#include <unistd.h>
 
 // Unit tests for the pure-logic helpers shared by the treeland-debug tool
 // (stateName, buttonCode, keyCode, saveCapture, pointToJson, rectToJson)
@@ -37,6 +45,13 @@ private Q_SLOTS:
     void testSaveCaptureAutoPath();
     void testPointToJson();
     void testRectToJson();
+
+    // --- treeland-debug socket naming / conflict avoidance ---
+    void testSocketDefaultPath();
+    void testSocketPickFreeName();
+    void testSocketPickFreeNameOccupied();
+    void testSocketPickFreeNameSkipsLiveOldInstance();
+    void testSocketCandidateUrls();
 
     // --- parseCommand: no-argument commands ---
     void testParseTree();
@@ -279,6 +294,105 @@ void TreelandDebugTest::testRectToJson()
     QCOMPARE(obj.value("y").toDouble(), 20.0);
     QCOMPARE(obj.value("width").toDouble(), 300.0);
     QCOMPARE(obj.value("height").toDouble(), 400.0);
+}
+
+// ---------------------------------------------------------------------------
+// treeland-debug socket naming / conflict avoidance
+// ---------------------------------------------------------------------------
+
+void TreelandDebugTest::testSocketDefaultPath()
+{
+    // The default socket URL must be a local: URL with the bare socket name
+    // (no path), so Qt resolves it to /tmp/<name> and the socket is
+    // discoverable regardless of XDG_RUNTIME_DIR.
+    const QString name = treelandDebugDefaultSocketName();
+    QVERIFY(!name.isEmpty());
+    const QString url = treelandDebugDefaultSocketUrl();
+    QCOMPARE(url, QStringLiteral("local:") + name);
+    QVERIFY(!url.contains(QStringLiteral("/")));
+}
+
+void TreelandDebugTest::testSocketPickFreeName()
+{
+    // Free base → returned as-is, lock held.  Use a PID-qualified name so
+    // parallel ctest runs don't collide.
+    const QString base = QStringLiteral("test.treeland.debug.socket.free.%1").arg(::getpid());
+    QLocalServer::removeServer(base);
+
+    TreelandDebugSocketLock lock;
+    QCOMPARE(treelandDebugPickFreeSocketName(lock, base), base);
+    QVERIFY(lock.isHeld());
+    // Lock released on scope exit → lock file unlinked.
+}
+
+void TreelandDebugTest::testSocketPickFreeNameOccupied()
+{
+    // Occupied base → numeric suffix, and the occupied name is untouched.
+    const QString base = QStringLiteral("test.treeland.debug.socket.occupied.%1").arg(::getpid());
+    const QString suffix = base + QStringLiteral("-1");
+    QLocalServer::removeServer(base);
+    QLocalServer::removeServer(suffix);
+
+    // Occupy the base name by holding its lock.
+    TreelandDebugSocketLock holder;
+    QVERIFY(holder.tryAcquire(base));
+
+    TreelandDebugSocketLock lock;
+    QCOMPARE(treelandDebugPickFreeSocketName(lock, base), suffix);
+    QVERIFY(lock.isHeld());
+    // Both locks released on scope exit → lock files unlinked.
+}
+
+void TreelandDebugTest::testSocketPickFreeNameSkipsLiveOldInstance()
+{
+    // An old-build treeland may listen on the base socket WITHOUT holding a
+    // flock lock file. The picker must not clobber it (removeServer would
+    // delete the live socket path) — it should skip the live name and take a
+    // suffix instead.
+    const QString base = QStringLiteral("test.treeland.debug.socket.live.%1").arg(::getpid());
+    QLocalServer::removeServer(base);
+
+    QLocalServer server;
+    server.setSocketOptions(QLocalServer::UserAccessOption);
+    QVERIFY(server.listen(base));
+    // Discard the brief probe connections so they don't queue up.
+    connect(&server, &QLocalServer::newConnection, &server,
+            [&server]() { delete server.nextPendingConnection(); });
+
+    TreelandDebugSocketLock lock;
+    // base is live (server listening) but has no lock file -> must skip.
+    QCOMPARE(treelandDebugPickFreeSocketName(lock, base),
+             base + QStringLiteral("-1"));
+    QVERIFY(lock.isHeld());
+
+    server.close();
+    QLocalServer::removeServer(base);
+}
+
+void TreelandDebugTest::testSocketCandidateUrls()
+{
+    // The candidate URL list drives the client's auto-discovery: a debug
+    // build tries the debug socket first and falls back to the release
+    // socket; a release build only has the release socket.
+    const auto urls = treelandDebugCandidateSocketUrls();
+    QVERIFY(!urls.isEmpty());
+
+    // Every candidate must be a local: URL with a bare name (no path).
+    for (const auto &u : urls) {
+        QVERIFY(u.startsWith(QStringLiteral("local:")));
+        QVERIFY(!u.contains(QStringLiteral("/")));
+    }
+
+#ifdef TREELAND_DEBUG_DEV_BUILD
+    // Debug build: first candidate is the dev socket, second is release.
+    QCOMPARE(urls.size(), 2);
+    QVERIFY(urls.first().contains(QStringLiteral("debug-dev")));
+    QVERIFY(urls.last().endsWith(treelandDebugReleaseSocketName()));
+#else
+    // Release build: only the release socket.
+    QCOMPARE(urls.size(), 1);
+    QVERIFY(urls.first().endsWith(treelandDebugReleaseSocketName()));
+#endif
 }
 
 // ---------------------------------------------------------------------------
