@@ -593,7 +593,7 @@ DebugServer::ScreenshotBytes DebugServer::captureOutputBytes(const QString &outp
     ScreenshotBytes result;
     Session session;
     if (!createSession(session)) {
-        result.error = QStringLiteral("failed to connect to compositor: %1").arg(m_url);
+        result.error = QStringLiteral("failed to connect to compositor: %1").arg(m_urls.join(QStringLiteral(", ")));
         return result;
     }
     QByteArray data;
@@ -616,7 +616,7 @@ DebugServer::ScreenshotBytes DebugServer::captureWindowBytes(const QString &targ
     }
     Session session;
     if (!createSession(session)) {
-        result.error = QStringLiteral("failed to connect to compositor: %1").arg(m_url);
+        result.error = QStringLiteral("failed to connect to compositor: %1").arg(m_urls.join(QStringLiteral(", ")));
         return result;
     }
     bool ok = false;
