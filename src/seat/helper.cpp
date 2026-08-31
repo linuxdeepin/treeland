@@ -284,6 +284,15 @@ Helper::Helper(QObject *parent)
             m_wallpaperManager,
             &WallpaperManager::syncAddWorkspace);
     tryInitRemoteSource();
+#ifndef ALWAYS_ENABLE_TREELAND_DEBUG
+    // Release builds: react to runtime changes of the debugSource DConfig key,
+    // creating or destroying the remote source on the fly instead of only at
+    // startup.
+    connect(m_globalConfig.get(),
+            &TreelandConfig::debugSourceChanged,
+            this,
+            &Helper::tryInitRemoteSource);
+#endif
 
     m_outputManagerHelper = new OutputManager(m_rootSurfaceContainer, m_globalConfig.get(), this);
     connect(m_outputManagerHelper,
@@ -401,18 +410,27 @@ void Helper::syncPaletteTypeWithWindowThemeType(int32_t themeType)
 
 void Helper::tryInitRemoteSource()
 {
-    if (m_treelandRemoteSource)
-        return;
-#ifdef TREELAND_DEBUG_BUILD
+#ifdef ALWAYS_ENABLE_TREELAND_DEBUG
     // Remote debug is on by default in Debug builds so treeland-debug works out
     // of the box. The source has zero cost until a client connects, so enabling
     // it unconditionally here is safe even with no debug client attached.
+    if (m_treelandRemoteSource)
+        return;
     m_treelandRemoteSource = new TreelandRemoteSource(this);
     return;
-#endif
-    if (m_globalConfig->debugSource()) {
+#else
+    // Release builds: follow the debugSource DConfig key (default false) and
+    // react to its runtime changes -- toggling the key creates or destroys the
+    // remote source without restarting the compositor.
+    if (m_treelandRemoteSource) {
+        if (!m_globalConfig->debugSource()) {
+            delete m_treelandRemoteSource;
+            m_treelandRemoteSource = nullptr;
+        }
+    } else if (m_globalConfig->debugSource()) {
         m_treelandRemoteSource = new TreelandRemoteSource(this);
     }
+#endif
 }
 
 bool Helper::isNvidiaCardPresent()
