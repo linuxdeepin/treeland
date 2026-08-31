@@ -68,6 +68,43 @@ private:
     QHttpServerResponse handleScreenshotOutput(const QHttpServerRequest &request);
     QHttpServerResponse handleScreenshotWindow(const QHttpServerRequest &request);
 
+    // --- Internal handler overloads (JSON-body / param-based) ---
+    // Used by both the HTTP POST routes and the MCP tools/call dispatcher so
+    // that parameter extraction is not tied to QHttpServerRequest.
+    QJsonObject handleScene(const QString &target);
+    QJsonObject handleActivate(const QJsonObject &body);
+    QJsonObject handleClose(const QJsonObject &body);
+    QJsonObject handleMinimize(const QJsonObject &body);
+    QJsonObject handleMaximize(const QJsonObject &body);
+    QJsonObject handleFullscreen(const QJsonObject &body);
+    QJsonObject handleMove(const QJsonObject &body);
+    QJsonObject handleResize(const QJsonObject &body);
+    QJsonObject handleWorkspace(const QJsonObject &body);
+    QJsonObject handleMoveCursor(const QJsonObject &body);
+    QJsonObject handleEventMotion(const QJsonObject &body);
+    QJsonObject handleEventButton(const QJsonObject &body);
+    QJsonObject handleEventKey(const QJsonObject &body);
+    QJsonObject handleEvents(quint64 since);
+
+    // --- Screenshot byte helpers (used by MCP to return base64 images) ---
+    struct ScreenshotBytes {
+        bool ok = false;
+        QByteArray data;
+        QString error;
+    };
+    ScreenshotBytes captureOutputBytes(const QString &outputName);
+    ScreenshotBytes captureWindowBytes(const QString &target);
+
+    // --- MCP (Model Context Protocol) over Streamable HTTP ---
+    QHttpServerResponse handleMcpPost(const QHttpServerRequest &request);
+    QJsonObject mcpInitialize(const QJsonObject &params);
+    QJsonObject mcpToolsList() const;
+    QJsonObject mcpToolsCall(const QJsonObject &params);
+    // Dispatches one tool call, returning the MCP content array and setting
+    // *isError when the tool reported a failure.
+    QJsonArray mcpDispatchTool(const QString &name, const QJsonObject &args,
+                               bool *isError);
+
     // --- WebSocket handling ---
     void onNewWebSocketConnection();
     void handleWebSocketMessage(class QWebSocket *socket, const QString &message);
