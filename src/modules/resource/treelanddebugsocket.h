@@ -14,6 +14,8 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <utility>
+
 // Default local-socket name of the treeland-debug remote-object host.
 //
 // The value is defined once in the top-level CMakeLists.txt as the
@@ -88,8 +90,18 @@ public:
             m_lockPath.clear();
             return false;
         }
-        // Reclaim a stale socket file left by a crashed instance — same as
-        // wl_socket_lock() unlinking the socket after acquiring the lock.
+        // The flock rules out any other *new-build* treeland (they all use
+        // this lock). But a pre-existing old-build instance may be listening
+        // on this socket without holding a lock file; reclaiming it would
+        // delete its socket path and break its clients. Probe liveness first
+        // and, if a live server answers, leave the name to it and fail so the
+        // caller moves on to a suffixed name. A stale file left by a crash
+        // (no live server) is still reclaimed, mirroring wl_socket_lock()
+        // unlinking the socket after acquiring the lock.
+        if (socketIsLive(socketName)) {
+            release();
+            return false;
+        }
         QLocalServer::removeServer(socketName);
         return true;
     }
@@ -111,6 +123,19 @@ public:
     bool isHeld() const { return m_fd >= 0; }
 
 private:
+    // Returns true if a server is actively accepting connections on @p socketName.
+    // Used only after the flock is acquired, to avoid clobbering a live
+    // old-build instance that doesn't hold a lock file. For local (AF_UNIX)
+    // sockets the connect completes synchronously, so this returns immediately
+    // — true if a live server answered, false for a stale or absent file.
+    static bool socketIsLive(const QString &socketName)
+    {
+        QLocalSocket probe;
+        probe.connectToServer(socketName);
+        if (probe.waitForConnected(100))
+            return true;
+        return false;
+    }
     // QLocalServer on Linux places the socket at $XDG_RUNTIME_DIR/<name>
     // (or /tmp/<name> as fallback). The lock file sits right next to it with
     // a ".lock" suffix, exactly like libwayland's LOCK_SUFFIX.

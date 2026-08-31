@@ -96,13 +96,16 @@ steal each other's socket. Debug builds use a distinct default
 release-compiled one can run side by side, and a debug-built treeland-debug
 client connects to the debug instance by default.
 
-At session start (treeland-sd.service) the actual socket URL is published as
+At session start (treeland-sd.service) the default socket URL is published as
 the **`TREELAND_DEBUG_URL`** environment variable, so `treeland-debug` run
-inside the session connects to the right instance without any flags. It falls
-back to the default socket URL when the variable is unset, and an explicit
-`--url` always wins. Debug-built `treeland-debug` ignores the environment
-variable and always targets the debug socket, so it connects to a debug
-instance even when the session env var points to a release socket.
+inside the session connects to the primary treeland instance without any
+flags. It falls back to the default socket URL when the variable is unset,
+and an explicit `--url` always wins. A second treeland that had to take a
+suffixed socket name is not reflected in the env var (a single variable can
+only point to one instance); connect to such an instance with
+`--url local:<suffixed-name>`. Debug-built `treeland-debug` ignores the
+environment variable and always targets the debug socket, so it connects to
+a debug instance even when the session env var points to a release socket.
 
 ### Global options
 

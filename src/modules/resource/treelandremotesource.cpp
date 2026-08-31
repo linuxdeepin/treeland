@@ -190,6 +190,14 @@ TreelandRemoteSource::TreelandRemoteSource(QObject *parent)
     // file (see treelanddebugsocket.h), then listen on it. The lock is held
     // for this object's lifetime so no other treeland can steal the name.
     const QString socketName = treelandDebugPickFreeSocketName(m_debugSocketLock);
+    if (socketName.isEmpty()) {
+        // All 100 candidate names are already locked — extremely unlikely
+        // for a debug channel, but don't bind an invalid "local:" URL; leave
+        // the debug source unpublished.
+        qWarning("treeland-debug: no free debug socket name available; "
+                 "debug remote source disabled");
+        return;
+    }
     const QString url = QStringLiteral("local:%1").arg(socketName);
     auto *host = new QRemoteObjectHost(this);
     QRemoteObjectHost::setLocalServerOptions(QLocalServer::UserAccessOption);

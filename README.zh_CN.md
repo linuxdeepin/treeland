@@ -88,11 +88,13 @@ Treeland 在本地 socket 上发布调试源，默认名为 `org.deepin.dde.tree
 Debug 构建使用不同的默认名（`org.deepin.dde.treeland.debug-dev`），因此调试版与正式版
 treeland 可同时运行，且 Debug 构建的 treeland-debug 客户端默认连接到调试实例。
 
-会话启动时（treeland-sd.service）会将实际 socket URL 导出为环境变量
+会话启动时（treeland-sd.service）会将默认 socket URL 导出为环境变量
 **`TREELAND_DEBUG_URL`**，因此在会话内直接运行 `treeland-debug` 无需任何参数即可
-连接到正确实例。未设置该变量时回退到默认 socket URL，显式传入 `--url` 始终优先。
-Debug 编译的 `treeland-debug` 会忽略环境变量，始终连接到调试 socket，因此即使会话
-环境变量指向正式版 socket，也能连接到调试实例。
+连接到主 treeland 实例。未设置该变量时回退到默认 socket URL，显式传入 `--url` 始终
+优先。当第二个 treeland 因冲突使用了带后缀的 socket 名时，环境变量仍指向默认实例
+（单个环境变量只能指向一个实例）；如需连接该后缀实例，请使用
+`--url local:<带后缀的名>`。Debug 编译的 `treeland-debug` 会忽略环境变量，始终
+连接到调试 socket，因此即使会话环境变量指向正式版 socket，也能连接到调试实例。
 
 ### 全局选项
 

@@ -44,6 +44,7 @@ private Q_SLOTS:
     // --- treeland-debug socket naming / conflict avoidance ---
     void testSocketDefaultName();
     void testSocketPickFreeName();
+    void testSocketPickFreeNameSkipsLiveOldInstance();
 
     // --- parseCommand: no-argument commands ---
     void testParseTree();
@@ -330,6 +331,35 @@ void TreelandDebugTest::testSocketPickFreeName()
         TreelandDebugSocketLock lock;
         QCOMPARE(treelandDebugPickFreeSocketName(lock, base), base);
     }
+}
+
+void TreelandDebugTest::testSocketPickFreeNameSkipsLiveOldInstance()
+{
+    // An old-build treeland may listen on the base socket WITHOUT holding a
+    // flock lock file. The picker must not clobber it (removeServer would
+    // delete the live socket path) — it should skip the live name and take a
+    // suffix instead. New-build instances are already excluded by the flock;
+    // this only exercises the mixed-version guard.
+    const QString base = QStringLiteral("test.treeland.debug.live.socket");
+    QLocalServer::removeServer(base); // reclaim any stale file from a prior run
+
+    QLocalServer server;
+    server.setSocketOptions(QLocalServer::UserAccessOption);
+    QVERIFY(server.listen(base));
+    // Discard the brief probe connections so they don't queue up.
+    connect(&server, &QLocalServer::newConnection, &server,
+            [&server]() { delete server.nextPendingConnection(); });
+
+    {
+        TreelandDebugSocketLock lock;
+        // base is live (server listening) but has no lock file -> must skip.
+        QCOMPARE(treelandDebugPickFreeSocketName(lock, base),
+                 base + QStringLiteral("-1"));
+        QVERIFY(lock.isHeld());
+    } // lock released -> base-1.lock unlinked
+
+    server.close();
+    QLocalServer::removeServer(base); // clean up the base socket file
 }
 
 void TreelandDebugTest::testParseTree()
