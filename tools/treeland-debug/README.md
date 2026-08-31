@@ -32,14 +32,14 @@ Set `CMAKE_INSTALL_PREFIX` during configuration to use another prefix.
 Treeland runs as the `dde` user in global mode. Its Qt Remote Object server uses
 owner-only local socket access, so run this client as `dde`.
 
-Before starting Treeland, enable the `debugSource` DConfig option as the `dde`
+Before starting Treeland, enable the `remoteDebug` DConfig option as the `dde`
 user; otherwise the `WindowTree` Remote Object source is absent:
 
 ```bash
 sudo -u dde -- dde-dconfig set \
   -a org.deepin.dde.treeland \
   -r org.deepin.dde.treeland \
-  -k debugSource \
+  -k remoteDebug \
   -v true
 ```
 

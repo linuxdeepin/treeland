@@ -68,15 +68,15 @@ sudo cmake --install build --component treeland-debug
 
 调试 Remote Object 默认为可选项：**Debug** 编译版本默认开启（无需额外配置，
 `treeland-debug` 开箱即用），**Release** 版本默认关闭，需以 `dde` 用户开启
-`debugSource` DConfig 选项（Treeland 在 global 模式下以 `dde` 身份运行，其本地
-socket 仅属主可访问）。Release 版本下切换 `debugSource` 即时生效——远程源会
+`remoteDebug` DConfig 选项（Treeland 在 global 模式下以 `dde` 身份运行，其本地
+socket 仅属主可访问）。Release 版本下切换 `remoteDebug` 即时生效——远程源会
 动态创建或销毁，无需重启 Treeland：
 
 ```bash
 sudo -u dde -- dde-dconfig set \
   -a org.deepin.dde.treeland \
   -r org.deepin.dde.treeland \
-  -k debugSource \
+  -k remoteDebug \
   -v true
 ```
 

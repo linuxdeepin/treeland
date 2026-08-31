@@ -46,7 +46,7 @@
             "permissions": "readwrite",
             "visibility": "public"
         },
-        "debugSource": {
+        "remoteDebug": {
             "value": false,
             "serial": 0,
             "flags": [],
@@ -55,7 +55,7 @@
             "description": "Enable the Qt Remote Object remote source for window tree debugging tools. Performance impact when enabled.",
             "description[zh_CN]": "启用窗口树调试工具的Qt Remote Object远程数据源。开启后会有性能影响。",
             "permissions": "readwrite",
-            "visibility": "public"
+            "visibility": "private"
         },
         "showOtherUserOption": {
             "value": false,

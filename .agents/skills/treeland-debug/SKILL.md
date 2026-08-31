@@ -1,6 +1,6 @@
 ---
 name: treeland-debug
-description: Use this skill whenever a task asks you to debug, diagnose, reproduce, or analyze a problem in the running treeland compositor — window/workspace/input/output/rendering issues, crashes, hangs, focus problems, or requests to inspect live state. Trigger on `treeland-debug`, `debugSource`, `WindowTree` Remote Object, `QT_LOGGING_RULES`, treeland logging categories, `journalctl` for treeland, `org.deepin.Compositor1`, window tree inspection, input event injection, or screenshot capture from a live compositor. Pair with the systematic-debugging approach — reproduce, isolate, then fix at the root cause.
+description: Use this skill whenever a task asks you to debug, diagnose, reproduce, or analyze a problem in the running treeland compositor — window/workspace/input/output/rendering issues, crashes, hangs, focus problems, or requests to inspect live state. Trigger on `treeland-debug`, `remoteDebug`, `WindowTree` Remote Object, `QT_LOGGING_RULES`, treeland logging categories, `journalctl` for treeland, `org.deepin.Compositor1`, window tree inspection, input event injection, or screenshot capture from a live compositor. Pair with the systematic-debugging approach — reproduce, isolate, then fix at the root cause.
 ---
 
 # Treeland Debug
@@ -55,7 +55,7 @@ WLR_BACKENDS=x11 ./build/src/treeland.sh
 
 `treeland.sh` wraps `treeland` (adding the pixman software-rendering fallback on `dri2` failure, same as the service). Debugging this instance:
 
-- **Debug source is already on**: in Debug builds (`TREELAND_DEBUG_BUILD`) the debug Remote Object is enabled **by default** (`ALWAYS_ENABLE_TREELAND_DEBUG` is defined for the Debug config; pass `-DTREELAND_DEBUG_SOURCE=OFF` to CMake to keep it off) — skip the DConfig step below. Only release builds need `debugSource` set.
+- **Debug source is already on**: in Debug builds (`TREELAND_DEBUG_BUILD`) the debug Remote Object is enabled **by default** (`ALWAYS_ENABLE_TREELAND_DEBUG` is defined for the Debug config; pass `-DTREELAND_DEBUG_SOURCE=OFF` to CMake to keep it off) — skip the DConfig step below. Only release builds need `remoteDebug` set.
 - **No `sudo -u dde`**: run `treeland-debug` as the **current user**, same session as the instance. Because the socket is owner-only, this attaches to your own instance by default.
 - **Logs go to the terminal**, not journalctl: treeland's stdout/stderr (Qt categories) land where you launched it. Set `QT_LOGGING_RULES` in that process's environment, and pass `--console-log` to force console logging on a release build (debug builds always log to console).
 - **No socket conflict with the global service**: a debug build uses the distinct `-dev` socket name and auto-suffixes for concurrent instances (see Debug socket naming above), so the nested dev instance coexists with the global `treeland.service` — no need to stop it. A debug-built `treeland-debug` prefers your dev instance by default.
@@ -67,11 +67,11 @@ The `WindowTree` debug Remote Object is **off by default in release builds** (De
 sudo -u dde -- dde-dconfig set \
   -a org.deepin.dde.treeland \
   -r org.deepin.dde.treeland \
-  -k debugSource \
+  -k remoteDebug \
   -v true
 ```
 
-Toggling `debugSource` takes effect **immediately** — the remote source is created or destroyed on the fly, no restart needed (the compositor watches `debugSourceChanged` at runtime). `treeland-debug` connects to the build-specific debug socket (see Debug socket naming above), remote object `WindowTree`.
+Toggling `remoteDebug` takes effect **immediately** — the remote source is created or destroyed on the fly, no restart needed (the compositor watches `remoteDebugChanged` at runtime). `treeland-debug` connects to the build-specific debug socket (see Debug socket naming above), remote object `WindowTree`.
 
 ## treeland-debug CLI
 `treeland-debug` is an adb-style inspector/controller. Two modes: one-shot `treeland-debug <cmd> [args]` and REPL `treeland-debug shell`. Run every command as `dde`. `--json` gives machine-readable output for `tree`/`cursor`/`windows`/`clients`.
@@ -105,7 +105,7 @@ Every window has a stable numeric `id` (and an `appId`); either is accepted by a
 ### Quick start
 ```bash
 # enable once (takes effect immediately, no restart) — only for release builds; Debug builds are on by default
-sudo -u dde -- dde-dconfig set -a org.deepin.dde.treeland -r org.deepin.dde.treeland -k debugSource -v true
+sudo -u dde -- dde-dconfig set -a org.deepin.dde.treeland -r org.deepin.dde.treeland -k remoteDebug -v true
 
 # inspect (drop the `sudo -u dde` prefix when debugging a nested dev instance)
 sudo -u dde -- treeland-debug tree
