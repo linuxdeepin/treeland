@@ -72,16 +72,16 @@ sudo cmake --install build --component treeland-debug
 
 The debug Remote Object is opt-in: it is enabled by default in **Debug** builds
 (so `treeland-debug` works out of the box without extra config), and in
-**Release** builds it is off until you enable the `debugSource` DConfig option
+**Release** builds it is off until you enable the `remoteDebug` DConfig option
 as the `dde` user (Treeland runs as `dde` in global mode and its local socket is
-owner-only). Toggling `debugSource` in Release builds takes effect immediately
+owner-only). Toggling `remoteDebug` in Release builds takes effect immediately
 -- the remote source is created or destroyed on the fly, no restart needed:
 
 ```bash
 sudo -u dde -- dde-dconfig set \
   -a org.deepin.dde.treeland \
   -r org.deepin.dde.treeland \
-  -k debugSource \
+  -k remoteDebug \
   -v true
 ```
 
