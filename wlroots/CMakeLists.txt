@@ -220,6 +220,15 @@ if(WLROOTS_ALLOCATOR_UDMABUF)
         }
     " _have_udmabuf_apis)
     if(NOT _have_udmabuf_h OR NOT _have_udmabuf_apis)
+        if(CMAKE_C_COMPILER MATCHES "sccache" OR CMAKE_C_COMPILER MATCHES "/sccache/")
+            message(FATAL_ERROR
+                "udmabuf allocator requires memfd_create, F_ADD_SEALS and <linux/udmabuf.h>.\n"
+                "Detected sccache wrapper as compiler (${CMAKE_C_COMPILER}). "
+                "Do not use PATH wrapper (/usr/lib/sccache/bin). Use launcher mode:\n"
+                "  cmake -DUSE_SCCACHE=ON -DCMAKE_C_COMPILER=gcc\n"
+                "or: cmake -DCMAKE_C_COMPILER_LAUNCHER=sccache\n"
+                "and remove /usr/lib/sccache/bin from PATH.")
+        endif()
         message(FATAL_ERROR
             "udmabuf allocator requires memfd_create, F_ADD_SEALS and <linux/udmabuf.h>")
     endif()

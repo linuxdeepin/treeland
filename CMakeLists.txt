@@ -1,5 +1,43 @@
 cmake_minimum_required(VERSION 3.25.0)
 
+option(USE_SCCACHE "Use sccache compiler launcher (requires sccache, uses launcher mode not PATH wrapper)" OFF)
+if(USE_SCCACHE)
+    find_program(SCCACHE_PROGRAM sccache REQUIRED)
+    # Must be set before project() so try_compile is not routed through distributed sccache
+    set(CMAKE_C_COMPILER_LAUNCHER "${SCCACHE_PROGRAM}" CACHE STRING "C compiler launcher" FORCE)
+    set(CMAKE_CXX_COMPILER_LAUNCHER "${SCCACHE_PROGRAM}" CACHE STRING "C++ compiler launcher" FORCE)
+    # Also handle Rust if cargo is used (RUSTC_WRAPPER is the sccache-recommended way)
+    set(ENV{RUSTC_WRAPPER} "${SCCACHE_PROGRAM}")
+    message(STATUS "Using sccache: ${SCCACHE_PROGRAM} (launcher mode, not PATH wrapper)")
+    # Helpful check: fail fast if user still has wrapper in PATH/compiler
+    if(CMAKE_C_COMPILER MATCHES "sccache" OR CMAKE_C_COMPILER MATCHES "/sccache/bin/"
+       OR CMAKE_CXX_COMPILER MATCHES "sccache" OR CMAKE_CXX_COMPILER MATCHES "/sccache/bin/")
+        message(WARNING "USE_SCCACHE is ON but CMAKE_C/CXX_COMPILER looks like sccache wrapper (${CMAKE_C_COMPILER}). "
+                        "Use real compiler (e.g. -DCMAKE_C_COMPILER=gcc) with launcher, and remove /usr/lib/sccache/bin from PATH.")
+    endif()
+else()
+    # Warn if wrapper would be picked but option is OFF (helps user discover the option)
+    set(_treeland_wrapper_warning FALSE)
+    if(CMAKE_C_COMPILER MATCHES "sccache" OR CMAKE_C_COMPILER MATCHES "/sccache/bin/"
+       OR CMAKE_CXX_COMPILER MATCHES "sccache" OR CMAKE_CXX_COMPILER MATCHES "/sccache/bin/")
+        set(_treeland_wrapper_warning TRUE)
+    else()
+        # Implicit case: check what CMake would pick via PATH
+        find_program(_treeland_probe_wrapper gcc NO_CACHE)
+        if(_treeland_probe_wrapper MATCHES "/sccache/bin/" OR _treeland_probe_wrapper MATCHES "sccache")
+            set(_treeland_wrapper_warning TRUE)
+        endif()
+        unset(_treeland_probe_wrapper CACHE)
+        unset(_treeland_probe_wrapper)
+    endif()
+    if(_treeland_wrapper_warning)
+        message(WARNING "sccache wrapper detected in PATH/compiler but USE_SCCACHE is OFF. "
+                        "Wrapper mode breaks try_compile (e.g. wlroots udmabuf bwrap). "
+                        "Use -DUSE_SCCACHE=ON with real compiler and remove /usr/lib/sccache/bin from PATH, "
+                        "or set -DCMAKE_C_COMPILER_LAUNCHER=sccache. See CMakeLists.txt USE_SCCACHE.")
+    endif()
+    unset(_treeland_wrapper_warning)
+endif()
 project(Treeland
     VERSION 0.9.1
     LANGUAGES CXX C)
