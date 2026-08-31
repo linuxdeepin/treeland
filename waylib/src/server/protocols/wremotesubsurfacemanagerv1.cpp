@@ -12,7 +12,7 @@
 #include "wsurface.h"
 
 extern "C" {
-#include <wlr_all.h>
+#include <wlr/types/wlr_compositor.h>
 }
 
 #include <QHash>
@@ -505,6 +505,8 @@ void ExportedSurfaceContext::handleSurfaceDestroy()
             return;
         }
     }
+    if (m_manager)
+        m_manager->cleanupExportedContext(this);
     delete this;
 }
 
