@@ -10,16 +10,11 @@ if (NOT DEFINED SYSTEMD_USER_UNIT_DIR)
     pkg_get_variable(SYSTEMD_USER_UNIT_DIR systemd systemduserunitdir)
 endif()
 
-# Default treeland-debug socket name, matching treelandDebugDefaultSocketName()
-# in src/modules/resource/treelanddebugsocket.h (Debug builds use a distinct
-# name so a debug treeland doesn't collide with a release one). Injected into
-# the session unit so the default URL is exported at session start even when
-# the debug source stays off.
-if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-    set(TREELAND_DEBUG_SOCKET "org.deepin.dde.treeland.debug-dev")
-else()
-    set(TREELAND_DEBUG_SOCKET "org.deepin.dde.treeland.debug")
-endif()
+# TREELAND_DEBUG_SOCKET is defined once at the top level (CMakeLists.txt)
+# and shared with treelandDebugDefaultSocketName() via a compile definition of
+# the same name, so there is a single source of truth. It is substituted into
+# the session unit below so the default URL is exported at session start even
+# when the debug source stays off.
 
 macro(install_symlink filepath wantsdir)
     file(MAKE_DIRECTORY ${PROJECT_BINARY_DIR}/link/${wantsdir}/)

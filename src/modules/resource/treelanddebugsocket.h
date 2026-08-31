@@ -9,18 +9,19 @@
 
 // Default local-socket name of the treeland-debug remote-object host.
 //
+// The value is defined once in the top-level CMakeLists.txt as the
+// TREELAND_DEBUG_SOCKET CMake variable and forwarded here as a compile
+// definition of the same name, so the C++ default and the treeland-sd session
+// unit (which substitutes @TREELAND_DEBUG_SOCKET@) can never drift apart.
 // Debug builds use a distinct name so a debug treeland can run alongside a
 // release one without colliding, and a debug-built treeland-debug client
-// connects to the debug instance by default (WM-342). Keep in sync with the
-// TREELAND_DEBUG_SOCKET variable in misc/systemd/CMakeLists.txt, which injects
-// the same value into the session unit.
+// connects to the debug instance by default (WM-342).
+#ifndef TREELAND_DEBUG_SOCKET
+#  error "TREELAND_DEBUG_SOCKET must be provided by CMake (see top-level CMakeLists.txt)"
+#endif
 inline QString treelandDebugDefaultSocketName()
 {
-#ifdef QT_DEBUG
-    return QStringLiteral("org.deepin.dde.treeland.debug-dev");
-#else
-    return QStringLiteral("org.deepin.dde.treeland.debug");
-#endif
+    return QStringLiteral(TREELAND_DEBUG_SOCKET);
 }
 
 inline QString treelandDebugDefaultSocketUrl()

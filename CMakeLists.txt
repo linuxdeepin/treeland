@@ -71,6 +71,23 @@ if (TREELAND_DEBUG_SOURCE)
     add_compile_definitions(TREELAND_DEBUG_BUILD)
 endif()
 
+# Default local-socket name of the treeland-debug remote-object host.
+#
+# Single source of truth: exposed both as the TREELAND_DEBUG_SOCKET CMake
+# variable (substituted into the treeland-sd session unit via
+# @TREELAND_DEBUG_SOCKET@) and as a compile definition of the same name
+# consumed by treelandDebugDefaultSocketName() in
+# src/modules/resource/treelanddebugsocket.h, so the C++ default and the
+# session unit can never drift apart. Debug builds use a distinct name so a
+# debug treeland can run alongside a release one without colliding, and a
+# debug-built treeland-debug client connects to the debug instance by default.
+if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set(TREELAND_DEBUG_SOCKET "org.deepin.dde.treeland.debug-dev")
+else()
+    set(TREELAND_DEBUG_SOCKET "org.deepin.dde.treeland.debug")
+endif()
+add_compile_definitions("TREELAND_DEBUG_SOCKET=\"${TREELAND_DEBUG_SOCKET}\"")
+
 # NOTE: Qt keywords conflict with wlroots. but dtksystemsettings still uses it.
 # add_definitions("-DQT_NO_KEYWORDS")
 
