@@ -293,6 +293,13 @@ struct wlr_vk_command_buffer {
 
 #define VULKAN_COMMAND_BUFFERS_CAP 64
 
+// Binary semaphore holding an imported foreign-texture DMA-BUF sync_file.
+// Reusable once the texture_sync timeline semaphore reaches release_point.
+struct wlr_vk_texture_sync_sem {
+	VkSemaphore semaphore;
+	uint64_t release_point;
+};
+
 // Vulkan wlr_renderer implementation on top of a wlr_vk_device.
 struct wlr_vk_renderer {
 	struct wlr_renderer wlr_renderer;
@@ -328,6 +335,39 @@ struct wlr_vk_renderer {
 
 	VkSemaphore timeline_semaphore;
 	uint64_t timeline_point;
+
+	// Frame-batched waiting on foreign texture DMA-BUF sync_files (Qt/QRhi
+	// path). Unsignaled sync_files are imported into binary semaphores and
+	// waited on by a bridge command buffer. Its pipeline barrier extends the
+	// wait dependency to the later Qt submission on the same queue.
+	VkSemaphore texture_sync_timeline_semaphore;
+	uint64_t texture_sync_timeline_point;
+	struct wl_array texture_sync_semaphores; // struct wlr_vk_texture_sync_sem
+	struct wl_array texture_sync_pending; // private texture sync wait entries
+	struct wl_array texture_sync_wait_infos; // VkSemaphoreSubmitInfoKHR scratch
+	bool texture_sync_batch_active;
+	bool texture_sync_force_poll; // env WLR_VK_FORCE_SYNC_POLL
+
+	// Per-pass batching of foreign-texture acquire/release barriers (Qt/QRhi
+	// path). Instead of emitting one vkCmdPipelineBarrier per texture, the
+	// barriers are accumulated while a batch is active and recorded as a
+	// single call before (acquire phase) or after (release phase) the Qt draw.
+	struct wl_array texture_acquire_barriers; // VkImageMemoryBarrier
+	struct wl_array texture_release_barriers; // VkImageMemoryBarrier
+	bool texture_barrier_batch_active;
+	bool texture_barrier_batch_release; // current batch is the release phase
+
+	// Force the legacy blocking staging-upload path instead of the
+	// GPU-side asynchronous one (env WLR_VK_FORCE_STAGE_BLOCK).
+	bool stage_force_block;
+	// Enable the GPU-side asynchronous staging-upload path. Must only be set
+	// once the consumer (Qt/QRhi) is confirmed to submit to the same VkQueue,
+	// since the path relies on the same-queue texture-sync bridge to order the
+	// upload before the uploaded texture is sampled.
+	bool stage_async_enabled;
+	// A stage upload was submitted asynchronously and needs the texture-sync
+	// bridge barrier before the consumer submits its command buffer.
+	bool stage_async_needs_bridge;
 
 	size_t last_pool_size;
 	struct wl_list descriptor_pools; // wlr_vk_descriptor_pool.link
@@ -410,6 +450,13 @@ VkCommandBuffer vulkan_record_stage_cb(struct wlr_vk_renderer *renderer);
 // Submits the current stage command buffer and waits until it has
 // finished execution.
 bool vulkan_submit_stage_wait(struct wlr_vk_renderer *renderer);
+
+// Submits the current stage command buffer without blocking the CPU. The
+// staging buffers it used are hidden in the command buffer's stage_buffers
+// list and reclaimed once its timeline point is reached. Callers that sample
+// the uploaded content must flush the texture-sync bridge and then submit
+// their own command buffer to the same queue.
+bool vulkan_submit_stage_async(struct wlr_vk_renderer *renderer);
 
 struct wlr_vk_render_pass_texture {
 	struct wlr_vk_texture *texture;
