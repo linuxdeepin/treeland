@@ -539,8 +539,8 @@ struct wlr_vk_device *vulkan_device_create(struct wlr_vk_instance *ini,
 	if (dev->implicit_sync_interop) {
 		wlr_log(WLR_DEBUG, "Implicit sync interop supported");
 	} else {
-		wlr_log(WLR_INFO, "Implicit sync interop not supported, "
-			"falling back to blocking");
+		wlr_log(WLR_INFO, "Implicit sync interop not supported; "
+			"the Vulkan renderer will not be created");
 	}
 
 	VkPhysicalDeviceSamplerYcbcrConversionFeatures phdev_sampler_ycbcr_features = {
