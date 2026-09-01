@@ -70,6 +70,8 @@ void InputManager::setupSeatUserConfig(const QString &userName)
                                                    "org.deepin.dde.treeland",
                                                    "/" + userName);
 
+    Q_EMIT seatConfigChanged(m_seatDConfig);
+
     if (isSeatDConfigInitialized(m_seatDConfig)) {
         onConfigInitializeSucceed();
     } else {
