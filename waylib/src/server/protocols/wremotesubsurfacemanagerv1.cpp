@@ -7,11 +7,12 @@
 #include "qwayland-server-treeland-remote-subsurface-unstable-v1.h"
 #include "wayliblogging.h"
 #include "wserver.h"
+#include "wscoplistener.h"
 #include "wsubsurface.h"
 #include "wsurface.h"
 
 extern "C" {
-#include <wlr/types/wlr_compositor.h>
+#include <wlr_all.h>
 }
 
 #include <QHash>
@@ -66,6 +67,11 @@ public:
         , m_surface(surface)
         , m_token(token)
     {
+        // WSurface follows a surface role and may be destroyed with an
+        // xdg_toplevel while the underlying wl_surface remains valid.
+        m_surfaceDestroyListener.init(&m_surface->events.destroy,
+                                      this,
+                                      &ExportedSurfaceContext::handleSurfaceDestroy);
     }
 
     ~ExportedSurfaceContext() override = default;
@@ -101,9 +107,12 @@ protected:
                                   const QString &parent_token) override;
 
 private:
+    void handleSurfaceDestroy();
+
     WRemoteSubsurfaceManagerV1Private *m_manager;
     wlr_surface *m_surface = nullptr;
     QString m_token;
+    WScopedListener m_surfaceDestroyListener;
 };
 
 // ---------------------------------------------------------------------------
@@ -399,19 +408,6 @@ public:
         delete remote;
     }
 
-    static void safeDestroyExported(ExportedSurfaceContext *ctx)
-    {
-        if (!ctx)
-            return;
-        if (auto *res = ctx->resource()) {
-            if (res->handle) {
-                wl_resource_destroy(res->handle);
-                return;
-            }
-        }
-        delete ctx;
-    }
-
     // Cleanup
     void cleanupExportedContext(ExportedSurfaceContext *ctx)
     {
@@ -488,17 +484,6 @@ protected:
 
         registerExported(context);
         context->send_surface_token(token);
-
-        auto *ws = WSurface::fromHandle(wlrSurface);
-        if (ws) {
-            QObject::connect(ws,
-                             &WSurface::beforeDestroy,
-                             context,
-                             [this, context]() {
-                                 if (m_tokens.contains(context->token()))
-                                     safeDestroyExported(context);
-                             });
-        }
     }
 
 private:
@@ -508,6 +493,20 @@ private:
 // ---------------------------------------------------------------------------
 // ExportedSurfaceContext implementation
 // ---------------------------------------------------------------------------
+
+void ExportedSurfaceContext::handleSurfaceDestroy()
+{
+    if (!m_manager || m_manager->findExportedByToken(m_token) != this)
+        return;
+
+    if (auto *res = resource()) {
+        if (res->handle) {
+            wl_resource_destroy(res->handle);
+            return;
+        }
+    }
+    delete this;
+}
 
 void ExportedSurfaceContext::destroy_resource(Resource *)
 {
