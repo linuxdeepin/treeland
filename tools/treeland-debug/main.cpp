@@ -8,8 +8,10 @@
 #include <QJsonObject>
 #include <QPointF>
 #include <QProcessEnvironment>
+#include <QProcess>
 #include <QRemoteObjectNode>
 #include <QSocketNotifier>
+#include <QStandardPaths>
 #include <QTextStream>
 #include <QTimer>
 #include <QUrl>
@@ -311,6 +313,7 @@ QString helpText()
         "  --json               Emit machine-readable JSON for `tree`/`cursor`/`windows`/`clients`\n"
         "  --preview            Force inline image preview in terminal (auto-detected by default)\n"
         "  --no-preview         Disable inline image preview\n"
+        "  --no-escalate        Do not attempt polkit privilege escalation (release builds only)\n"
         "\n"
         "Inspection:\n"
         "  tree                       Print the complete window tree (human-readable, use --json for JSON)\n"
@@ -410,6 +413,7 @@ int main(int argc, char *argv[])
     bool previewOpt = 0; // 0=auto-detect, 1=force on, 2=force off
     bool compatTree = false;
     bool compatCursor = false;
+    bool noEscalate = false;
     QStringList rest;
 
     for (int i = 1; i < argc; ++i) {
@@ -446,6 +450,8 @@ int main(int argc, char *argv[])
             previewOpt = 2;
         else if (arg == QLatin1String("--json"))
             json = true;
+        else if (arg == QLatin1String("--no-escalate"))
+            noEscalate = true;
         else if (arg == QLatin1String("--tree"))
             compatTree = true;
         else if (arg == QLatin1String("--cursor"))
@@ -486,6 +492,38 @@ int main(int argc, char *argv[])
         QTextStream(stdout) << helpText();
         return EXIT_SUCCESS;
     }
+
+#ifndef TREELAND_DEBUG_DEV_BUILD
+    // Release builds: the server-side socket enforces uid == 0 via SO_PEERCRED
+    // — only root can connect.  The compositor runs as dde, but root can access
+    // the socket due to privileges.  This client-side pkexec escalation is a
+    // convenience: it re-execs as root via polkit so the connection succeeds
+    // and the user gets an authentication prompt instead of a silent failure.
+    // --no-escalate skips the prompt and fails immediately instead.
+    // Debug builds allow all users unconditionally.
+    if (::geteuid() != 0) {
+        if (noEscalate) {
+            return fail(QStringLiteral("root privileges required (release build); "
+                                        "remove --no-escalate to escalate via polkit"));
+        }
+        const QString pkexec = QStandardPaths::findExecutable(QStringLiteral("pkexec"));
+        if (pkexec.isEmpty()) {
+            return fail(QStringLiteral("root privileges required (release build), "
+                                        "but pkexec was not found — install polkit "
+                                        "or run as root"));
+        }
+        // Re-exec ourselves through pkexec, forwarding every original argument
+        // so the elevated copy runs the same command.  Since the elevated
+        // process runs as root, geteuid() == 0 and the check is skipped on
+        // re-entry.
+        const QString exe = QCoreApplication::applicationFilePath();
+        QStringList pkArgs;
+        pkArgs << exe;
+        for (int i = 1; i < argc; ++i)
+            pkArgs << QString::fromUtf8(argv[i]);
+        return QProcess::execute(pkexec, pkArgs);
+    }
+#endif
 
 #ifdef TREELAND_DEBUG_LISTEN
     if (command == QLatin1String("listen")) {

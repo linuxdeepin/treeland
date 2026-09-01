@@ -27,6 +27,8 @@
 #include <wayland-server-core.h>
 #include <xkbcommon/xkbcommon.h>
 #include <cstring>
+#include <sys/socket.h>
+#include <unistd.h>
 
 #include <QBuffer>
 #include <QDateTime>
@@ -35,6 +37,7 @@
 #include <QFutureWatcher>
 #include <QImage>
 #include <QLocalServer>
+#include <QLocalSocket>
 #include <QMetaEnum>
 #include <QQuickItem>
 #include <QQuickItemGrabResult>
@@ -182,6 +185,38 @@ int qtKeyToEvdev(int qtKey, wlr_keyboard *keyboard)
     return 0;
 }
 
+#ifndef TREELAND_DEBUG_DEV_BUILD
+// Release builds: a QLocalServer subclass that rejects non-root connections
+// at the kernel level via SO_PEERCRED.  The compositor runs as dde, so the
+// socket is owned by dde; root can access it (root bypasses file permissions)
+// but dde and other non-root users are rejected here — this is the real
+// server-side identity enforcement, not the client-side pkexec wrapper.
+class RootOnlyLocalServer : public QLocalServer
+{
+public:
+    explicit RootOnlyLocalServer(QObject *parent = nullptr)
+        : QLocalServer(parent)
+    {
+    }
+
+protected:
+    void incomingConnection(quintptr socketDescriptor) override
+    {
+        struct ucred cred;
+        socklen_t len = sizeof(cred);
+        if (getsockopt(socketDescriptor, SOL_SOCKET, SO_PEERCRED, &cred, &len) == -1) {
+            ::close(socketDescriptor);
+            return;
+        }
+        if (cred.uid != 0) {
+            ::close(socketDescriptor);
+            return;
+        }
+        QLocalServer::incomingConnection(socketDescriptor);
+    }
+};
+#endif
+
 } // namespace
 
 TreelandRemoteSource::TreelandRemoteSource(QObject *parent)
@@ -202,13 +237,37 @@ TreelandRemoteSource::TreelandRemoteSource(QObject *parent)
     }
 
     auto *host = new QRemoteObjectHost(this);
-    QRemoteObjectHost::setLocalServerOptions(QLocalServer::UserAccessOption);
+#ifdef TREELAND_DEBUG_DEV_BUILD
+    // Debug builds: allow all users to connect (requirement: debug builds
+    // are unrestricted).  WorldAccessOption sets the socket to 0666.
+    QRemoteObjectHost::setLocalServerOptions(QLocalServer::WorldAccessOption);
     if (!host->setHostUrl(QUrl(QStringLiteral("local:%1").arg(socketName)))) {
         qCWarning(lcTlDebug) << "Failed to listen on debug socket" << socketName
                              << "; debug remote source disabled";
         m_debugSocketLock.release();
         return;
     }
+#else
+    // Release builds: only root may connect.  We use a custom QLocalServer
+    // subclass (RootOnlyLocalServer) that checks SO_PEERCRED and rejects
+    // non-root connections before they reach QRemoteObjectHost.  The
+    // compositor runs as dde, so UserAccessOption (0600) limits file-level
+    // access to dde and root; the SO_PEERCRED check then rejects dde,
+    // leaving only root.
+    auto *server = new RootOnlyLocalServer(this);
+    server->setSocketOptions(QLocalServer::UserAccessOption);
+    if (!server->listen(socketName)) {
+        qCWarning(lcTlDebug) << "Failed to listen on debug socket" << socketName
+                             << "; debug remote source disabled";
+        m_debugSocketLock.release();
+        return;
+    }
+    connect(server, &QLocalServer::newConnection, host, [host, server]() {
+        QLocalSocket *socket = server->nextPendingConnection();
+        if (socket)
+            host->addHostSideConnection(socket);
+    });
+#endif
     host->enableRemoting(this, QStringLiteral("WindowTree"));
 }
 

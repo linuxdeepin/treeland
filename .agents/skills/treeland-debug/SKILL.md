@@ -1,6 +1,6 @@
 ---
 name: treeland-debug
-description: Use this skill whenever a task asks you to debug, diagnose, reproduce, or analyze a problem in the running treeland compositor — window/workspace/input/output/rendering issues, crashes, hangs, focus problems, or requests to inspect live state. Trigger on `treeland-debug`, `remoteDebug`, `WindowTree` Remote Object, `QT_LOGGING_RULES`, treeland logging categories, `journalctl` for treeland, `org.deepin.Compositor1`, window tree inspection, input event injection, or screenshot capture from a live compositor. Pair with the systematic-debugging approach — reproduce, isolate, then fix at the root cause.
+description: Use this skill whenever a task asks you to debug, diagnose, reproduce, or analyze a problem in the running treeland compositor — window/workspace/input/output/rendering issues, crashes, hangs, focus problems, or requests to inspect live state. Trigger on `treeland-debug`, `remoteDebug`, `WindowTree` Remote Object, `QT_LOGGING_RULES`, treeland logging categories, `journalctl` for treeland, `org.deepin.Compositor1`, window tree inspection, input event injection, or screenshot capture from a live compositor. Also trigger on access-control topics: `pkexec`, `polkit`, `--no-escalate`, `root` privileges for treeland-debug. Pair with the systematic-debugging approach — reproduce, isolate, then fix at the root cause.
 ---
 
 # Treeland Debug
@@ -28,13 +28,21 @@ treeland can run as a shipped service or as an in-development build:
 - **User mode**: starts per-user as a normal window manager.
 - **In-development (dev) build, nested**: the version under active development is usually **not** the installed release — it is built from the working tree and launched directly as a **separate process running as the current user**, nested inside an existing Wayland or X11 session. See the next section.
 
-The debug Remote Object's local socket is owner-only, so `treeland-debug` only reaches a treeland that runs as the **same user** as you. That decides the user prefix for every live command:
+The debug Remote Object's local socket is owner-only, so `treeland-debug` must run as a user that can access it. In release builds, `treeland-debug` auto-escalates to **root** via polkit (see Access control below), and root can access any user's socket — so no manual user prefix is needed. In debug builds, run `treeland-debug` as the **same user** as the treeland instance:
 
-- Global service (runs as `dde`) → `sudo -u dde -- <cmd>`.
-- Nested dev instance (runs as you) → run commands as the **current user** in your own session, no `sudo`.
+- Global service (runs as `dde`, release build) → run `treeland-debug` directly; it auto-escalates to root.
+- Nested dev instance (runs as you, debug build) → run as the **current user** in your own session, no prefix.
+
+### Access control
+`treeland-debug` restricts who may use it based on build type:
+
+- **Release builds** — only `root` may run `treeland-debug`. A non-root caller is automatically re-executed through `pkexec` (polkit), which prompts for authentication. Pass `--no-escalate` to skip the prompt and fail immediately (useful in scripts or CI). A polkit policy (`misc/polkit/org.deepin.dde.treeland-debug.policy`) is installed so escalation works out of the box.
+- **Debug builds** (`TREELAND_DEBUG_DEV_BUILD`) — all users may run `treeland-debug` without restriction.
+
+Because root can access any user's socket, release builds can reach the global `dde` service without a `sudo -u dde` prefix. In debug builds, run as the same user as the treeland instance.
 
 ### Debug socket naming
-The debug Remote Object publishes on a local socket placed in `QDir::tempPath()` (typically `/tmp`, respects `$TMPDIR`) — not `XDG_RUNTIME_DIR` — so a `treeland-debug` client running under any runtime directory can discover it (the socket is still owner-only, so the client must run as the **same Unix user** as the treeland instance). The base name is build-specific:
+The debug Remote Object publishes on a local socket placed in `QDir::tempPath()` (typically `/tmp`, respects `$TMPDIR`) — not `XDG_RUNTIME_DIR` — so a `treeland-debug` client running under any runtime directory can discover it (the socket is still owner-only, so the client must run as the **same Unix user** as the treeland instance, or as **root** — see Access control). The base name is build-specific:
 
 - **Release build**: `org.deepin.dde.treeland.debug`
 - **Debug build**: `org.deepin.dde.treeland.debug-dev`
@@ -74,7 +82,7 @@ sudo -u dde -- dde-dconfig set \
 Toggling `remoteDebug` takes effect **immediately** — the remote source is created or destroyed on the fly, no restart needed (the compositor watches `remoteDebugChanged` at runtime). `treeland-debug` connects to the build-specific debug socket (see Debug socket naming above), remote object `WindowTree`.
 
 ## treeland-debug CLI
-`treeland-debug` is an adb-style inspector/controller. Two modes: one-shot `treeland-debug <cmd> [args]` and REPL `treeland-debug shell`. Run every command as `dde`. `--json` gives machine-readable output for `tree`/`cursor`/`windows`/`clients`.
+`treeland-debug` is an adb-style inspector/controller. Two modes: one-shot `treeland-debug <cmd> [args]` and REPL `treeland-debug shell`. In release builds, `treeland-debug` auto-escalates to root via polkit; in debug builds, run as the same user as the treeland instance. `--json` gives machine-readable output for `tree`/`cursor`/`windows`/`clients`.
 
 Global options: `--url <url>` (default: auto — build-specific socket; a debug build prefers the debug socket and falls back to the release socket), `--name <name>` (default `WindowTree`), `--timeout-ms <n>` (default 30000), `--json`. Pass `--url` explicitly to target a specific instance (used verbatim, no implicit processing).
 
@@ -107,23 +115,23 @@ Every window has a stable numeric `id` (and an `appId`); either is accepted by a
 # enable once (takes effect immediately, no restart) — only for release builds; Debug builds are on by default
 sudo -u dde -- dde-dconfig set -a org.deepin.dde.treeland -r org.deepin.dde.treeland -k remoteDebug -v true
 
-# inspect (drop the `sudo -u dde` prefix when debugging a nested dev instance)
-sudo -u dde -- treeland-debug tree
-sudo -u dde -- treeland-debug --json windows
-sudo -u dde -- treeland-debug clients
+# inspect — release builds auto-escalate to root via polkit; debug builds run as current user
+treeland-debug tree
+treeland-debug --json windows
+treeland-debug clients
 
 # control
-sudo -u dde -- treeland-debug activate dde-file-manager
-sudo -u dde -- treeland-debug maximize 93824992268800
-sudo -u dde -- treeland-debug close dde-file-manager
+treeland-debug activate dde-file-manager
+treeland-debug maximize 93824992268800
+treeland-debug close dde-file-manager
 
 # inject input
-sudo -u dde -- treeland-debug event key enter tap
-sudo -u dde -- treeland-debug event button left click
+treeland-debug event key enter tap
+treeland-debug event button left click
 
 # screenshot
-sudo -u dde -- treeland-debug screenshot output DP-1 /tmp/ss.png   # syntax: screenshot output <output-name> [file]
-sudo -u dde -- treeland-debug screenshot window 93824992268800
+treeland-debug screenshot output DP-1 /tmp/ss.png   # syntax: screenshot output <output-name> [file]
+treeland-debug screenshot window 93824992268800
 ```
 
 ## Reading logs
@@ -153,7 +161,7 @@ sudo journalctl -u treeland.service -f
 Start from the symptom and pick the smallest reliable check. Reproduce first, then isolate the layer (treeland vs waylib vs wlroots vs client).
 
 **Wrong window state (max/min/fullscreen/tiling, geometry, visibility):**
-1. `sudo -u dde -- treeland-debug --json windows` — read `state`, `visible`, `active`, `geometry`, `workspace`, `layer`, `frames`, `damage` for the target window (match by `appId`).
+1. `treeland-debug --json windows` — read `state`, `visible`, `active`, `geometry`, `workspace`, `layer`, `frames`, `damage` for the target window (match by `appId`).
 2. `treeland-debug tree` — confirm which layer/workspace the window sits in.
 3. `treeland-debug scene <id>` — if the layout looks right but rendering is wrong, check the QtQuick scene (menus/popups/decorations).
 4. Cross-check with logs: `QT_LOGGING_RULES='treeland.surface.debug=true;treeland.workspace.debug=true'`.
@@ -177,12 +185,12 @@ Start from the symptom and pick the smallest reliable check. Reproduce first, th
 1. Check service state and restart logs: `sudo journalctl -u treeland.service -n 200 --no-pager` (add a `StandardError=journal` drop-in first — see Reading logs).
 2. If ASAN is enabled, logs go to `/tmp/treeland-asan*` files, not journalctl (see `treeland.service.in`).
 3. Reproduce with minimal steps using `treeland-debug` (inject events, activate/close windows) and note the last actions before the crash.
-4. For hangs, use `top`/`clients` to see if a client is stuck, and gdb attach (`sudo -u dde -- gdb -p <pid>`) if needed.
+4. For hangs, use `top`/`clients` to see if a client is stuck, and gdb attach (`sudo gdb -p <pid>`) if needed.
 
 **Client-side suspicion:** check the client's pid via `treeland-debug clients`; verify the client is actually talking to the compositor (its `windows`, `frames` incrementing). A frozen client will show `frames` not advancing.
 
 ## Rules
-- Run all live commands as the **same user** the treeland instance runs as: `sudo -u dde -- ...` for the global service, plain current-user commands for a nested dev instance. The debug socket is owner-only.
+- In release builds, `treeland-debug` auto-escalates to root via polkit (root can access any user's socket), so no manual user prefix is needed. In debug builds, run as the **same user** as the treeland instance. The debug socket is owner-only. Pass `--no-escalate` to skip polkit escalation in scripts/CI.
 - Use `--json` for machine-readable state you need to parse; use `windows`/`clients`/`top` to discover stable window ids before controlling them.
 - Screenshots are a strong ground truth: if the layout `tree` is right but the image is wrong, the issue is in rendering/QtQuick scene, not layout.
 - Prefer root-cause fixes; the live tool is for observation and reproduction, not a substitute for reading the code path that owns the failing state.
