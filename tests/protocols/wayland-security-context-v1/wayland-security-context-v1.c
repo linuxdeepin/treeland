@@ -15,6 +15,7 @@
 #include "server-bridge-api.h"
 #include "security-context-v1-client-protocol.h"
 
+#include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/socket.h>
