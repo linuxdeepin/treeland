@@ -504,10 +504,14 @@ static bool is_dmabuf_disjoint(const struct wlr_dmabuf_attributes *attribs) {
 VkImage vulkan_import_dmabuf(struct wlr_vk_renderer *renderer,
 		const struct wlr_dmabuf_attributes *attribs,
 		VkDeviceMemory mems[static WLR_DMABUF_MAX_PLANES], uint32_t *n_mems,
-		bool for_render, bool *using_mutable_srgb) {
+		bool for_render, bool *using_mutable_srgb,
+		VkImageUsageFlags *image_usage) {
 	VkResult res;
 	VkDevice dev = renderer->dev->dev;
 	*n_mems = 0u;
+	if (image_usage != NULL) {
+		*image_usage = 0;
+	}
 
 	struct wlr_vk_format_props *fmt = vulkan_format_props_from_drm(renderer->dev,
 		attribs->format);
@@ -618,6 +622,9 @@ VkImage vulkan_import_dmabuf(struct wlr_vk_renderer *renderer,
 	if (res != VK_SUCCESS) {
 		wlr_vk_error("vkCreateImage", res);
 		return VK_NULL_HANDLE;
+	}
+	if (image_usage != NULL) {
+		*image_usage = usage;
 	}
 
 	unsigned mem_count = disjoint ? plane_count : 1u;
@@ -752,7 +759,7 @@ static struct wlr_vk_texture *vulkan_texture_from_dmabuf(
 
 	bool using_mutable_srgb = false;
 	texture->image = vulkan_import_dmabuf(renderer, attribs,
-		texture->memories, &texture->mem_count, false, &using_mutable_srgb);
+		texture->memories, &texture->mem_count, false, &using_mutable_srgb, NULL);
 	if (!texture->image) {
 		goto error;
 	}
