@@ -1516,6 +1516,17 @@ void Helper::onShowDesktop()
             }
         }
 
+        // Explicitly close all popup surfaces: dismissPopups() only ends the
+        // keyboard grab and sends popup_done, but does not destroy the popup
+        // surfaces themselves. Without this, popups remain visible when showing
+        // the desktop with no normal windows, requiring a second Super+D to
+        // dismiss them.
+        const auto popupSurfaces = m_shellHandler->popupContainer()->surfaces();
+        for (SurfaceWrapper *popup : popupSurfaces) {
+            if (popup->type() == SurfaceWrapper::Type::XdgPopup)
+                popup->close();
+        }
+
         const auto &seats = m_seatManager->seats();
         for (auto *seat : seats) {
             auto *seatContainer = m_rootSurfaceContainer->getSeatContainer(seat);
