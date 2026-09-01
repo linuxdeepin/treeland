@@ -288,6 +288,7 @@ public:
 
     RootSurfaceContainer *rootContainer() const { return m_rootSurfaceContainer; }
     WBackend *backend() const;
+    InputManager *inputManager() const { return m_inputManager; }
 public Q_SLOTS:
     void activateSurface(SurfaceWrapper *wrapper,
                          Qt::FocusReason reason = Qt::OtherFocusReason,
