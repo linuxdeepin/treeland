@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC
+ "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<policyconfig>
+
+  <vendor>UnionTech Software Technology Co., Ltd.</vendor>
+  <vendor_url>https://www.uniontech.com</vendor_url>
+
+  <action id="org.deepin.dde.treeland-debug.run">
+    <description>Run treeland-debug with elevated privileges</description>
+    <description xml:lang="zh_CN">以管理员权限运行 treeland-debug</description>
+    <message>Authentication is required to run treeland-debug</message>
+    <message xml:lang="zh_CN">运行 treeland-debug 需要管理员认证</message>
+    <icon_name>treeland-debug</icon_name>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">@CMAKE_INSTALL_FULL_BINDIR@/treeland-debug</annotate>
+    <annotate key="org.freedesktop.policykit.exec.allow_gui">true</annotate>
+  </action>
+
+</policyconfig>

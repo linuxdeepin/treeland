@@ -45,6 +45,21 @@ sudo -u dde -- dde-dconfig set \
 
 Restart Treeland after changing this option.
 
+## Access control
+
+`treeland-debug` restricts who may use it depending on the build type:
+
+- **Release builds** — only `root` may run `treeland-debug`. A non-root caller
+  is automatically re-executed through `pkexec` (polkit), which prompts for
+  authentication. Pass `--no-escalate` to skip the prompt and fail immediately
+  instead (useful in scripts or CI).
+- **Debug builds** — all users may run `treeland-debug` without restriction.
+
+A polkit policy (`misc/polkit/org.deepin.dde.treeland-debug.policy`) is
+installed alongside the executable so that the `pkexec` escalation works out of
+the box on release builds. If `pkexec` is not available, non-root callers
+receive an error explaining how to proceed.
+
 ## Global options
 
 ```
@@ -52,6 +67,7 @@ Restart Treeland after changing this option.
 --name <name>        Remote object name (default: WindowTree)
 --timeout-ms <n>     Request timeout in milliseconds (default: 30000)
 --json               Emit machine-readable JSON for `windows`/`clients`
+--no-escalate        Do not attempt polkit privilege escalation (release builds only)
 -h, --help           Show help
 -v, --version        Show version
 ```
@@ -61,7 +77,7 @@ Backward compatibility: `--tree` and `--cursor` are accepted as aliases for the
 
 ## Commands
 
-Run `sudo -u dde -- treeland-debug <command>` for any of the following.
+Run `treeland-debug <command>` for any of the following.
 
 ### Inspection
 
@@ -94,9 +110,9 @@ by `appId` (the first matching window is used).
 | `workspace <id> <ws-id>` | Move a window to a workspace. |
 
 ```bash
-sudo -u dde -- treeland-debug windows
-sudo -u dde -- treeland-debug close dde-file-manager
-sudo -u dde -- treeland-debug maximize 93824992268800
+treeland-debug windows
+treeland-debug close dde-file-manager
+treeland-debug maximize 93824992268800
 ```
 
 ### Input / event injection
@@ -117,9 +133,9 @@ delivered to the surface that currently holds pointer focus; move the cursor
 onto a window before clicking.
 
 ```bash
-sudo -u dde -- treeland-debug activate dde-file-manager
-sudo -u dde -- treeland-debug event key enter tap
-sudo -u dde -- treeland-debug event button left click
+treeland-debug activate dde-file-manager
+treeland-debug event key enter tap
+treeland-debug event button left click
 ```
 
 ### Image capture
@@ -137,13 +153,13 @@ itself never touches the filesystem.
 If `file` is omitted a path under `/tmp` is generated.
 
 ```bash
-sudo -u dde -- treeland-debug screenshot window 93824992268800
+treeland-debug screenshot window 93824992268800
 ```
 
 ### Interactive shell mode
 
 ```bash
-sudo -u dde -- treeland-debug shell
+treeland-debug shell
 ```
 
 Starts a REPL (`treeland>`) that accepts any of the commands above, plus `help`
@@ -153,7 +169,7 @@ line is the *non-shell* mode.
 ### HTTP / WebSocket server mode
 
 ```bash
-sudo -u dde -- treeland-debug listen [--port <port>] [--host <addr>]
+treeland-debug listen [--port <port>] [--host <addr>]
 ```
 
 Starts an HTTP + WebSocket server (default `0.0.0.0:8080`) that exposes every
