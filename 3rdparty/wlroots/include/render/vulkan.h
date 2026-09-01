@@ -44,6 +44,7 @@ struct wlr_vk_device {
 	bool sync_file_import_export;
 	bool implicit_sync_interop;
 	bool sampler_ycbcr_conversion;
+	bool separate_depth_stencil_layouts;
 
 	// we only ever need one queue for rendering and transfer commands
 	uint32_t queue_family;
@@ -98,6 +99,7 @@ const struct wlr_vk_format *vulkan_get_format_from_drm(uint32_t drm_format);
 struct wlr_vk_format_modifier_props {
 	VkDrmFormatModifierPropertiesEXT props;
 	VkExtent2D max_extent;
+	VkExtent2D transfer_src_max_extent;
 	bool has_mutable_srgb;
 };
 

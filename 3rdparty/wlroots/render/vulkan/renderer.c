@@ -2485,7 +2485,8 @@ static struct wlr_vk_render_format_setup *find_or_create_render_setup(
 					VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
 				.dstSubpass = 0,
 				.dstStageMask = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
-				.dstAccessMask = VK_ACCESS_UNIFORM_READ_BIT |
+				.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT |
+					VK_ACCESS_UNIFORM_READ_BIT |
 					VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT |
 					VK_ACCESS_INDIRECT_COMMAND_READ_BIT |
 					VK_ACCESS_SHADER_READ_BIT,
@@ -2599,7 +2600,8 @@ static struct wlr_vk_render_format_setup *find_or_create_render_setup(
 					VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
 				.dstSubpass = 0,
 				.dstStageMask = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
-				.dstAccessMask = VK_ACCESS_UNIFORM_READ_BIT |
+				.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT |
+					VK_ACCESS_UNIFORM_READ_BIT |
 					VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT |
 					VK_ACCESS_INDIRECT_COMMAND_READ_BIT |
 					VK_ACCESS_SHADER_READ_BIT,
@@ -2794,4 +2796,14 @@ uint32_t wlr_vk_renderer_get_queue_family(struct wlr_renderer *renderer) {
 VkQueue waylib_vk_renderer_get_queue(struct wlr_renderer *renderer) {
 	struct wlr_vk_renderer *vk_renderer = vulkan_get_renderer(renderer);
 	return vk_renderer->dev->queue;
+}
+
+bool waylib_vk_renderer_has_separate_depth_stencil_layouts(
+		struct wlr_renderer *renderer) {
+	if (renderer == NULL || !wlr_renderer_is_vk(renderer)) {
+		return false;
+	}
+
+	struct wlr_vk_renderer *vk_renderer = vulkan_get_renderer(renderer);
+	return vk_renderer->dev->separate_depth_stencil_layouts;
 }
