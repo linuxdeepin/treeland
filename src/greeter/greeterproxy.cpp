@@ -555,12 +555,11 @@ void GreeterProxy::readyRead()
                 m_undecided = false;
                 m_undecidedTimer->stop();
                 Q_EMIT undecidedChanged(false);
+                if (m_lockScreen && m_lockScreen->isVisible()) {
+                    Q_EMIT m_lockScreen->unlock();
+                    m_lockScreen->setVisible(false);
+                }
             }
-            if (m_lockScreen && m_lockScreen->isVisible()) {
-                Q_EMIT m_lockScreen->unlock();
-                m_lockScreen->setVisible(false);
-            }
-            setLock(false);
         } break;
         case DaemonMessages::UserLoggedIn: {
             QString user;
