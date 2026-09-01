@@ -52,5 +52,7 @@ bool waylib_vk_renderer_flush_stage(struct wlr_renderer *renderer);
 
 /* waylib extensions (not upstream): Qt Quick RHI texture-sampling helpers. */
 VkQueue waylib_vk_renderer_get_queue(struct wlr_renderer *renderer);
+bool waylib_vk_renderer_has_separate_depth_stencil_layouts(
+	struct wlr_renderer *renderer);
 
 #endif
