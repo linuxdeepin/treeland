@@ -234,6 +234,7 @@ struct wlr_vk_render_buffer {
 	VkDeviceMemory memories[WLR_DMABUF_MAX_PLANES];
 	uint32_t mem_count;
 	VkImage image;
+	VkImageUsageFlags image_usage;
 
 	// Framebuffer and image view for rendering directly onto the buffer image,
 	// without any color transform.
@@ -515,7 +516,7 @@ struct wlr_vk_texture *vulkan_get_texture(struct wlr_texture *wlr_texture);
 VkImage vulkan_import_dmabuf(struct wlr_vk_renderer *renderer,
 	const struct wlr_dmabuf_attributes *attribs,
 	VkDeviceMemory mems[static WLR_DMABUF_MAX_PLANES], uint32_t *n_mems,
-	bool for_render, bool *using_mutable_srgb);
+	bool for_render, bool *using_mutable_srgb, VkImageUsageFlags *image_usage);
 struct wlr_texture *vulkan_texture_from_buffer(
 	struct wlr_renderer *wlr_renderer, struct wlr_buffer *buffer);
 void vulkan_texture_destroy(struct wlr_vk_texture *texture);
