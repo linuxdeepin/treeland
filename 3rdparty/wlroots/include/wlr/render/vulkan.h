@@ -22,6 +22,7 @@ struct wlr_vk_image_attribs {
 	VkImage image;
 	VkImageLayout layout;
 	VkFormat format;
+	VkImageUsageFlags usage;
 };
 
 struct wlr_renderer *wlr_vk_renderer_create_with_drm_fd(int drm_fd);
@@ -48,5 +49,8 @@ bool waylib_vk_renderer_record_render_buffer_acquire(struct wlr_renderer *render
 bool waylib_vk_renderer_record_render_buffer_release(struct wlr_renderer *renderer,
 	struct wlr_buffer *buffer, VkCommandBuffer cb, VkImageLayout old_layout);
 bool waylib_vk_renderer_flush_stage(struct wlr_renderer *renderer);
+
+/* waylib extensions (not upstream): Qt Quick RHI texture-sampling helpers. */
+VkQueue waylib_vk_renderer_get_queue(struct wlr_renderer *renderer);
 
 #endif
