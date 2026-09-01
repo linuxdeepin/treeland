@@ -42,15 +42,14 @@ QSize WXWaylandSurfaceItemPrivate::expectSurfaceSize() const
     const Q_Q(WXWaylandSurfaceItem);
     using enum WXWaylandSurfaceItem::ResizeMode;
 
-    const auto resizeMode = q->resizeMode();
-    const bool useRequestSize = resizeMode != SizeToSurface
-        && !q->xwaylandSurface()->isBypassManager()
+    if (q->resizeMode() == SizeFromSurface) {
+        const bool useRequestSize = !q->xwaylandSurface()->isBypassManager()
         && q->xwaylandSurface()->requestConfigureFlags()
-               .testAnyFlags(WXWaylandSurface::XCB_CONFIG_WINDOW_SIZE);
-    if (useRequestSize)
-        return q->xwaylandSurface()->requestConfigureGeometry().size();
-
-    if (resizeMode == SizeToSurface) {
+              .testAnyFlags(WXWaylandSurface::XCB_CONFIG_WINDOW_SIZE);
+        return useRequestSize
+            ? q->xwaylandSurface()->requestConfigureGeometry().size()
+            : q->xwaylandSurface()->geometry().size();
+    } else if (q->resizeMode() == SizeToSurface) {
         const auto s = (q->size() - paddingsSize()) * surfaceSizeRatio;
         return s.toSize();
     }
