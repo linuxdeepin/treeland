@@ -546,15 +546,67 @@ struct wlr_vk_device *vulkan_device_create(struct wlr_vk_instance *ini,
 	VkPhysicalDeviceSamplerYcbcrConversionFeatures phdev_sampler_ycbcr_features = {
 		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SAMPLER_YCBCR_CONVERSION_FEATURES,
 	};
-	VkPhysicalDeviceFeatures2 phdev_features = {
-		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
+	VkPhysicalDeviceSeparateDepthStencilLayoutsFeaturesKHR
+		phdev_separate_depth_stencil_layouts_features = {
+		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SEPARATE_DEPTH_STENCIL_LAYOUTS_FEATURES_KHR,
 		.pNext = &phdev_sampler_ycbcr_features,
 	};
+	// VK_KHR_separate_depth_stencil_layouts depends on
+	// VK_KHR_create_renderpass2 when the instance targets Vulkan 1.1.
+	bool has_create_renderpass2 = check_extension(avail_ext_props, avail_extc,
+		VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME);
+	bool has_separate_depth_stencil_layouts = has_create_renderpass2 &&
+		check_extension(avail_ext_props, avail_extc,
+			VK_KHR_SEPARATE_DEPTH_STENCIL_LAYOUTS_EXTENSION_NAME);
+	// Qt Quick's QRhi Vulkan backend assumes instance-rate vertex attributes
+	// are usable whenever it adopts an existing device, so the feature must be
+	// enabled (not merely offered) for Qt to be allowed to use a divisor.
+	bool has_vertex_attribute_divisor = check_extension(avail_ext_props,
+		avail_extc, VK_EXT_VERTEX_ATTRIBUTE_DIVISOR_EXTENSION_NAME);
+	VkPhysicalDeviceVertexAttributeDivisorFeaturesEXT phdev_divisor_features = {
+		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VERTEX_ATTRIBUTE_DIVISOR_FEATURES_EXT,
+		.pNext = &phdev_sampler_ycbcr_features,
+	};
+	phdev_separate_depth_stencil_layouts_features.pNext = &phdev_divisor_features;
+	VkPhysicalDeviceFeatures2 phdev_features = {
+		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
+		.pNext = &phdev_divisor_features,
+	};
+	if (has_separate_depth_stencil_layouts) {
+		phdev_features.pNext = &phdev_separate_depth_stencil_layouts_features;
+	}
 	vkGetPhysicalDeviceFeatures2(phdev, &phdev_features);
 
 	dev->sampler_ycbcr_conversion = phdev_sampler_ycbcr_features.samplerYcbcrConversion;
 	wlr_log(WLR_DEBUG, "Sampler YCbCr conversion %s",
 		dev->sampler_ycbcr_conversion ? "supported" : "not supported");
+	dev->separate_depth_stencil_layouts = has_separate_depth_stencil_layouts &&
+		phdev_separate_depth_stencil_layouts_features.separateDepthStencilLayouts;
+	if (dev->separate_depth_stencil_layouts) {
+		extensions[extensions_len++] =
+			VK_KHR_SEPARATE_DEPTH_STENCIL_LAYOUTS_EXTENSION_NAME;
+	}
+	wlr_log(WLR_DEBUG, "Separate depth/stencil layouts %s",
+		dev->separate_depth_stencil_layouts ? "enabled" : "disabled");
+
+	// Qt Quick RHI adopts this device when waylib drives Qt on the wlroots
+	// Vulkan renderer. QRhiVulkanInitParams::preferredExtensionsForImportedDevice()
+	// documents VK_KHR_create_renderpass2, VK_KHR_depth_stencil_resolve and
+	// VK_EXT_vertex_attribute_divisor (VK_KHR_swapchain is intentionally not
+	// added: the compositor renders through an offscreen QQuickRenderControl
+	// and never creates a swapchain, and the device extension would be inert
+	// without companion instance surface support). Without them Qt silently
+	// loses functionality; enabling them is purely additive for wlroots.
+	if (has_create_renderpass2) {
+		extensions[extensions_len++] = VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME;
+	}
+	if (check_extension(avail_ext_props, avail_extc,
+			VK_KHR_DEPTH_STENCIL_RESOLVE_EXTENSION_NAME)) {
+		extensions[extensions_len++] = VK_KHR_DEPTH_STENCIL_RESOLVE_EXTENSION_NAME;
+	}
+	if (has_vertex_attribute_divisor) {
+		extensions[extensions_len++] = VK_EXT_VERTEX_ATTRIBUTE_DIVISOR_EXTENSION_NAME;
+	}
 
 	const float prio = 1.f;
 	VkDeviceQueueCreateInfo qinfo = {
@@ -585,19 +637,78 @@ struct wlr_vk_device *vulkan_device_create(struct wlr_vk_instance *ini,
 		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SAMPLER_YCBCR_CONVERSION_FEATURES,
 		.samplerYcbcrConversion = dev->sampler_ycbcr_conversion,
 	};
+	VkPhysicalDeviceSeparateDepthStencilLayoutsFeaturesKHR
+		separate_depth_stencil_layouts_features = {
+		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SEPARATE_DEPTH_STENCIL_LAYOUTS_FEATURES_KHR,
+		.pNext = &sampler_ycbcr_features,
+		.separateDepthStencilLayouts = dev->separate_depth_stencil_layouts,
+	};
 	VkPhysicalDeviceSynchronization2FeaturesKHR sync2_features = {
 		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES_KHR,
 		.pNext = &sampler_ycbcr_features,
 		.synchronization2 = VK_TRUE,
 	};
+	if (dev->separate_depth_stencil_layouts) {
+		sync2_features.pNext = &separate_depth_stencil_layouts_features;
+	}
 	VkPhysicalDeviceTimelineSemaphoreFeaturesKHR timeline_features = {
 		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TIMELINE_SEMAPHORE_FEATURES_KHR,
 		.pNext = &sync2_features,
 		.timelineSemaphore = VK_TRUE,
 	};
+
+	// Qt Quick adopts this device and reports its capabilities to QRhi as if
+	// every optional core feature were usable (QRhiVulkanInitParams::
+	// preferredExtensionsForImportedDevice() only covers extensions). Enable
+	// the optional core features a Qt Quick scene can reach, but only the ones
+	// the physical device supports, so no pipeline can use a disabled feature.
+	// robustBufferAccess is deliberately left disabled: it costs performance
+	// and neither wlroots nor Qt depends on it.
+	const VkPhysicalDeviceFeatures *supported_features = &phdev_features.features;
+	VkPhysicalDeviceFeatures enabled_features = {0};
+	enabled_features.independentBlend = supported_features->independentBlend;
+	enabled_features.fillModeNonSolid = supported_features->fillModeNonSolid;
+	enabled_features.wideLines = supported_features->wideLines;
+	enabled_features.largePoints = supported_features->largePoints;
+	enabled_features.depthClamp = supported_features->depthClamp;
+	enabled_features.depthBiasClamp = supported_features->depthBiasClamp;
+	enabled_features.dualSrcBlend = supported_features->dualSrcBlend;
+	enabled_features.logicOp = supported_features->logicOp;
+	enabled_features.samplerAnisotropy = supported_features->samplerAnisotropy;
+	enabled_features.textureCompressionBC = supported_features->textureCompressionBC;
+	enabled_features.textureCompressionETC2 = supported_features->textureCompressionETC2;
+	enabled_features.textureCompressionASTC_LDR =
+		supported_features->textureCompressionASTC_LDR;
+	enabled_features.shaderStorageImageExtendedFormats =
+		supported_features->shaderStorageImageExtendedFormats;
+	enabled_features.shaderStorageImageMultisample =
+		supported_features->shaderStorageImageMultisample;
+	enabled_features.fragmentStoresAndAtomics =
+		supported_features->fragmentStoresAndAtomics;
+	enabled_features.vertexPipelineStoresAndAtomics =
+		supported_features->vertexPipelineStoresAndAtomics;
+
+	VkPhysicalDeviceVertexAttributeDivisorFeaturesEXT divisor_features = {
+		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VERTEX_ATTRIBUTE_DIVISOR_FEATURES_EXT,
+		.pNext = &timeline_features,
+		.vertexAttributeInstanceRateDivisor =
+			phdev_divisor_features.vertexAttributeInstanceRateDivisor,
+		.vertexAttributeInstanceRateZeroDivisor =
+			phdev_divisor_features.vertexAttributeInstanceRateZeroDivisor,
+	};
+	VkPhysicalDeviceFeatures2 enabled_features2 = {
+		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
+		.pNext = &timeline_features,
+		.features = enabled_features,
+	};
+	if (has_vertex_attribute_divisor
+		&& divisor_features.vertexAttributeInstanceRateDivisor) {
+		enabled_features2.pNext = &divisor_features;
+	}
+
 	VkDeviceCreateInfo dev_info = {
 		.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-		.pNext = &timeline_features,
+		.pNext = &enabled_features2,
 		.queueCreateInfoCount = 1u,
 		.pQueueCreateInfos = &qinfo,
 		.enabledExtensionCount = extensions_len,
