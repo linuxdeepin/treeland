@@ -63,3 +63,6 @@ Testing/Temporary/
 
 # codegraph index
 .codegraph/
+.qt.cfg
+report.xml
+report_new.xml

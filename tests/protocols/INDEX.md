@@ -45,6 +45,38 @@ Wayland 线上请求与事件；本文档规定发出请求后，测试必须观
 | [wine-window-management-unstable-v1](treeland-wine-window-management-unstable-v1/README.md) | P / E | 真实 wrapper 的位置与置顶层同步 |
 | [wine-window-state-unstable-v1](treeland-wine-window-state-unstable-v1/README.md) | P / E | 真实 wrapper 的最小化、attention 与可见性同步 |
 
+### 标准 wayland-protocols（1.49）由 Treeland 提供的协议
+
+以下 24 个测试覆盖 Treeland 在运行时通过 wlroots 实际提供的标准 wayland-protocols（wayland-protocols 1.49.0-1）。
+xdg-shell 由共享 xdg-toplevel 夹具覆盖（多个 toplevel 测试复用）。input-method-v2 不在 wayland-protocols 包内，故排除。
+
+| 协议 | 覆盖等级 | 主要生产结果 |
+| --- | --- | --- |
+| [wayland-alpha-modifier-v1](wayland-alpha-modifier-v1/README.md) | E | 映射 toplevel + `set_multiplier`，回读真实 `wlr_alpha_modifier_surface_v1_state::multiplier` 与请求值一致 |
+| [wayland-cursor-shape-v1](wayland-cursor-shape-v1/README.md) | E | 真实 `wl_pointer` 上 `set_shape`，回读真实 `wlr_cursor_shape_manager_v1::events.request_set_shape` 捕获的 shape 值与请求一致 |
+| [wayland-ext-data-control-v1](wayland-ext-data-control-v1/README.md) | E | 创建 offer 并 `set_selection` 后回读真实 `wlr_seat::selection_source` 非空 |
+| [wayland-ext-foreign-toplevel-list-v1](wayland-ext-foreign-toplevel-list-v1/README.md) | E | 映射 toplevel 后回读真实 `wlr_ext_foreign_toplevel_list_v1::toplevels` 列表非空 |
+| [wayland-ext-idle-notify-v1](wayland-ext-idle-notify-v1/README.md) | E | 跨协议验证：创建 idle inhibitor 后 `idled` 不触发，销毁 inhibitor 后 `idled` 触发，证明生产 `wlr_idle_notifier_v1` inhibited 状态被修改 |
+| [wayland-ext-image-copy-capture-v1](wayland-ext-image-copy-capture-v1/README.md) | P | 绑定 `ext_image_copy_capture_manager_v1` + `ext_output_image_capture_source_manager_v1`，验证全局存在 |
+| [wayland-ext-session-lock-v1](wayland-ext-session-lock-v1/README.md) | E | `lock`→`locked` 后回读真实 `WSessionLock::isLocked()` 为 true |
+| [wayland-fractional-scale-v1](wayland-fractional-scale-v1/README.md) | E | 回读真实 `WOutput::scale()`，断言 `preferred_scale` == round(scale×120) |
+| [wayland-idle-inhibit-unstable-v1](wayland-idle-inhibit-unstable-v1/README.md) | E | 跨协议验证：创建 inhibitor 后 ext-idle-notify `idled` 不触发，销毁后触发，证明生产 `wlr_idle_notifier_v1` inhibited 状态被修改 |
+| [wayland-pointer-constraints-unstable-v1](wayland-pointer-constraints-unstable-v1/README.md) | E | 真实 `wl_pointer` 上创建 locked 约束，回读真实 `wlr_pointer_constraint_v1::type` == Locked |
+| [wayland-pointer-gestures-unstable-v1](wayland-pointer-gestures-unstable-v1/README.md) | E | 真实 `wl_pointer` 上创建 swipe/pinch 手势资源，回读真实 `wlr_pointer_gestures_v1::swipes`/`pinches` 列表非空 |
+| [wayland-primary-selection-unstable-v1](wayland-primary-selection-unstable-v1/README.md) | E | 创建 source 并 `set_selection` 后回读真实 `wlr_seat::primary_selection_source` 非空 |
+| [wayland-relative-pointer-unstable-v1](wayland-relative-pointer-unstable-v1/README.md) | E | 真实 `wl_pointer` 上创建 relative-pointer，回读真实 `wlr_relative_pointer_manager_v1::relative_pointers` 列表非空 |
+| [wayland-security-context-v1](wayland-security-context-v1/README.md) | E | commit 后回读真实 `wlr_security_context_manager_v1::events.commit` 捕获的 app_id 与请求一致；第二连接经套接字建立 |
+| [wayland-single-pixel-buffer-v1](wayland-single-pixel-buffer-v1/README.md) | E | 映射 toplevel + 单像素缓冲，回读真实 `wlr_surface::current.buffer_width/height` == 1×1 |
+| [wayland-text-input-unstable-v1](wayland-text-input-unstable-v1/README.md) | E | 创建 text_input v1 + `activate`，回读真实 `WTextInputV1::activate` 信号被触发 |
+| [wayland-text-input-unstable-v3](wayland-text-input-unstable-v3/README.md) | E | 创建 text_input v3 + enable/commit，回读真实 `wlr_text_input_v3::current_enabled` == true |
+| [wayland-viewporter](wayland-viewporter/README.md) | E | 映射 toplevel + `set_destination(320,240)`，回读真实 `wlr_surface::current.viewport` dst 状态 |
+| [wayland-xdg-activation-v1](wayland-xdg-activation-v1/README.md) | E | `get_activation_token` + `activate`，回读真实 `ActivationManagerInterfaceV1::activateRequested` 信号的 disposition != Invalid |
+| [wayland-xdg-decoration-unstable-v1](wayland-xdg-decoration-unstable-v1/README.md) | E | 映射 toplevel + `set_mode`，回读真实 `WXdgDecorationManager::modeBySurface` 返回 Client |
+| [wayland-xdg-dialog-v1](wayland-xdg-dialog-v1/README.md) | E | 回读真实 `SurfaceWrapper::modal()` 在 `set_modal` 后由 false 翻转为 true |
+| [wayland-xdg-foreign-unstable-v2](wayland-xdg-foreign-unstable-v2/README.md) | E | 两个 mapped toplevel，`export_toplevel` + `import_toplevel` + `set_parent_of`，回读真实 `WXdgToplevelSurface::parentXdgSurface()` 非空 |
+| [wayland-xdg-output-unstable-v1](wayland-xdg-output-unstable-v1/README.md) | E | 客户端 `logical_position`/`logical_size` 事件与回读的真实 `WOutput::position()`/`effectiveSize()` 逐字段一致 |
+| [wayland-xdg-toplevel-tag-v1](wayland-xdg-toplevel-tag-v1/README.md) | E | 回读真实 `WXdgToplevelSurface::tag()` 等于客户端设置值 |
+
 ## XML request / event / 业务链路盘点
 
 本节是对当前工作树的源码审计，不是某一次 CTest 的通过率。审计读取已安装的
@@ -97,6 +129,49 @@ request stub 算作 request 覆盖；生成的 client-protocol 文件本身不�
 | `treeland-prelaunch-splash-v1` | 2 / 0 | 已由 v2 取代；未验证 v1 compatibility global 或迁移策略 |
 | `treeland-shortcut-manager-v1` | 3 / 1 | 已由 v2 取代；未验证 v1 compatibility global、`shortcut` event |
 | `treeland-remote-subsurface-unstable-v1` | 8 / 3 | 无测试目录；export token、remote subsurface 创建、位置/堆叠、错误 event 与真实 scene 结果均未覆盖 |
+
+### 标准 wayland-protocols 覆盖
+
+以下 24 个标准 wayland-protocols（wayland-protocols 1.49.0-1）测试中，23 个已升至 **E 级**
+（回读真实生产对象断言），仅 1 个仍为 **P 级**：
+`ext-image-copy-capture-v1`（headless 下创建捕获会话可能死锁）。
+
+**E 级测试（23 个）**——验证真实生产对象状态：
+
+| 协议 | E 级回读的生产对象 |
+| --- | --- |
+| `alpha-modifier-v1` | `wlr_alpha_modifier_surface_v1_state::multiplier` |
+| `cursor-shape-v1` | `wlr_cursor_shape_manager_v1::events.request_set_shape` 捕获的 shape |
+| `ext-data-control-v1` | `wlr_seat::selection_source` 非空 |
+| `ext-foreign-toplevel-list-v1` | `wlr_ext_foreign_toplevel_list_v1::toplevels` 列表非空 |
+| `ext-idle-notify-v1` | 跨协议：inhibitor 创建/销毁后 `idled` 行为变化证明 `wlr_idle_notifier_v1` inhibited 状态被修改 |
+| `ext-session-lock-v1` | `WSessionLock::isLocked()` 为 true |
+| `fractional-scale-v1` | `WOutput::scale()` 与 `preferred_scale` 一致 |
+| `idle-inhibit-unstable-v1` | 跨协议：同 ext-idle-notify，证明 `wlr_idle_notifier_v1` inhibited 状态被修改 |
+| `pointer-constraints-unstable-v1` | `wlr_pointer_constraint_v1::type` == Locked |
+| `pointer-gestures-unstable-v1` | `wlr_pointer_gestures_v1::swipes`/`pinches` 列表非空 |
+| `primary-selection-unstable-v1` | `wlr_seat::primary_selection_source` 非空 |
+| `relative-pointer-unstable-v1` | `wlr_relative_pointer_manager_v1::relative_pointers` 列表非空 |
+| `security-context-v1` | `wlr_security_context_manager_v1::events.commit` 捕获的 app_id |
+| `single-pixel-buffer-v1` | `wlr_surface::current.buffer_width/height` == 1×1 |
+| `text-input-unstable-v1` | `WTextInputV1::activate` 信号被触发 |
+| `text-input-unstable-v3` | `wlr_text_input_v3::current_enabled` == true |
+| `viewporter` | `wlr_surface::current.viewport` dst 状态 |
+| `xdg-activation-v1` | `ActivationManagerInterfaceV1::activateRequested` 的 disposition != Invalid |
+| `xdg-decoration-unstable-v1` | `WXdgDecorationManager::modeBySurface` 返回 Client |
+| `xdg-dialog-v1` | `SurfaceWrapper::modal()` 由 false 翻转为 true |
+| `xdg-foreign-unstable-v2` | `WXdgToplevelSurface::parentXdgSurface()` 非空 |
+| `xdg-output-unstable-v1` | `WOutput::position()`/`effectiveSize()` 与客户端事件一致 |
+| `xdg-toplevel-tag-v1` | `WXdgToplevelSurface::tag()` 等于客户端设置值 |
+
+**P 级测试（1 个）**——验证全局存在、资源创建与事件/错误：
+`ext-image-copy-capture-v1`。
+
+`cursor-shape`/`relative-pointer`/`pointer-constraints` 三个 E 级测试需要 seat 指针能力，
+在 setup 中通过创建真实 `WInputDevice::Type::Pointer` 设备注入。
+`ext-session-lock` 测试允许 300ms grace timer 后收到 `locked` 或立即收到 `finished`。
+`ext-idle-notify` 与 `idle-inhibit` 为跨协议行为测试，使用 `ProtocolTest.cmake` 的
+`EXTRA_XMLS` 参数同时包含两个协议的 XML。
 
 ### 如何解读业务覆盖
 
