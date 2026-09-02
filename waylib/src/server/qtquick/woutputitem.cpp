@@ -12,6 +12,8 @@
 
 #include <private/qquickitem_p.h>
 
+#include <QQuickWindow>
+
 #include <QPointer>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -157,6 +159,15 @@ void WOutputItemPrivate::updateCursors()
                 }
 
                 updateCursorVisible(safeOc.data());
+                // On the Vulkan path the cursor item geometry is detached from the
+                // live pointer position (see PrimaryOutput.qml), so moving the cursor
+                // no longer dirties the scene. Schedule an output frame explicitly to
+                // repaint/move the cursor layer. GLES2 keeps relying on scene dirtying.
+                auto *outputItem = safeOc->output();
+                if (outputItem && outputItem->output() && outputItem->window()
+                    && outputItem->window()->graphicsApi() == QSGRendererInterface::Vulkan) {
+                    outputItem->output()->scheduleFrame();
+                }
             });
         }
 

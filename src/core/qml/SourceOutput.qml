@@ -17,7 +17,17 @@ OutputItem {
         id: cursorItem
 
         required property QtObject outputCursor
-        readonly property point rawPosition: parent.mapFromGlobal(cursor.position.x, cursor.position.y)
+        // When the cursor is carried by a hardware/output layer on the Vulkan
+        // path, detach its geometry from the live pointer position so that moving
+        // the cursor does not dirty the main QML scene. The layer placement is
+        // then computed from wlroots cursor/output coordinates during layer
+        // rendering (see OutputHelper::renderLayer). GLES2 keeps the legacy
+        // scene-bound cursor geometry.
+        readonly property bool detachedCursorLayer: OutputLayer.enabled
+                                                    && GraphicsInfo.api === GraphicsInfo.Vulkan
+        readonly property point rawPosition: detachedCursorLayer
+                                             ? Qt.point(0, 0)
+                                             : parent.mapFromGlobal(cursor.position.x, cursor.position.y)
         readonly property real effectiveScale: rootOutputItem.devicePixelRatio || 1.0
 
         // Align cursor position to pixel grid to prevent blur on fractional DPR displays
@@ -32,8 +42,8 @@ OutputItem {
 
         cursor: outputCursor.cursor
         output: outputCursor.output.output
-        x: position.x - hotSpot.x
-        y: position.y - hotSpot.y
+        x: detachedCursorLayer ? 0 : position.x - hotSpot.x
+        y: detachedCursorLayer ? 0 : position.y - hotSpot.y
         visible: valid && outputCursor.visible
         OutputLayer.enabled: !outputCursor.output.forceSoftwareCursor
         OutputLayer.keepLayer: true
