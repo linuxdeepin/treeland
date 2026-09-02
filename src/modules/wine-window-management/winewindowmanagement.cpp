@@ -5,7 +5,7 @@
 
 #include "common/treelandlogging.h"
 #include "core/rootsurfacecontainer.h"
-#include "qwayland-server-treeland-wine-window-management-v1.h"
+#include "qwayland-server-treeland-wine-window-management-unstable-v1.h"
 #include "seat/helper.h"
 #include "surface/surfacewrapper.h"
 

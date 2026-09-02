@@ -138,7 +138,7 @@ static int connect_client(struct test_ctx *ctx, const char *socket_name)
     ctx->compositor = client_bind(&ctx->connection, "wl_compositor", &wl_compositor_interface, 1);
 
     ctx->shell = client_bind(&ctx->connection, "treeland_wallpaper_shell_v1",
-                                    &treeland_wallpaper_shell_v1_interface, 2);
+                                    &treeland_wallpaper_shell_v1_interface, 1);
     ctx->notifier = client_bind(&ctx->connection, "treeland_wallpaper_notifier_v1",
                                        &treeland_wallpaper_notifier_v1_interface, 1);
     if (ctx->notifier)
@@ -148,7 +148,7 @@ static int connect_client(struct test_ctx *ctx, const char *socket_name)
 
 static int shell_bound_version(struct test_ctx *ctx)
 {
-    return treeland_wallpaper_shell_v1_get_version(ctx->shell) == 2;
+    return treeland_wallpaper_shell_v1_get_version(ctx->shell) == 1;
 }
 
 static int create_wallpaper_surface(struct test_ctx *ctx)

@@ -54,8 +54,5 @@ void QWaylandWallpaperSurface::treeland_wallpaper_surface_v1_slow_down(uint32_t 
 
 void QWaylandWallpaperSurface::onFileLoaded()
 {
-    if (version() < TREELAND_WALLPAPER_SURFACE_V1_READY)
-        return;
-
     ready();
 }

@@ -1,8 +1,8 @@
 // Copyright (C) 2025-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
-#include "screensaverinterfacev1.h"
-#include "qwayland-server-treeland-screensaver-v1.h"
+#include "screensaverinterfacev2.h"
+#include "qwayland-server-treeland-screensaver-unstable-v2.h"
 #include "helper.h"
 
 #include <wayland-server.h>
@@ -10,13 +10,13 @@
 
 #include <QDebug>
 
-class ScreensaverInterfaceV1Private : public QtWaylandServer::treeland_screensaver_v1
+class ScreensaverInterfaceV2Private : public QtWaylandServer::treeland_screensaver_v2
 {
 public:
-    explicit ScreensaverInterfaceV1Private(ScreensaverInterfaceV1 *_q);
+    explicit ScreensaverInterfaceV2Private(ScreensaverInterfaceV2 *_q);
     wl_global *global() const;
 
-    ScreensaverInterfaceV1 *q = nullptr;
+    ScreensaverInterfaceV2 *q = nullptr;
     QHash<wl_resource*, std::tuple<QString, QString>> inhibits;
 protected:
     void inhibit(Resource *resource, const QString &application_name, const QString &reason_for_inhibit) override;
@@ -24,28 +24,28 @@ protected:
     void destroy(Resource *resource) override;
 };
 
-ScreensaverInterfaceV1Private::ScreensaverInterfaceV1Private(ScreensaverInterfaceV1 *_q)
-    : QtWaylandServer::treeland_screensaver_v1()
+ScreensaverInterfaceV2Private::ScreensaverInterfaceV2Private(ScreensaverInterfaceV2 *_q)
+    : QtWaylandServer::treeland_screensaver_v2()
     , q(_q)
 {
 }
 
-wl_global *ScreensaverInterfaceV1Private::global() const
+wl_global *ScreensaverInterfaceV2Private::global() const
 {
     return m_global;
 }
 
-void ScreensaverInterfaceV1Private::destroy(Resource *resource)
+void ScreensaverInterfaceV2Private::destroy(Resource *resource)
 {
     uninhibit(resource);
     wl_resource_destroy(resource->handle);
 }
 
-void ScreensaverInterfaceV1Private::inhibit(Resource *resource, const QString &application_name, const QString &reason_for_inhibit)
+void ScreensaverInterfaceV2Private::inhibit(Resource *resource, const QString &application_name, const QString &reason_for_inhibit)
 {
     wl_resource *res = resource->handle;
     if (inhibits.contains(res)) {
-        wl_resource_post_error(res, TREELAND_SCREENSAVER_V1_ERROR_ALREADY_INHIBITED,
+        wl_resource_post_error(res, TREELAND_SCREENSAVER_V2_ERROR_ALREADY_INHIBITED,
                                "Trying to inhibit with an existing inhibit active");
         return;
     }
@@ -54,11 +54,11 @@ void ScreensaverInterfaceV1Private::inhibit(Resource *resource, const QString &a
     Helper::instance()->updateIdleInhibitor();
 }
 
-void ScreensaverInterfaceV1Private::uninhibit(Resource *resource)
+void ScreensaverInterfaceV2Private::uninhibit(Resource *resource)
 {
     wl_resource *res = resource->handle;
     if (!inhibits.contains(res)) {
-        wl_resource_post_error(res, TREELAND_SCREENSAVER_V1_ERROR_NOT_YET_INHIBITED,
+        wl_resource_post_error(res, TREELAND_SCREENSAVER_V2_ERROR_NOT_YET_INHIBITED,
                                "Trying to uninhibit but no active inhibit existed");
         return;
     }
@@ -67,36 +67,36 @@ void ScreensaverInterfaceV1Private::uninhibit(Resource *resource)
     Helper::instance()->updateIdleInhibitor();
 }
 
-ScreensaverInterfaceV1::ScreensaverInterfaceV1(QObject *parent)
+ScreensaverInterfaceV2::ScreensaverInterfaceV2(QObject *parent)
     : QObject(parent)
     , WServerInterface()
-    , d(new ScreensaverInterfaceV1Private(this))
+    , d(new ScreensaverInterfaceV2Private(this))
 {
 }
 
-ScreensaverInterfaceV1::~ScreensaverInterfaceV1() = default;
+ScreensaverInterfaceV2::~ScreensaverInterfaceV2() = default;
 
-QByteArrayView ScreensaverInterfaceV1::interfaceName() const
+QByteArrayView ScreensaverInterfaceV2::interfaceName() const
 {
     return d->interfaceName();
 }
 
-bool ScreensaverInterfaceV1::isInhibited() const
+bool ScreensaverInterfaceV2::isInhibited() const
 {
     return !d->inhibits.isEmpty();
 }
 
-void ScreensaverInterfaceV1::create(WServer *server)
+void ScreensaverInterfaceV2::create(WServer *server)
 {
     d->init(server->handle(), InterfaceVersion);
 }
 
-void ScreensaverInterfaceV1::destroy([[maybe_unused]] WServer *server)
+void ScreensaverInterfaceV2::destroy([[maybe_unused]] WServer *server)
 {
     d->globalRemove();
 }
 
-wl_global *ScreensaverInterfaceV1::global() const
+wl_global *ScreensaverInterfaceV2::global() const
 {
     return d->global();
 }
