@@ -7,9 +7,14 @@
 
 #include <QSGTextureProvider>
 
+QT_BEGIN_NAMESPACE
+class QSGNode;
+QT_END_NAMESPACE
+
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WOutputRenderWindow;
+class WSurfaceItemContent;
 class WSGTextureProviderPrivate;
 class WAYLIB_SERVER_EXPORT WSGTextureProvider : public QSGTextureProvider, public WObject
 {
@@ -32,8 +37,19 @@ public:
     virtual wlr_texture *qwTexture() const;
     virtual wlr_buffer *wlrBuffer() const;
 
+    // Registers the owning surface item and its image node so the vendored
+    // batch renderer can report a "drawn" event after that node is rendered.
+    // This is the Vulkan presentation/VKTRACE path; GLES2 keeps its render
+    // node.
+    void setSurfaceContent(WSurfaceItemContent *content, QSGNode *imageNode);
+    void clearSurfaceContent();
+
     bool smooth() const;
     void setSmooth(bool newSmooth);
+
+private:
+    static void textureDrawCallback(void *userData);
+    void notifyTextureDrawn();
 
 Q_SIGNALS:
     void smoothChanged();

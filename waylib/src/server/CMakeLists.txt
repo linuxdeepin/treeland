@@ -222,6 +222,7 @@ set(SOURCES
     protocols/woutputmanagerv1.cpp
     protocols/wextworkspacemanagerv1.cpp
     protocols/wlinuxdmabufv1.cpp
+    protocols/wpresentation.cpp
     protocols/wextforeigntoplevellistv1.cpp
     protocols/wxdgdialogmanagerv1.cpp
     protocols/wsecuritycontextmanager.cpp
@@ -336,7 +337,9 @@ set(HEADERS
     protocols/woutputmanagerv1.h
     protocols/WOutputManagerV1
     protocols/wlinuxdmabufv1.h
+    protocols/wpresentation.h
     protocols/WLinuxDmabufV1
+    protocols/WPresentation
     protocols/wlayershell.h
     protocols/WLayerShell
     protocols/wextworkspacemanagerv1.h
@@ -374,6 +377,7 @@ set(PRIVATE_HEADERS
     qtquick/private/wrenderbuffernode_p.h
     qtquick/private/wsurfaceitem_p.h
     qtquick/scenegraph/wsgbatchrenderer_p.h
+    qtquick/scenegraph/wsgdrawcallback_p.h
     qtquick/scenegraph/wsgrhivisualizer_p.h
     qtquick/scenegraph/wsgcontext_p.h
 

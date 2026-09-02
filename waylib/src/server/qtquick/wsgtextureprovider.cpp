@@ -4,7 +4,9 @@
 #include "wsgtextureprovider.h"
 #include "woutputrenderwindow.h"
 #include "wrenderhelper.h"
+#include "wsurfaceitem.h"
 #include "private/wglobal_p.h"
+#include "scenegraph/wsgdrawcallback_p.h"
 #include "utils/private/wvulkantrace_p.h"
 #include "wayliblogging.h"
 
@@ -99,6 +101,7 @@ public:
     }
 
     ~WSGTextureProviderPrivate() {
+        WSGBatchRenderer::unregisterNodeDrawCallback(surfaceNode, q_func());
         cleanTexture();
     }
 
@@ -345,6 +348,8 @@ public:
     W_DECLARE_PUBLIC(WSGTextureProvider)
 
     QPointer<WOutputRenderWindow> window;
+    QPointer<WSurfaceItemContent> surfaceContent;
+    QSGNode *surfaceNode = nullptr;
     const bool vulkanRhi = false;
 
     // wlroots resources
@@ -602,6 +607,45 @@ void WSGTextureProvider::setSmooth(bool newSmooth)
     d->updateMipmapFiltering();
 
     Q_EMIT smoothChanged();
+}
+
+void WSGTextureProvider::setSurfaceContent(WSurfaceItemContent *content,
+                                           QSGNode *imageNode)
+{
+    W_D(WSGTextureProvider);
+    if (!content || !imageNode) {
+        clearSurfaceContent();
+        return;
+    }
+
+    if (d->surfaceContent != content || d->surfaceNode != imageNode) {
+        WSGBatchRenderer::unregisterNodeDrawCallback(d->surfaceNode, this);
+        d->surfaceContent = content;
+        d->surfaceNode = imageNode;
+    }
+
+    WSGBatchRenderer::registerNodeDrawCallback(
+        d->surfaceNode, &d->qtTexture, &WSGTextureProvider::textureDrawCallback, this);
+}
+
+void WSGTextureProvider::clearSurfaceContent()
+{
+    W_D(WSGTextureProvider);
+    WSGBatchRenderer::unregisterNodeDrawCallback(d->surfaceNode, this);
+    d->surfaceNode = nullptr;
+    d->surfaceContent = nullptr;
+}
+
+void WSGTextureProvider::textureDrawCallback(void *userData)
+{
+    static_cast<WSGTextureProvider *>(userData)->notifyTextureDrawn();
+}
+
+void WSGTextureProvider::notifyTextureDrawn()
+{
+    W_D(WSGTextureProvider);
+    if (d->surfaceContent)
+        d->surfaceContent->markContentDrawn();
 }
 
 WAYLIB_SERVER_END_NAMESPACE
