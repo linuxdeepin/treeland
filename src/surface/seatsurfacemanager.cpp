@@ -8,7 +8,6 @@
 #include "common/treelandlogging.h"
 #include "seat/helper.h"
 #include "seat/seatsmanager.h"
-#include "core/shellhandler.h"
 #include "output/output.h"
 
 #include <winputdevice.h>
@@ -20,14 +19,39 @@
 #include <wxdgtoplevelsurface.h>
 #include <wxdgpopupsurface.h>
 
-#include <WInputMethodHelper>
-
 #include <wlr_all.h>
 
 #include <QDateTime>
 #include <QTimer>
 
+#include <algorithm>
+
 WAYLIB_SERVER_USE_NAMESPACE
+
+namespace {
+wlr_seat_keyboard_grab *keyboardGrabForPopup(wlr_xdg_popup *popup)
+{
+    if (!popup || !popup->seat || !popup->base || !popup->base->client
+        || !popup->base->client->shell) {
+        return nullptr;
+    }
+
+    auto *shell = popup->base->client->shell;
+    wlr_xdg_popup_grab *popupGrab;
+    wl_list_for_each(popupGrab, &shell->popup_grabs, link) {
+        if (popupGrab->seat != popup->seat)
+            continue;
+
+        wlr_xdg_popup *member;
+        wl_list_for_each(member, &popupGrab->popups, grab_link) {
+            if (member == popup)
+                return &popupGrab->keyboard_grab;
+        }
+    }
+
+    return nullptr;
+}
+}
 
 SeatSurfaceManager::SeatSurfaceManager(WSeat *seat, RootSurfaceContainer *parent)
     : QObject(parent)
@@ -383,16 +407,35 @@ void SeatSurfaceManager::surfaceDestroyed(SurfaceWrapper *surface)
         setActivatedSurface(nullptr, Qt::OtherFocusReason);
     }
 
-    if (m_keyboardFocusSurface == surface) {
-        setKeyboardFocusSurface(nullptr);
+    const bool trackedPopup = isTrackedPopup(surface);
+    QPointer<SurfaceWrapper> restoreTarget;
+    if (trackedPopup && m_keyboardFocusSurface == surface) {
+        restoreTarget = popupParentFocusTarget(surface, false);
+        if (!restoreTarget && m_prePopupFocusSurface
+            && m_prePopupFocusSurface->hasFocusCapability()) {
+            restoreTarget = m_prePopupFocusSurface;
+        }
     }
+
+    m_popupFocusStack.removeIf([surface](const QPointer<SurfaceWrapper> &popup) {
+        return !popup || popup == surface;
+    });
+
+    if (m_keyboardFocusSurface == surface) {
+        setKeyboardFocusSurface(restoreTarget, Qt::ActiveWindowFocusReason);
+        qCInfo(lcTlPopupFocus) << "Focused surface destroyed"
+                               << "seat" << m_seat->name()
+                               << "surface" << surface
+                               << "trackedPopup" << trackedPopup
+                               << "restoredFocus" << restoreTarget;
+    }
+
+    if (m_popupFocusStack.isEmpty() && !m_popupKeyboardGrab)
+        m_prePopupFocusSurface.clear();
 }
 
 void SeatSurfaceManager::givePopupFocus(SurfaceWrapper *popupWrapper)
 {
-    if (!m_hasPopupGrab)
-        return;
-
     Q_ASSERT(popupWrapper);
     auto *popupSurface = qobject_cast<WXdgPopupSurface *>(popupWrapper->shellSurface());
     if (!popupSurface)
@@ -403,69 +446,161 @@ void SeatSurfaceManager::givePopupFocus(SurfaceWrapper *popupWrapper)
     if (!wlrPopup || wlrPopup->seat != m_seat->handle())
         return;
 
+    auto *seatHandle = m_seat->handle();
+    auto *grab = seatHandle->keyboard_state.grab;
+    auto *popupGrab = keyboardGrabForPopup(wlrPopup);
+    if (!popupGrab || grab != popupGrab) {
+        qCWarning(lcTlPopupFocus) << "Refusing popup focus without its exact keyboard grab"
+                                  << "seat" << m_seat->name()
+                                  << "popup" << popupWrapper
+                                  << "expectedGrab" << popupGrab
+                                  << "currentGrab" << grab;
+        return;
+    }
+
+    if (m_popupKeyboardGrab && m_popupKeyboardGrab != popupGrab) {
+        qCWarning(lcTlPopupFocus) << "Refusing popup focus while another structural grab is active"
+                                  << "seat" << m_seat->name()
+                                  << "popup" << popupWrapper
+                                  << "trackedGrab" << m_popupKeyboardGrab
+                                  << "popupGrab" << popupGrab;
+        return;
+    }
+
+    if (!m_popupKeyboardGrab) {
+        m_popupKeyboardGrab = popupGrab;
+        m_prePopupFocusSurface = m_keyboardFocusSurface;
+        ++m_popupTransitionSerial;
+        qCInfo(lcTlPopupFocus) << "Popup keyboard grab tracked"
+                               << "transition" << m_popupTransitionSerial
+                               << "seat" << m_seat->name()
+                               << "grab" << popupGrab
+                               << "previousFocus" << m_prePopupFocusSurface;
+    }
+
+    m_popupFocusStack.removeIf([](const QPointer<SurfaceWrapper> &popup) {
+        return popup.isNull();
+    });
+    m_popupFocusStack.removeAll(popupWrapper);
+    m_popupFocusStack.append(popupWrapper);
+
     // Move keyboard focus to the popup surface directly.
     setKeyboardFocusSurface(popupWrapper, Qt::ActiveWindowFocusReason);
 
-    qCDebug(lcTlPopupFocus) << "Moved keyboard focus to popup surface:" << popupWrapper;
+    qCInfo(lcTlPopupFocus) << "Popup received keyboard focus"
+                           << "transition" << m_popupTransitionSerial
+                           << "seat" << m_seat->name()
+                           << "popup" << popupWrapper
+                           << "parent" << popupWrapper->parentSurface()
+                           << "depth" << m_popupFocusStack.size();
 }
 
 void SeatSurfaceManager::dismissPopups()
 {
-    if (!m_hasPopupGrab)
+    m_popupFocusStack.removeIf([](const QPointer<SurfaceWrapper> &popup) {
+        return popup.isNull();
+    });
+    if (!m_popupKeyboardGrab || m_popupFocusStack.isEmpty())
         return;
 
-    qCDebug(lcTlPopupFocus) << "Dismissing popup grab";
-    wlr_seat_keyboard_end_grab(m_seat->handle());
+    auto *wrapper = m_popupFocusStack.constLast().data();
+    auto *popup = wrapper
+        ? qobject_cast<WXdgPopupSurface *>(wrapper->shellSurface())
+        : nullptr;
+    if (!popup || !popup->handle()) {
+        qCWarning(lcTlPopupFocus) << "Unable to dismiss tracked popup"
+                                  << "seat" << m_seat->name()
+                                  << "wrapper" << wrapper
+                                  << "grab" << m_popupKeyboardGrab;
+        return;
+    }
+
+    qCInfo(lcTlPopupFocus) << "Dismissing concrete popup"
+                           << "transition" << m_popupTransitionSerial
+                           << "seat" << m_seat->name()
+                           << "popup" << wrapper
+                           << "grab" << m_popupKeyboardGrab;
+    popup->close();
 }
 
-void SeatSurfaceManager::onKeyboardGrabBegin()
+SurfaceWrapper *SeatSurfaceManager::popupParentFocusTarget(SurfaceWrapper *popup,
+                                                           bool skipPopupParents) const
 {
-    if (m_hasPopupGrab) {
-        // Already tracking a popup grab; nested popups share the same flag.
-        return;
+    auto *target = popup ? popup->parentSurface() : nullptr;
+    while (target) {
+        const bool isPopup = target->type() == SurfaceWrapper::Type::XdgPopup;
+        if ((!skipPopupParents || !isPopup) && target->hasFocusCapability())
+            return target;
+        if (!isPopup)
+            break;
+        target = target->parentSurface();
     }
-
-    auto *seatNative = m_seat->handle();
-    auto *grab = seatNative->keyboard_state.grab;
-    if (!grab) {
-        qCWarning(lcTlPopupFocus) << "keyboard_state.grab is null";
-        return;
-    }
-
-    // Detect IME keyboard grab:
-    // WInputMethodHelper::handleNewKGV2 sets activeKeyboardGrab before
-    // calling keyboard_start_grab, so it is already non-null when we get here.
-    // Use isActiveKeyboardGrabOwner() to check if the seat's current grab
-    // is the one installed by the IME helper.
-    if (auto *imHelper = Helper::instance()->shellHandler()->inputMethodHelper()) {
-        if (imHelper->isActiveKeyboardGrabOwner()) {
-            qCDebug(lcTlPopupFocus) << "IME keyboard grab started (not popup)";
-            return;
-        }
-    }
-
-    m_hasPopupGrab = true;
-    qCDebug(lcTlPopupFocus) << "Popup keyboard grab started";
+    return nullptr;
 }
 
-void SeatSurfaceManager::onKeyboardGrabEnd()
+bool SeatSurfaceManager::isTrackedPopup(SurfaceWrapper *surface) const
 {
-    if (!m_hasPopupGrab)
+    return std::any_of(m_popupFocusStack.cbegin(), m_popupFocusStack.cend(),
+                       [surface](const QPointer<SurfaceWrapper> &popup) {
+                           return popup == surface;
+                       });
+}
+
+void SeatSurfaceManager::onKeyboardGrabBegin(wlr_seat_keyboard_grab *grab)
+{
+    if (!m_popupKeyboardGrab || grab == m_popupKeyboardGrab)
         return;
 
-    m_hasPopupGrab = false;
+    auto *oldGrab = m_popupKeyboardGrab;
+    m_popupKeyboardGrab = nullptr;
+    m_popupFocusStack.clear();
+    m_prePopupFocusSurface.clear();
+    ++m_popupTransitionSerial;
 
-    qCDebug(lcTlPopupFocus) << "Popup keyboard grab ended, restoring focus to:"
-                            << m_activatedSurface;
+    // wlroots replaces keyboard_state.grab directly and does not emit an end
+    // event for the displaced grab. Forget the old popup state immediately;
+    // the new grab owns focus policy from this point onward.
+    qCInfo(lcTlPopupFocus) << "Popup keyboard grab replaced"
+                           << "transition" << m_popupTransitionSerial
+                           << "seat" << m_seat->name()
+                           << "oldGrab" << oldGrab
+                           << "newGrab" << grab
+                           << "currentFocus" << m_keyboardFocusSurface;
+}
 
-    // While showing the desktop, keyboard focus is on the desktop layer, not on the
-    // (hidden) activated surface; do not yank it back to the window.
-    if (auto *helper = Helper::instance()) {
-        if (helper->showDesktopState() == WindowManagementInterfaceV1::DesktopState::Show)
-            return;
+void SeatSurfaceManager::onKeyboardGrabEnd(wlr_seat_keyboard_grab *grab)
+{
+    if (!m_popupKeyboardGrab || grab != m_popupKeyboardGrab) {
+        qCDebug(lcTlPopupFocus) << "Ignoring unrelated keyboard grab end"
+                                << "seat" << m_seat->name()
+                                << "endedGrab" << grab
+                                << "popupGrab" << m_popupKeyboardGrab;
+        return;
     }
 
-    if (m_activatedSurface && m_activatedSurface->hasFocusCapability()) {
-        setKeyboardFocusSurface(m_activatedSurface, Qt::ActiveWindowFocusReason);
+    QPointer<SurfaceWrapper> currentFocus = m_keyboardFocusSurface;
+    QPointer<SurfaceWrapper> restoreTarget;
+    const bool popupStillFocused = currentFocus && isTrackedPopup(currentFocus);
+    if (popupStillFocused)
+        restoreTarget = popupParentFocusTarget(currentFocus, true);
+    if (!restoreTarget && m_prePopupFocusSurface
+        && m_prePopupFocusSurface->hasFocusCapability()) {
+        restoreTarget = m_prePopupFocusSurface;
     }
+
+    m_popupKeyboardGrab = nullptr;
+    m_popupFocusStack.clear();
+    m_prePopupFocusSurface.clear();
+    ++m_popupTransitionSerial;
+
+    if (popupStillFocused)
+        setKeyboardFocusSurface(restoreTarget, Qt::ActiveWindowFocusReason);
+
+    qCInfo(lcTlPopupFocus) << "Popup keyboard grab ended"
+                           << "transition" << m_popupTransitionSerial
+                           << "seat" << m_seat->name()
+                           << "endedGrab" << grab
+                           << "previousFocus" << currentFocus
+                           << "restoredFocus" << restoreTarget
+                           << "activationUnchanged" << m_activatedSurface;
 }
