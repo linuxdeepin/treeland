@@ -59,11 +59,26 @@ bool waylib_vk_renderer_has_separate_depth_stencil_layouts(
 // buffer, transitioning it to SHADER_READ_ONLY_OPTIMAL and transferring queue
 // ownership to the graphics queue if it is not already owned. The optional
 // attribs out-parameter receives the texture's image attributes.
+// sampled_buffer is the wlr_buffer the caller is sampling the texture as (may
+// be NULL when the caller cannot provide it): it identifies client textures so
+// a repeated acquire of an unchanged client buffer can skip the producer fence
+// wait (see waylib_vk_renderer_mark_buffer_content_dirty()).
 bool waylib_vk_renderer_prepare_texture_for_sampling(struct wlr_renderer *renderer,
-	struct wlr_texture *texture, VkCommandBuffer cb,
-	struct wlr_vk_image_attribs *attribs);
+	struct wlr_texture *texture, struct wlr_buffer *sampled_buffer,
+	VkCommandBuffer cb, struct wlr_vk_image_attribs *attribs);
 bool waylib_vk_renderer_finish_texture_sampling(struct wlr_renderer *renderer,
 	struct wlr_texture *texture, VkCommandBuffer cb);
+
+// Clear the "content already synchronized" shortcut for every wlroots Vulkan
+// texture currently importing the given wlr_buffer. Call from the surface
+// commit path when the client (re-)attaches a buffer: the producer may have
+// written new content, so the next sampling acquire must export and wait for a
+// fresh producer fence instead of reusing the previous one. The buffer may be
+// a wlr_client_buffer, in which case every texture importing either it or its
+// source buffer is cleared. No-op for a NULL/invalid renderer, a NULL buffer,
+// or a non-Vulkan renderer.
+void waylib_vk_renderer_mark_buffer_content_dirty(struct wlr_renderer *renderer,
+	struct wlr_buffer *buffer);
 
 // Collect foreign-texture sync_files while a compositor frame is recorded,
 // then submit one semaphore wait with a bridge barrier before the compositor
