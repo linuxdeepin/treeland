@@ -63,6 +63,14 @@ pkg_search_module(XKBCOMMON REQUIRED IMPORTED_TARGET xkbcommon)
 pkg_search_module(XCB REQUIRED IMPORTED_TARGET xcb)
 pkg_search_module(EGL REQUIRED IMPORTED_TARGET egl)
 
+# WLR_HAVE_VULKAN_RENDERER is exported by the vendored wlroots scaffold into
+# the parent scope, and regenerated from waylib-wlroots.pc for standalone
+# builds (see the block above). Querying a system pkg-config module here never
+# matched the vendored build and silently disabled the Vulkan link.
+if(WLR_HAVE_VULKAN_RENDERER)
+    find_package(Vulkan REQUIRED)
+endif()
+
 find_package(TreelandProtocols REQUIRED)
 
 add_compile_definitions(WLR_PRIVATE=)
@@ -170,6 +178,7 @@ set(SOURCES
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/xdg-shell-protocol.c
 
     utils/wtools.cpp
+    utils/wvulkantrace.cpp
     utils/wthreadutils.cpp
     utils/wimagebuffer.cpp
     utils/wcursorimage.cpp
@@ -206,6 +215,7 @@ set(SOURCES
     protocols/wpointerconstraintsv1.cpp
     protocols/wrelativepointermanagerv1.cpp
     protocols/woutputmanagerv1.cpp
+    protocols/wlinuxdmabufv1.cpp
     protocols/wextforeigntoplevellistv1.cpp
     protocols/wxdgdialogmanagerv1.cpp
     protocols/wsecuritycontextmanager.cpp
@@ -318,6 +328,8 @@ set(HEADERS
     protocols/WRelativePointerManagerV1
     protocols/woutputmanagerv1.h
     protocols/WOutputManagerV1
+    protocols/wlinuxdmabufv1.h
+    protocols/WLinuxDmabufV1
     protocols/wlayershell.h
     protocols/WLayerShell
     protocols/wxwayland.h
@@ -369,6 +381,7 @@ set(PRIVATE_HEADERS
     protocols/private/wtextinputv3_p.h
     protocols/private/wvirtualkeyboardv1_p.h
     protocols/private/wsecuritycontextmanager_p.h
+    utils/private/wvulkantrace_p.h
 )
 
 if(NOT DISABLE_XWAYLAND)
@@ -446,6 +459,13 @@ target_link_libraries(${TARGET}
         PkgConfig::XCB
         PkgConfig::EGL
 )
+
+if(TARGET Vulkan::Vulkan)
+    target_link_libraries(${TARGET}
+        PRIVATE
+        Vulkan::Vulkan
+    )
+endif()
 
 target_link_libraries(${TARGET}
     PUBLIC
