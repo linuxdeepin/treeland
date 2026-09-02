@@ -7,6 +7,7 @@
 #include "woutput.h"
 #include "woutputrenderwindow.h"
 #include "woutputviewport.h"
+#include "wrenderhelper.h"
 #include "wseat.h"
 #include "wsgtextureprovider.h"
 #include "wsurface.h"
@@ -272,6 +273,16 @@ public:
             if (bufferChanged) {
                 // Get the new buffer pointer from surface
                 auto newBuffer = surface->buffer();
+
+                // The client re-attached a buffer: its producer may have
+                // written new content, so the next Vulkan sampling acquire
+                // must wait for a fresh producer fence instead of reusing the
+                // previous one. No-op on non-Vulkan renderers.
+                if (auto *renderWindow = q->outputRenderWindow()) {
+                    if (usesVulkanRhi(renderWindow))
+                        WRenderHelper::markBufferContentDirty(renderWindow->renderer(),
+                                                              newBuffer);
+                }
 
                 if (!live) {
                     // Non-live mode: defer to pendingBuffer
