@@ -70,7 +70,9 @@
 
 #include <WBackend>
 #include <WForeignToplevel>
+#include <WLinuxDmabufV1>
 #include <WOutput>
+#include <WPresentation>
 #include <WServer>
 #include <WSurfaceItem>
 #include <WXdgOutput>
@@ -2107,14 +2109,28 @@ void Helper::init(Treeland::Treeland *treeland)
     }
 
     m_allocator = wlr_allocator_autocreate(m_backend->handle(), m_renderer);
-    if (!m_allocator) {
+    if (!m_allocator)
         qCFatal(lcTlCore) << "Failed to create allocator";
-    }
-    if (!wlr_renderer_init_wl_display(m_renderer, m_server->handle())) {
-        qCFatal(lcTlCore) << "Failed to initialize renderer wl_display";
-    }
-    if (!wlr_drm_create(m_server->handle(), m_renderer)) {
-        qCCritical(lcTlCore) << "Failed to create DRM lease manager";
+
+    const bool vulkanRenderer =
+        WRenderHelper::getGraphicsApi() == QSGRendererInterface::Vulkan;
+    if (vulkanRenderer) {
+        if (!wlr_renderer_init_wl_shm(m_renderer, m_server->handle()))
+            qCFatal(lcTlCore) << "Failed to initialize wl_shm for Vulkan renderer";
+
+        m_server->attach<WLinuxDmabufV1>(m_renderer);
+        auto *presentation = m_server->attach<WPresentation>(m_backend->handle());
+        m_renderWindow->setPresentation(presentation);
+
+        if (!wlr_drm_create(m_server->handle(), m_renderer)) {
+            qCCritical(lcTlCore)
+                << "Failed to create legacy wl_drm global";
+        }
+    } else {
+        if (!wlr_renderer_init_wl_display(m_renderer, m_server->handle()))
+            qCFatal(lcTlCore) << "Failed to initialize renderer wl_display";
+        if (!wlr_drm_create(m_server->handle(), m_renderer))
+            qCCritical(lcTlCore) << "Failed to create legacy wl_drm global";
     }
 
     // free follow display
