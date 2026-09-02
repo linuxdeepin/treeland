@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "woutputrenderwindow.h"
+#include "wpresentation.h"
 #include <chrono>
 #include <cstdlib>
 #include "woutput.h"
@@ -500,6 +501,11 @@ public:
     bool releaseRenderBuffer(WBufferRenderer *renderer, const char *purpose);
     bool releaseRenderBuffers(QVector<std::pair<OutputHelper *, WBufferRenderer *>> &needsCommit);
     void cleanupRetiredRenderResources(bool force);
+    void setCurrentPresentationOutput(WOutput *output);
+    void markSurfaceTexturedForPresentation(WSurface *surface);
+    void submitPresentationFeedbackForOutput(WOutput *output);
+    void clearPresentationFeedbackForOutput(WOutput *output);
+    void clearPresentationFeedback();
     inline void failCurrentFrame()
     {
         frameFailed = true;
@@ -545,6 +551,9 @@ public:
     WPointer<wlr_allocator> m_allocator;
     bool textureSyncQueueValidated = false;
     bool textureSyncBatchDisabled = false;
+    QPointer<WPresentation> m_presentation;
+    QPointer<WOutput> m_currentPresentationOutput;
+    QHash<WOutput *, QVector<QPointer<WSurface>>> m_pendingPresentationSurfaces;
 
     QList<OutputHelper*> outputs;
     QList<OutputLayer*> layers;
@@ -692,15 +701,19 @@ bool OutputHelper::render(WBufferRenderer *renderer, int sourceIndex, const QMat
                                 preserveColorContents);
     }
 
+    auto *presentationOutput = m_output ? m_output->output() : nullptr;
+    windowPrivate->setCurrentPresentationOutput(presentationOutput);
     windowPrivate->pushRenderer(renderer);
     const bool ok = renderer->render(sourceIndex, renderMatrix, sourceRect, targetRect,
                                      preserveColorContents);
+    windowPrivate->setCurrentPresentationOutput(nullptr);
     if (!ok) {
         qCWarning(lcWlBufferRenderer) << "WBufferRenderer render pass failed"
                                       << "renderer" << renderer
                                       << "sourceIndex" << sourceIndex
                                       << "currentBuffer" << renderer->currentBuffer()
                                       << "lastBuffer" << renderer->lastBuffer();
+        windowPrivate->clearPresentationFeedbackForOutput(presentationOutput);
     }
     return ok;
 }
@@ -1915,6 +1928,78 @@ void WOutputRenderWindowPrivate::cleanupRetiredRenderResources(bool force)
     }
 }
 
+void WOutputRenderWindowPrivate::setCurrentPresentationOutput(WOutput *output)
+{
+    m_currentPresentationOutput = output;
+}
+
+bool WOutputRenderWindow::needsSurfaceRenderFootprint(WSurface *surface) const
+{
+    W_DC(WOutputRenderWindow);
+    // VKTRACE consumes every footprint. For presentation feedback, only
+    // create the node when the client actually requested feedback for this
+    // surface; otherwise the render node only adds a batch split (and a
+    // depth-policy constraint) to every ordinary window.
+    return WVulkanTrace::enabled()
+        || (d->m_presentation && d->m_presentation->isValid()
+            && d->m_presentation->hasFeedbackForSurface(surface));
+}
+
+void WOutputRenderWindowPrivate::markSurfaceTexturedForPresentation(WSurface *surface)
+{
+    auto *output = m_currentPresentationOutput.data();
+    if (!m_presentation || !m_presentation->isValid() || !surface || !output)
+        return;
+
+    if (surface->framePacingOutput() != output)
+        return;
+
+    auto &surfaces = m_pendingPresentationSurfaces[output];
+    for (const auto &existing : std::as_const(surfaces)) {
+        if (existing == surface)
+            return;
+    }
+
+    surfaces.append(surface);
+}
+
+void WOutputRenderWindowPrivate::submitPresentationFeedbackForOutput(WOutput *output)
+{
+    if (!output) {
+        clearPresentationFeedback();
+        return;
+    }
+
+    const auto surfaces = m_pendingPresentationSurfaces.take(output);
+    if (surfaces.isEmpty() || !m_presentation || !m_presentation->isValid())
+        return;
+
+    int submittedCount = 0;
+    for (const auto &surface : surfaces) {
+        if (!surface || surface->framePacingOutput() != output)
+            continue;
+
+        m_presentation->surfaceTexturedOnOutput(surface, output);
+        ++submittedCount;
+    }
+
+    qCDebug(lcWlPresentation) << "Submitted presentation feedback for output"
+                              << "output" << output
+                              << "surfaceCount" << submittedCount;
+}
+
+void WOutputRenderWindowPrivate::clearPresentationFeedbackForOutput(WOutput *output)
+{
+    if (output)
+        m_pendingPresentationSurfaces.remove(output);
+}
+
+void WOutputRenderWindowPrivate::clearPresentationFeedback()
+{
+    m_pendingPresentationSurfaces.clear();
+}
+
+// ###: QQuickAnimatorController::advance symbol not export
 static void QQuickAnimatorController_advance(QQuickAnimatorController *ac)
 {
     bool running = false;
@@ -2038,9 +2123,11 @@ void WOutputRenderWindowPrivate::doRender(wlr_output *needsFrameOutput,
     fatalRenderError.clear();
     W_Q(WOutputRenderWindow);
     WVulkanTrace::beginFrame(q);
+    clearPresentationFeedback();
 
     const auto finishFrame = [this, q] (const QList<QPointer<WOutput>> &committedOutputs) {
         WRenderHelper::abortTextureSyncBatch(m_renderer);
+        clearPresentationFeedback();
         resetGlState();
 
         // On Intel&Nvidia multi-GPU environment, wlroots using Intel card do render for all
@@ -2215,6 +2302,15 @@ void WOutputRenderWindowPrivate::doRender(wlr_output *needsFrameOutput,
         for (auto i : std::as_const(needsCommit)) {
             auto output = i.first->outputViewport()->output();
             if (allowCommit && (forceRender || Q_UNLIKELY(!i.first->framePending()))) {
+                // Arm the presentation feedback before commit().
+                // wlr_presentation_surface_textured_on_output() attaches the
+                // feedback to the output's commit/present signals and records
+                // output->commit_seq in the first commit signal it observes
+                // afterwards, so "presented" is only reported for that commit.
+                // Arming after commit() therefore skips this frame's commit:
+                // the client is told its frame was presented one refresh later,
+                // with that later frame's timestamp.
+                submitPresentationFeedbackForOutput(output);
                 const quint32 sequenceBefore = output->handle()->commit_seq;
                 const bool commitOk = i.first->commit(i.second);
                 WVulkanTrace::outputCommitted(q, output->handle(), sequenceBefore, commitOk);
@@ -2228,14 +2324,32 @@ void WOutputRenderWindowPrivate::doRender(wlr_output *needsFrameOutput,
                         committedOutputs.append(output);
                     }
                 }
+            } else {
+                clearPresentationFeedbackForOutput(output);
             }
 
-            if (i.second->currentBuffer()) {
+            if (i.second && i.second->currentBuffer()) {
                 i.second->endRender();
             }
 
             i.first->resetState();
         }
+    } else {
+        // Vulkan only: nothing is committed this frame, but every
+        // BufferRenderer that acquired a buffer must still hand it back. The
+        // swapchain keeps the wl_buffer alive, and WBufferRenderer::beginRender()
+        // asserts that no previous render is still in flight, so without this
+        // the locked buffer and the renderer state leaked into the next frame.
+        // The GLES2 / software paths keep their original behaviour here.
+        if (isVulkan) {
+            for (auto i : std::as_const(needsCommit)) {
+                if (i.second && i.second->currentBuffer())
+                    i.second->endRender();
+                if (i.first)
+                    i.first->resetState();
+            }
+        }
+        clearPresentationFeedback();
     }
 
     if (vulkanFrameCompleted) {
@@ -2551,6 +2665,20 @@ wlr_allocator *WOutputRenderWindow::allocator() const
 {
     Q_D(const WOutputRenderWindow);
     return d->m_allocator;
+}
+
+void WOutputRenderWindow::setPresentation(WPresentation *presentation)
+{
+    Q_D(WOutputRenderWindow);
+    d->m_presentation = presentation;
+    if (!presentation)
+        d->clearPresentationFeedback();
+}
+
+void WOutputRenderWindow::markSurfaceTexturedForPresentation(WSurface *surface)
+{
+    Q_D(WOutputRenderWindow);
+    d->markSurfaceTexturedForPresentation(surface);
 }
 
 WBufferRenderer *WOutputRenderWindow::currentRenderer() const

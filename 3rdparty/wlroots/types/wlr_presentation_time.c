@@ -222,6 +222,22 @@ struct wlr_presentation_feedback *wlr_presentation_surface_sampled(
 	return NULL;
 }
 
+bool waylib_wlr_presentation_surface_has_feedback(
+		struct wlr_surface *surface) {
+	if (surface == NULL) {
+		return false;
+	}
+	struct wlr_addon *addon =
+		wlr_addon_find(&surface->addons, NULL, &presentation_surface_addon_impl);
+	if (addon == NULL) {
+		return false;
+	}
+	struct wlr_presentation_surface *p_surface =
+		wl_container_of(addon, p_surface, addon);
+	return p_surface->current.feedback != NULL
+		|| p_surface->pending.feedback != NULL;
+}
+
 static void feedback_unset_output(struct wlr_presentation_feedback *feedback);
 
 void wlr_presentation_feedback_destroy(
