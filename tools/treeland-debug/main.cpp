@@ -413,7 +413,7 @@ int main(int argc, char *argv[])
     bool previewOpt = 0; // 0=auto-detect, 1=force on, 2=force off
     bool compatTree = false;
     bool compatCursor = false;
-    bool noEscalate = false;
+    [[maybe_unused]] bool noEscalate = false;
     QStringList rest;
 
     for (int i = 1; i < argc; ++i) {
