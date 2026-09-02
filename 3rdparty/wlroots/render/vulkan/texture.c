@@ -11,6 +11,7 @@
 #include <unistd.h>
 #include <wlr/render/wlr_texture.h>
 #include <wlr/render/vulkan.h>
+#include <wlr/types/wlr_buffer.h>
 #include <wlr/util/log.h>
 #include <xf86drm.h>
 #include "render/pixel_format.h"
@@ -1523,8 +1524,8 @@ static void record_frame_render_barrier(struct wlr_vk_renderer *renderer,
 }
 
 bool waylib_vk_renderer_prepare_texture_for_sampling(struct wlr_renderer *wlr_renderer,
-		struct wlr_texture *wlr_texture, VkCommandBuffer cb,
-		struct wlr_vk_image_attribs *attribs) {
+		struct wlr_texture *wlr_texture, struct wlr_buffer *sampled_buffer,
+		VkCommandBuffer cb, struct wlr_vk_image_attribs *attribs) {
 	if (wlr_renderer == NULL || wlr_texture == NULL || cb == VK_NULL_HANDLE) {
 		return false;
 	}
@@ -1553,12 +1554,30 @@ bool waylib_vk_renderer_prepare_texture_for_sampling(struct wlr_renderer *wlr_re
 			return false;
 		}
 
-		int sync_file_fds[WLR_DMABUF_MAX_PLANES];
-		for (size_t i = 0; i < WLR_DMABUF_MAX_PLANES; i++) {
-			sync_file_fds[i] = -1;
-		}
+		// Skip the producer fence export/wait when the client has not
+		// re-attached (committed) this buffer since its current content was
+		// already synchronized: there is no new producer write to wait for.
+		// Client textures are identified through the sampled client buffer:
+		// wlroots creates them from the client buffer's source (or keys them
+		// on the client buffer itself), and
+		// waylib_vk_renderer_mark_buffer_content_dirty() normalizes both
+		// keyings when the client re-attaches. Every other texture (e.g. an
+		// output swapchain buffer sampled for mirroring) keeps waiting on
+		// every acquire.
+		struct wlr_client_buffer *client_buffer = sampled_buffer != NULL
+			? wlr_client_buffer_get(sampled_buffer) : NULL;
+		const bool client_texture = client_buffer != NULL
+			&& (texture->buffer == client_buffer->source
+				|| texture->buffer == sampled_buffer);
+		const bool skip_producer_wait = client_texture
+			&& texture->qt_content_synced;
 
-		if (texture->buffer != NULL) {
+		if (texture->buffer != NULL && !skip_producer_wait) {
+			int sync_file_fds[WLR_DMABUF_MAX_PLANES];
+			for (size_t i = 0; i < WLR_DMABUF_MAX_PLANES; i++) {
+				sync_file_fds[i] = -1;
+			}
+
 			if (!vulkan_sync_foreign_texture_acquire(texture, sync_file_fds)) {
 				close_sync_file_fds(sync_file_fds);
 				wlr_log(WLR_ERROR, "Failed to wait for foreign texture DMA-BUF fence");
@@ -1578,6 +1597,10 @@ bool waylib_vk_renderer_prepare_texture_for_sampling(struct wlr_renderer *wlr_re
 				: wait_sync_file_fds(sync_file_fds);
 			if (!waited) {
 				return false;
+			}
+
+			if (client_texture) {
+				texture->qt_content_synced = true;
 			}
 		}
 
@@ -1717,6 +1740,35 @@ bool waylib_vk_renderer_finish_texture_sampling(struct wlr_renderer *wlr_rendere
 	}
 	texture->qt_sampling_acquired = false;
 	return true;
+}
+
+void waylib_vk_renderer_mark_buffer_content_dirty(struct wlr_renderer *wlr_renderer,
+		struct wlr_buffer *wlr_buffer) {
+	if (wlr_renderer == NULL || wlr_buffer == NULL
+			|| !wlr_renderer_is_vk(wlr_renderer)) {
+		return;
+	}
+
+	struct wlr_vk_renderer *renderer = vulkan_get_renderer(wlr_renderer);
+	// The caller passes the client buffer the surface re-attached. Textures
+	// created by wlroots from a client buffer import its source buffer
+	// (wlr_client_buffer_create() creates them from the source, not from the
+	// wlr_client_buffer), while textures created from the client buffer
+	// itself are keyed on it; clear every texture importing either identity.
+	struct wlr_client_buffer *client_buffer = wlr_client_buffer_get(wlr_buffer);
+	struct wlr_buffer *source = client_buffer != NULL
+		? client_buffer->source : NULL;
+	struct wlr_vk_texture *texture;
+	wl_list_for_each(texture, &renderer->textures, link) {
+		if (texture->buffer == wlr_buffer
+				|| (source != NULL && texture->buffer == source)) {
+			// The client re-attached a buffer it owns again: its producer may
+			// have written new content, so the next sampling acquire must wait
+			// for a fresh producer fence even though the previous content was
+			// already synchronized.
+			texture->qt_content_synced = false;
+		}
+	}
 }
 
 // A deferred acquire/release barrier that is never recorded must not leave the

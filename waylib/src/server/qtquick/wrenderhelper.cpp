@@ -1775,6 +1775,91 @@ bool WRenderHelper::makeTexture(QRhi *rhi, wlr_texture *handle, QSGPlainTexture 
     return updateTexture(rhi, handle, texture, forceVulkanShaderReadOnlyLayout);
 }
 
+bool WRenderHelper::beginTextureSyncBatch(QQuickRenderControl *rc,
+                                          wlr_renderer *renderer,
+                                          bool verifyQueue)
+{
+#ifdef ENABLE_VULKAN_RENDER
+    if (!renderer || !wlr_renderer_is_vk(renderer))
+        return true;
+
+    if (verifyQueue) {
+        if (!rc || !rc->rhi() || rc->rhi()->backend() != QRhi::Vulkan) {
+            qCWarning(lcWlRenderHelper) << "Cannot begin Vulkan texture sync batch: missing Vulkan QRhi";
+            return false;
+        }
+
+        const auto *nativeHandles = static_cast<const QRhiVulkanNativeHandles *>(rc->rhi()->nativeHandles());
+        if (!nativeHandles
+            || nativeHandles->dev != wlr_vk_renderer_get_device(renderer)
+            || nativeHandles->gfxQueueFamilyIdx != wlr_vk_renderer_get_queue_family(renderer)
+            || nativeHandles->gfxQueue != waylib_vk_renderer_get_queue(renderer)) {
+            qCWarning(lcWlRenderHelper) << "Cannot begin Vulkan texture sync batch: Qt and wlroots do not share the same queue"
+                                        << "qtDevice" << (nativeHandles ? nativeHandles->dev : VK_NULL_HANDLE)
+                                        << "wlrootsDevice" << wlr_vk_renderer_get_device(renderer)
+                                        << "qtQueueFamily" << (nativeHandles ? nativeHandles->gfxQueueFamilyIdx : 0)
+                                        << "wlrootsQueueFamily" << wlr_vk_renderer_get_queue_family(renderer);
+            return false;
+        }
+    }
+
+    if (!waylib_vk_renderer_begin_texture_sync_batch(renderer)) {
+        qCWarning(lcWlRenderHelper) << "Failed to begin Vulkan texture sync batch; using immediate CPU waits for this frame";
+        return false;
+    }
+#else
+    Q_UNUSED(rc);
+    Q_UNUSED(renderer);
+    Q_UNUSED(verifyQueue);
+#endif
+    return true;
+}
+
+bool WRenderHelper::flushTextureSyncBatch(wlr_renderer *renderer)
+{
+#ifdef ENABLE_VULKAN_RENDER
+    if (!renderer || !wlr_renderer_is_vk(renderer))
+        return true;
+
+    if (!waylib_vk_renderer_flush_texture_sync_batch(renderer)) {
+        qCWarning(lcWlRenderHelper) << "Failed to flush Vulkan texture sync batch";
+        return false;
+    }
+#else
+    Q_UNUSED(renderer);
+#endif
+    return true;
+}
+
+void WRenderHelper::abortTextureSyncBatch(wlr_renderer *renderer)
+{
+#ifdef ENABLE_VULKAN_RENDER
+    if (renderer && wlr_renderer_is_vk(renderer))
+        waylib_vk_renderer_abort_texture_sync_batch(renderer);
+#else
+    Q_UNUSED(renderer);
+#endif
+}
+
+
+void WRenderHelper::markBufferContentDirty(wlr_renderer *renderer, wlr_buffer *buffer)
+{
+#ifdef ENABLE_VULKAN_RENDER
+    if (!renderer || !buffer || !wlr_renderer_is_vk(renderer))
+        return;
+
+    // The client re-attached this buffer: its next sampling acquire must wait
+    // for a fresh producer fence. The wlroots side clears the per-texture
+    // "content already synchronized" shortcut for every imported texture of
+    // this buffer; non-client buffers are unaffected (they are never marked,
+    // so they keep waiting on every acquire).
+    waylib_vk_renderer_mark_buffer_content_dirty(renderer, buffer);
+#else
+    Q_UNUSED(renderer);
+    Q_UNUSED(buffer);
+#endif
+}
+
 WRenderHelper::TextureEntry
 WRenderHelper::newTexture(wlr_allocator *allocator, wlr_renderer *renderer,
                           uint32_t drmFormat, uint64_t drmModifier,
