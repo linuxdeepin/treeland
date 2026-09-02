@@ -17,6 +17,8 @@ class WOutputViewport;
 class WOutputLayer;
 class WBufferRenderer;
 class WOutputHelper;
+class WPresentation;
+class WSurface;
 class WOutputRenderWindowPrivate;
 class WAYLIB_SERVER_EXPORT WOutputRenderWindow : public QQuickWindow, public QQmlParserStatus
 {
@@ -58,7 +60,16 @@ public:
     WBufferRenderer *currentRenderer() const;
     bool inRendering() const;
 
-    void setRenderEnabled(bool enabled);
+    void setRenderEnabled(bool enabled);    void setPresentation(WPresentation *presentation);
+    void markSurfaceTexturedForPresentation(WSurface *surface);
+    // Whether a per-surface QSGRenderNode that reports "textured for
+    // presentation" can do anything. Each such node sits between neighbouring
+    // surface image nodes, so it costs a batch split (and keeps the batch
+    // renderer's depth buffer alive); only create it when presentation
+    // feedback or VKTRACE can actually consume the report.
+    bool needsSurfaceRenderFootprint() const;
+
+
 
     static QList<QPointer<QQuickItem>> paintOrderItemList(QQuickItem *root, std::function<bool(QQuickItem*)> filter);
 

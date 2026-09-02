@@ -660,8 +660,51 @@ public:
         return NoExternalRendering | BoundedRectRendering | DepthAwareRendering | OpaqueRendering;
     }
 
+    // Per-frame binding reported to presentation feedback / VKTRACE. The base
+    // node (GLES2 path) only marks the surface as rendered.
+    virtual void setBinding(const void *, wlr_texture *) {}
+
+protected:
+    void traceVulkanBinding(const void *provider, wlr_texture *texture)
+    {
+        if (!m_owner)
+            return;
+
+        auto *ownerPrivate = m_owner->d_func();
+        if (auto *renderWindow = m_owner->outputRenderWindow()) {
+            WVulkanTrace::surfaceFootprint(renderWindow, provider, texture,
+                                           ownerPrivate->surface);
+            renderWindow->markSurfaceTexturedForPresentation(ownerPrivate->surface);
+        }
+    }
+
 public:
     QPointer<WSurfaceItemContent> m_owner;
+};
+
+class Q_DECL_HIDDEN WSGVulkanRenderFootprintNode final : public WSGRenderFootprintNode
+{
+public:
+    explicit WSGVulkanRenderFootprintNode(WSurfaceItemContent *owner)
+        : WSGRenderFootprintNode(owner)
+    {
+    }
+
+    void setBinding(const void *provider, wlr_texture *texture) override
+    {
+        m_provider = provider;
+        m_texture = texture;
+    }
+
+    void render(const RenderState *state) override
+    {
+        WSGRenderFootprintNode::render(state);
+        traceVulkanBinding(m_provider, m_texture);
+    }
+
+private:
+    const void *m_provider = nullptr;
+    wlr_texture *m_texture = nullptr;
 };
 
 QSGNode *WSurfaceItemContent::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *)
@@ -669,13 +712,43 @@ QSGNode *WSurfaceItemContent::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeD
     W_D(WSurfaceItemContent);
 
     auto tp = wTextureProvider();
-    if (d->live || !tp->texture()) {
-        auto texture = d->surface ? wlr_surface_get_texture(d->surface->handle()) : nullptr;
-        if (texture) {
-            tp->setTexture(texture, d->buffer.get());
-        } else {
-            tp->setBuffer(d->buffer.get());
+    const bool vulkanRhi = usesVulkanRhi(tp->window());
+    if (!vulkanRhi) {
+        if (d->live || !tp->texture()) {
+            auto texture = d->surface ? wlr_surface_get_texture(d->surface->handle()) : nullptr;
+            if (texture) {
+                tp->setTexture(texture, d->buffer.get());
+            } else {
+                tp->setBuffer(d->buffer.get());
+            }
         }
+
+        if (!tp->texture() || width() <= 0 || height() <= 0) {
+            delete oldNode;
+            return nullptr;
+        }
+
+        auto node = static_cast<QSGImageNode*>(oldNode);
+        if (Q_UNLIKELY(!node)) {
+            node = window()->createImageNode();
+            node->setOwnsTexture(false);
+            QSGNode *fpnode = new WSGRenderFootprintNode(this);
+            node->appendChildNode(fpnode);
+        }
+
+        auto texture = tp->texture();
+        node->setTexture(texture);
+        const QRectF textureGeometry = d->bufferSourceBox;
+        node->setSourceRect(textureGeometry);
+        const QRectF targetGeometry(d->ignoreBufferOffset ? QPointF() : d->bufferOffset, size());
+        node->setRect(targetGeometry);
+        node->setFiltering(smooth() ? QSGTexture::Linear : QSGTexture::Nearest);
+
+        return node;
+    }
+
+    if (d->live || !tp->texture()) {
+        tp->setBuffer(d->buffer.get());
     }
 
     if (!tp->texture() || width() <= 0 || height() <= 0) {
@@ -684,15 +757,37 @@ QSGNode *WSurfaceItemContent::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeD
     }
 
     auto node = static_cast<QSGImageNode*>(oldNode);
+    WSGRenderFootprintNode *footprintNode = nullptr;
     if (Q_UNLIKELY(!node)) {
         node = window()->createImageNode();
         node->setOwnsTexture(false);
-        QSGNode *fpnode = new WSGRenderFootprintNode(this);
-        node->appendChildNode(fpnode);
+    } else if (node->childCount() > 0
+               && node->firstChild()->type() == QSGNode::RenderNodeType) {
+        // The only child ever appended to this node is the footprint node.
+        // Cast to the common base: a node created before presentation
+        // feedback became available is a plain WSGRenderFootprintNode, and a
+        // downcast to the Vulkan subclass would be undefined behavior.
+        footprintNode = static_cast<WSGRenderFootprintNode *>(node->firstChild());
+    }
+
+    // presentation feedback / VKTRACE: the footprint node reports the surface
+    // as textured after its image was drawn. Attach it lazily instead of only
+    // at node creation, so a surface painted before setPresentation() ran
+    // still gets presentation feedback. Restricted to the Vulkan backend on
+    // purpose: the GLES2 path keeps its original create-time-only attachment.
+    if (!footprintNode) {
+        auto *renderWindow = outputRenderWindow();
+        if (renderWindow && usesVulkanRhi(renderWindow)
+            && renderWindow->needsSurfaceRenderFootprint()) {
+            footprintNode = new WSGVulkanRenderFootprintNode(this);
+            node->appendChildNode(footprintNode);
+        }
     }
 
     auto texture = tp->texture();
     node->setTexture(texture);
+    if (footprintNode)
+        footprintNode->setBinding(tp, tp->qwTexture());
     const QRectF textureGeometry = d->bufferSourceBox;
     node->setSourceRect(textureGeometry);
     const QRectF targetGeometry(d->ignoreBufferOffset ? QPointF() : d->bufferOffset, size());
