@@ -275,6 +275,14 @@ public:
 
             if (bufferChanged && assignBuffer(surface->buffer()))
                 q->update();
+            else if (auto *renderWindow = q->outputRenderWindow();
+                     renderWindow && usesVulkanRhi(renderWindow)
+                     && renderWindow->needsSurfaceDrawCallback(surface))
+                // A client may request presentation feedback and commit the
+                // surface without attaching a new buffer. The commit still
+                // has to make updatePaintNode() observe the feedback so the
+                // draw callback can be registered before the next draw.
+                q->update();
 
             if (Q_LIKELY((q->isVisible() || lastRendered) && live))
                 surface->scheduleFrameIfNeeded();
@@ -434,6 +442,7 @@ public:
     bool live = true;
     bool ignoreBufferOffset = false;
     bool lastRendered = false;
+    bool feedbackCallbackActive = false;
     QAtomicInteger<bool> rendered = false;
 };
 
@@ -672,26 +681,56 @@ QSGNode *WSurfaceItemContent::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeD
     W_D(WSurfaceItemContent);
 
     auto tp = wTextureProvider();
-    if (d->live || !tp->texture()) {
-        auto texture = d->surface ? wlr_surface_get_texture(d->surface->handle()) : nullptr;
-        if (texture) {
-            tp->setTexture(texture, d->buffer.get());
-        } else {
-            tp->setBuffer(d->buffer.get());
+    const bool vulkanRhi = usesVulkanRhi(tp->window());
+    if (!vulkanRhi) {
+        if (d->live || !tp->texture()) {
+            auto texture = d->surface ? wlr_surface_get_texture(d->surface->handle()) : nullptr;
+            if (texture) {
+                tp->setTexture(texture, d->buffer.get());
+            } else {
+                tp->setBuffer(d->buffer.get());
+            }
         }
+
+        if (!tp->texture() || width() <= 0 || height() <= 0) {
+            delete oldNode;
+            return nullptr;
+        }
+
+        auto node = static_cast<QSGImageNode*>(oldNode);
+        if (Q_UNLIKELY(!node)) {
+            node = window()->createImageNode();
+            node->setOwnsTexture(false);
+            QSGNode *fpnode = new WSGRenderFootprintNode(this);
+            node->appendChildNode(fpnode);
+        }
+
+        auto texture = tp->texture();
+        node->setTexture(texture);
+        const QRectF textureGeometry = d->bufferSourceBox;
+        node->setSourceRect(textureGeometry);
+        const QRectF targetGeometry(d->ignoreBufferOffset ? QPointF() : d->bufferOffset, size());
+        node->setRect(targetGeometry);
+        node->setFiltering(smooth() ? QSGTexture::Linear : QSGTexture::Nearest);
+
+        return node;
+    }
+
+    if (d->live || !tp->texture()) {
+        tp->setBuffer(d->buffer.get());
     }
 
     if (!tp->texture() || width() <= 0 || height() <= 0) {
+        tp->clearSurfaceContent();
         delete oldNode;
         return nullptr;
     }
 
+    const bool hadNode = oldNode;
     auto node = static_cast<QSGImageNode*>(oldNode);
     if (Q_UNLIKELY(!node)) {
         node = window()->createImageNode();
         node->setOwnsTexture(false);
-        QSGNode *fpnode = new WSGRenderFootprintNode(this);
-        node->appendChildNode(fpnode);
     }
 
     auto texture = tp->texture();
@@ -702,7 +741,47 @@ QSGNode *WSurfaceItemContent::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeD
     node->setRect(targetGeometry);
     node->setFiltering(smooth() ? QSGTexture::Linear : QSGTexture::Nearest);
 
+    // presentation feedback / VKTRACE: register a node-keyed draw callback
+    // instead of adding a per-surface QSGRenderNode. The vendored batch
+    // renderer invokes it after the image node's batch is drawn, so it costs no
+    // extra draw and does not split neighbouring image batches. The GLES2 path
+    // keeps its original render-node attachment below.
+    auto *renderWindow = outputRenderWindow();
+    const bool wantDrawCallback = renderWindow && d->surface
+        && renderWindow->needsSurfaceDrawCallback(d->surface);
+    if (wantDrawCallback)
+        tp->setSurfaceContent(this, node);
+    else
+        tp->clearSurfaceContent();
+
+    if (hadNode && d->feedbackCallbackActive != wantDrawCallback)
+        node->markDirty(QSGNode::DirtyMaterial);
+    d->feedbackCallbackActive = wantDrawCallback;
+
     return node;
+}
+
+void WSurfaceItemContent::markContentDrawn()
+{
+    W_D(WSurfaceItemContent);
+    if (!d->surface)
+        return;
+
+    auto *renderWindow = outputRenderWindow();
+    if (!renderWindow || !usesVulkanRhi(renderWindow))
+        return;
+
+    d->rendered = true;
+
+    if (!renderWindow->needsSurfaceDrawCallback(d->surface))
+        return;
+
+    auto *tp = d->textureProvider;
+    if (!tp)
+        return;
+
+    WVulkanTrace::surfaceFootprint(renderWindow, tp, tp->qwTexture(), d->surface);
+    renderWindow->markSurfaceTexturedForPresentation(d->surface);
 }
 
 void WSurfaceItemContent::releaseResources()
@@ -1772,7 +1851,10 @@ bool WSurfaceItem::setShellSurface(WToplevelSurface *surface)
 
 void WSurfaceItemContentPrivate::cleanTextureProvider()
 {
+    feedbackCallbackActive = false;
     if (textureProvider) {
+        textureProvider->clearSurfaceContent();
+
         // needs check window, because maybe this item's window always is nullptr,
         // so not call WSurfaceItemContent::releaseResources before destroy.
         if (window) {

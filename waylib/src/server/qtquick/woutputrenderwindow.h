@@ -17,6 +17,8 @@ class WOutputViewport;
 class WOutputLayer;
 class WBufferRenderer;
 class WOutputHelper;
+class WPresentation;
+class WSurface;
 class WOutputRenderWindowPrivate;
 class WAYLIB_SERVER_EXPORT WOutputRenderWindow : public QQuickWindow, public QQmlParserStatus
 {
@@ -53,7 +55,17 @@ public:
     WBufferRenderer *currentRenderer() const;
     bool inRendering() const;
 
-    void setRenderEnabled(bool enabled);
+    void setRenderEnabled(bool enabled);    void setPresentation(WPresentation *presentation);
+    void markSurfaceTexturedForPresentation(WSurface *surface);
+    // Whether a per-surface draw callback that reports "textured for
+    // presentation" can do anything. The callback is attached to the surface
+    // image node (and validated against its texture), and consumed by the
+    // vendored batch renderer after the image batch is drawn; it adds no
+    // render node and no batch split. Only register it when presentation
+    // feedback or VKTRACE can consume the report.
+    bool needsSurfaceDrawCallback(WSurface *surface) const;
+
+
 
     static QList<QPointer<QQuickItem>> paintOrderItemList(QQuickItem *root, std::function<bool(QQuickItem*)> filter);
 
