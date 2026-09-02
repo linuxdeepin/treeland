@@ -1238,15 +1238,19 @@ bool waylib_vk_renderer_record_render_buffer_acquire(struct wlr_renderer *wlr_re
 		.oldLayout = src_layout,
 		.newLayout = VK_IMAGE_LAYOUT_GENERAL,
 		.srcAccessMask = 0,
-		.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT |
-			VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+		.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT |
+			VK_ACCESS_MEMORY_WRITE_BIT,
 		.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
 		.subresourceRange.layerCount = 1,
 		.subresourceRange.levelCount = 1,
 	};
 
+	/* The second scope must cover every access this renderer performs on the
+	 * buffer after the transfer, not only the render-pass color attachment
+	 * use: the Qt path samples the buffer (shader read) and the render-buffer
+	 * blitter copies from it (transfer read). */
 	vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-		VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+		VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
 		0, 0, NULL, 0, NULL, 1, &barrier);
 
 	// WAR alias dependency: the texture-sampling path may have recently read
@@ -1301,15 +1305,19 @@ bool waylib_vk_renderer_record_render_buffer_release(struct wlr_renderer *wlr_re
 		.image = render_buffer->image,
 		.oldLayout = old_layout,
 		.newLayout = VK_IMAGE_LAYOUT_GENERAL,
-		.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT |
-			VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+		.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT |
+			VK_ACCESS_MEMORY_WRITE_BIT,
 		.dstAccessMask = 0,
 		.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
 		.subresourceRange.layerCount = 1,
 		.subresourceRange.levelCount = 1,
 	};
 
-	vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+	/* The first scope must cover every access the renderer made since the
+	 * acquire: the render pass writes the image, while the Qt sampling and
+	 * the render-buffer blitter read it (shader/transfer reads). A release
+	 * that only named the color attachment stage would drop those reads. */
+	vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
 		VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
 		0, 0, NULL, 0, NULL, 1, &barrier);
 	return true;
