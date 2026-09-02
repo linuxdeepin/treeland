@@ -282,7 +282,8 @@ public:
 public Q_SLOTS:
     void activateSurface(SurfaceWrapper *wrapper,
                          Qt::FocusReason reason = Qt::OtherFocusReason,
-                         WSeat *seat = nullptr);
+                         WSeat *seat = nullptr,
+                         bool raise = true);
     void forceActivateSurface(SurfaceWrapper *wrapper,
                               Qt::FocusReason reason = Qt::OtherFocusReason,
                               WSeat *seat = nullptr);
@@ -349,7 +350,9 @@ private:
 
     SurfaceWrapper *keyboardFocusSurface() const;
     SurfaceWrapper *activatedSurface() const;
-    void setActivatedSurface(SurfaceWrapper *newActivateSurface, WSeat *seat = nullptr);
+    void setActivatedSurface(SurfaceWrapper *newActivateSurface,
+                             WSeat *seat = nullptr,
+                             bool raise = true);
 
     bool beforeDisposeEvent(WSeat *seat, QWindow *window, QInputEvent *event) override;
     bool afterHandleEvent(WSeat *seat, WSurface *watched, QObject *shellObject,

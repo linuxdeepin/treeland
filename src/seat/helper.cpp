@@ -2378,7 +2378,10 @@ WSeat *Helper::getSeatForEvent(QInputEvent *event) const
     return m_seatManager->getSeatForEvent(event);
 }
 
-void Helper::activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason, WSeat *seat)
+void Helper::activateSurface(SurfaceWrapper *wrapper,
+                             Qt::FocusReason reason,
+                             WSeat *seat,
+                             bool raise)
 {
     if (wrapper && wrapper->isIMCandidatePanel())
         return;
@@ -2414,7 +2417,7 @@ void Helper::activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason, WS
     }
 
     if (!wrapper || wrapper->hasActiveCapability()) {
-        setActivatedSurface(wrapper, seat);
+        setActivatedSurface(wrapper, seat, raise);
     } else {
         qCCritical(lcTlShell)
             << "Trying to activate a surface which doesn't have ActiveCapability!";
@@ -3000,7 +3003,7 @@ SurfaceWrapper *Helper::activatedSurface() const
     return seatContainer ? seatContainer->activatedSurface() : nullptr;
 }
 
-void Helper::setActivatedSurface(SurfaceWrapper *newActivateSurface, WSeat *seat)
+void Helper::setActivatedSurface(SurfaceWrapper *newActivateSurface, WSeat *seat, bool raise)
 {
     if (!m_rootSurfaceContainer) {
         qCWarning(lcTlCore) << "Cannot set activated surface: root surface container is null";
@@ -3028,12 +3031,14 @@ void Helper::setActivatedSurface(SurfaceWrapper *newActivateSurface, WSeat *seat
 
     if (newActivateSurface) {
         Q_ASSERT(newActivateSurface->showOnWorkspace(workspace()->current()->id()));
-        newActivateSurface->stackToLast();
-        if (newActivateSurface->type() == SurfaceWrapper::Type::XWayland) {
-            auto xwaylandSurface =
-                qobject_cast<WXWaylandSurface *>(newActivateSurface->shellSurface());
-            Q_ASSERT(!xwaylandSurface->isBypassManager());
-            xwaylandSurface->restack(nullptr, WXWaylandSurface::XCB_STACK_MODE_ABOVE);
+        if (raise) {
+            newActivateSurface->stackToLast();
+            if (newActivateSurface->type() == SurfaceWrapper::Type::XWayland) {
+                auto xwaylandSurface =
+                    qobject_cast<WXWaylandSurface *>(newActivateSurface->shellSurface());
+                Q_ASSERT(!xwaylandSurface->isBypassManager());
+                xwaylandSurface->restack(nullptr, WXWaylandSurface::XCB_STACK_MODE_ABOVE);
+            }
         }
     }
 

@@ -1522,6 +1522,9 @@ void SurfaceWrapper::createNewOrClose(uint direction)
     }
 
     if (m_windowAnimation) {
+        if (m_windowAnimation->parentItem() == parentItem()) {
+            m_windowAnimation->stackAfter(this);
+        }
         if (Helper::instance()->noAnimation()) {
             if (direction == OPEN_ANIMATION) {
                 onShowAnimationFinished();
