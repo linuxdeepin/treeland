@@ -63,6 +63,13 @@ public:
     void setRenderEnabled(bool enabled);    void setPresentation(WPresentation *presentation);
     void markSurfaceTexturedForPresentation(WSurface *surface);
 
+    // Fast path for pointer movement on the Vulkan/DRM hardware-cursor path:
+    // when the hardware cursor plane is already set up for \a output, move it
+    // directly and return true, so the caller can skip scheduling a full
+    // compositor frame. Returns false when a frame is still required (software
+    // cursor, cursor not set up yet, broken commit, or non-Vulkan backend).
+    bool tryMoveHardwareCursor(WOutput *output, QQuickItem *cursorItem);
+
 
 
     static QList<QPointer<QQuickItem>> paintOrderItemList(QQuickItem *root, std::function<bool(QQuickItem*)> filter);

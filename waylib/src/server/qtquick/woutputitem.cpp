@@ -4,6 +4,7 @@
 #include "woutputitem.h"
 #include "woutputitem_p.h"
 #include "woutput.h"
+#include "woutputrenderwindow.h"
 #include "wquickoutputlayout.h"
 #include "wquickcursor.h"
 #include "private/wglobal_p.h"
@@ -11,6 +12,8 @@
 #include <wlr_all.h>
 
 #include <private/qquickitem_p.h>
+
+#include <QQuickWindow>
 
 #include <QPointer>
 
@@ -157,6 +160,28 @@ void WOutputItemPrivate::updateCursors()
                 }
 
                 updateCursorVisible(safeOc.data());
+                // On the Vulkan path the cursor item geometry is detached from the
+                // live pointer position (see SourceOutput.qml), so moving the cursor
+                // no longer dirties the scene. If the DRM hardware cursor plane is
+                // already set up, move it directly and skip the whole compositor
+                // frame; otherwise (software cursor fallback, plane not set up yet,
+                // or the cursor is becoming (in)visible) schedule a frame as before.
+                // GLES2 keeps relying on scene dirtying.
+                auto *outputItem = safeOc->output();
+                if (outputItem && outputItem->output() && outputItem->window()
+                    && outputItem->window()->graphicsApi() == QSGRendererInterface::Vulkan) {
+                    auto *cursorItem = safeOc->cursorItem();
+                    if (safeOc->visible() && cursorItem) {
+                        if (auto *renderWindow =
+                                qobject_cast<WOutputRenderWindow *>(cursorItem->window())) {
+                            if (renderWindow->tryMoveHardwareCursor(outputItem->output(),
+                                                                    cursorItem)) {
+                                return;
+                            }
+                        }
+                    }
+                    outputItem->output()->scheduleFrame();
+                }
             });
         }
 
