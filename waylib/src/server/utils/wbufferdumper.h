@@ -5,6 +5,7 @@
 
 #include <wlr_fwd.h>
 #include <wglobal.h>
+
 #include <QImage>
 #include <QString>
 

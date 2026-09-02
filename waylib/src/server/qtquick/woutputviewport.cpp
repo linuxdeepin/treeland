@@ -152,6 +152,12 @@ WOutputRenderWindow *WOutputViewport::outputRenderWindow() const
     return qobject_cast<WOutputRenderWindow*>(window());
 }
 
+wlr_buffer *WOutputViewport::lastBuffer() const
+{
+    W_DC(WOutputViewport);
+    return d->bufferRenderer->lastBuffer();
+}
+
 QQuickItem *WOutputViewport::input() const
 {
     W_DC(WOutputViewport);
