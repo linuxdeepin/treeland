@@ -7,6 +7,7 @@
 #include "woutput.h"
 #include "woutputrenderwindow.h"
 #include "woutputviewport.h"
+#include "wrenderhelper.h"
 #include "wseat.h"
 #include "wsgtextureprovider.h"
 #include "wsurface.h"
@@ -366,7 +367,15 @@ public:
     // Returns true when the item has to repaint.
     bool assignBuffer(wlr_buffer *newBuffer) {
         W_Q(WSurfaceItemContent);
-        const bool vulkan = usesVulkanRhi(q->outputRenderWindow());
+        auto *renderWindow = q->outputRenderWindow();
+        const bool vulkan = usesVulkanRhi(renderWindow);
+
+        // The client re-attached a buffer: its producer may have written new
+        // content, so the next Vulkan sampling acquire must wait for a fresh
+        // producer fence instead of reusing the previous one. No-op on
+        // non-Vulkan renderers.
+        if (vulkan && renderWindow)
+            WRenderHelper::markBufferContentDirty(renderWindow->renderer(), newBuffer);
 
         BufferRef &target = live ? buffer : pendingBuffer;
         target.reset(newBuffer);
