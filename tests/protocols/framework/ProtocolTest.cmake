@@ -134,10 +134,10 @@ function(treeland_add_protocol_test)
         AUTORCC OFF
         C_STANDARD 11
     )
-    add_dependencies(${target} lockscreen multitaskview)
+    add_dependencies(${target} lockscreen multitaskview treeland-xwayland)
     add_test(NAME ${target} COMMAND ${target})
     set_tests_properties(${target} PROPERTIES
-        ENVIRONMENT "WLR_BACKENDS=headless;WLR_RENDERER=pixman;DSG_DATA_DIRS=${TREELAND_PROTOCOL_TEST_DSG_DATA_DIRS};TREELAND_PROTOCOL_TEST_DSG_DIR=${TREELAND_PROTOCOL_TEST_DSG_DATA_DIR}"
+        ENVIRONMENT "WLR_BACKENDS=headless;WLR_RENDERER=pixman;WLR_XWAYLAND=$<TARGET_FILE:treeland-xwayland>;DSG_DATA_DIRS=${TREELAND_PROTOCOL_TEST_DSG_DATA_DIRS};TREELAND_PROTOCOL_TEST_DSG_DIR=${TREELAND_PROTOCOL_TEST_DSG_DATA_DIR}"
         LABELS "protocols"
         SKIP_REGULAR_EXPRESSION "SKIP   :"
         SKIP_RETURN_CODE 77

@@ -3,12 +3,14 @@
 
 #include "core/rootsurfacecontainer.h"
 #include "output/output.h"
+#include "server-bridge.h"
 #include "seat/helper.h"
 
 #include <woutputrenderwindow.h>
 
-void protocol_test_setup(Helper *)
+void protocol_test_setup(Helper *helper)
 {
+    Q_ASSERT(add_headless_output(helper->backend(), false, 1920, 1080));
 }
 
 extern "C" void screencopy_render(void *)
