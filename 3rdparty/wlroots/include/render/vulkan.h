@@ -238,6 +238,15 @@ struct wlr_vk_render_buffer {
 	uint32_t mem_count;
 	VkImage image;
 	VkImageUsageFlags image_usage;
+	// The imported image was created with VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT,
+	// so an sRGB image view can alias it (see the srgb output below).
+	bool using_mutable_srgb;
+	// All three output pathways below alias this one imported VkImage. The
+	// per-framebuffer "transitioned" flags cannot answer whether the image
+	// itself was already moved out of VK_IMAGE_LAYOUT_UNDEFINED (a torn-down
+	// framebuffer resets them while the image keeps its layout), so track that
+	// on the image: false until the first acquire transitions it to GENERAL.
+	bool image_transitioned;
 
 	// Framebuffer and image view for rendering directly onto the buffer image,
 	// without any color transform.
