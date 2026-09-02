@@ -17,6 +17,8 @@ class WOutputViewport;
 class WOutputLayer;
 class WBufferRenderer;
 class WOutputHelper;
+class WPresentation;
+class WSurface;
 class WOutputRenderWindowPrivate;
 class WAYLIB_SERVER_EXPORT WOutputRenderWindow : public QQuickWindow, public QQmlParserStatus
 {
@@ -58,7 +60,10 @@ public:
     WBufferRenderer *currentRenderer() const;
     bool inRendering() const;
 
-    void setRenderEnabled(bool enabled);
+    void setRenderEnabled(bool enabled);    void setPresentation(WPresentation *presentation);
+    void markSurfaceTexturedForPresentation(WSurface *surface);
+
+
 
     static QList<QPointer<QQuickItem>> paintOrderItemList(QQuickItem *root, std::function<bool(QQuickItem*)> filter);
 
