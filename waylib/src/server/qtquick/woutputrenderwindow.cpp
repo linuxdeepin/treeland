@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "woutputrenderwindow.h"
+#include "wquickcursor.h"
 #include "wpresentation.h"
 #include <chrono>
 #include <cstdlib>
@@ -259,6 +260,9 @@ private:
     // only for render cursor
     QPointer<WBufferRenderer> m_cursorRenderer;
     BufferRendererProxy *m_cursorLayerProxy = nullptr;
+    // Vulkan only: the cursor QML item rendered directly into the scanout
+    // buffer (instead of sampling the layer buffer released to FOREIGN).
+    QPointer<QQuickItem> m_cursorSourceItem;
     bool m_cursorDirty = false;
     bool m_hardwareCursorRenderComplete = false;
 
@@ -599,7 +603,15 @@ void OutputHelper::detachLayer(OutputLayer *layer)
     Q_ASSERT(index >= 0);
     auto l = m_layers.takeAt(index);
 
-    if (m_cursorLayerProxy && m_cursorLayerProxy->sourceItem() == l->renderer) {
+    // The cursor render resources reference either the layer's rendered buffer
+    // (GLES2 proxy path) or the cursor QML item directly (Vulkan path). Clear
+    // the hardware cursor and drop them when that source layer goes away so we
+    // never keep a dangling source.
+    const bool isCursorSource =
+        (m_cursorLayerProxy && m_cursorLayerProxy->sourceItem() == l->renderer)
+        || (m_cursorRenderer && m_cursorSourceItem
+            && m_cursorSourceItem == l->layer->layer->parent());
+    if (isCursorSource) {
         // Clear hardware cursor
         tryToHardwareCursor(nullptr);
         cleanCursorRender();
@@ -655,6 +667,7 @@ void OutputHelper::cleanCursorRender()
         m_cursorRenderer->deleteLater();
         m_cursorRenderer = nullptr;
         m_cursorLayerProxy = nullptr;
+        m_cursorSourceItem = nullptr;
     }
 }
 
@@ -749,8 +762,17 @@ wlr_buffer *OutputHelper::renderLayer(LayerData *layer, bool *dontEndRenderAndRe
 
         const auto layerFlags = layer->layer->layer->flags();
         const bool sizeSensitive = layerFlags & WOutputLayer::SizeSensitive;
+        const bool isVulkanLayer = WRenderHelper::getGraphicsApi(renderWindowD()->rc())
+                                   == QSGRendererInterface::Vulkan;
+        // On Vulkan the cursor item is detached from the live pointer position
+        // (fixed at (0,0) in PrimaryOutput.qml), so its output placement must be
+        // derived from the wlroots cursor/output coordinates rather than the item
+        // geometry. GLES2 keeps the geometry-driven path unchanged.
+        const bool cursorLayer = (layerFlags & WOutputLayer::Cursor) && isVulkanLayer;
         const bool isRef = layer->mapFrom && layer->mapTo;
-        if (isRef) {
+        if (cursorLayer) {
+            viewportMatrix = outputViewport()->mapToViewport(source->parentItem());
+        } else if (isRef) {
             viewportMatrix = outputViewport()->mapToViewport(layer->mapTo);
             const auto xScale = layer->mapTo->width() / layer->mapFrom->outputViewport()->width();
             const auto yScale = layer->mapTo->height() / layer->mapFrom->outputViewport()->height();
@@ -772,8 +794,26 @@ wlr_buffer *OutputHelper::renderLayer(LayerData *layer, bool *dontEndRenderAndRe
 
         // matrix function: map source to output buffer
         const auto outputMatrix = viewportMatrix * outputViewport()->sourceRectToTargetRectTransfrom();
-        noClipMapRect = outputMatrix.mapRect(noClipMapRect);
-        mapRect = outputMatrix.mapRect(mapRect);
+        if (cursorLayer) {
+            auto cursorItem = qobject_cast<WQuickCursor *>(source);
+            if (!cursorItem) {
+                qCWarning(lcWlCursor)
+                    << "Vulkan cursor layer source is not a WQuickCursor; skipping cursor layer"
+                    << "output" << outputViewport()
+                    << "source" << source;
+                return nullptr;
+            }
+            if (!cursorItem->cursor())
+                return nullptr;
+
+            const QPointF outputLocalPosition = cursorItem->cursor()->position()
+                                                - QPointF(outputViewport()->output()->position());
+            noClipMapRect = QRectF(outputLocalPosition - cursorItem->hotSpot(), source->size());
+            mapRect = noClipMapRect;
+        } else {
+            noClipMapRect = outputMatrix.mapRect(noClipMapRect);
+            mapRect = outputMatrix.mapRect(mapRect);
+        }
 
         QTransform revertScaleTransform;
         if (!sizeSensitive) {
@@ -813,7 +853,7 @@ wlr_buffer *OutputHelper::renderLayer(LayerData *layer, bool *dontEndRenderAndRe
         }
         Q_ASSERT(!pixelSize.isEmpty());
 
-        QMatrix4x4 renderMatrix = revertScaleTransform * viewportMatrix;
+        QMatrix4x4 renderMatrix = cursorLayer ? QMatrix4x4() : revertScaleTransform * viewportMatrix;
         if (isRef) {
             renderMatrix = layer->mapFromLayer->renderMatrix * renderMatrix;
         }
@@ -1269,6 +1309,8 @@ bool OutputHelper::commit(WBufferRenderer *buffer)
 
 bool OutputHelper::tryToHardwareCursor(const LayerData *layer)
 {
+    const bool isVulkan = WRenderHelper::getGraphicsApi(renderWindowD()->rc())
+                          == QSGRendererInterface::Vulkan;
     do {
         auto set_cursor = output()->impl->set_cursor;
         auto buffer = layer && layer->renderer->lastBuffer()
@@ -1347,14 +1389,43 @@ bool OutputHelper::tryToHardwareCursor(const LayerData *layer)
             }
         }
 
+        // On Vulkan the cursor layer buffer uses the renderer's render
+        // format/modifier, which is not guaranteed to be scanout-capable for the
+        // cursor plane (typically LINEAR only). Always repaint the cursor into a
+        // cursor-format buffer (configured via get_cursor_formats) so set_cursor
+        // can import it reliably, even when the size already matches.
+        if (isVulkan && get_cursor_sizes && get_cursor_formsts)
+            needsRepaintCursor = true;
+
+        if (Q_UNLIKELY(lcWlCursor().isDebugEnabled()))
+            qCDebug(lcWlCursor)
+                << "Attempting hardware cursor"
+                << "output" << output()
+                << "layerBufferSize" << QSize(buffer->width, buffer->height)
+                << "scanoutSize" << pixelSize
+                << "devicePixelRatio" << devicePixelRatio()
+                << "needsRepaintCursor" << needsRepaintCursor
+                << "directQmlRender" << isVulkan;
+
         if (needsRepaintCursor) {
             // needs render cursor again
+            auto *cursorSourceItem = layer->layer->layer->parent();
             if (!m_cursorRenderer) {
                 m_cursorRenderer = new WBufferRenderer(renderWindow()->contentItem());
                 if (visualizeLayers())
                     m_cursorRenderer->setClearColor(Qt::cyan);
-                m_cursorLayerProxy = new BufferRendererProxy(m_cursorRenderer);
-                m_cursorRenderer->setSourceList({m_cursorLayerProxy}, false);
+                if (isVulkan) {
+                    // Render the cursor QML item directly into the scanout buffer.
+                    // Sampling the layer buffer is unsafe on Vulkan: it has already
+                    // been released to VK_QUEUE_FAMILY_FOREIGN_EXT, so re-sampling it
+                    // without a queue-family re-acquire yields undefined contents
+                    // (typically a fully transparent, i.e. invisible, cursor).
+                    m_cursorRenderer->setSourceList({cursorSourceItem}, false);
+                    m_cursorSourceItem = cursorSourceItem;
+                } else {
+                    m_cursorLayerProxy = new BufferRendererProxy(m_cursorRenderer);
+                    m_cursorRenderer->setSourceList({m_cursorLayerProxy}, false);
+                }
                 m_cursorRenderer->setOutput(m_output->output());
                 m_cursorRenderer->setVisible(false);
                 // for the new WBufferRenderer and WQuickTextureProxy
@@ -1364,10 +1435,22 @@ bool OutputHelper::tryToHardwareCursor(const LayerData *layer)
                     m_cursorDirty = true;
                 });
             }
-            m_cursorLayerProxy->setRenderer(layer->renderer);
-            // Ensure render size same as source buffer size
-            m_cursorLayerProxy->setWidth(buffer->width);
-            m_cursorLayerProxy->setHeight(buffer->height);
+
+            if (isVulkan) {
+                // The cursor item can be recreated; keep the source list current so
+                // we never render a stale/dangling item.
+                if (m_cursorSourceItem != cursorSourceItem) {
+                    m_cursorRenderer->setSourceList({cursorSourceItem}, false);
+                    m_cursorSourceItem = cursorSourceItem;
+                    renderWindowD()->updateDirtyNodes();
+                    m_cursorDirty = true;
+                }
+            } else {
+                m_cursorLayerProxy->setRenderer(layer->renderer);
+                // Ensure render size same as source buffer size
+                m_cursorLayerProxy->setWidth(buffer->width);
+                m_cursorLayerProxy->setHeight(buffer->height);
+            }
 
             auto newBuffer = m_cursorRenderer->lastBuffer();
 
@@ -1380,25 +1463,86 @@ bool OutputHelper::tryToHardwareCursor(const LayerData *layer)
                 newBuffer = m_cursorRenderer->beginRender(pixelSize, 1.0, DRM_FORMAT_ARGB8888,
                                                           WBufferRenderer::UseCursorFormats);
                 if (newBuffer) {
-                    m_cursorRenderer->render(0, {});
+                    if (!isVulkan) {
+                        m_cursorRenderer->render(0, {});
+                    } else {
+                        // The cursor QML item is laid out in logical (item)
+                        // coordinates, but the hardware cursor plane scans the buffer
+                        // out 1:1 in device pixels. Scale the item by the output device
+                        // pixel ratio so the cursor is rasterized at its device pixel
+                        // size and therefore follows fractional scaling. This matches
+                        // the GLES2 proxy path, which renders the already device-sized
+                        // layer buffer 1:1. The hotspot (cursorHotSpot * dpr) uses the
+                        // same scale, so it stays consistent with the rendered image.
+                        QMatrix4x4 cursorScale;
+                        cursorScale.scale(devicePixelRatio(), devicePixelRatio());
+                        if (!m_cursorRenderer->render(0, cursorScale)) {
+                            qCWarning(lcWlBufferRenderer)
+                                << "Skipping cursor buffer because render pass failed"
+                                << "output" << output()
+                                << "renderer" << m_cursorRenderer
+                                << "cursorSourceItem" << m_cursorSourceItem.data()
+                                << "targetSize" << pixelSize
+                                << "currentBuffer" << m_cursorRenderer->currentBuffer();
+                            (void)renderWindowD()->releaseRenderBuffer(
+                                m_cursorRenderer, "cursor-render-buffer-abort");
+                            newBuffer = nullptr;
+                        } else if (!renderWindowD()->releaseRenderBuffer(
+                                       m_cursorRenderer, "cursor-render-buffer")) {
+                            qCWarning(lcWlBufferRenderer)
+                                << "Skipping cursor buffer because Vulkan release failed"
+                                << "output" << output()
+                                << "renderer" << m_cursorRenderer
+                                << "targetSize" << pixelSize
+                                << "currentBuffer" << m_cursorRenderer->currentBuffer();
+                            newBuffer = nullptr;
+                        }
+                    }
                     m_cursorRenderer->endRender();
+                } else {
+                    qCWarning(lcWlBufferRenderer)
+                        << "Failed to begin cursor buffer render"
+                        << "output" << output()
+                        << "targetSize" << pixelSize
+                        << "directQmlRender" << isVulkan;
                 }
 
-                m_cursorDirty = false;
+                m_cursorDirty = isVulkan ? !newBuffer : false;
             }
 
             if (newBuffer) {
                 Q_ASSERT(pixelSize.width() == newBuffer->width);
                 Q_ASSERT(pixelSize.height() == newBuffer->height);
                 buffer = newBuffer;
+            } else if (isVulkan) {
+                // Never hand a null buffer to set_cursor(): that disables the
+                // hardware cursor while the caller simultaneously removes the
+                // cursor layer from software compositing, which makes the cursor
+                // vanish entirely. Fall back to the software cursor instead.
+                qCWarning(lcWlCursor)
+                    << "Vulkan hardware cursor buffer unavailable; falling back to software cursor"
+                    << "output" << output()
+                    << "requestedSize" << pixelSize;
+                break;
             } else {
                 buffer = nullptr;
             }
         }
 
-        const auto hotSpot = layer->renderMatrix.map(layer->layer->layer->cursorHotSpot()
-                                                     * devicePixelRatio()).toPoint();
+        // On Vulkan the cursor item is rendered directly at the top-left of the
+        // scanout buffer with an identity transform, so the hotspot is simply the
+        // cursor hotspot scaled to device pixels. The GLES2 proxy path keeps the
+        // historical renderMatrix-based mapping.
+        const QPoint hotSpot = isVulkan
+            ? (layer->layer->layer->cursorHotSpot() * devicePixelRatio()).toPoint()
+            : layer->renderMatrix.map(layer->layer->layer->cursorHotSpot()
+                                      * devicePixelRatio()).toPoint();
         if (!set_cursor(output(), buffer, hotSpot.x(), hotSpot.y())) {
+            qCWarning(lcWlCursor)
+                << "wlr output set_cursor failed; falling back to software cursor"
+                << "output" << output()
+                << "bufferSize" << QSize(buffer->width, buffer->height)
+                << "hotSpot" << hotSpot;
             break;
         } else {
             m_hardwareCursorRenderComplete = true;
@@ -1415,8 +1559,21 @@ bool OutputHelper::tryToHardwareCursor(const LayerData *layer)
                           output()->transform,
                           outputSize.width(), outputSize.height());
         if (!move_cursor(output(), cleanTransform.x, cleanTransform.y)) {
+            qCWarning(lcWlCursor)
+                << "wlr output move_cursor failed; falling back to software cursor"
+                << "output" << output()
+                << "position" << QPoint(cleanTransform.x, cleanTransform.y);
             break;
         }
+
+        if (Q_UNLIKELY(lcWlCursor().isDebugEnabled()))
+            qCDebug(lcWlCursor)
+                << "Hardware cursor committed"
+                << "output" << output()
+                << "bufferSize" << QSize(buffer->width, buffer->height)
+                << "hotSpot" << hotSpot
+                << "position" << QPoint(cleanTransform.x, cleanTransform.y)
+                << "directQmlRender" << isVulkan;
 
         return true;
     } while (false);
@@ -1505,6 +1662,13 @@ void WOutputRenderWindowPrivate::init()
 
 void WOutputRenderWindowPrivate::init(OutputHelper *helper)
 {
+    if (graphicsApi() == QSGRendererInterface::Vulkan) {
+        qCInfo(lcWlCursor) << "Vulkan hardware cursor path enabled for output"
+                           << "output" << helper->outputViewport()->output()
+                           << "forceSoftwareCursor"
+                           << helper->outputViewport()->output()->forceSoftwareCursor();
+    }
+
     QMetaObject::invokeMethod(helper, &WOutputHelper::scheduleFrame, Qt::QueuedConnection);
     helper->init();
     QObject::connect(helper->outputViewport(), &WOutputViewport::dependsChanged, helper, [this] {
