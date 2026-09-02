@@ -967,8 +967,10 @@ void ShellHandler::ensureXwaylandWrapper(WXWaylandSurface *surface, const QStrin
 
         updateWrapperContainer(wrapperGuard, surfaceGuard->parentSurface());
 
-        if (auto *parent = surfaceGuard->parentXWaylandSurface())
-            surfaceGuard->restack(parent, WXWaylandSurface::XCB_STACK_MODE_ABOVE);
+        if (!surfaceGuard->isBypassManager()) {
+            if (auto *parent = surfaceGuard->parentXWaylandSurface())
+                surfaceGuard->restack(parent, WXWaylandSurface::XCB_STACK_MODE_ABOVE);
+        }
     };
     QObject::connect(surface,
                      &WXWaylandSurface::parentSurfaceChanged,
