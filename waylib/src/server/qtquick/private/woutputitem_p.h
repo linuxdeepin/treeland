@@ -34,6 +34,10 @@ public:
     WCursor *cursor() const;
     bool visible() const;
 
+    // The QML cursor delegate item (a WQuickCursor). Used to drive the DRM
+    // hardware cursor directly on pointer movement without a full frame.
+    QQuickItem *cursorItem() const { return item; }
+
 Q_SIGNALS:
     void visibleChanged();
 
