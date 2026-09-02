@@ -477,10 +477,19 @@ QPointF WQuickCursor::hotSpot() const
 {
     W_DC(WQuickCursor);
 
+    // Scale the surface/image-space hotspot to the item's size. A client
+    // cursor surface that has been set without a committed buffer has a zero
+    // implicit size, so both operands can be zero: dividing yields NaN, which
+    // then propagates into the cursor layer geometry (an all-NaN rect) and
+    // aborts the compositor. An unset or empty cursor must report (0, 0).
     if (d->cursorSurfaceItem) {
-        return QPointF(d->hotSpot) * (width() / d->cursorSurfaceItem->implicitWidth());
-    } else if (d->cursorImage && !d->cursorImage->image().isNull()) {
-        return QPointF(d->hotSpot) * (width() / d->cursorImage->image().width());
+        const qreal implicitWidth = d->cursorSurfaceItem->implicitWidth();
+        if (implicitWidth > 0)
+            return QPointF(d->hotSpot) * (width() / implicitWidth);
+    } else if (d->cursorImage) {
+        const QImage image = d->cursorImage->image();
+        if (!image.isNull() && image.width() > 0)
+            return QPointF(d->hotSpot) * (width() / image.width());
     }
 
     return {};
