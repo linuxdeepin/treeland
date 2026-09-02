@@ -8,25 +8,47 @@
 #include "wayliblogging.h"
 #include "private/wqmlhelper_p.h"
 #include "private/wglobal_p.h"
+#include "private/wprivateaccessor_p.h"
+#include "utils/private/wvulkantrace_p.h"
+
 #include <memory>
 
 #include <wlr_all.h>
 #include <wcontainerof.h>
 
 #include <QSGTexture>
+#include <QVulkanInstance>
+#include <rhi/qrhi_platform.h>
 #include <private/qquickrendercontrol_p.h>
 #include <private/qquickwindow_p.h>
 #include <private/qrhi_p.h>
+#ifdef ENABLE_VULKAN_RENDER
+#include <private/qrhivulkan_p.h>
+#endif
 #include <private/qsgplaintexture_p.h>
 #include <private/qsgadaptationlayer_p.h>
 #include <private/qsgsoftwarepixmaptexture_p.h>
 #include <private/qsgrhisupport_p.h>
+
 #ifdef ENABLE_VULKAN_RENDER
-#include <rhi/qrhi_platform.h>
+#include <QVulkanFunctions>
+#include <vulkan/vulkan.h>
 #endif
 
+extern "C" {
+#define static
+#include <wlr/render/gles2.h>
+#undef static
+#include <wlr/render/pixman.h>
+}
 #include <drm_fourcc.h>
-#include <dlfcn.h>
+
+#include <limits>
+#include <type_traits>
+
+#if defined(ENABLE_VULKAN_RENDER) && QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+W_DECLARE_PRIVATE_MEMBER(QRhi_d_tag, QRhi, d, QRhiImplementation *);
+#endif
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -38,6 +60,92 @@ struct Q_DECL_HIDDEN RhiRenderEntry {
 
 Q_GLOBAL_STATIC(QVector<RhiRenderEntry>, s_rhiRenderBuffers)
 
+#ifdef ENABLE_VULKAN_RENDER
+static QString hex32(uint32_t value)
+{
+    return QStringLiteral("0x%1").arg(value, 8, 16, QLatin1Char('0'));
+}
+
+static QString hex64(uint64_t value)
+{
+    return QStringLiteral("0x%1").arg(value, 16, 16, QLatin1Char('0'));
+}
+
+static quint64 vkImageValue(VkImage image)
+{
+    if constexpr (std::is_pointer_v<VkImage>) {
+        return quint64(reinterpret_cast<quintptr>(image));
+    } else {
+        return quint64(image);
+    }
+}
+
+static QString vkImageName(VkImage image)
+{
+    return hex64(vkImageValue(image));
+}
+
+static const char *vkImageLayoutName(VkImageLayout layout)
+{
+    switch (layout) {
+    case VK_IMAGE_LAYOUT_UNDEFINED:
+        return "UNDEFINED";
+    case VK_IMAGE_LAYOUT_GENERAL:
+        return "GENERAL";
+    case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+        return "COLOR_ATTACHMENT_OPTIMAL";
+    case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+        return "SHADER_READ_ONLY_OPTIMAL";
+    case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+        return "TRANSFER_SRC_OPTIMAL";
+    case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+        return "TRANSFER_DST_OPTIMAL";
+    case VK_IMAGE_LAYOUT_PREINITIALIZED:
+        return "PREINITIALIZED";
+    default:
+        return "UNKNOWN";
+    }
+}
+
+static QSize wlrBufferSize(wlr_buffer *buffer)
+{
+    return QSize(buffer->width, buffer->height);
+}
+
+static QSize wlrTextureSize(wlr_texture *texture)
+{
+    return QSize(texture->width, texture->height);
+}
+
+static bool getVulkanRenderBufferAttribs(wlr_renderer *renderer,
+                                         wlr_buffer *buffer,
+                                         const char *purpose,
+                                         wlr_vk_image_attribs *attribs)
+{
+    if (!renderer || !buffer || !wlr_renderer_is_vk(renderer))
+        return false;
+
+    if (waylib_vk_renderer_get_render_buffer_attribs(renderer, buffer, attribs)) {
+        qCDebug(lcWlRenderHelper) << "Got wlroots Vulkan render buffer attributes"
+                                  << "purpose" << purpose
+                                  << "buffer" << buffer
+                                  << "image" << vkImageName(attribs->image)
+                                  << "layout" << vkImageLayoutName(attribs->layout)
+                                  << "format" << hex32(attribs->format)
+                                  << "usage" << hex32(attribs->usage)
+                                  << "size" << wlrBufferSize(buffer);
+        return true;
+    }
+
+    qCWarning(lcWlRenderHelper) << "Failed to get wlroots Vulkan render buffer attributes"
+                                << "purpose" << purpose
+                                << "buffer" << buffer
+                                << "size" << wlrBufferSize(buffer);
+    return false;
+}
+#endif
+
+#if defined(ENABLE_VULKAN_RENDER) && QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
 struct Q_DECL_HIDDEN BufferData {
     BufferData() = default;
 
@@ -53,11 +161,12 @@ struct Q_DECL_HIDDEN BufferData {
     QQuickWindowRenderTarget windowRenderTarget;
     bool colorPreserved = false;
 
-    inline void resetWindowRenderTarget() {
+    static inline void cleanupWindowRenderTarget(QQuickWindowRenderTarget &target) {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
         {
             auto it = s_rhiRenderBuffers->begin();
             while (it != s_rhiRenderBuffers->end()) {
-                if (windowRenderTarget.rt.renderTarget == it->renderTarget) {
+                if (target.rt.renderTarget == it->renderTarget) {
                     it = s_rhiRenderBuffers->erase(it);
                     break;
                 }
@@ -65,28 +174,62 @@ struct Q_DECL_HIDDEN BufferData {
             }
         }
 
-        if (windowRenderTarget.rt.owns)
-            delete windowRenderTarget.rt.renderTarget;
+        if (target.rt.owns)
+            delete target.rt.renderTarget;
 
-        delete windowRenderTarget.res.texture;
-        delete windowRenderTarget.res.renderBuffer;
-        delete windowRenderTarget.res.rpDesc;
+        delete target.res.texture;
+        delete target.res.renderBuffer;
+        delete target.res.rpDesc;
 
-        windowRenderTarget.rt = {};
-        windowRenderTarget.res = {};
-        { // windowRenderTarget.implicitBuffers.reset(rhi);
-            delete windowRenderTarget.implicitBuffers.depthStencil;
-            delete windowRenderTarget.implicitBuffers.depthStencilTexture;
-            delete windowRenderTarget.implicitBuffers.multisampleTexture;
-            windowRenderTarget.implicitBuffers = {};
+        target.rt = {};
+        target.res = {};
+        { // target.implicitBuffers.reset(rhi);
+            delete target.implicitBuffers.depthStencil;
+            delete target.implicitBuffers.depthStencilTexture;
+            delete target.implicitBuffers.multisampleTexture;
+            target.implicitBuffers = {};
         }
 
-        if (windowRenderTarget.sw.owns)
-            delete windowRenderTarget.sw.paintDevice;
+        if (target.sw.owns)
+            delete target.sw.paintDevice;
 
-        windowRenderTarget.sw = {};
+        target.sw = {};
+#else
+        {
+            auto it = s_rhiRenderBuffers->begin();
+            while (it != s_rhiRenderBuffers->end()) {
+                if (target.renderTarget == it->renderTarget) {
+                    it = s_rhiRenderBuffers->erase(it);
+                    break;
+                }
+                ++it;
+            }
+        }
+
+        if (target.owns) {
+            delete target.renderTarget;
+            delete target.rpDesc;
+            delete target.texture;
+            delete target.renderBuffer;
+            delete target.depthStencil;
+            delete target.paintDevice;
+        }
+
+        target.renderTarget = nullptr;
+        target.rpDesc = nullptr;
+        target.texture = nullptr;
+        target.renderBuffer = nullptr;
+        target.depthStencil = nullptr;
+        target.paintDevice = nullptr;
+        target.owns = false;
+#endif
+    }
+
+    inline void resetWindowRenderTarget() {
+        cleanupWindowRenderTarget(windowRenderTarget);
     }
 };
+#endif
 
 class WRenderHelper::RenderTarget::Private {
 public:
@@ -116,7 +259,9 @@ QQuickRenderTarget WRenderHelper::RenderTarget::rt() const
     if (!d)
         return {};
     auto data = d->data.lock();
-    return data ? data->renderTarget : QQuickRenderTarget();
+    if (!data)
+        return {};
+    return data->renderTarget;
 }
 
 wlr_buffer *WRenderHelper::RenderTarget::buffer() const
@@ -153,6 +298,113 @@ static QRhiTextureRenderTarget::Flags rhiRenderTargetFlags(WGlobal::ColorContent
         : QRhiTextureRenderTarget::Flags{};
 }
 
+static std::unique_ptr<QRhiRenderPassDescriptor> newCompatibleRenderPassDescriptor(
+    QRhiTextureRenderTarget *renderTarget, const QByteArray &targetName)
+{
+#if defined(ENABLE_VULKAN_RENDER) && QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+    std::unique_ptr<QRhiRenderPassDescriptor> descriptor(
+        renderTarget->newCompatibleRenderPassDescriptor());
+    if (!descriptor || !renderTarget->rhi()
+        || renderTarget->rhi()->backend() != QRhi::Vulkan) {
+        return descriptor;
+    }
+
+    const auto flags = renderTarget->flags();
+    const bool preserveColor = flags.testFlag(
+        QRhiTextureRenderTarget::PreserveColorContents);
+    const bool preserveDepthStencil = flags.testFlag(
+        QRhiTextureRenderTarget::PreserveDepthStencilContents);
+
+    // Qt's offscreen Vulkan render passes leave subpassDeps empty, and Qt does
+    // not include them in its render-pass compatibility or pipeline-cache
+    // key. Vulkan, however, requires otherwise compatible render passes to
+    // have identical dependencies. Use the same conservative dependency for
+    // every Waylib-managed target with a given attachment topology, regardless
+    // of its load/store flags. Besides keeping reused pipelines compatible,
+    // this makes LOAD operations depend on the preceding attachment writes and
+    // layout transitions instead of Qt's write-only resource transition.
+    VkPipelineStageFlags attachmentStages =
+        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    VkAccessFlags sourceAccess = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    VkAccessFlags destinationAccess = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT
+        | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    const auto &description = renderTarget->description();
+    if (description.depthTexture() || description.depthStencilBuffer()) {
+        attachmentStages |= VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT
+            | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+        sourceAccess |= VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+        destinationAccess |= VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT
+            | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+    }
+
+    auto *vulkanDescriptor = static_cast<QVkRenderPassDescriptor *>(
+        descriptor.get());
+    VkSubpassDependency dependency = {};
+    dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+    dependency.dstSubpass = 0;
+    dependency.srcStageMask = attachmentStages;
+    dependency.dstStageMask = attachmentStages;
+    dependency.srcAccessMask = sourceAccess;
+    dependency.dstAccessMask = destinationAccess;
+    dependency.dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+
+    const auto dependencyMatches = [&dependency] (
+                                       const VkSubpassDependency &candidate) {
+        return candidate.srcSubpass == dependency.srcSubpass
+            && candidate.dstSubpass == dependency.dstSubpass
+            && candidate.srcStageMask == dependency.srcStageMask
+            && candidate.dstStageMask == dependency.dstStageMask
+            && candidate.srcAccessMask == dependency.srcAccessMask
+            && candidate.dstAccessMask == dependency.dstAccessMask
+            && candidate.dependencyFlags == dependency.dependencyFlags;
+    };
+    if (vulkanDescriptor->subpassDeps.size() == 1
+        && dependencyMatches(vulkanDescriptor->subpassDeps[0])) {
+        return descriptor;
+    }
+    if (!vulkanDescriptor->subpassDeps.isEmpty()) {
+        qCWarning(lcWlRenderHelper)
+            << "Cannot normalize Vulkan render-pass dependencies"
+            << "target" << targetName
+            << "existingDependencyCount"
+            << vulkanDescriptor->subpassDeps.size();
+        return {};
+    }
+    vulkanDescriptor->subpassDeps.append(dependency);
+
+    // The descriptor returned above already owns a native VkRenderPass.
+    // Clone it after extending the private Vulkan description so the clone's
+    // native render pass is created with the dependency. Destroying the
+    // temporary descriptor queues its native render pass for QRhi's normal
+    // deferred destruction.
+    std::unique_ptr<QRhiRenderPassDescriptor> synchronizedDescriptor(
+        vulkanDescriptor->newCompatibleRenderPassDescriptor());
+    if (!synchronizedDescriptor) {
+        qCWarning(lcWlRenderHelper)
+            << "Failed to create synchronized Vulkan render pass"
+            << "target" << targetName
+            << "flags" << flags.toInt();
+        return {};
+    }
+
+    if (WVulkanTrace::enabled()) {
+        qCDebug(lcWlRenderHelper).noquote()
+            << QStringLiteral("VKTRACE event=render-pass-dependency target=%1 colorLoad=%2 depthStencilLoad=%3 stages=0x%4 sourceAccess=0x%5 destinationAccess=0x%6")
+                   .arg(QString::fromUtf8(targetName))
+                   .arg(preserveColor)
+                   .arg(preserveDepthStencil)
+                   .arg(quint32(attachmentStages), 0, 16)
+                   .arg(quint32(sourceAccess), 0, 16)
+                   .arg(quint32(destinationAccess), 0, 16);
+    }
+    return synchronizedDescriptor;
+#else
+    Q_UNUSED(targetName);
+    return std::unique_ptr<QRhiRenderPassDescriptor>(
+        renderTarget->newCompatibleRenderPassDescriptor());
+#endif
+}
+
 static bool recreateRhiRenderTarget(BufferData *data, QRhiTextureRenderTarget::Flags flags)
 {
     auto renderTarget = static_cast<QRhiTextureRenderTarget *>(
@@ -162,11 +414,21 @@ static bool recreateRhiRenderTarget(BufferData *data, QRhiTextureRenderTarget::F
     renderTarget->destroy();
     renderTarget->setFlags(flags);
 
-    auto newRpDesc = renderTarget->newCompatibleRenderPassDescriptor();
+    std::unique_ptr<QRhiRenderPassDescriptor> newRpDesc;
+#if defined(ENABLE_VULKAN_RENDER) && QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+    if (renderTarget->rhi() && renderTarget->rhi()->backend() == QRhi::Vulkan) {
+        newRpDesc = newCompatibleRenderPassDescriptor(
+            renderTarget, renderTarget->name());
+    } else
+#endif
+    {
+        // Keep non-Vulkan backends on QRhi's unmodified render-pass path.
+        newRpDesc.reset(renderTarget->newCompatibleRenderPassDescriptor());
+    }
     if (!newRpDesc)
         return false;
     delete rpDesc;
-    rpDesc = newRpDesc;
+    rpDesc = newRpDesc.release();
     renderTarget->setRenderPassDescriptor(rpDesc);
     return renderTarget->create();
 }
@@ -177,9 +439,10 @@ static bool createRhiRenderTarget(const QRhiColorAttachment &colorAttachment,
                                   int sampleCount,
                                   QRhi *rhi,
                                   QQuickWindowRenderTarget &dst,
-                                  QRhiTextureRenderTarget::Flags flags)
+                                  QRhiTextureRenderTarget::Flags flags = {})
 {
-    std::unique_ptr<QRhiRenderBuffer> depthStencil(rhi->newRenderBuffer(QRhiRenderBuffer::DepthStencil, pixelSize, sampleCount));
+    std::unique_ptr<QRhiRenderBuffer> depthStencil(
+        rhi->newRenderBuffer(QRhiRenderBuffer::DepthStencil, pixelSize, sampleCount));
     if (!depthStencil->create()) {
         qCWarning(lcWlRenderHelper, "Failed to build depth-stencil buffer for QQuickRenderTarget");
         return false;
@@ -188,7 +451,23 @@ static bool createRhiRenderTarget(const QRhiColorAttachment &colorAttachment,
     QRhiTextureRenderTargetDescription rtDesc(colorAttachment);
     rtDesc.setDepthStencilBuffer(depthStencil.get());
     std::unique_ptr<QRhiTextureRenderTarget> rt(rhi->newTextureRenderTarget(rtDesc, flags));
-    std::unique_ptr<QRhiRenderPassDescriptor> rp(rt->newCompatibleRenderPassDescriptor());
+    std::unique_ptr<QRhiRenderPassDescriptor> rp;
+#if defined(ENABLE_VULKAN_RENDER) && QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+    if (rhi->backend() == QRhi::Vulkan) {
+        rp = newCompatibleRenderPassDescriptor(
+            rt.get(), QByteArrayLiteral("WaylibTextureRenderTarget"));
+        if (!rp) {
+            qCWarning(lcWlRenderHelper,
+                      "Failed to build Vulkan render pass for QQuickRenderTarget");
+            return false;
+        }
+    } else
+#endif
+    {
+        // Preserve the non-Vulkan render-target path exactly as provided by
+        // QRhi; in particular, do not change GLES2 render-pass behavior.
+        rp.reset(rt->newCompatibleRenderPassDescriptor());
+    }
     rt->setRenderPassDescriptor(rp.get());
 
     if (!rt->create()) {
@@ -204,8 +483,13 @@ static bool createRhiRenderTarget(const QRhiColorAttachment &colorAttachment,
     return true;
 }
 
+#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+
+#endif
+
 bool createRhiRenderTarget(QRhi *rhi, const QQuickRenderTarget &source, QQuickWindowRenderTarget &dst,
-                           QRhiTextureRenderTarget::Flags flags)
+                           QRhiTextureRenderTarget::Flags rtFlags = {},
+                           QRhiTexture::Flags extraTextureFlags = {})
 {
     auto rtd = QQuickRenderTargetPrivate::get(&source);
 
@@ -213,15 +497,23 @@ bool createRhiRenderTarget(QRhi *rhi, const QQuickRenderTarget &source, QQuickWi
     case QQuickRenderTargetPrivate::Type::NativeTexture: {
         const auto format = rtd->u.nativeTexture.rhiFormat == QRhiTexture::UnknownFormat ? QRhiTexture::RGBA8
                                                                                          : QRhiTexture::Format(rtd->u.nativeTexture.rhiFormat);
-        const auto textureFlags = QRhiTexture::RenderTarget | QRhiTexture::Flags(
+        const auto textureFlags = QRhiTexture::RenderTarget | extraTextureFlags | QRhiTexture::Flags(
+#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
                                rtd->u.nativeTexture.rhiFormatFlags
+#else
+                               rtd->u.nativeTexture.rhiFlags
+#endif
                                                                           );
         std::unique_ptr<QRhiTexture> texture(rhi->newTexture(format, rtd->pixelSize, rtd->sampleCount, textureFlags));
         texture->setName(QByteArrayLiteral("WaylibTexture"));
+#if QT_VERSION < QT_VERSION_CHECK(6, 6, 0)
+        if (!texture->createFrom({ rtd->u.nativeTexture.object, rtd->u.nativeTexture.layout }))
+#else
         if (!texture->createFrom({ rtd->u.nativeTexture.object, rtd->u.nativeTexture.layoutOrState }))
+#endif
             return false;
         QRhiColorAttachment att(texture.get());
-        if (!createRhiRenderTarget(att, rtd->pixelSize, rtd->sampleCount, rhi, dst, flags))
+        if (!createRhiRenderTarget(att, rtd->pixelSize, rtd->sampleCount, rhi, dst, rtFlags))
             return false;
         dst.res.texture = texture.release();
         return true;
@@ -233,7 +525,7 @@ bool createRhiRenderTarget(QRhi *rhi, const QQuickRenderTarget &source, QQuickWi
             return false;
         }
         QRhiColorAttachment att(renderbuffer.get());
-        if (!createRhiRenderTarget(att, rtd->pixelSize, rtd->sampleCount, rhi, dst, flags))
+        if (!createRhiRenderTarget(att, rtd->pixelSize, rtd->sampleCount, rhi, dst, rtFlags))
             return false;
         renderbuffer->setName(QByteArrayLiteral("WaylibRenderBuffer"));
         dst.res.renderBuffer = renderbuffer.release();
@@ -256,26 +548,53 @@ public:
         , renderer(renderer)
     {}
     ~WRenderHelperPrivate() {
-        resetRenderBuffer();
+        resetRenderBuffer(false);
+        cleanupRetiredRenderBuffers(true);
     }
 
-    void resetRenderBuffer();
+    struct RetiredBuffers {
+        QList<std::shared_ptr<BufferData>> buffers;
+    };
+
+    bool shouldDeferRenderBufferCleanup() const;
+    void resetRenderBuffer(bool defer);
+    void cleanupRetiredRenderBuffers(bool force);
     void onBufferDestroy(BufferData *data);
     static bool ensureRhiRenderTarget(QQuickRenderControl *rc, BufferData *data,
-                                      QRhiTextureRenderTarget::Flags flags);
+                                      QRhiTextureRenderTarget::Flags flags,
+                                      QRhiTexture::Flags extraTextureFlags = {});
 
     W_DECLARE_PUBLIC(WRenderHelper)
     wlr_renderer *renderer;
     QList<std::shared_ptr<BufferData>> buffers;
+    QList<RetiredBuffers> retiredBuffers;
     std::weak_ptr<BufferData> lastBuffer;
 
     QSize size;
 };
 
-void WRenderHelperPrivate::resetRenderBuffer()
+bool WRenderHelperPrivate::shouldDeferRenderBufferCleanup() const
 {
+#ifdef ENABLE_VULKAN_RENDER
+    return renderer && wlr_renderer_is_vk(renderer);
+#else
+    return false;
+#endif
+}
+
+void WRenderHelperPrivate::resetRenderBuffer(bool defer)
+{
+    if (defer && !buffers.isEmpty()) {
+        retiredBuffers.append({buffers});
+    }
     buffers.clear();
     lastBuffer.reset();
+}
+
+void WRenderHelperPrivate::cleanupRetiredRenderBuffers(bool force)
+{
+    Q_UNUSED(force);
+    retiredBuffers.clear();
 }
 
 void WRenderHelperPrivate::onBufferDestroy(BufferData *data)
@@ -296,13 +615,16 @@ void WRenderHelperPrivate::onBufferDestroy(BufferData *data)
     }
 }
 
-bool WRenderHelperPrivate::ensureRhiRenderTarget(QQuickRenderControl *rc, BufferData *data,
-                                                 QRhiTextureRenderTarget::Flags flags)
+bool WRenderHelperPrivate::ensureRhiRenderTarget(QQuickRenderControl *rc,
+                                                 BufferData *data,
+                                                 QRhiTextureRenderTarget::Flags flags,
+                                                 QRhiTexture::Flags extraTextureFlags)
 {
     data->resetWindowRenderTarget();
     auto rhi = rc->rhi();
     auto tmp = data->renderTarget;
-    bool ok = createRhiRenderTarget(rhi, tmp, data->windowRenderTarget, flags);
+    bool ok = createRhiRenderTarget(rhi, tmp, data->windowRenderTarget,
+                                    flags, extraTextureFlags);
     if (!ok)
         return false;
     data->renderTarget = QQuickRenderTarget::fromRhiRenderTarget(data->windowRenderTarget.rt.renderTarget);
@@ -311,6 +633,8 @@ bool WRenderHelperPrivate::ensureRhiRenderTarget(QQuickRenderControl *rc, Buffer
 
     return true;
 }
+
+
 
 WRenderHelper::WRenderHelper(wlr_renderer *renderer, QObject *parent)
     : QObject(parent)
@@ -331,9 +655,238 @@ void WRenderHelper::setSize(const QSize &size)
     if (d->size == size)
         return;
     d->size = size;
-    d->resetRenderBuffer();
+    d->resetRenderBuffer(d->shouldDeferRenderBufferCleanup());
 
     Q_EMIT sizeChanged();
+}
+
+void WRenderHelper::cleanupRetiredRenderResources(bool force)
+{
+    W_D(WRenderHelper);
+    d->cleanupRetiredRenderBuffers(force);
+}
+
+bool WRenderHelper::acquireRenderBuffer(QQuickRenderControl *rc, wlr_buffer *buffer, const char *purpose)
+{
+#ifdef ENABLE_VULKAN_RENDER
+    W_D(WRenderHelper);
+    if (!d->renderer || !wlr_renderer_is_vk(d->renderer))
+        return true;
+
+    wlr_vk_image_attribs attribs = {};
+    if (!getVulkanRenderBufferAttribs(d->renderer, buffer, purpose, &attribs))
+        return false;
+
+    if (!rc || !rc->rhi() || rc->rhi()->backend() != QRhi::Vulkan) {
+        qCWarning(lcWlRenderHelper) << "Vulkan render buffer acquire failed: missing Vulkan QRhi"
+                                    << "purpose" << purpose
+                                    << "buffer" << buffer
+                                    << "image" << vkImageName(attribs.image)
+                                    << "layout" << vkImageLayoutName(attribs.layout)
+                                    << "format" << hex32(attribs.format)
+                                    << "size" << wlrBufferSize(buffer);
+        return false;
+    }
+
+    if (rc->rhi()->isDeviceLost() || !rc->rhi()->isRecordingFrame()) {
+        qCWarning(lcWlRenderHelper) << "Vulkan render buffer acquire failed: QRhi frame is not usable"
+                                    << "purpose" << purpose
+                                    << "deviceLost" << rc->rhi()->isDeviceLost()
+                                    << "recordingFrame" << rc->rhi()->isRecordingFrame()
+                                    << "buffer" << buffer
+                                    << "image" << vkImageName(attribs.image)
+                                    << "layout" << vkImageLayoutName(attribs.layout)
+                                    << "format" << hex32(attribs.format)
+                                    << "size" << wlrBufferSize(buffer);
+        return false;
+    }
+
+    auto commandBuffer = rc->commandBuffer();
+    if (!commandBuffer) {
+        qCWarning(lcWlRenderHelper) << "Vulkan render buffer acquire failed: missing QRhi command buffer"
+                                    << "purpose" << purpose
+                                    << "buffer" << buffer
+                                    << "image" << vkImageName(attribs.image)
+                                    << "layout" << vkImageLayoutName(attribs.layout)
+                                    << "format" << hex32(attribs.format)
+                                    << "size" << wlrBufferSize(buffer);
+        return false;
+    }
+
+    commandBuffer->beginExternal();
+    auto handles = static_cast<const QRhiVulkanCommandBufferNativeHandles *>(commandBuffer->nativeHandles());
+    if (!handles || handles->commandBuffer == VK_NULL_HANDLE) {
+        commandBuffer->endExternal();
+        qCWarning(lcWlRenderHelper) << "Vulkan render buffer acquire failed: missing native Vulkan command buffer"
+                                    << "purpose" << purpose
+                                    << "buffer" << buffer
+                                    << "image" << vkImageName(attribs.image)
+                                    << "layout" << vkImageLayoutName(attribs.layout)
+                                    << "format" << hex32(attribs.format)
+                                    << "size" << wlrBufferSize(buffer);
+        return false;
+    }
+
+    const bool ok = waylib_vk_renderer_record_render_buffer_acquire(
+        d->renderer, buffer, handles->commandBuffer);
+    commandBuffer->endExternal();
+
+    if (!ok) {
+        qCWarning(lcWlRenderHelper) << "Vulkan render buffer acquire failed"
+                                    << "purpose" << purpose
+                                    << "buffer" << buffer
+                                    << "image" << vkImageName(attribs.image)
+                                    << "layout" << vkImageLayoutName(attribs.layout)
+                                    << "format" << hex32(attribs.format)
+                                    << "size" << wlrBufferSize(buffer);
+        return false;
+    }
+
+    qCDebug(lcWlRenderHelper) << "Vulkan render buffer acquire recorded"
+                              << "purpose" << purpose
+                              << "buffer" << buffer
+                              << "image" << vkImageName(attribs.image)
+                              << "layout" << vkImageLayoutName(attribs.layout)
+                              << "format" << hex32(attribs.format)
+                              << "size" << wlrBufferSize(buffer);
+#else
+    Q_UNUSED(rc);
+    Q_UNUSED(buffer);
+    Q_UNUSED(purpose);
+#endif
+    return true;
+}
+
+bool WRenderHelper::releaseRenderBuffer(QQuickRenderControl *rc,
+                                        wlr_buffer *buffer,
+                                        QRhiTexture *renderTargetTexture,
+                                        const char *purpose)
+{
+#ifdef ENABLE_VULKAN_RENDER
+    W_D(WRenderHelper);
+    if (!d->renderer || !wlr_renderer_is_vk(d->renderer))
+        return true;
+
+    wlr_vk_image_attribs attribs = {};
+    if (!getVulkanRenderBufferAttribs(d->renderer, buffer, purpose, &attribs))
+        return false;
+
+    if (!renderTargetTexture) {
+        qCWarning(lcWlRenderHelper) << "Vulkan render buffer release failed: missing Qt render target texture"
+                                    << "purpose" << purpose
+                                    << "buffer" << buffer
+                                    << "image" << vkImageName(attribs.image)
+                                    << "layout" << vkImageLayoutName(attribs.layout)
+                                    << "format" << hex32(attribs.format)
+                                    << "size" << wlrBufferSize(buffer);
+        return false;
+    }
+
+    if (!rc || !rc->rhi() || rc->rhi()->backend() != QRhi::Vulkan) {
+        qCWarning(lcWlRenderHelper) << "Vulkan render buffer release failed: missing Vulkan QRhi"
+                                    << "purpose" << purpose
+                                    << "buffer" << buffer
+                                    << "image" << vkImageName(attribs.image)
+                                    << "layout" << vkImageLayoutName(attribs.layout)
+                                    << "format" << hex32(attribs.format)
+                                    << "size" << wlrBufferSize(buffer);
+        return false;
+    }
+
+    if (rc->rhi()->isDeviceLost() || !rc->rhi()->isRecordingFrame()) {
+        qCWarning(lcWlRenderHelper) << "Vulkan render buffer release failed: QRhi frame is not usable"
+                                    << "purpose" << purpose
+                                    << "deviceLost" << rc->rhi()->isDeviceLost()
+                                    << "recordingFrame" << rc->rhi()->isRecordingFrame()
+                                    << "buffer" << buffer
+                                    << "image" << vkImageName(attribs.image)
+                                    << "layout" << vkImageLayoutName(attribs.layout)
+                                    << "format" << hex32(attribs.format)
+                                    << "size" << wlrBufferSize(buffer);
+        return false;
+    }
+
+    auto commandBuffer = rc->commandBuffer();
+    if (!commandBuffer) {
+        qCWarning(lcWlRenderHelper) << "Vulkan render buffer release failed: missing QRhi command buffer"
+                                    << "purpose" << purpose
+                                    << "buffer" << buffer
+                                    << "image" << vkImageName(attribs.image)
+                                    << "layout" << vkImageLayoutName(attribs.layout)
+                                    << "format" << hex32(attribs.format)
+                                    << "size" << wlrBufferSize(buffer);
+        return false;
+    }
+
+    const auto nativeTexture = renderTargetTexture->nativeTexture();
+#if QT_VERSION < QT_VERSION_CHECK(6, 6, 0)
+    const auto oldLayout = VkImageLayout(nativeTexture.layout);
+#else
+    const auto oldLayout = VkImageLayout(nativeTexture.layout);
+#endif
+    if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED) {
+        qCWarning(lcWlRenderHelper) << "Vulkan render buffer release failed: Qt render target layout is undefined"
+                                    << "purpose" << purpose
+                                    << "buffer" << buffer
+                                    << "image" << vkImageName(attribs.image)
+                                    << "wlrootsLayout" << vkImageLayoutName(attribs.layout)
+                                    << "oldLayout" << vkImageLayoutName(oldLayout)
+                                    << "format" << hex32(attribs.format)
+                                    << "size" << wlrBufferSize(buffer);
+        return false;
+    }
+
+    commandBuffer->beginExternal();
+    auto handles = static_cast<const QRhiVulkanCommandBufferNativeHandles *>(commandBuffer->nativeHandles());
+    if (!handles || handles->commandBuffer == VK_NULL_HANDLE) {
+        commandBuffer->endExternal();
+        qCWarning(lcWlRenderHelper) << "Vulkan render buffer release failed: missing native Vulkan command buffer"
+                                    << "purpose" << purpose
+                                    << "buffer" << buffer
+                                    << "image" << vkImageName(attribs.image)
+                                    << "wlrootsLayout" << vkImageLayoutName(attribs.layout)
+                                    << "oldLayout" << vkImageLayoutName(oldLayout)
+                                    << "format" << hex32(attribs.format)
+                                    << "size" << wlrBufferSize(buffer);
+        return false;
+    }
+
+    const bool ok = waylib_vk_renderer_record_render_buffer_release(
+        d->renderer, buffer, handles->commandBuffer, oldLayout);
+    commandBuffer->endExternal();
+
+    if (!ok) {
+        qCWarning(lcWlRenderHelper) << "Vulkan render buffer release failed"
+                                    << "purpose" << purpose
+                                    << "buffer" << buffer
+                                    << "image" << vkImageName(attribs.image)
+                                    << "wlrootsLayout" << vkImageLayoutName(attribs.layout)
+                                    << "oldLayout" << vkImageLayoutName(oldLayout)
+                                    << "format" << hex32(attribs.format)
+                                    << "size" << wlrBufferSize(buffer);
+        return false;
+    }
+
+    // wlroots has recorded a transition and ownership release to GENERAL.
+    // Keep QRhi's external-image tracker in sync so that a reused output
+    // buffer starts from the layout which will exist after this submission.
+    renderTargetTexture->setNativeLayout(VK_IMAGE_LAYOUT_GENERAL);
+
+    qCDebug(lcWlRenderHelper) << "Vulkan render buffer release recorded"
+                              << "purpose" << purpose
+                              << "buffer" << buffer
+                              << "image" << vkImageName(attribs.image)
+                              << "wlrootsLayout" << vkImageLayoutName(attribs.layout)
+                              << "oldLayout" << vkImageLayoutName(oldLayout)
+                              << "format" << hex32(attribs.format)
+                              << "size" << wlrBufferSize(buffer);
+#else
+    Q_UNUSED(rc);
+    Q_UNUSED(buffer);
+    Q_UNUSED(renderTargetTexture);
+    Q_UNUSED(purpose);
+#endif
+    return true;
 }
 
 QSGRendererInterface::GraphicsApi WRenderHelper::getGraphicsApi(QQuickRenderControl *rc)
@@ -499,17 +1052,6 @@ VkTextureBuffer::VkTextureBuffer(VkInstance instance, VkDevice device, QSGTextur
 
 bool VkTextureBuffer::get_dmabuf([[maybe_unused]] struct wlr_buffer *buffer, [[maybe_unused]] wlr_dmabuf_attributes *attribs)
 {
-//    static auto vkGetInstanceProcAddr =
-//        reinterpret_cast<PFN_vkGetInstanceProcAddr>(::dlsym(RTLD_DEFAULT, "vkGetInstanceProcAddr"));
-//    static auto vkGetMemoryFdKHR =
-//        reinterpret_cast<PFN_vkGetMemoryFdKHR>(vkGetInstanceProcAddr(m_instance, "vkGetMemoryFdKHR"));
-//    static auto vkGetImageMemoryRequirements =
-//        reinterpret_cast<PFN_vkGetImageMemoryRequirements>(vkGetInstanceProcAddr(m_instance, "vkGetImageMemoryRequirements"));
-//    static auto vkGetImageSparseMemoryRequirements =
-//        reinterpret_cast<PFN_vkGetImageSparseMemoryRequirements>(vkGetInstanceProcAddr(m_instance, "vkGetImageSparseMemoryRequirements"));
-//    static auto vkGetImageSubresourceLayout =
-//        reinterpret_cast<PFN_vkGetImageSubresourceLayout>(vkGetInstanceProcAddr(m_instance, "vkGetImageSubresourceLayout"));
-
     // TODO
     return false;
 }
@@ -693,6 +1235,11 @@ WRenderHelper::RenderTarget WRenderHelper::acquireRenderTarget(QQuickRenderContr
             }
             data->colorPreserved = needPreserve;
             d->lastBuffer = data;
+            if (d->shouldDeferRenderBufferCleanup()
+                && !acquireRenderBuffer(rc, buffer,
+                                        "cached-compositor-render-target")) {
+                return {};
+            }
             RenderTarget result;
             result.d->data = data;
             return result;
@@ -704,6 +1251,8 @@ WRenderHelper::RenderTarget WRenderHelper::acquireRenderTarget(QQuickRenderContr
     bufferData->colorPreserved = needPreserve;
 
     QQuickRenderTarget rt;
+    bool needsVulkanRenderBufferAcquire = false;
+    QRhiTexture::Flags renderTargetTextureFlags;
 
     if (isSoftware) {
         WUniquePointer<wlr_texture> texture(
@@ -719,15 +1268,24 @@ WRenderHelper::RenderTarget WRenderHelper::acquireRenderTarget(QQuickRenderContr
     }
 #ifdef ENABLE_VULKAN_RENDER
     else if (wlr_renderer_is_vk(d->renderer)) {
-        // Reuse wlroots' wlr_vk_render_buffer (same VkImage as tinywl/scene),
-        // not a parallel dmabuf import owned by waylib.
         wlr_vk_image_attribs attribs = {};
-        if (!waylib_vk_renderer_get_render_buffer_attribs(d->renderer, buffer, &attribs))
-            return {};
-        rt = QQuickRenderTarget::fromVulkanImage(attribs.image,
-                                                 attribs.layout,
-                                                 attribs.format,
-                                                 d->size);
+        if (getVulkanRenderBufferAttribs(d->renderer, buffer, "new-compositor-render-target", &attribs)) {
+            rt = QQuickRenderTarget::fromVulkanImage(attribs.image,
+                                                     attribs.layout,
+                                                     attribs.format,
+                                                     wlrBufferSize(buffer));
+            if (attribs.usage & VK_IMAGE_USAGE_TRANSFER_SRC_BIT)
+                renderTargetTextureFlags |= QRhiTexture::UsedAsTransferSource;
+            needsVulkanRenderBufferAcquire = true;
+            qCDebug(lcWlRenderHelper) << "Created Qt Vulkan render target from wlroots render buffer"
+                                      << "purpose" << "new-compositor-render-target"
+                                      << "buffer" << buffer
+                                      << "image" << vkImageName(attribs.image)
+                                      << "layout" << vkImageLayoutName(attribs.layout)
+                                      << "format" << hex32(attribs.format)
+                                      << "usage" << hex32(attribs.usage)
+                                      << "size" << wlrBufferSize(buffer);
+        }
     }
 #endif
     else if (wlr_renderer_is_gles2(d->renderer)) {
@@ -747,12 +1305,18 @@ WRenderHelper::RenderTarget WRenderHelper::acquireRenderTarget(QQuickRenderContr
     if (QSGRendererInterface::isApiRhiBased(getGraphicsApi(rc))) {
         if (!rt.isNull()) {
             // Force convert to Rhi render target
-            if (!d->ensureRhiRenderTarget(rc, bufferData.get(), flags))
+            if (!d->ensureRhiRenderTarget(rc, bufferData.get(), flags,
+                                          renderTargetTextureFlags))
                 bufferData->renderTarget = {};
         }
 
         if (bufferData->renderTarget.isNull())
             return {};
+
+        if (needsVulkanRenderBufferAcquire
+            && !acquireRenderBuffer(rc, buffer, "new-compositor-render-target")) {
+            return {};
+        }
 
         if (auto texture = bufferData->windowRenderTarget.res.texture) {
             s_rhiRenderBuffers->append({ bufferData->windowRenderTarget.rt.renderTarget,
@@ -776,6 +1340,10 @@ WRenderHelper::RenderTarget WRenderHelper::acquireRenderTarget(QQuickRenderContr
     return result;
 }
 
+
+
+
+
 WRenderHelper::RenderTarget WRenderHelper::lastRenderTarget() const
 {
     W_DC(WRenderHelper);
@@ -787,79 +1355,6 @@ WRenderHelper::RenderTarget WRenderHelper::lastRenderTarget() const
     result.d->data = data;
     return result;
 }
-
-#ifdef ENABLE_VULKAN_RENDER
-void WRenderHelper::prepareVulkanRenderTarget(QRhiCommandBuffer *cb, const RenderTarget &rt)
-{
-    W_D(WRenderHelper);
-    if (!rt.d || !cb)
-        return;
-    auto data = rt.d->data.lock();
-    if (!data || !data->buffer || !d->renderer || !wlr_renderer_is_vk(d->renderer))
-        return;
-
-    cb->beginExternal();
-    auto handles = static_cast<const QRhiVulkanCommandBufferNativeHandles *>(cb->nativeHandles());
-    if (!handles || handles->commandBuffer == VK_NULL_HANDLE) {
-        cb->endExternal();
-        qCWarning(lcWlRenderHelper, "Vulkan render buffer acquire: missing native command buffer");
-        return;
-    }
-
-    // FOREIGN_EXT -> graphics queue, same as wlroots pass.c / PR #1171.
-    if (!waylib_vk_renderer_record_render_buffer_acquire(d->renderer,
-                                                         data->buffer.get(),
-                                                         handles->commandBuffer)) {
-        qCWarning(lcWlRenderHelper) << "Vulkan render buffer acquire failed for" << data->buffer.get();
-    }
-    cb->endExternal();
-}
-
-void WRenderHelper::finishVulkanRenderTarget(QRhiCommandBuffer *cb, const RenderTarget &rt)
-{
-    W_D(WRenderHelper);
-    if (!rt.d || !cb)
-        return;
-    auto data = rt.d->data.lock();
-    if (!data || !data->buffer || !d->renderer || !wlr_renderer_is_vk(d->renderer))
-        return;
-
-    QRhiTexture *qtTexture = data->windowRenderTarget.res.texture;
-    if (!qtTexture) {
-        qCWarning(lcWlRenderHelper, "Vulkan render buffer release: missing Qt QRhiTexture");
-        return;
-    }
-
-    const auto native = qtTexture->nativeTexture();
-    const auto oldLayout = VkImageLayout(native.layout);
-    if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED) {
-        qCWarning(lcWlRenderHelper, "Vulkan render buffer release: Qt texture layout is UNDEFINED");
-        return;
-    }
-
-    cb->beginExternal();
-    auto handles = static_cast<const QRhiVulkanCommandBufferNativeHandles *>(cb->nativeHandles());
-    if (!handles || handles->commandBuffer == VK_NULL_HANDLE) {
-        cb->endExternal();
-        qCWarning(lcWlRenderHelper, "Vulkan render buffer release: missing native command buffer");
-        return;
-    }
-
-    // graphics queue -> FOREIGN_EXT + GENERAL for KMS, using Qt's real old layout.
-    if (!waylib_vk_renderer_record_render_buffer_release(d->renderer,
-                                                         data->buffer.get(),
-                                                         handles->commandBuffer,
-                                                         oldLayout)) {
-        qCWarning(lcWlRenderHelper) << "Vulkan render buffer release failed for" << data->buffer.get();
-        cb->endExternal();
-        return;
-    }
-    cb->endExternal();
-
-    // Keep QRhi's external-image tracker in sync with the post-release layout.
-    qtTexture->setNativeLayout(VK_IMAGE_LAYOUT_GENERAL);
-}
-#endif // ENABLE_VULKAN_RENDER
 
 static wlr_renderer *createRendererWithType(const char *type, wlr_backend *backend)
 {
@@ -928,6 +1423,7 @@ void WRenderHelper::setupRendererBackend(wlr_backend *testBackend)
                 && qgetenv("QT_QUICK_BACKEND") != "rhi")) {
             // when environment variable Q*_BACKEND was set, should defer to
             // the env variable for the graphics API.
+            WVulkanTrace::activate(getGraphicsApi() == QSGRendererInterface::Vulkan);
             return;
         }
 
@@ -954,18 +1450,24 @@ void WRenderHelper::setupRendererBackend(wlr_backend *testBackend)
             wl_display_destroy(display);
         }
     } else if (wlrRenderer == "gles2") {
+        qCInfo(lcWlRenderHelper) << "Using explicit WLR_RENDERER=gles2 with Qt OpenGL scene graph";
         QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
     } else if (wlrRenderer == "vulkan") {
 #ifdef ENABLE_VULKAN_RENDER
         QQuickWindow::setGraphicsApi(QSGRendererInterface::Vulkan);
 #else
+        qCCritical(lcWlRenderHelper) << "WLR_RENDERER=vulkan was requested, but Vulkan support is not enabled";
         qFatal("Vulkan support is not enabled");
 #endif
     } else if (wlrRenderer == "pixman") {
+        qCInfo(lcWlRenderHelper) << "Using explicit WLR_RENDERER=pixman with Qt software scene graph";
         QQuickWindow::setGraphicsApi(QSGRendererInterface::Software);
     } else {
+        qCCritical(lcWlRenderHelper) << "Unknown or unsupported WLR_RENDERER:" << wlrRenderer;
         qFatal() << "Unknown/Unsupported wlr renderer: " << wlrRenderer;
     }
+
+    WVulkanTrace::activate(getGraphicsApi() == QSGRendererInterface::Vulkan);
 }
 
 QSGRendererInterface::GraphicsApi WRenderHelper::probe(wlr_backend *testBackend, const QList<QSGRendererInterface::GraphicsApi> &apiList)
@@ -1021,7 +1523,7 @@ QSGRendererInterface::GraphicsApi WRenderHelper::probe(wlr_backend *testBackend,
     return acceptApi;
 }
 
-static void updateGLTexture(QRhi *rhi, wlr_texture *handle, QSGPlainTexture *texture) {
+static bool updateGLTexture(QRhi *rhi, wlr_texture *handle, QSGPlainTexture *texture, bool) {
     wlr_gles2_texture_attribs attribs;
     wlr_gles2_texture_get_attribs(handle, &attribs);
     QSize size(handle->width, handle->height);
@@ -1034,6 +1536,7 @@ static void updateGLTexture(QRhi *rhi, wlr_texture *handle, QSGPlainTexture *tex
 
     texture->setHasAlphaChannel(attribs.has_alpha);
     texture->setTextureSize(size);
+    return true;
 }
 
 static inline quint64 vkimage_cast(void *image) {
@@ -1045,55 +1548,200 @@ static inline quint64 vkimage_cast(void *image) {
 }
 
 #ifdef ENABLE_VULKAN_RENDER
-static void updateVKTexture(QRhi *rhi, wlr_texture *handle, QSGPlainTexture *texture) {
-    wlr_vk_image_attribs attribs;
-    wlr_vk_texture_get_image_attribs(handle, &attribs);
-    QSize size(handle->width, handle->height);
+static bool updateVKTexture(QRhi *rhi, wlr_texture *handle, QSGPlainTexture *texture,
+                            bool forceShaderReadOnlyLayout)
+{
+    if (!rhi || rhi->backend() != QRhi::Vulkan)
+        return false;
 
-    texture->setTextureFromNativeTexture(rhi,
-                                         vkimage_cast(attribs.image),
-                                         attribs.layout, attribs.format, size,
-                                         {}, {});
-    texture->setHasAlphaChannel(wlr_vk_texture_has_alpha(handle));
+    wlr_vk_image_attribs attribs = {};
+    wlr_vk_texture_get_image_attribs(handle, &attribs);
+    const QSize size(handle->width, handle->height);
+    const VkImageLayout qtSampleLayout = forceShaderReadOnlyLayout
+                                         ? VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+                                         : attribs.layout;
+
+    QRhiTexture::Flags mappedFlags {};
+    const auto mappedFormat = QSGRhiSupport::instance()->toRhiTextureFormat(attribs.format,
+                                                                            &mappedFlags);
+    // Qt maps both packed 10-bit channel orders to QRhi::RGB10A2, but its
+    // Vulkan backend always creates an A2B10G10R10 view first. An A2R10 image
+    // without MUTABLE_FORMAT would fail before we can replace that view.
+    const bool requiresInexactQtView =
+        attribs.format == VK_FORMAT_A2R10G10B10_UNORM_PACK32;
+    if (mappedFormat == QRhiTexture::UnknownFormat || requiresInexactQtView) {
+        qCDebug(lcWlQtQuickTexture) << "Rejected unsupported wlroots Vulkan texture format"
+                                    << "wlrTexture" << handle
+                                    << "image" << vkImageName(attribs.image)
+                                    << "format" << hex32(attribs.format)
+                                    << "reason" << (requiresInexactQtView
+                                                         ? "inexact-qt-view-format"
+                                                         : "unknown-qrhi-format")
+                                    << "size" << size;
+        return false;
+    }
+
+    const auto *nativeHandles = static_cast<const QRhiVulkanNativeHandles *>(rhi->nativeHandles());
+    if (!nativeHandles || nativeHandles->dev == VK_NULL_HANDLE || !nativeHandles->inst) {
+        qCDebug(lcWlQtQuickTexture) << "Cannot create an exact Vulkan texture view without QRhi native handles"
+                                    << "wlrTexture" << handle
+                                    << "image" << vkImageName(attribs.image)
+                                    << "format" << hex32(attribs.format);
+        return false;
+    }
+
+    auto *deviceFunctions = nativeHandles->inst->deviceFunctions(nativeHandles->dev);
+    if (!deviceFunctions)
+        return false;
+
+    std::unique_ptr<QRhiTexture> candidate(rhi->newTexture(mappedFormat,
+                                                           size,
+                                                           1,
+                                                           mappedFlags));
+    if (!candidate)
+        return false;
+
+    auto *vkTexture = static_cast<QVkTexture *>(candidate.get());
+    // createFrom() assigns an external VkImage before it creates the default
+    // image view. Keep ownership false even on a partial failure so Qt can
+    // never enqueue the wlroots-owned image for destruction.
+    vkTexture->owns = false;
+    if (!candidate->createFrom({vkimage_cast(attribs.image), qtSampleLayout})) {
+        qCDebug(lcWlQtQuickTexture) << "Failed to wrap wlroots Vulkan image in QRhiTexture"
+                                    << "wlrTexture" << handle
+                                    << "image" << vkImageName(attribs.image)
+                                    << "format" << hex32(attribs.format)
+                                    << "layout" << vkImageLayoutName(qtSampleLayout)
+                                    << "size" << size;
+        return false;
+    }
+
+    const auto discardUnusedCandidate = [vkTexture, nativeHandles, deviceFunctions] {
+        if (vkTexture->imageView != VK_NULL_HANDLE) {
+            deviceFunctions->vkDestroyImageView(nativeHandles->dev,
+                                                vkTexture->imageView,
+                                                nullptr);
+            vkTexture->imageView = VK_NULL_HANDLE;
+        }
+        // The candidate has never entered a descriptor. Unregister it from
+        // QRhi after synchronously dropping its unused view, while preserving
+        // ownership of the external image in wlroots.
+        vkTexture->destroy();
+    };
+
+    if (vkTexture->imageView == VK_NULL_HANDLE || vkTexture->lastActiveFrameSlot != -1) {
+        qCDebug(lcWlQtQuickTexture) << "Cannot replace the initial Qt Vulkan texture view"
+                                    << "wlrTexture" << handle
+                                    << "image" << vkImageName(attribs.image)
+                                    << "format" << hex32(attribs.format)
+                                    << "hasInitialView" << bool(vkTexture->imageView != VK_NULL_HANDLE)
+                                    << "lastActiveFrameSlot" << vkTexture->lastActiveFrameSlot;
+        discardUnusedCandidate();
+        return false;
+    }
+
+    const bool hasAlpha = wlr_vk_texture_has_alpha(handle);
+    VkImageViewCreateInfo viewInfo = {};
+    viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    viewInfo.image = attribs.image;
+    viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    // Do not use QVkTexture::viewFormatForSampling here. Qt maps both
+    // A2R10G10B10 and A2B10G10R10 to one QRhi format, so only the wlroots
+    // format preserves the external image's real channel layout.
+    viewInfo.format = attribs.format;
+    viewInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+    viewInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+    viewInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+    viewInfo.components.a = hasAlpha ? VK_COMPONENT_SWIZZLE_IDENTITY
+                                     : VK_COMPONENT_SWIZZLE_ONE;
+    viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    viewInfo.subresourceRange.levelCount = 1;
+    viewInfo.subresourceRange.layerCount = 1;
+
+    VkImageView samplingView = VK_NULL_HANDLE;
+    const VkResult viewResult = deviceFunctions->vkCreateImageView(nativeHandles->dev,
+                                                                   &viewInfo,
+                                                                   nullptr,
+                                                                   &samplingView);
+    if (viewResult != VK_SUCCESS) {
+        qCDebug(lcWlQtQuickTexture) << "Failed to create exact Vulkan sampling view"
+                                    << "wlrTexture" << handle
+                                    << "image" << vkImageName(attribs.image)
+                                    << "format" << hex32(attribs.format)
+                                    << "hasAlpha" << hasAlpha
+                                    << "vkResult" << viewResult;
+        discardUnusedCandidate();
+        return false;
+    }
+
+    const VkImageView initialView = vkTexture->imageView;
+    vkTexture->imageView = samplingView;
+    vkTexture->viewFormatForSampling = attribs.format;
+    deviceFunctions->vkDestroyImageView(nativeHandles->dev, initialView, nullptr);
+
+    const char *bridgeClass = hasAlpha ? "exact-alpha-view" : "exact-opaque-view";
+
+    WVulkanTrace::qtWrap(true, handle, vkImageValue(attribs.image), attribs.format,
+                         static_cast<int>(mappedFormat), bridgeClass,
+                         vkImageLayoutName(qtSampleLayout));
+    texture->setTexture(candidate.release());
+    WVulkanTrace::qtWrap(false, handle, vkImageValue(attribs.image), attribs.format,
+                         static_cast<int>(mappedFormat), bridgeClass,
+                         vkImageLayoutName(qtSampleLayout));
+    texture->setHasAlphaChannel(hasAlpha);
     texture->setTextureSize(size);
+    qCDebug(lcWlQtQuickTexture) << "Updated Qt Vulkan texture from wlroots texture"
+                                << "wlrTexture" << handle
+                                << "image" << vkImageName(attribs.image)
+                                << "wlrootsLayout" << vkImageLayoutName(attribs.layout)
+                                << "qtSampleLayout" << vkImageLayoutName(qtSampleLayout)
+                                << "layoutPolicy" << (forceShaderReadOnlyLayout ? "shader-read-only" : "wlroots-raw")
+                                << "format" << hex32(attribs.format)
+                                << "viewClass" << bridgeClass
+                                << "size" << size;
+    return true;
 }
 #endif
 
-static void updateImage(QRhi *, wlr_texture *handle, QSGPlainTexture *texture) {
+static bool updateImage(QRhi *, wlr_texture *handle, QSGPlainTexture *texture, bool) {
     auto image = wlr_pixman_texture_get_image(handle);
     texture->setImage(WTools::fromPixmanImage(image));
+    return true;
 }
 
-typedef void(*UpdateTextureFunction)(QRhi *, wlr_texture *, QSGPlainTexture *);
+typedef bool(*UpdateTextureFunction)(QRhi *, wlr_texture *, QSGPlainTexture *, bool);
 
 static UpdateTextureFunction getUpdateTextFunction(wlr_texture *handle)
 {
     const auto api = WRenderHelper::getGraphicsApi();
     if (api == QSGRendererInterface::OpenGL) {
-        Q_ASSERT(wlr_texture_is_gles2(handle));
+        if (!wlr_texture_is_gles2(handle))
+            return nullptr;
         return updateGLTexture;
     }
 #ifdef ENABLE_VULKAN_RENDER
     else if (api == QSGRendererInterface::Vulkan) {
-        Q_ASSERT(wlr_texture_is_vk(handle));
+        if (!wlr_texture_is_vk(handle))
+            return nullptr;
         return updateVKTexture;
     }
 #endif
     else if (api == QSGRendererInterface::Software) {
-        Q_ASSERT(wlr_texture_is_pixman(handle));
+        if (!wlr_texture_is_pixman(handle))
+            return nullptr;
         return updateImage;
     }
 
     return nullptr;
 }
 
-bool WRenderHelper::makeTexture(QRhi *rhi, wlr_texture *handle, QSGPlainTexture *texture)
+bool WRenderHelper::makeTexture(QRhi *rhi, wlr_texture *handle, QSGPlainTexture *texture,
+                                bool forceVulkanShaderReadOnlyLayout)
 {
     auto updateTexture = getUpdateTextFunction(handle);
     if (Q_UNLIKELY(!updateTexture))
         return false;
-    updateTexture(rhi, handle, texture);
-    return true;
+    return updateTexture(rhi, handle, texture, forceVulkanShaderReadOnlyLayout);
 }
 
 WRenderHelper::TextureEntry
@@ -1147,10 +1795,18 @@ WRenderHelper::newTexture(wlr_allocator *allocator, wlr_renderer *renderer,
             qFatal("The current QRhi backend doesn't support creating texture from Vulkan image");
         }
 
-        wlr_vk_image_attribs attribs;
-        wlr_vk_texture_get_image_attribs(texture.get(), &attribs);
+        wlr_vk_image_attribs attribs = {};
+        if (!waylib_vk_renderer_get_render_buffer_attribs(renderer, buffer, &attribs)) {
+            qCWarning(lcWlRenderHelper) << "Failed to create QRhiTexture from wlroots Vulkan render buffer attributes"
+                                        << "purpose" << "internal-rhi-texture"
+                                        << "wlrBuffer" << buffer
+                                        << "size" << size;
+            wlr_buffer_drop(buffer);
+            return {};
+        }
 
-        if (!rhiTexture->createFrom({vkimage_cast(attribs.image), attribs.layout})) {
+        if (!rhiTexture->createFrom({vkimage_cast(attribs.image),
+                                     attribs.layout})) {
             qCCritical(lcWlRenderHelper, "Failed to create QRhiTexture from Vulkan image");
             wlr_buffer_drop(buffer);
             return {};
