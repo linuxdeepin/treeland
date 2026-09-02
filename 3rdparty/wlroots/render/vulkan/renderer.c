@@ -792,6 +792,29 @@ static void finish_render_buffer_out(struct wlr_vk_render_buffer_out *out,
 		VkDevice dev) {
 	vkDestroyFramebuffer(dev, out->framebuffer, NULL);
 	vkDestroyImageView(dev, out->image_view, NULL);
+	out->framebuffer = VK_NULL_HANDLE;
+	out->image_view = VK_NULL_HANDLE;
+	out->transitioned = false;
+}
+
+static void teardown_two_pass_framebuffer(struct wlr_vk_render_buffer *buffer) {
+	VkDevice dev = buffer->renderer->dev->dev;
+
+	finish_render_buffer_out(&buffer->two_pass.out, dev);
+	vkDestroyImage(dev, buffer->two_pass.blend_image, NULL);
+	vkFreeMemory(dev, buffer->two_pass.blend_memory, NULL);
+	vkDestroyImageView(dev, buffer->two_pass.blend_image_view, NULL);
+	if (buffer->two_pass.blend_attachment_pool) {
+		vulkan_free_ds(buffer->renderer, buffer->two_pass.blend_attachment_pool,
+			buffer->two_pass.blend_descriptor_set);
+	}
+	buffer->two_pass.blend_image = VK_NULL_HANDLE;
+	buffer->two_pass.blend_memory = VK_NULL_HANDLE;
+	buffer->two_pass.blend_image_view = VK_NULL_HANDLE;
+	buffer->two_pass.blend_attachment_pool = NULL;
+	buffer->two_pass.blend_descriptor_set = VK_NULL_HANDLE;
+	buffer->two_pass.blend_transitioned = false;
+	buffer->two_pass.render_setup = NULL;
 }
 
 static void destroy_render_buffer(struct wlr_vk_render_buffer *buffer) {
@@ -812,14 +835,7 @@ static void destroy_render_buffer(struct wlr_vk_render_buffer *buffer) {
 	finish_render_buffer_out(&buffer->linear.out, dev);
 	finish_render_buffer_out(&buffer->srgb.out, dev);
 
-	finish_render_buffer_out(&buffer->two_pass.out, dev);
-	vkDestroyImage(dev, buffer->two_pass.blend_image, NULL);
-	vkFreeMemory(dev, buffer->two_pass.blend_memory, NULL);
-	vkDestroyImageView(dev, buffer->two_pass.blend_image_view, NULL);
-	if (buffer->two_pass.blend_attachment_pool) {
-		vulkan_free_ds(buffer->renderer, buffer->two_pass.blend_attachment_pool,
-			buffer->two_pass.blend_descriptor_set);
-	}
+	teardown_two_pass_framebuffer(buffer);
 
 	vkDestroyImage(dev, buffer->image, NULL);
 	for (size_t i = 0u; i < buffer->mem_count; ++i) {
@@ -999,8 +1015,10 @@ bool vulkan_setup_two_pass_framebuffer(struct wlr_vk_render_buffer *buffer,
 	return true;
 
 error:
-	// cleaning up everything is the caller's responsibility,
-	// since it will need to do this anyway if framebuffer setup fails
+	// The framebuffers are now set up lazily (see vulkan_begin_render_pass), so
+	// a failed attempt must leave the output slot reusable for a later retry
+	// instead of leaking a half-initialized state that the lazy guards skip.
+	teardown_two_pass_framebuffer(buffer);
 	return false;
 }
 
@@ -1077,8 +1095,13 @@ bool vulkan_setup_one_pass_framebuffer(struct wlr_vk_render_buffer *buffer,
 	return true;
 
 error:
-	// cleaning up everything is the caller's responsibility,
-	// since it will need to do this anyway if framebuffer setup fails
+	// Same contract as the two-pass setup: leave the output slot reusable.
+	if (srgb) {
+		buffer->srgb.render_setup = NULL;
+	} else {
+		buffer->linear.render_setup = NULL;
+	}
+	finish_render_buffer_out(out, dev);
 	return false;
 }
 
@@ -1110,6 +1133,7 @@ static struct wlr_vk_render_buffer *create_render_buffer(
 	if (!buffer->image) {
 		goto error;
 	}
+	buffer->using_mutable_srgb = using_mutable_srgb;
 
 	const struct wlr_vk_format_props *fmt = vulkan_format_props_from_drm(
 		renderer->dev, dmabuf.format);
@@ -1119,16 +1143,13 @@ static struct wlr_vk_render_buffer *create_render_buffer(
 		goto error;
 	}
 
-	if (using_mutable_srgb) {
-		if (!vulkan_setup_one_pass_framebuffer(buffer, &dmabuf, true)) {
-			goto error;
-		}
-	} else {
-		// Set up the two-pass framebuffer & blending image
-		if (!vulkan_setup_two_pass_framebuffer(buffer, &dmabuf)) {
-			goto error;
-		}
-	}
+	// The framebuffer, image view, and (for the non-mutable-sRGB path) the
+	// full-size 16F blending image are created lazily by the first
+	// vulkan_begin_render_pass() that actually renders into this buffer, see
+	// pass.c. Importers that only use the VkImage as a render target - Qt
+	// Quick through waylib never begins a wlroots pass - therefore no longer
+	// pay for an unused colour attachment, two framebuffers, three image views
+	// and a descriptor set per buffer (33MB of blend storage at 4K).
 
 	return buffer;
 
@@ -1238,15 +1259,19 @@ bool waylib_vk_renderer_record_render_buffer_acquire(struct wlr_renderer *wlr_re
 		.oldLayout = src_layout,
 		.newLayout = VK_IMAGE_LAYOUT_GENERAL,
 		.srcAccessMask = 0,
-		.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT |
-			VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+		.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT |
+			VK_ACCESS_MEMORY_WRITE_BIT,
 		.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
 		.subresourceRange.layerCount = 1,
 		.subresourceRange.levelCount = 1,
 	};
 
+	/* The second scope must cover every access this renderer performs on the
+	 * buffer after the transfer, not only the render-pass color attachment
+	 * use: the Qt path samples the buffer (shader read) and the render-buffer
+	 * blitter copies from it (transfer read). */
 	vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-		VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+		VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
 		0, 0, NULL, 0, NULL, 1, &barrier);
 
 	// WAR alias dependency: the texture-sampling path may have recently read
@@ -1301,15 +1326,19 @@ bool waylib_vk_renderer_record_render_buffer_release(struct wlr_renderer *wlr_re
 		.image = render_buffer->image,
 		.oldLayout = old_layout,
 		.newLayout = VK_IMAGE_LAYOUT_GENERAL,
-		.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT |
-			VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+		.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT |
+			VK_ACCESS_MEMORY_WRITE_BIT,
 		.dstAccessMask = 0,
 		.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
 		.subresourceRange.layerCount = 1,
 		.subresourceRange.levelCount = 1,
 	};
 
-	vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+	/* The first scope must cover every access the renderer made since the
+	 * acquire: the render pass writes the image, while the Qt sampling and
+	 * the render-buffer blitter read it (shader/transfer reads). A release
+	 * that only named the color attachment stage would drop those reads. */
+	vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
 		VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
 		0, 0, NULL, 0, NULL, 1, &barrier);
 	return true;
@@ -2721,7 +2750,12 @@ static struct wlr_vk_render_format_setup *find_or_create_render_setup(
 					VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
 				.dstSubpass = 0,
 				.dstStageMask = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
+				/* The dst scope of a dependency that starts a subpass also
+				 * orders the render pass' own attachment transitions and
+				 * stores for that subpass (both are color writes), so the
+				 * write bits must be included, not just the read bits. */
 				.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT |
+					VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
 					VK_ACCESS_UNIFORM_READ_BIT |
 					VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT |
 					VK_ACCESS_INDIRECT_COMMAND_READ_BIT |
@@ -2732,8 +2766,17 @@ static struct wlr_vk_render_format_setup *find_or_create_render_setup(
 				.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
 				.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
 				.dstSubpass = 1,
-				.dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-				.dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
+				/* The blending image is the input attachment read by this
+				 * subpass, and the render pass stores it again at the end.
+				 * The transition that makes it readable at the start of the
+				 * subpass is a write in the same attachment, so the dst scope
+				 * must also cover color-attachment writes (otherwise the
+				 * store reports SYNC-HAZARD-WRITE-AFTER-WRITE against that
+				 * transition). */
+				.dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT |
+					VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+				.dstAccessMask = VK_ACCESS_SHADER_READ_BIT |
+					VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
 				.dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT,
 			},
 			{
@@ -2745,6 +2788,22 @@ static struct wlr_vk_render_format_setup *find_or_create_render_setup(
 					VK_PIPELINE_STAGE_HOST_BIT | VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
 				.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT |
 					VK_ACCESS_MEMORY_READ_BIT,
+			},
+			{
+				/* Attachment 0 (the blending image) is an input attachment in
+				 * subpass 1, and the render pass then stores it back with
+				 * finalLayout SHADER_READ_ONLY_OPTIMAL. Without this
+				 * subpass self-dependency the input-attachment read is not
+				 * ordered before that store, which the validation layers
+				 * report as SYNC-HAZARD-WRITE-AFTER-WRITE at
+				 * vkCmdEndRenderPass. */
+				.srcSubpass = 1,
+				.srcStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+				.srcAccessMask = VK_ACCESS_SHADER_READ_BIT,
+				.dstSubpass = 1,
+				.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+				.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+				.dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT,
 			},
 		};
 
@@ -2836,7 +2895,11 @@ static struct wlr_vk_render_format_setup *find_or_create_render_setup(
 					VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
 				.dstSubpass = 0,
 				.dstStageMask = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
+				/* See the two-pass dependency set above: a dependency that
+				 * starts a subpass also orders that subpass' attachment
+				 * transitions and stores. */
 				.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT |
+					VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
 					VK_ACCESS_UNIFORM_READ_BIT |
 					VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT |
 					VK_ACCESS_INDIRECT_COMMAND_READ_BIT |

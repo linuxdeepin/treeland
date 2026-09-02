@@ -238,6 +238,9 @@ struct wlr_vk_render_buffer {
 	uint32_t mem_count;
 	VkImage image;
 	VkImageUsageFlags image_usage;
+	// The imported image was created with VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT,
+	// so an sRGB image view can alias it (see the srgb output below).
+	bool using_mutable_srgb;
 
 	// Framebuffer and image view for rendering directly onto the buffer image,
 	// without any color transform.
