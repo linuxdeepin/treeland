@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "woutputrenderwindow.h"
-#include "wquickcursor.h"
-#include "wpresentation.h"
 #include <chrono>
 #include <cstdlib>
 #include "woutput.h"
@@ -14,8 +12,12 @@
 #include "woutputviewport_p.h"
 #include "wqmlhelper_p.h"
 #include "woutputlayer.h"
+#include "wpresentation.h"
 #include "wbufferrenderer_p.h"
+#include "wquickcursor.h"
 #include "wquicktextureproxy.h"
+#include "wsgtextureprovider.h"
+#include "wsurface.h"
 #include "wpointer.h"
 #include "wscoplistener.h"
 #include "weventjunkman.h"
@@ -489,6 +491,16 @@ public:
     bool releaseRenderBuffer(WBufferRenderer *renderer, const char *purpose);
     bool releaseRenderBuffers(QVector<std::pair<OutputHelper *, WBufferRenderer *>> &needsCommit);
     void cleanupRetiredRenderResources(bool force);
+    bool prepareTextureSamplingForRenderPass(wlr_buffer *currentBuffer,
+                                             const QVector<WSGTextureProvider *> &activeProviders,
+                                             const char *purpose,
+                                             int sourceIndex,
+                                             QVector<wlr_texture *> *preparedTextures);
+    bool prepareTextureForCurrentRenderPass(wlr_texture *texture,
+                                            const char *purpose);
+    bool finishTextureSamplingForRenderPass(const QVector<wlr_texture *> &preparedTextures,
+                                            const char *purpose,
+                                            int sourceIndex);
     void setCurrentPresentationOutput(WOutput *output);
     void markSurfaceTexturedForPresentation(WSurface *surface);
     void submitPresentationFeedbackForOutput(WOutput *output);
@@ -530,10 +542,11 @@ public:
     bool renderEnabled = true;
     bool frameFailed = false;
     QString fatalRenderError;
-    WPointer<wlr_renderer> m_renderer;
-    WPointer<wlr_allocator> m_allocator;
     bool textureSyncQueueValidated = false;
     bool textureSyncBatchDisabled = false;
+
+    WPointer<wlr_renderer> m_renderer;
+    WPointer<wlr_allocator> m_allocator;
     QPointer<WPresentation> m_presentation;
     QPointer<WOutput> m_currentPresentationOutput;
     QHash<WOutput *, QVector<QPointer<WSurface>>> m_pendingPresentationSurfaces;
@@ -548,6 +561,8 @@ public:
 #endif
 
     QStack<WBufferRenderer*> rendererList;
+    QVector<wlr_texture *> *m_currentPreparedTextures = nullptr;
+    QSet<wlr_texture *> m_currentPreparedTextureSet;
 
     // Owner token for per-output frame/needs_frame listeners registered on
     // WOutput via WObject::listeners(). ~WListenerOwner/teardown() detaches
@@ -2045,6 +2060,216 @@ void WOutputRenderWindowPrivate::cleanupRetiredRenderResources(bool force)
     }
 }
 
+bool WOutputRenderWindowPrivate::prepareTextureSamplingForRenderPass(wlr_buffer *currentBuffer,
+                                                                     const QVector<WSGTextureProvider *> &activeProviders,
+                                                                     const char *purpose,
+                                                                     int sourceIndex,
+                                                                     QVector<wlr_texture *> *preparedTextures)
+{
+    Q_ASSERT(preparedTextures);
+    preparedTextures->clear();
+    m_currentPreparedTextures = nullptr;
+    m_currentPreparedTextureSet.clear();
+
+    if (WRenderHelper::getGraphicsApi(rc()) != QSGRendererInterface::Vulkan)
+        return true;
+
+    m_currentPreparedTextures = preparedTextures;
+    W_Q(WOutputRenderWindow);
+    // Accumulate the per-texture foreign-acquire barriers and record them as a
+    // single vkCmdPipelineBarrier once every provider has been prepared, just
+    // before the Qt draw. Mirrors wlroots' own render-pass barrier batching.
+    WRenderHelper::beginTextureBarrierBatch(m_renderer, false);
+    QSet<wlr_texture *> seenTextures;
+    qsizetype skippedCurrentRenderTarget = 0;
+    qsizetype invalidProviderCount = 0;
+    for (auto provider : activeProviders) {
+        if (!provider) {
+            ++invalidProviderCount;
+            continue;
+        }
+
+        auto providerBuffer = provider->qwBuffer();
+        if (currentBuffer && providerBuffer == currentBuffer) {
+            ++skippedCurrentRenderTarget;
+            WVulkanTrace::sampleDisposition(q, provider, provider->qwTexture(),
+                                            WVulkanTrace::SampleDisposition::CurrentRenderTarget);
+            continue;
+        }
+
+        auto sampleTexture = provider->texture();
+        if (sampleTexture && currentBuffer) {
+            if (auto rhiTexture = sampleTexture->rhiTexture()) {
+                auto renderTargetBuffer = WRenderHelper::lookupBuffer(rhiTexture);
+                if (renderTargetBuffer == currentBuffer) {
+                    ++skippedCurrentRenderTarget;
+                    WVulkanTrace::sampleDisposition(q, provider, provider->qwTexture(),
+                                                    WVulkanTrace::SampleDisposition::CurrentRenderTarget);
+                    continue;
+                }
+            }
+        }
+
+        auto texture = provider->qwTexture();
+        if (!texture || !provider->hasTexture()) {
+            ++invalidProviderCount;
+            WVulkanTrace::sampleDisposition(q, provider, texture,
+                                            WVulkanTrace::SampleDisposition::InvalidProvider);
+            continue;
+        }
+
+        if (seenTextures.contains(texture)) {
+            WVulkanTrace::sampleDisposition(q, provider, texture,
+                                            WVulkanTrace::SampleDisposition::DuplicateTexture);
+            continue;
+        }
+
+        seenTextures.insert(texture);
+        QElapsedTimer prepareTimer;
+        if (WVulkanTrace::enabled())
+            prepareTimer.start();
+        const bool prepareOk = WRenderHelper::prepareTextureForSampling(rc(), m_renderer,
+                                                                        texture, purpose);
+        const qint64 prepareUsec = prepareTimer.isValid() ? prepareTimer.nsecsElapsed() / 1000 : 0;
+        WVulkanTrace::sampleDisposition(q, provider, texture,
+                                        prepareOk ? WVulkanTrace::SampleDisposition::Prepared
+                                                  : WVulkanTrace::SampleDisposition::PrepareFailed,
+                                        prepareUsec);
+        if (!prepareOk) {
+            qCWarning(lcWlQtQuickTexture) << "Skipping wlroots texture for this Vulkan render pass because sampling prepare failed"
+                                          << "purpose" << purpose
+                                          << "sourceIndex" << sourceIndex
+                                          << "currentBuffer" << currentBuffer
+                                          << "provider" << provider
+                                          << "providerBuffer" << providerBuffer
+                                          << "wlrTexture" << texture
+                                          << "qtTextureSize" << (sampleTexture ? sampleTexture->textureSize() : QSize())
+                                          << "activeProviderCount" << activeProviders.size()
+                                          << "preparedTextureCount" << preparedTextures->size()
+                                          << "skippedCurrentRenderTarget" << skippedCurrentRenderTarget
+                                          << "invalidProviderCount" << invalidProviderCount;
+            failCurrentFrame();
+            // Record the acquire barriers deferred so far so they stay matched
+            // with the release barriers recorded by the rollback below, then
+            // return ownership of every texture acquired earlier in the prepass
+            // and keep all providers bound to their previously valid texture.
+            (void)WRenderHelper::flushTextureBarrierBatch(rc(), m_renderer, purpose);
+            (void)finishTextureSamplingForRenderPass(*preparedTextures,
+                                                      purpose,
+                                                      sourceIndex);
+            return false;
+        }
+
+        preparedTextures->append(texture);
+        m_currentPreparedTextureSet.insert(texture);
+    }
+
+    if (!WRenderHelper::flushTextureBarrierBatch(rc(), m_renderer, purpose)) {
+        qCWarning(lcWlQtQuickTexture) << "Failed to record batched Vulkan texture acquire barriers; rolling back the render pass"
+                                      << "purpose" << purpose
+                                      << "sourceIndex" << sourceIndex
+                                      << "preparedTextureCount" << preparedTextures->size();
+        failCurrentFrame();
+        (void)finishTextureSamplingForRenderPass(*preparedTextures,
+                                                  purpose,
+                                                  sourceIndex);
+        return false;
+    }
+
+    return true;
+}
+
+bool WOutputRenderWindowPrivate::prepareTextureForCurrentRenderPass(wlr_texture *texture,
+                                                                    const char *purpose)
+{
+    if (WRenderHelper::getGraphicsApi(rc()) != QSGRendererInterface::Vulkan)
+        return true;
+
+    if (!texture || !m_currentPreparedTextures)
+        return true;
+
+    if (m_currentPreparedTextureSet.contains(texture))
+        return true;
+
+    W_Q(WOutputRenderWindow);
+    QElapsedTimer prepareTimer;
+    if (WVulkanTrace::enabled())
+        prepareTimer.start();
+    const bool prepareOk = WRenderHelper::prepareTextureForSampling(rc(),
+                                                                    m_renderer,
+                                                                    texture,
+                                                                    purpose);
+    WVulkanTrace::sampleDynamicDisposition(
+        q,
+        texture,
+        prepareOk ? WVulkanTrace::SampleDisposition::Prepared
+                  : WVulkanTrace::SampleDisposition::PrepareFailed,
+        prepareTimer.isValid() ? prepareTimer.nsecsElapsed() / 1000 : 0);
+    if (!prepareOk) {
+        failCurrentFrame();
+        return false;
+    }
+
+    m_currentPreparedTextureSet.insert(texture);
+    m_currentPreparedTextures->append(texture);
+    return true;
+}
+
+bool WOutputRenderWindowPrivate::finishTextureSamplingForRenderPass(const QVector<wlr_texture *> &preparedTextures,
+                                                                    const char *purpose,
+                                                                    int sourceIndex)
+{
+    if (WRenderHelper::getGraphicsApi(rc()) != QSGRendererInterface::Vulkan) {
+        m_currentPreparedTextures = nullptr;
+        m_currentPreparedTextureSet.clear();
+        return true;
+    }
+
+    W_Q(WOutputRenderWindow);
+    // Accumulate the per-texture foreign-release barriers and record them as a
+    // single vkCmdPipelineBarrier once every provider has been released, right
+    // after the Qt draw.
+    WRenderHelper::beginTextureBarrierBatch(m_renderer, true);
+    bool ok = true;
+    for (qsizetype i = preparedTextures.size() - 1; i >= 0; --i) {
+        auto texture = preparedTextures.at(i);
+        if (!texture)
+            continue;
+
+        QElapsedTimer finishTimer;
+        if (WVulkanTrace::enabled())
+            finishTimer.start();
+        const bool finishOk = WRenderHelper::finishTextureSampling(rc(), m_renderer,
+                                                                   texture, purpose);
+        WVulkanTrace::sampleFinished(q, texture, finishOk,
+                                     finishTimer.isValid() ? finishTimer.nsecsElapsed() / 1000 : 0);
+        if (!finishOk) {
+            qCWarning(lcWlQtQuickTexture) << "Vulkan texture sampling finish failed for render pass"
+                                          << "purpose" << purpose
+                                          << "sourceIndex" << sourceIndex
+                                          << "wlrTexture" << texture
+                                          << "preparedTextureCount" << preparedTextures.size()
+                                          << "releaseIndex" << i;
+            ok = false;
+        }
+    }
+
+    if (!WRenderHelper::flushTextureBarrierBatch(rc(), m_renderer, purpose)) {
+        qCWarning(lcWlQtQuickTexture) << "Failed to record batched Vulkan texture release barriers"
+                                      << "purpose" << purpose
+                                      << "sourceIndex" << sourceIndex
+                                      << "preparedTextureCount" << preparedTextures.size();
+        ok = false;
+    }
+
+    m_currentPreparedTextures = nullptr;
+    m_currentPreparedTextureSet.clear();
+    if (!ok) {
+        failCurrentFrameFatally(QStringLiteral("Failed to return one or more sampled Vulkan textures to wlroots"));
+    }
+    return ok;
+}
+
 void WOutputRenderWindowPrivate::setCurrentPresentationOutput(WOutput *output)
 {
     m_currentPresentationOutput = output;
@@ -2214,6 +2439,9 @@ void WOutputRenderWindowPrivate::doRender(wlr_output *needsFrameOutput,
     const auto finishFrame = [this, q] (const QList<QPointer<WOutput>> &committedOutputs) {
         WRenderHelper::abortTextureSyncBatch(m_renderer);
         clearPresentationFeedback();
+        m_currentPreparedTextures = nullptr;
+        m_currentPreparedTextureSet.clear();
+
         resetGlState();
 
         // On Intel&Nvidia multi-GPU environment, wlroots using Intel card do render for all
@@ -2266,6 +2494,12 @@ void WOutputRenderWindowPrivate::doRender(wlr_output *needsFrameOutput,
                 const bool batchStarted = WRenderHelper::beginTextureSyncBatch(
                     rc(), m_renderer, !textureSyncQueueValidated);
                 if (batchStarted) {
+                    if (!textureSyncQueueValidated) {
+                        // Qt and wlroots share the same VkQueue, so the GPU-side
+                        // asynchronous staging-upload path can be chained through
+                        // the texture-sync bridge before Qt submits the frame.
+                        WRenderHelper::setStageAsyncEnabled(m_renderer, true);
+                    }
                     textureSyncQueueValidated = true;
                 } else {
                     // The immediate CPU-wait path remains correct, and avoids
@@ -2685,6 +2919,35 @@ void WOutputRenderWindow::markSurfaceTexturedForPresentation(WSurface *surface)
 {
     Q_D(WOutputRenderWindow);
     d->markSurfaceTexturedForPresentation(surface);
+}
+
+bool WOutputRenderWindow::prepareTextureSamplingForRenderPass(wlr_buffer *currentBuffer,
+                                                              const QVector<WSGTextureProvider *> &activeProviders,
+                                                              const char *purpose,
+                                                              int sourceIndex,
+                                                              QVector<wlr_texture *> *preparedTextures)
+{
+    Q_D(WOutputRenderWindow);
+    return d->prepareTextureSamplingForRenderPass(currentBuffer,
+                                                  activeProviders,
+                                                  purpose,
+                                                  sourceIndex,
+                                                  preparedTextures);
+}
+
+bool WOutputRenderWindow::prepareTextureForCurrentRenderPass(wlr_texture *texture,
+                                                             const char *purpose)
+{
+    Q_D(WOutputRenderWindow);
+    return d->prepareTextureForCurrentRenderPass(texture, purpose);
+}
+
+bool WOutputRenderWindow::finishTextureSamplingForRenderPass(const QVector<wlr_texture *> &preparedTextures,
+                                                             const char *purpose,
+                                                             int sourceIndex)
+{
+    Q_D(WOutputRenderWindow);
+    return d->finishTextureSamplingForRenderPass(preparedTextures, purpose, sourceIndex);
 }
 
 WBufferRenderer *WOutputRenderWindow::currentRenderer() const

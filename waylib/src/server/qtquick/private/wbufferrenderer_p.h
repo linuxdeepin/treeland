@@ -75,6 +75,7 @@ public:
     wlr_buffer *currentBuffer() const;
     wlr_buffer *lastBuffer() const;
     QRhiTexture *currentRenderTarget() const;
+    QRhiRenderTarget *currentVulkanBackdropResumeTarget() const;
     bool isColorPreserved() const;
     const wlr_damage_ring *damageRing() const;
     wlr_damage_ring *damageRing();
@@ -148,7 +149,13 @@ private:
         WBufferUnlockPtr buffer;
         WRenderHelper::RenderTarget renderTarget;
         QSGRenderTarget sgRenderTarget;
+        QQuickRenderTarget preserveRenderTarget;
+        QSGRenderTarget preserveSgRenderTarget;
+        QQuickRenderTarget vulkanBackdropResumeRenderTarget;
+        QSGRenderTarget vulkanBackdropResumeSgRenderTarget;
+        QSGRenderTarget activeSgRenderTarget;
         QRegion dirty;
+        bool vulkanBackdropActive = false;
         bool renderBufferReleasedForCache = false;
     } state;
 
