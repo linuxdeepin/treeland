@@ -647,8 +647,47 @@ public:
         return NoExternalRendering | BoundedRectRendering | DepthAwareRendering | OpaqueRendering;
     }
 
+protected:
+    void traceVulkanBinding(const void *provider, wlr_texture *texture)
+    {
+        if (!m_owner)
+            return;
+
+        auto *ownerPrivate = m_owner->d_func();
+        if (auto *renderWindow = m_owner->outputRenderWindow()) {
+            WVulkanTrace::surfaceFootprint(renderWindow, provider, texture,
+                                           ownerPrivate->surface);
+            renderWindow->markSurfaceTexturedForPresentation(ownerPrivate->surface);
+        }
+    }
+
 public:
     QPointer<WSurfaceItemContent> m_owner;
+};
+
+class Q_DECL_HIDDEN WSGVulkanRenderFootprintNode final : public WSGRenderFootprintNode
+{
+public:
+    explicit WSGVulkanRenderFootprintNode(WSurfaceItemContent *owner)
+        : WSGRenderFootprintNode(owner)
+    {
+    }
+
+    void setBinding(const void *provider, wlr_texture *texture)
+    {
+        m_provider = provider;
+        m_texture = texture;
+    }
+
+    void render(const RenderState *state) override
+    {
+        WSGRenderFootprintNode::render(state);
+        traceVulkanBinding(m_provider, m_texture);
+    }
+
+private:
+    const void *m_provider = nullptr;
+    wlr_texture *m_texture = nullptr;
 };
 
 QSGNode *WSurfaceItemContent::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData *)
@@ -656,13 +695,43 @@ QSGNode *WSurfaceItemContent::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeD
     W_D(WSurfaceItemContent);
 
     auto tp = wTextureProvider();
-    if (d->live || !tp->texture()) {
-        auto texture = d->surface ? wlr_surface_get_texture(d->surface->handle()) : nullptr;
-        if (texture) {
-            tp->setTexture(texture, d->buffer.get());
-        } else {
-            tp->setBuffer(d->buffer.get());
+    const bool vulkanRhi = usesVulkanRhi(tp->window());
+    if (!vulkanRhi) {
+        if (d->live || !tp->texture()) {
+            auto texture = d->surface ? wlr_surface_get_texture(d->surface->handle()) : nullptr;
+            if (texture) {
+                tp->setTexture(texture, d->buffer.get());
+            } else {
+                tp->setBuffer(d->buffer.get());
+            }
         }
+
+        if (!tp->texture() || width() <= 0 || height() <= 0) {
+            delete oldNode;
+            return nullptr;
+        }
+
+        auto node = static_cast<QSGImageNode*>(oldNode);
+        if (Q_UNLIKELY(!node)) {
+            node = window()->createImageNode();
+            node->setOwnsTexture(false);
+            QSGNode *fpnode = new WSGRenderFootprintNode(this);
+            node->appendChildNode(fpnode);
+        }
+
+        auto texture = tp->texture();
+        node->setTexture(texture);
+        const QRectF textureGeometry = d->bufferSourceBox;
+        node->setSourceRect(textureGeometry);
+        const QRectF targetGeometry(d->ignoreBufferOffset ? QPointF() : d->bufferOffset, size());
+        node->setRect(targetGeometry);
+        node->setFiltering(smooth() ? QSGTexture::Linear : QSGTexture::Nearest);
+
+        return node;
+    }
+
+    if (d->live || !tp->texture()) {
+        tp->setBuffer(d->buffer.get());
     }
 
     if (!tp->texture() || width() <= 0 || height() <= 0) {
@@ -671,15 +740,21 @@ QSGNode *WSurfaceItemContent::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeD
     }
 
     auto node = static_cast<QSGImageNode*>(oldNode);
+    WSGVulkanRenderFootprintNode *vulkanFootprintNode = nullptr;
     if (Q_UNLIKELY(!node)) {
         node = window()->createImageNode();
         node->setOwnsTexture(false);
-        QSGNode *fpnode = new WSGRenderFootprintNode(this);
-        node->appendChildNode(fpnode);
+        vulkanFootprintNode = new WSGVulkanRenderFootprintNode(this);
+        node->appendChildNode(vulkanFootprintNode);
+    } else {
+        vulkanFootprintNode =
+            static_cast<WSGVulkanRenderFootprintNode *>(node->firstChild());
     }
 
     auto texture = tp->texture();
     node->setTexture(texture);
+    Q_ASSERT(vulkanFootprintNode);
+    vulkanFootprintNode->setBinding(tp, tp->qwTexture());
     const QRectF textureGeometry = d->bufferSourceBox;
     node->setSourceRect(textureGeometry);
     const QRectF targetGeometry(d->ignoreBufferOffset ? QPointF() : d->bufferOffset, size());

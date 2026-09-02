@@ -213,6 +213,7 @@ set(SOURCES
     protocols/wrelativepointermanagerv1.cpp
     protocols/woutputmanagerv1.cpp
     protocols/wlinuxdmabufv1.cpp
+    protocols/wpresentation.cpp
     protocols/wextforeigntoplevellistv1.cpp
     protocols/wxdgdialogmanagerv1.cpp
     protocols/wsecuritycontextmanager.cpp
@@ -326,7 +327,9 @@ set(HEADERS
     protocols/woutputmanagerv1.h
     protocols/WOutputManagerV1
     protocols/wlinuxdmabufv1.h
+    protocols/wpresentation.h
     protocols/WLinuxDmabufV1
+    protocols/WPresentation
     protocols/wlayershell.h
     protocols/WLayerShell
     protocols/wxwayland.h
