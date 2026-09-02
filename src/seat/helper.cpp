@@ -3662,30 +3662,14 @@ void Helper::handleNewForeignToplevelCaptureRequest(wlr_ext_foreign_toplevel_ima
         return;
     }
 
-    WSurfaceItem *surfaceItem = surfaceWrapper->surfaceItem();
-    if (!surfaceItem) {
-        qCWarning(lcTlCapture) << "Could not get WSurfaceItem from SurfaceWrapper";
-        return;
-    }
-
-    WSurfaceItemContent *surfaceContent = surfaceItem->findItemContent();
-    if (!surfaceContent) {
-        qCWarning(lcTlCapture) << "Could not find WSurfaceItemContent";
-        return;
-    }
-
-    qCDebug(lcTlCapture) << "Found WSurfaceItemContent for capture:"
-             << "size=" << surfaceContent->size()
-             << "implicitSize=" << QSizeF(surfaceContent->implicitWidth(), surfaceContent->implicitHeight())
-             << "isTextureProvider=" << surfaceContent->isTextureProvider();
-
     auto *output = surfaceWrapper->ownsOutput()->output();
     if (!output) {
         qCWarning(lcTlCapture) << "Could not get WOutput from SurfaceWrapper";
         return;
     }
 
-    auto *imageCaptureSource = new WExtImageCaptureSourceV1Impl(surfaceContent, output);
+    auto *imageCaptureSource =
+        new WExtImageCaptureSourceV1Impl(surfaceWrapper->surfaceItem(), output);
 
     bool success = wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request_accept(
         request, imageCaptureSource->handle());
