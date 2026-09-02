@@ -2,7 +2,7 @@ find_package(TreelandProtocols REQUIRED)
 
 waylib_generate_qtwayland_server_protocol(libtreeland
     PROTOCOL ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-wine-window-management-unstable-v1.xml
-    BASENAME treeland-wine-window-management-v1
+    BASENAME treeland-wine-window-management-unstable-v1
 )
 
 impl_treeland(

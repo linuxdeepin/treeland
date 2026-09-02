@@ -4,7 +4,7 @@
 #include "appidresolver.h"
 
 #include "common/treelandlogging.h"
-#include "qwayland-server-treeland-app-id-resolver-v1.h"
+#include "qwayland-server-treeland-app-id-resolver-unstable-v2.h"
 
 #include <wserver.h>
 
@@ -18,12 +18,12 @@ WAYLIB_SERVER_USE_NAMESPACE
 
 class AppIdResolver
     : public QObject
-    , public QtWaylandServer::treeland_app_id_resolver_v1
+    , public QtWaylandServer::treeland_app_id_resolver_v2
 {
 public:
     AppIdResolver(QObject *parent, wl_client *client, int version, uint32_t id)
         : QObject(parent)
-        , QtWaylandServer::treeland_app_id_resolver_v1(client, id, version)
+        , QtWaylandServer::treeland_app_id_resolver_v2(client, id, version)
     {
     }
 
@@ -69,11 +69,11 @@ private:
     uint32_t m_nextRequestId = 1;
 };
 
-class AppIdResolverManagerPrivate : public QtWaylandServer::treeland_app_id_resolver_manager_v1
+class AppIdResolverManagerPrivate : public QtWaylandServer::treeland_app_id_resolver_manager_v2
 {
 public:
     explicit AppIdResolverManagerPrivate(AppIdResolverManager *_q)
-        : QtWaylandServer::treeland_app_id_resolver_manager_v1()
+        : QtWaylandServer::treeland_app_id_resolver_manager_v2()
         , q(_q)
     {
     }
@@ -193,5 +193,5 @@ wl_global *AppIdResolverManager::global() const
 
 QByteArrayView AppIdResolverManager::interfaceName() const
 {
-    return QtWaylandServer::treeland_app_id_resolver_manager_v1::interfaceName();
+    return QtWaylandServer::treeland_app_id_resolver_manager_v2::interfaceName();
 }

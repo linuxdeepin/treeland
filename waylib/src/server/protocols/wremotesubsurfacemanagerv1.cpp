@@ -194,14 +194,14 @@ static inline QStringView shortToken(const QString &token)
 
 class WRemoteSubsurfaceManagerV1Private
     : public WObjectPrivate
-    , public QtWaylandServer::treeland_subsurface_manager_v1
+    , public QtWaylandServer::treeland_remote_subsurface_manager_v1
 {
     Q_DECLARE_PUBLIC(WRemoteSubsurfaceManagerV1)
 
 public:
     explicit WRemoteSubsurfaceManagerV1Private(WRemoteSubsurfaceManagerV1 *q)
         : WObjectPrivate(q)
-        , QtWaylandServer::treeland_subsurface_manager_v1()
+        , QtWaylandServer::treeland_remote_subsurface_manager_v1()
     {
     }
 
@@ -764,7 +764,7 @@ wl_global *WRemoteSubsurfaceManagerV1::global() const
 
 QByteArrayView WRemoteSubsurfaceManagerV1::interfaceName() const
 {
-    return QtWaylandServer::treeland_subsurface_manager_v1::interfaceName();
+    return QtWaylandServer::treeland_remote_subsurface_manager_v1::interfaceName();
 }
 
 WAYLIB_SERVER_END_NAMESPACE

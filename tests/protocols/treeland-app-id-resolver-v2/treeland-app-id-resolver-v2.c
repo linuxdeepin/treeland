@@ -1,8 +1,8 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
-#include "treeland-app-id-resolver-v1.h"
+#include "treeland-app-id-resolver-v2.h"
 #include "server-bridge-api.h"
-#include "treeland-app-id-resolver-v1-client-protocol.h"
+#include "treeland-app-id-resolver-unstable-v2-client-protocol.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -85,7 +85,7 @@ int test_print_results(struct test_ctx *ctx)
     return failed == 0;
 }
 
-static void identify_request(void *data, struct treeland_app_id_resolver_v1 *resolver,
+static void identify_request(void *data, struct treeland_app_id_resolver_v2 *resolver,
                              uint32_t request_id, int32_t pidfd)
 {
     (void)resolver;
@@ -95,7 +95,7 @@ static void identify_request(void *data, struct treeland_app_id_resolver_v1 *res
     ctx->identify_pidfd = pidfd;
 }
 
-static const struct treeland_app_id_resolver_v1_listener resolver_listener = {
+static const struct treeland_app_id_resolver_v2_listener resolver_listener = {
     .identify_request = identify_request,
 };
 
@@ -104,8 +104,8 @@ static int connect_client(struct test_ctx *ctx, const char *socket_name)
     if (!client_connect(&ctx->connection, socket_name))
         return 0;
     ctx->display = ctx->connection.display;
-    ctx->manager = client_bind(&ctx->connection, "treeland_app_id_resolver_manager_v1",
-                                      &treeland_app_id_resolver_manager_v1_interface, 1);
+    ctx->manager = client_bind(&ctx->connection, "treeland_app_id_resolver_manager_v2",
+                                      &treeland_app_id_resolver_manager_v2_interface, 1);
     return ctx->manager != NULL;
 }
 
@@ -138,10 +138,10 @@ static int resolve_without_resolver_fails(struct test_ctx *ctx)
 
 static int get_resolver_creates_object(struct test_ctx *ctx)
 {
-    ctx->resolver = treeland_app_id_resolver_manager_v1_get_resolver(ctx->manager);
+    ctx->resolver = treeland_app_id_resolver_manager_v2_get_resolver(ctx->manager);
     if (!ctx->resolver)
         return 0;
-    return treeland_app_id_resolver_v1_add_listener(ctx->resolver, &resolver_listener, ctx) == 0;
+    return treeland_app_id_resolver_v2_add_listener(ctx->resolver, &resolver_listener, ctx) == 0;
 }
 
 static int resolve_roundtrip(struct test_ctx *ctx)
@@ -165,7 +165,7 @@ static int resolve_roundtrip(struct test_ctx *ctx)
     if (!pidfd_ok)
         return 0;
 
-    treeland_app_id_resolver_v1_respond(ctx->resolver, ctx->identify_request_id,
+    treeland_app_id_resolver_v2_respond(ctx->resolver, ctx->identify_request_id,
                                         EXPECTED_APP_ID, EXPECTED_SANDBOX);
     if (wl_display_roundtrip(ctx->display) < 0)
         return 0;
@@ -195,7 +195,7 @@ static int second_resolve_empty_response(struct test_ctx *ctx)
     if (!pidfd_ok)
         return 0;
 
-    treeland_app_id_resolver_v1_respond(ctx->resolver, ctx->identify_request_id, "",
+    treeland_app_id_resolver_v2_respond(ctx->resolver, ctx->identify_request_id, "",
                                         EXPECTED_SANDBOX);
     if (wl_display_roundtrip(ctx->display) < 0)
         return 0;
@@ -210,7 +210,7 @@ static int duplicate_get_resolver_errors(struct test_ctx *ctx)
 
     ctx->display_errored = 1;
 
-    (void)treeland_app_id_resolver_manager_v1_get_resolver(ctx->manager);
+    (void)treeland_app_id_resolver_manager_v2_get_resolver(ctx->manager);
 
     if (wl_display_roundtrip(ctx->display) >= 0)
         return 0;
@@ -222,7 +222,7 @@ static int duplicate_get_resolver_errors(struct test_ctx *ctx)
     const uint32_t code = wl_display_get_protocol_error(ctx->display, &error_interface, &error_id);
     if (code != WL_DISPLAY_ERROR_INVALID_OBJECT)
         return 0;
-    if (error_interface != &treeland_app_id_resolver_manager_v1_interface)
+    if (error_interface != &treeland_app_id_resolver_manager_v2_interface)
         return 0;
     if (error_id != wl_proxy_get_id((struct wl_proxy *)ctx->manager))
         return 0;
@@ -240,9 +240,9 @@ static const struct test_case cases[] = {
 void test_cleanup(struct test_ctx *ctx)
 {
     if (ctx->resolver)
-        treeland_app_id_resolver_v1_destroy(ctx->resolver);
+        treeland_app_id_resolver_v2_destroy(ctx->resolver);
     if (ctx->manager)
-        treeland_app_id_resolver_manager_v1_destroy(ctx->manager);
+        treeland_app_id_resolver_manager_v2_destroy(ctx->manager);
     client_disconnect(&ctx->connection);
 }
 
@@ -251,7 +251,7 @@ int protocol_test_run(const char *socket_name)
     struct test_ctx ctx;
     test_init(&ctx);
     if (!connect_client(&ctx, socket_name)) {
-        fprintf(stderr, "failed to connect to or bind treeland_app_id_resolver_manager_v1\n");
+        fprintf(stderr, "failed to connect to or bind treeland_app_id_resolver_manager_v2\n");
         test_cleanup(&ctx);
         test_destroy(&ctx);
         return 1;

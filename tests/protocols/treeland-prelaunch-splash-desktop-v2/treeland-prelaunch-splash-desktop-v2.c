@@ -3,7 +3,7 @@
 #include "client-connection.h"
 #include "server-bridge-api.h"
 #include "treeland-prelaunch-splash-desktop-v2.h"
-#include "treeland-prelaunch-splash-v2-client-protocol.h"
+#include "treeland-prelaunch-splash-unstable-v2-client-protocol.h"
 
 #include <stdio.h>
 #include <string.h>

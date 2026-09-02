@@ -4,7 +4,7 @@
 #include "server-bridge.h"
 #include "seat/helper.h"
 #include "surface/surfacewrapper.h"
-#include "treeland-screensaver-desktop-v1.h"
+#include "treeland-screensaver-desktop-v2.h"
 #include "workspace/workspace.h"
 
 #include <wbackend.h>

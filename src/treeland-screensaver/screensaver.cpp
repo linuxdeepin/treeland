@@ -1,4 +1,4 @@
-// Copyright (C) 2025 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2025-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 /**
@@ -14,7 +14,7 @@
 #include <QDBusInterface>
 #include <QDBusServiceWatcher>
 #include <QSocketNotifier>
-#include "treeland-screensaver-v1.h"
+#include "treeland-screensaver-v2.h"
 
 // Global vars
 
@@ -25,7 +25,7 @@ static uint32_t interfaceId;
 static uint32_t interfaceVersion;
 
 static uint cookieCounter = 0;
-static QHash<QString, QHash<uint, treeland_screensaver_v1 *>> inhibits;
+static QHash<QString, QHash<uint, treeland_screensaver_v2 *>> inhibits;
 
 static QStringList callers;
 QDBusServiceWatcher *watcher;
@@ -37,7 +37,7 @@ static void handleGlobalRegister([[maybe_unused]] void        *data,
                                  uint32_t                      id,
                                  const char                   *interface,
                                  uint32_t                      version) {
-    if (strcmp(interface, "treeland_screensaver_v1") == 0) {
+    if (strcmp(interface, "treeland_screensaver_v2") == 0) {
         interfaceId = id;
         interfaceVersion = version;
     }
@@ -57,19 +57,19 @@ static const wl_registry_listener registryListener = {
 
 // Inhibit / Uninhibit implementation
 
-static treeland_screensaver_v1 *inhibit(const QString &appName, const QString &reason) {
-    treeland_screensaver_v1 *screensaver = static_cast<treeland_screensaver_v1 *>(
-        wl_registry_bind(registry, interfaceId, &treeland_screensaver_v1_interface, interfaceVersion));
-    treeland_screensaver_v1_inhibit(screensaver,
+static treeland_screensaver_v2 *inhibit(const QString &appName, const QString &reason) {
+    treeland_screensaver_v2 *screensaver = static_cast<treeland_screensaver_v2 *>(
+        wl_registry_bind(registry, interfaceId, &treeland_screensaver_v2_interface, interfaceVersion));
+    treeland_screensaver_v2_inhibit(screensaver,
                                  appName.toUtf8().constData(),
                                  reason.toUtf8().constData());
     wl_display_flush(display);
     return screensaver;
 }
 
-static void uninhibit(treeland_screensaver_v1 *screensaver) {
-    treeland_screensaver_v1_uninhibit(screensaver);
-    treeland_screensaver_v1_destroy(screensaver);
+static void uninhibit(treeland_screensaver_v2 *screensaver) {
+    treeland_screensaver_v2_uninhibit(screensaver);
+    treeland_screensaver_v2_destroy(screensaver);
     wl_display_flush(display);
 }
 

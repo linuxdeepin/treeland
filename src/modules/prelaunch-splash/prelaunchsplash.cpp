@@ -3,7 +3,7 @@
 #include "prelaunchsplash.h"
 
 #include "common/treelandlogging.h"
-#include "qwayland-server-treeland-prelaunch-splash-v2.h"
+#include "qwayland-server-treeland-prelaunch-splash-unstable-v2.h"
 
 #include <wlr/types/wlr_buffer.h>
 

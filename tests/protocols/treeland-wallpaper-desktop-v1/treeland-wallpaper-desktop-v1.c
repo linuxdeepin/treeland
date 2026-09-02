@@ -108,7 +108,7 @@ int protocol_test_run(const char *socket_name)
     client.manager = client_bind(&client.connection, "treeland_wallpaper_manager_v1",
                                         &treeland_wallpaper_manager_v1_interface, 1);
     client.shell = client_bind(&client.connection, "treeland_wallpaper_shell_v1",
-                                      &treeland_wallpaper_shell_v1_interface, 2);
+                                      &treeland_wallpaper_shell_v1_interface, 1);
     if (!client.compositor || !client.shm || !client.output || !client.manager || !client.shell)
         goto done;
 

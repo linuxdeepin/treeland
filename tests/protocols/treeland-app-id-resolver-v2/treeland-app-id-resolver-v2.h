@@ -1,7 +1,7 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
-#ifndef SCREENSAVER_TEST_H
-#define SCREENSAVER_TEST_H
+#ifndef TREELAND_APP_ID_RESOLVER_TEST_H
+#define TREELAND_APP_ID_RESOLVER_TEST_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -21,14 +21,17 @@ struct test_result {
 
 struct test_ctx {
     struct client_connection connection;
-    struct client_connection error_connection;
     struct wl_display    *display;
-    char                  socket_name[256];
 
-    struct treeland_screensaver_v1 *screensaver;
-    struct treeland_screensaver_v1 *error_screensaver;
+    struct treeland_app_id_resolver_manager_v2 *manager;
 
-    int roundtripped;
+    struct treeland_app_id_resolver_v2 *resolver;
+
+    int identify_received;
+    uint32_t identify_request_id;
+    int identify_pidfd;
+
+    int display_errored;
 
     struct test_result *results;
     int                 result_count;

@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #define _POSIX_C_SOURCE 200809L
 
-#include "treeland-screensaver-desktop-v1.h"
+#include "treeland-screensaver-desktop-v2.h"
 #include "server-bridge-api.h"
 #include "ext-idle-notify-v1-client-protocol.h"
 #include "client-connection.h"
 #include "xdg-toplevel-client.h"
-#include "treeland-screensaver-v1-client-protocol.h"
+#include "treeland-screensaver-unstable-v2-client-protocol.h"
 
 #include <poll.h>
 #include <stdio.h>
@@ -74,7 +74,7 @@ int protocol_test_run(const char *socket_name)
 {
     struct client_connection connection;
     struct xdg_toplevel_client toplevel = { 0 };
-    struct treeland_screensaver_v1 *screensaver = NULL;
+    struct treeland_screensaver_v2 *screensaver = NULL;
     struct ext_idle_notifier_v1 *idle_notifier = NULL;
     struct ext_idle_notification_v1 *notification = NULL;
     struct wl_seat *seat = NULL;
@@ -84,8 +84,8 @@ int protocol_test_run(const char *socket_name)
 
     if (!client_connect(&connection, socket_name))
         return 1;
-    screensaver = client_bind(&connection, "treeland_screensaver_v1",
-                                     &treeland_screensaver_v1_interface, 1);
+    screensaver = client_bind(&connection, "treeland_screensaver_v2",
+                                     &treeland_screensaver_v2_interface, 1);
     idle_notifier = client_bind(&connection, "ext_idle_notifier_v1",
                                        &ext_idle_notifier_v1_interface, 1);
     seat = client_bind(&connection, "wl_seat", &wl_seat_interface, 1);
@@ -99,7 +99,7 @@ int protocol_test_run(const char *socket_name)
         || !state.wrapper_visible)
         goto failed;
 
-    treeland_screensaver_v1_inhibit(screensaver, "protocol-test", "desktop idle inhibition");
+    treeland_screensaver_v2_inhibit(screensaver, "protocol-test", "desktop idle inhibition");
     if (wl_display_roundtrip(connection.display) < 0)
         goto failed;
     stage = 3;
@@ -112,7 +112,7 @@ int protocol_test_run(const char *socket_name)
         goto failed;
     stage = 4;
 
-    treeland_screensaver_v1_uninhibit(screensaver);
+    treeland_screensaver_v2_uninhibit(screensaver);
     if (wl_display_roundtrip(connection.display) < 0 || !dispatch_for(connection.display, 500)
         || idle.idled != 1)
         goto failed;

@@ -1,4 +1,4 @@
-// Copyright (C) 2025 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2025-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include <QGuiApplication>
@@ -13,7 +13,7 @@
 #include <errno.h>
 #include <string.h>
 
-#include "qwayland-treeland-app-id-resolver-v1.h"
+#include "qwayland-treeland-app-id-resolver-unstable-v2.h"
 
 // Ownership: pidfd comes from the Wayland request (SCM_RIGHTS). The protocol layer delivers
 // it opened; the handler owns it. We dup it for DBus and close the original here. The DBus
@@ -59,16 +59,16 @@ static QString identifyViaDBus(int pidfd)
     return appId;
 }
 
-class AppIdResolver : public QObject, public QtWayland::treeland_app_id_resolver_v1
+class AppIdResolver : public QObject, public QtWayland::treeland_app_id_resolver_v2
 {
     Q_OBJECT
 public:
-    explicit AppIdResolver(struct ::treeland_app_id_resolver_v1 *object, QObject *parent = nullptr)
+    explicit AppIdResolver(struct ::treeland_app_id_resolver_v2 *object, QObject *parent = nullptr)
         : QObject(parent)
-        , QtWayland::treeland_app_id_resolver_v1(object) {}
+        , QtWayland::treeland_app_id_resolver_v2(object) {}
 
 protected:
-    void treeland_app_id_resolver_v1_identify_request(uint32_t request_id, int32_t pidfd) override
+    void treeland_app_id_resolver_v2_identify_request(uint32_t request_id, int32_t pidfd) override
     {
         qInfo() << "identify_request" << request_id << pidfd;
         const QString appId = identifyViaDBus(pidfd);
@@ -81,7 +81,7 @@ protected:
 
 class AppIdResolverManager
     : public QWaylandClientExtensionTemplate<AppIdResolverManager>
-    , public QtWayland::treeland_app_id_resolver_manager_v1
+    , public QtWayland::treeland_app_id_resolver_manager_v2
 {
     Q_OBJECT
 public:

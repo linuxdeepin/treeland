@@ -110,7 +110,7 @@ class OutputManager;
 class OutputManagerV1;
 class PersonalizationManagerInterfaceV1;
 class RootSurfaceContainer;
-class ScreensaverInterfaceV1;
+class ScreensaverInterfaceV2;
 class SessionManager;
 class SettingManager;
 class SessionModel;
@@ -476,7 +476,7 @@ private:
     VirtualOutputManagerInterfaceV1 *m_virtualOutputInterfaceV1 = nullptr;
     OutputManagerV1 *m_outputManagerV1 = nullptr;
     DDMInterfaceV1 *m_ddmInterfaceV1 = nullptr;
-    ScreensaverInterfaceV1 *m_screensaverInterfaceV1 = nullptr;
+    ScreensaverInterfaceV2 *m_screensaverInterfaceV2 = nullptr;
     TreelandWallpaperManagerInterfaceV1 *m_wallpaperManagerInterfaceV1 = nullptr;
     TreelandWallpaperNotifierInterfaceV1 *m_wallpaperNotifierInterfaceV1 = nullptr;
     TreelandKeyboardStateNotifyManagerInterfaceV1 *m_keyboardStateNotifyManagerInterfaceV1 = nullptr;

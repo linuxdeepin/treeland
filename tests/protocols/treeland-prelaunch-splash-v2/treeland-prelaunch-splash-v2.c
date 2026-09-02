@@ -5,7 +5,7 @@
 #endif
 #include "treeland-prelaunch-splash-v2.h"
 #include "server-bridge-api.h"
-#include "treeland-prelaunch-splash-v2-client-protocol.h"
+#include "treeland-prelaunch-splash-unstable-v2-client-protocol.h"
 
 #include <fcntl.h>
 #include <stdarg.h>
