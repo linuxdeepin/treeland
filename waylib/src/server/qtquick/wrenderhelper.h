@@ -77,6 +77,11 @@ public:
 
     static bool makeTexture(QRhi *rhi, wlr_texture *handle, QSGPlainTexture *texture,
                             bool forceVulkanShaderReadOnlyLayout = false);
+    static bool beginTextureSyncBatch(QQuickRenderControl *rc,
+                                      wlr_renderer *renderer,
+                                      bool verifyQueue);
+    static bool flushTextureSyncBatch(wlr_renderer *renderer);
+    static void abortTextureSyncBatch(wlr_renderer *renderer);
     static void resetVulkanFrameAliasLists(wlr_renderer *renderer);
 
     struct TextureEntry {

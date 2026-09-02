@@ -527,6 +527,8 @@ public:
     static constexpr int FatalBeginFrameFailureThreshold = 3;
     WPointer<wlr_renderer> m_renderer;
     WPointer<wlr_allocator> m_allocator;
+    bool textureSyncQueueValidated = false;
+    bool textureSyncBatchDisabled = false;
 
     QList<OutputHelper*> outputs;
     QList<OutputLayer*> layers;
@@ -1977,6 +1979,7 @@ void WOutputRenderWindowPrivate::doRender(wlr_output *needsFrameOutput,
     WVulkanTrace::beginFrame(q);
 
     const auto finishFrame = [this, q] (const QList<QPointer<WOutput>> &committedOutputs) {
+        WRenderHelper::abortTextureSyncBatch(m_renderer);
         resetGlState();
 
         // On Intel&Nvidia multi-GPU environment, wlroots using Intel card do render for all
@@ -2037,6 +2040,17 @@ void WOutputRenderWindowPrivate::doRender(wlr_output *needsFrameOutput,
                 return;
             }
             consecutiveBeginFrameFailures = 0;
+            if (!textureSyncBatchDisabled) {
+                const bool batchStarted = WRenderHelper::beginTextureSyncBatch(
+                    rc(), m_renderer, !textureSyncQueueValidated);
+                if (batchStarted) {
+                    textureSyncQueueValidated = true;
+                } else {
+                    // The immediate CPU-wait path remains correct, and avoids
+                    // retrying queue validation in the frame hot path.
+                    textureSyncBatchDisabled = true;
+                }
+            }
         } else {
             rc()->beginFrame();
         }
@@ -2067,12 +2081,34 @@ void WOutputRenderWindowPrivate::doRender(wlr_output *needsFrameOutput,
     if (rhiBased) {
         WVulkanTrace::setFrameStage(q, WVulkanTrace::FrameStage::BeforeEndFrame);
         if (isVulkan) {
+            const bool flushed = WRenderHelper::flushTextureSyncBatch(m_renderer);
+            if (!flushed) {
+                // The recorded frame may sample a texture whose producer has
+                // not completed. Never submit it without the required wait.
+                failCurrentFrameFatally(QStringLiteral("Failed to synchronize Vulkan textures before submitting the Qt Quick frame"));
+            }
+            // beginFrameChecked() above succeeded, so QRhi is recording this
+            // offscreen frame no matter whether the sync-batch flush failed.
+            // A frame that is left open makes every later beginFrame() return
+            // early inside QQuickRenderControl (Qt ignores it with
+            // "beginFrame() must be followed by endFrame()"), freezing the
+            // output on the last good image; and at shutdown the QRhi cleanup
+            // callbacks run while QRhi is still inFrame, so a backend flush
+            // from such a callback ends the abandoned primary command buffer
+            // and aborts Mesa's radv (amdgpu_cs finalize assertion). Always
+            // close the frame; its submission result only matters on the
+            // flush-ok path.
             const auto endResult = rc()->endFrameChecked();
-            vulkanFrameCompleted = endResult == QRhi::FrameOpSuccess;
-            if (!vulkanFrameCompleted) {
-                failCurrentFrameFatally(endResult == QRhi::FrameOpDeviceLost
-                                            ? QStringLiteral("Vulkan device was lost while submitting the Qt Quick frame")
-                                            : QStringLiteral("Failed to submit the Vulkan Qt Quick frame"));
+            if (flushed) {
+                vulkanFrameCompleted = endResult == QRhi::FrameOpSuccess;
+                if (!vulkanFrameCompleted) {
+                    failCurrentFrameFatally(endResult == QRhi::FrameOpDeviceLost
+                                                ? QStringLiteral("Vulkan device was lost while submitting the Qt Quick frame")
+                                                : QStringLiteral("Failed to submit the Vulkan Qt Quick frame"));
+                }
+            } else if (endResult != QRhi::FrameOpSuccess) {
+                qCWarning(lcWlRenderer) << "Closing the unsynchronized Vulkan frame did not succeed either"
+                                        << "frameResult" << endResult;
             }
         } else {
             rc()->endFrame();
