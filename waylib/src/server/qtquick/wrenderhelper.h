@@ -10,14 +10,17 @@
 #include <QQuickRenderTarget>
 #include <QSGRendererInterface>
 
+#include <memory>
+
 QT_BEGIN_NAMESPACE
 class QQuickRenderControl;
 class QSGTexture;
 class QSGPlainTexture;
 class QRhi;
+class QRhiRenderTarget;
+class QRhiTexture;
 class QRhiCommandBuffer;
 QT_END_NAMESPACE
-
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WRenderHelperPrivate;
@@ -60,20 +63,20 @@ public:
 
     RenderTarget acquireRenderTarget(QQuickRenderControl *rc, wlr_buffer *buffer,
                                      WGlobal::ColorContentsMode mode = WGlobal::ColorContentsMode::DontCare);
+    bool acquireRenderBuffer(QQuickRenderControl *rc, wlr_buffer *buffer, const char *purpose);
+    bool releaseRenderBuffer(QQuickRenderControl *rc, wlr_buffer *buffer,
+                             QRhiTexture *renderTargetTexture, const char *purpose);
+    void cleanupRetiredRenderResources(bool force = false);
     RenderTarget lastRenderTarget() const;
-
-#ifdef ENABLE_VULKAN_RENDER
-    // Record wlroots render_buffer FOREIGN acquire/release around Qt RHI pass.
-    void prepareVulkanRenderTarget(QRhiCommandBuffer *cb, const RenderTarget &rt);
-    void finishVulkanRenderTarget(QRhiCommandBuffer *cb, const RenderTarget &rt);
-#endif
     static wlr_renderer *createRenderer(wlr_backend *backend);
     static wlr_renderer *createRenderer(wlr_backend *backend, QSGRendererInterface::GraphicsApi api);
 
     static void setupRendererBackend(wlr_backend *testBackend = nullptr);
-    static QSGRendererInterface::GraphicsApi probe(wlr_backend *testBackend, const QList<QSGRendererInterface::GraphicsApi> &apiList);
+    static QSGRendererInterface::GraphicsApi probe(wlr_backend *testBackend,
+                                                   const QList<QSGRendererInterface::GraphicsApi> &apiList);
 
-    static bool makeTexture(QRhi *rhi, wlr_texture *handle, QSGPlainTexture *texture);
+    static bool makeTexture(QRhi *rhi, wlr_texture *handle, QSGPlainTexture *texture,
+                            bool forceVulkanShaderReadOnlyLayout = false);
 
     struct TextureEntry {
         wlr_buffer *buffer;
