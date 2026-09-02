@@ -1,4 +1,4 @@
-// Copyright (C) 2025-2026 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "screensaverinterfacev2.h"
@@ -37,7 +37,12 @@ wl_global *ScreensaverInterfaceV2Private::global() const
 
 void ScreensaverInterfaceV2Private::destroy(Resource *resource)
 {
-    uninhibit(resource);
+    // destroy is a destructor request; release any active inhibit silently
+    // (the protocol says disconnect auto-releases the inhibit). Do NOT call
+    // uninhibit() here, which would post NOT_YET_INHIBITED when the client
+    // already uninhibited before destroying the object.
+    if (inhibits.remove(resource->handle))
+        Helper::instance()->updateIdleInhibitor();
     wl_resource_destroy(resource->handle);
 }
 
