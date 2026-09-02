@@ -1,8 +1,8 @@
-# `treeland-app-id-resolver-v1` 测试规范
+# `treeland-app-id-resolver-v2` 测试规范
 
 ## 范围
 
-- 协议/资源级测试：`tests/protocols/treeland-app-id-resolver-v1/`。
+- 协议/资源级测试：`tests/protocols/treeland-app-id-resolver-v2/`。
 - 覆盖等级：**P / E**。
 
 ## 必须观察到的结果

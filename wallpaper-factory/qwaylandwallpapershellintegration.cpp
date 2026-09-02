@@ -9,7 +9,7 @@
 
 #include <private/qquickanimatedimage_p.h>
 
-#define TREELAND_WALLPAPER_PRODUCE_V1_VERSION 2
+#define TREELAND_WALLPAPER_PRODUCE_V1_VERSION 1
 
 QWaylandWallpaperShellIntegration::QWaylandWallpaperShellIntegration()
     : QWaylandShellIntegrationTemplate<QWaylandWallpaperShellIntegration>(TREELAND_WALLPAPER_PRODUCE_V1_VERSION)

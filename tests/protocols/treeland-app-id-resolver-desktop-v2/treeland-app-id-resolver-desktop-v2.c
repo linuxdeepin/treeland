@@ -3,9 +3,9 @@
 #include "client-connection.h"
 #include "server-bridge-api.h"
 #include "xdg-toplevel-client.h"
-#include "treeland-app-id-resolver-desktop-v1.h"
-#include "treeland-app-id-resolver-v1-client-protocol.h"
-#include "treeland-prelaunch-splash-v2-client-protocol.h"
+#include "treeland-app-id-resolver-desktop-v2.h"
+#include "treeland-app-id-resolver-unstable-v2-client-protocol.h"
+#include "treeland-prelaunch-splash-unstable-v2-client-protocol.h"
 
 #include <fcntl.h>
 #include <stdio.h>
@@ -24,7 +24,7 @@ struct resolver_client_state {
 };
 
 static void identify_request(void *data,
-                             struct treeland_app_id_resolver_v1 *resolver,
+                             struct treeland_app_id_resolver_v2 *resolver,
                              uint32_t request_id,
                              int32_t pidfd)
 {
@@ -35,7 +35,7 @@ static void identify_request(void *data,
     state->pidfd = pidfd;
 }
 
-static const struct treeland_app_id_resolver_v1_listener resolver_listener = {
+static const struct treeland_app_id_resolver_v2_listener resolver_listener = {
     .identify_request = identify_request,
 };
 
@@ -52,8 +52,8 @@ int protocol_test_run(const char *socket_name)
     struct xdg_toplevel_client toplevel = { 0 };
     struct resolver_client_state resolver_state = { .pidfd = -1 };
     struct app_id_resolver_desktop_state state = { 0 };
-    struct treeland_app_id_resolver_manager_v1 *resolver_manager = NULL;
-    struct treeland_app_id_resolver_v1 *resolver = NULL;
+    struct treeland_app_id_resolver_manager_v2 *resolver_manager = NULL;
+    struct treeland_app_id_resolver_v2 *resolver = NULL;
     struct treeland_prelaunch_splash_manager_v2 *splash_manager = NULL;
     struct treeland_prelaunch_splash_v2 *splash = NULL;
     int splash_created = 0;
@@ -62,8 +62,8 @@ int protocol_test_run(const char *socket_name)
     if (!client_connect(&connection, socket_name))
         goto done;
     resolver_manager = client_bind(&connection,
-                                          "treeland_app_id_resolver_manager_v1",
-                                          &treeland_app_id_resolver_manager_v1_interface,
+                                          "treeland_app_id_resolver_manager_v2",
+                                          &treeland_app_id_resolver_manager_v2_interface,
                                           1);
     splash_manager = client_bind(&connection,
                                         "treeland_prelaunch_splash_manager_v2",
@@ -72,9 +72,9 @@ int protocol_test_run(const char *socket_name)
     if (!resolver_manager || !splash_manager)
         goto done;
 
-    resolver = treeland_app_id_resolver_manager_v1_get_resolver(resolver_manager);
+    resolver = treeland_app_id_resolver_manager_v2_get_resolver(resolver_manager);
     if (!resolver
-        || treeland_app_id_resolver_v1_add_listener(resolver, &resolver_listener, &resolver_state))
+        || treeland_app_id_resolver_v2_add_listener(resolver, &resolver_listener, &resolver_state))
         goto done;
 
     splash = treeland_prelaunch_splash_manager_v2_create_splash(
@@ -90,7 +90,7 @@ int protocol_test_run(const char *socket_name)
         || resolver_state.pidfd < 0)
         goto done;
 
-    treeland_app_id_resolver_v1_respond(resolver,
+    treeland_app_id_resolver_v2_respond(resolver,
                                         resolver_state.request_id,
                                         test_app_id,
                                         "org.deepin.Sandbox");
@@ -121,11 +121,11 @@ done:
     if (splash)
         treeland_prelaunch_splash_v2_destroy(splash);
     if (resolver)
-        treeland_app_id_resolver_v1_destroy(resolver);
+        treeland_app_id_resolver_v2_destroy(resolver);
     if (splash_manager)
         treeland_prelaunch_splash_manager_v2_destroy(splash_manager);
     if (resolver_manager)
-        treeland_app_id_resolver_manager_v1_destroy(resolver_manager);
+        treeland_app_id_resolver_manager_v2_destroy(resolver_manager);
     client_disconnect(&connection);
     return result;
 }

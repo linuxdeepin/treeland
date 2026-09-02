@@ -5,7 +5,7 @@
 #include "seat/helper.h"
 #include "surface/surfacecontainer.h"
 #include "surface/surfacewrapper.h"
-#include "treeland-app-id-resolver-desktop-v1.h"
+#include "treeland-app-id-resolver-desktop-v2.h"
 #include "workspace/workspace.h"
 
 #include "treelandconfig.hpp"

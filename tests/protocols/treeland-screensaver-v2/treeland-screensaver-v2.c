@@ -1,8 +1,8 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
-#include "treeland-screensaver-v1.h"
+#include "treeland-screensaver-v2.h"
 #include "server-bridge-api.h"
-#include "treeland-screensaver-v1-client-protocol.h"
+#include "treeland-screensaver-unstable-v2-client-protocol.h"
 
 #include <errno.h>
 #include <stdarg.h>
@@ -78,20 +78,20 @@ static int connect_client(struct test_ctx *ctx, const char *socket_name)
     if (!client_connect(&ctx->connection, socket_name))
         return 0;
     ctx->display = ctx->connection.display;
-    ctx->screensaver = client_bind(&ctx->connection, "treeland_screensaver_v1",
-                                          &treeland_screensaver_v1_interface, 2);
+    ctx->screensaver = client_bind(&ctx->connection, "treeland_screensaver_v2",
+                                          &treeland_screensaver_v2_interface, 1);
     return ctx->screensaver != NULL;
 }
 
 static int bind_max_version(struct test_ctx *ctx)
 {
 
-    return treeland_screensaver_v1_get_version(ctx->screensaver) == 1;
+    return treeland_screensaver_v2_get_version(ctx->screensaver) == 1;
 }
 
 static int inhibit(struct test_ctx *ctx)
 {
-    treeland_screensaver_v1_inhibit(ctx->screensaver, "protocol-test", "test inhibit");
+    treeland_screensaver_v2_inhibit(ctx->screensaver, "protocol-test", "test inhibit");
     return 1;
 }
 
@@ -106,7 +106,7 @@ static int server_inhibited_after_inhibit(struct test_ctx *ctx)
 
 static int uninhibit(struct test_ctx *ctx)
 {
-    treeland_screensaver_v1_uninhibit(ctx->screensaver);
+    treeland_screensaver_v2_uninhibit(ctx->screensaver);
     return 1;
 }
 
@@ -131,14 +131,14 @@ static int expect_protocol_error(struct test_ctx *ctx, struct wl_display *displa
     const struct wl_interface *interface = NULL;
     uint32_t id = 0;
     const uint32_t code = wl_display_get_protocol_error(display, &interface, &id);
-    return code == expected_code && interface == &treeland_screensaver_v1_interface;
+    return code == expected_code && interface == &treeland_screensaver_v2_interface;
 }
 
 static int uninhibit_without_inhibit(struct test_ctx *ctx)
 {
 
-    treeland_screensaver_v1_uninhibit(ctx->screensaver);
-    return expect_protocol_error(ctx, ctx->display, TREELAND_SCREENSAVER_V1_ERROR_NOT_YET_INHIBITED);
+    treeland_screensaver_v2_uninhibit(ctx->screensaver);
+    return expect_protocol_error(ctx, ctx->display, TREELAND_SCREENSAVER_V2_ERROR_NOT_YET_INHIBITED);
 }
 
 static int inhibit_twice(struct test_ctx *ctx)
@@ -146,14 +146,14 @@ static int inhibit_twice(struct test_ctx *ctx)
 
     if (!client_connect(&ctx->error_connection, ctx->socket_name))
         return 0;
-    ctx->error_screensaver = client_bind(&ctx->error_connection, "treeland_screensaver_v1",
-                                                &treeland_screensaver_v1_interface, 2);
+    ctx->error_screensaver = client_bind(&ctx->error_connection, "treeland_screensaver_v2",
+                                                &treeland_screensaver_v2_interface, 1);
     if (!ctx->error_screensaver)
         return 0;
-    treeland_screensaver_v1_inhibit(ctx->error_screensaver, "protocol-test", "first inhibit");
-    treeland_screensaver_v1_inhibit(ctx->error_screensaver, "protocol-test", "second inhibit");
+    treeland_screensaver_v2_inhibit(ctx->error_screensaver, "protocol-test", "first inhibit");
+    treeland_screensaver_v2_inhibit(ctx->error_screensaver, "protocol-test", "second inhibit");
     return expect_protocol_error(ctx, ctx->error_connection.display,
-                                 TREELAND_SCREENSAVER_V1_ERROR_ALREADY_INHIBITED);
+                                 TREELAND_SCREENSAVER_V2_ERROR_ALREADY_INHIBITED);
 }
 
 static const struct test_case cases[] = {
@@ -178,7 +178,7 @@ int protocol_test_run(const char *socket_name)
     struct test_ctx ctx;
     test_init(&ctx);
     if (!connect_client(&ctx, socket_name)) {
-        fprintf(stderr, "failed to connect to or bind treeland_screensaver_v1\n");
+        fprintf(stderr, "failed to connect to or bind treeland_screensaver_v2\n");
         test_cleanup(&ctx);
         test_destroy(&ctx);
         return 1;

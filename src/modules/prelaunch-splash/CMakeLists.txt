@@ -1,8 +1,8 @@
 find_package(TreelandProtocols 0.5.5 REQUIRED)
 
 waylib_generate_qtwayland_server_protocol(libtreeland
-    PROTOCOL ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-prelaunch-splash-v2.xml
-    BASENAME treeland-prelaunch-splash-v2
+    PROTOCOL ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-prelaunch-splash-unstable-v2.xml
+    BASENAME treeland-prelaunch-splash-unstable-v2
 )
 
 impl_treeland(
