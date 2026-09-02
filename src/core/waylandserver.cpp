@@ -67,6 +67,8 @@
 #include <wremotesubsurfacemanagerv1.h>
 #include <wrenderhelper.h>
 #include <WOutput>
+#include <WLinuxDmabufV1>
+#include <WPresentation>
 #include <WServer>
 #include <WXdgOutput>
 #include <wayland-util.h>
@@ -439,12 +441,27 @@ void WaylandServer::initializeRendering()
         qCFatal(lcTlCore) << "Failed to create allocator";
     }
 
-    if (!wlr_renderer_init_wl_display(m_renderer.get(), m_server->handle())) {
-        qCFatal(lcTlCore) << "Failed to initialize renderer wl_display";
-    }
+    const bool vulkanRenderer =
+        WRenderHelper::getGraphicsApi() == QSGRendererInterface::Vulkan;
+    if (vulkanRenderer) {
+        if (!wlr_renderer_init_wl_shm(m_renderer.get(), m_server->handle()))
+            qCFatal(lcTlCore) << "Failed to initialize wl_shm for Vulkan renderer";
 
-    if (!wlr_drm_create(m_server->handle(), m_renderer.get())) {
-        qCCritical(lcTlCore) << "Failed to create DRM lease manager";
+        m_server->attach<WLinuxDmabufV1>(m_renderer.get());
+        auto *presentation = m_server->attach<WPresentation>(m_backend->handle());
+        m_renderWindow->setPresentation(presentation);
+
+        if (!wlr_drm_create(m_server->handle(), m_renderer.get())) {
+            qCCritical(lcTlCore)
+                << "Failed to create legacy wl_drm global";
+        }
+    } else {
+        if (!wlr_renderer_init_wl_display(m_renderer.get(), m_server->handle())) {
+            qCFatal(lcTlCore) << "Failed to initialize renderer wl_display";
+        }
+        if (!wlr_drm_create(m_server->handle(), m_renderer.get())) {
+            qCCritical(lcTlCore) << "Failed to create DRM lease manager";
+        }
     }
 
     m_compositor = wlr_compositor_create(m_server->handle(), 6, m_renderer.get());
