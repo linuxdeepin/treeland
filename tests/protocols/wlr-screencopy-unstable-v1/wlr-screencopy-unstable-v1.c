@@ -3,6 +3,7 @@
 #define _POSIX_C_SOURCE 200809L
 
 #include "client-connection.h"
+#include "screencopy-test.h"
 #include "server-bridge-api.h"
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
 #include "wlr-screencopy-unstable-v1-client-protocol.h"
@@ -180,6 +181,7 @@ static int capture(struct client_connection *connection,
                    int region_y)
 {
     struct frame_events events = { 0 };
+    struct screencopy_render_state render_state = { 0 };
     struct zwlr_screencopy_frame_v1 *frame = region
         ? zwlr_screencopy_manager_v1_capture_output_region(manager,
                                                            0,
@@ -215,7 +217,7 @@ static int capture(struct client_connection *connection,
     // The first roundtrip is a protocol barrier: copy() has been handled and
     // wlroots has installed its output-commit listener before we render.
     if (wl_display_roundtrip(connection->display) < 0
-        || !invoke_on_server_thread(screencopy_render, NULL)
+        || !invoke_on_server_thread(screencopy_render, &render_state)
         || wl_display_roundtrip(connection->display) < 0 || events.ready != 1 || events.failed
         || events.flags_seen != 1 || (with_damage && !events.damage_seen)) {
         wl_buffer_destroy(buffer);
@@ -253,6 +255,20 @@ fail:
             events.width,
             events.height,
             events.stride);
+    fprintf(stderr,
+            "wlr-screencopy render state: outputs=%d enabled=%d->%d needs-frame=%d->%d "
+            "frame-pending=%d->%d attach-render-locks=%d->%d render-end=%d target-committed=%d\n",
+            render_state.output_count,
+            render_state.output_enabled_before,
+            render_state.output_enabled_after,
+            render_state.needs_frame_before,
+            render_state.needs_frame_after,
+            render_state.frame_pending_before,
+            render_state.frame_pending_after,
+            render_state.attach_render_locks_before,
+            render_state.attach_render_locks_after,
+            render_state.render_end_count,
+            render_state.target_committed);
     zwlr_screencopy_frame_v1_destroy(frame);
     return 0;
 }
