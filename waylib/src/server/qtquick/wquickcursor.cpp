@@ -80,10 +80,10 @@ public:
             return proxy->qwTexture();
         return WSGTextureProvider::qwTexture();
     }
-    wlr_buffer *qwBuffer() const override {
+    wlr_buffer *wlrBuffer() const override {
         if (proxy)
-            return proxy->qwBuffer();
-        return WSGTextureProvider::qwBuffer();
+            return proxy->wlrBuffer();
+        return WSGTextureProvider::wlrBuffer();
     }
 
     WBufferDropPtr buffer;
@@ -572,7 +572,7 @@ QSGNode *WQuickCursor::updatePaintNode(QSGNode *node, UpdatePaintNodeData *)
         tp->setImage(d->cursorImage->image());
     }
 
-    // Ignore the tp->proxy, Don't use tp->qwBuffer()
+    // Ignore the tp->proxy, Don't use tp->wlrBuffer()
     if (!tp->buffer) {
         delete node;
         return nullptr;

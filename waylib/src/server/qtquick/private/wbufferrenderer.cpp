@@ -679,7 +679,7 @@ void WBufferRenderer::updateTextureProvider()
         return;
 
     if (shouldCacheBuffer()) {
-        const bool hasCachedBuffer = m_textureProvider->qwBuffer();
+        const bool hasCachedBuffer = m_textureProvider->wlrBuffer();
         // Ensure only update the buffer when the "shouldCacheBuffer" state is changed.
         // If the state is not changed, the buffer is update in the WBufferRenderer::render.
         if (!hasCachedBuffer && m_lastBuffer)
