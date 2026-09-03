@@ -301,12 +301,12 @@ void handle_treeland_capture_frame_v1_copy(wl_client *client,
 {
     treeland_capture_frame_v1 *frame = capture_frame_from_resource(resource);
     Q_ASSERT(frame);
-    wlr_buffer *qwBuffer = wlr_buffer_try_from_resource(buffer);
-    if (!qwBuffer) {
+    wlr_buffer *wlrBuffer = wlr_buffer_try_from_resource(buffer);
+    if (!wlrBuffer) {
         wl_client_post_implementation_error(client, "Buffer not created!");
         return;
     }
-    Q_EMIT frame->copy(qwBuffer);
+    Q_EMIT frame->copy(wlrBuffer);
 }
 
 void treeland_capture_session_v1::sendProduceMoreCancel()
