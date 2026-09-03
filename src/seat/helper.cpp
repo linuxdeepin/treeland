@@ -2019,14 +2019,6 @@ void Helper::init(Treeland::Treeland *treeland)
             this,
             &Helper::onRestoreCopyOutput);
 
-    connect(m_rootSurfaceContainer, &RootSurfaceContainer::primaryOutputChanged, this, [this]() {
-        if (m_rootSurfaceContainer->primaryOutput()) {
-            if (m_lockScreen) {
-                m_lockScreen->setPrimaryOutputName(m_rootSurfaceContainer->primaryOutput()->output()->name());
-            }
-        }
-    });
-
     qmlRegisterUncreatableType<Personalization>("Treeland.Protocols",
                                                 1,
                                                 0,
@@ -3466,10 +3458,6 @@ void Helper::setLockScreenImpl(ILockScreen *impl)
 
     for (auto *output : std::as_const(m_rootSurfaceContainer->outputs())) {
         m_lockScreen->addOutput(output);
-    }
-
-    if (auto primaryOutput = m_rootSurfaceContainer->primaryOutput()) {
-        m_lockScreen->setPrimaryOutputName(primaryOutput->output()->name());
     }
 
     connect(m_lockScreen, &LockScreen::unlock, this, [this] {

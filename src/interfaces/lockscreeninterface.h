@@ -16,6 +16,7 @@ public:
     virtual ~ILockScreen() = default;
 
     virtual QQuickItem *createLockScreen(Output *output, QQuickItem *parent) = 0;
+    virtual QQuickItem *createLockView(QQuickItem *parent) = 0;
 };
 
 Q_DECLARE_INTERFACE(ILockScreen, "org.deepin.treeland.v1.LockScreenInterface")
