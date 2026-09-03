@@ -137,6 +137,16 @@ public:
         , m_child(childExported)
         , m_parent(parentExported)
     {
+        // Mirror the wlroots scene subsurface tree pattern: listen to
+        // wlr_surface map/unmap events rather than WSurface::mappedChanged.
+        // These listeners live at the wlr_surface level and survive WSurface
+        // wrapper recreation, so no reconnection is ever needed.
+        if (auto *wlr = parentExported->surface()) {
+            m_parentMapListener.init(&wlr->events.map, this,
+                                     &RemoteSubsurfaceContext::recheckMapping);
+            m_parentUnmapListener.init(&wlr->events.unmap, this,
+                                       &RemoteSubsurfaceContext::recheckMapping);
+        }
     }
 
     ~RemoteSubsurfaceContext() override;
@@ -153,8 +163,11 @@ public:
 
     WSubsurface *subsurface() const { return m_subsurface; }
     void setSubsurface(WSubsurface *s) { m_subsurface = s; }
+    QPointF position() const { return m_position; }
 
     void invalidate() { m_manager = nullptr; }
+
+    void ensureSubsurface();
 
     void recheckMapping();
     void cascadeUnmap();
@@ -175,6 +188,9 @@ private:
     ExportedSurfaceContext *m_child = nullptr;
     ExportedSurfaceContext *m_parent = nullptr;
     QPointer<WSubsurface> m_subsurface;
+    QPointF m_position;
+    WScopedListener m_parentMapListener;
+    WScopedListener m_parentUnmapListener;
 };
 
 // ---------------------------------------------------------------------------
@@ -252,6 +268,13 @@ public:
         return false;
     }
 
+    // WSurface::addRemoteSubsurface() is private; this manager is a friend of
+    // WSurface, so expose a static wrapper so RemoteSubsurfaceContext can call it.
+    static WSubsurface *createRemoteSubsurface(WSurface *parent, wlr_surface *child)
+    {
+        return parent->addRemoteSubsurface(child);
+    }
+
     // Children list management (z-order, below vs above parent)
     QList<RemoteSubsurfaceContext *> childrenOf(ExportedSurfaceContext *parent) const
     {
@@ -273,6 +296,10 @@ public:
         if (!parentSurface || !childWlr)
             return;
 
+        // WSubsurface is destroyed together with the parent's WSurface.
+        // WSurface lifetime follows its surface role (remote_subsurface,
+        // xdg_toplevel, etc.). Recreating a remote parent's role requires
+        // recreating WSubsurface for its children.
         remote->setSubsurface(parentSurface->addRemoteSubsurface(childWlr));
     }
 
@@ -431,21 +458,6 @@ public:
         unregisterExported(ctx);
     }
 
-    // Track parent state changes so the child's mapping is re-evaluated.
-    // The child's own commits are handled by the wlroots role commit callback.
-    void trackCommits(RemoteSubsurfaceContext *remote)
-    {
-        auto *parentSurface = wsurfaceFrom(remote->parentExported());
-        if (parentSurface) {
-            QObject::connect(parentSurface, &WSurface::commit, remote, [remote] {
-                remote->recheckMapping();
-            });
-            QObject::connect(parentSurface, &WSurface::mappedChanged, remote, [remote] {
-                remote->recheckMapping();
-            });
-        }
-    }
-
 protected:
     void destroy(Resource *resource) override
     {
@@ -573,9 +585,7 @@ void ExportedSurfaceContext::create_remote_subsurface(Resource *resource,
                                                id);
 
     wlr_surface_set_role_object(childWlrSurface, remote->resource()->handle);
-
     m_manager->addChildToParent(remote);
-    m_manager->trackCommits(remote);
     qCDebug(lcWlRemoteSubsurface) << "Remote subsurface created: child" << shortToken(m_token)
                                   << "→ parent" << shortToken(parent_token);
     remote->recheckMapping();
@@ -609,6 +619,21 @@ static void remote_subsurface_role_destroy(struct wlr_surface *surface)
     Q_UNUSED(surface);
 }
 
+void RemoteSubsurfaceContext::ensureSubsurface()
+{
+    if (m_subsurface)
+        return;
+
+    auto *parentSurface = wsurfaceFrom(m_parent);
+    auto *childWlr = m_child ? m_child->surface() : nullptr;
+    if (!parentSurface || !childWlr)
+        return;
+
+    m_subsurface = WRemoteSubsurfaceManagerV1Private::createRemoteSubsurface(parentSurface, childWlr);
+    m_subsurface->setPosition(m_position);
+    m_manager->syncRemoteSubsurfaceOrder(m_parent);
+}
+
 void RemoteSubsurfaceContext::recheckMapping()
 {
     if (!m_manager)
@@ -619,6 +644,10 @@ void RemoteSubsurfaceContext::recheckMapping()
     bool parentMapped = false;
     auto *parentWs = wsurfaceFrom(m_parent);
     parentMapped = parentWs  && parentWs->mapped();
+
+    // ensureSubsurface re-creates this subsurface when the parent WSurface
+    // wrapper was destroyed and recreated.  Fast no-op when it still exists.
+    ensureSubsurface();
 
     bool childHasBuffer = childQw && wlr_surface_has_buffer(childQw);
     bool shouldBeMapped = parentMapped && childHasBuffer;
@@ -660,9 +689,9 @@ void RemoteSubsurfaceContext::cascadeUnmap()
 void RemoteSubsurfaceContext::set_position(Resource *resource, int32_t x, int32_t y)
 {
     Q_UNUSED(resource);
-    QPointF pos(x, y);
+    m_position = QPointF(x, y);
     if (m_subsurface)
-        m_subsurface->setPosition(pos);
+        m_subsurface->setPosition(m_position);
 }
 
 void RemoteSubsurfaceContext::place_above([[maybe_unused]] Resource *resource,
