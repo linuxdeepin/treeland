@@ -36,9 +36,11 @@ public:
         return true;
     }
 
+    QQuickItem *createLockView(QQuickItem *parent) override;
     QQuickItem *createLockScreen(Output *output, QQuickItem *parent) override;
 
 private:
     TreelandProxyInterface *m_proxy;
+    QQmlComponent m_lockViewComponent;
     QQmlComponent m_lockscreenComponent;
 };

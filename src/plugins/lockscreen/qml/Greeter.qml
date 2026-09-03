@@ -10,13 +10,8 @@ FocusScope {
     id: root
     clip: true
 
-    signal animationPlayed
-    signal animationPlayFinished
-
     required property QtObject output
     required property QtObject outputItem
-    property string primaryOutputName
-    property bool isPrimaryOutput: primaryOutputName === "" || primaryOutputName === output.name
     visible: true
 
     x: outputItem.x
@@ -120,70 +115,4 @@ FocusScope {
         enabled: true
     }
 
-    Loader {
-        id: lockViewLoader
-        anchors.fill: parent
-        active: isPrimaryOutput
-        sourceComponent: lockViewComponent
-    }
-
-    Component {
-        id: lockViewComponent
-        LockView {
-            id: lockView
-            anchors.fill: parent
-            onAnimationPlayFinished: function () {
-                if (lockView.state === LoginAnimation.Hide) {
-                    root.animationPlayFinished()
-                }
-            }
-        }
-    }
-
-    Loader {
-        id: shutdownViewLoader
-        anchors.fill: parent
-        active: GreeterProxy.showShutdownView && isPrimaryOutput
-        sourceComponent: shutdownViewComponent
-    }
-
-    Component {
-        id: shutdownViewComponent
-        ShutdownView {
-            id: shutdownView
-            anchors.fill: parent
-            onSwitchUser: {
-                root.switchUser()
-            }
-        }
-    }
-
-    /*****************************/
-    /* Functions and Connections */
-    /*****************************/
-
-    function switchUser() {
-        GreeterProxy.lock()
-        lockView.showUserView()
-    }
-
-    Connections {
-        target: GreeterProxy
-
-        function onLockChanged(isLocked) {
-            if (!isLocked)
-                root.animationPlayed()
-        }
-
-        function onShowShutdownViewChanged(show) {
-            if (!show && !GreeterProxy.isLocked) {
-                root.animationPlayed()
-                root.animationPlayFinished()
-            }
-        }
-
-        function onSwitchUser() {
-            root.switchUser()
-        }
-    }
 }
