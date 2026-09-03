@@ -45,7 +45,7 @@
 #include "modules/output-manager/outputmanagement.h"
 #include "modules/personalization/personalizationmanagerinterfacev1.h"
 #include "modules/resource/treelandremotesource.h"
-#include "modules/screensaver/screensaverinterfacev1.h"
+#include "modules/screensaver/screensaverinterfacev2.h"
 #include "modules/shortcut/shortcutcontroller.h"
 #include "modules/shortcut/shortcutmanager.h"
 #include "modules/shortcut/shortcutrunner.h"
@@ -1461,7 +1461,7 @@ void Helper::onNewIdleInhibitor(wlr_idle_inhibitor_v1 *wlr_inhibitor)
 
 void Helper::updateIdleInhibitor()
 {
-    if (m_screensaverInterfaceV1->isInhibited()) {
+    if (m_screensaverInterfaceV2->isInhibited()) {
         wlr_idle_notifier_v1_set_inhibited(m_idleNotifier, true);
         return;
     }
@@ -2284,7 +2284,7 @@ void Helper::init(Treeland::Treeland *treeland)
                 }
             });
 
-    m_screensaverInterfaceV1 = m_server->attach<ScreensaverInterfaceV1>();
+    m_screensaverInterfaceV2 = m_server->attach<ScreensaverInterfaceV2>();
 
     m_outputPowerManager = wlr_output_power_manager_v1_create(m_server->handle());
 

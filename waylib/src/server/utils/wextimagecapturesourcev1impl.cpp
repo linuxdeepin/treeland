@@ -341,7 +341,7 @@ void WExtImageCaptureSourceV1Impl::copy_frame(wlr_ext_image_copy_capture_frame_v
         return;
     }
 
-    auto buffer = textureProvider->qwBuffer();
+    auto buffer = textureProvider->wlrBuffer();
     if (!buffer) {
         qCWarning(lcWlImageCapture) << "No internal buffer available";
         wlr_ext_image_copy_capture_frame_v1_fail(dst_frame, EXT_IMAGE_COPY_CAPTURE_FRAME_V1_FAILURE_REASON_UNKNOWN);
