@@ -1135,8 +1135,10 @@ void ShellHandler::setupSurfaceActiveWatcher(SurfaceWrapper *wrapper)
                  */
                 if (layerSurface->layer() >= WLayerSurface::LayerType::Top
                     || layerSurface->keyboardInteractivity()
-                        == WLayerSurface::KeyboardInteractivity::Exclusive)
+                        == WLayerSurface::KeyboardInteractivity::Exclusive) {
+                    Helper::instance()->cancelShowDesktop();
                     Helper::instance()->requestKeyboardFocus(wrapper);
+                }
             } else {
                 onSurfaceInactivationRequested(wrapper);
             }
