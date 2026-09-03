@@ -29,7 +29,7 @@ public:
 
     QSGTexture *texture() const override;
     virtual wlr_texture *qwTexture() const;
-    virtual wlr_buffer *qwBuffer() const;
+    virtual wlr_buffer *wlrBuffer() const;
 
     bool smooth() const;
     void setSmooth(bool newSmooth);

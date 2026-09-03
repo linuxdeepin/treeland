@@ -189,7 +189,7 @@ wlr_texture *WSGTextureProvider::qwTexture() const
     return d->texture;
 }
 
-wlr_buffer *WSGTextureProvider::qwBuffer() const
+wlr_buffer *WSGTextureProvider::wlrBuffer() const
 {
     W_DC(WSGTextureProvider);
     return d->buffer;

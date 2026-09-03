@@ -1014,7 +1014,7 @@ wlr_buffer *CaptureSourceOutput::internalBuffer()
 {
     Q_ASSERT(m_sourceList.size() == 1);
     if (m_sourceList.first().first && m_outputViewport->wTextureProvider())
-        return m_outputViewport->wTextureProvider()->qwBuffer();
+        return m_outputViewport->wTextureProvider()->wlrBuffer();
     else
         return nullptr;
 }
@@ -1047,7 +1047,7 @@ wlr_buffer *CaptureSourceRegion::internalBuffer()
 {
     if (m_sourceList.size() == 1 && m_sourceList.first().first
         && m_sourceList.first().second->wTextureProvider()) {
-        return m_sourceList.first().second->wTextureProvider()->qwBuffer();
+        return m_sourceList.first().second->wTextureProvider()->wlrBuffer();
     } else {
         return nullptr;
     }
