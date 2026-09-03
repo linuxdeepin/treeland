@@ -24,6 +24,7 @@ qt_add_qml_module(lockscreen
         qml/ControlAction.qml
         qml/Greeter.qml
         qml/LockView.qml
+        qml/LoginView.qml
         qml/PowerList.qml
         qml/RoundBlur.qml
         qml/ShutdownButton.qml
