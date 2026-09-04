@@ -23,6 +23,7 @@
 
 #include "platformplugin/qwlrootsintegration.h"
 #include "platformplugin/qwlrootscreen.h"
+#include "wsgbatchrenderer_p.h"
 #include "platformplugin/qwlrootswindow.h"
 #include "platformplugin/types.h"
 
@@ -51,12 +52,15 @@
 #include <private/qsgabstractrenderer_p.h>
 #include <private/qsgrenderer_p.h>
 #include <private/qpainter_p.h>
-#include <private/qsgdefaultrendercontext_p.h>
+#include "wsgcontext_p.h"
 #include <private/qquickitem_p.h>
 #include <private/qquickrectangle_p.h>
 
 #include <drm_fourcc.h>
 #include <limits>
+#include "wregionhighlightitem.h"
+#include "wsgdamagetracker.h"
+#include "wrenderbuffernode_p.h"
 
 using QQuickAnimCtrl_AnimRoots_t = QHash<QAbstractAnimationJob *, QSharedPointer<QAbstractAnimationJob>>;
 W_DECLARE_PRIVATE_MEMBER(QQuickAnimCtrl_m_animationRoots_tag, QQuickAnimatorController, m_animationRoots, QQuickAnimCtrl_AnimRoots_t);
@@ -152,6 +156,7 @@ public:
         QRect mapToOutput;
         QSize pixelSize;
         QMatrix4x4 renderMatrix;
+        WSGViewport damageViewport;
 
         // for proxy
         LayerData *mapFromLayer = nullptr; // check mapFrom before use
@@ -171,11 +176,14 @@ public:
         if (!m_layerProxys.isEmpty() || m_output || m_output2 || m_layerPorxyContainer
                 || m_cursorRenderer || m_cursorLayerProxy)
             qFatal("Before destroying OutputHelper, ensure call invalidate method.");
-    }
 
+    }
     inline void init() {
         // TODO: pre update scale after WOutputHelper::setScale
         QObject::connect(outputViewport()->output(), &WOutput::scaleChanged, this, &OutputHelper::updateSceneDPR);
+        QObject::connect(outputViewport(), &QQuickItem::parentChanged,
+                         this, &OutputHelper::ensureHighlight, Qt::QueuedConnection);
+        QMetaObject::invokeMethod(this, &OutputHelper::ensureHighlight, Qt::QueuedConnection);
     }
 
     inline wlr_output *output() const {
@@ -200,11 +208,18 @@ public:
         return WOutputViewportPrivate::get(m_output2)->bufferRenderer;
     }
 
+    inline bool damageDebugNeedsFrame() const {
+        return m_highlight && m_highlight->overlay()
+            && m_highlight->overlay()->needsAnotherFrame();
+    }
+
     inline const QList<LayerData*> &layers() const {
         return m_layers;
     }
 
     inline void invalidate() {
+        delete m_highlight;
+        m_highlight = nullptr;
         m_output = nullptr;
         cleanLayerCompositor();
         cleanCursorRender();
@@ -224,13 +239,13 @@ public:
     void sortLayers();
     void cleanLayerCompositor();
     void cleanCursorRender();
+    void ensureHighlight();
 
     inline wlr_buffer *beginRender(WBufferRenderer *renderer,
                                  const QSize &pixelSize, uint32_t format,
                                  WBufferRenderer::RenderFlags flags,
                                  WGlobal::ColorContentsMode mode = WGlobal::ColorContentsMode::DontCare);
-    inline void render(WBufferRenderer *renderer, int sourceIndex, const QMatrix4x4 &renderMatrix,
-                       const QRectF &sourceRect, const QRectF &viewportRect);
+    inline void render(WBufferRenderer *renderer, int sourceIndex, WSGViewport &viewport);
 
     static bool visualizeLayers() {
         static bool on = qEnvironmentVariableIsSet("WAYLIB_VISUALIZE_LAYERS");
@@ -243,8 +258,11 @@ public:
     bool commit(WBufferRenderer *buffer);
     bool tryToHardwareCursor(const LayerData *layer);
 
-private:
     WOutputViewport *m_output = nullptr;
+    QPointer<WRegionHighlightItem> m_highlight;
+    WSGViewport m_damageViewport;
+    WSGViewport m_damageViewport2;
+    WSGViewport m_cursorDamageViewport;
     QList<LayerData*> m_layers;
     WBufferRenderer *m_lastCommitBuffer = nullptr;
     // only for render cursor
@@ -464,6 +482,7 @@ public:
     QList<OutputHelper*> outputs;
     QList<OutputLayer*> layers;
     bool disableLayers = false;
+    WOutputRenderWindow::DamageVisual damageVisual = WOutputRenderWindow::DamageVisual::Off;
 
     QOpenGLContext *glContext = nullptr;
 #ifdef ENABLE_VULKAN_RENDER
@@ -486,6 +505,27 @@ WOutputRenderWindowPrivate *OutputHelper::renderWindowD() const
 void OutputHelper::updateSceneDPR()
 {
     WOutputRenderWindowPrivate::get(renderWindow())->updateSceneDPR();
+}
+
+void OutputHelper::ensureHighlight()
+{
+    if (!m_output)
+        return;
+    if (renderWindow()->damageVisual() != WOutputRenderWindow::DamageVisual::Highlight)
+        return;
+    if (m_output->objectName() == QLatin1String("__private_WOutputViewport"))
+        return;
+    if (WOutputViewportPrivate::get(m_output)->offscreen)
+        return;
+    QQuickItem *host = m_output->parentItem();
+    if (!host)
+        return;
+    if (m_highlight) {
+        if (m_highlight->parentItem() != host)
+            m_highlight->setParentItem(host);
+        return;
+    }
+    m_highlight = new WRegionHighlightItem(m_output, host);
 }
 
 int OutputHelper::indexOfLayer(OutputLayer *layer) const
@@ -593,11 +633,21 @@ wlr_buffer *OutputHelper::beginRender(WBufferRenderer *renderer,
     return renderer->beginRender(pixelSize, devicePixelRatio(), format, flags, mode);
 }
 
-void OutputHelper::render(WBufferRenderer *renderer, int sourceIndex, const QMatrix4x4 &renderMatrix,
-                          const QRectF &sourceRect, const QRectF &targetRect)
+void OutputHelper::render(WBufferRenderer *renderer, int sourceIndex, WSGViewport &viewport)
 {
     renderWindowD()->pushRenderer(renderer);
-    renderer->render(sourceIndex, renderMatrix, sourceRect, targetRect);
+    renderer->render(sourceIndex, viewport);
+    // lastFlushRegion is in this renderer's output space. Layer / cursor
+    // compositors are sized to the layer, not the viewport; feeding those
+    // rects to the highlight overlay paints them at the wrong origin.
+    const bool outputPass = renderer == bufferRenderer()
+        || (m_output2 && renderer == bufferRenderer2());
+    if (outputPass
+        && renderWindow()->damageVisual() == WOutputRenderWindow::DamageVisual::Highlight) {
+        ensureHighlight();
+        if (m_highlight)
+            m_highlight->addFrame(renderer->lastFlushRegion(), renderer->lastFlushIsFull());
+    }
 }
 
 static QQuickItem *createVisualRectangle(QQuickItem *target, const QColor &color) {
@@ -768,11 +818,12 @@ wlr_buffer *OutputHelper::renderLayer(LayerData *layer, bool *dontEndRenderAndRe
         if (buffer) {
             const QRectF sr = QRectF(layer->mapRect.topLeft() - layer->noClipMapRect.topLeft(), layer->mapRect.size());
             const QRectF tr(QPointF(0, 0), layer->mapRect.size());
+            layer->damageViewport.setRenderParameters(layer->renderMatrix, sr, tr);
 
-            render(layer->renderer, 0, layer->renderMatrix, sr, tr);
+            render(layer->renderer, 0, layer->damageViewport);
 
             if (visualizeLayers())
-                render(layer->renderer, 1, layer->renderMatrix, sr, tr);
+                render(layer->renderer, 1, layer->damageViewport);
 
             if (dontEndRenderAndReturnNeedsEndRender) {
                 *dontEndRenderAndReturnNeedsEndRender = true;
@@ -800,6 +851,9 @@ typedef QScopedPointer<wl_array, QScopedPointerWlArrayDeleter> wl_array_pointer;
 
 WBufferRenderer *OutputHelper::afterRender()
 {
+    ensureHighlight();
+    if (m_highlight)
+        m_highlight->sync();
     if (m_layers.isEmpty()) {
         cleanLayerCompositor();
         return bufferRenderer();
@@ -1053,13 +1107,17 @@ WBufferRenderer *OutputHelper::compositeLayers(const QList<LayerData*> layers, b
             // stop primary render
             if (bufferRenderer()->currentBuffer())
                 bufferRenderer()->endRender();
-            render(bufferRenderer2(), 0, {}, m_output->effectiveSourceRect(), m_output->targetRect());
+            m_damageViewport2.setRenderParameters({}, m_output->effectiveSourceRect(),
+                                                  m_output->targetRect());
+            render(bufferRenderer2(), 0, m_damageViewport2);
 
             return bufferRenderer2();
         }
     } else {
         if (bufferRenderer()->currentBuffer()) {
-            render(bufferRenderer(), 1, {}, m_output->effectiveSourceRect(), m_output->targetRect());
+            m_damageViewport.setRenderParameters({}, m_output->effectiveSourceRect(),
+                                                 m_output->targetRect());
+            render(bufferRenderer(), 1, m_damageViewport);
         } else {
             // ###(zccrs): Maybe because contents is not dirty, so not do render
             // in WOutputRenderWindowPrivate::doRenderOutputs, force mark the
@@ -1206,7 +1264,8 @@ bool OutputHelper::tryToHardwareCursor(const LayerData *layer)
                 newBuffer = m_cursorRenderer->beginRender(pixelSize, 1.0, DRM_FORMAT_ARGB8888,
                                                           WBufferRenderer::UseCursorFormats);
                 if (newBuffer) {
-                    m_cursorRenderer->render(0, {});
+                    m_cursorDamageViewport.setRenderParameters({});
+                    m_cursorRenderer->render(0, m_cursorDamageViewport);
                     m_cursorRenderer->endRender();
                 }
 
@@ -1472,13 +1531,16 @@ WOutputRenderWindowPrivate::doRenderOutputs(wlr_output *needsFrameOutput, const 
                 || !shouldRender)
                 continue;
 
-            if (!(helper->needsFrame() || helper->contentIsDirty()))
+            if (!(helper->needsFrame() || helper->contentIsDirty()
+                  || helper->damageDebugNeedsFrame()))
                 continue;
 
             // Capture sessions (ext-image-copy-capture etc.) lock the output
             // via wlr_output_lock_attach_render() and need a buffer commit to
             // complete, even if the content didn't change.
             bool captureLocked = helper->output()->attach_render_locks > 0;
+            // Highlight lives on its own layer. Do not re-render the
+            // primary scene just to fade the overlay.
             if (!helper->contentIsDirty() && !captureLocked) {
                 renderResults.append(helper);
                 continue;
@@ -1499,9 +1561,10 @@ WOutputRenderWindowPrivate::doRenderOutputs(wlr_output *needsFrameOutput, const 
                                                 helper->outputViewport()->colorContentsMode());
         Q_ASSERT(buffer == helper->bufferRenderer()->currentBuffer());
         if (buffer) {
-            helper->render(helper->bufferRenderer(), 0, renderMatrix,
-                           helper->outputViewport()->effectiveSourceRect(),
-                           helper->outputViewport()->targetRect());
+            helper->m_damageViewport.setRenderParameters(
+                renderMatrix, helper->outputViewport()->effectiveSourceRect(),
+                helper->outputViewport()->targetRect());
+            helper->render(helper->bufferRenderer(), 0, helper->m_damageViewport);
         }
         renderResults.append(helper);
     }
@@ -1561,6 +1624,8 @@ void WOutputRenderWindowPrivate::doRender(wlr_output *needsFrameOutput,
     if (QSGRendererInterface::isApiRhiBased(WRenderHelper::getGraphicsApi()))
         rc()->beginFrame();
     rc()->sync();
+    if (auto *batch = dynamic_cast<WSGBatchRenderer::Renderer *>(renderer))
+        batch->prepareDamageFrame();
 
     QQuickAnimatorController_advance(animationController.get());
     Q_EMIT q->beforeRendering();
@@ -1573,6 +1638,8 @@ void WOutputRenderWindowPrivate::doRender(wlr_output *needsFrameOutput,
 
     if (QSGRendererInterface::isApiRhiBased(WRenderHelper::getGraphicsApi()))
         rc()->endFrame();
+    if (auto *batch = dynamic_cast<WSGBatchRenderer::Renderer *>(renderer))
+        batch->finishDamageFrame();
 
     // prevent gles2-render exception in wlroots.
     // wlroots may have render operations after commit, so do
@@ -1623,9 +1690,15 @@ void WOutputRenderWindowPrivate::doRender(wlr_output *needsFrameOutput,
     Q_EMIT q->renderEnd(committedOutputs);
 }
 
+static QQuickRenderControl *createOutputRenderControl()
+{
+    WSGContext::ensureInstalled();
+    return new RenderControl();
+}
+
 // TODO: Support QWindow::setCursor
 WOutputRenderWindow::WOutputRenderWindow(QObject *parent)
-    : QQuickWindow(*new WOutputRenderWindowPrivate(this), new RenderControl())
+    : QQuickWindow(*new WOutputRenderWindowPrivate(this), createOutputRenderControl())
 {
     setObjectName(QW::RenderWindow::id());
 
@@ -1641,6 +1714,16 @@ WOutputRenderWindow::WOutputRenderWindow(QObject *parent)
     contentItem()->setFlag(QQuickItem::ItemIsFocusScope);
     contentItem()->setFocus(true);
 
+    {
+        const QByteArray raw = qgetenv("WAYLIB_DEBUG_DAMAGE").trimmed().toLower();
+        DamageVisual visual = DamageVisual::Off;
+        if (raw == "highlight" || raw == "1" || raw == "true" || raw == "on")
+            visual = DamageVisual::Highlight;
+        if (visual != DamageVisual::Off)
+            qCInfo(lcWlRenderer) << "WAYLIB_DEBUG_DAMAGE=" << raw.constData();
+        d_func()->damageVisual = visual;
+    }
+
     qGuiApp->installEventFilter(this);
 }
 
@@ -1655,6 +1738,11 @@ WOutputRenderWindow::~WOutputRenderWindow()
 
     renderControl()->disconnect(this);
     renderControl()->invalidate();
+    // Blit RHI managers are QObject children of this window and import the
+    // RenderControl-owned GL context. Destroy them here, before
+    // delete renderControl() frees that context. Otherwise QRhi::~QRhi()
+    // makeCurrent() SIGSEGVs during QObject::deleteChildren().
+    WRenderBufferNode::destroyWindowDataManagers(this);
     delete renderControl();
 }
 
@@ -1971,6 +2059,22 @@ void WOutputRenderWindow::setDisableLayers(bool newDisableLayers)
     d->disableLayers = newDisableLayers;
     d->scheduleDoRender();
     Q_EMIT disableLayersChanged();
+}
+
+WOutputRenderWindow::DamageVisual WOutputRenderWindow::damageVisual() const
+{
+    Q_D(const WOutputRenderWindow);
+    return d->damageVisual;
+}
+
+void WOutputRenderWindow::setDamageVisual(DamageVisual visual)
+{
+    Q_D(WOutputRenderWindow);
+    if (d->damageVisual == visual)
+        return;
+    d->damageVisual = visual;
+    d->scheduleDoRender();
+    Q_EMIT damageVisualChanged();
 }
 
 void WOutputRenderWindow::render()

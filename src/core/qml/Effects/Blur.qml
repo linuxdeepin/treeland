@@ -29,6 +29,9 @@ RenderBufferBlitter {
 
     z: parent.z ? parent.z - 1 : -1
     anchors.fill: parent
+    damageExpansion: blurEnabled
+                     ? Math.ceil(blurMax * Math.max(blurAmount, 0) * (1 + Math.max(multiplier, 0)))
+                     : 0
 
     // Dispatch between Liquid Glass and traditional blur via a Loader so only
     // the active branch is instantiated.  Toggling the DConfig key unloads one

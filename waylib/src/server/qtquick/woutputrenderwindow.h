@@ -25,10 +25,17 @@ class WAYLIB_SERVER_EXPORT WOutputRenderWindow : public QQuickWindow, public QQm
     Q_PROPERTY(qreal width READ width WRITE setWidth NOTIFY widthChanged)
     Q_PROPERTY(qreal height READ height WRITE setHeight NOTIFY heightChanged)
     Q_PROPERTY(bool disableLayers READ disableLayers WRITE setDisableLayers NOTIFY disableLayersChanged FINAL)
+    Q_PROPERTY(DamageVisual damageVisual READ damageVisual WRITE setDamageVisual NOTIFY damageVisualChanged FINAL)
     QML_NAMED_ELEMENT(OutputRenderWindow)
     Q_INTERFACES(QQmlParserStatus)
 
 public:
+    enum class DamageVisual {
+        Off,
+        Highlight,
+    };
+    Q_ENUM(DamageVisual)
+
     explicit WOutputRenderWindow(QObject *parent = nullptr);
     ~WOutputRenderWindow();
 
@@ -64,6 +71,9 @@ public:
 
     bool disableLayers() const;
     void setDisableLayers(bool newDisableLayers);
+    DamageVisual damageVisual() const;
+    void setDamageVisual(DamageVisual visual);
+
 
 public Q_SLOTS:
     void render();
@@ -80,6 +90,7 @@ Q_SIGNALS:
     void outputViewportInitialized(WAYLIB_SERVER_NAMESPACE::WOutputViewport *output);
     void initialized();
     void disableLayersChanged();
+    void damageVisualChanged();
     void renderEnd(QList<QPointer<WOutput>> committedOutputs);
     void effectiveDevicePixelRatioChanged(qreal scale);
 
