@@ -16,7 +16,6 @@ class WAYLIB_SERVER_EXPORT WXWaylandSurface : public WToplevelSurface
 {
     Q_OBJECT
     W_DECLARE_PRIVATE(WXWaylandSurface)
-    Q_PROPERTY(WXWaylandSurface* parentXWaylandSurface READ parentXWaylandSurface NOTIFY parentXWaylandSurfaceChanged FINAL)
     Q_PROPERTY(QList<WXWaylandSurface*> children READ children NOTIFY childrenChanged)
     Q_PROPERTY(bool isToplevel READ isToplevel NOTIFY isToplevelChanged)
     Q_PROPERTY(bool hasChild READ hasChild NOTIFY hasChildChanged)
@@ -130,7 +129,6 @@ Q_SIGNALS:
     // Emitted before WXWaylandSurfacePrivate handles notify_dissociate cleanup.
     void aboutToDissociate();
 
-    void parentXWaylandSurfaceChanged();
     void childrenChanged();
     void isToplevelChanged();
     void hasChildChanged();

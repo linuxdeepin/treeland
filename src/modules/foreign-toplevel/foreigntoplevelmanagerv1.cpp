@@ -530,7 +530,7 @@ void ForeignToplevelManagerInterfaceV1::initializeToplevelHandle(SurfaceWrapper 
                    "parent surface not "
                    "found!";
         };
-        QObject::connect(xdgSurface, &WXdgToplevelSurface::parentXdgSurfaceChanged,
+        QObject::connect(xdgSurface, &WToplevelSurface::parentSurfaceChanged,
                                 handle,
                                 updateSurfaceParent);
         updateSurfaceParent();
@@ -559,7 +559,7 @@ void ForeignToplevelManagerInterfaceV1::initializeToplevelHandle(SurfaceWrapper 
                    "parent surface not "
                    "found!";
         };
-        QObject::connect(xwaylandSurface, &WXWaylandSurface::parentXWaylandSurfaceChanged,
+        QObject::connect(xwaylandSurface, &WToplevelSurface::parentSurfaceChanged,
                                      handle,
                                      updateSurfaceParent);
         updateSurfaceParent();

@@ -634,7 +634,7 @@ void ShellHandler::ensureXdgWrapper(WXdgToplevelSurface *surface, const QString 
         updateWrapperContainer(wrapper, surface->parentSurface());
     };
 
-    QObject::connect(surface, &WXdgToplevelSurface::parentXdgSurfaceChanged,
+    QObject::connect(surface, &WToplevelSurface::parentSurfaceChanged,
                          this,
                          updateSurfaceWithParentContainer);
     updateSurfaceWithParentContainer();
@@ -973,7 +973,7 @@ void ShellHandler::ensureXwaylandWrapper(WXWaylandSurface *surface, const QStrin
         }
     };
     QObject::connect(surface,
-                     &WXWaylandSurface::parentSurfaceChanged,
+                     &WToplevelSurface::parentSurfaceChanged,
                      wrapper,
                      updateSurfaceWithParentContainer);
     updateSurfaceWithParentContainer();

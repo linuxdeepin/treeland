@@ -216,7 +216,7 @@ void Helper::init()
             }
         };
 
-        QObject::connect(surface, &WXdgToplevelSurface::parentXdgSurfaceChanged, this, updateSurfaceWithParentContainer);
+        QObject::connect(surface, &WToplevelSurface::parentSurfaceChanged, this, updateSurfaceWithParentContainer);
         updateSurfaceWithParentContainer();
 
         connect(wrapper, &SurfaceWrapper::requestShowWindowMenu, m_windowMenu, [this, wrapper] (QPoint pos) {
@@ -376,7 +376,6 @@ void Helper::init()
                 auto parentWrapper = parent ? m_surfaceContainer->getSurface(parent) : nullptr;
                 // x11 surface's parent may not associate
                 if (parentWrapper) {
-                    auto parentWrapper = m_surfaceContainer->getSurface(parent);
                     auto container = qobject_cast<Workspace *>(parentWrapper->container());
                     Q_ASSERT(container);
                     parentWrapper->addSubSurface(wrapper);
@@ -385,9 +384,10 @@ void Helper::init()
                     m_workspace->addSurface(wrapper);
                 }
             };
-            QObject::connect(surface, &WXWaylandSurface::parentXWaylandSurfaceChanged,
-                                 this,
-                                 updateSurfaceWithParentContainer);
+            QObject::connect(surface,
+                             &WToplevelSurface::parentSurfaceChanged,
+                             this,
+                             updateSurfaceWithParentContainer);
             updateSurfaceWithParentContainer();
 
             Q_ASSERT(wrapper->parentItem());
