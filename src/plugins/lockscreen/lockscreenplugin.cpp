@@ -12,6 +12,7 @@ void LockScreenPlugin::initialize(TreelandProxyInterface *proxy)
 {
     m_proxy = proxy;
 
+    new (&m_lockViewComponent) QQmlComponent(m_proxy->qmlEngine(), "LockScreen", "LoginView", this);
     new (&m_lockscreenComponent) QQmlComponent(m_proxy->qmlEngine(), "LockScreen", "Greeter", this);
 }
 
@@ -27,4 +28,9 @@ QQuickItem *LockScreenPlugin::createLockScreen(Output *output, QQuickItem *paren
         parent,
         { { "output", QVariant::fromValue(output->output()) },
           { "outputItem", QVariant::fromValue(output->outputItem()) } });
+}
+
+QQuickItem *LockScreenPlugin::createLockView(QQuickItem *parent)
+{
+    return m_proxy->qmlEngine()->createComponent(m_lockViewComponent, parent);
 }
