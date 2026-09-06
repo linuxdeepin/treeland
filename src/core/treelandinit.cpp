@@ -6,6 +6,8 @@
 #include <QGuiApplication>
 #include <QPalette>
 #include <QQuickStyle>
+#include <QQuickWindow>
+#include <QSGRendererInterface>
 #include <wrenderhelper.h>
 #include <wlogging.h>
 #include <wbackend.h>
@@ -49,7 +51,12 @@ std::unique_ptr<QGuiApplication> preInit(int &argc, char *argv[])
     WServer::initializeQPA({}, [](const QString &) {
         return static_cast<QPlatformTheme *>(new QDeepinTheme());
     });
-    QGuiApplication::setAttribute(Qt::AA_UseOpenGLES);
+    const QByteArray wlrRenderer = qgetenv("WLR_RENDERER");
+    const bool explicitVulkanRenderer = wlrRenderer == "vulkan";
+    if (explicitVulkanRenderer)
+        QQuickWindow::setGraphicsApi(QSGRendererInterface::Vulkan);
+    else
+        QGuiApplication::setAttribute(Qt::AA_UseOpenGLES);
     QGuiApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
     QGuiApplication::setQuitOnLastWindowClosed(false);
     QQuickStyle::setStyle("Chameleon");

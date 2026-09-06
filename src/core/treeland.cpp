@@ -41,12 +41,14 @@
 #include <QLocalSocket>
 #include <QLoggingCategory>
 #include <QMetaMethod>
+#include <QQuickWindow>
 #include <QTranslator>
 #include <QDir>
 #include <QStandardPaths>
 
 #include <functional>
 #include <memory>
+#include <cstdlib>
 #include <pwd.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -95,6 +97,17 @@ public:
         auto initializeTreeland = [this, q, onInitialized = std::move(onInitialized)] {
             server = qmlEngine->singletonInstance<WaylandServer *>("Treeland", "WaylandServer");
             connect(server, &WaylandServer::requestQuit, q, &Treeland::quit, Qt::QueuedConnection);
+            if (QQuickWindow::graphicsApi() == QSGRendererInterface::Vulkan) {
+                connect(server->window(),
+                        &QQuickWindow::sceneGraphError,
+                        q,
+                        [] (QQuickWindow::SceneGraphError error, const QString &message) {
+                            qCCritical(lcTlCore) << "Scene graph rendering failed; exiting compositor"
+                                                 << "error" << error
+                                                 << "message" << message;
+                            QCoreApplication::exit(EXIT_FAILURE);
+                        });
+            }
 
             if (qEnvironmentVariableIsEmpty("WLR_XWAYLAND"))
                 qputenv("WLR_XWAYLAND", QByteArray(LIBEXEC_DIR) + "/treeland-xwayland");
