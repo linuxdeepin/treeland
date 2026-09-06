@@ -4,10 +4,12 @@
 #pragma once
 
 #include <wglobal.h>
+#include <wlr_fwd.h>
 #include <woutput.h>
 
 #include <QQuickWindow>
 #include <QQmlParserStatus>
+#include <QVector>
 
 Q_MOC_INCLUDE(<wquickoutputlayout.h>)
 
@@ -17,9 +19,11 @@ class WOutputViewport;
 class WOutputLayer;
 class WBufferRenderer;
 class WOutputHelper;
+class WSGTextureProvider;
 class WPresentation;
 class WSurface;
 class WOutputRenderWindowPrivate;
+
 class WAYLIB_SERVER_EXPORT WOutputRenderWindow : public QQuickWindow, public QQmlParserStatus
 {
     Q_OBJECT
@@ -54,13 +58,7 @@ public:
     void init(wlr_renderer *renderer, wlr_allocator *allocator);
     wlr_renderer *renderer() const;
     wlr_allocator *allocator() const;
-
-    qreal width() const;
-    qreal height() const;
-    WBufferRenderer *currentRenderer() const;
-    bool inRendering() const;
-
-    void setRenderEnabled(bool enabled);    void setPresentation(WPresentation *presentation);
+    void setPresentation(WPresentation *presentation);
     void markSurfaceTexturedForPresentation(WSurface *surface);
 
     // Fast path for pointer movement on the Vulkan/DRM hardware-cursor path:
@@ -70,7 +68,24 @@ public:
     // cursor, cursor not set up yet, broken commit, or non-Vulkan backend).
     bool tryMoveHardwareCursor(WOutput *output, QQuickItem *cursorItem);
 
+    bool prepareTextureSamplingForRenderPass(wlr_buffer *currentBuffer,
+                                             const QVector<WSGTextureProvider *> &activeProviders,
+                                             const char *purpose,
+                                             int sourceIndex,
+                                             QVector<wlr_texture *> *preparedTextures);
+    bool prepareTextureForCurrentRenderPass(wlr_texture *texture,
+                                            wlr_buffer *sampledBuffer,
+                                            const char *purpose);
+    bool finishTextureSamplingForRenderPass(const QVector<wlr_texture *> &preparedTextures,
+                                            const char *purpose,
+                                            int sourceIndex);
 
+    qreal width() const;
+    qreal height() const;
+    WBufferRenderer *currentRenderer() const;
+    bool inRendering() const;
+
+    void setRenderEnabled(bool enabled);
 
     static QList<QPointer<QQuickItem>> paintOrderItemList(QQuickItem *root, std::function<bool(QQuickItem*)> filter);
 
