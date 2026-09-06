@@ -8,6 +8,7 @@
 #include <wlr_all.h>
 
 #include <QObject>
+#include <QPointer>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -47,7 +48,7 @@ private:
     wlr_ext_image_capture_source_v1 source;
 
     QPointer<WSurfaceItemContent> m_surfaceContent;
-    WOutput *m_output;
+    QPointer<WOutput> m_output;
     bool m_capturing;
     QMetaObject::Connection m_renderEndConnection;
 };

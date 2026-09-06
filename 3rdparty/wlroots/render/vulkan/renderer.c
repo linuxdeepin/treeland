@@ -1612,7 +1612,8 @@ bool vulkan_read_pixels(struct wlr_vk_renderer *vk_renderer,
 		VkFormat src_format, VkImage src_image,
 		uint32_t drm_format, uint32_t stride,
 		uint32_t width, uint32_t height, uint32_t src_x, uint32_t src_y,
-		uint32_t dst_x, uint32_t dst_y, void *data) {
+		uint32_t dst_x, uint32_t dst_y,
+		VkImageLayout src_layout, VkImageLayout restore_layout, void *data) {
 	VkDevice dev = vk_renderer->dev->dev;
 
 	const struct wlr_pixel_format_info *pixel_format_info = drm_get_pixel_format_info(drm_format);
@@ -1729,10 +1730,13 @@ bool vulkan_read_pixels(struct wlr_vk_renderer *vk_renderer,
 			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 			VK_PIPELINE_STAGE_TRANSFER_BIT,
 			VK_ACCESS_TRANSFER_WRITE_BIT);
+	// The image may have been written by the staging upload (SHM) or by a
+	// render pass (DMA-BUF alias) before this read. Availability must cover
+	// those writes, not just prior reads, or the copy can observe stale data.
 	vulkan_change_layout(cb, src_image,
-			VK_IMAGE_LAYOUT_GENERAL,
-			VK_PIPELINE_STAGE_TRANSFER_BIT,
-			VK_ACCESS_MEMORY_READ_BIT,
+			src_layout,
+			VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+			VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT,
 			VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
 			VK_PIPELINE_STAGE_TRANSFER_BIT,
 			VK_ACCESS_TRANSFER_READ_BIT);
@@ -1794,9 +1798,9 @@ bool vulkan_read_pixels(struct wlr_vk_renderer *vk_renderer,
 			VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
 			VK_PIPELINE_STAGE_TRANSFER_BIT,
 			VK_ACCESS_TRANSFER_READ_BIT,
-			VK_IMAGE_LAYOUT_GENERAL,
-			VK_PIPELINE_STAGE_TRANSFER_BIT,
-			VK_ACCESS_MEMORY_READ_BIT);
+			restore_layout,
+			VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+			VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT);
 
 	if (!vulkan_submit_stage_wait(vk_renderer)) {
 		return false;

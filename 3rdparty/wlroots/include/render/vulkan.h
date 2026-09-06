@@ -604,7 +604,8 @@ bool vulkan_read_pixels(struct wlr_vk_renderer *vk_renderer,
 	VkFormat src_format, VkImage src_image,
 	uint32_t drm_format, uint32_t stride,
 	uint32_t width, uint32_t height, uint32_t src_x, uint32_t src_y,
-	uint32_t dst_x, uint32_t dst_y, void *data);
+	uint32_t dst_x, uint32_t dst_y,
+	VkImageLayout src_layout, VkImageLayout restore_layout, void *data);
 
 // State (e.g. image texture) associated with a surface.
 struct wlr_vk_texture {
@@ -622,6 +623,11 @@ struct wlr_vk_texture {
 	// waylib_vk_renderer_begin_readback()) currently holds a foreign->own
 	// acquire. Decoupled from 'owned', which is reserved for wlroots' own render-pass bookkeeping.
 	bool readback_acquired; // waylib/Qt-only: a readback acquire is in flight
+	// waylib/Qt-only: a readback cycle failed to record its release, so the
+	// image may still be owned by the graphics queue. Blocks every further
+	// readback (and sampling, through readback_acquired staying set) of this
+	// texture so it is never touched in an unknown ownership state again.
+	bool readback_release_failed;
 	// waylib/Qt-only: the DMA-BUF content of this texture was already waited
 	// on (producer sync_file / imported semaphore) since the client last
 	// attached the buffer. Set after a successful producer wait for a client

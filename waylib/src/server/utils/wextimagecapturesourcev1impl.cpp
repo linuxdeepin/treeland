@@ -141,7 +141,7 @@ WExtImageCaptureSourceV1Impl::WExtImageCaptureSourceV1Impl(WSurfaceItemContent *
         int height = wlr_surface->current.height;
 
         // Validate dimensions before setting constraints
-        if (width > 0 && height > 0) {
+        if (width > 0 && height > 0 && m_output) {
             // Use constraint builder helper directly
             ConstraintBuilder builder(&source, m_output);
             builder.setSize(width, height);
@@ -153,7 +153,9 @@ WExtImageCaptureSourceV1Impl::WExtImageCaptureSourceV1Impl(WSurfaceItemContent *
             qCDebug(lcWlImageCapture) << "  - Width:" << width;
             qCDebug(lcWlImageCapture) << "  - Height:" << height;
         } else {
-            qCWarning(lcWlImageCapture) << "Invalid surface dimensions for constraints:" << width << "x" << height;
+            qCWarning(lcWlImageCapture) << "Invalid surface dimensions or output for constraints:"
+                                        << width << "x" << height
+                                        << "output" << m_output.data();
         }
     } else {
         qCWarning(lcWlImageCapture) << "No valid surface available for setting initial constraints";
@@ -263,6 +265,10 @@ void WExtImageCaptureSourceV1Impl::schedule_frame(bool schedule_frame)
     }
 
     if (schedule_frame) {
+        if (!m_output) {
+            qCWarning(lcWlImageCapture) << "No output available for frame scheduling";
+            return;
+        }
         // Request output update to ensure next frame will be rendered
         wlr_output_update_needs_frame(m_output->handle());
     }
@@ -364,7 +370,7 @@ void WExtImageCaptureSourceV1Impl::copy_frame(wlr_ext_image_copy_capture_frame_v
         return;
     }
 
-    auto renderer = m_output->renderer();
+    auto renderer = m_output ? m_output->renderer() : nullptr;
     if (!renderer) {
         qCWarning(lcWlImageCapture) << "No renderer available";
         wlr_ext_image_copy_capture_frame_v1_fail(dst_frame, EXT_IMAGE_COPY_CAPTURE_FRAME_V1_FAILURE_REASON_UNKNOWN);
@@ -398,6 +404,12 @@ void WExtImageCaptureSourceV1Impl::copy_frame(wlr_ext_image_copy_capture_frame_v
     if (dst_frame->buffer->width != src->width || dst_frame->buffer->height != src->height) {
         qCWarning(lcWlImageCapture) << "Buffer size mismatch during resize (dst:" << dst_frame->buffer->width << "x" << dst_frame->buffer->height
                                    << ", src:" << src->width << "x" << src->height << "), updating constraints";
+
+        if (!m_output) {
+            qCWarning(lcWlImageCapture) << "Cannot update capture constraints without an output";
+            wlr_ext_image_copy_capture_frame_v1_fail(dst_frame, EXT_IMAGE_COPY_CAPTURE_FRAME_V1_FAILURE_REASON_UNKNOWN);
+            return;
+        }
 
         // Update constraints when we detect a size mismatch
         ConstraintBuilder builder(&source, m_output);
