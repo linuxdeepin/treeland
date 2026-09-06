@@ -474,6 +474,27 @@ void WSGTextureProvider::setBuffer(wlr_buffer *buffer)
         return;
     }
 
+    // Immediately prepare a texture created during updatePaintNode() when a render
+    // pass is already active. Otherwise it would miss the preparation performed
+    // before renderNextFrame().
+    const bool prepareOk = d->window->prepareTextureForCurrentRenderPass(candidateTexture,
+                                                                         "setbuffer-immediate");
+    if (!prepareOk) {
+        qCWarning(lcWlQtQuickTexture)
+            << "Immediate texture preparation failed; keeping the previous Vulkan texture"
+            << "provider" << this
+            << "texture" << candidateTexture;
+        WVulkanTrace::providerDiscard(this, d->window, candidateTexture,
+                                      "sampling-prepare-failed");
+        auto *candidateRhiTexture = candidateQtTexture.rhiTexture();
+        candidateQtTexture.setOwnsTexture(false);
+        d->scheduleCleanup(candidateRhiTexture,
+                           candidateTexture,
+                           candidateOwnsTexture,
+                           std::move(candidateBuffer));
+        return;
+    }
+
     // During an active pass publish the candidate only after wlroots
     // sampling ownership has been acquired. Outside a pass it will be
     // acquired by the normal prepass before the next draw. Until this point
@@ -565,6 +586,12 @@ QSGTexture *WSGTextureProvider::texture() const
 {
     W_DC(WSGTextureProvider);
     return d->texture ? const_cast<QSGPlainTexture*>(&d->qtTexture) : nullptr;
+}
+
+bool WSGTextureProvider::hasTexture() const
+{
+    W_DC(WSGTextureProvider);
+    return d->texture && d->rhiTexture;
 }
 
 wlr_texture *WSGTextureProvider::qwTexture() const
