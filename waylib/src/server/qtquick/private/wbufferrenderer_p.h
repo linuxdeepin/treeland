@@ -33,6 +33,14 @@ struct pixman_region32;
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WSGTextureProvider;
+
+// Results of one scene-graph walk over a render source. Both the Vulkan
+// backdrop decision in beginRender() and the texture-sampling preparation in
+// render() need the same traversal, so it runs once per source per pass.
+struct WActiveSourceItems {
+    QVector<WSGTextureProvider *> textureProviders;
+    bool hasRenderBufferBlitter = false;
+};
 class WAYLIB_SERVER_EXPORT WBufferRenderer : public QQuickItem
 {
     friend class WOutputRenderWindow;
@@ -75,6 +83,7 @@ public:
     wlr_buffer *currentBuffer() const;
     wlr_buffer *lastBuffer() const;
     QRhiTexture *currentRenderTarget() const;
+    QRhiRenderTarget *currentVulkanBackdropResumeTarget() const;
     bool isColorPreserved() const;
     const wlr_damage_ring *damageRing() const;
     wlr_damage_ring *damageRing();
@@ -148,7 +157,15 @@ private:
         WBufferUnlockPtr buffer;
         WRenderHelper::RenderTarget renderTarget;
         QSGRenderTarget sgRenderTarget;
+        QQuickRenderTarget preserveRenderTarget;
+        QSGRenderTarget preserveSgRenderTarget;
+        QQuickRenderTarget vulkanBackdropResumeRenderTarget;
+        QSGRenderTarget vulkanBackdropResumeSgRenderTarget;
+        QSGRenderTarget activeSgRenderTarget;
+        // One entry per WBufferRenderer source, filled by beginRender().
+        QList<WActiveSourceItems> activeSourceItems;
         QRegion dirty;
+        bool vulkanBackdropActive = false;
         bool renderBufferReleasedForCache = false;
     } state;
 
