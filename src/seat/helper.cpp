@@ -2833,7 +2833,14 @@ bool Helper::doGesture(QInputEvent *event)
 Output *Helper::createNormalOutput(WOutput *output)
 {
     Output *o = Output::create(output, qmlEngine(), this);
-    if (isNvidiaCardPresent()) {
+    // The NVIDIA software-cursor workaround predates the Vulkan renderer and
+    // targeted the GLES wlr_egl context handoff; the Vulkan backend shares the
+    // wlroots VkDevice with Qt and defers set_cursor() until the cursor buffer
+    // has completed on the GPU, so the workaround is no longer applicable and
+    // would defeat the hardware-cursor fast path (a full canvas repaint plus
+    // synchronous frame per pointer move). Do not change the GLES2 behaviour.
+    if (isNvidiaCardPresent()
+        && WRenderHelper::getGraphicsApi() != QSGRendererInterface::Vulkan) {
         o->outputItem()->setProperty("forceSoftwareCursor", true);
     }
     o->outputItem()->stackBefore(m_rootSurfaceContainer);
