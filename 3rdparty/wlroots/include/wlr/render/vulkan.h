@@ -63,6 +63,9 @@ bool waylib_vk_renderer_has_separate_depth_stencil_layouts(
 // be NULL when the caller cannot provide it): it identifies client textures so
 // a repeated acquire of an unchanged client buffer can skip the producer fence
 // wait (see waylib_vk_renderer_mark_buffer_content_dirty()).
+// cb receives the acquire barrier; it may be VK_NULL_HANDLE only when
+// waylib_vk_renderer_texture_barrier_will_defer(renderer, false) is true, i.e.
+// the barrier is queued for the batch flush instead of being recorded here.
 bool waylib_vk_renderer_prepare_texture_for_sampling(struct wlr_renderer *renderer,
 	struct wlr_texture *texture, struct wlr_buffer *sampled_buffer,
 	VkCommandBuffer cb, struct wlr_vk_image_attribs *attribs);
@@ -103,6 +106,29 @@ bool waylib_vk_renderer_begin_texture_barrier_batch(struct wlr_renderer *rendere
 bool waylib_vk_renderer_flush_texture_barrier_batch(struct wlr_renderer *renderer,
 	VkCommandBuffer cb);
 void waylib_vk_renderer_abort_texture_barrier_batch(struct wlr_renderer *renderer);
+
+// Query whether a prepare (release=false) or finish (release=true) call issued
+// right now would defer its barrier to the active batch instead of recording
+// it on the caller's command buffer. Callers use this to skip the command
+// buffer acquisition/external scope those calls would otherwise need: while
+// the barrier is deferred the command buffer argument is unused and may be
+// VK_NULL_HANDLE. Returns false for a NULL/non-Vulkan renderer.
+bool waylib_vk_renderer_texture_barrier_will_defer(struct wlr_renderer *renderer,
+	bool release);
+
+// Query whether the active barrier batch has anything to record, i.e. whether
+// a flush would submit a vkCmdPipelineBarrier (or the alias memory barrier).
+// An empty batch can be closed without a command buffer, which lets callers
+// skip an external scope that would only flush and reset QRhi's deferred
+// command list for nothing. Returns false when no batch is active.
+bool waylib_vk_renderer_texture_barrier_batch_pending(
+	struct wlr_renderer *renderer);
+
+// Number of image barriers the active batch would record (0 when no batch is
+// active). Bounded by twice the number of sampled textures; a large value
+// means barriers are accumulating instead of being flushed each pass.
+int waylib_vk_renderer_texture_barrier_batch_count(
+	struct wlr_renderer *renderer);
 
 // Clear the frame's color-attachment-producer and sampled-texture alias
 // lists. Call from the compositor frame boundary once the frame's GPU work
