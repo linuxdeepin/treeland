@@ -453,6 +453,8 @@ const QList<Output *> &OutputManager::outputs() const
 Output *OutputManager::createNormalOutput(WAYLIB_SERVER_NAMESPACE::WOutput *output)
 {
     Output *result = Output::create(output, ::qmlEngine(m_renderWindow), parent());
+    // NVIDIA keeps the cursor composited through the QML canvas on every
+    // renderer, including the Vulkan one, instead of using the DRM cursor plane.
     auto *platform = WaylandServer::instance()->graphicsPlatform();
     if (platform && platform->isNvidia()) {
         result->outputItem()->setProperty("forceSoftwareCursor", true);
