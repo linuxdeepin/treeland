@@ -340,7 +340,6 @@ qt_add_qml_module(libtreeland
         core/qml/Animations/LaunchpadAnimation.qml
         core/qml/Animations/LayerShellAnimation.qml
         core/qml/Effects/Blur.qml
-        core/qml/Effects/+vulkan/Blur.qml
         core/qml/Effects/GlassEffect.qml
         core/qml/Effects/LaunchpadCover.qml
         core/qml/TaskSwitcher.qml
