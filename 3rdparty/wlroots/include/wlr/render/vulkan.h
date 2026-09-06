@@ -117,16 +117,22 @@ void waylib_vk_renderer_reset_frame_alias_lists(struct wlr_renderer *renderer);
 // wlr_texture_read_pixels()/vulkan_read_pixels() from outside the Qt frame.
 // The import lacks a known Vulkan-side layout and may carry an unsignaled
 // producer fence, so reading it without this gate uses FOREIGN-owned memory.
-// Call begin_readback() before the read: for a dmabuf texture it waits the
-// buffer's DMA-BUF fences (sync_file poll) and records/submit a FOREIGN->own
-// acquire barrier leaving the image in VK_IMAGE_LAYOUT_GENERAL; the follow-up
-// read_pixels() staging command buffer is submitted later on the same queue,
-// which gives the required execution dependency. ACQUIRED means end_readback()
-// MUST be called after the read (recorded on its own command buffer); NOOP is
-// returned for textures that are not DMA-BUF imports (SHM upload textures);
-// ERROR fails closed for multi-plane/disjoint/YCbCr textures or a texture
-// whose foreign ownership is already held. begin_readback() never waits the
-// read itself; the read_pixels() staging submit CPU-waits as usual.
+// vulkan_texture_read_pixels() applies this gate internally, which covers the
+// wlroots protocol paths (screencopy, ext-image-copy-capture); callers that
+// want the gate held around a larger cycle (WBufferDumper) may call
+// begin_readback() themselves before the read: for a dmabuf texture it waits
+// the buffer's DMA-BUF fences (sync_file poll) and records/submits a
+// FOREIGN->own acquire barrier leaving the image in VK_IMAGE_LAYOUT_GENERAL;
+// the follow-up read_pixels() staging command buffer is submitted later on the
+// same queue, which gives the required execution dependency. ACQUIRED means
+// end_readback() MUST be called after the read (recorded on its own command
+// buffer); NOOP is returned for textures that are not DMA-BUF imports (SHM
+// upload textures) and for nested reads inside an already-held cycle (the
+// outer cycle records the matching release); ERROR fails closed for
+// multi-plane/disjoint/YCbCr textures, a texture whose foreign ownership is
+// already held by a frame, or one whose release previously failed.
+// begin_readback() never waits the read itself; the read_pixels() staging
+// submit CPU-waits as usual.
 enum wlr_vk_texture_readback_state {
 	WLR_VK_TEXTURE_READBACK_ERROR = 0,
 	WLR_VK_TEXTURE_READBACK_ACQUIRED,
