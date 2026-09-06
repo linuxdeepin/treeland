@@ -710,6 +710,8 @@ const QList<Output *> &OutputManager::outputs() const
 Output *OutputManager::createNormalOutput(WAYLIB_SERVER_NAMESPACE::WOutput *output)
 {
     Output *result = Output::create(output, ::qmlEngine(m_renderWindow), parent());
+    // NVIDIA uses the canvas-composited cursor on every renderer, including the
+    // Vulkan renderer, instead of the DRM cursor plane.
     if (isNvidiaCardPresent()) {
         result->outputItem()->setProperty("forceSoftwareCursor", true);
     }
