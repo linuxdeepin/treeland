@@ -255,8 +255,32 @@ static bool vulkan_texture_read_pixels(struct wlr_texture *wlr_texture,
 
 	void *p = wlr_texture_read_pixel_options_get_data(options);
 
-	return vulkan_read_pixels(texture->renderer, texture->format->vk, texture->image,
-		options->format, options->stride, src.width, src.height, src.x, src.y, 0, 0, p);
+	// A DMA-BUF import is FOREIGN-owned between uses and may carry an
+	// unsignaled producer fence, so every read must go through the readback
+	// gate (producer fence wait + queue-family ownership acquire + matching
+	// release). Callers that already hold the gate around this read
+	// (WBufferDumper) get a NOOP and record their own release; SHM/pixel
+	// textures are a NOOP too.
+	const enum wlr_vk_texture_readback_state state =
+		waylib_vk_texture_begin_readback(&texture->renderer->wlr_renderer,
+			wlr_texture);
+	if (state == WLR_VK_TEXTURE_READBACK_ERROR) {
+		wlr_log(WLR_ERROR, "vulkan_read_pixels: DMA-BUF readback acquire "
+			"failed, refusing to read foreign-owned memory");
+		return false;
+	}
+	const bool acquired = state == WLR_VK_TEXTURE_READBACK_ACQUIRED;
+
+	const bool ok = vulkan_read_pixels(texture->renderer, texture->format->vk,
+		texture->image, options->format, options->stride, src.width, src.height,
+		src.x, src.y, 0, 0, p);
+
+	if (acquired) {
+		waylib_vk_texture_end_readback(&texture->renderer->wlr_renderer,
+			wlr_texture);
+	}
+
+	return ok;
 }
 
 static uint32_t vulkan_texture_preferred_read_format(struct wlr_texture *wlr_texture) {
@@ -2041,11 +2065,25 @@ enum wlr_vk_texture_readback_state waylib_vk_texture_begin_readback(
 		return WLR_VK_TEXTURE_READBACK_NOOP;
 	}
 
+	if (texture->readback_release_failed) {
+		// A previous cycle could not record its release; the image may still
+		// be owned by the graphics queue. Never touch it again.
+		wlr_log(WLR_ERROR, "Vulkan texture readback is unavailable after a "
+			"failed release; refusing to read the texture");
+		return WLR_VK_TEXTURE_READBACK_ERROR;
+	}
+	if (texture->readback_acquired) {
+		// Nested call from the read that the holding gate is performing
+		// (WBufferDumper): the image is already acquired and the outer cycle
+		// records the matching release.
+		return WLR_VK_TEXTURE_READBACK_NOOP;
+	}
+
 	// The readback cycle runs outside Qt frame recording and must be the sole
 	// holder of the image's foreign ownership while it does.
 	if (renderer->texture_sync_batch_active
 			|| renderer->texture_barrier_batch_active
-			|| texture->qt_sampling_acquired || texture->readback_acquired
+			|| texture->qt_sampling_acquired
 			|| texture->owned) {
 		wlr_log(WLR_ERROR, "Vulkan texture readback requested while its "
 			"foreign ownership is taken or a frame is recording");
@@ -2106,6 +2144,10 @@ void waylib_vk_texture_end_readback(struct wlr_renderer *wlr_renderer,
 	}
 
 	if (!submit_readback_barrier(renderer, texture->image, false)) {
+		// Keep the acquire (and mark the texture permanently unusable for
+		// readbacks) so the image is never sampled or read again without its
+		// matching release.
+		texture->readback_release_failed = true;
 		wlr_log(WLR_ERROR, "Failed to submit Vulkan texture readback release; "
 			"keeping the readback acquire so the texture is never sampled or "
 			"read again without its matching release");
