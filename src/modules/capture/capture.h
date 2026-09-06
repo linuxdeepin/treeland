@@ -75,6 +75,7 @@ public:
 
 Q_SIGNALS:
     void imageReady();
+    void imageFailed();
     void bufferDestroyed();
     void targetDestroyed();
     void targetResized();
@@ -101,7 +102,7 @@ public:
      * @brief copyBuffer render captured contents to a buffer
      * @param buffer buffer prepared by client
      */
-    void copyBuffer(wlr_buffer *buffer);
+    bool copyBuffer(wlr_buffer *buffer);
 
     // Cropped area of source
     virtual QRect cropRect() const = 0;

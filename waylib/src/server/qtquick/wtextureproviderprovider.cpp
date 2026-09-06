@@ -4,6 +4,8 @@
 #include "wtextureproviderprovider.h"
 #include "woutputrenderwindow.h"
 #include "private/wglobal_p.h"
+#include "utils/wbufferdumper.h"
+#include "wsgtextureprovider.h"
 #include "wayliblogging.h"
 
 #include <rhi/qrhi.h>
@@ -61,6 +63,41 @@ void WTextureCapturer::doGrabToImage()
     d->imgPromise.start();
     WSGTextureProvider *textureProvider = d->provider->wTextureProvider();
     auto *texture = textureProvider ? textureProvider->texture() : nullptr;
+
+    // On Vulkan the provider's QRhiTexture wraps the wlroots-owned sampled
+    // VkImage, which is FOREIGN-owned and may lag behind the producer fence.
+    // A plain QRhi readback would sample it without the queue-family acquire
+    // (undefined contents, validation failure), so read the backing
+    // wlr_buffer through WBufferDumper, which runs the wlroots readback
+    // acquire/release gate. If the provider holds no buffer, fail rather
+    // than touching the imported image.
+    QRhi *rhi = d->renderWindow->rhi();
+    if (rhi && rhi->backend() == QRhi::Vulkan) {
+        wlr_buffer *wlrBuffer = textureProvider ? textureProvider->wlrBuffer() : nullptr;
+        if (!wlrBuffer) {
+            d->imgPromise.setException(std::make_exception_ptr(
+                std::runtime_error("Texture provider is not valid.")));
+            d->imgPromise.finish();
+            return;
+        }
+        QImage image;
+        const auto result = WBufferDumper::dumpBufferToImage(
+            wlrBuffer, d->renderWindow->renderer(), image);
+        if (result == WBufferDumper::DumpResult::Success && !image.isNull()) {
+            d->imgPromise.addResult(image);
+        } else {
+            qCWarning(lcWlTextureProvider)
+                << "Vulkan texture-provider readback failed"
+                << "buffer" << wlrBuffer
+                << "result" << WBufferDumper::dumpResultToString(result);
+            d->imgPromise.setException(std::make_exception_ptr(std::runtime_error(
+                "Vulkan texture readback failed: "
+                + WBufferDumper::dumpResultToString(result).toStdString())));
+        }
+        d->imgPromise.finish();
+        return;
+    }
+
     if (texture && texture->rhiTexture()) {
         // Perform rhi texture read back
         auto *rhiTexture = texture->rhiTexture();
