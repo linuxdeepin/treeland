@@ -617,6 +617,11 @@ struct wlr_vk_texture {
 	// waylib_vk_renderer_begin_readback()) currently holds a foreign->own
 	// acquire. Decoupled from 'owned', which is reserved for wlroots' own render-pass bookkeeping.
 	bool readback_acquired; // waylib/Qt-only: a readback acquire is in flight
+	// waylib/Qt-only: a readback cycle failed to record its release, so the
+	// image may still be owned by the graphics queue. Blocks every further
+	// readback (and sampling, through readback_acquired staying set) of this
+	// texture so it is never touched in an unknown ownership state again.
+	bool readback_release_failed;
 	// waylib/Qt-only: the DMA-BUF content of this texture was already waited
 	// on (producer sync_file / imported semaphore) since the client last
 	// attached the buffer. Set after a successful producer wait for a client
