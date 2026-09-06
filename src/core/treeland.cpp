@@ -1,4 +1,4 @@
-// Copyright (C) 2023 Dingyuan Zhang <lxz@mkacg.com>.
+// Copyright (C) 2023-2026 Dingyuan Zhang <lxz@mkacg.com>.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "treeland.h"
@@ -33,11 +33,13 @@
 #include <QLocalSocket>
 #include <QLoggingCategory>
 #include <QMetaMethod>
+#include <QQuickWindow>
 #include <QTranslator>
 #include <QDir>
 #include <QStandardPaths>
 
 #include <memory>
+#include <cstdlib>
 #include <pwd.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -76,6 +78,17 @@ public:
         connect(qmlEngine, &QQmlEngine::quit, q, &Treeland::quit, Qt::QueuedConnection);
         helper = qmlEngine->singletonInstance<Helper *>("Treeland", "Helper");
         connect(helper, &Helper::requestQuit, q, &Treeland::quit, Qt::QueuedConnection);
+        if (QQuickWindow::graphicsApi() == QSGRendererInterface::Vulkan) {
+            connect(helper->window(),
+                    &QQuickWindow::sceneGraphError,
+                    q,
+                    [] (QQuickWindow::SceneGraphError error, const QString &message) {
+                        qCCritical(lcTlCore) << "Scene graph rendering failed; exiting compositor"
+                                             << "error" << error
+                                             << "message" << message;
+                        QCoreApplication::exit(EXIT_FAILURE);
+                    });
+        }
 
         qputenv("WLR_XWAYLAND", QByteArray(LIBEXEC_DIR) + "/treeland-xwayland");
         helper->init(q);
