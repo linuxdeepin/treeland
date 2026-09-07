@@ -99,4 +99,12 @@ void waylib_vk_renderer_abort_texture_barrier_batch(struct wlr_renderer *rendere
 void waylib_vk_renderer_set_stage_async_enabled(struct wlr_renderer *renderer,
 	bool enabled);
 
+// Restrict the renderer's advertised dmabuf and shm texture format sets to
+// the given DRM format whitelist, dropping every other format so clients
+// cannot allocate buffers the compositor is unable to display. Call once
+// after renderer creation and before any client connects. Passing an empty
+// whitelist fails without touching the sets.
+bool waylib_vk_renderer_restrict_texture_formats(struct wlr_renderer *renderer,
+	const uint32_t *drm_formats, size_t count);
+
 #endif

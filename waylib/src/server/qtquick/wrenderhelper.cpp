@@ -2200,19 +2200,22 @@ static bool updateVKTexture(QRhi *rhi, wlr_texture *handle, QSGPlainTexture *tex
     QRhiTexture::Flags mappedFlags {};
     const auto mappedFormat = QSGRhiSupport::instance()->toRhiTextureFormat(attribs.format,
                                                                             &mappedFlags);
-    // Qt maps both packed 10-bit channel orders to QRhi::RGB10A2, but its
-    // Vulkan backend always creates an A2B10G10R10 view first. An A2R10 image
-    // without MUTABLE_FORMAT would fail before we can replace that view.
-    const bool requiresInexactQtView =
-        attribs.format == VK_FORMAT_A2R10G10B10_UNORM_PACK32;
-    if (mappedFormat == QRhiTexture::UnknownFormat || requiresInexactQtView) {
+    // Qt maps both packed 10-bit channel orders (A2R10G10B10/A2B10G10R10) to
+    // QRhiTexture::RGB10A2, and QVkTexture::finishCreate() derives the initial
+    // image view from viewFormatForSampling - so an A2R10G10B10 external image
+    // would get an A2B10G10R10 view, which cannot even be created without
+    // VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT. Such textures are constructed
+    // manually below (mirroring the attachment-only depth path) with the exact
+    // wlroots format instead of going through createFrom.
+    const bool needsExactFormatSeed =
+        mappedFormat == QRhiTexture::RGB10A2
+        && attribs.format != VK_FORMAT_A2B10G10R10_UNORM_PACK32;
+    if (mappedFormat == QRhiTexture::UnknownFormat) {
         qCDebug(lcWlQtQuickTexture) << "Rejected unsupported wlroots Vulkan texture format"
                                     << "wlrTexture" << handle
                                     << "image" << vkImageName(attribs.image)
                                     << "format" << hex32(attribs.format)
-                                    << "reason" << (requiresInexactQtView
-                                                         ? "inexact-qt-view-format"
-                                                         : "unknown-qrhi-format")
+                                    << "reason" << "unknown-qrhi-format"
                                     << "size" << size;
         return false;
     }
@@ -2242,39 +2245,6 @@ static bool updateVKTexture(QRhi *rhi, wlr_texture *handle, QSGPlainTexture *tex
     // image view. Keep ownership false even on a partial failure so Qt can
     // never enqueue the wlroots-owned image for destruction.
     vkTexture->owns = false;
-    if (!candidate->createFrom({vkimage_cast(attribs.image), qtSampleLayout})) {
-        qCDebug(lcWlQtQuickTexture) << "Failed to wrap wlroots Vulkan image in QRhiTexture"
-                                    << "wlrTexture" << handle
-                                    << "image" << vkImageName(attribs.image)
-                                    << "format" << hex32(attribs.format)
-                                    << "layout" << vkImageLayoutName(qtSampleLayout)
-                                    << "size" << size;
-        return false;
-    }
-
-    const auto discardUnusedCandidate = [vkTexture, nativeHandles, deviceFunctions] {
-        if (vkTexture->imageView != VK_NULL_HANDLE) {
-            deviceFunctions->vkDestroyImageView(nativeHandles->dev,
-                                                vkTexture->imageView,
-                                                nullptr);
-            vkTexture->imageView = VK_NULL_HANDLE;
-        }
-        // The candidate has never entered a descriptor. Unregister it from
-        // QRhi after synchronously dropping its unused view, while preserving
-        // ownership of the external image in wlroots.
-        vkTexture->destroy();
-    };
-
-    if (vkTexture->imageView == VK_NULL_HANDLE || vkTexture->lastActiveFrameSlot != -1) {
-        qCDebug(lcWlQtQuickTexture) << "Cannot replace the initial Qt Vulkan texture view"
-                                    << "wlrTexture" << handle
-                                    << "image" << vkImageName(attribs.image)
-                                    << "format" << hex32(attribs.format)
-                                    << "hasInitialView" << bool(vkTexture->imageView != VK_NULL_HANDLE)
-                                    << "lastActiveFrameSlot" << vkTexture->lastActiveFrameSlot;
-        discardUnusedCandidate();
-        return false;
-    }
 
     const bool hasAlpha = wlr_vk_texture_has_alpha(handle);
     VkImageViewCreateInfo viewInfo = {};
@@ -2294,26 +2264,102 @@ static bool updateVKTexture(QRhi *rhi, wlr_texture *handle, QSGPlainTexture *tex
     viewInfo.subresourceRange.levelCount = 1;
     viewInfo.subresourceRange.layerCount = 1;
 
-    VkImageView samplingView = VK_NULL_HANDLE;
-    const VkResult viewResult = deviceFunctions->vkCreateImageView(nativeHandles->dev,
-                                                                   &viewInfo,
-                                                                   nullptr,
-                                                                   &samplingView);
-    if (viewResult != VK_SUCCESS) {
-        qCDebug(lcWlQtQuickTexture) << "Failed to create exact Vulkan sampling view"
-                                    << "wlrTexture" << handle
-                                    << "image" << vkImageName(attribs.image)
-                                    << "format" << hex32(attribs.format)
-                                    << "hasAlpha" << hasAlpha
-                                    << "vkResult" << viewResult;
-        discardUnusedCandidate();
-        return false;
-    }
+    const auto discardUnusedCandidate = [vkTexture, nativeHandles, deviceFunctions] {
+        if (vkTexture->imageView != VK_NULL_HANDLE) {
+            deviceFunctions->vkDestroyImageView(nativeHandles->dev,
+                                                vkTexture->imageView,
+                                                nullptr);
+            vkTexture->imageView = VK_NULL_HANDLE;
+        }
+        // The candidate has never entered a descriptor. Unregister it from
+        // QRhi after synchronously dropping its unused view, while preserving
+        // ownership of the external image in wlroots.
+        vkTexture->destroy();
+    };
 
-    const VkImageView initialView = vkTexture->imageView;
-    vkTexture->imageView = samplingView;
-    vkTexture->viewFormatForSampling = attribs.format;
-    deviceFunctions->vkDestroyImageView(nativeHandles->dev, initialView, nullptr);
+    if (needsExactFormatSeed) {
+        // Bypass createFrom(): QVkTexture::prepareCreate() would derive the
+        // view format from the QRhi enum again. Mirror
+        // createNativeVulkanDepthStencilTexture() and fill the QVkTexture by
+        // hand with the exact wlroots format, then create the final exact view
+        // (with the alpha swizzle) directly and register it with QRhi.
+        vkTexture->image = attribs.image;
+        vkTexture->usageState = { qtSampleLayout, 0, 0 };
+        vkTexture->vkformat = attribs.format;
+        vkTexture->viewFormat = attribs.format;
+        vkTexture->viewFormatForSampling = attribs.format;
+        vkTexture->mipLevelCount = 1;
+        vkTexture->samples = VK_SAMPLE_COUNT_1_BIT;
+        vkTexture->generation += 1;
+        vkTexture->lastActiveFrameSlot = -1;
+
+        VkImageView samplingView = VK_NULL_HANDLE;
+        const VkResult viewResult = deviceFunctions->vkCreateImageView(nativeHandles->dev,
+                                                                       &viewInfo,
+                                                                       nullptr,
+                                                                       &samplingView);
+        if (viewResult != VK_SUCCESS) {
+            qCDebug(lcWlQtQuickTexture) << "Failed to create exact Vulkan sampling view"
+                                        << "wlrTexture" << handle
+                                        << "image" << vkImageName(attribs.image)
+                                        << "format" << hex32(attribs.format)
+                                        << "hasAlpha" << hasAlpha
+                                        << "vkResult" << viewResult;
+            discardUnusedCandidate();
+            return false;
+        }
+        vkTexture->imageView = samplingView;
+
+        auto *rhiImplementation = static_cast<QRhiVulkan *>(
+            W_PRIVATE_MEMBER(*rhi, QRhi_d_tag {}));
+        if (!rhiImplementation) {
+            discardUnusedCandidate();
+            return false;
+        }
+        rhiImplementation->registerResource(vkTexture, false);
+    } else {
+        if (!candidate->createFrom({vkimage_cast(attribs.image), qtSampleLayout})) {
+            qCDebug(lcWlQtQuickTexture) << "Failed to wrap wlroots Vulkan image in QRhiTexture"
+                                        << "wlrTexture" << handle
+                                        << "image" << vkImageName(attribs.image)
+                                        << "format" << hex32(attribs.format)
+                                        << "layout" << vkImageLayoutName(qtSampleLayout)
+                                        << "size" << size;
+            return false;
+        }
+
+        if (vkTexture->imageView == VK_NULL_HANDLE || vkTexture->lastActiveFrameSlot != -1) {
+            qCDebug(lcWlQtQuickTexture) << "Cannot replace the initial Qt Vulkan texture view"
+                                        << "wlrTexture" << handle
+                                        << "image" << vkImageName(attribs.image)
+                                        << "format" << hex32(attribs.format)
+                                        << "hasInitialView" << bool(vkTexture->imageView != VK_NULL_HANDLE)
+                                        << "lastActiveFrameSlot" << vkTexture->lastActiveFrameSlot;
+            discardUnusedCandidate();
+            return false;
+        }
+
+        VkImageView samplingView = VK_NULL_HANDLE;
+        const VkResult viewResult = deviceFunctions->vkCreateImageView(nativeHandles->dev,
+                                                                       &viewInfo,
+                                                                       nullptr,
+                                                                       &samplingView);
+        if (viewResult != VK_SUCCESS) {
+            qCDebug(lcWlQtQuickTexture) << "Failed to create exact Vulkan sampling view"
+                                        << "wlrTexture" << handle
+                                        << "image" << vkImageName(attribs.image)
+                                        << "format" << hex32(attribs.format)
+                                        << "hasAlpha" << hasAlpha
+                                        << "vkResult" << viewResult;
+            discardUnusedCandidate();
+            return false;
+        }
+
+        const VkImageView initialView = vkTexture->imageView;
+        vkTexture->imageView = samplingView;
+        vkTexture->viewFormatForSampling = attribs.format;
+        deviceFunctions->vkDestroyImageView(nativeHandles->dev, initialView, nullptr);
+    }
 
     const char *bridgeClass = hasAlpha ? "exact-alpha-view" : "exact-opaque-view";
 
@@ -2542,6 +2588,54 @@ void WRenderHelper::setStageAsyncEnabled(wlr_renderer *renderer, bool enabled)
 #else
     Q_UNUSED(renderer);
     Q_UNUSED(enabled);
+#endif
+}
+
+bool WRenderHelper::restrictVulkanTextureFormats(wlr_renderer *renderer)
+{
+#ifdef ENABLE_VULKAN_RENDER
+    if (!renderer || !wlr_renderer_is_vk(renderer))
+        return true;
+
+    // The DRM formats WRenderHelper::makeTexture() can wrap exactly for the
+    // Vulkan renderer. Restricting the renderer's advertised texture format
+    // sets to this subset keeps Wayland-native clients from allocating
+    // buffers the Qt wrapper would reject. XWayland chooses buffer formats
+    // from the X visual depth instead and does not consult the advertised
+    // sets; its depth-30 case is covered by the exact view seeding in
+    // updateVKTexture().
+    static const uint32_t qtWrappableFormats[] = {
+        DRM_FORMAT_ARGB8888,
+        DRM_FORMAT_XRGB8888,
+        DRM_FORMAT_ABGR8888,
+        DRM_FORMAT_XBGR8888,
+        DRM_FORMAT_ARGB2101010,
+        DRM_FORMAT_XRGB2101010,
+        DRM_FORMAT_ABGR2101010,
+        DRM_FORMAT_XBGR2101010,
+        DRM_FORMAT_R8,
+        DRM_FORMAT_GR88,
+        DRM_FORMAT_R16F,
+        DRM_FORMAT_GR1616F,
+        DRM_FORMAT_R32F,
+        DRM_FORMAT_GR3232F,
+        DRM_FORMAT_ABGR16161616F,
+        DRM_FORMAT_XBGR16161616F,
+        DRM_FORMAT_ABGR32323232F,
+    };
+
+    if (!waylib_vk_renderer_restrict_texture_formats(
+            renderer, qtWrappableFormats,
+            sizeof(qtWrappableFormats) / sizeof(qtWrappableFormats[0]))) {
+        qCWarning(lcWlRenderHelper)
+            << "Failed to restrict the Vulkan texture format sets to the Qt-wrappable subset;"
+            << " clients may pick formats the Qt wrapper cannot display";
+        return false;
+    }
+    return true;
+#else
+    Q_UNUSED(renderer);
+    return true;
 #endif
 }
 

@@ -102,6 +102,7 @@ public:
     static void abortTextureBarrierBatch(wlr_renderer *renderer);
     static void setStageAsyncEnabled(wlr_renderer *renderer,
                                      bool enabled);
+    static bool restrictVulkanTextureFormats(wlr_renderer *renderer);
 
     struct TextureEntry {
         wlr_buffer *buffer;
