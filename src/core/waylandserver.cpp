@@ -473,6 +473,13 @@ void WaylandServer::initializeRendering()
     const bool vulkanRenderer =
         WRenderHelper::getGraphicsApi() == QSGRendererInterface::Vulkan;
     if (vulkanRenderer) {
+        // Restrict the advertised texture formats to the ones the Qt wrapper
+        // can display before wl_shm and linux-dmabuf hand them to clients.
+        // XWayland picks buffer formats from the X visual depth instead and
+        // is covered by the exact view seeding in the texture wrapper.
+        if (!WRenderHelper::restrictVulkanTextureFormats(m_renderer.get()))
+            qCWarning(lcTlCore) << "Continuing with the unfiltered Vulkan texture format set";
+
         if (!wlr_renderer_init_wl_shm(m_renderer.get(), m_server->handle()))
             qCFatal(lcTlCore) << "Failed to initialize wl_shm for Vulkan renderer";
 
