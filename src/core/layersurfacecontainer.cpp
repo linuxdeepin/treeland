@@ -80,6 +80,28 @@ void LayerSurfaceContainer::removeOutput(Output *output)
     container->deleteLater();
 }
 
+void LayerSurfaceContainer::detachOutputSurfaces(Output *output)
+{
+    if (auto *container = getSurfaceContainer(output)) {
+        // The surfaces are removed and immediately re-added containerless, so
+        // listeners observing the layer model see a transient remove/re-add;
+        // this is synchronous and no event loop runs in between.
+        const auto surfaces = container->surfaces();
+        for (SurfaceWrapper *surface : surfaces) {
+            container->removeSurface(surface);
+            // removeSurface() also dropped the surface from this layer's own
+            // model and does not clear the QObject parent. Un-parent it here:
+            // the old per-output container is deleteLater()ed and would
+            // otherwise destroy a still-attached surface when the replacement
+            // wrapper is never added (early return in a conversion path).
+            // doAddSurface() re-parents to the new output container on
+            // re-entry.
+            unparentSurface(surface);
+            doAddSurface(surface, false);
+        }
+    }
+}
+
 OutputLayerSurfaceContainer *LayerSurfaceContainer::getSurfaceContainer(const Output *output) const
 {
     for (OutputLayerSurfaceContainer *container : std::as_const(m_surfaceContainers)) {
@@ -133,7 +155,14 @@ void LayerSurfaceContainer::addSurfaceToContainer(SurfaceWrapper *surface)
         return;
     }
     auto container = getSurfaceContainer(output);
-    Q_ASSERT(container);
+    if (!container) {
+        // Can happen when the only remaining output was just removed and the
+        // primary still points at it. Close the surface instead of crashing.
+        qCWarning(lcTlShell) << "No layer surface container for output" << output->name()
+                             << ", will close layer surface!";
+        shell->closed();
+        return;
+    }
     Q_ASSERT(!container->surfaces().contains(surface));
     container->addSurface(surface);
 }

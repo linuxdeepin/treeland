@@ -1,4 +1,4 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #pragma once
 
@@ -240,6 +240,12 @@ protected:
 
     bool doAddSurface(SurfaceWrapper *surface, bool setContainer);
     bool doRemoveSurface(SurfaceWrapper *surface, bool setContainer);
+
+    // Clear both the QObject parent and the QQuickItem parentItem of a surface
+    // without touching the container models. Used when a per-output sub-container
+    // is torn down (deleteLater()ed) while its surfaces must survive; the
+    // SurfaceWrapper::setParent overload doing this is private outside friends.
+    void unparentSurface(SurfaceWrapper *surface);
 
     virtual void addBySubContainer([[maybe_unused]] SurfaceContainer *sub, SurfaceWrapper *surface);
     virtual void removeBySubContainer([[maybe_unused]] SurfaceContainer *sub,
