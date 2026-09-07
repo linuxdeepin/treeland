@@ -96,6 +96,8 @@ public:
     void setPrimaryOutput(Output *newPrimaryOutput, bool updateDconfig = false);
     const QList<Output *> &outputs() const;
 
+    void ensureCursorVisible();
+
     void addOutput(Output *output) override;
     void removeOutput(Output *output) override;
 
@@ -112,6 +114,7 @@ public:
                               Output *targetOutput,
                               Output *sourceOutput = nullptr);
     void ensureSurfaceNormalPositionValid(SurfaceWrapper *surface);
+    void updateSurfaceOutputs(SurfaceWrapper *surface);
 
 public Q_SLOTS:
     void startMove(SurfaceWrapper *surface);
@@ -136,8 +139,6 @@ private:
                                   [[maybe_unused]] SurfaceWrapper::State newState,
                                   [[maybe_unused]] SurfaceWrapper::State oldState) override;
 
-    void ensureCursorVisible();
-    void updateSurfaceOutputs(SurfaceWrapper *surface);
     QQuickItem *ensureEdgeTilePreview();
     void onSeatAdded(WSeat *seat);
     void onSeatRemoved(WSeat *seat);

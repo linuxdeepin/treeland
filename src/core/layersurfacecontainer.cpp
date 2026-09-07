@@ -129,7 +129,12 @@ void LayerSurfaceContainer::addSurfaceToContainer(SurfaceWrapper *surface)
         return;
     }
     auto container = getSurfaceContainer(output);
-    Q_ASSERT(container);
+    if (!container) {
+        qCWarning(lcTlShell) << "No layer surface container for output" << output->name()
+                             << ", will close layer surface!";
+        shell->closed();
+        return;
+    }
     Q_ASSERT(!container->surfaces().contains(surface));
     container->addSurface(surface);
 }

@@ -144,7 +144,10 @@ OutputManager::CopyModeRestoreConfig OutputManager::copyModeRestoreConfig(int av
     }
     result.outputIds = copyOutputIds();
     result.outputNames = outputNamesFromIds(result.outputIds);
-    if (result.outputIds.size() < 2 || result.outputNames.size() < 2) {
+    if (result.outputIds.size() < 2 || result.outputNames.size() != result.outputIds.size()) {
+        qCWarning(lcTlOutput) << "Not restoring copy mode: configured output ids are stale"
+                              << "ids:" << result.outputIds
+                              << "resolved:" << result.outputNames;
         return {};
     }
     result.primaryOutput = findOutputById(result.outputIds.constFirst());

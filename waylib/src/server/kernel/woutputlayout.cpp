@@ -4,6 +4,7 @@
 #include "woutputlayout.h"
 #include "private/woutputlayout_p.h"
 #include "woutput.h"
+#include "wayliblogging.h"
 
 #include <wlr_all.h>
 
@@ -115,6 +116,26 @@ void WOutputLayout::move(WOutput *output, const QPoint &pos)
     wlr_output_layout_add(d->handle(), output->handle(), pos.x(), pos.y());
 
     Q_EMIT output->positionChanged(pos);
+    d->updateImplicitSize();
+}
+
+void WOutputLayout::pin(WOutput *output)
+{
+    W_D(WOutputLayout);
+    Q_ASSERT(d->outputs.contains(output));
+    Q_ASSERT(output->layout() == this);
+
+    auto *l_output = wlr_output_layout_get(d->handle(), output->handle());
+    if (Q_UNLIKELY(!l_output)) {
+        qCDebug(lcWlOutput) << "pin() skipped: output not in wlr layout" << output->name();
+        return;
+    }
+    if (!l_output->auto_configured) {
+        qCDebug(lcWlOutput) << "pin() skipped: already manually positioned" << output->name();
+        return;
+    }
+
+    wlr_output_layout_add(d->handle(), output->handle(), l_output->x, l_output->y);
     d->updateImplicitSize();
 }
 

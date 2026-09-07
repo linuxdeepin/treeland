@@ -24,6 +24,8 @@
 
 #include <QQuickWindow>
 
+#include <cmath>
+
 WAYLIB_SERVER_USE_NAMESPACE
 
 namespace {
@@ -163,7 +165,6 @@ void RootSurfaceContainer::addOutput(Output *output)
 void RootSurfaceContainer::removeOutput(Output *output)
 {
     m_outputModel->removeObject(output);
-    SurfaceContainer::removeOutput(output);
 
     for (auto *container : std::as_const(m_seatContainers)) {
         if (container->moveResizeSurface() &&
@@ -180,6 +181,8 @@ void RootSurfaceContainer::removeOutput(Output *output)
             setPrimaryOutput(newPrimaryOutput);
         }
     }
+
+    SurfaceContainer::removeOutput(output);
 
     // ensure cursor within output
     const auto outputPos = output->outputItem()->position();
@@ -403,11 +406,10 @@ Output *RootSurfaceContainer::primaryOutput() const
 
 void RootSurfaceContainer::setPrimaryOutput(Output *newPrimaryOutput, bool updateDconfig)
 {
-    if (m_primaryOutput == newPrimaryOutput)
-        return;
-
-    m_primaryOutput = newPrimaryOutput;
-    Q_EMIT primaryOutputChanged();
+    if (m_primaryOutput != newPrimaryOutput) {
+        m_primaryOutput = newPrimaryOutput;
+        Q_EMIT primaryOutputChanged();
+    }
     if (updateDconfig)
         setPrimaryOutputConfig(newPrimaryOutput);
 }
