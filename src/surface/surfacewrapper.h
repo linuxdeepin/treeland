@@ -262,6 +262,7 @@ public:
     bool alwaysOnTop() const;
     bool effectiveAlwaysOnTop() const;
     void setAlwaysOnTop(bool alwaysOnTop);
+    void setAlwaysOnBottom(bool alwaysOnBottom);
 
     bool showOnAllWorkspace() const;
     bool showOnWorkspace(int workspaceIndex) const;
@@ -438,7 +439,8 @@ private:
     void onWindowAnimationFinished();
     Q_SLOT void onShowAnimationFinished();
     Q_SLOT void onHideAnimationFinished();
-    void updateExplicitAlwaysOnTop();
+    void updateStackingLayer();
+    void updateXWaylandStackingState();
     void updateSizeCapabilities();
     void setModal(bool modal);
     void startMinimizeAnimation(const QRectF &iconGeometry, uint direction);
@@ -495,6 +497,7 @@ private:
                                          &SurfaceWrapper::surfaceStateChanged)
     int m_workspaceId = -1;
     int m_explicitAlwaysOnTop = 0;
+    bool m_explicitAlwaysOnBottom = false;
     qreal m_radius = 0.0;
     QRect m_iconGeometry;
     ActiveControlStates m_hasActiveCapability =
@@ -510,6 +513,7 @@ private:
     uint m_noTitleBar : 1;
     uint m_noCornerRadius : 1;
     uint m_alwaysOnTop : 1;
+    uint m_alwaysOnBottom : 1;
     uint m_skipSwitcher : 1;
     uint m_skipDockPreView : 1;
     uint m_skipMutiTaskView : 1;

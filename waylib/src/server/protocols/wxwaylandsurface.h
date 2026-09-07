@@ -21,6 +21,8 @@ class WAYLIB_SERVER_EXPORT WXWaylandSurface : public WToplevelSurface
     Q_PROPERTY(bool isToplevel READ isToplevel NOTIFY isToplevelChanged)
     Q_PROPERTY(bool hasChild READ hasChild NOTIFY hasChildChanged)
     Q_PROPERTY(bool bypassManager READ isBypassManager NOTIFY bypassManagerChanged FINAL)
+    Q_PROPERTY(bool above READ isAbove NOTIFY aboveChanged FINAL)
+    Q_PROPERTY(bool below READ isBelow NOTIFY belowChanged FINAL)
     Q_PROPERTY(QRect geometry READ geometry NOTIFY geometryChanged FINAL)
     Q_PROPERTY(WindowTypes windowTypes READ windowTypes NOTIFY windowTypesChanged FINAL)
     Q_PROPERTY(DecorationsFlags decorationsFlags READ decorationsFlags NOTIFY decorationsFlagsChanged FINAL)
@@ -109,6 +111,8 @@ public:
     ConfigureFlags requestConfigureFlags() const;
 
     bool isBypassManager() const;
+    bool isAbove() const;
+    bool isBelow() const;
     bool isModal() const;
     WindowTypes windowTypes() const;
     DecorationsFlags decorationsFlags() const;
@@ -135,6 +139,8 @@ Q_SIGNALS:
     void isToplevelChanged();
     void hasChildChanged();
     void bypassManagerChanged();
+    void aboveChanged(bool above);
+    void belowChanged(bool below);
     void geometryChanged();
     void windowTypesChanged();
     void decorationsFlagsChanged();

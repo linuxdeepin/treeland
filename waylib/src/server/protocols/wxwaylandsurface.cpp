@@ -105,6 +105,12 @@ void WXWaylandSurfacePrivate::init()
                      [this, q] (wlr_xwayland_resize_event *event) {
         Q_EMIT q->requestResize(xwayland->seat(), WTools::toQtEdge(event->edges), 0);
     });
+    q->listeners()->add(&m_handle->events.request_above, this, [this, q] (void *) {
+        Q_EMIT q->aboveChanged(handle()->above);
+    });
+    q->listeners()->add(&m_handle->events.request_below, this, [this, q] (void *) {
+        Q_EMIT q->belowChanged(handle()->below);
+    });
     q->listeners()->add(&m_handle->events.set_override_redirect, q, &WXWaylandSurface::bypassManagerChanged);
     q->listeners()->add(&m_handle->events.set_geometry, q, &WXWaylandSurface::geometryChanged);
     q->listeners()->add(&m_handle->events.set_size_hints, this, &WXWaylandSurfacePrivate::updateSizeHints);
@@ -499,6 +505,18 @@ bool WXWaylandSurface::isBypassManager() const
 {
     W_DC(WXWaylandSurface);
     return d->handle()->override_redirect;
+}
+
+bool WXWaylandSurface::isAbove() const
+{
+    W_DC(WXWaylandSurface);
+    return d->handle()->above;
+}
+
+bool WXWaylandSurface::isBelow() const
+{
+    W_DC(WXWaylandSurface);
+    return d->handle()->below;
 }
 
 bool WXWaylandSurface::isModal() const

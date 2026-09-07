@@ -163,6 +163,8 @@ class NativeHandlesTest : public QObject
                  &surface->events.request_minimize,
                  &surface->events.request_move,
                  &surface->events.request_resize,
+                 &surface->events.request_above,
+                 &surface->events.request_below,
                  &surface->events.set_override_redirect,
                  &surface->events.set_geometry,
                  &surface->events.set_size_hints,
@@ -373,6 +375,31 @@ private Q_SLOTS:
         }
         QVERIFY(!WXWaylandSurface::fromHandle(&nativeSurface));
         wl_signal_emit_mutable(&nativeSurface.events.destroy, &nativeSurface);
+    }
+
+    void xwaylandSurfaceTracksStackingState()
+    {
+        wlr_xwayland_surface nativeSurface {};
+        initXWaylandSurface(&nativeSurface);
+        WXWaylandSurface surface(&nativeSurface, nullptr);
+        QSignalSpy aboveChanged(&surface, &WXWaylandSurface::aboveChanged);
+        QSignalSpy belowChanged(&surface, &WXWaylandSurface::belowChanged);
+
+        QVERIFY(!surface.isAbove());
+        QVERIFY(!surface.isBelow());
+        nativeSurface.above = true;
+        wl_signal_emit_mutable(&nativeSurface.events.request_above, nullptr);
+
+        QVERIFY(surface.isAbove());
+        QCOMPARE(aboveChanged.count(), 1);
+        QVERIFY(aboveChanged.takeFirst().at(0).toBool());
+
+        nativeSurface.below = true;
+        wl_signal_emit_mutable(&nativeSurface.events.request_below, nullptr);
+
+        QVERIFY(surface.isBelow());
+        QCOMPARE(belowChanged.count(), 1);
+        QVERIFY(belowChanged.takeFirst().at(0).toBool());
     }
 
     void inputDeviceTracksNativeLifetime()
