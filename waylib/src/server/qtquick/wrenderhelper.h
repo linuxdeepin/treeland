@@ -102,6 +102,7 @@ public:
     static void abortTextureBarrierBatch(wlr_renderer *renderer);
     static void setStageAsyncEnabled(wlr_renderer *renderer,
                                      bool enabled);
+    static bool restrictVulkanTextureFormats(wlr_renderer *renderer);
     static void resetVulkanFrameAliasLists(wlr_renderer *renderer);
     // Register a QRhi cleanup callback that force-releases every
     // Buffer/Texture/RenderBuffer QRhiResource still owned by the QRhi when
