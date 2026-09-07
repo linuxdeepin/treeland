@@ -5,7 +5,7 @@
 
 #include <QDebug>
 
-#define VIRTUAL_OUTPUT_MANAGER_V1_VERSION 1
+#define VIRTUAL_OUTPUT_MANAGER_V1_VERSION 3
 
 VirtualOutputManager::VirtualOutputManager()
     : QWaylandClientExtensionTemplate<VirtualOutputManager>(
@@ -54,19 +54,27 @@ VirtualOutputManager::getVirtualOutput(const QString &name)
 void VirtualOutputManager::treeland_virtual_output_manager_v1_virtual_output_list(
     wl_array *names)
 {
-    if (!names || names->size == 0)
+    if (!names)
         return;
 
-    char *data = static_cast<char *>(names->data);
-    char *end = data + names->size;
     QStringList nameList;
-
-    while (data < end && *data != '\0') {
-        QString name = QString::fromUtf8(data);
-        nameList << name;
-        data += name.size() + 1;
+    if (names->size > 0) {
+        char *data = static_cast<char *>(names->data);
+        char *end = data + names->size;
+        while (data < end && *data != '\0') {
+            QString name = QString::fromUtf8(data);
+            nameList << name;
+            data += name.size() + 1;
+        }
     }
 
     qInfo() << "Virtual output list:" << nameList;
     Q_EMIT virtualOutputListReceived(nameList);
+}
+
+void VirtualOutputManager::treeland_virtual_output_manager_v1_virtual_output_modified(
+    const QString &name)
+{
+    qInfo() << "Virtual output modified:" << name;
+    Q_EMIT virtualOutputModified(name);
 }
