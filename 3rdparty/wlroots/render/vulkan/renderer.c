@@ -3060,3 +3060,73 @@ bool waylib_vk_renderer_has_separate_depth_stencil_layouts(
 	struct wlr_vk_renderer *vk_renderer = vulkan_get_renderer(renderer);
 	return vk_renderer->dev->separate_depth_stencil_layouts;
 }
+
+bool waylib_vk_renderer_restrict_texture_formats(struct wlr_renderer *wlr_renderer,
+		const uint32_t *drm_formats, size_t count) {
+	if (wlr_renderer == NULL || !wlr_renderer_is_vk(wlr_renderer)
+			|| drm_formats == NULL || count == 0) {
+		return false;
+	}
+
+	struct wlr_vk_renderer *renderer = vulkan_get_renderer(wlr_renderer);
+
+	// The texture format sets are only consulted while advertising the
+	// formats to clients (linux-dmabuf and wl_shm); rebuilding them in place
+	// before any client connects cannot race with anything. Build both
+	// restricted sets first and commit them together: a failure halfway
+	// through must not leave one set restricted and the other untouched.
+	struct wlr_drm_format_set *const sets[] = {
+		&renderer->dev->dmabuf_texture_formats,
+		&renderer->dev->shm_texture_formats,
+	};
+	const char *const names[] = { "dmabuf", "shm" };
+	struct wlr_drm_format_set filtered[2] = {0};
+	size_t original_count[2] = {0};
+	size_t kept[2] = {0};
+
+	for (size_t s = 0; s < 2; s++) {
+		const struct wlr_drm_format_set *set = sets[s];
+		original_count[s] = set->len;
+		for (size_t i = 0; i < original_count[s]; i++) {
+			const struct wlr_drm_format *format = &set->formats[i];
+			bool supported = false;
+			for (size_t f = 0; f < count; f++) {
+				if (drm_formats[f] == format->format) {
+					supported = true;
+					break;
+				}
+			}
+			if (!supported) {
+				wlr_log(WLR_DEBUG, "Restricting %s texture format %.4s: "
+					"the compositor cannot wrap it",
+					names[s], (const char *)&format->format);
+				continue;
+			}
+			for (size_t m = 0; m < format->len; m++) {
+				if (!wlr_drm_format_set_add(&filtered[s], format->format,
+						format->modifiers[m])) {
+					wlr_log(WLR_ERROR, "Failed to rebuild the restricted "
+						"%s texture format set", names[s]);
+					goto error;
+				}
+			}
+			kept[s]++;
+		}
+	}
+
+	for (size_t s = 0; s < 2; s++) {
+		wlr_drm_format_set_finish(sets[s]);
+		*sets[s] = filtered[s];
+		filtered[s] = (struct wlr_drm_format_set){0};
+		wlr_log(WLR_INFO, "Restricted the %s texture format set to the "
+			"compositor-wrappable subset (%zu/%zu formats kept)",
+			names[s], kept[s], original_count[s]);
+	}
+	return true;
+
+error:
+	for (size_t s = 0; s < 2; s++) {
+		wlr_drm_format_set_finish(&filtered[s]);
+	}
+	return false;
+}
