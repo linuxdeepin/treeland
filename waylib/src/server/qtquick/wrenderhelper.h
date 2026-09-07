@@ -107,6 +107,7 @@ public:
     static void abortTextureBarrierBatch(wlr_renderer *renderer);
     static void setStageAsyncEnabled(wlr_renderer *renderer,
                                      bool enabled);
+    static bool restrictVulkanTextureFormats(wlr_renderer *renderer);
     static void resetVulkanFrameAliasLists(wlr_renderer *renderer);
     // Build a render-pass descriptor for a render target that Waylib does not
     // create itself (for example the blitter's rotation scratch target), with
