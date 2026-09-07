@@ -146,7 +146,12 @@ OutputManager::CopyModeRestoreConfig OutputManager::copyModeRestoreConfig(int av
     }
     result.outputIds = copyOutputIds();
     result.outputNames = outputNamesFromIds(result.outputIds);
-    if (result.outputIds.size() < 2 || result.outputNames.size() < 2) {
+    // A stale id would silently shrink the copy group; refuse to restore a
+    // group that misses a member instead of advertising a partial one.
+    if (result.outputIds.size() < 2 || result.outputNames.size() != result.outputIds.size()) {
+        qCWarning(lcTlOutput) << "Not restoring copy mode: configured output ids are stale"
+                              << "ids:" << result.outputIds
+                              << "resolved:" << result.outputNames;
         return {};
     }
     result.primaryOutput = findOutputById(result.outputIds.constFirst());
@@ -335,6 +340,9 @@ void OutputManager::restoreScreenAsPrimary(Output *output)
         return;
     }
 
+    // DConfig is only written by the client (control center); restoring the
+    // primary after a disable/enable cycle must not overwrite the client's
+    // setting, otherwise re-enabling the original source cannot restore it.
     m_rootContainer->setPrimaryOutput(output);
 }
 

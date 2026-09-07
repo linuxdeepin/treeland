@@ -3,6 +3,7 @@
 
 #include "rootsurfacecontainer.h"
 
+#include "core/layersurfacecontainer.h"
 #include "common/treelandlogging.h"
 #include "output/output.h"
 #include "seat/helper.h"
@@ -24,6 +25,8 @@
 
 #include <QPointer>
 #include <QQuickWindow>
+
+#include <cmath>
 
 WAYLIB_SERVER_USE_NAMESPACE
 
@@ -176,7 +179,6 @@ void RootSurfaceContainer::addOutput(Output *output)
 void RootSurfaceContainer::removeOutput(Output *output)
 {
     m_outputModel->removeObject(output);
-    SurfaceContainer::removeOutput(output);
 
     for (auto *container : std::as_const(m_seatContainers)) {
         if (container->moveResizeSurface() &&
@@ -186,6 +188,9 @@ void RootSurfaceContainer::removeOutput(Output *output)
     }
 
     m_outputLayout->remove(output->output());
+    // Switch the primary before relocating layer surfaces: removeOutput()
+    // needs the new primary, otherwise global (output-less) layer surfaces
+    // would be handed to the very container being removed, crashing.
     if (m_primaryOutput == output) {
         const auto outputs = m_outputLayout->outputs();
         if (!outputs.isEmpty()) {
@@ -193,6 +198,8 @@ void RootSurfaceContainer::removeOutput(Output *output)
             setPrimaryOutput(newPrimaryOutput);
         }
     }
+
+    SurfaceContainer::removeOutput(output);
 
     // ensure cursor within output
     const auto outputPos = output->outputItem()->position();
@@ -204,6 +211,14 @@ void RootSurfaceContainer::removeOutput(Output *output)
             Helper::instance()->setCursorPosition(newCursorPos);
         else
             Helper::instance()->setCursorPosition(m_primaryOutput->geometry().center());
+    }
+}
+
+void RootSurfaceContainer::detachLayerSurfaces(Output *output)
+{
+    for (auto *sub : subContainers()) {
+        if (auto *lsc = qobject_cast<LayerSurfaceContainer *>(sub))
+            lsc->detachOutputSurfaces(output);
     }
 }
 
@@ -416,11 +431,14 @@ Output *RootSurfaceContainer::primaryOutput() const
 
 void RootSurfaceContainer::setPrimaryOutput(Output *newPrimaryOutput, bool updateDconfig)
 {
-    if (m_primaryOutput == newPrimaryOutput)
-        return;
-
-    m_primaryOutput = newPrimaryOutput;
-    Q_EMIT primaryOutputChanged();
+    // Even when the primary does not change, an explicit request with
+    // updateDconfig must persist the choice: after a disable/enable cycle the
+    // auto-restore may already hold the same output in memory while the
+    // persisted config is stale. Early-returning here would drop the write.
+    if (m_primaryOutput != newPrimaryOutput) {
+        m_primaryOutput = newPrimaryOutput;
+        Q_EMIT primaryOutputChanged();
+    }
     if (updateDconfig)
         setPrimaryOutputConfig(newPrimaryOutput);
 }

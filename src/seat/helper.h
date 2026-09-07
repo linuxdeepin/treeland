@@ -29,9 +29,12 @@
 
 #include <QSet>
 #include <QList>
+#include <QHash>
+#include <QPointer>
 #include <vector>
 #include <QMap>
 #include <qevent.h>
+#include <functional>
 
 #include <optional>
 
@@ -369,7 +372,24 @@ private:
     void moveSurfacesToOutput(const QList<SurfaceWrapper *> &surfaces,
                               Output *targetOutput,
                               Output *sourceOutput);
-    void handleCopyModeOutputDisable(Output *affectedOutput);
+
+    // Surfaces displaced when an output was disabled, with the absolute
+    // position they had at that moment, so re-enabling the output can put them
+    // back instead of leaving them stranded on the primary screen.
+    struct DisabledOutputSurfaces {
+        QVector<QPointer<SurfaceWrapper>> surfaces;
+        QVector<QPointF> positions;
+    };
+    QHash<QString, DisabledOutputSurfaces> m_disabledOutputSurfaces;
+
+    bool handleCopyModeSourceDisabled(Output *disabledSource,
+                                      const QList<WOutput *> &requestedDisabled);
+    Output *promoteCopyOutputToSource(Output *promotedMirror,
+                                      const QList<SurfaceWrapper *> &surfaces,
+                                      Output *surfacesFrom,
+                                      const std::function<bool(Output *)> &shouldRetarget);
+    Output *convertCopyOutputsToNormal(const std::function<bool(Output *)> &skip);
+    void convertCopyModeToExtension(Output *preservedOutput);
     bool restoreConfiguredCopyMode();
     void restoreExtensionModeFromConfig(bool preserveSingleOutputConfig = false);
     void restoreInitialOutputConfiguration();
