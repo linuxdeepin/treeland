@@ -179,4 +179,15 @@ void waylib_vk_texture_end_readback(struct wlr_renderer *renderer,
 void waylib_vk_renderer_set_stage_async_enabled(struct wlr_renderer *renderer,
 	bool enabled);
 
+// Drop the given DRM formats from the renderer's advertised dmabuf and shm
+// texture format sets so clients cannot allocate buffers the compositor is
+// unable to display. Every other format is kept, including formats the
+// consumer may not be able to represent yet: dropping a format here makes
+// clients fail at buffer creation (some abort the process on the
+// linux-dmabuf "failed" event), so the exclusion list must stay as narrow as
+// the real capability gap. Call once after renderer creation and before any
+// client connects. An empty list is a no-op and returns true.
+bool waylib_vk_renderer_exclude_texture_formats(struct wlr_renderer *renderer,
+	const uint32_t *drm_formats, size_t count);
+
 #endif
