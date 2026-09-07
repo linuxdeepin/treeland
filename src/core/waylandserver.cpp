@@ -488,6 +488,14 @@ void WaylandServer::initializeRendering()
     const bool vulkanRenderer =
         WRenderHelper::getGraphicsApi() == QSGRendererInterface::Vulkan;
     if (vulkanRenderer) {
+        // Drop only the formats the Qt wrapper cannot sample (YUV) before
+        // wl_shm and linux-dmabuf hand the sets to clients. Every other
+        // format is wrapped with an exact image view, and removing one is not
+        // neutral for clients: a rejected buffer makes the client fail at
+        // create_immed and some (Waydroid's HWC) abort() on it.
+        if (!WRenderHelper::restrictVulkanTextureFormats(m_renderer.get()))
+            qCWarning(lcTlCore) << "Continuing with the unfiltered Vulkan texture format set";
+
         if (!wlr_renderer_init_wl_shm(m_renderer.get(), m_server->handle()))
             qCFatal(lcTlCore) << "Failed to initialize wl_shm for Vulkan renderer";
 
