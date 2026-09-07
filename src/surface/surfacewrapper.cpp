@@ -32,6 +32,7 @@
 #define OPEN_ANIMATION 1
 #define CLOSE_ANIMATION 2
 #define ALWAYSONTOPLAYER 1
+#define ALWAYSONBOTTOMLAYER -1
 
 SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
                                WToplevelSurface *shellSurface,
@@ -49,6 +50,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     , m_noTitleBar(true)
     , m_noCornerRadius(false)
     , m_alwaysOnTop(false)
+    , m_alwaysOnBottom(false)
     , m_skipSwitcher(false)
     , m_skipDockPreView(true)
     , m_skipMutiTaskView(false)
@@ -86,6 +88,7 @@ SurfaceWrapper::SurfaceWrapper(SurfaceWrapper *original, QQuickItem *parent)
     , m_noTitleBar(true)
     , m_noCornerRadius(false)
     , m_alwaysOnTop(false)
+    , m_alwaysOnBottom(false)
     , m_skipSwitcher(false)
     , m_skipDockPreView(true)
     , m_skipMutiTaskView(false)
@@ -156,6 +159,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     , m_noTitleBar(true)
     , m_noCornerRadius(false)
     , m_alwaysOnTop(false)
+    , m_alwaysOnBottom(false)
     , m_skipSwitcher(false)
     , m_skipDockPreView(false)
     , m_skipMutiTaskView(false)
@@ -525,7 +529,16 @@ void SurfaceWrapper::setup()
                     updateX11SkipFlags();
                     updateSizeCapabilities();
                 });
+        connect(xwaylandSurface,
+                &WXWaylandSurface::aboveChanged,
+                this,
+                &SurfaceWrapper::updateXWaylandStackingState);
+        connect(xwaylandSurface,
+                &WXWaylandSurface::belowChanged,
+                this,
+                &SurfaceWrapper::updateXWaylandStackingState);
         updateX11SkipFlags();
+        updateXWaylandStackingState();
     }
     // Connect DConfig windowRadius change so QML bindings re-evaluate radius()
     if (m_type == Type::XdgToplevel || m_type == Type::XWayland) {
@@ -2164,7 +2177,7 @@ void SurfaceWrapper::addSubSurface(SurfaceWrapper *surface)
 {
     Q_ASSERT(!surface->m_parentSurface);
     surface->m_parentSurface = this;
-    surface->updateExplicitAlwaysOnTop();
+    surface->updateStackingLayer();
     m_subSurfaces.append(surface);
     surface->ensureAboveParent();
 }
@@ -2173,7 +2186,7 @@ void SurfaceWrapper::removeSubSurface(SurfaceWrapper *surface)
 {
     Q_ASSERT(surface->m_parentSurface == this);
     surface->m_parentSurface = nullptr;
-    surface->updateExplicitAlwaysOnTop();
+    surface->updateStackingLayer();
     m_subSurfaces.removeOne(surface);
 }
 
@@ -2345,9 +2358,18 @@ void SurfaceWrapper::setAlwaysOnTop(bool alwaysOnTop)
     if (m_alwaysOnTop == alwaysOnTop)
         return;
     m_alwaysOnTop = alwaysOnTop;
-    updateExplicitAlwaysOnTop();
+    updateStackingLayer();
 
     Q_EMIT alwaysOnTopChanged();
+}
+
+void SurfaceWrapper::setAlwaysOnBottom(bool alwaysOnBottom)
+{
+    if (m_alwaysOnBottom == alwaysOnBottom)
+        return;
+
+    m_alwaysOnBottom = alwaysOnBottom;
+    updateStackingLayer();
 }
 
 bool SurfaceWrapper::showOnAllWorkspace() const
@@ -2491,19 +2513,46 @@ void SurfaceWrapper::disableWindowAnimation(bool disable)
     m_windowAnimationEnabled = !disable;
 }
 
-void SurfaceWrapper::updateExplicitAlwaysOnTop()
+void SurfaceWrapper::updateStackingLayer()
 {
     int newExplicitAlwaysOnTop = m_alwaysOnTop;
-    if (m_parentSurface)
+    bool newExplicitAlwaysOnBottom = m_alwaysOnBottom;
+    if (m_parentSurface) {
         newExplicitAlwaysOnTop += m_parentSurface->m_explicitAlwaysOnTop;
+        newExplicitAlwaysOnBottom = newExplicitAlwaysOnBottom
+            || m_parentSurface->m_explicitAlwaysOnBottom;
+    }
 
-    if (m_explicitAlwaysOnTop == newExplicitAlwaysOnTop)
+    if (newExplicitAlwaysOnTop)
+        newExplicitAlwaysOnBottom = false;
+
+    if (m_explicitAlwaysOnTop == newExplicitAlwaysOnTop
+        && m_explicitAlwaysOnBottom == newExplicitAlwaysOnBottom)
         return;
 
     m_explicitAlwaysOnTop = newExplicitAlwaysOnTop;
-    setZ(m_explicitAlwaysOnTop ? ALWAYSONTOPLAYER : 0);
+    m_explicitAlwaysOnBottom = newExplicitAlwaysOnBottom;
+    setZ(m_explicitAlwaysOnTop ? ALWAYSONTOPLAYER
+                               : (m_explicitAlwaysOnBottom ? ALWAYSONBOTTOMLAYER : 0));
     for (const auto &sub : std::as_const(m_subSurfaces))
-        sub->updateExplicitAlwaysOnTop();
+        sub->updateStackingLayer();
+}
+
+void SurfaceWrapper::updateXWaylandStackingState()
+{
+    auto *xwaylandSurface = qobject_cast<WXWaylandSurface *>(m_shellSurface.data());
+    if (!xwaylandSurface)
+        return;
+
+    const bool above = xwaylandSurface->isAbove();
+    const bool below = !above && xwaylandSurface->isBelow();
+    setAlwaysOnBottom(below);
+    setAlwaysOnTop(above);
+    if (above) {
+        stackToLast();
+    } else if (below) {
+        stackToFirst();
+    }
 }
 
 void SurfaceWrapper::updateSizeCapabilities()
