@@ -12,6 +12,8 @@ import LockScreen
 FocusScope {
     id: root
 
+    palette.windowText: Qt.rgba(1.0, 1.0, 1.0, 1.0)
+
     signal animationPlayed
     signal animationPlayFinished
 
