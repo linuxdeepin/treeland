@@ -1,8 +1,8 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
-#include "treeland-window-management-v1.h"
+#include "treeland-show-desktop-v1.h"
 #include "server-bridge-api.h"
-#include "treeland-window-management-v1-client-protocol.h"
+#include "treeland-show-desktop-unstable-v1-client-protocol.h"
 
 #include <stdarg.h>
 #include <stdint.h>
@@ -10,8 +10,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-extern void window_management_get_desktop_state(void *data);
-extern void window_management_set_desktop_state(void *data);
+extern void show_desktop_get_state(void *data);
+extern void show_desktop_set_state(void *data);
 
 struct test_case {
     const char *name;
@@ -72,7 +72,7 @@ int test_print_results(struct test_ctx *ctx)
     return failed == 0;
 }
 
-static void show_desktop(void *data, struct treeland_window_management_v1 *manager, uint32_t state)
+static void show_desktop_state(void *data, struct treeland_show_desktop_v1 *manager, uint32_t state)
 {
     (void)manager;
     struct test_ctx *ctx = data;
@@ -81,8 +81,8 @@ static void show_desktop(void *data, struct treeland_window_management_v1 *manag
     ++ctx->show_desktop_count;
 }
 
-static const struct treeland_window_management_v1_listener manager_listener = {
-    .show_desktop = show_desktop,
+static const struct treeland_show_desktop_v1_listener manager_listener = {
+    .show_desktop_state = show_desktop_state,
 };
 
 static int connect_client(struct test_ctx *ctx, const char *socket_name)
@@ -90,10 +90,10 @@ static int connect_client(struct test_ctx *ctx, const char *socket_name)
     if (!client_connect(&ctx->connection, socket_name))
         return 0;
     ctx->display = ctx->connection.display;
-    ctx->manager = client_bind(&ctx->connection, "treeland_window_management_v1",
-                                      &treeland_window_management_v1_interface, 1);
+    ctx->manager = client_bind(&ctx->connection, "treeland_show_desktop_v1",
+                                      &treeland_show_desktop_v1_interface, 1);
     if (ctx->manager)
-        treeland_window_management_v1_add_listener(ctx->manager, &manager_listener, ctx);
+        treeland_show_desktop_v1_add_listener(ctx->manager, &manager_listener, ctx);
     return ctx->manager != NULL;
 }
 
@@ -103,69 +103,58 @@ static int initial_state_event(struct test_ctx *ctx)
 {
 
     return ctx->show_desktop_received
-        && ctx->show_desktop_last_state == TREELAND_WINDOW_MANAGEMENT_V1_DESKTOP_STATE_NORMAL;
+        && ctx->show_desktop_last_state == TREELAND_SHOW_DESKTOP_V1_STATE_NORMAL;
 }
 
-static int set_desktop_show(struct test_ctx *ctx)
+static int set_show_desktop_show(struct test_ctx *ctx)
 {
-    treeland_window_management_v1_set_desktop(ctx->manager, TREELAND_WINDOW_MANAGEMENT_V1_DESKTOP_STATE_SHOW);
+    treeland_show_desktop_v1_set_show_desktop_state(ctx->manager, TREELAND_SHOW_DESKTOP_V1_STATE_SHOW);
     return 1;
 }
 
-static int set_desktop_normal(struct test_ctx *ctx)
+static int set_show_desktop_normal(struct test_ctx *ctx)
 {
-    treeland_window_management_v1_set_desktop(ctx->manager, TREELAND_WINDOW_MANAGEMENT_V1_DESKTOP_STATE_NORMAL);
-    return 1;
-}
-
-static int set_desktop_preview(struct test_ctx *ctx)
-{
-    treeland_window_management_v1_set_desktop(ctx->manager, TREELAND_WINDOW_MANAGEMENT_V1_DESKTOP_STATE_PREVIEW_SHOW);
+    treeland_show_desktop_v1_set_show_desktop_state(ctx->manager, TREELAND_SHOW_DESKTOP_V1_STATE_NORMAL);
     return 1;
 }
 
 static int desktop_state_is(struct test_ctx *ctx, uint32_t expected)
 {
     uint32_t server_state = UINT32_MAX;
-    if (!invoke_on_server_thread(window_management_get_desktop_state, &server_state))
+    if (!invoke_on_server_thread(show_desktop_get_state, &server_state))
         return 0;
     return server_state == expected && ctx->show_desktop_last_state == expected;
 }
 
-static int desktop_state_show(struct test_ctx *ctx)
+static int show_desktop_state_show(struct test_ctx *ctx)
 {
-    return desktop_state_is(ctx, TREELAND_WINDOW_MANAGEMENT_V1_DESKTOP_STATE_SHOW);
+    return desktop_state_is(ctx, TREELAND_SHOW_DESKTOP_V1_STATE_SHOW);
 }
 
-static int desktop_state_normal(struct test_ctx *ctx)
+static int show_desktop_state_normal(struct test_ctx *ctx)
 {
-    return desktop_state_is(ctx, TREELAND_WINDOW_MANAGEMENT_V1_DESKTOP_STATE_NORMAL);
+    return desktop_state_is(ctx, TREELAND_SHOW_DESKTOP_V1_STATE_NORMAL);
 }
 
-static int desktop_state_preview(struct test_ctx *ctx)
-{
-    return desktop_state_is(ctx, TREELAND_WINDOW_MANAGEMENT_V1_DESKTOP_STATE_PREVIEW_SHOW);
-}
-
-static int server_set_desktop_state(struct test_ctx *ctx)
+static int server_set_show_desktop_state(struct test_ctx *ctx)
 {
     (void)ctx;
-    uint32_t state = TREELAND_WINDOW_MANAGEMENT_V1_DESKTOP_STATE_SHOW;
-    return invoke_on_server_thread(window_management_set_desktop_state, &state);
+    uint32_t state = TREELAND_SHOW_DESKTOP_V1_STATE_SHOW;
+    return invoke_on_server_thread(show_desktop_set_state, &state);
 }
 
 static int server_event_received(struct test_ctx *ctx)
 {
 
-    return ctx->show_desktop_count == 5
-        && ctx->show_desktop_last_state == TREELAND_WINDOW_MANAGEMENT_V1_DESKTOP_STATE_SHOW;
+    return ctx->show_desktop_count == 4
+        && ctx->show_desktop_last_state == TREELAND_SHOW_DESKTOP_V1_STATE_SHOW;
 }
 
 static int destroy_manager(struct test_ctx *ctx)
 {
     if (!ctx->manager)
         return 0;
-    treeland_window_management_v1_destroy(ctx->manager);
+    treeland_show_desktop_v1_destroy(ctx->manager);
     ctx->manager = NULL;
     return 1;
 }
@@ -173,20 +162,18 @@ static int destroy_manager(struct test_ctx *ctx)
 static const struct test_case cases[] = {
     { "manager.bind", bind_manager },
     { "manager.event.show_desktop.initial", initial_state_event },
-    { "manager.set_desktop(show)", set_desktop_show },
-    { "desktop_state.show", desktop_state_show },
-    { "manager.set_desktop(normal)", set_desktop_normal },
-    { "desktop_state.normal", desktop_state_normal },
-    { "manager.set_desktop(preview_show)", set_desktop_preview },
-    { "desktop_state.preview_show", desktop_state_preview },
-    { "server.set_desktop_state(show)", server_set_desktop_state },
+    { "manager.set_show_desktop(show)", set_show_desktop_show },
+    { "show_desktop_state.show", show_desktop_state_show },
+    { "manager.set_show_desktop(normal)", set_show_desktop_normal },
+    { "show_desktop_state.normal", show_desktop_state_normal },
+    { "server.set_show_desktop_state(show)", server_set_show_desktop_state },
     { "server.event.show_desktop", server_event_received },
     { "manager.destroy", destroy_manager },
 };
 
 void test_cleanup(struct test_ctx *ctx)
 {
-    if (ctx->manager) treeland_window_management_v1_destroy(ctx->manager);
+    if (ctx->manager) treeland_show_desktop_v1_destroy(ctx->manager);
     client_disconnect(&ctx->connection);
 }
 
@@ -195,7 +182,7 @@ int protocol_test_run(const char *socket_name)
     struct test_ctx ctx;
     test_init(&ctx);
     if (!connect_client(&ctx, socket_name)) {
-        fprintf(stderr, "failed to connect to or bind treeland_window_management_v1\n");
+        fprintf(stderr, "failed to connect to or bind treeland_show_desktop_v1\n");
         test_cleanup(&ctx);
         test_destroy(&ctx);
         return 1;

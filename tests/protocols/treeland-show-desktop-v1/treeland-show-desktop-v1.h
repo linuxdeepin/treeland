@@ -1,7 +1,7 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
-#ifndef WINDOW_MANAGEMENT_TEST_H
-#define WINDOW_MANAGEMENT_TEST_H
+#ifndef SHOW_DESKTOP_TEST_H
+#define SHOW_DESKTOP_TEST_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -11,7 +11,7 @@ int protocol_test_run(const char *socket_name);
 
 #include "client-connection.h"
 
-struct treeland_window_management_v1;
+struct treeland_show_desktop_v1;
 
 #define TEST_MSG_MAX 256
 
@@ -25,7 +25,7 @@ struct test_ctx {
     struct client_connection connection;
     struct wl_display    *display;
 
-    struct treeland_window_management_v1 *manager;
+    struct treeland_show_desktop_v1 *manager;
 
     int      show_desktop_received;
     uint32_t show_desktop_last_state;

@@ -9,31 +9,30 @@
 
 WAYLIB_SERVER_USE_NAMESPACE
 
-class WindowManagementInterfaceV1Private;
-class WindowManagementInterfaceV1
+class ShowDesktopInterfaceV1Private;
+class ShowDesktopInterfaceV1
     : public QObject
     , public WAYLIB_SERVER_NAMESPACE::WServerInterface
 {
     Q_OBJECT
-    Q_PROPERTY(DesktopState desktopState READ desktopState WRITE setDesktopState NOTIFY desktopStateChanged)
+    Q_PROPERTY(State desktopState READ desktopState WRITE setDesktopState NOTIFY desktopStateChanged)
 
 public:
-    enum class DesktopState
+    enum class State
     {
         Normal,
         Show,
-        Preview
     };
-    Q_ENUM(DesktopState)
+    Q_ENUM(State)
 
-    explicit WindowManagementInterfaceV1(QObject *parent = nullptr);
-    ~WindowManagementInterfaceV1() override;
+    explicit ShowDesktopInterfaceV1(QObject *parent = nullptr);
+    ~ShowDesktopInterfaceV1() override;
 
     QByteArrayView interfaceName() const override;
 
     static constexpr int InterfaceVersion = 1;
-    DesktopState desktopState();
-    void setDesktopState(DesktopState state);
+    State desktopState();
+    void setDesktopState(State state);
 
 Q_SIGNALS:
     void desktopStateChanged();
@@ -44,5 +43,5 @@ protected:
     wl_global *global() const override;
 
 private:
-    std::unique_ptr<WindowManagementInterfaceV1Private> d;
+    std::unique_ptr<ShowDesktopInterfaceV1Private> d;
 };

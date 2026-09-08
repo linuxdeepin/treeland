@@ -12,7 +12,7 @@
 #include "modules/dde-shell/ddeshellmanagerinterfacev1.h"
 #include "modules/foreign-toplevel/foreigntoplevelmanagerv1.h"
 #include "modules/prelaunch-splash/prelaunchsplash.h"
-#include "modules/window-management/windowmanagementinterfacev1.h"
+#include "modules/show-desktop/showdesktopinterfacev1.h"
 #include "modules/wine-window-management/winewindowmanagement.h"
 #include "modules/wine-window-state/winewindowstate.h"
 #include "output/output.h"
@@ -208,7 +208,7 @@ void ShellHandler::updateXWaylandDesktopProperties()
                                        viewports,
                                        workareas,
                                        Helper::instance()->showDesktopState()
-                                           == WindowManagementInterfaceV1::DesktopState::Show);
+                                           == ShowDesktopInterfaceV1::State::Show);
     }
 }
 

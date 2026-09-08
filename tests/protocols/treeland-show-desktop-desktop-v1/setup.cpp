@@ -4,7 +4,7 @@
 #include "server-bridge.h"
 #include "seat/helper.h"
 #include "surface/surfacewrapper.h"
-#include "treeland-window-management-desktop-v1.h"
+#include "treeland-show-desktop-desktop-v1.h"
 #include "workspace/workspace.h"
 
 #include <QEventLoop>
@@ -15,7 +15,7 @@
 
 namespace {
 SurfaceWrapper *g_wrapper = nullptr;
-window_management_desktop_state g_state {};
+show_desktop_desktop_state g_state {};
 }
 
 void protocol_test_setup(Helper *helper)
@@ -33,7 +33,7 @@ void protocol_test_setup(Helper *helper)
                      });
 }
 
-extern "C" void window_management_desktop_read_state(void *data)
+extern "C" void show_desktop_desktop_read_state(void *data)
 {
     auto state = g_state;
     state.desktop_state = static_cast<unsigned int>(Helper::instance()->showDesktopState());
@@ -45,12 +45,12 @@ extern "C" void window_management_desktop_read_state(void *data)
         state.wrapper_visible = g_wrapper->isVisible() ? 1 : 0;
         state.wrapper_minimized = g_wrapper->isMinimized() ? 1 : 0;
     }
-    *static_cast<window_management_desktop_state *>(data) = state;
+    *static_cast<show_desktop_desktop_state *>(data) = state;
 }
 
-extern "C" void window_management_desktop_wait_visible(void *data)
+extern "C" void show_desktop_desktop_wait_visible(void *data)
 {
-    auto *wait = static_cast<window_management_desktop_visibility_wait *>(data);
+    auto *wait = static_cast<show_desktop_desktop_visibility_wait *>(data);
     QEventLoop loop;
     QTimer poll;
     QTimer timeout;

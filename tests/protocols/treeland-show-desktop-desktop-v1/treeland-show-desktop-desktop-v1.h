@@ -10,7 +10,7 @@ extern "C" {
 #include "client-connection.h"
 #include "xdg-toplevel-client.h"
 
-struct window_management_desktop_state {
+struct show_desktop_desktop_state {
     int wrapper_created;
     int wrapper_in_workspace;
     int wrapper_in_paint_order;
@@ -19,7 +19,7 @@ struct window_management_desktop_state {
     unsigned int desktop_state;
 };
 
-struct window_management_desktop_visibility_wait {
+struct show_desktop_desktop_visibility_wait {
     int visible;
     int reached;
 };

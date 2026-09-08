@@ -10,7 +10,7 @@
 #include "modules/virtual-output/virtualoutputmanagerinterfacev1.h"
 #include "modules/wallpaper/wallpapermanagerinterfacev1.h"
 #include "modules/wallpaper/wallpapernotifierinterfacev1.h"
-#include "modules/window-management/windowmanagementinterfacev1.h"
+#include "modules/show-desktop/showdesktopinterfacev1.h"
 #include "utils/fpsdisplaymanager.h"
 
 #include <xcb/xproto.h>
@@ -125,7 +125,7 @@ class TreelandRemoteSource;
 class UserModel;
 class VirtualOutputManagerInterfaceV1;
 class WallpaperColorInterfaceV1;
-class WindowManagementInterfaceV1;
+class ShowDesktopInterfaceV1;
 class WindowPickerInterface;
 class TreelandKeyboardStateNotifyManagerInterfaceV1;
 class KeyboardShortcutsInhibitManagerV1;
@@ -215,7 +215,7 @@ public:
 
     bool toggleDebugMenuBar();
 
-    WindowManagementInterfaceV1::DesktopState showDesktopState() const;
+    ShowDesktopInterfaceV1::State showDesktopState() const;
 
     Q_INVOKABLE bool isLaunchpad(WLayerSurface *surface) const;
     Q_INVOKABLE void setLaunchpadMapped(WOutput *output, bool mapped);
@@ -473,8 +473,8 @@ private:
     WallpaperColorInterfaceV1 *m_wallpaperColorV1 = nullptr;
     WOutputManagerV1 *m_outputManager = nullptr;
     WXdgOutputManager *m_xwaylandOutputManager = nullptr;
-    WindowManagementInterfaceV1 *m_windowManagementInterfaceV1 = nullptr;
-    WindowManagementInterfaceV1::DesktopState m_showDesktop = WindowManagementInterfaceV1::DesktopState::Normal;
+    ShowDesktopInterfaceV1 *m_showDesktopInterfaceV1 = nullptr;
+    ShowDesktopInterfaceV1::State m_showDesktop = ShowDesktopInterfaceV1::State::Normal;
     DDEShellManagerInterfaceV1 *m_ddeShellV1 = nullptr;
     VirtualOutputManagerInterfaceV1 *m_virtualOutputInterfaceV1 = nullptr;
     OutputManagerV1 *m_outputManagerV1 = nullptr;
