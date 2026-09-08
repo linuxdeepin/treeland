@@ -1,33 +1,31 @@
 // Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
-#include "qwayland-treeland-window-management-v1.h"
+#include "qwayland-treeland-show-desktop-unstable-v1.h"
 
 #include <QGuiApplication>
 #include <QtWaylandClient/QWaylandClientExtension>
 
-class WindowManager
-    : public QWaylandClientExtensionTemplate<WindowManager>
-    , public QtWayland::treeland_window_management_v1
+class ShowDesktop
+    : public QWaylandClientExtensionTemplate<ShowDesktop>
+    , public QtWayland::treeland_show_desktop_v1
 {
     Q_OBJECT
 public:
-    explicit WindowManager();
+    explicit ShowDesktop();
 
-    void treeland_window_management_v1_show_desktop(uint32_t state)
+    void treeland_show_desktop_v1_show_desktop_state(uint32_t state)
     {
         qInfo() << "-------Show Desktop State----- " << state;
     }
 };
 
-WindowManager::WindowManager()
-    : QWaylandClientExtensionTemplate<WindowManager>(1)
+ShowDesktop::ShowDesktop()
+    : QWaylandClientExtensionTemplate<ShowDesktop>(1)
 {
 }
 
 // 显示桌面: ./test-show-desktop 1
-
-// 预览桌面: ./test-show-desktop 2
 
 // 恢复显示: ./test-show-desktop 0
 
@@ -35,20 +33,17 @@ int main(int argc, char *argv[])
 {
     qputenv("QT_QPA_PLATFORM", "wayland");
     QGuiApplication app(argc, argv);
-    WindowManager manager;
+    ShowDesktop showDesktop;
 
-    QObject::connect(&manager, &WindowManager::activeChanged, &manager, [&manager, argc, argv] {
-        if (manager.isActive()) {
+    QObject::connect(&showDesktop, &ShowDesktop::activeChanged, &showDesktop, [&showDesktop, argc, argv] {
+        if (showDesktop.isActive()) {
             if (argc == 2) {
                 switch (std::stoi(argv[1])) {
-                case manager.desktop_state_normal:
-                    manager.set_desktop(manager.desktop_state_normal);
+                case showDesktop.state_normal:
+                    showDesktop.set_show_desktop_state(showDesktop.state_normal);
                     break;
-                case manager.desktop_state_show:
-                    manager.set_desktop(manager.desktop_state_show);
-                    break;
-                case manager.desktop_state_preview_show:
-                    manager.set_desktop(manager.desktop_state_preview_show);
+                case showDesktop.state_show:
+                    showDesktop.set_show_desktop_state(showDesktop.state_show);
                     break;
                 default:
                     break;

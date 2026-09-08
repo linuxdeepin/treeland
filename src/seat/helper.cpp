@@ -1484,10 +1484,10 @@ void Helper::updateIdleInhibitor()
 
 void Helper::onShowDesktop()
 {
-    WindowManagementInterfaceV1::DesktopState s = m_windowManagementInterfaceV1->desktopState();
+    ShowDesktopInterfaceV1::State s = m_showDesktopInterfaceV1->desktopState();
     if (m_showDesktop == s
-        || (s != WindowManagementInterfaceV1::DesktopState::Normal
-            && s != WindowManagementInterfaceV1::DesktopState::Show))
+        || (s != ShowDesktopInterfaceV1::State::Normal
+            && s != ShowDesktopInterfaceV1::State::Show))
         return;
 
     m_showDesktop = s;
@@ -1497,14 +1497,14 @@ void Helper::onShowDesktop()
         if (surface->isMinimized()) {
             continue;
         }
-        if (s == WindowManagementInterfaceV1::DesktopState::Normal) {
+        if (s == ShowDesktopInterfaceV1::State::Normal) {
             surface->startShowDesktopAnimation(true);
-        } else if (s == WindowManagementInterfaceV1::DesktopState::Show) {
+        } else if (s == ShowDesktopInterfaceV1::State::Show) {
             surface->startShowDesktopAnimation(false);
         }
     }
 
-    if (s == WindowManagementInterfaceV1::DesktopState::Show) {
+    if (s == ShowDesktopInterfaceV1::State::Show) {
         // Find the desktop background surface first
         SurfaceWrapper *desktopSurface = nullptr;
         const auto &backgroundSurfaces = m_shellHandler->m_backgroundContainer->surfaces();
@@ -1532,7 +1532,7 @@ void Helper::onShowDesktop()
             // on focus loss exit.
             requestKeyboardFocus(desktopSurface, Qt::OtherFocusReason, seat);
         }
-    } else if (s == WindowManagementInterfaceV1::DesktopState::Normal) {
+    } else if (s == ShowDesktopInterfaceV1::State::Normal) {
         // m_showDesktop already set to s above; the protocol state is already Normal.
         restoreShowDesktopFocus();
     }
@@ -1879,7 +1879,7 @@ void Helper::init(Treeland::Treeland *treeland)
                 auto *wrapper = m_rootSurfaceContainer->getSurface(surface);
                 if (!wrapper)
                     return;
-                if (showDesktopState() == WindowManagementInterfaceV1::DesktopState::Show) {
+                if (showDesktopState() == ShowDesktopInterfaceV1::State::Show) {
                     forceActivateSurface(wrapper);
                 } else if (minimized) {
                     wrapper->minimize();
@@ -1934,7 +1934,7 @@ void Helper::init(Treeland::Treeland *treeland)
             m_sessionManager,
             &SessionManager::syncActiveSessionXWaylandPrimaryOutput);
     m_wallpaperColorV1 = m_server->attach<WallpaperColorInterfaceV1>();
-    m_windowManagementInterfaceV1 = m_server->attach<WindowManagementInterfaceV1>();
+    m_showDesktopInterfaceV1 = m_server->attach<ShowDesktopInterfaceV1>();
     m_virtualOutputInterfaceV1 = m_server->attach<VirtualOutputManagerInterfaceV1>();
 
     auto captureManagerV1 = m_server->attach<CaptureManagerV1>();
@@ -2004,8 +2004,8 @@ void Helper::init(Treeland::Treeland *treeland)
 
     updateCurrentUser();
 
-    connect(m_windowManagementInterfaceV1,
-            &WindowManagementInterfaceV1::desktopStateChanged,
+    connect(m_showDesktopInterfaceV1,
+            &ShowDesktopInterfaceV1::desktopStateChanged,
             this,
             &Helper::onShowDesktop);
 
@@ -3035,7 +3035,7 @@ void Helper::setActivatedSurface(SurfaceWrapper *newActivateSurface, WSeat *seat
     }
 
     if (newActivateSurface) {
-        if (m_showDesktop == WindowManagementInterfaceV1::DesktopState::Show) {
+        if (m_showDesktop == ShowDesktopInterfaceV1::State::Show) {
             cancelShowDesktop(newActivateSurface);
             newActivateSurface->setHideByShowDesk(true);
             wasShowingDesktop = true;
@@ -3363,7 +3363,7 @@ bool Helper::toggleDebugMenuBar()
     return ok;
 }
 
-WindowManagementInterfaceV1::DesktopState Helper::showDesktopState() const
+ShowDesktopInterfaceV1::State Helper::showDesktopState() const
 {
     return m_showDesktop;
 }
@@ -3596,10 +3596,10 @@ void Helper::handleWhellValueChanged(const QInputEvent *event)
 
 void Helper::cancelShowDesktop(SurfaceWrapper *excludeSurface)
 {
-    if (m_showDesktop != WindowManagementInterfaceV1::DesktopState::Show)
+    if (m_showDesktop != ShowDesktopInterfaceV1::State::Show)
         return;
-    m_showDesktop = WindowManagementInterfaceV1::DesktopState::Normal;
-    m_windowManagementInterfaceV1->setDesktopState(WindowManagementInterfaceV1::DesktopState::Normal);
+    m_showDesktop = ShowDesktopInterfaceV1::State::Normal;
+    m_showDesktopInterfaceV1->setDesktopState(ShowDesktopInterfaceV1::State::Normal);
     const auto &surfaces = getWorkspaceSurfaces();
     for (auto &surface : surfaces) {
         if (surface == excludeSurface)
@@ -3613,7 +3613,7 @@ void Helper::cancelShowDesktop(SurfaceWrapper *excludeSurface)
 
 void Helper::restoreFromShowDesktop(SurfaceWrapper *activeSurface)
 {
-    if (m_showDesktop != WindowManagementInterfaceV1::DesktopState::Show)
+    if (m_showDesktop != ShowDesktopInterfaceV1::State::Show)
         return;
     cancelShowDesktop(activeSurface);
     if (activeSurface) {
