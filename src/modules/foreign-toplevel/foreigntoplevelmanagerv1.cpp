@@ -470,7 +470,7 @@ void ForeignToplevelManagerInterfaceV1::initializeToplevelHandle(SurfaceWrapper 
             wrapper,
             [wrapper](bool minimized) {
                 if ((Helper::instance()->showDesktopState()
-                     == WindowManagementInterfaceV1::DesktopState::Show)) {
+                     == ShowDesktopInterfaceV1::State::Show)) {
                     Helper::instance()->forceActivateSurface(wrapper);
                     return;
                 }

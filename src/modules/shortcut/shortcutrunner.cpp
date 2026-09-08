@@ -6,7 +6,7 @@
 #include "core/qmlengine.h"
 #include "core/rootsurfacecontainer.h"
 #include "interfaces/multitaskviewinterface.h"
-#include "modules/window-management/windowmanagementinterfacev1.h"
+#include "modules/show-desktop/showdesktopinterfacev1.h"
 #include "output/output.h"
 #include "seat/helper.h"
 #include "shortcutcontroller.h"
@@ -78,10 +78,10 @@ void ShortcutRunner::onActionTrigger(ShortcutAction action, const QString &name,
         if (helper->currentMode() == Helper::CurrentMode::Multitaskview) {
             break;
         }
-        if (helper->m_showDesktop == WindowManagementInterfaceV1::DesktopState::Normal)
-            helper->m_windowManagementInterfaceV1->setDesktopState(WindowManagementInterfaceV1::DesktopState::Show);
-        else if (helper->m_showDesktop == WindowManagementInterfaceV1::DesktopState::Show)
-            helper->m_windowManagementInterfaceV1->setDesktopState(WindowManagementInterfaceV1::DesktopState::Normal);
+        if (helper->m_showDesktop == ShowDesktopInterfaceV1::State::Normal)
+            helper->m_showDesktopInterfaceV1->setDesktopState(ShowDesktopInterfaceV1::State::Show);
+        else if (helper->m_showDesktop == ShowDesktopInterfaceV1::State::Show)
+            helper->m_showDesktopInterfaceV1->setDesktopState(ShowDesktopInterfaceV1::State::Normal);
         break;
     case ShortcutAction::Maximize: {
         auto surface = helper->activatedSurface();

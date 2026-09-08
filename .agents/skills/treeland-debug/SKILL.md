@@ -14,7 +14,7 @@ Primary repos and where things live:
 - `src/surface/` — surface/window wrappers, state, visibility, geometry (`surfacewrapper.cpp`).
 - `src/seat/` — seat management, `Helper` initialization hub, protocol wiring (`seat/helper.*`).
 - `src/workspace/` — workspace model and switching.
-- `src/modules/` — feature modules (window-management, input-manager, output-manager, dde-shell, …).
+- `src/modules/` — feature modules (show-desktop, input-manager, output-manager, dde-shell, …).
 - `src/plugins/` + `src/effects/` — plugin & effect integration.
 - `src/common/treelandlogging.*` — centralized logging categories.
 - `waylib/` — the wlroots+QtQuick compositor framework underneath (outputs <-> `QQuickWindow`, surfaces <-> `QQuickItem`).

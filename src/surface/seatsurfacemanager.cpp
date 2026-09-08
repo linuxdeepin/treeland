@@ -94,7 +94,7 @@ void SeatSurfaceManager::onActivatedSurfaceFocusCapabilityChanged()
     // While showing the desktop, keyboard focus is on the desktop layer, not on the
     // (hidden) activated surface; a focus-capability change of the activated
     // surface must not yank keyboard focus back to the window.
-    if (helper->showDesktopState() == WindowManagementInterfaceV1::DesktopState::Show)
+    if (helper->showDesktopState() == ShowDesktopInterfaceV1::State::Show)
         return;
 
     if (m_activatedSurface->hasFocusCapability()) {
@@ -461,7 +461,7 @@ void SeatSurfaceManager::onKeyboardGrabEnd()
     // While showing the desktop, keyboard focus is on the desktop layer, not on the
     // (hidden) activated surface; do not yank it back to the window.
     if (auto *helper = Helper::instance()) {
-        if (helper->showDesktopState() == WindowManagementInterfaceV1::DesktopState::Show)
+        if (helper->showDesktopState() == ShowDesktopInterfaceV1::State::Show)
             return;
     }
 
