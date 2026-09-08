@@ -235,6 +235,33 @@ void ForeignToplevelManagerInterfaceV1Private::setupHandleForWrapper(SurfaceEntr
         wrapper->close();
     });
 
+    // The rectangle handler only depends on the wrapper, so connect it here for
+    // both splash and normal handles: a splash is exposed to clients immediately
+    // and a set_rectangle sent during the splash phase must not be dropped.
+    QObject::connect(handle,
+            &ForeignToplevelHandleV1::rectangleChanged,
+            wrapper,
+            [wrapper](WSurface *surface, const QRect &rect) {
+                         auto *dockWrapper =
+                             Helper::instance()->rootSurfaceContainer()->getSurface(surface);
+                         if (!dockWrapper) {
+                             qCWarning(lcTlProtocol)
+                                 << "rectangleChanged: dock wrapper not found for app"
+                                 << wrapper->appId() << "surface=" << surface << "rect=" << rect;
+                             return;
+                         }
+                         const QRect iconGeometry(dockWrapper->x() + rect.x(),
+                                                  dockWrapper->y() + rect.y(),
+                                                  rect.width(),
+                                                  rect.height());
+                         qCDebug(lcTlProtocol) << "rectangleChanged:" << wrapper->appId()
+                                               << "rect=" << rect
+                                               << "dockPos="
+                                               << QPointF(dockWrapper->x(), dockWrapper->y())
+                                               << "iconGeometry=" << iconGeometry;
+                         wrapper->setIconGeometry(iconGeometry);
+                     });
+
     if (wrapper->type() == SurfaceWrapper::Type::SplashScreen) {
         handle->set_title(QStringLiteral("SplashScreen: ") + wrapper->appId());
         handle->set_app_id(wrapper->appId());
@@ -489,19 +516,6 @@ void ForeignToplevelManagerInterfaceV1::initializeToplevelHandle(SurfaceWrapper 
                     wrapper->enterFullscreen(output);
                 else
                     wrapper->leaveFullscreen();
-            });
-
-    connect(handle,
-            &ForeignToplevelHandleV1::rectangleChanged,
-            wrapper,
-            [wrapper](WSurface *surface, const QRect &rect) {
-                auto dockWrapper = Helper::instance()->rootSurfaceContainer()->getSurface(surface);
-                if (!dockWrapper)
-                    return;
-                wrapper->setIconGeometry(QRect(dockWrapper->x() + rect.x(),
-                                               dockWrapper->y() + rect.y(),
-                                               rect.width(),
-                                               rect.height()));
             });
 
     if (auto *xdgSurface = qobject_cast<WXdgToplevelSurface *>(surface)) {
