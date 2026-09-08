@@ -418,6 +418,7 @@ private:
     void updateBoundingRect();
     void updateVisible();
     void updateSubSurfaceStacking();
+    void restackWindowAnimationAbove();
     void ensureAboveParent();
     void updateClipRect();
     void geometryChange(const QRectF &newGeo, const QRectF &oldGeometry) override;

@@ -1535,9 +1535,7 @@ void SurfaceWrapper::createNewOrClose(uint direction)
     }
 
     if (m_windowAnimation) {
-        if (m_windowAnimation->parentItem() == parentItem()) {
-            m_windowAnimation->stackAfter(this);
-        }
+        restackWindowAnimationAbove();
         if (Helper::instance()->noAnimation()) {
             if (direction == OPEN_ANIMATION) {
                 onShowAnimationFinished();
@@ -2097,6 +2095,7 @@ bool SurfaceWrapper::stackBefore(QQuickItem *item)
     } while (false);
 
     updateSubSurfaceStacking();
+    restackWindowAnimationAbove();
     return true;
 }
 
@@ -2142,6 +2141,7 @@ bool SurfaceWrapper::stackAfter(QQuickItem *item)
     } while (false);
 
     updateSubSurfaceStacking();
+    restackWindowAnimationAbove();
     return true;
 }
 
@@ -2171,6 +2171,12 @@ void SurfaceWrapper::stackToFirst()
         auto first = parentItem()->childItems().first();
         stackBefore(first);
     }
+}
+
+void SurfaceWrapper::restackWindowAnimationAbove()
+{
+    if (m_windowAnimation && parentItem() && m_windowAnimation->parentItem() == parentItem())
+        m_windowAnimation->stackAfter(this);
 }
 
 void SurfaceWrapper::addSubSurface(SurfaceWrapper *surface)
@@ -2416,6 +2422,8 @@ SurfaceWrapper *SurfaceWrapper::findModal() const
         return nullptr;
     for (auto *child : std::as_const(m_subSurfaces)) {
         if (child->m_wrapperAboutToRemove)
+            continue;
+        if (!child->surface() || !child->surface()->mapped())
             continue;
         if (child->modal()) {
             if (SurfaceWrapper *deepModal = child->findModal())
