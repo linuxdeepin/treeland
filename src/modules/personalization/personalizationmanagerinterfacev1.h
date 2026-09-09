@@ -11,25 +11,12 @@
 #include <QQmlEngine>
 #include <QQuickItem>
 
+#include "common/windowdecorations.h"
+
 class SurfaceWrapper;
 class PersonalizationManagerInterfaceV1;
 
 WAYLIB_SERVER_USE_NAMESPACE
-
-struct Shadow
-{
-    int32_t radius;
-    QPoint offset;
-    QColor color;
-    bool operator==(const Shadow &other) const = default;
-};
-
-struct Border
-{
-    int32_t width;
-    QColor color;
-    bool operator==(const Border &other) const = default;
-};
 
 class PersonalizationManagerInterfaceV1Private;
 class PersonalizationWindowContextV1Private;
