@@ -104,10 +104,19 @@ AppearanceInterfaceV1::AppearanceInterfaceV1(QObject *parent)
 {
     d->server = std::make_unique<AppearanceInterfaceV1Private>(this);
 
+    // In production this interface is attached inside Helper::init(), so
+    // Helper::instance() is always valid here. Unit tests, however, attach it
+    // to a bare WServer with no Helper singleton; guard against a null
+    // Helper to avoid passing a nullptr to QObject::connect and dereferencing
+    // it inside setupConfigConnections().
+    auto *helper = Helper::instance();
+    if (!helper)
+        return;
+
     // The TreelandUserConfig object is replaced in Helper::init when the
     // current user changes. Reconnect to the new config's signals whenever
     // that happens, and push the new values to all bound clients.
-    connect(Helper::instance(), &Helper::configChanged, this, [this] {
+    connect(helper, &Helper::configChanged, this, [this] {
         setupConfigConnections();
         // Push the new config values to all already-bound clients.
         for (const auto &resource : d->server->resourceMap())
