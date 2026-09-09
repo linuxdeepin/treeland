@@ -86,7 +86,7 @@ public:
                 }
                 wlr_foreign_toplevel_handle_v1_set_parent(handle, surfaces.at(p).get());
             };
-            conns.append(QObject::connect(xdgSurface, &WXdgToplevelSurface::parentXdgSurfaceChanged,
+            conns.append(QObject::connect(xdgSurface, &WToplevelSurface::parentSurfaceChanged,
                                                  surface,
                                                  updateSurfaceParent));
             updateSurfaceParent();
@@ -106,7 +106,7 @@ public:
                 }
                 wlr_foreign_toplevel_handle_v1_set_parent(handle, surfaces.at(p).get());
             };
-            conns.append(QObject::connect(xwaylandSurface, &WXWaylandSurface::parentXWaylandSurfaceChanged,
+            conns.append(QObject::connect(xwaylandSurface, &WToplevelSurface::parentSurfaceChanged,
                                                      surface,
                                                      updateSurfaceParent));
             updateSurfaceParent();

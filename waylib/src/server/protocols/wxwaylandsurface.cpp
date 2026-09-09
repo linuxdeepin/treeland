@@ -197,7 +197,6 @@ void WXWaylandSurfacePrivate::updateParent()
                                                    &WToplevelSurface::parentSurfaceChanged);
     }
 
-    Q_EMIT q->parentXWaylandSurfaceChanged();
     Q_EMIT q->parentSurfaceChanged();
 
     if (hasParentChanged)
@@ -300,8 +299,8 @@ WSurface *WXWaylandSurface::surface() const
 
 WSurface *WXWaylandSurface::parentSurface() const
 {
-    W_DC(WXWaylandSurface);
-    return d->parent ? d->parent->surface() : nullptr;
+    auto *parent = parentXWaylandSurface();
+    return parent ? parent->surface() : nullptr;
 }
 
 wlr_xwayland_surface *WXWaylandSurface::handle() const
@@ -335,7 +334,6 @@ void WXWaylandSurfacePrivate::handleParentDestroyed(WXWaylandSurface *parent)
     // parent is still alive here, so the QPointer comparison can proceed.
     QObject::disconnect(parentSurfaceConnection);
     this->parent = nullptr;
-    Q_EMIT q->parentXWaylandSurfaceChanged();
     Q_EMIT q->parentSurfaceChanged();
     Q_EMIT q->isToplevelChanged();
 }

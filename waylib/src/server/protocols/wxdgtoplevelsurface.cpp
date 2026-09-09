@@ -190,7 +190,7 @@ void WXdgToplevelSurfacePrivate::connect()
         Q_EMIT q->requestShowWindowMenu(seat, QPoint(event->x, event->y), event->serial);
     });
 
-    q->listeners()->add(&m_handle->events.set_parent, q, &WXdgToplevelSurface::parentXdgSurfaceChanged);
+    q->listeners()->add(&m_handle->events.set_parent, q, &WToplevelSurface::parentSurfaceChanged);
     q->listeners()->add(&m_handle->events.set_title, q, &WXdgToplevelSurface::titleChanged);
     q->listeners()->add(&m_handle->events.set_app_id, q, &WXdgToplevelSurface::appIdChanged);
 }
@@ -373,10 +373,10 @@ WXdgToplevelSurface *WXdgToplevelSurface::parentXdgSurface() const
 
 WSurface *WXdgToplevelSurface::parentSurface() const
 {
-    auto parent = handle()->parent;
+    auto *parent = parentXdgSurface();
     if (!parent)
         return nullptr;
-    return WSurface::fromHandle(parent->base->surface);
+    return parent->surface();
 }
 
 void WXdgToplevelSurface::setTag(const QString &tag)

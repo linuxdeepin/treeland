@@ -43,7 +43,6 @@ public Q_SLOTS:
     void close() override;
 
 Q_SIGNALS:
-    void parentXdgSurfaceChanged();
     void resizeingChanged();
     void reposition();
 };
