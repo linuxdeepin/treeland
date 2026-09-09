@@ -428,7 +428,9 @@ private:
     QRectF targetGeometryForState(State state) const;
     bool applySurfaceStateGeometry(State state, const QRectF &targetGeometry);
     bool checkSetSurfaceState(State newSurfaceState, bool allowRetarget = false);
+    bool shouldUpdateNormalGeometry() const;
     void abortGeometryAnimation();
+    void applySurfaceStateWithoutGeometry(State state);
     void doSetSurfaceState(State newSurfaceState);
     Q_SLOT void onAnimationReady();
     Q_SLOT void onAnimationFinished();
