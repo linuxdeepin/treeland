@@ -239,8 +239,18 @@ WSocket *ShortcutManagerV3Private::socketFromResource(Resource *resource)
 uint ShortcutManagerV3Private::registerKey(WSocket *socket, const KeyShortcut &ks)
 {
     uint status = m_controller->registerKey(ks.name, ks.key, ks.keybindFlags, ks.action);
-    if (!status)
-        m_shortcuts[socket].keys.append(ks);
+    if (!status) {
+        // An upsert (same name and trigger, updated flags) replaces the existing
+        // entry instead of appending a duplicate.
+        auto &keys = m_shortcuts[socket].keys;
+        for (auto &existing : keys) {
+            if (existing.name == ks.name) {
+                existing = ks;
+                return status;
+            }
+        }
+        keys.append(ks);
+    }
     return status;
 }
 
