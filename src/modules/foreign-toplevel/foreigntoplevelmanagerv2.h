@@ -13,13 +13,13 @@
 #include <vector>
 
 class SurfaceWrapper;
-class DockPreviewContextV1;
-class ForeignToplevelHandleV1;
-class ForeignToplevelManagerInterfaceV1Private;
+class DockPreviewContextV2;
+class ForeignToplevelHandleV2;
+class ForeignToplevelManagerInterfaceV2Private;
 
 WAYLIB_SERVER_USE_NAMESPACE
 
-class ForeignToplevelManagerInterfaceV1
+class ForeignToplevelManagerInterfaceV2
     : public QObject
     , public WServerInterface
 {
@@ -36,8 +36,8 @@ public:
     };
     Q_ENUM(PreviewDirection)
 
-    explicit ForeignToplevelManagerInterfaceV1(QObject *parent = nullptr);
-    ~ForeignToplevelManagerInterfaceV1() override;
+    explicit ForeignToplevelManagerInterfaceV2(QObject *parent = nullptr);
+    ~ForeignToplevelManagerInterfaceV2() override;
 
     void addSurface(SurfaceWrapper *wrapper);
     void removeSurface(SurfaceWrapper *wrapper);
@@ -67,15 +67,15 @@ protected:
 
 private:
     wl_event_loop *eventLoop() const;
-    ForeignToplevelHandleV1 *handleForIdentifier(uint32_t identifier) const;
-    void releaseHandle(ForeignToplevelHandleV1 *handle);
-    void releaseDockPreviewContext(DockPreviewContextV1 *context);
-    void initializeToplevelHandle(SurfaceWrapper *wrapper, ForeignToplevelHandleV1 *handle);
+    ForeignToplevelHandleV2 *handleForIdentifier(uint32_t identifier) const;
+    void releaseHandle(ForeignToplevelHandleV2 *handle);
+    void releaseDockPreviewContext(DockPreviewContextV2 *context);
+    void initializeToplevelHandle(SurfaceWrapper *wrapper, ForeignToplevelHandleV2 *handle);
 
-    std::unique_ptr<ForeignToplevelManagerInterfaceV1Private> d;
+    std::unique_ptr<ForeignToplevelManagerInterfaceV2Private> d;
 
-    friend class ForeignToplevelManagerInterfaceV1Private;
-    friend class DockPreviewContextV1;
-    friend class DockPreviewContextV1Private;
-    friend class ForeignToplevelHandleV1Private;
+    friend class ForeignToplevelManagerInterfaceV2Private;
+    friend class DockPreviewContextV2;
+    friend class DockPreviewContextV2Private;
+    friend class ForeignToplevelHandleV2Private;
 };

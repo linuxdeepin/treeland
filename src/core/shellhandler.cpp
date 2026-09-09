@@ -10,7 +10,7 @@
 #include "layersurfacecontainer.h"
 #include "modules/app-id-resolver/appidresolver.h"
 #include "modules/dde-shell/ddeshellmanagerinterfacev1.h"
-#include "modules/foreign-toplevel/foreigntoplevelmanagerv1.h"
+#include "modules/foreign-toplevel/foreigntoplevelmanagerv2.h"
 #include "modules/prelaunch-splash/prelaunchsplash.h"
 #include "modules/show-desktop/showdesktopinterfacev1.h"
 #include "modules/wine-window-management/winewindowmanagement.h"
@@ -71,15 +71,15 @@ ShellHandler::ShellHandler(RootSurfaceContainer *rootContainer, WServer *server)
     , m_privilegedOverlayContainer(new SurfaceContainer(rootContainer))
     , m_windowConfigStore(new WindowConfigStore(this))
 {
-    m_treelandForeignToplevel = server->attach<ForeignToplevelManagerInterfaceV1>();
+    m_treelandForeignToplevel = server->attach<ForeignToplevelManagerInterfaceV2>();
     Q_ASSERT(m_treelandForeignToplevel);
-    qmlRegisterSingletonInstance<ForeignToplevelManagerInterfaceV1>(
+    qmlRegisterSingletonInstance<ForeignToplevelManagerInterfaceV2>(
         "Treeland.Protocols",
         1,
         0,
-        "ForeignToplevelManagerInterfaceV1",
+        "ForeignToplevelManagerInterfaceV2",
         m_treelandForeignToplevel);
-    qRegisterMetaType<ForeignToplevelManagerInterfaceV1::PreviewDirection>();
+    qRegisterMetaType<ForeignToplevelManagerInterfaceV2::PreviewDirection>();
 
     m_backgroundContainer->setZ(RootSurfaceContainer::BackgroundZOrder);
     m_backgroundContainer->setObjectName(QStringLiteral("BackgroundContainer"));
@@ -409,7 +409,7 @@ RootSurfaceContainer *ShellHandler::rootSurfaceContainer() const
     return m_rootSurfaceContainer;
 }
 
-ForeignToplevelManagerInterfaceV1 *ShellHandler::foreignToplevel() const
+ForeignToplevelManagerInterfaceV2 *ShellHandler::foreignToplevel() const
 {
     return m_treelandForeignToplevel;
 }
@@ -1017,15 +1017,15 @@ void ShellHandler::setupDockPreview()
     Q_ASSERT(m_dockPreview);
 
     connect(m_treelandForeignToplevel,
-            &ForeignToplevelManagerInterfaceV1::requestDockPreview,
+            &ForeignToplevelManagerInterfaceV2::requestDockPreview,
             this,
             &ShellHandler::onDockPreview);
     connect(m_treelandForeignToplevel,
-            &ForeignToplevelManagerInterfaceV1::requestDockPreviewTooltip,
+            &ForeignToplevelManagerInterfaceV2::requestDockPreviewTooltip,
             this,
             &ShellHandler::onDockPreviewTooltip);
     connect(m_treelandForeignToplevel,
-            &ForeignToplevelManagerInterfaceV1::requestDockClose,
+            &ForeignToplevelManagerInterfaceV2::requestDockClose,
             m_dockPreview,
             [this]() {
                 QMetaObject::invokeMethod(m_dockPreview, "close");
@@ -1035,7 +1035,7 @@ void ShellHandler::setupDockPreview()
 void ShellHandler::onDockPreview(std::vector<SurfaceWrapper *> surfaces,
                                  WSurface *target,
                                  QPoint pos,
-                                 ForeignToplevelManagerInterfaceV1::PreviewDirection direction)
+                                 ForeignToplevelManagerInterfaceV2::PreviewDirection direction)
 {
     if (!m_dockPreview)
         return;
@@ -1055,7 +1055,7 @@ void ShellHandler::onDockPreviewTooltip(
     QString tooltip,
     WSurface *target,
     QPoint pos,
-    ForeignToplevelManagerInterfaceV1::PreviewDirection direction)
+    ForeignToplevelManagerInterfaceV2::PreviewDirection direction)
 {
     if (!m_dockPreview)
         return;

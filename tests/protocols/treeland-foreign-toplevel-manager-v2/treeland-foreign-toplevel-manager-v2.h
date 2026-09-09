@@ -54,9 +54,9 @@ struct test_ctx {
     struct client_connection connection;
     struct wl_display    *display;
 
-    struct treeland_foreign_toplevel_manager_v1  *manager;
-    struct treeland_dock_preview_context_v1      *context;
-    struct treeland_foreign_toplevel_handle_v1   *handle;
+    struct treeland_foreign_toplevel_manager_v2  *manager;
+    struct treeland_dock_preview_context_v2      *context;
+    struct treeland_foreign_toplevel_handle_v2   *handle;
     struct wl_seat                                *seat;
     struct xdg_toplevel_client             xdg_toplevel;
 

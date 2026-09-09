@@ -28,7 +28,7 @@ Wayland 线上请求与事件；本文档规定发出请求后，测试必须观
 | [capture-unstable-v1](treeland-capture-unstable-v1/README.md) | E / V / P | 真实窗口选择、frame copy 与目标 buffer 像素；无 source 错误 |
 | [dde-shell-v1](treeland-dde-shell-v1/README.md) | E / P | mapped wrapper 的 DDE 元数据、锁屏；picker 的真实选中/PID 回传测试待执行确认 |
 | [ddm-v1](treeland-ddm-v1/README.md) | I | 客户端连接生命周期 |
-| [foreign-toplevel-manager-v1](treeland-foreign-toplevel-manager-v1/README.md) | E | 真实 toplevel、dock preview、窗口状态、激活/焦点与 icon rectangle |
+| [foreign-toplevel-manager-v2](treeland-foreign-toplevel-manager-v2/README.md) | E | 真实 toplevel、dock preview、窗口状态、激活/焦点与 icon rectangle |
 | [input-manager-unstable-v1](treeland-input-manager-unstable-v1/README.md) | I / E（可选） | 默认空设备 manager 生命周期；uinput 驱动真实 libinput capability 热插拔 |
 | [keyboard-state-notify-unstable-v1](treeland-keyboard-state-notify-unstable-v1/README.md) | P | watcher 配置与空键盘/空 modifier 边界 |
 | [output-manager-v1](treeland-output-manager-v1/README.md) | I / P | 真实 `wl_output` 的 primary-output 链路 |
@@ -80,7 +80,7 @@ request stub 算作 request 覆盖；生成的 client-protocol 文件本身不�
 | capture-unstable-v1 | 8 / 11 | `source_ready/failed`、`buffer/buffer_done/ready/failed`；64×64 红色像素读回 | session 的 `start/frame_done`，及 `frame/object/ready/cancel` 持久流；OUTPUT/REGION、cursor、mask |
 | dde-shell-v1 | 26 / 27 | checker/active/picker 事件；真实 wrapper DDE 元数据、lockscreen、picker PID | `set_xwindow_position_relative`；multitask 只证明 `toggle` 请求/信号，未证明真实 UI 状态；`shutdown/switch_user` 外部会话流程 |
 | ddm-v1 | 0 / 7 | 无未请求 VT event；生产连接生命周期 | 所有会话/渲染控制 request 与 `switch_to_vt/acquire_vt` 的实际系统流程 |
-| foreign-toplevel-manager-v1 | 16 / 16 | `toplevel/identifier/closed`；真实最小化、最大化、全屏、焦点与 icon rectangle | `pid/title/app_id/output_enter/output_leave/state/done/parent` payload；指定 `wl_output` 的 fullscreen hint、preview 像素 |
+| foreign-toplevel-manager-v2 | 16 / 16 | `toplevel/identifier/closed`；真实最小化、最大化、全屏、焦点与 icon rectangle | `pid/title/app_id/output_enter/output_leave/state/done/parent` payload；指定 `wl_output` 的 fullscreen hint、preview 像素 |
 | input-manager-unstable-v1 | 1 / 22 | 默认测试仅证明空设备 manager 可绑定；uinput target 断言 Keyboard capability 热插拔 | settings/apply、真实 mouse/touchpad 配置生效、无设备 failed；uinput E 层需显式启用并实际执行 |
 | keyboard-state-notify-unstable-v1 | 6 / 6 | watcher 配置、`apply` 的空键盘/空 modifier 边界 | `current_state/state_changed`、多 watcher、初始 locked、seat 销毁、重复 apply 与物理键盘对照 |
 | output-manager-v1 | 4 / 7 | `primary_output`；未知 output 的 color-control 错误 | `set_color_temperature/set_brightness/commit` 成功路径及 `result/color_temperature/brightness`，真实 output/像素变化 |
