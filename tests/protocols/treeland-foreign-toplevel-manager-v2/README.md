@@ -1,8 +1,8 @@
-# `treeland-foreign-toplevel-manager-v1` 测试规范
+# `treeland-foreign-toplevel-manager-v2` 测试规范
 
 ## 范围
 
-- 测试源码：`tests/protocols/treeland-foreign-toplevel-manager-v1/`
+- 测试源码：`tests/protocols/treeland-foreign-toplevel-manager-v2/`
 - Fixture：带 headless output 和已 configure、mapped xdg-toplevel 的 desktop fixture。
 - 覆盖等级：**E**。
 
@@ -16,13 +16,13 @@
 | 最大化 | 对 handle 发 `set_maximized`、`unset_maximized` | 同一真实 `SurfaceWrapper` 进入、退出 `Maximized` 状态 |
 | 全屏 | 对 handle 发 `set_fullscreen(NULL)`、`unset_fullscreen` | 同一真实 `SurfaceWrapper` 进入、退出 `Fullscreen` 状态 |
 | 激活 | 对 handle 发 `activate(wl_seat)` | `Helper` 将 wrapper 设为 activated，且它成为该 seat 的真实 keyboard focus surface |
-| 窗口代表区域 | 对 handle 的 mapped xdg `wl_surface` 发 `set_rectangle(11,12,130,140)` | production rectangle handler 将局部坐标换算为 wrapper 的 `iconGeometry`：`wrapper.position + QRect(11,12,130,140)` |
+| 窗口代表区域 | 对 handle 的 mapped xdg `wl_surface` 发 `set_icon_geometry(11,12,130,140)` | production rectangle handler 将局部坐标换算为 wrapper 的 `iconGeometry`：`wrapper.position + QRect(11,12,130,140)` |
 
 ## 已证明的生产链路
 
 客户端 map xdg-toplevel 后，测试等待 configure，并同时断言：`ShellHandler` 创建的
 wrapper 已 mapped、已加入 `Workspace`，且 manager 的 `toplevel` 事件只给出一个
-真实 `treeland_foreign_toplevel_handle_v1` 和 identifier。该 identifier 被放入
+真实 `treeland_foreign_toplevel_handle_v2` 和 identifier。该 identifier 被放入
 `show` 的 `wl_array`，客户端发送 `show(identifiers, 10, 20, BOTTOM)`；服务端生产
 manager 发出 `requestDockPreview`，fixture 读取到绝对坐标 `(10,20)`、`BOTTOM` 和
 一个真实 `WSurface`。
@@ -43,8 +43,8 @@ compositor 的 `SurfaceWrapper::surfaceState()`，不是 foreign handle 自身�
 `activate(wl_seat)` 进入 manager 连接的
 `Helper::forceActivateSurface(wrapper, ..., seat)`，测试读取 wrapper 的 activated 标记和
 root surface container 默认 seat container 的 `keyboardFocusSurface()`，两者都必须指向同一
-mapped wrapper。`set_rectangle` 则
-经过 `rectangleChanged` 的生产连接，以发送该请求的 mapped xdg surface 查找 dock wrapper，
+mapped wrapper。`set_icon_geometry` 则
+经过 `iconGeometryChanged` 的生产连接，以发送该请求的 mapped xdg surface 查找 dock wrapper，
 再把局部矩形加到它的位置后写入被测 wrapper 的 `iconGeometry`。测试断言最终 geometry 的
 相对关系，故窗口不在 `(0,0)` 时仍成立。`handle.close` 让客户端 xdg-toplevel 接到 close。
 这些断言均指向同一个 mapped 窗口，不是单独创建的协议对象。
@@ -52,7 +52,7 @@ mapped wrapper。`set_rectangle` 则
 ## 已知边界 / 下一项结果
 
 已覆盖 handle 的 `set/unset_minimized`、`set/unset_maximized`、
-`set/unset_fullscreen`、`activate`、`set_rectangle`、`close`，以及 manager/context 的
+`set/unset_fullscreen`、`activate`、`set_icon_geometry`、`close`，以及 manager/context 的
 `stop`、`get_dock_preview_context`、`show`、`show_tooltip`、`close`、`destroy`。
 
 仍未验证 dock UI 或 preview 的渲染像素；`output_enter` / `output_leave`、title、app-id、pid、
