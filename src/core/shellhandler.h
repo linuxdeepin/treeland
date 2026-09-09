@@ -127,6 +127,7 @@ private Q_SLOTS:
 
     void setupDockPreview();
     void onInputPopupSurfaceV2Removed(WAYLIB_SERVER_NAMESPACE::WInputPopupSurface *surface);
+    void onTextInputFocusSurfaceChanged();
     void onWindowMenuClosed();
 
 private:
@@ -192,6 +193,9 @@ private:
     SurfaceContainer *m_popupContainer = nullptr;
     SurfaceContainer *m_privilegedOverlayContainer = nullptr;
     IMCandidatePanelManager *m_imCandidatePanelManager = nullptr;
+    // Input method popup (candidate window) wrappers, re-arranged whenever the
+    // text input that owns the input method focus moves.
+    QList<QPointer<SurfaceWrapper>> m_inputPopupWrappers;
     QObject *m_windowMenu = nullptr;
     // Prelaunch wrappers created before binding to a real shell surface
     QList<SurfaceWrapper *> m_prelaunchWrappers;
