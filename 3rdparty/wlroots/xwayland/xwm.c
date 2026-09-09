@@ -1915,6 +1915,31 @@ static bool validate_focus_serial(uint16_t last_focus_seq, uint16_t event_seq) {
 	return true;
 }
 
+// Returns true if `child` is one of `parent`'s subwindows (not `parent`
+// itself), descending at most `max_depth` levels. Used to tell apart
+// in-application focus moves into XEmbed plug windows (which a real X11 WM
+// never interferes with) from true cross-application focus stealing.
+static bool window_is_descendant(xcb_connection_t *conn,
+		xcb_window_t parent, xcb_window_t child, unsigned int max_depth) {
+	if (max_depth == 0) {
+		return false;
+	}
+	xcb_query_tree_cookie_t cookie = xcb_query_tree(conn, parent);
+	xcb_query_tree_reply_t *reply = xcb_query_tree_reply(conn, cookie, NULL);
+	if (!reply) {
+		return false;
+	}
+	bool found = false;
+	int n = xcb_query_tree_children_length(reply);
+	xcb_window_t *children = xcb_query_tree_children(reply);
+	for (int i = 0; i < n && !found; ++i) {
+		found = children[i] == child || window_is_descendant(conn,
+				children[i], child, max_depth - 1);
+	}
+	free(reply);
+	return found;
+}
+
 static void xwm_handle_focus_in(struct wlr_xwm *xwm,
 		xcb_focus_in_event_t *ev) {
 	// Ignore pointer focus change events
@@ -1951,6 +1976,16 @@ static void xwm_handle_focus_in(struct wlr_xwm *xwm,
 			(xwm->offered_focus && xsurface->pid == xwm->offered_focus->pid))) {
 		xwm_set_focused_window(xwm, xsurface);
 		wl_signal_emit_mutable(&xsurface->events.focus_in, NULL);
+	} else if (xwm->focus_surface && ev->event != XCB_NONE &&
+			window_is_descendant(xwm->xcb_conn, xwm->focus_surface->window_id,
+				ev->event, 8)) {
+		// The newly focused window is a subwindow of the currently focused
+		// surface's hierarchy: an in-client focus move (e.g. XEmbed plug
+		// windows used by WPS Office and other embedded-toolkit apps).
+		// A real X11 window manager leaves these alone; refocusing here
+		// would strip input focus from the embedder's plug and break
+		// anything inside that window gated on real X focus (notably
+		// input-method activation via XIM).
 	} else {
 		// Try to prevent clients from changing focus between
 		// applications, by refocusing the previous surface.
