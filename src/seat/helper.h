@@ -97,7 +97,7 @@ WAYLIB_SERVER_USE_NAMESPACE
 class CaptureSourceSelector;
 class DDEShellManagerInterfaceV1;
 class DDMInterfaceV1;
-class ForeignToplevelManagerInterfaceV1;
+class ForeignToplevelManagerInterfaceV2;
 class FpsDisplayManager;
 class GreeterProxy;
 class ILockScreen;

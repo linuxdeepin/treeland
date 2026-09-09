@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "core/shellhandler.h"
 #include "core/rootsurfacecontainer.h"
-#include "modules/foreign-toplevel/foreigntoplevelmanagerv1.h"
+#include "modules/foreign-toplevel/foreigntoplevelmanagerv2.h"
 #include "server-bridge.h"
 #include "seat/helper.h"
 #include "surface/surfacewrapper.h"
-#include "treeland-foreign-toplevel-manager-v1.h"
+#include "treeland-foreign-toplevel-manager-v2.h"
 #include "workspace/workspace.h"
 
 #include <wbackend.h>
@@ -18,7 +18,7 @@
 #include <cstring>
 
 namespace {
-ForeignToplevelManagerInterfaceV1 *g_manager = nullptr;
+ForeignToplevelManagerInterfaceV2 *g_manager = nullptr;
 SurfaceWrapper *g_wrapper = nullptr;
 struct ftm_server_state g_state {};
 }
@@ -32,7 +32,7 @@ void protocol_test_setup(Helper *helper)
     add_headless_output(helper->backend(), false);
     g_manager = helper->shellHandler()->foreignToplevel();
     QObject::connect(g_manager,
-                     &ForeignToplevelManagerInterfaceV1::requestDockPreview,
+                     &ForeignToplevelManagerInterfaceV2::requestDockPreview,
                      helper,
                      [](auto surfaces, WSurface *, QPoint abs, auto direction) {
                          g_state.preview_fired = 1;
@@ -42,7 +42,7 @@ void protocol_test_setup(Helper *helper)
                          g_state.preview_surface_count = static_cast<int>(surfaces.size());
                      });
     QObject::connect(g_manager,
-                     &ForeignToplevelManagerInterfaceV1::requestDockPreviewTooltip,
+                     &ForeignToplevelManagerInterfaceV2::requestDockPreviewTooltip,
                      helper,
                      [](QString tooltip, WSurface *, QPoint abs, auto direction) {
                          g_state.tooltip_fired = 1;
@@ -54,7 +54,7 @@ void protocol_test_setup(Helper *helper)
                          g_state.tooltip_direction = static_cast<uint32_t>(direction);
                      });
     QObject::connect(g_manager,
-                     &ForeignToplevelManagerInterfaceV1::requestDockClose,
+                     &ForeignToplevelManagerInterfaceV2::requestDockClose,
                      helper,
                      [] { g_state.close_fired = 1; });
     QObject::connect(helper->shellHandler(),
