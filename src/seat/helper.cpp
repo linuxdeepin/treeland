@@ -1924,11 +1924,11 @@ void Helper::init(Treeland::Treeland *treeland)
     auto *xdgOutputManager =
         m_server->attach<WXdgOutputManager>(m_rootSurfaceContainer->outputLayout());
 
-    m_outputManagerV1 = m_server->attach<OutputManagerV1>();
+    m_outputManagerV2 = m_server->attach<OutputManagerV2>();
     connect(m_rootSurfaceContainer,
             &RootSurfaceContainer::primaryOutputChanged,
-            m_outputManagerV1,
-            &OutputManagerV1::onPrimaryOutputChanged);
+            m_outputManagerV2,
+            &OutputManagerV2::onPrimaryOutputChanged);
     connect(m_rootSurfaceContainer,
             &RootSurfaceContainer::primaryOutputChanged,
             m_sessionManager,
