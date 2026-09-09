@@ -2116,6 +2116,14 @@ bool SurfaceWrapper::stackAfter(QQuickItem *item)
                 break;
             }
             item = s->stackLastSurface();
+            // The deepest surface of s's sub-chain may live in a different
+            // QQuickItem container than ours (X11 transient children can be
+            // placed by separate layering rules). QQuickItem::stackAfter
+            // silently refuses non-siblings and would then abort the whole
+            // raise with the stacking bookkeeping left out of sync; fall back
+            // to s itself, which the entry guard above validated.
+            if (!item || item->parentItem() != parentItem())
+                item = s;
 
             if (m_parentSurface && m_parentSurface == s->m_parentSurface) {
                 QQuickItem::stackAfter(item);
