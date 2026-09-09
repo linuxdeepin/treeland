@@ -1137,6 +1137,33 @@ bool SurfaceWrapper::checkSetSurfaceState(State newSurfaceState, bool allowRetar
     return true;
 }
 
+bool SurfaceWrapper::shouldUpdateNormalGeometry() const
+{
+    if (!isNormal() || m_geometryAnimation)
+        return false;
+
+    auto *xdgSurface = qobject_cast<WXdgToplevelSurface *>(m_shellSurface.data());
+    if (!xdgSurface || !surface())
+        return true;
+
+    if (!surface()->mapped()) {
+        return !xdgSurface->handle()->requested.maximized
+            && !xdgSurface->handle()->requested.fullscreen;
+    }
+
+    return !xdgSurface->handle()->current.maximized
+        && !xdgSurface->handle()->current.fullscreen;
+}
+
+void SurfaceWrapper::applySurfaceStateWithoutGeometry(State state)
+{
+    if (state == State::Normal && m_type == Type::XdgToplevel) {
+        m_shellSurface->resize(QSize(0, 0));
+    }
+
+    doSetSurfaceState(state);
+}
+
 void SurfaceWrapper::setSurfaceState(State newSurfaceState)
 {
     if (!checkSetSurfaceState(newSurfaceState, true))
@@ -1154,7 +1181,7 @@ void SurfaceWrapper::setSurfaceState(State newSurfaceState)
         startStateChangeAnimation(newSurfaceState, targetGeometry);
     } else {
         abortGeometryAnimation();
-        doSetSurfaceState(newSurfaceState);
+        applySurfaceStateWithoutGeometry(newSurfaceState);
     }
 }
 
@@ -1170,7 +1197,7 @@ void SurfaceWrapper::setSurfaceStateDirectly(State newSurfaceState)
         if (!applySurfaceStateGeometry(newSurfaceState, targetGeometry))
             return;
     } else {
-        doSetSurfaceState(newSurfaceState);
+        applySurfaceStateWithoutGeometry(newSurfaceState);
     }
 }
 
@@ -1471,7 +1498,7 @@ void SurfaceWrapper::geometryChange(const QRectF &newGeo, const QRectF &oldGeome
     if (m_container && m_container->filterSurfaceGeometryChanged(this, newGeometry, oldGeometry))
         return;
 
-    if (isNormal() && !m_geometryAnimation) {
+    if (shouldUpdateNormalGeometry()) {
         setNormalGeometry(newGeometry);
     }
 

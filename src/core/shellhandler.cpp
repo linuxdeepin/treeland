@@ -730,7 +730,7 @@ void ShellHandler::onXdgToplevelSurfaceRemoved(WXdgToplevelSurface *surface)
     // Persist the last size of a normal window (prefer normalGeometry) when an appId is present
     if (m_windowConfigStore && !wrapper->appId().isEmpty()) {
         QSizeF sz = wrapper->normalGeometry().size();
-        if (!sz.isValid() || sz.isEmpty()) {
+        if ((!sz.isValid() || sz.isEmpty()) && wrapper->isNormal()) {
             sz = wrapper->geometry().size();
         }
         const QSize s = sz.toSize();
