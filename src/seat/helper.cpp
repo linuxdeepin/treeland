@@ -2307,11 +2307,11 @@ void Helper::init(Treeland::Treeland *treeland)
             m_wallpaperManager,
             &WallpaperManager::onWallpaperAdded);
 
-    m_shortcutManager = m_server->attach<ShortcutManagerV2>();
+    m_shortcutManager = m_server->attach<ShortcutManagerV3>();
     connect(m_treeland,
             &Treeland::Treeland::SessionChanged,
             m_shortcutManager,
-            &ShortcutManagerV2::onSessionChanged);
+            &ShortcutManagerV3::onSessionChanged);
     m_shortcutManager->onSessionChanged();
     auto shortcutControl = m_shortcutManager->controller();
     auto *shortcutRunner = new ShortcutRunner(shortcutControl);

@@ -35,7 +35,7 @@ Wayland 线上请求与事件；本文档规定发出请求后，测试必须观
 | [personalization-manager-v1](treeland-personalization-manager-v1/README.md) | E / I | 个性化状态挂接到真实 wrapper；font/appearance 配置的 setter/getter 生产回读与恢复 |
 | [prelaunch-splash-v2](treeland-prelaunch-splash-v2/README.md) | I / E | splash 请求/关闭信号；生产 splash wrapper 创建、加入 workspace 与销毁 |
 | [screensaver-v1](treeland-screensaver-v1/README.md) | E / P | 真实 ext-idle 抑制生命周期 |
-| [shortcut-manager-v2](treeland-shortcut-manager-v2/README.md) | E / P | 聚焦窗口捕获与快捷键激活 |
+| [shortcut-manager-v3](treeland-shortcut-manager-v3/README.md) | E / P | 聚焦窗口捕获与快捷键激活 |
 | [virtual-output-manager-v1](treeland-virtual-output-manager-v1/README.md) | P / E | 虚拟输出资源校验；两个既有输出的镜像/恢复 |
 | [wallpaper-color-v1](treeland-wallpaper-color-v1/README.md) | I | 订阅、去重与颜色通知 |
 | [wallpaper-manager-unstable-v1](treeland-wallpaper-manager-unstable-v1/README.md) | I / P | 真实输出上的壁纸资源生命周期 |
@@ -87,7 +87,7 @@ request stub 算作 request 覆盖；生成的 client-protocol 文件本身不�
 | personalization-manager-v1 | 37 / 37* | cursor/font/appearance 回读 event；真实 wrapper 个性化状态 | manager `destroy` 为 v2 request（v1 global 只能走错误/兼容性边界）；字体渲染和 appearance 的最终 UI 像素 |
 | prelaunch-splash-v2 | 3 / 3 | 创建、关闭；真实 splash wrapper 加入/离开 workspace | splash QML 最终可见性、纹理和像素 |
 | screensaver-v1 | 2 / 3 | 真实 ext-idle 被 inhibit/uninhibit 改变 | 显式 `destroy` request、实际锁屏 UI |
-| shortcut-manager-v2 | 6 / 9 | `commit_success`、`captured`、`activated`；真实 virtual keyboard 输入链 | swipe、hold、`unbind`、`commit_failure` 的业务分支；物理键盘 |
+| shortcut-manager-v3 | 6 / 9 | `bind_failure`、`captured`、`activated`；真实 virtual keyboard 输入链 | swipe、hold、`unbind` 的业务分支；物理键盘 |
 | virtual-output-manager-v1 | 5 / 5 | `outputs/error/virtual_output_list`；生产 copy output 创建与恢复 | 热插拔 successor、跨进程持久化、物理显示器内容一致性 |
 | wallpaper-color-v1 | 3 / 3 | `output_color` 订阅与去重 | 真实壁纸分析来源、壁纸应用后的 output 色彩变化 |
 | wallpaper-manager-unstable-v1 | 4 / 5 | `failed/changed`；`set_image_source` 与 wallpaper shell/output 关联 | `set_video_source`、实际映射/QML 接入、媒体解码失败、最终 output 像素 |

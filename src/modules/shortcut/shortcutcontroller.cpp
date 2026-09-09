@@ -3,7 +3,7 @@
 
 #include "shortcutcontroller.h"
 
-#include "qwayland-server-treeland-shortcut-manager-v2.h"
+#include "qwayland-server-treeland-shortcut-manager-unstable-v3.h"
 
 #include "common/treelandlogging.h"
 #include "input/inputdevice.h"
@@ -16,17 +16,17 @@
 
 static_assert(
     static_cast<uint32_t>(ShortcutController::KeyPress) ==
-        QtWaylandServer::treeland_shortcut_manager_v2::
+        QtWaylandServer::treeland_shortcut_manager_v3::
             keybind_flag_key_press &&
     static_cast<uint32_t>(ShortcutController::KeyRelease) ==
-        QtWaylandServer::treeland_shortcut_manager_v2::
+        QtWaylandServer::treeland_shortcut_manager_v3::
             keybind_flag_key_release &&
     static_cast<uint32_t>(ShortcutController::Repeat) ==
-        QtWaylandServer::treeland_shortcut_manager_v2::keybind_flag_repeat,
-    "treeland-shortcut-manager-v2: protocol's keybind_flag disagree with "
+        QtWaylandServer::treeland_shortcut_manager_v3::keybind_flag_repeat,
+    "treeland-shortcut-manager-v3: protocol's keybind_flag disagree with "
     "Treeland in value");
 
-using BindError = QtWaylandServer::treeland_shortcut_manager_v2::bind_error;
+using BindError = QtWaylandServer::treeland_shortcut_manager_v3::bind_error;
 
 ShortcutController::ShortcutController(QObject *parent)
     : QObject(parent)

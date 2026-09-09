@@ -29,12 +29,12 @@ private Q_SLOTS:
 
     void testCreate()
     {
-        QVERIFY(m_server->attach<ShortcutManagerV2>(m_server) != nullptr);
+        QVERIFY(m_server->attach<ShortcutManagerV3>(m_server) != nullptr);
     }
 
     void verifyShortcut()
     {
-        auto protocol = m_server->findChild<ShortcutManagerV2*>();
+        auto protocol = m_server->findChild<ShortcutManagerV3*>();
         QVERIFY(protocol != nullptr);
     }
 
