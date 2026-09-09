@@ -69,6 +69,8 @@ public:
         if (tryStart(QDBusConnection::sessionBus()) || tryStart(QDBusConnection::systemBus())) {
             m_started = true;
             clearPendingRetry(StartRetry);
+            // Fresh compositor (re-)registration: start a new activation window.
+            m_waylandActivateFailures = 0;
             activate();
             return;
         }
@@ -92,11 +94,33 @@ public Q_SLOTS:
 
         if (updateFd.isValid()) {
             if (m_type == "wayland") {
-                if (!callDBus(updateFd,
+                const auto reply = callDBus(updateFd,
                               QStringLiteral("ActivateWayland"),
                               QStringLiteral("Failed to activate Wayland socket"),
-                              QVariant::fromValue(*m_unixFileDescriptor))) {
-                    return;
+                              QVariant::fromValue(*m_unixFileDescriptor));
+                // ReplyMessage carrying `false` means the compositor is on the bus
+                // but not ready to accept this session's socket (e.g. its user
+                // session is not registered yet during the login handover). Exporting
+                // the environment then would start autostart services (fcitx5!)
+                // against a display that nobody is serving, and they never retry.
+                // Stay unnotified: Ready=1 (and with it ExecStartPost and
+                // dde-session-pre.target) must gate the whole session on a socket
+                // that was really activated.
+                if (!reply || !reply->arguments().value(0).toBool()) {
+                    ++m_waylandActivateFailures;
+                    if (m_waylandActivateFailures <= MaxWaylandActivateRetries) {
+                        qCWarning(lcSdSocket) << "Wayland socket activation not accepted yet, retrying"
+                                              << m_waylandActivateFailures;
+                        scheduleActivateRetry();
+                        return;
+                    }
+                    // Degraded path (compositor persistently refuses): still export
+                    // the environment and notify readiness, matching the historic
+                    // behaviour so the session can never hang on a broken
+                    // activation, while the retry window above covers the normal
+                    // login-handover race.
+                    qCWarning(lcSdSocket)
+                        << "Wayland socket activation repeatedly refused, publishing environment anyway";
                 }
 
                 QDBusInterface dbus("org.freedesktop.DBus",
@@ -162,6 +186,34 @@ public Q_SLOTS:
                                   QVariant::fromValue(env))) {
                         scheduleActivateRetry();
                         return;
+                    }
+
+                    // Same half of the publication as dde-session's
+                    // EnvironmentsManager does (systemd1.SetEnvironment in
+                    // addition to UpdateActivationEnvironment), mirroring the
+                    // WAYLAND_DISPLAY/QT_IM_MODULE/*_IM_MODULE set-environment
+                    // the wayland unit posts via ExecStartPost: transient
+                    // session units (and hence services like fcitx5 started
+                    // via StartTransientUnit) inherit the *manager*
+                    // environment, not the activation one. Without this,
+                    // X11-side input methods (the fcitx5 X selection / XIM on
+                    // the XWayland display) never see DISPLAY/XAUTHORITY in a
+                    // treeland session, while KWin-based sessions only work
+                    // because dde-session performs exactly this call.
+                    {
+                        QDBusInterface systemd1("org.freedesktop.systemd1",
+                                                "/org/freedesktop/systemd1",
+                                                "org.freedesktop.systemd1.Manager",
+                                                QDBusConnection::sessionBus());
+                        if (systemd1.isValid()) {
+                            QStringList envList;
+                            envList << QStringLiteral("DISPLAY=%1").arg(xwaylandName)
+                                    << QStringLiteral("XAUTHORITY=%1").arg(authFileName);
+                            callDBus(systemd1,
+                                     QStringLiteral("SetEnvironment"),
+                                     QStringLiteral("Failed to set XWayland session environment"),
+                                     envList);
+                        }
                     }
 
                     sd_notify(0, "READY=1");
@@ -330,7 +382,7 @@ private:
     }
 
     void scheduleActivateRetry() {
-        if (m_type != "xwayland" || isRetryPending(ActivateRetry))
+        if (isRetryPending(ActivateRetry))
             return;
 
         setPendingRetry(ActivateRetry);
@@ -352,11 +404,16 @@ private:
     }
 
     static constexpr int RetryIntervalMs = 500;
+    // Upper bound for the login-handover retry window (40 * 500ms), after which
+    // we degrade to the historic publish-anyway behaviour rather than hanging
+    // the session forever on a broken compositor.
+    static constexpr int MaxWaylandActivateRetries = 40;
 
     std::shared_ptr<QDBusUnixFileDescriptor> m_unixFileDescriptor;
     QString m_type;
     bool m_started = false;
     int m_pendingRetries = 0;
+    int m_waylandActivateFailures = 0;
     QByteArray m_lastXwaylandAuth;
     std::optional<Bus> m_compositorBus;
 };
