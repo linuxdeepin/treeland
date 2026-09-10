@@ -29,12 +29,12 @@ private Q_SLOTS:
 
     void testCreate()
     {
-        QVERIFY(m_server->attach<OutputManagerV1>(m_server) != nullptr);
+        QVERIFY(m_server->attach<OutputManagerV2>(m_server) != nullptr);
     }
 
     void verifyPrimaryOutput()
     {
-        auto protocol = m_server->findChild<OutputManagerV1 *>();
+        auto protocol = m_server->findChild<OutputManagerV2 *>();
         QVERIFY(protocol != nullptr);
     }
 

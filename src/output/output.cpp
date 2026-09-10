@@ -1160,7 +1160,7 @@ static inline void generateGammaLUT(uint32_t colorTemperature,
 // see: http://www.brucelindbloom.com/index.html?ChromAdaptEval.html
 void Output::setOutputColor(qreal brightness,
                             uint32_t colorTemperature,
-                            std::function<void(bool)> resultCallback)
+                            std::function<void(CommitColorResult)> resultCallback)
 {
     const bool brightnessRequested = brightness >= 0;
     const bool colorTemperatureRequested = colorTemperature != 0;
@@ -1190,8 +1190,15 @@ void Output::setOutputColor(qreal brightness,
         if (backlightApplied) {
             config()->setBrightness(brightness);
         }
-        if (resultCallback)
-            resultCallback(backlightApplied && !colorTemperatureRequested);
+        if (resultCallback) {
+            // No gamma LUT: brightness via backlight may still succeed, but a
+            // requested color temperature cannot be applied at all → unsupported.
+            if (colorTemperatureRequested)
+                resultCallback(CommitColorResult::Unsupported);
+            else
+                resultCallback(backlightApplied ? CommitColorResult::Success
+                                                : CommitColorResult::Failed);
+        }
         qCWarning(lcTlOutput) << " Output " << output()->name()
                              << " does not support gamma LUT! Brightness and color temperature adjustments through gamma will have no effect.";
         return;
@@ -1218,7 +1225,7 @@ void Output::setOutputColor(qreal brightness,
     if (!tr) {
         qCWarning(lcTlOutput) << "Failed to create color transform for lut_3x1d on output" << output()->name();
         if (resultCallback)
-            resultCallback(false);
+            resultCallback(CommitColorResult::Failed);
         return;
     }
     wlr_output_state_set_color_transform(newState.get(), tr);
@@ -1230,7 +1237,7 @@ void Output::setOutputColor(qreal brightness,
     outputHelper->scheduleCommitJob([this, brightness, colorTemperature, newState, resultCallback](bool success, WOutputHelper::ExtraState state) {
         if (state == newState) {
             if (resultCallback)
-                resultCallback(success);
+                resultCallback(success ? CommitColorResult::Success : CommitColorResult::Failed);
             if (!success) {
                 qCWarning(lcTlOutput) << "Failed to apply brightness and color temperature settings to output"
                                           << output()->name();
@@ -1239,6 +1246,8 @@ void Output::setOutputColor(qreal brightness,
                 config()->setColorTemperature(colorTemperature);
             }
         } else {
+            if (resultCallback)
+                resultCallback(CommitColorResult::Failed);
             qCWarning(lcTlOutput) << "Commit callback received unexpected state pointer!"
                                       << "Expected:" << newState.get()
                                       << "Got:" << state.get();

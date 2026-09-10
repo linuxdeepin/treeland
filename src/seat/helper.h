@@ -107,7 +107,7 @@ class LockScreenInterface;
 class Multitaskview;
 class Output;
 class OutputManager;
-class OutputManagerV1;
+class OutputManagerV2;
 class PersonalizationManagerInterfaceV1;
 class RootSurfaceContainer;
 class ScreensaverInterfaceV2;
@@ -477,7 +477,7 @@ private:
     ShowDesktopInterfaceV1::State m_showDesktop = ShowDesktopInterfaceV1::State::Normal;
     DDEShellManagerInterfaceV1 *m_ddeShellV1 = nullptr;
     VirtualOutputManagerInterfaceV1 *m_virtualOutputInterfaceV1 = nullptr;
-    OutputManagerV1 *m_outputManagerV1 = nullptr;
+    OutputManagerV2 *m_outputManagerV2 = nullptr;
     DDMInterfaceV1 *m_ddmInterfaceV1 = nullptr;
     ScreensaverInterfaceV2 *m_screensaverInterfaceV2 = nullptr;
     TreelandWallpaperManagerInterfaceV1 *m_wallpaperManagerInterfaceV1 = nullptr;
