@@ -1691,10 +1691,11 @@ void WOutputRenderWindow::attach(WOutputViewport *output)
         // On hot-unplug WBackend deletes WOutput from the native destroy
         // callback; ~WOutput::teardown() drops this owner group before
         // wlr_output_finish asserts empty frame/needs_frame lists.
-        // Equivalent to the old qw_output::notify_frame -> render() slot:
-        // render() calls doRender(nullptr, ...) and scans all outputs.
-        woutput->listeners(owner)->add(&wlrOut->events.frame, this,
-                                       qOverload<>(&WOutputRenderWindow::render));
+        // Only render the output whose frame event fired. Explicit render()
+        // calls still scan all outputs.
+        woutput->listeners(owner)->add(&wlrOut->events.frame, this, [d, wlrOut] {
+            d->doRender(wlrOut, d->outputs, false, true);
+        });
         woutput->listeners(owner)->add(&wlrOut->events.needs_frame, woutput,
                                        &WOutput::scheduleFrame);
     }
