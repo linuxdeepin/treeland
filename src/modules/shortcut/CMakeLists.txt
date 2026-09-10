@@ -1,8 +1,8 @@
 find_package(TreelandProtocols REQUIRED)
 
 waylib_generate_qtwayland_server_protocol(libtreeland
-    PROTOCOL ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-shortcut-manager-v2.xml
-    BASENAME treeland-shortcut-manager-v2
+    PROTOCOL ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-shortcut-manager-unstable-v3.xml
+    BASENAME treeland-shortcut-manager-unstable-v3
 )
 
 impl_treeland(

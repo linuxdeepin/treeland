@@ -1,7 +1,7 @@
 // Copyright (C) 2025-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
-// This is a simple test application for the Treeland Shortcut Manager V2 protocol.
+// This is a simple test application for the Treeland Shortcut Manager V3 protocol.
 // It reads a JSON configuration file specifying a list of shortcut binding requests
 // and sends them to the Treeland compositor via the Wayland protocol.
 // The JSON file should contain an array of requests, each with the following format:
@@ -11,11 +11,14 @@
 //            "name": "shortcut1",
 //            "key": "Ctrl-A",
 //            "mode": 1,
-//            "action": 1
+//            "action": 0
 //        },
 //        { ... },
 //        ...
 //    ]
+//
+// Note: In v3, the action enum values are shifted down by 1 (notify=0).
+// Bind requests take effect immediately; no commit is needed.
 
 #include <QGuiApplication>
 #include <QObject>
@@ -29,32 +32,29 @@
 #include <QDebug>
 #include <qjsonarray.h>
 
-#include "qwayland-treeland-shortcut-manager-v2.h"
+#include "qwayland-treeland-shortcut-manager-unstable-v3.h"
 
-class ShortcutManagerV2
-    : public QWaylandClientExtensionTemplate<ShortcutManagerV2>
-    , public QtWayland::treeland_shortcut_manager_v2
+class ShortcutManagerV3
+    : public QWaylandClientExtensionTemplate<ShortcutManagerV3>
+    , public QtWayland::treeland_shortcut_manager_v3
 {
     Q_OBJECT
 public:
-    explicit ShortcutManagerV2()
-        : QWaylandClientExtensionTemplate<ShortcutManagerV2>(1)
+    explicit ShortcutManagerV3()
+        : QWaylandClientExtensionTemplate<ShortcutManagerV3>(1)
     {
 
     }
 
-    void treeland_shortcut_manager_v2_commit_success() override
-    {
-        qInfo() << "received commit success";
-        emit commitStatusReceived();
-    }
-
-    void treeland_shortcut_manager_v2_activated(const QString &name, uint repeat) override
+    void treeland_shortcut_manager_v3_activated(const QString &name, uint repeat) override
     {
         qInfo() << "shortcut activated: " << name << " repeat: " << repeat;
     }
-signals:
-    void commitStatusReceived();
+
+    void treeland_shortcut_manager_v3_bind_failure(const QString &name, uint error) override
+    {
+        qWarning() << "bind failure:" << name << "error:" << error;
+    }
 };
 
 
@@ -63,7 +63,7 @@ int main(int argc, char *argv[])
     qputenv("QT_QPA_PLATFORM", "wayland");
     QGuiApplication app(argc, argv);
     QCommandLineParser parser;
-    parser.setApplicationDescription("Test Shortcut Manager V2");
+    parser.setApplicationDescription("Test Shortcut Manager V3");
     parser.addHelpOption();
     parser.addOption({"config", "Path to the JSON configuration file", "file"});
     parser.process(app);
@@ -90,9 +90,9 @@ int main(int argc, char *argv[])
             return -1;
         }
     }
-    ShortcutManagerV2 manager;
+    ShortcutManagerV3 manager;
     manager.setParent(&app);
-    QObject::connect(&manager, &ShortcutManagerV2::activeChanged, &manager, [&] {
+    QObject::connect(&manager, &ShortcutManagerV3::activeChanged, &manager, [&] {
         if (!manager.isActive()) {
             return;
         }
@@ -117,13 +117,6 @@ int main(int argc, char *argv[])
                 manager.bind_hold_gesture(name, finger, action);
             } else if (req == "unbind") {
                 manager.unbind(name);
-            } else if (req == "commit") {
-                QEventLoop loop;
-                QObject::connect(&manager, &ShortcutManagerV2::commitStatusReceived, &manager, [&loop](){
-                    loop.quit();
-                });
-                manager.commit();
-                loop.exec();
             } else {
                 qWarning() << "Unknown request type:" << req;
             }
