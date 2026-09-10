@@ -112,6 +112,10 @@ public:
         Left,
         Right,
         Maximize,
+        TopLeft,
+        TopRight,
+        BottomLeft,
+        BottomRight,
     };
     Q_ENUM(TileMode)
 
