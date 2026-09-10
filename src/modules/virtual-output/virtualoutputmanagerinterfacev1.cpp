@@ -95,15 +95,16 @@ public:
                                                           const QString &name,
                                                           wl_array *outputs);
 
-    void attachDestroyCleanup(const QString &name,
-                              VirtualOutputInterfaceV1 *virtualOutput);
+    void attachDestroyCleanup(VirtualOutputInterfaceV1 *virtualOutput);
+    void handleBeforeDestroy(VirtualOutputInterfaceV1 *virtualOutput);
     void storeVirtualOutput(const QString &name,
                             const QStringList &outputs,
                             VirtualOutputInterfaceV1 *virtualOutput = nullptr);
 
+    void notifyVirtualOutputModified(const QString &name);
+
 protected:
-    // TODO(YaoBing Xiao): treeland-virtual-output-manager-v1 is missing the 'destroy' request.
-    // void destroy(Resource *resource) override;
+    void destroy(Resource *resource) override;
     void create_virtual_output(Resource *resource, uint32_t id, const QString &name, wl_array *outputs) override;
     void get_virtual_output_list(Resource *resource) override;
     void get_virtual_output(Resource *resource, const QString &name, uint32_t id) override;
@@ -135,21 +136,44 @@ VirtualOutputInterfaceV1 *VirtualOutputManagerInterfaceV1Private::createVirtualO
     }
 
     auto virtualOutput = new VirtualOutputInterfaceV1(name, outputs, outputResource);
-    attachDestroyCleanup(name, virtualOutput);
+    attachDestroyCleanup(virtualOutput);
     return virtualOutput;
 }
 
 void VirtualOutputManagerInterfaceV1Private::attachDestroyCleanup(
-    const QString &name,
     VirtualOutputInterfaceV1 *virtualOutput)
 {
     QObject::connect(virtualOutput, &VirtualOutputInterfaceV1::beforeDestroy,
-                     q, &VirtualOutputManagerInterfaceV1::destroyVirtualOutput);
-
-    QObject::connect(virtualOutput, &VirtualOutputInterfaceV1::beforeDestroy,
-                     q, [this, name]() {
-        m_configs.remove(name);
+                     q, [this, virtualOutput]() {
+        handleBeforeDestroy(virtualOutput);
     });
+}
+
+void VirtualOutputManagerInterfaceV1Private::handleBeforeDestroy(
+    VirtualOutputInterfaceV1 *virtualOutput)
+{
+    for (auto it = m_configs.cbegin(); it != m_configs.cend(); ++it) {
+        if (it.value().virtualOutput != virtualOutput)
+            continue;
+        const QString name = it.key();
+        Q_EMIT q->destroyVirtualOutput(virtualOutput);
+        auto current = m_configs.find(name);
+        if (current != m_configs.end() && current.value().virtualOutput == virtualOutput) {
+            m_configs.erase(current);
+            notifyVirtualOutputModified(name);
+        }
+        break;
+    }
+}
+
+void VirtualOutputManagerInterfaceV1Private::notifyVirtualOutputModified(const QString &name)
+{
+    const auto resources = resourceMap();
+    for (auto *resource : std::as_const(resources)) {
+        if (resource->version() >= 3) {
+            send_virtual_output_modified(resource->handle, name);
+        }
+    }
 }
 
 void VirtualOutputManagerInterfaceV1Private::storeVirtualOutput(const QString &name,
@@ -165,12 +189,13 @@ void VirtualOutputManagerInterfaceV1Private::storeVirtualOutput(const QString &n
         const QByteArray arrSend = outputs.join('\0').toLatin1();
         virtualOutput->sendOutputs(name, arrSend);
     }
+    notifyVirtualOutputModified(name);
 }
 
-// void VirtualOutputManagerInterfaceV1Private::destroy(Resource *resource)
-// {
-//     wl_resource_destroy(resource->handle);
-// }
+void VirtualOutputManagerInterfaceV1Private::destroy(Resource *resource)
+{
+    wl_resource_destroy(resource->handle);
+}
 
 void VirtualOutputManagerInterfaceV1Private::create_virtual_output(Resource *resource,
                                                                    uint32_t id,
@@ -224,19 +249,12 @@ void VirtualOutputManagerInterfaceV1Private::get_virtual_output(Resource *resour
                                                                  const QString &name,
                                                                  uint32_t id)
 {
-    auto it = m_configs.find(name);
-    if (it == m_configs.end()) {
-        wl_resource_post_error(resource->handle, 0,
-            "Virtual output '%s' not found!", name.toUtf8().constData());
-        return;
-    }
-
-    auto &config = it.value();
     wl_array arr;
     wl_array_init(&arr);
     auto cleanup = qScopeGuard([&arr] { wl_array_release(&arr); });
 
-    if (!stringListToWlArray(config.outputs, &arr)) {
+    auto it = m_configs.find(name);
+    if (it != m_configs.end() && !stringListToWlArray(it.value().outputs, &arr)) {
         wl_client_post_no_memory(resource->client());
         return;
     }
@@ -245,9 +263,12 @@ void VirtualOutputManagerInterfaceV1Private::get_virtual_output(Resource *resour
     if (!virtualOutput)
         return;
 
-    // Send the outputs event to the requesting client
-    const QByteArray arrSend = config.outputs.join('\0').toLatin1();
-    virtualOutput->sendOutputs(name, arrSend);
+    if (it != m_configs.end()) {
+        it.value().virtualOutput = virtualOutput;
+        virtualOutput->sendOutputs(name, it.value().outputs.join('\0').toLatin1());
+    } else {
+        virtualOutput->sendOutputs(name, QByteArray());
+    }
 }
 
 VirtualOutputManagerInterfaceV1::VirtualOutputManagerInterfaceV1(QObject *parent)
@@ -298,11 +319,14 @@ void VirtualOutputManagerInterfaceV1::updateVirtualOutput(const QString &name,
         const QByteArray arrSend = outputs.join('\0').toLatin1();
         it->virtualOutput->sendOutputs(name, arrSend);
     }
+    d->notifyVirtualOutputModified(name);
 }
 
 void VirtualOutputManagerInterfaceV1::removeVirtualOutput(const QString &name)
 {
-    d->m_configs.remove(name);
+    if (d->m_configs.remove(name)) {
+        d->notifyVirtualOutputModified(name);
+    }
 }
 
 VirtualOutputInterfaceV1::~VirtualOutputInterfaceV1() = default;
