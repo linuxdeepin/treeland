@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "modules/personalization/personalizationmanagerinterfacev1.h"
+#include "modules/personalization/decorationmanagerinterfacev1.h"
+#include "modules/personalization/appearanceinterfacev1.h"
+#include "modules/personalization/appearancemanagerinterfacev1.h"
 
 #include <wserver.h>
 
@@ -27,14 +30,51 @@ private Q_SLOTS:
         m_server = new WAYLIB_SERVER_NAMESPACE::WServer();
     }
 
-    void testCreate()
+    // --- Old protocol (kept during transition) ---
+
+    void testCreateOldProtocol()
     {
         QVERIFY(m_server->attach<PersonalizationManagerInterfaceV1>(m_server) != nullptr);
     }
 
-    void verifyPersonalization()
+    void verifyOldProtocol()
     {
         auto protocol = m_server->findChild<PersonalizationManagerInterfaceV1 *>();
+        QVERIFY(protocol != nullptr);
+    }
+
+    // --- New protocols (treeland-protocols 0.6.0) ---
+
+    void testCreateDecoration()
+    {
+        QVERIFY(m_server->attach<DecorationManagerInterfaceV1>(m_server) != nullptr);
+    }
+
+    void verifyDecoration()
+    {
+        auto protocol = m_server->findChild<DecorationManagerInterfaceV1 *>();
+        QVERIFY(protocol != nullptr);
+    }
+
+    void testCreateAppearance()
+    {
+        QVERIFY(m_server->attach<AppearanceInterfaceV1>(m_server) != nullptr);
+    }
+
+    void verifyAppearance()
+    {
+        auto protocol = m_server->findChild<AppearanceInterfaceV1 *>();
+        QVERIFY(protocol != nullptr);
+    }
+
+    void testCreateAppearanceManager()
+    {
+        QVERIFY(m_server->attach<AppearanceManagerInterfaceV1>(m_server) != nullptr);
+    }
+
+    void verifyAppearanceManager()
+    {
+        auto protocol = m_server->findChild<AppearanceManagerInterfaceV1 *>();
         QVERIFY(protocol != nullptr);
     }
 

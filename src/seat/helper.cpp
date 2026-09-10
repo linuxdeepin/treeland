@@ -44,6 +44,9 @@
 #include "modules/keyboard-state-notify/keyboardstatenotifymanagerinterfacev1.h"
 #include "modules/output-manager/outputmanagement.h"
 #include "modules/personalization/personalizationmanagerinterfacev1.h"
+#include "modules/personalization/decorationmanagerinterfacev1.h"
+#include "modules/personalization/appearanceinterfacev1.h"
+#include "modules/personalization/appearancemanagerinterfacev1.h"
 #include "modules/resource/treelandremotesource.h"
 #include "modules/screensaver/screensaverinterfacev2.h"
 #include "modules/shortcut/shortcutcontroller.h"
@@ -1700,6 +1703,55 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
             if (isLaunchpad(layer))
                 wrapper->setCoverEnabled(true);
         }
+
+        // --- New decoration protocol (treeland-decoration-unstable-v1) ---
+        // Apply per-window SSD overrides from the new protocol.  The old
+        // Personalization attached object above may also set the same
+        // properties; whichever fires last wins.  Clients should only use
+        // one protocol at a time during the transition period.
+        if (m_decorationInterfaceV1) {
+            auto applyDecoContext = [this, wrapper](DecorationContextV1 *ctx) {
+                if (ctx->surface() != wrapper->surface()->handle())
+                    return;
+
+                // NOTE: shadow and border values are received and stored by
+                // DecorationContextV1 (exposed via Q_PROPERTY) but not yet
+                // applied to the SurfaceWrapper. SurfaceWrapper does not
+                // currently have APIs for shadow/border. These will be wired
+                // up when the rendering side supports them.
+                auto updateDecoCornerRadius = [ctx, wrapper] {
+                    wrapper->setRadius(ctx->cornerRadius());
+                };
+                auto updateDecoTitlebar = [this, ctx, wrapper] {
+                    if (ctx->noTitlebar()) {
+                        wrapper->setNoTitleBar(true);
+                        auto layer = qobject_cast<WLayerSurface *>(wrapper->shellSurface());
+                        if (!isLaunchpad(layer))
+                            wrapper->setNoDecoration(false);
+                    } else {
+                        wrapper->setNoTitleBar(false);
+                        wrapper->setNoDecoration(
+                            m_xdgDecorationManager->modeBySurface(wrapper->surface())
+                            != WXdgDecorationManager::Server);
+                    }
+                };
+
+                connect(ctx, &DecorationContextV1::cornerRadiusChanged,
+                        wrapper, updateDecoCornerRadius);
+                connect(ctx, &DecorationContextV1::titlebarModeChanged,
+                        wrapper, updateDecoTitlebar);
+                updateDecoCornerRadius();
+                updateDecoTitlebar();
+            };
+
+            connect(m_decorationInterfaceV1, &DecorationManagerInterfaceV1::contextCreated,
+                    wrapper, applyDecoContext);
+
+            // Apply existing context if one was created before this surface
+            // handler ran.
+            if (auto *ctx = DecorationContextV1::getContext(wrapper->surface()))
+                applyDecoContext(ctx);
+        }
     }
 
     if (isXwayland) {
@@ -1953,6 +2005,11 @@ void Helper::init(Treeland::Treeland *treeland)
             }
         });
     m_personalizationInterfaceV1 = m_server->attach<PersonalizationManagerInterfaceV1>();
+
+    // New protocols (treeland-protocols 0.6.0)
+    m_decorationInterfaceV1 = m_server->attach<DecorationManagerInterfaceV1>();
+    m_appearanceInterfaceV1 = m_server->attach<AppearanceInterfaceV1>();
+    m_appearanceManagerInterfaceV1 = m_server->attach<AppearanceManagerInterfaceV1>();
 
     auto updateCurrentUser = [this] {
         m_config.reset(TreelandUserConfig::createByName("org.deepin.dde.treeland.user",
