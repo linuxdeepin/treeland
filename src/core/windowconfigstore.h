@@ -29,6 +29,9 @@ public:
                            qlonglong splashThemeType)> callback,
         std::function<void()> skipCallback) const;
 
+    void recordSplashMismatch(const QString &appId, int maxMismatchCount);
+    void resetSplashMismatchCount(const QString &appId);
+
 private:
     AppConfig *configForApp(const QString &appId) const;
 
