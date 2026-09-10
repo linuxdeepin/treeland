@@ -245,12 +245,12 @@ static int set_color_temperature_out_of_range_error(struct test_ctx *ctx)
 }
 
 static const struct test_case cases[] = {
-    { "manager.bind", manager_bound },
-    { "output.bind", output_bound },
-    { "manager.event.primary_output", primary_output_event_received },
-    { "manager.set_primary_output.valid", set_primary_output_valid },
-    { "manager.get_picture_control.valid_output", get_picture_control_valid_output },
-    { "picture_control.commit.no_changes_success", commit_no_changes_success },
+    { "manager.bind", manager_bound, 0 },
+    { "output.bind", output_bound, 0 },
+    { "manager.event.primary_output", primary_output_event_received, 0 },
+    { "manager.set_primary_output.valid", set_primary_output_valid, 0 },
+    { "manager.get_picture_control.valid_output", get_picture_control_valid_output, 0 },
+    { "picture_control.commit.no_changes_success", commit_no_changes_success, 0 },
     { "picture_control.set_color_temperature.out_of_range_error",
       set_color_temperature_out_of_range_error, 1 },
 };
