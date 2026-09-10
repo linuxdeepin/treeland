@@ -44,6 +44,16 @@ bool add_headless_output(WBackend *backend, bool startBackend, int width, int he
     if (!output)
         return false;
 
+    // wlroots 0.20 requires an explicit commit to enable the output and apply
+    // its mode.  Without this, geometry/rendering-dependent events (xdg-output,
+    // session-lock, image-copy-capture) are never delivered to clients.
+    struct wlr_output_state outputState;
+    wlr_output_state_init(&outputState);
+    wlr_output_state_set_enabled(&outputState, true);
+    wlr_output_state_set_custom_mode(&outputState, width, height, 0);
+    wlr_output_commit_state(output, &outputState);
+    wlr_output_state_finish(&outputState);
+
     auto *woutput = WOutput::fromHandle(output);
     if (!woutput)
         return false;
