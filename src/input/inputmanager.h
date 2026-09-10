@@ -33,6 +33,9 @@ public Q_SLOTS:
     void onMousePointerConfigCreated(PointerDeviceConfigurationV1 *config);
     void onTouchpadPointerConfigCreated(PointerDeviceConfigurationV1 *config);
 
+Q_SIGNALS:
+    void seatConfigChanged(SeatUserDConfig *config);
+
 private Q_SLOTS:
     void handleMousePointerConfigApplied(PointerDeviceConfigurationV1::ChangeFlags changes);
     void handleTouchpadPointerConfigApplied(PointerDeviceConfigurationV1::ChangeFlags changes);

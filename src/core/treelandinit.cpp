@@ -2,20 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "treelandinit.h"
 
+#include "deepintheme.h"
+
 #include <DGuiApplicationHelper>
 #include <QGuiApplication>
-#include <QPalette>
 #include <QQuickStyle>
 #include <wrenderhelper.h>
 #include <wlogging.h>
 #include <wbackend.h>
 #include <wserver.h>
-
-#if QT_VERSION >= QT_VERSION_CHECK(6, 10, 0)
-#  include <private/qgenericunixtheme_p.h>
-#else
-#  include <private/qgenericunixthemes_p.h>
-#endif
 
 #include <qpa/qplatformtheme.h>
 
@@ -26,19 +21,11 @@ DCORE_USE_NAMESPACE
 
 namespace Treeland {
 
-namespace {
-class QDeepinTheme : public QGenericUnixTheme
+static QDeepinTheme *g_theme = nullptr;
+
+QDeepinTheme *deepinTheme()
 {
-public:
-    const QPalette *palette(QPlatformTheme::Palette type) const override
-    {
-        if (type != QPlatformTheme::SystemPalette)
-            return QGenericUnixTheme::palette(type);
-        static QPalette palette;
-        palette = Dtk::Gui::DGuiApplicationHelper::instance()->applicationPalette();
-        return &palette;
-    }
-};
+    return g_theme;
 }
 
 std::unique_ptr<QGuiApplication> preInit(int &argc, char *argv[])
@@ -47,7 +34,8 @@ std::unique_ptr<QGuiApplication> preInit(int &argc, char *argv[])
     DTK_GUI_NAMESPACE::DGuiApplicationHelper::setAttribute(
         DTK_GUI_NAMESPACE::DGuiApplicationHelper::DontSaveApplicationTheme, true);
     WServer::initializeQPA({}, [](const QString &) {
-        return static_cast<QPlatformTheme *>(new QDeepinTheme());
+        g_theme = new QDeepinTheme();
+        return static_cast<QPlatformTheme *>(g_theme);
     });
     QGuiApplication::setAttribute(Qt::AA_UseOpenGLES);
     QGuiApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
