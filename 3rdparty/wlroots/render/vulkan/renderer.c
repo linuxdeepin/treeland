@@ -417,6 +417,7 @@ bool vulkan_submit_stage_wait(struct wlr_vk_renderer *renderer) {
 	return vulkan_wait_command_buffer(cb, renderer);
 }
 
+
 bool waylib_vk_renderer_flush_stage(struct wlr_renderer *wlr_renderer) {
 	assert(wlr_renderer_is_vk(wlr_renderer));
 	struct wlr_vk_renderer *renderer = vulkan_get_renderer(wlr_renderer);
@@ -424,6 +425,80 @@ bool waylib_vk_renderer_flush_stage(struct wlr_renderer *wlr_renderer) {
 		return true;
 	}
 	return vulkan_submit_stage_wait(renderer);
+}
+
+bool vulkan_submit_stage_async(struct wlr_vk_renderer *renderer) {
+	if (renderer->stage.cb == NULL) {
+		return true;
+	}
+
+	struct wlr_vk_command_buffer *cb = renderer->stage.cb;
+	renderer->stage.cb = NULL;
+
+	uint64_t timeline_point = vulkan_end_command_buffer(cb, renderer);
+	if (timeline_point == 0) {
+		return false;
+	}
+
+	VkTimelineSemaphoreSubmitInfoKHR timeline_submit_info = {
+		.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO_KHR,
+		.signalSemaphoreValueCount = 1,
+		.pSignalSemaphoreValues = &timeline_point,
+	};
+	VkSubmitInfo submit_info = {
+		.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+		.pNext = &timeline_submit_info,
+		.commandBufferCount = 1,
+		.pCommandBuffers = &cb->vk,
+		.signalSemaphoreCount = 1,
+		.pSignalSemaphores = &renderer->timeline_semaphore,
+	};
+	VkResult res = vkQueueSubmit(renderer->dev->queue, 1, &submit_info, VK_NULL_HANDLE);
+	if (res != VK_SUCCESS) {
+		wlr_vk_error("vkQueueSubmit", res);
+		return false;
+	}
+
+	renderer->stage.last_timeline_point = timeline_point;
+	renderer->stage_async_needs_bridge = true;
+
+	// Hide the staging buffers used by this submission from the allocator.
+	// release_command_buffer_resources() returns them (with their allocations
+	// reset) once this command buffer's timeline point is reached, so the CPU
+	// never reuses a span the GPU is still reading. The texture-sync bridge
+	// inserts the dependency required before a later Qt sampling submission.
+	size_t hidden = 0;
+	struct wlr_vk_shared_buffer *buf, *tmp;
+	wl_list_for_each_safe(buf, tmp, &renderer->stage.buffers, link) {
+		if (buf->allocs.size == 0) {
+			continue;
+		}
+		wl_list_remove(&buf->link);
+		wl_list_insert(&cb->stage_buffers, &buf->link);
+		++hidden;
+	}
+
+	static bool logged_async_stage;
+	if (!logged_async_stage) {
+		logged_async_stage = true;
+		wlr_log(WLR_INFO, "vk-stage: using GPU-side asynchronous staging "
+			"uploads (set WLR_VK_FORCE_STAGE_BLOCK=1 to force the blocking path)");
+	}
+	wlr_log(WLR_DEBUG, "vk-stage: submitted staging command buffer "
+		"timeline_point=%llu buffers_hidden=%zu",
+		(unsigned long long)timeline_point, hidden);
+
+	return true;
+}
+
+void waylib_vk_renderer_set_stage_async_enabled(struct wlr_renderer *wlr_renderer,
+		bool enabled) {
+	if (wlr_renderer == NULL || !wlr_renderer_is_vk(wlr_renderer)) {
+		return;
+	}
+
+	struct wlr_vk_renderer *renderer = vulkan_get_renderer(wlr_renderer);
+	renderer->stage_async_enabled = enabled;
 }
 
 struct wlr_vk_format_props *vulkan_format_props_from_drm(
@@ -482,6 +557,53 @@ bool vulkan_wait_command_buffer(struct wlr_vk_command_buffer *cb,
 	return true;
 }
 
+// Waits until every submission issued by this renderer has completed on the
+// GPU. All of them (stage uploads, the texture-sync bridge, render passes)
+// signal the renderer timeline semaphore with their command buffer's timeline
+// point as the final operation, so waiting for the counter to catch up with
+// renderer->timeline_point matches queue idleness for this renderer's work
+// without a queue-wide flush. Callers that destroy resources may only run on
+// the compositor frame boundary, where the Qt/QRhi frame has already been
+// submitted and CPU-waited (QRhi offscreen endFrame does the latter), so
+// Qt-side submissions of the same queue are complete as well. If that
+// invariant changes, Qt submissions must additionally be tracked here.
+static bool vulkan_wait_renderer_idle(struct wlr_vk_renderer *renderer) {
+	VkResult res;
+
+	if (renderer->timeline_semaphore == VK_NULL_HANDLE) {
+		res = vkQueueWaitIdle(renderer->dev->queue);
+		if (res != VK_SUCCESS) {
+			wlr_vk_error("vkQueueWaitIdle", res);
+			return false;
+		}
+		return true;
+	}
+
+	uint64_t current_point;
+	res = renderer->dev->api.vkGetSemaphoreCounterValueKHR(renderer->dev->dev,
+		renderer->timeline_semaphore, &current_point);
+	if (res != VK_SUCCESS) {
+		wlr_vk_error("vkGetSemaphoreCounterValueKHR", res);
+		current_point = 0;
+	} else if (current_point >= renderer->timeline_point) {
+		return true;
+	}
+
+	VkSemaphoreWaitInfoKHR wait_info = {
+		.sType = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO_KHR,
+		.semaphoreCount = 1,
+		.pSemaphores = &renderer->timeline_semaphore,
+		.pValues = &renderer->timeline_point,
+	};
+	res = renderer->dev->api.vkWaitSemaphoresKHR(renderer->dev->dev,
+		&wait_info, UINT64_MAX);
+	if (res != VK_SUCCESS) {
+		wlr_vk_error("vkWaitSemaphoresKHR", res);
+		return false;
+	}
+	return true;
+}
+
 static void release_command_buffer_resources(struct wlr_vk_command_buffer *cb,
 		struct wlr_vk_renderer *renderer, int64_t now) {
 	struct wlr_vk_texture *texture, *texture_tmp;
@@ -491,6 +613,7 @@ static void release_command_buffer_resources(struct wlr_vk_command_buffer *cb,
 		wlr_texture_destroy(&texture->wlr_texture);
 	}
 
+	size_t reclaimed = 0;
 	struct wlr_vk_shared_buffer *buf, *buf_tmp;
 	wl_list_for_each_safe(buf, buf_tmp, &cb->stage_buffers, link) {
 		buf->allocs.size = 0;
@@ -498,6 +621,10 @@ static void release_command_buffer_resources(struct wlr_vk_command_buffer *cb,
 
 		wl_list_remove(&buf->link);
 		wl_list_insert(&renderer->stage.buffers, &buf->link);
+		++reclaimed;
+	}
+	if (reclaimed > 0) {
+		wlr_log(WLR_DEBUG, "vk-stage: reclaimed %zu staging buffers", reclaimed);
 	}
 
 	if (cb->color_transform) {
@@ -566,7 +693,13 @@ static struct wlr_vk_command_buffer *get_command_buffer(
 		return unused;
 	}
 
-	// Block until a busy command buffer becomes available
+	// Block until a busy command buffer becomes available. With every slot
+	// recording there may be no completed one to wait on; fail instead of
+	// dereferencing a NULL waiter.
+	if (wait == NULL) {
+		wlr_log(WLR_ERROR, "No idle Vulkan command buffer available");
+		return NULL;
+	}
 	if (!vulkan_wait_command_buffer(wait, renderer)) {
 		return NULL;
 	}
@@ -628,10 +761,12 @@ static void destroy_render_buffer(struct wlr_vk_render_buffer *buffer) {
 	VkDevice dev = buffer->renderer->dev->dev;
 
 	// TODO: asynchronously wait for the command buffers using this render
-	// buffer to complete (just like we do for textures)
-	VkResult res = vkQueueWaitIdle(buffer->renderer->dev->queue);
-	if (res != VK_SUCCESS) {
-		wlr_vk_error("vkQueueWaitIdle", res);
+	// buffer to complete (just like we do for textures). Until then, wait on
+	// the renderer timeline (see vulkan_wait_renderer_idle) instead of a
+	// queue-wide wait so this eviction path does not flush unrelated work.
+	if (!vulkan_wait_renderer_idle(buffer->renderer)) {
+		wlr_log(WLR_ERROR, "Failed to wait for outstanding Vulkan submissions "
+			"before destroying a render buffer; continuing best-effort");
 	}
 
 	finish_render_buffer_out(&buffer->linear.out, dev);
@@ -930,7 +1065,8 @@ static struct wlr_vk_render_buffer *create_render_buffer(
 
 	bool using_mutable_srgb = false;
 	buffer->image = vulkan_import_dmabuf(renderer, &dmabuf,
-		buffer->memories, &buffer->mem_count, true, &using_mutable_srgb);
+		buffer->memories, &buffer->mem_count, true, &using_mutable_srgb,
+		&buffer->image_usage);
 	if (!buffer->image) {
 		goto error;
 	}
@@ -1019,6 +1155,7 @@ bool waylib_vk_renderer_get_render_buffer_attribs(struct wlr_renderer *wlr_rende
 	attribs->image = render_buffer->image;
 	attribs->layout = VK_IMAGE_LAYOUT_GENERAL;
 	attribs->format = format->vk;
+	attribs->usage = render_buffer->image_usage;
 	return true;
 }
 
@@ -1039,15 +1176,16 @@ bool waylib_vk_renderer_record_render_buffer_acquire(struct wlr_renderer *wlr_re
 	}
 
 	/* Match wlroots pass.c / tinywl: foreign ownership transfer into the
-	 * graphics queue before writing the scanout image. */
+	 * graphics queue before writing the scanout image. DMA-BUF imports start
+	 * without a Vulkan-side known layout; GENERAL is the accounting layout
+	 * every path in this renderer shares for them (and the steady-state
+	 * layout after each render-buffer release), so the first acquire uses it
+	 * as well instead of PREINITIALIZED, which describes host-written memory
+	 * and never applies here. All output pathways share the imported
+	 * VkImage; once transitioned, each pathway observes GENERAL on
+	 * subsequent use.
+	 */
 	VkImageLayout src_layout = VK_IMAGE_LAYOUT_GENERAL;
-	if (!render_buffer->linear.out.transitioned &&
-			!render_buffer->srgb.out.transitioned &&
-			!render_buffer->two_pass.out.transitioned) {
-		src_layout = VK_IMAGE_LAYOUT_PREINITIALIZED;
-	}
-	// All output pathways share the imported VkImage. Once this acquire
-	// barrier runs, each pathway observes GENERAL on subsequent use.
 	render_buffer->linear.out.transitioned = true;
 	render_buffer->srgb.out.transitioned = true;
 	render_buffer->two_pass.out.transitioned = true;
@@ -1070,6 +1208,22 @@ bool waylib_vk_renderer_record_render_buffer_acquire(struct wlr_renderer *wlr_re
 	vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
 		VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
 		0, 0, NULL, 0, NULL, 1, &barrier);
+
+	// WAR alias dependency: the texture-sampling path may have recently read
+	// this buffer's memory through a second logical VkImage. Writes through
+	// this image must not begin before those reads finished; a barrier naming
+	// either image cannot cover the other's accesses, so use the global form
+	// (§Memory Aliasing).
+	if (vulkan_alias_list_contains(&renderer->frame_sampled_buffers, wlr_buffer)) {
+		VkMemoryBarrier memory_barrier = {
+			.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
+			.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT,
+			.dstAccessMask = VK_ACCESS_MEMORY_WRITE_BIT,
+		};
+		vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+			VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0,
+			1, &memory_barrier, 0, NULL, 0, NULL);
+	}
 	return true;
 }
 
@@ -1088,6 +1242,16 @@ bool waylib_vk_renderer_record_render_buffer_release(struct wlr_renderer *wlr_re
 		get_render_buffer(renderer, wlr_buffer);
 	if (render_buffer == NULL) {
 		return false;
+	}
+
+	// Remember the buffer as a color-attachment producer aliasing its sampled
+	// textures. When such a texture is imported and sampled, wlroots records a
+	// global memory dependency extending these writes to the sampling
+	// (see record_frame_render_barrier; an ownership-transfer or image-scoped
+	// barrier cannot cover accesses made through this separate logical image).
+	if (!vulkan_alias_list_add(&renderer->frame_render_buffers, wlr_buffer)) {
+		wlr_log_errno(WLR_ERROR,
+			"Failed to track the frame render buffer producer");
 	}
 
 	VkImageMemoryBarrier barrier = {
@@ -1260,6 +1424,9 @@ static void vulkan_destroy(struct wlr_renderer *wlr_renderer) {
 		return;
 	}
 
+	waylib_vk_renderer_abort_texture_sync_batch(wlr_renderer);
+	waylib_vk_renderer_abort_texture_barrier_batch(wlr_renderer);
+
 	VkResult res = vkDeviceWaitIdle(renderer->dev->dev);
 	if (res != VK_SUCCESS) {
 		wlr_vk_error("vkDeviceWaitIdle", res);
@@ -1340,6 +1507,25 @@ static void vulkan_destroy(struct wlr_renderer *wlr_renderer) {
 	vkFreeMemory(dev->dev, renderer->dummy3d_mem, NULL);
 
 	vkDestroySemaphore(dev->dev, renderer->timeline_semaphore, NULL);
+
+	struct wlr_vk_texture_sync_sem *texture_sync_sem;
+	wl_array_for_each(texture_sync_sem, &renderer->texture_sync_semaphores) {
+		if (texture_sync_sem->semaphore != VK_NULL_HANDLE) {
+			vkDestroySemaphore(dev->dev, texture_sync_sem->semaphore, NULL);
+		}
+	}
+	wl_array_release(&renderer->texture_sync_semaphores);
+	wl_array_release(&renderer->texture_sync_pending);
+	wl_array_release(&renderer->texture_sync_wait_infos);
+	wl_array_release(&renderer->texture_acquire_barriers);
+	wl_array_release(&renderer->texture_release_barriers);
+	wl_array_release(&renderer->frame_sampled_buffers);
+	wl_array_release(&renderer->frame_render_buffers);
+
+	if (renderer->texture_sync_timeline_semaphore != VK_NULL_HANDLE) {
+		vkDestroySemaphore(dev->dev, renderer->texture_sync_timeline_semaphore, NULL);
+	}
+
 	vkDestroyPipelineLayout(dev->dev, renderer->output_pipe_layout, NULL);
 	vkDestroyDescriptorSetLayout(dev->dev, renderer->output_ds_srgb_layout, NULL);
 	vkDestroyDescriptorSetLayout(dev->dev, renderer->output_ds_lut3d_layout, NULL);
@@ -2483,7 +2669,8 @@ static struct wlr_vk_render_format_setup *find_or_create_render_setup(
 					VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
 				.dstSubpass = 0,
 				.dstStageMask = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
-				.dstAccessMask = VK_ACCESS_UNIFORM_READ_BIT |
+				.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT |
+					VK_ACCESS_UNIFORM_READ_BIT |
 					VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT |
 					VK_ACCESS_INDIRECT_COMMAND_READ_BIT |
 					VK_ACCESS_SHADER_READ_BIT,
@@ -2597,7 +2784,8 @@ static struct wlr_vk_render_format_setup *find_or_create_render_setup(
 					VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
 				.dstSubpass = 0,
 				.dstStageMask = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
-				.dstAccessMask = VK_ACCESS_UNIFORM_READ_BIT |
+				.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT |
+					VK_ACCESS_UNIFORM_READ_BIT |
 					VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT |
 					VK_ACCESS_INDIRECT_COMMAND_READ_BIT |
 					VK_ACCESS_SHADER_READ_BIT,
@@ -2683,6 +2871,15 @@ struct wlr_renderer *vulkan_renderer_create_for_device(struct wlr_vk_device *dev
 	wl_list_init(&renderer->render_buffers);
 	wl_list_init(&renderer->color_transforms);
 	wl_list_init(&renderer->pipeline_layouts);
+	wl_array_init(&renderer->texture_sync_semaphores);
+	wl_array_init(&renderer->texture_sync_pending);
+	wl_array_init(&renderer->texture_sync_wait_infos);
+	wl_array_init(&renderer->texture_acquire_barriers);
+	wl_array_init(&renderer->texture_release_barriers);
+	wl_array_init(&renderer->frame_sampled_buffers);
+	wl_array_init(&renderer->frame_render_buffers);
+	renderer->texture_sync_force_poll = getenv("WLR_VK_FORCE_SYNC_POLL") != NULL;
+	renderer->stage_force_block = getenv("WLR_VK_FORCE_STAGE_BLOCK") != NULL;
 
 	renderer->wlr_renderer.color_encodings =
 		WLR_COLOR_ENCODING_BT601 |
@@ -2725,6 +2922,26 @@ struct wlr_renderer *vulkan_renderer_create_for_device(struct wlr_vk_device *dev
 		wlr_vk_error("vkCreateSemaphore", res);
 		goto error;
 	}
+
+	bool can_gpu_wait_texture_sync = dev->implicit_sync_interop
+		&& dev->api.vkImportSemaphoreFdKHR != NULL
+		&& dev->api.vkQueueSubmit2KHR != NULL
+		&& dev->api.vkGetSemaphoreCounterValueKHR != NULL
+		&& !renderer->texture_sync_force_poll;
+	if (can_gpu_wait_texture_sync) {
+		res = vkCreateSemaphore(dev->dev, &semaphore_info, NULL,
+			&renderer->texture_sync_timeline_semaphore);
+		if (res != VK_SUCCESS) {
+			wlr_vk_error("vkCreateSemaphore", res);
+			renderer->texture_sync_timeline_semaphore = VK_NULL_HANDLE;
+			can_gpu_wait_texture_sync = false;
+		}
+	}
+
+	wlr_log(WLR_DEBUG, "Vulkan foreign-texture frame sync initialized "
+		"(implicit_sync_interop=%d, force_poll=%d, gpu_wait=%s)",
+		dev->implicit_sync_interop, renderer->texture_sync_force_poll,
+		can_gpu_wait_texture_sync ? "enabled" : "disabled");
 
 	return &renderer->wlr_renderer;
 
@@ -2787,4 +3004,80 @@ VkDevice wlr_vk_renderer_get_device(struct wlr_renderer *renderer) {
 uint32_t wlr_vk_renderer_get_queue_family(struct wlr_renderer *renderer) {
 	struct wlr_vk_renderer *vk_renderer = vulkan_get_renderer(renderer);
 	return vk_renderer->dev->queue_family;
+}
+
+VkQueue waylib_vk_renderer_get_queue(struct wlr_renderer *renderer) {
+	struct wlr_vk_renderer *vk_renderer = vulkan_get_renderer(renderer);
+	return vk_renderer->dev->queue;
+}
+
+bool waylib_vk_renderer_has_separate_depth_stencil_layouts(
+		struct wlr_renderer *renderer) {
+	if (renderer == NULL || !wlr_renderer_is_vk(renderer)) {
+		return false;
+	}
+
+	struct wlr_vk_renderer *vk_renderer = vulkan_get_renderer(renderer);
+	return vk_renderer->dev->separate_depth_stencil_layouts;
+}
+
+bool waylib_vk_renderer_restrict_texture_formats(struct wlr_renderer *wlr_renderer,
+		const uint32_t *drm_formats, size_t count) {
+	if (wlr_renderer == NULL || !wlr_renderer_is_vk(wlr_renderer)
+			|| (drm_formats == NULL && count > 0)) {
+		return false;
+	}
+
+	struct wlr_vk_renderer *renderer = vulkan_get_renderer(wlr_renderer);
+
+	// The texture format sets are only consulted while advertising the
+	// formats to clients (linux-dmabuf and wl_shm); rebuilding them in place
+	// before any client connects cannot race with anything.
+	const struct {
+		struct wlr_drm_format_set *set;
+		const char *name;
+	} sets[] = {
+		{ &renderer->dev->dmabuf_texture_formats, "dmabuf" },
+		{ &renderer->dev->shm_texture_formats, "shm" },
+	};
+
+	for (size_t s = 0; s < sizeof(sets) / sizeof(sets[0]); s++) {
+		struct wlr_drm_format_set *set = sets[s].set;
+		const size_t original_count = set->len;
+		struct wlr_drm_format_set filtered = {0};
+		size_t kept = 0;
+		for (size_t i = 0; i < original_count; i++) {
+			const struct wlr_drm_format *format = &set->formats[i];
+			bool supported = false;
+			for (size_t f = 0; f < count; f++) {
+				if (drm_formats[f] == format->format) {
+					supported = true;
+					break;
+				}
+			}
+			if (!supported) {
+				wlr_log(WLR_DEBUG, "Restricting %s texture format %.4s: "
+					"the compositor cannot wrap it",
+					sets[s].name, (const char *)&format->format);
+				continue;
+			}
+			for (size_t m = 0; m < format->len; m++) {
+				if (!wlr_drm_format_set_add(&filtered, format->format,
+						format->modifiers[m])) {
+					wlr_drm_format_set_finish(&filtered);
+					wlr_log(WLR_ERROR, "Failed to rebuild the restricted "
+						"%s texture format set", sets[s].name);
+					return false;
+				}
+			}
+			kept++;
+		}
+
+		wlr_drm_format_set_finish(set);
+		*set = filtered;
+		wlr_log(WLR_INFO, "Restricted the %s texture format set to the "
+			"compositor-wrappable subset (%zu/%zu formats kept)",
+			sets[s].name, kept, original_count);
+	}
+	return true;
 }

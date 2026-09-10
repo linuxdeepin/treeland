@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <stdbool.h>
+#include <wayland-util.h>
 #include <vulkan/vulkan.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/render/wlr_texture.h>
@@ -44,6 +45,7 @@ struct wlr_vk_device {
 	bool sync_file_import_export;
 	bool implicit_sync_interop;
 	bool sampler_ycbcr_conversion;
+	bool separate_depth_stencil_layouts;
 
 	// we only ever need one queue for rendering and transfer commands
 	uint32_t queue_family;
@@ -98,6 +100,7 @@ const struct wlr_vk_format *vulkan_get_format_from_drm(uint32_t drm_format);
 struct wlr_vk_format_modifier_props {
 	VkDrmFormatModifierPropertiesEXT props;
 	VkExtent2D max_extent;
+	VkExtent2D transfer_src_max_extent;
 	bool has_mutable_srgb;
 };
 
@@ -234,6 +237,7 @@ struct wlr_vk_render_buffer {
 	VkDeviceMemory memories[WLR_DMABUF_MAX_PLANES];
 	uint32_t mem_count;
 	VkImage image;
+	VkImageUsageFlags image_usage;
 
 	// Framebuffer and image view for rendering directly onto the buffer image,
 	// without any color transform.
@@ -290,6 +294,44 @@ struct wlr_vk_command_buffer {
 
 #define VULKAN_COMMAND_BUFFERS_CAP 64
 
+// Binary semaphore holding an imported foreign-texture DMA-BUF sync_file.
+// Reusable once the texture_sync timeline semaphore reaches release_point.
+struct wlr_vk_texture_sync_sem {
+	VkSemaphore semaphore;
+	uint64_t release_point;
+};
+
+// Append a wlr_buffer pointer to an append-only alias tracking list (dedup).
+// Stale entries after buffer destruction may alias recycled pointers, which
+// only ever adds a conservative extra memory dependency. Returns false when
+// the allocation failed (the entry was then not added).
+static inline bool vulkan_alias_list_add(struct wl_array *list,
+		struct wlr_buffer *buffer) {
+	struct wlr_buffer **entry;
+	wl_array_for_each(entry, list) {
+		if (*entry == buffer) {
+			return true;
+		}
+	}
+	struct wlr_buffer **slot = wl_array_add(list, sizeof(*slot));
+	if (slot == NULL) {
+		return false;
+	}
+	*slot = buffer;
+	return true;
+}
+
+static inline bool vulkan_alias_list_contains(const struct wl_array *list,
+		struct wlr_buffer *buffer) {
+	const struct wlr_buffer **entry;
+	wl_array_for_each(entry, list) {
+		if (*entry == buffer) {
+			return true;
+		}
+	}
+	return false;
+}
+
 // Vulkan wlr_renderer implementation on top of a wlr_vk_device.
 struct wlr_vk_renderer {
 	struct wlr_renderer wlr_renderer;
@@ -325,6 +367,62 @@ struct wlr_vk_renderer {
 
 	VkSemaphore timeline_semaphore;
 	uint64_t timeline_point;
+
+	// Frame-batched waiting on foreign texture DMA-BUF sync_files (Qt/QRhi
+	// path). Unsignaled sync_files are imported into binary semaphores and
+	// waited on by a bridge command buffer. Its pipeline barrier extends the
+	// wait dependency to the later Qt submission on the same queue.
+	VkSemaphore texture_sync_timeline_semaphore;
+	uint64_t texture_sync_timeline_point;
+	struct wl_array texture_sync_semaphores; // struct wlr_vk_texture_sync_sem
+	struct wl_array texture_sync_pending; // private texture sync wait entries
+	struct wl_array texture_sync_wait_infos; // VkSemaphoreSubmitInfoKHR scratch
+	bool texture_sync_batch_active;
+	bool texture_sync_force_poll; // env WLR_VK_FORCE_SYNC_POLL
+
+	// Per-pass batching of foreign-texture acquire/release barriers (Qt/QRhi
+	// path). Instead of emitting one vkCmdPipelineBarrier per texture, the
+	// barriers are accumulated while a batch is active and recorded as a
+	// single call before (acquire phase) or after (release phase) the Qt draw.
+	struct wl_array texture_acquire_barriers; // VkImageMemoryBarrier
+	struct wl_array texture_release_barriers; // VkImageMemoryBarrier
+	// Set while a batch is active when a texture about to be sampled aliases
+	// (second import of the same DMA-BUF) a buffer that was rendered as a
+	// color attachment and is recorded in frame_render_buffers. The producer's
+	// writes happened through the other logical VkImage, so neither an
+	// ownership-transfer acquire (its source access mask is ignored) nor an
+	// image barrier naming the sampled image covers them in its memory scope:
+	// §Memory Aliasing requires a memory dependency, and only a global
+	// (resource-free) memory barrier can span the two aliases. One such
+	// barrier is recorded when the batch flushes.
+	bool frame_producer_alias_dep;
+	bool texture_barrier_batch_active;
+	bool texture_barrier_batch_release; // current batch is the release phase
+
+	// wlr_buffer * rendered as a color attachment by the current frame's
+	// command buffer (output, layer, and cursor render buffers). Append-only
+	// with dedup; stale entries only produce a conservative extra dependency
+	// that is trivially satisfied once the previous frame has completed.
+	struct wl_array frame_render_buffers;
+	// wlr_buffer * sampled as a texture by the (Qt/QRhi) frame's command
+	// buffer. Same append-only, dedup, conservative policy as
+	// frame_render_buffers: a render-buffer acquire for one of these buffers
+	// records a global read-before-write (WAR) alias dependency, because the
+	// sampling may have read the aliased memory through another logical
+	// image whose barriers are out of this image's access scope.
+	struct wl_array frame_sampled_buffers;
+
+	// Force the legacy blocking staging-upload path instead of the
+	// GPU-side asynchronous one (env WLR_VK_FORCE_STAGE_BLOCK).
+	bool stage_force_block;
+	// Enable the GPU-side asynchronous staging-upload path. Must only be set
+	// once the consumer (Qt/QRhi) is confirmed to submit to the same VkQueue,
+	// since the path relies on the same-queue texture-sync bridge to order the
+	// upload before the uploaded texture is sampled.
+	bool stage_async_enabled;
+	// A stage upload was submitted asynchronously and needs the texture-sync
+	// bridge barrier before the consumer submits its command buffer.
+	bool stage_async_needs_bridge;
 
 	size_t last_pool_size;
 	struct wl_list descriptor_pools; // wlr_vk_descriptor_pool.link
@@ -407,6 +505,13 @@ VkCommandBuffer vulkan_record_stage_cb(struct wlr_vk_renderer *renderer);
 // Submits the current stage command buffer and waits until it has
 // finished execution.
 bool vulkan_submit_stage_wait(struct wlr_vk_renderer *renderer);
+
+// Submits the current stage command buffer without blocking the CPU. The
+// staging buffers it used are hidden in the command buffer's stage_buffers
+// list and reclaimed once its timeline point is reached. Callers that sample
+// the uploaded content must flush the texture-sync bridge and then submit
+// their own command buffer to the same queue.
+bool vulkan_submit_stage_async(struct wlr_vk_renderer *renderer);
 
 struct wlr_vk_render_pass_texture {
 	struct wlr_vk_texture *texture;
@@ -515,7 +620,7 @@ struct wlr_vk_texture *vulkan_get_texture(struct wlr_texture *wlr_texture);
 VkImage vulkan_import_dmabuf(struct wlr_vk_renderer *renderer,
 	const struct wlr_dmabuf_attributes *attribs,
 	VkDeviceMemory mems[static WLR_DMABUF_MAX_PLANES], uint32_t *n_mems,
-	bool for_render, bool *using_mutable_srgb);
+	bool for_render, bool *using_mutable_srgb, VkImageUsageFlags *image_usage);
 struct wlr_texture *vulkan_texture_from_buffer(
 	struct wlr_renderer *wlr_renderer, struct wlr_buffer *buffer);
 void vulkan_texture_destroy(struct wlr_vk_texture *texture);
