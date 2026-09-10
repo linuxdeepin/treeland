@@ -160,6 +160,11 @@ QList<SurfaceContainer *> SurfaceContainer::subContainers() const
     return findChildren<SurfaceContainer *>(Qt::FindDirectChildrenOnly);
 }
 
+void SurfaceContainer::unparentSurface(SurfaceWrapper *surface)
+{
+    surface->setParent(nullptr);
+}
+
 void SurfaceContainer::setQmlEngine(QQmlEngine *engine)
 {
     const auto *context = engine->contextForObject(this);

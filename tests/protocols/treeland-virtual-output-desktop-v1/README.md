@@ -1,37 +1,47 @@
-# `treeland-virtual-output-manager-v1` 桌面业务测试规范
+# `treeland-virtual-output-desktop-v1` 测试规范
 
-本文件是 [virtual-output-manager-v1](../treeland-virtual-output-manager-v1/README.md) 中桌面级场景的可执行
-细则。测试源码为 `tests/protocols/treeland-virtual-output-desktop-v1/`，测试名为
-`test_treeland_virtual_output_desktop_v1`。
+## 范围
 
-## 前置状态
+- 测试源码：`tests/protocols/treeland-virtual-output-desktop-v1/`
+- Fixture：完整 Treeland desktop integration fixture、两个真实 headless backend
+  output（`HEADLESS-1`、`HEADLESS-2`）。
+- 覆盖等级：桌面业务链路为 **E**。
 
-生产 `DesktopIntegrationFixture` 启动 `Helper`、root surface container 和 headless backend；
-fixture 在默认 `HEADLESS-1` 之外创建真实的 `HEADLESS-2`。开始请求前，二者均为 normal
-`Output`，root container 中正好有两个输出。若运行环境的 DConfig 保留了此前的 copy topology，
-fixture 订阅 `TreelandConfig::configInitializeSucceed`：在该生产配置完成初始化的精确时点，清除
-copy-output 的三个配置值并调用公开生产接口 `Helper::setOutputMode(Extension)`。desktop test
-framework 同样以该完成信号重新检查 fixture readiness，之后才启动 client；不把宿主机遗留配置
-当作测试前置条件，也不使用时间等待。
+## 场景与预期结果
 
-## 请求、生产路径与断言
+| 场景 | 客户端发送 | 生产业务逻辑与断言 |
+| --- | --- | --- |
+| 进入复制模式 | `create_virtual_output("protocol-copy-group", ["HEADLESS-1", "HEADLESS-2"])` | 第二个既有 `Output` 被替换为 copy/proxy `Output`，第一个仍是镜像源；root output 数仍为 2；root primary 仍为 `HEADLESS-1` |
+| 恢复复制模式 | 销毁 group | 第二个 `Output` 恢复为 normal output；root output 数仍为 2 |
+| layer 表面跨包装交换存活 | 在进入复制模式前，向 `HEADLESS-2` 的 `wl_output` 创建并映射 bottom 层 layer surface | 表面 wrapper 在每次 copy↔normal 包装交换后仍然存活（从未收到 `closed`），`ownsOutput` 与 container 均归属当前 `HEADLESS-2` 包装 |
+| 禁用 source 折叠复制模式 | 复制模式下经 `wlr-output-management` 应用禁用 `HEADLESS-1` | copy 模式折叠为 extension：`HEADLESS-1` 被禁用、`HEADLESS-2` 转为 normal 并成为 primary；`HEADLESS-2` 上绑定的 layer surface 仍存活且被重新挂入新包装的 container，客户端未收到 `closed` |
 
-| 步骤 | 客户端动作 | 生产路径 | 必须观察到的结果 |
-| --- | --- | --- | --- |
-| 建组 | `create_virtual_output("protocol-copy-group", ["HEADLESS-1", "HEADLESS-2"])` | `VirtualOutputManagerInterfaceV1Private::create_virtual_output()` → `requestCreateVirtualOutput` → `Helper::onSetCopyOutput()` | 至少一个 group `outputs` 事件含完全相同名称与顺序；`HEADLESS-1` 保持 normal 且是 root primary；`HEADLESS-2` 被替换为 copy/proxy；两个 backend output 和 root container 的两个条目仍存在。 |
-| 解组 | `treeland_virtual_output_v1.destroy` | child resource 销毁 → `beforeDestroyVirtualOutput` → `Helper::onRestoreCopyOutput()` | `HEADLESS-2` 被重新创建为 normal `Output`；两个 backend output 与 root container 的两个条目仍存在；root primary 仍为 `HEADLESS-1`。 |
+## 已证明的生产链路
 
-每一轮 client/server 同步由 `wl_display_roundtrip()` 建立顺序关系；fixture 就绪由 DConfig 初始化
-完成信号和 root output model 的 `rowsInserted` 信号驱动，不以“等待若干毫秒后假定服务端已就绪”
-的方式断言。创建 group 后会先由 `storeVirtualOutput()` 发出 `outputs`，再由
-`storeCopyOutputConfig()` → `updateVirtualOutput()` 发出同 payload 的更新事件；测试验证其至少
-出现一次及最终 payload，不把实现的两次通知误判为失败。
+复制模式进入/恢复沿用原有断言（normal/copy 对应 `Output::isSource()` 的内部类型含义，
+root primary 始终为 `HEADLESS-1`）。
 
-## 语义边界
+新增的 E 级链路：客户端在复制模式之前向 `HEADLESS-2` 绑定一个 bottom 层 layer surface，
+随后依次经历**进入复制模式**、**恢复**、**再次进入复制模式**、**禁用 source 触发折叠**
+四次 copy↔normal 包装交换。每次交换后服务端读回必须满足：wrapper 存活、`ownsOutput` 为
+当前 `HEADLESS-2` 包装、container 为 `HEADLESS-2` 的 output layer container；客户端
+`closed` 事件计数保持 0。折叠由 `wlr-output-management` 的 `apply` 触发（`test` 不触发
+转换），断言 `configuration succeeded`、`HEADLESS-1` wlr output 被禁用、`HEADLESS-2`
+转为 source 并成为 primary。
 
-XML 明确规定该请求不新增客户端 `wl_output`。因此本测试故意断言“已有两个输出没有消失或
-新增”，而不是寻找第三个 output。这里的“虚拟输出”是对现有 outputs 的镜像组配置。
+这一场景正是生产 bug 的回归项：复制模式下禁用 source 会把镜像输出的包装对象销毁重建，
+旧实现把绑定在该输出上的 layer surface 当作热拔插关闭（`WLayerSurface::closed()`），
+导致 dde-desktop 等绑定具体输出的 layer 窗口被关闭后回退为普通窗口。修复后 layer
+surface 在包装交换中被 detach 并重新挂入新包装的 container，而不是被关闭。
 
-## 执行状态
+## 已知边界 / 下一项结果
 
-该用例已在当前工作树通过，为 **E**。它不提供 output 像素比对，故不是 **V**。
+- 未覆盖热拔插（物理移除）镜像源后的 successor 选择；该路径沿用
+  `treeland-virtual-output-manager-v1` 的既有边界说明。
+- 折叠仅验证了"仅剩一个 mirror"的路径（`handleCopyModeSourceDisabled` 返回 false）；
+  多 mirror 存活时提升新 source 的路径（`promoteCopyOutputToSource`）未在本测试覆盖。
+- 未覆盖 layer surface 的渲染像素（V 级）：本测试只断言 wrapper/container 归属与
+  `closed` 事件计数。
+- 本测试的业务断言在本地工作树已通过（QTest 3/3，29ms）；完整 protocol suite 的
+  CTest 执行结果以该提交上的本地或 CI 运行为准（当前会话中全部 protocol target 存在
+  与测试无关的 dconfig 服务退出挂起，属于环境问题，见 `framework/README.md`）。

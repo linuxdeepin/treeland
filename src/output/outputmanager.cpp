@@ -146,7 +146,12 @@ OutputManager::CopyModeRestoreConfig OutputManager::copyModeRestoreConfig(int av
     }
     result.outputIds = copyOutputIds();
     result.outputNames = outputNamesFromIds(result.outputIds);
-    if (result.outputIds.size() < 2 || result.outputNames.size() < 2) {
+    // A stale id would silently shrink the copy group; refuse to restore a
+    // group that misses a member instead of advertising a partial one.
+    if (result.outputIds.size() < 2 || result.outputNames.size() != result.outputIds.size()) {
+        qCWarning(lcTlOutput) << "Not restoring copy mode: configured output ids are stale"
+                              << "ids:" << result.outputIds
+                              << "resolved:" << result.outputNames;
         return {};
     }
     result.primaryOutput = findOutputById(result.outputIds.constFirst());
@@ -335,7 +340,11 @@ void OutputManager::restoreScreenAsPrimary(Output *output)
         return;
     }
 
-    m_rootContainer->setPrimaryOutput(output);
+    // Persist the restored primary too: the auto-restore after a disable/
+    // enable cycle leaves the in-memory primary and the protocol push in sync,
+    // but dconfig primaryOutputId stays stale (empty or the pre-cycle value).
+    // Same guarantee as the explicit set path.
+    m_rootContainer->setPrimaryOutput(output, true);
 }
 
 void OutputManager::switchPrimaryOutput(Output *from,

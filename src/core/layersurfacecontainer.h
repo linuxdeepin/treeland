@@ -38,6 +38,14 @@ public:
 
     void addOutput(Output *output) override;
     void removeOutput(Output *output) override;
+
+    // Detach every layer surface bound to `output` from its container without
+    // closing it. Used when an Output wrapper is replaced for the same physical
+    // output (copy<->normal conversion): the surfaces stay alive and are
+    // re-entered into the replacement wrapper's container by
+    // updateSurfacesContainer() on addOutput().
+    void detachOutputSurfaces(Output *output);
+
     OutputLayerSurfaceContainer *getSurfaceContainer(const Output *output) const;
     OutputLayerSurfaceContainer *getSurfaceContainer(const WOutput *output) const;
 

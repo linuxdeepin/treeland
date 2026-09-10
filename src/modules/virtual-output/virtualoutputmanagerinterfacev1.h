@@ -26,7 +26,7 @@ public:
     void updateVirtualOutput(const QString &name, const QStringList &outputs);
     void removeVirtualOutput(const QString &name);
 
-    static constexpr int InterfaceVersion = 1;
+    static constexpr int InterfaceVersion = 3;
 
 Q_SIGNALS:
     void requestCreateVirtualOutput(VirtualOutputInterfaceV1 *interface);

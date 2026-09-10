@@ -207,6 +207,114 @@ static bool hasSavedOutputState(OutputConfig *config)
                       || !config->adaptiveSyncEnabledIsDefaultValue());
 }
 
+// Size an enabled output would occupy in layout coordinates (i.e. after
+// transform and scale), mirroring wlr_output_transformed_resolution / scale.
+static QSize effectiveOutputLayoutSize(const WOutputState &state)
+{
+    int width = state.mode ? state.mode->width : state.customModeSize.width();
+    int height = state.mode ? state.mode->height : state.customModeSize.height();
+    switch (state.transform) {
+    case WOutput::Transform::R90:
+    case WOutput::Transform::R270:
+    case WOutput::Transform::Flipped90:
+    case WOutput::Transform::Flipped270:
+        std::swap(width, height);
+        break;
+    default:
+        break;
+    }
+    const qreal scale = state.scale > 0.0 ? state.scale : 1.0;
+    return QSize(qCeil(width / scale), qCeil(height / scale));
+}
+
+// True when any two enabled states in the list overlap in layout coordinates.
+static bool enabledStatesOverlap(const QList<WOutputState> &states)
+{
+    for (int i = 0; i < states.size(); ++i) {
+        if (!states[i].enabled)
+            continue;
+        const QRect a(QPoint(states[i].x, states[i].y), effectiveOutputLayoutSize(states[i]));
+        for (int j = i + 1; j < states.size(); ++j) {
+            if (!states[j].enabled)
+                continue;
+            const QRect b(QPoint(states[j].x, states[j].y), effectiveOutputLayoutSize(states[j]));
+            if (a.intersects(b))
+                return true;
+        }
+    }
+    return false;
+}
+
+// Extension mode never wants overlapping screens. Move every enabled output
+// that would overlap another enabled output to the right of the rightmost one
+// so a stale or absent saved position cannot collapse the layout onto itself.
+static void deOverlapEnabledStates(QList<WOutputState> &states)
+{
+    for (int round = 0; round < states.size(); ++round) {
+        QList<QRect> placed;
+        bool changed = false;
+        int rightmostEdge = std::numeric_limits<int>::min();
+        for (auto &state : states) {
+            if (!state.enabled)
+                continue;
+            QRect rect(QPoint(state.x, state.y), effectiveOutputLayoutSize(state));
+            const bool overlaps = std::any_of(placed.cbegin(), placed.cend(),
+                                              [&rect](const QRect &other) { return rect.intersects(other); });
+            if (overlaps) {
+                state.x = rightmostEdge;
+                state.y = 0;
+                rect.moveTopLeft(QPoint(state.x, state.y));
+                qCInfo(lcTlOutput) << "De-overlap: moved" << state.output->name()
+                                   << "to" << rect.topLeft()
+                                   << "because its requested position overlapped another enabled screen";
+                changed = true;
+            }
+            placed.append(rect);
+            rightmostEdge = qMax(rightmostEdge, rect.right() + 1);
+        }
+        if (!changed)
+            break;
+    }
+}
+
+// Effective (layout-unit) size of a restored saved mode.
+static QSize effectiveSavedSize(int width, int height, qlonglong transform, double scale)
+{
+    switch (transform) {
+    case WL_OUTPUT_TRANSFORM_90:
+    case WL_OUTPUT_TRANSFORM_270:
+    case WL_OUTPUT_TRANSFORM_FLIPPED_90:
+    case WL_OUTPUT_TRANSFORM_FLIPPED_270:
+        std::swap(width, height);
+        break;
+    default:
+        break;
+    }
+    const qreal s = scale > 0.0 ? scale : 1.0;
+    return QSize(qCeil(width / s), qCeil(height / s));
+}
+
+// True when placing the output at pos/size would overlap another enabled
+// output already present in the layout (the stale-saved-topology guard).
+static bool savedPositionOverlapsEnabledOutput(WOutputLayout *layout,
+                                               WOutput *output,
+                                               const QPoint &pos,
+                                               const QSize &size)
+{
+    if (!layout)
+        return false;
+    const QRect savedRect(pos, size);
+    for (auto *other : layout->outputs()) {
+        if (other == output || !other->isEnabled())
+            continue;
+        wlr_box box;
+        wlr_output_layout_get_box(layout->handle(), other->handle(), &box);
+        if (QRect(box.x, box.y, box.width, box.height).intersects(savedRect))
+            return true;
+    }
+    return false;
+}
+
 static wlr_output_mode *closestOutputMode(WOutput *output,
                                           int width,
                                           int height,
@@ -678,6 +786,10 @@ void Helper::onOutputAdded(WOutput *output)
             if (!output->isEnabled()) {
                 outputObject->enable();
             }
+            // Keep the auto-added position but pin it so a later geometry
+            // change on a sibling output cannot silently relocate this one.
+            if (auto *layout = m_rootSurfaceContainer->outputLayout())
+                layout->pin(output);
             return;
         }
 
@@ -704,7 +816,17 @@ void Helper::onOutputAdded(WOutput *output)
         wlr_output_state_set_enabled(newState.get(), true);
 
         if (auto *layout = m_rootSurfaceContainer->outputLayout()) {
-            layout->move(output, QPoint(static_cast<int>(config->x()), static_cast<int>(config->y())));
+            const QPoint savedPos(static_cast<int>(config->x()), static_cast<int>(config->y()));
+            const QSize savedSize = effectiveSavedSize(width, height, transform, scale);
+            // A saved position from an old topology may overlap an already
+            // enabled output; keep the auto-added position instead of stacking.
+            if (!savedPositionOverlapsEnabledOutput(layout, output, savedPos, savedSize)) {
+                layout->move(output, savedPos);
+            } else {
+                qCInfo(lcTlOutput) << "Saved position for" << output->name()
+                                   << savedPos << "overlaps an enabled output; keeping auto position";
+            }
+            layout->pin(output);
         }
 
         if (auto *mode = closestOutputMode(output, width, height, refresh)) {
@@ -753,6 +875,7 @@ void Helper::onOutputRemoved(WOutput *output)
     auto index = indexOfOutput(output);
     Q_ASSERT(index >= 0);
     const auto o = m_outputList.takeAt(index);
+    m_disabledOutputSurfaces.remove(o->getOutputId());
 
     const auto &surfaces = getWorkspaceSurfaces(o);
     const QStringList copyOutputs = m_outputManagerHelper->copyOutputIds();
@@ -781,32 +904,10 @@ void Helper::onOutputRemoved(WOutput *output)
                 }
             }
 
-            const int newCopySourceIndex = m_outputList.indexOf(newCopySource);
-            removeOutputFromRootContainer(newCopySource);
-            Output *normalCopySource = createNormalOutput(newCopySource->output());
-            normalCopySource->enable();
-            m_outputList.replace(newCopySourceIndex, normalCopySource);
-            newCopySource->deleteLater();
-
-            for (int i = 0; i < m_outputList.size(); ++i) {
-                Output *copyOutput = m_outputList.at(i);
-                if (copyOutput == normalCopySource
-                    || !copyOutputs.contains(copyOutput->getOutputId())) {
-                    continue;
-                }
-
-                removeOutputFromRootContainer(copyOutput);
-                Output *replacement = createCopyOutput(copyOutput->output(), normalCopySource);
-                replacement->enable();
-                m_rootSurfaceContainer->addOutput(replacement);
-                m_outputList.replace(i, replacement);
-                copyOutput->deleteLater();
-            }
-
-            m_rootSurfaceContainer->setPrimaryOutput(normalCopySource);
-            if (!surfaces.isEmpty()) {
-                moveSurfacesToOutput(surfaces, normalCopySource, o);
-            }
+            promoteCopyOutputToSource(newCopySource, surfaces, o,
+                                      [&copyOutputs](Output *candidate) {
+                                          return copyOutputs.contains(candidate->getOutputId());
+                                      });
             removeOutputFromRootContainer(o);
 
             // Persist only the active copy group. A subsequently connected
@@ -814,39 +915,11 @@ void Helper::onOutputRemoved(WOutput *output)
             // disconnected source or a different output.
             m_outputManagerHelper->storeCopyOutputConfig(true, {}, updatedCopyOutputs);
         } else {
-
             m_mode = OutputMode::Extension;
             Q_EMIT outputModeChanged();
 
-            QList<Output *> outputsToConvert;
-            QList<Output *> oldOutputsToDelete;
-
-            bool removedWasPrimary = (output == m_rootSurfaceContainer->primaryOutput()->output());
-            Output *sourceCandidate = nullptr;
-
-            for (int i = 0; i < m_outputList.size(); i++) {
-                Output *copyOutput = m_outputList.at(i);
-
-                if (copyOutput->isSource()) {
-                    if (!sourceCandidate)
-                        sourceCandidate = copyOutput;
-                    continue;
-                }
-
-                removeOutputFromRootContainer(copyOutput);
-                Output *normalOutput = createNormalOutput(copyOutput->output());
-                normalOutput->enable();
-                saveCurrentOutputConfig(normalOutput);
-
-                outputsToConvert.append(normalOutput);
-                oldOutputsToDelete.append(copyOutput);
-
-                m_outputList.replace(i, normalOutput);
-
-                if (!sourceCandidate) {
-                    sourceCandidate = normalOutput;
-                }
-            }
+            const bool removedWasPrimary = (output == m_rootSurfaceContainer->primaryOutput()->output());
+            Output *sourceCandidate = convertCopyOutputsToNormal([](Output *) { return false; });
 
             if (removedWasPrimary && sourceCandidate) {
                 m_rootSurfaceContainer->setPrimaryOutput(sourceCandidate);
@@ -856,10 +929,6 @@ void Helper::onOutputRemoved(WOutput *output)
             }
 
             removeOutputFromRootContainer(o);
-
-            for (auto oldOutput : std::as_const(oldOutputsToDelete)) {
-                delete oldOutput;
-            }
         }
 
     } else {
@@ -928,49 +997,128 @@ void Helper::setGamma(struct wlr_gamma_control_manager_v1_set_gamma_event *event
     }
 }
 
-void Helper::handleCopyModeOutputDisable(Output *affectedOutput)
+bool Helper::handleCopyModeSourceDisabled(Output *disabledSource,
+                                          const QList<WOutput *> &requestedDisabled)
 {
-    int affectedIndex = m_outputList.indexOf(affectedOutput);
-    if (affectedIndex < 0) {
-        qCWarning(lcTlCore) << "Disabled output not found in m_outputList";
-        return;
-    }
-
-    if (m_outputManagerHelper) {
-        m_outputManagerHelper->storeCopyOutputConfig(false);
-    }
-
-    m_mode = OutputMode::Extension;
-    Q_EMIT outputModeChanged();
-
-    // Convert CopyOutputs to Normal outputs (independent displays)
-    // Keep the disabled output in the list - it will receive disable state through normal wlroots flow
-    Output *primaryCandidate = nullptr;
-    const auto &surfaces = getWorkspaceSurfaces(affectedOutput);
-    for (int i = 0; i < m_outputList.size(); i++) {
-        if (i == affectedIndex) {
+    // Promoting a mirror to the new copy source only makes sense when at least
+    // one other mirror survives; otherwise copy mode collapses to extension
+    // mode anyway and the leftover mirror becomes an independent output. Count
+    // the enabled mirrors that are not also disabled in this same request and
+    // skip the promotion entirely when fewer than two remain.
+    Output *newSource = nullptr;
+    int enabledMirrors = 0;
+    for (int i = 0; i < m_outputList.size(); ++i) {
+        Output *output = m_outputList.at(i);
+        if (output == disabledSource || output->isSource())
+            continue;
+        if (requestedDisabled.contains(output->output()) || !output->output()->isEnabled()) {
             continue;
         }
+        enabledMirrors++;
+        if (!newSource)
+            newSource = output;
+    }
+    if (enabledMirrors < 2)
+        return false;
 
+    const auto &surfaces = getWorkspaceSurfaces(disabledSource);
+
+    // Convert the promoted mirror into a normal (source) output and re-target
+    // the surviving enabled mirrors to it. A disabled mirror stays bound to
+    // its (old) source object; when it is re-enabled it resumes mirroring
+    // through the still-valid proxy, so it needs no rework.
+    Output *normalSource = promoteCopyOutputToSource(
+        newSource,
+        surfaces,
+        disabledSource,
+        [this, disabledSource, &requestedDisabled](Output *mirror) {
+            return mirror != disabledSource
+                && !mirror->isSource()
+                && mirror->output()->isEnabled()
+                && !requestedDisabled.contains(mirror->output());
+        });
+
+    // Persist the new copy group only once the commits have succeeded: the
+    // new source first, then the enabled mirrors.
+    QStringList copyOutputIds{ normalSource->getOutputId() };
+    for (int i = 0; i < m_outputList.size(); ++i) {
+        Output *o = m_outputList.at(i);
+        if (o == normalSource || o->isSource() || !o->output()->isEnabled()
+            || requestedDisabled.contains(o->output()))
+            continue;
+        copyOutputIds.append(o->getOutputId());
+    }
+    m_pendingOutputConfig.copyOutputIds = copyOutputIds;
+
+    return true;
+}
+
+Output *Helper::promoteCopyOutputToSource(Output *promotedMirror,
+                                          const QList<SurfaceWrapper *> &surfaces,
+                                          Output *surfacesFrom,
+                                          const std::function<bool(Output *)> &shouldRetarget)
+{
+    const int newSourceIndex = m_outputList.indexOf(promotedMirror);
+    Output *normalSource = createNormalOutput(promotedMirror->output());
+    normalSource->enable();
+    m_outputList.replace(newSourceIndex, normalSource);
+    promotedMirror->deleteLater();
+
+    for (int i = 0; i < m_outputList.size(); ++i) {
+        Output *mirror = m_outputList.at(i);
+        if (mirror == normalSource || !shouldRetarget(mirror))
+            continue;
+        Output *replacement = createCopyOutput(mirror->output(), normalSource);
+        removeOutputFromRootContainer(mirror);
+        replacement->enable();
+        m_rootSurfaceContainer->addOutput(replacement);
+        m_outputList.replace(i, replacement);
+        mirror->deleteLater();
+    }
+
+    m_rootSurfaceContainer->setPrimaryOutput(normalSource);
+    if (!surfaces.isEmpty())
+        moveSurfacesToOutput(surfaces, normalSource, surfacesFrom);
+    return normalSource;
+}
+
+Output *Helper::convertCopyOutputsToNormal(const std::function<bool(Output *)> &skip)
+{
+    Output *newPrimary = nullptr;
+    for (int i = 0; i < m_outputList.size(); ++i) {
         Output *copyOutput = m_outputList.at(i);
-        removeOutputFromRootContainer(copyOutput);
+        if (skip(copyOutput)) {
+            // Being disabled in this request; never promote it to primary.
+            continue;
+        }
+        if (copyOutput->isSource()) {
+            if (!newPrimary && copyOutput->output()->isEnabled())
+                newPrimary = copyOutput;
+            continue;
+        }
         Output *normalOutput = createNormalOutput(copyOutput->output());
         normalOutput->enable();
         saveCurrentOutputConfig(normalOutput);
+        if (!newPrimary)
+            newPrimary = normalOutput;
         copyOutput->deleteLater();
         m_outputList.replace(i, normalOutput);
-
-        if (!primaryCandidate) {
-            primaryCandidate = normalOutput;
-        }
     }
+    return newPrimary;
+}
 
-    if (primaryCandidate) {
-        if (!surfaces.isEmpty()) {
-            moveSurfacesToOutput(surfaces, primaryCandidate, affectedOutput);
-        }
-        m_rootSurfaceContainer->setPrimaryOutput(primaryCandidate);
-    }
+void Helper::convertCopyModeToExtension(Output *preservedOutput)
+{
+    m_mode = OutputMode::Extension;
+    Q_EMIT outputModeChanged();
+
+    // Convert all remaining mirror outputs to independent outputs. The
+    // preserved (disabled source) output stays in the list as a disabled
+    // normal output.
+    Output *newPrimary = convertCopyOutputsToNormal(
+        [preservedOutput](Output *copyOutput) { return copyOutput == preservedOutput; });
+    if (newPrimary)
+        m_rootSurfaceContainer->setPrimaryOutput(newPrimary);
 }
 
 void Helper::onOutputTestOrApply(wlr_output_configuration_v1 *config, bool onlyTest)
@@ -1034,7 +1182,10 @@ void Helper::onOutputTestOrApply(wlr_output_configuration_v1 *config, bool onlyT
             }
         }
 
-        if (configsValid && hasNonZeroPosition) {
+        // Restored positions come from a potentially stale saved topology, so
+        // only adopt them when they do not overlap an enabled output; an
+        // overlapping restore corrupts the layout and makes windows/cursor jump.
+        if (configsValid && hasNonZeroPosition && !enabledStatesOverlap(restoredStates)) {
             states = std::move(restoredStates);
         }
     }
@@ -1077,23 +1228,16 @@ void Helper::onOutputTestOrApply(wlr_output_configuration_v1 *config, bool onlyT
         m_outputManager->sendResult(m_pendingOutputConfig.config, false);
     }
 
-    // Handle Copy Mode transition when primary output is disabled
-    if (m_mode == OutputMode::Copy) {
-        for (const auto &state : std::as_const(states)) {
-            if (!state.enabled) {
-                Output *affectedOutput = getOutput(state.output);
-                if (affectedOutput && affectedOutput == m_rootSurfaceContainer->primaryOutput()) {
-                    handleCopyModeOutputDisable(affectedOutput);
-                    break;
-                }
-            }
-        }
-    }
 
     m_pendingOutputConfig.config = config;
     m_pendingOutputConfig.states = states;
     m_pendingOutputConfig.pendingCommits = 0;
     m_pendingOutputConfig.allSuccess = true;
+    // A previous source-disable apply may have recorded a copy group; it
+    // belongs to that configuration only. Reset it or a later apply (e.g. a
+    // pure refresh switch while a mirror was removed meanwhile) would
+    // re-persist the stale group on success.
+    m_pendingOutputConfig.copyOutputIds.clear();
 
     if (scanned && m_outputManagerHelper && m_globalConfig && !m_globalConfig->singleOutputId().isEmpty()) {
         const QString singleOutputId = m_globalConfig->singleOutputId();
@@ -1110,26 +1254,53 @@ void Helper::onOutputTestOrApply(wlr_output_configuration_v1 *config, bool onlyT
     }
 
     if (m_mode == OutputMode::Copy) {
-        // Output-management positions describe independent outputs. Convert copy
-        // proxies before applying the requested layout so their target-output
-        // binding cannot keep them overlapping the copy source at (0, 0).
-        for (int i = 0; i < m_outputList.size(); ++i) {
-            Output *copyOutput = m_outputList.at(i);
-            if (copyOutput->isSource()) {
-                continue;
+        // A refresh-rate / mode switch is a display-parameter change, not a
+        // topology change, so copy mode is kept. Disabling a mirror screen also
+        // keeps copy mode: the mirror is simply turned off and re-mirrors the
+        // source when re-enabled later. Disabling the source instead promotes
+        // the next screen to become the new source; if no mirror survives,
+        // copy mode collapses into extension mode. Enabling an independent
+        // (non-mirror) screen while the rest mirror the primary would create a
+        // mixed topology, so that also collapses into extension mode.
+        Output *disabledSource = nullptr;
+        QList<WOutput *> requestedDisabled;
+        bool enablingIndependentOutput = false;
+        bool topologyChanged = false;
+        for (const auto &state : std::as_const(states)) {
+            if (state.enabled != state.output->isEnabled()) {
+                topologyChanged = true;
+                qCInfo(lcTlOutput) << "[copy-disable] topology change"
+                                  << state.output->name() << "req:" << state.enabled
+                                  << "cur:" << state.output->isEnabled();
+                if (!state.enabled) {
+                    requestedDisabled.append(state.output);
+                    if (Output *output = getOutput(state.output); output && output->isSource())
+                        disabledSource = output;
+                } else if (Output *output = getOutput(state.output);
+                           output && output->isSource()
+                               && output != m_rootSurfaceContainer->primaryOutput()) {
+                    enablingIndependentOutput = true;
+                }
             }
-
-            removeOutputFromRootContainer(copyOutput);
-            Output *normalOutput = createNormalOutput(copyOutput->output());
-            copyOutput->deleteLater();
-            m_outputList.replace(i, normalOutput);
         }
-    }
 
-    if (m_mode != OutputMode::Extension) {
+        if (topologyChanged && disabledSource) {
+            qCInfo(lcTlOutput) << "[copy-disable] disabling source" << disabledSource->output()->name();
+            if (!handleCopyModeSourceDisabled(disabledSource, requestedDisabled)) {
+                qCInfo(lcTlOutput) << "[copy-disable] no mirror left, collapsing to extension";
+                convertCopyModeToExtension(disabledSource);
+            } else {
+                qCInfo(lcTlOutput) << "[copy-disable] kept copy mode with new source";
+            }
+        } else if (topologyChanged && enablingIndependentOutput) {
+            qCInfo(lcTlOutput) << "[copy-disable] enabling independent screen, collapsing to extension";
+            convertCopyModeToExtension(nullptr);
+        }
+    } else if (m_mode != OutputMode::Extension) {
         m_mode = OutputMode::Extension;
         Q_EMIT outputModeChanged();
     }
+
     if (m_outputManagerHelper) {
         m_outputManagerHelper->clearCopyModeRestoreIntent();
     }
@@ -1147,11 +1318,33 @@ void Helper::onOutputTestOrApply(wlr_output_configuration_v1 *config, bool onlyT
 
             if (!state.enabled && state.output->isEnabled()) {
                 const auto &surfaces = getWorkspaceSurfaces(outputObj);
+                // Remember where this output's surfaces lived (before
+                // onScreenDisabled relocates them) so re-enabling the output
+                // can put them back instead of leaving them on the primary.
+                // Always retake the snapshot: a previous disable attempt whose
+                // commit failed left stale positions here, and the user may
+                // have moved windows in between.
+                DisabledOutputSurfaces &owned = m_disabledOutputSurfaces[outputObj->getOutputId()];
+                owned.surfaces.clear();
+                owned.positions.clear();
+                for (auto *surface : surfaces) {
+                    if (!surface)
+                        continue;
+                    owned.surfaces.append(surface);
+                    owned.positions.append(surface->position());
+                }
                 m_outputManagerHelper->onScreenDisabled(outputObj, surfaces);
             } else if (state.enabled && !state.output->isEnabled()) {
                 m_outputManagerHelper->clearCopyModeRestoreIntent();
             }
         }
+    }
+
+    // Extension mode never wants overlapping screens. A stale saved position
+    // (or a client that re-enables a disabled head at its reported (0,0))
+    // must not collapse the layout onto an already enabled output.
+    if (m_mode == OutputMode::Extension) {
+        deOverlapEnabledStates(states);
     }
 
     for (const auto &state : std::as_const(states)) {
@@ -1225,6 +1418,8 @@ void Helper::onOutputTestOrApply(wlr_output_configuration_v1 *config, bool onlyT
             }
         }
 
+        if (!state.enabled)
+            qCInfo(lcTlOutput) << "[copy-disable] committing disable for" << state.output->name();
         if (!outputHelper->setExtraState(extraState)) {
             qCWarning(lcTlCore) << "Failed to set extra state for output" << state.output->name();
             m_outputManager->sendResult(config, false);
@@ -1248,7 +1443,12 @@ void Helper::onOutputTestOrApply(wlr_output_configuration_v1 *config, bool onlyT
                     return;
                 }
 
-                if (committedState == extraState) {
+                // Shared post-commit bookkeeping for both branches below:
+                // keep the output layout in sync and force a re-render for
+                // state-only commits (mode/scale/transform/enable without a
+                // new buffer). Keep the two branches calling exactly the same
+                // sequence so their behavior cannot drift.
+                auto syncLayoutAndRefresh = [&] {
                     if (success && output) {
                         auto *layout = self->m_rootSurfaceContainer->outputLayout();
                         if (layout && enabled && !layout->outputs().contains(output)) {
@@ -1257,23 +1457,75 @@ void Helper::onOutputTestOrApply(wlr_output_configuration_v1 *config, bool onlyT
                             layout->remove(output);
                         }
                     }
-                    self->onOutputCommitFinished(config, success);
                     if (success && committedState) {
-                        bool wasStateOnlyCommit = (committedState->committed & (WLR_OUTPUT_STATE_MODE |
-                                                                                WLR_OUTPUT_STATE_SCALE |
-                                                                                WLR_OUTPUT_STATE_TRANSFORM |
-                                                                                WLR_OUTPUT_STATE_ENABLED)) &&
-                                                  !(committedState->committed & WLR_OUTPUT_STATE_BUFFER);
-                        bool isDisable = (committedState->committed & WLR_OUTPUT_STATE_ENABLED) && !committedState->enabled;
+                        const bool wasStateOnlyCommit = (committedState->committed & (WLR_OUTPUT_STATE_MODE |
+                                                                                      WLR_OUTPUT_STATE_SCALE |
+                                                                                      WLR_OUTPUT_STATE_TRANSFORM |
+                                                                                      WLR_OUTPUT_STATE_ENABLED)) &&
+                                                       !(committedState->committed & WLR_OUTPUT_STATE_BUFFER);
+                        const bool isDisable = (committedState->committed & WLR_OUTPUT_STATE_ENABLED) && !committedState->enabled;
                         if (wasStateOnlyCommit && !isDisable) {
                             renderWindow->update(viewport);
                         }
                     }
+                };
+
+                if (committedState == extraState) {
+                    syncLayoutAndRefresh();
+                    self->onOutputCommitFinished(config, success);
                 } else {
-                    qCWarning(lcTlCore) << "Commit callback received unexpected state pointer!"
-                                            << "Expected:" << extraState.get()
-                                            << "Got:" << committedState.get();
-                    self->onOutputCommitFinished(config, false);
+                    // Our scheduled extraState was replaced by a newer one before
+                    // the commit ran (e.g. the collapse to extension creates a
+                    // fresh output whose initialization commits concurrently). The
+                    // commit still ran for this output. Honour it only when the
+                    // actually committed state matches this configuration's
+                    // request (enabled direction plus mode/scale/transform); a
+                    // mere direction match could mask a lost refresh-rate or
+                    // mode change and make the persisted OutputConfig diverge
+                    // from the real hardware state.
+                    const bool actualMatches = [&] {
+                        if (!output || output->isEnabled() != enabled || !committedState)
+                            return false;
+                        auto *wlrOutput = output->handle();
+                        if (!wlrOutput)
+                            return false;
+                        // The commit that actually ran may be a newer, equivalent
+                        // one (collapse-to-extension re-creates the surviving
+                        // mirror and re-enables it), so judge against the output's
+                        // real hardware state instead of requiring identical flag
+                        // bits on the superseded committedState.
+                        if ((extraState->committed & WLR_OUTPUT_STATE_MODE)) {
+                            if (extraState->mode) {
+                                if (wlrOutput->current_mode != extraState->mode)
+                                    return false;
+                            } else if (!wlrOutput->current_mode
+                                       || wlrOutput->current_mode->width != extraState->custom_mode.width
+                                       || wlrOutput->current_mode->height != extraState->custom_mode.height
+                                       || wlrOutput->current_mode->refresh != extraState->custom_mode.refresh) {
+                                return false;
+                            }
+                        }
+                        if ((extraState->committed & WLR_OUTPUT_STATE_SCALE)
+                            && wlrOutput->scale != extraState->scale)
+                            return false;
+                        if ((extraState->committed & WLR_OUTPUT_STATE_TRANSFORM)
+                            && wlrOutput->transform != static_cast<wl_output_transform>(extraState->transform))
+                            return false;
+                        return true;
+                    }();
+                    if (success && actualMatches) {
+                        syncLayoutAndRefresh();
+                        qCInfo(lcTlOutput) << "Commit state superseded; actual output state matches intent"
+                                           << (output ? output->name() : QStringLiteral("<null>"));
+                        self->onOutputCommitFinished(config, true);
+                    } else {
+                        qCWarning(lcTlCore) << "Commit callback received unexpected state pointer!"
+                                                << "output:" << (output ? output->name() : QStringLiteral("<null>"))
+                                                << "enabled:" << enabled
+                                                << "Expected:" << extraState.get()
+                                                << "Got:" << committedState.get();
+                        self->onOutputCommitFinished(config, false);
+                    }
                 }
             },
             WOutputHelper::AfterCommitStage
@@ -1309,9 +1561,16 @@ void Helper::onOutputCommitFinished(wlr_output_configuration_v1 *config, bool su
         bool ok = m_pendingOutputConfig.allSuccess;
         if (ok) {
             m_outputManagerHelper->storeSingleOutputConfig();
-            // An output-management enable/disable transaction describes an
-            // extension/single-output topology, never a copy topology.
-            m_outputManagerHelper->storeCopyOutputConfig(false);
+            if (m_mode == OutputMode::Copy && !m_pendingOutputConfig.copyOutputIds.isEmpty()) {
+                // A source-disable rebuilt the copy group (new source promoted);
+                // persist it only now that every commit of this configuration
+                // succeeded, so a failed apply cannot leave a stale group.
+                m_outputManagerHelper->storeCopyOutputConfig(true, {}, m_pendingOutputConfig.copyOutputIds);
+            } else if (m_mode != OutputMode::Copy) {
+                // Only clear the persisted copy configuration when copy mode was
+                // actually left; a pure refresh-rate switch keeps it.
+                m_outputManagerHelper->storeCopyOutputConfig(false);
+            }
 
             const auto enabledOutputCount = std::count_if(
                 m_pendingOutputConfig.states.cbegin(),
@@ -1328,6 +1587,40 @@ void Helper::onOutputCommitFinished(wlr_output_configuration_v1 *config, bool su
 
                 if (m_outputManagerHelper && state.enabled) {
                     m_outputManagerHelper->onScreenEnabled(output);
+                }
+
+                // Put the surfaces that were displaced when this output was
+                // disabled back where they were, now that the output is on
+                // again. In Copy mode the copy logic owns surface placement, so
+                // only restore in Extension mode; the snapshot itself is always
+                // dropped on re-enable so a long-disabled output cannot leak
+                // its entry.
+                if (state.enabled) {
+                    const QString outputId = output->getOutputId();
+                    const auto it = m_disabledOutputSurfaces.find(outputId);
+                    if (it != m_disabledOutputSurfaces.end()) {
+                        if (m_mode == OutputMode::Extension) {
+                            const auto &recorded = it.value();
+                            for (int i = 0; i < recorded.surfaces.size(); ++i) {
+                                SurfaceWrapper *surface = recorded.surfaces.at(i);
+                                if (!surface)
+                                    continue;
+                                surface->setPosition(recorded.positions.at(i));
+                                if (surface->ownsOutput() != output)
+                                    surface->setOwnsOutput(output);
+                                m_rootSurfaceContainer->updateSurfaceOutputs(surface);
+                            }
+                        }
+                        m_disabledOutputSurfaces.erase(it);
+                    }
+                }
+
+                // After a successful apply the topology has settled; pin every
+                // enabled output so wlroots' output_layout_reconfigure cannot
+                // silently reflow it when a sibling output's geometry changes.
+                if (state.enabled) {
+                    if (auto *layout = m_rootSurfaceContainer->outputLayout())
+                        layout->pin(state.output);
                 }
 
                 auto *outputConfig = output->config();
@@ -1584,8 +1877,8 @@ void Helper::onSetCopyOutput(VirtualOutputInterfaceV1 *interface)
         if (m_rootSurfaceContainer->primaryOutput() == currentOutput)
             m_rootSurfaceContainer->setPrimaryOutput(mirrorOutput);
 
-        removeOutputFromRootContainer(currentOutput);
         Output *o = createCopyOutput(currentOutput->output(), mirrorOutput);
+        removeOutputFromRootContainer(currentOutput);
         currentOutput->deleteLater();
         m_outputList.replace(i, o);
         m_rootSurfaceContainer->addOutput(o);
@@ -1607,6 +1900,9 @@ void Helper::onSetCopyOutput(VirtualOutputInterfaceV1 *interface)
 
 void Helper::onRestoreCopyOutput(VirtualOutputInterfaceV1 *interface)
 {
+    if (interface->outputList().isEmpty()) {
+        return;
+    }
     const QString targetName = interface->outputList().at(0);
     if (!std::any_of(m_outputList.constBegin(), m_outputList.constEnd(),
                      [&targetName](const Output *output) { return output->output()->name() == targetName; })) {
@@ -1621,7 +1917,6 @@ void Helper::onRestoreCopyOutput(VirtualOutputInterfaceV1 *interface)
         if (currentOutput->output()->name() == targetName)
             continue;
 
-        removeOutputFromRootContainer(currentOutput);
         Output *o = createNormalOutput(currentOutput->output());
         o->enable();
         saveCurrentOutputConfig(o);
@@ -2794,6 +3089,12 @@ Output *Helper::createNormalOutput(WOutput *output)
         o->outputItem()->setProperty("forceSoftwareCursor", true);
     }
     o->outputItem()->stackBefore(m_rootSurfaceContainer);
+    // Copy<->normal conversion reuses the same physical output, so the old
+    // wrapper is replaced here: detach its layer surfaces first so the teardown
+    // below does not close them, then let addOutput() re-enter them into this
+    // replacement wrapper's containers.
+    if (auto *existing = getOutput(output))
+        m_rootSurfaceContainer->detachLayerSurfaces(existing);
     removeOutputFromRootContainer(output);
     m_rootSurfaceContainer->addOutput(o);
     return o;
@@ -2801,6 +3102,12 @@ Output *Helper::createNormalOutput(WOutput *output)
 
 Output *Helper::createCopyOutput(WOutput *output, Output *proxy)
 {
+    // Symmetric to createNormalOutput(): when a copy<->normal conversion
+    // replaces the wrapper of an already-registered physical output, detach
+    // (do not close) its layer surfaces here so the caller's subsequent
+    // removeOutputFromRootContainer() does not tear them down.
+    if (auto *existing = getOutput(output))
+        m_rootSurfaceContainer->detachLayerSurfaces(existing);
     return Output::createCopy(output, proxy, qmlEngine(), this);
 }
 
@@ -3296,12 +3603,11 @@ void Helper::setOutputMode(OutputMode mode)
             continue;
         Output *o = nullptr;
         if (mode == OutputMode::Copy) {
-            removeOutputFromRootContainer(m_outputList.at(i));
             o = createCopyOutput(m_outputList.at(i)->output(),
                                  m_rootSurfaceContainer->primaryOutput());
+            removeOutputFromRootContainer(m_outputList.at(i));
             m_rootSurfaceContainer->addOutput(o);
         } else if (mode == OutputMode::Extension) {
-            removeOutputFromRootContainer(m_outputList.at(i));
             o = createNormalOutput(m_outputList.at(i)->output());
             o->enable();
             saveCurrentOutputConfig(o);
@@ -3626,6 +3932,10 @@ Output *Helper::getOutputAtCursor() const
 {
     QPoint cursorPos = QCursor::pos();
     for (auto output : std::as_const(m_outputList)) {
+        // Skip disabled outputs: their outputItem keeps the old geometry, and
+        // a cursor pos that hits it would pull popups onto a black screen.
+        if (!output->output() || !output->output()->isEnabled())
+            continue;
         QRectF outputGeometry(output->outputItem()->position(), output->outputItem()->size());
         if (outputGeometry.contains(cursorPos)) {
             return output;
@@ -3779,8 +4089,8 @@ void Helper::applyCopyModeToOutputs(Output *primaryOutput,
             continue;
         }
 
-        removeOutputFromRootContainer(existingOutput);
         Output *copyOutput = createCopyOutput(existingOutput->output(), primaryOutput);
+        removeOutputFromRootContainer(existingOutput);
         existingOutput->deleteLater();
         m_outputList.replace(i, copyOutput);
         m_rootSurfaceContainer->addOutput(copyOutput);
@@ -3884,8 +4194,16 @@ void Helper::restoreExtensionModeFromConfig(bool preserveSingleOutputConfig)
             }
 
             if (auto *layout = m_rootSurfaceContainer->outputLayout()) {
-                layout->move(output, QPoint(static_cast<int>(config->x()),
-                                            static_cast<int>(config->y())));
+                const QPoint savedPos(static_cast<int>(config->x()),
+                                      static_cast<int>(config->y()));
+                const QSize savedSize = effectiveSavedSize(width, height, transform, scale);
+                if (!savedPositionOverlapsEnabledOutput(layout, output, savedPos, savedSize)) {
+                    layout->move(output, savedPos);
+                } else {
+                    qCInfo(lcTlOutput) << "Saved extension position for" << output->name()
+                                       << savedPos << "overlaps an enabled output; keeping auto position";
+                }
+                layout->pin(output);
             }
 
             WOutputStateGuard state;
