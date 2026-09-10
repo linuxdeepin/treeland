@@ -282,7 +282,9 @@ void RootSurfaceContainer::addBySubContainer(SurfaceContainer *sub, SurfaceWrapp
 
         if (!surface->ownsOutput()) {
             auto parentSurface = surface->parentSurface();
-            auto output = parentSurface ? parentSurface->ownsOutput() : primaryOutput();
+            auto output = parentSurface ? parentSurface->ownsOutput() : cursorOutput();
+            if (!output)
+                output = primaryOutput();
 
             if (auto xdgPopupSurface = qobject_cast<WXdgPopupSurface *>(surface->shellSurface())) {
                 if (parentSurface->type() != SurfaceWrapper::Type::Layer) {
@@ -464,6 +466,11 @@ void RootSurfaceContainer::updateSurfaceOutputs(SurfaceWrapper *surface)
         const QRectF geometry = surface->geometry();
         outputs = m_outputLayout->getIntersectedOutputs(geometry.toRect());
     }
+    // A new window's initial position is (0,0) before placement, so geometry-based
+    // intersection may not include ownsOutput. Add it to keep outputs consistent.
+    if (surface->positionAutomatic() && surface->ownsOutput()
+        && !outputs.contains(surface->ownsOutput()->output()))
+        outputs.append(surface->ownsOutput()->output());
     surface->setOutputs(outputs);
 
     if (auto *ws = Helper::instance()->workspace())
