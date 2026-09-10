@@ -1,3 +1,23 @@
+treeland (0.10.0) unstable; urgency=medium
+
+  * feat(foreign-toplevel): adapt to treeland-foreign-toplevel-manager
+    v2
+  * refactor: adapt window-management to treeland-show-desktop-v1
+    protocol
+  * fix(shell): keep close animation in place on activation transfer
+  * fix(xwayland): allow cross-UID MIT-SHM via
+    AmbientCapabilities=CAP_IPC_OWNER
+  * fix(screensaver): release inhibit silently in destroy
+  * refactor: adapt to treeland-protocols unstable-v2 and wine naming
+  * fix(xwayland): synchronize transient window stacking
+  * fix: track exported surface lifetime natively to prevent bad object
+    crash
+  * fix(xwayland): preserve compositor-controlled resize geometry
+  * fix(surface): avoid null shell surface on XWayland teardown
+  * fix(surface): retarget pending state animations
+
+ -- rewine <luhongxu@deepin.org>  Thu, 10 Sep 2026 19:42:05 +0800
+
 treeland (0.9.1) unstable; urgency=medium
 
   * feat(greeter): support undecided state waiting for DDM decision
