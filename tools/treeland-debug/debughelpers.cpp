@@ -13,9 +13,8 @@ QString stateName(int state)
     switch (state) {
     case 0: return QStringLiteral("Normal");
     case 1: return QStringLiteral("Maximized");
-    case 2: return QStringLiteral("Minimized");
-    case 3: return QStringLiteral("Fullscreen");
-    case 4: return QStringLiteral("Tiling");
+    case 2: return QStringLiteral("Fullscreen");
+    case 3: return QStringLiteral("Tiling");
     default: return QStringLiteral("Unknown(%1)").arg(state);
     }
 }
