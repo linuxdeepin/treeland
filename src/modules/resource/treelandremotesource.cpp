@@ -332,6 +332,7 @@ WindowInfo TreelandRemoteSource::buildWindowInfo(SurfaceWrapper *surface,
     info.setPosition(surface->position());
     info.setVisible(surface->isVisible());
     info.setActive(surface->isActivated());
+    info.setMinimized(surface->isMinimized());
     info.setType(static_cast<int>(surface->type()));
     info.setState(static_cast<int>(surface->surfaceState()));
 
