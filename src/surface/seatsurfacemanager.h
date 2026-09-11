@@ -53,6 +53,8 @@ public:
     SurfaceWrapper *moveResizeSurface() const;
     void cancelMoveResize(SurfaceWrapper *surface);
     void cancelMoveResize();
+    void setResizeClamp(qreal minW, qreal maxW, qreal minH, qreal maxH);
+    void clearResizeClamp();
     void startEdgeTileDelay();
     void stopEdgeTileDelay();
     bool shouldHandleShortcuts() const;
@@ -67,7 +69,7 @@ public:
 
 Q_SIGNALS:
     void activatedSurfaceChanged(SurfaceWrapper *surface);
-    void moveResizeChanged();
+    void moveResizeChanged(SurfaceWrapper *surface);
 
 private:
     void onActivatedSurfaceFocusCapabilityChanged();
@@ -87,6 +89,12 @@ private:
     bool m_hasPopupGrab = false;
     QTimer *m_edgeTileDelayTimer = nullptr;
 
+    bool m_resizeClampActive = false;
+    qreal m_clampMinW = 0;
+    qreal m_clampMaxW = 0;
+    qreal m_clampMinH = 0;
+    qreal m_clampMaxH = 0;
+    QSizeF applyResizeClamp(const QSizeF &target) const;
     // Equivalent to the old QObject::connect on qw_seat; disconnect in the
     // destructor so wlr_seat_destroy does not assert on leftover listeners
     // when the seat is deleted before this object's deleteLater runs.
