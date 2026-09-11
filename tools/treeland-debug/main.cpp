@@ -145,14 +145,15 @@ QString windowGeometryDetail(const WindowInfo &w)
 void printWindowsTable(const QList<WindowInfo> &windows)
 {
     QTextStream out(stdout);
-    out << QStringLiteral("ID              APP-ID                STATE        ACTIVE  OUTPUT   GEOMETRY              TITLE\n");
+    out << QStringLiteral("ID              APP-ID                STATE        ACTIVE  MIN  OUTPUT   GEOMETRY              TITLE\n");
     for (const auto &window : windows) {
         const auto g = window.geometry();
-        const QString line = QStringLiteral("%1  %2  %3  %4  %5  %6,%7 %8x%9  %10")
+        const QString line = QStringLiteral("%1  %2  %3  %4  %5  %6  %7,%8 %9x%10  %11")
             .arg(QString::number(window.id()).leftJustified(16))
             .arg(window.appId().leftJustified(22))
             .arg(stateName(window.state()).leftJustified(12))
             .arg(window.active() ? QStringLiteral("yes") : QStringLiteral("no"))
+            .arg((window.minimized() ? QStringLiteral("yes") : QStringLiteral("no")).leftJustified(5))
             .arg(window.output().leftJustified(8))
             .arg(static_cast<int>(g.x()))
             .arg(static_cast<int>(g.y()))
@@ -178,7 +179,7 @@ void printClientsTable(const QList<ClientInfo> &clients)
             out << QStringLiteral("  cmd: %1\n").arg(client.command());
         for (const auto &window : client.windows()) {
             const auto g = window.geometry();
-            out << QStringLiteral("  %1%2  id=%3  %4  %5,%6 %7x%8  [%9]\n")
+            out << QStringLiteral("  %1%2  id=%3  %4  %5,%6 %7x%8  [%9]%10\n")
                     .arg(window.active() ? QStringLiteral("*") : QStringLiteral(" "))
                     .arg(window.appId().leftJustified(24))
                     .arg(window.id())
@@ -187,7 +188,8 @@ void printClientsTable(const QList<ClientInfo> &clients)
                     .arg(static_cast<int>(g.y()))
                     .arg(static_cast<int>(g.width()))
                     .arg(static_cast<int>(g.height()))
-                    .arg(window.output());
+                    .arg(window.output())
+                    .arg(window.minimized() ? QStringLiteral("  (minimized)") : QString());
             out << windowGeometryDetail(window);
         }
         out << Qt::endl;
@@ -224,7 +226,8 @@ void printTree(const TreelandInfo &info)
                         out << wsBranch << "   " << conn
                             << (w.active() ? QStringLiteral("* ") : QStringLiteral("  "))
                             << w.appId() << "  id=" << w.id() << "  "
-                            << stateName(w.state()) << "  "
+                            << stateName(w.state())
+                            << (w.minimized() ? QStringLiteral("+Min") : QString()) << "  "
                             << static_cast<int>(g.x()) << "," << static_cast<int>(g.y()) << " "
                             << static_cast<int>(g.width()) << "x" << static_cast<int>(g.height())
                             << "  [" << w.output() << "]"
@@ -243,7 +246,8 @@ void printTree(const TreelandInfo &info)
             out << branch2 << conn
                 << (w.active() ? QStringLiteral("* ") : QStringLiteral("  "))
                 << w.appId() << "  id=" << w.id() << "  "
-                << stateName(w.state()) << "  "
+                << stateName(w.state())
+                << (w.minimized() ? QStringLiteral("+Min") : QString()) << "  "
                 << static_cast<int>(g.x()) << "," << static_cast<int>(g.y()) << " "
                 << static_cast<int>(g.width()) << "x" << static_cast<int>(g.height())
                 << "  [" << w.output() << "]"
@@ -817,7 +821,7 @@ static int runTop(Session &session, int timeoutMs, int intervalMs)
         // Collect all windows with their frame deltas.
         struct WinRow {
             qint64 id; QString appId; QString title; QString output;
-            int state; QRectF geo; bool active;
+            int state; QRectF geo; bool active; bool minimized;
             qint64 frames; QRectF damage;
             int64_t framesDelta;
         };
@@ -827,6 +831,7 @@ static int runTop(Session &session, int timeoutMs, int intervalMs)
                 WinRow r;
                 r.id = w.id(); r.appId = w.appId(); r.title = w.title();
                 r.output = w.output(); r.state = w.state(); r.active = w.active();
+                r.minimized = w.minimized();
                 r.geo = w.geometry(); r.frames = w.frames(); r.damage = w.damage();
                 const auto prev = prevFrames.value(w.id());
                 r.framesDelta = (prev > 0) ? (w.frames() - prev) : 0;
@@ -846,16 +851,17 @@ static int runTop(Session &session, int timeoutMs, int intervalMs)
         out << "treeland-debug top — "
             << QDateTime::currentDateTime().toString(Qt::ISODate)
             << "  (clients: " << clients.size() << "  windows: " << rows.size() << ")\n"
-            << "  ID              APP-ID                STATE       FRAMES  GEO          MARKER\n";
+            << "  ID              APP-ID                STATE       MIN  FRAMES  GEO          MARKER\n";
         for (const auto &r : rows) {
             QString marker;
             if (r.id == focusId) marker = QStringLiteral("F");
             else if (r.id == cursorId) marker = QStringLiteral("C");
             else marker = QStringLiteral(" ");
-            out << QStringLiteral("  %1  %2  %3  %4  %5,%6 %7x%8  %9\n")
+            out << QStringLiteral("  %1  %2  %3  %4  %5  %6,%7 %8x%9  %10\n")
                 .arg(QString::number(r.id).leftJustified(16))
                 .arg(r.appId.leftJustified(22))
                 .arg(stateName(r.state).leftJustified(12))
+                .arg((r.minimized ? QStringLiteral("yes") : QStringLiteral("no")).leftJustified(4))
                 .arg(r.framesDelta, 5)
                 .arg(static_cast<int>(r.geo.x()))
                 .arg(static_cast<int>(r.geo.y()))
@@ -1057,6 +1063,8 @@ static int runWatch(Session &session, int timeoutMs, qint64 id, int intervalMs)
                     .arg(stateName(prev.state())).arg(stateName(cur.state()));
             if (cur.active() != prev.active())
                 changes << (cur.active() ? QStringLiteral("activated") : QStringLiteral("deactivated"));
+            if (cur.minimized() != prev.minimized())
+                changes << (cur.minimized() ? QStringLiteral("minimized") : QStringLiteral("unminimized"));
         }
         const qint64 frames = cur.frames();
         if (frames != prevFrames)
