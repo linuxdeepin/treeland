@@ -228,7 +228,10 @@ void SeatSurfaceManager::doMoveResize(const QPointF &delta)
             geo.setBottom(geo.bottom() + delta.y());
 
         QRectF alignedGeometry = surface->alignGeometryToPixelGrid(geo);
-        surface->resize(alignedGeometry.size());
+        QSizeF targetSize = alignedGeometry.size();
+        if (m_resizeClampActive)
+            targetSize = applyResizeClamp(targetSize);
+        surface->resize(targetSize);
     } else {
         auto newPos = m_moveResizeState.startGeometry.topLeft() + delta;
         QPointF alignedPos = surface->alignToPixelGrid(newPos);
@@ -275,7 +278,7 @@ void SeatSurfaceManager::endMoveResize()
         surface->applyTileMode(detectedMode, out);
     }
 
-    Q_EMIT moveResizeChanged();
+    Q_EMIT moveResizeChanged(surface);
 }
 
 SurfaceWrapper *SeatSurfaceManager::moveResizeSurface() const
@@ -305,6 +308,42 @@ void SeatSurfaceManager::cancelMoveResize()
     }
 
     endMoveResize();
+}
+
+void SeatSurfaceManager::setResizeClamp(qreal minW, qreal maxW, qreal minH, qreal maxH)
+{
+    m_resizeClampActive = true;
+    m_clampMinW = minW;
+    m_clampMaxW = maxW;
+    m_clampMinH = minH;
+    m_clampMaxH = maxH;
+}
+
+void SeatSurfaceManager::clearResizeClamp()
+{
+    m_resizeClampActive = false;
+    m_clampMinW = m_clampMaxW = 0;
+    m_clampMinH = m_clampMaxH = 0;
+}
+
+QSizeF SeatSurfaceManager::applyResizeClamp(const QSizeF &target) const
+{
+    QSizeF clamped = target;
+
+    const Qt::Edges edges = m_moveResizeState.edges;
+    if (edges & (Qt::LeftEdge | Qt::RightEdge)) {
+        if (m_clampMinW > 0)
+            clamped.setWidth(qMax(clamped.width(), m_clampMinW));
+        if (m_clampMaxW > 0)
+            clamped.setWidth(qMin(clamped.width(), m_clampMaxW));
+    }
+    if (edges & (Qt::TopEdge | Qt::BottomEdge)) {
+        if (m_clampMinH > 0)
+            clamped.setHeight(qMax(clamped.height(), m_clampMinH));
+        if (m_clampMaxH > 0)
+            clamped.setHeight(qMin(clamped.height(), m_clampMaxH));
+    }
+    return clamped;
 }
 
 void SeatSurfaceManager::cancelMoveResize(SurfaceWrapper *surface)
