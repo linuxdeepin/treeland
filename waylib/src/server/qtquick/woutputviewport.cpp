@@ -385,10 +385,10 @@ void WOutputViewport::resetTargetRect()
 
 QTransform WOutputViewport::sourceRectToTargetRectTransfrom() const
 {
-    return WBufferRenderer::inputMapToOutput(effectiveSourceRect(),
-                                             targetRect(),
-                                             output()->size(),
-                                             devicePixelRatio());
+    return WSGViewport::inputMapToOutput(effectiveSourceRect(),
+                                        targetRect(),
+                                        output()->size(),
+                                        devicePixelRatio());
 }
 
 QMatrix4x4 WOutputViewport::renderMatrix() const
