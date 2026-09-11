@@ -61,6 +61,7 @@ class AppIdResolverManager; // forward declare new protocol manager
 class WindowConfigStore;    // forward declare config store
 class TreelandWallpaperShellInterfaceV1;
 class TreelandWallpaperSurfaceInterfaceV1;
+class LayerShellExtensionManagerInterfaceV1;
 
 class ShellHandler : public QObject
 {
@@ -207,5 +208,6 @@ private:
     QList<WAYLIB_SERVER_NAMESPACE::WToplevelSurface *> m_pendingAppIdResolveToplevels;
     // New protocol based app id resolver (optional, may be null if module not loaded)
     AppIdResolverManager *m_appIdResolverManager = nullptr;
+    LayerShellExtensionManagerInterfaceV1 *m_layerShellExtensionManagerInterfaceV1 = nullptr;
     WindowConfigStore *m_windowConfigStore = nullptr;
 };

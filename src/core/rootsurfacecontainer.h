@@ -120,7 +120,7 @@ public Q_SLOTS:
 
 Q_SIGNALS:
     void primaryOutputChanged();
-    void moveResizeFinised();
+    void moveResizeFinised(SurfaceWrapper *surface);
 
 private:
     void addSurface(SurfaceWrapper *surface) override;
