@@ -80,6 +80,9 @@ Q_LOGGING_CATEGORY(lcTlAppIdResolver, "treeland.appid.resolver", QtInfoMsg)
 // Prelaunch splash
 Q_LOGGING_CATEGORY(lcTlPrelaunchSplash, "treeland.prelaunch.splash", QtInfoMsg)
 
+// Layer shell extension (compositor-driven layer surface resize)
+Q_LOGGING_CATEGORY(lcTlLayerShell, "treeland.shell.layer", QtInfoMsg)
+
 // XWayland
 Q_LOGGING_CATEGORY(lcTlXwayland, "treeland.xwayland")
 

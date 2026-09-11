@@ -11,6 +11,7 @@
 #include "modules/app-id-resolver/appidresolver.h"
 #include "modules/dde-shell/ddeshellmanagerinterfacev1.h"
 #include "modules/foreign-toplevel/foreigntoplevelmanagerv2.h"
+#include "modules/layer-shell-extension/layershellextensionmanagerinterfacev1.h"
 #include "modules/prelaunch-splash/prelaunchsplash.h"
 #include "modules/show-desktop/showdesktopinterfacev1.h"
 #include "modules/wine-window-management/winewindowmanagement.h"
@@ -439,6 +440,7 @@ void ShellHandler::init(WServer *server, WSeat *seat)
     Q_ASSERT_X(!m_layerShell, Q_FUNC_INFO, "Only init once!");
     Q_ASSERT_X(!m_wallpaperShell, Q_FUNC_INFO, "Only init once!");
     Q_ASSERT_X(!m_inputMethodHelper, Q_FUNC_INFO, "Only init once!");
+    Q_ASSERT_X(!m_layerShellExtensionManagerInterfaceV1, Q_FUNC_INFO, "Only init once!");
 
     m_prelaunchSplash = server->attach<PrelaunchSplash>();
     connect(m_prelaunchSplash,
@@ -451,6 +453,8 @@ void ShellHandler::init(WServer *server, WSeat *seat)
             &ShellHandler::handlePrelaunchSplashClosed);
 
     m_appIdResolverManager = server->attach<AppIdResolverManager>();
+    m_layerShellExtensionManagerInterfaceV1 =
+        server->attach<LayerShellExtensionManagerInterfaceV1>();
     m_wineWindowStateManager = server->attach<WineWindowStateManager>();
     m_wineWindowManager = server->attach<WineWindowManager>();
 
