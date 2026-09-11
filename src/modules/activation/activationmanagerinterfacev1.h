@@ -6,6 +6,7 @@
 #include <wserver.h>
 
 #include <QObject>
+#include <QString>
 
 #include <functional>
 #include <memory>
@@ -29,6 +30,9 @@ public:
     };
     Q_ENUM(TokenDisposition)
 
+    using WindowTransitionRectConsumer =
+        std::function<void(const QString &token, wl_resource *tokenResource)>;
+
     explicit ActivationManagerInterfaceV1(
         std::function<bool(WAYLIB_SERVER_NAMESPACE::WSurface *, WAYLIB_SERVER_NAMESPACE::WSeat *)> trustedSurfaceChecker,
         QObject *parent = nullptr);
@@ -38,11 +42,19 @@ public:
 
     static constexpr int InterfaceVersion = 1;
 
+    void setWindowTransitionRectConsumer(WindowTransitionRectConsumer consumer);
+
 Q_SIGNALS:
     // The server emits one signal with precomputed disposition for policy handling.
-    void activateRequested(TokenDisposition disposition,
+    // token is the committed activation token string.
+    // seat is the WSeat associated with the token via set_serial, or null.
+    // originatingSurface is the WSurface that was set via set_surface on the
+    // token (the surface that initiated the launch), or null.
+    void activateRequested(const QString &token,
+                           TokenDisposition disposition,
                            WAYLIB_SERVER_NAMESPACE::WSurface *surface,
-                           WAYLIB_SERVER_NAMESPACE::WSeat *seat);
+                           WAYLIB_SERVER_NAMESPACE::WSeat *seat,
+                           WAYLIB_SERVER_NAMESPACE::WSurface *originatingSurface);
 
 protected:
     void create(WAYLIB_SERVER_NAMESPACE::WServer *server) override;

@@ -6,16 +6,23 @@
 #include <wsurfaceitem.h>
 #include <wtoplevelsurface.h>
 
+#include <QColor>
+#include <QImage>
 #include <QList>
 #include <QPointer>
 #include <QQuickItem>
 #include <QString>
-#include <QColor>
+
+#include <optional>
 
 Q_MOC_INCLUDE(<woutput.h>)
 Q_MOC_INCLUDE(<output / output.h>)
 
 WAYLIB_SERVER_USE_NAMESPACE
+
+WAYLIB_SERVER_BEGIN_NAMESPACE
+class WSeat;
+WAYLIB_SERVER_END_NAMESPACE
 
 class QmlEngine;
 class Output;
@@ -306,6 +313,14 @@ public:
     bool hasInitializeContainer() const;
     void setHasInitializeContainer(bool value);
     void disableWindowAnimation(bool disable = true);
+    void setWindowTransitionRect(const QRectF &localRect, SurfaceWrapper *originWrapper);
+    void updateWindowTransitionRect(const QRectF &localRect);
+    void clearWindowTransitionRect();
+    bool hasWindowTransitionRect() const;
+    bool windowTransitionRectActive() const;
+    std::optional<QRectF> computeGlobalWindowTransitionRect() const;
+    void setWindowTransitionSourceImage(const QImage &image);
+    void clearWindowTransitionSourceImage();
     void setHideByShowDesk(bool show);
     void setHideByLockScreen(bool hide);
 
@@ -322,6 +337,9 @@ public:
 
     bool attention() const;
     bool setAttention(bool attention);
+
+    void setPendingActivation(WSeat *seat);
+    bool takePendingActivation(WSeat *&seat);
 
 public Q_SLOTS:
     void minimize(bool onAnimation = true);
@@ -423,6 +441,10 @@ private:
     void updateClipRect();
     void geometryChange(const QRectF &newGeo, const QRectF &oldGeometry) override;
     void createNewOrClose(uint direction);
+    void startWindowTransition();
+    void finishWindowTransitionOpen();
+    void startWindowCloseTransition();
+    void tryFlushPendingActivation();
     void itemChange(ItemChange change, const ItemChangeData &data) override;
 
     QRectF targetGeometryForState(State state) const;
@@ -438,6 +460,7 @@ private:
     Q_SLOT void onPrelaunchGeometryAnimationFinished();
     bool startStateChangeAnimation(SurfaceWrapper::State targetState, const QRectF &targetGeometry);
     void onWindowAnimationFinished();
+    void dropWindowTransitionSourceBuffer();
     Q_SLOT void onShowAnimationFinished();
     Q_SLOT void onHideAnimationFinished();
     void updateStackingLayer();
@@ -539,6 +562,17 @@ private:
 
     bool m_socketEnabled{ false };
     bool m_windowAnimationEnabled{ true };
+
+    uint m_pendingActivation : 1 = 0; // activation requested before the surface mapped
+    uint m_windowTransitionPending : 1 = 0;
+    uint m_hasWindowTransitionRect : 1 = 0;
+
+    QPointer<WSeat> m_pendingActivationSeat;
+    QRectF m_windowTransitionLocalRect;
+    QPointer<SurfaceWrapper>
+        m_windowTransitionOriginWrapper;
+    QImage m_windowTransitionSourceImage;
+    wlr_buffer *m_windowTransitionSourceBuffer = nullptr;
     const QString m_appId;
 };
 
