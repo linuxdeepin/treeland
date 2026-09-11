@@ -183,7 +183,7 @@ private:
     std::pair<int, int> commitAndGetUpdateRange(const QList<ModelDataPtr> &rawData);
     void handleWrapperGeometryChanged();
     void handleWrapperOutputChanged();
-    void handleSurfaceStateChanged();
+    void handleMinimizedChanged();
     void handleSurfaceMappedChanged();
     void handleSurfaceAdded(SurfaceWrapper *surface);
     void handleSurfaceRemoved(SurfaceWrapper *surface);

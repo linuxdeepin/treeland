@@ -81,6 +81,7 @@ class SurfaceWrapper : public QQuickItem
     Q_PROPERTY(bool isResizable READ isResizable NOTIFY resizableChanged FINAL)
     Q_PROPERTY(bool isMaximizable READ isMaximizable NOTIFY maximizableChanged FINAL)
     Q_PROPERTY(bool modal READ modal NOTIFY modalChanged FINAL)
+    Q_PROPERTY(bool minimized READ isMinimized NOTIFY minimizedChanged FINAL)
 
 public:
     enum class Type
@@ -99,7 +100,6 @@ public:
     {
         Normal,
         Maximized,
-        Minimized,
         Fullscreen,
         Tiling,
     };
@@ -360,6 +360,7 @@ Q_SIGNALS:
     void positionAutomaticChanged();
     void previousSurfaceStateChanged();
     void surfaceStateChanged();
+    void minimizedChanged();
     void radiusChanged();
     void moveRequested();
     void resizeRequested(Qt::Edges edges);
@@ -504,6 +505,11 @@ private:
                                          m_surfaceState,
                                          State::Normal,
                                          &SurfaceWrapper::surfaceStateChanged)
+    Q_OBJECT_BINDABLE_PROPERTY_WITH_ARGS(SurfaceWrapper,
+                                         bool,
+                                         m_minimized,
+                                         false,
+                                         &SurfaceWrapper::minimizedChanged)
     int m_workspaceId = -1;
     int m_explicitAlwaysOnTop = 0;
     bool m_explicitAlwaysOnBottom = false;
