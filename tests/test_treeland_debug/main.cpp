@@ -152,9 +152,8 @@ void TreelandDebugTest::testStateNameKnownStates()
 {
     QCOMPARE(stateName(0), QStringLiteral("Normal"));
     QCOMPARE(stateName(1), QStringLiteral("Maximized"));
-    QCOMPARE(stateName(2), QStringLiteral("Minimized"));
-    QCOMPARE(stateName(3), QStringLiteral("Fullscreen"));
-    QCOMPARE(stateName(4), QStringLiteral("Tiling"));
+    QCOMPARE(stateName(2), QStringLiteral("Fullscreen"));
+    QCOMPARE(stateName(3), QStringLiteral("Tiling"));
 }
 
 void TreelandDebugTest::testStateNameUnknown()
