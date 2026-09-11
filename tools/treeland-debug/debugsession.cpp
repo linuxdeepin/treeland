@@ -154,6 +154,7 @@ QJsonObject windowToJson(const WindowInfo &window)
         {"state", window.state()},
         {"visible", window.visible()},
         {"active", window.active()},
+        {"minimized", window.minimized()},
         {"geometry", rectToJson(window.geometry())},
         {"titlebarGeometry", rectToJson(window.titlebarGeometry())},
         {"boundingRect", rectToJson(window.boundingRect())},
