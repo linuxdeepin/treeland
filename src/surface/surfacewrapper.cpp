@@ -43,6 +43,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     , m_engine(qmlEngine)
     , m_shellSurface(shellSurface)
     , m_type(type)
+    , m_minimized(false)
     , m_positionAutomatic(true)
     , m_visibleDecoration(true)
     , m_clipInOutput(false)
@@ -81,6 +82,7 @@ SurfaceWrapper::SurfaceWrapper(SurfaceWrapper *original, QQuickItem *parent)
     , m_engine(original->m_engine)
     , m_shellSurface(original->m_shellSurface)
     , m_type(original->m_type)
+    , m_minimized(false)
     , m_positionAutomatic(true)
     , m_visibleDecoration(true)
     , m_clipInOutput(false)
@@ -152,6 +154,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     , m_engine(qmlEngine)
     , m_shellSurface(nullptr)
     , m_type(Type::SplashScreen)
+    , m_minimized(false)
     , m_positionAutomatic(true)
     , m_visibleDecoration(true)
     , m_clipInOutput(false)
@@ -1227,7 +1230,7 @@ bool SurfaceWrapper::isMaximized() const
 
 bool SurfaceWrapper::isMinimized() const
 {
-    return m_surfaceState == State::Minimized;
+    return m_minimized;
 }
 
 bool SurfaceWrapper::isTiling() const
@@ -1588,35 +1591,16 @@ void SurfaceWrapper::doSetSurfaceState(State newSurfaceState)
         return;
     }
 
-    const bool wasMinimized = (m_surfaceState == State::Minimized);
-    const bool willBeMinimized = (newSurfaceState == State::Minimized);
-    const bool needMinimizeLinkage = (wasMinimized != willBeMinimized);
-
-    setVisibleDecoration(newSurfaceState == State::Minimized || newSurfaceState == State::Normal);
+    setVisibleDecoration(newSurfaceState == State::Normal);
     setNoCornerRadius(newSurfaceState == State::Maximized || newSurfaceState == State::Fullscreen
                       || newSurfaceState == State::Tiling);
 
     m_previousSurfaceState.setValueBypassingBindings(m_surfaceState);
     m_surfaceState.setValueBypassingBindings(newSurfaceState);
 
-    // Keep modal/parent minimize linkage ahead of this surface's own state change
-    // so focus fallback never sees the parent in the old state first.
-    if (needMinimizeLinkage && modal() && m_parentSurface) {
-        if (willBeMinimized && !m_parentSurface->isMinimized()) {
-            m_parentSurface->minimize(false);
-        } else if (!willBeMinimized && m_parentSurface->isMinimized()) {
-            m_parentSurface->restoreFromMinimized(false);
-        }
-    }
-
     switch (m_previousSurfaceState.value()) {
     case State::Maximized:
         m_shellSurface->setMaximize(false);
-        break;
-    case State::Minimized:
-        m_shellSurface->setMinimize(false);
-        updateFocusControlState(FocusControlState::UnMinimized, true);
-        updateHasActiveCapability(ActiveControlState::UnMinimized, true);
         break;
     case State::Fullscreen:
         m_shellSurface->setFullScreen(false);
@@ -1634,11 +1618,6 @@ void SurfaceWrapper::doSetSurfaceState(State newSurfaceState)
     case State::Maximized:
         m_shellSurface->setMaximize(true);
         break;
-    case State::Minimized:
-        updateFocusControlState(FocusControlState::UnMinimized, false);
-        updateHasActiveCapability(ActiveControlState::UnMinimized, false);
-        m_shellSurface->setMinimize(true);
-        break;
     case State::Fullscreen:
         m_shellSurface->setFullScreen(true);
         break;
@@ -1652,19 +1631,6 @@ void SurfaceWrapper::doSetSurfaceState(State newSurfaceState)
     m_surfaceState.notify();
     updateTitleBar();
     updateVisible();
-
-    if (needMinimizeLinkage) {
-        for (SurfaceWrapper *child : std::as_const(m_subSurfaces)) {
-            if (willBeMinimized && child->modal())
-                continue; // Modal children stay visible when parent is minimized.
-            if (child->isMinimized() != willBeMinimized) {
-                if (willBeMinimized)
-                    child->minimize(false);
-                else
-                    child->restoreFromMinimized(false);
-            }
-        }
-    }
 }
 
 void SurfaceWrapper::onAnimationReady()
@@ -1897,21 +1863,67 @@ void SurfaceWrapper::setRadius(qreal newRadius)
 
 void SurfaceWrapper::minimize(bool onAnimation)
 {
-    if (m_surfaceState == State::Minimized)
+    if (m_minimized)
         return;
-    setSurfaceState(State::Minimized);
+
+    m_minimized = true;
+    Q_EMIT minimizedChanged();
+
+    if (!m_shellSurface) {
+        updateVisible();
+        return;
+    }
+
+    // Keep modal/parent minimize linkage ahead of this surface's own state change
+    // so focus fallback never sees the parent in the old state first.
+    if (modal() && m_parentSurface && !m_parentSurface->isMinimized())
+        m_parentSurface->minimize(false);
+
+    m_shellSurface->setMinimize(true);
+    updateFocusControlState(FocusControlState::UnMinimized, false);
+    updateHasActiveCapability(ActiveControlState::UnMinimized, false);
+    updateVisible();
+
+    for (SurfaceWrapper *child : std::as_const(m_subSurfaces)) {
+        if (child->modal())
+            continue; // Modal children stay visible when parent is minimized.
+        if (!child->isMinimized())
+            child->minimize(false);
+    }
+
     if (onAnimation)
         startMinimizeAnimation(iconGeometry(), CLOSE_ANIMATION);
 }
 
 void SurfaceWrapper::restoreFromMinimized(bool onAnimation)
 {
-    if (m_surfaceState != State::Minimized && m_hideByshowDesk)
+    if (!m_minimized && m_hideByshowDesk)
         return;
     if (!m_hideByshowDesk)
         setHideByShowDesk(true);
 
-    doSetSurfaceState(m_previousSurfaceState);
+    if (m_minimized) {
+        m_minimized = false;
+        Q_EMIT minimizedChanged();
+
+        if (!m_shellSurface) {
+            updateVisible();
+        } else {
+            if (modal() && m_parentSurface && m_parentSurface->isMinimized())
+                m_parentSurface->restoreFromMinimized(false);
+
+            m_shellSurface->setMinimize(false);
+            updateFocusControlState(FocusControlState::UnMinimized, true);
+            updateHasActiveCapability(ActiveControlState::UnMinimized, true);
+            updateVisible();
+
+            for (SurfaceWrapper *child : std::as_const(m_subSurfaces)) {
+                if (child->isMinimized())
+                    child->restoreFromMinimized(false);
+            }
+        }
+    }
+
     if (onAnimation)
         startMinimizeAnimation(iconGeometry(), OPEN_ANIMATION);
 }
@@ -1925,7 +1937,7 @@ void SurfaceWrapper::maximize()
         return;
     }
 
-    if (m_surfaceState == State::Minimized || m_surfaceState == State::Fullscreen
+    if (m_minimized || m_surfaceState == State::Fullscreen
         || !isMaximizable())
         return;
 
@@ -1995,9 +2007,6 @@ void SurfaceWrapper::enterFullscreen(WOutput *targetOutput)
         return;
     }
 
-    if (m_surfaceState == State::Minimized)
-        return;
-
     if (targetOutput) {
         auto *helper = Helper::instance();
         auto *target = helper ? helper->getOutput(targetOutput) : nullptr;
@@ -2005,7 +2014,13 @@ void SurfaceWrapper::enterFullscreen(WOutput *targetOutput)
             setOwnsOutput(target);
     }
 
-    setSurfaceState(State::Fullscreen);
+    // When the window is not visible, change the layout state directly without
+    // animation — the window is hidden and will appear in fullscreen when it
+    // becomes visible again.
+    if (!isVisible())
+        setSurfaceStateDirectly(State::Fullscreen);
+    else
+        setSurfaceState(State::Fullscreen);
 }
 
 void SurfaceWrapper::leaveFullscreen()
@@ -2020,7 +2035,10 @@ void SurfaceWrapper::leaveFullscreen()
     if (m_surfaceState != State::Fullscreen)
         return;
 
-    setSurfaceState(m_previousSurfaceState);
+    if (!isVisible())
+        setSurfaceStateDirectly(m_previousSurfaceState);
+    else
+        setSurfaceState(m_previousSurfaceState);
 }
 
 void SurfaceWrapper::closeSurface()
