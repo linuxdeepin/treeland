@@ -496,6 +496,11 @@ private:
                                          m_surfaceState,
                                          State::Normal,
                                          &SurfaceWrapper::surfaceStateChanged)
+    // Snapshot of m_previousSurfaceState captured when entering Minimized and
+    // restored when leaving Minimized, so that leaveFullscreen() and
+    // restoreFromMinimized() return to the correct pre-minimize state instead
+    // of Minimized after a minimize/restore cycle.
+    SurfaceWrapper::State m_preMinimizePreviousState = State::Normal;
     int m_workspaceId = -1;
     int m_explicitAlwaysOnTop = 0;
     bool m_explicitAlwaysOnBottom = false;

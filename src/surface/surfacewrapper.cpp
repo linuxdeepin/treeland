@@ -1596,7 +1596,17 @@ void SurfaceWrapper::doSetSurfaceState(State newSurfaceState)
     setNoCornerRadius(newSurfaceState == State::Maximized || newSurfaceState == State::Fullscreen
                       || newSurfaceState == State::Tiling);
 
-    m_previousSurfaceState.setValueBypassingBindings(m_surfaceState);
+    // Preserve the original previousSurfaceState across a Minimized interruption.
+    // Save BEFORE overwriting m_previousSurfaceState so we capture the value
+    // from before this minimize (e.g. Normal), not the current surface state.
+    const State oldState = m_surfaceState.value();
+    if (willBeMinimized && !wasMinimized)
+        m_preMinimizePreviousState = m_previousSurfaceState.value();
+
+    if (wasMinimized && !willBeMinimized)
+        m_previousSurfaceState.setValueBypassingBindings(m_preMinimizePreviousState);
+    else
+        m_previousSurfaceState.setValueBypassingBindings(m_surfaceState);
     m_surfaceState.setValueBypassingBindings(newSurfaceState);
 
     // Keep modal/parent minimize linkage ahead of this surface's own state change
@@ -1609,7 +1619,7 @@ void SurfaceWrapper::doSetSurfaceState(State newSurfaceState)
         }
     }
 
-    switch (m_previousSurfaceState.value()) {
+    switch (oldState) {
     case State::Maximized:
         m_shellSurface->setMaximize(false);
         break;
