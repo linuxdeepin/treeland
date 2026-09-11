@@ -18,6 +18,7 @@ POD WindowInfo(
     int state,
     bool visible,
     bool active,
+    bool minimized,
     QRectF geometry,
     QRectF titlebarGeometry,
     QRectF boundingRect,

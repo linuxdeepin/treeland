@@ -49,6 +49,7 @@ class SurfaceWrapper : public QQuickItem
     Q_PROPERTY(bool positionAutomatic READ positionAutomatic NOTIFY positionAutomaticChanged FINAL)
     Q_PROPERTY(State previousSurfaceState READ previousSurfaceState NOTIFY previousSurfaceStateChanged FINAL)
     Q_PROPERTY(State surfaceState READ surfaceState NOTIFY surfaceStateChanged BINDABLE bindableSurfaceState FINAL)
+    Q_PROPERTY(bool minimized READ isMinimized NOTIFY minimizedChanged FINAL)
     Q_PROPERTY(qreal radius READ radius NOTIFY radiusChanged FINAL)
     Q_PROPERTY(SurfaceContainer* container READ container NOTIFY containerChanged FINAL)
     Q_PROPERTY(QQuickItem* titleBar READ titleBar NOTIFY noTitleBarChanged FINAL)
@@ -354,6 +355,7 @@ Q_SIGNALS:
     void positionAutomaticChanged();
     void previousSurfaceStateChanged();
     void surfaceStateChanged();
+    void minimizedChanged();
     void radiusChanged();
     void moveRequested();
     void resizeRequested(Qt::Edges edges);
@@ -496,6 +498,7 @@ private:
                                          m_surfaceState,
                                          State::Normal,
                                          &SurfaceWrapper::surfaceStateChanged)
+    uint m_minimized : 1;
     int m_workspaceId = -1;
     int m_explicitAlwaysOnTop = 0;
     bool m_explicitAlwaysOnBottom = false;
