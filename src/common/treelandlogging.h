@@ -83,6 +83,9 @@ Q_DECLARE_LOGGING_CATEGORY(lcTlAppIdResolver)
 // Prelaunch splash
 Q_DECLARE_LOGGING_CATEGORY(lcTlPrelaunchSplash)
 
+// Layer shell extension (compositor-driven layer surface resize)
+Q_DECLARE_LOGGING_CATEGORY(lcTlLayerShell)
+
 // XWayland
 Q_DECLARE_LOGGING_CATEGORY(lcTlXwayland)
 
