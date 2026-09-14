@@ -1331,6 +1331,22 @@ bool SurfaceWrapper::isIMCandidatePanel() const
     return m_isIMCandidatePanel;
 }
 
+bool SurfaceWrapper::isLaunchpad() const
+{
+    if (type() != Type::Layer)
+        return false;
+    auto layerSurface = qobject_cast<WLayerSurface *>(m_shellSurface);
+    return layerSurface && layerSurface->scope() == QStringLiteral("dde-shell/launchpad");
+}
+
+bool SurfaceWrapper::isQuickLaunchpad() const
+{
+    if (type() != Type::Layer)
+        return false;
+    auto layerSurface = qobject_cast<WLayerSurface *>(m_shellSurface);
+    return layerSurface && layerSurface->scope() == QStringLiteral("dde-shell/quick-launchpad");
+}
+
 void SurfaceWrapper::setIMCandidatePanel(bool isIMCandidatePanel)
 {
     if (m_isIMCandidatePanel == isIMCandidatePanel)
