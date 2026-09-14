@@ -370,6 +370,14 @@ public:
         syncRemoteSubsurfaceOrder(parent);
     }
 
+    void placeChildBelowParentBottom(RemoteSubsurfaceContext *remote)
+    {
+        auto *parent = remote->parentExported();
+        removeChildFromOrder(remote);
+        parent->belowChildren.prepend(remote);
+        syncRemoteSubsurfaceOrder(parent);
+    }
+
     void placeChildAboveSibling(RemoteSubsurfaceContext *remote,
                                 RemoteSubsurfaceContext *siblingRemote)
     {
@@ -726,7 +734,7 @@ void RemoteSubsurfaceContext::place_below([[maybe_unused]] Resource *resource,
                                           const QString &sibling_token)
 {
     if (sibling_token.isEmpty()) {
-        send_invalid_sibling(sibling_token);
+        m_manager->placeChildBelowParentBottom(this);
         return;
     }
 
