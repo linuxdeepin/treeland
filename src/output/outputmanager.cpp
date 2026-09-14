@@ -11,8 +11,6 @@
 #include "treelandconfig.hpp"
 #include <QJsonArray>
 #include <QJsonDocument>
-#include <QPointer>
-
 #include <utility>
 
 #include <woutputlayout.h>
@@ -66,13 +64,13 @@ OutputManager::Mode OutputManager::mode() const
 
 bool OutputManager::shouldRestoreCopyMode(int availableOutputCount) const
 {
-    return m_config && m_config->singleOutputId().isEmpty()
+    return m_config->singleOutputId().isEmpty()
         && m_config->createCopyOutput() && availableOutputCount >= 2;
 }
 
 bool OutputManager::restoreConfiguredSingleOutput(const QList<SurfaceWrapper *> &surfaces, bool updatePrimaryOutputConfig)
 {
-    if (!m_config || !m_rootContainer || m_config->singleOutputId().isEmpty()) {
+    if (!m_rootContainer || m_config->singleOutputId().isEmpty()) {
         return false;
     }
 
@@ -123,7 +121,7 @@ bool OutputManager::restoreConfiguredSingleOutput(const QList<SurfaceWrapper *> 
 
 void OutputManager::restorePrimaryOutput()
 {
-    if (!m_config || !m_rootContainer) {
+    if (!m_rootContainer) {
         return;
     }
 
@@ -156,7 +154,7 @@ OutputManager::CopyModeRestoreConfig OutputManager::copyModeRestoreConfig(int av
 
 QStringList OutputManager::copyOutputIds() const
 {
-    return m_config ? deserializeOutputIds(m_config->copyOutputOutputs()) : QStringList{};
+    return deserializeOutputIds(m_config->copyOutputOutputs());
 }
 
 QStringList OutputManager::currentOutputIds(Output *primaryOutput) const
@@ -190,11 +188,7 @@ QStringList OutputManager::outputNamesFromIds(const QStringList &ids) const
 
 void OutputManager::clearSingleOutputConfig()
 {
-    runWhenConfigInitialized([config = QPointer<TreelandConfig>(m_config)] {
-        if (config) {
-            config->setSingleOutputId(QString());
-        }
-    });
+    m_config->setSingleOutputId(QString());
 }
 
 void OutputManager::storeSingleOutputConfig()
@@ -217,39 +211,30 @@ void OutputManager::storeSingleOutputConfig()
         }
     }
 
-    runWhenConfigInitialized([config = QPointer<TreelandConfig>(m_config), singleOutputId] {
-        if (config) {
-            config->setSingleOutputId(singleOutputId);
-        }
-    });
+    m_config->setSingleOutputId(singleOutputId);
 }
 
 void OutputManager::storeCopyOutputConfig(bool enabled,
                                           const QString &name,
                                           const QStringList &outputIds)
 {
-    runWhenConfigInitialized([this, enabled, name, outputIds] {
-        if (!m_config) {
-            return;
-        }
-        if (!enabled) {
-            const QString oldName = m_config->copyOutputName();
-            m_config->setCreateCopyOutput(false);
-            m_config->setCopyOutputName(QString());
-            m_config->setCopyOutputOutputs(QStringLiteral("[]"));
-            Q_EMIT copyOutputConfigurationChanged(false, oldName, {});
-            return;
-        }
-        m_config->setSingleOutputId(QString());
-        QString configName = name.isEmpty() ? m_config->copyOutputName() : name;
-        if (configName.isEmpty()) {
-            configName = QStringLiteral("copy-output");
-        }
-        m_config->setCreateCopyOutput(true);
-        m_config->setCopyOutputName(configName);
-        m_config->setCopyOutputOutputs(serializeOutputIds(outputIds));
-        Q_EMIT copyOutputConfigurationChanged(true, configName, outputNamesFromIds(outputIds));
-    });
+    if (!enabled) {
+        const QString oldName = m_config->copyOutputName();
+        m_config->setCreateCopyOutput(false);
+        m_config->setCopyOutputName(QString());
+        m_config->setCopyOutputOutputs(QStringLiteral("[]"));
+        Q_EMIT copyOutputConfigurationChanged(false, oldName, {});
+        return;
+    }
+    m_config->setSingleOutputId(QString());
+    QString configName = name.isEmpty() ? m_config->copyOutputName() : name;
+    if (configName.isEmpty()) {
+        configName = QStringLiteral("copy-output");
+    }
+    m_config->setCreateCopyOutput(true);
+    m_config->setCopyOutputName(configName);
+    m_config->setCopyOutputOutputs(serializeOutputIds(outputIds));
+    Q_EMIT copyOutputConfigurationChanged(true, configName, outputNamesFromIds(outputIds));
 }
 
 bool OutputManager::takeCopyModeRestoreIntent()
@@ -261,10 +246,6 @@ bool OutputManager::takeCopyModeRestoreIntent()
 
 void OutputManager::setCopyModeStored(bool enabled)
 {
-    if (!m_config) {
-        return;
-    }
-
     m_config->setCreateCopyOutput(enabled);
 }
 
@@ -300,25 +281,6 @@ Output *OutputManager::findOutputById(const QString &id) const
         }
     }
     return nullptr;
-}
-
-void OutputManager::runWhenConfigInitialized(std::function<void()> callback)
-{
-    if (!m_config) {
-        return;
-    }
-    if (m_config->isInitializeSucceeded()) {
-        callback();
-        return;
-    }
-    if (m_config->isInitializeFailed()) {
-        return;
-    }
-
-    connect(m_config,
-            &TreelandConfig::configInitializeSucceed,
-            this,
-            [callback = std::move(callback)] { callback(); });
 }
 
 void OutputManager::markScreenAsPrimaryIntent(Output *output)
@@ -360,7 +322,7 @@ void OutputManager::onScreenAdded(Output *output, const QList<SurfaceWrapper *> 
     const bool wasPrimary = m_primaryRestoreIntents.value(id);
     const bool hasPrimaryOutput = m_rootContainer->primaryOutput() != nullptr;
 
-    if (m_config && id == m_config->singleOutputId()) {
+    if (id == m_config->singleOutputId()) {
         restoreConfiguredSingleOutput(surfaces);
         m_primaryRestoreIntents.remove(id);
         return;
@@ -383,7 +345,7 @@ bool OutputManager::onScreenRemoved(Output *output,
     const bool isCurrentPrimary = (m_rootContainer->primaryOutput() == output);
     const bool wasPrimaryBeforeRemoval = m_primaryRestoreIntents.value(output->getOutputId());
 
-    if (m_config && output->getOutputId() == m_config->singleOutputId()) {
+    if (output->getOutputId() == m_config->singleOutputId()) {
         return true;
     }
 
