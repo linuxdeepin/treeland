@@ -77,7 +77,8 @@ public:
         helper = qmlEngine->singletonInstance<Helper *>("Treeland", "Helper");
         connect(helper, &Helper::requestQuit, q, &Treeland::quit, Qt::QueuedConnection);
 
-        qputenv("WLR_XWAYLAND", QByteArray(LIBEXEC_DIR) + "/treeland-xwayland");
+        if (qEnvironmentVariableIsEmpty("WLR_XWAYLAND"))
+            qputenv("WLR_XWAYLAND", QByteArray(LIBEXEC_DIR) + "/treeland-xwayland");
         helper->init(q);
 
 #ifndef DISABLE_DDM
