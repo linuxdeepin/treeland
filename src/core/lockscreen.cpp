@@ -12,6 +12,8 @@
 
 #include <woutputitem.h>
 
+#include <woutput.h>
+
 #ifdef EXT_SESSION_LOCK_V1
 #include "rootsurfacecontainer.h"
 #include "surfacewrapper.h"
@@ -100,6 +102,11 @@ void LockScreen::addOutput(Output *output)
     SurfaceContainer::addOutput(output);
     auto outputItem = output->outputItem();
     connect(outputItem, &WOutputItem::geometryChanged, this, &LockScreen::repositionLoginView);
+    connect(output->output(),
+            &WOutput::enabledChanged,
+            this,
+            &LockScreen::onOutputEnabledChanged,
+            Qt::UniqueConnection);
 
 #if EXT_SESSION_LOCK_V1
     connect(outputItem, &WOutputItem::geometryChanged, this, &LockScreen::onOutputGeometryChanged);
@@ -117,6 +124,8 @@ void LockScreen::addOutput(Output *output)
         { output, std::unique_ptr<QQuickItem, void (*)(QQuickItem *)>(item, [](QQuickItem *item) {
               item->deleteLater();
           }) });
+
+    repositionLoginView();
 }
 
 bool LockScreen::isLocked() const
@@ -131,6 +140,7 @@ void LockScreen::removeOutput(Output *output)
     SurfaceContainer::removeOutput(output);
     auto outputItem = output->outputItem();
     disconnect(outputItem, &WOutputItem::geometryChanged, this, &LockScreen::repositionLoginView);
+    disconnect(output->output(), &WOutput::enabledChanged, this, &LockScreen::onOutputEnabledChanged);
 
 #if EXT_SESSION_LOCK_V1
     disconnect(outputItem,
@@ -238,9 +248,29 @@ void LockScreen::repositionLoginView()
 
 void LockScreen::onCursorPositionChanged()
 {
-    if (m_loginView) {
-        repositionLoginView();
+    if (!m_loginView) {
+        if (isVisible()) {
+            createLoginView();
+        }
+        return;
     }
+    repositionLoginView();
+}
+
+void LockScreen::onOutputEnabledChanged()
+{
+    auto *woutput = qobject_cast<WOutput *>(sender());
+    if (!woutput || !woutput->isEnabled()) {
+        return;
+    }
+
+    if (!m_loginView) {
+        if (isVisible()) {
+            createLoginView();
+        }
+        return;
+    }
+    repositionLoginView();
 }
 #if EXT_SESSION_LOCK_V1
 // ext_session_lock_v1 capabilities

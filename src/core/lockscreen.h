@@ -74,6 +74,7 @@ private:
     void createLoginView();
     void destroyLoginView();
     void repositionLoginView();
+    void onOutputEnabledChanged();
     void onCursorPositionChanged();
     Output *followerOutput() const;
 
@@ -86,5 +87,5 @@ private:
     std::map<WOutputItem *, std::unique_ptr<QQuickItem, std::function<void(QQuickItem*)>>> m_fallbackItems;
     WSessionLock* m_sessionLock{ nullptr };
 #endif
-    QQuickItem *m_loginView{ nullptr };
+    QPointer<QQuickItem> m_loginView;
 };
