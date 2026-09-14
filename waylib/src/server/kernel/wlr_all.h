@@ -62,6 +62,7 @@ extern "C" {
 #include <wlr/interfaces/wlr_ext_image_capture_source_v1.h>
 #include <wlr/interfaces/wlr_keyboard.h>
 #include <wlr/interfaces/wlr_output.h>
+#include <wlr/interfaces/wlr_pointer.h>
 #include <wlr/render/allocator.h>
 #include <wlr/render/drm_format_set.h>
 #include <wlr/render/egl.h>

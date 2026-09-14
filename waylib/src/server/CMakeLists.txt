@@ -368,6 +368,7 @@ set(PRIVATE_HEADERS
     protocols/private/wtextinputv2_p.h
     protocols/private/wtextinputv3_p.h
     protocols/private/wvirtualkeyboardv1_p.h
+    protocols/private/wsecuritycontextmanager_p.h
 )
 
 if(NOT DISABLE_XWAYLAND)
