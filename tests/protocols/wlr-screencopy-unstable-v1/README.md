@@ -27,7 +27,9 @@ wlroots 将该 production buffer 复制到 client 提供的 SHM buffer，随后�
 
 ### V 级覆盖流程
 
-1. headless pixman CI 映射覆盖 `1920×1080` output 的红色 layer-surface；
+1. fixture 禁用 wlroots 自动创建的 headless output，显式添加一个 `1920×1080`
+   output，再映射覆盖该 output 的红色 layer-surface；客户端使用 layer configure
+   返回的尺寸，不再额外硬编码 output 尺寸；
 2. client 请求全 output 或 64×64 region capture，读取 wlroots `buffer/buffer_done` metadata 并创建
    精确匹配的 SHM target buffer；
 3. `copy` 请求安装 output-commit listener 后，fixture 渲染每个 production output；这样不依赖
