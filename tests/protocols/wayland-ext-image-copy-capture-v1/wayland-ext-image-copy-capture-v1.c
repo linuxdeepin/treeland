@@ -1,0 +1,70 @@
+/*
+ * Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
+ * SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+ *
+ * Test the ext_image_copy_capture_manager_v1 + ext_output_image_capture_source_manager_v1
+ * globals served by Treeland (wlr_ext_image_copy_capture_manager_v1_create and
+ * wlr_ext_output_image_capture_source_manager_v1_create in Helper).
+ * The client binds both managers and verifies they are advertised by the
+ * compositor.  (Creating a capture session in headless mode can deadlock in
+ * wlr_output_configure_primary_swapchain (see issue #1407), so we test global presence + create_source only.)
+ */
+
+#include "client-connection.h"
+#include "ext-image-copy-capture-v1-client-protocol.h"
+#include "ext-image-capture-source-v1-client-protocol.h"
+#include <errno.h>
+#include <string.h>
+
+
+int protocol_test_run(const char *socket_name) {
+	struct client_connection conn;
+	if (!client_connect(&conn, socket_name)) {
+		TEST_ERROR("ext-image-copy-capture: connect failed\n");
+		return 1;
+	}
+
+	struct ext_output_image_capture_source_manager_v1 *src_mgr =
+		client_bind(&conn, ext_output_image_capture_source_manager_v1_interface.name, &ext_output_image_capture_source_manager_v1_interface, ext_output_image_capture_source_manager_v1_interface.version);
+	struct ext_image_copy_capture_manager_v1 *cap_mgr = client_bind(&conn,
+		ext_image_copy_capture_manager_v1_interface.name, &ext_image_copy_capture_manager_v1_interface, ext_image_copy_capture_manager_v1_interface.version);
+	if (src_mgr == NULL || cap_mgr == NULL) {
+		TEST_ERROR("ext-image-copy-capture: failed to bind managers: %s\n", strerror(errno));
+		client_disconnect(&conn);
+		return 1;
+	}
+
+	wl_display_roundtrip(conn.display);
+
+	/* Verify that create_source(wl_output) returns a non-NULL source object.
+	 * We create and immediately destroy the source without starting a capture
+	 * session, because creating a session in headless mode can deadlock in
+	 * wlr_output_configure_primary_swapchain (see issue #1407). */
+	struct wl_output *output = client_bind_last(&conn, wl_output_interface.name,
+	                                            &wl_output_interface, wl_output_interface.version);
+	if (output == NULL) {
+		TEST_ERROR("ext-image-copy-capture: no wl_output global\n");
+		ext_image_copy_capture_manager_v1_destroy(cap_mgr);
+		ext_output_image_capture_source_manager_v1_destroy(src_mgr);
+		client_disconnect(&conn);
+		return 1;
+	}
+
+	struct ext_image_capture_source_v1 *source =
+		ext_output_image_capture_source_manager_v1_create_source(src_mgr, output);
+	if (source == NULL) {
+		TEST_ERROR("ext-image-copy-capture: create_source returned NULL\n");
+		wl_output_destroy(output);
+		ext_image_copy_capture_manager_v1_destroy(cap_mgr);
+		ext_output_image_capture_source_manager_v1_destroy(src_mgr);
+		client_disconnect(&conn);
+		return 1;
+	}
+
+	ext_image_capture_source_v1_destroy(source);
+	wl_output_destroy(output);
+	ext_image_copy_capture_manager_v1_destroy(cap_mgr);
+	ext_output_image_capture_source_manager_v1_destroy(src_mgr);
+	client_disconnect(&conn);
+	return 0;
+}

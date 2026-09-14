@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 #include "wsecuritycontextmanager.h"
+#include "private/wsecuritycontextmanager_p.h"
 #include <wcontainerof.h>
 #include "wsocket.h"
 #include "private/wglobal_p.h"
@@ -21,65 +22,6 @@ QT_WARNING_DISABLE_GCC("-Wunused-parameter")
 QT_WARNING_DISABLE_CLANG("-Wunused-parameter")
 QT_WARNING_DISABLE_GCC("-Wmissing-field-initializers")
 QT_WARNING_DISABLE_CLANG("-Wmissing-field-initializers")
-// Begin copy from wlroots
-/**
- * An implementation of the security context protocol.
- *
- * Compositors can create this manager, setup a filter for Wayland globals via
- * wl_display_set_global_filter(), and inside the filter query the security
- * context state via wlr_security_context_manager_v1_lookup_client().
- */
-struct wlr_security_context_manager_v1 {
-    struct wl_global *global;
-
-    struct {
-        struct wl_signal destroy;
-        struct wl_signal commit; // struct wlr_security_context_v1_commit_event
-        struct wl_signal new_client; // struct wl_client
-    } events;
-
-    void *data;
-
-    struct {
-        struct wl_list contexts; // wlr_security_context_v1.link
-
-        struct wl_listener display_destroy;
-    } WLR_PRIVATE;
-};
-
-struct wlr_security_context_v1_state {
-    char *sandbox_engine; // may be NULL
-    char *app_id; // may be NULL
-    char *instance_id; // may be NULL
-};
-
-struct wlr_security_context_v1_commit_event {
-    const struct wlr_security_context_v1_state *state;
-    // Client which created the security context
-    struct wl_client *parent_client;
-};
-
-struct wlr_security_context_manager_v1 *wlr_security_context_manager_v1_create(
-    struct wl_display *display);
-const struct wlr_security_context_v1_state *wlr_security_context_manager_v1_lookup_client(
-    struct wlr_security_context_manager_v1 *manager, const struct wl_client *client);
-
-#define SECURITY_CONTEXT_MANAGER_V1_VERSION 1
-
-struct wlr_security_context_v1 {
-    struct wlr_security_context_manager_v1 *manager;
-    struct wlr_security_context_v1_state state;
-    struct wl_list link; // wlr_security_context_manager_v1.contexts
-    int listen_fd, close_fd;
-    struct wl_event_source *listen_source, *close_source;
-    QPointer<WSocket> socket;
-};
-
-struct wlr_security_context_v1_client {
-    struct wlr_security_context_v1_state state;
-    struct wl_listener destroy;
-};
-
 static void resource_handle_destroy(struct wl_client *client,
                                     struct wl_resource *resource) {
     wl_resource_destroy(resource);
