@@ -7,6 +7,7 @@
 
 namespace Waylib::Server {
 class WBackend;
+class WOutput;
 }
 
 class Helper;
@@ -29,14 +30,14 @@ Interface *find_server_interface(Helper *helper)
 // Starts the headless backend and adds an output to it. The backend's
 // output-added path creates the WOutput wrapper used by protocols that resolve
 // wl_output resources server-side.
-bool add_headless_output(Waylib::Server::WServer *server,
+Waylib::Server::WOutput *add_headless_output(Waylib::Server::WServer *server,
                          int width = 1920,
                          int height = 1080);
 
 // Adds an output to an already-owned backend. The caller selects whether the
 // backend must be started first; production Helper tests pass false because
 // Helper::init() has already started it.
-bool add_headless_output(Waylib::Server::WBackend *backend,
+Waylib::Server::WOutput *add_headless_output(Waylib::Server::WBackend *backend,
                          bool startBackend,
                          int width = 1920,
                          int height = 1080);

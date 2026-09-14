@@ -14,7 +14,7 @@
 
 void protocol_test_setup(Helper *helper)
 {
-    Q_ASSERT(add_headless_output(helper->backend(), false, 1920, 1080));
+    Q_ASSERT(add_headless_output(helper->backend(), false, 1920, 1080) != nullptr);
 }
 
 extern "C" void screencopy_render(void *data)

@@ -4,7 +4,10 @@
 #pragma once
 
 #include <stdint.h>
+#include <stdio.h>
 #include <wayland-client.h>
+
+#define TEST_ERROR(...) fprintf(stderr, __VA_ARGS__)
 
 #ifdef __cplusplus
 extern "C" {
@@ -29,6 +32,8 @@ struct client_connection {
 int client_connect(struct client_connection *connection, const char *socket_name);
 void *client_bind(struct client_connection *connection, const char *interface,
                   const struct wl_interface *wl_interface, uint32_t version);
+void *client_bind_last(struct client_connection *connection, const char *interface,
+                       const struct wl_interface *wl_interface, uint32_t version);
 void client_disconnect(struct client_connection *connection);
 
 #ifdef __cplusplus

@@ -13,7 +13,7 @@ bool g_outputCreated = false;
 
 void protocol_test_setup(Helper *helper)
 {
-    g_outputCreated = add_headless_output(helper->backend(), false);
+    g_outputCreated = add_headless_output(helper->backend(), false) != nullptr;
     // This native global exists only for this protocol fixture.  Keeping it
     // out of Helper avoids making the production library depend on a protocol
     // implementation that is otherwise test-only.

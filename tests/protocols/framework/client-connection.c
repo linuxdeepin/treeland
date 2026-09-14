@@ -53,6 +53,18 @@ void *client_bind(struct client_connection *connection, const char *interface,
     return NULL;
 }
 
+void *client_bind_last(struct client_connection *connection, const char *interface,
+                       const struct wl_interface *wl_interface, uint32_t version)
+{
+    for (uint32_t i = connection->global_count; i > 0; --i) {
+        const struct client_global *global = &connection->globals[i - 1];
+        if (strcmp(global->interface, interface) == 0)
+            return wl_registry_bind(connection->registry, global->name, wl_interface,
+                                    version < global->version ? version : global->version);
+    }
+    return NULL;
+}
+
 void client_disconnect(struct client_connection *connection)
 {
     if (connection->registry)
