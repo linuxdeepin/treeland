@@ -1216,6 +1216,8 @@ void ShellHandler::updateLayerSurfaceContainer(SurfaceWrapper *surface)
         break;
     case WLayerSurface::LayerType::Top:
         m_topContainer->addSurface(surface);
+        if (surface->isLaunchpad() || surface->isQuickLaunchpad())
+            surface->setZ(-1);
         break;
     case WLayerSurface::LayerType::Overlay:
         m_overlayContainer->addSurface(surface);

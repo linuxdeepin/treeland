@@ -319,6 +319,8 @@ public:
     bool isIMCandidatePanel() const;
     void setIMCandidatePanel(bool isIMCandidatePanel);
     bool isInputPopupLike() const;
+    bool isLaunchpad() const;
+    bool isQuickLaunchpad() const;
 
     bool attention() const;
     bool setAttention(bool attention);
