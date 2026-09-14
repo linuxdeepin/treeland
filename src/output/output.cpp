@@ -7,6 +7,7 @@
 #include "cmdline.h"
 #include "common/treelandlogging.h"
 #include "core/rootsurfacecontainer.h"
+#include "core/dconfigmanager.h"
 #include "outputconfig.hpp"
 #include "seat/helper.h"
 #include "surface/surfacewrapper.h"
@@ -166,9 +167,9 @@ Output::Output(WOutputItem *output, QObject *parent)
     m_outputViewport = output->property("screenViewport").value<WOutputViewport *>();
 
     QString outputName = Output::getOutputId(output->output()->handle());
-    m_config = OutputConfig::createByName("org.deepin.dde.treeland.output",
-                                    "org.deepin.dde.treeland",
-                                    "/" + outputName, this);
+    auto *configManager = DConfigManager::instance();
+    Q_ASSERT(configManager);
+    m_config = configManager ? configManager->outputConfig(outputName) : nullptr;
 }
 
 Output::~Output()

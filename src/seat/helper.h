@@ -37,6 +37,7 @@
 #include <optional>
 
 class QJsonObject;
+class SeatUserDConfig;
 
 Q_MOC_INCLUDE(<QDBusObjectPath>)
 Q_MOC_INCLUDE(<woutput.h>)
@@ -316,6 +317,8 @@ Q_SIGNALS:
     void modifierKeyReleased(QKeyEvent *event);
 
 private Q_SLOTS:
+    void updateCurrentUser();
+    void onPendingUserConfigInitialized();
     void onShowDesktop();
     void deleteTaskSwitch();
     void onSessionNew(const QString &sessionId, const QDBusObjectPath &objectPath);
@@ -338,6 +341,9 @@ private:
     void handleLockScreen(LockScreenInterface *lockScreen);
     void handleNewForeignToplevelCaptureRequest(wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request *request);
     void onExtSessionLock(WSessionLock *lock);
+    void applyCurrentUserConfig(const QString &userName,
+                                TreelandUserConfig *config,
+                                SeatUserDConfig *seatConfig);
 private:
     friend class PointerConstraintsManager;
     friend class SessionManager;
@@ -401,8 +407,11 @@ private:
     WSeat *m_currentEventSeat = nullptr;
 
     static Helper *m_instance;
-    std::unique_ptr<TreelandUserConfig> m_config;
-    std::unique_ptr<TreelandConfig> m_globalConfig;
+    TreelandUserConfig *m_config = nullptr;
+    TreelandConfig *m_globalConfig = nullptr;
+    TreelandUserConfig *m_pendingUserConfig = nullptr;
+    SeatUserDConfig *m_pendingSeatConfig = nullptr;
+    QString m_pendingUserName;
     Treeland::Treeland *m_treeland = nullptr;
     FpsDisplayManager *m_fpsManager = nullptr;
     SessionManager *m_sessionManager = nullptr;

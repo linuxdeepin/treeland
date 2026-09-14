@@ -1,5 +1,6 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
+#include "core/dconfigmanager.h"
 #include "core/treeland.h"
 #include "core/treelandinit.h"
 #include "core/rootsurfacecontainer.h"
@@ -15,6 +16,7 @@
 #include <QAbstractItemModel>
 #include <QEventLoop>
 #include <QMetaObject>
+#include <QTimer>
 #include <QSemaphore>
 #include <QtTest>
 #include <wsocket.h>
@@ -180,10 +182,29 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+    DConfigManager dConfigManager(application.get());
     Treeland::Treeland treeland;
-    auto *helper = Helper::instance();
-    if (!helper)
-        return 1;
+
+    // Treeland::Treeland completes initialization asynchronously: Helper is
+    // only created once the initial user DConfig objects have finished
+    // initializing. Spin the event loop until then.
+    Helper *helper = Helper::instance();
+    if (!helper) {
+        QEventLoop loop;
+        QTimer poller;
+        QObject::connect(&poller, &QTimer::timeout, &loop, [&loop, &helper] {
+            helper = Helper::instance();
+            if (helper)
+                loop.quit();
+        });
+        poller.start(50);
+        QTimer::singleShot(15000, &loop, &QEventLoop::quit);
+        loop.exec();
+    }
+    if (!helper) {
+        std::fflush(nullptr);
+        std::_Exit(1);
+    }
 
     const auto session = helper->sessionManager()->globalSession();
     if (!session || !session->socket() || !session->socket()->isValid())

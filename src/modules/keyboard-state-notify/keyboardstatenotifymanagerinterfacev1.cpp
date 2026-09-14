@@ -21,21 +21,6 @@ static QList<KeyboardStateWatcherV1 *> s_watchers;
 static QHash<WSeat *, wlr_keyboard_modifiers> s_lastModifiers;
 
 
-namespace {
-bool isTreelandConfigInitialized(TreelandConfig *config)
-{
-    if (!config)
-        return false;
-
-#if TREELANDCONFIG_DCONFIG_FILE_VERSION_MINOR > 0
-    return config->isInitializeSucceeded();
-#else
-    return config->isInitializeSucceed();
-#endif
-}
-
-}
-
 struct ModifierInfo {
     uint32_t flag;
     const char *modName;
@@ -212,8 +197,8 @@ void TreelandKeyboardStateNotifyManagerInterfaceV1Private::onModifiersEvent(WSea
     if (changedLocks & NumLockMask) {
         const bool isLocked = currentLocks & NumLockMask;
 
-        if (isTreelandConfigInitialized(Helper::instance()->globalConfig())) {
-            Helper::instance()->globalConfig()->setKeyboardNumLock(isLocked);
+        if (auto *config = Helper::instance()->globalConfig()) {
+            config->setKeyboardNumLock(isLocked);
         }
     }
 

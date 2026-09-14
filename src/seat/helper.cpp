@@ -27,6 +27,7 @@
 #include "core/qmlengine.h"
 #include "core/rootsurfacecontainer.h"
 #include "core/shellhandler.h"
+#include "core/dconfigmanager.h"
 #include "core/treeland.h"
 #include "core/windowpicker.h"
 #include "greeter/greeterproxy.h"
@@ -57,6 +58,7 @@
 #include "output/output.h"
 #include "output/outputmanager.h"
 #include "outputconfig.hpp"
+#include "seatuserconfig.hpp"
 #include "session/session.h"
 #include "surface/surfacecontainer.h"
 #include "surface/surfacewrapper.h"
@@ -123,6 +125,7 @@
 #include <algorithm>
 #include <functional>
 #include <limits>
+#include <memory>
 #include <pwd.h>
 #include <unistd.h>
 #include <utility>
@@ -166,39 +169,24 @@ static void runWhenOutputConfigInitialized(OutputConfig *config,
                                            QObject *context,
                                            std::function<void()> callback)
 {
-    if (!config || !context) {
-        return;
-    }
-
     if (config->isInitializeSucceeded()) {
         callback();
         return;
     }
 
-    QObject::connect(config,
-                     &OutputConfig::configInitializeSucceed,
-                     context,
-                     [callback = std::move(callback)] { callback(); });
+    QObject::connect(config, &OutputConfig::configInitializeSucceed, context, callback);
 }
 
 static void runWhenTreelandConfigInitialized(TreelandConfig *config,
                                              QObject *context,
                                              std::function<void()> callback)
 {
-    if (!config || !context) {
-        return;
-    }
-
     if (config->isInitializeSucceeded()) {
         callback();
         return;
     }
 
-    auto sharedCallback = std::make_shared<std::function<void()>>(std::move(callback));
-    QObject::connect(config,
-                     &TreelandConfig::configInitializeSucceed,
-                     context,
-                     [sharedCallback] { (*sharedCallback)(); });
+    QObject::connect(config, &TreelandConfig::configInitializeSucceed, context, callback);
 }
 
 static bool hasSavedOutputState(OutputConfig *config)
@@ -209,6 +197,16 @@ static bool hasSavedOutputState(OutputConfig *config)
                       || !config->scaleIsDefaultValue()
                       || !config->transformIsDefaultValue()
                       || !config->adaptiveSyncEnabledIsDefaultValue());
+}
+
+static bool userConfigInitializationFinished(TreelandUserConfig *config)
+{
+    return config && (config->isInitializeSucceeded() || config->isInitializeFailed());
+}
+
+static bool seatConfigInitializationFinished(SeatUserDConfig *config)
+{
+    return config && (config->isInitializeSucceeded() || config->isInitializeFailed());
 }
 
 static wlr_output_mode *closestOutputMode(WOutput *output,
@@ -271,12 +269,13 @@ Helper::Helper(QObject *parent)
     Q_ASSERT(!m_instance);
     m_instance = this;
 
-    Q_ASSERT(!m_config);
-    m_config.reset(TreelandUserConfig::createByName("org.deepin.dde.treeland.user",
-                                              "org.deepin.dde.treeland",
-                                              "/dde")); // will update user path in Helper::init
-    m_globalConfig.reset(TreelandConfig::create("org.deepin.dde.treeland",
-                                                      QString()));
+    if (auto *configManager = DConfigManager::instance()) {
+        m_config = configManager->initialUserConfig();
+        m_globalConfig = configManager->globalConfig();
+    }
+
+    Q_ASSERT(m_config);
+    Q_ASSERT(m_globalConfig);
 
     m_renderWindow->setColor(Qt::black);
     m_rootSurfaceContainer->setFlag(QQuickItem::ItemIsFocusScope, true);
@@ -292,13 +291,13 @@ Helper::Helper(QObject *parent)
     // Release builds: react to runtime changes of the remoteDebug DConfig key,
     // creating or destroying the remote source on the fly instead of only at
     // startup.
-    connect(m_globalConfig.get(),
+    connect(m_globalConfig,
             &TreelandConfig::remoteDebugChanged,
             this,
             &Helper::tryInitRemoteSource);
 #endif
 
-    m_outputManagerHelper = new OutputManager(m_rootSurfaceContainer, m_globalConfig.get(), this);
+    m_outputManagerHelper = new OutputManager(m_rootSurfaceContainer, m_globalConfig, this);
     connect(m_outputManagerHelper,
             &OutputManager::copyOutputConfigurationChanged,
             this,
@@ -378,12 +377,12 @@ Helper *Helper::instance()
 
 TreelandUserConfig *Helper::config()
 {
-    return m_config.get();
+    return m_config;
 }
 
 TreelandConfig *Helper::globalConfig()
 {
-    return m_globalConfig.get();
+    return m_globalConfig;
 }
 
 void Helper::syncPaletteTypeWithWindowColorScheme(int32_t colorScheme)
@@ -560,35 +559,33 @@ void Helper::onOutputAdded(WOutput *output)
     }
     if (scanned && m_mode == OutputMode::Extension) {
         const QString addedOutputId = o->getOutputId();
-        runWhenTreelandConfigInitialized(m_globalConfig.get(), this, [this, addedOutputId] {
-            QMetaObject::invokeMethod(this, [this, addedOutputId] {
-                if (m_mode != OutputMode::Extension || !m_globalConfig->createCopyOutput()) {
+        QMetaObject::invokeMethod(this, [this, addedOutputId] {
+            if (m_mode != OutputMode::Extension || !m_globalConfig->createCopyOutput()) {
+                return;
+            }
+
+            QStringList configuredCopyOutputs = m_outputManagerHelper->copyOutputIds();
+            if (!configuredCopyOutputs.contains(addedOutputId)) {
+                const bool waitingForAnotherCopyMember = configuredCopyOutputs.size() == 1
+                    && findOutputById(configuredCopyOutputs.constFirst());
+                if (!waitingForAnotherCopyMember) {
+                    m_outputManagerHelper->storeCopyOutputConfig(false);
                     return;
                 }
 
-                QStringList configuredCopyOutputs = m_outputManagerHelper->copyOutputIds();
-                if (!configuredCopyOutputs.contains(addedOutputId)) {
-                    const bool waitingForAnotherCopyMember = configuredCopyOutputs.size() == 1
-                        && findOutputById(configuredCopyOutputs.constFirst());
-                    if (!waitingForAnotherCopyMember) {
-                        m_outputManagerHelper->storeCopyOutputConfig(false);
-                        return;
-                    }
+                configuredCopyOutputs.append(addedOutputId);
+                m_outputManagerHelper->storeCopyOutputConfig(true, {}, configuredCopyOutputs);
+            }
 
-                    configuredCopyOutputs.append(addedOutputId);
-                    m_outputManagerHelper->storeCopyOutputConfig(true, {}, configuredCopyOutputs);
-                }
-
-                const bool allCopyOutputsAvailable =
-                    configuredCopyOutputs.size() >= 2
-                    && std::all_of(configuredCopyOutputs.cbegin(),
-                                   configuredCopyOutputs.cend(),
-                                   [this](const QString &id) { return findOutputById(id); });
-                if (allCopyOutputsAvailable) {
-                    restoreConfiguredCopyMode();
-                }
-            }, Qt::QueuedConnection);
-        });
+            const bool allCopyOutputsAvailable =
+                configuredCopyOutputs.size() >= 2
+                && std::all_of(configuredCopyOutputs.cbegin(),
+                               configuredCopyOutputs.cend(),
+                               [this](const QString &id) { return findOutputById(id); });
+            if (allCopyOutputsAvailable) {
+                restoreConfiguredCopyMode();
+            }
+        }, Qt::QueuedConnection);
     }
     // The output-management protocol must advertise an output as soon as it
     // enters the compositor. DConfig restoration is asynchronous and may be
@@ -743,9 +740,7 @@ void Helper::onOutputAdded(WOutput *output)
                                        [this,
                                         restoreOutputConfig = std::move(restoreOutputConfig),
                                         outputObject = QPointer<Output>(o)]() mutable {
-                                           runWhenTreelandConfigInitialized(m_globalConfig.get(),
-                                                                            outputObject,
-                                                                            std::move(restoreOutputConfig));
+                                           restoreOutputConfig();
                                        });
     }
 }
@@ -1345,37 +1340,19 @@ void Helper::onOutputCommitFinished(wlr_output_configuration_v1 *config, bool su
                 const qlonglong transform = output->output()->handle()->transform;
                 const double scale = state.scale;
                 const bool adaptiveSyncEnabled = state.adaptiveSyncEnabled;
-                runWhenOutputConfigInitialized(outputConfig, output, [outputConfig = QPointer<OutputConfig>(outputConfig),
-                                                                      enabled,
-                                                                      x,
-                                                                      y,
-                                                                      width,
-                                                                      height,
-                                                                      refresh,
-                                                                      transform,
-                                                                      scale,
-                                                                      adaptiveSyncEnabled,
-                                                                      preservePosition] {
-
-                    if (!enabled) {
-                        return;
-                    }
-
-                    if (!outputConfig) {
-                        return;
-                    }
-
-                    if (!preservePosition) {
-                        outputConfig->setX(x);
-                        outputConfig->setY(y);
-                    }
-                    outputConfig->setWidth(width);
-                    outputConfig->setHeight(height);
-                    outputConfig->setRefresh(refresh);
-                    outputConfig->setTransform(transform);
-                    outputConfig->setScale(scale);
-                    outputConfig->setAdaptiveSyncEnabled(adaptiveSyncEnabled);
-                });
+                if (!enabled || !outputConfig) {
+                    continue;
+                }
+                if (!preservePosition) {
+                    outputConfig->setX(x);
+                    outputConfig->setY(y);
+                }
+                outputConfig->setWidth(width);
+                outputConfig->setHeight(height);
+                outputConfig->setRefresh(refresh);
+                outputConfig->setTransform(transform);
+                outputConfig->setScale(scale);
+                outputConfig->setAdaptiveSyncEnabled(adaptiveSyncEnabled);
             }
         }
         m_outputManager->sendResult(config, ok, m_pendingOutputConfig.states);
@@ -1848,6 +1825,154 @@ void Helper::deleteTaskSwitch()
     }
 }
 
+void Helper::updateCurrentUser()
+{
+    const QString userName = m_userModel->currentUserName();
+    auto *configManager = DConfigManager::instance();
+    auto *userConfig = configManager ? configManager->userConfig(userName) : m_config;
+    auto *seatConfig = configManager ? configManager->seatUserConfig(userName) : nullptr;
+    if (!userConfig) {
+        qCWarning(lcTlConfig) << "Cannot switch to user" << userName
+                              << "because its DConfig object is unavailable";
+        return;
+    }
+
+    if (userConfig == m_config && (!seatConfig || seatConfig == m_pendingSeatConfig)) {
+        applyCurrentUserConfig(userName, userConfig, seatConfig);
+        return;
+    }
+
+    if (m_pendingUserConfig) {
+        QObject::disconnect(static_cast<const QObject *>(m_pendingUserConfig),
+                            nullptr,
+                            this,
+                            nullptr);
+    }
+    if (m_pendingSeatConfig) {
+        QObject::disconnect(static_cast<const QObject *>(m_pendingSeatConfig),
+                            nullptr,
+                            this,
+                            nullptr);
+    }
+
+    m_pendingUserName = userName;
+    m_pendingUserConfig = userConfig;
+    m_pendingSeatConfig = seatConfig;
+
+    if (!userConfigInitializationFinished(userConfig)) {
+        connect(userConfig,
+                &TreelandUserConfig::configInitializeSucceed,
+                this,
+                &Helper::onPendingUserConfigInitialized,
+                Qt::SingleShotConnection);
+        connect(userConfig,
+                &TreelandUserConfig::configInitializeFailed,
+                this,
+                &Helper::onPendingUserConfigInitialized,
+                Qt::SingleShotConnection);
+    }
+    if (seatConfig && !seatConfigInitializationFinished(seatConfig)) {
+        connect(seatConfig,
+                &SeatUserDConfig::configInitializeSucceed,
+                this,
+                &Helper::onPendingUserConfigInitialized,
+                Qt::SingleShotConnection);
+        connect(seatConfig,
+                &SeatUserDConfig::configInitializeFailed,
+                this,
+                &Helper::onPendingUserConfigInitialized,
+                Qt::SingleShotConnection);
+    }
+
+    qCInfo(lcTlConfig) << "Waiting for user DConfig initialization before switching to"
+                       << userName;
+    onPendingUserConfigInitialized();
+}
+
+void Helper::onPendingUserConfigInitialized()
+{
+    if (sender() && sender() != m_pendingUserConfig && sender() != m_pendingSeatConfig) {
+        return;
+    }
+
+    if (!userConfigInitializationFinished(m_pendingUserConfig)
+        || (m_pendingSeatConfig && !seatConfigInitializationFinished(m_pendingSeatConfig))) {
+        return;
+    }
+
+    const QString userName = m_pendingUserName;
+    auto *userConfig = m_pendingUserConfig;
+    auto *seatConfig = m_pendingSeatConfig;
+    m_pendingUserName.clear();
+    m_pendingUserConfig = nullptr;
+    m_pendingSeatConfig = nullptr;
+
+    if (m_userModel->currentUserName() != userName) {
+        qCInfo(lcTlConfig) << "Discarding stale user DConfig initialization for" << userName;
+        return;
+    }
+
+    qCInfo(lcTlConfig) << "User DConfig initialization finished for" << userName
+                       << "; applying user configuration";
+    if (userConfig->isInitializeFailed()
+        || (seatConfig && seatConfig->isInitializeFailed())) {
+        qCWarning(lcTlConfig) << "Using generated defaults for user DConfig" << userName;
+    }
+    applyCurrentUserConfig(userName, userConfig, seatConfig);
+}
+
+void Helper::applyCurrentUserConfig(const QString &userName,
+                                    TreelandUserConfig *config,
+                                    SeatUserDConfig *seatConfig)
+{
+    if (!config || m_userModel->currentUserName() != userName) {
+        return;
+    }
+
+    const bool configPointerChanged = config != m_config;
+    if (configPointerChanged) {
+        if (m_config) {
+            disconnect(m_config,
+                       &TreelandUserConfig::cursorThemeNameChanged,
+                       m_sessionManager,
+                       &SessionManager::syncActiveSessionCursorSettings);
+            disconnect(m_config,
+                       &TreelandUserConfig::cursorSizeChanged,
+                       m_sessionManager,
+                       &SessionManager::syncActiveSessionCursorSettings);
+        }
+        m_config = config;
+        Q_EMIT configChanged();
+    }
+
+    connect(m_config,
+            &TreelandUserConfig::cursorThemeNameChanged,
+            m_sessionManager,
+            &SessionManager::syncActiveSessionCursorSettings,
+            Qt::UniqueConnection);
+    connect(m_config,
+            &TreelandUserConfig::cursorSizeChanged,
+            m_sessionManager,
+            &SessionManager::syncActiveSessionCursorSettings,
+            Qt::UniqueConnection);
+
+    auto user = m_userModel->currentUser();
+    m_personalizationInterfaceV1->setUserId(user ? user->UID() : getuid());
+    if (userName == "dde") {
+        return;
+    }
+
+    if (seatConfig) {
+        m_inputManager->setupSeatUserConfig(userName);
+    }
+    m_sessionManager->syncActiveSessionCursorSettings();
+    syncPaletteTypeWithWindowColorScheme(m_config->windowColorScheme());
+    m_wallpaperManager->updateWallpaperConfig();
+    tryInitRemoteSource();
+    // TODO(YaoBing Xiao): Isolate workspaces for different users to prevent them from sharing the same one.
+    m_shellHandler->workspace()->reloadFromConfig();
+}
+
 void Helper::init(Treeland::Treeland *treeland)
 {
     m_treeland = treeland;
@@ -1989,53 +2114,7 @@ void Helper::init(Treeland::Treeland *treeland)
     m_appearanceManagerInterfaceV1 = m_server->attach<AppearanceManagerInterfaceV1>();
     m_decorationInterfaceV1 = m_server->attach<DecorationManagerInterfaceV1>();
 
-    auto updateCurrentUser = [this] {
-        m_config.reset(TreelandUserConfig::createByName("org.deepin.dde.treeland.user",
-                                                  "org.deepin.dde.treeland",
-                                                  "/" + m_userModel->currentUserName()));
-        // Notify QML that the config pointer has changed so bindings (e.g. sourceSize
-        // on WQuickCursor) reconnect their notifiers to the new TreelandUserConfig object.
-        Q_EMIT configChanged();
-        connect(m_config.get(),
-                &TreelandUserConfig::cursorThemeNameChanged,
-                m_sessionManager,
-                &SessionManager::syncActiveSessionCursorSettings);
-        connect(m_config.get(),
-                &TreelandUserConfig::cursorSizeChanged,
-                m_sessionManager,
-                &SessionManager::syncActiveSessionCursorSettings);
-        auto user = m_userModel->currentUser();
-        m_personalizationInterfaceV1->setUserId(user ? user->UID() : getuid());
-        // TODO(YaoBing Xiao): remove "dde"
-        if (m_userModel->currentUserName() == "dde") {
-            return;
-        }
-
-        m_inputManager->setupSeatUserConfig(m_userModel->currentUserName());
-        auto onConfigInitialized = [this] {
-            m_sessionManager->syncActiveSessionCursorSettings();
-            syncPaletteTypeWithWindowColorScheme(m_config->windowColorScheme());
-            m_wallpaperManager->updateWallpaperConfig();
-            tryInitRemoteSource();
-            //TODO: Isolate workspaces for different users to prevent them from sharing the same one.
-            if (m_userModel->currentUserName() != "dde")
-                m_shellHandler->workspace()->reloadFromConfig();
-        };
-        // TODO(YaoBing Xiao): pre-initialize dconfig, remove isInitializeSucceeded
-#if TREELANDCONFIG_DCONFIG_FILE_VERSION_MINOR > 0
-        if (m_config->isInitializeSucceeded()) {
-#else
-        if (m_config->isInitializeSucceed()) {
-#endif
-            onConfigInitialized();
-        } else {
-            connect(m_config.get(),
-                    &TreelandUserConfig::configInitializeSucceed,
-                    this,
-                    onConfigInitialized);
-        }
-    };
-    connect(m_userModel, &UserModel::currentUserNameChanged, this, updateCurrentUser);
+    connect(m_userModel, &UserModel::currentUserNameChanged, this, &Helper::updateCurrentUser);
 
     updateCurrentUser();
 
@@ -2380,14 +2459,6 @@ void Helper::init(Treeland::Treeland *treeland)
     m_keyboardStateNotifyManagerInterfaceV1 = m_server->attach<TreelandKeyboardStateNotifyManagerInterfaceV1>();
     m_activeNotifyManagerInterfaceV1 = m_server->attach<TreelandActiveNotifyManagerInterfaceV1>();
     m_keyboardShortcutsInhibitManagerV1 = m_server->attach<KeyboardShortcutsInhibitManagerV1>();
-
-#if TREELANDCONFIG_DCONFIG_FILE_VERSION_MINOR > 0
-    if (m_globalConfig->isInitializeSucceeded()) {
-#else
-    if (m_globalConfig->isInitializeSucceed()) {
-#endif
-    } else {
-    }
 
     // start() synchronously reports the initially available outputs through
     // onOutputAdded(). Restore the stored topology only after that scan completes.
@@ -3006,9 +3077,9 @@ void Helper::saveCurrentOutputConfig(Output *output)
                 outputConfig->setY(layoutOutput->y);
             }
         }
-    };
+        };
 
-    runWhenOutputConfigInitialized(outputConfig, output, std::move(saveConfig));
+        runWhenOutputConfigInitialized(outputConfig, output, std::move(saveConfig));
 }
 
 SurfaceWrapper *Helper::keyboardFocusSurface() const
@@ -3946,7 +4017,6 @@ void Helper::restoreExtensionModeFromConfig(bool preserveSingleOutputConfig)
                                        << output->name();
             }
         };
-
         runWhenOutputConfigInitialized(outputObject->config(),
                                        outputObject,
                                        std::move(restoreOutput));
@@ -3971,7 +4041,7 @@ void Helper::restoreExtensionModeFromConfig(bool preserveSingleOutputConfig)
 
 void Helper::restoreInitialOutputConfiguration()
 {
-    runWhenTreelandConfigInitialized(m_globalConfig.get(), this, [this] {
+    runWhenTreelandConfigInitialized(m_globalConfig, this, [this] {
         const QString singleOutputId = m_globalConfig->singleOutputId();
         if (!singleOutputId.isEmpty()) {
             if (findOutputById(singleOutputId)) {
