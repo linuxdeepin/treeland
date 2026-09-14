@@ -82,11 +82,7 @@ void LayerSurfaceContainer::removeOutput(Output *output)
 
 OutputLayerSurfaceContainer *LayerSurfaceContainer::getSurfaceContainer(const Output *output) const
 {
-    for (OutputLayerSurfaceContainer *container : std::as_const(m_surfaceContainers)) {
-        if (container->output() == output)
-            return container;
-    }
-    return nullptr;
+    return getSurfaceContainer(output->output());
 }
 
 OutputLayerSurfaceContainer *LayerSurfaceContainer::getSurfaceContainer(const WOutput *output) const
