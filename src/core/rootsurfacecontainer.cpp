@@ -22,7 +22,6 @@
 #include <wseat.h>
 #include <winputdevice.h>
 
-#include <QPointer>
 #include <QQuickWindow>
 
 WAYLIB_SERVER_USE_NAMESPACE
@@ -36,19 +35,7 @@ void setPrimaryOutputConfig(Output *output)
         return;
 
     auto *config = helper->globalConfig();
-    auto setConfig = [config, output = QPointer<Output>(output)] {
-        config->setPrimaryOutputId(output->getOutputId());
-    };
-
-    if (config->isInitializeSucceeded()) {
-        setConfig();
-    } else if (!config->isInitializeFailed()) {
-        QObject::connect(config,
-                         &TreelandConfig::configInitializeSucceed,
-                         helper,
-                         setConfig,
-                         Qt::SingleShotConnection);
-    }
+    config->setPrimaryOutputId(output->getOutputId());
 }
 
 }

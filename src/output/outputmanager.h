@@ -10,8 +10,6 @@
 
 #include <woutputmanagerv1.h>
 
-#include <functional>
-
 class Output;
 class RootSurfaceContainer;
 class SurfaceWrapper;
@@ -76,8 +74,6 @@ private:
     void restoreScreenAsPrimary(Output *output);
     void switchPrimaryOutput(Output *from, Output *to, const QList<SurfaceWrapper *> &surfaces);
     Output *findOutputById(const QString &id) const;
-    void runWhenConfigInitialized(std::function<void()> callback);
-
     RootSurfaceContainer *m_rootContainer = nullptr;
     TreelandConfig *m_config = nullptr;
     Mode m_mode = Mode::Extension;
