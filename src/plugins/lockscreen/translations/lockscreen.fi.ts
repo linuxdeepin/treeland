@@ -16,44 +16,41 @@
     </message>
 </context>
 <context>
-    <name>PowerList</name>
-    <message>
-        <location filename="../qml/PowerList.qml" line="58"/>
-        <source>Hibernate</source>
-        <translation>Horrostila</translation>
-    </message>
-    <message>
-        <location filename="../qml/PowerList.qml" line="49"/>
-        <source>Suspend</source>
-        <translation>Lepotila</translation>
-    </message>
-    <message>
-        <location filename="../qml/PowerList.qml" line="42"/>
-        <source>Reboot</source>
-        <translation>Käynnistä</translation>
-    </message>
-    <message>
-        <location filename="../qml/PowerList.qml" line="35"/>
-        <source>Shut Down</source>
-        <translation>Sammuta</translation>
-    </message>
-</context>
-<context>
     <name>ShutdownView</name>
     <message>
-        <location filename="../qml/ShutdownView.qml" line="31"/>
+        <location filename="../qml/ShutdownView.qml" line="46"/>
         <source>lock</source>
         <translation>Lukitse</translation>
     </message>
     <message>
-        <location filename="../qml/ShutdownView.qml" line="37"/>
+        <location filename="../qml/ShutdownView.qml" line="55"/>
         <source>switch user</source>
         <translation>Vaihda käyttäjää</translation>
     </message>
     <message>
-        <location filename="../qml/ShutdownView.qml" line="44"/>
+        <location filename="../qml/ShutdownView.qml" line="66"/>
         <source>Logout</source>
         <translation>Kirjaudu ulos</translation>
+    </message>
+    <message>
+        <location filename="../qml/ShutdownView.qml" line="76"/>
+        <source>Shut Down</source>
+        <translation>Sammuta</translation>
+    </message>
+    <message>
+        <location filename="../qml/ShutdownView.qml" line="87"/>
+        <source>Reboot</source>
+        <translation>Käynnistä</translation>
+    </message>
+    <message>
+        <location filename="../qml/ShutdownView.qml" line="97"/>
+        <source>Suspend</source>
+        <translation>Lepotila</translation>
+    </message>
+    <message>
+        <location filename="../qml/ShutdownView.qml" line="107"/>
+        <source>Hibernate</source>
+        <translation>Horrostila</translation>
     </message>
 </context>
 <context>

@@ -9,8 +9,6 @@ import QtQuick.Layouts
 
 Button {
     id: root
-    visible: enabled
-
     property D.Palette backgroundColor: D.Palette {
         normal: Qt.rgba(1.0, 1.0, 1.0, 0.3)
         hovered: Qt.rgba(1.0, 1.0, 1.0, 0.5)

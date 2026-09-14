@@ -16,44 +16,41 @@
     </message>
 </context>
 <context>
-    <name>PowerList</name>
-    <message>
-        <location filename="../qml/PowerList.qml" line="58"/>
-        <source>Hibernate</source>
-        <translation>إسبات</translation>
-    </message>
-    <message>
-        <location filename="../qml/PowerList.qml" line="49"/>
-        <source>Suspend</source>
-        <translation>تعليق</translation>
-    </message>
-    <message>
-        <location filename="../qml/PowerList.qml" line="42"/>
-        <source>Reboot</source>
-        <translation>إعادة تشغيل</translation>
-    </message>
-    <message>
-        <location filename="../qml/PowerList.qml" line="35"/>
-        <source>Shut Down</source>
-        <translation>إيقاف التشغيل</translation>
-    </message>
-</context>
-<context>
     <name>ShutdownView</name>
     <message>
-        <location filename="../qml/ShutdownView.qml" line="31"/>
+        <location filename="../qml/ShutdownView.qml" line="46"/>
         <source>lock</source>
         <translation>قفل</translation>
     </message>
     <message>
-        <location filename="../qml/ShutdownView.qml" line="37"/>
+        <location filename="../qml/ShutdownView.qml" line="55"/>
         <source>switch user</source>
         <translation>تبديل المستخدم</translation>
     </message>
     <message>
-        <location filename="../qml/ShutdownView.qml" line="44"/>
+        <location filename="../qml/ShutdownView.qml" line="66"/>
         <source>Logout</source>
         <translation>تسجيل الخروج</translation>
+    </message>
+    <message>
+        <location filename="../qml/ShutdownView.qml" line="76"/>
+        <source>Shut Down</source>
+        <translation>إيقاف التشغيل</translation>
+    </message>
+    <message>
+        <location filename="../qml/ShutdownView.qml" line="87"/>
+        <source>Reboot</source>
+        <translation>إعادة تشغيل</translation>
+    </message>
+    <message>
+        <location filename="../qml/ShutdownView.qml" line="97"/>
+        <source>Suspend</source>
+        <translation>تعليق</translation>
+    </message>
+    <message>
+        <location filename="../qml/ShutdownView.qml" line="107"/>
+        <source>Hibernate</source>
+        <translation>إسبات</translation>
     </message>
 </context>
 <context>
