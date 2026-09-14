@@ -60,7 +60,6 @@ class WClientPrivate;
 class WCursor;
 class WExtForeignToplevelListV1;
 class WForeignToplevel;
-class WLayerSurface;
 class WOutput;
 class WOutputItem;
 class WOutputLayer;
@@ -83,7 +82,6 @@ class WPointerConstraintsV1;
 class WForeignToplevel;
 class WExtForeignToplevelListV1;
 class WOutputManagerV1;
-class WLayerSurface;
 class WRelativePointerManagerV1;
 class WSessionLockManager;
 class WSessionLock;
@@ -217,7 +215,6 @@ public:
 
     ShowDesktopInterfaceV1::State showDesktopState() const;
 
-    Q_INVOKABLE bool isLaunchpad(WLayerSurface *surface) const;
     Q_INVOKABLE void setLaunchpadMapped(WOutput *output, bool mapped);
     Q_INVOKABLE void showDesktop(WOutput *output);
     Q_INVOKABLE void cancelShowDesktop(SurfaceWrapper *excludeSurface = nullptr);
