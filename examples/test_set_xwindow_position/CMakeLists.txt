@@ -10,7 +10,7 @@ qt_add_executable(test-set-xwindow-position
 
 qt_generate_wayland_protocol_client_sources(test-set-xwindow-position
     FILES
-    ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-dde-shell-v1.xml
+    ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-xwindow-control-unstable-v1.xml
     NO_INCLUDE_CORE_ONLY
 )
 
