@@ -140,7 +140,7 @@ public:
     ~WindowOverlapCheckerInterface() override;
     void sendOverlapped(bool overlapped);
 
-    static void checkRegionalConflict(const QRegion &region);
+    static void checkRegionalConflict(const QList<QRect> &windowRects);
 
 Q_SIGNALS:
     void refresh();

@@ -606,15 +606,17 @@ void WindowOverlapCheckerInterface::sendOverlapped(bool overlapped)
     }
 }
 
-void WindowOverlapCheckerInterface::checkRegionalConflict(const QRegion &region)
+void WindowOverlapCheckerInterface::checkRegionalConflict(const QList<QRect> &windowRects)
 {
     for (auto &&[interface, checkRect] : s_conflictList.asKeyValueRange()) {
-        if (region.intersects(checkRect)) {
-            interface->sendOverlapped(true);
-            continue;
-        } else {
-            interface->sendOverlapped(false);
+        bool overlapped = false;
+        for (const QRect &rect : windowRects) {
+            if (rect.intersects(checkRect)) {
+                overlapped = true;
+                break;
+            }
         }
+        interface->sendOverlapped(overlapped);
     }
 }
 
