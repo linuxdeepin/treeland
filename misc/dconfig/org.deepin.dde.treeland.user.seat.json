@@ -155,6 +155,50 @@
             "description[zh_CN]": "收到 libinput HOLD BEGIN 事件后等待多少毫秒再触发 hold 手势动作。",
             "permissions": "readwrite",
             "visibility": "public"
+        },
+        "xkbLayout": {
+            "value": "",
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Keyboard Layout",
+            "name[zh_CN]": "键盘布局",
+            "description": "XKB keyboard layout(s). Comma-separated list for multiple layouts, e.g. \"us\" or \"cz,us\". Empty string means XKB default (\"us\").",
+            "description[zh_CN]": "XKB 键盘布局。多个布局用逗号分隔，如 \"us\" 或 \"cz,us\"。空字符串表示 XKB 默认值（\"us\"）。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "xkbModel": {
+            "value": "",
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Keyboard Model",
+            "name[zh_CN]": "键盘型号",
+            "description": "XKB keyboard model, e.g. \"pc104\" or \"pc105\". Empty string means XKB default.",
+            "description[zh_CN]": "XKB 键盘型号，如 \"pc104\" 或 \"pc105\"。空字符串表示 XKB 默认值。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "xkbVariant": {
+            "value": "",
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Keyboard Variant",
+            "name[zh_CN]": "键盘变体",
+            "description": "XKB keyboard variant(s). Comma-separated list matching the layouts, e.g. \"\" or \",dvorak\". Empty string means no variant (XKB default).",
+            "description[zh_CN]": "XKB 键盘变体。用逗号分隔以对应各个布局，如 \"\" 或 \",dvorak\"。空字符串表示无变体（XKB 默认值）。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "xkbOptions": {
+            "value": "",
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Keyboard Options",
+            "name[zh_CN]": "键盘选项",
+            "description": "XKB keyboard options, comma-separated, e.g. \"grp:win_space_toggle\". Empty string means no extra options.",
+            "description[zh_CN]": "XKB 键盘选项，逗号分隔，如 \"grp:win_space_toggle\"。空字符串表示无额外选项。",
+            "permissions": "readwrite",
+            "visibility": "public"
         }
     }
 }
