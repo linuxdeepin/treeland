@@ -43,6 +43,7 @@ private Q_SLOTS:
 private:
     bool initializeKeyboardSettings(KeyboardSettingsInterfaceV1 *interface);
     void applyNumLockToKeyboards();
+    void applyXkbConfig();
     static void setNumLockForSeat(WSeat *seat, bool enabled);
 
     SeatUserDConfig* m_seatDConfig = nullptr;
