@@ -1,4 +1,4 @@
-// Copyright (C) 2025 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2025-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include <QDebug>
@@ -10,20 +10,20 @@
 
 #include <qpa/qplatformnativeinterface.h>
 
-#include <qwayland-treeland-dde-shell-v1.h>
+#include <qwayland-treeland-xwindow-control-unstable-v1.h>
 
 #include <cstdlib>
 #include <unistd.h>
 
-class DDEShellManagerV1
-    : public QWaylandClientExtensionTemplate<DDEShellManagerV1>
-    , public QtWayland::treeland_dde_shell_manager_v1
+class XWindowControlV1
+    : public QWaylandClientExtensionTemplate<XWindowControlV1>
+    , public QtWayland::treeland_xwindow_control_v1
 {
     Q_OBJECT
 public:
-    DDEShellManagerV1()
-        : QWaylandClientExtensionTemplate<DDEShellManagerV1>(
-            treeland_dde_shell_manager_v1_interface.version)
+    XWindowControlV1()
+        : QWaylandClientExtensionTemplate<XWindowControlV1>(
+            treeland_xwindow_control_v1_interface.version)
     {
     }
 };
@@ -71,7 +71,7 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    DDEShellManagerV1 manager;
+    XWindowControlV1 control;
 
     struct wl_callback_listener callback_listener = { .done = []([[maybe_unused]] void *data,
                                                                  wl_callback *callback,
@@ -85,8 +85,8 @@ int main(int argc, char *argv[])
 
     QTimer timer;
     QObject::connect(&timer, &QTimer::timeout, [&] {
-        if (!manager.isActive()) {
-            qCritical() << "DDEShellManagerV1 is not active!";
+        if (!control.isActive()) {
+            qCritical() << "XWindowControlV1 is not active!";
             return;
         }
         struct wl_surface *surface = static_cast<wl_surface *>(
@@ -97,7 +97,7 @@ int main(int argc, char *argv[])
         wl_fixed_t dx = wl_fixed_from_int(640);
         wl_fixed_t dy = wl_fixed_from_int(0);
 
-        wl_callback *callback = manager.set_xwindow_position_relative(wid, surface, dx, dy);
+        wl_callback *callback = control.set_xwindow_position_relative(wid, surface, dx, dy);
         wl_callback_add_listener(callback, &callback_listener, nullptr);
         qWarning() << "Setting xwindow position relative, wait for result...";
     });

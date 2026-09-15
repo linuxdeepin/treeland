@@ -1931,6 +1931,7 @@ void Helper::init(Treeland::Treeland *treeland)
             &SessionManager::syncActiveSessionXWaylandPrimaryOutput);
     m_wallpaperColorV1 = m_server->attach<WallpaperColorInterfaceV1>();
     m_showDesktopInterfaceV1 = m_server->attach<ShowDesktopInterfaceV1>();
+    m_xWindowControlInterfaceV1 = m_server->attach<XWindowControlInterfaceV1>();
     m_virtualOutputInterfaceV1 = m_server->attach<VirtualOutputManagerInterfaceV1>();
 
     auto captureManagerV1 = m_server->attach<CaptureManagerV1>();
