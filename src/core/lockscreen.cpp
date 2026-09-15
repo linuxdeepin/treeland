@@ -117,6 +117,8 @@ void LockScreen::addOutput(Output *output)
         { output, std::unique_ptr<QQuickItem, void (*)(QQuickItem *)>(item, [](QQuickItem *item) {
               item->deleteLater();
           }) });
+
+    repositionLoginView();
 }
 
 bool LockScreen::isLocked() const
@@ -194,6 +196,7 @@ void LockScreen::createLoginView()
     connect(item, SIGNAL(animationPlayFinished()), this, SLOT(onAnimationPlayFinished()));
 
     m_loginView = item;
+    m_loginView->setZ(1);
     repositionLoginView();
 }
 
