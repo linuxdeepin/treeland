@@ -75,6 +75,10 @@ extern "C" void ftm_read_server_state(void *data)
     g_state.output_ready = !Helper::instance()->rootSurfaceContainer()->outputs().isEmpty() ? 1 : 0;
     g_state.wrapper_minimized = g_wrapper && g_wrapper->shellSurface()
         && g_wrapper->shellSurface()->isMinimized() ? 1 : 0;
+    g_state.wrapper_self_minimized = g_wrapper && g_wrapper->isMinimized() ? 1 : 0;
+    g_state.wrapper_state =
+        g_wrapper ? static_cast<int>(g_wrapper->surfaceState()) : -1;
+    g_state.wrapper_visible = g_wrapper && g_wrapper->isVisible() ? 1 : 0;
     g_state.wrapper_maximized = g_wrapper && g_wrapper->isMaximized() ? 1 : 0;
     g_state.wrapper_fullscreen = g_wrapper
         && g_wrapper->surfaceState() == SurfaceWrapper::State::Fullscreen ? 1 : 0;
