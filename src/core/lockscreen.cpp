@@ -14,6 +14,8 @@
 
 #include <woutput.h>
 
+#include <QTimer>
+
 #ifdef EXT_SESSION_LOCK_V1
 #include "rootsurfacecontainer.h"
 #include "surfacewrapper.h"
@@ -264,13 +266,14 @@ void LockScreen::onOutputEnabledChanged()
         return;
     }
 
-    if (!m_loginView) {
-        if (isVisible()) {
-            createLoginView();
-        }
+    if (!isVisible()) {
         return;
     }
-    repositionLoginView();
+
+    QTimer::singleShot(0, this, [this]() {
+        destroyLoginView();
+        createLoginView();
+    });
 }
 #if EXT_SESSION_LOCK_V1
 // ext_session_lock_v1 capabilities
