@@ -1345,19 +1345,3 @@ void ShellHandler::handleDdeShellSurfaceAdded(WSurface *surface, SurfaceWrapper 
                 wrapper->setAcceptKeyboardFocus(accept);
             });
 }
-
-void ShellHandler::setResourceManagerAtom(WAYLIB_SERVER_NAMESPACE::WXWayland *xwayland,
-                                          const QByteArray &value)
-{
-    auto xcb_conn = xwayland->xcbConnection();
-    auto root = xwayland->xcbScreen()->root;
-    xcb_change_property(xcb_conn,
-                        XCB_PROP_MODE_REPLACE,
-                        root,
-                        xwayland->atom("RESOURCE_MANAGER"),
-                        XCB_ATOM_STRING,
-                        8,
-                        value.size(),
-                        value.constData());
-    xcb_flush(xcb_conn);
-}
