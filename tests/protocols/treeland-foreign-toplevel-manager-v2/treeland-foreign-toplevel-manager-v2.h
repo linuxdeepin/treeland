@@ -14,6 +14,13 @@ int protocol_test_run(const char *socket_name);
 
 #define TEST_MSG_MAX 256
 
+enum ftm_wrapper_state {
+    FTM_WRAPPER_STATE_NORMAL = 0,
+    FTM_WRAPPER_STATE_MAXIMIZED = 1,
+    FTM_WRAPPER_STATE_FULLSCREEN = 2,
+    FTM_WRAPPER_STATE_TILING = 3,
+};
+
 struct test_result {
     const char *name;
     int         failed;
@@ -26,6 +33,9 @@ struct ftm_server_state {
     int      wrapper_in_workspace;
     int      mapped_xdg_toplevel;
     int      wrapper_minimized;
+    int      wrapper_self_minimized;
+    int      wrapper_state;
+    int      wrapper_visible;
     int      wrapper_maximized;
     int      wrapper_fullscreen;
     int      wrapper_activated;

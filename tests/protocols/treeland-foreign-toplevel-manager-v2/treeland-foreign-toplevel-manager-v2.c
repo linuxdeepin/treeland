@@ -17,6 +17,8 @@ struct test_case {
     int (*run)(struct test_ctx *ctx);
 };
 
+typedef void (*ftm_layout_request_fn)(struct treeland_foreign_toplevel_handle_v2 *handle);
+
 void test_init(struct test_ctx *ctx)
 {
     memset(ctx, 0, sizeof(*ctx));
@@ -407,6 +409,86 @@ static int unfullscreen_real_toplevel(struct test_ctx *ctx)
     return render_ack_and_read_server_state(ctx, &state) && !state.wrapper_fullscreen;
 }
 
+static void request_maximized(struct treeland_foreign_toplevel_handle_v2 *handle)
+{
+    treeland_foreign_toplevel_handle_v2_set_maximized(handle);
+}
+
+static void request_unmaximized(struct treeland_foreign_toplevel_handle_v2 *handle)
+{
+    treeland_foreign_toplevel_handle_v2_unset_maximized(handle);
+}
+
+static void request_fullscreen(struct treeland_foreign_toplevel_handle_v2 *handle)
+{
+    treeland_foreign_toplevel_handle_v2_set_fullscreen(handle, NULL);
+}
+
+static void request_unfullscreen(struct treeland_foreign_toplevel_handle_v2 *handle)
+{
+    treeland_foreign_toplevel_handle_v2_unset_fullscreen(handle);
+}
+
+static int minimize_keeps_layout_state(struct test_ctx *ctx,
+                                       ftm_layout_request_fn request_layout,
+                                       ftm_layout_request_fn request_unlayout,
+                                       int layout_state)
+{
+    if (!ctx->handle)
+        return 0;
+
+    request_layout(ctx->handle);
+    if (wl_display_roundtrip(ctx->display) < 0)
+        return 0;
+
+    struct ftm_server_state state;
+    if (!render_ack_and_read_server_state(ctx, &state)
+        || state.wrapper_state != layout_state)
+        return 0;
+
+    treeland_foreign_toplevel_handle_v2_set_minimized(ctx->handle);
+    if (wl_display_roundtrip(ctx->display) < 0)
+        return 0;
+    if (!read_server_state(ctx, &state))
+        return 0;
+    if (!state.wrapper_self_minimized || state.wrapper_state != layout_state
+        || state.wrapper_visible)
+        return 0;
+
+    treeland_foreign_toplevel_handle_v2_unset_minimized(ctx->handle);
+    if (wl_display_roundtrip(ctx->display) < 0)
+        return 0;
+    if (!render_ack_and_read_server_state(ctx, &state))
+        return 0;
+    if (state.wrapper_self_minimized || state.wrapper_state != layout_state
+        || !state.wrapper_visible)
+        return 0;
+
+    request_unlayout(ctx->handle);
+    if (wl_display_roundtrip(ctx->display) < 0)
+        return 0;
+    if (!render_ack_and_read_server_state(ctx, &state))
+        return 0;
+    return !state.wrapper_self_minimized && state.wrapper_visible
+           && state.wrapper_state == FTM_WRAPPER_STATE_NORMAL;
+}
+
+static int minimize_keeps_maximized_state(struct test_ctx *ctx)
+{
+    return minimize_keeps_layout_state(ctx,
+                                       request_maximized,
+                                       request_unmaximized,
+                                       FTM_WRAPPER_STATE_MAXIMIZED);
+}
+
+static int minimize_keeps_fullscreen_state(struct test_ctx *ctx)
+{
+    return minimize_keeps_layout_state(ctx,
+                                       request_fullscreen,
+                                       request_unfullscreen,
+                                       FTM_WRAPPER_STATE_FULLSCREEN);
+}
+
 static int activate_real_toplevel(struct test_ctx *ctx)
 {
     if (!ctx->handle || !ctx->seat)
@@ -473,6 +555,8 @@ static const struct test_case cases[] = {
     { "handle.unmaximize_changes_wrapper", unmaximize_real_toplevel },
     { "handle.fullscreen_changes_wrapper", fullscreen_real_toplevel },
     { "handle.unfullscreen_changes_wrapper", unfullscreen_real_toplevel },
+    { "handle.minimize_keeps_maximized_state", minimize_keeps_maximized_state },
+    { "handle.minimize_keeps_fullscreen_state", minimize_keeps_fullscreen_state },
     { "handle.activate_focuses_wrapper", activate_real_toplevel },
     { "handle.set_icon_geometry_changes_icon_geometry", set_icon_geometry_changes_icon_geometry },
     { "handle.close_requests_xdg_close", request_close },
