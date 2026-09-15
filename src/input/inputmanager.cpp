@@ -6,12 +6,14 @@
 #include "treelandconfig.hpp"
 #include "helper.h"
 #include "inputdevice.h"
+#include "common/treelandlogging.h"
 #include "modules/input-manager/inputmanagerinterfacev1.h"
 #include "seat/seatsmanager.h"
 #include "session/session.h"
 #include "xsettings/settingmanager.h"
 
 #include <libinput.h>
+#include <xkbcommon/xkbcommon.h>
 
 #include <wlr_all.h>
 
@@ -93,6 +95,13 @@ void InputManager::onConfigInitializeSucceed()
     }
 
     InputDevice::instance()->setHoldTimeout(m_seatDConfig->touchpadHoldTimeoutMs());
+
+    applyXkbConfig();
+
+    connect(m_seatDConfig, &SeatUserDConfig::xkbLayoutChanged, this, &InputManager::applyXkbConfig);
+    connect(m_seatDConfig, &SeatUserDConfig::xkbModelChanged, this, &InputManager::applyXkbConfig);
+    connect(m_seatDConfig, &SeatUserDConfig::xkbVariantChanged, this, &InputManager::applyXkbConfig);
+    connect(m_seatDConfig, &SeatUserDConfig::xkbOptionsChanged, this, &InputManager::applyXkbConfig);
 
     auto backend = Helper::instance()->backend();
     connect(backend,
@@ -569,6 +578,32 @@ void InputManager::applyNumLockToKeyboards()
             setNumLockForSeat(seat, globalConfig->keyboardNumLock());
         }
     }
+}
+
+void InputManager::applyXkbConfig()
+{
+    if (!m_seatDConfig || !isSeatDConfigInitialized(m_seatDConfig))
+        return;
+
+    struct xkb_rule_names rules = {};
+    QByteArray layout = m_seatDConfig->xkbLayout().toUtf8();
+    QByteArray model = m_seatDConfig->xkbModel().toUtf8();
+    QByteArray variant = m_seatDConfig->xkbVariant().toUtf8();
+    QByteArray options = m_seatDConfig->xkbOptions().toUtf8();
+    rules.layout = layout.constData();
+    rules.model = model.constData();
+    rules.variant = variant.constData();
+    rules.options = options.constData();
+
+    auto *seatManager = Helper::instance()->seatManager();
+    if (seatManager) {
+        const auto seats = seatManager->seats();
+        for (WSeat *seat : seats) {
+            seat->setXkbRuleNames(rules);
+        }
+    }
+
+    applyNumLockToKeyboards();
 }
 
 void InputManager::setNumLockForSeat(WSeat *seat, bool enabled)

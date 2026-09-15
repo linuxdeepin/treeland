@@ -10,6 +10,7 @@
 
 #include <QEvent>
 #include <QSharedData>
+#include <xkbcommon/xkbcommon.h>
 
 Q_MOC_INCLUDE(<wsurface.h>)
 
@@ -76,6 +77,8 @@ public:
 
     void attachInputDevice(WInputDevice *device);
     void detachInputDevice(WInputDevice *device);
+
+    void setXkbRuleNames(const struct xkb_rule_names &rules);
 
     // WSurfaceItem is a kind of shellObject
     static bool sendEvent(WSurface *target, QObject *shellObject, QObject *eventObject, QInputEvent *event);
