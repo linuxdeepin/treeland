@@ -1,10 +1,13 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "ddeshellattached.h"
+
 #include "ddeshellmanagerinterfacev1.h"
 
 #include <QTimer>
+
+#include <utility>
 
 DDEShellAttached::DDEShellAttached(QQuickItem *target, QObject *parent)
     : QObject(parent)
@@ -19,13 +22,7 @@ WindowOverlapChecker::WindowOverlapChecker(QQuickItem *target, QObject *parent)
     timer->setSingleShot(true);
     timer->setInterval(300);
 
-    connect(timer, &QTimer::timeout, this, [this] {
-        QRectF rect{ m_target->x(), m_target->y(), m_target->width(), m_target->height() };
-        region -= m_lastRect;
-        m_lastRect = rect.toRect();
-        region += m_lastRect;
-        WindowOverlapCheckerInterface::checkRegionalConflict(region);
-    });
+    connect(timer, &QTimer::timeout, this, &WindowOverlapChecker::updateOverlapRegion);
 
     auto update = [timer] {
         if (!timer->isActive()) {
@@ -37,17 +34,44 @@ WindowOverlapChecker::WindowOverlapChecker(QQuickItem *target, QObject *parent)
     connect(target, &QQuickItem::yChanged, update);
     connect(target, &QQuickItem::heightChanged, update);
     connect(target, &QQuickItem::widthChanged, update);
+    connect(target, &QQuickItem::visibleChanged, update);
     connect(target, &QQuickItem::destroyed, this, [this] {
-        region -= m_lastRect;
-        WindowOverlapCheckerInterface::checkRegionalConflict(region);
+        if (s_checkers.removeOne(this)) {
+            notifyOverlapChange();
+        }
     });
 
+    s_checkers.append(this);
     timer->start();
 }
 
 WindowOverlapChecker::~WindowOverlapChecker()
 {
-region -= m_lastRect;
+    if (s_checkers.removeOne(this)) {
+        notifyOverlapChange();
+    }
+}
+
+void WindowOverlapChecker::updateOverlapRegion()
+{
+    m_rect = m_target->isVisible()
+        ? QRectF{ m_target->x(), m_target->y(), m_target->width(), m_target->height() }.toRect()
+        : QRect();
+
+    notifyOverlapChange();
+}
+
+void WindowOverlapChecker::notifyOverlapChange()
+{
+    QList<QRect> windowRects;
+    windowRects.reserve(s_checkers.size());
+    for (const WindowOverlapChecker *checker : std::as_const(s_checkers)) {
+        if (!checker->m_rect.isEmpty()) {
+            windowRects.append(checker->m_rect);
+        }
+    }
+
+    WindowOverlapCheckerInterface::checkRegionalConflict(windowRects);
 }
 
 void WindowOverlapChecker::setOverlapped(bool overlapped)
