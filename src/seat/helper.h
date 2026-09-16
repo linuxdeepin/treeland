@@ -26,6 +26,7 @@
 #include <wseat.h>
 #include <wxdgdecorationmanager.h>
 #include <wxdgdialogmanagerv1.h>
+#include <wbackgroundeffectmanagerv1.h>
 #include <wxdgtopleveltagmanager.h>
 
 #include <QSet>
@@ -462,6 +463,7 @@ private:
     ShellHandler *m_shellHandler = nullptr;
     WXdgDecorationManager *m_xdgDecorationManager = nullptr;
     WXdgDialogManagerV1 *m_xdgDialogManagerV1 = nullptr;
+    WBackgroundEffectManagerV1 *m_backgroundEffectManagerV1 = nullptr;
     WXdgToplevelTagManagerV1 *m_xdgToplevelTagManagerV1 = nullptr;
     WForeignToplevel *m_foreignToplevel = nullptr;
     WExtForeignToplevelListV1 *m_extForeignToplevelListV1 = nullptr;
