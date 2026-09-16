@@ -12,6 +12,12 @@ SettingManager::SettingManager(xcb_connection_t *connection, QObject *parent)
     , m_resource(new XResource(connection, this))
     , m_settings(new XSettings(connection, this))
 {
+    m_resource->setPropertyValue(XResource::toByteArray(XResource::Xft_Antialias), 1);
+    m_resource->setPropertyValue(XResource::toByteArray(XResource::Xft_Hinting), 1);
+    m_resource->setPropertyValue(XResource::toByteArray(XResource::Xft_RGBA), QStringLiteral("rgb"));
+    m_settings->setPropertyValue(XSettings::toByteArray(XSettings::Xft_Antialias), 1);
+    m_settings->setPropertyValue(XSettings::toByteArray(XSettings::Xft_Hinting), 1);
+    m_settings->setPropertyValue(XSettings::toByteArray(XSettings::Xft_RGBA), QStringLiteral("rgb"));
 }
 
 SettingManager::~SettingManager()
