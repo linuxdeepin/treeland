@@ -77,6 +77,7 @@
 #include <wseat.h>
 #include <wsecuritycontextmanager.h>
 #include <wsocket.h>
+#include <ext-background-effect-v1-protocol.h>
 #include <wlr_all.h>
 #include <wxwayland.h>
 #include <wxwaylandsurface.h>
@@ -93,6 +94,7 @@
 
 #define EXT_DATA_CONTROL_MANAGER_V1_VERSION 1
 #define WLR_FRACTIONAL_SCALE_V1_VERSION 1
+#define EXT_BACKGROUND_EFFECT_MANAGER_V1_VERSION 1
 
 WaylandServer *WaylandServer::m_instance = nullptr;
 
@@ -476,6 +478,11 @@ void WaylandServer::installCommonProtocols()
     }
 
     wlr_fractional_scale_manager_v1_create(m_server->handle(), WLR_FRACTIONAL_SCALE_V1_VERSION);
+    if (!wlr_ext_background_effect_manager_v1_create(m_server->handle(),
+                                                     EXT_BACKGROUND_EFFECT_MANAGER_V1_VERSION,
+                                                     EXT_BACKGROUND_EFFECT_MANAGER_V1_CAPABILITY_BLUR)) {
+        qCWarning(lcTlCore) << "Failed to create ext-background-effect-manager-v1, blur will be unavailable";
+    }
     wlr_data_control_manager_v1_create(m_server->handle());
     wlr_ext_data_control_manager_v1_create(m_server->handle(), EXT_DATA_CONTROL_MANAGER_V1_VERSION);
     wlr_alpha_modifier_v1_create(m_server->handle());

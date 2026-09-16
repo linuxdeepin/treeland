@@ -31,7 +31,7 @@ public:
     static QImage::Format convertToDrmSupportedFormat(QImage::Format format);
     static uint32_t shmToDrmFormat(wl_shm_format_t shmFmt);
     static wl_shm_format_t drmToShmFormat(uint32_t drmFmt);
-    static QRegion fromPixmanRegion(pixman_region32 *region);
+    static QRegion fromPixmanRegion(const pixman_region32 *region);
     static bool toPixmanRegion(const QRegion &region, pixman_region32 *pixmanRegion);
     static QRect fromWLRBox(void *box);
     static void toWLRBox(const QRect &rect, void *box);
