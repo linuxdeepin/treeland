@@ -66,6 +66,30 @@ void ShortcutRunner::onActionTrigger(ShortcutAction action, const QString &name,
         helper->restoreFromShowDesktop();
         helper->workspace()->switchTo(5);
         break;
+    case ShortcutAction::Workspace7:
+        helper->restoreFromShowDesktop();
+        helper->workspace()->switchTo(6);
+        break;
+    case ShortcutAction::Workspace8:
+        helper->restoreFromShowDesktop();
+        helper->workspace()->switchTo(7);
+        break;
+    case ShortcutAction::Workspace9:
+        helper->restoreFromShowDesktop();
+        helper->workspace()->switchTo(8);
+        break;
+    case ShortcutAction::Workspace10:
+        helper->restoreFromShowDesktop();
+        helper->workspace()->switchTo(9);
+        break;
+    case ShortcutAction::Workspace11:
+        helper->restoreFromShowDesktop();
+        helper->workspace()->switchTo(10);
+        break;
+    case ShortcutAction::Workspace12:
+        helper->restoreFromShowDesktop();
+        helper->workspace()->switchTo(11);
+        break;
     case ShortcutAction::PrevWorkspace:
         helper->restoreFromShowDesktop();
         helper->workspace()->switchToPrev();
@@ -94,6 +118,13 @@ void ShortcutRunner::onActionTrigger(ShortcutAction action, const QString &name,
         auto surface = helper->activatedSurface();
         if (surface) {
             surface->unmaximize();
+        }
+        break;
+    }
+    case ShortcutAction::Minimize: {
+        auto surface = helper->activatedSurface();
+        if (surface) {
+            surface->minimize();
         }
         break;
     }
@@ -162,9 +193,6 @@ void ShortcutRunner::onActionTrigger(ShortcutAction action, const QString &name,
         break;
     case ShortcutAction::ShutdownMenu:
         helper->showShutdownMenu();
-        break;
-    case ShortcutAction::Quit:
-        Q_EMIT helper->requestQuit();
         break;
     case ShortcutAction::TaskSwitchNext:
     case ShortcutAction::TaskSwitchPrev:

@@ -23,8 +23,18 @@
 using ProtocolAction = QtWaylandServer::treeland_shortcut_manager_v3::action;
 static_assert(static_cast<int>(ProtocolAction::action_notify) == static_cast<int>(ShortcutAction::Notify),
               "treeland-shortcut-manager protocol action enum mismatch");
+static_assert(static_cast<int>(ProtocolAction::action_prev_workspace) == static_cast<int>(ShortcutAction::PrevWorkspace),
+              "treeland-shortcut-manager protocol action enum mismatch");
+static_assert(static_cast<int>(ProtocolAction::action_maximize) == static_cast<int>(ShortcutAction::Maximize),
+              "treeland-shortcut-manager protocol action enum mismatch");
+static_assert(static_cast<int>(ProtocolAction::action_show_desktop) == static_cast<int>(ShortcutAction::ShowDesktop),
+              "treeland-shortcut-manager protocol action enum mismatch");
+static_assert(static_cast<int>(ProtocolAction::action_taskswitch_next) == static_cast<int>(ShortcutAction::TaskSwitchNext),
+              "treeland-shortcut-manager protocol action enum mismatch");
 static_assert(static_cast<int>(ProtocolAction::action_taskswitch_sameapp_prev)
               == static_cast<int>(ShortcutAction::TaskSwitchSameAppPrev),
+              "treeland-shortcut-manager protocol action enum mismatch");
+static_assert(static_cast<int>(ProtocolAction::action_shutdown_menu) == static_cast<int>(ShortcutAction::ShutdownMenu),
               "treeland-shortcut-manager protocol action enum mismatch");
 
 struct KeyShortcut {
