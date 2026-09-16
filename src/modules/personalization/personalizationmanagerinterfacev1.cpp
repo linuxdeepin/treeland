@@ -2,6 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "personalizationmanagerinterfacev1.h"
+
+// DEPRECATED: This module is frozen. Use treeland-appearance-unstable-v1 and
+// treeland-appearance-manager-unstable-v1 (src/modules/appearance/) instead.
+// No new features will be added to this protocol.
 #include "surfacewrapper.h"
 
 #include "qwayland-server-treeland-personalization-manager-v1.h"
@@ -35,13 +39,14 @@ static QList<PersonalizationCursorContextV1 *> s_cursorContexts;
 static QList<PersonalizationFontContextV1 *> s_fontContexts;
 static QList<PersonalizationAppearanceContextV1 *> s_appearanceContexts;
 
-static std::optional<int32_t> protocolWindowThemeTypeToDConfig(uint32_t type)
+// Protocol theme_type (auto=1, light=2, dark=4) → DConfig windowColorScheme (0=light, 1=dark)
+static std::optional<int32_t> protocolThemeTypeToDConfig(uint32_t type)
 {
     switch (type) {
     case TREELAND_PERSONALIZATION_APPEARANCE_CONTEXT_V1_THEME_TYPE_LIGHT:
-        return 1;
+        return 0;
     case TREELAND_PERSONALIZATION_APPEARANCE_CONTEXT_V1_THEME_TYPE_DARK:
-        return 2;
+        return 1;
     case TREELAND_PERSONALIZATION_APPEARANCE_CONTEXT_V1_THEME_TYPE_AUTO:
         qCCritical(lcTlConfig)
             << "Protocol window theme type AUTO is not supported by dconfig.";
@@ -52,16 +57,17 @@ static std::optional<int32_t> protocolWindowThemeTypeToDConfig(uint32_t type)
     }
 }
 
-static uint32_t dconfigWindowThemeTypeToProtocol(int32_t type)
+// DConfig windowColorScheme (0=light, 1=dark) → protocol theme_type (auto=1, light=2, dark=4)
+static uint32_t dconfigToProtocolThemeType(int32_t type)
 {
     switch (type) {
-    case 1:
+    case 0:
         return TREELAND_PERSONALIZATION_APPEARANCE_CONTEXT_V1_THEME_TYPE_LIGHT;
-    case 2:
+    case 1:
         return TREELAND_PERSONALIZATION_APPEARANCE_CONTEXT_V1_THEME_TYPE_DARK;
     default:
         qCWarning(lcTlConfig)
-            << "Unknown dconfig windowThemeType:" << type << ", fallback to light.";
+            << "Unknown dconfig windowColorScheme:" << type << ", fallback to light.";
         return TREELAND_PERSONALIZATION_APPEARANCE_CONTEXT_V1_THEME_TYPE_LIGHT;
     }
 }
@@ -856,10 +862,10 @@ void PersonalizationManagerInterfaceV1::onAppearanceContextCreated(Personalizati
         }
     });
     connect(context, &PersonalizationAppearanceContextV1::windowThemeTypeChanged, this, [](uint32_t type) {
-        const auto dconfigType = protocolWindowThemeTypeToDConfig(type);
+        const auto dconfigType = protocolThemeTypeToDConfig(type);
         if (dconfigType.has_value()) {
-            Helper::instance()->config()->setWindowThemeType(*dconfigType);
-            Helper::syncPaletteTypeWithWindowThemeType(*dconfigType);
+            Helper::instance()->config()->setWindowColorScheme(*dconfigType);
+            Helper::syncPaletteTypeWithWindowColorScheme(*dconfigType);
         }
         for (auto *c : std::as_const(s_appearanceContexts)) {
             c->sendWindowThemeType(type);
@@ -889,8 +895,8 @@ void PersonalizationManagerInterfaceV1::onAppearanceContextCreated(Personalizati
     });
 
     connect(context, &PersonalizationAppearanceContextV1::requestWindowThemeType, context, [context] {
-        const auto protocolType = dconfigWindowThemeTypeToProtocol(
-            Helper::instance()->config()->windowThemeType());
+        const auto protocolType = dconfigToProtocolThemeType(
+            Helper::instance()->config()->windowColorScheme());
         context->sendWindowThemeType(protocolType);
     });
 
@@ -902,8 +908,8 @@ void PersonalizationManagerInterfaceV1::onAppearanceContextCreated(Personalizati
     context->sendIconTheme(Helper::instance()->config()->iconThemeName());
     context->sendActiveColor(Helper::instance()->config()->activeColor());
     context->sendWindowOpacity(Helper::instance()->config()->windowOpacity());
-    context->sendWindowThemeType(dconfigWindowThemeTypeToProtocol(
-        Helper::instance()->config()->windowThemeType()));
+    context->sendWindowThemeType(dconfigToProtocolThemeType(
+        Helper::instance()->config()->windowColorScheme()));
     context->sendWindowTitlebarHeight(Helper::instance()->config()->windowTitlebarHeight());
 }
 

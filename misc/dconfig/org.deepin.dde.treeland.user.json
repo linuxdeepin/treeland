@@ -233,14 +233,14 @@
             "permissions": "readwrite",
             "visibility": "public"
         },
-        "windowThemeType": {
-            "value": 1,
-            "serial": 0,
+        "windowColorScheme": {
+            "value": 0,
+            "serial": 1,
             "flags": [],
-            "name": "Global Window Theme Type",
-            "name[zh_CN]": "全局窗口主题类型",
-            "description": "System theme type: 1 light, 2 dark",
-            "description[zh_CN]": "系统主题类型：1 亮色，2 暗色",
+            "name": "Global Window Color Scheme",
+            "name[zh_CN]": "全局窗口配色",
+            "description": "Color scheme hint: 0 light, 1 dark",
+            "description[zh_CN]": "配色偏好：0 亮色，1 暗色",
             "permissions": "readwrite",
             "visibility": "public"
         },
