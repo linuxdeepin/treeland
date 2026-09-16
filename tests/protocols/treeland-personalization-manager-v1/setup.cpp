@@ -25,7 +25,7 @@ struct ConfigSnapshot {
     QString iconTheme;
     QString activeColor;
     qlonglong windowOpacity;
-    qlonglong windowThemeType;
+    qlonglong windowColorScheme;
     qlonglong windowTitlebarHeight;
 };
 
@@ -89,7 +89,7 @@ extern "C" void personalization_snapshot_config(void *data)
         .iconTheme = config->iconThemeName(),
         .activeColor = config->activeColor(),
         .windowOpacity = config->windowOpacity(),
-        .windowThemeType = config->windowThemeType(),
+        .windowColorScheme = config->windowColorScheme(),
         .windowTitlebarHeight = config->windowTitlebarHeight(),
     };
     g_configSnapshotValid = true;
@@ -114,8 +114,8 @@ extern "C" void personalization_restore_config(void *)
     config->setIconThemeName(g_configSnapshot.iconTheme);
     config->setActiveColor(g_configSnapshot.activeColor);
     config->setWindowOpacity(g_configSnapshot.windowOpacity);
-    config->setWindowThemeType(g_configSnapshot.windowThemeType);
+    config->setWindowColorScheme(g_configSnapshot.windowColorScheme);
     config->setWindowTitlebarHeight(g_configSnapshot.windowTitlebarHeight);
-    Helper::syncPaletteTypeWithWindowThemeType(static_cast<int32_t>(g_configSnapshot.windowThemeType));
+    Helper::syncPaletteTypeWithWindowColorScheme(static_cast<int32_t>(g_configSnapshot.windowColorScheme));
     g_configSnapshotValid = false;
 }

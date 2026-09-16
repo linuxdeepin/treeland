@@ -3,6 +3,10 @@
 
 #pragma once
 
+// DEPRECATED: This module is frozen. Use treeland-appearance-unstable-v1 and
+// treeland-appearance-manager-unstable-v1 (src/modules/appearance/) instead.
+// No new features will be added to this protocol.
+
 #include <wserver.h>
 #include <wxdgsurface.h>
 
@@ -11,25 +15,12 @@
 #include <QQmlEngine>
 #include <QQuickItem>
 
+#include "common/windowdecorations.h"
+
 class SurfaceWrapper;
 class PersonalizationManagerInterfaceV1;
 
 WAYLIB_SERVER_USE_NAMESPACE
-
-struct Shadow
-{
-    int32_t radius;
-    QPoint offset;
-    QColor color;
-    bool operator==(const Shadow &other) const = default;
-};
-
-struct Border
-{
-    int32_t width;
-    QColor color;
-    bool operator==(const Border &other) const = default;
-};
 
 class PersonalizationManagerInterfaceV1Private;
 class PersonalizationWindowContextV1Private;

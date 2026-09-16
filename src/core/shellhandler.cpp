@@ -310,9 +310,12 @@ void ShellHandler::createPrelaunchSplash(const QString &appId,
     }
     m_pendingPrelaunchAppIds.remove(appId);
 
-    const qlonglong effectiveType =
-        splashThemeType == 0 ? Helper::instance()->config()->windowThemeType() : splashThemeType;
-    const QColor splashColor = effectiveType == 1 ? QColor(lightPalette) : QColor(darkPalette);
+    // splashThemeType: 0 = follow system, 1 = light, 2 = dark
+    // windowColorScheme: 0 = light, 1 = dark
+    const bool dark = splashThemeType == 0
+                          ? Helper::instance()->config()->windowColorScheme() == 1
+                          : splashThemeType == 2;
+    const QColor splashColor = dark ? QColor(darkPalette) : QColor(lightPalette);
 
     auto *wrapper = new SurfaceWrapper(Helper::instance()->qmlEngine(),
                                        nullptr,
