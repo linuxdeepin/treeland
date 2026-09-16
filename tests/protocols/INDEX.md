@@ -42,6 +42,7 @@ Wayland 线上请求与事件；本文档规定发出请求后，测试必须观
 | [wallpaper-shell-unstable-v1](treeland-wallpaper-shell-unstable-v1/README.md) | I / P | wallpaper shell 与 notifier 生命周期 |
 | [wallpaper desktop 联合路径](treeland-wallpaper-desktop-v1/README.md) | P / E | manager 配置、shell surface 与真实 output 的关联 |
 | [show-desktop-v1](treeland-show-desktop-v1/README.md) | E / P | show-desktop 隐藏并恢复真实窗口 |
+| [treeland-xwindow-control-unstable-v1](treeland-xwindow-control-unstable-v1/README.md) | P | `set_xwindow_position_relative` 失败回调；成功路径需 Xwayland，当前环境未覆盖 |
 | [wine-window-management-unstable-v1](treeland-wine-window-management-unstable-v1/README.md) | P / E | 真实 wrapper 的位置与置顶层同步 |
 | [wine-window-state-unstable-v1](treeland-wine-window-state-unstable-v1/README.md) | P / E | 真实 wrapper 的最小化、attention 与可见性同步 |
 | [drm (`wl_drm`)](drm/README.md) | P / V（GPU 条件） | wlroots native global、GBM DMA-BUF 与真实纹理 readback |
@@ -78,7 +79,7 @@ request stub 算作 request 覆盖；生成的 client-protocol 文件本身不�
 | --- | --- | --- | --- |
 | app-id-resolver-v1 | 4 / 4 | `identify_request` 的 id、真实 pidfd；`respond` 转换同一 splash wrapper 并写入 app-id | resolver 断开 fallback、sandbox 后续策略、XWayland |
 | capture-unstable-v1 | 8 / 11 | `source_ready/failed`、`buffer/buffer_done/ready/failed`；64×64 红色像素读回 | session 的 `start/frame_done`，及 `frame/object/ready/cancel` 持久流；OUTPUT/REGION、cursor、mask |
-| dde-shell-v1 | 26 / 27 | checker/active/picker 事件；真实 wrapper DDE 元数据、lockscreen、picker PID | `set_xwindow_position_relative`；multitask 只证明 `toggle` 请求/信号，未证明真实 UI 状态；`shutdown/switch_user` 外部会话流程 |
+| dde-shell-v1 | 26 / 27 | checker/active/picker 事件；真实 wrapper DDE 元数据、lockscreen、picker PID | multitask 只证明 `toggle` 请求/信号，未证明真实 UI 状态；`shutdown/switch_user` 外部会话流程（`set_xwindow_position_relative` 已迁移至 `treeland-xwindow-control-unstable-v1`） |
 | ddm-v1 | 0 / 7 | 无未请求 VT event；生产连接生命周期 | 所有会话/渲染控制 request 与 `switch_to_vt/acquire_vt` 的实际系统流程 |
 | foreign-toplevel-manager-v2 | 16 / 16 | `toplevel/identifier/closed`；真实最小化、最大化、全屏、焦点与 icon rectangle；最小化与布局状态正交（含取消布局后不卡在最小化） | `pid/title/app_id/output_enter/output_leave/state/done/parent` payload；指定 `wl_output` 的 fullscreen hint、preview 像素；`Tiling` 组合 |
 | input-manager-unstable-v1 | 1 / 22 | 默认测试仅证明空设备 manager 可绑定；uinput target 断言 Keyboard capability 热插拔 | settings/apply、真实 mouse/touchpad 配置生效、无设备 failed；uinput E 层需显式启用并实际执行 |
