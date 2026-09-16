@@ -676,6 +676,38 @@ QRectF WSurfaceItem::boundingRect() const
     return d->boundingRect;
 }
 
+bool WSurfaceItem::backgroundBlurEnabled() const
+{
+    Q_D(const WSurfaceItem);
+    return !pixman_region32_empty(&d->backgroundBlurRegion);
+}
+
+void WSurfaceItemPrivate::updateBackgroundBlurRegion()
+{
+    Q_Q(WSurfaceItem);
+
+    // No surface (yet/anymore): clear any residual region so
+    // backgroundBlurEnabled() doesn't keep reporting stale state.
+    const auto *state = (surface && surface->handle())
+            ? wlr_ext_background_effect_v1_get_surface_state(surface->handle())
+            : nullptr;
+
+    if (state) {
+        if (pixman_region32_equal(&state->blur_region, &backgroundBlurRegion))
+            return;
+        pixman_region32_copy(&backgroundBlurRegion, &state->blur_region);
+    } else {
+        if (pixman_region32_empty(&backgroundBlurRegion))
+            return;
+        pixman_region32_clear(&backgroundBlurRegion);
+    }
+
+    // TODO: convert the pixman region to QRegion and expose it, so consumers
+    // can observe the actual blur geometry instead of just the enabled flag.
+
+    Q_EMIT q->backgroundBlurRegionChanged();
+}
+
 WSurfaceItem *WSurfaceItem::fromFocusObject(QObject *focusObject)
 {
     if (auto item = qobject_cast<EventItem*>(focusObject))
@@ -720,6 +752,10 @@ void WSurfaceItem::setSurface(WSurface *surface)
 
     if (auto content = d->getItemContent())
         content->setSurface(surface);
+
+    // Sync the blur region with the new surface; clears any residual region
+    // when the surface is reset or replaced.
+    d->updateBackgroundBlurRegion();
 
     Q_EMIT surfaceChanged();
 }
@@ -1075,6 +1111,8 @@ void WSurfaceItem::onSurfaceCommit()
 
     updateSurfaceState();
 
+    d->updateBackgroundBlurRegion();
+
     // Maybe the beforeRequestResizeSurfaceStateSeq is set by resizeSurfaceToItemSize,
     // the resizeSurfaceToItemSize wants to resize the wl_surface to current size of WSurfaceitem,
     // If change the WSurfaceItem's size at here, you will see the WSurfaceItem flash.
@@ -1194,11 +1232,12 @@ void WSurfaceItem::updateSurfaceState()
 WSurfaceItemPrivate::WSurfaceItemPrivate()
 {
     smooth = true;
+    pixman_region32_init(&backgroundBlurRegion);
 }
 
 WSurfaceItemPrivate::~WSurfaceItemPrivate()
 {
-
+    pixman_region32_fini(&backgroundBlurRegion);
 }
 
 void WSurfaceItemPrivate::initForSurface()

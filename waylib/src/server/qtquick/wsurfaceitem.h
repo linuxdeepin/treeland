@@ -115,6 +115,7 @@ class WAYLIB_SERVER_EXPORT WSurfaceItem : public QQuickItem
     Q_PROPERTY(qreal bufferScale READ bufferScale NOTIFY bufferScaleChanged)
     Q_PROPERTY(QQmlComponent* delegate READ delegate WRITE setDelegate NOTIFY delegateChanged FINAL)
     Q_PROPERTY(QRectF boundingRect READ boundingRect NOTIFY boundingRectChanged)
+    Q_PROPERTY(bool backgroundBlurEnabled READ backgroundBlurEnabled NOTIFY backgroundBlurRegionChanged)
     Q_PROPERTY(bool subsurfacesVisible READ subsurfacesVisible WRITE setSubsurfacesVisible NOTIFY subsurfacesVisibleChanged FINAL)
     Q_PROPERTY(bool ready READ isReady NOTIFY readyChanged FINAL)
     QML_NAMED_ELEMENT(SurfaceItem)
@@ -150,6 +151,10 @@ public:
     QRectF boundingRect() const override;
 
     static WSurfaceItem *fromFocusObject(QObject *focusObject);
+
+    // Whether the surface currently has a committed non-empty
+    // ext-background-effect-v1 blur region.
+    bool backgroundBlurEnabled() const;
 
     WSurface *surface() const;
     void setSurface(WSurface *newSurface);
@@ -219,6 +224,7 @@ Q_SIGNALS:
     void delegateChanged();
     void shellSurfaceChanged();
     void boundingRectChanged();
+    void backgroundBlurRegionChanged();
     void subsurfacesVisibleChanged();
     void readyChanged();
 

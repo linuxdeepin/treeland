@@ -232,3 +232,10 @@ path = ["waylib/src/server/protocols/private/text-input-unstable-v2.xml"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "None"
 SPDX-License-Identifier = "HPND"
+
+# Vendored wlroots extra files for waylib (MIT, upstream wlroots)
+[[annotations]]
+path = ["waylib/src/server/wlroots_extra/**"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "wlroots contributors"
+SPDX-License-Identifier = "MIT"

@@ -229,7 +229,7 @@ wl_shm_format_t WTools::drmToShmFormat(uint32_t drmFmt)
     }
 }
 
-QRegion WTools::fromPixmanRegion(pixman_region32 *region)
+QRegion WTools::fromPixmanRegion(const pixman_region32 *region)
 {
     int rectCount = 0;
     auto rects = pixman_region32_rectangles(region, &rectCount);

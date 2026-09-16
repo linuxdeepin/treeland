@@ -10,6 +10,7 @@
 #include <QQuickWindow>
 #include <QSGImageNode>
 #include <QSGRenderNode>
+#include <pixman.h>
 #include <private/qquickitem_p.h>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -34,6 +35,7 @@ public:
     void initForDelegate();
 
     void updateSubsurfaceItem();
+    void updateBackgroundBlurRegion();
     void onPaddingsChanged();
     void updateContentPosition();
     WSurfaceItem *ensureSubsurfaceItem(WSubsurface *subsurface);
@@ -73,6 +75,7 @@ public:
     QPointer<WSurface> surface;
     QPointer<WToplevelSurface> shellSurface;
     std::unique_ptr<SurfaceState> surfaceState;
+    pixman_region32_t backgroundBlurRegion;
     QQuickItem *contentContainer = nullptr;
     QQmlComponent *delegate = nullptr;
     bool delegateIsDirty = false;

@@ -219,7 +219,7 @@ void SurfaceProtocolController::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
         updateNoTitlebar();
 
         auto updateBlur = [attached] {
-            attached->surfaceWrapper()->setBlur(attached->backgroundType() == Personalization::BackgroundType::Blur);
+            attached->surfaceWrapper()->setBlurPersonalization(attached->backgroundType() == Personalization::BackgroundType::Blur);
         };
         connect(attached, &Personalization::backgroundTypeChanged, this, updateBlur);
 

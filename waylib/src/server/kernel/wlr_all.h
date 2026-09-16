@@ -78,6 +78,7 @@ extern "C" {
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/render/wlr_texture.h>
 #include <wlr/types/wlr_alpha_modifier_v1.h>
+#include <wlr_ext_background_effect_v1.h>
 #include <wlr/types/wlr_buffer.h>
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_cursor.h>
