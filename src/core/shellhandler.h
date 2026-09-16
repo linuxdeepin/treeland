@@ -35,6 +35,7 @@ class ForeignToplevelManagerInterfaceV2;
 class PrelaunchSplash;
 class WineWindowStateManager;
 class WineWindowManager;
+class CaptureSnapV1;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WServer;
@@ -74,6 +75,7 @@ public:
     [[nodiscard]] Workspace *workspace() const;
     [[nodiscard]] SurfaceContainer *popupContainer() const;
     [[nodiscard]] SurfaceContainer *privilegedOverlayContainer() const;
+    [[nodiscard]] SurfaceContainer *captureContainer() const;
     [[nodiscard]] RootSurfaceContainer *rootSurfaceContainer() const;
     [[nodiscard]] ForeignToplevelManagerInterfaceV2 *foreignToplevel() const;
 
@@ -96,6 +98,13 @@ public:
     }
 
     [[nodiscard]] WAYLIB_SERVER_NAMESPACE::WInputMethodHelper *inputMethodHelper() const { return m_inputMethodHelper; }
+
+    void setCaptureSnap(CaptureSnapV1 *snap);
+
+    [[nodiscard]] CaptureSnapV1 *captureSnap() const
+    {
+        return m_captureSnap;
+    }
 
 Q_SIGNALS:
     void surfaceWrapperAdded(SurfaceWrapper *wrapper);
@@ -135,6 +144,7 @@ private:
     void setupSurfaceWindowMenu(SurfaceWrapper *wrapper);
     void updateLayerSurfaceContainer(SurfaceWrapper *surface);
     void registerSurfaceToForeignToplevel(SurfaceWrapper *wrapper);
+    void applyCaptureMask(SurfaceWrapper *wrapper);
     void handleDdeShellSurfaceAdded(WAYLIB_SERVER_NAMESPACE::WSurface *surface,
                                     SurfaceWrapper *wrapper);
     void updateXWaylandDesktopProperties();
@@ -191,6 +201,7 @@ private:
     LayerSurfaceContainer *m_overlayContainer = nullptr;
     SurfaceContainer *m_popupContainer = nullptr;
     SurfaceContainer *m_privilegedOverlayContainer = nullptr;
+    SurfaceContainer *m_captureContainer = nullptr;
     IMCandidatePanelManager *m_imCandidatePanelManager = nullptr;
     QObject *m_windowMenu = nullptr;
     // Prelaunch wrappers created before binding to a real shell surface
@@ -208,4 +219,5 @@ private:
     AppIdResolverManager *m_appIdResolverManager = nullptr;
     LayerShellExtensionManagerInterfaceV1 *m_layerShellExtensionManagerInterfaceV1 = nullptr;
     WindowConfigStore *m_windowConfigStore = nullptr;
+    CaptureSnapV1 *m_captureSnap = nullptr;
 };
