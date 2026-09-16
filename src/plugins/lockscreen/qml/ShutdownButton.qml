@@ -10,18 +10,38 @@ import QtQuick.Layouts
 Button {
     id: root
     visible: enabled
+    focusPolicy: Qt.TabFocus
+    D.ColorSelector.inactived: false
 
     property D.Palette backgroundColor: D.Palette {
         normal: Qt.rgba(1.0, 1.0, 1.0, 0.3)
-        hovered: Qt.rgba(1.0, 1.0, 1.0, 0.5)
-        pressed: Qt.rgba(1.0, 1.0, 1.0, 0.1)
+        hovered: Qt.rgba(1.0, 1.0, 1.0, 0.3)
+        pressed: Qt.rgba(1.0, 1.0, 1.0, 0.5)
+        normalDark: Qt.rgba(1.0, 1.0, 1.0, 0.3)
+        hoveredDark: Qt.rgba(1.0, 1.0, 1.0, 0.3)
+        pressedDark: Qt.rgba(1.0, 1.0, 1.0, 0.5)
     }
-    property D.Palette textColor: D.Palette {
+
+    property D.Palette focusBackgroundColor: D.Palette {
+        normal: Qt.rgba(1.0, 1.0, 1.0, 0.1)
+        hovered: Qt.rgba(1.0, 1.0, 1.0, 0.3)
+        pressed: Qt.rgba(1.0, 1.0, 1.0, 0.5)
+        normalDark: Qt.rgba(1.0, 1.0, 1.0, 0.1)
+        hoveredDark: Qt.rgba(1.0, 1.0, 1.0, 0.3)
+        pressedDark: Qt.rgba(1.0, 1.0, 1.0, 0.5)
+    }
+
+    property D.Palette contentTextColor: D.Palette {
         normal: Qt.rgba(1.0, 1.0, 1.0, 1.0)
         hovered: Qt.rgba(0.0, 0.0, 0.0, 0.7)
         pressed: Qt.rgba(0.0, 0.0, 0.0, 0.7)
+        normalDark: Qt.rgba(1.0, 1.0, 1.0, 1.0)
+        hoveredDark: Qt.rgba(0.0, 0.0, 0.0, 0.7)
+        pressedDark: Qt.rgba(0.0, 0.0, 0.0, 0.7)
     }
-    palette.buttonText: root.D.ColorSelector.textColor
+
+    palette.windowText: root.D.ColorSelector.contentTextColor
+    palette.buttonText: root.D.ColorSelector.contentTextColor
 
     icon {
         width: 40
@@ -47,21 +67,17 @@ Button {
                 RoundBlur {
                     anchors.fill: parent
                     radius: btn.width / 2
-                    color: root.D.ColorSelector.backgroundColor
-                }
-                D.OutsideBoxBorder {
-                    anchors.fill: parent
-                    visible: root.pressed
-                    borderWidth: 3
-                    radius: width / 2
-                    color: Qt.rgba(1.0, 1.0, 1.0, 0.3)
+                    color: root.activeFocus
+                           ? root.D.ColorSelector.focusBackgroundColor
+                           : root.D.ColorSelector.backgroundColor
                 }
                 D.FocusBoxBorder {
                     visible: root.activeFocus
                     anchors.fill: parent
-                    borderWidth: 2
+                    anchors.margins: 1
+                    borderWidth: 3
                     radius: width / 2
-                    color: Qt.rgba(1.0, 1.0, 1.0, 0.6)
+                    color: Qt.rgba(1.0, 1.0, 1.0, 0.3)
                 }
             }
         }
@@ -78,28 +94,24 @@ Button {
             topPadding: 4
             bottomPadding: 4
             text: root.text
-            color: root.D.ColorSelector.textColor
+            color: root.D.ColorSelector.contentTextColor
 
             background: Item {
                 visible: root.pressed || root.hovered || root.activeFocus
                 RoundBlur {
                     anchors.fill: parent
                     radius: 6
-                    color: root.D.ColorSelector.backgroundColor
-                }
-                D.OutsideBoxBorder {
-                    visible: root.pressed
-                    anchors.fill: parent
-                    borderWidth: 2
-                    radius: 6
-                    color: Qt.rgba(1.0, 1.0, 1.0, 0.3)
+                    color: root.activeFocus 
+                           ? root.D.ColorSelector.focusBackgroundColor
+                           : root.D.ColorSelector.backgroundColor
                 }
                 D.FocusBoxBorder {
                     visible: root.activeFocus
                     anchors.fill: parent
+                    anchors.margins: 1
                     borderWidth: 2
                     radius: 6
-                    color: Qt.rgba(1.0, 1.0, 1.0, 0.6)
+                    color: Qt.rgba(1.0, 1.0, 1.0, 0.3)
                 }
             }
         }
