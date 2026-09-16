@@ -25,7 +25,6 @@ Wayland 线上请求与事件；本文档规定发出请求后，测试必须观
 | --- | --- | --- |
 | [测试框架架构](framework/README.md) | 基础设施 | runner、fixture、C client、生产状态桥接与 E/V 断言边界 |
 | [app-id-resolver-v1](treeland-app-id-resolver-v1/README.md) | I / E | resolver pidfd 应答；返回 app-id 转换真实 splash wrapper 为 xdg window |
-| [capture-unstable-v1](treeland-capture-unstable-v1/README.md) | E / V / P | 真实窗口选择、frame copy 与目标 buffer 像素；无 source 错误 |
 | [dde-shell-v1](treeland-dde-shell-v1/README.md) | E / P | mapped wrapper 的 DDE 元数据、锁屏；picker 的真实选中/PID 回传测试待执行确认 |
 | [active-notify-unstable-v1](treeland-active-notify-unstable-v1/README.md) | P | notifier 创建/重建与无输入不发事件边界 |
 | [ddm-v1](treeland-ddm-v1/README.md) | I | 客户端连接生命周期 |
@@ -112,7 +111,6 @@ request stub 算作 request 覆盖；生成的 client-protocol 文件本身不�
 | 协议 | request（已调用 / XML） | 已断言的 event 或生产结果 | 主要未覆盖 request / event / 业务结果 |
 | --- | --- | --- | --- |
 | app-id-resolver-v1 | 4 / 4 | `identify_request` 的 id、真实 pidfd；`respond` 转换同一 splash wrapper 并写入 app-id | resolver 断开 fallback、sandbox 后续策略、XWayland |
-| capture-unstable-v1 | 8 / 11 | `source_ready/failed`、`buffer/buffer_done/ready/failed`；64×64 红色像素读回 | session 的 `start/frame_done`，及 `frame/object/ready/cancel` 持久流；OUTPUT/REGION、cursor、mask |
 | dde-shell-v1 | 26 / 27 | checker/active/picker 事件；真实 wrapper DDE 元数据、lockscreen、picker PID | multitask 只证明 `toggle` 请求/信号，未证明真实 UI 状态；`shutdown/switch_user` 外部会话流程（`set_xwindow_position_relative` 已迁移至 `treeland-xwindow-control-unstable-v1`） |
 | active-notify-unstable-v1 | 2 / 2 | notifier 创建/重建；无真实输入不伪造事件 | 真实输入驱动的 activity/drag 事件（uinput）、null seat 错误、多 notifier/seat、与 v1 并行双发 |
 | ddm-v1 | 0 / 7 | 无未请求 VT event；生产连接生命周期 | 所有会话/渲染控制 request 与 `switch_to_vt/acquire_vt` 的实际系统流程 |
