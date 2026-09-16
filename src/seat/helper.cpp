@@ -44,6 +44,8 @@
 #include "modules/keyboard-state-notify/keyboardstatenotifymanagerinterfacev1.h"
 #include "modules/output-manager/outputmanagement.h"
 #include "modules/personalization/personalizationmanagerinterfacev1.h"
+#include "modules/appearance/appearanceinterfacev1.h"
+#include "modules/appearance/appearancemanagerinterfacev1.h"
 #include "modules/resource/treelandremotesource.h"
 #include "modules/screensaver/screensaverinterfacev2.h"
 #include "modules/shortcut/shortcutcontroller.h"
@@ -382,26 +384,26 @@ TreelandConfig *Helper::globalConfig()
     return m_globalConfig.get();
 }
 
-void Helper::syncPaletteTypeWithWindowThemeType(int32_t themeType)
+void Helper::syncPaletteTypeWithWindowColorScheme(int32_t colorScheme)
 {
     auto *guiHelper = DTK_GUI_NAMESPACE::DGuiApplicationHelper::instance();
     if (!guiHelper) {
         qCCritical(lcTlConfig) << "DGuiApplicationHelper instance not available, cannot sync "
-                                      "palette type with window theme type.";
+                                      "palette type with window color scheme.";
         return;
     }
 
-    qCDebug(lcTlConfig) << "Syncing palette type with window theme type:" << themeType;
+    qCDebug(lcTlConfig) << "Syncing palette type with window color scheme:" << colorScheme;
 
-    switch (themeType) {
-    case 2:
+    switch (colorScheme) {
+    case 1:
         guiHelper->setPaletteType(Dtk::Gui::DGuiApplicationHelper::DarkType);
         break;
-    case 1:
+    case 0:
         guiHelper->setPaletteType(Dtk::Gui::DGuiApplicationHelper::LightType);
         break;
     default:
-        qCWarning(lcTlConfig) << "Unknown windowThemeType:" << themeType
+        qCWarning(lcTlConfig) << "Unknown windowColorScheme:" << colorScheme
                                   << ", fallback to light.";
         guiHelper->setPaletteType(Dtk::Gui::DGuiApplicationHelper::LightType);
         break;
@@ -1950,6 +1952,10 @@ void Helper::init(Treeland::Treeland *treeland)
         });
     m_personalizationInterfaceV1 = m_server->attach<PersonalizationManagerInterfaceV1>();
 
+    // New protocols (treeland-protocols 0.6.0)
+    m_appearanceInterfaceV1 = m_server->attach<AppearanceInterfaceV1>();
+    m_appearanceManagerInterfaceV1 = m_server->attach<AppearanceManagerInterfaceV1>();
+
     auto updateCurrentUser = [this] {
         m_config.reset(TreelandUserConfig::createByName("org.deepin.dde.treeland.user",
                                                   "org.deepin.dde.treeland",
@@ -1975,7 +1981,7 @@ void Helper::init(Treeland::Treeland *treeland)
         m_inputManager->setupSeatUserConfig(m_userModel->currentUserName());
         auto onConfigInitialized = [this] {
             m_sessionManager->syncActiveSessionCursorSettings();
-            syncPaletteTypeWithWindowThemeType(m_config->windowThemeType());
+            syncPaletteTypeWithWindowColorScheme(m_config->windowColorScheme());
             m_wallpaperManager->updateWallpaperConfig();
             tryInitRemoteSource();
             //TODO: Isolate workspaces for different users to prevent them from sharing the same one.

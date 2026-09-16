@@ -130,6 +130,7 @@ qt_add_qml_module(libtreeland
         ${SEAT_USER_CONFIG}
         common/treelandlogging.cpp
         common/treelandlogging.h
+        common/windowdecorations.h
         core/layersurfacecontainer.cpp
         core/layersurfacecontainer.h
         core/qmlengine.cpp

@@ -4,7 +4,7 @@ if(BUILD_TREELAND_PROTOCOL_TESTS)
     add_subdirectory(protocols)
 endif()
 
-add_subdirectory(test_protocol_personalization)
+add_subdirectory(test_protocol_appearance)
 add_subdirectory(test_protocol_primary-output)
 add_subdirectory(test_protocol_shortcut)
 add_subdirectory(test_protocol_virtual-output)

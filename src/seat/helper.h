@@ -107,6 +107,8 @@ class Output;
 class OutputManager;
 class OutputManagerV1;
 class PersonalizationManagerInterfaceV1;
+class AppearanceInterfaceV1;
+class AppearanceManagerInterfaceV1;
 class RootSurfaceContainer;
 class ScreensaverInterfaceV2;
 class SessionManager;
@@ -159,7 +161,7 @@ public:
     explicit Helper(QObject *parent = nullptr);
     ~Helper() override;
 
-    static void syncPaletteTypeWithWindowThemeType(int32_t themeType);
+    static void syncPaletteTypeWithWindowColorScheme(int32_t colorScheme);
 
     enum class OutputMode
     {
@@ -467,6 +469,8 @@ private:
     PointerConstraintsManager *m_pointerConstraintsManager = nullptr;
     ShortcutManagerV2 *m_shortcutManager = nullptr;
     PersonalizationManagerInterfaceV1 *m_personalizationInterfaceV1 = nullptr;
+    AppearanceInterfaceV1 *m_appearanceInterfaceV1 = nullptr;
+    AppearanceManagerInterfaceV1 *m_appearanceManagerInterfaceV1 = nullptr;
     WallpaperColorInterfaceV1 *m_wallpaperColorV1 = nullptr;
     WOutputManagerV1 *m_outputManager = nullptr;
     WXdgOutputManager *m_xwaylandOutputManager = nullptr;

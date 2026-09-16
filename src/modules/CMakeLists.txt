@@ -27,6 +27,7 @@ link_libraries(
 add_subdirectory(foreign-toplevel)
 add_subdirectory(output-manager)
 add_subdirectory(personalization)
+add_subdirectory(appearance)
 add_subdirectory(shortcut)
 add_subdirectory(wallpaper-color)
 add_subdirectory(show-desktop)

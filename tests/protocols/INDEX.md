@@ -33,6 +33,7 @@ Wayland 线上请求与事件；本文档规定发出请求后，测试必须观
 | [keyboard-state-notify-unstable-v1](treeland-keyboard-state-notify-unstable-v1/README.md) | P | watcher 配置与空键盘/空 modifier 边界 |
 | [output-manager-v1](treeland-output-manager-v1/README.md) | I / P | 真实 `wl_output` 的 primary-output 链路 |
 | [personalization-manager-v1](treeland-personalization-manager-v1/README.md) | E / I | 个性化状态挂接到真实 wrapper；font/appearance 配置的 setter/getter 生产回读与恢复 |
+| appearance-v1（冒烟测试） | I | appearance/manager 接口创建与名称校验（`tests/test_protocol_appearance`）；无 C-client 协议测试 | 推送事件 payload、setter 请求、DConfig 广播与配置替换 |
 | [prelaunch-splash-v2](treeland-prelaunch-splash-v2/README.md) | I / E | splash 请求/关闭信号；生产 splash wrapper 创建、加入 workspace 与销毁 |
 | [screensaver-v1](treeland-screensaver-v1/README.md) | E / P | 真实 ext-idle 抑制生命周期 |
 | [shortcut-manager-v2](treeland-shortcut-manager-v2/README.md) | E / P | 聚焦窗口捕获与快捷键激活 |
@@ -101,11 +102,14 @@ request stub 算作 request 覆盖；生成的 client-protocol 文件本身不�
 
 ### 未纳入上述覆盖率的 XML
 
-以下 3 个 XML 仍由协议包提供，但当前没有对应的已注册生产测试 target，故不混入 185 的
+以下 5 个 XML 仍由协议包提供，但当前没有对应的已注册生产测试 target，故不混入 148 的
 分母，也不能被视为“已覆盖”：
 
 | XML | request / event | 当前状态与缺口 |
 | --- | --- | --- |
+| `treeland-appearance-unstable-v1` | — | 新增 0.6.0 协议；仅有冒烟测试（接口创建/名称校验），无 C-client 覆盖 |
+| `treeland-appearance-manager-unstable-v1` | — | 新增 0.6.0 协议；仅有冒烟测试，无 C-client 覆盖 |
+| `treeland-decoration-unstable-v1` | — | 0.6.0 新增协议；生产实现尚未注册，无测试 |
 | `treeland-prelaunch-splash-v1` | 2 / 0 | 已由 v2 取代；未验证 v1 compatibility global 或迁移策略 |
 | `treeland-shortcut-manager-v1` | 3 / 1 | 已由 v2 取代；未验证 v1 compatibility global、`shortcut` event |
 | `treeland-remote-subsurface-unstable-v1` | 8 / 3 | 无测试目录；export token、remote subsurface 创建、位置/堆叠、错误 event 与真实 scene 结果均未覆盖 |
