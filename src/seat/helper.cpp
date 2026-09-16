@@ -1708,6 +1708,15 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
             wrapper->setCoverEnabled(true);
     }
 
+    // ext-background-effect-v1 blur integration
+    // XWayland surfaces cannot attach ext-background-effect objects; skip the
+    // per-commit sync for them. Also guard against surfaces not yet created
+    // (pre-launch splash).
+    if (!isXwayland && wrapper->surface()) {
+        wrapper->syncBackgroundEffectBlur();
+        connect(wrapper->surface(), &WSurface::commit, wrapper, &SurfaceWrapper::syncBackgroundEffectBlur);
+    }
+
     if (isXwayland) {
         auto xwaylandSurface = qobject_cast<WXWaylandSurface *>(wrapper->shellSurface());
         auto updateDecorationTitleBar = [wrapper, xwaylandSurface, sessionManager = m_sessionManager]() {
@@ -2307,6 +2316,7 @@ void Helper::init(Treeland::Treeland *treeland)
 
     m_server->attach<WRemoteSubsurfaceManagerV1>();
     m_server->attach<WCursorShapeManagerV1>();
+    m_backgroundEffectManagerV1 = m_server->attach<WBackgroundEffectManagerV1>();
     m_pointerConstraintsV1 = m_server->attach<WPointerConstraintsV1>();
     m_pointerConstraintsManager = new PointerConstraintsManager(m_pointerConstraintsV1, this);
     wlr_fractional_scale_manager_v1_create(m_server->handle(), WLR_FRACTIONAL_SCALE_V1_VERSION);

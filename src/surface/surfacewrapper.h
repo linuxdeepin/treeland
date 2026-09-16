@@ -327,6 +327,10 @@ public:
     bool blur() const;
     void setBlur(bool blur);
 
+    // Sync the blur state from the ext-background-effect-v1 protocol surface
+    // state (a non-empty blur region means the surface should be blurred).
+    void syncBackgroundEffectBlur();
+
     bool coverEnabled() const;
     void setCoverEnabled(bool enabled);
 

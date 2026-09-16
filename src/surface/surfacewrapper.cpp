@@ -23,6 +23,7 @@
 #include <wxdgtoplevelsurfaceitem.h>
 #include <wxwaylandsurface.h>
 #include <wxwaylandsurfaceitem.h>
+#include <wlr_all.h>
 
 #include <QColor>
 #include <QVariant>
@@ -2595,6 +2596,18 @@ void SurfaceWrapper::setBlur(bool blur)
     m_blur = blur;
 
     Q_EMIT blurChanged();
+}
+
+void SurfaceWrapper::syncBackgroundEffectBlur()
+{
+    auto *wlrSurface = surface() ? surface()->handle() : nullptr;
+    if (!wlrSurface) {
+        return;
+    }
+
+    const auto *state = wlr_ext_background_effect_v1_get_surface_state(wlrSurface);
+    const bool hasBlur = state && pixman_region32_not_empty(&state->blur_region);
+    setBlur(hasBlur);
 }
 
 bool SurfaceWrapper::coverEnabled() const
