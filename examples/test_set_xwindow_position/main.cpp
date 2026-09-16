@@ -98,6 +98,10 @@ int main(int argc, char *argv[])
         wl_fixed_t dy = wl_fixed_from_int(0);
 
         wl_callback *callback = control.set_xwindow_position_relative(wid, surface, dx, dy);
+        if (!callback) {
+            qCritical() << "Failed to send set_xwindow_position_relative request!";
+            return;
+        }
         wl_callback_add_listener(callback, &callback_listener, nullptr);
         qWarning() << "Setting xwindow position relative, wait for result...";
     });

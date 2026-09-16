@@ -11,6 +11,8 @@
 
 #include <wayland-server-core.h>
 
+#include <cstring>
+
 class XWindowControlInterfaceV1Private : public QtWaylandServer::treeland_xwindow_control_v1
 {
 public:
@@ -48,9 +50,15 @@ void XWindowControlInterfaceV1Private::set_xwindow_position_relative(Resource *r
                                                                       wl_fixed_t dx,
                                                                       wl_fixed_t dy)
 {
-    WSurface *wsurface = WSurface::fromHandle(wlr_surface_from_resource(anchor));
+    WSurface *wsurface = nullptr;
+    if (anchor && strcmp(wl_resource_get_class(anchor), "wl_surface") == 0)
+        wsurface = WSurface::fromHandle(wlr_surface_from_resource(anchor));
     uint32_t ok = (wsurface && Helper::instance()->setXWindowPositionRelative(wid, wsurface, dx, dy)) ? 0 : 1;
     wl_resource *cb = wl_resource_create(resource->client(), &wl_callback_interface, 1, callback);
+    if (!cb) {
+        wl_client_post_no_memory(resource->client());
+        return;
+    }
     wl_callback_send_done(cb, ok);
     wl_resource_destroy(cb);
 }
