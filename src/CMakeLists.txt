@@ -130,6 +130,8 @@ qt_add_qml_module(libtreeland
         ${SEAT_USER_CONFIG}
         common/treelandlogging.cpp
         common/treelandlogging.h
+        common/shellaction.cpp
+        common/shellaction.h
         common/windowdecorations.h
         core/layersurfacecontainer.cpp
         core/layersurfacecontainer.h
@@ -461,6 +463,10 @@ if(TREELAND_INSTALL_DEV)
         LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
         NAMELINK_ONLY
     )
+    install(FILES
+        common/shellaction.h
+        common/windowdecorations.h
+        DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/treeland/common")
 endif()
 
 ## systemd socket
