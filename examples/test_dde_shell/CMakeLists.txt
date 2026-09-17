@@ -4,7 +4,7 @@ if(Qt6_VERSION VERSION_GREATER_EQUAL 6.10)
 endif()
 find_package(TreelandProtocols REQUIRED)
 
-set(BIN_NAME test-super-overlay-surface)
+set(BIN_NAME test-dde-shell)
 
 qt_add_executable(${BIN_NAME}
     main.cpp
@@ -15,7 +15,7 @@ qt_add_executable(${BIN_NAME}
 qt_generate_wayland_protocol_client_sources(${BIN_NAME}
     NO_INCLUDE_CORE_ONLY
     FILES
-        ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-dde-shell-v1.xml
+        ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-dde-shell-unstable-v2.xml
 )
 
 target_link_libraries(${BIN_NAME}

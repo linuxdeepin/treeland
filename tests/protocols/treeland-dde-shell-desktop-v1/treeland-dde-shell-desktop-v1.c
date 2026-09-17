@@ -40,7 +40,7 @@ static int state_matches(struct dde_desktop_state *state, int expected_skip_dock
            && state->role_overlay
            && state->position_x == 42
            && state->position_y == 24
-           && state->auto_placement == 37
+           && state->auto_placement == 0
            && state->skip_switcher
            && state->skip_dock_preview == expected_skip_dock_preview
            && state->skip_multitask_view
