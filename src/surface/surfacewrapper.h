@@ -50,6 +50,14 @@ class SurfaceWrapper : public QQuickItem
     Q_PROPERTY(State previousSurfaceState READ previousSurfaceState NOTIFY previousSurfaceStateChanged FINAL)
     Q_PROPERTY(State surfaceState READ surfaceState NOTIFY surfaceStateChanged BINDABLE bindableSurfaceState FINAL)
     Q_PROPERTY(qreal radius READ radius NOTIFY radiusChanged FINAL)
+    Q_PROPERTY(qreal shadowBlurRadius READ shadowBlurRadius NOTIFY shadowChanged FINAL)
+    Q_PROPERTY(qreal shadowOffsetX READ shadowOffsetX NOTIFY shadowChanged FINAL)
+    Q_PROPERTY(qreal shadowOffsetY READ shadowOffsetY NOTIFY shadowChanged FINAL)
+    Q_PROPERTY(QColor shadowColor READ shadowColor NOTIFY shadowChanged FINAL)
+    Q_PROPERTY(bool shadowVisible READ shadowVisible NOTIFY shadowChanged FINAL)
+    Q_PROPERTY(qreal borderWidth READ borderWidth NOTIFY borderChanged FINAL)
+    Q_PROPERTY(QColor borderColor READ borderColor NOTIFY borderChanged FINAL)
+    Q_PROPERTY(bool borderVisible READ borderVisible NOTIFY borderChanged FINAL)
     Q_PROPERTY(SurfaceContainer* container READ container NOTIFY containerChanged FINAL)
     Q_PROPERTY(QQuickItem* titleBar READ titleBar NOTIFY noTitleBarChanged FINAL)
     Q_PROPERTY(QQuickItem* decoration READ decoration NOTIFY noDecorationChanged FINAL)
@@ -230,6 +238,24 @@ public:
     qreal radius() const;
     void setRadius(qreal newRadius);
 
+    // Per-window SSD customization (treeland-decoration-unstable-v1).
+    // Values equal to the compositor defaults (set by Helper when no
+    // per-window override is active) so the rendering picks them up via
+    // Decoration.qml without extra conditionals.
+    qreal shadowBlurRadius() const;
+    qreal shadowOffsetX() const;
+    qreal shadowOffsetY() const;
+    QColor shadowColor() const;
+    bool shadowVisible() const;
+    void setShadowValues(qreal blur, qreal offsetX, qreal offsetY, const QColor &color);
+    void setShadowVisible(bool visible);
+
+    qreal borderWidth() const;
+    QColor borderColor() const;
+    bool borderVisible() const;
+    void setBorderValues(qreal width, const QColor &color);
+    void setBorderVisible(bool visible);
+
     SurfaceContainer *container() const;
 
     void addSubSurface(SurfaceWrapper *surface);
@@ -362,6 +388,8 @@ Q_SIGNALS:
     void surfaceStateChanged();
     void minimizedChanged();
     void radiusChanged();
+    void shadowChanged();
+    void borderChanged();
     void moveRequested();
     void resizeRequested(Qt::Edges edges);
     void windowMenuRequested(QPointF pos);
@@ -514,6 +542,17 @@ private:
     int m_explicitAlwaysOnTop = 0;
     bool m_explicitAlwaysOnBottom = false;
     qreal m_radius = 0.0;
+    // Per-window SSD customization state (treeland-decoration-unstable-v1).
+    // Defaults mirror Decoration.qml (XdgShadow / Border) rendering so that
+    // windows without a decoration context look unchanged.
+    qreal m_shadowBlurRadius = 40.0;
+    qreal m_shadowOffsetX = 0.0;
+    qreal m_shadowOffsetY = 10.0;
+    QColor m_shadowColor = QColor(0, 0, 0, 102); // rgba(0,0,0,0.4)
+    bool m_shadowVisible = true;
+    qreal m_borderWidth = 1.0;
+    QColor m_borderColor = QColor(0, 0, 0, 26); // rgba(0,0,0,0.1)
+    bool m_borderVisible = true;
     QRect m_iconGeometry;
     ActiveControlStates m_hasActiveCapability =
         ActiveControlStates(ActiveControlState::UnMinimized);

@@ -41,6 +41,10 @@ Item {
             anchors.fill: parent
             visible: root.showShadow
             cornerRadius: root.target.radius
+            shadowBlur: root.target.shadowBlurRadius
+            shadowOffsetX: root.target.shadowOffsetX
+            shadowOffsetY: root.target.shadowOffsetY
+            shadowColor: root.target.shadowColor
         }
 
         ShaderEffectSource {
