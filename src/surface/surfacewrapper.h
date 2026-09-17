@@ -6,11 +6,13 @@
 #include <wsurfaceitem.h>
 #include <wtoplevelsurface.h>
 
+#include <QColor>
 #include <QList>
 #include <QPointer>
 #include <QQuickItem>
 #include <QString>
-#include <QColor>
+
+#include <optional>
 
 Q_MOC_INCLUDE(<woutput.h>)
 Q_MOC_INCLUDE(<output / output.h>)
@@ -20,6 +22,7 @@ WAYLIB_SERVER_USE_NAMESPACE
 class QmlEngine;
 class Output;
 class SurfaceContainer;
+
 class SurfaceWrapper : public QQuickItem
 {
     friend class Helper;
@@ -73,13 +76,6 @@ class SurfaceWrapper : public QQuickItem
     Q_PROPERTY(bool skipMutiTaskView READ skipMutiTaskView NOTIFY skipMutiTaskViewChanged FINAL)
     Q_PROPERTY(bool isDDEShellSurface READ isDDEShellSurface NOTIFY isDDEShellSurfaceChanged FINAL)
     Q_PROPERTY(SurfaceWrapper::SurfaceRole surfaceRole READ surfaceRole NOTIFY surfaceRoleChanged FINAL)
-    // y-axis offset distance, set the vertical alignment of the surface within
-    // the cursor width. if autoPlaceYOffset > 0, preventing SurfaceWrapper from
-    // being displayed beyond the edge of the output.
-    Q_PROPERTY(quint32 autoPlaceYOffset READ autoPlaceYOffset NOTIFY autoPlaceYOffsetChanged FINAL)
-    // wayland client can control the position of SurfaceWrapper on the output
-    // through treeland_dde_shell_surface_v1.set_surface_position
-    Q_PROPERTY(QPoint clientRequstPos READ clientRequstPos NOTIFY clientRequstPosChanged FINAL)
     Q_PROPERTY(bool blur READ blur NOTIFY blurChanged FINAL)
     Q_PROPERTY(bool isWindowAnimationRunning READ isWindowAnimationRunning NOTIFY windowAnimationRunningChanged FINAL)
     Q_PROPERTY(bool coverEnabled READ coverEnabled NOTIFY coverEnabledChanged FINAL)
@@ -165,8 +161,7 @@ public:
                             QQuickItem *parent = nullptr);
 
     // For proxy surface
-    explicit SurfaceWrapper(SurfaceWrapper *original,
-                            QQuickItem *parent = nullptr);
+    explicit SurfaceWrapper(SurfaceWrapper *original, QQuickItem *parent = nullptr);
 
     // Constructor for pre-launch splash; allows passing an initial window size to stabilize UI
     // early
@@ -319,10 +314,10 @@ public:
     enum SurfaceRole surfaceRole() const;
     void setSurfaceRole(enum SurfaceRole role);
 
-    quint32 autoPlaceYOffset() const;
-    void setAutoPlaceYOffset(quint32 offset);
+    std::optional<QPoint> autoPlaceCursorOffset() const;
+    void setAutoPlaceCursorOffset(QPoint offset);
 
-    QPoint clientRequstPos() const;
+    std::optional<QPoint> clientRequstPos() const;
     void setClientRequstPos(QPoint pos);
 
     bool blur() const;
@@ -415,8 +410,6 @@ Q_SIGNALS:
     void skipMutiTaskViewChanged();
     void isDDEShellSurfaceChanged();
     void surfaceRoleChanged();
-    void autoPlaceYOffsetChanged();
-    void clientRequstPosChanged();
     void blurChanged();
     void windowAnimationRunningChanged();
     void coverEnabledChanged();
@@ -592,8 +585,8 @@ private:
     uint m_maximizable : 1;
     uint m_modal : 1;
     SurfaceRole m_surfaceRole = SurfaceRole::Normal;
-    quint32 m_autoPlaceYOffset = 0;
-    QPoint m_clientRequstPos;
+    std::optional<QPoint> m_autoPlaceCursorOffset;
+    std::optional<QPoint> m_clientRequstPos;
 
     bool m_socketEnabled{ false };
     bool m_windowAnimationEnabled{ true };

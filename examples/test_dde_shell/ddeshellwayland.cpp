@@ -1,4 +1,4 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "ddeshellwayland.h"
@@ -9,25 +9,25 @@
 #include <QPlatformSurfaceEvent>
 #include <QWaylandClientExtension>
 
-#define TREELANDDDESHELLMANAGERV1VERSION 1
+#define TREELANDDDESHELLMANAGERV2VERSION 1
 
-class DDEShellManageV1
-    : public QWaylandClientExtensionTemplate<DDEShellManageV1>
-    , public QtWayland::treeland_dde_shell_manager_v1
+class DDEShellManageV2
+    : public QWaylandClientExtensionTemplate<DDEShellManageV2>
+    , public QtWayland::treeland_dde_shell_manager_v2
 {
 public:
-    DDEShellManageV1()
-        : QWaylandClientExtensionTemplate<DDEShellManageV1>(TREELANDDDESHELLMANAGERV1VERSION)
+    DDEShellManageV2()
+        : QWaylandClientExtensionTemplate<DDEShellManageV2>(TREELANDDDESHELLMANAGERV2VERSION)
     {
         initialize();
     }
 };
 
-class DDEShellSurface : public QtWayland::treeland_dde_shell_surface_v1
+class DDEShellSurface : public QtWayland::treeland_dde_shell_surface_v2
 {
 public:
-    DDEShellSurface(struct ::treeland_dde_shell_surface_v1 *id)
-        : QtWayland::treeland_dde_shell_surface_v1(id)
+    DDEShellSurface(struct ::treeland_dde_shell_surface_v2 *id)
+        : QtWayland::treeland_dde_shell_surface_v2(id)
     {
     }
 
@@ -41,13 +41,13 @@ class ShellIntegrationSingleton
 {
 public:
     ShellIntegrationSingleton();
-    std::unique_ptr<DDEShellManageV1> shellManager;
+    std::unique_ptr<DDEShellManageV2> shellManager;
     QHash<QWindow *, DDEShellWayland *> windows;
 };
 
 ShellIntegrationSingleton::ShellIntegrationSingleton()
 {
-    shellManager = std::make_unique<DDEShellManageV1>();
+    shellManager = std::make_unique<DDEShellManageV2>();
 }
 
 Q_GLOBAL_STATIC(ShellIntegrationSingleton, s_waylandIntegration)
@@ -71,6 +71,16 @@ DDEShellWayland::DDEShellWayland(QWindow *window)
     , m_window(window)
 {
     m_window->installEventFilter(this);
+
+    // The QWaylandClientExtension binds the global asynchronously: at first
+    // construction it is usually not active yet. Retry creating the shell
+    // surface once the manager becomes active, otherwise requests sent before
+    // activation would only be cached locally and never reach the compositor.
+    connect(s_waylandIntegration->shellManager.get(),
+            &DDEShellManageV2::activeChanged,
+            this,
+            &DDEShellWayland::surfaceCreated);
+
     platformSurfaceCreated(window);
 }
 
@@ -84,6 +94,13 @@ bool DDEShellWayland::eventFilter(QObject *watched, QEvent *event)
         auto surfaceEvent = static_cast<QPlatformSurfaceEvent *>(event);
         if (surfaceEvent->surfaceEventType() == QPlatformSurfaceEvent::SurfaceCreated) {
             platformSurfaceCreated(window);
+        } else if (surfaceEvent->surfaceEventType()
+                   == QPlatformSurfaceEvent::SurfaceAboutToBeDestroyed) {
+            // The v2 protocol requires the shell surface to be destroyed
+            // before the wl_surface. Destroy it now; otherwise the shell
+            // surface proxy would outlive the wl_surface and the compositor
+            // rejects the stale object ("invalid object") on teardown.
+            m_shellSurface.reset();
         }
     }
     return false;
@@ -96,12 +113,15 @@ void DDEShellWayland::setPosition(const QPoint &position)
     }
 
     m_position = position;
+    m_cursorPlacement.reset();
     if (m_shellSurface) {
-        m_shellSurface->set_surface_position(m_position->x(), m_position->y());
+        // v2 position hint is output-relative; passing a null output anchors
+        // the coordinates at the primary output origin.
+        m_shellSurface->set_position_hint(nullptr, position.x(), position.y());
     }
 }
 
-void DDEShellWayland::setRole(QtWayland::treeland_dde_shell_surface_v1::role role)
+void DDEShellWayland::setRole(QtWayland::treeland_dde_shell_surface_v2::role role)
 {
     if (role == m_role) {
         return;
@@ -113,51 +133,44 @@ void DDEShellWayland::setRole(QtWayland::treeland_dde_shell_surface_v1::role rol
     }
 }
 
-void DDEShellWayland::setAutoPlacement(int32_t yOffset)
+void DDEShellWayland::setCursorPlacement(int32_t xOffset, int32_t yOffset)
 {
-    if (yOffset == m_yOffset) {
+    const QPoint offset(xOffset, yOffset);
+    if (offset == m_cursorPlacement) {
         return;
     }
 
-    m_yOffset = yOffset;
+    m_cursorPlacement = offset;
+    m_position.reset();
     if (m_shellSurface) {
-        m_shellSurface->set_auto_placement(yOffset);
+        m_shellSurface->set_cursor_placement_hint(xOffset, yOffset);
     }
 }
 
 void DDEShellWayland::setSkipSwitcher(uint32_t skip)
 {
-    if (skip == m_skipSwitcher) {
-        return;
-    }
-
-    m_skipSwitcher = skip;
+    m_skipFlags = skip ? (m_skipFlags | QtWayland::treeland_dde_shell_surface_v2::skip_flag_switcher)
+                       : (m_skipFlags & ~QtWayland::treeland_dde_shell_surface_v2::skip_flag_switcher);
     if (m_shellSurface) {
-        m_shellSurface->set_skip_switcher(skip);
+        m_shellSurface->set_skip_flags(m_skipFlags);
     }
 }
 
 void DDEShellWayland::setSkipDockPreview(uint32_t skip)
 {
-    if (skip == m_skipDockPreview) {
-        return;
-    }
-
-    m_skipDockPreview = skip;
+    m_skipFlags = skip ? (m_skipFlags | QtWayland::treeland_dde_shell_surface_v2::skip_flag_dock_preview)
+                       : (m_skipFlags & ~QtWayland::treeland_dde_shell_surface_v2::skip_flag_dock_preview);
     if (m_shellSurface) {
-        m_shellSurface->set_skip_dock_preview(skip);
+        m_shellSurface->set_skip_flags(m_skipFlags);
     }
 }
 
 void DDEShellWayland::setSkipMutiTaskView(uint32_t skip)
 {
-    if (skip == m_skipMutiTaskView) {
-        return;
-    }
-
-    m_skipMutiTaskView = skip;
+    m_skipFlags = skip ? (m_skipFlags | QtWayland::treeland_dde_shell_surface_v2::skip_flag_multitask_view)
+                       : (m_skipFlags & ~QtWayland::treeland_dde_shell_surface_v2::skip_flag_multitask_view);
     if (m_shellSurface) {
-        m_shellSurface->set_skip_muti_task_view(skip);
+        m_shellSurface->set_skip_flags(m_skipFlags);
     }
 }
 
@@ -194,11 +207,18 @@ void DDEShellWayland::platformSurfaceCreated(QWindow *window)
 
 void DDEShellWayland::surfaceCreated()
 {
-    struct wl_surface *surface = nullptr;
     if (!s_waylandIntegration->shellManager || !s_waylandIntegration->shellManager->isActive()) {
         return;
     }
 
+    // Already created for the current wayland surface: avoid binding the same
+    // wl_surface twice (the compositor raises already_shell_surface for a
+    // second attempt). activeChanged and surfaceCreated may both fire.
+    if (m_shellSurface) {
+        return;
+    }
+
+    struct wl_surface *surface = nullptr;
     if (auto waylandWindow =
             m_window->nativeInterface<QNativeInterface::Private::QWaylandWindow>()) {
         surface = waylandWindow->surface();
@@ -216,24 +236,15 @@ void DDEShellWayland::surfaceCreated()
         }
 
         if (m_position) {
-            m_shellSurface->set_surface_position(m_position->x(), m_position->y());
+            m_shellSurface->set_position_hint(nullptr, m_position->x(), m_position->y());
         }
 
-        if (m_yOffset) {
-            m_shellSurface->set_auto_placement(m_yOffset.value());
+        if (m_cursorPlacement) {
+            m_shellSurface->set_cursor_placement_hint(m_cursorPlacement->x(),
+                                                      m_cursorPlacement->y());
         }
 
-        if (m_skipDockPreview) {
-            m_shellSurface->set_skip_dock_preview(m_skipDockPreview.value());
-        }
-
-        if (m_skipMutiTaskView) {
-            m_shellSurface->set_skip_muti_task_view(m_skipMutiTaskView.value());
-        }
-
-        if (m_skipSwitcher) {
-            m_shellSurface->set_skip_switcher(m_skipSwitcher.value());
-        }
+        m_shellSurface->set_skip_flags(m_skipFlags);
 
         if (!m_acceptKeyboardFocus) {
             m_shellSurface->set_accept_keyboard_focus(m_acceptKeyboardFocus);

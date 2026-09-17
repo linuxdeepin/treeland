@@ -3,6 +3,11 @@
 
 #include "ddeshellattached.h"
 
+// DEPRECATED: The treeland-dde-shell-v1 protocol is deprecated. Use
+// treeland-dde-shell-unstable-v2 (ddeshellmanagerinterfacev2.h/.cpp) instead.
+// TODO: Remove this module in a future release once dde-shell has migrated
+// to v2.
+
 #include "ddeshellmanagerinterfacev1.h"
 
 #include <QTimer>
