@@ -131,7 +131,7 @@ private:
     void arrangeNonLayerSurfaces(ArrangeReason reason);
     void arrangeAllSurfaces();
     std::pair<WOutputViewport *, QQuickItem *> getOutputItemProperty();
-    void placeUnderCursor(SurfaceWrapper *surface, quint32 yOffset);
+    void placeUnderCursor(SurfaceWrapper *surface);
     void placeClientRequstPos(SurfaceWrapper *surface, QPoint clientRequstPos);
     void placeCentered(SurfaceWrapper *surface);
     void placeSmartCascaded(SurfaceWrapper *surface);
