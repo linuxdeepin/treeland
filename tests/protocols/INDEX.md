@@ -26,6 +26,7 @@ Wayland 线上请求与事件；本文档规定发出请求后，测试必须观
 | [测试框架架构](framework/README.md) | 基础设施 | runner、fixture、C client、生产状态桥接与 E/V 断言边界 |
 | [app-id-resolver-v1](treeland-app-id-resolver-v1/README.md) | I / E | resolver pidfd 应答；返回 app-id 转换真实 splash wrapper 为 xdg window |
 | [capture-unstable-v1](treeland-capture-unstable-v1/README.md) | E / V / P | 真实窗口选择、frame copy 与目标 buffer 像素；无 source 错误 |
+| [compositor-action-v1](treeland-compositor-action-v1/README.md) | E / P | trigger 路由到真实 Workspace 切换与 show-desktop 状态；zoom/未知动作被忽略不断连 |
 | [dde-shell-v1](treeland-dde-shell-v1/README.md) | E / P | mapped wrapper 的 DDE 元数据、锁屏；picker 的真实选中/PID 回传测试待执行确认 |
 | [active-notify-unstable-v1](treeland-active-notify-unstable-v1/README.md) | P | notifier 创建/重建与无输入不发事件边界 |
 | [ddm-v1](treeland-ddm-v1/README.md) | I | 客户端连接生命周期 |

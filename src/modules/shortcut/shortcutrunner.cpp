@@ -3,19 +3,73 @@
 
 #include "shortcutrunner.h"
 
+#include "common/shellaction.h"
 #include "core/qmlengine.h"
 #include "core/rootsurfacecontainer.h"
 #include "interfaces/multitaskviewinterface.h"
-#include "modules/show-desktop/showdesktopinterfacev1.h"
-#include "output/output.h"
 #include "seat/helper.h"
 #include "shortcutcontroller.h"
-#include "surface/surfacewrapper.h"
 #include "treelandconfig.hpp"
-#include "utils/fpsdisplaymanager.h"
 #include "workspace/workspace.h"
 #include "workspaceanimationcontroller.h"
 #include "woutputrenderwindow.h"
+
+#include <optional>
+
+// Maps the shortcut-manager action enum (ShortcutAction) onto the shared
+// ShellAction vocabulary. Notify, Quit and the task-switch stepping actions
+// are producer-local and return std::nullopt.
+static std::optional<ShellAction> mapShortcutAction(ShortcutAction action)
+{
+    switch (action) {
+    case ShortcutAction::Workspace1:
+        return ShellAction::SwitchWorkspace1;
+    case ShortcutAction::Workspace2:
+        return ShellAction::SwitchWorkspace2;
+    case ShortcutAction::Workspace3:
+        return ShellAction::SwitchWorkspace3;
+    case ShortcutAction::Workspace4:
+        return ShellAction::SwitchWorkspace4;
+    case ShortcutAction::Workspace5:
+        return ShellAction::SwitchWorkspace5;
+    case ShortcutAction::Workspace6:
+        return ShellAction::SwitchWorkspace6;
+    case ShortcutAction::PrevWorkspace:
+        return ShellAction::PreviousWorkspace;
+    case ShortcutAction::NextWorkspace:
+        return ShellAction::NextWorkspace;
+    case ShortcutAction::ShowDesktop:
+        return ShellAction::ToggleShowDesktop;
+    case ShortcutAction::OpenMultiTaskView:
+        return ShellAction::OpenMultitaskView;
+    case ShortcutAction::CloseMultiTaskView:
+        return ShellAction::CloseMultitaskView;
+    case ShortcutAction::ToggleMultitaskView:
+        return ShellAction::ToggleMultitaskView;
+    case ShortcutAction::ToggleFpsDisplay:
+        return ShellAction::ToggleFpsDisplay;
+    case ShortcutAction::Lockscreen:
+        return ShellAction::LockScreen;
+    case ShortcutAction::ShutdownMenu:
+        return ShellAction::ShowShutdownMenu;
+    case ShortcutAction::Maximize:
+        return ShellAction::Maximize;
+    case ShortcutAction::CancelMaximize:
+        return ShellAction::CancelMaximize;
+    case ShortcutAction::MoveWindow:
+        return ShellAction::MoveWindow;
+    case ShortcutAction::CloseWindow:
+        return ShellAction::CloseWindow;
+    case ShortcutAction::ShowWindowMenu:
+        return ShellAction::ShowWindowMenu;
+    case ShortcutAction::TileLeft:
+        return ShellAction::TileLeft;
+    case ShortcutAction::TileRight:
+        return ShellAction::TileRight;
+    default:
+        return std::nullopt;
+    }
+}
 
 ShortcutRunner::ShortcutRunner(QObject *parent)
     : QObject(parent)
@@ -38,130 +92,15 @@ void ShortcutRunner::onActionTrigger(ShortcutAction action, const QString &name,
     }
 
     m_currentAction = action;
+
+    if (const auto shellAction = mapShortcutAction(action)) {
+        ShellActionExecutor::execute(*shellAction);
+        return;
+    }
+
     switch (action) {
     case ShortcutAction::Notify:
         helper->m_shortcutManager->sendActivated(name, keyFlags);
-        break;
-    case ShortcutAction::Workspace1:
-        helper->restoreFromShowDesktop();
-        helper->workspace()->switchTo(0);
-        break;
-    case ShortcutAction::Workspace2:
-        helper->restoreFromShowDesktop();
-        helper->workspace()->switchTo(1);
-        break;
-    case ShortcutAction::Workspace3:
-        helper->restoreFromShowDesktop();
-        helper->workspace()->switchTo(2);
-        break;
-    case ShortcutAction::Workspace4:
-        helper->restoreFromShowDesktop();
-        helper->workspace()->switchTo(3);
-        break;
-    case ShortcutAction::Workspace5:
-        helper->restoreFromShowDesktop();
-        helper->workspace()->switchTo(4);
-        break;
-    case ShortcutAction::Workspace6:
-        helper->restoreFromShowDesktop();
-        helper->workspace()->switchTo(5);
-        break;
-    case ShortcutAction::PrevWorkspace:
-        helper->restoreFromShowDesktop();
-        helper->workspace()->switchToPrev();
-        break;
-    case ShortcutAction::NextWorkspace:
-        helper->restoreFromShowDesktop();
-        helper->workspace()->switchToNext();
-        break;
-    case ShortcutAction::ShowDesktop:
-        if (helper->currentMode() == Helper::CurrentMode::Multitaskview) {
-            break;
-        }
-        if (helper->m_showDesktop == ShowDesktopInterfaceV1::State::Normal)
-            helper->m_showDesktopInterfaceV1->setDesktopState(ShowDesktopInterfaceV1::State::Show);
-        else if (helper->m_showDesktop == ShowDesktopInterfaceV1::State::Show)
-            helper->m_showDesktopInterfaceV1->setDesktopState(ShowDesktopInterfaceV1::State::Normal);
-        break;
-    case ShortcutAction::Maximize: {
-        auto surface = helper->activatedSurface();
-        if (surface && surface->isMaximizable()) {
-            surface->maximize();
-        }
-        break;
-    }
-    case ShortcutAction::CancelMaximize: {
-        auto surface = helper->activatedSurface();
-        if (surface) {
-            surface->unmaximize();
-        }
-        break;
-    }
-    case ShortcutAction::MoveWindow: {
-        auto surface = helper->activatedSurface();
-        if (surface) {
-            Q_EMIT surface->moveRequested();
-        }
-        break;
-    }
-    case ShortcutAction::TileLeft:
-    case ShortcutAction::TileRight: {
-        auto surface = helper->activatedSurface();
-        if (!surface)
-            break;
-        auto *out = surface->ownsOutput();
-        if (!out)
-            break;
-        const auto mode = (action == ShortcutAction::TileLeft) ? SurfaceWrapper::TileMode::Left
-                                                               : SurfaceWrapper::TileMode::Right;
-        surface->applyTileMode(mode, out);
-        break;
-    }
-    case ShortcutAction::CloseWindow: {
-        auto surface = helper->activatedSurface();
-        if (surface) {
-            surface->closeSurface();
-        }
-        break;
-    }
-    case ShortcutAction::ShowWindowMenu:
-        if (auto surface = helper->activatedSurface()) {
-            Q_EMIT surface->windowMenuRequested({ 0, 0 });
-        }
-        break;
-    case ShortcutAction::OpenMultiTaskView:
-        if (!helper->m_multitaskView || !helper->isNormalOrMultitaskview()
-            || helper->currentMode() == Helper::CurrentMode::Multitaskview) {
-            break;
-        }
-        helper->m_multitaskView->setStatus(IMultitaskView::Exited);
-        helper->m_multitaskView->toggleMultitaskView(IMultitaskView::ActiveReason::ShortcutKey);
-        break;
-    case ShortcutAction::CloseMultiTaskView:
-        if (!helper->m_multitaskView || !helper->isNormalOrMultitaskview()
-            || helper->currentMode() == Helper::CurrentMode::Normal) {
-            break;
-        }
-        helper->m_multitaskView->setStatus(IMultitaskView::Active);
-        helper->m_multitaskView->toggleMultitaskView(IMultitaskView::ActiveReason::ShortcutKey);
-        break;
-    case ShortcutAction::ToggleMultitaskView:
-        if (helper->isNormalOrMultitaskview()) {
-            helper->restoreFromShowDesktop();
-            if (helper->m_multitaskView) {
-                helper->m_multitaskView->toggleMultitaskView(IMultitaskView::ActiveReason::ShortcutKey);
-            }
-        }
-        break;
-    case ShortcutAction::ToggleFpsDisplay:
-        helper->toggleFpsDisplay();
-        break;
-    case ShortcutAction::Lockscreen:
-        if (helper->isNormalOrMultitaskview())
-            helper->showLockScreen();
-        break;
-    case ShortcutAction::ShutdownMenu:
-        helper->showShutdownMenu();
         break;
     case ShortcutAction::Quit:
         Q_EMIT helper->requestQuit();

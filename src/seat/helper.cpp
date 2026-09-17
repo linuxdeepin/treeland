@@ -23,6 +23,7 @@
 #include "core/lockscreen.h"
 #endif
 #include "common/treelandlogging.h"
+#include "common/shellaction.h"
 #include "core/layersurfacecontainer.h"
 #include "core/qmlengine.h"
 #include "core/rootsurfacecontainer.h"
@@ -49,6 +50,7 @@
 #include "modules/personalization/personalizationmanagerinterfacev1.h"
 #include "modules/appearance/appearanceinterfacev1.h"
 #include "modules/appearance/appearancemanagerinterfacev1.h"
+#include "modules/compositor-action/compositoractioninterfacev1.h"
 #include "modules/decoration/decorationmanagerinterfacev1.h"
 #include "modules/resource/treelandremotesource.h"
 #include "modules/screensaver/screensaverinterfacev2.h"
@@ -554,7 +556,7 @@ void Helper::processOutputAdded(WOutput *output)
         }
     }
 
-    auto publishOutput = [this, output, outputObject = QPointer<Output>(o)] {
+    auto publishOutput = [this, outputObject = QPointer<Output>(o)] {
         if (!outputObject) {
             return;
         }
@@ -2003,6 +2005,12 @@ void Helper::init(Treeland::Treeland *treeland)
             &DDEShellManagerInterfaceV1::lockScreenCreated,
             this,
             &Helper::handleLockScreen);
+
+    m_compositorActionInterfaceV1 = m_server->attach<CompositorActionInterfaceV1>();
+    connect(m_compositorActionInterfaceV1,
+            &CompositorActionInterfaceV1::triggered,
+            this,
+            &Helper::handleCompositorAction);
     m_shellHandler->createComponent(engine, m_renderWindow->contentItem());
 
     m_foreignToplevel = m_server->attach<WForeignToplevel>();
@@ -3247,6 +3255,19 @@ void Helper::handleLockScreen(LockScreenInterface *lockScreen)
     connect(lockScreen, &LockScreenInterface::switchUser, this, &Helper::showSwitchUser);
 }
 
+void Helper::handleCompositorAction(uint32_t action)
+{
+    const auto shellAction = CompositorActionInterfaceV1::mapCompositorAction(action);
+    if (!shellAction) {
+        // Mapped at the protocol boundary: unsupported and unknown actions are
+        // ignored (never fatal), per protocol.
+        qCDebug(lcTlProtocol) << "Ignoring unsupported compositor action:" << action;
+        return;
+    }
+
+    ShellActionExecutor::execute(*shellAction);
+}
+
 
 void Helper::onSessionNew(const QString &sessionId, const QDBusObjectPath &sessionPath)
 {
@@ -3304,7 +3325,7 @@ void Helper::allowNonDrmOutputAutoChangeMode(WOutput *output)
     // One listener per output via the WOutput wrapper's own listener store:
     // ~WOutput detaches it automatically, onOutputRemoved removes it explicitly.
     output->listeners(this)->add(&output->handle()->events.request_state, this,
-                   [this, output](wlr_output_event_request_state *newState) {
+                   [output](wlr_output_event_request_state *newState) {
                             if (newState->state->committed & WLR_OUTPUT_STATE_MODE) {
                                 if (!wlr_output_commit_state(output->handle(), newState->state)) {
                                     qCCritical(lcTlCore, "commit failed on output %s",
