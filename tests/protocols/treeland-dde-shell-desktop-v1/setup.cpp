@@ -37,10 +37,10 @@ extern "C" void dde_desktop_read_state(void *data)
     if (g_wrapper) {
         state.is_dde_shell_surface = g_wrapper->isDDEShellSurface() ? 1 : 0;
         state.role_overlay = g_wrapper->surfaceRole() == SurfaceWrapper::SurfaceRole::Overlay ? 1 : 0;
-        const QPoint position = g_wrapper->clientRequstPos();
+        const QPoint position = g_wrapper->clientRequstPos().value_or(QPoint());
         state.position_x = position.x();
         state.position_y = position.y();
-        state.auto_placement = g_wrapper->autoPlaceYOffset();
+        state.auto_placement = g_wrapper->autoPlaceCursorOffset().value_or(QPoint()).y();
         state.skip_switcher = g_wrapper->skipSwitcher() ? 1 : 0;
         state.skip_dock_preview = g_wrapper->skipDockPreView() ? 1 : 0;
         state.skip_multitask_view = g_wrapper->skipMutiTaskView() ? 1 : 0;

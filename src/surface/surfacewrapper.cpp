@@ -27,8 +27,6 @@
 #include <QColor>
 #include <QVariant>
 
-#include <memory>
-
 #define OPEN_ANIMATION 1
 #define CLOSE_ANIMATION 2
 #define ALWAYSONTOPLAYER 1
@@ -2894,22 +2892,24 @@ void SurfaceWrapper::setSurfaceRole(SurfaceRole role)
     Q_EMIT surfaceRoleChanged();
 }
 
-quint32 SurfaceWrapper::autoPlaceYOffset() const
+std::optional<QPoint> SurfaceWrapper::autoPlaceCursorOffset() const
 {
-    return m_autoPlaceYOffset;
+    return m_autoPlaceCursorOffset;
 }
 
-void SurfaceWrapper::setAutoPlaceYOffset(quint32 offset)
+void SurfaceWrapper::setAutoPlaceCursorOffset(QPoint offset)
 {
-    if (m_autoPlaceYOffset == offset)
+    if (m_autoPlaceCursorOffset == offset)
         return;
 
-    m_autoPlaceYOffset = offset;
-    setPositionAutomatic(offset == 0);
-    Q_EMIT autoPlaceYOffsetChanged();
+    m_autoPlaceCursorOffset = offset;
+    // Cursor placement supersedes a stale fixed-position request; the two
+    // modes are mutually exclusive and the later request wins.
+    m_clientRequstPos.reset();
+    setPositionAutomatic(false);
 }
 
-QPoint SurfaceWrapper::clientRequstPos() const
+std::optional<QPoint> SurfaceWrapper::clientRequstPos() const
 {
     return m_clientRequstPos;
 }
@@ -2920,8 +2920,11 @@ void SurfaceWrapper::setClientRequstPos(QPoint pos)
         return;
 
     m_clientRequstPos = pos;
-    setPositionAutomatic(pos.isNull());
-    Q_EMIT clientRequstPosChanged();
+    // A fixed position supersedes cursor placement; the two modes are mutually
+    // exclusive and the later request wins.
+    m_autoPlaceCursorOffset.reset();
+    // An explicit position request (including 0,0) always pins the surface.
+    setPositionAutomatic(false);
 }
 
 QPointF SurfaceWrapper::alignToPixelGrid(const QPointF &pos) const

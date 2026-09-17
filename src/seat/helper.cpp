@@ -40,6 +40,7 @@
 #include "modules/capture/capture.h"
 #include "modules/dde-shell/ddeshellattached.h"
 #include "modules/dde-shell/ddeshellmanagerinterfacev1.h"
+#include "modules/dde-shell/ddeshellmanagerinterfacev2.h"
 #include "modules/ddm/ddminterfacev1.h"
 #include "modules/input-manager/inputmanagerinterfacev1.h"
 #include "modules/keyboard-shortcuts-inhibit/keyboardshortcutsinhibitmanager.h"
@@ -2009,6 +2010,8 @@ void Helper::init(Treeland::Treeland *treeland)
             &DDEShellManagerInterfaceV1::lockScreenCreated,
             this,
             &Helper::handleLockScreen);
+
+    m_ddeShellV2 = m_server->attach<DDEShellManagerInterfaceV2>();
 
     m_compositorActionInterfaceV1 = m_server->attach<CompositorActionInterfaceV1>();
     connect(m_compositorActionInterfaceV1,
