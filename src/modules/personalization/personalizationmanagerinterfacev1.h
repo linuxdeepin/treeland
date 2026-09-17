@@ -189,8 +189,6 @@ class Personalization : public QObject
     QML_ANONYMOUS
     Q_PROPERTY(BackgroundType backgroundType READ backgroundType NOTIFY backgroundTypeChanged)
     Q_PROPERTY(int32_t cornerRadius READ cornerRadius NOTIFY cornerRadiusChanged)
-    Q_PROPERTY(Shadow shadow READ shadow NOTIFY shadowChanged)
-    Q_PROPERTY(Border border READ border NOTIFY borderChanged)
     Q_PROPERTY(bool noTitlebar READ noTitlebar NOTIFY windowStateChanged)
 
 public:

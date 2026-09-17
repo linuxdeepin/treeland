@@ -1906,6 +1906,87 @@ void SurfaceWrapper::setRadius(qreal newRadius)
     Q_EMIT radiusChanged();
 }
 
+// ---------------------------------------------------------------------------
+// Per-window SSD customization (treeland-decoration-unstable-v1)
+// ---------------------------------------------------------------------------
+
+qreal SurfaceWrapper::shadowBlurRadius() const
+{
+    return m_shadowBlurRadius;
+}
+
+qreal SurfaceWrapper::shadowOffsetX() const
+{
+    return m_shadowOffsetX;
+}
+
+qreal SurfaceWrapper::shadowOffsetY() const
+{
+    return m_shadowOffsetY;
+}
+
+QColor SurfaceWrapper::shadowColor() const
+{
+    return m_shadowColor;
+}
+
+bool SurfaceWrapper::shadowVisible() const
+{
+    return m_shadowVisible;
+}
+
+void SurfaceWrapper::setShadowValues(qreal blur, qreal offsetX, qreal offsetY, const QColor &color)
+{
+    if (qFuzzyCompare(m_shadowBlurRadius, blur) && qFuzzyCompare(m_shadowOffsetX, offsetX)
+        && qFuzzyCompare(m_shadowOffsetY, offsetY) && m_shadowColor == color)
+        return;
+    m_shadowBlurRadius = blur;
+    m_shadowOffsetX = offsetX;
+    m_shadowOffsetY = offsetY;
+    m_shadowColor = color;
+    Q_EMIT shadowChanged();
+}
+
+void SurfaceWrapper::setShadowVisible(bool visible)
+{
+    if (m_shadowVisible == visible)
+        return;
+    m_shadowVisible = visible;
+    Q_EMIT shadowChanged();
+}
+
+qreal SurfaceWrapper::borderWidth() const
+{
+    return m_borderWidth;
+}
+
+QColor SurfaceWrapper::borderColor() const
+{
+    return m_borderColor;
+}
+
+bool SurfaceWrapper::borderVisible() const
+{
+    return m_borderVisible;
+}
+
+void SurfaceWrapper::setBorderValues(qreal width, const QColor &color)
+{
+    if (qFuzzyCompare(m_borderWidth, width) && m_borderColor == color)
+        return;
+    m_borderWidth = width;
+    m_borderColor = color;
+    Q_EMIT borderChanged();
+}
+
+void SurfaceWrapper::setBorderVisible(bool visible)
+{
+    if (m_borderVisible == visible)
+        return;
+    m_borderVisible = visible;
+    Q_EMIT borderChanged();
+}
+
 void SurfaceWrapper::minimize(bool onAnimation)
 {
     if (m_wrapperAboutToRemove)

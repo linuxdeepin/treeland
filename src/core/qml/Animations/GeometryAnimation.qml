@@ -31,6 +31,10 @@ Item {
         anchors.fill: parent
         visible: surface.visibleDecoration && !surface.noDecoration
         cornerRadius: surface.radius
+        shadowBlur: surface.shadowBlurRadius
+        shadowOffsetX: surface.shadowOffsetX
+        shadowOffsetY: surface.shadowOffsetY
+        shadowColor: surface.shadowColor
     }
 
     Loader {

@@ -46,6 +46,7 @@
 #include "modules/personalization/personalizationmanagerinterfacev1.h"
 #include "modules/appearance/appearanceinterfacev1.h"
 #include "modules/appearance/appearancemanagerinterfacev1.h"
+#include "modules/decoration/decorationmanagerinterfacev1.h"
 #include "modules/resource/treelandremotesource.h"
 #include "modules/screensaver/screensaverinterfacev2.h"
 #include "modules/shortcut/shortcutcontroller.h"
@@ -1655,9 +1656,26 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
         connect(wrapper, &SurfaceWrapper::aboutToBeInvalidated,
                 attached, &Personalization::deleteLater);
 
-        auto updateNoTitlebar = [this, attached] {
+        // New SSD personalization protocol (treeland-decoration-unstable-v1).
+        // The frozen Personalization above handles the deprecated
+        // treeland-personalization-manager-v1 window context; per-window
+        // customization for the new protocol is applied via Decoration.
+        auto *decoration =
+            new Decoration(wrapper->shellSurface(), m_decorationInterfaceV1, wrapper);
+        connect(wrapper, &SurfaceWrapper::aboutToBeInvalidated,
+                decoration, &Decoration::deleteLater);
+
+        // Single arbitration point for SurfaceWrapper::noTitleBar. Two
+        // independent sources feed this: the frozen personalization protocol
+        // (Personalization::noTitlebar) and the new per-window decoration
+        // protocol (Decoration::titlebarHidden). Both write into the same
+        // wrapper property, so the final value is decided here.
+        auto updateNoTitlebar = [this, attached, decoration] {
             auto wrapper = attached->surfaceWrapper();
-            if (attached->noTitlebar()) {
+            const bool decorationHides = decoration->hasTitlebarOverride()
+                && decoration->titlebarHidden();
+
+            if (attached->noTitlebar() || decorationHides) {
                 wrapper->setNoTitleBar(true);
                 if (!wrapper->isLaunchpad()) {
                     wrapper->setNoDecoration(false);
@@ -1684,12 +1702,24 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
         }
 
         connect(attached, &Personalization::windowStateChanged, this, updateNoTitlebar);
+        // Re-arbitrate the titlebar whenever the decoration protocol changes
+        // its override, so it can't be clobbered by (nor clobber) the
+        // personalization path above.
+        connect(decoration, &Decoration::titlebarOverrideChanged, this, updateNoTitlebar);
         updateNoTitlebar();
 
         auto updateBlur = [attached] {
             attached->surfaceWrapper()->setBlur(attached->backgroundType() == Personalization::BackgroundType::Blur);
         };
         connect(attached, &Personalization::backgroundTypeChanged, this, updateBlur);
+
+        // NOTE: corner radius is written by BOTH the deprecated personalization
+        // protocol (here) and the new decoration protocol (Decoration::applyContext).
+        // The two are not arbitrated; if a client uses both, the last signal to
+        // arrive wins. This is intentional: clients are expected to use only one
+        // of the two protocols. When the deprecated personalization protocol is
+        // removed, drop this block and its setRadius() call — the decoration
+        // protocol already drives SurfaceWrapper::setRadius() on its own.
         auto updateCornerRadius = [attached] {
             attached->surfaceWrapper()->setRadius(attached->cornerRadius());
         };
@@ -1956,6 +1986,7 @@ void Helper::init(Treeland::Treeland *treeland)
     // New protocols (treeland-protocols 0.6.0)
     m_appearanceInterfaceV1 = m_server->attach<AppearanceInterfaceV1>();
     m_appearanceManagerInterfaceV1 = m_server->attach<AppearanceManagerInterfaceV1>();
+    m_decorationInterfaceV1 = m_server->attach<DecorationManagerInterfaceV1>();
 
     auto updateCurrentUser = [this] {
         m_config.reset(TreelandUserConfig::createByName("org.deepin.dde.treeland.user",
