@@ -32,7 +32,12 @@ RestartSec=1s
 StandardOutput=null
 StandardError=null
 
-NoNewPrivileges=true
+# NoNewPrivileges must stay false: treeland runs as user dde and the
+# NVIDIA driver relies on the setuid bit of nvidia-modprobe to
+# auto-create /dev/nvidia* nodes on demand. With NoNewPrivileges=true
+# the setuid bit is dropped, EGL init fails and treeland falls back to
+# software rendering.
+NoNewPrivileges=false
 OOMScoreAdjust=-1000
 Nice=-20
 CPUWeight=10000
