@@ -95,6 +95,7 @@ WAYLIB_SERVER_USE_NAMESPACE
 
 class CaptureSourceSelector;
 class DDEShellManagerInterfaceV1;
+class DDEShellManagerInterfaceV2;
 class DDMInterfaceV1;
 class ForeignToplevelManagerInterfaceV2;
 class FpsDisplayManager;
@@ -479,6 +480,7 @@ private:
     XWindowControlInterfaceV1 *m_xWindowControlInterfaceV1 = nullptr;
     ShowDesktopInterfaceV1::State m_showDesktop = ShowDesktopInterfaceV1::State::Normal;
     DDEShellManagerInterfaceV1 *m_ddeShellV1 = nullptr;
+    DDEShellManagerInterfaceV2 *m_ddeShellV2 = nullptr;
     VirtualOutputManagerInterfaceV1 *m_virtualOutputInterfaceV1 = nullptr;
     OutputManagerV1 *m_outputManagerV1 = nullptr;
     DDMInterfaceV1 *m_ddmInterfaceV1 = nullptr;
