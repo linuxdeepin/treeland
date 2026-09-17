@@ -3,6 +3,9 @@
 
 #include "core/treeland.h"
 #include "core/treelandinit.h"
+#include "deepintheme.h"
+#include "input/inputmanager.h"
+#include "seat/helper.h"
 #include "utils/cmdline.h"
 
 #include <wrenderhelper.h>
@@ -11,6 +14,16 @@
 
 #include <DLog>
 #include <QGuiApplication>
+
+static void bindThemeConfig()
+{
+    auto *helper = Helper::instance();
+    auto *theme = Treeland::deepinTheme();
+    if (!helper || !theme)
+        return;
+
+    theme->bindConfig(helper->config());
+}
 
 int main(int argc, char *argv[])
 {
@@ -35,6 +48,11 @@ int main(int argc, char *argv[])
     int quitCode = 0;
     {
         Treeland::Treeland treeland;
+
+        bindThemeConfig();
+        QObject::connect(Helper::instance(), &Helper::configChanged, &bindThemeConfig);
+        QObject::connect(Helper::instance()->inputManager(), &InputManager::seatConfigChanged,
+                         [](SeatUserDConfig *config) { Treeland::deepinTheme()->bindSeatConfig(config); });
 
         quitCode = QGuiApplication::exec();
     }
