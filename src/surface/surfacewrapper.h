@@ -76,10 +76,19 @@ class SurfaceWrapper : public QQuickItem
     // y-axis offset distance, set the vertical alignment of the surface within
     // the cursor width. if autoPlaceYOffset > 0, preventing SurfaceWrapper from
     // being displayed beyond the edge of the output.
-    Q_PROPERTY(quint32 autoPlaceYOffset READ autoPlaceYOffset NOTIFY autoPlaceYOffsetChanged FINAL)
+    Q_PROPERTY(int autoPlaceYOffset READ autoPlaceYOffset NOTIFY autoPlaceYOffsetChanged FINAL)
+    // x-axis offset of the surface center from the cursor center
+    // (treeland_dde_shell_surface_v2.set_cursor_placement_hint).
+    Q_PROPERTY(int autoPlaceXOffset READ autoPlaceXOffset NOTIFY autoPlaceXOffsetChanged FINAL)
+    // True when the compositor places the surface relative to the cursor
+    // (treeland_dde_shell_surface_v2.set_cursor_placement_hint).
+    Q_PROPERTY(bool cursorPlacement READ cursorPlacement WRITE setCursorPlacement NOTIFY cursorPlacementChanged FINAL)
     // wayland client can control the position of SurfaceWrapper on the output
-    // through treeland_dde_shell_surface_v1.set_surface_position
+    // through treeland_dde_shell_surface.set_surface_position (v1) or
+    // treeland_dde_shell_surface_v2.set_position_hint (resolved to global space).
+    // (0,0) is a valid fixed position, so presence is tracked separately.
     Q_PROPERTY(QPoint clientRequstPos READ clientRequstPos NOTIFY clientRequstPosChanged FINAL)
+    Q_PROPERTY(bool hasClientRequstPos READ hasClientRequstPos NOTIFY clientRequstPosChanged FINAL)
     Q_PROPERTY(bool blur READ blur NOTIFY blurChanged FINAL)
     Q_PROPERTY(bool isWindowAnimationRunning READ isWindowAnimationRunning NOTIFY windowAnimationRunningChanged FINAL)
     Q_PROPERTY(bool coverEnabled READ coverEnabled NOTIFY coverEnabledChanged FINAL)
@@ -318,11 +327,17 @@ public:
     enum SurfaceRole surfaceRole() const;
     void setSurfaceRole(enum SurfaceRole role);
 
-    quint32 autoPlaceYOffset() const;
-    void setAutoPlaceYOffset(quint32 offset);
+    int autoPlaceYOffset() const;
+    void setAutoPlaceYOffset(int offset);
+    int autoPlaceXOffset() const;
+    void setAutoPlaceXOffset(int offset);
+    bool cursorPlacement() const;
+    void setCursorPlacement(bool placement);
 
     QPoint clientRequstPos() const;
+    bool hasClientRequstPos() const;
     void setClientRequstPos(QPoint pos);
+    void resetClientRequstPos();
 
     bool blur() const;
     void setBlur(bool blur);
@@ -413,6 +428,8 @@ Q_SIGNALS:
     void isDDEShellSurfaceChanged();
     void surfaceRoleChanged();
     void autoPlaceYOffsetChanged();
+    void autoPlaceXOffsetChanged();
+    void cursorPlacementChanged();
     void clientRequstPosChanged();
     void blurChanged();
     void windowAnimationRunningChanged();
@@ -587,8 +604,11 @@ private:
     uint m_maximizable : 1;
     uint m_modal : 1;
     SurfaceRole m_surfaceRole = SurfaceRole::Normal;
-    quint32 m_autoPlaceYOffset = 0;
+    int m_autoPlaceYOffset = 0;
+    int m_autoPlaceXOffset = 0;
+    bool m_cursorPlacement = false;
     QPoint m_clientRequstPos;
+    bool m_hasClientRequstPos = false;
 
     bool m_socketEnabled{ false };
     bool m_windowAnimationEnabled{ true };

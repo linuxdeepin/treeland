@@ -2868,19 +2868,52 @@ void SurfaceWrapper::setSurfaceRole(SurfaceRole role)
     Q_EMIT surfaceRoleChanged();
 }
 
-quint32 SurfaceWrapper::autoPlaceYOffset() const
+int SurfaceWrapper::autoPlaceYOffset() const
 {
     return m_autoPlaceYOffset;
 }
 
-void SurfaceWrapper::setAutoPlaceYOffset(quint32 offset)
+void SurfaceWrapper::setAutoPlaceYOffset(int offset)
 {
     if (m_autoPlaceYOffset == offset)
         return;
 
     m_autoPlaceYOffset = offset;
+    // A non-zero y offset is the v1 (deprecated) spelling of cursor placement;
+    // cursorPlacement is the single source of truth for the placement mode.
+    setCursorPlacement(offset != 0);
     setPositionAutomatic(offset == 0);
     Q_EMIT autoPlaceYOffsetChanged();
+}
+
+int SurfaceWrapper::autoPlaceXOffset() const
+{
+    return m_autoPlaceXOffset;
+}
+
+void SurfaceWrapper::setAutoPlaceXOffset(int offset)
+{
+    if (m_autoPlaceXOffset == offset)
+        return;
+
+    m_autoPlaceXOffset = offset;
+    Q_EMIT autoPlaceXOffsetChanged();
+}
+
+bool SurfaceWrapper::cursorPlacement() const
+{
+    return m_cursorPlacement;
+}
+
+void SurfaceWrapper::setCursorPlacement(bool placement)
+{
+    if (m_cursorPlacement == placement)
+        return;
+
+    m_cursorPlacement = placement;
+    if (placement)
+        setPositionAutomatic(false);
+    Q_EMIT cursorPlacementChanged();
 }
 
 QPoint SurfaceWrapper::clientRequstPos() const
@@ -2888,13 +2921,29 @@ QPoint SurfaceWrapper::clientRequstPos() const
     return m_clientRequstPos;
 }
 
+bool SurfaceWrapper::hasClientRequstPos() const
+{
+    return m_hasClientRequstPos;
+}
+
 void SurfaceWrapper::setClientRequstPos(QPoint pos)
 {
-    if (m_clientRequstPos == pos)
+    if (m_hasClientRequstPos && m_clientRequstPos == pos)
         return;
 
     m_clientRequstPos = pos;
-    setPositionAutomatic(pos.isNull());
+    m_hasClientRequstPos = true;
+    // An explicit position request (including 0,0) always pins the surface.
+    setPositionAutomatic(false);
+    Q_EMIT clientRequstPosChanged();
+}
+
+void SurfaceWrapper::resetClientRequstPos()
+{
+    if (!m_hasClientRequstPos)
+        return;
+
+    m_hasClientRequstPos = false;
     Q_EMIT clientRequstPosChanged();
 }
 
