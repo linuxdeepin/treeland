@@ -48,6 +48,7 @@
 #include "modules/personalization/personalizationmanagerinterfacev1.h"
 #include "modules/appearance/appearanceinterfacev1.h"
 #include "modules/appearance/appearancemanagerinterfacev1.h"
+#include "modules/compositor-action/compositoractioninterfacev1.h"
 #include "modules/decoration/decorationmanagerinterfacev1.h"
 #include "modules/resource/treelandremotesource.h"
 #include "modules/screensaver/screensaverinterfacev2.h"
@@ -107,6 +108,8 @@
 #include <wxdgtopleveltagmanager.h>
 #include <wxwayland.h>
 #include <wxwaylandsurface.h>
+
+#include "qwayland-server-treeland-compositor-action-unstable-v1.h"
 
 #include <DGuiApplicationHelper>
 
@@ -2011,6 +2014,21 @@ void Helper::init(Treeland::Treeland *treeland)
             &DDEShellManagerInterfaceV1::lockScreenCreated,
             this,
             &Helper::handleLockScreen);
+
+    m_compositorActionInterfaceV1 = m_server->attach<CompositorActionInterfaceV1>();
+    // Privileged interface: only DDE clients authorized by the compositor may
+    // bind. Same authorization pattern as the other dde/ privileged protocols
+    // (e.g. the wallpaper notifier): on a DDM display restrict to clients of
+    // the user session; the waylib global filter rejects everyone else.
+    if (isDDMDisplay()) {
+        m_compositorActionInterfaceV1->setFilter([this](WClient *client) {
+            return m_sessionManager->isDDEUserClient(client);
+        });
+    }
+    connect(m_compositorActionInterfaceV1,
+            &CompositorActionInterfaceV1::triggered,
+            this,
+            &Helper::handleCompositorAction);
     m_shellHandler->createComponent(engine, m_renderWindow->contentItem());
 
     m_foreignToplevel = m_server->attach<WForeignToplevel>();
@@ -3661,6 +3679,113 @@ void Helper::showSwitchUser()
 
     prepareLockScreenTransition();
     m_lockScreen->switchUser();
+}
+
+void Helper::handleCompositorAction(uint32_t action)
+{
+    using Action = QtWaylandServer::treeland_compositor_action_v1::action;
+
+    // Same guard as the shortcut path: no compositor actions while locked.
+    if (currentMode() == CurrentMode::LockScreen) {
+        return;
+    }
+
+    switch (action) {
+    case Action::action_workspace_1:
+    case Action::action_workspace_2:
+    case Action::action_workspace_3:
+    case Action::action_workspace_4:
+    case Action::action_workspace_5:
+    case Action::action_workspace_6:
+    case Action::action_workspace_7:
+    case Action::action_workspace_8:
+    case Action::action_workspace_9:
+    case Action::action_workspace_10:
+    case Action::action_workspace_11:
+    case Action::action_workspace_12:
+        // switchTo() ignores out-of-range indexes, so workspace_N for an N
+        // that does not exist is silently ignored, as the protocol requires.
+        restoreFromShowDesktop();
+        workspace()->switchTo(static_cast<int>(action) - 1);
+        break;
+    case Action::action_prev_workspace:
+        restoreFromShowDesktop();
+        workspace()->switchToPrev();
+        break;
+    case Action::action_next_workspace:
+        restoreFromShowDesktop();
+        workspace()->switchToNext();
+        break;
+    case Action::action_show_desktop:
+        if (currentMode() == CurrentMode::Multitaskview) {
+            break;
+        }
+        if (m_showDesktop == ShowDesktopInterfaceV1::State::Normal) {
+            m_showDesktopInterfaceV1->setDesktopState(ShowDesktopInterfaceV1::State::Show);
+        } else if (m_showDesktop == ShowDesktopInterfaceV1::State::Show) {
+            m_showDesktopInterfaceV1->setDesktopState(ShowDesktopInterfaceV1::State::Normal);
+        }
+        break;
+    case Action::action_open_multitask_view:
+        if (!m_multitaskView || !isNormalOrMultitaskview()
+            || currentMode() == CurrentMode::Multitaskview) {
+            break;
+        }
+        m_multitaskView->setStatus(IMultitaskView::Exited);
+        m_multitaskView->toggleMultitaskView(IMultitaskView::ActiveReason::ShortcutKey);
+        break;
+    case Action::action_close_multitask_view:
+        if (!m_multitaskView || !isNormalOrMultitaskview()
+            || currentMode() == CurrentMode::Normal) {
+            break;
+        }
+        m_multitaskView->setStatus(IMultitaskView::Active);
+        m_multitaskView->toggleMultitaskView(IMultitaskView::ActiveReason::ShortcutKey);
+        break;
+    case Action::action_toggle_multitask_view:
+        // Null-check before restoring: with no multitask-view implementation
+        // the action cannot be performed at all and must be ignored without
+        // side effects (protocol "ignore what cannot be performed").
+        if (!m_multitaskView || !isNormalOrMultitaskview()) {
+            break;
+        }
+        restoreFromShowDesktop();
+        m_multitaskView->toggleMultitaskView(IMultitaskView::ActiveReason::ShortcutKey);
+        break;
+    case Action::action_toggle_fps_display:
+        toggleFpsDisplay();
+        break;
+    case Action::action_lockscreen:
+        // showLockScreen() is a no-op when no lock screen implementation is
+        // available or the screen is already locked.
+        showLockScreen();
+        break;
+    case Action::action_show_user_switch:
+        // showSwitchUser() is a no-op when the lock screen is unavailable.
+        showSwitchUser();
+        break;
+    case Action::action_shutdown_menu:
+    // The focused shutdown-menu variants currently degrade to the plain menu:
+    // LockScreen/GreeterProxy have no default-focus API yet. This is a
+    // graceful degradation, not a silent failure — the XML describes the
+    // focus as a request ("clients must not assume an action has taken
+    // effect"), and showing the menu still fulfils the action's core promise.
+    // FIXME: add a focus target when the menu UI grows one, or switch these
+    // to ignored if review prefers strict semantics.
+    case Action::action_shutdown_menu_power_off:
+    case Action::action_shutdown_menu_reboot:
+    case Action::action_shutdown_menu_suspend:
+    case Action::action_shutdown_menu_hibernate:
+    case Action::action_shutdown_menu_log_out:
+        // showShutdownMenu() is a no-op when the lock screen is unavailable.
+        showShutdownMenu();
+        break;
+    default:
+        // Screen zoom has no treeland implementation yet; unknown (future)
+        // actions are ignored as well, per protocol.
+        qCDebug(lcTlProtocol) << "Ignoring unsupported compositor action:" << action;
+        break;
+    }
 }
 
 WSeat *Helper::seat() const

@@ -111,6 +111,7 @@ class OutputManagerV1;
 class PersonalizationManagerInterfaceV1;
 class AppearanceInterfaceV1;
 class AppearanceManagerInterfaceV1;
+class CompositorActionInterfaceV1;
 class DecorationManagerInterfaceV1;
 class RootSurfaceContainer;
 class ScreensaverInterfaceV2;
@@ -339,6 +340,7 @@ private:
     void onSurfaceWrapperAboutToRemove(SurfaceWrapper *wrapper);
     void handleRequestDrag([[maybe_unused]] WSurface *surface);
     void handleLockScreen(LockScreenInterface *lockScreen);
+    void handleCompositorAction(uint32_t action);
     void handleNewForeignToplevelCaptureRequest(wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request *request);
     void onExtSessionLock(WSessionLock *lock);
     void applyCurrentUserConfig(const QString &userName,
@@ -483,6 +485,7 @@ private:
     PersonalizationManagerInterfaceV1 *m_personalizationInterfaceV1 = nullptr;
     AppearanceInterfaceV1 *m_appearanceInterfaceV1 = nullptr;
     AppearanceManagerInterfaceV1 *m_appearanceManagerInterfaceV1 = nullptr;
+    CompositorActionInterfaceV1 *m_compositorActionInterfaceV1 = nullptr;
     DecorationManagerInterfaceV1 *m_decorationInterfaceV1 = nullptr;
     WallpaperColorInterfaceV1 *m_wallpaperColorV1 = nullptr;
     WOutputManagerV1 *m_outputManager = nullptr;
