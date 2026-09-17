@@ -3,6 +3,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQuick.Effects
 import Treeland
 import LockScreen
 
@@ -107,6 +108,19 @@ FocusScope {
             clip: true
             wallpaperRole: Wallpaper.Lockscreen
             output: root.output
+        }
+
+        MultiEffect {
+            anchors.fill: parent
+            visible: wallpaper.wallpaperType === Wallpaper.Video
+            source: wallpaper
+            saturation: 0.4
+        }
+
+        Rectangle {
+            anchors.fill: parent
+            color: wallpaper.wallpaperType === Wallpaper.Video ? "black" : wallpaper.wallpaperColor
+            opacity: wallpaper.wallpaperType === Wallpaper.Video ? 0.4 : 0.6
         }
     }
 
