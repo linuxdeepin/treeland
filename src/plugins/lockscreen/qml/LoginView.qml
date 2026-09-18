@@ -42,6 +42,7 @@ FocusScope {
             onSwitchUser: {
                 root.switchUser()
             }
+            onOutsideClicked: GreeterProxy.showShutdownView = false
         }
     }
 
