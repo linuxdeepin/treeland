@@ -132,6 +132,7 @@ class ShowDesktopInterfaceV1;
 class WindowPickerInterface;
 class TreelandKeyboardStateNotifyManagerInterfaceV1;
 class TreelandActiveNotifyManagerInterfaceV1;
+class TreelandRegionWatchManagerInterfaceV1;
 class KeyboardShortcutsInhibitManagerV1;
 class WallpaperManager;
 class WallpaperItem;
@@ -499,6 +500,7 @@ private:
     TreelandWallpaperNotifierInterfaceV1 *m_wallpaperNotifierInterfaceV1 = nullptr;
     TreelandKeyboardStateNotifyManagerInterfaceV1 *m_keyboardStateNotifyManagerInterfaceV1 = nullptr;
     TreelandActiveNotifyManagerInterfaceV1 *m_activeNotifyManagerInterfaceV1 = nullptr;
+    TreelandRegionWatchManagerInterfaceV1 *m_regionWatchManagerInterfaceV1 = nullptr;
     KeyboardShortcutsInhibitManagerV1 *m_keyboardShortcutsInhibitManagerV1 = nullptr;
 #ifdef EXT_SESSION_LOCK_V1
     WSessionLockManager *m_sessionLockManager = nullptr;

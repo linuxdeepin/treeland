@@ -34,6 +34,7 @@ Wayland 线上请求与事件；本文档规定发出请求后，测试必须观
 | [keyboard-state-notify-unstable-v1](treeland-keyboard-state-notify-unstable-v1/README.md) | P | watcher 配置与空键盘/空 modifier 边界 |
 | [output-manager-v1](treeland-output-manager-v1/README.md) | I / P | 真实 `wl_output` 的 primary-output 链路 |
 | [personalization-manager-v1](treeland-personalization-manager-v1/README.md) | E / I | 个性化状态挂接到真实 wrapper；font/appearance 配置的 setter/getter 生产回读与恢复 |
+| [region-watch-unstable-v1](treeland-region-watch-unstable-v1/README.md) | E / P | 输出边缘区域的全局坐标注册；真实 toplevel 映射/关闭驱动的 enter/leave；输出重绑、output_removed 与惰性语义 |
 | appearance-v1（冒烟测试） | I | appearance/manager 接口创建与名称校验（`tests/test_protocol_appearance`）；无 C-client 协议测试 | 推送事件 payload、setter 请求、DConfig 广播与配置替换 |
 | [prelaunch-splash-v2](treeland-prelaunch-splash-v2/README.md) | I / E | splash 请求/关闭信号；生产 splash wrapper 创建、加入 workspace 与销毁 |
 | [screensaver-v1](treeland-screensaver-v1/README.md) | E / P | 真实 ext-idle 抑制生命周期 |
@@ -98,13 +99,13 @@ xdg-shell 由共享 xdg-toplevel 夹具覆盖（多个 toplevel 测试复用）�
 request stub 算作 request 覆盖；生成的 client-protocol 文件本身不计入。`destroy` 也单列，
 因为它证明资源生命周期，却通常不承载主要业务语义。
 
-- **已注册并有测试目录的 19 个当前协议**：XML 共 185 条 request，其中测试客户端直接
-  调用了 **144 条（77.8%）**。
-- 去掉 48 条 `destroy` 生命周期 request 后，剩余 137 条工厂、配置和业务 request 中有
-  **100 条（73.0%）** 被直接调用。
-- 19 个协议中 **16 个（84.2%）** 至少有一条 E 级生产业务链路；仅 DDM、output-manager
+- **已注册并有测试目录的 20 个当前协议**：XML 共 189 条 request，其中测试客户端直接
+  调用了 **148 条（78.3%）**。
+- 去掉 50 条 `destroy` 生命周期 request 后，剩余 139 条工厂、配置和业务 request 中有
+  **102 条（73.4%）** 被直接调用。
+- 20 个协议中 **17 个（85.0%）** 至少有一条 E 级生产业务链路；仅 DDM、output-manager
   color-control、wallpaper-color 仍停留在 I/P 层。
-- 当前 XML 共有 95 条 server event。这里**不发布“事件百分比”**：listener 中出现一个
+- 当前 XML 共有 98 条 server event。这里**不发布“事件百分比”**：listener 中出现一个
   callback、或 fixture 手工发出一次 event，都不能证明事件负载或其业务来源被断言。下表只
   列出已实际断言的关键 event，并明确列出尚未逐项验证的 event。
 
@@ -120,6 +121,7 @@ request stub 算作 request 覆盖；生成的 client-protocol 文件本身不�
 | keyboard-state-notify-unstable-v1 | 6 / 6 | watcher 配置、`apply` 的空键盘/空 modifier 边界 | `current_state/state_changed`、多 watcher、初始 locked、seat 销毁、重复 apply 与物理键盘对照 |
 | output-manager-v1 | 4 / 7 | `primary_output`；未知 output 的 color-control 错误 | `set_color_temperature/set_brightness/commit` 成功路径及 `result/color_temperature/brightness`，真实 output/像素变化 |
 | personalization-manager-v1 | 37 / 37* | cursor/font/appearance 回读 event；真实 wrapper 个性化状态 | manager `destroy` 为 v2 request（v1 global 只能走错误/兼容性边界）；字体渲染和 appearance 的最终 UI 像素 |
+| region-watch-unstable-v1 | 4 / 4 | `set_region` 后的强制评估；真实 toplevel 映射/关闭驱动的 `enter/leave`；输出重绑、`output_removed` 与惰性语义 | `invalid_anchor/invalid_size` 致命错误路径、输出 scale/mode 变化后的重新注册、多 watcher |
 | prelaunch-splash-v2 | 3 / 3 | 创建、关闭；真实 splash wrapper 加入/离开 workspace | splash QML 最终可见性、纹理和像素 |
 | screensaver-v1 | 2 / 3 | 真实 ext-idle 被 inhibit/uninhibit 改变 | 显式 `destroy` request、实际锁屏 UI |
 | shortcut-manager-v2 | 6 / 9 | `commit_success`、`captured`、`activated`；真实 virtual keyboard 输入链 | swipe、hold、`unbind`、`commit_failure` 的业务分支；物理键盘 |
@@ -136,7 +138,7 @@ request stub 算作 request 覆盖；生成的 client-protocol 文件本身不�
 
 ### 未纳入上述覆盖率的 XML
 
-以下 5 个 XML 仍由协议包提供，但当前没有对应的已注册生产测试 target，故不混入 148 的
+以下 5 个 XML 仍由协议包提供，但当前没有对应的已注册生产测试 target，故不混入 152 的
 分母，也不能被视为“已覆盖”：
 
 | XML | request / event | 当前状态与缺口 |
