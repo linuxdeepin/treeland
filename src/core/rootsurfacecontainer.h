@@ -96,8 +96,18 @@ public:
     void setPrimaryOutput(Output *newPrimaryOutput, bool updateDconfig = false);
     const QList<Output *> &outputs() const;
 
+    // Warp the cursor to the primary's center when it is not on any output
+    // (e.g. after copy-mode restore / enable moves the layout).
+    void ensureCursorVisible();
+
     void addOutput(Output *output) override;
     void removeOutput(Output *output) override;
+
+    // Detach (without closing) the layer surfaces of `output` from their
+    // containers so a following addOutput(replacement) re-enters them instead
+    // of removeOutput() closing them. Used by the copy<->normal output wrapper
+    // swap, where the physical output never disappears.
+    void detachLayerSurfaces(Output *output);
 
     // TODO(Lyn): These global move/resize interfaces should eventually be moved into the Seat
     //       object (or SeatSurfaceManager), since move/resize state is inherently per-seat.
@@ -112,6 +122,7 @@ public:
                               Output *targetOutput,
                               Output *sourceOutput = nullptr);
     void ensureSurfaceNormalPositionValid(SurfaceWrapper *surface);
+    void updateSurfaceOutputs(SurfaceWrapper *surface);
 
 public Q_SLOTS:
     void startMove(SurfaceWrapper *surface);
@@ -136,8 +147,6 @@ private:
                                   [[maybe_unused]] SurfaceWrapper::State newState,
                                   [[maybe_unused]] SurfaceWrapper::State oldState) override;
 
-    void ensureCursorVisible();
-    void updateSurfaceOutputs(SurfaceWrapper *surface);
     QQuickItem *ensureEdgeTilePreview();
     void onSeatAdded(WSeat *seat);
     void onSeatRemoved(WSeat *seat);

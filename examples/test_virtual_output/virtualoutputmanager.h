@@ -26,7 +26,9 @@ public:
 
 Q_SIGNALS:
     void virtualOutputListReceived(const QStringList &names);
+    void virtualOutputModified(const QString &name);
 
 protected:
     void treeland_virtual_output_manager_v1_virtual_output_list(wl_array *names) override;
+    void treeland_virtual_output_manager_v1_virtual_output_modified(const QString &name) override;
 };

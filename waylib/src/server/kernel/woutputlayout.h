@@ -42,6 +42,12 @@ public:
     void move(WOutput *output, const QPoint &pos);
     void remove(WOutput *output);
 
+    // Convert an auto-arranged output into a manually positioned one, keeping
+    // its current coordinates. wlroots' output_layout_reconfigure relocates
+    // auto-configured outputs whenever a sibling output's geometry changes;
+    // pinning freezes the output in place once its position has settled.
+    void pin(WOutput *output);
+
     QList<WOutput*> getIntersectedOutputs(const QRect &geometry) const;
 
     int implicitWidth() const;
