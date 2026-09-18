@@ -17,6 +17,8 @@ class Q_DECL_EXPORT WRenderBufferBlitter : public QQuickItem, public WObject
     Q_PRIVATE_PROPERTY(WRenderBufferBlitter::d_func(), QQmlListProperty<QObject> data READ data DESIGNABLE false)
     Q_PROPERTY(QQuickItem* content READ content CONSTANT)
     Q_PROPERTY(bool offscreen READ offscreen WRITE setOffscreen NOTIFY offscreenChanged FINAL)
+    Q_PROPERTY(int damageExpansion READ damageExpansion WRITE setDamageExpansion NOTIFY damageExpansionChanged FINAL)
+    Q_PROPERTY(bool clipDamageExpansion READ clipDamageExpansion WRITE setClipDamageExpansion NOTIFY clipDamageExpansionChanged FINAL)
     QML_NAMED_ELEMENT(RenderBufferBlitter)
 
 public:
@@ -28,8 +30,15 @@ public:
     bool offscreen() const;
     void setOffscreen(bool newOffscreen);
 
+    int damageExpansion() const;
+    void setDamageExpansion(int px);
+    bool clipDamageExpansion() const;
+    void setClipDamageExpansion(bool clip);
+
 Q_SIGNALS:
     void offscreenChanged();
+    void damageExpansionChanged();
+    void clipDamageExpansionChanged();
 
 private Q_SLOTS:
     void invalidateSceneGraph();
