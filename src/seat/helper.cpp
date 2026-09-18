@@ -42,6 +42,7 @@
 #include "modules/input-manager/inputmanagerinterfacev1.h"
 #include "modules/keyboard-shortcuts-inhibit/keyboardshortcutsinhibitmanager.h"
 #include "modules/keyboard-state-notify/keyboardstatenotifymanagerinterfacev1.h"
+#include "modules/region-watch/regionwatchmanagerinterfacev1.h"
 #include "modules/output-manager/outputmanagement.h"
 #include "modules/personalization/personalizationmanagerinterfacev1.h"
 #include "modules/appearance/appearanceinterfacev1.h"
@@ -1748,6 +1749,20 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
 
     if (!isLayer) {
         [[maybe_unused]] auto windowOverlapChecker = new WindowOverlapChecker(wrapper, wrapper);
+
+        // treeland-region-watch-unstable-v1: track per-window rects of all
+        // non-layer surfaces for the edge-region overlap checks.
+        m_regionWatchSurfaces.append(wrapper);
+        connect(wrapper, &QQuickItem::xChanged, this, &Helper::scheduleRegionWatchRecheck);
+        connect(wrapper, &QQuickItem::yChanged, this, &Helper::scheduleRegionWatchRecheck);
+        connect(wrapper, &QQuickItem::widthChanged, this, &Helper::scheduleRegionWatchRecheck);
+        connect(wrapper, &QQuickItem::heightChanged, this, &Helper::scheduleRegionWatchRecheck);
+        connect(wrapper, &QQuickItem::visibleChanged, this, &Helper::scheduleRegionWatchRecheck);
+        connect(wrapper, &QObject::destroyed, this, [this, wrapper] {
+            m_regionWatchSurfaces.removeOne(wrapper);
+            scheduleRegionWatchRecheck();
+        });
+        scheduleRegionWatchRecheck();
     }
 
 #ifndef DISABLE_DDM
@@ -1779,6 +1794,10 @@ void Helper::onSurfaceWrapperAboutToRemove(SurfaceWrapper *wrapper)
     if (wrapper->isIMCandidatePanel())
         return;
 
+    if (m_regionWatchSurfaces.removeOne(wrapper)) {
+        scheduleRegionWatchRecheck();
+    }
+
     if (!wrapper->skipDockPreView()) {
         m_foreignToplevel->removeSurface(wrapper->shellSurface());
         m_extForeignToplevelListV1->removeSurface(wrapper->shellSurface());
@@ -1804,6 +1823,39 @@ bool Helper::surfaceBelongsToCurrentSession(SurfaceWrapper *wrapper)
     WClient *client = wrapper->surface()->waylandClient();
     WSocket *socket = client ? client->socket()->rootSocket() : nullptr;
     return socket && socket->isEnabled();
+}
+
+QList<QRect> Helper::regionWatchWindowRects() const
+{
+    QList<QRect> windowRects;
+    windowRects.reserve(m_regionWatchSurfaces.size());
+    for (const auto &wrapper : std::as_const(m_regionWatchSurfaces)) {
+        // A QPointer clears before destroyed handlers run; if a wrapper was
+        // destroyed without onSurfaceWrapperAboutToRemove, skip the null
+        // entry before touching it.
+        if (!wrapper)
+            continue;
+        // The protocol reports overlap with xdg-shell toplevels; popups and
+        // other transient surfaces must not trigger enter/leave.
+        const bool isToplevel = wrapper->type() == SurfaceWrapper::Type::XdgToplevel
+            || wrapper->type() == SurfaceWrapper::Type::XWayland;
+        if (isToplevel && wrapper->isVisible()) {
+            windowRects.append(QRectF{ wrapper->x(), wrapper->y(),
+                                        wrapper->width(), wrapper->height() }.toRect());
+        }
+    }
+    return windowRects;
+}
+
+void Helper::scheduleRegionWatchRecheck()
+{
+    if (!m_regionWatchRecheckTimer)
+        return;
+
+    // Recheck once per burst of geometry changes instead of on every
+    // intermediate position, matching the overlap-check debounce.
+    if (!m_regionWatchRecheckTimer->isActive())
+        m_regionWatchRecheckTimer->start();
 }
 
 void Helper::deleteTaskSwitch()
@@ -1842,6 +1894,16 @@ void Helper::init(Treeland::Treeland *treeland)
     connect(m_backend, &WBackend::outputRemoved, this, &Helper::onOutputRemoved);
 
     m_ddeShellV1 = m_server->attach<DDEShellManagerInterfaceV1>();
+
+    m_regionWatchManagerInterfaceV1 = m_server->attach<TreelandRegionWatchManagerInterfaceV1>();
+    m_regionWatchRecheckTimer = new QTimer(this);
+    m_regionWatchRecheckTimer->setSingleShot(true);
+    m_regionWatchRecheckTimer->setInterval(300);
+    connect(m_regionWatchRecheckTimer, &QTimer::timeout, this, [this] {
+        if (m_regionWatchManagerInterfaceV1)
+            m_regionWatchManagerInterfaceV1->checkOverlapConflict(regionWatchWindowRects());
+    });
+
     connect(m_ddeShellV1, &DDEShellManagerInterfaceV1::toggleMultitaskview, this, [this] {
         if (m_multitaskView) {
             m_multitaskView->toggleMultitaskView(IMultitaskView::ActiveReason::ShortcutKey);

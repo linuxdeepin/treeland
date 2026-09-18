@@ -129,6 +129,7 @@ class WallpaperColorInterfaceV1;
 class ShowDesktopInterfaceV1;
 class WindowPickerInterface;
 class TreelandKeyboardStateNotifyManagerInterfaceV1;
+class TreelandRegionWatchManagerInterfaceV1;
 class KeyboardShortcutsInhibitManagerV1;
 class WallpaperManager;
 class WallpaperItem;
@@ -270,6 +271,10 @@ public:
     bool setXWindowPositionRelative(uint wid, WSurface *anchor, wl_fixed_t dx, wl_fixed_t dy) const;
     SeatsManager *seatManager() const;
 
+    // Visible window rects of all non-layer surfaces, used by the
+    // treeland-region-watch-unstable-v1 overlap checks.
+    QList<QRect> regionWatchWindowRects() const;
+
     WSeat *getSeatForEvent(QInputEvent *event) const;
     WSeat *findSeatForSurface(SurfaceWrapper *wrapper) const;
     WSeat *getLastInteractingSeat(SurfaceWrapper *surface) const;
@@ -392,6 +397,8 @@ private:
 
     void updateSurfaceSeatInteraction(SurfaceWrapper *surface, WSeat *seat);
 
+    void scheduleRegionWatchRecheck();
+
     void switchWorkspaceForSeat(WSeat *seat, int index);
     void handleRequestDragForSeat(WSeat *seat, WSurface *surface);
     void enableAllOutput();
@@ -486,6 +493,9 @@ private:
     TreelandWallpaperManagerInterfaceV1 *m_wallpaperManagerInterfaceV1 = nullptr;
     TreelandWallpaperNotifierInterfaceV1 *m_wallpaperNotifierInterfaceV1 = nullptr;
     TreelandKeyboardStateNotifyManagerInterfaceV1 *m_keyboardStateNotifyManagerInterfaceV1 = nullptr;
+    TreelandRegionWatchManagerInterfaceV1 *m_regionWatchManagerInterfaceV1 = nullptr;
+    QTimer *m_regionWatchRecheckTimer = nullptr;
+    QList<QPointer<SurfaceWrapper>> m_regionWatchSurfaces;
     KeyboardShortcutsInhibitManagerV1 *m_keyboardShortcutsInhibitManagerV1 = nullptr;
 #ifdef EXT_SESSION_LOCK_V1
     WSessionLockManager *m_sessionLockManager = nullptr;
