@@ -232,18 +232,16 @@ static int duplicate_shell_surface_error(struct test_ctx *ctx)
 {
     treeland_dde_shell_manager_v2_get_shell_surface(ctx->manager, ctx->test_surface);
     // The compositor raises already_shell_surface, which kills the connection:
-    // the roundtrip must fail.
+    // the roundtrip must fail. The client cannot reliably read back the code
+    // (the server closes the connection and the IO error masks it in
+    // wl_display_get_protocol_error), so the exact error path is asserted
+    // server-side via the error counter.
     if (wl_display_roundtrip(ctx->display) >= 0)
         return 0;
 
-    // Assert the reported error is really already_shell_surface on the v2
-    // manager interface, not some unrelated protocol error.
-    uint32_t error_code = 0;
-    const struct wl_interface *error_iface = NULL;
-    if (wl_display_get_protocol_error(ctx->display, &error_iface, &error_code) == NULL)
-        return 0;
-    return error_iface == &treeland_dde_shell_manager_v2_interface
-           && error_code == TREELAND_DDE_SHELL_MANAGER_V2_ERROR_ALREADY_SHELL_SURFACE;
+    struct dde_shell_surface_v2_state state;
+    return invoke_on_server_thread(dde_shell_v2_query_surface_state, &state)
+           && state.duplicate_errors == 1;
 }
 
 static const struct test_case cases[] = {

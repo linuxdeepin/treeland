@@ -11,6 +11,8 @@
 #include <QObject>
 #include <optional>
 
+struct wlr_surface;
+
 WAYLIB_SERVER_USE_NAMESPACE
 
 class DDEShellManagerInterfaceV2Private;
@@ -29,6 +31,11 @@ public:
 
     QByteArrayView interfaceName() const override;
     static constexpr int InterfaceVersion = 1;
+    // Number of already_shell_surface protocol errors raised on this global;
+    // used by the protocol test to assert the duplicate path server-side,
+    // since the error tears down the client connection before it can read
+    // the code.
+    int alreadyShellSurfaceErrorCount() const;
 Q_SIGNALS:
     void surfaceCreated(DDEShellSurfaceV2 *interface);
 
@@ -38,7 +45,9 @@ protected:
     wl_global *global() const override;
 
 private:
+    friend class DDEShellManagerInterfaceV2Private;
     std::unique_ptr<DDEShellManagerInterfaceV2Private> d;
+    int m_alreadyShellSurfaceErrors = 0;
 };
 
 class DDEShellSurfaceV2Private;
@@ -75,6 +84,10 @@ public:
 
     static DDEShellSurfaceV2 *get(wl_resource *native);
     static DDEShellSurfaceV2 *get(WSurface *surface);
+    // Uniqueness must be tracked by the native wl_surface (a wl_surface may
+    // not have a waylib wrapper yet, which would make wSurface() null and
+    // poison any pointer-based duplicate check).
+    static DDEShellSurfaceV2 *getByWlrSurface(struct wlr_surface *handle);
 
 Q_SIGNALS:
     void roleChanged(DDEShellSurfaceV2::Role role);
