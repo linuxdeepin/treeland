@@ -133,3 +133,43 @@ void WindowConfigStore::withSplashConfigFor(const QString &appId,
         },
         Qt::SingleShotConnection);
 }
+
+void WindowConfigStore::recordSplashMismatch(const QString &appId, int maxMismatchCount)
+{
+    if (appId.isEmpty() || maxMismatchCount <= 0) {
+        return;
+    }
+
+    auto *config = configForApp(appId);
+    if (!config) {
+        return;
+    }
+
+    int count = static_cast<int>(config->splashMismatchCount()) + 1;
+    config->setSplashMismatchCount(count);
+    qCInfo(lcTlCore) << "WindowConfigStore: splash mismatch count for" << appId << "is now"
+                         << count;
+    if (count >= maxMismatchCount) {
+        config->setEnablePrelaunchSplash(false);
+        config->setSplashMismatchCount(0);
+        qCInfo(lcTlCore) << "WindowConfigStore: auto-disabled prelaunch splash for" << appId
+                             << "after" << count << "consecutive mismatches";
+    }
+}
+
+void WindowConfigStore::resetSplashMismatchCount(const QString &appId)
+{
+    if (appId.isEmpty()) {
+        return;
+    }
+
+    auto *config = configForApp(appId);
+    if (!config) {
+        return;
+    }
+
+    if (config->splashMismatchCount() != 0) {
+        config->setSplashMismatchCount(0);
+        qCDebug(lcTlCore) << "WindowConfigStore: reset splash mismatch count for" << appId;
+    }
+}
