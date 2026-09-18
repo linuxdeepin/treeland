@@ -66,7 +66,8 @@ void DDEShellManagerInterfaceV2Private::get_shell_surface(Resource *resource,
         return;
     }
 
-    if (DDEShellSurfaceV2::get(WSurface::fromHandle(wlr_surface_from_resource(surface)))) {
+    if (DDEShellSurfaceV2::getByWlrSurface(wlr_surface_from_resource(surface))) {
+        ++q->m_alreadyShellSurfaceErrors;
         wl_resource_post_error(resource->handle,
                                error_already_shell_surface,
                                "the wl_surface already has a shell surface object");
@@ -99,6 +100,11 @@ DDEShellManagerInterfaceV2::DDEShellManagerInterfaceV2(QObject *parent)
 }
 
 DDEShellManagerInterfaceV2::~DDEShellManagerInterfaceV2() = default;
+
+int DDEShellManagerInterfaceV2::alreadyShellSurfaceErrorCount() const
+{
+    return m_alreadyShellSurfaceErrors;
+}
 
 void DDEShellManagerInterfaceV2::create(WServer *server)
 {
@@ -348,8 +354,15 @@ DDEShellSurfaceV2 *DDEShellSurfaceV2::get(wl_resource *native)
 
 DDEShellSurfaceV2 *DDEShellSurfaceV2::get(WSurface *surface)
 {
+    if (!surface)
+        return nullptr;
+    return getByWlrSurface(surface->handle());
+}
+
+DDEShellSurfaceV2 *DDEShellSurfaceV2::getByWlrSurface(wlr_surface *handle)
+{
     for (DDEShellSurfaceV2 *shellSurface : std::as_const(s_shellSurfacesV2)) {
-        if (shellSurface->wSurface() == surface) {
+        if (wlr_surface_from_resource(shellSurface->d->surfaceResource) == handle) {
             return shellSurface;
         }
     }

@@ -23,6 +23,7 @@ struct dde_shell_surface_v2_state {
     int role_overlay;
     int skip_flags;
     int accept_keyboard_focus;
+    int duplicate_errors;
 };
 
 struct test_result {

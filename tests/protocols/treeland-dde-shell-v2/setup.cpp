@@ -12,6 +12,7 @@ WAYLIB_SERVER_USE_NAMESPACE
 
 namespace {
 DDEShellSurfaceV2 *g_shellSurface = nullptr;
+DDEShellManagerInterfaceV2 *g_manager = nullptr;
 }
 
 void protocol_test_setup(Helper *helper)
@@ -19,6 +20,7 @@ void protocol_test_setup(Helper *helper)
     add_headless_output(helper->backend(), false);
     auto *manager = find_server_interface<DDEShellManagerInterfaceV2>(helper);
     Q_ASSERT(manager);
+    g_manager = manager;
     QObject::connect(manager, &DDEShellManagerInterfaceV2::surfaceCreated,
                      [](DDEShellSurfaceV2 *surface) {
                          g_shellSurface = surface;
@@ -32,6 +34,9 @@ extern "C" void dde_shell_v2_query_surface_state(void *data)
 {
     auto *state = static_cast<dde_shell_surface_v2_state *>(data);
     *state = {};
+    // Read before the g_shellSurface early return: the duplicate-creation
+    // error case deliberately leaves no tracked shell surface behind.
+    state->duplicate_errors = g_manager ? g_manager->alreadyShellSurfaceErrorCount() : 0;
     if (!g_shellSurface)
         return;
 
@@ -49,4 +54,5 @@ extern "C" void dde_shell_v2_query_surface_state(void *data)
         state->cursor_x = cursor->x();
         state->cursor_y = cursor->y();
     }
+    state->duplicate_errors = g_manager ? g_manager->alreadyShellSurfaceErrorCount() : 0;
 }
