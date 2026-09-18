@@ -78,7 +78,8 @@ void RegionWatchV1Private::evaluate(const QList<QRect> &windowRects)
 
 void RegionWatchV1Private::destroy_resource([[maybe_unused]] Resource *resource)
 {
-    s_regionWatches.removeOne(q);
+    // The list entry is removed by the QObject::destroyed lambda registered
+    // in get_region_watch.
     delete q;
 }
 
@@ -132,6 +133,11 @@ void RegionWatchV1Private::set_region(Resource *resource,
                                anchor);
         return;
     }
+
+    // Window rects are tracked in global layout coordinates (SurfaceWrapper
+    // positions), so translate the output-local strip by the output's
+    // position in the layout.
+    region.translate(wOutput->position());
 
     if (outputDestroyConnection) {
         QObject::disconnect(outputDestroyConnection);

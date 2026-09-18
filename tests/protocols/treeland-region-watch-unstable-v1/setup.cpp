@@ -92,3 +92,22 @@ extern "C" void region_watch_trigger_recheck(void *)
     if (g_manager)
         g_manager->checkOverlapConflict({ QRect(0, 0, 1920, 1080) });
 }
+
+// Layout position of the named output, from the same WOutput::position() the
+// region translation uses.
+extern "C" void region_watch_output_position(void *data)
+{
+    auto *query = static_cast<region_watch_output_pos *>(data);
+    query->found = 0;
+    const auto outputs = Helper::instance()->rootSurfaceContainer()->outputs();
+    for (const auto &output : outputs) {
+        auto *wOutput = output->output();
+        if (wOutput->name() == QLatin1String(query->name)) {
+            const QPoint pos = wOutput->position();
+            query->x = pos.x();
+            query->y = pos.y();
+            query->found = 1;
+            return;
+        }
+    }
+}

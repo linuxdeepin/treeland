@@ -19,6 +19,15 @@ struct region_watch_server_state {
     char second_output_name[64];
 };
 
+// Layout position of an output looked up by name (wl_output geometry events
+// always report (0,0), so the client cannot see the layout position itself).
+struct region_watch_output_pos {
+    char name[64];
+    int found;
+    int x;
+    int y;
+};
+
 #ifdef __cplusplus
 }
 #endif

@@ -13,6 +13,7 @@
 extern void region_watch_query_state(void *data);
 extern void region_watch_remove_second_output(void *data);
 extern void region_watch_trigger_recheck(void *data);
+extern void region_watch_output_position(void *data);
 
 // Outputs are discovered dynamically: the test environment may contain
 // additional headless outputs created by the production startup path, so
@@ -90,8 +91,8 @@ static struct output_info *find_output(const char *name)
     return NULL;
 }
 
-// The first created headless output is the compositor's primary output at
-// the layout origin, where newly mapped toplevels appear.
+// The first created headless output is the compositor's primary output,
+// where newly mapped toplevels appear.
 static struct output_info *find_primary_output(void)
 {
     struct output_info *best = NULL;
@@ -104,11 +105,23 @@ static struct output_info *find_primary_output(void)
     return best;
 }
 
+// Layout position of a bound output, queried from the server (wl_output
+// geometry events always report (0,0)).
+static int query_output_position(const struct output_info *info, int *x, int *y)
+{
+    struct region_watch_output_pos query;
+    memset(&query, 0, sizeof(query));
+    snprintf(query.name, sizeof(query.name), "%s", info->name);
+    if (!invoke_on_server_thread(region_watch_output_position, &query) || !query.found)
+        return 0;
+    *x = query.x;
+    *y = query.y;
+    return 1;
+}
+
 struct test_ctx {
     struct client_connection connection;
     struct wl_display *display;
-    struct wl_output *primary_output;
-    struct wl_output *second_output;
     struct treeland_region_watch_manager_v1 *manager;
     struct treeland_region_watch_v1 *watch;
     int enter_count;
@@ -162,6 +175,18 @@ static int poll_for(struct test_ctx *ctx, int (*cond)(struct test_ctx *))
     return 0;
 }
 
+// Waits long enough for the debounced recheck to have fired without any
+// expected state change; used for "nothing must happen" assertions.
+static int settle(struct test_ctx *ctx)
+{
+    for (int i = 0; i < 25; ++i) {
+        if (wl_display_roundtrip(ctx->display) < 0)
+            return 0;
+        usleep(30000);
+    }
+    return 1;
+}
+
 static int entered(struct test_ctx *ctx)
 {
     return ctx->enter_count > 0;
@@ -196,6 +221,7 @@ int protocol_test_run(const char *socket_name)
     struct xdg_toplevel_client toplevel;
     struct output_info *primary = NULL;
     struct output_info *removable = NULL;
+    int px = 0, py = 0, rx = 0, ry = 0;
 
     if (!client_connect(&ctx.connection, socket_name)) {
         fprintf(stderr, "region-watch: failed to connect to the test server\n");
@@ -240,6 +266,11 @@ int protocol_test_run(const char *socket_name)
                 state.second_output_name);
         goto failed;
     }
+    if (!query_output_position(primary, &px, &py)
+        || !query_output_position(removable, &rx, &ry)) {
+        fprintf(stderr, "region-watch: failed to query output layout positions\n");
+        goto failed;
+    }
 
     // manager.get_region_watch
     ctx.watch = treeland_region_watch_manager_v1_get_region_watch(ctx.manager);
@@ -252,15 +283,16 @@ int protocol_test_run(const char *socket_name)
         goto failed;
 
     // watch.set_region: full primary output coverage so any mapped toplevel
-    // overlaps regardless of where the compositor places it.
+    // overlaps regardless of where the compositor places it. The region must
+    // be recorded in global layout coordinates (output position + strip).
     treeland_region_watch_v1_set_region(ctx.watch, primary->mode_w, primary->mode_h,
                                         TREELAND_REGION_WATCH_V1_ANCHOR_TOP,
                                         primary->proxy);
     if (!read_server_state(&ctx, &state)
-        || !check_state(&state, 1, 0, 0, primary->mode_w, primary->mode_h)) {
-        fprintf(stderr, "region-watch: set_region(top) state mismatch: has_watch=%d has_region=%d rect=(%d,%d %dx%d), expected (%d,%d %dx%d)\n",
-                state.has_watch, state.has_region, state.x, state.y,
-                state.width, state.height, 0, 0, primary->mode_w, primary->mode_h);
+        || !check_state(&state, 1, px, py, primary->mode_w, primary->mode_h)) {
+        fprintf(stderr, "region-watch: set_region(top) state mismatch: rect=(%d,%d %dx%d), expected (%d,%d %dx%d)\n",
+                state.x, state.y, state.width, state.height,
+                px, py, primary->mode_w, primary->mode_h);
         goto failed;
     }
 
@@ -289,19 +321,58 @@ int protocol_test_run(const char *socket_name)
         goto failed;
     }
 
-    // Rebind the watcher to the removable output; set_region must be
-    // evaluated again and re-send the (still clear) state.
-    treeland_region_watch_v1_set_region(ctx.watch, 100, 40,
+    // Multi-output semantics: rebind to the second output (not at the layout
+    // origin, full coverage). The recorded region must be translated by the
+    // output's layout position.
+    treeland_region_watch_v1_set_region(ctx.watch, removable->mode_w, removable->mode_h,
                                         TREELAND_REGION_WATCH_V1_ANCHOR_TOP,
                                         removable->proxy);
     if (!read_server_state(&ctx, &state)
-        || !check_state(&state, 1, 0, 0, removable->mode_w, 40)) {
-        fprintf(stderr, "region-watch: set_region rebind mismatch: rect=(%d,%d %dx%d), expected (0,0 %dx40)\n",
-                state.x, state.y, state.width, state.height, removable->mode_w);
+        || !check_state(&state, 1, rx, ry, removable->mode_w, removable->mode_h)) {
+        fprintf(stderr, "region-watch: non-origin set_region mismatch: rect=(%d,%d %dx%d), expected (%d,%d %dx%d)\n",
+                state.x, state.y, state.width, state.height,
+                rx, ry, removable->mode_w, removable->mode_h);
         goto failed;
     }
     if (ctx.leave_count != 3) {
         fprintf(stderr, "region-watch: expected re-sent leave after rebind, got %d\n",
+                ctx.leave_count);
+        goto failed;
+    }
+
+    // A toplevel on the primary output must NOT intersect the region of the
+    // other output: no enter, and no leave when it closes again.
+    if (!xdg_toplevel_client_create_with_solid_buffer(&ctx.connection, &toplevel,
+                                                      800, 600, 0x3300cc66)) {
+        fprintf(stderr, "region-watch: failed to map the second toplevel\n");
+        goto failed;
+    }
+    if (!settle(&ctx) || ctx.enter_count != 1 || ctx.leave_count != 3) {
+        fprintf(stderr, "region-watch: window on primary output wrongly affected the region on another output (%d/%d)\n",
+                ctx.enter_count, ctx.leave_count);
+        xdg_toplevel_client_destroy(&toplevel);
+        goto failed;
+    }
+    xdg_toplevel_client_destroy(&toplevel);
+    if (!settle(&ctx) || ctx.enter_count != 1 || ctx.leave_count != 3) {
+        fprintf(stderr, "region-watch: closing the second toplevel changed the state (%d/%d)\n",
+                ctx.enter_count, ctx.leave_count);
+        goto failed;
+    }
+
+    // Shrink the region to a thin strip; set_region must be evaluated again
+    // and re-send the (still clear) state.
+    treeland_region_watch_v1_set_region(ctx.watch, 100, 40,
+                                        TREELAND_REGION_WATCH_V1_ANCHOR_TOP,
+                                        removable->proxy);
+    if (!read_server_state(&ctx, &state)
+        || !check_state(&state, 1, rx, ry, removable->mode_w, 40)) {
+        fprintf(stderr, "region-watch: set_region strip mismatch: rect=(%d,%d %dx%d), expected (%d,%d %dx40)\n",
+                state.x, state.y, state.width, state.height, rx, ry, removable->mode_w);
+        goto failed;
+    }
+    if (ctx.leave_count != 4) {
+        fprintf(stderr, "region-watch: expected re-sent leave after strip set_region, got %d\n",
                 ctx.leave_count);
         goto failed;
     }
@@ -341,11 +412,11 @@ int protocol_test_run(const char *socket_name)
                                         TREELAND_REGION_WATCH_V1_ANCHOR_TOP,
                                         primary->proxy);
     if (!read_server_state(&ctx, &state)
-        || !check_state(&state, 1, 0, 0, primary->mode_w, primary->mode_h)) {
+        || !check_state(&state, 1, px, py, primary->mode_w, primary->mode_h)) {
         fprintf(stderr, "region-watch: watcher unusable after manager destroy\n");
         goto failed;
     }
-    if (ctx.leave_count != 4) {
+    if (ctx.leave_count != 5) {
         fprintf(stderr, "region-watch: expected leave after post-removal set_region, got %d\n",
                 ctx.leave_count);
         goto failed;
