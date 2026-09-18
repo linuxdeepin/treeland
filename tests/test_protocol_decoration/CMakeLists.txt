@@ -1,0 +1,19 @@
+find_package(Qt6 REQUIRED COMPONENTS Test)
+
+add_executable(test_protocol_decoration main.cpp)
+
+target_link_libraries(test_protocol_decoration
+    PRIVATE
+        libtreeland
+        Qt::Test
+)
+
+add_test(NAME test_protocol_decoration COMMAND test_protocol_decoration)
+
+set_property(TEST test_protocol_decoration PROPERTY
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+)
+
+set_property(TEST test_protocol_decoration PROPERTY
+    TIMEOUT 3
+)
