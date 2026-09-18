@@ -1,7 +1,7 @@
 // Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
-#include "qwayland-server-treeland-output-manager-v1.h"
+#include "qwayland-server-treeland-output-manager-unstable-v2.h"
 
 #include "outputmanagement.h"
 #include "outputconfig.hpp"
@@ -11,18 +11,43 @@
 
 #include <WOutput>
 
+#include <optional>
+#include <wayland-server-core.h>
+
 WAYLIB_SERVER_USE_NAMESPACE
 
-class ColorControlV1Private : public QtWaylandServer::treeland_output_color_control_v1
+// Returns the wl_output resource belonging to @p client from @p wlrOutput's
+// resource list, or null when the client has not bound that output.
+static wl_resource *outputResourceForClient(struct wlr_output *wlrOutput,
+                                            wl_client *client)
+{
+    if (!wlrOutput || !client)
+        return nullptr;
+
+    wl_resource *resource = nullptr;
+    wl_resource_for_each(resource, &wlrOutput->resources)
+    {
+        if (wl_resource_get_client(resource) == client)
+            return resource;
+    }
+    return nullptr;
+}
+
+class PictureControlV2Private : public QtWaylandServer::treeland_output_picture_control_v2
 {
 public:
-    explicit ColorControlV1Private(ColorControlV1 *_q, wl_resource *resource, Output *output);
+    explicit PictureControlV2Private(PictureControlV2 *_q, wl_resource *resource, Output *output);
 
-    ColorControlV1 *q;
+    PictureControlV2 *q;
 
     QPointer<Output> controlOutput;
-    uint32_t pendingColorTemperature = 0;
-    qreal pendingBrightness = -1;
+
+    // Pending protocol values accumulated since the last commit; nullopt means
+    // "not set". Color temperature valid range [1000, 20000], brightness
+    // [0.0, 100.0]. Out-of-range set_* values are rejected with a fatal
+    // protocol error and never reach the pending state.
+    std::optional<uint32_t> pendingColorTemperature;
+    std::optional<qreal> pendingBrightness;
 
     void send_brightness(qreal brightness);
 
@@ -35,11 +60,14 @@ protected:
     void commit(Resource *resource) override;
 };
 
-ColorControlV1Private::ColorControlV1Private(ColorControlV1 *_q, wl_resource *resource, Output *output)
-    : treeland_output_color_control_v1(resource)
+PictureControlV2Private::PictureControlV2Private(PictureControlV2 *_q, wl_resource *resource, Output *output)
+    : treeland_output_picture_control_v2(resource)
     , q(_q)
     , controlOutput(output)
 {
+    if (!controlOutput)
+        return;
+
     auto *outputConfig = output->config();
     send_brightness(outputConfig->brightness());
     send_color_temperature(outputConfig->colorTemperature());
@@ -58,137 +86,157 @@ ColorControlV1Private::ColorControlV1Private(ColorControlV1 *_q, wl_resource *re
             });
 }
 
-void ColorControlV1Private::destroy_resource(Resource *resource)
+void PictureControlV2Private::destroy_resource(Resource *resource)
 {
     Q_UNUSED(resource);
     q->deleteLater();
 }
 
-void ColorControlV1Private::destroy(Resource *resource)
+void PictureControlV2Private::destroy(Resource *resource)
 {
     wl_resource_destroy(resource->handle);
 }
 
-void ColorControlV1Private::set_color_temperature(Resource *resource,
-                                                  uint32_t temperature)
+void PictureControlV2Private::set_color_temperature(Resource *resource,
+                                                     uint32_t temperature)
 {
     if (temperature < 1000 || temperature > 20000) {
         wl_resource_post_error(resource->handle,
-                               QtWaylandServer::treeland_output_color_control_v1::error_invalid_color_temperature,
+                               error_invalid_color_temperature,
                                "Color temperature must be between 1000K and 20000K");
         return;
     }
     pendingColorTemperature = temperature;
 }
 
-// NOTE: in treeland_output_color_control_v1 interface, brightness is in range [0.0, 100.0]
-// but on the treeland side, output brightness is in range [0.0, 1.0], this is intentionally
-// designed to allow finer control of brightness through wayland protocol,
-// since the wl_fixed type have only 8 bits of precision.
-void ColorControlV1Private::set_brightness(Resource *resource,
-                                           wl_fixed_t wl_brightness)
+void PictureControlV2Private::set_brightness(Resource *resource,
+                                              wl_fixed_t wl_brightness)
 {
-    qreal brightness = wl_fixed_to_double(wl_brightness);
+    const qreal brightness = wl_fixed_to_double(wl_brightness);
     if (brightness < 0.0 || brightness > 100.0) {
         wl_resource_post_error(resource->handle,
-                               QtWaylandServer::treeland_output_color_control_v1::error_invalid_brightness,
+                               error_invalid_brightness,
                                "Brightness must be between 0.0 and 100.0");
         return;
     }
-    pendingBrightness = brightness / 100.0;
+    pendingBrightness = brightness;
 }
 
-void ColorControlV1Private::send_brightness(qreal brightness)
+void PictureControlV2Private::send_brightness(qreal brightness)
 {
-    // wl_fixed_from_double does not perform rounding
-    // we add 1/512 (half of wl_fixed_t's precision) to maintain consistent mapping of brightness between protocol and treeland.
-    treeland_output_color_control_v1::send_brightness(wl_fixed_from_double(brightness * 100.0 + 1.0 / 512));
+    // brightness is internal [0.0, 1.0]; protocol range is [0.0, 100.0] (wl_fixed_t).
+    treeland_output_picture_control_v2::send_brightness(wl_fixed_from_double(brightness * 100.0));
 }
 
-void ColorControlV1Private::commit(Resource *resource)
+void PictureControlV2Private::commit(Resource *resource)
 {
     Q_UNUSED(resource);
-    if  (!controlOutput) {
-        wl_resource_post_error(resource->handle,
-                               WL_DISPLAY_ERROR_INVALID_OBJECT,
-                               "Output has been destroyed");
+    // v2: range validation happens on the set_* requests with a fatal protocol
+    // error, so a commit only fails for output-related reasons
+    // (invalid_output, unsupported, failed).
+    if (!controlOutput) {
+        send_result(commit_result_invalid_output);
+        pendingColorTemperature.reset();
+        pendingBrightness.reset();
         return;
     }
 
-    QPointer<ColorControlV1> guard(q);
-    controlOutput->setOutputColor(pendingBrightness, pendingColorTemperature, [guard, this](bool success) {
-        if (guard) {
-            send_result(success ? 1 : 0);
+    // Nothing to commit — report success immediately.
+    if (!pendingColorTemperature && !pendingBrightness) {
+        send_result(commit_result_success);
+        return;
+    }
+
+    // Convert protocol values to treeland internal values.
+    // Brightness: protocol [0.0, 100.0] → treeland [0.0, 1.0].
+    // -1 / 0 sentinel means "not requested" for setOutputColor.
+    qreal treelandBrightness = pendingBrightness ? *pendingBrightness / 100.0 : -1;
+    uint32_t treelandColorTemp = pendingColorTemperature ? *pendingColorTemperature : 0;
+
+    QPointer<PictureControlV2> guard(q);
+    controlOutput->setOutputColor(treelandBrightness, treelandColorTemp, [guard, this](Output::CommitColorResult result) {
+        if (!guard)
+            return;
+        switch (result) {
+        case Output::CommitColorResult::Success:
+            send_result(commit_result_success);
+            break;
+        case Output::CommitColorResult::Unsupported:
+            send_result(commit_result_unsupported);
+            break;
+        case Output::CommitColorResult::Failed:
+            send_result(commit_result_failed);
+            break;
         }
     });
-    pendingBrightness = -1;
-    pendingColorTemperature = 0;
+    pendingColorTemperature.reset();
+    pendingBrightness.reset();
 }
 
-ColorControlV1::ColorControlV1(wl_resource *resource, Output *output)
+PictureControlV2::PictureControlV2(wl_resource *resource, Output *output)
     : QObject(output)
-    , d(new ColorControlV1Private(this, resource, output))
+    , d(new PictureControlV2Private(this, resource, output))
 {
 }
 
-ColorControlV1::~ColorControlV1()
+PictureControlV2::~PictureControlV2()
 {
 }
 
-class OutputManagerV1Private : public QtWaylandServer::treeland_output_manager_v1
+class OutputManagerV2Private : public QtWaylandServer::treeland_output_manager_v2
 {
 public:
-    explicit OutputManagerV1Private(OutputManagerV1 *_q);
+    explicit OutputManagerV2Private(OutputManagerV2 *_q);
     wl_global *global() const;
 
-    OutputManagerV1 *q;
+    OutputManagerV2 *q;
 
 protected:
     void bind_resource(Resource *resource) override;
     void destroy(Resource *resource) override;
 
-    void set_primary_output(Resource *resource, const QString &output) override;
-    void get_color_control(Resource *resource, uint32_t id, struct wl_resource *output) override;
+    void set_primary_output(Resource *resource, struct ::wl_resource *output) override;
+    void get_picture_control(Resource *resource, uint32_t id, struct ::wl_resource *output) override;
 };
 
-OutputManagerV1Private::OutputManagerV1Private(OutputManagerV1 *_q)
-    : QtWaylandServer::treeland_output_manager_v1()
+OutputManagerV2Private::OutputManagerV2Private(OutputManagerV2 *_q)
+    : QtWaylandServer::treeland_output_manager_v2()
     , q(_q)
 {
 }
 
-wl_global *OutputManagerV1Private::global() const
+wl_global *OutputManagerV2Private::global() const
 {
     return m_global;
 }
 
-void OutputManagerV1Private::bind_resource(Resource *resource)
+void OutputManagerV2Private::bind_resource(Resource *resource)
 {
+    // v2: emit primary_output immediately after bind, carrying the wl_output
+    // object (or null when no output is available).
     auto *primaryOutput = Helper::instance()->rootSurfaceContainer()->primaryOutput();
-    send_primary_output(resource->handle, primaryOutput ? primaryOutput->output()->name() : "");
+    auto *client = wl_resource_get_client(resource->handle);
+    wl_resource *outputResource = nullptr;
+    if (primaryOutput)
+        outputResource = outputResourceForClient(primaryOutput->output()->handle(), client);
+    send_primary_output(resource->handle, outputResource);
 }
 
-void OutputManagerV1Private::destroy(Resource *resource)
+void OutputManagerV2Private::destroy(Resource *resource)
 {
     wl_resource_destroy(resource->handle);
 }
 
-void OutputManagerV1Private::set_primary_output(Resource *resource, const QString &output)
+void OutputManagerV2Private::set_primary_output(Resource *resource, struct ::wl_resource *output)
 {
-    Q_UNUSED(resource);
-    auto *rootSurfaceContainer = Helper::instance()->rootSurfaceContainer();
-    for (Output *o : std::as_const(rootSurfaceContainer->outputs())) {
-        if (o->output()->name() == output) {
-            rootSurfaceContainer->setPrimaryOutput(o, true);
-            break;
-        }
+    // libwayland delivers a null object id (id 0) as a NULL resource without
+    // rejecting it, and wlr_output_from_resource() dereferences the resource,
+    // so guard before touching wlroots. Per spec a null output is rejected via
+    // primary_output_failed(invalid_output), not a core protocol error.
+    if (!output) {
+        send_primary_output_failed(resource->handle, primary_output_failed_reason_invalid_output);
+        return;
     }
-}
-
-void OutputManagerV1Private::get_color_control(Resource *resource,
-                                               uint32_t id,
-                                               struct wl_resource *output)
-{
     auto *wlr_output = wlr_output_from_resource(output);
     if (!wlr_output) {
         wl_resource_post_error(resource->handle,
@@ -197,63 +245,79 @@ void OutputManagerV1Private::get_color_control(Resource *resource,
         return;
     }
     auto *o = Helper::instance()->getOutput(WOutput::fromHandle(wlr_output));
-    if (!o) {
-        wl_resource_post_error(resource->handle,
-                               WL_DISPLAY_ERROR_INVALID_OBJECT,
-                               "Output not found");
+    // v2: reject disabled or unavailable outputs via primary_output_failed
+    // instead of silently ignoring the request.
+    if (!o || !o->output()->isEnabled()) {
+        send_primary_output_failed(resource->handle, primary_output_failed_reason_invalid_output);
         return;
     }
+    Helper::instance()->rootSurfaceContainer()->setPrimaryOutput(o, true);
+}
 
-    auto *color_control_res = wl_resource_create(resource->client(),
-                                                 QtWaylandServer::treeland_output_color_control_v1::interface(),
-                                                 OutputManagerV1::ColorControlInterfaceVersion,
-                                                 id);
-    if (!color_control_res) {
+void OutputManagerV2Private::get_picture_control(Resource *resource,
+                                                  uint32_t id,
+                                                  struct ::wl_resource *output)
+{
+    // do not raise a fatal display error for an invalid output every subsequent
+    // commit then reports commit_result_invalid_output
+    Output *o = nullptr;
+    if (output) {
+        auto *wlr_output = wlr_output_from_resource(output);
+        if (wlr_output)
+            o = Helper::instance()->getOutput(WOutput::fromHandle(wlr_output));
+    }
+
+    auto *picture_control_res = wl_resource_create(resource->client(),
+                                                   QtWaylandServer::treeland_output_picture_control_v2::interface(),
+                                                   OutputManagerV2::PictureControlInterfaceVersion,
+                                                   id);
+    if (!picture_control_res) {
         wl_resource_post_no_memory(resource->handle);
         return;
     }
 
-    auto colorControl = new ColorControlV1(color_control_res, o);
-    Q_UNUSED(colorControl);
+    auto pictureControl = new PictureControlV2(picture_control_res, o);
+    Q_UNUSED(pictureControl);
 }
 
-OutputManagerV1::OutputManagerV1(QObject *parent)
+OutputManagerV2::OutputManagerV2(QObject *parent)
     : QObject(parent)
-    , d(new OutputManagerV1Private(this))
+    , d(new OutputManagerV2Private(this))
 {
 }
 
-OutputManagerV1::~OutputManagerV1()
+OutputManagerV2::~OutputManagerV2()
 {
 }
 
-void OutputManagerV1::create(WServer *server)
+void OutputManagerV2::create(WServer *server)
 {
     d->init(server->handle(), InterfaceVersion);
 }
 
-void OutputManagerV1::destroy([[maybe_unused]] WServer *server)
+void OutputManagerV2::destroy([[maybe_unused]] WServer *server)
 {
     d->globalRemove();
 }
 
-wl_global *OutputManagerV1::global() const
+wl_global *OutputManagerV2::global() const
 {
     return d->global();
 }
 
-QByteArrayView OutputManagerV1::interfaceName() const
+QByteArrayView OutputManagerV2::interfaceName() const
 {
     return d->interfaceName();
 }
 
-void OutputManagerV1::onPrimaryOutputChanged()
+void OutputManagerV2::onPrimaryOutputChanged()
 {
     auto *primaryOutput = Helper::instance()->rootSurfaceContainer()->primaryOutput();
-    if (!primaryOutput)
-        return;
-    auto primaryOutputName = primaryOutput->output()->name();
     for (const auto &resource : d->resourceMap()) {
-        d->send_primary_output(resource->handle, primaryOutputName);
+        auto *client = wl_resource_get_client(resource->handle);
+        wl_resource *outputResource = nullptr;
+        if (primaryOutput)
+            outputResource = outputResourceForClient(primaryOutput->output()->handle(), client);
+        d->send_primary_output(resource->handle, outputResource);
     }
 }

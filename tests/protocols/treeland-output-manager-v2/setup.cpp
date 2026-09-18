@@ -10,8 +10,8 @@ WAYLIB_SERVER_USE_NAMESPACE
 
 void protocol_test_setup(Helper *helper)
 {
-    // get_color_control takes a wl_output argument; make a real headless
+    // get_picture_control takes a wl_output argument; make a real headless
     // output so the client binds a genuine wl_output.
     add_headless_output(helper->backend(), false);
-    Q_ASSERT(find_server_interface<OutputManagerV1>(helper));
+    Q_ASSERT(find_server_interface<OutputManagerV2>(helper));
 }
