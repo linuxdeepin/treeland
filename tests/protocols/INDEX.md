@@ -27,6 +27,7 @@ Wayland 线上请求与事件；本文档规定发出请求后，测试必须观
 | [app-id-resolver-v1](treeland-app-id-resolver-v1/README.md) | I / E | resolver pidfd 应答；返回 app-id 转换真实 splash wrapper 为 xdg window |
 | [capture-unstable-v1](treeland-capture-unstable-v1/README.md) | E / V / P | 真实窗口选择、frame copy 与目标 buffer 像素；无 source 错误 |
 | [dde-shell-v1](treeland-dde-shell-v1/README.md) | E / P | mapped wrapper 的 DDE 元数据、锁屏；picker 的真实选中/PID 回传测试待执行确认 |
+| [dde-shell-v2](treeland-dde-shell-v2/README.md) | E / P | v2 shell surface 元数据、placement hint 互斥切换与 (0,0) 边界、skip 位域、重复创建报错码、wl_surface 销毁自动回收；wrapper 集成 fixture 随 v1 清理任务补 |
 | [ddm-v1](treeland-ddm-v1/README.md) | I | 客户端连接生命周期 |
 | [foreign-toplevel-manager-v2](treeland-foreign-toplevel-manager-v2/README.md) | E | 真实 toplevel、dock preview、窗口状态（含最小化与布局正交）、激活/焦点与 icon rectangle |
 | [input-manager-unstable-v1](treeland-input-manager-unstable-v1/README.md) | I / E（可选） | 默认空设备 manager 生命周期；uinput 驱动真实 libinput capability 热插拔 |

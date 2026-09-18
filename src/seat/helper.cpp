@@ -38,6 +38,7 @@
 #include "modules/capture/capture.h"
 #include "modules/dde-shell/ddeshellattached.h"
 #include "modules/dde-shell/ddeshellmanagerinterfacev1.h"
+#include "modules/dde-shell/ddeshellmanagerinterfacev2.h"
 #include "modules/ddm/ddminterfacev1.h"
 #include "modules/input-manager/inputmanagerinterfacev1.h"
 #include "modules/keyboard-shortcuts-inhibit/keyboardshortcutsinhibitmanager.h"
@@ -1855,6 +1856,9 @@ void Helper::init(Treeland::Treeland *treeland)
             &DDEShellManagerInterfaceV1::lockScreenCreated,
             this,
             &Helper::handleLockScreen);
+    // dde-shell v2 global registered alongside the deprecated v1 one during
+    // the migration period; the v1 global is removed in a later cleanup task.
+    m_ddeShellV2 = m_server->attach<DDEShellManagerInterfaceV2>();
     m_shellHandler->createComponent(engine, m_renderWindow->contentItem());
 
     m_foreignToplevel = m_server->attach<WForeignToplevel>();
