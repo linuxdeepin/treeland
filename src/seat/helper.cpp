@@ -44,6 +44,7 @@
 #include "modules/keyboard-shortcuts-inhibit/keyboardshortcutsinhibitmanager.h"
 #include "modules/keyboard-state-notify/keyboardstatenotifymanagerinterfacev1.h"
 #include "modules/active-notify/activenotifymanagerinterfacev1.h"
+#include "modules/region-watch/regionwatchmanagerinterfacev1.h"
 #include "modules/output-manager/outputmanagement.h"
 #include "modules/personalization/personalizationmanagerinterfacev1.h"
 #include "modules/appearance/appearanceinterfacev1.h"
@@ -1756,6 +1757,9 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
 
     if (!isLayer) {
         [[maybe_unused]] auto windowOverlapChecker = new WindowOverlapChecker(wrapper, wrapper);
+
+        if (m_regionWatchManagerInterfaceV1)
+            m_regionWatchManagerInterfaceV1->addSurface(wrapper);
     }
 
 #ifndef DISABLE_DDM
@@ -1786,6 +1790,9 @@ void Helper::onSurfaceWrapperAboutToRemove(SurfaceWrapper *wrapper)
 {
     if (wrapper->isIMCandidatePanel())
         return;
+
+    if (m_regionWatchManagerInterfaceV1)
+        m_regionWatchManagerInterfaceV1->removeSurface(wrapper);
 
     if (!wrapper->skipDockPreView()) {
         m_foreignToplevel->removeSurface(wrapper->shellSurface());
@@ -1998,6 +2005,9 @@ void Helper::init(Treeland::Treeland *treeland)
     connect(m_backend, &WBackend::outputRemoved, this, &Helper::onOutputRemoved);
 
     m_ddeShellV1 = m_server->attach<DDEShellManagerInterfaceV1>();
+
+    m_regionWatchManagerInterfaceV1 = m_server->attach<TreelandRegionWatchManagerInterfaceV1>();
+
     connect(m_ddeShellV1, &DDEShellManagerInterfaceV1::toggleMultitaskview, this, [this] {
         if (m_multitaskView) {
             m_multitaskView->toggleMultitaskView(IMultitaskView::ActiveReason::ShortcutKey);

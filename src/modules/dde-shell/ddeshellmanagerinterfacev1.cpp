@@ -71,6 +71,8 @@ wl_global *DDEShellManagerInterfaceV1Private::global() const
 void DDEShellManagerInterfaceV1Private::get_window_overlap_checker(Resource *resource,
                                                                    uint32_t id)
 {
+    // Deprecated: superseded by the treeland-region-watch-unstable-v1
+    // protocol. Kept registered in parallel during the transition.
     wl_resource *checker_resource = wl_resource_create(resource->client(),
                                                        &treeland_window_overlap_checker_interface,
                                                        resource->version(),
@@ -658,7 +660,7 @@ void WindowOverlapCheckerInterfacePrivate::update(Resource *resource,
         checkRect = QRect(0, wSize.height() - size.height(), wSize.width(), size.height());
         break;
     case WindowOverlapCheckerInterface::Anchor::LEFT:
-        checkRect = QRect(0, 0, wSize.width(), size.height());
+        checkRect = QRect(0, 0, size.width(), wSize.height());
         break;
     default:
         wl_resource_post_error(resource->handle,

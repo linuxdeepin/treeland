@@ -20,6 +20,8 @@ class WindowOverlapChecker : public DDEShellAttached
 {
     Q_OBJECT
     QML_ANONYMOUS
+    // Deprecated: superseded by the treeland-region-watch-unstable-v1
+    // protocol (TreelandRegionWatchManagerInterfaceV1 / RegionWatchV1).
     Q_PROPERTY(bool overlapped READ overlapped WRITE setOverlapped NOTIFY overlappedChanged)
 
 public:
