@@ -31,16 +31,12 @@ public:
     WSurface *textInputFocusSurface() const;
     QRect textInputCursorRect() const;
 
-    // Returns true when the seat's current keyboard grab is the one installed by this helper.
-    bool isActiveKeyboardGrabOwner() const;
-
 Q_SIGNALS:
     void inputPopupSurfaceV2Added(WInputPopupSurface *popupSurface);
     void inputPopupSurfaceV2Removed(WInputPopupSurface *popupSurface);
     void textInputCursorRectChanged(QRect cursorRect);
 
 private:
-    const QList<WInputDevice *> &virtualKeyboards() const;
     void handleNewTI(WTextInput *ti);
     void handleNewIMV2(wlr_input_method_v2 *imv2);
     void handleNewKGV2(wlr_input_method_keyboard_grab_v2 *kgv2);
@@ -48,9 +44,8 @@ private:
     void handleNewVKV1(wlr_virtual_keyboard_v1 *vkv1);
     void updateAllPopupSurfaces(QRect cursorRect);
     void updatePopupSurface(WInputPopupSurface *popup, QRect cursorRect);
-    void notifyLeave();
     void resendKeyboardFocus();
-    void handleKeyboardGrabBegin();
+    void reconcileTextInput(const char *reason);
     void connectToTI(WTextInput *ti);
     void disableTI(WTextInput *ti);
     void handleTIEnabled();
@@ -58,14 +53,10 @@ private:
     void handleFocusedTICommitted();
     void handleIMCommitted();
     void handleActiveIMDestroyed();
-    WTextInput *focusedTextInput() const;
     WTextInput *enabledTextInput() const;
     void setEnabledTextInput(WTextInput *ti);
     WInputMethodV2 *inputMethod() const;
     void setInputMethod(WInputMethodV2 *im);
-    wlr_input_method_keyboard_grab_v2 *activeKeyboardGrab() const;
-    friend void handleKey(struct wlr_seat_keyboard_grab *grab, uint32_t time_msec, uint32_t key, uint32_t state);
-    friend void handleModifiers(struct wlr_seat_keyboard_grab *grab, const struct wlr_keyboard_modifiers *modifiers);
 };
 
 WAYLIB_SERVER_END_NAMESPACE

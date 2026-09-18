@@ -11,6 +11,7 @@
 #include <wlr_all.h>
 #include <wayland-server-core.h>
 
+#include <QPointer>
 #include <QRect>
 
 extern "C" {
@@ -33,7 +34,14 @@ public:
 
     wl_resource *resource {nullptr};
     WSeat *seat {nullptr};
-    WSurface *focusedSurface {nullptr};
+    // Client-owned activation record: set by the activate request and only
+    // cleared by a client deactivation or the surface's destruction. Server
+    // driven enter/leave notifications do not erase it, so keyboard focus
+    // returning to the activated surface can re-arm the text input.
+    QPointer<WSurface> focusedSurface;
+    // True after an enter event has been sent to the client and no matching
+    // leave has been sent yet; keeps enter/leave paired.
+    bool entered {false};
     uint32_t currentSerial {0};
     bool active {false};
     QString surroundingText {};
@@ -139,20 +147,29 @@ IME::Features WTextInputV1::features() const
 
 void WTextInputV1::sendEnter(WSurface *surface)
 {
+    W_D(WTextInputV1);
     // Note: For text input v1, activation and surface focus is managed by client.
     // Do not send focus to text input unless it's activated.
-    if (d_func()->active)
-        zwp_text_input_v1_send_enter(d_func()->resource, surface->handle()->resource);
+    if (d->active && !d->entered) {
+        zwp_text_input_v1_send_enter(d->resource, surface->handle()->resource);
+        d->entered = true;
+    }
     Q_EMIT this->enabled();
 }
 
 void WTextInputV1::sendLeave()
 {
-    if (focusedSurface()) {
-        W_D(WTextInputV1);
-        d->focusedSurface = nullptr;
-        zwp_text_input_v1_send_leave(d_func()->resource);
-        Q_EMIT disabled();
+    W_D(WTextInputV1);
+    if (!d->focusedSurface) {
+        return;
+    }
+    // A server-side leave is only a notification: it neither clears the
+    // client-owned activation record nor revokes the enablement. Only a
+    // client-side deactivate or destruction of the activated surface does
+    // (see text_input_handle_deactivate and the beforeDestroy connection).
+    if (d->entered) {
+        zwp_text_input_v1_send_leave(d->resource);
+        d->entered = false;
     }
 }
 
@@ -242,8 +259,15 @@ void text_input_handle_activate([[maybe_unused]] wl_client *client,
         if (text_input->focusedSurface())
             text_input->focusedSurface()->disconnect(text_input);
         d->focusedSurface = wSurface;
-        QObject::connect(wSurface, &WSurface::beforeDestroy,
-                         text_input, &WTextInputV1::sendLeave);
+        d->entered = false;
+        // Destroying the activated surface ends its activation for real (this
+        // path alone, unlike a plain server-side leave, revokes the record).
+        QObject::connect(wSurface, &WSurface::beforeDestroy, text_input, [text_input] {
+            auto *dd = text_input->d_func();
+            dd->focusedSurface = nullptr;
+            dd->entered = false;
+            Q_EMIT text_input->disabled();
+        });
     }
     d->active = true;
     Q_EMIT text_input->activate();
@@ -262,7 +286,14 @@ void text_input_handle_deactivate([[maybe_unused]] wl_client *client,
 
     d->seat = nullptr;
     d->active = false;
+    // The client revokes its own activation: this is an authoritative
+    // disablement (a server-side leave alone no longer is one). Emit while
+    // the record still exists so the chained requestLeave/sendLeave below can
+    // pair the native leave event.
+    Q_EMIT text_input->disabled();
     Q_EMIT text_input->deactivate();
+    d->focusedSurface = nullptr;
+    d->entered = false;
 }
 
 void text_input_handle_show_input_panel([[maybe_unused]] wl_client *client,
