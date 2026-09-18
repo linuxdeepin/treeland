@@ -1830,11 +1830,16 @@ QList<QRect> Helper::regionWatchWindowRects() const
     QList<QRect> windowRects;
     windowRects.reserve(m_regionWatchSurfaces.size());
     for (const auto &wrapper : std::as_const(m_regionWatchSurfaces)) {
+        // A QPointer clears before destroyed handlers run; if a wrapper was
+        // destroyed without onSurfaceWrapperAboutToRemove, skip the null
+        // entry before touching it.
+        if (!wrapper)
+            continue;
         // The protocol reports overlap with xdg-shell toplevels; popups and
         // other transient surfaces must not trigger enter/leave.
         const bool isToplevel = wrapper->type() == SurfaceWrapper::Type::XdgToplevel
             || wrapper->type() == SurfaceWrapper::Type::XWayland;
-        if (wrapper && isToplevel && wrapper->isVisible()) {
+        if (isToplevel && wrapper->isVisible()) {
             windowRects.append(QRectF{ wrapper->x(), wrapper->y(),
                                         wrapper->width(), wrapper->height() }.toRect());
         }

@@ -93,6 +93,17 @@ extern "C" void region_watch_trigger_recheck(void *)
         g_manager->checkOverlapConflict({ QRect(0, 0, 1920, 1080) });
 }
 
+// Runs the exact production evaluation the 300 ms debounce timer runs, but
+// synchronously on the compositor thread: invoke_on_server_thread returning
+// is the completion boundary for enter/leave assertions (the framework's
+// sync rules forbid fixed delays and retry polling).
+extern "C" void region_watch_recheck(void *)
+{
+    auto *helper = Helper::instance();
+    if (g_manager && helper)
+        g_manager->checkOverlapConflict(helper->regionWatchWindowRects());
+}
+
 // Layout position of the named output, from the same WOutput::position() the
 // region translation uses.
 extern "C" void region_watch_output_position(void *data)

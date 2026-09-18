@@ -13,6 +13,7 @@
 extern void region_watch_query_state(void *data);
 extern void region_watch_remove_second_output(void *data);
 extern void region_watch_trigger_recheck(void *data);
+extern void region_watch_recheck(void *data);
 extern void region_watch_output_position(void *data);
 
 // Outputs are discovered dynamically: the test environment may contain
@@ -161,45 +162,15 @@ static int read_server_state(struct test_ctx *ctx, struct region_watch_server_st
     return invoke_on_server_thread(region_watch_query_state, state);
 }
 
-// Polls until the condition holds; the overlap recheck is debounced on the
-// server (300 ms), so the matching event may take a few cycles to arrive.
-static int poll_for(struct test_ctx *ctx, int (*cond)(struct test_ctx *))
+// Synchronization boundary for asynchronous production actions: runs the
+// exact overlap evaluation the production debounce timer runs, synchronously
+// on the compositor thread, then dispatches the resulting events. No fixed
+// delays or retry polling (framework sync rules).
+static int recheck(struct test_ctx *ctx)
 {
-    for (int i = 0; i < 100; ++i) {
-        if (wl_display_roundtrip(ctx->display) < 0)
-            return 0;
-        if (cond(ctx))
-            return 1;
-        usleep(20000);
-    }
-    return 0;
-}
-
-// Waits long enough for the debounced recheck to have fired without any
-// expected state change; used for "nothing must happen" assertions.
-static int settle(struct test_ctx *ctx)
-{
-    for (int i = 0; i < 25; ++i) {
-        if (wl_display_roundtrip(ctx->display) < 0)
-            return 0;
-        usleep(30000);
-    }
-    return 1;
-}
-
-static int entered(struct test_ctx *ctx)
-{
-    return ctx->enter_count > 0;
-}
-
-static int second_leave_received(struct test_ctx *ctx)
-{
-    return ctx->leave_count >= 2;
-}
-
-static int output_removed_received(struct test_ctx *ctx)
-{
-    return ctx->output_removed_count > 0;
+    if (invoke_on_server_thread(region_watch_recheck, NULL) <= 0)
+        return 0;
+    return wl_display_roundtrip(ctx->display) >= 0;
 }
 
 static int check_state(const struct region_watch_server_state *state,
@@ -282,9 +253,8 @@ int protocol_test_run(const char *socket_name)
     if (wl_display_roundtrip(ctx.display) < 0)
         goto failed;
 
-    // watch.set_region: full primary output coverage so any mapped toplevel
-    // overlaps regardless of where the compositor places it. The region must
-    // be recorded in global layout coordinates (output position + strip).
+    // watch.set_region: full primary output coverage. The region must be
+    // recorded in global layout coordinates (output position + strip).
     treeland_region_watch_v1_set_region(ctx.watch, primary->mode_w, primary->mode_h,
                                         TREELAND_REGION_WATCH_V1_ANCHOR_TOP,
                                         primary->proxy);
@@ -310,20 +280,26 @@ int protocol_test_run(const char *socket_name)
         fprintf(stderr, "region-watch: failed to map the xdg toplevel\n");
         goto failed;
     }
-    if (!poll_for(&ctx, entered)) {
-        fprintf(stderr, "region-watch: enter event not received after mapping a window\n");
+    if (!recheck(&ctx) || ctx.enter_count != 1 || ctx.leave_count != 1) {
+        fprintf(stderr, "region-watch: enter not delivered after mapping a window (%d/%d)\n",
+                ctx.enter_count, ctx.leave_count);
         xdg_toplevel_client_destroy(&toplevel);
         goto failed;
     }
     xdg_toplevel_client_destroy(&toplevel);
-    if (!poll_for(&ctx, second_leave_received)) {
-        fprintf(stderr, "region-watch: leave event not received after closing the window\n");
+    // Roundtrip so the server has processed the destroy and removed the
+    // wrapper from its rect list before the evaluation runs.
+    if (wl_display_roundtrip(ctx.display) < 0)
+        goto failed;
+    if (!recheck(&ctx) || ctx.leave_count != 2) {
+        fprintf(stderr, "region-watch: leave not delivered after closing the window (%d)\n",
+                ctx.leave_count);
         goto failed;
     }
 
     // Multi-output semantics: rebind to the second output (not at the layout
     // origin, full coverage). The recorded region must be translated by the
-    // output's layout position.
+    // output's layout position, and the re-evaluation re-sends the state.
     treeland_region_watch_v1_set_region(ctx.watch, removable->mode_w, removable->mode_h,
                                         TREELAND_REGION_WATCH_V1_ANCHOR_TOP,
                                         removable->proxy);
@@ -341,20 +317,22 @@ int protocol_test_run(const char *socket_name)
     }
 
     // A toplevel on the primary output must NOT intersect the region of the
-    // other output: no enter, and no leave when it closes again.
+    // other output: the evaluation sends no events at all.
     if (!xdg_toplevel_client_create_with_solid_buffer(&ctx.connection, &toplevel,
                                                       800, 600, 0x3300cc66)) {
         fprintf(stderr, "region-watch: failed to map the second toplevel\n");
         goto failed;
     }
-    if (!settle(&ctx) || ctx.enter_count != 1 || ctx.leave_count != 3) {
+    if (!recheck(&ctx) || ctx.enter_count != 1 || ctx.leave_count != 3) {
         fprintf(stderr, "region-watch: window on primary output wrongly affected the region on another output (%d/%d)\n",
                 ctx.enter_count, ctx.leave_count);
         xdg_toplevel_client_destroy(&toplevel);
         goto failed;
     }
     xdg_toplevel_client_destroy(&toplevel);
-    if (!settle(&ctx) || ctx.enter_count != 1 || ctx.leave_count != 3) {
+    if (wl_display_roundtrip(ctx.display) < 0)
+        goto failed;
+    if (!recheck(&ctx) || ctx.enter_count != 1 || ctx.leave_count != 3) {
         fprintf(stderr, "region-watch: closing the second toplevel changed the state (%d/%d)\n",
                 ctx.enter_count, ctx.leave_count);
         goto failed;
@@ -380,7 +358,9 @@ int protocol_test_run(const char *socket_name)
     // Destroy the associated output: output_removed, then the watcher is inert.
     if (invoke_on_server_thread(region_watch_remove_second_output, NULL) <= 0)
         goto failed;
-    if (!poll_for(&ctx, output_removed_received)) {
+    if (wl_display_roundtrip(ctx.display) < 0)
+        goto failed;
+    if (ctx.output_removed_count != 1) {
         fprintf(stderr, "region-watch: output_removed event not received\n");
         goto failed;
     }
@@ -389,20 +369,16 @@ int protocol_test_run(const char *socket_name)
         goto failed;
     }
 
-    // No enter/leave/output_removed may follow until the next set_region.
-    {
-        const int enter = ctx.enter_count;
-        const int leave = ctx.leave_count;
-        const int removed = ctx.output_removed_count;
-        if (invoke_on_server_thread(region_watch_trigger_recheck, NULL) <= 0)
-            goto failed;
-        if (wl_display_roundtrip(ctx.display) < 0)
-            goto failed;
-        if (ctx.enter_count != enter || ctx.leave_count != leave
-            || ctx.output_removed_count != removed) {
-            fprintf(stderr, "region-watch: inert watcher emitted events after output_removed\n");
-            goto failed;
-        }
+    // No enter/leave/output_removed may follow until the next set_region:
+    // run the crossing evaluation and observe that nothing is emitted.
+    if (invoke_on_server_thread(region_watch_trigger_recheck, NULL) <= 0)
+        goto failed;
+    if (wl_display_roundtrip(ctx.display) < 0)
+        goto failed;
+    if (ctx.enter_count != 1 || ctx.leave_count != 4 || ctx.output_removed_count != 1) {
+        fprintf(stderr, "region-watch: inert watcher emitted events after output_removed (%d/%d/%d)\n",
+                ctx.enter_count, ctx.leave_count, ctx.output_removed_count);
+        goto failed;
     }
 
     // manager.destroy must not affect watchers: the watcher is still usable.

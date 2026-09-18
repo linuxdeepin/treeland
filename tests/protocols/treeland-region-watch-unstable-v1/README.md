@@ -33,6 +33,15 @@
 列表评估一次。区域按输出在布局中的位置平移到全局坐标（`WOutput::position()`）后再与
 窗口矩形比较。
 
+## 同步方式
+
+enter/leave 由生产侧 300ms 去抖定时器异步发出，属框架禁止的“固定延时后猜测状态”
+场景。测试改用与定时器完全相同的生产评估路径：server-bridge 在服务端线程同步调用
+`checkOverlapConflict(helper->regionWatchWindowRects())`，`invoke_on_server_thread`
+返回即完成边界（评估与事件发送已在同一次调用内完成），随后一次 roundtrip 投递事件。
+否定断言（inert、跨输出不误报）同样以一次注入评估 + roundtrip 为观察边界：事件只
+会在 `evaluate()` 中发出，评估后计数未变即证明无事件。全程无固定延时、无重试轮询。
+
 服务端实现位于
 `src/modules/region-watch/regionwatchmanagerinterfacev1.h`、
 `regionwatchmanagerinterfacev1.cpp`，窗口 rect 跟踪位于 `src/seat/helper.cpp`。
