@@ -15,6 +15,7 @@
 
 #include <wayland-server.h>
 
+#include <cstddef>
 #include <cstring>
 
 static QList<DDEShellSurfaceV2 *> s_shellSurfacesV2;
@@ -129,7 +130,7 @@ public:
 
     DDEShellSurfaceV2 *q;
     wl_resource *surfaceResource{ nullptr };
-    QMetaObject::Connection surfaceDestroyedConnection;
+    wl_listener surfaceDestroyListener;
     DDEShellSurfaceV2::Role role = DDEShellSurfaceV2::OVERLAY;
     // Exactly one of the two placement hints has a value: the most recently
     // sent request decides the placement mode.
@@ -137,8 +138,6 @@ public:
     std::optional<QPoint> cursorPlacementHint;
     uint32_t skipFlags = 0;
     bool acceptKeyboardFocus = true;
-
-    static void handleSurfaceDestroyed(void *data);
 
 protected:
     void destroy_resource([[maybe_unused]] Resource *resource) override;
@@ -153,6 +152,9 @@ protected:
                                    int32_t y_offset) override;
     void set_skip_flags([[maybe_unused]] Resource *resource, uint32_t flags) override;
     void set_accept_keyboard_focus([[maybe_unused]] Resource *resource, uint32_t accept) override;
+
+private:
+    static void handleSurfaceDestroyed(wl_listener *listener, void *data);
 };
 
 DDEShellSurfaceV2Private::DDEShellSurfaceV2Private(DDEShellSurfaceV2 *_q,
@@ -162,22 +164,31 @@ DDEShellSurfaceV2Private::DDEShellSurfaceV2Private(DDEShellSurfaceV2 *_q,
     , q(_q)
     , surfaceResource(surface)
 {
+    wl_list_init(&surfaceDestroyListener.link);
     // The v2 protocol promises the surface object is destroyed automatically
-    // when the related wl_surface goes away.
-    if (auto *wsurface = WSurface::fromHandle(wlr_surface_from_resource(surface))) {
-        surfaceDestroyedConnection = QObject::connect(wsurface,
-                                                      &WSurface::beforeDestroy,
-                                                      q,
-                                                      [this] {
-                                                          if (this->resource())
-                                                              wl_resource_destroy(this->resource()->handle);
-                                                      });
+    // when the related wl_surface goes away. Listen on the native surface
+    // destroy signal so the cleanup does not depend on the waylib wrapper.
+    if (auto *wlrSurface = wlr_surface_from_resource(surface)) {
+        surfaceDestroyListener.notify = &DDEShellSurfaceV2Private::handleSurfaceDestroyed;
+        wl_signal_add(&wlrSurface->events.destroy, &surfaceDestroyListener);
     }
 }
 
 DDEShellSurfaceV2Private::~DDEShellSurfaceV2Private()
 {
-    QObject::disconnect(surfaceDestroyedConnection);
+    if (!wl_list_empty(&surfaceDestroyListener.link))
+        wl_list_remove(&surfaceDestroyListener.link);
+}
+
+void DDEShellSurfaceV2Private::handleSurfaceDestroyed(wl_listener *listener, void *data)
+{
+    auto *p = reinterpret_cast<DDEShellSurfaceV2Private *>(
+        reinterpret_cast<char *>(listener)
+        - offsetof(DDEShellSurfaceV2Private, surfaceDestroyListener));
+    wl_list_remove(&p->surfaceDestroyListener.link);
+    wl_list_init(&p->surfaceDestroyListener.link);
+    if (p->resource())
+        wl_resource_destroy(p->resource()->handle);
 }
 
 void DDEShellSurfaceV2Private::destroy_resource([[maybe_unused]] Resource *resource)
