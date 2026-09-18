@@ -107,10 +107,12 @@ class TreelandKeyboardStateNotifyManagerInterfaceV1Private
 {
 public:
     explicit TreelandKeyboardStateNotifyManagerInterfaceV1Private(TreelandKeyboardStateNotifyManagerInterfaceV1 *_q);
+    ~TreelandKeyboardStateNotifyManagerInterfaceV1Private() override;
 
     TreelandKeyboardStateNotifyManagerInterfaceV1 *q = nullptr;
 
     void setupKeyboardConnections();
+    void teardownKeyboardConnections();
     void onModifiersEvent(WSeat *seat);
     wl_global *global() const;
 
@@ -127,6 +129,7 @@ private:
     void connectKeyboardGroup(WSeat *seat, WInputDevice *keyboardDevice);
 
     QList<QSharedPointer<KeyboardConnection>> m_keyboardConnections;
+    QList<QMetaObject::Connection> m_seatManagerSignals;
     bool m_keyboardConnectionsSetup = false;
 };
 
@@ -134,6 +137,29 @@ TreelandKeyboardStateNotifyManagerInterfaceV1Private::TreelandKeyboardStateNotif
     TreelandKeyboardStateNotifyManagerInterfaceV1 *_q)
     : q(_q)
 {
+}
+
+TreelandKeyboardStateNotifyManagerInterfaceV1Private::~TreelandKeyboardStateNotifyManagerInterfaceV1Private()
+{
+    teardownKeyboardConnections();
+}
+
+// The modifiers listeners registered through connectKeyboardGroup() are
+// native wl_list listeners on the seat's keyboard-group wlr_keyboard, an
+// object this module does not own. wlr_keyboard_finish() hard-asserts that
+// its events.modifiers listener list is empty, so the listeners must be
+// detached while the seat is still alive: before WServer::stop() reaches
+// WSeat::destroy() in the interface teardown loop, and before any dynamic
+// seat detach/delete. Also reset the setup state so a server restart can
+// re-register everything on the freshly created keyboard group.
+void TreelandKeyboardStateNotifyManagerInterfaceV1Private::teardownKeyboardConnections()
+{
+    m_keyboardConnections.clear();
+    s_lastModifiers.clear();
+    for (const auto &connection : std::as_const(m_seatManagerSignals))
+        QObject::disconnect(connection);
+    m_seatManagerSignals.clear();
+    m_keyboardConnectionsSetup = false;
 }
 
 wl_global *TreelandKeyboardStateNotifyManagerInterfaceV1Private::global() const
@@ -180,10 +206,10 @@ void TreelandKeyboardStateNotifyManagerInterfaceV1Private::setupKeyboardConnecti
         handleSeatAdded(seat);
     }
 
-    QObject::connect(helper->seatManager(), &SeatsManager::seatAdded, q, [this](WSeat *seat) {
+    m_seatManagerSignals << QObject::connect(helper->seatManager(), &SeatsManager::seatAdded, q, [this](WSeat *seat) {
         handleSeatAdded(seat);
     });
-    QObject::connect(helper->seatManager(), &SeatsManager::seatRemoved, q, [this](WSeat *seat) {
+    m_seatManagerSignals << QObject::connect(helper->seatManager(), &SeatsManager::seatRemoved, q, [this](WSeat *seat) {
         handleSeatDestroy(seat);
     });
 }
@@ -408,6 +434,11 @@ void TreelandKeyboardStateNotifyManagerInterfaceV1::create(WServer *server)
 void TreelandKeyboardStateNotifyManagerInterfaceV1::destroy([[maybe_unused]] WServer *server)
 {
     d->globalRemove();
+    // WServer::stop() destroys interfaces in reverse attach order: this
+    // module is torn down before WSeat, so detaching here still finds the
+    // group keyboard alive and wlr_keyboard_finish() sees an empty list.
+    // The interface object itself outlives the keyboard otherwise.
+    d->teardownKeyboardConnections();
 }
 
 wl_global *TreelandKeyboardStateNotifyManagerInterfaceV1::global() const

@@ -105,5 +105,11 @@ private:
     QMap<QString, WSeat*> m_seats;
     QMap<QString, QList<QRegularExpression>> m_deviceRules;
     WSeat *m_defaultSeat = nullptr;
+    // Per-seat QObject::destroyed hooks that prune m_seats/m_defaultSeat when
+    // WServer (~WServer's qDeleteAll of interfaceList) deletes a WSeat before
+    // this manager does. Cleared up-front in ~SeatsManager so the hook body
+    // never touches manager members during self-destruction.
+    QHash<WSeat *, QMetaObject::Connection> m_seatCleanupHooks;
+    void unhookSeat(WSeat *seat);
     mutable QMap<WInputDevice*, WSeat*> m_deviceCache;
 };
