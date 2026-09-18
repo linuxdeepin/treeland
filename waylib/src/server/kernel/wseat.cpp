@@ -1334,7 +1334,17 @@ void WSeat::notifyAxis(WCursor *cursor, WInputDevice *device, wl_pointer_axis_so
 
     // Refer to https://github.com/qt/qtwayland/blob/774c0be247bd04362fc7713919ac151c44e34ced/src/client/qwaylandinputdevice.cpp#L1089
     // The direction in Qt event is in the opposite direction of wayland one, generate a event identical to Qt's direction.
-    QPoint angleDelta = orientation == Qt::Horizontal ? QPoint(-delta_discrete, 0) : QPoint(0, -delta_discrete);
+    QPoint angleDelta;
+    if (delta_discrete != 0) {
+        angleDelta = orientation == Qt::Horizontal ? QPoint(-delta_discrete, 0) : QPoint(0, -delta_discrete);
+    } else {
+        // No discrete step was reported (e.g. smooth/pixel-only scrolling).
+        // Fall back to the continuous delta, mirroring Qt's
+        // QWaylandInputDevice::Pointer::FrameData::angleDelta() fallback.
+        const int fallback = static_cast<int>(delta * -12.0);
+        angleDelta = orientation == Qt::Horizontal ? QPoint(fallback, 0)
+                                                   : QPoint(0, fallback);
+    }
     WSeatWheelEvent e(static_cast<wl_pointer_axis_source>(source), delta, orientation,
                       static_cast<wl_pointer_axis_relative_direction>(rd),
                       local, global, QPoint(), angleDelta, Qt::NoButton, d->keyModifiers,
