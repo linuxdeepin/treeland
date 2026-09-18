@@ -26,6 +26,9 @@ public:
     explicit DDEShellManagerInterfaceV1(QObject *parent = nullptr);
     ~DDEShellManagerInterfaceV1() override;
 
+    // Deprecated: superseded by TreelandRegionWatchManagerInterfaceV1
+    // (treeland-region-watch-unstable-v1). Kept registered in parallel
+    // during the transition; new code must use the region-watch global.
     void checkRegionalConflict(const QRegion &region);
 
     QByteArrayView interfaceName() const override;
@@ -33,6 +36,7 @@ public:
 Q_SIGNALS:
     void surfaceCreated(DDEShellSurfaceInterface *interface);
     void activeCreated(DDEActiveInterface *interface);
+    // Deprecated: superseded by TreelandRegionWatchManagerInterfaceV1::regionWatchCreated.
     void windowOverlapCheckerCreated(WindowOverlapCheckerInterface *interface);
     void multiTaskViewsCreated(MultiTaskViewInterface *interface);
     void PickerCreated(WindowPickerInterface *interface);
@@ -123,6 +127,9 @@ private:
     std::unique_ptr<DDEActiveInterfacePrivate> d;
 };
 
+// Deprecated: superseded by TreelandRegionWatchManagerInterfaceV1 / RegionWatchV1
+// (treeland-region-watch-unstable-v1). Kept registered in parallel during the
+// transition; new code must use the region-watch protocol.
 class WindowOverlapCheckerInterfacePrivate;
 class WindowOverlapCheckerInterface : public QObject
 {
