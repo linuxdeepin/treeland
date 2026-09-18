@@ -10,6 +10,7 @@
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WXWayland;
+class WXWaylandPrivate;
 class WSeat;
 class WXWaylandSurfacePrivate;
 class WAYLIB_SERVER_EXPORT WXWaylandSurface : public WToplevelSurface
@@ -113,6 +114,7 @@ public:
     bool isBypassManager() const;
     bool isAbove() const;
     bool isBelow() const;
+    bool isX11Mapped() const;
     bool isModal() const;
     WindowTypes windowTypes() const;
     DecorationsFlags decorationsFlags() const;
@@ -133,6 +135,8 @@ Q_SIGNALS:
     void associated();
     // Emitted before WXWaylandSurfacePrivate handles notify_dissociate cleanup.
     void aboutToDissociate();
+    // Emitted asynchronously after wlroots finishes handling XCB_MAP_NOTIFY.
+    void x11MapCompleted();
 
     void parentXWaylandSurfaceChanged();
     void childrenChanged();
@@ -147,6 +151,10 @@ Q_SIGNALS:
 
     void requestConfigure(QRect geometry, ConfigureFlags flags);
     void requestActivate();
+
+private:
+    friend class WXWaylandPrivate;
+    void setX11Mapped(bool mapped);
 };
 
 WAYLIB_SERVER_END_NAMESPACE
