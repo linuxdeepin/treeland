@@ -4,21 +4,69 @@
 #include "wallpaperitem.h"
 
 #include "core/qmlengine.h"
-#include "seat/helper.h"
-#include "workspace/workspacemodel.h"
-#include "wallpapershellinterfacev1.h"
-#include "wallpaper/wallpapermanager.h"
-#include "workspace.h"
-#include "shellhandler.h"
 #include "greeterproxy.h"
+#include "seat/helper.h"
+#include "shellhandler.h"
+#include "wallpaper/wallpapermanager.h"
+#include "wallpapershellinterfacev1.h"
+#include "workspace.h"
+#include "workspace/workspacemodel.h"
 
-#include <woutputitem.h>
 #include <woutput.h>
+#include <woutputitem.h>
 
-#include <QTimer>
+#include <DGuiApplicationHelper>
+
+#include <QImage>
 #include <QLoggingCategory>
+#include <QTimer>
+#include <QtConcurrent>
+
+#define MATRIX              16          //图片大小
+#define SATUARATION         50          //饱和度
+#define BRIGHTNESS          -60         //亮度
 
 WAYLIB_SERVER_USE_NAMESPACE
+
+namespace {
+
+// Average wallpaper color, following dde-pixmix: downscale the image to a small
+// matrix, average it, then apply the same saturation/lightness adjustment.
+QColor averageWallpaperColor(const QString &path)
+{
+    QImage image(path);
+    if (image.isNull()) {
+        return Qt::transparent;
+    }
+
+    const QImage tiny = image.scaled(MATRIX, MATRIX, Qt::IgnoreAspectRatio, Qt::FastTransformation)
+                            .convertToFormat(QImage::Format_RGB32);
+
+    qint64 r = 0;
+    qint64 g = 0;
+    qint64 b = 0;
+    for (int y = 0; y < tiny.height(); ++y) {
+        const QRgb *line = reinterpret_cast<const QRgb *>(tiny.constScanLine(y));
+        for (int x = 0; x < tiny.width(); ++x) {
+            r += qRed(line[x]);
+            g += qGreen(line[x]);
+            b += qBlue(line[x]);
+        }
+    }
+
+    const int count = tiny.width() * tiny.height();
+    if (count <= 0) {
+        return Qt::transparent;
+    }
+
+    const QColor averaged(static_cast<int>(r / count),
+                          static_cast<int>(g / count),
+                          static_cast<int>(b / count));
+
+    return DTK_GUI_NAMESPACE::DGuiApplicationHelper::adjustColor(averaged, 0, SATUARATION, BRIGHTNESS, 0, 0, 0, 0);
+}
+
+} // namespace
 
 WallpaperItem::WallpaperItem(QQuickItem *parent)
     : WallpaperItem(parent, true)
@@ -30,6 +78,14 @@ WallpaperItem::WallpaperItem(QQuickItem *parent, bool autoUpdate)
 {
     m_model = Helper::instance()->qmlEngine()->singletonInstance<UserModel *>("Treeland",
                                                                               "UserModel");
+    connect(&m_colorWatcher, &QFutureWatcher<QColor>::finished, this, [this] {
+        // A newer request cancels the pending one; drop results from it as well.
+        if (m_colorWatcher.isCanceled() || m_colorSource != m_source) {
+            return;
+        }
+
+        setWallpaperColor(m_colorWatcher.result());
+    });
     if (autoUpdate) {
         connect(m_model,
                 &UserModel::currentUserNameChanged,
@@ -118,6 +174,55 @@ QString WallpaperItem::source() const
     return m_source;
 }
 
+WallpaperItem::WallpaperType WallpaperItem::wallpaperType()
+{
+    return m_wallpaperType;
+}
+
+void WallpaperItem::setWallpaperType(WallpaperType type)
+{
+    if (m_wallpaperType == type) {
+        return;
+    }
+
+    m_wallpaperType = type;
+    Q_EMIT wallpaperTypeChanged();
+}
+
+QColor WallpaperItem::wallpaperColor() const
+{
+    return m_wallpaperColor;
+}
+
+void WallpaperItem::setWallpaperColor(const QColor &color)
+{
+    if (m_wallpaperColor == color) {
+        return;
+    }
+
+    m_wallpaperColor = color;
+    Q_EMIT wallpaperColorChanged();
+}
+
+void WallpaperItem::refreshWallpaperColor()
+{
+    if (m_wallpaperType != Image) {
+        m_colorSource.clear();
+        setWallpaperColor(Qt::transparent);
+        return;
+    }
+
+    if (m_source.isEmpty() || m_source == m_colorSource) {
+        return;
+    }
+
+    m_colorSource = m_source;
+    const QString path = m_source;
+    m_colorWatcher.setFuture(QtConcurrent::run([path] {
+        return averageWallpaperColor(path);
+    }));
+}
+
 bool WallpaperItem::play() const
 {
     return m_play;
@@ -176,6 +281,10 @@ void WallpaperItem::updateSurface()
                     return;
                 }
                 m_source = config.lockscreenWallpaper;
+                setWallpaperType(static_cast<WallpaperType>(
+                    Helper::instance()->m_wallpaperManager->getWallpaperType(
+                        config.lockscreenWallpaper)));
+                refreshWallpaperColor();
                 setSurface(interface->wSurface());
                 interface->wSurface()->enterOutput(output());
                 update();
@@ -196,6 +305,8 @@ void WallpaperItem::updateSurface()
                     return;
                 }
                 m_source = workspaceConfig.desktopWallpaper;
+                // Only the lockscreen wallpaper needs to update the wallpaper type
+                // and average color. 
                 setSurface(interface->wSurface());
                 interface->wSurface()->enterOutput(output());
                 update();
