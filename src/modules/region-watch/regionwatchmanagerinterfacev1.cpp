@@ -30,7 +30,8 @@ public:
 
     void evaluate(const QList<QRect> &windowRects);
 
-    // Monitored region in output coordinates; empty when the watcher is
+    // Monitored region in global layout coordinates (output position +
+    // strip); empty when the watcher is
     // inert (no successful set_region yet, or the associated output was
     // removed).
     QRect region;
