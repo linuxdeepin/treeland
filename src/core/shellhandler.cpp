@@ -1303,14 +1303,20 @@ void ShellHandler::handleDdeShellSurfaceAdded(WSurface *surface, SurfaceWrapper 
         updateLayer();
     });
 
+    // v1 sends the y offset as uint32; clamp before narrowing to int so huge
+    // values cannot wrap into a bogus negative placement.
+    auto clampYOffset = [](uint32_t offset) {
+        return static_cast<int>(qMin<uint32_t>(offset, 0x7FFFFFFFu));
+    };
+
     if (ddeShellSurface->yOffset().has_value())
-        wrapper->setAutoPlaceYOffset(ddeShellSurface->yOffset().value());
+        wrapper->setAutoPlaceYOffset(clampYOffset(ddeShellSurface->yOffset().value()));
 
     connect(ddeShellSurface,
             &DDEShellSurfaceInterface::yOffsetChanged,
             this,
-            [wrapper](uint32_t offset) {
-                wrapper->setAutoPlaceYOffset(offset);
+            [wrapper, clampYOffset](uint32_t offset) {
+                wrapper->setAutoPlaceYOffset(clampYOffset(offset));
             });
 
     if (ddeShellSurface->surfacePos().has_value())

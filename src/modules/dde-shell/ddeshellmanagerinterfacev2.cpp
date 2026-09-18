@@ -1,4 +1,4 @@
-// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "ddeshellmanagerinterfacev2.h"
@@ -14,6 +14,8 @@
 #include <woutput.h>
 
 #include <wayland-server.h>
+
+#include <cstring>
 
 static QList<DDEShellSurfaceV2 *> s_shellSurfacesV2;
 
@@ -52,6 +54,14 @@ void DDEShellManagerInterfaceV2Private::get_shell_surface(Resource *resource,
 {
     if (!surface) {
         wl_resource_post_error(resource->handle, 0, "surface resource is NULL!");
+        return;
+    }
+
+    // wlr_surface_from_resource asserts on a non-wl_surface resource; validate
+    // the class first so a hostile client gets a protocol error instead of
+    // aborting the compositor.
+    if (strcmp(wl_resource_get_class(surface), wl_surface_interface.name) != 0) {
+        wl_resource_post_error(resource->handle, 0, "invalid wl_surface resource");
         return;
     }
 
@@ -211,6 +221,10 @@ void DDEShellSurfaceV2Private::set_position_hint([[maybe_unused]] Resource *reso
 {
     QPoint anchor;
     if (output) {
+        if (strcmp(wl_resource_get_class(output), wl_output_interface.name) != 0) {
+            wl_resource_post_error(resource->handle, 0, "invalid wl_output resource");
+            return;
+        }
         auto *wOutput = WOutput::fromHandle(wlr_output_from_resource(output));
         if (!wOutput) {
             wl_resource_post_error(resource->handle, 0, "invalid wl_output resource");

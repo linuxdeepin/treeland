@@ -80,7 +80,9 @@ static int connect_client(struct test_ctx *ctx, const char *socket_name)
     ctx->output = client_bind(&ctx->connection, "wl_output", &wl_output_interface, 1);
     ctx->manager = client_bind(&ctx->connection, "treeland_dde_shell_manager_v2",
                                       &treeland_dde_shell_manager_v2_interface, 1);
-    return ctx->manager != NULL;
+    // Every bound resource is required by some case; a partial bind would
+    // silently steer e.g. the output-anchored position test to the null path.
+    return ctx->compositor && ctx->seat && ctx->output && ctx->manager != NULL;
 }
 
 static int create_shell_surface(struct test_ctx *ctx)
@@ -201,12 +203,47 @@ static int recreate_after_destroy(struct test_ctx *ctx)
     return ctx->shell_surface != NULL && wl_display_roundtrip(ctx->display) >= 0;
 }
 
+// Destroy the wl_surface while the shell surface object is still alive: the
+// v2 protocol requires the compositor to destroy the object automatically.
+static int surface_destroy_releases_shell_surface(struct test_ctx *ctx)
+{
+    struct wl_surface *surface = wl_compositor_create_surface(ctx->compositor);
+    if (!surface)
+        return 0;
+    struct treeland_dde_shell_surface_v2 *shell =
+        treeland_dde_shell_manager_v2_get_shell_surface(ctx->manager, surface);
+    if (!shell || wl_display_roundtrip(ctx->display) < 0)
+        return 0;
+
+    wl_surface_destroy(surface);
+    if (wl_display_roundtrip(ctx->display) < 0)
+        return 0;
+
+    // The server-side test bridge resets its tracked object on destruction,
+    // so the state query must come back empty afterwards.
+    struct dde_shell_surface_v2_state state;
+    if (!invoke_on_server_thread(dde_shell_v2_query_surface_state, &state))
+        return 0;
+    return !state.position_set && !state.cursor_set && !state.role_overlay
+           && state.skip_flags == 0;
+}
+
 static int duplicate_shell_surface_error(struct test_ctx *ctx)
 {
     treeland_dde_shell_manager_v2_get_shell_surface(ctx->manager, ctx->test_surface);
     // The compositor raises already_shell_surface, which kills the connection:
     // the roundtrip must fail.
-    return wl_display_roundtrip(ctx->display) < 0;
+    if (wl_display_roundtrip(ctx->display) >= 0)
+        return 0;
+
+    // Assert the reported error is really already_shell_surface on the v2
+    // manager interface, not some unrelated protocol error.
+    uint32_t error_code = 0;
+    const struct wl_interface *error_iface = NULL;
+    if (wl_display_get_protocol_error(ctx->display, &error_iface, &error_code) == NULL)
+        return 0;
+    return error_iface == &treeland_dde_shell_manager_v2_interface
+           && error_code == TREELAND_DDE_SHELL_MANAGER_V2_ERROR_ALREADY_SHELL_SURFACE;
 }
 
 static const struct test_case cases[] = {
@@ -221,6 +258,7 @@ static const struct test_case cases[] = {
     { "shell_surface.clear_skip_flags", clear_skip_flags },
     { "shell_surface.set_accept_keyboard_focus", set_keyboard_focus },
     { "server.shell_surface_state", shell_surface_state },
+    { "shell_surface.surface_destroy_releases", surface_destroy_releases_shell_surface },
     { "shell_surface.destroy", destroy_shell_surface },
     { "manager.recreate_after_destroy", recreate_after_destroy },
     // Must stay last: the expected protocol error tears the connection down.
