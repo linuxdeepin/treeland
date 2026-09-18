@@ -42,6 +42,7 @@
 #include "modules/input-manager/inputmanagerinterfacev1.h"
 #include "modules/keyboard-shortcuts-inhibit/keyboardshortcutsinhibitmanager.h"
 #include "modules/keyboard-state-notify/keyboardstatenotifymanagerinterfacev1.h"
+#include "modules/active-notify/activenotifymanagerinterfacev1.h"
 #include "modules/output-manager/outputmanagement.h"
 #include "modules/personalization/personalizationmanagerinterfacev1.h"
 #include "modules/appearance/appearanceinterfacev1.h"
@@ -2346,6 +2347,7 @@ void Helper::init(Treeland::Treeland *treeland)
             &InputManager::onKeyboardSettingsCreated);
 
     m_keyboardStateNotifyManagerInterfaceV1 = m_server->attach<TreelandKeyboardStateNotifyManagerInterfaceV1>();
+    m_activeNotifyManagerInterfaceV1 = m_server->attach<TreelandActiveNotifyManagerInterfaceV1>();
     m_keyboardShortcutsInhibitManagerV1 = m_server->attach<KeyboardShortcutsInhibitManagerV1>();
 
 #if TREELANDCONFIG_DCONFIG_FILE_VERSION_MINOR > 0
@@ -3126,6 +3128,7 @@ void Helper::handleRequestDrag([[maybe_unused]] WSurface *surface)
     dragDropListener.init(&drag->events.drop, this, [this] (void *) {
         if (m_ddeShellV1)
             DDEActiveInterface::sendDrop(m_primarySeat);
+        ActiveNotifyV1::sendDragChanged(ActiveNotifyV1::Dropped, m_primarySeat);
     });
 
     dragDestroyListener.init(&drag->events.destroy, this, [this, drag] (void *) {
@@ -3133,11 +3136,14 @@ void Helper::handleRequestDrag([[maybe_unused]] WSurface *surface)
         // destroy listener lists are empty after emitting destroy.
         dragDropListener.disconnect();
         dragDestroyListener.disconnect();
+        if (!drag->dropped)
+            ActiveNotifyV1::sendDragChanged(ActiveNotifyV1::Cancelled, m_primarySeat);
         drag->data = NULL;
         m_primarySeat->setAlwaysUpdateHoverTarget(false);
     });
     if (m_ddeShellV1)
         DDEActiveInterface::sendStartDrag(m_primarySeat);
+    ActiveNotifyV1::sendDragChanged(ActiveNotifyV1::Started, m_primarySeat);
 }
 
 void Helper::handleLockScreen(LockScreenInterface *lockScreen)
@@ -3562,27 +3568,39 @@ WSeat *Helper::seat() const
 
 void Helper::handleLeftButtonStateChanged(const QInputEvent *event)
 {
-    Q_ASSERT(m_ddeShellV1 && m_primarySeat);
+    Q_ASSERT(m_primarySeat);
     const QMouseEvent *me = static_cast<const QMouseEvent *>(event);
     if (me->button() == Qt::LeftButton) {
         if (event->type() == QEvent::MouseButtonPress) {
             DDEActiveInterface::sendActiveIn(DDEActiveInterface::Mouse, m_primarySeat);
+            ActiveNotifyV1::sendActivityChanged(ActiveNotifyV1::Mouse,
+                                                ActiveNotifyV1::Active,
+                                                m_primarySeat);
         } else {
             DDEActiveInterface::sendActiveOut(DDEActiveInterface::Mouse, m_primarySeat);
+            ActiveNotifyV1::sendActivityChanged(ActiveNotifyV1::Mouse,
+                                                ActiveNotifyV1::Inactive,
+                                                m_primarySeat);
         }
     }
 }
 
 void Helper::handleWhellValueChanged(const QInputEvent *event)
 {
-    Q_ASSERT(m_ddeShellV1 && m_primarySeat);
+    Q_ASSERT(m_primarySeat);
     const QWheelEvent *we = static_cast<const QWheelEvent *>(event);
     QPoint delta = we->angleDelta();
     if (delta.x() + delta.y() < 0) {
         DDEActiveInterface::sendActiveOut(DDEActiveInterface::Wheel, m_primarySeat);
+        ActiveNotifyV1::sendActivityChanged(ActiveNotifyV1::Wheel,
+                                            ActiveNotifyV1::Inactive,
+                                            m_primarySeat);
     }
     if (delta.x() + delta.y() > 0) {
         DDEActiveInterface::sendActiveIn(DDEActiveInterface::Wheel, m_primarySeat);
+        ActiveNotifyV1::sendActivityChanged(ActiveNotifyV1::Wheel,
+                                            ActiveNotifyV1::Active,
+                                            m_primarySeat);
     }
 }
 
@@ -4044,12 +4062,15 @@ void Helper::handleRequestDragForSeat(WSeat *seat, WSurface *)
     seat->listeners(dragOwner)->add(&drag->events.drop, this, [this, seat] (void *) {
         if (m_ddeShellV1)
             DDEActiveInterface::sendDrop(seat);
+        ActiveNotifyV1::sendDragChanged(ActiveNotifyV1::Dropped, seat);
     });
 
     QPointer<WCursor> dragCursor = seat->cursor();
     seat->listeners(dragOwner)->add(&drag->events.destroy, this, [this, seat, drag, dragCursor, dragOwner] (void *) {
         if (dragCursor)
             dragCursor->setOverrideCursor(WCursor::toQCursor(WGlobal::CursorShape::Invalid));
+        if (!drag->dropped)
+            ActiveNotifyV1::sendDragChanged(ActiveNotifyV1::Cancelled, seat);
         drag->data = NULL;
         seat->setAlwaysUpdateHoverTarget(false);
         // Drop the drop/destroy/dnd_action listener entries while the destroy
@@ -4090,6 +4111,7 @@ void Helper::handleRequestDragForSeat(WSeat *seat, WSurface *)
 
     if (m_ddeShellV1)
         DDEActiveInterface::sendStartDrag(seat);
+    ActiveNotifyV1::sendDragChanged(ActiveNotifyV1::Started, seat);
 }
 
 void Helper::enableAllOutput()
