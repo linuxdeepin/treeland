@@ -3,7 +3,7 @@
 
 #include "shortcutcontroller.h"
 
-#include "qwayland-server-treeland-shortcut-manager-v2.h"
+#include "qwayland-server-treeland-shortcut-manager-unstable-v3.h"
 
 #include "common/treelandlogging.h"
 #include "input/inputdevice.h"
@@ -16,17 +16,17 @@
 
 static_assert(
     static_cast<uint32_t>(ShortcutController::KeyPress) ==
-        QtWaylandServer::treeland_shortcut_manager_v2::
+        QtWaylandServer::treeland_shortcut_manager_v3::
             keybind_flag_key_press &&
     static_cast<uint32_t>(ShortcutController::KeyRelease) ==
-        QtWaylandServer::treeland_shortcut_manager_v2::
+        QtWaylandServer::treeland_shortcut_manager_v3::
             keybind_flag_key_release &&
     static_cast<uint32_t>(ShortcutController::Repeat) ==
-        QtWaylandServer::treeland_shortcut_manager_v2::keybind_flag_repeat,
-    "treeland-shortcut-manager-v2: protocol's keybind_flag disagree with "
+        QtWaylandServer::treeland_shortcut_manager_v3::keybind_flag_repeat,
+    "treeland-shortcut-manager-v3: protocol's keybind_flag disagree with "
     "Treeland in value");
 
-using BindError = QtWaylandServer::treeland_shortcut_manager_v2::bind_error;
+using BindError = QtWaylandServer::treeland_shortcut_manager_v3::bind_error;
 
 ShortcutController::ShortcutController(QObject *parent)
     : QObject(parent)
@@ -47,10 +47,6 @@ const char *ShortcutController::actionName(ShortcutAction action)
 
 uint ShortcutController::registerKey(const QString &name, const QString& key, ShortcutController::KeyFlags keybindFlags, ShortcutAction action)
 {
-    if (m_deleters.contains(name)) {
-        return BindError::bind_error_name_conflict;
-    }
-
     // For all-modifier bindings: Ctrl is a valid modifier but not a valid key.
     auto keySeq = QKeySequence::fromString(key.endsWith("+Ctrl") ? key + "+Control"
                                                                                       : key,
@@ -69,12 +65,22 @@ uint ShortcutController::registerKey(const QString &name, const QString& key, Sh
     }
 
     auto &entry = m_keyMap[combined];
+    // Per the v3 protocol, bind_key upserts when the same key sequence and
+    // action already exists (updating its flags) instead of failing. Re-binding
+    // the same name to the same trigger is therefore an in-place flag update,
+    // not a name_conflict; name_conflict only applies when the name is already
+    // used by a different key+action binding.
     if (entry.contains(action)) {
         const auto &[prevName, flags] = entry[action];
+        if (name != prevName && m_deleters.contains(name)) {
+            return BindError::bind_error_name_conflict;
+        }
         m_deleters.remove(prevName);
         qCInfo(lcTlShortcut).noquote() << "Overriding existing key binding of"
                                  << keySeq[0] << "for action" << actionName(action)
                                  << "by name" << prevName << "with new name" << name << "and flags" << keybindFlags;
+    } else if (m_deleters.contains(name)) {
+        return BindError::bind_error_name_conflict;
     }
     m_keyMap[combined][action] = std::make_pair(name, keybindFlags);
     m_actionCombinedMap[action] = combined;

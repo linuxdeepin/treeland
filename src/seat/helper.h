@@ -116,7 +116,7 @@ class SessionManager;
 class SettingManager;
 class SessionModel;
 class ShellHandler;
-class ShortcutManagerV2;
+class ShortcutManagerV3;
 class ShortcutRunner;
 class SurfaceContainer;
 class SurfaceWrapper;
@@ -468,7 +468,7 @@ private:
     WRelativePointerManagerV1 *m_relativePointerManager = nullptr;
     WPointerConstraintsV1 *m_pointerConstraintsV1 = nullptr;
     PointerConstraintsManager *m_pointerConstraintsManager = nullptr;
-    ShortcutManagerV2 *m_shortcutManager = nullptr;
+    ShortcutManagerV3 *m_shortcutManager = nullptr;
     PersonalizationManagerInterfaceV1 *m_personalizationInterfaceV1 = nullptr;
     AppearanceInterfaceV1 *m_appearanceInterfaceV1 = nullptr;
     AppearanceManagerInterfaceV1 *m_appearanceManagerInterfaceV1 = nullptr;
