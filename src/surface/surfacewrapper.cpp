@@ -2911,8 +2911,12 @@ void SurfaceWrapper::setCursorPlacement(bool placement)
         return;
 
     m_cursorPlacement = placement;
-    if (placement)
+    if (placement) {
+        // Entering cursor mode supersedes a stale fixed-position request,
+        // otherwise the next arrange pass would jump back to it.
+        resetClientRequstPos();
         setPositionAutomatic(false);
+    }
     Q_EMIT cursorPlacementChanged();
 }
 
@@ -2933,6 +2937,9 @@ void SurfaceWrapper::setClientRequstPos(QPoint pos)
 
     m_clientRequstPos = pos;
     m_hasClientRequstPos = true;
+    // A fixed position supersedes cursor placement; the two modes are mutually
+    // exclusive and the later request wins.
+    setCursorPlacement(false);
     // An explicit position request (including 0,0) always pins the surface.
     setPositionAutomatic(false);
     Q_EMIT clientRequstPosChanged();
