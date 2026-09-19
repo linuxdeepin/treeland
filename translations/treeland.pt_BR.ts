@@ -37,12 +37,12 @@
     <message>
         <location filename="../src/core/qml/WindowMenu.qml" line="50"/>
         <source>Always on Top</source>
-        <translation>Manter na Frente</translation>
+        <translation>Sempre na frente</translation>
     </message>
     <message>
         <location filename="../src/core/qml/WindowMenu.qml" line="56"/>
         <source>Always on Visible Workspace</source>
-        <translation>Manter visível na Área de Trabalho</translation>
+        <translation>Sempre à frente nos espaços de trabalho</translation>
     </message>
     <message>
         <location filename="../src/core/qml/WindowMenu.qml" line="70"/>
