@@ -2134,18 +2134,20 @@ void SurfaceWrapper::cancelTileMode()
 
 void SurfaceWrapper::enterFullscreen(WOutput *targetOutput)
 {
+    if (targetOutput) {
+        auto *helper = Helper::instance();
+        auto *target = helper ? helper->getOutput(targetOutput) : nullptr;
+        if (target && target->isSource()) {
+            if (target != m_ownsOutput)
+                setOwnsOutput(target);
+        }
+    }
+
     if (m_type == Type::XdgToplevel && surface() && !surface()->mapped()) {
         auto *xdgSurface = qobject_cast<WXdgToplevelSurface *>(m_shellSurface.data());
         if (xdgSurface->isInitialized())
             setSurfaceStateDirectly(State::Fullscreen);
         return;
-    }
-
-    if (targetOutput) {
-        auto *helper = Helper::instance();
-        auto *target = helper ? helper->getOutput(targetOutput) : nullptr;
-        if (target && target != m_ownsOutput && target->isSource()) 
-            setOwnsOutput(target);
     }
 
     setSurfaceState(State::Fullscreen);
