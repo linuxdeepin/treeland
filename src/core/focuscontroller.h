@@ -6,6 +6,7 @@
 #include <wglobal.h>
 
 #include "modules/activation/activationmanagerinterfacev1.h"
+#include "modules/window-transition/windowtransitionmanagerinterfacev1.h"
 
 #include <QObject>
 
@@ -41,8 +42,11 @@ public:
 
 private:
     bool canTransferActivation(WSurface *surface, WSeat *seat) const;
-    void onActivationRequested(ActivationManagerInterfaceV1::TokenDisposition disposition,
-                               WSurface *surface, WSeat *seat);
+    void onActivationRequested(const QString &token,
+                               ActivationManagerInterfaceV1::TokenDisposition disposition,
+                               WSurface *surface, WSeat *seat,
+                               WSurface *originatingSurface);
 private:
     WaylandServer *m_server;
+    WindowTransitionManagerInterfaceV1 *m_windowTransitionManagerV1 = nullptr;
 };
