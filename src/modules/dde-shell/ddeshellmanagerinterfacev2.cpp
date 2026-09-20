@@ -186,11 +186,10 @@ DDEShellSurfaceV2Private::~DDEShellSurfaceV2Private()
         wl_list_remove(&surfaceDestroyListener.link);
 }
 
-void DDEShellSurfaceV2Private::handleSurfaceDestroyed(wl_listener *listener, void *data)
+void DDEShellSurfaceV2Private::handleSurfaceDestroyed(wl_listener *listener,
+                                                     [[maybe_unused]] void *data)
 {
-    auto *p = reinterpret_cast<DDEShellSurfaceV2Private *>(
-        reinterpret_cast<char *>(listener)
-        - offsetof(DDEShellSurfaceV2Private, surfaceDestroyListener));
+    DDEShellSurfaceV2Private *p = wl_container_of(listener, p, surfaceDestroyListener);
     wl_list_remove(&p->surfaceDestroyListener.link);
     wl_list_init(&p->surfaceDestroyListener.link);
     if (p->resource())
