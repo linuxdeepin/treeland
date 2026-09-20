@@ -291,6 +291,10 @@ void FocusController::updateSurfaceSeatInteraction(SurfaceWrapper *surface, WSea
 
 void FocusController::installActivationProtocol(WServer *server)
 {
+    // The window transition manager is part of the activation path: an
+    // activation token may carry a pending transition rect that has to be
+    // associated with the target surface before it maps.
+    m_windowTransitionManagerV1 = server->attach<WindowTransitionManagerInterfaceV1>();
     auto *activation = server->attach<ActivationManagerInterfaceV1>(
         [this](WSurface *surface, WSeat *seat) { return canTransferActivation(surface, seat); });
     connect(activation, &ActivationManagerInterfaceV1::activateRequested,
@@ -323,8 +327,10 @@ bool FocusController::canTransferActivation(WSurface *surface, WSeat *seat) cons
 
     return false;
 }
-void FocusController::onActivationRequested(ActivationManagerInterfaceV1::TokenDisposition disposition,
-                                           WSurface *wsurface, WSeat *seat)
+void FocusController::onActivationRequested(const QString &token,
+                                           ActivationManagerInterfaceV1::TokenDisposition disposition,
+                                           WSurface *wsurface, WSeat *seat,
+                                           WSurface *originatingSurface)
 {
     auto wrapper = m_server->rootContainer()->getSurface(wsurface);
     if (!wrapper) {
@@ -332,10 +338,51 @@ void FocusController::onActivationRequested(ActivationManagerInterfaceV1::TokenD
         return;
     }
 
+    if (m_windowTransitionManagerV1
+        && m_windowTransitionManagerV1->hasPendingWindowTransitionRect(token)) {
+        if (!originatingSurface) {
+            // Without an originating surface the rect cannot be mapped to
+            // global coordinates, so it will never be used. Close it now
+            // instead of waiting for the pending sweep.
+            qCDebug(lcTlWindowTransition) << "Window transition rect discarded: token has no"
+                                          << "originating surface"
+                                          << "appId:" << wrapper->appId();
+            m_windowTransitionManagerV1->discardPendingRect(token);
+        } else if (wsurface->mapped()) {
+            qCDebug(lcTlWindowTransition) << "Window transition rect discarded: target surface"
+                                          << "is already mapped (client activation arrived too late)"
+                                          << "appId:" << wrapper->appId();
+            // Discard the pending rect object if any.
+            m_windowTransitionManagerV1->discardPendingRect(token);
+        } else {
+            auto *originWrapper = m_server->rootContainer()->getSurface(originatingSurface);
+            if (originWrapper) {
+                bool associated = m_windowTransitionManagerV1->associatePendingRect(
+                    token, wrapper->windowTransition(), originWrapper->windowTransition());
+                if (!associated) {
+                    qCDebug(lcTlWindowTransition)
+                        << "Window transition rect was destroyed"
+                        << "before activation, using default animation"
+                        << "appId:" << wrapper->appId();
+                }
+            } else {
+                qCDebug(lcTlWindowTransition)
+                    << "Window transition: originating surface wrapper"
+                    << "not found, skipping"
+                    << "appId:" << wrapper->appId();
+                // Discard the pending rect object.
+                m_windowTransitionManagerV1->discardPendingRect(token);
+            }
+        }
+    }
+
     // Don't use hasActiveCapability() here — it also checks UnMinimized,
     // but minimized windows should be allowed to activate (which unminimizes them).
     if (!wsurface->mapped()) {
-        qCWarning(lcTlCore) << "Activation request for unmapped surface!";
+        if (disposition == ActivationManagerInterfaceV1::TokenDisposition::Active)
+            wrapper->setPendingActivation(seat);
+        else
+            qCWarning(lcTlCore) << "Activation request for unmapped surface!";
         return;
     }
 
