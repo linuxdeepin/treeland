@@ -10,6 +10,10 @@
 #include "treelanduserconfig.hpp"
 
 #include "common/treelandlogging.h"
+#include "seat/helper.h"
+#include "seat/seatsmanager.h"
+
+#include <wseat.h>
 
 #include <DConfig>
 
@@ -18,6 +22,11 @@ namespace {
 QString configSubpath(const QString &name)
 {
     return QStringLiteral("/") + name;
+}
+
+QString seatConfigSubpath(const QString &userName, const QString &seatName)
+{
+    return configSubpath(userName) + QStringLiteral("/") + seatName;
 }
 
 }
@@ -106,22 +115,23 @@ TreelandUserConfig *DConfigManager::userConfig(const QString &userName)
     return config;
 }
 
-SeatUserDConfig *DConfigManager::seatUserConfig(const QString &userName)
+SeatUserDConfig *DConfigManager::userSeatConfig(const QString &userName, const QString &seatName)
 {
-    if (userName.isEmpty()) {
+    if (userName.isEmpty() || seatName.isEmpty()) {
         return nullptr;
     }
 
-    if (auto *config = m_seatUserConfigs.value(userName)) {
+    const auto key = seatConfigSubpath(userName, seatName);
+    if (auto *config = m_seatUserConfigs.value(key)) {
         return config;
     }
 
     auto *config = SeatUserDConfig::createByName(
         QStringLiteral("org.deepin.dde.treeland.user.seat"),
         QStringLiteral("org.deepin.dde.treeland"),
-        configSubpath(userName),
+        seatConfigSubpath(userName, seatName),
         this);
-    m_seatUserConfigs.insert(userName, config);
+    m_seatUserConfigs.insert(key, config);
     return config;
 }
 
@@ -163,10 +173,17 @@ AppConfig *DConfigManager::appConfig(const QString &appId)
 bool DConfigManager::initializeUserConfigs(const QString &userName)
 {
     m_initialUserConfig = userConfig(userName);
-    const auto *seatConfig = seatUserConfig(userName);
-    return m_initialUserConfig && seatConfig
-        && m_initialUserConfig->isInitializeSucceeded()
-        && seatConfig->isInitializeSucceeded();
+    if (!m_initialUserConfig || !m_initialUserConfig->isInitializeSucceeded())
+        return false;
+
+    const auto seats = Helper::instance()->seatManager()->seats();
+    for (WSeat *seat : seats) {
+        const auto *seatConfig = userSeatConfig(userName, seat->name());
+        if (!seatConfig || !seatConfig->isInitializeSucceeded())
+            return false;
+    }
+
+    return true;
 }
 
 TreelandUserConfig *DConfigManager::initialUserConfig() const

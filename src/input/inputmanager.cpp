@@ -18,24 +18,12 @@
 
 #include <wlr_all.h>
 
-#include <wbackend.h>
 #include <wcursor.h>
 #include <winputdevice.h>
 #include <wseat.h>
+#include <wbackend.h>
 
 namespace {
-
-bool isSeatDConfigInitialized(SeatUserDConfig *config)
-{
-    if (!config)
-        return false;
-
-#if SEATUSERDCONFIG_DCONFIG_FILE_VERSION_MINOR > 0
-    return config->isInitializeSucceeded() || config->isInitializeFailed();
-#else
-    return config->isInitializeSucceed() || config->isInitializeFailed();
-#endif
-}
 
 bool isTreelandConfigInitialized(TreelandConfig *config)
 {
@@ -62,50 +50,71 @@ InputManager::~InputManager()
 
 void InputManager::setupSeatUserConfig(const QString &userName)
 {
+    auto *seatManager = Helper::instance()->seatManager();
     auto *configManager = DConfigManager::instance();
-    Q_ASSERT(configManager);
-
-    auto *config = configManager->seatUserConfig(userName);
-    Q_ASSERT(config);
-    Q_ASSERT(isSeatDConfigInitialized(config));
-
-    m_seatDConfig = config;
-    onConfigInitializeSucceed();
-}
-
-void InputManager::onConfigInitializeSucceed()
-{
-    auto seatMgr = Helper::instance()->seatManager();
-    if (seatMgr) {
-        const auto seats = seatMgr->seats();
-        for (auto *seat : seats) {
-            if (auto *cursor = seat->cursor())
-                cursor->setScrollFactor(m_seatDConfig->pointerScrollFactor());
+    const auto seats = seatManager->seats();
+    if (!m_userName.isEmpty()) {
+        for (WSeat *seat : seats) {
+            auto *config = configManager->userSeatConfig(m_userName, seat->name());
+            disconnect(config, nullptr, this, nullptr);
         }
     }
+    m_userName = userName;
 
-    InputDevice::instance()->setHoldTimeout(m_seatDConfig->touchpadHoldTimeoutMs());
+    for (WSeat *seat : seats)
+        setupSeat(seat);
 
-    applyXkbConfig();
-
-    connect(m_seatDConfig, &SeatUserDConfig::xkbLayoutChanged, this, &InputManager::applyXkbConfig, Qt::UniqueConnection);
-    connect(m_seatDConfig, &SeatUserDConfig::xkbModelChanged, this, &InputManager::applyXkbConfig, Qt::UniqueConnection);
-    connect(m_seatDConfig, &SeatUserDConfig::xkbVariantChanged, this, &InputManager::applyXkbConfig, Qt::UniqueConnection);
-    connect(m_seatDConfig, &SeatUserDConfig::xkbOptionsChanged, this, &InputManager::applyXkbConfig, Qt::UniqueConnection);
-
-    auto backend = Helper::instance()->backend();
-    connect(backend,
-            &WBackend::inputAdded,
+    connect(seatManager,
+            &SeatsManager::seatAdded,
             this,
-            &InputManager::onInputAdded,
+            &InputManager::setupSeat,
             Qt::UniqueConnection);
-    const auto inputDevices = backend->inputDeviceList();
-    for (WInputDevice *device : inputDevices) {
-        onInputAdded(device);
-    }
+    connect(seatManager,
+            &SeatsManager::seatRemoved,
+            this,
+            &InputManager::onSeatRemoved,
+            Qt::UniqueConnection);
+    connect(seatManager,
+            &SeatsManager::deviceAssigned,
+            this,
+            &InputManager::onInputAssigned,
+            Qt::UniqueConnection);
+}
 
-    auto *globalConfig = Helper::instance()->globalConfig();
-    Q_ASSERT(isTreelandConfigInitialized(globalConfig));
+SeatUserDConfig *InputManager::seatUserConfig(WSeat *seat) const
+{
+    Q_ASSERT(!m_userName.isEmpty());
+    auto *config = DConfigManager::instance()->userSeatConfig(m_userName, seat->name());
+    Q_ASSERT(config);
+
+    return config;
+}
+
+void InputManager::setupSeat(WSeat *seat)
+{
+    Q_ASSERT(!m_userName.isEmpty());
+
+    auto *config = seatUserConfig(seat);
+    if (auto *cursor = seat->cursor())
+        cursor->setScrollFactor(config->pointerScrollFactor());
+
+    InputDevice::instance()->setHoldTimeout(config->touchpadHoldTimeoutMs());
+
+    applyXkbConfigForSeat(seat);
+
+    connect(config, &SeatUserDConfig::xkbLayoutChanged, this,
+            [this, seat] { applyXkbConfigForSeat(seat); });
+    connect(config, &SeatUserDConfig::xkbModelChanged, this,
+            [this, seat] { applyXkbConfigForSeat(seat); });
+    connect(config, &SeatUserDConfig::xkbVariantChanged, this,
+            [this, seat] { applyXkbConfigForSeat(seat); });
+    connect(config, &SeatUserDConfig::xkbOptionsChanged, this,
+            [this, seat] { applyXkbConfigForSeat(seat); });
+
+    const auto devices = seat->deviceList();
+    for (WInputDevice *device : devices)
+        onInputAssigned(device);
+
     applyNumLockToKeyboards();
 }
 
@@ -127,9 +136,6 @@ void InputManager::onTouchpadSettingsCreated(TouchpadSettingsInterfaceV1 *interf
 
 void InputManager::onKeyboardSettingsCreated(KeyboardSettingsInterfaceV1 *interface)
 {
-    if (!m_seatDConfig)
-        return;
-
     initializeKeyboardSettings(interface);
 }
 
@@ -138,11 +144,10 @@ bool InputManager::initializeKeyboardSettings(KeyboardSettingsInterfaceV1 *inter
     if (interface->property("_treelandKeyboardSettingsInitialized").toBool())
         return true;
 
-    if (!m_seatDConfig)
-        return false;
+    auto *seatConfig = seatUserConfig(interface->wSeat());
 
     auto *globalConfig = Helper::instance()->globalConfig();
-    if (!isSeatDConfigInitialized(m_seatDConfig) || !isTreelandConfigInitialized(globalConfig)) {
+    if (!isTreelandConfigInitialized(globalConfig)) {
         return false;
     }
 
@@ -171,13 +176,13 @@ bool InputManager::initializeKeyboardSettings(KeyboardSettingsInterfaceV1 *inter
 
     interface->sendFeature(features, true);
     interface->sendNumLock(globalConfig->keyboardNumLock(), true);
-    interface->sendRepeat(m_seatDConfig->keyboardRate(), m_seatDConfig->keyboardDelay(), true);
+    interface->sendRepeat(seatConfig->keyboardRate(), seatConfig->keyboardDelay(), true);
     interface->sendDone();
 
     connect(interface,
             &KeyboardSettingsInterfaceV1::applied,
             this,
-            &InputManager::handleKeyboardSettingsApplied);
+            &InputManager::onKeyboardSettingsApplied);
 
     interface->setProperty("_treelandKeyboardSettingsInitialized", true);
 
@@ -186,12 +191,7 @@ bool InputManager::initializeKeyboardSettings(KeyboardSettingsInterfaceV1 *inter
 
 void InputManager::onMousePointerConfigCreated(PointerDeviceConfigurationV1 *config)
 {
-    if (!m_seatDConfig)
-        return;
-
-    if (!isSeatDConfigInitialized(m_seatDConfig)) {
-        return;
-    }
+    auto *seatConfig = seatUserConfig(config->wSeat());
 
     PointerDeviceConfigurationV1::FeatureFlags features;
     features.setFlag(PointerDeviceConfigurationV1::ScrollFactor);
@@ -237,61 +237,52 @@ void InputManager::onMousePointerConfigCreated(PointerDeviceConfigurationV1 *con
     }
 
     config->sendFeature(features, true);
-    config->sendScrollFactor(m_seatDConfig->pointerScrollFactor(), true);
+    config->sendScrollFactor(seatConfig->pointerScrollFactor(), true);
 
-    auto handModeStr = m_seatDConfig->pointerHandMode();
+    auto handModeStr = seatConfig->pointerHandMode();
     auto handMode = (handModeStr == "Left")
         ? PointerDeviceConfigurationV1::Left
         : PointerDeviceConfigurationV1::Right;
     config->sendHandedMode(handMode, true);
 
-    config->sendAccelSpeed(m_seatDConfig->mouseAccelSpeed(), true);
-    config->sendAccelerationProfile(static_cast<PointerDeviceConfigurationV1::AccelerationProfile>(m_seatDConfig->mouseAccelerationProfile()), true);
-    config->sendNaturalScroll(m_seatDConfig->mouseNaturalScroll(), true);
+    config->sendAccelSpeed(seatConfig->mouseAccelSpeed(), true);
+    config->sendAccelerationProfile(static_cast<PointerDeviceConfigurationV1::AccelerationProfile>(seatConfig->mouseAccelerationProfile()), true);
+    config->sendNaturalScroll(seatConfig->mouseNaturalScroll(), true);
     config->sendDone(0);
 
     connect(config,
             &PointerDeviceConfigurationV1::applied,
             this,
-            &InputManager::handleMousePointerConfigApplied);
+            &InputManager::onMousePointerConfigApplied);
 }
 
-void InputManager::handleMousePointerConfigApplied(PointerDeviceConfigurationV1::ChangeFlags changes)
+void InputManager::onMousePointerConfigApplied(PointerDeviceConfigurationV1::ChangeFlags changes)
 {
     auto *interface = static_cast<PointerDeviceConfigurationV1 *>(sender());
-
-    if (!m_seatDConfig) {
-        interface->sendFailed();
-        return;
-    }
-
-    if (!isSeatDConfigInitialized(m_seatDConfig)) {
-        interface->sendFailed();
-        return;
-    }
+    auto *seatConfig = seatUserConfig(interface->wSeat());
 
     if (changes.testFlag(PointerDeviceConfigurationV1::ScrollFactorChanged)) {
-        m_seatDConfig->setPointerScrollFactor(interface->scrollFactor());
+        seatConfig->setPointerScrollFactor(interface->scrollFactor());
         if (auto *cursor = interface->wSeat()->cursor())
             cursor->setScrollFactor(interface->scrollFactor());
     }
 
     if (changes.testFlag(PointerDeviceConfigurationV1::HandedModeChanged)) {
-        m_seatDConfig->setPointerHandMode(interface->handedMode() == PointerDeviceConfigurationV1::Left
+        seatConfig->setPointerHandMode(interface->handedMode() == PointerDeviceConfigurationV1::Left
                                               ? QStringLiteral("Left")
                                               : QStringLiteral("Right"));
     }
 
     if (changes.testFlag(PointerDeviceConfigurationV1::AccelSpeedChanged)) {
-        m_seatDConfig->setMouseAccelSpeed(interface->accelSpeed());
+        seatConfig->setMouseAccelSpeed(interface->accelSpeed());
     }
 
     if (changes.testFlag(PointerDeviceConfigurationV1::AccelerationProfileChanged)) {
-        m_seatDConfig->setMouseAccelerationProfile(interface->accelerationProfile());
+        seatConfig->setMouseAccelerationProfile(interface->accelerationProfile());
     }
 
     if (changes.testFlag(PointerDeviceConfigurationV1::NaturalScrollChanged)) {
-        m_seatDConfig->setMouseNaturalScroll(interface->naturalScroll());
+        seatConfig->setMouseNaturalScroll(interface->naturalScroll());
     }
 
     if (changes.testFlag(PointerDeviceConfigurationV1::AccelSpeedChanged)
@@ -375,67 +366,53 @@ void InputManager::onTouchpadPointerConfigCreated(PointerDeviceConfigurationV1 *
         }
     }
 
-    if (!m_seatDConfig)
-        return;
-
-    if (!isSeatDConfigInitialized(m_seatDConfig)) {
-        return;
-    }
+    auto *seatConfig = seatUserConfig(config->wSeat());
 
     config->sendFeature(features, true);
-    config->sendScrollFactor(m_seatDConfig->pointerScrollFactor(), true);
-    config->sendAccelSpeed(m_seatDConfig->touchpadAccelSpeed(), true);
-    config->sendAccelerationProfile(static_cast<PointerDeviceConfigurationV1::AccelerationProfile>(m_seatDConfig->touchpadAccelerationProfile()), true);
-    config->sendNaturalScroll(m_seatDConfig->touchpadNaturalScroll(), true);
-    config->sendSendEventsMode(PointerDeviceConfigurationV1::SendEventsModes::fromInt(m_seatDConfig->touchpadSendEventsMode()), true);
-    config->sendDisableWhileTyping(m_seatDConfig->touchpadDisableWhileTyping(), true);
-    config->sendTapToClick(m_seatDConfig->touchpadTapToClick(), true);
+    config->sendScrollFactor(seatConfig->pointerScrollFactor(), true);
+    config->sendAccelSpeed(seatConfig->touchpadAccelSpeed(), true);
+    config->sendAccelerationProfile(static_cast<PointerDeviceConfigurationV1::AccelerationProfile>(seatConfig->touchpadAccelerationProfile()), true);
+    config->sendNaturalScroll(seatConfig->touchpadNaturalScroll(), true);
+    config->sendSendEventsMode(PointerDeviceConfigurationV1::SendEventsModes::fromInt(seatConfig->touchpadSendEventsMode()), true);
+    config->sendDisableWhileTyping(seatConfig->touchpadDisableWhileTyping(), true);
+    config->sendTapToClick(seatConfig->touchpadTapToClick(), true);
     config->sendDone(0);
 
     connect(config,
             &PointerDeviceConfigurationV1::applied,
             this,
-            &InputManager::handleTouchpadPointerConfigApplied);
+            &InputManager::onTouchpadPointerConfigApplied);
 }
 
-void InputManager::handleTouchpadPointerConfigApplied(PointerDeviceConfigurationV1::ChangeFlags changes)
+void InputManager::onTouchpadPointerConfigApplied(PointerDeviceConfigurationV1::ChangeFlags changes)
 {
     auto *interface = static_cast<PointerDeviceConfigurationV1 *>(sender());
-
-    if (!m_seatDConfig) {
-        interface->sendFailed();
-        return;
-    }
-
-    if (!isSeatDConfigInitialized(m_seatDConfig)) {
-        interface->sendFailed();
-        return;
-    }
+    auto *seatConfig = seatUserConfig(interface->wSeat());
 
     if (changes.testFlag(PointerDeviceConfigurationV1::ScrollFactorChanged)) {
-        m_seatDConfig->setPointerScrollFactor(interface->scrollFactor());
+        seatConfig->setPointerScrollFactor(interface->scrollFactor());
         if (auto *cursor = interface->wSeat()->cursor())
             cursor->setScrollFactor(interface->scrollFactor());
     }
 
     if (changes.testFlag(PointerDeviceConfigurationV1::AccelSpeedChanged)) {
-        m_seatDConfig->setTouchpadAccelSpeed(interface->accelSpeed());
+        seatConfig->setTouchpadAccelSpeed(interface->accelSpeed());
     }
 
     if (changes.testFlag(PointerDeviceConfigurationV1::NaturalScrollChanged)) {
-        m_seatDConfig->setTouchpadNaturalScroll(interface->naturalScroll());
+        seatConfig->setTouchpadNaturalScroll(interface->naturalScroll());
     }
 
     if (changes.testFlag(PointerDeviceConfigurationV1::SendEventsModeChanged)) {
-        m_seatDConfig->setTouchpadSendEventsMode(interface->sendEventsMode().toInt());
+        seatConfig->setTouchpadSendEventsMode(interface->sendEventsMode().toInt());
     }
 
     if (changes.testFlag(PointerDeviceConfigurationV1::DisableWhileTypingChanged)) {
-        m_seatDConfig->setTouchpadDisableWhileTyping(interface->disableWhileTyping());
+        seatConfig->setTouchpadDisableWhileTyping(interface->disableWhileTyping());
     }
 
     if (changes.testFlag(PointerDeviceConfigurationV1::TapToClickChanged)) {
-        m_seatDConfig->setTouchpadTapToClick(interface->tapToClick());
+        seatConfig->setTouchpadTapToClick(interface->tapToClick());
     }
 
     const auto devices = interface->wSeat()->deviceList();
@@ -486,16 +463,13 @@ void InputManager::handleTouchpadPointerConfigApplied(PointerDeviceConfiguration
     }
 }
 
-void InputManager::handleKeyboardSettingsApplied(KeyboardSettingsInterfaceV1::ChangeFlags changes)
+void InputManager::onKeyboardSettingsApplied(KeyboardSettingsInterfaceV1::ChangeFlags changes)
 {
     KeyboardSettingsInterfaceV1 *interface =
         static_cast<KeyboardSettingsInterfaceV1 *>(sender());
-    if (!m_seatDConfig) {
-        interface->sendFailed();
-        return;
-    }
+    auto *seatConfig = seatUserConfig(interface->wSeat());
 
-    if (!isSeatDConfigInitialized(m_seatDConfig) || !isTreelandConfigInitialized(Helper::instance()->globalConfig())) {
+    if (!isTreelandConfigInitialized(Helper::instance()->globalConfig())) {
         interface->sendFailed();
         return;
     }
@@ -505,8 +479,8 @@ void InputManager::handleKeyboardSettingsApplied(KeyboardSettingsInterfaceV1::Ch
     }
 
     if (changes.testFlag(KeyboardSettingsInterfaceV1::RepeatChanged)) {
-        m_seatDConfig->setKeyboardDelay(interface->repeatDelay());
-        m_seatDConfig->setKeyboardRate(interface->repeatRate());
+        seatConfig->setKeyboardDelay(interface->repeatDelay());
+        seatConfig->setKeyboardRate(interface->repeatRate());
     }
 
     auto *keyboardDevice = interface->wSeat()->keyboardGroupKeyboard();
@@ -538,28 +512,26 @@ void InputManager::applyNumLockToKeyboards()
     }
 }
 
-void InputManager::applyXkbConfig()
+void InputManager::applyXkbConfigForSeat(WSeat *seat)
 {
-    if (!m_seatDConfig || !isSeatDConfigInitialized(m_seatDConfig))
+    auto *seatManager = Helper::instance()->seatManager();
+    if (!seatManager->seats().contains(seat)) {
         return;
+    }
+
+    auto *seatConfig = seatUserConfig(seat);
 
     struct xkb_rule_names rules = {};
-    QByteArray layout = m_seatDConfig->xkbLayout().toUtf8();
-    QByteArray model = m_seatDConfig->xkbModel().toUtf8();
-    QByteArray variant = m_seatDConfig->xkbVariant().toUtf8();
-    QByteArray options = m_seatDConfig->xkbOptions().toUtf8();
+    QByteArray layout = seatConfig->xkbLayout().toUtf8();
+    QByteArray model = seatConfig->xkbModel().toUtf8();
+    QByteArray variant = seatConfig->xkbVariant().toUtf8();
+    QByteArray options = seatConfig->xkbOptions().toUtf8();
     rules.layout = layout.constData();
     rules.model = model.constData();
     rules.variant = variant.constData();
     rules.options = options.constData();
 
-    auto *seatManager = Helper::instance()->seatManager();
-    if (seatManager) {
-        const auto seats = seatManager->seats();
-        for (WSeat *seat : seats) {
-            seat->setXkbRuleNames(rules);
-        }
-    }
+    seat->setXkbRuleNames(rules);
 
     applyNumLockToKeyboards();
 }
@@ -605,14 +577,11 @@ void InputManager::setNumLockForDevice(WInputDevice *device, bool enabled)
     wlr_keyboard_notify_modifiers(wlrKeyboard, depressed, latched, locked, group);
 }
 
-void InputManager::onInputAdded(WInputDevice *input)
+void InputManager::onInputAssigned(WInputDevice *input)
 {
-    if (!m_seatDConfig)
-        return;
-
-    if (!isSeatDConfigInitialized(m_seatDConfig)) {
-        return;
-    }
+    auto *seat = input->seat();
+    Q_ASSERT(seat);
+    auto *seatConfig = seatUserConfig(seat);
 
     if (!wlr_input_device_is_libinput(input->handle())) {
         return;
@@ -620,37 +589,43 @@ void InputManager::onInputAdded(WInputDevice *input)
 
     struct libinput_device *inputDevice = wlr_libinput_get_device_handle(input->handle());
     struct udev_device *udevDevice = libinput_device_get_udev_device(inputDevice);
-    bool leftHanded = (m_seatDConfig->pointerHandMode() == "Left");
+    bool leftHanded = (seatConfig->pointerHandMode() == "Left");
 
     if (input->type() == WInputDevice::Type::Keyboard) {
         if (input->handle()->type == WLR_INPUT_DEVICE_KEYBOARD) {
             auto *keyboard = wlr_keyboard_from_input_device(input->handle());
-            wlr_keyboard_set_repeat_info(keyboard, m_seatDConfig->keyboardRate(), m_seatDConfig->keyboardDelay());
+            wlr_keyboard_set_repeat_info(keyboard, seatConfig->keyboardRate(), seatConfig->keyboardDelay());
         }
         if (isTreelandConfigInitialized(Helper::instance()->globalConfig())) {
-            if (auto *seat = input->seat())
+            if (seat)
                 setNumLockForSeat(seat, Helper::instance()->globalConfig()->keyboardNumLock());
         }
     }
 
     if (udev_device_get_property_value(udevDevice, "ID_INPUT_MOUSE")) {
         configLeftHanded(inputDevice, leftHanded);
-        configAccelSpeed(inputDevice, m_seatDConfig->mouseAccelSpeed());
-        configAccelProfile(inputDevice, static_cast<libinput_config_accel_profile>(m_seatDConfig->mouseAccelerationProfile()));
-        configNaturalScroll(inputDevice, m_seatDConfig->mouseNaturalScroll());
+        configAccelSpeed(inputDevice, seatConfig->mouseAccelSpeed());
+        configAccelProfile(inputDevice, static_cast<libinput_config_accel_profile>(seatConfig->mouseAccelerationProfile()));
+        configNaturalScroll(inputDevice, seatConfig->mouseNaturalScroll());
     }
 
     if (udev_device_get_property_value(udevDevice, "ID_INPUT_TOUCHPAD")) {
         configLeftHanded(inputDevice, leftHanded);
-        configAccelSpeed(inputDevice, m_seatDConfig->touchpadAccelSpeed());
-        configAccelProfile(inputDevice, static_cast<libinput_config_accel_profile>(m_seatDConfig->touchpadAccelerationProfile()));
-        configNaturalScroll(inputDevice, m_seatDConfig->touchpadNaturalScroll());
-        configSendEventsMode(inputDevice, m_seatDConfig->touchpadSendEventsMode());
-        configDwtEnabled(inputDevice, m_seatDConfig->touchpadDisableWhileTyping()
+        configAccelSpeed(inputDevice, seatConfig->touchpadAccelSpeed());
+        configAccelProfile(inputDevice, static_cast<libinput_config_accel_profile>(seatConfig->touchpadAccelerationProfile()));
+        configNaturalScroll(inputDevice, seatConfig->touchpadNaturalScroll());
+        configSendEventsMode(inputDevice, seatConfig->touchpadSendEventsMode());
+        configDwtEnabled(inputDevice, seatConfig->touchpadDisableWhileTyping()
                                              ? LIBINPUT_CONFIG_DWT_ENABLED
                                              : LIBINPUT_CONFIG_DWT_DISABLED);
-        configTapEnabled(inputDevice, m_seatDConfig->touchpadTapToClick()
+        configTapEnabled(inputDevice, seatConfig->touchpadTapToClick()
                                          ? LIBINPUT_CONFIG_TAP_ENABLED
                                          : LIBINPUT_CONFIG_TAP_DISABLED);
     }
+}
+
+void InputManager::onSeatRemoved(WSeat *seat)
+{
+    auto *config = seatUserConfig(seat);
+    disconnect(config, nullptr, this, nullptr);
 }

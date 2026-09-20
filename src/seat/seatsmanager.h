@@ -96,6 +96,7 @@ public:
 Q_SIGNALS:
     void seatAdded(WSeat *seat);
     void seatRemoved(WSeat *seat);
+    void deviceAssigned(WInputDevice *device);
     void deviceReassigned(WInputDevice *device, WSeat *oldSeat, WSeat *newSeat);
     void deviceAdded(WInputDevice *device);
     void deviceRemoved(WInputDevice *device);

@@ -3,7 +3,11 @@
 
 #include "seatsmanager.h"
 #include "common/treelandlogging.h"
+#include "core/dconfigmanager.h"
+#include "helper.h"
 #include "input/inputdevice.h"
+#include "seatuserconfig.hpp"
+#include "usermodel.h"
 
 #include <wbackend.h>
 #include <wcursor.h>
@@ -45,15 +49,42 @@ WSeat *SeatsManager::createSeat(const QString &name, bool isFallback)
     }
 
     WSeat *seat = new WSeat(name);
-    m_seats[name] = seat;
 
     if (isFallback) {
         m_defaultSeat = seat;
     }
 
-
-    Q_EMIT seatAdded(seat);
     qCDebug(lcTlSeat) << "Created seat:" << name << "fallback:" << isFallback;
+
+    auto announce = [this, seat, name] {
+        m_seats[name] = seat;
+        Q_EMIT seatAdded(seat);
+    };
+
+    const QString userName = Helper::instance()->userModel()->currentUserName();
+    auto *seatConfig = DConfigManager::instance()->userSeatConfig(userName, name);
+
+    if (!seatConfig || seatConfig->isInitializeSucceeded()
+        || seatConfig->isInitializeFailed()) {
+        announce();
+        return seat;
+    }
+
+    qCDebug(lcTlSeat) << "Waiting for seat DConfig initialization before announcing seat:" << name;
+    connect(seatConfig,
+            &SeatUserDConfig::configInitializeSucceed,
+            this,
+            announce,
+            Qt::SingleShotConnection);
+    connect(seatConfig,
+            &SeatUserDConfig::configInitializeFailed,
+            this,
+            [this, seat, name, announce] {
+                qCWarning(lcTlSeat) << "Seat DConfig initialization failed for seat:" << name
+                                    << ", announcing seat without config";
+                announce();
+            },
+            Qt::SingleShotConnection);
 
     return seat;
 }
@@ -712,6 +743,7 @@ void SeatsManager::assignDevice(WInputDevice *device,
     }
 
     m_deviceCache[device] = assignedSeat;
+    Q_EMIT deviceAssigned(device);
 }
 
 WSeat *SeatsManager::getSeatForDevice(WInputDevice *device) const

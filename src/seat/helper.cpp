@@ -133,6 +133,7 @@
 
 #define EXT_DATA_CONTROL_MANAGER_V1_VERSION 1
 #define WLR_FRACTIONAL_SCALE_V1_VERSION 1
+#define DEFAULT_SEAT_NAME "seat0"
 
 static QByteArray readWindowProperty(xcb_connection_t *connection,
                                      xcb_window_t win,
@@ -1837,7 +1838,9 @@ void Helper::updateCurrentUser()
     const QString userName = m_userModel->currentUserName();
     auto *configManager = DConfigManager::instance();
     auto *userConfig = configManager ? configManager->userConfig(userName) : m_config;
-    auto *seatConfig = configManager ? configManager->seatUserConfig(userName) : nullptr;
+    WSeat *defaultSeat = m_seatManager->getSeat(DEFAULT_SEAT_NAME);
+    const QString seatName = defaultSeat ? defaultSeat->name() : QStringLiteral(DEFAULT_SEAT_NAME);
+    auto *seatConfig = configManager ? configManager->userSeatConfig(userName, seatName) : nullptr;
     if (!userConfig) {
         qCWarning(lcTlConfig) << "Cannot switch to user" << userName
                               << "because its DConfig object is unavailable";
