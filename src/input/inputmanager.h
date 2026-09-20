@@ -8,10 +8,10 @@ Q_MOC_INCLUDE("seatuserconfig.hpp")
 
 #include <wayland-server-core.h>
 
-#include <wseat.h>
-
 #include <QObject>
-#include <QMap>
+#include <QString>
+
+#include <wseat.h>
 
 class SeatUserDConfig;
 
@@ -34,17 +34,19 @@ public Q_SLOTS:
     void onTouchpadPointerConfigCreated(PointerDeviceConfigurationV1 *config);
 
 private Q_SLOTS:
-    void handleMousePointerConfigApplied(PointerDeviceConfigurationV1::ChangeFlags changes);
-    void handleTouchpadPointerConfigApplied(PointerDeviceConfigurationV1::ChangeFlags changes);
-    void handleKeyboardSettingsApplied(KeyboardSettingsInterfaceV1::ChangeFlags changes);
-    void onInputAdded(WInputDevice *input);
-    void onConfigInitializeSucceed();
+    void onMousePointerConfigApplied(PointerDeviceConfigurationV1::ChangeFlags changes);
+    void onTouchpadPointerConfigApplied(PointerDeviceConfigurationV1::ChangeFlags changes);
+    void onKeyboardSettingsApplied(KeyboardSettingsInterfaceV1::ChangeFlags changes);
+    void onInputAssigned(WInputDevice *input);
+    void onSeatRemoved(WSeat *seat);
 
 private:
     bool initializeKeyboardSettings(KeyboardSettingsInterfaceV1 *interface);
+    SeatUserDConfig *seatUserConfig(WSeat *seat) const;
+    void setupSeat(WSeat *seat);
     void applyNumLockToKeyboards();
-    void applyXkbConfig();
+    void applyXkbConfigForSeat(WSeat *seat);
     static void setNumLockForSeat(WSeat *seat, bool enabled);
 
-    SeatUserDConfig* m_seatDConfig = nullptr;
+    QString m_userName;
 };
