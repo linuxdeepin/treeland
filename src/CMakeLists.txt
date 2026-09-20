@@ -180,6 +180,7 @@ qt_add_qml_module(libtreeland
         interfaces/multitaskviewinterface.h
         interfaces/plugininterface.h
         interfaces/proxyinterface.h
+        interfaces/windowtransition.h
         modules/resource/treelandremotesource.cpp
         modules/resource/treelandremotesource.h
         modules/resource/treelanddebugsocket.cpp
@@ -208,6 +209,8 @@ qt_add_qml_module(libtreeland
         surface/surfaceproxy.h
         surface/surfacewrapper.cpp
         surface/surfacewrapper.h
+        surface/surfacewindowtransition.cpp
+        surface/surfacewindowtransition.h
         utils/cmdline.cpp
         utils/cmdline.h
         utils/propertymonitor.cpp
@@ -260,6 +263,7 @@ qt_add_qml_module(libtreeland
         core/qml/WorkspaceProxy.qml
         core/qml/FpsDisplay.qml
         core/qml/Animations/GeometryAnimation.qml
+        core/qml/Animations/WindowTransition.qml
         core/qml/Animations/NewAnimation.qml
         core/qml/Animations/MinimizeAnimation.qml
         core/qml/Animations/ShowDesktopAnimation.qml

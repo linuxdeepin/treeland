@@ -118,6 +118,7 @@ struct TokenInfo
     bool fromTrustedSurface = false; // set_surface called and surface was active at commit time
     QDeadlineTimer expiry;           // invalidated 60 s after registration
     QPointer<WSeat> seat;            // seat associated with the token via set_serial
+    QPointer<WSurface> originatingSurface; // surface set via set_surface
 };
 
 class ActivationManagerInterfaceV1Private
@@ -145,11 +146,18 @@ public:
                           wl_client *client,
                           std::optional<uint32_t> serial,
                           bool fromTrustedSurface,
-                          WSeat *seat)
+                          WSeat *seat,
+                          WSurface *originatingSurface)
     {
         const QString token = QUuid::createUuid().toString(QUuid::WithoutBraces);
-        m_tokens.append(TokenInfo{ token, appId, client, serial, fromTrustedSurface,
-                                   QDeadlineTimer(TokenLifetimeMs), seat });
+        m_tokens.append(TokenInfo{ token,
+                                   appId,
+                                   client,
+                                   serial,
+                                   fromTrustedSurface,
+                                   QDeadlineTimer(TokenLifetimeMs),
+                                   seat,
+                                   originatingSurface });
         qCDebug(lcTlActivation) << "Registered activation token" << token.left(8) + u"..."_s
                                << "for app" << appId
                                << (fromTrustedSurface ? "" : "(inactive-surface-token-request)");
@@ -177,9 +185,9 @@ protected:
     void get_activation_token(Resource *resource, uint32_t id) override
     {
         auto *tokenResource = wl_resource_create(resource->client(),
-                                                  &xdg_activation_token_v1_interface,
-                                                  wl_resource_get_version(resource->handle),
-                                                  id);
+                                                 &xdg_activation_token_v1_interface,
+                                                 resource->version(),
+                                                 id);
         if (!tokenResource) {
             wl_resource_post_no_memory(resource->handle);
             return;
@@ -206,41 +214,34 @@ protected:
             return;
         }
 
-        auto disposition = dispositionForToken(token);
-        // Retrieve the seat associated with the token before consuming it.
+        auto disposition = ActivationManagerInterfaceV1::TokenDisposition::Invalid;
         WSeat *tokenSeat = nullptr;
+        WSurface *originatingSurface = nullptr;
+
         auto it = std::find_if(m_tokens.begin(), m_tokens.end(),
                                [&token](const TokenInfo &t) { return t.token == token; });
         if (it != m_tokens.end()) {
             tokenSeat = it->seat.data();
+            originatingSurface = it->originatingSurface;
+            disposition = it->fromTrustedSurface
+                ? (it->serial.has_value()
+                       ? ActivationManagerInterfaceV1::TokenDisposition::Active
+                       : ActivationManagerInterfaceV1::TokenDisposition::Attention)
+                : ActivationManagerInterfaceV1::TokenDisposition::Attention;
+        }
+
+        qCInfo(lcTlActivation) << "activate: emitting activateRequested for token"
+                               << token.left(8) + u"..."_s << "with disposition" << disposition;
+
+        // Keep token one-shot semantics
+        if (it != m_tokens.end()) {
             m_tokens.erase(it);
         }
 
-        qCInfo(lcTlActivation) << "activate: emitting activateRequested for token" << token.left(8) + u"..."_s
-                             << "with disposition" << disposition;
-        Q_EMIT q->activateRequested(disposition, wsurface, tokenSeat);
+        Q_EMIT q->activateRequested(token, disposition, wsurface, tokenSeat, originatingSurface);
     }
 
 private:
-    ActivationManagerInterfaceV1::TokenDisposition dispositionForToken(const QString &token) const
-    {
-        auto it = std::find_if(m_tokens.cbegin(), m_tokens.cend(),
-                               [&token](const TokenInfo &t) { return t.token == token; });
-        if (it == m_tokens.cend()) {
-            return ActivationManagerInterfaceV1::TokenDisposition::Invalid;
-        }
-        if (it->expiry.hasExpired()) {
-            return ActivationManagerInterfaceV1::TokenDisposition::Invalid;
-        }
-        // inactive-surface-token-request: set_surface not called or surface was not active
-        // → treat as Attention
-        if (!it->fromTrustedSurface) {
-            return ActivationManagerInterfaceV1::TokenDisposition::Attention;
-        }
-        return it->serial.has_value() ? ActivationManagerInterfaceV1::TokenDisposition::Active
-                                      : ActivationManagerInterfaceV1::TokenDisposition::Attention;
-    }
-
     void sweepExpiredTokens()
     {
         auto it = m_tokens.begin();
@@ -285,7 +286,14 @@ void TokenContext::commit(Resource *resource)
 
     // fromTrustedSurface: set_surface was called, surface still alive, and currently active
     const bool fromTrustedSurface = m_surface && m_manager->isTrustedSurface(m_surface, m_seat);
-    const QString token = m_manager->registerToken(m_appId, resource->client(), m_serial, fromTrustedSurface, m_seat);
+
+    const QString token = m_manager->registerToken(m_appId,
+                                                   resource->client(),
+                                                   m_serial,
+                                                   fromTrustedSurface,
+                                                   m_seat,
+                                                   m_surface);
+
     send_done(token);
 }
 
