@@ -2372,6 +2372,8 @@ void Helper::init(Treeland::Treeland *treeland)
     m_idleInhibitManager = wlr_idle_inhibit_v1_create(m_server->handle());
     listeners()->add(&m_idleInhibitManager->events.new_inhibitor, this, &Helper::onNewIdleInhibitor);
 
+    m_windowTransitionManagerV1 = m_server->attach<WindowTransitionManagerInterfaceV1>();
+
     m_activationManagerV1 = m_server->attach<ActivationManagerInterfaceV1>(
         [this](WSurface *surface, WSeat *seat) -> bool {
             // Determine whether the surface can transfer activation for the same seat
@@ -2399,19 +2401,71 @@ void Helper::init(Treeland::Treeland *treeland)
 
             return false;
         });
+    if (m_windowTransitionManagerV1) {
+        connect(m_activationManagerV1,
+                &ActivationManagerInterfaceV1::tokenCommitted,
+                m_windowTransitionManagerV1,
+                &WindowTransitionManagerInterfaceV1::takeCommittedRect);
+    }
     connect(m_activationManagerV1,
             &ActivationManagerInterfaceV1::activateRequested,
             this,
-            [this](ActivationManagerInterfaceV1::TokenDisposition disposition, WSurface *wsurface, WSeat *seat) {
+            [this](const QString &token,
+                   ActivationManagerInterfaceV1::TokenDisposition disposition,
+                   WSurface *wsurface,
+                   WSeat *seat,
+                   WSurface *originatingSurface) {
                 auto wrapper = m_rootSurfaceContainer->getSurface(wsurface);
                 if (!wrapper) {
                     qCWarning(lcTlCore) << "Activation request for unknown surface!";
                     return;
                 }
+                if (m_windowTransitionManagerV1
+                    && m_windowTransitionManagerV1->hasPendingWindowTransitionRect(token)) {
+                    if (!originatingSurface) {
+                        // Without an originating surface the rect cannot be
+                        // mapped to global coordinates, so it will never be
+                        // used. Close it now instead of waiting for the
+                        // pending sweep.
+                        qCWarning(lcTlWindowTransition)
+                            << "Window transition rect discarded: token has no"
+                            << "originating surface";
+                        m_windowTransitionManagerV1->discardPendingRect(token);
+                    } else if (wsurface->mapped()) {
+                        qCWarning(lcTlWindowTransition)
+                            << "Window transition rect discarded: target surface"
+                            << "is already mapped (client activation arrived too late)";
+                        // Discard the pending rect object if any.
+                        m_windowTransitionManagerV1->discardPendingRect(token);
+                    } else {
+                        auto *originWrapper =
+                            m_rootSurfaceContainer->getSurface(originatingSurface);
+                        if (originWrapper) {
+                            bool associated =
+                                m_windowTransitionManagerV1->associatePendingRect(token,
+                                                                                  wrapper,
+                                                                                  originWrapper);
+                            if (!associated) {
+                                qCWarning(lcTlWindowTransition)
+                                    << "Window transition rect was destroyed"
+                                    << "before activation, using default animation";
+                            }
+                        } else {
+                            qCWarning(lcTlWindowTransition)
+                                << "Window transition: originating surface wrapper"
+                                << "not found, skipping";
+                            // Discard the pending rect object.
+                            m_windowTransitionManagerV1->discardPendingRect(token);
+                        }
+                    }
+                }
                 // Don't use hasActiveCapability() here — it also checks UnMinimized,
                 // but minimized windows should be allowed to activate (which unminimizes them).
                 if (!wsurface->mapped()) {
-                    qCWarning(lcTlCore) << "Activation request for unmapped surface!";
+                    if (disposition == ActivationManagerInterfaceV1::TokenDisposition::Active)
+                        wrapper->setPendingActivation(seat);
+                    else
+                        qCWarning(lcTlCore) << "Activation request for unmapped surface!";
                     return;
                 }
                 if (!wrapper->hasInitializeContainer()) {
