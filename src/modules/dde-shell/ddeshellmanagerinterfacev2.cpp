@@ -369,3 +369,11 @@ DDEShellSurfaceV2 *DDEShellSurfaceV2::getByWlrSurface(wlr_surface *handle)
 
     return nullptr;
 }
+
+void DDEShellSurfaceV2::destroyResource()
+{
+    if (d->resource())
+        wl_resource_destroy(d->resource()->handle);
+    // wl_resource_destroy triggers destroy_resource, which deletes this
+    // object; nothing may touch members past this point.
+}

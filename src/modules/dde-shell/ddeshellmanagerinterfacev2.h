@@ -88,6 +88,9 @@ public:
     // not have a waylib wrapper yet, which would make wSurface() null and
     // poison any pointer-based duplicate check).
     static DDEShellSurfaceV2 *getByWlrSurface(struct wlr_surface *handle);
+    // Destroys the underlying Wayland resource; the object deletes itself
+    // through the resource cleanup path (destroy_resource).
+    void destroyResource();
 
 Q_SIGNALS:
     void roleChanged(DDEShellSurfaceV2::Role role);

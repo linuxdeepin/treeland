@@ -2875,14 +2875,24 @@ int SurfaceWrapper::autoPlaceYOffset() const
 
 void SurfaceWrapper::setAutoPlaceYOffset(int offset)
 {
-    if (m_autoPlaceYOffset == offset)
+    const bool wantCursor = offset != 0;
+    // The offset also derives the placement mode and the fixed-request state,
+    // so an unchanged value may still need to apply them (e.g. v1
+    // set_auto_placement(0) releasing a fixed-position request).
+    if (m_autoPlaceYOffset == offset && m_cursorPlacement == wantCursor
+        && (wantCursor || (!m_hasClientRequstPos && positionAutomatic())))
         return;
 
     m_autoPlaceYOffset = offset;
-    // A non-zero y offset is the v1 (deprecated) spelling of cursor placement;
-    // cursorPlacement is the single source of truth for the placement mode.
-    setCursorPlacement(offset != 0);
-    setPositionAutomatic(offset == 0);
+    // Entering cursor placement supersedes a stale fixed-position request;
+    // leaving it (offset 0) returns the surface to automatic placement.
+    setCursorPlacement(wantCursor);
+    if (wantCursor) {
+        setPositionAutomatic(false);
+    } else {
+        resetClientRequstPos();
+        setPositionAutomatic(true);
+    }
     Q_EMIT autoPlaceYOffsetChanged();
 }
 

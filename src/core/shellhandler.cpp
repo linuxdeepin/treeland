@@ -739,7 +739,9 @@ void ShellHandler::onXdgToplevelSurfaceRemoved(WXdgToplevelSurface *surface)
     }
     auto interfaceV2 = DDEShellSurfaceV2::get(surface->surface());
     if (interfaceV2) {
-        delete interfaceV2;
+        // Destroy through the Wayland resource so the cleanup path runs
+        // (a bare delete would leave the wl_resource registered).
+        interfaceV2->destroyResource();
     }
     // Persist the last size of a normal window (prefer normalGeometry) when an appId is present
     if (m_windowConfigStore && !wrapper->appId().isEmpty()) {
