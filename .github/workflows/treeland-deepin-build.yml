@@ -49,7 +49,7 @@ jobs:
           # protocols master may ship XML newer than its debian/changelog says
           # (0.7.0 XML with a 0.6.0 changelog), and treeland's control pins the
           # CMake project version.
-          PROTOCOLS_VERSION=$(grep -oP 'project\\(TreelandProtocols VERSION \\K[0-9.]+' CMakeLists.txt | head -1)
+          PROTOCOLS_VERSION=$(grep -oP 'project\(TreelandProtocols VERSION \K[0-9.]+' CMakeLists.txt | head -1)
           if [ -n "$PROTOCOLS_VERSION" ]; then
             sed -i "1s/([^)]*)/($PROTOCOLS_VERSION)/" debian/changelog
           fi
