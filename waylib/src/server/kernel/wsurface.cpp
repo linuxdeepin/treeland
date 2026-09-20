@@ -113,6 +113,22 @@ void WSurfacePrivate::setBuffer(wlr_buffer *newBuffer)
 
         wlr_buffer_lock(newBuffer);
         buffer.reset(newBuffer);
+
+        // wp_linux_drm_syncobj_surface_v1: signal the client's release point when
+        // the committed buffer is no longer in use. Treeland doesn't use wlr_scene
+        // (which wires up releases for scene surfaces), so do what wlr_cursor does:
+        // hook the release point onto the source buffer; wlroots unlocks the
+        // attached buffer right after emitting the commit event, so the point is
+        // signalled on commit. Reuse of the buffer is still guarded by implicit
+        // dma-buf synchronization until fine-grained GPU release points are wired
+        // into the Qt Quick rendering path.
+        if (auto *syncobjState = wlr_linux_drm_syncobj_v1_get_surface_state(m_handle)) {
+            wlr_buffer *source = m_handle->buffer ? m_handle->buffer->source : nullptr;
+            if (source && source->n_locks > 0) {
+                wlr_linux_drm_syncobj_v1_state_signal_release_with_buffer(syncobjState,
+                    source);
+            }
+        }
     } else {
         buffer.reset(nullptr);
     }

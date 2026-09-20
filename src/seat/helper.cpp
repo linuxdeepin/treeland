@@ -2143,6 +2143,13 @@ void Helper::init(Treeland::Treeland *treeland)
         qCCritical(lcTlCore) << "Failed to create DRM lease manager";
     }
 
+    // Advertise explicit synchronization support (linux-drm-syncobj-v1) when
+    // both the renderer and the DRM device support timeline syncobjs.
+    int drm_fd = wlr_renderer_get_drm_fd(m_renderer);
+    if (drm_fd >= 0 && m_renderer->features.timeline) {
+        wlr_linux_drm_syncobj_manager_v1_create(m_server->handle(), 1, drm_fd);
+    }
+
     // free follow display
     m_compositor = wlr_compositor_create(m_server->handle(), 6, m_renderer);
     if (!m_compositor) {
