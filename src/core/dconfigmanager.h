@@ -29,7 +29,7 @@ public:
 
     TreelandConfig *globalConfig() const;
     TreelandUserConfig *userConfig(const QString &userName);
-    SeatUserDConfig *seatUserConfig(const QString &userName);
+    SeatUserDConfig *userSeatConfig(const QString &userName, const QString &seatName);
     OutputConfig *outputConfig(const QString &outputName);
     AppConfig *appConfig(const QString &appId);
 
