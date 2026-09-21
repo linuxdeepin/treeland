@@ -107,6 +107,23 @@ FocusScope {
             clip: true
             wallpaperRole: Wallpaper.Lockscreen
             output: root.output
+            visible: false
+        }
+
+        ShaderEffect {
+            id: wallpaperEffect
+
+            anchors.fill: parent
+            clip: true
+	        visible: true
+
+            property variant source: wallpaper
+            property real threshold: 0.80
+            property real maxLightness: 0.88
+            property real chromaStart: 0.02
+            property real chromaEnd: 0.08
+
+            fragmentShader: "qrc:/shaders/wallpaper_oklch_shoulder.frag.qsb"
         }
     }
 

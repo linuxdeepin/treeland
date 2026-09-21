@@ -328,6 +328,18 @@ qt_add_shaders(libtreeland "treeland_liquidglass_shaders"
         ${PROJECT_RESOURCES_DIR}/shaders/liquidglass.frag
 )
 
+# Wallpaper OKLCH highlight shoulder-compression shader (used with ShaderEffect in the lock screen).
+qt_add_shaders(libtreeland "treeland_wallpaper_oklch_shoulder_shaders"
+    BATCHABLE
+    PRECOMPILE
+    PREFIX
+        "/shaders"
+    BASE
+        ${PROJECT_RESOURCES_DIR}/shaders
+    FILES
+        ${PROJECT_RESOURCES_DIR}/shaders/wallpaper_oklch_shoulder.frag
+)
+
 set_source_files_properties(core/qml/overridable/InWindowBlur.qml
     PROPERTIES
         QT_RESOURCE_ALIAS "+treeland/InWindowBlur.qml"
