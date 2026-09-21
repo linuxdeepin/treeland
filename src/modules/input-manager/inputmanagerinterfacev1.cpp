@@ -20,6 +20,11 @@ static QList<MouseSettingsInterfaceV1 *> s_mouseSettings;
 static QList<TouchpadSettingsInterfaceV1 *> s_touchpadSettings;
 static QList<KeyboardSettingsInterfaceV1 *> s_keyboardSettings;
 
+static QString normalizeNullableXkbString(const QString &value)
+{
+    return value.isNull() ? QStringLiteral("") : value;
+}
+
 class TreelandInputManagerInterfaceV1Private : public QtWaylandServer::treeland_input_manager_v1
 {
 public:
@@ -854,6 +859,10 @@ public:
     int32_t repeatRate = 0;
     int32_t repeatDelay = 0;
     bool numLock = false;
+    QString xkbLayout;
+    QString xkbModel;
+    QString xkbVariant;
+    QString xkbOptions;
 
 protected:
     void destroy_resource(Resource *resource) override;
@@ -861,6 +870,11 @@ protected:
     void set_repeat(Resource *resource, int32_t rate, int32_t delay) override;
     void set_num_lock(Resource *resource, uint32_t state) override;
     void apply(Resource *resource) override;
+    void set_xkb_rules(Resource *resource,
+                       const QString &layout,
+                       const QString &model,
+                       const QString &variant,
+                       const QString &options) override;
 };
 
 KeyboardSettingsInterfaceV1Private::KeyboardSettingsInterfaceV1Private(KeyboardSettingsInterfaceV1 *_q,
@@ -914,6 +928,19 @@ void KeyboardSettingsInterfaceV1Private::apply([[maybe_unused]] Resource *resour
     pendingChanges = KeyboardSettingsInterfaceV1::NoChange;
 }
 
+void KeyboardSettingsInterfaceV1Private::set_xkb_rules([[maybe_unused]] Resource *resource,
+                                                        const QString &layout,
+                                                        const QString &model,
+                                                        const QString &variant,
+                                                        const QString &options)
+{
+    xkbLayout = normalizeNullableXkbString(layout);
+    xkbModel = normalizeNullableXkbString(model);
+    xkbVariant = normalizeNullableXkbString(variant);
+    xkbOptions = normalizeNullableXkbString(options);
+    pendingChanges |= KeyboardSettingsInterfaceV1::XkbRulesChanged;
+}
+
 KeyboardSettingsInterfaceV1::KeyboardSettingsInterfaceV1(wl_resource *resource,
                                                          wl_resource *seat,
                                                          QObject *parent)
@@ -957,6 +984,33 @@ void KeyboardSettingsInterfaceV1::sendNumLock(bool enabled, bool force)
     d->numLock = enabled;
 }
 
+void KeyboardSettingsInterfaceV1::sendXkbRules(const QString &layout,
+                                                const QString &model,
+                                                const QString &variant,
+                                                const QString &options,
+                                                bool force)
+{
+    const QString normalizedLayout = normalizeNullableXkbString(layout);
+    const QString normalizedModel = normalizeNullableXkbString(model);
+    const QString normalizedVariant = normalizeNullableXkbString(variant);
+    const QString normalizedOptions = normalizeNullableXkbString(options);
+
+    if (d->resource()->version() < XkbVersion
+        || (!force
+            && d->xkbLayout == normalizedLayout
+            && d->xkbModel == normalizedModel
+            && d->xkbVariant == normalizedVariant
+            && d->xkbOptions == normalizedOptions)) {
+        return;
+    }
+
+    d->send_xkb_rules(normalizedLayout, normalizedModel, normalizedVariant, normalizedOptions);
+    d->xkbLayout = normalizedLayout;
+    d->xkbModel = normalizedModel;
+    d->xkbVariant = normalizedVariant;
+    d->xkbOptions = normalizedOptions;
+}
+
 void KeyboardSettingsInterfaceV1::sendFailed()
 {
     d->send_failed();
@@ -980,6 +1034,26 @@ int32_t KeyboardSettingsInterfaceV1::repeatDelay() const
 bool KeyboardSettingsInterfaceV1::numLock() const
 {
     return d->numLock;
+}
+
+const QString &KeyboardSettingsInterfaceV1::xkbLayout() const
+{
+    return d->xkbLayout;
+}
+
+const QString &KeyboardSettingsInterfaceV1::xkbModel() const
+{
+    return d->xkbModel;
+}
+
+const QString &KeyboardSettingsInterfaceV1::xkbVariant() const
+{
+    return d->xkbVariant;
+}
+
+const QString &KeyboardSettingsInterfaceV1::xkbOptions() const
+{
+    return d->xkbOptions;
 }
 
 wl_resource *KeyboardSettingsInterfaceV1::seat() const
