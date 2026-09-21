@@ -19,6 +19,9 @@
 #include <wlr/util/box.h>
 #include <wlr/xwayland/xwayland.h>
 
+// For wl_keyboard_send_modifiers
+#include <wayland-server-protocol.h>
+
 #include <QCoreApplication>
 #include <QTimer>
 
@@ -51,6 +54,15 @@ public:
     void on_new_surface(wlr_xwayland_surface *xwl_surface);
     void on_surface_destroy(WXWaylandSurface *surface);
     // end slot function
+
+    // Keyboard modifiers sync to the Xwayland server.
+    void syncModifiersToXWayland();
+    void watchSeatKeyboard();
+    void on_keyboard_device_destroy();
+
+    WScopedListener keyboardModifiersListener;
+    WScopedListener keyboardDeviceDestroyListener;
+    QMetaObject::Connection seatKeyboardChangedConnection;
 
     // Async property reading
     struct PerWindowProps
@@ -424,10 +436,98 @@ void WXWayland::setDesktopProperties(uint32_t count,
     xcb_flush(connection);
 }
 
+void WXWaylandPrivate::syncModifiersToXWayland()
+{
+    W_Q(WXWayland);
+
+    auto *xwayland = q->handle();
+    if (!xwayland || !xwayland->server || !xwayland->server->client || !xwayland->seat)
+        return;
+
+    auto *seat = xwayland->seat;
+    auto *keyboard = wlr_seat_get_keyboard(seat);
+    if (!keyboard)
+        return;
+
+    // When Xwayland itself holds the keyboard focus, the seat already
+    // delivers the modifiers to it through the normal path.
+    auto *focusedClient = seat->keyboard_state.focused_client;
+    if (focusedClient && focusedClient->client == xwayland->server->client)
+        return;
+
+    auto *seatClient = wlr_seat_client_for_wl_client(seat, xwayland->server->client);
+    if (!seatClient || wl_list_empty(&seatClient->keyboards))
+        return;
+
+    // The Xwayland server applies every wl_keyboard.modifiers event to its
+    // XKB state (keyboard_handle_modifiers in xwayland-input.c) even when it
+    // doesn't hold the keyboard focus, so push the current state explicitly
+    // to keep the state seen by X11 APIs (e.g. XkbGetState) fresh.
+    const auto &mods = keyboard->modifiers;
+    uint32_t serial = wlr_seat_client_next_serial(seatClient);
+    wl_resource *resource;
+    wl_resource_for_each(resource, &seatClient->keyboards) {
+        wl_keyboard_send_modifiers(resource, serial,
+                                   mods.depressed, mods.latched,
+                                   mods.locked, mods.group);
+    }
+}
+
+void WXWaylandPrivate::watchSeatKeyboard()
+{
+    W_Q(WXWayland);
+
+    keyboardModifiersListener.disconnect();
+    keyboardDeviceDestroyListener.disconnect();
+
+    // setSeat() may switch to another seat (or clear it), so rebind the
+    // keyboardChanged connection to the current seat on every call.
+    if (seatKeyboardChangedConnection) {
+        QObject::disconnect(seatKeyboardChangedConnection);
+        seatKeyboardChangedConnection = {};
+    }
+
+    auto *xwayland = q->handle();
+    auto *seat = xwayland ? xwayland->seat : nullptr;
+    if (!seat)
+        return;
+
+    // The seat keyboard can be replaced (e.g. by the input method's virtual
+    // keyboard) or destroyed at any time, so re-attach on changes.
+    if (auto *seatObject = WSeat::fromHandle(seat)) {
+        seatKeyboardChangedConnection = QObject::connect(seatObject,
+                                                         &WSeat::keyboardChanged,
+                                                         q, [this] {
+            watchSeatKeyboard();
+            syncModifiersToXWayland();
+        });
+    }
+
+    if (auto *keyboard = wlr_seat_get_keyboard(seat)) {
+        keyboardModifiersListener.init(&keyboard->events.modifiers,
+                                       this, &WXWaylandPrivate::syncModifiersToXWayland);
+        keyboardDeviceDestroyListener.init(&keyboard->base.events.destroy,
+                                           this, &WXWaylandPrivate::on_keyboard_device_destroy);
+    }
+}
+
+void WXWaylandPrivate::on_keyboard_device_destroy()
+{
+    // The keyboard is going away; detach our listeners from it before the
+    // wlr_keyboard memory is freed.
+    keyboardModifiersListener.disconnect();
+    keyboardDeviceDestroyListener.disconnect();
+}
+
 void WXWayland::setSeat(WSeat *seat)
 {
+    W_D(WXWayland);
+
     if (auto handle = this->handle())
-        wlr_xwayland_set_seat(handle, seat->handle());
+        wlr_xwayland_set_seat(handle, seat ? seat->handle() : nullptr);
+
+    d->watchSeatKeyboard();
+    d->syncModifiersToXWayland();
 }
 
 WSeat *WXWayland::seat() const
@@ -545,6 +645,9 @@ void WXWayland::create(WServer *server)
 
     listeners()->add(&handle->events.ready, this, [this, d] (void *) {
         d->init();
+        // The seat may be set before the Xwayland server starts; sync the
+        // current keyboard state once the server client is available.
+        d->syncModifiersToXWayland();
         Q_EMIT ready();
     });
 
