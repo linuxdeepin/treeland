@@ -237,6 +237,20 @@ void TreelandKeyboardSettingsV1::configureAndApply(int32_t rate, int32_t delay)
              << "delay:" << delay;
 }
 
+void TreelandKeyboardSettingsV1::configureXkbRulesAndApply(const QString &layout,
+                                                           const QString &model,
+                                                           const QString &variant,
+                                                           const QString &options)
+{
+    set_xkb_rules(layout, model, variant, options);
+    apply();
+    qWarning() << "Keyboard XKB rules applied:"
+               << "layout:" << layout
+               << "model:" << model
+               << "variant:" << variant
+               << "options:" << options;
+}
+
 void TreelandKeyboardSettingsV1::treeland_keyboard_settings_v1_repeat(int32_t rate, int32_t delay)
 {
     qWarning() << "repeat rate:" << rate << "delay:" << delay;
@@ -256,4 +270,17 @@ void TreelandKeyboardSettingsV1::treeland_keyboard_settings_v1_done()
 {
     qWarning() << "keyboard settings: done";
     qWarning() << "";
+}
+
+void TreelandKeyboardSettingsV1::treeland_keyboard_settings_v1_xkb_rules(
+    const QString &layout,
+    const QString &model,
+    const QString &variant,
+    const QString &options)
+{
+    qWarning() << "xkb_rules:"
+               << "layout:" << layout
+               << "model:" << model
+               << "variant:" << variant
+               << "options:" << options;
 }

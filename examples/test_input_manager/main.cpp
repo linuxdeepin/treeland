@@ -264,6 +264,34 @@ int main(int argc, char *argv[])
     );
     parser.addOption(keyboardNumLockOption);
 
+    QCommandLineOption keyboardXkbLayoutOption(
+        QStringLiteral("keyboard-xkb-layout"),
+        QStringLiteral("Comma-separated XKB keyboard layouts (e.g. us or cz,us)."),
+        QStringLiteral("layout")
+    );
+    parser.addOption(keyboardXkbLayoutOption);
+
+    QCommandLineOption keyboardXkbModelOption(
+        QStringLiteral("keyboard-xkb-model"),
+        QStringLiteral("XKB keyboard model (e.g. pc104 or pc105)."),
+        QStringLiteral("model")
+    );
+    parser.addOption(keyboardXkbModelOption);
+
+    QCommandLineOption keyboardXkbVariantOption(
+        QStringLiteral("keyboard-xkb-variant"),
+        QStringLiteral("Comma-separated XKB keyboard variants (e.g. ,dvorak)."),
+        QStringLiteral("variant")
+    );
+    parser.addOption(keyboardXkbVariantOption);
+
+    QCommandLineOption keyboardXkbOptionsOption(
+        QStringLiteral("keyboard-xkb-options"),
+        QStringLiteral("Comma-separated XKB keyboard options (e.g. grp:win_space_toggle)."),
+        QStringLiteral("options")
+    );
+    parser.addOption(keyboardXkbOptionsOption);
+
     parser.process(app);
 
     auto *manager = new TreelandInputManagerV1;
@@ -333,6 +361,17 @@ int main(int argc, char *argv[])
                 keyboardSettings->set_num_lock(state);
                 keyboardSettings->apply();
                 qDebug() << "Keyboard num lock applied:" << (state ? "on" : "off");
+            }
+
+            if (parser.isSet("keyboard-xkb-layout")
+                || parser.isSet("keyboard-xkb-model")
+                || parser.isSet("keyboard-xkb-variant")
+                || parser.isSet("keyboard-xkb-options")) {
+                keyboardSettings->configureXkbRulesAndApply(
+                    parser.value("keyboard-xkb-layout"),
+                    parser.value("keyboard-xkb-model"),
+                    parser.value("keyboard-xkb-variant"),
+                    parser.value("keyboard-xkb-options"));
             }
         } else {
             qWarning() << "Failed to get keyboard settings";

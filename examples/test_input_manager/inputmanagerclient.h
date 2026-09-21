@@ -15,7 +15,7 @@ class TreelandInputManagerV1
 {
     Q_OBJECT
 public:
-    static constexpr int InterfaceVersion = 1;
+    static constexpr int InterfaceVersion = 2;
     explicit TreelandInputManagerV1();
     ~TreelandInputManagerV1() override;
 
@@ -75,6 +75,10 @@ public:
 
     bool hasFeature(uint32_t flag) const;
     void configureAndApply(int32_t rate, int32_t delay);
+    void configureXkbRulesAndApply(const QString &layout,
+                                   const QString &model,
+                                   const QString &variant,
+                                   const QString &options);
 
 protected:
     void treeland_keyboard_settings_v1_feature(uint32_t feature) override;
@@ -82,6 +86,10 @@ protected:
     void treeland_keyboard_settings_v1_num_lock(uint32_t state) override;
     void treeland_keyboard_settings_v1_failed() override;
     void treeland_keyboard_settings_v1_done() override;
+    void treeland_keyboard_settings_v1_xkb_rules(const QString &layout,
+                                                 const QString &model,
+                                                 const QString &variant,
+                                                 const QString &options) override;
 
 private:
     uint32_t m_features = 0;
