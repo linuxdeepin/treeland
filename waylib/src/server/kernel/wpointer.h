@@ -18,6 +18,8 @@
 //
 // Types without a destroy signal (e.g. wlr_texture, wlr_renderer) still get
 // RAII destruction; only the auto-null feature is unavailable for them.
+// Input-device-derived types (wlr_keyboard, wlr_pointer, ...) have no destroy
+// signal of their own — it is observed on their wlr_input_device base.
 // New types: add a WlrObjectTraits specialization (see the macro below).
 
 #pragma once
@@ -29,8 +31,6 @@
 #include <wayland-util.h>
 
 #include <memory>
-#include <type_traits>
-#include <utility>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -49,13 +49,6 @@ struct WBufferDroper {
 // Convenience aliases for wlr_buffer smart pointers.
 using WBufferUnlockPtr = std::unique_ptr<wlr_buffer, WBufferUnlocker>;
 using WBufferDropPtr = std::unique_ptr<wlr_buffer, WBufferDroper>;
-
-// Detects whether a wlr type carries a `events.destroy` wl_signal member.
-template <typename T, typename = void>
-struct WlrHasDestroySignal : std::false_type {};
-template <typename T>
-struct WlrHasDestroySignal<T,
-    std::void_t<decltype(std::declval<T &>().events.destroy)>> : std::true_type {};
 
 // Maps a wlr type to its destroy function. Specialize per type, either with
 // the W_DECLARE_WLR_TRAITS macro below or with a custom struct exposing a
@@ -96,8 +89,10 @@ W_DECLARE_WLR_TRAITS(wlr_xcursor_manager, wlr_xcursor_manager_destroy)
 template <typename T>
 class WPointer
 {
-    static_assert(WlrHasDestroySignal<T>::value,
-        "WPointer<T>: T must carry an events.destroy wl_signal. "
+    static_assert(requires(T *handle) { handle->events.destroy; }
+                      || requires(T *handle) { handle->base.events.destroy; },
+        "WPointer<T>: T must expose a destroy wl_signal (its own events.destroy, "
+        "or base.events.destroy for wlr_input_device-derived types). "
         "Use a raw pointer or WUniquePointer (which supports types "
         "without a destroy signal via RAII traits) instead.");
 public:
@@ -136,7 +131,13 @@ public:
         clear();
         m_handle = handle;
         if (handle) {
-            wl_signal_add(&handle->events.destroy, &m_destroyListener);
+            // Input-device-derived types (wlr_keyboard, wlr_pointer, ...) emit
+            // their destroy signal from the embedded wlr_input_device base.
+            if constexpr (requires { handle->events.destroy; }) {
+                wl_signal_add(&handle->events.destroy, &m_destroyListener);
+            } else {
+                wl_signal_add(&handle->base.events.destroy, &m_destroyListener);
+            }
             m_listening = true;
         }
     }
