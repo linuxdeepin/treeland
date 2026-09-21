@@ -49,6 +49,7 @@ private Q_SLOTS:
     void uniquePointerCompareOperators();
     void uniquePointerResetReentrantDestroy();
     void observerPointerNullsOnDestroy();
+    void observerInputDeviceDerivedNullsOnBaseDestroy();
     void observerCopiesShareLifetime();
     void observerAssignFromRawPointer();
     void observerMoveTransfersObservation();
@@ -144,6 +145,20 @@ void TestWPointer::observerPointerNullsOnDestroy()
         QVERIFY(p.isNull());
     }
     wl_display_destroy(display);
+}
+
+void TestWPointer::observerInputDeviceDerivedNullsOnBaseDestroy()
+{
+    // wlr_keyboard carries no events.destroy of its own — the destroy signal
+    // lives on its embedded wlr_input_device base and is emitted from
+    // wlr_input_device_finish() when the device goes away.
+    wlr_keyboard kb;
+    wlr_keyboard_init(&kb, nullptr, "test");
+    WPointer<wlr_keyboard> p(&kb);
+    QCOMPARE(p.get(), &kb);
+
+    wlr_keyboard_finish(&kb); // emits kb.base.events.destroy
+    QVERIFY(p.isNull());
 }
 
 void TestWPointer::observerCopiesShareLifetime()
