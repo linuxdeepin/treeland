@@ -57,7 +57,6 @@ Wayland 线上请求与事件；本文档规定发出请求后，测试必须观
 | [wlr-layer-shell-unstable-v1](wlr-layer-shell-unstable-v1/README.md) | P / E | layer surface 的状态、container 与焦点 |
 | [wlr-output-management-unstable-v1](wlr-output-management-unstable-v1/README.md) | P / E | 真实 output configuration、位置、transform、scale |
 | [wlr-output-power-management-unstable-v1](wlr-output-power-management-unstable-v1/README.md) | P / E | output enable/disable 的生产状态回读 |
-| [wlr-screencopy-unstable-v1](wlr-screencopy-unstable-v1/README.md) | P / V | headless output 的 SHM screencopy readback |
 | [wlr-virtual-pointer-unstable-v1](wlr-virtual-pointer-unstable-v1/README.md) | 接入完成；client 待补 | native virtual pointer 的生产 seat 接入 |
 
 ### 标准 wayland-protocols（1.49）由 Treeland 提供的协议
