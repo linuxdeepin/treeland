@@ -102,15 +102,6 @@ void InputManager::setupSeat(WSeat *seat)
 
     applyXkbConfigForSeat(seat);
 
-    connect(config, &SeatUserDConfig::xkbLayoutChanged, this,
-            [this, seat] { applyXkbConfigForSeat(seat); });
-    connect(config, &SeatUserDConfig::xkbModelChanged, this,
-            [this, seat] { applyXkbConfigForSeat(seat); });
-    connect(config, &SeatUserDConfig::xkbVariantChanged, this,
-            [this, seat] { applyXkbConfigForSeat(seat); });
-    connect(config, &SeatUserDConfig::xkbOptionsChanged, this,
-            [this, seat] { applyXkbConfigForSeat(seat); });
-
     const auto devices = seat->deviceList();
     for (WInputDevice *device : devices)
         onInputAssigned(device);
@@ -177,6 +168,11 @@ bool InputManager::initializeKeyboardSettings(KeyboardSettingsInterfaceV1 *inter
     interface->sendFeature(features, true);
     interface->sendNumLock(globalConfig->keyboardNumLock(), true);
     interface->sendRepeat(seatConfig->keyboardRate(), seatConfig->keyboardDelay(), true);
+    interface->sendXkbRules(seatConfig->xkbLayout(),
+                            seatConfig->xkbModel(),
+                            seatConfig->xkbVariant(),
+                            seatConfig->xkbOptions(),
+                            true);
     interface->sendDone();
 
     connect(interface,
@@ -483,6 +479,13 @@ void InputManager::onKeyboardSettingsApplied(KeyboardSettingsInterfaceV1::Change
         seatConfig->setKeyboardRate(interface->repeatRate());
     }
 
+    if (changes.testFlag(KeyboardSettingsInterfaceV1::XkbRulesChanged)) {
+        seatConfig->setXkbLayout(interface->xkbLayout());
+        seatConfig->setXkbModel(interface->xkbModel());
+        seatConfig->setXkbVariant(interface->xkbVariant());
+        seatConfig->setXkbOptions(interface->xkbOptions());
+    }
+
     auto *keyboardDevice = interface->wSeat()->keyboardGroupKeyboard();
     if (keyboardDevice) {
         if (keyboardDevice->handle()->type == WLR_INPUT_DEVICE_KEYBOARD) {
@@ -495,6 +498,14 @@ void InputManager::onKeyboardSettingsApplied(KeyboardSettingsInterfaceV1::Change
 
     if (changes.testFlag(KeyboardSettingsInterfaceV1::NumLockChanged))
         setNumLockForSeat(interface->wSeat(), interface->numLock());
+
+    if (changes.testFlag(KeyboardSettingsInterfaceV1::XkbRulesChanged)) {
+        applyXkbConfig(interface->wSeat(),
+                       interface->xkbLayout(),
+                       interface->xkbModel(),
+                       interface->xkbVariant(),
+                       interface->xkbOptions());
+    }
 }
 
 void InputManager::applyNumLockToKeyboards()
@@ -521,11 +532,26 @@ void InputManager::applyXkbConfigForSeat(WSeat *seat)
 
     auto *seatConfig = seatUserConfig(seat);
 
+    applyXkbConfig(seat,
+                   seatConfig->xkbLayout(),
+                   seatConfig->xkbModel(),
+                   seatConfig->xkbVariant(),
+                   seatConfig->xkbOptions());
+}
+
+void InputManager::applyXkbConfig(WSeat *seat,
+                                  const QString &layoutName,
+                                  const QString &modelName,
+                                  const QString &variantName,
+                                  const QString &optionsName)
+{
+    Q_ASSERT(seat);
+
     struct xkb_rule_names rules = {};
-    QByteArray layout = seatConfig->xkbLayout().toUtf8();
-    QByteArray model = seatConfig->xkbModel().toUtf8();
-    QByteArray variant = seatConfig->xkbVariant().toUtf8();
-    QByteArray options = seatConfig->xkbOptions().toUtf8();
+    QByteArray layout = layoutName.toUtf8();
+    QByteArray model = modelName.toUtf8();
+    QByteArray variant = variantName.toUtf8();
+    QByteArray options = optionsName.toUtf8();
     rules.layout = layout.constData();
     rules.model = model.constData();
     rules.variant = variant.constData();

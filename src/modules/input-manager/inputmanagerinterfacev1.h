@@ -40,7 +40,7 @@ public:
 
     QByteArrayView interfaceName() const override;
 
-    static constexpr int InterfaceVersion = 1;
+    static constexpr int InterfaceVersion = 2;
 
 Q_SIGNALS:
     void mouseSettingsCreated(MouseSettingsInterfaceV1 *interface);
@@ -212,6 +212,8 @@ class KeyboardSettingsInterfaceV1 : public QObject
 {
     Q_OBJECT
 public:
+    static constexpr int XkbVersion = 2;
+
     ~KeyboardSettingsInterfaceV1() override;
 
     enum FeatureFlag {
@@ -225,6 +227,7 @@ public:
         NoChange = 0,
         RepeatChanged = 1 << 0,
         NumLockChanged = 1 << 1,
+        XkbRulesChanged = 1 << 2,
     };
     Q_DECLARE_FLAGS(ChangeFlags, ChangeFlag)
     Q_FLAG(ChangeFlags)
@@ -232,12 +235,21 @@ public:
     void sendFeature(FeatureFlags features, bool force = false);
     void sendRepeat(int32_t rate, int32_t delay, bool force = false);
     void sendNumLock(bool enabled, bool force = false);
+    void sendXkbRules(const QString &layout,
+                      const QString &model,
+                      const QString &variant,
+                      const QString &options,
+                      bool force = false);
     void sendFailed();
     void sendDone();
 
     int32_t repeatRate() const;
     int32_t repeatDelay() const;
     bool numLock() const;
+    const QString &xkbLayout() const;
+    const QString &xkbModel() const;
+    const QString &xkbVariant() const;
+    const QString &xkbOptions() const;
 
     wl_resource *seat() const;
     WSeat *wSeat() const;
