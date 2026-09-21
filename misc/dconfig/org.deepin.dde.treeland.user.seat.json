@@ -159,7 +159,7 @@
         "xkbLayout": {
             "value": "",
             "serial": 0,
-            "flags": ["global"],
+            "flags": [],
             "name": "Keyboard Layout",
             "name[zh_CN]": "键盘布局",
             "description": "XKB keyboard layout(s). Comma-separated list for multiple layouts, e.g. \"us\" or \"cz,us\". Empty string means XKB default (\"us\").",
@@ -170,7 +170,7 @@
         "xkbModel": {
             "value": "",
             "serial": 0,
-            "flags": ["global"],
+            "flags": [],
             "name": "Keyboard Model",
             "name[zh_CN]": "键盘型号",
             "description": "XKB keyboard model, e.g. \"pc104\" or \"pc105\". Empty string means XKB default.",
@@ -181,7 +181,7 @@
         "xkbVariant": {
             "value": "",
             "serial": 0,
-            "flags": ["global"],
+            "flags": [],
             "name": "Keyboard Variant",
             "name[zh_CN]": "键盘变体",
             "description": "XKB keyboard variant(s). Comma-separated list matching the layouts, e.g. \"\" or \",dvorak\". Empty string means no variant (XKB default).",
@@ -192,7 +192,7 @@
         "xkbOptions": {
             "value": "",
             "serial": 0,
-            "flags": ["global"],
+            "flags": [],
             "name": "Keyboard Options",
             "name[zh_CN]": "键盘选项",
             "description": "XKB keyboard options, comma-separated, e.g. \"grp:win_space_toggle\". Empty string means no extra options.",

@@ -46,6 +46,11 @@ private:
     void setupSeat(WSeat *seat);
     void applyNumLockToKeyboards();
     void applyXkbConfigForSeat(WSeat *seat);
+    void applyXkbConfig(WSeat *seat,
+                        const QString &layout,
+                        const QString &model,
+                        const QString &variant,
+                        const QString &options);
     static void setNumLockForSeat(WSeat *seat, bool enabled);
 
     QString m_userName;
