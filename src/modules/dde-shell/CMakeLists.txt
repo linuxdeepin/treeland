@@ -1,4 +1,10 @@
-find_package(TreelandProtocols 0.7.0 REQUIRED)
+find_package(TreelandProtocols REQUIRED)
+
+# NOTE: the v2 XML (treeland-dde-shell-unstable-v2.xml) only exists in
+# treeland-protocols master / 0.7.0 sources, which are not tagged or
+# released yet. The debian build-dependency stays at >= 0.6.0 and the
+# build environment must provide the 0.7.0 XML (e.g. the CI workflow
+# builds it from the protocols master source).
 
 # --- Deprecated v1 protocol (kept for transition until dde-shell migrates) ---
 waylib_generate_qtwayland_server_protocol(libtreeland
