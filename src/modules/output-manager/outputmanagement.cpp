@@ -40,7 +40,11 @@ ColorControlV1Private::ColorControlV1Private(ColorControlV1 *_q, wl_resource *re
     , q(_q)
     , controlOutput(output)
 {
+    if (!output)
+        return;
     auto *outputConfig = output->config();
+    if (!outputConfig)
+        return;
     send_brightness(outputConfig->brightness());
     send_color_temperature(outputConfig->colorTemperature());
 
@@ -108,10 +112,10 @@ void ColorControlV1Private::send_brightness(qreal brightness)
 void ColorControlV1Private::commit(Resource *resource)
 {
     Q_UNUSED(resource);
-    if  (!controlOutput) {
-        wl_resource_post_error(resource->handle,
-                               WL_DISPLAY_ERROR_INVALID_OBJECT,
-                               "Output has been destroyed");
+    if (!controlOutput) {
+        // The output has been torn down (e.g. copy-mode restructuring), and
+        // the client is racing that teardown. Fail silently instead of
+        // posting a protocol error that kills the whole client.
         return;
     }
 
@@ -125,8 +129,8 @@ void ColorControlV1Private::commit(Resource *resource)
     pendingColorTemperature = 0;
 }
 
-ColorControlV1::ColorControlV1(wl_resource *resource, Output *output)
-    : QObject(output)
+ColorControlV1::ColorControlV1(wl_resource *resource, Output *output, QObject *parent)
+    : QObject(parent)
     , d(new ColorControlV1Private(this, resource, output))
 {
 }
@@ -189,21 +193,12 @@ void OutputManagerV1Private::get_color_control(Resource *resource,
                                                uint32_t id,
                                                struct wl_resource *output)
 {
-    auto *wlr_output = wlr_output_from_resource(output);
-    if (!wlr_output) {
-        wl_resource_post_error(resource->handle,
-                               WL_DISPLAY_ERROR_INVALID_OBJECT,
-                               "Invalid output resource");
-        return;
-    }
-    auto *o = Helper::instance()->getOutput(WOutput::fromHandle(wlr_output));
-    if (!o) {
-        wl_resource_post_error(resource->handle,
-                               WL_DISPLAY_ERROR_INVALID_OBJECT,
-                               "Output not found");
-        return;
-    }
-
+    // Always create the color control resource, even when the output is
+    // unavailable (disabled/being torn down). Clients treat the new id as
+    // valid and may issue follow-up requests against it; skipping creation
+    // would make those requests reference a nonexistent object and kill the
+    // client with an "invalid object" error. A dangling control simply
+    // ignores commits until re-acquired on a valid output.
     auto *color_control_res = wl_resource_create(resource->client(),
                                                  QtWaylandServer::treeland_output_color_control_v1::interface(),
                                                  OutputManagerV1::ColorControlInterfaceVersion,
@@ -213,7 +208,12 @@ void OutputManagerV1Private::get_color_control(Resource *resource,
         return;
     }
 
-    auto colorControl = new ColorControlV1(color_control_res, o);
+    auto *wlr_output = wlr_output_from_resource(output);
+    Output *o = nullptr;
+    if (wlr_output) {
+        o = Helper::instance()->getOutput(WOutput::fromHandle(wlr_output));
+    }
+    auto colorControl = new ColorControlV1(color_control_res, o, q);
     Q_UNUSED(colorControl);
 }
 
