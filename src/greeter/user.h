@@ -41,6 +41,8 @@ public:
     void setWaylandSocket(std::shared_ptr<WAYLIB_SERVER_NAMESPACE::WSocket>);
     std::shared_ptr<WAYLIB_SERVER_NAMESPACE::WSocket> waylandSocket() const;
 
+    void merge(const User &other);
+
 Q_SIGNALS:
     void userDataChanged();
     void limitTimeChanged(const QString &time);

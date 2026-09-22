@@ -574,6 +574,11 @@ void GreeterProxy::readyRead()
             // this fallback
             if (!userPtr && userModel()->tryAddNssUser(user)) {
                 userPtr = userModel()->getUser(user);
+            } else if (!userPtr) {
+                // account already listed under another name form (user@domain); match by uid
+                if (const passwd *pw = ::getpwnam(user.toLocal8Bit().constData())) {
+                    userPtr = userModel()->getUser(static_cast<uid_t>(pw->pw_uid));
+                }
             }
 
             if (userPtr) {
