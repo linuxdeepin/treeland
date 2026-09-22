@@ -4,7 +4,7 @@
 
 - XML / interface：`zxdg_output_manager_v1` / `zxdg_output_v1`（version 3）
 - 测试源码：`tests/protocols/wayland-xdg-output-unstable-v1/`
-- Fixture：headless output fixture（`add_headless_output`，1920x1080 @ 0,0）
+- Fixture：测试启动时提供的 `HEADLESS-1` headless output
 - 覆盖等级：E
 
 ## 必须观察到的结果
