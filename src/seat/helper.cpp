@@ -124,7 +124,6 @@
 #include <QThreadPool>
 
 #include <algorithm>
-#include <functional>
 #include <limits>
 #include <memory>
 #include <pwd.h>
@@ -167,30 +166,6 @@ static QByteArray readWindowProperty(xcb_connection_t *connection,
     return data;
 }
 
-static void runWhenOutputConfigInitialized(OutputConfig *config,
-                                           QObject *context,
-                                           std::function<void()> callback)
-{
-    if (config->isInitializeSucceeded()) {
-        callback();
-        return;
-    }
-
-    QObject::connect(config, &OutputConfig::configInitializeSucceed, context, callback);
-}
-
-static void runWhenTreelandConfigInitialized(TreelandConfig *config,
-                                             QObject *context,
-                                             std::function<void()> callback)
-{
-    if (config->isInitializeSucceeded()) {
-        callback();
-        return;
-    }
-
-    QObject::connect(config, &TreelandConfig::configInitializeSucceed, context, callback);
-}
-
 static bool hasSavedOutputState(OutputConfig *config)
 {
     return config && (!config->widthIsDefaultValue()
@@ -207,6 +182,11 @@ static bool userConfigInitializationFinished(TreelandUserConfig *config)
 }
 
 static bool seatConfigInitializationFinished(SeatUserDConfig *config)
+{
+    return config && (config->isInitializeSucceeded() || config->isInitializeFailed());
+}
+
+static bool outputConfigInitializationFinished(OutputConfig *config)
 {
     return config && (config->isInitializeSucceeded() || config->isInitializeFailed());
 }
@@ -513,18 +493,18 @@ Workspace *Helper::workspace() const
     return m_shellHandler->workspace();
 }
 
-void Helper::onOutputAdded(WOutput *output)
+void Helper::processOutputAdded(WOutput *output)
 {
     // TODO: 应该让helper发出Output的信号，每个需要output的单元单独connect。
     allowNonDrmOutputAutoChangeMode(output);
     Output *o = nullptr;
-    const bool isInitialOutput = !scanned;
+    const bool isInitialOutput = !m_initialOutputScanFinished;
     qCInfo(lcTlOutput) << "Output added" << output->name()
                        << "id:" << Output::getOutputId(output->handle())
-                       << "scan complete:" << scanned
+                       << "scan complete:" << m_initialOutputScanFinished
                        << "mode:" << static_cast<int>(m_mode);
 
-    if (!scanned) {
+    if (!m_initialOutputScanFinished) {
         // The initial scan collects normal outputs first. Copy mode is restored once,
         // after backend start has reported all outputs.
         o = createNormalOutput(output);
@@ -538,7 +518,7 @@ void Helper::onOutputAdded(WOutput *output)
     if (!outputRegistered) {
         qCWarning(lcTlCore) << "Failed to register output in root container" << output->name();
     }
-    if (scanned && m_mode == OutputMode::Copy
+    if (m_initialOutputScanFinished && m_mode == OutputMode::Copy
         && outputRegistered && !output->isEnabled()) {
         o->enable();
     }
@@ -546,12 +526,12 @@ void Helper::onOutputAdded(WOutput *output)
         m_outputManagerHelper->setMode(m_mode == OutputMode::Extension
                                            ? OutputManager::Mode::Extension
                                            : OutputManager::Mode::Copy);
-        if (scanned) {
+        if (m_initialOutputScanFinished) {
             m_outputManagerHelper->onScreenAdded(o, getWorkspaceSurfaces());
         }
     }
 
-    if (scanned && m_mode == OutputMode::Copy) {
+    if (m_initialOutputScanFinished && m_mode == OutputMode::Copy) {
         QStringList copyOutputs = m_outputManagerHelper->copyOutputIds();
         const QString addedOutputId = o->getOutputId();
         if (!copyOutputs.contains(addedOutputId)) {
@@ -559,7 +539,7 @@ void Helper::onOutputAdded(WOutput *output)
             m_outputManagerHelper->storeCopyOutputConfig(true, {}, copyOutputs);
         }
     }
-    if (scanned && m_mode == OutputMode::Extension) {
+    if (m_initialOutputScanFinished && m_mode == OutputMode::Extension) {
         const QString addedOutputId = o->getOutputId();
         QMetaObject::invokeMethod(this, [this, addedOutputId] {
             if (m_mode != OutputMode::Extension || !m_globalConfig->createCopyOutput()) {
@@ -595,13 +575,13 @@ void Helper::onOutputAdded(WOutput *output)
     // completes leaves newly bound clients with an empty head list forever.
     m_outputManager->newOutput(output);
 
-    const bool shouldDisableOutput = !scanned;
+    const bool shouldDisableOutput = !m_initialOutputScanFinished;
     if (shouldDisableOutput) {
         WOutputStateGuard disabledState;
         wlr_output_state_set_enabled(disabledState.get(), false);
         if (!wlr_output_commit_state(output->handle(), disabledState.get())) {
             qCCritical(lcTlCore) << "commit failed while disabling added output" << output->name();
-        } else if (!scanned) {
+        } else if (!m_initialOutputScanFinished) {
             qCInfo(lcTlOutput) << "Temporarily disabled output during initial scan" << output->name();
         }
     }
@@ -734,21 +714,71 @@ void Helper::onOutputAdded(WOutput *output)
         saveCurrentOutputConfig(outputObject);
     };
     auto *outputConfig = o->config();
-    if (outputConfig->isInitializeFailed()) {
-        publishOutput();
+    if (outputConfig->isInitializeSucceeded()) {
+        restoreOutputConfig();
     } else {
-        runWhenOutputConfigInitialized(outputConfig,
-                                       o,
-                                       [this,
-                                        restoreOutputConfig = std::move(restoreOutputConfig),
-                                        outputObject = QPointer<Output>(o)]() mutable {
-                                           restoreOutputConfig();
-                                       });
+        publishOutput();
     }
+}
+
+void Helper::onOutputAdded(WOutput *output)
+{
+    auto *configManager = DConfigManager::instance();
+    Q_ASSERT(configManager);
+
+    auto *config = configManager->outputConfig(Output::getOutputId(output->handle()));
+    if (outputConfigInitializationFinished(config)) {
+        processOutputAdded(output);
+        finishInitialOutputScanIfReady();
+        return;
+    }
+
+    if (m_pendingOutputs.contains(output)) {
+        return;
+    }
+
+    m_pendingOutputs.insert(output);
+    connect(output, &QObject::destroyed, this, [this, output] {
+        if (m_pendingOutputs.remove(output)) {
+            finishInitialOutputScanIfReady();
+        }
+    });
+
+    auto continueOutputAdded = [this, output] {
+        if (m_pendingOutputs.remove(output)) {
+            processOutputAdded(output);
+            finishInitialOutputScanIfReady();
+        }
+    };
+    connect(config,
+            &OutputConfig::configInitializeSucceed,
+            output,
+            continueOutputAdded,
+            Qt::SingleShotConnection);
+    connect(config,
+            &OutputConfig::configInitializeFailed,
+            output,
+            continueOutputAdded,
+            Qt::SingleShotConnection);
+}
+
+void Helper::finishInitialOutputScanIfReady()
+{
+    if (m_initialOutputScanFinished || !m_backendStartFinished || !m_pendingOutputs.isEmpty()) {
+        return;
+    }
+
+    m_initialOutputScanFinished = true;
+    restoreInitialOutputConfiguration();
 }
 
 void Helper::onOutputRemoved(WOutput *output)
 {
+    if (m_pendingOutputs.remove(output)) {
+        finishInitialOutputScanIfReady();
+        return;
+    }
+
     // Drop the per-output request_state listener registered via output->listeners(this).
     output->removeListeners(this);
     auto index = indexOfOutput(output);
@@ -1096,7 +1126,7 @@ void Helper::onOutputTestOrApply(wlr_output_configuration_v1 *config, bool onlyT
     m_pendingOutputConfig.pendingCommits = 0;
     m_pendingOutputConfig.allSuccess = true;
 
-    if (scanned && m_outputManagerHelper && m_globalConfig && !m_globalConfig->singleOutputId().isEmpty()) {
+    if (m_initialOutputScanFinished && m_outputManagerHelper && m_globalConfig && !m_globalConfig->singleOutputId().isEmpty()) {
         const QString singleOutputId = m_globalConfig->singleOutputId();
         for (const auto &state : std::as_const(states)) {
             if (state.enabled && !state.output->isEnabled()) {
@@ -2473,11 +2503,13 @@ void Helper::init(Treeland::Treeland *treeland)
     m_activeNotifyManagerInterfaceV1 = m_server->attach<TreelandActiveNotifyManagerInterfaceV1>();
     m_keyboardShortcutsInhibitManagerV1 = m_server->attach<KeyboardShortcutsInhibitManagerV1>();
 
-    // start() synchronously reports the initially available outputs through
-    // onOutputAdded(). Restore the stored topology only after that scan completes.
+    // start() synchronously reports the initially available outputs. Their
+    // per-output DConfig objects initialize asynchronously, so finish the scan
+    // only after every reported output has either loaded its config or failed
+    // initialization and fallen back to defaults.
     wlr_backend_start(m_backend->handle());
-    scanned = true;
-    restoreInitialOutputConfiguration();
+    m_backendStartFinished = true;
+    finishInitialOutputScanIfReady();
 }
 
 SeatsManager *Helper::seatManager() const
@@ -3065,34 +3097,29 @@ void Helper::saveCurrentOutputConfig(Output *output)
     }
 
     auto *outputConfig = output->config();
-    auto saveConfig = [outputObject = QPointer<Output>(output),
-                       outputConfig = QPointer<OutputConfig>(outputConfig)] {
-        if (!outputObject || !outputConfig) {
-            return;
+    if (!outputConfig || !outputConfig->isInitializeSucceeded()) {
+        return;
+    }
+
+    if (!output->output() || !output->output()->handle()->current_mode) {
+        return;
+    }
+
+    auto *wlrOutput = output->output()->handle();
+    auto *mode = wlrOutput->current_mode;
+    outputConfig->setWidth(mode->width);
+    outputConfig->setHeight(mode->height);
+    outputConfig->setRefresh(mode->refresh);
+    outputConfig->setTransform(wlrOutput->transform);
+    outputConfig->setScale(wlrOutput->scale);
+    outputConfig->setAdaptiveSyncEnabled(wlrOutput->adaptive_sync_status == WLR_OUTPUT_ADAPTIVE_SYNC_ENABLED);
+
+    if (auto *layout = output->output()->layout()) {
+        if (auto *layoutOutput = wlr_output_layout_get(layout->handle(), wlrOutput)) {
+            outputConfig->setX(layoutOutput->x);
+            outputConfig->setY(layoutOutput->y);
         }
-
-        if (!outputObject->output() || !outputObject->output()->handle()->current_mode) {
-            return;
-        }
-
-        auto *wlrOutput = outputObject->output()->handle();
-        auto *mode = wlrOutput->current_mode;
-        outputConfig->setWidth(mode->width);
-        outputConfig->setHeight(mode->height);
-        outputConfig->setRefresh(mode->refresh);
-        outputConfig->setTransform(wlrOutput->transform);
-        outputConfig->setScale(wlrOutput->scale);
-        outputConfig->setAdaptiveSyncEnabled(wlrOutput->adaptive_sync_status == WLR_OUTPUT_ADAPTIVE_SYNC_ENABLED);
-
-        if (auto *layout = outputObject->output()->layout()) {
-            if (auto *layoutOutput = wlr_output_layout_get(layout->handle(), wlrOutput)) {
-                outputConfig->setX(layoutOutput->x);
-                outputConfig->setY(layoutOutput->y);
-            }
-        }
-        };
-
-        runWhenOutputConfigInitialized(outputConfig, output, std::move(saveConfig));
+    }
 }
 
 SurfaceWrapper *Helper::keyboardFocusSurface() const
@@ -4030,9 +4057,10 @@ void Helper::restoreExtensionModeFromConfig(bool preserveSingleOutputConfig)
                                        << output->name();
             }
         };
-        runWhenOutputConfigInitialized(outputObject->config(),
-                                       outputObject,
-                                       std::move(restoreOutput));
+        auto *config = outputObject->config();
+        if (config && config->isInitializeSucceeded()) {
+            restoreOutput();
+        }
     }
 
     // A temporary fallback must not replace an unavailable single-output target.
@@ -4054,41 +4082,39 @@ void Helper::restoreExtensionModeFromConfig(bool preserveSingleOutputConfig)
 
 void Helper::restoreInitialOutputConfiguration()
 {
-    runWhenTreelandConfigInitialized(m_globalConfig, this, [this] {
-        const QString singleOutputId = m_globalConfig->singleOutputId();
-        if (!singleOutputId.isEmpty()) {
-            if (findOutputById(singleOutputId)) {
-                m_outputManagerHelper->restoreConfiguredSingleOutput(getWorkspaceSurfaces(), true);
-                return;
-            }
-
-            m_outputManagerHelper->clearSingleOutputConfig();
-            restoreExtensionModeFromConfig();
+    const QString singleOutputId = m_globalConfig->singleOutputId();
+    if (!singleOutputId.isEmpty()) {
+        if (findOutputById(singleOutputId)) {
+            m_outputManagerHelper->restoreConfiguredSingleOutput(getWorkspaceSurfaces(), true);
             return;
         }
 
-        if (m_globalConfig->createCopyOutput()) {
-            if (m_outputList.size() >= 2 && restoreConfiguredCopyMode()) {
-                return;
-            }
-
-            const QStringList copyOutputs = m_outputManagerHelper->copyOutputIds();
-            if (copyOutputs.size() == 1 && findOutputById(copyOutputs.constFirst())) {
-                // One remaining member cannot render a copy topology yet. Keep
-                // the intent so the next connected output can join the group.
-                restoreExtensionModeFromConfig(true);
-                return;
-            }
-
-            qCWarning(lcTlOutput) << "Clearing invalid initial copy-output configuration";
-            m_outputManagerHelper->storeCopyOutputConfig(false);
-            restoreExtensionModeFromConfig();
-            return;
-        }
-
+        m_outputManagerHelper->clearSingleOutputConfig();
         restoreExtensionModeFromConfig();
-        m_outputManagerHelper->restorePrimaryOutput();
-    });
+        return;
+    }
+
+    if (m_globalConfig->createCopyOutput()) {
+        if (m_outputList.size() >= 2 && restoreConfiguredCopyMode()) {
+            return;
+        }
+
+        const QStringList copyOutputs = m_outputManagerHelper->copyOutputIds();
+        if (copyOutputs.size() == 1 && findOutputById(copyOutputs.constFirst())) {
+            // One remaining member cannot render a copy topology yet. Keep
+            // the intent so the next connected output can join the group.
+            restoreExtensionModeFromConfig(true);
+            return;
+        }
+
+        qCWarning(lcTlOutput) << "Clearing invalid initial copy-output configuration";
+        m_outputManagerHelper->storeCopyOutputConfig(false);
+        restoreExtensionModeFromConfig();
+        return;
+    }
+
+    restoreExtensionModeFromConfig();
+    m_outputManagerHelper->restorePrimaryOutput();
 }
 
 void Helper::restoreCopyMode()
