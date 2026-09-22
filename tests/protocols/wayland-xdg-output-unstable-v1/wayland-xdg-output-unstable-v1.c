@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
  *
  * Test the zxdg_output_manager_v1 global that Treeland serves through its
- * WXdgOutputManager wrapper.  The test binds the first wl_output, obtains an
+ * WXdgOutputManager wrapper.  The test binds the startup wl_output, obtains an
  * xdg_output for it, and receives logical_position / logical_size followed by
  * wl_output.done.
  *
@@ -139,12 +139,10 @@ int protocol_test_run(const char *socket_name) {
 	}
 
 	struct xdg_output_state state = { 0 };
-	/* The fixture adds its output after the compositor's startup output, so it
-	 * is the last wl_output advertised by the registry. */
-	struct wl_output *output = client_bind_last(&conn, wl_output_interface.name,
+	struct wl_output *output = client_bind(&conn, wl_output_interface.name,
 			&wl_output_interface, wl_output_interface.version);
 	if (output == NULL) {
-		TEST_ERROR("xdg-output: fixture wl_output global is unavailable\n");
+		TEST_ERROR("xdg-output: startup wl_output global is unavailable\n");
 		client_disconnect(&conn);
 		return 1;
 	}
