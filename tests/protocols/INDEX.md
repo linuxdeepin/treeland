@@ -35,7 +35,9 @@ Wayland 线上请求与事件；本文档规定发出请求后，测试必须观
 | [output-manager-v1](treeland-output-manager-v1/README.md) | I / P | 真实 `wl_output` 的 primary-output 链路 |
 | [personalization-manager-v1](treeland-personalization-manager-v1/README.md) | E / I | 个性化状态挂接到真实 wrapper；font/appearance 配置的 setter/getter 生产回读与恢复 |
 | [region-watch-unstable-v1](treeland-region-watch-unstable-v1/README.md) | E / P | 输出边缘区域的全局坐标注册；真实 toplevel 映射/关闭驱动的 enter/leave；输出重绑、output_removed 与惰性语义 |
-| appearance-v1（冒烟测试） | I | appearance/manager 接口创建与名称校验（`tests/test_protocol_appearance`）；无 C-client 协议测试 | 推送事件 payload、setter 请求、DConfig 广播与配置替换 |
+| [appearance-unstable-v1](treeland-appearance-unstable-v1/README.md) | I / P | 初始 `color_scheme` 与 manager setter 触发的 client 广播 | 其余外观字段、无效值和 DConfig 配置替换 |
+| [decoration-unstable-v1](treeland-decoration-unstable-v1/README.md) | E | mapped toplevel 的 `set_corner_radius` 回读真实 `SurfaceWrapper::radius()` | shadow、border、titlebar 和协议错误路径 |
+| [remote-subsurface-unstable-v1](treeland-remote-subsurface-unstable-v1/README.md) | E / P | token 导出、真实 Remote `WSubsurface` 的父子关系、位置与层级；`parent_rejected` / `invalid_sibling` | 跨 client、循环 parent、映射生命周期与 sibling 间排序 |
 | [prelaunch-splash-v2](treeland-prelaunch-splash-v2/README.md) | I / E | splash 请求/关闭信号；生产 splash wrapper 创建、加入 workspace 与销毁 |
 | [screensaver-v1](treeland-screensaver-v1/README.md) | E / P | 真实 ext-idle 抑制生命周期 |
 | [shortcut-manager-v2](treeland-shortcut-manager-v2/README.md) | E / P | 聚焦窗口捕获与快捷键激活 |
@@ -62,7 +64,7 @@ Wayland 线上请求与事件；本文档规定发出请求后，测试必须观
 
 ### 标准 wayland-protocols（1.49）由 Treeland 提供的协议
 
-以下 24 个测试覆盖 Treeland 在运行时通过 wlroots 实际提供的标准 wayland-protocols（wayland-protocols 1.49.0-1）。
+以下 25 个测试覆盖 Treeland 在运行时通过 wlroots 实际提供的标准 wayland-protocols（wayland-protocols 1.49.0-1）。
 xdg-shell 由共享 xdg-toplevel 夹具覆盖（多个 toplevel 测试复用）。input-method-v2 不在 wayland-protocols 包内，故排除。
 
 | 协议 | 覆盖等级 | 主要生产结果 |
@@ -76,6 +78,7 @@ xdg-shell 由共享 xdg-toplevel 夹具覆盖（多个 toplevel 测试复用）�
 | [wayland-ext-session-lock-v1](wayland-ext-session-lock-v1/README.md) | E | `lock`→`locked` 后回读真实 `WSessionLock::isLocked()` 为 true |
 | [wayland-fractional-scale-v1](wayland-fractional-scale-v1/README.md) | E | 回读真实 `WOutput::scale()`，断言 `preferred_scale` == round(scale×120) |
 | [wayland-idle-inhibit-unstable-v1](wayland-idle-inhibit-unstable-v1/README.md) | E | 回读真实 `wlr_idle_inhibitor_v1` 已关联 mapped `WSurface`，销毁后确认 resource 已移除 |
+| [wayland-keyboard-shortcuts-inhibit-unstable-v1](wayland-keyboard-shortcuts-inhibit-unstable-v1/README.md) | I / P | mapped toplevel 获取 seat focus 后，inhibitor 收到 `active` | `inactive`、真实快捷键分发和失焦 policy |
 | [wayland-pointer-constraints-unstable-v1](wayland-pointer-constraints-unstable-v1/README.md) | E | 真实 `wl_pointer` 上创建 locked 约束，回读真实 `wlr_pointer_constraint_v1::type` == Locked |
 | [wayland-pointer-gestures-unstable-v1](wayland-pointer-gestures-unstable-v1/README.md) | E | 真实 `wl_pointer` 上创建 swipe/pinch 手势资源，回读真实 `wlr_pointer_gestures_v1::swipes`/`pinches` 列表非空 |
 | [wayland-primary-selection-unstable-v1](wayland-primary-selection-unstable-v1/README.md) | E | 创建 source 并 `set_selection` 后回读真实 `wlr_seat::primary_selection_source` 非空 |
@@ -99,13 +102,13 @@ xdg-shell 由共享 xdg-toplevel 夹具覆盖（多个 toplevel 测试复用）�
 request stub 算作 request 覆盖；生成的 client-protocol 文件本身不计入。`destroy` 也单列，
 因为它证明资源生命周期，却通常不承载主要业务语义。
 
-- **已注册并有测试目录的 20 个当前协议**：XML 共 189 条 request，其中测试客户端直接
-  调用了 **148 条（78.3%）**。
-- 去掉 50 条 `destroy` 生命周期 request 后，剩余 139 条工厂、配置和业务 request 中有
-  **102 条（73.4%）** 被直接调用。
-- 20 个协议中 **17 个（85.0%）** 至少有一条 E 级生产业务链路；仅 DDM、output-manager
+- **已注册并有测试目录的 24 个当前协议**：XML 共 221 条 request，其中测试客户端直接
+  调用了 **167 条（75.6%）**。
+- 去掉 59 条 `destroy` 生命周期 request 后，剩余 162 条工厂、配置和业务 request 中有
+  **112 条（69.1%）** 被直接调用。
+- 24 个协议中 **19 个（79.2%）** 至少有一条 E 级生产业务链路；仅 DDM、output-manager
   color-control、wallpaper-color 仍停留在 I/P 层。
-- 当前 XML 共有 98 条 server event。这里**不发布“事件百分比”**：listener 中出现一个
+- 当前 XML 共有 114 条 server event。这里**不发布“事件百分比”**：listener 中出现一个
   callback、或 fixture 手工发出一次 event，都不能证明事件负载或其业务来源被断言。下表只
   列出已实际断言的关键 event，并明确列出尚未逐项验证的 event。
 
@@ -115,13 +118,16 @@ request stub 算作 request 覆盖；生成的 client-protocol 文件本身不�
 | capture-unstable-v1 | 8 / 11 | `source_ready/failed`、`buffer/buffer_done/ready/failed`；64×64 红色像素读回 | session 的 `start/frame_done`，及 `frame/object/ready/cancel` 持久流；OUTPUT/REGION、cursor、mask |
 | dde-shell-v1 | 26 / 27 | checker/active/picker 事件；真实 wrapper DDE 元数据、lockscreen、picker PID | multitask 只证明 `toggle` 请求/信号，未证明真实 UI 状态；`shutdown/switch_user` 外部会话流程（`set_xwindow_position_relative` 已迁移至 `treeland-xwindow-control-unstable-v1`） |
 | active-notify-unstable-v1 | 2 / 2 | notifier 创建/重建；无真实输入不伪造事件 | 真实输入驱动的 activity/drag 事件（uinput）、null seat 错误、多 notifier/seat、与 v1 并行双发 |
+| appearance-unstable-v1 + appearance-manager-unstable-v1 | 3 / 13 | bind 初始 `color_scheme`；manager `set_color_scheme` 广播 Dark | 其余外观字段、无效值、DConfig 配置替换 |
 | ddm-v1 | 0 / 7 | 无未请求 VT event；生产连接生命周期 | 所有会话/渲染控制 request 与 `switch_to_vt/acquire_vt` 的实际系统流程 |
+| decoration-unstable-v1 | 4 / 7 | `set_corner_radius` 后 mapped `SurfaceWrapper::radius()` == 12 | shadow、border、titlebar、协议错误与 SSD 协商 |
 | foreign-toplevel-manager-v2 | 16 / 16 | `toplevel/identifier/closed`；真实最小化、最大化、全屏、焦点与 icon rectangle；最小化与布局状态正交（含取消布局后不卡在最小化） | `pid/title/app_id/output_enter/output_leave/state/done/parent` payload；指定 `wl_output` 的 fullscreen hint、preview 像素；`Tiling` 组合 |
 | input-manager-unstable-v1 | 1 / 22 | 默认测试仅证明空设备 manager 可绑定；uinput target 断言 Keyboard capability 热插拔 | settings/apply、真实 mouse/touchpad 配置生效、无设备 failed；uinput E 层需显式启用并实际执行 |
 | keyboard-state-notify-unstable-v1 | 6 / 6 | watcher 配置、`apply` 的空键盘/空 modifier 边界 | `current_state/state_changed`、多 watcher、初始 locked、seat 销毁、重复 apply 与物理键盘对照 |
 | output-manager-v1 | 4 / 7 | `primary_output`；未知 output 的 color-control 错误 | `set_color_temperature/set_brightness/commit` 成功路径及 `result/color_temperature/brightness`，真实 output/像素变化 |
 | personalization-manager-v1 | 37 / 37* | cursor/font/appearance 回读 event；真实 wrapper 个性化状态 | manager `destroy` 为 v2 request（v1 global 只能走错误/兼容性边界）；字体渲染和 appearance 的最终 UI 像素 |
 | region-watch-unstable-v1 | 4 / 4 | `set_region` 后的强制评估；真实 toplevel 映射/关闭驱动的 `enter/leave`；输出重绑、`output_removed` 与惰性语义 | `invalid_anchor/invalid_size` 致命错误路径、输出 scale/mode 变化后的重新注册、多 watcher |
+| remote-subsurface-unstable-v1 | 8 / 8 | token；真实 Remote `WSubsurface` 的父子关系、位置、Below 层级；`parent_rejected` / `invalid_sibling` | 跨 client、循环 parent、映射生命周期、sibling 间排序 |
 | prelaunch-splash-v2 | 3 / 3 | 创建、关闭；真实 splash wrapper 加入/离开 workspace | splash QML 最终可见性、纹理和像素 |
 | screensaver-v1 | 2 / 3 | 真实 ext-idle 被 inhibit/uninhibit 改变 | 显式 `destroy` request、实际锁屏 UI |
 | shortcut-manager-v2 | 6 / 9 | `commit_success`、`captured`、`activated`；真实 virtual keyboard 输入链 | swipe、hold、`unbind`、`commit_failure` 的业务分支；物理键盘 |
@@ -130,6 +136,7 @@ request stub 算作 request 覆盖；生成的 client-protocol 文件本身不�
 | wallpaper-manager-unstable-v1 | 4 / 5 | `failed/changed`；`set_image_source` 与 wallpaper shell/output 关联 | `set_video_source`、实际映射/QML 接入、媒体解码失败、最终 output 像素 |
 | wallpaper-shell-unstable-v1 | 5 / 6 | notifier add/remove、play/pause/slow-down；wallpaper shell 资源生命周期 | `ready` 的实际 owner 映射路径、`position/set_playback_rate` event payload、媒体播放和最终 output 像素 |
 | show-desktop-v1 | 2 / 2 | `show_desktop_state`；真实 wrapper 可见性与 paint order | 多 workspace、minimized policy |
+| layer-shell-extension-unstable-v1 | 4 / 4 | `begin_resize` 的 `resize_rejected(bad_serial)` | 成功 resize、clamp、`resizing` 生命周期 |
 | wine-window-management-unstable-v1 | 5 / 5 | `window_id/configure_position/configure_stacking`；真实 QQuickItem 位置/Z 值 | bottom/insert-after、多窗口 sibling、无效 sibling、重复 bind、越界坐标 |
 | wine-window-state-unstable-v1 | 6 / 7 | `state_changed`；真实最小化、attention 与可见性 | `activate/activate_denied`、重复 bind、toplevel 销毁后的 inert 状态 |
 
@@ -138,23 +145,20 @@ request stub 算作 request 覆盖；生成的 client-protocol 文件本身不�
 
 ### 未纳入上述覆盖率的 XML
 
-以下 5 个 XML 仍由协议包提供，但当前没有对应的已注册生产测试 target，故不混入 152 的
+以下 2 个 XML 仍由协议包提供，但当前没有对应的已注册生产测试 target，故不混入覆盖率
 分母，也不能被视为“已覆盖”：
 
 | XML | request / event | 当前状态与缺口 |
 | --- | --- | --- |
-| `treeland-appearance-unstable-v1` | — | 新增 0.6.0 协议；仅有冒烟测试（接口创建/名称校验），无 C-client 覆盖 |
-| `treeland-appearance-manager-unstable-v1` | — | 新增 0.6.0 协议；仅有冒烟测试，无 C-client 覆盖 |
-| `treeland-decoration-unstable-v1` | — | 0.6.0 新增协议；生产实现尚未注册，无测试 |
 | `treeland-prelaunch-splash-v1` | 2 / 0 | 已由 v2 取代；未验证 v1 compatibility global 或迁移策略 |
 | `treeland-shortcut-manager-v1` | 3 / 1 | 已由 v2 取代；未验证 v1 compatibility global、`shortcut` event |
-| `treeland-remote-subsurface-unstable-v1` | 8 / 3 | 无测试目录；export token、remote subsurface 创建、位置/堆叠、错误 event 与真实 scene 结果均未覆盖 |
 
 ### 标准 wayland-protocols 覆盖
 
-以下 24 个标准 wayland-protocols（wayland-protocols 1.49.0-1）测试中，23 个已升至 **E 级**
-（回读真实生产对象断言），仅 1 个仍为 **P 级**：
-`ext-image-copy-capture-v1`（已验证 output-to-source；headless 下创建捕获会话可能死锁，issue #1407）。
+以下 25 个标准 wayland-protocols（wayland-protocols 1.49.0-1）测试中，23 个已升至 **E 级**，
+1 个为 **I / P 级**，仅 1 个仍为 **P 级**：keyboard-shortcuts-inhibit 验证生产 seat
+focus 到 `active` event 的链路；`ext-image-copy-capture-v1` 已验证 output-to-source，
+但 headless 下创建捕获会话可能死锁（issue #1407）。
 
 **E 级测试（23 个）**——验证真实生产对象状态：
 

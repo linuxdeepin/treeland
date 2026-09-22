@@ -122,7 +122,7 @@ ctest --test-dir build --output-on-failure -L protocols
 `inputRemoved` 后，input-manager 向 Wayland client 发送 Keyboard capability 的
 available/unavailable 事件；测试不会写入按键事件。
 
-仅在 Linux 且当前用户可写 `/dev/uinput` 时启用：
+仅在 Linux、当前用户可写 `/dev/uinput`，且可连接 Treeland 使用的 seatd socket 时启用：
 
 ```bash
 cmake --preset default -DTREELAND_ENABLE_UINPUT_PROTOCOL_TESTS=ON
@@ -131,8 +131,10 @@ ctest --test-dir build --output-on-failure \
   -R '^test_treeland_input_manager_uinput_v1$'
 ```
 
-没有 `/dev/uinput` 写权限时，runner 在启动前以退出码 `77` 将该用例标记为
-**Skipped**；这不是通过。启用开关后执行全量协议测试时，该可选 target 也会被包含：
+CTest 会固定注入与 `treeland.service` 一致的
+`LIBSEAT_BACKEND=seatd; SEATD_SOCK=/run/dde-seatd.sock`。没有 `/dev/uinput` 写权限，或
+无法连接该 socket 时，runner 在启动前以退出码 `77` 将该用例标记为 **Skipped**；这不是通过。
+启用开关后执行全量协议测试时，该可选 target 也会被包含：
 
 ```bash
 ctest --test-dir build --output-on-failure -L protocols

@@ -53,7 +53,10 @@ static int read_state(struct input_manager_uinput_state *state)
 
 int protocol_test_run(const char *socket_name)
 {
+    int stage = 0;
     struct client_connection connection;
+    struct capability_state capabilities = {0};
+    struct input_manager_uinput_state state = {0};
     if (!client_connect(&connection, socket_name))
         return 1;
 
@@ -62,22 +65,24 @@ int protocol_test_run(const char *socket_name)
         &connection, "treeland_input_manager_v1", &treeland_input_manager_v1_interface, 1);
     if (!seat || !manager)
         goto failed;
+    stage = 1;
 
-    struct capability_state capabilities = {0};
     treeland_input_manager_v1_add_listener(manager, &manager_listener, &capabilities);
     if (wl_display_roundtrip(connection.display) < 0)
         goto failed;
+    stage = 2;
 
-    struct input_manager_uinput_state state = {0};
     if (!read_state(&state) || !state.created || !state.keyboard_added
         || capabilities.available_types != TREELAND_INPUT_MANAGER_V1_DEVICE_TYPE_KEYBOARD) {
         fprintf(stderr, "input-manager uinput: keyboard did not reach WBackend/input-manager\n");
         goto failed;
     }
+    stage = 3;
 
     if (!invoke_on_server_thread(input_manager_uinput_destroy, NULL)
         || wl_display_roundtrip(connection.display) < 0)
         goto failed;
+    stage = 4;
 
     if (!read_state(&state) || !state.keyboard_removed
         || capabilities.unavailable_types != TREELAND_INPUT_MANAGER_V1_DEVICE_TYPE_KEYBOARD) {
@@ -91,6 +96,12 @@ int protocol_test_run(const char *socket_name)
     return 0;
 
 failed:
+    fprintf(stderr,
+            "input-manager uinput failed at stage %d: created=%d added=%d removed=%d "
+            "available=0x%x unavailable=0x%x counts=(%d,%d)\n",
+            stage, state.created, state.keyboard_added, state.keyboard_removed,
+            capabilities.available_types, capabilities.unavailable_types,
+            capabilities.available_count, capabilities.unavailable_count);
     client_disconnect(&connection);
     return 1;
 }
