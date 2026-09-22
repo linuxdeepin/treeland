@@ -42,6 +42,8 @@ public:
     void move(WOutput *output, const QPoint &pos);
     void remove(WOutput *output);
 
+    void pin(WOutput *output);
+
     QList<WOutput*> getIntersectedOutputs(const QRect &geometry) const;
 
     int implicitWidth() const;

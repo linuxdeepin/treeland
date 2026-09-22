@@ -20,7 +20,7 @@ public:
     ~ColorControlV1() override;
 
 private:
-    explicit ColorControlV1(wl_resource *resource, Output *output);
+    explicit ColorControlV1(wl_resource *resource, Output *output, QObject *parent);
     friend OutputManagerV1Private;
     std::unique_ptr<ColorControlV1Private> d;
 };

@@ -709,8 +709,10 @@ wlr_buffer *OutputHelper::renderLayer(LayerData *layer, bool *dontEndRenderAndRe
         } else {
             // Limitation max buffer
             const auto maxSize = qMax(source->width(), source->height()) * dpr;
-            pixelSize.rwidth() = qCeil(qMin(tmpSize.width(), maxSize));
-            pixelSize.rheight() = qCeil(qMin(tmpSize.height(), maxSize));
+            const qreal limitW = maxSize > 0 ? qMin(tmpSize.width(), maxSize) : tmpSize.width();
+            const qreal limitH = maxSize > 0 ? qMin(tmpSize.height(), maxSize) : tmpSize.height();
+            pixelSize.rwidth() = qCeil(limitW);
+            pixelSize.rheight() = qCeil(limitH);
         }
 
         if (mapRect.isEmpty()) {

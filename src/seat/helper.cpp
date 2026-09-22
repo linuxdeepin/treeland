@@ -211,6 +211,105 @@ static bool seatConfigInitializationFinished(SeatUserDConfig *config)
     return config && (config->isInitializeSucceeded() || config->isInitializeFailed());
 }
 
+static QSize effectiveOutputLayoutSize(const WOutputState &state)
+{
+    int width = state.mode ? state.mode->width : state.customModeSize.width();
+    int height = state.mode ? state.mode->height : state.customModeSize.height();
+    switch (state.transform) {
+    case WOutput::Transform::R90:
+    case WOutput::Transform::R270:
+    case WOutput::Transform::Flipped90:
+    case WOutput::Transform::Flipped270:
+        std::swap(width, height);
+        break;
+    default:
+        break;
+    }
+    const qreal scale = state.scale > 0.0 ? state.scale : 1.0;
+    return QSize(qCeil(width / scale), qCeil(height / scale));
+}
+
+static bool enabledStatesOverlap(const QList<WOutputState> &states)
+{
+    for (int i = 0; i < states.size(); ++i) {
+        if (!states[i].enabled)
+            continue;
+        const QRect a(QPoint(states[i].x, states[i].y), effectiveOutputLayoutSize(states[i]));
+        for (int j = i + 1; j < states.size(); ++j) {
+            if (!states[j].enabled)
+                continue;
+            const QRect b(QPoint(states[j].x, states[j].y), effectiveOutputLayoutSize(states[j]));
+            if (a.intersects(b))
+                return true;
+        }
+    }
+    return false;
+}
+
+static void deOverlapEnabledStates(QList<WOutputState> &states)
+{
+    for (int round = 0; round < states.size(); ++round) {
+        QList<QRect> placed;
+        bool changed = false;
+        int rightmostEdge = std::numeric_limits<int>::min();
+        for (auto &state : states) {
+            if (!state.enabled)
+                continue;
+            QRect rect(QPoint(state.x, state.y), effectiveOutputLayoutSize(state));
+            const bool overlaps = std::any_of(placed.cbegin(), placed.cend(),
+                                              [&rect](const QRect &other) { return rect.intersects(other); });
+            if (overlaps) {
+                state.x = rightmostEdge;
+                state.y = 0;
+                rect.moveTopLeft(QPoint(state.x, state.y));
+                qCInfo(lcTlOutput) << "De-overlap: moved" << state.output->name()
+                                   << "to" << rect.topLeft()
+                                   << "because its requested position overlapped another enabled screen";
+                changed = true;
+            }
+            placed.append(rect);
+            rightmostEdge = qMax(rightmostEdge, rect.right() + 1);
+        }
+        if (!changed)
+            break;
+    }
+}
+
+static QSize effectiveSavedSize(int width, int height, qlonglong transform, double scale)
+{
+    switch (transform) {
+    case WL_OUTPUT_TRANSFORM_90:
+    case WL_OUTPUT_TRANSFORM_270:
+    case WL_OUTPUT_TRANSFORM_FLIPPED_90:
+    case WL_OUTPUT_TRANSFORM_FLIPPED_270:
+        std::swap(width, height);
+        break;
+    default:
+        break;
+    }
+    const qreal s = scale > 0.0 ? scale : 1.0;
+    return QSize(qCeil(width / s), qCeil(height / s));
+}
+
+static bool savedPositionOverlapsEnabledOutput(WOutputLayout *layout,
+                                               WOutput *output,
+                                               const QPoint &pos,
+                                               const QSize &size)
+{
+    if (!layout)
+        return false;
+    const QRect savedRect(pos, size);
+    for (auto *other : layout->outputs()) {
+        if (other == output || !other->isEnabled())
+            continue;
+        wlr_box box;
+        wlr_output_layout_get_box(layout->handle(), other->handle(), &box);
+        if (QRect(box.x, box.y, box.width, box.height).intersects(savedRect))
+            return true;
+    }
+    return false;
+}
+
 static wlr_output_mode *closestOutputMode(WOutput *output,
                                           int width,
                                           int height,
@@ -681,6 +780,8 @@ void Helper::onOutputAdded(WOutput *output)
             if (!output->isEnabled()) {
                 outputObject->enable();
             }
+            if (auto *layout = m_rootSurfaceContainer->outputLayout())
+                layout->pin(output);
             return;
         }
 
@@ -707,7 +808,15 @@ void Helper::onOutputAdded(WOutput *output)
         wlr_output_state_set_enabled(newState.get(), true);
 
         if (auto *layout = m_rootSurfaceContainer->outputLayout()) {
-            layout->move(output, QPoint(static_cast<int>(config->x()), static_cast<int>(config->y())));
+            const QPoint savedPos(static_cast<int>(config->x()), static_cast<int>(config->y()));
+            const QSize savedSize = effectiveSavedSize(width, height, transform, scale);
+            if (!savedPositionOverlapsEnabledOutput(layout, output, savedPos, savedSize)) {
+                layout->move(output, savedPos);
+            } else {
+                qCInfo(lcTlOutput) << "Saved position for" << output->name()
+                                   << savedPos << "overlaps an enabled output; keeping auto position";
+            }
+            layout->pin(output);
         }
 
         if (auto *mode = closestOutputMode(output, width, height, refresh)) {
@@ -754,6 +863,7 @@ void Helper::onOutputRemoved(WOutput *output)
     auto index = indexOfOutput(output);
     Q_ASSERT(index >= 0);
     const auto o = m_outputList.takeAt(index);
+    m_disabledOutputSurfaces.remove(o->getOutputId());
 
     const auto &surfaces = getWorkspaceSurfaces(o);
     const QStringList copyOutputs = m_outputManagerHelper->copyOutputIds();
@@ -782,32 +892,10 @@ void Helper::onOutputRemoved(WOutput *output)
                 }
             }
 
-            const int newCopySourceIndex = m_outputList.indexOf(newCopySource);
-            removeOutputFromRootContainer(newCopySource);
-            Output *normalCopySource = createNormalOutput(newCopySource->output());
-            normalCopySource->enable();
-            m_outputList.replace(newCopySourceIndex, normalCopySource);
-            newCopySource->deleteLater();
-
-            for (int i = 0; i < m_outputList.size(); ++i) {
-                Output *copyOutput = m_outputList.at(i);
-                if (copyOutput == normalCopySource
-                    || !copyOutputs.contains(copyOutput->getOutputId())) {
-                    continue;
-                }
-
-                removeOutputFromRootContainer(copyOutput);
-                Output *replacement = createCopyOutput(copyOutput->output(), normalCopySource);
-                replacement->enable();
-                m_rootSurfaceContainer->addOutput(replacement);
-                m_outputList.replace(i, replacement);
-                copyOutput->deleteLater();
-            }
-
-            m_rootSurfaceContainer->setPrimaryOutput(normalCopySource);
-            if (!surfaces.isEmpty()) {
-                moveSurfacesToOutput(surfaces, normalCopySource, o);
-            }
+            promoteCopyOutputToSource(newCopySource, surfaces, o,
+                                      [&copyOutputs](Output *candidate) {
+                                          return copyOutputs.contains(candidate->getOutputId());
+                                      });
             removeOutputFromRootContainer(o);
 
             // Persist only the active copy group. A subsequently connected
@@ -819,35 +907,8 @@ void Helper::onOutputRemoved(WOutput *output)
             m_mode = OutputMode::Extension;
             Q_EMIT outputModeChanged();
 
-            QList<Output *> outputsToConvert;
-            QList<Output *> oldOutputsToDelete;
-
-            bool removedWasPrimary = (output == m_rootSurfaceContainer->primaryOutput()->output());
-            Output *sourceCandidate = nullptr;
-
-            for (int i = 0; i < m_outputList.size(); i++) {
-                Output *copyOutput = m_outputList.at(i);
-
-                if (copyOutput->isSource()) {
-                    if (!sourceCandidate)
-                        sourceCandidate = copyOutput;
-                    continue;
-                }
-
-                removeOutputFromRootContainer(copyOutput);
-                Output *normalOutput = createNormalOutput(copyOutput->output());
-                normalOutput->enable();
-                saveCurrentOutputConfig(normalOutput);
-
-                outputsToConvert.append(normalOutput);
-                oldOutputsToDelete.append(copyOutput);
-
-                m_outputList.replace(i, normalOutput);
-
-                if (!sourceCandidate) {
-                    sourceCandidate = normalOutput;
-                }
-            }
+            const bool removedWasPrimary = (output == m_rootSurfaceContainer->primaryOutput()->output());
+            Output *sourceCandidate = convertCopyOutputsToNormal([](Output *) { return false; });
 
             if (removedWasPrimary && sourceCandidate) {
                 m_rootSurfaceContainer->setPrimaryOutput(sourceCandidate);
@@ -857,10 +918,6 @@ void Helper::onOutputRemoved(WOutput *output)
             }
 
             removeOutputFromRootContainer(o);
-
-            for (auto oldOutput : std::as_const(oldOutputsToDelete)) {
-                delete oldOutput;
-            }
         }
 
     } else {
@@ -929,49 +986,103 @@ void Helper::setGamma(struct wlr_gamma_control_manager_v1_set_gamma_event *event
     }
 }
 
-void Helper::handleCopyModeOutputDisable(Output *affectedOutput)
+bool Helper::handleCopyModeSourceDisabled(Output *disabledSource,
+                                          const QList<WOutput *> &requestedDisabled)
 {
-    int affectedIndex = m_outputList.indexOf(affectedOutput);
-    if (affectedIndex < 0) {
-        qCWarning(lcTlCore) << "Disabled output not found in m_outputList";
-        return;
-    }
-
-    if (m_outputManagerHelper) {
-        m_outputManagerHelper->storeCopyOutputConfig(false);
-    }
-
-    m_mode = OutputMode::Extension;
-    Q_EMIT outputModeChanged();
-
-    // Convert CopyOutputs to Normal outputs (independent displays)
-    // Keep the disabled output in the list - it will receive disable state through normal wlroots flow
-    Output *primaryCandidate = nullptr;
-    const auto &surfaces = getWorkspaceSurfaces(affectedOutput);
-    for (int i = 0; i < m_outputList.size(); i++) {
-        if (i == affectedIndex) {
+    Output *newSource = nullptr;
+    int enabledMirrors = 0;
+    for (int i = 0; i < m_outputList.size(); ++i) {
+        Output *output = m_outputList.at(i);
+        if (output == disabledSource || output->isSource())
+            continue;
+        if (requestedDisabled.contains(output->output()) || !output->output()->isEnabled()) {
             continue;
         }
+        enabledMirrors++;
+        if (!newSource)
+            newSource = output;
+    }
+    if (enabledMirrors < 2)
+        return false;
 
+    const auto &surfaces = getWorkspaceSurfaces(disabledSource);
+
+    promoteCopyOutputToSource(
+        newSource,
+        surfaces,
+        disabledSource,
+        [this, disabledSource, &requestedDisabled](Output *mirror) {
+            return mirror != disabledSource
+                && !mirror->isSource()
+                && mirror->output()->isEnabled()
+                && !requestedDisabled.contains(mirror->output());
+        });
+
+    return true;
+}
+
+Output *Helper::promoteCopyOutputToSource(Output *promotedMirror,
+                                          const QList<SurfaceWrapper *> &surfaces,
+                                          Output *surfacesFrom,
+                                          const std::function<bool(Output *)> &shouldRetarget)
+{
+    const int newSourceIndex = m_outputList.indexOf(promotedMirror);
+    Output *normalSource = createNormalOutput(promotedMirror->output());
+    normalSource->enable();
+    m_outputList.replace(newSourceIndex, normalSource);
+    promotedMirror->deleteLater();
+
+    for (int i = 0; i < m_outputList.size(); ++i) {
+        Output *mirror = m_outputList.at(i);
+        if (mirror == normalSource || !shouldRetarget(mirror))
+            continue;
+        Output *replacement = createCopyOutput(mirror->output(), normalSource);
+        removeOutputFromRootContainer(mirror);
+        replacement->enable();
+        m_rootSurfaceContainer->addOutput(replacement);
+        m_outputList.replace(i, replacement);
+        mirror->deleteLater();
+    }
+
+    m_rootSurfaceContainer->setPrimaryOutput(normalSource);
+    if (!surfaces.isEmpty())
+        moveSurfacesToOutput(surfaces, normalSource, surfacesFrom);
+    return normalSource;
+}
+
+Output *Helper::convertCopyOutputsToNormal(const std::function<bool(Output *)> &skip)
+{
+    Output *newPrimary = nullptr;
+    for (int i = 0; i < m_outputList.size(); ++i) {
         Output *copyOutput = m_outputList.at(i);
-        removeOutputFromRootContainer(copyOutput);
+        if (skip(copyOutput)) {
+            continue;
+        }
+        if (copyOutput->isSource()) {
+            if (!newPrimary && copyOutput->output()->isEnabled())
+                newPrimary = copyOutput;
+            continue;
+        }
         Output *normalOutput = createNormalOutput(copyOutput->output());
         normalOutput->enable();
         saveCurrentOutputConfig(normalOutput);
+        if (!newPrimary)
+            newPrimary = normalOutput;
         copyOutput->deleteLater();
         m_outputList.replace(i, normalOutput);
-
-        if (!primaryCandidate) {
-            primaryCandidate = normalOutput;
-        }
     }
+    return newPrimary;
+}
 
-    if (primaryCandidate) {
-        if (!surfaces.isEmpty()) {
-            moveSurfacesToOutput(surfaces, primaryCandidate, affectedOutput);
-        }
-        m_rootSurfaceContainer->setPrimaryOutput(primaryCandidate);
-    }
+void Helper::convertCopyModeToExtension(Output *preservedOutput)
+{
+    m_mode = OutputMode::Extension;
+    Q_EMIT outputModeChanged();
+
+    Output *newPrimary = convertCopyOutputsToNormal(
+        [preservedOutput](Output *copyOutput) { return copyOutput == preservedOutput; });
+    if (newPrimary)
+        m_rootSurfaceContainer->setPrimaryOutput(newPrimary);
 }
 
 void Helper::onOutputTestOrApply(wlr_output_configuration_v1 *config, bool onlyTest)
@@ -1035,7 +1146,7 @@ void Helper::onOutputTestOrApply(wlr_output_configuration_v1 *config, bool onlyT
             }
         }
 
-        if (configsValid && hasNonZeroPosition) {
+        if (configsValid && hasNonZeroPosition && !enabledStatesOverlap(restoredStates)) {
             states = std::move(restoredStates);
         }
     }
@@ -1078,18 +1189,6 @@ void Helper::onOutputTestOrApply(wlr_output_configuration_v1 *config, bool onlyT
         m_outputManager->sendResult(m_pendingOutputConfig.config, false);
     }
 
-    // Handle Copy Mode transition when primary output is disabled
-    if (m_mode == OutputMode::Copy) {
-        for (const auto &state : std::as_const(states)) {
-            if (!state.enabled) {
-                Output *affectedOutput = getOutput(state.output);
-                if (affectedOutput && affectedOutput == m_rootSurfaceContainer->primaryOutput()) {
-                    handleCopyModeOutputDisable(affectedOutput);
-                    break;
-                }
-            }
-        }
-    }
 
     m_pendingOutputConfig.config = config;
     m_pendingOutputConfig.states = states;
@@ -1110,24 +1209,73 @@ void Helper::onOutputTestOrApply(wlr_output_configuration_v1 *config, bool onlyT
         }
     }
 
-    if (m_mode == OutputMode::Copy) {
-        // Output-management positions describe independent outputs. Convert copy
-        // proxies before applying the requested layout so their target-output
-        // binding cannot keep them overlapping the copy source at (0, 0).
-        for (int i = 0; i < m_outputList.size(); ++i) {
-            Output *copyOutput = m_outputList.at(i);
-            if (copyOutput->isSource()) {
+    Output *reEnabledCopySource = nullptr;
+    const QStringList configuredCopyOutputs = m_outputManagerHelper->copyOutputIds();
+    if (configuredCopyOutputs.size() >= 2) {
+        for (const auto &state : std::as_const(states)) {
+            if (!state.enabled || state.output->isEnabled())
                 continue;
+            Output *output = getOutput(state.output);
+            if (output && output->isSource()
+                && output->getOutputId() == configuredCopyOutputs.constFirst()
+                && std::all_of(configuredCopyOutputs.cbegin(), configuredCopyOutputs.cend(),
+                               [this](const QString &id) { return findOutputById(id); })) {
+                reEnabledCopySource = output;
+                break;
             }
-
-            removeOutputFromRootContainer(copyOutput);
-            Output *normalOutput = createNormalOutput(copyOutput->output());
-            copyOutput->deleteLater();
-            m_outputList.replace(i, normalOutput);
         }
     }
 
-    if (m_mode != OutputMode::Extension) {
+    if (m_mode == OutputMode::Copy) {
+        Output *disabledSource = nullptr;
+        QList<WOutput *> requestedDisabled;
+        bool enablingIndependentOutput = false;
+        bool topologyChanged = false;
+        for (const auto &state : std::as_const(states)) {
+            if (state.enabled != state.output->isEnabled()) {
+                topologyChanged = true;
+                qCInfo(lcTlOutput) << "[copy-disable] topology change"
+                                  << state.output->name() << "req:" << state.enabled
+                                  << "cur:" << state.output->isEnabled();
+                if (!state.enabled) {
+                    requestedDisabled.append(state.output);
+                    if (Output *output = getOutput(state.output); output && output->isSource())
+                        disabledSource = output;
+                } else if (Output *output = getOutput(state.output);
+                           output && output->isSource()
+                               && output != m_rootSurfaceContainer->primaryOutput()) {
+                    enablingIndependentOutput = true;
+                }
+            }
+        }
+
+        if (topologyChanged && disabledSource) {
+            qCInfo(lcTlOutput) << "[copy-disable] disabling source" << disabledSource->output()->name();
+            if (!handleCopyModeSourceDisabled(disabledSource, requestedDisabled)) {
+                qCInfo(lcTlOutput) << "[copy-disable] no mirror left, collapsing to extension";
+                convertCopyModeToExtension(disabledSource);
+            } else {
+                qCInfo(lcTlOutput) << "[copy-disable] kept copy mode with new source";
+            }
+        } else if (topologyChanged && (enablingIndependentOutput || reEnabledCopySource)) {
+            if (reEnabledCopySource) {
+                qCInfo(lcTlOutput) << "[copy-disable] re-enabling configured copy source"
+                                   << reEnabledCopySource->output()->name()
+                                   << ", restoring the original copy group";
+                m_rootSurfaceContainer->setPrimaryOutput(reEnabledCopySource);
+                applyCopyModeToOutputs(reEnabledCopySource, getWorkspaceSurfaces(),
+                                       configuredCopyOutputs, false);
+            } else {
+                qCInfo(lcTlOutput) << "[copy-disable] enabling independent screen, collapsing to extension";
+                convertCopyModeToExtension(nullptr);
+            }
+        }
+    } else if (m_mode == OutputMode::Extension && reEnabledCopySource) {
+        qCInfo(lcTlOutput) << "[copy-disable] re-enabling configured copy source in extension mode"
+                           << reEnabledCopySource->output()->name()
+                           << ", restoring copy mode";
+        restoreConfiguredCopyMode();
+    } else if (m_mode != OutputMode::Extension) {
         m_mode = OutputMode::Extension;
         Q_EMIT outputModeChanged();
     }
@@ -1148,11 +1296,25 @@ void Helper::onOutputTestOrApply(wlr_output_configuration_v1 *config, bool onlyT
 
             if (!state.enabled && state.output->isEnabled()) {
                 const auto &surfaces = getWorkspaceSurfaces(outputObj);
+                DisabledOutputSurfaces &owned = m_disabledOutputSurfaces[outputObj->getOutputId()];
+                owned.surfaces.clear();
+                owned.positions.clear();
+                for (auto *surface : surfaces) {
+                    if (!surface)
+                        continue;
+                    owned.surfaces.append(surface);
+                    owned.positions.append(surface->position());
+                }
                 m_outputManagerHelper->onScreenDisabled(outputObj, surfaces);
             } else if (state.enabled && !state.output->isEnabled()) {
                 m_outputManagerHelper->clearCopyModeRestoreIntent();
             }
         }
+    }
+
+    if (m_mode == OutputMode::Extension) {
+        deOverlapEnabledStates(states);
+        m_pendingOutputConfig.states = states;
     }
 
     for (const auto &state : std::as_const(states)) {
@@ -1226,6 +1388,8 @@ void Helper::onOutputTestOrApply(wlr_output_configuration_v1 *config, bool onlyT
             }
         }
 
+        if (!state.enabled)
+            qCInfo(lcTlOutput) << "[copy-disable] committing disable for" << state.output->name();
         if (!outputHelper->setExtraState(extraState)) {
             qCWarning(lcTlCore) << "Failed to set extra state for output" << state.output->name();
             m_outputManager->sendResult(config, false);
@@ -1249,7 +1413,7 @@ void Helper::onOutputTestOrApply(wlr_output_configuration_v1 *config, bool onlyT
                     return;
                 }
 
-                if (committedState == extraState) {
+                auto syncLayoutAndRefresh = [&] {
                     if (success && output) {
                         auto *layout = self->m_rootSurfaceContainer->outputLayout();
                         if (layout && enabled && !layout->outputs().contains(output)) {
@@ -1258,23 +1422,61 @@ void Helper::onOutputTestOrApply(wlr_output_configuration_v1 *config, bool onlyT
                             layout->remove(output);
                         }
                     }
-                    self->onOutputCommitFinished(config, success);
                     if (success && committedState) {
-                        bool wasStateOnlyCommit = (committedState->committed & (WLR_OUTPUT_STATE_MODE |
-                                                                                WLR_OUTPUT_STATE_SCALE |
-                                                                                WLR_OUTPUT_STATE_TRANSFORM |
-                                                                                WLR_OUTPUT_STATE_ENABLED)) &&
-                                                  !(committedState->committed & WLR_OUTPUT_STATE_BUFFER);
-                        bool isDisable = (committedState->committed & WLR_OUTPUT_STATE_ENABLED) && !committedState->enabled;
+                        const bool wasStateOnlyCommit = (committedState->committed & (WLR_OUTPUT_STATE_MODE |
+                                                                                      WLR_OUTPUT_STATE_SCALE |
+                                                                                      WLR_OUTPUT_STATE_TRANSFORM |
+                                                                                      WLR_OUTPUT_STATE_ENABLED)) &&
+                                                       !(committedState->committed & WLR_OUTPUT_STATE_BUFFER);
+                        const bool isDisable = (committedState->committed & WLR_OUTPUT_STATE_ENABLED) && !committedState->enabled;
                         if (wasStateOnlyCommit && !isDisable) {
                             renderWindow->update(viewport);
                         }
                     }
+                };
+
+                if (committedState == extraState) {
+                    syncLayoutAndRefresh();
+                    self->onOutputCommitFinished(config, success);
                 } else {
-                    qCWarning(lcTlCore) << "Commit callback received unexpected state pointer!"
-                                            << "Expected:" << extraState.get()
-                                            << "Got:" << committedState.get();
-                    self->onOutputCommitFinished(config, false);
+                    const bool actualMatches = [&] {
+                        if (!output || output->isEnabled() != enabled || !committedState)
+                            return false;
+                        auto *wlrOutput = output->handle();
+                        if (!wlrOutput)
+                            return false;
+                        if ((extraState->committed & WLR_OUTPUT_STATE_MODE)) {
+                            if (extraState->mode) {
+                                if (wlrOutput->current_mode != extraState->mode)
+                                    return false;
+                            } else if (!wlrOutput->current_mode
+                                       || wlrOutput->current_mode->width != extraState->custom_mode.width
+                                       || wlrOutput->current_mode->height != extraState->custom_mode.height
+                                       || wlrOutput->current_mode->refresh != extraState->custom_mode.refresh) {
+                                return false;
+                            }
+                        }
+                        if ((extraState->committed & WLR_OUTPUT_STATE_SCALE)
+                            && wlrOutput->scale != extraState->scale)
+                            return false;
+                        if ((extraState->committed & WLR_OUTPUT_STATE_TRANSFORM)
+                            && wlrOutput->transform != static_cast<wl_output_transform>(extraState->transform))
+                            return false;
+                        return true;
+                    }();
+                    if (success && actualMatches) {
+                        syncLayoutAndRefresh();
+                        qCInfo(lcTlOutput) << "Commit state superseded; actual output state matches intent"
+                                           << (output ? output->name() : QStringLiteral("<null>"));
+                        self->onOutputCommitFinished(config, true);
+                    } else {
+                        qCWarning(lcTlCore) << "Commit callback received unexpected state pointer!"
+                                                << "output:" << (output ? output->name() : QStringLiteral("<null>"))
+                                                << "enabled:" << enabled
+                                                << "Expected:" << extraState.get()
+                                                << "Got:" << committedState.get();
+                        self->onOutputCommitFinished(config, false);
+                    }
                 }
             },
             WOutputHelper::AfterCommitStage
@@ -1309,10 +1511,8 @@ void Helper::onOutputCommitFinished(wlr_output_configuration_v1 *config, bool su
     if (m_pendingOutputConfig.pendingCommits == 0) {
         bool ok = m_pendingOutputConfig.allSuccess;
         if (ok) {
-            m_outputManagerHelper->storeSingleOutputConfig();
-            // An output-management enable/disable transaction describes an
-            // extension/single-output topology, never a copy topology.
-            m_outputManagerHelper->storeCopyOutputConfig(false);
+            if (!m_globalConfig->createCopyOutput())
+                m_outputManagerHelper->storeSingleOutputConfig();
 
             const auto enabledOutputCount = std::count_if(
                 m_pendingOutputConfig.states.cbegin(),
@@ -1329,6 +1529,31 @@ void Helper::onOutputCommitFinished(wlr_output_configuration_v1 *config, bool su
 
                 if (m_outputManagerHelper && state.enabled) {
                     m_outputManagerHelper->onScreenEnabled(output);
+                }
+
+                if (state.enabled) {
+                    const QString outputId = output->getOutputId();
+                    const auto it = m_disabledOutputSurfaces.find(outputId);
+                    if (it != m_disabledOutputSurfaces.end()) {
+                        if (m_mode == OutputMode::Extension) {
+                            const auto &recorded = it.value();
+                            for (int i = 0; i < recorded.surfaces.size(); ++i) {
+                                SurfaceWrapper *surface = recorded.surfaces.at(i);
+                                if (!surface)
+                                    continue;
+                                surface->setPosition(recorded.positions.at(i));
+                                if (surface->ownsOutput() != output)
+                                    surface->setOwnsOutput(output);
+                                m_rootSurfaceContainer->updateSurfaceOutputs(surface);
+                            }
+                        }
+                        m_disabledOutputSurfaces.erase(it);
+                    }
+                }
+
+                if (state.enabled) {
+                    if (auto *layout = m_rootSurfaceContainer->outputLayout())
+                        layout->pin(state.output);
                 }
 
                 auto *outputConfig = output->config();
@@ -1567,8 +1792,8 @@ void Helper::onSetCopyOutput(VirtualOutputInterfaceV1 *interface)
         if (m_rootSurfaceContainer->primaryOutput() == currentOutput)
             m_rootSurfaceContainer->setPrimaryOutput(mirrorOutput);
 
-        removeOutputFromRootContainer(currentOutput);
         Output *o = createCopyOutput(currentOutput->output(), mirrorOutput);
+        removeOutputFromRootContainer(currentOutput);
         currentOutput->deleteLater();
         m_outputList.replace(i, o);
         m_rootSurfaceContainer->addOutput(o);
@@ -1590,6 +1815,9 @@ void Helper::onSetCopyOutput(VirtualOutputInterfaceV1 *interface)
 
 void Helper::onRestoreCopyOutput(VirtualOutputInterfaceV1 *interface)
 {
+    if (interface->outputList().isEmpty()) {
+        return;
+    }
     const QString targetName = interface->outputList().at(0);
     if (!std::any_of(m_outputList.constBegin(), m_outputList.constEnd(),
                      [&targetName](const Output *output) { return output->output()->name() == targetName; })) {
@@ -1604,7 +1832,6 @@ void Helper::onRestoreCopyOutput(VirtualOutputInterfaceV1 *interface)
         if (currentOutput->output()->name() == targetName)
             continue;
 
-        removeOutputFromRootContainer(currentOutput);
         Output *o = createNormalOutput(currentOutput->output());
         o->enable();
         saveCurrentOutputConfig(o);
@@ -3420,12 +3647,11 @@ void Helper::setOutputMode(OutputMode mode)
             continue;
         Output *o = nullptr;
         if (mode == OutputMode::Copy) {
-            removeOutputFromRootContainer(m_outputList.at(i));
             o = createCopyOutput(m_outputList.at(i)->output(),
                                  m_rootSurfaceContainer->primaryOutput());
+            removeOutputFromRootContainer(m_outputList.at(i));
             m_rootSurfaceContainer->addOutput(o);
         } else if (mode == OutputMode::Extension) {
-            removeOutputFromRootContainer(m_outputList.at(i));
             o = createNormalOutput(m_outputList.at(i)->output());
             o->enable();
             saveCurrentOutputConfig(o);
@@ -3753,6 +3979,8 @@ Output *Helper::getOutputAtCursor() const
 {
     QPoint cursorPos = QCursor::pos();
     for (auto output : std::as_const(m_outputList)) {
+        if (!output->output() || !output->output()->isEnabled())
+            continue;
         QRectF outputGeometry(output->outputItem()->position(), output->outputItem()->size());
         if (outputGeometry.contains(cursorPos)) {
             return output;
@@ -3906,8 +4134,8 @@ void Helper::applyCopyModeToOutputs(Output *primaryOutput,
             continue;
         }
 
-        removeOutputFromRootContainer(existingOutput);
         Output *copyOutput = createCopyOutput(existingOutput->output(), primaryOutput);
+        removeOutputFromRootContainer(existingOutput);
         existingOutput->deleteLater();
         m_outputList.replace(i, copyOutput);
         m_rootSurfaceContainer->addOutput(copyOutput);
@@ -3929,6 +4157,8 @@ void Helper::applyCopyModeToOutputs(Output *primaryOutput,
     if (!surfaces.isEmpty()) {
         moveSurfacesToOutput(surfaces, primaryOutput, nullptr);
     }
+
+    m_rootSurfaceContainer->ensureCursorVisible();
 }
 
 bool Helper::restoreConfiguredCopyMode()
@@ -4011,8 +4241,16 @@ void Helper::restoreExtensionModeFromConfig(bool preserveSingleOutputConfig)
             }
 
             if (auto *layout = m_rootSurfaceContainer->outputLayout()) {
-                layout->move(output, QPoint(static_cast<int>(config->x()),
-                                            static_cast<int>(config->y())));
+                const QPoint savedPos(static_cast<int>(config->x()),
+                                      static_cast<int>(config->y()));
+                const QSize savedSize = effectiveSavedSize(width, height, transform, scale);
+                if (!savedPositionOverlapsEnabledOutput(layout, output, savedPos, savedSize)) {
+                    layout->move(output, savedPos);
+                } else {
+                    qCInfo(lcTlOutput) << "Saved extension position for" << output->name()
+                                       << savedPos << "overlaps an enabled output; keeping auto position";
+                }
+                layout->pin(output);
             }
 
             WOutputStateGuard state;
