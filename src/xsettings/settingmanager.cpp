@@ -4,8 +4,8 @@
 #include "settingmanager.h"
 #include "common/treelandlogging.h"
 
-const static qreal BASE_DPI = 96;
-const static qreal XSETTINGS_BASE_DPI_FIXED = BASE_DPI * 1024;
+static constexpr int BASE_DPI = 96;
+static constexpr int XSETTINGS_BASE_DPI_FIXED = BASE_DPI * 1024;
 
 SettingManager::SettingManager(xcb_connection_t *connection, QObject *parent)
     : QObject(parent)
