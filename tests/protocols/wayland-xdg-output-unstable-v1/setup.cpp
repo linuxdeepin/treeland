@@ -1,11 +1,12 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "wayland-xdg-output-unstable-v1.h"
-#include "server-bridge.h"
+#include "core/rootsurfacecontainer.h"
+#include "output/output.h"
 #include "seat/helper.h"
 
-#include <wbackend.h>
 #include <woutput.h>
+#include <woutputlayout.h>
 
 #include <QtCore/QPointer>
 #include <QtCore/qglobal.h>
@@ -14,13 +15,19 @@ static QPointer<WOutput> g_woutput;
 
 void protocol_test_setup(Helper *helper)
 {
-    // A real headless output is committed with a mode (1920x1080) so that
-    // geometry-dependent events (logical_position / logical_size / done) are
-    // actually delivered to the client.  The same WOutput is read back below
-    // to cross-check those events against the live production object.
-    auto *output = add_headless_output(helper->backend(), false);
+    // The protocol test backend already provides HEADLESS-1. Reuse that
+    // stable production output instead of changing display-topology config
+    // merely to create another output for this test.
+    auto *output = helper->rootSurfaceContainer()->primaryOutput();
     Q_ASSERT(output);
-    g_woutput = output;
+    g_woutput = output->output();
+    Q_ASSERT(g_woutput);
+}
+
+extern "C" bool protocol_test_ready(Helper *helper)
+{
+    return g_woutput
+        && helper->rootSurfaceContainer()->outputLayout()->outputs().contains(g_woutput);
 }
 
 // E-level read: resolve the real WOutput that backs the headless output and
