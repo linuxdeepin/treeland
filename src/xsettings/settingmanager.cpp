@@ -110,9 +110,17 @@ void SettingManager::setDoubleClickInterval(int interval)
 
 void SettingManager::setGlobalScale(qreal scale)
 {
+    const int windowScale = qMax(1, qFloor(scale));
+
     m_resource->setPropertyValue(XResource::toByteArray(XResource::Xft_DPI), scale * BASE_DPI);
-    m_settings->setPropertyValue(XSettings::toByteArray(XSettings::Gdk_WindowScalingFactor), qFloor(scale));
-    m_settings->setPropertyValue(XSettings::toByteArray(XSettings::Gdk_UnscaledDPI), XSETTINGS_BASE_DPI_FIXED);
+    m_settings->setPropertyValue(XSettings::toByteArray(XSettings::Gdk_WindowScalingFactor), windowScale);
+    // Gdk/UnscaledDPI is defined as the DPI without the integer window scaling
+    // factor, but GDK/GTK (and Chromium through GTK's display config) prefer it
+    // over Xft/DPI. Keep the fractional part in it, otherwise GTK and Electron/
+    // Chromium clients resolve to the base 96 DPI and ignore Xft/DPI entirely,
+    // so fractional scales end up rendered at 100%.
+    m_settings->setPropertyValue(XSettings::toByteArray(XSettings::Gdk_UnscaledDPI),
+                                 qRound(scale / windowScale * XSETTINGS_BASE_DPI_FIXED));
     m_settings->setPropertyValue(XSettings::toByteArray(XSettings::Xft_DPI), qRound(scale * XSETTINGS_BASE_DPI_FIXED));
 }
 
