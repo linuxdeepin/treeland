@@ -11,8 +11,11 @@
 #include <linux/input.h>
 #include <linux/uinput.h>
 #include <sys/ioctl.h>
+#include <sys/socket.h>
+#include <sys/un.h>
 #include <unistd.h>
 
+#include <cstdlib>
 #include <cstring>
 
 namespace {
@@ -23,6 +26,24 @@ bool g_created = false;
 bool g_keyboardAdded = false;
 bool g_keyboardRemoved = false;
 bool g_skip = false;
+
+bool hasSeatdSession()
+{
+    const char *socketPath = std::getenv("SEATD_SOCK");
+    sockaddr_un address {};
+    if (!socketPath || !*socketPath || std::strlen(socketPath) >= sizeof(address.sun_path))
+        return false;
+
+    const int fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
+    if (fd < 0)
+        return false;
+
+    address.sun_family = AF_UNIX;
+    std::strncpy(address.sun_path, socketPath, sizeof(address.sun_path) - 1);
+    const bool connected = connect(fd, reinterpret_cast<sockaddr *>(&address), sizeof(address)) == 0;
+    close(fd);
+    return connected;
+}
 
 bool isTestKeyboard(WInputDevice *device)
 {
@@ -72,7 +93,7 @@ void destroyKeyboard()
 
 extern "C" bool protocol_test_preflight()
 {
-    return access("/dev/uinput", W_OK) == 0;
+    return access("/dev/uinput", W_OK) == 0 && hasSeatdSession();
 }
 
 void protocol_test_setup(Helper *helper)
