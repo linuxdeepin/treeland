@@ -93,6 +93,8 @@ private Q_SLOTS:
     void onUserDeleted(quint64 uid);
 
 private:
+    bool addUser(UserPtr user);
+
     UserModelPrivate *d{ nullptr };
 };
 

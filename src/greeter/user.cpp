@@ -148,6 +148,21 @@ void User::setWaylandSocket(std::shared_ptr<WAYLIB_SERVER_NAMESPACE::WSocket> so
     d->waylandSocket = socket;
 }
 
+void User::merge(const User &other)
+{
+    if (!other.d->inter) {
+        return;
+    }
+
+    d->icon = other.d->icon;
+    d->passwordHint = other.d->passwordHint;
+    d->locale = other.d->locale;
+    d->identity = other.d->identity;
+    d->noPasswdLogin = other.d->noPasswdLogin;
+
+    Q_EMIT userDataChanged();
+}
+
 std::shared_ptr<WAYLIB_SERVER_NAMESPACE::WSocket> User::waylandSocket() const
 {
     return d->waylandSocket;

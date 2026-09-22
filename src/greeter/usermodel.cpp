@@ -40,6 +40,7 @@
 #include <memory>
 #include <algorithm>
 #include <pwd.h>
+#include <unistd.h>
 
 using namespace DDM;
 DACCOUNTS_USE_NAMESPACE
@@ -74,14 +75,8 @@ UserModel::UserModel(QObject *parent)
             continue;
         }
 
-        auto val = std::move(user).value();
-        d->users.emplace_back(std::make_unique<User>(std::move(val)));
+        addUser(std::make_unique<User>(std::move(user).value()));
     }
-
-    // sort users by username
-    std::sort(d->users.begin(), d->users.end(), [](const UserPtr &u1, const UserPtr &u2) {
-        return u1->userName() < u2->userName();
-    });
 
     // find out index of the last user
     auto lastUserName = stateConfig.Last.User.get();
@@ -95,8 +90,28 @@ UserModel::UserModel(QObject *parent)
     }
 
     if (d->currentUserName.isEmpty()) {
-        qCWarning(lcTlGreeter) << "Couldn't find last user, using current running user as current user";
-        d->currentUserName = d->users.first()->userName();
+        QString runningUser;
+        uid_t runningUid = 0;
+        if (const passwd *pw = getpwuid(getuid())) {
+            runningUser = QString::fromLocal8Bit(pw->pw_name);
+            runningUid = pw->pw_uid;
+        }
+
+        if (runningUser != QLatin1String("dde") && runningUid != 0) {
+            UserPtr record = getUser(runningUid);
+            if (!record && tryAddNssUser(runningUser)) {
+                record = getUser(runningUid);
+            }
+            if (record) {
+                d->currentUserName = record->userName();
+                d->lastIndex = d->users.indexOf(record);
+            }
+        }
+        if (d->currentUserName.isEmpty() && !d->users.isEmpty()) {
+            d->currentUserName = d->users.first()->userName();
+        }
+
+        qCWarning(lcTlGreeter) << "No last user state, greeter starts with" << d->currentUserName;
     }
 }
 
@@ -136,25 +151,55 @@ int UserModel::rowCount(const QModelIndex &parent) const
     return parent.isValid() ? 0 : static_cast<int>(d->users.length());
 }
 
+bool UserModel::addUser(UserPtr user)
+{
+    const QString userName = user->userName();
+    if (userName.isEmpty() || getUser(userName) || (user->UID() != 0 && getUser(user->UID()))) {
+        qCInfo(lcTlGreeter) << "User" << userName << "already listed, merge richer data";
+        UserPtr existing = getUser(userName);
+        if (!existing) {
+            existing = getUser(user->UID());
+        }
+        if (existing) {
+            const int row = static_cast<int>(d->users.indexOf(existing));
+            existing->merge(*user);
+            Q_EMIT dataChanged(index(row), index(row));
+        }
+        return false;
+    }
+
+    beginResetModel();
+    d->users.emplace_back(std::move(user));
+    std::sort(d->users.begin(), d->users.end(), [](const UserPtr &u1, const UserPtr &u2) {
+        return u1->userName() < u2->userName();
+    });
+    endResetModel();
+
+    Q_EMIT countChanged();
+    return true;
+}
+
 void UserModel::updateUserLoginState(const QString &username, bool loggedIn)
 {
     // TODO: May remove once UserModel is guaranteed to resolve every loggable
     // user (consider whether users not manually added can still log in directly).
-    if (loggedIn && !getUser(username)) {
-        if (!tryAddNssUser(username)) {
-            qCWarning(lcTlGreeter) << "User" << username << "not found when updating login state";
-            return;
+    UserPtr target = getUser(username);
+    if (!target && loggedIn && tryAddNssUser(username)) {
+        target = getUser(username);
+    }
+    if (!target) {
+        if (const passwd *pw = ::getpwnam(username.toLocal8Bit().constData())) {
+            target = getUser(static_cast<uid_t>(pw->pw_uid));
         }
     }
+    if (!target && loggedIn) {
+        qCWarning(lcTlGreeter) << "User" << username << "not found when updating login state";
+    }
 
-    auto user = std::find_if(d->users.begin(), d->users.end(), [&username](const UserPtr &user) {
-        return user->userName() == username;
-    });
-
-    if (user != d->users.end()) {
-        (*user)->setLoggedIn(loggedIn);
-        auto pos = std::distance(d->users.end(), user);
-        Q_EMIT dataChanged(index(0, pos - 1), index(0, pos));
+    if (target) {
+        target->setLoggedIn(loggedIn);
+        const int row = static_cast<int>(d->users.indexOf(target));
+        Q_EMIT dataChanged(index(row), index(row));
     }
 
     Q_EMIT layoutChanged();
@@ -171,7 +216,7 @@ void UserModel::clearUserLoginState()
 
 QVariant UserModel::data(const QModelIndex &index, int role) const
 {
-    if (index.row() < 0 || index.row() > d->users.count()) {
+    if (index.row() < 0 || index.row() >= d->users.count()) {
         return {};
     }
 
@@ -232,7 +277,7 @@ QVariant UserModel::get(const QString &username) const
 QVariant UserModel::get(int index) const
 {
     QVariantMap map;
-    if (index < 0 or index > d->users.count()) {
+    if (index < 0 or index >= d->users.count()) {
         return {};
     }
 
@@ -312,14 +357,7 @@ void UserModel::onUserAdded(quint64 uid)
         return;
     }
 
-    beginResetModel();
-    d->users.emplace_back(std::make_unique<User>(std::move(newUser).value()));
-    std::sort(d->users.begin(), d->users.end(), [](const UserPtr &u1, const UserPtr &u2) {
-        return u1->userName() < u2->userName();
-    });
-    endResetModel();
-
-    Q_EMIT countChanged();
+    addUser(std::make_unique<User>(std::move(newUser).value()));
 }
 
 void UserModel::onUserDeleted(quint64 uid)
@@ -327,10 +365,6 @@ void UserModel::onUserDeleted(quint64 uid)
     beginResetModel();
     d->users.removeIf([uid](const UserPtr &user) {
         return user->UID() == uid;
-    });
-
-    std::sort(d->users.begin(), d->users.end(), [](const UserPtr &u1, const UserPtr &u2) {
-        return u1->userName() < u2->userName();
     });
     endResetModel();
 
@@ -344,9 +378,7 @@ bool UserModel::tryAddNssUser(const QString &userName)
     }
 
     // Already in model?
-    bool found = std::any_of(d->users.cbegin(), d->users.cend(),
-                             [&userName](const UserPtr &u) { return u->userName() == userName; });
-    if (found) {
+    if (getUser(userName)) {
         qCInfo(lcTlGreeter) << "NSS user already in model:" << userName;
         return true;
     }
@@ -363,18 +395,10 @@ bool UserModel::tryAddNssUser(const QString &userName)
     QString fullName = QString::fromLocal8Bit(pw->pw_gecos).section(QLatin1Char(','), 0, 0);
 
     qCInfo(lcTlGreeter) << "Adding NSS/LDAP user to model:" << userName;
-    beginResetModel();
-    d->users.emplace_back(std::make_unique<User>(
+    return addUser(std::make_unique<User>(
         userName,
         static_cast<uid_t>(pw->pw_uid),
         static_cast<gid_t>(pw->pw_gid),
         QString::fromLocal8Bit(pw->pw_dir),
         fullName));
-    std::sort(d->users.begin(), d->users.end(), [](const UserPtr &u1, const UserPtr &u2) {
-        return u1->userName() < u2->userName();
-    });
-    endResetModel();
-
-    Q_EMIT countChanged();
-    return true;
 }
