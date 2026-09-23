@@ -11,7 +11,7 @@
 #include <QObject>
 #include <QQmlEngine>
 
-class ShortcutManagerV2Private;
+class ShortcutManagerV3Private;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WServer;
@@ -21,17 +21,17 @@ WAYLIB_SERVER_END_NAMESPACE
 
 WAYLIB_SERVER_USE_NAMESPACE
 
-class ShortcutManagerV2
+class ShortcutManagerV3
     : public QObject
     , public WAYLIB_SERVER_NAMESPACE::WServerInterface
 {
     Q_OBJECT
 
 public:
-    explicit ShortcutManagerV2(QObject *parent = nullptr);
-    ~ShortcutManagerV2() override;
+    explicit ShortcutManagerV3(QObject *parent = nullptr);
+    ~ShortcutManagerV3() override;
     QByteArrayView interfaceName() const override;
-    static constexpr int InterfaceVersion = 2;
+    static constexpr int InterfaceVersion = 1;
 
     ShortcutController* controller();
     void sendActivated(const QString& name, ShortcutController::KeyFlags keyFlags);
@@ -51,5 +51,5 @@ Q_SIGNALS:
     void before_destroy();
 
 private:
-    std::unique_ptr<ShortcutManagerV2Private> d;
+    std::unique_ptr<ShortcutManagerV3Private> d;
 };
