@@ -7,6 +7,8 @@
 #include <WSurface>
 #include <wtoplevelsurface.h>
 
+#include <xcb/xcb.h>
+
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WXWayland;
@@ -116,6 +118,7 @@ public:
     bool isModal() const;
     WindowTypes windowTypes() const;
     DecorationsFlags decorationsFlags() const;
+    DecorationsFlags effectiveDecorationsFlags(xcb_atom_t noTitlebarAtom = XCB_ATOM_NONE) const;
 
 public Q_SLOTS:
     bool checkNewSize(const QSize &size, QSize *clipedSize = nullptr) override;

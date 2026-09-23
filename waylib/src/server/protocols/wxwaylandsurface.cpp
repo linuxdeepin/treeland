@@ -537,6 +537,24 @@ WXWaylandSurface::DecorationsFlags WXWaylandSurface::decorationsFlags() const
     return WXWaylandSurface::DecorationsFlags::fromInt(d->handle()->decorations);
 }
 
+WXWaylandSurface::DecorationsFlags
+WXWaylandSurface::effectiveDecorationsFlags(xcb_atom_t noTitlebarAtom) const
+{
+    if (isBypassManager())
+        return DecorationsFlags(DecorationsNoBorder) | DecorationsNoTitle;
+
+    auto flags = decorationsFlags();
+    if (noTitlebarAtom != XCB_ATOM_NONE
+        && !xwayland()->windowProperty(handle()->window_id,
+                                       noTitlebarAtom,
+                                       XCB_ATOM_CARDINAL)
+                .isEmpty()) {
+        flags |= DecorationsNoTitle;
+    }
+
+    return flags;
+}
+
 bool WXWaylandSurface::checkNewSize(const QSize &size, QSize *clipedSize)
 {
     const QSize minSize = this->minSize();

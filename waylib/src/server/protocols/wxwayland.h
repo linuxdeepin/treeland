@@ -83,6 +83,9 @@ public:
 
     xcb_connection_t *xcbConnection() const;
     xcb_screen_t *xcbScreen() const;
+    QByteArray windowProperty(xcb_window_t window,
+                              xcb_atom_t atom,
+                              xcb_atom_t type) const;
 
     QVector<WXWaylandSurface*> surfaceList() const;
 
