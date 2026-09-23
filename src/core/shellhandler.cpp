@@ -9,6 +9,7 @@
 #include "core/windowconfigstore.h"
 #include "layersurfacecontainer.h"
 #include "modules/app-id-resolver/appidresolver.h"
+#include "modules/snap-target/snaphandler.h"
 #include "modules/dde-shell/ddeshellmanagerinterfacev1.h"
 #include "modules/foreign-toplevel/foreigntoplevelmanagerv2.h"
 #include "modules/layer-shell-extension/layershellextensionmanagerinterfacev1.h"
@@ -60,6 +61,7 @@ WAYLIB_SERVER_USE_NAMESPACE
 
 #define TREELAND_XDG_SHELL_VERSION 5
 const QLatin1String PRIVILEGED_OVERLAY_TAG("org.deepin.treeland.privileged-overlay");
+const QLatin1String SNAP_MASK_TAG("org.deepin.treeland.snap-mask");
 
 ShellHandler::ShellHandler(RootSurfaceContainer *rootContainer, WServer *server)
     : m_rootSurfaceContainer(rootContainer)
@@ -70,6 +72,7 @@ ShellHandler::ShellHandler(RootSurfaceContainer *rootContainer, WServer *server)
     , m_overlayContainer(new LayerSurfaceContainer(rootContainer))
     , m_popupContainer(new SurfaceContainer(rootContainer))
     , m_privilegedOverlayContainer(new SurfaceContainer(rootContainer))
+    , m_snapMaskContainer(new SurfaceContainer(rootContainer))
     , m_windowConfigStore(new WindowConfigStore(this))
 {
     m_treelandForeignToplevel = server->attach<ForeignToplevelManagerInterfaceV2>();
@@ -96,6 +99,8 @@ ShellHandler::ShellHandler(RootSurfaceContainer *rootContainer, WServer *server)
     m_popupContainer->setObjectName(QStringLiteral("PopupContainer"));
     m_privilegedOverlayContainer->setZ(RootSurfaceContainer::PrivilegedOverlayZOrder);
     m_privilegedOverlayContainer->setObjectName(QStringLiteral("PrivilegedOverlayContainer"));
+    m_snapMaskContainer->setZ(RootSurfaceContainer::SnapMaskLayerZOrder);
+    m_snapMaskContainer->setObjectName(QStringLiteral("SnapMaskContainer"));
     connect(m_rootSurfaceContainer->outputModel(),
             &QAbstractItemModel::rowsInserted,
             this,
@@ -408,6 +413,11 @@ SurfaceContainer *ShellHandler::popupContainer() const
     return m_popupContainer;
 }
 
+SurfaceContainer *ShellHandler::snapMaskContainer() const
+{
+    return m_snapMaskContainer;
+}
+
 RootSurfaceContainer *ShellHandler::rootSurfaceContainer() const
 {
     return m_rootSurfaceContainer;
@@ -460,6 +470,10 @@ void ShellHandler::init(WServer *server, WSeat *seat)
         server->attach<LayerShellExtensionManagerInterfaceV1>();
     m_wineWindowStateManager = server->attach<WineWindowStateManager>();
     m_wineWindowManager = server->attach<WineWindowManager>();
+
+    m_snapTarget = server->attach<SnapTargetV1>();
+    m_snapTarget->setOutputRenderWindow(
+        qobject_cast<WOutputRenderWindow *>(m_rootSurfaceContainer->window()));
 
     m_xdgShell = server->attach<WXdgShell>(TREELAND_XDG_SHELL_VERSION);
     connect(m_xdgShell,
@@ -663,15 +677,20 @@ void ShellHandler::ensureXdgWrapper(WXdgToplevelSurface *surface, const QString 
     }
     Q_EMIT surfaceWrapperAdded(wrapper);
 
+    // Privileged overlay, IM candidate panel, and snap mask detection via xdg-toplevel-tag
     QPointer<SurfaceWrapper> wrapperPtr(wrapper);
-    QObject::connect(surface, &WXdgToplevelSurface::tagChanged, this, [this, wrapperPtr]() {
-        if (wrapperPtr) {
-            if (checkAndApplyPrivilegedOverlay(wrapperPtr))
-                return;
-            if (m_imCandidatePanelManager->checkAndApplyIMCandidatePanel(wrapperPtr))
-                return;
-        }
-    });
+    auto applyIfTaggedSurface = [this, wrapperPtr]() {
+        if (!wrapperPtr)
+            return;
+        if (checkAndApplyPrivilegedOverlay(wrapperPtr))
+            return;
+        if (m_imCandidatePanelManager->checkAndApplyIMCandidatePanel(wrapperPtr))
+            return;
+        if (checkAndApplySnapMask(wrapperPtr))
+            return;
+    };
+    QObject::connect(surface, &WXdgToplevelSurface::tagChanged, this, applyIfTaggedSurface);
+    applyIfTaggedSurface();
 }
 
 bool ShellHandler::checkAndApplyPrivilegedOverlay(SurfaceWrapper *wrapper)
@@ -1017,6 +1036,28 @@ void ShellHandler::registerSurfaceToForeignToplevel(SurfaceWrapper *wrapper)
             m_treelandForeignToplevel->addSurface(wrapper);
         }
     });
+}
+
+bool ShellHandler::checkAndApplySnapMask(SurfaceWrapper *wrapper)
+{
+    auto *xdgSurface = qobject_cast<WXdgToplevelSurface *>(wrapper->shellSurface());
+    if (!xdgSurface || xdgSurface->tag() != SNAP_MASK_TAG)
+        return false;
+    if (wrapper->isSnapMask())
+        return true;
+
+    wrapper->setSkipSwitcher(true);
+    wrapper->setSkipDockPreView(true);
+    wrapper->setSkipMutiTaskView(true);
+    wrapper->disableWindowAnimation();
+
+    if (auto *oldContainer = wrapper->container())
+        oldContainer->removeSurface(wrapper);
+    m_snapMaskContainer->addSurface(wrapper);
+
+    wrapper->setHasInitializeContainer(true);
+    wrapper->setSnapMask(true);
+    return true;
 }
 
 void ShellHandler::setupDockPreview()

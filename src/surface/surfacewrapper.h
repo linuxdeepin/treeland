@@ -86,6 +86,7 @@ class SurfaceWrapper : public QQuickItem
     Q_PROPERTY(bool acceptKeyboardFocus READ acceptKeyboardFocus FINAL)
     Q_PROPERTY(bool isActivated READ isActivated NOTIFY isActivatedChanged FINAL)
     Q_PROPERTY(bool isIMCandidatePanel READ isIMCandidatePanel NOTIFY isIMCandidatePanelChanged FINAL)
+    Q_PROPERTY(bool isSnapMask READ isSnapMask NOTIFY snapMaskChanged FINAL)
     Q_PROPERTY(bool isResizable READ isResizable NOTIFY resizableChanged FINAL)
     Q_PROPERTY(bool isMaximizable READ isMaximizable NOTIFY maximizableChanged FINAL)
     Q_PROPERTY(bool modal READ modal NOTIFY modalChanged FINAL)
@@ -348,6 +349,8 @@ public:
     bool isActivated() const;
     bool isIMCandidatePanel() const;
     void setIMCandidatePanel(bool isIMCandidatePanel);
+    bool isSnapMask() const;
+    void setSnapMask(bool snapMask);
     bool isInputPopupLike() const;
     bool isLaunchpad() const;
     bool isQuickLaunchpad() const;
@@ -420,6 +423,7 @@ Q_SIGNALS:
     void aboutToBeInvalidated();
     void isActivatedChanged();
     void isIMCandidatePanelChanged();
+    void snapMaskChanged();
     void resizableChanged();
     void maximizableChanged();
     void modalChanged();
@@ -583,6 +587,7 @@ private:
     uint m_isActivated : 1;
     uint m_attention : 1;
     uint m_isIMCandidatePanel : 1;
+    uint m_isSnapMask : 1;
     uint m_resizable : 1;
     uint m_maximizable : 1;
     uint m_modal : 1;

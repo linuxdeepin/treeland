@@ -59,6 +59,7 @@ public:
         CaptureLayerZOrder = 6,
         LockScreenZOrder = 7,
         GlobalOverlayZOrder = 100,
+        SnapMaskLayerZOrder = 180,
         PrivilegedOverlayZOrder = 200, // Privileged overlay, above lock screen & lock screen popups
     };
 
