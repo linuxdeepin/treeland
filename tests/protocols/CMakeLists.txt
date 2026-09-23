@@ -95,3 +95,5 @@ add_subdirectory(wayland-xdg-dialog-v1)
 add_subdirectory(wayland-xdg-foreign-unstable-v2)
 add_subdirectory(wayland-xdg-output-unstable-v1)
 add_subdirectory(wayland-xdg-toplevel-tag-v1)
+
+include(${CMAKE_CURRENT_SOURCE_DIR}/ProtocolTestCoverageTarget.cmake)
