@@ -2868,19 +2868,66 @@ void SurfaceWrapper::setSurfaceRole(SurfaceRole role)
     Q_EMIT surfaceRoleChanged();
 }
 
-quint32 SurfaceWrapper::autoPlaceYOffset() const
+int SurfaceWrapper::autoPlaceYOffset() const
 {
     return m_autoPlaceYOffset;
 }
 
-void SurfaceWrapper::setAutoPlaceYOffset(quint32 offset)
+void SurfaceWrapper::setAutoPlaceYOffset(int offset)
 {
-    if (m_autoPlaceYOffset == offset)
+    const bool wantCursor = offset != 0;
+    // The offset also derives the placement mode and the fixed-request state,
+    // so an unchanged value may still need to apply them (e.g. v1
+    // set_auto_placement(0) releasing a fixed-position request).
+    if (m_autoPlaceYOffset == offset && m_cursorPlacement == wantCursor
+        && (wantCursor || (!m_hasClientRequstPos && positionAutomatic())))
         return;
 
     m_autoPlaceYOffset = offset;
-    setPositionAutomatic(offset == 0);
+    // Entering cursor placement supersedes a stale fixed-position request;
+    // leaving it (offset 0) returns the surface to automatic placement.
+    setCursorPlacement(wantCursor);
+    if (wantCursor) {
+        setPositionAutomatic(false);
+    } else {
+        resetClientRequstPos();
+        setPositionAutomatic(true);
+    }
     Q_EMIT autoPlaceYOffsetChanged();
+}
+
+int SurfaceWrapper::autoPlaceXOffset() const
+{
+    return m_autoPlaceXOffset;
+}
+
+void SurfaceWrapper::setAutoPlaceXOffset(int offset)
+{
+    if (m_autoPlaceXOffset == offset)
+        return;
+
+    m_autoPlaceXOffset = offset;
+    Q_EMIT autoPlaceXOffsetChanged();
+}
+
+bool SurfaceWrapper::cursorPlacement() const
+{
+    return m_cursorPlacement;
+}
+
+void SurfaceWrapper::setCursorPlacement(bool placement)
+{
+    if (m_cursorPlacement == placement)
+        return;
+
+    m_cursorPlacement = placement;
+    if (placement) {
+        // Entering cursor mode supersedes a stale fixed-position request,
+        // otherwise the next arrange pass would jump back to it.
+        resetClientRequstPos();
+        setPositionAutomatic(false);
+    }
+    Q_EMIT cursorPlacementChanged();
 }
 
 QPoint SurfaceWrapper::clientRequstPos() const
@@ -2888,13 +2935,32 @@ QPoint SurfaceWrapper::clientRequstPos() const
     return m_clientRequstPos;
 }
 
+bool SurfaceWrapper::hasClientRequstPos() const
+{
+    return m_hasClientRequstPos;
+}
+
 void SurfaceWrapper::setClientRequstPos(QPoint pos)
 {
-    if (m_clientRequstPos == pos)
+    if (m_hasClientRequstPos && m_clientRequstPos == pos)
         return;
 
     m_clientRequstPos = pos;
-    setPositionAutomatic(pos.isNull());
+    m_hasClientRequstPos = true;
+    // A fixed position supersedes cursor placement; the two modes are mutually
+    // exclusive and the later request wins.
+    setCursorPlacement(false);
+    // An explicit position request (including 0,0) always pins the surface.
+    setPositionAutomatic(false);
+    Q_EMIT clientRequstPosChanged();
+}
+
+void SurfaceWrapper::resetClientRequstPos()
+{
+    if (!m_hasClientRequstPos)
+        return;
+
+    m_hasClientRequstPos = false;
     Q_EMIT clientRequstPosChanged();
 }
 

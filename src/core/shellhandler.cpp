@@ -10,6 +10,7 @@
 #include "layersurfacecontainer.h"
 #include "modules/app-id-resolver/appidresolver.h"
 #include "modules/dde-shell/ddeshellmanagerinterfacev1.h"
+#include "modules/dde-shell/ddeshellmanagerinterfacev2.h"
 #include "modules/foreign-toplevel/foreigntoplevelmanagerv2.h"
 #include "modules/layer-shell-extension/layershellextensionmanagerinterfacev1.h"
 #include "modules/prelaunch-splash/prelaunchsplash.h"
@@ -634,6 +635,8 @@ void ShellHandler::ensureXdgWrapper(WXdgToplevelSurface *surface, const QString 
     // Initialize wrapper
     if (DDEShellSurfaceInterface::get(surface->surface())) {
         handleDdeShellSurfaceAdded(surface->surface(), wrapper);
+    } else if (auto *shellSurfaceV2 = DDEShellSurfaceV2::get(surface->surface())) {
+        handleDdeShellSurfaceV2Added(shellSurfaceV2, wrapper);
     }
     auto updateSurfaceWithParentContainer = [this, wrapper, surface] {
         if (wrapper->surfaceRole() == SurfaceWrapper::SurfaceRole::PrivilegedOverlay)
@@ -733,6 +736,12 @@ void ShellHandler::onXdgToplevelSurfaceRemoved(WXdgToplevelSurface *surface)
     auto interface = DDEShellSurfaceInterface::get(surface->surface());
     if (interface) {
         delete interface;
+    }
+    auto interfaceV2 = DDEShellSurfaceV2::get(surface->surface());
+    if (interfaceV2) {
+        // Destroy through the Wayland resource so the cleanup path runs
+        // (a bare delete would leave the wl_resource registered).
+        interfaceV2->destroyResource();
     }
     // Persist the last size of a normal window (prefer normalGeometry) when an appId is present
     if (m_windowConfigStore && !wrapper->appId().isEmpty()) {
@@ -1296,14 +1305,20 @@ void ShellHandler::handleDdeShellSurfaceAdded(WSurface *surface, SurfaceWrapper 
         updateLayer();
     });
 
+    // v1 sends the y offset as uint32; clamp before narrowing to int so huge
+    // values cannot wrap into a bogus negative placement.
+    auto clampYOffset = [](uint32_t offset) {
+        return static_cast<int>(qMin<uint32_t>(offset, 0x7FFFFFFFu));
+    };
+
     if (ddeShellSurface->yOffset().has_value())
-        wrapper->setAutoPlaceYOffset(ddeShellSurface->yOffset().value());
+        wrapper->setAutoPlaceYOffset(clampYOffset(ddeShellSurface->yOffset().value()));
 
     connect(ddeShellSurface,
             &DDEShellSurfaceInterface::yOffsetChanged,
             this,
-            [wrapper](uint32_t offset) {
-                wrapper->setAutoPlaceYOffset(offset);
+            [wrapper, clampYOffset](uint32_t offset) {
+                wrapper->setAutoPlaceYOffset(clampYOffset(offset));
             });
 
     if (ddeShellSurface->surfacePos().has_value())
@@ -1347,6 +1362,70 @@ void ShellHandler::handleDdeShellSurfaceAdded(WSurface *surface, SurfaceWrapper 
             });
     connect(ddeShellSurface,
             &DDEShellSurfaceInterface::acceptKeyboardFocusChanged,
+            this,
+            [wrapper](bool accept) {
+                wrapper->setAcceptKeyboardFocus(accept);
+            });
+}
+
+void ShellHandler::handleDdeShellSurfaceV2Added(DDEShellSurfaceV2 *shellSurface,
+                                                SurfaceWrapper *wrapper)
+{
+    wrapper->setIsDDEShellSurface(true);
+
+    // The overlay role is the default of the v2 protocol.
+    auto updateLayer = [shellSurface, wrapper] {
+        if (shellSurface->role() == DDEShellSurfaceV2::OVERLAY)
+            wrapper->setSurfaceRole(SurfaceWrapper::SurfaceRole::Overlay);
+    };
+    updateLayer();
+    connect(shellSurface, &DDEShellSurfaceV2::roleChanged, this, [updateLayer] {
+        updateLayer();
+    });
+
+    auto applyPositionHint = [wrapper](QPoint pos) {
+        wrapper->setCursorPlacement(false);
+        wrapper->setAutoPlaceXOffset(0);
+        wrapper->setAutoPlaceYOffset(0);
+        wrapper->setClientRequstPos(pos);
+        wrapper->setPositionAutomatic(false);
+    };
+    auto applyCursorPlacement = [wrapper](QPoint offset) {
+        wrapper->resetClientRequstPos();
+        wrapper->setAutoPlaceXOffset(offset.x());
+        wrapper->setAutoPlaceYOffset(offset.y());
+        wrapper->setCursorPlacement(true);
+        wrapper->setPositionAutomatic(false);
+    };
+
+    if (auto pos = shellSurface->positionHint())
+        applyPositionHint(*pos);
+    else if (auto offset = shellSurface->cursorPlacementHint())
+        applyCursorPlacement(*offset);
+
+    connect(shellSurface,
+            &DDEShellSurfaceV2::positionHintChanged,
+            this,
+            applyPositionHint);
+    connect(shellSurface,
+            &DDEShellSurfaceV2::cursorPlacementHintChanged,
+            this,
+            applyCursorPlacement);
+
+    auto applySkipFlags = [wrapper](quint32 flags) {
+        wrapper->setSkipSwitcher(flags & DDEShellSurfaceV2::SkipSwitcher);
+        wrapper->setSkipDockPreView(flags & DDEShellSurfaceV2::SkipDockPreview);
+        wrapper->setSkipMutiTaskView(flags & DDEShellSurfaceV2::SkipMultitaskView);
+    };
+    applySkipFlags(shellSurface->skipFlags());
+    connect(shellSurface,
+            &DDEShellSurfaceV2::skipFlagsChanged,
+            this,
+            applySkipFlags);
+
+    wrapper->setAcceptKeyboardFocus(shellSurface->acceptKeyboardFocus());
+    connect(shellSurface,
+            &DDEShellSurfaceV2::acceptKeyboardFocusChanged,
             this,
             [wrapper](bool accept) {
                 wrapper->setAcceptKeyboardFocus(accept);

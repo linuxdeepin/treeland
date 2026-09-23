@@ -273,7 +273,7 @@ void Output::moveSurfaceWithTitlebarClamp(SurfaceWrapper *surface, const QPointF
     surface->moveNormalGeometryInOutput(candidateGeo.topLeft());
 }
 
-void Output::placeUnderCursor(SurfaceWrapper *surface, quint32 yOffset)
+void Output::placeUnderCursor(SurfaceWrapper *surface)
 {
     QSizeF cursorSize;
     QRectF normalGeo = surface->normalGeometry();
@@ -281,8 +281,11 @@ void Output::placeUnderCursor(SurfaceWrapper *surface, quint32 yOffset)
     if (!surface->ownsOutput()->outputItem()->cursorItems().isEmpty())
         cursorSize = surface->ownsOutput()->outputItem()->cursorItems()[0]->size();
 
-    normalGeo.moveLeft(wCursor->position().x() + (cursorSize.width() - surface->width()) / 2);
-    normalGeo.moveTop(wCursor->position().y() + cursorSize.height() + yOffset);
+    // Surface center sits at the cursor center plus the x offset, the surface
+    // top at the cursor bottom plus the y offset.
+    normalGeo.moveLeft(wCursor->position().x() + cursorSize.width() / 2
+                       + surface->autoPlaceXOffset() - surface->width() / 2);
+    normalGeo.moveTop(wCursor->position().y() + cursorSize.height() + surface->autoPlaceYOffset());
     moveSurfaceWithTitlebarClamp(surface, normalGeo.topLeft());
 }
 
@@ -516,11 +519,26 @@ void Output::addSurface(SurfaceWrapper *surface)
         layoutSurface();
 
         auto setyOffset = [surface, this] {
-            placeUnderCursor(surface, surface->autoPlaceYOffset());
+            if (surface->cursorPlacement())
+                placeUnderCursor(surface);
         };
         connect(surface, &SurfaceWrapper::autoPlaceYOffsetChanged, this, setyOffset);
-        if (surface->autoPlaceYOffset() != 0)
+        connect(surface, &SurfaceWrapper::autoPlaceXOffsetChanged, this, setyOffset);
+        if (surface->cursorPlacement())
             setyOffset();
+
+        // Runtime placement-mode switches (v2 hints) must take effect
+        // immediately instead of waiting for the next arrange pass.
+        auto clientRequstPosChanged = [surface, this] {
+            if (surface->hasClientRequstPos())
+                placeClientRequstPos(surface, surface->clientRequstPos());
+        };
+        connect(surface, &SurfaceWrapper::clientRequstPosChanged, this, clientRequstPosChanged);
+        auto cursorPlacementChanged = [surface, this] {
+            if (surface->cursorPlacement())
+                placeUnderCursor(surface);
+        };
+        connect(surface, &SurfaceWrapper::cursorPlacementChanged, this, cursorPlacementChanged);
 
         if (surface->type() == SurfaceWrapper::Type::XdgPopup) {
             auto xdgPopupSurfaceItem = qobject_cast<WXdgPopupSurfaceItem *>(surface->surfaceItem());
@@ -825,9 +843,10 @@ void Output::arrangeNonLayerSurface(SurfaceWrapper *surface, ArrangeReason reaso
                         validGeo.bottom() - minVisibleY));
         moveSurfaceWithTitlebarClamp(surface, pos);
     } else {
-        QPoint clientRequstPos = surface->clientRequstPos();
-        if (!clientRequstPos.isNull()) {
-            placeClientRequstPos(surface, clientRequstPos);
+        // (0,0) is a valid fixed position, so presence of a position request
+        // is tracked explicitly, not via QPoint::isNull().
+        if (surface->hasClientRequstPos()) {
+            placeClientRequstPos(surface, surface->clientRequstPos());
         } else if (reason == ArrangeReason::LayerSurfaceRemoved
                    || reason == ArrangeReason::ExclusiveZoneChanged) {
             // validGeo has changed (panel added/removed); re-run the titlebar

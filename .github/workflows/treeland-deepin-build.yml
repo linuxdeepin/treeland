@@ -45,6 +45,14 @@ jobs:
             git clone --depth=1 --branch master --single-branch https://github.com/linuxdeepin/treeland-protocols.git
           fi
           cd treeland-protocols
+          # Keep the locally built package version in sync with the source tree:
+          # protocols master may ship XML newer than its debian/changelog says
+          # (0.7.0 XML with a 0.6.0 changelog), and treeland's control pins the
+          # CMake project version.
+          PROTOCOLS_VERSION=$(grep -oP 'project\(TreelandProtocols VERSION \K[0-9.]+' CMakeLists.txt | head -1)
+          if [ -n "$PROTOCOLS_VERSION" ]; then
+            sed -i "1s/([^)]*)/($PROTOCOLS_VERSION)/" debian/changelog
+          fi
           mk-build-deps --install --remove --tool='apt-get -o Debug::pkgProblemResolver=yes --no-install-recommends --yes' debian/control
           dpkg-buildpackage -uc -us -b
           apt-get install -y ../*.deb || dpkg -i ../*.deb || apt-get -f install -y
