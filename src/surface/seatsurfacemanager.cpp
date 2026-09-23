@@ -7,7 +7,7 @@
 #include "treelanduserconfig.hpp"
 #include "common/treelandlogging.h"
 #include "seat/helper.h"
-#include "seat/seatsmanager.h"
+#include "seat/seatmanager.h"
 #include "core/shellhandler.h"
 #include "output/output.h"
 

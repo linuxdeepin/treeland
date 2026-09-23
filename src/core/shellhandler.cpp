@@ -19,7 +19,7 @@
 #include "output/output.h"
 #include "rootsurfacecontainer.h"
 #include "seat/helper.h"
-#include "seat/seatsmanager.h"
+#include "seat/seatmanager.h"
 #include "session/session.h"
 #include "surface/seatsurfacemanager.h"
 #include "surface/surfacewrapper.h"

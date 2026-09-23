@@ -5,7 +5,7 @@
 
 #include "common/treelandlogging.h"
 #include "seat/helper.h"
-#include "seatsmanager.h"
+#include "seatmanager.h"
 
 #include <wlr_all.h>
 #include <wscoplistener.h>
@@ -55,11 +55,11 @@ void KeyboardShortcutsInhibitManagerV1::setupSeatConnections()
     }
 
     QObject::connect(seatManager,
-                     &SeatsManager::seatAdded,
+                     &SeatManager::seatAdded,
                      this,
                      &KeyboardShortcutsInhibitManagerV1::onSeatAdded);
     QObject::connect(seatManager,
-                     &SeatsManager::seatRemoved,
+                     &SeatManager::seatRemoved,
                      this,
                      &KeyboardShortcutsInhibitManagerV1::onSeatRemoved);
 }

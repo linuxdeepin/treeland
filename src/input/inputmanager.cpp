@@ -9,7 +9,7 @@
 #include "inputdevice.h"
 #include "common/treelandlogging.h"
 #include "modules/input-manager/inputmanagerinterfacev1.h"
-#include "seat/seatsmanager.h"
+#include "seat/seatmanager.h"
 #include "session/session.h"
 #include "xsettings/settingmanager.h"
 
@@ -65,17 +65,17 @@ void InputManager::setupSeatUserConfig(const QString &userName)
         setupSeat(seat);
 
     connect(seatManager,
-            &SeatsManager::seatAdded,
+            &SeatManager::seatAdded,
             this,
             &InputManager::setupSeat,
             Qt::UniqueConnection);
     connect(seatManager,
-            &SeatsManager::seatRemoved,
+            &SeatManager::seatRemoved,
             this,
             &InputManager::onSeatRemoved,
             Qt::UniqueConnection);
     connect(seatManager,
-            &SeatsManager::deviceAssigned,
+            &SeatManager::deviceAssigned,
             this,
             &InputManager::onInputAssigned,
             Qt::UniqueConnection);

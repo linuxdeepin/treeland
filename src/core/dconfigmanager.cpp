@@ -11,7 +11,7 @@
 
 #include "common/treelandlogging.h"
 #include "seat/helper.h"
-#include "seat/seatsmanager.h"
+#include "seat/seatmanager.h"
 
 #include <wseat.h>
 

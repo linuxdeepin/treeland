@@ -1,7 +1,7 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
-#include "seatsmanager.h"
+#include "seatmanager.h"
 #include "common/treelandlogging.h"
 #include "core/dconfigmanager.h"
 #include "helper.h"
@@ -20,13 +20,13 @@
 #include <QInputEvent>
 #include <QQuickWindow>
 
-SeatsManager::SeatsManager(WServer *server, QObject *parent)
+SeatManager::SeatManager(WServer *server, QObject *parent)
     : QObject(parent)
     , m_server(server)
 {
 }
 
-SeatsManager::~SeatsManager()
+SeatManager::~SeatManager()
 {
     QMap<QString, WSeat*> seatsToDelete;
     seatsToDelete.swap(m_seats);
@@ -41,7 +41,7 @@ SeatsManager::~SeatsManager()
     }
 }
 
-WSeat *SeatsManager::createSeat(const QString &name, bool isFallback)
+WSeat *SeatManager::createSeat(const QString &name, bool isFallback)
 {
     if (m_seats.contains(name)) {
         qCDebug(lcTlSeat) << "Seat" << name << "already exists";
@@ -89,7 +89,7 @@ WSeat *SeatsManager::createSeat(const QString &name, bool isFallback)
     return seat;
 }
 
-void SeatsManager::removeSeat(const QString &name)
+void SeatManager::removeSeat(const QString &name)
 {
     if (!m_seats.contains(name)) {
         qCWarning(lcTlSeat) << "Cannot remove non-existent seat:" << name;
@@ -135,7 +135,7 @@ void SeatsManager::removeSeat(const QString &name)
     m_deviceRules.remove(name);
 }
 
-void SeatsManager::removeSeat(WSeat *seat)
+void SeatManager::removeSeat(WSeat *seat)
 {
     Q_ASSERT(seat);
 
@@ -150,26 +150,26 @@ void SeatsManager::removeSeat(WSeat *seat)
     if (!seatName.isEmpty()) {
         removeSeat(seatName);
     } else {
-        qCWarning(lcTlSeat) << "Attempted to remove a seat that is not managed by SeatsManager";
+        qCWarning(lcTlSeat) << "Attempted to remove a seat that is not managed by SeatManager";
     }
 }
 
-WSeat *SeatsManager::getSeat(const QString &name) const
+WSeat *SeatManager::getSeat(const QString &name) const
 {
     return m_seats.value(name);
 }
 
-QList<WSeat*> SeatsManager::seats() const
+QList<WSeat*> SeatManager::seats() const
 {
     return m_seats.values();
 }
 
-WSeat *SeatsManager::fallbackSeat() const
+WSeat *SeatManager::fallbackSeat() const
 {
     return m_defaultSeat;
 }
 
-void SeatsManager::assignDeviceToSeat(WInputDevice *device, const QString &seatName)
+void SeatManager::assignDeviceToSeat(WInputDevice *device, const QString &seatName)
 {
     if (!device) {
         qCWarning(lcTlSeat) << "Cannot assign null device to seat";
@@ -200,7 +200,7 @@ void SeatsManager::assignDeviceToSeat(WInputDevice *device, const QString &seatN
     }
 }
 
-WSeat *SeatsManager::autoAssignDevice(WInputDevice *device)
+WSeat *SeatManager::autoAssignDevice(WInputDevice *device)
 {
     if (!device) {
         qCWarning(lcTlSeat) << "Cannot auto-assign null device";
@@ -230,7 +230,7 @@ WSeat *SeatsManager::autoAssignDevice(WInputDevice *device)
     return nullptr;
 }
 
-void SeatsManager::addDeviceRule(const QString &seatName, const QString &rule)
+void SeatManager::addDeviceRule(const QString &seatName, const QString &rule)
 {
     if (seatName.isEmpty()) {
         qCWarning(lcTlSeat) << "Cannot add device rule for seat with empty name";
@@ -269,7 +269,7 @@ void SeatsManager::addDeviceRule(const QString &seatName, const QString &rule)
     qCDebug(lcTlSeat) << "Added device rule for seat" << seatName << ":" << rule;
 }
 
-void SeatsManager::removeDeviceRule(const QString &seatName, const QString &rule)
+void SeatManager::removeDeviceRule(const QString &seatName, const QString &rule)
 {
     if (!m_deviceRules.contains(seatName)) {
         qCDebug(lcTlSeat) << "No device rules for seat:" << seatName;
@@ -297,7 +297,7 @@ void SeatsManager::removeDeviceRule(const QString &seatName, const QString &rule
     }
 }
 
-QStringList SeatsManager::deviceRules(const QString &seatName) const
+QStringList SeatManager::deviceRules(const QString &seatName) const
 {
     if (!m_deviceRules.contains(seatName))
         return QStringList();
@@ -311,7 +311,7 @@ QStringList SeatsManager::deviceRules(const QString &seatName) const
     return result;
 }
 
-void SeatsManager::loadConfig(const QJsonObject &config)
+void SeatManager::loadConfig(const QJsonObject &config)
 {
     qCDebug(lcTlSeat) << "Loading seat configuration";
 
@@ -356,7 +356,7 @@ void SeatsManager::loadConfig(const QJsonObject &config)
     qCDebug(lcTlSeat) << "Loaded" << m_seats.size() << "seats";
 }
 
-bool SeatsManager::loadConfigFromFile(const QString &filePath)
+bool SeatManager::loadConfigFromFile(const QString &filePath)
 {
     QFile file(filePath);
     if (!file.open(QIODevice::ReadOnly)) {
@@ -380,7 +380,7 @@ bool SeatsManager::loadConfigFromFile(const QString &filePath)
     return true;
 }
 
-bool SeatsManager::saveConfigToFile(const QString &filePath) const
+bool SeatManager::saveConfigToFile(const QString &filePath) const
 {
     QJsonObject config = saveConfig();
     QJsonDocument doc(config);
@@ -396,7 +396,7 @@ bool SeatsManager::saveConfigToFile(const QString &filePath) const
     return true;
 }
 
-bool SeatsManager::validateConfig(const QJsonObject &config) const
+bool SeatManager::validateConfig(const QJsonObject &config) const
 {
     if (!config.contains("seats") || !config["seats"].isArray()) {
         return false;
@@ -431,7 +431,7 @@ bool SeatsManager::validateConfig(const QJsonObject &config) const
     return true;
 }
 
-void SeatsManager::initializeDefaultSeat()
+void SeatManager::initializeDefaultSeat()
 {
     if (!m_seats.isEmpty()) {
         qCDebug(lcTlSeat) << "Seats already initialized";
@@ -449,7 +449,7 @@ void SeatsManager::initializeDefaultSeat()
     qCDebug(lcTlSeat) << "Initialized default seat: seat0";
 }
 
-void SeatsManager::ensureDefaultDeviceRules(const QString &seatName)
+void SeatManager::ensureDefaultDeviceRules(const QString &seatName)
 {
     if (deviceRules(seatName).isEmpty()) {
         addDeviceRule(seatName, QString("%1:.*").arg(static_cast<int>(WInputDevice::Type::Keyboard)));
@@ -459,7 +459,7 @@ void SeatsManager::ensureDefaultDeviceRules(const QString &seatName)
     }
 }
 
-WSeat *SeatsManager::initializeFromConfig(const QString &configPath, WServer *server)
+WSeat *SeatManager::initializeFromConfig(const QString &configPath, WServer *server)
 {
     // Try to load config from file
     if (!loadConfigFromFile(configPath)) {
@@ -498,7 +498,7 @@ WSeat *SeatsManager::initializeFromConfig(const QString &configPath, WServer *se
     return primarySeat;
 }
 
-QJsonObject SeatsManager::saveConfig() const
+QJsonObject SeatManager::saveConfig() const
 {
     QJsonObject config;
     QJsonArray seatsArray;
@@ -526,7 +526,7 @@ QJsonObject SeatsManager::saveConfig() const
     return config;
 }
 
-bool SeatsManager::matchesDevice(WInputDevice *device, const QList<QRegularExpression> &rules)
+bool SeatManager::matchesDevice(WInputDevice *device, const QList<QRegularExpression> &rules)
 {
     if (!device)
         return false;
@@ -552,7 +552,7 @@ bool SeatsManager::matchesDevice(WInputDevice *device, const QList<QRegularExpre
     return false;
 }
 
-bool SeatsManager::deviceMatchesSeat(WInputDevice *device, WSeat *seat) const
+bool SeatManager::deviceMatchesSeat(WInputDevice *device, WSeat *seat) const
 {
     if (!device || !seat)
         return false;
@@ -567,7 +567,7 @@ bool SeatsManager::deviceMatchesSeat(WInputDevice *device, WSeat *seat) const
     return matches;
 }
 
-WSeat *SeatsManager::findSeatForDevice(WInputDevice *device) const
+WSeat *SeatManager::findSeatForDevice(WInputDevice *device) const
 {
     if (!device)
         return nullptr;
@@ -603,7 +603,7 @@ WSeat *SeatsManager::findSeatForDevice(WInputDevice *device) const
     return nullptr;
 }
 
-void SeatsManager::setupAllSeats(QQuickWindow *renderWindow,
+void SeatManager::setupAllSeats(QQuickWindow *renderWindow,
                                  WOutputLayout *layout,
                                  WSeatEventFilter *eventFilter,
                                  WCursor *seat0Cursor)
@@ -636,7 +636,7 @@ void SeatsManager::setupAllSeats(QQuickWindow *renderWindow,
     }
 }
 
-void SeatsManager::connectBackendSignals(WBackend *backend)
+void SeatManager::connectBackendSignals(WBackend *backend)
 {
     if (!backend) {
         qCWarning(lcTlSeat) << "Cannot connect signals for null backend";
@@ -667,7 +667,7 @@ void SeatsManager::connectBackendSignals(WBackend *backend)
 
 }
 
-void SeatsManager::assignExistingDevices(WBackend *backend)
+void SeatManager::assignExistingDevices(WBackend *backend)
 {
     if (!backend) {
         qCWarning(lcTlSeat) << "Cannot assign devices from null backend";
@@ -682,7 +682,7 @@ void SeatsManager::assignExistingDevices(WBackend *backend)
     }
 }
 
-void SeatsManager::assignDevice(WInputDevice *device,
+void SeatManager::assignDevice(WInputDevice *device,
                                 QQuickWindow *renderWindow,
                                 WOutputLayout *layout,
                                 WSeat *fallbackSeat)
@@ -746,7 +746,7 @@ void SeatsManager::assignDevice(WInputDevice *device,
     Q_EMIT deviceAssigned(device);
 }
 
-WSeat *SeatsManager::getSeatForDevice(WInputDevice *device) const
+WSeat *SeatManager::getSeatForDevice(WInputDevice *device) const
 {
     if (!device) {
         return nullptr;
@@ -764,7 +764,7 @@ WSeat *SeatsManager::getSeatForDevice(WInputDevice *device) const
     return seat;
 }
 
-WSeat *SeatsManager::getSeatForEvent(QInputEvent *event) const
+WSeat *SeatManager::getSeatForEvent(QInputEvent *event) const
 {
     if (!event) {
         qCWarning(lcTlSeat) << "getSeatForEvent called with null event";
@@ -784,7 +784,7 @@ WSeat *SeatsManager::getSeatForEvent(QInputEvent *event) const
     return fallbackSeat();
 }
 
-void SeatsManager::clearDeviceCache(WInputDevice *device)
+void SeatManager::clearDeviceCache(WInputDevice *device)
 {
     m_deviceCache.remove(device);
 }

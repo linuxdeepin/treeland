@@ -4,7 +4,7 @@
 #include "keyboardstatenotifymanagerinterfacev1.h"
 #include "qwayland-server-treeland-keyboard-state-notify-unstable-v1.h"
 #include "seat/helper.h"
-#include "seatsmanager.h"
+#include "seatmanager.h"
 #include "common/treelandlogging.h"
 #include "treelandconfig.hpp"
 
@@ -165,10 +165,10 @@ void TreelandKeyboardStateNotifyManagerInterfaceV1Private::setupKeyboardConnecti
         handleSeatAdded(seat);
     }
 
-    QObject::connect(helper->seatManager(), &SeatsManager::seatAdded, q, [this](WSeat *seat) {
+    QObject::connect(helper->seatManager(), &SeatManager::seatAdded, q, [this](WSeat *seat) {
         handleSeatAdded(seat);
     });
-    QObject::connect(helper->seatManager(), &SeatsManager::seatRemoved, q, [this](WSeat *seat) {
+    QObject::connect(helper->seatManager(), &SeatManager::seatRemoved, q, [this](WSeat *seat) {
         handleSeatDestroy(seat);
     });
 }
