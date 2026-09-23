@@ -5,7 +5,7 @@
 
 #include "core/rootsurfacecontainer.h"
 #include "helper.h"
-#include "seatsmanager.h"
+#include "seatmanager.h"
 #include "surface/surfacewrapper.h"
 
 #include <wcursor.h>
@@ -34,7 +34,7 @@ PointerConstraintsManager::PointerConstraintsManager(WPointerConstraintsV1 *cons
     auto *seatManager = helper->seatManager();
     for (auto *wseat : seatManager->seats())
         ensureSeatTracked(wseat->handle());
-    connect(seatManager, &SeatsManager::seatAdded, this, [this](WSeat *wseat) {
+    connect(seatManager, &SeatManager::seatAdded, this, [this](WSeat *wseat) {
         ensureSeatTracked(wseat->handle());
     });
 }

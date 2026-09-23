@@ -7,7 +7,7 @@
 #include "input/gestures.h"
 #include "qwayland-server-treeland-shortcut-manager-v2.h"
 #include "seat/helper.h"
-#include "seat/seatsmanager.h"
+#include "seat/seatmanager.h"
 #include "session/session.h"
 #include "shortcutcontroller.h"
 

@@ -26,16 +26,16 @@ class WOutputLayout;
 class WSeatEventFilter;
 WAYLIB_SERVER_END_NAMESPACE
 
-// SeatsManager manages multi-seat configuration and device assignment for treeland.
+// SeatManager manages multi-seat configuration and device assignment for treeland.
 // This class implements compositor-specific policies for seat creation, device
 // assignment rules, and configuration persistence.
-class SeatsManager : public QObject
+class SeatManager : public QObject
 {
     Q_OBJECT
 
 public:
-    explicit SeatsManager(WServer *server, QObject *parent = nullptr);
-    ~SeatsManager();
+    explicit SeatManager(WServer *server, QObject *parent = nullptr);
+    ~SeatManager();
 
     // Seat management
     WSeat *createSeat(const QString &name, bool isFallback = false);

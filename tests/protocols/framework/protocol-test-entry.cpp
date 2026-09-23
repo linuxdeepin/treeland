@@ -222,7 +222,7 @@ int main(int argc, char *argv[])
     // Treeland owns process-lifetime QML singletons whose shutdown ordering is
     // only exercised by a compositor process exit.  Letting the stack object
     // destruct here tears down Helper after its seat event filter and currently
-    // reaches an invalid SeatsManager during that production-only shutdown.
+    // reaches an invalid SeatManager during that production-only shutdown.
     // The protocol client has already completed and been joined, so terminate
     // without running the unrelated compositor shutdown sequence.
     dconfigService.stop();
