@@ -35,6 +35,7 @@ class ForeignToplevelManagerInterfaceV2;
 class PrelaunchSplash;
 class WineWindowStateManager;
 class WineWindowManager;
+class SnapTargetV1;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WServer;
@@ -74,6 +75,7 @@ public:
     [[nodiscard]] Workspace *workspace() const;
     [[nodiscard]] SurfaceContainer *popupContainer() const;
     [[nodiscard]] SurfaceContainer *privilegedOverlayContainer() const;
+    [[nodiscard]] SurfaceContainer *snapMaskContainer() const;
     [[nodiscard]] RootSurfaceContainer *rootSurfaceContainer() const;
     [[nodiscard]] ForeignToplevelManagerInterfaceV2 *foreignToplevel() const;
 
@@ -135,6 +137,7 @@ private:
     void setupSurfaceWindowMenu(SurfaceWrapper *wrapper);
     void updateLayerSurfaceContainer(SurfaceWrapper *surface);
     void registerSurfaceToForeignToplevel(SurfaceWrapper *wrapper);
+    bool checkAndApplySnapMask(SurfaceWrapper *wrapper);
     void handleDdeShellSurfaceAdded(WAYLIB_SERVER_NAMESPACE::WSurface *surface,
                                     SurfaceWrapper *wrapper);
     void updateXWaylandDesktopProperties();
@@ -191,6 +194,7 @@ private:
     LayerSurfaceContainer *m_overlayContainer = nullptr;
     SurfaceContainer *m_popupContainer = nullptr;
     SurfaceContainer *m_privilegedOverlayContainer = nullptr;
+    SurfaceContainer *m_snapMaskContainer = nullptr;
     IMCandidatePanelManager *m_imCandidatePanelManager = nullptr;
     QObject *m_windowMenu = nullptr;
     // Prelaunch wrappers created before binding to a real shell surface
@@ -208,4 +212,5 @@ private:
     AppIdResolverManager *m_appIdResolverManager = nullptr;
     LayerShellExtensionManagerInterfaceV1 *m_layerShellExtensionManagerInterfaceV1 = nullptr;
     WindowConfigStore *m_windowConfigStore = nullptr;
+    SnapTargetV1 *m_snapTarget = nullptr;
 };
