@@ -10,7 +10,7 @@ Core build dependencies:
 
 - [waylib](https://github.com/vioken/waylib): A Wayland compositor development library based on wlroots and QtQuick
   - Qt >= 6.8.0
-  - wlroots = 0.19
+  - wlroots = 0.20
 - [treeland-protocols](https://github.com/linuxdeepin/treeland-protocols): Private Wayland protocols used by treeland
 
 Recommended runtime dependencies:
