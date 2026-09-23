@@ -28,7 +28,7 @@ Based on the above features, compositor developers need only focus on the busine
 
 Step 1: Compiling and Installing wlroots
 
-waylib requires the development version (0.19) of wlroots, which needs to be [compiled and installed manually](https://gitlab.freedesktop.org/wlroots/wlroots#building). Arch Linux users can install [wlroots-0.19](https://archlinux.org/packages/extra/x86_64/wlroots0.19/).
+waylib requires the development version (0.20) of wlroots, which needs to be [compiled and installed manually](https://gitlab.freedesktop.org/wlroots/wlroots#building). Arch Linux users can install [wlroots-0.20](https://archlinux.org/packages/extra/x86_64/wlroots0.20/).
 
 In this repository the wlroots source tree is vendored under `wlroots/` (upstream sources under `3rdparty/wlroots`) and built via CMake together with waylib, so no separate wlroots installation is required.
 
