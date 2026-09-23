@@ -28,7 +28,7 @@ waylib 是一个 Wayland 合成器开发库，直接基于 [wlroots](https://git
 
 步骤一：编译安装 wlroots
 
-waylib 需要安装开发版本（0.19）的 wlroots, 需要[自行编译安装](https://gitlab.freedesktop.org/wlroots/wlroots#building)， Archlinux 用户可以安装 [wlroots-0.19](https://archlinux.org/packages/extra/x86_64/wlroots0.19/).。
+waylib 需要安装开发版本（0.20）的 wlroots, 需要[自行编译安装](https://gitlab.freedesktop.org/wlroots/wlroots#building)， Archlinux 用户可以安装 [wlroots-0.20](https://archlinux.org/packages/extra/x86_64/wlroots0.20/).。
 
 本仓库将 wlroots 源码树 vendored 在 `wlroots/` 目录下（上游源码在 `3rdparty/wlroots/`），通过 CMake 与 waylib 一起构建，无需单独安装 wlroots。
 
