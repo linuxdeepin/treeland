@@ -192,8 +192,8 @@ qt_add_qml_module(libtreeland
         seat/helper.h
         seat/pointerconstraintsmanager.cpp
         seat/pointerconstraintsmanager.h
-        seat/seatsmanager.cpp
-        seat/seatsmanager.h
+        seat/seatmanager.cpp
+        seat/seatmanager.h
         session/session.cpp
         session/session.h
         surface/surfacecontainer.cpp

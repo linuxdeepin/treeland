@@ -3,7 +3,7 @@
 #include "core/shellhandler.h"
 #include "server-bridge.h"
 #include "seat/helper.h"
-#include "seat/seatsmanager.h"
+#include "seat/seatmanager.h"
 #include "surface/surfacewrapper.h"
 #include "treeland-shortcut-manager-desktop-v2.h"
 #include "workspace/workspace.h"

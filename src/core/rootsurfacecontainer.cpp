@@ -6,7 +6,7 @@
 #include "common/treelandlogging.h"
 #include "output/output.h"
 #include "seat/helper.h"
-#include "seat/seatsmanager.h"
+#include "seat/seatmanager.h"
 #include "surface/surfacewrapper.h"
 #include "treelandconfig.hpp"
 #include "treelanduserconfig.hpp"
@@ -619,8 +619,8 @@ void RootSurfaceContainer::setupSeatManagement()
     }
 
     // Connect to seat lifecycle signals
-    connect(seatManager, &SeatsManager::seatAdded, this, &RootSurfaceContainer::onSeatAdded);
-    connect(seatManager, &SeatsManager::seatRemoved, this, &RootSurfaceContainer::onSeatRemoved);
+    connect(seatManager, &SeatManager::seatAdded, this, &RootSurfaceContainer::onSeatAdded);
+    connect(seatManager, &SeatManager::seatRemoved, this, &RootSurfaceContainer::onSeatRemoved);
 }
 
 void RootSurfaceContainer::setupSurfaceRequestHandlers(SurfaceWrapper *surface)
