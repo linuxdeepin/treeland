@@ -134,38 +134,6 @@
 #define WLR_FRACTIONAL_SCALE_V1_VERSION 1
 #define DEFAULT_SEAT_NAME "seat0"
 
-static QByteArray readWindowProperty(xcb_connection_t *connection,
-                                     xcb_window_t win,
-                                     xcb_atom_t atom,
-                                     xcb_atom_t type)
-{
-    QByteArray data;
-    int offset = 0;
-    int remaining = 0;
-
-    do {
-        xcb_get_property_cookie_t cookie =
-            xcb_get_property(connection, false, win, atom, type, offset, 1024);
-        xcb_get_property_reply_t *reply = xcb_get_property_reply(connection, cookie, NULL);
-        if (!reply)
-            break;
-
-        remaining = 0;
-
-        if (reply->type == type) {
-            int len = xcb_get_property_value_length(reply);
-            char *datas = (char *)xcb_get_property_value(reply);
-            data.append(datas, len);
-            remaining = reply->bytes_after;
-            offset += len;
-        }
-
-        free(reply);
-    } while (remaining > 0);
-
-    return data;
-}
-
 static bool hasSavedOutputState(OutputConfig *config)
 {
     return config && (!config->widthIsDefaultValue()
@@ -1744,34 +1712,15 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
         auto xwaylandSurface = qobject_cast<WXWaylandSurface *>(wrapper->shellSurface());
         auto updateDecorationTitleBar = [wrapper, xwaylandSurface, sessionManager = m_sessionManager]() {
             auto *xwayland = xwaylandSurface->xwayland();
-            xcb_connection_t *connection = xwayland ? xwayland->xcbConnection() : nullptr;
-            xcb_atom_t atom;
-            if (xwayland) {
-                if (auto session = sessionManager->sessionForXWayland(xwayland))
-                    atom = session->noTitlebarAtom();
-                else
-                    atom = XCB_ATOM_NONE;
-            } else {
-                atom = XCB_ATOM_NONE;
-            }
-            if (!xwaylandSurface->isBypassManager()) {
-                if (atom && connection
-                    && !readWindowProperty(connection,
-                                           xwaylandSurface->handle()->window_id,
-                                           atom,
-                                           XCB_ATOM_CARDINAL)
-                            .isEmpty()) {
-                    wrapper->setNoTitleBar(true);
-                } else {
-                    wrapper->setNoTitleBar(xwaylandSurface->decorationsFlags()
-                                           & WXWaylandSurface::DecorationsNoTitle);
-                }
-                wrapper->setNoDecoration(xwaylandSurface->decorationsFlags()
-                                         & WXWaylandSurface::DecorationsNoBorder);
-            } else {
-                wrapper->setNoTitleBar(true);
-                wrapper->setNoDecoration(true);
-            }
+            const auto session = xwayland
+                ? sessionManager->sessionForXWayland(xwayland)
+                : std::shared_ptr<Session>();
+            xcb_atom_t noTitlebarAtom = XCB_ATOM_NONE;
+            if (session)
+                noTitlebarAtom = session->noTitlebarAtom();
+            const auto flags = xwaylandSurface->effectiveDecorationsFlags(noTitlebarAtom);
+            wrapper->setNoTitleBar(flags & WXWaylandSurface::DecorationsNoTitle);
+            wrapper->setNoDecoration(flags & WXWaylandSurface::DecorationsNoBorder);
         };
         // When x11 surface dissociate, SurfaceWrapper will be destroyed immediately
         // but WXWaylandSurface will not, so must connect to `wrapper`

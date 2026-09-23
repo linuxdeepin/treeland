@@ -589,6 +589,39 @@ wl_global *WXWayland::global() const
     return nullptr;
 }
 
+QByteArray WXWayland::windowProperty(xcb_window_t window,
+                                     xcb_atom_t atom,
+                                     xcb_atom_t type) const
+{
+    auto *connection = xcbConnection();
+    if (!connection || atom == XCB_ATOM_NONE)
+        return {};
+
+    QByteArray data;
+    uint32_t offset = 0;
+    uint32_t remaining = 0;
+
+    do {
+        const auto cookie =
+            xcb_get_property(connection, false, window, atom, type, offset, 1024);
+        auto *reply = xcb_get_property_reply(connection, cookie, nullptr);
+        if (!reply)
+            break;
+
+        remaining = 0;
+        if (reply->type == type) {
+            const int length = xcb_get_property_value_length(reply);
+            data.append(static_cast<const char *>(xcb_get_property_value(reply)), length);
+            remaining = reply->bytes_after;
+            offset += length;
+        }
+
+        free(reply);
+    } while (remaining > 0);
+
+    return data;
+}
+
 void WXWayland::readAsyncProperties(
     xcb_window_t windowId,
     const QVector<AsyncPropRequest> &requests,
