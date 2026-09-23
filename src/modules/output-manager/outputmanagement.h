@@ -5,36 +5,36 @@
 
 #include <wserver.h>
 
-struct treeland_output_manager_v1;
-struct treeland_output_color_control_v1;
+struct treeland_output_manager_v2;
+struct treeland_output_picture_control_v2;
 WAYLIB_SERVER_USE_NAMESPACE
 
 class Output;
-class ColorControlV1Private;
-class OutputManagerV1Private;
+class PictureControlV2Private;
+class OutputManagerV2Private;
 
-class ColorControlV1 : public QObject
+class PictureControlV2 : public QObject
 {
     Q_OBJECT
 public:
-    ~ColorControlV1() override;
+    ~PictureControlV2() override;
 
 private:
-    explicit ColorControlV1(wl_resource *resource, Output *output);
-    friend OutputManagerV1Private;
-    std::unique_ptr<ColorControlV1Private> d;
+    explicit PictureControlV2(wl_resource *resource, Output *output);
+    friend OutputManagerV2Private;
+    std::unique_ptr<PictureControlV2Private> d;
 };
 
-class OutputManagerV1
+class OutputManagerV2
     : public QObject
     , public WServerInterface
 {
     Q_OBJECT
 public:
-    explicit OutputManagerV1(QObject *parent = nullptr);
-    ~OutputManagerV1() override;
-    static constexpr int InterfaceVersion = 2;
-    static constexpr int ColorControlInterfaceVersion = 1;
+    explicit OutputManagerV2(QObject *parent = nullptr);
+    ~OutputManagerV2() override;
+    static constexpr int InterfaceVersion = 1;
+    static constexpr int PictureControlInterfaceVersion = 1;
 
     QByteArrayView interfaceName() const override;
 
@@ -47,5 +47,5 @@ protected:
     wl_global *global() const override;
 
 private:
-    std::unique_ptr<OutputManagerV1Private> d;
+    std::unique_ptr<OutputManagerV2Private> d;
 };

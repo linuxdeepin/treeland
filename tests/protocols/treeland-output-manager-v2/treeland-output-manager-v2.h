@@ -1,7 +1,7 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
-#ifndef TREELAND_OUTPUT_MANAGER_V1_TEST_H
-#define TREELAND_OUTPUT_MANAGER_V1_TEST_H
+#ifndef TREELAND_OUTPUT_MANAGER_V2_TEST_H
+#define TREELAND_OUTPUT_MANAGER_V2_TEST_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -25,14 +25,26 @@ struct test_ctx {
 
     struct wl_output *output;
 
-    struct treeland_output_manager_v1        *manager;
-    struct treeland_output_color_control_v1  *color_control;
+    struct treeland_output_manager_v2          *manager;
+    struct treeland_output_picture_control_v2  *picture_control;
 
     const char *socket_name;
 
     int         primary_output_received;
     int         primary_output_count;
-    char        primary_output_name[128];
+    struct wl_output *primary_output_obj;
+
+    int         primary_output_failed_received;
+    uint32_t    primary_output_failed_error;
+
+    int         result_received;
+    uint32_t    result_value;
+
+    int         color_temperature_received;
+    uint32_t    color_temperature_value;
+
+    int         brightness_received;
+    wl_fixed_t  brightness_value;
 
     struct test_result *results;
     int                 result_count;

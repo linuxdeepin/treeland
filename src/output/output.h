@@ -64,6 +64,18 @@ public:
         OutputGeometryChanged,
     };
 
+    // Result of an Output::setOutputColor() apply, reported to the optional
+    // result callback. Lets the caller distinguish a hardware capability gap
+    // (unsupported) from a transient failure (failed).
+    enum class CommitColorResult
+    {
+        Success,     // settings were applied
+        Unsupported, // hardware cannot apply the requested adjustment
+                     // (e.g. no gamma LUT when changing color temperature)
+        Failed,      // the commit could not be applied for a transient or
+                     // unknown reason; settings remain unchanged
+    };
+
     static Output *create(WOutput *output, QQmlEngine *engine, QObject *parent = nullptr);
     static Output *createCopy(WOutput *output,
                               Output *proxy,
@@ -117,7 +129,7 @@ public Q_SLOTS:
     void updateOutputHardwareLayers();
     void setOutputColor(qreal brightness,
                         uint32_t colorTemperature,
-                        std::function<void(bool)> resultCallback = nullptr);
+                        std::function<void(CommitColorResult)> resultCallback = nullptr);
 
 private:
     friend class SurfaceWrapper;
