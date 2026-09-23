@@ -115,6 +115,24 @@ ctest --test-dir build -V -R '^test_treeland_keyboard_state_notify_unstable_v1$'
 ctest --test-dir build --output-on-failure -L protocols
 ```
 
+运行全部协议测试时，CTest 会在最后自动输出所有纳入范围协议 XML 的测试覆盖率：
+
+```bash
+ctest --test-dir build --output-on-failure -L protocols
+```
+
+覆盖率报告由 CTest 的测试后钩子输出：每次普通 `ctest` 跑完协议测试后，终端和 CI 日志都会
+直接显示报告。它收集每个已注册测试的 `XML` 和 `EXTRA_XMLS`。
+Treeland 私有协议的分母来自 `src/` 与 `waylib/src/server/` 的生产构建文件中实际生成服务端绑定的
+XML，而不是安装目录库存。系统 `wayland-protocols` 与 wlroots 的未注册测试 XML 只会列为提示，
+不计入覆盖率分母。
+
+若需要一条同时构建全部协议测试并运行 CTest 的命令：
+
+```bash
+cmake --build --preset default --target protocol-test-coverage-target
+```
+
 ### 可选 `/dev/uinput` 输入集成测试
 
 `treeland-input-manager-uinput-v1` 默认不注册。它会创建一个 `BUS_VIRTUAL` uinput
