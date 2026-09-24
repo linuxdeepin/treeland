@@ -19,7 +19,14 @@
 #include <QTimer>
 #include <QSemaphore>
 #include <QtTest>
+#include <wbackend.h>
+#include <woutput.h>
+#include <woutputlayout.h>
+#include <woutputrenderwindow.h>
+#include <woutputviewport.h>
 #include <wsocket.h>
+
+#include <wlr_all.h>
 
 #include <cstdio>
 #include <cstdlib>
@@ -76,6 +83,44 @@ public slots:
 private slots:
     void initTestCase()
     {
+        auto ensureOutputInLayout = [this](WOutput *output) {
+            if (!output)
+                return;
+
+            if (!output->renderer()) {
+                auto *window = m_helper->window();
+                if (window->renderer() && window->allocator()) {
+                    wlr_output_init_render(output->handle(),
+                                           window->allocator(),
+                                           window->renderer());
+                }
+            }
+
+            if (!output->isEnabled())
+                return;
+
+            auto *layout = m_helper->rootSurfaceContainer()->outputLayout();
+            if (output->renderer() && layout
+                && !layout->outputs().contains(output)) {
+                layout->autoAdd(output);
+            }
+        };
+        connect(m_helper->window(),
+                &WOutputRenderWindow::outputViewportInitialized,
+                this,
+                [ensureOutputInLayout](WOutputViewport *viewport) {
+                    ensureOutputInLayout(viewport->output());
+                });
+        connect(m_helper->backend(),
+                &WBackend::outputAdded,
+                this,
+                [this, ensureOutputInLayout](WOutput *output) {
+                    connect(output,
+                            &WOutput::enabledChanged,
+                            this,
+                            [ensureOutputInLayout, output] { ensureOutputInLayout(output); });
+                    ensureOutputInLayout(output);
+                });
         protocol_test_setup(m_helper);
         if (protocol_test_skip && protocol_test_skip())
             QSKIP("protocol fixture requested skip");
