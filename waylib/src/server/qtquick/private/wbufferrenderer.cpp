@@ -788,6 +788,96 @@ int WBufferRenderer::indexOfSource(QQuickItem *s)
     return -1;
 }
 
+void WBufferRenderer::renderTransientItem(QQuickItem *item)
+{
+    Q_ASSERT(state.buffer);
+
+    auto *wd = QQuickWindowPrivate::get(window());
+    auto *rc = state.context;
+
+    auto *itemNode = QQuickItemPrivate::get(item)->itemNode();
+    if (!itemNode)
+        return;
+
+    QSGNode *savedParent = itemNode->parent();
+    QMatrix4x4 savedMatrix = itemNode->matrix();
+
+    auto *tempRoot = new QSGRootNode();
+    if (savedParent)
+        savedParent->removeChildNode(itemNode);
+    tempRoot->appendChildNode(itemNode);
+
+    itemNode->setMatrix(QMatrix4x4());
+
+    // Create a dedicated renderer for the transient subtree.
+    auto *dr = qobject_cast<QSGDefaultRenderContext *>(rc);
+    const bool useDepth = dr ? dr->useDepthBufferFor2D() : false;
+    const auto renderMode = useDepth ? QSGRendererInterface::RenderMode2D
+                                     : QSGRendererInterface::RenderMode2DNoDepthBuffer;
+    auto *transientRenderer = rc->createRenderer(renderMode);
+    transientRenderer->setRootNode(tempRoot);
+    transientRenderer->setClearColor(m_clearColor);
+
+    transientRenderer->setDevicePixelRatio(window()->effectiveDevicePixelRatio());
+    transientRenderer->setDeviceRect(QRect(QPoint(0, 0), state.pixelSize));
+    transientRenderer->setRenderTarget(state.sgRenderTarget);
+
+    bool flipY = wd->rhi ? !wd->rhi->isYUpInNDC() : false;
+    if (state.renderTarget.rt().mirrorVertically())
+        flipY = !flipY;
+    transientRenderer->setViewportRect(QRect(QPoint(0, 0), state.pixelSize));
+
+    const qreal dpr = state.devicePixelRatio;
+    const QSizeF logicalSize = QSizeF(state.pixelSize) / dpr;
+    float left = 0, right = logicalSize.width();
+    float bottom = logicalSize.height(), top = 0;
+
+    if (flipY)
+        std::swap(top, bottom);
+
+    QMatrix4x4 matrix;
+    matrix.ortho(left, right, bottom, top, 1, -1);
+    QMatrix4x4 projectionMatrix = matrix;
+
+    QMatrix4x4 projectionMatrixWithNativeNDC;
+    if (wd->rhi && !wd->rhi->isYUpInNDC()) {
+        std::swap(top, bottom);
+        matrix.setToIdentity();
+        matrix.ortho(left, right, bottom, top, 1, -1);
+    }
+    projectionMatrixWithNativeNDC = matrix;
+
+    transientRenderer->setProjectionMatrix(projectionMatrix);
+    transientRenderer->setProjectionMatrixWithNativeNDC(projectionMatrixWithNativeNDC);
+
+    if (state.sgRenderTarget.rt && wd->rhi) {
+        auto *textureRT = static_cast<QRhiTextureRenderTarget *>(state.sgRenderTarget.rt);
+        textureRT->setFlags(textureRT->flags() & ~QRhiTextureRenderTarget::PreserveColorContents);
+    }
+
+    rc->renderNextFrame(transientRenderer);
+
+    if (wd->rhi) {
+        wd->rhi->finish();
+
+        if (auto *drc = qobject_cast<QSGDefaultRenderContext *>(state.context)) {
+            QRhiResourceUpdateBatch *batch = wd->rhi->nextResourceUpdateBatch();
+            drc->currentFrameCommandBuffer()->resourceUpdate(batch);
+        }
+    }
+
+    wlr_damage_ring_add_whole(m_damageRing.get());
+
+    itemNode->setMatrix(savedMatrix);
+    tempRoot->removeChildNode(itemNode);
+    if (savedParent)
+        savedParent->appendChildNode(itemNode);
+
+    transientRenderer->setRootNode(nullptr);
+    delete transientRenderer;
+    delete tempRoot;
+}
+
 QSGRenderer *WBufferRenderer::ensureRenderer(int sourceIndex, QSGRenderContext *rc)
 {
     Data &d = m_sourceList[sourceIndex];
