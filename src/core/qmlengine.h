@@ -16,6 +16,7 @@ QT_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WOutputItem;
+class WSurface;
 WAYLIB_SERVER_END_NAMESPACE
 
 WAYLIB_SERVER_USE_NAMESPACE
@@ -45,6 +46,12 @@ public:
                                         const QRectF &startGeo,
                                         const QRectF &endGeo,
                                         QQuickItem *parent);
+    QQuickItem *createWindowTransition(SurfaceWrapper *surface,
+                                       const QRectF &startGeo,
+                                       const QRectF &endGeo,
+                                       QQuickItem *parent,
+                                       WSurface *sourceSurface = nullptr,
+                                       int direction = 0);
     QQuickItem *createMenuBar(WOutputItem *output, QQuickItem *parent);
     QQuickItem *createWorkspaceSwitcher(Workspace *parent);
     QQuickItem *createNewAnimation(SurfaceWrapper *surface, QQuickItem *parent, uint direction);
@@ -89,6 +96,7 @@ private:
     QQmlComponent xdgShadowComponent;
     QQmlComponent taskSwitchComponent;
     QQmlComponent geometryAnimationComponent;
+    QQmlComponent windowTransitionComponent;
     QQmlComponent menuBarComponent;
     QQmlComponent workspaceSwitcher;
     QQmlComponent newAnimationComponent;

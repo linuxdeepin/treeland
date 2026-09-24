@@ -202,6 +202,14 @@ void SurfaceWrapper::invalidate()
     m_wrapperAboutToRemove = true;
     Q_EMIT aboutToBeInvalidated();
 
+    // Drop any pending window transition rect so it cannot be consumed later by
+    // a stale mapping path on this wrapper.
+    m_windowTransitionPending = false;
+    leaveWindowTransitionSourceOutputs();
+    m_windowTransitionSource.reset();
+    m_pendingActivation = false;
+    m_pendingActivationSeat.clear();
+
     if (!m_skipDockPreView)
         setSkipDockPreView(true);
 
@@ -1326,6 +1334,22 @@ bool SurfaceWrapper::setAttention(bool attention)
     return true;
 }
 
+void SurfaceWrapper::setPendingActivation(WSeat *seat)
+{
+    m_pendingActivation = true;
+    m_pendingActivationSeat = seat;
+}
+
+bool SurfaceWrapper::takePendingActivation(WSeat *&seat)
+{
+    if (!m_pendingActivation)
+        return false;
+    m_pendingActivation = false;
+    seat = m_pendingActivationSeat.data();
+    m_pendingActivationSeat.clear();
+    return true;
+}
+
 bool SurfaceWrapper::isInputPopupLike() const
 {
     return m_type == Type::InputPopup || m_isIMCandidatePanel;
@@ -1534,16 +1558,166 @@ void SurfaceWrapper::geometryChange(const QRectF &newGeo, const QRectF &oldGeome
     updateClipRect();
 }
 
+void SurfaceWrapper::tryFlushPendingActivation()
+{
+    if (!m_pendingActivation)
+        return;
+
+    if (!hasInitializeContainer()) {
+        connect(this,
+                &SurfaceWrapper::hasInitializeContainerChanged,
+                this,
+                &SurfaceWrapper::tryFlushPendingActivation,
+                Qt::SingleShotConnection);
+        return;
+    }
+
+    WSeat *seat = nullptr;
+    if (takePendingActivation(seat))
+        Helper::instance()->forceActivateSurface(this, Qt::OtherFocusReason, seat);
+}
+
+void SurfaceWrapper::startWindowTransition()
+{
+    if (!m_windowTransitionSource)
+        return;
+    m_windowTransitionPending = true;
+
+    if (!m_windowAnimation) {
+        auto globalRectOpt = computeGlobalWindowTransitionRect();
+        if (!globalRectOpt) {
+            // Origin wrapper or its surface item is gone — fall back to default.
+            m_windowTransitionPending = false;
+            clearWindowTransitionSource();
+            createNewOrClose(OPEN_ANIMATION);
+            return;
+        }
+        const QRectF fromGeometry = *globalRectOpt;
+
+        enterWindowTransitionSourceOutputs();
+
+        m_windowAnimation = m_engine->createWindowTransition(this,
+                                                             fromGeometry,
+                                                             QRectF(), // will update later
+                                                             container(),
+                                                             m_windowTransitionSource->sourceSurface.data(),
+                                                             OPEN_ANIMATION);
+        m_windowAnimation->setProperty("enableBlur", m_blur);
+    }
+
+    restackWindowAnimationAbove();
+
+    // Wait until the surface item reports ready before computing the target
+    // geometry.
+    if (!m_surfaceItem->isReady()) {
+        connect(m_surfaceItem,
+                &WSurfaceItem::readyChanged,
+                this,
+                &SurfaceWrapper::startWindowTransition,
+                Qt::SingleShotConnection);
+        return;
+    }
+
+    // Defer to the next event-loop iteration so that the window's final
+    // position and size has set before we sample them.
+    QMetaObject::invokeMethod(this,
+                              &SurfaceWrapper::finishWindowTransitionOpen,
+                              Qt::QueuedConnection);
+}
+
+void SurfaceWrapper::finishWindowTransitionOpen()
+{
+    m_windowTransitionPending = false;
+    // The surface may have unmapped while we were waiting. Drop the
+    // component we created above so it does not block a later close path.
+    if (m_wrapperAboutToRemove || !surface() || !surface()->mapped()) {
+        if (m_windowAnimation) {
+            m_windowAnimation->deleteLater();
+            m_windowAnimation = nullptr;
+        }
+        leaveWindowTransitionSourceOutputs();
+        return;
+    }
+
+    // For maximized/fullscreen the target is the state geometry.
+    const QRectF stateGeometry = targetGeometryForState(m_surfaceState);
+    const bool useStateGeometry =
+        (m_surfaceState == State::Maximized || m_surfaceState == State::Fullscreen)
+        && stateGeometry.isValid();
+    const QRectF toGeometry = useStateGeometry ? stateGeometry : QRectF(position(), size());
+
+    m_windowAnimation->setProperty("toGeometry", toGeometry);
+
+    if (Helper::instance()->noAnimation()) {
+        onShowAnimationFinished();
+        return;
+    }
+    bool ok = connect(m_windowAnimation, SIGNAL(finished()), this, SLOT(onShowAnimationFinished()));
+    Q_ASSERT(ok);
+    ok = QMetaObject::invokeMethod(m_windowAnimation, "start");
+    Q_ASSERT(ok);
+    Q_EMIT windowAnimationRunningChanged();
+}
+
+void SurfaceWrapper::startWindowCloseTransition()
+{
+    Q_ASSERT(m_windowTransitionSource);
+
+    auto globalRectOpt = computeGlobalWindowTransitionRect();
+    if (!globalRectOpt) {
+        // Origin wrapper or its surface item is gone — fall back to default.
+        clearWindowTransitionSource();
+        createNewOrClose(CLOSE_ANIMATION);
+        return;
+    }
+
+    const QRectF fromGeometry = QRectF(position(), size());
+    const QRectF toGeometry = *globalRectOpt;
+
+    enterWindowTransitionSourceOutputs();
+
+    m_windowAnimation = m_engine->createWindowTransition(this,
+                                                         fromGeometry,
+                                                         toGeometry,
+                                                         container(),
+                                                         m_windowTransitionSource->sourceSurface.data(),
+                                                         CLOSE_ANIMATION);
+    m_windowAnimation->setProperty("enableBlur", m_blur);
+
+    restackWindowAnimationAbove();
+
+    if (Helper::instance()->noAnimation()) {
+        onHideAnimationFinished();
+        return;
+    }
+
+    bool ok = connect(m_windowAnimation, SIGNAL(finished()), this, SLOT(onHideAnimationFinished()));
+    Q_ASSERT(ok);
+    ok = QMetaObject::invokeMethod(m_windowAnimation, "start");
+    Q_ASSERT(ok);
+    Q_EMIT windowAnimationRunningChanged();
+}
+
 void SurfaceWrapper::createNewOrClose(uint direction)
 {
     if (!m_windowAnimationEnabled)
         return;
 
-    if (m_windowAnimation)
+    if (m_windowAnimation || m_windowTransitionPending)
         return;
 
     if (m_container.isNull())
         return;
+
+    if (direction == OPEN_ANIMATION && windowTransitionRectActive()) {
+        startWindowTransition();
+        return;
+    }
+
+    if (direction == CLOSE_ANIMATION && windowTransitionRectActive()) {
+        startWindowCloseTransition();
+        return;
+    }
 
     switch (m_type) {
     case Type::SplashScreen:
@@ -1730,6 +1904,10 @@ void SurfaceWrapper::onWindowAnimationFinished()
     m_windowAnimation->deleteLater();
     m_windowAnimation = nullptr;
 
+    // Stop pacing the transition source now that the animation is over. The
+    // source itself stays referenced until the rect is done with it.
+    leaveWindowTransitionSourceOutputs();
+
     Q_EMIT windowAnimationRunningChanged();
 
     if (m_wrapperAboutToRemove) {
@@ -1773,6 +1951,7 @@ void SurfaceWrapper::onMappedChanged()
             if (!m_prelaunchSplash) {
                 createNewOrClose(OPEN_ANIMATION);
             } else {
+                clearWindowTransitionSource();
                 syncPrelaunchMappedState();
                 startPrelaunchSplashHideSequence();
             }
@@ -1783,6 +1962,9 @@ void SurfaceWrapper::onMappedChanged()
             createNewOrClose(CLOSE_ANIMATION);
         }
     }
+
+    if (mapped)
+        tryFlushPendingActivation();
 
     if (m_coverContent) {
         m_coverContent->setProperty("mapped", mapped);
@@ -2664,6 +2846,127 @@ void SurfaceWrapper::setHasInitializeContainer(bool value)
 void SurfaceWrapper::disableWindowAnimation(bool disable)
 {
     m_windowAnimationEnabled = !disable;
+}
+
+void SurfaceWrapper::setWindowTransitionRect(const QRectF &localRect, SurfaceWrapper *originWrapper)
+{
+    // The rect is honored only when the surface is not yet mapped.
+    if (surface() && surface()->mapped())
+        return;
+
+    m_windowTransitionSource.emplace();
+    m_windowTransitionSource->localRect = localRect;
+    m_windowTransitionSource->originWrapper = originWrapper;
+}
+
+void SurfaceWrapper::updateWindowTransitionRect(const QRectF &localRect)
+{
+    if (!m_windowTransitionSource)
+        return;
+
+    m_windowTransitionSource->localRect = localRect;
+}
+
+void SurfaceWrapper::clearWindowTransitionSource()
+{
+    leaveWindowTransitionSourceOutputs();
+    if (m_windowTransitionSource) {
+        if (m_windowTransitionSource->sourceDestroyConnection)
+            QObject::disconnect(m_windowTransitionSource->sourceDestroyConnection);
+        if (m_windowAnimation)
+            m_windowAnimation->setProperty("sourceSurface",
+                                           QVariant::fromValue<WSurface *>(nullptr));
+    }
+    m_windowTransitionSource.reset();
+}
+
+void SurfaceWrapper::setWindowTransitionSourceSurface(WSurface *surface)
+{
+    if (!m_windowTransitionSource)
+        return;
+
+    if (m_windowTransitionSource->sourceSurface == surface)
+        return;
+
+    // The wrapper is owned by the window transition manager and may outlive
+    // this wrapper's rect. Track its destruction so the QML item never keeps a
+    // dangling raw pointer to it.
+    if (m_windowTransitionSource->sourceDestroyConnection)
+        QObject::disconnect(m_windowTransitionSource->sourceDestroyConnection);
+    m_windowTransitionSource->sourceDestroyConnection = {};
+    m_windowTransitionSource->sourceSurface = surface;
+    if (surface) {
+        m_windowTransitionSource->sourceDestroyConnection =
+            QObject::connect(surface,
+                             &WSurface::beforeDestroy,
+                             this,
+                             &SurfaceWrapper::onWindowTransitionSourceSurfaceDestroyed);
+    }
+
+    if (m_windowAnimation)
+        m_windowAnimation->setProperty("sourceSurface", QVariant::fromValue(surface));
+}
+
+void SurfaceWrapper::onWindowTransitionSourceSurfaceDestroyed()
+{
+    if (!m_windowTransitionSource)
+        return;
+    m_windowTransitionSource->sourceDestroyConnection = {};
+    m_windowTransitionSource->sourceSurface = nullptr;
+    if (m_windowAnimation)
+        m_windowAnimation->setProperty("sourceSurface", QVariant::fromValue<WSurface *>(nullptr));
+}
+
+void SurfaceWrapper::enterWindowTransitionSourceOutputs()
+{
+    if (!m_windowTransitionSource)
+        return;
+    auto *source = m_windowTransitionSource->sourceSurface.data();
+    if (!source)
+        return;
+
+    for (auto *output : outputs())
+        source->enterOutput(output);
+    // Give a client that renders on frame callbacks a chance to produce the
+    // first frame for this transition.
+    source->notifyFrameDone();
+}
+
+void SurfaceWrapper::leaveWindowTransitionSourceOutputs()
+{
+    if (!m_windowTransitionSource)
+        return;
+    auto *source = m_windowTransitionSource->sourceSurface.data();
+    if (!source)
+        return;
+
+    const auto entered = source->outputs();
+    for (auto *output : entered)
+        source->leaveOutput(output);
+}
+
+bool SurfaceWrapper::hasWindowTransitionRect() const
+{
+    return m_windowTransitionSource.has_value();
+}
+
+bool SurfaceWrapper::windowTransitionRectActive() const
+{
+    return m_windowTransitionSource && !m_windowTransitionSource->localRect.isEmpty();
+}
+
+std::optional<QRectF> SurfaceWrapper::computeGlobalWindowTransitionRect() const
+{
+    if (!m_windowTransitionSource || !m_windowTransitionSource->originWrapper)
+        return std::nullopt;
+    auto *originWrapper = m_windowTransitionSource->originWrapper.data();
+    auto *surfItem = originWrapper->surfaceItem();
+    if (!surfItem || !surfItem->surface() || !surfItem->shellSurface())
+        return std::nullopt;
+    const QPointF mappedTopLeft =
+        surfItem->mapFromSurface(m_windowTransitionSource->localRect.topLeft());
+    return QRectF(originWrapper->position() + mappedTopLeft,
+                  m_windowTransitionSource->localRect.size());
 }
 
 void SurfaceWrapper::updateStackingLayer()
