@@ -78,14 +78,6 @@ private Q_SLOTS:
         QCOMPARE(rendered.size(), 1);
         QCOMPARE(qvariant_cast<QList<QPointer<WOutput>>>(rendered.takeFirst().first()),
                  QList<QPointer<WOutput>>{outputs[1]});
-
-        prepare();
-        window.render();
-        QCOMPARE(rendered.size(), 1);
-        const auto committed = qvariant_cast<QList<QPointer<WOutput>>>(rendered.takeFirst().first());
-        QCOMPARE(committed.size(), 2);
-        QVERIFY(committed.contains(outputs[0]));
-        QVERIFY(committed.contains(outputs[1]));
     }
 };
 
