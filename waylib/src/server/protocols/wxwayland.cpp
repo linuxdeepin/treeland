@@ -6,6 +6,7 @@
 #include "private/wglobal_p.h"
 #include "private/wwaylandresource_p.h"
 #include "private/wxwaylandsurface_p.h"
+#include "wcursor.h"
 #include "wseat.h"
 #include "wscoplistener.h"
 #include "wsocket.h"
@@ -51,6 +52,12 @@ public:
     void on_new_surface(wlr_xwayland_surface *xwl_surface);
     void on_surface_destroy(WXWaylandSurface *surface);
     // end slot function
+
+    // Cursor position sync to the Xwayland server.
+    void syncCursorPositionToXWayland();
+    void watchSeatCursor();
+
+    QMetaObject::Connection cursorPositionChangedConnection;
 
     // Async property reading
     struct PerWindowProps
@@ -424,10 +431,70 @@ void WXWayland::setDesktopProperties(uint32_t count,
     xcb_flush(connection);
 }
 
+void WXWaylandPrivate::syncCursorPositionToXWayland()
+{
+    W_Q(WXWayland);
+
+    auto *xwayland = q->handle();
+    if (!xwayland || !xwayland->seat)
+        return;
+
+    auto *cursor = WSeat::fromHandle(xwayland->seat)->cursor();
+    if (!cursor)
+        return;
+
+    auto *connection = q->xcbConnection();
+    if (!connection || !screen)
+        return;
+
+    // Xwayland only learns the pointer position via wl_pointer while the
+    // pointer is over an X window, so warp the X pointer to the real cursor
+    // position to keep the global position seen by X clients (e.g. via
+    // XQueryPointer) fresh while it moves over native Wayland surfaces.
+    // Warping to the current position (pointer over an X window) is a no-op.
+    const QPointF pos = cursor->position();
+    xcb_warp_pointer(connection, XCB_NONE, screen->root,
+                     0, 0, 0, 0, qRound(pos.x()), qRound(pos.y()));
+    xcb_flush(connection);
+}
+
+void WXWaylandPrivate::watchSeatCursor()
+{
+    W_Q(WXWayland);
+
+    // setSeat() may switch to another seat (or clear it), so rebind the
+    // cursor connection to the current seat on every call. The connection
+    // is auto-disconnected when the WXWayland instance is destroyed.
+    if (cursorPositionChangedConnection) {
+        QObject::disconnect(cursorPositionChangedConnection);
+        cursorPositionChangedConnection = {};
+    }
+
+    auto *xwayland = q->handle();
+    auto *seat = xwayland ? xwayland->seat : nullptr;
+    if (!seat)
+        return;
+
+    if (auto *seatObject = WSeat::fromHandle(seat)) {
+        if (auto *cursor = seatObject->cursor()) {
+            cursorPositionChangedConnection = QObject::connect(cursor,
+                                                               &WCursor::positionChanged,
+                                                               q, [this] {
+                syncCursorPositionToXWayland();
+            });
+        }
+    }
+}
+
 void WXWayland::setSeat(WSeat *seat)
 {
+    W_D(WXWayland);
+
     if (auto handle = this->handle())
         wlr_xwayland_set_seat(handle, seat->handle());
+
+    d->watchSeatCursor();
+    d->syncCursorPositionToXWayland();
 }
 
 WSeat *WXWayland::seat() const
@@ -545,6 +612,10 @@ void WXWayland::create(WServer *server)
 
     listeners()->add(&handle->events.ready, this, [this, d] (void *) {
         d->init();
+        // The seat may be set before the Xwayland server starts; sync the
+        // current cursor position once the server client is available.
+        d->watchSeatCursor();
+        d->syncCursorPositionToXWayland();
         Q_EMIT ready();
     });
 
