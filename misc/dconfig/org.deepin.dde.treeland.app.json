@@ -67,6 +67,17 @@
             "description[zh_CN]": "闪屏使用亮色主题时的背景色",
             "permissions": "readwrite",
             "visibility": "public"
+        },
+        "splashMismatchCount": {
+            "value": 0,
+            "serial": 0,
+            "flags": [],
+            "name": "Splash Mismatch Count",
+            "name[zh_CN]": "闪屏不匹配次数",
+            "description": "Consecutive splash match failure count; reset to 0 on success",
+            "description[zh_CN]": "连续闪屏匹配失败次数，匹配成功后重置为0",
+            "permissions": "readwrite",
+            "visibility": "public"
         }
     }
 }

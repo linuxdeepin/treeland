@@ -356,6 +356,13 @@ void ShellHandler::createPrelaunchSplash(const QString &appId,
 
         // Destroy the splash wrapper
         m_rootSurfaceContainer->destroyForSurface(wrapper);
+
+        // Splash closed without matching a real window — record mismatch
+        if (m_windowConfigStore) {
+            const int maxMismatch = static_cast<int>(
+                Helper::instance()->globalConfig()->prelaunchSplashMaxMismatchCount());
+            m_windowConfigStore->recordSplashMismatch(appId, maxMismatch);
+        }
     });
 
     if (timeoutMs > 0) {
@@ -373,7 +380,13 @@ void ShellHandler::createPrelaunchSplash(const QString &appId,
                                    << "Prelaunch splash timeout, destroy wrapper appId="
                                    << wrapper->appId();
                                m_prelaunchWrappers.removeAt(idx);
+                               const QString mismatchAppId = wrapper->appId();
                                m_rootSurfaceContainer->destroyForSurface(wrapper);
+                               if (m_windowConfigStore) {
+                                   const int maxMismatch = static_cast<int>(
+                                       Helper::instance()->globalConfig()->prelaunchSplashMaxMismatchCount());
+                                   m_windowConfigStore->recordSplashMismatch(mismatchAppId, maxMismatch);
+                               }
                            });
     }
 }
@@ -393,6 +406,11 @@ void ShellHandler::handlePrelaunchSplashClosed(const QString &appId, const QStri
                 << "Client requested close_splash, destroy wrapper appId=" << appId;
             m_prelaunchWrappers.removeAt(i);
             m_rootSurfaceContainer->destroyForSurface(wrapper);
+            if (m_windowConfigStore) {
+                const int maxMismatch = static_cast<int>(
+                    Helper::instance()->globalConfig()->prelaunchSplashMaxMismatchCount());
+                m_windowConfigStore->recordSplashMismatch(appId, maxMismatch);
+            }
             return;
         }
     }
@@ -617,6 +635,9 @@ void ShellHandler::ensureXdgWrapper(WXdgToplevelSurface *surface, const QString 
                 candidate->convertToNormalSurface(surface, SurfaceWrapper::Type::XdgToplevel);
                 wrapper = candidate;
                 isNewWrapper = false; // matched from prelaunch, not newly created
+                if (m_windowConfigStore) {
+                    m_windowConfigStore->resetSplashMismatchCount(targetAppId);
+                }
                 break;
             }
         }
@@ -943,6 +964,9 @@ void ShellHandler::ensureXwaylandWrapper(WXWaylandSurface *surface, const QStrin
                 candidate->convertToNormalSurface(surface, SurfaceWrapper::Type::XWayland);
                 wrapper = candidate;
                 isNewWrapper = false; // matched from prelaunch, not newly created
+                if (m_windowConfigStore) {
+                    m_windowConfigStore->resetSplashMismatchCount(targetAppId);
+                }
                 break;
             }
         }
