@@ -67,9 +67,11 @@ public:
     wlr_allocator *allocator() const;
     bool configurePrimarySwapchain(const QSize &size, uint32_t format,
                                    wlr_swapchain **swapchain,
-                                   bool doTest = true);
+                                   bool doTest = true,
+                                   wlr_swapchain **replacedSwapchain = nullptr);
     bool configureCursorSwapchain(const QSize &size, uint32_t format,
-                                  wlr_swapchain **swapchain);
+                                  wlr_swapchain **swapchain,
+                                  wlr_swapchain **replacedSwapchain = nullptr);
 
     wlr_output *handle() const;
 
