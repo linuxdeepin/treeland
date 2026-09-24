@@ -7,8 +7,12 @@
 #include <QCommandLineParser>
 #include <QCoreApplication>
 #include <QDBusConnection>
+#include <QDBusConnectionInterface>
 #include <QDBusInterface>
+#include <QDBusMessage>
 #include <QDBusMetaType>
+#include <QDBusPendingCall>
+#include <QDBusPendingCallWatcher>
 #include <QDBusReply>
 #include <QDBusServiceWatcher>
 #include <QDBusUnixFileDescriptor>
@@ -24,6 +28,9 @@
 #include <sys/un.h>
 #include <unistd.h>
 
+#include <cerrno>
+#include <cstddef>
+#include <cstring>
 #include <memory>
 #include <optional>
 #include <utility>
@@ -69,6 +76,10 @@ public:
         if (tryStart(QDBusConnection::sessionBus()) || tryStart(QDBusConnection::systemBus())) {
             m_started = true;
             clearPendingRetry(StartRetry);
+            // Fresh compositor (re-)registration: start a new activation window.
+            m_waylandActivateFailures = 0;
+            m_handoverAttempts = 0;
+            clearPendingRetry(HandoverRetry);
             activate();
             return;
         }
@@ -92,11 +103,34 @@ public Q_SLOTS:
 
         if (updateFd.isValid()) {
             if (m_type == "wayland") {
-                if (!callDBus(updateFd,
+                const auto reply = callDBus(updateFd,
                               QStringLiteral("ActivateWayland"),
                               QStringLiteral("Failed to activate Wayland socket"),
-                              QVariant::fromValue(*m_unixFileDescriptor))) {
-                    return;
+                              QVariant::fromValue(*m_unixFileDescriptor));
+                // ReplyMessage carrying `false` means the compositor is on the bus
+                // but not ready to accept this session's socket (e.g. its user
+                // session is not registered yet during the login handover). Exporting
+                // the environment then would start autostart services (fcitx5!)
+                // against a display that nobody is serving, and they never retry.
+                // Stay unnotified: Ready=1 (and with it ExecStartPost and
+                // dde-session-pre.target) must gate the whole session on a socket
+                // that was really activated.
+                const bool socketAccepted = reply && reply->arguments().value(0).toBool();
+                if (!socketAccepted) {
+                    ++m_waylandActivateFailures;
+                    if (m_waylandActivateFailures <= MaxWaylandActivateRetries) {
+                        qCWarning(lcSdSocket) << "Wayland socket activation not accepted yet, retrying"
+                                              << m_waylandActivateFailures;
+                        scheduleActivateRetry();
+                        return;
+                    }
+                    // Degraded path (compositor persistently refuses): still export
+                    // the environment and notify readiness, matching the historic
+                    // behaviour so the session can never hang on a broken
+                    // activation, while the retry window above covers the normal
+                    // login-handover race.
+                    qCWarning(lcSdSocket)
+                        << "Wayland socket activation repeatedly refused, publishing environment anyway";
                 }
 
                 QDBusInterface dbus("org.freedesktop.DBus",
@@ -104,7 +138,7 @@ public Q_SLOTS:
                                     "org.freedesktop.DBus",
                                     QDBusConnection::sessionBus());
                 StringMap env;
-                env["WAYLAND_DISPLAY"] = "treeland.socket";
+                env["WAYLAND_DISPLAY"] = waylandDisplayName();
 
                 const auto extraEnvs = qgetenv("TREELAND_SESSION_ENVIRONMENTS");
                 if (!extraEnvs.isEmpty()) {
@@ -125,6 +159,12 @@ public Q_SLOTS:
                 }
 
                 sd_notify(0, "READY=1");
+
+                // Only a socket the compositor really accepted can serve the
+                // input method. In the degraded path above nothing is listening
+                // on it, so the running fcitx5 must keep whatever it has.
+                if (socketAccepted)
+                    handWaylandSocketToInputMethod();
             } else if (m_type == "xwayland") {
                 QDBusMessage reply = updateFd.call("XWaylandName");
                 if (reply.type() == QDBusMessage::ReplyMessage) {
@@ -164,6 +204,34 @@ public Q_SLOTS:
                         return;
                     }
 
+                    // Same half of the publication as dde-session's
+                    // EnvironmentsManager does (systemd1.SetEnvironment in
+                    // addition to UpdateActivationEnvironment), mirroring the
+                    // WAYLAND_DISPLAY/QT_IM_MODULE/*_IM_MODULE set-environment
+                    // the wayland unit posts via ExecStartPost: transient
+                    // session units (and hence services like fcitx5 started
+                    // via StartTransientUnit) inherit the *manager*
+                    // environment, not the activation one. Without this,
+                    // X11-side input methods (the fcitx5 X selection / XIM on
+                    // the XWayland display) never see DISPLAY/XAUTHORITY in a
+                    // treeland session, while KWin-based sessions only work
+                    // because dde-session performs exactly this call.
+                    {
+                        QDBusInterface systemd1("org.freedesktop.systemd1",
+                                                "/org/freedesktop/systemd1",
+                                                "org.freedesktop.systemd1.Manager",
+                                                QDBusConnection::sessionBus());
+                        if (systemd1.isValid()) {
+                            QStringList envList;
+                            envList << QStringLiteral("DISPLAY=%1").arg(xwaylandName)
+                                    << QStringLiteral("XAUTHORITY=%1").arg(authFileName);
+                            callDBus(systemd1,
+                                     QStringLiteral("SetEnvironment"),
+                                     QStringLiteral("Failed to set XWayland session environment"),
+                                     envList);
+                        }
+                    }
+
                     sd_notify(0, "READY=1");
                     m_lastXwaylandAuth = auth;
                     clearPendingRetry(ActivateRetry);
@@ -186,6 +254,7 @@ private:
     enum RetryFlag {
         StartRetry = 1 << 0,
         ActivateRetry = 1 << 1,
+        HandoverRetry = 1 << 2,
     };
 
     bool isRetryPending(RetryFlag flag) const {
@@ -222,6 +291,52 @@ private:
 
     QString xauthorityFileName() const {
         return runtimeFileName(QStringLiteral("treeland-xauthority"));
+    }
+
+    // Name of the Wayland socket this session is built on. Must stay in sync
+    // with the ListenStream of treeland-sd.socket, the WAYLAND_DISPLAY
+    // published below and the one ExecStartPost sets in the user manager.
+    static QString waylandDisplayName()
+    {
+        return QStringLiteral("treeland.socket");
+    }
+
+    // Connect to a listening AF_UNIX socket, returning an owned fd or -1.
+    int connectToSocket(const QString &path) const
+    {
+        const QByteArray encodedPath = QFile::encodeName(path);
+
+        sockaddr_un address{};
+        address.sun_family = AF_UNIX;
+        if (encodedPath.size() + 1 > static_cast<qsizetype>(sizeof(address.sun_path))) {
+            errno = ENAMETOOLONG;
+            return -1;
+        }
+        memcpy(address.sun_path, encodedPath.constData(), static_cast<size_t>(encodedPath.size()));
+
+        int fd = -1;
+        do {
+            fd = ::socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
+        } while (fd < 0 && errno == EINTR);
+        if (fd < 0)
+            return -1;
+
+        int result = -1;
+        do {
+            result = ::connect(
+                fd,
+                reinterpret_cast<const sockaddr *>(&address),
+                static_cast<socklen_t>(offsetof(sockaddr_un, sun_path) + encodedPath.size() + 1));
+        } while (result < 0 && errno == EINTR);
+
+        if (result < 0) {
+            const int error = errno;
+            ::close(fd);
+            errno = error;
+            return -1;
+        }
+
+        return fd;
     }
 
     bool writeXAuthority(const QString &fileName, const QByteArray &auth) const {
@@ -330,7 +445,7 @@ private:
     }
 
     void scheduleActivateRetry() {
-        if (m_type != "xwayland" || isRetryPending(ActivateRetry))
+        if (isRetryPending(ActivateRetry))
             return;
 
         setPendingRetry(ActivateRetry);
@@ -351,12 +466,108 @@ private:
         clearPendingRetry(ActivateRetry);
     }
 
+    // fcitx5 connects to Wayland exactly once at startup and never retries, so
+    // a compositor restart leaves it alive without its Wayland input-method
+    // frontend until it is restarted by hand. It does offer a D-Bus call to
+    // replace that connection, which is safe to use right after the socket was
+    // activated. Reopen (instead of Open) keeps fcitx5 on a single main
+    // connection, so the compositor never sees a second input method.
+    void handWaylandSocketToInputMethod()
+    {
+        if (m_type != "wayland" || m_handoverAttempts >= MaxHandoverAttempts)
+            return;
+
+        // Never let D-Bus activation start fcitx5 just because it is not
+        // running: without it there is nothing to reconnect.
+        const auto *busInterface = QDBusConnection::sessionBus().interface();
+        if (!busInterface
+            || !busInterface->isServiceRegistered(QStringLiteral("org.fcitx.Fcitx5")).value()) {
+            qCDebug(lcSdSocket)
+                << "Input method is not running, nothing to hand the Wayland socket to";
+            return;
+        }
+
+        ++m_handoverAttempts;
+
+        const QString displayName = waylandDisplayName();
+        const int fd = connectToSocket(runtimeFileName(displayName));
+        if (fd < 0) {
+            const int error = errno;
+            qCWarning(lcSdSocket) << "Failed to connect to the Wayland socket" << displayName
+                                  << "for the input method:" << strerror(error);
+            scheduleHandoverRetry();
+            return;
+        }
+
+        QDBusUnixFileDescriptor unixFileDescriptor(fd);
+        // The message owns a duplicate from here on.
+        ::close(fd);
+        if (!unixFileDescriptor.isValid()) {
+            qCWarning(lcSdSocket) << "Failed to duplicate the file descriptor of" << displayName;
+            scheduleHandoverRetry();
+            return;
+        }
+
+        QDBusMessage message =
+            QDBusMessage::createMethodCall(QStringLiteral("org.fcitx.Fcitx5"),
+                                           QStringLiteral("/controller"),
+                                           QStringLiteral("org.fcitx.Fcitx.Controller1"),
+                                           QStringLiteral("ReopenWaylandConnectionSocket"));
+        message.setAutoStartService(false);
+        message << displayName << QVariant::fromValue(unixFileDescriptor);
+
+        auto *watcher =
+            new QDBusPendingCallWatcher(QDBusConnection::sessionBus().asyncCall(message), this);
+        connect(watcher,
+                &QDBusPendingCallWatcher::finished,
+                this,
+                &SocketActivator::handoverFinished);
+    }
+
+    void handoverFinished(QDBusPendingCallWatcher *watcher)
+    {
+        watcher->deleteLater();
+        if (watcher->isError()) {
+            qCWarning(lcSdSocket) << "Input method rejected the Wayland socket:"
+                                  << watcher->error().message();
+            scheduleHandoverRetry();
+            return;
+        }
+
+        qCInfo(lcSdSocket) << "Handed a fresh Wayland socket to the input method";
+    }
+
+    void scheduleHandoverRetry()
+    {
+        if (isRetryPending(HandoverRetry) || m_handoverAttempts >= MaxHandoverAttempts)
+            return;
+
+        setPendingRetry(HandoverRetry);
+        QTimer::singleShot(HandoverRetryIntervalMs, this, [this] {
+            if (!isRetryPending(HandoverRetry))
+                return;
+
+            clearPendingRetry(HandoverRetry);
+            handWaylandSocketToInputMethod();
+        });
+    }
+
     static constexpr int RetryIntervalMs = 500;
+    // fcitx5 may still be initializing when its D-Bus name shows up, so allow
+    // one delayed retry before giving up until the next activation.
+    static constexpr int HandoverRetryIntervalMs = RetryIntervalMs * 2;
+    static constexpr int MaxHandoverAttempts = 2;
+    // Upper bound for the login-handover retry window (40 * 500ms), after which
+    // we degrade to the historic publish-anyway behaviour rather than hanging
+    // the session forever on a broken compositor.
+    static constexpr int MaxWaylandActivateRetries = 40;
 
     std::shared_ptr<QDBusUnixFileDescriptor> m_unixFileDescriptor;
     QString m_type;
     bool m_started = false;
     int m_pendingRetries = 0;
+    int m_waylandActivateFailures = 0;
+    int m_handoverAttempts = 0;
     QByteArray m_lastXwaylandAuth;
     std::optional<Bus> m_compositorBus;
 };

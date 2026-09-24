@@ -7,6 +7,7 @@
 #include "cmdline.h"
 #include "common/treelandlogging.h"
 #include "core/rootsurfacecontainer.h"
+#include "core/shellhandler.h"
 #include "core/dconfigmanager.h"
 #include "outputconfig.hpp"
 #include "seat/helper.h"
@@ -16,6 +17,7 @@
 #include "workspace/workspace.h"
 #include "wallpapermanager.h"
 
+#include <WInputMethodHelper>
 #include <wcursor.h>
 #include <winputpopupsurface.h>
 #include <winputpopupsurfaceitem.h>
@@ -848,7 +850,7 @@ namespace {
 // - Input popups: cursorRect is in raw surface coordinates; adjust by
 //   content geometry offset (e.g., CSD title bar) to match the rendering
 //   position of WSurfaceItem's contentContainer.
-std::optional<QPointF> popupDPos(SurfaceWrapper *surface)
+std::optional<QPointF> popupDPos(SurfaceWrapper *surface, SurfaceWrapper *placementParent)
 {
     using Type = SurfaceWrapper::Type;
     if (surface->type() == Type::XdgPopup) {
@@ -861,9 +863,8 @@ std::optional<QPointF> popupDPos(SurfaceWrapper *surface)
         auto *shell = qobject_cast<WInputPopupSurface *>(surface->shellSurface());
         if (shell) {
             QPointF dPos = shell->cursorRect().bottomLeft();
-            auto parent = surface->parentSurface();
-            if (parent && parent->shellSurface()) {
-                const QPoint offset = parent->shellSurface()->getContentGeometry().topLeft();
+            if (placementParent && placementParent->shellSurface()) {
+                const QPoint offset = placementParent->shellSurface()->getContentGeometry().topLeft();
                 dPos -= QPointF(offset.x(), offset.y());
             }
             return dPos;
@@ -873,22 +874,45 @@ std::optional<QPointF> popupDPos(SurfaceWrapper *surface)
     qCWarning(lcTlOutput) << " Invalid popup surface type:" << surface->type();
     return std::nullopt;
 }
+
+// The input method's panel (candidate window) belongs to the text input that
+// currently owns the input method focus. The popup wrapper's own parentSurface()
+// only records the surface that happened to be focused when the input method
+// created its panel surface, so it goes stale as soon as the same application
+// moves the text input focus, e.g. to another of its windows.
+SurfaceWrapper *inputPopupPlacementParent(SurfaceWrapper *popup)
+{
+    auto *helper = Helper::instance();
+    if (!helper)
+        return popup->parentSurface();
+
+    auto *shellHandler = helper->shellHandler();
+    auto *inputMethodHelper = shellHandler ? shellHandler->inputMethodHelper() : nullptr;
+    auto *rootContainer = helper->rootSurfaceContainer();
+    if (inputMethodHelper && rootContainer) {
+        if (auto *focusSurface = inputMethodHelper->textInputFocusSurface()) {
+            if (auto *focusWrapper = rootContainer->getSurface(focusSurface))
+                return focusWrapper;
+        }
+    }
+
+    return popup->parentSurface();
+}
 } // namespace
 
-QPointF Output::calculateBasePosition(SurfaceWrapper *surface, const QPointF &dPos) const
+QPointF Output::calculateBasePosition(SurfaceWrapper *placementParent, const QPointF &dPos) const
 {
-    auto parent = surface->parentSurface();
-    if (!parent || !parent->surfaceItem()) {
+    if (!placementParent || !placementParent->surfaceItem()) {
         qCWarning(lcTlOutput) << " Invalid parent surface or surface item!";
         return QPointF();
     }
 
-    const qreal titlebarOffset = parent->titlebarGeometry().isNull()
+    const qreal titlebarOffset = placementParent->titlebarGeometry().isNull()
         ? 0.0
-        : parent->titlebarGeometry().height();
+        : placementParent->titlebarGeometry().height();
 
-    return QPointF(parent->x() + parent->surfaceItem()->x() + dPos.x(),
-                   parent->y() + parent->surfaceItem()->y() + dPos.y() + titlebarOffset);
+    return QPointF(placementParent->x() + placementParent->surfaceItem()->x() + dPos.x(),
+                   placementParent->y() + placementParent->surfaceItem()->y() + dPos.y() + titlebarOffset);
 }
 
 void Output::adjustToOutputBounds(QPointF &pos, const QRectF &normalGeo, const QRectF &outputRect) const
@@ -908,19 +932,19 @@ void Output::adjustToOutputBounds(QPointF &pos, const QRectF &normalGeo, const Q
     }
 }
 
-void Output::handleLayerShellPopup(SurfaceWrapper *surface, const QRectF &normalGeo)
+void Output::handleLayerShellPopup(SurfaceWrapper *surface, SurfaceWrapper *placementParent, const QRectF &normalGeo)
 {
-    if (!surface->parentSurface() || !surface->parentSurface()->ownsOutput()) {
+    if (!placementParent || !placementParent->ownsOutput()) {
         qCWarning(lcTlOutput) << " Invalid LayerShell parent surface!";
         return;
     }
 
-    auto parentOutput = surface->parentSurface()->ownsOutput()->outputItem();
-    auto dPos = popupDPos(surface);
+    auto parentOutput = placementParent->ownsOutput()->outputItem();
+    auto dPos = popupDPos(surface, placementParent);
     if (!dPos.has_value())
         return;
 
-    QPointF pos = calculateBasePosition(surface, dPos.value());
+    QPointF pos = calculateBasePosition(placementParent, dPos.value());
     if (pos.isNull()) {
         return;
     }
@@ -930,17 +954,17 @@ void Output::handleLayerShellPopup(SurfaceWrapper *surface, const QRectF &normal
     surface->moveNormalGeometryInOutput(pos);
 }
 
-void Output::handleRegularPopup(SurfaceWrapper *surface, const QRectF &normalGeo, WOutputItem *targetOutput)
+void Output::handleRegularPopup(SurfaceWrapper *surface, SurfaceWrapper *placementParent, const QRectF &normalGeo, WOutputItem *targetOutput)
 {
     if (normalGeo.isEmpty()) {
         return;
     }
 
-    auto dPos = popupDPos(surface);
+    auto dPos = popupDPos(surface, placementParent);
     if (!dPos.has_value())
         return;
 
-    QPointF pos = calculateBasePosition(surface, dPos.value());
+    QPointF pos = calculateBasePosition(placementParent, dPos.value());
     if (pos.isNull()) {
         return;
     }
@@ -976,8 +1000,15 @@ void Output::clearPopupCache(SurfaceWrapper *surface)
 
 void Output::arrangePopupSurface(SurfaceWrapper *surface)
 {
-    SurfaceWrapper *parentSurfaceWrapper = surface->parentSurface();
-    if (!parentSurfaceWrapper) {
+    SurfaceWrapper *placementParent = surface->parentSurface();
+    if (surface->type() == SurfaceWrapper::Type::InputPopup)
+        placementParent = inputPopupPlacementParent(surface);
+    arrangePopupSurfaceWith(surface, placementParent);
+}
+
+void Output::arrangePopupSurfaceWith(SurfaceWrapper *surface, SurfaceWrapper *placementParent)
+{
+    if (!placementParent) {
         //  When an input popup is still alive while its parent text-input client is being torn down,
         //  arrangePopupSurface() can run in a transient state where parentSurface is temporarily unavailable.
         qCWarning(lcTlSurface) << "[popup] skip arrangePopupSurface: missing parent surface"
@@ -996,22 +1027,46 @@ void Output::arrangePopupSurface(SurfaceWrapper *surface)
         auto *outputAtCursor = Helper::instance()->getOutputAtCursor();
         targetOutput = outputAtCursor ? outputAtCursor->outputItem() : nullptr;
     } else if (surface->isInputPopupLike()) {
-        auto *parentOutput = parentSurfaceWrapper->ownsOutput();
+        auto *parentOutput = placementParent->ownsOutput();
         targetOutput = parentOutput ? parentOutput->outputItem() : nullptr;
     }
 
     if (!targetOutput) {
         qCInfo(lcTlSurface) << "[popup] skip arrangePopupSurface: missing target output"
                                 << "surface=" << surface
-                                << "parentSurface=" << parentSurfaceWrapper;
+                                << "parentSurface=" << placementParent;
         return;
     }
 
-    if (parentSurfaceWrapper->type() == SurfaceWrapper::Type::Layer) {
-        handleLayerShellPopup(surface, normalGeo);
+    if (placementParent->type() == SurfaceWrapper::Type::Layer) {
+        handleLayerShellPopup(surface, placementParent, normalGeo);
     } else {
-        handleRegularPopup(surface, normalGeo, targetOutput);
+        handleRegularPopup(surface, placementParent, normalGeo, targetOutput);
     }
+}
+
+void Output::retargetInputPopupSurface(SurfaceWrapper *popup)
+{
+    if (!popup || popup->type() != SurfaceWrapper::Type::InputPopup)
+        return;
+
+    auto *placementParent = inputPopupPlacementParent(popup);
+    if (placementParent) {
+        if (auto *placementOutput = placementParent->ownsOutput();
+            placementOutput && placementOutput != popup->ownsOutput()) {
+            // Detaches the popup from this output (dropping its cached position)
+            // and registers it with the new one.
+            popup->setOwnsOutput(placementOutput);
+        }
+    }
+
+    qCDebug(lcTlSurface) << "[popup] retarget input popup"
+                          << "popup=" << popup
+                          << "placementParent=" << placementParent
+                          << "ownsOutput=" << popup->ownsOutput();
+    // Reuse the parent resolved above: it walks the root surface container,
+    // which arrangePopupSurface() would otherwise repeat for input popups.
+    arrangePopupSurfaceWith(popup, placementParent);
 }
 
 void Output::arrangeNonLayerSurfaces(ArrangeReason reason)
