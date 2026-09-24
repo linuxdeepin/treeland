@@ -10,6 +10,9 @@ Rectangle {
     color: Qt.rgba(0.0, 0.0, 0.0, 0.0)
 
     property bool radiusEnabled: radius > 0
+    // ext-background-effect-v1 blur region rects. The software/vulkan stub has
+    // no real blur pass; accepted for interface parity with Effects/Blur.qml.
+    property var regionRects: []
     property int blurMax: Helper.config.blurStrength
     property bool blurEnabled: blurMax > 0 && blurAmount > 0
     property real blurAmount: Helper.config.blurAmount

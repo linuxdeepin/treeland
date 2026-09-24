@@ -23,6 +23,7 @@
 #include <wxdgtoplevelsurfaceitem.h>
 #include <wxwaylandsurface.h>
 #include <wxwaylandsurfaceitem.h>
+#include <wlr_all.h>
 
 #include <QColor>
 #include <QVariant>
@@ -2583,7 +2584,9 @@ SurfaceWrapper *SurfaceWrapper::findModal() const
 
 bool SurfaceWrapper::blur() const
 {
-    return m_blur;
+    // Blur is enabled when either the personalization path or the
+    // ext-background-effect-v1 protocol region requests it.
+    return m_blur || !m_blurRegion.isEmpty();
 }
 
 void SurfaceWrapper::setBlur(bool blur)
@@ -2595,6 +2598,35 @@ void SurfaceWrapper::setBlur(bool blur)
     m_blur = blur;
 
     Q_EMIT blurChanged();
+}
+
+QRegion SurfaceWrapper::blurRegion() const
+{
+    return m_blurRegion;
+}
+
+void SurfaceWrapper::setBlurRegion(const QRegion &region)
+{
+    if (m_blurRegion == region) {
+        return;
+    }
+
+    const bool blurChangedBefore = blur();
+    m_blurRegion = region;
+
+    Q_EMIT blurRegionChanged();
+    if (blurChangedBefore != blur()) {
+        Q_EMIT blurChanged();
+    }
+}
+
+QVariantList SurfaceWrapper::blurRegionRects() const
+{
+    QVariantList rects;
+    for (const QRect &r : m_blurRegion) {
+        rects.append(r);
+    }
+    return rects;
 }
 
 bool SurfaceWrapper::coverEnabled() const
