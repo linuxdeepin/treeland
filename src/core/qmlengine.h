@@ -24,7 +24,6 @@ class SurfaceWrapper;
 class Output;
 class Workspace;
 class WorkspaceModel;
-class CaptureManagerV1;
 class QmlEngine : public QQmlApplicationEngine
 {
     Q_OBJECT
@@ -62,7 +61,6 @@ public:
                                         uint direction);
     QQuickItem *createDockPreview(QQuickItem *parent);
     QQuickItem *createShowDesktopAnimation(SurfaceWrapper *surface, QQuickItem *parent, bool show);
-    QQuickItem *createCaptureSelector(QQuickItem *parent, CaptureManagerV1 *captureManager);
     QQuickItem *createWindowPicker(QQuickItem *parent);
     QQuickItem *createEdgeTilePreview(QQuickItem *parent);
     QQuickItem *createLockScreenFallback(QQuickItem *parent,
@@ -98,7 +96,6 @@ private:
     QQmlComponent dockPreviewComponent;
     QQmlComponent minimizeAnimationComponent;
     QQmlComponent showDesktopAnimatioComponentn;
-    QQmlComponent captureSelectorComponent;
     QQmlComponent windowPickerComponent;
     QQmlComponent edgeTilePreviewComponent;
     QQmlComponent launchpadAnimationComponent;

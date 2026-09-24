@@ -66,6 +66,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     , m_isActivated(false)
     , m_attention(false)
     , m_isIMCandidatePanel(false)
+    , m_isSnapMask(false)
     , m_resizable(false)
     , m_maximizable(false)
     , m_modal(false)
@@ -104,6 +105,7 @@ SurfaceWrapper::SurfaceWrapper(SurfaceWrapper *original, QQuickItem *parent)
     , m_isActivated(false)
     , m_attention(false)
     , m_isIMCandidatePanel(false)
+    , m_isSnapMask(false)
     , m_resizable(false)
     , m_maximizable(false)
     , m_modal(false)
@@ -175,6 +177,7 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     , m_isActivated(false)
     , m_attention(false)
     , m_isIMCandidatePanel(false)
+    , m_isSnapMask(false)
     , m_resizable(false)
     , m_maximizable(false)
     , m_modal(false)
@@ -1131,6 +1134,13 @@ bool SurfaceWrapper::checkSetSurfaceState(State newSurfaceState, bool allowRetar
     if (currentState == newSurfaceState)
         return false;
 
+    // Capture mask is a fixed-size overlay: never let maximize/tiling change
+    // its geometry. Fullscreen is allowed so that a mask can be bound to a
+    // specific output via its fullscreen request.
+    if (m_isSnapMask
+        && (newSurfaceState == State::Maximized || newSurfaceState == State::Tiling))
+        return false;
+
     if (container()->filterSurfaceStateChange(this, newSurfaceState, currentState))
         return false;
 
@@ -1358,6 +1368,20 @@ void SurfaceWrapper::setIMCandidatePanel(bool isIMCandidatePanel)
         return;
     m_isIMCandidatePanel = isIMCandidatePanel;
     Q_EMIT isIMCandidatePanelChanged();
+}
+
+bool SurfaceWrapper::isSnapMask() const
+{
+    return m_isSnapMask;
+}
+
+void SurfaceWrapper::setSnapMask(bool snapMask)
+{
+    if (m_isSnapMask == snapMask)
+        return;
+    m_isSnapMask = snapMask;
+    Q_EMIT snapMaskChanged();
+    updateSizeCapabilities();
 }
 
 void SurfaceWrapper::setNoDecoration(bool newNoDecoration)
@@ -2525,8 +2549,9 @@ void SurfaceWrapper::setAlwaysOnBottom(bool alwaysOnBottom)
 
 bool SurfaceWrapper::showOnAllWorkspace() const
 {
-    if (m_type == Type::Layer || m_type == Type::XdgPopup || isInputPopupLike()
-        || surfaceRole() == SurfaceWrapper::SurfaceRole::PrivilegedOverlay) [[unlikely]]
+    if (m_type == Type::Layer || m_type == Type::XdgPopup || isInputPopupLike() || isSnapMask()
+        || surfaceRole() == SurfaceWrapper::SurfaceRole::PrivilegedOverlay)
+        [[unlikely]]
         return true;
     return m_workspaceId == Workspace::ShowOnAllWorkspaceId;
 }
@@ -2714,8 +2739,10 @@ void SurfaceWrapper::updateSizeCapabilities()
         return;
     }
 
-    const bool resizable = m_shellSurface->hasCapability(WToplevelSurface::Capability::Resize);
-    const bool maximizable = m_shellSurface->hasCapability(WToplevelSurface::Capability::Maximized);
+    const bool resizable = !m_isSnapMask
+        && m_shellSurface->hasCapability(WToplevelSurface::Capability::Resize);
+    const bool maximizable = !m_isSnapMask
+        && m_shellSurface->hasCapability(WToplevelSurface::Capability::Maximized);
 
     if (m_resizable != resizable) {
         m_resizable = resizable;
@@ -2779,6 +2806,13 @@ bool SurfaceWrapper::hasCapability(WToplevelSurface::Capability cap) const
         // Focus, Maximized, FullScreen, Resize
         return false;
     }
+    // Capture mask is a fixed-size overlay; never report resize/maximize
+    // capabilities. Fullscreen is allowed so that a mask can be bound to a
+    // specific output via its fullscreen request.
+    if (m_isSnapMask
+        && (cap == WToplevelSurface::Capability::Maximized
+            || cap == WToplevelSurface::Capability::Resize))
+        return false;
     return m_shellSurface && m_shellSurface->hasCapability(cap);
 }
 
