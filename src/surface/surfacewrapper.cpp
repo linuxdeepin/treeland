@@ -677,7 +677,15 @@ void SurfaceWrapper::syncPrelaunchMappedState()
         if ((m_surfaceState == State::Maximized || m_surfaceState == State::Fullscreen)
             && stateGeometry.isValid()) {
             setPosition(alignToPixelGrid(stateGeometry.topLeft()));
-            setSize(stateGeometry.size());
+            // Only pin the frame explicitly for XWayland: its buffer-space size differs
+            // from scene-space, so the implicit size cannot drive the frame. For
+            // XdgToplevel the wrapper size must stay implicit-driven so the frame keeps
+            // following the client buffers. An explicit setSize would freeze the frame
+            // at the maximized/fullscreen geometry and break restoring the normal size
+            // later, since the client chooses it via the 0x0 restore configure (see
+            // applySurfaceStateWithoutGeometry).
+            if (m_type == Type::XWayland)
+                setSize(stateGeometry.size());
         }
     }
 
@@ -733,12 +741,20 @@ void SurfaceWrapper::startPrelaunchSplashHideSequence()
 
     if (needImplicitSizeTransition) {
         const QRectF fromGeometry(position(), size());
-        // XWayland clients manage their own position; respect it and don't shift.
-        // For all other types, keep the center fixed so the window expands from center.
-        const QPointF toTopLeft = (m_type == Type::XWayland) ? fromGeometry.topLeft()
-                                                             : fromGeometry.center()
-                - QPointF(targetImplicitSize.width() / 2.0, targetImplicitSize.height() / 2.0);
-        const QRectF toGeometry(toTopLeft, targetImplicitSize);
+        QRectF toGeometry;
+        if (useStateGeometry) {
+            // Maximized/fullscreen handoff: expand into the state geometry itself, so
+            // the wrapper lands exactly on the maximized/fullscreen rect.
+            toGeometry = stateGeometry;
+        } else {
+            // XWayland clients manage their own position; respect it and don't shift.
+            // For all other types, keep the center fixed so the window expands from center.
+            const QPointF toTopLeft = (m_type == Type::XWayland)
+                ? fromGeometry.topLeft()
+                : fromGeometry.center()
+                    - QPointF(targetImplicitSize.width() / 2.0, targetImplicitSize.height() / 2.0);
+            toGeometry = QRectF(toTopLeft, targetImplicitSize);
+        }
         m_geometryAnimation =
             m_engine->createGeometryAnimation(this, fromGeometry, toGeometry, container());
 
@@ -767,8 +783,13 @@ void SurfaceWrapper::onPrelaunchGeometryAnimationReady()
     // Move the wrapper to the animation's final position before revealing the real surface,
     // so the window appears exactly where the animation ended (no position jump).
     setPosition(toGeo.topLeft());
-    // Keep normalGeometry in sync so subsequent state transitions use the correct position.
-    setNormalGeometry(toGeo);
+    // Keep normalGeometry in sync so subsequent state transitions use the correct position,
+    // except when the handoff targets a maximized/fullscreen geometry: recording it as the
+    // normal geometry would make restoring a no-op. The client chooses its normal size later
+    // via the 0x0 restore configure (same rule as shouldUpdateNormalGeometry). XWayland keeps
+    // its existing behavior.
+    if (m_surfaceState == State::Normal || m_type == Type::XWayland)
+        setNormalGeometry(toGeo);
 
     completeSplashTransition(toGeo.size(), true);
 }
