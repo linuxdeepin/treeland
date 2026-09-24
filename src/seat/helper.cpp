@@ -1713,8 +1713,13 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
     // per-commit sync for them. Also guard against surfaces not yet created
     // (pre-launch splash).
     if (!isXwayland && wrapper->surface()) {
-        wrapper->syncBackgroundEffectBlur();
-        connect(wrapper->surface(), &WSurface::commit, wrapper, &SurfaceWrapper::syncBackgroundEffectBlur);
+        auto *manager = m_backgroundEffectManagerV1;
+        auto syncBlurRegion = [manager, wrapper] {
+            wrapper->setBlurRegion(manager ? manager->surfaceBlurRegion(wrapper->surface())
+                                           : QRegion());
+        };
+        syncBlurRegion();
+        connect(wrapper->surface(), &WSurface::commit, wrapper, syncBlurRegion);
     }
 
     if (isXwayland) {

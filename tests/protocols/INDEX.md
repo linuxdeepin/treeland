@@ -68,6 +68,7 @@ xdg-shell 由共享 xdg-toplevel 夹具覆盖（多个 toplevel 测试复用）�
 | 协议 | 覆盖等级 | 主要生产结果 |
 | --- | --- | --- |
 | [wayland-alpha-modifier-v1](wayland-alpha-modifier-v1/README.md) | E | 映射 toplevel + `set_multiplier`，回读真实 `wlr_alpha_modifier_surface_v1_state::multiplier` 与请求值一致 |
+| [ext-background-effect-v1](ext-background-effect-v1/README.md) | E / P | bind 下发 blur 能力位；`set_blur_region` 双缓冲流转（set/保持/NULL/重启用/destroy）回读真实 `SurfaceWrapper::blurRegion()`；重复关联触发 `background_effect_exists` |
 | [wayland-cursor-shape-v1](wayland-cursor-shape-v1/README.md) | E | 真实 `wl_pointer` 上 `set_shape`，回读真实 `wlr_cursor_shape_manager_v1::events.request_set_shape` 捕获的 shape 值与请求一致 |
 | [wayland-ext-data-control-v1](wayland-ext-data-control-v1/README.md) | E | 创建 offer 并 `set_selection` 后回读真实 `wlr_seat::selection_source` 非空 |
 | [wayland-ext-foreign-toplevel-list-v1](wayland-ext-foreign-toplevel-list-v1/README.md) | E | 映射 toplevel 后回读真实 `wlr_ext_foreign_toplevel_list_v1::toplevels` 列表非空 |
@@ -161,6 +162,7 @@ request stub 算作 request 覆盖；生成的 client-protocol 文件本身不�
 | 协议 | E 级回读的生产对象 |
 | --- | --- |
 | `alpha-modifier-v1` | `wlr_alpha_modifier_surface_v1_state::multiplier` |
+| `ext-background-effect-v1` | `SurfaceWrapper::blurRegion()` 与客户端设置的 region 一致（含双缓冲保持/NULL 移除/destroy 清除） |
 | `cursor-shape-v1` | `wlr_cursor_shape_manager_v1::events.request_set_shape` 捕获的 shape |
 | `ext-data-control-v1` | `wlr_seat::selection_source` 非空 |
 | `ext-foreign-toplevel-list-v1` | `wlr_ext_foreign_toplevel_list_v1::toplevels` 列表非空 |

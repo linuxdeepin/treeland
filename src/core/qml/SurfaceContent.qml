@@ -24,6 +24,7 @@ Item {
             anchors.fill: parent
             radiusEnabled: cornerRadius > 0
             radius: cornerRadius
+            regionRects: wrapper?.blurRegionRects ?? []
         }
     }
 

@@ -168,7 +168,14 @@ static void output_manager_handle_get_xdg_output(struct wl_client *client,
 
     struct wlr_output_layout_output *layout_output =
         wlr_output_layout_get(layout, output);
-    assert(layout_output);
+    // An output can exist before it is registered in the layout (e.g. a
+    // just-created virtual output racing a client's get_xdg_output).
+    // Aborting here kills the whole compositor; serve an inert xdg_output
+    // instead, mirroring the output == NULL handling above.
+    if (!layout_output) {
+        wl_list_init(wl_resource_get_link(xdg_output_resource));
+        return;
+    }
 
     struct way_xdg_output_v1 *_xdg_output, *xdg_output = NULL;
     wl_list_for_each(_xdg_output, &manager->outputs, link) {

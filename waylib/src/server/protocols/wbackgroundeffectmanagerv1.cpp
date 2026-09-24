@@ -3,6 +3,9 @@
 
 #include "wbackgroundeffectmanagerv1.h"
 #include "private/wglobal_p.h"
+#include "wtools.h"
+
+#include <WSurface>
 
 #include <wlr_all.h>
 
@@ -36,6 +39,20 @@ wlr_ext_background_effect_manager_v1 *WBackgroundEffectManagerV1::handle() const
 QByteArrayView WBackgroundEffectManagerV1::interfaceName() const
 {
     return "ext_background_effect_manager_v1";
+}
+
+QRegion WBackgroundEffectManagerV1::surfaceBlurRegion(WSurface *surface) const
+{
+    auto *wlrSurface = surface ? surface->handle() : nullptr;
+    if (!wlrSurface)
+        return QRegion();
+
+    const auto *state = wlr_ext_background_effect_v1_get_surface_state(wlrSurface);
+    if (!state)
+        return QRegion();
+
+    return WTools::fromPixmanRegion(
+        const_cast<pixman_region32_t *>(&state->blur_region));
 }
 
 void WBackgroundEffectManagerV1::create(WServer *server)

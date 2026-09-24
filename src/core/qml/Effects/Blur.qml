@@ -13,6 +13,11 @@ RenderBufferBlitter {
 
     property real radius: 0
     property bool radiusEnabled: radius > 0
+    // ext-background-effect-v1 blur region rects (surface-local), empty means
+    // no protocol region (blur covers the whole surface).
+    property var regionRects: []
+    readonly property bool regionEnabled: regionRects.length > 0
+    readonly property bool masked: radiusEnabled || regionEnabled
     property int blurMax: Helper.config.blurStrength
     property bool blurEnabled: blurMax > 0 && blurAmount > 0
     property real blurAmount: Helper.config.blurAmount
@@ -74,9 +79,9 @@ RenderBufferBlitter {
             MultiEffect {
                 id: blur
                 anchors.fill: parent
-                layer.enabled: blitter.radiusEnabled
-                smooth: blitter.radiusEnabled
-                opacity: blitter.radiusEnabled ? 0 : blitter.opacity
+                layer.enabled: blitter.masked
+                smooth: blitter.masked
+                opacity: blitter.masked ? 0 : blitter.opacity
                 source: blitter.content
                 autoPaddingEnabled: false
                 blurEnabled: blitter.blurEnabled
@@ -84,6 +89,56 @@ RenderBufferBlitter {
                 blurMax: blitter.blurMax
                 blurMultiplier: blitter.multiplier
                 saturation: 0.2
+            }
+
+            // Protocol blur region mask: re-draw the blurred layer clipped to
+            // each rect of the client-provided region. QRegion rects never
+            // overlap, so one Shape per rect paints each pixel exactly once.
+            Item {
+                id: regionMask
+                anchors.fill: parent
+                visible: blitter.regionEnabled
+                // When the rounded-corner mask below re-draws this item
+                // (region ∩ rounded window shape), hide the direct render to
+                // avoid double blending.
+                opacity: blitter.radiusEnabled ? 0 : 1
+                layer.enabled: blitter.regionEnabled
+                smooth: true
+
+                Repeater {
+                    model: blitter.regionRects
+
+                    Shape {
+                        id: regionShape
+
+                        required property rect modelData
+
+                        anchors.fill: parent
+                        preferredRendererType: Shape.CurveRenderer
+                        ShapePath {
+                            strokeWidth: 0
+                            fillItem: blur
+                            PathRectangle {
+                                readonly property bool touchLeft: regionShape.modelData.x <= 0
+                                readonly property bool touchTop: regionShape.modelData.y <= 0
+                                readonly property bool touchRight: regionShape.modelData.x + regionShape.modelData.width >= blur.width
+                                readonly property bool touchBottom: regionShape.modelData.y + regionShape.modelData.height >= blur.height
+
+                                x: regionShape.modelData.x
+                                y: regionShape.modelData.y
+                                width: regionShape.modelData.width
+                                height: regionShape.modelData.height
+                                // A rect touching a window edge inherits the
+                                // window corner radius on that edge (region
+                                // ∩ rounded window shape).
+                                topLeftRadius: touchLeft && touchTop ? blitter.radius : 0
+                                topRightRadius: touchRight && touchTop ? blitter.radius : 0
+                                bottomLeftRadius: touchLeft && touchBottom ? blitter.radius : 0
+                                bottomRightRadius: touchRight && touchBottom ? blitter.radius : 0
+                            }
+                        }
+                    }
+                }
             }
 
             Loader {
@@ -95,7 +150,7 @@ RenderBufferBlitter {
                     preferredRendererType: Shape.CurveRenderer
                     ShapePath {
                         strokeWidth: 0
-                        fillItem: blur
+                        fillItem: blitter.regionEnabled ? regionMask : blur
                         PathRectangle {
                             width: blur.width
                             height: blur.height

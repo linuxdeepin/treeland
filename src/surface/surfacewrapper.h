@@ -11,6 +11,8 @@
 #include <QQuickItem>
 #include <QString>
 #include <QColor>
+#include <QRegion>
+#include <QVariant>
 
 Q_MOC_INCLUDE(<woutput.h>)
 Q_MOC_INCLUDE(<output / output.h>)
@@ -81,6 +83,9 @@ class SurfaceWrapper : public QQuickItem
     // through treeland_dde_shell_surface_v1.set_surface_position
     Q_PROPERTY(QPoint clientRequstPos READ clientRequstPos NOTIFY clientRequstPosChanged FINAL)
     Q_PROPERTY(bool blur READ blur NOTIFY blurChanged FINAL)
+    Q_PROPERTY(QRegion blurRegion READ blurRegion NOTIFY blurRegionChanged FINAL)
+    // QRegion is not a QML value type; expose the region rects for QML bindings.
+    Q_PROPERTY(QVariantList blurRegionRects READ blurRegionRects NOTIFY blurRegionChanged FINAL)
     Q_PROPERTY(bool isWindowAnimationRunning READ isWindowAnimationRunning NOTIFY windowAnimationRunningChanged FINAL)
     Q_PROPERTY(bool coverEnabled READ coverEnabled NOTIFY coverEnabledChanged FINAL)
     Q_PROPERTY(bool acceptKeyboardFocus READ acceptKeyboardFocus FINAL)
@@ -325,11 +330,15 @@ public:
     void setClientRequstPos(QPoint pos);
 
     bool blur() const;
+    // Personalization-driven full-window blur (deprecated protocol path).
     void setBlur(bool blur);
 
-    // Sync the blur state from the ext-background-effect-v1 protocol surface
-    // state (a non-empty blur region means the surface should be blurred).
-    void syncBackgroundEffectBlur();
+    // ext-background-effect-v1 protocol blur region, surface-local
+    // coordinates. A non-empty region enables blur; blur() is true when
+    // either this or the personalization path requests it.
+    QRegion blurRegion() const;
+    void setBlurRegion(const QRegion &region);
+    QVariantList blurRegionRects() const;
 
     bool coverEnabled() const;
     void setCoverEnabled(bool enabled);
@@ -419,6 +428,7 @@ Q_SIGNALS:
     void autoPlaceYOffsetChanged();
     void clientRequstPosChanged();
     void blurChanged();
+    void blurRegionChanged();
     void windowAnimationRunningChanged();
     void coverEnabledChanged();
     void aboutToBeInvalidated();
@@ -584,6 +594,7 @@ private:
     uint m_hideByLockScreen : 1;
     uint m_confirmHideByLockScreen : 1;
     uint m_blur : 1;
+    QRegion m_blurRegion;
     uint m_isActivated : 1;
     uint m_attention : 1;
     uint m_isIMCandidatePanel : 1;

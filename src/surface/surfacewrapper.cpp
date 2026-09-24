@@ -2584,7 +2584,9 @@ SurfaceWrapper *SurfaceWrapper::findModal() const
 
 bool SurfaceWrapper::blur() const
 {
-    return m_blur;
+    // Blur is enabled when either the personalization path or the
+    // ext-background-effect-v1 protocol region requests it.
+    return m_blur || !m_blurRegion.isEmpty();
 }
 
 void SurfaceWrapper::setBlur(bool blur)
@@ -2598,16 +2600,33 @@ void SurfaceWrapper::setBlur(bool blur)
     Q_EMIT blurChanged();
 }
 
-void SurfaceWrapper::syncBackgroundEffectBlur()
+QRegion SurfaceWrapper::blurRegion() const
 {
-    auto *wlrSurface = surface() ? surface()->handle() : nullptr;
-    if (!wlrSurface) {
+    return m_blurRegion;
+}
+
+void SurfaceWrapper::setBlurRegion(const QRegion &region)
+{
+    if (m_blurRegion == region) {
         return;
     }
 
-    const auto *state = wlr_ext_background_effect_v1_get_surface_state(wlrSurface);
-    const bool hasBlur = state && pixman_region32_not_empty(&state->blur_region);
-    setBlur(hasBlur);
+    const bool blurChangedBefore = blur();
+    m_blurRegion = region;
+
+    Q_EMIT blurRegionChanged();
+    if (blurChangedBefore != blur()) {
+        Q_EMIT blurChanged();
+    }
+}
+
+QVariantList SurfaceWrapper::blurRegionRects() const
+{
+    QVariantList rects;
+    for (const QRect &r : m_blurRegion) {
+        rects.append(r);
+    }
+    return rects;
 }
 
 bool SurfaceWrapper::coverEnabled() const
