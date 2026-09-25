@@ -561,11 +561,19 @@ bool Treeland::ActivateWayland(QDBusUnixFileDescriptor _fd)
 
     d->userDisplayFds[user] = fd;
 
+    // Only clean up when the service that called ActivateWayland unregisters.
+    // serviceUnregistered fires for every DBus service; without this filter an
+    // unrelated service exit would drop the user's wayland socket and fd,
+    // leaving the session unable to enable its display (login failure).
+    const QString callerService = message().service();
     connect(connection().interface(),
             &QDBusConnectionInterface::serviceUnregistered,
             socket.get(),
-            [user, userModel, d] {
-                userModel->getUser(user)->setWaylandSocket(nullptr);
+            [callerService, user, userModel, d](const QString &service) {
+                if (service != callerService)
+                    return;
+                if (auto u = userModel->getUser(user))
+                    u->setWaylandSocket(nullptr);
                 d->userDisplayFds.remove(user);
             });
 
