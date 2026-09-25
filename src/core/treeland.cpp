@@ -569,8 +569,14 @@ bool Treeland::ActivateWayland(QDBusUnixFileDescriptor _fd)
     connect(connection().interface(),
             &QDBusConnectionInterface::serviceUnregistered,
             socket.get(),
-            [callerService, user, userModel, d](const QString &service) {
+            [callerService, user, userModel, d, fd](const QString &service) {
                 if (service != callerService)
+                    return;
+                // A later ActivateWayland call may have replaced this
+                // activation's socket and fd; only clean up while the map
+                // still refers to the fd installed by this call, so a stale
+                // callback can't drop the replacement socket.
+                if (d->userDisplayFds.value(user) != fd)
                     return;
                 if (auto u = userModel->getUser(user))
                     u->setWaylandSocket(nullptr);
