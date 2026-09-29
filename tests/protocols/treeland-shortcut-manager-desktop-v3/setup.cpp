@@ -5,7 +5,7 @@
 #include "seat/helper.h"
 #include "seat/seatmanager.h"
 #include "surface/surfacewrapper.h"
-#include "treeland-shortcut-manager-desktop-v2.h"
+#include "treeland-shortcut-manager-desktop-v3.h"
 #include "workspace/workspace.h"
 
 #include <wbackend.h>
