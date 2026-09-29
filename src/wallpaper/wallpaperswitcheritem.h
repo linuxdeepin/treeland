@@ -62,8 +62,8 @@ private:
     void handleWallpaperUpdate();
     void handleWorkspaceAdded();
     void switchToNewSlot();
-    void onAnimationFinished();
-    void startFadeIn(WallpaperSlot *slot);
+    void startSlideIn(WallpaperSlot *slot);
+    void finishSlideIn(WallpaperSlot *slot);
 
     QPointer<WorkspaceModel> m_workspace;
     QPointer<WOutput> m_output;

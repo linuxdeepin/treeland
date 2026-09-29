@@ -171,8 +171,7 @@ void WallpaperSwitcherItem::handleWorkspaceAdded()
 void WallpaperSwitcherItem::switchToNewSlot()
 {
     auto *newSlot = new WallpaperSlot(this);
-    QQuickItemPrivate::get(newSlot)->anchors()->setFill(this);
-    newSlot->setOpacity(0);
+    newSlot->setVisible(false);
     newSlot->setOutput(m_output);
     newSlot->setWorkspace(m_workspace);
 
@@ -181,46 +180,60 @@ void WallpaperSwitcherItem::switchToNewSlot()
         return;
     }
 
+    // Curtain effect: park the new wallpaper fully off-screen right, then
+    // slide it over the old one like a curtain being drawn across.
+    newSlot->setWidth(width());
+    newSlot->setHeight(height());
+    newSlot->setX(width());
+
+    if (m_oldSlot)
+        m_oldSlot->deleteLater();
     m_oldSlot = m_currentSlot;
     m_currentSlot = newSlot;
 
     Q_EMIT sourceChanged();
 
-    auto *fadeOut = new QPropertyAnimation(m_oldSlot, "opacity");
-    fadeOut->setDuration(m_opacityDuration);
-    fadeOut->setStartValue(1.0);
-    fadeOut->setEndValue(0.0);
-    fadeOut->setEasingCurve(QEasingCurve::InOutQuad);
-    connect(fadeOut, &QPropertyAnimation::finished, this, &WallpaperSwitcherItem::onAnimationFinished);
-    fadeOut->start(QAbstractAnimation::DeleteWhenStopped);
-
     auto *interface = TreelandWallpaperSurfaceInterfaceV1::get(newSlot->source());
     if (interface && interface->wallpaperReady()) {
-        startFadeIn(newSlot);
+        startSlideIn(newSlot);
     } else if (interface) {
         connect(interface,
                 &TreelandWallpaperSurfaceInterfaceV1::ready,
                 this,
                 [this, newSlot]() {
                     if (m_currentSlot == newSlot)
-                        startFadeIn(newSlot);
+                        startSlideIn(newSlot);
                 },
                 Qt::SingleShotConnection);
     }
 }
 
-void WallpaperSwitcherItem::startFadeIn(WallpaperSlot *slot)
+void WallpaperSwitcherItem::startSlideIn(WallpaperSlot *slot)
 {
-    auto *anim = new QPropertyAnimation(slot, "opacity");
+    if (width() <= 0.0 || height() <= 0.0) {
+        finishSlideIn(slot);
+        return;
+    }
+
+    slot->setVisible(true);
+    auto *anim = new QPropertyAnimation(slot, "x");
     anim->setDuration(m_opacityDuration);
-    anim->setStartValue(0.0);
-    anim->setEndValue(1.0);
-    anim->setEasingCurve(QEasingCurve::InOutQuad);
+    anim->setStartValue(width());
+    anim->setEndValue(0.0);
+    anim->setEasingCurve(QEasingCurve::OutCubic);
+    connect(anim, &QPropertyAnimation::finished, this, [this, slot]() {
+        finishSlideIn(slot);
+    });
     anim->start(QAbstractAnimation::DeleteWhenStopped);
 }
 
-void WallpaperSwitcherItem::onAnimationFinished()
+void WallpaperSwitcherItem::finishSlideIn(WallpaperSlot *slot)
 {
+    if (m_currentSlot != slot)
+        return;
+
+    slot->setX(0);
+    QQuickItemPrivate::get(slot)->anchors()->setFill(this);
     if (m_oldSlot) {
         m_oldSlot->deleteLater();
         m_oldSlot = nullptr;
