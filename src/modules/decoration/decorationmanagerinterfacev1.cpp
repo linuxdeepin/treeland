@@ -13,8 +13,6 @@
 
 #include <wtoplevelsurface.h>
 
-#include <cstring>
-
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -309,25 +307,11 @@ void DecorationManagerInterfaceV1Private::get_decoration_context(Resource *resou
                                                                  uint32_t id,
                                                                  struct ::wl_resource *surface)
 {
-    if (!surface) {
-        wl_resource_post_error(resource->handle,
-                               TREELAND_DECORATION_MANAGER_V1_ERROR_INVALID_SURFACE,
-                               "surface resource is NULL!");
-        return;
-    }
-
     // The surface must be owned by the requesting client.
     if (wl_resource_get_client(surface) != resource->client()) {
         wl_resource_post_error(resource->handle,
                                TREELAND_DECORATION_MANAGER_V1_ERROR_INVALID_SURFACE,
                                "surface is not owned by the requesting client!");
-        return;
-    }
-
-    if (strcmp(wl_resource_get_class(surface), "wl_surface") != 0) {
-        wl_resource_post_error(resource->handle,
-                               TREELAND_DECORATION_MANAGER_V1_ERROR_INVALID_SURFACE,
-                               "invalid surface!");
         return;
     }
 

@@ -5,8 +5,6 @@
 
 #include "qwayland-server-treeland-active-notify-unstable-v1.h"
 
-#include <cstring>
-
 static QList<ActiveNotifyV1 *> s_notifies;
 
 struct TreelandActiveNotifyManagerInterfaceV1Private
@@ -46,11 +44,6 @@ void TreelandActiveNotifyManagerInterfaceV1Private::get_active_notify(Resource *
                                                                        uint32_t id,
                                                                        struct ::wl_resource *seat)
 {
-    if (!seat || strcmp(wl_resource_get_class(seat), "wl_seat") != 0) {
-        wl_resource_post_error(resource->handle, 0, "seat resource is NULL or not a wl_seat!");
-        return;
-    }
-
     struct wlr_seat_client *seat_client = wlr_seat_client_from_resource(seat);
     if (!seat_client) {
         wl_resource_post_error(resource->handle, 0, "seat resource is inert!");

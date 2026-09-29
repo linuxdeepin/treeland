@@ -9,8 +9,6 @@
 
 #include <QTimer>
 
-#include <string.h>
-
 #include <wayland-server.h>
 #include <wlr/types/wlr_output.h>
 
@@ -117,18 +115,6 @@ void RegionWatchV1Private::set_region(Resource *resource,
                                "invalid treeland_region_watch_v1::set_region size: %dx%d",
                                width,
                                height);
-        return;
-    }
-
-    // wlr_output_from_resource() asserts that the resource is a genuine
-    // wl_output; a client may pass any live object id (or an inert one),
-    // which would abort the compositor before the checks below. Validate
-    // the object class first and route invalid references to the error path.
-    if (!outputResource
-        || strcmp(wl_resource_get_class(outputResource), wl_output_interface.name) != 0) {
-        wl_resource_post_error(resource->handle,
-                               InvalidAnchor,
-                               "set_region requires a valid wl_output resource");
         return;
     }
 
