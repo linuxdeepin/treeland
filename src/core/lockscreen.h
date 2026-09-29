@@ -28,6 +28,12 @@ class LockScreen : public SurfaceContainer
     QML_ANONYMOUS
 
 public:
+    enum ZOrder
+    {
+        GreeterZOrder = 0,
+        LoginViewZOrder = 1,
+    };
+
     enum class CurrentMode
     {
         Lock = 1,

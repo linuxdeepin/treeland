@@ -112,6 +112,11 @@ void LockScreen::addOutput(Output *output)
     }
 
     auto *item = m_impl->createLockScreen(output, this);
+    if (!item) {
+        qCWarning(lcTlShell) << "Failed to create lock screen item for output" << output;
+        return;
+    }
+    item->setZ(GreeterZOrder);
 
     m_components.insert(
         { output, std::unique_ptr<QQuickItem, void (*)(QQuickItem *)>(item, [](QQuickItem *item) {
@@ -196,7 +201,7 @@ void LockScreen::createLoginView()
     connect(item, SIGNAL(animationPlayFinished()), this, SLOT(onAnimationPlayFinished()));
 
     m_loginView = item;
-    m_loginView->setZ(1);
+    m_loginView->setZ(LoginViewZOrder);
     repositionLoginView();
 }
 
