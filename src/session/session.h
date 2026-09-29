@@ -89,6 +89,7 @@ public:
 Q_SIGNALS:
     void socketFileChanged();
     void sessionChanged();
+    void xwaylandAuthChanged();
 
 private:
     std::shared_ptr<Session> ensureSession(int id, QString username);

@@ -57,11 +57,6 @@ public:
         if (!test.isValid())
             return false;
 
-        if (m_type == "xwayland") {
-            m_compositorBus = busFromConnection(connection);
-            return true;
-        }
-
         return connectActivationSignal(connection);
     }
 
@@ -264,12 +259,19 @@ private:
         if (m_compositorBus == bus)
             return true;
 
+        // Xwayland only has to react to auth refreshes. Its display number and
+        // the XAUTHORITY path survive a wlroots in-place Xwayland restart, so
+        // a session change does not affect it and must not re-run activation.
+        const QString signalName = m_type == "xwayland"
+            ? QStringLiteral("XWaylandAuthChanged")
+            : QStringLiteral("SessionChanged");
+
         if (m_compositorBus.has_value()) {
             auto oldConnection = dbusConnection(*m_compositorBus);
             oldConnection.disconnect("org.deepin.Compositor1",
                                      "/org/deepin/Compositor1",
                                      "org.deepin.Compositor1",
-                                     QStringLiteral("SessionChanged"),
+                                     signalName,
                                      this,
                                      SLOT(activate()));
             m_compositorBus.reset();
@@ -278,7 +280,7 @@ private:
         if (connection.connect("org.deepin.Compositor1",
                                "/org/deepin/Compositor1",
                                "org.deepin.Compositor1",
-                               QStringLiteral("SessionChanged"),
+                               signalName,
                                this,
                                SLOT(activate()))) {
             m_compositorBus = bus;

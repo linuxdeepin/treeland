@@ -11,5 +11,7 @@
     </method>
     <signal name="SessionChanged">
     </signal>
+    <signal name="XWaylandAuthChanged">
+    </signal>
   </interface>
 </node>

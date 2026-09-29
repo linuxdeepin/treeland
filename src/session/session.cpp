@@ -295,6 +295,7 @@ std::shared_ptr<Session> SessionManager::ensureSession(int id, QString username)
         xwayland->setOwnsSocket(socket);
         // Connect signals
         connect(xwayland, &WXWayland::ready, this, [this, xwayland] {
+            Q_EMIT xwaylandAuthChanged();
             syncActiveSessionXWaylandPrimaryOutput();
             if (auto session = sessionForXWayland(xwayland)) {
                 session->m_noTitlebarAtom =
