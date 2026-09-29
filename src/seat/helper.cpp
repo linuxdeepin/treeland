@@ -1968,6 +1968,10 @@ void Helper::init(Treeland::Treeland *treeland)
 {
     m_treeland = treeland;
     connect(m_sessionManager, &SessionManager::sessionChanged, treeland, &Treeland::Treeland::SessionChanged);
+    connect(m_sessionManager,
+            &SessionManager::xwaylandAuthChanged,
+            treeland,
+            &Treeland::Treeland::XWaylandAuthChanged);
 
     auto engine = qmlEngine();
     m_greeterProxy = engine->singletonInstance<GreeterProxy *>("Treeland", "GreeterProxy");
