@@ -28,6 +28,8 @@ public:
     {
         setLive(true);
     }
+    // False only while parked off-screen before its first reveal.
+    bool shown = true;
 };
 
 WallpaperSwitcherItem::WallpaperSwitcherItem(QQuickItem *parent)
@@ -52,6 +54,8 @@ WallpaperSwitcherItem::WallpaperSwitcherItem(QQuickItem *parent)
 
 WallpaperSwitcherItem::~WallpaperSwitcherItem()
 {
+    if (m_slideAnim)
+        m_slideAnim->stop(); // finish handler still has live slots here
     delete m_oldSlot;
     delete m_currentSlot;
 }
@@ -118,18 +122,18 @@ QString WallpaperSwitcherItem::source() const
     return m_currentSlot ? m_currentSlot->source() : QString();
 }
 
-int WallpaperSwitcherItem::opacityDuration() const
+int WallpaperSwitcherItem::transitionDuration() const
 {
-    return m_opacityDuration;
+    return m_transitionDuration;
 }
 
-void WallpaperSwitcherItem::setOpacityDuration(int duration)
+void WallpaperSwitcherItem::setTransitionDuration(int duration)
 {
-    if (m_opacityDuration == duration)
+    if (m_transitionDuration == duration)
         return;
 
-    m_opacityDuration = duration;
-    Q_EMIT opacityDurationChanged();
+    m_transitionDuration = duration;
+    Q_EMIT transitionDurationChanged();
 }
 
 void WallpaperSwitcherItem::slowDown()
@@ -172,6 +176,7 @@ void WallpaperSwitcherItem::switchToNewSlot()
 {
     auto *newSlot = new WallpaperSlot(this);
     newSlot->setVisible(false);
+    newSlot->shown = false;
     newSlot->setOutput(m_output);
     newSlot->setWorkspace(m_workspace);
 
@@ -186,9 +191,21 @@ void WallpaperSwitcherItem::switchToNewSlot()
     newSlot->setHeight(height());
     newSlot->setX(width());
 
-    if (m_oldSlot)
-        m_oldSlot->deleteLater();
-    m_oldSlot = m_currentSlot;
+    // Settle any in-flight transition first so the screen always keeps a
+    // fully visible wallpaper while the next one waits for ready.
+    if (m_slideAnim) {
+        m_slideAnim->stop(); // finished -> finishSlideIn completes the current slot
+        m_slideAnim = nullptr;
+    }
+    if (m_currentSlot) {
+        if (m_currentSlot->shown) {
+            if (m_oldSlot)
+                m_oldSlot->deleteLater();
+            m_oldSlot = m_currentSlot;
+        } else {
+            m_currentSlot->deleteLater(); // parked, never shown
+        }
+    }
     m_currentSlot = newSlot;
 
     Q_EMIT sourceChanged();
@@ -200,9 +217,9 @@ void WallpaperSwitcherItem::switchToNewSlot()
         connect(interface,
                 &TreelandWallpaperSurfaceInterfaceV1::ready,
                 this,
-                [this, newSlot]() {
-                    if (m_currentSlot == newSlot)
-                        startSlideIn(newSlot);
+                [this, guard = QPointer<WallpaperSlot>(newSlot)]() {
+                    if (guard && m_currentSlot == guard.data())
+                        startSlideIn(guard);
                 },
                 Qt::SingleShotConnection);
     }
@@ -215,15 +232,17 @@ void WallpaperSwitcherItem::startSlideIn(WallpaperSlot *slot)
         return;
     }
 
+    slot->shown = true;
     slot->setVisible(true);
     auto *anim = new QPropertyAnimation(slot, "x");
-    anim->setDuration(m_opacityDuration);
+    anim->setDuration(m_transitionDuration);
     anim->setStartValue(width());
     anim->setEndValue(0.0);
     anim->setEasingCurve(QEasingCurve::OutCubic);
-    connect(anim, &QPropertyAnimation::finished, this, [this, slot]() {
-        finishSlideIn(slot);
+    connect(anim, &QPropertyAnimation::finished, this, [this, guard = QPointer<WallpaperSlot>(slot)]() {
+        finishSlideIn(guard);
     });
+    m_slideAnim = anim;
     anim->start(QAbstractAnimation::DeleteWhenStopped);
 }
 
@@ -232,6 +251,8 @@ void WallpaperSwitcherItem::finishSlideIn(WallpaperSlot *slot)
     if (m_currentSlot != slot)
         return;
 
+    slot->shown = true;
+    slot->setVisible(true);
     slot->setX(0);
     QQuickItemPrivate::get(slot)->anchors()->setFill(this);
     if (m_oldSlot) {
