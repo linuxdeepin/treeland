@@ -241,6 +241,9 @@ void RootSurfaceContainer::startMove(SurfaceWrapper *surface)
 void RootSurfaceContainer::startResize(SurfaceWrapper *surface, Qt::Edges edges)
 {
     Q_ASSERT(edges != 0);
+    if (!surface || !surface->isResizable())
+        return;
+
     beginMoveResizeForSeat(nullptr, surface, edges);
 
     surface->shellSurface()->setResizeing(true);
