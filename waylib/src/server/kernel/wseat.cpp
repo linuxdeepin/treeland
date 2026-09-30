@@ -315,7 +315,7 @@ public:
     inline bool doNotifyKey(WInputDevice *device, uint32_t keycode, uint32_t state, uint32_t timestamp) {
         q_func()->setKeyboard(device);
 
-        if (!keyboardFocusSurface())
+        if (!keyboardFocusSurface() && !wlr_seat_keyboard_has_grab(handle()))
             return false;
 
         /* Send keys to the client. */
@@ -330,7 +330,7 @@ public:
         bool keyboardChanged = (q_func()->keyboard() != device);
         q_func()->setKeyboard(device);
 
-        if (!keyboardFocusSurface())
+        if (!keyboardFocusSurface() && !wlr_seat_keyboard_has_grab(handle()))
             return false;
 
         // Only send modifiers explicitly when the keyboard did NOT change.
