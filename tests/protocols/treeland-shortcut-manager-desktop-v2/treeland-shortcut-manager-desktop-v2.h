@@ -12,6 +12,10 @@ struct shortcut_desktop_state {
     int wrapper_in_workspace;
     int wrapper_visible;
     int keyboard_focused;
+    int secondary_created;
+    int secondary_in_workspace;
+    int secondary_visible;
+    int secondary_focused;
 };
 
 int protocol_test_run(const char *socket_name);

@@ -9,6 +9,7 @@
 #include <WInputDevice>
 
 #include <QEvent>
+#include <QSet>
 #include <QSharedData>
 #include <xkbcommon/xkbcommon.h>
 
@@ -92,6 +93,17 @@ public:
     void setKeyboardFocusSurface(WSurface *surface);
     WSurface *keyboardFocusSurface() const;
     void clearKeyboardFocusSurface();
+
+    void addFilteredKey(uint32_t keycode);
+    void removeFilteredKey(uint32_t keycode);
+    bool isKeyFiltered(uint32_t keycode) const;
+
+    // Copies the keycodes the client is allowed to see into `out`, dropping the
+    // filtered ones, and returns the number of copied keycodes. `out` must be
+    // able to hold `numKeycodes` elements. `keycodes` may be null when
+    // `numKeycodes` is 0.
+    static size_t unfilteredKeycodes(const uint32_t *keycodes, size_t numKeycodes,
+                                     const QSet<uint32_t> &filteredKeys, uint32_t *out);
 
     void setKeyboardFocusWindow(QWindow *window);
     QWindow *keyboardFocusWindow() const;

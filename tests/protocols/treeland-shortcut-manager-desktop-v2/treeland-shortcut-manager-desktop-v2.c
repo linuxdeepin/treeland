@@ -17,6 +17,12 @@
 #include <xkbcommon/xkbcommon.h>
 
 extern void shortcut_desktop_focus_window(void *data);
+extern void shortcut_desktop_focus_secondary(void *data);
+
+enum {
+    MAX_ENTER_KEYS = 16,
+    MAX_KEY_EVENTS = 32,
+};
 
 struct shortcut_client {
     int commit_success;
@@ -35,7 +41,52 @@ struct seat_keyboard_events {
     uint32_t latched;
     uint32_t locked;
     uint32_t group;
+
+    int enter_count;
+    struct wl_surface *last_enter_surface;
+    int last_enter_key_count;
+    uint32_t last_enter_keys[MAX_ENTER_KEYS];
+
+    int key_event_count;
+    uint32_t key_event_codes[MAX_KEY_EVENTS];
+    uint32_t key_event_states[MAX_KEY_EVENTS];
 };
+
+static int enter_keys_contain(const struct seat_keyboard_events *events, uint32_t key)
+{
+    for (int i = 0; i < events->last_enter_key_count; ++i) {
+        if (events->last_enter_keys[i] == key)
+            return 1;
+    }
+    return 0;
+}
+
+static int key_event_seen(const struct seat_keyboard_events *events, uint32_t key)
+{
+    for (int i = 0; i < events->key_event_count; ++i) {
+        if (events->key_event_codes[i] == key)
+            return 1;
+    }
+    return 0;
+}
+
+static int key_event_state_seen(const struct seat_keyboard_events *events, uint32_t key,
+                                uint32_t state)
+{
+    for (int i = 0; i < events->key_event_count; ++i) {
+        if (events->key_event_codes[i] == key && events->key_event_states[i] == state)
+            return 1;
+    }
+    return 0;
+}
+
+static void reset_keyboard_key_tracking(struct seat_keyboard_events *events)
+{
+    events->enter_count = 0;
+    events->last_enter_surface = NULL;
+    events->last_enter_key_count = 0;
+    events->key_event_count = 0;
+}
 
 struct seat_events {
     uint32_t capabilities;
@@ -67,13 +118,38 @@ static void seat_keyboard_keymap(void *data, struct wl_keyboard *keyboard,
 
 static void seat_keyboard_enter(void *data, struct wl_keyboard *keyboard,
                                 uint32_t serial, struct wl_surface *surface, struct wl_array *keys)
-{ (void)data; (void)keyboard; (void)serial; (void)surface; (void)keys; }
+{
+    (void)keyboard;
+    (void)serial;
+    struct seat_keyboard_events *events = data;
+    ++events->enter_count;
+    events->last_enter_surface = surface;
+    int count = 0;
+    const uint32_t *key;
+    wl_array_for_each(key, keys) {
+        if (count < MAX_ENTER_KEYS)
+            events->last_enter_keys[count++] = *key;
+    }
+    events->last_enter_key_count = count;
+}
+
 static void seat_keyboard_leave(void *data, struct wl_keyboard *keyboard,
                                 uint32_t serial, struct wl_surface *surface)
 { (void)data; (void)keyboard; (void)serial; (void)surface; }
+
 static void seat_keyboard_key(void *data, struct wl_keyboard *keyboard, uint32_t serial,
                               uint32_t time, uint32_t key, uint32_t state)
-{ (void)data; (void)keyboard; (void)serial; (void)time; (void)key; (void)state; }
+{
+    (void)keyboard;
+    (void)serial;
+    (void)time;
+    struct seat_keyboard_events *events = data;
+    if (events->key_event_count < MAX_KEY_EVENTS) {
+        events->key_event_codes[events->key_event_count] = key;
+        events->key_event_states[events->key_event_count] = state;
+        ++events->key_event_count;
+    }
+}
 
 static void seat_keyboard_modifiers(void *data, struct wl_keyboard *keyboard, uint32_t serial,
                                     uint32_t depressed, uint32_t latched, uint32_t locked, uint32_t group)
@@ -204,6 +280,7 @@ int protocol_test_run(const char *socket_name)
 {
     struct client_connection connection;
     struct xdg_toplevel_client toplevel = { 0 };
+    struct xdg_toplevel_client secondary = { 0 };
     struct treeland_shortcut_manager_v2 *manager = NULL;
     struct treeland_shortcut_capture_v1 *capture = NULL;
     struct zwp_virtual_keyboard_manager_v1 *virtual_keyboard_manager = NULL;
@@ -290,11 +367,82 @@ int protocol_test_run(const char *socket_name)
         goto failed;
     stage = 6;
 
+    // Release the consumed F2: its release is mirrored by the filtered-key set and
+    // must never reach the client, so no orphan release is expected here either.
+    send_key(virtual_keyboard, 60, WL_KEYBOARD_KEY_STATE_RELEASED); // KEY_F2
+    if (wl_display_roundtrip(connection.display) < 0)
+        goto failed;
+
+    // A second toplevel gives a real focus-switch target on the same connection.
+    if (!xdg_toplevel_client_create(&connection, &secondary))
+        goto failed;
+    stage = 7;
+    if (!invoke_on_server_thread(shortcut_desktop_focus_window, &state)
+        || !state.wrapper_created || !state.wrapper_in_workspace || !state.wrapper_visible
+        || !state.keyboard_focused)
+        goto failed;
+    if (!invoke_on_server_thread(shortcut_desktop_focus_secondary, &state)
+        || !state.secondary_created || !state.secondary_in_workspace
+        || !state.secondary_visible)
+        goto failed;
+    if (!invoke_on_server_thread(shortcut_desktop_focus_window, &state)
+        || !state.keyboard_focused)
+        goto failed;
+    if (wl_display_roundtrip(connection.display) < 0)
+        goto failed;
+
+    treeland_shortcut_manager_v2_bind_key(
+        manager, "held-shortcut", "Ctrl+K",
+        TREELAND_SHORTCUT_MANAGER_V2_KEYBIND_FLAG_KEY_PRESS,
+        TREELAND_SHORTCUT_MANAGER_V2_ACTION_NOTIFY);
+    treeland_shortcut_manager_v2_commit(manager);
+    if (wl_display_roundtrip(connection.display) < 0 || client.commit_success != 2
+        || client.commit_failure)
+        goto failed;
+
+    // Hold the shortcut combination: Ctrl is a real key press (so it lands in
+    // wlr_keyboard.keycodes) plus a modifier mask (so keyModifiers reports Control),
+    // then K matches the registered shortcut and is consumed before dispatch.
+    reset_keyboard_key_tracking(&keyboard_events);
+    zwp_virtual_keyboard_v1_modifiers(virtual_keyboard, 4, 0, 0, 0); // Control
+    send_key(virtual_keyboard, 29, WL_KEYBOARD_KEY_STATE_PRESSED);    // KEY_LEFTCTRL
+    send_key(virtual_keyboard, 37, WL_KEYBOARD_KEY_STATE_PRESSED);    // KEY_K
+    if (wl_display_roundtrip(connection.display) < 0 || client.activated != 2
+        || strcmp(client.activated_name, "held-shortcut") != 0)
+        goto failed;
+    stage = 8;
+
+    // Synchronously switch focus while the consumed K is still held. The new
+    // surface's wl_keyboard.enter must advertise the held Ctrl (29) but must not
+    // advertise the shortcut-consumed K (37).
+    if (!invoke_on_server_thread(shortcut_desktop_focus_secondary, &state)
+        || !state.secondary_focused)
+        goto failed;
+    if (wl_display_roundtrip(connection.display) < 0 || keyboard_events.enter_count != 1
+        || keyboard_events.last_enter_surface != secondary.surface
+        || !enter_keys_contain(&keyboard_events, 29)
+        || enter_keys_contain(&keyboard_events, 37))
+        goto failed;
+    stage = 9;
+
+    // Release the modifier before the main key. The consumed key's release must be
+    // swallowed even though its modifier is already gone, so the client sees the
+    // normal Ctrl release but never any K event (press or orphan release).
+    zwp_virtual_keyboard_v1_modifiers(virtual_keyboard, 0, 0, 0, 0);
+    send_key(virtual_keyboard, 29, WL_KEYBOARD_KEY_STATE_RELEASED); // KEY_LEFTCTRL
+    send_key(virtual_keyboard, 37, WL_KEYBOARD_KEY_STATE_RELEASED); // KEY_K
+    if (wl_display_roundtrip(connection.display) < 0
+        || !key_event_state_seen(&keyboard_events, 29, WL_KEYBOARD_KEY_STATE_RELEASED)
+        || key_event_seen(&keyboard_events, 37))
+        goto failed;
+    stage = 10;
+
     treeland_shortcut_capture_v1_destroy(capture);
     zwp_virtual_keyboard_v1_destroy(virtual_keyboard);
     wl_keyboard_destroy(seat_keyboard);
     treeland_shortcut_manager_v2_destroy(manager);
     wl_seat_destroy(seat);
+    xdg_toplevel_client_destroy(&secondary);
     xdg_toplevel_client_destroy(&toplevel);
     client_disconnect(&connection);
     return 0;
@@ -302,16 +450,20 @@ int protocol_test_run(const char *socket_name)
 failed:
     fprintf(stderr,
             "shortcut desktop failure at stage %d: wrapper=%d workspace=%d visible=%d focus=%d "
-            "captured=%d key=%s failed=%d commit=(%d,%d) activated=%d name=%s flags=%u\n",
+            "secondary=(%d,%d,%d,%d) captured=%d key=%s failed=%d commit=(%d,%d) "
+            "activated=%d name=%s flags=%u enter=%d enter_keys=%d key_events=%d\n",
             stage, state.wrapper_created, state.wrapper_in_workspace, state.wrapper_visible,
-            state.keyboard_focused, client.captured, client.captured_key, client.capture_failed,
-            client.commit_success, client.commit_failure, client.activated, client.activated_name,
-            client.activated_flags);
+            state.keyboard_focused, state.secondary_created, state.secondary_in_workspace,
+            state.secondary_visible, state.secondary_focused, client.captured, client.captured_key,
+            client.capture_failed, client.commit_success, client.commit_failure, client.activated,
+            client.activated_name, client.activated_flags, keyboard_events.enter_count,
+            keyboard_events.last_enter_key_count, keyboard_events.key_event_count);
     if (capture) treeland_shortcut_capture_v1_destroy(capture);
     if (virtual_keyboard) zwp_virtual_keyboard_v1_destroy(virtual_keyboard);
     if (seat_keyboard) wl_keyboard_destroy(seat_keyboard);
     if (manager) treeland_shortcut_manager_v2_destroy(manager);
     if (seat) wl_seat_destroy(seat);
+    xdg_toplevel_client_destroy(&secondary);
     xdg_toplevel_client_destroy(&toplevel);
     client_disconnect(&connection);
     return 1;

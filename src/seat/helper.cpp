@@ -2787,6 +2787,28 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *targetWindow, QInputEvent 
         }
     }
 
+    if (seat == m_primarySeat && event->type() == QEvent::KeyRelease) {
+        auto *kevent = static_cast<QKeyEvent *>(event);
+        const uint32_t evdevKeycode = kevent->nativeVirtualKey();
+        if (!kevent->isAutoRepeat() && seat->isKeyFiltered(evdevKeycode)) {
+            seat->removeFilteredKey(evdevKeycode);
+
+            // Give a release-bound shortcut, or the standalone Win/Meta action
+            // (only when it was not part of a combo), a chance to fire before
+            // the mirrored release is consumed.
+            const bool isMeta = kevent->key() == Qt::Key_Meta
+                || kevent->key() == Qt::Key_Super_L || kevent->key() == Qt::Key_Super_R;
+            const bool canDispatch = !m_captureSelector
+                && m_currentMode != CurrentMode::LockScreen;
+            auto *seatContainer = m_rootSurfaceContainer->getSeatContainer(seat);
+            if (canDispatch
+                && (!isMeta || (seatContainer && seatContainer->metaKeyPressed()))) {
+                m_shortcutManager->controller()->dispatchKeyEvent(kevent);
+            }
+            return true;
+        }
+    }
+
     // Suppress compositor shortcuts when a keyboard shortcuts inhibitor is active
     if (m_currentMode == CurrentMode::Normal) {
         auto *focusSurface = seat->keyboardFocusSurface();
@@ -2805,19 +2827,46 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *targetWindow, QInputEvent 
         auto kevent = static_cast<QKeyEvent *>(event);
         auto *seatContainer = m_rootSurfaceContainer->getSeatContainer(seat);
 
+        auto *controller = m_shortcutManager->controller();
+        const uint32_t evdevKeycode = kevent->nativeVirtualKey();
+        const bool isAutoRepeat = kevent->isAutoRepeat();
+
         // Meta: consume press as modifier; suppress release when used in combo
         if (kevent->key() == Qt::Key_Meta || kevent->key() == Qt::Key_Super_L || kevent->key() == Qt::Key_Super_R) {
+            // Synthetic auto-repeat must not touch the filtered set; it is
+            // swallowed like any other modifier event.
+            if (isAutoRepeat)
+                return true;
+
             if (kevent->type() == QEvent::KeyPress) {
+                // Record the consumed modifier so that a focus switch while it
+                // is still held does not advertise it in wl_keyboard.enter.
+                seat->addFilteredKey(evdevKeycode);
                 return true;
             }
-            if (kevent->type() == QEvent::KeyRelease && seatContainer && !seatContainer->metaKeyPressed()) {
-                return false;
-            }
-        }
 
-        if (m_shortcutManager->controller()->dispatchKeyEvent(kevent)) {
+            // KeyRelease. Dispatch the standalone Win/Meta action (e.g. the
+            // launcher) while no other key was pressed in between. The press
+            // was consumed and kept out of enter, so the release is swallowed
+            // as well to avoid an orphan release on the client.
+            if (seatContainer && seatContainer->metaKeyPressed())
+                controller->dispatchKeyEvent(kevent);
+            seat->removeFilteredKey(evdevKeycode);
             return true;
         }
+
+        // Record shortcut-consumed keys *before* dispatching: handling a shortcut
+        // can synchronously switch keyboard focus and emit wl_keyboard.enter
+        // (e.g. Alt+Tab), and the key must already be excluded from that enter's
+        // key set. The matching release is mirrored earlier, before the
+        // inhibitor/capture early returns, so modifier release order cannot
+        // strand it in the filtered set.
+        if (!isAutoRepeat && kevent->type() == QEvent::KeyPress
+            && controller->matchesShortcut(kevent))
+            seat->addFilteredKey(evdevKeycode);
+
+        if (controller->dispatchKeyEvent(kevent))
+            return true;
     }
 
     return false;

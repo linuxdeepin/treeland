@@ -218,6 +218,11 @@ void ShortcutController::unregisterShortcut(const QString &name)
     }
 }
 
+bool ShortcutController::matchesShortcut(const QKeyEvent *event) const
+{
+    return m_keyMap.contains(normalizeKeyCombination(event->keyCombination()).toCombined());
+}
+
 bool ShortcutController::dispatchKeyEvent(const QKeyEvent *kevent)
 {
     auto combined = normalizeKeyCombination(kevent->keyCombination()).toCombined();
@@ -225,7 +230,7 @@ bool ShortcutController::dispatchKeyEvent(const QKeyEvent *kevent)
         | (kevent->type() == QEvent::KeyPress ? ShortcutController::KeyPress : ShortcutController::None)
         | (kevent->type() == QEvent::KeyRelease ? ShortcutController::KeyRelease : ShortcutController::None);
 
-    bool matched = m_keyMap.contains(combined);
+    bool matched = matchesShortcut(kevent);
     if (matched) {
         qCInfo(lcTlShortcut).noquote()
             << "shortcut match:" << QKeySequence(kevent->keyCombination()).toString(QKeySequence::PortableText)
