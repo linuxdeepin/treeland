@@ -86,6 +86,9 @@ void RootSurfaceContainer::init(WServer *server)
             output->updatePositionFromLayout();
         }
         ensureCursorVisible();
+        // The layout may have moved/removed the output under the cursor, so
+        // refresh the cache even without a cursor motion event.
+        updateCursorOutput();
 
         // for (auto s : m_surfaceContainer->surfaces()) {
         //     ensureSurfaceNormalPositionValid(s);
@@ -101,6 +104,7 @@ void RootSurfaceContainer::init(WServer *server)
 
     QObject::connect(m_cursor, &WCursor::positionChanged, this, [this] {
         m_dragSurfaceItem->setPosition(m_cursor->position());
+        updateCursorOutput();
     });
 
     QObject::connect(m_cursor, &WCursor::requestedDragSurfaceChanged, this, [this] {
@@ -387,7 +391,17 @@ WCursor *RootSurfaceContainer::cursor() const
 Output *RootSurfaceContainer::cursorOutput() const
 {
     Q_ASSERT(m_cursor->layout() == m_outputLayout);
-    return outputAt(m_cursor->position());
+    return m_cursorOutput;
+}
+
+void RootSurfaceContainer::updateCursorOutput()
+{
+    Output *output = outputAt(m_cursor->position());
+    if (output == m_cursorOutput)
+        return;
+
+    m_cursorOutput = output;
+    Q_EMIT cursorOutputChanged(output);
 }
 
 Output *RootSurfaceContainer::outputAt(const QPointF &pos) const
