@@ -23,11 +23,17 @@ void protocol_test_setup(Helper *helper)
 
     g_mgr = find_server_interface<ActivationManagerInterfaceV1>(helper);
     if (g_mgr) {
-        QObject::connect(g_mgr, &ActivationManagerInterfaceV1::activateRequested,
-                         helper, [](ActivationManagerInterfaceV1::TokenDisposition disposition,
-                                     WAYLIB_SERVER_NAMESPACE::WSurface *surface,
-                                     WAYLIB_SERVER_NAMESPACE::WSeat *seat) {
-                             (void)seat;
+        QObject::connect(g_mgr,
+                         &ActivationManagerInterfaceV1::activateRequested,
+                         helper,
+                         [](const QString &token,
+                            ActivationManagerInterfaceV1::TokenDisposition disposition,
+                            WAYLIB_SERVER_NAMESPACE::WSurface *surface,
+                            WAYLIB_SERVER_NAMESPACE::WSeat *seat,
+                            WAYLIB_SERVER_NAMESPACE::WSurface *originatingSurface) {
+                             Q_UNUSED(token);
+                             Q_UNUSED(seat);
+                             Q_UNUSED(originatingSurface);
                              g_surface_ptr = surface;
                              g_activate_requested = true;
                              g_captured_disposition = static_cast<int>(disposition);
