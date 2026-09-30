@@ -131,6 +131,11 @@ Use this rule:
 
 Do not create a public header for every protocol child object just because the protocol contains one. Promote it to a public wrapper only when business code actually needs to know about it.
 
+## Request Handler Argument Validation
+libwayland validates every object argument before a request handler runs: non-nullable args are never NULL, unknown ids and type mismatches fail dispatch with a protocol error, destroyed resources no longer resolve, and only `allow-null="true"` args can arrive as NULL. Request handlers therefore need no validation that a passed object matches its protocol-declared type or is still alive — such checks are unreachable dead code.
+
+What the dispatch layer cannot know, the handler must still check: cross-client ownership (`wl_resource_get_client`), inert resources (`wlr_*_from_resource` returning NULL), missing wrappers (`WSurface::fromHandle` / `WOutput::fromHandle` returning nullptr), protocol value rules (positive sizes, enum ranges), and NULL when the xml marks the arg `allow-null="true"`.
+
 ## Manager Interface Wiring
 The public class usually implements:
 
@@ -366,3 +371,4 @@ When using this skill for a real task, make these explicit first:
 2. how manager `create/destroy/global/interfaceName` should be implemented
 3. how `destroy(...)` and `destroy_resource(...)` split responsibilities
 4. where the protocol enters the startup path from `Helper::init`
+5. that request handlers add no object validation already done by the dispatch layer (see Request Handler Argument Validation)
