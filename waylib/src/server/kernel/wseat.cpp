@@ -236,7 +236,15 @@ public:
             // Send keyboard enter with current modifiers.
             // This ensures the newly focused client receives the current modifier state
             // (Num Lock, Caps Lock, etc.) as required by Wayland protocol.
-            wlr_seat_keyboard_notify_enter(handle(), surface, keycodes, numKeycodes, modifiers);
+            //
+            // Keys consumed by shortcut handling are dropped: the client never
+            // saw their press, so advertising them here would make it believe the
+            // key is held down while its release stays swallowed (stuck key).
+            uint32_t visibleKeycodes[WLR_KEYBOARD_KEYS_CAP];
+            const size_t numVisibleKeycodes =
+                WSeat::filterSuppressedKeycodes(keycodes, numKeycodes, suppressedKeycodes,
+                                                visibleKeycodes);
+            wlr_seat_keyboard_notify_enter(handle(), surface, visibleKeycodes, numVisibleKeycodes, modifiers);
         } else {
             // Grab-aware: the raw wlr_seat_keyboard_clear_focus() would
             // bypass an active keyboard grab (IME, popup, drag).
@@ -386,6 +394,9 @@ public:
     QPointer<QWindow> focusWindow;
     QPointer<QObject> pointerFocusEventObject;
     QPointer<WSurface> m_keyboardFocusSurface;
+    // Evdev keycodes whose press was consumed by shortcut handling;
+    // see WSeat::suppressKey().
+    QSet<uint32_t> suppressedKeycodes;
     QMetaObject::Connection onEventObjectDestroy;
     wlr_surface *oldPointerFocusSurface = nullptr;
 
@@ -1186,6 +1197,36 @@ void WSeat::clearKeyboardFocusSurface()
     d->doSetKeyboardFocus(nullptr);
 }
 
+void WSeat::suppressKey(uint32_t keycode)
+{
+    W_D(WSeat);
+    d->suppressedKeycodes.insert(keycode);
+}
+
+void WSeat::unsuppressKey(uint32_t keycode)
+{
+    W_D(WSeat);
+    d->suppressedKeycodes.remove(keycode);
+}
+
+bool WSeat::isKeySuppressed(uint32_t keycode) const
+{
+    W_DC(WSeat);
+    return d->suppressedKeycodes.contains(keycode);
+}
+
+size_t WSeat::filterSuppressedKeycodes(const uint32_t *keycodes, size_t numKeycodes,
+                                       const QSet<uint32_t> &suppressed, uint32_t *out)
+{
+    size_t numFiltered = 0;
+    for (size_t i = 0; i < numKeycodes; ++i) {
+        if (suppressed.contains(keycodes[i]))
+            continue;
+        out[numFiltered++] = keycodes[i];
+    }
+    return numFiltered;
+}
+
 void WSeat::setKeyboardFocusWindow(QWindow *window)
 {
     W_D(WSeat);
@@ -1678,6 +1719,10 @@ void WSeat::destroy(WServer *)
         i->setSeat(nullptr);
 
     d->deviceList.clear();
+
+    // A suppressed key whose release never arrived (e.g. the keyboard was
+    // unplugged while held) must not leak into the next seat lifecycle.
+    d->suppressedKeycodes.clear();
 
     // Need not call the DCursor::detachInputDevice on destroy WSeat, so do
     // call the detachCursor at clear the deviceList after.

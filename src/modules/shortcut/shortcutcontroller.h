@@ -67,6 +67,12 @@ public:
 
     void clear();
     bool dispatchKeyEvent(const QKeyEvent *event);
+
+    // Pure query: whether the event's combination is bound to any shortcut and
+    // will therefore be consumed by shortcut handling. Matches the return value
+    // of dispatchKeyEvent() without its side effects (no action is emitted, so
+    // no focus switch can happen).
+    bool matchesShortcut(const QKeyEvent *event) const;
     static QKeyCombination normalizeKeyCombination(QKeyCombination combination);
     static bool isValidShortcutCombination(QKeyCombination combination);
     Qt::KeyboardModifiers modifierForAction(ShortcutAction action) const;

@@ -9,6 +9,7 @@
 #include <WInputDevice>
 
 #include <QEvent>
+#include <QSet>
 #include <QSharedData>
 #include <xkbcommon/xkbcommon.h>
 
@@ -92,6 +93,23 @@ public:
     void setKeyboardFocusSurface(WSurface *surface);
     WSurface *keyboardFocusSurface() const;
     void clearKeyboardFocusSurface();
+
+    // Keys whose press matched a registered shortcut and was therefore consumed
+    // by shortcut handling, never reaching the client. Such a key must not be
+    // advertised in wl_keyboard.enter (the client would believe it is held while
+    // never receiving a matching release) and its release must be swallowed too,
+    // so the client never observes an orphan release. Keycodes are evdev
+    // keycodes, the same unit as wlr_keyboard::keycodes.
+    void suppressKey(uint32_t keycode);
+    void unsuppressKey(uint32_t keycode);
+    bool isKeySuppressed(uint32_t keycode) const;
+
+    // Copies the keycodes the client is allowed to see into `out`, dropping the
+    // suppressed ones, and returns the number of copied keycodes. `out` must be
+    // able to hold `numKeycodes` elements. `keycodes` may be null when
+    // `numKeycodes` is 0.
+    static size_t filterSuppressedKeycodes(const uint32_t *keycodes, size_t numKeycodes,
+                                           const QSet<uint32_t> &suppressed, uint32_t *out);
 
     void setKeyboardFocusWindow(QWindow *window);
     QWindow *keyboardFocusWindow() const;
