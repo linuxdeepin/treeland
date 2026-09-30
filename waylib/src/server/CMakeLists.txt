@@ -109,6 +109,13 @@ ws_generate(
     xdg-shell-protocol
 )
 
+ws_generate(
+    server
+    wayland-protocols
+    staging/ext-background-effect/ext-background-effect-v1.xml
+    ext-background-effect-v1-protocol
+)
+
 set(SOURCES
     wayliblogging.cpp
 
@@ -168,6 +175,7 @@ set(SOURCES
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/xdg-output-unstable-v1-protocol.c
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/security-context-v1-protocol.c
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/xdg-shell-protocol.c
+    ${WAYLAND_PROTOCOLS_OUTPUTDIR}/ext-background-effect-v1-protocol.c
 
     utils/wtools.cpp
     utils/wthreadutils.cpp
@@ -213,6 +221,9 @@ set(SOURCES
     protocols/wsessionlock.cpp
     protocols/wsessionlocksurface.cpp
     protocols/wremotesubsurfacemanagerv1.cpp
+    protocols/wbackgroundeffectmanagerv1.cpp
+
+    wlroots_extra/wlr_ext_background_effect_v1.c
 )
 
 set(HEADERS
@@ -333,6 +344,9 @@ set(HEADERS
     protocols/WSessionLock
     protocols/wsessionlocksurface.h
     protocols/WSessionLockSurface
+    protocols/wbackgroundeffectmanagerv1.h
+    protocols/WBackgroundEffectManagerV1
+    wlroots_extra/wlr_ext_background_effect_v1.h
 )
 
 set(PRIVATE_HEADERS
@@ -361,6 +375,7 @@ set(PRIVATE_HEADERS
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v2-protocol.h
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/xdg-output-unstable-v1-protocol.h
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/xdg-shell-protocol.h
+    ${WAYLAND_PROTOCOLS_OUTPUTDIR}/ext-background-effect-v1-protocol.h
 
     protocols/private/winputmethodv2_p.h
     protocols/private/wtextinput_p.h
@@ -463,6 +478,7 @@ target_include_directories(${TARGET}
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/protocols>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/protocols/private>
         ${WAYLIB_WLROOTS_INCLUDE_DIRS}
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/wlroots_extra>
         $<INSTALL_INTERFACE:${WAYLIB_INCLUDE_INSTALL_DIR}>
     PRIVATE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>

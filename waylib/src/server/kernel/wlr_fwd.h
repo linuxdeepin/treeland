@@ -44,6 +44,8 @@ struct wlr_drm_connector;
 struct wlr_drm_format;
 struct wlr_drm_format_set;
 struct wlr_export_dmabuf_manager_v1;
+struct wlr_ext_background_effect_manager_v1;
+struct wlr_ext_background_effect_surface_v1_state;
 struct wlr_ext_foreign_toplevel_handle_v1;
 struct wlr_ext_foreign_toplevel_handle_v1_state;
 struct wlr_ext_foreign_toplevel_list_v1;
