@@ -29,7 +29,7 @@ if (NOT TARGET Wlroots::wlroots)
     # Standalone Waylib build against an installed waylib-wlroots (built by
     # the wlroots CMake scaffold, which also installs its headers and
     # waylib-wlroots.pc). Resolve the library, its public dependencies and
-    # the wconfig.h version/feature metadata from that pkg-config file, so
+    # the wconfig.h feature metadata from that pkg-config file, so
     # no monorepo layout is assumed.
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(WLR_INSTALLED REQUIRED IMPORTED_TARGET waylib-wlroots)
@@ -39,9 +39,6 @@ if (NOT TARGET Wlroots::wlroots)
         list(APPEND WAYLIB_WLROOTS_INCLUDE_DIRS "$<BUILD_INTERFACE:${_dir}>")
     endforeach()
     pkg_get_variable(WLROOTS_VERSION waylib-wlroots wlroots_version)
-    pkg_get_variable(WLR_VERSION_MAJOR waylib-wlroots wlroots_version_major)
-    pkg_get_variable(WLR_VERSION_MINOR waylib-wlroots wlroots_version_minor)
-    pkg_get_variable(WLR_VERSION_PATCH waylib-wlroots wlroots_version_patch)
     pkg_get_variable(_waylib_wlroots_features waylib-wlroots wlroots_features)
     foreach(_feature IN LISTS _waylib_wlroots_features)
         set(WLR_HAVE_${_feature} 1)
@@ -418,8 +415,7 @@ set_target_properties(${TARGET}
         POSITION_INDEPENDENT_CODE ON
 )
 
-# Forward wlroots feature/version vars
-# exported by the wlroots CMake build.
+# Sanity check: the wlroots CMake export must be present.
 if(NOT DEFINED WLROOTS_VERSION)
     message(FATAL_ERROR "WLROOTS_VERSION not set; wlroots CMake export missing")
 endif()
