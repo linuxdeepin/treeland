@@ -102,6 +102,19 @@ void WOutputHelperPrivate::setContentIsDirty(bool newValue)
 
 wlr_buffer *WOutputHelperPrivate::acquireBuffer(wlr_swapchain **sc)
 {
+    // This legacy path has no callers on the Vulkan renderer. Its swapchain
+    // replacement destroys the old swapchain immediately, which can race with
+    // GPU work (this frame's command buffer) still referencing its buffers.
+    // The primary rendering path uses WOutput::configurePrimarySwapchain with
+    // deferred replacement instead, so fail safely here rather than
+    // introducing an untested retire mechanism.
+    if (output->renderer() && wlr_renderer_is_vk(output->renderer())) {
+        qCWarning(lcWlOutputHelper)
+            << "acquireBuffer is not supported with the Vulkan renderer"
+            << "output" << output;
+        return nullptr;
+    }
+
     bool ok = wlr_output_configure_primary_swapchain(qwoutput(), &state, sc);
     if (!ok)
         return nullptr;
