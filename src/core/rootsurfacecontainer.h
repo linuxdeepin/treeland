@@ -121,6 +121,7 @@ public Q_SLOTS:
 
 Q_SIGNALS:
     void primaryOutputChanged();
+    void cursorOutputChanged(Output *output);
     void moveResizeFinised(SurfaceWrapper *surface);
 
 private:
@@ -138,6 +139,7 @@ private:
                                   [[maybe_unused]] SurfaceWrapper::State oldState) override;
 
     void ensureCursorVisible();
+    void updateCursorOutput();
     void updateSurfaceOutputs(SurfaceWrapper *surface);
     QQuickItem *ensureEdgeTilePreview();
     void onSeatAdded(WSeat *seat);
@@ -150,6 +152,7 @@ private:
     std::unique_ptr<WAYLIB_SERVER_NAMESPACE::WListenerOwner> m_outputLayoutListenerOwner;
     OutputListModel *m_outputModel = nullptr;
     QPointer<Output> m_primaryOutput;
+    QPointer<Output> m_cursorOutput;
     WCursor *m_cursor = nullptr;
     WSurfaceItem *m_dragSurfaceItem = nullptr;
     QPointer<QQuickItem> m_edgeTilePreview;

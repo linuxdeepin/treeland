@@ -80,7 +80,6 @@ private:
     void createLoginView();
     void destroyLoginView();
     void repositionLoginView();
-    void onCursorPositionChanged();
     Output *followerOutput() const;
 
     ILockScreen *m_impl{ nullptr };
