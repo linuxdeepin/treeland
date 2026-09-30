@@ -26,9 +26,25 @@ RenderBufferBlitter {
     property Item effectContent: contentLoader
     property bool contentOffscreen: false
     property bool effectEnabled: true
+    // Geometric slope cap fed to the glass shader (refractionMaxTan) and to
+    // damageExpansion below. Single source so the two can never desync.
+    property real refractionMaxTan: 3.3
 
     z: parent.z ? parent.z - 1 : -1
     anchors.fill: parent
+    // Worst-case backdrop margin: the full MultiEffect pyramid radius at
+    // blur 1.0 (blurMax scaled by blurMultiplier) plus the Liquid Glass
+    // refraction reach min(bezel * 0.85, thickness * 0.75), capped at 48px
+    // (maxDisp in liquidglass.frag). blurAmount animates, so the margin must
+    // not shrink with it; glass refracts even at blurAmount 0.
+    damageExpansion: (blurMax > 0
+                      ? Math.ceil(blurMax * (1 + Math.max(multiplier, 0)))
+                      : 0)
+                     + (glassEnabled
+                        ? Math.max(2, Math.ceil(Math.min(Math.min(Helper.config.glassBezel * 0.85,
+                                                                  Helper.config.glassThickness * 0.75),
+                                                         48) * Math.max(refractionMaxTan / 2.75, 1)))
+                        : 0)
 
     // Dispatch between Liquid Glass and traditional blur via a Loader so only
     // the active branch is instantiated.  Toggling the DConfig key unloads one
@@ -60,7 +76,7 @@ RenderBufferBlitter {
             saturation: blitter.saturation
             contentEdgePull: 0.0
             contentRampEnd: 0.0
-            refractionMaxTan: 3.3
+            refractionMaxTan: blitter.refractionMaxTan
             profilePower: Helper.config.glassProfilePower
             innerShadow: 0.0
         }
