@@ -1657,7 +1657,16 @@ void Helper::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
 
             if (attached->noTitlebar() || decorationHides) {
                 wrapper->setNoTitleBar(true);
-                if (!wrapper->isLaunchpad()) {
+                // Popups are client-drawn surfaces: CSD toolkits (GTK etc.)
+                // render their own shadow and border inside the popup surface,
+                // so the compositor must not add a decoration there. Only
+                // decorate a popup whose parent toplevel is server-side
+                // decorated.
+                const bool parentIsCsd =
+                    wrapper->type() == SurfaceWrapper::Type::XdgPopup
+                    && wrapper->parentSurface()
+                    && wrapper->parentSurface()->noDecoration();
+                if (!wrapper->isLaunchpad() && !parentIsCsd) {
                     wrapper->setNoDecoration(false);
                 }
             } else {
