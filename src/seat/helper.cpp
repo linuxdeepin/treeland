@@ -2815,9 +2815,32 @@ bool Helper::beforeDisposeEvent(WSeat *seat, QWindow *targetWindow, QInputEvent 
             }
         }
 
-        if (m_shortcutManager->controller()->dispatchKeyEvent(kevent)) {
+        // A release for a key whose press was consumed by a registered shortcut
+        // must be swallowed too, even when the combination no longer matches the
+        // shortcut table (e.g. a modifier was released first). The client never
+        // saw that key pressed, so forwarding its release would hand it an
+        // orphan release.
+        auto *controller = m_shortcutManager->controller();
+        const uint32_t evdevKeycode = kevent->nativeVirtualKey();
+        if (kevent->type() == QEvent::KeyRelease && seat->isKeySuppressed(evdevKeycode)) {
+            seat->unsuppressKey(evdevKeycode);
             return true;
         }
+
+        // Record shortcut-consumed keys *before* dispatching: handling a shortcut
+        // can synchronously switch keyboard focus and emit wl_keyboard.enter
+        // (e.g. Alt+Tab), and the key must already be excluded from that enter's
+        // key set. A consumed release clears the entry again.
+        const bool isPress = kevent->type() == QEvent::KeyPress;
+        if (controller->matchesShortcut(kevent)) {
+            if (isPress)
+                seat->suppressKey(evdevKeycode);
+            else
+                seat->unsuppressKey(evdevKeycode);
+        }
+
+        if (controller->dispatchKeyEvent(kevent))
+            return true;
     }
 
     return false;
