@@ -97,6 +97,7 @@ protected:
     void render(int sourceIndex, const QMatrix4x4 &renderMatrix,
                 const QRectF &sourceRect = {}, const QRectF &targetRect = {});
     void endRender();
+    void renderTransientItem(QQuickItem *item);
     void componentComplete() override;
 
 private:
