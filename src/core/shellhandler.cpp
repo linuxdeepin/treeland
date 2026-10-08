@@ -1158,6 +1158,55 @@ void ShellHandler::onSurfaceInactivationRequested(SurfaceWrapper *wrapper)
     }
 }
 
+void ShellHandler::updateSurfaceAcceptKeyboardFocus(SurfaceWrapper *wrapper, bool accept)
+{
+    if (accept) {
+        wrapper->setAcceptKeyboardFocus(true);
+        return;
+    }
+
+    // DDE Shell properties may arrive after the surface has already entered
+    // the activation history. Remove it explicitly instead of treating
+    // keyboard-focus acceptance as an ActiveControlState capability.
+    if (wrapper->type() != SurfaceWrapper::Type::Layer && wrapper->workspaceId() != -1)
+        m_workspace->removeActivedSurface(wrapper);
+
+    auto *helper = Helper::instance();
+    auto *seatManager = helper->seatManager();
+    const auto seats = seatManager->seats();
+    for (auto *seat : seats) {
+        auto *seatContainer = helper->rootSurfaceContainer()->getSeatContainer(seat);
+        if (!seatContainer)
+            continue;
+
+        const bool isActivated = seatContainer->activatedSurface() == wrapper;
+        const bool hasKeyboardFocus = seatContainer->keyboardFocusSurface() == wrapper;
+        if (!isActivated && !hasKeyboardFocus)
+            continue;
+
+        if (seat != helper->seat()) {
+            if (isActivated)
+                helper->setActivatedSurface(nullptr, seat);
+            if (hasKeyboardFocus)
+                helper->requestKeyboardFocus(nullptr, Qt::OtherFocusReason, seat);
+            continue;
+        }
+
+        auto *fallback = seatContainer->keyboardFocusSurface();
+        if (!fallback || fallback == wrapper || !fallback->acceptKeyboardFocus())
+            fallback = m_workspace->current()->latestActiveSurface();
+        if (fallback && !fallback->acceptKeyboardFocus())
+            fallback = nullptr;
+
+        if (isActivated)
+            helper->activateSurface(fallback, Qt::OtherFocusReason, seat, false);
+        else
+            helper->requestKeyboardFocus(fallback, Qt::OtherFocusReason, seat);
+    }
+
+    wrapper->setAcceptKeyboardFocus(false);
+}
+
 void ShellHandler::setupSurfaceActiveWatcher(SurfaceWrapper *wrapper)
 {
     Q_ASSERT_X(wrapper->container(), Q_FUNC_INFO, "Must setContainer at first!");
@@ -1194,6 +1243,9 @@ void ShellHandler::setupSurfaceActiveWatcher(SurfaceWrapper *wrapper)
         });
     } else { // Xdgtoplevel or X11 or Splash
         connect(wrapper, &SurfaceWrapper::activationRequested, this, [this, wrapper]() {
+            if (!wrapper->acceptKeyboardFocus())
+                return;
+
             if (wrapper->showOnWorkspace(m_workspace->current()->id()))
                 Helper::instance()->activateSurface(wrapper);
             else
@@ -1204,7 +1256,7 @@ void ShellHandler::setupSurfaceActiveWatcher(SurfaceWrapper *wrapper)
             onSurfaceInactivationRequested(wrapper);
         });
 
-        if (wrapper->hasActiveCapability()) {
+        if (wrapper->hasActiveCapability() && wrapper->acceptKeyboardFocus()) {
             if (wrapper->showOnWorkspace(m_workspace->current()->id()))
                 Helper::instance()->activateSurface(wrapper);
             else
@@ -1366,7 +1418,7 @@ void ShellHandler::handleDdeShellSurfaceAdded(WSurface *surface, SurfaceWrapper 
     if (ddeShellSurface->skipMutiTaskView().has_value())
         wrapper->setSkipMutiTaskView(ddeShellSurface->skipMutiTaskView().value());
 
-    wrapper->setAcceptKeyboardFocus(ddeShellSurface->acceptKeyboardFocus());
+    updateSurfaceAcceptKeyboardFocus(wrapper, ddeShellSurface->acceptKeyboardFocus());
 
     connect(ddeShellSurface,
             &DDEShellSurfaceInterface::skipSwitcherChanged,
@@ -1389,7 +1441,7 @@ void ShellHandler::handleDdeShellSurfaceAdded(WSurface *surface, SurfaceWrapper 
     connect(ddeShellSurface,
             &DDEShellSurfaceInterface::acceptKeyboardFocusChanged,
             this,
-            [wrapper](bool accept) {
-                wrapper->setAcceptKeyboardFocus(accept);
+            [this, wrapper](bool accept) {
+                updateSurfaceAcceptKeyboardFocus(wrapper, accept);
             });
 }
