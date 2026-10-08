@@ -1,13 +1,6 @@
 name: Build waylib on Deepin crimson (independent)
 
 on:
-  push:
-    paths:
-      - 'waylib/**'
-      - 'wlroots/**'
-      - '3rdparty/wlroots/**'
-      - '.github/workflows/waylib-deepin-build.yml'
-
   pull_request:
     paths:
       - 'waylib/**'
