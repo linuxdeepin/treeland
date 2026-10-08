@@ -134,6 +134,7 @@ private Q_SLOTS:
 private:
     void setupSurfaceActiveWatcher(SurfaceWrapper *wrapper);
     void onSurfaceInactivationRequested(SurfaceWrapper *wrapper);
+    void updateSurfaceAcceptKeyboardFocus(SurfaceWrapper *wrapper, bool accept);
     void setupSurfaceWindowMenu(SurfaceWrapper *wrapper);
     void updateLayerSurfaceContainer(SurfaceWrapper *surface);
     void registerSurfaceToForeignToplevel(SurfaceWrapper *wrapper);

@@ -60,6 +60,10 @@ SeatSurfaceManager::~SeatSurfaceManager()
 void SeatSurfaceManager::setActivatedSurface(SurfaceWrapper *surface, Qt::FocusReason reason)
 {
     Q_UNUSED(reason);
+    if (surface && !surface->acceptKeyboardFocus()) {
+        return;
+    }
+
     if (m_activatedSurface == surface)
         return;
 
