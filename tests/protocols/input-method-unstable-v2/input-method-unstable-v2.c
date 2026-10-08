@@ -47,6 +47,10 @@ struct text_input_events {
     unsigned int commit_string;
     unsigned int delete_surrounding_text;
     unsigned int preedit_string;
+    // preedit_string count when leave arrived: the clearing preedit must come
+    // first, otherwise the client drops its composing state before it is told
+    // to clear the preedit.
+    unsigned int preedit_string_at_leave;
     unsigned int preedit_cursor;
     unsigned int preedit_styling;
     char committed[64];
@@ -190,7 +194,9 @@ static void text_input_leave(void *data, struct zwp_text_input_v2 *text_input,
     (void)text_input;
     (void)serial;
     (void)surface;
-    ++((struct text_input_events *)data)->leave;
+    struct text_input_events *events = data;
+    ++events->leave;
+    events->preedit_string_at_leave = events->preedit_string;
 }
 
 static void text_input_input_panel_state(void *data, struct zwp_text_input_v2 *text_input,
@@ -467,6 +473,15 @@ int protocol_test_run(const char *socket_name)
         goto failed;
     stage = 4;
 
+    // A commit that does not send set_preedit_string means the preedit is now
+    // empty, so the app must be told to drop the stale composing text instead
+    // of keeping it forever: fcitx5 only ever sends a non-empty preedit.
+    zwp_input_method_v2_commit(first, input_method_serial);
+    if (wl_display_roundtrip(im_connection.display) < 0 || wl_display_roundtrip(app.display) < 0
+        || text_events.preedit_string != 2 || text_events.preedit[0] != '\0')
+        goto failed;
+    stage = 5;
+
     virtual_keyboard = zwp_virtual_keyboard_manager_v1_create_virtual_keyboard(
         virtual_keyboard_manager, app_seat);
     if (!virtual_keyboard || !send_keymap(virtual_keyboard) || wl_display_roundtrip(app.display) < 0)
@@ -498,7 +513,7 @@ int protocol_test_run(const char *socket_name)
         || second_events.activate || second_events.deactivate || second_events.surrounding_text
         || second_events.text_change_cause || second_events.content_type || second_events.done)
         goto failed;
-    stage = 5;
+    stage = 6;
 
     zwp_input_method_manager_v2_destroy(manager);
     manager = NULL;
@@ -506,10 +521,20 @@ int protocol_test_run(const char *socket_name)
     zwp_input_method_v2_commit(first, input_method_serial);
     if (wl_display_roundtrip(im_connection.display) < 0 || wl_display_roundtrip(app.display) < 0)
         goto failed;
-    stage = 6;
+    stage = 7;
 
+    stage = 8;
     zwp_input_method_v2_destroy(second);
     zwp_input_method_v2_destroy(first);
+    // Destroying the input method leaves every focused text input. This runs the
+    // same sendLeave() path as a keyboard focus move to another window, and the
+    // client must be told to drop its composing text before it loses focus.
+    if (wl_display_roundtrip(im_connection.display) < 0 || wl_display_roundtrip(app.display) < 0
+        || text_events.preedit_string != 4 || text_events.preedit[0] != '\0'
+        || text_events.leave != 1 || text_events.preedit_string_at_leave != 4)
+        goto failed;
+    stage = 9;
+
     zwp_text_input_v2_destroy(text_input);
     zwp_text_input_manager_v2_destroy(text_manager);
     zwp_virtual_keyboard_v1_destroy(virtual_keyboard);
@@ -522,11 +547,12 @@ int protocol_test_run(const char *socket_name)
     return 0;
 
 failed:
-    fprintf(stderr, "input-method-v2 failure at stage %d: IM=(activate=%u surrounding=%u cause=%u content=%u done=%u unavailable=%u) text=(enter=%u commit=%u delete=%u preedit=%u)\n",
+    fprintf(stderr, "input-method-v2 failure at stage %d: IM=(activate=%u surrounding=%u cause=%u content=%u done=%u unavailable=%u) text=(enter=%u commit=%u delete=%u preedit=%u leave=%u preedit_at_leave=%u)\n",
             stage, first_events.activate, first_events.surrounding_text,
             first_events.text_change_cause, first_events.content_type, first_events.done,
             first_events.unavailable, text_events.enter, text_events.commit_string,
-            text_events.delete_surrounding_text, text_events.preedit_string);
+            text_events.delete_surrounding_text, text_events.preedit_string,
+            text_events.leave, text_events.preedit_string_at_leave);
     client_disconnect(&im_connection);
     client_disconnect(&app);
     return 1;

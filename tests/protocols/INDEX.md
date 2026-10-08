@@ -87,8 +87,8 @@ xdg-shell 由共享 xdg-toplevel 夹具覆盖（多个 toplevel 测试复用）�
 | [wayland-relative-pointer-unstable-v1](wayland-relative-pointer-unstable-v1/README.md) | E | 真实 `wl_pointer` 上创建 relative-pointer，回读真实 `wlr_relative_pointer_manager_v1::relative_pointers` 列表非空 |
 | [wayland-security-context-v1](wayland-security-context-v1/README.md) | E | commit 后回读真实 `wlr_security_context_manager_v1::events.commit` 捕获的 app_id 与请求一致；第二连接经套接字建立 |
 | [wayland-single-pixel-buffer-v1](wayland-single-pixel-buffer-v1/README.md) | E | 映射 toplevel + 单像素缓冲，回读真实 `wlr_surface::current.buffer_width/height` == 1×1 |
-| [wayland-text-input-unstable-v1](wayland-text-input-unstable-v1/README.md) | E | 创建 text_input v1 + `activate`，回读真实 `WTextInputV1::activate` 信号被触发 |
-| [wayland-text-input-unstable-v3](wayland-text-input-unstable-v3/README.md) | E | 创建 text_input v3 + enable/commit，回读真实 `wlr_text_input_v3::current_enabled` == true |
+| [wayland-text-input-unstable-v1](wayland-text-input-unstable-v1/README.md) | E | 创建 text_input v1 + `activate`，回读真实 `WTextInputV1::activate` 信号被触发；fake input method commit 后断言空 preedit 被转发、丢焦点只发 `leave` |
+| [wayland-text-input-unstable-v3](wayland-text-input-unstable-v3/README.md) | E | 创建 text_input v3 + enable/commit，回读真实 `wlr_text_input_v3::current_enabled` == true；fake input method 流程断言空 preedit/done 早于 `leave`、已 disable 时不发状态更新 |
 | [wayland-viewporter](wayland-viewporter/README.md) | E | 映射 toplevel + `set_destination(320,240)`，回读真实 `wlr_surface::current.viewport` dst 状态 |
 | [wayland-xdg-activation-v1](wayland-xdg-activation-v1/README.md) | E | `get_activation_token` + `activate`，回读真实 `ActivationManagerInterfaceV1::activateRequested` 信号的 disposition == Attention |
 | [wayland-xdg-decoration-unstable-v1](wayland-xdg-decoration-unstable-v1/README.md) | E | 映射 toplevel + `set_mode`，回读真实 `WXdgDecorationManager::modeBySurface` 返回 Client |
@@ -180,8 +180,8 @@ focus 到 `active` event 的链路；`ext-image-copy-capture-v1` 已验证 outpu
 | `relative-pointer-unstable-v1` | `wlr_relative_pointer_manager_v1::relative_pointers` 列表非空 |
 | `security-context-v1` | `wlr_security_context_manager_v1::events.commit` 捕获的 app_id |
 | `single-pixel-buffer-v1` | `wlr_surface::current.buffer_width/height` == 1×1 |
-| `text-input-unstable-v1` | `WTextInputV1::activate` 信号被触发 |
-| `text-input-unstable-v3` | `wlr_text_input_v3::current_enabled` == true |
+| `text-input-unstable-v1` | `WTextInputV1::activate` 信号被触发；空 preedit 被转发；丢焦点只发 `leave` |
+| `text-input-unstable-v3` | `wlr_text_input_v3::current_enabled` == true；空 preedit/done 早于 `leave`；已 disable 时不发 preedit |
 | `viewporter` | `wlr_surface::current.viewport` dst 状态 |
 | `xdg-activation-v1` | `ActivationManagerInterfaceV1::activateRequested` 的 disposition == Attention |
 | `xdg-decoration-unstable-v1` | `WXdgDecorationManager::modeBySurface` 返回 Client |
