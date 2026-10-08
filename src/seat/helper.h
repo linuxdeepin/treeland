@@ -28,7 +28,6 @@
 #include <wxdgdialogmanagerv1.h>
 #include <wxdgtopleveltagmanager.h>
 
-#include <QSet>
 #include <QList>
 #include <vector>
 #include <QMap>
@@ -63,12 +62,7 @@ class WCursor;
 class WExtForeignToplevelListV1;
 class WForeignToplevel;
 class WOutput;
-class WOutputItem;
-class WOutputLayer;
-class WOutputLayout;
-class WOutputManagerV1;
 class WOutputRenderWindow;
-class WOutputViewport;
 class WServer;
 class WSessionLock;
 class WSessionLockManager;
@@ -83,7 +77,6 @@ class WPointerConstraintsV1;
 
 class WForeignToplevel;
 class WExtForeignToplevelListV1;
-class WOutputManagerV1;
 class WRelativePointerManagerV1;
 class WSessionLockManager;
 class WSessionLock;
@@ -108,7 +101,6 @@ class LockScreenInterface;
 class Multitaskview;
 class Output;
 class OutputManager;
-class OutputManagerV1;
 class PersonalizationManagerInterfaceV1;
 class AppearanceInterfaceV1;
 class AppearanceManagerInterfaceV1;
@@ -129,7 +121,6 @@ class TreelandConfig;
 class TreelandUserConfig;
 class TreelandRemoteSource;
 class UserModel;
-class VirtualOutputManagerInterfaceV1;
 class WallpaperColorInterfaceV1;
 class ShowDesktopInterfaceV1;
 class WindowPickerInterface;
@@ -148,10 +139,6 @@ class Treeland;
 
 class Helper : public WSeatEventFilter, public WAYLIB_SERVER_NAMESPACE::WObject
 {
-    friend class RootSurfaceContainer;
-    friend class ShellHandler;
-    friend class ShortcutRunner;
-    friend class ShellActionExecutor;
     Q_OBJECT
     Q_PROPERTY(RootSurfaceContainer* rootSurfaceContainer READ rootSurfaceContainer CONSTANT FINAL)
     Q_PROPERTY(float animationSpeed READ animationSpeed WRITE setAnimationSpeed NOTIFY animationSpeedChanged FINAL)
@@ -204,6 +191,7 @@ public:
     RootSurfaceContainer *rootSurfaceContainer() const;
     WServer *server() const;
     Output *getOutput(WOutput *output) const;
+    const QList<Output *> &outputs() const;
 
     float animationSpeed() const;
     void setAnimationSpeed(float newAnimationSpeed);
@@ -331,17 +319,8 @@ private Q_SLOTS:
     void onSessionUnlock();
 
 private:
-    void onOutputAdded(WOutput *output);
-    void finishInitialOutputScanIfReady();
-    void processOutputAdded(WOutput *output);
-    void onOutputRemoved(WOutput *output);
     void onSurfaceModeChanged(WSurface *surface, WXdgDecorationManager::DecorationMode mode);
-    void setGamma(struct wlr_gamma_control_manager_v1_set_gamma_event *event);
-    void onOutputTestOrApply(wlr_output_configuration_v1 *config, bool onlyTest);
-    void onSetOutputPowerMode(wlr_output_power_v1_set_mode_event *event);
     void onNewIdleInhibitor(wlr_idle_inhibitor_v1 *inhibitor);
-    void onSetCopyOutput(VirtualOutputInterfaceV1 *interface);
-    void onRestoreCopyOutput(VirtualOutputInterfaceV1 *interface);
     void onSurfaceWrapperAdded(SurfaceWrapper *wrapper);
     void onSurfaceWrapperAboutToRemove(SurfaceWrapper *wrapper);
     void handleRequestDrag([[maybe_unused]] WSurface *surface);
@@ -360,10 +339,10 @@ private:
     friend class WallpaperItem;
     friend class WallpaperSwitcherItem;
     friend class InputManager;
-    friend class OutputManager;
-
-    void allowNonDrmOutputAutoChangeMode(WOutput *output);
-    int indexOfOutput(WOutput *output) const;
+    friend class RootSurfaceContainer;
+    friend class ShellHandler;
+    friend class ShortcutRunner;
+    friend class ShellActionExecutor;
 
     SurfaceWrapper *keyboardFocusSurface() const;
     SurfaceWrapper *activatedSurface() const;
@@ -379,29 +358,6 @@ private:
     void handleLeftButtonStateChanged(const QInputEvent *event);
     void handleWhellValueChanged(const QInputEvent *event);
     bool doGesture(QInputEvent *event);
-    Output *createNormalOutput(WOutput *output);
-    Output *createCopyOutput(WOutput *output, Output *proxy);
-    bool ensureOutputInRootContainer(Output *output);
-    void removeOutputFromRootContainer(Output *output);
-    void removeOutputFromRootContainer(WOutput *output);
-    WOutputViewport *getOwnOutputViewport(WOutput *output);
-    QList<SurfaceWrapper *> getWorkspaceSurfaces(Output *filterOutput = nullptr);
-    void moveSurfacesToOutput(const QList<SurfaceWrapper *> &surfaces,
-                              Output *targetOutput,
-                              Output *sourceOutput);
-    void handleCopyModeOutputDisable(Output *affectedOutput);
-    bool restoreConfiguredCopyMode();
-    void restoreExtensionModeFromConfig(bool preserveSingleOutputConfig = false);
-    void restoreInitialOutputConfiguration();
-    void restoreCopyMode();
-    void applyCopyModeToOutputs(Output *primaryOutput,
-                                const QList<SurfaceWrapper *> &surfaces,
-                                const QStringList &outputIds = {},
-                                bool persistConfig = true);
-    void saveCurrentOutputConfig(Output *output);
-    Output *findOutputByName(const QString &name) const;
-    Output *findOutputById(const QString &id) const;
-    bool isNvidiaCardPresent();
     void setWorkspaceVisible(bool visible);
     void restoreFromShowDesktop(SurfaceWrapper *activeSurface = nullptr);
     void restoreShowDesktopFocus();
@@ -411,7 +367,6 @@ private:
 
     void switchWorkspaceForSeat(WSeat *seat, int index);
     void handleRequestDragForSeat(WSeat *seat, WSurface *surface);
-    void enableAllOutput();
 
     WSeat *m_currentEventSeat = nullptr;
 
@@ -455,11 +410,7 @@ private:
     WPointer<wlr_compositor> m_compositor;
     wlr_idle_notifier_v1 *m_idleNotifier = nullptr;
     WPointer<wlr_idle_inhibit_manager_v1> m_idleInhibitManager;
-    WPointer<wlr_output_power_manager_v1> m_outputPowerManager;
     wlr_ext_foreign_toplevel_image_capture_source_manager_v1 *m_foreignToplevelImageCaptureManager = nullptr;
-
-    // Per-output request_state listeners are managed via output->listeners(this):
-    // ~WOutput detaches them automatically. onOutputRemoved calls removeListeners(this).
 
     struct IdleInhibitorEntry {
         wlr_idle_inhibitor_v1 *inhibitor = nullptr;
@@ -495,15 +446,11 @@ private:
     CompositorActionInterfaceV1 *m_compositorActionInterfaceV1 = nullptr;
     DecorationManagerInterfaceV1 *m_decorationInterfaceV1 = nullptr;
     WallpaperColorInterfaceV1 *m_wallpaperColorV1 = nullptr;
-    WOutputManagerV1 *m_outputManager = nullptr;
-    WXdgOutputManager *m_xwaylandOutputManager = nullptr;
     ShowDesktopInterfaceV1 *m_showDesktopInterfaceV1 = nullptr;
     XWindowControlInterfaceV1 *m_xWindowControlInterfaceV1 = nullptr;
     ShowDesktopInterfaceV1::State m_showDesktop = ShowDesktopInterfaceV1::State::Normal;
     DDEShellManagerInterfaceV1 *m_ddeShellV1 = nullptr;
     DDEShellManagerInterfaceV2 *m_ddeShellV2 = nullptr;
-    VirtualOutputManagerInterfaceV1 *m_virtualOutputInterfaceV1 = nullptr;
-    OutputManagerV1 *m_outputManagerV1 = nullptr;
     DDMInterfaceV1 *m_ddmInterfaceV1 = nullptr;
     ScreensaverInterfaceV2 *m_screensaverInterfaceV2 = nullptr;
     TreelandWallpaperManagerInterfaceV1 *m_wallpaperManagerInterfaceV1 = nullptr;
@@ -517,16 +464,12 @@ private:
     QTimer *m_lockScreenGraceTimer = nullptr;
 #endif
     // private data
-    QList<Output *> m_outputList;
-    QSet<WOutput *> m_pendingOutputs;
-    QSet<wlr_output *> m_powerOffOutputs;
-    OutputManager *m_outputManagerHelper = nullptr;
+    OutputManager *m_outputManager = nullptr;
     QPointer<QQuickItem> m_taskSwitch;
     QList<wlr_idle_inhibitor_v1 *> m_idleInhibitors;
 
     LockScreen *m_lockScreen = nullptr;
     float m_animationSpeed = 1.0;
-    OutputMode m_mode = OutputMode::Extension;
     std::optional<QPointF> m_fakelastPressedPosition;
 
     QPointer<CaptureSourceSelector> m_captureSelector;
@@ -543,21 +486,9 @@ private:
 
     bool m_noAnimation{ false };
     bool m_isDDMDisplay{ false };
-    bool m_backendStartFinished{ false };
-    bool m_initialOutputScanFinished{ false };
     void tryInitRemoteSource();
 
     TreelandRemoteSource *m_treelandRemoteSource = nullptr;
-
-    struct PendingOutputConfig {
-        wlr_output_configuration_v1 *config = nullptr;
-        QList<WOutputState> states;
-        int pendingCommits = 0;
-        bool allSuccess = true;
-    };
-    PendingOutputConfig m_pendingOutputConfig;
-
-    void onOutputCommitFinished(wlr_output_configuration_v1 *config, bool success);
 
     SeatManager *m_seatManager = nullptr;
     InputManager *m_inputManager = nullptr;
