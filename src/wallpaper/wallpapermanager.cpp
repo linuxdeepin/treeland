@@ -108,7 +108,7 @@ void WallpaperManager::defaultWallpaperConfig()
     Workspace *workspace = Helper::instance()->workspace();
     Q_ASSERT(workspace);
     const QString defaultBackground = Helper::instance()->m_config->defaultBackground();
-    for (Output *output : std::as_const(Helper::instance()->m_outputList)) {
+    for (Output *output : std::as_const(Helper::instance()->outputs())) {
         WallpaperOutputConfig outputConfig;
         applyDefaultWallpaper(defaultBackground,
                               outputConfig.lockscreenWallpaper,
@@ -277,7 +277,7 @@ QMap<QString, TreelandWallpaperInterfaceV1::WallpaperType> WallpaperManager::glo
     QMap<QString, TreelandWallpaperInterfaceV1::WallpaperType> wallpapers;
     for (const WallpaperOutputConfig& output : std::as_const(m_wallpaperConfig)) {
         bool outputConnected = false;
-        for (Output *connectedOutput : std::as_const(Helper::instance()->m_outputList)) {
+        for (Output *connectedOutput : std::as_const(Helper::instance()->outputs())) {
             if (output.outputName == connectedOutput->getOutputId()) {
                 outputConnected = true;
                 break;
