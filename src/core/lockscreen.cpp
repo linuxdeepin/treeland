@@ -16,6 +16,7 @@
 #include "rootsurfacecontainer.h"
 #include "surfacewrapper.h"
 
+#include <wcursor.h>
 #include <wsessionlock.h>
 #include <wsessionlocksurface.h>
 #endif
@@ -36,13 +37,12 @@ LockScreen::LockScreen(ILockScreen *impl, SurfaceContainer *parent, GreeterProxy
 
     // The global login view is lazily created when this container becomes
     // visible (locked) and destroyed when it hides (unlocked). Track the
-    // output under the cursor so the login UI follows the mouse without
-    // recomputing the output on every cursor motion.
+    // cursor so the login UI follows the output the mouse is on.
     connect(this, &QQuickItem::visibleChanged, this, &LockScreen::onLoginViewVisibleChanged);
-    connect(rootContainer(),
-            &RootSurfaceContainer::cursorOutputChanged,
+    connect(rootContainer()->cursor(),
+            &WCursor::positionChanged,
             this,
-            &LockScreen::repositionLoginView);
+            &LockScreen::onCursorPositionChanged);
 }
 
 void LockScreen::lock()
@@ -242,6 +242,13 @@ void LockScreen::repositionLoginView()
     m_loginView->setY(pos.y());
     m_loginView->setWidth(size.width());
     m_loginView->setHeight(size.height());
+}
+
+void LockScreen::onCursorPositionChanged()
+{
+    if (m_loginView) {
+        repositionLoginView();
+    }
 }
 #if EXT_SESSION_LOCK_V1
 // ext_session_lock_v1 capabilities
