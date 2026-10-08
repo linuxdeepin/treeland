@@ -238,7 +238,14 @@ void WQmlCreatorComponent::create(QSharedPointer<WQmlCreatorDelegateData> data, 
 
     auto context = new QQmlContext(qmlContext(this), this);
     context->setContextProperties(m_contextProperties);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 12, 0)
+    // Qt 6.12 turned CreateBehavior into an enum class and gave the parameter no
+    // default value. CreateBehavior::Cpp is the equivalent of the old CreateDefault.
+    data->object =
+        d->createWithProperties(parent, tmp, context, QQmlComponentPrivate::CreateBehavior::Cpp);
+#else
     data->object = d->createWithProperties(parent, tmp, context);
+#endif
     context->setParent(data->object);
 
     if (data->object) {
