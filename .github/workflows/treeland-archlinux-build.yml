@@ -6,8 +6,6 @@ name: Build treeland on Arch Linux
 # treeland-protocols-git is installed from AUR
 
 on:
-  push:
-
   pull_request:
 
 jobs:

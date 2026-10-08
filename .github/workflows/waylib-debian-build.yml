@@ -1,13 +1,6 @@
 name: Build waylib on Debian unstable (independent)
 
 on:
-  push:
-    paths:
-      - 'waylib/**'
-      - 'wlroots/**'
-      - '3rdparty/wlroots/**'
-      - '.github/workflows/waylib-debian-build.yml'
-
   pull_request:
     paths:
       - 'waylib/**'
