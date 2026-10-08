@@ -171,6 +171,11 @@ void WTextInputV1::handleIMCommitted(WInputMethodV2 *im)
         sendPreeditCursor(im->preeditCursorEnd() - im->preeditCursorBegin());
         sendPreeditStyling(0, im->preeditString().length(), WTextInputV1::PS_Active);
         sendPreeditString(im->preeditString(), im->commitString());
+    } else {
+        // A commit replaces the whole state and the initial preedit is empty:
+        // an empty preedit must be forwarded to drop stale composing text
+        // (fcitx5 only sends a non-empty preedit).
+        sendPreeditString(QString(), QString());
     }
 }
 
