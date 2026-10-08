@@ -18,6 +18,8 @@
 | popup 角色和销毁顺序 | 为无角色 `wl_surface` 调用 `get_input_popup_surface`，先销毁 popup 再销毁 surface | 创建和销毁均无协议错误 | P |
 | focused text-input 的状态快照 | fake app 映射 xdg toplevel，并 enable text-input-v2，设置 surrounding text/content type/cursor rectangle | fake IM 收到 `activate`、`surrounding_text("abc",3,3)`、`text_change_cause(input_method)`、`content_type(auto_completion,email)` 和一个 `done` | E |
 | IM 编辑结果回传应用 | fake IM 设置 delete、commit string、preedit 后 `commit(0)` | fake app 收到正确的 `delete_surrounding_text(1,2)`、`commit_string("committed")`、preedit string/cursor/styling | E |
+| 清空 preedit | fake IM 在不发送 `set_preedit_string` 的情况下 `commit`（fcitx5 清空 preedit 时的行为） | fake app 再次收到 `preedit_string` 且文本为空，残留的组合文本被清除（此前只在非空时转发，导致应用永远保留旧 preedit） | E |
+| 丢焦点时清 preedit | fake IM 被销毁，focused text-input 因此收到 `leave`（与切窗口时走同一条 `sendLeave()` 路径） | fake app 在 `leave` 前再收到一次空的 `preedit_string`（断言同时校验事件先后顺序），组合文本被清除而不是留给客户端自行处理 | E |
 | active popup 定位 | fake IM 为 roleless surface 创建 popup | 收到生产 helper 按 text-input cursor rectangle 发出的 `text_input_rectangle(11,12,13,14)` | E |
 | keyboard grab 资源 | `grab_keyboard` 后 roundtrip，再 `release` | 子资源可创建并按 release 生命周期销毁 | P |
 | 每 seat 唯一 input method | 同一 `wl_seat` 再次 `get_input_method` | 第二对象只收到一次 `unavailable`，没有其他 event | P |

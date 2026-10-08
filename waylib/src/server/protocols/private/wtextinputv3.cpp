@@ -191,7 +191,7 @@ void WTextInputV3::sendEnter(WSurface *surface)
         return;
 
     if (focusedSurface)
-        wlr_text_input_v3_send_leave(handle());
+        sendLeave();
 
     wlr_text_input_v3_send_enter(handle(), targetSurface);
 }
@@ -199,6 +199,16 @@ void WTextInputV3::sendEnter(WSurface *surface)
 void WTextInputV3::sendLeave()
 {
     if (handle()->focused_surface) {
+        // The client must drop its composing text when it loses focus, but some
+        // clients keep the last preedit rendered when they only receive leave.
+        // fcitx5 clears its own preedit without sending an empty one, so clear
+        // it here explicitly while the client is still listening. Skip it once
+        // the client disabled: that would be a state update outside an active
+        // input session.
+        if (handle()->current_enabled) {
+            sendPreeditString(QString(), 0, 0);
+            sendDone();
+        }
         wlr_text_input_v3_send_leave(handle());
     }
 }
@@ -225,9 +235,11 @@ void WTextInputV3::sendDone()
 
 void WTextInputV3::handleIMCommitted(WInputMethodV2 *im)
 {
-    if (!im->preeditString().isEmpty()) {
-        sendPreeditString(im->preeditString(), im->preeditCursorBegin(), im->preeditCursorEnd());
-    }
+    // A commit replaces the whole state, and the initial preedit is empty:
+    // fcitx5 only ever sends a non-empty set_preedit_string, so an empty preedit
+    // here means "clear it". Forwarding only non-empty preedits would leave the
+    // client rendering stale composing text that no later key can remove.
+    sendPreeditString(im->preeditString(), im->preeditCursorBegin(), im->preeditCursorEnd());
     if (!im->commitString().isEmpty()) {
         sendCommitString(im->commitString());
     }

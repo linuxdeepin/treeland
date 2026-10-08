@@ -419,6 +419,12 @@ void WTextInputV2::sendLeave()
         qCWarning(lcWlTextInput()) << "Send leave to a null focused surface.";
         return;
     }
+    // See WTextInputV3::sendLeave(): drop the client's stale composing text
+    // before it loses focus (fcitx5 only clears its own preedit). Only while the
+    // input is enabled: a client that already disabled must not get a state
+    // update outside an active input session.
+    if (d->enabledSurface == d->focusedSurface)
+        zwp_text_input_v2_send_preedit_string(d->resource, "", "");
     zwp_text_input_v2_send_leave(d->resource, 0, d->focusedSurface->handle()->resource);
     if (d->enabledSurface == d->focusedSurface) {
         Q_EMIT disabled();
@@ -448,6 +454,11 @@ void WTextInputV2::handleIMCommitted(WInputMethodV2 *im)
         zwp_text_input_v2_send_preedit_cursor(d->resource, im->preeditCursorEnd() - im->preeditCursorBegin());
         zwp_text_input_v2_send_preedit_styling(d->resource, 0, im->preeditString().length(), PS_Active);
         zwp_text_input_v2_send_preedit_string(d->resource, im->preeditString().toStdString().c_str(), im->commitString().toStdString().c_str());
+    } else {
+        // A commit replaces the whole state and the initial preedit is empty:
+        // an empty preedit must be forwarded to drop stale composing text
+        // (fcitx5 only sends a non-empty preedit).
+        zwp_text_input_v2_send_preedit_string(d->resource, "", "");
     }
 }
 
