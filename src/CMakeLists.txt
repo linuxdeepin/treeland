@@ -152,11 +152,6 @@ qt_add_qml_module(libtreeland
         core/windowpicker.h
         core/windowconfigstore.cpp
         core/windowconfigstore.h
-        effects/tquickradiuseffect.cpp
-        effects/tquickradiuseffect.h
-        effects/tquickradiuseffect_p.h
-        effects/tsgradiusimagenode.cpp
-        effects/tsgradiusimagenode.h
         $<$<OR:$<NOT:$<BOOL:${DISABLE_DDM}>>,$<BOOL:${EXT_SESSION_LOCK_V1}>>:core/lockscreen.h>
         $<$<OR:$<NOT:$<BOOL:${DISABLE_DDM}>>,$<BOOL:${EXT_SESSION_LOCK_V1}>>:core/lockscreen.cpp>
         $<$<NOT:$<BOOL:${DISABLE_DDM}>>:greeter/greeterproxy.cpp>
@@ -304,17 +299,6 @@ if (USE_BUILD_TREE_WALLPAPER_FACTORY)
     )
 endif()
 
-qt_add_shaders(libtreeland "treeland_shaders_ng"
-    BATCHABLE
-    PRECOMPILE
-    PREFIX
-        "/shaders"
-    BASE
-        ${PROJECT_RESOURCES_DIR}/shaders
-    FILES
-        ${PROJECT_RESOURCES_DIR}/shaders/radiussmoothtexture.vert
-        ${PROJECT_RESOURCES_DIR}/shaders/radiussmoothtexture.frag
-)
 
 # Liquid Glass shaders are used with ShaderEffect, not custom QSGGeometry,
 # so BATCHABLE is unnecessary (it only adds an unused batchable variant).
