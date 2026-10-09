@@ -1,8 +1,7 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 import QtQuick
-import QtQuick.Shapes
 import Waylib.Server
 import Treeland
 
@@ -29,11 +28,23 @@ Item {
 
     SurfaceItemContent {
         id: content
+
+        readonly property bool effectEnabled: GraphicsInfo.api !== GraphicsInfo.Software
+            && !!root.wrapper
+            && cornerRadius > 0
+            && !root.wrapper.noCornerRadius
+            && !!root.wrapper.decoration
+            && root.wrapper.visibleDecoration
+
         surface: root.surface?.surface ?? null
         anchors.fill: parent
-        opacity: effectLoader.active ? 0 : parent.opacity
         live: root.surface && !(root.surface.flags & SurfaceItem.NonLive)
         smooth: root.surface?.smooth ?? true
+        radius: effectEnabled ? cornerRadius : 0
+        topLeftRadius: effectEnabled && wrapper?.noTitleBar ? cornerRadius : 0
+        topRightRadius: effectEnabled && wrapper?.noTitleBar ? cornerRadius : 0
+        bottomLeftRadius: effectEnabled ? cornerRadius : 0
+        bottomRightRadius: effectEnabled ? cornerRadius : 0
 
         onDevicePixelRatioChanged: {
             if (wrapper) {
@@ -42,41 +53,4 @@ Item {
         }
     }
 
-    Loader {
-        id: effectLoader
-
-        anchors.fill: parent
-        active: {
-            if (GraphicsInfo.api === GraphicsInfo.Software)
-                return false;
-
-            if (!root.wrapper)
-                return false;
-            return (cornerRadius > 0) &&
-                    !root.wrapper.noCornerRadius &&
-                    root.wrapper.decoration &&
-                    root.wrapper.visibleDecoration;
-        }
-
-        sourceComponent: Shape {
-            fillMode: Shape.PreserveAspectFit
-            preferredRendererType: Shape.CurveRenderer
-            ShapePath {
-                strokeWidth: 0
-                fillItem: content
-                PathRectangle {
-                    readonly property real scale: width / content.width
-
-                    x: content.bufferSourceRect.x
-                    y: content.bufferSourceRect.y
-                    width: content.bufferSourceRect.width
-                    height: content.bufferSourceRect.height
-                    topLeftRadius: wrapper?.noTitleBar ? cornerRadius * scale : 0
-                    topRightRadius: wrapper?.noTitleBar ? cornerRadius * scale : 0
-                    bottomLeftRadius: cornerRadius * scale
-                    bottomRightRadius: cornerRadius * scale
-                }
-            }
-        }
-    }
 }
