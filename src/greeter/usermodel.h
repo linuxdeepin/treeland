@@ -86,7 +86,7 @@ Q_SIGNALS:
     void currentUserNameChanged();
     void updateTranslations(const QLocale &locale);
     void countChanged();
-    void userLoggedIn(const QString &username, int sessionId);
+    void userLoggedIn(const QString &username, const QString &sessionId);
 
 private Q_SLOTS:
     void onUserAdded(quint64 uid);
