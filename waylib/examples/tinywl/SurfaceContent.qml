@@ -1,4 +1,4 @@
-// Copyright (C) 2024 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 import QtQuick
@@ -14,36 +14,29 @@ Item {
     readonly property real cornerRadius: wrapper?.radius ?? 0
 
     anchors.fill: parent
+
     SurfaceItemContent {
         id: content
         surface: root.surface?.surface ?? null
         anchors.fill: parent
-        opacity: effectLoader.active ? 0 : alphaModifier
+        opacity: alphaModifier
         live: root.surface && !(root.surface.flags & SurfaceItem.NonLive)
         smooth: root.surface?.smooth ?? true
+        radius: effectEnabled ? cornerRadius : 0
+        topLeftRadius: effectEnabled && root.surface.topPadding <= 0 ? cornerRadius : 0
+        topRightRadius: effectEnabled && root.surface.topPadding <= 0 ? cornerRadius : 0
+        bottomLeftRadius: effectEnabled ? cornerRadius : 0
+        bottomRightRadius: effectEnabled ? cornerRadius : 0
+        viewport: Qt.rect(-root.surface.leftPadding, -root.surface.topPadding,
+                          root.surface.width * root.surface.surfaceSizeRatio,
+                          root.surface.height * root.surface.surfaceSizeRatio)
+
+        readonly property bool effectEnabled: !!root.wrapper
+            && cornerRadius > 0
+            && !root.wrapper.noCornerRadius
 
         onDevicePixelRatioChanged: {
             wrapper.updateSurfaceSizeRatio()
-        }
-    }
-
-    Loader {
-        id: effectLoader
-
-        anchors.fill: parent
-        active: {
-            if (!root.wrapper)
-                return false;
-            return cornerRadius > 0 && !root.wrapper.noCornerRadius;
-        }
-
-        sourceComponent: RoundedClipEffect {
-            sourceItem: content
-            radius: cornerRadius
-            opacity: content.alphaModifier
-            targetRect: Qt.rect(-surface?.leftPadding ?? 0, -surface?.topPadding ?? 0,
-                                root.surface?.width * root.surface?.surfaceSizeRatio ?? 0,
-                                root.surface?.height * root.surface?.surfaceSizeRatio ?? 0)
         }
     }
 }

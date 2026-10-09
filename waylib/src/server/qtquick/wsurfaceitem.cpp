@@ -11,6 +11,7 @@
 #include "wsgtextureprovider.h"
 #include "wsurface.h"
 #include "wsurfaceitem_p.h"
+#include "wradiustexturenode_p.h"
 #include "wayliblogging.h"
 
 #include <private/qquickitem_p.h>
@@ -24,6 +25,7 @@
 #include <QQuickWindow>
 #include <QSGImageNode>
 #include <QSGRenderNode>
+#include <QSGRendererInterface>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -350,12 +352,29 @@ public:
         Q_EMIT q->alphaModifierChanged();
     }
 
+    void updateImplicitAntialiasing()
+    {
+        const auto effectiveRadius = [this](qreal cornerRadius) {
+            return cornerRadius < 0.0 ? radius : cornerRadius;
+        };
+        setImplicitAntialiasing(effectiveRadius(topLeftRadius) > 0.0
+                                || effectiveRadius(topRightRadius) > 0.0
+                                || effectiveRadius(bottomLeftRadius) > 0.0
+                                || effectiveRadius(bottomRightRadius) > 0.0);
+    }
+
     W_DECLARE_PUBLIC(WSurfaceItemContent)
     QPointer<WSurface> surface;
     QRectF bufferSourceBox;
     QPoint bufferOffset;
     qreal devicePixelRatio = 1.0;
     qreal alphaModifier = 1.0;
+    qreal radius = 0.0;
+    qreal topLeftRadius = -1.0;
+    qreal topRightRadius = -1.0;
+    qreal bottomLeftRadius = -1.0;
+    qreal bottomRightRadius = -1.0;
+    QRectF viewport;
 
     QMetaObject::Connection frameDoneConnection;
     mutable WSGTextureProvider *textureProvider = nullptr;
@@ -556,6 +575,195 @@ qreal WSurfaceItemContent::alphaModifier() const
     return d->alphaModifier;
 }
 
+qreal WSurfaceItemContent::radius() const
+{
+    W_DC(WSurfaceItemContent);
+
+    return d->radius;
+}
+
+void WSurfaceItemContent::setRadius(qreal radius)
+{
+    W_D(WSurfaceItemContent);
+
+    radius = qMax<qreal>(0.0, radius);
+    if (qFuzzyCompare(d->radius, radius))
+        return;
+
+    d->radius = radius;
+    d->updateImplicitAntialiasing();
+    update();
+    Q_EMIT radiusChanged();
+    if (d->topLeftRadius < 0.0)
+        Q_EMIT topLeftRadiusChanged();
+    if (d->topRightRadius < 0.0)
+        Q_EMIT topRightRadiusChanged();
+    if (d->bottomLeftRadius < 0.0)
+        Q_EMIT bottomLeftRadiusChanged();
+    if (d->bottomRightRadius < 0.0)
+        Q_EMIT bottomRightRadiusChanged();
+}
+
+qreal WSurfaceItemContent::topLeftRadius() const
+{
+    W_DC(WSurfaceItemContent);
+
+    return d->topLeftRadius < 0.0 ? d->radius : d->topLeftRadius;
+}
+
+void WSurfaceItemContent::setTopLeftRadius(qreal radius)
+{
+    W_D(WSurfaceItemContent);
+
+    radius = qMax<qreal>(0.0, radius);
+    if (qFuzzyCompare(d->topLeftRadius, radius))
+        return;
+
+    d->topLeftRadius = radius;
+    d->updateImplicitAntialiasing();
+    update();
+    Q_EMIT topLeftRadiusChanged();
+}
+
+void WSurfaceItemContent::resetTopLeftRadius()
+{
+    W_D(WSurfaceItemContent);
+
+    if (d->topLeftRadius < 0.0)
+        return;
+
+    d->topLeftRadius = -1.0;
+    d->updateImplicitAntialiasing();
+    update();
+    Q_EMIT topLeftRadiusChanged();
+}
+
+qreal WSurfaceItemContent::topRightRadius() const
+{
+    W_DC(WSurfaceItemContent);
+
+    return d->topRightRadius < 0.0 ? d->radius : d->topRightRadius;
+}
+
+void WSurfaceItemContent::setTopRightRadius(qreal radius)
+{
+    W_D(WSurfaceItemContent);
+
+    radius = qMax<qreal>(0.0, radius);
+    if (qFuzzyCompare(d->topRightRadius, radius))
+        return;
+
+    d->topRightRadius = radius;
+    d->updateImplicitAntialiasing();
+    update();
+    Q_EMIT topRightRadiusChanged();
+}
+
+void WSurfaceItemContent::resetTopRightRadius()
+{
+    W_D(WSurfaceItemContent);
+
+    if (d->topRightRadius < 0.0)
+        return;
+
+    d->topRightRadius = -1.0;
+    d->updateImplicitAntialiasing();
+    update();
+    Q_EMIT topRightRadiusChanged();
+}
+
+qreal WSurfaceItemContent::bottomLeftRadius() const
+{
+    W_DC(WSurfaceItemContent);
+
+    return d->bottomLeftRadius < 0.0 ? d->radius : d->bottomLeftRadius;
+}
+
+void WSurfaceItemContent::setBottomLeftRadius(qreal radius)
+{
+    W_D(WSurfaceItemContent);
+
+    radius = qMax<qreal>(0.0, radius);
+    if (qFuzzyCompare(d->bottomLeftRadius, radius))
+        return;
+
+    d->bottomLeftRadius = radius;
+    d->updateImplicitAntialiasing();
+    update();
+    Q_EMIT bottomLeftRadiusChanged();
+}
+
+void WSurfaceItemContent::resetBottomLeftRadius()
+{
+    W_D(WSurfaceItemContent);
+
+    if (d->bottomLeftRadius < 0.0)
+        return;
+
+    d->bottomLeftRadius = -1.0;
+    d->updateImplicitAntialiasing();
+    update();
+    Q_EMIT bottomLeftRadiusChanged();
+}
+
+qreal WSurfaceItemContent::bottomRightRadius() const
+{
+    W_DC(WSurfaceItemContent);
+
+    return d->bottomRightRadius < 0.0 ? d->radius : d->bottomRightRadius;
+}
+
+void WSurfaceItemContent::setBottomRightRadius(qreal radius)
+{
+    W_D(WSurfaceItemContent);
+
+    radius = qMax<qreal>(0.0, radius);
+    if (qFuzzyCompare(d->bottomRightRadius, radius))
+        return;
+
+    d->bottomRightRadius = radius;
+    d->updateImplicitAntialiasing();
+    update();
+    Q_EMIT bottomRightRadiusChanged();
+}
+
+void WSurfaceItemContent::resetBottomRightRadius()
+{
+    W_D(WSurfaceItemContent);
+
+    if (d->bottomRightRadius < 0.0)
+        return;
+
+    d->bottomRightRadius = -1.0;
+    d->updateImplicitAntialiasing();
+    update();
+    Q_EMIT bottomRightRadiusChanged();
+}
+
+QRectF WSurfaceItemContent::viewport() const
+{
+    W_DC(WSurfaceItemContent);
+
+    return d->viewport;
+}
+
+void WSurfaceItemContent::setViewport(const QRectF &viewport)
+{
+    W_D(WSurfaceItemContent);
+
+    if (d->viewport == viewport)
+        return;
+
+    d->viewport = viewport;
+    update();
+    Q_EMIT viewportChanged();
+}
+
+void WSurfaceItemContent::resetViewport()
+{
+    setViewport({});
+}
+
 class Q_DECL_HIDDEN WSGRenderFootprintNode: public QSGRenderNode
 {
 public:
@@ -601,21 +809,61 @@ QSGNode *WSurfaceItemContent::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeD
         return nullptr;
     }
 
-    auto node = static_cast<QSGImageNode*>(oldNode);
+    const bool software = window()->rendererInterface()->graphicsApi()
+        == QSGRendererInterface::Software;
+    const auto effectiveRadius = [d](qreal radius) {
+        return radius >= 0.0 ? radius : d->radius;
+    };
+    const bool hasRoundedCorners = effectiveRadius(d->topLeftRadius) > 0.0
+        || effectiveRadius(d->topRightRadius) > 0.0
+        || effectiveRadius(d->bottomLeftRadius) > 0.0
+        || effectiveRadius(d->bottomRightRadius) > 0.0;
+    const bool useRadiusNode = !software && hasRoundedCorners;
+
+    auto node = oldNode;
+    if (node && (dynamic_cast<RadiusTextureNode *>(node) != nullptr) != useRadiusNode) {
+        delete node;
+        node = nullptr;
+    }
     if (Q_UNLIKELY(!node)) {
-        node = window()->createImageNode();
-        node->setOwnsTexture(false);
+        if (useRadiusNode) {
+            node = new RadiusTextureNode;
+        } else {
+            auto *imageNode = window()->createImageNode();
+            imageNode->setOwnsTexture(false);
+            node = imageNode;
+        }
         QSGNode *fpnode = new WSGRenderFootprintNode(this);
         node->appendChildNode(fpnode);
     }
 
     auto texture = tp->texture();
-    node->setTexture(texture);
     const QRectF textureGeometry = d->bufferSourceBox;
-    node->setSourceRect(textureGeometry);
     const QRectF targetGeometry(d->ignoreBufferOffset ? QPointF() : d->bufferOffset, size());
-    node->setRect(targetGeometry);
-    node->setFiltering(smooth() ? QSGTexture::Linear : QSGTexture::Nearest);
+    if (!useRadiusNode) {
+        auto *imageNode = static_cast<QSGImageNode *>(node);
+        imageNode->setTexture(texture);
+        imageNode->setSourceRect(textureGeometry);
+        imageNode->setRect(targetGeometry);
+        imageNode->setFiltering(smooth() ? QSGTexture::Linear : QSGTexture::Nearest);
+    } else {
+        auto *radiusNode = static_cast<RadiusTextureNode *>(node);
+        radiusNode->setOwnsTexture(false);
+        radiusNode->setTexture(texture);
+        radiusNode->setSourceRect(textureGeometry);
+        radiusNode->setRect(targetGeometry);
+        radiusNode->setViewport(d->viewport.isValid() ? d->viewport : targetGeometry);
+        radiusNode->setRadius(d->radius);
+        radiusNode->setTopLeftRadius(d->topLeftRadius);
+        radiusNode->setTopRightRadius(d->topRightRadius);
+        radiusNode->setBottomLeftRadius(d->bottomLeftRadius);
+        radiusNode->setBottomRightRadius(d->bottomRightRadius);
+        radiusNode->setFiltering(smooth() ? QSGTexture::Linear : QSGTexture::Nearest);
+        radiusNode->setMipmapFiltering(QSGTexture::None);
+        radiusNode->setAnisotropyLevel(QSGTexture::AnisotropyNone);
+        radiusNode->setTextureCoordinatesTransform(QSGImageNode::NoTransform);
+        radiusNode->setAntialiasing(antialiasing());
+    }
 
     return node;
 }

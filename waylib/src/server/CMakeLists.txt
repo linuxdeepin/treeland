@@ -168,6 +168,8 @@ set(SOURCES
     qtquick/private/wquicksocketattached.cpp
     qtquick/private/wqmlhelper.cpp
     qtquick/private/wbufferrenderer.cpp
+    qtquick/private/wradiustexturematerial.cpp
+    qtquick/private/wradiustexturenode.cpp
     qtquick/private/wrenderbuffernode.cpp
 
     ${WAYLAND_PROTOCOLS_OUTPUTDIR}/text-input-unstable-v1-protocol.c
@@ -365,6 +367,8 @@ set(PRIVATE_HEADERS
     qtquick/private/wqmlhelper_p.h
     qtquick/private/wquicktextureproxy_p.h
     qtquick/private/wbufferrenderer_p.h
+    qtquick/private/wradiustexturematerial_p.h
+    qtquick/private/wradiustexturenode_p.h
     qtquick/private/wrenderbuffernode_p.h
     qtquick/private/wsurfaceitem_p.h
 
@@ -398,6 +402,18 @@ endif()
 add_library(${TARGET} SHARED ${SOURCES})
 add_library(Waylib::WaylibServer ALIAS ${TARGET})
 
+qt_add_shaders(${TARGET} "waylib_radius_texture_shaders"
+    PRECOMPILE
+    OPTIMIZED
+    PREFIX
+        "/waylib/shaders"
+    BASE
+        ${CMAKE_CURRENT_SOURCE_DIR}/qtquick/shaders
+    FILES
+        qtquick/shaders/radiustexture.vert
+        qtquick/shaders/radiustexture.frag
+)
+
 waylib_generate_qtwayland_server_protocol(${TARGET}
     PROTOCOL ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-remote-subsurface-unstable-v1.xml
     BASENAME treeland-remote-subsurface-unstable-v1
@@ -406,6 +422,7 @@ waylib_generate_qtwayland_server_protocol(${TARGET}
 qt_add_qml_module(${TARGET}
     URI Waylib.Server
     VERSION "1.0" # Qt bug: The major version must be larger than 0
+    NO_PLUGIN
     OUTPUT_DIRECTORY "Waylib/Server"
     SOURCES
         ${HEADERS}
@@ -526,6 +543,12 @@ if(TREELAND_INSTALL_DEV)
     install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/kernel/private
             DESTINATION ${WAYLIB_INCLUDE_INSTALL_DIR}
             FILES_MATCHING PATTERN "*.h")
+
+    install(FILES
+        ${CMAKE_CURRENT_SOURCE_DIR}/qtquick/private/wradiustexturematerial_p.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/qtquick/private/wradiustexturenode_p.h
+        DESTINATION ${WAYLIB_INCLUDE_INSTALL_DIR}
+    )
 
     # Install QML module generated targets separately to avoid dependency issues
     # This works around the Qt CMake QML module export issue

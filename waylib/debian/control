@@ -51,6 +51,7 @@ Build-Depends: cmake,
                libxcb-xinput-dev,
                xwayland,
                treeland-protocols,
+               qt6-shadertools-dev (>= 6.6.0),
 Standards-Version: 3.9.8
 
 Package: libwaylib
