@@ -2289,8 +2289,8 @@ void Helper::init(Treeland::Treeland *treeland)
             this,
             updateXWaylandOutputScale);
     updateXWaylandOutputScale();
-    // User dde does not has a real Logind session, so just pass 0 as id
-    m_sessionManager->updateActiveUserSession(QStringLiteral("dde"), 0);
+    // User dde does not has a real Logind session, so just pass "0" as id
+    m_sessionManager->updateActiveUserSession(QStringLiteral("dde"), QStringLiteral("0"));
     connect(m_userModel, &UserModel::userLoggedIn, m_sessionManager, &SessionManager::updateActiveUserSession);
     m_xdgDecorationManager = m_server->attach<WXdgDecorationManager>();
     connect(m_xdgDecorationManager,
@@ -3832,7 +3832,7 @@ DDMInterfaceV1 *Helper::ddmInterfaceV1() const {
     return m_ddmInterfaceV1;
 }
 
-bool Helper::activateUserSession(const QString &username, int sessionId)
+bool Helper::activateUserSession(const QString &username, const QString &sessionId)
 {
     if (!m_userModel->getUser(username))
         return false;

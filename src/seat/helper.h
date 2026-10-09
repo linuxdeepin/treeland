@@ -264,7 +264,7 @@ public:
     inline SessionModel *sessionModel() const { return m_sessionModel; };
     DDMInterfaceV1 *ddmInterfaceV1() const;
 
-    bool activateUserSession(const QString &username, int sessionId);
+    bool activateUserSession(const QString &username, const QString &sessionId);
     void enableRender();
     void disableRender();
 
