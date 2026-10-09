@@ -6,20 +6,28 @@
 #include <wsurfaceitem.h>
 #include <wtoplevelsurface.h>
 
+#include <QColor>
 #include <QList>
 #include <QPointer>
 #include <QQuickItem>
 #include <QString>
-#include <QColor>
+
+#include <memory>
 
 Q_MOC_INCLUDE(<woutput.h>)
 Q_MOC_INCLUDE(<output / output.h>)
 
 WAYLIB_SERVER_USE_NAMESPACE
 
+WAYLIB_SERVER_BEGIN_NAMESPACE
+class WSeat;
+WAYLIB_SERVER_END_NAMESPACE
+
 class QmlEngine;
 class Output;
 class SurfaceContainer;
+class SurfaceWindowTransition;
+class WindowTransitionTarget;
 class SurfaceWrapper : public QQuickItem
 {
     friend class Helper;
@@ -27,6 +35,7 @@ class SurfaceWrapper : public QQuickItem
     friend class SurfaceProxy;
     friend class ShellHandler;
     friend class LockScreen;
+    friend class SurfaceWindowTransition;
     Q_OBJECT
     QML_ELEMENT
     QML_UNCREATABLE("SurfaceWrapper objects are created by c++")
@@ -337,6 +346,7 @@ public:
     bool hasInitializeContainer() const;
     void setHasInitializeContainer(bool value);
     void disableWindowAnimation(bool disable = true);
+    WindowTransitionTarget *windowTransition() const;
     void setHideByShowDesk(bool show);
     void setHideByLockScreen(bool hide);
 
@@ -357,6 +367,9 @@ public:
 
     bool attention() const;
     bool setAttention(bool attention);
+
+    void setPendingActivation(WSeat *seat);
+    bool takePendingActivation(WSeat *&seat);
 
 public Q_SLOTS:
     void minimize(bool onAnimation = true);
@@ -462,6 +475,12 @@ private:
     void updateClipRect();
     void geometryChange(const QRectF &newGeo, const QRectF &oldGeometry) override;
     void createNewOrClose(uint direction);
+    void beginWindowTransition(int direction, const QRectF &fromGeometry, const QRectF &toGeometry);
+    void updateWindowTransitionAnimationSource();
+    void startWindowTransition();
+    void finishWindowTransitionOpen();
+    void startWindowCloseTransition();
+    void tryFlushPendingActivation();
     void itemChange(ItemChange change, const ItemChangeData &data) override;
 
     QRectF targetGeometryForState(State state) const;
@@ -591,12 +610,18 @@ private:
     uint m_resizable : 1;
     uint m_maximizable : 1;
     uint m_modal : 1;
+    uint m_pendingActivation : 1 = 0; // activation requested before the surface mapped
+    uint m_windowTransitionPending : 1 = 0;
+
     SurfaceRole m_surfaceRole = SurfaceRole::Normal;
     quint32 m_autoPlaceYOffset = 0;
     QPoint m_clientRequstPos;
 
     bool m_socketEnabled{ false };
     bool m_windowAnimationEnabled{ true };
+
+    QPointer<WSeat> m_pendingActivationSeat;
+    std::unique_ptr<SurfaceWindowTransition> m_windowTransition;
     const QString m_appId;
 };
 
