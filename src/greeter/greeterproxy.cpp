@@ -318,8 +318,9 @@ void GreeterProxy::onSessionNew(const QString &id, [[maybe_unused]] const QDBusO
         QString user = QString::fromLocal8Bit(username);
         qCInfo(lcTlGreeter) << "New session added: id=" << id << ", user=" << user;
         userModel()->updateUserLoginState(user, true);
+
         // userLoggedIn signal is connected with Helper::updateActiveUserSession
-        Q_EMIT userModel()->userLoggedIn(user, id.toInt());
+        Q_EMIT userModel()->userLoggedIn(user, id);
 
         // Connect to Lock/Unlock signals
         auto conn = QDBusConnection::systemBus();
@@ -362,7 +363,7 @@ void GreeterProxy::onSessionRemoved(const QString &id, [[maybe_unused]] const QD
                     this,
                     SLOT(onSessionUnlock()));
 
-    auto session = Helper::instance()->sessionManager()->sessionForId(id.toInt());
+    auto session = Helper::instance()->sessionManager()->sessionForId(id);
     if (session) {
         QString username = session->username();
         qCInfo(lcTlGreeter) << "Session removed: id=" << id << ", user=" << username;
@@ -385,7 +386,7 @@ void GreeterProxy::onSessionLock()
         OrgFreedesktopLogin1SessionInterface session("org.freedesktop.login1",
                                                      path,
                                                      QDBusConnection::systemBus());
-        int id = session.id().toInt();
+        QString id = session.id();
         qCInfo(lcTlGreeter) << "Lock signal received for session id:" << id;
         auto activeSession = Helper::instance()->sessionManager()->activeSession().lock();
         if (!activeSession)
@@ -408,7 +409,7 @@ void GreeterProxy::onSessionUnlock()
         OrgFreedesktopLogin1SessionInterface session("org.freedesktop.login1",
                                                      path,
                                                      QDBusConnection::systemBus());
-        int id = session.id().toInt();
+        QString id = session.id();
         const QString username = session.name();
         qCInfo(lcTlGreeter) << "Unlock signal received for session id:" << id;
         auto activeSession = Helper::instance()->sessionManager()->activeSession().lock();
@@ -419,7 +420,7 @@ void GreeterProxy::onSessionUnlock()
             qCWarning(lcTlGreeter)
                 << "Unlock signal received for non-active session id:" << id << ", lock it back.";
             QMetaObject::invokeMethod(this, [this, id] {
-                SocketWriter(m_socket) << quint32(GreeterMessages::Lock) << QString::number(id);
+                SocketWriter(m_socket) << quint32(GreeterMessages::Lock) << id;
             });
         } else {
             QMetaObject::invokeMethod(this, [this] {
@@ -530,7 +531,7 @@ void GreeterProxy::readyRead()
 #endif
         case DaemonMessages::UserActivateMessage: {
             QString user;
-            int sessionId;
+            QString sessionId;
             input >> user >> sessionId;
 
             // NOTE: maybe DDM will active dde user.
@@ -563,7 +564,7 @@ void GreeterProxy::readyRead()
         } break;
         case DaemonMessages::UserLoggedIn: {
             QString user;
-            int sessionId;
+            QString sessionId;
             input >> user >> sessionId;
 
             // This will happen after a crash recovery of treeland
@@ -590,7 +591,7 @@ void GreeterProxy::readyRead()
                     OrgFreedesktopLogin1ManagerInterface manager("org.freedesktop.login1",
                                                                  Logind::managerPath(),
                                                                  conn);
-                    auto reply = manager.GetSession(QString::number(sessionId));
+                    auto reply = manager.GetSession(sessionId);
                     reply.waitForFinished();
                     if (!reply.isValid()) {
                         qCWarning(lcTlGreeter) << "Failed to get session path for session id:" << sessionId << ", error:" << reply.error().message();
