@@ -45,6 +45,11 @@ Q_SIGNALS:
     void socketDisconnected();
     void SessionChanged();
     void XWaylandAuthChanged();
+    // True when an input method was accepted for the seat, false when the
+    // active one was destroyed. Relayed to org.deepin.Compositor1 so
+    // treeland-sd can recover a session left without an input method by the
+    // input method's own replacement race.
+    void InputMethodChanged(bool connected);
 
 public Q_SLOTS:
     bool ActivateWayland(QDBusUnixFileDescriptor fd);
