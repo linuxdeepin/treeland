@@ -273,6 +273,10 @@ void GreeterProxy::unlock(const QString &user, const QString &password)
 void GreeterProxy::logout()
 {
     auto session = Helper::instance()->sessionManager()->activeSession().lock();
+    if (!session) {
+        qCWarning(lcTlGreeter) << "Trying to logout when no user session active, ignore.";
+        return;
+    }
     qCInfo(lcTlGreeter) << "Logging user" << session->username() << "out with session id" << session->id();
     SocketWriter(m_socket) << quint32(GreeterMessages::Logout) << session->id();
 }
@@ -419,7 +423,9 @@ void GreeterProxy::onSessionUnlock()
             qCWarning(lcTlGreeter)
                 << "Unlock signal received for non-active session id:" << id << ", lock it back.";
             QMetaObject::invokeMethod(this, [this, id] {
-                SocketWriter(m_socket) << quint32(GreeterMessages::Lock) << QString::number(id);
+                // DDM reads the Lock message payload as an int session id;
+                // sending a QString would desync the message stream.
+                SocketWriter(m_socket) << quint32(GreeterMessages::Lock) << id;
             });
         } else {
             QMetaObject::invokeMethod(this, [this] {
@@ -559,6 +565,12 @@ void GreeterProxy::readyRead()
                     Q_EMIT m_lockScreen->unlock();
                     m_lockScreen->setVisible(false);
                 }
+            } else {
+                // DDM's logind SessionNew may arrive before UserActivateMessage
+                // (onSessionNew only unlocks when currentUserName matches), so the
+                // greeter may still be locked here. Unlock it, or the user stays on
+                // the lock screen although the session is already active.
+                setLock(false);
             }
         } break;
         case DaemonMessages::UserLoggedIn: {
