@@ -93,7 +93,7 @@ Q_LOGGING_CATEGORY(lcTlXwayland, "treeland.xwayland")
 Q_LOGGING_CATEGORY(lcTlDdm, "treeland.ddm")
 
 // Popup focus management
-Q_LOGGING_CATEGORY(lcTlPopupFocus, "treeland.popup.focus")
+Q_LOGGING_CATEGORY(lcTlPopupFocus, "treeland.popup.focus", QtInfoMsg)
 // XDG shell
 Q_LOGGING_CATEGORY(lcTlShellXdg, "treeland.shell.xdg", QtInfoMsg)
 // Hook scripts runner
