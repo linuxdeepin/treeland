@@ -106,6 +106,10 @@ public:
                               const QRectF &normalGeo,
                               const QRectF &outputRect) const;
 
+    // Re-run placement of an input method popup: its anchoring text-input
+    // surface may have changed (another window of the same application).
+    void retargetInputPopupSurface(SurfaceWrapper *popup);
+
 Q_SIGNALS:
     void exclusiveZoneChanged();
     void moveResizeFinised();
@@ -153,9 +157,17 @@ private:
     void moveSurfaceWithTitlebarClamp(SurfaceWrapper *surface, const QPointF &pos);
     qreal preferredScaleFactor() const;
 
-    QPointF calculateBasePosition(SurfaceWrapper *surface, const QPointF &dPos) const;
-    void handleLayerShellPopup(SurfaceWrapper *surface, const QRectF &normalGeo);
-    void handleRegularPopup(SurfaceWrapper *surface, const QRectF &normalGeo, WOutputItem *targetOutput);
+    QPointF calculateBasePosition(SurfaceWrapper *placementParent, const QPointF &dPos) const;
+    // Shared placement body; `placementParent` is the surface the popup is
+    // positioned relative to and must already be resolved by the caller.
+    void arrangePopupSurfaceWith(SurfaceWrapper *surface, SurfaceWrapper *placementParent);
+    void handleLayerShellPopup(SurfaceWrapper *surface,
+                               SurfaceWrapper *placementParent,
+                               const QRectF &normalGeo);
+    void handleRegularPopup(SurfaceWrapper *surface,
+                            SurfaceWrapper *placementParent,
+                            const QRectF &normalGeo,
+                            WOutputItem *targetOutput);
     void clearPopupCache(SurfaceWrapper *surface);
 
     Type m_type;
