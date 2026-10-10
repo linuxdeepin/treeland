@@ -608,15 +608,20 @@ void WInputMethodHelper::handleNewKGV2(wlr_input_method_keyboard_grab_v2 *kgv2)
     }
 
     d->activeKeyboardGrab = kgv2;
-    // Prefer the (always non-IME) keyboard-group device: fcitx5 creates its
-    // virtual keyboard right before the new keyboard endpoint, so at this
-    // point the seat's current keyboard may still be that virtual keyboard
-    // (which setKeyboard() would skip), leaving the new endpoint without
-    // keymap/repeat-info/modifiers until the first physically filtered key.
-    if (auto *groupKeyboard = d->seat->keyboardGroupKeyboard())
-        d->setKeyboard(kgv2, groupKeyboard);
-    else
-        d->setKeyboard(kgv2, d->seat->keyboard());
+    // Bind the endpoint to the seat's current keyboard: that is the keyboard
+    // the keys will actually arrive from, so the endpoint must carry its
+    // keymap/modifiers/repeat-info from the start. The only keyboard that must
+    // not be used is the input method's own virtual keyboard - fcitx5 creates
+    // it right before the new keyboard endpoint, and setKeyboard() skips it to
+    // avoid a keymap echo loop - so fall back to the (always non-IME)
+    // keyboard-group device in exactly that case. Binding to the group
+    // unconditionally would report a foreign keyboard's state and re-send
+    // keymap/repeat-info/modifiers as soon as the first key arrives from the
+    // real one.
+    auto *keyboard = d->seat->keyboard();
+    if (!keyboard || d->isInputMethodVirtualKeyboard(kgv2, keyboard))
+        keyboard = d->seat->keyboardGroupKeyboard();
+    d->setKeyboard(kgv2, keyboard);
     qCInfo(lcWlInputMethod) << "Input method keyboard endpoint available"
                              << "seat" << d->seat->name()
                              << "grab" << kgv2
