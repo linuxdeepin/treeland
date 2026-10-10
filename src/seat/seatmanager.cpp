@@ -28,12 +28,20 @@ SeatManager::SeatManager(WServer *server, QObject *parent)
 
 SeatManager::~SeatManager()
 {
+    // Prune hooks first: from here on any seat we delete ourselves must not
+    // run the destroyed hook against members that are being torn down.
+    for (auto connection : std::as_const(m_seatCleanupHooks))
+        QObject::disconnect(connection);
+    m_seatCleanupHooks.clear();
+
     QMap<QString, WSeat*> seatsToDelete;
     seatsToDelete.swap(m_seats);
     m_deviceRules.clear();
     m_defaultSeat = nullptr;
 
     for (auto seat : std::as_const(seatsToDelete)) {
+        // See removeSeat(): emit while the seat natives are still alive.
+        Q_EMIT seatRemoved(seat);
         if (m_server) {
             m_server->detach(seat);
         }
@@ -53,6 +61,29 @@ WSeat *SeatManager::createSeat(const QString &name, bool isFallback)
     if (isFallback) {
         m_defaultSeat = seat;
     }
+
+    // A WSeat registered as server interface is owned by WServer too
+    // (~WServer qDeleteAll(interfaceList)); if the server dies first, this
+    // manager must not keep or touch the dangling wrapper. ~QObject's
+    // destroyed signal fires while the manager is still fully alive in that
+    // order (~WServer runs as a sibling before ~SeatManager's member
+    // teardown), so pruning from the hook is safe there; ~SeatManager
+    // disconnects the hooks up front so they can never fire mid-destruction.
+    m_seatCleanupHooks.insert(
+        seat,
+        connect(seat, &QObject::destroyed, this, [this, seat] {
+            unhookSeat(seat);
+            const auto names = m_seats.keys();
+            for (const auto &seatName : names) {
+                if (m_seats.value(seatName) == seat) {
+                    m_seats.remove(seatName);
+                }
+            }
+            if (m_defaultSeat == seat) {
+                m_defaultSeat = m_seats.isEmpty() ? nullptr : m_seats.begin().value();
+                qCDebug(lcTlSeat) << "Default seat reset after external seat destruction";
+            }
+        }));
 
     qCDebug(lcTlSeat) << "Created seat:" << name << "fallback:" << isFallback;
 
@@ -89,6 +120,15 @@ WSeat *SeatManager::createSeat(const QString &name, bool isFallback)
     return seat;
 }
 
+void SeatManager::unhookSeat(WSeat *seat)
+{
+    auto it = m_seatCleanupHooks.find(seat);
+    if (it == m_seatCleanupHooks.end())
+        return;
+    QObject::disconnect(it.value());
+    m_seatCleanupHooks.erase(it);
+}
+
 void SeatManager::removeSeat(const QString &name)
 {
     if (!m_seats.contains(name)) {
@@ -122,11 +162,17 @@ void SeatManager::removeSeat(const QString &name)
         }
     }
     
+    // Notify listeners BEFORE detaching: interface objects tear down native
+    // resources (e.g. wl_signal listeners on this seat's keyboard group) from
+    // the seatRemoved handlers, and wlr_keyboard_finish() hard-asserts if
+    // anything is still attached once the keyboard group starts dying.
+    Q_EMIT seatRemoved(seat);
+    unhookSeat(seat);
+
     if (m_server) {
         m_server->detach(seat);
     }
 
-    Q_EMIT seatRemoved(seat);
     qCDebug(lcTlSeat) << "Removed seat:" << name;
 
     delete seat;
@@ -321,10 +367,12 @@ void SeatManager::loadConfig(const QJsonObject &config)
     m_defaultSeat = nullptr;
 
     for (auto seat : std::as_const(seatsToDelete)) {
+        // See removeSeat(): emit while the seat natives are still alive.
+        Q_EMIT seatRemoved(seat);
+        unhookSeat(seat);
         if (m_server) {
             m_server->detach(seat);
         }
-        Q_EMIT seatRemoved(seat);
         delete seat;
     }
 
