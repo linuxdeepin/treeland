@@ -67,6 +67,8 @@ public:
 
     void clear();
     bool dispatchKeyEvent(const QKeyEvent *event);
+
+    bool matchesShortcut(const QKeyEvent *event) const;
     static QKeyCombination normalizeKeyCombination(QKeyCombination combination);
     static bool isValidShortcutCombination(QKeyCombination combination);
     Qt::KeyboardModifiers modifierForAction(ShortcutAction action) const;
