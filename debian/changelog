@@ -1,3 +1,22 @@
+treeland (0.11.0) unstable; urgency=medium
+
+  * fix(session): store logind session id as string to avoid collision
+  * fix(input-method): forward empty preedit to clear composing
+  * feat(dde-shell): adapt to dde-shell-unstable-v2 protocol
+  * feat(snap-target): add treeland-snap-target-unstable-v1 module
+  * fix(shell): only start interactive resize for resizable surfaces
+  * refactor(modules): drop redundant wl_resource type checks
+  * fix(xwayland): refresh user Xauthority after Xwayland restart
+  * fix(lockscreen): correct lock screen item layer ordering
+  * feat(compositor-action): add shared shell-action execution for
+    compositor & shortcuts
+  * fix(output): wait for output DConfig before adding outputs
+  * feat: add XKB settings to input manager
+  * fix(greeter): dedup users and resolve accounts by uid
+  * feat(input): support per-seat user DConfig
+
+ -- rewine <luhongxu@deepin.org>  Sat, 10 Oct 2026 11:34:34 +0800
+
 treeland (0.10.0) unstable; urgency=medium
 
   * feat(foreign-toplevel): adapt to treeland-foreign-toplevel-manager
