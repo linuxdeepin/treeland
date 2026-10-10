@@ -56,6 +56,11 @@ public:
     // not support Qt::UniqueConnection with a functor target (it asserts in
     // debug builds), so the connection is managed explicitly.
     QMetaObject::Connection focusedSurfaceDestroyConnection;
+    // Tracks the beforeDestroy connection of the enabled surface separately:
+    // disconnecting every connection from that surface to this object would
+    // also drop focusedSurfaceDestroyConnection when both point to the same
+    // surface, leaving focusedSurface dangling after it is destroyed.
+    QMetaObject::Connection enabledSurfaceDestroyConnection;
     QString surroundingText;
     int32_t surroundingCursor;
     int32_t surroundingAnchor;
@@ -211,8 +216,12 @@ void handle_text_input_enable([[maybe_unused]] wl_client *client, wl_resource *r
         text_input->clearEnabledSurface();
     }
     d->enabledSurface = wSurface;
-    QObject::connect(wSurface, &WSurface::beforeDestroy,
-                     text_input, &WTextInputV2::clearEnabledSurface);
+    // Keep the enabled-surface destroy connection tracked so clearEnabledSurface()
+    // can drop only this one, not the focused-surface listener installed by
+    // sendEnter() on the same surface.
+    d->enabledSurfaceDestroyConnection = QObject::connect(
+        wSurface, &WSurface::beforeDestroy,
+        text_input, &WTextInputV2::clearEnabledSurface);
     Q_EMIT text_input->enableOnSurface(wSurface);
 }
 
@@ -465,13 +474,17 @@ void WTextInputV2::handleIMCommitted(WInputMethodV2 *im)
 WTextInputV2::WTextInputV2(QObject *parent)
     : WTextInput(*new WTextInputV2Private(this), parent)
 {
-    connect(this, &WTextInputV2::enableOnSurface, this, [this] {
-        if (focusedSurface()) {
+    connect(this, &WTextInputV2::enableOnSurface, this, [this] (WSurface *surface) {
+        // Header invariant: enabled only when the focused surface is the enabled
+        // surface. Either request may arrive first, so the other path emits it.
+        if (focusedSurface() == surface) {
             Q_EMIT enabled();
         }
     });
-    connect(this, &WTextInputV2::disableOnSurface, this, [this] {
-        if (!focusedSurface()) {
+    connect(this, &WTextInputV2::disableOnSurface, this, [this] (WSurface *surface) {
+        // Mirror of enableOnSurface: the client may disable while still focused,
+        // in which case this is the only place that can report the transition.
+        if (focusedSurface() == surface) {
             Q_EMIT disabled();
         }
     });
@@ -505,7 +518,10 @@ void WTextInputV2::clearEnabledSurface()
     W_D(WTextInputV2);
     Q_ASSERT(d->enabledSurface);
     Q_EMIT disableOnSurface(d->enabledSurface);
-    d->enabledSurface->disconnect(this);
+    if (d->enabledSurfaceDestroyConnection) {
+        QObject::disconnect(d->enabledSurfaceDestroyConnection);
+        d->enabledSurfaceDestroyConnection = {};
+    }
     d->enabledSurface = nullptr;
 }
 WAYLIB_SERVER_END_NAMESPACE
