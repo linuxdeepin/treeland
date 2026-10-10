@@ -66,6 +66,7 @@
 #include <wcursorshapemanagerv1.h>
 #include <wremotesubsurfacemanagerv1.h>
 #include <wrenderhelper.h>
+#include <WInputMethodHelper>
 #include <WOutput>
 #include <WServer>
 #include <WXdgOutput>
@@ -1153,6 +1154,16 @@ bool WaylandServer::initializeSeatsAndShell()
         return false;
     }
     m_shellHandler->init(server(), m_primarySeat);
+
+    // Relay the seat's input method presence to org.deepin.Compositor1:
+    // treeland-sd hands a fresh Wayland socket to the input method when the
+    // active one is destroyed but its client is still running (replacement
+    // race between simultaneously started instances), which otherwise leaves
+    // the session with no input method at all.
+    connect(m_shellHandler->inputMethodHelper(),
+            &WInputMethodHelper::inputMethodChanged,
+            m_treeland,
+            &Treeland::Treeland::InputMethodChanged);
 
     connect(m_shellHandler->wallpaperShell(),
             &TreelandWallpaperShellInterfaceV1::wallpaperSurfaceAdded,
