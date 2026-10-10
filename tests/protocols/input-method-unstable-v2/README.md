@@ -17,6 +17,7 @@
 | inactive 接受编辑状态 | 首个 input method 在未 `activate` 时依次 `commit_string`、`set_preedit_string`、`delete_surrounding_text`、`commit(0)` | 请求不造成协议错误，也不产生 input-method event；后续 active text-input 的 reset 语义由下一层 E 测试验证 | P |
 | popup 角色和销毁顺序 | 为无角色 `wl_surface` 调用 `get_input_popup_surface`，先销毁 popup 再销毁 surface | 创建和销毁均无协议错误 | P |
 | focused text-input 的状态快照 | fake app 映射 xdg toplevel，并 enable text-input-v2，设置 surrounding text/content type/cursor rectangle | fake IM 收到 `activate`、`surrounding_text("abc",3,3)`、`text_change_cause(input_method)`、`content_type(auto_completion,email)` 和一个 `done` | E |
+| focused text-input 的 disable/再 enable | fake app 在仍 focused 时 `disable`，随后对同一 surface 再 `enable` | fake IM 先收到一次 `deactivate`，再收到第二次 `activate`；生产 helper 不残留旧 text-input | E |
 | IM 编辑结果回传应用 | fake IM 设置 delete、commit string、preedit 后 `commit(0)` | fake app 收到正确的 `delete_surrounding_text(1,2)`、`commit_string("committed")`、preedit string/cursor/styling | E |
 | 清空 preedit | fake IM 在不发送 `set_preedit_string` 的情况下 `commit`（fcitx5 清空 preedit 时的行为） | fake app 再次收到 `preedit_string` 且文本为空，残留的组合文本被清除（此前只在非空时转发，导致应用永远保留旧 preedit） | E |
 | 丢焦点时清 preedit | fake IM 被销毁，focused text-input 因此收到 `leave`（与切窗口时走同一条 `sendLeave()` 路径） | fake app 在 `leave` 前再收到一次空的 `preedit_string`（断言同时校验事件先后顺序），组合文本被清除而不是留给客户端自行处理 | E |
@@ -55,12 +56,14 @@ input method 7、popup 1、keyboard grab 1。
 
 已实际断言 `unavailable` 以及 active 状态链的 `activate`、`surrounding_text`、
 `text_change_cause`、`content_type`、`done`、`text_input_rectangle`，并由 fake text-input 断言
-IM commit 的文本 event。下列 event 仍需要真实 keyboard 输入，不能以 headless 空 seat 的
-“没有 event”冒充覆盖：
+IM commit 的文本 event。client 在仍 focused 时 `disable` 会经生产
+`WTextInputV2::clearEnabledSurface()` 触发 `disabled()`，再由 `WInputMethodHelper` 向 IM 发
+`deactivate`；同一 text-input 再次 `enable` 会重新 `activate`。下列 event 仍未覆盖，不能以
+headless 空 seat 的“没有 event”冒充覆盖：
 
-- focus 转移/disable 导致的 `deactivate`，以及连续 text-input state update 是否只传递最新快照。
+- focus 转移导致的 `deactivate`，以及连续 text-input state update 是否只传递最新快照。
 
 自包含测试已经由另一个 client 的 virtual keyboard 驱动并断言 keyboard-grab 的
 `keymap`、`key`、`modifiers`、`repeat_info`；使用另一 client 避免 IM 自己注入的 virtual keyboard
-被生产实现按回环规则转交 default grab。下一项 E 级测试应覆盖 disable/focus 转移后的
-`deactivate` 和两次 text-input state update 的最新状态快照。
+被生产实现按回环规则转交 default grab。下一项 E 级测试应覆盖 focus 转移后的 `deactivate` 和
+两次 text-input state update 的最新状态快照。

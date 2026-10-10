@@ -523,7 +523,21 @@ int protocol_test_run(const char *socket_name)
         goto failed;
     stage = 7;
 
+    // Regression: the client disables while it is still focused. The compositor
+    // must report that transition to the input method, otherwise the helper keeps
+    // the stale text input and the next enable never re-activates the IME.
+    zwp_text_input_v2_disable(text_input, toplevel.surface);
+    if (wl_display_roundtrip(app.display) < 0 || wl_display_roundtrip(im_connection.display) < 0
+        || first_events.deactivate != 1 || first_events.done != 2)
+        goto failed;
     stage = 8;
+
+    zwp_text_input_v2_enable(text_input, toplevel.surface);
+    if (wl_display_roundtrip(app.display) < 0 || wl_display_roundtrip(im_connection.display) < 0
+        || first_events.activate != 2 || first_events.deactivate != 1 || first_events.done != 3)
+        goto failed;
+    stage = 9;
+
     zwp_input_method_v2_destroy(second);
     zwp_input_method_v2_destroy(first);
     // Destroying the input method leaves every focused text input. This runs the
@@ -533,7 +547,7 @@ int protocol_test_run(const char *socket_name)
         || text_events.preedit_string != 4 || text_events.preedit[0] != '\0'
         || text_events.leave != 1 || text_events.preedit_string_at_leave != 4)
         goto failed;
-    stage = 9;
+    stage = 10;
 
     zwp_text_input_v2_destroy(text_input);
     zwp_text_input_manager_v2_destroy(text_manager);
