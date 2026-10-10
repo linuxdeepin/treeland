@@ -402,6 +402,13 @@ IME::Features WTextInputV2::features() const
 void WTextInputV2::sendEnter(WSurface *surface)
 {
     W_D(WTextInputV2);
+    Q_ASSERT(surface);
+    if (!surface || d->focusedSurface == surface)
+        return;
+
+    if (d->focusedSurface)
+        sendLeave();
+
     d->focusedSurface = surface;
     // Qt::UniqueConnection is only supported for member function targets and
     // asserts with a functor, so replace the previous focus-destroy
@@ -412,10 +419,14 @@ void WTextInputV2::sendEnter(WSurface *surface)
     }
     d->focusedSurfaceDestroyConnection = QObject::connect(surface, &WSurface::beforeDestroy, this,
         [this, d, surface] {
-        if (d->focusedSurface == surface)
-            sendLeave();
-    });
+            if (d->focusedSurface == surface)
+                sendLeave();
+        });
     zwp_text_input_v2_send_enter(d->resource, 0, surface->handle()->resource);
+    qCDebug(lcWlTextInput) << "Text input v2 focus entered"
+                           << "textInput" << this
+                           << "surface" << surface
+                           << "enabledSurface" << d->enabledSurface;
     if (d->enabledSurface == d->focusedSurface) {
         Q_EMIT enabled();
     }
@@ -425,25 +436,34 @@ void WTextInputV2::sendLeave()
 {
     W_D(WTextInputV2);
     if (!d->focusedSurface) {
-        qCWarning(lcWlTextInput()) << "Send leave to a null focused surface.";
+        qCDebug(lcWlTextInput) << "Ignoring duplicate text input v2 leave"
+                               << "textInput" << this;
         return;
     }
+    auto *oldSurface = d->focusedSurface;
+    const bool wasEnabled = d->enabledSurface == oldSurface;
     // See WTextInputV3::sendLeave(): drop the client's stale composing text
     // before it loses focus (fcitx5 only clears its own preedit). Only while the
     // input is enabled: a client that already disabled must not get a state
     // update outside an active input session.
-    if (d->enabledSurface == d->focusedSurface)
+    if (wasEnabled)
         zwp_text_input_v2_send_preedit_string(d->resource, "", "");
-    zwp_text_input_v2_send_leave(d->resource, 0, d->focusedSurface->handle()->resource);
-    if (d->enabledSurface == d->focusedSurface) {
-        Q_EMIT disabled();
-    }
-    d->focusedSurface = nullptr;
     // The focused surface no longer needs its destroy notification.
     if (d->focusedSurfaceDestroyConnection) {
         QObject::disconnect(d->focusedSurfaceDestroyConnection);
         d->focusedSurfaceDestroyConnection = {};
     }
+    d->focusedSurface = nullptr;
+    zwp_text_input_v2_send_leave(d->resource, 0, oldSurface->handle()->resource);
+    qCDebug(lcWlTextInput) << "Text input v2 focus left"
+                           << "textInput" << this
+                           << "surface" << oldSurface
+                           << "wasEnabled" << wasEnabled;
+    // Note: a compositor-driven leave is only a notification. It must NOT
+    // emit disabled(): the client's own disable request (disableOnSurface)
+    // or the enabled surface's destruction is what revokes the enablement
+    // the input-method helper anchors on. Eligibility additionally requires
+    // focusedSurface() to match the seat focus, which is cleared right here.
 }
 
 void WTextInputV2::sendDone()
@@ -474,19 +494,22 @@ void WTextInputV2::handleIMCommitted(WInputMethodV2 *im)
 WTextInputV2::WTextInputV2(QObject *parent)
     : WTextInput(*new WTextInputV2Private(this), parent)
 {
-    connect(this, &WTextInputV2::enableOnSurface, this, [this] (WSurface *surface) {
+    connect(this, &WTextInputV2::enableOnSurface, this, [this](WSurface *surface) {
         // Header invariant: enabled only when the focused surface is the enabled
         // surface. Either request may arrive first, so the other path emits it.
         if (focusedSurface() == surface) {
             Q_EMIT enabled();
         }
     });
-    connect(this, &WTextInputV2::disableOnSurface, this, [this] (WSurface *surface) {
-        // Mirror of enableOnSurface: the client may disable while still focused,
-        // in which case this is the only place that can report the transition.
-        if (focusedSurface() == surface) {
-            Q_EMIT disabled();
-        }
+    connect(this, &WTextInputV2::disableOnSurface, this, [this](WSurface *) {
+        // clearEnabledSurface() runs only for an authoritative end of the
+        // client-side enablement (explicit disable request, or the enabled
+        // surface's destruction). Compositor-driven leave in this branch no
+        // longer emits disabled(), so revoke unconditionally here regardless
+        // of which surface currently holds keyboard focus: gating on
+        // focusedSurface() would leave a stale enabled text input in the
+        // input-method helper.
+        Q_EMIT disabled();
     });
     connect(this, &WTextInput::enabled, this, [this]{
         qCDebug(lcWlTextInput()) << "text input v2" << this << "enabled";

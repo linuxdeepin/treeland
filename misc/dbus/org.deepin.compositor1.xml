@@ -13,5 +13,8 @@
     </signal>
     <signal name="XWaylandAuthChanged">
     </signal>
+    <signal name="InputMethodChanged">
+      <arg type="b" direction="out" name="connected"/>
+    </signal>
   </interface>
 </node>
