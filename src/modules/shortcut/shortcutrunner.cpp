@@ -9,6 +9,7 @@
 #include "interfaces/multitaskviewinterface.h"
 #include "seat/helper.h"
 #include "shortcutcontroller.h"
+#include "shortcutmanager.h"
 #include "treelandconfig.hpp"
 #include "workspace/workspace.h"
 #include "workspaceanimationcontroller.h"
@@ -17,8 +18,8 @@
 #include <optional>
 
 // Maps the shortcut-manager action enum (ShortcutAction) onto the shared
-// ShellAction vocabulary. Notify, Quit and the task-switch stepping actions
-// are producer-local and return std::nullopt.
+// ShellAction vocabulary. Notify and the task-switch stepping actions are
+// producer-local and return std::nullopt.
 static std::optional<ShellAction> mapShortcutAction(ShortcutAction action)
 {
     switch (action) {
@@ -34,6 +35,18 @@ static std::optional<ShellAction> mapShortcutAction(ShortcutAction action)
         return ShellAction::SwitchWorkspace5;
     case ShortcutAction::Workspace6:
         return ShellAction::SwitchWorkspace6;
+    case ShortcutAction::Workspace7:
+        return ShellAction::SwitchWorkspace7;
+    case ShortcutAction::Workspace8:
+        return ShellAction::SwitchWorkspace8;
+    case ShortcutAction::Workspace9:
+        return ShellAction::SwitchWorkspace9;
+    case ShortcutAction::Workspace10:
+        return ShellAction::SwitchWorkspace10;
+    case ShortcutAction::Workspace11:
+        return ShellAction::SwitchWorkspace11;
+    case ShortcutAction::Workspace12:
+        return ShellAction::SwitchWorkspace12;
     case ShortcutAction::PrevWorkspace:
         return ShellAction::PreviousWorkspace;
     case ShortcutAction::NextWorkspace:
@@ -56,6 +69,8 @@ static std::optional<ShellAction> mapShortcutAction(ShortcutAction action)
         return ShellAction::Maximize;
     case ShortcutAction::CancelMaximize:
         return ShellAction::CancelMaximize;
+    case ShortcutAction::Minimize:
+        return ShellAction::Minimize;
     case ShortcutAction::MoveWindow:
         return ShellAction::MoveWindow;
     case ShortcutAction::CloseWindow:
@@ -66,9 +81,38 @@ static std::optional<ShellAction> mapShortcutAction(ShortcutAction action)
         return ShellAction::TileLeft;
     case ShortcutAction::TileRight:
         return ShellAction::TileRight;
-    default:
+    case ShortcutAction::TileTopLeft:
+        return ShellAction::TileTopLeft;
+    case ShortcutAction::TileTopRight:
+        return ShellAction::TileTopRight;
+    case ShortcutAction::TileBottomLeft:
+        return ShellAction::TileBottomLeft;
+    case ShortcutAction::TileBottomRight:
+        return ShellAction::TileBottomRight;
+    case ShortcutAction::ZoomIn:
+        return ShellAction::ZoomIn;
+    case ShortcutAction::ZoomOut:
+        return ShellAction::ZoomOut;
+    case ShortcutAction::ZoomReset:
+        return ShellAction::ZoomReset;
+    case ShortcutAction::MoveWindowToPrevWorkspace:
+        return ShellAction::MoveWindowToPrevWorkspace;
+    case ShortcutAction::MoveWindowToNextWorkspace:
+        return ShellAction::MoveWindowToNextWorkspace;
+    // Intentionally unsupported for now: producer-local notify, task-switch
+    // stepping, and actions whose execution plumbing has not landed yet.
+    // Kept as explicit cases so -Wswitch fires when the enum gains a member.
+    case ShortcutAction::Notify:
+    case ShortcutAction::ResizeWindow:
+    case ShortcutAction::TileTop:
+    case ShortcutAction::TileBottom:
+    case ShortcutAction::TaskSwitchNext:
+    case ShortcutAction::TaskSwitchPrev:
+    case ShortcutAction::TaskSwitchSameAppNext:
+    case ShortcutAction::TaskSwitchSameAppPrev:
         return std::nullopt;
     }
+    return std::nullopt;
 }
 
 ShortcutRunner::ShortcutRunner(QObject *parent)
@@ -101,9 +145,6 @@ void ShortcutRunner::onActionTrigger(ShortcutAction action, const QString &name,
     switch (action) {
     case ShortcutAction::Notify:
         helper->m_shortcutManager->sendActivated(name, keyFlags);
-        break;
-    case ShortcutAction::Quit:
-        Q_EMIT helper->requestQuit();
         break;
     case ShortcutAction::TaskSwitchNext:
     case ShortcutAction::TaskSwitchPrev:

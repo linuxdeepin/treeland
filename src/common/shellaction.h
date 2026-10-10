@@ -48,11 +48,18 @@ enum class ShellAction : uint32_t {
     // Window-level actions (shortcut-manager only); act on activatedSurface().
     Maximize,
     CancelMaximize,
+    Minimize,
     MoveWindow,
     CloseWindow,
     ShowWindowMenu,
     TileLeft,
     TileRight,
+    TileTopLeft,
+    TileTopRight,
+    TileBottomLeft,
+    TileBottomRight,
+    MoveWindowToPrevWorkspace,
+    MoveWindowToNextWorkspace,
 };
 
 // Stateless executor: every call re-reads Helper::instance(). Task switching,
