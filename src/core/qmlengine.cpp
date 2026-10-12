@@ -53,7 +53,6 @@ QmlEngine::QmlEngine(QObject *parent)
     , minimizeAnimationComponent(this, "Treeland", "MinimizeAnimation")
     , showDesktopAnimatioComponentn(this, "Treeland", "ShowDesktopAnimation")
     , captureSelectorComponent(this, "Treeland", "CaptureSelectorLayer")
-    , windowPickerComponent(this, "Treeland", "WindowPickerLayer")
     , edgeTilePreviewComponent(this, "Treeland", "EdgeTilePreview")
     , launchpadAnimationComponent(this, "Treeland", "LaunchpadAnimation")
     , launchpadCoverComponent(this, "Treeland", "LaunchpadCover")
@@ -257,11 +256,6 @@ QQuickItem *QmlEngine::createCaptureSelector(QQuickItem *parent, CaptureManagerV
         parent,
         { { "captureManager", QVariant::fromValue(captureManager) },
           { "z", QVariant::fromValue(RootSurfaceContainer::CaptureLayerZOrder) } });
-}
-
-QQuickItem *QmlEngine::createWindowPicker(QQuickItem *parent)
-{
-    return createComponent(windowPickerComponent, parent);
 }
 
 QQuickItem *QmlEngine::createEdgeTilePreview(QQuickItem *parent)

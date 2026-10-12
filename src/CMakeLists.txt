@@ -148,8 +148,6 @@ qt_add_qml_module(libtreeland
         core/dconfigmanager.h
         core/treeland.cpp
         core/treeland.h
-        core/windowpicker.cpp
-        core/windowpicker.h
         core/windowconfigstore.cpp
         core/windowconfigstore.h
         effects/tquickradiuseffect.cpp
@@ -276,7 +274,6 @@ qt_add_qml_module(libtreeland
         core/qml/DockPreview.qml
         core/qml/FadeBehavior.qml
         core/qml/CaptureSelectorLayer.qml
-        core/qml/WindowPickerLayer.qml
         core/qml/EdgeTilePreview.qml
         core/qml/LockScreenFallback.qml
         core/qml/PrelaunchSplash.qml

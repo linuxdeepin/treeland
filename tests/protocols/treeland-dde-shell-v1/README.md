@@ -2,9 +2,12 @@
 
 ## 范围
 
-- 测试源码：`tests/protocols/treeland-dde-shell-v1/`、`tests/protocols/treeland-dde-shell-desktop-v1/`、`tests/protocols/treeland-dde-shell-lockscreen-desktop-v1/`、`tests/protocols/treeland-dde-shell-multitask-desktop-v1/`、`tests/protocols/treeland-dde-shell-picker-desktop-v1/`
+- 测试源码：`tests/protocols/treeland-dde-shell-v1/`、`tests/protocols/treeland-dde-shell-desktop-v1/`、`tests/protocols/treeland-dde-shell-lockscreen-desktop-v1/`、`tests/protocols/treeland-dde-shell-multitask-desktop-v1/`
 - Fixture：协议 fixture；带 headless output 和 mapped xdg-toplevel 的 desktop fixture。
 - 覆盖等级：DDE surface 元数据为 **E**；辅助 DDE 资源为 **P/I**。
+
+> 注意：`treeland_window_picker_v1`（窗口选择器）功能已从服务端与客户端移除，
+> 本规范不再描述其实现、生产流程与测试用例。
 
 协议 fixture 中标记为 `*_dispatch` 的 case 只证明 request 被生产资源接受且连接未发生
 protocol error；它们计入 XML request 覆盖，不计入业务语义覆盖。每个 shell-surface 元数据
@@ -16,8 +19,7 @@ request 则在同一 case 的 roundtrip 后读取服务端状态，分别断言�
 | --- | --- | --- |
 | DDE surface 元数据 | `get_shell_surface` 后依次发送 position `(42,24)`、Overlay role、auto-placement `37`、四个布尔标志 | 生产 `SurfaceWrapper` 成为 DDE/Overlay，读取到相同 position、placement、skip 和 focus 状态 |
 | 锁屏 | `get_treeland_lockscreen` 后发送 `lock` | 真实 `LockScreen` container 可用且可见；`Helper` 从 Normal 切换为 LockScreen 模式 |
-| 窗口选择器 | 创建并 map xdg-toplevel，`get_treeland_window_picker` 后发送 `pick("protocol picker")` | 真实 `WindowPicker` 创建；选择该 mapped `WSurfaceItem` 后客户端收到其真实 Wayland client PID |
-| manager 资源 | 创建 checker、active、multitask、picker、lockscreen | 资源均可创建并接收规定事件 |
+| manager 资源 | 创建 checker、active、multitask、lockscreen | 资源均可创建并接收规定事件 |
 | shell 资源状态 | 在协议 fixture 中使用普通 `wl_surface` | 协议对象记录 shell-surface 状态与销毁 |
 
 ## 已证明的生产链路
@@ -52,37 +54,9 @@ lock
 workspace 的淡出是动画，测试不以任意延时或瞬时 opacity 判断其最终帧；模式转换和
 lockscreen 可见性是同步且稳定的生产业务结果。
 
-窗口选择器桌面测试复用真实 mapped xdg-toplevel。客户端先创建
-`treeland_window_picker_v1`，再发送 `pick("protocol picker")`。生产侧的时序为：
-
-```text
-get_treeland_window_picker
-  → DDEShellManagerInterfaceV1::PickerCreated
-  → Helper::handleWindowPicker（预先连接 WindowPickerInterface::pick）
-pick("protocol picker")
-  → WindowPickerInterface::pick
-  → Helper 创建真实 WindowPicker 并设置 hint
-  → WindowPicker::selectWindow(mapped WSurfaceItem)
-  → WindowPicker::windowPicked
-  → WClient::getCredentials
-  → WindowPickerInterface::sendWindowPid
-  → 客户端 treeland_window_picker_v1.window(pid)
-```
-
-这里的 `selectWindow()` 是 `WindowPicker` 的统一生产选择入口；鼠标按下路径也会调用它。
-测试不以伪造协议事件或 hover 坐标猜测来代替选中：它将 fixture 已验证为 mapped 且在
-workspace 中的真实 `WSurfaceItem` 交给该入口，并断言客户端事件中的 PID 等于测试客户端
-自身 PID。等待只由 Wayland round-trip 和该事件驱动，不使用 timeout。
-
-该测试同时覆盖并防回归一个真实时序缺陷：若 `Helper` 在
-`requestPickWindow` 后才连接 `WindowPickerInterface::pick`，首条 `pick` 请求已经发出，
-因而永远不会创建 picker。生产连接必须建立在 `PickerCreated`，再由后续 `pick` 创建 QML
-picker。
-
 ## 已知边界 / 下一项结果
 
-lockscreen 的 `lock` 已有 **E** 级流程覆盖。窗口选择器的上述 **E** 级测试已实现，
-但本次修改后的测试仍须在当前提交上成功执行后，才能把它标为已验证结果。
+lockscreen 的 `lock` 已有 **E** 级流程覆盖。
 `shutdown`/`switch_user` 会进入外部会话或 greeter 行为，尚未在测试中替代这些系统服务。
 multitask 仍只验证 `toggle` 信号，尚未验证真实插件/UI 的进入、退出和状态；overlap checker
 仍为资源/事件覆盖。

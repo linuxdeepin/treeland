@@ -118,18 +118,6 @@ static const struct treeland_dde_active_v1_listener active_listener = {
     .drop = drop,
 };
 
-static void picker_window(void *data, struct treeland_window_picker_v1 *picker, int32_t pid)
-{
-    (void)picker;
-    struct test_ctx *ctx = data;
-    ctx->picker_window_received = 1;
-    ctx->picker_pid = pid;
-}
-
-static const struct treeland_window_picker_v1_listener picker_listener = {
-    .window = picker_window,
-};
-
 extern void dde_shell_query_surface_state(void *data);
 
 static int connect_client(struct test_ctx *ctx, const char *socket_name)
@@ -176,14 +164,6 @@ static int create_multitaskview(struct test_ctx *ctx)
 {
     ctx->multitaskview = treeland_dde_shell_manager_v1_get_treeland_multitaskview(ctx->manager);
     return ctx->multitaskview != NULL;
-}
-
-static int create_picker(struct test_ctx *ctx)
-{
-    ctx->picker = treeland_dde_shell_manager_v1_get_treeland_window_picker(ctx->manager);
-    if (ctx->picker)
-        treeland_window_picker_v1_add_listener(ctx->picker, &picker_listener, ctx);
-    return ctx->picker != NULL;
 }
 
 static int create_lockscreen(struct test_ctx *ctx)
@@ -292,11 +272,6 @@ static int switch_user(struct test_ctx *ctx)
     return wl_display_roundtrip(ctx->display) >= 0;
 }
 
-static int pick(struct test_ctx *ctx)
-{
-    treeland_window_picker_v1_pick(ctx->picker, "test-hint");
-    return wl_display_roundtrip(ctx->display) >= 0;
-}
 static int emit_events(struct test_ctx *ctx) { (void)ctx; return invoke_on_server_thread(dde_shell_emit_test_events, NULL); }
 static int checker_enter_received(struct test_ctx *ctx) { return ctx->checker_enter_received; }
 static int checker_leave_received(struct test_ctx *ctx) { return ctx->checker_leave_received; }
@@ -304,14 +279,12 @@ static int active_in_received(struct test_ctx *ctx) { return ctx->active_in_rece
 static int active_out_received(struct test_ctx *ctx) { return ctx->active_out_received == 1; }
 static int start_drag_received(struct test_ctx *ctx) { return ctx->start_drag_received; }
 static int drop_received(struct test_ctx *ctx) { return ctx->drop_received; }
-static int picker_window_received(struct test_ctx *ctx) { return ctx->picker_window_received && ctx->picker_pid == 42; }
 
 static const struct test_case cases[] = {
     { "manager.get_window_overlap_checker", create_checker },
     { "manager.get_shell_surface", create_shell_surface },
     { "manager.get_treeland_dde_active", create_active },
     { "manager.get_treeland_multitaskview", create_multitaskview },
-    { "manager.get_treeland_window_picker", create_picker },
     { "manager.get_treeland_lockscreen", create_lockscreen },
     { "checker.update", update_checker },
     { "shell_surface.set_surface_position", set_surface_position },
@@ -326,7 +299,6 @@ static const struct test_case cases[] = {
     { "request.lockscreen.lock_dispatch", lock },
     { "request.lockscreen.shutdown_dispatch", shutdown },
     { "request.lockscreen.switch_user_dispatch", switch_user },
-    { "request.picker.pick_dispatch", pick },
     { "server.emit_events", emit_events },
     { "checker.event.enter", checker_enter_received },
     { "checker.event.leave", checker_leave_received },
@@ -334,7 +306,6 @@ static const struct test_case cases[] = {
     { "active.event.active_out", active_out_received },
     { "active.event.start_drag", start_drag_received },
     { "active.event.drop", drop_received },
-    { "picker.event.window", picker_window_received },
 };
 
 void test_cleanup(struct test_ctx *ctx)
@@ -342,7 +313,6 @@ void test_cleanup(struct test_ctx *ctx)
     if (ctx->shell_surface) treeland_dde_shell_surface_v1_destroy(ctx->shell_surface);
     if (ctx->checker) treeland_window_overlap_checker_destroy(ctx->checker);
     if (ctx->multitaskview) treeland_multitaskview_v1_destroy(ctx->multitaskview);
-    if (ctx->picker) treeland_window_picker_v1_destroy(ctx->picker);
     if (ctx->lockscreen) treeland_lockscreen_v1_destroy(ctx->lockscreen);
     if (ctx->active) treeland_dde_active_v1_destroy(ctx->active);
     if (ctx->manager) treeland_dde_shell_manager_v1_destroy(ctx->manager);
