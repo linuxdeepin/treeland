@@ -14,7 +14,8 @@ TreelandInputManagerV1::TreelandInputManagerV1()
 
 TreelandInputManagerV1::~TreelandInputManagerV1()
 {
-    destroy();
+    if (isInitialized())
+        destroy();
 }
 
 void TreelandInputManagerV1::instantiate()
