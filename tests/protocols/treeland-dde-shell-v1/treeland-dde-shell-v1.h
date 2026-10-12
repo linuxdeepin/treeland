@@ -43,7 +43,6 @@ struct test_ctx {
     struct treeland_dde_shell_surface_v1  *shell_surface;
     struct treeland_dde_active_v1         *active;
     struct treeland_multitaskview_v1      *multitaskview;
-    struct treeland_window_picker_v1      *picker;
     struct treeland_lockscreen_v1         *lockscreen;
     struct wl_surface                     *test_surface;
 
@@ -53,8 +52,6 @@ struct test_ctx {
     int active_out_received;
     int start_drag_received;
     int drop_received;
-    int picker_window_received;
-    int picker_pid;
 
     struct test_result *results;
     int                 result_count;

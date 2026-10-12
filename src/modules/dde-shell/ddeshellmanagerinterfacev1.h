@@ -21,7 +21,6 @@ class DDEShellSurfaceInterface;
 class DDEActiveInterface;
 class WindowOverlapCheckerInterface;
 class MultiTaskViewInterface;
-class WindowPickerInterface;
 class LockScreenInterface;
 
 class DDEShellManagerInterfaceV1 : public QObject , public WServerInterface
@@ -44,11 +43,9 @@ Q_SIGNALS:
     // Deprecated: superseded by TreelandRegionWatchManagerInterfaceV1::regionWatchCreated.
     void windowOverlapCheckerCreated(WindowOverlapCheckerInterface *interface);
     void multiTaskViewsCreated(MultiTaskViewInterface *interface);
-    void PickerCreated(WindowPickerInterface *interface);
     void lockScreenCreated(LockScreenInterface *interface);
 
     void toggleMultitaskview();
-    void requestPickWindow(WindowPickerInterface *picker);
 
 protected:
     void create(WServer *server) override;
@@ -181,26 +178,6 @@ private:
 private:
     friend class DDEShellManagerInterfaceV1Private;
     std::unique_ptr<MultiTaskViewInterfacePrivate> d;
-};
-
-class WindowPickerInterfacePrivate;
-class WindowPickerInterface : public QObject
-{
-    Q_OBJECT
-public:
-    ~WindowPickerInterface() override;
-    void sendWindowPid(qint32 pid);
-
-Q_SIGNALS:
-    void pick(const QString &hint);
-    void beforeDestroy();
-
-private:
-    explicit WindowPickerInterface(wl_resource *resource);
-
-private:
-    friend class DDEShellManagerInterfaceV1Private;
-    std::unique_ptr<WindowPickerInterfacePrivate> d;
 };
 
 class LockScreenInterfacePrivate;

@@ -63,7 +63,6 @@ public:
     QQuickItem *createDockPreview(QQuickItem *parent);
     QQuickItem *createShowDesktopAnimation(SurfaceWrapper *surface, QQuickItem *parent, bool show);
     QQuickItem *createCaptureSelector(QQuickItem *parent, CaptureManagerV1 *captureManager);
-    QQuickItem *createWindowPicker(QQuickItem *parent);
     QQuickItem *createEdgeTilePreview(QQuickItem *parent);
     QQuickItem *createLockScreenFallback(QQuickItem *parent,
                                          const QVariantMap &properties = QVariantMap());
@@ -99,7 +98,6 @@ private:
     QQmlComponent minimizeAnimationComponent;
     QQmlComponent showDesktopAnimatioComponentn;
     QQmlComponent captureSelectorComponent;
-    QQmlComponent windowPickerComponent;
     QQmlComponent edgeTilePreviewComponent;
     QQmlComponent launchpadAnimationComponent;
     QQmlComponent launchpadCoverComponent;

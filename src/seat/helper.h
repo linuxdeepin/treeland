@@ -123,7 +123,6 @@ class TreelandRemoteSource;
 class UserModel;
 class WallpaperColorInterfaceV1;
 class ShowDesktopInterfaceV1;
-class WindowPickerInterface;
 class TreelandKeyboardStateNotifyManagerInterfaceV1;
 class TreelandActiveNotifyManagerInterfaceV1;
 class TreelandRegionWatchManagerInterfaceV1;
@@ -220,8 +219,6 @@ public:
     Q_INVOKABLE void startLockscreen(WOutput *output, bool showAnimation);
     Q_INVOKABLE QString currentWorkspaceWallpaper(WOutput *output);
     Q_INVOKABLE QString currentLockScreenWallpaper(WOutput *output);
-
-    void handleWindowPicker(WindowPickerInterface *picker);
 
     void setMultitaskViewImpl(IMultitaskView *impl);
     void setLockScreenImpl(ILockScreen *impl);
