@@ -188,7 +188,10 @@ TreelandCaptureSession::TreelandCaptureSession(::treeland_capture_session_v1 *ob
 {
 }
 
-TreelandCaptureSession::~TreelandCaptureSession() { }
+TreelandCaptureSession::~TreelandCaptureSession()
+{
+    destroy();
+}
 
 void TreelandCaptureSession::start()
 {

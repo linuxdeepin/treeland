@@ -12,6 +12,8 @@ VirtualOutput::VirtualOutput(struct ::treeland_virtual_output_v1 *object)
 
 VirtualOutput::~VirtualOutput()
 {
+    if (isInitialized())
+        destroy();
 }
 
 void VirtualOutput::treeland_virtual_output_v1_outputs(const QString &name, wl_array *outputs)
