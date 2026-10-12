@@ -13,7 +13,8 @@ TreelandWallpaperManagerV1::TreelandWallpaperManagerV1()
 
 TreelandWallpaperManagerV1::~TreelandWallpaperManagerV1()
 {
-    destroy();
+    if (isInitialized())
+        destroy();
 }
 
 void TreelandWallpaperManagerV1::instantiate()
