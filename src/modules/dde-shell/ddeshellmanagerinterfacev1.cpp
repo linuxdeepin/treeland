@@ -22,7 +22,6 @@ static QList<DDEShellSurfaceInterface *> s_shellSurfaces;
 static QList<DDEActiveInterface *> s_ddeActives;
 static QList<WindowOverlapCheckerInterface *> s_OverlapCheckers;
 static QList<MultiTaskViewInterface *> s_multiTaskViews;
-static QList<WindowPickerInterface *> s_windowPickers;
 static QList<LockScreenInterface *> s_lockScreens;
 static QMap<WindowOverlapCheckerInterface *, QRect> s_conflictList;
 
@@ -39,7 +38,6 @@ protected:
     void get_shell_surface(Resource *resource, uint32_t id, struct ::wl_resource *surface) override;
     void get_treeland_dde_active(Resource *resource, uint32_t id, struct ::wl_resource *seat) override;
     void get_treeland_multitaskview(Resource *resource, uint32_t id) override;
-    void get_treeland_window_picker(Resource *resource, uint32_t id) override;
     void get_treeland_lockscreen(Resource *resource, uint32_t id) override;
     void set_xwindow_position_relative(Resource *resource, uint32_t callback, uint32_t wid,
                                        struct ::wl_resource *anchor, wl_fixed_t dx, wl_fixed_t dy) override;
@@ -202,32 +200,6 @@ void DDEShellManagerInterfaceV1Private::get_treeland_multitaskview(Resource *res
                      &DDEShellManagerInterfaceV1::toggleMultitaskview);
 
     Q_EMIT q->multiTaskViewsCreated(multiTaskView);
-}
-
-void DDEShellManagerInterfaceV1Private::get_treeland_window_picker(Resource *resource,
-                                                                   uint32_t id)
-{
-    wl_resource *windowPickerResource = wl_resource_create(resource->client(),
-                                                           &treeland_window_picker_v1_interface,
-                                                           resource->version(),
-                                                           id);
-
-    if (!windowPickerResource) {
-        wl_client_post_no_memory(resource->client());
-        return;
-    }
-
-    auto windowPicker = new WindowPickerInterface(windowPickerResource);
-    s_windowPickers.append(windowPicker);
-
-    QObject::connect(windowPicker, &QObject::destroyed, [windowPicker]() {
-        s_windowPickers.removeOne(windowPicker);
-    });
-    QObject::connect(windowPicker, &WindowPickerInterface::pick, [windowPicker, this]() {
-        Q_EMIT q->requestPickWindow(windowPicker);
-    });
-
-    Q_EMIT q->PickerCreated(windowPicker);
 }
 
 DDEShellManagerInterfaceV1::DDEShellManagerInterfaceV1(QObject *parent)
@@ -741,55 +713,6 @@ MultiTaskViewInterface::~MultiTaskViewInterface() { }
 
 MultiTaskViewInterface::MultiTaskViewInterface(wl_resource *resource)
     : d(new MultiTaskViewInterfacePrivate(this, resource))
-{
-}
-
-class WindowPickerInterfacePrivate : public QtWaylandServer::treeland_window_picker_v1
-{
-public:
-    WindowPickerInterfacePrivate(WindowPickerInterface *_q, wl_resource *resource);
-
-    WindowPickerInterface *q;
-
-protected:
-    void destroy_resource([[maybe_unused]] Resource *resource) override;
-    void destroy([[maybe_unused]] Resource *resource) override;
-    void pick([[maybe_unused]] Resource *resource, const QString &hint) override;
-};
-
-WindowPickerInterfacePrivate::WindowPickerInterfacePrivate(WindowPickerInterface *_q,
-                                                           wl_resource *resource)
-    : QtWaylandServer::treeland_window_picker_v1(resource)
-    , q(_q)
-{
-}
-
-void WindowPickerInterfacePrivate::destroy_resource([[maybe_unused]] Resource *resource)
-{
-    Q_EMIT q->beforeDestroy();
-    delete q;
-}
-
-void WindowPickerInterfacePrivate::destroy([[maybe_unused]] Resource *resource)
-{
-    wl_resource_destroy(resource->handle);
-}
-
-void WindowPickerInterfacePrivate::pick([[maybe_unused]] Resource *resource,
-    const QString &hint)
-{
-    Q_EMIT q->pick(hint);
-}
-
-WindowPickerInterface::~WindowPickerInterface() { }
-
-void WindowPickerInterface::sendWindowPid(qint32 pid)
-{
-    d->send_window(pid);
-}
-
-WindowPickerInterface::WindowPickerInterface(wl_resource *resource)
-    : d(new WindowPickerInterfacePrivate(this, resource))
 {
 }
 

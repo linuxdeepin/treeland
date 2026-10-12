@@ -13,7 +13,6 @@ WAYLIB_SERVER_USE_NAMESPACE
 namespace {
 WindowOverlapCheckerInterface *g_checker = nullptr;
 DDEActiveInterface *g_active = nullptr;
-WindowPickerInterface *g_picker = nullptr;
 DDEShellSurfaceInterface *g_shellSurface = nullptr;
 
 }
@@ -27,8 +26,6 @@ void protocol_test_setup(Helper *helper)
                      [](WindowOverlapCheckerInterface *checker) { g_checker = checker; });
     QObject::connect(manager, &DDEShellManagerInterfaceV1::activeCreated,
                      [](DDEActiveInterface *active) { g_active = active; });
-    QObject::connect(manager, &DDEShellManagerInterfaceV1::PickerCreated,
-                     [](WindowPickerInterface *picker) { g_picker = picker; });
     QObject::connect(manager, &DDEShellManagerInterfaceV1::surfaceCreated,
                      [](DDEShellSurfaceInterface *surface) { g_shellSurface = surface; });
 }
@@ -65,6 +62,4 @@ extern "C" void dde_shell_emit_test_events(void *)
         DDEActiveInterface::sendStartDrag(g_active->seat());
         DDEActiveInterface::sendDrop(g_active->seat());
     }
-    if (g_picker)
-        g_picker->sendWindowPid(42);
 }

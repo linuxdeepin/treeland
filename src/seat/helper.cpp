@@ -30,7 +30,6 @@
 #include "core/shellhandler.h"
 #include "core/dconfigmanager.h"
 #include "core/treeland.h"
-#include "core/windowpicker.h"
 #include "greeter/greeterproxy.h"
 #include "greeter/sessionmodel.h"
 #include "greeter/usermodel.h"
@@ -909,10 +908,6 @@ void Helper::init(Treeland::Treeland *treeland)
             m_multitaskView->toggleMultitaskView(IMultitaskView::ActiveReason::ShortcutKey);
         }
     });
-    connect(m_ddeShellV1,
-            &DDEShellManagerInterfaceV1::PickerCreated,
-            this,
-            &Helper::handleWindowPicker);
     connect(m_ddeShellV1,
             &DDEShellManagerInterfaceV1::lockScreenCreated,
             this,
@@ -2110,30 +2105,6 @@ QString Helper::currentWorkspaceWallpaper(WOutput *output)
 QString Helper::currentLockScreenWallpaper(WOutput *output)
 {
     return m_wallpaperManager->currentLockScreenWallpaper(output);
-}
-
-void Helper::handleWindowPicker(WindowPickerInterface *picker)
-{
-    connect(picker, &WindowPickerInterface::pick, this, [this, picker](const QString &hint) {
-        auto windowPicker =
-            qobject_cast<WindowPicker *>(qmlEngine()->createWindowPicker(m_rootSurfaceContainer));
-        windowPicker->setHint(hint);
-        connect(windowPicker,
-                &WindowPicker::windowPicked,
-                this,
-                [picker, windowPicker](WSurfaceItem *surfaceItem) {
-                    if (surfaceItem) {
-                        auto credentials = WClient::getCredentials(
-                            surfaceItem->surface()->waylandClient()->handle());
-                        picker->sendWindowPid(credentials->pid);
-                        windowPicker->deleteLater();
-                    }
-                });
-        connect(picker,
-                &WindowPickerInterface::beforeDestroy,
-                windowPicker,
-                &WindowPicker::deleteLater);
-    });
 }
 
 void Helper::setMultitaskViewImpl(IMultitaskView *impl)
