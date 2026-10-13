@@ -2123,12 +2123,34 @@ void SurfaceWrapper::toggleMaximized()
         maximize();
 }
 
+bool SurfaceWrapper::supportsTileMode(TileMode mode) const
+{
+    switch (mode) {
+    case TileMode::None:
+        return true;
+    case TileMode::Maximize:
+        return isMaximizable();
+    case TileMode::Left:
+    case TileMode::Right:
+    case TileMode::TopLeft:
+    case TileMode::TopRight:
+    case TileMode::BottomLeft:
+    case TileMode::BottomRight:
+        return isResizable();
+    }
+
+    Q_UNREACHABLE_RETURN(false);
+}
+
 void SurfaceWrapper::applyTileMode(TileMode mode, Output *output)
 {
     if (mode == TileMode::None) {
         cancelTileMode();
         return;
     }
+
+    if (!supportsTileMode(mode))
+        return;
 
     if (mode == TileMode::Maximize) {
         // Use the cursor's output geometry, not the surface's current output,
