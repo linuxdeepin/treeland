@@ -16,6 +16,7 @@
 | 最大化 | 对 handle 发 `set_maximized`、`unset_maximized` | 同一真实 `SurfaceWrapper` 进入、退出 `Maximized` 状态 |
 | 全屏 | 对 handle 发 `set_fullscreen(NULL)`、`unset_fullscreen` | 同一真实 `SurfaceWrapper` 进入、退出 `Fullscreen` 状态 |
 | 布局与最小化正交 | `set_maximized`/`set_fullscreen` 后发 `set_minimized`、`unset_minimized`，再 `unset_maximized`/`unset_fullscreen` | 最小化期间 `SurfaceWrapper::surfaceState()` 保持布局状态且窗口不可见；恢复后仍为该布局状态并重新可见；取消布局状态后回到 `Normal` 且不再最小化 |
+| 动画在途重定向 | 最大化后不等动画结束发 `unset_maximized`；稳定最大化后连续发 `set_fullscreen`、`unset_fullscreen`、`set_maximized` | 动画进行中的状态请求被正确重定向或取消：前者最终回到 `Normal`，后者保持 `Maximized`；compositor 不因“目标 == 已生效状态”的退化动画触发断言而崩溃 |
 | 激活 | 对 handle 发 `activate(wl_seat)` | `Helper` 将 wrapper 设为 activated，且它成为该 seat 的真实 keyboard focus surface |
 | 窗口代表区域 | 对 handle 的 mapped xdg `wl_surface` 发 `set_icon_geometry(11,12,130,140)` | production rectangle handler 将局部坐标换算为 wrapper 的 `iconGeometry`：`wrapper.position + QRect(11,12,130,140)` |
 
@@ -47,6 +48,13 @@ compositor 的 `SurfaceWrapper::surfaceState()`，不是 foreign handle 自身�
 必须回到 `Normal`、可见且不再最小化。这覆盖了“全屏→最小化→恢复→取消全屏后卡在最小化”的
 回归路径，而不只是顺序地单独测试各状态。
 
+动画在途重定向：先稳定在 `Maximized`，再发 `set_maximized` 后立刻 `unset_maximized`，
+断言最终回到 `Normal`；以及稳定在 `Maximized` 后连续发 `set_fullscreen`、`unset_fullscreen`、
+`set_maximized`，断言最终保持 `Maximized`。后者曾是崩溃路径：动画在途时“请求已生效状态”
+被放行，建出目标 == 已生效状态的退化动画，其首帧触发致命断言。两个用例都把连续请求排在一个
+`wl_display_roundtrip` 之前，确保服务端在同一批事件内处理完重定向，不受渲染帧或动画定时器
+时序影响。
+
 `activate(wl_seat)` 进入 manager 连接的
 `Helper::forceActivateSurface(wrapper, ..., seat)`，测试读取 wrapper 的 activated 标记和
 root surface container 默认 seat container 的 `keyboardFocusSurface()`，两者都必须指向同一
@@ -60,7 +68,8 @@ mapped wrapper。`set_icon_geometry` 则
 
 已覆盖 handle 的 `set/unset_minimized`、`set/unset_maximized`、
 `set/unset_fullscreen`、`activate`、`set_icon_geometry`、`close`，以及 manager/context 的
-`stop`、`get_dock_preview_context`、`show`、`show_tooltip`、`close`、`destroy`。
+`stop`、`get_dock_preview_context`、`show`、`show_tooltip`、`close`、`destroy`；
+并覆盖布局状态请求在几何动画进行中的重定向与取消。
 
 布局与最小化的组合已覆盖 `Maximized`、`Fullscreen` 两种布局；`Tiling` 没有对应的 foreign
 handle 请求，仍未被组合覆盖。

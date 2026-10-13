@@ -515,6 +515,63 @@ static int set_icon_geometry_changes_icon_geometry(struct test_ctx *ctx)
            && state.icon_width == 130 && state.icon_height == 140;
 }
 
+static int maximize_restore_in_flight(struct test_ctx *ctx)
+{
+    if (!ctx->handle)
+        return 0;
+    struct ftm_server_state state;
+    // Start from a settled Normal state.
+    treeland_foreign_toplevel_handle_v2_unset_fullscreen(ctx->handle);
+    treeland_foreign_toplevel_handle_v2_unset_maximized(ctx->handle);
+    if (wl_display_roundtrip(ctx->display) < 0)
+        return 0;
+    if (!render_ack_and_read_server_state(ctx, &state)
+        || state.wrapper_state != FTM_WRAPPER_STATE_NORMAL)
+        return 0;
+
+    // Maximize, then restore without letting the transition settle. Queue both
+    // requests before a single roundtrip so the server processes the retarget
+    // before any render frame or animation timer can settle the first one.
+    treeland_foreign_toplevel_handle_v2_set_maximized(ctx->handle);
+    treeland_foreign_toplevel_handle_v2_unset_maximized(ctx->handle);
+    if (wl_display_roundtrip(ctx->display) < 0)
+        return 0;
+
+    return render_ack_and_read_server_state(ctx, &state)
+           && state.wrapper_state == FTM_WRAPPER_STATE_NORMAL;
+}
+
+static int maximize_during_fullscreen_cancel(struct test_ctx *ctx)
+{
+    if (!ctx->handle)
+        return 0;
+    struct ftm_server_state state;
+
+    // Settle on Maximized so the effective state is Maximized.
+    treeland_foreign_toplevel_handle_v2_set_maximized(ctx->handle);
+    if (wl_display_roundtrip(ctx->display) < 0)
+        return 0;
+    if (!render_ack_and_read_server_state(ctx, &state)
+        || state.wrapper_state != FTM_WRAPPER_STATE_MAXIMIZED)
+        return 0;
+
+    // Start a fullscreen transition, cancel it, then request the already
+    // effective Maximized state while the transition is still in flight. Queue
+    // all three requests before a single roundtrip so the server handles the
+    // retarget before any render frame or animation timer can settle it. This
+    // used to build a degenerate animation (target == effective state) whose
+    // first ready hit Q_ASSERT(m_pendingState != m_surfaceState) and aborted
+    // the whole compositor.
+    treeland_foreign_toplevel_handle_v2_set_fullscreen(ctx->handle, NULL);
+    treeland_foreign_toplevel_handle_v2_unset_fullscreen(ctx->handle);
+    treeland_foreign_toplevel_handle_v2_set_maximized(ctx->handle);
+    if (wl_display_roundtrip(ctx->display) < 0)
+        return 0;
+
+    return render_ack_and_read_server_state(ctx, &state)
+           && state.wrapper_state == FTM_WRAPPER_STATE_MAXIMIZED;
+}
+
 static int request_close(struct test_ctx *ctx)
 {
     if (!ctx->handle)
@@ -552,6 +609,8 @@ static const struct test_case cases[] = {
     { "handle.minimize_changes_wrapper", minimize_real_toplevel },
     { "handle.restore_changes_wrapper", restore_real_toplevel },
     { "handle.maximize_changes_wrapper", maximize_real_toplevel },
+    { "handle.maximize_restore_in_flight", maximize_restore_in_flight },
+    { "handle.maximize_during_fullscreen_cancel", maximize_during_fullscreen_cancel },
     { "handle.unmaximize_changes_wrapper", unmaximize_real_toplevel },
     { "handle.fullscreen_changes_wrapper", fullscreen_real_toplevel },
     { "handle.unfullscreen_changes_wrapper", unfullscreen_real_toplevel },

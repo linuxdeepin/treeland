@@ -458,19 +458,21 @@ private:
     void itemChange(ItemChange change, const ItemChangeData &data) override;
 
     QRectF targetGeometryForState(State state) const;
-    bool applySurfaceStateGeometry(State state, const QRectF &targetGeometry);
+    bool applyGeometry(const QRectF &targetGeometry);
+    bool applySurfaceState();
     bool checkSetSurfaceState(State newSurfaceState, bool allowRetarget = false);
     bool shouldUpdateNormalGeometry() const;
     void abortGeometryAnimation();
-    void applySurfaceStateWithoutGeometry(State state);
-    void doSetSurfaceState(State newSurfaceState);
+    void resetXdgToplevelSize();
+    void setSurfaceStateValue(State newSurfaceState);
+    void applyShellSurfaceState();
     Q_SLOT void onAnimationReady();
     Q_SLOT void onAnimationFinished();
     void syncPrelaunchMappedState();
     void startPrelaunchSplashHideSequence();
     Q_SLOT void onPrelaunchGeometryAnimationReady();
     Q_SLOT void onPrelaunchGeometryAnimationFinished();
-    bool startStateChangeAnimation(SurfaceWrapper::State targetState, const QRectF &targetGeometry);
+    bool startStateChangeAnimation(const QRectF &targetGeometry);
     void onWindowAnimationFinished();
     Q_SLOT void onShowAnimationFinished();
     Q_SLOT void onHideAnimationFinished();
@@ -514,8 +516,10 @@ private:
     Type m_type;
     QPointer<Output> m_ownsOutput;
     QPointF m_positionInOwnsOutput;
-    SurfaceWrapper::State m_pendingState;
-    QRectF m_pendingGeometry;
+    // State already propagated to m_shellSurface. It lags m_surfaceState while a
+    // geometry animation is in flight: the shell surface is only notified at the
+    // animation's first frame, so the two are intentionally allowed to differ.
+    State m_appliedSurfaceState = State::Normal;
     QPointer<QQuickItem> m_windowAnimation;
     QPointer<QQuickItem> m_minimizeAnimation;
     QPointer<QQuickItem> m_showDesktopAnimation;
