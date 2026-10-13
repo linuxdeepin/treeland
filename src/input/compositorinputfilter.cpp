@@ -108,6 +108,16 @@ bool CompositorInputFilter::beforeDisposeEvent(WSeat *seat, QWindow *targetWindo
     m_currentEventSeat = targetSeat;
     [[maybe_unused]] auto clearEventSeat = qScopeGuard([this] { m_currentEventSeat = nullptr; });
 
+    // Clear the record on release before the early returns below can bypass the
+    // tracked block, otherwise the entry would linger until WSeat::destroy().
+    // Auto-repeats are skipped: only the real release ends the press.
+    if (seat == m_server->seat() && event->type() == QEvent::KeyRelease) {
+        const auto *kevent = static_cast<QKeyEvent *>(event);
+        const uint32_t evdevKeycode = kevent->nativeVirtualKey();
+        if (!kevent->isAutoRepeat() && seat->isKeyFiltered(evdevKeycode))
+            seat->removeFilteredKey(evdevKeycode);
+    }
+
     // Dismiss the popup grab when the user presses a button outside the popup
     // (e.g. on the desktop or another client). wlroots' xdg popup keyboard grab
     // redirects keyboard focus back to the popup, so it must be ended explicitly.
@@ -255,9 +265,16 @@ bool CompositorInputFilter::beforeDisposeEvent(WSeat *seat, QWindow *targetWindo
             }
         }
 
-        if (m_shortcutManager->controller()->dispatchKeyEvent(kevent)) {
+        auto *controller = m_shortcutManager->controller();
+        const uint32_t evdevKeycode = kevent->nativeVirtualKey();
+        const bool isAutoRepeat = kevent->isAutoRepeat();
+
+        if (!isAutoRepeat && kevent->type() == QEvent::KeyPress
+            && controller->matchesShortcut(kevent))
+            seat->addFilteredKey(evdevKeycode);
+
+        if (controller->dispatchKeyEvent(kevent))
             return true;
-        }
     }
 
     return false;

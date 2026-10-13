@@ -88,6 +88,8 @@ public:
 
     void clear();
     bool dispatchKeyEvent(const QKeyEvent *event);
+
+    bool matchesShortcut(const QKeyEvent *event) const;
     static QKeyCombination normalizeKeyCombination(QKeyCombination combination);
     static bool isValidShortcutCombination(QKeyCombination combination);
     // Normalizes a portable-text key string to the (combined-key) identity
