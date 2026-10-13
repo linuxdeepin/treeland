@@ -25,7 +25,10 @@ class SurfaceContainer;
 
 class SurfaceWrapper : public QQuickItem
 {
-    friend class Helper;
+    friend class WaylandServer;
+    friend class FocusController;
+    friend class ShowDesktop;
+    friend class SurfaceProtocolController;
     friend class SurfaceContainer;
     friend class SurfaceProxy;
     friend class ShellHandler;
@@ -236,7 +239,7 @@ public:
     void setRadius(qreal newRadius);
 
     // Per-window SSD customization (treeland-decoration-unstable-v1).
-    // Values equal to the compositor defaults (set by Helper when no
+    // Values equal to the compositor defaults (set by WaylandServer when no
     // per-window override is active) so the rendering picks them up via
     // Decoration.qml without extra conditionals.
     qreal shadowBlurRadius() const;

@@ -5,7 +5,7 @@
 
 #include "qwayland-server-treeland-dde-shell-unstable-v2.h"
 
-#include "helper.h"
+#include "core/waylandserver.h"
 #include "output.h"
 #include "rootsurfacecontainer.h"
 
@@ -210,7 +210,7 @@ void DDEShellSurfaceV2Private::set_position_hint([[maybe_unused]] Resource *reso
         anchor = wOutput->position();
     } else {
         // A null output anchors the coordinates at the primary output origin.
-        if (auto *primary = Helper::instance()->rootContainer()->primaryOutput())
+        if (auto *primary = WaylandServer::instance()->rootContainer()->primaryOutput())
             anchor = primary->geometry().topLeft().toPoint();
     }
 
@@ -319,7 +319,7 @@ DDEShellSurfaceV2 *DDEShellSurfaceV2::get(wl_resource *native)
 {
     // wlr_surface_from_resource asserts on a null or non-wl_surface resource;
     // validate first so callers inspecting another resource get null instead
-    // of aborting the compositor.
+    // of aborting the server.
     if (!native || strcmp(wl_resource_get_class(native), wl_surface_interface.name) != 0)
         return nullptr;
 

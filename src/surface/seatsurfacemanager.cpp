@@ -6,7 +6,7 @@
 #include "rootsurfacecontainer.h"
 #include "treelanduserconfig.hpp"
 #include "common/treelandlogging.h"
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 #include "seat/seatmanager.h"
 #include "core/shellhandler.h"
 #include "output/output.h"
@@ -91,20 +91,20 @@ void SeatSurfaceManager::onActivatedSurfaceFocusCapabilityChanged()
     if (!m_activatedSurface)
         return;
 
-    auto *helper = Helper::instance();
-    if (!helper)
+    auto *server = WaylandServer::instance();
+    if (!server)
         return;
 
     // While showing the desktop, keyboard focus is on the desktop layer, not on the
     // (hidden) activated surface; a focus-capability change of the activated
     // surface must not yank keyboard focus back to the window.
-    if (helper->showDesktopState() == ShowDesktopInterfaceV1::State::Show)
+    if (server->showDesktopState() == ShowDesktopInterfaceV1::State::Show)
         return;
 
     if (m_activatedSurface->hasFocusCapability()) {
-        helper->requestKeyboardFocus(m_activatedSurface, Qt::ActiveWindowFocusReason, m_seat);
+        server->requestKeyboardFocus(m_activatedSurface, Qt::ActiveWindowFocusReason, m_seat);
     } else {
-        helper->requestKeyboardFocus(nullptr, Qt::ActiveWindowFocusReason, m_seat);
+        server->requestKeyboardFocus(nullptr, Qt::ActiveWindowFocusReason, m_seat);
     }
 }
 
@@ -134,11 +134,11 @@ void SeatSurfaceManager::setKeyboardFocusSurface(SurfaceWrapper *surface, Qt::Fo
     if (oldSurface) {
         bool otherSeatHasFocus = false;
         do {
-            auto *helper = Helper::instance();
-            if (!helper)
+            auto *server = WaylandServer::instance();
+            if (!server)
                 break;
 
-            auto *seatManager = helper->seatManager();
+            auto *seatManager = server->seatManager();
             if (!seatManager)
                 break;
 
@@ -146,7 +146,7 @@ void SeatSurfaceManager::setKeyboardFocusSurface(SurfaceWrapper *surface, Qt::Fo
             for (auto *otherSeat : seats) {
                 if (otherSeat == m_seat)
                     continue;
-                auto *otherContainer = helper->rootSurfaceContainer()->getSeatContainer(otherSeat);
+                auto *otherContainer = server->rootSurfaceContainer()->getSeatContainer(otherSeat);
                 if (otherContainer && otherContainer->keyboardFocusSurface() == oldSurface) {
                     otherSeatHasFocus = true;
                     break;
@@ -378,8 +378,8 @@ void SeatSurfaceManager::startEdgeTileDelay()
             }
         });
     }
-    auto *helper = Helper::instance();
-    auto *cfg = helper ? helper->config() : nullptr;
+    auto *server = WaylandServer::instance();
+    auto *cfg = server ? server->config() : nullptr;
     m_edgeTileDelayTimer->setInterval(cfg ? cfg->edgeInnerDelayMs() : 250);
     m_edgeTileDelayTimer->start();
 }
@@ -395,17 +395,17 @@ bool SeatSurfaceManager::shouldHandleShortcuts() const
     // Policy: Only primary seat handles shortcuts
     // The primary seat is the first seat in seatManager's list
 
-    auto *helper = Helper::instance();
-    if (!helper || !helper->seatManager())
+    auto *server = WaylandServer::instance();
+    if (!server || !server->seatManager())
         return false;
 
-    const auto &seats = helper->seatManager()->seats();
+    const auto &seats = server->seatManager()->seats();
     if (seats.isEmpty())
         return false;
 
     // In multi-seat environment, the fallback seat should handle shortcuts for backwards compatibility,
     // or the primary seat designated by the user. If no fallback is defined, use the first seat.
-    if (auto *fallback = helper->seatManager()->fallbackSeat()) {
+    if (auto *fallback = server->seatManager()->fallbackSeat()) {
         return m_seat == fallback;
     }
     return m_seat == seats.first();
@@ -482,7 +482,7 @@ void SeatSurfaceManager::onKeyboardGrabBegin()
     // calling keyboard_start_grab, so it is already non-null when we get here.
     // Use isActiveKeyboardGrabOwner() to check if the seat's current grab
     // is the one installed by the IME helper.
-    if (auto *imHelper = Helper::instance()->shellHandler()->inputMethodHelper()) {
+    if (auto *imHelper = WaylandServer::instance()->shellHandler()->inputMethodHelper()) {
         if (imHelper->isActiveKeyboardGrabOwner()) {
             qCDebug(lcTlPopupFocus) << "IME keyboard grab started (not popup)";
             return;
@@ -505,8 +505,8 @@ void SeatSurfaceManager::onKeyboardGrabEnd()
 
     // While showing the desktop, keyboard focus is on the desktop layer, not on the
     // (hidden) activated surface; do not yank it back to the window.
-    if (auto *helper = Helper::instance()) {
-        if (helper->showDesktopState() == ShowDesktopInterfaceV1::State::Show)
+    if (auto *server = WaylandServer::instance()) {
+        if (server->showDesktopState() == ShowDesktopInterfaceV1::State::Show)
             return;
     }
 

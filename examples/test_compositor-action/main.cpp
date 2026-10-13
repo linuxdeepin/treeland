@@ -144,7 +144,7 @@ static QPushButton *addActionButton(CompositorAction *action,
 static QWidget *buildGui(CompositorAction *action)
 {
     auto *window = new QWidget;
-    window->setWindowTitle(QStringLiteral("Compositor Action Client"));
+    window->setWindowTitle(QStringLiteral("WaylandServer Action Client"));
     window->setAttribute(Qt::WA_DeleteOnClose);
 
     auto *vbox = new QVBoxLayout(window);

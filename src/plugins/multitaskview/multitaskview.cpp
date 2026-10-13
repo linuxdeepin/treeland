@@ -5,7 +5,7 @@
 
 #include "common/treelandlogging.h"
 #include "output/output.h"
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 #include "surface/surfacecontainer.h"
 #include "treelanduserconfig.hpp"
 #include "workspace/workspace.h"
@@ -67,18 +67,18 @@ void Multitaskview::updatePartialFactor(qreal progress)
 
 void Multitaskview::exit(SurfaceWrapper *surface, bool immediately)
 {
-    Helper::instance()->setBlockActivateSurface(false);
+    WaylandServer::instance()->setBlockActivateSurface(false);
 
     if (surface) {
-        Helper::instance()->forceActivateSurface(surface);
-    } else if (Helper::instance()->workspace()->current()->latestActiveSurface()) {
+        WaylandServer::instance()->forceActivateSurface(surface);
+    } else if (WaylandServer::instance()->workspace()->current()->latestActiveSurface()) {
         // Should force activate latest active surface if there is.
-        Helper::instance()->forceActivateSurface(
-            Helper::instance()->workspace()->current()->latestActiveSurface());
+        WaylandServer::instance()->forceActivateSurface(
+            WaylandServer::instance()->workspace()->current()->latestActiveSurface());
     }
 
-    if (Helper::instance()->currentMode() == Helper::CurrentMode::Multitaskview) {
-        Helper::instance()->setCurrentMode(Helper::CurrentMode::Normal);
+    if (WaylandServer::instance()->currentMode() == WaylandServer::CurrentMode::Multitaskview) {
+        WaylandServer::instance()->setCurrentMode(WaylandServer::CurrentMode::Normal);
     }
     // TODO: handle taskview gesture
     Q_EMIT aboutToExit();
@@ -92,10 +92,10 @@ void Multitaskview::exit(SurfaceWrapper *surface, bool immediately)
 
 void Multitaskview::enter(ActiveReason reason)
 {
-    Helper::instance()->cancelShowDesktop();
-    Helper::instance()->activateSurface(nullptr);
+    WaylandServer::instance()->cancelShowDesktop();
+    WaylandServer::instance()->activateSurface(nullptr);
     if (reason == ActiveReason::ShortcutKey)
-        Helper::instance()->setCurrentMode(Helper::CurrentMode::Multitaskview);
+        WaylandServer::instance()->setCurrentMode(WaylandServer::CurrentMode::Multitaskview);
     setActiveReason(reason);
     setStatus(Active);
 }
@@ -106,15 +106,15 @@ void Multitaskview::commitGesture(bool triggered)
         return;
     m_gestureCommitted = triggered;
     if (triggered) {
-        Helper::instance()->setCurrentMode(Helper::CurrentMode::Multitaskview);
-    } else if (Helper::instance()->currentMode() == Helper::CurrentMode::Multitaskview) {
-        Helper::instance()->setCurrentMode(Helper::CurrentMode::Normal);
+        WaylandServer::instance()->setCurrentMode(WaylandServer::CurrentMode::Multitaskview);
+    } else if (WaylandServer::instance()->currentMode() == WaylandServer::CurrentMode::Multitaskview) {
+        WaylandServer::instance()->setCurrentMode(WaylandServer::CurrentMode::Normal);
     }
 }
 MultitaskviewSurfaceModel::MultitaskviewSurfaceModel(QObject *parent)
     : QAbstractListModel(parent)
 {
-    connect(Helper::instance()->workspace()->showOnAllWorkspaceModel(),
+    connect(WaylandServer::instance()->workspace()->showOnAllWorkspaceModel(),
             &WorkspaceModel::surfaceRemoved,
             this,
             &MultitaskviewSurfaceModel::handleSurfaceRemoved);
@@ -127,9 +127,9 @@ void MultitaskviewSurfaceModel::initializeModel()
     beginResetModel();
     m_data.clear();
     QList<SurfaceWrapper *> surfaces(workspace()->surfaces());
-    surfaces << Helper::instance()->workspace()->showOnAllWorkspaceModel()->surfaces();
+    surfaces << WaylandServer::instance()->workspace()->showOnAllWorkspaceModel()->surfaces();
     for (const auto &surface : std::as_const(surfaces)) {
-        if (!Helper::instance()->surfaceBelongsToCurrentSession(surface))
+        if (!WaylandServer::instance()->surfaceBelongsToCurrentSession(surface))
             continue;
         if (surface->skipMutiTaskView())
             continue;
@@ -317,12 +317,12 @@ bool MultitaskviewSurfaceModel::tryLayout(const QList<ModelDataPtr> &rawData,
     qreal acc = 0;
     auto devicePixelRatio = output()->outputItem()->devicePixelRatio();
     auto topContentMargin =
-        Helper::instance()->config()->multitaskviewTopContentMargin() / devicePixelRatio;
+        WaylandServer::instance()->config()->multitaskviewTopContentMargin() / devicePixelRatio;
     auto bottomContentMargin =
-        Helper::instance()->config()->multitaskviewBottomContentMargin() / devicePixelRatio;
-    auto cellPadding = Helper::instance()->config()->multitaskviewCellPadding() / devicePixelRatio;
+        WaylandServer::instance()->config()->multitaskviewBottomContentMargin() / devicePixelRatio;
+    auto cellPadding = WaylandServer::instance()->config()->multitaskviewCellPadding() / devicePixelRatio;
     auto horizontalMargin =
-        Helper::instance()->config()->multitaskviewHorizontalMargin() / devicePixelRatio;
+        WaylandServer::instance()->config()->multitaskviewHorizontalMargin() / devicePixelRatio;
     auto availWidth = std::max(0.0, layoutArea().width() - 2 * horizontalMargin);
     auto availHeight =
         std::max(0.0, layoutArea().height() - topContentMargin - bottomContentMargin);
@@ -342,7 +342,7 @@ bool MultitaskviewSurfaceModel::tryLayout(const QList<ModelDataPtr> &rawData,
         if (newAcc <= availWidth) {
             acc = newAcc;
             currow.append(modelData);
-        } else if (newAcc / availWidth > Helper::instance()->config()->multitaskviewLoadFactor()) {
+        } else if (newAcc / availWidth > WaylandServer::instance()->config()->multitaskviewLoadFactor()) {
             acc = curW;
             nrows++;
             rowstmp.append(currow);
@@ -370,12 +370,12 @@ void MultitaskviewSurfaceModel::calcDisplayPos(const QList<ModelDataPtr> &rawDat
 {
     auto devicePixelRatio = output()->outputItem()->devicePixelRatio();
     auto topContentMargin =
-        Helper::instance()->config()->multitaskviewTopContentMargin() / devicePixelRatio;
+        WaylandServer::instance()->config()->multitaskviewTopContentMargin() / devicePixelRatio;
     auto bottomContentMargin =
-        Helper::instance()->config()->multitaskviewBottomContentMargin() / devicePixelRatio;
-    auto cellPadding = Helper::instance()->config()->multitaskviewCellPadding() / devicePixelRatio;
+        WaylandServer::instance()->config()->multitaskviewBottomContentMargin() / devicePixelRatio;
+    auto cellPadding = WaylandServer::instance()->config()->multitaskviewCellPadding() / devicePixelRatio;
     auto horizontalMargin =
-        Helper::instance()->config()->multitaskviewHorizontalMargin() / devicePixelRatio;
+        WaylandServer::instance()->config()->multitaskviewHorizontalMargin() / devicePixelRatio;
     auto availWidth = std::max(0.0, layoutArea().width() - 2 * horizontalMargin);
     auto availHeight =
         std::max(0.0, layoutArea().height() - topContentMargin - bottomContentMargin);
@@ -418,9 +418,9 @@ void MultitaskviewSurfaceModel::doCalculateLayout(const QList<ModelDataPtr> &raw
     auto devicePixelRatio = output()->outputItem()->devicePixelRatio();
     auto maxWindowHeight =
         std::min(layoutArea().height(),
-                 static_cast<qreal>(Helper::instance()->config()->normalWindowHeight() / devicePixelRatio));
-    auto minWindowHeight = Helper::instance()->config()->minMultitaskviewSurfaceHeight() / devicePixelRatio;
-    auto windowHeightStep = Helper::instance()->config()->windowHeightStep() / devicePixelRatio;
+                 static_cast<qreal>(WaylandServer::instance()->config()->normalWindowHeight() / devicePixelRatio));
+    auto minWindowHeight = WaylandServer::instance()->config()->minMultitaskviewSurfaceHeight() / devicePixelRatio;
+    auto windowHeightStep = WaylandServer::instance()->config()->windowHeightStep() / devicePixelRatio;
     auto rowH = maxWindowHeight;
     while (rowH > minWindowHeight) {
         if (tryLayout(rawData, rowH)) {
@@ -437,7 +437,7 @@ void MultitaskviewSurfaceModel::doCalculateLayout(const QList<ModelDataPtr> &raw
 void MultitaskviewSurfaceModel::doUpdateZOrder(const QList<ModelDataPtr> &rawData)
 {
     auto surfaces = WOutputRenderWindow::paintOrderItemList(
-        Helper::instance()->workspace(),
+        WaylandServer::instance()->workspace(),
         [this](QQuickItem *item) -> bool {
             auto surfaceWrapper = qobject_cast<SurfaceWrapper *>(item);
             if (surfaceWrapper && surfaceWrapper->showOnWorkspace(workspace()->id())) {
@@ -533,7 +533,7 @@ void MultitaskviewSurfaceModel::handleSurfaceMappedChanged()
     SurfaceWrapper *wrapper = findWrapper(workspace()->surfaces());
     if (!wrapper) {
         wrapper =
-            findWrapper(Helper::instance()->workspace()->showOnAllWorkspaceModel()->surfaces());
+            findWrapper(WaylandServer::instance()->workspace()->showOnAllWorkspaceModel()->surfaces());
     }
     Q_ASSERT_X(wrapper, __func__, "Monitoring mapped of a removed surface wrapper.");
 
@@ -551,7 +551,7 @@ void MultitaskviewSurfaceModel::handleSurfaceMappedChanged()
 
 void MultitaskviewSurfaceModel::handleSurfaceAdded(SurfaceWrapper *surface)
 {
-    if (!Helper::instance()->surfaceBelongsToCurrentSession(surface))
+    if (!WaylandServer::instance()->surfaceBelongsToCurrentSession(surface))
         return;
     connect(surface,
             &SurfaceWrapper::ownsOutputChanged,

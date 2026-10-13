@@ -21,7 +21,7 @@
 测试观察 Treeland 通过 `wlr_idle_notifier_v1_create` 提供的空闲通知服务。
 通过跨协议行为交叉检查：在映射的 surface 上创建 idle inhibitor → `idled` 不触发 →
 销毁 inhibitor → `idled` 触发。这证明生产 `wlr_idle_notifier_v1` 的 `inhibited` 状态
-被 `Helper::onNewIdleInhibitor` 修改，而非仅协议存活。
+被 `WaylandServer::onNewIdleInhibitor` 修改，而非仅协议存活。
 
 ## 已知边界 / 下一项结果
 

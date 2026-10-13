@@ -5,7 +5,7 @@
 
 #include <cstdint>
 
-// ShellAction is the compositor-neutral vocabulary both treeland-compositor-
+// ShellAction is the server-neutral vocabulary both treeland-server-
 // action-v1 and treeland-shortcut-manager-v2 map their own action enums onto,
 // so each action is implemented once. The protocol enums are independent value
 // spaces; this enum is the shared translation target.
@@ -55,7 +55,7 @@ enum class ShellAction : uint32_t {
     TileRight,
 };
 
-// Stateless executor: every call re-reads Helper::instance(). Task switching,
+// Stateless executor: every call re-reads WaylandServer::instance(). Task switching,
 // Notify and Quit stay producer-local (they depend on switch/quit state).
 class ShellActionExecutor
 {

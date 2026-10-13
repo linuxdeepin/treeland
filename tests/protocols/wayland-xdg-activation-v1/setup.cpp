@@ -3,7 +3,7 @@
 #include "wayland-xdg-activation-v1.h"
 #include "server-bridge.h"
 #include "core/shellhandler.h"
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 #include "surface/surfacewrapper.h"
 #include "modules/activation/activationmanagerinterfacev1.h"
 
@@ -17,14 +17,14 @@ int g_captured_disposition = 0;
 WAYLIB_SERVER_NAMESPACE::WSurface *g_surface_ptr = nullptr;
 }
 
-void protocol_test_setup(Helper *helper)
+void protocol_test_setup(WaylandServer *server)
 {
-    add_headless_output(helper->backend(), false);
+    add_headless_output(server->backend(), false);
 
-    g_mgr = find_server_interface<ActivationManagerInterfaceV1>(helper);
+    g_mgr = find_server_interface<ActivationManagerInterfaceV1>(server);
     if (g_mgr) {
         QObject::connect(g_mgr, &ActivationManagerInterfaceV1::activateRequested,
-                         helper, [](ActivationManagerInterfaceV1::TokenDisposition disposition,
+                         server, [](ActivationManagerInterfaceV1::TokenDisposition disposition,
                                      WAYLIB_SERVER_NAMESPACE::WSurface *surface,
                                      WAYLIB_SERVER_NAMESPACE::WSeat *seat) {
                              (void)seat;

@@ -5,7 +5,7 @@
 
 #include "modules/capture/impl/capturev1impl.h"
 #include "modules/item-selector/itemselector.h"
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 #include "surface/surfacewrapper.h"
 #include "surface/surfaceproxy.h"
 #include "workspace/workspace.h"

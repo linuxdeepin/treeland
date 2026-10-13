@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "inputmanager.h"
-#include "core/dconfigmanager.h"
+#include "dconfig/dconfigmanager.h"
 #include "seatuserconfig.hpp"
 #include "treelandconfig.hpp"
-#include "helper.h"
+#include "core/waylandserver.h"
 #include "inputdevice.h"
 #include "common/treelandlogging.h"
 #include "modules/input-manager/inputmanagerinterfacev1.h"
@@ -50,7 +50,7 @@ InputManager::~InputManager()
 
 void InputManager::setupSeatUserConfig(const QString &userName)
 {
-    auto *seatManager = Helper::instance()->seatManager();
+    auto *seatManager = WaylandServer::instance()->seatManager();
     auto *configManager = DConfigManager::instance();
     const auto seats = seatManager->seats();
     if (!m_userName.isEmpty()) {
@@ -137,13 +137,13 @@ bool InputManager::initializeKeyboardSettings(KeyboardSettingsInterfaceV1 *inter
 
     auto *seatConfig = seatUserConfig(interface->wSeat());
 
-    auto *globalConfig = Helper::instance()->globalConfig();
+    auto *globalConfig = WaylandServer::instance()->globalConfig();
     if (!isTreelandConfigInitialized(globalConfig)) {
         return false;
     }
 
     KeyboardSettingsInterfaceV1::FeatureFlags features;
-    const auto inputDevices = Helper::instance()->backend()->inputDeviceList();
+    const auto inputDevices = WaylandServer::instance()->backend()->inputDeviceList();
     for (WInputDevice *device : std::as_const(inputDevices)) {
         if (!wlr_input_device_is_libinput(device->handle())) {
             continue;
@@ -193,7 +193,7 @@ void InputManager::onMousePointerConfigCreated(PointerDeviceConfigurationV1 *con
     features.setFlag(PointerDeviceConfigurationV1::ScrollFactor);
     features.setFlag(PointerDeviceConfigurationV1::EventsMode);
 
-    const auto inputDevices = Helper::instance()->backend()->inputDeviceList();
+    const auto inputDevices = WaylandServer::instance()->backend()->inputDeviceList();
     for (WInputDevice *device : std::as_const(inputDevices)) {
         if (!wlr_input_device_is_libinput(device->handle())) {
             continue;
@@ -323,7 +323,7 @@ void InputManager::onTouchpadPointerConfigCreated(PointerDeviceConfigurationV1 *
     features.setFlag(PointerDeviceConfigurationV1::ScrollFactor);
     features.setFlag(PointerDeviceConfigurationV1::EventsMode);
 
-    const auto inputDevices = Helper::instance()->backend()->inputDeviceList();
+    const auto inputDevices = WaylandServer::instance()->backend()->inputDeviceList();
     for (WInputDevice *device : std::as_const(inputDevices)) {
         if (!wlr_input_device_is_libinput(device->handle())) {
             continue;
@@ -465,13 +465,13 @@ void InputManager::onKeyboardSettingsApplied(KeyboardSettingsInterfaceV1::Change
         static_cast<KeyboardSettingsInterfaceV1 *>(sender());
     auto *seatConfig = seatUserConfig(interface->wSeat());
 
-    if (!isTreelandConfigInitialized(Helper::instance()->globalConfig())) {
+    if (!isTreelandConfigInitialized(WaylandServer::instance()->globalConfig())) {
         interface->sendFailed();
         return;
     }
 
     if (changes.testFlag(KeyboardSettingsInterfaceV1::NumLockChanged)) {
-        Helper::instance()->globalConfig()->setKeyboardNumLock(interface->numLock());
+        WaylandServer::instance()->globalConfig()->setKeyboardNumLock(interface->numLock());
     }
 
     if (changes.testFlag(KeyboardSettingsInterfaceV1::RepeatChanged)) {
@@ -510,11 +510,11 @@ void InputManager::onKeyboardSettingsApplied(KeyboardSettingsInterfaceV1::Change
 
 void InputManager::applyNumLockToKeyboards()
 {
-    auto *globalConfig = Helper::instance()->globalConfig();
+    auto *globalConfig = WaylandServer::instance()->globalConfig();
     if (!isTreelandConfigInitialized(globalConfig))
         return;
 
-    auto *seatManager = Helper::instance()->seatManager();
+    auto *seatManager = WaylandServer::instance()->seatManager();
     if (seatManager) {
         const auto seats = seatManager->seats();
         for (WSeat *seat : seats) {
@@ -525,7 +525,7 @@ void InputManager::applyNumLockToKeyboards()
 
 void InputManager::applyXkbConfigForSeat(WSeat *seat)
 {
-    auto *seatManager = Helper::instance()->seatManager();
+    auto *seatManager = WaylandServer::instance()->seatManager();
     if (!seatManager->seats().contains(seat)) {
         return;
     }
@@ -622,9 +622,9 @@ void InputManager::onInputAssigned(WInputDevice *input)
             auto *keyboard = wlr_keyboard_from_input_device(input->handle());
             wlr_keyboard_set_repeat_info(keyboard, seatConfig->keyboardRate(), seatConfig->keyboardDelay());
         }
-        if (isTreelandConfigInitialized(Helper::instance()->globalConfig())) {
+        if (isTreelandConfigInitialized(WaylandServer::instance()->globalConfig())) {
             if (seat)
-                setNumLockForSeat(seat, Helper::instance()->globalConfig()->keyboardNumLock());
+                setNumLockForSeat(seat, WaylandServer::instance()->globalConfig()->keyboardNumLock());
         }
     }
 

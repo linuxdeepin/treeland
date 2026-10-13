@@ -7,7 +7,7 @@
 #include "core/qmlengine.h"
 #include "core/rootsurfacecontainer.h"
 #include "interfaces/multitaskviewinterface.h"
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 #include "shortcutcontroller.h"
 #include "treelandconfig.hpp"
 #include "workspace/workspace.h"
@@ -74,8 +74,8 @@ static std::optional<ShellAction> mapShortcutAction(ShortcutAction action)
 ShortcutRunner::ShortcutRunner(QObject *parent)
     : QObject(parent)
 {
-    auto *helper = Helper::instance();
-    connect(helper, &Helper::modifierKeyReleased, this, &ShortcutRunner::onModifierReleased);
+    auto *server = WaylandServer::instance();
+    connect(server, &WaylandServer::modifierKeyReleased, this, &ShortcutRunner::onModifierReleased);
 
     m_quickSwitchTimer = new QTimer(this);
     m_quickSwitchTimer->setSingleShot(true);
@@ -85,9 +85,9 @@ ShortcutRunner::ShortcutRunner(QObject *parent)
 void ShortcutRunner::onActionTrigger(ShortcutAction action, const QString &name, bool isGesture, ShortcutController::KeyFlags keyFlags)
 {
     Q_UNUSED(isGesture)
-    auto *helper = Helper::instance();
+    auto *server = WaylandServer::instance();
 
-    if (helper->currentMode() == Helper::CurrentMode::LockScreen) {
+    if (server->currentMode() == WaylandServer::CurrentMode::LockScreen) {
         return;
     }
 
@@ -100,17 +100,17 @@ void ShortcutRunner::onActionTrigger(ShortcutAction action, const QString &name,
 
     switch (action) {
     case ShortcutAction::Notify:
-        helper->m_shortcutManager->sendActivated(name, keyFlags);
+        server->m_shortcutManager->sendActivated(name, keyFlags);
         break;
     case ShortcutAction::Quit:
-        Q_EMIT helper->requestQuit();
+        Q_EMIT server->requestQuit();
         break;
     case ShortcutAction::TaskSwitchNext:
     case ShortcutAction::TaskSwitchPrev:
     case ShortcutAction::TaskSwitchSameAppNext:
     case ShortcutAction::TaskSwitchSameAppPrev: {
         if (keyFlags.testFlag(ShortcutController::Repeat)
-            && helper->currentMode() == Helper::CurrentMode::Normal
+            && server->currentMode() == WaylandServer::CurrentMode::Normal
             && !m_quickSwitchPending) {
             return;
         }
@@ -137,28 +137,28 @@ void ShortcutRunner::onActionProgress(ShortcutAction action, qreal progress, con
         break;
     case ShortcutAction::OpenMultiTaskView:
     {
-        auto helper = Helper::instance();
-        if (!helper->m_multitaskView || !helper->isNormalOrMultitaskview())
+        auto server = WaylandServer::instance();
+        if (!server->m_multitaskView || !server->isNormalOrMultitaskview())
             break;
-        if (helper->currentMode() == Helper::CurrentMode::Normal
-            && qFuzzyIsNull(helper->m_multitaskView->partialFactor())) {
-            helper->m_multitaskView->toggleMultitaskView(IMultitaskView::ActiveReason::Gesture);
+        if (server->currentMode() == WaylandServer::CurrentMode::Normal
+            && qFuzzyIsNull(server->m_multitaskView->partialFactor())) {
+            server->m_multitaskView->toggleMultitaskView(IMultitaskView::ActiveReason::Gesture);
         }
-        if (helper->currentMode() == Helper::CurrentMode::Multitaskview) {
+        if (server->currentMode() == WaylandServer::CurrentMode::Multitaskview) {
             break;
         }
-        helper->m_multitaskView->updatePartialFactor(progress);
+        server->m_multitaskView->updatePartialFactor(progress);
         break;
     }
     case ShortcutAction::CloseMultiTaskView:
     {
-        auto helper = Helper::instance();
-        if (!helper->m_multitaskView || !helper->isNormalOrMultitaskview())
+        auto server = WaylandServer::instance();
+        if (!server->m_multitaskView || !server->isNormalOrMultitaskview())
             break;
-        if (helper->currentMode() != Helper::CurrentMode::Multitaskview) {
+        if (server->currentMode() != WaylandServer::CurrentMode::Multitaskview) {
             break;
         }
-        helper->m_multitaskView->updatePartialFactor(1 - progress);
+        server->m_multitaskView->updatePartialFactor(1 - progress);
         break;
     }
     default:
@@ -176,29 +176,29 @@ void ShortcutRunner::onActionFinish(ShortcutAction action, const QString &name, 
         break;
     case ShortcutAction::OpenMultiTaskView:
     {
-        auto helper = Helper::instance();
-        if (!helper->m_multitaskView || !helper->isNormalOrMultitaskview())
+        auto server = WaylandServer::instance();
+        if (!server->m_multitaskView || !server->isNormalOrMultitaskview())
             break;
-        const bool triggered = helper->m_multitaskView->partialFactor() > 0.5;
-        helper->m_multitaskView->setStatus(triggered ? IMultitaskView::Active
+        const bool triggered = server->m_multitaskView->partialFactor() > 0.5;
+        server->m_multitaskView->setStatus(triggered ? IMultitaskView::Active
                                                      : IMultitaskView::Exited);
-        helper->m_multitaskView->toggleMultitaskView(IMultitaskView::ActiveReason::Gesture);
-        helper->m_multitaskView->commitGesture(triggered);
+        server->m_multitaskView->toggleMultitaskView(IMultitaskView::ActiveReason::Gesture);
+        server->m_multitaskView->commitGesture(triggered);
         break;
     }
     case ShortcutAction::CloseMultiTaskView:
     {
-        auto helper = Helper::instance();
-        if (!helper->m_multitaskView || !helper->isNormalOrMultitaskview())
+        auto server = WaylandServer::instance();
+        if (!server->m_multitaskView || !server->isNormalOrMultitaskview())
             break;
-        const bool triggered = (1.0 - helper->m_multitaskView->partialFactor()) > 0.5;
-        if (qFuzzyCompare(helper->m_multitaskView->partialFactor(), 0.0)
-            && helper->currentMode() != Helper::CurrentMode::Multitaskview)
+        const bool triggered = (1.0 - server->m_multitaskView->partialFactor()) > 0.5;
+        if (qFuzzyCompare(server->m_multitaskView->partialFactor(), 0.0)
+            && server->currentMode() != WaylandServer::CurrentMode::Multitaskview)
             break;
-        helper->m_multitaskView->setStatus(triggered ? IMultitaskView::Exited
+        server->m_multitaskView->setStatus(triggered ? IMultitaskView::Exited
                                                      : IMultitaskView::Active);
-        helper->m_multitaskView->toggleMultitaskView(IMultitaskView::ActiveReason::Gesture);
-        helper->m_multitaskView->commitGesture(!triggered);
+        server->m_multitaskView->toggleMultitaskView(IMultitaskView::ActiveReason::Gesture);
+        server->m_multitaskView->commitGesture(!triggered);
         break;
     }
     default:
@@ -214,7 +214,7 @@ void ShortcutRunner::updateWorkspaceSwipe(qreal cb)
     if (qFuzzyCompare(cb, m_desktopOffset))
         return;
 
-    Workspace *workspace = Helper::instance()->workspace();
+    Workspace *workspace = WaylandServer::instance()->workspace();
     Q_ASSERT(workspace);
 
     WorkspaceAnimationController *controller = workspace->animationController();
@@ -240,7 +240,7 @@ void ShortcutRunner::finishWorkspaceSwipe()
     if (!m_slideEnable)
         return;
     m_slideEnable = false;
-    Workspace *workspace = Helper::instance()->workspace();
+    Workspace *workspace = WaylandServer::instance()->workspace();
     int currentIdx = workspace->currentIndex();
     int wsCount = workspace->count();
 
@@ -264,33 +264,33 @@ void ShortcutRunner::finishWorkspaceSwipe()
 }
 void ShortcutRunner::taskswitchAction(bool isRepeat, bool isSameApp, bool isPrev)
 {
-    auto *helper = Helper::instance();
-    const auto modeBefore = helper->currentMode();
-    if (modeBefore != Helper::CurrentMode::Normal && modeBefore != Helper::CurrentMode::WindowSwitch)
+    auto *server = WaylandServer::instance();
+    const auto modeBefore = server->currentMode();
+    if (modeBefore != WaylandServer::CurrentMode::Normal && modeBefore != WaylandServer::CurrentMode::WindowSwitch)
         return;
 
-    if (!isRepeat && !isSameApp && modeBefore == Helper::CurrentMode::Normal) {
-        auto *current = helper->workspace()->current();
+    if (!isRepeat && !isSameApp && modeBefore == WaylandServer::CurrentMode::Normal) {
+        auto *current = server->workspace()->current();
         if (current) {
             auto nextSurface = current->findNextActivedSurface();
             if (nextSurface)
-                helper->forceActivateSurface(nextSurface, Qt::TabFocusReason);
+                server->forceActivateSurface(nextSurface, Qt::TabFocusReason);
         }
-        m_quickSwitchTimer->start(helper->globalConfig()->quickSwitchTimeout());
+        m_quickSwitchTimer->start(server->globalConfig()->quickSwitchTimeout());
         m_quickSwitchPending = true;
         return;
     }
 
-    if (helper->m_taskSwitch.isNull()) {
-        auto contentItem = helper->window()->contentItem();
-        auto output = helper->rootSurfaceContainer()->cursorOutput();
+    if (server->m_taskSwitch.isNull()) {
+        auto contentItem = server->window()->contentItem();
+        auto output = server->rootSurfaceContainer()->cursorOutput();
         if (!output) {
-            output = helper->rootSurfaceContainer()->primaryOutput();
+            output = server->rootSurfaceContainer()->primaryOutput();
         }
-        helper->m_taskSwitch = helper->qmlEngine()->createTaskSwitcher(output, contentItem);
-        helper->restoreFromShowDesktop();
-        QObject::connect(helper->m_taskSwitch, SIGNAL(switchOnChanged()), helper, SLOT(deleteTaskSwitch()));
-        helper->m_taskSwitch->setZ(RootSurfaceContainer::OverlayZOrder);
+        server->m_taskSwitch = server->qmlEngine()->createTaskSwitcher(output, contentItem);
+        server->restoreFromShowDesktop();
+        QObject::connect(server->m_taskSwitch, SIGNAL(switchOnChanged()), server, SLOT(deleteTaskSwitch()));
+        server->m_taskSwitch->setZ(RootSurfaceContainer::OverlayZOrder);
     }
 
     if (isRepeat) {
@@ -303,7 +303,7 @@ void ShortcutRunner::taskswitchAction(bool isRepeat, bool isSameApp, bool isPrev
         return;
 
     m_taskAltCount = 0;
-    helper->setCurrentMode(Helper::CurrentMode::WindowSwitch);
+    server->setCurrentMode(WaylandServer::CurrentMode::WindowSwitch);
 
     if (m_quickSwitchPending) {
         m_quickSwitchTimer->stop();
@@ -311,44 +311,44 @@ void ShortcutRunner::taskswitchAction(bool isRepeat, bool isSameApp, bool isPrev
     }
 
     if (isSameApp) {
-        QMetaObject::invokeMethod(helper->m_taskSwitch, isPrev ? "previousSameApp" : "nextSameApp");
+        QMetaObject::invokeMethod(server->m_taskSwitch, isPrev ? "previousSameApp" : "nextSameApp");
     } else {
-        auto filter = helper->workspace()->currentFilter();
+        auto filter = server->workspace()->currentFilter();
         filter->setFilterAppId({});
-        QMetaObject::invokeMethod(helper->m_taskSwitch, isPrev ? "previous" : "next");
+        QMetaObject::invokeMethod(server->m_taskSwitch, isPrev ? "previous" : "next");
     }
 }
 
 void ShortcutRunner::onQuickSwitchTimeout()
 {
-    auto *helper = Helper::instance();
-    if (helper->currentMode() != Helper::CurrentMode::Normal) {
+    auto *server = WaylandServer::instance();
+    if (server->currentMode() != WaylandServer::CurrentMode::Normal) {
         m_quickSwitchPending = false;
         return;
     }
 
-    if (helper->m_taskSwitch.isNull()) {
-        auto contentItem = helper->window()->contentItem();
-        auto output = helper->rootSurfaceContainer()->cursorOutput();
+    if (server->m_taskSwitch.isNull()) {
+        auto contentItem = server->window()->contentItem();
+        auto output = server->rootSurfaceContainer()->cursorOutput();
         if (!output) {
-            output = helper->rootSurfaceContainer()->primaryOutput();
+            output = server->rootSurfaceContainer()->primaryOutput();
         }
-        helper->m_taskSwitch = helper->qmlEngine()->createTaskSwitcher(output, contentItem);
-        helper->restoreFromShowDesktop();
-        QObject::connect(helper->m_taskSwitch,
+        server->m_taskSwitch = server->qmlEngine()->createTaskSwitcher(output, contentItem);
+        server->restoreFromShowDesktop();
+        QObject::connect(server->m_taskSwitch,
                          SIGNAL(switchOnChanged()),
-                         helper,
+                         server,
                          SLOT(deleteTaskSwitch()));
-        helper->m_taskSwitch->setZ(RootSurfaceContainer::OverlayZOrder);
+        server->m_taskSwitch->setZ(RootSurfaceContainer::OverlayZOrder);
     }
-    helper->setCurrentMode(Helper::CurrentMode::WindowSwitch);
+    server->setCurrentMode(WaylandServer::CurrentMode::WindowSwitch);
 
-    QMetaObject::invokeMethod(helper->m_taskSwitch, "show");
+    QMetaObject::invokeMethod(server->m_taskSwitch, "show");
 }
 
 void ShortcutRunner::onModifierReleased(QKeyEvent *event)
 {
-    auto *helper = Helper::instance();
+    auto *server = WaylandServer::instance();
 
     const QList<ShortcutAction> taskSwitchActions = {
         ShortcutAction::TaskSwitchNext,
@@ -358,7 +358,7 @@ void ShortcutRunner::onModifierReleased(QKeyEvent *event)
     };
 
     if (taskSwitchActions.contains(m_currentAction)) {
-        auto *controller = helper->m_shortcutManager->controller();
+        auto *controller = server->m_shortcutManager->controller();
         const auto currentModifiers = controller->modifierForAction(m_currentAction);
 
         constexpr auto supportedModifiers =
@@ -388,18 +388,18 @@ void ShortcutRunner::onModifierReleased(QKeyEvent *event)
         if (hasActiveTaskSwitchModifiers)
             return;
 
-        if (m_quickSwitchPending && helper->currentMode() == Helper::CurrentMode::Normal) {
+        if (m_quickSwitchPending && server->currentMode() == WaylandServer::CurrentMode::Normal) {
             m_quickSwitchTimer->stop();
             m_quickSwitchPending = false;
             return;
         }
 
-        if (helper->currentMode() == Helper::CurrentMode::WindowSwitch && helper->m_taskSwitch) {
-            auto filter = helper->workspace()->currentFilter();
+        if (server->currentMode() == WaylandServer::CurrentMode::WindowSwitch && server->m_taskSwitch) {
+            auto filter = server->workspace()->currentFilter();
             filter->setFilterAppId("");
-            helper->setCurrentMode(Helper::CurrentMode::Normal);
+            server->setCurrentMode(WaylandServer::CurrentMode::Normal);
             m_quickSwitchPending = false;
-            QMetaObject::invokeMethod(helper->m_taskSwitch, "exit");
+            QMetaObject::invokeMethod(server->m_taskSwitch, "exit");
         }
     }
 }

@@ -6,7 +6,7 @@
 #include "common/treelandlogging.h"
 #include "core/qmlengine.h"
 #include "output/output.h"
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 #include "treelanduserconfig.hpp"
 #include "workspace/workspace.h"
 #include "wtoplevelsurface.h"
@@ -543,8 +543,8 @@ void SurfaceWrapper::setup()
     }
     // Connect DConfig windowRadius change so QML bindings re-evaluate radius()
     if (m_type == Type::XdgToplevel || m_type == Type::XWayland) {
-        if (auto *helper = Helper::instance()) {
-            if (auto *config = helper->config()) {
+        if (auto *server = WaylandServer::instance()) {
+            if (auto *config = server->config()) {
                 connect(config,
                         &TreelandUserConfig::windowRadiusChanged,
                         this,
@@ -1483,7 +1483,7 @@ void SurfaceWrapper::updateVisible()
         && ((surface() && surface()->mapped())
             || (m_prelaunchSplash && m_prelaunchSplash->isVisible()))
         && m_socketEnabled && m_hideByshowDesk && !m_confirmHideByLockScreen
-        && Helper::instance()->surfaceBelongsToCurrentSession(this);
+        && WaylandServer::instance()->surfaceBelongsToCurrentSession(this);
     setVisible(isVisible);
 }
 
@@ -1605,7 +1605,7 @@ void SurfaceWrapper::createNewOrClose(uint direction)
 
     if (m_windowAnimation) {
         restackWindowAnimationAbove();
-        if (Helper::instance()->noAnimation()) {
+        if (WaylandServer::instance()->noAnimation()) {
             if (direction == OPEN_ANIMATION) {
                 onShowAnimationFinished();
             } else {
@@ -1840,7 +1840,7 @@ void SurfaceWrapper::startMinimizeAnimation(const QRectF &iconGeometry, uint dir
         Q_ASSERT(ok);
         return;
     }
-    if (!Helper::instance()->surfaceBelongsToCurrentSession(this))
+    if (!WaylandServer::instance()->surfaceBelongsToCurrentSession(this))
         return;
 
     m_minimizeAnimation =
@@ -1913,7 +1913,7 @@ qreal SurfaceWrapper::radius() const
     // m_radius > 1 means radius was explicitly set via Personalization protocol;
     // m_radius <= 1 means no per-window override, fall back to DConfig.
     if (radius < 1 && m_type != Type::Layer) {
-        radius = Helper::instance()->config()->windowRadius();
+        radius = WaylandServer::instance()->config()->windowRadius();
     }
 
     return radius;
@@ -2179,8 +2179,8 @@ void SurfaceWrapper::cancelTileMode()
 void SurfaceWrapper::enterFullscreen(WOutput *targetOutput)
 {
     if (targetOutput) {
-        auto *helper = Helper::instance();
-        auto *target = helper ? helper->getOutput(targetOutput) : nullptr;
+        auto *server = WaylandServer::instance();
+        auto *target = server ? server->getOutput(targetOutput) : nullptr;
         if (target && target->isSource()) {
             if (target != m_ownsOutput)
                 setOwnsOutput(target);

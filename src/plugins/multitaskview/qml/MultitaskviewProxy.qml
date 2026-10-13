@@ -75,9 +75,9 @@ Multitaskview {
             to: "initial"
             SequentialAnimation {
                 NumberAnimation {
-                    duration: Helper.config.multitaskviewAnimationDuration
+                    duration: WaylandServer.config.multitaskviewAnimationDuration
                     property: "taskviewVal"
-                    easing.type: Helper.config.multitaskviewEasingCurveType
+                    easing.type: WaylandServer.config.multitaskviewEasingCurveType
                 }
                 ScriptAction {
                     script: root.visible = false;
@@ -88,9 +88,9 @@ Multitaskview {
             to: "taskview"
             SequentialAnimation {
                 NumberAnimation {
-                    duration: Helper.config.multitaskviewAnimationDuration
+                    duration: WaylandServer.config.multitaskviewAnimationDuration
                     property: "taskviewVal"
-                    easing.type: Helper.config.multitaskviewEasingCurveType
+                    easing.type: WaylandServer.config.multitaskviewEasingCurveType
                 }
             }
         }
@@ -122,7 +122,7 @@ Multitaskview {
     }
 
     Repeater {
-        model: Helper.rootSurfaceContainer.outputModel
+        model: WaylandServer.rootSurfaceContainer.outputModel
         Item {
             id: outputPlacementItem
             required property int index
@@ -135,7 +135,7 @@ Multitaskview {
             Wallpaper {
                 id: wallpaper
                 output: outputPlacementItem.output.outputItem.output
-                workspace: Helper.workspace.current
+                workspace: WaylandServer.workspace.current
             }
 
             ShaderEffectSource {
@@ -171,7 +171,7 @@ Multitaskview {
 
                 Repeater {
                     id: wsDelegates
-                    model: Helper.workspace.models
+                    model: WaylandServer.workspace.models
                     WindowSelectionGrid {
                         id: windowSelectionGrid
                         exited: root.exited
@@ -183,16 +183,16 @@ Multitaskview {
                         multitaskview: root
                         output: outputPlacementItem.output
                         draggedParent: root
-                        workspaceListPadding: (Helper.config.workspaceThumbHeight + 2 * Helper.config.workspaceThumbMargin) / output.outputItem.devicePixelRatio
+                        workspaceListPadding: (WaylandServer.config.workspaceThumbHeight + 2 * WaylandServer.config.workspaceThumbMargin) / output.outputItem.devicePixelRatio
                         dragManager: multitaskviewDragManager
                     }
                 }
             }
 
             Connections {
-                target: Helper.workspace.animationController
+                target: WaylandServer.workspace.animationController
                 function onRunningChanged() {
-                    if (Helper.workspace.animationController.running)
+                    if (WaylandServer.workspace.animationController.running)
                         workspaceAnimation.active = true
                 }
             }
@@ -200,12 +200,12 @@ Multitaskview {
             Loader {
                 id: workspaceAnimation
                 active: false
-                readonly property real localFactor: outputPlacementItem.width / Helper.workspace.animationController.refWidth
+                readonly property real localFactor: outputPlacementItem.width / WaylandServer.workspace.animationController.refWidth
                 anchors.fill: parent
                 sourceComponent: Item {
                     id: animationDelegate
                     clip: true
-                    visible: Helper.workspace.animationController.running
+                    visible: WaylandServer.workspace.animationController.running
                     onVisibleChanged: {
                         if (!visible)
                             workspaceAnimation.active = false
@@ -216,10 +216,10 @@ Multitaskview {
                     }
                     z: Multitaskview.Background
                     Row {
-                        spacing: Helper.workspace.animationController.refGap * workspaceAnimation.localFactor
-                        x: -Helper.workspace.animationController.viewportPos * workspaceAnimation.localFactor
+                        spacing: WaylandServer.workspace.animationController.refGap * workspaceAnimation.localFactor
+                        x: -WaylandServer.workspace.animationController.viewportPos * workspaceAnimation.localFactor
                         Repeater {
-                            model: Helper.workspace.models
+                            model: WaylandServer.workspace.models
                             Item {
                                 required property int index
                                 width: outputPlacementItem.output.outputItem.width
@@ -227,7 +227,7 @@ Multitaskview {
                                 Wallpaper {
                                     id: wallpaper2
                                     output: outputPlacementItem.output.outputItem.output
-                                    workspace: Helper.workspace.current
+                                    workspace: WaylandServer.workspace.current
                                 }
 
                                 ShaderEffectSource {

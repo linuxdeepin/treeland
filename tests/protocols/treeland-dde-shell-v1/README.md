@@ -18,7 +18,7 @@ request 则在同一 case 的 roundtrip 后读取服务端状态，分别断言�
 | 场景 | 客户端动作 | 必须观察到的结果 |
 | --- | --- | --- |
 | DDE surface 元数据 | `get_shell_surface` 后依次发送 position `(42,24)`、Overlay role、auto-placement `37`、四个布尔标志 | 生产 `SurfaceWrapper` 成为 DDE/Overlay，读取到相同 position、placement、skip 和 focus 状态 |
-| 锁屏 | `get_treeland_lockscreen` 后发送 `lock` | 真实 `LockScreen` container 可用且可见；`Helper` 从 Normal 切换为 LockScreen 模式 |
+| 锁屏 | `get_treeland_lockscreen` 后发送 `lock` | 真实 `LockScreen` container 可用且可见；`WaylandServer` 从 Normal 切换为 LockScreen 模式 |
 | manager 资源 | 创建 checker、active、multitask、lockscreen | 资源均可创建并接收规定事件 |
 | shell 资源状态 | 在协议 fixture 中使用普通 `wl_surface` | 协议对象记录 shell-surface 状态与销毁 |
 
@@ -37,17 +37,17 @@ request 则在同一 case 的 roundtrip 后读取服务端状态，分别断言�
 `acceptKeyboardFocus()`。随后客户端把 `skip_dock_preview` 改为 `0`，同一 wrapper
 必须立即反映 `0`。这证明动态请求到达窗口管理对象。
 
-锁屏桌面测试在真实 `Helper` 和已加载的 lockscreen 插件上创建 DDE lockscreen 资源。
+锁屏桌面测试在真实 `WaylandServer` 和已加载的 lockscreen 插件上创建 DDE lockscreen 资源。
 发送 `treeland_lockscreen_v1.lock` 前，测试确认真实 `LockScreenContainer` 可用、未锁定，
-且 `Helper::currentMode() == Normal`；请求之后读取生产对象，要求
-`LockScreen::isLocked()` 为真且 `Helper::currentMode() == LockScreen`。调用链为：
+且 `WaylandServer::currentMode() == Normal`；请求之后读取生产对象，要求
+`LockScreen::isLocked()` 为真且 `WaylandServer::currentMode() == LockScreen`。调用链为：
 
 ```text
 lock
   → LockScreenInterface::lock
-  → Helper::handleLockScreen
-  → Helper::showLockScreen
-  → Helper::prepareLockScreenTransition
+  → WaylandServer::handleLockScreen
+  → WaylandServer::showLockScreen
+  → WaylandServer::prepareLockScreenTransition
   → LockScreen::lock
 ```
 

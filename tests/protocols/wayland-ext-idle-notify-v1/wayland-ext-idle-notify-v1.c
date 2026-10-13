@@ -10,7 +10,7 @@
  *
  * Step 2: Map a toplevel, create an idle inhibitor on its surface.  Create
  *         another notification with 1ms timeout.  Verify `idled` does NOT fire
- *         within 500ms — proves Helper::onNewIdleInhibitor called
+ *         within 500ms — proves IdleManager::onNewIdleInhibitor called
  *         wlr_idle_notifier_v1_set_inhibited(true), modifying production state.
  *
  * Step 3: Destroy the inhibitor.  Create a third notification.  Verify `idled`

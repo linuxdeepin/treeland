@@ -89,7 +89,7 @@ Item {
             Transition {
                 to: "taskview"
                 SequentialAnimation {
-                    PauseAnimation { duration: Helper.config.multitaskviewAnimationDuration }
+                    PauseAnimation { duration: WaylandServer.config.multitaskviewAnimationDuration }
                     PropertyAction { target: surfaceGridView; property: "clip" }
                 }
             }
@@ -166,7 +166,7 @@ Item {
                                     width: (geometry.width - initialGeometry.width) * multitaskview.taskviewVal + initialGeometry.width
                                     height: (geometry.height - initialGeometry.height) * multitaskview.taskviewVal + initialGeometry.height
                                     scale: 1.0
-                                    paddingOpacity: Helper.config.multitaskviewPaddingOpacity * multitaskview.taskviewVal
+                                    paddingOpacity: WaylandServer.config.multitaskviewPaddingOpacity * multitaskview.taskviewVal
                                     needPadding: true
                                 }
                             }
@@ -181,7 +181,7 @@ Item {
                                     height: geometry.height
                                     needPadding: padding
                                     scale: 1.0
-                                    paddingOpacity: Helper.config.multitaskviewPaddingOpacity
+                                    paddingOpacity: WaylandServer.config.multitaskviewPaddingOpacity
                                 }
                             }
                         },
@@ -195,7 +195,7 @@ Item {
                                     y: mapToItem(draggedParent, 0, 0).y
                                     z: Multitaskview.FloatingItem
                                     scale: (Math.max(0, Math.min(drg.activeTranslation.y / fullY, 1)) * (100 - width) + width) / width
-                                    paddingOpacity: Helper.config.multitaskviewPaddingOpacity
+                                    paddingOpacity: WaylandServer.config.multitaskviewPaddingOpacity
                                     transformOrigin: Item.Center
                                     needPadding: false
                                 }
@@ -203,12 +203,12 @@ Item {
                         }
                     ]
 
-                    Behavior on x {enabled:state !== "dragging" && state !== "partial"; XAnimator {duration: Helper.config.multitaskviewAnimationDuration; easing.type: Helper.config.multitaskviewEasingCurveType} }
-                    Behavior on y {enabled:state !== "dragging" && state !== "partial"; YAnimator {duration: Helper.config.multitaskviewAnimationDuration; easing.type: Helper.config.multitaskviewEasingCurveType} }
-                    Behavior on width {enabled:state !== "dragging" && state !== "partial"; NumberAnimation {duration: Helper.config.multitaskviewAnimationDuration; easing.type: Helper.config.multitaskviewEasingCurveType} }
-                    Behavior on height {enabled:state !== "dragging" && state !== "partial"; NumberAnimation {duration: Helper.config.multitaskviewAnimationDuration; easing.type: Helper.config.multitaskviewEasingCurveType} }
-                    Behavior on paddingOpacity {enabled:state !== "dragging" && state !== "partial"; NumberAnimation {duration: Helper.config.multitaskviewAnimationDuration; easing.type: Helper.config.multitaskviewEasingCurveType} }
-                    Behavior on scale {enabled:state !== "dragging" && state !== "partial"; ScaleAnimator {duration: Helper.config.multitaskviewAnimationDuration; easing.type: Helper.config.multitaskviewEasingCurveType} }
+                    Behavior on x {enabled:state !== "dragging" && state !== "partial"; XAnimator {duration: WaylandServer.config.multitaskviewAnimationDuration; easing.type: WaylandServer.config.multitaskviewEasingCurveType} }
+                    Behavior on y {enabled:state !== "dragging" && state !== "partial"; YAnimator {duration: WaylandServer.config.multitaskviewAnimationDuration; easing.type: WaylandServer.config.multitaskviewEasingCurveType} }
+                    Behavior on width {enabled:state !== "dragging" && state !== "partial"; NumberAnimation {duration: WaylandServer.config.multitaskviewAnimationDuration; easing.type: WaylandServer.config.multitaskviewEasingCurveType} }
+                    Behavior on height {enabled:state !== "dragging" && state !== "partial"; NumberAnimation {duration: WaylandServer.config.multitaskviewAnimationDuration; easing.type: WaylandServer.config.multitaskviewEasingCurveType} }
+                    Behavior on paddingOpacity {enabled:state !== "dragging" && state !== "partial"; NumberAnimation {duration: WaylandServer.config.multitaskviewAnimationDuration; easing.type: WaylandServer.config.multitaskviewEasingCurveType} }
+                    Behavior on scale {enabled:state !== "dragging" && state !== "partial"; ScaleAnimator {duration: WaylandServer.config.multitaskviewAnimationDuration; easing.type: WaylandServer.config.multitaskviewEasingCurveType} }
 
                     D.BoxShadow {
                         id: paddingRectShadow
@@ -232,12 +232,12 @@ Item {
 
                     Rectangle {
                         border.color: "blue"
-                        border.width: Helper.config.highlightBorderWidth
+                        border.width: WaylandServer.config.highlightBorderWidth
                         visible: highlighted
-                        anchors.margins: -Helper.config.highlightBorderWidth
+                        anchors.margins: -WaylandServer.config.highlightBorderWidth
                         anchors.fill: parent
                         color: "transparent"
-                        radius: delegateCornerRadius + Helper.config.highlightBorderWidth
+                        radius: delegateCornerRadius + WaylandServer.config.highlightBorderWidth
                     }
 
                     function conv(y, item = parent) { // convert to draggedParent's coord
@@ -344,9 +344,9 @@ Item {
                                     || workspaceNumComposedKeys.includes(event.key)) {
                                 let index = workspaceNumKeys.includes(event.key) ?
                                         workspaceNumKeys.indexOf(event.key) : workspaceNumComposedKeys.indexOf(event.key)
-                                const ws = Helper.workspace.modelAt(index)
+                                const ws = WaylandServer.workspace.modelAt(index)
                                 if (ws && wrapper)
-                                    Helper.workspace.moveSurfaceTo(wrapper, ws.id)
+                                    WaylandServer.workspace.moveSurfaceTo(wrapper, ws.id)
                             }
                         } else if (event.modifiers === Qt.AltModifier
                                    && event.key === Qt.Key_QuoteLeft && loaderFinished) {
@@ -383,15 +383,15 @@ Item {
                                 id: bgRect
                                 anchors.fill: parent
                                 color: Qt.rgba(16, 16, 16, .1)
-                                radius: Helper.config.titleBoxCornerRadius
+                                radius: WaylandServer.config.titleBoxCornerRadius
                             }
                             Blur {
                                 anchors.fill: bgRect
-                                radius: Helper.config.titleBoxCornerRadius
+                                radius: WaylandServer.config.titleBoxCornerRadius
                             }
                             Border {
                                 anchors.fill: parent
-                                radius: Helper.config.titleBoxCornerRadius
+                                radius: WaylandServer.config.titleBoxCornerRadius
                                 insideColor: Qt.rgba(255, 255, 255, 0.05)
                             }
                         }
@@ -413,8 +413,8 @@ Item {
                 Behavior on opacity {
                     enabled: state !== "partial"
                     OpacityAnimator {
-                        duration: Helper.config.multitaskviewAnimationDuration
-                        easing.type: Helper.config.multitaskviewEasingCurveType
+                        duration: WaylandServer.config.multitaskviewAnimationDuration
+                        easing.type: WaylandServer.config.multitaskviewEasingCurveType
                     }
                 }
                 state: multitaskview.state
@@ -458,16 +458,16 @@ Item {
                         id: hintBgRect
                         anchors.fill: parent
                         color: Qt.rgba(16, 16, 16, .1)
-                        radius: Helper.config.titleBoxCornerRadius
+                        radius: WaylandServer.config.titleBoxCornerRadius
                     }
                     Blur {
                         anchors.fill: hintBgRect
-                        radius: Helper.config.titleBoxCornerRadius
+                        radius: WaylandServer.config.titleBoxCornerRadius
                     }
                     D.BoxShadow {
                         anchors.fill: parent
                         visible: true
-                        cornerRadius: Helper.config.titleBoxCornerRadius
+                        cornerRadius: WaylandServer.config.titleBoxCornerRadius
                         shadowColor: Qt.rgba(0, 0, 0, 0.15)
                         shadowOffsetY: 8
                         shadowBlur: 20
@@ -475,7 +475,7 @@ Item {
                     }
                     Border {
                         anchors.fill: parent
-                        radius: Helper.config.titleBoxCornerRadius
+                        radius: WaylandServer.config.titleBoxCornerRadius
                         insideColor: Qt.rgba(255, 255, 255, 0.05)
                     }
                 }
@@ -499,11 +499,11 @@ Item {
                 multitaskview.exit()
             }
         } else if (event.modifiers === Qt.AltModifier) {
-            if (event.key === Qt.Key_Minus && Helper.workspace.count > 1) {
-                Helper.workspace.removeModel(Helper.workspace.currentIndex)
-            } else if (event.key === Qt.Key_Equal && Helper.workspace.count < Helper.config.maxWorkspace) {
-                Helper.workspace.createModel()
-                Helper.workspace.switchTo(Helper.workspace.count - 1)
+            if (event.key === Qt.Key_Minus && WaylandServer.workspace.count > 1) {
+                WaylandServer.workspace.removeModel(WaylandServer.workspace.currentIndex)
+            } else if (event.key === Qt.Key_Equal && WaylandServer.workspace.count < WaylandServer.config.maxWorkspace) {
+                WaylandServer.workspace.createModel()
+                WaylandServer.workspace.switchTo(WaylandServer.workspace.count - 1)
             }
         }
     }

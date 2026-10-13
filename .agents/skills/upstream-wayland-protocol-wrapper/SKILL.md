@@ -1,6 +1,6 @@
 ---
 name: upstream-wayland-protocol-wrapper
-description: Use this skill for integrating or wrapping upstream Wayland protocols in wlroots, waylib, and treeland. Trigger whenever the task involves standard/ext/unstable/wlr protocols, wlroots-implemented protocols, waylib `WServerInterface` wrappers, `m_server->attach<W...>()`, native handle lifetime, or wiring an upstream protocol into the startup path from `Helper::init`. Do not use it for treeland private xml or `QtWaylandServer::*` private protocol modules.
+description: Use this skill for integrating or wrapping upstream Wayland protocols in wlroots, waylib, and treeland. Trigger whenever the task involves standard/ext/unstable/wlr protocols, wlroots-implemented protocols, waylib `WServerInterface` wrappers, `m_server->attach<W...>()`, native handle lifetime, or wiring an upstream protocol into the startup path from `WaylandServer::init`. Do not use it for treeland private xml or `QtWaylandServer::*` private protocol modules.
 ---
 
 # Upstream Protocol Wrapping And Integration
@@ -17,17 +17,24 @@ Use this skill when any of these are true:
 
 If the task is about treeland-owned xml, `QtWaylandServer::*`, or a new private module under `src/modules/*`, stop and use the treeland private protocol skill instead.
 
+## Startup Composition
+`WaylandServer` is the QML singleton and C++ desktop entry point. Its `init()`
+in `src/core/waylandserver.cpp` composes startup and owns the Wayland runtime
+and core globals. Feature components own their protocol
+callbacks and listener state. Preserve startup order and keep policy callbacks in
+their owning feature. The former `Helper` compatibility class has been removed.
+
 ## Goal
 - confirm whether waylib already has a wrapper
 - add a `WServerInterface` wrapper when needed
 - make native handle ownership and destruction explicit
-- wire the result into the startup path from `Helper::init`
+- wire the result into the startup path from `WaylandServer::init`
 
 ## Read First
 1. `waylib/src/server/protocols`
 2. `waylib/src/server/kernel`
 3. `3rdparty/wlroots/include/wlr` (raw wlroots C API headers — read for native `wlr_*` types and `wl_signal` events; include via `<wlr_all.h>`)
-4. `src/seat/helper.cpp`
+4. `src/core/waylandserver.cpp` and the relevant feature controller
 
 Search for an existing wrapper first. Do not assume treeland should reimplement a manager locally.
 
@@ -89,15 +96,15 @@ How to determine that:
 
 Core rule: destruction must match native handle ownership.
 
-## Wiring Through `Helper::init`
-This still needs to connect back into `src/seat/helper.cpp`:
+## Wiring Through `WaylandServer::init`
+This still needs to connect back into `src/core/waylandserver.cpp`:
 
 1. `m_server->attach<W...>()`
 2. store the object as a member or local when appropriate
 3. immediately add business `connect(...)` calls
 4. wire it into `ShellHandler`, surface/output management, or the QML layer
 
-Do not interpret "must be attached directly inside `Helper::init`" as the only valid form.
+Do not interpret "must be attached directly inside `WaylandServer::init`" as the only valid form.
 
 Some protocols may be initialized through a higher-level object, for example:
 
@@ -107,17 +114,17 @@ m_shellHandler->init(m_server, m_seat);
 
 That still counts as valid integration. The real checks are:
 
-- whether startup still flows in from `Helper::init`
+- whether startup still flows in from `WaylandServer::init`
 - whether a higher-level object cleanly encapsulates initialization for a shell or protocol family
 - whether the registration entry point and lifetime ownership remain clear
 
-If a wrapper is neither attached directly from `Helper::init` nor initialized through a higher-level object, the protocol is still not effectively available to treeland.
+If a wrapper is neither attached directly from `WaylandServer::init` nor initialized through a higher-level object, the protocol is still not effectively available to treeland.
 
 ## Reference Starting Points
 - `waylib/src/server/protocols/wforeigntoplevelv1.cpp`
 - `waylib/src/server/protocols/wextforeigntoplevellistv1.cpp`
 - `waylib/src/server/kernel/wserver.h`
-- `src/seat/helper.cpp`
+- `src/core/waylandserver.cpp`
 
 ## Output Requirements
 When using this skill for a real task, make these explicit first:
@@ -125,4 +132,4 @@ When using this skill for a real task, make these explicit first:
 1. whether wlroots already implements the protocol
 2. whether waylib already has a `W...` wrapper
 3. if not, who owns the native handle and who is responsible for destruction
-4. where treeland enters the startup path from `Helper::init` and where business `connect(...)` calls should live
+4. where treeland enters the startup path from `WaylandServer::init` and where business `connect(...)` calls should live

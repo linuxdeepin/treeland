@@ -3,7 +3,7 @@
 
 #include "wallpaperlauncher.h"
 #include "common/treelandlogging.h"
-#include "helper.h"
+#include "core/waylandserver.h"
 
 #include <wsocket.h>
 

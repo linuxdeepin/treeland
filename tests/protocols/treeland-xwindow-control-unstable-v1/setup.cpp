@@ -7,7 +7,7 @@
 
 WAYLIB_SERVER_USE_NAMESPACE
 
-void protocol_test_setup(Helper *helper)
+void protocol_test_setup(WaylandServer *server)
 {
-    find_server_interface<XWindowControlInterfaceV1>(helper);
+    find_server_interface<XWindowControlInterfaceV1>(server);
 }

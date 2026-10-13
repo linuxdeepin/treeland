@@ -3,7 +3,7 @@
 
 #include "workspacemodel.h"
 
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 #include "surface/surfacewrapper.h"
 
 WorkspaceModel::WorkspaceModel(QObject *parent,

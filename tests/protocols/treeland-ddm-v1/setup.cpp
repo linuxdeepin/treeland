@@ -11,9 +11,9 @@ namespace {
 DDMInterfaceV1 *g_ddm = nullptr;
 }
 
-void protocol_test_setup(Helper *helper)
+void protocol_test_setup(WaylandServer *server)
 {
-    g_ddm = find_server_interface<DDMInterfaceV1>(helper);
+    g_ddm = find_server_interface<DDMInterfaceV1>(server);
 }
 
 extern "C" void ddm_check_is_connected(void *data)

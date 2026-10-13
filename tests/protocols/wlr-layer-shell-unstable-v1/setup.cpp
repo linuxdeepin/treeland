@@ -3,14 +3,14 @@
 #include "core/shellhandler.h"
 #include "core/rootsurfacecontainer.h"
 #include "server-bridge.h"
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 #include "surface/surfacewrapper.h"
 #include "wlr-layer-shell-unstable-v1.h"
 #include <wlayersurface.h>
 namespace { SurfaceWrapper *g_wrapper = nullptr; }
-void protocol_test_setup(Helper *helper) {
-    add_headless_output(helper->backend(), false);
-    QObject::connect(helper->shellHandler(), &ShellHandler::surfaceWrapperAdded, helper,
+void protocol_test_setup(WaylandServer *server) {
+    add_headless_output(server->backend(), false);
+    QObject::connect(server->shellHandler(), &ShellHandler::surfaceWrapperAdded, server,
         [](SurfaceWrapper *wrapper) { if (wrapper->type() == SurfaceWrapper::Type::Layer) g_wrapper = wrapper; });
 }
 extern "C" void layer_shell_read_state(void *data) {
@@ -19,7 +19,7 @@ extern "C" void layer_shell_read_state(void *data) {
     state.wrapper = layer != nullptr;
     state.container = g_wrapper && g_wrapper->container();
     if (layer) { state.layer = (int)layer->layer(); state.anchor = layer->ancher().toInt(); state.exclusive_zone = layer->exclusiveZone(); state.top_margin = layer->topMargin(); state.keyboard_exclusive = layer->keyboardInteractivity() == WLayerSurface::KeyboardInteractivity::Exclusive; }
-    auto *seat = Helper::instance()->rootSurfaceContainer()->getSeatContainerOrDefault();
+    auto *seat = WaylandServer::instance()->rootSurfaceContainer()->getSeatContainerOrDefault();
     state.focused = seat && seat->keyboardFocusSurface() == g_wrapper;
     *static_cast<layer_shell_server_state *>(data) = state;
 }

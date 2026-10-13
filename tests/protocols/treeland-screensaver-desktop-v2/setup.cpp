@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "core/shellhandler.h"
 #include "server-bridge.h"
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 #include "surface/surfacewrapper.h"
 #include "treeland-screensaver-desktop-v2.h"
 #include "workspace/workspace.h"
@@ -14,18 +14,18 @@ SurfaceWrapper *g_wrapper = nullptr;
 screensaver_desktop_state g_state {};
 }
 
-void protocol_test_setup(Helper *helper)
+void protocol_test_setup(WaylandServer *server)
 {
-    add_headless_output(helper->backend(), false);
-    QObject::connect(helper->shellHandler(),
+    add_headless_output(server->backend(), false);
+    QObject::connect(server->shellHandler(),
                      &ShellHandler::surfaceWrapperAdded,
-                     helper,
-                     [helper](SurfaceWrapper *wrapper) {
+                     server,
+                     [server](SurfaceWrapper *wrapper) {
                          if (wrapper->type() != SurfaceWrapper::Type::XdgToplevel)
                              return;
                          g_wrapper = wrapper;
                          g_state.wrapper_created = 1;
-                         g_state.wrapper_in_workspace = helper->workspace()->surfaces().contains(wrapper) ? 1 : 0;
+                         g_state.wrapper_in_workspace = server->workspace()->surfaces().contains(wrapper) ? 1 : 0;
                      });
 }
 

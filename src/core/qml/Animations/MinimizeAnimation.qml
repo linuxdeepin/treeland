@@ -20,7 +20,7 @@ Item {
     required property var target
     required property rect position
     required property var direction
-    property int duration: 400 * Helper.animationSpeed
+    property int duration: 400 * WaylandServer.animationSpeed
     property int animationDuration: duration
     readonly property real minimizedRotation: -30
     readonly property bool showShadow: !target.noDecoration

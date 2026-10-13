@@ -3,7 +3,7 @@
 
 #include "inputmanagerinterfacev1.h"
 #include "qwayland-server-treeland-input-manager-unstable-v1.h"
-#include "helper.h"
+#include "core/waylandserver.h"
 #include "common/treelandlogging.h"
 
 #include <wbackend.h>
@@ -59,7 +59,7 @@ void TreelandInputManagerInterfaceV1Private::destroy(Resource *resource)
 void TreelandInputManagerInterfaceV1Private::bind_resource(Resource *resource)
 {
     TreelandInputManagerInterfaceV1::DeviceTypes types = q->inputDeviceListTypes();
-    struct wlr_seat_client *seatClient = wlr_seat_client_for_wl_client(Helper::instance()->seat()->handle(), resource->client());
+    struct wlr_seat_client *seatClient = wlr_seat_client_for_wl_client(WaylandServer::instance()->seat()->handle(), resource->client());
     if (!seatClient) {
         wl_resource_post_error(resource->handle, WL_DISPLAY_ERROR_NO_OBJECT,
                                "client is not bound to the default seat");
@@ -168,7 +168,7 @@ TreelandInputManagerInterfaceV1::TreelandInputManagerInterfaceV1(QObject *parent
     : QObject(parent)
     , d(new TreelandInputManagerInterfaceV1Private(this))
 {
-    auto backend = Helper::instance()->backend();
+    auto backend = WaylandServer::instance()->backend();
     connect(backend,
             &WBackend::inputAdded,
             this,
@@ -183,7 +183,7 @@ void TreelandInputManagerInterfaceV1::sendCapabilityAvailable(TreelandInputManag
 {
     for (const auto &resource : d->resourceMap()) {
         struct wlr_seat_client *seatClient =
-            wlr_seat_client_for_wl_client(Helper::instance()->seat()->handle(), resource->client());
+            wlr_seat_client_for_wl_client(WaylandServer::instance()->seat()->handle(), resource->client());
         if (!seatClient)
             continue;
         struct wl_resource *clientResource;
@@ -197,7 +197,7 @@ void TreelandInputManagerInterfaceV1::sendCapabilityUnavailable(TreelandInputMan
 {
     for (const auto &resource : d->resourceMap()) {
         struct wlr_seat_client *seatClient =
-            wlr_seat_client_for_wl_client(Helper::instance()->seat()->handle(), resource->client());
+            wlr_seat_client_for_wl_client(WaylandServer::instance()->seat()->handle(), resource->client());
         if (!seatClient)
             continue;
         struct wl_resource *clientResource;
@@ -227,7 +227,7 @@ wl_global *TreelandInputManagerInterfaceV1::global() const
 TreelandInputManagerInterfaceV1::DeviceTypes TreelandInputManagerInterfaceV1::inputDeviceListTypes() const
 {
     TreelandInputManagerInterfaceV1::DeviceTypes types;
-    const auto inputDevices = Helper::instance()->backend()->inputDeviceList();
+    const auto inputDevices = WaylandServer::instance()->backend()->inputDeviceList();
     for (WInputDevice *device : std::as_const(inputDevices)) {
         types |= inputDeviceType(device);
     }
@@ -268,7 +268,7 @@ QByteArrayView TreelandInputManagerInterfaceV1::interfaceName() const
 void TreelandInputManagerInterfaceV1::onInputAdded(WInputDevice *input)
 {
     TreelandInputManagerInterfaceV1::DeviceTypes types;
-    const auto inputDevices = Helper::instance()->backend()->inputDeviceList();
+    const auto inputDevices = WaylandServer::instance()->backend()->inputDeviceList();
     for (WInputDevice *device : std::as_const(inputDevices)) {
         if (device == input) {
             continue;
@@ -281,7 +281,7 @@ void TreelandInputManagerInterfaceV1::onInputAdded(WInputDevice *input)
     if (!types.testAnyFlags(type)) {
         for (const auto &resource : d->resourceMap()) {
             struct wlr_seat_client *seatClient =
-                wlr_seat_client_for_wl_client(Helper::instance()->seat()->handle(), resource->client());
+                wlr_seat_client_for_wl_client(WaylandServer::instance()->seat()->handle(), resource->client());
             if (!seatClient)
                 continue;
             struct wl_resource *clientResource;
@@ -295,7 +295,7 @@ void TreelandInputManagerInterfaceV1::onInputAdded(WInputDevice *input)
 void TreelandInputManagerInterfaceV1::onInputRemoved(WInputDevice *input)
 {
     TreelandInputManagerInterfaceV1::DeviceTypes types;
-    const auto inputDevices = Helper::instance()->backend()->inputDeviceList();
+    const auto inputDevices = WaylandServer::instance()->backend()->inputDeviceList();
     for (WInputDevice *device : std::as_const(inputDevices)) {
         if (device == input) {
             continue;
@@ -308,7 +308,7 @@ void TreelandInputManagerInterfaceV1::onInputRemoved(WInputDevice *input)
     if (!types.testAnyFlags(type)) {
         for (const auto &resource : d->resourceMap()) {
             struct wlr_seat_client *seatClient =
-                wlr_seat_client_for_wl_client(Helper::instance()->seat()->handle(), resource->client());
+                wlr_seat_client_for_wl_client(WaylandServer::instance()->seat()->handle(), resource->client());
             if (!seatClient)
                 continue;
             struct wl_resource *clientResource;

@@ -19,8 +19,8 @@
 ## 生产结果
 
 `set_xwindow_position_relative` 在服务端解析 anchor `wl_surface` 为 `WSurface`，再交给
-`Helper::setXWindowPositionRelative(wid, wsurface, dx, dy)`。失败路径测试证明：当 anchor
-`wl_surface` 没有 `SurfaceWrapper`（裸 surface）且 wid 为 0 时，`Helper` 返回 false，
+`WaylandServer::setXWindowPositionRelative(wid, wsurface, dx, dy)`。失败路径测试证明：当 anchor
+`wl_surface` 没有 `SurfaceWrapper`（裸 surface）且 wid 为 0 时，`WaylandServer` 返回 false，
 服务端把结果 `1` 通过新建的 `wl_callback` 回传并销毁该 callback。
 
 `XWindowControlInterfaceV1Private` 在 `wl_resource_create` 分配 callback 失败时会调用
@@ -29,7 +29,7 @@ OOM 分支不在测试中强制触发（无法稳定注入 Wayland 内存分配�
 
 ## 已知边界 / 下一项结果
 
-- **成功路径（callback.done(0)）未覆盖**：`Helper::setXWindowPositionRelative` 要求 anchor
+- **成功路径（callback.done(0)）未覆盖**：`WaylandServer::setXWindowPositionRelative` 要求 anchor
   拥有真实 `SurfaceWrapper`，且 wid 匹配一个已映射的 `Type::XWayland` `SurfaceWrapper`。
   生成一个真实的 XWayland 窗口需要可用的 Xwayland 实例；treeland 协议测试在
   `WLR_BACKENDS=headless`、`WLR_RENDERER=pixman` 下运行，Xwayland 启动时 glamor 需要

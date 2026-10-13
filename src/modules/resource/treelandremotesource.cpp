@@ -6,7 +6,7 @@
 #include "core/rootsurfacecontainer.h"
 #include "core/shellhandler.h"
 #include "output/output.h"
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 #include "surface/surfacecontainer.h"
 #include "surface/surfacewrapper.h"
 #include "workspace/workspace.h"
@@ -83,7 +83,7 @@ QString commandForPid(int pid)
     return parts.join(' ');
 }
 
-// Encodes a grabbed frame as PNG bytes. The compositor never writes to disk;
+// Encodes a grabbed frame as PNG bytes. The server never writes to disk;
 // the treeland-debug client owns the file. Returns an empty array on failure.
 QByteArray encodeImage(const QImage &image)
 {
@@ -149,7 +149,7 @@ void dumpSceneTree(QQuickItem *item, int depth, QString &out)
 // wl_surface. The wl_resource *id* is only unique per wl_client, so two
 // windows from different clients can share an id — unsafe for write
 // operations (close/move/...) that could target the wrong window. The
-// pointer value is unique across the whole compositor for the lifetime of
+// pointer value is unique across the whole server for the lifetime of
 // the surface, which is good enough for a single-machine debug tool.
 qint64 surfaceId(WSurface *ws)
 {
@@ -187,7 +187,7 @@ int qtKeyToEvdev(int qtKey, wlr_keyboard *keyboard)
 
 #ifndef TREELAND_DEBUG_DEV_BUILD
 // Release builds: a QLocalServer subclass that rejects non-root connections
-// at the kernel level via SO_PEERCRED.  The compositor runs as dde, so the
+// at the kernel level via SO_PEERCRED.  The server runs as dde, so the
 // socket is owned by dde; root can access it (root bypasses file permissions)
 // but dde and other non-root users are rejected here — this is the real
 // server-side identity enforcement, not the client-side pkexec wrapper.
@@ -251,7 +251,7 @@ TreelandRemoteSource::TreelandRemoteSource(QObject *parent)
     // Release builds: only root may connect.  We use a custom QLocalServer
     // subclass (RootOnlyLocalServer) that checks SO_PEERCRED and rejects
     // non-root connections before they reach QRemoteObjectHost.  The
-    // compositor runs as dde, so UserAccessOption (0600) limits file-level
+    // server runs as dde, so UserAccessOption (0600) limits file-level
     // access to dde and root; the SO_PEERCRED check then rejects dde,
     // leaving only root.
     auto *server = new RootOnlyLocalServer(this);
@@ -288,7 +288,7 @@ QPointF TreelandRemoteSource::cursorPosition() const
     // zero per-pointer-motion overhead when no treeland-debug client is
     // connected. The READONLY property is only ever read on replica connect,
     // which is exactly when a client asked for it.
-    if (auto *root = Helper::instance()->rootSurfaceContainer(); root && root->cursor())
+    if (auto *root = WaylandServer::instance()->rootSurfaceContainer(); root && root->cursor())
         return root->cursor()->position();
     return {};
 }
@@ -297,10 +297,10 @@ TreelandInfo TreelandRemoteSource::getTreelandInfo()
 {
     TreelandInfo info;
 
-    auto mode = Helper::instance()->currentMode();
-    info.setCurrentMode(QString::fromUtf8(QMetaEnum::fromType<Helper::CurrentMode>().valueToKey(static_cast<int>(mode))));
+    auto mode = WaylandServer::instance()->currentMode();
+    info.setCurrentMode(QString::fromUtf8(QMetaEnum::fromType<WaylandServer::CurrentMode>().valueToKey(static_cast<int>(mode))));
 
-    if (auto *root = Helper::instance()->rootSurfaceContainer()) {
+    if (auto *root = WaylandServer::instance()->rootSurfaceContainer()) {
         QList<LayerInfo> layers;
         const auto subcontainers = root->subContainers();
         for (auto *container : subcontainers) {
@@ -405,7 +405,7 @@ void TreelandRemoteSource::collectCurrentWorkspaceModelWindows(QList<WindowInfo>
     QList<SurfaceWrapper *> workspaceSurfaces;
     int currentId = workspaceModel->id();
     WOutputRenderWindow::paintOrderItemList(
-        Helper::instance()->workspace(),
+        WaylandServer::instance()->workspace(),
         [&workspaceSurfaces, currentId](QQuickItem *item) -> bool {
             auto surfaceWrapper = qobject_cast<SurfaceWrapper *>(item);
             if (surfaceWrapper && surfaceWrapper->showOnWorkspace(currentId)) {
@@ -466,7 +466,7 @@ LayerInfo TreelandRemoteSource::buildLayerInfo(SurfaceContainer *container) cons
 
 void TreelandRemoteSource::collectAllToplevelSurfaces(QList<SurfaceWrapper *> &out) const
 {
-    auto *root = Helper::instance()->rootSurfaceContainer();
+    auto *root = WaylandServer::instance()->rootSurfaceContainer();
     if (!root)
         return;
 
@@ -527,9 +527,9 @@ QList<WindowInfo> TreelandRemoteSource::getWindows()
 QList<ClientInfo> TreelandRemoteSource::getClients()
 {
     QList<ClientInfo> result;
-    auto *helper = Helper::instance();
-    auto *server = helper ? helper->server() : nullptr;
-    auto *display = server ? server->handle() : nullptr;
+    auto *server = WaylandServer::instance();
+    auto *nativeServer = server ? server->server() : nullptr;
+    auto *display = nativeServer ? nativeServer->handle() : nullptr;
 
     struct ClientEntry {
         qint64 id = 0;
@@ -612,7 +612,7 @@ bool TreelandRemoteSource::activateWindow(qint64 id)
     auto *surface = findSurfaceById(id);
     if (!surface)
         return false;
-    Helper::instance()->forceActivateSurface(surface);
+    WaylandServer::instance()->forceActivateSurface(surface);
     return true;
 }
 
@@ -677,7 +677,7 @@ bool TreelandRemoteSource::setWindowWorkspace(qint64 id, int workspaceId)
     auto *surface = findSurfaceById(id);
     if (!surface)
         return false;
-    auto *workspace = Helper::instance()->workspace();
+    auto *workspace = WaylandServer::instance()->workspace();
     if (!workspace || !workspace->modelFromId(workspaceId))
         return false;
     // moveSurfaceTo() Q_ASSERTs that the surface already belongs to a workspace
@@ -692,19 +692,19 @@ bool TreelandRemoteSource::setWindowWorkspace(qint64 id, int workspaceId)
 
 bool TreelandRemoteSource::moveCursor(QPointF pos)
 {
-    auto *helper = Helper::instance();
-    if (!helper)
+    auto *server = WaylandServer::instance();
+    if (!server)
         return false;
-    // Use the high-level Helper API: it ends any in-progress interactive
+    // Use the high-level WaylandServer API: it ends any in-progress interactive
     // move/resize for every seat before moving the cursor, so injected motion
     // is never accidentally fed into an active move/resize transaction.
-    helper->setCursorPosition(pos);
+    server->setCursorPosition(pos);
     return true;
 }
 
 bool TreelandRemoteSource::sendPointerButton(int button, bool pressed)
 {
-    auto *seat = Helper::instance()->seat();
+    auto *seat = WaylandServer::instance()->seat();
     if (!seat || !seat->handle())
         return false;
     wlr_seat_pointer_notify_button(seat->handle(), QDateTime::currentMSecsSinceEpoch(),
@@ -717,7 +717,7 @@ bool TreelandRemoteSource::sendPointerButton(int button, bool pressed)
 
 bool TreelandRemoteSource::sendKey(int qtKey, bool pressed)
 {
-    auto *seat = Helper::instance()->seat();
+    auto *seat = WaylandServer::instance()->seat();
     if (!seat || !seat->handle())
         return false;
     // Make sure the seat has a keyboard bound so the key event is delivered.
@@ -745,7 +745,7 @@ bool TreelandRemoteSource::sendKey(int qtKey, bool pressed)
 
 void TreelandRemoteSource::captureOutput(QString outputName)
 {
-    auto *root = Helper::instance()->rootSurfaceContainer();
+    auto *root = WaylandServer::instance()->rootSurfaceContainer();
     if (!root) {
         emit captureResult({});
         return;
@@ -781,7 +781,7 @@ void TreelandRemoteSource::captureOutput(QString outputName)
     }
 
     // Async texture grab: start the GPU read-back and return immediately.
-    // The compositor main thread is never blocked; the encoded PNG bytes are
+    // The server main thread is never blocked; the encoded PNG bytes are
     // delivered via the captureResult signal when the future completes.
     auto *capturer = new WTextureCapturer(viewport);
     auto *watcher = new QFutureWatcher<QImage>(this);
@@ -860,14 +860,14 @@ QList<DebugEvent> TreelandRemoteSource::getEvents(quint64 afterSeq)
 
 qint64 TreelandRemoteSource::focusedWindowId()
 {
-    auto *seat = Helper::instance()->seat();
+    auto *seat = WaylandServer::instance()->seat();
     if (!seat) return 0;
     return surfaceId(seat->keyboardFocusSurface());
 }
 
 qint64 TreelandRemoteSource::windowUnderCursor()
 {
-    auto *seat = Helper::instance()->seat();
+    auto *seat = WaylandServer::instance()->seat();
     if (!seat) return 0;
     return surfaceId(seat->pointerFocusSurface());
 }
@@ -883,7 +883,7 @@ QString TreelandRemoteSource::getSceneTree(qint64 id)
         if (!root)
             return QStringLiteral("Window %1 has no scene item.\n").arg(id);
     } else {
-        auto *window = Helper::instance() ? Helper::instance()->window() : nullptr;
+        auto *window = WaylandServer::instance() ? WaylandServer::instance()->window() : nullptr;
         if (!window)
             return QStringLiteral("No render window available.\n");
         root = window->contentItem();
@@ -901,7 +901,7 @@ void TreelandRemoteSource::startEventCapture()
 {
     if (m_eventCaptureActive)
         return;
-    auto *window = Helper::instance() ? Helper::instance()->window() : nullptr;
+    auto *window = WaylandServer::instance() ? WaylandServer::instance()->window() : nullptr;
     if (!window)
         return;
     window->installEventFilter(this);
@@ -912,7 +912,7 @@ void TreelandRemoteSource::stopEventCapture()
 {
     if (!m_eventCaptureActive)
         return;
-    if (auto *window = Helper::instance() ? Helper::instance()->window() : nullptr)
+    if (auto *window = WaylandServer::instance() ? WaylandServer::instance()->window() : nullptr)
         window->removeEventFilter(this);
     m_eventCaptureActive = false;
     m_events.clear(); // release the ring buffer while idle
@@ -938,7 +938,7 @@ bool TreelandRemoteSource::eventFilter(QObject *watched, QEvent *event)
     // polling getEvents(). The target surface is read from the seat's current
     // focus, so on a focus transition it may reflect the previous event —
     // acceptable for a debug stream.
-    auto *seat = Helper::instance() ? Helper::instance()->seat() : nullptr;
+    auto *seat = WaylandServer::instance() ? WaylandServer::instance()->seat() : nullptr;
     switch (event->type()) {
     case QEvent::MouseMove: {
         auto *me = static_cast<QMouseEvent *>(event);

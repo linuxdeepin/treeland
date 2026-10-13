@@ -26,7 +26,7 @@ listener 后 roundtrip 不应收到任何事件；断言该边界可以捕获实
 
 服务端实现位于
 `src/modules/active-notify/activenotifymanagerinterfacev1.h`、
-`activenotifymanagerinterfacev1.cpp`；生产事件来源为 `src/seat/helper.cpp` 的
+`activenotifymanagerinterfacev1.cpp`；生产事件来源为 `src/core/waylandserver.cpp` 的
 鼠标左键 / 滚轮跟踪（`handleLeftButtonStateChanged`、`handleWhellValueChanged`）
 和拖放生命周期（`handleRequestDrag`、`handleRequestDragForSeat`）。
 

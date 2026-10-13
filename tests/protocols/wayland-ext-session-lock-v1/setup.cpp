@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "wayland-ext-session-lock-v1.h"
 #include "server-bridge.h"
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 
 #include <wbackend.h>
 #include <protocols/wsessionlockmanager.h>
@@ -17,21 +17,21 @@ WSessionLockManager *g_manager = nullptr;
 WSessionLock *g_lock = nullptr;
 }
 
-void protocol_test_setup(Helper *helper)
+void protocol_test_setup(WaylandServer *server)
 {
-    add_headless_output(helper->backend(), false);
+    add_headless_output(server->backend(), false);
 
-    g_manager = find_server_interface<WSessionLockManager>(helper);
+    g_manager = find_server_interface<WSessionLockManager>(server);
     if (g_manager) {
         QObject::connect(g_manager, &WSessionLockManager::lockCreated,
-                         helper, [](WSessionLock *lock) {
+                         server, [](WSessionLock *lock) {
                              g_lock = lock;
                          });
     }
 }
 
 // E-level read: report the captured production WSessionLock's locked state.
-// After the 300 ms grace timer, Helper calls WSessionLock::lock() which sends
+// After the 300 ms grace timer, WaylandServer calls WSessionLock::lock() which sends
 // the `locked` Wayland event and sets the internal state to Locked.
 void session_lock_read_server_state(void *data)
 {

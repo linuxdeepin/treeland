@@ -55,7 +55,7 @@ static int create_gamma_lut(uint32_t size)
         return -1;
     }
     for (uint32_t index = 0; index < size; ++index) {
-        // A non-identity, monotonic LUT proves Helper forwards all three
+        // A non-identity, monotonic LUT proves WaylandServer forwards all three
         // channels to wlr_output_commit_state rather than only accepting FD.
         const uint16_t value = (uint16_t)(((uint64_t)index * UINT16_MAX) / (size - 1));
         lut[index] = value;
@@ -125,7 +125,7 @@ int protocol_test_run(const char *socket_name)
     }
     zwlr_gamma_control_v1_set_gamma(control, lut_fd);
     if (wl_display_roundtrip(connection.display) < 0 || events.failed_count) {
-        fprintf(stderr, "wlr-gamma-control: Helper failed to commit DRM gamma LUT\n");
+        fprintf(stderr, "wlr-gamma-control: WaylandServer failed to commit DRM gamma LUT\n");
         zwlr_gamma_control_v1_destroy(control);
         goto failed;
     }

@@ -104,29 +104,29 @@ Item {
 
             ToolButton {
                 text: "New Workspace"
-                onClicked: Helper.workspace.createModel("Workspace"+Math.random());
+                onClicked: WaylandServer.workspace.createModel("Workspace"+Math.random());
             }
 
             ToolButton {
                 text: "Delete Workspace"
                 onClicked: {
-                    if (Helper.workspace.count > 1)
-                        Helper.workspace.removeModel(Helper.workspace.currentIndex);
+                    if (WaylandServer.workspace.count > 1)
+                        WaylandServer.workspace.removeModel(WaylandServer.workspace.currentIndex);
                 }
             }
 
             ToolButton {
                 text: "Prev Workspace"
-                onClicked: Helper.workspace.switchToPrev();
+                onClicked: WaylandServer.workspace.switchToPrev();
             }
 
             ToolButton {
                 text: "Next Workspace"
-                onClicked: Helper.workspace.switchToNext();
+                onClicked: WaylandServer.workspace.switchToNext();
             }
 
             Label {
-                text: Helper.workspace.currentIndex
+                text: WaylandServer.workspace.currentIndex
                 color: "red"
             }
 
@@ -141,17 +141,17 @@ Item {
                     MenuItem {
                         text: "Add Output"
                         onClicked: {
-                            Helper.addOutput()
+                            WaylandServer.addOutput()
                         }
                     }
 
                     MenuItem {
-                        text: (Helper.outputMode === Helper.OutputMode.Copy) ? "Extension Mode" : "Copy Mode"
+                        text: (WaylandServer.outputMode === WaylandServer.OutputMode.Copy) ? "Extension Mode" : "Copy Mode"
                         onClicked: {
-                            if (Helper.outputMode === Helper.OutputMode.Copy)
-                                Helper.outputMode = Helper.OutputMode.Extension
+                            if (WaylandServer.outputMode === WaylandServer.OutputMode.Copy)
+                                WaylandServer.outputMode = WaylandServer.OutputMode.Extension
                             else
-                                Helper.outputMode = Helper.OutputMode.Copy
+                                WaylandServer.outputMode = WaylandServer.OutputMode.Copy
                         }
                     }
                 }

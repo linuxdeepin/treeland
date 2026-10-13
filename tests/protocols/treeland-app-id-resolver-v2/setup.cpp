@@ -56,7 +56,7 @@ void server_snapshot_state(void *)
 
 } // extern "C"
 
-void protocol_test_setup(Helper *helper)
+void protocol_test_setup(WaylandServer *server)
 {
-    g_manager = find_server_interface<AppIdResolverManager>(helper);
+    g_manager = find_server_interface<AppIdResolverManager>(server);
 }

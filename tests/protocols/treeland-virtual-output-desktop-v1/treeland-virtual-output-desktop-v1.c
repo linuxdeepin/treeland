@@ -116,7 +116,7 @@ int protocol_test_run(const char *socket_name)
         goto done;
     treeland_virtual_output_v1_add_listener(client.group, &group_listener, &client);
 
-    // The roundtrip orders the create request, Helper::onSetCopyOutput(), and
+    // The roundtrip orders the create request, WaylandServer::onSetCopyOutput(), and
     // the production outputs event without using a timing delay.
     if (wl_display_roundtrip(client.connection.display) < 0
         || !invoke_on_server_thread(virtual_output_desktop_read_state, &copied))

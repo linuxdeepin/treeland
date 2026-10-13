@@ -26,5 +26,5 @@
 
 ## 已知边界 / 下一项结果
 
-接口本身无事件；未验证由 `Helper::updateIdleInhibitor()` 计算出的全局 idle-notifier
+接口本身无事件；未验证由 `WaylandServer::updateIdleInhibitor()` 计算出的全局 idle-notifier
 `inhibited` 状态，该跨协议行为由 ext-idle-notify 测试覆盖。
