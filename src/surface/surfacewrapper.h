@@ -227,6 +227,7 @@ public:
     bool isAnimationRunning() const;
     bool isWindowAnimationRunning() const;
 
+    bool supportsTileMode(TileMode mode) const;
     void applyTileMode(TileMode mode, Output *output);
     // Instantly restore `this` to Normal
     void cancelTileMode();
