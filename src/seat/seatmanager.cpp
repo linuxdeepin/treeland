@@ -695,18 +695,6 @@ void SeatManager::assignDevice(WInputDevice *device,
     QString deviceName = device->name();
     WInputDevice::Type deviceType = device->type();
 
-    // Filter out mismatched device types
-    if (deviceType == WInputDevice::Type::Pointer && deviceName.contains("Keyboard", Qt::CaseInsensitive)) {
-        qCWarning(lcTlSeat) << "Device type mismatch - ignoring:" << deviceName;
-        return;
-    }
-
-    if (deviceType == WInputDevice::Type::Keyboard &&
-        (deviceName.contains("Mouse", Qt::CaseInsensitive) || deviceName.contains("Touchpad", Qt::CaseInsensitive))) {
-        qCWarning(lcTlSeat) << "Device type mismatch - ignoring:" << deviceName;
-        return;
-    }
-
     // Filter out system buttons
     if (deviceType == WInputDevice::Type::Keyboard &&
         (deviceName.contains("Power Button") || deviceName.contains("Sleep Button") ||
