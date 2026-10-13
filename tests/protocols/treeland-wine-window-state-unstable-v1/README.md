@@ -22,7 +22,7 @@
 
 客户端创建 xdg_toplevel 后，`ShellHandler::onXdgToplevelSurfaceAdded` 创建真实
 `SurfaceWrapper` 并加入 `Workspace`。客户端调用 `get_window_state` 时，
-`WineWindowState` 通过 `Helper::rootSurfaceContainer()->getSurface()` 查找到该 wrapper，
+`WineWindowState` 通过 `WaylandServer::rootSurfaceContainer()->getSurface()` 查找到该 wrapper，
 连接 `minimizeChanged` 和 `attentionChanged` 信号。初始 `state_changed(0)` 证明 wrapper
 创建后未最小化、未需要关注，与协议事件一致。
 

@@ -4,8 +4,8 @@
 #include "modules/appearance/appearancemanagerinterfacev1.h"
 #include "server-bridge.h"
 
-void protocol_test_setup(Helper *helper)
+void protocol_test_setup(WaylandServer *server)
 {
-    Q_ASSERT(find_server_interface<AppearanceInterfaceV1>(helper));
-    Q_ASSERT(find_server_interface<AppearanceManagerInterfaceV1>(helper));
+    Q_ASSERT(find_server_interface<AppearanceInterfaceV1>(server));
+    Q_ASSERT(find_server_interface<AppearanceManagerInterfaceV1>(server));
 }

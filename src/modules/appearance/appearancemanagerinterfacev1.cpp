@@ -6,7 +6,7 @@
 #include "qwayland-server-treeland-appearance-manager-unstable-v1.h"
 
 #include "common/treelandlogging.h"
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 #include "treelanduserconfig.hpp"
 
 #include <wayland-server-core.h>
@@ -50,9 +50,9 @@ bool isUserConfigInitialized(TreelandUserConfig *config)
     return config->isInitializeSucceeded();
 }
 
-/// Guard against null Helper, null config, or incomplete async config init.
+/// Guard against null WaylandServer, null config, or incomplete async config init.
 ///
-/// FIXME(rewine): Treeland is a multi-user compositor. Helper::config() exposes the
+/// FIXME(rewine): Treeland is a multi-user compositor. WaylandServer::config() exposes the
 /// CURRENT user's config instance; this manager currently has no per-user
 /// resource tracking, so a request from one user's client could mutate another
 /// user's config once per-user client credentials are available. Binding must be
@@ -64,9 +64,9 @@ bool isUserConfigInitialized(TreelandUserConfig *config)
 /// so the failure is observable.
 #define ENSURE_CONFIG()                                            \
     do {                                                           \
-        if (!Helper::instance() || !Helper::instance()->config()) \
+        if (!WaylandServer::instance() || !WaylandServer::instance()->config()) \
             return;                                                \
-        if (!isUserConfigInitialized(Helper::instance()->config())) { \
+        if (!isUserConfigInitialized(WaylandServer::instance()->config())) { \
             qCWarning(lcTlConfig) << "Appearance set_* request dropped:" \
                                   << "user config not initialized yet"; \
             return;                                                \
@@ -120,7 +120,7 @@ void AppearanceManagerInterfaceV1Private::set_cursor_theme([[maybe_unused]] Reso
                                                             const QString &name)
 {
     ENSURE_CONFIG();
-    Helper::instance()->config()->setCursorThemeName(name);
+    WaylandServer::instance()->config()->setCursorThemeName(name);
 }
 
 void AppearanceManagerInterfaceV1Private::set_cursor_size([[maybe_unused]] Resource *resource,
@@ -130,42 +130,42 @@ void AppearanceManagerInterfaceV1Private::set_cursor_size([[maybe_unused]] Resou
     if (width != height)
         qCWarning(lcTlConfig) << "Non-square cursor size requested:" << width << "x" << height
                               << ", height is ignored.";
-    Helper::instance()->config()->setCursorSize(static_cast<int>(width));
+    WaylandServer::instance()->config()->setCursorSize(static_cast<int>(width));
 }
 
 void AppearanceManagerInterfaceV1Private::set_font([[maybe_unused]] Resource *resource,
                                                     const QString &font_name)
 {
     ENSURE_CONFIG();
-    Helper::instance()->config()->setFont(font_name);
+    WaylandServer::instance()->config()->setFont(font_name);
 }
 
 void AppearanceManagerInterfaceV1Private::set_monospace_font([[maybe_unused]] Resource *resource,
                                                               const QString &font_name)
 {
     ENSURE_CONFIG();
-    Helper::instance()->config()->setMonoFont(font_name);
+    WaylandServer::instance()->config()->setMonoFont(font_name);
 }
 
 void AppearanceManagerInterfaceV1Private::set_font_size([[maybe_unused]] Resource *resource,
                                                          uint32_t size)
 {
     ENSURE_CONFIG();
-    Helper::instance()->config()->setFontSize(static_cast<int>(size));
+    WaylandServer::instance()->config()->setFontSize(static_cast<int>(size));
 }
 
 void AppearanceManagerInterfaceV1Private::set_icon_theme([[maybe_unused]] Resource *resource,
                                                           const QString &theme_name)
 {
     ENSURE_CONFIG();
-    Helper::instance()->config()->setIconThemeName(theme_name);
+    WaylandServer::instance()->config()->setIconThemeName(theme_name);
 }
 
 void AppearanceManagerInterfaceV1Private::set_accent_color([[maybe_unused]] Resource *resource,
                                                             uint32_t r, uint32_t g, uint32_t b)
 {
     ENSURE_CONFIG();
-    Helper::instance()->config()->setActiveColor(rgbToHex(r, g, b));
+    WaylandServer::instance()->config()->setActiveColor(rgbToHex(r, g, b));
 }
 
 void AppearanceManagerInterfaceV1Private::set_window_opacity([[maybe_unused]] Resource *resource,
@@ -177,7 +177,7 @@ void AppearanceManagerInterfaceV1Private::set_window_opacity([[maybe_unused]] Re
         qCWarning(lcTlConfig) << "window_opacity out of range [0.0, 1.0]:" << value;
         return;
     }
-    Helper::instance()->config()->setWindowOpacity(static_cast<int>(std::lround(value * 100.0)));
+    WaylandServer::instance()->config()->setWindowOpacity(static_cast<int>(std::lround(value * 100.0)));
 }
 
 void AppearanceManagerInterfaceV1Private::set_color_scheme([[maybe_unused]] Resource *resource,
@@ -187,22 +187,22 @@ void AppearanceManagerInterfaceV1Private::set_color_scheme([[maybe_unused]] Reso
     const auto dconfigType = colorSchemeToDConfig(scheme);
     if (dconfigType < 0)
         return; // invalid scheme, silently ignored per protocol spec
-    Helper::instance()->config()->setWindowColorScheme(dconfigType);
-    Helper::syncPaletteTypeWithWindowColorScheme(dconfigType);
+    WaylandServer::instance()->config()->setWindowColorScheme(dconfigType);
+    WaylandServer::syncPaletteTypeWithWindowColorScheme(dconfigType);
 }
 
 void AppearanceManagerInterfaceV1Private::set_titlebar_height([[maybe_unused]] Resource *resource,
                                                                uint32_t height)
 {
     ENSURE_CONFIG();
-    Helper::instance()->config()->setWindowTitlebarHeight(static_cast<int>(height));
+    WaylandServer::instance()->config()->setWindowTitlebarHeight(static_cast<int>(height));
 }
 
 void AppearanceManagerInterfaceV1Private::set_corner_radius([[maybe_unused]] Resource *resource,
                                                              uint32_t radius)
 {
     ENSURE_CONFIG();
-    Helper::instance()->config()->setWindowRadius(static_cast<int>(radius));
+    WaylandServer::instance()->config()->setWindowRadius(static_cast<int>(radius));
 }
 
 // ---------------------------------------------------------------------------

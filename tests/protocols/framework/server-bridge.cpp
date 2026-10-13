@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "server-bridge.h"
 
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 
 #include <winputdevice.h>
 #include <wbackend.h>
@@ -18,15 +18,15 @@
 
 WAYLIB_SERVER_USE_NAMESPACE
 
-WServer *server_for_helper(Helper *helper)
+WServer *native_server(WaylandServer *server)
 {
-    return helper ? helper->findChild<WServer *>() : nullptr;
+    return server ? server->findChild<WServer *>() : nullptr;
 }
 
-void attach_test_pointer_device(Helper *helper)
+void attach_test_pointer_device(WaylandServer *server)
 {
-    Q_ASSERT(helper);
-    auto *seat = helper->seat();
+    Q_ASSERT(server);
+    auto *seat = server->seat();
     Q_ASSERT(seat);
 
     auto *pointer = static_cast<wlr_pointer *>(calloc(1, sizeof(wlr_pointer)));

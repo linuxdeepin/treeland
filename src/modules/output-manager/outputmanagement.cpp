@@ -6,7 +6,7 @@
 #include "outputmanagement.h"
 #include "outputconfig.hpp"
 #include "rootsurfacecontainer.h"
-#include "helper.h"
+#include "core/waylandserver.h"
 #include "output.h"
 
 #include <WOutput>
@@ -164,7 +164,7 @@ wl_global *OutputManagerV1Private::global() const
 
 void OutputManagerV1Private::bind_resource(Resource *resource)
 {
-    auto *primaryOutput = Helper::instance()->rootSurfaceContainer()->primaryOutput();
+    auto *primaryOutput = WaylandServer::instance()->rootSurfaceContainer()->primaryOutput();
     send_primary_output(resource->handle, primaryOutput ? primaryOutput->output()->name() : "");
 }
 
@@ -176,7 +176,7 @@ void OutputManagerV1Private::destroy(Resource *resource)
 void OutputManagerV1Private::set_primary_output(Resource *resource, const QString &output)
 {
     Q_UNUSED(resource);
-    auto *rootSurfaceContainer = Helper::instance()->rootSurfaceContainer();
+    auto *rootSurfaceContainer = WaylandServer::instance()->rootSurfaceContainer();
     for (Output *o : std::as_const(rootSurfaceContainer->outputs())) {
         if (o->output()->name() == output) {
             rootSurfaceContainer->setPrimaryOutput(o, true);
@@ -196,7 +196,7 @@ void OutputManagerV1Private::get_color_control(Resource *resource,
                                "Invalid output resource");
         return;
     }
-    auto *o = Helper::instance()->getOutput(WOutput::fromHandle(wlr_output));
+    auto *o = WaylandServer::instance()->getOutput(WOutput::fromHandle(wlr_output));
     if (!o) {
         wl_resource_post_error(resource->handle,
                                WL_DISPLAY_ERROR_INVALID_OBJECT,
@@ -249,7 +249,7 @@ QByteArrayView OutputManagerV1::interfaceName() const
 
 void OutputManagerV1::onPrimaryOutputChanged()
 {
-    auto *primaryOutput = Helper::instance()->rootSurfaceContainer()->primaryOutput();
+    auto *primaryOutput = WaylandServer::instance()->rootSurfaceContainer()->primaryOutput();
     if (!primaryOutput)
         return;
     auto primaryOutputName = primaryOutput->output()->name();

@@ -18,7 +18,7 @@
 ## 生产结果
 
 测试绑定 `ext_session_lock_manager_v1` 并调用 `lock()`。Treeland 的
-`Helper::onExtSessionLock` 启动 300 ms grace timer，超时后调用 `WSessionLock::lock()`，
+`WaylandServer::onExtSessionLock` 启动 300 ms grace timer，超时后调用 `WSessionLock::lock()`，
 向客户端发送 `locked` 事件并将生产 `WSessionLock` 对象置为 Locked 状态。测试在收到
 `locked` 事件后，通过 server bridge 回读 `WSessionLockManager::lockCreated` 信号捕获的
 生产 `WSessionLock::isLocked()`，断言为 true。此断言验证锁定确实到达了真实合成器

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
  *
  * Test the wp_viewporter global created by wlr_viewporter_create in
- * Treeland's Helper.
+ * Treeland's WaylandServer.
  *
  * Coverage level E (end-to-end): the client maps a real xdg_toplevel, creates
  * a wp_viewport for its surface, sets a destination rectangle (320×240), and

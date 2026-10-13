@@ -4,7 +4,7 @@
 #include "pointerconstraintsmanager.h"
 
 #include "core/rootsurfacecontainer.h"
-#include "helper.h"
+#include "core/waylandserver.h"
 #include "seatmanager.h"
 #include "surface/surfacewrapper.h"
 
@@ -16,9 +16,10 @@
 #include <wsurface.h>
 
 PointerConstraintsManager::PointerConstraintsManager(WPointerConstraintsV1 *constraints,
-                                                     QObject *parent)
+                                                     WaylandServer *server, QObject *parent)
     : QObject(parent)
     , WObject()
+    , m_server(server)
     , m_interface(constraints)
 {
     Q_ASSERT(m_interface);
@@ -28,10 +29,9 @@ PointerConstraintsManager::PointerConstraintsManager(WPointerConstraintsV1 *cons
             &PointerConstraintsManager::onNewConstraint);
 
     // active-window change triggers constraint re-evaluation.
-    connect(Helper::instance(), &Helper::activatedSurfaceChanged, this, &PointerConstraintsManager::onActiveWindowChanged);
+    connect(m_server, &WaylandServer::activatedSurfaceChanged, this, &PointerConstraintsManager::onActiveWindowChanged);
 
-    auto *helper = Helper::instance();
-    auto *seatManager = helper->seatManager();
+    auto *seatManager = m_server->seatManager();
     for (auto *wseat : seatManager->seats())
         ensureSeatTracked(wseat->handle());
     connect(seatManager, &SeatManager::seatAdded, this, [this](WSeat *wseat) {
@@ -68,9 +68,9 @@ bool PointerConstraintsManager::canActivate(wlr_pointer_constraint_v1 *constrain
     if (!constraint || !constraint->seat || !constraint->surface)
         return false;
 
-    // Never activate while the compositor is in a special mode.
-    auto *helper = Helper::instance();
-    if (helper->currentMode() != Helper::CurrentMode::Normal)
+    // Never activate while the server is in a special mode.
+    auto *server = m_server;
+    if (server->currentMode() != WaylandServer::CurrentMode::Normal)
         return false;
 
     // Don't activate during any non-default pointer grab (popup, drag, etc.).
@@ -78,9 +78,9 @@ bool PointerConstraintsManager::canActivate(wlr_pointer_constraint_v1 *constrain
     if (wlr_seat_pointer_has_grab(constraint->seat))
         return false;
 
-    // treeland move/resize is Qt-level (no wlroots grab); exclude via Helper.
+    // treeland move/resize is Qt-level (no wlroots grab); exclude via WaylandServer.
     auto *wseat = WSeat::fromHandle(constraint->seat);
-    if (wseat && helper->rootContainer()->isInMoveResizeForSeat(wseat))
+    if (wseat && server->rootContainer()->isInMoveResizeForSeat(wseat))
         return false;
 
     // Pointer focus: must match the constraint surface.
@@ -88,7 +88,7 @@ bool PointerConstraintsManager::canActivate(wlr_pointer_constraint_v1 *constrain
         return false;
 
     // Active window: only the foreground window may hold pointer constraints.
-    auto *activated = helper->activatedSurface();
+    auto *activated = server->activatedSurface();
     if (!activated || !activated->surface()
         || activated->surface()->handle() != constraint->surface)
         return false;
@@ -255,7 +255,7 @@ void PointerConstraintsManager::onPointerFocusChanged(wlr_seat *seat)
 
 void PointerConstraintsManager::onActiveWindowChanged()
 {
-    auto *activated = Helper::instance()->activatedSurface();
+    auto *activated = m_server->activatedSurface();
     const auto activeWlrSurface =
         activated && activated->surface() ? activated->surface()->handle() : nullptr;
 

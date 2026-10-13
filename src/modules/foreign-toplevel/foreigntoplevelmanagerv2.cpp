@@ -6,7 +6,7 @@
 #include "foreigntoplevelmanagerv2.h"
 #include "common/treelandlogging.h"
 #include "core/rootsurfacecontainer.h"
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 #include "surface/surfacewrapper.h"
 #include <wscoplistener.h>
 
@@ -272,7 +272,7 @@ void ForeignToplevelManagerInterfaceV2Private::setupHandleForWrapper(SurfaceEntr
             wrapper,
             [wrapper](WSurface *surface, const QRect &rect) {
                          auto *dockWrapper =
-                             Helper::instance()->rootSurfaceContainer()->getSurface(surface);
+                             WaylandServer::instance()->rootSurfaceContainer()->getSurface(surface);
                          if (!dockWrapper) {
                              qCWarning(lcTlProtocol)
                                  << "iconGeometryChanged: dock wrapper not found for app"
@@ -508,7 +508,7 @@ void ForeignToplevelManagerInterfaceV2::initializeToplevelHandle(SurfaceWrapper 
     });
 
     connect(handle, &ForeignToplevelHandleV2::requestActivate, wrapper, [wrapper](WSeat *seat) {
-        Helper::instance()->forceActivateSurface(wrapper, Qt::OtherFocusReason, seat);
+        WaylandServer::instance()->forceActivateSurface(wrapper, Qt::OtherFocusReason, seat);
     });
 
     connect(handle,
@@ -525,9 +525,9 @@ void ForeignToplevelManagerInterfaceV2::initializeToplevelHandle(SurfaceWrapper 
             &ForeignToplevelHandleV2::requestMinimize,
             wrapper,
             [wrapper](bool minimized) {
-                if ((Helper::instance()->showDesktopState()
+                if ((WaylandServer::instance()->showDesktopState()
                      == ShowDesktopInterfaceV1::State::Show)) {
-                    Helper::instance()->forceActivateSurface(wrapper);
+                    WaylandServer::instance()->forceActivateSurface(wrapper);
                     return;
                 }
 

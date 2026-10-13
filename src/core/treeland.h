@@ -16,7 +16,7 @@
 
 class QmlEngine;
 class QLocalSocket;
-class Helper;
+class WaylandServer;
 class PluginInterface;
 
 namespace Treeland {

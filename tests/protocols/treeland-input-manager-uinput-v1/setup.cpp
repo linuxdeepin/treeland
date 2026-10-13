@@ -1,7 +1,7 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "server-bridge.h"
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 #include "treeland-input-manager-uinput-v1.h"
 
 #include <wbackend.h>
@@ -96,15 +96,15 @@ extern "C" bool protocol_test_preflight()
     return access("/dev/uinput", W_OK) == 0 && hasSeatdSession();
 }
 
-void protocol_test_setup(Helper *helper)
+void protocol_test_setup(WaylandServer *server)
 {
-    add_headless_output(helper->backend(), false);
+    add_headless_output(server->backend(), false);
 
-    QObject::connect(helper->backend(), &WBackend::inputAdded, helper, [](WInputDevice *device) {
+    QObject::connect(server->backend(), &WBackend::inputAdded, server, [](WInputDevice *device) {
         if (isTestKeyboard(device))
             g_keyboardAdded = true;
     });
-    QObject::connect(helper->backend(), &WBackend::inputRemoved, helper, [](WInputDevice *device) {
+    QObject::connect(server->backend(), &WBackend::inputRemoved, server, [](WInputDevice *device) {
         if (isTestKeyboard(device))
             g_keyboardRemoved = true;
     });

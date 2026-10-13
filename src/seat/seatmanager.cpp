@@ -3,8 +3,8 @@
 
 #include "seatmanager.h"
 #include "common/treelandlogging.h"
-#include "core/dconfigmanager.h"
-#include "helper.h"
+#include "dconfig/dconfigmanager.h"
+#include "core/waylandserver.h"
 #include "input/inputdevice.h"
 #include "seatuserconfig.hpp"
 #include "usermodel.h"
@@ -61,7 +61,11 @@ WSeat *SeatManager::createSeat(const QString &name, bool isFallback)
         Q_EMIT seatAdded(seat);
     };
 
-    const QString userName = Helper::instance()->userModel()->currentUserName();
+#ifndef DISABLE_DDM
+    const QString userName = WaylandServer::instance()->userModel()->currentUserName();
+#else
+    const QString userName = QStringLiteral("dde");
+#endif
     auto *seatConfig = DConfigManager::instance()->userSeatConfig(userName, name);
 
     if (!seatConfig || seatConfig->isInitializeSucceeded()
@@ -345,7 +349,7 @@ void SeatManager::loadConfig(const QJsonObject &config)
 
     if (m_seats.isEmpty()) {
         qCDebug(lcTlSeat) << "No seats in config, creating default seat0";
-        createSeat("seat0", true);
+        createSeat(DEFAULT_SEAT_NAME, true);
     }
 
     if (!m_defaultSeat && !m_seats.isEmpty()) {
@@ -438,13 +442,13 @@ void SeatManager::initializeDefaultSeat()
         return;
     }
 
-    WSeat *defaultSeat = createSeat("seat0", true);
+    WSeat *defaultSeat = createSeat(DEFAULT_SEAT_NAME, true);
     if (!defaultSeat) {
         qCCritical(lcTlSeat) << "Failed to create default seat!";
         return;
     }
 
-    ensureDefaultDeviceRules("seat0");
+    ensureDefaultDeviceRules(DEFAULT_SEAT_NAME);
 
     qCDebug(lcTlSeat) << "Initialized default seat: seat0";
 }
@@ -616,7 +620,7 @@ void SeatManager::setupAllSeats(QQuickWindow *renderWindow,
 
         // Setup cursor
         if (!seat->cursor()) {
-            if (seat->name() == "seat0" && seat0Cursor) {
+            if (seat->name() == DEFAULT_SEAT_NAME && seat0Cursor) {
                 seat->setCursor(seat0Cursor);
             } else {
                 WCursor *cursor = new WCursor(seat);

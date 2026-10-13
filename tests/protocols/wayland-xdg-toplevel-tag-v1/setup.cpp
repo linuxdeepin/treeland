@@ -3,7 +3,7 @@
 #include "wayland-xdg-toplevel-tag-v1.h"
 #include "server-bridge.h"
 #include "core/shellhandler.h"
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 #include "surface/surfacewrapper.h"
 
 #include <wbackend.h>
@@ -17,13 +17,13 @@ namespace {
 SurfaceWrapper *g_wrapper = nullptr;
 }
 
-void protocol_test_setup(Helper *helper)
+void protocol_test_setup(WaylandServer *server)
 {
-    add_headless_output(helper->backend(), false);
+    add_headless_output(server->backend(), false);
 
-    QObject::connect(helper->shellHandler(),
+    QObject::connect(server->shellHandler(),
                      &ShellHandler::surfaceWrapperAdded,
-                     helper,
+                     server,
                      [](SurfaceWrapper *wrapper) {
                          if (wrapper->type() == SurfaceWrapper::Type::XdgToplevel)
                              g_wrapper = wrapper;

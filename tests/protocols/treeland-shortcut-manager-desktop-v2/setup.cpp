@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "core/shellhandler.h"
 #include "server-bridge.h"
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 #include "seat/seatmanager.h"
 #include "surface/surfacewrapper.h"
 #include "treeland-shortcut-manager-desktop-v2.h"
@@ -15,43 +15,43 @@ namespace {
 SurfaceWrapper *g_wrapper = nullptr;
 shortcut_desktop_state g_state {};
 
-WSeat *primarySeat(Helper *helper)
+WSeat *primarySeat(WaylandServer *server)
 {
-    const auto seats = helper->seatManager()->seats();
+    const auto seats = server->seatManager()->seats();
     return seats.isEmpty() ? nullptr : seats.constFirst();
 }
 
-bool hasKeyboardFocus(Helper *helper)
+bool hasKeyboardFocus(WaylandServer *server)
 {
-    auto *seat = primarySeat(helper);
+    auto *seat = primarySeat(server);
     return seat && g_wrapper && seat->keyboardFocusSurface() == g_wrapper->surface();
 }
 }
 
-void protocol_test_setup(Helper *helper)
+void protocol_test_setup(WaylandServer *server)
 {
-    add_headless_output(helper->backend(), false);
-    QObject::connect(helper->shellHandler(),
+    add_headless_output(server->backend(), false);
+    QObject::connect(server->shellHandler(),
                      &ShellHandler::surfaceWrapperAdded,
-                     helper,
-                     [helper](SurfaceWrapper *wrapper) {
+                     server,
+                     [server](SurfaceWrapper *wrapper) {
                          if (wrapper->type() != SurfaceWrapper::Type::XdgToplevel)
                              return;
                          g_wrapper = wrapper;
                          g_state.wrapper_created = 1;
-                         g_state.wrapper_in_workspace = helper->workspace()->surfaces().contains(wrapper) ? 1 : 0;
+                         g_state.wrapper_in_workspace = server->workspace()->surfaces().contains(wrapper) ? 1 : 0;
                      });
 }
 
 extern "C" void shortcut_desktop_focus_window(void *data)
 {
     auto *state = static_cast<shortcut_desktop_state *>(data);
-    auto *helper = Helper::instance();
-    if (helper && g_wrapper)
-        helper->activateSurface(g_wrapper, Qt::ActiveWindowFocusReason);
+    auto *server = WaylandServer::instance();
+    if (server && g_wrapper)
+        server->activateSurface(g_wrapper, Qt::ActiveWindowFocusReason);
     *state = g_state;
-    if (helper) {
+    if (server) {
         state->wrapper_visible = g_wrapper && g_wrapper->isVisible() ? 1 : 0;
-        state->keyboard_focused = hasKeyboardFocus(helper) ? 1 : 0;
+        state->keyboard_focused = hasKeyboardFocus(server) ? 1 : 0;
     }
 }

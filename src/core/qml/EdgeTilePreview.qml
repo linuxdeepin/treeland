@@ -6,7 +6,7 @@ import QtQuick
 Rectangle {
     id: root
     visible: false
-    color: Qt.alpha(Helper.config.activeColor, 0.25)
+    color: Qt.alpha(WaylandServer.config.activeColor, 0.25)
 
     // The dragged surface's geometry (starting point) and the target tile
     // geometry, set from RootSurfaceContainer::updateEdgeTilePreview().

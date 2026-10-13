@@ -12,9 +12,9 @@ namespace {
 VirtualOutputInterfaceV1 *g_virtual_output = nullptr;
 }
 
-void protocol_test_setup(Helper *helper)
+void protocol_test_setup(WaylandServer *server)
 {
-    auto *manager = find_server_interface<VirtualOutputManagerInterfaceV1>(helper);
+    auto *manager = find_server_interface<VirtualOutputManagerInterfaceV1>(server);
     Q_ASSERT(manager);
     QObject::connect(manager, &VirtualOutputManagerInterfaceV1::requestCreateVirtualOutput,
                      [](VirtualOutputInterfaceV1 *interface) { g_virtual_output = interface; });

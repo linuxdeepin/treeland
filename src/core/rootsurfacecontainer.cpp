@@ -5,7 +5,7 @@
 
 #include "common/treelandlogging.h"
 #include "output/output.h"
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 #include "seat/seatmanager.h"
 #include "surface/surfacewrapper.h"
 #include "treelandconfig.hpp"
@@ -30,11 +30,11 @@ namespace {
 
 void setPrimaryOutputConfig(Output *output)
 {
-    auto *helper = Helper::instance();
-    if (!helper)
+    auto *server = WaylandServer::instance();
+    if (!server)
         return;
 
-    auto *config = helper->globalConfig();
+    auto *config = server->globalConfig();
     config->setPrimaryOutputId(output->getOutputId());
 }
 
@@ -180,7 +180,7 @@ void RootSurfaceContainer::removeOutput(Output *output)
     if (m_primaryOutput == output) {
         const auto outputs = m_outputLayout->outputs();
         if (!outputs.isEmpty()) {
-            auto newPrimaryOutput = Helper::instance()->getOutput(outputs.first());
+            auto newPrimaryOutput = WaylandServer::instance()->getOutput(outputs.first());
             setPrimaryOutput(newPrimaryOutput);
         }
     }
@@ -192,9 +192,9 @@ void RootSurfaceContainer::removeOutput(Output *output)
         const auto newCursorPos = m_primaryOutput->outputItem()->position() + posInOutput;
 
         if (m_primaryOutput->geometry().contains(newCursorPos))
-            Helper::instance()->setCursorPosition(newCursorPos);
+            WaylandServer::instance()->setCursorPosition(newCursorPos);
         else
-            Helper::instance()->setCursorPosition(m_primaryOutput->geometry().center());
+            WaylandServer::instance()->setCursorPosition(m_primaryOutput->geometry().center());
     }
 }
 
@@ -239,7 +239,7 @@ bool RootSurfaceContainer::isInMoveResize() const
 void RootSurfaceContainer::startMove(SurfaceWrapper *surface)
 {
     beginMoveResizeForSeat(nullptr, surface, Qt::Edges{});
-    Helper::instance()->activateSurface(surface);
+    WaylandServer::instance()->activateSurface(surface);
 }
 
 void RootSurfaceContainer::startResize(SurfaceWrapper *surface, Qt::Edges edges)
@@ -251,7 +251,7 @@ void RootSurfaceContainer::startResize(SurfaceWrapper *surface, Qt::Edges edges)
     beginMoveResizeForSeat(nullptr, surface, edges);
 
     surface->shellSurface()->setResizeing(true);
-    Helper::instance()->activateSurface(surface);
+    WaylandServer::instance()->activateSurface(surface);
 }
 
 void RootSurfaceContainer::addSurface(SurfaceWrapper *)
@@ -287,7 +287,7 @@ void RootSurfaceContainer::addBySubContainer(SurfaceContainer *sub, SurfaceWrapp
                         + xdgPopupSurface->getPopupPosition();
                     if (auto op = wlr_output_layout_output_at(m_outputLayout->handle(), pos.x(), pos.y()))
                         output =
-                            Helper::instance()->getOutput(WOutput::fromHandle(op));
+                            WaylandServer::instance()->getOutput(WOutput::fromHandle(op));
                 }
             }
             surface->setOwnsOutput(output);
@@ -317,7 +317,7 @@ bool RootSurfaceContainer::filterSurfaceGeometryChanged(SurfaceWrapper *surface,
                                                         QRectF &newGeometry,
                                                         const QRectF &oldGeometry)
 {
-    // Helper function to adjust anchor-based position during resize
+    // WaylandServer function to adjust anchor-based position during resize
     // When resizing from an edge (e.g., right edge), the opposite position remains fixed
     auto adjustForResize = [](QRectF &geometry,
                               const QRectF &oldGeometry,
@@ -410,7 +410,7 @@ Output *RootSurfaceContainer::outputAt(const QPointF &pos) const
     if (!o)
         return nullptr;
 
-    return Helper::instance()->getOutput(WOutput::fromHandle(o));
+    return WaylandServer::instance()->getOutput(WOutput::fromHandle(o));
 }
 
 Output *RootSurfaceContainer::primaryOutput() const
@@ -441,7 +441,7 @@ void RootSurfaceContainer::ensureCursorVisible()
         return;
 
     if (m_primaryOutput) {
-        Helper::instance()->setCursorPosition(m_primaryOutput->geometry().center());
+        WaylandServer::instance()->setCursorPosition(m_primaryOutput->geometry().center());
     }
 }
 
@@ -477,7 +477,7 @@ void RootSurfaceContainer::updateSurfaceOutputs(SurfaceWrapper *surface)
         outputs.append(surface->ownsOutput()->output());
     surface->setOutputs(outputs);
 
-    if (auto *ws = Helper::instance()->workspace())
+    if (auto *ws = WaylandServer::instance()->workspace())
         ws->updateSurfaceOwnsOutput(surface);
 }
 
@@ -617,13 +617,13 @@ void RootSurfaceContainer::moveSurfacesToOutput(const QList<SurfaceWrapper *> &s
 
 void RootSurfaceContainer::setupSeatManagement()
 {
-    auto *helper = Helper::instance();
-    if (!helper || !helper->seatManager()) {
-        qCWarning(lcTlCore) << "Helper or seatManager not available for seat management setup";
+    auto *server = WaylandServer::instance();
+    if (!server || !server->seatManager()) {
+        qCWarning(lcTlCore) << "WaylandServer or seatManager not available for seat management setup";
         return;
     }
 
-    auto *seatManager = helper->seatManager();
+    auto *seatManager = server->seatManager();
     const auto &seats = seatManager->seats();
 
     if (seats.isEmpty()) {
@@ -654,9 +654,9 @@ void RootSurfaceContainer::setupSurfaceRequestHandlers(SurfaceWrapper *surface)
             }
 
             beginMoveResizeForSeat(requestingSeat, surface, Qt::Edges{});
-            auto *helper = Helper::instance();
-            if (helper) {
-                helper->activateSurface(surface);
+            auto *server = WaylandServer::instance();
+            if (server) {
+                server->activateSurface(surface);
             }
         },
         Qt::DirectConnection);
@@ -676,9 +676,9 @@ void RootSurfaceContainer::setupSurfaceRequestHandlers(SurfaceWrapper *surface)
             if (auto *sh = surface->shellSurface()) {
                 sh->setResizeing(true);
             }
-            auto *helper = Helper::instance();
-            if (helper) {
-                helper->activateSurface(surface);
+            auto *server = WaylandServer::instance();
+            if (server) {
+                server->activateSurface(surface);
             }
         },
         Qt::DirectConnection);
@@ -686,21 +686,21 @@ void RootSurfaceContainer::setupSurfaceRequestHandlers(SurfaceWrapper *surface)
 
 WSeat *RootSurfaceContainer::determineSeatForRequest(SurfaceWrapper *surface)
 {
-    auto *helper = Helper::instance();
-    if (!helper || !helper->seatManager()) {
+    auto *server = WaylandServer::instance();
+    if (!server || !server->seatManager()) {
         return nullptr;
     }
 
-    if (auto *currentEventSeat = helper->currentEventSeat()) {
+    if (auto *currentEventSeat = server->currentEventSeat()) {
         return currentEventSeat;
     }
 
-    WSeat *lastInteractingSeat = helper->getLastInteractingSeat(surface);
+    WSeat *lastInteractingSeat = server->getLastInteractingSeat(surface);
     if (lastInteractingSeat) {
         return lastInteractingSeat;
     }
 
-    const auto &seats = helper->seatManager()->seats();
+    const auto &seats = server->seatManager()->seats();
     if (!seats.isEmpty()) {
         return seats.first();
     }
@@ -718,9 +718,9 @@ void RootSurfaceContainer::onSeatAdded(WSeat *seat)
 
     connect(container, &SeatSurfaceManager::moveResizeChanged, this, &RootSurfaceContainer::moveResizeFinised);
     connect(container, &SeatSurfaceManager::activatedSurfaceChanged, this, [seat]() {
-        auto *helper = Helper::instance();
-        if (helper && helper->seat() == seat) {
-            Q_EMIT helper->activatedSurfaceChanged();
+        auto *server = WaylandServer::instance();
+        if (server && server->seat() == seat) {
+            Q_EMIT server->activatedSurfaceChanged();
         }
     });
 }
@@ -741,13 +741,13 @@ SeatSurfaceManager *RootSurfaceContainer::getSeatContainer(WSeat *seat) const
 
 WSeat *RootSurfaceContainer::getDefaultSeat() const
 {
-    auto *helper = Helper::instance();
-    if (!helper || !helper->seatManager()) {
-        qCWarning(lcTlCore) << "Helper or seatManager not available";
+    auto *server = WaylandServer::instance();
+    if (!server || !server->seatManager()) {
+        qCWarning(lcTlCore) << "WaylandServer or seatManager not available";
         return nullptr;
     }
 
-    auto *seatManager = helper->seatManager();
+    auto *seatManager = server->seatManager();
 
     // Prefer the explicitly designated fallback/primary seat
     if (WSeat *fallback = seatManager->fallbackSeat()) {
@@ -871,7 +871,7 @@ QQuickItem *RootSurfaceContainer::ensureEdgeTilePreview()
     if (m_edgeTilePreview)
         return m_edgeTilePreview;
 
-    auto *engine = Helper::instance()->qmlEngine();
+    auto *engine = WaylandServer::instance()->qmlEngine();
     if (!engine)
         return nullptr;
 
@@ -917,7 +917,7 @@ void RootSurfaceContainer::detectEdgeTilingForSeat(WSeat *seat)
     if (!container)
         return;
 
-    auto *cfg = Helper::instance()->config();
+    auto *cfg = WaylandServer::instance()->config();
     const qreal sideTrigger = cfg ? qreal(cfg->edgeSideTriggerDistance()) : 20.0;
     const qreal topTrigger = cfg ? qreal(cfg->edgeTopTriggerDistance()) : 5.0;
     const qreal quadRatio = cfg ? qBound<qreal>(0.0, qreal(cfg->edgeQuadrantZoneRatio()), 0.5) : 0.25;

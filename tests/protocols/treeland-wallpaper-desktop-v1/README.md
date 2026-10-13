@@ -3,7 +3,7 @@
 ## 状态
 
 - 测试源码：`tests/protocols/treeland-wallpaper-desktop-v1/`
-- Fixture：完整生产 `Helper` 与默认 headless output。
+- Fixture：完整生产 `WaylandServer` 与默认 headless output。
 - 覆盖等级：**P / E**。
 
 这不是新增 XML；它把 `treeland-wallpaper-manager-unstable-v1` 和
@@ -45,7 +45,7 @@ wallpaper owner 负责，不能由该协议资源补做。
 | --- | --- |
 | shell 注册 | `TreelandWallpaperSurfaceInterfaceV1::get(source)` 返回刚创建的对象 |
 | manager 关联 | `TreelandWallpaperInterfaceV1::getReferenceWallpaperInterfaceFromSurface(surface)` 返回对象，并能得到同一个真实 `WOutput` |
-| 配置写入 | `Helper::currentWorkspaceWallpaper(output)` 等于客户端发送的 source |
+| 配置写入 | `WaylandServer::currentWorkspaceWallpaper(output)` 等于客户端发送的 source |
 
 因此通过条件是 manager 写入配置且与同一 shell surface/output 建立生产关联；不把 role-less
 surface 的映射或最终 QML 内容当作该协议的行为。

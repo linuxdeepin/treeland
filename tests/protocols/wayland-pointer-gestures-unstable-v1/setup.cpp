@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "wayland-pointer-gestures-unstable-v1.h"
 #include "server-bridge.h"
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 
 #include <wbackend.h>
 #include <wserver.h>
@@ -69,15 +69,15 @@ static int count_resources_for_client(struct wl_list *resources,
 
 } // namespace
 
-void protocol_test_setup(Helper *helper)
+void protocol_test_setup(WaylandServer *server)
 {
-    add_headless_output(helper->backend(), false);
+    add_headless_output(server->backend(), false);
 
-    attach_test_pointer_device(helper);
+    attach_test_pointer_device(server);
 
-    auto *server = server_for_helper(helper);
-    Q_ASSERT(server);
-    g_display = server ? server->handle() : nullptr;
+    auto *nativeServer = native_server(server);
+    Q_ASSERT(nativeServer);
+    g_display = nativeServer->handle();
     Q_ASSERT(g_display);
 }
 

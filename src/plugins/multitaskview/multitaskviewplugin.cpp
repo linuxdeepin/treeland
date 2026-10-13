@@ -7,7 +7,7 @@
 #include "core/rootsurfacecontainer.h"
 #include "interfaces/proxyinterface.h"
 #include "multitaskview.h"
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 #include "workspace/workspace.h"
 
 void MultitaskViewPlugin::initialize(TreelandProxyInterface *proxy)

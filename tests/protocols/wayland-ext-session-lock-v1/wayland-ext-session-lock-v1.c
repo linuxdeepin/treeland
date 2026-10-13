@@ -104,7 +104,7 @@ int protocol_test_run(const char *socket_name) {
 	}
 	ext_session_lock_v1_add_listener(lock, &lock_listener, &state);
 
-	/* Treeland uses a 300 ms grace timer (Helper::onExtSessionLock).  Wait for
+	/* Treeland uses a 300 ms grace timer (LockScreenManager::onExtSessionLock).  Wait for
 	 * the actual protocol event instead of polling with fixed sleeps. */
 	const int got_lock_result = wait_for_lock_result(&conn, &state);
 
@@ -132,7 +132,7 @@ int protocol_test_run(const char *socket_name) {
 		ext_session_lock_v1_unlock_and_destroy(lock);
 		wl_display_roundtrip(conn.display);
 	} else {
-		/* Compositor sent `finished` (lock rejected).  This is a failure:
+		/* WaylandServer sent `finished` (lock rejected).  This is a failure:
 		 * if the compositor unconditionally rejects lock requests, the
 		 * session lock feature is broken.  Destroy the lock proxy
 		 * explicitly to send the destroy request. */

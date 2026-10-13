@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "modules/region-watch/regionwatchmanagerinterfacev1.h"
 #include "server-bridge.h"
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 #include "treeland-region-watch-unstable-v1.h"
 
 #include "core/rootsurfacecontainer.h"
@@ -18,11 +18,11 @@ QPointer<RegionWatchV1> g_watch;
 TreelandRegionWatchManagerInterfaceV1 *g_manager = nullptr;
 }
 
-void protocol_test_setup(Helper *helper)
+void protocol_test_setup(WaylandServer *server)
 {
-    add_headless_output(helper->backend(), false);
+    add_headless_output(server->backend(), false);
 
-    g_manager = find_server_interface<TreelandRegionWatchManagerInterfaceV1>(helper);
+    g_manager = find_server_interface<TreelandRegionWatchManagerInterfaceV1>(server);
     Q_ASSERT(g_manager);
 
     // TODO(multi-output): the region-watch protocol also defines output
@@ -52,7 +52,7 @@ extern "C" void region_watch_query_state(void *data)
 }
 
 // Runs the exact production evaluation the 300 ms debounce timer runs, but
-// synchronously on the compositor thread: invoke_on_server_thread returning
+// synchronously on the server thread: invoke_on_server_thread returning
 // is the completion boundary for enter/leave assertions (the framework's
 // sync rules forbid fixed delays and retry polling).
 extern "C" void region_watch_recheck(void *)
@@ -67,7 +67,7 @@ extern "C" void region_watch_output_position(void *data)
 {
     auto *query = static_cast<region_watch_output_pos *>(data);
     query->found = 0;
-    const auto outputs = Helper::instance()->rootSurfaceContainer()->outputs();
+    const auto outputs = WaylandServer::instance()->rootSurfaceContainer()->outputs();
     for (const auto &output : outputs) {
         auto *wOutput = output->output();
         if (wOutput->name() == QLatin1String(query->name)) {

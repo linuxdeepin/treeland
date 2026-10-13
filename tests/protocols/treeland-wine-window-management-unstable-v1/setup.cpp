@@ -3,7 +3,7 @@
 #include "core/rootsurfacecontainer.h"
 #include "core/shellhandler.h"
 #include "server-bridge.h"
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 #include "surface/surfacewrapper.h"
 #include "treeland-wine-window-management-unstable-v1.h"
 
@@ -13,12 +13,12 @@ namespace {
 SurfaceWrapper *g_wrapper = nullptr;
 }
 
-void protocol_test_setup(Helper *helper)
+void protocol_test_setup(WaylandServer *server)
 {
-    add_headless_output(helper->backend(), false);
-    QObject::connect(helper->shellHandler(),
+    add_headless_output(server->backend(), false);
+    QObject::connect(server->shellHandler(),
                      &ShellHandler::surfaceWrapperAdded,
-                     helper,
+                     server,
                      [](SurfaceWrapper *wrapper) {
                          if (wrapper->type() != SurfaceWrapper::Type::XdgToplevel)
                              return;

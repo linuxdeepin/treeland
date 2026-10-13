@@ -16,7 +16,7 @@
 
 ## 已证明的生产链路（E）
 
-桌面测试启动真实 `Helper`、`ShellHandler`、`Workspace`、root output/container 和
+桌面测试启动真实 `WaylandServer`、`ShellHandler`、`Workspace`、root output/container 和
 headless output。fixture 在全局 DConfig 初始化完成后明确启用
 `enablePrelaunchSplash`，因此测试不会被机器上遗留的全局关闭值误判。
 

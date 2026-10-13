@@ -17,7 +17,7 @@ class WCursor;
 class WSeat;
 WAYLIB_SERVER_END_NAMESPACE
 
-class Helper;
+class WaylandServer;
 
 class PointerConstraintsManager
     : public QObject
@@ -27,6 +27,7 @@ class PointerConstraintsManager
 
 public:
     explicit PointerConstraintsManager(WAYLIB_SERVER_NAMESPACE::WPointerConstraintsV1 *constraints,
+                                       WaylandServer *server,
                                        QObject *parent = nullptr);
     ~PointerConstraintsManager() override;
 
@@ -47,6 +48,7 @@ private:
     void onPointerFocusChanged(wlr_seat *seat);
     void ensureSeatTracked(wlr_seat *seat);
 
+    WaylandServer *m_server;
     WAYLIB_SERVER_NAMESPACE::WPointerConstraintsV1 *m_interface = nullptr;
 
     QList<wlr_pointer_constraint_v1 *> m_constraints;

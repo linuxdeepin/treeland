@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "wayland-cursor-shape-v1.h"
 #include "server-bridge.h"
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 #include <wbackend.h>
 #include <protocols/wcursorshapemanagerv1.h>
 
@@ -31,18 +31,18 @@ static void handleRequestSetShape(struct wl_listener *listener, void *data)
 }
 }
 
-void protocol_test_setup(Helper *helper)
+void protocol_test_setup(WaylandServer *server)
 {
-    add_headless_output(helper->backend(), false);
+    add_headless_output(server->backend(), false);
 
-    attach_test_pointer_device(helper);
+    attach_test_pointer_device(server);
 
     cursorShapeRequestCapture.received = false;
     cursorShapeRequestCapture.shape = 0;
     cursorShapeRequestCapture.deviceType = 0;
     cursorShapeRequestCapture.listener.notify = handleRequestSetShape;
 
-    cursorShapeManager = find_server_interface<WCursorShapeManagerV1>(helper);
+    cursorShapeManager = find_server_interface<WCursorShapeManagerV1>(server);
     if (cursorShapeManager && cursorShapeManager->handle()) {
         wl_signal_add(&cursorShapeManager->handle()->events.request_set_shape,
                       &cursorShapeRequestCapture.listener);

@@ -38,15 +38,24 @@ Treeland has two runtime modes, and DConfig ownership must be chosen with both i
 
 Because global mode exists, never infer the target user's settings from the treeland process uid. Split settings by ownership:
 
-- Global configuration: process/compositor policy that is the same regardless of the active login user. Access it through `Helper::globalConfig()` and `TreelandConfig`.
-- User configuration: settings that follow the currently selected/login user. Access it through `Helper::config()` and `TreelandUserConfig`; `Helper` recreates this object when `UserModel::currentUserNameChanged` fires and emits `configChanged()`.
+- Global configuration: process/compositor policy that is the same regardless of the active login user. Access it through `WaylandServer::globalConfig()` and `TreelandConfig`.
+- User configuration: settings that follow the currently selected/login user. Access it through `WaylandServer::config()` and `TreelandUserConfig`; `DConfigManager` resolves the cached object when `UserModel::currentUserNameChanged` fires; `WaylandServer` replaces its active config pointer and emits `configChanged()`.
 
-In `Helper::Helper`, treeland creates:
+`DConfigManager` owns the generated configuration objects. In
+`WaylandServer::WaylandServer`, the desktop observes
+`DConfigManager::initialUserConfig()` and `DConfigManager::globalConfig()`.
 
-- `TreelandUserConfig::createByName("org.deepin.dde.treeland.user", "org.deepin.dde.treeland", "/dde")` as a temporary/default user config, then later replaces it with `"/" + currentUserName`.
-- `TreelandConfig::create("org.deepin.dde.treeland", QString())` as the compositor-global config.
-
-In `Helper::init`, `updateCurrentUser` rebuilds `m_config` with `"/" + m_userModel->currentUserName()`, emits `configChanged()`, updates personalization user id, and calls `InputManager::setupSeatUserConfig(currentUserName)` for non-`dde` users. Any user-owned setting that must survive user switching belongs on this path, not in `m_globalConfig`.
+`DConfigManager` resolves user and seat configuration objects and waits for
+both to finish initialization, discarding stale completions after a user switch.
+`initializeActiveUserConfig()` observes user changes; `stopActiveUserConfig()`
+detaches desktop-specific listeners when the desktop is destroyed. Its
+`configReady` signal feeds `WaylandServer::applyCurrentUserConfig`, which
+emits `configChanged()` when the active pointer changes, updates personalization
+user id and synchronizes cursor, input, wallpaper and workspace settings. The
+`WaylandServer::config()` and `WaylandServer::globalConfig()` APIs expose
+these configuration objects directly. User-owned settings must follow this path, not
+`m_globalConfig`; configuration objects are reused through `DConfigManager`, not
+recreated by `WaylandServer` itself.
 
 ## Descriptor Format
 DConfig descriptor files are JSON metadata files. In treeland they live under `misc/dconfig/` and follow this top-level shape:
@@ -83,8 +92,8 @@ First decide whether the setting is compositor-global or active-user-owned. In g
 
 Pick the descriptor by ownership and lookup pattern:
 
-- `org.deepin.dde.treeland.json` -> compositor-global settings that should not change when the active user changes; generated as `TreelandConfig` / `treelandconfig.hpp`; usually reached through `Helper::globalConfig()`.
-- `org.deepin.dde.treeland.user.json` -> active-user session, personalization, workspace, cursor, theme, and similar settings; generated as `TreelandUserConfig` / `treelanduserconfig.hpp`; reached through `Helper::config()` and recreated on user switch.
+- `org.deepin.dde.treeland.json` -> compositor-global settings that should not change when the active user changes; generated as `TreelandConfig` / `treelandconfig.hpp`; usually reached through `WaylandServer::globalConfig()`.
+- `org.deepin.dde.treeland.user.json` -> active-user session, personalization, workspace, cursor, theme, and similar settings; generated as `TreelandUserConfig` / `treelanduserconfig.hpp`; reached through `WaylandServer::config()` and selected from the DConfigManager cache on user switch.
 - `org.deepin.dde.treeland.output.json` -> per-output settings; generated as `OutputConfig` / `outputconfig.hpp`; current code uses `OutputConfig::createByName("org.deepin.dde.treeland.output", "org.deepin.dde.treeland", "/" + outputName, ...)`.
 - `org.deepin.dde.treeland.user.seat.json` -> active-user input/seat settings; generated as `SeatUserDConfig` / `seatuserconfig.hpp`; `InputManager::setupSeatUserConfig(userName)` is called when the active user changes.
 - `org.deepin.dde.treeland.app.json` -> per-application settings; generated as `AppConfig` / `appconfig.hpp`; `WindowConfigStore` uses subpath `"/" + appId`.
@@ -147,7 +156,7 @@ When using an existing descriptor:
 2. Use the generated getter, setter, and change signal instead of raw key strings.
 3. Connect change signals when the setting must apply live.
 4. If the setting is read during startup, handle DConfig asynchronous initialization.
-5. When listening to active-user settings through `Helper::config()`, remember that the object can be replaced on user switch. Connect to `Helper::configChanged()` and reconnect per-key signals on the new `TreelandUserConfig` object. `Helper::globalConfig()` is `CONSTANT`; `Helper::config()` is not.
+5. When listening to active-user settings through `WaylandServer::config()`, remember that the object can be replaced on user switch. Connect to `WaylandServer::configChanged()` and reconnect per-key signals on the new `TreelandUserConfig` object. `WaylandServer::globalConfig()` is `CONSTANT`; `WaylandServer::config()` is not.
 
 For new code, use the current DTK API directly:
 
@@ -249,14 +258,14 @@ Current treeland subpath patterns:
 - output config: `"/" + outputName`
 - app config: `"/" + appId`
 
-For QML and C++ live listeners, remember the actual properties from `Helper`:
+For QML and C++ live listeners, remember the actual properties from `WaylandServer`:
 
 ```cpp
 Q_PROPERTY(TreelandUserConfig* config READ config NOTIFY configChanged FINAL)
 Q_PROPERTY(TreelandConfig* globalConfig READ globalConfig CONSTANT FINAL)
 ```
 
-This means `Helper.config` can change when the active user changes, while `Helper.globalConfig` is constant. User-owned QML bindings should bind through `Helper.config` so QML reevaluates after `configChanged()`. C++ code that stores a `TreelandUserConfig *` or connects to a user config signal must reconnect after `Helper::configChanged()`, otherwise it may keep listening to the old user's config object and miss changes for the new user.
+This means `WaylandServer.config` can change when the active user changes, while `WaylandServer.globalConfig` is constant. User-owned QML bindings should bind through `WaylandServer.config` so QML reevaluates after `configChanged()`. C++ code that stores a `TreelandUserConfig *` or connects to a user config signal must reconnect after `WaylandServer::configChanged()`, otherwise it may keep listening to the old user's config object and miss changes for the new user.
 
 ## Overrides And Mutability
 The spec allows override files to change `value` and `permissions` unless the item has `nooverride`.
@@ -358,6 +367,6 @@ Notes:
 
 - Values are parsed by `dde-dconfig`; use JSON-like values (`true`, `false`, numbers, or quoted strings when needed). Avoid typos such as `ture` even if a local tool version appears to coerce or accept it.
 - `-r org.deepin.dde.treeland` targets `TreelandConfig`.
-- `-r org.deepin.dde.treeland.user -s /<username>` targets the same active-user subpath pattern used by `Helper::config()`.
+- `-r org.deepin.dde.treeland.user -s /<username>` targets the same active-user subpath pattern used by `WaylandServer::config()`.
 - `-r org.deepin.dde.treeland.app -s /<appId>` targets `WindowConfigStore` / `AppConfig`.
-- `watch` is useful for checking that generated `*Changed` signals and `Helper.config` reconnection behavior are wired correctly.
+- `watch` is useful for checking that generated `*Changed` signals and `WaylandServer.config` reconnection behavior are wired correctly.

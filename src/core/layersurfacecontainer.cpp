@@ -5,7 +5,7 @@
 
 #include "core/rootsurfacecontainer.h"
 #include "output/output.h"
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 #include "surface/surfacewrapper.h"
 #include "common/treelandlogging.h"
 

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "modules/compositor-action/compositoractioninterfacev1.h"
 #include "modules/show-desktop/showdesktopinterfacev1.h"
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 #include "server-bridge.h"
 #include "workspace/workspace.h"
 
@@ -12,9 +12,9 @@ namespace {
 CompositorActionInterfaceV1 *g_compositorAction = nullptr;
 }
 
-void protocol_test_setup(Helper *helper)
+void protocol_test_setup(WaylandServer *server)
 {
-    g_compositorAction = find_server_interface<CompositorActionInterfaceV1>(helper);
+    g_compositorAction = find_server_interface<CompositorActionInterfaceV1>(server);
 }
 
 extern "C" int compositor_action_global_exists(void *data)
@@ -26,13 +26,13 @@ extern "C" int compositor_action_global_exists(void *data)
 extern "C" void compositor_action_get_workspace_index(void *data)
 {
     uint32_t *out = static_cast<uint32_t *>(data);
-    auto *workspace = Helper::instance() ? Helper::instance()->workspace() : nullptr;
+    auto *workspace = WaylandServer::instance() ? WaylandServer::instance()->workspace() : nullptr;
     *out = workspace ? static_cast<uint32_t>(workspace->currentIndex()) : UINT32_MAX;
 }
 
 extern "C" void compositor_action_get_show_desktop_state(void *data)
 {
     uint32_t *out = static_cast<uint32_t *>(data);
-    auto *helper = Helper::instance();
-    *out = helper ? static_cast<uint32_t>(helper->showDesktopState()) : UINT32_MAX;
+    auto *server = WaylandServer::instance();
+    *out = server ? static_cast<uint32_t>(server->showDesktopState()) : UINT32_MAX;
 }

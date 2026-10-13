@@ -17,7 +17,7 @@
 | 全屏 | 对 handle 发 `set_fullscreen(NULL)`、`unset_fullscreen` | 同一真实 `SurfaceWrapper` 进入、退出 `Fullscreen` 状态 |
 | 布局与最小化正交 | `set_maximized`/`set_fullscreen` 后发 `set_minimized`、`unset_minimized`，再 `unset_maximized`/`unset_fullscreen` | 最小化期间 `SurfaceWrapper::surfaceState()` 保持布局状态且窗口不可见；恢复后仍为该布局状态并重新可见；取消布局状态后回到 `Normal` 且不再最小化 |
 | 动画在途重定向 | 最大化后不等动画结束发 `unset_maximized`；稳定最大化后连续发 `set_fullscreen`、`unset_fullscreen`、`set_maximized` | 动画进行中的状态请求被正确重定向或取消：前者最终回到 `Normal`，后者保持 `Maximized`；compositor 不因“目标 == 已生效状态”的退化动画触发断言而崩溃 |
-| 激活 | 对 handle 发 `activate(wl_seat)` | `Helper` 将 wrapper 设为 activated，且它成为该 seat 的真实 keyboard focus surface |
+| 激活 | 对 handle 发 `activate(wl_seat)` | `WaylandServer` 将 wrapper 设为 activated，且它成为该 seat 的真实 keyboard focus surface |
 | 窗口代表区域 | 对 handle 的 mapped xdg `wl_surface` 发 `set_icon_geometry(11,12,130,140)` | production rectangle handler 将局部坐标换算为 wrapper 的 `iconGeometry`：`wrapper.position + QRect(11,12,130,140)` |
 
 ## 已证明的生产链路
@@ -30,7 +30,7 @@ manager 发出 `requestDockPreview`，fixture 读取到绝对坐标 `(10,20)`、
 一个真实 `WSurface`。
 
 状态转换保留生产 `SurfaceWrapper` 的几何动画语义。desktop fixture 仅把
-`Helper::setAnimationSpeed()` 设为 `0.1f`，缩短而不跳过动画；每次状态请求先 render 一帧，
+`WaylandServer::setAnimationSpeed()` 设为 `0.1f`，缩短而不跳过动画；每次状态请求先 render 一帧，
 若 animation 仍在运行，则连接对应 geometry item 的 `finished()` 信号并等待该信号。这个
 `QEventLoop` 是有明确完成信号的事件握手，不以固定时长的 sleep、`QTimer` 或轮询猜测动画
 是否完成；正常桌面进程的动画速度不受影响。
@@ -56,7 +56,7 @@ compositor 的 `SurfaceWrapper::surfaceState()`，不是 foreign handle 自身�
 时序影响。
 
 `activate(wl_seat)` 进入 manager 连接的
-`Helper::forceActivateSurface(wrapper, ..., seat)`，测试读取 wrapper 的 activated 标记和
+`WaylandServer::forceActivateSurface(wrapper, ..., seat)`，测试读取 wrapper 的 activated 标记和
 root surface container 默认 seat container 的 `keyboardFocusSurface()`，两者都必须指向同一
 mapped wrapper。`set_icon_geometry` 则
 经过 `iconGeometryChanged` 的生产连接，以发送该请求的 mapped xdg surface 查找 dock wrapper，

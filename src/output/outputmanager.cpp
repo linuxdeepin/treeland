@@ -5,7 +5,7 @@
 #include "outputmanager.h"
 
 #include "common/treelandlogging.h"
-#include "core/dconfigmanager.h"
+#include "dconfig/dconfigmanager.h"
 #include "core/rootsurfacecontainer.h"
 #include "modules/virtual-output/virtualoutputmanagerinterfacev1.h"
 #include "output.h"

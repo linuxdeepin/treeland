@@ -52,7 +52,7 @@ RowLayout {
     ControlActionItem {
         id: userItem
         Layout.alignment: Qt.AlignHCenter
-        visible: userList.count > 1 || Helper.globalConfig.showOtherUserOption
+        visible: userList.count > 1 || WaylandServer.globalConfig.showOtherUserOption
         iconName: "login_user"
 
         UserList {

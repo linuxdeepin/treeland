@@ -6,7 +6,7 @@
 #include "common/treelandlogging.h"
 #include "core/rootsurfacecontainer.h"
 #include "qwayland-server-treeland-wine-window-state-unstable-v1.h"
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 #include "surface/surfacewrapper.h"
 
 #include <wxdgtoplevelsurface.h>
@@ -137,13 +137,13 @@ protected:
             return;
         }
 
-        auto *helper = Helper::instance();
+        auto *server = WaylandServer::instance();
         if (!m_wrapper->hasActiveCapability()) {
             send_activate_denied(serial);
             return;
         }
 
-        helper->forceActivateSurface(m_wrapper);
+        server->forceActivateSurface(m_wrapper);
     }
 
     void set_attention([[maybe_unused]] Resource *resource,
@@ -221,8 +221,8 @@ void WineWindowStateManagerPrivate::get_window_state(Resource *resource,
     }
 
     auto *xdgToplevel = WXdgToplevelSurface::fromHandle(qXdgToplevel);
-    auto *helper = Helper::instance();
-    auto *root = helper ? helper->rootSurfaceContainer() : nullptr;
+    auto *server = WaylandServer::instance();
+    auto *root = server ? server->rootSurfaceContainer() : nullptr;
     auto *wrapper = (root && xdgToplevel) ? root->getSurface(xdgToplevel) : nullptr;
 
     if (!xdgToplevel || !wrapper || !wrapper->shellSurface()) {

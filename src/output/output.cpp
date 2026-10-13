@@ -7,9 +7,9 @@
 #include "cmdline.h"
 #include "common/treelandlogging.h"
 #include "core/rootsurfacecontainer.h"
-#include "core/dconfigmanager.h"
+#include "dconfig/dconfigmanager.h"
 #include "outputconfig.hpp"
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 #include "surface/surfacewrapper.h"
 #include "treelandconfig.hpp"
 #include "treelanduserconfig.hpp"
@@ -57,7 +57,7 @@ QString Output::getOutputId()
 Output *Output::create(WOutput *output, QQmlEngine *engine, QObject *parent)
 {
     auto isSoftwareCursor = [](WOutput *output) -> bool {
-        return wlr_output_is_x11(output->handle()) || Helper::instance()->globalConfig()->forceSoftwareCursor();
+        return wlr_output_is_x11(output->handle()) || WaylandServer::instance()->globalConfig()->forceSoftwareCursor();
     };
     QQmlComponent delegate(engine, "Treeland", "SourceOutput");
     QObject *obj = delegate.beginCreate(engine->rootContext());
@@ -67,11 +67,11 @@ Output *Output::create(WOutput *output, QQmlEngine *engine, QObject *parent)
     Q_ASSERT(outputItem);
     QQmlEngine::setObjectOwnership(outputItem, QQmlEngine::CppOwnership);
 
-    auto contentItem = Helper::instance()->window()->contentItem();
+    auto contentItem = WaylandServer::instance()->window()->contentItem();
     outputItem->setParentItem(contentItem);
     outputItem->setOutput(output);
 
-    connect(Helper::instance()->globalConfig(),
+    connect(WaylandServer::instance()->globalConfig(),
             &TreelandConfig::forceSoftwareCursorChanged,
             obj,
             [obj, output, isSoftwareCursor]() {
@@ -108,7 +108,7 @@ Output *Output::create(WOutput *output, QQmlEngine *engine, QObject *parent)
     o->applyOutputColorConfig();
 
     if (CmdLine::ref().enableDebugView()) {
-        o->m_debugMenuBar = Helper::instance()->qmlEngine()->createMenuBar(outputItem, contentItem);
+        o->m_debugMenuBar = WaylandServer::instance()->qmlEngine()->createMenuBar(outputItem, contentItem);
         o->m_debugMenuBar->setZ(RootSurfaceContainer::MenuBarZOrder);
 #ifndef QT_DEBUG
         o->m_debugMenuBar->setVisible(false);
@@ -140,7 +140,7 @@ Output *Output::createCopy(WOutput *output, Output *proxy, QQmlEngine *engine, Q
     Q_ASSERT(outputItem);
     QQmlEngine::setObjectOwnership(outputItem, QQmlEngine::CppOwnership);
 
-    auto contentItem = Helper::instance()->window()->contentItem();
+    auto contentItem = WaylandServer::instance()->window()->contentItem();
     outputItem->setParentItem(contentItem);
     outputItem->setOutput(output);
 
@@ -179,7 +179,7 @@ Output::~Output()
     // frame and stale hardware-plane contents (notably the cursor) are cleared.
     if (m_type == Type::Mirror && m_outputViewport) {
         for (auto *layer : std::as_const(m_hardwareLayersOfSourceOutput)) {
-            Helper::instance()->window()->detach(layer, m_outputViewport);
+            WaylandServer::instance()->window()->detach(layer, m_outputViewport);
         }
         m_hardwareLayersOfSourceOutput.clear();
     }
@@ -243,7 +243,7 @@ void Output::moveSurfaceWithTitlebarClamp(SurfaceWrapper *surface, const QPointF
 
     QRectF titlebarGeometry = surface->titlebarGeometry();
     if (!titlebarGeometry.isValid()) {
-        qreal titleHeight = Helper::instance()->config()->windowTitlebarHeight();
+        qreal titleHeight = WaylandServer::instance()->config()->windowTitlebarHeight();
         titlebarGeometry = QRectF(0, 0, candidateGeo.width(), titleHeight);
     }
     titlebarGeometry.translate(candidateGeo.topLeft());
@@ -277,7 +277,7 @@ void Output::placeUnderCursor(SurfaceWrapper *surface)
 {
     QSizeF cursorSize;
     QRectF normalGeo = surface->normalGeometry();
-    WCursor *wCursor = Helper::instance()->seat()->cursor();
+    WCursor *wCursor = WaylandServer::instance()->seat()->cursor();
     if (!surface->ownsOutput()->outputItem()->cursorItems().isEmpty())
         cursorSize = surface->ownsOutput()->outputItem()->cursorItems()[0]->size();
 
@@ -310,7 +310,7 @@ void Output::placeCentered(SurfaceWrapper *surface)
 
 void Output::placeSmartCascaded(SurfaceWrapper *surface)
 {
-    auto wpModel = Helper::instance()->workspace()->modelFromId(surface->workspaceId());
+    auto wpModel = WaylandServer::instance()->workspace()->modelFromId(surface->workspaceId());
     Q_ASSERT(wpModel);
     /*
      The execution of Output::placeSmartCascaded and the surface obtaining focus occur almost
@@ -335,7 +335,7 @@ void Output::placeSmartCascaded(SurfaceWrapper *surface)
         ? DIFF_APP_OFFSET_FACTOR
         : SAME_APP_OFFSET_FACTOR;
     const QRectF titleBarGeometry = latestActiveSurface->titlebarGeometry();
-    qreal offset = (titleBarGeometry.isNull() ? Helper::instance()->config()->windowTitlebarHeight()
+    qreal offset = (titleBarGeometry.isNull() ? WaylandServer::instance()->config()->windowTitlebarHeight()
                                               : titleBarGeometry.height())
         * factor;
 
@@ -484,13 +484,13 @@ void Output::updateOutputHardwareLayers()
     for (auto layer : layers) {
         if (m_hardwareLayersOfSourceOutput.removeOne(layer))
             continue;
-        Helper::instance()->window()->attach(layer,
+        WaylandServer::instance()->window()->attach(layer,
                                              copyOutput.first,
                                              viewportPrimary,
                                              copyOutput.second);
     }
     for (auto oldLayer : std::as_const(m_hardwareLayersOfSourceOutput)) {
-        Helper::instance()->window()->detach(oldLayer, copyOutput.first);
+        WaylandServer::instance()->window()->detach(oldLayer, copyOutput.first);
     }
     m_hardwareLayersOfSourceOutput = layers;
 }
@@ -838,7 +838,7 @@ void Output::arrangeNonLayerSurface(SurfaceWrapper *surface, ArrangeReason reaso
             // The window position itself is preserved — only clamped if needed.
             moveSurfaceWithTitlebarClamp(surface, normalGeo.topLeft());
         }
-        // For InitialPlacement with non-automatic positioning the compositor
+        // For InitialPlacement with non-automatic positioning the server
         // deliberately does not move the window: client geometry is authoritative.
     }
 }
@@ -996,7 +996,7 @@ void Output::arrangePopupSurface(SurfaceWrapper *surface)
     WOutputItem *targetOutput = nullptr;
     // TODO： Consider determining the targetOutput based on the upper left corner or overlapping area
     if (surface->type() == SurfaceWrapper::Type::XdgPopup) {
-        auto *outputAtCursor = Helper::instance()->getOutputAtCursor();
+        auto *outputAtCursor = WaylandServer::instance()->getOutputAtCursor();
         targetOutput = outputAtCursor ? outputAtCursor->outputItem() : nullptr;
     } else if (surface->isInputPopupLike()) {
         auto *parentOutput = parentSurfaceWrapper->ownsOutput();

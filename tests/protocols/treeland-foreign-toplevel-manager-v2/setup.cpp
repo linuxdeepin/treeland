@@ -4,7 +4,7 @@
 #include "core/rootsurfacecontainer.h"
 #include "modules/foreign-toplevel/foreigntoplevelmanagerv2.h"
 #include "server-bridge.h"
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 #include "surface/surfacewrapper.h"
 #include "treeland-foreign-toplevel-manager-v2.h"
 #include "workspace/workspace.h"
@@ -23,17 +23,17 @@ SurfaceWrapper *g_wrapper = nullptr;
 struct ftm_server_state g_state {};
 }
 
-void protocol_test_setup(Helper *helper)
+void protocol_test_setup(WaylandServer *server)
 {
     // Zero duration races GeometryAnimation::finished with the frame snapshot
     // that emits ready(). A short real animation preserves the production
     // lifecycle while the test waits for its finished signal below.
-    helper->setAnimationSpeed(0.1f);
-    add_headless_output(helper->backend(), false);
-    g_manager = helper->shellHandler()->foreignToplevel();
+    server->setAnimationSpeed(0.1f);
+    add_headless_output(server->backend(), false);
+    g_manager = server->shellHandler()->foreignToplevel();
     QObject::connect(g_manager,
                      &ForeignToplevelManagerInterfaceV2::requestDockPreview,
-                     helper,
+                     server,
                      [](auto surfaces, WSurface *, QPoint abs, auto direction) {
                          g_state.preview_fired = 1;
                          g_state.preview_x = abs.x();
@@ -43,7 +43,7 @@ void protocol_test_setup(Helper *helper)
                      });
     QObject::connect(g_manager,
                      &ForeignToplevelManagerInterfaceV2::requestDockPreviewTooltip,
-                     helper,
+                     server,
                      [](QString tooltip, WSurface *, QPoint abs, auto direction) {
                          g_state.tooltip_fired = 1;
                          const QByteArray utf8 = tooltip.toUtf8();
@@ -55,24 +55,24 @@ void protocol_test_setup(Helper *helper)
                      });
     QObject::connect(g_manager,
                      &ForeignToplevelManagerInterfaceV2::requestDockClose,
-                     helper,
+                     server,
                      [] { g_state.close_fired = 1; });
-    QObject::connect(helper->shellHandler(),
+    QObject::connect(server->shellHandler(),
                      &ShellHandler::surfaceWrapperAdded,
-                     helper,
-                     [helper](SurfaceWrapper *wrapper) {
+                     server,
+                     [server](SurfaceWrapper *wrapper) {
                          if (wrapper->type() != SurfaceWrapper::Type::XdgToplevel)
                              return;
                          g_wrapper = wrapper;
                          g_state.wrapper_created = 1;
-                         g_state.wrapper_in_workspace = helper->workspace()->surfaces().contains(wrapper) ? 1 : 0;
+                         g_state.wrapper_in_workspace = server->workspace()->surfaces().contains(wrapper) ? 1 : 0;
                          g_state.mapped_xdg_toplevel = wrapper->surface() && wrapper->surface()->mapped() ? 1 : 0;
                      });
 }
 
 extern "C" void ftm_read_server_state(void *data)
 {
-    g_state.output_ready = !Helper::instance()->rootSurfaceContainer()->outputs().isEmpty() ? 1 : 0;
+    g_state.output_ready = !WaylandServer::instance()->rootSurfaceContainer()->outputs().isEmpty() ? 1 : 0;
     g_state.wrapper_minimized = g_wrapper && g_wrapper->shellSurface()
         && g_wrapper->shellSurface()->isMinimized() ? 1 : 0;
     g_state.wrapper_self_minimized = g_wrapper && g_wrapper->isMinimized() ? 1 : 0;
@@ -83,7 +83,7 @@ extern "C" void ftm_read_server_state(void *data)
     g_state.wrapper_fullscreen = g_wrapper
         && g_wrapper->surfaceState() == SurfaceWrapper::State::Fullscreen ? 1 : 0;
     g_state.wrapper_activated = g_wrapper && g_wrapper->isActivated() ? 1 : 0;
-    auto *seatContainer = Helper::instance()->rootSurfaceContainer()->getSeatContainerOrDefault();
+    auto *seatContainer = WaylandServer::instance()->rootSurfaceContainer()->getSeatContainerOrDefault();
     g_state.wrapper_focused = seatContainer && seatContainer->keyboardFocusSurface() == g_wrapper ? 1 : 0;
     g_state.wrapper_skip_dock_preview = g_wrapper && g_wrapper->skipDockPreView() ? 1 : 0;
     if (g_wrapper) {
@@ -103,11 +103,11 @@ extern "C" void ftm_render_and_settle(void *)
     if (!g_wrapper)
         return;
 
-    auto *helper = Helper::instance();
+    auto *server = WaylandServer::instance();
     // The protocol request can be queued until the next scene-graph frame.
     // Render first, then inspect the wrapper so we do not miss an animation
     // created while processing that frame.
-    helper->window()->render();
+    server->window()->render();
     if (!g_wrapper->isAnimationRunning())
         return;
 

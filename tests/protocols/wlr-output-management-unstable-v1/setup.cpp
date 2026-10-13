@@ -4,7 +4,7 @@
 #include "core/rootsurfacecontainer.h"
 #include "output/output.h"
 #include "server-bridge.h"
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 #include "wlr-output-management-unstable-v1.h"
 
 #include <woutput.h>
@@ -20,11 +20,11 @@ int g_lastRequestTransform = -1;
 int g_lastRequestScaleMilli = -1;
 }
 
-void protocol_test_setup(Helper *helper)
+void protocol_test_setup(WaylandServer *server)
 {
-    auto *manager = find_server_interface<WOutputManagerV1>(helper);
+    auto *manager = find_server_interface<WOutputManagerV1>(server);
     Q_ASSERT(manager);
-    QObject::connect(manager, &WOutputManagerV1::requestTestOrApply, helper,
+    QObject::connect(manager, &WOutputManagerV1::requestTestOrApply, server,
                      [manager](wlr_output_configuration_v1 *config, bool onlyTest) {
                          const auto states = manager->stateListPending(config);
                          ++g_requestCount;
@@ -39,19 +39,19 @@ void protocol_test_setup(Helper *helper)
 
 extern "C" void output_management_render(void *)
 {
-    const auto outputs = Helper::instance()->rootSurfaceContainer()->outputs();
+    const auto outputs = WaylandServer::instance()->rootSurfaceContainer()->outputs();
     if (outputs.isEmpty())
         return;
 
     auto *viewport = outputs.constFirst()->screenViewport();
     // Force the production output frame that commits the queued transaction.
-    Helper::instance()->window()->render(viewport, true);
+    WaylandServer::instance()->window()->render(viewport, true);
 }
 
 extern "C" void output_management_read_server_state(void *data)
 {
     output_management_server_state state {};
-    const auto outputs = Helper::instance()->rootSurfaceContainer()->outputs();
+    const auto outputs = WaylandServer::instance()->rootSurfaceContainer()->outputs();
     state.output_count = outputs.size();
 
     if (!outputs.isEmpty()) {
@@ -64,8 +64,8 @@ extern "C" void output_management_read_server_state(void *data)
             state.x = static_cast<int>(item->x());
             state.y = static_cast<int>(item->y());
         }
-        if (auto *helper = Helper::instance()->window()->getOutputHelper(outputs.constFirst()->screenViewport())) {
-            const auto pending = helper->extraState();
+        if (auto *outputHelper = WaylandServer::instance()->window()->getOutputHelper(outputs.constFirst()->screenViewport())) {
+            const auto pending = outputHelper->extraState();
             state.pending_state = pending ? 1 : 0;
             if (pending) {
                 state.pending_transform = static_cast<int>(pending->transform);

@@ -10,21 +10,21 @@ class WBackend;
 class WOutput;
 }
 
-class Helper;
+class WaylandServer;
 
-Waylib::Server::WServer *server_for_helper(Helper *helper);
+Waylib::Server::WServer *native_server(WaylandServer *server);
 
 // Adds a virtual wlroots pointer so the production seat advertises pointer
 // capability and clients can create wl_pointer resources.
-void attach_test_pointer_device(Helper *helper);
+void attach_test_pointer_device(WaylandServer *server);
 
 template<typename Interface>
-Interface *find_server_interface(Helper *helper)
+Interface *find_server_interface(WaylandServer *server)
 {
-    auto *server = server_for_helper(helper);
-    if (!server)
+    auto *nativeServer = native_server(server);
+    if (!nativeServer)
         return nullptr;
-    for (auto *candidate : server->interfaceList()) {
+    for (auto *candidate : nativeServer->interfaceList()) {
         if (auto *interface = dynamic_cast<Interface *>(candidate))
             return interface;
     }
@@ -39,8 +39,8 @@ Waylib::Server::WOutput *add_headless_output(Waylib::Server::WServer *server,
                          int height = 1080);
 
 // Adds an output to an already-owned backend. The caller selects whether the
-// backend must be started first; production Helper tests pass false because
-// Helper::init() has already started it.
+// backend must be started first; production WaylandServer tests pass false because
+// WaylandServer::init() has already started it.
 Waylib::Server::WOutput *add_headless_output(Waylib::Server::WBackend *backend,
                          bool startBackend,
                          int width = 1920,

@@ -7,7 +7,7 @@
 | 测试源码 | Fixture | 覆盖等级 | 用途 |
 | --- | --- | --- | --- |
 | `treeland-capture-unstable-v1/` | 仅 `CaptureManagerV1`，没有 selector/source | P | 选择权、资源和无 source 协议错误 |
-| `treeland-capture-desktop-v1/` | 完整生产 `Helper`、headless output、`ShellHandler`、QML selector 与 mapped xdg 窗口 | E / V | 真实选择窗口、复制 frame，并读取客户端目标 buffer 像素 |
+| `treeland-capture-desktop-v1/` | 完整生产 `WaylandServer`、headless output、`ShellHandler`、QML selector 与 mapped xdg 窗口 | E / V | 真实选择窗口、复制 frame，并读取客户端目标 buffer 像素 |
 
 ## 必须观察到的结果
 
@@ -42,7 +42,7 @@ context，完整步骤如下。
    `WSurfaceItemContent`。
 3. 客户端创建 `treeland_capture_context_v1`，发送
    `select_source(WINDOW, freeze=0, with_cursor=0, mask=NULL)`。这使生产
-   `CaptureManagerV1` 建立 `contextInSelection`，而 `Helper` 的既有连接创建
+   `CaptureManagerV1` 建立 `contextInSelection`，而 `WaylandServer` 的既有连接创建
    QML `CaptureSourceSelector`。
 4. fixture 先断言该 `WSurfaceItemContent` 位于生产 output 的 paint-order、可见且为
    `64×64`。headless QPA 不稳定地投递 Qt Quick hover/pointer，因此测试用一个仅供

@@ -41,8 +41,8 @@ OutputItem {
         OutputLayer.flags: OutputLayer.Cursor
         OutputLayer.cursorHotSpot: hotSpot
 
-        themeName: Helper.config.cursorThemeName
-        sourceSize: Qt.size(Helper.config.cursorSize, Helper.config.cursorSize)
+        themeName: WaylandServer.config.cursorThemeName
+        sourceSize: Qt.size(WaylandServer.config.cursorSize, WaylandServer.config.cursorSize)
     }
 
     OutputViewport {
@@ -101,7 +101,7 @@ OutputItem {
             clip: true
             anchors.fill: parent
             output: rootOutputItem.output
-            workspace: Helper.workspace.current
+            workspace: WaylandServer.workspace.current
 
             readonly property int duration: 1000
             states: [
@@ -174,7 +174,7 @@ OutputItem {
             ]
 
             Connections {
-                target: Helper
+                target: WaylandServer
                 function onLaunchpadMappedChanged(output, mapped) {
                     if (output !== rootOutputItem.output) {
                         return;

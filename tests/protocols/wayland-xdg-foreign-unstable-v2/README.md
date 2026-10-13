@@ -29,7 +29,7 @@
 证明 xdg-foreign-v2 的 `set_parent_of` 请求到达真实合成器并在真实 toplevel
 对象上建立了父子关系。
 
-`wlr_xdg_foreign_registry` 为 `Helper::init()` 中的局部变量，未存储为成员，
+`wlr_xdg_foreign_registry` 为 `WaylandServer::init()` 中的局部变量，未存储为成员，
 但协议流经 `wlr_xdg_foreign_v2` → `wlr_xdg_toplevel_set_parent` →
 `WXdgToplevelSurface` 链路，父子关系可直接从 `WXdgToplevelSurface` 回读。
 

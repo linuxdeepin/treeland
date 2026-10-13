@@ -4,7 +4,7 @@
  *
  * Test the ext_image_copy_capture_manager_v1 + ext_output_image_capture_source_manager_v1
  * globals served by Treeland (wlr_ext_image_copy_capture_manager_v1_create and
- * wlr_ext_output_image_capture_source_manager_v1_create in Helper).
+ * wlr_ext_output_image_capture_source_manager_v1_create in WaylandServer).
  * The client binds both managers and verifies they are advertised by the
  * compositor.  (Creating a capture session in headless mode can deadlock in
  * wlr_output_configure_primary_swapchain (see issue #1407), so we test global presence + create_source only.)

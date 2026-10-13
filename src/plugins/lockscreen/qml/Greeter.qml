@@ -100,11 +100,11 @@ FocusScope {
             if (state === "Show") {
                 // Only a real lock screen entry zooms the desktop wallpaper.
                 if (GreeterProxy.isLocked || GreeterProxy.undecided)
-                    Helper.startLockscreen(root.output, true);
+                    WaylandServer.startLockscreen(root.output, true);
                 wallpaper.play = true;
             } else {
                 wallpaper.play = false;
-                Helper.showDesktop(root.output)
+                WaylandServer.showDesktop(root.output)
             }
         }
         onOpacityChanged: {

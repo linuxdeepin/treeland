@@ -99,19 +99,19 @@ Item {
 
         function activateWindow(surfaceWrapper) {
             console.debug(qLcDockPreview, "activate preview window: ", surfaceWrapper)
-            Helper.forceActivateSurface(surfaceWrapper)
+            WaylandServer.forceActivateSurface(surfaceWrapper)
             ForeignToplevelManagerInterfaceV2.leaveDockPreview(root.target.shellSurface.surface)
             root.close();
         }
 
         function previewWindow(surfaceWrapper) {
             console.debug(qLcDockPreview, "start preview window: ", surfaceWrapper)
-            Helper.workspace.startPreviewing(surfaceWrapper);
+            WaylandServer.workspace.startPreviewing(surfaceWrapper);
         }
 
         function stopPreviewWindow() {
             console.debug(qLcDockPreview, "stop preview window")
-            Helper.workspace.stopPreviewing();
+            WaylandServer.workspace.stopPreviewing();
         }
 
         function closeAllWindow() {

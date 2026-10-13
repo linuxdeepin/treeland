@@ -47,7 +47,7 @@ Menu {
 
     MenuItem {
         text: qsTr("Resize")
-        onTriggered: Helper.fakePressSurfaceBottomRightToReszie(surface)
+        onTriggered: WaylandServer.fakePressSurfaceBottomRightToReszie(surface)
     }
 
     MenuItem {
@@ -62,31 +62,31 @@ Menu {
         onTriggered: {
             if (surface.showOnAllWorkspace) {
                 // Move to current workspace
-                Helper.workspace.moveSurfaceTo(surface, Helper.workspace.current.id)
+                WaylandServer.workspace.moveSurfaceTo(surface, WaylandServer.workspace.current.id)
             } else {
                 // Move to workspace 0, which is always visible
-                Helper.workspace.moveSurfaceTo(surface, -2)
+                WaylandServer.workspace.moveSurfaceTo(surface, -2)
             }
         }
     }
 
     MenuItem {
-        property int leftWorkspaceId: surface ? Helper.workspace.getLeftWorkspaceId(surface.workspaceId) : -1
+        property int leftWorkspaceId: surface ? WaylandServer.workspace.getLeftWorkspaceId(surface.workspaceId) : -1
         text: qsTr("Move to Left Work Space")
         enabled: leftWorkspaceId >= 0
         onTriggered: {
-            Helper.workspace.moveSurfaceTo(surface, leftWorkspaceId)
-            Helper.activateSurface(Helper.workspace.current.latestActiveSurface())
+            WaylandServer.workspace.moveSurfaceTo(surface, leftWorkspaceId)
+            WaylandServer.activateSurface(WaylandServer.workspace.current.latestActiveSurface())
         }
     }
 
     MenuItem {
-        property int rightWorkspaceId: surface ? Helper.workspace.getRightWorkspaceId(surface.workspaceId) : -1
+        property int rightWorkspaceId: surface ? WaylandServer.workspace.getRightWorkspaceId(surface.workspaceId) : -1
         text: qsTr("Move to Right Work Space")
         enabled: rightWorkspaceId >= 0
         onTriggered: {
-            Helper.workspace.moveSurfaceTo(surface, rightWorkspaceId)
-            Helper.activateSurface(Helper.workspace.current.latestActiveSurface())
+            WaylandServer.workspace.moveSurfaceTo(surface, rightWorkspaceId)
+            WaylandServer.activateSurface(WaylandServer.workspace.current.latestActiveSurface())
         }
     }
 

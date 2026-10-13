@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "modules/wallpaper/wallpapermanagerinterfacev1.h"
 #include "server-bridge.h"
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 #include "treeland-wallpaper-manager-unstable-v1.h"
 
 #include <wserver.h>
@@ -15,11 +15,11 @@ TreelandWallpaperInterfaceV1 *g_wallpaper2 = nullptr;
 
 }
 
-void protocol_test_setup(Helper *helper)
+void protocol_test_setup(WaylandServer *server)
 {
-    add_headless_output(helper->backend(), false);
+    add_headless_output(server->backend(), false);
 
-    auto *manager = find_server_interface<TreelandWallpaperManagerInterfaceV1>(helper);
+    auto *manager = find_server_interface<TreelandWallpaperManagerInterfaceV1>(server);
     Q_ASSERT(manager);
     QObject::connect(manager, &TreelandWallpaperManagerInterfaceV1::wallpaperCreated,
                      [](TreelandWallpaperInterfaceV1 *wallpaper) {

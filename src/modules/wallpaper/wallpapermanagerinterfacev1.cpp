@@ -4,7 +4,7 @@
 #include "wallpapermanagerinterfacev1.h"
 #include "qwayland-server-treeland-wallpaper-manager-unstable-v1.h"
 #include "workspace.h"
-#include "helper.h"
+#include "core/waylandserver.h"
 
 #include <pwd.h>
 #include <sys/types.h>
@@ -189,7 +189,7 @@ void TreelandWallpaperInterfaceV1Private::set_image_source([[maybe_unused]] Reso
 {
     TreelandWallpaperInterfaceV1::WallpaperRoles roles =
         static_cast<TreelandWallpaperInterfaceV1::WallpaperRoles>(nativeRole);
-    Workspace *workspace = Helper::instance()->workspace();
+    Workspace *workspace = WaylandServer::instance()->workspace();
     Q_ASSERT(workspace);
     Q_EMIT q->imageSourceChanged(workspace->currentIndex(), fileSource, roles);
 }
@@ -200,7 +200,7 @@ void TreelandWallpaperInterfaceV1Private::set_video_source([[maybe_unused]] Reso
 {
     TreelandWallpaperInterfaceV1::WallpaperRoles roles =
         static_cast<TreelandWallpaperInterfaceV1::WallpaperRoles>(nativeRole);
-    Workspace *workspace = Helper::instance()->workspace();
+    Workspace *workspace = WaylandServer::instance()->workspace();
     Q_ASSERT(workspace);
     Q_EMIT q->videoSourceChanged(workspace->currentIndex(), fileSource, roles);
 }

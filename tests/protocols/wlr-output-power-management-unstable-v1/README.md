@@ -7,7 +7,7 @@
 - 测试源码：`tests/protocols/wlr-output-power-management-unstable-v1/`。
 - Fixture：完整 Treeland desktop integration fixture 与启动时已有的真实 headless output。
 - 覆盖等级：**P / E**；P 覆盖 native resource、排他约束、生命周期与 error，E 覆盖 OFF/ON
-  经生产 `Helper` 提交到真实 output enabled state。
+  经生产 `WaylandServer` 提交到真实 output enabled state。
 
 ## 必须观察到的结果
 
@@ -23,11 +23,11 @@
 
 ## 生产结果
 
-wlroots 原生实现 `wlr_output_power_manager_v1`；waylib 当前没有 wrapper。`Helper::init()` 直接创建
-native manager，并注册其 `set_mode` signal 到 `Helper::onSetOutputPowerMode()`。manager 由 wlroots
-在 `wl_display` 销毁时释放，`Helper` 只保留 listener pointer，不手动销毁 native manager。
+wlroots 原生实现 `wlr_output_power_manager_v1`；waylib 当前没有 wrapper。`WaylandServer::init()` 直接创建
+native manager，并注册其 `set_mode` signal 到 `WaylandServer::onSetOutputPowerMode()`。manager 由 wlroots
+在 `wl_display` 销毁时释放，`WaylandServer` 只保留 listener pointer，不手动销毁 native manager。
 
-`Helper::onSetOutputPowerMode()` 对 OFF/ON 创建真实 `wlr_output_state`，调用
+`WaylandServer::onSetOutputPowerMode()` 对 OFF/ON 创建真实 `wlr_output_state`，调用
 `wlr_output_commit_state()`，并以 `m_powerOffOutputs` 区分协议关闭与其他 output-management 关闭。
 wlroots 在 output enabled commit 后向 control 发送 `mode`；fixture 再从同一个 production `WOutput`
 读取 `isEnabled()`，不以 client event 缓存代替业务结果。
@@ -38,7 +38,7 @@ wlroots 在 output enabled commit 后向 control 发送 `mode`；fixture 再从�
    显示器、GPU 或系统 display manager；
 2. client 获取唯一 output 的 power control，确认 wlroots 发送的初始 `mode(on)`；
 3. client 销毁 manager 但保留该 control，发送 `set_mode(off)`；native manager signal 进入
-   `Helper::onSetOutputPowerMode()`，对真实 output commit disabled state；
+   `WaylandServer::onSetOutputPowerMode()`，对真实 output commit disabled state；
 4. client 同时断言 `mode(off)`，fixture 读取 production `WOutput::isEnabled()==false`；
 5. 同一 control 发送 `set_mode(on)`，以 `mode(on)` 和 `WOutput::isEnabled()==true` 验证恢复。
 

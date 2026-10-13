@@ -35,9 +35,9 @@ static void recordRequest(const QString &appId, const QString &instanceId, bool 
     ++g_state.request_count;
 }
 
-void protocol_test_setup(Helper *helper)
+void protocol_test_setup(WaylandServer *server)
 {
-    auto *splash = find_server_interface<PrelaunchSplash>(helper);
+    auto *splash = find_server_interface<PrelaunchSplash>(server);
     Q_ASSERT(splash);
     QObject::connect(splash, &PrelaunchSplash::splashRequested,
                      [](const QString &appId, const QString &instanceId, wlr_buffer *iconBuffer) {

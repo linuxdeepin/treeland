@@ -18,7 +18,7 @@ Item {
 
     required property SurfaceWrapper target
     required property var direction
-    property int duration: 400 * Helper.animationSpeed
+    property int duration: 400 * WaylandServer.animationSpeed
     property var enableBlur: false
 
     x: target.x

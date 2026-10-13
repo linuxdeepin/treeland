@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "wayland-pointer-constraints-unstable-v1.h"
 #include "server-bridge.h"
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 #include <wbackend.h>
 #include <protocols/wpointerconstraintsv1.h>
 
@@ -17,16 +17,16 @@ WPointerConstraintsV1 *g_mgr = nullptr;
 wlr_pointer_constraint_v1 *g_constraint = nullptr;
 }
 
-void protocol_test_setup(Helper *helper)
+void protocol_test_setup(WaylandServer *server)
 {
-    add_headless_output(helper->backend(), false);
+    add_headless_output(server->backend(), false);
 
-    attach_test_pointer_device(helper);
+    attach_test_pointer_device(server);
 
-    g_mgr = find_server_interface<WPointerConstraintsV1>(helper);
+    g_mgr = find_server_interface<WPointerConstraintsV1>(server);
     if (g_mgr) {
         QObject::connect(g_mgr, &WPointerConstraintsV1::newConstraint,
-                         helper, [](wlr_pointer_constraint_v1 *constraint) {
+                         server, [](wlr_pointer_constraint_v1 *constraint) {
                              g_constraint = constraint;
                          });
     }

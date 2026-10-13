@@ -5,7 +5,7 @@
 - XML / interface：`3rdparty/wlroots/protocol/virtual-keyboard-unstable-v1.xml` /
   `zwp_virtual_keyboard_manager_v1`、`zwp_virtual_keyboard_v1` v1
 - 测试源码：`tests/protocols/treeland-shortcut-manager-desktop-v2/`
-- Fixture：完整生产 `Treeland` / `Helper`、headless output、mapped 且 keyboard-focused xdg toplevel。
+- Fixture：完整生产 `Treeland` / `WaylandServer`、headless output、mapped 且 keyboard-focused xdg toplevel。
 - 覆盖等级：**P / E（作为 shortcut desktop 测试的依赖协议）**。
 
 ## 必须观察到的结果
@@ -22,7 +22,7 @@
 
 wlroots 提供 native `wlr_virtual_keyboard_manager_v1`。waylib 的
 `WVirtualKeyboardManagerV1` 创建该 global；它由
-`Helper::init() → ShellHandler::init() → WInputMethodHelper` 调用
+`WaylandServer::init() → ShellHandler::init() → WInputMethodHelper` 调用
 `WServer::attach<WVirtualKeyboardManagerV1>()` 接入。新 virtual keyboard 被 helper 包装为
 `WInputDevice` 并 attach 到生产 `WSeat`，由 wlroots 管理 native resource 的 display 生命周期。
 

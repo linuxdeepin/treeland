@@ -7,15 +7,15 @@
 #include "interfaces/multitaskviewinterface.h"
 #include "modules/show-desktop/showdesktopinterfacev1.h"
 #include "output/output.h"
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 #include "surface/surfacewrapper.h"
 #include "workspace/workspace.h"
 
 void ShellActionExecutor::execute(ShellAction action)
 {
-    auto *helper = Helper::instance();
+    auto *server = WaylandServer::instance();
 
-    if (helper->currentMode() == Helper::CurrentMode::LockScreen) {
+    if (server->currentMode() == WaylandServer::CurrentMode::LockScreen) {
         return;
     }
 
@@ -35,53 +35,53 @@ void ShellActionExecutor::execute(ShellAction action)
     case ShellAction::SwitchWorkspace11:
     case ShellAction::SwitchWorkspace12:
         // switchTo() ignores out-of-range indexes, as the protocol requires.
-        helper->restoreFromShowDesktop();
-        helper->workspace()->switchTo(static_cast<int>(action) - static_cast<int>(ShellAction::SwitchWorkspace1));
+        server->restoreFromShowDesktop();
+        server->workspace()->switchTo(static_cast<int>(action) - static_cast<int>(ShellAction::SwitchWorkspace1));
         break;
     case ShellAction::PreviousWorkspace:
-        helper->restoreFromShowDesktop();
-        helper->workspace()->switchToPrev();
+        server->restoreFromShowDesktop();
+        server->workspace()->switchToPrev();
         break;
     case ShellAction::NextWorkspace:
-        helper->restoreFromShowDesktop();
-        helper->workspace()->switchToNext();
+        server->restoreFromShowDesktop();
+        server->workspace()->switchToNext();
         break;
     case ShellAction::ToggleShowDesktop:
-        if (!helper->m_showDesktopInterfaceV1
-            || helper->currentMode() == Helper::CurrentMode::Multitaskview) {
+        if (!server->isShowDesktopAvailable()
+            || server->currentMode() == WaylandServer::CurrentMode::Multitaskview) {
             break;
         }
-        if (helper->showDesktopState() == ShowDesktopInterfaceV1::State::Normal) {
-            helper->m_showDesktopInterfaceV1->setDesktopState(ShowDesktopInterfaceV1::State::Show);
-        } else if (helper->showDesktopState() == ShowDesktopInterfaceV1::State::Show) {
-            helper->m_showDesktopInterfaceV1->setDesktopState(ShowDesktopInterfaceV1::State::Normal);
+        if (server->showDesktopState() == ShowDesktopInterfaceV1::State::Normal) {
+            server->setShowDesktopState(ShowDesktopInterfaceV1::State::Show);
+        } else if (server->showDesktopState() == ShowDesktopInterfaceV1::State::Show) {
+            server->setShowDesktopState(ShowDesktopInterfaceV1::State::Normal);
         }
         break;
     case ShellAction::OpenMultitaskView:
-        if (!helper->m_multitaskView || !helper->isNormalOrMultitaskview()
-            || helper->currentMode() == Helper::CurrentMode::Multitaskview) {
+        if (!server->m_multitaskView || !server->isNormalOrMultitaskview()
+            || server->currentMode() == WaylandServer::CurrentMode::Multitaskview) {
             break;
         }
-        helper->m_multitaskView->setStatus(IMultitaskView::Exited);
-        helper->m_multitaskView->toggleMultitaskView(IMultitaskView::ActiveReason::ShortcutKey);
+        server->m_multitaskView->setStatus(IMultitaskView::Exited);
+        server->m_multitaskView->toggleMultitaskView(IMultitaskView::ActiveReason::ShortcutKey);
         break;
     case ShellAction::CloseMultitaskView:
-        if (!helper->m_multitaskView || !helper->isNormalOrMultitaskview()
-            || helper->currentMode() == Helper::CurrentMode::Normal) {
+        if (!server->m_multitaskView || !server->isNormalOrMultitaskview()
+            || server->currentMode() == WaylandServer::CurrentMode::Normal) {
             break;
         }
-        helper->m_multitaskView->setStatus(IMultitaskView::Active);
-        helper->m_multitaskView->toggleMultitaskView(IMultitaskView::ActiveReason::ShortcutKey);
+        server->m_multitaskView->setStatus(IMultitaskView::Active);
+        server->m_multitaskView->toggleMultitaskView(IMultitaskView::ActiveReason::ShortcutKey);
         break;
     case ShellAction::ToggleMultitaskView:
-        if (!helper->m_multitaskView || !helper->isNormalOrMultitaskview()) {
+        if (!server->m_multitaskView || !server->isNormalOrMultitaskview()) {
             break;
         }
-        helper->restoreFromShowDesktop();
-        helper->m_multitaskView->toggleMultitaskView(IMultitaskView::ActiveReason::ShortcutKey);
+        server->restoreFromShowDesktop();
+        server->m_multitaskView->toggleMultitaskView(IMultitaskView::ActiveReason::ShortcutKey);
         break;
     case ShellAction::ToggleFpsDisplay:
-        helper->toggleFpsDisplay();
+        server->toggleFpsDisplay();
         break;
     case ShellAction::ZoomIn:
     case ShellAction::ZoomOut:
@@ -91,11 +91,11 @@ void ShellActionExecutor::execute(ShellAction action)
     case ShellAction::LockScreen:
         // Rejects the transient WindowSwitch mode, where locking would strand
         // the task-switch sequence.
-        if (helper->isNormalOrMultitaskview())
-            helper->showLockScreen();
+        if (server->isNormalOrMultitaskview())
+            server->showLockScreen();
         break;
     case ShellAction::ShowShutdownMenu:
-        helper->showShutdownMenu();
+        server->showShutdownMenu();
         break;
     case ShellAction::ShowShutdownMenuPowerOff:
     case ShellAction::ShowShutdownMenuReboot:
@@ -105,41 +105,41 @@ void ShellActionExecutor::execute(ShellAction action)
         // TODO: implement default-focus menu variants.
         qCWarning(lcTlShell) << "Default-focus shutdown menu variants not implemented;"
                              << "falling back to the plain shutdown menu";
-        helper->showShutdownMenu();
+        server->showShutdownMenu();
         break;
     case ShellAction::ShowUserSwitch:
-        helper->showSwitchUser();
+        server->showSwitchUser();
         break;
     case ShellAction::Maximize: {
-        auto *surface = helper->activatedSurface();
+        auto *surface = server->activatedSurface();
         if (surface && surface->isMaximizable()) {
             surface->maximize();
         }
         break;
     }
     case ShellAction::CancelMaximize: {
-        auto *surface = helper->activatedSurface();
+        auto *surface = server->activatedSurface();
         if (surface) {
             surface->unmaximize();
         }
         break;
     }
     case ShellAction::MoveWindow: {
-        auto *surface = helper->activatedSurface();
+        auto *surface = server->activatedSurface();
         if (surface) {
             Q_EMIT surface->moveRequested();
         }
         break;
     }
     case ShellAction::CloseWindow: {
-        auto *surface = helper->activatedSurface();
+        auto *surface = server->activatedSurface();
         if (surface) {
             surface->closeSurface();
         }
         break;
     }
     case ShellAction::ShowWindowMenu: {
-        auto *surface = helper->activatedSurface();
+        auto *surface = server->activatedSurface();
         if (surface) {
             Q_EMIT surface->windowMenuRequested({ 0, 0 });
         }
@@ -147,7 +147,7 @@ void ShellActionExecutor::execute(ShellAction action)
     }
     case ShellAction::TileLeft:
     case ShellAction::TileRight: {
-        auto *surface = helper->activatedSurface();
+        auto *surface = server->activatedSurface();
         if (!surface) {
             break;
         }

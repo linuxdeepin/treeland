@@ -17,10 +17,10 @@
 
 ## 生产结果
 
-Treeland 在 `Helper::init()` 直接创建 wlroots native manager，并将 `set_gamma` signal 接到
-`Helper::setGamma()`；waylib 当前没有 wrapper，native manager 随 display 销毁。
+Treeland 在 `WaylandServer::init()` 直接创建 wlroots native manager，并将 `set_gamma` signal 接到
+`WaylandServer::setGamma()`；waylib 当前没有 wrapper，native manager 随 display 销毁。
 headless CI 的真实 output 没有 gamma LUT，wlroots 因此发送 `failed`。可选 DRM runner 则将
-非 identity LUT 经 `Helper::setGamma()` 提交到真实 output；该生产 commit 失败时 Helper 发送
+非 identity LUT 经 `WaylandServer::setGamma()` 提交到真实 output；该生产 commit 失败时 WaylandServer 发送
 `failed`，测试据此失败。
 
 ### 可选 DRM runner（I 级）
@@ -30,8 +30,8 @@ headless CI 的真实 output 没有 gamma LUT，wlroots 因此发送 `failed`。
 因此普通无头 CI 不会注册或执行它。
 
 运行时只有在物理 output 发送一次非零 `gamma_size` 时才继续。client 生成三条完整、非 identity
-LUT ramp 并调用 `set_gamma`；wlroots 发出的 `set_gamma` signal 必须经生产 `Helper::setGamma()`
-提交到实际 DRM output。commit 失败会由 Helper 发送 `failed`，测试将其判为失败；没有可用 LUT、
+LUT ramp 并调用 `set_gamma`；wlroots 发出的 `set_gamma` signal 必须经生产 `WaylandServer::setGamma()`
+提交到实际 DRM output。commit 失败会由 WaylandServer 发送 `failed`，测试将其判为失败；没有可用 LUT、
 无法创建 LUT 文件或不支持的 DRM 环境均返回 77 Skip。因此该路径证明真实 production output commit，
 为 I 级。
 

@@ -57,14 +57,14 @@ extra XML.
 Implement the fixture hook using existing production objects:
 
 ```cpp
-void protocol_test_setup(Helper *helper)
+void protocol_test_setup(WaylandServer *server)
 {
-    add_headless_output(helper->backend(), false);
+    add_headless_output(server->backend(), false);
 }
 ```
 
 - Do not attach a global already provided by Treeland's startup path.
-- Use `find_server_interface<T>(helper)` only when the fixture needs to inspect
+- Use `find_server_interface<T>(server)` only when the fixture needs to inspect
   an existing server interface; assert that the production object is present.
 - Add a headless output when the request requires a client-bindable `wl_output`.
 - Implement `int protocol_test_run(const char *socket_name);` in the C client.

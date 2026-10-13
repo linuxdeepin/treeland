@@ -10,7 +10,7 @@
 
 WAYLIB_SERVER_USE_NAMESPACE
 
-void protocol_test_setup(Helper *helper)
+void protocol_test_setup(WaylandServer *server)
 {
-    Q_ASSERT(find_server_interface<ShortcutManagerV2>(helper));
+    Q_ASSERT(find_server_interface<ShortcutManagerV2>(server));
 }

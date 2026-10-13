@@ -23,7 +23,7 @@
 `set_region` 在服务端按 anchor 计算输出边缘条带区域（左/右为全输出高的 width 厚条带，
 上/下为全输出宽的 height 厚条带），并连接 `WOutput::beforeDestroy`。
 
-窗口重叠检测走生产路径：`Helper::onSurfaceWrapperAdded` 对非 layer
+窗口重叠检测走生产路径：`WaylandServer::onSurfaceWrapperAdded` 对非 layer
 `SurfaceWrapper` 调用 `TreelandRegionWatchManagerInterfaceV1::addSurface`，由
 region-watch 模块内部维护 per-window rect 列表（几何/可见性变化经 300ms 去抖触发重算，
 仅计入 XdgToplevel/XWayland）；`checkOverlapConflict` 对每个 watcher 求交集并按状态变化

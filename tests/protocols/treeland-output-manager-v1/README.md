@@ -21,5 +21,5 @@ primary-output 事件使用启动 headless backend 后创建的真实 output，�
 ## 已知边界 / 下一项结果
 
 尚未观察 color-control 的初始事件、提交结果、output 状态或渲染颜色变化。无效
-`wl_output` 错误路径需要专门构造未由 `Helper` 管理的 server resource；常规客户端
+`wl_output` 错误路径需要专门构造未由 `WaylandServer` 管理的 server resource；常规客户端
 绑定真实 `wl_output` global 无法覆盖该前置条件。

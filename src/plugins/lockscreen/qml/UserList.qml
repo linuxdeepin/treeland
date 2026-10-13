@@ -204,12 +204,12 @@ Popup {
 
         footer: CheckDelegate {
             id: otherUserItem
-            height: Helper.globalConfig.showOtherUserOption ? 44 : 0
+            height: WaylandServer.globalConfig.showOtherUserOption ? 44 : 0
             width: 220
             padding: 4
             focus: true
             indicator: null
-            visible: Helper.globalConfig.showOtherUserOption
+            visible: WaylandServer.globalConfig.showOtherUserOption
 
             contentItem: RowLayout {
                 Control {

@@ -29,7 +29,7 @@ class DecorationContextV1;
 /**
  * @brief Per-window adapter between treeland_decoration_context_v1 and SurfaceWrapper.
  *
- * Attached to every toplevel SurfaceWrapper in Helper::onSurfaceWrapperAdded.
+ * Attached to every toplevel SurfaceWrapper in WaylandServer::onSurfaceWrapperAdded.
  * When a decoration context for the wrapped surface appears, its corner
  * radius / shadow / border / titlebar settings are applied to the wrapper.
  * The old personalization module's Personalization class is frozen; new
@@ -52,7 +52,7 @@ public:
 
 Q_SIGNALS:
     /// Emitted when the titlebar override changes (or comes into effect).
-    /// Helper re-arbitrates SurfaceWrapper::noTitleBar on this signal.
+    /// WaylandServer re-arbitrates SurfaceWrapper::noTitleBar on this signal.
     void titlebarOverrideChanged();
 
 private:

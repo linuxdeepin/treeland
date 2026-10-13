@@ -4,7 +4,7 @@
 
 - XML / interface：`3rdparty/wlroots/protocol/drm.xml` / `wl_drm` v2
 - 测试源码：`tests/protocols/drm/`
-- Fixture：完整生产 `Treeland` / `Helper`、headless output 与生产 render window；`Helper::init()` 直接调用 wlroots C API `wlr_drm_create()`，不添加 waylib wrapper
+- Fixture：完整生产 `Treeland` / `WaylandServer`、headless output 与生产 render window；`WaylandServer::init()` 直接调用 wlroots C API `wlr_drm_create()`，不添加 waylib wrapper
 - 覆盖等级：**P / V（GPU 条件）**；这是 wlroots 的 legacy native global，不存在 Treeland 业务模块
 
 ## 必须观察到的结果

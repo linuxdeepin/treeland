@@ -458,8 +458,8 @@ void Decoration::applyContext(DecorationContextV1 *context)
 
     // Titlebar: hide keeps the rest of the SSD (half-CSD half-SSD).
     //
-    // This adapter only records the override and notifies Helper; the actual
-    // SurfaceWrapper::noTitleBar write is arbitrated in Helper so the frozen
+    // This adapter only records the override and notifies WaylandServer; the actual
+    // SurfaceWrapper::noTitleBar write is arbitrated in WaylandServer so the frozen
     // personalization path and the new protocol can't clobber each other.
     if (auto mode = context->titlebarMode()) {
         m_titlebarOverridden = true;
@@ -492,7 +492,7 @@ void Decoration::resetProperties()
     // The titlebar mode is intentionally NOT reverted here: the protocol spec
     // only says the compositor "may" revert properties on context destroy,
     // and blindly restoring the titlebar would clobber the xdg-decoration
-    // CSD/SSD negotiation state managed by Helper/Personalization. A client
+    // CSD/SSD negotiation state managed by WaylandServer/Personalization. A client
     // that wants the default titlebar back sends set_titlebar_mode(show).
     wrapper->setRadius(0);
     wrapper->setShadowValues(40, 0, 10, QColor(0, 0, 0, 102)); // blur 40, offset (0,10), rgba(0,0,0,0.4)

@@ -16,7 +16,7 @@
 
 ## 已证明的生产链路（E）
 
-桌面测试启动真实 `Helper`、`ShellHandler`、`Workspace` 和 headless output。它先用
+桌面测试启动真实 `WaylandServer`、`ShellHandler`、`Workspace` 和 headless output。它先用
 同一 Wayland 客户端创建 app-id 为
 `org.deepin.treeland.protocol.app-id-resolver` 的 prelaunch splash，确认生产
 `SurfaceWrapper` 已加入 workspace；这满足 `ShellHandler` 对随后 xdg toplevel 走

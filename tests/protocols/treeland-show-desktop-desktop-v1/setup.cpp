@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "core/shellhandler.h"
 #include "server-bridge.h"
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 #include "surface/surfacewrapper.h"
 #include "treeland-show-desktop-desktop-v1.h"
 #include "workspace/workspace.h"
@@ -18,28 +18,28 @@ SurfaceWrapper *g_wrapper = nullptr;
 show_desktop_desktop_state g_state {};
 }
 
-void protocol_test_setup(Helper *helper)
+void protocol_test_setup(WaylandServer *server)
 {
-    add_headless_output(helper->backend(), false);
-    QObject::connect(helper->shellHandler(),
+    add_headless_output(server->backend(), false);
+    QObject::connect(server->shellHandler(),
                      &ShellHandler::surfaceWrapperAdded,
-                     helper,
-                     [helper](SurfaceWrapper *wrapper) {
+                     server,
+                     [server](SurfaceWrapper *wrapper) {
                          if (wrapper->type() != SurfaceWrapper::Type::XdgToplevel)
                              return;
                          g_wrapper = wrapper;
                          g_state.wrapper_created = 1;
-                         g_state.wrapper_in_workspace = helper->workspace()->surfaces().contains(wrapper) ? 1 : 0;
+                         g_state.wrapper_in_workspace = server->workspace()->surfaces().contains(wrapper) ? 1 : 0;
                      });
 }
 
 extern "C" void show_desktop_desktop_read_state(void *data)
 {
     auto state = g_state;
-    state.desktop_state = static_cast<unsigned int>(Helper::instance()->showDesktopState());
+    state.desktop_state = static_cast<unsigned int>(WaylandServer::instance()->showDesktopState());
     if (g_wrapper) {
         const auto paintOrder = WOutputRenderWindow::paintOrderItemList(
-            Helper::instance()->workspace(),
+            WaylandServer::instance()->workspace(),
             [](QQuickItem *) { return true; });
         state.wrapper_in_paint_order = paintOrder.contains(g_wrapper) ? 1 : 0;
         state.wrapper_visible = g_wrapper->isVisible() ? 1 : 0;

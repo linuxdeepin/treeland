@@ -9,7 +9,7 @@ C++ client 替代协议端的 C 测试。
 环境、设置超时并将退出码 `77` 记为 Skip。QTest 不替代 C client：协议 request/event 的实际
 驱动与断言仍在 `client_test.c` 中。
 
-所有测试均由 `treeland_add_protocol_test()` 启动完整的 `Treeland`、`Helper`、seat、
+所有测试均由 `treeland_add_protocol_test()` 启动完整的 `Treeland`、`WaylandServer`、seat、
 workspace 和 headless backend。协议对象由生产启动路径创建；测试只取得现有对象并观察其
 行为，不重复注册 global。
 
@@ -48,7 +48,7 @@ client 中应 include `<xml-basename>-client-protocol.h`。不要自行猜测或
 每个 `setup.cpp` 必须实现：
 
 ```cpp
-void protocol_test_setup(Helper *helper)
+void protocol_test_setup(WaylandServer *helper)
 {
     auto *protocol = find_server_interface<MyProtocolInterface>(helper);
     Q_ASSERT(protocol);

@@ -3,7 +3,7 @@
 
 #include "keyboardstatenotifymanagerinterfacev1.h"
 #include "qwayland-server-treeland-keyboard-state-notify-unstable-v1.h"
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 #include "seatmanager.h"
 #include "common/treelandlogging.h"
 #include "treelandconfig.hpp"
@@ -159,16 +159,16 @@ void TreelandKeyboardStateNotifyManagerInterfaceV1Private::setupKeyboardConnecti
         return;
     m_keyboardConnectionsSetup = true;
 
-    auto *helper = Helper::instance();
-    const auto seats = helper->seatManager()->seats();
+    auto *server = WaylandServer::instance();
+    const auto seats = server->seatManager()->seats();
     for (auto *seat : seats) {
         handleSeatAdded(seat);
     }
 
-    QObject::connect(helper->seatManager(), &SeatManager::seatAdded, q, [this](WSeat *seat) {
+    QObject::connect(server->seatManager(), &SeatManager::seatAdded, q, [this](WSeat *seat) {
         handleSeatAdded(seat);
     });
-    QObject::connect(helper->seatManager(), &SeatManager::seatRemoved, q, [this](WSeat *seat) {
+    QObject::connect(server->seatManager(), &SeatManager::seatRemoved, q, [this](WSeat *seat) {
         handleSeatDestroy(seat);
     });
 }
@@ -197,7 +197,7 @@ void TreelandKeyboardStateNotifyManagerInterfaceV1Private::onModifiersEvent(WSea
     if (changedLocks & NumLockMask) {
         const bool isLocked = currentLocks & NumLockMask;
 
-        if (auto *config = Helper::instance()->globalConfig()) {
+        if (auto *config = WaylandServer::instance()->globalConfig()) {
             config->setKeyboardNumLock(isLocked);
         }
     }
@@ -350,9 +350,9 @@ void KeyboardStateWatcherV1Private::apply([[maybe_unused]] Resource *resource)
     if (wSeat) {
         seats.append(wSeat);
     } else {
-        auto *helper = Helper::instance();
-        if (helper)
-            seats = helper->seatManager()->seats();
+        auto *server = WaylandServer::instance();
+        if (server)
+            seats = server->seatManager()->seats();
     }
 
     for (auto *seat : std::as_const(seats)) {

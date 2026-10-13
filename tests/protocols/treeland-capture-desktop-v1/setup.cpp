@@ -4,7 +4,7 @@
 #include "core/shellhandler.h"
 #include "modules/capture/capture.h"
 #include "server-bridge.h"
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 #include "surface/surfacewrapper.h"
 #include "treeland-capture-desktop-v1.h"
 #include "workspace/workspace.h"
@@ -23,26 +23,26 @@ void copyState(void *data)
 }
 }
 
-void protocol_test_setup(Helper *helper)
+void protocol_test_setup(WaylandServer *server)
 {
-    add_headless_output(helper->backend(), false);
-    QObject::connect(helper->shellHandler(),
+    add_headless_output(server->backend(), false);
+    QObject::connect(server->shellHandler(),
                      &ShellHandler::surfaceWrapperAdded,
-                     helper,
-                     [helper](SurfaceWrapper *wrapper) {
+                     server,
+                     [server](SurfaceWrapper *wrapper) {
                          if (wrapper->type() != SurfaceWrapper::Type::XdgToplevel)
                              return;
                          g_wrapper = wrapper;
                          g_state.wrapper_ready = 1;
-                         g_state.output_ready = !helper->rootSurfaceContainer()->outputs().isEmpty() ? 1 : 0;
+                         g_state.output_ready = !server->rootSurfaceContainer()->outputs().isEmpty() ? 1 : 0;
                      });
 }
 
 extern "C" void capture_desktop_select_mapped_surface(void *data)
 {
-    auto *helper = Helper::instance();
-    g_state.output_ready = !helper->rootSurfaceContainer()->outputs().isEmpty() ? 1 : 0;
-    if (!g_wrapper || !helper->workspace()->surfaces().contains(g_wrapper)
+    auto *server = WaylandServer::instance();
+    g_state.output_ready = !server->rootSurfaceContainer()->outputs().isEmpty() ? 1 : 0;
+    if (!g_wrapper || !server->workspace()->surfaces().contains(g_wrapper)
         || !g_wrapper->surfaceItem()) {
         copyState(data);
         return;
@@ -55,15 +55,15 @@ extern "C" void capture_desktop_select_mapped_surface(void *data)
     }
     g_state.surface_content_ready = 1;
     const auto paintOrder = WOutputRenderWindow::paintOrderItemList(
-        helper->window()->contentItem(), [](QQuickItem *) { return true; });
+        server->window()->contentItem(), [](QQuickItem *) { return true; });
     g_state.content_in_paint_order = paintOrder.contains(content) ? 1 : 0;
     g_state.content_visible = content->isVisible() ? 1 : 0;
     g_state.content_width = qRound(content->width());
     g_state.content_height = qRound(content->height());
 
-    // Helper creates this production QML selector in response to the client's
+    // WaylandServer creates this production QML selector in response to the client's
     // select_source request.  The test never calls CaptureContextV1::setSource().
-    auto *selector = helper->rootSurfaceContainer()->findChild<CaptureSourceSelector *>();
+    auto *selector = server->rootSurfaceContainer()->findChild<CaptureSourceSelector *>();
     if (!selector) {
         copyState(data);
         return;
@@ -72,7 +72,7 @@ extern "C" void capture_desktop_select_mapped_surface(void *data)
 
     // Select the verified mapped production surface through the selector's
     // production selection entry point.
-    helper->window()->render();
+    server->window()->render();
     selector->selectSurface(content);
     g_state.hovered_mapped_content = 1;
 
@@ -90,8 +90,8 @@ extern "C" void capture_desktop_select_mapped_surface(void *data)
 
 extern "C" void capture_desktop_render_selected_source(void *data)
 {
-    auto *helper = Helper::instance();
-    helper->window()->render();
+    auto *server = WaylandServer::instance();
+    server->window()->render();
     g_state.render_requested = 1;
     copyState(data);
 }

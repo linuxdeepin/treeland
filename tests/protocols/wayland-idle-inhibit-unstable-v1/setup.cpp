@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "wayland-idle-inhibit-unstable-v1.h"
 #include "server-bridge.h"
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 
 #include <wbackend.h>
 #include <wserver.h>
@@ -53,13 +53,13 @@ struct wl_client *find_test_client_with_inhibitor(struct find_inhibitor_data *fi
 }
 }
 
-void protocol_test_setup(Helper *helper)
+void protocol_test_setup(WaylandServer *server)
 {
-    add_headless_output(helper->backend(), false);
+    add_headless_output(server->backend(), false);
 
-    auto *server = server_for_helper(helper);
-    Q_ASSERT(server);
-    g_display = server->handle();
+    auto *nativeServer = native_server(server);
+    Q_ASSERT(nativeServer);
+    g_display = nativeServer->handle();
     Q_ASSERT(g_display);
 }
 

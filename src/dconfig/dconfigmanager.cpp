@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "dconfigmanager.h"
+#include "core/waylandserver.h"
+#include "greeter/usermodel.h"
 
 #include "appconfig.hpp"
 #include "outputconfig.hpp"
@@ -10,7 +12,6 @@
 #include "treelanduserconfig.hpp"
 
 #include "common/treelandlogging.h"
-#include "seat/helper.h"
 #include "seat/seatmanager.h"
 
 #include <wseat.h>
@@ -18,6 +19,17 @@
 #include <DConfig>
 
 namespace {
+
+static bool userConfigInitializationFinished(TreelandUserConfig *config)
+{
+    return config && (config->isInitializeSucceeded() || config->isInitializeFailed());
+}
+
+static bool seatConfigInitializationFinished(SeatUserDConfig *config)
+{
+    return config && (config->isInitializeSucceeded() || config->isInitializeFailed());
+}
+
 
 QString configSubpath(const QString &name)
 {
@@ -176,7 +188,7 @@ bool DConfigManager::initializeUserConfigs(const QString &userName)
     if (!m_initialUserConfig || !m_initialUserConfig->isInitializeSucceeded())
         return false;
 
-    const auto seats = Helper::instance()->seatManager()->seats();
+    const auto seats = WaylandServer::instance()->seatManager()->seats();
     for (WSeat *seat : seats) {
         const auto *seatConfig = userSeatConfig(userName, seat->name());
         if (!seatConfig || !seatConfig->isInitializeSucceeded())
@@ -189,4 +201,129 @@ bool DConfigManager::initializeUserConfigs(const QString &userName)
 TreelandUserConfig *DConfigManager::initialUserConfig() const
 {
     return m_initialUserConfig;
+}
+
+void DConfigManager::initializeActiveUserConfig(WaylandServer *server)
+{
+    m_server = server;
+    m_currentUserChangedConnection = connect(m_server->userModel(), &UserModel::currentUserNameChanged,
+                                            this, &DConfigManager::updateCurrentUser);
+    updateCurrentUser();
+}
+
+void DConfigManager::stopActiveUserConfig()
+{
+    QObject::disconnect(m_currentUserChangedConnection);
+    if (m_pendingUserConfig)
+        QObject::disconnect(static_cast<const QObject *>(m_pendingUserConfig), nullptr, this, nullptr);
+    if (m_pendingSeatConfig)
+        QObject::disconnect(static_cast<const QObject *>(m_pendingSeatConfig), nullptr, this, nullptr);
+    m_pendingUserName.clear();
+    m_pendingUserConfig = nullptr;
+    m_pendingSeatConfig = nullptr;
+    m_server = nullptr;
+}
+
+void DConfigManager::updateCurrentUser()
+{
+    if (!m_server)
+        return;
+
+    const QString userName = m_server->userModel()->currentUserName();
+    auto *configManager = DConfigManager::instance();
+    auto *userConfig = configManager ? configManager->userConfig(userName) : m_server->config();
+    WSeat *defaultSeat = m_server->seatManager()->getSeat(DEFAULT_SEAT_NAME);
+    const QString seatName = defaultSeat ? defaultSeat->name() : QStringLiteral(DEFAULT_SEAT_NAME);
+    auto *seatConfig = configManager ? configManager->userSeatConfig(userName, seatName) : nullptr;
+    if (!userConfig) {
+        qCWarning(lcTlConfig) << "Cannot switch to user" << userName
+                              << "because its DConfig object is unavailable";
+        return;
+    }
+
+    if (userConfig == m_server->config() && (!seatConfig || seatConfig == m_pendingSeatConfig)) {
+        Q_EMIT configReady(userName, userConfig, seatConfig);
+        return;
+    }
+
+    if (m_pendingUserConfig) {
+        QObject::disconnect(static_cast<const QObject *>(m_pendingUserConfig),
+                            nullptr,
+                            this,
+                            nullptr);
+    }
+    if (m_pendingSeatConfig) {
+        QObject::disconnect(static_cast<const QObject *>(m_pendingSeatConfig),
+                            nullptr,
+                            this,
+                            nullptr);
+    }
+
+    m_pendingUserName = userName;
+    m_pendingUserConfig = userConfig;
+    m_pendingSeatConfig = seatConfig;
+
+    if (!userConfigInitializationFinished(userConfig)) {
+        connect(userConfig,
+                &TreelandUserConfig::configInitializeSucceed,
+                this,
+                &DConfigManager::onPendingUserConfigInitialized,
+                Qt::SingleShotConnection);
+        connect(userConfig,
+                &TreelandUserConfig::configInitializeFailed,
+                this,
+                &DConfigManager::onPendingUserConfigInitialized,
+                Qt::SingleShotConnection);
+    }
+    if (seatConfig && !seatConfigInitializationFinished(seatConfig)) {
+        connect(seatConfig,
+                &SeatUserDConfig::configInitializeSucceed,
+                this,
+                &DConfigManager::onPendingUserConfigInitialized,
+                Qt::SingleShotConnection);
+        connect(seatConfig,
+                &SeatUserDConfig::configInitializeFailed,
+                this,
+                &DConfigManager::onPendingUserConfigInitialized,
+                Qt::SingleShotConnection);
+    }
+
+    qCInfo(lcTlConfig) << "Waiting for user DConfig initialization before switching to"
+                       << userName;
+    onPendingUserConfigInitialized();
+}
+
+void DConfigManager::onPendingUserConfigInitialized()
+{
+    if (!m_server)
+        return;
+
+    if (sender() && sender() != m_pendingUserConfig && sender() != m_pendingSeatConfig) {
+        return;
+    }
+
+    if (!userConfigInitializationFinished(m_pendingUserConfig)
+        || (m_pendingSeatConfig && !seatConfigInitializationFinished(m_pendingSeatConfig))) {
+        return;
+    }
+
+    const QString userName = m_pendingUserName;
+    auto *userConfig = m_pendingUserConfig;
+    auto *seatConfig = m_pendingSeatConfig;
+    m_pendingUserName.clear();
+    m_pendingUserConfig = nullptr;
+    m_pendingSeatConfig = nullptr;
+
+    if (m_server->userModel()->currentUserName() != userName) {
+        qCInfo(lcTlConfig) << "Discarding stale user DConfig initialization for" << userName;
+        return;
+    }
+
+    qCInfo(lcTlConfig) << "User DConfig initialization finished for" << userName
+                       << "; applying user configuration";
+    if (userConfig->isInitializeFailed()
+        || (seatConfig && seatConfig->isInitializeFailed())) {
+        qCWarning(lcTlConfig) << "Using generated defaults for user DConfig" << userName;
+    }
+    Q_EMIT configReady(userName, userConfig, seatConfig);
 }

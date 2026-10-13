@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "wayland-text-input-unstable-v3.h"
 #include "server-bridge.h"
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 #include <wbackend.h>
 #include <protocols/private/wtextinputv3_p.h>
 
@@ -15,14 +15,14 @@ WTextInputManagerV3 *g_mgr = nullptr;
 WTextInputV3 *g_ti = nullptr;
 }
 
-void protocol_test_setup(Helper *helper)
+void protocol_test_setup(WaylandServer *server)
 {
-    add_headless_output(helper->backend(), false);
+    add_headless_output(server->backend(), false);
 
-    g_mgr = find_server_interface<WTextInputManagerV3>(helper);
+    g_mgr = find_server_interface<WTextInputManagerV3>(server);
     if (g_mgr) {
         QObject::connect(g_mgr, &WTextInputManagerV3::newTextInput,
-                         helper, [](WTextInputV3 *ti) {
+                         server, [](WTextInputV3 *ti) {
                              g_ti = ti;
                          });
     }

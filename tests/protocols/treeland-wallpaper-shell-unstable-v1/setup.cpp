@@ -17,10 +17,10 @@ int g_failedCount = 0;
 int g_readyCount = 0;
 }
 
-void protocol_test_setup(Helper *helper)
+void protocol_test_setup(WaylandServer *server)
 {
-    g_shell = find_server_interface<TreelandWallpaperShellInterfaceV1>(helper);
-    g_notifier = find_server_interface<TreelandWallpaperNotifierInterfaceV1>(helper);
+    g_shell = find_server_interface<TreelandWallpaperShellInterfaceV1>(server);
+    g_notifier = find_server_interface<TreelandWallpaperNotifierInterfaceV1>(server);
     Q_ASSERT(g_shell && g_notifier);
     QObject::connect(g_shell, &TreelandWallpaperShellInterfaceV1::wallpaperSurfaceAdded,
                      [](TreelandWallpaperSurfaceInterfaceV1 *surface) {

@@ -4,7 +4,7 @@
 #include "xwindowcontrolinterfacev1.h"
 #include "qwayland-server-treeland-xwindow-control-unstable-v1.h"
 
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 
 #include <wserver.h>
 #include <wsurface.h>
@@ -50,7 +50,7 @@ void XWindowControlInterfaceV1Private::set_xwindow_position_relative(Resource *r
 {
     // libwayland dispatch already guarantees a genuine wl_surface.
     auto *wsurface = WSurface::fromHandle(wlr_surface_from_resource(anchor));
-    uint32_t ok = (wsurface && Helper::instance()->setXWindowPositionRelative(wid, wsurface, dx, dy)) ? 0 : 1;
+    uint32_t ok = (wsurface && WaylandServer::instance()->setXWindowPositionRelative(wid, wsurface, dx, dy)) ? 0 : 1;
     wl_resource *cb = wl_resource_create(resource->client(), &wl_callback_interface, 1, callback);
     if (!cb) {
         wl_client_post_no_memory(resource->client());

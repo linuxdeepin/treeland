@@ -7,7 +7,7 @@
 #include "core/rootsurfacecontainer.h"
 #include "core/shellhandler.h"
 #include "output/output.h"
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 #include "treelanduserconfig.hpp"
 #include "wallpaper/wallpaperlauncher.h"
 #include "workspace/workspace.h"
@@ -76,8 +76,8 @@ Session::~Session()
     }
     if (m_xwayland) {
         // if shellHandler is already destructed, wait for WServer to clean up the interface.
-        if (auto *helper = Helper::instance())
-            helper->shellHandler()->removeXWayland(m_xwayland);
+        if (auto *server = WaylandServer::instance())
+            server->shellHandler()->removeXWayland(m_xwayland);
         m_xwayland = nullptr;
     }
     if (m_socket) {
@@ -132,7 +132,7 @@ SessionManager::~SessionManager()
 
 void SessionManager::syncActiveSessionXWaylandPrimaryOutput()
 {
-    const auto *primaryOutput = Helper::instance()->rootSurfaceContainer()->primaryOutput();
+    const auto *primaryOutput = WaylandServer::instance()->rootSurfaceContainer()->primaryOutput();
     if (!primaryOutput)
         return;
 
@@ -247,8 +247,8 @@ void SessionManager::removeSession(std::shared_ptr<Session> session)
 
     if (m_activeSession.lock() == session) {
         m_activeSession.reset();
-        Helper::instance()->workspace()->clearActivedSurface();
-        Helper::instance()->activateSurface(nullptr);
+        WaylandServer::instance()->workspace()->clearActivedSurface();
+        WaylandServer::instance()->activateSurface(nullptr);
     }
 
     for (auto s : std::as_const(m_sessions)) {
@@ -268,7 +268,7 @@ void SessionManager::removeSession(std::shared_ptr<Session> session)
  */
 std::shared_ptr<Session> SessionManager::ensureSession(const QString &id, QString username)
 {
-    // Helper lambda to create WSocket and WXWayland
+    // WaylandServer lambda to create WSocket and WXWayland
     auto createWSocket = [this]() {
         // Create WSocket
         auto socket = new WSocket(true, nullptr);
@@ -283,12 +283,12 @@ std::shared_ptr<Session> SessionManager::ensureSession(const QString &id, QStrin
                 Q_EMIT socketFileChanged();
         });
         // Add socket to server
-        Helper::instance()->addSocket(socket);
+        WaylandServer::instance()->addSocket(socket);
         return socket;
     };
     auto createXWayland = [this](WSocket *socket) {
         // Create xwayland
-        auto *xwayland = Helper::instance()->createXWayland();
+        auto *xwayland = WaylandServer::instance()->createXWayland();
         if (!xwayland) {
             qCCritical(lcTlCore) << "Failed to create XWayland instance";
             return static_cast<WXWayland *>(nullptr);
@@ -310,8 +310,8 @@ std::shared_ptr<Session> SessionManager::ensureSession(const QString &id, QStrin
 
                 session->m_settingManager->moveToThread(session->m_settingManagerThread);
 
-                const qreal scale = Helper::instance()->rootSurfaceContainer()->window()->effectiveDevicePixelRatio();
-                const auto renderWindow = Helper::instance()->window();
+                const qreal scale = WaylandServer::instance()->rootSurfaceContainer()->window()->effectiveDevicePixelRatio();
+                const auto renderWindow = WaylandServer::instance()->window();
                 connect(session->m_settingManagerThread,
                         &QThread::started,
                         this,
@@ -324,7 +324,7 @@ std::shared_ptr<Session> SessionManager::ensureSession(const QString &id, QStrin
                                 return;
                             }
 
-                            const auto *config = Helper::instance()->config();
+                            const auto *config = WaylandServer::instance()->config();
                             const QString cursorTheme =
                                 config ? config->cursorThemeName() : QString();
                             const qreal cursorSize = config ? config->cursorSize() : 24;
@@ -517,10 +517,10 @@ void SessionManager::syncActiveSessionCursorSettings()
         return;
     }
 
-    auto *helper = Helper::instance();
-    Q_ASSERT(helper);
+    auto *server = WaylandServer::instance();
+    Q_ASSERT(server);
 
-    const auto *config = helper->config();
+    const auto *config = server->config();
     if (!config) {
         qCWarning(lcTlXsettings) << "Cannot sync cursor settings: user config is unavailable";
         return;
@@ -559,7 +559,7 @@ SessionManager::ActiveSessionUpdate SessionManager::prepareActiveUserSession(con
         m_activeSession = session;
         // Clear activated surface
         // TODO: Each Wayland socket's active surface needs to be cleaned up individually.
-        Helper::instance()->activateSurface(nullptr);
+        WaylandServer::instance()->activateSurface(nullptr);
         // Update socket enabled state before publishing activation notifications.
         if (previous && previous->m_socket) {
             const auto global = globalSession();

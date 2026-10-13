@@ -3,7 +3,7 @@
 #include "wayland-xdg-foreign-unstable-v2.h"
 #include "server-bridge.h"
 #include "core/shellhandler.h"
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 #include "surface/surfacewrapper.h"
 
 #include <wbackend.h>
@@ -17,15 +17,15 @@ SurfaceWrapper *g_childWrapper = nullptr;
 int g_wrapperCount = 0;
 }
 
-void protocol_test_setup(Helper *helper)
+void protocol_test_setup(WaylandServer *server)
 {
-    add_headless_output(helper->backend(), false);
+    add_headless_output(server->backend(), false);
 
     // Capture two XdgToplevel SurfaceWrappers: the first is the parent
     // (exported), the second is the child (set_parent_of target).
-    QObject::connect(helper->shellHandler(),
+    QObject::connect(server->shellHandler(),
                      &ShellHandler::surfaceWrapperAdded,
-                     helper,
+                     server,
                      [](SurfaceWrapper *wrapper) {
                          if (wrapper->type() != SurfaceWrapper::Type::XdgToplevel)
                              return;

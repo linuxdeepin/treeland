@@ -12,7 +12,7 @@ Primary repos and where things live:
 
 - `src/core/` — lifecycle, QML engine glue (`src/core/qmlengine.*`, `src/core/treeland.*`).
 - `src/surface/` — surface/window wrappers, state, visibility, geometry (`surfacewrapper.cpp`).
-- `src/seat/` — seat management, `Helper` initialization hub, protocol wiring (`seat/helper.*`).
+- `src/seat/` — seat management; desktop startup and protocol composition live in `src/core/waylandserver.*`.
 - `src/workspace/` — workspace model and switching.
 - `src/modules/` — feature modules (show-desktop, input-manager, output-manager, dde-shell, …).
 - `src/plugins/` + `src/effects/` — plugin & effect integration.

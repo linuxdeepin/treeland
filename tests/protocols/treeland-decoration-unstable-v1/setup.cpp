@@ -5,7 +5,7 @@
 
 #include "core/shellhandler.h"
 #include "modules/decoration/decorationmanagerinterfacev1.h"
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 #include "surface/surfacewrapper.h"
 
 #include <wbackend.h>
@@ -14,11 +14,11 @@ namespace {
 SurfaceWrapper *g_toplevel = nullptr;
 }
 
-void protocol_test_setup(Helper *helper)
+void protocol_test_setup(WaylandServer *server)
 {
-    Q_ASSERT(find_server_interface<DecorationManagerInterfaceV1>(helper));
-    add_headless_output(helper->backend(), false);
-    QObject::connect(helper->shellHandler(), &ShellHandler::surfaceWrapperAdded, helper,
+    Q_ASSERT(find_server_interface<DecorationManagerInterfaceV1>(server));
+    add_headless_output(server->backend(), false);
+    QObject::connect(server->shellHandler(), &ShellHandler::surfaceWrapperAdded, server,
                      [](SurfaceWrapper *wrapper) {
                          if (wrapper->type() == SurfaceWrapper::Type::XdgToplevel)
                              g_toplevel = wrapper;
