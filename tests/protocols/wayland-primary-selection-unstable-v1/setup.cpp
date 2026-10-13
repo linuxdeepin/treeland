@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "wayland-primary-selection-unstable-v1.h"
 #include "server-bridge.h"
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 #include <wbackend.h>
 #include <wseat.h>
 #include <winputdevice.h>
@@ -21,15 +21,15 @@ namespace {
 wlr_seat *g_seat = nullptr;
 }
 
-void protocol_test_setup(Helper *helper)
+void protocol_test_setup(WaylandServer *server)
 {
-    add_headless_output(helper->backend(), false);
+    add_headless_output(server->backend(), false);
 
     // Attach a keyboard device so the seat advertises keyboard capability.
     // When a toplevel is mapped, Treeland gives it keyboard focus, which
     // sends a wl_keyboard::enter event with a valid serial. The client
     // captures this serial and uses it for set_primary_selection.
-    auto *seat = helper->seat();
+    auto *seat = server->seat();
     if (seat) {
         g_seat = seat->handle();
         auto *keyboard = (struct wlr_keyboard *)calloc(1, sizeof(struct wlr_keyboard));

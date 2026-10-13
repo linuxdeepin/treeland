@@ -20,7 +20,7 @@
 
 ## 生产结果
 
-`Helper::init()` 直接创建 wlroots native manager；waylib 当前没有 wrapper，native global 随
+`WaylandServer::init()` 直接创建 wlroots native manager；waylib 当前没有 wrapper，native global 随
 display 销毁。source 与 target 是两个独立 Wayland client。source 的 data source 经原生 data-control manager
 写入真实 `WSeat` selection；target 的真实 data-control device 收到 offer/selection 后，以 pipe
 调用 `receive`。wlroots 再向 source 发送 `send(fd,mime)`，source 写入 payload，target 从同一 pipe

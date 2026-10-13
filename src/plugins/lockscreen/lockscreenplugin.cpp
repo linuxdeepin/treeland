@@ -6,7 +6,7 @@
 #include "core/qmlengine.h"
 #include "interfaces/proxyinterface.h"
 #include "output/output.h"
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 
 void LockScreenPlugin::initialize(TreelandProxyInterface *proxy)
 {

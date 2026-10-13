@@ -13,9 +13,9 @@ namespace {
 ShowDesktopInterfaceV1 *g_showDesktop = nullptr;
 }
 
-void protocol_test_setup(Helper *helper)
+void protocol_test_setup(WaylandServer *server)
 {
-    g_showDesktop = find_server_interface<ShowDesktopInterfaceV1>(helper);
+    g_showDesktop = find_server_interface<ShowDesktopInterfaceV1>(server);
 }
 
 extern "C" void show_desktop_get_state(void *data)

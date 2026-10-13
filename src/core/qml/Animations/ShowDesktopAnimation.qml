@@ -14,7 +14,7 @@ Item {
 
     required property var target
     required property bool showDesktop
-    property int duration: 500 * Helper.animationSpeed //500: Initial design requirements
+    property int duration: 500 * WaylandServer.animationSpeed //500: Initial design requirements
 
     // The real Decoration (XdgShadow + Border) is a child of `target` laid out at
     // the shadow's bounding rect, which extends beyond the target's

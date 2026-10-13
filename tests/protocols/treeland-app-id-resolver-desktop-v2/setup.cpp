@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "core/rootsurfacecontainer.h"
 #include "server-bridge.h"
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 #include "surface/surfacecontainer.h"
 #include "surface/surfacewrapper.h"
 #include "treeland-app-id-resolver-desktop-v2.h"
@@ -26,39 +26,39 @@ bool isTestSplash(const SurfaceWrapper *wrapper)
         && wrapper->appId() == QLatin1String(TestAppId);
 }
 
-void enablePrelaunchSplash(Helper *helper)
+void enablePrelaunchSplash(WaylandServer *server)
 {
-    helper->globalConfig()->setEnablePrelaunchSplash(true);
+    server->globalConfig()->setEnablePrelaunchSplash(true);
     g_splashConfigReady = true;
 }
 }
 
-void protocol_test_setup(Helper *helper)
+void protocol_test_setup(WaylandServer *server)
 {
-    add_headless_output(helper->backend(), false);
+    add_headless_output(server->backend(), false);
 
-    auto *config = helper->globalConfig();
+    auto *config = server->globalConfig();
     if (config->isInitializeSucceeded()) {
-        enablePrelaunchSplash(helper);
+        enablePrelaunchSplash(server);
     } else {
         QObject::connect(config,
                          &TreelandConfig::configInitializeSucceed,
-                         helper,
-                         [helper](auto *) { enablePrelaunchSplash(helper); });
+                         server,
+                         [server](auto *) { enablePrelaunchSplash(server); });
     }
 
-    QObject::connect(helper->workspace(),
+    QObject::connect(server->workspace(),
                      &SurfaceContainer::surfaceAdded,
-                     helper,
+                     server,
                      [](SurfaceWrapper *wrapper) {
                          if (isTestSplash(wrapper))
                              g_splashWrapper = wrapper;
                      });
 }
 
-extern "C" bool protocol_test_ready(Helper *helper)
+extern "C" bool protocol_test_ready(WaylandServer *server)
 {
-    return g_splashConfigReady && !helper->rootSurfaceContainer()->outputs().isEmpty();
+    return g_splashConfigReady && !server->rootSurfaceContainer()->outputs().isEmpty();
 }
 
 extern "C" void app_id_resolver_desktop_wait_for_splash(void *data)
@@ -69,7 +69,7 @@ extern "C" void app_id_resolver_desktop_wait_for_splash(void *data)
         return;
 
     QEventLoop eventLoop;
-    QObject::connect(Helper::instance()->workspace(),
+    QObject::connect(WaylandServer::instance()->workspace(),
                      &SurfaceContainer::surfaceAdded,
                      &eventLoop,
                      [&eventLoop, created](SurfaceWrapper *wrapper) {
@@ -84,9 +84,9 @@ extern "C" void app_id_resolver_desktop_wait_for_splash(void *data)
 extern "C" void app_id_resolver_desktop_read_state(void *data)
 {
     app_id_resolver_desktop_state state {};
-    auto *helper = Helper::instance();
-    const auto surfaces = helper->workspace()->surfaces();
-    state.output_ready = !helper->rootSurfaceContainer()->outputs().isEmpty() ? 1 : 0;
+    auto *server = WaylandServer::instance();
+    const auto surfaces = server->workspace()->surfaces();
+    state.output_ready = !server->rootSurfaceContainer()->outputs().isEmpty() ? 1 : 0;
     state.workspace_surface_count = surfaces.size();
     state.splash_created = g_splashWrapper ? 1 : 0;
     if (g_splashWrapper) {

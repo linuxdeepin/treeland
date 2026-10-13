@@ -13,9 +13,9 @@ namespace {
 WallpaperColorInterfaceV1 *g_manager = nullptr;
 }
 
-void protocol_test_setup(Helper *helper)
+void protocol_test_setup(WaylandServer *server)
 {
-    g_manager = find_server_interface<WallpaperColorInterfaceV1>(helper);
+    g_manager = find_server_interface<WallpaperColorInterfaceV1>(server);
 }
 
 extern "C" void wallpaper_color_set_color(const char *output, int is_dark)

@@ -28,7 +28,7 @@ Control {
     D.ColorSelector.inactived: !surface.isActivated
     D.ColorSelector.hovered: false
 
-    height: Helper.config.windowTitlebarHeight
+    height: WaylandServer.config.windowTitlebarHeight
     width: surfaceItem.width
 
     // Ensure title bar does not accept keyboard focus
@@ -44,7 +44,7 @@ Control {
     TapHandler {
         acceptedButtons: Qt.LeftButton
         onTapped: {
-            Helper.activateSurface(surface)
+            WaylandServer.activateSurface(surface)
         }
         onPressedChanged: {
             if (pressed)
@@ -94,8 +94,8 @@ Control {
             text: surface.shellSurface.title
             elide: Text.ElideRight
             color: root.D.ColorSelector.textColor
-            font.family: Helper.config.font
-            font.pointSize: Helper.config.fontSize / 10
+            font.family: WaylandServer.config.font
+            font.pointSize: WaylandServer.config.fontSize / 10
             font.weight: Font.Medium
         }
 
@@ -132,7 +132,7 @@ Control {
                     D.ColorSelector.inactived: !surface.isActivated
 
                     onClicked: {
-                        Helper.activateSurface(surface)
+                        WaylandServer.activateSurface(surface)
                         surface.toggleMaximized()
                     }
                 }

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "server-bridge.h"
 #include "modules/input-manager/inputmanagerinterfacev1.h"
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 #include "treeland-input-manager-unstable-v1.h"
 
 #include <wbackend.h>
@@ -12,24 +12,24 @@ namespace {
 input_mgr_state g_state;
 }
 
-void protocol_test_setup(Helper *helper)
+void protocol_test_setup(WaylandServer *server)
 {
-    add_headless_output(helper->backend(), false);
+    add_headless_output(server->backend(), false);
 
-    auto *manager = helper->backend()->server()->findInterface<TreelandInputManagerInterfaceV1>();
+    auto *manager = server->backend()->server()->findInterface<TreelandInputManagerInterfaceV1>();
     Q_ASSERT(manager);
 
     QObject::connect(manager,
                      &TreelandInputManagerInterfaceV1::touchpadSettingsCreated,
-                     helper,
-                     [helper](TouchpadSettingsInterfaceV1 *settings) {
+                     server,
+                     [server](TouchpadSettingsInterfaceV1 *settings) {
                          QObject::connect(settings,
                                           &TouchpadSettingsInterfaceV1::pointerDeviceConfigurationCreated,
-                                          helper,
-                                          [helper](PointerDeviceConfigurationV1 *config) {
+                                          server,
+                                          [server](PointerDeviceConfigurationV1 *config) {
                                               QObject::connect(config,
                                                                &PointerDeviceConfigurationV1::applied,
-                                                               helper,
+                                                               server,
                                                                [config](PointerDeviceConfigurationV1::ChangeFlags changes) {
                                                                    g_state.pointer_changes = changes.toInt();
                                                                    g_state.pointer_scroll_factor = config->scrollFactor();
@@ -45,11 +45,11 @@ void protocol_test_setup(Helper *helper)
                      });
     QObject::connect(manager,
                      &TreelandInputManagerInterfaceV1::keyboardSettingsCreated,
-                     helper,
-                     [helper](KeyboardSettingsInterfaceV1 *settings) {
+                     server,
+                     [server](KeyboardSettingsInterfaceV1 *settings) {
                          QObject::connect(settings,
                                           &KeyboardSettingsInterfaceV1::applied,
-                                          helper,
+                                          server,
                                           [settings](KeyboardSettingsInterfaceV1::ChangeFlags changes) {
                                               g_state.keyboard_changes = changes.toInt();
                                               g_state.keyboard_repeat_rate = settings->repeatRate();

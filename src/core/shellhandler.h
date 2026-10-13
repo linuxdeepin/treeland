@@ -22,7 +22,7 @@ Q_MOC_INCLUDE(<wlayersurface.h>)
 Q_MOC_INCLUDE(<wxdgtoplevelsurface.h>)
 Q_MOC_INCLUDE(<wxwaylandsurface.h>)
 
-class Helper;
+class WaylandServer;
 class SurfaceWrapper;
 class RootSurfaceContainer;
 class LayerSurfaceContainer;
@@ -66,13 +66,13 @@ class LayerShellExtensionManagerInterfaceV1;
 
 class ShellHandler : public QObject
 {
-    friend class Helper;
     Q_OBJECT
 
 public:
     explicit ShellHandler(RootSurfaceContainer *rootContainer,
                           WAYLIB_SERVER_NAMESPACE::WServer *server);
     [[nodiscard]] Workspace *workspace() const;
+    [[nodiscard]] LayerSurfaceContainer *backgroundContainer() const { return m_backgroundContainer; }
     [[nodiscard]] SurfaceContainer *popupContainer() const;
     [[nodiscard]] SurfaceContainer *privilegedOverlayContainer() const;
     [[nodiscard]] SurfaceContainer *snapMaskContainer() const;

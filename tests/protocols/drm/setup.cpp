@@ -5,7 +5,7 @@
 #include "core/shellhandler.h"
 #include "drm.h"
 #include "server-bridge.h"
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 #include "surface/surfacewrapper.h"
 #include "workspace/workspace.h"
 
@@ -23,25 +23,25 @@ SurfaceWrapper *g_wrapper = nullptr;
 drm_render_state g_state {};
 }
 
-void protocol_test_setup(Helper *helper)
+void protocol_test_setup(WaylandServer *server)
 {
-    add_headless_output(helper->backend(), false);
-    QObject::connect(helper->shellHandler(),
+    add_headless_output(server->backend(), false);
+    QObject::connect(server->shellHandler(),
                      &ShellHandler::surfaceWrapperAdded,
-                     helper,
-                     [helper](SurfaceWrapper *wrapper) {
+                     server,
+                     [server](SurfaceWrapper *wrapper) {
                          if (wrapper->type() != SurfaceWrapper::Type::XdgToplevel)
                              return;
                          g_wrapper = wrapper;
                          g_state.wrapper_created = 1;
-                         g_state.wrapper_in_workspace = helper->workspace()->surfaces().contains(wrapper) ? 1 : 0;
+                         g_state.wrapper_in_workspace = server->workspace()->surfaces().contains(wrapper) ? 1 : 0;
                      });
 }
 
 extern "C" void drm_read_render_state(void *data)
 {
     auto state = g_state;
-    state.output_ready = !Helper::instance()->rootSurfaceContainer()->outputs().isEmpty() ? 1 : 0;
+    state.output_ready = !WaylandServer::instance()->rootSurfaceContainer()->outputs().isEmpty() ? 1 : 0;
     if (!g_wrapper || !g_wrapper->surfaceItem()) {
         *static_cast<drm_render_state *>(data) = state;
         return;

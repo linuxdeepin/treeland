@@ -16,7 +16,7 @@ Item {
     property double lastSwitchTimestamp: 0
     property int focusReason: Qt.TabFocusReason
     required property QtObject output
-    readonly property QtObject model: Helper.workspace.currentFilter
+    readonly property QtObject model: WaylandServer.workspace.currentFilter
 
     // control all switch item
     property bool enableBlur: GraphicsInfo.api !== GraphicsInfo.Software
@@ -47,7 +47,7 @@ Item {
     }
 
     Connections {
-        target: Helper.workspace.current
+        target: WaylandServer.workspace.current
 
         onSurfaceAdded: function(surface) {
             if (root.visible && currentContext.visible) {
@@ -299,7 +299,7 @@ Item {
             previewWindows.model = surfaceSnapshot
 
             if (surface)
-                Helper.forceActivateSurface(surface, reason)
+                WaylandServer.forceActivateSurface(surface, reason)
 
             previewWindows.animationRunning = true
             previewWindows.startAnimations()
@@ -361,7 +361,7 @@ Item {
 
                 OpacityAnimator {
                     loops: surface
-                           && (Helper.activatedSurface === surface || surface.visible) ? 1 : 0
+                           && (WaylandServer.activatedSurface === surface || surface.visible) ? 1 : 0
                     target: previewAnimation.target;
                     from: previewWindows.reverse ? 1.0 : previewAnimation.opacityFrom
                     to: previewWindows.reverse ? previewAnimation.opacityFrom : 1.0
@@ -418,7 +418,7 @@ Item {
                         return
                     }
 
-                    if (surface === Helper.activatedSurface) {
+                    if (surface === WaylandServer.activatedSurface) {
                         surface.transformOrigin = Item.TopLeft
                         previewAnimation.opacityFrom = 1.0
                         surface.opacity = 1.0
@@ -571,7 +571,7 @@ Item {
             return false
         }
 
-        Helper.workspace.current.opaque = !visible
+        WaylandServer.workspace.current.opaque = !visible
         root.visible = visible
 
         return switchView.currentItem && switchView.visible

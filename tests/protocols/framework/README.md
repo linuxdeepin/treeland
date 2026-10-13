@@ -8,7 +8,7 @@ event、生产对象状态或渲染读回中取得可观察结果。CTest 负责
 变量、超时与 Skip 语义。
 
 框架只有一个启动入口：`framework/protocol-test-entry.cpp`。它为每个 target 启动完整的
-`Treeland`、`Helper`、`ShellHandler`、workspace、seat、headless backend 与 QML scene；
+`Treeland`、`WaylandServer`、`ShellHandler`、workspace、seat、headless backend 与 QML scene；
 `setup.cpp` 只配置 fixture 并取得生产启动路径已经创建的协议对象。
 
 ## 总体数据流
@@ -21,7 +21,7 @@ flowchart LR
         direction LR
         subgraph QtThread[合成器 Qt 主线程]
             Runner[QTest protocol() + ProtocolTestRunner]
-            Entry[protocol-test-entry\nTreeland + Helper]
+            Entry[protocol-test-entry\nTreeland + WaylandServer]
             Prod[生产模块\nShellHandler / Workspace / Seat / Output / QML]
             Entry --> Prod
         end
@@ -52,7 +52,7 @@ request 本身始终经过 Unix Wayland socket 与生产 resource dispatch。
 ```mermaid
 sequenceDiagram
     participant M as protocol test entry（Qt 主线程）
-    participant H as Helper / 生产桌面栈
+    participant H as WaylandServer / 生产桌面栈
     participant F as protocol_test_setup
     participant C as C Wayland client（pthread）
 

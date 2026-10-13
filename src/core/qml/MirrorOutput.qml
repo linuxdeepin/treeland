@@ -17,7 +17,7 @@ OutputItem {
     readonly property real sizeMatchTolerance: 0.1
     readonly property real scaleEpsilon: 0.001
 
-    // Helper property: source screen pixel size (physical size in pixels)
+    // WaylandServer property: source screen pixel size (physical size in pixels)
     // Formula: pixelSize = effectiveSize * scale
     // - output.size returns effectiveSize (logical size)
     // - scale is the devicePixelRatio

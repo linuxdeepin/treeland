@@ -10,7 +10,7 @@
 
 #include "qwayland-server-treeland-dde-shell-v1.h"
 
-#include "helper.h"
+#include "core/waylandserver.h"
 
 #include <wsurface.h>
 
@@ -72,7 +72,7 @@ void DDEShellManagerInterfaceV1Private::set_xwindow_position_relative(Resource *
                                                                       wl_fixed_t dy)
 {
     WSurface *wsurface = WSurface::fromHandle(wlr_surface_from_resource(anchor));
-    uint32_t ok = (wsurface && Helper::instance()->setXWindowPositionRelative(wid, wsurface, dx, dy)) ? 0 : 1;
+    uint32_t ok = (wsurface && WaylandServer::instance()->setXWindowPositionRelative(wid, wsurface, dx, dy)) ? 0 : 1;
     wl_resource *cb = wl_resource_create(resource->client(), &wl_callback_interface, 1, callback);
     wl_callback_send_done(cb, ok);
     wl_resource_destroy(cb);

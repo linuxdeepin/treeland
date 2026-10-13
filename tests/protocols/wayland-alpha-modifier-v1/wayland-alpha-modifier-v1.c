@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
  *
  * Test the wp_alpha_modifier_v1 global created by wlr_alpha_modifier_v1_create
- * in Treeland's Helper.
+ * in Treeland's WaylandServer.
  *
  * Coverage level E (end-to-end): the client maps a real xdg_toplevel, attaches
  * an alpha-modifier surface object, sets the multiplier to 0 (fully

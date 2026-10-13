@@ -3,7 +3,7 @@
 #include "core/shellhandler.h"
 #include "core/rootsurfacecontainer.h"
 #include "server-bridge.h"
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 #include "surface/surfacewrapper.h"
 #include "treeland-dde-shell-desktop-v1.h"
 #include "workspace/workspace.h"
@@ -15,25 +15,25 @@ SurfaceWrapper *g_wrapper = nullptr;
 dde_desktop_state g_state {};
 }
 
-void protocol_test_setup(Helper *helper)
+void protocol_test_setup(WaylandServer *server)
 {
-    add_headless_output(helper->backend(), false);
-    QObject::connect(helper->shellHandler(),
+    add_headless_output(server->backend(), false);
+    QObject::connect(server->shellHandler(),
                      &ShellHandler::surfaceWrapperAdded,
-                     helper,
-                     [helper](SurfaceWrapper *wrapper) {
+                     server,
+                     [server](SurfaceWrapper *wrapper) {
                          if (wrapper->type() != SurfaceWrapper::Type::XdgToplevel)
                              return;
                          g_wrapper = wrapper;
                          g_state.wrapper_created = 1;
-                         g_state.wrapper_in_workspace = helper->workspace()->surfaces().contains(wrapper) ? 1 : 0;
+                         g_state.wrapper_in_workspace = server->workspace()->surfaces().contains(wrapper) ? 1 : 0;
                      });
 }
 
 extern "C" void dde_desktop_read_state(void *data)
 {
     auto state = g_state;
-    state.output_ready = !Helper::instance()->rootSurfaceContainer()->outputs().isEmpty() ? 1 : 0;
+    state.output_ready = !WaylandServer::instance()->rootSurfaceContainer()->outputs().isEmpty() ? 1 : 0;
     if (g_wrapper) {
         state.is_dde_shell_surface = g_wrapper->isDDEShellSurface() ? 1 : 0;
         state.role_overlay = g_wrapper->surfaceRole() == SurfaceWrapper::SurfaceRole::Overlay ? 1 : 0;

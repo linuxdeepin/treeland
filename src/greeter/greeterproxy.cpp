@@ -6,11 +6,11 @@
 // Treeland
 #include "greeter/sessionmodel.h"
 #include "greeter/usermodel.h"
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 #include "session/session.h"
 #include "common/treelandlogging.h"
 #include "utils/cmdline.h"
-#include "core/lockscreen.h"
+#include "lockscreen/lockscreen.h"
 
 // DDM
 #include <Login1Manager.h>
@@ -79,12 +79,12 @@ static bool localValidation(const QString &user, const QString &password)
 
 static inline UserModel *userModel()
 {
-    return Helper::instance()->userModel();
+    return WaylandServer::instance()->userModel();
 }
 
 static inline SessionModel *sessionModel()
 {
-    return Helper::instance()->sessionModel();
+    return WaylandServer::instance()->sessionModel();
 }
 
 /////////////////////////////////
@@ -272,14 +272,14 @@ void GreeterProxy::unlock(const QString &user, const QString &password)
 
 void GreeterProxy::logout()
 {
-    auto session = Helper::instance()->sessionManager()->activeSession().lock();
+    auto session = WaylandServer::instance()->sessionManager()->activeSession().lock();
     qCInfo(lcTlGreeter) << "Logging user" << session->username() << "out with session id" << session->id();
     SocketWriter(m_socket) << quint32(GreeterMessages::Logout) << session->id();
 }
 
 void GreeterProxy::lock()
 {
-    auto session = Helper::instance()->sessionManager()->activeSession().lock();
+    auto session = WaylandServer::instance()->sessionManager()->activeSession().lock();
     if (!session || session->username() == "dde") {
         qCInfo(lcTlGreeter) << "Trying to lock when no user session active, show lockscreen directly.";
         setLock(true);
@@ -319,7 +319,7 @@ void GreeterProxy::onSessionNew(const QString &id, [[maybe_unused]] const QDBusO
         qCInfo(lcTlGreeter) << "New session added: id=" << id << ", user=" << user;
         userModel()->updateUserLoginState(user, true);
 
-        // userLoggedIn signal is connected with Helper::updateActiveUserSession
+        // userLoggedIn signal is connected with WaylandServer::updateActiveUserSession
         Q_EMIT userModel()->userLoggedIn(user, id);
 
         // Connect to Lock/Unlock signals
@@ -363,17 +363,17 @@ void GreeterProxy::onSessionRemoved(const QString &id, [[maybe_unused]] const QD
                     this,
                     SLOT(onSessionUnlock()));
 
-    auto session = Helper::instance()->sessionManager()->sessionForId(id);
+    auto session = WaylandServer::instance()->sessionManager()->sessionForId(id);
     if (session) {
         QString username = session->username();
         qCInfo(lcTlGreeter) << "Session removed: id=" << id << ", user=" << username;
-        if (Helper::instance()->sessionManager()->activeSession().lock() == session)
+        if (WaylandServer::instance()->sessionManager()->activeSession().lock() == session)
             setLock(true);
         userModel()->updateUserLoginState(username, false);
-        Helper::instance()->sessionManager()->removeSession(session);
+        WaylandServer::instance()->sessionManager()->removeSession(session);
     }
 
-    if (m_hasActiveSession && Helper::instance()->sessionManager()->sessions().isEmpty()) {
+    if (m_hasActiveSession && WaylandServer::instance()->sessionManager()->sessions().isEmpty()) {
         m_hasActiveSession = false;
         Q_EMIT hasActiveSessionChanged(false);
     }
@@ -388,7 +388,7 @@ void GreeterProxy::onSessionLock()
                                                      QDBusConnection::systemBus());
         QString id = session.id();
         qCInfo(lcTlGreeter) << "Lock signal received for session id:" << id;
-        auto activeSession = Helper::instance()->sessionManager()->activeSession().lock();
+        auto activeSession = WaylandServer::instance()->sessionManager()->activeSession().lock();
         if (!activeSession)
             qCWarning(lcTlGreeter)
                 << "Lock signal received for non-exist session id:" << id << ", ignore.";
@@ -412,7 +412,7 @@ void GreeterProxy::onSessionUnlock()
         QString id = session.id();
         const QString username = session.name();
         qCInfo(lcTlGreeter) << "Unlock signal received for session id:" << id;
-        auto activeSession = Helper::instance()->sessionManager()->activeSession().lock();
+        auto activeSession = WaylandServer::instance()->sessionManager()->activeSession().lock();
         if (!activeSession) {
             qCWarning(lcTlGreeter)
                 << "Unlock signal received for non-exist session id:" << id << ", ignore.";
@@ -445,7 +445,7 @@ void GreeterProxy::connected()
 
     SocketWriter(m_socket)
         << quint32(GreeterMessages::Connect)
-        << Helper::instance()->sessionManager()->globalSession()->socket()->fullServerName();
+        << WaylandServer::instance()->sessionManager()->globalSession()->socket()->fullServerName();
 }
 
 void GreeterProxy::disconnected()
@@ -526,7 +526,7 @@ void GreeterProxy::readyRead()
             qCInfo(lcTlGreeter) << "show greeter";
             // Full lock screen transition (LockScreen mode, hidden workspace),
             // matching the previous startup behavior of showLockScreen().
-            Helper::instance()->showLockScreen(false);
+            WaylandServer::instance()->showLockScreen(false);
         } break;
 #endif
         case DaemonMessages::UserActivateMessage: {
@@ -541,7 +541,7 @@ void GreeterProxy::readyRead()
                 break;
             }
 
-            if (!Helper::instance()->activateUserSession(user, sessionId))
+            if (!WaylandServer::instance()->activateUserSession(user, sessionId))
                 break;
 
             qCInfo(lcTlGreeter) << "activate successfully: " << user << ", XDG_SESSION_ID: " << sessionId;

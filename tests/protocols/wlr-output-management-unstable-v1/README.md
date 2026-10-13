@@ -7,7 +7,7 @@
 - 测试源码：`tests/protocols/wlr-output-management-unstable-v1/`。
 - Fixture：完整 Treeland desktop integration fixture 与一个 `1920×1080` headless output。
 - 覆盖等级：**P / E**；P 覆盖 native global 的快照、transaction 与生命周期，E 覆盖配置从
-  client 经 `WOutputManagerV1`/`Helper` 提交到真实 output 的 position、transform 与 scale。
+  client 经 `WOutputManagerV1`/`WaylandServer` 提交到真实 output 的 position、transform 与 scale。
 
 ## 必须观察到的结果
 
@@ -23,12 +23,12 @@
 ## 生产结果
 
 wlroots 原生实现 `wlr_output_manager_v1`；waylib 的 `WOutputManagerV1` 创建并拥有 native
-manager。`Helper::init()` 通过 `m_server->attach<WOutputManagerV1>()` 发布 global，并把
-`requestTestOrApply` 接到 `Helper::onOutputTestOrApply()`。
+manager。`WaylandServer::init()` 通过 `m_server->attach<WOutputManagerV1>()` 发布 global，并把
+`requestTestOrApply` 接到 `WaylandServer::onOutputTestOrApply()`。
 
-测试不会在 fixture 伪造 configuration result。`test` 由 Helper 对真实 output 调用
+测试不会在 fixture 伪造 configuration result。`test` 由 WaylandServer 对真实 output 调用
 `wlr_output_test_state()` 后回传 `succeeded`；`apply` 则进入 production render/commit job，完成后
-由 `Helper::onOutputCommitFinished()` 发送 `succeeded`、更新 output layout。fixture 随后读取
+由 `WaylandServer::onOutputCommitFinished()` 发送 `succeeded`、更新 output layout。fixture 随后读取
 `RootSurfaceContainer` 中同一个 `WOutput` 的 `WOutputItem`，并读取该 output 的 production
 orientation/scale。因此 `(37,53)`、90°、scale 2 及回滚 `(0,0)`、normal、scale 1 是 E 级输出布局
 结果，而不仅是 client 收到了成功 event。
@@ -39,7 +39,7 @@ orientation/scale。因此 `(37,53)`、90°、scale 2 及回滚 `(0,0)`、normal
    `1920×1080` headless `wlr_output`，不依赖物理显示器、GPU 或系统 display manager；
 2. client 以 manager `done` 的最新 serial 创建完整 configuration，提交 custom mode、position
    `(37,53)`、90° transform 和 scale 2；
-3. production `WOutputManagerV1` 发出 apply signal，`Helper` 对真实 output 建立 commit job；成功
+3. production `WOutputManagerV1` 发出 apply signal，`WaylandServer` 对真实 output 建立 commit job；成功
    回调更新 output layout 并发送 configuration `succeeded`；
 4. client 在成功 event 后调用 fixture，fixture 从同一个 production `WOutputItem` 读取位置，并从
    同一个 `WOutput` 读取 orientation 和 scale，必须分别为 `(37,53)`、90°、2；

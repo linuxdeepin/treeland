@@ -13,7 +13,7 @@ class QTimer;
 
 class RootSurfaceContainer;
 class Output;
-class Helper;
+class WaylandServer;
 
 class SeatSurfaceManager : public QObject
 {

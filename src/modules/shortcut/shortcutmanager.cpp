@@ -6,7 +6,7 @@
 #include "common/treelandlogging.h"
 #include "input/gestures.h"
 #include "qwayland-server-treeland-shortcut-manager-v2.h"
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 #include "seat/seatmanager.h"
 #include "session/session.h"
 #include "shortcutcontroller.h"
@@ -512,9 +512,9 @@ void ShortcutManagerV2Private::capture_next_shortcut(Resource *resource,
         auto *wlrSeatClient = wlr_seat_client_from_resource(seat_resource);
         if (wlrSeatClient)
             requestedSeat = WSeat::fromHandle(wlrSeatClient->seat);
-    } else if (auto *helper = Helper::instance()) {
+    } else if (auto *server = WaylandServer::instance()) {
         // No seat specified: find whichever seat currently has keyboard focus on this surface.
-        const auto &seats = helper->seatManager()->seats();
+        const auto &seats = server->seatManager()->seats();
         for (auto *seat : seats) {
             if (seat->keyboardFocusSurface() == wSurface) {
                 requestedSeat = seat;
@@ -550,7 +550,7 @@ ShortcutCaptureV1 *ShortcutManagerV2Private::resetCaptureState()
     return c;
 }
 
-// Capture event filter — called from Helper::beforeDisposeEvent while a
+// Capture event filter — called from WaylandServer::beforeDisposeEvent while a
 // one-shot shortcut capture is in progress.
 //
 // Trigger semantics:
@@ -712,7 +712,7 @@ void ShortcutManagerV2::sendActivated(const QString& name, ShortcutController::K
 void ShortcutManagerV2::onSessionChanged()
 {
     QString commitFailName;
-    auto session = Helper::instance()->sessionManager()->activeSession().lock();
+    auto session = WaylandServer::instance()->sessionManager()->activeSession().lock();
     if (!session) {
         return;
     }

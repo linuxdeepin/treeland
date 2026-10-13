@@ -4,7 +4,7 @@
 #include "wallpaperswitcheritem.h"
 
 #include "wallpaperitem.h"
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 #include "workspace/workspacemodel.h"
 #include "wallpapershellinterfacev1.h"
 #include "wallpapermanager.h"
@@ -36,15 +36,15 @@ WallpaperSwitcherItem::WallpaperSwitcherItem(QQuickItem *parent)
     m_currentSlot = new WallpaperSlot(this);
     QQuickItemPrivate::get(m_currentSlot)->anchors()->setFill(this);
 
-    connect(Helper::instance()->m_wallpaperManager,
+    connect(WaylandServer::instance()->m_wallpaperManager,
             &WallpaperManager::updateWallpaper,
             this,
             &WallpaperSwitcherItem::handleWallpaperUpdate);
-    connect(Helper::instance()->shellHandler()->wallpaperShell(),
+    connect(WaylandServer::instance()->shellHandler()->wallpaperShell(),
             &TreelandWallpaperShellInterfaceV1::wallpaperSurfaceAdded,
             this,
             &WallpaperSwitcherItem::handleWallpaperUpdate);
-    connect(Helper::instance()->workspace(),
+    connect(WaylandServer::instance()->workspace(),
             &Workspace::workspaceAdded,
             this,
             &WallpaperSwitcherItem::handleWorkspaceAdded);
@@ -143,7 +143,7 @@ void WallpaperSwitcherItem::handleWallpaperUpdate()
     if (!m_output || !m_currentSlot)
         return;
 
-    auto config = Helper::instance()->m_wallpaperManager->getOutputConfig(m_output->handle());
+    auto config = WaylandServer::instance()->m_wallpaperManager->getOutputConfig(m_output->handle());
     QString newSource;
 
     if (m_workspace) {
@@ -163,7 +163,7 @@ void WallpaperSwitcherItem::handleWallpaperUpdate()
 
 void WallpaperSwitcherItem::handleWorkspaceAdded()
 {
-    Helper::instance()->m_wallpaperManager->syncAddWorkspace();
+    WaylandServer::instance()->m_wallpaperManager->syncAddWorkspace();
     if (m_currentSlot)
         m_currentSlot->updateSurface();
 }

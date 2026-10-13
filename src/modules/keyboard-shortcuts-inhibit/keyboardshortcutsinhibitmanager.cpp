@@ -4,7 +4,7 @@
 #include "keyboardshortcutsinhibitmanager.h"
 
 #include "common/treelandlogging.h"
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 #include "seatmanager.h"
 
 #include <wlr_all.h>
@@ -48,7 +48,7 @@ void KeyboardShortcutsInhibitManagerV1::setupSeatConnections()
         return;
     seatConnectionsSetup = true;
 
-    auto *seatManager = Helper::instance()->seatManager();
+    auto *seatManager = WaylandServer::instance()->seatManager();
     const auto seats = seatManager->seats();
     for (auto *seat : seats) {
         onSeatAdded(seat);

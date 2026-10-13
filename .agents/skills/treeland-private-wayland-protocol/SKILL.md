@@ -1,6 +1,6 @@
 ---
 name: treeland-private-wayland-protocol
-description: Use this skill for treeland private Wayland server-side protocol integration. Trigger whenever the task involves treeland-owned xml, `treeland_*` interfaces, `src/modules/*`, QtWayland scanner output, `QtWaylandServer::*`, `waylib_generate_qtwayland_server_protocol(...)`, `globalRemove()`, `destroy_resource(...)`, or wiring a private compositor protocol into `Helper::init`. Do not use it for upstream wlroots/waylib protocol wrappers.
+description: Use this skill for treeland private Wayland server-side protocol integration. Trigger whenever the task involves treeland-owned xml, `treeland_*` interfaces, `src/modules/*`, QtWayland scanner output, `QtWaylandServer::*`, `waylib_generate_qtwayland_server_protocol(...)`, `globalRemove()`, `destroy_resource(...)`, or wiring a private compositor protocol into `WaylandServer::init`. Do not use it for upstream wlroots/waylib protocol wrappers.
 ---
 
 # Treeland Private Protocol Integration
@@ -18,19 +18,26 @@ Use this skill when any of these are true:
 
 If the protocol is a standard/ext/unstable/wlr upstream protocol, stop and use the upstream protocol skill instead.
 
+## Startup Composition
+`WaylandServer` is the QML singleton and C++ desktop entry point. Its `init()`
+in `src/core/waylandserver.cpp` composes startup; `src/core/waylandserver.cpp`
+owns the Wayland runtime and core globals. Feature components own their protocol
+callbacks and listener state. Preserve startup order and keep policy callbacks in
+their owning feature. The former `Helper` compatibility class has been removed.
+
 ## Goal
 Complete these four things correctly:
 
 - generate the server protocol code
 - implement the manager and resource classes
 - integrate it through `WServerInterface`
-- wire it into the startup path from `Helper::init`
+- wire it into the startup path from `WaylandServer::init`
 
 ## Read First
 1. The target module `CMakeLists.txt`
 2. `waylib/tools/CMakeLists.txt`
 3. Generated files in the build directory
-4. `src/seat/helper.cpp`
+4. `src/core/waylandserver.cpp` and the relevant feature controller
 
 Look at generated files first:
 
@@ -95,7 +102,7 @@ The public class usually:
 - implements `create/destroy/global/interfaceName`
 - owns the private manager via `std::unique_ptr`
 
-This public class is what `Helper::init` and other treeland business code attach, connect, and call.
+This public class is what `WaylandServer::init` and other treeland business code attach, connect, and call.
 
 #### Private manager class
 Defined in `.cpp`, directly inherits `QtWaylandServer::treeland_xxx_manager_v1`.
@@ -324,17 +331,17 @@ In this pattern, verify:
 - failures use `wl_client_post_no_memory(...)`
 - child destruction removes the object from any static list, map, or owner structure when needed
 
-## Wiring Through `Helper::init`
-Eventually this must connect back into `src/seat/helper.cpp`.
+## Wiring Through `WaylandServer::init`
+Eventually this must connect back into `src/core/waylandserver.cpp`.
 
 Check:
 
 1. whether it is initialized through `m_server->attach<...>()`
-2. whether it is stored as a `Helper` member when needed
+2. whether it is stored as a `WaylandServer` member when needed
 3. whether business `connect(...)` calls are made immediately after attach
 4. whether it is wired into `ShellHandler`, `RootSurfaceContainer`, `QmlEngine`, or other existing objects
 
-Do not interpret "the registration point is in `Helper::init`" too rigidly.
+Do not interpret "the registration point is in `WaylandServer::init`" too rigidly.
 
 The repository also has cases where a higher-level object encapsulates protocol initialization, for example:
 
@@ -344,11 +351,11 @@ m_shellHandler->init(m_server, m_seat);
 
 That still counts as a protocol registration entry point. The real criteria are:
 
-- whether startup still flows in from `Helper::init`
+- whether startup still flows in from `WaylandServer::init`
 - whether a higher-level object cleanly encapsulates initialization for a protocol family
 - whether the registration entry point and lifetime ownership are still easy to locate
 
-If a protocol is neither registered directly from `Helper::init` nor initialized through a higher-level object such as `ShellHandler`, it is usually still not fully integrated.
+If a protocol is neither registered directly from `WaylandServer::init` nor initialized through a higher-level object such as `ShellHandler`, it is usually still not fully integrated.
 
 ## Samples To Avoid
 `capture` uses `ws_generate_local` (raw wayland-scanner) instead of the preferred `waylib_generate_qtwayland_server_protocol(...)` path, and does not use `QtWaylandServer::*` at all. Do not use it as a template.
@@ -362,7 +369,7 @@ For new private protocols, prefer `appidresolver`, `prelaunch-splash`, or `scree
 - `src/modules/prelaunch-splash/prelaunchsplash.cpp`
 - `src/modules/screensaver/screensaverinterfacev2.cpp`
 - `waylib/tools/CMakeLists.txt`
-- `src/seat/helper.cpp`
+- `src/core/waylandserver.cpp`
 
 ## Output Requirements
 When using this skill for a real task, make these explicit first:
@@ -370,5 +377,5 @@ When using this skill for a real task, make these explicit first:
 1. where the xml and generated files are
 2. how manager `create/destroy/global/interfaceName` should be implemented
 3. how `destroy(...)` and `destroy_resource(...)` split responsibilities
-4. where the protocol enters the startup path from `Helper::init`
+4. where the protocol enters the startup path from `WaylandServer::init`
 5. that request handlers add no object validation already done by the dispatch layer (see Request Handler Argument Validation)

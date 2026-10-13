@@ -3,7 +3,7 @@
 
 #include "screensaverinterfacev2.h"
 #include "qwayland-server-treeland-screensaver-unstable-v2.h"
-#include "helper.h"
+#include "core/waylandserver.h"
 
 #include <wayland-server.h>
 #include <wayland-util.h>
@@ -42,7 +42,7 @@ void ScreensaverInterfaceV2Private::destroy(Resource *resource)
     // uninhibit() here, which would post NOT_YET_INHIBITED when the client
     // already uninhibited before destroying the object.
     if (inhibits.remove(resource->handle))
-        Helper::instance()->updateIdleInhibitor();
+        WaylandServer::instance()->updateIdleInhibitor();
     wl_resource_destroy(resource->handle);
 }
 
@@ -56,7 +56,7 @@ void ScreensaverInterfaceV2Private::inhibit(Resource *resource, const QString &a
     }
 
     inhibits.insert(res, std::make_tuple(application_name, reason_for_inhibit));
-    Helper::instance()->updateIdleInhibitor();
+    WaylandServer::instance()->updateIdleInhibitor();
 }
 
 void ScreensaverInterfaceV2Private::uninhibit(Resource *resource)
@@ -69,7 +69,7 @@ void ScreensaverInterfaceV2Private::uninhibit(Resource *resource)
     }
 
     inhibits.remove(res);
-    Helper::instance()->updateIdleInhibitor();
+    WaylandServer::instance()->updateIdleInhibitor();
 }
 
 ScreensaverInterfaceV2::ScreensaverInterfaceV2(QObject *parent)

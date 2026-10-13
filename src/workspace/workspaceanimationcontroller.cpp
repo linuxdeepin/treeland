@@ -5,7 +5,7 @@
 #include "plugins/multitaskview/multitaskview.h"
 
 #include <cmath>
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 #include "treelanduserconfig.hpp"
 
 WorkspaceAnimationController::WorkspaceAnimationController(QObject *parent)
@@ -17,8 +17,8 @@ WorkspaceAnimationController::WorkspaceAnimationController(QObject *parent)
     , m_bounceInAnimation(new QPropertyAnimation(this))
 {
     m_posAnimation->setPropertyName("viewportPos");
-    m_posAnimation->setEasingCurve(static_cast<QEasingCurve::Type>(Helper::instance()->config()->multitaskviewEasingCurveType()));
-    m_posAnimation->setDuration(Helper::instance()->config()->multitaskviewAnimationDuration());
+    m_posAnimation->setEasingCurve(static_cast<QEasingCurve::Type>(WaylandServer::instance()->config()->multitaskviewEasingCurveType()));
+    m_posAnimation->setDuration(WaylandServer::instance()->config()->multitaskviewAnimationDuration());
     m_posAnimation->setTargetObject(this);
     connect(m_slideAnimation, &QSequentialAnimationGroup::finished, this, [this] {
         if (m_needBounce) {
@@ -30,11 +30,11 @@ WorkspaceAnimationController::WorkspaceAnimationController(QObject *parent)
     m_slideAnimation->addAnimation(m_posAnimation);
     m_bounceInAnimation->setTargetObject(this);
     m_bounceInAnimation->setEasingCurve(QEasingCurve::InOutExpo);
-    m_bounceInAnimation->setDuration(Helper::instance()->config()->multitaskviewAnimationDuration() / 2);
+    m_bounceInAnimation->setDuration(WaylandServer::instance()->config()->multitaskviewAnimationDuration() / 2);
     m_bounceInAnimation->setPropertyName("viewportPos");
     m_bounceOutAnimation->setTargetObject(this);
     m_bounceOutAnimation->setEasingCurve(QEasingCurve::InOutExpo);
-    m_bounceOutAnimation->setDuration(Helper::instance()->config()->multitaskviewAnimationDuration() / 2);
+    m_bounceOutAnimation->setDuration(WaylandServer::instance()->config()->multitaskviewAnimationDuration() / 2);
     m_bounceOutAnimation->setPropertyName("viewportPos");
     m_bounceAnimation->addAnimation(m_bounceInAnimation);
     m_bounceAnimation->addAnimation(m_bounceOutAnimation);

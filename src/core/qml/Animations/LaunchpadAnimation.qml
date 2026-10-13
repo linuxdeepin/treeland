@@ -20,7 +20,7 @@ Item {
 
     required property var target
     required property var direction
-    property int duration: 400 * Helper.animationSpeed
+    property int duration: 400 * WaylandServer.animationSpeed
 
     width: target.width
     height: target.height

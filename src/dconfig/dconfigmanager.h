@@ -9,11 +9,15 @@
 
 #include <DConfig>
 
+class WaylandServer;
 class AppConfig;
 class OutputConfig;
 class SeatUserDConfig;
 class TreelandConfig;
 class TreelandUserConfig;
+
+Q_MOC_INCLUDE("treelanduserconfig.hpp")
+Q_MOC_INCLUDE("seatuserconfig.hpp")
 
 class DConfigManager : public QObject
 {
@@ -39,11 +43,19 @@ public:
     bool initializeUserConfigs(const QString &userName);
     TreelandUserConfig *initialUserConfig() const;
 
+    // Observes active-user changes; the desktop remains responsible for applying
+    // the ready configuration to input, wallpaper, cursor and workspace services.
+    void initializeActiveUserConfig(WaylandServer *server);
+    void stopActiveUserConfig();
+
 Q_SIGNALS:
+    void configReady(const QString &username, TreelandUserConfig *config, SeatUserDConfig *seatConfig);
     void initializeSucceed();
     void initializeFailed();
 
 private:
+    void updateCurrentUser();
+    void onPendingUserConfigInitialized();
     void onGlobalConfigInitializeSucceed(DTK_CORE_NAMESPACE::DConfig *config);
     void onGlobalConfigInitializeFailed();
 
@@ -55,4 +67,10 @@ private:
     QHash<QString, OutputConfig *> m_outputConfigs;
     QHash<QString, AppConfig *> m_appConfigs;
     TreelandUserConfig *m_initialUserConfig = nullptr;
+
+    WaylandServer *m_server = nullptr;
+    QMetaObject::Connection m_currentUserChangedConnection;
+    TreelandUserConfig *m_pendingUserConfig = nullptr;
+    SeatUserDConfig *m_pendingSeatConfig = nullptr;
+    QString m_pendingUserName;
 };

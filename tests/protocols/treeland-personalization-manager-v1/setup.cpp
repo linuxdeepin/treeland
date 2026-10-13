@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "modules/personalization/personalizationmanagerinterfacev1.h"
 #include "server-bridge.h"
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 #include "treeland-personalization-manager-v1.h"
 #include "treelanduserconfig.hpp"
 
@@ -33,9 +33,9 @@ ConfigSnapshot g_configSnapshot;
 bool g_configSnapshotValid = false;
 }
 
-void protocol_test_setup(Helper *helper)
+void protocol_test_setup(WaylandServer *server)
 {
-    auto *manager = find_server_interface<PersonalizationManagerInterfaceV1>(helper);
+    auto *manager = find_server_interface<PersonalizationManagerInterfaceV1>(server);
     Q_ASSERT(manager);
     QObject::connect(manager, &PersonalizationManagerInterfaceV1::windowContextCreated,
                      [](PersonalizationWindowContextV1 *context) { g_windowContext = context; });
@@ -75,7 +75,7 @@ extern "C" void personalization_snapshot_config(void *data)
 {
     auto *valid = static_cast<int *>(data);
     *valid = 0;
-    auto *config = Helper::instance()->config();
+    auto *config = WaylandServer::instance()->config();
     if (!config)
         return;
 
@@ -101,7 +101,7 @@ extern "C" void personalization_restore_config(void *)
     if (!g_configSnapshotValid)
         return;
 
-    auto *config = Helper::instance()->config();
+    auto *config = WaylandServer::instance()->config();
     if (!config)
         return;
 
@@ -116,6 +116,6 @@ extern "C" void personalization_restore_config(void *)
     config->setWindowOpacity(g_configSnapshot.windowOpacity);
     config->setWindowColorScheme(g_configSnapshot.windowColorScheme);
     config->setWindowTitlebarHeight(g_configSnapshot.windowTitlebarHeight);
-    Helper::syncPaletteTypeWithWindowColorScheme(static_cast<int32_t>(g_configSnapshot.windowColorScheme));
+    WaylandServer::syncPaletteTypeWithWindowColorScheme(static_cast<int32_t>(g_configSnapshot.windowColorScheme));
     g_configSnapshotValid = false;
 }

@@ -3,7 +3,7 @@
 
 #include "ddminterfacev1.h"
 #include "common/treelandlogging.h"
-#include "helper.h"
+#include "core/waylandserver.h"
 #include "usermodel.h"
 #include "qwayland-server-treeland-ddm-v1.h"
 
@@ -53,30 +53,30 @@ void DDMInterfaceV1Private::bind_resource(Resource *resource)
 void DDMInterfaceV1Private::switch_to_greeter([[maybe_unused]] Resource *resource)
 {
     qCWarning(lcTlCore) << "DDM protocol: switch_to_greeter";
-    Helper::instance()->showLockScreen(false);
+    WaylandServer::instance()->showLockScreen(false);
 }
 
 void DDMInterfaceV1Private::switch_to_user([[maybe_unused]] Resource *resource, const QString &username)
 {
     qCWarning(lcTlCore) << "DDM protocol: switch_to_user" << username;
-    auto helper = Helper::instance();
+    auto server = WaylandServer::instance();
     if (username == "dde") {
-        helper->showLockScreen(false);
-    } else if (username != helper->userModel()->currentUserName()) {
-        helper->userModel()->setCurrentUserName(username);
-        helper->showLockScreen(false);
+        server->showLockScreen(false);
+    } else if (username != server->userModel()->currentUserName()) {
+        server->userModel()->setCurrentUserName(username);
+        server->showLockScreen(false);
     }
 }
 
 void DDMInterfaceV1Private::enable_render([[maybe_unused]] Resource *resource)
 {
     qCWarning(lcTlCore) << "DDM protocol: enable_render";
-    Helper::instance()->enableRender();
+    WaylandServer::instance()->enableRender();
 }
 
 void DDMInterfaceV1Private::disable_render(Resource *resource, uint32_t id)
 {
-    Helper::instance()->disableRender();
+    WaylandServer::instance()->disableRender();
     auto callback = wl_resource_create(resource->client(), &wl_callback_interface, 1, id);
     auto serial = wl_display_get_serial(wl_client_get_display(resource->client()));
     wl_callback_send_done(callback, serial);

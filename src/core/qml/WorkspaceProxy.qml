@@ -33,7 +33,7 @@ Item {
         }
     }
     Repeater {
-        model: Helper.workspace.showOnAllWorkspaceModel
+        model: WaylandServer.workspace.showOnAllWorkspaceModel
         delegate: Loader {
             id: allLoader
 

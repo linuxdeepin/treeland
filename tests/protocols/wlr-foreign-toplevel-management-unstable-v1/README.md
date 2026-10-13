@@ -20,7 +20,7 @@
 ## 生产结果
 
 wlroots 提供 native manager；waylib 的 `WForeignToplevel` 创建并持有它，Treeland 在
-`Helper::init()` 中 attach 该 wrapper。测试只连接已发布的标准 global，绝不创建第二个
+`WaylandServer::init()` 中 attach 该 wrapper。测试只连接已发布的标准 global，绝不创建第二个
 manager。它与 Treeland 的 `treeland_foreign_toplevel_manager_v1` 自定义扩展是不同协议。
 
 测试客户端先 map 一个真实 xdg toplevel。`ShellHandler` 创建同一个生产

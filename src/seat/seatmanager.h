@@ -3,6 +3,8 @@
 
 #pragma once
 
+#define DEFAULT_SEAT_NAME "seat0"
+
 #include <wseat.h>
 #include <winputdevice.h>
 #include <wserver.h>

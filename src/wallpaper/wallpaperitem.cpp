@@ -4,7 +4,7 @@
 #include "wallpaperitem.h"
 
 #include "core/qmlengine.h"
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 #include "workspace/workspacemodel.h"
 #include "wallpapershellinterfacev1.h"
 #include "wallpaper/wallpapermanager.h"
@@ -28,22 +28,22 @@ WallpaperItem::WallpaperItem(QQuickItem *parent)
 WallpaperItem::WallpaperItem(QQuickItem *parent, bool autoUpdate)
     : WSurfaceItemContent(parent)
 {
-    m_model = Helper::instance()->qmlEngine()->singletonInstance<UserModel *>("Treeland",
+    m_model = WaylandServer::instance()->qmlEngine()->singletonInstance<UserModel *>("Treeland",
                                                                               "UserModel");
     if (autoUpdate) {
         connect(m_model,
                 &UserModel::currentUserNameChanged,
                 this,
                 &WallpaperItem::handleCurrentuserChanged);
-        connect(Helper::instance()->shellHandler()->wallpaperShell(),
+        connect(WaylandServer::instance()->shellHandler()->wallpaperShell(),
                 &TreelandWallpaperShellInterfaceV1::wallpaperSurfaceAdded,
                 this,
                 &WallpaperItem::handleWallpaperSurfaceAdded);
-        connect(Helper::instance()->m_wallpaperManager,
+        connect(WaylandServer::instance()->m_wallpaperManager,
                 &WallpaperManager::updateWallpaper,
                 this,
                 &WallpaperItem::updateSurface);
-        connect(Helper::instance()->workspace(),
+        connect(WaylandServer::instance()->workspace(),
                 &Workspace::workspaceAdded,
                 this,
                 &WallpaperItem::handleWorkspaceAdded);
@@ -167,7 +167,7 @@ void WallpaperItem::updateSurface()
     }
 
     WallpaperOutputConfig config =
-        Helper::instance()->m_wallpaperManager->getOutputConfig(output()->handle());
+        WaylandServer::instance()->m_wallpaperManager->getOutputConfig(output()->handle());
     if (wallpaperRole() == Lockscreen) {
         if (config.lockscreenWallpaper != m_source) {
                 TreelandWallpaperSurfaceInterfaceV1 *interface =
@@ -199,7 +199,7 @@ void WallpaperItem::updateSurface()
                 setSurface(interface->wSurface());
                 interface->wSurface()->enterOutput(output());
                 update();
-                if (!Helper::instance()->m_greeterProxy->isLocked())
+                if (!WaylandServer::instance()->m_greeterProxy->isLocked())
                     setPlay(false);
 
                 break;
@@ -219,7 +219,7 @@ void WallpaperItem::handleWorkspaceAdded()
         return;
     }
 
-    Helper::instance()->m_wallpaperManager->syncAddWorkspace();
+    WaylandServer::instance()->m_wallpaperManager->syncAddWorkspace();
     updateSurface();
 }
 

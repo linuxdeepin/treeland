@@ -13,7 +13,7 @@ extern "C" {
 
 /*
  * Snapshot of the real WSessionLock state, read on the compositor (Qt) thread.
- * Treeland's Helper::onExtSessionLock starts a 300 ms grace timer and then
+ * Treeland's WaylandServer::onExtSessionLock starts a 300 ms grace timer and then
  * calls WSessionLock::lock(), which sends the `locked` event to the client and
  * flips the production WSessionLock to the Locked state.  An E-level test
  * verifies that WSessionLock::isLocked() returns true after the client receives

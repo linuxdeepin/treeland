@@ -6,7 +6,7 @@
 #include "common/treelandlogging.h"
 #include "core/rootsurfacecontainer.h"
 #include "output/output.h"
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 #include "surface/surfacecontainer.h"
 #include "surface/surfacewrapper.h"
 #include "treelanduserconfig.hpp"
@@ -14,7 +14,7 @@
 
 Workspace::Workspace(SurfaceContainer *parent)
     : SurfaceContainer(parent)
-    , m_currentIndex(Helper::instance()->config()->currentWorkspace())
+    , m_currentIndex(WaylandServer::instance()->config()->currentWorkspace())
     , m_models(new WorkspaceListModel(this))
     , m_currentFilter(new SurfaceFilterProxyModel(this))
     , m_animationController(new WorkspaceAnimationController(this))
@@ -22,9 +22,9 @@ Workspace::Workspace(SurfaceContainer *parent)
     m_showOnAllWorkspaceModel = new WorkspaceModel(this, ShowOnAllWorkspaceId, {});
     m_showOnAllWorkspaceModel->setName("show-on-all-workspace");
     m_showOnAllWorkspaceModel->setVisible(true);
-    for (uint index = 0; index < Helper::instance()->config()->numWorkspace(); index++) {
+    for (uint index = 0; index < WaylandServer::instance()->config()->numWorkspace(); index++) {
         doCreateModel(QStringLiteral("workspace-%1").arg(index),
-                      index == Helper::instance()->config()->currentWorkspace());
+                      index == WaylandServer::instance()->config()->currentWorkspace());
     }
 }
 
@@ -161,7 +161,7 @@ int Workspace::modelIndexOfSurface(SurfaceWrapper *surface) const
 int Workspace::createModel(const QString &name, bool visible)
 {
     auto id = doCreateModel(name, visible);
-    Helper::instance()->config()->setNumWorkspace(count());
+    WaylandServer::instance()->config()->setNumWorkspace(count());
     Q_EMIT countChanged();
     Q_EMIT workspaceAdded();
     return id;
@@ -172,7 +172,7 @@ void Workspace::removeModel(int index)
     Q_ASSERT(m_models->rowCount() > 1); // At least one workspace
     Q_ASSERT(index >= 0 && index < m_models->rowCount());
     doRemoveModel(index);
-    Helper::instance()->config()->setNumWorkspace(count());
+    WaylandServer::instance()->config()->setNumWorkspace(count());
     Q_EMIT countChanged();
 }
 
@@ -245,11 +245,11 @@ void Workspace::switchTo(int index, bool animated)
         return;
 
     // Close all popup grabs when switching workspaces.
-    Helper::instance()->rootSurfaceContainer()->dismissAllPopups();
+    WaylandServer::instance()->rootSurfaceContainer()->dismissAllPopups();
 
     auto oldCurrentIndex = currentIndex();
     setCurrentIndex(index);
-    Helper::instance()->activateSurface(current()->latestActiveSurface());
+    WaylandServer::instance()->activateSurface(current()->latestActiveSurface());
 
     if (animated) {
         createSwitcher();
@@ -303,7 +303,7 @@ void Workspace::updateSurfaceOwnsOutput(SurfaceWrapper *surface)
 
     Output *output = nullptr;
     if (!outputs.isEmpty())
-        output = Helper::instance()->getOutput(outputs.first());
+        output = WaylandServer::instance()->getOutput(outputs.first());
     if (!output)
         output = rootContainer()->cursorOutput();
     if (!output)
@@ -323,7 +323,7 @@ void Workspace::updateSurfacesOwnsOutput()
 void Workspace::createSwitcher()
 {
     if (m_switcherEnabled && !m_switcher) {
-        auto engine = Helper::instance()->qmlEngine();
+        auto engine = WaylandServer::instance()->qmlEngine();
         m_switcher = engine->createWorkspaceSwitcher(this);
         connect(m_switcher, &QQuickItem::visibleChanged, m_switcher, [this] {
             if (!m_switcher->isVisible()) {
@@ -334,7 +334,7 @@ void Workspace::createSwitcher()
 }
 void Workspace::reloadFromConfig()
 {
-    auto *config = Helper::instance()->config();
+    auto *config = WaylandServer::instance()->config();
     auto targetCount = static_cast<int>(config->numWorkspace());
     if (targetCount < 1){
         targetCount = 1;
@@ -368,7 +368,7 @@ WorkspaceModel *Workspace::showOnAllWorkspaceModel() const
 void Workspace::doSetCurrentIndex(int newCurrentIndex)
 {
     m_currentIndex = newCurrentIndex;
-    Helper::instance()->config()->setCurrentWorkspace(newCurrentIndex);
+    WaylandServer::instance()->config()->setCurrentWorkspace(newCurrentIndex);
 }
 
 void Workspace::startPreviewing(SurfaceWrapper *previewingItem)
@@ -486,7 +486,7 @@ void Workspace::doRemoveModel(int index)
         if (s->hasActiveCapability() && !s->showOnAllWorkspace())
             current->pushActivedSurface(s);
     }
-    Helper::instance()->activateSurface(current->latestActiveSurface());
+    WaylandServer::instance()->activateSurface(current->latestActiveSurface());
 
     if (m_switcher) {
         m_switcher->deleteLater();

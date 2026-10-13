@@ -5,7 +5,7 @@
 - XML / interface：`3rdparty/wlroots/protocol/input-method-unstable-v2.xml` /
   `zwp_input_method_manager_v2`、`zwp_input_method_v2`、popup surface 与 keyboard grab v2
 - 测试源码：`tests/protocols/input-method-unstable-v2/`
-- Fixture：完整生产 `Treeland` / `Helper`、默认 seat 与 headless output。一个 client 作为 mapped 且
+- Fixture：完整生产 `Treeland` / `WaylandServer`、默认 seat 与 headless output。一个 client 作为 mapped 且
   focused 的 text-input-v2 应用，另一个 client 作为 IM；不依赖系统输入法或物理设备。`ShellHandler`
   创建的 `WInputMethodHelper` 经 `WInputMethodManagerV2` 使用 wlroots 原生 global。
 - 覆盖等级：**P / E**；P 覆盖 XML 的资源、生命周期与单 seat 约束，E 覆盖真实 text-input ↔ IM 转发。
@@ -28,7 +28,7 @@
 
 ## 生产结果
 
-`Helper::init() → ShellHandler::init() → WInputMethodHelper →
+`WaylandServer::init() → ShellHandler::init() → WInputMethodHelper →
 WServer::attach<WInputMethodManagerV2>() → wlr_input_method_manager_v2_create()`。
 
 同一个 seat 的第二个 IM 是由生产 `WInputMethodHelper::handleNewIMV2()` 调用

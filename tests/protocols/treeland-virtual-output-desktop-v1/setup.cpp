@@ -3,7 +3,7 @@
 #include "core/rootsurfacecontainer.h"
 #include "output/output.h"
 #include "server-bridge.h"
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 #include "treeland-virtual-output-desktop-v1.h"
 
 #include "treelandconfig.hpp"
@@ -13,24 +13,24 @@
 #include <woutput.h>
 
 namespace {
-Output *findRootOutputByName(Helper *helper, const QString &name)
+Output *findRootOutputByName(WaylandServer *server, const QString &name)
 {
-    for (auto *output : helper->rootSurfaceContainer()->outputs()) {
+    for (auto *output : server->rootSurfaceContainer()->outputs()) {
         if (output && output->output() && output->output()->name() == name)
             return output;
     }
     return nullptr;
 }
 
-virtual_output_desktop_state readState(Helper *helper)
+virtual_output_desktop_state readState(WaylandServer *server)
 {
     virtual_output_desktop_state state {};
-    auto *first = findRootOutputByName(helper, QStringLiteral("HEADLESS-1"));
-    auto *second = findRootOutputByName(helper, QStringLiteral("HEADLESS-2"));
+    auto *first = findRootOutputByName(server, QStringLiteral("HEADLESS-1"));
+    auto *second = findRootOutputByName(server, QStringLiteral("HEADLESS-2"));
     state.first_present = first ? 1 : 0;
     state.second_present = second ? 1 : 0;
-    state.root_output_count = helper->rootSurfaceContainer()->outputs().size();
-    state.primary_is_first = helper->rootSurfaceContainer()->primaryOutput() == first ? 1 : 0;
+    state.root_output_count = server->rootSurfaceContainer()->outputs().size();
+    state.primary_is_first = server->rootSurfaceContainer()->primaryOutput() == first ? 1 : 0;
     state.first_is_source = first && first->isSource() ? 1 : 0;
     state.second_is_source = second && second->isSource() ? 1 : 0;
     state.second_is_copy = second && !second->isSource() ? 1 : 0;
@@ -39,43 +39,43 @@ virtual_output_desktop_state readState(Helper *helper)
 
 bool g_configNormalized = false;
 
-void normalizeInitialOutputConfig(Helper *helper)
+void normalizeInitialOutputConfig(WaylandServer *server)
 {
-    auto *config = helper->globalConfig();
+    auto *config = server->globalConfig();
     config->setCreateCopyOutput(false);
     config->setCopyOutputName(QString());
     config->setCopyOutputOutputs(QStringLiteral("[]"));
-    helper->setOutputMode(Helper::OutputMode::Extension);
+    server->setOutputMode(WaylandServer::OutputMode::Extension);
     g_configNormalized = true;
 }
 }
 
-void protocol_test_setup(Helper *helper)
+void protocol_test_setup(WaylandServer *server)
 {
     // The desktop fixture starts with HEADLESS-1.  A second real backend
     // output is necessary because this protocol creates a copy group, not a
     // new backend output.
-    add_headless_output(helper->backend(), false);
+    add_headless_output(server->backend(), false);
 
-    auto *config = helper->globalConfig();
+    auto *config = server->globalConfig();
     if (config->isInitializeSucceeded()) {
-        normalizeInitialOutputConfig(helper);
+        normalizeInitialOutputConfig(server);
     } else {
         QObject::connect(config,
                          &TreelandConfig::configInitializeSucceed,
-                         helper,
-                         [helper](auto *) { normalizeInitialOutputConfig(helper); });
+                         server,
+                         [server](auto *) { normalizeInitialOutputConfig(server); });
     }
 }
 
-extern "C" bool protocol_test_ready(Helper *helper)
+extern "C" bool protocol_test_ready(WaylandServer *server)
 {
     return g_configNormalized
-        && findRootOutputByName(helper, QStringLiteral("HEADLESS-1"))
-        && findRootOutputByName(helper, QStringLiteral("HEADLESS-2"));
+        && findRootOutputByName(server, QStringLiteral("HEADLESS-1"))
+        && findRootOutputByName(server, QStringLiteral("HEADLESS-2"));
 }
 
 extern "C" void virtual_output_desktop_read_state(void *data)
 {
-    *static_cast<virtual_output_desktop_state *>(data) = readState(Helper::instance());
+    *static_cast<virtual_output_desktop_state *>(data) = readState(WaylandServer::instance());
 }

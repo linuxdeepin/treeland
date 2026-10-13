@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #include "wayland-security-context-v1.h"
 #include "server-bridge.h"
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 #include <wbackend.h>
 #include <protocols/wsecuritycontextmanager.h>
 #include <protocols/private/wsecuritycontextmanager_p.h>
@@ -31,15 +31,15 @@ static void handleCommit(struct wl_listener *listener, void *data)
 }
 }
 
-void protocol_test_setup(Helper *helper)
+void protocol_test_setup(WaylandServer *server)
 {
-    add_headless_output(helper->backend(), false);
+    add_headless_output(server->backend(), false);
 
     g_committed = false;
     g_app_id_match = false;
     g_commit_listener.notify = handleCommit;
 
-    auto *mgr = find_server_interface<WSecurityContextManager>(helper);
+    auto *mgr = find_server_interface<WSecurityContextManager>(server);
     Q_ASSERT(mgr);
     if (!mgr)
         return;

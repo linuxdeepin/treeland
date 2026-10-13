@@ -3,7 +3,7 @@
 
 #include "core/windowconfigstore.h"
 
-#include "core/dconfigmanager.h"
+#include "dconfig/dconfigmanager.h"
 #include "appconfig.hpp"
 #include "common/treelandlogging.h"
 

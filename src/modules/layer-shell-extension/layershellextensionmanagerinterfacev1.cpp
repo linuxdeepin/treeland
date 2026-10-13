@@ -6,7 +6,7 @@
 #include "common/treelandlogging.h"
 #include "core/rootsurfacecontainer.h"
 #include "qwayland-server-treeland-layer-shell-extension-unstable-v1.h"
-#include "seat/helper.h"
+#include "core/waylandserver.h"
 #include "surface/surfacewrapper.h"
 
 #include <wayland-server.h>
@@ -186,7 +186,7 @@ LayerShellExtensionObjectV1Private::LayerShellExtensionObjectV1Private(
                               &LayerShellExtensionObjectV1Private::onSurfaceDestroyed);
     }
 
-    auto *container = Helper::instance()->rootSurfaceContainer();
+    auto *container = WaylandServer::instance()->rootSurfaceContainer();
     if (container) {
         QObject::connect(container,
                          &RootSurfaceContainer::moveResizeFinised,
@@ -225,7 +225,7 @@ void LayerShellExtensionObjectV1Private::registerClamp(WSeat *seat,
     if (clampRegistered)
         clearClamp();
 
-    auto *container = Helper::instance()->rootSurfaceContainer();
+    auto *container = WaylandServer::instance()->rootSurfaceContainer();
     if (!container)
         return;
     auto *seatContainer = container->getSeatContainerOrDefault(seat);
@@ -244,7 +244,7 @@ void LayerShellExtensionObjectV1Private::clearClamp()
     if (!clampRegistered)
         return;
 
-    auto *container = Helper::instance()->rootSurfaceContainer();
+    auto *container = WaylandServer::instance()->rootSurfaceContainer();
     if (container) {
         auto *seatContainer = container->getSeatContainerOrDefault(resizingSeat);
         if (seatContainer)
@@ -316,7 +316,7 @@ void LayerShellExtensionObjectV1Private::begin_resize(Resource *resource,
         return;
     }
 
-    auto *container = Helper::instance()->rootSurfaceContainer();
+    auto *container = WaylandServer::instance()->rootSurfaceContainer();
     auto *wrapper = container->getSurface(WSurface::fromHandle(origin));
     if (!wrapper || wrapper->type() != SurfaceWrapper::Type::Layer) {
         qCWarning(lcTlLayerShell) << "begin_resize REJECTED: no Layer wrapper for surface, type ="
@@ -363,7 +363,7 @@ void LayerShellExtensionObjectV1Private::begin_resize(Resource *resource,
 
     auto *seatContainer = container->getSeatContainerOrDefault(seat);
     if (!seatContainer || seatContainer->moveResizeState().surface != wrapper) {
-        qCWarning(lcTlLayerShell) << "begin_resize REJECTED: compositor did not take over resize";
+        qCWarning(lcTlLayerShell) << "begin_resize REJECTED: server did not take over resize";
         send_resize_rejected(resource->handle, resize_error_inactive);
         return;
     }
@@ -386,7 +386,7 @@ LayerShellExtensionObjectV1::~LayerShellExtensionObjectV1()
     WSeat *seat = d->resizingSeat;
     if (seat) {
         d->clearClamp();
-        auto *container = Helper::instance()->rootSurfaceContainer();
+        auto *container = WaylandServer::instance()->rootSurfaceContainer();
         if (container)
             container->cancelMoveResizeForSeat(seat);
     }

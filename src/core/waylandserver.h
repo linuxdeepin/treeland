@@ -1,4 +1,4 @@
-// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #pragma once
@@ -7,7 +7,6 @@
 #include "core/qmlengine.h"
 #include "modules/activation/activationmanagerinterfacev1.h"
 #include "modules/shortcut/shortcutmanager.h"
-#include "modules/virtual-output/virtualoutputmanagerinterfacev1.h"
 #include "modules/wallpaper/wallpapermanagerinterfacev1.h"
 #include "modules/wallpaper/wallpapernotifierinterfacev1.h"
 #include "modules/show-desktop/showdesktopinterfacev1.h"
@@ -19,7 +18,6 @@
 #include <wextforeigntoplevellistv1.h>
 #include <wglobal.h>
 #include <wscoplistener.h>
-#include <memory>
 #include <wpointer.h>
 #include <woutputmanagerv1.h>
 #include <wqmlcreator.h>
@@ -29,9 +27,8 @@
 #include <wxdgtopleveltagmanager.h>
 
 #include <QList>
-#include <vector>
 #include <QMap>
-#include <qevent.h>
+#include <QEvent>
 
 #include <optional>
 
@@ -82,6 +79,14 @@ class WSessionLockManager;
 class WSessionLock;
 WAYLIB_SERVER_END_NAMESPACE
 
+class ShowDesktop;
+class LockScreenManager;
+class IdleManager;
+class CaptureManager;
+class DragController;
+class CompositorInputFilter;
+class FocusController;
+class SurfaceProtocolController;
 class SeatManager;
 class PointerConstraintsManager;
 
@@ -136,9 +141,11 @@ namespace Treeland {
 class Treeland;
 }
 
-class Helper : public WSeatEventFilter, public WAYLIB_SERVER_NAMESPACE::WObject
+class WaylandServer : public QObject, public WAYLIB_SERVER_NAMESPACE::WObject
 {
     Q_OBJECT
+    QML_ELEMENT
+    QML_SINGLETON
     Q_PROPERTY(RootSurfaceContainer* rootSurfaceContainer READ rootSurfaceContainer CONSTANT FINAL)
     Q_PROPERTY(float animationSpeed READ animationSpeed WRITE setAnimationSpeed NOTIFY animationSpeedChanged FINAL)
     Q_PROPERTY(OutputMode outputMode READ outputMode WRITE setOutputMode NOTIFY outputModeChanged FINAL)
@@ -149,12 +156,10 @@ class Helper : public WSeatEventFilter, public WAYLIB_SERVER_NAMESPACE::WObject
     Q_PROPERTY(bool blockActivateSurface READ blockActivateSurface WRITE setBlockActivateSurface NOTIFY blockActivateSurfaceChanged FINAL)
     Q_PROPERTY(bool noAnimation READ noAnimation WRITE setNoAnimation NOTIFY noAnimationChanged FINAL)
     Q_PROPERTY(RootSurfaceContainer* rootContainer READ rootContainer CONSTANT FINAL)
-    QML_ELEMENT
-    QML_SINGLETON
 
 public:
-    explicit Helper(QObject *parent = nullptr);
-    ~Helper() override;
+    explicit WaylandServer(QObject *parent = nullptr);
+    ~WaylandServer() override;
 
     static void syncPaletteTypeWithWindowColorScheme(int32_t colorScheme);
 
@@ -174,10 +179,12 @@ public:
     };
     Q_ENUM(CurrentMode)
 
-    static Helper *instance();
+    static WaylandServer *instance();
+    bool isAvailable() const { return m_instance != nullptr; }
     TreelandUserConfig *config();
     TreelandConfig *globalConfig();
 
+    SurfaceWrapper *activatedSurface() const;
     SessionManager *sessionManager() const;
     QmlEngine *qmlEngine() const;
     WOutputRenderWindow *window() const;
@@ -212,6 +219,8 @@ public:
     bool toggleDebugMenuBar();
 
     ShowDesktopInterfaceV1::State showDesktopState() const;
+    bool isShowDesktopAvailable() const;
+    void setShowDesktopState(ShowDesktopInterfaceV1::State state);
 
     Q_INVOKABLE void setLaunchpadMapped(WOutput *output, bool mapped);
     Q_INVOKABLE void showDesktop(WOutput *output);
@@ -241,6 +250,8 @@ public:
     // standalone shutdown menu does not hide layer surfaces (desktop icons,
     // dock, panels) via setHideByLockScreen().
     void prepareLockScreenTransition(bool isShutdownView = false);
+    void finishLockScreenTransition();
+    void setNoAnimation(bool noAnimation);
 
     void showLockScreen(bool switchToGreeter = true);
     void showShutdownMenu();
@@ -262,6 +273,8 @@ public:
     void toggleFpsDisplay();
 
     void updateIdleInhibitor();
+    void restoreFromShowDesktop(SurfaceWrapper *activeSurface = nullptr);
+    void restoreShowDesktopFocus();
 
     bool setXWindowPositionRelative(uint wid, WSurface *anchor, wl_fixed_t dx, wl_fixed_t dy) const;
     SeatManager *seatManager() const;
@@ -269,12 +282,12 @@ public:
     WSeat *getSeatForEvent(QInputEvent *event) const;
     WSeat *findSeatForSurface(SurfaceWrapper *wrapper) const;
     WSeat *getLastInteractingSeat(SurfaceWrapper *surface) const;
-    WSeat *currentEventSeat() const { return m_currentEventSeat; }
+    WSeat *currentEventSeat() const;
 
     bool isDDMDisplay() const { return m_isDDMDisplay; }
 
     RootSurfaceContainer *rootContainer() const { return m_rootSurfaceContainer; }
-    inline WBackend *backend() const { return m_backend; }
+    WBackend *backend() const;
 public Q_SLOTS:
     void activateSurface(SurfaceWrapper *wrapper,
                          Qt::FocusReason reason = Qt::OtherFocusReason,
@@ -310,27 +323,33 @@ Q_SIGNALS:
     void modifierKeyReleased(QKeyEvent *event);
 
 private Q_SLOTS:
-    void updateCurrentUser();
-    void onPendingUserConfigInitialized();
-    void onShowDesktop();
     void deleteTaskSwitch();
-    void onSessionNew(const QString &sessionId, const QDBusObjectPath &objectPath);
-    void onSessionLock();
-    void onSessionUnlock();
 
 private:
-    void onSurfaceModeChanged(WSurface *surface, WXdgDecorationManager::DecorationMode mode);
-    void onNewIdleInhibitor(wlr_idle_inhibitor_v1 *inhibitor);
-    void onSurfaceWrapperAdded(SurfaceWrapper *wrapper);
-    void onSurfaceWrapperAboutToRemove(SurfaceWrapper *wrapper);
-    void handleRequestDrag([[maybe_unused]] WSurface *surface);
-    void handleLockScreen(LockScreenInterface *lockScreen);
+    WXdgOutputManager *installDesktopProtocols(QmlEngine *engine);
+    bool initializeSeatsAndShell();
+    void installRuntimeProtocols(WXdgOutputManager *xdgOutputManager);
+    void createBackend();
+    void startDisplay();
+    void initializeRendering();
+    void initializeRenderWindow();
+    void installPointerProtocols();
+    void installCommonProtocols();
+    void startBackend();
     void handleCompositorAction(uint32_t action);
-    void handleNewForeignToplevelCaptureRequest(wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request *request);
-    void onExtSessionLock(WSessionLock *lock);
     void applyCurrentUserConfig(const QString &userName,
                                 TreelandUserConfig *config,
                                 SeatUserDConfig *seatConfig);
+    SurfaceWrapper *keyboardFocusSurface() const;
+    void setActivatedSurface(SurfaceWrapper *newActivateSurface,
+                             WSeat *seat = nullptr,
+                             bool raise = true);
+    void setWorkspaceVisible(bool visible);
+    void updateSurfaceSeatInteraction(SurfaceWrapper *surface, WSeat *seat);
+    void switchWorkspaceForSeat(WSeat *seat, int index);
+
+private Q_SLOTS:
+    void onRenderWindowActiveFocusItemChanged();
 
 private:
     friend class PointerConstraintsManager;
@@ -344,38 +363,9 @@ private:
     friend class ShortcutRunner;
     friend class ShellActionExecutor;
 
-    SurfaceWrapper *keyboardFocusSurface() const;
-    SurfaceWrapper *activatedSurface() const;
-    void setActivatedSurface(SurfaceWrapper *newActivateSurface,
-                             WSeat *seat = nullptr,
-                             bool raise = true);
-
-    bool beforeDisposeEvent(WSeat *seat, QWindow *window, QInputEvent *event) override;
-    bool afterHandleEvent(WSeat *seat, WSurface *watched, QObject *shellObject,
-                         QObject *eventObject, QInputEvent *event) override;
-    bool unacceptedEvent(WSeat *seat, QWindow *window, QInputEvent *event) override;
-    void onRenderWindowActiveFocusItemChanged();
-    void handleLeftButtonStateChanged(const QInputEvent *event);
-    void handleWhellValueChanged(const QInputEvent *event);
-    bool doGesture(QInputEvent *event);
-    void setWorkspaceVisible(bool visible);
-    void restoreFromShowDesktop(SurfaceWrapper *activeSurface = nullptr);
-    void restoreShowDesktopFocus();
-    void setNoAnimation(bool noAnimation);
-
-    void updateSurfaceSeatInteraction(SurfaceWrapper *surface, WSeat *seat);
-
-    void switchWorkspaceForSeat(WSeat *seat, int index);
-    void handleRequestDragForSeat(WSeat *seat, WSurface *surface);
-
-    WSeat *m_currentEventSeat = nullptr;
-
-    static Helper *m_instance;
+    static WaylandServer *m_instance;
     TreelandUserConfig *m_config = nullptr;
     TreelandConfig *m_globalConfig = nullptr;
-    TreelandUserConfig *m_pendingUserConfig = nullptr;
-    SeatUserDConfig *m_pendingSeatConfig = nullptr;
-    QString m_pendingUserName;
     Treeland::Treeland *m_treeland = nullptr;
     FpsDisplayManager *m_fpsManager = nullptr;
     SessionManager *m_sessionManager = nullptr;
@@ -383,72 +373,30 @@ private:
 
     CurrentMode m_currentMode{ CurrentMode::Normal };
 
-    // qtquick helper
+    // QtQuick scene and presentation
     WOutputRenderWindow *m_renderWindow = nullptr;
     QQuickItem *m_dockPreview = nullptr;
     QQuickItem *m_fpsDisplay = nullptr;
 
-    // gesture
+    // Wayland runtime and scene root
     WServer *m_server = nullptr;
+    WBackend *m_backend = nullptr;
+    WUniquePointer<wlr_renderer> m_renderer;
+    WUniquePointer<wlr_allocator> m_allocator;
+    WPointer<wlr_compositor> m_compositor;
     RootSurfaceContainer *m_rootSurfaceContainer = nullptr;
 
-    // wayland helper
+    // Seat and desktop protocol adapters
     WSeat *m_primarySeat = nullptr;
-    WBackend *m_backend = nullptr;
-    // These wlr objects are owned by the display/backend (created via
-    // wlr_*_create(display, ...) or wlr_renderer_autocreate(backend)); wrap
-    // them in observing pointers so they never dangle once the display or
-    // backend tears them down. Types without an events.destroy signal
-    // (wlr_idle_notifier_v1) and types only forward-declared in this header
-    // (wlr_ext_foreign_toplevel_image_capture_source_manager_v1) are kept as
-    // raw pointers — the helper lives as long as the server, so they cannot
-    // outlive the display.
-    WPointer<wlr_renderer> m_renderer;
-    WPointer<wlr_allocator> m_allocator;
-
-    // protocols
-    WPointer<wlr_compositor> m_compositor;
-    wlr_idle_notifier_v1 *m_idleNotifier = nullptr;
-    WPointer<wlr_idle_inhibit_manager_v1> m_idleInhibitManager;
-    wlr_ext_foreign_toplevel_image_capture_source_manager_v1 *m_foreignToplevelImageCaptureManager = nullptr;
-
-    struct IdleInhibitorEntry {
-        wlr_idle_inhibitor_v1 *inhibitor = nullptr;
-        WAYLIB_SERVER_NAMESPACE::WScopedListener destroyListener;
-        QList<QMetaObject::Connection> connections {};
-    };
-    std::vector<IdleInhibitorEntry> idleInhibitorEntries;
-
-    // Primary-seat drag path (handleRequestDrag): equivalent to the old
-    // QObject::connect on qw_drag; re-init replaces any previous connection.
-    WAYLIB_SERVER_NAMESPACE::WScopedListener dragDropListener;
-    WAYLIB_SERVER_NAMESPACE::WScopedListener dragDestroyListener;
-
-    struct SeatDragEntry {
-        wlr_drag *drag = nullptr;
-        std::unique_ptr<WAYLIB_SERVER_NAMESPACE::WListenerOwner> owner;
-    };
-    std::vector<SeatDragEntry> seatDragEntries;
-    ActivationManagerInterfaceV1 *m_activationManagerV1 = nullptr;
     ShellHandler *m_shellHandler = nullptr;
-    WXdgDecorationManager *m_xdgDecorationManager = nullptr;
-    WXdgDialogManagerV1 *m_xdgDialogManagerV1 = nullptr;
-    WXdgToplevelTagManagerV1 *m_xdgToplevelTagManagerV1 = nullptr;
-    WForeignToplevel *m_foreignToplevel = nullptr;
-    WExtForeignToplevelListV1 *m_extForeignToplevelListV1 = nullptr;
-    WRelativePointerManagerV1 *m_relativePointerManager = nullptr;
     WPointerConstraintsV1 *m_pointerConstraintsV1 = nullptr;
     PointerConstraintsManager *m_pointerConstraintsManager = nullptr;
     ShortcutManagerV2 *m_shortcutManager = nullptr;
-    PersonalizationManagerInterfaceV1 *m_personalizationInterfaceV1 = nullptr;
     AppearanceInterfaceV1 *m_appearanceInterfaceV1 = nullptr;
     AppearanceManagerInterfaceV1 *m_appearanceManagerInterfaceV1 = nullptr;
     CompositorActionInterfaceV1 *m_compositorActionInterfaceV1 = nullptr;
-    DecorationManagerInterfaceV1 *m_decorationInterfaceV1 = nullptr;
     WallpaperColorInterfaceV1 *m_wallpaperColorV1 = nullptr;
-    ShowDesktopInterfaceV1 *m_showDesktopInterfaceV1 = nullptr;
     XWindowControlInterfaceV1 *m_xWindowControlInterfaceV1 = nullptr;
-    ShowDesktopInterfaceV1::State m_showDesktop = ShowDesktopInterfaceV1::State::Normal;
     DDEShellManagerInterfaceV1 *m_ddeShellV1 = nullptr;
     DDEShellManagerInterfaceV2 *m_ddeShellV2 = nullptr;
     DDMInterfaceV1 *m_ddmInterfaceV1 = nullptr;
@@ -457,22 +405,13 @@ private:
     TreelandWallpaperNotifierInterfaceV1 *m_wallpaperNotifierInterfaceV1 = nullptr;
     TreelandKeyboardStateNotifyManagerInterfaceV1 *m_keyboardStateNotifyManagerInterfaceV1 = nullptr;
     TreelandActiveNotifyManagerInterfaceV1 *m_activeNotifyManagerInterfaceV1 = nullptr;
-    TreelandRegionWatchManagerInterfaceV1 *m_regionWatchManagerInterfaceV1 = nullptr;
     KeyboardShortcutsInhibitManagerV1 *m_keyboardShortcutsInhibitManagerV1 = nullptr;
-#ifdef EXT_SESSION_LOCK_V1
-    WSessionLockManager *m_sessionLockManager = nullptr;
-    QTimer *m_lockScreenGraceTimer = nullptr;
-#endif
-    // private data
+    // Desktop presentation state
     OutputManager *m_outputManager = nullptr;
     QPointer<QQuickItem> m_taskSwitch;
-    QList<wlr_idle_inhibitor_v1 *> m_idleInhibitors;
 
-    LockScreen *m_lockScreen = nullptr;
     float m_animationSpeed = 1.0;
     std::optional<QPointF> m_fakelastPressedPosition;
-
-    QPointer<CaptureSourceSelector> m_captureSelector;
 
     QPropertyAnimation *m_workspaceScaleAnimation{ nullptr };
     QPropertyAnimation *m_workspaceOpacityAnimation{ nullptr };
@@ -492,5 +431,13 @@ private:
 
     SeatManager *m_seatManager = nullptr;
     InputManager *m_inputManager = nullptr;
+    SurfaceProtocolController *m_surfaceProtocols = nullptr;
+    ShowDesktop *m_showDesktop = nullptr;
+    LockScreenManager *m_lockScreenManager = nullptr;
+    FocusController *m_focusController = nullptr;
+    CompositorInputFilter *m_inputFilter = nullptr;
+    IdleManager *m_idleManager = nullptr;
+    CaptureManager *m_captureManager = nullptr;
+    DragController *m_dragController = nullptr;
     TreelandInputManagerInterfaceV1 *m_inputManagerInterfaceV1 = nullptr;
 };

@@ -38,9 +38,9 @@ fixture 的两个真实 headless backend output：`HEADLESS-1` 和 `HEADLESS-2`�
 
 1. 客户端发送 `create_virtual_output("protocol-copy-group", ["HEADLESS-1", "HEADLESS-2"])`；
 2. 收到 production manager 发出的 `outputs` 事件，名称及数组内容必须完全一致；
-3. `Helper::onSetCopyOutput()` 将第二个既有 `Output` 替换为 copy/proxy `Output`，第一个
+3. `WaylandServer::onSetCopyOutput()` 将第二个既有 `Output` 替换为 copy/proxy `Output`，第一个
    仍是镜像源；root output 数仍为 2，两个既有 backend output 都仍存在；
-4. 客户端销毁 group 后，`Helper::onRestoreCopyOutput()` 把第二个 `Output` 恢复为 normal
+4. 客户端销毁 group 后，`WaylandServer::onRestoreCopyOutput()` 把第二个 `Output` 恢复为 normal
    output；root output 数仍为 2。
 
 这里的 normal/copy 判断对应 `Output::isPrimary()` 的内部类型含义（normal 为 true、copy

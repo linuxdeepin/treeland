@@ -3,7 +3,7 @@
 
 #include "wallpapermanager.h"
 #include "workspace.h"
-#include "helper.h"
+#include "core/waylandserver.h"
 #include "treelanduserconfig.hpp"
 #include "common/treelandlogging.h"
 #include "modules/wallpaper/wallpapershellinterfacev1.h"
@@ -86,8 +86,8 @@ WallpaperOutputConfig WallpaperManager::getOutputConfig(const QString &id)
 void WallpaperManager::updateWallpaperConfig()
 {
     m_wallpaperConfig.clear();
-    if (!Helper::instance()->m_config->wallpaperConfig().isEmpty()) {
-        QJsonDocument doc = QJsonDocument::fromJson(Helper::instance()->m_config->wallpaperConfig().toUtf8());
+    if (!WaylandServer::instance()->m_config->wallpaperConfig().isEmpty()) {
+        QJsonDocument doc = QJsonDocument::fromJson(WaylandServer::instance()->m_config->wallpaperConfig().toUtf8());
         if (doc.isArray()) {
             QJsonArray jsonArray = doc.array();
             for (const QJsonValue& value : jsonArray) {
@@ -105,10 +105,10 @@ void WallpaperManager::updateWallpaperConfig()
 
 void WallpaperManager::defaultWallpaperConfig()
 {
-    Workspace *workspace = Helper::instance()->workspace();
+    Workspace *workspace = WaylandServer::instance()->workspace();
     Q_ASSERT(workspace);
-    const QString defaultBackground = Helper::instance()->m_config->defaultBackground();
-    for (Output *output : std::as_const(Helper::instance()->outputs())) {
+    const QString defaultBackground = WaylandServer::instance()->m_config->defaultBackground();
+    for (Output *output : std::as_const(WaylandServer::instance()->outputs())) {
         WallpaperOutputConfig outputConfig;
         applyDefaultWallpaper(defaultBackground,
                               outputConfig.lockscreenWallpaper,
@@ -127,7 +127,7 @@ void WallpaperManager::defaultWallpaperConfig()
     }
 
     QString json = wallpaperConfigToJsonString();
-    Helper::instance()->m_config->setWallpaperConfig(json);
+    WaylandServer::instance()->m_config->setWallpaperConfig(json);
 }
 
 void WallpaperManager::ensureWallpaperConfigForOutput(Output *output)
@@ -138,9 +138,9 @@ void WallpaperManager::ensureWallpaperConfigForOutput(Output *output)
 
     bool update = false;
     if (!configContainsOutput(output)) {
-        Workspace *workspace = Helper::instance()->workspace();
+        Workspace *workspace = WaylandServer::instance()->workspace();
         Q_ASSERT(workspace);
-        const QString defaultBackground = Helper::instance()->m_config->defaultBackground();
+        const QString defaultBackground = WaylandServer::instance()->m_config->defaultBackground();
 
         WallpaperOutputConfig outputConfig;
         const bool hasReferenceConfig = !m_wallpaperConfig.isEmpty()
@@ -173,7 +173,7 @@ void WallpaperManager::ensureWallpaperConfigForOutput(Output *output)
         update = true;
     } else {
         QString outputId = output->getOutputId();
-        Workspace *workspace = Helper::instance()->workspace();
+        Workspace *workspace = WaylandServer::instance()->workspace();
         Q_ASSERT(workspace);
 
         for (WallpaperOutputConfig &outputConfig : m_wallpaperConfig) {
@@ -197,15 +197,15 @@ void WallpaperManager::ensureWallpaperConfigForOutput(Output *output)
 
     if (update) {
         QString json = wallpaperConfigToJsonString();
-        Helper::instance()->m_config->setWallpaperConfig(json);
+        WaylandServer::instance()->m_config->setWallpaperConfig(json);
 
         WallpaperOutputConfig outputConfig = getOutputConfig(output);
         for (auto &workspaceConfig : std::as_const(outputConfig.workspaces)) {
-            Helper::instance()->m_wallpaperNotifierInterfaceV1->sendAdd(workspaceConfig.desktopWallpapertype,
+            WaylandServer::instance()->m_wallpaperNotifierInterfaceV1->sendAdd(workspaceConfig.desktopWallpapertype,
                                                                         workspaceConfig.desktopWallpaper);
         }
 
-        Helper::instance()->m_wallpaperNotifierInterfaceV1->sendAdd(outputConfig.lockScreenWallpapertype,
+        WaylandServer::instance()->m_wallpaperNotifierInterfaceV1->sendAdd(outputConfig.lockScreenWallpapertype,
                                                                     outputConfig.lockscreenWallpaper);
 
         Q_EMIT updateWallpaper();
@@ -268,7 +268,7 @@ void WallpaperManager::setOutputWallpaper(wlr_output *output, [[maybe_unused]] i
     }
 
     if (update) {
-        Helper::instance()->m_config->setWallpaperConfig(wallpaperConfigToJsonString());
+        WaylandServer::instance()->m_config->setWallpaperConfig(wallpaperConfigToJsonString());
     }
 }
 
@@ -277,7 +277,7 @@ QMap<QString, TreelandWallpaperInterfaceV1::WallpaperType> WallpaperManager::glo
     QMap<QString, TreelandWallpaperInterfaceV1::WallpaperType> wallpapers;
     for (const WallpaperOutputConfig& output : std::as_const(m_wallpaperConfig)) {
         bool outputConnected = false;
-        for (Output *connectedOutput : std::as_const(Helper::instance()->outputs())) {
+        for (Output *connectedOutput : std::as_const(WaylandServer::instance()->outputs())) {
             if (output.outputName == connectedOutput->getOutputId()) {
                 outputConnected = true;
                 break;
@@ -307,7 +307,7 @@ void WallpaperManager::syncAddWorkspace()
         return;
     }
 
-    Workspace *workspace = Helper::instance()->workspace();
+    Workspace *workspace = WaylandServer::instance()->workspace();
     Q_ASSERT(workspace);
 
     bool update = false;
@@ -331,7 +331,7 @@ void WallpaperManager::syncAddWorkspace()
     }
 
     if (update) {
-        Helper::instance()->m_config->setWallpaperConfig(wallpaperConfigToJsonString());
+        WaylandServer::instance()->m_config->setWallpaperConfig(wallpaperConfigToJsonString());
         Q_EMIT updateWallpaper();
     }
 }
@@ -343,11 +343,11 @@ void WallpaperManager::removeOutputWallpaper(wlr_output *output)
             WallpaperOutputConfig &outputConfig = m_wallpaperConfig[i];
             QMap<QString, TreelandWallpaperInterfaceV1::WallpaperType> globalWallpapers = globalValidWallpaper(output);
             if (!globalWallpapers.contains(outputConfig.lockscreenWallpaper)) {
-                Helper::instance()->m_wallpaperNotifierInterfaceV1->sendRemove(outputConfig.lockscreenWallpaper);
+                WaylandServer::instance()->m_wallpaperNotifierInterfaceV1->sendRemove(outputConfig.lockscreenWallpaper);
             }
             for (const WallpaperWorkspaceConfig &workspace : std::as_const(outputConfig.workspaces)) {
                 if (!globalWallpapers.contains(workspace.desktopWallpaper)) {
-                    Helper::instance()->m_wallpaperNotifierInterfaceV1->sendRemove(workspace.desktopWallpaper);
+                    WaylandServer::instance()->m_wallpaperNotifierInterfaceV1->sendRemove(workspace.desktopWallpaper);
                 }
             }
             break;
@@ -357,7 +357,7 @@ void WallpaperManager::removeOutputWallpaper(wlr_output *output)
 
 QString WallpaperManager::currentWorkspaceWallpaper(WOutput *output)
 {
-    Workspace *workspace = Helper::instance()->workspace();
+    Workspace *workspace = WaylandServer::instance()->workspace();
     Q_ASSERT(workspace);
     for (int i = 0; i < m_wallpaperConfig.size(); ++i) {
         if (m_wallpaperConfig[i].outputName == Output::getOutputId(output->handle())) {
@@ -403,7 +403,7 @@ void WallpaperManager::onWallpaperAdded(TreelandWallpaperInterfaceV1 *interface)
     if (!output)
         return;
 
-    Workspace *workspace = Helper::instance()->workspace();
+    Workspace *workspace = WaylandServer::instance()->workspace();
     Q_ASSERT(workspace);
     for (int i = 0; i < m_wallpaperConfig.size(); ++i) {
         if (m_wallpaperConfig[i].outputName == Output::getOutputId(output->handle())) {
@@ -446,7 +446,7 @@ void WallpaperManager::onImageChanged(int workspaceIndex, const QString &fileSou
         interface->sendError(fileSource, TreelandWallpaperInterfaceV1::AlreadyUsed);
         Q_EMIT updateWallpaper();
     } else {
-        Helper::instance()->m_wallpaperNotifierInterfaceV1->sendAdd(TreelandWallpaperInterfaceV1::Image, fileSource);
+        WaylandServer::instance()->m_wallpaperNotifierInterfaceV1->sendAdd(TreelandWallpaperInterfaceV1::Image, fileSource);
     }
 }
 
@@ -468,7 +468,7 @@ void WallpaperManager::onVideoChanged(int workspaceIndex, const QString &fileSou
         interface->sendError(fileSource, TreelandWallpaperInterfaceV1::AlreadyUsed);
         Q_EMIT updateWallpaper();
     } else {
-        Helper::instance()->m_wallpaperNotifierInterfaceV1->sendAdd(TreelandWallpaperInterfaceV1::Video, fileSource);
+        WaylandServer::instance()->m_wallpaperNotifierInterfaceV1->sendAdd(TreelandWallpaperInterfaceV1::Video, fileSource);
     }
 }
 
@@ -478,17 +478,17 @@ void WallpaperManager::onWallpaperNotifierBound(wl_resource *resource)
     QMapIterator<QString, TreelandWallpaperInterfaceV1::WallpaperType> i(globalWallpapers);
     while (i.hasNext()) {
         i.next();
-        Helper::instance()->m_wallpaperNotifierInterfaceV1->sendAddForResource(resource, static_cast<TreelandWallpaperInterfaceV1::WallpaperType>(i.value()), i.key());
+        WaylandServer::instance()->m_wallpaperNotifierInterfaceV1->sendAddForResource(resource, static_cast<TreelandWallpaperInterfaceV1::WallpaperType>(i.value()), i.key());
     }
 }
 
 void WallpaperManager::handleWallpaperSurfaceAdded([[maybe_unused]] TreelandWallpaperSurfaceInterfaceV1 *interface)
 {
-    QList<QString> wallpapers = Helper::instance()->shellHandler()->wallpaperShell()->producedWallpapers();
+    QList<QString> wallpapers = WaylandServer::instance()->shellHandler()->wallpaperShell()->producedWallpapers();
     QMap<QString, TreelandWallpaperInterfaceV1::WallpaperType> globalWallpapers = globalValidWallpaper();
     foreach (auto wallpaper, std::as_const(wallpapers)) {
         if (!globalWallpapers.contains(wallpaper)) {
-            Helper::instance()->m_wallpaperNotifierInterfaceV1->sendRemove(wallpaper);
+            WaylandServer::instance()->m_wallpaperNotifierInterfaceV1->sendRemove(wallpaper);
         }
     }
 }
