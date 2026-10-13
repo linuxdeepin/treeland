@@ -957,6 +957,11 @@ void RootSurfaceContainer::detectEdgeTilingForSeat(WSeat *seat)
                 mode = SurfaceWrapper::TileMode::Maximize;
             }
 
+            if (mode != SurfaceWrapper::TileMode::None
+                && !mrState.surface->supportsTileMode(mode)) {
+                mode = SurfaceWrapper::TileMode::None;
+            }
+
             // Multi-screen inner-edge detection:
             // Sample 1px outside the edge; if another output covers that
             // point, this is an inner edge
