@@ -133,14 +133,6 @@ public:
         return hasObject(surface);
     }
 
-    // Drop all entries without emitting any signals. Intended for use during
-    // teardown only: the model itself is being destroyed together with its
-    // owning SurfaceContainer, so a layout-change notification would be unsafe.
-    void clear()
-    {
-        m_objects.clear();
-    }
-
 Q_SIGNALS:
     void surfaceAdded(SurfaceWrapper *surface);
     void surfaceRemoved(SurfaceWrapper *surface);
@@ -149,6 +141,18 @@ private:
     using ObjectListModel<SurfaceWrapper>::addObject;
     using ObjectListModel<SurfaceWrapper>::removeObject;
     using ObjectListModel<SurfaceWrapper>::objects;
+
+    // Drop all entries without emitting any signals. Intended for use during
+    // teardown only (see SurfaceContainer::~SurfaceContainer): the model is
+    // being destroyed together with its owning SurfaceContainer, so a
+    // layout-change notification would be unsafe. Kept private so a live model
+    // can never be silently emptied by an arbitrary caller.
+    void clear()
+    {
+        m_objects.clear();
+    }
+
+    friend class SurfaceContainer;
 };
 
 class SurfaceFilterModel : public SurfaceListModel

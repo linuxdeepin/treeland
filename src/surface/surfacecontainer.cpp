@@ -142,7 +142,14 @@ SurfaceContainer::~SurfaceContainer()
     // Break the back-reference on each surface first, then drop our model
     // entries without emitting signals: the model is being destroyed together
     // with us, so a layout-change notification would be unsafe here.
-    for (SurfaceWrapper *surface : std::as_const(m_model->surfaces())) {
+    //
+    // Snapshot the surface list before iterating: setContainer(nullptr) emits
+    // the containerChanged signal synchronously, and a handler connected to it
+    // may add or remove surfaces while we walk the list. Mutating the model's
+    // underlying QList mid-traversal would invalidate the range-for iterator and
+    // is undefined behavior; iterating over a copy keeps the loop safe.
+    const auto surfaces = m_model->surfaces();
+    for (SurfaceWrapper *surface : std::as_const(surfaces)) {
         if (surface)
             surface->setContainer(nullptr);
     }
