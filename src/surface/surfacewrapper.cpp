@@ -907,11 +907,13 @@ void SurfaceWrapper::moveNormalGeometryInOutput(const QPointF &position)
 {
     QPointF alignedPosition = alignToPixelGrid(position);
     setNormalGeometry(QRectF(alignedPosition, m_normalGeometry.size()));
-    if (isNormal()) {
-        setPosition(alignedPosition);
-    } else if (m_pendingState == State::Normal && m_geometryAnimation) {
+    if (m_surfaceState != State::Normal)
+        return;
+
+    if (m_geometryAnimation)
         m_geometryAnimation->setProperty("toGeometry", m_normalGeometry);
-    }
+    else
+        setPosition(alignedPosition);
 }
 
 void SurfaceWrapper::setNormalGeometry(const QRectF &newNormalGeometry)
@@ -942,8 +944,9 @@ void SurfaceWrapper::setMaximizedGeometry(const QRectF &newMaximizedGeometry)
     if (m_surfaceState == State::Maximized && !m_geometryAnimation) {
         setPosition(newMaximizedGeometry.topLeft());
         resize(newMaximizedGeometry.size());
-    } else if (m_pendingState == State::Maximized && m_geometryAnimation) {
-        m_geometryAnimation->setProperty("targetGeometry", newMaximizedGeometry);
+    } else if (m_surfaceState == State::Maximized && m_geometryAnimation) {
+        // Retarget the running animation; GeometryAnimation exposes toGeometry.
+        m_geometryAnimation->setProperty("toGeometry", newMaximizedGeometry);
     }
 
     Q_EMIT maximizedGeometryChanged();
@@ -969,8 +972,9 @@ void SurfaceWrapper::setFullscreenGeometry(const QRectF &newFullscreenGeometry)
     if (m_surfaceState == State::Fullscreen && !m_geometryAnimation) {
         setPosition(newFullscreenGeometry.topLeft());
         resize(newFullscreenGeometry.size());
-    } else if (m_pendingState == State::Fullscreen && m_geometryAnimation) {
-        m_geometryAnimation->setProperty("targetGeometry", newFullscreenGeometry);
+    } else if (m_surfaceState == State::Fullscreen && m_geometryAnimation) {
+        // Retarget the running animation; GeometryAnimation exposes toGeometry.
+        m_geometryAnimation->setProperty("toGeometry", newFullscreenGeometry);
     }
 
     Q_EMIT fullscreenGeometryChanged();
@@ -1128,14 +1132,13 @@ bool SurfaceWrapper::checkSetSurfaceState(State newSurfaceState, bool allowRetar
     if (m_geometryAnimation && !allowRetarget)
         return false;
 
-    const State currentState = m_geometryAnimation ? m_pendingState : m_surfaceState;
-    if (currentState == newSurfaceState)
+    if (m_surfaceState == newSurfaceState)
         return false;
 
     if (m_isSnapMask && (newSurfaceState == State::Maximized || newSurfaceState == State::Tiling))
         return false;
 
-    if (container()->filterSurfaceStateChange(this, newSurfaceState, currentState))
+    if (container()->filterSurfaceStateChange(this, newSurfaceState, m_surfaceState))
         return false;
 
     return true;
@@ -1159,39 +1162,23 @@ bool SurfaceWrapper::shouldUpdateNormalGeometry() const
         && !xdgSurface->handle()->current.fullscreen;
 }
 
-void SurfaceWrapper::applySurfaceStateWithoutGeometry(State state)
-{
-    if (state == State::Normal && m_type == Type::XdgToplevel) {
-        m_shellSurface->resize(QSize(0, 0));
-    }
-
-    doSetSurfaceState(state);
-}
-
 void SurfaceWrapper::setSurfaceState(State newSurfaceState)
 {
     if (!checkSetSurfaceState(newSurfaceState, true))
         return;
 
-    // A client can request the next state after the shell state has been
-    // acknowledged, while the corresponding geometry animation is still
-    // running. Retarget the transition instead of silently dropping the
-    // request until the visual animation finishes.
+    // The exposed state changes immediately, but the shell surface is only
+    // notified at the animation's first frame: the animation captures its
+    // snapshot of the old content there, and notifying earlier makes the
+    // client resize before that snapshot, which flickers the first frame.
     abortGeometryAnimation();
-
-    if (!isVisible()) {
-        setSurfaceStateDirectly(newSurfaceState);
-        return;
-    }
+    setSurfaceStateValue(newSurfaceState);
 
     const QRectF targetGeometry = targetGeometryForState(newSurfaceState);
-
-    if (targetGeometry.isValid()) {
-        startStateChangeAnimation(newSurfaceState, targetGeometry);
-    } else {
-        abortGeometryAnimation();
-        applySurfaceStateWithoutGeometry(newSurfaceState);
-    }
+    if (targetGeometry.isValid() && isVisible())
+        startStateChangeAnimation(targetGeometry);
+    else
+        applySurfaceState();
 }
 
 void SurfaceWrapper::setSurfaceStateDirectly(State newSurfaceState)
@@ -1199,15 +1186,9 @@ void SurfaceWrapper::setSurfaceStateDirectly(State newSurfaceState)
     if (!checkSetSurfaceState(newSurfaceState))
         return;
 
-    const QRectF targetGeometry = targetGeometryForState(newSurfaceState);
     abortGeometryAnimation();
-
-    if (targetGeometry.isValid()) {
-        if (!applySurfaceStateGeometry(newSurfaceState, targetGeometry))
-            return;
-    } else {
-        applySurfaceStateWithoutGeometry(newSurfaceState);
-    }
+    setSurfaceStateValue(newSurfaceState);
+    applySurfaceState();
 }
 
 QRectF SurfaceWrapper::targetGeometryForState(State state) const
@@ -1226,14 +1207,28 @@ QRectF SurfaceWrapper::targetGeometryForState(State state) const
     }
 }
 
-bool SurfaceWrapper::applySurfaceStateGeometry(State state, const QRectF &targetGeometry)
+bool SurfaceWrapper::applyGeometry(const QRectF &targetGeometry)
 {
     if (!resize(targetGeometry.size(), true))
         return false;
 
     setPosition(alignToPixelGrid(targetGeometry.topLeft()));
-    doSetSurfaceState(state);
     resize(targetGeometry.size());
+    return true;
+}
+
+bool SurfaceWrapper::applySurfaceState()
+{
+    // Single place that lands a state without an animation: shell notification,
+    // then geometry. Idempotent, so it is also safe as the animation fallback.
+    applyShellSurfaceState();
+
+    const QRectF targetGeometry = targetGeometryForState(m_surfaceState);
+    if (targetGeometry.isValid())
+        return applyGeometry(targetGeometry);
+
+    if (m_surfaceState == State::Normal)
+        resetXdgToplevelSize();
     return true;
 }
 
@@ -1244,6 +1239,14 @@ void SurfaceWrapper::abortGeometryAnimation()
         m_geometryAnimation->deleteLater();
         m_geometryAnimation = nullptr;
     }
+}
+
+void SurfaceWrapper::resetXdgToplevelSize()
+{
+    // XdgToplevel has no stored normal geometry to fall back to, so reset the
+    // configured size to let the client re-negotiate it.
+    if (m_type == Type::XdgToplevel && m_shellSurface)
+        m_shellSurface->resize(QSize(0, 0));
 }
 
 QBindable<SurfaceWrapper::State> SurfaceWrapper::bindableSurfaceState()
@@ -1639,18 +1642,28 @@ void SurfaceWrapper::itemChange(ItemChange change, const ItemChangeData &data)
     return QQuickItem::itemChange(change, data);
 }
 
-void SurfaceWrapper::doSetSurfaceState(State newSurfaceState)
+void SurfaceWrapper::setSurfaceStateValue(State newSurfaceState)
 {
     if (m_wrapperAboutToRemove)
         return;
 
+    m_previousSurfaceState.setValueBypassingBindings(m_surfaceState);
+    m_surfaceState.setValueBypassingBindings(newSurfaceState);
+    m_previousSurfaceState.notify();
+    m_surfaceState.notify();
+}
+
+void SurfaceWrapper::applyShellSurfaceState()
+{
+    if (m_wrapperAboutToRemove || m_appliedSurfaceState == m_surfaceState)
+        return;
+
+    const State newSurfaceState = m_surfaceState;
+
     // In prelaunch mode there is no shellSurface; update state only without calling shellSurface
     // methods
     if (!m_shellSurface) {
-        m_previousSurfaceState.setValueBypassingBindings(m_surfaceState);
-        m_surfaceState.setValueBypassingBindings(newSurfaceState);
-        m_previousSurfaceState.notify();
-        m_surfaceState.notify();
+        m_appliedSurfaceState = newSurfaceState;
         return;
     }
 
@@ -1658,10 +1671,7 @@ void SurfaceWrapper::doSetSurfaceState(State newSurfaceState)
     setNoCornerRadius(newSurfaceState == State::Maximized || newSurfaceState == State::Fullscreen
                       || newSurfaceState == State::Tiling);
 
-    m_previousSurfaceState.setValueBypassingBindings(m_surfaceState);
-    m_surfaceState.setValueBypassingBindings(newSurfaceState);
-
-    switch (m_previousSurfaceState.value()) {
+    switch (m_appliedSurfaceState) {
     case State::Maximized:
         m_shellSurface->setMaximize(false);
         break;
@@ -1675,9 +1685,8 @@ void SurfaceWrapper::doSetSurfaceState(State newSurfaceState)
     default:
         break;
     }
-    m_previousSurfaceState.notify();
 
-    switch (m_surfaceState.value()) {
+    switch (newSurfaceState) {
     case State::Maximized:
         m_shellSurface->setMaximize(true);
         break;
@@ -1691,21 +1700,17 @@ void SurfaceWrapper::doSetSurfaceState(State newSurfaceState)
     default:
         break;
     }
-    m_surfaceState.notify();
+
+    m_appliedSurfaceState = newSurfaceState;
     updateTitleBar();
     updateVisible();
 }
 
 void SurfaceWrapper::onAnimationReady()
 {
-    Q_ASSERT(m_pendingState != m_surfaceState);
-    Q_ASSERT(m_pendingGeometry.isValid());
-
-    if (!applySurfaceStateGeometry(m_pendingState, m_pendingGeometry)) {
-        // abort change state if cannot resize
+    // abort change state if cannot resize
+    if (!applySurfaceState())
         abortGeometryAnimation();
-        return;
-    }
 }
 
 void SurfaceWrapper::onAnimationFinished()
@@ -1714,13 +1719,13 @@ void SurfaceWrapper::onAnimationFinished()
     Q_ASSERT(m_geometryAnimation);
     // The ready signal is driven by ShaderEffectSource's scheduled update.
     // Software renderers may complete the geometry animation without issuing
-    // that update, so commit the pending state here as an idempotent fallback.
-    if (m_surfaceState != m_pendingState)
-        applySurfaceStateGeometry(m_pendingState, m_pendingGeometry);
+    // that update, so apply here as an idempotent fallback. Re-applying also
+    // settles geometry that was retargeted after the ready frame.
+    applySurfaceState();
     abortGeometryAnimation();
 }
 
-bool SurfaceWrapper::startStateChangeAnimation(State targetState, const QRectF &targetGeometry)
+bool SurfaceWrapper::startStateChangeAnimation(const QRectF &targetGeometry)
 {
     if (m_geometryAnimation) // animation running
         return false;
@@ -1728,8 +1733,6 @@ bool SurfaceWrapper::startStateChangeAnimation(State targetState, const QRectF &
     m_geometryAnimation =
         m_engine->createGeometryAnimation(this, geometry(), targetGeometry, container());
     m_geometryAnimation->setProperty("enableBlur", m_blur);
-    m_pendingState = targetState;
-    m_pendingGeometry = targetGeometry;
     bool ok = connect(m_geometryAnimation, SIGNAL(ready()), this, SLOT(onAnimationReady()));
     Q_ASSERT(ok);
     ok = connect(m_geometryAnimation, SIGNAL(finished()), this, SLOT(onAnimationFinished()));
@@ -2090,6 +2093,7 @@ void SurfaceWrapper::maximize()
         return;
     }
 
+    // A fullscreen window must be un-fullscreened before it can be maximized.
     if (m_surfaceState == State::Fullscreen || !isMaximizable())
         return;
 
