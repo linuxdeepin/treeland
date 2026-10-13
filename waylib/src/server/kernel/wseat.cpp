@@ -395,6 +395,7 @@ public:
     void updateCapabilities();
     void attachInputDevice(WInputDevice *device);
     void detachInputDevice(WInputDevice *device);
+    void syncVirtualKeyboard(WInputDevice *device);
     // handle spontaneous & synthetic key event for focusWindow
     void handleKeyEvent(QKeyEvent &e);
     void applyXkbConfig();
@@ -702,6 +703,29 @@ void WSeatPrivate::updateCapabilities()
     wlr_seat_set_capabilities(handle(), caps);
 }
 
+// Virtual keyboards (normally the input method's) are not part of the keyboard
+// group, so it never propagates the group's keymap and repeat settings to them.
+// Sharing the group keymap pointer keeps wlr_seat_set_keyboard() from resending
+// the whole keymap each time the input method switches the seat keyboard.
+void WSeatPrivate::syncVirtualKeyboard(WInputDevice *device)
+{
+    if (!group || !group->keyboard.keymap)
+        return;
+
+    auto keyboard = wlr_keyboard_from_input_device(device->handle());
+    if (!keyboard)
+        return;
+
+    if (keyboard->keymap != group->keyboard.keymap
+        && wlr_keyboard_keymaps_match(keyboard->keymap, group->keyboard.keymap)) {
+        wlr_keyboard_set_keymap(keyboard, group->keyboard.keymap);
+    }
+
+    wlr_keyboard_set_repeat_info(keyboard,
+                                 group->keyboard.repeat_info.rate,
+                                 group->keyboard.repeat_info.delay);
+}
+
 void WSeatPrivate::attachInputDevice(WInputDevice *device)
 {
     W_Q(WSeat);
@@ -714,12 +738,16 @@ void WSeatPrivate::attachInputDevice(WInputDevice *device)
 
         if (device == groupkeyboardDevice || device->isVirtual()) {
             /* We need to prepare an XKB keymap and assign it to the keyboard. */
-            struct xkb_context *context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
-            struct xkb_keymap *keymap = xkb_map_new_from_names(context, &xkbRules,
-                                                               XKB_KEYMAP_COMPILE_NO_FLAGS);
-            wlr_keyboard_set_keymap(keyboard, keymap);
-            xkb_keymap_unref(keymap);
-            xkb_context_unref(context);
+            if (device != groupkeyboardDevice && group && group->keyboard.keymap) {
+                wlr_keyboard_set_keymap(keyboard, group->keyboard.keymap);
+            } else {
+                struct xkb_context *context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
+                struct xkb_keymap *keymap = xkb_map_new_from_names(context, &xkbRules,
+                                                                   XKB_KEYMAP_COMPILE_NO_FLAGS);
+                wlr_keyboard_set_keymap(keyboard, keymap);
+                xkb_keymap_unref(keymap);
+                xkb_context_unref(context);
+            }
 
             auto *listeners = device->listeners(q_ptr);
             listeners->add(&keyboard->events.key, this,
@@ -730,6 +758,17 @@ void WSeatPrivate::attachInputDevice(WInputDevice *device)
                            [this, device] (void *) {
                 on_keyboard_modifiers(device);
             });
+            if (device->isVirtual()) {
+                listeners->add(&keyboard->events.keymap, this,
+                               [this, device] (void *) {
+                    syncVirtualKeyboard(device);
+                });
+                listeners->add(&group->keyboard.events.repeat_info, this,
+                               [this, device] (void *) {
+                    syncVirtualKeyboard(device);
+                });
+                syncVirtualKeyboard(device);
+            }
             q->setKeyboard(device);
         } else {
             // Reuse group keymap pointer so wlr_seat_set_keyboard() sees
