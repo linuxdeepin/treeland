@@ -132,10 +132,21 @@ SurfaceContainer::SurfaceContainer(SurfaceContainer *parent)
 
 SurfaceContainer::~SurfaceContainer()
 {
-    if (!m_model->surfaces().isEmpty()) {
-        qCCritical(lcTlSurface)
-            << "SurfaceContainer destroyed with surfaces still attached:" << m_model->surfaces();
+    // A SurfaceContainer must never be torn down while surfaces are still
+    // attached: those SurfaceWrapper objects are QObject children of this item
+    // and will be deleted by Qt immediately after this destructor returns. Any
+    // pending callback (e.g. an output/surface commit job) or bound QML property
+    // that still holds a raw pointer to them would then dereference freed memory
+    // (use-after-free -> SIGSEGV).
+    //
+    // Break the back-reference on each surface first, then drop our model
+    // entries without emitting signals: the model is being destroyed together
+    // with us, so a layout-change notification would be unsafe here.
+    for (SurfaceWrapper *surface : std::as_const(m_model->surfaces())) {
+        if (surface)
+            surface->setContainer(nullptr);
     }
+    m_model->clear();
 }
 
 RootSurfaceContainer *SurfaceContainer::rootContainer() const

@@ -133,6 +133,14 @@ public:
         return hasObject(surface);
     }
 
+    // Drop all entries without emitting any signals. Intended for use during
+    // teardown only: the model itself is being destroyed together with its
+    // owning SurfaceContainer, so a layout-change notification would be unsafe.
+    void clear()
+    {
+        m_objects.clear();
+    }
+
 Q_SIGNALS:
     void surfaceAdded(SurfaceWrapper *surface);
     void surfaceRemoved(SurfaceWrapper *surface);

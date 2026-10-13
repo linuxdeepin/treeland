@@ -1,6 +1,7 @@
 // Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
+#include <QPointer>
 #include <wscopedvalue.h>
 #include "output.h"
 
@@ -1240,16 +1241,23 @@ void Output::setOutputColor(qreal brightness,
     auto *outputHelper = renderWindow->getOutputHelper(viewport);
     outputHelper->setExtraState(newState);
 
-    outputHelper->scheduleCommitJob([this, brightness, colorTemperature, newState, resultCallback](bool success, WOutputHelper::ExtraState state) {
+    // Guard against the Output being destroyed before this commit callback
+    // fires (e.g. during a compositor teardown/restart). Capturing the raw
+    // `this` here is a use-after-free: the callback would dereference a
+    // dangling Output pointer and crash with SIGSEGV.
+    QPointer<Output> self(this);
+    outputHelper->scheduleCommitJob([self, brightness, colorTemperature, newState, resultCallback](bool success, WOutputHelper::ExtraState state) {
+        if (!self)
+            return;
         if (state == newState) {
             if (resultCallback)
                 resultCallback(success);
             if (!success) {
                 qCWarning(lcTlOutput) << "Failed to apply brightness and color temperature settings to output"
-                                          << output()->name();
+                                          << self->output()->name();
             } else {
-                config()->setBrightness(brightness);
-                config()->setColorTemperature(colorTemperature);
+                self->config()->setBrightness(brightness);
+                self->config()->setColorTemperature(colorTemperature);
             }
         } else {
             qCWarning(lcTlOutput) << "Commit callback received unexpected state pointer!"
