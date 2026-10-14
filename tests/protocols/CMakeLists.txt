@@ -67,6 +67,7 @@ add_subdirectory(treeland-show-desktop-v1)
 add_subdirectory(treeland-xwindow-control-unstable-v1)
 add_subdirectory(treeland-region-watch-unstable-v1)
 add_subdirectory(treeland-show-desktop-desktop-v1)
+add_subdirectory(treeland-window-transition-unstable-v1)
 add_subdirectory(treeland-wine-window-state-unstable-v1)
 add_subdirectory(treeland-wine-window-management-unstable-v1)
 
