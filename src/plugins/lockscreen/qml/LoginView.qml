@@ -64,8 +64,10 @@ FocusScope {
 
         function onShowShutdownViewChanged(show) {
             if (!show && !GreeterProxy.isLocked) {
+                // Restore the normal mode promptly, but do not hide the lock
+                // screen container here: the Greeter background still needs to
+                // fade out. LockScreen hides the container when that fade ends.
                 root.animationPlayed()
-                root.animationPlayFinished()
             }
         }
 

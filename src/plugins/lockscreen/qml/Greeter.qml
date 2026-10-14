@@ -10,6 +10,8 @@ FocusScope {
     id: root
     clip: true
 
+    signal hideAnimationFinished()
+
     required property QtObject output
     required property QtObject outputItem
     visible: true
@@ -28,22 +30,22 @@ FocusScope {
     Rectangle {
         id: background
 
-        readonly property int duration: 1000
+        readonly property int scaleDuration: 1000
+        readonly property int duration: (GreeterProxy.isLocked || scale !== 1) ? scaleDuration : 600
+        property real effectStrength: 0.0
         anchors.fill: parent
         clip: true
-        color: 'black'
+        color: 'transparent'
         opacity: 0.0
         transformOrigin: Item.Center
+        scale: GreeterProxy.isLocked ? 1.2 : 1
         state: (GreeterProxy.isLocked || GreeterProxy.undecided || GreeterProxy.showShutdownView) ? "Show" : "Hide"
         states: [
             State {
                 name: "Show"
                 PropertyChanges {
                     target: background
-                    scale: 1.2
-                }
-                PropertyChanges {
-                    target: background
+                    effectStrength: 1.0
                     opacity: 1
                 }
             },
@@ -51,21 +53,25 @@ FocusScope {
                 name: "Hide"
                 PropertyChanges {
                     target: background
-                    scale: 1
-                }
-                PropertyChanges {
-                    target: background
-                    opacity: 0
+                    effectStrength: 0.0
+                    opacity: 0.0
                 }
             }
         ]
+
+        Behavior on scale {
+            NumberAnimation {
+                duration: background.scaleDuration
+                easing.type: Easing.OutExpo
+            }
+        }
 
         transitions: [
             Transition {
                 from: "*"
                 to: "Show"
                 PropertyAnimation {
-                    property: "scale"
+                    property: "effectStrength"
                     duration: background.duration
                     easing.type: Easing.OutExpo
                 }
@@ -79,7 +85,7 @@ FocusScope {
                 from: "*"
                 to: "Hide"
                 PropertyAnimation {
-                    property: "scale"
+                    property: "effectStrength"
                     duration: background.duration
                     easing.type: Easing.OutExpo
                 }
@@ -92,12 +98,18 @@ FocusScope {
         ]
         onStateChanged: {
             if (state === "Show") {
-                Helper.startLockscreen(root.output, true);
+                // Only a real lock screen entry zooms the desktop wallpaper.
+                if (GreeterProxy.isLocked || GreeterProxy.undecided)
+                    Helper.startLockscreen(root.output, true);
                 wallpaper.play = true;
             } else {
                 wallpaper.play = false;
                 Helper.showDesktop(root.output)
             }
+        }
+        onOpacityChanged: {
+            if (state === "Hide" && opacity === 0.0)
+                root.hideAnimationFinished()
         }
 
         Wallpaper {
@@ -118,12 +130,10 @@ FocusScope {
 	        visible: true
 
             property variant source: wallpaper
-            property real threshold: 0.80
-            property real maxLightness: 0.88
-            property real chromaStart: 0.02
-            property real chromaEnd: 0.08
+            property real u_dimRatio: 0.25
+            property real u_strength: background.effectStrength
 
-            fragmentShader: "qrc:/shaders/wallpaper_oklch_shoulder.frag.qsb"
+            fragmentShader: "qrc:/shaders/wallpaper_luma_dim.frag.qsb"
         }
     }
 
