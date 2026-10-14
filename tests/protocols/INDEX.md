@@ -52,6 +52,7 @@ Wayland 线上请求与事件；本文档规定发出请求后，测试必须观
 | [treeland-xwindow-control-unstable-v1](treeland-xwindow-control-unstable-v1/README.md) | P | `set_xwindow_position_relative` 失败回调；成功路径需 Xwayland，当前环境未覆盖 |
 | [wine-window-management-unstable-v1](treeland-wine-window-management-unstable-v1/README.md) | P / E | 真实 wrapper 的位置与置顶层同步 |
 | [wine-window-state-unstable-v1](treeland-wine-window-state-unstable-v1/README.md) | P / E | 真实 wrapper 的最小化、attention 与可见性同步 |
+| [window-transition-unstable-v1](treeland-window-transition-unstable-v1/README.md) | P / I / E | transition rect 进入生产 pending 集合、同 token 覆盖发一次 `closed`、旧 rect 析构不误删新 rect、销毁回收；map 前激活把**未 map** 的目标 arm 成 40×40 带 source surface（同 token 消费、他 token 不受影响），并跟随几何更新、0×0 禁用/重启用、source 清空/重设；激活迟到与无 originating surface 各发一次 `closed`；`invalid_geometry` / `invalid_surface` 协议错误 |
 | [drm (`wl_drm`)](drm/README.md) | P / V（GPU 条件） | wlroots native global、GBM DMA-BUF 与真实纹理 readback |
 | [input-method-unstable-v2](input-method-unstable-v2/README.md) | P / E | focused text-input 与 input method 的生产状态和编辑回传 |
 | [virtual-keyboard-unstable-v1](virtual-keyboard-unstable-v1/README.md) | P / E | 有效 keymap 的真实 seat 与 shortcut 链路 |
@@ -104,13 +105,13 @@ xdg-shell 由共享 xdg-toplevel 夹具覆盖（多个 toplevel 测试复用）�
 request stub 算作 request 覆盖；生成的 client-protocol 文件本身不计入。`destroy` 也单列，
 因为它证明资源生命周期，却通常不承载主要业务语义。
 
-- **已注册并有测试目录的 24 个当前协议**：XML 共 221 条 request，其中测试客户端直接
-  调用了 **167 条（75.6%）**。
-- 去掉 59 条 `destroy` 生命周期 request 后，剩余 162 条工厂、配置和业务 request 中有
-  **112 条（69.1%）** 被直接调用。
-- 24 个协议中 **19 个（79.2%）** 至少有一条 E 级生产业务链路；仅 DDM、output-manager
+- **已注册并有测试目录的 25 个当前协议**：XML 共 226 条 request，其中测试客户端直接
+  调用了 **172 条（76.1%）**。
+- 去掉 61 条 `destroy` 生命周期 request 后，剩余 165 条工厂、配置和业务 request 中有
+  **115 条（69.7%）** 被直接调用。
+- 25 个协议中 **20 个（80.0%）** 至少有一条 E 级生产业务链路；仅 DDM、output-manager
   color-control、wallpaper-color 仍停留在 I/P 层。
-- 当前 XML 共有 114 条 server event。这里**不发布“事件百分比”**：listener 中出现一个
+- 当前 XML 共有 115 条 server event。这里**不发布“事件百分比”**：listener 中出现一个
   callback、或 fixture 手工发出一次 event，都不能证明事件负载或其业务来源被断言。下表只
   列出已实际断言的关键 event，并明确列出尚未逐项验证的 event。
 
@@ -141,6 +142,7 @@ request stub 算作 request 覆盖；生成的 client-protocol 文件本身不�
 | layer-shell-extension-unstable-v1 | 4 / 4 | `begin_resize` 的 `resize_rejected(bad_serial)` | 成功 resize、clamp、`resizing` 生命周期 |
 | wine-window-management-unstable-v1 | 5 / 5 | `window_id/configure_position/configure_stacking`；真实 QQuickItem 位置/Z 值 | bottom/insert-after、多窗口 sibling、无效 sibling、重复 bind、越界坐标 |
 | wine-window-state-unstable-v1 | 6 / 7 | `state_changed`；真实最小化、attention 与可见性 | `activate/activate_denied`、重复 bind、toplevel 销毁后的 inert 状态 |
+| window-transition-unstable-v1 | 5 / 5 | `get_window_transition_rect` 进入生产 pending 集合；同 token 覆盖发一次 `closed`，旧 rect 析构不误删当前 rect；销毁后集合移除；map 前激活把未 map 的目标 arm 成 40×40 带 source surface（同 token 消费、他 token 不受影响），并跟随几何更新、0×0 禁用/重启用、source 清空/重设；激活迟到与无 originating surface 各发一次 `closed`；`invalid_geometry` / `invalid_surface` 协议错误 | 目标销毁触发的 `closed`、60 s sweep、跨 client 的 `invalid_surface`、rect 全局位置、source surface 身份 |
 
 \* XML 共有 37 条 request；其中 manager `destroy` 的 `since=2` 高于生产 global 的 v1。
 测试保留该调用用于兼容性/错误边界，正常可发布的 v1 request 集为其余 36 条。
