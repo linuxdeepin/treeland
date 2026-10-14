@@ -237,7 +237,10 @@ public:
 
     bool isLockScreenAvailable() const;
 
-    void prepareLockScreenTransition();
+    // When @p isShutdownView is true the current mode is left untouched, so the
+    // standalone shutdown menu does not hide layer surfaces (desktop icons,
+    // dock, panels) via setHideByLockScreen().
+    void prepareLockScreenTransition(bool isShutdownView = false);
 
     void showLockScreen(bool switchToGreeter = true);
     void showShutdownMenu();

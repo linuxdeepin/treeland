@@ -2176,12 +2176,15 @@ void Helper::setCurrentMode(CurrentMode mode)
     Q_EMIT currentModeChanged();
 }
 
-void Helper::prepareLockScreenTransition()
+void Helper::prepareLockScreenTransition(bool isShutdownView)
 {
     if (m_multitaskView) {
         m_multitaskView->immediatelyExit();
     }
     deleteTaskSwitch();
+    if (isShutdownView) {
+        return;
+    }
     setCurrentMode(CurrentMode::LockScreen);
     setWorkspaceVisible(false);
 }
@@ -2223,7 +2226,7 @@ void Helper::showShutdownMenu()
         return;
     }
 
-    prepareLockScreenTransition();
+    prepareLockScreenTransition(true);
     m_lockScreen->shutdown();
 }
 

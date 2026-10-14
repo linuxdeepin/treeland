@@ -56,6 +56,7 @@ Q_SIGNALS:
 public Q_SLOTS:
     void onAnimationPlayed();
     void onAnimationPlayFinished();
+    void onHideAnimationFinished();
 #ifdef EXT_SESSION_LOCK_V1
     void onExternalLock(WSessionLock *lock);
 
