@@ -34,6 +34,7 @@ FocusScope {
         readonly property int duration: (GreeterProxy.isLocked || scale !== 1) ? scaleDuration : 600
         readonly property bool hasWallpaper: wallpaper.surface !== null
         property real effectStrength: 0.0
+        readonly property bool dimActive: WaylandServer.config.lockscreenWallpaperDimEnabled
         anchors.fill: parent
         clip: true
         color: hasWallpaper ? 'transparent' : 'black'
@@ -120,7 +121,8 @@ FocusScope {
             clip: true
             wallpaperRole: Wallpaper.Lockscreen
             output: root.output
-            visible: false
+
+            visible: !background.dimActive
         }
 
         ShaderEffect {
@@ -128,10 +130,10 @@ FocusScope {
 
             anchors.fill: parent
             clip: true
-            visible: background.hasWallpaper
+            visible: background.hasWallpaper && background.dimActive
 
             property variant source: wallpaper
-            property real u_dimRatio: 0.25
+            property real u_dimRatio: WaylandServer.config.lockscreenWallpaperDimRatio
             property real u_strength: background.effectStrength
 
             fragmentShader: "qrc:/shaders/wallpaper_luma_dim.frag.qsb"
