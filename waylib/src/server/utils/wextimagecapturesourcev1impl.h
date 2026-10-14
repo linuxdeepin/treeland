@@ -3,22 +3,26 @@
 
 #pragma once
 
-#include <wlr_fwd.h>
 #include <wglobal.h>
 #include <wlr_all.h>
+#include <wlr_fwd.h>
+#include <wpointer.h>
 
 #include <QObject>
+#include <QPointer>
+#include <QQuickItem>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WSurfaceItemContent;
 class WOutput;
+class WOutputRenderWindow;
+class WBufferRenderer;
 
 class WAYLIB_SERVER_EXPORT WExtImageCaptureSourceV1Impl : public QObject
 {
     Q_OBJECT
 public:
-    explicit WExtImageCaptureSourceV1Impl(WSurfaceItemContent *surfaceContent, WOutput *output);
+    explicit WExtImageCaptureSourceV1Impl(QQuickItem *surfaceItem, WOutput *output);
     ~WExtImageCaptureSourceV1Impl();
 
     wlr_ext_image_capture_source_v1 *handle() { return &source; }
@@ -41,15 +45,26 @@ private:
         struct wlr_ext_image_capture_source_v1 *source, struct wlr_seat *seat);
 
 private Q_SLOTS:
+    void doOffscreenRender();
     void handleRenderEnd();
 
 private:
     wlr_ext_image_capture_source_v1 source;
 
-    QPointer<WSurfaceItemContent> m_surfaceContent;
+    WOutputRenderWindow *renderWindow() const;
+    qreal computeDpr() const;
+    QSize computePixelSize() const;
+    void updateConstraints(const QSize &pixelSize);
+
+    QPointer<QQuickItem> m_surfaceItem;
     WOutput *m_output;
     bool m_capturing;
+    QMetaObject::Connection m_afterRenderingConnection;
     QMetaObject::Connection m_renderEndConnection;
+
+    QPointer<WBufferRenderer> m_captureRenderer;
+    // Buffer from offscreen render, valid between doOffscreenRender and copy_frame
+    WPointer<wlr_buffer> m_renderedBuffer;
 };
 
 WAYLIB_SERVER_END_NAMESPACE
