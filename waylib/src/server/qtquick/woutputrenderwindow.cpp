@@ -885,6 +885,7 @@ WBufferRenderer *OutputHelper::afterRender()
 
     static bool noHardwareLayers = qEnvironmentVariableIsSet("WAYLIB_NO_HARDWARE_LAYERS");
     const bool ok = !noHardwareLayers && WOutputHelper::testCommit(bufferRenderer()->currentBuffer(), layers);
+    const bool captureLocked = output() && output()->attach_render_locks > 0;
     int needsSoftwareCompositeBeginIndex = -1;
     int needsSoftwareCompositeEndIndex = -1;
     bool forceShadowRender = false;
@@ -914,12 +915,14 @@ WBufferRenderer *OutputHelper::afterRender()
         Q_ASSERT(state.buffer);
         OutputLayer *layer = needsCompositeLayers[i]->layer;
 
+        const bool cursor = layer->layer->flags() & WOutputLayer::Cursor;
+        const bool pinToPrimary = captureLocked && !cursor;
         // If hardware layers is disabled on this output viewport
         // and this layer doesn't want force layer, should fallback
         // to software composite.
         if (needsSoftwareCompositeEndIndex == -1
-            && outputViewport()->disableHardwareLayers()
-            && !layer->forceLayer()) {
+            && (pinToPrimary
+                || (outputViewport()->disableHardwareLayers() && !layer->forceLayer()))) {
             needsSoftwareCompositeEndIndex = i;
         }
 
@@ -933,11 +936,11 @@ WBufferRenderer *OutputHelper::afterRender()
             }
         }
 
-        if (layer->forceLayer() || layer->keepLayer()
+        if (pinToPrimary || layer->forceLayer() || layer->keepLayer()
             // current layer can't reject, because the layes behind current layer
             // requset force composite.
             || i >= firstCantRejectLayerIndex) {
-            Q_ASSERT(layer->needsComposite());
+            Q_ASSERT(layer->needsComposite() || pinToPrimary);
             bool ok = layer->accept(outputViewport(), false);
             Q_ASSERT(ok);
             if (layer->forceLayer())
@@ -975,7 +978,7 @@ WBufferRenderer *OutputHelper::afterRender()
 
     if (needsCompositeLayers.isEmpty()
         // Don't do anyting if this output viewport wants ignore software layers
-        || outputViewport()->ignoreSoftwareLayers()) {
+        || (outputViewport()->ignoreSoftwareLayers() && !captureLocked)) {
         Q_ASSERT(!forceShadowRender);
         cleanLayerCompositor();
         return bufferRenderer();
