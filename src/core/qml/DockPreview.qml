@@ -405,6 +405,8 @@ Item {
 
         property size lastSize: Qt.size(0, 0)
         property int radius: 5
+        // Topmost z of the preview items (delegates).
+        readonly property int delegateZBase: 10000
         clip: false
         anchors.left: parent.left // Maybe changed in `onListviewPinToLeftChanged`
         anchors.leftMargin: listview.spacing
@@ -426,7 +428,8 @@ Item {
             objectName: "highlight"
             id: hoverBorder
             visible: false
-            z: listview.z + 2
+            // keep the hover border and its close button above every preview
+            z: listview.delegateZBase + 1
             anchors {
                 verticalCenter: listview.orientation === ListView.Horizontal && parent ? parent.verticalCenter : undefined
                 horizontalCenter: listview.orientation === ListView.Vertical && parent ? parent.horizontalCenter : undefined
@@ -471,7 +474,7 @@ Item {
             id: delegate
             objectName: "delegate"
             // ensure removing items are below non-removing ones
-            z: (isRemoving ? -index : (10000 - index))
+            z: (isRemoving ? -index : (listview.delegateZBase - index))
             visible: true
             radius: listview.radius
             color: Qt.rgba(0, 0, 0, 0.05) // TODO: dark mode
