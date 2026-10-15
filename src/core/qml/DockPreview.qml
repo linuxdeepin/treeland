@@ -115,11 +115,14 @@ Item {
             root.close();
         }
 
-        function closeSpecialWindow(surfaceId) {
-            let surfaceWrapper = filterSurfaceModel.get(surfaceId)?.wrapper
+        function closeSpecialWindow(surfaceWrapper) {
+            if (!surfaceWrapper)
+                return;
+
             console.debug(qLcDockPreview, "close a special window: ", surfaceWrapper)
-            filterSurfaceModel.remove(surfaceId)
-            surfaceWrapper.shellSurface.close();
+            filterSurfaceModel.removeSurface(surfaceWrapper)
+            if (surfaceWrapper.shellSurface)
+                surfaceWrapper.shellSurface.close()
         }
     }
 
@@ -549,7 +552,11 @@ Item {
                 visible: hoverHandler.hovered && !isRemoving
                 onClicked: {
                     listview.highlightItem.visible = false
-                    Qt.callLater(()=>listview.model.closeSpecialWindow(index))
+                    // capture the wrapper now: the deferred callback must not
+                    // read the delegate's row again, the rows may have been
+                    // removed or refreshed by then
+                    const target = wrapper
+                    Qt.callLater(()=>listview.model.closeSpecialWindow(target))
                 }
             }
         }
