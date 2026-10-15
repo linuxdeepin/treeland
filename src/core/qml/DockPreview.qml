@@ -25,8 +25,17 @@ Item {
     property point pos
     property int direction
     // auto update by binding
-    property size outPutSize: Qt.size(target?.output?.width || 9999, target?.output?.height || 9999)
-    property point outPutPos: Qt.point(target?.output?.x || 0, target?.output?.y || 0)
+    readonly property var outputItem: target?.ownsOutput?.outputItem ?? null
+    readonly property int screenWidth: outputItem && outputItem.width > 0 ? outputItem.width
+                                                                          : 9999
+    readonly property int screenHeight: outputItem && outputItem.height > 0 ? outputItem.height
+                                                                            : 9999
+    property size outPutSize: Qt.size(root.screenWidth, root.screenHeight)
+    property point outPutPos: {
+        if (!outputItem || !root.parent)
+            return Qt.point(0, 0);
+        return outputItem.mapToItem(root.parent, 0, 0);
+    }
     property int horizontalCenterOffsetAdjust: 0
     property int verticalCenterOffsetAdjust: 0
     // set by showTooltip()
