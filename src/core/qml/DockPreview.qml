@@ -428,7 +428,10 @@ Item {
             objectName: "highlight"
             id: hoverBorder
             visible: false
-            // keep the hover border and its close button above every preview
+            // purely visual overlay: keep it out of hover competition so that
+            // the preview item underneath still gets its own hover
+            hoverEnabled: false
+            // keep the hover border above every preview
             z: listview.delegateZBase + 1
             anchors {
                 verticalCenter: listview.orientation === ListView.Horizontal && parent ? parent.verticalCenter : undefined
@@ -450,23 +453,6 @@ Item {
 
                 border.color: D.ColorSelector.borderPalette
                 border.width: 4
-                D.ToolButton {
-                    anchors {
-                        top: parent.top
-                        right: parent.right
-                        topMargin: 10
-                        rightMargin: 10
-                    }
-                    implicitWidth: 24
-                    implicitHeight: 24
-                    icon.name: "close"
-                    icon.width: 16
-                    icon.height: 16
-                    onClicked: {
-                        listview.highlightItem.visible = false
-                        Qt.callLater(()=>listview.model.closeSpecialWindow(listview.currentIndex))
-                    }
-                }
             }
         }
         focus: true
@@ -517,6 +503,7 @@ Item {
             }
 
             HoverHandler {
+                id: hoverHandler
                 onHoveredChanged: {
                     if (hovered) {
                         listview.model.previewWindow(wrapper)
@@ -543,6 +530,27 @@ Item {
                 hideSource: false
                 smooth: true
                 sourceItem: wrapper
+            }
+
+            // one close button per preview, shown while hovering this item
+            D.ToolButton {
+                id: closeButton
+                anchors {
+                    top: parent.top
+                    right: parent.right
+                    topMargin: 10
+                    rightMargin: 10
+                }
+                implicitWidth: 24
+                implicitHeight: 24
+                icon.name: "close"
+                icon.width: 16
+                icon.height: 16
+                visible: hoverHandler.hovered && !isRemoving
+                onClicked: {
+                    listview.highlightItem.visible = false
+                    Qt.callLater(()=>listview.model.closeSpecialWindow(index))
+                }
             }
         }
 
