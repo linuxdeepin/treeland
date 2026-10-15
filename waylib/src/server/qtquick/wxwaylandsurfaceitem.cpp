@@ -247,6 +247,10 @@ void WXWaylandSurfaceItem::surfaceSizeRatioChange()
     W_DC(WXWaylandSurfaceItem);
 
     Q_ASSERT(d->shellSurface);
+
+    if (d->surfaceState)
+        updateSurfaceState();
+
     if (d->positionConfigured) {
         updatePosition();
     } else {
