@@ -46,13 +46,19 @@ Control {
         onTapped: {
             Helper.activateSurface(surface)
         }
-        onPressedChanged: {
-            if (pressed)
-                surface.moveRequested()
-        }
         onDoubleTapped: {
             if (root.canToggleMaximize)
                 surface.toggleMaximized()
+        }
+    }
+
+    DragHandler {
+        acceptedButtons: Qt.LeftButton
+        target: null
+        dragThreshold: Qt.styleHints.startDragDistance
+        onActiveChanged: {
+            if (active)
+                surface.moveRequested()
         }
     }
 
