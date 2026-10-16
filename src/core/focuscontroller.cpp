@@ -187,8 +187,13 @@ void FocusController::setActivatedSurface(SurfaceWrapper *newActivateSurface, WS
             if (newActivateSurface->type() == SurfaceWrapper::Type::XWayland) {
                 auto xwaylandSurface =
                     qobject_cast<WXWaylandSurface *>(newActivateSurface->shellSurface());
-                Q_ASSERT(!xwaylandSurface->isBypassManager());
-                xwaylandSurface->restack(nullptr, WXWaylandSurface::XCB_STACK_MODE_ABOVE);
+                // wlroots only links a mapped window into its stack list (an unmapped window is
+                // pushed below by its own map handler), and restack() must not be called for
+                // override-redirect windows.
+                if (xwaylandSurface && xwaylandSurface->isX11Mapped()
+                    && !xwaylandSurface->isBypassManager()) {
+                    xwaylandSurface->restack(nullptr, WXWaylandSurface::XCB_STACK_MODE_ABOVE);
+                }
             }
         }
     }
