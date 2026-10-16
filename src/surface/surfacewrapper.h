@@ -325,7 +325,10 @@ public:
     void setClientRequstPos(QPoint pos);
 
     bool blur() const;
-    void setBlur(bool blur);
+    // Personalization-driven blur (deprecated treeland-personalization-manager-v1 path).
+    void setBlurPersonalization(bool blur);
+    // ext-background-effect-v1 blur. Either source alone enables blur().
+    void setBlurBackgroundEffect(bool blur);
 
     bool coverEnabled() const;
     void setCoverEnabled(bool enabled);
@@ -449,6 +452,7 @@ private:
 
     void invalidate();
     void setup(); // Initialize m_surfaceItem related features
+    void syncBlurBackgroundEffect();
     void convertToNormalSurface(WToplevelSurface *shellSurface,
                                 Type type); // Transition from pre-launch mode to normal mode
     void updateBoundingRect();
@@ -584,7 +588,8 @@ private:
     uint m_hideByshowDesk : 1;
     uint m_hideByLockScreen : 1;
     uint m_confirmHideByLockScreen : 1;
-    uint m_blur : 1;
+    uint m_blurPersonalization : 1;
+    uint m_blurBackgroundEffect : 1;
     uint m_isActivated : 1;
     uint m_attention : 1;
     uint m_isIMCandidatePanel : 1;

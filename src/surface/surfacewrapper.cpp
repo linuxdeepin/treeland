@@ -60,7 +60,8 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     , m_hideByshowDesk(true)
     , m_hideByLockScreen(false)
     , m_confirmHideByLockScreen(false)
-    , m_blur(false)
+    , m_blurPersonalization(false)
+    , m_blurBackgroundEffect(false)
     , m_isActivated(false)
     , m_attention(false)
     , m_isIMCandidatePanel(false)
@@ -99,7 +100,8 @@ SurfaceWrapper::SurfaceWrapper(SurfaceWrapper *original, QQuickItem *parent)
     , m_hideByshowDesk(true)
     , m_hideByLockScreen(false)
     , m_confirmHideByLockScreen(false)
-    , m_blur(false)
+    , m_blurPersonalization(false)
+    , m_blurBackgroundEffect(false)
     , m_isActivated(false)
     , m_attention(false)
     , m_isIMCandidatePanel(false)
@@ -171,7 +173,8 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     , m_hideByshowDesk(true)
     , m_hideByLockScreen(false)
     , m_confirmHideByLockScreen(false)
-    , m_blur(false)
+    , m_blurPersonalization(false)
+    , m_blurBackgroundEffect(false)
     , m_isActivated(false)
     , m_attention(false)
     , m_isIMCandidatePanel(false)
@@ -380,6 +383,16 @@ void SurfaceWrapper::setup()
     }
 
     Q_EMIT surfaceItemCreated();
+
+    // ext-background-effect-v1 blur. The surface item caches the committed
+    // blur region and only emits when it changes, so this stays in sync even
+    // as the region is cleared/restored across commits. XWayland surfaces
+    // cannot attach background-effect objects, so their region is always empty.
+    connect(m_surfaceItem,
+            &WSurfaceItem::backgroundBlurRegionChanged,
+            this,
+            &SurfaceWrapper::syncBlurBackgroundEffect);
+    syncBlurBackgroundEffect();
 
     // Forward WToplevelSurface appId changes when using fallback mode
     if (m_appId.isEmpty()) {
@@ -1573,7 +1586,7 @@ void SurfaceWrapper::createNewOrClose(uint direction)
         [[fallthrough]];
     case Type::XWayland: {
         m_windowAnimation = m_engine->createNewAnimation(this, container(), direction);
-        m_windowAnimation->setProperty("enableBlur", m_blur);
+        m_windowAnimation->setProperty("enableBlur", blur());
     } break;
     case Type::Layer: {
         auto scope = QString(static_cast<WLayerSurfaceItem *>(m_surfaceItem)
@@ -1587,7 +1600,7 @@ void SurfaceWrapper::createNewOrClose(uint direction)
         } else if (anchor != WLayerSurface::AnchorType::None) {
             m_windowAnimation = m_engine->createLayerShellAnimation(this, container(), direction);
             m_windowAnimation->setProperty("position", QVariant::fromValue(anchor));
-            m_windowAnimation->setProperty("enableBlur", m_blur);
+            m_windowAnimation->setProperty("enableBlur", blur());
         } else {
             // NOTE: missing fullscreen window animation, so hide window now.
             if (m_hideByLockScreen) {
@@ -1732,7 +1745,7 @@ bool SurfaceWrapper::startStateChangeAnimation(const QRectF &targetGeometry)
 
     m_geometryAnimation =
         m_engine->createGeometryAnimation(this, geometry(), targetGeometry, container());
-    m_geometryAnimation->setProperty("enableBlur", m_blur);
+    m_geometryAnimation->setProperty("enableBlur", blur());
     bool ok = connect(m_geometryAnimation, SIGNAL(ready()), this, SLOT(onAnimationReady()));
     Q_ASSERT(ok);
     ok = connect(m_geometryAnimation, SIGNAL(finished()), this, SLOT(onAnimationFinished()));
@@ -2627,18 +2640,35 @@ SurfaceWrapper *SurfaceWrapper::findModal() const
 
 bool SurfaceWrapper::blur() const
 {
-    return m_blur;
+    return m_blurPersonalization || m_blurBackgroundEffect;
 }
 
-void SurfaceWrapper::setBlur(bool blur)
+void SurfaceWrapper::setBlurPersonalization(bool blur)
 {
-    if (m_blur == blur) {
+    if (m_blurPersonalization == blur) {
         return;
     }
 
-    m_blur = blur;
+    m_blurPersonalization = blur;
 
     Q_EMIT blurChanged();
+}
+
+void SurfaceWrapper::setBlurBackgroundEffect(bool blur)
+{
+    if (m_blurBackgroundEffect == blur) {
+        return;
+    }
+
+    m_blurBackgroundEffect = blur;
+
+    Q_EMIT blurChanged();
+}
+
+void SurfaceWrapper::syncBlurBackgroundEffect()
+{
+    if (m_surfaceItem)
+        setBlurBackgroundEffect(m_surfaceItem->backgroundBlurEnabled());
 }
 
 bool SurfaceWrapper::coverEnabled() const
