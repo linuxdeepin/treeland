@@ -165,12 +165,22 @@ public:
     void setSubsurface(WSubsurface *s) { m_subsurface = s; }
     QPointF position() const { return m_position; }
 
-    void invalidate() { m_manager = nullptr; }
+    void invalidate()
+    {
+        m_manager = nullptr;
+        // The remote object now outlives the parent exported surface. Detach
+        // the parent map/unmap listeners, otherwise wlroots asserts that
+        // events.map / events.unmap are empty when the parent wlr_surface is
+        // destroyed (see surface_handle_resource_destroy in wlr_compositor.c).
+        m_parentMapListener.disconnect();
+        m_parentUnmapListener.disconnect();
+    }
 
     void ensureSubsurface();
 
     void recheckMapping();
     void cascadeUnmap();
+    void unmapChildTree();
 
 protected:
     void destroy(Resource *resource) override
@@ -430,19 +440,6 @@ public:
         return nullptr;
     }
 
-    static void safeDestroyRemote(RemoteSubsurfaceContext *remote)
-    {
-        if (!remote)
-            return;
-        if (auto *res = remote->resource()) {
-            if (res->handle) {
-                wl_resource_destroy(res->handle);
-                return;
-            }
-        }
-        delete remote;
-    }
-
     // Cleanup
     void cleanupExportedContext(ExportedSurfaceContext *ctx)
     {
@@ -450,18 +447,19 @@ public:
         if (ctx->remoteSubsurface)
            allRemotes.append(ctx->remoteSubsurface);
 
-        // Do not emit unmapped signals here: client teardown can already have
-        // destroyed one of the WSurface wrappers.
+        // Unmap the child window and detach the parent-child relationship,
+        // but keep the treeland_remote_subsurface_v1 resource alive so the
+        // client can still destroy it later. Destroying it here would race
+        // with the client's own destroy request and trigger a fatal
+        // "invalid object" protocol error.
         for (auto *remote : std::as_const(allRemotes)) {
+            remote->unmapChildTree();
             removeChildFromParent(remote);
             // Prevent RemoteSubsurfaceContext::destroy_resource() from trying
             // to detach the same parent-child relationship a second time when
-            // safeDestroyRemote() destroys the role resource below.
+            // the client later destroys the role resource.
             remote->invalidate();
         }
-
-        for (auto *remote : std::as_const(allRemotes))
-            safeDestroyRemote(remote);
 
         unregisterExported(ctx);
     }
@@ -694,6 +692,14 @@ void RemoteSubsurfaceContext::cascadeUnmap()
     }
 }
 
+void RemoteSubsurfaceContext::unmapChildTree()
+{
+    auto *childQw = m_child ? m_child->surface() : nullptr;
+    if (childQw)
+        wlr_surface_unmap(childQw);
+    cascadeUnmap();
+}
+
 void RemoteSubsurfaceContext::set_position(Resource *resource, int32_t x, int32_t y)
 {
     Q_UNUSED(resource);
@@ -705,6 +711,9 @@ void RemoteSubsurfaceContext::set_position(Resource *resource, int32_t x, int32_
 void RemoteSubsurfaceContext::place_above([[maybe_unused]] Resource *resource,
                                           const QString &sibling_token)
 {
+    if (!m_manager)
+        return;
+
     if (sibling_token.isEmpty()) {
         m_manager->placeChildAboveParentTop(this);
         return;
@@ -733,6 +742,9 @@ void RemoteSubsurfaceContext::place_above([[maybe_unused]] Resource *resource,
 void RemoteSubsurfaceContext::place_below([[maybe_unused]] Resource *resource,
                                           const QString &sibling_token)
 {
+    if (!m_manager)
+        return;
+
     if (sibling_token.isEmpty()) {
         m_manager->placeChildBelowParentBottom(this);
         return;
