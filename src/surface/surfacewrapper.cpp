@@ -413,7 +413,8 @@ void SurfaceWrapper::setup()
     }
 
     if (auto client = m_shellSurface->waylandClient()) {
-        connect(client->socket(),
+        auto *rootSocket = client->socket()->rootSocket();
+        connect(rootSocket,
                 &WSocket::enabledChanged,
                 this,
                 &SurfaceWrapper::onSocketEnabledChanged);
@@ -1482,7 +1483,7 @@ void SurfaceWrapper::updateVisible()
     bool isVisible = !m_hideByWorkspace && !isMinimized()
         && ((surface() && surface()->mapped())
             || (m_prelaunchSplash && m_prelaunchSplash->isVisible()))
-        && m_socketEnabled && m_hideByshowDesk && !m_confirmHideByLockScreen
+        && socketEnabled() && m_hideByshowDesk && !m_confirmHideByLockScreen
         && WaylandServer::instance()->surfaceBelongsToCurrentSession(this);
     setVisible(isVisible);
 }
@@ -1817,10 +1818,8 @@ void SurfaceWrapper::onMappedChanged()
 
 void SurfaceWrapper::onSocketEnabledChanged()
 {
-    if (auto client = shellSurface()->waylandClient()) {
-        m_socketEnabled = client->socket()->rootSocket()->isEnabled();
-        updateVisible();
-    }
+    updateVisible();
+    Q_EMIT socketEnabledChanged();
 }
 
 void SurfaceWrapper::onMinimizeAnimationFinished()
@@ -2662,7 +2661,11 @@ void SurfaceWrapper::setCoverEnabled(bool coverEnabled)
 
 bool SurfaceWrapper::socketEnabled() const
 {
-    return m_socketEnabled;
+    auto *shell = shellSurface();
+    auto *client = shell ? shell->waylandClient() : nullptr;
+    auto *socket = client ? client->socket() : nullptr;
+    auto *rootSocket = socket ? socket->rootSocket() : nullptr;
+    return rootSocket && rootSocket->isEnabled();
 }
 
 void SurfaceWrapper::updateSurfaceSizeRatio()

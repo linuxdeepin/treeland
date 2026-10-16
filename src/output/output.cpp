@@ -502,9 +502,14 @@ void Output::addSurface(SurfaceWrapper *surface)
 
     if (surface->type() == SurfaceWrapper::Type::Layer) {
         auto layer = qobject_cast<WLayerSurface *>(surface->shellSurface());
-        QObject::connect(layer, &WLayerSurface::layerPropertiesChanged,
-                           this,
-                           &Output::arrangeLayerSurfaces);
+        QObject::connect(layer,
+                        &WLayerSurface::layerPropertiesChanged,
+                        this,
+                        &Output::arrangeLayerSurfaces);
+        QObject::connect(surface,
+                        &SurfaceWrapper::socketEnabledChanged,
+                        this,
+                        &Output::arrangeLayerSurfaces);
 
         arrangeLayerSurfaces();
     } else {
@@ -708,7 +713,7 @@ void Output::arrangeLayerSurfaces()
     }
 
     for (auto *s : std::as_const(surfaces())) {
-        if (s->type() != SurfaceWrapper::Type::Layer)
+        if (s->type() != SurfaceWrapper::Type::Layer || !s->socketEnabled())
             continue;
 
         auto layer = qobject_cast<WLayerSurface *>(s->shellSurface());
@@ -718,7 +723,7 @@ void Output::arrangeLayerSurfaces()
     }
 
     for (auto *s : std::as_const(surfaces())) {
-        if (s->type() != SurfaceWrapper::Type::Layer)
+        if (s->type() != SurfaceWrapper::Type::Layer || !s->socketEnabled())
             continue;
 
         auto layer = qobject_cast<WLayerSurface *>(s->shellSurface());

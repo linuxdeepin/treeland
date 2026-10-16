@@ -380,6 +380,7 @@ Q_SIGNALS:
     void hasInitializeContainerChanged();
     void boundingRectChanged();
     void ownsOutputChanged();
+    void socketEnabledChanged();
     void appIdChanged();
     void normalGeometryChanged();
     void maximizedGeometryChanged();
@@ -596,7 +597,6 @@ private:
     std::optional<QPoint> m_autoPlaceCursorOffset;
     std::optional<QPoint> m_clientRequstPos;
 
-    bool m_socketEnabled{ false };
     bool m_windowAnimationEnabled{ true };
     const QString m_appId;
 };
