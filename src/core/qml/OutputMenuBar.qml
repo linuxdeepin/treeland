@@ -131,6 +131,24 @@ Item {
             }
 
             ToolButton {
+                text: "Damage"
+                onClicked: damageMenu.popup()
+
+                Menu {
+                    id: damageMenu
+
+                    MenuItem {
+                        text: "Off"
+                        onClicked: Helper.setDamageVisual("off")
+                    }
+                    MenuItem {
+                        text: "Highlight"
+                        onClicked: Helper.setDamageVisual("highlight")
+                    }
+                }
+            }
+
+            ToolButton {
                 text: "Output"
 
                 onClicked: outputMenu.popup()

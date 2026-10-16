@@ -8,8 +8,10 @@
 #include "surface/surfacewrapper.h"
 #include "wlr-foreign-toplevel-management-unstable-v1.h"
 #include "workspace/workspace.h"
+#include "output/output.h"
 
 #include <woutputrenderwindow.h>
+#include <woutputviewport.h>
 #include <wbackend.h>
 #include <wforeigntoplevelv1.h>
 
@@ -76,7 +78,10 @@ extern "C" void foreign_toplevel_render(void *)
     if (!g_wrapper)
         return;
     auto *helper = Helper::instance();
-    helper->window()->render();
+    for (auto *output : helper->rootSurfaceContainer()->outputs()) {
+        if (auto *vp = output->screenViewport())
+            vp->render(true);
+    }
     if (!g_wrapper->isAnimationRunning())
         return;
 
