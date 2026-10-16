@@ -1,9 +1,9 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
-#include "treeland-shortcut-manager-desktop-v2.h"
+#include "treeland-shortcut-manager-desktop-v3.h"
 #include "server-bridge-api.h"
 #include "xdg-toplevel-client.h"
-#include "treeland-shortcut-manager-v2-client-protocol.h"
+#include "treeland-shortcut-manager-unstable-v3-client-protocol.h"
 #include "virtual-keyboard-unstable-v1-client-protocol.h"
 
 #include <fcntl.h>
@@ -19,8 +19,7 @@
 extern void shortcut_desktop_focus_window(void *data);
 
 struct shortcut_client {
-    int commit_success;
-    int commit_failure;
+    int bind_failure;
     int activated;
     char activated_name[64];
     unsigned int activated_flags;
@@ -101,7 +100,7 @@ static const struct wl_keyboard_listener seat_keyboard_listener = {
 };
 
 static void manager_activated(void *data,
-                              struct treeland_shortcut_manager_v2 *manager,
+                              struct treeland_shortcut_manager_v3 *manager,
                               const char *name,
                               uint32_t flags)
 {
@@ -112,30 +111,23 @@ static void manager_activated(void *data,
     strncpy(client->activated_name, name, sizeof(client->activated_name) - 1);
 }
 
-static void manager_commit_success(void *data, struct treeland_shortcut_manager_v2 *manager)
-{
-    (void)manager;
-    ++((struct shortcut_client *)data)->commit_success;
-}
-
-static void manager_commit_failure(void *data,
-                                   struct treeland_shortcut_manager_v2 *manager,
-                                   const char *name,
-                                   uint32_t error)
+static void manager_bind_failure(void *data,
+                                 struct treeland_shortcut_manager_v3 *manager,
+                                 const char *name,
+                                 uint32_t error)
 {
     (void)manager;
     (void)name;
     (void)error;
-    ++((struct shortcut_client *)data)->commit_failure;
+    ++((struct shortcut_client *)data)->bind_failure;
 }
 
-static const struct treeland_shortcut_manager_v2_listener manager_listener = {
+static const struct treeland_shortcut_manager_v3_listener manager_listener = {
     .activated = manager_activated,
-    .commit_success = manager_commit_success,
-    .commit_failure = manager_commit_failure,
+    .bind_failure = manager_bind_failure,
 };
 
-static void capture_captured(void *data, struct treeland_shortcut_capture_v1 *capture, const char *key)
+static void capture_captured(void *data, struct treeland_shortcut_capture_v3 *capture, const char *key)
 {
     (void)capture;
     struct shortcut_client *client = data;
@@ -143,14 +135,14 @@ static void capture_captured(void *data, struct treeland_shortcut_capture_v1 *ca
     strncpy(client->captured_key, key, sizeof(client->captured_key) - 1);
 }
 
-static void capture_failed(void *data, struct treeland_shortcut_capture_v1 *capture, uint32_t reason)
+static void capture_failed(void *data, struct treeland_shortcut_capture_v3 *capture, uint32_t reason)
 {
     (void)capture;
     (void)reason;
     ++((struct shortcut_client *)data)->capture_failed;
 }
 
-static const struct treeland_shortcut_capture_v1_listener capture_listener = {
+static const struct treeland_shortcut_capture_v3_listener capture_listener = {
     .captured = capture_captured,
     .failed = capture_failed,
 };
@@ -204,8 +196,8 @@ int protocol_test_run(const char *socket_name)
 {
     struct client_connection connection;
     struct xdg_toplevel_client toplevel = { 0 };
-    struct treeland_shortcut_manager_v2 *manager = NULL;
-    struct treeland_shortcut_capture_v1 *capture = NULL;
+    struct treeland_shortcut_manager_v3 *manager = NULL;
+    struct treeland_shortcut_capture_v3 *capture = NULL;
     struct zwp_virtual_keyboard_manager_v1 *virtual_keyboard_manager = NULL;
     struct zwp_virtual_keyboard_v1 *virtual_keyboard = NULL;
     struct wl_seat *seat = NULL;
@@ -218,15 +210,15 @@ int protocol_test_run(const char *socket_name)
 
     if (!client_connect(&connection, socket_name))
         return 1;
-    manager = client_bind(&connection, "treeland_shortcut_manager_v2",
-                                 &treeland_shortcut_manager_v2_interface, 2);
+    manager = client_bind(&connection, "treeland_shortcut_manager_v3",
+                                 &treeland_shortcut_manager_v3_interface, 1);
     seat = client_bind(&connection, "wl_seat", &wl_seat_interface, 1);
     virtual_keyboard_manager = client_bind(&connection, "zwp_virtual_keyboard_manager_v1",
                                                    &zwp_virtual_keyboard_manager_v1_interface, 1);
     if (!manager || !seat || !virtual_keyboard_manager)
         goto failed;
     wl_seat_add_listener(seat, &seat_listener, &seat_events);
-    treeland_shortcut_manager_v2_add_listener(manager, &manager_listener, &client);
+    treeland_shortcut_manager_v3_add_listener(manager, &manager_listener, &client);
     stage = 1;
     if (!xdg_toplevel_client_create(&connection, &toplevel))
         goto failed;
@@ -257,11 +249,11 @@ int protocol_test_run(const char *socket_name)
         || keyboard_events.group)
         goto failed;
 
-    treeland_shortcut_manager_v2_acquire(manager);
-    capture = treeland_shortcut_manager_v2_capture_next_shortcut(manager, toplevel.surface, seat);
+    treeland_shortcut_manager_v3_acquire(manager);
+    capture = treeland_shortcut_manager_v3_capture_next_shortcut(manager, toplevel.surface, seat);
     if (!capture)
         goto failed;
-    treeland_shortcut_capture_v1_add_listener(capture, &capture_listener, &client);
+    treeland_shortcut_capture_v3_add_listener(capture, &capture_listener, &client);
     if (wl_display_roundtrip(connection.display) < 0 || client.capture_failed)
         goto failed;
     stage = 3;
@@ -274,26 +266,25 @@ int protocol_test_run(const char *socket_name)
     if (wl_display_roundtrip(connection.display) < 0)
         goto failed;
 
-    treeland_shortcut_manager_v2_bind_key(
+    // v3: bind_key takes effect immediately — no commit needed.
+    treeland_shortcut_manager_v3_bind_key(
         manager, "desktop-shortcut", "F2",
-        TREELAND_SHORTCUT_MANAGER_V2_KEYBIND_FLAG_KEY_PRESS,
-        TREELAND_SHORTCUT_MANAGER_V2_ACTION_NOTIFY);
-    treeland_shortcut_manager_v2_commit(manager);
-    if (wl_display_roundtrip(connection.display) < 0 || client.commit_success != 1
-        || client.commit_failure)
+        TREELAND_SHORTCUT_MANAGER_V3_KEYBIND_FLAG_KEY_PRESS,
+        TREELAND_SHORTCUT_MANAGER_V3_ACTION_NOTIFY);
+    if (wl_display_roundtrip(connection.display) < 0 || client.bind_failure)
         goto failed;
     stage = 5;
     send_key(virtual_keyboard, 60, WL_KEYBOARD_KEY_STATE_PRESSED); // KEY_F2
     if (wl_display_roundtrip(connection.display) < 0 || client.activated != 1
         || strcmp(client.activated_name, "desktop-shortcut") != 0
-        || client.activated_flags != TREELAND_SHORTCUT_MANAGER_V2_KEYBIND_FLAG_KEY_PRESS)
+        || client.activated_flags != TREELAND_SHORTCUT_MANAGER_V3_KEYBIND_FLAG_KEY_PRESS)
         goto failed;
     stage = 6;
 
-    treeland_shortcut_capture_v1_destroy(capture);
+    treeland_shortcut_capture_v3_destroy(capture);
     zwp_virtual_keyboard_v1_destroy(virtual_keyboard);
     wl_keyboard_destroy(seat_keyboard);
-    treeland_shortcut_manager_v2_destroy(manager);
+    treeland_shortcut_manager_v3_destroy(manager);
     wl_seat_destroy(seat);
     xdg_toplevel_client_destroy(&toplevel);
     client_disconnect(&connection);
@@ -302,15 +293,15 @@ int protocol_test_run(const char *socket_name)
 failed:
     fprintf(stderr,
             "shortcut desktop failure at stage %d: wrapper=%d workspace=%d visible=%d focus=%d "
-            "captured=%d key=%s failed=%d commit=(%d,%d) activated=%d name=%s flags=%u\n",
+            "captured=%d key=%s failed=%d bind_failure=%d activated=%d name=%s flags=%u\n",
             stage, state.wrapper_created, state.wrapper_in_workspace, state.wrapper_visible,
             state.keyboard_focused, client.captured, client.captured_key, client.capture_failed,
-            client.commit_success, client.commit_failure, client.activated, client.activated_name,
+            client.bind_failure, client.activated, client.activated_name,
             client.activated_flags);
-    if (capture) treeland_shortcut_capture_v1_destroy(capture);
+    if (capture) treeland_shortcut_capture_v3_destroy(capture);
     if (virtual_keyboard) zwp_virtual_keyboard_v1_destroy(virtual_keyboard);
     if (seat_keyboard) wl_keyboard_destroy(seat_keyboard);
-    if (manager) treeland_shortcut_manager_v2_destroy(manager);
+    if (manager) treeland_shortcut_manager_v3_destroy(manager);
     if (seat) wl_seat_destroy(seat);
     xdg_toplevel_client_destroy(&toplevel);
     client_disconnect(&connection);

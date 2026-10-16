@@ -1,7 +1,7 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
-#include "treeland-shortcut-manager-v2.h"
-#include "treeland-shortcut-manager-v2-client-protocol.h"
+#include "treeland-shortcut-manager-v3.h"
+#include "treeland-shortcut-manager-unstable-v3-client-protocol.h"
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -67,32 +67,25 @@ int test_print_results(struct test_ctx *ctx)
     return failed == 0;
 }
 
-static void commit_success(void *data, struct treeland_shortcut_manager_v2 *manager)
-{
-    (void)manager;
-    ((struct test_ctx *)data)->commit_success_received = 1;
-}
-
-static void commit_failure(void *data, struct treeland_shortcut_manager_v2 *manager,
-                           const char *name, uint32_t error)
+static void bind_failure(void *data, struct treeland_shortcut_manager_v3 *manager,
+                         const char *name, uint32_t error)
 {
     (void)manager;
     struct test_ctx *ctx = data;
-    ctx->commit_failure_received = 1;
-    ctx->commit_failure_error = error;
+    ctx->bind_failure_received = 1;
+    ctx->bind_failure_error = error;
     if (name) {
-        strncpy(ctx->commit_failure_name, name, sizeof(ctx->commit_failure_name) - 1);
-        ctx->commit_failure_name[sizeof(ctx->commit_failure_name) - 1] = '\0';
+        strncpy(ctx->bind_failure_name, name, sizeof(ctx->bind_failure_name) - 1);
+        ctx->bind_failure_name[sizeof(ctx->bind_failure_name) - 1] = '\0';
     }
 }
 
-static const struct treeland_shortcut_manager_v2_listener manager_listener = {
+static const struct treeland_shortcut_manager_v3_listener manager_listener = {
     .activated = NULL,
-    .commit_success = commit_success,
-    .commit_failure = commit_failure,
+    .bind_failure = bind_failure,
 };
 
-static void capture_captured(void *data, struct treeland_shortcut_capture_v1 *capture,
+static void capture_captured(void *data, struct treeland_shortcut_capture_v3 *capture,
                              const char *key)
 {
     (void)capture;
@@ -104,7 +97,7 @@ static void capture_captured(void *data, struct treeland_shortcut_capture_v1 *ca
     }
 }
 
-static void capture_failed(void *data, struct treeland_shortcut_capture_v1 *capture,
+static void capture_failed(void *data, struct treeland_shortcut_capture_v3 *capture,
                            uint32_t reason)
 {
     (void)capture;
@@ -113,7 +106,7 @@ static void capture_failed(void *data, struct treeland_shortcut_capture_v1 *capt
     ctx->capture_failed_reason = reason;
 }
 
-static const struct treeland_shortcut_capture_v1_listener capture_listener = {
+static const struct treeland_shortcut_capture_v3_listener capture_listener = {
     .captured = capture_captured,
     .failed = capture_failed,
 };
@@ -124,11 +117,11 @@ static int connect_client(struct test_ctx *ctx, const char *socket_name)
         return 0;
     ctx->display = ctx->connection.display;
     ctx->compositor = client_bind(&ctx->connection, "wl_compositor", &wl_compositor_interface, 1);
-    ctx->manager = client_bind(&ctx->connection, "treeland_shortcut_manager_v2",
-                                      &treeland_shortcut_manager_v2_interface, 2);
+    ctx->manager = client_bind(&ctx->connection, "treeland_shortcut_manager_v3",
+                                      &treeland_shortcut_manager_v3_interface, 1);
     if (!ctx->manager)
         return 0;
-    treeland_shortcut_manager_v2_add_listener(ctx->manager, &manager_listener, ctx);
+    treeland_shortcut_manager_v3_add_listener(ctx->manager, &manager_listener, ctx);
     return 1;
 }
 
@@ -136,40 +129,50 @@ static int bind_manager(struct test_ctx *ctx) { return ctx->manager != NULL; }
 
 static int acquire(struct test_ctx *ctx)
 {
-    treeland_shortcut_manager_v2_acquire(ctx->manager);
+    treeland_shortcut_manager_v3_acquire(ctx->manager);
     return 1;
 }
 
-static int commit_empty(struct test_ctx *ctx)
+static int bind_key(struct test_ctx *ctx)
 {
-    ctx->commit_success_received = 0;
-    treeland_shortcut_manager_v2_commit(ctx->manager);
+    ctx->bind_failure_received = 0;
+    treeland_shortcut_manager_v3_bind_key(ctx->manager, "test-shortcut", "Ctrl+Alt+T",
+                                          TREELAND_SHORTCUT_MANAGER_V3_KEYBIND_FLAG_KEY_PRESS
+                                              | TREELAND_SHORTCUT_MANAGER_V3_KEYBIND_FLAG_REPEAT,
+                                          TREELAND_SHORTCUT_MANAGER_V3_ACTION_NOTIFY);
     return 1;
 }
 
-static int commit_success_received(struct test_ctx *ctx) { return ctx->commit_success_received; }
+static int bind_key_succeeded(struct test_ctx *ctx) { return !ctx->bind_failure_received; }
 
-static int bind_key_commit(struct test_ctx *ctx)
+static int bind_key_duplicate(struct test_ctx *ctx)
 {
-    ctx->commit_success_received = 0;
-    treeland_shortcut_manager_v2_bind_key(ctx->manager, "test-shortcut", "Ctrl+Alt+T",
-                                          TREELAND_SHORTCUT_MANAGER_V2_KEYBIND_FLAG_KEY_PRESS
-                                              | TREELAND_SHORTCUT_MANAGER_V2_KEYBIND_FLAG_REPEAT,
-                                          TREELAND_SHORTCUT_MANAGER_V2_ACTION_NOTIFY);
-    treeland_shortcut_manager_v2_commit(ctx->manager);
+    ctx->bind_failure_received = 0;
+    treeland_shortcut_manager_v3_bind_key(ctx->manager, "test-shortcut", "Ctrl+Alt+T",
+                                          TREELAND_SHORTCUT_MANAGER_V3_KEYBIND_FLAG_KEY_PRESS,
+                                          TREELAND_SHORTCUT_MANAGER_V3_ACTION_NOTIFY);
     return 1;
 }
 
-static int commit_success_after_bind(struct test_ctx *ctx)
+static int bind_key_duplicate_succeeded(struct test_ctx *ctx)
 {
-    return ctx->commit_success_received;
+    // Upsert on same trigger: no bind_failure expected.
+    return !ctx->bind_failure_received;
 }
 
-static int commit_again(struct test_ctx *ctx)
+static int bind_key_name_conflict(struct test_ctx *ctx)
 {
-    ctx->commit_success_received = 0;
-    treeland_shortcut_manager_v2_commit(ctx->manager);
+    ctx->bind_failure_received = 0;
+    treeland_shortcut_manager_v3_bind_key(ctx->manager, "test-shortcut", "Ctrl+Alt+S",
+                                          TREELAND_SHORTCUT_MANAGER_V3_KEYBIND_FLAG_KEY_PRESS,
+                                          TREELAND_SHORTCUT_MANAGER_V3_ACTION_NOTIFY);
     return 1;
+}
+
+static int bind_key_name_conflict_failed(struct test_ctx *ctx)
+{
+    return ctx->bind_failure_received
+        && ctx->bind_failure_error == TREELAND_SHORTCUT_MANAGER_V3_BIND_ERROR_NAME_CONFLICT;
 }
 
 static int capture_request(struct test_ctx *ctx)
@@ -181,11 +184,11 @@ static int capture_request(struct test_ctx *ctx)
     ctx->test_surface = wl_compositor_create_surface(ctx->compositor);
     if (!ctx->test_surface)
         return 0;
-    ctx->capture = treeland_shortcut_manager_v2_capture_next_shortcut(ctx->manager,
+    ctx->capture = treeland_shortcut_manager_v3_capture_next_shortcut(ctx->manager,
                                                                       ctx->test_surface, NULL);
     if (!ctx->capture)
         return 0;
-    treeland_shortcut_capture_v1_add_listener(ctx->capture, &capture_listener, ctx);
+    treeland_shortcut_capture_v3_add_listener(ctx->capture, &capture_listener, ctx);
     return 1;
 }
 
@@ -193,28 +196,28 @@ static int capture_failed_not_active(struct test_ctx *ctx)
 {
 
     return ctx->capture_failed_received
-        && ctx->capture_failed_reason == TREELAND_SHORTCUT_CAPTURE_V1_FAILED_REASON_NOT_ACTIVE
+        && ctx->capture_failed_reason == TREELAND_SHORTCUT_CAPTURE_V3_FAILED_REASON_NOT_ACTIVE
         && !ctx->capture_captured_received;
 }
 
 static const struct test_case cases[] = {
     { "manager.bind", bind_manager },
     { "manager.acquire", acquire },
-    { "manager.commit_empty", commit_empty },
-    { "event.commit_success", commit_success_received },
-    { "manager.bind_key_commit", bind_key_commit },
-    { "event.commit_success_after_bind", commit_success_after_bind },
-    { "manager.commit_again", commit_again },
-    { "event.commit_success_again", commit_success_received },
+    { "manager.bind_key", bind_key },
+    { "event.no_bind_failure", bind_key_succeeded },
+    { "manager.bind_key_upsert", bind_key_duplicate },
+    { "event.no_bind_failure_upsert", bind_key_duplicate_succeeded },
+    { "manager.bind_key_name_conflict", bind_key_name_conflict },
+    { "event.bind_failure_name_conflict", bind_key_name_conflict_failed },
     { "capture.request", capture_request },
     { "event.capture_failed_not_active", capture_failed_not_active },
 };
 
 void test_cleanup(struct test_ctx *ctx)
 {
-    if (ctx->capture) treeland_shortcut_capture_v1_destroy(ctx->capture);
+    if (ctx->capture) treeland_shortcut_capture_v3_destroy(ctx->capture);
     if (ctx->test_surface) wl_surface_destroy(ctx->test_surface);
-    if (ctx->manager) treeland_shortcut_manager_v2_destroy(ctx->manager);
+    if (ctx->manager) treeland_shortcut_manager_v3_destroy(ctx->manager);
     client_disconnect(&ctx->connection);
 }
 
@@ -223,7 +226,7 @@ int protocol_test_run(const char *socket_name)
     struct test_ctx ctx;
     test_init(&ctx);
     if (!connect_client(&ctx, socket_name)) {
-        fprintf(stderr, "failed to connect to or bind treeland_shortcut_manager_v2\n");
+        fprintf(stderr, "failed to connect to or bind treeland_shortcut_manager_v3\n");
         test_cleanup(&ctx);
         test_destroy(&ctx);
         return 1;
