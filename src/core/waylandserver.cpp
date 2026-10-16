@@ -58,6 +58,7 @@
 #include "wallpapershellinterfacev1.h"
 #include "workspace/workspace.h"
 
+#include <drm_fourcc.h>
 #include <xcb/xcb.h>
 #include <xcb/xproto.h>
 
@@ -66,6 +67,8 @@
 #include <wremotesubsurfacemanagerv1.h>
 #include <wrenderhelper.h>
 #include <WOutput>
+#include <WLinuxDmabufV1>
+#include <WPresentation>
 #include <WServer>
 #include <WXdgOutput>
 #include <wayland-util.h>
@@ -93,6 +96,24 @@
 
 #define EXT_DATA_CONTROL_MANAGER_V1_VERSION 1
 #define WLR_FRACTIONAL_SCALE_V1_VERSION 1
+
+static bool rendererSupportsImplicitDmabufFormats(wlr_renderer *renderer)
+{
+    const auto *formats = renderer
+        ? wlr_renderer_get_texture_formats(renderer, WLR_BUFFER_CAP_DMABUF)
+        : nullptr;
+    if (!formats)
+        return false;
+
+    for (size_t i = 0; i < formats->len; ++i) {
+        const auto &format = formats->formats[i];
+        for (size_t j = 0; j < format.len; ++j) {
+            if (format.modifiers[j] == DRM_FORMAT_MOD_INVALID)
+                return true;
+        }
+    }
+    return false;
+}
 
 WaylandServer *WaylandServer::m_instance = nullptr;
 
@@ -436,12 +457,39 @@ void WaylandServer::initializeRendering()
         qCFatal(lcTlCore) << "Failed to create allocator";
     }
 
-    if (!wlr_renderer_init_wl_display(m_renderer.get(), m_server->handle())) {
-        qCFatal(lcTlCore) << "Failed to initialize renderer wl_display";
-    }
+    const bool vulkanRenderer =
+        WRenderHelper::getGraphicsApi() == QSGRendererInterface::Vulkan;
+    if (vulkanRenderer) {
+        // Restrict the advertised texture formats to the ones the Qt wrapper
+        // can display before wl_shm and linux-dmabuf hand them to clients.
+        // XWayland picks buffer formats from the X visual depth instead and
+        // is covered by the exact view seeding in the texture wrapper.
+        if (!WRenderHelper::restrictVulkanTextureFormats(m_renderer.get()))
+            qCWarning(lcTlCore) << "Continuing with the unfiltered Vulkan texture format set";
 
-    if (!wlr_drm_create(m_server->handle(), m_renderer.get())) {
-        qCCritical(lcTlCore) << "Failed to create DRM lease manager";
+        if (!wlr_renderer_init_wl_shm(m_renderer.get(), m_server->handle()))
+            qCFatal(lcTlCore) << "Failed to initialize wl_shm for Vulkan renderer";
+
+        m_server->attach<WLinuxDmabufV1>(m_renderer.get());
+        auto *presentation = m_server->attach<WPresentation>(m_backend->handle());
+        m_renderWindow->setPresentation(presentation);
+
+        if (rendererSupportsImplicitDmabufFormats(m_renderer.get())) {
+            if (!wlr_drm_create(m_server->handle(), m_renderer.get())) {
+                qCWarning(lcTlCore)
+                    << "Failed to create legacy wl_drm global despite implicit DMA-BUF support";
+            }
+        } else {
+            qCInfo(lcTlCore)
+                << "Skipping legacy wl_drm global: Vulkan renderer does not support implicit DMA-BUF modifiers";
+        }
+    } else {
+        if (!wlr_renderer_init_wl_display(m_renderer.get(), m_server->handle())) {
+            qCFatal(lcTlCore) << "Failed to initialize renderer wl_display";
+        }
+        if (!wlr_drm_create(m_server->handle(), m_renderer.get())) {
+            qCCritical(lcTlCore) << "Failed to create DRM lease manager";
+        }
     }
 
     m_compositor = wlr_compositor_create(m_server->handle(), 6, m_renderer.get());
