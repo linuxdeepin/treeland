@@ -552,6 +552,28 @@
             "permissions": "readwrite",
             "visibility": "public"
         },
+        "lockscreenWallpaperDimEnabled": {
+            "value": true,
+            "serial": 0,
+            "flags": [],
+            "name": "Lock Screen Wallpaper Dim",
+            "name[zh_CN]": "锁屏壁纸压暗",
+            "description": "Dim the lock screen and shutdown menu wallpaper so the login UI stays legible. When disabled the wallpaper is drawn untouched. The strength is controlled by lockscreenWallpaperDimRatio.",
+            "description[zh_CN]": "压暗锁屏与电源/关机菜单壁纸，以保证登录界面清晰可读。关闭时壁纸原样显示，压暗强度由 lockscreenWallpaperDimRatio 控制。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "lockscreenWallpaperDimRatio": {
+            "value": 0.25,
+            "serial": 0,
+            "flags": [],
+            "name": "Lock Screen Wallpaper Dim Ratio",
+            "name[zh_CN]": "锁屏壁纸压暗比例",
+            "description": "Maximum dimming ratio applied to the lock screen and shutdown menu wallpaper when lockscreenWallpaperDimEnabled is on. The wallpaper is scaled by (1 - ratio * luma), so highlights are dimmed while hue and saturation are preserved. Set to 0 to disable dimming entirely. Range: 0.0-1.0.",
+            "description[zh_CN]": "lockscreenWallpaperDimEnabled 开启时，锁屏与电源/关机菜单壁纸的最大压暗比例。壁纸按 (1 - 比例 * 亮度) 缩放，压暗高光的同时保持色相与饱和度不变。设置为 0 可完全关闭压暗效果。范围：0.0-1.0。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
         "edgeSideTriggerDistance": {
             "value": 20,
             "serial": 0,
