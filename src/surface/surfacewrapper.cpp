@@ -707,7 +707,9 @@ void SurfaceWrapper::syncPrelaunchMappedState()
         } else if (maximizeRequested && isMaximizable()) {
             setSurfaceStateDirectly(State::Maximized);
         }
+    }
 
+    if (m_type == Type::XWayland) {
         const QRectF stateGeometry = targetGeometryForState(m_surfaceState);
         if ((m_surfaceState == State::Maximized || m_surfaceState == State::Fullscreen)
             && stateGeometry.isValid()) {
@@ -768,12 +770,20 @@ void SurfaceWrapper::startPrelaunchSplashHideSequence()
 
     if (needImplicitSizeTransition) {
         const QRectF fromGeometry(position(), size());
-        // XWayland clients manage their own position; respect it and don't shift.
-        // For all other types, keep the center fixed so the window expands from center.
-        const QPointF toTopLeft = (m_type == Type::XWayland) ? fromGeometry.topLeft()
-                                                             : fromGeometry.center()
-                - QPointF(targetImplicitSize.width() / 2.0, targetImplicitSize.height() / 2.0);
-        const QRectF toGeometry(toTopLeft, targetImplicitSize);
+        QRectF toGeometry;
+        if (useStateGeometry) {
+            // Maximized/fullscreen handoff: expand into the state geometry itself, so
+            // the wrapper lands exactly on the maximized/fullscreen rect.
+            toGeometry = stateGeometry;
+        } else {
+            // XWayland clients manage their own position; respect it and don't shift.
+            // For all other types, keep the center fixed so the window expands from center.
+            const QPointF toTopLeft = (m_type == Type::XWayland)
+                ? fromGeometry.topLeft()
+                : fromGeometry.center()
+                    - QPointF(targetImplicitSize.width() / 2.0, targetImplicitSize.height() / 2.0);
+            toGeometry = QRectF(toTopLeft, targetImplicitSize);
+        }
         m_geometryAnimation =
             m_engine->createGeometryAnimation(this, fromGeometry, toGeometry, container());
 
@@ -802,8 +812,10 @@ void SurfaceWrapper::onPrelaunchGeometryAnimationReady()
     // Move the wrapper to the animation's final position before revealing the real surface,
     // so the window appears exactly where the animation ended (no position jump).
     setPosition(toGeo.topLeft());
-    // Keep normalGeometry in sync so subsequent state transitions use the correct position.
-    setNormalGeometry(toGeo);
+    // Only a normal window owns its normalGeometry; maximized/fullscreen states
+    // must not overwrite it with the state rect.
+    if (m_surfaceState == State::Normal)
+        setNormalGeometry(toGeo);
 
     completeSplashTransition(toGeo.size(), true);
 }
