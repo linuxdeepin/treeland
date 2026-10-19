@@ -21,6 +21,7 @@
 #include <QPointer>
 #include <QQmlEngine>
 #include <QScopeGuard>
+#include <QUuid>
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -254,6 +255,10 @@ bool OutputManager::isNvidiaCardPresent() const
 
 void OutputManager::processOutputAdded(WOutput *output)
 {
+    auto *outputConfig = DConfigManager::instance()->outputConfig(Output::getOutputId(output->handle()));
+    if (outputConfig && outputConfig->uuid().isEmpty()) {
+        outputConfig->setUuid(QUuid::createUuid().toString(QUuid::WithoutBraces));
+    }
     allowNonDrmOutputAutoChangeMode(output);
     Output *o = nullptr;
     const bool isInitialOutput = !m_initialOutputScanFinished;
@@ -466,7 +471,6 @@ void OutputManager::processOutputAdded(WOutput *output)
 
         saveCurrentConfig(outputObject);
     };
-    auto *outputConfig = o->config();
     if (outputConfig->isInitializeSucceeded()) {
         restoreOutputConfig();
     } else {
