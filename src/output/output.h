@@ -101,6 +101,7 @@ public:
     qreal preferredScaleFactor(const QSize &pixelSize) const;
 
     OutputConfig* config() const;
+    QString uuid() const;
 
     void adjustToOutputBounds(QPointF &pos,
                               const QRectF &normalGeo,
