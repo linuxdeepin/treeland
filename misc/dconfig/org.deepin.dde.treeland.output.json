@@ -111,6 +111,17 @@
             "description[zh_CN]": "当前输出上次提交的状态是否启用了自适应同步。",
             "permissions": "readwrite",
             "visibility": "public"
+        },
+        "uuid": {
+            "value": "",
+            "serial": 0,
+            "flags": [],
+            "name": "Output UUID",
+            "name[zh_CN]": "显示输出设备 UUID",
+            "description": "Persistent opaque uuid assigned to this display output device. It is generated on first insert and reused across sessions and reconnections. Empty means not yet assigned.",
+            "description[zh_CN]": "分配给此显示输出设备的持久不透明 uuid。首次插入时生成，并在跨会话和重连时复用。空值表示尚未分配。",
+            "permissions": "readwrite",
+            "visibility": "private"
         }
     }
 }

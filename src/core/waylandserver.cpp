@@ -34,6 +34,7 @@
 #include "modules/keyboard-state-notify/keyboardstatenotifymanagerinterfacev1.h"
 #include "modules/active-notify/activenotifymanagerinterfacev1.h"
 #include "modules/output-manager/outputmanagement.h"
+#include "modules/output-uuid/outputuuidmanagerinterfacev1.h"
 #include "modules/personalization/personalizationmanagerinterfacev1.h"
 #include "modules/appearance/appearanceinterfacev1.h"
 #include "modules/appearance/appearancemanagerinterfacev1.h"
@@ -1036,6 +1037,8 @@ WXdgOutputManager *WaylandServer::installDesktopProtocols(QmlEngine *engine)
             &RootSurfaceContainer::primaryOutputChanged,
             outputManagerV1,
             &OutputManagerV1::onPrimaryOutputChanged);
+    server()->attach<OutputUuidManagerV1>();
+    server()->attach<OutputUuidHeadManagerV1>();
     connect(m_rootSurfaceContainer,
             &RootSurfaceContainer::primaryOutputChanged,
             m_sessionManager,

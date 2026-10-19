@@ -371,6 +371,29 @@ For new private protocols, prefer `appidresolver`, `prelaunch-splash`, or `scree
 - `waylib/tools/CMakeLists.txt`
 - `src/core/waylandserver.cpp`
 
+## Protocols That Reference wlr_* Interfaces
+If a treeland xml takes an object argument whose interface is defined by a wlroots
+protocol (for example `treeland-output-uuid-head-unstable-v1.xml` taking a
+`zwlr_output_head_v1`), the generated server code references that interface's
+`wl_interface` symbol, for example `zwlr_output_head_v1_interface`.
+
+waylib-wlroots exports only `wlr_*`, `_wlr_*` and `waylib_*`
+(`3rdparty/wlroots/wlroots.syms`), so every protocol symbol is local to
+`libwaylib-wlroots.so` and cannot be resolved from libtreeland. Generate the wlr
+protocol into libtreeland too, from the consuming module:
+
+```cmake
+waylib_generate_qtwayland_server_protocol(libtreeland
+    PROTOCOL ${CMAKE_SOURCE_DIR}/3rdparty/wlroots/protocol/wlr-output-management-unstable-v1.xml
+    BASENAME wlr-output-management-unstable-v1
+)
+```
+
+Why it is easy to miss: a shared library links fine with undefined symbols by
+default, so `--target libtreeland` succeeds. The error only shows up when an
+executable links libtreeland (`undefined reference to <iface>_interface`), and the
+broken `libtreeland.so` would also have failed to load at runtime.
+
 ## Output Requirements
 When using this skill for a real task, make these explicit first:
 
