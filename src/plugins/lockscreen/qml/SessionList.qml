@@ -86,7 +86,7 @@ Popup {
             }
         }
     }
-    Component.onCompleted: {
+    onAboutToShow: {
         list.currentIndex = SessionModel.currentIndex
     }
 }
