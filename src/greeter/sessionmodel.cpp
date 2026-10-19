@@ -21,53 +21,128 @@
 
 #include "sessionmodel.h"
 
-#include <Configuration.h>
+#include <DDesktopEntry>
 
+#include <QDir>
 #include <QFileInfo>
 #include <QFileSystemWatcher>
 #include <QProcessEnvironment>
+#include <QSet>
 #include <QVector>
 
-using namespace DDM;
+namespace {
+    QStringList sessionFiles(const QStringList &dirPaths)
+    {
+        QStringList files;
+        QSet<QString> taken;
+        for (const auto &dirPath : dirPaths) {
+            QDir dir(dirPath);
+            dir.setNameFilters(QStringList() << QStringLiteral("*.desktop"));
+            dir.setFilter(QDir::Files);
+            for (const QString &entry : dir.entryList()) {
+                if (taken.contains(entry))
+                    continue;
+                taken.insert(entry);
+                files += dir.absoluteFilePath(entry);
+            }
+        }
+        return files;
+    }
+
+    // TryExec names a program that must be available for the session to be
+    // offered: an absolute path, or a name looked up in $PATH. An empty
+    // TryExec does not restrict the session.
+    bool tryExecAllowed(const QString &tryExec)
+    {
+        if (tryExec.isEmpty())
+            return true;
+
+        QFileInfo fi(tryExec);
+        if (fi.isAbsolute())
+            return fi.exists() && fi.isExecutable();
+
+        const QStringList pathList = QProcessEnvironment::systemEnvironment()
+                                         .value(QStringLiteral("PATH"))
+                                         .split(QLatin1Char(':'));
+        for (const QString &path : pathList) {
+            fi.setFile(QDir(path), tryExec);
+            if (fi.exists() && fi.isExecutable())
+                return true;
+        }
+        return false;
+    }
+}
 
 SessionModel::SessionModel(QObject *parent)
     : QAbstractListModel(parent)
 {
-    // Check for flag to show Wayland sessions
-    bool dri_active = QFileInfo::exists(QStringLiteral("/dev/dri"));
-
-    // initial population
-    beginResetModel();
-    if (dri_active)
-        populate(Session::WaylandSession, mainConfig.Wayland.SessionDir.get());
-    populate(Session::X11Session, mainConfig.X11.SessionDir.get());
-    endResetModel();
-    Q_EMIT currentIndexChanged(m_currentIndex);
-
     // refresh everytime a file is changed, added or removed
-    QFileSystemWatcher *watcher = new QFileSystemWatcher(this);
-    connect(watcher, &QFileSystemWatcher::directoryChanged, [this]() {
-        // Recheck for flag to show Wayland sessions
-        bool dri_active = QFileInfo::exists(QStringLiteral("/dev/dri"));
-        beginResetModel();
-        qDeleteAll(m_sessions);
-        m_sessions.clear();
-        m_displayNames.clear();
-        if (dri_active)
-            populate(Session::WaylandSession, mainConfig.Wayland.SessionDir.get());
-        populate(Session::X11Session, mainConfig.X11.SessionDir.get());
-        m_currentIndex = 0;
-        endResetModel();
-        Q_EMIT currentIndexChanged(m_currentIndex);
-    });
-    watcher->addPaths(mainConfig.Wayland.SessionDir.get());
-    watcher->addPaths(mainConfig.X11.SessionDir.get());
+    m_watcher = new QFileSystemWatcher(this);
+    connect(m_watcher, &QFileSystemWatcher::directoryChanged, this, &SessionModel::reload);
 }
 
-SessionModel::~SessionModel()
+void SessionModel::setSessionDirs(const QStringList &waylandSessionDirs,
+                                  const QStringList &x11SessionDirs)
 {
-    qDeleteAll(m_sessions);
+    m_watcher->removePaths(m_waylandSessionDirs);
+    m_watcher->removePaths(m_x11SessionDirs);
+    m_watcher->addPaths(waylandSessionDirs);
+    m_watcher->addPaths(x11SessionDirs);
+
+    m_waylandSessionDirs = waylandSessionDirs;
+    m_x11SessionDirs = x11SessionDirs;
+
+    reload();
+}
+
+void SessionModel::setLastSession(const QString &filePath)
+{
+    m_lastSession = filePath;
+
+    const int index = indexOfSession(filePath);
+    if (index >= 0)
+        setCurrentIndex(index);
+}
+
+void SessionModel::reload()
+{
+    // Recheck for flag to show Wayland sessions
+    const bool dri_active = QFileInfo::exists(QStringLiteral("/dev/dri"));
+
+    // Keep the session the user selected across directory changes, e.g. when
+    // a package installs or removes a session file.
+    QString currentSession;
+    if (m_currentIndex >= 0 && m_currentIndex < m_sessions.size())
+        currentSession = m_sessions.at(m_currentIndex).filePath;
+
+    beginResetModel();
     m_sessions.clear();
+    m_displayNames.clear();
+    m_currentIndex = 0;
+    if (dri_active)
+        populate(true, m_waylandSessionDirs);
+    populate(false, m_x11SessionDirs);
+
+    int index = indexOfSession(currentSession);
+    if (index < 0)
+        index = indexOfSession(m_lastSession);
+    if (index >= 0)
+        m_currentIndex = index;
+
+    endResetModel();
+    Q_EMIT currentIndexChanged(m_currentIndex);
+}
+
+int SessionModel::indexOfSession(const QString &filePath) const
+{
+    if (filePath.isEmpty())
+        return -1;
+
+    for (int i = 0; i < m_sessions.size(); ++i) {
+        if (m_sessions.at(i).filePath == filePath)
+            return i;
+    }
+    return -1;
 }
 
 QHash<int, QByteArray> SessionModel::roleNames() const
@@ -76,7 +151,6 @@ QHash<int, QByteArray> SessionModel::roleNames() const
     QHash<int, QByteArray> roleNames;
     roleNames[DirectoryRole] = QByteArrayLiteral("directory");
     roleNames[FileRole] = QByteArrayLiteral("file");
-    roleNames[TypeRole] = QByteArrayLiteral("type");
     roleNames[NameRole] = QByteArrayLiteral("name");
     roleNames[ExecRole] = QByteArrayLiteral("exec");
     roleNames[CommentRole] = QByteArrayLiteral("comment");
@@ -103,26 +177,22 @@ QVariant SessionModel::data(const QModelIndex &index, int role) const
         return QVariant();
 
     // get session
-    Session *session = m_sessions[index.row()];
-    Q_ASSERT(session);
+    const SessionEntry &session = m_sessions.at(index.row());
 
     // return correct value
     switch (role) {
     case DirectoryRole:
-        return session->directory().absolutePath();
+        return QFileInfo(session.filePath).absolutePath();
     case FileRole:
-        return session->fileName();
-    case TypeRole:
-        return session->type();
+        return session.filePath;
     case NameRole:
-        if (m_displayNames.count(session->displayName()) > 1
-            && session->type() == Session::WaylandSession)
-            return tr("%1 (Wayland)").arg(session->displayName());
-        return session->displayName();
+        if (m_displayNames.count(session.displayName) > 1 && session.wayland)
+            return tr("%1 (Wayland)").arg(session.displayName);
+        return session.displayName;
     case ExecRole:
-        return session->exec();
+        return session.exec;
     case CommentRole:
-        return session->comment();
+        return session.comment;
     default:
         break;
     }
@@ -131,56 +201,30 @@ QVariant SessionModel::data(const QModelIndex &index, int role) const
     return QVariant();
 }
 
-void SessionModel::populate(DDM::Session::Type type, const QStringList &dirPaths)
+void SessionModel::populate(bool wayland, const QStringList &dirPaths)
 {
-    // read session files
-    QStringList sessions;
-    for (const auto &path : dirPaths) {
-        QDir dir = path;
-        dir.setNameFilters(QStringList() << QStringLiteral("*.desktop"));
-        dir.setFilter(QDir::Files);
-        sessions += dir.entryList();
-    }
-    // read session
-    sessions.removeDuplicates();
-    for (auto &session : std::as_const(sessions)) {
-        Session *si = new Session(type, session);
-        bool execAllowed = true;
-        QFileInfo fi(si->tryExec());
-        if (fi.isAbsolute()) {
-            if (!fi.exists() || !fi.isExecutable())
-                execAllowed = false;
-        } else {
-            execAllowed = false;
-            QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
-            QString envPath = env.value(QStringLiteral("PATH"));
-            const QStringList pathList = envPath.split(QLatin1Char(':'));
-            for (const QString &path : pathList) {
-                QDir pathDir(path);
-                fi.setFile(pathDir, si->tryExec());
-                if (fi.exists() && fi.isExecutable()) {
-                    execAllowed = true;
-                    break;
-                }
-            }
-        }
+    for (const QString &filePath : sessionFiles(dirPaths)) {
+        // read session
+        const Dtk::Core::DDesktopEntry entry(filePath);
+        if (entry.status() != Dtk::Core::DDesktopEntry::NoError)
+            continue;
+
+        SessionEntry session;
+        session.wayland = wayland;
+        session.filePath = filePath;
+        session.displayName = entry.name();
+        session.exec = entry.rawValue(QStringLiteral("Exec"));
+        session.comment = entry.comment();
+        session.tryExec = entry.rawValue(QStringLiteral("TryExec"));
+
+        if (!tryExecAllowed(session.tryExec))
+            continue;
+
         // add to sessions list
-        if (execAllowed) {
-            m_displayNames.append(si->displayName());
-            if (si->displayName() == QStringLiteral("Treeland"))
-                m_sessions.prepend(si);
-            else
-                m_sessions.push_back(si);
-        } else {
-            delete si;
-        }
+        m_displayNames.append(session.displayName);
+        if (session.displayName == QStringLiteral("Treeland"))
+            m_sessions.prepend(session);
+        else
+            m_sessions.push_back(session);
     }
-    // find out index of the last session
-    if (mainConfig.Users.RememberLastSession.get())
-        for (int i = 0; i < m_sessions.size(); ++i) {
-            if (m_sessions.at(i)->fileName() == stateConfig.Last.Session.get()) {
-                m_currentIndex = i;
-                break;
-            }
-        }
 }

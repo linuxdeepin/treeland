@@ -24,8 +24,6 @@
 #include "core/waylandserver.h"
 #include "session/session.h"
 
-#include <Configuration.h>
-
 #include <DDBusInterface>
 
 #include <QFile>
@@ -42,13 +40,13 @@
 #include <pwd.h>
 #include <unistd.h>
 
-using namespace DDM;
 DACCOUNTS_USE_NAMESPACE
 
 struct UserModelPrivate
 {
     bool containsAllUsers{ true };
     int lastIndex{ 0 };
+    QString lastUserName;
     QString currentUserName;
     DAccountsManager manager;
     QTranslator *lastTrans{ nullptr };
@@ -78,17 +76,8 @@ UserModel::UserModel(QObject *parent)
         addUser(std::make_unique<User>(std::move(user).value()));
     }
 
-    // find out index of the last user
-    auto lastUserName = stateConfig.Last.User.get();
-
-    for (const auto &user : d->users) {
-        if (user->userName() == lastUserName) {
-            d->lastIndex = d->users.indexOf(user);
-            d->currentUserName = user->userName();
-            break;
-        }
-    }
-
+    // The last user is sent by DDM once the greeter connects; until then
+    // fall back to the running user or the first available one.
     if (d->currentUserName.isEmpty()) {
         QString runningUser;
         uid_t runningUid = 0;
@@ -141,9 +130,9 @@ int UserModel::lastIndex() const
     return d->lastIndex;
 }
 
-QString UserModel::lastUser()
+QString UserModel::lastUser() const
 {
-    return stateConfig.Last.User.get();
+    return d->lastUserName;
 }
 
 int UserModel::rowCount(const QModelIndex &parent) const
@@ -347,6 +336,32 @@ void UserModel::setCurrentUserName(const QString &userName) noexcept
     }
 
     Q_EMIT currentUserNameChanged();
+}
+
+void UserModel::setLastUser(const QString &userName)
+{
+    if (userName.isEmpty())
+        return;
+
+    if (d->lastUserName != userName) {
+        d->lastUserName = userName;
+        Q_EMIT lastUserChanged();
+    }
+
+    UserPtr user = getUser(userName);
+    if (!user && tryAddNssUser(userName))
+        user = getUser(userName);
+    if (!user)
+        return;
+
+    const int index = d->users.indexOf(user);
+    if (d->lastIndex != index) {
+        d->lastIndex = index;
+        Q_EMIT lastIndexChanged();
+    }
+
+    if (d->currentUserName != user->userName())
+        setCurrentUserName(user->userName());
 }
 
 void UserModel::onUserAdded(quint64 uid)
