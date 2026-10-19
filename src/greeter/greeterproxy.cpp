@@ -243,12 +243,9 @@ void GreeterProxy::login(const QString &user, const QString &password, const int
     QModelIndex index = sessionModel()->index(sessionIndex, 0);
 
     // send command to the daemon
-    DDM::Session::Type type =
-        static_cast<DDM::Session::Type>(sessionModel()->data(index, SessionModel::TypeRole).toInt());
     QString name = sessionModel()->data(index, SessionModel::FileRole).toString();
-    qCInfo(lcTlGreeter) << "Logging user" << user << "in with" << type << "session" << name;
-    DDM::Session session(type, name);
-    SocketWriter(m_socket) << quint32(GreeterMessages::Login) << user << password << session;
+    qCInfo(lcTlGreeter) << "Logging user" << user << "in with session" << name;
+    SocketWriter(m_socket) << quint32(GreeterMessages::Login) << user << password << name;
 }
 
 void GreeterProxy::unlock(const QString &user, const QString &password)
@@ -466,8 +463,10 @@ void GreeterProxy::readyRead()
     QDataStream input(m_socket);
 
     while (input.device()->bytesAvailable()) {
+        input.startTransaction();
+
         // read message
-        quint32 message;
+        quint32 message = 0;
         input >> message;
 
         switch (DaemonMessages(message)) {
@@ -476,8 +475,10 @@ void GreeterProxy::readyRead()
             qCDebug(lcTlGreeter) << "Message received from daemon: Capabilities";
 
             // read capabilities
-            quint32 capabilities;
+            quint32 capabilities = 0;
             input >> capabilities;
+            if (!input.commitTransaction())
+                return;
 
             // parse capabilities
             m_canPowerOff = capabilities & Capability::PowerOff;
@@ -498,13 +499,39 @@ void GreeterProxy::readyRead()
 
             // read host name
             input >> m_hostName;
+            if (!input.commitTransaction())
+                return;
 
             // Q_EMIT signal
             Q_EMIT hostNameChanged(m_hostName);
         } break;
+        case DaemonMessages::LastLogin: {
+            qCDebug(lcTlGreeter) << "Message received from daemon: LastLogin";
+
+            QString lastUser, lastSession;
+            input >> lastUser >> lastSession;
+            if (!input.commitTransaction())
+                return;
+
+            userModel()->setLastUser(lastUser);
+            sessionModel()->setLastSession(lastSession);
+        } break;
+        case DaemonMessages::SessionDirs: {
+            qCDebug(lcTlGreeter) << "Message received from daemon: SessionDirs";
+
+            // read the directories the sessions are installed in
+            QStringList waylandSessionDirs, x11SessionDirs;
+            input >> waylandSessionDirs >> x11SessionDirs;
+            if (!input.commitTransaction())
+                return;
+
+            sessionModel()->setSessionDirs(waylandSessionDirs, x11SessionDirs);
+        } break;
         case DaemonMessages::LoginFailed: {
             QString user;
             input >> user;
+            if (!input.commitTransaction())
+                return;
 
             qCDebug(lcTlGreeter) << "Message received from daemon: LoginFailed" << user;
 
@@ -513,16 +540,24 @@ void GreeterProxy::readyRead()
         case DaemonMessages::InformationMessage: {
             QString message;
             input >> message;
+            if (!input.commitTransaction())
+                return;
 
             qCDebug(lcTlGreeter) << "Information Message received from daemon: " << message;
             Q_EMIT informationMessage(message);
         } break;
         case DaemonMessages::SwitchToGreeter: {
+            if (!input.commitTransaction())
+                return;
+
             qCInfo(lcTlGreeter) << "switch to greeter";
             lock();
         } break;
 #ifndef DDM_VERSION_LT_0_3_8
         case DaemonMessages::ShowGreeter: {
+            if (!input.commitTransaction())
+                return;
+
             qCInfo(lcTlGreeter) << "show greeter";
             // Full lock screen transition (LockScreen mode, hidden workspace),
             // matching the previous startup behavior of showLockScreen().
@@ -533,6 +568,8 @@ void GreeterProxy::readyRead()
             QString user;
             QString sessionId;
             input >> user >> sessionId;
+            if (!input.commitTransaction())
+                return;
 
             // NOTE: maybe DDM will active dde user.
             if (!userModel()->getUser(user)) {
@@ -566,6 +603,8 @@ void GreeterProxy::readyRead()
             QString user;
             QString sessionId;
             input >> user >> sessionId;
+            if (!input.commitTransaction())
+                return;
 
             // This will happen after a crash recovery of treeland
             qCInfo(lcTlGreeter) << "User " << user << " is already logged in";
@@ -616,7 +655,10 @@ void GreeterProxy::readyRead()
             }
         } break;
         default: {
+            if (!input.commitTransaction())
+                return;
             qCWarning(lcTlGreeter) << "Unknown message received from daemon." << message;
+            return;
         }
         }
     }

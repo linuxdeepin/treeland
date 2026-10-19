@@ -21,11 +21,11 @@
 
 #pragma once
 
-#include <Session.h>
-
 #include <QAbstractListModel>
 #include <QHash>
 #include <QQmlEngine>
+
+class QFileSystemWatcher;
 
 class SessionModel : public QAbstractListModel
 {
@@ -40,7 +40,6 @@ public:
     {
         DirectoryRole = Qt::UserRole + 1,
         FileRole,
-        TypeRole,
         NameRole,
         ExecRole,
         CommentRole
@@ -48,12 +47,19 @@ public:
     Q_ENUM(SessionRole)
 
     SessionModel(QObject *parent = nullptr);
-    ~SessionModel();
 
     QHash<int, QByteArray> roleNames() const override;
 
     inline int currentIndex() const { return m_currentIndex; };
     void setCurrentIndex(int index);
+
+    // Directories the sessions are installed in, sent by DDM when the greeter
+    // connects. Sessions are listed for them, nothing is listed before.
+    void setSessionDirs(const QStringList &waylandSessionDirs, const QStringList &x11SessionDirs);
+
+    // Session of the last successful login, sent by DDM. Applied whenever the
+    // model is populated or the value arrives after the dirs.
+    void setLastSession(const QString &filePath);
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
@@ -62,11 +68,29 @@ Q_SIGNALS:
     void currentIndexChanged(int index);
 
 private:
-    void populate(DDM::Session::Type type, const QStringList &dirPaths);
+    // A session desktop file, parsed for the fields the greeter shows and
+    // reports back to DDM.
+    struct SessionEntry
+    {
+        bool wayland; // listed from the Wayland session directories
+        QString filePath; // absolute path of the desktop file
+        QString displayName;
+        QString exec;
+        QString comment;
+        QString tryExec;
+    };
+
+    void populate(bool wayland, const QStringList &dirPaths);
+    void reload();
+    int indexOfSession(const QString &filePath) const;
 
     int m_currentIndex{ 0 };
+    QString m_lastSession{};
     QStringList m_displayNames{};
-    QList<DDM::Session *> m_sessions{};
+    QList<SessionEntry> m_sessions{};
+    QStringList m_waylandSessionDirs{};
+    QStringList m_x11SessionDirs{};
+    QFileSystemWatcher *m_watcher{ nullptr };
 };
 
 QML_DECLARE_TYPE(SessionModel)
