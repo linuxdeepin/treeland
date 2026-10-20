@@ -14,6 +14,7 @@
 #include <QString>
 
 Q_MOC_INCLUDE(<woutputitem.h>)
+Q_MOC_INCLUDE("outputconfig.hpp")
 
 struct wlr_output;
 
