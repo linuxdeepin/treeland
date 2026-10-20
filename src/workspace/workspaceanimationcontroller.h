@@ -7,6 +7,8 @@
 #include <QQmlEngine>
 #include <QSequentialAnimationGroup>
 
+class TreelandUserConfig;
+
 class WorkspaceAnimationController : public QObject
 {
     Q_OBJECT
@@ -34,6 +36,11 @@ public:
     qreal viewportPos() const;
     void setViewportPos(qreal newViewportPos);
     uint pendingWorkspaceIndex() const;
+
+    // Whether the corresponding automatic transition may play; the caller can
+    // skip creating the visual switcher layer entirely when it cannot.
+    bool slideEnabled() const;
+    bool bounceEnabled() const;
 
     enum Direction
     {
@@ -66,6 +73,9 @@ private:
     void startBounceAnimation();
     void finishAnimation();
     qreal gestureObstruction(qreal gestureValue);
+    bool animationConfigEnabled(bool (TreelandUserConfig::*key)() const) const;
+    void setupAnimationConfig();
+    void onAnimationConfigChanged();
 
     qreal m_refWidth = 1920;
     qreal m_refGap = 30;
@@ -85,4 +95,5 @@ private:
     QPropertyAnimation *m_posAnimation;
     QPropertyAnimation *m_bounceOutAnimation;
     QPropertyAnimation *m_bounceInAnimation;
+    QMetaObject::Connection m_animationConfigConnection;
 };
