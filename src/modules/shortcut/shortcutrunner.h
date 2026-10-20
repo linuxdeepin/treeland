@@ -6,7 +6,7 @@
 #include <QObject>
 #include <QTimer>
 #include <qcoreevent.h>
-#include "shortcutmanager.h"
+#include "shortcutcontroller.h"
 
 class ShortcutRunner : public QObject
 {

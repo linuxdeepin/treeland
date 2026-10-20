@@ -19,7 +19,7 @@ class FocusController;
 class IdleManager;
 class CaptureManager;
 class OutputManager;
-class ShortcutManagerV2;
+class ShortcutManagerV3;
 class KeyboardShortcutsInhibitManagerV1;
 
 WAYLIB_SERVER_USE_NAMESPACE
@@ -33,7 +33,7 @@ public:
                          OutputManager *outputManager);
 
     void installRelativePointer(WServer *server, SeatManager *seatManager);
-    void setShortcutProtocols(ShortcutManagerV2 *shortcuts,
+    void setShortcutProtocols(ShortcutManagerV3 *shortcuts,
                               KeyboardShortcutsInhibitManagerV1 *inhibitor);
     WSeat *currentEventSeat() const { return m_currentEventSeat; }
 
@@ -57,7 +57,7 @@ private:
     IdleManager *m_idleManager = nullptr;
     CaptureManager *m_captureManager = nullptr;
     OutputManager *m_outputManager = nullptr;
-    ShortcutManagerV2 *m_shortcutManager = nullptr;
+    ShortcutManagerV3 *m_shortcutManager = nullptr;
     KeyboardShortcutsInhibitManagerV1 *m_keyboardShortcutsInhibitManagerV1 = nullptr;
     WSeat *m_currentEventSeat = nullptr;
 };

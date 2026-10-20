@@ -1,7 +1,7 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
-#ifndef TREELAND_SHORTCUT_MANAGER_V2_TEST_H
-#define TREELAND_SHORTCUT_MANAGER_V2_TEST_H
+#ifndef TREELAND_SHORTCUT_MANAGER_V3_TEST_H
+#define TREELAND_SHORTCUT_MANAGER_V3_TEST_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -25,14 +25,13 @@ struct test_ctx {
 
     struct wl_compositor *compositor;
 
-    struct treeland_shortcut_manager_v2 *manager;
-    struct treeland_shortcut_capture_v1 *capture;
+    struct treeland_shortcut_manager_v3 *manager;
+    struct treeland_shortcut_capture_v3 *capture;
     struct wl_surface                   *test_surface;
 
-    int      commit_success_received;
-    int      commit_failure_received;
-    char     commit_failure_name[64];
-    uint32_t commit_failure_error;
+    int      bind_failure_received;
+    char     bind_failure_name[64];
+    uint32_t bind_failure_error;
     int      capture_captured_received;
     char     capture_captured_key[64];
     int      capture_failed_received;
