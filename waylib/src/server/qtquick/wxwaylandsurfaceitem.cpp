@@ -97,6 +97,9 @@ bool WXWaylandSurfaceItem::setShellSurface(WToplevelSurface *surface)
         });
 
         auto updateGeometry = [this] {
+            if (xwaylandSurface()->isBypassManager())
+                Q_EMIT implicitPositionChanged();
+
             const auto rm = resizeMode();
             if (rm != SizeFromSurface)
                 return;
@@ -185,7 +188,9 @@ QPointF WXWaylandSurfaceItem::implicitPosition() const
     auto xwaylandSurface = qobject_cast<WXWaylandSurface *>(d->shellSurface);
     Q_ASSERT(xwaylandSurface);
 
-    const QPoint epos = xwaylandSurface->requestConfigureGeometry().topLeft();
+    const QPoint epos = xwaylandSurface->isBypassManager()
+        ? xwaylandSurface->geometry().topLeft()
+        : xwaylandSurface->requestConfigureGeometry().topLeft();
     const qreal ssr = d->surfaceSizeRatio;
 
     return QPointF(epos) / ssr - QPointF(leftPadding(), topPadding());
