@@ -2,6 +2,28 @@
     "magic": "dsg.config.meta",
     "version": "1.0",
     "contents": {
+        "lockscreenControlAnimationEnabled": {
+            "value": true,
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Lock screen control animation",
+            "name[zh_CN]": "锁屏控制按钮动画",
+            "description": "Animate lock screen control button expansion and collapse. Disabling completes the current size transition immediately.",
+            "description[zh_CN]": "控制锁屏按钮展开和收缩动画；关闭时立即完成当前尺寸过渡。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
+        "workspaceVisibilityAnimationEnabled": {
+            "value": true,
+            "serial": 0,
+            "flags": ["global"],
+            "name": "Workspace visibility animation",
+            "name[zh_CN]": "工作区显隐动画",
+            "description": "Animate the workspace scale and opacity on lock screen entry and exit. Disabling applies the final scale and opacity immediately.",
+            "description[zh_CN]": "控制锁屏进入和退出时工作区的缩放与透明度动画；关闭时立即应用最终缩放和透明度。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
         "showOnLock": {
             "value": false,
             "serial": 0,
