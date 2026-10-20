@@ -44,7 +44,7 @@ CompositorInputFilter::CompositorInputFilter(WaylandServer *server,
     , m_outputManager(outputManager)
 {}
 
-void CompositorInputFilter::setShortcutProtocols(ShortcutManagerV2 *shortcuts,
+void CompositorInputFilter::setShortcutProtocols(ShortcutManagerV3 *shortcuts,
     KeyboardShortcutsInhibitManagerV1 *inhibitor)
 {
     m_shortcutManager = shortcuts;
