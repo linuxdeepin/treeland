@@ -11,6 +11,26 @@
 #include "surface/surfacewrapper.h"
 #include "workspace/workspace.h"
 
+static SurfaceWrapper::TileMode tileModeFor(ShellAction action)
+{
+    switch (action) {
+    case ShellAction::TileLeft:
+        return SurfaceWrapper::TileMode::Left;
+    case ShellAction::TileRight:
+        return SurfaceWrapper::TileMode::Right;
+    case ShellAction::TileTopLeft:
+        return SurfaceWrapper::TileMode::TopLeft;
+    case ShellAction::TileTopRight:
+        return SurfaceWrapper::TileMode::TopRight;
+    case ShellAction::TileBottomLeft:
+        return SurfaceWrapper::TileMode::BottomLeft;
+    case ShellAction::TileBottomRight:
+        return SurfaceWrapper::TileMode::BottomRight;
+    default:
+        return SurfaceWrapper::TileMode::None;
+    }
+}
+
 void ShellActionExecutor::execute(ShellAction action)
 {
     auto *server = WaylandServer::instance();
@@ -124,6 +144,13 @@ void ShellActionExecutor::execute(ShellAction action)
         }
         break;
     }
+    case ShellAction::Minimize: {
+        auto *surface = server->activatedSurface();
+        if (surface) {
+            surface->minimize();
+        }
+        break;
+    }
     case ShellAction::MoveWindow: {
         auto *surface = server->activatedSurface();
         if (surface) {
@@ -146,7 +173,11 @@ void ShellActionExecutor::execute(ShellAction action)
         break;
     }
     case ShellAction::TileLeft:
-    case ShellAction::TileRight: {
+    case ShellAction::TileRight:
+    case ShellAction::TileTopLeft:
+    case ShellAction::TileTopRight:
+    case ShellAction::TileBottomLeft:
+    case ShellAction::TileBottomRight: {
         auto *surface = server->activatedSurface();
         if (!surface) {
             break;
@@ -155,9 +186,31 @@ void ShellActionExecutor::execute(ShellAction action)
         if (!output) {
             break;
         }
-        const auto mode = (action == ShellAction::TileLeft) ? SurfaceWrapper::TileMode::Left
-                                                            : SurfaceWrapper::TileMode::Right;
-        surface->applyTileMode(mode, output);
+        surface->applyTileMode(tileModeFor(action), output);
+        break;
+    }
+    case ShellAction::MoveWindowToPrevWorkspace: {
+        auto *surface = server->activatedSurface();
+        if (!surface) {
+            break;
+        }
+        const int target = server->workspace()->getLeftWorkspaceId(surface->workspaceId());
+        if (target < 0) {
+            break;
+        }
+        server->workspace()->moveSurfaceTo(surface, target);
+        break;
+    }
+    case ShellAction::MoveWindowToNextWorkspace: {
+        auto *surface = server->activatedSurface();
+        if (!surface) {
+            break;
+        }
+        const int target = server->workspace()->getRightWorkspaceId(surface->workspaceId());
+        if (target < 0) {
+            break;
+        }
+        server->workspace()->moveSurfaceTo(surface, target);
         break;
     }
     }

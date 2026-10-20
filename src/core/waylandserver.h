@@ -6,7 +6,6 @@
 #include <wlr_fwd.h>
 #include "core/qmlengine.h"
 #include "modules/activation/activationmanagerinterfacev1.h"
-#include "modules/shortcut/shortcutmanager.h"
 #include "modules/wallpaper/wallpapermanagerinterfacev1.h"
 #include "modules/wallpaper/wallpapernotifierinterfacev1.h"
 #include "modules/show-desktop/showdesktopinterfacev1.h"
@@ -118,7 +117,7 @@ class SettingManager;
 class SessionModel;
 class ShellHandler;
 class ShellActionExecutor;
-class ShortcutManagerV2;
+class ShortcutManagerV3;
 class ShortcutRunner;
 class SurfaceContainer;
 class SurfaceWrapper;
@@ -391,7 +390,7 @@ private:
     ShellHandler *m_shellHandler = nullptr;
     WPointerConstraintsV1 *m_pointerConstraintsV1 = nullptr;
     PointerConstraintsManager *m_pointerConstraintsManager = nullptr;
-    ShortcutManagerV2 *m_shortcutManager = nullptr;
+    ShortcutManagerV3 *m_shortcutManager = nullptr;
     AppearanceInterfaceV1 *m_appearanceInterfaceV1 = nullptr;
     AppearanceManagerInterfaceV1 *m_appearanceManagerInterfaceV1 = nullptr;
     CompositorActionInterfaceV1 *m_compositorActionInterfaceV1 = nullptr;
