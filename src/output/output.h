@@ -163,7 +163,6 @@ private:
     WOutputItem *m_item;
     Output *m_proxy = nullptr;
     SurfaceFilterModel *minimizedSurfaces;
-    QPointer<QQuickItem> m_taskBar;
     QPointer<QQuickItem> m_debugMenuBar;
     WOutputViewport *m_outputViewport = nullptr;
 
