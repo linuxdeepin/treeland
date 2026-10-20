@@ -62,6 +62,7 @@ FocusScope {
         ]
 
         Behavior on scale {
+            enabled: WaylandServer.config.greeterBackgroundAnimationEnabled
             NumberAnimation {
                 duration: background.scaleDuration
                 easing.type: Easing.OutExpo
@@ -72,6 +73,7 @@ FocusScope {
             Transition {
                 from: "*"
                 to: "Show"
+                enabled: WaylandServer.config.greeterBackgroundAnimationEnabled
                 PropertyAnimation {
                     property: "effectStrength"
                     duration: background.duration
@@ -86,6 +88,7 @@ FocusScope {
             Transition {
                 from: "*"
                 to: "Hide"
+                enabled: WaylandServer.config.greeterBackgroundAnimationEnabled
                 PropertyAnimation {
                     property: "effectStrength"
                     duration: background.duration

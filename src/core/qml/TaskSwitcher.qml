@@ -24,6 +24,10 @@ Item {
     property bool enableShadows: GraphicsInfo.api !== GraphicsInfo.Software
     property bool enableRadius: true
     property bool enableAnimation: GraphicsInfo.api !== GraphicsInfo.Software
+    // Per-effect switches; the bindings below also drive mid-flight completion.
+    readonly property bool maskAnimationEnabled: WaylandServer.config.taskSwitcherAnimationEnabled
+    readonly property bool panelAnimationEnabled: WaylandServer.config.taskSwitcherPanelAnimationEnabled
+    readonly property bool exitAnimationEnabled: WaylandServer.config.taskSwitcherExitAnimationEnabled
 
     readonly property int leftpreferredMargin: 20
     readonly property int rightpreferredMargin: 20
@@ -43,9 +47,25 @@ Item {
             mask.opacity = 0.5
             currentContext.loaderStatus = 0
 
-            switchItemAnimation.stop()
-            switchItemAnimation.isInAni = true
-            switchItemAnimation.start()
+            if (root.panelAnimationEnabled) {
+                switchItemAnimation.stop()
+                switchItemAnimation.isInAni = true
+                switchItemAnimation.start()
+            } else {
+                switchItemAnimation.stop()
+                switchItem.y = switchItemAnimation.fromeY
+                switchItem.opacity = 1
+            }
+        }
+    }
+
+    // Turning an effect off while it is playing must finish that effect once:
+    // land on the final state instead of leaving the panel or previews half way.
+    onExitAnimationEnabledChanged: {
+        if (!exitAnimationEnabled && previewWindows.animationRunning) {
+            previewWindows.finishAnimation(true)
+            showTask(false)
+            root.switchOn = false
         }
     }
 
@@ -95,7 +115,7 @@ Item {
         opacity: 0.0
 
         Behavior on opacity {
-            enabled: root.enableAnimation
+            enabled: root.enableAnimation && root.maskAnimationEnabled
 
             NumberAnimation {
                 duration: 400
@@ -278,11 +298,14 @@ Item {
         }
 
         Component.onCompleted: {
-            if (root.enableAnimation) {
+            if (root.panelAnimationEnabled) {
                 switchItemAnimation.fromeY = switchItem.y
                 switchItemAnimation.stop()
                 switchItemAnimation.isInAni = true
                 switchItemAnimation.start()
+            } else {
+                switchItemAnimation.fromeY = switchItem.y
+                switchItem.opacity = 1
             }
         }
     }
@@ -633,12 +656,18 @@ Item {
         if (root.enableAnimation) {
             mask.opacity = 0.0
 
-            switchItemAnimation.stop()
-            switchItemAnimation.isInAni = false
-            switchItemAnimation.start()
+            if (root.panelAnimationEnabled) {
+                switchItemAnimation.stop()
+                switchItemAnimation.isInAni = false
+                switchItemAnimation.start()
+            } else {
+                switchItemAnimation.stop()
+                switchItem.y = switchItemAnimation.fromeY
+                switchItem.opacity = 0
+            }
         }
 
-        const playSurfaceAnimation = root.enableAnimation
+        const playSurfaceAnimation = root.enableAnimation && root.exitAnimationEnabled
                 && switchView.count > 0 && switchView.count <= 18
         const surfaceSnapshot = playSurfaceAnimation ? root.model.surfaceSnapshot() : []
 

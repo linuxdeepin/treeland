@@ -10,6 +10,7 @@
 #include "wallpapermanager.h"
 #include "workspace.h"
 #include "shellhandler.h"
+#include "treelanduserconfig.hpp"
 
 #include <woutput.h>
 
@@ -48,6 +49,8 @@ WallpaperSwitcherItem::WallpaperSwitcherItem(QQuickItem *parent)
             &Workspace::workspaceAdded,
             this,
             &WallpaperSwitcherItem::handleWorkspaceAdded);
+
+    setupAnimationConfig();
 }
 
 WallpaperSwitcherItem::~WallpaperSwitcherItem()
@@ -181,23 +184,27 @@ void WallpaperSwitcherItem::switchToNewSlot()
         return;
     }
 
+    // A previous cross fade is superseded: release its leftover slot now so its
+    // finished callback can never touch the slot of this switch.
+    if (m_oldSlot) {
+        m_oldSlot->deleteLater();
+        m_oldSlot = nullptr;
+    }
+
     m_oldSlot = m_currentSlot;
     m_currentSlot = newSlot;
 
     Q_EMIT sourceChanged();
 
-    auto *fadeOut = new QPropertyAnimation(m_oldSlot, "opacity");
-    fadeOut->setDuration(m_opacityDuration);
-    fadeOut->setStartValue(1.0);
-    fadeOut->setEndValue(0.0);
-    fadeOut->setEasingCurve(QEasingCurve::InOutQuad);
-    connect(fadeOut, &QPropertyAnimation::finished, this, &WallpaperSwitcherItem::onAnimationFinished);
-    fadeOut->start(QAbstractAnimation::DeleteWhenStopped);
+    if (crossFadeEnabled())
+        startFadeOut(m_oldSlot);
 
     auto *interface = TreelandWallpaperSurfaceInterfaceV1::get(newSlot->source());
     if (interface && interface->wallpaperReady()) {
         startFadeIn(newSlot);
     } else if (interface) {
+        // Waiting for the content to load is not an animation: keep it even when
+        // the cross fade is disabled.
         connect(interface,
                 &TreelandWallpaperSurfaceInterfaceV1::ready,
                 this,
@@ -209,8 +216,38 @@ void WallpaperSwitcherItem::switchToNewSlot()
     }
 }
 
+void WallpaperSwitcherItem::startFadeOut(WallpaperSlot *slot)
+{
+    if (!slot)
+        return;
+
+    auto *fadeOut = new QPropertyAnimation(slot, "opacity");
+    fadeOut->setDuration(m_opacityDuration);
+    fadeOut->setStartValue(1.0);
+    fadeOut->setEndValue(0.0);
+    fadeOut->setEasingCurve(QEasingCurve::InOutQuad);
+    connect(fadeOut, &QPropertyAnimation::finished, this, [this, slot]() {
+        if (m_oldSlot != slot)
+            return;
+        m_oldSlot->deleteLater();
+        m_oldSlot = nullptr;
+    });
+    fadeOut->start(QAbstractAnimation::DeleteWhenStopped);
+}
+
 void WallpaperSwitcherItem::startFadeIn(WallpaperSlot *slot)
 {
+    if (!crossFadeEnabled()) {
+        // The new content is ready: show it and release the previous wallpaper in
+        // one step instead of fading.
+        slot->setOpacity(1.0);
+        if (m_oldSlot) {
+            m_oldSlot->deleteLater();
+            m_oldSlot = nullptr;
+        }
+        return;
+    }
+
     auto *anim = new QPropertyAnimation(slot, "opacity");
     anim->setDuration(m_opacityDuration);
     anim->setStartValue(0.0);
@@ -219,10 +256,46 @@ void WallpaperSwitcherItem::startFadeIn(WallpaperSlot *slot)
     anim->start(QAbstractAnimation::DeleteWhenStopped);
 }
 
-void WallpaperSwitcherItem::onAnimationFinished()
+bool WallpaperSwitcherItem::crossFadeEnabled() const
 {
-    if (m_oldSlot) {
-        m_oldSlot->deleteLater();
-        m_oldSlot = nullptr;
+    auto *server = WaylandServer::instance();
+    auto *config = server ? server->config() : nullptr;
+    // An uninitialized config is not a valid "disabled" answer.
+    if (!config || !config->isInitializeSucceeded())
+        return true;
+    return config->wallpaperCrossFadeAnimationEnabled();
+}
+
+void WallpaperSwitcherItem::setupAnimationConfig()
+{
+    auto *server = WaylandServer::instance();
+    if (!server)
+        return;
+
+    QObject::disconnect(m_animationConfigConnection);
+    if (auto *config = server->config()) {
+        m_animationConfigConnection = connect(config,
+                                              &TreelandUserConfig::valueChanged,
+                                              this,
+                                              &WallpaperSwitcherItem::onAnimationConfigChanged);
     }
+    connect(server,
+            &WaylandServer::configChanged,
+            this,
+            &WallpaperSwitcherItem::setupAnimationConfig,
+            Qt::UniqueConnection);
+}
+
+void WallpaperSwitcherItem::onAnimationConfigChanged()
+{
+    if (crossFadeEnabled() || !m_currentSlot)
+        return;
+
+    // Never drop the old wallpaper before the new content is ready: that would
+    // leave an empty desktop until the client maps its surface.
+    auto *interface = TreelandWallpaperSurfaceInterfaceV1::get(m_currentSlot->source());
+    if (!interface || !interface->wallpaperReady())
+        return;
+
+    startFadeIn(m_currentSlot);
 }

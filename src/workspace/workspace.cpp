@@ -223,7 +223,7 @@ void Workspace::switchToNext()
 {
     if (currentIndex() < m_models->rowCount() - 1) {
         switchTo(currentIndex() + 1);
-    } else {
+    } else if (m_animationController->bounceEnabled()) {
         createSwitcher();
         m_animationController->bounce(currentIndex(), WorkspaceAnimationController::Right);
     }
@@ -233,7 +233,7 @@ void Workspace::switchToPrev()
 {
     if (currentIndex() > 0) {
         switchTo(currentIndex() - 1);
-    } else {
+    } else if (m_animationController->bounceEnabled()) {
         createSwitcher();
         m_animationController->bounce(currentIndex(), WorkspaceAnimationController::Left);
     }
@@ -254,8 +254,12 @@ void Workspace::switchTo(int index, bool animated)
         WaylandServer::instance()->activateSurface(current()->latestActiveSurface());
 
     if (animated) {
-        createSwitcher();
-        m_animationController->slide(oldCurrentIndex, currentIndex());
+        // Skip the switcher layer entirely when the switch animation is off: the
+        // workspace change itself is already committed above.
+        if (m_animationController->slideEnabled()) {
+            createSwitcher();
+            m_animationController->slide(oldCurrentIndex, currentIndex());
+        }
     } else if (m_switcher && m_switcher->isVisible()) {
         // activateSurface restacks the target surface via stackToLast(), placing it above
         // the already-visible workspace switcher. Raise the switcher back on top so the

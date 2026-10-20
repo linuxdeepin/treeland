@@ -3,6 +3,7 @@
 
 import QtQuick
 import Waylib.Server
+import Treeland
 
 OutputItem {
     id: outputItem
@@ -109,6 +110,8 @@ OutputItem {
             alwaysRunToEnd: true
         }
 
+        readonly property bool rotationAnimationEnabled: WaylandServer.config.mirrorOutputRotationAnimationEnabled
+
         Timer {
             id: transformTimer
             property var scheduleTransform
@@ -116,25 +119,43 @@ OutputItem {
             interval: rotationAnimator.duration / 2
         }
 
-        function rotationOutput(orientation) {
-            transformTimer.scheduleTransform = orientation
-            transformTimer.start()
-
+        function rotationAngle(orientation) {
             switch(orientation) {
             case WaylandOutput.R90:
-                rotationAnimator.to = 90
-                break
+                return 90
             case WaylandOutput.R180:
-                rotationAnimator.to = 180
-                break
+                return 180
             case WaylandOutput.R270:
-                rotationAnimator.to = -90
-                break
+                return -90
             default:
-                rotationAnimator.to = 0
-                break
+                return 0
+            }
+        }
+
+        onRotationAnimationEnabledChanged: {
+            if (rotationAnimationEnabled || !rotationAnimator.running)
+                return
+            transformTimer.stop()
+            rotationAnimator.stop()
+            rotation = rotationAnimator.to
+            viewport.rotateOutput(transformTimer.scheduleTransform)
+        }
+
+        function rotationOutput(orientation) {
+            transformTimer.scheduleTransform = orientation
+
+            if (!rotationAnimationEnabled) {
+                // Apply the visual value and the real transform together instead
+                // of waiting for the half-way timer.
+                transformTimer.stop()
+                rotationAnimator.stop()
+                rotation = rotationAngle(orientation)
+                viewport.rotateOutput(orientation)
+                return
             }
 
+            transformTimer.start()
+            rotationAnimator.to = rotationAngle(orientation)
             rotationAnimator.from = rotation
             rotationAnimator.start()
         }

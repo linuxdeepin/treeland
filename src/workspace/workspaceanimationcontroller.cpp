@@ -42,6 +42,64 @@ WorkspaceAnimationController::WorkspaceAnimationController(QObject *parent)
             &QSequentialAnimationGroup::finished,
             this,
             &WorkspaceAnimationController::finishAnimation);
+
+    setupAnimationConfig();
+}
+
+bool WorkspaceAnimationController::animationConfigEnabled(bool (TreelandUserConfig::*key)() const) const
+{
+    auto *server = WaylandServer::instance();
+    auto *config = server ? server->config() : nullptr;
+    // An uninitialized config is not a valid "disabled" answer: keep the default
+    // animated behavior until the real value is available.
+    if (!config || !config->isInitializeSucceeded())
+        return true;
+    return (config->*key)();
+}
+
+bool WorkspaceAnimationController::slideEnabled() const
+{
+    return animationConfigEnabled(&TreelandUserConfig::workspaceSwitchAnimationEnabled);
+}
+
+bool WorkspaceAnimationController::bounceEnabled() const
+{
+    return animationConfigEnabled(&TreelandUserConfig::workspaceBounceAnimationEnabled);
+}
+
+void WorkspaceAnimationController::setupAnimationConfig()
+{
+    auto *server = WaylandServer::instance();
+    if (!server)
+        return;
+
+    // Reconnect on user switch so the previous user's config cannot keep
+    // affecting the running transition.
+    QObject::disconnect(m_animationConfigConnection);
+    if (auto *config = server->config()) {
+        m_animationConfigConnection = connect(config,
+                                              &TreelandUserConfig::valueChanged,
+                                              this,
+                                              &WorkspaceAnimationController::onAnimationConfigChanged);
+    }
+    connect(server,
+            &WaylandServer::configChanged,
+            this,
+            &WorkspaceAnimationController::setupAnimationConfig,
+            Qt::UniqueConnection);
+}
+
+void WorkspaceAnimationController::onAnimationConfigChanged()
+{
+    if (m_slideAnimation->state() == QAbstractAnimation::Running && !slideEnabled()) {
+        m_slideAnimation->stop();
+        setViewportPos(m_animationDestination);
+        finishAnimation();
+    } else if (m_bounceAnimation->state() == QAbstractAnimation::Running && !bounceEnabled()) {
+        m_bounceAnimation->stop();
+        setViewportPos(m_animationDestination);
+        finishAnimation();
+    }
 }
 
 qreal WorkspaceAnimationController::refWidth() const
@@ -185,6 +243,15 @@ void WorkspaceAnimationController::startGestureSlide(qreal cb, bool bounce)
 
 void WorkspaceAnimationController::startSlideAnimation()
 {
+    if (!slideEnabled()) {
+        // Finish synchronously: land on the destination and leave running=false,
+        // which also dismisses the workspace switcher layer.
+        m_slideAnimation->stop();
+        setViewportPos(m_animationDestination);
+        finishAnimation();
+        return;
+    }
+
     m_posAnimation->setStartValue(m_animationInitial);
     m_posAnimation->setEndValue(m_animationDestination);
     m_slideAnimation->start();
@@ -193,6 +260,13 @@ void WorkspaceAnimationController::startSlideAnimation()
 
 void WorkspaceAnimationController::startBounceAnimation()
 {
+    if (!bounceEnabled()) {
+        m_bounceAnimation->stop();
+        setViewportPos(m_animationDestination);
+        finishAnimation();
+        return;
+    }
+
     auto bounceDestination =
         m_animationDestination + (m_currentDirection == Right ? refBounce() : -refBounce());
     m_bounceInAnimation->setStartValue(m_animationDestination);

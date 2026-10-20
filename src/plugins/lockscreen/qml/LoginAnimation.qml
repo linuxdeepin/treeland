@@ -20,8 +20,13 @@ Item {
     property int state: LoginAnimation.Show
     required property var target
 
+    // Final position of this content, kept so a disabled animation can jump there.
+    property point targetPosition: Qt.point(0, 0)
+    readonly property bool animationEnabled: WaylandServer.config.loginContentAnimationEnabled
+
     function start(pos, to) {
-        if (GreeterProxy.showAnimation) {
+        targetPosition = to
+        if (GreeterProxy.showAnimation && animationEnabled) {
             xAni.from = pos.x
             xAni.to = to.x
 
@@ -43,6 +48,16 @@ Item {
         visible = false
         effect.sourceItem = null
         stopped()
+    }
+
+    // Turning the switch off mid-flight finishes this slide once: land on the
+    // final position and report completion through the normal stopped signal.
+    onAnimationEnabledChanged: {
+        if (animationEnabled || !animation.running)
+            return
+        target.x = targetPosition.x
+        target.y = targetPosition.y
+        animation.stop()
     }
 
     ShaderEffectSource {
