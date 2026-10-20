@@ -453,6 +453,17 @@
             "permissions": "readwrite",
             "visibility": "public"
         },
+        "desktopLiveWallpaperPlayback": {
+            "value": "unlock-animation",
+            "serial": 0,
+            "flags": [],
+            "name": "Desktop live wallpaper playback",
+            "name[zh_CN]": "桌面动态壁纸播放方式",
+            "description": "How a video wallpaper plays on the desktop. unlock-animation: play only while the lock screen is shown and for a short slow-down after unlocking, then keep the last frame (default). loop: keep playing on the desktop.",
+            "description[zh_CN]": "桌面视频壁纸的播放方式。unlock-animation：仅在锁屏界面及解锁后的短暂减速期间播放，之后停在最后一帧（默认）。loop：在桌面上持续播放。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
         "glassEnabled": {
             "value": true,
             "serial": 0,

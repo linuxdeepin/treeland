@@ -11,6 +11,7 @@
 #include "workspace.h"
 #include "shellhandler.h"
 #include "greeterproxy.h"
+#include "treelanduserconfig.hpp"
 
 #include <woutputitem.h>
 #include <woutput.h>
@@ -135,8 +136,17 @@ void WallpaperItem::setPlay(bool value)
     Q_EMIT playChanged();
 }
 
+bool WallpaperItem::desktopLoopPlayback()
+{
+    auto *config = WaylandServer::instance()->config();
+    return config && config->desktopLiveWallpaperPlayback() == QStringLiteral("loop");
+}
+
 void WallpaperItem::slowDown()
 {
+    if (wallpaperRole() == Desktop && desktopLoopPlayback())
+        return;
+
     TreelandWallpaperSurfaceInterfaceV1 *interface =
         TreelandWallpaperSurfaceInterfaceV1::get(source());
     if (!interface) {
@@ -200,7 +210,7 @@ void WallpaperItem::updateSurface()
                 interface->wSurface()->enterOutput(output());
                 update();
                 if (!WaylandServer::instance()->m_greeterProxy->isLocked())
-                    setPlay(false);
+                    setPlay(desktopLoopPlayback());
 
                 break;
             }
