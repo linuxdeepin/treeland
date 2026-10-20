@@ -2261,8 +2261,11 @@ void SurfaceWrapper::minimize(bool onAnimation)
         m_parentSurface->minimize(false);
 
     m_shellSurface->setMinimize(true);
-    updateFocusControlState(FocusControlState::UnMinimized, false);
+    // Drop the active capability first: it drives the focus fallback, and losing focus
+    // capability clears the seat keyboard focus beforehand, which would make the fallback
+    // skip this surface and leave no window focused.
     updateHasActiveCapability(ActiveControlState::UnMinimized, false);
+    updateFocusControlState(FocusControlState::UnMinimized, false);
     updateVisible();
 
     for (SurfaceWrapper *child : std::as_const(m_subSurfaces)) {
