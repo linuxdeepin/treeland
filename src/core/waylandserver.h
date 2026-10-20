@@ -344,11 +344,14 @@ private:
                              WSeat *seat = nullptr,
                              bool raise = true);
     void setWorkspaceVisible(bool visible);
+    void applyWorkspaceVisible(bool visible);
+    void updateAnimationConfigConnections();
     void updateSurfaceSeatInteraction(SurfaceWrapper *surface, WSeat *seat);
     void switchWorkspaceForSeat(WSeat *seat, int index);
 
 private Q_SLOTS:
     void onRenderWindowActiveFocusItemChanged();
+    void onWorkspaceVisibilityAnimationConfigChanged();
 
 private:
     friend class PointerConstraintsManager;
@@ -414,6 +417,10 @@ private:
 
     QPropertyAnimation *m_workspaceScaleAnimation{ nullptr };
     QPropertyAnimation *m_workspaceOpacityAnimation{ nullptr };
+    // Last visibility requested for the workspace layer, used to finish a
+    // running scale/opacity transition when its animation is disabled.
+    bool m_workspaceVisibleTarget{ true };
+    QMetaObject::Connection m_animationConfigConnection;
 
     IMultitaskView *m_multitaskView{ nullptr };
     UserModel *m_userModel{ nullptr };
