@@ -43,6 +43,7 @@ public:
 
     bool play() const;
     void setPlay(bool value);
+    Q_INVOKABLE void forcePlay(bool value);
 
     QString source() const;
 
