@@ -61,13 +61,17 @@ Q_SIGNALS:
     void actionFinished();
     void activeReasonChanged();
     void partialFactorChanged();
-    void aboutToExit(); // Focus has been updated, waiting for exit
+    void aboutToExit(); // Focus has been handled, waiting for exit
 
 public Q_SLOTS:
-    void exit(SurfaceWrapper *surface = nullptr, bool immediately = false);
+    void exit(SurfaceWrapper *surface = nullptr, bool immediately = false, bool restoreFocus = true);
     void enter(ActiveReason reason);
 
 private:
+    // Exits the multitask view when keyboard focus moves to an item that is not
+    // part of this view (for example another compositor overlay).
+    void onActiveFocusItemChanged();
+
     Status m_status;
     ActiveReason m_activeReason;
     qreal m_partialFactor{ 0.0 };

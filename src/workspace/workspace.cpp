@@ -249,7 +249,9 @@ void Workspace::switchTo(int index, bool animated)
 
     auto oldCurrentIndex = currentIndex();
     setCurrentIndex(index);
-    WaylandServer::instance()->activateSurface(current()->latestActiveSurface());
+    // Browsing workspaces must keep keyboard focus in the multitask view.
+    if (WaylandServer::instance()->currentMode() != WaylandServer::CurrentMode::Multitaskview)
+        WaylandServer::instance()->activateSurface(current()->latestActiveSurface());
 
     if (animated) {
         createSwitcher();
@@ -486,7 +488,8 @@ void Workspace::doRemoveModel(int index)
         if (s->hasActiveCapability() && !s->showOnAllWorkspace())
             current->pushActivedSurface(s);
     }
-    WaylandServer::instance()->activateSurface(current->latestActiveSurface());
+    if (WaylandServer::instance()->currentMode() != WaylandServer::CurrentMode::Multitaskview)
+        WaylandServer::instance()->activateSurface(current->latestActiveSurface());
 
     if (m_switcher) {
         m_switcher->deleteLater();
