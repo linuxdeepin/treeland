@@ -11,15 +11,19 @@
 
 #include <QCoreApplication>
 #include <QDBusContext>
+#include <QDBusError>
 #include <QDBusInterface>
 #include <QDBusServiceWatcher>
 #include <QSocketNotifier>
 #include "treeland-screensaver-v2.h"
 
+#include <cerrno>
+
 // Global vars
 
 static wl_display *display;
 static QSocketNotifier *notifier;
+static QSocketNotifier *writeNotifier;
 static wl_registry *registry;
 static uint32_t interfaceId;
 static uint32_t interfaceVersion;
@@ -46,14 +50,30 @@ static void handleGlobalRegister([[maybe_unused]] void        *data,
 static void handleGlobalRemove([[maybe_unused]] void        *data,
                                [[maybe_unused]] wl_registry *registry,
                                uint32_t                      id) {
-    if (id == interfaceId)
-        QCoreApplication::instance()->quit();
+    if (id != interfaceId)
+        return;
+
+    // Keep existing bindings alive and wait for the global to be advertised again.
+    interfaceId = 0;
+    interfaceVersion = 0;
 }
 
 static const wl_registry_listener registryListener = {
     .global = handleGlobalRegister,
     .global_remove = handleGlobalRemove
 };
+
+static void flushWayland() {
+    if (wl_display_flush(display) >= 0) {
+        writeNotifier->setEnabled(false);
+    } else if (errno == EAGAIN) {
+        // Retry buffered requests once the socket becomes writable.
+        writeNotifier->setEnabled(true);
+    } else {
+        writeNotifier->setEnabled(false);
+        QCoreApplication::exit(-1);
+    }
+}
 
 // Inhibit / Uninhibit implementation
 
@@ -63,14 +83,14 @@ static treeland_screensaver_v2 *inhibit(const QString &appName, const QString &r
     treeland_screensaver_v2_inhibit(screensaver,
                                  appName.toUtf8().constData(),
                                  reason.toUtf8().constData());
-    wl_display_flush(display);
+    flushWayland();
     return screensaver;
 }
 
 static void uninhibit(treeland_screensaver_v2 *screensaver) {
     treeland_screensaver_v2_uninhibit(screensaver);
     treeland_screensaver_v2_destroy(screensaver);
-    wl_display_flush(display);
+    flushWayland();
 }
 
 // D-Bus adaptor
@@ -80,6 +100,12 @@ class ScreenSaver : public QObject, protected QDBusContext {
     Q_CLASSINFO("D-Bus Interface", "org.freedesktop.ScreenSaver")
 public Q_SLOTS:
     uint Inhibit(const QString &appName, const QString &reason) {
+        // D-Bus requests can still arrive while the Wayland global is unavailable.
+        if (interfaceId == 0) {
+            sendErrorReply(QDBusError::NotSupported, "Screensaver protocol is unavailable");
+            return 0;
+        }
+
         const QString caller = message().service();
         if (!callers.contains(caller)) {
             callers.append(caller);
@@ -129,18 +155,29 @@ int main(int argc, char *argv[]) {
 
     // Connect to treeland and setup registry
     display = wl_display_connect(nullptr);
+    if (!display)
+        return -1;
+
     registry = wl_display_get_registry(display);
     wl_registry_add_listener(registry, &registryListener, nullptr);
-    wl_display_roundtrip(display);
+    if (wl_display_roundtrip(display) == -1 || interfaceId == 0) {
+        wl_display_disconnect(display);
+        return -1;
+    }
 
     // Setup event loop
-    notifier = new QSocketNotifier(wl_display_get_fd(display), QSocketNotifier::Read);
-    QObject::connect(notifier, &QSocketNotifier::activated, [] {
-        if (wl_display_dispatch(display) == -1)
-            QCoreApplication::quit();
+    writeNotifier = new QSocketNotifier(wl_display_get_fd(display), QSocketNotifier::Write, &app);
+    writeNotifier->setEnabled(false);
+    QObject::connect(writeNotifier, &QSocketNotifier::activated, flushWayland);
 
-        if (wl_display_flush(display) == -1)
-            QCoreApplication::quit();
+    notifier = new QSocketNotifier(wl_display_get_fd(display), QSocketNotifier::Read, &app);
+    QObject::connect(notifier, &QSocketNotifier::activated, [] {
+        if (wl_display_dispatch(display) == -1) {
+            QCoreApplication::exit(-1);
+            return;
+        }
+
+        flushWayland();
     });
 
     // Setup watcher
