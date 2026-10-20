@@ -1149,7 +1149,10 @@ void ShellHandler::onSurfaceInactivationRequested(SurfaceWrapper *wrapper)
         const bool isActivatedOwner = seatContainer->activatedSurface() == wrapper;
 
         if (isKeyboardFocusOwner) {
-            // activateSurface implicitly clears the old activated state and falls back focus.
+            // Clear the activated state up front instead of relying on activateSurface below:
+            // the fallback can be refused (e.g. a minimized modal), and the non-primary seat
+            // path does not activate anything, so a minimized surface must not stay activated.
+            server->setActivatedSurface(nullptr, seat);
             // TODO(multi-seat): non-primary seats should also perform focus fallback once
             // per-seat workspace stacking is supported.
             if (seat == primarySeat) {
@@ -1160,6 +1163,10 @@ void ShellHandler::onSurfaceInactivationRequested(SurfaceWrapper *wrapper)
             } else {
                 server->requestKeyboardFocus(nullptr, Qt::OtherFocusReason, seat);
             }
+            // A refused fallback leaves the focus on this surface; never keep keyboard
+            // focus on a minimized surface.
+            if (seatContainer->keyboardFocusSurface() == wrapper)
+                server->requestKeyboardFocus(nullptr, Qt::OtherFocusReason, seat);
             continue;
         }
 
