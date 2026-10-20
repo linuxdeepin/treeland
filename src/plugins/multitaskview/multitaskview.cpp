@@ -14,6 +14,7 @@
 #include <woutputrenderwindow.h>
 
 #include <QtConcurrentMap>
+#include <QQuickWindow>
 
 #include <ranges>
 
@@ -65,16 +66,24 @@ void Multitaskview::updatePartialFactor(qreal progress)
     Q_EMIT partialFactorChanged();
 }
 
-void Multitaskview::exit(SurfaceWrapper *surface, bool immediately)
+void Multitaskview::exit(SurfaceWrapper *surface, bool immediately, bool restoreFocus)
 {
+    // Stop tracking keyboard focus before handing it back to a client surface,
+    // otherwise forceActivateSurface() would re-enter exit() recursively.
+    if (auto *w = window()) {
+        disconnect(w,
+                   &QQuickWindow::activeFocusItemChanged,
+                   this,
+                   &Multitaskview::onActiveFocusItemChanged);
+    }
+
     WaylandServer::instance()->setBlockActivateSurface(false);
 
-    if (surface) {
-        WaylandServer::instance()->forceActivateSurface(surface);
-    } else if (WaylandServer::instance()->workspace()->current()->latestActiveSurface()) {
-        // Should force activate latest active surface if there is.
-        WaylandServer::instance()->forceActivateSurface(
-            WaylandServer::instance()->workspace()->current()->latestActiveSurface());
+    if (restoreFocus) {
+        if (!surface)
+            surface = WaylandServer::instance()->workspace()->current()->latestActiveSurface();
+        if (surface)
+            WaylandServer::instance()->forceActivateSurface(surface);
     }
 
     if (WaylandServer::instance()->currentMode() == WaylandServer::CurrentMode::Multitaskview) {
@@ -98,6 +107,32 @@ void Multitaskview::enter(ActiveReason reason)
         WaylandServer::instance()->setCurrentMode(WaylandServer::CurrentMode::Multitaskview);
     setActiveReason(reason);
     setStatus(Active);
+
+    // Auto-exit when keyboard focus moves outside the view, including when
+    // a client surface is activated.
+    if (auto *w = window()) {
+        connect(w,
+                &QQuickWindow::activeFocusItemChanged,
+                this,
+                &Multitaskview::onActiveFocusItemChanged,
+                Qt::UniqueConnection);
+    }
+}
+
+void Multitaskview::onActiveFocusItemChanged()
+{
+    if (m_status != Active || !isVisible())
+        return;
+
+    auto *w = window();
+    auto *item = w ? w->activeFocusItem() : nullptr;
+    // Ignore transient null focus and focus changes within the view.
+    if (!item || item == this || isAncestorOf(item))
+        return;
+
+    qCDebug(lcTlPlugin) << "Multitask view lost keyboard focus to" << item
+                        << "- exiting the multitask view";
+    exit(nullptr, /*immediately=*/false, /*restoreFocus=*/false);
 }
 
 void Multitaskview::commitGesture(bool triggered)
