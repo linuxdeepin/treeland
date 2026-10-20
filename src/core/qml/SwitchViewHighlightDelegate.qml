@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 import QtQuick
+import Treeland
 
 
 Rectangle {
@@ -22,6 +23,7 @@ Rectangle {
 
     Behavior on x {
         enabled: sourceView.enableDelegateAnimation
+                 && WaylandServer.config.taskSwitcherHighlightAnimationEnabled
         NumberAnimation {
             duration: aniDuration
             easing.type: Easing.OutExpo
@@ -30,6 +32,7 @@ Rectangle {
 
     Behavior on width {
         enabled: sourceView.enableDelegateAnimation
+                 && WaylandServer.config.taskSwitcherHighlightAnimationEnabled
         NumberAnimation {
             duration: aniDuration
             easing.type: Easing.OutExpo
