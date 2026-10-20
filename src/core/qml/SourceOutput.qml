@@ -60,6 +60,8 @@ OutputItem {
             alwaysRunToEnd: true
         }
 
+        readonly property bool rotationAnimationEnabled: WaylandServer.config.outputRotationAnimationEnabled
+
         Timer {
             id: setTransform
 
@@ -68,25 +70,45 @@ OutputItem {
             interval: rotationAnimator.duration / 2
         }
 
-        function rotationOutput(orientation) {
-            setTransform.scheduleTransform = orientation
-            setTransform.start()
-
+        function rotationAngle(orientation) {
             switch(orientation) {
             case WaylandOutput.R90:
-                rotationAnimator.to = 90
-                break
+                return 90
             case WaylandOutput.R180:
-                rotationAnimator.to = 180
-                break
+                return 180
             case WaylandOutput.R270:
-                rotationAnimator.to = -90
-                break
+                return -90
             default:
-                rotationAnimator.to = 0
-                break
+                return 0
+            }
+        }
+
+        // Turning the switch off while rotating finishes this rotation once, so
+        // the pending transform of the old request cannot overwrite a new one.
+        onRotationAnimationEnabledChanged: {
+            if (rotationAnimationEnabled || !rotationAnimator.running)
+                return
+            setTransform.stop()
+            rotationAnimator.stop()
+            rotation = rotationAnimator.to
+            screenViewport.rotateOutput(setTransform.scheduleTransform)
+        }
+
+        function rotationOutput(orientation) {
+            setTransform.scheduleTransform = orientation
+
+            if (!rotationAnimationEnabled) {
+                // Apply the visual value and the real transform together instead
+                // of waiting for the half-way timer.
+                setTransform.stop()
+                rotationAnimator.stop()
+                rotation = rotationAngle(orientation)
+                screenViewport.rotateOutput(orientation)
+                return
             }
 
+            setTransform.start()
+            rotationAnimator.to = rotationAngle(orientation)
             rotationAnimator.from = rotation
             rotationAnimator.start()
         }
@@ -139,6 +161,7 @@ OutputItem {
                 Transition {
                     from: "*"
                     to: "Normal"
+                    enabled: WaylandServer.config.wallpaperScaleAnimationEnabled
                     PropertyAnimation {
                         property: "scale"
                         duration: wallpaper.duration
@@ -148,6 +171,7 @@ OutputItem {
                 Transition {
                     from: "*"
                     to: "Scale"
+                    enabled: WaylandServer.config.wallpaperScaleAnimationEnabled
                     PropertyAnimation {
                         property: "scale"
                         duration: wallpaper.duration
@@ -157,6 +181,7 @@ OutputItem {
                 Transition {
                     from: "*"
                     to: "ScaleTo1.2"
+                    enabled: WaylandServer.config.wallpaperScaleAnimationEnabled
                     PropertyAnimation {
                         property: "scale"
                         duration: wallpaper.duration
