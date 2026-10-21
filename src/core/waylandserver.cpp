@@ -594,6 +594,25 @@ Output *WaylandServer::getOutput(WOutput *output) const
     return m_outputManager->outputFor(output);
 }
 
+Output *WaylandServer::getOutputByUuid(const QString &uuid) const
+{
+    if (uuid.isEmpty())
+        return nullptr;
+
+    // Search the root container's output model, NOT outputs() above:
+    // RootSurfaceContainer::addOutput() appends to the model and emits
+    // rowsInserted before OutputManager appends the output to m_outputs, so
+    // an output is visible here while still missing from outputs().
+    // Uuid-addressed objects re-resolve on that signal (picture controls
+    // following their output) and must see the freshly added output.
+    const auto &outputs = m_rootSurfaceContainer->outputs();
+    for (auto *output : outputs) {
+        if (output->uuid() == uuid)
+            return output;
+    }
+    return nullptr;
+}
+
 const QList<Output *> &WaylandServer::outputs() const
 {
     return m_outputManager->outputs();
@@ -1032,11 +1051,11 @@ WXdgOutputManager *WaylandServer::installDesktopProtocols(QmlEngine *engine)
     auto *xdgOutputManager =
         server()->attach<WXdgOutputManager>(m_rootSurfaceContainer->outputLayout());
 
-    auto *outputManagerV1 = server()->attach<OutputManagerV1>();
+    auto *outputManagerV2 = server()->attach<OutputManagerV2>();
     connect(m_rootSurfaceContainer,
             &RootSurfaceContainer::primaryOutputChanged,
-            outputManagerV1,
-            &OutputManagerV1::onPrimaryOutputChanged);
+            outputManagerV2,
+            &OutputManagerV2::onPrimaryOutputChanged);
     server()->attach<OutputUuidManagerV1>();
     server()->attach<OutputUuidHeadManagerV1>();
     connect(m_rootSurfaceContainer,
