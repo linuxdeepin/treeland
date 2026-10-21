@@ -43,8 +43,8 @@ input-manager 的生产 `onInputAdded`；销毁设备则经 `inputRemoved` 触�
 uinput 测试默认不加入构建，避免普通开发和 CI 环境访问宿主输入子系统。手动启用：
 
 ```bash
-cmake --preset default -DTREELAND_ENABLE_UINPUT_PROTOCOL_TESTS=ON
-cmake --build --preset default --target test_treeland_input_manager_uinput_v1
+cmake --preset ci -DTREELAND_ENABLE_UINPUT_PROTOCOL_TESTS=ON
+cmake --build --preset ci --target test_treeland_input_manager_uinput_v1
 ctest --test-dir build --output-on-failure -R '^test_treeland_input_manager_uinput_v1$'
 ```
 

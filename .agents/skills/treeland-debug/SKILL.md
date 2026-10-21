@@ -1,75 +1,77 @@
 ---
 name: treeland-debug
-description: Use this skill whenever a task asks you to debug, diagnose, reproduce, or analyze a problem in the running treeland compositor — window/workspace/input/output/rendering issues, crashes, hangs, focus problems, or requests to inspect live state. Trigger on `treeland-debug`, `remoteDebug`, `WindowTree` Remote Object, `QT_LOGGING_RULES`, treeland logging categories, `journalctl` for treeland, `org.deepin.Compositor1`, window tree inspection, input event injection, or screenshot capture from a live compositor. Also trigger on access-control topics: `pkexec`, `polkit`, `--no-escalate`, `root` privileges for treeland-debug. Pair with the systematic-debugging approach — reproduce, isolate, then fix at the root cause.
+description: "触发场景：调试/诊断/复现/分析运行中的 treeland（窗口、工作区、输入、输出、渲染、崩溃、卡死、焦点、实时状态检查）、`treeland-debug`、`remoteDebug`、`WindowTree` Remote Object、`QT_LOGGING_RULES`、treeland 日志分类、treeland 的 `journalctl`、`org.deepin.Compositor1`、窗口树检查、输入事件注入、从运行中的合成器截图、`pkexec`、`polkit`、`--no-escalate`、treeland-debug 的 `root` 权限。"
 ---
 
-# Treeland Debug
+# Treeland 调试
 
-## Scope
-This skill tells you how to inspect and control a **running** treeland compositor to debug it. Use it when the problem is observable at runtime (wrong window state, focus/activation, input not landing, missing/blank output, crashes, hangs, performance). For build/test problems see `AGENTS.md` Build & Test; for protocol integration see the protocol skills; for DConfig see `treeland-dconfig-configuration`.
+> **铁律**：先用 `treeland-debug` 读到实时状态再改代码；不要只凭日志或猜测改行为。
 
-Primary repos and where things live:
+## 范围
+本 skill 说明如何检查与控制**运行中**的 treeland 合成器来定位问题。问题可在运行时观察到时使用（窗口状态不对、焦点/激活异常、输入不落地、输出缺失或黑屏、崩溃、卡死、性能问题）。构建/测试问题见 `AGENTS.md` 的构建与测试；协议集成见协议类 skill；DConfig 见 `treeland-dconfig`。
 
-- `src/core/` — lifecycle, QML engine glue (`src/core/qmlengine.*`, `src/core/treeland.*`).
-- `src/surface/` — surface/window wrappers, state, visibility, geometry (`surfacewrapper.cpp`).
-- `src/seat/` — seat management; desktop startup and protocol composition live in `src/core/waylandserver.*`.
-- `src/workspace/` — workspace model and switching.
-- `src/modules/` — feature modules (show-desktop, input-manager, output-manager, dde-shell, …).
-- `src/plugins/` + `src/effects/` — plugin & effect integration.
-- `src/common/treelandlogging.*` — centralized logging categories.
-- `waylib/` — the wlroots+QtQuick compositor framework underneath (outputs <-> `QQuickWindow`, surfaces <-> `QQuickItem`).
-- `wlroots/` + `3rdparty/wlroots/` — vendored wlroots (raw C API via `<wlr_all.h>`).
-- `tools/treeland-debug/` — the CLI you use to inspect/control the live compositor.
+主要仓库位置：
 
-## Runtime context
-treeland can run as a shipped service or as an in-development build:
+- `src/core/` —— 生命周期与 QML 引擎胶水（`src/core/qmlengine.*`、`src/core/treeland.*`）。
+- `src/surface/` —— surface/window 封装、状态、可见性、几何（`surfacewrapper.cpp`）。
+- `src/seat/` —— seat 管理；桌面启动与协议组装在 `src/core/waylandserver.*`。
+- `src/workspace/` —— workspace 模型与切换。
+- `src/modules/` —— 功能模块（show-desktop、input-manager、output-manager、dde-shell 等）。
+- `src/plugins/`（lockscreen、multitaskview）+ `src/modules/` —— 插件与功能集成。
+- `src/common/treelandlogging.*` —— 集中式日志分类。
+- `waylib/` —— 底层 wlroots+QtQuick 合成器框架（output 对应 `QQuickWindow`，surface 对应 `QQuickItem`）。
+- `wlroots/` + `3rdparty/wlroots/` —— 内联的 wlroots（通过 `<wlr_all.h>` 使用原始 C API）。
+- `tools/treeland-debug/` —— 用于检查/控制运行中合成器的 CLI。
 
-- **Global mode** (preferred, on DDM): one process manages all users; it runs as the **`dde`** user via the systemd **system** unit `treeland.service` (`User=dde`, installed under `SYSTEMD_SYSTEM_UNIT_DIR`), bus name `org.deepin.Compositor1`. `ExecStart=.../treeland.sh --lockscreen`.
-- **User mode**: starts per-user as a normal window manager.
-- **In-development (dev) build, nested**: the version under active development is usually **not** the installed release — it is built from the working tree and launched directly as a **separate process running as the current user**, nested inside an existing Wayland or X11 session. See the next section.
+## 运行环境
+treeland 既可作为发行版服务运行，也可作为开发中的构建运行：
 
-The debug Remote Object's local socket is owner-only, so `treeland-debug` must run as a user that can access it. In release builds, `treeland-debug` auto-escalates to **root** via polkit (see Access control below), and root can access any user's socket — so no manual user prefix is needed. In debug builds, run `treeland-debug` as the **same user** as the treeland instance:
+- **全局模式**（首选，DDM 场景）：单进程管理所有用户；以 **`dde`** 用户身份由 systemd **system** 单元 `treeland.service` 启动（`User=dde`，安装在 `SYSTEMD_SYSTEM_UNIT_DIR`），总线名 `org.deepin.Compositor1`，`ExecStart=.../treeland.sh --lockscreen`。
+- **用户模式**：按用户启动，行为类似普通窗口管理器。
+- **开发（dev）构建、嵌套运行**：正在开发的版本通常**不是**已安装的发行版，而是从工作树构建、作为**当前用户身份**的独立进程，嵌套在已有 Wayland 或 X11 会话里。见下一节。
 
-- Global service (runs as `dde`, release build) → run `treeland-debug` directly; it auto-escalates to root.
-- Nested dev instance (runs as you, debug build) → run as the **current user** in your own session, no prefix.
+调试 Remote Object 的本地 socket 仅属主可访问，所以 `treeland-debug` 必须以能访问该 socket 的用户身份运行。发行版构建中 `treeland-debug` 会通过 polkit 自动提权到 **root**（见下方访问控制），而 root 可访问任何用户的 socket，因此不需要手动加用户前缀。调试构建中，`treeland-debug` 必须以与 treeland 实例**相同的用户**运行：
 
-### Access control
-`treeland-debug` restricts who may use it based on build type:
+- 全局服务（以 `dde` 运行、发行版构建）→ 直接运行 `treeland-debug`，它会自动提权到 root。
+- 嵌套的 dev 实例（以你的身份运行、调试构建）→ 在自己会话里以**当前用户**运行，不加前缀。
 
-- **Release builds** — only `root` may run `treeland-debug`. A non-root caller is automatically re-executed through `pkexec` (polkit), which prompts for authentication. Pass `--no-escalate` to skip the prompt and fail immediately (useful in scripts or CI). A polkit policy (`misc/polkit/org.deepin.dde.treeland-debug.policy`) is installed so escalation works out of the box.
-- **Debug builds** (`TREELAND_DEBUG_DEV_BUILD`) — all users may run `treeland-debug` without restriction.
+### 访问控制
+`treeland-debug` 按构建类型限制使用者：
 
-Because root can access any user's socket, release builds can reach the global `dde` service without a `sudo -u dde` prefix. In debug builds, run as the same user as the treeland instance.
+- **发行版构建** —— 只有 `root` 能运行 `treeland-debug`。非 root 调用者会被自动通过 `pkexec`（polkit）重新执行，并提示认证。传 `--no-escalate` 可跳过提示并立即失败（脚本或 CI 中常用）。随包安装 polkit 策略以保证开箱即用：源文件 `misc/polkit/org.deepin.dde.treeland-debug.policy.in`，安装为 `org.deepin.dde.treeland-debug.policy`。
+- **调试构建**（`TREELAND_DEBUG_DEV_BUILD`）—— 所有用户都能无限制运行 `treeland-debug`。
 
-### Debug socket naming
-The debug Remote Object publishes on a local socket placed in `QDir::tempPath()` (typically `/tmp`, respects `$TMPDIR`) — not `XDG_RUNTIME_DIR` — so a `treeland-debug` client running under any runtime directory can discover it (the socket is still owner-only, so the client must run as the **same Unix user** as the treeland instance, or as **root** — see Access control). The base name is build-specific:
+因为 root 可访问任何用户的 socket，发行版构建无需 `sudo -u dde` 前缀即可连到全局 `dde` 服务。调试构建中则必须以与 treeland 实例相同的用户运行。
 
-- **Release build**: `org.deepin.dde.treeland.debug`
-- **Debug build**: `org.deepin.dde.treeland.debug-dev`
+### 调试 socket 命名
+调试 Remote Object 把本地 socket 放在 `QDir::tempPath()`（通常是 `/tmp`，遵循 `$TMPDIR`）—— 不是 `XDG_RUNTIME_DIR` —— 这样在任何 runtime 目录下运行的 `treeland-debug` 客户端都能发现它（socket 仍仅属主可访问，所以客户端必须以与 treeland 实例相同的 Unix 用户身份、或以 **root** 身份运行，见访问控制）。基础名按构建类型区分：
 
-When a name is already held by another running instance, a numeric suffix is appended (`-1`, `-2`, …, up to `-99`), selected with a non-blocking `flock` advisory lock — the same approach libwayland uses for Wayland sockets (`src/modules/resource/treelanddebugsocket.*`). This means **multiple treeland instances can coexist** (global service + session service + a nested dev build) without socket conflicts; you no longer need to stop one to run another. A stale socket file left by a crashed instance is reclaimed automatically.
+- **发行版构建**：`org.deepin.dde.treeland.debug`
+- **调试构建**：`org.deepin.dde.treeland.debug-dev`
 
-A **debug-built** `treeland-debug` client automatically prefers the debug socket (`…debug-dev`) and falls back to the release socket (`…debug`) when the debug instance is unreachable; a **release-built** client uses the release socket. An explicit `--url` always overrides this with no implicit processing.
+名字已被其他实例占用时，会追加数字后缀（`-1`、`-2`，…，最多到 `-99`），通过非阻塞 `flock` 建议锁选取 —— 与 libwayland 处理 Wayland socket 的方式一致（`src/modules/resource/treelanddebugsocket.*`）。这意味着**多个 treeland 实例可以共存**（全局服务 + 会话服务 + 嵌套 dev 构建）而不冲突，不再需要停掉其中一个才能运行另一个。崩溃实例留下的陈旧 socket 文件会被自动回收。
 
-## Debugging the in-development (dev) build
-When the bug is in the version you are currently developing, you run that build yourself as a current-user process, nested inside an existing Wayland or X11 session:
+**调试构建**的 `treeland-debug` 客户端会自动优先用调试 socket（`…debug-dev`），调试实例不可达时回退到发行版 socket（`…debug`）；**发行版构建**的客户端使用发行版 socket。显式 `--url` 永远覆盖以上逻辑，不做任何隐式处理。
+
+## 调试开发（dev）构建
+当问题出在当前正在开发的版本上，你以当前用户身份把该构建作为独立进程、嵌套在已有 Wayland 或 X11 会话里运行：
 
 ```bash
-# from the build tree, nested inside an existing Wayland session
+# 在构建树中，嵌套于已有 Wayland 会话
 WLR_BACKENDS=wayland ./build/src/treeland.sh
-# nested inside an existing X11 session
+# 嵌套于已有 X11 会话
 WLR_BACKENDS=x11 ./build/src/treeland.sh
 ```
 
-`treeland.sh` wraps `treeland` (adding the pixman software-rendering fallback on `dri2` failure, same as the service). Debugging this instance:
+`treeland.sh` 包装 `treeland`（在 `dri2` 失败时回退到 pixman 软件渲染，与 service 行为一致）。调试该实例时：
 
-- **Debug source is already on**: in Debug builds (`TREELAND_DEBUG_BUILD`) the debug Remote Object is enabled **by default** (`ALWAYS_ENABLE_TREELAND_DEBUG` is defined for the Debug config; pass `-DTREELAND_DEBUG_SOURCE=OFF` to CMake to keep it off) — skip the DConfig step below. Only release builds need `remoteDebug` set.
-- **No `sudo -u dde`**: run `treeland-debug` as the **current user**, same session as the instance. Because the socket is owner-only, this attaches to your own instance by default.
-- **Logs go to the terminal**, not journalctl: treeland's stdout/stderr (Qt categories) land where you launched it. Set `QT_LOGGING_RULES` in that process's environment, and pass `--console-log` to force console logging on a release build (debug builds always log to console).
-- **No socket conflict with the global service**: a debug build uses the distinct `-dev` socket name and auto-suffixes for concurrent instances (see Debug socket naming above), so the nested dev instance coexists with the global `treeland.service` — no need to stop it. A debug-built `treeland-debug` prefers your dev instance by default.
+- **debug source 已默认开启**：调试构建（`TREELAND_DEBUG_DEV_BUILD`）中调试 Remote Object **默认开启**（Debug 配置会定义 `ALWAYS_ENABLE_TREELAND_DEBUG`；给 CMake 传 `-DTREELAND_DEBUG_SOURCE=OFF` 可保持关闭）—— 可跳过下面的 DConfig 步骤。只有发行版构建需要设置 `remoteDebug`。
+- **不需要 `sudo -u dde`**：以**当前用户**运行 `treeland-debug`，与实例处于同一会话。因为 socket 仅属主可访问，默认就连到你自己的实例。
+- **日志进终端，不进 journalctl**：treeland 的 stdout/stderr（Qt 分类日志）落在你启动它的地方。在该进程环境里设置 `QT_LOGGING_RULES`；发行版构建可传 `--console-log` 强制开启控制台日志（调试构建总是输出到控制台）。
+- **与全局服务无 socket 冲突**：调试构建使用独立的 `-dev` socket 名，并对并发实例自动加后缀（见上面的 socket 命名），因此嵌套 dev 实例与全局 `treeland.service` 可以共存 —— 不必停掉后者。调试构建的 `treeland-debug` 默认优先连你的 dev 实例。
 
-## Enable the debug source (first step)
-The `WindowTree` debug Remote Object is **off by default in release builds** (Debug builds already have it on). If you need it on a release build, turn it on once:
+## 启用 debug source（第一步）
+`WindowTree` 调试 Remote Object 在**发行版构建里默认关闭**（调试构建已默认开启）。若要在发行版构建上开启，执行一次：
 
 ```bash
 sudo -u dde -- dde-dconfig set \
@@ -79,65 +81,67 @@ sudo -u dde -- dde-dconfig set \
   -v true
 ```
 
-Toggling `remoteDebug` takes effect **immediately** — the remote source is created or destroyed on the fly, no restart needed (the compositor watches `remoteDebugChanged` at runtime). `treeland-debug` connects to the build-specific debug socket (see Debug socket naming above), remote object `WindowTree`.
+切换 `remoteDebug` **立即生效** —— remote source 会在运行时被创建或销毁，无需重启（合成器运行时监听 `remoteDebugChanged`）。`treeland-debug` 连接的是构建类型对应的调试 socket（见上面的 socket 命名），remote object 名为 `WindowTree`。
 
 ## treeland-debug CLI
-`treeland-debug` is an adb-style inspector/controller. Two modes: one-shot `treeland-debug <cmd> [args]` and REPL `treeland-debug shell`. In release builds, `treeland-debug` auto-escalates to root via polkit; in debug builds, run as the same user as the treeland instance. `--json` gives machine-readable output for `tree`/`cursor`/`windows`/`clients`.
+`treeland-debug` 是 adb 风格的检查/控制工具。两种模式：一次性 `treeland-debug <cmd> [args]` 与 REPL `treeland-debug shell`。发行版构建中它会通过 polkit 自动提权到 root；调试构建中以与 treeland 实例相同的用户运行。`--json` 为 `tree`/`cursor`/`windows`/`clients` 提供机器可读输出。
 
-Global options: `--url <url>` (default: auto — build-specific socket; a debug build prefers the debug socket and falls back to the release socket), `--name <name>` (default `WindowTree`), `--timeout-ms <n>` (default 30000), `--json`. Pass `--url` explicitly to target a specific instance (used verbatim, no implicit processing).
+全局选项：`--url <url>`（默认 auto —— 构建类型对应的 socket；调试构建优先调试 socket，回退到发行版 socket）、`--name <name>`（默认 `WindowTree`）、`--timeout-ms <n>`（默认 30000）、`--json`、`--preview` / `--no-preview`（终端内联图片预览，默认自动探测）。需要指定某个实例时显式传 `--url`（原样使用，不做隐式处理）。
 
-### Inspect
-| Command | Output |
+### 检查
+| 命令 | 输出 |
 | --- | --- |
-| `tree` | Full layout tree (JSON by default). `{"currentMode", "layers":[{name,layer,windows,workspaces:[{id,isActive,windows}]}]}` |
-| `cursor` | Cursor position `{"x","y"}`. |
-| `windows` | Toplevel windows table / JSON array. |
-| `clients` | Clients + their windows (incl. `pid`, `executable`, `command`). |
-| `top [interval-ms]` | Live `top`-like clients/windows view (Ctrl+C to quit). |
-| `scene [id]` | QtQuick scene tree of one window (by id/appId) or the whole scene — for menus/popups/decorations not in the layout `tree`. |
+| `tree` | 完整布局树（人类可读；`--json` 输出 JSON）。`{"currentMode", "layers":[{name,layer,windows,workspaces:[{id,isActive,windows}]}]}` |
+| `cursor` | 光标位置 `{"x","y"}`。 |
+| `windows` | 顶层窗口表格 / JSON 数组。 |
+| `clients` | 客户端及其窗口（含 `pid`、`executable`、`command`）。 |
+| `top [interval-ms]` | 类似 `top` 的客户端/窗口实时视图（Ctrl+C 退出）。 |
+| `events [interval-ms]` | 输入事件实时流（默认 50ms）。 |
+| `watch <id> [interval-ms]` | 轮询单个窗口的变化（默认 250ms）。 |
+| `scene [id]` | 单个窗口（按 id/appId）或整个场景的 QtQuick 场景树 —— 用于查看不在布局 `tree` 里的菜单/弹窗/装饰。 |
 
-Every window has a stable numeric `id` (and an `appId`); either is accepted by all control commands. Use `windows`/`clients`/`top` to discover ids.
+每个窗口都有稳定的数字 `id`（以及 `appId`），所有控制命令都接受这两种标识。用 `windows`/`clients`/`top` 查 id。
 
-### Window control
-`activate`, `close`, `minimize`, `maximize`, `fullscreen`, `move <id> <x> <y>`, `resize <id> <w> <h>`, `workspace <id> <ws-id>`. Each prints `ok`/`failed`.
+### 窗口控制
+`activate`、`close`、`minimize`、`maximize`、`fullscreen`、`move <id> <x> <y>`、`resize <id> <w> <h>`、`workspace <id> <ws-id>`。每条命令输出 `ok`/`failed`。
 
-### Input injection
-`move-cursor <x> <y>`, `event motion <x> <y>`, `event button <btn> [press|release|click]`, `event key <key> [press|release|tap]`. Pointer buttons use Linux input codes (`left`=0x110, `right`=0x111, `middle`=0x112); numeric keys pass through as **Qt::Key** values (not Linux evdev keycodes) or use common names (`enter`, `esc`, `space`, `a`–`z`, `0`–`9`, `f1`–`f12`, arrows). Keys go to the **keyboard-focused** surface — `activate` a window first; pointer buttons go to the surface under the cursor — move the cursor there first.
+### 输入注入
+`move-cursor <x> <y>`、`event motion <x> <y>`、`event button <btn> [press|release|click]`、`event key <key> [press|release|tap]`。指针按键使用 Linux input code（`left`=0x110，`right`=0x111，`middle`=0x112）；数字键值按 **Qt::Key** 传入（不是 Linux evdev keycode），也可以使用常见名字（`enter`、`esc`、`space`、`a`–`z`、`0`–`9`、`f1`–`f12`、方向键）。键盘事件发往**键盘聚焦**的 surface —— 先 `activate` 窗口；指针按键发往光标下的 surface —— 先把光标移过去。
 
-### Screenshot
-`screenshot output [name] [file]` and `screenshot window <id> [file]`. Rendered server-side, PNG bytes returned to the client, which writes the file and prints the path (auto path under `/tmp` if `file` omitted).
+### 截图
+`screenshot output [name] [file]` 与 `screenshot window <id> [file]`。服务端渲染，PNG 字节返回给客户端，由客户端写文件并打印路径（省略 `file` 时自动落在 `/tmp` 下）。
 
 ### Shell / listen
-`shell` — interactive REPL. `listen [--port <p>] [--host <a>]` — HTTP/WebSocket server exposing the same capabilities for a browser frontend (`/api/*`, `ws://host:port/ws`). It is **unauthenticated** and binds `0.0.0.0:8080` by default — for local debugging always bind to the loopback: `listen --host 127.0.0.1 --port 8080`. See `tools/treeland-debug/README.md` for the full REST/WS reference.
+`shell` —— 交互式 REPL。`listen [--port <p>] [--host <a>]` —— 通过 HTTP/WebSocket 暴露同样能力，供浏览器前端使用（`/api/*`、`ws://host:port/ws`）。它只在定义了 `TREELAND_DEBUG_LISTEN` 时才编译进来，且**无认证**，默认绑定 `0.0.0.0:8080` —— 本地调试务必只绑回环：`listen --host 127.0.0.1 --port 8080`。完整 REST/WS 说明见 `tools/treeland-debug/README.md`。
 
-### Quick start
+### 快速上手
 ```bash
-# enable once (takes effect immediately, no restart) — only for release builds; Debug builds are on by default
+# 启用一次（立即生效，无需重启）—— 仅发行版构建需要；调试构建默认已开
 sudo -u dde -- dde-dconfig set -a org.deepin.dde.treeland -r org.deepin.dde.treeland -k remoteDebug -v true
 
-# inspect — release builds auto-escalate to root via polkit; debug builds run as current user
+# 检查 —— 发行版构建会通过 polkit 自动提权到 root；调试构建以当前用户运行
 treeland-debug tree
 treeland-debug --json windows
 treeland-debug clients
 
-# control
+# 控制
 treeland-debug activate dde-file-manager
 treeland-debug maximize 93824992268800
 treeland-debug close dde-file-manager
 
-# inject input
+# 注入输入
 treeland-debug event key enter tap
 treeland-debug event button left click
 
-# screenshot
-treeland-debug screenshot output DP-1 /tmp/ss.png   # syntax: screenshot output <output-name> [file]
+# 截图
+treeland-debug screenshot output DP-1 /tmp/ss.png   # 语法：screenshot output <output-name> [file]
 treeland-debug screenshot window 93824992268800
 ```
 
-## Reading logs
-treeland uses Qt logging categories, all centralized in `src/common/treelandlogging.*`. Category string ids follow `treeland.<module>[.<submodule>]` (e.g. `treeland.surface`, `treeland.input`, `treeland.workspace`, `treeland.output`, `treeland.seat`, `treeland.protocol`, `treeland.wallpaper`, `treeland.xwayland`, `treeland.shell.xdg`, `treeland.popup.focus`, `treeland.debug`). waylib categories are in `waylib/src/server/wayliblogging.*` with ids `waylib.*`.
+## 读日志
+treeland 使用 Qt 日志分类，全部集中在 `src/common/treelandlogging.*`。分类字符串 ID 遵循 `treeland.<module>[.<submodule>]`（例如 `treeland.surface`、`treeland.input`、`treeland.workspace`、`treeland.output`、`treeland.seat`、`treeland.protocol`、`treeland.wallpaper`、`treeland.xwayland`、`treeland.shell.xdg`、`treeland.popup.focus`、`treeland.debug`）。waylib 的分类在 `waylib/src/server/wayliblogging.*`，ID 为 `waylib.*`。
 
-Control log verbosity with `QT_LOGGING_RULES`. In global mode `treeland.service` is a **system** unit, so set the variable via a systemd drop-in (a system service has no `--user` environment). For a nested dev instance, set it in the environment of the launched process instead (see the dev-build section above).
+用 `QT_LOGGING_RULES` 控制日志详细程度。全局模式下 `treeland.service` 是 **system** 单元，因此要通过 systemd drop-in 设置该变量（system 服务没有 `--user` 环境）。嵌套 dev 实例则在启动进程的环境里设置（见上面的 dev 构建一节）。
 
 ```bash
 sudo mkdir -p /etc/systemd/system/treeland.service.d
@@ -146,55 +150,59 @@ sudo systemctl daemon-reload
 sudo systemctl restart treeland.service
 ```
 
-Note: the shipped unit sets `StandardOutput=null` / `StandardError=null`, so treeland's own stdout/stderr (including Qt logging) is **discarded** and will not appear in the journal. To capture it, also add `StandardOutput=journal` / `StandardError=journal` to the drop-in above. The journal itself is the system journal (not `--user`):
+注意：随包安装的 unit 设置了 `StandardOutput=null` / `StandardError=null`，treeland 自身的 stdout/stderr（包括 Qt 日志）会被**丢弃**，不会出现在 journal 里。要捕获它们，需在同一 drop-in 中追加 `StandardOutput=journal` / `StandardError=journal`。journal 本身是 system journal（不是 `--user`）：
 
 ```bash
-# recent logs from the global treeland service (runs as dde)
+# 全局 treeland 服务（以 dde 运行）最近的日志
 sudo journalctl -u treeland.service -n 200 --no-pager
-# or with full verbosity + follow
+# 或带完整详细度并跟随
 sudo journalctl -u treeland.service -f
 ```
 
-`treeland.sh` wrapper: on startup it checks `--try-exec`; if it fails with `failed to create dri2 screen` it falls back to `WLR_RENDERER=pixman` software rendering (VirtualBox without 3D). If a bug only reproduces with the hardware renderer, note that fallback may mask it.
+`treeland.sh` 包装脚本：启动时检查 `--try-exec`，若以 `failed to create dri2 screen` 失败则回退到 `WLR_RENDERER=pixman` 软件渲染（无 3D 的 VirtualBox）。若某问题只在硬件渲染下复现，注意该回退可能掩盖它。
 
-## Diagnostic workflows
-Start from the symptom and pick the smallest reliable check. Reproduce first, then isolate the layer (treeland vs waylib vs wlroots vs client).
+## 诊断流程
+从症状出发，选最小可靠的检查手段。先复现，再逐层隔离（treeland vs waylib vs wlroots vs 客户端）。
 
-**Wrong window state (max/min/fullscreen/tiling, geometry, visibility):**
-1. `treeland-debug --json windows` — read `state`, `visible`, `active`, `geometry`, `workspace`, `layer`, `frames`, `damage` for the target window (match by `appId`).
-2. `treeland-debug tree` — confirm which layer/workspace the window sits in.
-3. `treeland-debug scene <id>` — if the layout looks right but rendering is wrong, check the QtQuick scene (menus/popups/decorations).
-4. Cross-check with logs: `QT_LOGGING_RULES='treeland.surface.debug=true;treeland.workspace.debug=true'`.
+**窗口状态不对（最大/最小/全屏/平铺、几何、可见性）：**
+1. `treeland-debug --json windows` —— 读取目标窗口（按 `appId` 匹配）的 `state`、`visible`、`active`、`geometry`、`workspace`、`layer`、`frames`、`damage`。
+2. `treeland-debug tree` —— 确认窗口所在的 layer/workspace。
+3. `treeland-debug scene <id>` —— 布局看着对但渲染不对时，检查 QtQuick 场景（菜单/弹窗/装饰）。
+4. 与日志交叉验证：`QT_LOGGING_RULES='treeland.surface.debug=true;treeland.workspace.debug=true'`。
 
-**Focus / activation wrong:**
-1. `treeland-debug --json windows` — check `active` flags; `treeland-debug cursor` and `treeland-debug --json cursor-window` (HTTP API only) to see what's under the cursor.
-2. `treeland-debug activate <id|appId>` and re-check.
-3. Relevant categories: `treeland.seat`, `treeland.popup.focus`, `treeland.activation`.
+**焦点 / 激活不对：**
+1. `treeland-debug --json windows` —— 检查 `active` 标记；`treeland-debug cursor` 看指针位置。光标下的对象没有 CLI 子命令（`cursor-window`/`focused` 只暴露在 HTTP/WS）：`treeland-debug listen --host 127.0.0.1` 后 `curl -s 127.0.0.1:8080/api/cursor-window`、`curl -s 127.0.0.1:8080/api/focused`。
+2. `treeland-debug activate <id|appId>` 后复查。
+3. 相关分类：`treeland.seat`、`treeland.popup.focus`、`treeland.activation`。
 
-**Input not landing / wrong target:**
-1. `treeland-debug move-cursor <x> <y>` then `treeland-debug event button left click`; `treeland-debug event key enter tap`.
-2. Confirm pointer/keyboard focus via `windows` (`active`) — keys go to keyboard-focused surface, buttons to surface under cursor.
-3. Categories: `treeland.input`, `treeland.seat`, `waylib.input.pointer`, `waylib.seat`. Check seatd: `sudo journalctl -u dde-seatd -f` and that `LIBSEAT_BACKEND=seatd`/`SEATD_SOCK=/run/dde-seatd.sock` are set (see `misc/systemd/treeland.service.in`).
+**输入不落地 / 目标不对：**
+1. `treeland-debug move-cursor <x> <y>` 后 `treeland-debug event button left click`；`treeland-debug event key enter tap`。
+2. 用 `windows`（`active`）确认指针/键盘焦点 —— 键盘事件发往键盘聚焦的 surface，按键发往光标下的 surface。
+3. 相关分类：`treeland.input`、`treeland.seat`、`waylib.input.pointer`、`waylib.seat`。检查 seatd：`sudo journalctl -u dde-seatd -f`，以及 `LIBSEAT_BACKEND=seatd`/`SEATD_SOCK=/run/dde-seatd.sock` 是否已设置（见 `misc/systemd/treeland.service.in`）。
 
-**Output blank / missing / wrong resolution:**
-1. `treeland-debug tree` — confirm outputs present; `treeland-debug --json windows` per-output.
-2. `treeland-debug screenshot output <name> <file>` to see what the compositor actually renders.
-3. Categories: `treeland.output`, `waylib.output`, `waylib.output.drm`. If hardware rendering fails, the `treeland.sh` pixman fallback is active.
+**输出黑屏 / 缺失 / 分辨率不对：**
+1. `treeland-debug tree` —— 确认 output 存在；`treeland-debug --json windows` 按 output 查看。
+2. `treeland-debug screenshot output <name> <file>` 看合成器实际渲染了什么。
+3. 相关分类：`treeland.output`、`waylib.output`、`waylib.output.drm`。硬件渲染失败时 `treeland.sh` 的 pixman 回退会生效。
 
-**Crash / hang:**
-1. Check service state and restart logs: `sudo journalctl -u treeland.service -n 200 --no-pager` (add a `StandardError=journal` drop-in first — see Reading logs).
-2. If ASAN is enabled, logs go to `/tmp/treeland-asan*` files, not journalctl (see `treeland.service.in`).
-3. Reproduce with minimal steps using `treeland-debug` (inject events, activate/close windows) and note the last actions before the crash.
-4. For hangs, use `top`/`clients` to see if a client is stuck, and gdb attach (`sudo gdb -p <pid>`) if needed.
+**崩溃 / 卡死：**
+1. 检查服务状态与重启日志：`sudo journalctl -u treeland.service -n 200 --no-pager`（先加 `StandardError=journal` drop-in，见“读日志”）。
+2. 若启用了 ASAN：经 `treeland.service` 启动时日志写到 `/tmp/treeland-asan*` 文件而不是 journalctl（`ASAN_OPTIONS` 在 `misc/systemd/treeland.service.in` 里设）；本地直接跑则仍在 stderr。
+3. 用 `treeland-debug`（注入事件、activate/close 窗口）以最小步骤复现，并记录崩溃前最后几个动作。
+4. 卡死时用 `top`/`clients` 看是否有客户端卡住，必要时 gdb attach（`sudo gdb -p <pid>`）。
 
-**Client-side suspicion:** check the client's pid via `treeland-debug clients`; verify the client is actually talking to the compositor (its `windows`, `frames` incrementing). A frozen client will show `frames` not advancing.
+**怀疑客户端问题：** 用 `treeland-debug clients` 查客户端 pid；确认它确实在与合成器通信（`windows` 存在、`frames` 在递增）。冻结的客户端会表现为 `frames` 不再推进。
 
-## Rules
-- In release builds, `treeland-debug` auto-escalates to root via polkit (root can access any user's socket), so no manual user prefix is needed. In debug builds, run as the **same user** as the treeland instance. The debug socket is owner-only. Pass `--no-escalate` to skip polkit escalation in scripts/CI.
-- Use `--json` for machine-readable state you need to parse; use `windows`/`clients`/`top` to discover stable window ids before controlling them.
-- Screenshots are a strong ground truth: if the layout `tree` is right but the image is wrong, the issue is in rendering/QtQuick scene, not layout.
-- Prefer root-cause fixes; the live tool is for observation and reproduction, not a substitute for reading the code path that owns the failing state.
-- When a runtime change is needed, prefer the appropriate skill: logging changes -> `logging-guidelines`; DConfig -> `treeland-dconfig-configuration`; protocol -> protocol skills.
+## 规则
+- 发行版构建中 `treeland-debug` 会通过 polkit 自动提权到 root（root 可访问任何用户的 socket），因此不需要手动加用户前缀。调试构建中必须以与 treeland 实例**相同的用户**运行。调试 socket 仅属主可访问。传 `--no-escalate` 可在脚本/CI 中跳过 polkit 提权。
+- 需要解析的状态用 `--json`；控制窗口前先用 `windows`/`clients`/`top` 查到稳定的窗口 id。
+- 截图是强证据：布局 `tree` 正确但图像不对，问题在渲染/QtQuick 场景，不在布局。
+- 优先修根因；实时工具用于观察与复现，不能替代阅读拥有该状态的那段代码路径。
+- 需要运行时改动时优先用对应 skill：日志改动 -> `treeland-logging`；DConfig -> `treeland-dconfig`；协议 -> 协议类 skill。
 
-## Verification
-If your fix is code, build it (see `AGENTS.md`) and re-run the same `treeland-debug` inspection to confirm the live state now matches the expectation. If the fix changed observable behavior, state which `treeland-debug` command confirms it.
+## 验证
+
+- [ ] 改动前先用一条 `treeland-debug` 命令（通常是 `--json windows` 或 `tree`）记录当前实时状态
+- [ ] 若涉及代码，先构建（见 `AGENTS.md`）
+- [ ] 用同一条命令复验，输出符合预期
+- [ ] 在交付说明里写出：哪条 `treeland-debug` 命令可以确认这次改动
