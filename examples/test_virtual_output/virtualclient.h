@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #pragma once
 
-#include "qwayland-treeland-virtual-output-manager-v1.h"
+#include "qwayland-treeland-output-uuid-unstable-v1.h"
 #include "qwayland-treeland-output-manager-v1.h"
 
 #include <QMap>
@@ -17,8 +17,38 @@ class QComboBox;
 class QSlider;
 class QSpinBox;
 class QPushButton;
-class VirtualOutputManager;
-class VirtualOutput;
+class OutputGroupManager;
+class OutputGroup;
+
+class OutputUuidManager
+    : public QWaylandClientExtensionTemplate<OutputUuidManager>
+    , public QtWayland::treeland_output_uuid_manager_v1
+{
+    Q_OBJECT
+public:
+    explicit OutputUuidManager();
+    ~OutputUuidManager() override;
+
+    void instantiate();
+
+    struct ::treeland_output_uuid_v1 *forOutput(struct ::wl_output *output);
+};
+
+class OutputUuid
+    : public QObject
+    , public QtWayland::treeland_output_uuid_v1
+{
+    Q_OBJECT
+public:
+    explicit OutputUuid(struct ::treeland_output_uuid_v1 *object, QObject *parent = nullptr);
+    ~OutputUuid() override;
+
+Q_SIGNALS:
+    void uuidReceived(const QString &uuid);
+
+protected:
+    void treeland_output_uuid_v1_uuid(const QString &uuid) override;
+};
 class WlrOutputManager;
 class ColorControl;
 
@@ -72,16 +102,26 @@ private:
     void onColorControlColorTemp(uint32_t kelvin);
     void acquireColorControl(const QString &screenName);
     void onWlrHeadsChanged();
-    void onVirtualOutputModified(const QString &name);
     void onWlrApplyFinished(bool ok);
-    void onVirtualOutputListReceived(const QStringList &names);
-    void onVirtualOutputOutputs(const QString &name, const QStringList &outputs);
+    void onGroupAdded(const QString &name);
+    void onGroupsDone();
+    void onGroupRemoved(const QString &name);
+    void onGroupState(const QString &groupName,
+                      const QString &sourceUuid,
+                      const QStringList &mirrorUuids);
 
     void updateMirrorGroup();
+    void attachGroup(const QString &name);
+    void updateScreenToGroup();
+    void refreshScreenUuids();
+
+    QString uuidForScreen(const QString &screenName) const;
+    QString screenForUuid(const QString &uuid) const;
 
     struct ::wl_output *getWlOutput(const QString &name);
 
-    std::unique_ptr<VirtualOutputManager> m_virtualManager;
+    std::unique_ptr<OutputGroupManager> m_groupManager;
+    std::unique_ptr<OutputUuidManager> m_uuidManager;
     std::unique_ptr<TreelandOutputManager> m_treelandManager;
     std::unique_ptr<WlrOutputManager> m_wlrManager;
 
@@ -109,5 +149,8 @@ private:
     bool m_updatingUi = false;
     QMap<QString, QStringList> m_mirrorGroups;
     QMap<QString, QString> m_screenToGroup;
-    QMap<QString, QSharedPointer<VirtualOutput>> m_virtualOutputs;
+    QMap<QString, OutputGroup *> m_groups;
+    QStringList m_groupNames;
+    QString m_pendingMirrorScreen;
+    QMap<QString, QString> m_screenUuids;
 };

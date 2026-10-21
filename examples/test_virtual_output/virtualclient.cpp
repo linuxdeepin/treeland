@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "virtualclient.h"
-#include "virtualoutput.h"
-#include "virtualoutputmanager.h"
+#include "outputgroup.h"
+#include "outputgroupmanager.h"
 #include "wlroutputmanager.h"
 
 #include <QApplication>
@@ -51,6 +51,46 @@ struct ::treeland_output_color_control_v1 *TreelandOutputManager::getColorContro
 }
 
 
+OutputUuid::OutputUuid(struct ::treeland_output_uuid_v1 *object, QObject *parent)
+    : QObject(parent)
+    , QtWayland::treeland_output_uuid_v1(object)
+{
+}
+
+OutputUuid::~OutputUuid()
+{
+    if (isInitialized())
+        destroy();
+}
+
+void OutputUuid::treeland_output_uuid_v1_uuid(const QString &uuid)
+{
+    Q_EMIT uuidReceived(uuid);
+}
+
+OutputUuidManager::OutputUuidManager()
+    : QWaylandClientExtensionTemplate<OutputUuidManager>(1)
+{
+}
+
+OutputUuidManager::~OutputUuidManager()
+{
+    if (isInitialized())
+        destroy();
+}
+
+void OutputUuidManager::instantiate()
+{
+    initialize();
+}
+
+struct ::treeland_output_uuid_v1 *OutputUuidManager::forOutput(struct ::wl_output *output)
+{
+    if (!isInitialized())
+        return nullptr;
+    return get_uuid(output);
+}
+
 class ColorControl : public QObject, public QtWayland::treeland_output_color_control_v1
 {
     Q_OBJECT
@@ -85,18 +125,21 @@ protected:
 VirtualClient::VirtualClient(QObject *parent)
     : QObject(parent)
 {
-    m_virtualManager = std::make_unique<VirtualOutputManager>();
+    m_groupManager = std::make_unique<OutputGroupManager>();
+    m_uuidManager = std::make_unique<OutputUuidManager>();
     m_treelandManager = std::make_unique<TreelandOutputManager>();
     m_wlrManager = std::make_unique<WlrOutputManager>();
 
-    connect(m_virtualManager.get(), &VirtualOutputManager::activeChanged, this, [this]() {
-        if (m_virtualManager->isActive())
+    connect(m_groupManager.get(), &OutputGroupManager::activeChanged, this, [this]() {
+        if (m_groupManager->isActive())
             setupUi();
     });
-    connect(m_virtualManager.get(), &VirtualOutputManager::virtualOutputListReceived,
-            this, &VirtualClient::onVirtualOutputListReceived);
-    connect(m_virtualManager.get(), &VirtualOutputManager::virtualOutputModified,
-            this, &VirtualClient::onVirtualOutputModified);
+    connect(m_groupManager.get(), &OutputGroupManager::groupAdded,
+            this, &VirtualClient::onGroupAdded);
+    connect(m_groupManager.get(), &OutputGroupManager::groupsDone,
+            this, &VirtualClient::onGroupsDone);
+    connect(m_groupManager.get(), &OutputGroupManager::groupRemoved,
+            this, &VirtualClient::onGroupRemoved);
 
     connect(m_treelandManager.get(), &TreelandOutputManager::primaryOutputChanged,
             this, &VirtualClient::onPrimaryOutputChanged);
@@ -104,7 +147,8 @@ VirtualClient::VirtualClient(QObject *parent)
     connect(m_wlrManager.get(), &WlrOutputManager::headsChanged, this, &VirtualClient::onWlrHeadsChanged);
     connect(m_wlrManager.get(), &WlrOutputManager::applyFinished, this, &VirtualClient::onWlrApplyFinished);
 
-    m_virtualManager->instantiate();
+    m_groupManager->instantiate();
+    m_uuidManager->instantiate();
     m_treelandManager->instantiate();
     m_wlrManager->instantiate();
 }
@@ -235,8 +279,6 @@ void VirtualClient::setupUi()
             this, &VirtualClient::applyCurrentSettings);
     m_widget->show();
 
-    m_virtualManager->getVirtualOutputList();
-
     refreshScreenInfo();
 }
 
@@ -346,15 +388,145 @@ void VirtualClient::refreshScreenInfo()
     if (m_resolutionCombo->count() == 0 && m_screenCombo->currentIndex() >= 0)
         onScreenChanged(m_screenCombo->currentIndex());
 
+    refreshScreenUuids();
+
     // Re-acquire here: disable/enable can rebind the output while wl_output stays the same.
     if (m_screenCombo->currentIndex() >= 0)
         acquireColorControl(m_screenCombo->currentText());
 }
 
-void VirtualClient::onVirtualOutputModified(const QString &name)
+// Output groups address outputs by uuid, so the UI needs the uuid of every
+// screen. The uuid protocol answers on a per-output object.
+//
+// TODO: this only works because a mirror output still exposes a wl_output,
+// which is a known (and temporary) deviation from the output group protocol.
+// Once mirror outputs stop exposing wl_output, the uuid must be resolved
+// through treeland-output-uuid-head-unstable-v1 with the zwlr_output_head_v1
+// instead (the wlr head manager is already bound in WlrOutputManager).
+void VirtualClient::refreshScreenUuids()
 {
-    Q_UNUSED(name);
-    m_virtualManager->getVirtualOutputList();
+    m_screenUuids.clear();
+    if (!m_uuidManager->isActive())
+        return;
+
+    for (const auto &name : std::as_const(m_screenNames)) {
+        struct ::wl_output *wlOut = getWlOutput(name);
+        if (!wlOut)
+            continue;
+        auto *obj = m_uuidManager->forOutput(wlOut);
+        if (!obj)
+            continue;
+        auto *uuidObject = new OutputUuid(obj, this);
+        connect(uuidObject, &OutputUuid::uuidReceived, this, [this, name, uuidObject](const QString &uuid) {
+            m_screenUuids[name] = uuid;
+            uuidObject->deleteLater();
+            if (!m_pendingMirrorScreen.isEmpty() && m_pendingMirrorScreen == name)
+                QMetaObject::invokeMethod(this, &VirtualClient::updateMirrorGroup, Qt::QueuedConnection);
+        });
+    }
+}
+
+void VirtualClient::onGroupAdded(const QString &name)
+{
+    if (!name.isEmpty() && !m_groupNames.contains(name))
+        m_groupNames << name;
+}
+
+void VirtualClient::attachGroup(const QString &name)
+{
+    if (name.isEmpty() || m_groups.contains(name))
+        return;
+
+    auto *obj = m_groupManager->getGroup(name);
+    if (!obj)
+        return;
+
+    auto *group = new OutputGroup(obj);
+    group->setParent(this);
+    m_groups.insert(name, group);
+    connect(group, &OutputGroup::stateChanged, this,
+            [this, name](const QString &source, const QStringList &mirrors) {
+                onGroupState(name, source, mirrors);
+            });
+    connect(group, &OutputGroup::removed, this, [this, name]() { m_groups.remove(name); });
+    connect(group, &OutputGroup::operationFailed, this, [](uint32_t code, const QString &uuid) {
+        qWarning() << "  Output group operation failed:" << code << uuid;
+    });
+}
+
+void VirtualClient::onGroupsDone()
+{
+    for (auto it = m_groups.begin(); it != m_groups.end();) {
+        if (!m_groupNames.contains(it.key())) {
+            it.value()->deleteLater();
+            it = m_groups.erase(it);
+            continue;
+        }
+        ++it;
+    }
+
+    m_groupNames.removeDuplicates();
+    for (const auto &name : std::as_const(m_groupNames))
+        attachGroup(name);
+
+    refreshScreenInfo();
+}
+
+void VirtualClient::onGroupRemoved(const QString &name)
+{
+    if (auto *group = m_groups.take(name))
+        group->deleteLater();
+    m_groupNames.removeAll(name);
+    m_mirrorGroups.remove(name);
+    updateScreenToGroup();
+    refreshScreenInfo();
+}
+
+void VirtualClient::onGroupState(const QString &groupName,
+                                 const QString &sourceUuid,
+                                 const QStringList &mirrorUuids)
+{
+    if (groupName.isEmpty())
+        return;
+
+    QStringList screens;
+    const QString source = screenForUuid(sourceUuid);
+    if (!source.isEmpty())
+        screens << source;
+    for (const auto &uuid : std::as_const(mirrorUuids)) {
+        const QString screen = screenForUuid(uuid);
+        if (!screen.isEmpty())
+            screens << screen;
+    }
+
+    m_mirrorGroups[groupName] = screens;
+    updateScreenToGroup();
+    refreshScreenInfo();
+}
+
+void VirtualClient::updateScreenToGroup()
+{
+    m_screenToGroup.clear();
+    for (auto it = m_mirrorGroups.begin(); it != m_mirrorGroups.end(); ++it) {
+        for (const auto &screen : it.value())
+            m_screenToGroup.insert(screen, it.key());
+    }
+}
+
+QString VirtualClient::uuidForScreen(const QString &screenName) const
+{
+    return m_screenUuids.value(screenName);
+}
+
+QString VirtualClient::screenForUuid(const QString &uuid) const
+{
+    if (uuid.isEmpty())
+        return QString();
+    for (auto it = m_screenUuids.begin(); it != m_screenUuids.end(); ++it) {
+        if (it.value() == uuid)
+            return it.key();
+    }
+    return QString();
 }
 
 void VirtualClient::refreshMirrorCombo()
@@ -659,7 +831,8 @@ void VirtualClient::updatePrimaryButtonText()
 }
 void VirtualClient::onWlrHeadsChanged()
 {
-    m_virtualManager->getVirtualOutputList();
+    // Groups are pushed through group_added/group_removed; the output group
+    // protocol has no list request.
     refreshScreenInfo();
 }
 
@@ -670,98 +843,59 @@ void VirtualClient::onWlrApplyFinished(bool ok)
     refreshScreenInfo();
 }
 
-void VirtualClient::onVirtualOutputListReceived(const QStringList &names)
-{
-    for (auto it = m_virtualOutputs.begin(); it != m_virtualOutputs.end();) {
-        if (names.contains(it.key())) {
-            ++it;
-            continue;
-        }
-        qInfo() << "  Dropping group no longer on server:" << it.key();
-        if (it.value())
-            it.value()->destroy();
-        it = m_virtualOutputs.erase(it);
-    }
-    m_screenToGroup.clear();
-    for (auto it = m_mirrorGroups.begin(); it != m_mirrorGroups.end();) {
-        if (!names.contains(it.key())) {
-            it = m_mirrorGroups.erase(it);
-            continue;
-        }
-        for (const auto &screen : it.value())
-            m_screenToGroup.insert(screen, it.key());
-        ++it;
-    }
-
-    for (const auto &name : names) {
-        if (m_virtualOutputs.contains(name)) {
-            continue;
-        }
-        auto *obj = m_virtualManager->getVirtualOutput(name);
-        if (!obj) {
-            qWarning() << "  Failed to get virtual output for:" << name;
-            continue;
-        }
-        auto *vo = new VirtualOutput(obj);
-        m_virtualOutputs.insert(name, QSharedPointer<VirtualOutput>(vo));
-        connect(vo, &VirtualOutput::outputsReceived, this, &VirtualClient::onVirtualOutputOutputs);
-    }
-
-    refreshScreenInfo();
-}
-
-void VirtualClient::onVirtualOutputOutputs(const QString &name, const QStringList &outputs)
-{
-    m_mirrorGroups[name] = outputs;
-    m_screenToGroup.clear();
-    for (auto it = m_mirrorGroups.begin(); it != m_mirrorGroups.end(); ++it) {
-        for (const auto &screen : it.value()) {
-            m_screenToGroup.insert(screen, it.key());
-        }
-    }
-    refreshScreenInfo();
-}
-
 void VirtualClient::updateMirrorGroup()
 {
-    QString screen = m_screenCombo->currentText();
-    QString mirror = m_mirrorCombo->currentData().toString();
+    const QString screen = m_screenCombo->currentText();
+    const QString mirror = m_mirrorCombo->currentData().toString();
 
     if (screen.isEmpty())
         return;
 
+    // Leaving a group is explicit: dissolve the group the screen belongs to.
     if (m_screenToGroup.contains(screen)) {
-        QString oldGroup = m_screenToGroup[screen];
-        if (auto existing = m_virtualOutputs.value(oldGroup)) {
-            existing->destroy();
+        const QString oldGroup = m_screenToGroup[screen];
+        if (auto *group = m_groups.take(oldGroup)) {
+            group->dissolve();
+            group->deleteLater();
         }
-        m_virtualOutputs.remove(oldGroup);
+        m_groupNames.removeAll(oldGroup);
         m_mirrorGroups.remove(oldGroup);
-        m_screenToGroup.clear();
-        for (auto it = m_mirrorGroups.begin(); it != m_mirrorGroups.end(); ++it) {
-            for (const auto &s : it.value())
-                m_screenToGroup.insert(s, it.key());
-        }
+        updateScreenToGroup();
     }
 
     if (!mirror.isEmpty()) {
-        QByteArray screenNameArray;
-        screenNameArray.append(mirror.toUtf8());
-        screenNameArray.append('\0');
-        screenNameArray.append(screen.toUtf8());
-        screenNameArray.append('\0');
-        screenNameArray.append('\0');
-
-        QString groupName = QString("copyscreen_%1").arg(screen);
-        auto *obj = m_virtualManager->createVirtualOutput(groupName, screenNameArray);
-        if (obj) {
-            auto *vo = new VirtualOutput(obj);
-            m_virtualOutputs.insert(groupName, QSharedPointer<VirtualOutput>(vo));
-            connect(vo, &VirtualOutput::outputsReceived, this, &VirtualClient::onVirtualOutputOutputs);
-            m_mirrorGroups[groupName] = {mirror, screen};
-            m_screenToGroup[screen] = groupName;
-            m_screenToGroup[mirror] = groupName;
+        const QString sourceUuid = uuidForScreen(screen);
+        const QString mirrorUuid = uuidForScreen(mirror);
+        if (sourceUuid.isEmpty() || mirrorUuid.isEmpty()) {
+            // The uuid arrives asynchronously; retry once it is known.
+            m_pendingMirrorScreen = mirror;
+            refreshScreenUuids();
+            refreshScreenInfo();
+            return;
         }
+        m_pendingMirrorScreen.clear();
+
+        // The compositor assigns the group name; the state of the group is
+        // reported as soon as it exists, so the mirror is queued right away.
+        auto *group = new OutputGroup(m_groupManager->createGroup(sourceUuid));
+        group->setParent(this);
+        connect(group, &OutputGroup::nameAssigned, this, [this, group](const QString &name) {
+            m_groupNames << name;
+            m_groups.insert(name, group);
+        });
+        connect(group, &OutputGroup::stateChanged, this,
+                [this, group](const QString &source, const QStringList &mirrors) {
+                    onGroupState(group->name(), source, mirrors);
+                });
+        connect(group, &OutputGroup::removed, this, [this, group]() {
+            if (!group->name().isEmpty())
+                m_groups.remove(group->name());
+        });
+        connect(group, &OutputGroup::operationFailed, this, [](uint32_t code, const QString &uuid) {
+            qWarning() << "  Output group operation failed:" << code << uuid;
+        });
+        group->requestAddMirror(mirrorUuid);
+        group->commit();
     }
 
     refreshScreenInfo();
