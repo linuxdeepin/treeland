@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 #pragma once
 
+#include "outputuuid.h"
 #include "qwayland-treeland-virtual-output-manager-v1.h"
-#include "qwayland-treeland-output-manager-v1.h"
+#include "qwayland-treeland-output-manager-unstable-v2.h"
 
+#include <QHash>
 #include <QMap>
 #include <QObject>
 #include <QSharedPointer>
@@ -17,14 +19,16 @@ class QComboBox;
 class QSlider;
 class QSpinBox;
 class QPushButton;
+class QTimer;
 class VirtualOutputManager;
 class VirtualOutput;
 class WlrOutputManager;
 class ColorControl;
 
+// v2 addresses outputs by the uuid served by treeland-output-uuid-v1.
 class TreelandOutputManager
     : public QWaylandClientExtensionTemplate<TreelandOutputManager>
-    , public QtWayland::treeland_output_manager_v1
+    , public QtWayland::treeland_output_manager_v2
 {
     Q_OBJECT
 public:
@@ -33,15 +37,15 @@ public:
 
     void instantiate();
 
-    struct ::treeland_output_color_control_v1 *getColorControl(struct ::wl_output *output);
+    struct ::treeland_output_picture_control_v2 *getPictureControl(const QString &uuid);
 
 Q_SIGNALS:
-    void primaryOutputChanged(const QString &name);
+    void primaryOutputChanged(const QString &uuid);
 
 protected:
-    void treeland_output_manager_v1_primary_output(const QString &output_name) override
+    void treeland_output_manager_v2_primary_output(const QString &uuid) override
     {
-        Q_EMIT primaryOutputChanged(output_name);
+        Q_EMIT primaryOutputChanged(uuid);
     }
 
 private:
@@ -65,12 +69,20 @@ private:
     void onResolutionChanged(int resIndex);
     void onBrightnessChanged(int value);
     void onColorTempChanged(int value);
-    void onPrimaryOutputChanged(const QString &name);
+    void onBrightnessSliderReleased();
+    void onColorTempSliderReleased();
+    void commitBrightness();
+    void commitColorTemp();
+    void onPrimaryOutputChanged(const QString &uuid);
     void updatePrimaryButtonText();
     void applyCurrentSettings();
     void onColorControlBrightness(int percent);
     void onColorControlColorTemp(uint32_t kelvin);
     void acquireColorControl(const QString &screenName);
+    void refreshUuids();
+    void onUuidReceived(const QString &name, const QString &uuid);
+    QString uuidForScreen(const QString &name) const;
+    void updatePrimaryLabel();
     void onWlrHeadsChanged();
     void onVirtualOutputModified(const QString &name);
     void onWlrApplyFinished(bool ok);
@@ -79,11 +91,10 @@ private:
 
     void updateMirrorGroup();
 
-    struct ::wl_output *getWlOutput(const QString &name);
-
     std::unique_ptr<VirtualOutputManager> m_virtualManager;
     std::unique_ptr<TreelandOutputManager> m_treelandManager;
     std::unique_ptr<WlrOutputManager> m_wlrManager;
+    std::unique_ptr<OutputUuidManagerV1> m_uuidManager;
 
     QWidget *m_widget = nullptr;
     QLabel *m_infoLabel = nullptr;
@@ -97,6 +108,8 @@ private:
     QLabel *m_brightnessLabel = nullptr;
     QSlider *m_colorTempSlider = nullptr;
     QLabel *m_colorTempLabel = nullptr;
+    QTimer *m_brightnessCommitTimer = nullptr;
+    QTimer *m_colorTempCommitTimer = nullptr;
     QSpinBox *m_posX = nullptr;
     QSpinBox *m_posY = nullptr;
     QComboBox *m_resolutionCombo = nullptr;
@@ -105,7 +118,9 @@ private:
     QComboBox *m_scaleCombo = nullptr;
     ColorControl *m_colorControl = nullptr;
     QStringList m_screenNames;
-    QString m_primaryName;
+    QString m_primaryUuid;
+    QHash<QString, OutputUuidV1 *> m_uuidObjects;
+    QHash<QString, QString> m_uuidByName;
     bool m_updatingUi = false;
     QMap<QString, QStringList> m_mirrorGroups;
     QMap<QString, QString> m_screenToGroup;

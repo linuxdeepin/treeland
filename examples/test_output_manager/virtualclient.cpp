@@ -17,6 +17,7 @@
 #include <QSlider>
 #include <QSet>
 #include <QSpinBox>
+#include <QTimer>
 #include <QVBoxLayout>
 #include <QWidget>
 #include <QtWaylandClient/QWaylandClientExtension>
@@ -28,7 +29,7 @@
 
 
 TreelandOutputManager::TreelandOutputManager()
-    : QWaylandClientExtensionTemplate<TreelandOutputManager>(2)
+    : QWaylandClientExtensionTemplate<TreelandOutputManager>(1)
 {
 }
 
@@ -43,21 +44,21 @@ void TreelandOutputManager::instantiate()
     initialize();
 }
 
-struct ::treeland_output_color_control_v1 *TreelandOutputManager::getColorControl(struct ::wl_output *output)
+struct ::treeland_output_picture_control_v2 *TreelandOutputManager::getPictureControl(const QString &uuid)
 {
     if (!isInitialized())
         return nullptr;
-    return get_color_control(output);
+    return get_picture_control(uuid);
 }
 
 
-class ColorControl : public QObject, public QtWayland::treeland_output_color_control_v1
+class ColorControl : public QObject, public QtWayland::treeland_output_picture_control_v2
 {
     Q_OBJECT
 public:
-    ColorControl(struct ::treeland_output_color_control_v1 *obj, QObject *parent = nullptr)
+    ColorControl(struct ::treeland_output_picture_control_v2 *obj, QObject *parent = nullptr)
         : QObject(parent)
-        , QtWayland::treeland_output_color_control_v1(obj)
+        , QtWayland::treeland_output_picture_control_v2(obj)
     {
     }
     ~ColorControl() override
@@ -71,15 +72,38 @@ Q_SIGNALS:
     void colorTemperatureChanged(uint32_t kelvin);
 
 protected:
-    void treeland_output_color_control_v1_brightness(wl_fixed_t b) override
+    void treeland_output_picture_control_v2_brightness(wl_fixed_t b) override
     {
         Q_EMIT brightnessChanged(static_cast<int>(std::round(wl_fixed_to_double(b))));
     }
-    void treeland_output_color_control_v1_color_temperature(uint32_t t) override
+    void treeland_output_picture_control_v2_color_temperature(uint32_t t) override
     {
         Q_EMIT colorTemperatureChanged(t);
     }
-    void treeland_output_color_control_v1_result(uint32_t) override {}
+    void treeland_output_picture_control_v2_result(uint32_t result) override
+    {
+        // Carried over from the removed test-color-control example: report what
+        // the compositor answered for the last commit.
+        QString text;
+        switch (result) {
+        case commit_result_success:
+            text = "success";
+            break;
+        case commit_result_failed:
+            text = "failed";
+            break;
+        case commit_result_unsupported:
+            text = "unsupported";
+            break;
+        case commit_result_invalid_output:
+            text = "invalid_output";
+            break;
+        default:
+            text = QString::number(result);
+            break;
+        }
+        qInfo() << "picture control commit result:" << text;
+    }
 };
 
 VirtualClient::VirtualClient(QObject *parent)
@@ -88,6 +112,7 @@ VirtualClient::VirtualClient(QObject *parent)
     m_virtualManager = std::make_unique<VirtualOutputManager>();
     m_treelandManager = std::make_unique<TreelandOutputManager>();
     m_wlrManager = std::make_unique<WlrOutputManager>();
+    m_uuidManager = std::make_unique<OutputUuidManagerV1>();
 
     connect(m_virtualManager.get(), &VirtualOutputManager::activeChanged, this, [this]() {
         if (m_virtualManager->isActive())
@@ -104,9 +129,15 @@ VirtualClient::VirtualClient(QObject *parent)
     connect(m_wlrManager.get(), &WlrOutputManager::headsChanged, this, &VirtualClient::onWlrHeadsChanged);
     connect(m_wlrManager.get(), &WlrOutputManager::applyFinished, this, &VirtualClient::onWlrApplyFinished);
 
+    connect(m_uuidManager.get(), &OutputUuidManagerV1::activeChanged, this, [this]() {
+        if (m_uuidManager->isActive())
+            refreshUuids();
+    });
+
     m_virtualManager->instantiate();
     m_treelandManager->instantiate();
     m_wlrManager->instantiate();
+    m_uuidManager->instantiate();
 }
 
 VirtualClient::~VirtualClient()
@@ -160,7 +191,15 @@ void VirtualClient::setupUi()
     m_brightnessSlider->setRange(0, 100);
     m_brightnessSlider->setValue(100);
     m_brightnessLabel = new QLabel("100%");
+    // valueChanged only refreshes the local label; the actual commit is
+    // debounced (and also fired on sliderReleased) so dragging the slider does
+    // not flood the compositor with one commit per intermediate value.
     connect(m_brightnessSlider, &QSlider::valueChanged, this, &VirtualClient::onBrightnessChanged);
+    connect(m_brightnessSlider, &QSlider::sliderReleased, this, &VirtualClient::onBrightnessSliderReleased);
+    m_brightnessCommitTimer = new QTimer(this);
+    m_brightnessCommitTimer->setSingleShot(true);
+    m_brightnessCommitTimer->setInterval(120);
+    connect(m_brightnessCommitTimer, &QTimer::timeout, this, &VirtualClient::commitBrightness);
     auto *brightRow = new QHBoxLayout;
     brightRow->addWidget(m_brightnessSlider);
     brightRow->addWidget(m_brightnessLabel);
@@ -171,6 +210,11 @@ void VirtualClient::setupUi()
     m_colorTempSlider->setValue(6500);
     m_colorTempLabel = new QLabel("6500K");
     connect(m_colorTempSlider, &QSlider::valueChanged, this, &VirtualClient::onColorTempChanged);
+    connect(m_colorTempSlider, &QSlider::sliderReleased, this, &VirtualClient::onColorTempSliderReleased);
+    m_colorTempCommitTimer = new QTimer(this);
+    m_colorTempCommitTimer->setSingleShot(true);
+    m_colorTempCommitTimer->setInterval(120);
+    connect(m_colorTempCommitTimer, &QTimer::timeout, this, &VirtualClient::commitColorTemp);
     auto *ctRow = new QHBoxLayout;
     ctRow->addWidget(m_colorTempSlider);
     ctRow->addWidget(m_colorTempLabel);
@@ -240,18 +284,45 @@ void VirtualClient::setupUi()
     refreshScreenInfo();
 }
 
-struct ::wl_output *VirtualClient::getWlOutput(const QString &name)
+void VirtualClient::refreshUuids()
 {
-    QWindow *window = m_widget ? m_widget->windowHandle() : nullptr;
-    if (!window || !window->handle())
-        return nullptr;
-    auto *waylandWindow = static_cast<QtWaylandClient::QWaylandWindow *>(window->handle());
-    auto screens = waylandWindow->display()->screens();
-    for (auto *screen : screens) {
-        if (screen->name() == name)
-            return screen->output();
+    if (!m_uuidManager->isActive())
+        return;
+
+    for (QScreen *screen : QGuiApplication::screens()) {
+        const QString name = screen->name();
+        if (name.isEmpty() || m_uuidObjects.contains(name))
+            continue;
+
+        auto *native = screen->nativeInterface<QNativeInterface::QWaylandScreen>();
+        if (!native || !native->output())
+            continue;
+
+        auto *object = m_uuidManager->get_uuid(native->output());
+        if (!object)
+            continue;
+
+        auto *probe = new OutputUuidV1(object, QStringLiteral("wl_output"), name, true, this);
+        connect(probe, &OutputUuidV1::uuidReceived, this,
+                [this, name](OutputUuidV1 *, const QString &uuid) {
+                    onUuidReceived(name, uuid);
+                });
+        m_uuidObjects.insert(name, probe);
     }
-    return nullptr;
+}
+
+void VirtualClient::onUuidReceived(const QString &name, const QString &uuid)
+{
+    m_uuidByName[name] = uuid;
+    updatePrimaryLabel();
+    updatePrimaryButtonText();
+    if (m_screenCombo && m_screenCombo->currentText() == name)
+        acquireColorControl(name);
+}
+
+QString VirtualClient::uuidForScreen(const QString &name) const
+{
+    return m_uuidByName.value(name);
 }
 
 void VirtualClient::refreshScreenInfo()
@@ -345,6 +416,8 @@ void VirtualClient::refreshScreenInfo()
 
     if (m_resolutionCombo->count() == 0 && m_screenCombo->currentIndex() >= 0)
         onScreenChanged(m_screenCombo->currentIndex());
+
+    refreshUuids();
 
     // Re-acquire here: disable/enable can rebind the output while wl_output stays the same.
     if (m_screenCombo->currentIndex() >= 0)
@@ -523,17 +596,42 @@ void VirtualClient::onMirrorChanged(int index)
 void VirtualClient::onBrightnessChanged(int value)
 {
     m_brightnessLabel->setText(QString("%1%").arg(value));
-    if (m_colorControl) {
-        m_colorControl->set_brightness(wl_fixed_from_double(value));
-        m_colorControl->commit();
-    }
+    // Debounce the commit: restarts the single-shot timer on every intermediate
+    // value so only the final settled value is pushed to the compositor.
+    m_brightnessCommitTimer->start();
 }
 
 void VirtualClient::onColorTempChanged(int value)
 {
     m_colorTempLabel->setText(QString("%1K").arg(value));
+    m_colorTempCommitTimer->start();
+}
+
+void VirtualClient::onBrightnessSliderReleased()
+{
+    // Commit immediately on release and cancel any pending debounce.
+    m_brightnessCommitTimer->stop();
+    commitBrightness();
+}
+
+void VirtualClient::onColorTempSliderReleased()
+{
+    m_colorTempCommitTimer->stop();
+    commitColorTemp();
+}
+
+void VirtualClient::commitBrightness()
+{
     if (m_colorControl) {
-        m_colorControl->set_color_temperature(static_cast<uint32_t>(value));
+        m_colorControl->set_brightness(wl_fixed_from_double(m_brightnessSlider->value()));
+        m_colorControl->commit();
+    }
+}
+
+void VirtualClient::commitColorTemp()
+{
+    if (m_colorControl) {
+        m_colorControl->set_color_temperature(static_cast<uint32_t>(m_colorTempSlider->value()));
         m_colorControl->commit();
     }
 }
@@ -563,10 +661,10 @@ void VirtualClient::acquireColorControl(const QString &screenName)
     }
     if (!m_treelandManager->isActive())
         return;
-    auto *wlOut = getWlOutput(screenName);
-    if (!wlOut)
+    const QString uuid = uuidForScreen(screenName);
+    if (uuid.isEmpty())
         return;
-    auto *cc = m_treelandManager->getColorControl(wlOut);
+    auto *cc = m_treelandManager->getPictureControl(uuid);
     if (!cc)
         return;
     m_colorControl = new ColorControl(cc, this);
@@ -637,23 +735,41 @@ void VirtualClient::onPrimaryClicked()
         return;
     if (!m_treelandManager->isActive())
         return;
-    m_treelandManager->set_primary_output(name);
+    const QString uuid = uuidForScreen(name);
+    if (uuid.isEmpty()) {
+        qWarning() << "No uuid known for" << name << "yet";
+        return;
+    }
+    m_treelandManager->set_primary_output(uuid);
 }
 
-void VirtualClient::onPrimaryOutputChanged(const QString &name)
+void VirtualClient::onPrimaryOutputChanged(const QString &uuid)
 {
-    m_primaryName = name;
-    if (m_primaryLabel) {
-        m_primaryLabel->setText(QString("Primary: %1").arg(name.isEmpty() ? QStringLiteral("—") : name));
-    }
+    m_primaryUuid = uuid;
+    updatePrimaryLabel();
     updatePrimaryButtonText();
+}
+
+void VirtualClient::updatePrimaryLabel()
+{
+    if (!m_primaryLabel)
+        return;
+    QString name;
+    for (auto it = m_uuidByName.cbegin(); it != m_uuidByName.cend(); ++it) {
+        if (it.value() == m_primaryUuid) {
+            name = it.key();
+            break;
+        }
+    }
+    m_primaryLabel->setText(QString("Primary: %1").arg(name.isEmpty() ? QStringLiteral("—") : name));
 }
 
 void VirtualClient::updatePrimaryButtonText()
 {
     if (m_primaryBtn) {
-        const bool isPrimary = !m_primaryName.isEmpty()
-            && m_screenCombo && m_screenCombo->currentText() == m_primaryName;
+        const QString current = m_screenCombo ? m_screenCombo->currentText() : QString();
+        const bool isPrimary = !m_primaryUuid.isEmpty() && !current.isEmpty()
+            && uuidForScreen(current) == m_primaryUuid;
         m_primaryBtn->setText(isPrimary ? "Primary ✓" : "Primary");
     }
 }

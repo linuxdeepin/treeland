@@ -1105,8 +1105,20 @@ void Output::applyOutputColorConfig()
 {
     auto *outputConfig = config();
     auto applyConfig = [this, outputConfig] {
+        // Color temperature is implemented with the gamma LUT. When the output
+        // has no LUT the value can never be applied, so do not request it:
+        // setOutputColor() would report Unsupported and return before the
+        // backlight is touched, dropping the brightness restore as well. That
+        // leaves the panel at hardware defaults (full backlight, no
+        // compensation) after a compositor restart or an output rebuild, even
+        // though the brightness is in the persisted config. Restoring the
+        // brightness alone is as much as this hardware can honour.
+        const bool colorTemperatureSupported =
+            wlr_output_get_gamma_size(output()->handle()) > 0;
         setOutputColor(outputConfig->brightness(),
-                       static_cast<uint32_t>(outputConfig->colorTemperature()));
+                       colorTemperatureSupported
+                           ? static_cast<uint32_t>(outputConfig->colorTemperature())
+                           : 0);
     };
 
     if (outputConfig->isInitializeSucceeded()) {
@@ -1173,7 +1185,7 @@ static inline void generateGammaLUT(uint32_t colorTemperature,
 // see: http://www.brucelindbloom.com/index.html?ChromAdaptEval.html
 void Output::setOutputColor(qreal brightness,
                             uint32_t colorTemperature,
-                            std::function<void(bool)> resultCallback)
+                            std::function<void(CommitColorResult)> resultCallback)
 {
     const bool brightnessRequested = brightness >= 0;
     const bool colorTemperatureRequested = colorTemperature != 0;
@@ -1185,6 +1197,37 @@ void Output::setOutputColor(qreal brightness,
 
     brightness = qBound(0.0, brightness, 1.0);
     colorTemperature = std::clamp(colorTemperature, 1000u, 20000u);
+
+    const size_t gammaSize = wlr_output_get_gamma_size(output()->handle());
+    if (gammaSize == 0 && colorTemperatureRequested) {
+        // No gamma LUT: a requested color temperature cannot be applied at all.
+        // Report unsupported before touching backlight or config so that the
+        // protocol promise "settings remain unchanged" holds.
+        if (resultCallback)
+            resultCallback(CommitColorResult::Unsupported);
+        qCWarning(lcTlOutput) << " Output " << output()->name()
+                             << " does not support gamma LUT! Brightness and color temperature adjustments through gamma will have no effect.";
+        return;
+    }
+
+    // No-op fast path: when the requested values already match what is applied,
+    // skip the backlight sysfs write, the gamma LUT regeneration and the full
+    // output commit. Rapid slider drags otherwise queue one heavy commit per
+    // intermediate value and stall the compositor. Compare against the applied
+    // values, not config(): config() holds the persisted value, which still has
+    // to be pushed to the hardware when the output starts or is hotplugged.
+    const bool brightnessUnchanged =
+        !brightnessRequested
+        || (m_appliedBrightness >= 0 && qFuzzyCompare(brightness, m_appliedBrightness));
+    const bool colorTemperatureUnchanged =
+        !colorTemperatureRequested
+        || (m_appliedColorTemperature != 0
+            && colorTemperature == m_appliedColorTemperature);
+    if (brightnessUnchanged && colorTemperatureUnchanged) {
+        if (resultCallback)
+            resultCallback(CommitColorResult::Success);
+        return;
+    }
 
     qreal brightnessCorrection = 1.0;
     bool backlightApplied = false;
@@ -1198,13 +1241,14 @@ void Output::setOutputColor(qreal brightness,
         brightnessCorrection = brightness;
     }
 
-    const size_t gammaSize = wlr_output_get_gamma_size(output()->handle());
     if (gammaSize == 0) {
         if (backlightApplied) {
             config()->setBrightness(brightness);
+            m_appliedBrightness = brightness;
         }
         if (resultCallback)
-            resultCallback(backlightApplied && !colorTemperatureRequested);
+            resultCallback(backlightApplied ? CommitColorResult::Success
+                                            : CommitColorResult::Failed);
         qCWarning(lcTlOutput) << " Output " << output()->name()
                              << " does not support gamma LUT! Brightness and color temperature adjustments through gamma will have no effect.";
         return;
@@ -1231,7 +1275,7 @@ void Output::setOutputColor(qreal brightness,
     if (!tr) {
         qCWarning(lcTlOutput) << "Failed to create color transform for lut_3x1d on output" << output()->name();
         if (resultCallback)
-            resultCallback(false);
+            resultCallback(CommitColorResult::Failed);
         return;
     }
     wlr_output_state_set_color_transform(newState.get(), tr);
@@ -1243,15 +1287,19 @@ void Output::setOutputColor(qreal brightness,
     outputHelper->scheduleCommitJob([this, brightness, colorTemperature, newState, resultCallback](bool success, WOutputHelper::ExtraState state) {
         if (state == newState) {
             if (resultCallback)
-                resultCallback(success);
+                resultCallback(success ? CommitColorResult::Success : CommitColorResult::Failed);
             if (!success) {
                 qCWarning(lcTlOutput) << "Failed to apply brightness and color temperature settings to output"
                                           << output()->name();
             } else {
                 config()->setBrightness(brightness);
                 config()->setColorTemperature(colorTemperature);
+                m_appliedBrightness = brightness;
+                m_appliedColorTemperature = colorTemperature;
             }
         } else {
+            if (resultCallback)
+                resultCallback(CommitColorResult::Failed);
             qCWarning(lcTlOutput) << "Commit callback received unexpected state pointer!"
                                       << "Expected:" << newState.get()
                                       << "Got:" << state.get();

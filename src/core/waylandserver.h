@@ -196,6 +196,11 @@ public:
     RootSurfaceContainer *rootSurfaceContainer() const;
     WServer *server() const;
     Output *getOutput(WOutput *output) const;
+    // Reverse lookup for the uuid addressing shared by the treeland-output-uuid
+    // based protocols (output-manager-v2, output-group-manager-v1, ...).
+    // Returns nullptr for an empty or unknown uuid; state checks (enabled,
+    // live) stay with the callers.
+    Output *getOutputByUuid(const QString &uuid) const;
     const QList<Output *> &outputs() const;
 
     float animationSpeed() const;
