@@ -1,8 +1,8 @@
 find_package(TreelandProtocols REQUIRED)
 
 waylib_generate_qtwayland_server_protocol(libtreeland
-    PROTOCOL ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-output-manager-v1.xml
-    BASENAME treeland-output-manager-v1
+    PROTOCOL ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-output-manager-unstable-v2.xml
+    BASENAME treeland-output-manager-unstable-v2
 )
 
 impl_treeland(
