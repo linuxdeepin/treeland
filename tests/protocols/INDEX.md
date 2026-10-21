@@ -24,7 +24,7 @@ Wayland 线上请求与事件；本文档规定发出请求后，测试必须观
 | 协议 | 覆盖等级 | 主要生产结果 |
 | --- | --- | --- |
 | [测试框架架构](framework/README.md) | 基础设施 | runner、fixture、C client、生产状态桥接与 E/V 断言边界 |
-| [app-id-resolver-v1](treeland-app-id-resolver-v1/README.md) | I / E | resolver pidfd 应答；返回 app-id 转换真实 splash wrapper 为 xdg window |
+| [app-id-resolver-v2](treeland-app-id-resolver-v2/README.md) | I / E | resolver pidfd 应答；返回 app-id 转换真实 splash wrapper 为 xdg window |
 | [capture-unstable-v1](treeland-capture-unstable-v1/README.md) | E / V / P | 真实窗口选择、frame copy 与目标 buffer 像素；无 source 错误 |
 | [compositor-action-v1](treeland-compositor-action-v1/README.md) | E / P | trigger 路由到真实 Workspace 切换与 show-desktop 状态；zoom/未知动作被忽略不断连 |
 | [dde-shell-v1](treeland-dde-shell-v1/README.md) | E / P | mapped wrapper 的 DDE 元数据、锁屏；window picker 功能已移除 |
@@ -41,7 +41,7 @@ Wayland 线上请求与事件；本文档规定发出请求后，测试必须观
 | [decoration-unstable-v1](treeland-decoration-unstable-v1/README.md) | E | mapped toplevel 的 `set_corner_radius` 回读真实 `SurfaceWrapper::radius()` | shadow、border、titlebar 和协议错误路径 |
 | [remote-subsurface-unstable-v1](treeland-remote-subsurface-unstable-v1/README.md) | E / P | token 导出、真实 Remote `WSubsurface` 的父子关系、位置与层级；`parent_rejected` / `invalid_sibling` | 跨 client、循环 parent、映射生命周期与 sibling 间排序 |
 | [prelaunch-splash-v2](treeland-prelaunch-splash-v2/README.md) | I / E | splash 请求/关闭信号；生产 splash wrapper 创建、加入 workspace 与销毁 |
-| [screensaver-v1](treeland-screensaver-v1/README.md) | E / P | 真实 ext-idle 抑制生命周期 |
+| [screensaver-v2](treeland-screensaver-v2/README.md) | E / P | 真实 ext-idle 抑制生命周期 |
 | [shortcut-manager-v3](treeland-shortcut-manager-v3/README.md) | E / P | 聚焦窗口捕获与快捷键激活 |
 | [virtual-output-manager-v1](treeland-virtual-output-manager-v1/README.md) | P / E | 虚拟输出资源校验；两个既有输出的镜像/恢复 |
 | [wallpaper-color-v1](treeland-wallpaper-color-v1/README.md) | I | 订阅、去重与颜色通知 |
