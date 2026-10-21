@@ -379,7 +379,7 @@ void SurfaceWrapper::setup()
     QObject::connect(m_shellSurface->surface(), &WSurface::mappedChanged,
                                            this,
                                            &SurfaceWrapper::onMappedChanged);
-    if (m_type == Type::XdgToplevel) {
+    if (!m_isProxy && m_type == Type::XdgToplevel) {
         m_xdgToplevelCommitConnection = QObject::connect(m_shellSurface->surface(), &WSurface::commit, this, [this] {
             if (!surface())
                 return;
@@ -1184,8 +1184,10 @@ bool SurfaceWrapper::checkSetSurfaceState(State newSurfaceState, bool allowRetar
     if (m_isSnapMask && (newSurfaceState == State::Maximized || newSurfaceState == State::Tiling))
         return false;
 
-    if (container()->filterSurfaceStateChange(this, newSurfaceState, m_surfaceState))
+    if (!container()
+        || container()->filterSurfaceStateChange(this, newSurfaceState, m_surfaceState)) {
         return false;
+    }
 
     return true;
 }
