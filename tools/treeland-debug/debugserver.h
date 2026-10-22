@@ -43,6 +43,7 @@ private:
     QJsonObject handleCursor();
     QJsonObject handleWindows();
     QJsonObject handleClients();
+    QJsonObject handleIdle();
     QJsonObject handleFocused();
     QJsonObject handleCursorWindow();
     QJsonObject handleScene(const QHttpServerRequest &request);

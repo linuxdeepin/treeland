@@ -16,6 +16,18 @@ public:
     QByteArrayView interfaceName() const override;
     bool isInhibited() const;
 
+    // One active treeland_screensaver_v2 inhibit: the client-provided
+    // application name / reason, the owning client identity and how long the
+    // inhibit has been held. Consumed by the treeland-debug ``idle`` command.
+    struct InhibitInfo {
+        QString applicationName;
+        QString reason;
+        QString appId;
+        int pid = 0;
+        quint64 heldMs = 0;
+    };
+    QList<InhibitInfo> inhibits() const;
+
     static constexpr int InterfaceVersion = 1;
 
 protected:

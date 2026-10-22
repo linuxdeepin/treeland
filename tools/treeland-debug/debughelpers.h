@@ -13,6 +13,11 @@
 // Maps a window state enum to a human-readable name.
 QString stateName(int state);
 
+// Formats a millisecond duration compactly for the live views: "12.3s" under a
+// minute, "2m03s" under an hour, "1h02m" above. Rounded to the nearest 100ms
+// first, so 59.99s renders as "1m00s" rather than "60.0s".
+QString formatDuration(quint64 ms);
+
 // Maps a friendly button name to a Linux input button code; raw codes pass
 // through. Sets *ok=false for unknown names.
 int buttonCode(const QString &name, bool *ok);
@@ -38,6 +43,7 @@ enum class DebugCommand {
     Cursor,
     Windows,
     Clients,
+    Idle,
     Help,
     Shell,
     Activate,

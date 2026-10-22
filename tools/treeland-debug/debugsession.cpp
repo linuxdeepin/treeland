@@ -148,6 +148,9 @@ void registerNamedMetatypes()
     qRegisterMetaType<TreelandInfo>("TreelandInfo");
     qRegisterMetaType<ClientInfo>("ClientInfo");
     qRegisterMetaType<QList<ClientInfo>>("QList<ClientInfo>");
+    qRegisterMetaType<IdleInhibitor>("IdleInhibitor");
+    qRegisterMetaType<QList<IdleInhibitor>>("QList<IdleInhibitor>");
+    qRegisterMetaType<IdleInfo>("IdleInfo");
 }
 
 QJsonObject windowToJson(const WindowInfo &window)
@@ -264,4 +267,35 @@ QJsonArray debugEventsToJson(const QList<DebugEvent> &events)
     for (const auto &event : events)
         result.append(debugEventToJson(event));
     return result;
+}
+
+QJsonObject idleInhibitorToJson(const IdleInhibitor &inhibitor)
+{
+    return {
+        {"surfaceId", inhibitor.surfaceId()},
+        {"kind", inhibitor.kind()},
+        {"appId", inhibitor.appId()},
+        {"title", inhibitor.title()},
+        {"pid", inhibitor.pid()},
+        {"executable", inhibitor.executable()},
+        {"command", inhibitor.command()},
+        {"appName", inhibitor.appName()},
+        {"reason", inhibitor.reason()},
+        {"active", inhibitor.active()},
+        {"heldMs", static_cast<qint64>(inhibitor.heldMs())},
+    };
+}
+
+QJsonObject idleToJson(const IdleInfo &info)
+{
+    QJsonArray inhibitors;
+    for (const auto &inhibitor : info.inhibitors())
+        inhibitors.append(idleInhibitorToJson(inhibitor));
+
+    return {
+        {"inhibited", info.inhibited()},
+        {"screensaverInhibited", info.screensaverInhibited()},
+        {"idleMs", static_cast<qint64>(info.idleMs())},
+        {"inhibitors", inhibitors},
+    };
 }
