@@ -3,10 +3,13 @@
 
 #pragma once
 
-#include "gestures.h"
+#include "swipegesture.h"
+#include "holdgesture.h"
 
 #include <functional>
 #include <memory>
+
+class GestureRecognizer;
 
 struct SwipeFeedBack
 {
