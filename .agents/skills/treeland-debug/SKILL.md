@@ -87,7 +87,7 @@ sudo -u dde -- dde-dconfig set -a org.deepin.dde.treeland -r org.deepin.dde.tree
 切换 `remoteDebug` **立即生效** —— remote source 会在运行时被创建或销毁，无需重启（合成器运行时监听 `remoteDebugChanged`）。`treeland-debug` 连接的是构建类型对应的调试 socket（见上面的 socket 命名），remote object 名为 `WindowTree`。
 
 ## treeland-debug CLI
-`treeland-debug` 是 adb 风格的检查/控制工具。两种模式：一次性 `treeland-debug <cmd> [args]` 与 REPL `treeland-debug shell`。Release 构建中它会通过 polkit 自动提权到 root；Debug 构建中以与 treeland 实例相同的用户运行。`--json` 为 `tree`/`cursor`/`windows`/`clients` 提供机器可读输出。
+`treeland-debug` 是 adb 风格的检查/控制工具。两种模式：一次性 `treeland-debug <cmd> [args]` 与 REPL `treeland-debug shell`。Release 构建中它会通过 polkit 自动提权到 root；Debug 构建中以与 treeland 实例相同的用户运行。`--json` 为 `tree`/`cursor`/`windows`/`clients`/`idle` 提供机器可读输出。
 
 全局选项：`--url <url>`（默认 auto —— 构建类型对应的 socket；Debug 构建优先调试 socket，回退到 Release socket）、`--name <name>`（默认 `WindowTree`）、`--timeout-ms <n>`（默认 30000）、`--json`、`--preview` / `--no-preview`（终端内联图片预览，默认自动探测）。需要指定某个实例时显式传 `--url`（原样使用，不做隐式处理）。
 
@@ -98,7 +98,8 @@ sudo -u dde -- dde-dconfig set -a org.deepin.dde.treeland -r org.deepin.dde.tree
 | `cursor` | 光标位置 `{"x","y"}`。 |
 | `windows` | 顶层窗口表格 / JSON 数组。 |
 | `clients` | 客户端及其窗口（含 `pid`、`executable`、`command`）。 |
-| `top [interval-ms]` | 类似 `top` 的客户端/窗口实时视图（Ctrl+C 退出）。 |
+| `idle` | 空闲状态：距上次输入活动的时长 `idleMs`、空闲抑制是否生效 `inhibited`/`screensaverInhibited`，以及每个抑制来源（`zwp_idle_inhibit_manager_v1` surface 或 `treeland_screensaver_v2` inhibit，含 `pid`/`appId`/`title`/`appName`/`reason`/`heldMs`）。合成器没有全局空闲阈值（阈值由客户端通过 `ext-idle-notify-v1` 自行设定），因此只报告时长与抑制来源。列表**包含当前未生效**的来源（如被最小化的抑制窗口），用 `active` 区分，只有 `active` 的才算进 `inhibited`；`surfaceId` 只有在抑制挂在 toplevel 上时才等于可控制命令的窗口 id（layer-shell / subsurface 抑制查不到窗口）。 |
+| `top [interval-ms]` | 类似 `top` 的客户端/窗口实时视图（Ctrl+C 退出），顶部含 `idle`/`inhibited` 汇总行。 |
 | `events [interval-ms]` | 输入事件实时流（默认 50ms）。 |
 | `watch <id> [interval-ms]` | 轮询单个窗口的变化（默认 250ms）。 |
 | `scene [id]` | 单个窗口（按 id/appId）或整个场景的 QtQuick 场景树 —— 用于查看不在布局 `tree` 里的菜单/弹窗/装饰。 |
@@ -126,6 +127,7 @@ sudo -u dde -- dde-dconfig set -a org.deepin.dde.treeland -r org.deepin.dde.tree
 treeland-debug tree
 treeland-debug --json windows
 treeland-debug clients
+treeland-debug idle          # 空闲时长与空闲抑制来源
 
 # 控制
 treeland-debug activate dde-file-manager
