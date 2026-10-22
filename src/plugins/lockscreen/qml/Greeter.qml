@@ -33,6 +33,7 @@ FocusScope {
         readonly property int scaleDuration: 1000
         readonly property int duration: (GreeterProxy.isLocked || scale !== 1) ? scaleDuration : 600
         property real effectStrength: 0.0
+        readonly property bool dimActive: Helper.config.lockscreenWallpaperDimEnabled
         anchors.fill: parent
         clip: true
         color: 'transparent'
@@ -119,7 +120,8 @@ FocusScope {
             clip: true
             wallpaperRole: Wallpaper.Lockscreen
             output: root.output
-            visible: false
+
+            visible: !background.dimActive
         }
 
         ShaderEffect {
@@ -127,10 +129,10 @@ FocusScope {
 
             anchors.fill: parent
             clip: true
-	        visible: true
+            visible: background.dimActive
 
             property variant source: wallpaper
-            property real u_dimRatio: 0.25
+            property real u_dimRatio: Helper.config.lockscreenWallpaperDimRatio
             property real u_strength: background.effectStrength
 
             fragmentShader: "qrc:/shaders/wallpaper_luma_dim.frag.qsb"
