@@ -11,7 +11,7 @@
 #include "output/outputmanager.h"
 #include "seat/seatmanager.h"
 #include "surface/surfacewrapper.h"
-#include "inputdevice.h"
+#include "gesturemanager.h"
 #include "modules/shortcut/shortcutmanager.h"
 #include "modules/shortcut/shortcutcontroller.h"
 #include "modules/keyboard-shortcuts-inhibit/keyboardshortcutsinhibitmanager.h"
@@ -311,24 +311,24 @@ bool CompositorInputFilter::doGesture(QInputEvent *event)
         switch (e->gestureType()) {
         case Qt::BeginNativeGesture:
             if (e->libInputGestureType() == WGestureEvent::WLibInputGestureType::SwipeGesture)
-                InputDevice::instance()->processSwipeStart(e->fingerCount());
+                GestureManager::instance()->processSwipeStart(e->fingerCount());
 
             if (e->libInputGestureType() == WGestureEvent::WLibInputGestureType::HoldGesture)
-                InputDevice::instance()->processHoldStart(e->fingerCount());
+                GestureManager::instance()->processHoldStart(e->fingerCount());
             break;
         case Qt::EndNativeGesture:
             if (e->libInputGestureType() == WGestureEvent::WLibInputGestureType::SwipeGesture) {
                 if (e->cancelled())
-                    InputDevice::instance()->processSwipeCancel();
+                    GestureManager::instance()->processSwipeCancel();
                 else
-                    InputDevice::instance()->processSwipeEnd();
+                    GestureManager::instance()->processSwipeEnd();
             }
             if (e->libInputGestureType() == WGestureEvent::WLibInputGestureType::HoldGesture)
-                InputDevice::instance()->processHoldEnd();
+                GestureManager::instance()->processHoldEnd();
             break;
         case Qt::PanNativeGesture:
             if (e->libInputGestureType() == WGestureEvent::WLibInputGestureType::SwipeGesture)
-                InputDevice::instance()->processSwipeUpdate(e->delta());
+                GestureManager::instance()->processSwipeUpdate(e->delta());
         case Qt::ZoomNativeGesture:
         case Qt::SmartZoomNativeGesture:
         case Qt::RotateNativeGesture:
