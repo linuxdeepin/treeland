@@ -110,6 +110,9 @@ bool DebugServer::listen(const QString &host, int port)
     m_httpServer.route("/api/clients", [this]() {
         return jsonCorsResponse(handleClients());
     });
+    m_httpServer.route("/api/idle", [this]() {
+        return jsonCorsResponse(handleIdle());
+    });
     m_httpServer.route("/api/focused", [this]() {
         return jsonCorsResponse(handleFocused());
     });
@@ -245,6 +248,16 @@ QJsonObject DebugServer::handleClients()
         if (!waitSlot(session.replica->getClients(), m_timeoutMs, &clients))
             return QJsonObject{{"ok", false}, {"error", "getClients() failed"}};
         return QJsonObject{{"ok", true}, {"data", clientsToJson(clients)}};
+    });
+}
+
+QJsonObject DebugServer::handleIdle()
+{
+    return sessionRequest([this](Session &session) {
+        IdleInfo info;
+        if (!waitSlot(session.replica->getIdleInfo(), m_timeoutMs, &info))
+            return QJsonObject{{"ok", false}, {"error", "getIdleInfo() failed"}};
+        return QJsonObject{{"ok", true}, {"data", idleToJson(info)}};
     });
 }
 
@@ -812,6 +825,11 @@ QJsonObject DebugServer::mcpToolsList() const
                 {"inputSchema", noArgs}
             },
             QJsonObject{
+                {"name", "idle"},
+                {"description", "Get the compositor idle state: milliseconds since the last input activity, whether idle notification is currently inhibited, and every idle-inhibit source (zwp_idle_inhibit surface or treeland_screensaver inhibit) with its pid, app id, title and how long it has been held."},
+                {"inputSchema", noArgs}
+            },
+            QJsonObject{
                 {"name", "focused"},
                 {"description", "Get the id of the currently focused window."},
                 {"inputSchema", noArgs}
@@ -1052,6 +1070,8 @@ QJsonArray DebugServer::mcpDispatchTool(const QString &name, const QJsonObject &
         return formatJson(handleWindows());
     if (name == "clients")
         return formatJson(handleClients());
+    if (name == "idle")
+        return formatJson(handleIdle());
     if (name == "focused")
         return formatJson(handleFocused());
     if (name == "cursor_window")
@@ -1215,6 +1235,8 @@ void DebugServer::handleWebSocketMessage(QWebSocket *socket, const QString &mess
         result = handleWindows();
     } else if (command == "clients") {
         result = handleClients();
+    } else if (command == "idle") {
+        result = handleIdle();
     } else if (command == "focused") {
         result = handleFocused();
     } else if (command == "cursor-window") {
