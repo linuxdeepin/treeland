@@ -45,7 +45,7 @@
 #include "modules/shortcut/shortcutmanager.h"
 #include "modules/shortcut/shortcutrunner.h"
 #include "modules/wallpaper-color/wallpapercolorinterfacev1.h"
-#include "modules/virtual-output/virtualoutputmanagerinterfacev1.h"
+#include "modules/output-group/outputgroupmanagerinterfacev1.h"
 #include "output/output.h"
 #include "output/outputmanager.h"
 #include "seatuserconfig.hpp"
@@ -596,21 +596,13 @@ Output *WaylandServer::getOutput(WOutput *output) const
 
 Output *WaylandServer::getOutputByUuid(const QString &uuid) const
 {
-    if (uuid.isEmpty())
-        return nullptr;
-
-    // Search the root container's output model, NOT outputs() above:
-    // RootSurfaceContainer::addOutput() appends to the model and emits
-    // rowsInserted before OutputManager appends the output to m_outputs, so
-    // an output is visible here while still missing from outputs().
-    // Uuid-addressed objects re-resolve on that signal (picture controls
-    // following their output) and must see the freshly added output.
-    const auto &outputs = m_rootSurfaceContainer->outputs();
-    for (auto *output : outputs) {
-        if (output->uuid() == uuid)
-            return output;
-    }
-    return nullptr;
+    // Single authoritative uuid lookup, shared with OutputManager (which owns
+    // the output list). Uuid-addressed objects re-resolve on the output model's
+    // rowsInserted/rowsRemoved signals; by the time rowsInserted fires the
+    // output is already in OutputManager::m_outputs (processOutputAdded
+    // appends before registering in the root container), so this lookup sees
+    // the freshly added output.
+    return m_outputManager->findOutputByUuid(uuid);
 }
 
 const QList<Output *> &WaylandServer::outputs() const
@@ -1065,8 +1057,8 @@ WXdgOutputManager *WaylandServer::installDesktopProtocols(QmlEngine *engine)
     m_wallpaperColorV1 = server()->attach<WallpaperColorInterfaceV1>();
     m_showDesktop->initialize(server());
     m_xWindowControlInterfaceV1 = server()->attach<XWindowControlInterfaceV1>();
-    auto *virtualOutputInterface = server()->attach<VirtualOutputManagerInterfaceV1>();
-    m_outputManager->setVirtualOutputInterface(virtualOutputInterface);
+    auto *outputGroupInterface = server()->attach<OutputGroupManagerInterfaceV1>();
+    m_outputManager->setOutputGroupInterface(outputGroupInterface);
 
     m_captureManager->installProtocol(server(), engine, m_renderWindow);
     m_surfaceProtocols->installPersonalization(server());

@@ -36,6 +36,8 @@ public:
     SeatUserDConfig *userSeatConfig(const QString &userName, const QString &seatName);
     OutputConfig *outputConfig(const QString &outputName);
     AppConfig *appConfig(const QString &appId);
+    // Per output group configuration, stored under the group name subpath.
+    TreelandConfig *outputGroupConfig(const QString &groupName);
 
     // Creates and caches the initial user's configs. Returns true only when both
     // configs have already finished successfully; callers should listen for
@@ -66,6 +68,7 @@ private:
     QHash<QString, SeatUserDConfig *> m_seatUserConfigs;
     QHash<QString, OutputConfig *> m_outputConfigs;
     QHash<QString, AppConfig *> m_appConfigs;
+    QHash<QString, TreelandConfig *> m_outputGroupConfigs;
     TreelandUserConfig *m_initialUserConfig = nullptr;
 
     WaylandServer *m_server = nullptr;

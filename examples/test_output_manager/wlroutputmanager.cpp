@@ -59,6 +59,13 @@ private:
     bool m_finished = false;
 };
 
+// Kept in an anonymous namespace to give it internal linkage: the example links
+// several .cpp files together, and outputuuid.h also defines a global-scope
+// HeadTracker with a different set of overridden events. Two external-linkage
+// classes with the same name in one program is an ODR violation whose weak
+// vtable symbols get merged by the linker, causing virtual dispatch to the
+// wrong override set (and here, a crash in WlrOutputManager::heads()).
+namespace {
 class HeadTracker : public QtWayland::zwlr_output_head_v1
 {
 public:
@@ -126,6 +133,7 @@ protected:
 private:
     bool m_finished = false;
 };
+} // namespace
 
 class ConfigWatcher : public QObject, public QtWayland::zwlr_output_configuration_v1
 {
