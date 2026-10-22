@@ -24,6 +24,7 @@ Multitaskview::Multitaskview(QQuickItem *parent)
     : QQuickItem(parent)
     , m_status(Uninitialized)
     , m_activeReason(ShortcutKey)
+    , m_initialWorkspaceId(WaylandServer::instance()->workspace()->current()->id())
 {
 }
 
@@ -79,7 +80,14 @@ void Multitaskview::exit(SurfaceWrapper *surface, bool immediately, bool restore
 
     WaylandServer::instance()->setBlockActivateSurface(false);
 
-    if (restoreFocus) {
+    // Browsing other workspaces commits a switch only when leaving the overview.
+    if (WaylandServer::instance()->workspace()->current()->id() != m_initialWorkspaceId)
+        WaylandServer::instance()->cancelShowDesktop();
+
+    // Dismissing the view without selecting a window must keep showing the desktop.
+    if (restoreFocus
+        && (surface || WaylandServer::instance()->showDesktopState()
+                           != ShowDesktopInterfaceV1::State::Show)) {
         if (!surface)
             surface = WaylandServer::instance()->workspace()->current()->latestActiveSurface();
         if (surface)
@@ -101,8 +109,11 @@ void Multitaskview::exit(SurfaceWrapper *surface, bool immediately, bool restore
 
 void Multitaskview::enter(ActiveReason reason)
 {
-    WaylandServer::instance()->cancelShowDesktop();
-    WaylandServer::instance()->activateSurface(nullptr);
+    // Keep the hidden windows and their activation state for the next desktop toggle.
+    if (WaylandServer::instance()->showDesktopState() == ShowDesktopInterfaceV1::State::Show)
+        WaylandServer::instance()->requestKeyboardFocus(nullptr);
+    else
+        WaylandServer::instance()->activateSurface(nullptr);
     if (reason == ActiveReason::ShortcutKey)
         WaylandServer::instance()->setCurrentMode(WaylandServer::CurrentMode::Multitaskview);
     setActiveReason(reason);

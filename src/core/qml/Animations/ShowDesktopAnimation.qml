@@ -14,6 +14,8 @@ Item {
 
     required property var target
     required property bool showDesktop
+    // The snapshot is a sibling of the window and must follow its workspace visibility.
+    visible: target.showOnAllWorkspace || target.workspaceId === WaylandServer.workspace.current.id
     property int duration: 500 * WaylandServer.animationSpeed //500: Initial design requirements
 
     // The real Decoration (XdgShadow + Border) is a child of `target` laid out at

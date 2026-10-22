@@ -55,15 +55,12 @@ void ShellActionExecutor::execute(ShellAction action)
     case ShellAction::SwitchWorkspace11:
     case ShellAction::SwitchWorkspace12:
         // switchTo() ignores out-of-range indexes, as the protocol requires.
-        server->restoreFromShowDesktop();
         server->workspace()->switchTo(static_cast<int>(action) - static_cast<int>(ShellAction::SwitchWorkspace1));
         break;
     case ShellAction::PreviousWorkspace:
-        server->restoreFromShowDesktop();
         server->workspace()->switchToPrev();
         break;
     case ShellAction::NextWorkspace:
-        server->restoreFromShowDesktop();
         server->workspace()->switchToNext();
         break;
     case ShellAction::ToggleShowDesktop:
@@ -97,7 +94,6 @@ void ShellActionExecutor::execute(ShellAction action)
         if (!server->m_multitaskView || !server->isNormalOrMultitaskview()) {
             break;
         }
-        server->restoreFromShowDesktop();
         server->m_multitaskView->toggleMultitaskView(IMultitaskView::ActiveReason::ShortcutKey);
         break;
     case ShellAction::ToggleFpsDisplay:

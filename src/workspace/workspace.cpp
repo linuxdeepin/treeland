@@ -208,6 +208,9 @@ void Workspace::setCurrentIndex(int newCurrentIndex)
     if (currentIndex() == newCurrentIndex)
         return;
 
+    // Selecting a workspace in the overview does not commit the switch yet.
+    if (WaylandServer::instance()->currentMode() != WaylandServer::CurrentMode::Multitaskview)
+        WaylandServer::instance()->cancelShowDesktop();
     doSetCurrentIndex(newCurrentIndex);
 
     for (int i = 0; i < m_models->rowCount(); ++i) {
@@ -467,6 +470,9 @@ void Workspace::doRemoveModel(int index)
     auto oldCurrent = this->current();
     auto oldCurrentIndex = this->currentIndex();
     auto model = this->modelAt(index);
+    if (oldCurrent == model
+        && WaylandServer::instance()->currentMode() != WaylandServer::CurrentMode::Multitaskview)
+        WaylandServer::instance()->cancelShowDesktop();
     m_models->removeObject(model);
 
     if (oldCurrent == model) {

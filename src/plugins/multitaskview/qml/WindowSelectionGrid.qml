@@ -132,7 +132,7 @@ Item {
                     property real fullY
 
                     focus: true
-                    visible: multitaskview.status == Multitaskview.Exited ? !minimized : true
+                    visible: multitaskview.status == Multitaskview.Exited ? !minimized && wrapper.visible : true
                     clip: false
                     state:  {
                         drg.active ? "dragging" : surfaceGridView.state

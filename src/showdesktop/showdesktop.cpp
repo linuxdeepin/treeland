@@ -50,9 +50,24 @@ void ShowDesktop::onShowDesktop()
 
     m_showDesktop = s;
     Q_EMIT stateChanged();
-    const auto &surfaces = m_outputManager->workspaceSurfaces();
-    for (auto &surface : surfaces) {
+    if (s == ShowDesktopInterfaceV1::State::Show) {
+        m_hiddenSurfaces.clear();
+        const auto surfaces = m_outputManager->workspaceSurfaces();
+        for (auto *surface : surfaces) {
+            if (!surface->isMinimized())
+                m_hiddenSurfaces.append(surface);
+        }
+    }
+    // The overview may select another workspace or move these windows before exit.
+    const auto surfaces = m_hiddenSurfaces;
+    if (s == ShowDesktopInterfaceV1::State::Normal)
+        m_hiddenSurfaces.clear();
+    for (const auto &surface : surfaces) {
+        if (!surface)
+            continue;
         if (surface->isMinimized()) {
+            if (s == ShowDesktopInterfaceV1::State::Normal)
+                surface->setHideByShowDesk(true);
             continue;
         }
         if (s == ShowDesktopInterfaceV1::State::Normal) {
@@ -105,20 +120,25 @@ void ShowDesktop::restoreShowDesktopFocus()
     }
 }
 
-void ShowDesktop::cancelShowDesktop(SurfaceWrapper *excludeSurface)
+void ShowDesktop::cancelShowDesktop(SurfaceWrapper *activeSurface)
 {
     if (m_showDesktop != ShowDesktopInterfaceV1::State::Show)
         return;
     m_showDesktop = ShowDesktopInterfaceV1::State::Normal;
     m_showDesktopInterfaceV1->setDesktopState(ShowDesktopInterfaceV1::State::Normal);
-    const auto &surfaces = m_outputManager->workspaceSurfaces();
-    for (auto &surface : surfaces) {
-        if (surface == excludeSurface)
+    Q_EMIT stateChanged();
+    auto surfaces = m_hiddenSurfaces;
+    m_hiddenSurfaces.clear();
+    if (activeSurface && !activeSurface->m_hideByshowDesk && !surfaces.contains(activeSurface))
+        surfaces.append(activeSurface);
+    for (const auto &surface : surfaces) {
+        if (!surface)
             continue;
-        if (!surface->isMinimized() && !surface->isVisible()) {
+        if (surface->isMinimized()) {
             surface->setHideByShowDesk(true);
-            surface->minimize(/*onAnimation=*/ false);
+            continue;
         }
+        surface->startShowDesktopAnimation(true);
     }
 }
 
@@ -127,9 +147,6 @@ void ShowDesktop::restoreFromShowDesktop(SurfaceWrapper *activeSurface)
     if (m_showDesktop != ShowDesktopInterfaceV1::State::Show)
         return;
     cancelShowDesktop(activeSurface);
-    if (activeSurface) {
-        activeSurface->restoreFromMinimized();
-    }
     restoreShowDesktopFocus();
 }
 

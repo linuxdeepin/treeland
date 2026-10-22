@@ -74,6 +74,7 @@ private:
 
     Status m_status;
     ActiveReason m_activeReason;
+    int m_initialWorkspaceId;
     qreal m_partialFactor{ 0.0 };
     bool m_gestureCommitted{ false };
 };

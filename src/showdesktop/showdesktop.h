@@ -5,6 +5,9 @@
 
 #include "modules/show-desktop/showdesktopinterfacev1.h"
 
+#include <QList>
+#include <QPointer>
+
 class WaylandServer;
 class OutputManager;
 class SurfaceWrapper;
@@ -20,7 +23,7 @@ public:
     bool isAvailable() const;
     ShowDesktopInterfaceV1::State state() const;
     void setState(ShowDesktopInterfaceV1::State state);
-    void cancelShowDesktop(SurfaceWrapper *excludeSurface = nullptr);
+    void cancelShowDesktop(SurfaceWrapper *activeSurface = nullptr);
     void restoreFromShowDesktop(SurfaceWrapper *activeSurface = nullptr);
     void restoreShowDesktopFocus();
 
@@ -35,4 +38,5 @@ private:
     OutputManager *m_outputManager = nullptr;
     ShowDesktopInterfaceV1 *m_showDesktopInterfaceV1 = nullptr;
     ShowDesktopInterfaceV1::State m_showDesktop = ShowDesktopInterfaceV1::State::Normal;
+    QList<QPointer<SurfaceWrapper>> m_hiddenSurfaces;
 };
