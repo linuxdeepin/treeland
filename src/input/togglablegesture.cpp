@@ -1,9 +1,9 @@
-// Copyright (C) 2024-2025 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "togglablegesture.h"
 
-#include "input/inputdevice.h"
+#include "input/gesturemanager.h"
 
 TogglableGesture::TogglableGesture(QObject *parent)
     : QObject(parent)
@@ -172,13 +172,13 @@ void TogglableGesture::addTouchpadSwipeGesture(SwipeGesture::Direction direction
     if (direction == SwipeGesture::Invalid)
         return;
 
-    InputDevice::instance()->registerTouchpadSwipe(
+    GestureManager::instance()->registerTouchpadSwipe(
         SwipeFeedBack{ direction,
                        finger,
                        this->activeTriggeredCallback(),
                        this->progressCallback() });
 
-    InputDevice::instance()->registerTouchpadSwipe(
+    GestureManager::instance()->registerTouchpadSwipe(
         SwipeFeedBack{ SwipeGesture::opposite(direction),
                        finger,
                        this->deactivateTriggeredCallback(),
@@ -195,5 +195,5 @@ void TogglableGesture::addTouchpadHoldGesture(uint finger)
         Q_EMIT hold();
     };
 
-    InputDevice::instance()->registerTouchpadHold(HoldFeedBack{ finger, trigger, pressed });
+    GestureManager::instance()->registerTouchpadHold(HoldFeedBack{ finger, trigger, pressed });
 }
