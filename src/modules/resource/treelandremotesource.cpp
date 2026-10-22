@@ -5,6 +5,7 @@
 
 #include "core/rootsurfacecontainer.h"
 #include "core/shellhandler.h"
+#include "idle/idlemanager.h"
 #include "output/output.h"
 #include "core/waylandserver.h"
 #include "surface/surfacecontainer.h"
@@ -605,6 +606,44 @@ QList<ClientInfo> TreelandRemoteSource::getClients()
         result.append(info);
     }
     return result;
+}
+
+IdleInfo TreelandRemoteSource::getIdleInfo()
+{
+    IdleInfo info;
+    auto *server = WaylandServer::instance();
+    auto *idle = server ? server->idleManager() : nullptr;
+    if (!idle)
+        return info;
+
+    info.setInhibited(idle->isIdleInhibited());
+    info.setScreensaverInhibited(idle->isScreensaverInhibited());
+    info.setIdleMs(static_cast<quint64>(qMax<qint64>(idle->idleMs(), 0)));
+
+    QList<IdleInhibitor> inhibitors;
+    for (const auto &source : idle->inhibitors()) {
+        IdleInhibitor entry;
+        // Same id scheme as the window list, so an inhibitor surface shows up
+        // in ``windows``/``top`` and can be used as a control target — but only
+        // when the inhibitor is held on a toplevel surface. Layer-shell and
+        // subsurface inhibitors (common for video players) report the raw
+        // surface id, which the window list does not contain.
+        entry.setSurfaceId(source.surface ? reinterpret_cast<qint64>(source.surface->resource) : 0);
+        entry.setKind(source.kind);
+        entry.setAppId(source.appId);
+        entry.setTitle(source.title);
+        entry.setPid(source.pid);
+        entry.setExecutable(executableForPid(source.pid));
+        entry.setCommand(commandForPid(source.pid));
+        entry.setAppName(source.appName);
+        entry.setReason(source.reason);
+        entry.setActive(source.active);
+        entry.setHeldMs(source.heldMs);
+        inhibitors.append(entry);
+    }
+    info.setInhibitors(inhibitors);
+
+    return info;
 }
 
 bool TreelandRemoteSource::activateWindow(qint64 id)
