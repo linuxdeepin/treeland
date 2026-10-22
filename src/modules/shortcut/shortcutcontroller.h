@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "input/gestures.h"
+#include "input/swipegesture.h"
 #include "modules/shortcut/qwayland-server-treeland-shortcut-manager-unstable-v3.h"
 
 #include <QMap>

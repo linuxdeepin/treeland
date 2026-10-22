@@ -4,7 +4,7 @@
 #include "shortcutmanager.h"
 
 #include "common/treelandlogging.h"
-#include "input/gestures.h"
+#include "input/swipegesture.h"
 #include "qwayland-server-treeland-shortcut-manager-unstable-v3.h"
 #include "core/waylandserver.h"
 #include "seat/seatmanager.h"

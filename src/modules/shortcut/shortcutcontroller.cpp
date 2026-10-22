@@ -7,7 +7,7 @@
 
 #include "common/treelandlogging.h"
 #include "input/gesturemanager.h"
-#include "input/gestures.h"
+#include "input/swipegesture.h"
 
 #include <QKeyEvent>
 #include <QKeySequence>
