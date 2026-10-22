@@ -94,8 +94,6 @@ PictureControlV2Private::PictureControlV2Private(PictureControlV2 *_q, wl_resour
 
 void PictureControlV2Private::resolveOutput()
 {
-    // The lookup itself (and why it must go through the output model) lives
-    // in WaylandServer::getOutputByUuid().
     attachOutput(WaylandServer::instance()->getOutputByUuid(uuid));
 }
 
