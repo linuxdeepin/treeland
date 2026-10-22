@@ -63,6 +63,28 @@ Item {
         defaultLogLevel: LoggingCategory.Info
     }
 
+    component PopoverCloseButton: D.ToolButton {
+        id: closeButton
+
+        property int maximumSize: PopoverStyle.closeButtonMaxSize
+        // Rounded down to an even number so the circle keeps a whole-pixel centre.
+        readonly property int diameter: 2 * Math.floor(maximumSize / 2)
+
+        implicitWidth: diameter
+        implicitHeight: diameter
+        padding: 0
+        icon.name: "close"
+        icon.width: Math.round(diameter * 0.6)
+        icon.height: Math.round(diameter * 0.6)
+        // DTK paints the background as a rounded BoxPanel; half the size is a circle.
+        Binding {
+            target: closeButton.background
+            property: "radius"
+            value: closeButton.diameter / 2
+            when: closeButton.background
+        }
+    }
+
     /* --- model begin --- */
     ListModel {
         id: filterSurfaceModel
@@ -554,7 +576,7 @@ Item {
             }
 
             // one close button per preview, shown while hovering this item
-            D.ToolButton {
+            PopoverCloseButton {
                 id: closeButton
                 anchors {
                     top: parent.top
@@ -562,11 +584,6 @@ Item {
                     topMargin: 10
                     rightMargin: 10
                 }
-                implicitWidth: 24
-                implicitHeight: 24
-                icon.name: "close"
-                icon.width: 16
-                icon.height: 16
                 visible: hoverHandler.hovered && !isRemoving
                 onClicked: {
                     listview.highlightItem.visible = false
@@ -838,28 +855,13 @@ Item {
                 }
             }
 
-            D.ToolButton {
-                id: closeButton
+            PopoverCloseButton {
                 // Never taller than the title row it appears in.
-                readonly property int size: 2 * Math.floor(Math.min(PopoverStyle.closeButtonMaxSize,
-                                                                   titleIconText.implicitHeight) / 2)
-                implicitWidth: size
-                implicitHeight: size
-                padding: 0
+                maximumSize: Math.min(PopoverStyle.closeButtonMaxSize,
+                                      titleIconText.implicitHeight)
                 visible: titleHover.hovered
                 Layout.alignment: Qt.AlignVCenter | Qt.AlignRight
                 Layout.rightMargin: 6
-                icon.name: "close"
-                icon.width: Math.round(size * 0.6)
-                icon.height: Math.round(size * 0.6)
-                // DTK paints the button background as a rounded BoxPanel; half
-                // the size turns it into a circle.
-                Binding {
-                    target: closeButton.background
-                    property: "radius"
-                    value: closeButton.size / 2
-                    when: closeButton.background
-                }
                 onClicked: {
                     listview.model.closeAllWindow()
                 }
