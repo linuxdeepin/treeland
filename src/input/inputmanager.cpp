@@ -6,7 +6,7 @@
 #include "seatuserconfig.hpp"
 #include "treelandconfig.hpp"
 #include "core/waylandserver.h"
-#include "inputdevice.h"
+#include "libinputconfig.h"
 #include "gesturemanager.h"
 #include "common/treelandlogging.h"
 #include "modules/input-manager/inputmanagerinterfacev1.h"
