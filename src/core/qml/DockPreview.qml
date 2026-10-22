@@ -14,10 +14,18 @@ import org.deepin.dtk 1.0 as D
 Item {
     id: root
     property int aniDuration: 200
-    // whether animations are enabled; default to true when aniDuration > 0
     property bool enableAnimation: aniDuration > 0
     property alias spacing: listview.spacing
+
+    readonly property int panelHorizontalPadding: root.isTooltip
+                                                  ? PopoverStyle.tooltipHorizontalPadding
+                                                  : listview.spacing
+    readonly property int panelVerticalPadding: root.isTooltip
+                                                ? PopoverStyle.tooltipVerticalPadding
+                                                : listview.spacing
     property bool enableBlur: true
+    property bool enableShadow: GraphicsInfo.api !== GraphicsInfo.Software
+    property bool enableBorder: true
     // set by States
     property bool isHorizontal
     // set by show()
@@ -345,12 +353,13 @@ Item {
 
     TextMetrics {
         id: tooltipMetrics
-        font.pointSize: 12
+        font: PopoverStyle.textFont
         text: root.tooltip
     }
 
     function getWidth(removing) {
-        let tooltipWidth = Math.min(tooltipMetrics.width + listview.spacing * 2, root.outPutSize.width);
+        const tooltipWidth = Math.min(Math.round(tooltipMetrics.width) + 2 * root.panelHorizontalPadding,
+                                      root.outPutSize.width);
         if (removing && root.isTooltip)
             return tooltipWidth;
 
@@ -475,7 +484,7 @@ Item {
             z: (isRemoving ? -index : (listview.delegateZBase - index))
             visible: true
             radius: listview.radius
-            color: Qt.rgba(0, 0, 0, 0.05) // TODO: dark mode
+            color: PopoverStyle.itemBackground
 
             required property var index
             required property var wrapper // from filterSurfaceModel
@@ -642,7 +651,7 @@ Item {
     Rectangle {
         id: background
         z: root.z
-        color: "#33ffffff"
+        color: PopoverStyle.tintFor(root.enableBlur && backgroundBlur.blurEnabled)
         implicitWidth: {
             let newWidth = getWidth(true);
             // TODO: remove if Qt fix QTBUG-132588(maybe in Qt 6.10 or 6.8)
@@ -651,23 +660,41 @@ Item {
             return newWidth;
         }
         implicitHeight: {
-            let newHiehgt = getHeight(true) + 2 * listview.spacing;
+            let newHeight = Math.max(Math.round(getHeight(true)) + 2 * root.panelVerticalPadding,
+                                     root.isTooltip ? PopoverStyle.tooltipMinimumHeight : 0);
             // TODO: remove if Qt fix QTBUG-132588(maybe in Qt 6.10 or 6.8)
-            if (!Number.isFinite(newHiehgt))
+            if (!Number.isFinite(newHeight))
                 return implicitHeight;
-            return newHiehgt;
+            return newHeight;
         }
 
-        radius: listview.radius
+        radius: PopoverStyle.radius
         clip: false
         parent: root.parent
         visible: root.visible
 
+        XdgShadow {
+            visible: root.enableShadow
+            cornerRadius: background.radius
+            shadowBlur: PopoverStyle.shadowBlur
+            shadowOffsetX: 0
+            shadowOffsetY: PopoverStyle.shadowOffsetY
+            shadowColor: PopoverStyle.shadowColor
+        }
+
         Blur {
+            id: backgroundBlur
             anchors.fill: parent
             visible: root.enableBlur
-            radius: listview.radius
-            blurEnabled: root.enableBlur
+            radius: background.radius
+        }
+
+        Border {
+            anchors.fill: parent
+            visible: root.enableBorder
+            radius: background.radius
+            outsideColor: PopoverStyle.borderOutsideColor
+            insideColor: PopoverStyle.borderInsideColor
         }
 
         HoverHandler {
@@ -692,9 +719,9 @@ Item {
                 left: background.left
                 right: background.right
                 top: background.top
-                leftMargin: listview.spacing
-                rightMargin: listview.spacing
-                topMargin: listview.spacing
+                leftMargin: root.panelHorizontalPadding
+                rightMargin: root.panelHorizontalPadding
+                topMargin: root.panelVerticalPadding
             }
 
             Rectangle {
@@ -758,7 +785,8 @@ Item {
                     id: tooltipText
                     anchors.fill: parent
                     text: root.tooltip
-                    font.pointSize: 12  // FIXME: D.DTK.fontManager.t6 can't work under waylib qpa
+                    font: PopoverStyle.textFont
+                    color: PopoverStyle.textColor
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
                     transformOrigin: Item.BottomLeft
@@ -789,7 +817,8 @@ Item {
                     Text {
                         text: filterSurfaceModel.count ?
                                   filterSurfaceModel.get(Math.max(listview.currentIndex, 0)).wrapper.shellSurface.title : ""
-                        font.pointSize: 14  // FIXME: D.DTK.fontManager can't work under waylib qpa
+                        font: PopoverStyle.titleFont
+                        color: PopoverStyle.titleColor
                         elide: Text.ElideRight
                         horizontalAlignment: Text.AlignLeft
                         verticalAlignment: Text.AlignVCenter
@@ -810,14 +839,27 @@ Item {
             }
 
             D.ToolButton {
-                implicitWidth: 24
-                implicitHeight: 24
+                id: closeButton
+                // Never taller than the title row it appears in.
+                readonly property int size: 2 * Math.floor(Math.min(PopoverStyle.closeButtonMaxSize,
+                                                                   titleIconText.implicitHeight) / 2)
+                implicitWidth: size
+                implicitHeight: size
+                padding: 0
                 visible: titleHover.hovered
                 Layout.alignment: Qt.AlignVCenter | Qt.AlignRight
                 Layout.rightMargin: 6
                 icon.name: "close"
-                icon.width: 16
-                icon.height: 16
+                icon.width: Math.round(size * 0.6)
+                icon.height: Math.round(size * 0.6)
+                // DTK paints the button background as a rounded BoxPanel; half
+                // the size turns it into a circle.
+                Binding {
+                    target: closeButton.background
+                    property: "radius"
+                    value: closeButton.size / 2
+                    when: closeButton.background
+                }
                 onClicked: {
                     listview.model.closeAllWindow()
                 }
