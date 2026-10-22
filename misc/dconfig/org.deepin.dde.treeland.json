@@ -101,36 +101,36 @@
             "permissions": "readwrite",
             "visibility": "public"
         },
-        "createCopyOutput": {
-            "value": false,
+        "outputGroups": {
+            "value": "[]",
             "serial": 0,
             "flags": [],
-            "name": "Create Copy Output",
-            "name[zh_CN]": "创建复制输出",
-            "description": "Whether treeland should restore copy output mode when enough outputs are available.",
-            "description[zh_CN]": "当存在足够输出时，treeland 是否恢复复制输出模式。",
+            "name": "Output Groups",
+            "name[zh_CN]": "输出分组列表",
+            "description": "JSON string array of persisted output group names.",
+            "description[zh_CN]": "持久化的输出分组名称的 JSON 字符串数组。",
             "permissions": "readwrite",
             "visibility": "public"
         },
-        "copyOutputName": {
+        "outputGroupSource": {
             "value": "",
             "serial": 0,
             "flags": [],
-            "name": "Copy Output Name",
-            "name[zh_CN]": "复制输出名称",
-            "description": "Virtual output group name used when restoring copy output mode.",
-            "description[zh_CN]": "恢复复制输出模式时使用的虚拟输出组名称。",
+            "name": "Output Group Source UUID",
+            "name[zh_CN]": "输出分组的源输出 UUID",
+            "description": "Configured source output uuid of one output group. Stored under the group name subpath.",
+            "description[zh_CN]": "某个输出分组的配置源输出 uuid。存放于以分组名为名的子路径下。",
             "permissions": "readwrite",
             "visibility": "public"
         },
-        "copyOutputOutputs": {
-            "value": "",
+        "outputGroupMirrors": {
+            "value": "[]",
             "serial": 0,
             "flags": [],
-            "name": "Copy Output IDs",
-            "name[zh_CN]": "复制输出 ID 队列",
-            "description": "JSON string array of output IDs for copy mode. The first element is copied and subsequent elements mirror it.",
-            "description[zh_CN]": "复制模式输出 ID 的 JSON 字符串数组。第一个元素是被复制屏，后续元素镜像它。",
+            "name": "Output Group Mirror UUIDs",
+            "name[zh_CN]": "输出分组的镜像输出 UUID 队列",
+            "description": "JSON string array of configured mirror output uuids of one output group, in list order.",
+            "description[zh_CN]": "某个输出分组配置的镜像输出 uuid 的 JSON 字符串数组，按列表顺序。",
             "permissions": "readwrite",
             "visibility": "public"
         }

@@ -3,13 +3,11 @@
 #pragma once
 
 #include "outputuuid.h"
-#include "qwayland-treeland-virtual-output-manager-v1.h"
 #include "qwayland-treeland-output-manager-unstable-v2.h"
 
 #include <QHash>
 #include <QMap>
 #include <QObject>
-#include <QSharedPointer>
 #include <QWaylandClientExtension>
 #include <memory>
 
@@ -20,8 +18,8 @@ class QSlider;
 class QSpinBox;
 class QPushButton;
 class QTimer;
-class VirtualOutputManager;
-class VirtualOutput;
+class OutputGroupManager;
+class OutputGroup;
 class WlrOutputManager;
 class ColorControl;
 
@@ -82,16 +80,23 @@ private:
     void refreshUuids();
     void onUuidReceived(const QString &name, const QString &uuid);
     QString uuidForScreen(const QString &name) const;
+    QString screenForUuid(const QString &uuid) const;
     void updatePrimaryLabel();
     void onWlrHeadsChanged();
-    void onVirtualOutputModified(const QString &name);
     void onWlrApplyFinished(bool ok);
-    void onVirtualOutputListReceived(const QStringList &names);
-    void onVirtualOutputOutputs(const QString &name, const QStringList &outputs);
+
+    void onGroupAdded(const QString &name);
+    void onGroupsDone();
+    void onGroupRemoved(const QString &name);
+    void onGroupState(const QString &groupName,
+                      const QString &sourceUuid,
+                      const QStringList &mirrorUuids);
 
     void updateMirrorGroup();
+    void attachGroup(const QString &name);
+    void updateScreenToGroup();
 
-    std::unique_ptr<VirtualOutputManager> m_virtualManager;
+    std::unique_ptr<OutputGroupManager> m_groupManager;
     std::unique_ptr<TreelandOutputManager> m_treelandManager;
     std::unique_ptr<WlrOutputManager> m_wlrManager;
     std::unique_ptr<OutputUuidManagerV1> m_uuidManager;
@@ -124,5 +129,7 @@ private:
     bool m_updatingUi = false;
     QMap<QString, QStringList> m_mirrorGroups;
     QMap<QString, QString> m_screenToGroup;
-    QMap<QString, QSharedPointer<VirtualOutput>> m_virtualOutputs;
+    QMap<QString, OutputGroup *> m_groups;
+    QStringList m_groupNames;
+    QString m_pendingMirrorScreen;
 };

@@ -115,6 +115,8 @@ public:
 
     OutputConfig* config() const;
     QString uuid() const;
+    // Source output this mirror duplicates; nullptr for a normal output.
+    Output *proxyOutput() const { return m_proxy; }
 
     void adjustToOutputBounds(QPointF &pos,
                               const QRectF &normalGeo,
