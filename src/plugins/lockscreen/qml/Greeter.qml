@@ -32,10 +32,11 @@ FocusScope {
 
         readonly property int scaleDuration: 1000
         readonly property int duration: (GreeterProxy.isLocked || scale !== 1) ? scaleDuration : 600
+        readonly property bool hasWallpaper: wallpaper.surface !== null
         property real effectStrength: 0.0
         anchors.fill: parent
         clip: true
-        color: 'transparent'
+        color: hasWallpaper ? 'transparent' : 'black'
         opacity: 0.0
         transformOrigin: Item.Center
         scale: GreeterProxy.isLocked ? 1.2 : 1
@@ -127,7 +128,7 @@ FocusScope {
 
             anchors.fill: parent
             clip: true
-	        visible: true
+            visible: background.hasWallpaper
 
             property variant source: wallpaper
             property real u_dimRatio: 0.25
