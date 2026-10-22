@@ -5,7 +5,7 @@
 #include "common/treelandlogging.h"
 #include "dconfig/dconfigmanager.h"
 #include "core/waylandserver.h"
-#include "input/inputdevice.h"
+#include "input/libinputconfig.h"
 #include "seatuserconfig.hpp"
 #include "usermodel.h"
 

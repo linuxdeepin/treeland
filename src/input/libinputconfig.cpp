@@ -1,10 +1,10 @@
-// Copyright (C) 2024-2026 UnionTech Software Technology Co., Ltd.
+// Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
-#include "inputdevice.h"
+#include "libinputconfig.h"
 #include "common/treelandlogging.h"
 
-#include <winputdevice.h>
+#include <wlr_all.h>
 
 #include <QLoggingCategory>
 
@@ -49,7 +49,7 @@ bool configTapEnabled(libinput_device *device, libinput_config_tap_state tap)
     return ensureStatus(status);
 }
 
-[[maybe_unused]] static bool configTapButtonMap(libinput_device *device, libinput_config_tap_button_map map)
+bool configTapButtonMap(libinput_device *device, libinput_config_tap_button_map map)
 {
     if (libinput_device_config_tap_get_finger_count(device) <= 0) {
         qCCritical(lcTlInput) << "libinput_device_config_tap_set_button_map is invalid";
@@ -67,7 +67,7 @@ bool configTapEnabled(libinput_device *device, libinput_config_tap_state tap)
     return ensureStatus(status);
 }
 
-[[maybe_unused]] static bool configTapDragEnabled(libinput_device *device, libinput_config_drag_state drag)
+bool configTapDragEnabled(libinput_device *device, libinput_config_drag_state drag)
 {
     if (libinput_device_config_tap_get_finger_count(device) <= 0) {
         qCCritical(lcTlInput) << "libinput_device_config_tap_set_drag_enabled is invalid";
@@ -85,7 +85,7 @@ bool configTapEnabled(libinput_device *device, libinput_config_tap_state tap)
     return ensureStatus(status);
 }
 
-[[maybe_unused]] static bool configTapDragLockEnabled(libinput_device *device, libinput_config_drag_lock_state lock)
+bool configTapDragLockEnabled(libinput_device *device, libinput_config_drag_lock_state lock)
 {
     if (libinput_device_config_tap_get_finger_count(device) <= 0) {
         qCCritical(lcTlInput) << "libinput_device_config_tap_set_drag_enabled is invalid";
@@ -122,7 +122,7 @@ bool configAccelSpeed(libinput_device *device, double speed)
     return ensureStatus(status);
 }
 
-[[maybe_unused]] static bool configRotationAngle(libinput_device *device, double angle)
+bool configRotationAngle(libinput_device *device, double angle)
 {
     if (!libinput_device_config_rotation_is_available(device)) {
         qCCritical(lcTlInput) << "libinput_device_config_rotation_set_angle is invalid";
@@ -195,7 +195,7 @@ bool configLeftHanded(libinput_device *device, bool left)
     return ensureStatus(status);
 }
 
-[[maybe_unused]] static bool configClickMethod(libinput_device *device, libinput_config_click_method method)
+bool configClickMethod(libinput_device *device, libinput_config_click_method method)
 {
     uint32_t click = libinput_device_config_click_get_methods(device);
     if ((click & ~LIBINPUT_CONFIG_CLICK_METHOD_NONE) == 0
@@ -209,7 +209,7 @@ bool configLeftHanded(libinput_device *device, bool left)
     return ensureStatus(status);
 }
 
-[[maybe_unused]] static bool configMiddleEmulation(libinput_device *device,
+bool configMiddleEmulation(libinput_device *device,
                                   libinput_config_middle_emulation_state mid)
 {
     if (!libinput_device_config_middle_emulation_is_available(device)) {
@@ -229,7 +229,7 @@ bool configLeftHanded(libinput_device *device, bool left)
     return ensureStatus(status);
 }
 
-[[maybe_unused]] static bool configScrollMethod(libinput_device *device, libinput_config_scroll_method method)
+bool configScrollMethod(libinput_device *device, libinput_config_scroll_method method)
 {
     uint32_t scroll = libinput_device_config_scroll_get_methods(device);
     if ((scroll & ~LIBINPUT_CONFIG_SCROLL_NO_SCROLL) == 0
@@ -243,7 +243,7 @@ bool configLeftHanded(libinput_device *device, bool left)
     return ensureStatus(status);
 }
 
-[[maybe_unused]] static bool configScrollButton(libinput_device *device, uint32_t button)
+bool configScrollButton(libinput_device *device, uint32_t button)
 {
     uint32_t scroll = libinput_device_config_scroll_get_methods(device);
     if ((scroll & ~LIBINPUT_CONFIG_SCROLL_NO_SCROLL) == 0
@@ -257,7 +257,7 @@ bool configLeftHanded(libinput_device *device, bool left)
     return ensureStatus(status);
 }
 
-[[maybe_unused]] static bool configScrollButtonLock(libinput_device *device,
+bool configScrollButtonLock(libinput_device *device,
                                    libinput_config_scroll_button_lock_state lock)
 {
     uint32_t scroll = libinput_device_config_scroll_get_methods(device);
@@ -290,7 +290,7 @@ bool configDwtEnabled(libinput_device *device, enum libinput_config_dwt_state en
     return ensureStatus(status);
 }
 
-[[maybe_unused]] static bool configDwtpEnabled(libinput_device *device, enum libinput_config_dwtp_state enable)
+bool configDwtpEnabled(libinput_device *device, enum libinput_config_dwtp_state enable)
 {
     if (!libinput_device_config_dwtp_is_available(device)) {
         qCCritical(lcTlInput) << "libinput_device_config_dwtp_set_enabled is invalid";
@@ -308,7 +308,7 @@ bool configDwtEnabled(libinput_device *device, enum libinput_config_dwt_state en
     return ensureStatus(status);
 }
 
-[[maybe_unused]] static bool configCalibrationMatrix(libinput_device *device, float mat[])
+bool configCalibrationMatrix(libinput_device *device, float mat[])
 {
     if (!libinput_device_config_calibration_has_matrix(device)) {
         qCCritical(lcTlInput) << "setCalibrationMatrix mat is invalid";
