@@ -1944,16 +1944,19 @@ static void xwm_handle_focus_in(struct wlr_xwm *xwm,
 		return;
 	}
 
+	if (xsurface == NULL || xsurface->surface == NULL) {
+		return;
+	}
+
 	// Allow focus changes between surfaces belonging to the same
 	// application. Steam for example relies on this:
 	// https://github.com/swaywm/sway/issues/1865
-	bool same_pid = xsurface &&
-			((xwm->focus_surface && xsurface->pid == xwm->focus_surface->pid) ||
+	bool same_pid = ((xwm->focus_surface && xsurface->pid == xwm->focus_surface->pid) ||
 			(xwm->offered_focus && xsurface->pid == xwm->offered_focus->pid));
 	bool related_to_focused_window = xwm->focus_surface &&
 			(ev->detail == XCB_NOTIFY_DETAIL_ANCESTOR ||
 			ev->detail == XCB_NOTIFY_DETAIL_INFERIOR);
-	if (xsurface && (same_pid || related_to_focused_window)) {
+	if (same_pid || related_to_focused_window) {
 		xwm_set_focused_window(xwm, xsurface);
 		wl_signal_emit_mutable(&xsurface->events.focus_in, NULL);
 	} else {
