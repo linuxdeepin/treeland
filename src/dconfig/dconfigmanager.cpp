@@ -182,6 +182,24 @@ AppConfig *DConfigManager::appConfig(const QString &appId)
     return config;
 }
 
+TreelandConfig *DConfigManager::outputGroupConfig(const QString &groupName)
+{
+    if (groupName.isEmpty()) {
+        return nullptr;
+    }
+
+    if (auto *config = m_outputGroupConfigs.value(groupName)) {
+        return config;
+    }
+
+    auto *config = TreelandConfig::create(QStringLiteral("org.deepin.dde.treeland"),
+                                           configSubpath(QStringLiteral("output-groups"))
+                                               + QStringLiteral("/") + groupName,
+                                           this);
+    m_outputGroupConfigs.insert(groupName, config);
+    return config;
+}
+
 bool DConfigManager::initializeUserConfigs(const QString &userName)
 {
     m_initialUserConfig = userConfig(userName);
