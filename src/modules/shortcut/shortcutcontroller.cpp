@@ -6,7 +6,7 @@
 #include "qwayland-server-treeland-shortcut-manager-unstable-v3.h"
 
 #include "common/treelandlogging.h"
-#include "input/inputdevice.h"
+#include "input/gesturemanager.h"
 #include "input/gestures.h"
 
 #include <QKeyEvent>
@@ -109,7 +109,7 @@ uint ShortcutController::registerSwipeGesture(const QString &name, uint finger, 
     auto gestureKey = std::make_pair(finger, direction);
 
     if (!m_gestures.contains(gestureKey)) {
-        auto gesture = InputDevice::instance()->registerTouchpadSwipe(
+        auto gesture = GestureManager::instance()->registerTouchpadSwipe(
             SwipeFeedBack {
                 direction,
                 finger,
@@ -145,7 +145,7 @@ uint ShortcutController::registerSwipeGesture(const QString &name, uint finger, 
         if (entry.isEmpty()) {
             auto gesture = qobject_cast<SwipeGesture*>(m_gestures.take(gestureKey));
             if (gesture) {
-                InputDevice::instance()->unregisterTouchpadSwipe(gesture);
+                GestureManager::instance()->unregisterTouchpadSwipe(gesture);
             }
         }
     };
@@ -173,7 +173,7 @@ uint ShortcutController::registerHoldGesture(const QString &name, uint finger, S
     auto gestureKey = std::make_pair(finger, SwipeGesture::Direction::Invalid);
 
     if (!m_gestures.contains(gestureKey)) {
-        auto gesture = InputDevice::instance()->registerTouchpadHold(
+        auto gesture = GestureManager::instance()->registerTouchpadHold(
             HoldFeedBack {
                 finger,
                 nullptr,
@@ -204,7 +204,7 @@ uint ShortcutController::registerHoldGesture(const QString &name, uint finger, S
         if (entry.isEmpty()) {
             auto gesture = qobject_cast<HoldGesture*>(m_gestures.take(gestureKey));
             if (gesture) {
-                InputDevice::instance()->unregisterTouchpadHold(gesture);
+                GestureManager::instance()->unregisterTouchpadHold(gesture);
             }
         }
     };

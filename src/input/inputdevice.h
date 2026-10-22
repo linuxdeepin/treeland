@@ -3,66 +3,7 @@
 
 #pragma once
 
-#include "gestures.h"
-
 #include <libinput.h>
-
-#include <wglobal.h>
-
-#include <QInputDevice>
-
-WAYLIB_SERVER_BEGIN_NAMESPACE
-class WInputDevice;
-WAYLIB_SERVER_END_NAMESPACE
-
-WAYLIB_SERVER_USE_NAMESPACE
-
-struct SwipeFeedBack
-{
-    SwipeGesture::Direction direction;
-    uint fingerCount;
-    std::function<void(bool)> actionCallback;
-    std::function<void(qreal)> progressCallback;
-};
-
-struct HoldFeedBack
-{
-    uint fingerCount;
-    std::function<void()> actionCallback;
-    std::function<void()> longProcessCallback;
-};
-
-class InputDevice : public QObject
-{
-public:
-    static InputDevice *instance();
-
-    InputDevice(const InputDevice &) = delete;
-    InputDevice &operator=(const InputDevice &) = delete;
-
-    SwipeGesture* registerTouchpadSwipe(const SwipeFeedBack &feed_back);
-    HoldGesture* registerTouchpadHold(const HoldFeedBack &feed);
-
-    void unregisterTouchpadSwipe(SwipeGesture *gesture);
-    void unregisterTouchpadHold(HoldGesture *gesture);
-
-    void processSwipeStart(uint finger);
-    void processSwipeUpdate(const QPointF &delta);
-    void processSwipeCancel();
-    void processSwipeEnd();
-
-    void processHoldStart(uint finger);
-    void processHoldEnd();
-    void setHoldTimeout(int msec);
-
-private:
-    InputDevice(QObject *parent = nullptr);
-    ~InputDevice();
-
-    static InputDevice *m_instance;
-    std::unique_ptr<GestureRecognizer> m_touchpadRecognizer;
-    uint m_touchpadFingerCount = 0;
-};
 
 bool configAccelSpeed(libinput_device *device, double speed);
 bool configAccelProfile(libinput_device *device, libinput_config_accel_profile profile);
