@@ -143,7 +143,7 @@ private:
                                 const QStringList &outputIds = {},
                                 bool persistConfig = true);
     bool restoreConfiguredCopyMode();
-    void restoreExtensionModeFromConfig(bool preserveSingleOutputConfig = false);
+    void restoreExtensionModeFromConfig();
     void restoreInitialOutputConfiguration();
     void handleCopyModeOutputDisable(Output *affectedOutput);
     void finishInitialOutputScanIfReady();
