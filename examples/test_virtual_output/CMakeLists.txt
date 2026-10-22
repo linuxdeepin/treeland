@@ -10,17 +10,18 @@ qt_add_executable(${BIN_NAME}
     main.cpp
     virtualclient.h
     virtualclient.cpp
-    virtualoutput.h
-    virtualoutput.cpp
-    virtualoutputmanager.h
-    virtualoutputmanager.cpp
+    outputgroup.h
+    outputgroup.cpp
+    outputgroupmanager.h
+    outputgroupmanager.cpp
     wlroutputmanager.h
     wlroutputmanager.cpp
 )
 
 qt_generate_wayland_protocol_client_sources(${BIN_NAME}
     FILES
-    ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-virtual-output-manager-v1.xml
+    ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-output-group-manager-unstable-v1.xml
+    ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-output-uuid-unstable-v1.xml
     ${TREELAND_PROTOCOLS_DATA_DIR}/treeland-output-manager-v1.xml
     ${CMAKE_SOURCE_DIR}/3rdparty/wlroots/protocol/wlr-output-management-unstable-v1.xml
 )

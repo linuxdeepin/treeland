@@ -7,7 +7,7 @@
 #include "common/treelandlogging.h"
 #include "dconfig/dconfigmanager.h"
 #include "core/rootsurfacecontainer.h"
-#include "modules/virtual-output/virtualoutputmanagerinterfacev1.h"
+#include "modules/output-group/outputgroupmanagerinterfacev1.h"
 #include "output.h"
 #include "outputconfig.hpp"
 #include "session/session.h"
@@ -15,8 +15,6 @@
 #include "treelandconfig.hpp"
 #include "wallpaper/wallpapermanager.h"
 #include "workspace/workspace.h"
-#include <QJsonArray>
-#include <QJsonDocument>
 #include <QCursor>
 #include <QPointer>
 #include <QQmlEngine>
@@ -40,32 +38,6 @@
 #include <rhi/qrhi.h>
 
 namespace {
-QString serializeOutputIds(const QStringList &outputs)
-{
-    QJsonArray array;
-    for (const auto &output : std::as_const(outputs)) {
-        array.append(output);
-    }
-    return QString::fromUtf8(QJsonDocument(array).toJson(QJsonDocument::Compact));
-}
-
-QStringList deserializeOutputIds(const QString &value)
-{
-    const auto document = QJsonDocument::fromJson(value.toUtf8());
-    if (!document.isArray()) {
-        return {};
-    }
-
-    const auto array = document.array();
-    QStringList outputs;
-    for (const auto &entry : std::as_const(array)) {
-        if (entry.isString()) {
-            outputs.append(entry.toString());
-        }
-    }
-    return outputs;
-}
-
 bool hasSavedOutputState(OutputConfig *config)
 {
     return config && (!config->widthIsDefaultValue()
@@ -162,18 +134,13 @@ void OutputManager::setOutputManagementProtocol(WOutputManagerV1 *manager)
             &OutputManager::testOrApplyConfiguration);
 }
 
-void OutputManager::setVirtualOutputInterface(VirtualOutputManagerInterfaceV1 *interface)
+void OutputManager::setOutputGroupInterface(OutputGroupManagerInterfaceV1 *interface)
 {
-    Q_ASSERT(!m_virtualOutputInterface);
-    m_virtualOutputInterface = interface;
-    connect(m_virtualOutputInterface,
-            &VirtualOutputManagerInterfaceV1::requestCreateVirtualOutput,
-            this,
-            &OutputManager::createVirtualOutput);
-    connect(m_virtualOutputInterface,
-            &VirtualOutputManagerInterfaceV1::destroyVirtualOutput,
-            this,
-            &OutputManager::destroyVirtualOutput);
+    Q_ASSERT(!m_outputGroupManager);
+    m_outputGroupManager = interface;
+    if (m_outputGroupManager) {
+        m_outputGroupManager->setHost(this);
+    }
 }
 
 void OutputManager::setGammaControlManager(wlr_gamma_control_manager_v1 *manager)
@@ -267,65 +234,22 @@ void OutputManager::processOutputAdded(WOutput *output)
                        << "scan complete:" << m_initialOutputScanFinished
                        << "mode:" << static_cast<int>(m_mode);
 
-    if (!m_initialOutputScanFinished) {
-        // The initial scan collects normal outputs first. Copy mode is restored once,
-        // after backend start has reported all outputs.
-        o = createNormalOutput(output);
-    } else if (m_mode == Mode::Extension || !m_rootContainer->primaryOutput()) {
-        o = createNormalOutput(output);
-    } else if (m_mode == Mode::Copy) {
-        o = createCopyOutput(output, m_rootContainer->primaryOutput());
-    }
+    // Every output enters as a normal output; the group reconciler turns it
+    // into a mirror when a group claims it. The initial scan collects the
+    // normal outputs first and copy mode is applied once backend start has
+    // reported all outputs and the persisted groups are known.
+    o = createNormalOutput(output);
     m_outputs.append(o);
     const bool outputRegistered = ensureInRootContainer(o);
     if (!outputRegistered) {
         qCWarning(lcTlOutput) << "Failed to register output in root container" << output->name();
     }
-    if (m_initialOutputScanFinished && m_mode == Mode::Copy
-        && outputRegistered && !output->isEnabled()) {
+    if (m_initialOutputScanFinished && outputRegistered && !output->isEnabled()) {
         o->enable();
     }
     if (m_initialOutputScanFinished) {
         onScreenAdded(o, workspaceSurfaces());
-    }
-
-    if (m_initialOutputScanFinished && m_mode == Mode::Copy) {
-        QStringList copyOutputs = copyOutputIds();
-        const QString addedOutputId = o->getOutputId();
-        if (!copyOutputs.contains(addedOutputId)) {
-            copyOutputs.append(addedOutputId);
-            storeCopyOutputConfig(true, {}, copyOutputs);
-        }
-    }
-    if (m_initialOutputScanFinished && m_mode == Mode::Extension) {
-        const QString addedOutputId = o->getOutputId();
-        QMetaObject::invokeMethod(this, [this, addedOutputId] {
-            if (m_mode != Mode::Extension || !m_config->createCopyOutput()) {
-                return;
-            }
-
-            QStringList configuredCopyOutputs = copyOutputIds();
-            if (!configuredCopyOutputs.contains(addedOutputId)) {
-                const bool waitingForAnotherCopyMember = configuredCopyOutputs.size() == 1
-                    && findOutputById(configuredCopyOutputs.constFirst());
-                if (!waitingForAnotherCopyMember) {
-                    storeCopyOutputConfig(false);
-                    return;
-                }
-
-                configuredCopyOutputs.append(addedOutputId);
-                storeCopyOutputConfig(true, {}, configuredCopyOutputs);
-            }
-
-            const bool allCopyOutputsAvailable =
-                configuredCopyOutputs.size() >= 2
-                && std::all_of(configuredCopyOutputs.cbegin(),
-                               configuredCopyOutputs.cend(),
-                               [this](const QString &id) { return findOutputById(id); });
-            if (allCopyOutputsAvailable) {
-                restoreConfiguredCopyMode();
-            }
-        }, Qt::QueuedConnection);
+        notifyOutputGroupsChanged();
     }
     // The output-management protocol must advertise an output as soon as it
     // enters the compositor. DConfig restoration is asynchronous and may be
@@ -367,8 +291,7 @@ void OutputManager::processOutputAdded(WOutput *output)
         if (!isInitialOutput) {
             const bool restoreAsExtensionOutput =
                 m_mode == Mode::Extension
-                && m_config->singleOutputId().isEmpty()
-                && !m_config->createCopyOutput();
+                && m_config->singleOutputId().isEmpty();
             if (restoreAsExtensionOutput && !output->isEnabled()) {
                 outputObject->enable();
             }
@@ -576,122 +499,17 @@ void OutputManager::outputRemoved(WOutput *output)
     const auto o = m_outputs.takeAt(index);
 
     const auto &surfaces = workspaceSurfaces(o);
-    const QStringList copyOutputs = copyOutputIds();
-    const bool removedCopyOutput = copyOutputs.contains(o->getOutputId());
-    if (m_mode == Mode::Copy && removedCopyOutput) {
-        const bool removedCopySource = !copyOutputs.isEmpty()
-            && copyOutputs.constFirst() == o->getOutputId();
-
-        if (removedCopySource && !m_outputs.isEmpty()) {
-            Output *newCopySource = nullptr;
-            for (const auto &outputId : std::as_const(copyOutputs)) {
-                newCopySource = findOutputById(outputId);
-                if (newCopySource) {
-                    break;
-                }
-            }
-            if (!newCopySource) {
-                newCopySource = m_outputs.constFirst();
-            }
-
-            const auto newCopySourceId = newCopySource->getOutputId();
-            QStringList updatedCopyOutputs{ newCopySourceId };
-            for (const auto &outputId : std::as_const(copyOutputs)) {
-                if (outputId != newCopySourceId && findOutputById(outputId)) {
-                    updatedCopyOutputs.append(outputId);
-                }
-            }
-
-            const int newCopySourceIndex = m_outputs.indexOf(newCopySource);
-            removeFromRootContainer(newCopySource);
-            Output *normalCopySource = createNormalOutput(newCopySource->output());
-            normalCopySource->enable();
-            m_outputs.replace(newCopySourceIndex, normalCopySource);
-            newCopySource->deleteLater();
-
-            for (int i = 0; i < m_outputs.size(); ++i) {
-                Output *copyOutput = m_outputs.at(i);
-                if (copyOutput == normalCopySource
-                    || !copyOutputs.contains(copyOutput->getOutputId())) {
-                    continue;
-                }
-
-                removeFromRootContainer(copyOutput);
-                Output *replacement = createCopyOutput(copyOutput->output(), normalCopySource);
-                replacement->enable();
-                m_rootContainer->addOutput(replacement);
-                m_outputs.replace(i, replacement);
-                copyOutput->deleteLater();
-            }
-
-            m_rootContainer->setPrimaryOutput(normalCopySource);
-            if (!surfaces.isEmpty()) {
-                moveSurfaces(surfaces, normalCopySource, o);
-            }
-            removeFromRootContainer(o);
-
-            // Persist only the active copy group. A subsequently connected
-            // output is added as a new member, regardless of whether it is the
-            // disconnected source or a different output.
-            storeCopyOutputConfig(true, {}, updatedCopyOutputs);
-        } else {
-
-            m_mode = Mode::Extension;
-            Q_EMIT modeChanged();
-
-            QList<Output *> outputsToConvert;
-            QList<Output *> oldOutputsToDelete;
-
-            bool removedWasPrimary = (output == m_rootContainer->primaryOutput()->output());
-            Output *sourceCandidate = nullptr;
-
-            for (int i = 0; i < m_outputs.size(); i++) {
-                Output *copyOutput = m_outputs.at(i);
-
-                if (copyOutput->isSource()) {
-                    if (!sourceCandidate)
-                        sourceCandidate = copyOutput;
-                    continue;
-                }
-
-                removeFromRootContainer(copyOutput);
-                Output *normalOutput = createNormalOutput(copyOutput->output());
-                normalOutput->enable();
-                saveCurrentConfig(normalOutput);
-
-                outputsToConvert.append(normalOutput);
-                oldOutputsToDelete.append(copyOutput);
-
-                m_outputs.replace(i, normalOutput);
-
-                if (!sourceCandidate) {
-                    sourceCandidate = normalOutput;
-                }
-            }
-
-            if (removedWasPrimary && sourceCandidate) {
-                m_rootContainer->setPrimaryOutput(sourceCandidate);
-                if (!surfaces.isEmpty()) {
-                    moveSurfaces(surfaces, sourceCandidate, o);
-                }
-            }
-
-            removeFromRootContainer(o);
-
-            for (auto oldOutput : std::as_const(oldOutputsToDelete)) {
-                delete oldOutput;
-            }
-        }
-
-    } else {
-        removeFromRootContainer(o);
-        const bool removedConfiguredSingleOutput = onScreenRemoved(o, surfaces);
-        if (removedConfiguredSingleOutput) {
-            // Keep the unavailable output as the configured single-output target.
-            // The remaining outputs are enabled only as a temporary fallback.
-            restoreExtensionModeFromConfig(true);
-        }
+    removeFromRootContainer(o);
+    const bool removedConfiguredSingleOutput = onScreenRemoved(o, surfaces);
+    if (removedConfiguredSingleOutput) {
+        // Keep the unavailable output as the configured single-output target.
+        // The remaining outputs are enabled only as a temporary fallback.
+        restoreExtensionModeFromConfig(true);
     }
+    // Losing a member output never dissolves its group: the effective state
+    // drops the output, and the configured state is kept so copy mode resumes
+    // when the output comes back.
+    notifyOutputGroupsChanged();
 
     m_outputManagementProtocol->removeOutput(output);
     m_wallpaperManager->removeOutputWallpaper(output->handle());
@@ -949,53 +767,36 @@ void OutputManager::requestAdditionalOutputs()
 
 void OutputManager::applyMode(Mode mode)
 {
-    if (m_outputs.isEmpty()) {
+    if (!m_outputGroupManager) {
         return;
     }
 
-    const bool refreshExtensionMode = m_mode == mode && mode == Mode::Extension;
-    if (m_mode == mode && !refreshExtensionMode) {
+    // The menu bar toggle keeps working, but copy mode is driven by the output
+    // group protocol: it creates one group with the primary output as source
+    // and every other output as a mirror. Only the group this entry point
+    // created is dissolved again, so groups configured by other clients (the
+    // display settings panel) are left alone.
+    // Read the uuid before dissolving: dissolving may replace output objects.
+    const QString primaryUuid = m_rootContainer->primaryOutput()
+        ? m_rootContainer->primaryOutput()->uuid()
+        : QString();
+
+    if (!m_menuBarGroupName.isEmpty()) {
+        m_outputGroupManager->dissolveGroup(m_menuBarGroupName);
+        m_menuBarGroupName.clear();
+    }
+
+    if (mode != Mode::Copy || primaryUuid.isEmpty()) {
         return;
     }
 
-    if (refreshExtensionMode) {
-        clearSingleOutputConfig();
-        storeCopyOutputConfig(false);
-        restoreExtensionModeFromConfig();
-        return;
-    }
-
-    m_mode = mode;
-    if (mode == Mode::Extension) {
-        clearSingleOutputConfig();
-        restoreExtensionModeFromConfig();
-    }
-    storeCopyOutputConfig(
-        mode == Mode::Copy,
-        QStringLiteral("copy-output"),
-        currentOutputIds(m_rootContainer->primaryOutput()));
-    Q_EMIT modeChanged();
-
-    for (int i = 0; i < m_outputs.size(); ++i) {
-        if (m_outputs.at(i) == m_rootContainer->primaryOutput()) {
-            continue;
+    QStringList mirrorUuids;
+    for (auto *output : std::as_const(m_outputs)) {
+        if (output && output->uuid() != primaryUuid && !output->uuid().isEmpty()) {
+            mirrorUuids.append(output->uuid());
         }
-
-        Output *replacement = nullptr;
-        if (mode == Mode::Copy) {
-            removeFromRootContainer(m_outputs.at(i));
-            replacement = createCopyOutput(m_outputs.at(i)->output(),
-                                           m_rootContainer->primaryOutput());
-            m_rootContainer->addOutput(replacement);
-        } else {
-            removeFromRootContainer(m_outputs.at(i));
-            replacement = createNormalOutput(m_outputs.at(i)->output());
-            replacement->enable();
-            saveCurrentConfig(replacement);
-        }
-        m_outputs.at(i)->deleteLater();
-        m_outputs.replace(i, replacement);
     }
+    m_menuBarGroupName = m_outputGroupManager->createGroup(primaryUuid, mirrorUuids);
 }
 
 void OutputManager::allowNonDrmOutputAutoChangeMode(
@@ -1047,78 +848,239 @@ void OutputManager::enableAllOutputs()
     }
 }
 
-void OutputManager::applyCopyModeToOutputs(Output *primaryOutput,
-                                           const QList<SurfaceWrapper *> &surfaces,
-                                           const QStringList &outputIds,
-                                           bool persistConfig)
+bool OutputManager::isOutputAvailable(const QString &uuid) const
 {
-    if (primaryOutput->output() && !primaryOutput->output()->isEnabled()) {
-        primaryOutput->enable();
-    }
-    if (auto *layout = m_rootContainer->outputLayout();
-        primaryOutput->output()
-        && primaryOutput->output()->isEnabled()
-        && layout
-        && !layout->outputs().contains(primaryOutput->output())) {
-        layout->autoAdd(primaryOutput->output());
-    }
-
-    for (int i = 0; i < m_outputs.size(); ++i) {
-        Output *existingOutput = m_outputs.at(i);
-        if (existingOutput == primaryOutput) {
-            continue;
-        }
-        if (!outputIds.isEmpty() && !outputIds.contains(existingOutput->getOutputId())) {
-            continue;
-        }
-
-        removeFromRootContainer(existingOutput);
-        Output *copyOutput = createCopyOutput(existingOutput->output(), primaryOutput);
-        existingOutput->deleteLater();
-        m_outputs.replace(i, copyOutput);
-        m_rootContainer->addOutput(copyOutput);
-        copyOutput->enable();
-    }
-
-    m_mode = Mode::Copy;
-    if (persistConfig) {
-        storeCopyOutputConfig(
-            true,
-            {},
-            outputIds.isEmpty() ? currentOutputIds(primaryOutput) : outputIds);
-    }
-    Q_EMIT modeChanged();
-
-    if (!surfaces.isEmpty()) {
-        moveSurfaces(surfaces, primaryOutput, nullptr);
-    }
+    Output *output = findOutputByUuid(uuid);
+    return output && output->output() && output->output()->isEnabled();
 }
 
-bool OutputManager::restoreConfiguredCopyMode()
+bool OutputManager::canReconfigureOutputs() const
 {
-    if (m_mode != Mode::Extension) {
-        return false;
+    return m_initialOutputScanFinished;
+}
+
+Output *OutputManager::findOutputByUuid(const QString &uuid) const
+{
+    if (uuid.isEmpty()) {
+        return nullptr;
     }
 
-    const auto restoreConfig = copyModeRestoreConfig(m_outputs.size());
-    if (!restoreConfig) {
-        return false;
+    for (auto *output : std::as_const(m_outputs)) {
+        if (output && output->output() && output->uuid() == uuid) {
+            return output;
+        }
+    }
+    return nullptr;
+}
+
+void OutputManager::notifyOutputGroupsChanged()
+{
+    if (!m_outputGroupManager) {
+        return;
     }
 
-    qCInfo(lcTlOutput) << "Restoring configured Copy Mode"
-                       << "name:" << restoreConfig.name
-                       << "ids:" << restoreConfig.outputIds
-                       << "outputs:" << restoreConfig.outputNames;
-    if (m_virtualOutputInterface && !restoreConfig.name.isEmpty()) {
-        m_virtualOutputInterface->restoreVirtualOutput(
-            restoreConfig.name, restoreConfig.outputNames);
+    // Availability changes are reported by the protocol owner, which then asks
+    // us to apply the resulting effective group state.
+    QMetaObject::invokeMethod(
+        this,
+        [this] {
+            if (m_outputGroupManager) {
+                m_outputGroupManager->notifyOutputAvailabilityChanged();
+            }
+        },
+        Qt::QueuedConnection);
+}
+
+void OutputManager::deactivateGroupMirrors()
+{
+    for (int i = 0; i < m_outputs.size(); ++i)
+        convertMirrorToNormal(i);
+}
+
+// Turns the mirror at INDEX back into a normal output. The replacement is
+// created synchronously (not deleteLater) on purpose: the mirror and its
+// replacement share one WOutputViewport, and the mirror's hardware layers stay
+// attached to it until the old object is gone, which makes waylib assert when
+// the new item re-attaches them. Disable first, so the layers are detached
+// while the mirror still owns the viewport.
+Output *OutputManager::convertMirrorToNormal(int index)
+{
+    if (index < 0 || index >= m_outputs.size()) {
+        return nullptr;
     }
 
-    m_rootContainer->setPrimaryOutput(restoreConfig.primaryOutput);
-    const auto surfaces = workspaceSurfaces();
-    applyCopyModeToOutputs(
-        restoreConfig.primaryOutput, surfaces, restoreConfig.outputIds, false);
-    return true;
+    Output *output = m_outputs.at(index);
+    if (!output || !output->output() || output->isSource()) {
+        return output;
+    }
+
+    auto *woutput = output->output();
+    const bool wasEnabled = woutput->isEnabled();
+    if (wasEnabled) {
+        WOutputStateGuard disabledState;
+        wlr_output_state_set_enabled(disabledState.get(), false);
+        if (!wlr_output_commit_state(woutput->handle(), disabledState.get())) {
+            qCWarning(lcTlOutput) << "Failed to disable output before leaving copy mode"
+                                  << woutput->name();
+        }
+    }
+
+    removeFromRootContainer(output);
+    m_outputs.removeAt(index);
+    delete output;
+
+    Output *replacement = createNormalOutput(woutput);
+    // Keep the enabled state the output had: an output switched off by DPMS or
+    // by single-output display must not be woken up again by leaving copy mode.
+    if (wasEnabled) {
+        replacement->enable();
+    }
+    saveCurrentConfig(replacement);
+    m_outputs.insert(index, replacement);
+    return replacement;
+}
+
+// Reconciles the Output objects with the effective state of every output
+// group: a group source is a normal output, its effective mirrors are copy
+// outputs of that source. Outputs no group claims stay normal extension
+// outputs.
+//
+// Known deviation from the XML: mirror outputs still expose a wl_output while
+// copy mode is engaged. The protocol describes the source as the only output
+// exposing a wl_output; that behaviour is tracked separately and is not part of
+// this change.
+void OutputManager::applyOutputGroups()
+{
+    if (!m_outputGroupManager || m_applyingOutputGroups) {
+        return;
+    }
+    if (m_pendingOutputConfig.config || m_inFlightOutputCommits > 0) {
+        // An output configuration is being applied: its commit jobs hold the
+        // viewports of the outputs that were just converted back to normal.
+        // Rebuilding them now would destroy those helpers and lose the jobs,
+        // so re-apply once the last job finished.
+        m_groupsDirty = true;
+        return;
+    }
+    m_applyingOutputGroups = true;
+    const QScopeGuard resetGuard([this] { m_applyingOutputGroups = false; });
+
+    const auto groups = m_outputGroupManager->effectiveGroups();
+    QHash<QString, QString> desiredMirrors; // mirror uuid -> source uuid
+    QStringList desiredSources;
+    for (const auto &group : std::as_const(groups)) {
+        if (group.sourceUuid.isEmpty()) {
+            continue;
+        }
+        desiredSources.append(group.sourceUuid);
+        for (const auto &mirrorUuid : std::as_const(group.mirrorUuids)) {
+            desiredMirrors.insert(mirrorUuid, group.sourceUuid);
+        }
+    }
+
+    // Group sources are always available (the protocol filtered them), make
+    // sure they are enabled and present in the layout.
+    for (const auto &uuid : std::as_const(desiredSources)) {
+        Output *source = findOutputByUuid(uuid);
+        if (!source || !source->output()) {
+            continue;
+        }
+        if (!source->output()->isEnabled()) {
+            source->enable();
+        }
+        if (auto *layout = m_rootContainer->outputLayout();
+            source->output()->isEnabled()
+            && layout
+            && !layout->outputs().contains(source->output())) {
+            layout->autoAdd(source->output());
+        }
+    }
+
+    // First turn every output that should not be a mirror into a normal output,
+    // so that a mirror can never keep a proxy that is about to be recreated.
+    for (int i = 0; i < m_outputs.size(); ++i) {
+        Output *output = m_outputs.at(i);
+        if (!output || !output->output()) {
+            continue;
+        }
+
+        const auto mirrorIt = desiredMirrors.constFind(output->uuid());
+        if (!output->isSource()) {
+            Output *desiredSource = mirrorIt == desiredMirrors.cend()
+                ? nullptr
+                : findOutputByUuid(mirrorIt.value());
+            if (desiredSource && output->proxyOutput() == desiredSource) {
+                continue;
+            }
+
+            convertMirrorToNormal(i);
+        }
+    }
+
+    // Then create a copy output for every effective mirror. Mirrors that pass A
+    // already kept are not touched again.
+    for (int i = 0; i < m_outputs.size(); ++i) {
+        Output *output = m_outputs.at(i);
+        if (!output || !output->output() || !output->isSource()) {
+            continue;
+        }
+
+        const auto mirrorIt = desiredMirrors.constFind(output->uuid());
+        if (mirrorIt == desiredMirrors.cend()) {
+            continue;
+        }
+
+        Output *source = findOutputByUuid(mirrorIt.value());
+        if (!source) {
+            continue;
+        }
+
+        removeFromRootContainer(output);
+        Output *replacement = createCopyOutput(output->output(), source);
+        m_outputs.replace(i, replacement);
+        // The mirror's viewport may already have re-registered the output in
+        // the layout while the QML item was created.
+        if (!ensureInRootContainer(replacement)) {
+            qCWarning(lcTlOutput) << "Failed to register mirror output" << output->uuid();
+        }
+        replacement->enable();
+        output->deleteLater();
+    }
+
+    // A mirror can never be the primary output.
+    Output *primary = m_rootContainer->primaryOutput();
+    if (!primary || !m_outputs.contains(primary) || !primary->isSource()) {
+        const auto surfaces = primary ? workspaceSurfaces(primary) : QList<SurfaceWrapper *>();
+        Output *fallback = findOutputByUuid(desiredSources.value(0));
+        if (!fallback) {
+            for (auto *candidate : std::as_const(m_outputs)) {
+                if (candidate && candidate->isSource()) {
+                    fallback = candidate;
+                    break;
+                }
+            }
+        }
+        if (fallback) {
+            m_rootContainer->setPrimaryOutput(fallback);
+            if (!surfaces.isEmpty()) {
+                moveSurfaces(surfaces, fallback, primary);
+            }
+        }
+    }
+
+    bool copyActive = false;
+    for (const auto &group : std::as_const(groups)) {
+        if (!group.sourceUuid.isEmpty() && !group.mirrorUuids.isEmpty()) {
+            copyActive = true;
+            break;
+        }
+    }
+
+    const Mode newMode = copyActive ? Mode::Copy : Mode::Extension;
+    if (m_mode != newMode) {
+        m_mode = newMode;
+        Q_EMIT modeChanged();
+    }
 }
 
 void OutputManager::restoreExtensionModeFromConfig(bool preserveSingleOutputConfig)
@@ -1216,162 +1178,20 @@ void OutputManager::restoreExtensionModeFromConfig(bool preserveSingleOutputConf
 void OutputManager::restoreInitialOutputConfiguration()
 {
     const QString singleOutputId = m_config->singleOutputId();
-    if (!singleOutputId.isEmpty()) {
-        if (findOutputById(singleOutputId)) {
-            restoreConfiguredSingleOutput(workspaceSurfaces(), true);
-            return;
+    if (!singleOutputId.isEmpty() && findOutputById(singleOutputId)) {
+        restoreConfiguredSingleOutput(workspaceSurfaces(), true);
+    } else {
+        if (!singleOutputId.isEmpty()) {
+            clearSingleOutputConfig();
         }
 
-        clearSingleOutputConfig();
         restoreExtensionModeFromConfig();
-        return;
+        restorePrimaryOutput();
     }
 
-    if (m_config->createCopyOutput()) {
-        if (m_outputs.size() >= 2 && restoreConfiguredCopyMode()) {
-            return;
-        }
-
-        const QStringList copyOutputs = copyOutputIds();
-        if (copyOutputs.size() == 1 && findOutputById(copyOutputs.constFirst())) {
-            restoreExtensionModeFromConfig(true);
-            return;
-        }
-
-        qCWarning(lcTlOutput) << "Clearing invalid initial copy-output configuration";
-        storeCopyOutputConfig(false);
-        restoreExtensionModeFromConfig();
-        return;
-    }
-
-    restoreExtensionModeFromConfig();
-    restorePrimaryOutput();
-}
-
-void OutputManager::handleCopyModeOutputDisable(Output *affectedOutput)
-{
-    const int affectedIndex = m_outputs.indexOf(affectedOutput);
-    if (affectedIndex < 0) {
-        qCWarning(lcTlCore) << "Disabled output not found in OutputManager";
-        return;
-    }
-
-    storeCopyOutputConfig(false);
-    m_mode = Mode::Extension;
-    Q_EMIT modeChanged();
-
-    Output *primaryCandidate = nullptr;
-    const auto surfaces = workspaceSurfaces(affectedOutput);
-    for (int i = 0; i < m_outputs.size(); ++i) {
-        if (i == affectedIndex) {
-            continue;
-        }
-
-        Output *copyOutput = m_outputs.at(i);
-        removeFromRootContainer(copyOutput);
-        Output *normalOutput = createNormalOutput(copyOutput->output());
-        normalOutput->enable();
-        saveCurrentConfig(normalOutput);
-        copyOutput->deleteLater();
-        m_outputs.replace(i, normalOutput);
-        if (!primaryCandidate) {
-            primaryCandidate = normalOutput;
-        }
-    }
-
-    if (primaryCandidate) {
-        if (!surfaces.isEmpty()) {
-            moveSurfaces(surfaces, primaryCandidate, affectedOutput);
-        }
-        m_rootContainer->setPrimaryOutput(primaryCandidate);
-    }
-}
-
-void OutputManager::createVirtualOutput(VirtualOutputInterfaceV1 *interface)
-{
-    const QStringList requestedOutputs = interface->outputList();
-    if (requestedOutputs.size() < 2) {
-        interface->sendError(VirtualOutputInterfaceV1::INVALID_SCREEN_NUMBER,
-                             "The number of screens applying for copy mode is less than 2!");
-        return;
-    }
-
-    Output *mirrorOutput = findOutputByName(requestedOutputs.constFirst());
-    for (const auto &outputName : std::as_const(requestedOutputs)) {
-        auto *output = findOutputByName(outputName);
-        if (!output) {
-            interface->sendError(VirtualOutputInterfaceV1::INVALID_OUTPUT,
-                                 outputName + " does not exist!");
-            return;
-        }
-        if (!output->isSource()) {
-            interface->sendError(
-                VirtualOutputInterfaceV1::INVALID_OUTPUT,
-                output->output()->name() + " is already a copy screen, invalid setting!");
-            return;
-        }
-    }
-
-    for (int i = 0; i < m_outputs.size(); ++i) {
-        Output *currentOutput = m_outputs.at(i);
-        if (currentOutput == mirrorOutput
-            || !requestedOutputs.contains(currentOutput->output()->name())) {
-            continue;
-        }
-
-        if (m_rootContainer->primaryOutput() == currentOutput) {
-            m_rootContainer->setPrimaryOutput(mirrorOutput);
-        }
-
-        removeFromRootContainer(currentOutput);
-        Output *replacement = createCopyOutput(currentOutput->output(), mirrorOutput);
-        currentOutput->deleteLater();
-        m_outputs.replace(i, replacement);
-        m_rootContainer->addOutput(replacement);
-        replacement->enable();
-    }
-
-    m_mode = Mode::Copy;
-    QStringList requestedOutputIds;
-    requestedOutputIds.reserve(requestedOutputs.size());
-    for (const auto &outputName : std::as_const(requestedOutputs)) {
-        if (auto *output = findOutputByName(outputName)) {
-            requestedOutputIds.append(output->getOutputId());
-        }
-    }
-    storeCopyOutputConfig(true, interface->name(), requestedOutputIds);
-    moveSurfaces(workspaceSurfaces(), mirrorOutput, nullptr);
-}
-
-void OutputManager::destroyVirtualOutput(VirtualOutputInterfaceV1 *interface)
-{
-    const QString targetName = interface->outputList().at(0);
-    if (!std::any_of(m_outputs.cbegin(),
-                     m_outputs.cend(),
-                     [&targetName](const Output *output) {
-                         return output->output()->name() == targetName;
-                     })) {
-        interface->sendError(
-            VirtualOutputInterfaceV1::INVALID_OUTPUT,
-            QString("Target output %1 does not exist!").arg(targetName));
-        return;
-    }
-
-    for (int i = 0; i < m_outputs.size(); ++i) {
-        Output *currentOutput = m_outputs.at(i);
-        if (currentOutput->output()->name() == targetName) {
-            continue;
-        }
-
-        removeFromRootContainer(currentOutput);
-        Output *replacement = createNormalOutput(currentOutput->output());
-        replacement->enable();
-        saveCurrentConfig(replacement);
-        currentOutput->deleteLater();
-        m_outputs.replace(i, replacement);
-    }
-    m_mode = Mode::Extension;
-    storeCopyOutputConfig(false);
+    // Persisted output groups come from the output group protocol; applying
+    // them here restores copy mode for every configured group.
+    notifyOutputGroupsChanged();
 }
 
 void OutputManager::setGamma(wlr_gamma_control_manager_v1_set_gamma_event *event)
@@ -1437,6 +1257,8 @@ void OutputManager::setPowerMode(wlr_output_power_v1_set_mode_event *event)
         }
         break;
     }
+
+    notifyOutputGroupsChanged();
 }
 
 void OutputManager::testOrApplyConfiguration(wlr_output_configuration_v1 *config,
@@ -1542,18 +1364,6 @@ void OutputManager::testOrApplyConfiguration(wlr_output_configuration_v1 *config
         m_outputManagementProtocol->sendResult(m_pendingOutputConfig.config, false);
     }
 
-    if (m_mode == Mode::Copy) {
-        for (const auto &state : std::as_const(states)) {
-            if (!state.enabled) {
-                Output *affectedOutput = outputFor(state.output);
-                if (affectedOutput && affectedOutput == m_rootContainer->primaryOutput()) {
-                    handleCopyModeOutputDisable(affectedOutput);
-                    break;
-                }
-            }
-        }
-    }
-
     m_pendingOutputConfig.config = config;
     m_pendingOutputConfig.states = states;
     m_pendingOutputConfig.pendingCommits = 0;
@@ -1573,23 +1383,14 @@ void OutputManager::testOrApplyConfiguration(wlr_output_configuration_v1 *config
         }
     }
 
-    if (m_mode == Mode::Copy) {
-        for (int i = 0; i < m_outputs.size(); ++i) {
-            Output *copyOutput = m_outputs.at(i);
-            if (copyOutput->isSource()) {
-                continue;
-            }
-            removeFromRootContainer(copyOutput);
-            Output *normalOutput = createNormalOutput(copyOutput->output());
-            copyOutput->deleteLater();
-            m_outputs.replace(i, normalOutput);
-        }
-    }
+    // The output-management protocol configures the outputs itself, so copy
+    // mode is torn down here and restored from the groups once the commit
+    // finished (see onOutputCommitFinished). The reconcile also runs on every
+    // error path below, so the protocol state can never claim a mirror that is
+    // not rendered anymore.
+    const QScopeGuard reconcileOnExit([this] { notifyOutputGroupsChanged(); });
 
-    if (m_mode != Mode::Extension) {
-        m_mode = Mode::Extension;
-        Q_EMIT modeChanged();
-    }
+    deactivateGroupMirrors();
 
     for (const auto &state : std::as_const(states)) {
         Output *outputObject = outputFor(state.output);
@@ -1697,6 +1498,7 @@ void OutputManager::testOrApplyConfiguration(wlr_output_configuration_v1 *config
                     return;
                 }
 
+                const bool lastInFlight = (--self->m_inFlightOutputCommits <= 0);
                 if (committedState == extraState) {
                     if (success && output) {
                         auto *layout = self->m_rootContainer->outputLayout();
@@ -1728,14 +1530,32 @@ void OutputManager::testOrApplyConfiguration(wlr_output_configuration_v1 *config
                         << "Got:" << committedState.get();
                     self->onOutputCommitFinished(pendingConfig, false);
                 }
+
+                if (lastInFlight && self->m_groupsDirty) {
+                    // Recompute instead of applying the cached effective state:
+                    // the commit that just finished may have changed whether an
+                    // output is available (e.g. the client disabled a mirror
+                    // through wlr-output-management).
+                    self->m_groupsDirty = false;
+                    self->notifyOutputGroupsChanged();
+                }
             },
             WOutputHelper::AfterCommitStage);
         m_pendingOutputConfig.pendingCommits++;
+        m_inFlightOutputCommits++;
         renderWindow->update(viewport);
 
         if (state.enabled && !state.output->isEnabled()) {
             renderWindow->render(viewport, true);
         }
+    }
+
+    if (m_pendingOutputConfig.pendingCommits == 0) {
+        // Nothing was scheduled (empty configuration or no matching output), so
+        // no commit callback will ever finish this apply.
+        m_outputManagementProtocol->sendResult(config, true);
+        m_pendingOutputConfig = {};
+        notifyOutputGroupsChanged();
     }
 }
 
@@ -1758,7 +1578,6 @@ void OutputManager::onOutputCommitFinished(wlr_output_configuration_v1 *config,
     const bool ok = m_pendingOutputConfig.allSuccess;
     if (ok) {
         storeSingleOutputConfig();
-        storeCopyOutputConfig(false);
 
         const auto enabledOutputCount = std::count_if(
             m_pendingOutputConfig.states.cbegin(),
@@ -1797,12 +1616,10 @@ void OutputManager::onOutputCommitFinished(wlr_output_configuration_v1 *config,
 
     m_outputManagementProtocol->sendResult(config, ok, m_pendingOutputConfig.states);
     m_pendingOutputConfig = {};
-}
 
-bool OutputManager::shouldRestoreCopyMode(int availableOutputCount) const
-{
-    return m_config->singleOutputId().isEmpty()
-        && m_config->createCopyOutput() && availableOutputCount >= 2;
+    // Even a failed apply may have disabled outputs while copy mode was already
+    // torn down; re-applying the groups keeps the reported state truthful.
+    notifyOutputGroupsChanged();
 }
 
 bool OutputManager::restoreConfiguredSingleOutput(const QList<SurfaceWrapper *> &surfaces, bool updatePrimaryOutputConfig)
@@ -1873,56 +1690,6 @@ void OutputManager::restorePrimaryOutput()
     }
 }
 
-OutputManager::CopyModeRestoreConfig OutputManager::copyModeRestoreConfig(int availableOutputCount) const
-{
-    CopyModeRestoreConfig result;
-    if (!shouldRestoreCopyMode(availableOutputCount)) {
-        return result;
-    }
-    result.outputIds = copyOutputIds();
-    result.outputNames = outputNamesFromIds(result.outputIds);
-    if (result.outputIds.size() < 2 || result.outputNames.size() < 2) {
-        return {};
-    }
-    result.primaryOutput = findOutputById(result.outputIds.constFirst());
-    result.name = m_config->copyOutputName();
-    return result;
-}
-
-QStringList OutputManager::copyOutputIds() const
-{
-    return deserializeOutputIds(m_config->copyOutputOutputs());
-}
-
-QStringList OutputManager::currentOutputIds(Output *primaryOutput) const
-{
-    QStringList ids;
-    if (primaryOutput) {
-        ids.append(primaryOutput->getOutputId());
-    }
-    if (!m_rootContainer) {
-        return ids;
-    }
-    for (auto *output : std::as_const(m_rootContainer->outputs())) {
-        if (output && output != primaryOutput) {
-            ids.append(output->getOutputId());
-        }
-    }
-    ids.removeAll(QString());
-    return ids;
-}
-
-QStringList OutputManager::outputNamesFromIds(const QStringList &ids) const
-{
-    QStringList names;
-    for (const auto &id : std::as_const(ids)) {
-        if (auto *output = findOutputById(id)) {
-            names.append(output->output()->name());
-        }
-    }
-    return names;
-}
-
 void OutputManager::clearSingleOutputConfig()
 {
     m_config->setSingleOutputId(QString());
@@ -1949,36 +1716,6 @@ void OutputManager::storeSingleOutputConfig()
     }
 
     m_config->setSingleOutputId(singleOutputId);
-}
-
-void OutputManager::storeCopyOutputConfig(bool enabled,
-                                          const QString &name,
-                                          const QStringList &outputIds)
-{
-    if (!enabled) {
-        const QString oldName = m_config->copyOutputName();
-        m_config->setCreateCopyOutput(false);
-        m_config->setCopyOutputName(QString());
-        m_config->setCopyOutputOutputs(QStringLiteral("[]"));
-        if (m_virtualOutputInterface && !oldName.isEmpty())
-            m_virtualOutputInterface->removeVirtualOutput(oldName);
-        return;
-    }
-    m_config->setSingleOutputId(QString());
-    QString configName = name.isEmpty() ? m_config->copyOutputName() : name;
-    if (configName.isEmpty()) {
-        configName = QStringLiteral("copy-output");
-    }
-    m_config->setCreateCopyOutput(true);
-    m_config->setCopyOutputName(configName);
-    m_config->setCopyOutputOutputs(serializeOutputIds(outputIds));
-    if (m_virtualOutputInterface)
-        m_virtualOutputInterface->updateVirtualOutput(configName, outputNamesFromIds(outputIds));
-}
-
-void OutputManager::setCopyModeStored(bool enabled)
-{
-    m_config->setCreateCopyOutput(enabled);
 }
 
 Output *OutputManager::findFirstAvailableOutput(Output *excludeOutput) const
@@ -2084,9 +1821,7 @@ void OutputManager::onScreenDisabled(Output *output,
 
     const bool isCurrentPrimary = (m_rootContainer->primaryOutput() == output);
 
-    if (m_mode == Mode::Copy && isCurrentPrimary) {
-        setCopyModeStored(true);
-    } else if (isCurrentPrimary) {
+    if (isCurrentPrimary) {
         markScreenAsPrimaryIntent(output);
     }
 
@@ -2099,6 +1834,8 @@ void OutputManager::onScreenDisabled(Output *output,
             m_rootContainer->moveSurfacesToOutput(surfaces, primaryOutput, output);
         }
     }
+
+    notifyOutputGroupsChanged();
 }
 
 void OutputManager::onScreenEnabled(Output *output)

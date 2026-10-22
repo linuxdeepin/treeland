@@ -10,17 +10,18 @@
 #include <QString>
 #include <QStringList>
 
+#include "modules/output-group/outputgroupmanagerinterfacev1.h"
+
 #include <woutputmanagerv1.h>
 #include <wglobal.h>
 
 class Output;
 class OutputConfig;
+class OutputGroupManagerInterfaceV1;
 class RootSurfaceContainer;
 class SessionManager;
 class SurfaceWrapper;
 class TreelandConfig;
-class VirtualOutputInterfaceV1;
-class VirtualOutputManagerInterfaceV1;
 class WallpaperManager;
 class Workspace;
 struct wlr_output;
@@ -38,7 +39,10 @@ class WOutputViewport;
 class WXdgOutputManager;
 WAYLIB_SERVER_END_NAMESPACE
 
-class OutputManager : public QObject {
+class OutputManager
+    : public QObject
+    , public OutputGroupHost
+{
     Q_OBJECT
 public:
     enum class Mode
@@ -58,7 +62,7 @@ public:
     Mode mode() const;
     void setBackend(WAYLIB_SERVER_NAMESPACE::WBackend *backend);
     void setOutputManagementProtocol(WAYLIB_SERVER_NAMESPACE::WOutputManagerV1 *manager);
-    void setVirtualOutputInterface(VirtualOutputManagerInterfaceV1 *interface);
+    void setOutputGroupInterface(OutputGroupManagerInterfaceV1 *interface);
     void setGammaControlManager(wlr_gamma_control_manager_v1 *manager);
     void setOutputPowerManager(wlr_output_power_manager_v1 *manager);
     void setXdgOutputManagers(WAYLIB_SERVER_NAMESPACE::WXdgOutputManager *manager,
@@ -76,6 +80,11 @@ public:
 
     void backendStarted();
 
+    // OutputGroupHost
+    bool isOutputAvailable(const QString &uuid) const override;
+    bool canReconfigureOutputs() const override;
+    void applyOutputGroups() override;
+
 Q_SIGNALS:
     void modeChanged();
 
@@ -83,18 +92,6 @@ private Q_SLOTS:
     void continueOutputAdded();
 
 private:
-    struct CopyModeRestoreConfig
-    {
-        Output *primaryOutput = nullptr;
-        QString name;
-        QStringList outputIds;
-        QStringList outputNames;
-
-        explicit operator bool() const { return primaryOutput && outputIds.size() >= 2; }
-    };
-
-    void createVirtualOutput(VirtualOutputInterfaceV1 *interface);
-    void destroyVirtualOutput(VirtualOutputInterfaceV1 *interface);
     void setGamma(wlr_gamma_control_manager_v1_set_gamma_event *event);
     void setPowerMode(wlr_output_power_v1_set_mode_event *event);
     void testOrApplyConfiguration(wlr_output_configuration_v1 *config, bool onlyTest);
@@ -111,16 +108,13 @@ private:
     bool shouldRestoreCopyMode(int availableOutputCount) const;
     bool restoreConfiguredSingleOutput(const QList<SurfaceWrapper *> &surfaces, bool updatePrimaryOutputConfig = false);
     void restorePrimaryOutput();
-    CopyModeRestoreConfig copyModeRestoreConfig(int availableOutputCount) const;
-    QStringList copyOutputIds() const;
-    QStringList currentOutputIds(Output *primaryOutput = nullptr) const;
-    QStringList outputNamesFromIds(const QStringList &ids) const;
     void storeSingleOutputConfig();
     void clearSingleOutputConfig();
-    void storeCopyOutputConfig(bool enabled,
-                               const QString &name = {},
-                               const QStringList &outputIds = {});
-    void setCopyModeStored(bool enabled);
+    // Converts every mirror output back to a normal output; used before the
+    // output-management protocol reconfigures the outputs itself.
+    void deactivateGroupMirrors();
+    Output *convertMirrorToNormal(int index);
+    void notifyOutputGroupsChanged();
 
     Output *createNormalOutput(WAYLIB_SERVER_NAMESPACE::WOutput *output);
     Output *createCopyOutput(WAYLIB_SERVER_NAMESPACE::WOutput *output, Output *proxy);
@@ -138,16 +132,11 @@ private:
     Output *findOutputById(const QString &id) const;
     void allowNonDrmOutputAutoChangeMode(WAYLIB_SERVER_NAMESPACE::WOutput *output);
     void enableAllOutputs();
-    void applyCopyModeToOutputs(Output *primaryOutput,
-                                const QList<SurfaceWrapper *> &surfaces,
-                                const QStringList &outputIds = {},
-                                bool persistConfig = true);
-    bool restoreConfiguredCopyMode();
     void restoreExtensionModeFromConfig(bool preserveSingleOutputConfig = false);
     void restoreInitialOutputConfiguration();
-    void handleCopyModeOutputDisable(Output *affectedOutput);
     void finishInitialOutputScanIfReady();
     Output *findFirstAvailableOutput(Output *excludeOutput) const;
+    Output *findOutputByUuid(const QString &uuid) const;
     void markScreenAsPrimaryIntent(Output *output);
     void restoreScreenAsPrimary(Output *output);
     void switchPrimaryOutput(Output *from, Output *to, const QList<SurfaceWrapper *> &surfaces);
@@ -159,11 +148,19 @@ private:
     WAYLIB_SERVER_NAMESPACE::WBackend *m_backend = nullptr;
     WAYLIB_SERVER_NAMESPACE::WOutputManagerV1 *m_outputManagementProtocol = nullptr;
     WAYLIB_SERVER_NAMESPACE::WXdgOutputManager *m_xwaylandOutputManager = nullptr;
-    VirtualOutputManagerInterfaceV1 *m_virtualOutputInterface = nullptr;
+    OutputGroupManagerInterfaceV1 *m_outputGroupManager = nullptr;
     WAYLIB_SERVER_NAMESPACE::WListenerOwner m_gammaControlListenerOwner;
     WAYLIB_SERVER_NAMESPACE::WListenerOwner m_outputPowerListenerOwner;
     WAYLIB_SERVER_NAMESPACE::WListenerOwner m_outputStateListenerOwner;
     Mode m_mode = Mode::Extension;
+    // Name of the group created by the menu bar copy-mode toggle, so the
+    // toggle only dissolves its own group.
+    QString m_menuBarGroupName;
+    bool m_applyingOutputGroups = false;
+    // A group re-apply was requested while an output-management apply was in
+    // flight; it runs once the last commit job finished.
+    bool m_groupsDirty = false;
+    int m_inFlightOutputCommits = 0;
     QMap<QString, bool> m_primaryRestoreIntents;
     QList<Output *> m_outputs;
     QMap<WAYLIB_SERVER_NAMESPACE::WOutput *, OutputConfig *> m_pendingOutputs;

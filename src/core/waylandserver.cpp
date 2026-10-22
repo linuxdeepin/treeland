@@ -45,7 +45,7 @@
 #include "modules/shortcut/shortcutmanager.h"
 #include "modules/shortcut/shortcutrunner.h"
 #include "modules/wallpaper-color/wallpapercolorinterfacev1.h"
-#include "modules/virtual-output/virtualoutputmanagerinterfacev1.h"
+#include "modules/output-group/outputgroupmanagerinterfacev1.h"
 #include "output/output.h"
 #include "output/outputmanager.h"
 #include "seatuserconfig.hpp"
@@ -1046,8 +1046,8 @@ WXdgOutputManager *WaylandServer::installDesktopProtocols(QmlEngine *engine)
     m_wallpaperColorV1 = server()->attach<WallpaperColorInterfaceV1>();
     m_showDesktop->initialize(server());
     m_xWindowControlInterfaceV1 = server()->attach<XWindowControlInterfaceV1>();
-    auto *virtualOutputInterface = server()->attach<VirtualOutputManagerInterfaceV1>();
-    m_outputManager->setVirtualOutputInterface(virtualOutputInterface);
+    auto *outputGroupInterface = server()->attach<OutputGroupManagerInterfaceV1>();
+    m_outputManager->setOutputGroupInterface(outputGroupInterface);
 
     m_captureManager->installProtocol(server(), engine, m_renderWindow);
     m_surfaceProtocols->installPersonalization(server());
