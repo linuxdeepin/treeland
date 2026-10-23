@@ -12,7 +12,7 @@ Item {
     required property SurfaceWrapper surface
     required property rect fromGeometry
     required property rect toGeometry
-    property int duration: 400 * Helper.animationSpeed
+    property int duration: 400 * WaylandServer.animationSpeed
     property real fadeDurationRatio: 0.5
     property var enableBlur: false
     property var sourceSurface: null
