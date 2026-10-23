@@ -340,6 +340,7 @@ Item {
         enabled: root.visible && root.enableAnimation
         NumberAnimation {
             duration: root.enableAnimation ? root.aniDuration : 0
+            easing.type: Easing.OutExpo
         }
     }
 
@@ -347,6 +348,7 @@ Item {
         enabled: root.visible && root.enableAnimation
         NumberAnimation {
             duration: root.enableAnimation ? root.aniDuration : 0
+            easing.type: Easing.OutExpo
         }
     }
     /* --- global position end --- */
