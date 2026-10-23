@@ -7,12 +7,15 @@
 #include "dconfig/dconfigmanager.h"
 #include "treelandconfig.hpp"
 
+#include <QDateTime>
 #include <QHash>
 #include <QJsonArray>
 #include <QJsonDocument>
+#include <QRandomGenerator>
 #include <QScopeGuard>
+
+#include <algorithm>
 #include <utility>
-#include <QSet>
 
 #include <qwayland-server-treeland-output-group-manager-unstable-v1.h>
 
@@ -57,6 +60,60 @@ QByteArray concatenateUuids(const QStringList &uuids)
     return result;
 }
 
+// Resolves the effective source of one group from its connected members: the
+// member with the most recent explicit set_source wins; when no member was
+// ever designated, the earliest joined member is promoted temporarily (no
+// configuration is written, so a returning designated source takes over
+// again). Ties are broken by uuid for a stable result.
+QString resolveGroupSource(const QList<OutputGroupMemberInfo> &members)
+{
+    const OutputGroupMemberInfo *designated = nullptr;
+    for (const auto &member : members) {
+        if (member.lastSetSourceTime <= 0) {
+            continue;
+        }
+        if (!designated || member.lastSetSourceTime > designated->lastSetSourceTime
+            || (member.lastSetSourceTime == designated->lastSetSourceTime
+                && member.uuid < designated->uuid)) {
+            designated = &member;
+        }
+    }
+    if (designated) {
+        return designated->uuid;
+    }
+
+    const OutputGroupMemberInfo *earliest = nullptr;
+    for (const auto &member : members) {
+        if (!earliest || member.joinTime < earliest->joinTime
+            || (member.joinTime == earliest->joinTime && member.uuid < earliest->uuid)) {
+            earliest = &member;
+        }
+    }
+    return earliest ? earliest->uuid : QString();
+}
+
+// Mirrors follow the join order of the members; ties are broken by uuid.
+QStringList resolveGroupMirrors(const QList<OutputGroupMemberInfo> &members,
+                                const QString &sourceUuid)
+{
+    QList<OutputGroupMemberInfo> mirrors;
+    for (const auto &member : members) {
+        if (member.uuid != sourceUuid) {
+            mirrors.append(member);
+        }
+    }
+    std::sort(mirrors.begin(), mirrors.end(), [](const auto &a, const auto &b) {
+        return a.joinTime != b.joinTime ? a.joinTime < b.joinTime : a.uuid < b.uuid;
+    });
+
+    QStringList uuids;
+    uuids.reserve(mirrors.size());
+    for (const auto &member : std::as_const(mirrors)) {
+        uuids.append(member.uuid);
+    }
+    return uuids;
+}
+
 } // namespace
 
 class OutputGroupInterfaceV1Private;
@@ -87,7 +144,6 @@ public:
     QList<OutputGroupConfig> configs;
     QHash<QString, OutputGroupRuntime> effective;
     QHash<QString, QList<OutputGroupInterfaceV1Private *>> handles;
-    int nextGroupNumber = 1;
     bool configLoaded = false;
     bool recomputing = false;
 
@@ -98,9 +154,6 @@ public:
 
     void loadPersistedGroupsIfReady();
     void loadPersistedGroups();
-    void restorePersistedGroup(const QString &name, TreelandConfig *groupConfig);
-    void persistGroup(const OutputGroupConfig &config);
-    void forgetPersistedGroup(const QString &name);
     void persistGroupRegistry();
 
     OutputGroupInterfaceV1Private *createHandle(Resource *managerResource,
@@ -345,9 +398,14 @@ QString OutputGroupManagerInterfaceV1Private::nextGroupName()
         return findConfig(name) || handles.contains(name);
     };
 
+    // Readable, unique and never reused while it exists: epoch seconds make it
+    // sortable, the random component avoids collisions between groups created
+    // within the same second.
     QString name;
     do {
-        name = QStringLiteral("output-group-%1").arg(nextGroupNumber++);
+        name = QStringLiteral("output-group-%1-%2")
+                   .arg(QDateTime::currentSecsSinceEpoch())
+                   .arg(QRandomGenerator::global()->generate());
     } while (taken(name));
     return name;
 }
@@ -355,16 +413,17 @@ QString OutputGroupManagerInterfaceV1Private::nextGroupName()
 QString OutputGroupManagerInterfaceV1Private::groupOwningOutput(const QString &uuid,
                                                                const QString &exceptGroup) const
 {
-    if (uuid.isEmpty()) {
+    if (uuid.isEmpty() || !host) {
         return {};
     }
 
-    for (const auto &config : configs) {
-        if (config.name == exceptGroup) {
-            continue;
-        }
-        if (config.sourceUuid == uuid || config.mirrorUuids.contains(uuid)) {
-            return config.name;
+    // Only connected outputs have a readable membership record; an unplugged
+    // output cannot be claimed anyway because it is not available.
+    const auto members = host->outputGroupMembers();
+    for (const auto &member : members) {
+        if (member.uuid == uuid && !member.groupName.isEmpty()
+            && member.groupName != exceptGroup) {
+            return member.groupName;
         }
     }
     return {};
@@ -405,28 +464,6 @@ void OutputGroupManagerInterfaceV1Private::loadPersistedGroupsIfReady()
         Qt::SingleShotConnection);
 }
 
-void OutputGroupManagerInterfaceV1Private::restorePersistedGroup(const QString &name,
-                                                                 TreelandConfig *groupConfig)
-{
-    if (!groupConfig || findConfig(name)) {
-        return;
-    }
-
-    OutputGroupConfig config;
-    config.name = name;
-    config.sourceUuid = groupConfig->outputGroupSource();
-    config.mirrorUuids = deserializeStringList(groupConfig->outputGroupMirrors());
-    configs.append(config);
-    qCInfo(lcTlOutput) << "Restored output group" << name
-                       << "source:" << config.sourceUuid
-                       << "mirrors:" << config.mirrorUuids;
-    // Clients that bound before the configuration was readable already got
-    // their groups_done dump; announce the restored groups to them as well
-    // instead of leaving them permanently invisible.
-    broadcastGroupAdded(config.name, nullptr);
-    recomputeEffectiveState();
-}
-
 void OutputGroupManagerInterfaceV1Private::loadPersistedGroups()
 {
     if (configLoaded) {
@@ -439,6 +476,10 @@ void OutputGroupManagerInterfaceV1Private::loadPersistedGroups()
         return;
     }
 
+    // The registry is the single authority on which groups exist. Membership
+    // is restored lazily: recomputeEffectiveState() groups the connected
+    // outputs by their own persisted groupName, and clears membership records
+    // that point at a group which is no longer registered.
     const auto names = deserializeStringList(manager->globalConfig()->outputGroups());
     for (const auto &name : names) {
         if (name.isEmpty()) {
@@ -452,63 +493,17 @@ void OutputGroupManagerInterfaceV1Private::loadPersistedGroups()
             continue;
         }
 
-        auto *groupConfig = manager->outputGroupConfig(name);
-        if (!groupConfig) {
-            continue;
-        }
-
-        if (groupConfig->isInitializeSucceeded()) {
-            restorePersistedGroup(name, groupConfig);
-            continue;
-        }
-
-        // The per-group config is created on demand and DConfig initializes
-        // asynchronously, so its values are only readable once it is ready.
-        QObject::connect(
-            groupConfig,
-            &TreelandConfig::configInitializeSucceed,
-            q,
-            [this, name](auto *) {
-                restorePersistedGroup(name, DConfigManager::instance()->outputGroupConfig(name));
-            },
-            Qt::SingleShotConnection);
-        QObject::connect(
-            groupConfig,
-            &TreelandConfig::configInitializeFailed,
-            q,
-            [name] {
-                qCWarning(lcTlOutput) << "Failed to read persisted output group" << name;
-            },
-            Qt::SingleShotConnection);
+        OutputGroupConfig config;
+        config.name = name;
+        configs.append(config);
+        qCInfo(lcTlOutput) << "Restored output group" << name;
+        // Clients that bound before the configuration was readable already got
+        // their groups_done dump; announce the restored groups to them as well
+        // instead of leaving them permanently invisible.
+        broadcastGroupAdded(name, nullptr);
     }
 
     recomputeEffectiveState();
-}
-
-void OutputGroupManagerInterfaceV1Private::persistGroup(const OutputGroupConfig &config)
-{
-    auto *manager = DConfigManager::instance();
-    if (!manager) {
-        return;
-    }
-    auto *groupConfig = manager->outputGroupConfig(config.name);
-    if (!groupConfig) {
-        return;
-    }
-    groupConfig->setOutputGroupSource(config.sourceUuid);
-    groupConfig->setOutputGroupMirrors(serializeStringList(config.mirrorUuids));
-}
-
-void OutputGroupManagerInterfaceV1Private::forgetPersistedGroup(const QString &name)
-{
-    auto *manager = DConfigManager::instance();
-    if (!manager) {
-        return;
-    }
-    if (auto *groupConfig = manager->outputGroupConfig(name)) {
-        groupConfig->setOutputGroupSource(QString());
-        groupConfig->setOutputGroupMirrors(QStringLiteral("[]"));
-    }
 }
 
 void OutputGroupManagerInterfaceV1Private::persistGroupRegistry()
@@ -568,50 +563,33 @@ void OutputGroupManagerInterfaceV1Private::recomputeEffectiveState()
     QScopeGuard resetGuard([this] { recomputing = false; });
     recomputing = true;
 
-    const bool canPromote = host->canReconfigureOutputs();
-    QStringList promotedGroups;
+    const auto members = host->outputGroupMembers();
+
+    // Lazy cleanup: a membership record pointing at a group that is no longer
+    // registered is stale (the group was dissolved while the output was
+    // unplugged), clear it instead of resurrecting the group.
+    for (const auto &member : members) {
+        if (!member.groupName.isEmpty() && !findConfig(member.groupName)) {
+            host->writeOutputGroupMembership(member.uuid, QString(), 0, 0);
+        }
+    }
 
     for (auto &config : configs) {
         OutputGroupRuntime runtime;
         runtime.name = config.name;
 
-        const auto isAvailable = [this](const QString &uuid) {
-            return !uuid.isEmpty() && host->isOutputAvailable(uuid);
-        };
-
-        QString source = isAvailable(config.sourceUuid) ? config.sourceUuid : QString();
-        QStringList mirrors;
-        for (const auto &uuid : std::as_const(config.mirrorUuids)) {
-            if (uuid == source || !isAvailable(uuid)) {
-                continue;
-            }
-            mirrors.append(uuid);
-        }
-
-        if (source.isEmpty() && !mirrors.isEmpty()) {
-            // Promote the first available configured mirror. Once the output
-            // set is stable this is permanent: the promoted output becomes the
-            // configured source so the group keeps working after a restart.
-            const QString promoted = mirrors.takeFirst();
-            const QString previousSource = config.sourceUuid;
-            source = promoted;
-            if (canPromote) {
-                // Permanent promotion: the promoted output becomes the
-                // configured source and the unavailable source takes its place
-                // in the configured mirror list, so copy mode resumes with the
-                // same members once it comes back.
-                config.sourceUuid = promoted;
-                config.mirrorUuids.removeAll(promoted);
-                if (!previousSource.isEmpty() && previousSource != promoted
-                    && !config.mirrorUuids.contains(previousSource)) {
-                    config.mirrorUuids.append(previousSource);
-                }
-                promotedGroups.append(config.name);
+        QList<OutputGroupMemberInfo> groupMembers;
+        for (const auto &member : members) {
+            // Only available (connected and enabled) outputs take part in the
+            // effective state; a switched-off or unplugged member keeps its
+            // persisted membership but drops out of the runtime state.
+            if (member.groupName == config.name && host->isOutputAvailable(member.uuid)) {
+                groupMembers.append(member);
             }
         }
 
-        runtime.sourceUuid = source;
-        runtime.mirrorUuids = mirrors;
+        runtime.sourceUuid = resolveGroupSource(groupMembers);
+        runtime.mirrorUuids = resolveGroupMirrors(groupMembers, runtime.sourceUuid);
 
         auto it = effective.find(config.name);
         if (it == effective.end()) {
@@ -619,14 +597,6 @@ void OutputGroupManagerInterfaceV1Private::recomputeEffectiveState()
         } else if (it->sourceUuid != runtime.sourceUuid
                    || it->mirrorUuids != runtime.mirrorUuids) {
             *it = runtime;
-        }
-    }
-
-    if (!promotedGroups.isEmpty()) {
-        for (const auto &name : std::as_const(promotedGroups)) {
-            if (const auto *config = findConfig(name)) {
-                persistGroup(*config);
-            }
         }
     }
 
@@ -682,7 +652,19 @@ void OutputGroupManagerInterfaceV1Private::dissolveGroup(const QString &name)
     }
 
     effective.remove(name);
-    forgetPersistedGroup(name);
+
+    // Clear the membership of the connected members; unplugged members keep
+    // their stale records until they come back and are cleaned up lazily by
+    // recomputeEffectiveState().
+    if (host) {
+        const auto members = host->outputGroupMembers();
+        for (const auto &member : members) {
+            if (member.groupName == name) {
+                host->writeOutputGroupMembership(member.uuid, QString(), 0, 0);
+            }
+        }
+    }
+
     persistGroupRegistry();
     broadcastGroupRemoved(name);
     recomputeEffectiveState();
@@ -710,7 +692,22 @@ void OutputGroupManagerInterfaceV1Private::commitGroup(OutputGroupInterfaceV1Pri
     }
 
     const auto pending = std::exchange(handle->pending, {});
-    bool changed = false;
+
+    // Snapshot of the connected outputs' membership; writes below go through
+    // the host and update the snapshot, so later requests in the same batch
+    // observe the earlier ones.
+    QHash<QString, OutputGroupMemberInfo> membersByUuid;
+    const auto members = host->outputGroupMembers();
+    for (const auto &member : members) {
+        membersByUuid.insert(member.uuid, member);
+    }
+    auto writeMembership = [this, &membersByUuid](const QString &uuid,
+                                                  const QString &groupName,
+                                                  qlonglong joinTime,
+                                                  qlonglong lastSetSourceTime) {
+        host->writeOutputGroupMembership(uuid, groupName, joinTime, lastSetSourceTime);
+        membersByUuid.insert(uuid, { uuid, groupName, joinTime, lastSetSourceTime });
+    };
 
     // A later set_source replaces an earlier uncommitted one: only the most
     // recent source designation in the queue is applied, the others are
@@ -730,75 +727,71 @@ void OutputGroupManagerInterfaceV1Private::commitGroup(OutputGroupInterfaceV1Pri
 
         switch (request.type) {
         case PendingRequest::SetSource: {
-            if (request.uuid.isEmpty() || !host->isOutputAvailable(request.uuid)) {
+            const auto memberIt = membersByUuid.constFind(request.uuid);
+            if (request.uuid.isEmpty() || memberIt == membersByUuid.cend()
+                || !host->isOutputAvailable(request.uuid)) {
                 handle->sendFailure(QtWaylandServer::treeland_output_group_v1::failure_invalid_output,
                                     request.uuid);
                 break;
             }
-            if (config->sourceUuid == request.uuid) {
-                break;
-            }
-            if (effective.value(config->name).sourceUuid == request.uuid) {
-                // The output is already the effective source, for example after
-                // an auto-promotion: pin it as the configured source.
-                const QString previousSource = config->sourceUuid;
-                config->sourceUuid = request.uuid;
-                config->mirrorUuids.removeAll(request.uuid);
-                if (!previousSource.isEmpty() && previousSource != request.uuid
-                    && !config->mirrorUuids.contains(previousSource)) {
-                    config->mirrorUuids.append(previousSource);
-                }
-                changed = true;
-                break;
-            }
-            const QString owner = groupOwningOutput(request.uuid, config->name);
-            if (!owner.isEmpty()) {
+            if (!memberIt->groupName.isEmpty() && memberIt->groupName != config->name) {
                 handle->sendFailure(QtWaylandServer::treeland_output_group_v1::failure_output_in_use,
-                                    request.uuid);
-                break;
-            }
-            if (config->mirrorUuids.contains(request.uuid)) {
-                handle->sendFailure(QtWaylandServer::treeland_output_group_v1::failure_duplicate_output,
                                     request.uuid);
                 break;
             }
 
-            const QString previousSource = config->sourceUuid;
-            config->sourceUuid = request.uuid;
-            if (!previousSource.isEmpty()) {
-                config->mirrorUuids.append(previousSource);
+            // Pin the output as the source: it joins the group when it was
+            // not a member yet, and only one member may carry the source
+            // marker, so the other connected members are cleared. Collect the
+            // members to clear first: writeMembership() updates the snapshot,
+            // so it must not run while the snapshot is being iterated.
+            const qlonglong now = QDateTime::currentMSecsSinceEpoch();
+            const bool joinsGroup = memberIt->groupName.isEmpty();
+            writeMembership(request.uuid,
+                            config->name,
+                            joinsGroup ? now : memberIt->joinTime,
+                            now);
+            QStringList membersToClear;
+            for (const auto &member : std::as_const(membersByUuid)) {
+                if (member.groupName == config->name && member.uuid != request.uuid
+                    && member.lastSetSourceTime != 0) {
+                    membersToClear.append(member.uuid);
+                }
             }
-            changed = true;
+            for (const auto &uuid : std::as_const(membersToClear)) {
+                const auto member = membersByUuid.value(uuid);
+                writeMembership(uuid, member.groupName, member.joinTime, 0);
+            }
             break;
         }
         case PendingRequest::AddOutput: {
-            if (request.uuid.isEmpty() || !host->isOutputAvailable(request.uuid)) {
+            const auto memberIt = membersByUuid.constFind(request.uuid);
+            if (request.uuid.isEmpty() || memberIt == membersByUuid.cend()
+                || !host->isOutputAvailable(request.uuid)) {
                 handle->sendFailure(QtWaylandServer::treeland_output_group_v1::failure_invalid_output,
                                     request.uuid);
                 break;
             }
-            if (config->sourceUuid == request.uuid
-                || config->mirrorUuids.contains(request.uuid)) {
+            if (memberIt->groupName == config->name) {
                 handle->sendFailure(QtWaylandServer::treeland_output_group_v1::failure_duplicate_output,
                                     request.uuid);
                 break;
             }
-            const QString owner = groupOwningOutput(request.uuid, config->name);
-            if (!owner.isEmpty()) {
+            if (!memberIt->groupName.isEmpty()) {
                 handle->sendFailure(QtWaylandServer::treeland_output_group_v1::failure_output_in_use,
                                     request.uuid);
                 break;
             }
-            config->mirrorUuids.append(request.uuid);
-            changed = true;
+            writeMembership(request.uuid,
+                            config->name,
+                            QDateTime::currentMSecsSinceEpoch(),
+                            0);
             break;
         }
         case PendingRequest::RemoveOutput: {
-            if (config->sourceUuid == request.uuid) {
-                config->sourceUuid.clear();
-                changed = true;
-            } else if (config->mirrorUuids.removeOne(request.uuid)) {
-                changed = true;
+            const auto memberIt = membersByUuid.constFind(request.uuid);
+            if (memberIt != membersByUuid.cend() && memberIt->groupName == config->name) {
+                writeMembership(request.uuid, QString(), 0, 0);
             } else {
                 handle->sendFailure(QtWaylandServer::treeland_output_group_v1::failure_not_in_group,
                                     request.uuid);
@@ -808,9 +801,6 @@ void OutputGroupManagerInterfaceV1Private::commitGroup(OutputGroupInterfaceV1Pri
         }
     }
 
-    if (changed) {
-        persistGroup(*config);
-    }
     recomputeEffectiveState();
 }
 
@@ -846,12 +836,12 @@ void OutputGroupManagerInterfaceV1Private::create_group(Resource *resource,
             failedUuid = source;
             failure = QtWaylandServer::treeland_output_group_v1::failure_output_in_use;
         } else {
-            config.sourceUuid = source;
+            const qlonglong now = QDateTime::currentMSecsSinceEpoch();
+            host->writeOutputGroupMembership(source, config.name, now, now);
         }
     }
 
     configs.append(config);
-    persistGroup(config);
     persistGroupRegistry();
     // Compute the effective state before the new object exists, so its initial
     // batch carries the state the create request produced. An empty-source
@@ -970,11 +960,14 @@ QString OutputGroupManagerInterfaceV1::createGroup(const QString &sourceUuid,
 
     OutputGroupConfig config;
     config.name = d->nextGroupName();
-    config.sourceUuid = sourceUuid;
-    config.mirrorUuids = acceptedMirrors;
+
+    const qlonglong now = QDateTime::currentMSecsSinceEpoch();
+    d->host->writeOutputGroupMembership(sourceUuid, config.name, now, now);
+    for (const auto &uuid : std::as_const(acceptedMirrors)) {
+        d->host->writeOutputGroupMembership(uuid, config.name, now, 0);
+    }
 
     d->configs.append(config);
-    d->persistGroup(config);
     d->persistGroupRegistry();
     d->broadcastGroupAdded(config.name, nullptr);
     d->recomputeEffectiveState();

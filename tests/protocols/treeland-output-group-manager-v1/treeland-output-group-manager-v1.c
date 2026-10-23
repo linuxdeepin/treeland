@@ -779,8 +779,9 @@ static int set_output_enabled(struct test_ctx *ctx, const char *uuid, int enable
     return invoke_on_server_thread(output_group_set_output_enabled, &request);
 }
 
-// A group whose source disappears promotes its first available mirror, and the
-// promotion is permanent.
+// A group whose source disappears promotes one of its available mirrors. The
+// promotion is temporary: when the designated source comes back it reclaims
+// the source role and the promoted output becomes a mirror again.
 static int run_promotion_group(struct test_ctx *ctx)
 {
     ctx->promotion.obj = treeland_output_group_manager_v1_create_group(ctx->manager, ctx->uuid[2]);
@@ -827,13 +828,13 @@ static int promotion_re_enable_verify(struct test_ctx *ctx)
         return 0;
     const int promoted = find_output(&ctx->server, ctx->uuid[3]);
     const int oldSource = find_output(&ctx->server, ctx->uuid[2]);
-    // The promoted output stays the source; the output that came back is a
-    // mirror now.
+    // The promotion was temporary: the designated source is back in charge,
+    // the temporarily promoted output is a mirror again.
     return p->state_count > p->state_count_at && p->mirror_count == 1
-        && strcmp(p->source, ctx->uuid[3]) == 0
-        && strcmp(p->mirrors[0], ctx->uuid[2]) == 0
-        && ctx->server.is_copy[oldSource]
-        && ctx->server.proxy_index[oldSource] == promoted;
+        && strcmp(p->source, ctx->uuid[2]) == 0
+        && strcmp(p->mirrors[0], ctx->uuid[3]) == 0
+        && ctx->server.is_copy[promoted]
+        && ctx->server.proxy_index[promoted] == oldSource;
 }
 
 static int run_promotion_dissolve(struct test_ctx *ctx)
