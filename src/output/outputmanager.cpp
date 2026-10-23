@@ -854,11 +854,6 @@ bool OutputManager::isOutputAvailable(const QString &uuid) const
     return output && output->output() && output->output()->isEnabled();
 }
 
-bool OutputManager::canReconfigureOutputs() const
-{
-    return m_initialOutputScanFinished;
-}
-
 QList<OutputGroupMemberInfo> OutputManager::outputGroupMembers() const
 {
     QList<OutputGroupMemberInfo> members;
@@ -866,12 +861,16 @@ QList<OutputGroupMemberInfo> OutputManager::outputGroupMembers() const
         if (!output || !output->output()) {
             continue;
         }
-        auto *config = output->config();
         // The membership record is only readable once the output's
-        // configuration has been loaded; the uuid doubles as that indicator
-        // because it is assigned from the loaded configuration.
-        const QString uuid = output->uuid();
-        if (!config || !config->isInitializeSucceeded() || uuid.isEmpty()) {
+        // configuration has been loaded.
+        auto *config = output->config();
+        if (!config || !config->isInitializeSucceeded()) {
+            continue;
+        }
+        const QString uuid = config->uuid();
+        if (uuid.isEmpty()) {
+            // The uuid is assigned from the loaded configuration, so an empty
+            // one means the record is not usable yet.
             continue;
         }
         members.append({ uuid, config->groupName(), config->joinTime(), config->lastSetSourceTime() });
@@ -886,10 +885,15 @@ void OutputManager::writeOutputGroupMembership(const QString &uuid,
 {
     Output *output = findOutputByUuid(uuid);
     if (!output || !output->output()) {
+        qCWarning(lcTlOutput) << "Cannot persist output group membership of unknown output" << uuid
+                              << "group:" << groupName;
         return;
     }
     auto *config = output->config();
     if (!config || !config->isInitializeSucceeded()) {
+        qCWarning(lcTlOutput) << "Cannot persist output group membership before the output"
+                              << "configuration is loaded, uuid:" << uuid
+                              << "group:" << groupName;
         return;
     }
     config->setGroupName(groupName);
@@ -963,6 +967,16 @@ Output *OutputManager::convertMirrorToNormal(int index)
         }
     }
 
+    // Leaving the container drops the layout entry and creating the normal
+    // output puts it back at an automatic position. Restore the configured one
+    // before the state is saved, otherwise copy mode would rewrite the
+    // arrangement the user made for that output.
+    auto *config = output->config();
+    const bool hasSavedPosition = config && config->isInitializeSucceeded()
+        && (!config->xIsDefaultValue() || !config->yIsDefaultValue());
+    const QPoint savedPosition(static_cast<int>(hasSavedPosition ? config->x() : 0),
+                               static_cast<int>(hasSavedPosition ? config->y() : 0));
+
     removeFromRootContainer(output);
     m_outputs.removeAt(index);
     delete output;
@@ -972,6 +986,12 @@ Output *OutputManager::convertMirrorToNormal(int index)
     // by single-output display must not be woken up again by leaving copy mode.
     if (wasEnabled) {
         replacement->enable();
+    }
+    if (hasSavedPosition) {
+        if (auto *layout = m_rootContainer->outputLayout();
+            layout && layout->outputs().contains(woutput)) {
+            layout->move(woutput, savedPosition);
+        }
     }
     saveCurrentConfig(replacement);
     m_outputs.insert(index, replacement);
@@ -989,7 +1009,13 @@ Output *OutputManager::convertMirrorToNormal(int index)
 // this change.
 void OutputManager::applyOutputGroups()
 {
-    if (!m_outputGroupManager || m_applyingOutputGroups) {
+    if (!m_outputGroupManager) {
+        return;
+    }
+    if (m_applyingOutputGroups) {
+        // A request that arrives while a reconcile is running must not be
+        // dropped: it may be based on an effective state this pass did not see.
+        m_groupsDirty = true;
         return;
     }
     if (m_pendingOutputConfig.config || m_inFlightOutputCommits > 0) {
@@ -1085,8 +1111,10 @@ void OutputManager::applyOutputGroups()
         output->deleteLater();
     }
 
-    // A mirror can never be the primary output.
-    Output *primary = m_rootContainer->primaryOutput();
+    // A mirror can never be the primary output. The pointer is guarded because
+    // the loops above replace output objects and the container may still hold
+    // the one it removed.
+    QPointer<Output> primary = m_rootContainer->primaryOutput();
     if (!primary || !m_outputs.contains(primary) || !primary->isSource()) {
         const auto surfaces = primary ? workspaceSurfaces(primary) : QList<SurfaceWrapper *>();
         Output *fallback = findOutputByUuid(desiredSources.value(0));
@@ -1118,6 +1146,14 @@ void OutputManager::applyOutputGroups()
     if (m_mode != newMode) {
         m_mode = newMode;
         Q_EMIT modeChanged();
+    }
+
+    // A reconcile requested while this pass was running is re-run now instead
+    // of being lost. The notification is queued, so the pass flag is already
+    // cleared when it arrives.
+    if (m_groupsDirty) {
+        m_groupsDirty = false;
+        notifyOutputGroupsChanged();
     }
 }
 

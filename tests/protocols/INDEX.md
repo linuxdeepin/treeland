@@ -34,7 +34,7 @@ Wayland 线上请求与事件；本文档规定发出请求后，测试必须观
 | [foreign-toplevel-manager-v2](treeland-foreign-toplevel-manager-v2/README.md) | E | 真实 toplevel、dock preview、窗口状态（含最小化与布局正交）、激活/焦点与 icon rectangle |
 | [input-manager-unstable-v1](treeland-input-manager-unstable-v1/README.md) | I / E（可选） | 默认空设备 manager 生命周期；uinput 驱动真实 libinput capability 热插拔 |
 | [keyboard-state-notify-unstable-v1](treeland-keyboard-state-notify-unstable-v1/README.md) | P | watcher 配置与空键盘/空 modifier 边界 |
-| [output-manager-v1](treeland-output-manager-v1/README.md) | I / P | 真实 `wl_output` 的 primary-output 链路 |
+| [output-manager-v2](treeland-output-manager-v2/README.md) | I / P | uuid 寻址的 primary-output 与 picture-control 创建/提交/失效链路 |
 | [personalization-manager-v1](treeland-personalization-manager-v1/README.md) | E / I | 个性化状态挂接到真实 wrapper；font/appearance 配置的 setter/getter 生产回读与恢复 |
 | [region-watch-unstable-v1](treeland-region-watch-unstable-v1/README.md) | E / P | 输出边缘区域的全局坐标注册；真实 toplevel 映射/关闭驱动的 enter/leave；输出重绑、output_removed 与惰性语义 |
 | [appearance-unstable-v1](treeland-appearance-unstable-v1/README.md) | I / P | 初始 `color_scheme` 与 manager setter 触发的 client 广播 | 其余外观字段、无效值和 DConfig 配置替换 |
@@ -111,7 +111,7 @@ request stub 算作 request 覆盖；生成的 client-protocol 文件本身不�
 - 去掉 61 条 `destroy` 生命周期 request 后，剩余 165 条工厂、配置和业务 request 中有
   **115 条（69.7%）** 被直接调用。
 - 25 个协议中 **20 个（80.0%）** 至少有一条 E 级生产业务链路；仅 DDM、output-manager
-  color-control、wallpaper-color 仍停留在 I/P 层。
+  picture-control、wallpaper-color 仍停留在 I/P 层。
 - 当前 XML 共有 115 条 server event。这里**不发布“事件百分比”**：listener 中出现一个
   callback、或 fixture 手工发出一次 event，都不能证明事件负载或其业务来源被断言。下表只
   列出已实际断言的关键 event，并明确列出尚未逐项验证的 event。
@@ -128,7 +128,7 @@ request stub 算作 request 覆盖；生成的 client-protocol 文件本身不�
 | foreign-toplevel-manager-v2 | 16 / 16 | `toplevel/identifier/closed`；真实最小化、最大化、全屏、焦点与 icon rectangle；最小化与布局状态正交（含取消布局后不卡在最小化）；布局状态请求在几何动画进行中的重定向与取消（最大化中还原、取消全屏后最大化） | `pid/title/app_id/output_enter/output_leave/state/done/parent` payload；指定 `wl_output` 的 fullscreen hint、preview 像素；`Tiling` 组合 |
 | input-manager-unstable-v1 | 1 / 22 | 默认测试仅证明空设备 manager 可绑定；uinput target 断言 Keyboard capability 热插拔 | settings/apply、真实 mouse/touchpad 配置生效、无设备 failed；uinput E 层需显式启用并实际执行 |
 | keyboard-state-notify-unstable-v1 | 6 / 6 | watcher 配置、`apply` 的空键盘/空 modifier 边界 | `current_state/state_changed`、多 watcher、初始 locked、seat 销毁、重复 apply 与物理键盘对照 |
-| output-manager-v1 | 4 / 7 | `primary_output`；未知 output 的 color-control 错误 | `set_color_temperature/set_brightness/commit` 成功路径及 `result/color_temperature/brightness`，真实 output/像素变化 |
+| output-manager-v2 | 7 / 7 | `primary_output` 初值与 uuid 确认、`primary_output_failed(invalid_output)` 非致命；picture-control 初始 `brightness`/`color_temperature`、`result`（success/invalid_output）与失效后 inert、越界色温致命协议错误 | `set_color_temperature/set_brightness` 成功路径及 brightness/color_temperature 事件回读、`invalid_brightness`、`unsupported`、真实像素变化、uuid 热插拔跟随 |
 | personalization-manager-v1 | 37 / 37* | cursor/font/appearance 回读 event；真实 wrapper 个性化状态 | manager `destroy` 为 v2 request（v1 global 只能走错误/兼容性边界）；字体渲染和 appearance 的最终 UI 像素 |
 | region-watch-unstable-v1 | 4 / 4 | `set_region` 后的强制评估；真实 toplevel 映射/关闭驱动的 `enter/leave`；输出重绑、`output_removed` 与惰性语义 | `invalid_anchor/invalid_size` 致命错误路径、输出 scale/mode 变化后的重新注册、多 watcher |
 | remote-subsurface-unstable-v1 | 8 / 8 | token；真实 Remote `WSubsurface` 的父子关系、位置、Below 层级；`parent_rejected` / `invalid_sibling` | 跨 client、循环 parent、映射生命周期、sibling 间排序 |
