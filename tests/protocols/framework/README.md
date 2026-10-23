@@ -114,7 +114,7 @@ flowchart TB
 | 协议 request 已被 server 处理 | `wl_display_roundtrip()` 或规定的 response event | `source_ready`、`commit_success` |
 | fixture 可开始 client | output model `rowsInserted`、`configInitializeSucceed`、或 target 的 `protocol_test_ready()` | 需要一个或多个 headless output |
 | C++ 生产对象的同步读取 | `invoke_on_server_thread()` 返回 | wrapper/seat/output 的 POD snapshot |
-| 异步业务动作 | 对应生产 signal、Wayland event 或 model change | splash `surfaceAdded`、virtual-output rows change |
+| 异步业务动作 | 对应生产 signal、Wayland event 或 model change | splash `surfaceAdded`、output model rows change |
 | 渲染/图像结果 | `renderEnd`、`QFutureWatcher::finished`、capture `ready/failed` | texture 或 client target buffer |
 
 fixture ready 仍由 output model `rowsInserted`、配置完成 signal 或 target 的

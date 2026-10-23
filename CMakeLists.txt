@@ -124,6 +124,7 @@ set(QML_IMPORT_PATH "${LOCAL_QML_IMPORT_PATH}" CACHE STRING "For LSP" FORCE)
 
 # PKG-CONFIG
 find_package(PkgConfig REQUIRED)
+find_package(TreelandProtocols 0.8.0 CONFIG REQUIRED)
 find_package(Qt6 CONFIG REQUIRED Core DBus Gui Qml Quick QuickControls2 LinguistTools Test QuickTest)
 
 qt_standard_project_setup(REQUIRES 6.8)

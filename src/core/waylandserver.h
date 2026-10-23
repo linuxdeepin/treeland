@@ -196,6 +196,7 @@ public:
     RootSurfaceContainer *rootSurfaceContainer() const;
     WServer *server() const;
     Output *getOutput(WOutput *output) const;
+    Output *getOutputByUuid(const QString &uuid) const;
     const QList<Output *> &outputs() const;
 
     float animationSpeed() const;

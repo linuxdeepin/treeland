@@ -101,36 +101,14 @@
             "permissions": "readwrite",
             "visibility": "public"
         },
-        "createCopyOutput": {
-            "value": false,
-            "serial": 0,
-            "flags": [],
-            "name": "Create Copy Output",
-            "name[zh_CN]": "创建复制输出",
-            "description": "Whether treeland should restore copy output mode when enough outputs are available.",
-            "description[zh_CN]": "当存在足够输出时，treeland 是否恢复复制输出模式。",
-            "permissions": "readwrite",
-            "visibility": "public"
-        },
-        "copyOutputName": {
+        "outputGroups": {
             "value": "",
             "serial": 0,
             "flags": [],
-            "name": "Copy Output Name",
-            "name[zh_CN]": "复制输出名称",
-            "description": "Virtual output group name used when restoring copy output mode.",
-            "description[zh_CN]": "恢复复制输出模式时使用的虚拟输出组名称。",
-            "permissions": "readwrite",
-            "visibility": "public"
-        },
-        "copyOutputOutputs": {
-            "value": "",
-            "serial": 0,
-            "flags": [],
-            "name": "Copy Output IDs",
-            "name[zh_CN]": "复制输出 ID 队列",
-            "description": "JSON string array of output IDs for copy mode. The first element is copied and subsequent elements mirror it.",
-            "description[zh_CN]": "复制模式输出 ID 的 JSON 字符串数组。第一个元素是被复制屏，后续元素镜像它。",
+            "name": "Output Groups",
+            "name[zh_CN]": "输出分组列表",
+            "description": "Semicolon-separated list of persisted output group names. Group membership is stored on each output's own configuration.",
+            "description[zh_CN]": "持久化的输出分组名称列表，以分号分隔。分组成员信息存放在每个输出自己的配置中。",
             "permissions": "readwrite",
             "visibility": "public"
         }

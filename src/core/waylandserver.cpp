@@ -45,7 +45,7 @@
 #include "modules/shortcut/shortcutmanager.h"
 #include "modules/shortcut/shortcutrunner.h"
 #include "modules/wallpaper-color/wallpapercolorinterfacev1.h"
-#include "modules/virtual-output/virtualoutputmanagerinterfacev1.h"
+#include "modules/output-group/outputgroupmanagerinterfacev1.h"
 #include "output/output.h"
 #include "output/outputmanager.h"
 #include "seatuserconfig.hpp"
@@ -594,6 +594,11 @@ Output *WaylandServer::getOutput(WOutput *output) const
     return m_outputManager->outputFor(output);
 }
 
+Output *WaylandServer::getOutputByUuid(const QString &uuid) const
+{
+    return m_outputManager->findOutputByUuid(uuid);
+}
+
 const QList<Output *> &WaylandServer::outputs() const
 {
     return m_outputManager->outputs();
@@ -1032,11 +1037,11 @@ WXdgOutputManager *WaylandServer::installDesktopProtocols(QmlEngine *engine)
     auto *xdgOutputManager =
         server()->attach<WXdgOutputManager>(m_rootSurfaceContainer->outputLayout());
 
-    auto *outputManagerV1 = server()->attach<OutputManagerV1>();
+    auto *outputManagerV2 = server()->attach<OutputManagerV2>();
     connect(m_rootSurfaceContainer,
             &RootSurfaceContainer::primaryOutputChanged,
-            outputManagerV1,
-            &OutputManagerV1::onPrimaryOutputChanged);
+            outputManagerV2,
+            &OutputManagerV2::onPrimaryOutputChanged);
     server()->attach<OutputUuidManagerV1>();
     server()->attach<OutputUuidHeadManagerV1>();
     connect(m_rootSurfaceContainer,
@@ -1046,8 +1051,8 @@ WXdgOutputManager *WaylandServer::installDesktopProtocols(QmlEngine *engine)
     m_wallpaperColorV1 = server()->attach<WallpaperColorInterfaceV1>();
     m_showDesktop->initialize(server());
     m_xWindowControlInterfaceV1 = server()->attach<XWindowControlInterfaceV1>();
-    auto *virtualOutputInterface = server()->attach<VirtualOutputManagerInterfaceV1>();
-    m_outputManager->setVirtualOutputInterface(virtualOutputInterface);
+    auto *outputGroupInterface = server()->attach<OutputGroupManagerInterfaceV1>();
+    m_outputManager->setOutputGroupInterface(outputGroupInterface);
 
     m_captureManager->installProtocol(server(), engine, m_renderWindow);
     m_surfaceProtocols->installPersonalization(server());
