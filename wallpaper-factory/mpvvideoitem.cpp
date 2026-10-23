@@ -149,15 +149,15 @@ MpvVideoItem::~MpvVideoItem()
     if (m_mpvGL) {
         mpv_render_context_free(m_mpvGL);
     }
-    mpv_set_wakeup_callback(m_mpv, nullptr, nullptr);
+
+    if (m_mpv)
+        mpv_set_wakeup_callback(m_mpv, nullptr, nullptr);
 
     if (m_workerThread) {
         m_workerThread->quit();
         m_workerThread->wait();
         delete m_workerThread;
     }
-
-    mpv_terminate_destroy(m_mpv);
 }
 
 QByteArrayView MpvVideoItem::toByteArray(Property p)
