@@ -82,7 +82,6 @@ public:
 
     // OutputGroupHost
     bool isOutputAvailable(const QString &uuid) const override;
-    bool canReconfigureOutputs() const override;
     QList<OutputGroupMemberInfo> outputGroupMembers() const override;
     void writeOutputGroupMembership(const QString &uuid,
                                     const QString &groupName,
@@ -90,10 +89,6 @@ public:
                                     qlonglong lastSetSourceTime) override;
     void applyOutputGroups() override;
 
-    // Reverse lookup for uuid-addressed protocols (output-manager-v2,
-    // output-group-manager-v1, ...). Returns nullptr for an empty or unknown
-    // uuid; state checks (enabled, live) stay with the callers. This is the
-    // single authoritative implementation shared with WaylandServer.
     Output *findOutputByUuid(const QString &uuid) const;
 
 Q_SIGNALS:

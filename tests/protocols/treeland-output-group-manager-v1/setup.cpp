@@ -77,7 +77,7 @@ void normalizeInitialOutputConfig(WaylandServer *server)
     // group persisted by an earlier run. Group membership left behind on the
     // outputs' own configurations is cleared lazily by the compositor once it
     // recomputes the effective state.
-    server->globalConfig()->setOutputGroups(QStringLiteral("[]"));
+    server->globalConfig()->setOutputGroups(QString());
     g_configNormalized = true;
 }
 
