@@ -196,6 +196,41 @@ void printClientsTable(const QList<ClientInfo> &clients)
     }
 }
 
+void printIdle(const IdleInfo &info)
+{
+    QTextStream out(stdout);
+    const auto inhibitors = info.inhibitors();
+
+    out << "idle: " << formatDuration(info.idleMs()) << " since last input"
+        << "  inhibited: " << (info.inhibited() ? "yes" : "no")
+        << "  screensaver inhibit: " << (info.screensaverInhibited() ? "yes" : "no") << "\n";
+
+    if (inhibitors.isEmpty()) {
+        out << "inhibitors: none\n";
+        return;
+    }
+
+    out << "inhibitors (" << inhibitors.size() << "):\n";
+    for (const auto &inhibitor : inhibitors) {
+        out << "  [" << inhibitor.kind() << "]"
+            << " pid=" << inhibitor.pid()
+            << " appId=" << (inhibitor.appId().isEmpty() ? QStringLiteral("(unknown)") : inhibitor.appId());
+        if (inhibitor.surfaceId() != 0)
+            out << " window=" << inhibitor.surfaceId();
+        if (!inhibitor.title().isEmpty())
+            out << " \"" << inhibitor.title() << "\"";
+        if (!inhibitor.appName().isEmpty())
+            out << " app=\"" << inhibitor.appName() << "\"";
+        if (!inhibitor.reason().isEmpty())
+            out << " reason=\"" << inhibitor.reason() << "\"";
+        out << " active=" << (inhibitor.active() ? "yes" : "no")
+            << " held=" << formatDuration(inhibitor.heldMs());
+        if (!inhibitor.executable().isEmpty())
+            out << " exe=" << inhibitor.executable();
+        out << "\n";
+    }
+}
+
 void printTree(const TreelandInfo &info)
 {
     QTextStream out(stdout);
@@ -314,7 +349,7 @@ QString helpText()
         "  --url <url>          Remote object host URL (default: build-specific socket, auto)\n"
         "  --name <name>        Remote object name (default: WindowTree)\n"
         "  --timeout-ms <n>     Request timeout in milliseconds (default: 30000)\n"
-        "  --json               Emit machine-readable JSON for `tree`/`cursor`/`windows`/`clients`\n"
+        "  --json               Emit machine-readable JSON for `tree`/`cursor`/`windows`/`clients`/`idle`\n"
         "  --preview            Force inline image preview in terminal (auto-detected by default)\n"
         "  --no-preview         Disable inline image preview\n"
         "  --no-escalate        Do not attempt polkit privilege escalation (release builds only)\n"
@@ -324,6 +359,7 @@ QString helpText()
         "  cursor                     Print the cursor position (human-readable, use --json for JSON)\n"
         "  windows                    List all toplevel windows (use --json for JSON)\n"
         "  clients                    List connected Wayland clients and their windows\n"
+        "  idle                       Show the idle state (time since last input) and who holds idle off\n"
         "  top [interval-ms]          Live, top-like refreshing view (default 1000ms)\n"
         "  events [interval-ms]      Real-time input event stream (default 50ms)\n"
         "  watch <id> [interval-ms]  Monitor a window's changes (default 250ms)\n"
@@ -621,6 +657,16 @@ static int runCommand(Session &session, int timeoutMs, bool json, int previewOpt
             printClientsTable(clients);
         return EXIT_SUCCESS;
     }
+    case DebugCommand::Idle: {
+        IdleInfo info;
+        if (!waitSlot(replica->getIdleInfo(), timeoutMs, &info))
+            return fail("getIdleInfo() failed");
+        if (json)
+            printJson(QJsonDocument(idleToJson(info)));
+        else
+            printIdle(info);
+        return EXIT_SUCCESS;
+    }
     // ---- window control ----
     case DebugCommand::Activate:
     case DebugCommand::Close:
@@ -817,6 +863,8 @@ static int runTop(Session &session, int timeoutMs, int intervalMs)
         qint64 focusId = 0, cursorId = 0;
         waitSlot(session.replica->focusedWindowId(), timeoutMs, &focusId);
         waitSlot(session.replica->windowUnderCursor(), timeoutMs, &cursorId);
+        IdleInfo idle;
+        const bool haveIdle = waitSlot(session.replica->getIdleInfo(), timeoutMs, &idle);
 
         // Collect all windows with their frame deltas.
         struct WinRow {
@@ -850,8 +898,16 @@ static int runTop(Session &session, int timeoutMs, int intervalMs)
         out << QStringLiteral("\033[2J\033[H");
         out << "treeland-debug top — "
             << QDateTime::currentDateTime().toString(Qt::ISODate)
-            << "  (clients: " << clients.size() << "  windows: " << rows.size() << ")\n"
-            << "  ID              APP-ID                STATE       MIN  FRAMES  GEO          MARKER\n";
+            << "  (clients: " << clients.size() << "  windows: " << rows.size() << ")\n";
+        if (haveIdle) {
+            int active = 0;
+            for (const auto &source : idle.inhibitors())
+                active += source.active() ? 1 : 0;
+            out << "  idle: " << formatDuration(idle.idleMs())
+                << "  inhibited: " << (idle.inhibited() ? "yes" : "no")
+                << "  sources: " << idle.inhibitors().size() << " (" << active << " active)\n";
+        }
+        out << "  ID              APP-ID                STATE       MIN  FRAMES  GEO          MARKER\n";
         for (const auto &r : rows) {
             QString marker;
             if (r.id == focusId) marker = QStringLiteral("F");

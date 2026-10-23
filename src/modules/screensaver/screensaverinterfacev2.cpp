@@ -5,10 +5,15 @@
 #include "qwayland-server-treeland-screensaver-unstable-v2.h"
 #include "core/waylandserver.h"
 
+#include <wsocket.h>
+
 #include <wayland-server.h>
 #include <wayland-util.h>
 
 #include <QDebug>
+#include <QElapsedTimer>
+
+WAYLIB_SERVER_USE_NAMESPACE
 
 class ScreensaverInterfaceV2Private : public QtWaylandServer::treeland_screensaver_v2
 {
@@ -16,8 +21,14 @@ public:
     explicit ScreensaverInterfaceV2Private(ScreensaverInterfaceV2 *_q);
     wl_global *global() const;
 
+    struct InhibitEntry {
+        QString applicationName;
+        QString reason;
+        QElapsedTimer age;
+    };
+
     ScreensaverInterfaceV2 *q = nullptr;
-    QHash<wl_resource*, std::tuple<QString, QString>> inhibits;
+    QHash<wl_resource*, InhibitEntry> inhibits;
 protected:
     void inhibit(Resource *resource, const QString &application_name, const QString &reason_for_inhibit) override;
     void uninhibit(Resource *resource) override;
@@ -55,7 +66,11 @@ void ScreensaverInterfaceV2Private::inhibit(Resource *resource, const QString &a
         return;
     }
 
-    inhibits.insert(res, std::make_tuple(application_name, reason_for_inhibit));
+    InhibitEntry entry;
+    entry.applicationName = application_name;
+    entry.reason = reason_for_inhibit;
+    entry.age.start();
+    inhibits.insert(res, entry);
     WaylandServer::instance()->updateIdleInhibitor();
 }
 
@@ -89,6 +104,29 @@ QByteArrayView ScreensaverInterfaceV2::interfaceName() const
 bool ScreensaverInterfaceV2::isInhibited() const
 {
     return !d->inhibits.isEmpty();
+}
+
+QList<ScreensaverInterfaceV2::InhibitInfo> ScreensaverInterfaceV2::inhibits() const
+{
+    QList<InhibitInfo> result;
+    result.reserve(d->inhibits.size());
+
+    for (auto it = d->inhibits.constBegin(); it != d->inhibits.constEnd(); ++it) {
+        InhibitInfo info;
+        info.applicationName = it.value().applicationName;
+        info.reason = it.value().reason;
+        info.heldMs = static_cast<quint64>(it.value().age.isValid() ? it.value().age.elapsed() : 0);
+
+        if (auto *client = wl_resource_get_client(it.key())) {
+            if (auto *wclient = WClient::get(client))
+                info.appId = QString::fromUtf8(wclient->appId());
+            if (auto creds = WClient::getCredentials(client))
+                info.pid = creds->pid;
+        }
+        result.append(info);
+    }
+
+    return result;
 }
 
 void ScreensaverInterfaceV2::create(WServer *server)

@@ -87,6 +87,8 @@ QJsonArray layersToJson(const QList<LayerInfo> &layers);
 QJsonObject treelandInfoToJson(const TreelandInfo &info);
 QJsonObject clientToJson(const ClientInfo &client);
 QJsonArray clientsToJson(const QList<ClientInfo> &clients);
+QJsonObject idleInhibitorToJson(const IdleInhibitor &inhibitor);
+QJsonObject idleToJson(const IdleInfo &info);
 QJsonObject debugEventToJson(const DebugEvent &event);
 QJsonArray debugEventsToJson(const QList<DebugEvent> &events);
 

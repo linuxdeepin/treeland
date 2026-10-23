@@ -19,6 +19,23 @@ QString stateName(int state)
     }
 }
 
+QString formatDuration(quint64 ms)
+{
+    // Round to the nearest 100ms up front: the sub-minute format shoots a
+    // decimal, and without this 59.99s would render as "60.0s" instead of
+    // rolling over to "1m00s".
+    const quint64 rounded = (ms + 50) / 100 * 100;
+    if (rounded < 60000)
+        return QStringLiteral("%1s").arg(rounded / 1000.0, 0, 'f', 1);
+    if (rounded < 3600000)
+        return QStringLiteral("%1m%2s")
+            .arg(rounded / 60000)
+            .arg((rounded % 60000) / 1000, 2, 10, QLatin1Char('0'));
+    return QStringLiteral("%1h%2m")
+        .arg(rounded / 3600000)
+        .arg((rounded % 3600000) / 60000, 2, 10, QLatin1Char('0'));
+}
+
 int buttonCode(const QString &name, bool *ok)
 {
     *ok = true;
@@ -125,6 +142,11 @@ ParseResult parseCommand(const QString &command, const QStringList &args)
     if (command == QLatin1String("clients")) {
         r.ok = true;
         r.command = DebugCommand::Clients;
+        return r;
+    }
+    if (command == QLatin1String("idle")) {
+        r.ok = true;
+        r.command = DebugCommand::Idle;
         return r;
     }
     if (command == QLatin1String("help")) {

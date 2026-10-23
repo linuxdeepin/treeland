@@ -31,6 +31,7 @@ class TreelandDebugTest : public QObject
 private Q_SLOTS:
     // --- pure helpers ---
     void testStateNameKnownStates();
+    void testFormatDuration();
     void testStateNameUnknown();
     void testButtonCodeNamed();
     void testButtonCodeRaw();
@@ -58,6 +59,7 @@ private Q_SLOTS:
     void testParseCursor();
     void testParseWindows();
     void testParseClients();
+    void testParseIdle();
     void testParseHelp();
     void testParseShell();
 
@@ -154,6 +156,19 @@ void TreelandDebugTest::testStateNameKnownStates()
     QCOMPARE(stateName(1), QStringLiteral("Maximized"));
     QCOMPARE(stateName(2), QStringLiteral("Fullscreen"));
     QCOMPARE(stateName(3), QStringLiteral("Tiling"));
+}
+
+void TreelandDebugTest::testFormatDuration()
+{
+    QCOMPARE(formatDuration(0), QStringLiteral("0.0s"));
+    QCOMPARE(formatDuration(4200), QStringLiteral("4.2s"));
+    // 59.95s+ rounds up into the minute format instead of "60.0s".
+    QCOMPARE(formatDuration(59949), QStringLiteral("59.9s"));
+    QCOMPARE(formatDuration(59999), QStringLiteral("1m00s"));
+    QCOMPARE(formatDuration(61000), QStringLiteral("1m01s"));
+    QCOMPARE(formatDuration(3599000), QStringLiteral("59m59s"));
+    QCOMPARE(formatDuration(3599999), QStringLiteral("1h00m"));
+    QCOMPARE(formatDuration(3661000), QStringLiteral("1h01m"));
 }
 
 void TreelandDebugTest::testStateNameUnknown()
@@ -425,6 +440,14 @@ void TreelandDebugTest::testParseClients()
     const auto r = parseCommand(QStringLiteral("clients"), {});
     QVERIFY(r.ok);
     QCOMPARE(r.command, DebugCommand::Clients);
+}
+
+void TreelandDebugTest::testParseIdle()
+{
+    const auto r = parseCommand(QStringLiteral("idle"), {});
+    QVERIFY(r.ok);
+    QCOMPARE(r.command, DebugCommand::Idle);
+    QVERIFY(r.error.isEmpty());
 }
 
 void TreelandDebugTest::testParseHelp()
