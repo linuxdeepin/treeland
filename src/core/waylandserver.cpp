@@ -596,12 +596,6 @@ Output *WaylandServer::getOutput(WOutput *output) const
 
 Output *WaylandServer::getOutputByUuid(const QString &uuid) const
 {
-    // Single authoritative uuid lookup, shared with OutputManager (which owns
-    // the output list). Uuid-addressed objects re-resolve on the output model's
-    // rowsInserted/rowsRemoved signals; by the time rowsInserted fires the
-    // output is already in OutputManager::m_outputs (processOutputAdded
-    // appends before registering in the root container), so this lookup sees
-    // the freshly added output.
     return m_outputManager->findOutputByUuid(uuid);
 }
 
