@@ -133,6 +133,8 @@ qt_add_qml_module(libtreeland
         ${OUTPUT_CONFIG}
         ${APP_CONFIG}
         ${SEAT_USER_CONFIG}
+        deepintheme.cpp
+        deepintheme.h
         capture/capturemanager.cpp
         capture/capturemanager.h
         common/treelandlogging.cpp
