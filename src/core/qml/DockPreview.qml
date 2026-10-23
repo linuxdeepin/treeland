@@ -54,6 +54,13 @@ Item {
     property bool isTooltip: false
     property bool isNewDockPreview: false
     property bool listviewPinToLeft: true
+    // Vertical space the title/tooltip row reserves above the window preview.
+    property real titleSpaceOverride: -1
+    readonly property real titleSpace:
+        titleSpaceOverride >= 0 ? titleSpaceOverride : headLayout.implicitHeight
+    // Whether the preview content is currently constrained to the frame; only
+    // enabled during the tooltip <-> preview transition.
+    property bool previewFitting: false
 
     visible: false
 
@@ -181,10 +188,15 @@ Item {
         root.target = target;
         if (root.isShowing && root.isTooltip) {
             if (root.enableAnimation) {
+                preView2TooltipAnimation.stop();
                 tooltip2PreViewAnimation.start();
             } else {
                 root.tooltip = ""
             }
+        } else if (!root.isShowing) {
+            // First appearance (no tooltip -> preview transition): make sure a
+            // previously interrupted transition did not leave it hidden.
+            listview.opacity = 1;
         }
         root.isTooltip = false;
         root.isShowing = true;
@@ -203,6 +215,10 @@ Item {
         root.target = target;
         if (root.isShowing && !root.isTooltip) {
             if (root.enableAnimation) {
+                // Freeze the current (title) inset before `isTooltip` flips,
+                // otherwise the row height below already is the tooltip one.
+                root.titleSpaceOverride = root.titleSpace;
+                tooltip2PreViewAnimation.stop();
                 preView2TooltipAnimation.start();
             }else {
                 filterSurfaceModel.desiredSurfaces = [ ];
@@ -456,6 +472,19 @@ Item {
         anchors.rightMargin: listview.spacing
         anchors.bottom: parent.bottom
         transformOrigin: root.listviewPinToLeft ? Item.BottomLeft : Item.BottomRight
+        
+        scale: {
+            if (!root.previewFitting)
+                return 1;
+            const availWidth = background.width - listview.spacing * 2;
+            const availHeight = background.height - listview.spacing - root.titleSpace;
+            const naturalWidth = listview.implicitWidth;
+            const naturalHeight = listview.implicitHeight;
+            if (!(naturalWidth > 0) || !(naturalHeight > 0))
+                return 0;
+            const fit = Math.min(1, availWidth / naturalWidth, availHeight / naturalHeight);
+            return Number.isFinite(fit) ? Math.max(0, fit) : 1;
+        }
 
         orientation: root.isHorizontal ? ListView.Horizontal : ListView.Vertical
         layoutDirection: Qt.LeftToRight
@@ -634,35 +663,57 @@ Item {
 
     SequentialAnimation {
         id: preView2TooltipAnimation
+        PropertyAction { target: root; property: "previewFitting"; value: true }
         ParallelAnimation {
             NumberAnimation {
                 target: listview
-                property: "scale"
+                property: "opacity"
                 from: 1
                 to: 0
                 duration: root.enableAnimation ? root.aniDuration : 0
+                easing.type: Easing.OutExpo
+            }
+            NumberAnimation {
+                target: root
+                property: "titleSpaceOverride"
+                to: 0
+                duration: root.enableAnimation ? root.aniDuration : 0
+                easing.type: Easing.OutExpo
             }
         }
         ScriptAction {
             script: {
                 filterSurfaceModel.desiredSurfaces = [ ];
-                listview.scale = 1 // restore scale property after animation
             }
         }
+        PropertyAction { target: root; property: "titleSpaceOverride"; value: -1 }
+        PropertyAction { target: root; property: "previewFitting"; value: false }
     }
 
     SequentialAnimation {
         id: tooltip2PreViewAnimation
+        PropertyAction { target: root; property: "previewFitting"; value: true }
         ParallelAnimation {
             NumberAnimation {
                 target: listview
-                property: "scale"
+                property: "opacity"
                 from: 0
                 to: 1
                 duration: root.enableAnimation ? root.aniDuration : 0
+                easing.type: Easing.OutExpo
+            }
+            NumberAnimation {
+                target: root
+                property: "titleSpaceOverride"
+                from: 0
+                to: headLayout.implicitHeight
+                duration: root.enableAnimation ? root.aniDuration : 0
+                easing.type: Easing.OutExpo
             }
         }
         PropertyAction { target: root; property: "tooltip"; value: "" }
+        PropertyAction { target: root; property: "titleSpaceOverride"; value: -1 }
+        PropertyAction { target: root; property: "previewFitting"; value: false }
     }
 
     Rectangle {
