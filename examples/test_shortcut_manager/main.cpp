@@ -3,7 +3,7 @@
 
 // Simple GUI test application for the Treeland Shortcut Manager V3 protocol.
 //
-// A window lists a set of hardcoded default shortcuts (the same compositor
+// A window lists a set of hardcoded default shortcuts and touchpad gestures (the same compositor
 // actions shipped under /usr/share/dsg/configs/org.deepin.dde.keybinding).
 // Ticking a checkbox binds the shortcut with the compositor; unticking it
 // unbinds the shortcut. There is no JSON input: the shortcuts are hardcoded
@@ -64,6 +64,7 @@ protected:
 namespace {
 
 using Action = QtWayland::treeland_shortcut_manager_v3::action;
+using Direction = QtWayland::treeland_shortcut_manager_v3::direction;
 using Flag = QtWayland::treeland_shortcut_manager_v3::keybind_flag;
 
 struct ShortcutDef
@@ -102,6 +103,40 @@ const ShortcutDef kShortcuts[] = {
     { "zoom-out",             "Meta+-",            Action::action_zoom_out,               Flag::keybind_flag_key_release },
     { "zoom-reset",           "Meta+0",            Action::action_zoom_reset,             Flag::keybind_flag_key_release },
 };
+
+struct GestureDef
+{
+    const char *name;
+    const char *description;
+    uint32_t fingers;
+    uint32_t direction; // Zero denotes a hold gesture.
+    Action action;
+};
+
+// Search and launcher toggles are client actions, so they only emit activated.
+const GestureDef kGestures[] = {
+    { "three-finger-up",    "3 fingers up: maximize",          3, Direction::direction_up,    Action::action_maximize },
+    { "three-finger-down",  "3 fingers down: restore",         3, Direction::direction_down,  Action::action_cancel_maximize },
+    { "three-finger-left",  "3 fingers left: tile left",       3, Direction::direction_left,  Action::action_tile_left },
+    { "three-finger-right", "3 fingers right: tile right",     3, Direction::direction_right, Action::action_tile_right },
+    { "three-finger-hold",  "3 fingers hold: toggle search",   3, 0,                          Action::action_notify },
+    { "four-finger-up",     "4 fingers up: show multitask",    4, Direction::direction_up,    Action::action_open_multitask_view },
+    { "four-finger-down",   "4 fingers down: hide multitask",  4, Direction::direction_down,  Action::action_close_multitask_view },
+    { "four-finger-left",   "4 fingers left: prev workspace", 4, Direction::direction_left,  Action::action_prev_workspace },
+    { "four-finger-right",  "4 fingers right: next workspace", 4, Direction::direction_right, Action::action_next_workspace },
+    { "four-finger-hold",   "4 fingers hold: toggle launcher", 4, 0,                          Action::action_notify },
+};
+
+void applyGestureBinding(ShortcutManagerV3 &manager, const GestureDef &def, bool checked)
+{
+    const QString name = QString::fromLatin1(def.name);
+    if (!checked)
+        manager.unbindShortcut(name);
+    else if (def.direction == 0)
+        manager.bind_hold_gesture(name, def.fingers, def.action);
+    else
+        manager.bind_swipe_gesture(name, def.fingers, def.direction, def.action);
+}
 
 } // namespace
 
@@ -143,6 +178,18 @@ int main(int argc, char *argv[])
     }
     layout->addLayout(grid);
 
+    layout->addWidget(new QLabel(QStringLiteral("Touchpad gestures"), &window));
+    const int gestureCount = static_cast<int>(std::size(kGestures));
+    auto *gestureGrid = new QGridLayout;
+    QList<QCheckBox *> gestureBoxes;
+    for (int i = 0; i < gestureCount; ++i) {
+        auto *box = new QCheckBox(QString::fromLatin1(kGestures[i].description), &window);
+        box->setChecked(true);
+        gestureGrid->addWidget(box, i / columns, i % columns);
+        gestureBoxes.append(box);
+    }
+    layout->addLayout(gestureGrid);
+
     // (Re)apply every checkbox to the compositor. Used when the protocol
     // becomes active so previously checked shortcuts are re-bound after a
     // disconnect/reconnect of the extension.
@@ -157,6 +204,8 @@ int main(int argc, char *argv[])
             else
                 manager.unbindShortcut(QString::fromLatin1(def.name));
         }
+        for (int i = 0; i < gestureCount; ++i)
+            applyGestureBinding(manager, kGestures[i], gestureBoxes.at(i)->isChecked());
     };
 
     QObject::connect(&manager, &ShortcutManagerV3::activeChanged, &window, [&]() {
@@ -183,6 +232,17 @@ int main(int argc, char *argv[])
             log->appendPlainText(QStringLiteral("%1 %2")
                                      .arg(checked ? QStringLiteral("bound") : QStringLiteral("unbound"),
                                           QString::fromLatin1(def.name)));
+        });
+    }
+
+    for (int i = 0; i < gestureCount; ++i) {
+        QObject::connect(gestureBoxes.at(i), &QCheckBox::toggled, &window, [&, i](bool checked) {
+            if (!manager.isActive())
+                return;
+            applyGestureBinding(manager, kGestures[i], checked);
+            log->appendPlainText(QStringLiteral("%1 %2")
+                                     .arg(checked ? QStringLiteral("bound") : QStringLiteral("unbound"),
+                                          QString::fromLatin1(kGestures[i].name)));
         });
     }
 
