@@ -122,6 +122,39 @@
             "description[zh_CN]": "分配给此显示输出设备的持久不透明 uuid。首次插入时生成，并在跨会话和重连时复用。空值表示尚未分配。",
             "permissions": "readwrite",
             "visibility": "private"
+        },
+        "groupName": {
+            "value": "",
+            "serial": 0,
+            "flags": [],
+            "name": "Output Group Name",
+            "name[zh_CN]": "输出分组名称",
+            "description": "Name of the output group (copy mode) this output belongs to. Empty means the output belongs to no group.",
+            "description[zh_CN]": "此输出所属的输出分组（拷贝模式）名称。空字符串表示不属于任何分组。",
+            "permissions": "readwrite",
+            "visibility": "private"
+        },
+        "lastSetSourceTime": {
+            "value": 0,
+            "serial": 0,
+            "flags": [],
+            "name": "Last Set Source Time",
+            "name[zh_CN]": "上次设为源输出的时间",
+            "description": "Wall-clock time in milliseconds since the epoch when this output was last explicitly designated as its group's source. 0 means it was never designated; the current source is resolved at runtime, not stored.",
+            "description[zh_CN]": "此输出最后一次被显式指定为分组源输出的墙钟时间（自纪元起的毫秒数）。0 表示从未被指定；当前源输出在运行时决议，不落盘。",
+            "permissions": "readwrite",
+            "visibility": "private"
+        },
+        "joinTime": {
+            "value": 0,
+            "serial": 0,
+            "flags": [],
+            "name": "Group Join Time",
+            "name[zh_CN]": "加入分组时间",
+            "description": "Wall-clock time in milliseconds since the epoch when this output joined its current group. Updated only when joining a group; the mirror order of a group is the join order of its members. 0 means the output belongs to no group.",
+            "description[zh_CN]": "此输出加入当前分组的墙钟时间（自纪元起的毫秒数）。仅在加入分组时更新；分组的镜像顺序即成员加入顺序。0 表示不属于任何分组。",
+            "permissions": "readwrite",
+            "visibility": "private"
         }
     }
 }

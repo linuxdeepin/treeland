@@ -859,6 +859,44 @@ bool OutputManager::canReconfigureOutputs() const
     return m_initialOutputScanFinished;
 }
 
+QList<OutputGroupMemberInfo> OutputManager::outputGroupMembers() const
+{
+    QList<OutputGroupMemberInfo> members;
+    for (auto *output : std::as_const(m_outputs)) {
+        if (!output || !output->output()) {
+            continue;
+        }
+        auto *config = output->config();
+        // The membership record is only readable once the output's
+        // configuration has been loaded; the uuid doubles as that indicator
+        // because it is assigned from the loaded configuration.
+        const QString uuid = output->uuid();
+        if (!config || !config->isInitializeSucceeded() || uuid.isEmpty()) {
+            continue;
+        }
+        members.append({ uuid, config->groupName(), config->joinTime(), config->lastSetSourceTime() });
+    }
+    return members;
+}
+
+void OutputManager::writeOutputGroupMembership(const QString &uuid,
+                                               const QString &groupName,
+                                               qlonglong joinTime,
+                                               qlonglong lastSetSourceTime)
+{
+    Output *output = findOutputByUuid(uuid);
+    if (!output || !output->output()) {
+        return;
+    }
+    auto *config = output->config();
+    if (!config || !config->isInitializeSucceeded()) {
+        return;
+    }
+    config->setGroupName(groupName);
+    config->setJoinTime(joinTime);
+    config->setLastSetSourceTime(lastSetSourceTime);
+}
+
 Output *OutputManager::findOutputByUuid(const QString &uuid) const
 {
     if (uuid.isEmpty()) {
