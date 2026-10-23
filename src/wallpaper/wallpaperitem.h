@@ -68,6 +68,7 @@ public:
     void setPlay(bool value);
 
     Q_INVOKABLE void slowDown();
+    static bool desktopLoopPlayback();
     void updateSurface();
 
 Q_SIGNALS:
