@@ -13,6 +13,8 @@ class MpvVideoController : public QObject
     Q_OBJECT
 public:
     explicit MpvVideoController(QObject *parent = nullptr);
+    ~MpvVideoController() override;
+
     QStringView getError(int error);
     static void mpvEvents(void *ctx);
     void eventHandler();

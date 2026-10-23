@@ -9,6 +9,13 @@ MpvVideoController::MpvVideoController(QObject *parent)
 {
 }
 
+MpvVideoController::~MpvVideoController()
+{
+    if (m_mpv) {
+        mpv_terminate_destroy(m_mpv);
+    }
+}
+
 QStringView MpvVideoController::getError(int error)
 {
     switch (error) {
