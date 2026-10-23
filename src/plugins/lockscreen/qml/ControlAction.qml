@@ -129,11 +129,13 @@ RowLayout {
             }
 
             Behavior on width {
+                enabled: Helper.config.lockscreenControlAnimationEnabled
                 NumberAnimation {
                     duration: 150
                 }
             }
             Behavior on height {
+                enabled: Helper.config.lockscreenControlAnimationEnabled
                 NumberAnimation {
                     duration: 150
                 }
