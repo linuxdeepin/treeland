@@ -14,12 +14,24 @@
 
 WAYLIB_SERVER_USE_NAMESPACE
 
-// Configured (persisted) state of one output group.
+// Persisted state of one output group: only its existence (the name) is
+// stored in the global registry. Membership lives in each output's own
+// configuration, see OutputGroupMemberInfo.
 struct OutputGroupConfig
 {
     QString name;
-    QString sourceUuid;
-    QStringList mirrorUuids;
+};
+
+// Membership state of one connected output, persisted in the output's own
+// configuration: the group it belongs to, when it joined the group and when
+// it was last explicitly designated as the source (0 = never). The effective
+// source is resolved from these records at runtime, never stored.
+struct OutputGroupMemberInfo
+{
+    QString uuid;
+    QString groupName;
+    qlonglong joinTime = 0;
+    qlonglong lastSetSourceTime = 0;
 };
 
 // Effective runtime state of one output group as seen by clients.
@@ -40,9 +52,15 @@ public:
 
     // Output is connected and enabled, so it may take part in copy mode.
     virtual bool isOutputAvailable(const QString &uuid) const = 0;
-    // The initial output scan is over, so an auto-promoted source may become
-    // the permanent configured source.
+    // The initial output scan is over.
     virtual bool canReconfigureOutputs() const = 0;
+    // Membership of every connected output whose configuration is readable.
+    virtual QList<OutputGroupMemberInfo> outputGroupMembers() const = 0;
+    // Persist the membership fields of one connected output.
+    virtual void writeOutputGroupMembership(const QString &uuid,
+                                            const QString &groupName,
+                                            qlonglong joinTime,
+                                            qlonglong lastSetSourceTime) = 0;
     // Apply the effective group state to the outputs.
     virtual void applyOutputGroups() = 0;
 };
