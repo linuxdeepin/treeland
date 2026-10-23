@@ -74,7 +74,9 @@ bool g_configNormalized = false;
 void normalizeInitialOutputConfig(WaylandServer *server)
 {
     // The protocol test asserts the bind-time group dump is empty, so drop any
-    // group persisted by an earlier run.
+    // group persisted by an earlier run. Group membership left behind on the
+    // outputs' own configurations is cleared lazily by the compositor once it
+    // recomputes the effective state.
     server->globalConfig()->setOutputGroups(QStringLiteral("[]"));
     g_configNormalized = true;
 }
