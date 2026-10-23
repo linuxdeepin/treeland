@@ -8,6 +8,7 @@
 
 #include <QApplication>
 #include <QComboBox>
+#include <QEvent>
 #include <QFormLayout>
 #include <QGroupBox>
 #include <QHBoxLayout>
@@ -20,6 +21,7 @@
 #include <QTimer>
 #include <QVBoxLayout>
 #include <QWidget>
+#include <QAbstractItemView>
 #include <QtWaylandClient/QWaylandClientExtension>
 
 #include <wayland-client-core.h>
@@ -143,6 +145,25 @@ VirtualClient::VirtualClient(QObject *parent)
 VirtualClient::~VirtualClient()
 {
     delete m_colorControl;
+}
+
+bool VirtualClient::eventFilter(QObject *watched, QEvent *event)
+{
+    if (event->type() == QEvent::Hide && watched == mirrorComboPopup()) {
+        if (m_mirrorComboDirty) {
+            m_mirrorComboDirty = false;
+            refreshMirrorCombo();
+        }
+    }
+    return QObject::eventFilter(watched, event);
+}
+
+QWidget *VirtualClient::mirrorComboPopup() const
+{
+    if (!m_mirrorCombo)
+        return nullptr;
+    QAbstractItemView *view = m_mirrorCombo->view();
+    return view ? view->window() : nullptr;
 }
 
 void VirtualClient::setupUi()
@@ -278,6 +299,13 @@ void VirtualClient::setupUi()
     connect(m_scaleCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &VirtualClient::applyCurrentSettings);
     m_widget->show();
+
+    // Refresh once the popup is dismissed if an async refresh was deferred
+    // while the Mirror dropdown popup was visible. Mutating a QComboBox's
+    // model while its Qt::Popup container is visible closes the popup without
+    // QComboBox noticing, after which it can no longer be reopened.
+    if (QWidget *popup = mirrorComboPopup())
+        popup->installEventFilter(this);
 
     refreshScreenInfo();
 }
@@ -541,6 +569,14 @@ void VirtualClient::refreshMirrorCombo()
         }
     }
 
+    // Rebuilding the model while the popup is visible closes the popup
+    // (without QComboBox noticing) and prevents it from ever reopening, so
+    // defer the refresh until the popup has been dismissed.
+    if (QWidget *popup = mirrorComboPopup(); popup && popup->isVisible()) {
+        m_mirrorComboDirty = true;
+        return;
+    }
+
     if (m_mirrorCombo->count() == items.size()) {
         bool same = true;
         for (int i = 0; i < items.size(); ++i) {
@@ -553,8 +589,11 @@ void VirtualClient::refreshMirrorCombo()
         if (same) {
             const int idx = m_mirrorCombo->findData(prev);
             const int want = idx >= 0 ? idx : 0;
-            if (m_mirrorCombo->currentIndex() != want)
+            if (m_mirrorCombo->currentIndex() != want) {
+                m_mirrorCombo->blockSignals(true);
                 m_mirrorCombo->setCurrentIndex(want);
+                m_mirrorCombo->blockSignals(false);
+            }
             return;
         }
     }

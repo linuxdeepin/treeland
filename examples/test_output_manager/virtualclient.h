@@ -54,7 +54,9 @@ class VirtualClient : public QObject
     Q_OBJECT
 public:
     explicit VirtualClient(QObject *parent = nullptr);
-    ~VirtualClient();
+    ~VirtualClient() override;
+
+    bool eventFilter(QObject *watched, QEvent *event) override;
 
 private:
     void setupUi();
@@ -95,6 +97,7 @@ private:
     void updateMirrorGroup();
     void attachGroup(const QString &name);
     void updateScreenToGroup();
+    QWidget *mirrorComboPopup() const;
 
     std::unique_ptr<OutputGroupManager> m_groupManager;
     std::unique_ptr<TreelandOutputManager> m_treelandManager;
@@ -132,4 +135,5 @@ private:
     QMap<QString, OutputGroup *> m_groups;
     QStringList m_groupNames;
     QString m_pendingMirrorScreen;
+    bool m_mirrorComboDirty = false;
 };
