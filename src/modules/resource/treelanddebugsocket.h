@@ -47,6 +47,12 @@ QString treelandDebugReleaseSocketName();
 // Release socket URL, e.g. "local:org.deepin.dde.treeland.debug".
 QString treelandDebugReleaseSocketUrl();
 
+// Full filesystem path of a socket name, resolved exactly like
+// QLocalServerPrivate::fullServerName: a bare name lives in QDir::tempPath()
+// (typically /tmp), an absolute path is used as-is.  Needed to chmod() the
+// socket after QRemoteObjectHost binds it.
+QString treelandDebugSocketPath(const QString &socketName);
+
 // Candidate socket URLs for the treeland-debug client, in preference order.
 // A debug-built client prefers the debug instance and falls back to the
 // release instance; a release-built client only uses the release instance.

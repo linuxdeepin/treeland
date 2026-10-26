@@ -29,8 +29,15 @@ Set `CMAKE_INSTALL_PREFIX` during configuration to use another prefix.
 
 ## Enabling the debug source in Treeland
 
-Treeland runs as the `dde` user in global mode. Its Qt Remote Object server uses
-owner-only local socket access, so run this client as `dde`.
+Treeland runs as the `dde` user in global mode. Who may connect to its debug
+socket depends on the build type:
+
+- **Debug builds** — the socket is world-accessible (0666), so run the client as
+  `dde` or as any other user.
+- **Release builds** — the socket is `chmod 0000` (the kernel then rejects every
+  `connect()` except root's), so the client must run as `root`; a non-root
+  caller is escalated through `pkexec` automatically (see
+  [Access control](#access-control)).
 
 Enable the `remoteDebug` DConfig option as the `dde` user; otherwise the
 `WindowTree` Remote Object source is absent:
@@ -51,10 +58,12 @@ fly, so no restart is needed.
 
 `treeland-debug` restricts who may use it depending on the build type:
 
-- **Release builds** — only `root` may run `treeland-debug`. A non-root caller
-  is automatically re-executed through `pkexec` (polkit), which prompts for
-  authentication. Pass `--no-escalate` to skip the prompt and fail immediately
-  instead (useful in scripts or CI).
+- **Release builds** — only `root` may run `treeland-debug`; the compositor
+  side enforces the same rule on the socket itself (mode 0000, so any non-root
+  `connect()` is refused with `EACCES`). A non-root caller is automatically
+  re-executed through `pkexec` (polkit), which prompts for authentication. Pass
+  `--no-escalate` to skip the prompt and fail immediately instead (useful in
+  scripts or CI).
 - **Debug builds** — all users may run `treeland-debug` without restriction.
 
 A polkit policy (`misc/polkit/org.deepin.dde.treeland-debug.policy`) is

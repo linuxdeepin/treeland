@@ -52,6 +52,7 @@ private Q_SLOTS:
     void testSocketPickFreeNameOccupied();
     void testSocketPickFreeNameSkipsLiveOldInstance();
     void testSocketCandidateUrls();
+    void testSocketPathMatchesQt();
 
     // --- parseCommand: no-argument commands ---
     void testParseTree();
@@ -392,6 +393,23 @@ void TreelandDebugTest::testSocketCandidateUrls()
     QCOMPARE(urls.size(), 1);
     QVERIFY(urls.first().endsWith(treelandDebugReleaseSocketName()));
 #endif
+}
+
+void TreelandDebugTest::testSocketPathMatchesQt()
+{
+    // Release builds chmod() the socket through this path, so it must resolve
+    // exactly like the QLocalServer the QRemoteObjectHost binds.
+    const QString name = QStringLiteral("test.treeland.debug.socket.path.%1").arg(::getpid());
+    QLocalServer::removeServer(name);
+    QLocalServer server;
+    QVERIFY(server.listen(name));
+    QCOMPARE(treelandDebugSocketPath(name), server.fullServerName());
+    server.close();
+    QLocalServer::removeServer(name);
+
+    // Absolute paths are used as-is.
+    QCOMPARE(treelandDebugSocketPath(QStringLiteral("/tmp/absolute.sock")),
+             QStringLiteral("/tmp/absolute.sock"));
 }
 
 // ---------------------------------------------------------------------------

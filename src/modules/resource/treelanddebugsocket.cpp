@@ -35,6 +35,13 @@ QString treelandDebugReleaseSocketUrl()
     return QStringLiteral("local:") + treelandDebugReleaseSocketName();
 }
 
+QString treelandDebugSocketPath(const QString &socketName)
+{
+    if (socketName.startsWith(QLatin1Char('/')))
+        return socketName;
+    return QDir::cleanPath(QDir::tempPath()) + QLatin1Char('/') + socketName;
+}
+
 QStringList treelandDebugCandidateSocketUrls()
 {
 #ifdef TREELAND_DEBUG_DEV_BUILD
@@ -62,17 +69,6 @@ bool socketIsLive(const QString &socketName)
     return probe.state() == QLocalSocket::ConnectedState;
 }
 
-// Mirrors QLocalServerPrivate::fullServerName: bare names are resolved
-// to <tempDir>/<name>, where tempDir = QDir::tempPath() (respects $TMPDIR,
-// defaults to /tmp on Linux).  Absolute paths are used as-is.  Must match
-// Qt exactly so the lock file sits next to the socket.
-QString resolveFullServerName(const QString &name)
-{
-    if (name.startsWith(QLatin1Char('/')))
-        return name;
-    return QDir::cleanPath(QDir::tempPath()) + QLatin1Char('/') + name;
-}
-
 } // namespace
 
 TreelandDebugSocketLock::~TreelandDebugSocketLock() { release(); }
@@ -98,7 +94,7 @@ bool TreelandDebugSocketLock::tryAcquire(const QString &socketName)
     release();
     // Resolve the full path Qt would use, so the lock file sits next to the
     // socket.  QLocalServerPrivate::fullServerName does the same.
-    const QString fullPath = resolveFullServerName(socketName);
+    const QString fullPath = treelandDebugSocketPath(socketName);
     m_lockPath = QFile::encodeName(fullPath + QStringLiteral(".lock"));
     m_fd = ::open(m_lockPath.constData(), O_CREAT | O_CLOEXEC | O_RDWR,
                   S_IRUSR | S_IWUSR);
