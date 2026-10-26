@@ -37,6 +37,9 @@ Item {
 
     onVisibleChanged: {
         if (visible) {
+            // Navigation belongs to the switcher, independently of the shortcut
+            // and modifiers used to open it.
+            root.forceActiveFocus()
             mask.opacity = 0.5
             currentContext.loaderStatus = 0
 
@@ -44,6 +47,16 @@ Item {
             switchItemAnimation.isInAni = true
             switchItemAnimation.start()
         }
+    }
+
+    Keys.enabled: root.visible
+    Keys.onLeftPressed: {
+        if (!previewWindows.animationRunning)
+            root.previous()
+    }
+    Keys.onRightPressed: {
+        if (!previewWindows.animationRunning)
+            root.next()
     }
 
     WheelHandler {
