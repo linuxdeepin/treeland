@@ -91,7 +91,7 @@ void LockScreenManager::onSessionUnlock()
 void LockScreenManager::onExtSessionLock(WSessionLock *lock)
 {
 #ifdef EXT_SESSION_LOCK_V1
-    if (m_lockScreen->isLocked()) {
+    if (!m_lockScreen || m_lockScreen->isLocked()) {
         lock->finish();
         return;
     }

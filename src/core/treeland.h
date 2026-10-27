@@ -52,7 +52,12 @@ public Q_SLOTS:
 
 private:
     void initialize();
+    void runPrestartScripts();
+    void continueStartup();
     void quit();
+#ifndef DISABLE_DDM
+    void onLoginStateQueried(bool hasLoggedInUser);
+#endif
 
     std::unique_ptr<TreelandPrivate> d_ptr;
 };

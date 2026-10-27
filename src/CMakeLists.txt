@@ -169,6 +169,8 @@ qt_add_qml_module(libtreeland
         $<$<OR:$<NOT:$<BOOL:${DISABLE_DDM}>>,$<BOOL:${EXT_SESSION_LOCK_V1}>>:lockscreen/lockscreen.cpp>
         $<$<NOT:$<BOOL:${DISABLE_DDM}>>:greeter/greeterproxy.cpp>
         $<$<NOT:$<BOOL:${DISABLE_DDM}>>:greeter/greeterproxy.h>
+        $<$<NOT:$<BOOL:${DISABLE_DDM}>>:greeter/loginstatequery.cpp>
+        $<$<NOT:$<BOOL:${DISABLE_DDM}>>:greeter/loginstatequery.h>
         $<$<NOT:$<BOOL:${DISABLE_DDM}>>:greeter/sessionmodel.cpp>
         $<$<NOT:$<BOOL:${DISABLE_DDM}>>:greeter/sessionmodel.h>
         $<$<NOT:$<BOOL:${DISABLE_DDM}>>:greeter/user.cpp>
