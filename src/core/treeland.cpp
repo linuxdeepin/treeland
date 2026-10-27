@@ -6,6 +6,10 @@
 #include "core/qmlengine.h"
 #include "dconfig/dconfigmanager.h"
 #include "greeter/usermodel.h"
+#ifndef DISABLE_DDM
+#include "greeter/greeterproxy.h"
+#include "greeter/loginstatequery.h"
+#endif
 #include "interfaces/multitaskviewinterface.h"
 #include "interfaces/plugininterface.h"
 #include "core/waylandserver.h"
@@ -412,6 +416,17 @@ Treeland::Treeland()
     d->init([this] { initialize(); });
 }
 
+#ifndef DISABLE_DDM
+void Treeland::onLoginStateQueried(bool hasLoggedInUser)
+{
+    if (hasLoggedInUser) {
+        continueStartup();
+    } else {
+        runPrestartScripts();
+    }
+}
+#endif
+
 void Treeland::initialize()
 {
     Q_D(Treeland);
@@ -464,9 +479,40 @@ void Treeland::initialize()
 
     QDBusConnection::sessionBus().registerService("org.deepin.Compositor1");
     QDBusConnection::sessionBus().registerObject("/org/deepin/Compositor1", this);
-    // Disable rendering before running prestart scripts
-    qCInfo(lcTlHooks) << "Disabling rendering before prestart scripts";
-    d->server->disableRender();
+#ifndef DISABLE_DDM
+    auto *query = new LoginStateQuery(this);
+    connect(query, &LoginStateQuery::finished, this, &Treeland::onLoginStateQueried);
+    connect(query, &LoginStateQuery::finished, query, &QObject::deleteLater);
+    query->start();
+#else
+    runPrestartScripts();
+#endif
+}
+
+void Treeland::runPrestartScripts()
+{
+    Q_D(Treeland);
+    auto globalSession = d->server->sessionManager()->globalSession();
+
+    auto *runner = new ScriptRunner(globalSession->socket()->fullServerName(), d);
+    d->m_scriptRunner = runner;
+    connect(runner, &ScriptRunner::blockingFinished,
+            this, &Treeland::continueStartup);
+    connect(runner, &ScriptRunner::blockingFinished,
+            runner, &ScriptRunner::startNonBlocking);
+
+    const auto dataDirs = QStandardPaths::standardLocations(QStandardPaths::AppDataLocation);
+    for (const auto &dataDir : dataDirs) {
+        runner->append(QDir(dataDir).filePath(QStringLiteral("prestart.d/blocking")), ScriptRunner::Blocking);
+        runner->append(QDir(dataDir).filePath(QStringLiteral("prestart.d/non-blocking")), ScriptRunner::NonBlocking);
+    }
+
+    runner->start();
+}
+
+void Treeland::continueStartup()
+{
+    Q_D(Treeland);
 
     QDir dir(QStringLiteral(TREELAND_PLUGINS_OUTPUT_PATH));
     if (dir.exists() && dir.isReadable()) {
@@ -476,21 +522,10 @@ void Treeland::initialize()
                                    "falling back to the installation directory";
         d->loadPlugin(QStringLiteral(TREELAND_PLUGINS_INSTALL_PATH));
     }
-    auto *runner = new ScriptRunner(globalSession->socket()->fullServerName(), d);
-    d->m_scriptRunner = runner;
-    const auto dataDirs = QStandardPaths::standardLocations(QStandardPaths::AppDataLocation);
-    for (const auto &dataDir : dataDirs) {
-        runner->append(QDir(dataDir).filePath(QStringLiteral("prestart.d/blocking")), ScriptRunner::Blocking);
-        runner->append(QDir(dataDir).filePath(QStringLiteral("prestart.d/non-blocking")), ScriptRunner::NonBlocking);
-    }
-
-    connect(runner, &ScriptRunner::blockingFinished, d, [d, runner]() {
-        qCInfo(lcTlHooks) << "Blocking scripts finished, re-enabling rendering";
-        runner->startNonBlocking();
-        d->server->enableRender();
-        d->server->window()->update();
-    });
-    runner->start();
+#ifndef DISABLE_DDM
+    auto *greeter = d->qmlEngine->singletonInstance<GreeterProxy *>("Treeland", "GreeterProxy");
+    greeter->enableHandshake();
+#endif
 }
 
 Treeland::~Treeland()

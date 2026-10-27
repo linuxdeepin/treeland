@@ -45,6 +45,8 @@ public:
     explicit GreeterProxy(QObject *parent = nullptr);
     ~GreeterProxy();
 
+    void enableHandshake();
+
     //////////////////////
     // Property getters //
     //////////////////////
@@ -322,6 +324,7 @@ private:
      * @brief Update the DDM communication socket
      */
     void updateAuthSocket();
+    void sendConnect();
 
     /////////////////////
     // Property values //
@@ -345,4 +348,5 @@ private:
     bool m_showShutdownView { false };
     bool m_showAnimation    { true  };
     bool m_hasActiveSession { false };
+    bool m_handshakeEnabled { false };
 };
