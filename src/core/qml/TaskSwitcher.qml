@@ -46,6 +46,25 @@ Item {
         }
     }
 
+    WheelHandler {
+        enabled: root.visible
+        acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+        target: null
+        blocking: true
+
+        onWheel: function(event) {
+            event.accepted = true
+            if (previewWindows.animationRunning)
+                return
+
+            const delta = event.inverted ? -event.angleDelta.y : event.angleDelta.y
+            if (delta > 0)
+                root.previous()
+            else if (delta < 0)
+                root.next()
+        }
+    }
+
     Connections {
         target: WaylandServer.workspace.current
 
