@@ -59,7 +59,7 @@ TreelandWallpaperNotifierClientV1::TreelandWallpaperNotifierClientV1()
 
 TreelandWallpaperNotifierClientV1::~TreelandWallpaperNotifierClientV1()
 {
-    foreach (auto window, m_windows) {
+    for (auto window : std::as_const(m_windows)) {
             delete window;
     }
     m_windows.clear();
@@ -74,7 +74,7 @@ void TreelandWallpaperNotifierClientV1::instantiate()
 
 void TreelandWallpaperNotifierClientV1::treeland_wallpaper_notifier_v1_add(uint32_t source_type, const QString &file_source)
 {
-    foreach (auto window, m_windows) {
+    for (auto window : std::as_const(m_windows)) {
         if (window->property(WALLPAPERSOURCE).toString() == file_source) {
             return;
         }
@@ -152,7 +152,7 @@ void TreelandWallpaperNotifierClientV1::treeland_wallpaper_notifier_v1_add(uint3
 
 void TreelandWallpaperNotifierClientV1::treeland_wallpaper_notifier_v1_remove(const QString &file_source)
 {
-    foreach (auto window, m_windows) {
+    for (auto window : std::as_const(m_windows)) {
         if (window->property(WALLPAPERSOURCE).toString() == file_source) {
             m_windows.removeOne(window);
             delete window;
@@ -165,7 +165,7 @@ void TreelandWallpaperNotifierClientV1::treeland_wallpaper_notifier_v1_remove(co
 void TreelandWallpaperNotifierClientV1::updateAllRefreshInterval()
 {
     int minRefreshInterval = minScreenRefreshIntervalMs();
-    foreach(auto window, std::as_const(m_windows)) {
+    for (auto *window : std::as_const(m_windows)) {
         QObject *root = window->rootObject();
         auto *video = qobject_cast<MpvVideoItem *>(root);
         if (!video) {

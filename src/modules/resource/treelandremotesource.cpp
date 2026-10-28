@@ -725,7 +725,7 @@ void TreelandRemoteSource::captureOutput(QString outputName)
 {
     auto *root = WaylandServer::instance()->rootSurfaceContainer();
     if (!root) {
-        emit captureResult({});
+        Q_EMIT captureResult({});
         return;
     }
 
@@ -754,7 +754,7 @@ void TreelandRemoteSource::captureOutput(QString outputName)
         }
     }
     if (!viewport) {
-        emit captureResult({});
+        Q_EMIT captureResult({});
         return;
     }
 
@@ -767,7 +767,7 @@ void TreelandRemoteSource::captureOutput(QString outputName)
         const QByteArray bytes = encodeImage(watcher->result());
         capturer->deleteLater();
         watcher->deleteLater();
-        emit captureResult(bytes);
+        Q_EMIT captureResult(bytes);
     });
     watcher->setFuture(capturer->grabToImage());
 }
@@ -776,7 +776,7 @@ void TreelandRemoteSource::captureWindow(qint64 id)
 {
     auto *surface = findSurfaceById(id);
     if (!surface || !surface->surfaceItem()) {
-        emit captureResult({});
+        Q_EMIT captureResult({});
         return;
     }
     auto *surfaceItem = surface->surfaceItem();
@@ -795,7 +795,7 @@ void TreelandRemoteSource::captureWindow(qint64 id)
             const QByteArray bytes = encodeImage(watcher->result());
             capturer->deleteLater();
             watcher->deleteLater();
-            emit captureResult(bytes);
+            Q_EMIT captureResult(bytes);
         });
         watcher->setFuture(capturer->grabToImage());
     } else {
@@ -805,11 +805,11 @@ void TreelandRemoteSource::captureWindow(qint64 id)
         // alive until the lambda completes.
         QSharedPointer<QQuickItemGrabResult> grab = surfaceItem->grabToImage();
         if (!grab) {
-            emit captureResult({});
+            Q_EMIT captureResult({});
             return;
         }
         connect(grab.data(), &QQuickItemGrabResult::ready, this, [this, grab]() {
-            emit captureResult(encodeImage(grab->image()));
+            Q_EMIT captureResult(encodeImage(grab->image()));
         });
     }
 }
