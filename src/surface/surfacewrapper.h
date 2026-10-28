@@ -7,6 +7,7 @@
 #include <wtoplevelsurface.h>
 
 #include <QColor>
+#include <QLatin1StringView>
 #include <QList>
 #include <QPointer>
 #include <QQuickItem>
@@ -362,8 +363,16 @@ public:
     bool isSnapMask() const;
     void setSnapMask(bool snapMask);
     bool isInputPopupLike() const;
+ 
+    static constexpr QLatin1StringView DesktopScope{"dde-shell/desktop"};
+    static constexpr QLatin1StringView LaunchpadScope{"dde-shell/launchpad"};
+    static constexpr QLatin1StringView QuickLaunchpadScope{"dde-shell/quick-launchpad"};
+    // Scope of a Type::Layer wrapper, or an empty string when the wrapper is not a
+    // layer surface
+    QString layerScope() const;
     bool isLaunchpad() const;
     bool isQuickLaunchpad() const;
+    bool isDesktop() const;
 
     bool attention() const;
     bool setAttention(bool attention);

@@ -1407,20 +1407,29 @@ bool SurfaceWrapper::isIMCandidatePanel() const
     return m_isIMCandidatePanel;
 }
 
-bool SurfaceWrapper::isLaunchpad() const
+QString SurfaceWrapper::layerScope() const
 {
     if (type() != Type::Layer)
-        return false;
-    auto layerSurface = qobject_cast<WLayerSurface *>(m_shellSurface);
-    return layerSurface && layerSurface->scope() == QStringLiteral("dde-shell/launchpad");
+        return {};
+    auto *layerSurface = qobject_cast<WLayerSurface *>(m_shellSurface);
+    if (!layerSurface)
+        return {};
+    return layerSurface->scope();
+}
+
+bool SurfaceWrapper::isLaunchpad() const
+{
+    return layerScope() == LaunchpadScope;
 }
 
 bool SurfaceWrapper::isQuickLaunchpad() const
 {
-    if (type() != Type::Layer)
-        return false;
-    auto layerSurface = qobject_cast<WLayerSurface *>(m_shellSurface);
-    return layerSurface && layerSurface->scope() == QStringLiteral("dde-shell/quick-launchpad");
+    return layerScope() == QuickLaunchpadScope;
+}
+
+bool SurfaceWrapper::isDesktop() const
+{
+    return layerScope() == DesktopScope;
 }
 
 void SurfaceWrapper::setIMCandidatePanel(bool isIMCandidatePanel)
@@ -1794,13 +1803,9 @@ void SurfaceWrapper::createNewOrClose(uint direction)
         m_windowAnimation->setProperty("enableBlur", blur());
     } break;
     case Type::Layer: {
-        auto scope = QString(static_cast<WLayerSurfaceItem *>(m_surfaceItem)
-                                 ->layerSurface()
-                                 ->handle()
-                                 ->scope);
         auto *surface = qobject_cast<WLayerSurface *>(m_shellSurface);
         auto anchor = surface->getExclusiveZoneEdge();
-        if (scope == "dde-shell/launchpad") {
+        if (isLaunchpad()) {
             m_windowAnimation = m_engine->createLaunchpadAnimation(this, direction, m_container);
         } else if (anchor != WLayerSurface::AnchorType::None) {
             m_windowAnimation = m_engine->createLayerShellAnimation(this, container(), direction);

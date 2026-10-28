@@ -582,11 +582,11 @@ CaptureSourceSelector::CaptureSourceSelector(QQuickItem *parent)
         if (auto surfaceItemContent = qobject_cast<WSurfaceItemContent *>(item)) {
             return surfaceItemContent->surface() != captureManager()->contextInSelection()->mask();
         } else if (auto surfaceItem = qobject_cast<WSurfaceItem *>(item)) {
+            // The desktop (icon canvas) is a layer-shell surface: keep it out of
+            // the selectable capture sources.
             auto layerSurface = qobject_cast<WLayerSurface *>(surfaceItem->shellSurface());
-            if (layerSurface) {
-                if (QString(layerSurface->handle()->scope) == "dde-shell/desktop") {
-                    return false;
-                }
+            if (layerSurface && layerSurface->scope() == SurfaceWrapper::DesktopScope) {
+                return false;
             }
             return surfaceItem->surface() != captureManager()->contextInSelection()->mask();
         } else {
