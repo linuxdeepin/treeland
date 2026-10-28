@@ -115,12 +115,12 @@ uint ShortcutController::registerSwipeGesture(const QString &name, uint finger, 
                 finger,
                 [this, gestureKey](bool triggered) {
                     for (const auto& [act, nm] : std::as_const(m_gesturemap[gestureKey]).asKeyValueRange()) {
-                        emit actionFinished(act, nm, triggered);
+                        Q_EMIT actionFinished(act, nm, triggered);
                     }
                 },
                 [this, gestureKey](qreal progress) {
                     for (const auto& [act, nm] : std::as_const(m_gesturemap[gestureKey]).asKeyValueRange()) {
-                        emit actionProgress(act, progress, nm);
+                        Q_EMIT actionProgress(act, progress, nm);
                     }
                 }
         });
@@ -179,7 +179,7 @@ uint ShortcutController::registerHoldGesture(const QString &name, uint finger, S
                 nullptr,
                 [this, gestureKey]() {
                     for (const auto& [act, nm] : std::as_const(m_gesturemap[gestureKey]).asKeyValueRange()) {
-                        emit actionTriggered(act, nm, true);
+                        Q_EMIT actionTriggered(act, nm, true);
                     }
                 }
         });

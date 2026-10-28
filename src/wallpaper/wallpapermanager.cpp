@@ -486,7 +486,7 @@ void WallpaperManager::handleWallpaperSurfaceAdded([[maybe_unused]] TreelandWall
 {
     QList<QString> wallpapers = WaylandServer::instance()->shellHandler()->wallpaperShell()->producedWallpapers();
     QMap<QString, TreelandWallpaperInterfaceV1::WallpaperType> globalWallpapers = globalValidWallpaper();
-    foreach (auto wallpaper, std::as_const(wallpapers)) {
+    for (const auto &wallpaper : std::as_const(wallpapers)) {
         if (!globalWallpapers.contains(wallpaper)) {
             WaylandServer::instance()->m_wallpaperNotifierInterfaceV1->sendRemove(wallpaper);
         }

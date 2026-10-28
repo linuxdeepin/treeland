@@ -52,12 +52,12 @@ Q_SIGNALS:
 protected:
     void treeland_shortcut_manager_v3_activated(const QString &name, uint32_t flags) override
     {
-        emit activated(name, flags);
+        Q_EMIT activated(name, flags);
     }
 
     void treeland_shortcut_manager_v3_bind_failure(const QString &name, uint32_t error) override
     {
-        emit bindFailed(name, error);
+        Q_EMIT bindFailed(name, error);
     }
 };
 

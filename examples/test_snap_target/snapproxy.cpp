@@ -103,7 +103,7 @@ void Snap::treeland_snap_target_v1_snap_region(int32_t x,
                                                uint32_t width,
                                                uint32_t height)
 {
-    emit snapRegion(static_cast<int>(x),
+    Q_EMIT snapRegion(static_cast<int>(x),
                     static_cast<int>(y),
                     static_cast<quint32>(width),
                     static_cast<quint32>(height));
@@ -111,12 +111,12 @@ void Snap::treeland_snap_target_v1_snap_region(int32_t x,
 
 void Snap::treeland_snap_target_v1_pidfd(int32_t pidfd)
 {
-    emit this->pidfd(static_cast<int>(pidfd));
+    Q_EMIT this->pidfd(static_cast<int>(pidfd));
 }
 
 void Snap::treeland_snap_target_v1_failed(uint32_t reason)
 {
-    emit failed(static_cast<quint32>(reason));
+    Q_EMIT failed(static_cast<quint32>(reason));
 }
 
 struct ::xdg_toplevel *getXdgToplevel(QWindow *window)

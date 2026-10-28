@@ -45,39 +45,39 @@ public:
     static GlassConfig *create(QQmlEngine *, QJSEngine *) { return new GlassConfig; }
 
     bool glassEnabled() const { return m_glassEnabled; }
-    void setGlassEnabled(bool v) { if (m_glassEnabled != v) { m_glassEnabled = v; emit glassEnabledChanged(); } }
+    void setGlassEnabled(bool v) { if (m_glassEnabled != v) { m_glassEnabled = v; Q_EMIT glassEnabledChanged(); } }
     int blurStrength() const { return m_blurStrength; }
-    void setBlurStrength(int v) { if (m_blurStrength != v) { m_blurStrength = v; emit blurStrengthChanged(); } }
+    void setBlurStrength(int v) { if (m_blurStrength != v) { m_blurStrength = v; Q_EMIT blurStrengthChanged(); } }
     qreal blurAmount() const { return m_blurAmount; }
-    void setBlurAmount(qreal v) { if (m_blurAmount != v) { m_blurAmount = v; emit blurAmountChanged(); } }
+    void setBlurAmount(qreal v) { if (m_blurAmount != v) { m_blurAmount = v; Q_EMIT blurAmountChanged(); } }
     qreal blurMultiplier() const { return m_blurMultiplier; }
-    void setBlurMultiplier(qreal v) { if (m_blurMultiplier != v) { m_blurMultiplier = v; emit blurMultiplierChanged(); } }
+    void setBlurMultiplier(qreal v) { if (m_blurMultiplier != v) { m_blurMultiplier = v; Q_EMIT blurMultiplierChanged(); } }
     qreal glassBezel() const { return m_glassBezel; }
-    void setGlassBezel(qreal v) { if (m_glassBezel != v) { m_glassBezel = v; emit glassBezelChanged(); } }
+    void setGlassBezel(qreal v) { if (m_glassBezel != v) { m_glassBezel = v; Q_EMIT glassBezelChanged(); } }
     qreal glassThickness() const { return m_glassThickness; }
-    void setGlassThickness(qreal v) { if (m_glassThickness != v) { m_glassThickness = v; emit glassThicknessChanged(); } }
+    void setGlassThickness(qreal v) { if (m_glassThickness != v) { m_glassThickness = v; Q_EMIT glassThicknessChanged(); } }
     qreal glassIor() const { return m_glassIor; }
-    void setGlassIor(qreal v) { if (m_glassIor != v) { m_glassIor = v; emit glassIorChanged(); } }
+    void setGlassIor(qreal v) { if (m_glassIor != v) { m_glassIor = v; Q_EMIT glassIorChanged(); } }
     qreal glassSpecular() const { return m_glassSpecular; }
-    void setGlassSpecular(qreal v) { if (m_glassSpecular != v) { m_glassSpecular = v; emit glassSpecularChanged(); } }
+    void setGlassSpecular(qreal v) { if (m_glassSpecular != v) { m_glassSpecular = v; Q_EMIT glassSpecularChanged(); } }
     qreal glassTint() const { return m_glassTint; }
-    void setGlassTint(qreal v) { if (m_glassTint != v) { m_glassTint = v; emit glassTintChanged(); } }
+    void setGlassTint(qreal v) { if (m_glassTint != v) { m_glassTint = v; Q_EMIT glassTintChanged(); } }
     qreal glassContentEdgePull() const { return m_glassContentEdgePull; }
-    void setGlassContentEdgePull(qreal v) { if (m_glassContentEdgePull != v) { m_glassContentEdgePull = v; emit glassContentEdgePullChanged(); } }
+    void setGlassContentEdgePull(qreal v) { if (m_glassContentEdgePull != v) { m_glassContentEdgePull = v; Q_EMIT glassContentEdgePullChanged(); } }
     qreal glassContentRampEnd() const { return m_glassContentRampEnd; }
-    void setGlassContentRampEnd(qreal v) { if (m_glassContentRampEnd != v) { m_glassContentRampEnd = v; emit glassContentRampEndChanged(); } }
+    void setGlassContentRampEnd(qreal v) { if (m_glassContentRampEnd != v) { m_glassContentRampEnd = v; Q_EMIT glassContentRampEndChanged(); } }
     qreal glassRefractionMaxTan() const { return m_glassRefractionMaxTan; }
-    void setGlassRefractionMaxTan(qreal v) { if (m_glassRefractionMaxTan != v) { m_glassRefractionMaxTan = v; emit glassRefractionMaxTanChanged(); } }
+    void setGlassRefractionMaxTan(qreal v) { if (m_glassRefractionMaxTan != v) { m_glassRefractionMaxTan = v; Q_EMIT glassRefractionMaxTanChanged(); } }
     qreal glassProfilePower() const { return m_glassProfilePower; }
-    void setGlassProfilePower(qreal v) { if (m_glassProfilePower != v) { m_glassProfilePower = v; emit glassProfilePowerChanged(); } }
+    void setGlassProfilePower(qreal v) { if (m_glassProfilePower != v) { m_glassProfilePower = v; Q_EMIT glassProfilePowerChanged(); } }
     qreal glassInnerShadow() const { return m_glassInnerShadow; }
-    void setGlassInnerShadow(qreal v) { if (m_glassInnerShadow != v) { m_glassInnerShadow = v; emit glassInnerShadowChanged(); } }
+    void setGlassInnerShadow(qreal v) { if (m_glassInnerShadow != v) { m_glassInnerShadow = v; Q_EMIT glassInnerShadowChanged(); } }
     qreal glassBrightness() const { return m_glassBrightness; }
-    void setGlassBrightness(qreal v) { if (m_glassBrightness != v) { m_glassBrightness = v; emit glassBrightnessChanged(); } }
+    void setGlassBrightness(qreal v) { if (m_glassBrightness != v) { m_glassBrightness = v; Q_EMIT glassBrightnessChanged(); } }
     qreal glassContrast() const { return m_glassContrast; }
-    void setGlassContrast(qreal v) { if (m_glassContrast != v) { m_glassContrast = v; emit glassContrastChanged(); } }
+    void setGlassContrast(qreal v) { if (m_glassContrast != v) { m_glassContrast = v; Q_EMIT glassContrastChanged(); } }
     qreal glassSaturation() const { return m_glassSaturation; }
-    void setGlassSaturation(qreal v) { if (m_glassSaturation != v) { m_glassSaturation = v; emit glassSaturationChanged(); } }
+    void setGlassSaturation(qreal v) { if (m_glassSaturation != v) { m_glassSaturation = v; Q_EMIT glassSaturationChanged(); } }
 
 Q_SIGNALS:
     void glassEnabledChanged();

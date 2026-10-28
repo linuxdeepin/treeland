@@ -40,7 +40,7 @@ public:
     Snap();
     ~Snap() override;
 
-signals:
+Q_SIGNALS:
     void snapRegion(int x, int y, quint32 width, quint32 height);
     void pidfd(int pidfd);
     void failed(quint32 reason);
@@ -86,7 +86,7 @@ public:
     void confirmSelection();
     void quit();
 
-signals:
+Q_SIGNALS:
     void regionChanged();
     void processNameChanged();
     void confirmedChanged();
@@ -190,7 +190,7 @@ public:
     int screenWidth() const;
     int screenHeight() const;
 
-signals:
+Q_SIGNALS:
     void snapRegionChanged();
     void processNameChanged();
     void confirmedChanged();
