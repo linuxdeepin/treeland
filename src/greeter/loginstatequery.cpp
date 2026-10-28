@@ -4,22 +4,17 @@
 #include "loginstatequery.h"
 
 #include "common/treelandlogging.h"
+#include "utils/loginddbustypes.h"
 
-#include <QDBusArgument>
 #include <QDBusConnection>
 #include <QDBusMessage>
 #include <QDBusPendingCallWatcher>
 #include <QDBusPendingReply>
-#include <QDBusVariant>
+#include <QVariantMap>
 
 LoginStateQuery::LoginStateQuery(QObject *parent)
     : QObject(parent)
-    , m_timeout(this)
 {
-    m_timeout.setSingleShot(true);
-    m_timeout.setTimerType(Qt::PreciseTimer);
-    m_timeout.setInterval(3000);
-    connect(&m_timeout, &QTimer::timeout, this, &LoginStateQuery::onTimeout);
 }
 
 void LoginStateQuery::start()
@@ -29,15 +24,13 @@ void LoginStateQuery::start()
     }
 
     m_started = true;
-    m_timeout.start();
 
-    auto message = QDBusMessage::createMethodCall(QStringLiteral("org.freedesktop.DisplayManager"),
-                                                QStringLiteral("/org/freedesktop/DisplayManager"),
-                                                QStringLiteral("org.freedesktop.DBus.Properties"),
-                                                QStringLiteral("Get"));
-    message << QStringLiteral("org.freedesktop.DisplayManager") << QStringLiteral("Sessions");
+    auto message = QDBusMessage::createMethodCall(QStringLiteral("org.freedesktop.login1"),
+                                                QStringLiteral("/org/freedesktop/login1"),
+                                                QStringLiteral("org.freedesktop.login1.Manager"),
+                                                QStringLiteral("ListSessions"));
     auto *watcher = new QDBusPendingCallWatcher(
-        QDBusConnection::systemBus().asyncCall(message, m_timeout.interval()), this);
+        QDBusConnection::systemBus().asyncCall(message), this);
     connect(watcher, &QDBusPendingCallWatcher::finished, this, &LoginStateQuery::onSessionsQueried);
 }
 
@@ -48,67 +41,64 @@ void LoginStateQuery::onSessionsQueried(QDBusPendingCallWatcher *watcher)
         return;
     }
 
-    const QDBusPendingReply<QDBusVariant> reply = *watcher;
+    const QDBusPendingReply<SessionInfoList> reply = *watcher;
     if (reply.isError()) {
-        qCWarning(lcTlHooks) << "Cannot query DDM sessions; running prestart scripts:"
+        qCWarning(lcTlHooks) << "Cannot query logind sessions; running prestart scripts:"
                             << reply.error().message();
         finish(false);
         return;
     }
 
-    const auto sessions = qdbus_cast<QList<QDBusObjectPath>>(reply.value().variant());
+    const auto sessions = reply.value();
     m_pendingSessionQueries = sessions.size();
     if (sessions.isEmpty()) {
         finish(false);
         return;
     }
 
-    // Query session users in parallel under the same overall deadline.
-    for (const auto &path : sessions) {
-        auto message = QDBusMessage::createMethodCall(QStringLiteral("org.freedesktop.DisplayManager"),
-                                                    path.path(),
+    // Query session properties in parallel.
+    for (const auto &session : sessions) {
+        auto message = QDBusMessage::createMethodCall(QStringLiteral("org.freedesktop.login1"),
+                                                    session.sessionPath.path(),
                                                     QStringLiteral("org.freedesktop.DBus.Properties"),
-                                                    QStringLiteral("Get"));
-        message << QStringLiteral("org.freedesktop.DisplayManager.Session") << QStringLiteral("UserName");
-        auto *userWatcher = new QDBusPendingCallWatcher(
-            QDBusConnection::systemBus().asyncCall(message, m_timeout.interval()), this);
-        connect(userWatcher, &QDBusPendingCallWatcher::finished,
-                this, &LoginStateQuery::onSessionUserQueried);
+                                                    QStringLiteral("GetAll"));
+        message << QStringLiteral("org.freedesktop.login1.Session");
+        auto *propertiesWatcher = new QDBusPendingCallWatcher(
+            QDBusConnection::systemBus().asyncCall(message), this);
+        propertiesWatcher->setProperty("sessionId", session.sessionId);
+        connect(propertiesWatcher, &QDBusPendingCallWatcher::finished,
+                this, &LoginStateQuery::onSessionPropertiesQueried);
     }
 }
 
-void LoginStateQuery::onSessionUserQueried(QDBusPendingCallWatcher *watcher)
+void LoginStateQuery::onSessionPropertiesQueried(QDBusPendingCallWatcher *watcher)
 {
     watcher->deleteLater();
     if (m_finished) {
         return;
     }
 
-    const QDBusPendingReply<QDBusVariant> reply = *watcher;
-    const auto userName = reply.isError() ? QString() : reply.value().variant().toString();
-    if (reply.isError() || userName.isEmpty()) {
-        qCWarning(lcTlHooks) << "Cannot query DDM session user:" << reply.error().message();
-    } else if (userName != QLatin1String("dde")) {
-        // DDM registers its greeter as dde; other users have logged-in sessions.
-        qCInfo(lcTlHooks) << "DDM user session already exists; skipping prestart scripts:"
-                         << userName;
-        finish(true);
-        return;
+    const QDBusPendingReply<QVariantMap> reply = *watcher;
+    if (reply.isError()) {
+        qCWarning(lcTlHooks) << "Cannot query logind session properties:"
+                            << watcher->property("sessionId").toString()
+                            << reply.error().message();
+    } else {
+        const auto properties = reply.value();
+        const auto type = properties.value(QStringLiteral("Type")).toString();
+        const auto state = properties.value(QStringLiteral("State")).toString();
+        if ((type == QLatin1String("wayland") || type == QLatin1String("x11"))
+            && (state == QLatin1String("active") || state == QLatin1String("online"))) {
+            qCInfo(lcTlHooks) << "Logind graphical session exists; skipping prestart scripts:"
+                             << watcher->property("sessionId").toString() << type << state;
+            finish(true);
+            return;
+        }
     }
 
     if (--m_pendingSessionQueries == 0) {
         finish(false);
     }
-}
-
-void LoginStateQuery::onTimeout()
-{
-    if (m_finished) {
-        return;
-    }
-
-    qCWarning(lcTlHooks) << "DDM login query timed out; running prestart scripts";
-    finish(false);
 }
 
 void LoginStateQuery::finish(bool hasLoggedInUser)
@@ -118,6 +108,5 @@ void LoginStateQuery::finish(bool hasLoggedInUser)
     }
 
     m_finished = true;
-    m_timeout.stop();
     Q_EMIT finished(hasLoggedInUser);
 }
