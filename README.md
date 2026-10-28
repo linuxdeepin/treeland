@@ -70,12 +70,24 @@ sudo cmake --install build --component treeland-debug
 
 ### Enabling the debug source
 
-The debug Remote Object is opt-in: it is enabled by default in **Debug** builds
-(so `treeland-debug` works out of the box without extra config), and in
-**Release** builds it is off until you enable the `remoteDebug` DConfig option
-as the `dde` user (Treeland runs as `dde` in global mode and its local socket is
-owner-only). Toggling `remoteDebug` in Release builds takes effect immediately
--- the remote source is created or destroyed on the fly, no restart needed:
+The debug Remote Object is on by default. `remoteDebug` is Treeland's master
+switch for it: while the switch is on, Treeland publishes its debug socket and
+serves the window tree remote source to whoever connects -- the source is a thin
+QObject that only does work per call, so it costs nothing when no client is
+attached. Turn the switch off to forbid debugging entirely; the socket then
+disappears too. Release builds keep the socket root-only (mode 0000), Debug
+builds let any user connect.
+
+`treeland-debug` never writes that option, so there is no session state to
+restore: a crash, `SIGKILL`, or a closed terminal leaves nothing behind, and any
+number of clients can attach at once. If no socket is published, either the
+switch is off or Treeland is not running -- the client says so on stderr and
+points at the switch. Toggling `remoteDebug` takes effect immediately: the
+remote source is created or destroyed on the fly, no restart needed.
+
+Flip the switch as the user Treeland runs as (`dde` in global mode); DConfig
+keeps app-scoped keys per user and rejects a caller with any other uid, root
+included:
 
 ```bash
 sudo -u dde -- dde-dconfig set \
