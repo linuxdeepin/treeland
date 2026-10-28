@@ -1326,7 +1326,7 @@ void ShellHandler::updateLayerSurfaceContainer(SurfaceWrapper *surface)
         // wlr-layer-shell leaves the order inside one layer to the compositor.
         // Keep the DDE desktop (icon canvas) above other background surfaces,
         // such as third-party wallpapers, whatever order they were mapped in.
-        if (layer->scope() == QStringLiteral("dde-shell/desktop"))
+        if (surface->isDesktop())
             surface->setZ(1);
         break;
     case WLayerSurface::LayerType::Bottom:

@@ -10,7 +10,6 @@
 #include "seat/seatmanager.h"
 #include "surface/surfacewrapper.h"
 
-#include <wlayersurface.h>
 #include <wserver.h>
 
 ShowDesktop::ShowDesktop(WaylandServer *server, OutputManager *outputManager)
@@ -67,8 +66,7 @@ void ShowDesktop::onShowDesktop()
         SurfaceWrapper *desktopSurface = nullptr;
         const auto &backgroundSurfaces = m_server->shellHandler()->backgroundContainer()->surfaces();
         for (SurfaceWrapper *w : backgroundSurfaces) {
-            auto *layer = qobject_cast<WLayerSurface *>(w->shellSurface());
-            if (layer && layer->scope() == QStringLiteral("dde-shell/desktop")) {
+            if (w->isDesktop()) {
                 desktopSurface = w;
                 break;
             }
