@@ -378,6 +378,15 @@ public:
         // QUnifiedTimer, which is decoupled from output frames. Advancing them
         // from doRender() ties every animation to the rendered frame instead.
         animationDriver.reset(new QAnimationDriver());
+        // The driver replaces Qt's fixed-interval timer, so the frame it is
+        // advanced on has to be requested here as well: an animation that
+        // starts while nothing repaints the scene (e.g. started by a timer or
+        // by a state change that has not changed any visible property yet)
+        // would otherwise never get a frame and stay frozen forever.
+        QObject::connect(animationDriver.data(), &QAnimationDriver::started,
+                         animationDriver.data(), [this] {
+            scheduleDoRender();
+        });
         animationDriver->install();
     }
     ~WOutputRenderWindowPrivate() {
@@ -1566,13 +1575,10 @@ void WOutputRenderWindowPrivate::doRender(wlr_output *needsFrameOutput,
     }
 
     // Drive plain QML animations from the frame itself, so their values for
-    // this frame are taken before the scene is polished and synced.
-    // State-only output transactions (forceRender) are not real frames, and an
-    // idle frame must not advance: that would start the driver's wall clock and
-    // the next animation would take the whole idle gap as its first delta. The
+    // this frame are taken before the scene is polished and synced. The
     // driver is thread-local, so rendering has to happen on the thread that
     // installed it.
-    if (!forceRender && animationDriver->isRunning())
+    if (animationDriver->isRunning())
         animationDriver->advance();
 
     rc()->polishItems();
@@ -1639,6 +1645,15 @@ void WOutputRenderWindowPrivate::doRender(wlr_output *needsFrameOutput,
         glContext->doneCurrent();
 
     inRendering = false;
+
+    // Since the animation clock is advanced by the frame itself, the frame loop
+    // has to be kept running for as long as animations are alive: an animation
+    // that changes no rendered property would otherwise stop the repaint loop
+    // and freeze itself. QUnifiedTimer stops the driver once the last
+    // animation finishes, which ends the loop.
+    if (animationDriver->isRunning())
+        q->update();
+
     Q_EMIT q->renderEnd(committedOutputs);
 }
 
