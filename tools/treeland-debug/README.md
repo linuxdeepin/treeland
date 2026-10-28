@@ -39,8 +39,24 @@ socket depends on the build type:
   caller is escalated through `pkexec` automatically (see
   [Access control](#access-control)).
 
-Enable the `remoteDebug` DConfig option as the `dde` user; otherwise the
-`WindowTree` Remote Object source is absent:
+`remoteDebug` is Treeland's master switch for debugging, and it is **on by
+default**. While it is on, Treeland publishes its debug socket and serves the
+`WindowTree` Remote Object to whoever connects; the client never writes DConfig,
+it just connects. Release builds only let root connect (mode 0000) -- turn the
+switch off to forbid debugging entirely, and the socket disappears with it.
+
+The remote source is a stateless shell: the window tree, screenshots and scene
+trees are all collected per call. The one session-scoped resource is input-event
+capture, which is armed only while a client is polling for events and torn down
+after it goes idle, so nothing but the socket exists while nobody is connected.
+
+Because the client has nothing to restore, a crash, `SIGKILL` or a closed
+terminal cannot leave any state behind: there is no session-scoped setting at
+all. If you find no socket, either the switch was turned off or Treeland is not
+running; `treeland-debug` says so on stderr. Turn the switch back on as the user
+Treeland runs as (`dde` in global mode): DConfig keeps app-scoped keys per user
+and its daemon only accepts a caller with that uid -- root is rejected even with
+`-u`, so switch to that user instead:
 
 ```bash
 sudo -u dde -- dde-dconfig set \
@@ -52,7 +68,9 @@ sudo -u dde -- dde-dconfig set \
 
 Toggling `remoteDebug` takes effect immediately: the compositor watches
 `remoteDebugChanged` and creates or destroys the Remote Object source on the
-fly, so no restart is needed.
+fly, so no restart is needed and no client is involved. Any number of clients
+can attach at once; none of them own the switch, so one exiting cannot cut
+another one off.
 
 ## Access control
 

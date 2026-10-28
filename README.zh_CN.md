@@ -66,11 +66,19 @@ sudo cmake --install build --component treeland-debug
 
 ### 开启调试 source
 
-调试 Remote Object 默认为可选项：**Debug** 编译版本默认开启（无需额外配置，
-`treeland-debug` 开箱即用），**Release** 版本默认关闭，需以 `dde` 用户开启
-`remoteDebug` DConfig 选项（Treeland 在 global 模式下以 `dde` 身份运行，其本地
-socket 仅属主可访问）。Release 版本下切换 `remoteDebug` 即时生效——远程源会
-动态创建或销毁，无需重启 Treeland：
+调试 Remote Object 默认开启。`remoteDebug` 是它的总开关：开关为开时，Treeland 会
+发布调试 socket，并给连上来的客户端提供窗口树远程数据源——该数据源是个薄 QObject，
+只在每次调用时干活，没有客户端连着时不占资源。把开关关掉就完全禁止调试，socket 也会
+一起消失。Release 构建中 socket 只允许 root 连接（权限 0000），Debug 构建允许任意
+用户连接。
+
+`treeland-debug` 从不写这个选项，所以没有任何"会话状态"需要还原：崩溃、被
+`SIGKILL`、关终端都不会留下残留，且可以同时挂多个客户端。如果读不到 socket，要么
+开关被关了，要么 Treeland 没在运行——客户端会直接在 stderr 上说明并指向这个开关。
+切换 `remoteDebug` 即时生效：远程源会动态创建或销毁，无需重启。
+
+开关要以 Treeland 运行用户（global 模式下为 `dde`）的身份切换；DConfig 的应用级键
+按用户分开存储，daemon 只接受 uid 与目标用户一致的调用者（root 也不行）：
 
 ```bash
 sudo -u dde -- dde-dconfig set \

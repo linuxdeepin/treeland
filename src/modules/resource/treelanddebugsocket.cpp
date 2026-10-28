@@ -5,6 +5,7 @@
 
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QLocalServer>
 #include <QLocalSocket>
 
@@ -70,6 +71,65 @@ bool socketIsLive(const QString &socketName)
 }
 
 } // namespace
+
+QString treelandDebugSocketPathForUrl(const QString &url)
+{
+    constexpr auto prefix = "local:";
+    if (!url.startsWith(QLatin1String(prefix)))
+        return {};
+    const QString name = url.mid(static_cast<int>(qstrlen(prefix)));
+    if (name.isEmpty())
+        return {};
+    // Same resolution Qt applies to a bare server name.
+    return treelandDebugSocketPath(name);
+}
+
+namespace {
+
+// QFileInfo has no socket test, and only a socket can be connected to.
+bool isSocketPath(const QString &path)
+{
+    struct stat st {};
+    return ::stat(QFile::encodeName(path).constData(), &st) == 0 && S_ISSOCK(st.st_mode);
+}
+
+} // namespace
+
+QStringList treelandDebugPublishedSocketPaths(const QString &url)
+{
+    const QString path = treelandDebugSocketPathForUrl(url);
+    if (path.isEmpty())
+        return {};
+
+    QStringList paths;
+    // Only real sockets: a plain file someone else dropped at the name is not a
+    // published debug channel, and counting it would make the diagnostics name
+    // it as one.
+    if (isSocketPath(path))
+        paths << path;
+
+    // QLocalServer falls back to "<name>-<N>" when the base name is taken.
+    // Only digits count: "<name>-dev" belongs to the other build type, and a
+    // partial match such as "<name>-1.bak" is not a socket of this name.
+    const QFileInfo info(path);
+    const QDir dir(info.absolutePath());
+    const QString prefix = info.fileName() + QLatin1Char('-');
+    const QStringList siblings = dir.entryList({ prefix + QStringLiteral("[0-9]*") },
+                                              QDir::Files | QDir::System | QDir::Hidden);
+    for (const QString &sibling : siblings) {
+        bool numbered = false;
+        sibling.mid(prefix.size()).toUInt(&numbered);
+        const QString siblingPath = dir.filePath(sibling);
+        if (numbered && isSocketPath(siblingPath))
+            paths << siblingPath;
+    }
+    return paths;
+}
+
+bool treelandDebugSocketPublished(const QString &url)
+{
+    return !treelandDebugPublishedSocketPaths(url).isEmpty();
+}
 
 TreelandDebugSocketLock::~TreelandDebugSocketLock() { release(); }
 

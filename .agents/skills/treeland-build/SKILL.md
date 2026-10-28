@@ -38,9 +38,10 @@ cmake --preset default -DCMAKE_BUILD_TYPE=Debug
 
 `CMAKE_BUILD_TYPE=Debug` 的副作用（细节见 `treeland-debug` skill）：
 
-- 定义 `ALWAYS_ENABLE_TREELAND_DEBUG`：调试 Remote Object 默认开启，不需要改 DConfig
 - 定义 `TREELAND_DEBUG_DEV_BUILD`：socket 名变成 `org.deepin.dde.treeland.debug-dev`，`treeland-debug` 免 polkit 提权
-- 不传 `CMAKE_BUILD_TYPE` 时既不是 Debug 也不是 Release，上面前两个宏都不会定义
+- 不传 `CMAKE_BUILD_TYPE` 时既不是 Debug 也不是 Release，上面这个宏都不会定义
+
+调试 Remote Object 的开关在两种构建里都是 `remoteDebug`（默认开），Debug 构建不再有自己的覆盖开关。
 
 ## 常用配置选项
 | 选项 | 默认 | 说明 |
@@ -48,7 +49,6 @@ cmake --preset default -DCMAKE_BUILD_TYPE=Debug
 | `WITH_SUBMODULE_WAYLIB` | `ON` | `ON` 用仓库内的 `waylib/` 源码；`OFF` 用系统已安装的 waylib |
 | `BUILD_TREELAND_PROTOCOL_TESTS` | `ON` | `tests/protocols/` 整棵树的开关 |
 | `BUILD_TREELAND_DEBUG` | `ON` | `treeland-debug` 客户端（定义在 `tools/treeland-debug/CMakeLists.txt`） |
-| `TREELAND_DEBUG_SOURCE` | `ON` | Debug 构建是否默认开调试 Remote Object |
 | `ADDRESS_SANITIZER` | `OFF` | 加 `-fsanitize=address`；报告去向由 `ASAN_OPTIONS` 决定，本地直跑在 stderr，通过 `treeland.service` 启动才写到 `/tmp/treeland-asan*` |
 | `BUILD_TREELAND_EXAMPLES` | `OFF` | 示例客户端 |
 | `TREELAND_INSTALL_DEV` | `OFF` | 装开发文件（头文件、CMake config、`.so` 链接） |

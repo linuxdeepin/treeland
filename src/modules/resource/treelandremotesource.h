@@ -22,6 +22,11 @@ public:
     explicit TreelandRemoteSource(QObject *parent = nullptr);
     ~TreelandRemoteSource() override;
 
+    // False when construction gave up (no free socket name, bind or chmod
+    // failed, or the source could not be published), which lets the caller
+    // discard the object and retry later instead of caching a dead one.
+    bool isPublished() const { return m_published; }
+
     QPointF cursorPosition() const override;
     TreelandInfo getTreelandInfo() override;
 
@@ -113,4 +118,5 @@ private:
     // claimed in the constructor stays ours (Wayland-style flock lock file,
     // see TreelandDebugSocketLock).
     TreelandDebugSocketLock m_debugSocketLock;
+    bool m_published = false;
 };
