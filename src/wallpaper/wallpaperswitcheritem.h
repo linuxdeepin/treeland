@@ -8,6 +8,8 @@
 
 Q_MOC_INCLUDE("workspace/workspace.h")
 
+class QPropertyAnimation;
+
 class WallpaperSlot;
 class TreelandWallpaperSurfaceInterfaceV1;
 
@@ -26,7 +28,7 @@ class WallpaperSwitcherItem : public QQuickItem
     Q_PROPERTY(WorkspaceModel *workspace READ workspace WRITE setWorkspace NOTIFY workspaceChanged FINAL)
     Q_PROPERTY(bool play READ play WRITE setPlay NOTIFY playChanged FINAL)
     Q_PROPERTY(QString source READ source NOTIFY sourceChanged FINAL)
-    Q_PROPERTY(int opacityDuration READ opacityDuration WRITE setOpacityDuration NOTIFY opacityDurationChanged FINAL)
+    Q_PROPERTY(int transitionDuration READ transitionDuration WRITE setTransitionDuration NOTIFY transitionDurationChanged FINAL)
 
     QML_NAMED_ELEMENT(WallpaperSwitcher)
     QML_ADDED_IN_VERSION(1, 0)
@@ -46,8 +48,8 @@ public:
 
     QString source() const;
 
-    int opacityDuration() const;
-    void setOpacityDuration(int duration);
+    int transitionDuration() const;
+    void setTransitionDuration(int duration);
 
     Q_INVOKABLE void slowDown();
 
@@ -56,21 +58,22 @@ Q_SIGNALS:
     void workspaceChanged();
     void playChanged();
     void sourceChanged();
-    void opacityDurationChanged();
+    void transitionDurationChanged();
 
 private:
     void handleWallpaperUpdate();
     void handleWorkspaceAdded();
     void switchToNewSlot();
-    void onAnimationFinished();
-    void startFadeIn(WallpaperSlot *slot);
+    void startSlideIn(WallpaperSlot *slot);
+    void finishSlideIn(WallpaperSlot *slot);
 
     QPointer<WorkspaceModel> m_workspace;
     QPointer<WOutput> m_output;
     bool m_play = true;
     QString m_source;
-    int m_opacityDuration = 500;
+    int m_transitionDuration = 500;
 
+    QPointer<QPropertyAnimation> m_slideAnim;
     WallpaperSlot *m_currentSlot = nullptr;
     WallpaperSlot *m_oldSlot = nullptr;
 };
