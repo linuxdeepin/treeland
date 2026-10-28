@@ -180,36 +180,18 @@ void SurfaceProtocolController::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
         // (Personalization::noTitlebar) and the new per-window decoration
         // protocol (Decoration::titlebarHidden). Both write into the same
         // wrapper property, so the final value is decided here.
-        auto updateNoTitlebar = [this, attached, decoration] {
-            auto wrapper = attached->surfaceWrapper();
+        //
+        // Whether the compositor draws an SSD frame at all is a separate axis,
+        // owned by the xdg-decoration negotiation (see onSurfaceModeChanged).
+        // A titlebar is never created on a frame-less wrapper, so asking for
+        // one here cannot resurrect the frame.
+        auto updateNoTitlebar = [attached, decoration] {
             const bool decorationHides = decoration->hasTitlebarOverride()
                 && decoration->titlebarHidden();
 
-            if (attached->noTitlebar() || decorationHides) {
-                wrapper->setNoTitleBar(true);
-                if (!wrapper->isLaunchpad()) {
-                    wrapper->setNoDecoration(false);
-                }
-            } else {
-                wrapper->setNoTitleBar(false);
-                wrapper->setNoDecoration(m_xdgDecorationManager->modeBySurface(wrapper->surface())
-                                     != WXdgDecorationManager::Server);
-            }
+            attached->surfaceWrapper()->setNoTitleBar(attached->noTitlebar()
+                                                      || decorationHides);
         };
-
-        if (isXdgToplevel) {
-            connect(
-                m_xdgDecorationManager,
-                &WXdgDecorationManager::surfaceModeChanged,
-                attached,
-                [attached, updateNoTitlebar](
-                    WAYLIB_SERVER_NAMESPACE::WSurface *surface,
-                    [[maybe_unused]] Waylib::Server::WXdgDecorationManager::DecorationMode mode) {
-                    if (surface == attached->surfaceWrapper()->surface()) {
-                        updateNoTitlebar();
-                    }
-                });
-        }
 
         connect(attached, &Personalization::windowStateChanged, this, updateNoTitlebar);
         // Re-arbitrate the titlebar whenever the decoration protocol changes
@@ -217,6 +199,26 @@ void SurfaceProtocolController::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
         // personalization path above.
         connect(decoration, &Decoration::titlebarOverrideChanged, this, updateNoTitlebar);
         updateNoTitlebar();
+
+        // COMPAT: dde-shell still drives the quick launchpad through the
+        // deprecated personalization protocol, whose NoTitleBar state used to
+        // switch the wrapper back to compositor decoration (SSD frame). Keep
+        // that side effect only for the quick launchpad so it keeps drawing
+        // its frame during the migration period. Revisit once dde-shell stops
+        // sending set_titlebar for the quick launchpad; drop this block together
+        // with the deprecated personalization protocol.
+        if (wrapper->isQuickLaunchpad() && attached->noTitlebar()) {
+            wrapper->setNoDecoration(false);
+        }
+
+        // An xdg popup negotiates no xdg-decoration and has no titlebar of its
+        // own: it always uses the compositor's shadow, border and rounded
+        // corners. Both axes are stated explicitly here rather than left to
+        // Personalization::noTitlebar() hard-coding true for popups.
+        if (isXdgPopup) {
+            wrapper->setNoTitleBar(true);
+            wrapper->setNoDecoration(false);
+        }
 
         auto updateBlur = [attached] {
             attached->surfaceWrapper()->setBlurPersonalization(attached->backgroundType() == Personalization::BackgroundType::Blur);
@@ -238,6 +240,16 @@ void SurfaceProtocolController::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
         updateBlur();
         if (wrapper->isLaunchpad())
             wrapper->setCoverEnabled(true);
+
+        // The decoration mode may already have been negotiated before this
+        // wrapper existed, in which case onSurfaceModeChanged() looked the
+        // wrapper up through the root container and dropped the result. Replay
+        // the mode here so a negotiation landing before wrapper creation is not
+        // lost; later changes are handled by onSurfaceModeChanged().
+        if (isXdgToplevel) {
+            wrapper->setNoDecoration(m_xdgDecorationManager->modeBySurface(wrapper->surface())
+                                     != WXdgDecorationManager::Server);
+        }
     }
 
     if (isXwayland) {
