@@ -83,7 +83,7 @@ WallpaperOutputConfig WallpaperManager::getOutputConfig(const QString &id)
     return WallpaperOutputConfig{};
 }
 
-void WallpaperManager::updateWallpaperConfig()
+void WallpaperManager::loadWallpaperConfig()
 {
     m_wallpaperConfig.clear();
     if (!WaylandServer::instance()->m_config->wallpaperConfig().isEmpty()) {
@@ -101,6 +101,15 @@ void WallpaperManager::updateWallpaperConfig()
         defaultWallpaperConfig();
     }
     m_wallpaperConfigUpdated = true;
+
+    const auto wallpapers = globalValidWallpaper();
+    if (auto *notifier = WaylandServer::instance()->m_wallpaperNotifierInterfaceV1) {
+        for (auto it = wallpapers.cbegin(); it != wallpapers.cend(); ++it) {
+            notifier->sendAdd(it.value(), it.key());
+        }
+    }
+
+    Q_EMIT updateWallpaper();
 }
 
 void WallpaperManager::defaultWallpaperConfig()

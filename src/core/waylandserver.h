@@ -288,6 +288,7 @@ public:
     RootSurfaceContainer *rootContainer() const { return m_rootSurfaceContainer; }
     WBackend *backend() const;
 public Q_SLOTS:
+    void initializeWallpaper();
     void activateSurface(SurfaceWrapper *wrapper,
                          Qt::FocusReason reason = Qt::OtherFocusReason,
                          WSeat *seat = nullptr,
@@ -369,6 +370,7 @@ private:
     FpsDisplayManager *m_fpsManager = nullptr;
     SessionManager *m_sessionManager = nullptr;
     WallpaperManager *m_wallpaperManager = nullptr;
+    bool m_wallpaperInitialized = false;
 
     CurrentMode m_currentMode{ CurrentMode::Normal };
 

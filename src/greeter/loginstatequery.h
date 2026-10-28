@@ -4,7 +4,6 @@
 #pragma once
 
 #include <QObject>
-#include <QTimer>
 
 class QDBusPendingCallWatcher;
 
@@ -17,16 +16,14 @@ public:
     void start();
 
 Q_SIGNALS:
-    // False also covers an unsuccessful query or an expired deadline.
+    // False also covers an unsuccessful query.
     void finished(bool hasLoggedInUser);
 
 private:
     void onSessionsQueried(QDBusPendingCallWatcher *watcher);
-    void onSessionUserQueried(QDBusPendingCallWatcher *watcher);
-    void onTimeout();
+    void onSessionPropertiesQueried(QDBusPendingCallWatcher *watcher);
     void finish(bool hasLoggedInUser);
 
-    QTimer m_timeout;
     qsizetype m_pendingSessionQueries{ 0 };
     bool m_started{ false };
     bool m_finished{ false };

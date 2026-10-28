@@ -263,6 +263,7 @@ Q_SIGNALS:
     void switchUser();
 
     void socketDisconnected();
+    void initialUserSelected();
 
     /////////////////////////////
     // Property change signals //
