@@ -46,7 +46,7 @@ Q_SIGNALS:
     void updateWallpaper();
 
 public Q_SLOTS:
-    void updateWallpaperConfig();
+    void loadWallpaperConfig();
     void onWallpaperAdded(TreelandWallpaperInterfaceV1 *interface);
     void onImageChanged(int workspaceIndex,
                         const QString &fileSource,

@@ -534,6 +534,7 @@ void GreeterProxy::readyRead()
 
             userModel()->setLastUser(lastUser);
             sessionModel()->setLastSession(lastSession);
+            Q_EMIT initialUserSelected();
         } break;
         case DaemonMessages::SessionDirs: {
             qCDebug(lcTlGreeter) << "Message received from daemon: SessionDirs";
