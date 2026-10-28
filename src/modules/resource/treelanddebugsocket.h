@@ -59,6 +59,23 @@ QString treelandDebugSocketPath(const QString &socketName);
 // An explicit --url always overrides this list (handled by the caller).
 QStringList treelandDebugCandidateSocketUrls();
 
+// Full path of the local-socket file behind a "local:<name>" host URL, or an
+// empty string when @p url is not a local socket URL.
+QString treelandDebugSocketPathForUrl(const QString &url);
+
+// Paths of the sockets published for @p url: the exact name when it exists, plus
+// every "<name>-<N>" sibling (Qt appends a numeric suffix when the name is
+// taken). Only Unix-domain sockets count -- a plain file that merely occupies
+// the name is not a published channel. A differently built instance
+// ("<name>-dev") is never included. More
+// than one entry means several instances or a stale file left by a crash, which
+// a caller reporting a connection failure should say verbatim instead of
+// guessing. Empty when nothing is published.
+QStringList treelandDebugPublishedSocketPaths(const QString &url);
+
+// True when treelandDebugPublishedSocketPaths() finds a socket for @p url.
+bool treelandDebugSocketPublished(const QString &url);
+
 // RAII lock that claims a local-socket name, mirroring wl_socket_lock() in
 // libwayland.  An exclusive flock on "<name>.lock" (placed next to the
 // socket by Qt, in QDir::tempPath()) is held for the lifetime of the

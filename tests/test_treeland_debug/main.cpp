@@ -53,6 +53,9 @@ private Q_SLOTS:
     void testSocketPickFreeNameSkipsLiveOldInstance();
     void testSocketCandidateUrls();
     void testSocketPathMatchesQt();
+    void testSocketPathForUrl();
+    void testSocketPublished();
+    void testPublishedSocketPaths();
 
     // --- parseCommand: no-argument commands ---
     void testParseTree();
@@ -410,6 +413,107 @@ void TreelandDebugTest::testSocketPathMatchesQt()
     // Absolute paths are used as-is.
     QCOMPARE(treelandDebugSocketPath(QStringLiteral("/tmp/absolute.sock")),
              QStringLiteral("/tmp/absolute.sock"));
+}
+
+void TreelandDebugTest::testSocketPathForUrl()
+{
+    // Bare names resolve next to each other in the temp dir (Qt's own rule);
+    // absolute paths are kept, non-local URLs have no socket file.
+    const QString bare = treelandDebugSocketPathForUrl(QStringLiteral("local:foo.debug"));
+    QCOMPARE(bare, QDir::cleanPath(QDir::tempPath()) + QStringLiteral("/foo.debug"));
+    QCOMPARE(treelandDebugSocketPathForUrl(QStringLiteral("local:/run/foo.debug")),
+             QStringLiteral("/run/foo.debug"));
+    QVERIFY(treelandDebugSocketPathForUrl(QStringLiteral("tcp://127.0.0.1:1234")).isEmpty());
+    QVERIFY(treelandDebugSocketPathForUrl(QStringLiteral("local:")).isEmpty());
+}
+
+void TreelandDebugTest::testSocketPublished()
+{
+    // A published socket (or its numeric-suffixed variant) is how the client
+    // tells that the debug remote source already exists, so it must not report
+    // a missing socket as published. Only real sockets count: a plain file at
+    // the name is not a debug channel. PID-qualified names keep parallel ctest
+    // runs apart.
+    const QString name = QStringLiteral("test.treeland.debug.published.%1").arg(::getpid());
+    const QString url = QStringLiteral("local:") + name;
+    const QString base = treelandDebugSocketPathForUrl(url);
+    QLocalServer::removeServer(name);
+    QVERIFY(!treelandDebugSocketPublished(url));
+
+    QLocalServer server;
+    QVERIFY(server.listen(name));
+    QVERIFY(treelandDebugSocketPublished(url));
+    server.close();
+    QLocalServer::removeServer(name);
+
+    QFile plainFile(base);
+    QVERIFY(plainFile.open(QIODevice::WriteOnly));
+    plainFile.close();
+    QVERIFY(!treelandDebugSocketPublished(url));
+    QVERIFY(plainFile.remove());
+
+    QLocalServer suffixed;
+    QVERIFY(suffixed.listen(name + QStringLiteral("-1")));
+    QVERIFY(treelandDebugSocketPublished(url));
+    suffixed.close();
+    QLocalServer::removeServer(name + QStringLiteral("-1"));
+    QVERIFY(!treelandDebugSocketPublished(url));
+}
+
+void TreelandDebugTest::testPublishedSocketPaths()
+{
+    // The client reports *which* sockets it found, so suffix handling matters:
+    // only "<name>-<digits>" belongs to this name, only real sockets count, and
+    // several hits must all be reported instead of picking one (that is how the
+    // error message ends up naming the wrong reason).
+    const QString name = QStringLiteral("test.treeland.debug.paths.%1").arg(::getpid());
+    const QString url = QStringLiteral("local:") + name;
+    const QString base = treelandDebugSocketPathForUrl(url);
+
+    QVERIFY(treelandDebugPublishedSocketPaths(url).isEmpty());
+
+    QLocalServer exact;
+    QVERIFY(exact.listen(name));
+    QCOMPARE(treelandDebugPublishedSocketPaths(url), QStringList{ base });
+    exact.close();
+    QLocalServer::removeServer(name);
+    QVERIFY(treelandDebugPublishedSocketPaths(url).isEmpty());
+
+    // Several numeric siblings are all reported, whatever order the directory
+    // returns them in.
+    QLocalServer second;
+    QLocalServer tenth;
+    QVERIFY(second.listen(name + QStringLiteral("-2")));
+    QVERIFY(tenth.listen(name + QStringLiteral("-10")));
+    QStringList paths = treelandDebugPublishedSocketPaths(url);
+    paths.sort();
+    QStringList expected{ base + QStringLiteral("-10"), base + QStringLiteral("-2") };
+    expected.sort();
+    QCOMPARE(paths, expected);
+
+    // The other build type's socket ("<name>-dev"), non-numeric suffixes and
+    // plain files are not this name's sockets.
+    QLocalServer otherBuild;
+    QVERIFY(otherBuild.listen(name + QStringLiteral("-dev")));
+    QFile plainFile(base + QStringLiteral("-1.bak"));
+    QVERIFY(plainFile.open(QIODevice::WriteOnly));
+    plainFile.close();
+    QFile trailingGarbage(base + QStringLiteral("-1bak"));
+    QVERIFY(trailingGarbage.open(QIODevice::WriteOnly));
+    trailingGarbage.close();
+    paths = treelandDebugPublishedSocketPaths(url);
+    paths.sort();
+    QCOMPARE(paths, expected);
+
+    second.close();
+    tenth.close();
+    otherBuild.close();
+    QLocalServer::removeServer(name + QStringLiteral("-2"));
+    QLocalServer::removeServer(name + QStringLiteral("-10"));
+    QLocalServer::removeServer(name + QStringLiteral("-dev"));
+    QVERIFY(QFile::remove(base + QStringLiteral("-1.bak")));
+    QVERIFY(QFile::remove(base + QStringLiteral("-1bak")));
+    QVERIFY(treelandDebugPublishedSocketPaths(url).isEmpty());
 }
 
 // ---------------------------------------------------------------------------

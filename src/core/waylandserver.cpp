@@ -137,16 +137,23 @@ WaylandServer::WaylandServer(QObject *parent)
             &Workspace::workspaceAdded,
             m_wallpaperManager,
             &WallpaperManager::syncAddWorkspace);
-    tryInitRemoteSource();
-#ifndef ALWAYS_ENABLE_TREELAND_DEBUG
-    // Release builds: react to runtime changes of the remoteDebug DConfig key,
-    // creating or destroying the remote source on the fly instead of only at
-    // startup.
+    // Follow the remoteDebug master switch (on by default) in every build type,
+    // so the debug socket appears and disappears with it instead of only at
+    // startup. The stored value arrives asynchronously -- dtk reports
+    // configInitializeSucceed later -- so watch for changes first and only then
+    // read the value: reading it now would publish the socket for a user who
+    // stored `false`, until the value arrives.
     connect(m_globalConfig,
             &TreelandConfig::remoteDebugChanged,
             this,
             &WaylandServer::tryInitRemoteSource);
-#endif
+    if (DConfigManager::instance()->isInitializeSucceeded())
+        tryInitRemoteSource();
+    else
+        connect(DConfigManager::instance(),
+                &DConfigManager::initializeSucceed,
+                this,
+                &WaylandServer::tryInitRemoteSource);
 
     m_outputManager = new OutputManager(m_rootSurfaceContainer,
                                         m_globalConfig,
@@ -256,27 +263,27 @@ void WaylandServer::syncPaletteTypeWithWindowColorScheme(int32_t colorScheme)
 
 void WaylandServer::tryInitRemoteSource()
 {
-#ifdef ALWAYS_ENABLE_TREELAND_DEBUG
-    // Remote debug is on by default in Debug builds so treeland-debug works out
-    // of the box. The source has zero cost until a client connects, so enabling
-    // it unconditionally here is safe even with no debug client attached.
-    if (m_treelandRemoteSource)
-        return;
-    m_treelandRemoteSource = new TreelandRemoteSource(this);
-    return;
-#else
-    // Release builds: follow the remoteDebug DConfig key (default false) and
-    // react to its runtime changes -- toggling the key creates or destroys the
-    // remote source without restarting the server.
+    // remoteDebug is a master switch -- on by default, so the debug socket
+    // exists without anyone enabling it, and off means "no debugging at all".
+    // Toggling it creates or destroys the remote source without restarting the
+    // server. The source itself is a thin QObject that only does work per call,
+    // so keeping it while the switch is on costs nothing when no client is
+    // attached.
     if (m_treelandRemoteSource) {
         if (!m_globalConfig->remoteDebug()) {
             delete m_treelandRemoteSource;
             m_treelandRemoteSource = nullptr;
         }
     } else if (m_globalConfig->remoteDebug()) {
-        m_treelandRemoteSource = new TreelandRemoteSource(this);
+        auto *source = new TreelandRemoteSource(this);
+        // Binding or publishing can fail while the switch stays on; keep it
+        // retryable rather than caching an object that never published.
+        if (!source->isPublished()) {
+            delete source;
+            return;
+        }
+        m_treelandRemoteSource = source;
     }
-#endif
 }
 
 void WaylandServer::setWorkspaceVisible(bool visible)

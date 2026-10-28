@@ -246,7 +246,9 @@ TreelandRemoteSource::TreelandRemoteSource(QObject *parent)
                              << socketName << "; debug remote source disabled";
         delete host;
         m_debugSocketLock.release();
+        return;
     }
+    m_published = true;
 }
 
 TreelandRemoteSource::~TreelandRemoteSource()

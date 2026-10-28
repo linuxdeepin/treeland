@@ -61,16 +61,6 @@ if (ADDRESS_SANITIZER)
     add_link_options(-fsanitize=address)
 endif()
 
-# Enable the treeland-debug remote source by default in Debug builds so the
-# adb-style debug tool works out of the box without toggling the DConfig key.
-# Release builds stay gated by the remoteDebug DConfig key (default false), so
-# the source is not created unless explicitly enabled. Pass
-# -DTREELAND_DEBUG_SOURCE=OFF to also keep it off in Debug builds.
-option(TREELAND_DEBUG_SOURCE "Enable treeland-debug remote source by default in Debug builds" ON)
-if (TREELAND_DEBUG_SOURCE)
-    add_compile_definitions($<$<CONFIG:Debug>:ALWAYS_ENABLE_TREELAND_DEBUG>)
-endif()
-
 # Socket base names for the treeland-debug remote-object channel.
 # Debug builds use a distinct name so a debug-compiled treeland can run
 # alongside a release one in the same runtime directory.  A debug-built

@@ -47,13 +47,13 @@
             "visibility": "public"
         },
         "remoteDebug": {
-            "value": false,
+            "value": true,
             "serial": 0,
             "flags": [],
-            "name": "Debug Remote Source",
-            "name[zh_CN]": "调试远程数据源",
-            "description": "Enable the Qt Remote Object remote source for window tree debugging tools. Performance impact when enabled.",
-            "description[zh_CN]": "启用窗口树调试工具的Qt Remote Object远程数据源。开启后会有性能影响。",
+            "name": "Allow Debugging",
+            "name[zh_CN]": "允许调试",
+            "description": "Allow debugging tools to connect. Release builds only let root connect. While this is on, treeland publishes its debug socket and serves the window tree remote source on demand, collecting everything per call (the only session-scoped resource, input-event capture, is armed only while a client polls for events). Turn it off to forbid debugging entirely.",
+            "description[zh_CN]": "允许调试工具连接。Release 构建仅允许 root 连接。开启时 treeland 会发布调试 socket，窗口树远程源按需提供服务、数据在每次调用时现场采集（唯一的会话级资源是输入事件捕获，只在客户端轮询事件时才挂上）；关闭则完全禁止调试。",
             "permissions": "readwrite",
             "visibility": "private"
         },

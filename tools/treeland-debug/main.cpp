@@ -3,11 +3,14 @@
 
 #include <QCoreApplication>
 #include <QDateTime>
+#include <QDir>
+#include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QPointF>
 #include <QProcessEnvironment>
+#include <QLocalSocket>
 #include <QProcess>
 #include <QRemoteObjectNode>
 #include <QSocketNotifier>
@@ -398,6 +401,80 @@ static bool dispatchLiveCommand(Session &session, int timeoutMs,
                                 const QString &command, const QStringList &commandArgs,
                                 int *rc);
 
+// Explains the failures a bare "failed to connect" cannot tell apart. It
+// inspects the socket filesystem after the attempt, so the wording stays a hint
+// about the state now, never a claim about what the attempt hit.
+static void explainConnectFailure(const QStringList &candidateUrls)
+{
+    QStringList publishedPaths;
+    QString publishedUrl; // the candidate the paths belong to, not the first one
+    QString occupiedNonSocket;
+    for (const QString &candidate : candidateUrls) {
+        const QStringList paths = treelandDebugPublishedSocketPaths(candidate);
+        if (!paths.isEmpty()) {
+            publishedPaths = paths;
+            publishedUrl = candidate;
+            break;
+        }
+        if (occupiedNonSocket.isEmpty()) {
+            const QString base = treelandDebugSocketPathForUrl(candidate);
+            if (!base.isEmpty() && QFileInfo::exists(base))
+                occupiedNonSocket = base;
+        }
+    }
+
+    if (publishedPaths.isEmpty()) {
+        QTextStream(stderr) << "treeland-debug: treeland published no debug socket in "
+                            << QDir::tempPath()
+                            << "; is it running (with the same $TMPDIR), and is its "
+                               "`remoteDebug` switch on? As the compositor's user: "
+                               "`dde-dconfig set -a org.deepin.dde.treeland -r "
+                               "org.deepin.dde.treeland -k remoteDebug -v true` "
+                               "(e.g. with `sudo -u dde --`)\n";
+        if (!occupiedNonSocket.isEmpty())
+            QTextStream(stderr) << "treeland-debug: note that " << occupiedNonSocket
+                                << " exists but is not a socket; something else owns that "
+                                   "name, so the compositor would have published a "
+                                   "`-<N>` suffix instead\n";
+        return;
+    }
+
+    if (publishedPaths.size() > 1) {
+        QTextStream(stderr) << "treeland-debug: more than one debug socket is published for "
+                            << publishedUrl << ": "
+                            << publishedPaths.join(QStringLiteral(", "))
+                            << "; a stale socket from a crashed instance or another instance's "
+                               "socket is likely -- remove the stale one or point at the right "
+                               "instance with the basename after `--url local:`\n";
+        return;
+    }
+
+    // Ask that one socket instead of guessing: a refused connect (EACCES on a
+    // release compositor, ECONNREFUSED on a leftover socket) and an accepted
+    // connect whose QtRO source never answered are different problems.
+    const QString path = publishedPaths.first();
+    QLocalSocket probe;
+    probe.connectToServer(path);
+    const bool socketAccepted = probe.waitForConnected(1000);
+
+    if (socketAccepted) {
+        QTextStream(stderr) << "treeland-debug: " << path
+                            << " accepts connections but no `WindowTree` source answered. "
+                               "That socket belongs to another instance (or to a leftover "
+                               "socket), or the compositor published a source name this "
+                               "client does not ask for; the socket file name is the instance "
+                               "to point at: `--url local:` plus the basename of that path\n";
+        return;
+    }
+
+    QTextStream(stderr) << "treeland-debug: " << path
+                        << " exists but the connection failed: "
+                        << (probe.errorString().isEmpty() ? QStringLiteral("no answer")
+                                                          : probe.errorString())
+                        << "; a release compositor only lets root connect, and a socket left "
+                           "behind by a crashed instance refuses connections the same way\n";
+}
+
 int main(int argc, char *argv[])
 {
     QCoreApplication application(argc, argv);
@@ -529,20 +606,6 @@ int main(int argc, char *argv[])
     }
 #endif
 
-#ifdef TREELAND_DEBUG_LISTEN
-    if (command == QLatin1String("listen")) {
-        const ParseResult parsed = parseCommand(command, commandArgs);
-        if (!parsed.ok)
-            return fail(parsed.error);
-        DebugServer server(urlExplicit ? QStringList{url} : treelandDebugCandidateSocketUrls(),
-                            name, timeoutMs);
-        if (!server.listen(parsed.host, parsed.port))
-            return fail(QStringLiteral("listen: failed to bind to %1:%2").arg(parsed.host).arg(parsed.port));
-        QTextStream(stdout) << "treeland-debug listening on " << parsed.host << ":" << parsed.port << "\n";
-        return QCoreApplication::exec();
-    }
-#endif
-
     // Resolve the URL to connect to.  An explicit --url is used verbatim;
     // otherwise the build-default candidate list (debug → release fallback in
     // debug builds) is tried in order.
@@ -550,11 +613,32 @@ int main(int argc, char *argv[])
         ? QStringList{url}
         : treelandDebugCandidateSocketUrls();
 
+    // Treeland publishes its debug socket whenever its `remoteDebug` master
+    // switch is on (the default), so the client never touches DConfig: a
+    // missing socket means the switch was turned off or treeland is not
+    // running, and the hint below is all the caller needs.
+
+#ifdef TREELAND_DEBUG_LISTEN
+    if (command == QLatin1String("listen")) {
+        const ParseResult parsed = parseCommand(command, commandArgs);
+        if (!parsed.ok)
+            return fail(parsed.error);
+        DebugServer server(candidateUrls, name, timeoutMs);
+        if (!server.listen(parsed.host, parsed.port))
+            return fail(QStringLiteral("listen: failed to bind to %1:%2").arg(parsed.host).arg(parsed.port));
+        QTextStream(stdout) << "treeland-debug listening on " << parsed.host << ":" << parsed.port << "\n";
+        return QCoreApplication::exec();
+    }
+#endif
+
     Session session;
     QString connectedUrl;
-    if (!connectSession(session, candidateUrls, name, timeoutMs, &connectedUrl))
+    if (!connectSession(session, candidateUrls, name, timeoutMs, &connectedUrl)) {
+        if (!urlExplicit)
+            explainConnectFailure(candidateUrls);
         return fail(QStringLiteral("failed to connect to remote object node (tried: %1)")
                         .arg(candidateUrls.join(" or ")));
+    }
 
     // Log only when a fallback actually happened (preferred candidate was
     // unreachable), not on every debug build, to avoid polluting --json output.
