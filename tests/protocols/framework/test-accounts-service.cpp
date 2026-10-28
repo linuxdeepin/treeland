@@ -21,7 +21,7 @@ class TestAccountsManager : public QObject
 public:
     QStringList userList() const { return { QString::fromLatin1(accountsUserPath) }; }
 
-public slots:
+public Q_SLOTS:
     QList<QDBusObjectPath> ListCachedUsers() const
     {
         return { QDBusObjectPath(QString::fromLatin1(accountsUserPath)) };

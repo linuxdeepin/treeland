@@ -42,13 +42,13 @@ Q_SIGNALS:
 protected:
     void treeland_shortcut_capture_v3_captured(const QString &key) override
     {
-        emit captured(key);
+        Q_EMIT captured(key);
         deleteLater();
     }
 
     void treeland_shortcut_capture_v3_failed(uint32_t reason) override
     {
-        emit failed(reason);
+        Q_EMIT failed(reason);
         deleteLater();
     }
 };

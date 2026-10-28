@@ -195,12 +195,12 @@ void FpsDisplayManager::updateFpsText()
 
     if (current != m_lastReportedCurrentFps) {
         m_lastReportedCurrentFps = current;
-        emit currentFpsChanged();
+        Q_EMIT currentFpsChanged();
     }
 
     if (maximum != m_lastReportedMaximumFps) {
         m_lastReportedMaximumFps = maximum;
-        emit maximumFpsChanged();
+        Q_EMIT maximumFpsChanged();
     }
 }
 
@@ -251,7 +251,7 @@ void FpsDisplayManager::updateRefreshAndInterval()
 
     if (m_displayRefreshRate != oldRate) {
         updateTimerIntervals();
-        emit refreshRateChanged();
+        Q_EMIT refreshRateChanged();
     }
 }
 
