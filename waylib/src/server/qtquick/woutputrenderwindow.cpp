@@ -28,7 +28,6 @@
 
 #include <wlr_all.h>
 
-#include <QAnimationDriver>
 #include <QOffscreenSurface>
 #include <QSharedPointer>
 #include <QQuickRenderControl>
@@ -374,14 +373,8 @@ public:
         : QQuickWindowPrivate()
         , listenerOwner(std::make_unique<WListenerOwner>())
     {
-        // QML animations are otherwise advanced by Qt's fixed-interval
-        // QUnifiedTimer, which is decoupled from output frames. Advancing them
-        // from doRender() ties every animation to the rendered frame instead.
-        animationDriver.reset(new QAnimationDriver());
-        animationDriver->install();
     }
     ~WOutputRenderWindowPrivate() {
-        animationDriver->uninstall();
         qDeleteAll(layers);
     }
 
@@ -478,8 +471,6 @@ public:
 #endif
 
     QStack<WBufferRenderer*> rendererList;
-
-    QScopedPointer<QAnimationDriver> animationDriver;
 
     // Owner token for per-output frame/needs_frame listeners registered on
     // WOutput via WObject::listeners(). ~WListenerOwner/teardown() detaches
@@ -1564,16 +1555,6 @@ void WOutputRenderWindowPrivate::doRender(wlr_output *needsFrameOutput,
     for (OutputLayer *layer : std::as_const(layers)) {
         layer->beforeRender(q);
     }
-
-    // Drive plain QML animations from the frame itself, so their values for
-    // this frame are taken before the scene is polished and synced.
-    // State-only output transactions (forceRender) are not real frames, and an
-    // idle frame must not advance: that would start the driver's wall clock and
-    // the next animation would take the whole idle gap as its first delta. The
-    // driver is thread-local, so rendering has to happen on the thread that
-    // installed it.
-    if (!forceRender && animationDriver->isRunning())
-        animationDriver->advance();
 
     rc()->polishItems();
 
