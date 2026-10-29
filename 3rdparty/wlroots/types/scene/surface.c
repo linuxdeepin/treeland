@@ -13,6 +13,12 @@
 #include <wlr/util/transform.h>
 #include "types/wlr_scene.h"
 
+#include <wlr/config.h>
+
+#if WLR_HAS_XWAYLAND
+#include <wlr/xwayland/xwayland.h>
+#endif
+
 static double get_surface_preferred_buffer_scale(struct wlr_surface *surface) {
 	double scale = 1;
 	struct wlr_surface_output *surface_output;
@@ -386,7 +392,17 @@ static bool scene_buffer_point_accepts_input(struct wlr_scene_buffer *scene_buff
 	*sx += scene_surface->clip.x;
 	*sy += scene_surface->clip.y;
 
-	return wlr_surface_point_accepts_input(scene_surface->surface, *sx, *sy);
+	struct wlr_surface *surface = scene_surface->surface;
+#if WLR_HAS_XWAYLAND
+	struct wlr_xwayland_surface *xsurface =
+		wlr_xwayland_surface_try_from_wlr_surface(surface);
+	if (xsurface != NULL) {
+		return wlr_xwayland_surface_point_accepts_input(
+			xsurface, *sx, *sy);
+	}
+#endif
+
+	return wlr_surface_point_accepts_input(surface, *sx, *sy);
 }
 
 static void surface_addon_destroy(struct wlr_addon *addon) {
