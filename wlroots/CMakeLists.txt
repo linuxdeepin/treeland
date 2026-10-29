@@ -248,6 +248,7 @@ if(WLROOTS_XWAYLAND)
         xcb-render
         xcb-res
         xcb-xfixes
+        xcb-shape
     )
     foreach(_pkg IN LISTS _wlr_xwayland_pkgs)
         string(REPLACE "-" "_" _var "${_pkg}")
