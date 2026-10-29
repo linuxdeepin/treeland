@@ -18,6 +18,16 @@ Item {
     height: shadow.boundingRect.height
 
     MouseArea {
+        id: resizeArea
+
+        // The decoration must not catch input rejected by the client surface,
+        // including holes in an X11 input shape. Only the resize rim is ours.
+        containmentMask: QtObject {
+            function contains(position: point): bool {
+                return WaylibHelper.getEdges(Qt.rect(0, 0, resizeArea.width, resizeArea.height), position, 10) !== 0;
+            }
+        }
+
         enabled: surface.type !== SurfaceWrapper.Type.XdgPopup
                     && surface.type !== SurfaceWrapper.Type.Layer
                     && surface.type !== SurfaceWrapper.Type.SplashScreen
