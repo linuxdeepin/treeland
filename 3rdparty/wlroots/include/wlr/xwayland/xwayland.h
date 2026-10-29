@@ -194,7 +194,9 @@ struct wlr_xwayland_surface {
 
 	bool has_alpha;
 	bool has_input_shape;
+	bool has_clip_shape;
 	pixman_region32_t input_shape;
+	pixman_region32_t clip_shape;
 
 	struct {
 		struct wl_signal destroy;
@@ -232,6 +234,7 @@ struct wlr_xwayland_surface {
 		struct wl_signal set_opacity;
 		struct wl_signal set_icon;
 		struct wl_signal set_input_shape;
+		struct wl_signal set_clip_shape;
 		struct wl_signal focus_in;
 		struct wl_signal grab_focus;
 		/* can be used to set initial maximized/fullscreen geometry */
