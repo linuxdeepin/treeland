@@ -1200,6 +1200,30 @@ void OutputManager::restoreExtensionModeFromConfig()
         }
     }
 
+    // Normalize the layout so that the minimum x and y of all outputs is 0.
+    // When outputs are removed (e.g. external monitor disconnected) the saved
+    // positions of the remaining outputs may be left with a non-zero offset,
+    // causing the rendered surface to extend beyond the physical screen after
+    // a restart. Translating every output by (-minX, -minY) eliminates that
+    // offset without altering the relative arrangement of a normal multi-screen
+    // layout (whose minimum coordinates are already 0).
+    if (auto *layout = m_rootContainer->outputLayout()) {
+        const auto &layoutOutputs = layout->outputs();
+        int minX = std::numeric_limits<int>::max();
+        int minY = std::numeric_limits<int>::max();
+        for (auto *out : layoutOutputs) {
+            const QPoint pos = out->position();
+            minX = std::min(minX, pos.x());
+            minY = std::min(minY, pos.y());
+        }
+        if (minX != 0 || minY != 0) {
+            for (auto *out : layoutOutputs) {
+                const QPoint pos = out->position();
+                layout->move(out, QPoint(pos.x() - minX, pos.y() - minY));
+            }
+        }
+    }
+
     Output *primaryOutput = findOutputById(m_config->primaryOutputId());
     if (!primaryOutput) {
         primaryOutput = m_outputs.constFirst();
