@@ -15,6 +15,7 @@
 
 #include <wlr_all.h>
 
+#include <QPainterPath>
 #include <QPointer>
 
 #include <unistd.h>
@@ -113,6 +114,7 @@ void WXWaylandSurfacePrivate::init()
     });
     q->listeners()->add(&m_handle->events.set_override_redirect, q, &WXWaylandSurface::bypassManagerChanged);
     q->listeners()->add(&m_handle->events.set_geometry, q, &WXWaylandSurface::geometryChanged);
+    q->listeners()->add(&m_handle->events.set_clip_shape, this, &WXWaylandSurfacePrivate::updateClipShape);
     q->listeners()->add(&m_handle->events.set_size_hints, this, &WXWaylandSurfacePrivate::updateSizeHints);
     q->listeners()->add(&m_handle->events.set_window_type, this, &WXWaylandSurfacePrivate::updateWindowTypes);
     q->listeners()->add(&m_handle->events.set_decorations, q, &WXWaylandSurface::decorationsFlagsChanged);
@@ -122,6 +124,7 @@ void WXWaylandSurfacePrivate::init()
     updateParent();
     updateSizeHints();
     updateWindowTypes();
+    updateClipShape();
 }
 
 void WXWaylandSurfacePrivate::updateSizeHints()
@@ -436,6 +439,49 @@ QRect WXWaylandSurface::geometry() const
     geometry.moveTopLeft(QPoint(d->handle()->x, d->handle()->y));
 
     return geometry;
+}
+
+bool WXWaylandSurface::hasClipShape() const
+{
+    return handle()->has_clip_shape;
+}
+
+QVariantList WXWaylandSurface::clipShape() const
+{
+    W_DC(WXWaylandSurface);
+    return d->clipShape;
+}
+
+void WXWaylandSurfacePrivate::updateClipShape()
+{
+    W_Q(WXWaylandSurface);
+
+    const QRegion region = WTools::fromPixmanRegion(&handle()->clip_shape);
+    const bool hasShape = handle()->has_clip_shape;
+    const bool regionChanged = region != clipShapeRegion;
+    if (!regionChanged && hasShape == hasClipShape)
+        return;
+
+    if (regionChanged) {
+        // Merge shared edges only when the region changes, not on every
+        // configure notification or QML property read.
+        QPainterPath path;
+        path.addRegion(region);
+        const auto contours = path.simplified().toSubpathPolygons();
+        QVariantList result;
+        result.reserve(contours.size());
+        for (const auto &contour : contours) {
+            QVariantList points;
+            points.reserve(contour.size());
+            for (const auto &point : contour)
+                points.append(point);
+            result.append(QVariant::fromValue(points));
+        }
+        clipShapeRegion = region;
+        clipShape = result;
+    }
+    hasClipShape = hasShape;
+    Q_EMIT q->clipShapeChanged();
 }
 
 QRect WXWaylandSurface::getContentGeometry() const

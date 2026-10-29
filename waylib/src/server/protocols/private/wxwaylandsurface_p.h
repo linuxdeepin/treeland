@@ -12,6 +12,7 @@
 #include <climits>
 #include <QPointer>
 #include <QRect>
+#include <QRegion>
 #include <QSize>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -43,6 +44,7 @@ public:
     void updateParent();
     void updateSizeHints();
     void updateWindowTypes();
+    void updateClipShape();
     // Called by the owner (WXWayland) while the native parent surface is
     // being destroyed, before the parent wrapper is deleted: the child's
     // QPointer to the parent wrapper would otherwise be cleared by the
@@ -62,6 +64,9 @@ public:
     QRect lastRequestConfigureGeometry;
     WXWaylandSurface::ConfigureFlags lastRequestConfigureFlags = {0};
     WXWaylandSurface::WindowTypes windowTypes = {0};
+    QRegion clipShapeRegion;
+    QVariantList clipShape;
+    bool hasClipShape = false;
     QSize minimumSize;
     QSize maximumSize = QSize(INT_MAX, INT_MAX);
     uint maximized:1;
