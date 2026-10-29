@@ -402,6 +402,14 @@ WSurface *WSurface::fromHandle(wlr_surface *handle)
 bool WSurface::inputRegionContains(const QPointF &localPos) const
 {
     W_DC(WSurface);
+
+#ifndef DISABLE_XWAYLAND
+    if (auto *xsurface = wlr_xwayland_surface_try_from_wlr_surface(d->handle())) {
+        return wlr_xwayland_surface_point_accepts_input(
+            xsurface, localPos.x(), localPos.y());
+    }
+#endif
+
     return wlr_surface_point_accepts_input(d->handle(), localPos.x(), localPos.y());
 }
 
