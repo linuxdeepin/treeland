@@ -174,6 +174,8 @@ class NativeHandlesTest : public QObject
                  &surface->events.request_below,
                  &surface->events.set_override_redirect,
                  &surface->events.set_geometry,
+                 &surface->events.set_input_shape,
+                 &surface->events.set_clip_shape,
                  &surface->events.set_size_hints,
                  &surface->events.set_window_type,
                  &surface->events.set_decorations,
@@ -383,6 +385,10 @@ private Q_SLOTS:
             delete surface;
         }
         QVERIFY(!WXWaylandSurface::fromHandle(&nativeSurface));
+        QVERIFY(wl_list_empty(&nativeSurface.events.set_input_shape.listener_list));
+        QVERIFY(wl_list_empty(&nativeSurface.events.set_clip_shape.listener_list));
+        wl_signal_emit_mutable(&nativeSurface.events.set_input_shape, nullptr);
+        wl_signal_emit_mutable(&nativeSurface.events.set_clip_shape, nullptr);
         wl_signal_emit_mutable(&nativeSurface.events.destroy, &nativeSurface);
     }
 
