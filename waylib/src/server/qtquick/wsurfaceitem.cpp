@@ -245,23 +245,21 @@ public:
                                                    q, [q, this] (quint32 committedState) {
             const bool bufferChanged = committedState & WLR_SURFACE_STATE_BUFFER;
 
-            if (bufferChanged) {
-                // Get the new buffer pointer from surface
-                auto newBuffer = surface->buffer();
-
-                if (!live) {
-                    // Non-live mode: defer to pendingBuffer
-                    pendingBuffer.reset(newBuffer);
-                } else {
-                    // Live mode: update buffer immediately
-                    buffer.reset(newBuffer);
-                    q->update();
-                }
-            }
+            if (bufferChanged && assignBuffer(surface->buffer()))
+                q->update();
 
             if (Q_LIKELY((q->isVisible() || lastRendered) && live))
                 surface->scheduleFrameIfNeeded();
         });
+
+        // The item is often attached after the surface has committed content:
+        // BufferRef is otherwise filled by commit events only, so seed it here.
+        // A surface swapped in with content already committed replaces the
+        // cached frame right away.
+        if (auto *initialBuffer = surface->buffer()) {
+            if (assignBuffer(initialBuffer))
+                q->update();
+        }
 
         updateFrameDoneConnection();
         updateSurfaceState();
@@ -329,6 +327,13 @@ public:
     inline void swapBufferIfNeeded() {
         if (pendingBuffer)
             buffer = std::move(pendingBuffer);
+    }
+
+    // Returns true when the item has to repaint.
+    bool assignBuffer(wlr_buffer *newBuffer) {
+        BufferRef &target = live ? buffer : pendingBuffer;
+        target.reset(newBuffer);
+        return live;
     }
 
     inline void setDevicePixelRatio(qreal dpr) {
