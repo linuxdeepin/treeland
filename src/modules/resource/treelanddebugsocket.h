@@ -23,6 +23,8 @@
 #include <QString>
 #include <QStringList>
 
+class QLocalSocket;
+
 // Provided by CMake as a compile definition (see top-level CMakeLists.txt).
 #ifndef TREELAND_DEBUG_SOCKET
 #  error "TREELAND_DEBUG_SOCKET must be provided by CMake (see top-level CMakeLists.txt)"
@@ -75,6 +77,23 @@ QStringList treelandDebugPublishedSocketPaths(const QString &url);
 
 // True when treelandDebugPublishedSocketPaths() finds a socket for @p url.
 bool treelandDebugSocketPublished(const QString &url);
+
+// Candidate URLs plus every instance published for them: each candidate is
+// followed by its own "<name>-<N>" instances, so the candidate order (debug
+// before release) still decides which build type is preferred.  A socket on the
+// base name that belongs to someone else (or a stale file) must not make the
+// client report a failure while an instance of this build is answering.
+QStringList treelandDebugInstanceSocketUrls(const QStringList &candidateUrls);
+
+// Describes the process on the other end of a connected @p socket, e.g.
+// "pid 4711 (treeland), uid 1000", from the kernel's SO_PEERCRED: each side of a
+// Unix socket knows its peer's credentials, so this works for another user's
+// process without reading /proc.  The command name is omitted when
+// /proc/<pid>/comm is unreadable (hidepid, restricted container).  Empty when the
+// socket is not connected.  Used only on the connection-failure path, where
+// naming the process replaces guessing whether the socket belongs to another
+// instance.
+QString treelandDebugSocketPeerText(const QLocalSocket &socket);
 
 // RAII lock that claims a local-socket name, mirroring wl_socket_lock() in
 // libwayland.  An exclusive flock on "<name>.lock" (placed next to the

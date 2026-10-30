@@ -11,6 +11,7 @@
 
 #include <fcntl.h>
 #include <sys/file.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -95,6 +96,25 @@ bool isSocketPath(const QString &path)
 
 } // namespace
 
+QString treelandDebugSocketPeerText(const QLocalSocket &socket)
+{
+    struct ucred cred {};
+    socklen_t length = sizeof(cred);
+    const qintptr descriptor = socket.socketDescriptor();
+    if (descriptor < 0
+        || ::getsockopt(static_cast<int>(descriptor), SOL_SOCKET, SO_PEERCRED, &cred, &length) < 0) {
+        return {};
+    }
+
+    const QString uid = QStringLiteral("uid %1").arg(cred.uid);
+    QFile comm(QStringLiteral("/proc/%1/comm").arg(cred.pid));
+    const QString name = comm.open(QIODevice::ReadOnly)
+        ? QString::fromLatin1(comm.readAll()).trimmed()
+        : QString();
+    return name.isEmpty() ? QStringLiteral("pid %1, %2").arg(cred.pid).arg(uid)
+                          : QStringLiteral("pid %1 (%2), %3").arg(cred.pid).arg(name).arg(uid);
+}
+
 QStringList treelandDebugPublishedSocketPaths(const QString &url)
 {
     const QString path = treelandDebugSocketPathForUrl(url);
@@ -129,6 +149,26 @@ QStringList treelandDebugPublishedSocketPaths(const QString &url)
 bool treelandDebugSocketPublished(const QString &url)
 {
     return !treelandDebugPublishedSocketPaths(url).isEmpty();
+}
+
+QStringList treelandDebugInstanceSocketUrls(const QStringList &candidateUrls)
+{
+    QStringList urls;
+    for (const QString &candidate : candidateUrls) {
+        // A candidate's own suffixed instances follow it, so the build-type
+        // preference (debug before release) wins over the base name.
+        QStringList group{ candidate };
+        for (const QString &path : treelandDebugPublishedSocketPaths(candidate)) {
+            const QString url = QStringLiteral("local:") + QFileInfo(path).fileName();
+            if (!group.contains(url))
+                group << url;
+        }
+        for (const QString &url : std::as_const(group)) {
+            if (!urls.contains(url))
+                urls << url;
+        }
+    }
+    return urls;
 }
 
 TreelandDebugSocketLock::~TreelandDebugSocketLock() { release(); }

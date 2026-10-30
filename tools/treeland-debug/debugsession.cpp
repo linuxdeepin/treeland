@@ -3,6 +3,7 @@
 
 #include "debugsession.h"
 
+#include <QElapsedTimer>
 #include <QEventLoop>
 #include <QTimer>
 
@@ -27,35 +28,46 @@ bool connectSession(Session &session, const QStringList &urls,
     // let a late-becoming-reachable earlier URL succeed while we think we
     // are probing a later one).  A live local socket responds in
     // milliseconds; give earlier (preferred) candidates a short probe and
-    // the last one the remaining timeout, so the total never exceeds
-    // timeoutMs.
+    // the last one the rest of the budget, keeping at least probeTimeout
+    // even after dead candidates consumed it, so a live instance behind a
+    // stale name is still reachable.
     constexpr int probeTimeout = 3000;
     int remaining = timeoutMs;
 
     for (int i = 0; i < urls.size(); ++i) {
-        const int t = (i < urls.size() - 1) ? qMin(remaining, probeTimeout) : remaining;
-        if (t < 0)
-            return false;   // budget exhausted
+        // remaining never goes negative (each probe charges at most its own
+        // slice), so only the last candidate needs a floor.
+        const int t = (i < urls.size() - 1) ? qMin(remaining, probeTimeout)
+                                            : qMax(remaining, probeTimeout);
+
+        QElapsedTimer probeTimer;
+        probeTimer.start();
 
         QRemoteObjectNode probeNode;
         if (!probeNode.connectToNode(QUrl(urls[i])))
             continue;   // malformed URL
 
         auto *replica = probeNode.acquire<WindowTreeRemoteReplica>(name);
-        if (replica->waitForSource(t)) {
+        const bool answered = replica->waitForSource(t);
+        // Charge the time the probe actually spent, not the slice it was allowed:
+        // a live socket answers in milliseconds, so charging the whole slice used
+        // to eat the budget the session's replica needed (a single --url
+        // candidate left it exactly zero and failed on a healthy compositor).
+        remaining -= qMin(t, int(probeTimer.elapsed()));
+
+        if (answered) {
             if (connectedUrl)
                 *connectedUrl = urls[i];
             // Probe succeeded.  Reconnect the session's own node and acquire
             // a fresh replica, waiting for it to initialize before returning so
-            // callers see a ready replica.  Use the remaining budget after the
-            // probe so the total never exceeds timeoutMs.  The server is
-            // known-live so this completes quickly.
-            remaining -= t;
+            // callers see a ready replica.  The source was just proven live, so
+            // this is a formality and gets its own probe-sized budget instead of
+            // what is left of the caller's timeout.
             session.node.connectToNode(QUrl(urls[i]));
             delete session.replica;
             session.replica = session.node.acquire<WindowTreeRemoteReplica>(name);
-            const int sessionTimeout = qMin(remaining, probeTimeout);
-            if (sessionTimeout < 0 || !session.replica->waitForSource(sessionTimeout)) {
+            const int sessionTimeout = probeTimeout;
+            if (!session.replica->waitForSource(sessionTimeout)) {
                 // Extremely unlikely — the source was just live.  Treat as
                 // failure so we don't return an uninitialized replica.
                 delete session.replica;
@@ -64,7 +76,6 @@ bool connectSession(Session &session, const QStringList &urls,
             }
             return true;
         }
-        remaining -= t;
     }
     return false;
 }

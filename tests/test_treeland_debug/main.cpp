@@ -56,6 +56,8 @@ private Q_SLOTS:
     void testSocketPathForUrl();
     void testSocketPublished();
     void testPublishedSocketPaths();
+    void testSocketPeerText();
+    void testInstanceSocketUrls();
 
     // --- parseCommand: no-argument commands ---
     void testParseTree();
@@ -514,6 +516,58 @@ void TreelandDebugTest::testPublishedSocketPaths()
     QVERIFY(QFile::remove(base + QStringLiteral("-1.bak")));
     QVERIFY(QFile::remove(base + QStringLiteral("-1bak")));
     QVERIFY(treelandDebugPublishedSocketPaths(url).isEmpty());
+}
+
+void TreelandDebugTest::testSocketPeerText()
+{
+    // A connect failure that reached the socket names the process on the other
+    // end of it, from the kernel's SO_PEERCRED -- no /proc scan, and it works
+    // for another user's process too. The listener here lives in this process.
+    const QString name = QStringLiteral("test.treeland.debug.peer.%1").arg(::getpid());
+    QLocalServer::removeServer(name);
+    QLocalServer server;
+    QVERIFY(server.listen(name));
+
+    QLocalSocket client;
+    client.connectToServer(name);
+    QVERIFY(client.waitForConnected(1000));
+
+    const QString text = treelandDebugSocketPeerText(client);
+    QVERIFY2(text.startsWith(QStringLiteral("pid %1 ").arg(::getpid())), qPrintable(text));
+    QVERIFY2(text.contains(QStringLiteral("uid %1").arg(::getuid())), qPrintable(text));
+
+    // A socket that is not connected has no peer to report.
+    QLocalSocket idle;
+    QVERIFY(treelandDebugSocketPeerText(idle).isEmpty());
+
+    client.close();
+    server.close();
+    QLocalServer::removeServer(name);
+}
+
+void TreelandDebugTest::testInstanceSocketUrls()
+{
+    // A treeland that finds its base name taken publishes "<name>-<N>". The
+    // client must try those too, keeping the base preference order, or a foreign
+    // socket on the base name makes it report a failure while an instance of its
+    // own build is answering.
+    const QString name = QStringLiteral("test.treeland.debug.urls.%1").arg(::getpid());
+    const QString url = QStringLiteral("local:") + name;
+    const QString other = QStringLiteral("local:test.treeland.debug.urls.other");
+
+    QLocalServer::removeServer(name);
+    QCOMPARE(treelandDebugInstanceSocketUrls({ url, other }), (QStringList{ url, other }));
+
+    // The suffixed instance follows its own candidate, so the candidate order
+    // (which build type is preferred) still decides before the base name does.
+    QLocalServer suffixed;
+    QVERIFY(suffixed.listen(name + QStringLiteral("-2")));
+    QCOMPARE(treelandDebugInstanceSocketUrls({ url, other }),
+             (QStringList{ url, url + QStringLiteral("-2"), other }));
+
+    suffixed.close();
+    QLocalServer::removeServer(name + QStringLiteral("-2"));
+    QCOMPARE(treelandDebugInstanceSocketUrls({ url, other }), (QStringList{ url, other }));
 }
 
 // ---------------------------------------------------------------------------

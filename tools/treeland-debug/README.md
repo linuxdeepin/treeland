@@ -104,6 +104,14 @@ receive an error explaining how to proceed.
 Backward compatibility: `--tree` and `--cursor` are accepted as aliases for the
 `tree` and `cursor` commands.
 
+Without `--url`, the client tries each base name followed by the instances
+Treeland published under a `"<name>-<N>"` suffix (taken when another instance
+already holds the base name), so the build-type preference still wins. It reports
+`(fallback from ...)` only when it attached to something other than the first
+candidate, and the last candidate always keeps a probe-sized budget so a live
+instance behind a stale name is still reachable. An explicit `--url` is used
+verbatim and tries nothing else.
+
 ## Commands
 
 Run `treeland-debug <command>` for any of the following.
