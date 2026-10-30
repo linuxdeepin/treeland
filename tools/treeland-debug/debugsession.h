@@ -25,9 +25,12 @@ struct Session
 bool connectSession(Session &session, const QString &url, const QString &name, int timeoutMs);
 
 // Tries each URL in @p urls in order, connecting to the first whose source is
-// reachable. Earlier (higher-preference) URLs get a short probe timeout; the
-// last URL gets the full remaining timeout. If @p connectedUrl is non-null it
-// receives the URL that succeeded. An empty list returns false.
+// reachable. Each candidate is probed with @p timeoutMs shared between the
+// candidates still to be tried, but never for less than one short probe, so a
+// dead socket delays the preferred instance without starving it; discovery can
+// therefore take up to @p timeoutMs plus one probe per candidate. If
+// @p connectedUrl is non-null it receives the URL that succeeded. An empty list
+// returns false.
 bool connectSession(Session &session, const QStringList &urls,
                      const QString &name, int timeoutMs,
                      QString *connectedUrl = nullptr);

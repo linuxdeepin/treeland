@@ -3,6 +3,7 @@
 
 #include "debugsession.h"
 
+#include <QElapsedTimer>
 #include <QEventLoop>
 #include <QTimer>
 
@@ -25,46 +26,56 @@ bool connectSession(Session &session, const QStringList &urls,
     // failed connection cannot cause a false success on a later candidate
     // (the replica watches *all* connected nodes — a shared node would
     // let a late-becoming-reachable earlier URL succeed while we think we
-    // are probing a later one).  A live local socket responds in
-    // milliseconds; give earlier (preferred) candidates a short probe and
-    // the last one the remaining timeout, so the total never exceeds
-    // timeoutMs.
+    // are probing a later one).
+    //
+    // Share the caller's timeout between the candidates still to be tried, but
+    // never probe with less than probeTimeout: a live local socket answers in
+    // milliseconds, so a slice only bounds the wait, while a socket that cannot
+    // answer costs its whole slice either way (the replica waits for a source that
+    // never arrives).  A larger slice also lets a compositor that publishes its
+    // source a moment after the client starts still be found.  Charging only the
+    // time a probe actually spent keeps the later slices large, and the slice is
+    // never zero — handing the leftovers of the earlier dead sockets to the
+    // preferred instance made it skip a healthy debug instance for the release one.
     constexpr int probeTimeout = 3000;
     int remaining = timeoutMs;
+    QElapsedTimer probeTimer;
 
     for (int i = 0; i < urls.size(); ++i) {
-        const int t = (i < urls.size() - 1) ? qMin(remaining, probeTimeout) : remaining;
-        if (t < 0)
-            return false;   // budget exhausted
+        const int candidatesLeft = urls.size() - i;
+        const int t = qMax(probeTimeout, remaining / candidatesLeft);
 
         QRemoteObjectNode probeNode;
-        if (!probeNode.connectToNode(QUrl(urls[i])))
+        if (!probeNode.connectToNode(QUrl(urls.at(i))))
             continue;   // malformed URL
 
+        probeTimer.restart();
         auto *replica = probeNode.acquire<WindowTreeRemoteReplica>(name);
-        if (replica->waitForSource(t)) {
+        const bool answered = replica->waitForSource(t);
+        remaining -= qMin(t, int(probeTimer.elapsed()));
+        if (!answered)
+            continue;
+
+        // Probe succeeded.  Reconnect the session's own node and acquire a fresh
+        // replica, waiting for it to initialize before returning so callers see a
+        // ready replica.  The source was just proven live, so this is a formality
+        // with the same probe-sized wait.
+        session.node.connectToNode(QUrl(urls.at(i)));
+        delete session.replica;
+        session.replica = session.node.acquire<WindowTreeRemoteReplica>(name);
+        if (session.replica->waitForSource(probeTimeout)) {
             if (connectedUrl)
-                *connectedUrl = urls[i];
-            // Probe succeeded.  Reconnect the session's own node and acquire
-            // a fresh replica, waiting for it to initialize before returning so
-            // callers see a ready replica.  Use the remaining budget after the
-            // probe so the total never exceeds timeoutMs.  The server is
-            // known-live so this completes quickly.
-            remaining -= t;
-            session.node.connectToNode(QUrl(urls[i]));
-            delete session.replica;
-            session.replica = session.node.acquire<WindowTreeRemoteReplica>(name);
-            const int sessionTimeout = qMin(remaining, probeTimeout);
-            if (sessionTimeout < 0 || !session.replica->waitForSource(sessionTimeout)) {
-                // Extremely unlikely — the source was just live.  Treat as
-                // failure so we don't return an uninitialized replica.
-                delete session.replica;
-                session.replica = nullptr;
-                return false;
-            }
+                *connectedUrl = urls.at(i);
             return true;
         }
-        remaining -= t;
+        // The source vanished in between.  Stop instead of trying the next
+        // candidate: QtRO cannot drop the connection just made, and a replica
+        // watches every node the session is connected to, so a source that comes
+        // back there could satisfy a later wait and send the commands to another
+        // compositor.  Failing loudly is the safer answer for a race this narrow.
+        delete session.replica;
+        session.replica = nullptr;
+        return false;
     }
     return false;
 }

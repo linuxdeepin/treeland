@@ -3,6 +3,8 @@
 
 #include "debugserver.h"
 
+#include "treelanddebugsocket.h"
+
 #include <QHostAddress>
 #include <QHttpServerRequest>
 #include <QHttpServerResponse>
@@ -29,7 +31,9 @@ DebugServer::DebugServer(const QStringList &urls, const QString &name, int timeo
 
 bool DebugServer::createSession(Session &session)
 {
-    return connectSession(session, m_urls, m_name, m_timeoutMs);
+    // Same rule as the one-shot client: an absent local socket cannot connect, so
+    // probing it would only stall this request for a probe timeout.
+    return connectSession(session, treelandDebugExistingSocketUrls(m_urls), m_name, m_timeoutMs);
 }
 
 QJsonObject DebugServer::sessionRequest(const std::function<QJsonObject(Session &)> &work)
