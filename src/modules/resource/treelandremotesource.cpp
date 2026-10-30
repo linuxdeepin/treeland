@@ -190,12 +190,22 @@ int qtKeyToEvdev(int qtKey, wlr_keyboard *keyboard)
 TreelandRemoteSource::TreelandRemoteSource(QObject *parent)
     : WindowTreeRemoteSource(parent)
 {
-    // Pick a conflict-free socket name.  A bare name (no path) lets Qt place
-    // the socket in /tmp so a treeland-debug client running under a different
-    // XDG_RUNTIME_DIR can still discover it.  A concurrent instance takes a
-    // numeric suffix, selected with a non-blocking advisory lock.
-    const QString socketName = treelandDebugPickFreeSocketName(m_debugSocketLock);
-    if (socketName.isEmpty()) {
+    // Pick a conflict-free socket path.  The socket is bound inside the
+    // compositor's runtime directory ($XDG_RUNTIME_DIR: /run/treeland for the
+    // global service, /run/user/<uid> for a session), so it is never placed in
+    // world-writable /tmp and a client finds it by probing those directories.
+    // A concurrent instance takes a numeric suffix, selected with a
+    // non-blocking advisory lock.
+    const QString socketDir = treelandDebugSocketDir();
+    if (socketDir.isEmpty()) {
+        qCWarning(lcTlDebug) << "No usable runtime directory ($XDG_RUNTIME_DIR);"
+                                "debug remote source disabled";
+        return;
+    }
+    const QString socketPath = treelandDebugPickFreeSocketName(
+        m_debugSocketLock,
+        socketDir + QLatin1Char('/') + treelandDebugDefaultSocketName());
+    if (socketPath.isEmpty()) {
         // All 100 candidate names are already locked — extremely unlikely
         // for a debug channel, but don't bind an invalid URL; leave the debug
         // source unpublished.
@@ -212,8 +222,8 @@ TreelandRemoteSource::TreelandRemoteSource(QObject *parent)
     // Debug builds: allow all users to connect (requirement: debug builds
     // are unrestricted).  WorldAccessOption sets the socket to 0666.
     QRemoteObjectHost::setLocalServerOptions(QLocalServer::WorldAccessOption);
-    if (!host->setHostUrl(QUrl(QStringLiteral("local:%1").arg(socketName)))) {
-        qCWarning(lcTlDebug) << "Failed to listen on debug socket" << socketName
+    if (!host->setHostUrl(QUrl(QStringLiteral("local:%1").arg(socketPath)))) {
+        qCWarning(lcTlDebug) << "Failed to listen on debug socket" << socketPath
                              << "; debug remote source disabled";
         m_debugSocketLock.release();
         return;
@@ -226,13 +236,12 @@ TreelandRemoteSource::TreelandRemoteSource(QObject *parent)
     // CAP_DAC_OVERRIDE.  Same policy as the previous SO_PEERCRED server, but
     // with the socket owned by the QtRO host, which enableRemoting() needs.
     QRemoteObjectHost::setLocalServerOptions(QLocalServer::UserAccessOption);
-    if (!host->setHostUrl(QUrl(QStringLiteral("local:%1").arg(socketName)))) {
-        qCWarning(lcTlDebug) << "Failed to listen on debug socket" << socketName
+    if (!host->setHostUrl(QUrl(QStringLiteral("local:%1").arg(socketPath)))) {
+        qCWarning(lcTlDebug) << "Failed to listen on debug socket" << socketPath
                              << "; debug remote source disabled";
         m_debugSocketLock.release();
         return;
     }
-    const QString socketPath = treelandDebugSocketPath(socketName);
     if (::chmod(QFile::encodeName(socketPath).constData(), 0) < 0) {
         qCWarning(lcTlDebug) << "Failed to restrict debug socket" << socketPath << ':'
                              << qt_error_string() << "; debug remote source disabled";
@@ -243,7 +252,7 @@ TreelandRemoteSource::TreelandRemoteSource(QObject *parent)
 #endif
     if (!host->enableRemoting(this, QStringLiteral("WindowTree"))) {
         qCWarning(lcTlDebug) << "Failed to enable remoting for WindowTree on socket"
-                             << socketName << "; debug remote source disabled";
+                             << socketPath << "; debug remote source disabled";
         delete host;
         m_debugSocketLock.release();
         return;
