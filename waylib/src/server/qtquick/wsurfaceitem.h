@@ -34,6 +34,12 @@ class WAYLIB_SERVER_EXPORT WSurfaceItemContent : public QQuickItem, public virtu
     Q_PROPERTY(QRectF bufferSourceRect READ bufferSourceRect NOTIFY bufferSourceRectChanged FINAL)
     Q_PROPERTY(qreal devicePixelRatio READ devicePixelRatio NOTIFY devicePixelRatioChanged FINAL)
     Q_PROPERTY(qreal alphaModifier READ alphaModifier NOTIFY alphaModifierChanged FINAL)
+    Q_PROPERTY(qreal radius READ radius WRITE setRadius NOTIFY radiusChanged FINAL)
+    Q_PROPERTY(qreal topLeftRadius READ topLeftRadius WRITE setTopLeftRadius RESET resetTopLeftRadius NOTIFY topLeftRadiusChanged FINAL)
+    Q_PROPERTY(qreal topRightRadius READ topRightRadius WRITE setTopRightRadius RESET resetTopRightRadius NOTIFY topRightRadiusChanged FINAL)
+    Q_PROPERTY(qreal bottomLeftRadius READ bottomLeftRadius WRITE setBottomLeftRadius RESET resetBottomLeftRadius NOTIFY bottomLeftRadiusChanged FINAL)
+    Q_PROPERTY(qreal bottomRightRadius READ bottomRightRadius WRITE setBottomRightRadius RESET resetBottomRightRadius NOTIFY bottomRightRadiusChanged FINAL)
+    Q_PROPERTY(QRectF viewport READ viewport WRITE setViewport RESET resetViewport NOTIFY viewportChanged FINAL)
     QML_NAMED_ELEMENT(SurfaceItemContent)
 
 public:
@@ -63,6 +69,25 @@ public:
     qreal devicePixelRatio() const;
     qreal alphaModifier() const;
 
+    qreal radius() const;
+    void setRadius(qreal radius);
+    qreal topLeftRadius() const;
+    void setTopLeftRadius(qreal radius);
+    void resetTopLeftRadius();
+    qreal topRightRadius() const;
+    void setTopRightRadius(qreal radius);
+    void resetTopRightRadius();
+    qreal bottomLeftRadius() const;
+    void setBottomLeftRadius(qreal radius);
+    void resetBottomLeftRadius();
+    qreal bottomRightRadius() const;
+    void setBottomRightRadius(qreal radius);
+    void resetBottomRightRadius();
+
+    QRectF viewport() const;
+    void setViewport(const QRectF &viewport);
+    void resetViewport();
+
 Q_SIGNALS:
     void surfaceChanged();
     void cacheLastBufferChanged();
@@ -72,6 +97,12 @@ Q_SIGNALS:
     void bufferSourceRectChanged();
     void devicePixelRatioChanged();
     void alphaModifierChanged();
+    void radiusChanged();
+    void topLeftRadiusChanged();
+    void topRightRadiusChanged();
+    void bottomLeftRadiusChanged();
+    void bottomRightRadiusChanged();
+    void viewportChanged();
 
 private:
     friend class WSurfaceItem;
