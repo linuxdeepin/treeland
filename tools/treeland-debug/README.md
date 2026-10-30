@@ -119,6 +119,19 @@ TREELAND_DEBUG_SOCKET=/run/treeland/org.deepin.dde.treeland.debug treeland-debug
 Backward compatibility: `--tree` and `--cursor` are accepted as aliases for the
 `tree` and `cursor` commands.
 
+When neither `--url` nor `$TREELAND_DEBUG_SOCKET` is given, the client tries each
+candidate socket path followed by the instances Treeland published under a
+`"<name>-<N>"` suffix (taken when another instance already holds the base name), so
+the build-type preference still wins. It reports `(fallback from ...)` only when it
+attached to something other than the first candidate. Each candidate is probed with `--timeout-ms` shared between the
+candidates still to be tried, but never for less than one short probe (about three
+seconds): a live socket answers in milliseconds, so a probe only bounds the wait for
+one that is slow or dead. A dead socket therefore delays the preferred instance
+without starving it, and discovery can take up to `--timeout-ms` plus one probe per
+candidate -- which also gives a compositor that publishes its source late the time
+to do so. An explicit `--url` or `$TREELAND_DEBUG_SOCKET` is used verbatim and tries
+nothing else.
+
 ## Commands
 
 Run `treeland-debug <command>` for any of the following.

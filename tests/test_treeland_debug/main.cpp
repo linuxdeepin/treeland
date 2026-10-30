@@ -19,7 +19,12 @@
 
 #include <fcntl.h>
 #include <sys/file.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <sys/wait.h>
 #include <unistd.h>
+
+#include <cstring>
 
 // Unit tests for the pure-logic helpers shared by the treeland-debug tool
 // (stateName, buttonCode, keyCode, saveCapture, pointToJson, rectToJson)
@@ -62,6 +67,10 @@ private Q_SLOTS:
     void testSocketUrlFromEnv();
     void testSocketPublished();
     void testPublishedSocketPaths();
+    void testSocketPeerText();
+    void testSocketPeerTextSanitized();
+    void testInstanceSocketUrls();
+    void testExistingSocketUrls();
 
     // --- parseCommand: no-argument commands ---
     void testParseTree();
@@ -614,6 +623,163 @@ void TreelandDebugTest::testPublishedSocketPaths()
     QVERIFY(QFile::remove(base + QStringLiteral("-1.bak")));
     QVERIFY(QFile::remove(base + QStringLiteral("-1bak")));
     QVERIFY(treelandDebugPublishedSocketPaths(url).isEmpty());
+}
+
+void TreelandDebugTest::testSocketPeerText()
+{
+    // A connect failure that reached the socket names the process on the other
+    // end of it, from the kernel's SO_PEERCRED -- not this process's own
+    // credentials.  The listener therefore lives in a child process: an
+    // implementation that reported its own pid/uid would fail here.
+    const QString name = QStringLiteral("test.treeland.debug.peer.%1").arg(::getpid());
+    const QByteArray path = QFile::encodeName(treelandDebugSocketPath(name));
+    sockaddr_un address {};
+    address.sun_family = AF_UNIX;
+    QVERIFY(path.size() < static_cast<int>(sizeof(address.sun_path)));
+    ::memcpy(address.sun_path, path.constData(), size_t(path.size()));
+
+    // fork() rather than a helper binary: the child only makes raw socket calls
+    // and _exit()s, so no Qt state is touched on that side of the fork.
+    const pid_t child = ::fork();
+    QVERIFY(child >= 0);
+    if (child == 0) {
+        const int listener = ::socket(AF_UNIX, SOCK_STREAM, 0);
+        if (listener < 0)
+            ::_exit(1);
+        ::unlink(address.sun_path);
+        if (::bind(listener, reinterpret_cast<sockaddr *>(&address), sizeof(address)) != 0
+            || ::listen(listener, 1) != 0) {
+            ::_exit(1);
+        }
+        ::accept(listener, nullptr, nullptr);   // the parent connects next
+        ::_exit(0);
+    }
+
+    QLocalSocket client;
+    client.connectToServer(name);
+    const bool connected = client.waitForConnected(2000);
+
+    const QString text = treelandDebugSocketPeerText(client);
+    if (connected) {
+        QVERIFY2(text.startsWith(QStringLiteral("pid %1 ").arg(child)), qPrintable(text));
+        QVERIFY2(!text.startsWith(QStringLiteral("pid %1 ").arg(::getpid())), qPrintable(text));
+        QVERIFY2(text.contains(QStringLiteral("uid %1").arg(::getuid())), qPrintable(text));
+    } else {
+        QVERIFY(!treelandDebugSocketPeerText(client).startsWith(
+            QStringLiteral("pid %1 ").arg(::getpid())));
+    }
+
+    // A socket that is not connected has no peer to report.
+    QLocalSocket idle;
+    QVERIFY(treelandDebugSocketPeerText(idle).isEmpty());
+
+    client.close();
+    ::kill(child, SIGKILL);
+    ::waitpid(child, nullptr, 0);
+    ::unlink(address.sun_path);
+}
+
+void TreelandDebugTest::testSocketPeerTextSanitized()
+{
+    // The peer names itself: control bytes in /proc/<pid>/comm must not reach the
+    // terminal through the diagnostic, or a process owning the socket could
+    // rewrite it. This process is a convenient peer to impersonate.
+    QFile rename(QStringLiteral("/proc/self/comm"));
+    if (!rename.open(QIODevice::ReadOnly))
+        QSKIP("cannot read this process's name");
+    const QByteArray original = rename.readAll().trimmed();
+    rename.close();
+    if (!rename.open(QIODevice::WriteOnly))
+        QSKIP("cannot rename this process");
+    rename.write(QByteArray("ev\x1b[2Jil\x7f\x9b"));
+    rename.close();
+
+    const QString name = QStringLiteral("test.treeland.debug.peer.evil.%1").arg(::getpid());
+    QLocalServer::removeServer(name);
+    QLocalServer server;
+    QVERIFY(server.listen(name));
+    QLocalSocket client;
+    client.connectToServer(name);
+    QVERIFY(client.waitForConnected(1000));
+
+    const QString text = treelandDebugSocketPeerText(client);
+    QVERIFY2(!text.contains(QChar(0x1b)), qPrintable(text));
+    QVERIFY2(!text.contains(QChar(0x7f)), qPrintable(text));
+    // The C1 block: a byte 0x9b becomes U+009B through fromLatin1(), which
+    // terminals that decode C1 still act on.
+    QVERIFY2(!text.contains(QChar(0x9b)), qPrintable(text));
+    QVERIFY2(text.contains(QStringLiteral("(ev?[2Jil\?\?)")), qPrintable(text));
+
+    client.close();
+    server.close();
+    QLocalServer::removeServer(name);
+
+    QFile restore(QStringLiteral("/proc/self/comm"));
+    if (restore.open(QIODevice::WriteOnly))
+        restore.write(original);
+}
+
+void TreelandDebugTest::testInstanceSocketUrls()
+{
+    // A treeland that finds its base name taken publishes "<name>-<N>". The
+    // client must try those too, keeping the base preference order, or a foreign
+    // socket on the base name makes it report a failure while an instance of its
+    // own build is answering.
+    const QString name = QStringLiteral("test.treeland.debug.urls.%1").arg(::getpid());
+    const QString url = QStringLiteral("local:") + name;
+    const QString other = QStringLiteral("local:test.treeland.debug.urls.other");
+
+    QLocalServer::removeServer(name);
+    QCOMPARE(treelandDebugInstanceSocketUrls({ url, other }), (QStringList{ url, other }));
+
+    // The suffixed instance follows its own candidate, so the candidate order
+    // (which build type is preferred) still decides before the base name does.
+    QLocalServer suffixed;
+    QVERIFY(suffixed.listen(name + QStringLiteral("-2")));
+    QCOMPARE(treelandDebugInstanceSocketUrls({ url, other }),
+             (QStringList{ url, url + QStringLiteral("-2"), other }));
+
+    suffixed.close();
+    QLocalServer::removeServer(name + QStringLiteral("-2"));
+    QCOMPARE(treelandDebugInstanceSocketUrls({ url, other }), (QStringList{ url, other }));
+
+    // An absolute candidate keeps its directory: a bare name would be resolved
+    // under QDir::tempPath() instead, pointing at a different socket.
+    QTemporaryDir absoluteDir;
+    QVERIFY(absoluteDir.isValid());
+    const QString absoluteBase = absoluteDir.filePath(QStringLiteral("abs.debug"));
+    QLocalServer absolute;
+    QVERIFY(absolute.listen(absoluteBase));
+    QLocalServer absoluteSuffixed;
+    QVERIFY(absoluteSuffixed.listen(absoluteBase + QStringLiteral("-3")));
+    QCOMPARE(treelandDebugInstanceSocketUrls({ QStringLiteral("local:") + absoluteBase }),
+             (QStringList{ QStringLiteral("local:") + absoluteBase,
+                          QStringLiteral("local:") + absoluteBase + QStringLiteral("-3") }));
+    absoluteSuffixed.close();
+    absolute.close();
+    QLocalServer::removeServer(absoluteBase + QStringLiteral("-3"));
+    QLocalServer::removeServer(absoluteBase);
+}
+
+void TreelandDebugTest::testExistingSocketUrls()
+{
+    // Probing a candidate whose socket file is absent can only spend a probe
+    // timeout, so callers filter those out -- unless nothing is left, in which case
+    // the full list is kept so the failure can name every place that was searched.
+    const QString name = QStringLiteral("test.treeland.debug.existing.%1").arg(::getpid());
+    const QString url = QStringLiteral("local:") + name;
+    const QString absent = QStringLiteral("local:test.treeland.debug.existing.absent");
+
+    QLocalServer::removeServer(name);
+    QCOMPARE(treelandDebugExistingSocketUrls({ url, absent }), (QStringList{ url, absent }));
+
+    QLocalServer server;
+    QVERIFY(server.listen(name));
+    QCOMPARE(treelandDebugExistingSocketUrls({ absent, url }), QStringList{ url });
+
+    server.close();
+    QLocalServer::removeServer(name);
+    QCOMPARE(treelandDebugExistingSocketUrls({ url, absent }), (QStringList{ url, absent }));
 }
 
 // ---------------------------------------------------------------------------

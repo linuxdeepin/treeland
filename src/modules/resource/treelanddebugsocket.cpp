@@ -12,6 +12,7 @@
 
 #include <fcntl.h>
 #include <sys/file.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -175,7 +176,44 @@ bool isSocketPath(const QString &path)
     return ::stat(QFile::encodeName(path).constData(), &st) == 0 && S_ISSOCK(st.st_mode);
 }
 
+// A process names itself whatever it likes (/proc/<pid>/comm, up to 15 bytes), so
+// control bytes in that name would land on the terminal and let the process that
+// owns the socket rewrite this diagnostic -- clear the screen, hide the real
+// lines, spoof another program's message.  Keep the name readable instead.
+QString printableProcessName(const QString &name)
+{
+    QString printable;
+    printable.reserve(name.size());
+    for (const QChar character : name.left(64)) {
+        // C0, DEL and the C1 block: fromLatin1() maps the bytes 0x80-0x9f to
+        // U+0080-U+009F, which terminals that decode C1 still act on.
+        const ushort code = character.unicode();
+        const bool control = code < 0x20 || (code >= 0x7f && code <= 0x9f);
+        printable.append(control ? QLatin1Char('?') : character);
+    }
+    return printable;
+}
+
 } // namespace
+
+QString treelandDebugSocketPeerText(const QLocalSocket &socket)
+{
+    struct ucred cred {};
+    socklen_t length = sizeof(cred);
+    const qintptr descriptor = socket.socketDescriptor();
+    if (descriptor < 0
+        || ::getsockopt(static_cast<int>(descriptor), SOL_SOCKET, SO_PEERCRED, &cred, &length) < 0) {
+        return {};
+    }
+
+    const QString uid = QStringLiteral("uid %1").arg(cred.uid);
+    QFile comm(QStringLiteral("/proc/%1/comm").arg(cred.pid));
+    const QString name = comm.open(QIODevice::ReadOnly)
+        ? printableProcessName(QString::fromLatin1(comm.readAll()).trimmed())
+        : QString();
+    return name.isEmpty() ? QStringLiteral("pid %1, %2").arg(cred.pid).arg(uid)
+                          : QStringLiteral("pid %1 (%2), %3").arg(cred.pid).arg(name).arg(uid);
+}
 
 QStringList treelandDebugPublishedSocketPaths(const QString &url)
 {
@@ -211,6 +249,52 @@ QStringList treelandDebugPublishedSocketPaths(const QString &url)
 bool treelandDebugSocketPublished(const QString &url)
 {
     return !treelandDebugPublishedSocketPaths(url).isEmpty();
+}
+
+QStringList treelandDebugExistingSocketUrls(const QStringList &urls)
+{
+    QStringList existing;
+    for (const QString &url : urls) {
+        const QString path = treelandDebugSocketPathForUrl(url);
+        if (path.isEmpty() || QFileInfo::exists(path))
+            existing << url;
+    }
+    return existing.isEmpty() ? urls : existing;
+}
+
+QStringList treelandDebugInstanceSocketUrls(const QStringList &candidateUrls)
+{
+    QStringList urls;
+    for (const QString &candidate : candidateUrls) {
+        // A candidate's own suffixed instances follow it, so the build-type
+        // preference (debug before release) wins over the base name.
+        QStringList group{ candidate };
+        // A bare name in a "local:" URL resolves under QDir::tempPath(), so an
+        // absolute candidate (local:/dir/name) must hand out absolute instance
+        // names too -- otherwise the directory is dropped and the client probes a
+        // same-named socket somewhere else.
+        const bool absolute = candidate.startsWith(QStringLiteral("local:/"));
+        // Bound what one candidate contributes: the directory is writable by its
+        // owner, so a run of numbered sockets must not turn the privileged
+        // client's discovery into a string of probes.
+        constexpr int maxInstances = 8;
+        int added = 0;
+        for (const QString &path : treelandDebugPublishedSocketPaths(candidate)) {
+            if (added == maxInstances)
+                break;
+            const QString url = QStringLiteral("local:")
+                + (absolute ? path : QFileInfo(path).fileName());
+            if (group.contains(url))
+                continue;
+            group << url;
+            ++added;
+        }
+        for (const QString &url : std::as_const(group)) {
+            if (!urls.contains(url))
+                urls << url;
+        }
+    }
+    return urls;
 }
 
 TreelandDebugSocketLock::~TreelandDebugSocketLock() { release(); }
