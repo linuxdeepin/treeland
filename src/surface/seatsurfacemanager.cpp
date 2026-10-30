@@ -67,6 +67,13 @@ void SeatSurfaceManager::setActivatedSurface(SurfaceWrapper *surface, Qt::FocusR
     if (m_activatedSurface == surface)
         return;
 
+    if (m_hasPopupGrab) {
+        // A new activation takes precedence over returning focus to the menu's
+        // parent. Do not let a later submenu record the old parent again.
+        m_popupFocusRestoreTarget.clear();
+        m_canRecordPopupParent = false;
+    }
+
     if (m_activatedSurface) {
         disconnect(m_activatedSurface,
                    &SurfaceWrapper::hasFocusCapabilityChanged,
@@ -128,6 +135,14 @@ void SeatSurfaceManager::setKeyboardFocusSurface(SurfaceWrapper *surface, Qt::Fo
                                << newSurfacePriority;
             return;
         }
+    }
+
+    // An accepted focus transfer outside this menu chain supersedes grab-end
+    // restoration. Mark it before clearing Qt focus, which can emit signals.
+    if (m_hasPopupGrab && surface && !isInCurrentPopupChain(surface)) {
+        m_popupFocusRestoreTarget.clear();
+        m_canRecordPopupParent = false;
+        m_skipPopupFocusRestore = true;
     }
 
     // Clear focus from old surface if no other seat has it
@@ -420,6 +435,12 @@ void SeatSurfaceManager::setMetaKeyPressed(bool pressed)
 
 void SeatSurfaceManager::surfaceDestroyed(SurfaceWrapper *surface)
 {
+    if (m_firstPopupInGrab == surface)
+        m_firstPopupInGrab.clear();
+
+    if (m_popupFocusRestoreTarget == surface)
+        m_popupFocusRestoreTarget.clear();
+
     if (m_moveResizeState.surface == surface) {
         endMoveResize();
     }
@@ -431,6 +452,22 @@ void SeatSurfaceManager::surfaceDestroyed(SurfaceWrapper *surface)
     if (m_keyboardFocusSurface == surface) {
         setKeyboardFocusSurface(nullptr);
     }
+}
+
+bool SeatSurfaceManager::isInCurrentPopupChain(SurfaceWrapper *surface) const
+{
+    auto *popup = qobject_cast<WXdgPopupSurface *>(surface->shellSurface());
+    auto *handle = popup ? popup->handle() : nullptr;
+    if (!handle || handle->seat != m_seat->handle())
+        return false;
+
+    for (auto *ancestor = surface;
+         ancestor && ancestor->type() == SurfaceWrapper::Type::XdgPopup;
+         ancestor = ancestor->parentSurface()) {
+        if (ancestor == m_firstPopupInGrab)
+            return true;
+    }
+    return false;
 }
 
 void SeatSurfaceManager::givePopupFocus(SurfaceWrapper *popupWrapper)
@@ -447,6 +484,16 @@ void SeatSurfaceManager::givePopupFocus(SurfaceWrapper *popupWrapper)
     auto *wlrPopup = popupSurface->handle();
     if (!wlrPopup || wlrPopup->seat != m_seat->handle())
         return;
+
+    if (!m_firstPopupInGrab)
+        m_firstPopupInGrab = popupWrapper;
+
+    if (m_canRecordPopupParent) {
+        m_canRecordPopupParent = false;
+        auto *parent = popupWrapper->parentSurface();
+        if (parent && parent->hasFocusCapability())
+            m_popupFocusRestoreTarget = parent;
+    }
 
     // Move keyboard focus to the popup surface directly.
     setKeyboardFocusSurface(popupWrapper, Qt::ActiveWindowFocusReason);
@@ -489,6 +536,10 @@ void SeatSurfaceManager::onKeyboardGrabBegin()
         }
     }
 
+    m_popupFocusRestoreTarget.clear();
+    m_firstPopupInGrab.clear();
+    m_canRecordPopupParent = true;
+    m_skipPopupFocusRestore = false;
     m_hasPopupGrab = true;
     qCDebug(lcTlPopupFocus) << "Popup keyboard grab started";
 }
@@ -500,17 +551,33 @@ void SeatSurfaceManager::onKeyboardGrabEnd()
 
     m_hasPopupGrab = false;
 
-    qCDebug(lcTlPopupFocus) << "Popup keyboard grab ended, restoring focus to:"
-                            << m_activatedSurface;
+    auto *restoreSurface = m_popupFocusRestoreTarget.data();
+    const bool skipFocusRestore = m_skipPopupFocusRestore;
+    m_popupFocusRestoreTarget.clear();
+    m_firstPopupInGrab.clear();
+    m_canRecordPopupParent = false;
+    m_skipPopupFocusRestore = false;
+    if (skipFocusRestore) {
+        qCDebug(lcTlPopupFocus) << "Popup keyboard grab ended, keeping transferred focus on:"
+                               << m_keyboardFocusSurface;
+        return;
+    }
 
-    // While showing the desktop, keyboard focus is on the desktop layer, not on the
-    // (hidden) activated surface; do not yank it back to the window.
+    if (!restoreSurface || !restoreSurface->hasFocusCapability())
+        restoreSurface = m_activatedSurface;
+
+    // While showing the desktop, allow returning focus to a desktop menu's
+    // parent, but never restore focus to a hidden activated window.
     if (auto *server = WaylandServer::instance()) {
-        if (server->showDesktopState() == ShowDesktopInterfaceV1::State::Show)
+        if (server->showDesktopState() == ShowDesktopInterfaceV1::State::Show
+            && (!restoreSurface || !restoreSurface->isDesktop()))
             return;
     }
 
-    if (m_activatedSurface && m_activatedSurface->hasFocusCapability()) {
-        setKeyboardFocusSurface(m_activatedSurface, Qt::ActiveWindowFocusReason);
+    qCDebug(lcTlPopupFocus) << "Popup keyboard grab ended, restoring focus to:"
+                            << restoreSurface;
+
+    if (restoreSurface && restoreSurface->hasFocusCapability()) {
+        setKeyboardFocusSurface(restoreSurface, Qt::ActiveWindowFocusReason);
     }
 }
