@@ -116,11 +116,32 @@ Run `treeland-debug <command>` for any of the following.
 | `cursor` | Print the cursor position as JSON. |
 | `windows` | List all toplevel windows (table, or JSON with `--json`). |
 | `clients` | List connected Wayland clients and the windows each owns. |
-| `top [interval-ms]` | Live, `top`-like refreshing view of clients and windows (default 1000 ms, Ctrl+C to quit). |
+| `idle` | Show the idle state (time since the last input activity), whether idle is inhibited, and every idle-inhibit source (window/idle-inhibitor or screensaver) holding it off. |
+| `top [interval-ms]` | Live, `top`-like refreshing view of clients and windows (default 1000 ms, Ctrl+C to quit). Includes an idle summary line. |
 | `scene [id]` | Dump the QtQuick scene tree of one window (by `id`/`appId`) or, with no id, the whole render scene. Useful for inspecting menus, popups and decorations that do not show up in the layout `tree`. |
 
 The `windows`/`clients`/`top` views report a stable numeric `id` for every
 window. That id (or the window's `appId`) is accepted by every control command.
+
+`idle` reports the time since the last input activity (the compositor has no
+global idle threshold — clients such as the screensaver pick their own via
+`ext-idle-notify-v1`), whether idle notification is currently suppressed, and
+every idle-inhibit source currently held: `zwp_idle_inhibit_manager_v1`
+surfaces (identified by window id/appId/title) and `treeland_screensaver_v2`
+inhibits (identified by the client-provided application name and reason).
+`--json` emits the same data with `idleMs`/`heldMs` in milliseconds.
+
+The list includes sources that are not in effect right now (for example an
+idle-inhibitor window that is minimized); the `active` field tells them apart,
+and only `active` sources count towards `inhibited`. `surfaceId` is a window id
+usable with the control commands only when the inhibitor is held on a toplevel
+surface — a layer-shell or subsurface inhibitor (common for video players)
+reports a surface id that `windows`/`top` do not list.
+
+```bash
+treeland-debug idle
+treeland-debug --json idle
+```
 
 ### Window control
 
@@ -223,6 +244,7 @@ OPTIONS preflight is handled, so a browser frontend can call the API directly.
 | GET | `/api/cursor` | — | Cursor position JSON |
 | GET | `/api/windows` | — | All windows JSON |
 | GET | `/api/clients` | — | All clients JSON |
+| GET | `/api/idle` | — | Idle state and idle-inhibit sources JSON |
 | GET | `/api/focused` | — | Focused window id |
 | GET | `/api/cursor-window` | — | Window under cursor id |
 | GET | `/api/scene` | `?target=...` | QtQuick scene tree of a window (or the whole scene if `target` is omitted), as pre-formatted text |
@@ -286,7 +308,7 @@ Supported JSON-RPC methods:
 | `tools/call` | Invokes a tool by name with arguments |
 | `ping` | Health check |
 
-The 22 available tools mirror the HTTP REST API and CLI commands:
+The 23 available tools mirror the HTTP REST API and CLI commands:
 
 | Tool | Args | Description |
 | --- | --- | --- |
@@ -294,6 +316,7 @@ The 22 available tools mirror the HTTP REST API and CLI commands:
 | `cursor` | — | Cursor position |
 | `windows` | — | All windows |
 | `clients` | — | All clients |
+| `idle` | — | Idle state and idle-inhibit sources |
 | `focused` | — | Focused window id |
 | `cursor_window` | — | Window under cursor id |
 | `scene` | `target?` | QtQuick scene tree of a window (or whole scene) |

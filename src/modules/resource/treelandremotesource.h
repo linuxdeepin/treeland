@@ -33,6 +33,7 @@ public:
     // ---- inspection ----
     QList<WindowInfo> getWindows() override;
     QList<ClientInfo> getClients() override;
+    IdleInfo getIdleInfo() override;
 
     // ---- window control ----
     bool activateWindow(qint64 id) override;

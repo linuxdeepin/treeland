@@ -272,6 +272,9 @@ public:
     void toggleFpsDisplay();
 
     void updateIdleInhibitor();
+    // Idle state and inhibit sources, as reported by the treeland-debug
+    // ``idle`` command. Never null after initialization.
+    IdleManager *idleManager() const { return m_idleManager; }
     void restoreFromShowDesktop(SurfaceWrapper *activeSurface = nullptr);
     void restoreShowDesktopFocus();
 
