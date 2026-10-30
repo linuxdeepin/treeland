@@ -168,7 +168,6 @@ set(SOURCES
     qtquick/private/wquicksocketattached.cpp
     qtquick/private/wqmlhelper.cpp
     qtquick/private/wbufferrenderer.cpp
-    qtquick/private/wradiustexturematerial.cpp
     qtquick/private/wradiustexturenode.cpp
     qtquick/private/wrenderbuffernode.cpp
 
@@ -367,7 +366,6 @@ set(PRIVATE_HEADERS
     qtquick/private/wqmlhelper_p.h
     qtquick/private/wquicktextureproxy_p.h
     qtquick/private/wbufferrenderer_p.h
-    qtquick/private/wradiustexturematerial_p.h
     qtquick/private/wradiustexturenode_p.h
     qtquick/private/wrenderbuffernode_p.h
     qtquick/private/wsurfaceitem_p.h
@@ -545,7 +543,6 @@ if(TREELAND_INSTALL_DEV)
             FILES_MATCHING PATTERN "*.h")
 
     install(FILES
-        ${CMAKE_CURRENT_SOURCE_DIR}/qtquick/private/wradiustexturematerial_p.h
         ${CMAKE_CURRENT_SOURCE_DIR}/qtquick/private/wradiustexturenode_p.h
         DESTINATION ${WAYLIB_INCLUDE_INSTALL_DIR}
     )

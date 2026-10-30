@@ -390,15 +390,14 @@ QSGNode *RadiusEffectItem::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData
         return nullptr;
     }
 
-    if (!window()
-            || window()->rendererInterface()->graphicsApi() == QSGRendererInterface::Software) {
+    if (!window()) {
         delete oldNode;
         return nullptr;
     }
 
     auto node = static_cast<RadiusTextureNode *>(oldNode);
     if (!node)
-        node = new RadiusTextureNode;
+        node = new RadiusTextureNode(window());
 
     node->setTextureProvider(d->sourceItem->textureProvider());
     node->setRect(d->renderRect.isNull() ? boundingRect() : d->renderRect);

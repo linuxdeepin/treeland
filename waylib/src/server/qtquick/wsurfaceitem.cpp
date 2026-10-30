@@ -814,8 +814,6 @@ QSGNode *WSurfaceItemContent::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeD
         return nullptr;
     }
 
-    const bool software = window()->rendererInterface()->graphicsApi()
-        == QSGRendererInterface::Software;
     const auto effectiveRadius = [d](qreal radius) {
         return radius >= 0.0 ? radius : d->radius;
     };
@@ -823,7 +821,7 @@ QSGNode *WSurfaceItemContent::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeD
         || effectiveRadius(d->topRightRadius) > 0.0
         || effectiveRadius(d->bottomLeftRadius) > 0.0
         || effectiveRadius(d->bottomRightRadius) > 0.0;
-    const bool useRadiusNode = !software && hasRoundedCorners;
+    const bool useRadiusNode = hasRoundedCorners;
 
     auto node = oldNode;
     if (node && (dynamic_cast<RadiusTextureNode *>(node) != nullptr) != useRadiusNode) {
@@ -832,7 +830,7 @@ QSGNode *WSurfaceItemContent::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeD
     }
     if (Q_UNLIKELY(!node)) {
         if (useRadiusNode) {
-            node = new RadiusTextureNode;
+            node = new RadiusTextureNode(window());
         } else {
             auto *imageNode = window()->createImageNode();
             imageNode->setOwnsTexture(false);

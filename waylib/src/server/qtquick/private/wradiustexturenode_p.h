@@ -3,24 +3,30 @@
 
 #pragma once
 
-#include "wradiustexturematerial_p.h"
+#include <wglobal.h>
 
 #include <QObject>
 #include <QPointer>
-#include <QSGGeometryNode>
+#include <QSGRenderNode>
 #include <QSGImageNode>
 #include <QSGTextureProvider>
+#include <QVector4D>
+#include <memory>
+
+QT_BEGIN_NAMESPACE
+class QQuickWindow;
+QT_END_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-class WAYLIB_SERVER_EXPORT RadiusTextureNode : public QObject, public QSGGeometryNode
+class WAYLIB_SERVER_EXPORT RadiusTextureNode : public QObject, public QSGRenderNode
 {
     Q_OBJECT
 
 public:
     using TextureCoordinatesTransformMode = QSGImageNode::TextureCoordinatesTransformMode;
 
-    RadiusTextureNode();
+    explicit RadiusTextureNode(QQuickWindow *window);
     ~RadiusTextureNode() override;
 
     void setTexture(QSGTexture *texture);
@@ -51,6 +57,12 @@ public:
     void setAntialiasing(bool antialiasing);
 
     void preprocess() override;
+    void prepare() override;
+    void render(const RenderState *state) override;
+    void releaseResources() override;
+    QRectF rect() const override;
+    RenderingFlags flags() const override;
+    StateFlags changedStates() const override;
 
 private Q_SLOTS:
     void handleTextureChanged();
@@ -59,12 +71,22 @@ private:
     void setTextureInternal(QSGTexture *texture);
     QRectF effectiveSourceRect() const;
     void updateGeometry();
-    void updateMaterial();
+    QVector4D effectiveRadii() const;
+    void renderRhi(const RenderState *state);
+    void renderSoftware(const RenderState *state);
 
     QPointer<QSGTextureProvider> m_provider;
     QSGTexture *m_texture = nullptr;
-    QSGGeometry m_geometry;
-    RadiusTextureMaterial m_material;
+    struct RhiData;
+    std::unique_ptr<RhiData> m_rhi;
+    QPointer<QQuickWindow> m_window;
+    struct Vertex {
+        float x, y, textureX, textureY, localX, localY;
+    };
+    Vertex m_vertices[4] {};
+    QSGTexture::Filtering m_filtering = QSGTexture::Nearest;
+    QSGTexture::Filtering m_mipmapFiltering = QSGTexture::None;
+    QSGTexture::AnisotropyLevel m_anisotropyLevel = QSGTexture::AnisotropyNone;
     QRectF m_rect;
     QRectF m_viewport;
     QPointF m_sourceOffset;
