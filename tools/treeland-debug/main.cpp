@@ -22,6 +22,8 @@
 #include <csignal>
 #include <unistd.h>
 
+#include <utility>
+
 #include "debughelpers.h"
 
 #include "debugsession.h"
@@ -404,26 +406,32 @@ static bool dispatchLiveCommand(Session &session, int timeoutMs,
 // Explains the failures a bare "failed to connect" cannot tell apart. It
 // inspects the socket filesystem after the attempt, so the wording stays a hint
 // about the state now, never a claim about what the attempt hit.
+//
+// Every candidate was already tried, so the socket explained is the one that is
+// listening when there is one: a stale file on an earlier candidate must not
+// hide the instance that answered.
 static void explainConnectFailure(const QStringList &candidateUrls)
 {
-    QStringList publishedPaths;
-    QString publishedUrl; // the candidate the paths belong to, not the first one
+    struct Published
+    {
+        QString url;
+        QStringList paths;
+    };
+
+    QList<Published> published;
     QString occupiedNonSocket;
     for (const QString &candidate : candidateUrls) {
         const QStringList paths = treelandDebugPublishedSocketPaths(candidate);
         if (!paths.isEmpty()) {
-            publishedPaths = paths;
-            publishedUrl = candidate;
-            break;
-        }
-        if (occupiedNonSocket.isEmpty()) {
+            published.append({ candidate, paths });
+        } else if (occupiedNonSocket.isEmpty()) {
             const QString base = treelandDebugSocketPathForUrl(candidate);
             if (!base.isEmpty() && QFileInfo::exists(base))
                 occupiedNonSocket = base;
         }
     }
 
-    if (publishedPaths.isEmpty()) {
+    if (published.isEmpty()) {
         QTextStream(stderr) << "treeland-debug: treeland published no debug socket in "
                             << QDir::tempPath()
                             << "; is it running (with the same $TMPDIR), and is its "
@@ -439,40 +447,114 @@ static void explainConnectFailure(const QStringList &candidateUrls)
         return;
     }
 
-    if (publishedPaths.size() > 1) {
-        QTextStream(stderr) << "treeland-debug: more than one debug socket is published for "
-                            << publishedUrl << ": "
-                            << publishedPaths.join(QStringLiteral(", "))
-                            << "; a stale socket from a crashed instance or another instance's "
-                               "socket is likely -- remove the stale one or point at the right "
-                               "instance with the basename after `--url local:`\n";
+    // A live listener answers at once; a stale file left by a crashed instance
+    // refuses, and a release compositor refuses a non-root caller with EACCES.
+    // Ask every socket instead of guessing from the file's existence, and explain
+    // the group that has a listener when any group does: a dead socket on an
+    // earlier candidate must not hide the instance that answered.
+    const auto accepts = [](const QString &path) {
+        QLocalSocket probe;
+        probe.connectToServer(path);
+        return probe.waitForConnected(1000);
+    };
+    QList<QStringList> liveGroups;
+    QList<QStringList> quietGroups;
+    for (const Published &group : std::as_const(published)) {
+        QStringList live;
+        QStringList quiet;
+        for (const QString &path : group.paths)
+            (accepts(path) ? live : quiet) << path;
+        liveGroups << live;
+        quietGroups << quiet;
+    }
+
+    int chosen = 0;
+    for (int i = 0; i < liveGroups.size(); ++i) {
+        if (!liveGroups.at(i).isEmpty()) {
+            chosen = i;
+            break;
+        }
+    }
+
+    const QString publishedUrl = published.at(chosen).url;
+    const QStringList paths = published.at(chosen).paths;
+    const QStringList live = liveGroups.at(chosen);
+    const QStringList quiet = quietGroups.at(chosen);
+
+    if (live.size() > 1) {
+        QTextStream(stderr) << "treeland-debug: more than one instance answers for "
+                            << publishedUrl << ": " << live.join(QStringLiteral(", "))
+                            << "; point at the one you mean with `--url local:<basename of that "
+                               "path>`"
+                            << (quiet.isEmpty()
+                                    ? QString()
+                                    : QStringLiteral(". Nothing listens on %1")
+                                          .arg(quiet.join(QStringLiteral(", "))))
+                            << "\n";
         return;
     }
 
-    // Ask that one socket instead of guessing: a refused connect (EACCES on a
-    // release compositor, ECONNREFUSED on a leftover socket) and an accepted
-    // connect whose QtRO source never answered are different problems.
-    const QString path = publishedPaths.first();
-    QLocalSocket probe;
-    probe.connectToServer(path);
-    const bool socketAccepted = probe.waitForConnected(1000);
+    if (live.isEmpty()) {
+        if (paths.size() > 1) {
+            QTextStream(stderr) << "treeland-debug: " << paths.join(QStringLiteral(", "))
+                                << " are published for " << publishedUrl
+                                << " but none of them answers: a socket left behind by a crashed "
+                                   "instance refuses connections, and a release compositor only "
+                                   "lets root connect; remove the stale ones or run as root\n";
+            return;
+        }
+        QLocalSocket refused;
+        refused.connectToServer(paths.first());
+        refused.waitForConnected(1000);
+        QTextStream(stderr) << "treeland-debug: " << paths.first()
+                            << " exists but the connection failed: "
+                            << (refused.errorString().isEmpty() ? QStringLiteral("no answer")
+                                                               : refused.errorString())
+                            << "; a release compositor only lets root connect, and a socket left "
+                               "behind by a crashed instance refuses connections the same way\n";
+        return;
+    }
 
-    if (socketAccepted) {
+    // Exactly one socket answers. Keep that connection: SO_PEERCRED is read off
+    // it, so the message can name the process instead of guessing.
+    const QString path = live.first();
+    QLocalSocket peer;
+    peer.connectToServer(path);
+    if (!peer.waitForConnected(1000)) {
+        // Answered a moment ago and is gone now; nothing useful left to say.
         QTextStream(stderr) << "treeland-debug: " << path
-                            << " accepts connections but no `WindowTree` source answered. "
-                               "That socket belongs to another instance (or to a leftover "
-                               "socket), or the compositor published a source name this "
-                               "client does not ask for; the socket file name is the instance "
-                               "to point at: `--url local:` plus the basename of that path\n";
+                            << " stopped answering while this report was written\n";
         return;
     }
 
+    const QString owner = treelandDebugSocketPeerText(peer);
+    const QString publishedName = QFileInfo(path).fileName();
     QTextStream(stderr) << "treeland-debug: " << path
-                        << " exists but the connection failed: "
-                        << (probe.errorString().isEmpty() ? QStringLiteral("no answer")
-                                                          : probe.errorString())
-                        << "; a release compositor only lets root connect, and a socket left "
-                           "behind by a crashed instance refuses connections the same way\n";
+                        << " accepts connections but no `WindowTree` source answered"
+                        << (owner.isEmpty() ? QString()
+                                            : QStringLiteral(" (the listener is %1)").arg(owner))
+                        << ". A socket file left behind by a crashed instance refuses "
+                           "connections instead, so a live process holds this one and "
+                           "either does not serve this build's `WindowTree` at all "
+                           "(another program, or a treeland build that never published a "
+                           "source), or serves a `WindowTree` whose signature differs from "
+                           "this client's -- `Signature mismatch for "
+                           "WindowTreeRemoteReplica` above means the compositor and this "
+                           "client were built from different revisions";
+    if (candidateUrls.contains(QStringLiteral("local:") + publishedName)) {
+        // This run already probed that address, so suggesting --url for it would
+        // just repeat the same failure with even less explanation.
+        QTextStream(stderr) << "; this run already tried that address, so the source is what "
+                               "is wrong, not the name: restart that process with this build, or "
+                               "stop it so this build publishes its own\n";
+    } else {
+        QTextStream(stderr) << "; an instance published after this run started: "
+                            << "`--url local:" << publishedName << "`\n";
+    }
+    if (!quiet.isEmpty())
+        QTextStream(stderr) << "treeland-debug: note that nothing listens on "
+                            << quiet.join(QStringLiteral(", "))
+                            << "; those files can be removed\n";
 }
 
 int main(int argc, char *argv[])
@@ -608,10 +690,11 @@ int main(int argc, char *argv[])
 
     // Resolve the URL to connect to.  An explicit --url is used verbatim;
     // otherwise the build-default candidate list (debug → release fallback in
-    // debug builds) is tried in order.
+    // debug builds) is tried in order, followed by the instances published under
+    // a "<name>-<N>" suffix when another instance holds a base name.
     const QStringList candidateUrls = urlExplicit
-        ? QStringList{url}
-        : treelandDebugCandidateSocketUrls();
+        ? QStringList{ url }
+        : treelandDebugInstanceSocketUrls(treelandDebugCandidateSocketUrls());
 
     // Treeland publishes its debug socket whenever its `remoteDebug` master
     // switch is on (the default), so the client never touches DConfig: a
