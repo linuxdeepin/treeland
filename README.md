@@ -75,8 +75,10 @@ switch for it: while the switch is on, Treeland publishes its debug socket and
 serves the window tree remote source to whoever connects -- the source is a thin
 QObject that only does work per call, so it costs nothing when no client is
 attached. Turn the switch off to forbid debugging entirely; the socket then
-disappears too. Release builds keep the socket root-only (mode 0000), Debug
-builds let any user connect.
+disappears too. Release builds keep the socket root-only (mode 0000). Debug
+builds publish it world-writable (0666), but it lives in the compositor's
+runtime directory, which stays private to that user (0700) -- so in both build
+types the socket is reachable by the compositor's user and by root.
 
 `treeland-debug` never writes that option, so there is no session state to
 restore: a crash, `SIGKILL`, or a closed terminal leaves nothing behind, and any
@@ -103,9 +105,18 @@ All commands below are run as the `dde` user, e.g.
 ### Socket naming and connection
 
 Treeland publishes the debug source on a local socket whose default name is
-`org.deepin.dde.treeland.debug` (placed in `QDir::tempPath()` — typically
-`/tmp`, but respects `$TMPDIR` — by Qt, so a client running under any
-`XDG_RUNTIME_DIR` can discover it). When that name is already taken
+`org.deepin.dde.treeland.debug`, bound at an absolute path inside the
+compositor's runtime directory (`QStandardPaths::RuntimeLocation`, i.e.
+`$XDG_RUNTIME_DIR`): `/run/treeland/org.deepin.dde.treeland.debug` for the global
+service (`RuntimeDirectory=treeland`), `/run/user/<uid>/...` for a session.
+Nothing is put in `/tmp`, which is world-writable and where a `$TMPDIR`-resolved
+path is invisible to a client with a different `TMPDIR`; Qt creates that
+directory (mode 0700, owned by the compositor's user) and refuses one owned by
+somebody else, so the socket is reachable by the compositor's user and by root.
+A `treeland-debug` client probes, in order, its own runtime directory, the
+global service's `/run/treeland`, and every `/run/user/<uid>` it may list (root
+only), because it cannot know the compositor's runtime directory otherwise.
+When the name is already taken
 by another running treeland (global service, session service, local build),
 a numeric suffix is appended (`org.deepin.dde.treeland.debug-1`, `-2`, …),
 selected with a non-blocking advisory lock (the same approach libwayland uses
@@ -118,7 +129,9 @@ so a debug-compiled treeland can run alongside a release one. A debug-built
 treeland-debug client automatically prefers the debug instance and falls back
 to the release instance when the debug one is unreachable; a release-built
 client uses the release instance. An explicit `--url` always overrides this
-with no implicit processing.
+with no implicit processing -- that is also the way to reach a socket published
+by an older treeland, which still lives at the pre-migration
+`/tmp/<name>` path: `--url local:/tmp/org.deepin.dde.treeland.debug`.
 
 ### Global options
 
