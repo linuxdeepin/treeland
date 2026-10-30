@@ -7,7 +7,9 @@
 
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QJsonObject>
+#include <QSet>
 #include <QPointF>
 #include <QRectF>
 #include <QTemporaryDir>
@@ -29,6 +31,8 @@ class TreelandDebugTest : public QObject
     Q_OBJECT
 
 private Q_SLOTS:
+    void initTestCase();
+
     // --- pure helpers ---
     void testStateNameKnownStates();
     void testStateNameUnknown();
@@ -48,6 +52,7 @@ private Q_SLOTS:
 
     // --- treeland-debug socket naming / conflict avoidance ---
     void testSocketDefaultPath();
+    void testSocketDirs();
     void testSocketPickFreeName();
     void testSocketPickFreeNameOccupied();
     void testSocketPickFreeNameSkipsLiveOldInstance();
@@ -146,6 +151,11 @@ private Q_SLOTS:
     void testParseListenInvalidPortHigh();
     void testParseListenUnknownArg();
     void testParseListenPortNoValue();
+
+private:
+    // Only used when the machine's XDG_RUNTIME_DIR is not writable: the socket
+    // directory resolution reads it once per process.
+    QTemporaryDir m_runtimeDir;
 };
 
 // ---------------------------------------------------------------------------
@@ -303,35 +313,71 @@ void TreelandDebugTest::testRectToJson()
 // treeland-debug socket naming / conflict avoidance
 // ---------------------------------------------------------------------------
 
+void TreelandDebugTest::initTestCase()
+{
+    // The socket lives in the process' runtime directory, and QStandardPaths
+    // rejects a $XDG_RUNTIME_DIR that is not a 0700 directory owned by us.
+    // Give the run a usable one so the tests do not depend on the machine.
+    if (treelandDebugSocketDir().isEmpty()) {
+        QVERIFY(m_runtimeDir.isValid());
+        QVERIFY(qputenv("XDG_RUNTIME_DIR", m_runtimeDir.path().toLocal8Bit()));
+    }
+    QVERIFY(!treelandDebugSocketDir().isEmpty());
+}
+
 void TreelandDebugTest::testSocketDefaultPath()
 {
-    // The default socket URL must be a local: URL with the bare socket name
-    // (no path), so Qt resolves it to /tmp/<name> and the socket is
-    // discoverable regardless of XDG_RUNTIME_DIR.
+    // The socket must be an absolute path inside the runtime directory, not a
+    // bare name: a bare name is resolved by Qt against the *client's*
+    // QDir::tempPath(), which made the socket unreachable under a different
+    // $TMPDIR and squattable in world-writable /tmp.
+    const QString dir = treelandDebugSocketDir();
     const QString name = treelandDebugDefaultSocketName();
     QVERIFY(!name.isEmpty());
-    const QString url = treelandDebugDefaultSocketUrl();
-    QCOMPARE(url, QStringLiteral("local:") + name);
-    QVERIFY(!url.contains(QStringLiteral("/")));
+    const QString path = dir + QLatin1Char('/') + name;
+    QVERIFY(!path.startsWith(QDir::cleanPath(QDir::tempPath()) + QLatin1Char('/')));
+    QCOMPARE(treelandDebugSocketPath(path), path);
+    QCOMPARE(treelandDebugSocketPathForUrl(QStringLiteral("local:") + path), path);
+}
+
+void TreelandDebugTest::testSocketDirs()
+{
+    // The compositor's runtime directory comes first, then the global service's
+    // well-known one, then whatever session directories this process may list.
+    const QStringList dirs = treelandDebugSocketDirs();
+    QVERIFY(!dirs.isEmpty());
+    QCOMPARE(dirs.first(), treelandDebugSocketDir());
+    QVERIFY(dirs.contains(QStringLiteral("/run/treeland")));
+    QVERIFY(QFileInfo(treelandDebugSocketDir()).isDir());
+    QCOMPARE(dirs.size(), QSet<QString>(dirs.begin(), dirs.end()).size());
+    for (const QString &dir : dirs)
+        QVERIFY(dir.startsWith(QLatin1Char('/')));
 }
 
 void TreelandDebugTest::testSocketPickFreeName()
 {
-    // Free base → returned as-is, lock held.  Use a PID-qualified name so
+    // Free base → the base path itself, lock held.  Use a PID-qualified name so
     // parallel ctest runs don't collide.
-    const QString base = QStringLiteral("test.treeland.debug.socket.free.%1").arg(::getpid());
+    const QString name = QStringLiteral("test.treeland.debug.socket.free.%1").arg(::getpid());
+    const QString base = treelandDebugSocketDir() + QLatin1Char('/') + name;
     QLocalServer::removeServer(base);
 
     TreelandDebugSocketLock lock;
     QCOMPARE(treelandDebugPickFreeSocketName(lock, base), base);
     QVERIFY(lock.isHeld());
     // Lock released on scope exit → lock file unlinked.
+
+    // A bare name is not a socket path any more; the caller must resolve it.
+    TreelandDebugSocketLock bareLock;
+    QVERIFY(treelandDebugPickFreeSocketName(bareLock, name).isEmpty());
+    QVERIFY(!bareLock.isHeld());
 }
 
 void TreelandDebugTest::testSocketPickFreeNameOccupied()
 {
     // Occupied base → numeric suffix, and the occupied name is untouched.
-    const QString base = QStringLiteral("test.treeland.debug.socket.occupied.%1").arg(::getpid());
+    const QString name = QStringLiteral("test.treeland.debug.socket.occupied.%1").arg(::getpid());
+    const QString base = treelandDebugSocketDir() + QLatin1Char('/') + name;
     const QString suffix = base + QStringLiteral("-1");
     QLocalServer::removeServer(base);
     QLocalServer::removeServer(suffix);
@@ -348,11 +394,11 @@ void TreelandDebugTest::testSocketPickFreeNameOccupied()
 
 void TreelandDebugTest::testSocketPickFreeNameSkipsLiveOldInstance()
 {
-    // An old-build treeland may listen on the base socket WITHOUT holding a
-    // flock lock file. The picker must not clobber it (removeServer would
-    // delete the live socket path) — it should skip the live name and take a
-    // suffix instead.
-    const QString base = QStringLiteral("test.treeland.debug.socket.live.%1").arg(::getpid());
+    // An instance may listen on the base socket WITHOUT holding a flock lock
+    // file. The picker must not clobber it (removeServer would delete the live
+    // socket path) — it should skip the live name and take a suffix instead.
+    const QString name = QStringLiteral("test.treeland.debug.socket.live.%1").arg(::getpid());
+    const QString base = treelandDebugSocketDir() + QLatin1Char('/') + name;
     QLocalServer::removeServer(base);
 
     QLocalServer server;
@@ -376,49 +422,65 @@ void TreelandDebugTest::testSocketCandidateUrls()
 {
     // The candidate URL list drives the client's auto-discovery: a debug
     // build tries the debug socket first and falls back to the release
-    // socket; a release build only has the release socket.
+    // socket, in every candidate directory; a release build only has the
+    // release socket.
     const auto urls = treelandDebugCandidateSocketUrls();
     QVERIFY(!urls.isEmpty());
 
-    // Every candidate must be a local: URL with a bare name (no path).
+    // Every candidate must be a local: URL with an absolute path, so it does
+    // not depend on the client's temp or runtime directory.
+    const QStringList dirs = treelandDebugSocketDirs();
     for (const auto &u : urls) {
-        QVERIFY(u.startsWith(QStringLiteral("local:")));
-        QVERIFY(!u.contains(QStringLiteral("/")));
+        QVERIFY(u.startsWith(QStringLiteral("local:/")));
+        bool inKnownDir = false;
+        for (const auto &dir : dirs)
+            inKnownDir = inKnownDir || u.startsWith(QStringLiteral("local:") + dir + QLatin1Char('/'));
+        QVERIFY(inKnownDir);
     }
 
 #ifdef TREELAND_DEBUG_DEV_BUILD
-    // Debug build: first candidate is the dev socket, second is release.
-    QCOMPARE(urls.size(), 2);
-    QVERIFY(urls.first().contains(QStringLiteral("debug-dev")));
+    // Debug build: the dev socket in every directory, then the release socket.
+    QCOMPARE(urls.size(), 2 * dirs.size());
+    QVERIFY(urls.at(0).endsWith(treelandDebugDefaultSocketName()));
+    QVERIFY(urls.at(0).contains(QStringLiteral("debug-dev")));
     QVERIFY(urls.last().endsWith(treelandDebugReleaseSocketName()));
 #else
     // Release build: only the release socket.
-    QCOMPARE(urls.size(), 1);
+    QCOMPARE(urls.size(), dirs.size());
     QVERIFY(urls.first().endsWith(treelandDebugReleaseSocketName()));
 #endif
 }
 
 void TreelandDebugTest::testSocketPathMatchesQt()
 {
-    // Release builds chmod() the socket through this path, so it must resolve
-    // exactly like the QLocalServer the QRemoteObjectHost binds.
+    // Our own URLs carry the absolute path, which Qt uses as-is -- so the
+    // chmod() in release builds hits the socket the host actually bound.
     const QString name = QStringLiteral("test.treeland.debug.socket.path.%1").arg(::getpid());
-    QLocalServer::removeServer(name);
+    const QString path = treelandDebugSocketDir() + QLatin1Char('/') + name;
+    QLocalServer::removeServer(path);
     QLocalServer server;
-    QVERIFY(server.listen(name));
-    QCOMPARE(treelandDebugSocketPath(name), server.fullServerName());
+    QVERIFY(server.listen(path));
+    QCOMPARE(treelandDebugSocketPath(path), server.fullServerName());
+    QVERIFY(treelandDebugSocketPublished(QStringLiteral("local:") + path));
     server.close();
-    QLocalServer::removeServer(name);
+    QLocalServer::removeServer(path);
 
-    // Absolute paths are used as-is.
-    QCOMPARE(treelandDebugSocketPath(QStringLiteral("/tmp/absolute.sock")),
-             QStringLiteral("/tmp/absolute.sock"));
+    // A hand-written bare name keeps Qt's rule (QDir::tempPath()), so the
+    // diagnostics inspect the same file Qt would connect to.
+    QLocalServer::removeServer(name);
+    QLocalServer bareServer;
+    QVERIFY(bareServer.listen(name));
+    QCOMPARE(treelandDebugSocketPath(name), bareServer.fullServerName());
+    QCOMPARE(treelandDebugSocketPath(name),
+             QDir::cleanPath(QDir::tempPath()) + QLatin1Char('/') + name);
+    bareServer.close();
+    QLocalServer::removeServer(name);
 }
 
 void TreelandDebugTest::testSocketPathForUrl()
 {
-    // Bare names resolve next to each other in the temp dir (Qt's own rule);
-    // absolute paths are kept, non-local URLs have no socket file.
+    // A bare name resolves like Qt does (temp dir); absolute paths are kept,
+    // non-local URLs have no socket file.
     const QString bare = treelandDebugSocketPathForUrl(QStringLiteral("local:foo.debug"));
     QCOMPARE(bare, QDir::cleanPath(QDir::tempPath()) + QStringLiteral("/foo.debug"));
     QCOMPARE(treelandDebugSocketPathForUrl(QStringLiteral("local:/run/foo.debug")),
@@ -435,16 +497,16 @@ void TreelandDebugTest::testSocketPublished()
     // the name is not a debug channel. PID-qualified names keep parallel ctest
     // runs apart.
     const QString name = QStringLiteral("test.treeland.debug.published.%1").arg(::getpid());
-    const QString url = QStringLiteral("local:") + name;
-    const QString base = treelandDebugSocketPathForUrl(url);
-    QLocalServer::removeServer(name);
+    const QString base = treelandDebugSocketDir() + QLatin1Char('/') + name;
+    const QString url = QStringLiteral("local:") + base;
+    QLocalServer::removeServer(base);
     QVERIFY(!treelandDebugSocketPublished(url));
 
     QLocalServer server;
-    QVERIFY(server.listen(name));
+    QVERIFY(server.listen(base));
     QVERIFY(treelandDebugSocketPublished(url));
     server.close();
-    QLocalServer::removeServer(name);
+    QLocalServer::removeServer(base);
 
     QFile plainFile(base);
     QVERIFY(plainFile.open(QIODevice::WriteOnly));
@@ -453,10 +515,10 @@ void TreelandDebugTest::testSocketPublished()
     QVERIFY(plainFile.remove());
 
     QLocalServer suffixed;
-    QVERIFY(suffixed.listen(name + QStringLiteral("-1")));
+    QVERIFY(suffixed.listen(base + QStringLiteral("-1")));
     QVERIFY(treelandDebugSocketPublished(url));
     suffixed.close();
-    QLocalServer::removeServer(name + QStringLiteral("-1"));
+    QLocalServer::removeServer(base + QStringLiteral("-1"));
     QVERIFY(!treelandDebugSocketPublished(url));
 }
 
@@ -467,24 +529,24 @@ void TreelandDebugTest::testPublishedSocketPaths()
     // several hits must all be reported instead of picking one (that is how the
     // error message ends up naming the wrong reason).
     const QString name = QStringLiteral("test.treeland.debug.paths.%1").arg(::getpid());
-    const QString url = QStringLiteral("local:") + name;
-    const QString base = treelandDebugSocketPathForUrl(url);
+    const QString base = treelandDebugSocketDir() + QLatin1Char('/') + name;
+    const QString url = QStringLiteral("local:") + base;
 
     QVERIFY(treelandDebugPublishedSocketPaths(url).isEmpty());
 
     QLocalServer exact;
-    QVERIFY(exact.listen(name));
+    QVERIFY(exact.listen(base));
     QCOMPARE(treelandDebugPublishedSocketPaths(url), QStringList{ base });
     exact.close();
-    QLocalServer::removeServer(name);
+    QLocalServer::removeServer(base);
     QVERIFY(treelandDebugPublishedSocketPaths(url).isEmpty());
 
     // Several numeric siblings are all reported, whatever order the directory
     // returns them in.
     QLocalServer second;
     QLocalServer tenth;
-    QVERIFY(second.listen(name + QStringLiteral("-2")));
-    QVERIFY(tenth.listen(name + QStringLiteral("-10")));
+    QVERIFY(second.listen(base + QStringLiteral("-2")));
+    QVERIFY(tenth.listen(base + QStringLiteral("-10")));
     QStringList paths = treelandDebugPublishedSocketPaths(url);
     paths.sort();
     QStringList expected{ base + QStringLiteral("-10"), base + QStringLiteral("-2") };
@@ -494,7 +556,7 @@ void TreelandDebugTest::testPublishedSocketPaths()
     // The other build type's socket ("<name>-dev"), non-numeric suffixes and
     // plain files are not this name's sockets.
     QLocalServer otherBuild;
-    QVERIFY(otherBuild.listen(name + QStringLiteral("-dev")));
+    QVERIFY(otherBuild.listen(base + QStringLiteral("-dev")));
     QFile plainFile(base + QStringLiteral("-1.bak"));
     QVERIFY(plainFile.open(QIODevice::WriteOnly));
     plainFile.close();
@@ -508,9 +570,9 @@ void TreelandDebugTest::testPublishedSocketPaths()
     second.close();
     tenth.close();
     otherBuild.close();
-    QLocalServer::removeServer(name + QStringLiteral("-2"));
-    QLocalServer::removeServer(name + QStringLiteral("-10"));
-    QLocalServer::removeServer(name + QStringLiteral("-dev"));
+    QLocalServer::removeServer(base + QStringLiteral("-2"));
+    QLocalServer::removeServer(base + QStringLiteral("-10"));
+    QLocalServer::removeServer(base + QStringLiteral("-dev"));
     QVERIFY(QFile::remove(base + QStringLiteral("-1.bak")));
     QVERIFY(QFile::remove(base + QStringLiteral("-1bak")));
     QVERIFY(treelandDebugPublishedSocketPaths(url).isEmpty());

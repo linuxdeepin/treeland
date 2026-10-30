@@ -3,7 +3,6 @@
 
 #include <QCoreApplication>
 #include <QDateTime>
-#include <QDir>
 #include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -425,8 +424,8 @@ static void explainConnectFailure(const QStringList &candidateUrls)
 
     if (publishedPaths.isEmpty()) {
         QTextStream(stderr) << "treeland-debug: treeland published no debug socket in "
-                            << QDir::tempPath()
-                            << "; is it running (with the same $TMPDIR), and is its "
+                            << treelandDebugSocketDirs().join(QStringLiteral(" or "))
+                            << "; is it running, and is its "
                                "`remoteDebug` switch on? As the compositor's user: "
                                "`dde-dconfig set -a org.deepin.dde.treeland -r "
                                "org.deepin.dde.treeland -k remoteDebug -v true` "
@@ -631,9 +630,23 @@ int main(int argc, char *argv[])
     }
 #endif
 
+    // A local candidate whose socket file is absent cannot connect, so skip it
+    // instead of spending a probe timeout on it: with several runtime
+    // directories a short --timeout-ms would otherwise be exhausted before a
+    // live socket later in the list is reached.  If none exists, keep the full
+    // list so the diagnostics below still name every place that was searched.
+    QStringList connectUrls;
+    for (const QString &candidate : candidateUrls) {
+        const QString path = treelandDebugSocketPathForUrl(candidate);
+        if (path.isEmpty() || QFileInfo::exists(path))
+            connectUrls << candidate;
+    }
+    if (connectUrls.isEmpty())
+        connectUrls = candidateUrls;
+
     Session session;
     QString connectedUrl;
-    if (!connectSession(session, candidateUrls, name, timeoutMs, &connectedUrl)) {
+    if (!connectSession(session, connectUrls, name, timeoutMs, &connectedUrl)) {
         if (!urlExplicit)
             explainConnectFailure(candidateUrls);
         return fail(QStringLiteral("failed to connect to remote object node (tried: %1)")
@@ -642,9 +655,9 @@ int main(int argc, char *argv[])
 
     // Log only when a fallback actually happened (preferred candidate was
     // unreachable), not on every debug build, to avoid polluting --json output.
-    if (candidateUrls.size() > 1 && connectedUrl != candidateUrls.first())
+    if (connectUrls.size() > 1 && connectedUrl != connectUrls.first())
         QTextStream(stderr) << "treeland-debug: connected to " << connectedUrl
-                            << " (fallback from " << candidateUrls.first() << ")\n";
+                            << " (fallback from " << connectUrls.first() << ")\n";
 
     if (command == QLatin1String("shell"))
         return runShell(session, timeoutMs, json, previewOpt);
