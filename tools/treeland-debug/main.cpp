@@ -18,8 +18,11 @@
 #include <QTimer>
 #include <QUrl>
 
+#include <algorithm>
 #include <csignal>
 #include <unistd.h>
+
+#include <utility>
 
 #include "debughelpers.h"
 
@@ -400,29 +403,101 @@ static bool dispatchLiveCommand(Session &session, int timeoutMs,
                                 const QString &command, const QStringList &commandArgs,
                                 int *rc);
 
-// Explains the failures a bare "failed to connect" cannot tell apart. It
-// inspects the socket filesystem after the attempt, so the wording stays a hint
-// about the state now, never a claim about what the attempt hit.
-static void explainConnectFailure(const QStringList &candidateUrls)
+// One socket's answer to "who is behind this name", asked before any wording is
+// chosen: a live listener accepts at once, a socket left behind by a crashed
+// instance refuses, and a release instance rejects a non-root caller with EACCES
+// because its socket is mode 0000.
+struct SocketProbe
 {
-    QStringList publishedPaths;
-    QString publishedUrl; // the candidate the paths belong to, not the first one
+    QString path;
+    bool accepted = false;
+    QLocalSocket::LocalSocketError error = QLocalSocket::UnknownSocketError;
+    QString errorString;
+
+    bool inaccessible() const { return error == QLocalSocket::SocketAccessError; }
+
+    // Only these two say the file outlived its listener.  A timeout or an unknown
+    // failure can belong to a live process, so it is never offered for removal.
+    bool leftover() const
+    {
+        return error == QLocalSocket::ConnectionRefusedError
+            || error == QLocalSocket::ServerNotFoundError;
+    }
+};
+
+SocketProbe probeSocket(const QString &path)
+{
+    SocketProbe probe;
+    probe.path = path;
+    QLocalSocket socket;
+    socket.connectToServer(path);
+    probe.accepted = socket.waitForConnected(1000);
+    probe.error = socket.error();
+    probe.errorString = socket.errorString();
+    return probe;
+}
+
+// The part of the diagnosis that is the same whichever socket is explained: what
+// the other sockets of that group are, each in the terms that let the reader act.
+static void printSocketNotes(const QStringList &leftover, const QStringList &inaccessible,
+                             const QStringList &unanswered)
+{
+    if (!leftover.isEmpty())
+        QTextStream(stderr) << "treeland-debug: note that nothing listens on "
+                            << leftover.join(QStringLiteral(", "))
+                            << "; those files can be removed\n";
+    if (!inaccessible.isEmpty())
+        QTextStream(stderr) << "treeland-debug: note that "
+                            << inaccessible.join(QStringLiteral(", "))
+                            << " is a release instance, whose socket only root may connect to\n";
+    if (!unanswered.isEmpty())
+        QTextStream(stderr) << "treeland-debug: note that " << unanswered.join(QStringLiteral(", "))
+                            << " did not answer the probe; it may be a live but unresponsive "
+                               "process, so it is not reported as removable\n";
+}
+
+// Explains the failures a bare "failed to connect" cannot tell apart. It inspects
+// the socket filesystem after the attempt, so the wording stays a hint about the
+// state now, never a claim about what the attempt hit.
+//
+// Every candidate was already tried, so the socket explained is the one that is
+// listening when there is one: a stale file on an earlier candidate must not hide
+// the instance that answered, and an instance that only asks for root is still
+// more useful to report than a stale file.
+static void explainConnectFailure(const QStringList &candidateUrls,
+                                  const QStringList &attemptedUrls)
+{
+    struct Published
+    {
+        QString url;
+        QStringList paths;
+    };
+
+    // Compare the socket files behind the URLs that were actually probed, since a
+    // bare name and its absolute path are the same socket.  Candidates skipped as
+    // absent do not count: a socket that appeared after the filter was applied was
+    // never tried, so pointing at it is still new advice.
+    QStringList attemptedPaths;
+    for (const QString &url : attemptedUrls) {
+        const QString path = treelandDebugSocketPathForUrl(url);
+        if (!path.isEmpty())
+            attemptedPaths << path;
+    }
+
+    QList<Published> published;
     QString occupiedNonSocket;
     for (const QString &candidate : candidateUrls) {
         const QStringList paths = treelandDebugPublishedSocketPaths(candidate);
         if (!paths.isEmpty()) {
-            publishedPaths = paths;
-            publishedUrl = candidate;
-            break;
-        }
-        if (occupiedNonSocket.isEmpty()) {
+            published.append({ candidate, paths });
+        } else if (occupiedNonSocket.isEmpty()) {
             const QString base = treelandDebugSocketPathForUrl(candidate);
             if (!base.isEmpty() && QFileInfo::exists(base))
                 occupiedNonSocket = base;
         }
     }
 
-    if (publishedPaths.isEmpty()) {
+    if (published.isEmpty()) {
         QTextStream(stderr) << "treeland-debug: treeland published no debug socket in "
                             << treelandDebugSocketDirs().join(QStringLiteral(" or "))
                             << "; is it running, and is its "
@@ -438,40 +513,121 @@ static void explainConnectFailure(const QStringList &candidateUrls)
         return;
     }
 
-    if (publishedPaths.size() > 1) {
-        QTextStream(stderr) << "treeland-debug: more than one debug socket is published for "
-                            << publishedUrl << ": "
-                            << publishedPaths.join(QStringLiteral(", "))
-                            << "; a stale socket from a crashed instance or another instance's "
-                               "socket is likely -- remove the stale one or point at the right "
-                               "instance with the basename after `--url local:`\n";
+    QList<QList<SocketProbe>> groups;
+    for (const Published &group : std::as_const(published)) {
+        QList<SocketProbe> probes;
+        for (const QString &path : group.paths)
+            probes << probeSocket(path);
+        groups << probes;
+    }
+
+    // Explain the group that answers; failing that, one that names a root-only
+    // instance, which is the actionable answer; only then the first, which is left
+    // with stale or unanswered files.
+    int chosen = -1;
+    for (int i = 0; i < groups.size() && chosen < 0; ++i) {
+        for (const SocketProbe &probe : groups.at(i)) {
+            if (probe.accepted) {
+                chosen = i;
+                break;
+            }
+        }
+    }
+    for (int i = 0; i < groups.size() && chosen < 0; ++i) {
+        for (const SocketProbe &probe : groups.at(i)) {
+            if (probe.inaccessible()) {
+                chosen = i;
+                break;
+            }
+        }
+    }
+    if (chosen < 0)
+        chosen = 0;
+
+    const QString publishedUrl = published.at(chosen).url;
+    const QList<SocketProbe> probes = groups.at(chosen);
+    QStringList live;
+    QStringList leftover;
+    QStringList inaccessible;
+    QStringList unanswered;
+    for (const SocketProbe &probe : probes) {
+        if (probe.accepted)
+            live << probe.path;
+        else if (probe.inaccessible())
+            inaccessible << probe.path;
+        else if (probe.leftover())
+            leftover << probe.path;
+        else
+            unanswered << probe.path;
+    }
+
+    if (live.size() > 1) {
+        QTextStream(stderr) << "treeland-debug: more than one instance answers for "
+                            << publishedUrl << ": " << live.join(QStringLiteral(", "))
+                            << "; point at the one you mean with `--url local:<one of those "
+                               "paths>`\n";
+        printSocketNotes(leftover, inaccessible, unanswered);
         return;
     }
 
-    // Ask that one socket instead of guessing: a refused connect (EACCES on a
-    // release compositor, ECONNREFUSED on a leftover socket) and an accepted
-    // connect whose QtRO source never answered are different problems.
-    const QString path = publishedPaths.first();
-    QLocalSocket probe;
-    probe.connectToServer(path);
-    const bool socketAccepted = probe.waitForConnected(1000);
+    if (live.isEmpty()) {
+        QTextStream(stderr) << "treeland-debug: ";
+        if (probes.size() == 1) {
+            QTextStream(stderr) << probes.first().path << " exists but the connection failed: "
+                                << (probes.first().errorString.isEmpty()
+                                        ? QStringLiteral("no answer")
+                                        : probes.first().errorString);
+        } else {
+            QStringList paths;
+            for (const SocketProbe &probe : probes)
+                paths << probe.path;
+            QTextStream(stderr) << paths.join(QStringLiteral(", ")) << " are published for "
+                                << publishedUrl << " but none of them answers";
+        }
+        QTextStream(stderr) << "\n";
+        printSocketNotes(leftover, inaccessible, unanswered);
+        return;
+    }
 
-    if (socketAccepted) {
+    // Exactly one socket answers. Keep that connection: SO_PEERCRED is read off
+    // it, so the message can name the process instead of guessing.
+    const QString path = live.first();
+    QLocalSocket peer;
+    peer.connectToServer(path);
+    if (!peer.waitForConnected(1000)) {
+        // Answered a moment ago and is gone now; nothing useful left to say.
         QTextStream(stderr) << "treeland-debug: " << path
-                            << " accepts connections but no `WindowTree` source answered. "
-                               "That socket belongs to another instance (or to a leftover "
-                               "socket), or the compositor published a source name this "
-                               "client does not ask for; the socket file name is the instance "
-                               "to point at: `--url local:` plus the basename of that path\n";
+                            << " stopped answering while this report was written\n";
         return;
     }
 
+    const QString owner = treelandDebugSocketPeerText(peer);
+    // The candidates are absolute paths, so the hint must be one too: a bare name
+    // would be resolved under QDir::tempPath() instead.
+    const QString answeringUrl = QStringLiteral("local:") + path;
     QTextStream(stderr) << "treeland-debug: " << path
-                        << " exists but the connection failed: "
-                        << (probe.errorString().isEmpty() ? QStringLiteral("no answer")
-                                                          : probe.errorString())
-                        << "; a release compositor only lets root connect, and a socket left "
-                           "behind by a crashed instance refuses connections the same way\n";
+                        << " accepts connections but no `WindowTree` source answered"
+                        << (owner.isEmpty() ? QString()
+                                            : QStringLiteral(" (the listener is %1)").arg(owner))
+                        << ". A socket file left behind by a crashed instance refuses "
+                           "connections instead, so a live process holds this one and "
+                           "either does not serve this build's `WindowTree` at all "
+                           "(another program, or a treeland build that never published a "
+                           "source), or serves a `WindowTree` whose signature differs from "
+                           "this client's -- `Signature mismatch for "
+                           "WindowTreeRemoteReplica` above means the compositor and this "
+                           "client were built from different revisions";
+    if (attemptedPaths.contains(path)) {
+        // This run already probed that socket, so suggesting --url for it would just
+        // repeat the same failure with even less explanation.
+        QTextStream(stderr) << "; this run already tried that address, so the source is what "
+                               "is wrong, not the name: restart that process with this build, or "
+                               "stop it so this build publishes its own\n";
+    } else {
+        QTextStream(stderr) << "; an instance published after this run started: "
+                            << "`--url " << answeringUrl << "`\n";
+    }
+    printSocketNotes(leftover, inaccessible, unanswered);
 }
 
 int main(int argc, char *argv[])
@@ -614,10 +770,12 @@ int main(int argc, char *argv[])
 
     // Resolve the URL to connect to.  An explicit --url or $TREELAND_DEBUG_SOCKET
     // is used verbatim; otherwise the build-default candidate list (debug →
-    // release fallback in debug builds) is probed.
+    // release fallback in debug builds) is probed, each candidate followed by the
+    // instances published under a "<name>-<N>" suffix when another instance
+    // holds the base name.
     const QStringList candidateUrls = urlConfigured
         ? QStringList{url}
-        : treelandDebugCandidateSocketUrls();
+        : treelandDebugInstanceSocketUrls(treelandDebugCandidateSocketUrls());
 
     // Treeland publishes its debug socket whenever its `remoteDebug` master
     // switch is on (the default), so the client never touches DConfig: a
@@ -642,29 +800,24 @@ int main(int argc, char *argv[])
     // directories a short --timeout-ms would otherwise be exhausted before a
     // live socket later in the list is reached.  If none exists, keep the full
     // list so the diagnostics below still name every place that was searched.
-    QStringList connectUrls;
-    for (const QString &candidate : candidateUrls) {
-        const QString path = treelandDebugSocketPathForUrl(candidate);
-        if (path.isEmpty() || QFileInfo::exists(path))
-            connectUrls << candidate;
-    }
-    if (connectUrls.isEmpty())
-        connectUrls = candidateUrls;
+    const QStringList connectUrls = treelandDebugExistingSocketUrls(candidateUrls);
 
     Session session;
     QString connectedUrl;
     if (!connectSession(session, connectUrls, name, timeoutMs, &connectedUrl)) {
         if (!urlConfigured)
-            explainConnectFailure(candidateUrls);
+            explainConnectFailure(candidateUrls, connectUrls);
         return fail(QStringLiteral("failed to connect to remote object node (tried: %1)")
                         .arg(candidateUrls.join(" or ")));
     }
 
-    // Log only when a fallback actually happened (preferred candidate was
+    // Log only when a fallback actually happened (the preferred candidate was
     // unreachable), not on every debug build, to avoid polluting --json output.
-    if (connectUrls.size() > 1 && connectedUrl != connectUrls.first())
+    // Compare against the candidate list, not the filtered one: an absent
+    // preferred socket is exactly the case the notice exists for.
+    if (connectedUrl != candidateUrls.first())
         QTextStream(stderr) << "treeland-debug: connected to " << connectedUrl
-                            << " (fallback from " << connectUrls.first() << ")\n";
+                            << " (fallback from " << candidateUrls.first() << ")\n";
 
     if (command == QLatin1String("shell"))
         return runShell(session, timeoutMs, json, previewOpt);
