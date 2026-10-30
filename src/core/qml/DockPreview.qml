@@ -13,7 +13,7 @@ import org.deepin.dtk 1.0 as D
 
 Item {
     id: root
-    property int aniDuration: 200
+    property int aniDuration: 350
     property bool enableAnimation: aniDuration > 0
     property alias spacing: listview.spacing
 
