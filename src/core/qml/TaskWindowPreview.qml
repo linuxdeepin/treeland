@@ -48,7 +48,7 @@ Loader {
         Transition {
             from: "none"
             to: "loaded"
-            enabled: WaylandServer.config.taskSwitcherThumbnailAnimationEnabled
+            enabled: WaylandServer.animationConfig.taskSwitcherThumbnail
 
             ParallelAnimation {
                 id: enterAnimation
@@ -72,7 +72,7 @@ Loader {
         Transition {
             from: "loaded"
             to: "none"
-            enabled: WaylandServer.config.taskSwitcherThumbnailAnimationEnabled
+            enabled: WaylandServer.animationConfig.taskSwitcherThumbnail
 
             ParallelAnimation {
                 id: exitAnimation

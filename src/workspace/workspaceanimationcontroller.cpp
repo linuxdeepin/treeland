@@ -7,6 +7,7 @@
 #include <cmath>
 #include "core/waylandserver.h"
 #include "treelanduserconfig.hpp"
+#include "animationconfig.hpp"
 
 WorkspaceAnimationController::WorkspaceAnimationController(QObject *parent)
     : QObject{ parent }
@@ -46,10 +47,10 @@ WorkspaceAnimationController::WorkspaceAnimationController(QObject *parent)
     setupAnimationConfig();
 }
 
-bool WorkspaceAnimationController::animationConfigEnabled(bool (TreelandUserConfig::*key)() const) const
+bool WorkspaceAnimationController::animationConfigEnabled(bool (AnimationConfig::*key)() const) const
 {
     auto *server = WaylandServer::instance();
-    auto *config = server ? server->config() : nullptr;
+    auto *config = server ? server->animationConfig() : nullptr;
     // An uninitialized config is not a valid "disabled" answer: keep the default
     // animated behavior until the real value is available.
     if (!config || !config->isInitializeSucceeded())
@@ -59,12 +60,12 @@ bool WorkspaceAnimationController::animationConfigEnabled(bool (TreelandUserConf
 
 bool WorkspaceAnimationController::slideEnabled() const
 {
-    return animationConfigEnabled(&TreelandUserConfig::workspaceSwitchAnimationEnabled);
+    return animationConfigEnabled(&AnimationConfig::workspaceSwitch);
 }
 
 bool WorkspaceAnimationController::bounceEnabled() const
 {
-    return animationConfigEnabled(&TreelandUserConfig::workspaceBounceAnimationEnabled);
+    return animationConfigEnabled(&AnimationConfig::workspaceBounce);
 }
 
 void WorkspaceAnimationController::setupAnimationConfig()
@@ -76,17 +77,18 @@ void WorkspaceAnimationController::setupAnimationConfig()
     // Reconnect on user switch so the previous user's config cannot keep
     // affecting the running transition.
     QObject::disconnect(m_animationConfigConnection);
-    if (auto *config = server->config()) {
+    if (auto *config = server->animationConfig()) {
         m_animationConfigConnection = connect(config,
-                                              &TreelandUserConfig::valueChanged,
+                                              &AnimationConfig::valueChanged,
                                               this,
                                               &WorkspaceAnimationController::onAnimationConfigChanged);
     }
     connect(server,
-            &WaylandServer::configChanged,
+            &WaylandServer::animationConfigChanged,
             this,
             &WorkspaceAnimationController::setupAnimationConfig,
             Qt::UniqueConnection);
+    onAnimationConfigChanged();
 }
 
 void WorkspaceAnimationController::onAnimationConfigChanged()

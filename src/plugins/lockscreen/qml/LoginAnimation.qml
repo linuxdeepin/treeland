@@ -22,7 +22,7 @@ Item {
 
     // Final position of this content, kept so a disabled animation can jump there.
     property point targetPosition: Qt.point(0, 0)
-    readonly property bool animationEnabled: WaylandServer.config.loginContentAnimationEnabled
+    readonly property bool animationEnabled: WaylandServer.animationConfig.loginContent
 
     function start(pos, to) {
         targetPosition = to

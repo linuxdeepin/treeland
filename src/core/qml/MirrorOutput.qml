@@ -110,7 +110,7 @@ OutputItem {
             alwaysRunToEnd: true
         }
 
-        readonly property bool rotationAnimationEnabled: WaylandServer.config.mirrorOutputRotationAnimationEnabled
+        readonly property bool rotationAnimationEnabled: WaylandServer.animationConfig.mirrorOutputRotation
 
         Timer {
             id: transformTimer

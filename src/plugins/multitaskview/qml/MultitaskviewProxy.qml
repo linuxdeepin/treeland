@@ -25,8 +25,8 @@ Multitaskview {
 
     // Per-effect switches. Disabling still commits the final state; the exit
     // ScriptAction below is the business completion that hides this layer.
-    readonly property bool enterAnimationEnabled: WaylandServer.config.multitaskviewEnterAnimationEnabled
-    readonly property bool exitAnimationEnabled: WaylandServer.config.multitaskviewExitAnimationEnabled
+    readonly property bool enterAnimationEnabled: WaylandServer.animationConfig.multitaskviewEnter
+    readonly property bool exitAnimationEnabled: WaylandServer.animationConfig.multitaskviewExit
 
     onActionFinished: {
         if (root.status === Multitaskview.Exited) {

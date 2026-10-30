@@ -9,6 +9,7 @@
 #include "core/waylandserver.h"
 #include "surface/surfacewindowtransition.h"
 #include "treelanduserconfig.hpp"
+#include "animationconfig.hpp"
 #include "workspace/workspace.h"
 #include "wtoplevelsurface.h"
 #include "wxdgtoplevelsurface.h"
@@ -208,13 +209,13 @@ SurfaceWrapper::SurfaceWrapper(QmlEngine *qmlEngine,
     setupAnimationConfig();
 }
 
-// Each animated effect reads its own TreelandUserConfig switch. An uninitialized
+// Each animated effect reads its own AnimationConfig switch. An uninitialized
 // config is not a valid "disabled" answer, so keep the default animated behavior
 // until the real value is available.
-bool SurfaceWrapper::animationEnabled(bool (TreelandUserConfig::*key)() const) const
+bool SurfaceWrapper::animationEnabled(bool (AnimationConfig::*key)() const) const
 {
     auto *server = WaylandServer::instance();
-    auto *config = server ? server->config() : nullptr;
+    auto *config = server ? server->animationConfig() : nullptr;
     if (!config || !config->isInitializeSucceeded())
         return true;
     return (config->*key)();
@@ -224,17 +225,17 @@ bool SurfaceWrapper::windowAnimationEnabled(WindowAnimationEffect effect) const
 {
     switch (effect) {
     case WindowAnimationEffect::WindowOpen:
-        return animationEnabled(&TreelandUserConfig::windowOpenAnimationEnabled);
+        return animationEnabled(&AnimationConfig::windowOpen);
     case WindowAnimationEffect::WindowClose:
-        return animationEnabled(&TreelandUserConfig::windowCloseAnimationEnabled);
+        return animationEnabled(&AnimationConfig::windowClose);
     case WindowAnimationEffect::LaunchpadOpen:
-        return animationEnabled(&TreelandUserConfig::launchpadOpenAnimationEnabled);
+        return animationEnabled(&AnimationConfig::launchpadOpen);
     case WindowAnimationEffect::LaunchpadClose:
-        return animationEnabled(&TreelandUserConfig::launchpadCloseAnimationEnabled);
+        return animationEnabled(&AnimationConfig::launchpadClose);
     case WindowAnimationEffect::LayerShellOpen:
-        return animationEnabled(&TreelandUserConfig::layerShellOpenAnimationEnabled);
+        return animationEnabled(&AnimationConfig::layerShellOpen);
     case WindowAnimationEffect::LayerShellClose:
-        return animationEnabled(&TreelandUserConfig::layerShellCloseAnimationEnabled);
+        return animationEnabled(&AnimationConfig::layerShellClose);
     case WindowAnimationEffect::None:
         return true;
     }
@@ -245,13 +246,13 @@ bool SurfaceWrapper::geometryAnimationEnabled(GeometryAnimationEffect effect) co
 {
     switch (effect) {
     case GeometryAnimationEffect::Maximize:
-        return animationEnabled(&TreelandUserConfig::maximizeAnimationEnabled);
+        return animationEnabled(&AnimationConfig::maximize);
     case GeometryAnimationEffect::Fullscreen:
-        return animationEnabled(&TreelandUserConfig::fullscreenAnimationEnabled);
+        return animationEnabled(&AnimationConfig::fullscreen);
     case GeometryAnimationEffect::Restore:
-        return animationEnabled(&TreelandUserConfig::restoreWindowAnimationEnabled);
+        return animationEnabled(&AnimationConfig::restoreWindow);
     case GeometryAnimationEffect::Splash:
-        return animationEnabled(&TreelandUserConfig::splashTransitionAnimationEnabled);
+        return animationEnabled(&AnimationConfig::splashTransition);
     case GeometryAnimationEffect::None:
         return true;
     }
@@ -261,14 +262,14 @@ bool SurfaceWrapper::geometryAnimationEnabled(GeometryAnimationEffect effect) co
 bool SurfaceWrapper::minimizeAnimationEnabled(uint direction) const
 {
     return animationEnabled(direction == OPEN_ANIMATION
-                                ? &TreelandUserConfig::restoreMinimizedAnimationEnabled
-                                : &TreelandUserConfig::minimizeAnimationEnabled);
+                                ? &AnimationConfig::restoreMinimized
+                                : &AnimationConfig::minimize);
 }
 
 bool SurfaceWrapper::showDesktopAnimationEnabled(bool restoring) const
 {
-    return animationEnabled(restoring ? &TreelandUserConfig::restoreShowDesktopAnimationEnabled
-                                      : &TreelandUserConfig::showDesktopAnimationEnabled);
+    return animationEnabled(restoring ? &AnimationConfig::restoreShowDesktop
+                                      : &AnimationConfig::showDesktop);
 }
 
 SurfaceWrapper::WindowAnimationEffect SurfaceWrapper::windowAnimationEffectFor(uint direction) const
@@ -325,17 +326,18 @@ void SurfaceWrapper::setupAnimationConfig()
     // The active-user config object is replaced on user switch: drop the old
     // connection so a previous user's config cannot keep driving this wrapper.
     QObject::disconnect(m_animationConfigConnection);
-    if (auto *config = server->config()) {
+    if (auto *config = server->animationConfig()) {
         m_animationConfigConnection = connect(config,
-                                              &TreelandUserConfig::valueChanged,
+                                              &AnimationConfig::valueChanged,
                                               this,
                                               &SurfaceWrapper::onAnimationConfigChanged);
     }
     connect(server,
-            &WaylandServer::configChanged,
+            &WaylandServer::animationConfigChanged,
             this,
             &SurfaceWrapper::setupAnimationConfig,
             Qt::UniqueConnection);
+    onAnimationConfigChanged();
 }
 
 void SurfaceWrapper::onAnimationConfigChanged()

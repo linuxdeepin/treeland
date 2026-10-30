@@ -129,13 +129,13 @@ RowLayout {
             }
 
             Behavior on width {
-                enabled: Helper.config.lockscreenControlAnimationEnabled
+                enabled: WaylandServer.animationConfig.lockscreenControl
                 NumberAnimation {
                     duration: 150
                 }
             }
             Behavior on height {
-                enabled: Helper.config.lockscreenControlAnimationEnabled
+                enabled: WaylandServer.animationConfig.lockscreenControl
                 NumberAnimation {
                     duration: 150
                 }

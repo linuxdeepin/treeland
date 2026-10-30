@@ -7,7 +7,7 @@
 #include <QQmlEngine>
 #include <QSequentialAnimationGroup>
 
-class TreelandUserConfig;
+class AnimationConfig;
 
 class WorkspaceAnimationController : public QObject
 {
@@ -73,7 +73,7 @@ private:
     void startBounceAnimation();
     void finishAnimation();
     qreal gestureObstruction(qreal gestureValue);
-    bool animationConfigEnabled(bool (TreelandUserConfig::*key)() const) const;
+    bool animationConfigEnabled(bool (AnimationConfig::*key)() const) const;
     void setupAnimationConfig();
     void onAnimationConfigChanged();
 

@@ -25,9 +25,9 @@ Item {
     property bool enableRadius: true
     property bool enableAnimation: GraphicsInfo.api !== GraphicsInfo.Software
     // Per-effect switches; the bindings below also drive mid-flight completion.
-    readonly property bool maskAnimationEnabled: WaylandServer.config.taskSwitcherAnimationEnabled
-    readonly property bool panelAnimationEnabled: WaylandServer.config.taskSwitcherPanelAnimationEnabled
-    readonly property bool exitAnimationEnabled: WaylandServer.config.taskSwitcherExitAnimationEnabled
+    readonly property bool maskAnimationEnabled: WaylandServer.animationConfig.taskSwitcher
+    readonly property bool panelAnimationEnabled: WaylandServer.animationConfig.taskSwitcherPanel
+    readonly property bool exitAnimationEnabled: WaylandServer.animationConfig.taskSwitcherExit
 
     readonly property int leftpreferredMargin: 20
     readonly property int rightpreferredMargin: 20

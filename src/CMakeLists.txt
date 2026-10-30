@@ -87,6 +87,13 @@ dtk_add_config_to_cpp(
 )
 
 dtk_add_config_to_cpp(
+    ANIMATION_CONFIG
+    "${PROJECT_SOURCE_DIR}/misc/dconfig/org.deepin.dde.treeland.animation.json"
+    OUTPUT_FILE_NAME "animationconfig.hpp"
+    CLASS_NAME "AnimationConfig"
+)
+
+dtk_add_config_to_cpp(
     OUTPUT_CONFIG
     "${PROJECT_SOURCE_DIR}/misc/dconfig/org.deepin.dde.treeland.output.json"
     OUTPUT_FILE_NAME "outputconfig.hpp"
@@ -130,6 +137,7 @@ qt_add_qml_module(libtreeland
         ${DBUS_INTERFACE}
         ${TREELAND_CONFIG}
         ${TREELAND_USER_CONFIG}
+        ${ANIMATION_CONFIG}
         ${OUTPUT_CONFIG}
         ${APP_CONFIG}
         ${SEAT_USER_CONFIG}

@@ -60,7 +60,7 @@ OutputItem {
             alwaysRunToEnd: true
         }
 
-        readonly property bool rotationAnimationEnabled: WaylandServer.config.outputRotationAnimationEnabled
+        readonly property bool rotationAnimationEnabled: WaylandServer.animationConfig.outputRotation
 
         Timer {
             id: setTransform
@@ -161,7 +161,7 @@ OutputItem {
                 Transition {
                     from: "*"
                     to: "Normal"
-                    enabled: WaylandServer.config.wallpaperScaleAnimationEnabled
+                    enabled: WaylandServer.animationConfig.wallpaperScale
                     PropertyAnimation {
                         property: "scale"
                         duration: wallpaper.duration
@@ -171,7 +171,7 @@ OutputItem {
                 Transition {
                     from: "*"
                     to: "Scale"
-                    enabled: WaylandServer.config.wallpaperScaleAnimationEnabled
+                    enabled: WaylandServer.animationConfig.wallpaperScale
                     PropertyAnimation {
                         property: "scale"
                         duration: wallpaper.duration
@@ -181,7 +181,7 @@ OutputItem {
                 Transition {
                     from: "*"
                     to: "ScaleTo1.2"
-                    enabled: WaylandServer.config.wallpaperScaleAnimationEnabled
+                    enabled: WaylandServer.animationConfig.wallpaperScale
                     PropertyAnimation {
                         property: "scale"
                         duration: wallpaper.duration

@@ -54,7 +54,7 @@ Item {
             Transition {
                 from: "*"
                 to: "Normal"
-                enabled: WaylandServer.config.launchpadCoverAnimationEnabled
+                enabled: WaylandServer.animationConfig.launchpadCover
                 PropertyAnimation {
                     property: "scale"
                     duration: 1000
@@ -64,7 +64,7 @@ Item {
             Transition {
                 from: "*"
                 to: "Scale"
-                enabled: WaylandServer.config.launchpadCoverAnimationEnabled
+                enabled: WaylandServer.animationConfig.launchpadCover
                 PropertyAnimation {
                     property: "scale"
                     duration: 1000
@@ -88,7 +88,7 @@ Item {
 
     opacity: root.mapped ? 1 : 0
     Behavior on opacity {
-        enabled: WaylandServer.config.launchpadCoverAnimationEnabled
+        enabled: WaylandServer.animationConfig.launchpadCover
         PropertyAnimation {
             duration: 400
             easing.type: Easing.OutExpo

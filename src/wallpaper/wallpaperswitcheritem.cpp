@@ -10,7 +10,7 @@
 #include "wallpapermanager.h"
 #include "workspace.h"
 #include "shellhandler.h"
-#include "treelanduserconfig.hpp"
+#include "animationconfig.hpp"
 
 #include <woutput.h>
 
@@ -259,11 +259,11 @@ void WallpaperSwitcherItem::startFadeIn(WallpaperSlot *slot)
 bool WallpaperSwitcherItem::crossFadeEnabled() const
 {
     auto *server = WaylandServer::instance();
-    auto *config = server ? server->config() : nullptr;
+    auto *config = server ? server->animationConfig() : nullptr;
     // An uninitialized config is not a valid "disabled" answer.
     if (!config || !config->isInitializeSucceeded())
         return true;
-    return config->wallpaperCrossFadeAnimationEnabled();
+    return config->wallpaperCrossFade();
 }
 
 void WallpaperSwitcherItem::setupAnimationConfig()
@@ -273,17 +273,18 @@ void WallpaperSwitcherItem::setupAnimationConfig()
         return;
 
     QObject::disconnect(m_animationConfigConnection);
-    if (auto *config = server->config()) {
+    if (auto *config = server->animationConfig()) {
         m_animationConfigConnection = connect(config,
-                                              &TreelandUserConfig::valueChanged,
+                                              &AnimationConfig::valueChanged,
                                               this,
                                               &WallpaperSwitcherItem::onAnimationConfigChanged);
     }
     connect(server,
-            &WaylandServer::configChanged,
+            &WaylandServer::animationConfigChanged,
             this,
             &WallpaperSwitcherItem::setupAnimationConfig,
             Qt::UniqueConnection);
+    onAnimationConfigChanged();
 }
 
 void WallpaperSwitcherItem::onAnimationConfigChanged()

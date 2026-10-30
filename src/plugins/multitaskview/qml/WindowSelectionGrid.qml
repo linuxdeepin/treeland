@@ -88,7 +88,7 @@ Item {
         transitions: [
             Transition {
                 to: "taskview"
-                enabled: WaylandServer.config.multitaskviewEnterAnimationEnabled
+                enabled: WaylandServer.animationConfig.multitaskviewEnter
                 SequentialAnimation {
                     PauseAnimation { duration: WaylandServer.config.multitaskviewAnimationDuration }
                     PropertyAction { target: surfaceGridView; property: "clip" }
@@ -204,12 +204,12 @@ Item {
                         }
                     ]
 
-                    Behavior on x {enabled:state !== "dragging" && state !== "partial" && WaylandServer.config.multitaskviewLayoutAnimationEnabled; XAnimator {duration: WaylandServer.config.multitaskviewAnimationDuration; easing.type: WaylandServer.config.multitaskviewEasingCurveType} }
-                    Behavior on y {enabled:state !== "dragging" && state !== "partial" && WaylandServer.config.multitaskviewLayoutAnimationEnabled; YAnimator {duration: WaylandServer.config.multitaskviewAnimationDuration; easing.type: WaylandServer.config.multitaskviewEasingCurveType} }
-                    Behavior on width {enabled:state !== "dragging" && state !== "partial" && WaylandServer.config.multitaskviewLayoutAnimationEnabled; NumberAnimation {duration: WaylandServer.config.multitaskviewAnimationDuration; easing.type: WaylandServer.config.multitaskviewEasingCurveType} }
-                    Behavior on height {enabled:state !== "dragging" && state !== "partial" && WaylandServer.config.multitaskviewLayoutAnimationEnabled; NumberAnimation {duration: WaylandServer.config.multitaskviewAnimationDuration; easing.type: WaylandServer.config.multitaskviewEasingCurveType} }
-                    Behavior on paddingOpacity {enabled:state !== "dragging" && state !== "partial" && WaylandServer.config.multitaskviewLayoutAnimationEnabled; NumberAnimation {duration: WaylandServer.config.multitaskviewAnimationDuration; easing.type: WaylandServer.config.multitaskviewEasingCurveType} }
-                    Behavior on scale {enabled:state !== "dragging" && state !== "partial" && WaylandServer.config.multitaskviewLayoutAnimationEnabled; ScaleAnimator {duration: WaylandServer.config.multitaskviewAnimationDuration; easing.type: WaylandServer.config.multitaskviewEasingCurveType} }
+                    Behavior on x {enabled:state !== "dragging" && state !== "partial" && WaylandServer.animationConfig.multitaskviewLayout; XAnimator {duration: WaylandServer.config.multitaskviewAnimationDuration; easing.type: WaylandServer.config.multitaskviewEasingCurveType} }
+                    Behavior on y {enabled:state !== "dragging" && state !== "partial" && WaylandServer.animationConfig.multitaskviewLayout; YAnimator {duration: WaylandServer.config.multitaskviewAnimationDuration; easing.type: WaylandServer.config.multitaskviewEasingCurveType} }
+                    Behavior on width {enabled:state !== "dragging" && state !== "partial" && WaylandServer.animationConfig.multitaskviewLayout; NumberAnimation {duration: WaylandServer.config.multitaskviewAnimationDuration; easing.type: WaylandServer.config.multitaskviewEasingCurveType} }
+                    Behavior on height {enabled:state !== "dragging" && state !== "partial" && WaylandServer.animationConfig.multitaskviewLayout; NumberAnimation {duration: WaylandServer.config.multitaskviewAnimationDuration; easing.type: WaylandServer.config.multitaskviewEasingCurveType} }
+                    Behavior on paddingOpacity {enabled:state !== "dragging" && state !== "partial" && WaylandServer.animationConfig.multitaskviewLayout; NumberAnimation {duration: WaylandServer.config.multitaskviewAnimationDuration; easing.type: WaylandServer.config.multitaskviewEasingCurveType} }
+                    Behavior on scale {enabled:state !== "dragging" && state !== "partial" && WaylandServer.animationConfig.multitaskviewLayout; ScaleAnimator {duration: WaylandServer.config.multitaskviewAnimationDuration; easing.type: WaylandServer.config.multitaskviewEasingCurveType} }
 
                     D.BoxShadow {
                         id: paddingRectShadow
@@ -412,7 +412,7 @@ Item {
                 height: 50
                 padding: 10
                 Behavior on opacity {
-                    enabled: state !== "partial" && WaylandServer.config.multitaskviewEmptyHintAnimationEnabled
+                    enabled: state !== "partial" && WaylandServer.animationConfig.multitaskviewEmptyHint
                     OpacityAnimator {
                         duration: WaylandServer.config.multitaskviewAnimationDuration
                         easing.type: WaylandServer.config.multitaskviewEasingCurveType
