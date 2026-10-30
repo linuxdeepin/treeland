@@ -104,8 +104,17 @@ void WallpaperSwitcherItem::setPlay(bool value)
     if (m_play == value)
         return;
 
-    m_play = value;
-    Q_EMIT playChanged();
+    forcePlay(value);
+}
+
+// Unlike setPlay(), always forwards the value to the slots: after slowDown()
+// the client pauses on its own while m_play stays true.
+void WallpaperSwitcherItem::forcePlay(bool value)
+{
+    if (m_play != value) {
+        m_play = value;
+        Q_EMIT playChanged();
+    }
 
     if (m_currentSlot)
         m_currentSlot->setPlay(value);
