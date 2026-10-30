@@ -39,12 +39,12 @@ treeland 既可作为 Release 服务运行，也可作为开发中的构建运�
 `treeland-debug` 按构建类型限制使用者：
 
 - **Release 构建** —— 只有 `root` 能运行 `treeland-debug`。非 root 调用者会被自动通过 `pkexec`（polkit）重新执行，并提示认证。传 `--no-escalate` 可跳过提示并立即失败（脚本或 CI 中常用）。随包安装 polkit 策略以保证开箱即用：源文件 `misc/polkit/org.deepin.dde.treeland-debug.policy.in`，安装为 `org.deepin.dde.treeland-debug.policy`。
-- **Debug 构建**（`TREELAND_DEBUG_DEV_BUILD`）—— 所有用户都能无限制运行 `treeland-debug`。
+- **Debug 构建**（`TREELAND_DEBUG_DEV_BUILD`）—— 不限制使用者，但 socket 位于合成器的 runtime 目录（0700），所以实际仍需以合成器用户或 root 运行。
 
 因为 root 可访问任何用户的 socket，Release 构建无需 `sudo -u dde` 前缀即可连到全局 `dde` 服务。Debug 构建中则必须以与 treeland 实例相同的用户运行。
 
 ### 调试 socket 命名
-调试 Remote Object 把本地 socket 放在 `QDir::tempPath()`（通常是 `/tmp`，遵循 `$TMPDIR`）—— 不是 `XDG_RUNTIME_DIR` —— 这样在任何 runtime 目录下运行的 `treeland-debug` 客户端都能发现它（socket 仍仅属主可访问，所以客户端必须以与 treeland 实例相同的 Unix 用户身份、或以 **root** 身份运行，见访问控制）。基础名按构建类型区分：
+调试 Remote Object 把本地 socket 绑定在合成器 runtime 目录（`QStandardPaths::RuntimeLocation`，即 `$XDG_RUNTIME_DIR`）里的绝对路径上 —— 不是 `/tmp`：那里任何用户可写，且按 `$TMPDIR` 解析的路径在 `$TMPDIR` 不同的客户端眼里不可见。全局服务是 `/run/treeland/org.deepin.dde.treeland.debug`（`RuntimeDirectory=treeland`），会话模式是 `/run/user/<uid>/...`。目录由 Qt 负责创建与校验（0700、属主不符即拒绝），所以 socket 只对合成器用户与 root 可达（Release 构建额外 chmod 0000，仅 root）。客户端无法从自身环境得知合成器的 runtime 目录，因此按顺序探测：自己的 runtime 目录 → `/run/treeland` → 它能列出的每个 `/run/user/<uid>`（仅 root）。基础名按构建类型区分：
 
 - **Release 构建**：`org.deepin.dde.treeland.debug`
 - **Debug 构建**：`org.deepin.dde.treeland.debug-dev`

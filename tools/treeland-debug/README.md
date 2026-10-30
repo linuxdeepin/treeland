@@ -82,7 +82,10 @@ another one off.
   re-executed through `pkexec` (polkit), which prompts for authentication. Pass
   `--no-escalate` to skip the prompt and fail immediately instead (useful in
   scripts or CI).
-- **Debug builds** — all users may run `treeland-debug` without restriction.
+- **Debug builds** — `treeland-debug` does not restrict the caller, and the
+  socket is published with mode 0666. It still lives in the compositor's
+  runtime directory, which is private to the compositor's user (0700), so in
+  practice it is that user and `root` who can connect.
 
 A polkit policy (`misc/polkit/org.deepin.dde.treeland-debug.policy`) is
 installed alongside the executable so that the `pkexec` escalation works out of
@@ -92,7 +95,9 @@ receive an error explaining how to proceed.
 ## Global options
 
 ```
---url <url>          Remote object host URL (default: local:org.deepin.dde.treeland.debug)
+--url <url>          Remote object host URL (default: <runtime dir>/
+                     org.deepin.dde.treeland.debug, i.e.
+                     /run/treeland/... or /run/user/<uid>/...)
 --name <name>        Remote object name (default: WindowTree)
 --timeout-ms <n>     Request timeout in milliseconds (default: 30000)
 --json               Emit machine-readable JSON for `windows`/`clients`

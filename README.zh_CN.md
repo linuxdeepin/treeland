@@ -69,8 +69,9 @@ sudo cmake --install build --component treeland-debug
 调试 Remote Object 默认开启。`remoteDebug` 是它的总开关：开关为开时，Treeland 会
 发布调试 socket，并给连上来的客户端提供窗口树远程数据源——该数据源是个薄 QObject，
 只在每次调用时干活，没有客户端连着时不占资源。把开关关掉就完全禁止调试，socket 也会
-一起消失。Release 构建中 socket 只允许 root 连接（权限 0000），Debug 构建允许任意
-用户连接。
+一起消失。Release 构建中 socket 只允许 root 连接（权限 0000）；Debug 构建发布的是
+0666，但它位于合成器的 runtime 目录里，而该目录始终只归合成器用户（0700）——所以
+两种构建下实际能连的都是「合成器用户 + root」。
 
 `treeland-debug` 从不写这个选项，所以没有任何"会话状态"需要还原：崩溃、被
 `SIGKILL`、关终端都不会留下残留，且可以同时挂多个客户端。如果读不到 socket，要么
@@ -92,10 +93,16 @@ sudo -u dde -- dde-dconfig set \
 
 ### socket 命名与连接
 
-Treeland 在本地 socket 上发布调试源，默认名为 `org.deepin.dde.treeland.debug`
-（Qt 将其放在 `QDir::tempPath()`——通常是 `/tmp`，但受 `$TMPDIR` 影响——因此任何
-`XDG_RUNTIME_DIR` 下的客户端都能发现）。当该名称
-已被另一个正在运行的 treeland（全局服务、会话服务、本地构建）占用时，会自动追加数字
+Treeland 在本地 socket 上发布调试源，默认名为 `org.deepin.dde.treeland.debug`，绑定在
+合成器的 runtime 目录（`QStandardPaths::RuntimeLocation`，即 `$XDG_RUNTIME_DIR`）里的
+绝对路径上：全局服务为 `/run/treeland/org.deepin.dde.treeland.debug`
+（`RuntimeDirectory=treeland`），会话模式为 `/run/user/<uid>/org.deepin.dde.treeland.debug`。
+不再放在 `/tmp`：那里任何用户可写，且按 `$TMPDIR` 解析出的路径在 `$TMPDIR` 不同的客户端
+眼里不可见。该目录由 Qt 负责创建（0700、属主为合成器用户），属主不符时 Qt 会拒绝，因此
+socket 只对合成器用户与 root 可达。`treeland-debug` 客户端按顺序探测自己的 runtime 目录、
+全局服务的 `/run/treeland`、以及它能列出的每个 `/run/user/<uid>`（仅 root）—— 它无法
+从自身环境得知合成器的 runtime 目录。
+当该名称已被另一个正在运行的 treeland（全局服务、会话服务、本地构建）占用时，会自动追加数字
 后缀（`org.deepin.dde.treeland.debug-1`、`-2`…），通过非阻塞 advisory lock 选择
 （与 libwayland 选择 Wayland socket 的方式一致）。崩溃实例残留的 socket 文件会被
 回收，而无锁文件的旧版本实例会被探测并跳过。
@@ -103,7 +110,8 @@ Treeland 在本地 socket 上发布调试源，默认名为 `org.deepin.dde.tree
 Debug 构建使用不同的默认名（`org.deepin.dde.treeland.debug-dev`），因此调试版与正式版
 treeland 可同时运行。Debug 构建的 treeland-debug 客户端自动优先连接调试实例，连不上时
 回退到正式版实例；Release 构建的客户端连接正式版实例。显式传入 `--url` 始终优先，不做
-任何隐式处理。
+任何隐式处理 —— 它也是连接旧版 treeland 留在迁移前 `/tmp/<name>` 的 socket 的方式：
+`--url local:/tmp/org.deepin.dde.treeland.debug`。
 
 ### 全局选项
 

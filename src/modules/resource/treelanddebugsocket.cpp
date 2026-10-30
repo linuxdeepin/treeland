@@ -8,6 +8,7 @@
 #include <QFileInfo>
 #include <QLocalServer>
 #include <QLocalSocket>
+#include <QStandardPaths>
 
 #include <fcntl.h>
 #include <sys/file.h>
@@ -16,14 +17,68 @@
 
 #include <utility>
 
+namespace {
+
+// The runtime directory of this process, as QStandardPaths reports it
+// ($XDG_RUNTIME_DIR): "/run/treeland" for the global service (see
+// RuntimeDirectory= in misc/systemd/treeland.service.in) and
+// "/run/user/<uid>" for a session.  Qt creates it with mode 0700 owned by the
+// caller when missing and rejects one owned by somebody else, so the directory
+// itself is the privacy boundary.  When the variable is unset or unusable Qt
+// falls back to "$TMPDIR/runtime-<user>" -- that is /tmp again, which is what
+// this socket must stay out of, so such a fallback counts as "no runtime
+// directory".
+QString runtimeSocketDir()
+{
+    const QString dir = QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation);
+    if (dir.isEmpty() || !dir.startsWith(QLatin1Char('/')))
+        return {};
+    if (dir.startsWith(QDir::cleanPath(QDir::tempPath()) + QLatin1Char('/')))
+        return {};
+    return dir;
+}
+
+// "local:" + absolute socket path, the form both QRemoteObjectHost and a
+// client outside the compositor's runtime directory can resolve.
+QString socketUrl(const QString &dir, const QString &name)
+{
+    return QStringLiteral("local:%1/%2").arg(dir, name);
+}
+
+} // namespace
+
 QString treelandDebugDefaultSocketName()
 {
     return QStringLiteral(TREELAND_DEBUG_SOCKET);
 }
 
-QString treelandDebugDefaultSocketUrl()
+QString treelandDebugSocketDir()
 {
-    return QStringLiteral("local:") + treelandDebugDefaultSocketName();
+    return runtimeSocketDir();
+}
+
+QStringList treelandDebugSocketDirs()
+{
+    // A client knows only its own runtime directory, so it also probes the
+    // global service's one and -- when it may read them, which means root --
+    // every session directory under /run/user.  Entries are directories that
+    // may or may not hold a socket; nothing is created or probed here.
+    QStringList dirs;
+    const QString own = treelandDebugSocketDir();
+    if (!own.isEmpty())
+        dirs << own;
+    const QString globalDir = QStringLiteral("/run/treeland");
+    if (!dirs.contains(globalDir))
+        dirs << globalDir;
+    const QDir sessions(QStringLiteral("/run/user"));
+    const QStringList sessionIds = sessions.entryList(QDir::Dirs | QDir::NoDotAndDotDot,
+                                                      QDir::Name);
+    for (const QString &sessionId : sessionIds) {
+        const QString dir = sessions.filePath(sessionId);
+        if (!dirs.contains(dir))
+            dirs << dir;
+    }
+    return dirs;
 }
 
 QString treelandDebugReleaseSocketName()
@@ -31,13 +86,12 @@ QString treelandDebugReleaseSocketName()
     return QStringLiteral(TREELAND_DEBUG_SOCKET_RELEASE);
 }
 
-QString treelandDebugReleaseSocketUrl()
-{
-    return QStringLiteral("local:") + treelandDebugReleaseSocketName();
-}
-
 QString treelandDebugSocketPath(const QString &socketName)
 {
+    // A bare name can only come from a hand-written --url: our own URLs always
+    // carry the absolute path.  Qt resolves a bare server name against
+    // QDir::tempPath() (QLocalServerPrivate::fullServerName), so mirror that
+    // instead of inventing a second rule for the diagnostics below.
     if (socketName.startsWith(QLatin1Char('/')))
         return socketName;
     return QDir::cleanPath(QDir::tempPath()) + QLatin1Char('/') + socketName;
@@ -46,10 +100,21 @@ QString treelandDebugSocketPath(const QString &socketName)
 QStringList treelandDebugCandidateSocketUrls()
 {
 #ifdef TREELAND_DEBUG_DEV_BUILD
-    return { treelandDebugDefaultSocketUrl(), treelandDebugReleaseSocketUrl() };
+    const QStringList names{ treelandDebugDefaultSocketName(),
+                             treelandDebugReleaseSocketName() };
 #else
-    return { treelandDebugDefaultSocketUrl() };
+    const QStringList names{ treelandDebugDefaultSocketName() };
 #endif
+    const QStringList dirs = treelandDebugSocketDirs();
+
+    QStringList urls;
+    // Name-major: the debug instance in every directory is preferred over the
+    // release instance, whichever directory each of them ended up using.
+    for (const QString &name : names) {
+        for (const QString &dir : dirs)
+            urls << socketUrl(dir, name);
+    }
+    return urls;
 }
 
 // ── TreelandDebugSocketLock ──────────────────────────────────────────────
@@ -152,8 +217,10 @@ TreelandDebugSocketLock &TreelandDebugSocketLock::operator=(TreelandDebugSocketL
 bool TreelandDebugSocketLock::tryAcquire(const QString &socketName)
 {
     release();
-    // Resolve the full path Qt would use, so the lock file sits next to the
-    // socket.  QLocalServerPrivate::fullServerName does the same.
+    // Resolve the full path so the lock file sits next to the socket, and use
+    // that path for every Qt call below: a bare name would be resolved by
+    // QLocalServer/QLocalSocket against the process' temp dir, not the socket
+    // directory.
     const QString fullPath = treelandDebugSocketPath(socketName);
     m_lockPath = QFile::encodeName(fullPath + QStringLiteral(".lock"));
     m_fd = ::open(m_lockPath.constData(), O_CREAT | O_CLOEXEC | O_RDWR,
@@ -176,11 +243,11 @@ bool TreelandDebugSocketLock::tryAcquire(const QString &socketName)
     // a suffixed name.  A stale file left by a crash (no live server) is still
     // reclaimed.  For local (AF_UNIX) sockets the connect completes
     // synchronously, so this probe returns immediately.
-    if (socketIsLive(socketName)) {
+    if (socketIsLive(fullPath)) {
         release();
         return false;
     }
-    QLocalServer::removeServer(socketName);
+    QLocalServer::removeServer(fullPath);
     return true;
 }
 
@@ -207,6 +274,11 @@ QString treelandDebugPickFreeSocketName(
     TreelandDebugSocketLock &lock,
     const QString &base)
 {
+    // @p base is the absolute socket path from the caller; a bare name here
+    // would be resolved by Qt against the temp dir, so it is not supported.
+    if (!base.startsWith(QLatin1Char('/')))
+        return {};
+
     lock.release();
     for (int i = 0; i < 100; ++i) {
         const QString candidate = (i == 0)
