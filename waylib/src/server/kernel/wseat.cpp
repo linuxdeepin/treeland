@@ -1269,6 +1269,18 @@ void WSeat::setKeyboard(WInputDevice *newKeyboard)
         return;
     Q_ASSERT(newKeyboard->handle()->type == WLR_INPUT_DEVICE_KEYBOARD);
     wlr_seat_set_keyboard(d->handle(), wlr_keyboard_from_input_device(newKeyboard->handle()));
+    // wlr_seat_set_keyboard() pushes the new keyboard's modifier state to the
+    // focused client. A virtual keyboard carries the IME's state, not the
+    // user's, so an IME attaching one while Ctrl is held would make the client
+    // drop the held modifier without any key event. Re-send the physical state
+    // so pointer combos such as Ctrl+click keep working.
+    if (newKeyboard->isVirtual() && d->groupkeyboardDevice) {
+        auto *groupKeyboard = wlr_keyboard_from_input_device(d->groupkeyboardDevice->handle());
+        const auto &modifiers = groupKeyboard->modifiers;
+        // Nothing held: the empty state set_keyboard() just sent is already right.
+        if (modifiers.depressed || modifiers.latched || modifiers.locked)
+            wlr_seat_keyboard_send_modifiers(d->handle(), &modifiers);
+    }
     Q_EMIT this->keyboardChanged();
 }
 
