@@ -8,6 +8,7 @@
 #include <wscoplistener.h>
 #include <QQuickItem>
 #include <QMap>
+#include <QPointer>
 
 class QTimer;
 
@@ -87,6 +88,9 @@ private:
 
     // Popup grab state
     bool m_hasPopupGrab = false;
+    // Keyboard focus when the grab began; the surface to return it to once the
+    // popup closes.
+    QPointer<SurfaceWrapper> m_popupRestoreFocusTarget;
     QTimer *m_edgeTileDelayTimer = nullptr;
 
     bool m_resizeClampActive = false;
