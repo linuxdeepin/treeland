@@ -8,6 +8,7 @@
 #include <wscoplistener.h>
 #include <QQuickItem>
 #include <QMap>
+#include <QPointer>
 
 class QTimer;
 
@@ -75,6 +76,7 @@ private:
     void onActivatedSurfaceFocusCapabilityChanged();
     void onKeyboardGrabBegin();
     void onKeyboardGrabEnd();
+    bool isInCurrentPopupChain(SurfaceWrapper *surface) const;
 
     WSeat *m_seat = nullptr;
     RootSurfaceContainer *m_rootContainer = nullptr;
@@ -87,6 +89,14 @@ private:
 
     // Popup grab state
     bool m_hasPopupGrab = false;
+    // Only the first popup may record its parent, unless focus or activation changes first.
+    bool m_canRecordPopupParent = false;
+    // Another surface has received keyboard focus; grab end must leave it alone.
+    bool m_skipPopupFocusRestore = false;
+    // Anchor used to recognize this popup and its submenus.
+    QPointer<SurfaceWrapper> m_firstPopupInGrab;
+    // Eligible parent of the first popup; activation changes invalidate it.
+    QPointer<SurfaceWrapper> m_popupFocusRestoreTarget;
     QTimer *m_edgeTileDelayTimer = nullptr;
 
     bool m_resizeClampActive = false;
