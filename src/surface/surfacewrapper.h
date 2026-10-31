@@ -523,6 +523,8 @@ private:
     void updateActivateCapability();
     void updateFocusCapability();
     void completeSplashTransition(const QSizeF &targetImplicitSize, bool hideDecoration = false);
+    void requestPrelaunchXWaylandStackSync();
+    void syncPrelaunchXWaylandStacking();
 
     // wayland set by treeland-dde-shell, x11 set by bypassManager/windowTypes
     void setSkipDockPreView(bool skip);
@@ -635,6 +637,7 @@ private:
 
     QPointer<WSeat> m_pendingActivationSeat;
     std::unique_ptr<SurfaceWindowTransition> m_windowTransition;
+    bool m_pendingPrelaunchXWaylandStackSync{ false };
     const QString m_appId;
 };
 
