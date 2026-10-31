@@ -6,6 +6,7 @@
 #include <wglobal.h>
 #include <WOutput>
 #include <QQuickItem>
+#include <QAtomicInt>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -23,6 +24,10 @@ public:
     explicit WRenderBufferBlitter(QQuickItem *parent = nullptr);
     ~WRenderBufferBlitter();
 
+    // Number of live items. Lets the per-frame scene walk in
+    // WBufferRenderer short-circuit when no blitter exists anywhere.
+    static int liveCount() { return s_liveCount.loadRelaxed(); }
+
     QQuickItem *content() const;
 
     bool offscreen() const;
@@ -35,6 +40,8 @@ private Q_SLOTS:
     void invalidateSceneGraph();
 
 private:
+    static QAtomicInt s_liveCount;
+
     QSGNode *updatePaintNode(QSGNode *, UpdatePaintNodeData *) override;
     void itemChange(ItemChange, const ItemChangeData &) override;
     void geometryChange(const QRectF &newGeometry, const QRectF &oldGeometry) override;

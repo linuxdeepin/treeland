@@ -16,9 +16,12 @@
 #include <QQuickRenderTarget>
 #include <private/qsgrenderer_p.h>
 
+#include <optional>
+
 Q_MOC_INCLUDE(<private/qsgplaintexture_p.h>)
 
 QT_BEGIN_NAMESPACE
+class QRhiRenderTarget;
 class QSGPlainTexture;
 class QSGRenderContext;
 namespace QSGBatchRenderer {
@@ -30,6 +33,14 @@ struct pixman_region32;
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
 class WSGTextureProvider;
+
+// Results of one scene-graph walk over a render source. Both the Vulkan
+// backdrop decision in beginRender() and the texture-sampling preparation in
+// render() need the same traversal, so it runs once per source per pass.
+struct WActiveSourceItems {
+    QVector<WSGTextureProvider *> textureProviders;
+    bool hasRenderBufferBlitter = false;
+};
 class WAYLIB_SERVER_EXPORT WBufferRenderer : public QQuickItem
 {
     friend class WOutputRenderWindow;
@@ -72,6 +83,7 @@ public:
     wlr_buffer *currentBuffer() const;
     wlr_buffer *lastBuffer() const;
     QRhiTexture *currentRenderTarget() const;
+    QRhiRenderTarget *currentVulkanBackdropResumeTarget() const;
     bool isColorPreserved() const;
     const wlr_damage_ring *damageRing() const;
     wlr_damage_ring *damageRing();
@@ -94,8 +106,9 @@ protected:
     wlr_buffer *beginRender(const QSize &pixelSize, qreal devicePixelRatio,
                             uint32_t format, RenderFlags flags = {},
                             WGlobal::ColorContentsMode mode = WGlobal::ColorContentsMode::DontCare);
-    void render(int sourceIndex, const QMatrix4x4 &renderMatrix,
-                const QRectF &sourceRect = {}, const QRectF &targetRect = {});
+    bool render(int sourceIndex, const QMatrix4x4 &renderMatrix,
+                const QRectF &sourceRect = {}, const QRectF &targetRect = {},
+                std::optional<bool> preserveColorContents = std::nullopt);
     void endRender();
     void componentComplete() override;
 
@@ -114,6 +127,9 @@ private:
     Q_SLOT void invalidateSceneGraph();
     void releaseResources() override;
     void cleanTextureProvider();
+    bool isPrimaryOutputRendererForVulkan() const;
+    void retireSwapchain(wlr_swapchain *swapchain, bool defer);
+    void cleanupRetiredResources(bool force = false);
 
     inline bool isRootItem(const QQuickItem *source) const {
         return nullptr == source;
@@ -127,6 +143,7 @@ private:
     WUniquePointer<wlr_swapchain> m_swapchain;
     WRenderHelper *m_renderHelper = nullptr;
     WPointer<wlr_buffer> m_lastBuffer;
+    QList<wlr_swapchain *> m_retiredSwapchains;
 
     struct RenderState {
         RenderFlags flags;
@@ -140,7 +157,16 @@ private:
         WBufferUnlockPtr buffer;
         WRenderHelper::RenderTarget renderTarget;
         QSGRenderTarget sgRenderTarget;
+        QQuickRenderTarget preserveRenderTarget;
+        QSGRenderTarget preserveSgRenderTarget;
+        QQuickRenderTarget vulkanBackdropResumeRenderTarget;
+        QSGRenderTarget vulkanBackdropResumeSgRenderTarget;
+        QSGRenderTarget activeSgRenderTarget;
+        // One entry per WBufferRenderer source, filled by beginRender().
+        QList<WActiveSourceItems> activeSourceItems;
         QRegion dirty;
+        bool vulkanBackdropActive = false;
+        bool renderBufferReleasedForCache = false;
     } state;
 
     QPointer<WOutput> m_output;

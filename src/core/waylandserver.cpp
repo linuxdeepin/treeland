@@ -59,6 +59,7 @@
 #include "wallpapershellinterfacev1.h"
 #include "workspace/workspace.h"
 
+#include <drm_fourcc.h>
 #include <xcb/xcb.h>
 #include <xcb/xproto.h>
 
@@ -67,6 +68,8 @@
 #include <wremotesubsurfacemanagerv1.h>
 #include <wrenderhelper.h>
 #include <WOutput>
+#include <WLinuxDmabufV1>
+#include <WPresentation>
 #include <WServer>
 #include <WXdgOutput>
 #include <wayland-util.h>
@@ -467,12 +470,39 @@ void WaylandServer::initializeRendering()
         qCFatal(lcTlCore) << "Failed to create allocator";
     }
 
-    if (!wlr_renderer_init_wl_display(m_renderer.get(), m_server->handle())) {
-        qCFatal(lcTlCore) << "Failed to initialize renderer wl_display";
-    }
+    const bool vulkanRenderer =
+        WRenderHelper::getGraphicsApi() == QSGRendererInterface::Vulkan;
+    if (vulkanRenderer) {
+        // Restrict the advertised texture formats to the ones the Qt wrapper
+        // can display before wl_shm and linux-dmabuf hand them to clients.
+        // XWayland picks buffer formats from the X visual depth instead and
+        // is covered by the exact view seeding in the texture wrapper.
+        if (!WRenderHelper::restrictVulkanTextureFormats(m_renderer.get()))
+            qCWarning(lcTlCore) << "Continuing with the unfiltered Vulkan texture format set";
 
-    if (!wlr_drm_create(m_server->handle(), m_renderer.get())) {
-        qCCritical(lcTlCore) << "Failed to create DRM lease manager";
+        if (!wlr_renderer_init_wl_shm(m_renderer.get(), m_server->handle()))
+            qCFatal(lcTlCore) << "Failed to initialize wl_shm for Vulkan renderer";
+
+        m_server->attach<WLinuxDmabufV1>(m_renderer.get());
+        auto *presentation = m_server->attach<WPresentation>(m_backend->handle());
+        m_renderWindow->setPresentation(presentation);
+
+        // The legacy wl_drm global only advertises implicit-modifier
+        // (DRM_FORMAT_MOD_INVALID) buffers. The Vulkan renderer's dmabuf
+        // format set is built exclusively from VkDrmFormatModifierProperties,
+        // so it never contains the implicit modifier and wl_drm could never
+        // hand out a usable buffer. Skip it unconditionally instead of testing
+        // a condition that cannot hold; XWayland uses the linux-dmabuf DRI3
+        // path with this renderer.
+        qCInfo(lcTlCore) << "Skipping legacy wl_drm global: the Vulkan renderer "
+                            "only supports explicit DMA-BUF modifiers";
+    } else {
+        if (!wlr_renderer_init_wl_display(m_renderer.get(), m_server->handle())) {
+            qCFatal(lcTlCore) << "Failed to initialize renderer wl_display";
+        }
+        if (!wlr_drm_create(m_server->handle(), m_renderer.get())) {
+            qCCritical(lcTlCore) << "Failed to create DRM lease manager";
+        }
     }
 
     m_compositor = wlr_compositor_create(m_server->handle(), 6, m_renderer.get());

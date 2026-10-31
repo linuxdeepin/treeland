@@ -476,19 +476,27 @@ static bool render_pass_submit(struct wlr_render_pass *wlr_pass) {
 			.oldLayout = blend_src_layout,
 			.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
 			.srcAccessMask = VK_ACCESS_SHADER_READ_BIT,
-			.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+			.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT |
+				VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
 			.subresourceRange = {
 				.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
 				.layerCount = 1,
 				.levelCount = 1,
 			},
 		};
+		// The blend attachment is loaded (LOAD_OP_LOAD), so the read side of
+		// the load needs an explicit dependency too.
 		vkCmdPipelineBarrier(stage_cb->vk, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
 			VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
 			0, 0, NULL, 0, NULL, 1, &blend_acq_barrier);
 	}
 
-	// acquire render buffer before rendering
+	// Acquire/release the render buffer around this pass. The buffer may be
+	// shared with the compositor's Qt path, which samples it (shader read) and
+	// renders into it, so both scopes must cover every access the renderer can
+	// make rather than only the render-pass color-attachment use. Restricting
+	// them hides earlier fragment-shader reads from this transfer and makes the
+	// store report SYNC-HAZARD-WRITE-AFTER-WRITE.
 	acquire_barriers[idx] = (VkImageMemoryBarrier){
 		.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
 		.srcQueueFamilyIndex = VK_QUEUE_FAMILY_FOREIGN_EXT,
@@ -496,9 +504,8 @@ static bool render_pass_submit(struct wlr_render_pass *wlr_pass) {
 		.image = render_buffer->image,
 		.oldLayout = src_layout,
 		.newLayout = VK_IMAGE_LAYOUT_GENERAL,
-		.srcAccessMask = 0, // ignored anyways
-		.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT |
-			VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+		.srcAccessMask = 0, // ignored for a foreign acquire
+		.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT,
 		.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
 		.subresourceRange.layerCount = 1,
 		.subresourceRange.levelCount = 1,
@@ -512,9 +519,8 @@ static bool render_pass_submit(struct wlr_render_pass *wlr_pass) {
 		.image = render_buffer->image,
 		.oldLayout = VK_IMAGE_LAYOUT_GENERAL,
 		.newLayout = VK_IMAGE_LAYOUT_GENERAL,
-		.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT |
-			VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-		.dstAccessMask = 0, // ignored anyways
+		.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT,
+		.dstAccessMask = 0, // ignored for a foreign release
 		.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
 		.subresourceRange.layerCount = 1,
 		.subresourceRange.levelCount = 1,
@@ -522,11 +528,16 @@ static bool render_pass_submit(struct wlr_render_pass *wlr_pass) {
 
 	++idx;
 
+	// The acquire's first scope is empty (a foreign acquire takes its source
+	// scope from the foreign release), so previous accesses made by this
+	// device - the compositor sampling the same buffer through its own Qt
+	// command buffer - are only covered because the second scope names every
+	// later access at every stage.
 	vkCmdPipelineBarrier(stage_cb->vk, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-		VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+		VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
 		0, 0, NULL, 0, NULL, barrier_count, acquire_barriers);
 
-	vkCmdPipelineBarrier(render_cb->vk, VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
+	vkCmdPipelineBarrier(render_cb->vk, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
 		VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, NULL, 0, NULL,
 		barrier_count, release_barriers);
 
@@ -1234,8 +1245,21 @@ struct wlr_vk_render_pass *vulkan_begin_render_pass(struct wlr_vk_renderer *rend
 	}
 
 	bool using_linear_pathway = inv_eotf == WLR_COLOR_TRANSFER_FUNCTION_EXT_LINEAR;
-	bool using_srgb_pathway = inv_eotf == WLR_COLOR_TRANSFER_FUNCTION_SRGB &&
-		buffer->srgb.out.framebuffer != VK_NULL_HANDLE;
+	// The sRGB output needs an _SRGB image view aliasing the imported image, so
+	// it is only possible when the image was created with
+	// VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT. The framebuffer itself is created on
+	// first use, exactly like the linear and two-pass outputs below.
+	bool using_srgb_pathway = false;
+	if (inv_eotf == WLR_COLOR_TRANSFER_FUNCTION_SRGB && buffer->using_mutable_srgb) {
+		if (buffer->srgb.out.framebuffer == VK_NULL_HANDLE) {
+			struct wlr_dmabuf_attributes attribs;
+			wlr_buffer_get_dmabuf(buffer->wlr_buffer, &attribs);
+			if (!vulkan_setup_one_pass_framebuffer(buffer, &attribs, true)) {
+				wlr_log(WLR_ERROR, "Failed to set up sRGB framebuffer");
+			}
+		}
+		using_srgb_pathway = buffer->srgb.out.framebuffer != VK_NULL_HANDLE;
+	}
 	bool using_two_pass_pathway = !using_linear_pathway && !using_srgb_pathway;
 
 	if (using_linear_pathway && !buffer->linear.out.image_view) {

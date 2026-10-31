@@ -5,6 +5,7 @@
 
 #include <wlr_fwd.h>
 #include <wglobal.h>
+
 #include <QImage>
 #include <QString>
 
@@ -19,7 +20,8 @@ public:
         TextureCreationFailed,
         TextureReadFailed,
         UnsupportedFormat,
-        SaveFailed
+        SaveFailed,
+        ReadbackSyncFailed
     };
 
     static DumpResult dumpBufferToFile(wlr_buffer *buffer,
