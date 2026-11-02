@@ -59,6 +59,7 @@ private Q_SLOTS:
     void testSocketCandidateUrls();
     void testSocketPathMatchesQt();
     void testSocketPathForUrl();
+    void testSocketUrlFromEnv();
     void testSocketPublished();
     void testPublishedSocketPaths();
 
@@ -335,7 +336,7 @@ void TreelandDebugTest::testSocketDefaultPath()
     const QString name = treelandDebugDefaultSocketName();
     QVERIFY(!name.isEmpty());
     const QString path = dir + QLatin1Char('/') + name;
-    QVERIFY(!path.startsWith(QDir::cleanPath(QDir::tempPath()) + QLatin1Char('/')));
+    QCOMPARE(QFileInfo(path).absolutePath(), dir);
     QCOMPARE(treelandDebugSocketPath(path), path);
     QCOMPARE(treelandDebugSocketPathForUrl(QStringLiteral("local:") + path), path);
 }
@@ -352,6 +353,15 @@ void TreelandDebugTest::testSocketDirs()
     QCOMPARE(dirs.size(), QSet<QString>(dirs.begin(), dirs.end()).size());
     for (const QString &dir : dirs)
         QVERIFY(dir.startsWith(QLatin1Char('/')));
+
+    // QStandardPaths substitutes "$TMPDIR/runtime-<user>" when the variable is
+    // unusable; publishing there would put the socket back in /tmp, so it is
+    // treated as "no runtime directory" instead.
+    const QByteArray saved = qgetenv("XDG_RUNTIME_DIR");
+    qunsetenv("XDG_RUNTIME_DIR");
+    QVERIFY(treelandDebugSocketDir().isEmpty());
+    QVERIFY(qputenv("XDG_RUNTIME_DIR", saved));
+    QCOMPARE(treelandDebugSocketDir(), saved);
 }
 
 void TreelandDebugTest::testSocketPickFreeName()
@@ -487,6 +497,34 @@ void TreelandDebugTest::testSocketPathForUrl()
              QStringLiteral("/run/foo.debug"));
     QVERIFY(treelandDebugSocketPathForUrl(QStringLiteral("tcp://127.0.0.1:1234")).isEmpty());
     QVERIFY(treelandDebugSocketPathForUrl(QStringLiteral("local:")).isEmpty());
+}
+
+void TreelandDebugTest::testSocketUrlFromEnv()
+{
+    // $TREELAND_DEBUG_SOCKET lets a caller name the socket without a flag (the
+    // flag itself wins, the probing below is the last resort): a plain path or a
+    // bare name means a local socket, anything with a scheme is used verbatim.
+    const QByteArray saved = qgetenv("TREELAND_DEBUG_SOCKET");
+    qunsetenv("TREELAND_DEBUG_SOCKET");
+    QVERIFY(treelandDebugSocketUrlFromEnv().isEmpty());
+
+    const QString path = treelandDebugSocketDir() + QStringLiteral("/env.sock");
+    QVERIFY(qputenv("TREELAND_DEBUG_SOCKET", path.toLocal8Bit()));
+    QCOMPARE(treelandDebugSocketUrlFromEnv(), QStringLiteral("local:") + path);
+
+    QVERIFY(qputenv("TREELAND_DEBUG_SOCKET", "env.sock"));
+    QCOMPARE(treelandDebugSocketUrlFromEnv(), QStringLiteral("local:env.sock"));
+
+    QVERIFY(qputenv("TREELAND_DEBUG_SOCKET", "local:env.sock"));
+    QCOMPARE(treelandDebugSocketUrlFromEnv(), QStringLiteral("local:env.sock"));
+
+    QVERIFY(qputenv("TREELAND_DEBUG_SOCKET", "tcp://127.0.0.1:1234"));
+    QCOMPARE(treelandDebugSocketUrlFromEnv(), QStringLiteral("tcp://127.0.0.1:1234"));
+
+    if (saved.isEmpty())
+        qunsetenv("TREELAND_DEBUG_SOCKET");
+    else
+        qputenv("TREELAND_DEBUG_SOCKET", saved);
 }
 
 void TreelandDebugTest::testSocketPublished()

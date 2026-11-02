@@ -128,16 +128,19 @@ Debug builds use a distinct base name (`org.deepin.dde.treeland.debug-dev`)
 so a debug-compiled treeland can run alongside a release one. A debug-built
 treeland-debug client automatically prefers the debug instance and falls back
 to the release instance when the debug one is unreachable; a release-built
-client uses the release instance. An explicit `--url` always overrides this
-with no implicit processing -- that is also the way to reach a socket published
-by an older treeland, which still lives at the pre-migration
-`/tmp/<name>` path: `--url local:/tmp/org.deepin.dde.treeland.debug`.
+client uses the release instance. The socket is chosen in this order: `--url`,
+then `$TREELAND_DEBUG_SOCKET` (a socket path or a bare name, treated like
+`local:<value>`; a value with a scheme is used as-is), then the probing above.
+An explicit URL always overrides this with no implicit processing -- that is
+also the way to reach a socket published by an older treeland, which still
+lives at the pre-migration `/tmp/<name>` path:
+`--url local:/tmp/org.deepin.dde.treeland.debug`.
 
 ### Global options
 
 | Option | Default | Description |
 | --- | --- | --- |
-| `--url <url>` | auto: debug socket (debug build) with release fallback, else release socket | Remote object host URL. |
+| `--url <url>` | `$TREELAND_DEBUG_SOCKET`, else auto: debug socket (debug build) with release fallback, else release socket | Remote object host URL. |
 | `--name <name>` | `WindowTree` | Remote object name. |
 | `--timeout-ms <n>` | `30000` | Request timeout in ms (non-negative integer). |
 | `--json` | off | Emit machine-readable JSON for `tree`/`cursor`/`windows`/`clients`. |
