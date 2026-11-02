@@ -765,7 +765,7 @@ void SurfaceWrapper::startPrelaunchSplashHideSequence()
                                     << "targetImplicit=" << targetImplicitSize;
     }
 
-    const bool needImplicitSizeTransition = hasValidTargetImplicitSize && (container() != nullptr)
+    const bool needImplicitSizeTransition = m_renderingEnabled && hasValidTargetImplicitSize && (container() != nullptr)
         && (!qFuzzyCompare(implicitWidth() + 1.0, targetImplicitSize.width() + 1.0)
             || !qFuzzyCompare(implicitHeight() + 1.0, targetImplicitSize.height() + 1.0));
 
@@ -1719,6 +1719,8 @@ void SurfaceWrapper::tryFlushPendingActivation()
 
 void SurfaceWrapper::startWindowTransition()
 {
+    if (!m_renderingEnabled)
+        return;
     if (!m_windowTransition->active()) {
         m_windowTransitionPending = false;
         if (m_windowAnimation) {
@@ -1770,7 +1772,7 @@ void SurfaceWrapper::finishWindowTransitionOpen()
     m_windowTransitionPending = false;
     // The surface may have unmapped while we were waiting. Drop the
     // component we created above so it does not block a later close path.
-    if (m_wrapperAboutToRemove || !surface() || !surface()->mapped()) {
+    if (!m_renderingEnabled || m_wrapperAboutToRemove || !surface() || !surface()->mapped()) {
         if (m_windowAnimation) {
             m_windowAnimation->deleteLater();
             m_windowAnimation = nullptr;
@@ -1801,6 +1803,8 @@ void SurfaceWrapper::finishWindowTransitionOpen()
 
 void SurfaceWrapper::startWindowCloseTransition()
 {
+    if (!m_renderingEnabled)
+        return;
     Q_ASSERT(m_windowTransition->active());
 
     auto globalRectOpt = m_windowTransition->globalRect();
@@ -1844,6 +1848,8 @@ void SurfaceWrapper::beginWindowTransition(int direction,
 
 void SurfaceWrapper::createNewOrClose(uint direction)
 {
+    if (!m_renderingEnabled)
+        return;
     if (!m_windowAnimationEnabled)
         return;
 
@@ -2020,6 +2026,8 @@ void SurfaceWrapper::onAnimationFinished()
 
 bool SurfaceWrapper::startStateChangeAnimation(const QRectF &targetGeometry)
 {
+    if (!m_renderingEnabled)
+        return false;
     if (m_geometryAnimation) // animation running
         return false;
 
@@ -2145,6 +2153,8 @@ void SurfaceWrapper::onMinimizeAnimationFinished()
 
 void SurfaceWrapper::startMinimizeAnimation(const QRectF &iconGeometry, uint direction)
 {
+    if (!m_renderingEnabled)
+        return;
     if (m_minimizeAnimation) {
         m_minimizeAnimation->setProperty("direction", direction);
         m_minimizeAnimation->setProperty("position", QVariant::fromValue(iconGeometry));
@@ -2196,6 +2206,11 @@ void SurfaceWrapper::onShowDesktopAnimationFinished()
 
 void SurfaceWrapper::startShowDesktopAnimation(bool show)
 {
+    if (!m_renderingEnabled) {
+        setHideByShowDesk(show);
+        updateVisible();
+        return;
+    }
 
     if (m_showDesktopAnimation) {
         m_showDesktopAnimation->disconnect(this);
