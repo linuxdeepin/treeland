@@ -14,7 +14,6 @@ Q_MOC_INCLUDE("workspace/workspace.h")
 class WorkspaceModel : public SurfaceListModel
 {
     friend class Workspace;
-Q_MOC_INCLUDE("workspace/workspace.h")
     friend class MultitaskviewSurfaceModel;
     Q_OBJECT
     Q_PROPERTY(Workspace *workspaceManager READ workspaceManager CONSTANT FINAL)
