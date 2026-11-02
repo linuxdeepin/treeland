@@ -34,6 +34,7 @@ public:
                                      WAYLIB_SERVER_NAMESPACE::WInputMethodHelper *inputMethodHelper,
                                      QObject *parent = nullptr);
 
+    void setInputMethodHelper(WAYLIB_SERVER_NAMESPACE::WInputMethodHelper *helper);
 #ifndef DISABLE_XWAYLAND
     void setupXWayland(WAYLIB_SERVER_NAMESPACE::WXWayland *xwayland);
 #endif
@@ -64,7 +65,7 @@ private:
 #endif
 
     ShellHandler *m_shellHandler;
-    WAYLIB_SERVER_NAMESPACE::WInputMethodHelper *m_inputMethodHelper;
+    QPointer<WAYLIB_SERVER_NAMESPACE::WInputMethodHelper> m_inputMethodHelper;
 #ifndef DISABLE_XWAYLAND
     QPointer<WAYLIB_SERVER_NAMESPACE::WXWayland> m_xwayland;
     xcb_atom_t m_imCandidatePanelAtom = XCB_ATOM_NONE;
