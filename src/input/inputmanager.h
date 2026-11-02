@@ -25,6 +25,10 @@ public:
     static void setNumLockForDevice(WInputDevice *device, bool enabled);
 
     void setupSeatUserConfig(const QString &userName);
+    void refresh();
+
+Q_SIGNALS:
+    void settingsChanged(WSeat *seat);
 
 public Q_SLOTS:
     void onMouseSettingsCreated(MouseSettingsInterfaceV1 *interface);
