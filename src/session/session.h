@@ -10,6 +10,7 @@
 #endif
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
+class WClient;
 class WSocket;
 #ifndef DISABLE_XWAYLAND
 class WXWayland;
@@ -36,6 +37,7 @@ public:
     WXWayland *xwayland() const;
     quint32 noTitlebarAtom() const;
 #endif
+    bool ownsClient(WClient *client) const;
 
 Q_SIGNALS:
     void aboutToBeDestroyed();
