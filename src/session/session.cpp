@@ -400,7 +400,8 @@ std::shared_ptr<Session> SessionManager::ensureSession(const QString &id, QStrin
     if (!session->m_socket)
         return nullptr;
 
-    if (!m_wallpaperLauncher) {
+    // Protocol tests and headless runs have no use for the wallpaper producer.
+    if (!m_wallpaperLauncher && !qEnvironmentVariableIsSet("TREELAND_DISABLE_WALLPAPER")) {
         m_wallpaperLauncher = new WallpaperLauncher(session->socket()->rootSocket());
         m_wallpaperLauncher->start();
     }

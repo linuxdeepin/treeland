@@ -206,6 +206,9 @@ int main(int argc, char *argv[])
     // QML resources use stable qrc URLs, so a stale user disk cache can be
     // reused after rebuilding a plugin and make protocol tests run old QML.
     qputenv("QML_DISABLE_DISK_CACHE", "1");
+    // The compositor exits via std::_Exit(), so no destructor would ever stop a
+    // wallpaper factory child; simply do not start one.
+    qputenv("TREELAND_DISABLE_WALLPAPER", "1");
     if (protocol_test_preflight && !protocol_test_preflight()) {
         std::fflush(nullptr);
         std::_Exit(77);
