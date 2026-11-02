@@ -1,16 +1,26 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
+#include <utility>
 #include "togglablegesture.h"
 
 #include "input/gesturemanager.h"
 
-TogglableGesture::TogglableGesture(QObject *parent)
+TogglableGesture::TogglableGesture(QObject *parent, GestureManager *gestures)
     : QObject(parent)
+    , m_gestureManager(gestures ? gestures : GestureManager::instance())
 {
 }
 
-TogglableGesture::~TogglableGesture() { }
+TogglableGesture::~TogglableGesture()
+{
+    for (auto *gesture : std::as_const(m_registeredGestures)) {
+        if (auto *swipe = qobject_cast<SwipeGesture *>(gesture))
+            m_gestureManager->unregisterTouchpadSwipe(swipe);
+        else if (auto *hold = qobject_cast<HoldGesture *>(gesture))
+            m_gestureManager->unregisterTouchpadHold(hold);
+    }
+}
 
 bool TogglableGesture::inProgress() const
 {
@@ -172,17 +182,17 @@ void TogglableGesture::addTouchpadSwipeGesture(SwipeGesture::Direction direction
     if (direction == SwipeGesture::Invalid)
         return;
 
-    GestureManager::instance()->registerTouchpadSwipe(
+    m_registeredGestures.append(m_gestureManager->registerTouchpadSwipe(
         SwipeFeedBack{ direction,
                        finger,
                        this->activeTriggeredCallback(),
-                       this->progressCallback() });
+                       this->progressCallback() }));
 
-    GestureManager::instance()->registerTouchpadSwipe(
+    m_registeredGestures.append(m_gestureManager->registerTouchpadSwipe(
         SwipeFeedBack{ SwipeGesture::opposite(direction),
                        finger,
                        this->deactivateTriggeredCallback(),
-                       this->regressCallback() });
+                       this->regressCallback() }));
 }
 
 void TogglableGesture::addTouchpadHoldGesture(uint finger)
@@ -195,5 +205,5 @@ void TogglableGesture::addTouchpadHoldGesture(uint finger)
         Q_EMIT hold();
     };
 
-    GestureManager::instance()->registerTouchpadHold(HoldFeedBack{ finger, trigger, pressed });
+    m_registeredGestures.append(m_gestureManager->registerTouchpadHold(HoldFeedBack{ finger, trigger, pressed }));
 }
