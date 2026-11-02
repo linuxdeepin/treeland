@@ -21,6 +21,7 @@ WAYLIB_SERVER_END_NAMESPACE
 
 WAYLIB_SERVER_USE_NAMESPACE
 
+class TreelandUserConfig;
 #ifndef DISABLE_XWAYLAND
 class SettingManager;
 #endif
@@ -43,6 +44,7 @@ public:
 #endif
     bool isActive() const;
     bool ownsClient(WClient *client) const;
+    TreelandUserConfig *config() const;
     void attachInterface(WServerInterface *interface);
     void detachInterface(WServerInterface *interface);
 
@@ -61,6 +63,7 @@ private:
     QString m_id;
     uid_t m_uid = 0;
     QString m_username = {};
+    TreelandUserConfig *m_config = nullptr;
     QList<WServerInterface *> m_interfaces;
     WSocket *m_socket = nullptr;
 #ifndef DISABLE_XWAYLAND
