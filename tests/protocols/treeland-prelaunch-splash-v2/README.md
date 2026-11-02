@@ -13,6 +13,8 @@
 | 创建 splash | 用空 icon 和真实 `wl_shm` icon buffer 创建 | 生产 handler 每次均发出请求，并保留 app/instance/icon 信息 |
 | 同 app | 用相同 app-id 再创建 | 请求不会被错误去重 |
 | 关闭 | 销毁 splash 资源 | 生产 close 请求携带对应 app-id 与 instance-id |
+| 单例绑定 | 已有客户端持有时，第二个客户端 bind manager | 第二个客户端收到 `binding_rejected` 协议错误并被断开；原绑定不受影响，仍可继续创建 splash |
+| 绑定释放 | 持有绑定的客户端销毁 manager 后，另一客户端 bind | 绑定成功 |
 
 ## 已证明的生产链路（E）
 

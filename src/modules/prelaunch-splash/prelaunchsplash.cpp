@@ -83,6 +83,27 @@ protected:
         wl_resource_destroy(resource->handle);
     }
 
+    void bind_resource(Resource *resource) override
+    {
+        if (m_boundClient && m_boundClient != resource->client()) {
+            qCWarning(lcTlPrelaunchSplash)
+                << "Rejecting prelaunch splash manager bind: already bound by another client";
+            wl_resource_post_error(resource->handle,
+                                   TREELAND_PRELAUNCH_SPLASH_MANAGER_V2_ERROR_BINDING_REJECTED,
+                                   "treeland_prelaunch_splash_manager_v2 is already bound");
+            return;
+        }
+
+        m_boundClient = resource->client();
+    }
+
+    void destroy_resource(Resource *resource) override
+    {
+        // Released when the bound client destroys its last manager object or disconnects.
+        if (resource->client() == m_boundClient && !resourceMap().contains(m_boundClient))
+            m_boundClient = nullptr;
+    }
+
     void create_splash(Resource *resource,
                        uint32_t id,
                        const QString &app_id,
@@ -111,6 +132,9 @@ protected:
 
 private:
     PrelaunchSplash *q;
+    // The manager is a per-session (per-display) singleton: at most one client may
+    // bind it. A second client is rejected instead of taking over the binding.
+    struct ::wl_client *m_boundClient = nullptr;
 };
 
 PrelaunchSplash::PrelaunchSplash(QObject *parent)
