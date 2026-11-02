@@ -8,6 +8,7 @@
 #include <xcb/xproto.h>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
+class WServerInterface;
 class WClient;
 class WSocket;
 class WXWayland;
@@ -30,6 +31,8 @@ public:
     WXWayland *xwayland() const;
     quint32 noTitlebarAtom() const;
     bool ownsClient(WClient *client) const;
+    void attachInterface(WServerInterface *interface);
+    void detachInterface(WServerInterface *interface);
 
 Q_SIGNALS:
     void aboutToBeDestroyed();
@@ -43,6 +46,7 @@ private:
     QString m_id;
     uid_t m_uid = 0;
     QString m_username = {};
+    QList<WServerInterface *> m_interfaces;
     WSocket *m_socket = nullptr;
     WXWayland *m_xwayland = nullptr;
     quint32 m_noTitlebarAtom = XCB_ATOM_NONE;

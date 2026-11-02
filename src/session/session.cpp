@@ -15,6 +15,7 @@
 
 #include <woutputrenderwindow.h>
 #include <wsocket.h>
+#include <wserver.h>
 #include <wxwayland.h>
 
 #include <pwd.h>
@@ -77,6 +78,30 @@ std::shared_ptr<Session> SessionManager::sessionForClient(WClient *client) const
     return nullptr;
 }
 
+void Session::attachInterface(WServerInterface *interface)
+{
+    if (m_interfaces.contains(interface))
+        return;
+    interface->setOwnsSocket(m_socket);
+    if (!interface->server())
+        WaylandServer::instance()->server()->attach(interface);
+    // WServer owns interface wrappers, including at compositor shutdown.
+    // Session holds their logical scope and detaches them on user logout.
+    if (auto *object = dynamic_cast<QObject *>(interface))
+        object->setParent(WaylandServer::instance()->server());
+    m_interfaces.append(interface);
+}
+
+void Session::detachInterface(WServerInterface *interface)
+{
+    if (!m_interfaces.removeOne(interface))
+        return;
+    if (auto *server = WaylandServer::instance()) {
+        server->server()->detach(interface);
+        delete interface;
+    }
+}
+
 Session::~Session()
 {
     qCDebug(lcTlCore) << "Deleting session for uid:" << m_uid << m_socket;
@@ -97,10 +122,16 @@ Session::~Session()
             server->shellHandler()->removeXWayland(m_xwayland);
         m_xwayland = nullptr;
     }
-    if (m_socket) {
-        delete m_socket;
-        m_socket = nullptr;
+    if (m_socket)
+        m_socket->close();
+    if (auto *server = WaylandServer::instance()) {
+        for (auto *interface : std::as_const(m_interfaces)) {
+            server->server()->detach(interface);
+            delete interface;
+        }
     }
+    delete m_socket;
+    m_socket = nullptr;
 }
 
 const QString &Session::id() const
@@ -391,8 +422,7 @@ std::shared_ptr<Session> SessionManager::ensureSession(const QString &id, QStrin
         if (!session->m_xwayland) {
             auto *xwayland = createXWayland(session->m_socket);
             if (!xwayland) {
-                delete session->m_socket;
-                session->m_socket = nullptr;
+                session->m_socket->close();
                 m_sessions.removeOne(session);
                 return nullptr;
             }
