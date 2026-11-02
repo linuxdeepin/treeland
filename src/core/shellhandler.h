@@ -23,6 +23,7 @@ Q_MOC_INCLUDE(<wlayersurface.h>)
 Q_MOC_INCLUDE(<wxdgtoplevelsurface.h>)
 Q_MOC_INCLUDE(<wxwaylandsurface.h>)
 
+class TreelandUserConfig;
 class WaylandServer;
 class SurfaceWrapper;
 class RootSurfaceContainer;
@@ -73,6 +74,8 @@ public:
     explicit ShellHandler(RootSurfaceContainer *rootContainer,
                           WAYLIB_SERVER_NAMESPACE::WServer *server);
     [[nodiscard]] Workspace *workspace() const;
+    Workspace *createSessionWorkspace(TreelandUserConfig *config);
+    void setWorkspace(Workspace *workspace);
     [[nodiscard]] LayerSurfaceContainer *backgroundContainer() const { return m_backgroundContainer; }
     [[nodiscard]] SurfaceContainer *popupContainer() const;
     [[nodiscard]] SurfaceContainer *privilegedOverlayContainer() const;
@@ -101,6 +104,8 @@ public:
     [[nodiscard]] WAYLIB_SERVER_NAMESPACE::WInputMethodHelper *inputMethodHelper() const { return m_inputMethodHelper; }
 
 Q_SIGNALS:
+    void workspaceChanged();
+    void workspaceAdded();
     void surfaceWrapperAdded(SurfaceWrapper *wrapper);
     void surfaceWrapperAboutToRemove(SurfaceWrapper *wrapper);
 
@@ -146,6 +151,7 @@ private:
     void handleDdeShellSurfaceV2Added(class DDEShellSurfaceV2 *shellSurface,
                                       SurfaceWrapper *wrapper);
     void updateXWaylandDesktopProperties();
+    void onWorkspaceCountChanged();
     void watchXWaylandDesktopOutput(Output *output);
     void watchXWaylandWorkspaceNames();
     // Prelaunch splash related: creates a prelaunch SurfaceWrapper when
