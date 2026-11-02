@@ -19,6 +19,7 @@ public:
 
     const QList<std::shared_ptr<Session>> &sessions() const;
     std::weak_ptr<Session> activeSession() const;
+    std::shared_ptr<Session> sessionForClient(WClient *client) const;
     std::shared_ptr<Session> globalSession() const;
 
     bool activeSocketEnabled() const;

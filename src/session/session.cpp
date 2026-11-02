@@ -73,6 +73,23 @@ static xcb_atom_t internAtom(xcb_connection_t *connection, const char *name, boo
 }
 #endif
 
+bool Session::ownsClient(WClient *client) const
+{
+    auto *server = WaylandServer::instance();
+    return server && server->sessionManager()->sessionForClient(client).get() == this;
+}
+
+std::shared_ptr<Session> SessionManager::sessionForClient(WClient *client) const
+{
+    if (!client)
+        return nullptr;
+    for (auto *socket = client->socket(); socket; socket = socket->parentSocket()) {
+        if (auto session = sessionForSocket(socket))
+            return session;
+    }
+    return nullptr;
+}
+
 Session::~Session()
 {
     qCDebug(lcTlCore) << "Deleting session for uid:" << m_uid << m_socket;
