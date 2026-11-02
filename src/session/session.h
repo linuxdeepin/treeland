@@ -8,6 +8,7 @@
 #include <xcb/xproto.h>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
+class WClient;
 class WSocket;
 class WXWayland;
 WAYLIB_SERVER_END_NAMESPACE
@@ -28,6 +29,7 @@ public:
     WSocket *socket() const;
     WXWayland *xwayland() const;
     quint32 noTitlebarAtom() const;
+    bool ownsClient(WClient *client) const;
 
 Q_SIGNALS:
     void aboutToBeDestroyed();
