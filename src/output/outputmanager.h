@@ -4,6 +4,7 @@
 #pragma once
 
 #include <QObject>
+#include <QPointer>
 #include <QList>
 #include <QMap>
 #include <QSet>
@@ -100,7 +101,8 @@ private Q_SLOTS:
 private:
     void setGamma(wlr_gamma_control_manager_v1_set_gamma_event *event);
     void setPowerMode(wlr_output_power_v1_set_mode_event *event);
-    void testOrApplyConfiguration(wlr_output_configuration_v1 *config, bool onlyTest);
+    void testOrApplyConfiguration(WAYLIB_SERVER_NAMESPACE::WOutputManagerV1 *protocol,
+                                  wlr_output_configuration_v1 *config, bool onlyTest);
     void outputAdded(WAYLIB_SERVER_NAMESPACE::WOutput *output);
     void outputRemoved(WAYLIB_SERVER_NAMESPACE::WOutput *output);
     void processOutputAdded(WAYLIB_SERVER_NAMESPACE::WOutput *output);
@@ -151,6 +153,7 @@ private:
     WAYLIB_SERVER_NAMESPACE::WOutputRenderWindow *m_renderWindow = nullptr;
     WAYLIB_SERVER_NAMESPACE::WBackend *m_backend = nullptr;
     WAYLIB_SERVER_NAMESPACE::WOutputManagerV1 *m_outputManagementProtocol = nullptr;
+    quint64 m_sessionGeneration = 0;
     WAYLIB_SERVER_NAMESPACE::WXdgOutputManager *m_xwaylandOutputManager = nullptr;
     OutputGroupManagerInterfaceV1 *m_outputGroupManager = nullptr;
     WAYLIB_SERVER_NAMESPACE::WListenerOwner m_gammaControlListenerOwner;
@@ -175,6 +178,7 @@ private:
     struct PendingOutputConfig
     {
         wlr_output_configuration_v1 *config = nullptr;
+        QPointer<WAYLIB_SERVER_NAMESPACE::WOutputManagerV1> protocol;
         QList<WAYLIB_SERVER_NAMESPACE::WOutputState> states;
         int pendingCommits = 0;
         bool allSuccess = true;
