@@ -82,8 +82,18 @@ void GestureManager::unregisterTouchpadHold(HoldGesture *gesture)
     m_touchpadRecognizer->unregisterHoldGesture(gesture);
 }
 
+void GestureManager::cancel()
+{
+    m_touchpadRecognizer->cancelSwipeGesture();
+    m_touchpadRecognizer->cancelHoldGesture();
+    m_touchpadFingerCount = 0;
+    m_sequence = Sequence::None;
+}
+
 void GestureManager::processSwipeStart(uint finger)
 {
+    cancel();
+    m_sequence = Sequence::Swipe;
     m_touchpadFingerCount = finger;
     if (m_touchpadFingerCount >= MIN_SWIPE_FINGERS) {
         m_touchpadRecognizer->startSwipeGesture(finger);
@@ -92,6 +102,8 @@ void GestureManager::processSwipeStart(uint finger)
 
 void GestureManager::processSwipeUpdate(const QPointF &delta)
 {
+    if (m_sequence != Sequence::Swipe)
+        return;
     if (m_touchpadFingerCount >= MIN_SWIPE_FINGERS) {
         m_touchpadRecognizer->updateSwipeGesture(delta);
     }
@@ -99,20 +111,30 @@ void GestureManager::processSwipeUpdate(const QPointF &delta)
 
 void GestureManager::processSwipeCancel()
 {
+    if (m_sequence != Sequence::Swipe)
+        return;
     if (m_touchpadFingerCount >= MIN_SWIPE_FINGERS) {
         m_touchpadRecognizer->cancelSwipeGesture();
     }
+    m_touchpadFingerCount = 0;
+    m_sequence = Sequence::None;
 }
 
 void GestureManager::processSwipeEnd()
 {
+    if (m_sequence != Sequence::Swipe)
+        return;
     if (m_touchpadFingerCount >= MIN_SWIPE_FINGERS) {
         m_touchpadRecognizer->endSwipeGesture();
     }
+    m_touchpadFingerCount = 0;
+    m_sequence = Sequence::None;
 }
 
 void GestureManager::processHoldStart(uint finger)
 {
+    cancel();
+    m_sequence = Sequence::Hold;
     m_touchpadFingerCount = finger;
     if (m_touchpadFingerCount >= MIN_SWIPE_FINGERS) {
         m_touchpadRecognizer->startHoldGesture(finger);
@@ -121,9 +143,13 @@ void GestureManager::processHoldStart(uint finger)
 
 void GestureManager::processHoldEnd()
 {
+    if (m_sequence != Sequence::Hold)
+        return;
     if (m_touchpadFingerCount >= MIN_SWIPE_FINGERS) {
         m_touchpadRecognizer->endHoldGesture();
     }
+    m_touchpadFingerCount = 0;
+    m_sequence = Sequence::None;
 }
 
 void GestureManager::setHoldTimeout(int msec)
