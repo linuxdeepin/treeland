@@ -8,6 +8,7 @@
 #include <QDeadlineTimer>
 #include <QFuture>
 #include <QObject>
+#include <QPointer>
 
 #include <functional>
 
@@ -57,6 +58,10 @@ public:
         m_filter = f;
     }
 
+    void setOwnsSocket(WSocket *socket);
+    WSocket *ownsSocket() const;
+    bool ownsClient(WClient *client) const;
+
     virtual QByteArrayView interfaceName() const = 0;
 
 protected:
@@ -69,6 +74,9 @@ protected:
     virtual void destroy([[maybe_unused]] WServer *server) {
     }
     virtual wl_global *global() const = 0;
+
+private:
+    QPointer<WSocket> m_ownsSocket;
 
     friend class WServer;
     friend class WServerPrivate;
