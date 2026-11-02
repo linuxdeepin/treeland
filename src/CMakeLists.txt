@@ -232,6 +232,8 @@ qt_add_qml_module(libtreeland
         session/sessionmanager.h
         session/sessioncomponent.cpp
         session/sessioncomponent.h
+        session/sessionprotocols.cpp
+        session/sessionprotocols.h
         surface/surfacecontainer.cpp
         surface/surfacecontainer.h
         surface/seatsurfacemanager.cpp
