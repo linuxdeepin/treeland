@@ -48,5 +48,6 @@ evdev `KEY_F1`（键码 59）按下。生产 `WInputMethodHelper` 将 virtual ke
 这是虚拟输入的语义覆盖，不是物理键盘驱动覆盖。desktop 用例必须在本地通过后，
 才能把上述结果标为该提交的执行证据。
 
-当前基础 fixture 的客户端连接活动 session socket，因此只覆盖即时绑定。inactive
-session 的暂存与切换后应用，需要第二个 session socket 的专用 fixture。
+当前基础 fixture 的客户端连接活动 Session socket。后台 Session 的即时绑定、同名绑定隔离、
+upsert 后解绑和切换保留绑定由 `session-isolation` 双连接用例补充，新增断言尚未运行。
+生产实现使用每个 Session 独立的 manager 和 controller，不再暂存后台绑定或在切换时回放。
