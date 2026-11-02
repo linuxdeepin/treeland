@@ -4,6 +4,8 @@
 #include "qwayland-server-treeland-output-manager-unstable-v2.h"
 
 #include "outputmanagement.h"
+#include "session/session.h"
+#include "session/sessionoutputmanager.h"
 #include "outputconfig.hpp"
 #include "rootsurfacecontainer.h"
 #include "core/waylandserver.h"
@@ -19,7 +21,7 @@ WAYLIB_SERVER_USE_NAMESPACE
 class PictureControlV2Private : public QtWaylandServer::treeland_output_picture_control_v2
 {
 public:
-    explicit PictureControlV2Private(PictureControlV2 *_q, wl_resource *resource, const QString &uuid);
+    explicit PictureControlV2Private(PictureControlV2 *_q, wl_resource *resource, const QString &uuid, SessionOutputManager *owner);
 
     PictureControlV2 *q;
 
@@ -31,6 +33,7 @@ public:
     // get_picture_control again to get a usable object.
     bool inert = false;
 
+    SessionOutputManager *const owner;
     QString uuid;
     QPointer<Output> controlOutput;
 
@@ -61,9 +64,10 @@ private:
     QList<QMetaObject::Connection> configConnections;
 };
 
-PictureControlV2Private::PictureControlV2Private(PictureControlV2 *_q, wl_resource *resource, const QString &_uuid)
+PictureControlV2Private::PictureControlV2Private(PictureControlV2 *_q, wl_resource *resource, const QString &_uuid, SessionOutputManager *owner)
     : treeland_output_picture_control_v2(resource)
     , q(_q)
+    , owner(owner)
     , uuid(_uuid)
 {
     // The uuid must identify a live enabled output at creation time. Otherwise
@@ -132,7 +136,7 @@ void PictureControlV2Private::attachOutput(Output *output)
     if (!controlOutput)
         return;
 
-    auto *outputConfig = controlOutput->config();
+    auto *outputConfig = owner->config(controlOutput->getOutputId());
     send_brightness(outputConfig->brightness());
     send_color_temperature(outputConfig->colorTemperature());
 
@@ -238,7 +242,7 @@ void PictureControlV2Private::commit(Resource *resource)
     uint32_t treelandColorTemp = pendingColorTemperature ? *pendingColorTemperature : 0;
 
     QPointer<PictureControlV2> guard(q);
-    controlOutput->setOutputColor(treelandBrightness, treelandColorTemp, [guard, this](Output::CommitColorResult result) {
+    owner->applyColor(controlOutput, treelandBrightness, treelandColorTemp, [guard, this](Output::CommitColorResult result) {
         if (!guard)
             return;
         switch (result) {
@@ -257,9 +261,9 @@ void PictureControlV2Private::commit(Resource *resource)
     pendingBrightness.reset();
 }
 
-PictureControlV2::PictureControlV2(wl_resource *resource, const QString &uuid, QObject *parent)
+PictureControlV2::PictureControlV2(wl_resource *resource, const QString &uuid, SessionOutputManager *owner, QObject *parent)
     : QObject(parent)
-    , d(new PictureControlV2Private(this, resource, uuid))
+    , d(new PictureControlV2Private(this, resource, uuid, owner))
 {
 }
 
@@ -312,7 +316,7 @@ void OutputManagerV2Private::set_primary_output(Resource *resource, const QStrin
     auto *o = WaylandServer::instance()->getOutputByUuid(uuid);
     // v2: an empty or unknown uuid, and a disabled output, are rejected via
     // primary_output_failed instead of a protocol error.
-    if (!o || !o->output()->isEnabled()) {
+    if (!q->isActive() || !o || !o->output()->isEnabled()) {
         send_primary_output_failed(resource->handle, primary_output_failed_reason_invalid_output);
         return;
     }
@@ -322,7 +326,7 @@ void OutputManagerV2Private::set_primary_output(Resource *resource, const QStrin
     // requires a primary_output event to confirm every set_primary_output
     // request, so confirm same-value requests explicitly.
     const bool changed = container->primaryOutput() != o;
-    container->setPrimaryOutput(o, true);
+    q->session()->outputManager()->setPrimaryOutput(o->output()->name());
     if (!changed)
         q->onPrimaryOutputChanged();
 }
@@ -346,14 +350,17 @@ void OutputManagerV2Private::get_picture_control(Resource *resource,
 
     // The PictureControlV2 object is owned by its wl_resource: destroy_resource()
     // schedules q->deleteLater(). It must not be deleted here or leaked.
-    auto pictureControl = new PictureControlV2(picture_control_res, uuid, q);
+    auto pictureControl = new PictureControlV2(picture_control_res, uuid, q->session()->outputManager(), q);
     Q_UNUSED(pictureControl);
 }
 
-OutputManagerV2::OutputManagerV2(QObject *parent)
-    : QObject(parent)
+OutputManagerV2::OutputManagerV2(Session *session)
+    : SessionComponent(session)
     , d(new OutputManagerV2Private(this))
 {
+    connect(WaylandServer::instance()->rootSurfaceContainer(),
+            &RootSurfaceContainer::primaryOutputChanged,
+            this, &OutputManagerV2::onPrimaryOutputChanged);
 }
 
 OutputManagerV2::~OutputManagerV2()

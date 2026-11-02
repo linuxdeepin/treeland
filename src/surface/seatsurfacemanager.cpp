@@ -488,7 +488,7 @@ void SeatSurfaceManager::onKeyboardGrabBegin()
     // calling keyboard_start_grab, so it is already non-null when we get here.
     // Use isActiveKeyboardGrabOwner() to check if the seat's current grab
     // is the one installed by the IME helper.
-    if (auto *imHelper = WaylandServer::instance()->shellHandler()->inputMethodHelper()) {
+    if (auto *imHelper = WaylandServer::instance()->shellHandler()->inputMethodHelper(m_seat)) {
         if (imHelper->isActiveKeyboardGrabOwner()) {
             qCDebug(lcTlPopupFocus) << "IME keyboard grab started (not popup)";
             return;

@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "focuscontroller.h"
+#include "session/sessionmanager.h"
+#include "session/session.h"
+#include "session/sessionprotocols.h"
 #include "waylandserver.h"
 #include "rootsurfacecontainer.h"
 #include "seat/seatmanager.h"
@@ -34,6 +37,12 @@ void FocusController::activateSurface(SurfaceWrapper *wrapper,
                              WSeat *seat,
                              bool raise)
 {
+    if (wrapper && !m_server->sessionManager()->isActiveWindow(wrapper))
+        return;
+    if (wrapper && wrapper->session()
+        && wrapper->session()->workspace() != m_server->workspace()
+        && wrapper->workspaceId() != -1)
+        return;
     if (wrapper && wrapper->isIMCandidatePanel())
         return;
 
@@ -93,6 +102,8 @@ void FocusController::forceActivateSurface(SurfaceWrapper *wrapper, Qt::FocusRea
         qCCritical(lcTlShell) << "Don't force activate to empty surface! do you want `WaylandServer::activeSurface(nullptr)`?";
         return;
     }
+    if (!m_server->sessionManager()->isActiveWindow(wrapper))
+        return;
     if (!wrapper->shellSurface()) {
         qCWarning(lcTlShell) << "Try to force activate a destroyed surface!";
         return;
@@ -159,6 +170,8 @@ SurfaceWrapper *FocusController::activatedSurface() const
 
 void FocusController::setActivatedSurface(SurfaceWrapper *newActivateSurface, WSeat *seat, bool raise)
 {
+    if (newActivateSurface && !m_server->sessionManager()->isActiveWindow(newActivateSurface))
+        return;
     if (!m_server->rootContainer()) {
         qCWarning(lcTlCore) << "Cannot set activated surface: root surface container is null";
         return;
@@ -243,6 +256,8 @@ void FocusController::onRenderWindowActiveFocusItemChanged()
 
 void FocusController::requestKeyboardFocus(SurfaceWrapper *wrapper, Qt::FocusReason reason, WSeat *seat)
 {
+    if (wrapper && !m_server->sessionManager()->isActiveWindow(wrapper))
+        return;
     if (wrapper) {
         // Pop up through parent hierarchy until we find a non-popup surface or grabbed popup
         while (wrapper) {
@@ -295,14 +310,14 @@ void FocusController::updateSurfaceSeatInteraction(SurfaceWrapper *surface, WSea
     surface->setProperty("lastInteractionTime", QDateTime::currentMSecsSinceEpoch());
 }
 
-void FocusController::installActivationProtocol(WServer *server)
+void FocusController::registerSession(Session *session)
 {
-    // The window transition manager is part of the activation path: an
-    // activation token may carry a pending transition rect that has to be
-    // associated with the target surface before it maps.
-    m_windowTransitionManagerV1 = server->attach<WindowTransitionManagerInterfaceV1>();
-    auto *activation = server->attach<ActivationManagerInterfaceV1>(
-        [this](WSurface *surface, WSeat *seat) { return canTransferActivation(surface, seat); });
+    auto *activation = new ActivationManagerInterfaceV1(
+        [this, owner = QPointer<Session>(session)](WSurface *surface, WSeat *seat) {
+            return owner && surface && owner->ownsClient(surface->waylandClient())
+                && canTransferActivation(surface, seat);
+        });
+    session->attachInterface(activation);
     connect(activation, &ActivationManagerInterfaceV1::activateRequested,
             this, &FocusController::onActivationRequested);
 }
@@ -315,7 +330,7 @@ bool FocusController::canTransferActivation(WSurface *surface, WSeat *seat) cons
     }
 
     auto wrapper = m_server->rootContainer()->getSurface(surface);
-    if (!wrapper) {
+    if (!wrapper || !m_server->sessionManager()->isActiveWindow(wrapper)) {
         return false;
     }
 
@@ -344,8 +359,14 @@ void FocusController::onActivationRequested(const QString &token,
         return;
     }
 
-    if (m_windowTransitionManagerV1
-        && m_windowTransitionManagerV1->hasPendingWindowTransitionRect(token)) {
+    auto *activation = qobject_cast<ActivationManagerInterfaceV1 *>(sender());
+    if (!activation || !activation->ownsSocket()
+        || !activation->ownsClient(wsurface->waylandClient()))
+        return;
+    if (originatingSurface && !activation->ownsClient(originatingSurface->waylandClient()))
+        return;
+    auto *transitions = wrapper->session() ? wrapper->session()->protocols()->windowTransitions() : nullptr;
+    if (transitions && transitions->hasPendingWindowTransitionRect(token)) {
         if (!originatingSurface) {
             // Without an originating surface the rect cannot be mapped to
             // global coordinates, so it will never be used. Close it now
@@ -353,17 +374,17 @@ void FocusController::onActivationRequested(const QString &token,
             qCDebug(lcTlWindowTransition) << "Window transition rect discarded: token has no"
                                           << "originating surface"
                                           << "appId:" << wrapper->appId();
-            m_windowTransitionManagerV1->discardPendingRect(token);
+            transitions->discardPendingRect(token);
         } else if (wsurface->mapped()) {
             qCDebug(lcTlWindowTransition) << "Window transition rect discarded: target surface"
                                           << "is already mapped (client activation arrived too late)"
                                           << "appId:" << wrapper->appId();
             // Discard the pending rect object if any.
-            m_windowTransitionManagerV1->discardPendingRect(token);
+            transitions->discardPendingRect(token);
         } else {
             auto *originWrapper = m_server->rootContainer()->getSurface(originatingSurface);
             if (originWrapper) {
-                bool associated = m_windowTransitionManagerV1->associatePendingRect(
+                bool associated = transitions->associatePendingRect(
                     token, wrapper->windowTransition(), originWrapper->windowTransition());
                 if (!associated) {
                     qCDebug(lcTlWindowTransition)
@@ -377,7 +398,7 @@ void FocusController::onActivationRequested(const QString &token,
                     << "not found, skipping"
                     << "appId:" << wrapper->appId();
                 // Discard the pending rect object.
-                m_windowTransitionManagerV1->discardPendingRect(token);
+                transitions->discardPendingRect(token);
             }
         }
     }

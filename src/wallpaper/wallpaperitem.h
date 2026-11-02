@@ -92,6 +92,5 @@ private:
     enum WallpaperRole m_wallpaperRole = Desktop;
     enum WallpaperState m_state = Normal;
     QString m_source;
-    UserModel *m_model;
     bool m_play = true;
 };

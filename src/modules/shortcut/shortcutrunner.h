@@ -8,11 +8,20 @@
 #include <qcoreevent.h>
 #include "shortcutcontroller.h"
 
+class Workspace;
+class SessionSwitcher;
+class WaylandServer;
+class CompositorInputFilter;
+class ShortcutManagerV3;
+
 class ShortcutRunner : public QObject
 {
     Q_OBJECT
 public:
-    explicit ShortcutRunner(QObject *parent = nullptr);
+    ShortcutRunner(Workspace *workspace, SessionSwitcher *switcher, ShortcutController *controller,
+                   WaylandServer *runtime, CompositorInputFilter *inputFilter, ShortcutManagerV3 *protocol);
+    void start();
+    void stop();
 
 public Q_SLOTS:
     void onActionTrigger(ShortcutAction action, const QString &name, bool isGesture, ShortcutController::KeyFlags keyFlags = {});
@@ -34,6 +43,12 @@ private:
         return (cb > 0 && currentIndex >= wsCount - 1) || (cb < 0 && currentIndex <= 0);
     }
 
+    Workspace *const m_workspace;
+    SessionSwitcher *const m_switcher;
+    WaylandServer *const m_runtime;
+    CompositorInputFilter *const m_inputFilter;
+    ShortcutController *const m_controller;
+    ShortcutManagerV3 *const m_protocol;
     qreal m_desktopOffset = 0;
     int m_fromId = 0;
     int m_toId = 0;

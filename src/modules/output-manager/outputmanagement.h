@@ -4,6 +4,7 @@
 #pragma once
 
 #include <wserver.h>
+#include "session/sessioncomponent.h"
 
 #include <QString>
 
@@ -11,6 +12,7 @@ struct treeland_output_manager_v2;
 struct treeland_output_picture_control_v2;
 WAYLIB_SERVER_USE_NAMESPACE
 
+class SessionOutputManager;
 class PictureControlV2Private;
 class OutputManagerV2Private;
 
@@ -21,18 +23,18 @@ public:
     ~PictureControlV2() override;
 
 private:
-    explicit PictureControlV2(wl_resource *resource, const QString &uuid, QObject *parent = nullptr);
+    explicit PictureControlV2(wl_resource *resource, const QString &uuid, SessionOutputManager *owner, QObject *parent);
     friend OutputManagerV2Private;
     std::unique_ptr<PictureControlV2Private> d;
 };
 
 class OutputManagerV2
-    : public QObject
+    : public SessionComponent
     , public WServerInterface
 {
     Q_OBJECT
 public:
-    explicit OutputManagerV2(QObject *parent = nullptr);
+    explicit OutputManagerV2(Session *session);
     ~OutputManagerV2() override;
     static constexpr int InterfaceVersion = 1;
     static constexpr int PictureControlInterfaceVersion = 1;

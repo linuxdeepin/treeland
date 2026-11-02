@@ -8,6 +8,7 @@
 #include "core/rootsurfacecontainer.h"
 #include "core/waylandserver.h"
 #include "surface/surfacewrapper.h"
+#include "session/session.h"
 #include <wscoplistener.h>
 
 #include "qwayland-server-treeland-foreign-toplevel-manager-unstable-v3.h"
@@ -227,8 +228,8 @@ void ForeignToplevelManagerInterfaceV3Private::get_dock_preview_context(Resource
     }
 }
 
-ForeignToplevelManagerInterfaceV3::ForeignToplevelManagerInterfaceV3(QObject *parent)
-    : QObject(parent)
+ForeignToplevelManagerInterfaceV3::ForeignToplevelManagerInterfaceV3(Session *session)
+    : SessionComponent(session)
     , WServerInterface()
     , d(new ForeignToplevelManagerInterfaceV3Private(this))
 {
@@ -334,6 +335,7 @@ ForeignToplevelManagerInterfaceV3Private::findHandleForClient(SurfaceWrapper *wr
 
 void ForeignToplevelManagerInterfaceV3::addSurface(SurfaceWrapper *wrapper)
 {
+    Q_ASSERT(wrapper->session() == session());
     if (d->m_surfaces.contains(wrapper)) {
         qCCritical(lcTlProtocol)
         << wrapper << " has been add to foreign toplevel twice";
@@ -347,9 +349,8 @@ void ForeignToplevelManagerInterfaceV3::addSurface(SurfaceWrapper *wrapper)
 
     for (const auto &manager_resource : d->resourceMap()) {
         auto *handle = d->createHandle(manager_resource, entryPtr);
-        if (!handle) {
-            break;
-        }
+        if (!handle)
+            continue;
         d->setupHandleForWrapper(entryPtr, handle);
     }
 }
@@ -418,9 +419,8 @@ void ForeignToplevelManagerInterfaceV3Private::bind_resource(Resource *resource)
 {
     for (auto &[wrapper, entry] : m_surfaces) {
         auto *handle = createHandle(resource, entry.get());
-        if (!handle) {
-            return;
-        }
+        if (!handle)
+            continue;
         setupHandleForWrapper(entry.get(), handle);
     }
 }

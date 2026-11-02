@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "wallpapermanagerinterfacev1.h"
+#include "session/session.h"
 #include "qwayland-server-treeland-wallpaper-manager-unstable-v1.h"
 #include "workspace.h"
 #include "core/waylandserver.h"
@@ -28,20 +29,6 @@ static WOutput *outputFromResource(wl_resource *resource)
         return nullptr;
 
     return WOutput::fromHandle(nativeOutput);
-}
-
-static const char *usernameFromUid(uid_t uid)
-{
-    static char buf[16384];
-    static const size_t bufSize = sizeof(buf);
-    static struct passwd pwd;
-    struct passwd *result = NULL;
-
-    int ret = getpwuid_r(uid, &pwd, buf, bufSize, &result);
-    if (ret != 0 || result == NULL)
-        return NULL;
-
-    return pwd.pw_name;
 }
 
 class TreelandWallpaperManagerInterfaceV1Private : public QtWaylandServer::treeland_wallpaper_manager_v1
@@ -98,8 +85,8 @@ void TreelandWallpaperManagerInterfaceV1Private::get_treeland_wallpaper(Resource
         return;
     }
 
-    QSharedPointer<WClient::Credentials>  credentials = WClient::getCredentials(wallpaperResource->client);
-    auto wallpaper = new TreelandWallpaperInterfaceV1(wOutput, QString(usernameFromUid(credentials->uid)), wallpaperResource, surface);
+    auto wallpaper = new TreelandWallpaperInterfaceV1(
+        wOutput, q->session()->username(), wallpaperResource, surface, q);
     s_wallpapers.append(wallpaper);
 
     QObject::connect(wallpaper, &QObject::destroyed, [wallpaper]() {
@@ -109,8 +96,8 @@ void TreelandWallpaperManagerInterfaceV1Private::get_treeland_wallpaper(Resource
     Q_EMIT q->wallpaperCreated(wallpaper);
 }
 
-TreelandWallpaperManagerInterfaceV1::TreelandWallpaperManagerInterfaceV1(QObject *parent)
-    : QObject(parent)
+TreelandWallpaperManagerInterfaceV1::TreelandWallpaperManagerInterfaceV1(Session *session)
+    : SessionComponent(session)
     , d(new TreelandWallpaperManagerInterfaceV1Private(this))
 {
 }
@@ -189,7 +176,7 @@ void TreelandWallpaperInterfaceV1Private::set_image_source([[maybe_unused]] Reso
 {
     TreelandWallpaperInterfaceV1::WallpaperRoles roles =
         static_cast<TreelandWallpaperInterfaceV1::WallpaperRoles>(nativeRole);
-    Workspace *workspace = WaylandServer::instance()->workspace();
+    Workspace *workspace = static_cast<TreelandWallpaperManagerInterfaceV1 *>(q->parent())->session()->workspace();
     Q_ASSERT(workspace);
     Q_EMIT q->imageSourceChanged(workspace->currentIndex(), fileSource, roles);
 }
@@ -200,7 +187,7 @@ void TreelandWallpaperInterfaceV1Private::set_video_source([[maybe_unused]] Reso
 {
     TreelandWallpaperInterfaceV1::WallpaperRoles roles =
         static_cast<TreelandWallpaperInterfaceV1::WallpaperRoles>(nativeRole);
-    Workspace *workspace = WaylandServer::instance()->workspace();
+    Workspace *workspace = static_cast<TreelandWallpaperManagerInterfaceV1 *>(q->parent())->session()->workspace();
     Q_ASSERT(workspace);
     Q_EMIT q->videoSourceChanged(workspace->currentIndex(), fileSource, roles);
 }

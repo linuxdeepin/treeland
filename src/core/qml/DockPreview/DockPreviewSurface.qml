@@ -102,9 +102,9 @@ Rectangle {
         enabled: surface.preview.desiredSurfaces.length !== 0
         onHoveredChanged: {
             if (!hovered) {
-                ForeignToplevelManagerInterfaceV3.leaveDockPreview(surface.preview.target.shellSurface.surface)
+                surface.preview.desktop.windowManagement.leaveDockPreview(surface.preview.target.shellSurface.surface)
             } else {
-                ForeignToplevelManagerInterfaceV3.enterDockPreview(surface.preview.target.shellSurface.surface)
+                surface.preview.desktop.windowManagement.enterDockPreview(surface.preview.target.shellSurface.surface)
             }
         }
         cursorShape: Qt.ArrowCursor

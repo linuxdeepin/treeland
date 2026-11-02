@@ -4,6 +4,7 @@
 #pragma once
 
 #include <wserver.h>
+#include "session/sessioncomponent.h"
 #include <wsurface.h>
 
 #include <QPoint>
@@ -20,7 +21,7 @@ class ForeignToplevelManagerInterfaceV3Private;
 WAYLIB_SERVER_USE_NAMESPACE
 
 class ForeignToplevelManagerInterfaceV3
-    : public QObject
+    : public SessionComponent
     , public WServerInterface
 {
     Q_OBJECT
@@ -36,7 +37,7 @@ public:
     };
     Q_ENUM(PreviewDirection)
 
-    explicit ForeignToplevelManagerInterfaceV3(QObject *parent = nullptr);
+    explicit ForeignToplevelManagerInterfaceV3(Session *session);
     ~ForeignToplevelManagerInterfaceV3() override;
 
     void addSurface(SurfaceWrapper *wrapper);

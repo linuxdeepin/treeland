@@ -3,6 +3,8 @@
 
 #include <wscopedvalue.h>
 #include "output.h"
+#include "desktop/desktopenvironment.h"
+#include "session/sessionoutputmanager.h"
 
 #include "cmdline.h"
 #include "common/treelandlogging.h"
@@ -82,9 +84,6 @@ Output *Output::create(WOutput *output, QQmlEngine *engine, QObject *parent)
     o->m_type = Type::Source;
     obj->setParent(o);
 
-    o->minimizedSurfaces->setFilter([](SurfaceWrapper *s) {
-        return s->isMinimized();
-    });
 
     // Triggering layout updates using a queue helps reduce window jitter.
     // When the screen scaling factor changes, the scale of WOutput is updated first,
@@ -110,17 +109,10 @@ Output *Output::create(WOutput *output, QQmlEngine *engine, QObject *parent)
         o->m_debugMenuBar->setZ(RootSurfaceContainer::MenuBarZOrder);
 #ifndef QT_DEBUG
         o->m_debugMenuBar->setVisible(false);
-#else
-        o->setExclusiveZone(Qt::TopEdge, o->m_debugMenuBar, o->m_debugMenuBar->height());
 #endif
-
-        connect(o->m_debugMenuBar, &QQuickItem::visibleChanged, o, [o]() {
-            if (o->m_debugMenuBar->isVisible()) {
-                o->setExclusiveZone(Qt::TopEdge, o->m_debugMenuBar, o->m_debugMenuBar->height());
-            } else {
-                o->removeExclusiveZone(o->m_debugMenuBar);
-            }
-        });
+        connect(o->m_debugMenuBar, &QQuickItem::visibleChanged, o, &Output::arrangeAllSurfaces);
+        connect(o->m_debugMenuBar, &QQuickItem::heightChanged, o, &Output::arrangeAllSurfaces);
+        o->arrangeAllSurfaces();
     }
 
     return o;
@@ -159,7 +151,6 @@ Output *Output::createCopy(WOutput *output, Output *proxy, QQmlEngine *engine, Q
 Output::Output(WOutputItem *output, QObject *parent)
     : SurfaceListModel(parent)
     , m_item(output)
-    , minimizedSurfaces(new SurfaceFilterModel(this))
     , m_backlight(Backlight::createForOutput(output->output()))
 {
     m_outputViewport = output->property("screenViewport").value<WOutputViewport *>();
@@ -168,6 +159,11 @@ Output::Output(WOutputItem *output, QObject *parent)
     auto *configManager = DConfigManager::instance();
     Q_ASSERT(configManager);
     m_config = configManager ? configManager->outputConfig(outputName) : nullptr;
+    connect(WaylandServer::instance(), &WaylandServer::desktopChanged, this, &Output::configChanged);
+    connect(WaylandServer::instance(), &WaylandServer::desktopChanged,
+            this, &Output::minimizedSurfacesChanged);
+    connect(WaylandServer::instance(), &WaylandServer::desktopChanged,
+            this, &Output::arrangeAllSurfaces);
 }
 
 Output::~Output()
@@ -231,7 +227,7 @@ std::pair<WOutputViewport *, QQuickItem *> Output::getOutputItemProperty()
 
 void Output::moveSurfaceWithTitlebarClamp(SurfaceWrapper *surface, const QPointF &pos)
 {
-    const auto validGeo = this->validGeometry();
+    const auto validGeo = validGeometryForSurface(surface);
     QRectF candidateGeo(pos, surface->normalGeometry().size());
 
     QRectF titlebarGeometry = surface->titlebarGeometry();
@@ -293,7 +289,7 @@ void Output::placeClientRequstPos(SurfaceWrapper *surface, QPoint clientRequstPo
 
 void Output::placeCentered(SurfaceWrapper *surface)
 {
-    const auto validGeo = validGeometry();
+    const auto validGeo = validGeometryForSurface(surface);
     QRectF normalGeo = surface->normalGeometry();
     normalGeo.moveCenter(validGeo.center());
     normalGeo.moveTop(qMax(normalGeo.top(), validGeo.top()));
@@ -303,7 +299,9 @@ void Output::placeCentered(SurfaceWrapper *surface)
 
 void Output::placeSmartCascaded(SurfaceWrapper *surface)
 {
-    auto wpModel = WaylandServer::instance()->workspace()->modelFromId(surface->workspaceId());
+    auto *workspace = surface->desktop() ? surface->desktop()->workspace()
+                                         : WaylandServer::instance()->workspace();
+    auto wpModel = workspace->modelFromId(surface->workspaceId());
     Q_ASSERT(wpModel);
     /*
      The execution of Output::placeSmartCascaded and the surface obtaining focus occur almost
@@ -319,7 +317,7 @@ void Output::placeSmartCascaded(SurfaceWrapper *surface)
         return;
     }
 
-    const auto validGeo = validGeometry();
+    const auto validGeo = validGeometryForSurface(surface);
     QRectF normalGeo = surface->normalGeometry();
     QRectF latestActiveSurfaceGeo = latestActiveSurface->normalGeometry();
 
@@ -492,6 +490,8 @@ void Output::addSurface(SurfaceWrapper *surface)
 {
     Q_ASSERT(!hasSurface(surface));
     SurfaceListModel::addSurface(surface);
+    if (auto *desktop = surface->desktop())
+        desktop->outputs()->outputState(this)->addSurface(surface);
 
     if (surface->type() == SurfaceWrapper::Type::Layer) {
         auto layer = qobject_cast<WLayerSurface *>(surface->shellSurface());
@@ -534,19 +534,14 @@ void Output::removeSurface(SurfaceWrapper *surface)
     m_initialWindowPositionRatio.remove(surface);
     Q_ASSERT(hasSurface(surface));
     SurfaceListModel::removeSurface(surface);
+    if (auto *desktop = surface->desktop())
+        desktop->outputs()->outputState(this)->removeSurface(surface);
     surface->disconnect(this);
 
     if (surface->type() == SurfaceWrapper::Type::Layer) {
-        bool exclusiveZoneRemoved = false;
-        if (auto ss = surface->shellSurface()) {
-            ss->disconnect(this);
-            exclusiveZoneRemoved = removeExclusiveZone(ss);
-        }
+        if (auto *shell = surface->shellSurface())
+            shell->disconnect(this);
         arrangeLayerSurfaces();
-        if (exclusiveZoneRemoved) {
-            arrangeNonLayerSurfaces(ArrangeReason::LayerSurfaceRemoved);
-            Q_EMIT exclusiveZoneChanged();
-        }
     }
 }
 
@@ -567,168 +562,20 @@ Output *Output::proxyOutput() const
     return m_proxy;
 }
 
-void Output::setExclusiveZone(Qt::Edge edge, QObject *object, int value)
-{
-    Q_ASSERT(value > 0);
-    removeExclusiveZone(object);
-    switch (edge) {
-    case Qt::TopEdge:
-        m_topExclusiveZones.append(std::make_pair(object, value));
-        m_exclusiveZone.setTop(m_exclusiveZone.top() + value);
-        break;
-    case Qt::BottomEdge:
-        m_bottomExclusiveZones.append(std::make_pair(object, value));
-        m_exclusiveZone.setBottom(m_exclusiveZone.bottom() + value);
-        break;
-    case Qt::LeftEdge:
-        m_leftExclusiveZones.append(std::make_pair(object, value));
-        m_exclusiveZone.setLeft(m_exclusiveZone.left() + value);
-        break;
-    case Qt::RightEdge:
-        m_rightExclusiveZones.append(std::make_pair(object, value));
-        m_exclusiveZone.setRight(m_exclusiveZone.right() + value);
-        break;
-    default:
-        Q_UNREACHABLE_RETURN();
-    }
-}
-
-bool Output::removeExclusiveZone(QObject *object)
-{
-    auto tmp = std::ranges::find(m_topExclusiveZones, object, &std::pair<QObject *, int>::first);
-    if (tmp != m_topExclusiveZones.end()) {
-        m_exclusiveZone.setTop(m_exclusiveZone.top() - tmp->second);
-        m_topExclusiveZones.erase(tmp);
-        Q_ASSERT(m_exclusiveZone.top() >= 0);
-        return true;
-    }
-
-    tmp = std::ranges::find(m_bottomExclusiveZones, object, &std::pair<QObject *, int>::first);
-    if (tmp != m_bottomExclusiveZones.end()) {
-        m_exclusiveZone.setBottom(m_exclusiveZone.bottom() - tmp->second);
-        m_bottomExclusiveZones.erase(tmp);
-        Q_ASSERT(m_exclusiveZone.bottom() >= 0);
-        return true;
-    }
-
-    tmp = std::ranges::find(m_leftExclusiveZones, object, &std::pair<QObject *, int>::first);
-    if (tmp != m_leftExclusiveZones.end()) {
-        m_exclusiveZone.setLeft(m_exclusiveZone.left() - tmp->second);
-        m_leftExclusiveZones.erase(tmp);
-        Q_ASSERT(m_exclusiveZone.left() >= 0);
-        return true;
-    }
-
-    tmp = std::ranges::find(m_rightExclusiveZones, object, &std::pair<QObject *, int>::first);
-    if (tmp != m_rightExclusiveZones.end()) {
-        m_exclusiveZone.setRight(m_exclusiveZone.right() - tmp->second);
-        m_rightExclusiveZones.erase(tmp);
-        Q_ASSERT(m_exclusiveZone.right() >= 0);
-        return true;
-    }
-
-    return false;
-}
-
-void Output::arrangeLayerSurface(SurfaceWrapper *surface)
-{
-    WLayerSurface *layer = qobject_cast<WLayerSurface *>(surface->shellSurface());
-    Q_ASSERT(layer);
-    if (!layer->handle()->initialized) {
-        return;
-    }
-
-    auto validGeo = layer->exclusiveZone() == -1 ? geometry() : validGeometry();
-    validGeo = validGeo.marginsRemoved(QMargins(layer->leftMargin(),
-                                                layer->topMargin(),
-                                                layer->rightMargin(),
-                                                layer->bottomMargin()));
-    auto anchor = layer->ancher();
-    QRectF surfaceGeo(QPointF(0, 0), layer->desiredSize());
-
-    if (anchor.testFlags(WLayerSurface::AnchorType::Left | WLayerSurface::AnchorType::Right)) {
-        surfaceGeo.moveLeft(validGeo.left());
-        surfaceGeo.setWidth(validGeo.width());
-    } else if (anchor & WLayerSurface::AnchorType::Left) {
-        surfaceGeo.moveLeft(validGeo.left());
-    } else if (anchor & WLayerSurface::AnchorType::Right) {
-        surfaceGeo.moveRight(validGeo.right());
-    } else {
-        surfaceGeo.moveLeft(validGeo.left() + (validGeo.width() - surfaceGeo.width()) / 2);
-    }
-
-    if (anchor.testFlags(WLayerSurface::AnchorType::Top | WLayerSurface::AnchorType::Bottom)) {
-        surfaceGeo.moveTop(validGeo.top());
-        surfaceGeo.setHeight(validGeo.height());
-    } else if (anchor & WLayerSurface::AnchorType::Top) {
-        surfaceGeo.moveTop(validGeo.top());
-    } else if (anchor & WLayerSurface::AnchorType::Bottom) {
-        surfaceGeo.moveBottom(validGeo.bottom());
-    } else {
-        surfaceGeo.moveTop(validGeo.top() + (validGeo.height() - surfaceGeo.height()) / 2);
-    }
-
-    if (layer->exclusiveZone() > 0) {
-        // TODO: support set_exclusive_edge in layer-shell v5/wlroots 0.19
-        switch (layer->getExclusiveZoneEdge()) {
-            using enum WLayerSurface::AnchorType;
-        case Top:
-            setExclusiveZone(Qt::TopEdge, layer, layer->exclusiveZone());
-            break;
-        case Bottom:
-            setExclusiveZone(Qt::BottomEdge, layer, layer->exclusiveZone());
-            break;
-        case Left:
-            setExclusiveZone(Qt::LeftEdge, layer, layer->exclusiveZone());
-            break;
-        case Right:
-            setExclusiveZone(Qt::RightEdge, layer, layer->exclusiveZone());
-            break;
-        default:
-            qCWarning(lcTlOutput) << layer->appId()
-                                 << " has set exclusive zone, but exclusive edge is invalid!";
-            break;
-        }
-    }
-
-    surface->setSize(surfaceGeo.size());
-    surface->setPosition(surfaceGeo.topLeft());
-}
-
 void Output::arrangeLayerSurfaces()
 {
-    auto oldExclusiveZone = m_exclusiveZone;
-
-    for (auto *s : std::as_const(surfaces())) {
-        if (s->type() != SurfaceWrapper::Type::Layer)
-            continue;
-        removeExclusiveZone(s->shellSurface());
-    }
-
-    for (auto *s : std::as_const(surfaces())) {
-        if (s->type() != SurfaceWrapper::Type::Layer)
-            continue;
-
-        auto layer = qobject_cast<WLayerSurface *>(s->shellSurface());
-        Q_ASSERT(layer);
-        if (layer->exclusiveZone() > 0)
-            arrangeLayerSurface(s);
-    }
-
-    for (auto *s : std::as_const(surfaces())) {
-        if (s->type() != SurfaceWrapper::Type::Layer)
-            continue;
-
-        auto layer = qobject_cast<WLayerSurface *>(s->shellSurface());
-        Q_ASSERT(layer);
-        if (layer->exclusiveZone() <= 0)
-            arrangeLayerSurface(s);
-    }
-
-    if (oldExclusiveZone != m_exclusiveZone) {
-        arrangeNonLayerSurfaces(ArrangeReason::ExclusiveZoneChanged);
+    const auto previous = m_exclusiveZone;
+    auto *server = WaylandServer::instance();
+    // Each logical output computes its own layout, including inactive users.
+    // This physical output only publishes the active user's available area.
+    for (auto *desktop : server->desktopEnvironments())
+        desktop->outputs()->outputState(this)->arrangeLayerSurfaces();
+    auto *active = server->desktop();
+    m_exclusiveZone = active ? active->outputs()->outputState(this)->exclusiveZone()
+                            : compositorExclusiveZone();
+    arrangeNonLayerSurfaces(ArrangeReason::ExclusiveZoneChanged);
+    if (previous != m_exclusiveZone)
         Q_EMIT exclusiveZoneChanged();
-    }
 }
 
 void Output::arrangeNonLayerSurface(SurfaceWrapper *surface, ArrangeReason reason)
@@ -743,8 +590,10 @@ void Output::arrangeNonLayerSurface(SurfaceWrapper *surface, ArrangeReason reaso
     if (surface->type() == SurfaceWrapper::Type::LockScreen)
         return;
 
-    surface->setFullscreenGeometry(geometry());
-    const auto validGeo = this->validGeometry();
+    const auto fullGeometry = surface->desktop()
+        ? surface->desktop()->outputs()->outputState(this)->geometry() : geometry();
+    surface->setFullscreenGeometry(fullGeometry);
+    const auto validGeo = validGeometryForSurface(surface);
     surface->setMaximizedGeometry(validGeo);
 
     QRectF normalGeo = surface->normalGeometry();
@@ -783,7 +632,7 @@ void Output::arrangeNonLayerSurface(SurfaceWrapper *surface, ArrangeReason reaso
                 if (constrained != normalGeo.topLeft())
                     moveSurfaceWithTitlebarClamp(surface, constrained);
             } else {
-                auto outputValidGeometry = surface->ownsOutput()->validGeometry();
+                auto outputValidGeometry = surface->ownsOutput()->validGeometryForSurface(surface);
                 if (normalGeo.width() > outputValidGeometry.width()
                     || normalGeo.height() > outputValidGeometry.height())
                     surface->resize(outputValidGeometry.size());
@@ -1037,6 +886,13 @@ void Output::arrangeAllSurfaces()
     arrangeNonLayerSurfaces(ArrangeReason::OutputGeometryChanged);
 }
 
+SurfaceListModel *Output::minimizedSurfaces() const
+{
+    auto *desktop = WaylandServer::instance()->desktop();
+    return desktop ? desktop->outputs()->outputState(const_cast<Output *>(this))->minimizedSurfaces()
+                   : nullptr;
+}
+
 QMargins Output::exclusiveZone() const
 {
     return m_exclusiveZone;
@@ -1062,17 +918,32 @@ WOutputViewport *Output::screenViewport() const
     return m_outputViewport;
 }
 
+QMargins Output::compositorExclusiveZone() const
+{
+    // The compositor's optional debug bar is shared infrastructure, not a
+    // client's LayerSurface. Reserve it independently of user panels.
+    const int top = m_debugMenuBar && m_debugMenuBar->isVisible() ? m_debugMenuBar->height() : 0;
+    return QMargins(0, top, 0, 0);
+}
+
+QRectF Output::validGeometryForSurface(SurfaceWrapper *surface) const
+{
+    if (auto *desktop = surface->desktop())
+        return desktop->outputs()->outputState(const_cast<Output *>(this))->validGeometry();
+    return validGeometry();
+}
+
 QRectF Output::validGeometry() const
 {
     return geometry().marginsRemoved(m_exclusiveZone);
 }
 
-QRectF Output::tileGeometry(SurfaceWrapper::TileMode mode) const
+QRectF Output::tileGeometry(SurfaceWrapper::TileMode mode, SurfaceWrapper *surface) const
 {
     if (mode == SurfaceWrapper::TileMode::None)
         return QRectF();
 
-    const QRectF area = validGeometry();
+    const QRectF area = surface ? validGeometryForSurface(surface) : validGeometry();
     const QSizeF half(area.width() / 2, area.height());
     const QSizeF quad(area.width() / 2, area.height() / 2);
     switch (mode) {
@@ -1113,6 +984,8 @@ void Output::applyOutputColorConfig()
 {
     auto *outputConfig = config();
     auto applyConfig = [this, outputConfig] {
+        if (config() != outputConfig)
+            return;
         // Color temperature is implemented with the gamma LUT. When the output
         // has no LUT the value can never be applied, so do not request it:
         // setOutputColor() would report Unsupported and return before the
@@ -1129,18 +1002,21 @@ void Output::applyOutputColorConfig()
                            : 0);
     };
 
-    if (outputConfig->isInitializeSucceeded()) {
+    if (outputConfig->isInitializeSucceeded() || outputConfig->isInitializeFailed()) {
         applyConfig();
         return;
     }
 
-    if (!outputConfig->isInitializeFailed()) {
-        connect(outputConfig,
-                &OutputConfig::configInitializeSucceed,
-                this,
-                applyConfig,
-                Qt::SingleShotConnection);
-    }
+    connect(outputConfig,
+        &OutputConfig::configInitializeSucceed,
+        this,
+        applyConfig,
+        Qt::SingleShotConnection);
+    connect(outputConfig,
+        &OutputConfig::configInitializeFailed,
+        this,
+        applyConfig,
+        Qt::SingleShotConnection);
 }
 
 namespace {
@@ -1195,6 +1071,7 @@ void Output::setOutputColor(qreal brightness,
                             uint32_t colorTemperature,
                             std::function<void(CommitColorResult)> resultCallback)
 {
+    auto *targetConfig = config();
     const bool brightnessRequested = brightness >= 0;
     const bool colorTemperatureRequested = colorTemperature != 0;
 
@@ -1251,7 +1128,7 @@ void Output::setOutputColor(qreal brightness,
 
     if (gammaSize == 0) {
         if (backlightApplied) {
-            config()->setBrightness(brightness);
+            targetConfig->setBrightness(brightness);
             m_appliedBrightness = brightness;
         }
         if (resultCallback)
@@ -1292,16 +1169,22 @@ void Output::setOutputColor(qreal brightness,
     auto *outputHelper = renderWindow->getOutputHelper(viewport);
     outputHelper->setExtraState(newState);
 
-    outputHelper->scheduleCommitJob([this, brightness, colorTemperature, newState, resultCallback](bool success, WOutputHelper::ExtraState state) {
+    outputHelper->scheduleCommitJob([this, targetConfig, brightness, colorTemperature, newState, resultCallback](bool success, WOutputHelper::ExtraState state) {
         if (state == newState) {
+            if (config() != targetConfig) {
+                if (resultCallback)
+                    resultCallback(CommitColorResult::Failed);
+                applyOutputColorConfig();
+                return;
+            }
             if (resultCallback)
                 resultCallback(success ? CommitColorResult::Success : CommitColorResult::Failed);
             if (!success) {
                 qCWarning(lcTlOutput) << "Failed to apply brightness and color temperature settings to output"
                                           << output()->name();
             } else {
-                config()->setBrightness(brightness);
-                config()->setColorTemperature(colorTemperature);
+                targetConfig->setBrightness(brightness);
+                targetConfig->setColorTemperature(colorTemperature);
                 m_appliedBrightness = brightness;
                 m_appliedColorTemperature = colorTemperature;
             }

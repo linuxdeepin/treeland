@@ -8,7 +8,7 @@
 
 TogglableGesture::TogglableGesture(QObject *parent, GestureManager *gestures)
     : QObject(parent)
-    , m_gestureManager(gestures ? gestures : GestureManager::instance())
+    , m_gestureManager(gestures ? gestures : new GestureManager(this))
 {
 }
 

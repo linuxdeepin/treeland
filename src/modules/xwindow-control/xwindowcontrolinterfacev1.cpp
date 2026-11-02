@@ -49,7 +49,8 @@ void XWindowControlInterfaceV1Private::set_xwindow_position_relative(Resource *r
                                                                       wl_fixed_t dy)
 {
     // libwayland dispatch already guarantees a genuine wl_surface.
-    auto *wsurface = WSurface::fromHandle(wlr_surface_from_resource(anchor));
+    auto *wsurface = wl_resource_get_client(anchor) == resource->client()
+        ? WSurface::fromHandle(wlr_surface_from_resource(anchor)) : nullptr;
     uint32_t ok = (wsurface && WaylandServer::instance()->setXWindowPositionRelative(wid, wsurface, dx, dy)) ? 0 : 1;
     wl_resource *cb = wl_resource_create(resource->client(), &wl_callback_interface, 1, callback);
     if (!cb) {

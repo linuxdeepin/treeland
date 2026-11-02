@@ -11,6 +11,7 @@
 #include <sys/types.h>
 
 class WaylandServer;
+class Session;
 class ShellHandler;
 class SurfaceWrapper;
 class PersonalizationManagerInterfaceV1;
@@ -34,25 +35,17 @@ public:
     explicit SurfaceProtocolController(WaylandServer *server);
 
     void installRegionWatch(WServer *server);
-    void installToplevels(WServer *server, ShellHandler *shell);
-    void installPersonalization(WServer *server);
-    void installDecoration(WServer *server);
-    void installDecorationCustomization(WServer *server);
-    void setUserId(uid_t uid);
-    WExtForeignToplevelListV1 *toplevelList() const;
+    void installToplevels(ShellHandler *shell);
+    void initializeSession(Session *session);
 private:
     void onSurfaceModeChanged(WSurface *surface, WXdgDecorationManager::DecorationMode mode);
+    void connectForeignToplevel(WForeignToplevel *manager);
+    void addForeignToplevel(SurfaceWrapper *wrapper);
+    void removeForeignToplevel(SurfaceWrapper *wrapper);
     void onSurfaceWrapperAdded(SurfaceWrapper *wrapper);
     void onSurfaceWrapperAboutToRemove(SurfaceWrapper *wrapper);
 
 private:
     WaylandServer *m_server = nullptr;
-    WForeignToplevel *m_foreignToplevel = nullptr;
-    WExtForeignToplevelListV1 *m_extForeignToplevelListV1 = nullptr;
-    WXdgDecorationManager *m_xdgDecorationManager = nullptr;
-    WXdgDialogManagerV1 *m_xdgDialogManagerV1 = nullptr;
-    WXdgToplevelTagManagerV1 *m_xdgToplevelTagManagerV1 = nullptr;
-    PersonalizationManagerInterfaceV1 *m_personalizationInterfaceV1 = nullptr;
-    DecorationManagerInterfaceV1 *m_decorationInterfaceV1 = nullptr;
     TreelandRegionWatchManagerInterfaceV1 *m_regionWatchManagerInterfaceV1 = nullptr;
 };

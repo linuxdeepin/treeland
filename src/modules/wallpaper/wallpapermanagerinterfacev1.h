@@ -8,17 +8,18 @@
 #include <wserver.h>
 #include <woutput.h>
 
+#include "session/sessioncomponent.h"
 #include <QObject>
 
 WAYLIB_SERVER_USE_NAMESPACE
 
 class TreelandWallpaperInterfaceV1;
 class TreelandWallpaperManagerInterfaceV1Private;
-class TreelandWallpaperManagerInterfaceV1 : public QObject , public WServerInterface
+class TreelandWallpaperManagerInterfaceV1 : public SessionComponent , public WServerInterface
 {
     Q_OBJECT
 public:
-    explicit TreelandWallpaperManagerInterfaceV1(QObject *parent = nullptr);
+    explicit TreelandWallpaperManagerInterfaceV1(Session *session);
     ~TreelandWallpaperManagerInterfaceV1() override;
 
     QByteArrayView interfaceName() const override;
