@@ -30,10 +30,15 @@ namespace {
 // directory".
 QString runtimeSocketDir()
 {
+    const QString envDir = QFile::decodeName(qgetenv("XDG_RUNTIME_DIR"));
+    if (envDir.isEmpty())
+        return {};
     const QString dir = QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation);
     if (dir.isEmpty() || !dir.startsWith(QLatin1Char('/')))
         return {};
-    if (dir.startsWith(QDir::cleanPath(QDir::tempPath()) + QLatin1Char('/')))
+    // Anything but the configured directory means QStandardPaths substituted
+    // its temp-dir fallback.
+    if (QDir::cleanPath(dir) != QDir::cleanPath(envDir))
         return {};
     return dir;
 }
@@ -95,6 +100,18 @@ QString treelandDebugSocketPath(const QString &socketName)
     if (socketName.startsWith(QLatin1Char('/')))
         return socketName;
     return QDir::cleanPath(QDir::tempPath()) + QLatin1Char('/') + socketName;
+}
+
+QString treelandDebugSocketUrlFromEnv()
+{
+    const QString value = qEnvironmentVariable("TREELAND_DEBUG_SOCKET");
+    if (value.isEmpty())
+        return {};
+    // A socket path or a bare socket name becomes a local: URL; a value that
+    // already carries a scheme is taken as-is, so a remote host works too.
+    if (value.contains(QLatin1Char(':')))
+        return value;
+    return QStringLiteral("local:") + value;
 }
 
 QStringList treelandDebugCandidateSocketUrls()

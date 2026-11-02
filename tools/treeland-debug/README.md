@@ -95,8 +95,8 @@ receive an error explaining how to proceed.
 ## Global options
 
 ```
---url <url>          Remote object host URL (default: <runtime dir>/
-                     org.deepin.dde.treeland.debug, i.e.
+--url <url>          Remote object host URL (default: $TREELAND_DEBUG_SOCKET,
+                     else the socket found by probing the runtime dirs, i.e.
                      /run/treeland/... or /run/user/<uid>/...)
 --name <name>        Remote object name (default: WindowTree)
 --timeout-ms <n>     Request timeout in milliseconds (default: 30000)
@@ -104,6 +104,16 @@ receive an error explaining how to proceed.
 --no-escalate        Do not attempt polkit privilege escalation (release builds only)
 -h, --help           Show help
 -v, --version        Show version
+```
+
+The socket is chosen in this order: `--url`, then `$TREELAND_DEBUG_SOCKET`, then
+the built-in probing. `TREELAND_DEBUG_SOCKET` takes a socket path (or a bare
+socket name) and is treated like `local:<value>`; a value with a scheme is used
+as-is. It is handy when the compositor runs under a runtime directory the
+client cannot guess:
+
+```bash
+TREELAND_DEBUG_SOCKET=/run/treeland/org.deepin.dde.treeland.debug treeland-debug windows
 ```
 
 Backward compatibility: `--tree` and `--cursor` are accepted as aliases for the

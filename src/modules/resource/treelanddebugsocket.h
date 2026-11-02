@@ -74,6 +74,14 @@ QStringList treelandDebugCandidateSocketUrls();
 // empty string when @p url is not a local socket URL.
 QString treelandDebugSocketPathForUrl(const QString &url);
 
+// Host URL from $TREELAND_DEBUG_SOCKET, or empty when the variable is unset.
+// A plain socket path (or a bare socket name) is turned into a "local:" URL; a
+// value that already carries a scheme is used verbatim.  The client applies it
+// only when `--url` was not given, and only before falling back to its own
+// probing -- so the priority is: command line, then this variable, then
+// treelandDebugCandidateSocketUrls().
+QString treelandDebugSocketUrlFromEnv();
+
 // Paths of the sockets published for @p url: the exact name when it exists, plus
 // every "<name>-<N>" sibling (Qt appends a numeric suffix when the name is
 // taken). Only Unix-domain sockets count -- a plain file that merely occupies

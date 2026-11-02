@@ -313,8 +313,8 @@ QString helpText()
         "interactive REPL.\n"
         "\n"
         "Global options:\n"
-        "  --url <url>          Remote object host URL (default: build-specific socket, auto)\n"
-        "  --name <name>        Remote object name (default: WindowTree)\n"
+        "  --url <url>          Remote object host URL (default: $TREELAND_DEBUG_SOCKET,\n"
+        "                       else the build-specific socket found by probing)\n"        "  --name <name>        Remote object name (default: WindowTree)\n"
         "  --timeout-ms <n>     Request timeout in milliseconds (default: 30000)\n"
         "  --json               Emit machine-readable JSON for `tree`/`cursor`/`windows`/`clients`\n"
         "  --preview            Force inline image preview in terminal (auto-detected by default)\n"
@@ -553,6 +553,13 @@ int main(int argc, char *argv[])
     if (urlExplicit && url.isEmpty())
         return fail("--url requires a non-empty value");
 
+    // Resolution order: `--url` (already in `url`), then $TREELAND_DEBUG_SOCKET,
+    // then the built-in probing below.  The variable is read only when the flag
+    // was not given, so a script can override an exported default.
+    if (!urlExplicit)
+        url = treelandDebugSocketUrlFromEnv();
+    const bool urlConfigured = urlExplicit || !url.isEmpty();
+
     registerNamedMetatypes();
 
     QString command;
@@ -605,10 +612,10 @@ int main(int argc, char *argv[])
     }
 #endif
 
-    // Resolve the URL to connect to.  An explicit --url is used verbatim;
-    // otherwise the build-default candidate list (debug → release fallback in
-    // debug builds) is tried in order.
-    const QStringList candidateUrls = urlExplicit
+    // Resolve the URL to connect to.  An explicit --url or $TREELAND_DEBUG_SOCKET
+    // is used verbatim; otherwise the build-default candidate list (debug →
+    // release fallback in debug builds) is probed.
+    const QStringList candidateUrls = urlConfigured
         ? QStringList{url}
         : treelandDebugCandidateSocketUrls();
 
@@ -647,7 +654,7 @@ int main(int argc, char *argv[])
     Session session;
     QString connectedUrl;
     if (!connectSession(session, connectUrls, name, timeoutMs, &connectedUrl)) {
-        if (!urlExplicit)
+        if (!urlConfigured)
             explainConnectFailure(candidateUrls);
         return fail(QStringLiteral("failed to connect to remote object node (tried: %1)")
                         .arg(candidateUrls.join(" or ")));
