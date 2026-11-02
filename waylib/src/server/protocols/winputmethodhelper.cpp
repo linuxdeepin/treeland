@@ -237,7 +237,10 @@ WInputMethodHelper::~WInputMethodHelper()
         delete keyboard;
     }
 
-    if (d->seat) d->seat->disconnect(this);
+    if (d->seat) {
+        d->seat->removeListeners(this);
+        d->seat->disconnect(this);
+    }
     if (d->inputMethodManagerV2) d->inputMethodManagerV2->disconnect(this);
     if (d->textInputManagerV1) d->textInputManagerV1->disconnect(this);
     if (d->textInputManagerV2) d->textInputManagerV2->disconnect(this);
@@ -334,7 +337,7 @@ void WInputMethodHelper::handleNewIMV2(wlr_input_method_v2 *imv2)
     // afterwards would leak it (the listeners stay registered on the native
     // handle and assert on its destroy).
     auto *imSeat = WSeat::fromHandle(imv2->seat);
-    if (!imSeat || d->seat->name() != imSeat->name())
+    if (!imSeat || d->seat != imSeat)
         return;
     if (inputMethod()) {
         qCWarning(lcWlInputMethod) << "Ignore second creation of input on the same seat.";
@@ -421,6 +424,8 @@ void WInputMethodHelper::handleNewIPSV2(wlr_input_popup_surface_v2 *ipsv2)
 void WInputMethodHelper::handleNewVKV1(wlr_virtual_keyboard_v1 *vkv1)
 {
     W_D(WInputMethodHelper);
+    if (WSeat::fromHandle(vkv1->seat) != d->seat)
+        return;
     auto *keyboard = new WInputDevice(&vkv1->keyboard.base, true);
     d->virtualKeyboards.append(keyboard);
     d->seat->attachInputDevice(keyboard);
@@ -519,14 +524,14 @@ void WInputMethodHelper::handleNewTI(WTextInput *ti)
     // its requestFocus signal for it might request focus from another seat to activate
     // itself here. For example, text input v1.
     connect(ti, &WTextInput::requestFocus, this, [this, ti, d]{
-        if (ti->seat() && d->seat->name() == ti->seat()->name()) {
+        if (ti->seat() && d->seat == ti->seat()) {
             connectToTI(ti);
             if (auto surface = d->seat->keyboardFocusSurface()) {
                 ti->sendEnter(surface);
             }
         }
     });
-    if (ti->seat() && d->seat->name() == ti->seat()->name()) {
+    if (ti->seat() && d->seat == ti->seat()) {
         connectToTI(ti);
         if (auto *surface = d->seat->keyboardFocusSurface(); surface
             && surface->waylandClient() == ti->waylandClient()) {
