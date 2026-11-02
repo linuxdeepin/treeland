@@ -30,7 +30,7 @@ using BindError = QtWaylandServer::treeland_shortcut_manager_v3::bind_error;
 
 ShortcutController::ShortcutController(QObject *parent, GestureManager *gestures)
     : QObject(parent)
-    , m_gestureManager(gestures ? gestures : GestureManager::instance())
+    , m_gestureManager(gestures ? gestures : new GestureManager(this))
 {
 }
 

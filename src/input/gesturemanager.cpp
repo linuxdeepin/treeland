@@ -1,12 +1,11 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
+#include <utility>
 #include "gesturemanager.h"
 #include "gesturerecognizer.h"
 
 #define MIN_SWIPE_FINGERS 3
-
-GestureManager *GestureManager::m_instance = nullptr;
 
 GestureManager::GestureManager(QObject *parent)
     : QObject(parent)
@@ -14,19 +13,14 @@ GestureManager::GestureManager(QObject *parent)
 {
 }
 
-GestureManager::~GestureManager()
-{
-    if (m_instance == this)
-        m_instance = nullptr;
-}
+GestureManager::~GestureManager() = default;
 
-GestureManager *GestureManager::instance()
+void GestureManager::cancel()
 {
-    if (m_instance == nullptr) {
-        m_instance = new GestureManager();
-    }
-
-    return m_instance;
+    m_touchpadRecognizer->cancelSwipeGesture();
+    m_touchpadRecognizer->cancelHoldGesture();
+    m_touchpadFingerCount = 0;
+    m_sequence = Sequence::None;
 }
 
 [[maybe_unused]] SwipeGesture * GestureManager::registerTouchpadSwipe(const SwipeFeedBack &feed_back)
@@ -82,14 +76,6 @@ void GestureManager::unregisterTouchpadHold(HoldGesture *gesture)
 {
     m_touchpadRecognizer->unregisterHoldGesture(gesture);
     delete gesture;
-}
-
-void GestureManager::cancel()
-{
-    m_touchpadRecognizer->cancelSwipeGesture();
-    m_touchpadRecognizer->cancelHoldGesture();
-    m_touchpadFingerCount = 0;
-    m_sequence = Sequence::None;
 }
 
 void GestureManager::processSwipeStart(uint finger)

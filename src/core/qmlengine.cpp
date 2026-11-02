@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "qmlengine.h"
+#include "desktop/desktopenvironment.h"
 
 #include "common/treelandlogging.h"
 #include "core/rootsurfacecontainer.h"
@@ -135,11 +136,12 @@ QQuickItem *QmlEngine::createXdgShadow(QQuickItem *parent)
     return createComponent(xdgShadowComponent, parent);
 }
 
-QQuickItem *QmlEngine::createTaskSwitcher(Output *output, QQuickItem *parent)
+QQuickItem *QmlEngine::createTaskSwitcher(Output *output, QQuickItem *parent, DesktopEnvironment *desktop)
 {
     return createComponent(taskSwitchComponent,
                            parent,
-                           { { "output", QVariant::fromValue(output) } });
+                           { { "output", QVariant::fromValue(output) },
+                             { "desktop", QVariant::fromValue(desktop) } });
 }
 
 QQuickItem *QmlEngine::createGeometryAnimation(SurfaceWrapper *surface,
@@ -230,9 +232,9 @@ QQuickItem *QmlEngine::createLayerShellAnimation(SurfaceWrapper *surface,
                            });
 }
 
-QQuickItem *QmlEngine::createDockPreview(QQuickItem *parent)
+QQuickItem *QmlEngine::createDockPreview(QQuickItem *parent, DesktopEnvironment *desktop)
 {
-    return createComponent(dockPreviewComponent, parent);
+    return createComponent(dockPreviewComponent, parent, {{"desktop", QVariant::fromValue(desktop)}});
 }
 
 QQuickItem *QmlEngine::createLockScreen([[maybe_unused]] Output *output,

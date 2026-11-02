@@ -41,6 +41,7 @@ Q_MOC_INCLUDE(<wtoplevelsurface.h>)
 Q_MOC_INCLUDE(<wxdgsurface.h>)
 Q_MOC_INCLUDE("core/rootsurfacecontainer.h")
 Q_MOC_INCLUDE("modules/capture/capture.h")
+Q_MOC_INCLUDE("modules/wallpaper/wallpapershellinterfacev1.h")
 Q_MOC_INCLUDE("surface/surfacewrapper.h")
 Q_MOC_INCLUDE("workspace/workspace.h")
 Q_MOC_INCLUDE("treelandconfig.hpp")
@@ -83,6 +84,8 @@ class LockScreenManager;
 class IdleManager;
 class CaptureManager;
 class DragController;
+class GestureManager;
+class InputContext;
 class CompositorInputFilter;
 class FocusController;
 class SurfaceProtocolController;
@@ -117,6 +120,7 @@ class SettingManager;
 class SessionModel;
 class ShellHandler;
 class ShellActionExecutor;
+class ShortcutController;
 class ShortcutManagerV3;
 class ShortcutRunner;
 class SurfaceContainer;
@@ -124,6 +128,10 @@ class SurfaceWrapper;
 class TreelandConfig;
 class TreelandUserConfig;
 class TreelandRemoteSource;
+class Session;
+class DesktopEnvironment;
+Q_MOC_INCLUDE("session/session.h")
+Q_MOC_INCLUDE("session/sessionmanager.h")
 class UserModel;
 class WallpaperColorInterfaceV1;
 class ShowDesktopInterfaceV1;
@@ -131,6 +139,7 @@ class TreelandKeyboardStateNotifyManagerInterfaceV1;
 class TreelandActiveNotifyManagerInterfaceV1;
 class TreelandRegionWatchManagerInterfaceV1;
 class KeyboardShortcutsInhibitManagerV1;
+class TreelandWallpaperSurfaceInterfaceV1;
 class WallpaperManager;
 class WallpaperItem;
 class TreelandInputManagerInterfaceV1;
@@ -149,7 +158,7 @@ class WaylandServer : public QObject, public WAYLIB_SERVER_NAMESPACE::WObject
     Q_PROPERTY(float animationSpeed READ animationSpeed WRITE setAnimationSpeed NOTIFY animationSpeedChanged FINAL)
     Q_PROPERTY(OutputMode outputMode READ outputMode WRITE setOutputMode NOTIFY outputModeChanged FINAL)
     Q_PROPERTY(SurfaceWrapper* activatedSurface READ activatedSurface NOTIFY activatedSurfaceChanged FINAL)
-    Q_PROPERTY(Workspace* workspace READ workspace CONSTANT FINAL)
+    Q_PROPERTY(Workspace* workspace READ workspace NOTIFY workspaceChanged FINAL)
     Q_PROPERTY(TreelandUserConfig* config READ config NOTIFY configChanged FINAL)
     Q_PROPERTY(TreelandConfig* globalConfig READ globalConfig CONSTANT FINAL)
     Q_PROPERTY(bool blockActivateSurface READ blockActivateSurface WRITE setBlockActivateSurface NOTIFY blockActivateSurfaceChanged FINAL)
@@ -188,6 +197,19 @@ public:
     QmlEngine *qmlEngine() const;
     WOutputRenderWindow *window() const;
     ShellHandler *shellHandler() const;
+    Session *activeSession() const;
+    DesktopEnvironment *desktop() const;
+    QList<DesktopEnvironment *> desktopEnvironments() const;
+    WallpaperManager *wallpaperManager() const;
+    TreelandWallpaperNotifierInterfaceV1 *wallpaperNotifier() const;
+    OutputManager *outputHardware() const;
+    CompositorInputFilter *createInputFilter(InputContext *context, GestureManager *gestures,
+                                             ShortcutController *controller, QObject *parent);
+    void configureInputFilter(CompositorInputFilter *filter, ShortcutManagerV3 *shortcuts = nullptr) const;
+    QQuickItem *taskSwitcher() const;
+    void ensureTaskSwitcher();
+    Q_INVOKABLE void setOutputScale(WOutput *output, qreal scale);
+    void initializeSessionProtocols(Session *session);
     Workspace *workspace() const;
     WXdgOutputManager *xwaylandOutputManager() const;
 
@@ -207,7 +229,7 @@ public:
     Q_INVOKABLE void addOutput();
 
     void addSocket(WSocket *socket);
-    [[nodiscard]] WXWayland *createXWayland();
+    [[nodiscard]] WXWayland *createXWayland(WSeat *seat);
 
     WSeat *seat() const;
 
@@ -307,9 +329,14 @@ public Q_SLOTS:
     bool surfaceBelongsToCurrentSession(SurfaceWrapper *wrapper);
 
 Q_SIGNALS:
+    void wallpaperChanged();
+    void activeSessionChanged();
+    void workspaceChanged();
+    void workspaceAdded();
     void configChanged();
     void primaryOutputChanged();
     void activatedSurfaceChanged();
+    void desktopChanged();
 
     void animationSpeedChanged();
     void outputModeChanged();
@@ -328,6 +355,10 @@ Q_SIGNALS:
 
 private Q_SLOTS:
     void deleteTaskSwitch();
+    void onWorkspaceChanged();
+    void applyActiveSessionConfig();
+    void onWallpaperNotifierBound(wl_resource *resource);
+    void onWallpaperSurfaceAdded(TreelandWallpaperSurfaceInterfaceV1 *surface);
 
 private:
     WXdgOutputManager *installDesktopProtocols(QmlEngine *engine);
@@ -358,6 +389,8 @@ private Q_SLOTS:
 private:
     friend class PointerConstraintsManager;
     friend class SessionManager;
+    friend class SessionInputContext;
+    friend class TreelandWallpaperSurfaceInterfaceV1;
     friend class WallpaperManager;
     friend class WallpaperItem;
     friend class WallpaperSwitcherItem;
@@ -373,7 +406,6 @@ private:
     Treeland::Treeland *m_treeland = nullptr;
     FpsDisplayManager *m_fpsManager = nullptr;
     SessionManager *m_sessionManager = nullptr;
-    WallpaperManager *m_wallpaperManager = nullptr;
     bool m_wallpaperInitialized = false;
 
     CurrentMode m_currentMode{ CurrentMode::Normal };
@@ -396,9 +428,6 @@ private:
     ShellHandler *m_shellHandler = nullptr;
     WPointerConstraintsV1 *m_pointerConstraintsV1 = nullptr;
     PointerConstraintsManager *m_pointerConstraintsManager = nullptr;
-    ShortcutManagerV3 *m_shortcutManager = nullptr;
-    AppearanceInterfaceV1 *m_appearanceInterfaceV1 = nullptr;
-    AppearanceManagerInterfaceV1 *m_appearanceManagerInterfaceV1 = nullptr;
     CompositorActionInterfaceV1 *m_compositorActionInterfaceV1 = nullptr;
     WallpaperColorInterfaceV1 *m_wallpaperColorV1 = nullptr;
     XWindowControlInterfaceV1 *m_xWindowControlInterfaceV1 = nullptr;
@@ -406,14 +435,12 @@ private:
     DDEShellManagerInterfaceV2 *m_ddeShellV2 = nullptr;
     DDMInterfaceV1 *m_ddmInterfaceV1 = nullptr;
     ScreensaverInterfaceV2 *m_screensaverInterfaceV2 = nullptr;
-    TreelandWallpaperManagerInterfaceV1 *m_wallpaperManagerInterfaceV1 = nullptr;
     TreelandWallpaperNotifierInterfaceV1 *m_wallpaperNotifierInterfaceV1 = nullptr;
     TreelandKeyboardStateNotifyManagerInterfaceV1 *m_keyboardStateNotifyManagerInterfaceV1 = nullptr;
     TreelandActiveNotifyManagerInterfaceV1 *m_activeNotifyManagerInterfaceV1 = nullptr;
     KeyboardShortcutsInhibitManagerV1 *m_keyboardShortcutsInhibitManagerV1 = nullptr;
     // Desktop presentation state
     OutputManager *m_outputManager = nullptr;
-    QPointer<QQuickItem> m_taskSwitch;
 
     float m_animationSpeed = 1.0;
     std::optional<QPointF> m_fakelastPressedPosition;
@@ -435,14 +462,13 @@ private:
     TreelandRemoteSource *m_treelandRemoteSource = nullptr;
 
     SeatManager *m_seatManager = nullptr;
-    InputManager *m_inputManager = nullptr;
     SurfaceProtocolController *m_surfaceProtocols = nullptr;
     ShowDesktop *m_showDesktop = nullptr;
     LockScreenManager *m_lockScreenManager = nullptr;
     FocusController *m_focusController = nullptr;
-    CompositorInputFilter *m_inputFilter = nullptr;
+    // Startup filter and relative-pointer transport; user seats use their input channel.
+    CompositorInputFilter *m_bootstrapInputFilter = nullptr;
     IdleManager *m_idleManager = nullptr;
     CaptureManager *m_captureManager = nullptr;
     DragController *m_dragController = nullptr;
-    TreelandInputManagerInterfaceV1 *m_inputManagerInterfaceV1 = nullptr;
 };

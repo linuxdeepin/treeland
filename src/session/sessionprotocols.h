@@ -7,6 +7,9 @@
 #include <QPointer>
 #include <wglobal.h>
 
+class PersonalizationManagerInterfaceV1;
+class DecorationManagerInterfaceV1;
+class WindowTransitionManagerInterfaceV1;
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WXdgShell;
@@ -29,6 +32,9 @@ public:
     WAYLIB_SERVER_NAMESPACE::WXdgDecorationManager *xdgDecoration() const;
     WAYLIB_SERVER_NAMESPACE::WXdgDialogManagerV1 *xdgDialog() const;
     WAYLIB_SERVER_NAMESPACE::WXdgToplevelTagManagerV1 *xdgTags() const;
+    PersonalizationManagerInterfaceV1 *personalization() const;
+    DecorationManagerInterfaceV1 *decoration() const;
+    WindowTransitionManagerInterfaceV1 *windowTransitions() const;
 
 private:
     QPointer<WAYLIB_SERVER_NAMESPACE::WXdgShell> m_xdgShell;
@@ -36,4 +42,7 @@ private:
     QPointer<WAYLIB_SERVER_NAMESPACE::WXdgDecorationManager> m_xdgDecoration;
     QPointer<WAYLIB_SERVER_NAMESPACE::WXdgDialogManagerV1> m_xdgDialog;
     QPointer<WAYLIB_SERVER_NAMESPACE::WXdgToplevelTagManagerV1> m_xdgTags;
+    QPointer<WindowTransitionManagerInterfaceV1> m_windowTransitions;
+    QPointer<PersonalizationManagerInterfaceV1> m_personalization;
+    QPointer<DecorationManagerInterfaceV1> m_decoration;
 };

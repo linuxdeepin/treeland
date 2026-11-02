@@ -32,7 +32,8 @@ Item {
         surface: root.surface?.surface ?? null
         anchors.fill: parent
         opacity: effectLoader.active ? 0 : parent.opacity
-        live: root.surface && !(root.surface.flags & SurfaceItem.NonLive)
+        live: root.surface && (root.wrapper?.renderingEnabled ?? true)
+              && !(root.surface.flags & SurfaceItem.NonLive)
         smooth: root.surface?.smooth ?? true
 
         onDevicePixelRatioChanged: {

@@ -210,7 +210,7 @@ OutputItem {
     }
 
     function setScale(scale) {
-        screenViewport.setOutputScale(scale)
+        WaylandServer.setOutputScale(rootOutputItem.output, scale)
     }
 
     function invalidate() {

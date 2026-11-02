@@ -36,16 +36,16 @@ WallpaperSwitcherItem::WallpaperSwitcherItem(QQuickItem *parent)
     m_currentSlot = new WallpaperSlot(this);
     QQuickItemPrivate::get(m_currentSlot)->anchors()->setFill(this);
 
-    connect(WaylandServer::instance()->m_wallpaperManager,
-            &WallpaperManager::updateWallpaper,
+    connect(WaylandServer::instance(),
+            &WaylandServer::wallpaperChanged,
             this,
             &WallpaperSwitcherItem::handleWallpaperUpdate);
     connect(WaylandServer::instance()->shellHandler()->wallpaperShell(),
             &TreelandWallpaperShellInterfaceV1::wallpaperSurfaceAdded,
             this,
             &WallpaperSwitcherItem::handleWallpaperUpdate);
-    connect(WaylandServer::instance()->workspace(),
-            &Workspace::workspaceAdded,
+    connect(WaylandServer::instance(),
+            &WaylandServer::workspaceAdded,
             this,
             &WallpaperSwitcherItem::handleWorkspaceAdded);
 }
@@ -143,7 +143,7 @@ void WallpaperSwitcherItem::handleWallpaperUpdate()
     if (!m_output || !m_currentSlot)
         return;
 
-    auto config = WaylandServer::instance()->m_wallpaperManager->getOutputConfig(m_output->handle());
+    auto config = WaylandServer::instance()->wallpaperManager()->getOutputConfig(m_output->handle());
     QString newSource;
 
     if (m_workspace) {
@@ -163,7 +163,7 @@ void WallpaperSwitcherItem::handleWallpaperUpdate()
 
 void WallpaperSwitcherItem::handleWorkspaceAdded()
 {
-    WaylandServer::instance()->m_wallpaperManager->syncAddWorkspace();
+    WaylandServer::instance()->wallpaperManager()->syncAddWorkspace();
     if (m_currentSlot)
         m_currentSlot->updateSurface();
 }

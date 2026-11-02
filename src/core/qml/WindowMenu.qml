@@ -62,31 +62,31 @@ Menu {
         onTriggered: {
             if (surface.showOnAllWorkspace) {
                 // Move to current workspace
-                WaylandServer.workspace.moveSurfaceTo(surface, WaylandServer.workspace.current.id)
+                surface.desktop.workspace.moveSurfaceTo(surface, surface.desktop.workspace.current.id)
             } else {
                 // Move to workspace 0, which is always visible
-                WaylandServer.workspace.moveSurfaceTo(surface, -2)
+                surface.desktop.workspace.moveSurfaceTo(surface, -2)
             }
         }
     }
 
     MenuItem {
-        property int leftWorkspaceId: surface ? WaylandServer.workspace.getLeftWorkspaceId(surface.workspaceId) : -1
+        property int leftWorkspaceId: surface ? surface.desktop.workspace.getLeftWorkspaceId(surface.workspaceId) : -1
         text: qsTr("Move to Left Work Space")
         enabled: leftWorkspaceId >= 0
         onTriggered: {
-            WaylandServer.workspace.moveSurfaceTo(surface, leftWorkspaceId)
-            WaylandServer.activateSurface(WaylandServer.workspace.current.latestActiveSurface())
+            surface.desktop.workspace.moveSurfaceTo(surface, leftWorkspaceId)
+            WaylandServer.activateSurface(surface.desktop.workspace.current.latestActiveSurface())
         }
     }
 
     MenuItem {
-        property int rightWorkspaceId: surface ? WaylandServer.workspace.getRightWorkspaceId(surface.workspaceId) : -1
+        property int rightWorkspaceId: surface ? surface.desktop.workspace.getRightWorkspaceId(surface.workspaceId) : -1
         text: qsTr("Move to Right Work Space")
         enabled: rightWorkspaceId >= 0
         onTriggered: {
-            WaylandServer.workspace.moveSurfaceTo(surface, rightWorkspaceId)
-            WaylandServer.activateSurface(WaylandServer.workspace.current.latestActiveSurface())
+            surface.desktop.workspace.moveSurfaceTo(surface, rightWorkspaceId)
+            WaylandServer.activateSurface(surface.desktop.workspace.current.latestActiveSurface())
         }
     }
 

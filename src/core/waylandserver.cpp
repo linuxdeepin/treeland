@@ -2,11 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "waylandserver.h"
+#include "session/sessionmanager.h"
 #include "lockscreen/lockscreenmanager.h"
 #include "showdesktop/showdesktop.h"
 #include "surfaceprotocolcontroller.h"
 #include "focuscontroller.h"
 #include "input/compositorinputfilter.h"
+#include "input/gesturemanager.h"
+#include "session/sessioninputchannel.h"
+#include "session/sessioninputcontext.h"
 #include "idle/idlemanager.h"
 #include "capture/capturemanager.h"
 #include "seat/dragcontroller.h"
@@ -50,6 +54,8 @@
 #include "output/outputmanager.h"
 #include "seatuserconfig.hpp"
 #include "session/session.h"
+#include "session/sessionoutputmanager.h"
+#include "session/sessionswitcher.h"
 #include "surface/surfacecontainer.h"
 #include "surface/surfacewrapper.h"
 #include "treelandconfig.hpp"
@@ -93,7 +99,6 @@
 #include <unistd.h>
 #include <utility>
 
-#define EXT_DATA_CONTROL_MANAGER_V1_VERSION 1
 #define WLR_FRACTIONAL_SCALE_V1_VERSION 1
 #define EXT_BACKGROUND_EFFECT_MANAGER_V1_VERSION 1
 
@@ -103,11 +108,9 @@ WaylandServer::WaylandServer(QObject *parent)
     : QObject(parent)
     , WObject()
     , m_sessionManager(new SessionManager(this))
-    , m_wallpaperManager(new WallpaperManager(this))
     , m_renderWindow(new WOutputRenderWindow(this))
     , m_server(new WServer(this))
     , m_rootSurfaceContainer(new RootSurfaceContainer(m_renderWindow->contentItem()))
-    , m_inputManager(new InputManager(this))
 {
     m_idleManager = new IdleManager(this);
     m_captureManager = new CaptureManager(m_server, m_rootSurfaceContainer, this);
@@ -129,14 +132,15 @@ WaylandServer::WaylandServer(QObject *parent)
 
     m_shellHandler = new ShellHandler(m_rootSurfaceContainer, server());
     m_focusController = new FocusController(this);
+    connect(m_sessionManager, &SessionManager::sessionChanged, this, &WaylandServer::activeSessionChanged);
+    connect(m_sessionManager, &SessionManager::sessionChanged, this, &WaylandServer::desktopChanged);
+    connect(m_sessionManager, &SessionManager::sessionChanged, this, &WaylandServer::applyActiveSessionConfig);
     connect(DConfigManager::instance(), &DConfigManager::configReady,
             this, &WaylandServer::applyCurrentUserConfig);
     m_lockScreenManager = new LockScreenManager(this);
     m_surfaceProtocols = new SurfaceProtocolController(this);
-    connect(m_shellHandler->workspace(),
-            &Workspace::workspaceAdded,
-            m_wallpaperManager,
-            &WallpaperManager::syncAddWorkspace);
+    connect(m_shellHandler, &ShellHandler::workspaceChanged, this, &WaylandServer::onWorkspaceChanged);
+    connect(m_shellHandler, &ShellHandler::workspaceAdded, this, &WaylandServer::workspaceAdded);
     // Follow the remoteDebug master switch (on by default) in every build type,
     // so the debug socket appears and disappears with it instead of only at
     // startup. The stored value arrives asynchronously -- dtk reports
@@ -157,17 +161,15 @@ WaylandServer::WaylandServer(QObject *parent)
 
     m_outputManager = new OutputManager(m_rootSurfaceContainer,
                                         m_globalConfig,
-                                        m_wallpaperManager,
-                                        m_shellHandler->workspace(),
                                         m_renderWindow,
                                         this);
     connect(m_outputManager, &OutputManager::modeChanged, this, &WaylandServer::outputModeChanged);
     m_showDesktop = new ShowDesktop(this, m_outputManager);
     connect(m_showDesktop, &ShowDesktop::stateChanged,
             this, &WaylandServer::showDesktopStateChanged);
-    m_inputFilter = new CompositorInputFilter(this, m_focusController, m_idleManager,
-                                              m_captureManager, m_outputManager);
-    connect(m_inputFilter, &CompositorInputFilter::modifierKeyReleased,
+    m_bootstrapInputFilter = new CompositorInputFilter(
+        new SessionInputContext(nullptr, this, this), this, m_idleManager, m_captureManager, m_outputManager);
+    connect(m_bootstrapInputFilter, &CompositorInputFilter::modifierKeyReleased,
             this, &WaylandServer::modifierKeyReleased);
 
     m_workspaceScaleAnimation = new QPropertyAnimation(m_shellHandler->workspace(), "scale", this);
@@ -343,6 +345,55 @@ ShellHandler *WaylandServer::shellHandler() const
     return m_shellHandler;
 }
 
+void WaylandServer::initializeSessionProtocols(Session *session)
+{
+    m_surfaceProtocols->initializeSession(session);
+    session->desktop()->attachWindowManagement(session->windowManagement());
+    m_focusController->registerSession(session);
+    connect(session, &Session::activeChanged, this, [this, session](bool active) {
+        disconnect(session->wallpaperManager(), &WallpaperManager::updateWallpaper,
+                   this, &WaylandServer::wallpaperChanged);
+        if (active) {
+            connect(session->wallpaperManager(), &WallpaperManager::updateWallpaper,
+                    this, &WaylandServer::wallpaperChanged);
+            Q_EMIT wallpaperChanged();
+        }
+    });
+}
+
+TreelandWallpaperNotifierInterfaceV1 *WaylandServer::wallpaperNotifier() const
+{
+    return m_wallpaperNotifierInterfaceV1;
+}
+
+OutputManager *WaylandServer::outputHardware() const
+{
+    return m_outputManager;
+}
+
+WallpaperManager *WaylandServer::wallpaperManager() const
+{
+    return activeSession() ? activeSession()->wallpaperManager() : nullptr;
+}
+
+void WaylandServer::onWallpaperNotifierBound(wl_resource *resource)
+{
+    // The wallpaper factory is a shared, privileged resource consumer.
+    for (const auto &session : m_sessionManager->sessions())
+        session->wallpaperManager()->onWallpaperNotifierBound(resource);
+}
+
+void WaylandServer::onWallpaperSurfaceAdded(TreelandWallpaperSurfaceInterfaceV1 *surface)
+{
+    if (auto *manager = wallpaperManager())
+        manager->handleWallpaperSurfaceAdded(surface);
+}
+
+Session *WaylandServer::activeSession() const
+{
+    return m_sessionManager->activeSessionObject();
+}
+
 Workspace *WaylandServer::workspace() const
 {
     return m_shellHandler->workspace();
@@ -350,23 +401,52 @@ Workspace *WaylandServer::workspace() const
 
 bool WaylandServer::surfaceBelongsToCurrentSession(SurfaceWrapper *wrapper)
 {
-    if (wrapper->type() == SurfaceWrapper::Type::SplashScreen) {
-        // TODO(rewine): Determine which user the splash screen belongs to by invoking the client of the prelaunch-splash protocol.
-        // Currently, treeland does not support logging in with multiple users at the same time
-        // so it is temporarily assumed that the splash screen must belong to the current user.
-        return true;
-    }
+    if (wrapper->session())
+        return m_sessionManager->isActiveWindow(wrapper);
+    if (wrapper->type() == SurfaceWrapper::Type::SplashScreen)
+        return false;
     WClient *client = wrapper->surface()->waylandClient();
     WSocket *socket = client ? client->socket()->rootSocket() : nullptr;
     return socket && socket->isEnabled();
 }
 
+void WaylandServer::onWorkspaceChanged()
+{
+    if (m_multitaskView)
+        m_multitaskView->immediatelyExit();
+    if (m_currentMode == CurrentMode::Multitaskview)
+        setCurrentMode(CurrentMode::Normal);
+    deleteTaskSwitch();
+    m_workspaceScaleAnimation->stop();
+    m_workspaceOpacityAnimation->stop();
+    m_workspaceScaleAnimation->setTargetObject(workspace());
+    m_workspaceOpacityAnimation->setTargetObject(workspace());
+    Q_EMIT workspaceChanged();
+}
+
+QQuickItem *WaylandServer::taskSwitcher() const
+{
+    return activeSession() ? activeSession()->switcher()->taskSwitcher() : nullptr;
+}
+
+void WaylandServer::setOutputScale(WOutput *output, qreal scale)
+{
+    if (auto *owner = activeSession())
+        owner->outputManager()->setScale(output, scale);
+}
+
+void WaylandServer::ensureTaskSwitcher()
+{
+    auto *output = m_rootSurfaceContainer->cursorOutput();
+    if (!output)
+        output = m_rootSurfaceContainer->primaryOutput();
+    activeSession()->switcher()->ensureTaskSwitcher(output);
+}
+
 void WaylandServer::deleteTaskSwitch()
 {
-    if (m_taskSwitch) {
-        m_taskSwitch->deleteLater();
-        m_taskSwitch = nullptr;
-    }
+    if (auto *session = activeSession())
+        session->switcher()->close();
     if (m_currentMode == CurrentMode::WindowSwitch) {
         setCurrentMode(CurrentMode::Normal);
     }
@@ -388,14 +468,29 @@ void WaylandServer::initializeWallpaper()
         return;
     }
 #endif
-    m_wallpaperManager->loadWallpaperConfig();
+    if (auto *manager = wallpaperManager())
+        manager->loadWallpaperConfig();
+}
+
+void WaylandServer::applyActiveSessionConfig()
+{
+    auto *session = activeSession();
+    if (!session || !session->config()->isInitializeSucceeded())
+        return;
+    auto *seatConfig = DConfigManager::instance()->userSeatConfig(session->username(), seat()->name());
+    applyCurrentUserConfig(session->username(), session->config(),
+                           seatConfig->isInitializeSucceeded() ? seatConfig : nullptr);
 }
 
 void WaylandServer::applyCurrentUserConfig(const QString &userName,
                                     TreelandUserConfig *config,
                                     SeatUserDConfig *seatConfig)
 {
-    if (!config || m_userModel->currentUserName() != userName) {
+    // DConfig can be ready before installRuntimeProtocols() creates the initial
+    // session. sessionChanged will apply its configuration once it exists.
+    auto *session = activeSession();
+    if (!session || !config || m_userModel->currentUserName() != userName
+        || session->username() != userName) {
         return;
     }
 
@@ -426,23 +521,20 @@ void WaylandServer::applyCurrentUserConfig(const QString &userName,
             &SessionManager::syncActiveSessionCursorSettings,
             Qt::UniqueConnection);
 
-    auto user = m_userModel->currentUser();
-    m_surfaceProtocols->setUserId(user ? user->UID() : getuid());
     if (m_wallpaperInitialized) {
-        m_wallpaperManager->loadWallpaperConfig();
+        wallpaperManager()->loadWallpaperConfig();
     }
     if (userName == "dde") {
         return;
     }
 
     if (seatConfig) {
-        m_inputManager->setupSeatUserConfig(userName);
+        session->inputManager()->refresh();
     }
     m_sessionManager->syncActiveSessionCursorSettings();
     syncPaletteTypeWithWindowColorScheme(m_config->windowColorScheme());
     tryInitRemoteSource();
-    // TODO(YaoBing Xiao): Isolate workspaces for different users to prevent them from sharing the same one.
-    m_shellHandler->workspace()->reloadFromConfig();
+    session->workspace()->reloadFromConfig();
 }
 
 void WaylandServer::createBackend()
@@ -512,11 +604,7 @@ void WaylandServer::installCommonProtocols()
                                                      EXT_BACKGROUND_EFFECT_MANAGER_V1_CAPABILITY_BLUR)) {
         qCWarning(lcTlCore) << "Failed to create ext-background-effect-manager-v1, blur will be unavailable";
     }
-    wlr_data_control_manager_v1_create(m_server->handle());
-    wlr_ext_data_control_manager_v1_create(m_server->handle(), EXT_DATA_CONTROL_MANAGER_V1_VERSION);
     wlr_alpha_modifier_v1_create(m_server->handle());
-    auto *foreignRegistry = wlr_xdg_foreign_registry_create(m_server->handle());
-    wlr_xdg_foreign_v2_create(m_server->handle(), foreignRegistry);
 }
 
 void WaylandServer::startBackend()
@@ -593,7 +681,7 @@ void WaylandServer::fakePressSurfaceBottomRightToReszie(SurfaceWrapper *surface)
 {
     auto position = surface->geometry().bottomRight();
     m_fakelastPressedPosition = position;
-    m_primarySeat->setCursorPosition(position);
+    seat()->setCursorPosition(position);
     Q_EMIT surface->resizeRequested(Qt::BottomEdge | Qt::RightEdge);
 }
 
@@ -603,7 +691,7 @@ void WaylandServer::setCursorPosition(const QPointF &position)
     for (auto *seat : seats) {
         m_rootSurfaceContainer->endMoveResizeForSeat(seat);
     }
-    m_primarySeat->setCursorPosition(position);
+    seat()->setCursorPosition(position);
 }
 
 void WaylandServer::handleCompositorAction(uint32_t action)
@@ -726,12 +814,12 @@ void WaylandServer::startLockscreen(WOutput *output, bool showAnimation)
 
 QString WaylandServer::currentWorkspaceWallpaper(WOutput *output)
 {
-    return m_wallpaperManager->currentWorkspaceWallpaper(output);
+    return wallpaperManager()->currentWorkspaceWallpaper(output);
 }
 
 QString WaylandServer::currentLockScreenWallpaper(WOutput *output)
 {
-    return m_wallpaperManager->currentLockScreenWallpaper(output);
+    return wallpaperManager()->currentLockScreenWallpaper(output);
 }
 
 void WaylandServer::setMultitaskViewImpl(IMultitaskView *impl)
@@ -770,7 +858,7 @@ void WaylandServer::prepareLockScreenTransition(bool isShutdownView)
 
 WSeat *WaylandServer::seat() const
 {
-    return m_primarySeat;
+    return m_seatManager->fallbackSeat();
 }
 
 Output *WaylandServer::getOutputAtCursor() const
@@ -858,7 +946,8 @@ bool WaylandServer::setXWindowPositionRelative(uint wid, WSurface *anchor, wl_fi
 
     SurfaceWrapper *target = nullptr;
     for (SurfaceWrapper *wrapper : std::as_const(rootSurfaceContainer()->surfaces())) {
-        if (wrapper->type() == SurfaceWrapper::Type::XWayland) {
+        if (wrapper->type() == SurfaceWrapper::Type::XWayland
+            && wrapper->session() == ach->session()) {
             wlr_xwayland_surface *surface =
                 wlr_xwayland_surface_try_from_wlr_surface(wrapper->surface()->handle());
             if (surface && surface->window_id == static_cast<xcb_window_t>(wid)) {
@@ -885,9 +974,9 @@ bool WaylandServer::setXWindowPositionRelative(uint wid, WSurface *anchor, wl_fi
     return true;
 }
 
-WXWayland *WaylandServer::createXWayland()
+WXWayland *WaylandServer::createXWayland(WSeat *seat)
 {
-    return shellHandler()->createXWayland(server(), m_primarySeat, m_compositor, false);
+    return shellHandler()->createXWayland(server(), seat, m_compositor, false);
 }
 
 WSeat *WaylandServer::findSeatForSurface(SurfaceWrapper *wrapper) const
@@ -964,7 +1053,8 @@ void WaylandServer::updateSurfaceSeatInteraction(SurfaceWrapper *surface, WSeat 
 
 WSeat *WaylandServer::currentEventSeat() const
 {
-    return m_inputFilter->currentEventSeat();
+    auto *current = desktop();
+    return current ? current->inputChannel()->filter()->currentEventSeat() : m_bootstrapInputFilter->currentEventSeat();
 }
 
 void WaylandServer::cancelShowDesktop(SurfaceWrapper *surface)
@@ -1022,6 +1112,8 @@ void WaylandServer::finishLockScreenTransition()
     if (auto *surface = activatedSurface()) {
         if (surface->hasFocusCapability())
             requestKeyboardFocus(surface, Qt::NoFocusReason);
+    } else {
+        activateSurface(workspace()->current()->latestActiveSurface(), Qt::NoFocusReason);
     }
 }
 
@@ -1034,9 +1126,7 @@ WXdgOutputManager *WaylandServer::installDesktopProtocols(QmlEngine *engine)
 {
     m_ddmInterfaceV1 = server()->attach<DDMInterfaceV1>();
 
-    auto *outputManager = server()->attach<WOutputManagerV1>();
     m_outputManager->setBackend(backend());
-    m_outputManager->setOutputManagementProtocol(outputManager);
 
     m_ddeShellV1 = server()->attach<DDEShellManagerInterfaceV1>();
 
@@ -1061,17 +1151,12 @@ WXdgOutputManager *WaylandServer::installDesktopProtocols(QmlEngine *engine)
             &WaylandServer::handleCompositorAction);
     m_shellHandler->createComponent(engine, m_renderWindow->contentItem());
 
-    m_surfaceProtocols->installToplevels(server(), m_shellHandler);
-    m_inputFilter->installRelativePointer(server(), m_seatManager);
+    m_surfaceProtocols->installToplevels(m_shellHandler);
+    m_bootstrapInputFilter->installRelativePointer(server(), m_seatManager);
 
     auto *xdgOutputManager =
         server()->attach<WXdgOutputManager>(m_rootSurfaceContainer->outputLayout());
 
-    auto *outputManagerV2 = server()->attach<OutputManagerV2>();
-    connect(m_rootSurfaceContainer,
-            &RootSurfaceContainer::primaryOutputChanged,
-            outputManagerV2,
-            &OutputManagerV2::onPrimaryOutputChanged);
     server()->attach<OutputUuidManagerV1>();
     server()->attach<OutputUuidHeadManagerV1>();
     connect(m_rootSurfaceContainer,
@@ -1085,12 +1170,8 @@ WXdgOutputManager *WaylandServer::installDesktopProtocols(QmlEngine *engine)
     m_outputManager->setOutputGroupInterface(outputGroupInterface);
 
     m_captureManager->installProtocol(engine, m_renderWindow);
-    m_surfaceProtocols->installPersonalization(server());
 
     // New protocols (treeland-protocols 0.6.0)
-    m_appearanceInterfaceV1 = server()->attach<AppearanceInterfaceV1>(config());
-    m_appearanceManagerInterfaceV1 = server()->attach<AppearanceManagerInterfaceV1>(config());
-    m_surfaceProtocols->installDecorationCustomization(server());
 
     DConfigManager::instance()->initializeActiveUserConfig(this);
     m_showDesktop->connectProtocol();
@@ -1132,7 +1213,7 @@ bool WaylandServer::initializeSeatsAndShell()
     // Setup all seats (cursor, keyboard focus, event filter)
     m_seatManager->setupAllSeats(m_renderWindow,
                                  m_rootSurfaceContainer->outputLayout(),
-                                 m_inputFilter,
+                                 m_bootstrapInputFilter,
                                  m_rootSurfaceContainer->cursor());
 
     // Connect device signals and handle device lifecycle
@@ -1141,7 +1222,7 @@ bool WaylandServer::initializeSeatsAndShell()
         m_seatManager->assignDevice(device,
                                     m_renderWindow,
                                     m_rootSurfaceContainer->outputLayout(),
-                                    m_primarySeat);
+                                    seat());
     });
 
     m_dragController->initialize(m_ddeShellV1 != nullptr);
@@ -1161,8 +1242,8 @@ bool WaylandServer::initializeSeatsAndShell()
 
     connect(m_shellHandler->wallpaperShell(),
             &TreelandWallpaperShellInterfaceV1::wallpaperSurfaceAdded,
-            m_wallpaperManager,
-            &WallpaperManager::handleWallpaperSurfaceAdded);
+            this,
+            &WaylandServer::onWallpaperSurfaceAdded);
 
     return true;
 }
@@ -1170,7 +1251,6 @@ bool WaylandServer::initializeSeatsAndShell()
 void WaylandServer::installRuntimeProtocols(WXdgOutputManager *xdgOutputManager)
 {
     initializeRendering();
-    m_captureManager->installImageCapture(server(), m_surfaceProtocols->toplevelList());
     initializeRenderWindow();
 
     auto *xwaylandOutputManager =
@@ -1179,8 +1259,8 @@ void WaylandServer::installRuntimeProtocols(WXdgOutputManager *xdgOutputManager)
         xdgOutputManager, xwaylandOutputManager, m_sessionManager);
     // User dde does not has a real Logind session, so just pass "0" as id
     m_sessionManager->updateActiveUserSession(QStringLiteral("dde"), QStringLiteral("0"));
+    m_bootstrapInputFilter->setEnabled(false);
     connect(m_userModel, &UserModel::userLoggedIn, m_sessionManager, &SessionManager::updateActiveUserSession);
-    m_surfaceProtocols->installDecoration(server());
 
     auto gammaControlManager = wlr_gamma_control_manager_v1_create(server()->handle());
     m_outputManager->setGammaControlManager(gammaControlManager);
@@ -1191,7 +1271,6 @@ void WaylandServer::installRuntimeProtocols(WXdgOutputManager *xdgOutputManager)
 
     installCommonProtocols();
     m_idleManager->initialize(server());
-    m_focusController->installActivationProtocol(server());
 
     m_screensaverInterfaceV2 = server()->attach<ScreensaverInterfaceV2>();
     m_idleManager->setScreensaver(m_screensaverInterfaceV2);
@@ -1206,52 +1285,46 @@ void WaylandServer::installRuntimeProtocols(WXdgOutputManager *xdgOutputManager)
     }
     connect(m_wallpaperNotifierInterfaceV1,
             &TreelandWallpaperNotifierInterfaceV1::bound,
-            m_wallpaperManager,
-            &WallpaperManager::onWallpaperNotifierBound);
-
-    m_wallpaperManagerInterfaceV1 = server()->attach<TreelandWallpaperManagerInterfaceV1>();
-    connect(m_wallpaperManagerInterfaceV1,
-            &TreelandWallpaperManagerInterfaceV1::wallpaperCreated,
-            m_wallpaperManager,
-            &WallpaperManager::onWallpaperAdded);
-
-    m_shortcutManager = server()->attach<ShortcutManagerV3>();
-    connect(m_treeland,
-            &Treeland::Treeland::SessionChanged,
-            m_shortcutManager,
-            &ShortcutManagerV3::onSessionChanged);
-    m_shortcutManager->onSessionChanged();
-    auto shortcutControl = m_shortcutManager->controller();
-    auto *shortcutRunner = new ShortcutRunner(shortcutControl);
-    connect(shortcutControl,
-            &ShortcutController::actionTriggered,
-            shortcutRunner,
-            &ShortcutRunner::onActionTrigger);
-    connect(shortcutControl,
-            &ShortcutController::actionProgress,
-            shortcutRunner,
-            &ShortcutRunner::onActionProgress);
-    connect(shortcutControl,
-            &ShortcutController::actionFinished,
-            shortcutRunner,
-            &ShortcutRunner::onActionFinish);
-
-    m_inputManagerInterfaceV1 = server()->attach<TreelandInputManagerInterfaceV1>();
-    connect(m_inputManagerInterfaceV1,
-            &TreelandInputManagerInterfaceV1::mouseSettingsCreated,
-            m_inputManager,
-            &InputManager::onMouseSettingsCreated);
-    connect(m_inputManagerInterfaceV1,
-            &TreelandInputManagerInterfaceV1::touchpadSettingsCreated,
-            m_inputManager,
-            &InputManager::onTouchpadSettingsCreated);
-    connect(m_inputManagerInterfaceV1,
-            &TreelandInputManagerInterfaceV1::keyboardSettingsCreated,
-            m_inputManager,
-            &InputManager::onKeyboardSettingsCreated);
+            this,
+            &WaylandServer::onWallpaperNotifierBound);
 
     m_keyboardStateNotifyManagerInterfaceV1 = server()->attach<TreelandKeyboardStateNotifyManagerInterfaceV1>();
     m_activeNotifyManagerInterfaceV1 = server()->attach<TreelandActiveNotifyManagerInterfaceV1>();
     m_keyboardShortcutsInhibitManagerV1 = server()->attach<KeyboardShortcutsInhibitManagerV1>();
-    m_inputFilter->setShortcutProtocols(m_shortcutManager, m_keyboardShortcutsInhibitManagerV1);
+    m_bootstrapInputFilter->setShortcutProtocols(nullptr, m_keyboardShortcutsInhibitManagerV1);
+    for (const auto &owner : m_sessionManager->sessions())
+        configureInputFilter(owner->desktop()->inputChannel()->filter(),
+                             owner->desktop()->inputChannel()->shortcutProtocol());
+}
+
+DesktopEnvironment *WaylandServer::desktop() const
+{
+    auto *owner = activeSession();
+    return owner ? owner->desktop() : nullptr;
+}
+
+QList<DesktopEnvironment *> WaylandServer::desktopEnvironments() const
+{
+    QList<DesktopEnvironment *> result;
+    for (const auto &owner : m_sessionManager->sessions())
+        result.append(owner->desktop());
+    return result;
+}
+
+CompositorInputFilter *WaylandServer::createInputFilter(InputContext *context, GestureManager *gestures,
+                                                       ShortcutController *controller, QObject *parent)
+{
+    auto *filter = new CompositorInputFilter(context, parent, m_idleManager,
+                                              m_captureManager, m_outputManager);
+    filter->setGestureManager(gestures);
+    filter->setController(controller);
+    configureInputFilter(filter);
+    connect(filter, &CompositorInputFilter::modifierKeyReleased,
+            this, &WaylandServer::modifierKeyReleased);
+    return filter;
+}
+
+void WaylandServer::configureInputFilter(CompositorInputFilter *filter, ShortcutManagerV3 *shortcuts) const
+{
+    filter->setShortcutProtocols(shortcuts, m_keyboardShortcutsInhibitManagerV1);
 }

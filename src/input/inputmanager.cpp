@@ -1,17 +1,15 @@
 // Copyright (C) 2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
+#include <utility>
 #include "inputmanager.h"
 #include "dconfig/dconfigmanager.h"
 #include "seatuserconfig.hpp"
-#include "treelandconfig.hpp"
-#include "core/waylandserver.h"
 #include "libinputconfig.h"
 #include "gesturemanager.h"
 #include "common/treelandlogging.h"
 #include "modules/input-manager/inputmanagerinterfacev1.h"
 #include "seat/seatmanager.h"
-#include "session/session.h"
 #include "xsettings/settingmanager.h"
 
 #include <libinput.h>
@@ -24,8 +22,13 @@
 #include <wseat.h>
 #include <wbackend.h>
 
-InputManager::InputManager(QObject *parent)
+InputManager::InputManager(ConfigProvider configuration, SeatProvider seats, SeatManager *hardware,
+                           WBackend *backend, QObject *parent)
     : QObject(parent)
+    , m_configuration(std::move(configuration))
+    , m_seats(std::move(seats))
+    , m_hardware(hardware)
+    , m_backend(backend)
 {
 }
 
@@ -33,50 +36,33 @@ InputManager::~InputManager()
 {
 }
 
-void InputManager::setupSeatUserConfig(const QString &userName)
+void InputManager::activate()
 {
-    auto *seatManager = WaylandServer::instance()->seatManager();
-    auto *configManager = DConfigManager::instance();
-    const auto seats = seatManager->seats();
-    if (!m_userName.isEmpty()) {
-        for (WSeat *seat : seats) {
-            auto *config = configManager->userSeatConfig(m_userName, seat->name());
-            disconnect(config, nullptr, this, nullptr);
-        }
-    }
-    m_userName = userName;
-
+    m_attached = true;
+    auto *seats = m_hardware;
+    connect(seats, &SeatManager::seatAdded, this, &InputManager::setupSeat, Qt::UniqueConnection);
+    connect(seats, &SeatManager::seatRemoved, this, &InputManager::onSeatRemoved, Qt::UniqueConnection);
+    connect(seats, &SeatManager::deviceAssigned, this, &InputManager::onInputAssigned, Qt::UniqueConnection);
     connect(this, &InputManager::settingsChanged, this, &InputManager::setupSeat, Qt::UniqueConnection);
-    for (WSeat *seat : seats)
-        setupSeat(seat);
+    refresh();
+}
 
-    connect(seatManager,
-            &SeatManager::seatAdded,
-            this,
-            &InputManager::setupSeat,
-            Qt::UniqueConnection);
-    connect(seatManager,
-            &SeatManager::seatRemoved,
-            this,
-            &InputManager::onSeatRemoved,
-            Qt::UniqueConnection);
-    connect(seatManager,
-            &SeatManager::deviceAssigned,
-            this,
-            &InputManager::onInputAssigned,
-            Qt::UniqueConnection);
+void InputManager::deactivate()
+{
+    m_attached = false;
+    disconnect(m_hardware, nullptr, this, nullptr);
+    disconnect(this, &InputManager::settingsChanged, this, &InputManager::setupSeat);
 }
 
 void InputManager::refresh()
 {
-    for (auto *seat : WaylandServer::instance()->seatManager()->seats())
+    for (auto *seat : m_seats())
         setupSeat(seat);
 }
 
 SeatUserDConfig *InputManager::seatUserConfig(WSeat *seat) const
 {
-    Q_ASSERT(!m_userName.isEmpty());
-    auto *config = DConfigManager::instance()->userSeatConfig(m_userName, seat->name());
+    auto *config = m_configuration(seat->name());
     Q_ASSERT(config);
 
     return config;
@@ -97,7 +83,8 @@ void InputManager::setupSeat(WSeat *seat)
     if (auto *cursor = seat->cursor())
         cursor->setScrollFactor(config->pointerScrollFactor());
 
-    GestureManager::instance()->setHoldTimeout(config->touchpadHoldTimeoutMs());
+    if (m_gestures)
+        m_gestures->setHoldTimeout(config->touchpadHoldTimeoutMs());
 
     applyXkbConfigForSeat(seat);
 
@@ -147,7 +134,7 @@ bool InputManager::initializeKeyboardSettings(KeyboardSettingsInterfaceV1 *inter
     }
 
     KeyboardSettingsInterfaceV1::FeatureFlags features;
-    const auto inputDevices = WaylandServer::instance()->backend()->inputDeviceList();
+    const auto inputDevices = m_backend->inputDeviceList();
     for (WInputDevice *device : std::as_const(inputDevices)) {
         if (!wlr_input_device_is_libinput(device->handle())) {
             continue;
@@ -207,7 +194,7 @@ void InputManager::onMousePointerConfigCreated(PointerDeviceConfigurationV1 *con
     features.setFlag(PointerDeviceConfigurationV1::ScrollFactor);
     features.setFlag(PointerDeviceConfigurationV1::EventsMode);
 
-    const auto inputDevices = WaylandServer::instance()->backend()->inputDeviceList();
+    const auto inputDevices = m_backend->inputDeviceList();
     for (WInputDevice *device : std::as_const(inputDevices)) {
         if (!wlr_input_device_is_libinput(device->handle())) {
             continue;
@@ -312,7 +299,7 @@ void InputManager::onTouchpadPointerConfigCreated(PointerDeviceConfigurationV1 *
     features.setFlag(PointerDeviceConfigurationV1::ScrollFactor);
     features.setFlag(PointerDeviceConfigurationV1::EventsMode);
 
-    const auto inputDevices = WaylandServer::instance()->backend()->inputDeviceList();
+    const auto inputDevices = m_backend->inputDeviceList();
     for (WInputDevice *device : std::as_const(inputDevices)) {
         if (!wlr_input_device_is_libinput(device->handle())) {
             continue;
@@ -435,7 +422,7 @@ void InputManager::onKeyboardSettingsApplied(KeyboardSettingsInterfaceV1::Change
 
 void InputManager::applyNumLockToKeyboards()
 {
-    const auto seats = WaylandServer::instance()->seatManager()->seats();
+    const auto seats = m_seats();
     for (WSeat *seat : seats) {
         auto *config = seatUserConfig(seat);
         if (configurationReady(config))
@@ -445,8 +432,7 @@ void InputManager::applyNumLockToKeyboards()
 
 void InputManager::applyXkbConfigForSeat(WSeat *seat)
 {
-    auto *seatManager = WaylandServer::instance()->seatManager();
-    if (!seatManager->seats().contains(seat)) {
+    if (!m_seats().contains(seat)) {
         return;
     }
 
@@ -580,4 +566,12 @@ void InputManager::onSeatRemoved(WSeat *seat)
 {
     auto *config = seatUserConfig(seat);
     disconnect(config, nullptr, this, nullptr);
+}
+
+bool InputManager::hardwareAttached() const { return m_attached; }
+
+void InputManager::setGestureManager(GestureManager *gestures)
+{
+    Q_ASSERT(!m_gestures);
+    m_gestures = gestures;
 }

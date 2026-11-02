@@ -10,7 +10,8 @@ Item {
     anchors.fill: parent
     visible: root.workspaceManager.animationController.running
     Rectangle {
-        anchors.fill: parent
+        required property Workspace workspaceManager
+    anchors.fill: parent
         color: "black"
     }
 

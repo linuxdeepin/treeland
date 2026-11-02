@@ -2,19 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "shellhandler.h"
+#include "session/sessionprelaunch.h"
+#include "session/sessionmanager.h"
 
 #include "common/treelandlogging.h"
 #include "core/imcandidatepanelmanager.h"
 #include "core/qmlengine.h"
 #include "core/windowconfigstore.h"
 #include "layersurfacecontainer.h"
-#include "modules/app-id-resolver/appidresolver.h"
 #include "modules/snap-target/snaphandler.h"
 #include "modules/dde-shell/ddeshellmanagerinterfacev1.h"
 #include "modules/dde-shell/ddeshellmanagerinterfacev2.h"
 #include "modules/foreign-toplevel/foreigntoplevelmanagerv3.h"
 #include "modules/layer-shell-extension/layershellextensionmanagerinterfacev1.h"
-#include "modules/prelaunch-splash/prelaunchsplash.h"
 #include "modules/show-desktop/showdesktopinterfacev1.h"
 #include "modules/wine-window-management/winewindowmanagement.h"
 #include "modules/wine-window-state/winewindowstate.h"
@@ -23,6 +23,9 @@
 #include "core/waylandserver.h"
 #include "seat/seatmanager.h"
 #include "session/session.h"
+#include "session/sessionseatmanager.h"
+#include "session/sessionoutputmanager.h"
+#include "session/sessionprotocols.h"
 #include "surface/seatsurfacemanager.h"
 #include "surface/surfacewrapper.h"
 #include "treelandconfig.hpp"
@@ -34,11 +37,6 @@
 #include <xcb/xcb.h>
 
 #include <winputmethodhelper.h>
-#include <winputmethodv2_p.h>
-#include <wtextinputv1_p.h>
-#include <wtextinputv2_p.h>
-#include <wtextinputv3_p.h>
-#include <wvirtualkeyboardv1_p.h>
 #include <winputpopupsurface.h>
 #include <wlayershell.h>
 #include <wlayersurface.h>
@@ -65,11 +63,10 @@
 
 WAYLIB_SERVER_USE_NAMESPACE
 
-#define TREELAND_XDG_SHELL_VERSION 5
 const QLatin1String PRIVILEGED_OVERLAY_TAG("org.deepin.treeland.privileged-overlay");
 const QLatin1String SNAP_MASK_TAG("org.deepin.treeland.snap-mask");
 
-ShellHandler::ShellHandler(RootSurfaceContainer *rootContainer, WServer *server)
+ShellHandler::ShellHandler(RootSurfaceContainer *rootContainer, [[maybe_unused]] WServer *server)
     : m_rootSurfaceContainer(rootContainer)
     , m_backgroundContainer(new LayerSurfaceContainer(rootContainer))
     , m_bottomContainer(new LayerSurfaceContainer(rootContainer))
@@ -81,14 +78,9 @@ ShellHandler::ShellHandler(RootSurfaceContainer *rootContainer, WServer *server)
     , m_snapMaskContainer(new SurfaceContainer(rootContainer))
     , m_windowConfigStore(new WindowConfigStore(this))
 {
-    m_treelandForeignToplevel = server->attach<ForeignToplevelManagerInterfaceV3>();
-    Q_ASSERT(m_treelandForeignToplevel);
-    qmlRegisterSingletonInstance<ForeignToplevelManagerInterfaceV3>(
-        "Treeland.Protocols",
-        1,
-        0,
-        "ForeignToplevelManagerInterfaceV3",
-        m_treelandForeignToplevel);
+    qmlRegisterUncreatableType<ForeignToplevelManagerInterfaceV3>(
+        "Treeland.Protocols", 1, 0, "ForeignToplevelManagerInterfaceV3",
+        "Owned by Session");
     qRegisterMetaType<ForeignToplevelManagerInterfaceV3::PreviewDirection>();
 
     m_backgroundContainer->setZ(RootSurfaceContainer::BackgroundZOrder);
@@ -173,52 +165,41 @@ void ShellHandler::updateXWaylandDesktopProperties()
             &ShellHandler::updateXWaylandDesktopProperties,
             Qt::UniqueConnection);
 
-    QRect geometry;
-    QRect workarea;
-    for (auto *xwaylandOutput : outputManager->layout()->outputs()) {
-        if (!xwaylandOutput->isEnabled())
-            continue;
-
-        auto *output = WaylandServer::instance()->getOutput(xwaylandOutput);
-        if (!output)
-            continue;
-
-        const QRect outputGeometry = outputManager->outputGeometry(xwaylandOutput);
-        if (outputGeometry.isEmpty())
-            continue;
-
-        const QRectF treelandGeometry = output->geometry();
-        const qreal xScale = outputGeometry.width() / treelandGeometry.width();
-        const qreal yScale = outputGeometry.height() / treelandGeometry.height();
-        const QMargins exclusiveZone = output->exclusiveZone();
-        const QMargins xwaylandExclusiveZone(qCeil(exclusiveZone.left() * xScale),
-                                             qCeil(exclusiveZone.top() * yScale),
-                                             qCeil(exclusiveZone.right() * xScale),
-                                             qCeil(exclusiveZone.bottom() * yScale));
-        geometry = geometry.united(outputGeometry);
-        workarea = workarea.united(outputGeometry.marginsRemoved(xwaylandExclusiveZone));
-    }
-
-    if (geometry.isEmpty() || workarea.isEmpty())
-        return;
-
-    const int count = m_workspace->count();
-    QStringList names;
-    names.reserve(count);
-    for (int i = 0; i < count; ++i)
-        names.append(m_workspace->modelAt(i)->name());
-
-    const QVector<QPoint> viewports(count, QPoint(0, 0));
-    const QVector<QRect> workareas(count, workarea);
     for (auto *xwayland : std::as_const(m_xwaylands)) {
-        xwayland->setDesktopProperties(count,
+        auto session = WaylandServer::instance()->sessionManager()->sessionForXWayland(xwayland);
+        if (!session)
+            continue;
+        auto *workspace = session->workspace();
+        const qreal scale = session->outputManager()->effectiveScale();
+        QRect geometry;
+        QRect workarea;
+        for (auto *output : m_rootSurfaceContainer->outputs()) {
+            auto *state = session->outputManager()->outputState(output);
+            const auto logical = state->geometry();
+            const auto valid = state->validGeometry();
+            geometry = geometry.united(QRect(qFloor(logical.x() * scale),
+                                              qFloor(logical.y() * scale),
+                                              qCeil(logical.width() * scale),
+                                              qCeil(logical.height() * scale)));
+            workarea = workarea.united(QRect(qFloor(valid.x() * scale),
+                                              qFloor(valid.y() * scale),
+                                              qCeil(valid.width() * scale),
+                                              qCeil(valid.height() * scale)));
+        }
+        if (geometry.isEmpty() || workarea.isEmpty())
+            continue;
+        QStringList sessionNames;
+        for (int i = 0; i < workspace->count(); ++i)
+            sessionNames.append(workspace->modelAt(i)->name());
+        xwayland->setDesktopProperties(workspace->count(),
                                        geometry.size(),
-                                       m_workspace->currentIndex(),
-                                       names,
-                                       viewports,
-                                       workareas,
-                                       WaylandServer::instance()->showDesktopState()
-                                           == ShowDesktopInterfaceV1::State::Show);
+                                       workspace->currentIndex(),
+                                       sessionNames,
+                                       QVector<QPoint>(workspace->count(), QPoint(0, 0)),
+                                       QVector<QRect>(workspace->count(), workarea),
+                                       session->isActive()
+                                           && WaylandServer::instance()->showDesktopState()
+                                               == ShowDesktopInterfaceV1::State::Show);
     }
 }
 
@@ -228,6 +209,11 @@ void ShellHandler::updateWrapperContainer(SurfaceWrapper *wrapper, WSurface *par
         wrapper->parentSurface()->removeSubSurface(wrapper);
 
     auto oldContainer = wrapper->container();
+    if (parentSurface) {
+        auto *parent = m_rootSurfaceContainer->getSurface(parentSurface);
+        if (parent && parent->session() != wrapper->session())
+            return;
+    }
     if (parentSurface) {
         auto parentWrapper = m_rootSurfaceContainer->getSurface(parentSurface);
         if (!parentWrapper)
@@ -247,170 +233,25 @@ void ShellHandler::updateWrapperContainer(SurfaceWrapper *wrapper, WSurface *par
         if (oldContainer) {
             if (qobject_cast<Workspace *>(oldContainer) == nullptr) {
                 oldContainer->removeSurface(wrapper);
-                m_workspace->addSurface(wrapper);
+                workspaceForSurface(wrapper)->addSurface(wrapper);
             }
             // else do nothing, already in workspace
         } else {
-            m_workspace->addSurface(wrapper);
+            workspaceForSurface(wrapper)->addSurface(wrapper);
         }
     }
 }
 
-// Prelaunch splash request: create a SurfaceWrapper that is not yet bound to a shellSurface
-void ShellHandler::handlePrelaunchSplashRequested(const QString &appId,
-                                                  const QString &instanceId,
-                                                  wlr_buffer *iconBuffer)
+SessionPrelaunch *ShellHandler::prelaunchForSurface(WToplevelSurface *surface) const
 {
-    auto skipSplash = [this, appId, iconBuffer] {
-        if (iconBuffer) {
-            wlr_buffer_unlock(iconBuffer);
-        }
-        m_pendingPrelaunchAppIds.remove(appId);
-    };
-
-    Q_UNUSED(instanceId); // TODO: will be provided by AM DBus in future
-
-    if (!WaylandServer::instance()->globalConfig()->enablePrelaunchSplash() || !m_appIdResolverManager
-        || appId.isEmpty()
-        // If a prelaunch wrapper with the same appId already exists, skip creating a duplicate.
-        || std::any_of(m_prelaunchWrappers.cbegin(),
-                       m_prelaunchWrappers.cend(),
-                       [&appId](SurfaceWrapper *w) {
-                           return w && w->appId() == appId;
-                       })
-        // Flow: add appId to pending list -> wait for dconfig init ->
-        // if pending still exists, create splash; otherwise a real window appeared and cleared it.
-        || m_pendingPrelaunchAppIds.contains(appId)) {
-        skipSplash();
-        return;
-    }
-
-    m_pendingPrelaunchAppIds.insert(appId);
-
-    m_windowConfigStore->withSplashConfigFor(appId,
-                                             this,
-                                             std::bind(&ShellHandler::createPrelaunchSplash,
-                                                       this,
-                                                       appId,
-                                                       instanceId,
-                                                       iconBuffer,
-                                                       std::placeholders::_1,
-                                                       std::placeholders::_2,
-                                                       std::placeholders::_3,
-                                                       std::placeholders::_4),
-                                             skipSplash);
+    const auto owner = WaylandServer::instance()->sessionManager()->sessionForClient(surface->waylandClient());
+    return owner ? owner->prelaunch() : nullptr;
 }
 
-void ShellHandler::createPrelaunchSplash(const QString &appId,
-                                         const QString &instanceId,
-                                         wlr_buffer *iconBuffer,
-                                         const QSize &lastSize,
-                                         const QString &darkPalette,
-                                         const QString &lightPalette,
-                                         qlonglong splashThemeType)
+void ShellHandler::initializePrelaunchSurface(SurfaceWrapper *wrapper)
 {
-    Q_UNUSED(instanceId); // TODO: will be provided by AM DBus in future
-
-    if (!m_pendingPrelaunchAppIds.contains(appId)) {
-        if (iconBuffer) {
-            wlr_buffer_unlock(iconBuffer);
-        }
-        return; // app window already created while waiting for dconfig
-    }
-    m_pendingPrelaunchAppIds.remove(appId);
-
-    // splashThemeType: 0 = follow system, 1 = light, 2 = dark
-    // windowColorScheme: 0 = light, 1 = dark
-    const bool dark = splashThemeType == 0
-                          ? WaylandServer::instance()->config()->windowColorScheme() == 1
-                          : splashThemeType == 2;
-    const QColor splashColor = dark ? QColor(darkPalette) : QColor(lightPalette);
-
-    auto *wrapper = new SurfaceWrapper(WaylandServer::instance()->qmlEngine(),
-                                       nullptr,
-                                       lastSize,
-                                       appId,
-                                       iconBuffer,
-                                       splashColor);
-    if (iconBuffer) {
-        wlr_buffer_unlock(iconBuffer);
-    }
-    m_prelaunchWrappers.append(wrapper);
-    m_workspace->addSurface(wrapper);
     setupSurfaceActiveWatcher(wrapper);
     registerSurfaceToForeignToplevel(wrapper);
-
-    // After configurable timeout, if still unmatched (not converted and still in the list),
-    // destroy the splash wrapper
-    qlonglong timeoutMs = WaylandServer::instance()->globalConfig()->prelaunchSplashTimeoutMs();
-    // Bounds: <=0 disables auto-destroy, >60000 clamps to 60000
-    if (timeoutMs > 60000) {
-        qCWarning(lcTlShell)
-            << "Prelaunch splash timeout too long, clamping to 60000ms, requested:" << timeoutMs;
-        timeoutMs = 60000;
-    }
-
-    // Listen for splash close request
-    connect(wrapper, &SurfaceWrapper::splashCloseRequested, this, [this, wrapper]() {
-        const QString appId = wrapper->appId();
-        qCInfo(lcTlShell) << "Splash close requested for appId=" << appId;
-
-        // Add to closed splash list
-        if (!appId.isEmpty()) {
-            m_closedSplashAppIds.insert(appId);
-        }
-
-        // Remove from prelaunch wrappers list
-        m_prelaunchWrappers.removeOne(wrapper);
-
-        // Destroy the splash wrapper
-        m_rootSurfaceContainer->destroyForSurface(wrapper);
-
-        // Splash closed without matching a real window — record mismatch
-        m_windowConfigStore->recordSplashMismatch(appId);
-    });
-
-    if (timeoutMs > 0) {
-        QTimer::singleShot(static_cast<int>(timeoutMs),
-                           wrapper,
-                           [this, wrapper = QPointer<SurfaceWrapper>(wrapper)] {
-                               if (!wrapper) {
-                                   return; // Wrapper already destroyed elsewhere
-                               }
-                               int idx = m_prelaunchWrappers.indexOf(wrapper);
-                               if (idx < 0) {
-                                   return; // Already matched or removed earlier
-                               }
-                               qCDebug(lcTlShell)
-                                   << "Prelaunch splash timeout, destroy wrapper appId="
-                                   << wrapper->appId();
-                               m_prelaunchWrappers.removeAt(idx);
-                               const QString mismatchAppId = wrapper->appId();
-                               m_rootSurfaceContainer->destroyForSurface(wrapper);
-                               m_windowConfigStore->recordSplashMismatch(mismatchAppId);
-                           });
-    }
-}
-
-void ShellHandler::handlePrelaunchSplashClosed(const QString &appId, const QString &instanceId)
-{
-    Q_UNUSED(instanceId); // TODO: will be provided by AM DBus in future
-
-    // Remove pending prelaunch request if it hasn't created a wrapper yet
-    m_pendingPrelaunchAppIds.remove(appId);
-
-    // Find and destroy any existing prelaunch wrapper with the matching appId
-    for (int i = 0; i < m_prelaunchWrappers.size(); ++i) {
-        auto *wrapper = m_prelaunchWrappers[i];
-        if (wrapper->appId() == appId) {
-            qCDebug(lcTlShell)
-                << "Client requested close_splash, destroy wrapper appId=" << appId;
-            m_prelaunchWrappers.removeAt(i);
-            m_rootSurfaceContainer->destroyForSurface(wrapper);
-            m_windowConfigStore->recordSplashMismatch(appId);
-            return;
-        }
-    }
 }
 
 Workspace *ShellHandler::createSessionWorkspace(TreelandUserConfig *config)
@@ -449,6 +290,13 @@ void ShellHandler::onWorkspaceCountChanged()
     updateXWaylandDesktopProperties();
 }
 
+Workspace *ShellHandler::workspaceForSurface(SurfaceWrapper *wrapper) const
+{
+    if (auto *session = wrapper->session())
+        return session->workspace();
+    return m_workspace;
+}
+
 Workspace *ShellHandler::workspace() const
 {
     return m_workspace;
@@ -471,7 +319,8 @@ RootSurfaceContainer *ShellHandler::rootSurfaceContainer() const
 
 ForeignToplevelManagerInterfaceV3 *ShellHandler::foreignToplevel() const
 {
-    return m_treelandForeignToplevel;
+    auto *session = WaylandServer::instance()->activeSession();
+    return session ? session->windowManagement() : nullptr;
 }
 
 SurfaceContainer *ShellHandler::privilegedOverlayContainer() const
@@ -483,62 +332,23 @@ void ShellHandler::createComponent(QmlEngine *engine, QQuickItem *parentItem)
 {
     m_windowMenu = engine->createWindowMenu(WaylandServer::instance());
     QObject::connect(m_windowMenu, SIGNAL(closed()), this, SLOT(onWindowMenuClosed()));
-    m_dockPreview = engine->createDockPreview(parentItem);
-    setupDockPreview();
+    Q_UNUSED(parentItem)
+
 }
 
 void ShellHandler::init(WServer *server, WSeat *seat)
 {
     Q_ASSERT_X(server, Q_FUNC_INFO, "server must not be null");
     Q_ASSERT_X(seat, Q_FUNC_INFO, "seat must not be null");
-    Q_ASSERT_X(!m_prelaunchSplash, Q_FUNC_INFO, "Only init once!");
-    Q_ASSERT_X(!m_appIdResolverManager, Q_FUNC_INFO, "Only init once!");
-    Q_ASSERT_X(!m_wineWindowStateManager, Q_FUNC_INFO, "Only init once!");
-    Q_ASSERT_X(!m_wineWindowManager, Q_FUNC_INFO, "Only init once!");
-    Q_ASSERT_X(!m_xdgShell, Q_FUNC_INFO, "Only init once!");
-    Q_ASSERT_X(!m_layerShell, Q_FUNC_INFO, "Only init once!");
     Q_ASSERT_X(!m_wallpaperShell, Q_FUNC_INFO, "Only init once!");
-    Q_ASSERT_X(!m_inputMethodHelper, Q_FUNC_INFO, "Only init once!");
     Q_ASSERT_X(!m_layerShellExtensionManagerInterfaceV1, Q_FUNC_INFO, "Only init once!");
 
-    m_prelaunchSplash = server->attach<PrelaunchSplash>();
-    connect(m_prelaunchSplash,
-            &PrelaunchSplash::splashRequested,
-            this,
-            &ShellHandler::handlePrelaunchSplashRequested);
-    connect(m_prelaunchSplash,
-            &PrelaunchSplash::splashCloseRequested,
-            this,
-            &ShellHandler::handlePrelaunchSplashClosed);
-
-    m_appIdResolverManager = server->attach<AppIdResolverManager>();
     m_layerShellExtensionManagerInterfaceV1 =
         server->attach<LayerShellExtensionManagerInterfaceV1>();
-    m_wineWindowStateManager = server->attach<WineWindowStateManager>();
-    m_wineWindowManager = server->attach<WineWindowManager>();
 
     m_snapTarget = server->attach<SnapTargetV1>();
     m_snapTarget->setOutputRenderWindow(
         qobject_cast<WOutputRenderWindow *>(m_rootSurfaceContainer->window()));
-
-    m_xdgShell = server->attach<WXdgShell>(TREELAND_XDG_SHELL_VERSION);
-    connect(m_xdgShell,
-            &WXdgShell::toplevelSurfaceAdded,
-            this,
-            &ShellHandler::onXdgToplevelSurfaceAdded);
-    connect(m_xdgShell,
-            &WXdgShell::toplevelSurfaceRemoved,
-            this,
-            &::ShellHandler::onXdgToplevelSurfaceRemoved);
-    connect(m_xdgShell, &WXdgShell::popupSurfaceAdded, this, &ShellHandler::onXdgPopupSurfaceAdded);
-    connect(m_xdgShell,
-            &WXdgShell::popupSurfaceRemoved,
-            this,
-            &ShellHandler::onXdgPopupSurfaceRemoved);
-
-    m_layerShell = server->attach<WLayerShell>(m_xdgShell);
-    connect(m_layerShell, &WLayerShell::surfaceAdded, this, &ShellHandler::onLayerSurfaceAdded);
-    connect(m_layerShell, &WLayerShell::surfaceRemoved, this, &ShellHandler::onLayerSurfaceRemoved);
 
     m_wallpaperShell = server->attach<TreelandWallpaperShellInterfaceV1>(m_wallpaperShell);
     if (WaylandServer::instance()->isDDMDisplay()) {
@@ -546,20 +356,6 @@ void ShellHandler::init(WServer *server, WSeat *seat)
             return WaylandServer::instance()->sessionManager()->isDDEUserClient(client);
         });
     }
-
-    const WInputMethodHelper::Protocols inputMethodProtocols {
-        server->attach<WInputMethodManagerV2>(),
-        server->attach<WTextInputManagerV1>(),
-        server->attach<WTextInputManagerV2>(),
-        server->attach<WTextInputManagerV3>(),
-        server->attach<WVirtualKeyboardManagerV1>(),
-    };
-    m_inputMethodHelper = new WInputMethodHelper(server, seat, inputMethodProtocols);
-    m_inputMethodHelper->setParent(this);
-
-    m_imCandidatePanelManager = new IMCandidatePanelManager(this, m_inputMethodHelper, this);
-
-    registerInputMethodHelper(m_inputMethodHelper);
 
     auto *overlay = QQuickOverlay::overlay(m_rootSurfaceContainer->window());
     overlay->setZ(RootSurfaceContainer::GlobalOverlayZOrder);
@@ -588,8 +384,9 @@ WXWayland *ShellHandler::createXWayland(WServer *server,
         }
         updateXWaylandDesktopProperties();
 
-        if (m_imCandidatePanelManager)
-            m_imCandidatePanelManager->setupXWayland(xwayland);
+        auto session = WaylandServer::instance()->sessionManager()->sessionForXWayland(xwayland);
+        if (auto *panels = candidatePanels(session.get()))
+            panels->setupXWayland(xwayland);
     });
     return xwayland;
 }
@@ -607,14 +404,14 @@ void ShellHandler::onXdgToplevelSurfaceAdded(WXdgToplevelSurface *surface)
 {
     // If there are prelaunch wrappers or closed splash appIds and the resolver is available
     // -> attempt async resolve; remaining logic continues in the callback on success
-    if ((!m_prelaunchWrappers.isEmpty() || !m_closedSplashAppIds.isEmpty())
-        && m_appIdResolverManager) {
+    auto *prelaunch = prelaunchForSurface(surface);
+    if (prelaunch && prelaunch->needsResolution()) {
         int pidfd = surface->pidFD();
         if (pidfd >= 0) {
             // Register pending before starting async resolve (unified list)
             m_pendingAppIdResolveToplevels.append(surface);
 
-            bool started = m_appIdResolverManager->resolvePidfd(
+            bool started = prelaunch->resolvePidfd(
                 pidfd,
                 [this, surface = QPointer<WXdgToplevelSurface>(surface)](const QString &appId) {
                     auto raw = surface.data();
@@ -655,40 +452,21 @@ void ShellHandler::onXWaylandSurfaceRemoved(WXWaylandSurface *surface)
 
 void ShellHandler::ensureXdgWrapper(WXdgToplevelSurface *surface, const QString &targetAppId)
 {
-    // Check if this matches a closed splash screen
-    if (!targetAppId.isEmpty() && m_closedSplashAppIds.contains(targetAppId)) {
-        qCInfo(lcTlShell) << "XDG surface matches closed splash, closing immediately: appId="
-                              << targetAppId;
-        m_closedSplashAppIds.remove(targetAppId);
+    auto *prelaunch = prelaunchForSurface(surface);
+    if (prelaunch && prelaunch->consumeClosed(targetAppId)) {
         surface->close();
         return;
     }
-
-    SurfaceWrapper *wrapper = nullptr;
-    bool isNewWrapper = true;
-
-    if (!targetAppId.isEmpty()) {
-        m_pendingPrelaunchAppIds.remove(targetAppId);
-        for (int i = 0; i < m_prelaunchWrappers.size(); ++i) {
-            auto *candidate = m_prelaunchWrappers[i];
-            if (candidate->appId() == targetAppId) {
-                qCDebug(lcTlShell) << "match prelaunch xdg" << targetAppId;
-                m_prelaunchWrappers.removeAt(i);
-                candidate->convertToNormalSurface(surface, SurfaceWrapper::Type::XdgToplevel);
-                wrapper = candidate;
-                isNewWrapper = false; // matched from prelaunch, not newly created
-                m_windowConfigStore->resetSplashMismatchCount(targetAppId);
-                break;
-            }
-        }
-    }
+    SurfaceWrapper *wrapper = prelaunch
+        ? prelaunch->takeSplash(targetAppId, surface, SurfaceWrapper::Type::XdgToplevel) : nullptr;
+    bool isNewWrapper = !wrapper;
 
     if (!wrapper) {
         wrapper = new SurfaceWrapper(WaylandServer::instance()->qmlEngine(),
                                      surface,
                                      SurfaceWrapper::Type::XdgToplevel,
                                      targetAppId);
-        m_workspace->addSurface(wrapper);
+        workspaceForSurface(wrapper)->addSurface(wrapper);
         isNewWrapper = true; // newly created
     }
 
@@ -721,7 +499,7 @@ void ShellHandler::ensureXdgWrapper(WXdgToplevelSurface *surface, const QString 
     }
     setupSurfaceWindowMenu(wrapper);
     // Only setup active watcher for newly created wrappers;
-    // prelaunch splash wrappers already have it set up in createPrelaunchSplash
+    // prelaunch splash wrappers already have it set up in initializePrelaunchSurface
     if (isNewWrapper) {
         setupSurfaceActiveWatcher(wrapper);
         registerSurfaceToForeignToplevel(wrapper);
@@ -735,7 +513,8 @@ void ShellHandler::ensureXdgWrapper(WXdgToplevelSurface *surface, const QString 
             return;
         if (checkAndApplyPrivilegedOverlay(wrapperPtr))
             return;
-        if (m_imCandidatePanelManager->checkAndApplyIMCandidatePanel(wrapperPtr))
+        if (auto *panels = candidatePanels(wrapperPtr->session());
+            panels && panels->checkAndApplyIMCandidatePanel(wrapperPtr))
             return;
         if (checkAndApplySnapMask(wrapperPtr))
             return;
@@ -785,7 +564,7 @@ void ShellHandler::revokePrivilegedOverlay(SurfaceWrapper *wrapper)
     wrapper->disableWindowAnimation(false);
     wrapper->setSkipDockPreView(false);
     wrapper->setSkipMutiTaskView(false);
-    m_workspace->addSurface(wrapper);
+    workspaceForSurface(wrapper)->addSurface(wrapper);
 }
 
 void ShellHandler::onXdgToplevelSurfaceRemoved(WXdgToplevelSurface *surface)
@@ -881,12 +660,12 @@ void ShellHandler::onXWaylandSurfaceAdded(WXWaylandSurface *surface)
                              // If prelaunch wrappers or closed splash appIds exist and resolver is
                              // available, attempt async resolve; if started, remaining logic
                              // handled in callback, then return
-                             if ((!m_prelaunchWrappers.isEmpty() || !m_closedSplashAppIds.isEmpty())
-                                 && m_appIdResolverManager) {
+                             auto *prelaunch = prelaunchForSurface(raw);
+                             if (prelaunch && prelaunch->needsResolution()) {
                                  int pidfd = raw->pidFD();
                                  if (pidfd >= 0) {
                                      m_pendingAppIdResolveToplevels.append(raw);
-                                     bool started = m_appIdResolverManager->resolvePidfd(
+                                     bool started = prelaunch->resolvePidfd(
                                          pidfd,
                                          [self = QPointer<ShellHandler>(this),
                                           surface](const QString &appId) {
@@ -961,9 +740,9 @@ void ShellHandler::fetchInitialProperties(WXWaylandSurface *surface, const QStri
 
     auto windowId = surface->handle()->window_id;
     QVector<WXWayland::AsyncPropRequest> requests;
-    if (m_imCandidatePanelManager) {
-        requests.append({ m_imCandidatePanelManager->imCandidatePanelAtom(), XCB_ATOM_CARDINAL });
-    }
+    auto session = WaylandServer::instance()->sessionManager()->sessionForXWayland(xwayland);
+    if (auto *panels = candidatePanels(session.get()))
+        requests.append({ panels->imCandidatePanelAtom(), XCB_ATOM_CARDINAL });
 
     if (requests.isEmpty()) {
         ensureXwaylandWrapper(surface, appId);
@@ -988,10 +767,11 @@ void ShellHandler::onInitialPropertiesReady(WXWaylandSurface *surface,
                                             const QString &appId,
                                             const QMap<xcb_atom_t, QByteArray> &result)
 {
-    if (m_imCandidatePanelManager) {
+    auto session = WaylandServer::instance()->sessionManager()->sessionForXWayland(surface->xwayland());
+    if (auto *panels = candidatePanels(session.get())) {
         bool value = IMCandidatePanelManager::parseIMCandidatePanelProperty(
             result,
-            m_imCandidatePanelManager->imCandidatePanelAtom());
+            panels->imCandidatePanelAtom());
         surface->setProperty("imCandidatePanel", value);
     }
     ensureXwaylandWrapper(surface, appId);
@@ -999,46 +779,27 @@ void ShellHandler::onInitialPropertiesReady(WXWaylandSurface *surface,
 
 void ShellHandler::ensureXwaylandWrapper(WXWaylandSurface *surface, const QString &targetAppId)
 {
-    // Check if this matches a closed splash screen
-    if (!targetAppId.isEmpty() && m_closedSplashAppIds.contains(targetAppId)) {
-        qCDebug(lcTlShell)
-            << "XWayland surface matches closed splash, closing immediately: appId=" << targetAppId;
-        m_closedSplashAppIds.remove(targetAppId);
+    auto *prelaunch = prelaunchForSurface(surface);
+    if (prelaunch && prelaunch->consumeClosed(targetAppId)) {
         surface->close();
         return;
     }
-
-    SurfaceWrapper *wrapper = nullptr;
-    bool isNewWrapper = true;
-
-    if (!targetAppId.isEmpty()) {
-        m_pendingPrelaunchAppIds.remove(targetAppId);
-        for (int i = 0; i < m_prelaunchWrappers.size(); ++i) {
-            auto *candidate = m_prelaunchWrappers[i];
-            if (candidate->appId() == targetAppId) {
-                qCDebug(lcTlShell) << "match prelaunch xwayland" << targetAppId;
-                m_prelaunchWrappers.removeAt(i);
-                candidate->convertToNormalSurface(surface, SurfaceWrapper::Type::XWayland);
-                wrapper = candidate;
-                isNewWrapper = false; // matched from prelaunch, not newly created
-                m_windowConfigStore->resetSplashMismatchCount(targetAppId);
-                break;
-            }
-        }
-    }
+    SurfaceWrapper *wrapper = prelaunch
+        ? prelaunch->takeSplash(targetAppId, surface, SurfaceWrapper::Type::XWayland) : nullptr;
+    bool isNewWrapper = !wrapper;
 
     if (!wrapper) {
         wrapper = new SurfaceWrapper(WaylandServer::instance()->qmlEngine(),
                                      surface,
                                      SurfaceWrapper::Type::XWayland,
                                      targetAppId);
-        m_workspace->addSurface(wrapper);
+        workspaceForSurface(wrapper)->addSurface(wrapper);
         isNewWrapper = true; // newly created
     }
 
     // IM candidate panel detection via XWayland xprop
-    if (m_imCandidatePanelManager
-        && m_imCandidatePanelManager->checkAndApplyIMCandidatePanel(wrapper)) {
+    if (auto *panels = candidatePanels(wrapper->session());
+        panels && panels->checkAndApplyIMCandidatePanel(wrapper)) {
         Q_EMIT surfaceWrapperAdded(wrapper);
         return;
     }
@@ -1076,7 +837,7 @@ void ShellHandler::ensureXwaylandWrapper(WXWaylandSurface *surface, const QStrin
     }
     setupSurfaceWindowMenu(wrapper);
     // Only setup active watcher for newly created wrappers;
-    // prelaunch splash wrappers already have it set up in createPrelaunchSplash
+    // prelaunch splash wrappers already have it set up in initializePrelaunchSurface
     if (isNewWrapper) {
         setupSurfaceActiveWatcher(wrapper);
         registerSurfaceToForeignToplevel(wrapper);
@@ -1087,13 +848,13 @@ void ShellHandler::ensureXwaylandWrapper(WXWaylandSurface *surface, const QStrin
 void ShellHandler::registerSurfaceToForeignToplevel(SurfaceWrapper *wrapper)
 {
     if (!wrapper->skipDockPreView()) {
-        m_treelandForeignToplevel->addSurface(wrapper);
+        wrapper->session()->windowManagement()->addSurface(wrapper);
     }
     connect(wrapper, &SurfaceWrapper::skipDockPreViewChanged, this, [this, wrapper] {
         if (wrapper->skipDockPreView()) {
-            m_treelandForeignToplevel->removeSurface(wrapper);
+            wrapper->session()->windowManagement()->removeSurface(wrapper);
         } else {
-            m_treelandForeignToplevel->addSurface(wrapper);
+            wrapper->session()->windowManagement()->addSurface(wrapper);
         }
     });
 }
@@ -1120,75 +881,37 @@ bool ShellHandler::checkAndApplySnapMask(SurfaceWrapper *wrapper)
     return true;
 }
 
-void ShellHandler::setupDockPreview()
+void ShellHandler::registerSession(Session *session)
 {
-    Q_ASSERT(m_dockPreview);
-
-    connect(m_treelandForeignToplevel,
-            &ForeignToplevelManagerInterfaceV3::requestDockPreview,
+    connect(session->prelaunch(), &SessionPrelaunch::splashCreated,
+            this, &ShellHandler::initializePrelaunchSurface);
+    connect(session->outputManager(), &SessionOutputManager::desktopGeometryChanged,
+            this, &ShellHandler::updateXWaylandDesktopProperties);
+    auto *xdgShell = session->protocols()->xdgShell();
+    connect(xdgShell,
+            &WXdgShell::toplevelSurfaceAdded,
             this,
-            &ShellHandler::onDockPreview);
-    connect(m_treelandForeignToplevel,
-            &ForeignToplevelManagerInterfaceV3::requestDockPreviewTooltip,
+            &ShellHandler::onXdgToplevelSurfaceAdded);
+    connect(xdgShell,
+            &WXdgShell::toplevelSurfaceRemoved,
             this,
-            &ShellHandler::onDockPreviewTooltip);
-    connect(m_treelandForeignToplevel,
-            &ForeignToplevelManagerInterfaceV3::requestDockClose,
+            &::ShellHandler::onXdgToplevelSurfaceRemoved);
+    connect(xdgShell, &WXdgShell::popupSurfaceAdded, this, &ShellHandler::onXdgPopupSurfaceAdded);
+    connect(xdgShell,
+            &WXdgShell::popupSurfaceRemoved,
             this,
-            &ShellHandler::onDockClose);
-}
+            &ShellHandler::onXdgPopupSurfaceRemoved);
 
-void ShellHandler::onDockPreview(std::vector<SurfaceWrapper *> surfaces,
-                                 WSurface *target,
-                                 QPoint pos,
-                                 ForeignToplevelManagerInterfaceV3::PreviewDirection direction)
-{
-    if (!m_dockPreview)
-        return;
-
-    SurfaceWrapper *dockWrapper = m_rootSurfaceContainer->getSurface(target);
-    Q_ASSERT(dockWrapper);
-
-    QMetaObject::invokeMethod(m_dockPreview,
-                              "show",
-                              QVariant::fromValue(surfaces),
-                              QVariant::fromValue(dockWrapper),
-                              QVariant::fromValue(pos),
-                              QVariant::fromValue(direction));
-}
-
-void ShellHandler::onDockPreviewTooltip(
-    WSurface *surface,
-    WSurface *target,
-    QPoint pos,
-    ForeignToplevelManagerInterfaceV3::PreviewDirection direction)
-{
-    if (!m_dockPreview)
-        return;
-
-    SurfaceWrapper *dockWrapper = m_rootSurfaceContainer->getSurface(target);
-    Q_ASSERT(dockWrapper);
-    QMetaObject::invokeMethod(m_dockPreview,
-                              "showTooltip",
-                              QVariant::fromValue(surface),
-                              QVariant::fromValue(dockWrapper),
-                              QVariant::fromValue(pos),
-                              QVariant::fromValue(direction));
-}
-
-void ShellHandler::onDockClose()
-{
-    if (!m_dockPreview)
-        return;
-
-    QMetaObject::invokeMethod(m_dockPreview, "close");
+    auto *layerShell = session->protocols()->layerShell();
+    connect(layerShell, &WLayerShell::surfaceAdded, this, &ShellHandler::onLayerSurfaceAdded);
+    connect(layerShell, &WLayerShell::surfaceRemoved, this, &ShellHandler::onLayerSurfaceRemoved);
 }
 
 void ShellHandler::onSurfaceInactivationRequested(SurfaceWrapper *wrapper)
 {
     Q_ASSERT(wrapper);
     if (wrapper->type() != SurfaceWrapper::Type::Layer)
-        m_workspace->removeActivedSurface(wrapper);
+        workspaceForSurface(wrapper)->removeActivedSurface(wrapper);
 
     auto *server = WaylandServer::instance();
     auto *seatManager = server->seatManager();
@@ -1242,7 +965,7 @@ void ShellHandler::updateSurfaceAcceptKeyboardFocus(SurfaceWrapper *wrapper, boo
     // the activation history. Remove it explicitly instead of treating
     // keyboard-focus acceptance as an ActiveControlState capability.
     if (wrapper->type() != SurfaceWrapper::Type::Layer && wrapper->workspaceId() != -1)
-        m_workspace->removeActivedSurface(wrapper);
+        workspaceForSurface(wrapper)->removeActivedSurface(wrapper);
 
     auto *server = WaylandServer::instance();
     auto *seatManager = server->seatManager();
@@ -1319,10 +1042,11 @@ void ShellHandler::setupSurfaceActiveWatcher(SurfaceWrapper *wrapper)
             if (!wrapper->acceptKeyboardFocus())
                 return;
 
-            if (wrapper->showOnWorkspace(m_workspace->current()->id()))
+            if (WaylandServer::instance()->sessionManager()->isActiveWindow(wrapper)
+                && wrapper->showOnWorkspace(m_workspace->current()->id()))
                 WaylandServer::instance()->activateSurface(wrapper);
             else
-                m_workspace->pushActivedSurface(wrapper);
+                workspaceForSurface(wrapper)->pushActivedSurface(wrapper);
         });
 
         connect(wrapper, &SurfaceWrapper::inactivationRequested, this, [this, wrapper]() {
@@ -1330,10 +1054,11 @@ void ShellHandler::setupSurfaceActiveWatcher(SurfaceWrapper *wrapper)
         });
 
         if (wrapper->hasActiveCapability() && wrapper->acceptKeyboardFocus()) {
-            if (wrapper->showOnWorkspace(m_workspace->current()->id()))
+            if (WaylandServer::instance()->sessionManager()->isActiveWindow(wrapper)
+                && wrapper->showOnWorkspace(m_workspace->current()->id()))
                 WaylandServer::instance()->activateSurface(wrapper);
             else
-                m_workspace->pushActivedSurface(wrapper);
+                workspaceForSurface(wrapper)->pushActivedSurface(wrapper);
         }
     }
 }
@@ -1556,6 +1281,20 @@ void ShellHandler::handleDdeShellSurfaceV2Added(DDEShellSurfaceV2 *shellSurface,
             [wrapper](bool accept) {
                 wrapper->setAcceptKeyboardFocus(accept);
             });
+}
+
+WInputMethodHelper *ShellHandler::inputMethodHelper(WSeat *seat) const
+{
+    for (const auto &session : WaylandServer::instance()->sessionManager()->sessions()) {
+        if (auto *helper = session->seatManager()->inputMethodHelper(seat))
+            return helper;
+    }
+    return nullptr;
+}
+
+IMCandidatePanelManager *ShellHandler::candidatePanels(Session *session) const
+{
+    return session ? session->seatManager()->candidatePanels() : nullptr;
 }
 
 void ShellHandler::registerInputMethodHelper(WInputMethodHelper *helper)

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "imcandidatepanelmanager.h"
+#include "session/session.h"
 #include "common/treelandlogging.h"
 
 #include "output/output.h"
@@ -133,7 +134,7 @@ void IMCandidatePanelManager::applyIMCandidatePanel(SurfaceWrapper *wrapper)
         wrapper->setNoDecoration(true);
 
     if (!wrapper->skipDockPreView())
-        m_shellHandler->foreignToplevel()->removeSurface(wrapper);
+        wrapper->session()->windowManagement()->removeSurface(wrapper);
 
     wrapper->disableWindowAnimation();
 

@@ -13,6 +13,7 @@ import org.deepin.dtk 1.0 as D
 
 Item {
     id: root
+    required property DesktopEnvironment desktop
     property int aniDuration: 350
     property bool enableAnimation: aniDuration > 0
     property alias spacing: listview.spacing
@@ -341,19 +342,19 @@ Item {
 
         function activateWindow(surfaceWrapper) {
             console.debug(qLcDockPreview, "activate preview window: ", surfaceWrapper)
-            WaylandServer.forceActivateSurface(surfaceWrapper)
-            ForeignToplevelManagerInterfaceV3.leaveDockPreview(root.target.shellSurface.surface)
+            root.desktop.activateWindow(surfaceWrapper)
+            root.desktop.windowManagement.leaveDockPreview(root.target.shellSurface.surface)
             root.close();
         }
 
         function previewWindow(surfaceWrapper) {
             console.debug(qLcDockPreview, "start preview window: ", surfaceWrapper)
-            WaylandServer.workspace.startPreviewing(surfaceWrapper);
+            root.desktop.workspace.startPreviewing(surfaceWrapper);
         }
 
         function stopPreviewWindow() {
             console.debug(qLcDockPreview, "stop preview window")
-            WaylandServer.workspace.stopPreviewing();
+            root.desktop.workspace.stopPreviewing();
         }
 
         function closeAllWindow() {
@@ -950,9 +951,9 @@ Item {
             enabled: listview.count !== 0
             onHoveredChanged: {
                 if (!hovered) {
-                    ForeignToplevelManagerInterfaceV3.leaveDockPreview(root.target.shellSurface.surface)
+                    root.desktop.windowManagement.leaveDockPreview(root.target.shellSurface.surface)
                 } else {
-                    ForeignToplevelManagerInterfaceV3.enterDockPreview(root.target.shellSurface.surface)
+                    root.desktop.windowManagement.enterDockPreview(root.target.shellSurface.surface)
                 }
             }
             cursorShape: Qt.ArrowCursor
