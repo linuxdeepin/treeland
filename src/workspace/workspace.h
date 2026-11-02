@@ -42,6 +42,7 @@ class Workspace : public SurfaceContainer
 
 public:
     explicit Workspace(SurfaceContainer *parent, TreelandUserConfig *config = nullptr);
+    void deactivate();
 
     // When workspaceId is -1 will move to current workspace
     Q_INVOKABLE void moveSurfaceTo(SurfaceWrapper *surface, int workspaceId = -1);

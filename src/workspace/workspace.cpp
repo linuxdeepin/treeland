@@ -34,6 +34,20 @@ Workspace::Workspace(SurfaceContainer *parent, TreelandUserConfig *config)
             this, &Workspace::reloadFromConfig);
 }
 
+void Workspace::deactivate()
+{
+    stopPreviewing();
+    m_animationController->cancel();
+    m_switcherEnabled = true;
+    if (m_switcher) {
+        m_switcher->setVisible(false);
+        m_switcher->deleteLater();
+        m_switcher = nullptr;
+    }
+    setVisible(false);
+    setEnabled(false);
+}
+
 void Workspace::moveSurfaceTo(SurfaceWrapper *surface, int workspaceId)
 {
     if (workspaceId == -1)
