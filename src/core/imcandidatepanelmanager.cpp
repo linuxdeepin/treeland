@@ -147,8 +147,15 @@ void IMCandidatePanelManager::applyIMCandidatePanel(SurfaceWrapper *wrapper)
     applyInitialPositionAtCursor();
 }
 
+void IMCandidatePanelManager::setInputMethodHelper(WAYLIB_SERVER_NAMESPACE::WInputMethodHelper *helper)
+{
+    m_inputMethodHelper = helper;
+}
+
 void IMCandidatePanelManager::applyInitialPositionAtCursor()
 {
+    if (!m_inputMethodHelper)
+        return;
     auto cursorRect = m_inputMethodHelper->textInputCursorRect();
     if (cursorRect.isEmpty() || m_imCandidatePanels.isEmpty())
         return;
@@ -194,7 +201,7 @@ void IMCandidatePanelManager::arrangeIMCandidatePanels(Output *output, const QPo
 
 void IMCandidatePanelManager::onIMCandidatePanelGeometryChanged()
 {
-    if (m_imCandidatePanels.isEmpty())
+    if (m_imCandidatePanels.isEmpty() || !m_inputMethodHelper)
         return;
 
     auto *focusSurface = m_inputMethodHelper->textInputFocusSurface();
