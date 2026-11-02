@@ -181,7 +181,7 @@ QQuickItem *QmlEngine::createMenuBar(WOutputItem *output, QQuickItem *parent)
 
 QQuickItem *QmlEngine::createWorkspaceSwitcher(Workspace *parent)
 {
-    return createComponent(workspaceSwitcher, parent);
+    return createComponent(workspaceSwitcher, parent, {{"workspaceManager", QVariant::fromValue(parent)}});
 }
 
 QQuickItem *QmlEngine::createNewAnimation(SurfaceWrapper *surface,
