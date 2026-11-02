@@ -67,7 +67,7 @@ protected:
 
 private:
     wl_event_loop *eventLoop() const;
-    ForeignToplevelHandleV3 *handleForIdentifier(uint32_t identifier) const;
+    ForeignToplevelHandleV3 *handleForIdentifier(uint32_t identifier, wl_client *client) const;
     void releaseHandle(ForeignToplevelHandleV3 *handle);
     void releaseDockPreviewContext(DockPreviewContextV3 *context);
     void initializeToplevelHandle(SurfaceWrapper *wrapper, ForeignToplevelHandleV3 *handle);
