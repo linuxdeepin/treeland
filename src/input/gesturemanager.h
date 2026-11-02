@@ -30,6 +30,8 @@ class GestureManager : public QObject
 {
 public:
     static GestureManager *instance();
+    explicit GestureManager(QObject *parent = nullptr);
+    ~GestureManager() override;
     void cancel();
 
     GestureManager(const GestureManager &) = delete;
@@ -51,9 +53,6 @@ public:
     void setHoldTimeout(int msec);
 
 private:
-    GestureManager(QObject *parent = nullptr);
-    ~GestureManager();
-
     static GestureManager *m_instance;
     std::unique_ptr<GestureRecognizer> m_touchpadRecognizer;
     enum class Sequence { None, Swipe, Hold };
