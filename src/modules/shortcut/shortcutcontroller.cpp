@@ -28,8 +28,9 @@ static_assert(
 
 using BindError = QtWaylandServer::treeland_shortcut_manager_v3::bind_error;
 
-ShortcutController::ShortcutController(QObject *parent)
+ShortcutController::ShortcutController(QObject *parent, GestureManager *gestures)
     : QObject(parent)
+    , m_gestureManager(gestures ? gestures : GestureManager::instance())
 {
 }
 
@@ -109,7 +110,7 @@ uint ShortcutController::registerSwipeGesture(const QString &name, uint finger, 
     auto gestureKey = std::make_pair(finger, direction);
 
     if (!m_gestures.contains(gestureKey)) {
-        auto gesture = GestureManager::instance()->registerTouchpadSwipe(
+        auto gesture = m_gestureManager->registerTouchpadSwipe(
             SwipeFeedBack {
                 direction,
                 finger,
@@ -145,7 +146,7 @@ uint ShortcutController::registerSwipeGesture(const QString &name, uint finger, 
         if (entry.isEmpty()) {
             auto gesture = qobject_cast<SwipeGesture*>(m_gestures.take(gestureKey));
             if (gesture) {
-                GestureManager::instance()->unregisterTouchpadSwipe(gesture);
+                m_gestureManager->unregisterTouchpadSwipe(gesture);
             }
         }
     };
@@ -173,7 +174,7 @@ uint ShortcutController::registerHoldGesture(const QString &name, uint finger, S
     auto gestureKey = std::make_pair(finger, SwipeGesture::Direction::Invalid);
 
     if (!m_gestures.contains(gestureKey)) {
-        auto gesture = GestureManager::instance()->registerTouchpadHold(
+        auto gesture = m_gestureManager->registerTouchpadHold(
             HoldFeedBack {
                 finger,
                 nullptr,
@@ -204,7 +205,7 @@ uint ShortcutController::registerHoldGesture(const QString &name, uint finger, S
         if (entry.isEmpty()) {
             auto gesture = qobject_cast<HoldGesture*>(m_gestures.take(gestureKey));
             if (gesture) {
-                GestureManager::instance()->unregisterTouchpadHold(gesture);
+                m_gestureManager->unregisterTouchpadHold(gesture);
             }
         }
     };

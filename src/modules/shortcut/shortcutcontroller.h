@@ -12,6 +12,8 @@
 class Gesture;
 class QKeyEvent;
 
+class GestureManager;
+
 class ShortcutController : public QObject
 {
     Q_OBJECT
@@ -78,7 +80,7 @@ public:
         All = KeyPress | KeyRelease | Repeat
     };
     Q_DECLARE_FLAGS(KeyFlags, KeyFlag)
-    explicit ShortcutController(QObject *parent = nullptr);
+    explicit ShortcutController(QObject *parent = nullptr, GestureManager *gestures = nullptr);
     ~ShortcutController() override;
 
     uint registerKey(const QString &name, const QString& key, KeyFlags keybindFlags, ShortcutAction action);
@@ -105,6 +107,7 @@ Q_SIGNALS:
 
 private:
 
+    GestureManager *const m_gestureManager;
     QMap<int, QMap<ShortcutAction, std::pair<QString, KeyFlags>>> m_keyMap;
     QMap<std::pair<uint, SwipeGesture::Direction>, QMap<ShortcutAction, QString>> m_gesturemap;
     QMap<std::pair<uint, SwipeGesture::Direction>, QObject*> m_gestures;
