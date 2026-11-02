@@ -121,6 +121,10 @@ OutputManager::OutputManager(RootSurfaceContainer *rootContainer,
     connect(m_rootContainer, &RootSurfaceContainer::primaryOutputChanged,
             this, &OutputManager::configurationChanged);
     connect(this, &OutputManager::modeChanged, this, &OutputManager::configurationChanged);
+    connect(m_config, &TreelandConfig::configInitializeSucceed,
+            this, &OutputManager::finishInitialOutputScanIfReady);
+    connect(m_config, &TreelandConfig::configInitializeFailed,
+            this, &OutputManager::finishInitialOutputScanIfReady);
 }
 
 void OutputManager::setScale(WOutput *target, qreal scale)
@@ -479,12 +483,16 @@ void OutputManager::continueOutputAdded()
 
 void OutputManager::finishInitialOutputScanIfReady()
 {
-    if (m_initialOutputScanFinished || !m_backendStartFinished || !m_pendingOutputs.isEmpty()) {
+    if (m_initialOutputScanFinished || !m_backendStartFinished || !m_pendingOutputs.isEmpty()
+        || !configurationReady(m_config)) {
         return;
     }
 
     m_initialOutputScanFinished = true;
-    restoreInitialOutputConfiguration();
+    restoreExtensionModeFromConfig();
+    if (!m_config->singleOutputId().isEmpty())
+        restoreInitialOutputConfiguration();
+    Q_EMIT configurationChanged();
 }
 
 void OutputManager::backendStarted()
@@ -1272,11 +1280,15 @@ void OutputManager::restoreExtensionModeFromConfig()
             if (!wlr_output_commit_state(output->handle(), state.get())) {
                 qCCritical(lcTlOutput) << "Failed to restore extension state for"
                                        << output->name();
+                return;
+            }
+            if (auto *viewport = ownOutputViewport(output)) {
+                viewport->setOutputScale(scale);
+                viewport->rotateOutput(static_cast<WOutput::Transform>(transform));
             }
         };
 
-        auto *config = outputObject->config();
-        if (config && config->isInitializeSucceeded()) {
+        if (configurationReady(outputObject->config())) {
             restoreOutput();
         }
     }
