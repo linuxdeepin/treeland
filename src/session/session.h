@@ -8,6 +8,7 @@
 #ifndef DISABLE_XWAYLAND
 #include <xcb/xproto.h>
 #endif
+#include <QtQml/qqmlregistration.h>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WServerInterface;
@@ -27,6 +28,8 @@ class WallpaperLauncher;
 
 class Session : public QObject {
     Q_OBJECT
+    QML_ANONYMOUS
+    Q_PROPERTY(bool active READ isActive NOTIFY activeChanged FINAL)
 public:
     ~Session();
 
@@ -38,15 +41,19 @@ public:
     WXWayland *xwayland() const;
     quint32 noTitlebarAtom() const;
 #endif
+    bool isActive() const;
     bool ownsClient(WClient *client) const;
     void attachInterface(WServerInterface *interface);
     void detachInterface(WServerInterface *interface);
 
 Q_SIGNALS:
+    void activeChanged(bool active);
     void aboutToBeDestroyed();
 
 private:
     friend class SessionManager;
+    void setActive(bool active);
+    bool m_active = false;
 
     // The logind session id. Set once in ensureSession() and never mutated
     // afterwards; it is read from QThreadPool workers (onSessionLock/Unlock),
