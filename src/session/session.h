@@ -10,6 +10,7 @@
 #endif
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
+class WServerInterface;
 class WClient;
 class WSocket;
 #ifndef DISABLE_XWAYLAND
@@ -38,6 +39,8 @@ public:
     quint32 noTitlebarAtom() const;
 #endif
     bool ownsClient(WClient *client) const;
+    void attachInterface(WServerInterface *interface);
+    void detachInterface(WServerInterface *interface);
 
 Q_SIGNALS:
     void aboutToBeDestroyed();
@@ -51,6 +54,7 @@ private:
     QString m_id;
     uid_t m_uid = 0;
     QString m_username = {};
+    QList<WServerInterface *> m_interfaces;
     WSocket *m_socket = nullptr;
 #ifndef DISABLE_XWAYLAND
     WXWayland *m_xwayland = nullptr;
