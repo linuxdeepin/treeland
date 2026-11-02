@@ -22,6 +22,7 @@ class WAYLIB_SERVER_EXPORT WXdgDecorationManager : public QObject, public WObjec
 
 public:
     explicit WXdgDecorationManager();
+    ~WXdgDecorationManager() override;
 
     enum DecorationMode {
         Undefined,  // client not send any mode
