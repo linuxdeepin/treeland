@@ -24,22 +24,6 @@
 #include <wseat.h>
 #include <wbackend.h>
 
-namespace {
-
-bool isTreelandConfigInitialized(TreelandConfig *config)
-{
-    if (!config)
-        return false;
-
-#if TREELANDCONFIG_DCONFIG_FILE_VERSION_MINOR > 0
-    return config->isInitializeSucceeded();
-#else
-    return config->isInitializeSucceed();
-#endif
-}
-
-}
-
 InputManager::InputManager(QObject *parent)
     : QObject(parent)
 {
@@ -62,6 +46,7 @@ void InputManager::setupSeatUserConfig(const QString &userName)
     }
     m_userName = userName;
 
+    connect(this, &InputManager::settingsChanged, this, &InputManager::setupSeat, Qt::UniqueConnection);
     for (WSeat *seat : seats)
         setupSeat(seat);
 
@@ -82,6 +67,12 @@ void InputManager::setupSeatUserConfig(const QString &userName)
             Qt::UniqueConnection);
 }
 
+void InputManager::refresh()
+{
+    for (auto *seat : WaylandServer::instance()->seatManager()->seats())
+        setupSeat(seat);
+}
+
 SeatUserDConfig *InputManager::seatUserConfig(WSeat *seat) const
 {
     Q_ASSERT(!m_userName.isEmpty());
@@ -93,9 +84,16 @@ SeatUserDConfig *InputManager::seatUserConfig(WSeat *seat) const
 
 void InputManager::setupSeat(WSeat *seat)
 {
-    Q_ASSERT(!m_userName.isEmpty());
-
     auto *config = seatUserConfig(seat);
+    connect(config, &SeatUserDConfig::valueChanged,
+            this, &InputManager::refresh, Qt::UniqueConnection);
+    if (!configurationReady(config)) {
+        connect(config, &SeatUserDConfig::configInitializeSucceed,
+                this, &InputManager::refresh, Qt::UniqueConnection);
+        connect(config, &SeatUserDConfig::configInitializeFailed,
+                this, &InputManager::refresh, Qt::UniqueConnection);
+        return;
+    }
     if (auto *cursor = seat->cursor())
         cursor->setScrollFactor(config->pointerScrollFactor());
 
@@ -138,8 +136,13 @@ bool InputManager::initializeKeyboardSettings(KeyboardSettingsInterfaceV1 *inter
 
     auto *seatConfig = seatUserConfig(interface->wSeat());
 
-    auto *globalConfig = WaylandServer::instance()->globalConfig();
-    if (!isTreelandConfigInitialized(globalConfig)) {
+    if (!configurationReady(seatConfig)) {
+        const auto initialize = [this, interface = QPointer<KeyboardSettingsInterfaceV1>(interface)] {
+            if (interface)
+                initializeKeyboardSettings(interface);
+        };
+        connect(seatConfig, &SeatUserDConfig::configInitializeSucceed, this, initialize);
+        connect(seatConfig, &SeatUserDConfig::configInitializeFailed, this, initialize);
         return false;
     }
 
@@ -167,7 +170,7 @@ bool InputManager::initializeKeyboardSettings(KeyboardSettingsInterfaceV1 *inter
     }
 
     interface->sendFeature(features, true);
-    interface->sendNumLock(globalConfig->keyboardNumLock(), true);
+    interface->sendNumLock(seatConfig->keyboardNumLock(), true);
     interface->sendRepeat(seatConfig->keyboardRate(), seatConfig->keyboardDelay(), true);
     interface->sendXkbRules(seatConfig->xkbLayout(),
                             seatConfig->xkbModel(),
@@ -188,6 +191,16 @@ bool InputManager::initializeKeyboardSettings(KeyboardSettingsInterfaceV1 *inter
 
 void InputManager::onMousePointerConfigCreated(PointerDeviceConfigurationV1 *config)
 {
+    auto *ownerConfig = seatUserConfig(config->wSeat());
+    if (!configurationReady(ownerConfig)) {
+        const auto initialize = [this, interface = QPointer<PointerDeviceConfigurationV1>(config)] {
+            if (interface)
+                onMousePointerConfigCreated(interface);
+        };
+        connect(ownerConfig, &SeatUserDConfig::configInitializeSucceed, this, initialize);
+        connect(ownerConfig, &SeatUserDConfig::configInitializeFailed, this, initialize);
+        return;
+    }
     auto *seatConfig = seatUserConfig(config->wSeat());
 
     PointerDeviceConfigurationV1::FeatureFlags features;
@@ -260,8 +273,6 @@ void InputManager::onMousePointerConfigApplied(PointerDeviceConfigurationV1::Cha
 
     if (changes.testFlag(PointerDeviceConfigurationV1::ScrollFactorChanged)) {
         seatConfig->setPointerScrollFactor(interface->scrollFactor());
-        if (auto *cursor = interface->wSeat()->cursor())
-            cursor->setScrollFactor(interface->scrollFactor());
     }
 
     if (changes.testFlag(PointerDeviceConfigurationV1::HandedModeChanged)) {
@@ -282,44 +293,21 @@ void InputManager::onMousePointerConfigApplied(PointerDeviceConfigurationV1::Cha
         seatConfig->setMouseNaturalScroll(interface->naturalScroll());
     }
 
-    if (changes.testFlag(PointerDeviceConfigurationV1::AccelSpeedChanged)
-        || changes.testFlag(PointerDeviceConfigurationV1::AccelerationProfileChanged)
-        || changes.testFlag(PointerDeviceConfigurationV1::NaturalScrollChanged)
-        || changes.testFlag(PointerDeviceConfigurationV1::HandedModeChanged)) {
-        const auto devices = interface->wSeat()->deviceList();
-        for (WInputDevice *device : devices) {
-            if (!wlr_input_device_is_libinput(device->handle())) {
-                continue;
-            }
-
-            if (device->type() != WInputDevice::Type::Pointer) {
-                continue;
-            }
-
-            struct udev_device *udevDevice =
-                libinput_device_get_udev_device(wlr_libinput_get_device_handle(device->handle()));
-            if (!udev_device_get_property_value(udevDevice, "ID_INPUT_MOUSE")) {
-                continue;
-            }
-
-            struct libinput_device *inputDevice = wlr_libinput_get_device_handle(device->handle());
-            if (changes.testFlag(PointerDeviceConfigurationV1::AccelSpeedChanged))
-                configAccelSpeed(inputDevice, interface->accelSpeed());
-            if (changes.testFlag(PointerDeviceConfigurationV1::AccelerationProfileChanged))
-                configAccelProfile(inputDevice, static_cast<libinput_config_accel_profile>(interface->accelerationProfile()));
-            if (changes.testFlag(PointerDeviceConfigurationV1::NaturalScrollChanged))
-                configNaturalScroll(inputDevice, interface->naturalScroll());
-
-            if (changes.testFlag(PointerDeviceConfigurationV1::HandedModeChanged)) {
-                bool leftHanded = (interface->handedMode() == PointerDeviceConfigurationV1::Left);
-                configLeftHanded(inputDevice, leftHanded);
-            }
-        }
-    }
+    Q_EMIT settingsChanged(interface->wSeat());
 }
 
 void InputManager::onTouchpadPointerConfigCreated(PointerDeviceConfigurationV1 *config)
 {
+    auto *ownerConfig = seatUserConfig(config->wSeat());
+    if (!configurationReady(ownerConfig)) {
+        const auto initialize = [this, interface = QPointer<PointerDeviceConfigurationV1>(config)] {
+            if (interface)
+                onTouchpadPointerConfigCreated(interface);
+        };
+        connect(ownerConfig, &SeatUserDConfig::configInitializeSucceed, this, initialize);
+        connect(ownerConfig, &SeatUserDConfig::configInitializeFailed, this, initialize);
+        return;
+    }
     PointerDeviceConfigurationV1::FeatureFlags features;
     features.setFlag(PointerDeviceConfigurationV1::ScrollFactor);
     features.setFlag(PointerDeviceConfigurationV1::EventsMode);
@@ -388,8 +376,6 @@ void InputManager::onTouchpadPointerConfigApplied(PointerDeviceConfigurationV1::
 
     if (changes.testFlag(PointerDeviceConfigurationV1::ScrollFactorChanged)) {
         seatConfig->setPointerScrollFactor(interface->scrollFactor());
-        if (auto *cursor = interface->wSeat()->cursor())
-            cursor->setScrollFactor(interface->scrollFactor());
     }
 
     if (changes.testFlag(PointerDeviceConfigurationV1::AccelSpeedChanged)) {
@@ -412,52 +398,9 @@ void InputManager::onTouchpadPointerConfigApplied(PointerDeviceConfigurationV1::
         seatConfig->setTouchpadTapToClick(interface->tapToClick());
     }
 
-    const auto devices = interface->wSeat()->deviceList();
-    for (WInputDevice *device : devices) {
-        if (!wlr_input_device_is_libinput(device->handle()))
-            continue;
-
-        if (device->type() != WInputDevice::Type::Pointer) {
-            continue;
-        }
-
-        struct udev_device *udevDevice =
-            libinput_device_get_udev_device(wlr_libinput_get_device_handle(device->handle()));
-
-        if (!udev_device_get_property_value(udevDevice, "ID_INPUT_TOUCHPAD")) {
-            continue;
-        }
-
-        struct libinput_device *inputDevice = wlr_libinput_get_device_handle(device->handle());
-        if (changes.testFlag(PointerDeviceConfigurationV1::AccelSpeedChanged)) {
-            configAccelSpeed(inputDevice, interface->accelSpeed());
-        }
-
-        if (changes.testFlag(PointerDeviceConfigurationV1::AccelerationProfileChanged)) {
-            configAccelProfile(inputDevice,
-                               static_cast<libinput_config_accel_profile>(interface->accelerationProfile()));
-        }
-
-        if (changes.testFlag(PointerDeviceConfigurationV1::SendEventsModeChanged)) {
-            configSendEventsMode(inputDevice, interface->sendEventsMode().toInt());
-        }
-
-        if (changes.testFlag(PointerDeviceConfigurationV1::DisableWhileTypingChanged)) {
-            configDwtEnabled(inputDevice, interface->disableWhileTyping()
-                             ? LIBINPUT_CONFIG_DWT_ENABLED
-                             : LIBINPUT_CONFIG_DWT_DISABLED);
-        }
-
-        if (changes.testFlag(PointerDeviceConfigurationV1::TapToClickChanged)) {
-            configTapEnabled(inputDevice, interface->tapToClick()
-                             ? LIBINPUT_CONFIG_TAP_ENABLED
-                             : LIBINPUT_CONFIG_TAP_DISABLED);
-        }
-
-        if (changes.testFlag(PointerDeviceConfigurationV1::NaturalScrollChanged)) {
-            configNaturalScroll(inputDevice, interface->naturalScroll());
-        }
-    }
+    if (changes.testFlag(PointerDeviceConfigurationV1::AccelerationProfileChanged))
+        seatConfig->setTouchpadAccelerationProfile(interface->accelerationProfile());
+    Q_EMIT settingsChanged(interface->wSeat());
 }
 
 void InputManager::onKeyboardSettingsApplied(KeyboardSettingsInterfaceV1::ChangeFlags changes)
@@ -466,13 +409,13 @@ void InputManager::onKeyboardSettingsApplied(KeyboardSettingsInterfaceV1::Change
         static_cast<KeyboardSettingsInterfaceV1 *>(sender());
     auto *seatConfig = seatUserConfig(interface->wSeat());
 
-    if (!isTreelandConfigInitialized(WaylandServer::instance()->globalConfig())) {
+    if (!seatConfig->isInitializeSucceeded()) {
         interface->sendFailed();
         return;
     }
 
     if (changes.testFlag(KeyboardSettingsInterfaceV1::NumLockChanged)) {
-        WaylandServer::instance()->globalConfig()->setKeyboardNumLock(interface->numLock());
+        seatConfig->setKeyboardNumLock(interface->numLock());
     }
 
     if (changes.testFlag(KeyboardSettingsInterfaceV1::RepeatChanged)) {
@@ -487,40 +430,16 @@ void InputManager::onKeyboardSettingsApplied(KeyboardSettingsInterfaceV1::Change
         seatConfig->setXkbOptions(interface->xkbOptions());
     }
 
-    auto *keyboardDevice = interface->wSeat()->keyboardGroupKeyboard();
-    if (keyboardDevice) {
-        if (keyboardDevice->handle()->type == WLR_INPUT_DEVICE_KEYBOARD) {
-            auto *keyboard = wlr_keyboard_from_input_device(keyboardDevice->handle());
-            if (changes.testFlag(KeyboardSettingsInterfaceV1::RepeatChanged)) {
-                wlr_keyboard_set_repeat_info(keyboard, interface->repeatRate(), interface->repeatDelay());
-            }
-        }
-    }
-
-    if (changes.testFlag(KeyboardSettingsInterfaceV1::NumLockChanged))
-        setNumLockForSeat(interface->wSeat(), interface->numLock());
-
-    if (changes.testFlag(KeyboardSettingsInterfaceV1::XkbRulesChanged)) {
-        applyXkbConfig(interface->wSeat(),
-                       interface->xkbLayout(),
-                       interface->xkbModel(),
-                       interface->xkbVariant(),
-                       interface->xkbOptions());
-    }
+    Q_EMIT settingsChanged(interface->wSeat());
 }
 
 void InputManager::applyNumLockToKeyboards()
 {
-    auto *globalConfig = WaylandServer::instance()->globalConfig();
-    if (!isTreelandConfigInitialized(globalConfig))
-        return;
-
-    auto *seatManager = WaylandServer::instance()->seatManager();
-    if (seatManager) {
-        const auto seats = seatManager->seats();
-        for (WSeat *seat : seats) {
-            setNumLockForSeat(seat, globalConfig->keyboardNumLock());
-        }
+    const auto seats = WaylandServer::instance()->seatManager()->seats();
+    for (WSeat *seat : seats) {
+        auto *config = seatUserConfig(seat);
+        if (configurationReady(config))
+            setNumLockForSeat(seat, config->keyboardNumLock());
     }
 }
 
@@ -610,6 +529,22 @@ void InputManager::onInputAssigned(WInputDevice *input)
     Q_ASSERT(seat);
     auto *seatConfig = seatUserConfig(seat);
 
+    if (!configurationReady(seatConfig)) {
+        connect(seatConfig, &SeatUserDConfig::configInitializeSucceed,
+                this, &InputManager::refresh, Qt::UniqueConnection);
+        connect(seatConfig, &SeatUserDConfig::configInitializeFailed,
+                this, &InputManager::refresh, Qt::UniqueConnection);
+        return;
+    }
+
+    if (input->type() == WInputDevice::Type::Keyboard) {
+        if (input->handle()->type == WLR_INPUT_DEVICE_KEYBOARD) {
+            auto *keyboard = wlr_keyboard_from_input_device(input->handle());
+            wlr_keyboard_set_repeat_info(keyboard, seatConfig->keyboardRate(), seatConfig->keyboardDelay());
+        }
+        setNumLockForSeat(seat, seatConfig->keyboardNumLock());
+    }
+
     if (!wlr_input_device_is_libinput(input->handle())) {
         return;
     }
@@ -618,16 +553,6 @@ void InputManager::onInputAssigned(WInputDevice *input)
     struct udev_device *udevDevice = libinput_device_get_udev_device(inputDevice);
     bool leftHanded = (seatConfig->pointerHandMode() == "Left");
 
-    if (input->type() == WInputDevice::Type::Keyboard) {
-        if (input->handle()->type == WLR_INPUT_DEVICE_KEYBOARD) {
-            auto *keyboard = wlr_keyboard_from_input_device(input->handle());
-            wlr_keyboard_set_repeat_info(keyboard, seatConfig->keyboardRate(), seatConfig->keyboardDelay());
-        }
-        if (isTreelandConfigInitialized(WaylandServer::instance()->globalConfig())) {
-            if (seat)
-                setNumLockForSeat(seat, WaylandServer::instance()->globalConfig()->keyboardNumLock());
-        }
-    }
 
     if (udev_device_get_property_value(udevDevice, "ID_INPUT_MOUSE")) {
         configLeftHanded(inputDevice, leftHanded);
