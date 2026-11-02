@@ -31,7 +31,7 @@ GestureManager *GestureManager::instance()
 
 [[maybe_unused]] SwipeGesture * GestureManager::registerTouchpadSwipe(const SwipeFeedBack &feed_back)
 {
-    auto swipe_gesture = new SwipeGesture();
+    auto swipe_gesture = new SwipeGesture(this);
     swipe_gesture->setDirection(feed_back.direction);
     swipe_gesture->setMinimumDelta(QPointF(200, 200));
     swipe_gesture->setMaximumFingerCount(feed_back.fingerCount);
@@ -56,7 +56,7 @@ GestureManager *GestureManager::instance()
 
 [[maybe_unused]] HoldGesture * GestureManager::registerTouchpadHold(const HoldFeedBack &feed)
 {
-    auto hold_gesture = new HoldGesture();
+    auto hold_gesture = new HoldGesture(this);
     hold_gesture->setMinimumFingerCount(feed.fingerCount);
     hold_gesture->setMaximumFingerCount(feed.fingerCount);
 
@@ -75,11 +75,13 @@ GestureManager *GestureManager::instance()
 void GestureManager::unregisterTouchpadSwipe(SwipeGesture *gesture)
 {
     m_touchpadRecognizer->unregisterSwipeGesture(gesture);
+    delete gesture;
 }
 
 void GestureManager::unregisterTouchpadHold(HoldGesture *gesture)
 {
     m_touchpadRecognizer->unregisterHoldGesture(gesture);
+    delete gesture;
 }
 
 void GestureManager::cancel()
