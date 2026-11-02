@@ -16,6 +16,11 @@ class WSeat;
 class WInputDevice;
 class WInputMethodV2;
 class WInputMethodHelperPrivate;
+class WInputMethodManagerV2;
+class WTextInputManagerV1;
+class WTextInputManagerV2;
+class WTextInputManagerV3;
+class WVirtualKeyboardManagerV1;
 class WInputPopupSurface;
 class WTextInput;
 class WSurface;
@@ -25,7 +30,16 @@ class WAYLIB_SERVER_EXPORT WInputMethodHelper : public QObject, public WObject
     W_DECLARE_PRIVATE(WInputMethodHelper)
 
 public:
-    explicit WInputMethodHelper(WServer *server, WSeat *seat);
+    struct Protocols
+    {
+        WInputMethodManagerV2 *inputMethod = nullptr;
+        WTextInputManagerV1 *textInputV1 = nullptr;
+        WTextInputManagerV2 *textInputV2 = nullptr;
+        WTextInputManagerV3 *textInputV3 = nullptr;
+        WVirtualKeyboardManagerV1 *virtualKeyboard = nullptr;
+    };
+
+    explicit WInputMethodHelper(WServer *server, WSeat *seat, const Protocols &protocols);
     ~WInputMethodHelper() override;
 
     WSurface *textInputFocusSurface() const;
