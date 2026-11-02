@@ -19,6 +19,12 @@ class TreelandUserConfig;
 Q_MOC_INCLUDE("treelanduserconfig.hpp")
 Q_MOC_INCLUDE("seatuserconfig.hpp")
 
+template<typename Config>
+bool configurationReady(Config *config)
+{
+    return config && (config->isInitializeSucceeded() || config->isInitializeFailed());
+}
+
 class DConfigManager : public QObject
 {
     Q_OBJECT
