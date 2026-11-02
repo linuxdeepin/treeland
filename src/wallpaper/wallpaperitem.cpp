@@ -28,23 +28,21 @@ WallpaperItem::WallpaperItem(QQuickItem *parent)
 WallpaperItem::WallpaperItem(QQuickItem *parent, bool autoUpdate)
     : WSurfaceItemContent(parent)
 {
-    m_model = WaylandServer::instance()->qmlEngine()->singletonInstance<UserModel *>("Treeland",
-                                                                              "UserModel");
     if (autoUpdate) {
-        connect(m_model,
-                &UserModel::currentUserNameChanged,
+        connect(WaylandServer::instance(),
+                &WaylandServer::activeSessionChanged,
                 this,
                 &WallpaperItem::handleCurrentuserChanged);
         connect(WaylandServer::instance()->shellHandler()->wallpaperShell(),
                 &TreelandWallpaperShellInterfaceV1::wallpaperSurfaceAdded,
                 this,
                 &WallpaperItem::handleWallpaperSurfaceAdded);
-        connect(WaylandServer::instance()->m_wallpaperManager,
-                &WallpaperManager::updateWallpaper,
+        connect(WaylandServer::instance(),
+                &WaylandServer::wallpaperChanged,
                 this,
                 &WallpaperItem::updateSurface);
-        connect(WaylandServer::instance()->workspace(),
-                &Workspace::workspaceAdded,
+        connect(WaylandServer::instance(),
+                &WaylandServer::workspaceAdded,
                 this,
                 &WallpaperItem::handleWorkspaceAdded);
     }
@@ -167,7 +165,7 @@ void WallpaperItem::updateSurface()
     }
 
     WallpaperOutputConfig config =
-        WaylandServer::instance()->m_wallpaperManager->getOutputConfig(output()->handle());
+        WaylandServer::instance()->wallpaperManager()->getOutputConfig(output()->handle());
     if (wallpaperRole() == Lockscreen) {
         if (config.lockscreenWallpaper != m_source) {
                 TreelandWallpaperSurfaceInterfaceV1 *interface =
@@ -219,7 +217,7 @@ void WallpaperItem::handleWorkspaceAdded()
         return;
     }
 
-    WaylandServer::instance()->m_wallpaperManager->syncAddWorkspace();
+    WaylandServer::instance()->wallpaperManager()->syncAddWorkspace();
     updateSurface();
 }
 

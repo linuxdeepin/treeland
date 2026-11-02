@@ -10,6 +10,7 @@
 
 #include <QObject>
 
+class Session;
 class WaylandServer;
 class SurfaceWrapper;
 
@@ -26,7 +27,7 @@ class FocusController : public QObject
 public:
     explicit FocusController(WaylandServer *server);
 
-    void installActivationProtocol(WServer *server);
+    void registerSession(Session *session);
     void activateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason,
                          WSeat *seat, bool raise = true);
     void forceActivateSurface(SurfaceWrapper *wrapper, Qt::FocusReason reason,
@@ -48,5 +49,4 @@ private:
                                WSurface *originatingSurface);
 private:
     WaylandServer *m_server;
-    WindowTransitionManagerInterfaceV1 *m_windowTransitionManagerV1 = nullptr;
 };

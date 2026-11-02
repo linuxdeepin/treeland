@@ -83,6 +83,7 @@ protected:
     bool eventFilter(QObject *watched, QEvent *event) override;
 
 private Q_SLOTS:
+    void bindShortcutController();
     // Feed the shortcut registration/trigger stream into the event ring
     // buffer while capture is armed.
     void onShortcutRegistered(const ShortcutController::Binding &binding);

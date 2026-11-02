@@ -5,7 +5,7 @@ description: "触发场景：新增/修改/评审/调试 treeland 的 DConfig �
 
 # Treeland DConfig 配置
 
-> **铁律**：用户级设置只能通过 `WaylandServer::config()` + `"/" + userName` subpath 访问；不要因为全局模式以 `dde` 运行就写进 `TreelandConfig`。
+> **铁律**：用户业务对象通过构造时注入的固定配置访问设置，不查询 Session 或活动用户。Session/DesktopEnvironment 组装边界负责解析配置与按用户名 subpath 隔离的 provider；仅共享运行时的活动桌面兼容入口使用 `WaylandServer::config()`。不要因为全局模式以 `dde` 运行就把用户偏好写进 `TreelandConfig`。显示模式、主屏、复制/单屏配置为系统级；各 Session 的窗口、协议资源和专属区域仍独立。
 
 ## 范围
 本 skill 用于由 Desktop Spec Group 配置元数据描述、并通过 DTK DConfig 生成的 C++ 封装类消费的 treeland 配置。
@@ -45,7 +45,7 @@ treeland 有两种运行模式，DConfig 归属必须同时考虑两者：
 
 `DConfigManager` 持有生成的配置对象。在 `WaylandServer::WaylandServer` 中，桌面侧观察 `DConfigManager::initialUserConfig()` 与 `DConfigManager::globalConfig()`。
 
-`DConfigManager` 解析用户与 seat 配置对象，并等待两者都初始化完成；用户切换后丢弃过期的完成通知。`initializeActiveUserConfig()` 观察用户变化；`stopActiveUserConfig()` 在桌面销毁时解绑桌面侧监听。其 `configReady` 信号驱动 `WaylandServer::applyCurrentUserConfig`，后者在当前指针变化时发出 `configChanged()`，更新个性化用户 id，并同步光标、输入、壁纸与工作区设置。`WaylandServer::config()` 与 `WaylandServer::globalConfig()` 直接暴露这些配置对象。用户级设置必须走这条路径，而不是 `m_globalConfig`；配置对象由 `DConfigManager` 复用，不由 `WaylandServer` 自己重建。
+`DConfigManager` 解析用户与 seat 配置对象，并等待两者都初始化完成；用户切换后丢弃过期的完成通知。`initializeActiveUserConfig()` 观察用户变化；`stopActiveUserConfig()` 在桌面销毁时解绑桌面侧监听。其 `configReady` 信号驱动 `WaylandServer::applyCurrentUserConfig`，后者在当前指针变化时发出 `configChanged()`，更新个性化用户 id，并同步光标、输入、壁纸与工作区设置。`WaylandServer::config()` 与 `WaylandServer::globalConfig()` 直接暴露这些配置对象。DesktopEnvironment 所属的 Workspace、WallpaperManager、InputManager 和 SessionOutputManager 使用构造时注入的固定配置或配置 provider；`WaylandServer::config()` 仅作当前桌面的兼容入口，而不是后台用户对象的配置来源。用户级设置不使用 `m_globalConfig`；配置对象由 `DConfigManager` 复用，不由 `WaylandServer` 自己重建。
 
 ## 描述文件格式
 DConfig 描述文件是 JSON 元数据文件。treeland 中它们位于 `misc/dconfig/`，顶层结构如下：
@@ -84,8 +84,8 @@ DConfig 描述文件是 JSON 元数据文件。treeland 中它们位于 `misc/dc
 
 - `org.deepin.dde.treeland.json` → 不随当前用户变化的合成器全局设置；生成 `TreelandConfig` / `treelandconfig.hpp`；通常通过 `WaylandServer::globalConfig()` 访问。
 - `org.deepin.dde.treeland.user.json` → 当前用户会话、个性化、工作区、光标、主题等设置；生成 `TreelandUserConfig` / `treelanduserconfig.hpp`；通过 `WaylandServer::config()` 访问，用户切换时从 DConfigManager 缓存中选取。
-- `org.deepin.dde.treeland.output.json` → 按 output 的设置；生成 `OutputConfig` / `outputconfig.hpp`；当前代码使用 `OutputConfig::createByName("org.deepin.dde.treeland.output", "org.deepin.dde.treeland", "/" + outputName, ...)`。
-- `org.deepin.dde.treeland.user.seat.json` → 当前用户的输入/seat 设置；生成 `SeatUserDConfig` / `seatuserconfig.hpp`；当前用户变化时调用 `InputManager::setupSeatUserConfig(userName)`。
+- `org.deepin.dde.treeland.output.json` → 按 output 的设置；生成 `OutputConfig` / `outputconfig.hpp`；当前代码使用 `OutputConfig::createByName(...)` 和 `/<outputName>`，保存系统级物理身份、分辨率、刷新率、缩放、位置、旋转、颜色等参数。所有 Session 注入同一个 output 配置对象，不增加用户名 subpath。
+- `org.deepin.dde.treeland.user.seat.json` → 当前用户的输入/seat 设置；生成 `SeatUserDConfig` / `seatuserconfig.hpp`；每个 Session 持有独立 InputManager，固定读取所属用户名的 seat 配置；活动 manager 才连接硬件应用路径。`keyboardNumLock` 也位于该用户 seat 配置；旧全局键保留兼容，但新输入管理路径不再读写它。
 - `org.deepin.dde.treeland.app.json` → 按应用的设置；生成 `AppConfig` / `appconfig.hpp`；`WindowConfigStore` 使用 subpath `"/" + appId`。
 
 新增描述文件前，先确认上述某个作用域已经合适。确实需要新文件时，按下面“新增描述文件”一节执行。
@@ -94,7 +94,8 @@ DConfig 描述文件是 JSON 元数据文件。treeland 中它们位于 `misc/dc
 
 - 设置在选定任何用户之前就影响合成器基础设施 → 用 `TreelandConfig`。
 - 用户期望设置跟随其账户跨登录/切换 → 用 `TreelandUserConfig` 或 `SeatUserDConfig`。
-- 设置绑定物理/逻辑 output 名 → 用 `OutputConfig`。
+- 系统显示模式（主屏、单屏、复制组）→ 用 `TreelandConfig`；每块物理输出参数 → 用共享 `OutputConfig`。
+- SessionOutput 只隔离窗口、LayerSurface 和专属区域，不能为用户切换恢复一套显示参数。
 - 设置绑定应用 id → 用 `AppConfig`。
 - 不要因为全局模式以 `dde` 运行就把用户偏好塞进 `TreelandConfig`。
 
@@ -103,7 +104,7 @@ DConfig 描述文件是 JSON 元数据文件。treeland 中它们位于 `misc/dc
 
 - `value`：默认值。使用常规 JSON 类型。该类型决定生成的 C++ 访问器类型。
 - `serial`：单调递增整数，新键通常为 `0`。
-- `flags`：数组。用户级设置用 `[]` —— 当前所有 treeland 描述文件都是这样。treeland 在全局模式下以 `dde` 用户运行，用户隔离靠描述文件名加 `"/" + userName` subpath，而不是进程 uid，因此这里不需要 `global`。规范对 `global` 的定义是“读写时忽略用户身份，所有用户拿到同一份数据”；只有当某项在所有用户间确实完全相同时才加，且绝不用它替代 subpath。需要禁止 OEM/域管覆盖时用 `["nooverride"]`。
+- `flags`：数组。用户级设置用 `[]`。treeland 在全局模式下以 `dde` 用户运行，用户隔离靠描述文件名加 `"/" + userName` subpath，而不是进程 uid，因此这里不需要 `global`。规范对 `global` 的定义是“读写时忽略用户身份，所有用户拿到同一份数据”；只有当某项在所有用户间确实完全相同时才加，且绝不用它替代 subpath。需要禁止 OEM/域管覆盖时用 `["nooverride"]`。
 - `name` 与 `name[zh_CN]`：简短的用户可见名称。
 - `description` 与 `description[zh_CN]`：运维含义、有效范围、枚举值、单位与副作用。
 - `permissions`：`readonly` 或 `readwrite`。
@@ -113,7 +114,7 @@ DConfig 描述文件是 JSON 元数据文件。treeland 中它们位于 `misc/dc
 
 | 场景 | `flags` |
 | --- | --- |
-| 用户级设置（当前全部描述文件都是这种） | `[]`，靠 `"/" + userName` subpath 区分用户 |
+| 用户级设置 | `[]`，靠 `"/" + userName` subpath 区分用户 |
 | 所有用户共享同一份数据 | `["global"]` |
 | 不允许 OEM/域管覆盖 | `["nooverride"]`（可与其他标记组合） |
 
@@ -252,8 +253,8 @@ Desktop Spec 支持 `subpath` 查找。treeland 中保持既有构造方式：
 
 - 当前用户配置：`"/" + currentUserName`
 - 用户选定前的初始/默认用户配置：`"/dde"`
-- seat 用户配置：`"/" + userName + "/" + seatName`（`DConfigManager::userSeatConfig(...)`，由 `InputManager::setupSeatUserConfig(...)` 进入）
-- output 配置：`"/" + outputName`
+- seat 用户配置：`"/" + userName + "/" + seatName`（`DConfigManager::userSeatConfig(...)`，由固定 Session 的 `InputManager::seatUserConfig(...)` 进入）
+- 系统 output 配置：`"/" + outputName`，保存硬件 UUID 和显示参数；旧 `/<username>/outputs/<outputName>` 路径不再读取或写入
 - 应用配置：`"/" + appId`
 
 QML 与 C++ 的实时监听要注意 `WaylandServer` 上的实际属性：

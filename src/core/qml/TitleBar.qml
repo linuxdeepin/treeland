@@ -28,7 +28,7 @@ Control {
     D.ColorSelector.inactived: !surface.isActivated
     D.ColorSelector.hovered: false
 
-    height: WaylandServer.config.windowTitlebarHeight
+    height: root.surface.desktop?.config.windowTitlebarHeight ?? 30
     width: surfaceItem.width
 
     // Ensure title bar does not accept keyboard focus
@@ -100,8 +100,8 @@ Control {
             text: surface.shellSurface.title
             elide: Text.ElideRight
             color: root.D.ColorSelector.textColor
-            font.family: WaylandServer.config.font
-            font.pointSize: WaylandServer.config.fontSize / 10
+            font.family: root.surface.desktop?.config.font ?? Qt.application.font.family
+            font.pointSize: (root.surface.desktop?.config.fontSize ?? 100) / 10
             font.weight: Font.Medium
         }
 

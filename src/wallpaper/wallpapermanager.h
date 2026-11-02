@@ -6,14 +6,20 @@
 #include "output/output.h"
 #include "wallpaper/wallpaperconfig.h"
 
+#include <functional>
+#include <QtQml/qqmlregistration.h>
 #include <QObject>
 
 class TreelandWallpaperSurfaceInterfaceV1;
 class Workspace;
+class TreelandWallpaperNotifierInterfaceV1;
+class TreelandWallpaperShellInterfaceV1;
+class TreelandUserConfig;
 
 class WallpaperManager : public QObject
 {
     Q_OBJECT
+    QML_ANONYMOUS
 public:
     enum UpdateReason
     {
@@ -21,7 +27,16 @@ public:
         Scale,
     };
 
-    explicit WallpaperManager(QObject *parent = nullptr);
+    using WallpaperLibrary = QMap<QString, TreelandWallpaperInterfaceV1::WallpaperType>;
+    using LibraryProvider = std::function<WallpaperLibrary(wlr_output *)>;
+    struct Services {
+        LibraryProvider library;
+        std::function<const QList<Output *> &()> outputs;
+        std::function<TreelandWallpaperNotifierInterfaceV1 *()> notifier;
+        TreelandWallpaperShellInterfaceV1 *factory;
+    };
+    WallpaperManager(TreelandUserConfig *config, Workspace *workspace, Services services,
+                     QObject *parent = nullptr);
     ~WallpaperManager() override;
     WallpaperOutputConfig getOutputConfig(Output *output);
     WallpaperOutputConfig getOutputConfig(wlr_output *output);
@@ -57,7 +72,13 @@ public Q_SLOTS:
     void onWallpaperNotifierBound(wl_resource *resource);
     void handleWallpaperSurfaceAdded(TreelandWallpaperSurfaceInterfaceV1 *interface);
 
+public:
+    void refresh();
+
 private:
+    TreelandUserConfig *const m_config;
+    Workspace *const m_workspace;
+    const Services m_services;
     bool m_wallpaperConfigUpdated { false };
     QList<WallpaperOutputConfig> m_wallpaperConfig;
 };

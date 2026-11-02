@@ -19,6 +19,7 @@
  ***************************************************************************/
 
 #include "usermodel.h"
+#include "session/sessionmanager.h"
 
 #include "common/treelandlogging.h"
 #include "core/waylandserver.h"

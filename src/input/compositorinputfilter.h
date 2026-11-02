@@ -8,14 +8,16 @@
 #include <QKeyEvent>
 
 class SeatManager;
-class WaylandServer;
+class InputContext;
+class GestureManager;
+class ShortcutController;
+#include <functional>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WServer;
 class WRelativePointerManagerV1;
 WAYLIB_SERVER_END_NAMESPACE
 
-class FocusController;
 class IdleManager;
 class CaptureManager;
 class OutputManager;
@@ -28,10 +30,14 @@ class CompositorInputFilter : public WSeatEventFilter
 {
     Q_OBJECT
 public:
-    CompositorInputFilter(WaylandServer *server, FocusController *focus,
+    CompositorInputFilter(InputContext *context, QObject *parent,
                          IdleManager *idleManager, CaptureManager *captureManager,
                          OutputManager *outputManager);
 
+    void setEnabled(bool enabled);
+    void setAdmission(std::function<bool(WSeat *, QInputEvent *)> admission);
+    void setGestureManager(GestureManager *gestures);
+    void setController(ShortcutController *controller);
     void installRelativePointer(WServer *server, SeatManager *seatManager);
     void setShortcutProtocols(ShortcutManagerV3 *shortcuts,
                               KeyboardShortcutsInhibitManagerV1 *inhibitor);
@@ -42,6 +48,9 @@ Q_SIGNALS:
 
 private:
     void trackSeat(WSeat *seat);
+    bool beforeHandleEvent(WSeat *seat, WSurface *watched, QObject *shellObject,
+                           QObject *eventObject, QInputEvent *event) override;
+    bool acceptsEvent(WSeat *seat, QInputEvent *event) const;
     WRelativePointerManagerV1 *m_relativePointerManager = nullptr;
     bool beforeDisposeEvent(WSeat *seat, QWindow *window, QInputEvent *event) override;
     bool afterHandleEvent(WSeat *seat, WSurface *watched, QObject *shellObject,
@@ -52,8 +61,11 @@ private:
     void handleWhellValueChanged(const QInputEvent *event);
 
 private:
-    WaylandServer *m_server = nullptr;
-    FocusController *m_focus = nullptr;
+    bool m_enabled = true;
+    std::function<bool(WSeat *, QInputEvent *)> m_admission;
+    GestureManager *m_gestures = nullptr;
+    ShortcutController *m_controller = nullptr;
+    InputContext *const m_context;
     IdleManager *m_idleManager = nullptr;
     CaptureManager *m_captureManager = nullptr;
     OutputManager *m_outputManager = nullptr;
