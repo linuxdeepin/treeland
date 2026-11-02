@@ -50,23 +50,13 @@ bool isUserConfigInitialized(TreelandUserConfig *config)
     return config->isInitializeSucceeded();
 }
 
-/// Guard against null WaylandServer, null config, or incomplete async config init.
-///
-/// FIXME(rewine): Treeland is a multi-user compositor. WaylandServer::config() exposes the
-/// CURRENT user's config instance; this manager currently has no per-user
-/// resource tracking, so a request from one user's client could mutate another
-/// user's config once per-user client credentials are available. Binding must be
-/// restricted to the privileged control center of the active user, and set_*
-/// requests must be validated against the requester's user identity.
-///
-/// During the async init window (before configInitializeSucceed), setters are
-/// dropped silently to avoid writing before DConfig is ready; log once per drop
-/// so the failure is observable.
+/// Requests always address the immutable config supplied by the owning Session.
+/// Drop requests until this configuration has completed initialization.
 #define ENSURE_CONFIG()                                            \
     do {                                                           \
-        if (!WaylandServer::instance() || !WaylandServer::instance()->config()) \
+        if (!q->config()) \
             return;                                                \
-        if (!isUserConfigInitialized(WaylandServer::instance()->config())) { \
+        if (!isUserConfigInitialized(q->config())) { \
             qCWarning(lcTlConfig) << "Appearance set_* request dropped:" \
                                   << "user config not initialized yet"; \
             return;                                                \
@@ -120,7 +110,7 @@ void AppearanceManagerInterfaceV1Private::set_cursor_theme([[maybe_unused]] Reso
                                                             const QString &name)
 {
     ENSURE_CONFIG();
-    WaylandServer::instance()->config()->setCursorThemeName(name);
+    q->config()->setCursorThemeName(name);
 }
 
 void AppearanceManagerInterfaceV1Private::set_cursor_size([[maybe_unused]] Resource *resource,
@@ -130,42 +120,42 @@ void AppearanceManagerInterfaceV1Private::set_cursor_size([[maybe_unused]] Resou
     if (width != height)
         qCWarning(lcTlConfig) << "Non-square cursor size requested:" << width << "x" << height
                               << ", height is ignored.";
-    WaylandServer::instance()->config()->setCursorSize(static_cast<int>(width));
+    q->config()->setCursorSize(static_cast<int>(width));
 }
 
 void AppearanceManagerInterfaceV1Private::set_font([[maybe_unused]] Resource *resource,
                                                     const QString &font_name)
 {
     ENSURE_CONFIG();
-    WaylandServer::instance()->config()->setFont(font_name);
+    q->config()->setFont(font_name);
 }
 
 void AppearanceManagerInterfaceV1Private::set_monospace_font([[maybe_unused]] Resource *resource,
                                                               const QString &font_name)
 {
     ENSURE_CONFIG();
-    WaylandServer::instance()->config()->setMonoFont(font_name);
+    q->config()->setMonoFont(font_name);
 }
 
 void AppearanceManagerInterfaceV1Private::set_font_size([[maybe_unused]] Resource *resource,
                                                          uint32_t size)
 {
     ENSURE_CONFIG();
-    WaylandServer::instance()->config()->setFontSize(static_cast<int>(size));
+    q->config()->setFontSize(static_cast<int>(size));
 }
 
 void AppearanceManagerInterfaceV1Private::set_icon_theme([[maybe_unused]] Resource *resource,
                                                           const QString &theme_name)
 {
     ENSURE_CONFIG();
-    WaylandServer::instance()->config()->setIconThemeName(theme_name);
+    q->config()->setIconThemeName(theme_name);
 }
 
 void AppearanceManagerInterfaceV1Private::set_accent_color([[maybe_unused]] Resource *resource,
                                                             uint32_t r, uint32_t g, uint32_t b)
 {
     ENSURE_CONFIG();
-    WaylandServer::instance()->config()->setActiveColor(rgbToHex(r, g, b));
+    q->config()->setActiveColor(rgbToHex(r, g, b));
 }
 
 void AppearanceManagerInterfaceV1Private::set_window_opacity([[maybe_unused]] Resource *resource,
@@ -177,7 +167,7 @@ void AppearanceManagerInterfaceV1Private::set_window_opacity([[maybe_unused]] Re
         qCWarning(lcTlConfig) << "window_opacity out of range [0.0, 1.0]:" << value;
         return;
     }
-    WaylandServer::instance()->config()->setWindowOpacity(static_cast<int>(std::lround(value * 100.0)));
+    q->config()->setWindowOpacity(static_cast<int>(std::lround(value * 100.0)));
 }
 
 void AppearanceManagerInterfaceV1Private::set_color_scheme([[maybe_unused]] Resource *resource,
@@ -187,22 +177,24 @@ void AppearanceManagerInterfaceV1Private::set_color_scheme([[maybe_unused]] Reso
     const auto dconfigType = colorSchemeToDConfig(scheme);
     if (dconfigType < 0)
         return; // invalid scheme, silently ignored per protocol spec
-    WaylandServer::instance()->config()->setWindowColorScheme(dconfigType);
-    WaylandServer::syncPaletteTypeWithWindowColorScheme(dconfigType);
+    q->config()->setWindowColorScheme(dconfigType);
+    auto *server = WaylandServer::instance();
+    if (server && server->config() == q->config())
+        WaylandServer::syncPaletteTypeWithWindowColorScheme(dconfigType);
 }
 
 void AppearanceManagerInterfaceV1Private::set_titlebar_height([[maybe_unused]] Resource *resource,
                                                                uint32_t height)
 {
     ENSURE_CONFIG();
-    WaylandServer::instance()->config()->setWindowTitlebarHeight(static_cast<int>(height));
+    q->config()->setWindowTitlebarHeight(static_cast<int>(height));
 }
 
 void AppearanceManagerInterfaceV1Private::set_corner_radius([[maybe_unused]] Resource *resource,
                                                              uint32_t radius)
 {
     ENSURE_CONFIG();
-    WaylandServer::instance()->config()->setWindowRadius(static_cast<int>(radius));
+    q->config()->setWindowRadius(static_cast<int>(radius));
 }
 
 // ---------------------------------------------------------------------------
@@ -214,9 +206,10 @@ struct AppearanceManagerInterfaceV1::Private
     std::unique_ptr<AppearanceManagerInterfaceV1Private> server;
 };
 
-AppearanceManagerInterfaceV1::AppearanceManagerInterfaceV1(QObject *parent)
+AppearanceManagerInterfaceV1::AppearanceManagerInterfaceV1(TreelandUserConfig *config, QObject *parent)
     : QObject(parent)
     , WServerInterface()
+    , m_config(config)
     , d(std::make_unique<Private>())
 {
     d->server = std::make_unique<AppearanceManagerInterfaceV1Private>(this);
