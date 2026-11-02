@@ -1088,8 +1088,8 @@ WXdgOutputManager *WaylandServer::installDesktopProtocols(QmlEngine *engine)
     m_surfaceProtocols->installPersonalization(server());
 
     // New protocols (treeland-protocols 0.6.0)
-    m_appearanceInterfaceV1 = server()->attach<AppearanceInterfaceV1>();
-    m_appearanceManagerInterfaceV1 = server()->attach<AppearanceManagerInterfaceV1>();
+    m_appearanceInterfaceV1 = server()->attach<AppearanceInterfaceV1>(config());
+    m_appearanceManagerInterfaceV1 = server()->attach<AppearanceManagerInterfaceV1>(config());
     m_surfaceProtocols->installDecorationCustomization(server());
 
     DConfigManager::instance()->initializeActiveUserConfig(this);

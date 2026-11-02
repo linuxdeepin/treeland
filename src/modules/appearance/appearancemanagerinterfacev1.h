@@ -26,7 +26,8 @@ class AppearanceManagerInterfaceV1 : public QObject, public WServerInterface
     QML_ANONYMOUS
 
 public:
-    explicit AppearanceManagerInterfaceV1(QObject *parent = nullptr);
+    explicit AppearanceManagerInterfaceV1(TreelandUserConfig *config, QObject *parent = nullptr);
+    TreelandUserConfig *config() const { return m_config; }
     ~AppearanceManagerInterfaceV1() override;
 
     QByteArrayView interfaceName() const override;
@@ -40,5 +41,6 @@ protected:
 
 private:
     struct Private;
+    TreelandUserConfig *const m_config;
     std::unique_ptr<Private> d;
 };
