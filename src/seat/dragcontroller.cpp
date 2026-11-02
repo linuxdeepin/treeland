@@ -21,6 +21,7 @@ DragController::~DragController() = default;
 void DragController::initialize(bool notifyDdeShell)
 {
     m_notifyDdeShell = notifyDdeShell;
+    connect(m_seatManager, &SeatManager::seatAdded, this, &DragController::trackSeat);
     for (auto *seat : m_seatManager->seats())
         trackSeat(seat);
 }
