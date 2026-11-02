@@ -23,6 +23,7 @@ WAYLIB_SERVER_USE_NAMESPACE
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WSeat;
+class WSocket;
 WAYLIB_SERVER_END_NAMESPACE
 
 class QmlEngine;
@@ -477,6 +478,7 @@ private:
                                 Type type); // Transition from pre-launch mode to normal mode
     void updateBoundingRect();
     void updateVisible();
+    void bindVisibilitySocket(WAYLIB_SERVER_NAMESPACE::WSocket *socket);
     void updateSubSurfaceStacking();
     void restackWindowAnimationAbove();
     void ensureAboveParent();
@@ -530,6 +532,7 @@ private:
     void setSkipMutiTaskView(bool skip);
 
     QmlEngine *m_engine;
+    QPointer<WAYLIB_SERVER_NAMESPACE::WSocket> m_visibilitySocket;
     QPointer<SurfaceContainer> m_container;
     QList<SurfaceWrapper *> m_subSurfaces;
     SurfaceWrapper *m_parentSurface = nullptr;

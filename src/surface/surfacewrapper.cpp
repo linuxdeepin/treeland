@@ -447,11 +447,7 @@ void SurfaceWrapper::setup()
     }
 
     if (auto client = m_shellSurface->waylandClient()) {
-        connect(client->socket(),
-                &WSocket::enabledChanged,
-                this,
-                &SurfaceWrapper::onSocketEnabledChanged);
-        onSocketEnabledChanged();
+        bindVisibilitySocket(client->socket()->rootSocket());
     }
 
     if (m_type == Type::XdgToplevel && !m_isProxy) // x11 will set later
@@ -2046,12 +2042,23 @@ void SurfaceWrapper::onMappedChanged()
     updateVisible();
 }
 
+void SurfaceWrapper::bindVisibilitySocket(WSocket *socket)
+{
+    if (m_visibilitySocket == socket)
+        return;
+    if (m_visibilitySocket)
+        disconnect(m_visibilitySocket, &WSocket::enabledChanged,
+                   this, &SurfaceWrapper::onSocketEnabledChanged);
+    m_visibilitySocket = socket;
+    if (socket)
+        connect(socket, &WSocket::enabledChanged, this, &SurfaceWrapper::onSocketEnabledChanged);
+    onSocketEnabledChanged();
+}
+
 void SurfaceWrapper::onSocketEnabledChanged()
 {
-    if (auto client = shellSurface()->waylandClient()) {
-        m_socketEnabled = client->socket()->rootSocket()->isEnabled();
-        updateVisible();
-    }
+    m_socketEnabled = m_visibilitySocket && m_visibilitySocket->isEnabled();
+    updateVisible();
 }
 
 void SurfaceWrapper::onMinimizeAnimationFinished()
