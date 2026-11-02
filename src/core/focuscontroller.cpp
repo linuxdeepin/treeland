@@ -3,6 +3,7 @@
 
 #include "focuscontroller.h"
 #include "waylandserver.h"
+#include "modules/activation-token/activationtokenmanagerinterfacev1.h"
 #include "rootsurfacecontainer.h"
 #include "seat/seatmanager.h"
 #include "surface/surfacewrapper.h"
@@ -299,6 +300,10 @@ void FocusController::installActivationProtocol(WServer *server)
         [this](WSurface *surface, WSeat *seat) { return canTransferActivation(surface, seat); });
     connect(activation, &ActivationManagerInterfaceV1::activateRequested,
             this, &FocusController::onActivationRequested);
+
+    // Privileged token source for dde-application-manager. It shares the
+    // activation manager's token table and lifetime.
+    server->attach<ActivationTokenManagerInterfaceV1>(activation);
 }
 bool FocusController::canTransferActivation(WSurface *surface, WSeat *seat) const
 {

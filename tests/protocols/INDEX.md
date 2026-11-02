@@ -29,6 +29,7 @@ Wayland 线上请求与事件；本文档规定发出请求后，测试必须观
 | [compositor-action-v1](treeland-compositor-action-v1/README.md) | E / P | trigger 路由到真实 Workspace 切换与 show-desktop 状态；zoom/未知动作被忽略不断连 |
 | [dde-shell-v1](treeland-dde-shell-v1/README.md) | E / P | mapped wrapper 的 DDE 元数据、锁屏；window picker 功能已移除 |
 | [active-notify-unstable-v1](treeland-active-notify-unstable-v1/README.md) | P | notifier 创建/重建与无输入不发事件边界 |
+| [activation-token-unstable-v1](treeland-activation-token-unstable-v1/README.md) | E / P | 未实现 prelaunch-splash 的连接 bind 即被拒（`not_privileged`）；先 bind `treeland_prelaunch_splash_manager_v2` 的连接 bind 成功，两次 `request_token` 各铸一个非空且互不相同的 token，第一个 token 经 `xdg_activation_v1.activate()` 处置为 `Active`；两个 manager 都是每会话单例：第二个客户端 bind 得到 `binding_rejected`，`destroy` 后可重新 bind |
 | [dde-shell-v2](treeland-dde-shell-v2/README.md) | E / P | v2 shell surface 元数据、placement hint 互斥切换与 (0,0) 边界、skip 位域、重复创建报错码、wl_surface 销毁自动回收；wrapper 集成 fixture 随 v1 清理任务补 |
 | [ddm-v1](treeland-ddm-v1/README.md) | I | 客户端连接生命周期 |
 | [foreign-toplevel-manager-v3](treeland-foreign-toplevel-manager-v3/README.md) | E | 真实 toplevel、dock preview、窗口状态（含最小化与布局正交）、激活/焦点与 icon rectangle |
@@ -106,13 +107,13 @@ xdg-shell 由共享 xdg-toplevel 夹具覆盖（多个 toplevel 测试复用）�
 request stub 算作 request 覆盖；生成的 client-protocol 文件本身不计入。`destroy` 也单列，
 因为它证明资源生命周期，却通常不承载主要业务语义。
 
-- **已注册并有测试目录的 25 个当前协议**：XML 共 226 条 request，其中测试客户端直接
-  调用了 **172 条（76.1%）**。
-- 去掉 61 条 `destroy` 生命周期 request 后，剩余 165 条工厂、配置和业务 request 中有
-  **115 条（69.7%）** 被直接调用。
-- 25 个协议中 **20 个（80.0%）** 至少有一条 E 级生产业务链路；仅 DDM、output-manager
+- **已注册并有测试目录的 26 个当前协议**：XML 共 229 条 request，其中测试客户端直接
+  调用了 **175 条（76.4%）**。
+- 去掉 63 条 `destroy` 生命周期 request 后，剩余 166 条工厂、配置和业务 request 中有
+  **116 条（69.9%）** 被直接调用。
+- 26 个协议中 **21 个（80.8%）** 至少有一条 E 级生产业务链路；仅 DDM、output-manager
   picture-control、wallpaper-color 仍停留在 I/P 层。
-- 当前 XML 共有 115 条 server event。这里**不发布“事件百分比”**：listener 中出现一个
+- 当前 XML 共有 116 条 server event。这里**不发布“事件百分比”**：listener 中出现一个
   callback、或 fixture 手工发出一次 event，都不能证明事件负载或其业务来源被断言。下表只
   列出已实际断言的关键 event，并明确列出尚未逐项验证的 event。
 
@@ -122,6 +123,7 @@ request stub 算作 request 覆盖；生成的 client-protocol 文件本身不�
 | capture-unstable-v1 | 8 / 11 | `source_ready/failed`、`buffer/buffer_done/ready/failed`；64×64 红色像素读回 | session 的 `start/frame_done`，及 `frame/object/ready/cancel` 持久流；OUTPUT/REGION、cursor、mask |
 | dde-shell-v1 | 26 / 27 | checker/active 事件；真实 wrapper DDE 元数据、lockscreen；window picker 功能已移除 | multitask 只证明 `toggle` 请求/信号，未证明真实 UI 状态；`shutdown/switch_user` 外部会话流程（`set_xwindow_position_relative` 已迁移至 `treeland-xwindow-control-unstable-v1`） |
 | active-notify-unstable-v1 | 2 / 2 | notifier 创建/重建；无真实输入不伪造事件 | 真实输入驱动的 activity/drag 事件（uinput）、null seat 错误、多 notifier/seat、与 v1 并行双发 |
+| activation-token-unstable-v1 | 3 / 3 | bind 期判据：未 bind splash manager 的连接 bind 被 `not_privileged` 拒；绑定 `treeland_prelaunch_splash_manager_v2` 的连接拿到两个独立非空 `token`，第一个经 `xdg_activation_v1.activate` 处置为 Active（回读生产 `activateRequested`）；两个 manager 的单例与释放 | token 过期；判据的信任前提（谁实现 prelaunch-splash 谁就是应用管理器）与强制绑定顺序写在协议测试 README 的「已知边界」 |
 | appearance-unstable-v1 + appearance-manager-unstable-v1 | 3 / 13 | bind 初始 `color_scheme`；manager `set_color_scheme` 广播 Dark | 其余外观字段、无效值、DConfig 配置替换 |
 | ddm-v1 | 0 / 7 | 无未请求 VT event；生产连接生命周期 | 所有会话/渲染控制 request 与 `switch_to_vt/acquire_vt` 的实际系统流程 |
 | decoration-unstable-v1 | 4 / 7 | `set_corner_radius` 后 mapped `SurfaceWrapper::radius()` == 12 | shadow、border、titlebar、协议错误与 SSD 协商 |
