@@ -48,6 +48,7 @@ private:
     void geometryChange(const QRectF &newGeo, const QRectF &oldGeo) override;
     void updateProxySurfaceScale();
     void updateShape();
+    void updateLive();
     void updateNoTitleBar();
     void updateNoDecoration();
     void updateNoCornerRadius();
