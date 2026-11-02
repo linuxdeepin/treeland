@@ -114,7 +114,27 @@ OutputManager::OutputManager(RootSurfaceContainer *rootContainer,
     Q_ASSERT(m_wallpaperManager);
     Q_ASSERT(m_workspace);
     Q_ASSERT(m_renderWindow);
+    connect(m_rootContainer, &RootSurfaceContainer::primaryOutputChanged,
+            this, &OutputManager::configurationChanged);
+    connect(this, &OutputManager::modeChanged, this, &OutputManager::configurationChanged);
 }
+
+void OutputManager::setScale(WOutput *target, qreal scale)
+{
+    auto *output = outputFor(target);
+    if (!output || !std::isfinite(scale) || scale <= 0
+        || !configurationReady(output->config()))
+        return;
+    WOutputStateGuard state;
+    wlr_output_state_set_scale(state.get(), scale);
+    if (!wlr_output_commit_state(target->handle(), state.get()))
+        return;
+    output->config()->setScale(scale);
+    if (auto *viewport = ownOutputViewport(target))
+        viewport->setOutputScale(scale);
+    Q_EMIT configurationChanged();
+}
+
 
 void OutputManager::setBackend(WBackend *backend)
 {
@@ -399,6 +419,13 @@ void OutputManager::processOutputAdded(WOutput *output)
     } else {
         publishOutput();
     }
+    connect(output, &WOutput::modeChanged, this, &OutputManager::configurationChanged);
+    connect(output, &WOutput::scaleChanged, this, &OutputManager::configurationChanged);
+    connect(output, &WOutput::orientationChanged, this, &OutputManager::configurationChanged);
+    connect(output, &WOutput::enabledChanged, this, &OutputManager::configurationChanged);
+    connect(output, &WOutput::positionChanged, this, &OutputManager::configurationChanged);
+    connect(output, &WOutput::adaptiveSyncEnabledChanged, this, &OutputManager::configurationChanged);
+    Q_EMIT outputsChanged();
 }
 
 void OutputManager::outputAdded(WOutput *output)
@@ -525,6 +552,7 @@ void OutputManager::outputRemoved(WOutput *output)
     m_powerOffOutputs.remove(output->handle());
 
     delete o;
+    Q_EMIT outputsChanged();
 }
 
 OutputManager::Mode OutputManager::mode() const
@@ -1643,6 +1671,7 @@ void OutputManager::testOrApplyConfiguration(WOutputManagerV1 *protocol,
         // Nothing was scheduled (empty configuration or no matching output), so
         // no commit callback will ever finish this apply.
         protocol->sendResult(config, true);
+        Q_EMIT configurationChanged();
         m_pendingOutputConfig = {};
         notifyOutputGroupsChanged();
     }
@@ -1706,6 +1735,7 @@ void OutputManager::onOutputCommitFinished(wlr_output_configuration_v1 *config,
     if (m_pendingOutputConfig.protocol)
         m_pendingOutputConfig.protocol->sendResult(config, ok, m_pendingOutputConfig.states);
     m_pendingOutputConfig = {};
+    Q_EMIT configurationChanged();
 
     // Even a failed apply may have disabled outputs while copy mode was already
     // torn down; re-applying the groups keeps the reported state truthful.

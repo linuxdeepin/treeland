@@ -94,11 +94,15 @@ public:
 
 Q_SIGNALS:
     void modeChanged();
+    void outputsChanged();
+    void configurationChanged();
 
 private Q_SLOTS:
     void continueOutputAdded();
 
 private:
+    friend class SessionOutputChannel;
+    void setScale(WAYLIB_SERVER_NAMESPACE::WOutput *output, qreal scale);
     void setGamma(wlr_gamma_control_manager_v1_set_gamma_event *event);
     void setPowerMode(wlr_output_power_v1_set_mode_event *event);
     void testOrApplyConfiguration(WAYLIB_SERVER_NAMESPACE::WOutputManagerV1 *protocol,
