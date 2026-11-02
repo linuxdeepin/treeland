@@ -71,12 +71,23 @@ public:
         pendingEvents.reserve(2);
 
         m_repeatTimer.callOnTimeout([&](){
-            if (!focusWindow) {
+            if (!focusWindow || !m_repeatKey) {
                 return;
             }
-            auto rawdevice = WInputDevice::from(m_repeatKey->device())->handle();
-            auto wlrKeyboard = rawdevice->type == WLR_INPUT_DEVICE_KEYBOARD
+            auto *device = WInputDevice::from(m_repeatKey->device());
+            if (!device || device->seat() != q_func()) {
+                m_repeatTimer.stop();
+                m_repeatKey.reset();
+                return;
+            }
+            auto *rawdevice = device->handle();
+            auto *wlrKeyboard = rawdevice->type == WLR_INPUT_DEVICE_KEYBOARD
                 ? wlr_keyboard_from_input_device(rawdevice) : nullptr;
+            if (!wlrKeyboard || wlrKeyboard->repeat_info.rate <= 0) {
+                m_repeatTimer.stop();
+                m_repeatKey.reset();
+                return;
+            }
             m_repeatTimer.setInterval(1000 / wlrKeyboard->repeat_info.rate);
             auto evPress = QKeyEvent(QEvent::KeyPress, m_repeatKey->key(), m_repeatKey->modifiers(),
                 m_repeatKey->nativeScanCode(), m_repeatKey->nativeVirtualKey(), m_repeatKey->nativeModifiers(),
@@ -86,8 +97,10 @@ public:
                 m_repeatKey->text(), true, m_repeatKey->count(), m_repeatKey->device());
             evPress.setTimestamp(m_repeatKey->timestamp());
             evRelease.setTimestamp(m_repeatKey->timestamp());
+            const QPointer<WSeat> seatGuard(q_func());
             handleKeyEvent(evPress);
-            handleKeyEvent(evRelease);
+            if (seatGuard && focusWindow)
+                handleKeyEvent(evRelease);
         });
     }
     ~WSeatPrivate() {
@@ -616,7 +629,12 @@ void WSeatPrivate::on_keyboard_key(wlr_keyboard_key_event *event, WInputDevice *
     e.setTimestamp(event->time_msec);
 
     if (focusWindow) {
+        const QPointer<WSeat> seatGuard(q_func());
+        const QPointer<WInputDevice> deviceGuard(device);
         handleKeyEvent(e);
+        // Dispatch may have switched desktops or destroyed this seat/device.
+        if (!seatGuard || !deviceGuard || !focusWindow || deviceGuard->seat() != seatGuard)
+            return;
         if (et == QEvent::KeyPress && xkb_keymap_key_repeats(keyboard->keymap, code)) {
             if (m_repeatKey) {
                 m_repeatTimer.stop();
@@ -1239,6 +1257,8 @@ QWindow *WSeat::keyboardFocusWindow() const
 void WSeat::clearKeyboardFocusWindow()
 {
     W_D(WSeat);
+    d->m_repeatTimer.stop();
+    d->m_repeatKey.reset();
     d->focusWindow = nullptr;
 }
 
