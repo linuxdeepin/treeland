@@ -45,6 +45,8 @@ public:
     void removeSeat(WSeat *seat);
     WSeat *getSeat(const QString &name) const;
     QList<WSeat*> seats() const;
+    QStringList configuredSeatNames() const;
+    QString configuredFallbackName() const;
     WSeat *fallbackSeat() const;
 
     // Device assignment
@@ -108,5 +110,7 @@ private:
     QMap<QString, WSeat*> m_seats;
     QMap<QString, QList<QRegularExpression>> m_deviceRules;
     WSeat *m_defaultSeat = nullptr;
+    QStringList m_seatNames;
+    QString m_fallbackName;
     mutable QMap<WInputDevice*, WSeat*> m_deviceCache;
 };
