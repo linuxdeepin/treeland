@@ -6,6 +6,9 @@
 #include "swipegesture.h"
 
 #include <QObject>
+#include <QList>
+
+class GestureManager;
 
 class TogglableGesture : public QObject
 {
@@ -25,7 +28,7 @@ public:
 
     Q_ENUM(Status);
 
-    TogglableGesture(QObject *parent = nullptr);
+    TogglableGesture(QObject *parent = nullptr, GestureManager *gestures = nullptr);
     ~TogglableGesture();
 
     bool inProgress() const;
@@ -75,6 +78,8 @@ protected:
     void deactivateTriggered();
 
 private:
+    GestureManager *const m_gestureManager;
+    QList<QObject *> m_registeredGestures;
     Status m_status = Status::Inactive;
     bool m_inProgress = false;
     qreal m_partialGestureFactor;
