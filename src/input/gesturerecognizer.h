@@ -47,6 +47,7 @@ public:
 
     void startHoldGesture(uint fingerCount);
     void endHoldGesture();
+    void cancelHoldGesture();
     void setHoldTimeout(int msec);
 
 private:
