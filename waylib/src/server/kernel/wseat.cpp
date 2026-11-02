@@ -1224,6 +1224,12 @@ void WSeat::removeFilteredKey(uint32_t keycode)
     d->filteredKeys.remove(keycode);
 }
 
+void WSeat::clearFilteredKeys()
+{
+    W_D(WSeat);
+    d->filteredKeys.clear();
+}
+
 bool WSeat::isKeyFiltered(uint32_t keycode) const
 {
     W_DC(WSeat);
