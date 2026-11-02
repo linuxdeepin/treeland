@@ -15,8 +15,6 @@
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
-static WXdgDecorationManager *XDG_DECORATION_MANAGER = nullptr;
-
 class Q_DECL_HIDDEN WXdgDecorationManagerPrivate : public WObjectPrivate
 {
 public:
@@ -155,12 +153,11 @@ void WXdgDecorationManagerPrivate::updateDecorationMode(wlr_xdg_toplevel_decorat
 
 WXdgDecorationManager::WXdgDecorationManager()
     :WObject(*new WXdgDecorationManagerPrivate(this))
-{
-    if (XDG_DECORATION_MANAGER) {
-        qFatal("There are multiple instances of WQuickXdgDecorationManager");
-    }
+{}
 
-    XDG_DECORATION_MANAGER = this;
+WXdgDecorationManager::~WXdgDecorationManager()
+{
+    teardown();
 }
 
 void WXdgDecorationManager::create(WServer *server)
