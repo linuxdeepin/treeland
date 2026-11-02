@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "workspacemodel.h"
+#include "workspace.h"
 
 #include "core/waylandserver.h"
 #include "surface/surfacewrapper.h"
@@ -142,4 +143,9 @@ int WorkspaceModel::activeHistoryIndex(SurfaceWrapper *surface) const
 bool WorkspaceModel::laterActiveThan(SurfaceWrapper *a, SurfaceWrapper *b)
 {
     return activeHistoryIndex(a) < activeHistoryIndex(b);
+}
+
+Workspace *WorkspaceModel::workspaceManager() const
+{
+    return qobject_cast<Workspace *>(parent());
 }
