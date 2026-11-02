@@ -136,10 +136,8 @@ ShellHandler::ShellHandler(RootSurfaceContainer *rootContainer, WServer *server)
             this, &ShellHandler::updateXWaylandDesktopProperties);
     connect(WaylandServer::instance(), &WaylandServer::showDesktopStateChanged,
             this, &ShellHandler::updateXWaylandDesktopProperties);
-    connect(m_workspace, &Workspace::countChanged, this, [this] {
-        watchXWaylandWorkspaceNames();
-        updateXWaylandDesktopProperties();
-    });
+    connect(m_workspace, &Workspace::countChanged, this, &ShellHandler::onWorkspaceCountChanged);
+    connect(m_workspace, &Workspace::workspaceAdded, this, &ShellHandler::workspaceAdded);
     watchXWaylandWorkspaceNames();
 #endif
 }
@@ -426,6 +424,42 @@ void ShellHandler::handlePrelaunchSplashClosed(const QString &appId, const QStri
             return;
         }
     }
+}
+
+Workspace *ShellHandler::createSessionWorkspace(TreelandUserConfig *config)
+{
+    auto *workspace = new Workspace(m_rootSurfaceContainer, config);
+    workspace->setZ(RootSurfaceContainer::NormalZOrder);
+    workspace->setSize(m_rootSurfaceContainer->size());
+    workspace->deactivate();
+    return workspace;
+}
+
+void ShellHandler::setWorkspace(Workspace *workspace)
+{
+    Q_ASSERT(workspace);
+    if (workspace == m_workspace)
+        return;
+    workspace->setOpacity(m_workspace->opacity());
+    workspace->setScale(m_workspace->scale());
+    m_workspace->deactivate();
+    disconnect(m_workspace, nullptr, this, nullptr);
+    m_workspace = workspace;
+    m_workspace->setEnabled(true);
+    m_workspace->setVisible(true);
+    connect(m_workspace, &Workspace::currentIndexChanged,
+            this, &ShellHandler::updateXWaylandDesktopProperties);
+    connect(m_workspace, &Workspace::countChanged, this, &ShellHandler::onWorkspaceCountChanged);
+    connect(m_workspace, &Workspace::workspaceAdded, this, &ShellHandler::workspaceAdded);
+    watchXWaylandWorkspaceNames();
+    Q_EMIT workspaceChanged();
+    updateXWaylandDesktopProperties();
+}
+
+void ShellHandler::onWorkspaceCountChanged()
+{
+    watchXWaylandWorkspaceNames();
+    updateXWaylandDesktopProperties();
 }
 
 Workspace *ShellHandler::workspace() const
