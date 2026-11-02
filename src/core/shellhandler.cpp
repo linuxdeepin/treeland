@@ -34,6 +34,11 @@
 #include <xcb/xcb.h>
 
 #include <winputmethodhelper.h>
+#include <winputmethodv2_p.h>
+#include <wtextinputv1_p.h>
+#include <wtextinputv2_p.h>
+#include <wtextinputv3_p.h>
+#include <wvirtualkeyboardv1_p.h>
 #include <winputpopupsurface.h>
 #include <wlayershell.h>
 #include <wlayersurface.h>
@@ -521,7 +526,14 @@ void ShellHandler::init(WServer *server, WSeat *seat)
         });
     }
 
-    m_inputMethodHelper = new WInputMethodHelper(server, seat);
+    const WInputMethodHelper::Protocols inputMethodProtocols {
+        server->attach<WInputMethodManagerV2>(),
+        server->attach<WTextInputManagerV1>(),
+        server->attach<WTextInputManagerV2>(),
+        server->attach<WTextInputManagerV3>(),
+        server->attach<WVirtualKeyboardManagerV1>(),
+    };
+    m_inputMethodHelper = new WInputMethodHelper(server, seat, inputMethodProtocols);
     m_inputMethodHelper->setParent(this);
 
     m_imCandidatePanelManager = new IMCandidatePanelManager(this, m_inputMethodHelper, this);
