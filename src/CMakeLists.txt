@@ -223,6 +223,7 @@ qt_add_qml_module(libtreeland
         showdesktop/showdesktop.h
         session/session.cpp
         session/session.h
+        session/sessionmanager.h
         surface/surfacecontainer.cpp
         surface/surfacecontainer.h
         surface/seatsurfacemanager.cpp
