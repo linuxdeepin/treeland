@@ -68,7 +68,13 @@ static bool globalFilter(const wl_client *client,
     WServerPrivate *d = reinterpret_cast<WServerPrivate*>(data);
 
     do {
-        if (auto interface = d->q_func()->findInterface(global)) {
+        auto *interface = d->q_func()->findInterface(global);
+        // Native factories may publish related globals before returning their
+        // handles. Keep those globals inside the constructing interface's domain
+        // until their individual wrappers have been attached.
+        if (!interface)
+            interface = d->pendingInterface;
+        if (interface) {
             auto wclient = WClient::get(client);
             if (!interface->ownsClient(wclient))
                 return false;
@@ -130,6 +136,8 @@ void WServerPrivate::init()
     W_Q(WServer);
 
     for (auto i : std::as_const(interfaceList)) {
+        Q_ASSERT(!pendingInterface);
+        QScopedValueRollback<WServerInterface *> constructing(pendingInterface, i);
         i->create(q);
         if (auto global = i->global())
             Q_ASSERT(wl_global_get_interface(global)->name == i->interfaceName());
