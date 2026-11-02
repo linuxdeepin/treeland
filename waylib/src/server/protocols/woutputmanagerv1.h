@@ -54,9 +54,11 @@ public:
     // Configurations that are not pending any more (already answered) are
     // ignored, so the same config is never destroyed twice.
     void sendResult(wlr_output_configuration_v1 *config, bool ok);
+    void sendTestResult(wlr_output_configuration_v1 *config, bool ok);
     void sendResult(wlr_output_configuration_v1 *config,
                     bool ok,
                     const QList<WOutputState> &appliedStates);
+    void setOutputStates(const QList<WOutputState> &states);
     void newOutput(WOutput *output);
     void removeOutput(WOutput *output);
     wlr_output_manager_v1 *handle() const;

@@ -9,6 +9,8 @@
 #include <wlr_all.h>
 
 #include <QHash>
+#include <QSet>
+#include <QPointer>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 
@@ -55,6 +57,7 @@ public:
     wlr_output_manager_v1 *manager { nullptr };
     QPointer<WBackend> backend;
     QList<WOutputState> stateList;
+    QList<QPointer<WOutput>> observedOutputs;
     QHash<wlr_output_configuration_v1 *, QList<WOutputState>> pendingStateLists;
     wlr_output_configuration_v1 *currentPendingConfig { nullptr };
 };
@@ -107,6 +110,13 @@ void WOutputManagerV1::updateConfig()
 {
     W_D(WOutputManagerV1);
 
+    QSet<WOutput *> outputs;
+    d->stateList.removeIf([&outputs](const WOutputState &state) {
+        if (outputs.contains(state.output))
+            return true;
+        outputs.insert(state.output);
+        return false;
+    });
     auto *config = wlr_output_configuration_v1_create();
     for (const WOutputState &state : std::as_const(d->stateList)) {
         auto *wlr_output = state.output->handle();
@@ -132,6 +142,13 @@ void WOutputManagerV1::updateConfig()
     }
 
     wlr_output_manager_v1_set_configuration(d->manager, config);
+}
+
+void WOutputManagerV1::sendTestResult(wlr_output_configuration_v1 *config, bool ok)
+{
+    W_D(WOutputManagerV1);
+
+    sendResult(config, ok, d->stateList);
 }
 
 void WOutputManagerV1::sendResult(wlr_output_configuration_v1 *config, bool ok)
@@ -172,10 +189,27 @@ void WOutputManagerV1::sendResult(wlr_output_configuration_v1 *config,
     QMetaObject::invokeMethod(this, &WOutputManagerV1::updateConfig, Qt::QueuedConnection);
 }
 
+void WOutputManagerV1::setOutputStates(const QList<WOutputState> &states)
+{
+    W_D(WOutputManagerV1);
+    for (const auto &output : std::as_const(d->observedOutputs)) {
+        if (output)
+            disconnect(output, nullptr, this, nullptr);
+    }
+    d->observedOutputs.clear();
+    d->stateList = states;
+    updateConfig();
+}
+
 void WOutputManagerV1::newOutput(WOutput *output)
 {
     W_D(WOutputManagerV1);
+    if (std::any_of(d->stateList.cbegin(), d->stateList.cend(),
+                    [output](const WOutputState &state) { return state.output == output; }))
+        return;
     d->stateList.append(outputState(output));
+    d->observedOutputs.append(output);
+    connect(output, &QObject::destroyed, this, [this, output] { removeOutput(output); });
     connect(output, &WOutput::enabledChanged,
             this, &WOutputManagerV1::syncOutputStates);
     connect(output, &WOutput::positionChanged,
@@ -203,6 +237,8 @@ void WOutputManagerV1::syncOutputStates()
 void WOutputManagerV1::removeOutput(WOutput *output)
 {
     W_D(WOutputManagerV1);
+    disconnect(output, nullptr, this, nullptr);
+    d->observedOutputs.removeIf([output](const auto &entry) { return !entry || entry == output; });
     d->stateList.removeIf([output](const WOutputState &s) {
         return s.output == output;
     });
