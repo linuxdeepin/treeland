@@ -12,21 +12,26 @@
 #include "treelanduserconfig.hpp"
 #include "workspaceanimationcontroller.h"
 
-Workspace::Workspace(SurfaceContainer *parent)
+Workspace::Workspace(SurfaceContainer *parent, TreelandUserConfig *config)
     : SurfaceContainer(parent)
-    , m_currentIndex(WaylandServer::instance()->config()->currentWorkspace())
+    , m_config(config ? config : WaylandServer::instance()->config())
+    , m_currentIndex(0)
     , m_models(new WorkspaceListModel(this))
     , m_currentFilter(new SurfaceFilterProxyModel(this))
     , m_animationController(new WorkspaceAnimationController(this))
 {
-    m_animationController->setConfig(WaylandServer::instance()->config());
+    m_animationController->setConfig(m_config);
     m_showOnAllWorkspaceModel = new WorkspaceModel(this, ShowOnAllWorkspaceId, {});
     m_showOnAllWorkspaceModel->setName("show-on-all-workspace");
     m_showOnAllWorkspaceModel->setVisible(true);
-    for (uint index = 0; index < WaylandServer::instance()->config()->numWorkspace(); index++) {
+    const int count = qMax(1, static_cast<int>(m_config->numWorkspace()));
+    m_currentIndex = qBound(0, static_cast<int>(m_config->currentWorkspace()), count - 1);
+    for (int index = 0; index < count; index++) {
         doCreateModel(QStringLiteral("workspace-%1").arg(index),
-                      index == WaylandServer::instance()->config()->currentWorkspace());
+                      index == static_cast<int>(m_currentIndex));
     }
+    connect(m_config, &TreelandUserConfig::configInitializeSucceed,
+            this, &Workspace::reloadFromConfig);
 }
 
 void Workspace::moveSurfaceTo(SurfaceWrapper *surface, int workspaceId)
@@ -162,7 +167,7 @@ int Workspace::modelIndexOfSurface(SurfaceWrapper *surface) const
 int Workspace::createModel(const QString &name, bool visible)
 {
     auto id = doCreateModel(name, visible);
-    WaylandServer::instance()->config()->setNumWorkspace(count());
+    m_config->setNumWorkspace(count());
     Q_EMIT countChanged();
     Q_EMIT workspaceAdded();
     return id;
@@ -173,7 +178,7 @@ void Workspace::removeModel(int index)
     Q_ASSERT(m_models->rowCount() > 1); // At least one workspace
     Q_ASSERT(index >= 0 && index < m_models->rowCount());
     doRemoveModel(index);
-    WaylandServer::instance()->config()->setNumWorkspace(count());
+    m_config->setNumWorkspace(count());
     Q_EMIT countChanged();
 }
 
@@ -337,7 +342,8 @@ void Workspace::createSwitcher()
 }
 void Workspace::reloadFromConfig()
 {
-    auto *config = WaylandServer::instance()->config();
+    m_animationController->setConfig(m_config);
+    auto *config = m_config;
     auto targetCount = static_cast<int>(config->numWorkspace());
     if (targetCount < 1){
         targetCount = 1;
@@ -371,7 +377,7 @@ WorkspaceModel *Workspace::showOnAllWorkspaceModel() const
 void Workspace::doSetCurrentIndex(int newCurrentIndex)
 {
     m_currentIndex = newCurrentIndex;
-    WaylandServer::instance()->config()->setCurrentWorkspace(newCurrentIndex);
+    m_config->setCurrentWorkspace(newCurrentIndex);
 }
 
 void Workspace::startPreviewing(SurfaceWrapper *previewingItem)
