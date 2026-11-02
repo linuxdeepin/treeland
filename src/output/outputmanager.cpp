@@ -132,10 +132,10 @@ void OutputManager::setOutputManagementProtocol(WOutputManagerV1 *manager)
 {
     Q_ASSERT(!m_outputManagementProtocol);
     m_outputManagementProtocol = manager;
-    connect(m_outputManagementProtocol,
-            &WOutputManagerV1::requestTestOrApply,
-            this,
-            &OutputManager::testOrApplyConfiguration);
+    connect(manager, &WOutputManagerV1::requestTestOrApply, this,
+            [this, manager](wlr_output_configuration_v1 *config, bool onlyTest) {
+                testOrApplyConfiguration(manager, config, onlyTest);
+            });
 }
 
 void OutputManager::setOutputGroupInterface(OutputGroupManagerInterfaceV1 *interface)
@@ -1350,10 +1350,11 @@ void OutputManager::setPowerMode(wlr_output_power_v1_set_mode_event *event)
     notifyOutputGroupsChanged();
 }
 
-void OutputManager::testOrApplyConfiguration(wlr_output_configuration_v1 *config,
+void OutputManager::testOrApplyConfiguration(WOutputManagerV1 *protocol,
+                                             wlr_output_configuration_v1 *config,
                                              bool onlyTest)
 {
-    QList<WOutputState> states = m_outputManagementProtocol->stateListPending(config);
+    QList<WOutputState> states = protocol->stateListPending(config);
 
     const auto enabledOutputCount = std::count_if(
         states.cbegin(), states.cend(), [](const WOutputState &state) { return state.enabled; });
@@ -1445,15 +1446,17 @@ void OutputManager::testOrApplyConfiguration(wlr_output_configuration_v1 *config
             ok &= wlr_output_test_state(state.output->handle(), newState.get());
         }
 
-        m_outputManagementProtocol->sendResult(config, ok);
+        protocol->sendTestResult(config, ok);
         return;
     }
 
     if (m_pendingOutputConfig.config) {
-        m_outputManagementProtocol->sendResult(m_pendingOutputConfig.config, false);
+        if (m_pendingOutputConfig.protocol)
+            m_pendingOutputConfig.protocol->sendResult(m_pendingOutputConfig.config, false);
     }
 
     m_pendingOutputConfig.config = config;
+    m_pendingOutputConfig.protocol = protocol;
     m_pendingOutputConfig.states = states;
     m_pendingOutputConfig.pendingCommits = 0;
     m_pendingOutputConfig.allSuccess = true;
@@ -1462,12 +1465,12 @@ void OutputManager::testOrApplyConfiguration(wlr_output_configuration_v1 *config
     // onOutputCommitFinished() can already have answered the client and
     // destroyed `config` while this function is still running. Answer at most
     // once, and only clear the pending state while it is still ours.
-    const auto answerOnce = [this, config](bool ok) {
+    const auto answerOnce = [this, config, protocol](bool ok) {
         if (m_pendingOutputConfig.config != config) {
             qCDebug(lcTlCore) << "Not answering a configuration that is no longer pending" << config;
             return;
         }
-        m_outputManagementProtocol->sendResult(config, ok);
+        protocol->sendResult(config, ok);
         m_pendingOutputConfig = {};
     };
 
@@ -1579,22 +1582,26 @@ void OutputManager::testOrApplyConfiguration(wlr_output_configuration_v1 *config
         }
 
         auto pendingConfig = m_pendingOutputConfig.config;
+        const auto generation = m_sessionGeneration;
         const bool enabled = state.enabled;
         const QPoint outputPosition(state.x, state.y);
         QPointer<OutputManager> self(this);
         outputHelper->scheduleCommitJob(
             [self,
              pendingConfig,
+             generation,
              extraState,
              renderWindow,
              viewport,
              output = QPointer<WOutput>(state.output),
              outputPosition,
              enabled](bool success, WOutputHelper::ExtraState committedState) {
-                if (!self) {
+                if (!self)
                     return;
-                }
-
+                const bool currentRequest = self->m_sessionGeneration == generation
+                    && self->m_pendingOutputConfig.config == pendingConfig;
+                // Hardware commits still finish when their requesting Session
+                // changes; always retire the shared output-group bookkeeping.
                 const bool lastInFlight = (--self->m_inFlightOutputCommits <= 0);
                 if (committedState == extraState) {
                     if (success && output) {
@@ -1606,7 +1613,8 @@ void OutputManager::testOrApplyConfiguration(wlr_output_configuration_v1 *config
                             layout->remove(output);
                         }
                     }
-                    self->onOutputCommitFinished(pendingConfig, success);
+                    if (currentRequest)
+                        self->onOutputCommitFinished(pendingConfig, success);
                     if (success && committedState) {
                         const bool wasStateOnlyCommit =
                             (committedState->committed
@@ -1625,7 +1633,8 @@ void OutputManager::testOrApplyConfiguration(wlr_output_configuration_v1 *config
                         << "Commit callback received unexpected state pointer!"
                         << "Expected:" << extraState.get()
                         << "Got:" << committedState.get();
-                    self->onOutputCommitFinished(pendingConfig, false);
+                    if (currentRequest)
+                        self->onOutputCommitFinished(pendingConfig, false);
                 }
 
                 if (lastInFlight && self->m_groupsDirty) {
@@ -1710,7 +1719,8 @@ void OutputManager::onOutputCommitFinished(wlr_output_configuration_v1 *config,
         }
     }
 
-    m_outputManagementProtocol->sendResult(config, ok, m_pendingOutputConfig.states);
+    if (m_pendingOutputConfig.protocol)
+        m_pendingOutputConfig.protocol->sendResult(config, ok, m_pendingOutputConfig.states);
     m_pendingOutputConfig = {};
 
     // Even a failed apply may have disabled outputs while copy mode was already
