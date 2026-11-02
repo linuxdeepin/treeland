@@ -113,7 +113,7 @@ WaylandServer::WaylandServer(QObject *parent)
     , m_inputManager(new InputManager(this))
 {
     m_idleManager = new IdleManager(this);
-    m_captureManager = new CaptureManager(m_rootSurfaceContainer, this);
+    m_captureManager = new CaptureManager(m_server, m_rootSurfaceContainer, this);
     m_isDDMDisplay = qEnvironmentVariableIsSet("DDM_DISPLAY_MANAGER");
     Q_ASSERT(!m_instance);
     m_instance = this;
@@ -1128,7 +1128,7 @@ WXdgOutputManager *WaylandServer::installDesktopProtocols(QmlEngine *engine)
     auto *outputGroupInterface = server()->attach<OutputGroupManagerInterfaceV1>();
     m_outputManager->setOutputGroupInterface(outputGroupInterface);
 
-    m_captureManager->installProtocol(server(), engine, m_renderWindow);
+    m_captureManager->installProtocol(engine, m_renderWindow);
     m_surfaceProtocols->installPersonalization(server());
 
     // New protocols (treeland-protocols 0.6.0)

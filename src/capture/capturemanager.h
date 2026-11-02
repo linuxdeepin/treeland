@@ -26,10 +26,10 @@ class CaptureManager : public QObject, public WObject
 {
     Q_OBJECT
 public:
-    CaptureManager(RootSurfaceContainer *root, QObject *parent = nullptr);
+    CaptureManager(WServer *server, RootSurfaceContainer *root, QObject *parent = nullptr);
     ~CaptureManager() override;
 
-    void installProtocol(WServer *server, QmlEngine *engine, WOutputRenderWindow *window);
+    void installProtocol(QmlEngine *engine, WOutputRenderWindow *window);
     void installImageCapture(WServer *server, WExtForeignToplevelListV1 *toplevelList);
     bool isSelecting() const;
     void cancelSelection();
@@ -44,5 +44,6 @@ private:
     QmlEngine *m_engine = nullptr;
     CaptureManagerV1 *m_captureManagerV1 = nullptr;
     WExtForeignToplevelListV1 *m_extForeignToplevelListV1 = nullptr;
+    WServer *const m_server;
     QPointer<CaptureSourceSelector> m_captureSelector;
 };
