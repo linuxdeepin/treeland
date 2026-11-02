@@ -6,8 +6,9 @@ import Treeland
 
 Item {
     id: root
+    required property Workspace workspaceManager
     anchors.fill: parent
-    visible: WaylandServer.workspace.animationController.running
+    visible: root.workspaceManager.animationController.running
     Rectangle {
         anchors.fill: parent
         color: "black"
@@ -20,7 +21,7 @@ Item {
 
             required property int index
             required property QtObject output
-            readonly property real localAnimationScaleFactor: width / WaylandServer.workspace.animationController.refWidth
+            readonly property real localAnimationScaleFactor: width / root.workspaceManager.animationController.refWidth
             clip: true
             x: output.outputItem.x
             y: output.outputItem.y
@@ -28,10 +29,10 @@ Item {
             height: output.outputItem.height
 
             Row {
-                x: - WaylandServer.workspace.animationController.viewportPos * animationDelegate.localAnimationScaleFactor
-                spacing: WaylandServer.workspace.animationController.refGap * animationDelegate.localAnimationScaleFactor
+                x: - root.workspaceManager.animationController.viewportPos * animationDelegate.localAnimationScaleFactor
+                spacing: root.workspaceManager.animationController.refGap * animationDelegate.localAnimationScaleFactor
                 Repeater {
-                    model: WaylandServer.workspace.models
+                    model: root.workspaceManager.models
                     delegate: Item {
                         width: animationDelegate.output.outputItem.width
                         height: animationDelegate.output.outputItem.height
