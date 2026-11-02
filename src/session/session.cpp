@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "session.h"
+#include "dconfig/dconfigmanager.h"
 
 #include "common/treelandlogging.h"
 #include "core/rootsurfacecontainer.h"
@@ -59,6 +60,11 @@ static xcb_atom_t internAtom(xcb_connection_t *connection, const char *name, boo
     free(reply);
 
     return atom;
+}
+
+TreelandUserConfig *Session::config() const
+{
+    return m_config;
 }
 
 bool Session::ownsClient(WClient *client) const
@@ -456,6 +462,7 @@ std::shared_ptr<Session> SessionManager::ensureSession(const QString &id, QStrin
     auto session = std::make_shared<Session>();
     session->m_id = id;
     session->m_username = username;
+    session->m_config = DConfigManager::instance()->userConfig(username);
     session->m_uid = passwd->pw_uid;
 
     session->m_socket = createWSocket();
