@@ -2,6 +2,17 @@
     "magic": "dsg.config.meta",
     "version": "1.0",
     "contents": {
+        "keyboardNumLock": {
+            "value": true,
+            "serial": 0,
+            "flags": [],
+            "name": "Keyboard Num Lock",
+            "name[zh_CN]": "键盘数字锁定",
+            "description": "Whether the Num Lock state is enabled by default on keyboards that have a numeric keypad. When enabled, the numeric keypad inputs numbers.",
+            "description[zh_CN]": "是否默认在带有数字小键盘的键盘上启用数字锁定。启用时数字小键盘输入数字。",
+            "permissions": "readwrite",
+            "visibility": "public"
+        },
         "pointerScrollFactor": {
             "value": 1.0,
             "serial": 0,
