@@ -102,9 +102,24 @@ void Session::detachInterface(WServerInterface *interface)
     }
 }
 
+bool Session::isActive() const
+{
+    return m_active;
+}
+
+void Session::setActive(bool active)
+{
+    if (m_active == active)
+        return;
+    m_active = active;
+    Q_EMIT activeChanged(active);
+}
+
 Session::~Session()
 {
     qCDebug(lcTlCore) << "Deleting session for uid:" << m_uid << m_socket;
+    if (WaylandServer::instance())
+        setActive(false);
     Q_EMIT aboutToBeDestroyed();
 
     if (m_settingManagerThread) {
@@ -603,6 +618,8 @@ SessionManager::ActiveSessionUpdate SessionManager::prepareActiveUserSession(con
 
     const bool activeSessionChanged = previous != session;
     if (activeSessionChanged) {
+        if (previous)
+            previous->setActive(false);
         // Update active session
         m_activeSession = session;
         // Clear activated surface
@@ -614,6 +631,7 @@ SessionManager::ActiveSessionUpdate SessionManager::prepareActiveUserSession(con
             previous->m_socket->setEnabled(false, global ? global->socket() : nullptr);
         }
         session->m_socket->setEnabled(true);
+        session->setActive(true);
     }
 
     return { session, activeSessionChanged };
