@@ -76,6 +76,10 @@ WallpaperOutputConfig WallpaperManager::getOutputConfig(const QString &id)
 {
     for (WallpaperOutputConfig output : std::as_const(m_wallpaperConfig)) {
         if (output.outputName == id) {
+            for (auto &workspace : output.workspaces) {
+                auto *model = WaylandServer::instance()->workspace()->modelAt(workspace.workspaceId);
+                workspace.workspaceId = model ? model->id() : -1;
+            }
             return output;
         }
     }
@@ -189,7 +193,7 @@ void WallpaperManager::ensureWallpaperConfigForOutput(Output *output)
             if (outputConfig.outputName == outputId) {
                 const WallpaperWorkspaceConfig refConfig = outputConfig.workspaces.first();
                 for (int i = 0; i < workspace->count(); i++) {
-                    const int workspaceId = workspace->modelAt(i)->id();
+                    const int workspaceId = i;
                     if (!outputConfig.containsWorkspace(workspaceId)) {
                         WallpaperWorkspaceConfig wsConfig;
                         wsConfig.desktopWallpaper = refConfig.desktopWallpaper;
@@ -327,7 +331,7 @@ void WallpaperManager::syncAddWorkspace()
 
         const WallpaperWorkspaceConfig refConfig = outputConfig.workspaces.constFirst();
         for (int i = 0; i < workspace->count(); i++) {
-            const int workspaceId = workspace->modelAt(i)->id();
+            const int workspaceId = i;
             if (!outputConfig.containsWorkspace(workspaceId)) {
                 WallpaperWorkspaceConfig workspaceConfig;
                 workspaceConfig.desktopWallpaper = refConfig.desktopWallpaper;
