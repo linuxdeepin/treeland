@@ -527,6 +527,17 @@ if(TREELAND_INSTALL_DEV)
             DESTINATION ${WAYLIB_INCLUDE_INSTALL_DIR}
             FILES_MATCHING PATTERN "*.h")
 
+    # Compositors explicitly assemble the managers passed to WInputMethodHelper.
+    install(FILES
+        protocols/private/winputmethodv2_p.h
+        protocols/private/wtextinput_p.h
+        protocols/private/wtextinputv1_p.h
+        protocols/private/wtextinputv2_p.h
+        protocols/private/wtextinputv3_p.h
+        protocols/private/wvirtualkeyboardv1_p.h
+        DESTINATION ${WAYLIB_INCLUDE_INSTALL_DIR}
+    )
+
     # Install QML module generated targets separately to avoid dependency issues
     # This works around the Qt CMake QML module export issue
     get_directory_property(all_targets BUILDSYSTEM_TARGETS)

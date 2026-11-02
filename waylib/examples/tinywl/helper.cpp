@@ -29,6 +29,11 @@
 #include <woutputrenderwindow.h>
 #include <wqmlcreator.h>
 #include <winputmethodhelper.h>
+#include <winputmethodv2_p.h>
+#include <wtextinputv1_p.h>
+#include <wtextinputv2_p.h>
+#include <wtextinputv3_p.h>
+#include <wvirtualkeyboardv1_p.h>
 #include <WForeignToplevel>
 #include <WXdgOutput>
 #include <wxwaylandsurface.h>
@@ -405,7 +410,14 @@ void Helper::init()
         });
     });
 
-    m_inputMethodHelper = new WInputMethodHelper(m_server, m_seat);
+    const WInputMethodHelper::Protocols inputMethodProtocols {
+        m_server->attach<WInputMethodManagerV2>(),
+        m_server->attach<WTextInputManagerV1>(),
+        m_server->attach<WTextInputManagerV2>(),
+        m_server->attach<WTextInputManagerV3>(),
+        m_server->attach<WVirtualKeyboardManagerV1>(),
+    };
+    m_inputMethodHelper = new WInputMethodHelper(m_server, m_seat, inputMethodProtocols);
 
     connect(m_inputMethodHelper, &WInputMethodHelper::inputPopupSurfaceV2Added, this, [this](WInputPopupSurface *inputPopup) {
         auto wrapper = new SurfaceWrapper(qmlEngine(), inputPopup, SurfaceWrapper::Type::InputPopup);
