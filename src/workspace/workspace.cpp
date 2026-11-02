@@ -19,6 +19,7 @@ Workspace::Workspace(SurfaceContainer *parent)
     , m_currentFilter(new SurfaceFilterProxyModel(this))
     , m_animationController(new WorkspaceAnimationController(this))
 {
+    m_animationController->setConfig(WaylandServer::instance()->config());
     m_showOnAllWorkspaceModel = new WorkspaceModel(this, ShowOnAllWorkspaceId, {});
     m_showOnAllWorkspaceModel->setName("show-on-all-workspace");
     m_showOnAllWorkspaceModel->setVisible(true);
