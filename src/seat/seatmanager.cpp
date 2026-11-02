@@ -49,8 +49,11 @@ WSeat *SeatManager::createSeat(const QString &name, bool isFallback)
     }
 
     WSeat *seat = new WSeat(name);
+    if (!m_seatNames.contains(name))
+        m_seatNames.append(name);
 
     if (isFallback) {
+        m_fallbackName = name;
         m_defaultSeat = seat;
     }
 
@@ -101,6 +104,9 @@ void SeatManager::removeSeat(const QString &name)
     }
 
     WSeat *seat = m_seats.take(name);
+    m_seatNames.removeAll(name);
+    if (m_fallbackName == name)
+        m_fallbackName.clear();
 
     if (m_defaultSeat == seat && !m_seats.isEmpty()) {
         m_defaultSeat = m_seats.begin().value();
@@ -166,6 +172,15 @@ WSeat *SeatManager::getSeat(const QString &name) const
 QList<WSeat*> SeatManager::seats() const
 {
     return m_seats.values();
+}
+
+QStringList SeatManager::configuredSeatNames() const { return m_seatNames; }
+
+QString SeatManager::configuredFallbackName() const
+{
+    if (!m_fallbackName.isEmpty())
+        return m_fallbackName;
+    return m_defaultSeat ? m_defaultSeat->name() : m_seatNames.value(0);
 }
 
 WSeat *SeatManager::fallbackSeat() const
@@ -323,6 +338,8 @@ void SeatManager::loadConfig(const QJsonObject &config)
     seatsToDelete.swap(m_seats);
     m_deviceRules.clear();
     m_defaultSeat = nullptr;
+    m_seatNames.clear();
+    m_fallbackName.clear();
 
     for (auto seat : std::as_const(seatsToDelete)) {
         if (m_server) {
