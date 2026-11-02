@@ -8,7 +8,6 @@
 #include <QObject>
 #include <QPointer>
 
-struct wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request;
 class RootSurfaceContainer;
 class QmlEngine;
 class CaptureSourceSelector;
@@ -30,20 +29,16 @@ public:
     ~CaptureManager() override;
 
     void installProtocol(QmlEngine *engine, WOutputRenderWindow *window);
-    void installImageCapture(WServer *server, WExtForeignToplevelListV1 *toplevelList);
     bool isSelecting() const;
     void cancelSelection();
 
 private:
     void onSelectionChanged();
-    void handleNewForeignToplevelCaptureRequest(
-        wlr_ext_foreign_toplevel_image_capture_source_manager_v1_request *request);
 
 private:
     RootSurfaceContainer *m_rootSurfaceContainer;
     QmlEngine *m_engine = nullptr;
     CaptureManagerV1 *m_captureManagerV1 = nullptr;
-    WExtForeignToplevelListV1 *m_extForeignToplevelListV1 = nullptr;
     WServer *const m_server;
     QPointer<CaptureSourceSelector> m_captureSelector;
 };
