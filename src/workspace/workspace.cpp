@@ -512,7 +512,8 @@ void Workspace::doRemoveModel(int index)
         if (s->hasActiveCapability() && !s->showOnAllWorkspace())
             target->pushActivedSurface(s);
     }
-    if (WaylandServer::instance()->currentMode() != WaylandServer::CurrentMode::Multitaskview)
+    if (this == WaylandServer::instance()->workspace()
+        && WaylandServer::instance()->currentMode() != WaylandServer::CurrentMode::Multitaskview)
         WaylandServer::instance()->activateSurface(current->latestActiveSurface());
 
     if (m_switcher) {
