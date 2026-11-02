@@ -17,8 +17,6 @@ WorkspaceAnimationController::WorkspaceAnimationController(QObject *parent)
     , m_bounceInAnimation(new QPropertyAnimation(this))
 {
     m_posAnimation->setPropertyName("viewportPos");
-    m_posAnimation->setEasingCurve(static_cast<QEasingCurve::Type>(WaylandServer::instance()->config()->multitaskviewEasingCurveType()));
-    m_posAnimation->setDuration(WaylandServer::instance()->config()->multitaskviewAnimationDuration());
     m_posAnimation->setTargetObject(this);
     connect(m_slideAnimation, &QSequentialAnimationGroup::finished, this, [this] {
         if (m_needBounce) {
@@ -30,11 +28,9 @@ WorkspaceAnimationController::WorkspaceAnimationController(QObject *parent)
     m_slideAnimation->addAnimation(m_posAnimation);
     m_bounceInAnimation->setTargetObject(this);
     m_bounceInAnimation->setEasingCurve(QEasingCurve::InOutExpo);
-    m_bounceInAnimation->setDuration(WaylandServer::instance()->config()->multitaskviewAnimationDuration() / 2);
     m_bounceInAnimation->setPropertyName("viewportPos");
     m_bounceOutAnimation->setTargetObject(this);
     m_bounceOutAnimation->setEasingCurve(QEasingCurve::InOutExpo);
-    m_bounceOutAnimation->setDuration(WaylandServer::instance()->config()->multitaskviewAnimationDuration() / 2);
     m_bounceOutAnimation->setPropertyName("viewportPos");
     m_bounceAnimation->addAnimation(m_bounceInAnimation);
     m_bounceAnimation->addAnimation(m_bounceOutAnimation);
@@ -42,6 +38,15 @@ WorkspaceAnimationController::WorkspaceAnimationController(QObject *parent)
             &QSequentialAnimationGroup::finished,
             this,
             &WorkspaceAnimationController::finishAnimation);
+}
+
+void WorkspaceAnimationController::setConfig(TreelandUserConfig *config)
+{
+    Q_ASSERT(config);
+    m_posAnimation->setEasingCurve(static_cast<QEasingCurve::Type>(config->multitaskviewEasingCurveType()));
+    m_posAnimation->setDuration(config->multitaskviewAnimationDuration());
+    m_bounceInAnimation->setDuration(config->multitaskviewAnimationDuration() / 2);
+    m_bounceOutAnimation->setDuration(config->multitaskviewAnimationDuration() / 2);
 }
 
 qreal WorkspaceAnimationController::refWidth() const
