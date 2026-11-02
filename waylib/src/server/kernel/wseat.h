@@ -96,6 +96,7 @@ public:
 
     void addFilteredKey(uint32_t keycode);
     void removeFilteredKey(uint32_t keycode);
+    void clearFilteredKeys();
     bool isKeyFiltered(uint32_t keycode) const;
 
     // Copies the keycodes the client is allowed to see into `out`, dropping the
