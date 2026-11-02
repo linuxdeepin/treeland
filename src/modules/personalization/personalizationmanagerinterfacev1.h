@@ -300,5 +300,12 @@ protected:
     wl_global *global() const override;
 
 private:
+    void onRadiusChanged(int32_t radius);
+    void onIconThemeChanged(const QString &theme);
+    void onActiveColorChanged(const QString &color);
+    void onOpacityChanged(uint32_t opacity);
+    void onThemeTypeChanged(uint32_t type);
+    void onTitlebarHeightChanged(uint32_t height);
+    QList<PersonalizationAppearanceContextV1 *> m_appearanceContexts;
     std::unique_ptr<PersonalizationManagerInterfaceV1Private> d;
 };
