@@ -21,9 +21,10 @@
 #define EXT_OUTPUT_IMAGE_CAPTURE_SOURCE_MANAGER_V1_VERSION 1
 #define EXT_FOREIGN_TOPLEVEL_IMAGE_CAPTURE_SOURCE_MANAGER_V1_VERSION 1
 
-CaptureManager::CaptureManager(RootSurfaceContainer *root, QObject *parent)
+CaptureManager::CaptureManager(WServer *server, RootSurfaceContainer *root, QObject *parent)
     : QObject(parent)
     , m_rootSurfaceContainer(root)
+    , m_server(server)
 {}
 
 CaptureManager::~CaptureManager()
@@ -31,11 +32,10 @@ CaptureManager::~CaptureManager()
     teardown();
 }
 
-void CaptureManager::installProtocol(WServer *server, QmlEngine *engine,
-                                        WOutputRenderWindow *window)
+void CaptureManager::installProtocol(QmlEngine *engine, WOutputRenderWindow *window)
 {
     m_engine = engine;
-    m_captureManagerV1 = server->attach<CaptureManagerV1>();
+    m_captureManagerV1 = m_server->attach<CaptureManagerV1>();
     m_captureManagerV1->setOutputRenderWindow(window);
     connect(m_captureManagerV1, &CaptureManagerV1::contextInSelectionChanged,
             this, &CaptureManager::onSelectionChanged);
