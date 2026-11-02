@@ -74,15 +74,16 @@ class Q_DECL_HIDDEN WInputMethodHelperPrivate : public WObjectPrivate
 {
     W_DECLARE_PUBLIC(WInputMethodHelper)
 public:
-    explicit WInputMethodHelperPrivate(WServer *s, WSeat *st, WInputMethodHelper *qq)
+    explicit WInputMethodHelperPrivate(WServer *s, WSeat *st, WInputMethodHelper *qq,
+                                      const WInputMethodHelper::Protocols &protocols)
         : WObjectPrivate(qq)
         , server(s)
         , seat(st)
-        , inputMethodManagerV2(server->attach<WInputMethodManagerV2>())
-        , textInputManagerV1(server->attach<WTextInputManagerV1>())
-        , textInputManagerV2(server->attach<WTextInputManagerV2>())
-        , textInputManagerV3(server->attach<WTextInputManagerV3>())
-        , virtualKeyboardManagerV1(server->attach<WVirtualKeyboardManagerV1>())
+        , inputMethodManagerV2(protocols.inputMethod)
+        , textInputManagerV1(protocols.textInputV1)
+        , textInputManagerV2(protocols.textInputV2)
+        , textInputManagerV3(protocols.textInputV3)
+        , virtualKeyboardManagerV1(protocols.virtualKeyboard)
         , enabledTextInput(nullptr)
         , activeInputMethod(nullptr)
         , activeKeyboardGrab(nullptr)
@@ -96,6 +97,7 @@ public:
         Q_ASSERT(textInputManagerV1);
         Q_ASSERT(textInputManagerV2);
         Q_ASSERT(textInputManagerV3);
+        Q_ASSERT(virtualKeyboardManagerV1);
     }
 
     void endGrab(wlr_input_method_keyboard_grab_v2 *kgv2)
@@ -176,9 +178,9 @@ public:
 
 };
 
-WInputMethodHelper::WInputMethodHelper(WServer *server, WSeat *seat)
+WInputMethodHelper::WInputMethodHelper(WServer *server, WSeat *seat, const Protocols &protocols)
     : QObject(server)
-    , WObject(*new WInputMethodHelperPrivate(server, seat, this))
+    , WObject(*new WInputMethodHelperPrivate(server, seat, this, protocols))
 {
     W_D(WInputMethodHelper);
     QObject::connect(d->seat, &WSeat::keyboardFocusSurfaceChanged, this, &WInputMethodHelper::resendKeyboardFocus);
