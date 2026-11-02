@@ -89,7 +89,7 @@ sudo -u dde -- dde-dconfig set -a org.deepin.dde.treeland -r org.deepin.dde.tree
 ## treeland-debug CLI
 `treeland-debug` 是 adb 风格的检查/控制工具。两种模式：一次性 `treeland-debug <cmd> [args]` 与 REPL `treeland-debug shell`。Release 构建中它会通过 polkit 自动提权到 root；Debug 构建中以与 treeland 实例相同的用户运行。`--json` 为 `tree`/`cursor`/`windows`/`clients` 提供机器可读输出。
 
-全局选项：`--url <url>`（默认 auto —— 构建类型对应的 socket；Debug 构建优先调试 socket，回退到 Release socket）、`--name <name>`（默认 `WindowTree`）、`--timeout-ms <n>`（默认 30000）、`--json`、`--preview` / `--no-preview`（终端内联图片预览，默认自动探测）。需要指定某个实例时显式传 `--url`（原样使用，不做隐式处理）。
+全局选项：`--url <url>`（优先级最低的是自动探测：构建类型对应的 socket，Debug 构建优先调试 socket 再回退到 Release socket）、`--name <name>`（默认 `WindowTree`）、`--timeout-ms <n>`（默认 30000）、`--json`、`--preview` / `--no-preview`（终端内联图片预览，默认自动探测）。socket 的选择顺序：`--url` → `$TREELAND_DEBUG_SOCKET` → 自动探测。`TREELAND_DEBUG_SOCKET` 取 socket 路径或裸名（等价 `local:<值>`），带 scheme 的值原样使用；`--url` / 环境变量都是原样使用、不做隐式处理（指定某个实例、或连旧版留在 `/tmp` 的 socket 时用它们）。
 
 ### 检查
 | 命令 | 输出 |

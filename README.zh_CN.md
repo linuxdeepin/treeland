@@ -109,15 +109,16 @@ socket 只对合成器用户与 root 可达。`treeland-debug` 客户端按顺�
 
 Debug 构建使用不同的默认名（`org.deepin.dde.treeland.debug-dev`），因此调试版与正式版
 treeland 可同时运行。Debug 构建的 treeland-debug 客户端自动优先连接调试实例，连不上时
-回退到正式版实例；Release 构建的客户端连接正式版实例。显式传入 `--url` 始终优先，不做
-任何隐式处理 —— 它也是连接旧版 treeland 留在迁移前 `/tmp/<name>` 的 socket 的方式：
-`--url local:/tmp/org.deepin.dde.treeland.debug`。
+回退到正式版实例；Release 构建的客户端连接正式版实例。socket 的选择顺序是：`--url`、
+`$TREELAND_DEBUG_SOCKET`（socket 路径或裸名，等价于 `local:<值>`；带 scheme 的值原样使用）、
+然后是上面的自动探测。显式 URL 始终优先，不做任何隐式处理 —— 它也是连接旧版 treeland
+留在迁移前 `/tmp/<name>` 的 socket 的方式：`--url local:/tmp/org.deepin.dde.treeland.debug`。
 
 ### 全局选项
 
 | 选项 | 默认值 | 说明 |
 | --- | --- | --- |
-| `--url <url>` | 自动：Debug 构建优先调试 socket 并回退到正式版 socket，否则正式版 socket | Remote object host URL。 |
+| `--url <url>` | `$TREELAND_DEBUG_SOCKET`，否则自动：Debug 构建优先调试 socket 并回退到正式版 socket，再否则正式版 socket | Remote object host URL。 |
 | `--name <name>` | `WindowTree` | Remote object 名称。 |
 | `--timeout-ms <n>` | `30000` | 请求超时（毫秒，非负整数）。 |
 | `--json` | 关 | 为 `tree`/`cursor`/`windows`/`clients` 输出机器可读 JSON。 |
