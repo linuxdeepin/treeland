@@ -835,73 +835,101 @@ void PersonalizationManagerInterfaceV1::onCursorContextCreated(PersonalizationCu
     context->blockSignals(false);
 }
 
+void PersonalizationManagerInterfaceV1::onRadiusChanged(int32_t radius)
+{
+    WaylandServer::instance()->config()->setWindowRadius(radius);
+    for (auto *c : std::as_const(m_appearanceContexts)) {
+        c->sendRoundCornerRadius(radius);
+    }
+}
+
+void PersonalizationManagerInterfaceV1::onIconThemeChanged(const QString &theme)
+{
+    WaylandServer::instance()->config()->setIconThemeName(theme);
+    for (auto *c : std::as_const(m_appearanceContexts)) {
+        c->sendIconTheme(theme);
+    }
+}
+
+void PersonalizationManagerInterfaceV1::onActiveColorChanged(const QString &color)
+{
+    WaylandServer::instance()->config()->setActiveColor(color);
+    for (auto *c : std::as_const(m_appearanceContexts)) {
+        c->sendActiveColor(color);
+    }
+}
+
+void PersonalizationManagerInterfaceV1::onOpacityChanged(uint32_t opacity)
+{
+    WaylandServer::instance()->config()->setWindowOpacity(opacity);
+    for (auto *c : std::as_const(m_appearanceContexts)) {
+        c->sendWindowOpacity(opacity);
+    }
+}
+
+void PersonalizationManagerInterfaceV1::onThemeTypeChanged(uint32_t type)
+{
+    const auto dconfigType = protocolThemeTypeToDConfig(type);
+    if (dconfigType.has_value()) {
+        WaylandServer::instance()->config()->setWindowColorScheme(*dconfigType);
+        WaylandServer::syncPaletteTypeWithWindowColorScheme(*dconfigType);
+    }
+    for (auto *c : std::as_const(m_appearanceContexts)) {
+        c->sendWindowThemeType(type);
+    }
+}
+
+void PersonalizationManagerInterfaceV1::onTitlebarHeightChanged(uint32_t height)
+{
+    WaylandServer::instance()->config()->setWindowTitlebarHeight(height);
+    for (auto *c : std::as_const(m_appearanceContexts)) {
+        c->sendWindowTitlebarHeight(height);
+    }
+}
+
 void PersonalizationManagerInterfaceV1::onAppearanceContextCreated(PersonalizationAppearanceContextV1 *context)
 {
-    connect(context, &PersonalizationAppearanceContextV1::roundCornerRadiusChanged, this, [](int32_t radius) {
-        WaylandServer::instance()->config()->setWindowRadius(radius);
-        for (auto *c : std::as_const(s_appearanceContexts)) {
-            c->sendRoundCornerRadius(radius);
-        }
+    m_appearanceContexts.append(context);
+    connect(context, &QObject::destroyed, this, [this, context] {
+        m_appearanceContexts.removeAll(context);
     });
-    connect(context, &PersonalizationAppearanceContextV1::iconThemeChanged, this, [](const QString &theme) {
-        WaylandServer::instance()->config()->setIconThemeName(theme);
-        for (auto *c : std::as_const(s_appearanceContexts)) {
-            c->sendIconTheme(theme);
-        }
-    });
-    connect(context, &PersonalizationAppearanceContextV1::activeColorChanged, this, [](const QString &color) {
-        WaylandServer::instance()->config()->setActiveColor(color);
-        for (auto *c : std::as_const(s_appearanceContexts)) {
-            c->sendActiveColor(color);
-        }
-    });
-    connect(context, &PersonalizationAppearanceContextV1::windowOpacityChanged, this, [](uint32_t opacity) {
-        WaylandServer::instance()->config()->setWindowOpacity(opacity);
-        for (auto *c : std::as_const(s_appearanceContexts)) {
-            c->sendWindowOpacity(opacity);
-        }
-    });
-    connect(context, &PersonalizationAppearanceContextV1::windowThemeTypeChanged, this, [](uint32_t type) {
-        const auto dconfigType = protocolThemeTypeToDConfig(type);
-        if (dconfigType.has_value()) {
-            WaylandServer::instance()->config()->setWindowColorScheme(*dconfigType);
-            WaylandServer::syncPaletteTypeWithWindowColorScheme(*dconfigType);
-        }
-        for (auto *c : std::as_const(s_appearanceContexts)) {
-            c->sendWindowThemeType(type);
-        }
-    });
-    connect(context, &PersonalizationAppearanceContextV1::titlebarHeightChanged, this, [](uint32_t height) {
-        WaylandServer::instance()->config()->setWindowTitlebarHeight(height);
-        for (auto *c : std::as_const(s_appearanceContexts)) {
-            c->sendWindowTitlebarHeight(height);
-        }
+    connect(context, &PersonalizationAppearanceContextV1::roundCornerRadiusChanged,
+            this, &PersonalizationManagerInterfaceV1::onRadiusChanged);
+    connect(context, &PersonalizationAppearanceContextV1::iconThemeChanged,
+            this, &PersonalizationManagerInterfaceV1::onIconThemeChanged);
+    connect(context, &PersonalizationAppearanceContextV1::activeColorChanged,
+            this, &PersonalizationManagerInterfaceV1::onActiveColorChanged);
+    connect(context, &PersonalizationAppearanceContextV1::windowOpacityChanged,
+            this, &PersonalizationManagerInterfaceV1::onOpacityChanged);
+    connect(context, &PersonalizationAppearanceContextV1::windowThemeTypeChanged,
+            this, &PersonalizationManagerInterfaceV1::onThemeTypeChanged);
+    connect(context, &PersonalizationAppearanceContextV1::titlebarHeightChanged,
+            this, &PersonalizationManagerInterfaceV1::onTitlebarHeightChanged);
+
+    connect(context, &PersonalizationAppearanceContextV1::requestRoundCornerRadius, context, [context, config = WaylandServer::instance()->config()] {
+        context->sendRoundCornerRadius(config->windowRadius());
     });
 
-    connect(context, &PersonalizationAppearanceContextV1::requestRoundCornerRadius, context, [this, context] {
-        context->sendRoundCornerRadius(windowRadius());
+    connect(context, &PersonalizationAppearanceContextV1::requestIconTheme, context, [context, config = WaylandServer::instance()->config()] {
+        context->sendIconTheme(config->iconThemeName());
     });
 
-    connect(context, &PersonalizationAppearanceContextV1::requestIconTheme, context, [this, context] {
-        context->sendIconTheme(iconTheme());
+    connect(context, &PersonalizationAppearanceContextV1::requestActiveColor, context, [context, config = WaylandServer::instance()->config()] {
+        context->sendActiveColor(config->activeColor());
     });
 
-    connect(context, &PersonalizationAppearanceContextV1::requestActiveColor, context, [context] {
-        context->sendActiveColor(WaylandServer::instance()->config()->activeColor());
+    connect(context, &PersonalizationAppearanceContextV1::requestWindowOpacity, context, [context, config = WaylandServer::instance()->config()] {
+        context->sendWindowOpacity(config->windowOpacity());
     });
 
-    connect(context, &PersonalizationAppearanceContextV1::requestWindowOpacity, context, [context] {
-        context->sendWindowOpacity(WaylandServer::instance()->config()->windowOpacity());
-    });
-
-    connect(context, &PersonalizationAppearanceContextV1::requestWindowThemeType, context, [context] {
+    connect(context, &PersonalizationAppearanceContextV1::requestWindowThemeType, context, [context, config = WaylandServer::instance()->config()] {
         const auto protocolType = dconfigToProtocolThemeType(
-            WaylandServer::instance()->config()->windowColorScheme());
+            config->windowColorScheme());
         context->sendWindowThemeType(protocolType);
     });
 
-    connect(context, &PersonalizationAppearanceContextV1::requestWindowTitlebarHeight, context, [context] {
-        context->sendWindowTitlebarHeight(WaylandServer::instance()->config()->windowTitlebarHeight());
+    connect(context, &PersonalizationAppearanceContextV1::requestWindowTitlebarHeight, context, [context, config = WaylandServer::instance()->config()] {
+        context->sendWindowTitlebarHeight(config->windowTitlebarHeight());
     });
 
     context->sendRoundCornerRadius(WaylandServer::instance()->config()->windowRadius());
