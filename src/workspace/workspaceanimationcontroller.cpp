@@ -211,6 +211,14 @@ void WorkspaceAnimationController::setRunning(bool running)
     Q_EMIT runningChanged();
 }
 
+void WorkspaceAnimationController::cancel()
+{
+    m_slideAnimation->stop();
+    m_bounceAnimation->stop();
+    setViewportPos(0);
+    setRunning(false);
+}
+
 void WorkspaceAnimationController::finishAnimation()
 {
     Q_EMIT finished();

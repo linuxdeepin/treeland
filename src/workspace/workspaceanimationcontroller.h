@@ -60,6 +60,7 @@ public Q_SLOTS:
     void bounce(uint currentWorkspaceIndex, Direction direction);
     void setRunning(bool running);
     void startSlideAnimation();
+    void cancel();
     void startGestureSlide(qreal cb, bool bounce = false);
 
 private:
