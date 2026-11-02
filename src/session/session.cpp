@@ -2,7 +2,24 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "session.h"
+#include "sessionprelaunch.h"
+#include "sessionscene.h"
+#include "sessionmanager.h"
+#include "desktop/desktopenvironment.h"
+#include "seatuserconfig.hpp"
+#include "sessionprotocols.h"
+#include "sessionseatmanager.h"
+#include "sessionswitcher.h"
+#include "sessionoutputmanager.h"
+#include "sessionoutputchannel.h"
+#include "sessioninputchannel.h"
+#include "outputconfig.hpp"
+#include <woutputmanagerv1.h>
 #include "dconfig/dconfigmanager.h"
+#include "input/inputmanager.h"
+#include "wallpaper/wallpapermanager.h"
+#include "surface/surfacecontainer.h"
+#include "seat/seatmanager.h"
 
 #include "common/treelandlogging.h"
 #include "core/rootsurfacecontainer.h"
@@ -18,12 +35,16 @@
 
 #include <woutputrenderwindow.h>
 #include <wsocket.h>
+#include <wforeigntoplevelv1.h>
 #include <wserver.h>
+#include "modules/foreign-toplevel/foreigntoplevelmanagerv3.h"
+#include <wextforeigntoplevellistv1.h>
 #ifndef DISABLE_XWAYLAND
 #include <wxwayland.h>
 #endif
 
 #include <pwd.h>
+#include <wlr_all.h>
 #ifndef DISABLE_XWAYLAND
 #include <xcb/randr.h>
 #endif
@@ -75,41 +96,9 @@ static xcb_atom_t internAtom(xcb_connection_t *connection, const char *name, boo
 }
 #endif
 
-TreelandUserConfig *Session::config() const
-{
-    return m_config;
-}
-
-bool Session::ownsClient(WClient *client) const
-{
-    auto *server = WaylandServer::instance();
-    return server && server->sessionManager()->sessionForClient(client).get() == this;
-}
-
-std::shared_ptr<Session> SessionManager::sessionForClient(WClient *client) const
-{
-    if (!client)
-        return nullptr;
-    for (auto *socket = client->socket(); socket; socket = socket->parentSocket()) {
-        if (auto session = sessionForSocket(socket))
-            return session;
-    }
-    return nullptr;
-}
-
-void Session::attachInterface(WServerInterface *interface)
-{
-    if (m_interfaces.contains(interface))
-        return;
-    interface->setOwnsSocket(m_socket);
-    if (!interface->server())
-        WaylandServer::instance()->server()->attach(interface);
-    // WServer owns interface wrappers, including at compositor shutdown.
-    // Session holds their logical scope and detaches them on user logout.
-    if (auto *object = dynamic_cast<QObject *>(interface))
-        object->setParent(WaylandServer::instance()->server());
-    m_interfaces.append(interface);
-}
+SessionSeatManager *Session::seatManager() const { return m_seatManager; }
+SessionPrelaunch *Session::prelaunch() const { return m_prelaunch; }
+SessionScene *Session::scene() const { return m_scene; }
 
 void Session::detachInterface(WServerInterface *interface)
 {
@@ -121,25 +110,18 @@ void Session::detachInterface(WServerInterface *interface)
     }
 }
 
-bool Session::isActive() const
-{
-    return m_active;
-}
-
-void Session::setActive(bool active)
-{
-    if (m_active == active)
-        return;
-    m_active = active;
-    Q_EMIT activeChanged(active);
-}
-
 Session::~Session()
 {
     qCDebug(lcTlCore) << "Deleting session for uid:" << m_uid << m_socket;
     if (WaylandServer::instance())
         setActive(false);
     Q_EMIT aboutToBeDestroyed();
+    if (WaylandServer::instance()) {
+        if (m_foreignToplevel && m_foreignToplevel->handle())
+            wl_global_remove(m_foreignToplevel->handle()->global);
+        if (m_toplevelList && m_toplevelList->handle())
+            wl_global_remove(m_toplevelList->handle()->global);
+    }
 
 #ifndef DISABLE_XWAYLAND
     if (m_settingManagerThread) {
@@ -158,17 +140,39 @@ Session::~Session()
         m_xwayland = nullptr;
     }
 #endif
+    // Destroy clients while their protocols and socket identity are still valid.
     if (m_socket)
         m_socket->close();
+    delete m_seatManager;
+    m_seatManager = nullptr;
     if (auto *server = WaylandServer::instance()) {
         for (auto *interface : std::as_const(m_interfaces)) {
+            if (auto *outputProtocol = dynamic_cast<WOutputManagerV1 *>(interface); outputProtocol && outputProtocol->handle())
+                wl_global_remove(outputProtocol->handle()->global);
             server->server()->detach(interface);
             delete interface;
         }
     }
+    // Scoped globals must be detached before the owner pointer can become null.
     delete m_socket;
     m_socket = nullptr;
+    auto *ownedWorkspace = workspace();
+    if (ownedWorkspace && WaylandServer::instance()
+        && WaylandServer::instance()->workspace() != ownedWorkspace) {
+        auto *workspace = ownedWorkspace;
+        workspace->deactivate();
+        if (workspace->surfaces().isEmpty()) {
+            workspace->deleteLater();
+        } else {
+            connect(workspace, &SurfaceContainer::surfaceRemoved, workspace, [workspace] {
+                if (workspace->surfaces().isEmpty())
+                    workspace->deleteLater();
+            });
+        }
+    }
 }
+
+DesktopEnvironment *Session::desktop() const { return m_desktop; }
 
 const QString &Session::id() const
 {
@@ -201,6 +205,138 @@ quint32 Session::noTitlebarAtom() const
     return m_noTitlebarAtom;
 }
 #endif
+
+Workspace *Session::workspace() const
+{
+    return m_desktop ? m_desktop->workspace() : nullptr;
+}
+
+DesktopSurfaceModel *Session::windows() const
+{
+    return m_desktop ? m_desktop->windows() : nullptr;
+}
+
+TreelandUserConfig *Session::config() const
+{
+    return m_config;
+}
+
+SessionProtocols *Session::protocols() const
+{
+    return m_protocols;
+}
+
+SessionOutputManager *Session::outputManager() const
+{
+    return m_outputManager;
+}
+
+SessionSwitcher *Session::switcher() const
+{
+    return m_desktop ? m_desktop->switcher() : nullptr;
+}
+
+InputManager *Session::inputManager() const
+{
+    return m_desktop ? m_desktop->input() : nullptr;
+}
+
+WallpaperManager *Session::wallpaperManager() const
+{
+    return m_desktop ? m_desktop->wallpaper() : nullptr;
+}
+
+bool Session::isActive() const
+{
+    return m_active;
+}
+
+void Session::setActive(bool active)
+{
+    if (m_active == active)
+        return;
+    m_active = active;
+    if (!active)
+        Q_EMIT activeChanged(false);
+    if (m_desktop) {
+        if (active)
+            m_desktop->activate();
+        else
+            m_desktop->deactivate();
+    }
+    if (active)
+        Q_EMIT activeChanged(true);
+}
+
+bool Session::ownsClient(WClient *client) const
+{
+    auto *server = WaylandServer::instance();
+    return server && server->sessionManager()->sessionForClient(client).get() == this;
+}
+
+void Session::attachInterface(WServerInterface *interface)
+{
+    if (m_interfaces.contains(interface))
+        return;
+    interface->setOwnsSocket(m_socket);
+    if (!interface->server())
+        WaylandServer::instance()->server()->attach(interface);
+    // WServer owns interface wrappers, including at compositor shutdown.
+    // Session holds their logical scope and detaches them on user logout.
+    if (auto *object = dynamic_cast<QObject *>(interface))
+        object->setParent(WaylandServer::instance()->server());
+    m_interfaces.append(interface);
+}
+
+ForeignToplevelManagerInterfaceV3 *Session::windowManagement() const
+{
+    return m_windowManagement;
+}
+
+WForeignToplevel *Session::foreignToplevel() const
+{
+    return m_foreignToplevel;
+}
+
+WExtForeignToplevelListV1 *Session::toplevelList() const
+{
+    return m_toplevelList;
+}
+
+void Session::registerWindow(SurfaceWrapper *window)
+{
+    m_desktop->registerWindow(window);
+}
+
+void Session::unregisterWindow(SurfaceWrapper *window)
+{
+    m_desktop->unregisterWindow(window);
+}
+
+Session *SessionManager::activeSessionObject() const
+{
+    return m_activeSession.lock().get();
+}
+
+std::shared_ptr<Session> SessionManager::sessionForClient(WClient *client) const
+{
+    if (!client)
+        return nullptr;
+    for (auto *socket = client->socket(); socket; socket = socket->parentSocket()) {
+        if (auto session = sessionForSocket(socket))
+            return session;
+    }
+    return nullptr;
+}
+
+bool SessionManager::isActiveWindow(SurfaceWrapper *window) const
+{
+    if (!window)
+        return false;
+    if (window->session())
+        return window->renderingEnabled();
+    return !activeSessionObject();
+}
 
 SessionManager::SessionManager(QObject *parent)
     : QObject(parent)
@@ -334,8 +470,12 @@ void SessionManager::removeSession(std::shared_ptr<Session> session)
         return;
 
     if (m_activeSession.lock() == session) {
-        m_activeSession.reset();
-        WaylandServer::instance()->workspace()->clearActivedSurface();
+        const auto fallback = globalSession();
+        if (fallback && fallback != session)
+            updateActiveUserSession(fallback->username(), fallback->id());
+        else
+            m_activeSession.reset();
+        session->workspace()->clearActivedSurface();
         WaylandServer::instance()->activateSurface(nullptr);
     }
 
@@ -375,9 +515,9 @@ std::shared_ptr<Session> SessionManager::ensureSession(const QString &id, QStrin
         return socket;
     };
 #ifndef DISABLE_XWAYLAND
-    auto createXWayland = [this](WSocket *socket) {
+    auto createXWayland = [this](Session *owner, WSocket *socket) {
         // Create xwayland
-        auto *xwayland = WaylandServer::instance()->createXWayland();
+        auto *xwayland = WaylandServer::instance()->createXWayland(owner->seatManager()->fallbackSeat());
         if (!xwayland) {
             qCCritical(lcTlCore) << "Failed to create XWayland instance";
             return static_cast<WXWayland *>(nullptr);
@@ -399,21 +539,21 @@ std::shared_ptr<Session> SessionManager::ensureSession(const QString &id, QStrin
 
                 session->m_settingManager->moveToThread(session->m_settingManagerThread);
 
-                const qreal scale = WaylandServer::instance()->rootSurfaceContainer()->window()->effectiveDevicePixelRatio();
+                const qreal scale = session->outputManager()->effectiveScale();
                 const auto renderWindow = WaylandServer::instance()->window();
                 connect(session->m_settingManagerThread,
                         &QThread::started,
                         this,
-                        [settingManager = QPointer(session->m_settingManager),
+                        [this, settingManager = QPointer(session->m_settingManager),
                          scale,
-                         renderWindow] {
+                         renderWindow,
+                         config = session->config()] {
                             if (!settingManager) {
                                 qCDebug(lcTlXsettings)
                                     << "Skip initial XSettings sync: no SettingManager";
                                 return;
                             }
 
-                            const auto *config = WaylandServer::instance()->config();
                             const QString cursorTheme =
                                 config ? config->cursorThemeName() : QString();
                             const qreal cursorSize = config ? config->cursorSize() : 24;
@@ -438,12 +578,9 @@ std::shared_ptr<Session> SessionManager::ensureSession(const QString &id, QStrin
                             QObject::connect(
                                 renderWindow,
                                 &WOutputRenderWindow::effectiveDevicePixelRatioChanged,
-                                settingManager,
-                                [settingManager](qreal dpr) {
-                                    settingManager->setGlobalScale(dpr);
-                                    settingManager->apply();
-                                },
-                                Qt::QueuedConnection);
+                                this,
+                                &SessionManager::syncSessionScaleSettings,
+                                Qt::UniqueConnection);
                         });
                 connect(session->m_settingManagerThread, &QThread::finished, session->m_settingManagerThread, &QThread::deleteLater);
                 session->m_settingManagerThread->start();
@@ -465,7 +602,7 @@ std::shared_ptr<Session> SessionManager::ensureSession(const QString &id, QStrin
         }
 #ifndef DISABLE_XWAYLAND
         if (!session->m_xwayland) {
-            auto *xwayland = createXWayland(session->m_socket);
+            auto *xwayland = createXWayland(session.get(), session->m_socket);
             if (!xwayland) {
                 session->m_socket->close();
                 m_sessions.removeOne(session);
@@ -487,25 +624,49 @@ std::shared_ptr<Session> SessionManager::ensureSession(const QString &id, QStrin
     auto session = std::make_shared<Session>();
     session->m_id = id;
     session->m_username = username;
-    session->m_config = DConfigManager::instance()->userConfig(username);
     session->m_uid = passwd->pw_uid;
+    session->m_config = DConfigManager::instance()->userConfig(username);
+    auto *runtime = WaylandServer::instance();
+    auto *workspace = runtime->shellHandler()->createSessionWorkspace(session->m_config);
+    session->m_desktop = new DesktopEnvironment(session->m_config, workspace, runtime,
+        [username](const QString &seatName) {
+            return DConfigManager::instance()->userSeatConfig(username, seatName);
+        },
+        [owner = session.get()] { return owner->seatManager()->seats(); },
+        [this](wlr_output *excluded) { return wallpaperLibrary(excluded); }, session.get());
 
     session->m_socket = createWSocket();
     if (!session->m_socket)
         return nullptr;
 
-    // Protocol tests and headless runs have no use for the wallpaper producer.
+    session->m_scene = new SessionScene(session.get());
+    session->desktop()->attachInputChannel(new SessionInputChannel(session.get(), runtime));
+    session->m_seatManager = new SessionSeatManager(session.get());
+    session->m_protocols = new SessionProtocols(session.get());
+    session->m_prelaunch = new SessionPrelaunch(session.get(), runtime);
+    auto *outputProtocol = new WOutputManagerV1;
+    session->attachInterface(outputProtocol);
+    auto *channel = new SessionOutputChannel(session.get(), runtime->outputHardware(), runtime->rootContainer());
+    session->m_outputManager = new SessionOutputManager(DConfigManager::instance()->globalConfig(),
+        [](const QString &outputId) {
+            return DConfigManager::instance()->outputConfig(outputId);
+        }, session->desktop()->surfaces(), channel, runtime->outputHardware(), runtime->backend(), outputProtocol, session->desktop());
+    session->desktop()->attachOutputs(session->m_outputManager);
+    WaylandServer::instance()->initializeSessionProtocols(session.get());
+
+    // Protocol tests and headless runs do not launch the wallpaper producer.
     if (!m_wallpaperLauncher && !qEnvironmentVariableIsSet("TREELAND_DISABLE_WALLPAPER")) {
         m_wallpaperLauncher = new WallpaperLauncher(session->socket()->rootSocket());
         m_wallpaperLauncher->start();
     }
 
 #ifndef DISABLE_XWAYLAND
-    session->m_xwayland = createXWayland(session->m_socket);
+    session->m_xwayland = createXWayland(session.get(), session->m_socket);
     if (!session->m_xwayland)
         return nullptr;
 #endif
 
+    session->m_socket->setEnabled(false, globalSession() ? globalSession()->socket() : nullptr);
     // Add session to list
     m_sessions.append(session);
     return session;
@@ -602,6 +763,24 @@ bool SessionManager::isDDEUserClient(WClient *client)
     return client->socket() == global->socket();
 }
 
+void SessionManager::syncSessionScaleSettings()
+{
+#ifndef DISABLE_XWAYLAND
+    for (const auto &session : std::as_const(m_sessions)) {
+        if (!session || !session->m_settingManager)
+            continue;
+        const qreal scale = session->outputManager()->effectiveScale();
+        const auto settings = QPointer(session->m_settingManager);
+        QMetaObject::invokeMethod(settings, [settings, scale] {
+            if (!settings)
+                return;
+            settings->setGlobalScale(scale);
+            settings->apply();
+        }, Qt::QueuedConnection);
+    }
+#endif
+}
+
 void SessionManager::syncActiveSessionXSettings()
 {
 #ifndef DISABLE_XWAYLAND
@@ -617,10 +796,7 @@ void SessionManager::syncActiveSessionXSettings()
         return;
     }
 
-    auto *server = WaylandServer::instance();
-    Q_ASSERT(server);
-
-    const auto *config = server->config();
+    const auto *config = session->config();
     if (!config) {
         qCWarning(lcTlXsettings) << "Cannot sync XSettings: user config is unavailable";
         return;
@@ -659,13 +835,19 @@ SessionManager::ActiveSessionUpdate SessionManager::prepareActiveUserSession(con
 
     const bool activeSessionChanged = previous != session;
     if (activeSessionChanged) {
+        auto *server = WaylandServer::instance();
         if (previous)
             previous->setActive(false);
-        // Update active session
+        server->rootSurfaceContainer()->dismissAllPopups();
+        for (auto *seat : server->seatManager()->seats()) {
+            server->rootSurfaceContainer()->cancelMoveResizeForSeat(seat);
+            server->activateSurface(nullptr, Qt::OtherFocusReason, seat);
+        }
+        // Publish the workspace through one path for all activation callers.
         m_activeSession = session;
-        // Clear activated surface
-        // TODO: Each Wayland socket's active surface needs to be cleaned up individually.
-        WaylandServer::instance()->activateSurface(nullptr);
+        server->seatManager()->activateSessionSeats(session->seatManager());
+        server->shellHandler()->setWorkspace(session->workspace());
+
         // Update socket enabled state before publishing activation notifications.
         if (previous && previous->m_socket) {
             const auto global = globalSession();
@@ -680,7 +862,7 @@ SessionManager::ActiveSessionUpdate SessionManager::prepareActiveUserSession(con
 
 void SessionManager::commitActiveUserSession(const ActiveSessionUpdate &update)
 {
-    if (!update)
+    if (!update || m_activeSession.lock() != update.session)
         return;
 
     if (update.activeSessionChanged) {
@@ -692,4 +874,19 @@ void SessionManager::commitActiveUserSession(const ActiveSessionUpdate &update)
 
     qCInfo(lcTlCore) << "Listening on:" << update.session->m_socket->fullServerName();
     syncActiveSessionXSettings();
+    syncSessionScaleSettings();
+    auto *server = WaylandServer::instance();
+    if (update.activeSessionChanged && server->currentMode() == WaylandServer::CurrentMode::Normal)
+        server->activateSurface(update.session->workspace()->current()->latestActiveSurface());
+}
+
+WallpaperManager::WallpaperLibrary SessionManager::wallpaperLibrary(wlr_output *excluded) const
+{
+    WallpaperManager::WallpaperLibrary result;
+    for (const auto &owner : m_sessions) {
+        const auto used = owner->wallpaperManager()->globalValidWallpaper(excluded);
+        for (auto it = used.cbegin(); it != used.cend(); ++it)
+            result.insert(it.key(), it.value());
+    }
+    return result;
 }

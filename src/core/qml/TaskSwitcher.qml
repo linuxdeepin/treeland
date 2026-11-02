@@ -15,8 +15,10 @@ Item {
     property bool switchOn: true
     property double lastSwitchTimestamp: 0
     property int focusReason: Qt.TabFocusReason
+    required property DesktopEnvironment desktop
+    readonly property QtObject workspace: desktop.workspace
     required property QtObject output
-    readonly property QtObject model: WaylandServer.workspace.currentFilter
+    readonly property QtObject model: root.workspace.currentFilter
 
     // control all switch item
     property bool enableBlur: GraphicsInfo.api !== GraphicsInfo.Software
@@ -79,7 +81,7 @@ Item {
     }
 
     Connections {
-        target: WaylandServer.workspace.current
+        target: root.workspace.current
 
         onSurfaceAdded: function(surface) {
             if (root.visible && currentContext.visible) {
@@ -331,7 +333,7 @@ Item {
             previewWindows.model = surfaceSnapshot
 
             if (surface)
-                WaylandServer.forceActivateSurface(surface, reason)
+                root.desktop.activateWindow(surface, reason)
 
             previewWindows.animationRunning = true
             previewWindows.startAnimations()
@@ -393,7 +395,7 @@ Item {
 
                 OpacityAnimator {
                     loops: surface
-                           && (WaylandServer.activatedSurface === surface || surface.visible) ? 1 : 0
+                           && (root.desktop.activatedWindow === surface || surface.visible) ? 1 : 0
                     target: previewAnimation.target;
                     from: previewWindows.reverse ? 1.0 : previewAnimation.opacityFrom
                     to: previewWindows.reverse ? previewAnimation.opacityFrom : 1.0
@@ -450,7 +452,7 @@ Item {
                         return
                     }
 
-                    if (surface === WaylandServer.activatedSurface) {
+                    if (surface === root.desktop.activatedWindow) {
                         surface.transformOrigin = Item.TopLeft
                         previewAnimation.opacityFrom = 1.0
                         surface.opacity = 1.0
@@ -603,7 +605,7 @@ Item {
             return false
         }
 
-        WaylandServer.workspace.current.opaque = !visible
+        root.workspace.current.opaque = !visible
         root.visible = visible
 
         return switchView.currentItem && switchView.visible

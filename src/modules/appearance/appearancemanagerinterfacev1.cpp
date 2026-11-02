@@ -7,6 +7,7 @@
 
 #include "common/treelandlogging.h"
 #include "core/waylandserver.h"
+#include "session/session.h"
 #include "treelanduserconfig.hpp"
 
 #include <wayland-server-core.h>
@@ -179,7 +180,7 @@ void AppearanceManagerInterfaceV1Private::set_color_scheme([[maybe_unused]] Reso
         return; // invalid scheme, silently ignored per protocol spec
     q->config()->setWindowColorScheme(dconfigType);
     auto *server = WaylandServer::instance();
-    if (server && server->config() == q->config())
+    if (server && server->activeSession() && server->activeSession()->config() == q->config())
         WaylandServer::syncPaletteTypeWithWindowColorScheme(dconfigType);
 }
 

@@ -8,6 +8,7 @@ import Treeland.Protocols
 
 Item {
     id: root
+    required property DesktopEnvironment desktop
     property int aniDuration: 350
     property bool enableAnimation: aniDuration > 0
     // How long the closing window's picture takes to disappear. Every slot and
@@ -349,8 +350,8 @@ Item {
         if (!surfaceWrapper)
             return;
         console.debug(qLcDockPreview, "activate preview window: ", surfaceWrapper)
-        WaylandServer.forceActivateSurface(surfaceWrapper)
-        ForeignToplevelManagerInterfaceV3.leaveDockPreview(root.target.shellSurface.surface)
+        root.desktop.activateWindow(surfaceWrapper)
+        root.desktop.windowManagement.leaveDockPreview(root.target.shellSurface.surface)
         root.close();
     }
 
@@ -358,12 +359,12 @@ Item {
         if (!surfaceWrapper)
             return;
         console.debug(qLcDockPreview, "start preview window: ", surfaceWrapper)
-        WaylandServer.workspace.startPreviewing(surfaceWrapper);
+        root.desktop.workspace.startPreviewing(surfaceWrapper);
     }
 
     function stopPreviewWindow() {
         console.debug(qLcDockPreview, "stop preview window")
-        WaylandServer.workspace.stopPreviewing();
+        root.desktop.workspace.stopPreviewing();
     }
 
     function closeAllWindow() {

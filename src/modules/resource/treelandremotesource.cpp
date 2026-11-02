@@ -1245,6 +1245,17 @@ void TreelandRemoteSource::startEventCapture()
     // Shortcut registrations and triggers are taken from the controller's
     // signals: a bound shortcut may swallow the key before it ever reaches the
     // render window, so the input filter would miss it.
+    connect(WaylandServer::instance(), &WaylandServer::desktopChanged,
+            this, &TreelandRemoteSource::bindShortcutController);
+    bindShortcutController();
+}
+
+void TreelandRemoteSource::bindShortcutController()
+{
+    if (m_shortcutController) {
+        m_shortcutController->setTriggerTargetProvider({});
+        disconnect(m_shortcutController, nullptr, this, nullptr);
+    }
     m_shortcutController = WaylandServer::instance()->shortcutController();
     if (!m_shortcutController)
         return;
@@ -1325,6 +1336,9 @@ void TreelandRemoteSource::stopEventCapture()
         return;
     if (auto *window = WaylandServer::instance() ? WaylandServer::instance()->window() : nullptr)
         window->removeEventFilter(this);
+    if (auto *server = WaylandServer::instance())
+        disconnect(server, &WaylandServer::desktopChanged,
+                   this, &TreelandRemoteSource::bindShortcutController);
     if (m_shortcutController) {
         m_shortcutController->setTriggerTargetProvider({});
         disconnect(m_shortcutController, nullptr, this, nullptr);

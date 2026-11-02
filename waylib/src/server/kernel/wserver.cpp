@@ -129,10 +129,6 @@ void WServerPrivate::init()
         wl_display_set_global_filter(display.get(), globalFilter, this);
     }
 
-    // free follow display
-    [[maybe_unused]] auto ddm = wlr_data_device_manager_create(display.get());
-    [[maybe_unused]] auto psm = wlr_primary_selection_v1_device_manager_create(display.get());
-
     W_Q(WServer);
 
     for (auto i : std::as_const(interfaceList)) {

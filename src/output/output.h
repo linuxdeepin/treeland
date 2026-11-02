@@ -40,9 +40,9 @@ class Output : public SurfaceListModel
     Q_PROPERTY(QMargins exclusiveZone READ exclusiveZone NOTIFY exclusiveZoneChanged FINAL)
     Q_PROPERTY(QRectF validRect READ validRect NOTIFY exclusiveZoneChanged FINAL)
     Q_PROPERTY(WOutputItem* outputItem MEMBER m_item CONSTANT)
-    Q_PROPERTY(SurfaceListModel* minimizedSurfaces MEMBER minimizedSurfaces CONSTANT)
+    Q_PROPERTY(SurfaceListModel* minimizedSurfaces READ minimizedSurfaces NOTIFY minimizedSurfacesChanged FINAL)
     Q_PROPERTY(WOutputViewport* screenViewport MEMBER m_outputViewport CONSTANT)
-    Q_PROPERTY(OutputConfig* config READ config CONSTANT FINAL)
+    Q_PROPERTY(OutputConfig* config READ config NOTIFY configChanged FINAL)
 
 public:
     enum class Type
@@ -96,12 +96,13 @@ public:
     WOutput *output() const;
     WOutputItem *outputItem() const;
 
+    SurfaceListModel *minimizedSurfaces() const;
     QMargins exclusiveZone() const;
     QRectF rect() const;
     QRectF geometry() const;
     QRectF validRect() const;
     QRectF validGeometry() const;
-    QRectF tileGeometry(SurfaceWrapper::TileMode mode) const;
+    QRectF tileGeometry(SurfaceWrapper::TileMode mode, SurfaceWrapper *surface = nullptr) const;
     WOutputViewport *screenViewport() const;
     void updatePositionFromLayout();
     void applyOutputColorConfig();
@@ -122,7 +123,9 @@ public:
                               const QRectF &outputRect) const;
 
 Q_SIGNALS:
+    void configChanged();
     void exclusiveZoneChanged();
+    void minimizedSurfacesChanged();
     void moveResizeFinised();
     void brightnessChanged();
     void colorTemperatureChanged();
@@ -136,10 +139,10 @@ public Q_SLOTS:
 
 private:
     friend class SurfaceWrapper;
+    friend class SessionOutput;
 
-    void setExclusiveZone(Qt::Edge edge, QObject *object, int value);
-    bool removeExclusiveZone(QObject *object);
-    void arrangeLayerSurface(SurfaceWrapper *surface);
+    QMargins compositorExclusiveZone() const;
+    QRectF validGeometryForSurface(SurfaceWrapper *surface) const;
     void arrangeLayerSurfaces();
     void arrangeNonLayerSurface(SurfaceWrapper *surface, ArrangeReason reason);
     void arrangePopupSurface(SurfaceWrapper *surface);
@@ -176,15 +179,10 @@ private:
     Type m_type;
     WOutputItem *m_item;
     Output *m_proxy = nullptr;
-    SurfaceFilterModel *minimizedSurfaces;
     QPointer<QQuickItem> m_debugMenuBar;
     WOutputViewport *m_outputViewport = nullptr;
 
     QMargins m_exclusiveZone;
-    QList<std::pair<QObject *, int>> m_topExclusiveZones;
-    QList<std::pair<QObject *, int>> m_bottomExclusiveZones;
-    QList<std::pair<QObject *, int>> m_leftExclusiveZones;
-    QList<std::pair<QObject *, int>> m_rightExclusiveZones;
 
     QList<WOutputLayer *> m_hardwareLayersOfSourceOutput;
     PlaceDirection m_nextPlaceDirection = PlaceDirection::BottomRight;

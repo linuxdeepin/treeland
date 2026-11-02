@@ -5,7 +5,7 @@
 #include "common/treelandlogging.h"
 #include "qwayland-server-treeland-prelaunch-splash-unstable-v2.h"
 
-#include <wlr/types/wlr_buffer.h>
+#include <wlr_all.h>
 
 #include <wserver.h>
 

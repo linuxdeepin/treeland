@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "personalizationmanagerinterfacev1.h"
+#include "session/session.h"
 
 // DEPRECATED: This module is frozen. Use treeland-appearance-unstable-v1 and
 // treeland-appearance-manager-unstable-v1 (src/modules/appearance/) instead.
@@ -783,16 +784,16 @@ PersonalizationFontContextV1 *PersonalizationFontContextV1::get(wl_resource *res
     return nullptr;
 }
 
-PersonalizationManagerInterfaceV1::PersonalizationManagerInterfaceV1(QObject *parent)
-    : QObject(parent)
+PersonalizationManagerInterfaceV1::PersonalizationManagerInterfaceV1(Session *session)
+    : QObject(session)
     , WServerInterface()
+    , m_session(session)
+    , m_config(session->config())
     , d(new PersonalizationManagerInterfaceV1Private(this))
 {
     Q_INIT_RESOURCE(default_background);
 
-    if (qgetenv("TREELAND_RUN_MODE") == "user") {
-        setUserId(getgid());
-    }
+    d->userId = session->uid();
 }
 
 PersonalizationManagerInterfaceV1::~PersonalizationManagerInterfaceV1()
@@ -816,20 +817,20 @@ void PersonalizationManagerInterfaceV1::onCursorContextCreated(PersonalizationCu
             &PersonalizationCursorContextV1::sendSize);
 
     context->blockSignals(true);
-    context->setTheme(WaylandServer::instance()->config()->cursorThemeName());
-    auto size = WaylandServer::instance()->config()->cursorSize();
+    context->setTheme(m_config->cursorThemeName());
+    auto size = m_config->cursorSize();
     context->setSize(QSize(size, size));
-    connect(WaylandServer::instance()->config(),
+    connect(m_config,
             &TreelandUserConfig::cursorThemeNameChanged,
             context,
-            [context]() {
-                context->setTheme(WaylandServer::instance()->config()->cursorThemeName());
+            [context, config = m_config]() {
+                context->setTheme(config->cursorThemeName());
             });
-    connect(WaylandServer::instance()->config(),
+    connect(m_config,
             &TreelandUserConfig::cursorSizeChanged,
             context,
-            [context]() {
-                auto size = WaylandServer::instance()->config()->cursorSize();
+            [context, config = m_config]() {
+                auto size = config->cursorSize();
                 context->setSize(QSize(size, size));
             });
     context->blockSignals(false);
@@ -837,7 +838,7 @@ void PersonalizationManagerInterfaceV1::onCursorContextCreated(PersonalizationCu
 
 void PersonalizationManagerInterfaceV1::onRadiusChanged(int32_t radius)
 {
-    WaylandServer::instance()->config()->setWindowRadius(radius);
+    m_config->setWindowRadius(radius);
     for (auto *c : std::as_const(m_appearanceContexts)) {
         c->sendRoundCornerRadius(radius);
     }
@@ -845,7 +846,7 @@ void PersonalizationManagerInterfaceV1::onRadiusChanged(int32_t radius)
 
 void PersonalizationManagerInterfaceV1::onIconThemeChanged(const QString &theme)
 {
-    WaylandServer::instance()->config()->setIconThemeName(theme);
+    m_config->setIconThemeName(theme);
     for (auto *c : std::as_const(m_appearanceContexts)) {
         c->sendIconTheme(theme);
     }
@@ -853,7 +854,7 @@ void PersonalizationManagerInterfaceV1::onIconThemeChanged(const QString &theme)
 
 void PersonalizationManagerInterfaceV1::onActiveColorChanged(const QString &color)
 {
-    WaylandServer::instance()->config()->setActiveColor(color);
+    m_config->setActiveColor(color);
     for (auto *c : std::as_const(m_appearanceContexts)) {
         c->sendActiveColor(color);
     }
@@ -861,7 +862,7 @@ void PersonalizationManagerInterfaceV1::onActiveColorChanged(const QString &colo
 
 void PersonalizationManagerInterfaceV1::onOpacityChanged(uint32_t opacity)
 {
-    WaylandServer::instance()->config()->setWindowOpacity(opacity);
+    m_config->setWindowOpacity(opacity);
     for (auto *c : std::as_const(m_appearanceContexts)) {
         c->sendWindowOpacity(opacity);
     }
@@ -871,8 +872,9 @@ void PersonalizationManagerInterfaceV1::onThemeTypeChanged(uint32_t type)
 {
     const auto dconfigType = protocolThemeTypeToDConfig(type);
     if (dconfigType.has_value()) {
-        WaylandServer::instance()->config()->setWindowColorScheme(*dconfigType);
-        WaylandServer::syncPaletteTypeWithWindowColorScheme(*dconfigType);
+        m_config->setWindowColorScheme(*dconfigType);
+        if (m_session && m_session->isActive())
+            WaylandServer::syncPaletteTypeWithWindowColorScheme(*dconfigType);
     }
     for (auto *c : std::as_const(m_appearanceContexts)) {
         c->sendWindowThemeType(type);
@@ -881,7 +883,7 @@ void PersonalizationManagerInterfaceV1::onThemeTypeChanged(uint32_t type)
 
 void PersonalizationManagerInterfaceV1::onTitlebarHeightChanged(uint32_t height)
 {
-    WaylandServer::instance()->config()->setWindowTitlebarHeight(height);
+    m_config->setWindowTitlebarHeight(height);
     for (auto *c : std::as_const(m_appearanceContexts)) {
         c->sendWindowTitlebarHeight(height);
     }
@@ -906,72 +908,72 @@ void PersonalizationManagerInterfaceV1::onAppearanceContextCreated(Personalizati
     connect(context, &PersonalizationAppearanceContextV1::titlebarHeightChanged,
             this, &PersonalizationManagerInterfaceV1::onTitlebarHeightChanged);
 
-    connect(context, &PersonalizationAppearanceContextV1::requestRoundCornerRadius, context, [context, config = WaylandServer::instance()->config()] {
+    connect(context, &PersonalizationAppearanceContextV1::requestRoundCornerRadius, context, [context, config = m_config] {
         context->sendRoundCornerRadius(config->windowRadius());
     });
 
-    connect(context, &PersonalizationAppearanceContextV1::requestIconTheme, context, [context, config = WaylandServer::instance()->config()] {
+    connect(context, &PersonalizationAppearanceContextV1::requestIconTheme, context, [context, config = m_config] {
         context->sendIconTheme(config->iconThemeName());
     });
 
-    connect(context, &PersonalizationAppearanceContextV1::requestActiveColor, context, [context, config = WaylandServer::instance()->config()] {
+    connect(context, &PersonalizationAppearanceContextV1::requestActiveColor, context, [context, config = m_config] {
         context->sendActiveColor(config->activeColor());
     });
 
-    connect(context, &PersonalizationAppearanceContextV1::requestWindowOpacity, context, [context, config = WaylandServer::instance()->config()] {
+    connect(context, &PersonalizationAppearanceContextV1::requestWindowOpacity, context, [context, config = m_config] {
         context->sendWindowOpacity(config->windowOpacity());
     });
 
-    connect(context, &PersonalizationAppearanceContextV1::requestWindowThemeType, context, [context, config = WaylandServer::instance()->config()] {
+    connect(context, &PersonalizationAppearanceContextV1::requestWindowThemeType, context, [context, config = m_config] {
         const auto protocolType = dconfigToProtocolThemeType(
             config->windowColorScheme());
         context->sendWindowThemeType(protocolType);
     });
 
-    connect(context, &PersonalizationAppearanceContextV1::requestWindowTitlebarHeight, context, [context, config = WaylandServer::instance()->config()] {
+    connect(context, &PersonalizationAppearanceContextV1::requestWindowTitlebarHeight, context, [context, config = m_config] {
         context->sendWindowTitlebarHeight(config->windowTitlebarHeight());
     });
 
-    context->sendRoundCornerRadius(WaylandServer::instance()->config()->windowRadius());
-    context->sendIconTheme(WaylandServer::instance()->config()->iconThemeName());
-    context->sendActiveColor(WaylandServer::instance()->config()->activeColor());
-    context->sendWindowOpacity(WaylandServer::instance()->config()->windowOpacity());
+    context->sendRoundCornerRadius(m_config->windowRadius());
+    context->sendIconTheme(m_config->iconThemeName());
+    context->sendActiveColor(m_config->activeColor());
+    context->sendWindowOpacity(m_config->windowOpacity());
     context->sendWindowThemeType(dconfigToProtocolThemeType(
-        WaylandServer::instance()->config()->windowColorScheme()));
-    context->sendWindowTitlebarHeight(WaylandServer::instance()->config()->windowTitlebarHeight());
+        m_config->windowColorScheme()));
+    context->sendWindowTitlebarHeight(m_config->windowTitlebarHeight());
 }
 
 void PersonalizationManagerInterfaceV1::onFontContextCreated(PersonalizationFontContextV1 *context)
 {
-    connect(WaylandServer::instance()->config(), &TreelandUserConfig::fontChanged, context, [context] {
-        context->sendFont(WaylandServer::instance()->config()->font());
+    connect(m_config, &TreelandUserConfig::fontChanged, context, [context, config = m_config] {
+        context->sendFont(config->font());
     });
-    connect(WaylandServer::instance()->config(), &TreelandUserConfig::monoFontChanged, context, [context] {
-        context->sendMonospaceFont(WaylandServer::instance()->config()->monoFont());
+    connect(m_config, &TreelandUserConfig::monoFontChanged, context, [context, config = m_config] {
+        context->sendMonospaceFont(config->monoFont());
     });
-    connect(WaylandServer::instance()->config(), &TreelandUserConfig::fontSizeChanged, context, [context] {
-        context->sendFontSize(WaylandServer::instance()->config()->fontSize());
-    });
-
-    connect(context, &PersonalizationFontContextV1::requestFont, context, [context] {
-        context->sendFont(WaylandServer::instance()->config()->font());
-    });
-    connect(context, &PersonalizationFontContextV1::requestMonoFont, context, [context] {
-        context->sendMonospaceFont(WaylandServer::instance()->config()->monoFont());
-    });
-    connect(context, &PersonalizationFontContextV1::requestFontSize, context, [context] {
-        context->sendFontSize(WaylandServer::instance()->config()->fontSize());
+    connect(m_config, &TreelandUserConfig::fontSizeChanged, context, [context, config = m_config] {
+        context->sendFontSize(config->fontSize());
     });
 
-    connect(context, &PersonalizationFontContextV1::fontChanged, WaylandServer::instance()->config(), &TreelandUserConfig::setFont);
-    connect(context, &PersonalizationFontContextV1::monoFontChanged, WaylandServer::instance()->config(), &TreelandUserConfig::setMonoFont);
-    connect(context, &PersonalizationFontContextV1::fontSizeChanged, WaylandServer::instance()->config(), &TreelandUserConfig::setFontSize);
+    connect(context, &PersonalizationFontContextV1::requestFont, context, [context, config = m_config] {
+        context->sendFont(config->font());
+    });
+    connect(context, &PersonalizationFontContextV1::requestMonoFont, context, [context, config = m_config] {
+        context->sendMonospaceFont(config->monoFont());
+    });
+    connect(context, &PersonalizationFontContextV1::requestFontSize, context, [context, config = m_config] {
+        context->sendFontSize(config->fontSize());
+    });
+
+    connect(context, &PersonalizationFontContextV1::fontChanged, m_config, &TreelandUserConfig::setFont);
+    connect(context, &PersonalizationFontContextV1::monoFontChanged, m_config, &TreelandUserConfig::setMonoFont);
+    connect(context, &PersonalizationFontContextV1::fontSizeChanged, m_config, &TreelandUserConfig::setFontSize);
 
     context->blockSignals(true);
 
-    context->sendFont(WaylandServer::instance()->config()->font());
-    context->sendMonospaceFont(WaylandServer::instance()->config()->monoFont());
-    context->sendFontSize(WaylandServer::instance()->config()->fontSize());
+    context->sendFont(m_config->font());
+    context->sendMonospaceFont(m_config->monoFont());
+    context->sendFontSize(m_config->fontSize());
 
     context->blockSignals(false);
 }
@@ -993,50 +995,40 @@ uid_t PersonalizationManagerInterfaceV1::userId()
     return d->userId;
 }
 
-void PersonalizationManagerInterfaceV1::setUserId(uid_t uid)
-{
-    if (d->userId == uid) {
-        return;
-    }
-
-    d->userId = uid;
-    Q_EMIT userIdChanged(uid);
-}
-
 QString PersonalizationManagerInterfaceV1::cursorTheme()
 {
-    return WaylandServer::instance()->config()->cursorThemeName();
+    return m_config->cursorThemeName();
 }
 
 void PersonalizationManagerInterfaceV1::setCursorTheme(const QString &name)
 {
-    WaylandServer::instance()->config()->setCursorThemeName(name);
+    m_config->setCursorThemeName(name);
 
     Q_EMIT cursorThemeChanged(name);
 }
 
 QSize PersonalizationManagerInterfaceV1::cursorSize()
 {
-    int size = WaylandServer::instance()->config()->cursorSize();
+    int size = m_config->cursorSize();
 
     return QSize(size, size);
 }
 
 void PersonalizationManagerInterfaceV1::setCursorSize(const QSize &size)
 {
-    WaylandServer::instance()->config()->setCursorSize(size.width());
+    m_config->setCursorSize(size.width());
 
     Q_EMIT cursorSizeChanged(size);
 }
 
 int32_t PersonalizationManagerInterfaceV1::windowRadius() const
 {
-    return WaylandServer::instance()->config()->windowRadius();
+    return m_config->windowRadius();
 }
 
 QString PersonalizationManagerInterfaceV1::iconTheme() const
 {
-    return WaylandServer::instance()->config()->iconThemeName();
+    return m_config->iconThemeName();
 }
 
 Personalization::Personalization(WToplevelSurface *target,

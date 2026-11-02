@@ -7,6 +7,8 @@
 
 #include <wserver.h>
 
+#include <functional>
+#include <QList>
 #include <QInputEvent>
 #include <QObject>
 #include <QQmlEngine>
@@ -16,7 +18,6 @@ class ShortcutManagerV3Private;
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WServer;
 class WSeat;
-class WSocket;
 WAYLIB_SERVER_END_NAMESPACE
 
 WAYLIB_SERVER_USE_NAMESPACE
@@ -28,7 +29,9 @@ class ShortcutManagerV3
     Q_OBJECT
 
 public:
-    explicit ShortcutManagerV3(QObject *parent = nullptr);
+    using SeatProvider = std::function<QList<WSeat *>()>;
+    explicit ShortcutManagerV3(QObject *parent = nullptr, ShortcutController *controller = nullptr,
+                               SeatProvider seats = {});
     ~ShortcutManagerV3() override;
     QByteArrayView interfaceName() const override;
     static constexpr int InterfaceVersion = 1;
@@ -38,9 +41,7 @@ public:
 
     bool tryHandleCaptureEvent(WAYLIB_SERVER_NAMESPACE::WSeat *seat, QInputEvent *event);
     bool isCaptureActive() const;
-
-public Q_SLOTS:
-    void onSessionChanged();
+    void cancelCapture();
 
 protected:
     void create(WServer *server) override;

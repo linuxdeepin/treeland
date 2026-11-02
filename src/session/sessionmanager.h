@@ -19,7 +19,9 @@ public:
 
     const QList<std::shared_ptr<Session>> &sessions() const;
     std::weak_ptr<Session> activeSession() const;
+    Session *activeSessionObject() const;
     std::shared_ptr<Session> sessionForClient(WClient *client) const;
+    bool isActiveWindow(SurfaceWrapper *window) const;
     std::shared_ptr<Session> globalSession() const;
 
     bool activeSocketEnabled() const;
@@ -49,7 +51,10 @@ public:
     std::shared_ptr<Session> sessionForSocket(WSocket *socket) const;
     bool isDDEUserClient(WClient *client);
     void syncActiveSessionXSettings();
+    void syncSessionScaleSettings();
     void syncActiveSessionXWaylandPrimaryOutput();
+    // Create a background user session without changing the active desktop.
+    std::shared_ptr<Session> ensureSession(const QString &id, QString username);
 
 Q_SIGNALS:
     void socketFileChanged();
@@ -57,8 +62,7 @@ Q_SIGNALS:
     void xwaylandAuthChanged();
 
 private:
-    std::shared_ptr<Session> ensureSession(const QString &id, QString username);
-
+    WallpaperManager::WallpaperLibrary wallpaperLibrary(wlr_output *excluded) const;
     std::weak_ptr<Session> m_activeSession;
     QList<std::shared_ptr<Session>> m_sessions;
     WallpaperLauncher *m_wallpaperLauncher { nullptr };

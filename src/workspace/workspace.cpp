@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "workspace.h"
+#include "desktop/desktopenvironment.h"
 
 #include "common/treelandlogging.h"
 #include "core/rootsurfacecontainer.h"
@@ -50,6 +51,8 @@ void Workspace::deactivate()
 
 void Workspace::moveSurfaceTo(SurfaceWrapper *surface, int workspaceId)
 {
+    if (!surface || (surface->desktop() && surface->desktop()->workspace() != this))
+        return;
     if (workspaceId == -1)
         workspaceId = current()->id();
 
@@ -116,6 +119,8 @@ int Workspace::getRightWorkspaceId(int workspaceId)
 
 void Workspace::addSurface(SurfaceWrapper *surface, int workspaceId)
 {
+    if (!surface || (surface->desktop() && surface->desktop()->workspace() != this))
+        return;
     Q_ASSERT(surface && !surface->container() && surface->workspaceId() == -1);
 
     auto model = modelFromId(workspaceId);

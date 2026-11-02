@@ -25,6 +25,7 @@ Q_MOC_INCLUDE(<wxdgtoplevelsurface.h>)
 Q_MOC_INCLUDE(<wxwaylandsurface.h>)
 #endif
 
+class Session;
 class TreelandUserConfig;
 class WaylandServer;
 class SurfaceWrapper;
@@ -36,7 +37,7 @@ class SurfaceContainer;
 class IMCandidatePanelManager;
 class QmlEngine;
 class ForeignToplevelManagerInterfaceV3;
-class PrelaunchSplash;
+class SessionPrelaunch;
 class WineWindowStateManager;
 class WineWindowManager;
 class SnapTargetV1;
@@ -82,14 +83,15 @@ public:
     [[nodiscard]] Workspace *workspace() const;
     Workspace *createSessionWorkspace(TreelandUserConfig *config);
     void setWorkspace(Workspace *workspace);
+    Workspace *workspaceForSurface(SurfaceWrapper *wrapper) const;
     [[nodiscard]] LayerSurfaceContainer *backgroundContainer() const { return m_backgroundContainer; }
     [[nodiscard]] SurfaceContainer *popupContainer() const;
     [[nodiscard]] SurfaceContainer *privilegedOverlayContainer() const;
     [[nodiscard]] SurfaceContainer *snapMaskContainer() const;
     [[nodiscard]] RootSurfaceContainer *rootSurfaceContainer() const;
     [[nodiscard]] ForeignToplevelManagerInterfaceV3 *foreignToplevel() const;
+    void registerSession(Session *session);
 
-    void registerInputMethodHelper(WAYLIB_SERVER_NAMESPACE::WInputMethodHelper *helper);
     void createComponent(QmlEngine *engine, QQuickItem *parentItem);
     void init(WAYLIB_SERVER_NAMESPACE::WServer *server, WAYLIB_SERVER_NAMESPACE::WSeat *seat);
 #ifndef DISABLE_XWAYLAND
@@ -103,14 +105,16 @@ public:
 
     WAYLIB_SERVER_NAMESPACE::WXWayland *defaultXWaylandSocket() const;
 #endif
-    void setupDockPreview(QObject *dockPreview);
 
     TreelandWallpaperShellInterfaceV1 *wallpaperShell() const
     {
         return m_wallpaperShell;
     }
 
-    [[nodiscard]] WAYLIB_SERVER_NAMESPACE::WInputMethodHelper *inputMethodHelper() const { return m_inputMethodHelper; }
+    [[nodiscard]] WAYLIB_SERVER_NAMESPACE::WInputMethodHelper *inputMethodHelper(
+        WAYLIB_SERVER_NAMESPACE::WSeat *seat) const;
+    void registerInputMethodHelper(WAYLIB_SERVER_NAMESPACE::WInputMethodHelper *helper);
+    IMCandidatePanelManager *candidatePanels(Session *session) const;
 
 Q_SIGNALS:
     void workspaceChanged();
@@ -135,17 +139,6 @@ private Q_SLOTS:
 
     void onInputPopupSurfaceV2Added(WAYLIB_SERVER_NAMESPACE::WInputPopupSurface *surface);
 
-    void onDockPreview(std::vector<SurfaceWrapper *> surfaces,
-                       WAYLIB_SERVER_NAMESPACE::WSurface *target,
-                       QPoint pos,
-                       ForeignToplevelManagerInterfaceV3::PreviewDirection direction);
-    void onDockPreviewTooltip(WAYLIB_SERVER_NAMESPACE::WSurface *surface,
-                              WAYLIB_SERVER_NAMESPACE::WSurface *target,
-                              QPoint pos,
-                              ForeignToplevelManagerInterfaceV3::PreviewDirection direction);
-    void onDockClose();
-
-    void setupDockPreview();
     void onInputPopupSurfaceV2Removed(WAYLIB_SERVER_NAMESPACE::WInputPopupSurface *surface);
     void onWindowMenuClosed();
 
@@ -163,34 +156,19 @@ private:
                                       SurfaceWrapper *wrapper);
 #ifndef DISABLE_XWAYLAND
     void updateXWaylandDesktopProperties();
-    void onWorkspaceCountChanged();
     void watchXWaylandDesktopOutput(Output *output);
     void watchXWaylandWorkspaceNames();
 #endif
-    // Prelaunch splash related: creates a prelaunch SurfaceWrapper when
-    // PrelaunchSplash::splashRequested
-    void handlePrelaunchSplashRequested(const QString &appId,
-                                        const QString &instanceId,
-                                        wlr_buffer *iconBuffer);
-    void handlePrelaunchSplashClosed(const QString &appId, const QString &instanceId);
-    void createPrelaunchSplash(const QString &appId,
-                               const QString &instanceId,
-                               wlr_buffer *iconBuffer,
-                               const QSize &lastSize,
-                               const QString &darkPalette,
-                               const QString &lightPalette,
-                               qlonglong splashThemeType);
-
-    // --- helpers (internal) ---
-    // Creates or matches a wrapper from prelaunch splash, then initializes it
+    void onWorkspaceCountChanged();
+    // Resolve launch state from the fixed client domain, never the active desktop.
+    SessionPrelaunch *prelaunchForSurface(WAYLIB_SERVER_NAMESPACE::WToplevelSurface *surface) const;
+    void initializePrelaunchSurface(SurfaceWrapper *wrapper);
     void ensureXdgWrapper(WAYLIB_SERVER_NAMESPACE::WXdgToplevelSurface *surface,
-                          const QString &appId);
+                          const QString &targetAppId);
 #ifndef DISABLE_XWAYLAND
-    // Creates or matches a wrapper from prelaunch splash, then initializes it
     void ensureXwaylandWrapper(WAYLIB_SERVER_NAMESPACE::WXWaylandSurface *surface,
-                               const QString &appId);
+                               const QString &targetAppId);
 #endif
-    // Unified parent/container update for Xdg & XWayland toplevel wrappers.
     void updateWrapperContainer(SurfaceWrapper *wrapper,
                                 WAYLIB_SERVER_NAMESPACE::WSurface *parentSurface);
 #ifndef DISABLE_XWAYLAND
@@ -204,17 +182,10 @@ private:
     bool checkAndApplyPrivilegedOverlay(SurfaceWrapper *wrapper);
     void applyPrivilegedOverlay(SurfaceWrapper *wrapper);
     void revokePrivilegedOverlay(SurfaceWrapper *wrapper);
-    WAYLIB_SERVER_NAMESPACE::WXdgShell *m_xdgShell = nullptr;
-    WAYLIB_SERVER_NAMESPACE::WLayerShell *m_layerShell = nullptr;
     TreelandWallpaperShellInterfaceV1 *m_wallpaperShell = nullptr;
-    WAYLIB_SERVER_NAMESPACE::WInputMethodHelper *m_inputMethodHelper = nullptr;
-    PrelaunchSplash *m_prelaunchSplash = nullptr;
-    WineWindowStateManager *m_wineWindowStateManager = nullptr;
-    WineWindowManager *m_wineWindowManager = nullptr;
 #ifndef DISABLE_XWAYLAND
     QList<WAYLIB_SERVER_NAMESPACE::WXWayland *> m_xwaylands;
 #endif
-    ForeignToplevelManagerInterfaceV3 *m_treelandForeignToplevel = nullptr;
 
     QPointer<RootSurfaceContainer> m_rootSurfaceContainer;
     LayerSurfaceContainer *m_backgroundContainer = nullptr;
@@ -225,21 +196,11 @@ private:
     SurfaceContainer *m_popupContainer = nullptr;
     SurfaceContainer *m_privilegedOverlayContainer = nullptr;
     SurfaceContainer *m_snapMaskContainer = nullptr;
-    IMCandidatePanelManager *m_imCandidatePanelManager = nullptr;
     QObject *m_windowMenu = nullptr;
-    // Prelaunch wrappers created before binding to a real shell surface
-    QList<SurfaceWrapper *> m_prelaunchWrappers;
-    // Prelaunch requests waiting for dconfig initialization
-    QSet<QString> m_pendingPrelaunchAppIds;
-    // AppIds of closed splash screens, used to close matching real windows
-    QSet<QString> m_closedSplashAppIds;
     // Dock preview QML object
-    QObject *m_dockPreview = nullptr;
     // Pending toplevel surfaces (XDG or XWayland) awaiting async AppId resolve; callbacks continue
     // only if the pointer remains in this list
     QList<WAYLIB_SERVER_NAMESPACE::WToplevelSurface *> m_pendingAppIdResolveToplevels;
-    // New protocol based app id resolver (optional, may be null if module not loaded)
-    AppIdResolverManager *m_appIdResolverManager = nullptr;
     LayerShellExtensionManagerInterfaceV1 *m_layerShellExtensionManagerInterfaceV1 = nullptr;
     WindowConfigStore *m_windowConfigStore = nullptr;
     SnapTargetV1 *m_snapTarget = nullptr;

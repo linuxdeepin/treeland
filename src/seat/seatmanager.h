@@ -28,6 +28,8 @@ class WOutputLayout;
 class WSeatEventFilter;
 WAYLIB_SERVER_END_NAMESPACE
 
+class SessionSeatManager;
+
 // SeatManager manages multi-seat configuration and device assignment for treeland.
 // This class implements compositor-specific policies for seat creation, device
 // assignment rules, and configuration persistence.
@@ -48,6 +50,9 @@ public:
     QStringList configuredSeatNames() const;
     QString configuredFallbackName() const;
     WSeat *fallbackSeat() const;
+
+    void activateSessionSeats(SessionSeatManager *domain);
+    void releaseSessionSeats(SessionSeatManager *domain);
 
     // Device assignment
     void assignDeviceToSeat(WInputDevice *device, const QString &seatName);
@@ -106,6 +111,12 @@ Q_SIGNALS:
     void deviceRemoved(WInputDevice *device);
 
 private:
+    SessionSeatManager *m_activeDomain = nullptr;
+    QMap<QString, WAYLIB_SERVER_NAMESPACE::WCursor *> m_parkedCursors;
+    QQuickWindow *m_renderWindow = nullptr;
+    WAYLIB_SERVER_NAMESPACE::WOutputLayout *m_layout = nullptr;
+    WAYLIB_SERVER_NAMESPACE::WSeatEventFilter *m_eventFilter = nullptr;
+    WAYLIB_SERVER_NAMESPACE::WBackend *m_backend = nullptr;
     WServer *m_server = nullptr;
     QMap<QString, WSeat*> m_seats;
     QMap<QString, QList<QRegularExpression>> m_deviceRules;

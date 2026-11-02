@@ -212,6 +212,12 @@ void WineWindowStateManagerPrivate::get_window_state(Resource *resource,
                                                      uint32_t id,
                                                      struct ::wl_resource *toplevelResource)
 {
+    if (wl_resource_get_client(toplevelResource) != resource->client()) {
+        wl_resource_post_error(resource->handle,
+                               TREELAND_WINE_WINDOW_STATE_MANAGER_V1_ERROR_DEFUNCT_TOPLEVEL,
+                               "toplevel belongs to another client");
+        return;
+    }
     auto *qXdgToplevel = wlr_xdg_toplevel_from_resource(toplevelResource);
     if (!qXdgToplevel) {
         wl_resource_post_error(resource->handle,

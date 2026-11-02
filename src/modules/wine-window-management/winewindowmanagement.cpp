@@ -268,6 +268,8 @@ private:
             return;
 
         WineWindowControl *sibling = m_manager->controlForId(siblingId);
+        if (sibling && sibling->resource()->client() != resource()->client())
+            return;
         // If sibling is not found, the request has no effect (e.g. the
         // sibling window was destroyed before this message arrived).
         if (!sibling || !sibling->wrapper())
@@ -328,6 +330,12 @@ void WineWindowManagerPrivate::get_window_control(Resource *resource,
                                                   uint32_t id,
                                                   struct ::wl_resource *toplevelResource)
 {
+    if (wl_resource_get_client(toplevelResource) != resource->client()) {
+        wl_resource_post_error(resource->handle,
+                               TREELAND_WINE_WINDOW_MANAGER_V1_ERROR_DEFUNCT_TOPLEVEL,
+                               "toplevel belongs to another client");
+        return;
+    }
     auto *qXdgToplevel = wlr_xdg_toplevel_from_resource(toplevelResource);
     if (!qXdgToplevel) {
         wl_resource_post_error(resource->handle,

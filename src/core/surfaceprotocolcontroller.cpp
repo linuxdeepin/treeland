@@ -2,10 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "surfaceprotocolcontroller.h"
+#include "session/sessionmanager.h"
 #include "waylandserver.h"
 #include "rootsurfacecontainer.h"
 #include "shellhandler.h"
 #include "session/session.h"
+#include "session/sessionprotocols.h"
+#include "input/inputmanager.h"
+#include "modules/output-manager/outputmanagement.h"
+#include "modules/wine-window-management/winewindowmanagement.h"
+#include "modules/wine-window-state/winewindowstate.h"
+#include "wallpaper/wallpapermanager.h"
+#include "modules/wallpaper/wallpapermanagerinterfacev1.h"
 #include "surface/surfacewrapper.h"
 #include "workspace/workspace.h"
 #include "modules/personalization/personalizationmanagerinterfacev1.h"
@@ -24,6 +32,7 @@
 #include <wxwaylandsurface.h>
 #endif
 #include <wserver.h>
+#include <wsocket.h>
 
 #include <wlr_all.h>
 
@@ -37,15 +46,27 @@ void SurfaceProtocolController::installRegionWatch(WServer *server)
     m_regionWatchManagerInterfaceV1 = server->attach<TreelandRegionWatchManagerInterfaceV1>();
 }
 
-void SurfaceProtocolController::installToplevels(WServer *server, ShellHandler *shell)
+void SurfaceProtocolController::installToplevels(ShellHandler *shell)
 {
-    m_foreignToplevel = server->attach<WForeignToplevel>();
-    connect(m_foreignToplevel, &WForeignToplevel::requestActivate, this,
+    connect(shell,
+            &ShellHandler::surfaceWrapperAdded,
+            this,
+            &SurfaceProtocolController::onSurfaceWrapperAdded);
+
+    connect(shell,
+            &ShellHandler::surfaceWrapperAboutToRemove,
+            this,
+            &SurfaceProtocolController::onSurfaceWrapperAboutToRemove);
+}
+
+void SurfaceProtocolController::connectForeignToplevel(WForeignToplevel *manager)
+{
+    connect(manager, &WForeignToplevel::requestActivate, this,
             [this](WToplevelSurface *surface) {
                 if (auto *wrapper = m_server->rootContainer()->getSurface(surface))
                     m_server->forceActivateSurface(wrapper, Qt::OtherFocusReason);
             });
-    connect(m_foreignToplevel, &WForeignToplevel::requestMaximize, this,
+    connect(manager, &WForeignToplevel::requestMaximize, this,
             [this](WToplevelSurface *surface, bool maximized) {
                 if (auto *wrapper = m_server->rootContainer()->getSurface(surface)) {
                     if (maximized)
@@ -54,7 +75,7 @@ void SurfaceProtocolController::installToplevels(WServer *server, ShellHandler *
                         wrapper->unmaximize();
                 }
             });
-    connect(m_foreignToplevel, &WForeignToplevel::requestMinimize, this,
+    connect(manager, &WForeignToplevel::requestMinimize, this,
             [this](WToplevelSurface *surface, bool minimized) {
                 auto *wrapper = m_server->rootContainer()->getSurface(surface);
                 if (!wrapper)
@@ -67,7 +88,7 @@ void SurfaceProtocolController::installToplevels(WServer *server, ShellHandler *
                     wrapper->restoreFromMinimized();
                 }
             });
-    connect(m_foreignToplevel, &WForeignToplevel::requestFullscreen, this,
+    connect(manager, &WForeignToplevel::requestFullscreen, this,
             [this](WToplevelSurface *surface, bool fullscreen) {
                 if (auto *wrapper = m_server->rootContainer()->getSurface(surface)) {
                     if (fullscreen)
@@ -76,43 +97,23 @@ void SurfaceProtocolController::installToplevels(WServer *server, ShellHandler *
                         wrapper->leaveFullscreen();
                 }
             });
-    connect(m_foreignToplevel, &WForeignToplevel::requestClose, this,
+    connect(manager, &WForeignToplevel::requestClose, this,
             [this](WToplevelSurface *surface) {
                 if (auto *wrapper = m_server->rootContainer()->getSurface(surface))
                     wrapper->close();
             });
-    m_extForeignToplevelListV1 = server->attach<WExtForeignToplevelListV1>();
-    connect(shell,
-            &ShellHandler::surfaceWrapperAdded,
-            this,
-            &SurfaceProtocolController::onSurfaceWrapperAdded);
-
-    connect(shell,
-            &ShellHandler::surfaceWrapperAboutToRemove,
-            this,
-            &SurfaceProtocolController::onSurfaceWrapperAboutToRemove);
 }
 
-void SurfaceProtocolController::installPersonalization(WServer *server)
+void SurfaceProtocolController::initializeSession(Session *session)
 {
-    m_personalizationInterfaceV1 = server->attach<PersonalizationManagerInterfaceV1>();
-}
-
-void SurfaceProtocolController::installDecorationCustomization(WServer *server)
-{
-    m_decorationInterfaceV1 = server->attach<DecorationManagerInterfaceV1>();
-}
-
-void SurfaceProtocolController::installDecoration(WServer *server)
-{
-    m_xdgDecorationManager = server->attach<WXdgDecorationManager>();
-    connect(m_xdgDecorationManager,
+    auto *xdgDecoration = session->protocols()->xdgDecoration();
+    connect(xdgDecoration,
             &WXdgDecorationManager::surfaceModeChanged,
             this,
             &SurfaceProtocolController::onSurfaceModeChanged);
 
-    m_xdgDialogManagerV1 = server->attach<WXdgDialogManagerV1>();
-    connect(m_xdgDialogManagerV1,
+    auto *xdgDialog = session->protocols()->xdgDialog();
+    connect(xdgDialog,
             &WXdgDialogManagerV1::surfaceModalChanged,
             this,
             [this](WXdgToplevelSurface *toplevel, bool modal) {
@@ -123,18 +124,32 @@ void SurfaceProtocolController::installDecoration(WServer *server)
                 }
             });
 
-    m_xdgToplevelTagManagerV1 = server->attach<WXdgToplevelTagManagerV1>();
-
-}
-
-void SurfaceProtocolController::setUserId(uid_t uid)
-{
-    m_personalizationInterfaceV1->setUserId(uid);
-}
-
-WExtForeignToplevelListV1 *SurfaceProtocolController::toplevelList() const
-{
-    return m_extForeignToplevelListV1;
+    auto *foreign = new WForeignToplevel;
+    auto *list = new WExtForeignToplevelListV1;
+    session->attachInterface(foreign);
+    session->attachInterface(list);
+    connectForeignToplevel(foreign);
+    session->m_foreignToplevel = foreign;
+    session->m_toplevelList = list;
+    auto *windowManagement = new ForeignToplevelManagerInterfaceV3(session);
+    session->m_windowManagement = windowManagement;
+    session->attachInterface(windowManagement);
+    auto *inputProtocol = new TreelandInputManagerInterfaceV1;
+    session->attachInterface(inputProtocol);
+    connect(inputProtocol, &TreelandInputManagerInterfaceV1::mouseSettingsCreated,
+            session->inputManager(), &InputManager::onMouseSettingsCreated);
+    connect(inputProtocol, &TreelandInputManagerInterfaceV1::touchpadSettingsCreated,
+            session->inputManager(), &InputManager::onTouchpadSettingsCreated);
+    connect(inputProtocol, &TreelandInputManagerInterfaceV1::keyboardSettingsCreated,
+            session->inputManager(), &InputManager::onKeyboardSettingsCreated);
+    auto *wallpaperProtocol = new TreelandWallpaperManagerInterfaceV1(session);
+    session->attachInterface(wallpaperProtocol);
+    connect(wallpaperProtocol, &TreelandWallpaperManagerInterfaceV1::wallpaperCreated,
+            session->wallpaperManager(), &WallpaperManager::onWallpaperAdded);
+    session->attachInterface(new OutputManagerV2(session));
+    session->attachInterface(new WineWindowManager);
+    session->attachInterface(new WineWindowStateManager);
+    m_server->shellHandler()->registerSession(session);
 }
 
 void SurfaceProtocolController::onSurfaceModeChanged(WSurface *surface, WXdgDecorationManager::DecorationMode mode)
@@ -147,24 +162,42 @@ void SurfaceProtocolController::onSurfaceModeChanged(WSurface *surface, WXdgDeco
     s->setNoDecoration(mode != WXdgDecorationManager::Server);
 }
 
+void SurfaceProtocolController::addForeignToplevel(SurfaceWrapper *wrapper)
+{
+    if (auto *session = wrapper->session()) {
+        session->foreignToplevel()->addSurface(wrapper->shellSurface());
+        session->toplevelList()->addSurface(wrapper->shellSurface());
+    }
+}
+
+void SurfaceProtocolController::removeForeignToplevel(SurfaceWrapper *wrapper)
+{
+    if (auto *session = wrapper->session()) {
+        session->foreignToplevel()->removeSurface(wrapper->shellSurface());
+        session->toplevelList()->removeSurface(wrapper->shellSurface());
+    }
+}
+
 void SurfaceProtocolController::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
 {
-    if (wrapper->isIMCandidatePanel())
+    if (wrapper->isIMCandidatePanel() || !wrapper->session())
         return;
+    auto *protocols = wrapper->session()->protocols();
+    auto *xdgDecoration = protocols->xdgDecoration();
 
     bool isXdgToplevel = wrapper->type() == SurfaceWrapper::Type::XdgToplevel;
     bool isXdgPopup = wrapper->type() == SurfaceWrapper::Type::XdgPopup;
     bool isXwayland = wrapper->type() == SurfaceWrapper::Type::XWayland;
     bool isLayer = wrapper->type() == SurfaceWrapper::Type::Layer;
 
-    connect(m_server->sessionManager()->activeSession().lock().get(),
+    connect(wrapper->session(),
             &Session::aboutToBeDestroyed,
             wrapper,
             &SurfaceWrapper::closeSurface);
 
     if (isXdgToplevel || isXdgPopup || isLayer) {
         auto *attached =
-            new Personalization(wrapper->shellSurface(), m_personalizationInterfaceV1, wrapper);
+            new Personalization(wrapper->shellSurface(), protocols->personalization(), wrapper);
         connect(wrapper, &SurfaceWrapper::aboutToBeInvalidated,
                 attached, &Personalization::deleteLater);
 
@@ -185,7 +218,7 @@ void SurfaceProtocolController::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
         }
 
         auto *decoration =
-            new Decoration(wrapper->shellSurface(), m_decorationInterfaceV1, wrapper);
+            new Decoration(wrapper->shellSurface(), protocols->decoration(), wrapper);
         connect(wrapper, &SurfaceWrapper::aboutToBeInvalidated,
                 decoration, &Decoration::deleteLater);
 
@@ -253,7 +286,7 @@ void SurfaceProtocolController::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
         // the mode here so a negotiation landing before wrapper creation is not
         // lost; later changes are handled by onSurfaceModeChanged().
         if (isXdgToplevel) {
-            wrapper->setNoDecoration(m_xdgDecorationManager->modeBySurface(wrapper->surface())
+            wrapper->setNoDecoration(xdgDecoration->modeBySurface(wrapper->surface())
                                      != WXdgDecorationManager::Server);
         }
     }
@@ -304,16 +337,13 @@ void SurfaceProtocolController::onSurfaceWrapperAdded(SurfaceWrapper *wrapper)
 #endif
 
     if (!wrapper->skipDockPreView()) {
-        m_foreignToplevel->addSurface(wrapper->shellSurface());
-        m_extForeignToplevelListV1->addSurface(wrapper->shellSurface());
+        addForeignToplevel(wrapper);
     }
     connect(wrapper, &SurfaceWrapper::skipDockPreViewChanged, this, [this, wrapper] {
         if (wrapper->skipDockPreView()) {
-            m_foreignToplevel->removeSurface(wrapper->shellSurface());
-            m_extForeignToplevelListV1->removeSurface(wrapper->shellSurface());
+            removeForeignToplevel(wrapper);
         } else {
-            m_foreignToplevel->addSurface(wrapper->shellSurface());
-            m_extForeignToplevelListV1->addSurface(wrapper->shellSurface());
+            addForeignToplevel(wrapper);
         }
     });
 }
@@ -327,12 +357,11 @@ void SurfaceProtocolController::onSurfaceWrapperAboutToRemove(SurfaceWrapper *wr
         m_regionWatchManagerInterfaceV1->removeSurface(wrapper);
 
     if (!wrapper->skipDockPreView()) {
-        m_foreignToplevel->removeSurface(wrapper->shellSurface());
-        m_extForeignToplevelListV1->removeSurface(wrapper->shellSurface());
+        removeForeignToplevel(wrapper);
     }
     // Ensure the wrapper is removed from active history early to avoid cascading on half-invalid entries
     if (wrapper && wrapper->workspaceId() != -1) {
-        auto ws = m_server->workspace();
+        auto ws = qobject_cast<Workspace *>(wrapper->container());
         if (ws) {
             Q_ASSERT(ws == wrapper->container());
             ws->removeActivedSurface(wrapper);

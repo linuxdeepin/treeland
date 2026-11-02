@@ -199,8 +199,8 @@ qt_add_qml_module(libtreeland
         input/togglablegesture.cpp
         input/togglablegesture.h
         input/compositorinputfilter.cpp
-        input/compositorinputfilter.h
         input/inputcontext.h
+        input/compositorinputfilter.h
         input/inputmanager.cpp
         input/inputmanager.h
         interfaces/baseplugininterface.h
@@ -227,15 +227,31 @@ qt_add_qml_module(libtreeland
         seat/seatmanager.h
         showdesktop/showdesktop.cpp
         showdesktop/showdesktop.h
+        session/sessionseatmanager.cpp
+        session/sessionseatmanager.h
+        desktop/desktopenvironment.cpp
+        desktop/desktopenvironment.h
         session/session.cpp
         session/session.h
         session/sessionmanager.h
+        session/sessionprotocols.cpp
+        session/sessionprelaunch.cpp
+        session/sessionprelaunch.h
+        session/sessionprotocols.h
         session/sessioncomponent.cpp
         session/sessioncomponent.h
         session/sessionscene.cpp
         session/sessionscene.h
-        session/sessionprotocols.cpp
-        session/sessionprotocols.h
+        session/sessionswitcher.cpp
+        session/sessionswitcher.h
+        session/sessioninputchannel.cpp
+        session/sessioninputchannel.h
+        session/sessioninputcontext.cpp
+        session/sessioninputcontext.h
+        session/sessionoutputchannel.cpp
+        session/sessionoutputchannel.h
+        session/sessionoutputmanager.cpp
+        session/sessionoutputmanager.h
         surface/surfacecontainer.cpp
         surface/surfacecontainer.h
         surface/seatsurfacemanager.cpp

@@ -4,11 +4,20 @@
 #pragma once
 
 #include "wglobal.h"
+#include "desktop/desktopenvironment.h"
+#include "surface/surfacecontainer.h"
 
 #ifndef DISABLE_XWAYLAND
 #include <xcb/xproto.h>
 #endif
 #include <QtQml/qqmlregistration.h>
+#include <QPointer>
+
+class Workspace;
+class SurfaceWrapper;
+class TreelandUserConfig;
+Q_MOC_INCLUDE("workspace/workspace.h")
+Q_MOC_INCLUDE("treelanduserconfig.hpp")
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
 class WServerInterface;
@@ -17,15 +26,30 @@ class WSocket;
 #ifndef DISABLE_XWAYLAND
 class WXWayland;
 #endif
+class WForeignToplevel;
+class WExtForeignToplevelListV1;
 WAYLIB_SERVER_END_NAMESPACE
 
 WAYLIB_SERVER_USE_NAMESPACE
 
-class TreelandUserConfig;
+class SessionSeatManager;
+class SessionProtocols;
+class SessionPrelaunch;
+class SessionScene;
+class SessionOutputManager;
+Q_MOC_INCLUDE("session/sessionoutputmanager.h")
+class SessionSwitcher;
+Q_MOC_INCLUDE("session/sessionswitcher.h")
+class InputManager;
+class WallpaperManager;
+Q_MOC_INCLUDE("input/inputmanager.h")
+Q_MOC_INCLUDE("wallpaper/wallpapermanager.h")
 #ifndef DISABLE_XWAYLAND
 class SettingManager;
 #endif
 class WallpaperLauncher;
+class ForeignToplevelManagerInterfaceV3;
+Q_MOC_INCLUDE("modules/foreign-toplevel/foreigntoplevelmanagerv3.h")
 
 class Session : public QObject {
     Q_OBJECT
@@ -33,6 +57,7 @@ class Session : public QObject {
     Q_PROPERTY(bool active READ isActive NOTIFY activeChanged FINAL)
 public:
     ~Session();
+    DesktopEnvironment *desktop() const;
 
     const QString &id() const;
     uid_t uid() const;
@@ -42,11 +67,27 @@ public:
     WXWayland *xwayland() const;
     quint32 noTitlebarAtom() const;
 #endif
+    Workspace *workspace() const;
+    DesktopSurfaceModel *windows() const;
+    TreelandUserConfig *config() const;
+    SessionSeatManager *seatManager() const;
+    SessionProtocols *protocols() const;
+    SessionPrelaunch *prelaunch() const;
+    SessionScene *scene() const;
+    SessionOutputManager *outputManager() const;
+    SessionSwitcher *switcher() const;
+    InputManager *inputManager() const;
+    WallpaperManager *wallpaperManager() const;
     bool isActive() const;
     bool ownsClient(WClient *client) const;
-    TreelandUserConfig *config() const;
     void attachInterface(WServerInterface *interface);
     void detachInterface(WServerInterface *interface);
+    ForeignToplevelManagerInterfaceV3 *windowManagement() const;
+    WForeignToplevel *foreignToplevel() const;
+    WExtForeignToplevelListV1 *toplevelList() const;
+
+    void registerWindow(SurfaceWrapper *window);
+    void unregisterWindow(SurfaceWrapper *window);
 
 Q_SIGNALS:
     void activeChanged(bool active);
@@ -54,17 +95,25 @@ Q_SIGNALS:
 
 private:
     friend class SessionManager;
-    void setActive(bool active);
-    bool m_active = false;
+    friend class SurfaceProtocolController;
 
-    // The logind session id. Set once in ensureSession() and never mutated
-    // afterwards; it is read from QThreadPool workers (onSessionLock/Unlock),
-    // so it must not change after creation.
+    void setActive(bool active);
+    DesktopEnvironment *m_desktop = nullptr;
+    bool m_active = false;
+    SessionSeatManager *m_seatManager = nullptr;
+    SessionProtocols *m_protocols = nullptr;
+    SessionPrelaunch *m_prelaunch = nullptr;
+    SessionScene *m_scene = nullptr;
+    SessionOutputManager *m_outputManager = nullptr;
+    QList<WServerInterface *> m_interfaces;
+    QPointer<ForeignToplevelManagerInterfaceV3> m_windowManagement;
+    QPointer<WForeignToplevel> m_foreignToplevel;
+    QPointer<WExtForeignToplevelListV1> m_toplevelList;
+    TreelandUserConfig *m_config = nullptr;
+    // Immutable logind identity, also read by session lock/unlock workers.
     QString m_id;
     uid_t m_uid = 0;
     QString m_username = {};
-    TreelandUserConfig *m_config = nullptr;
-    QList<WServerInterface *> m_interfaces;
     WSocket *m_socket = nullptr;
 #ifndef DISABLE_XWAYLAND
     WXWayland *m_xwayland = nullptr;
@@ -73,5 +122,3 @@ private:
     QThread *m_settingManagerThread = nullptr;
 #endif
 };
-
-#include "sessionmanager.h"

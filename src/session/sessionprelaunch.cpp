@@ -81,7 +81,8 @@ void SessionPrelaunch::create(const QString &appId, const QString &instanceId, q
     m_pending.remove(appId);
     const bool dark = theme == 0 ? session()->config()->windowColorScheme() == 1 : theme == 2;
     auto *wrapper = new SurfaceWrapper(m_runtime->qmlEngine(), nullptr, size, appId,
-                                       icon.get(), QColor(dark ? darkPalette : lightPalette));
+                                       icon ? wlr_buffer_lock(icon.get()) : nullptr,
+                                       QColor(dark ? darkPalette : lightPalette));
     wrapper->setSession(session());
     m_splashes.append({wrapper, instanceId});
     session()->workspace()->addSurface(wrapper);

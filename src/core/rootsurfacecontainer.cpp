@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "rootsurfacecontainer.h"
+#include "session/session.h"
 
 #include "common/treelandlogging.h"
 #include "output/output.h"
@@ -808,7 +809,7 @@ void RootSurfaceContainer::onSeatRemoved(WSeat *seat)
     auto *container = m_seatContainers.take(seat);
     if (container) {
         qCDebug(lcTlCore) << "Removing SeatContainer for seat:" << seat;
-        container->deleteLater();
+        delete container;
     }
 }
 

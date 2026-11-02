@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
 #include "seatmanager.h"
+#include "session/sessionseatmanager.h"
+#include <wlr_all.h>
 #include "common/treelandlogging.h"
 #include "dconfig/dconfigmanager.h"
 #include "core/waylandserver.h"
@@ -34,6 +36,8 @@ SeatManager::~SeatManager()
     m_defaultSeat = nullptr;
 
     for (auto seat : std::as_const(seatsToDelete)) {
+        if (seat->ownsSocket())
+            continue; // Session owns logical seat interfaces.
         if (m_server) {
             m_server->detach(seat);
         }
@@ -59,39 +63,12 @@ WSeat *SeatManager::createSeat(const QString &name, bool isFallback)
 
     qCDebug(lcTlSeat) << "Created seat:" << name << "fallback:" << isFallback;
 
-    auto announce = [this, seat, name] {
-        m_seats[name] = seat;
-        Q_EMIT seatAdded(seat);
-    };
-
-#ifndef DISABLE_DDM
-    const QString userName = WaylandServer::instance()->userModel()->currentUserName();
-#else
-    const QString userName = QStringLiteral("dde");
-#endif
-    auto *seatConfig = DConfigManager::instance()->userSeatConfig(userName, name);
-
-    if (!seatConfig || seatConfig->isInitializeSucceeded()
-        || seatConfig->isInitializeFailed()) {
-        announce();
-        return seat;
-    }
-
-    qCDebug(lcTlSeat) << "Waiting for seat DConfig initialization before announcing seat:" << name;
-    connect(seatConfig,
-            &SeatUserDConfig::configInitializeSucceed,
-            this,
-            announce,
-            Qt::SingleShotConnection);
-    connect(seatConfig,
-            &SeatUserDConfig::configInitializeFailed,
-            this,
-            [this, seat, name, announce] {
-                qCWarning(lcTlSeat) << "Seat DConfig initialization failed for seat:" << name
-                                    << ", announcing seat without config";
-                announce();
-            },
-            Qt::SingleShotConnection);
+    // Configuration readiness is handled by the Session's InputManager. Seat
+    // identity must be published synchronously, independent of the active user.
+    if (m_activeDomain)
+        m_activeDomain->addSeat(seat, isFallback);
+    m_seats.insert(name, seat);
+    Q_EMIT seatAdded(seat);
 
     return seat;
 }
@@ -116,8 +93,12 @@ void SeatManager::removeSeat(const QString &name)
         qCDebug(lcTlSeat) << "No fallback seat available";
     }
 
-    QList<WInputDevice*> devices = seat->deviceList();
-    for (auto device : std::as_const(devices)) {
+    const auto devices = m_backend ? m_backend->inputDeviceList() : QList<WInputDevice *>{};
+    for (auto *device : devices) {
+        if (!seat->deviceList().contains(device))
+            continue;
+        // Virtual keyboards are released by their Session's IME helper. They
+        // must not be reassigned while that helper still owns their wrappers.
         seat->detachInputDevice(device);
 
         clearDeviceCache(device);
@@ -132,14 +113,15 @@ void SeatManager::removeSeat(const QString &name)
         }
     }
     
-    if (m_server) {
-        m_server->detach(seat);
-    }
-
     Q_EMIT seatRemoved(seat);
     qCDebug(lcTlSeat) << "Removed seat:" << name;
 
-    delete seat;
+    if (m_activeDomain)
+        m_activeDomain->removeSeat(seat);
+    else {
+        m_server->detach(seat);
+        delete seat;
+    }
 
     // Clean up device rules for removed seat
     m_deviceRules.remove(name);
@@ -334,20 +316,10 @@ void SeatManager::loadConfig(const QJsonObject &config)
 {
     qCDebug(lcTlSeat) << "Loading seat configuration";
 
-    QMap<QString, WSeat*> seatsToDelete;
-    seatsToDelete.swap(m_seats);
+    const auto names = m_seats.keys();
+    for (const auto &name : names)
+        removeSeat(name);
     m_deviceRules.clear();
-    m_defaultSeat = nullptr;
-    m_seatNames.clear();
-    m_fallbackName.clear();
-
-    for (auto seat : std::as_const(seatsToDelete)) {
-        if (m_server) {
-            m_server->detach(seat);
-        }
-        Q_EMIT seatRemoved(seat);
-        delete seat;
-    }
 
     QJsonArray seatsArray = config["seats"].toArray();
     for (const auto &seatValue : std::as_const(seatsArray)) {
@@ -629,6 +601,9 @@ void SeatManager::setupAllSeats(QQuickWindow *renderWindow,
                                  WSeatEventFilter *eventFilter,
                                  WCursor *seat0Cursor)
 {
+    m_renderWindow = renderWindow;
+    m_layout = layout;
+    m_eventFilter = eventFilter;
     for (auto *seat : std::as_const(m_seats)) {
         if (!seat->handle()) {
             qCWarning(lcTlSeat) << "Seat" << seat->name() << "has no native handle, skipping configuration";
@@ -659,6 +634,7 @@ void SeatManager::setupAllSeats(QQuickWindow *renderWindow,
 
 void SeatManager::connectBackendSignals(WBackend *backend)
 {
+    m_backend = backend;
     if (!backend) {
         qCWarning(lcTlSeat) << "Cannot connect signals for null backend";
         return;
@@ -789,4 +765,73 @@ WSeat *SeatManager::getSeatForEvent(QInputEvent *event) const
 void SeatManager::clearDeviceCache(WInputDevice *device)
 {
     m_deviceCache.remove(device);
+}
+
+void SeatManager::activateSessionSeats(SessionSeatManager *domain)
+{
+    if (m_activeDomain == domain)
+        return;
+    const auto previous = m_seats;
+    QMap<QString, WCursor *> cursors;
+    cursors.swap(m_parkedCursors);
+    for (auto *seat : previous) {
+        // Clear focus and terminate grabs while the old cursor still belongs to
+        // this seat, so cancellation is delivered only to the old Session.
+        seat->clearKeyboardFocusSurface();
+        seat->clearKeyboardFocusWindow();
+        wlr_seat_pointer_notify_clear_focus(seat->handle());
+        wlr_seat_keyboard_end_grab(seat->handle());
+        wlr_seat_pointer_end_grab(seat->handle());
+        wlr_seat_touch_end_grab(seat->handle());
+        wlr_seat_client *client;
+        wl_list_for_each(client, &seat->handle()->clients, link)
+            wlr_seat_touch_notify_cancel(seat->handle(), client);
+        if (m_backend) {
+            for (auto *device : m_backend->inputDeviceList()) {
+                if (seat->deviceList().contains(device))
+                    seat->detachInputDevice(device);
+            }
+        }
+        if (auto *cursor = seat->cursor()) {
+            // Hardware cursors travel with physical devices, not selections or
+            // other user-owned seat state.
+            cursor->setParent(this);
+            cursors.insert(seat->name(), cursor);
+            seat->setCursor(nullptr);
+        }
+        Q_EMIT seatRemoved(seat);
+    }
+    m_seats.clear();
+    m_deviceCache.clear();
+    m_activeDomain = domain;
+    for (auto *seat : domain->seats()) {
+        m_seats.insert(seat->name(), seat);
+        if (auto *cursor = cursors.take(seat->name()))
+            seat->setCursor(cursor);
+    }
+    m_defaultSeat = domain->fallbackSeat();
+    setupAllSeats(m_renderWindow, m_layout, m_eventFilter);
+    for (auto *seat : std::as_const(m_seats))
+        Q_EMIT seatAdded(seat);
+    if (m_backend)
+        assignExistingDevices(m_backend);
+    m_parkedCursors.swap(cursors);
+}
+
+void SeatManager::releaseSessionSeats(SessionSeatManager *domain)
+{
+    // Also handle the first Session, which adopts the bootstrap seats before
+    // it has been activated.
+    const auto ownedSeats = domain->seats();
+    for (auto *seat : ownedSeats) {
+        if (m_seats.value(seat->name()) != seat)
+            continue;
+        Q_EMIT seatRemoved(seat);
+        m_seats.remove(seat->name());
+        if (m_defaultSeat == seat)
+            m_defaultSeat = nullptr;
+    }
+    m_deviceCache.clear();
+    if (m_activeDomain == domain)
+        m_activeDomain = nullptr;
 }

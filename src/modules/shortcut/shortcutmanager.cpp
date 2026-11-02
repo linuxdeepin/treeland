@@ -1,18 +1,16 @@
 // Copyright (C) 2023-2026 UnionTech Software Technology Co., Ltd.
 // SPDX-License-Identifier: Apache-2.0 OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only
 
+#include <utility>
+#include <QPointer>
 #include "shortcutmanager.h"
 
 #include "common/treelandlogging.h"
 #include "input/swipegesture.h"
 #include "qwayland-server-treeland-shortcut-manager-unstable-v3.h"
-#include "core/waylandserver.h"
-#include "seat/seatmanager.h"
-#include "session/session.h"
 #include "shortcutcontroller.h"
 
 #include <wseat.h>
-#include <wsocket.h>
 #include <wsurface.h>
 
 #include <wlr_all.h>
@@ -40,22 +38,6 @@ struct HoldShortcut {
     uint finger;
     ShortcutAction action;
 };
-
-class UserShortcuts {
-public:
-    QList<KeyShortcut> keys;
-    QList<SwipeShortcut> swipes;
-    QList<HoldShortcut> holds;
-
-};
-
-// Remove the shortcut identified by name from a UserShortcuts collection.
-static void removeShortcut(UserShortcuts &shortcuts, const QString &name)
-{
-    shortcuts.keys.removeIf([&](const KeyShortcut &ks) { return ks.name == name; });
-    shortcuts.swipes.removeIf([&](const SwipeShortcut &ss) { return ss.name == name; });
-    shortcuts.holds.removeIf([&](const HoldShortcut &hs) { return hs.name == name; });
-}
 
 // Returns true when the action value is one of the defined ShortcutAction
 // enum values. Uses QMetaEnum instead of a range check so it stays correct
@@ -156,33 +138,19 @@ static SwipeGesture::Direction toSwipeDirection(uint32_t direction)
 class ShortcutManagerV3Private : public QtWaylandServer::treeland_shortcut_manager_v3
 {
 public:
-    explicit ShortcutManagerV3Private();
+    explicit ShortcutManagerV3Private(ShortcutManagerV3::SeatProvider seats);
 
     wl_global *global() const;
 
-    void sendActivated(WSocket *socket, const QString &name, ShortcutController::KeyFlags keyFlags);
-    void sendBindFailure(WSocket *socket, const QString &name, uint error);
+    void sendActivated(const QString &name, ShortcutController::KeyFlags keyFlags);
+    void sendBindFailure(const QString &name, uint error);
+    uint registerKey(const KeyShortcut &ks);
+    uint registerSwipe(const SwipeShortcut &ss);
+    uint registerHold(const HoldShortcut &hs);
 
-    // Register a single key shortcut.  Returns 0 on success, non-zero
-    // bind_error code on failure.  On success the shortcut is appended
-    // to m_shortcuts[socket].
-    uint registerKey(WSocket *socket, const KeyShortcut &ks);
-    uint registerSwipe(WSocket *socket, const SwipeShortcut &ss);
-    uint registerHold(WSocket *socket, const HoldShortcut &hs);
-
-    ShortcutController *m_controller = nullptr;
-
-    QMap<WSocket*, Resource*> ownerClients;
-    QMap<WSocket*, UserShortcuts> m_shortcuts;
-    // Binds queued while the client's session is not active.
-    QMap<WSocket*, UserShortcuts> m_pendingShortcuts;
-    // Deferred unbinds queued while the client's session is not active.
-    // TODO(multi-user refactor): stores only the name, so a deferred delete
-    // cannot locate the (key, action) identity of a cached binding that was
-    // superseded by a queued upsert under a different name (see unbind()).
-    // Revisit when the per-session state model is refactored for multi-user
-    // support.
-    QMap<WSocket*, QList<QString>> m_pendingDeletes;
+    QPointer<ShortcutController> m_controller;
+    Resource *m_owner = nullptr;
+    const ShortcutManagerV3::SeatProvider m_seats;
 
     ShortcutCaptureV3 *m_pendingCapture = nullptr;
     // Seat whose keyboard focus was validated at capture start.
@@ -192,7 +160,6 @@ public:
     WSeat *m_drainSeat = nullptr;
     // Target surface that requested the capture. Capture must fail once it loses focus.
     QPointer<WSurface> m_pendingSurface;
-    WSocket* m_activeSessionSocket = nullptr;
 
 protected:
     void destroy_resource(Resource *resource) override;
@@ -219,17 +186,18 @@ protected:
                                uint32_t capture) override;
 
 private:
-    WSocket *socketFromResource(Resource *resource);
     // Clears all capture-related state and returns the previously pending capture object.
     // The caller is responsible for sending a terminal event on the returned object.
     ShortcutCaptureV3 *resetCaptureState();
 
 public:
+    void cancelCapture();
     void onCaptureDestroyed(ShortcutCaptureV3 *c);
     bool tryHandleCaptureEvent(WSeat *seat, QInputEvent *event);
 };
 
-ShortcutManagerV3Private::ShortcutManagerV3Private()
+ShortcutManagerV3Private::ShortcutManagerV3Private(ShortcutManagerV3::SeatProvider seats)
+    : m_seats(std::move(seats))
 {
 }
 
@@ -238,79 +206,46 @@ wl_global *ShortcutManagerV3Private::global() const
     return m_global;
 }
 
-WSocket *ShortcutManagerV3Private::socketFromResource(Resource *resource)
-{
-    return WSocket::get(wl_resource_get_client(resource->handle))->rootSocket();
-}
-
-uint ShortcutManagerV3Private::registerKey(WSocket *socket, const KeyShortcut &ks)
+uint ShortcutManagerV3Private::registerKey(const KeyShortcut &ks)
 {
     if (!isValidAction(ks.action))
         return QtWaylandServer::treeland_shortcut_manager_v3::bind_error_invalid_argument;
-    uint status = m_controller->registerKey(ks.name, ks.key, ks.keybindFlags, ks.action);
-    if (!status) {
-        // The controller upserts on the (normalized key, action) identity: a
-        // successful bind can replace an existing binding registered under a
-        // different name. Drop any cached entry with the same identity before
-        // recording the new bind, or a later unbind or session restore would
-        // resurrect the replaced name.
-        const int combined = ShortcutController::normalizedKeyCombinedFor(ks.key);
-        auto &keys = m_shortcuts[socket].keys;
-        keys.removeIf([&](const KeyShortcut &existing) {
-            return existing.action == ks.action
-                && ShortcutController::normalizedKeyCombinedFor(existing.key) == combined;
-        });
-        keys.append(ks);
-    }
-    return status;
+    return m_controller->registerKey(ks.name, ks.key, ks.keybindFlags, ks.action);
 }
 
-uint ShortcutManagerV3Private::registerSwipe(WSocket *socket, const SwipeShortcut &ss)
+uint ShortcutManagerV3Private::registerSwipe(const SwipeShortcut &ss)
 {
     if (!isValidAction(ss.action))
         return QtWaylandServer::treeland_shortcut_manager_v3::bind_error_invalid_argument;
-    uint status = m_controller->registerSwipeGesture(ss.name, ss.finger, ss.direction, ss.action);
-    if (!status)
-        m_shortcuts[socket].swipes.append(ss);
-    return status;
+    return m_controller->registerSwipeGesture(ss.name, ss.finger, ss.direction, ss.action);
 }
 
-uint ShortcutManagerV3Private::registerHold(WSocket *socket, const HoldShortcut &hs)
+uint ShortcutManagerV3Private::registerHold(const HoldShortcut &hs)
 {
     if (!isValidAction(hs.action))
         return QtWaylandServer::treeland_shortcut_manager_v3::bind_error_invalid_argument;
-    uint status = m_controller->registerHoldGesture(hs.name, hs.finger, hs.action);
-    if (!status)
-        m_shortcuts[socket].holds.append(hs);
-    return status;
+    return m_controller->registerHoldGesture(hs.name, hs.finger, hs.action);
 }
 
-void ShortcutManagerV3Private::sendActivated(WSocket *socket, const QString &name, ShortcutController::KeyFlags keyFlags)
+void ShortcutManagerV3Private::sendActivated(const QString &name, ShortcutController::KeyFlags keyFlags)
 {
-    Resource *resource = ownerClients.value(socket, nullptr);
-    if (!resource)
-        return;
-
-    send_activated(resource->handle, name, keyFlags.toInt());
+    if (m_owner)
+        send_activated(m_owner->handle, name, keyFlags.toInt());
 }
 
-void ShortcutManagerV3Private::sendBindFailure(WSocket *socket, const QString &name, uint error)
+void ShortcutManagerV3Private::sendBindFailure(const QString &name, uint error)
 {
-    Resource *resource = ownerClients.value(socket, nullptr);
-    if (!resource)
-        return;
-
-    send_bind_failure(resource->handle, name, error);
+    if (m_owner)
+        send_bind_failure(m_owner->handle, name, error);
 }
 
 void ShortcutManagerV3Private::destroy_resource(Resource *resource)
 {
-    for (auto it = ownerClients.begin(); it != ownerClients.end(); ) {
-        if (it.value() == resource) {
-            it = ownerClients.erase(it);
-        } else {
-            ++it;
-        }
+    if (m_owner == resource) {
+        m_owner = nullptr;
+        if (m_controller)
+            m_controller->clear();
+        cancelCapture();
     }
 }
 
@@ -321,26 +256,14 @@ void ShortcutManagerV3Private::destroy(Resource *resource)
 
 void ShortcutManagerV3Private::acquire(Resource *resource)
 {
-    WSocket *socket = socketFromResource(resource);
-    if (ownerClients.contains(socket)) {
+    if (m_owner) {
         wl_resource_post_error(resource->handle,
                                error_occupied,
                                "Another client has already acquired the shortcut manager.");
         return;
     }
-
-    // remove stale shortcuts
-    m_shortcuts.remove(socket);
-    m_pendingShortcuts.remove(socket);
-    m_pendingDeletes.remove(socket);
-    // TODO: clear() wipes the whole controller, including any bindings of
-    // other sessions. Today only the active session's bindings live in the
-    // controller (inactive sessions are held in m_pendingShortcuts), so this
-    // is correct. Revisit when multi-user handling is improved: clear
-    // per-socket state instead of the global controller.
-    if (m_activeSessionSocket == socket)
-        m_controller->clear();
-    ownerClients.insert(socket, resource);
+    m_controller->clear();
+    m_owner = resource;
 }
 
 void ShortcutManagerV3Private::bind_key(Resource *resource,
@@ -349,8 +272,7 @@ void ShortcutManagerV3Private::bind_key(Resource *resource,
                                         uint32_t flags,
                                         uint32_t action)
 {
-    WSocket *socket = socketFromResource(resource);
-    if (ownerClients.value(socket, nullptr) != resource) {
+    if (m_owner != resource) {
         wl_resource_post_error(resource->handle,
                                error_not_acquired,
                                "Client has not acquired the shortcut manager.");
@@ -364,15 +286,9 @@ void ShortcutManagerV3Private::bind_key(Resource *resource,
         .action = static_cast<ShortcutAction>(action),
     };
 
-    if (socket == m_activeSessionSocket) {
-        // Active session: apply immediately.
-        uint status = registerKey(socket, ks);
-        if (status)
-            sendBindFailure(socket, name, status);
-    } else {
-        // Non-active session: defer until the session becomes active.
-        m_pendingShortcuts[socket].keys.append(ks);
-    }
+    const uint status = registerKey(ks);
+    if (status)
+        sendBindFailure(name, status);
 }
 
 void ShortcutManagerV3Private::bind_swipe_gesture(Resource *resource,
@@ -381,8 +297,7 @@ void ShortcutManagerV3Private::bind_swipe_gesture(Resource *resource,
                                                   uint32_t direction,
                                                   uint32_t action)
 {
-    WSocket *socket = socketFromResource(resource);
-    if (ownerClients.value(socket, nullptr) != resource) {
+    if (m_owner != resource) {
         wl_resource_post_error(resource->handle,
                                error_not_acquired,
                                "Client has not acquired the shortcut manager.");
@@ -396,13 +311,9 @@ void ShortcutManagerV3Private::bind_swipe_gesture(Resource *resource,
         .action = static_cast<ShortcutAction>(action),
     };
 
-    if (socket == m_activeSessionSocket) {
-        uint status = registerSwipe(socket, ss);
-        if (status)
-            sendBindFailure(socket, name, status);
-    } else {
-        m_pendingShortcuts[socket].swipes.append(ss);
-    }
+    const uint status = registerSwipe(ss);
+    if (status)
+        sendBindFailure(name, status);
 }
 
 void ShortcutManagerV3Private::bind_hold_gesture(Resource *resource,
@@ -410,8 +321,7 @@ void ShortcutManagerV3Private::bind_hold_gesture(Resource *resource,
                                                  uint32_t finger,
                                                  uint32_t action)
 {
-    WSocket *socket = socketFromResource(resource);
-    if (ownerClients.value(socket, nullptr) != resource) {
+    if (m_owner != resource) {
         wl_resource_post_error(resource->handle,
                                error_not_acquired,
                                "Client has not acquired the shortcut manager.");
@@ -424,47 +334,21 @@ void ShortcutManagerV3Private::bind_hold_gesture(Resource *resource,
         .action = static_cast<ShortcutAction>(action),
     };
 
-    if (socket == m_activeSessionSocket) {
-        uint status = registerHold(socket, hs);
-        if (status)
-            sendBindFailure(socket, name, status);
-    } else {
-        m_pendingShortcuts[socket].holds.append(hs);
-    }
+    const uint status = registerHold(hs);
+    if (status)
+        sendBindFailure(name, status);
 }
 
 void ShortcutManagerV3Private::unbind(Resource *resource, const QString &name)
 {
-    WSocket *socket = socketFromResource(resource);
-    if (ownerClients.value(socket, nullptr) != resource) {
+    if (m_owner != resource) {
         wl_resource_post_error(resource->handle,
                                error_not_acquired,
                                "Client has not acquired the shortcut manager.");
         return;
     }
 
-    if (socket != m_activeSessionSocket) {
-        // Remove from pending binds so a bind-then-unbind on an inactive session
-        // doesn't re-register the shortcut when the session becomes active.
-        //
-        // TODO(multi-user refactor): removal (both here and via m_pendingDeletes)
-        // is keyed by name only. If an inactive session already had a cached bind
-        // (m_shortcuts) under an old name, queued an upsert for the same
-        // (key, action) under a new name, then unbinds the new name before
-        // activation, the cached entry under the old name survives. On activation
-        // the old name is re-registered and the deferred delete of the new name
-        // misses it, leaving the shortcut active.
-        //
-        // Fix: when unbinding a queued upsert, also remove the cached entry with
-        // the same (normalizedKeyCombinedFor(key), action) identity from
-        // m_shortcuts. Revisit alongside the planned multi-user/session refactor.
-        removeShortcut(m_pendingShortcuts[socket], name);
-        m_pendingDeletes[socket].append(name);
-        return;
-    }
-
     m_controller->unregisterShortcut(name);
-    removeShortcut(m_shortcuts[socket], name);
 }
 
 void ShortcutCaptureV3::destroy(Resource *resource)
@@ -513,15 +397,20 @@ void ShortcutManagerV3Private::capture_next_shortcut(Resource *resource,
         auto *wlrSeatClient = wlr_seat_client_from_resource(seat_resource);
         if (wlrSeatClient)
             requestedSeat = WSeat::fromHandle(wlrSeatClient->seat);
-    } else if (auto *server = WaylandServer::instance()) {
-        // No seat specified: find whichever seat currently has keyboard focus on this surface.
-        const auto &seats = server->seatManager()->seats();
+    } else if (m_seats) {
+        // Resolve focus only within this protocol instance's seat domain.
+        const auto seats = m_seats();
         for (auto *seat : seats) {
             if (seat->keyboardFocusSurface() == wSurface) {
                 requestedSeat = seat;
                 break;
             }
         }
+    }
+
+    if (requestedSeat && m_seats && !m_seats().contains(requestedSeat)) {
+        captureObj->sendFailed(ShortcutCaptureV3::failed_reason_not_active);
+        return;
     }
 
     // Validate surface focus / active state.
@@ -551,7 +440,7 @@ ShortcutCaptureV3 *ShortcutManagerV3Private::resetCaptureState()
     return c;
 }
 
-// Capture event filter — called from WaylandServer::beforeDisposeEvent while a
+// Capture event filter — called from CompositorInputFilter while a
 // one-shot shortcut capture is in progress.
 //
 // Trigger semantics:
@@ -659,11 +548,12 @@ bool ShortcutManagerV3Private::tryHandleCaptureEvent(WSeat *seat, QInputEvent *e
     return true;
 }
 
-ShortcutManagerV3::ShortcutManagerV3(QObject *parent)
+ShortcutManagerV3::ShortcutManagerV3(QObject *parent, ShortcutController *controller,
+                                       SeatProvider seats)
     : QObject(parent)
-    , d(std::make_unique<ShortcutManagerV3Private>())
+    , d(std::make_unique<ShortcutManagerV3Private>(std::move(seats)))
 {
-    d->m_controller = new ShortcutController(this);
+    d->m_controller = controller ? controller : new ShortcutController(this);
 }
 
 ShortcutManagerV3::~ShortcutManagerV3() = default;
@@ -707,82 +597,18 @@ ShortcutController* ShortcutManagerV3::controller()
 
 void ShortcutManagerV3::sendActivated(const QString& name, ShortcutController::KeyFlags keyFlags)
 {
-    d->sendActivated(d->m_activeSessionSocket, name, keyFlags);
+    d->sendActivated(name, keyFlags);
 }
 
-void ShortcutManagerV3::onSessionChanged()
+void ShortcutManagerV3Private::cancelCapture()
 {
-    auto session = WaylandServer::instance()->sessionManager()->activeSession().lock();
-    if (!session) {
-        return;
-    }
+    if (m_pendingCapture)
+        resetCaptureState()->sendFailed(ShortcutCaptureV3::failed_reason_aborted);
+    m_drainKey = Qt::Key_unknown;
+    m_drainSeat = nullptr;
+}
 
-    auto *socket = session->socket();
-
-    if (d->m_activeSessionSocket == socket)
-        return;
-
-    d->m_controller->clear();
-    d->m_activeSessionSocket = socket;
-
-    // Re-register previously accepted shortcuts for this session.
-    if (d->m_shortcuts.contains(socket)) {
-        const auto &shortcuts = d->m_shortcuts[socket];
-        for (const auto &ks : std::as_const(shortcuts.keys)) {
-            uint status = d->m_controller->registerKey(ks.name, ks.key, ks.keybindFlags, ks.action);
-            if (status) {
-                qCWarning(lcTlShortcut) << "Failed to restore key shortcut" << ks.name
-                                        << "by reason" << status
-                                        << "for session" << session->id()
-                                        << "for user" << session->username();
-            }
-        }
-        for (const auto &ss : std::as_const(shortcuts.swipes)) {
-            uint status = d->m_controller->registerSwipeGesture(ss.name, ss.finger, ss.direction, ss.action);
-            if (status) {
-                qCWarning(lcTlShortcut) << "Failed to restore swipe shortcut" << ss.name
-                                        << "by reason" << status
-                                        << "for session" << session->id()
-                                        << "for user" << session->username();
-            }
-        }
-        for (const auto &hs : std::as_const(shortcuts.holds)) {
-            uint status = d->m_controller->registerHoldGesture(hs.name, hs.finger, hs.action);
-            if (status) {
-                qCWarning(lcTlShortcut) << "Failed to restore hold shortcut" << hs.name
-                                        << "by reason" << status
-                                        << "for session" << session->id()
-                                        << "for user" << session->username();
-            }
-        }
-    }
-
-    // Apply deferred unbinds.
-    if (d->m_pendingDeletes.contains(socket)) {
-        const auto names = d->m_pendingDeletes.take(socket);
-        for (const auto& name : std::as_const(names)) {
-            d->m_controller->unregisterShortcut(name);
-            removeShortcut(d->m_shortcuts[socket], name);
-        }
-    }
-
-    // Apply deferred binds — each independently, send bind_failure for failures.
-    if (d->m_pendingShortcuts.contains(socket)) {
-        const auto pending = d->m_pendingShortcuts.take(socket);
-        for (const auto &ks : std::as_const(pending.keys)) {
-            uint status = d->registerKey(socket, ks);
-            if (status)
-                d->sendBindFailure(socket, ks.name, status);
-        }
-        for (const auto &ss : std::as_const(pending.swipes)) {
-            uint status = d->registerSwipe(socket, ss);
-            if (status)
-                d->sendBindFailure(socket, ss.name, status);
-        }
-        for (const auto &hs : std::as_const(pending.holds)) {
-            uint status = d->registerHold(socket, hs);
-            if (status)
-                d->sendBindFailure(socket, hs.name, status);
-        }
-    }
+void ShortcutManagerV3::cancelCapture()
+{
+    d->cancelCapture();
 }

@@ -21,7 +21,7 @@ Item {
     Wallpaper {
         id: wallpaper
         output: root.output
-        workspace: WaylandServer.workspace.current
+        workspace: root.wrapper.desktop.workspace.current
     }
 
     ShaderEffectSource {

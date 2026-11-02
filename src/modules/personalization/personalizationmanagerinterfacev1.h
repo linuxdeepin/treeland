@@ -17,6 +17,8 @@
 
 #include "common/windowdecorations.h"
 
+class Session;
+class TreelandUserConfig;
 class SurfaceWrapper;
 class PersonalizationManagerInterfaceV1;
 
@@ -255,12 +257,12 @@ class PersonalizationManagerInterfaceV1 : public QObject, public WServerInterfac
 {
     Q_OBJECT
 
-    Q_PROPERTY(uid_t userId READ userId WRITE setUserId NOTIFY userIdChanged FINAL)
+    Q_PROPERTY(uid_t userId READ userId CONSTANT FINAL)
     Q_PROPERTY(QString cursorTheme READ cursorTheme WRITE setCursorTheme NOTIFY cursorThemeChanged FINAL)
     Q_PROPERTY(QSize cursorSize READ cursorSize WRITE setCursorSize NOTIFY cursorSizeChanged FINAL)
 
 public:
-    explicit PersonalizationManagerInterfaceV1(QObject *parent = nullptr);
+    explicit PersonalizationManagerInterfaceV1(Session *session);
     ~PersonalizationManagerInterfaceV1() override;
 
     void onCursorContextCreated(PersonalizationCursorContextV1 *context);
@@ -272,7 +274,6 @@ public:
     void onCursorCommit(PersonalizationCursorContextV1 *context);
 
     uid_t userId();
-    void setUserId(uid_t uid);
 
     QString cursorTheme();
     void setCursorTheme(const QString &name);
@@ -288,7 +289,6 @@ public:
 
     static constexpr int InterfaceVersion = 1;
 Q_SIGNALS:
-    void userIdChanged(uid_t uid);
     void lockscreenChanged();
     void cursorThemeChanged(const QString &name);
     void cursorSizeChanged(const QSize &size);
@@ -306,6 +306,8 @@ private:
     void onOpacityChanged(uint32_t opacity);
     void onThemeTypeChanged(uint32_t type);
     void onTitlebarHeightChanged(uint32_t height);
+    QPointer<Session> m_session;
+    TreelandUserConfig *const m_config;
     QList<PersonalizationAppearanceContextV1 *> m_appearanceContexts;
     std::unique_ptr<PersonalizationManagerInterfaceV1Private> d;
 };

@@ -24,6 +24,7 @@ WAYLIB_SERVER_USE_NAMESPACE
 class SurfaceWrapper;
 class Output;
 class Workspace;
+class DesktopEnvironment;
 class WorkspaceModel;
 class CaptureManagerV1;
 class QmlEngine : public QQmlApplicationEngine
@@ -41,7 +42,7 @@ public:
     QQuickItem *createBorder(SurfaceWrapper *surface, QQuickItem *parent);
     QQuickItem *createTaskBar(Output *output, QQuickItem *parent);
     QQuickItem *createXdgShadow(QQuickItem *parent);
-    QQuickItem *createTaskSwitcher(Output *output, QQuickItem *parent);
+    QQuickItem *createTaskSwitcher(Output *output, QQuickItem *parent, DesktopEnvironment *desktop);
     QQuickItem *createGeometryAnimation(SurfaceWrapper *surface,
                                         const QRectF &startGeo,
                                         const QRectF &endGeo,
@@ -67,7 +68,7 @@ public:
                                         QQuickItem *parent,
                                         const QRectF &iconGeometry,
                                         uint direction);
-    QQuickItem *createDockPreview(QQuickItem *parent);
+    QQuickItem *createDockPreview(QQuickItem *parent, DesktopEnvironment *desktop);
     QQuickItem *createShowDesktopAnimation(SurfaceWrapper *surface, QQuickItem *parent, bool show);
     QQuickItem *createCaptureSelector(QQuickItem *parent, CaptureManagerV1 *captureManager);
     QQuickItem *createEdgeTilePreview(QQuickItem *parent);
