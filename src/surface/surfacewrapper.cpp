@@ -115,6 +115,10 @@ SurfaceWrapper::SurfaceWrapper(SurfaceWrapper *original, QQuickItem *parent)
     , m_modal(false)
     , m_appId(original->m_appId)
 {
+    m_renderingEnabled = original->renderingEnabled();
+    connect(original, &SurfaceWrapper::renderingEnabledChanged, this, [this, original] {
+        setRenderingEnabled(original->renderingEnabled());
+    });
     m_windowTransition = std::make_unique<SurfaceWindowTransition>(this);
     QQmlEngine::setContextForObject(this, m_engine->rootContext());
 
@@ -339,6 +343,7 @@ void SurfaceWrapper::setup()
     m_surfaceItem->setShellSurface(m_shellSurface);
     updateSurfaceSizeRatio();
     m_surfaceItem->setDelegate(m_engine->surfaceContentComponent());
+    syncRenderingState();
     // Initialize focus policy even if focus capability state never toggles later.
     m_surfaceItem->setFocusPolicy(hasFocusCapability() ? Qt::StrongFocus : Qt::NoFocus);
 
@@ -1578,11 +1583,80 @@ void SurfaceWrapper::updateBoundingRect()
     setBoundedRect(dr | rect);
 }
 
+bool SurfaceWrapper::renderingEnabled() const { return m_renderingEnabled; }
+
+void SurfaceWrapper::syncRenderingState()
+{
+    setEnabled(m_renderingEnabled);
+    if (!m_surfaceItem)
+        return;
+    auto flags = m_surfaceItem->flags();
+    if (!m_renderingEnabled && !flags.testFlag(WSurfaceItem::NonLive)) {
+        m_liveSuppressed = true;
+        m_surfaceItem->setFlags(flags | WSurfaceItem::NonLive);
+    } else if (m_renderingEnabled && m_liveSuppressed) {
+        m_liveSuppressed = false;
+        m_surfaceItem->setFlags(flags & ~WSurfaceItem::NonLive);
+    }
+}
+
+void SurfaceWrapper::retireAnimation(QPointer<QQuickItem> &animation)
+{
+    if (!animation)
+        return;
+    disconnect(animation, nullptr, this, nullptr);
+    animation->setVisible(false);
+    animation->setEnabled(false);
+    for (auto *content : animation->findChildren<WSurfaceItemContent *>())
+        content->setLive(false);
+    animation->setParentItem(nullptr);
+    animation->deleteLater();
+    animation = nullptr;
+}
+
+void SurfaceWrapper::suspendAnimations()
+{
+    const bool geometryPending = m_geometryAnimation;
+    const bool windowPending = isWindowAnimationRunning();
+    retireAnimation(m_geometryAnimation);
+    retireAnimation(m_windowAnimation);
+    retireAnimation(m_minimizeAnimation);
+    retireAnimation(m_showDesktopAnimation);
+    m_windowTransitionPending = false;
+    m_windowTransition->resetWindowTransition();
+    setXwaylandPositionFromSurface(true);
+    if (geometryPending && !m_isProxy && !m_wrapperAboutToRemove && WaylandServer::instance()) {
+        if (m_prelaunchSplash && surface() && surface()->mapped() && m_surfaceItem->isReady())
+            startPrelaunchSplashHideSequence();
+        else
+            applySurfaceState();
+    }
+    if (windowPending)
+        Q_EMIT windowAnimationRunningChanged();
+    if (m_wrapperAboutToRemove)
+        deleteLater();
+}
+
+void SurfaceWrapper::setRenderingEnabled(bool enabled)
+{
+    const bool changed = m_renderingEnabled != enabled;
+    m_renderingEnabled = enabled;
+    setEnabled(enabled);
+    if (!enabled)
+        setVisible(false);
+    syncRenderingState();
+    if (!enabled)
+        suspendAnimations();
+    if (changed)
+        Q_EMIT renderingEnabledChanged();
+    updateVisible();
+}
+
 void SurfaceWrapper::updateVisible()
 {
     if (m_wrapperAboutToRemove)
         return;
-    bool isVisible = !m_hideByWorkspace && !isMinimized()
+    bool isVisible = m_renderingEnabled && !m_hideByWorkspace && !isMinimized()
         && ((surface() && surface()->mapped())
             || (m_prelaunchSplash && m_prelaunchSplash->isVisible()))
         && m_socketEnabled && m_hideByshowDesk && !m_confirmHideByLockScreen

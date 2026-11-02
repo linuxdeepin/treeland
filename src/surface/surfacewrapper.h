@@ -42,12 +42,14 @@ class SurfaceWrapper : public QQuickItem
     friend class SurfaceContainer;
     friend class SurfaceProxy;
     friend class ShellHandler;
+    friend class SessionScene;
     friend class LockScreen;
     friend class SurfaceWindowTransition;
     Q_OBJECT
     QML_ELEMENT
     QML_UNCREATABLE("SurfaceWrapper objects are created by c++")
     Q_PROPERTY(Type type READ type NOTIFY typeChanged)
+    Q_PROPERTY(bool renderingEnabled READ renderingEnabled NOTIFY renderingEnabledChanged FINAL)
     Q_PROPERTY(QString appId READ appId NOTIFY appIdChanged)
     // make to read only
     Q_PROPERTY(qreal implicitWidth READ implicitWidth NOTIFY implicitWidthChanged FINAL)
@@ -304,6 +306,7 @@ public:
     void setBorderValues(qreal width, const QColor &color);
     void setBorderVisible(bool visible);
 
+    bool renderingEnabled() const;
     SurfaceContainer *container() const;
 
     void addSubSurface(SurfaceWrapper *surface);
@@ -492,6 +495,7 @@ Q_SIGNALS:
     void hasFocusCapabilityChanged();
     void prelaunchSplashChanged();
     void typeChanged();
+    void renderingEnabledChanged();
 
 private:
     ~SurfaceWrapper() override;
@@ -517,6 +521,10 @@ private:
                                 Type type); // Transition from pre-launch mode to normal mode
     void updateBoundingRect();
     void updateVisible();
+    void setRenderingEnabled(bool enabled);
+    void syncRenderingState();
+    void suspendAnimations();
+    void retireAnimation(QPointer<QQuickItem> &animation);
     void bindVisibilitySocket(WAYLIB_SERVER_NAMESPACE::WSocket *socket);
     void updateSubSurfaceStacking();
     void restackWindowAnimationAbove();
@@ -676,6 +684,8 @@ private:
     std::optional<QPoint> m_clientRequstPos;
 
     bool m_socketEnabled{ false };
+    bool m_renderingEnabled{ true };
+    bool m_liveSuppressed{ false };
     bool m_windowAnimationEnabled{ true };
 
     QPointer<WSeat> m_pendingActivationSeat;
