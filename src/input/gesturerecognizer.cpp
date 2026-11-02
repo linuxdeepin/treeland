@@ -248,3 +248,13 @@ void GestureRecognizer::endHoldGesture()
     m_activeHoldGestures.clear();
     m_currentFingerCount = 0;
 }
+
+void GestureRecognizer::cancelHoldGesture()
+{
+    // Cancel the sequence without emitting a release/hold action during a
+    // desktop handoff. No timer may call back into the old desktop afterwards.
+    for (auto *gesture : std::as_const(m_activeHoldGestures))
+        gesture->stopTimer();
+    m_activeHoldGestures.clear();
+    m_currentFingerCount = 0;
+}
