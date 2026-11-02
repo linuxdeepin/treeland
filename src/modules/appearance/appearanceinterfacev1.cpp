@@ -6,7 +6,6 @@
 #include "qwayland-server-treeland-appearance-unstable-v1.h"
 
 #include "common/treelandlogging.h"
-#include "core/waylandserver.h"
 #include "treelanduserconfig.hpp"
 
 #include <wayland-server-core.h>
@@ -99,30 +98,21 @@ struct AppearanceInterfaceV1::Private
     QList<QMetaObject::Connection> configConnections;
 };
 
-AppearanceInterfaceV1::AppearanceInterfaceV1(QObject *parent)
+AppearanceInterfaceV1::AppearanceInterfaceV1(TreelandUserConfig *config, QObject *parent)
     : QObject(parent)
     , WServerInterface()
+    , m_config(config)
     , d(std::make_unique<Private>())
 {
     d->server = std::make_unique<AppearanceInterfaceV1Private>(this);
 
-    // In production this interface is attached inside WaylandServer::init(), so
-    // WaylandServer::instance() is always valid here. Unit tests, however, attach it
-    // to a bare WServer with no WaylandServer singleton; guard against a null
-    // WaylandServer to avoid passing a nullptr to QObject::connect and dereferencing
-    // it inside setupConfigConnections().
-    auto *server = WaylandServer::instance();
-    if (!server)
-        return;
-
-    // The TreelandUserConfig object is replaced in WaylandServer::init when the
-    // current user changes. Reconnect to the new config's signals whenever
-    // that happens, and push the new values to all bound clients.
-    connect(server, &WaylandServer::configChanged, this, &AppearanceInterfaceV1::onConfigChanged);
-
-    // Also set up connections for the initial config (available in the
-    // WaylandServer constructor, though it may be replaced later).
     setupConfigConnections();
+    if (m_config) {
+        connect(m_config, &TreelandUserConfig::configInitializeSucceed,
+                this, &AppearanceInterfaceV1::onConfigChanged);
+        connect(m_config, &TreelandUserConfig::configInitializeFailed,
+                this, &AppearanceInterfaceV1::onConfigChanged);
+    }
 }
 
 AppearanceInterfaceV1::~AppearanceInterfaceV1()
@@ -133,18 +123,6 @@ AppearanceInterfaceV1::~AppearanceInterfaceV1()
 
 void AppearanceInterfaceV1::onConfigChanged()
 {
-    // FIXME(rewine): Treeland is a multi-user compositor. WaylandServer::configChanged fires
-    // on user switching, and the config instance it exposes afterwards
-    // belongs to the NEW user. Ideally only the new user's clients should
-    // receive the new user's values here; clients still connected under other
-    // users currently get values they are not entitled to. We must fix this
-    // once per-user resource tracking is available (e.g. track resources per
-    // client credentials / security context and push only to those).
-    //
-    // Current behavior: push to ALL bound clients unconditionally. If the new
-    // config hasn't finished async initialization, getters return DConfig
-    // default values, which is still better than stale values from the old
-    // config; later change signals will push actual values.
     setupConfigConnections();
     for (const auto &resource : d->server->resourceMap())
         sendAll(resource->handle);
@@ -152,85 +130,84 @@ void AppearanceInterfaceV1::onConfigChanged()
 
 void AppearanceInterfaceV1::setupConfigConnections()
 {
-    // Disconnect from the previous config object's signals.
+    // Rebuild subscriptions to this instance's fixed user configuration.
     for (const auto &conn : std::as_const(d->configConnections))
         QObject::disconnect(conn);
     d->configConnections.clear();
 
-    auto *config = WaylandServer::instance()->config();
-    if (!config)
+    if (!m_config)
         return;
 
     // Settings change signals. Initialization completion is not watched:
-    // bind_resource() and onConfigChanged() push values unconditionally, and
+    // bind_resource() and onConfigChanged() push this user's values, and
     // uninitialized getters return DConfig defaults.
     d->configConnections.append(
-        connect(config, &TreelandUserConfig::cursorThemeNameChanged, this, [this] {
-            const auto name = WaylandServer::instance()->config()->cursorThemeName();
+        connect(m_config, &TreelandUserConfig::cursorThemeNameChanged, this, [this] {
+            const auto name = m_config->cursorThemeName();
             for (const auto &resource : d->server->resourceMap())
                 d->server->send_cursor_theme(resource->handle, name);
         }));
     d->configConnections.append(
-        connect(config, &TreelandUserConfig::cursorSizeChanged, this, [this] {
-            const auto size = WaylandServer::instance()->config()->cursorSize();
+        connect(m_config, &TreelandUserConfig::cursorSizeChanged, this, [this] {
+            const auto size = m_config->cursorSize();
             for (const auto &resource : d->server->resourceMap())
                 d->server->send_cursor_size(resource->handle, size, size);
         }));
     d->configConnections.append(
-        connect(config, &TreelandUserConfig::fontChanged, this, [this] {
-            const auto font = WaylandServer::instance()->config()->font();
+        connect(m_config, &TreelandUserConfig::fontChanged, this, [this] {
+            const auto font = m_config->font();
             for (const auto &resource : d->server->resourceMap())
                 d->server->send_font(resource->handle, font);
         }));
     d->configConnections.append(
-        connect(config, &TreelandUserConfig::monoFontChanged, this, [this] {
-            const auto font = WaylandServer::instance()->config()->monoFont();
+        connect(m_config, &TreelandUserConfig::monoFontChanged, this, [this] {
+            const auto font = m_config->monoFont();
             for (const auto &resource : d->server->resourceMap())
                 d->server->send_monospace_font(resource->handle, font);
         }));
     d->configConnections.append(
-        connect(config, &TreelandUserConfig::fontSizeChanged, this, [this] {
-            const auto size = static_cast<uint32_t>(WaylandServer::instance()->config()->fontSize());
+        connect(m_config, &TreelandUserConfig::fontSizeChanged, this, [this] {
+            const auto size = static_cast<uint32_t>(m_config->fontSize());
             for (const auto &resource : d->server->resourceMap())
                 d->server->send_font_size(resource->handle, size);
         }));
     d->configConnections.append(
-        connect(config, &TreelandUserConfig::iconThemeNameChanged, this, [this] {
-            const auto theme = WaylandServer::instance()->config()->iconThemeName();
+        connect(m_config, &TreelandUserConfig::iconThemeNameChanged, this, [this] {
+            const auto theme = m_config->iconThemeName();
             for (const auto &resource : d->server->resourceMap())
                 d->server->send_icon_theme(resource->handle, theme);
         }));
     d->configConnections.append(
-        connect(config, &TreelandUserConfig::activeColorChanged, this, [this] {
-            const auto rgb = hexToRgb(WaylandServer::instance()->config()->activeColor());
+        connect(m_config, &TreelandUserConfig::activeColorChanged, this, [this] {
+            const auto rgb = hexToRgb(m_config->activeColor());
             for (const auto &resource : d->server->resourceMap())
                 d->server->send_accent_color(resource->handle, rgb.r, rgb.g, rgb.b);
         }));
     d->configConnections.append(
-        connect(config, &TreelandUserConfig::windowOpacityChanged, this, [this] {
+        connect(m_config, &TreelandUserConfig::windowOpacityChanged, this, [this] {
             const auto opacity = wl_fixed_from_double(
-                WaylandServer::instance()->config()->windowOpacity() / 100.0);
+                m_config->windowOpacity() / 100.0);
             for (const auto &resource : d->server->resourceMap())
                 d->server->send_window_opacity(resource->handle, opacity);
         }));
     d->configConnections.append(
-        connect(config, &TreelandUserConfig::windowColorSchemeChanged, this, [this] {
+        connect(m_config, &TreelandUserConfig::windowColorSchemeChanged, this, [this] {
             const auto scheme = dconfigToColorScheme(
-                WaylandServer::instance()->config()->windowColorScheme());
+                m_config->windowColorScheme());
             for (const auto &resource : d->server->resourceMap())
                 d->server->send_color_scheme(resource->handle, scheme);
         }));
     d->configConnections.append(
-        connect(config, &TreelandUserConfig::windowTitlebarHeightChanged, this, [this] {
+        connect(m_config, &TreelandUserConfig::windowTitlebarHeightChanged, this, [this] {
             const auto height = static_cast<uint32_t>(
-                WaylandServer::instance()->config()->windowTitlebarHeight());
+                m_config->windowTitlebarHeight());
             for (const auto &resource : d->server->resourceMap())
                 d->server->send_titlebar_height(resource->handle, height);
         }));
     d->configConnections.append(
-        connect(config, &TreelandUserConfig::windowRadiusChanged, this, [this] {
+        connect(m_config, &TreelandUserConfig::windowRadiusChanged, this, [this] {
             const auto radius = static_cast<uint32_t>(
-                WaylandServer::instance()->config()->windowRadius());
+                m_config->windowRadius());
             for (const auto &resource : d->server->resourceMap())
                 d->server->send_corner_radius(resource->handle, radius);
         }));
@@ -238,7 +215,7 @@ void AppearanceInterfaceV1::setupConfigConnections()
 
 void AppearanceInterfaceV1::sendAll(wl_resource *resource)
 {
-    auto *config = WaylandServer::instance()->config();
+    auto *config = m_config;
     if (!config)
         return;
 

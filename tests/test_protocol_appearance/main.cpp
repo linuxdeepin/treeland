@@ -32,7 +32,7 @@ private Q_SLOTS:
 
     void testCreateAppearance()
     {
-        QVERIFY(m_server->attach<AppearanceInterfaceV1>(m_server) != nullptr);
+        QVERIFY(m_server->attach<AppearanceInterfaceV1>(nullptr, m_server) != nullptr);
     }
 
     void verifyAppearance()
@@ -45,7 +45,7 @@ private Q_SLOTS:
 
     void testCreateAppearanceManager()
     {
-        QVERIFY(m_server->attach<AppearanceManagerInterfaceV1>(m_server) != nullptr);
+        QVERIFY(m_server->attach<AppearanceManagerInterfaceV1>(nullptr, m_server) != nullptr);
     }
 
     void verifyAppearanceManager()
