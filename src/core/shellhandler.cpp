@@ -559,14 +559,7 @@ void ShellHandler::init(WServer *server, WSeat *seat)
 
     m_imCandidatePanelManager = new IMCandidatePanelManager(this, m_inputMethodHelper, this);
 
-    connect(m_inputMethodHelper,
-            &WInputMethodHelper::inputPopupSurfaceV2Added,
-            this,
-            &ShellHandler::onInputPopupSurfaceV2Added);
-    connect(m_inputMethodHelper,
-            &WInputMethodHelper::inputPopupSurfaceV2Removed,
-            this,
-            &ShellHandler::onInputPopupSurfaceV2Removed);
+    registerInputMethodHelper(m_inputMethodHelper);
 
     auto *overlay = QQuickOverlay::overlay(m_rootSurfaceContainer->window());
     overlay->setZ(RootSurfaceContainer::GlobalOverlayZOrder);
@@ -1563,4 +1556,12 @@ void ShellHandler::handleDdeShellSurfaceV2Added(DDEShellSurfaceV2 *shellSurface,
             [wrapper](bool accept) {
                 wrapper->setAcceptKeyboardFocus(accept);
             });
+}
+
+void ShellHandler::registerInputMethodHelper(WInputMethodHelper *helper)
+{
+    connect(helper, &WInputMethodHelper::inputPopupSurfaceV2Added,
+            this, &ShellHandler::onInputPopupSurfaceV2Added);
+    connect(helper, &WInputMethodHelper::inputPopupSurfaceV2Removed,
+            this, &ShellHandler::onInputPopupSurfaceV2Removed);
 }

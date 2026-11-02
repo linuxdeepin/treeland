@@ -83,6 +83,7 @@ public:
     [[nodiscard]] RootSurfaceContainer *rootSurfaceContainer() const;
     [[nodiscard]] ForeignToplevelManagerInterfaceV3 *foreignToplevel() const;
 
+    void registerInputMethodHelper(WAYLIB_SERVER_NAMESPACE::WInputMethodHelper *helper);
     void createComponent(QmlEngine *engine, QQuickItem *parentItem);
     void init(WAYLIB_SERVER_NAMESPACE::WServer *server, WAYLIB_SERVER_NAMESPACE::WSeat *seat);
     [[nodiscard]] WAYLIB_SERVER_NAMESPACE::WXWayland *createXWayland(
