@@ -63,8 +63,9 @@ void SurfaceProxy::setSurface(SurfaceWrapper *newSurface)
             if (!proxyItem)
                 return;
 
-            const auto flags = m_live ? WSurfaceItem::RejectEvent
-                                      : (WSurfaceItem::RejectEvent | WSurfaceItem::NonLive);
+            const bool live = m_live && m_proxySurface->renderingEnabled();
+            const auto flags = live ? WSurfaceItem::RejectEvent
+                                    : (WSurfaceItem::RejectEvent | WSurfaceItem::NonLive);
             proxyItem->setFlags(flags);
 
             if (!sourceItem)
@@ -73,6 +74,8 @@ void SurfaceProxy::setSurface(SurfaceWrapper *newSurface)
         };
 
         updateProxyFlagsAndDelegate();
+        m_sourceConnections << connect(m_proxySurface, &SurfaceWrapper::renderingEnabledChanged,
+                                       this, &SurfaceProxy::updateLive);
 
         m_sourceConnections << connect(m_proxySurface,
                                        &SurfaceWrapper::surfaceItemCreated,
@@ -247,19 +250,22 @@ bool SurfaceProxy::live() const
     return m_live;
 }
 
+void SurfaceProxy::updateLive()
+{
+    auto *item = m_proxySurface ? m_proxySurface->surfaceItem() : nullptr;
+    if (!item)
+        return;
+    const bool live = m_live && m_proxySurface->renderingEnabled();
+    item->setFlags(live ? item->flags() & ~WSurfaceItem::NonLive
+                        : item->flags() | WSurfaceItem::NonLive);
+}
+
 void SurfaceProxy::setLive(bool newLive)
 {
     if (m_live == newLive)
         return;
     m_live = newLive;
-    if (m_proxySurface) {
-        auto item = m_proxySurface->surfaceItem();
-        if (m_live) {
-            item->setFlags(item->flags() & ~WSurfaceItem::NonLive);
-        } else {
-            item->setFlags(item->flags() | WSurfaceItem::NonLive);
-        }
-    }
+    updateLive();
 
     Q_EMIT liveChanged();
 }
