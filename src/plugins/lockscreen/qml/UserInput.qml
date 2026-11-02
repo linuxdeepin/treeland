@@ -164,7 +164,11 @@ Item {
                 color: palette.windowText
                 font: D.DTK.fontManager.t8
                 Keys.onPressed: function (event) {
-                    if (event.key === Qt.Key_CapsLock) {
+                    if (!loginGroup.enteringOtherUser
+                            && (event.matches(StandardKey.Undo)
+                                || event.matches(StandardKey.Redo))) {
+                        event.accepted = true
+                    } else if (event.key === Qt.Key_CapsLock) {
                         capsIndicatorVisible = !capsIndicatorVisible
                         event.accepted = true
                     } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
