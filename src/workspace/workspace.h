@@ -8,6 +8,7 @@
 
 #include <QPointer>
 
+class TreelandUserConfig;
 class SurfaceWrapper;
 class Workspace;
 class WorkspaceAnimationController;
@@ -40,7 +41,7 @@ class Workspace : public SurfaceContainer
     QML_UNCREATABLE("Created only in C++")
 
 public:
-    explicit Workspace(SurfaceContainer *parent);
+    explicit Workspace(SurfaceContainer *parent, TreelandUserConfig *config = nullptr);
 
     // When workspaceId is -1 will move to current workspace
     Q_INVOKABLE void moveSurfaceTo(SurfaceWrapper *surface, int workspaceId = -1);
@@ -103,6 +104,7 @@ private:
     void doRemoveModel(int index);
     void doSetCurrentIndex(int newCurrentIndex);
 
+    TreelandUserConfig *m_config = nullptr;
     uint m_currentIndex;
     WorkspaceListModel *m_models;
     WorkspaceModel *m_showOnAllWorkspaceModel;
