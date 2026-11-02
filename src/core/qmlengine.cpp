@@ -68,8 +68,12 @@ QQuickItem *QmlEngine::createComponent(QQmlComponent &component,
                                        QQuickItem *parent,
                                        const QVariantMap &properties)
 {
-    auto context = qmlContext(parent);
-    auto obj = component.beginCreate(context);
+    auto *context = qmlContext(parent);
+    if (!context)
+        context = rootContext();
+    auto *obj = component.beginCreate(context);
+    if (!obj)
+        qCFatal(lcTlQml) << "Can't create component:" << component.errorString();
     if (!properties.isEmpty()) {
         component.setInitialProperties(obj, properties);
     }
@@ -101,8 +105,10 @@ QQuickItem *QmlEngine::createDecoration(SurfaceWrapper *surface, QQuickItem *par
 
 QObject *QmlEngine::createWindowMenu(QObject *parent)
 {
-    auto context = qmlContext(parent);
-    auto obj = windowMenuComponent.beginCreate(context);
+    auto *context = qmlContext(parent);
+    if (!context)
+        context = rootContext();
+    auto *obj = windowMenuComponent.beginCreate(context);
     if (!obj) {
         qCFatal(lcTlQml) << "Can't create WindowMenu:" << windowMenuComponent.errorString();
     }
