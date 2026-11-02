@@ -7,6 +7,11 @@
 
 #include <wsocket.h>
 
+#include <csignal>
+#ifdef Q_OS_LINUX
+#include <sys/prctl.h>
+#endif
+
 WallpaperLauncher::WallpaperLauncher(QPointer<WSocket> socket)
     : QObject(nullptr)
     , m_socket(socket)
@@ -78,6 +83,14 @@ void WallpaperLauncher::onStartRequested()
     m_wallpaperProcess = new QProcess(this);
     m_wallpaperProcess->setProgram(wallpaperProgram());
     m_wallpaperProcess->setProcessChannelMode(QProcess::MergedChannels);
+#ifdef Q_OS_LINUX
+    // Runs in the forked child before exec. A compositor that exits without
+    // running Qt teardown (_Exit, crash, SIGKILL) would otherwise orphan the
+    // factory; let the kernel send SIGTERM when the parent goes away.
+    m_wallpaperProcess->setChildProcessModifier([] {
+        ::prctl(PR_SET_PDEATHSIG, SIGTERM);
+    });
+#endif
     QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
     env.insert("WAYLAND_DISPLAY", m_socket->fullServerName());
     env.insert("QT_QPA_PLATFORM", "wayland");
