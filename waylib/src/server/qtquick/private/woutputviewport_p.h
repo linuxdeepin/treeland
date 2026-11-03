@@ -10,6 +10,7 @@
 #include <wlr_all.h>
 
 #include <QQuickTextureFactory>
+#include <memory>
 #include <private/qquickitem_p.h>
 
 WAYLIB_SERVER_BEGIN_NAMESPACE
@@ -65,7 +66,6 @@ public:
 
     void updateImplicitSize();
     void updateRenderBufferSource();
-    void setExtraRenderSource(QQuickItem *source);
 
     W_DECLARE_PUBLIC(WOutputViewport)
     QList<WOutputViewport*> depends;
@@ -76,7 +76,7 @@ public:
 
     qreal devicePixelRatio = 1.0;
     WBufferRenderer *bufferRenderer = nullptr;
-    QPointer<QQuickItem> extraRenderSource;
+    std::shared_ptr<WSGViewport> viewport = std::make_shared<WSGViewport>();
     QRectF sourceRect;
     QRectF targetRect;
 

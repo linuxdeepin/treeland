@@ -9,12 +9,14 @@
 #include <QObject>
 #include <QQuickRenderTarget>
 #include <QSGRendererInterface>
+#include <QString>
 
 QT_BEGIN_NAMESPACE
 class QQuickRenderControl;
 class QSGTexture;
 class QSGPlainTexture;
 class QRhi;
+class QRhiTexture;
 class QRhiCommandBuffer;
 QT_END_NAMESPACE
 
